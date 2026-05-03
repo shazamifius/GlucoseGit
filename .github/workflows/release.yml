@@ -1,0 +1,106 @@
+name: Release
+
+# Déclenché manuellement (workflow_dispatch) ou sur push d'un tag v*.
+# Builde Glucose pour Windows + macOS (Intel + Apple Silicon) + Linux (.deb + .AppImage)
+# et attache les artefacts à une nouvelle GitHub Release.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (ex: v0.3.0)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: Windows x64 (NSIS)
+            args: "--bundles nsis"
+          - os: macos-13
+            target: x86_64-apple-darwin
+            label: macOS Intel (DMG)
+            args: "--bundles dmg --target x86_64-apple-darwin"
+          - os: macos-14
+            target: aarch64-apple-darwin
+            label: macOS Apple Silicon (DMG)
+            args: "--bundles dmg --target aarch64-apple-darwin"
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: Linux x64 (AppImage + .deb)
+            args: "--bundles appimage,deb"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Bun pour le frontend ──
+      - uses: oven-sh/setup-bun@v2
+
+      # ── Rust toolchain ──
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # ── Cache Rust pour accélérer les builds répétés ──
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      # ── Dépendances système Linux pour Tauri ──
+      - name: Install Linux Tauri dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            file \
+            wget
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      # ── Sanity check ──
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Tests
+        run: bun run test
+
+      # ── Build Tauri ──
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Glucose ${{ github.ref_name }}"
+          releaseBody: |
+            Téléchargements pour votre système :
+            - **Windows** : `Glucose_*_x64-setup.exe`
+            - **macOS Intel** : `Glucose_*_x64.dmg`
+            - **macOS Apple Silicon** : `Glucose_*_aarch64.dmg`
+            - **Linux** (Debian/Ubuntu) : `glucose_*_amd64.deb`
+            - **Linux** (universel) : `glucose_*_amd64.AppImage`
+            - **NixOS** : `nix run github:${{ github.repository }}` ou voir [`flake.nix`](flake.nix)
+
+            Voir [GUIDE.md](https://github.com/${{ github.repository }}/blob/main/GUIDE.md) pour le manuel utilisateur.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

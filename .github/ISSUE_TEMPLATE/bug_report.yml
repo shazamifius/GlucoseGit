@@ -1,0 +1,57 @@
+name: 🐛 Bug Report
+description: Signaler un bug dans Glucose
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de signaler ce bug ! Plus tu donnes de détails, plus vite il sera corrigé.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description du bug
+      description: Que s'est-il passé ? Que devait-il se passer à la place ?
+      placeholder: "J'ai cliqué sur X et l'app a crashé..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Étapes pour reproduire
+      placeholder: |
+        1. Ouvrir Glucose
+        2. Créer un sticky avec `N`
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système d'exploitation
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux (Ubuntu/Debian)
+        - Linux (Arch / autre)
+        - NixOS
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version de Glucose
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Captures d'écran / logs
+      description: Si possible, joins une capture ou les logs console (F12 dans l'app)

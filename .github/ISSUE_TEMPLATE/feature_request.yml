@@ -1,0 +1,39 @@
+name: ✨ Feature Request
+description: Suggérer une nouvelle fonctionnalité
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Quelle est ton idée ?
+      description: Décris la fonctionnalité que tu aimerais voir
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Pourquoi ?
+      description: Quel problème ça résoudrait ? Quel usage ça permettrait ?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considérées
+      description: Y a-t-il déjà un moyen de faire ça avec les outils existants ?
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase ROADMAP correspondante
+      description: "Si tu connais la roadmap, à quelle phase ça correspondrait ?"
+      options:
+        - Pas encore prévu
+        - Phase 6 (Réglette Temporelle)
+        - Phase 7 (CRDT / Multi-utilisateur)
+        - Phase 8 (IA locale)
+        - Phase 9 (WikiGit)
+        - Phase 10 (Apprentissage spatial)
+        - Phase 11 (Distribution multi-OS)

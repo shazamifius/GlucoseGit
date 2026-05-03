@@ -1,0 +1,56 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Réactiver la sélection de texte dans les zones d'édition */
+[data-allow-select],
+[data-allow-select] * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+::selection {
+  background: rgba(150, 150, 150, 0.4);
+  color: inherit;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ghostPulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.35; }
+}
+
+/* CLEANUP U-02 — Focus-visible accessible.
+   Toujours afficher un anneau bleu sur élément focusé via clavier (Tab),
+   jamais sur clic souris. Couleur cohérente avec la palette de l'app. */
+*:focus { outline: none; }
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+
