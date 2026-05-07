@@ -29,10 +29,11 @@ jobs:
             target: x86_64-pc-windows-msvc
             label: Windows x64 (NSIS)
             args: "--bundles nsis"
-          - os: macos-13
-            target: x86_64-apple-darwin
-            label: macOS Intel (DMG)
-            args: "--bundles dmg --target x86_64-apple-darwin"
+          # macos-13 (Intel) est en cours de déprécation chez GitHub Actions
+          # (runners très peu disponibles). Les Macs Intel restants peuvent
+          # exécuter le DMG Apple Silicon via Rosetta 2 — c'est la pratique
+          # standard. Si on veut un vrai build Intel un jour : `macos-13-large`
+          # (payant) ou un runner self-hosted.
           - os: macos-14
             target: aarch64-apple-darwin
             label: macOS Apple Silicon (DMG)
@@ -97,8 +98,7 @@ jobs:
             | OS | Fichier | Taille |
             |---|---|---|
             | 🪟 **Windows** (10/11) | `Glucose_*_x64-setup.exe` | NSIS · sans droits admin |
-            | 🍎 **macOS Intel** | `Glucose_*_x64.dmg` | x86_64 |
-            | 🍎 **macOS Apple Silicon** | `Glucose_*_aarch64.dmg` | M1/M2/M3 |
+            | 🍎 **macOS** (M1+ natif, Intel via Rosetta 2) | `Glucose_*_aarch64.dmg` | universel |
             | 🐧 **Linux universel** | `glucose_*_amd64.AppImage` | Marche partout · NixOS via `nix-ld` |
             | 📦 **Debian / Ubuntu** | `glucose_*_amd64.deb` | `sudo dpkg -i` |
             | 🎩 **Fedora / RHEL** | `glucose-*.x86_64.rpm` | `sudo dnf install` |

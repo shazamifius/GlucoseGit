@@ -121,12 +121,11 @@ Téléchargements sur la **[page Releases](../../releases/latest)** — un seul 
 
 ### 🍎 macOS
 
-| Mac | Fichier |
-|---|---|
-| Apple Silicon (M1/M2/M3) | `Glucose_0.3.0_aarch64.dmg` |
-| Intel | `Glucose_0.3.0_x64.dmg` |
+Télécharger `Glucose_0.3.0_aarch64.dmg` — fonctionne **nativement sur Apple Silicon (M1/M2/M3)** et via **Rosetta 2 sur Intel**.
 
 Ouvrir le `.dmg`, glisser Glucose dans `Applications`. **Premier lancement** : clic-droit → Ouvrir (Gatekeeper non signé pour l'instant).
+
+> Sur Mac Intel sans Rosetta 2 installé, le système le proposera automatiquement au premier lancement.
 
 ### 🐧 Linux
 
