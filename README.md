@@ -253,6 +253,4 @@ Pour les changements importants, ouvre d'abord une [issue](../../issues).
 
 **Glucose, c'est juste poser, relier, zoomer, explorer.**
 
-*Made with ❤️ — un projet de [@shazamifius](https://github.com/shazamifius)*
-
 </div>
