@@ -39,8 +39,8 @@ jobs:
             args: "--bundles dmg --target aarch64-apple-darwin"
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            label: Linux x64 (AppImage + .deb)
-            args: "--bundles appimage,deb"
+            label: Linux x64 (AppImage + .deb + .rpm)
+            args: "--bundles appimage,deb,rpm"
 
     steps:
       - uses: actions/checkout@v4
@@ -92,15 +92,21 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Glucose ${{ github.ref_name }}"
           releaseBody: |
-            Téléchargements pour votre système :
-            - **Windows** : `Glucose_*_x64-setup.exe`
-            - **macOS Intel** : `Glucose_*_x64.dmg`
-            - **macOS Apple Silicon** : `Glucose_*_aarch64.dmg`
-            - **Linux** (Debian/Ubuntu) : `glucose_*_amd64.deb`
-            - **Linux** (universel) : `glucose_*_amd64.AppImage`
-            - **NixOS** : `nix run github:${{ github.repository }}` ou voir [`flake.nix`](flake.nix)
+            ## Téléchargements
 
-            Voir [GUIDE.md](https://github.com/${{ github.repository }}/blob/main/GUIDE.md) pour le manuel utilisateur.
+            | OS | Fichier | Taille |
+            |---|---|---|
+            | 🪟 **Windows** (10/11) | `Glucose_*_x64-setup.exe` | NSIS · sans droits admin |
+            | 🍎 **macOS Intel** | `Glucose_*_x64.dmg` | x86_64 |
+            | 🍎 **macOS Apple Silicon** | `Glucose_*_aarch64.dmg` | M1/M2/M3 |
+            | 🐧 **Linux universel** | `glucose_*_amd64.AppImage` | Marche partout · NixOS via `nix-ld` |
+            | 📦 **Debian / Ubuntu** | `glucose_*_amd64.deb` | `sudo dpkg -i` |
+            | 🎩 **Fedora / RHEL** | `glucose-*.x86_64.rpm` | `sudo dnf install` |
+            | ❄️ **NixOS** | flake | `nix run github:${{ github.repository }}` |
+
+            ## Documentation
+            - 📖 [Guide d'utilisation](https://github.com/${{ github.repository }}/blob/main/GUIDE.md)
+            - 🗺️ [Roadmap](https://github.com/${{ github.repository }}/blob/main/ROADMAP.md)
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

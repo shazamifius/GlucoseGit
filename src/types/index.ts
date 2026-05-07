@@ -15,6 +15,17 @@ export interface DomainAssignment {
   weight: number;       // 0..1 — poids relatif dans la signature du nœud
 }
 
+// ── Ancrage temporel (Phase 6) ────────────────────────────────
+// Date du CONTENU décrit par le nœud (pas date d'édition).
+// Année calendaire entière, négatif pour avant J.-C. (ex: -3000 = 3000 BC).
+// Une plage [start, end] représente un intervalle (ex: Renaissance 1400..1600).
+// Pour un point unique, start == end. `label` est optionnel et purement décoratif.
+export interface TemporalAnchor {
+  start: number;        // année (peut être négative)
+  end: number;          // année — toujours >= start
+  label?: string;       // texte affiché (ex: "Révolution française")
+}
+
 // ── Images ────────────────────────────────────────────────────
 export interface BoardImage {
   id: string;
@@ -33,6 +44,7 @@ export interface BoardImage {
   isVideo?: boolean;
   domains?: DomainAssignment[]; // Phase 3
   mirrorOf?: string;            // Phase 4 — id de l'image originale (alias / lien vivant)
+  temporalAnchor?: TemporalAnchor; // Phase 6 — date du contenu décrit
 }
 
 // ── Annotations ───────────────────────────────────────────────
@@ -73,13 +85,14 @@ export interface Annotation {
   targetTextSel?: string;  // Texte exact sélectionné côté cible
   sourceFile?: string; // App Bridge — chemin absolu vers le fichier source
   cursorPos?: number; // Dernière position du curseur
-  pinned?: boolean; // Flèche épinglée → toujours visible quel que soit le LOD (Phase 2)
+  pinned?: boolean; // Flèche épinglée (legacy Phase 2 LOD — sans effet en 7.5+)
   domains?: DomainAssignment[]; // Phase 3
   mirrorOf?: string;            // Phase 4 — id de l'annotation originale (alias / lien vivant)
   // Phase 5 — Flèches Sémantiques Premium
   longText?: string;            // Description longue Markdown attachée à une flèche (ouvre un panneau coulissant)
   targetBoardId?: string;       // Si défini, la flèche pointe vers un nœud d'un autre board (mode portail)
   operator?: "AND" | "OR" | "BUT" | "BECAUSE"; // Sticky-opérateur logique (type === "sticky")
+  temporalAnchor?: TemporalAnchor; // Phase 6 — date du contenu décrit
 }
 
 // ── Storyboard ────────────────────────────────────────────────

@@ -33,7 +33,6 @@ export default function FolderSvgLayer({
   const dragRef   = useRef<DragState | null>(null);
   const lastClickRef = useRef<{ id: string; t: number }>({ id: "", t: 0 });
   const activeTool = useGlucoseStore((s) => s.activeTool);
-  const lod = useGlucoseStore((s) => s.currentLod);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameVal, setRenameVal]   = useState("");
 
@@ -179,27 +178,30 @@ export default function FolderSvgLayer({
                 />
               )}
 
-              {/* Fond — zone draggable */}
+              {/* Phase 7.5 — Folder « membrane » : très transparent, jamais flashy.
+                  Le folder doit se fondre dans le canvas, sa présence est ressentie
+                  plus que vue (façon membrane sémantique). */}
               <rect
                 width={W} height={H} rx={RADIUS}
-                fill={col} fillOpacity={0.04}
-                stroke={col} strokeOpacity={sel ? 0.55 : 0.22}
-                strokeWidth={sel ? 1.5 : 1}
+                fill={col} fillOpacity={sel ? 0.05 : 0.025}
+                stroke={col} strokeOpacity={sel ? 0.45 : 0.14}
+                strokeWidth={sel ? 1.4 : 1}
+                strokeDasharray={sel ? undefined : "3 5"}
                 vectorEffect="non-scaling-stroke"
                 style={{ cursor: interactive ? "grab" : "default" }}
                 onPointerDown={(e) => startDrag(folder, e, "move")}
               />
 
-              {/* Icône dossier vectorielle (SVG path propre) */}
+              {/* Icône dossier vectorielle — opacity réduite pour être discrète */}
               <g transform={`translate(12, 11)`} style={{ pointerEvents: "none" }}>
                 <path
                   d="M0 3 Q0 1 2 1 L7 1 L9 3 L14 3 Q16 3 16 5 L16 13 Q16 15 14 15 L2 15 Q0 15 0 13 Z"
-                  fill={col} fillOpacity={0.75}
+                  fill={col} fillOpacity={sel ? 0.7 : 0.45}
                 />
               </g>
 
-              {/* Nom du dossier (caché en macro pour réduire la densité visuelle) */}
-              {lod !== "macro" && (renamingId === folder.id ? (
+              {/* Nom du dossier */}
+              {renamingId === folder.id ? (
                 <foreignObject x={34} y={8} width={W - 80} height={24}>
                   <input
                     // @ts-ignore
@@ -228,7 +230,7 @@ export default function FolderSvgLayer({
               ) : (
                 <text
                   x={34} y={HEADER / 2 + 4}
-                  fill={col} fillOpacity={0.95}
+                  fill={col} fillOpacity={sel ? 0.85 : 0.55}
                   fontSize={14} fontWeight="600"
                   fontFamily="system-ui, -apple-system, sans-serif"
                   letterSpacing={0.3}
@@ -237,7 +239,7 @@ export default function FolderSvgLayer({
                 >
                   {displayName.length > 28 ? displayName.slice(0, 25) + "…" : displayName}
                 </text>
-              ))}
+              )}
 
               {/* Badge compteur */}
               {total > 0 && (
@@ -281,11 +283,11 @@ export default function FolderSvgLayer({
                 </g>
               )}
 
-              {/* Preview du contenu (cachée en macro) */}
-              {lod !== "macro" && <FolderPreview folder={folder} child={child} headerH={HEADER} />}
+              {/* Preview du contenu */}
+              <FolderPreview folder={folder} child={child} headerH={HEADER} />
 
               {/* Hint vide */}
-              {lod !== "macro" && total === 0 && (
+              {total === 0 && (
                 <text x={W / 2} y={HEADER + (H - HEADER) / 2}
                   textAnchor="middle" dominantBaseline="middle"
                   fill="#444" fontSize={11}
@@ -320,76 +322,165 @@ export default function FolderSvgLayer({
   );
 }
 
+// Phase 7.5.B6 — Preview du contenu d'un dossier améliorée.
+// Mini-carte vectorielle qui respecte les positions relatives ; les types
+// (image / sticky / text / membrane / sous-folder) ont des formes distinctes
+// et discrètes ; les flèches sont rendues en traits fins. Une étiquette
+// récapitulative s'affiche en bas-gauche du folder.
 function FolderPreview({ folder, child, headerH }: {
   folder: CanvasFolder; child: Board | null; headerH: number;
 }) {
   if (!child) return null;
   const W = folder.width;
   const H = folder.height;
-  const PAD = 10;
-  const items = [
-    ...child.images.map((img) => ({
-      type: "img" as const,
-      x: img.x - img.width / 2, y: img.y - img.height / 2,
-      w: img.width, h: img.height, color: "#ffffff",
-    })),
-    ...child.annotations.filter((a) => a.type !== "arrow").map((ann) => ({
-      type: "ann" as const,
-      x: ann.x, y: ann.y,
-      w: ann.width ?? 80, h: ann.height ?? 20,
-      color: ann.bgColor ?? ann.color ?? "#888888",
-    })),
-    ...(child.folders ?? []).map((f) => ({
-      type: "fld" as const,
-      x: f.x, y: f.y, w: f.width, h: f.height, color: f.color,
-    })),
-  ];
-  if (items.length === 0) return null;
+  const PAD = 12;
 
+  type Item =
+    | { kind: "img"; x: number; y: number; w: number; h: number }
+    | { kind: "sticky"; x: number; y: number; w: number; h: number; color: string }
+    | { kind: "text"; x: number; y: number; w: number; h: number; color: string }
+    | { kind: "membrane"; x: number; y: number; w: number; h: number; color: string }
+    | { kind: "fld"; x: number; y: number; w: number; h: number; color: string }
+    | { kind: "arrow"; x1: number; y1: number; x2: number; y2: number; color: string };
+
+  const items: Item[] = [];
+  for (const img of child.images) {
+    items.push({ kind: "img",
+      x: img.x - img.width / 2, y: img.y - img.height / 2,
+      w: img.width, h: img.height });
+  }
+  for (const ann of child.annotations) {
+    if (ann.type === "arrow") {
+      items.push({ kind: "arrow",
+        x1: ann.x, y1: ann.y,
+        x2: ann.x2 ?? ann.x + 60, y2: ann.y2 ?? ann.y,
+        color: ann.color || "#94a3b8" });
+    } else if (ann.type === "membrane") {
+      items.push({ kind: "membrane", x: ann.x, y: ann.y,
+        w: ann.width ?? 100, h: ann.height ?? 60,
+        color: ann.color || "#60a5fa" });
+    } else {
+      items.push({ kind: ann.type === "sticky" ? "sticky" : "text",
+        x: ann.x, y: ann.y,
+        w: ann.width ?? 100, h: ann.height ?? 30,
+        color: ann.bgColor ?? ann.color ?? "#cbd5e1" });
+    }
+  }
+  for (const f of child.folders ?? []) {
+    items.push({ kind: "fld", x: f.x, y: f.y, w: f.width, h: f.height, color: f.color });
+  }
+
+  const counts = {
+    images: child.images.length,
+    notes: child.annotations.filter((a) => a.type === "text" || a.type === "sticky").length,
+    folders: (child.folders ?? []).length,
+  };
+
+  if (items.length === 0) {
+    // Vide : juste un fond doux dégradé
+    return (
+      <g style={{ pointerEvents: "none" }}>
+        <rect x={PAD} y={headerH + PAD} width={W - PAD * 2} height={H - headerH - PAD * 2}
+              rx={6} fill={folder.color} fillOpacity={0.025} />
+      </g>
+    );
+  }
+
+  // Bounds : on inclut aussi les arrêtes de flèches
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const widen = (x: number, y: number) => {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  };
   for (const it of items) {
-    minX = Math.min(minX, it.x);
-    minY = Math.min(minY, it.y);
-    maxX = Math.max(maxX, it.x + it.w);
-    maxY = Math.max(maxY, it.y + it.h);
+    if (it.kind === "arrow") { widen(it.x1, it.y1); widen(it.x2, it.y2); }
+    else { widen(it.x, it.y); widen(it.x + it.w, it.y + it.h); }
   }
   const cw = Math.max(1, maxX - minX);
   const ch = Math.max(1, maxY - minY);
   const drawW = W - PAD * 2;
-  const drawH = H - headerH - PAD * 2;
-  const sc = Math.min(drawW / cw, drawH / ch) * 0.88;
+  const drawH = H - headerH - PAD * 2 - 14; // -14 pour la barre récap en bas
+  const sc = Math.min(drawW / cw, drawH / ch) * 0.92;
   const offX = PAD + (drawW - cw * sc) / 2;
   const offY = headerH + PAD + (drawH - ch * sc) / 2;
+  const tx = (x: number) => (x - minX) * sc + offX;
+  const ty = (y: number) => (y - minY) * sc + offY;
 
   const clipId = `clip-${folder.id}`;
+  const gradId = `grad-${folder.id}`;
+
   return (
     <g style={{ pointerEvents: "none" }}>
       <defs>
         <clipPath id={clipId}>
           <rect x={0} y={headerH} width={W} height={H - headerH} />
         </clipPath>
+        <radialGradient id={gradId} cx="50%" cy="50%" r="60%">
+          <stop offset="0%"  stopColor={folder.color} stopOpacity={0.04} />
+          <stop offset="100%" stopColor={folder.color} stopOpacity={0} />
+        </radialGradient>
       </defs>
+
+      {/* Fond doux dégradé pour donner de la profondeur */}
+      <rect x={PAD} y={headerH + PAD} width={W - PAD * 2} height={H - headerH - PAD * 2}
+            rx={6} fill={`url(#${gradId})`} />
+
       <g clipPath={`url(#${clipId})`}>
-        {items.slice(0, 60).map((it, i) => {
-          const px = (it.x - minX) * sc + offX;
-          const py = (it.y - minY) * sc + offY;
-          const pw = it.w * sc;
-          const ph = it.h * sc;
-          if (it.type === "img") {
-            return <rect key={i} x={px} y={py} width={pw} height={ph}
+        {/* 1) Flèches en arrière-plan */}
+        {items.filter((it): it is Extract<Item, { kind: "arrow" }> => it.kind === "arrow")
+          .slice(0, 30)
+          .map((it, i) => (
+            <line key={`a${i}`}
+              x1={tx(it.x1)} y1={ty(it.y1)} x2={tx(it.x2)} y2={ty(it.y2)}
+              stroke={it.color} strokeOpacity={0.35} strokeWidth={0.6}
+              vectorEffect="non-scaling-stroke" />
+          ))}
+
+        {/* 2) Items rectangulaires */}
+        {items.filter((it): it is Exclude<Item, { kind: "arrow" }> => it.kind !== "arrow").slice(0, 80).map((it, i) => {
+          const px = tx(it.x), py = ty(it.y);
+          const pw = Math.max(1.5, it.w * sc), ph = Math.max(1.5, it.h * sc);
+          if (it.kind === "img") {
+            return <rect key={`i${i}`} x={px} y={py} width={pw} height={ph} rx={1}
+              fill="#cbd5e1" fillOpacity={0.18}
+              stroke="#cbd5e1" strokeOpacity={0.35} strokeWidth={0.5}
+              vectorEffect="non-scaling-stroke" />;
+          }
+          if (it.kind === "fld") {
+            return <rect key={`f${i}`} x={px} y={py} width={pw} height={ph} rx={2}
               fill={it.color} fillOpacity={0.10}
-              stroke={it.color} strokeOpacity={0.22} strokeWidth={0.5}
+              stroke={it.color} strokeOpacity={0.45} strokeWidth={0.6}
+              strokeDasharray="2 2"
               vectorEffect="non-scaling-stroke" />;
           }
-          if (it.type === "fld") {
-            return <rect key={i} x={px} y={py} width={pw} height={ph} rx={2}
-              fill={it.color} fillOpacity={0.08}
-              stroke={it.color} strokeOpacity={0.32} strokeWidth={0.5}
+          if (it.kind === "membrane") {
+            return <rect key={`m${i}`} x={px} y={py} width={pw} height={ph} rx={Math.min(pw, ph) / 2}
+              fill={it.color} fillOpacity={0.14}
+              stroke={it.color} strokeOpacity={0.35} strokeWidth={0.5}
               vectorEffect="non-scaling-stroke" />;
           }
-          return <rect key={i} x={px} y={py} width={Math.max(2, pw)} height={Math.max(2, ph)}
-            fill={it.color} fillOpacity={0.15} />;
+          if (it.kind === "sticky") {
+            return <rect key={`s${i}`} x={px} y={py} width={pw} height={ph}
+              fill={it.color} fillOpacity={0.55}
+              vectorEffect="non-scaling-stroke" />;
+          }
+          // text
+          return <rect key={`t${i}`} x={px} y={py + ph * 0.3} width={pw} height={Math.max(1, ph * 0.4)} rx={0.5}
+            fill={it.color} fillOpacity={0.45}
+            vectorEffect="non-scaling-stroke" />;
         })}
+      </g>
+
+      {/* Récap textuel (en bas, sous la zone de preview) */}
+      <g transform={`translate(${PAD + 2}, ${H - 5})`} style={{ pointerEvents: "none" }}>
+        <text fontSize={9} fontFamily="system-ui, sans-serif"
+              fill={folder.color} fillOpacity={0.55} letterSpacing={0.3}>
+          {[
+            counts.images > 0 && `${counts.images} img`,
+            counts.notes > 0 && `${counts.notes} note${counts.notes > 1 ? "s" : ""}`,
+            counts.folders > 0 && `${counts.folders} dossier${counts.folders > 1 ? "s" : ""}`,
+          ].filter(Boolean).join(" · ")}
+        </text>
       </g>
     </g>
   );

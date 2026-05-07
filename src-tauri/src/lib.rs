@@ -1,8 +1,14 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use reqwest::header;
+use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tauri::Manager;
+use tokio::sync::Mutex;
+
+mod multiplayer;
+use multiplayer::{MpState, SharedMpState};
 
 // ════════════════════════════════════════════════════════════════════════════
 // Sécurité (CLEANUP.md SEC-01..09)
@@ -141,18 +147,44 @@ async fn fetch_image(url: String) -> Result<String, String> {
         }
     }
 
+    // User-Agent navigateur réaliste : certains CDN (Pinterest, Twitter,
+    // Instagram…) renvoient 403 sur des UA non-browser. On garde "Glucose"
+    // en suffixe pour la transparence (un opérateur curieux peut nous identifier).
+    let ua = format!(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+         (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Glucose/{}",
+        env!("CARGO_PKG_VERSION")
+    );
+
     let client = reqwest::Client::builder()
-        .user_agent(format!("Glucose/{}", env!("CARGO_PKG_VERSION")))
+        .user_agent(ua)
         .redirect(reqwest::redirect::Policy::limited(3))
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let resp = client
-        .get(parsed.as_str())
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    // Referer = origine racine seulement (scheme://host) — beaucoup de CDN
+    // exigent un Referer mais on ne veut pas leaker le path/query de la page
+    // d'origine. C'est le compromis pragma SEC-06.
+    let referer = parsed
+        .host_str()
+        .map(|h| format!("{}://{}/", parsed.scheme(), h));
+
+    let mut req = client.get(parsed.as_str());
+    if let Some(ref r) = referer {
+        req = req.header(header::REFERER, r.clone());
+    }
+    // Accept large : certains CDN renvoient un HTML/JSON si on n'envoie pas
+    // un Accept compatible image.
+    req = req.header(header::ACCEPT, "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
+
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+
+    // Refuse les codes d'erreur HTTP — sinon on bufferise une page d'erreur.
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(format!("HTTP {} pour {}", status.as_u16(), parsed.as_str()));
+    }
 
     let content_type = resp
         .headers()
@@ -166,6 +198,15 @@ async fn fetch_image(url: String) -> Result<String, String> {
         .unwrap_or("image/png")
         .trim()
         .to_string();
+
+    // Refuse les contenus non-image : sans ce check, une URL de PAGE (texte/html)
+    // est encodée comme data:text/html;base64,… qui finit dans `assets/` et ne
+    // s'affiche pas. Mieux vaut une vraie erreur que d'écrire un faux asset.
+    if !mime.starts_with("image/") {
+        return Err(format!(
+            "Le serveur a renvoyé du « {} » (pas une image). URL probablement non-image."
+        , mime));
+    }
 
     // Limite taille à 25 MB
     let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
@@ -277,6 +318,59 @@ async fn read_project_file(
     Ok(content)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Phase 7.2 — Format binaire `.glucose` v2 (Automerge)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Le contenu Automerge n'est PAS du UTF-8 valide → on ne peut pas réutiliser
+// `read_project_file` (qui fait `read_to_string`). On expose donc deux
+// commandes dédiées qui transportent les bytes en base64 entre Rust et JS.
+
+#[tauri::command]
+async fn read_glucose_binary(
+    path: String,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    let canonical = validate_scope(&path, &app_handle)?;
+    let ext = get_ext(&canonical);
+    if !["glucose", "atelier"].contains(&ext.as_str()) {
+        return Err(format!("Extension non autorisée pour lecture binaire: .{ext}"));
+    }
+    let bytes = tokio::fs::read(&canonical)
+        .await
+        .map_err(|e| e.to_string())?;
+    if bytes.len() > 500 * 1024 * 1024 {
+        return Err("Fichier trop volumineux (> 500 MB)".into());
+    }
+    Ok(STANDARD.encode(&bytes))
+}
+
+#[tauri::command]
+async fn write_glucose_binary(
+    path: String,
+    base64_data: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let path_buf = PathBuf::from(&path);
+    let parent = path_buf
+        .parent()
+        .ok_or_else(|| "Chemin sans parent valide".to_string())?;
+    validate_scope(&parent.to_string_lossy(), &app_handle)?;
+
+    let ext = get_ext(&path_buf);
+    if !["glucose", "atelier"].contains(&ext.as_str()) {
+        return Err(format!("Extension non autorisée pour écriture binaire: .{ext}"));
+    }
+
+    let bytes = STANDARD.decode(base64_data).map_err(|e| e.to_string())?;
+    if bytes.len() > 500 * 1024 * 1024 {
+        return Err("Contenu trop volumineux".into());
+    }
+    tokio::fs::write(&path, bytes)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn write_binary_file(
     path: String,
@@ -368,12 +462,13 @@ async fn download_video(
 // yt-dlp pinning + checksum (CLEANUP.md SEC-05)
 // ════════════════════════════════════════════════════════════════════════════
 //
-// Plutôt que de télécharger "latest" sans vérification, on pinning une version
-// connue. Si l'utilisateur veut mettre à jour, il peut effacer le binaire dans
-// app_data_dir/yt-dlp.exe et nous re-téléchargerons.
+// Plutôt que de télécharger "latest" sans vérification, on pinne une version
+// connue ET on valide le SHA256 contre une const hardcoded. Si l'upstream
+// est compromis (cf. xz-utils 2024) ou si l'utilisateur est sur un réseau
+// MITM, le hash ne correspondra pas et le binaire sera rejeté.
 //
-// NOTE : les checksums ci-dessous correspondent à yt-dlp 2024.11.18 release.
-// Pour mettre à jour : récupérer le SHA256 officiel sur la page release GitHub.
+// Pour mettre à jour : changer YT_DLP_VERSION + récupérer les nouveaux SHA256
+// sur https://github.com/yt-dlp/yt-dlp/releases/download/<version>/SHA2-256SUMS
 
 const YT_DLP_VERSION: &str = "2024.11.18";
 
@@ -386,6 +481,24 @@ const YT_DLP_URL: &str =
 #[cfg(all(not(windows), not(target_os = "macos")))]
 const YT_DLP_URL: &str =
     "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp";
+
+// SHA256 officiels de la release 2024.11.18 (source : SHA2-256SUMS upstream).
+#[cfg(windows)]
+const YT_DLP_SHA256: &str =
+    "4d88a8ce1bff829c7167dd21e8b4a8eeb0db1441bc27340f0896bbe781c9c3c0";
+#[cfg(target_os = "macos")]
+const YT_DLP_SHA256: &str =
+    "3ea2a0c1768b630dfad127239882af4ea60ba6116bca0a6ce64974759eba0005";
+#[cfg(all(not(windows), not(target_os = "macos")))]
+const YT_DLP_SHA256: &str =
+    "78b4454c83d0f7efe9b26163e82bede0febf0039ae6bacf2963abcae941ac11a";
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
+}
 
 async fn ensure_yt_dlp(data_dir: &std::path::Path) -> Result<std::path::PathBuf, String> {
     // 1) À côté de l'exécutable (bundle production)
@@ -452,10 +565,18 @@ async fn ensure_yt_dlp(data_dir: &std::path::Path) -> Result<std::path::PathBuf,
 
     let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
 
-    // NOTE Phase 1.5 : ajouter ici la vérification SHA256 contre une const
-    // hardcodée. Pour l'instant on log la taille comme indicateur basique.
+    // CLEANUP SEC-05 : vérification SHA256 — refus si l'upstream est compromis
+    // ou si on est victime d'un MITM. Aucun fichier n'est écrit en cas d'échec.
+    let actual = sha256_hex(&bytes);
+    if !actual.eq_ignore_ascii_case(YT_DLP_SHA256) {
+        return Err(format!(
+            "yt-dlp {} : checksum SHA256 invalide. Attendu {}, reçu {}. \
+             Téléchargement annulé pour des raisons de sécurité.",
+            YT_DLP_VERSION, YT_DLP_SHA256, actual
+        ));
+    }
     eprintln!(
-        "[ensure_yt_dlp] Downloaded yt-dlp {} ({} bytes)",
+        "[ensure_yt_dlp] Verified yt-dlp {} ({} bytes, sha256 OK)",
         YT_DLP_VERSION,
         bytes.len()
     );
@@ -480,12 +601,145 @@ async fn ensure_yt_dlp(data_dir: &std::path::Path) -> Result<std::path::PathBuf,
     Ok(cached)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Phase 7.0 — Assets externalisés (CRDT-friendly)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Plutôt que de stocker les images en base64 inline dans `.glucose` (bloat
+// catastrophique pour Automerge), on les sauvegarde dans
+// `app_data_dir/assets/<sha256>.<ext>` et on stocke seulement l'identifiant
+// logique `asset:<sha256>.<ext>` côté projet.
+// Le hash SHA-256 sert de nom : déduplication automatique (deux fois la
+// même image = un seul fichier sur disque).
+
+fn assets_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("assets");
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    }
+    Ok(dir)
+}
+
+/// Renvoie le chemin absolu du dossier assets (utilisable depuis le frontend
+/// via `convertFileSrc`).
+#[tauri::command]
+async fn get_assets_dir(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let dir = assets_dir(&app_handle)?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
+/// Sauvegarde un asset (image / petit binaire) dans le dossier assets et
+/// renvoie son nom de fichier (`<hash>.<ext>`). La déduplication par hash est
+/// automatique : deux appels avec le même contenu écrivent le fichier une
+/// seule fois.
+///
+/// `base64_data` peut être :
+///   - une data URL complète (`data:image/png;base64,...`)
+///   - le base64 brut (sans préfixe)
+/// `ext_hint` : extension souhaitée si pas déductible du data URL (`png`, `jpg`…).
+#[tauri::command]
+async fn save_asset(
+    base64_data: String,
+    ext_hint: String,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    // 1) Extraire la partie base64 et l'extension probable
+    let (b64, ext) = if let Some(stripped) = base64_data.strip_prefix("data:") {
+        // Format : data:<mime>;base64,<payload>
+        let mut parts = stripped.splitn(2, ',');
+        let header_part = parts.next().unwrap_or("");
+        let payload = parts.next().ok_or("data URL malformée".to_string())?;
+        // Devine l'extension depuis le mime
+        let mime = header_part.split(';').next().unwrap_or("");
+        let inferred = match mime {
+            "image/png"  => "png",
+            "image/jpeg" => "jpg",
+            "image/jpg"  => "jpg",
+            "image/webp" => "webp",
+            "image/gif"  => "gif",
+            "image/avif" => "avif",
+            "image/bmp"  => "bmp",
+            "image/svg+xml" => "svg",
+            _ => "",
+        };
+        let ext = if !inferred.is_empty() { inferred.to_string() } else { sanitize_ext(&ext_hint)? };
+        (payload.to_string(), ext)
+    } else {
+        (base64_data, sanitize_ext(&ext_hint)?)
+    };
+
+    // 2) Décoder
+    let bytes = STANDARD.decode(&b64).map_err(|e| format!("base64 invalide: {e}"))?;
+    if bytes.len() > 100 * 1024 * 1024 {
+        return Err("Asset trop volumineux (> 100 MB)".into());
+    }
+
+    // 3) Hash SHA-256
+    let mut hasher = Sha256::new();
+    hasher.update(&bytes);
+    let hash = hex::encode(hasher.finalize());
+    // 16 chars d'hex = 64 bits, suffisant pour la dédup et garde des noms courts
+    let short = &hash[..16];
+    let filename = format!("{short}.{ext}");
+
+    // 4) Écrire si pas déjà là
+    let dir = assets_dir(&app_handle)?;
+    let path = dir.join(&filename);
+    if !path.exists() {
+        tokio::fs::write(&path, &bytes).await.map_err(|e| e.to_string())?;
+    }
+
+    Ok(filename)
+}
+
+/// Lit un asset par son nom de fichier (`<hash>.<ext>`) et renvoie une data URL.
+/// Utilisé pour l'export PNG ou les exports textuels qui ont besoin d'inliner.
+#[tauri::command]
+async fn load_asset(
+    filename: String,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    // Sécurité : refuser tout `..` ou séparateur de chemin — on ne lit QUE
+    // dans le dossier assets.
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+        return Err("Nom de fichier invalide".into());
+    }
+    let dir = assets_dir(&app_handle)?;
+    let path = dir.join(&filename);
+    if !path.exists() {
+        return Err(format!("Asset introuvable : {filename}"));
+    }
+    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+    let mime = mime_guess::from_path(&path)
+        .first_or_octet_stream()
+        .to_string();
+    let b64 = STANDARD.encode(&bytes);
+    Ok(format!("data:{mime};base64,{b64}"))
+}
+
+/// Whitelist d'extensions acceptées pour `save_asset`.
+fn sanitize_ext(ext: &str) -> Result<String, String> {
+    let lower = ext.trim_start_matches('.').to_lowercase();
+    const ALLOWED: &[&str] = &["png", "jpg", "jpeg", "webp", "gif", "avif", "bmp", "svg"];
+    if !ALLOWED.contains(&lower.as_str()) {
+        return Err(format!("Extension d'asset non autorisée : .{lower}"));
+    }
+    Ok(lower)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let mp_state: SharedMpState = Arc::new(Mutex::new(MpState::new()));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(mp_state)
         .invoke_handler(tauri::generate_handler![
             fetch_image,
             read_image_file,
@@ -494,6 +748,19 @@ pub fn run() {
             read_project_file,
             write_binary_file,
             download_video,
+            // Phase 7.0 — assets externalisés
+            save_asset,
+            load_asset,
+            get_assets_dir,
+            // Phase 7.2 — format binaire `.glucose` v2 (Automerge)
+            read_glucose_binary,
+            write_glucose_binary,
+            // Phase 7.5bis — multi-utilisateur LAN
+            multiplayer::mp_start,
+            multiplayer::mp_stop,
+            multiplayer::mp_connect,
+            multiplayer::mp_send_patch,
+            multiplayer::mp_peers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

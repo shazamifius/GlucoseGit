@@ -4,10 +4,30 @@
 >
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
 
-**Dernière mise à jour :** 2026-04-29
-**Version :** 0.2.0
-**Architecture :** Tauri 2 (Rust) + React 19 + Tailwind 4 + PixiJS 8 (raster) + SVG overlay (vecteur) + Zustand
+**Dernière mise à jour :** 2026-05-07
+**Version :** 0.3.0-rc (Sprint 1 + Phases 6, 7.5, 7.0 + fondations 7.1 — voir [CLEANUP.md](CLEANUP.md), [PRE-PHASE7-AUDIT.md](PRE-PHASE7-AUDIT.md))
+**Architecture :** Tauri 2 (Rust) + React 19 + Tailwind 4 + PixiJS 8 (raster) + SVG overlay (vecteur) + Zustand + **Automerge 3 (CRDT, WASM)**
 **Archive de l'ancienne roadmap :** [ROADMAP.archive-2026-04-27.md](ROADMAP.archive-2026-04-27.md)
+
+> **🛡️ Sprint 1 sécurité bouclé (2026-05-07)** — 9 vulnérabilités critiques fermées (RCE, XSS, SSRF, scope FS), validation Zod, clamps coords, SHA256 yt-dlp, README+LICENSE+CI+Biome.
+>
+> **📅 Phase 6 livrée (2026-05-07)** — Réglette temporelle sémantique : `temporalAnchor`, `TemporalRuler` zoomable (Shift+R), 30 époques nommées, parsing souple, filtrage live, badge 📅, ancrage par Shift+T.
+>
+> **🗂️ Phase 7.5 livrée (2026-05-07)** — Suppression intégrale du LOD. Refonte folders : design transparent, capture au drag-create, navigation par zoom (enter/exit), indicateur visuel, breadcrumb VSCode, preview améliorée.
+>
+> **🧹 Sprint 7.0 livré (2026-05-07)** — Pré-CRDT bouclé : assets externalisés (`asset:<hash>.<ext>` au lieu de base64), migration legacy automatique au load, cascades de suppression (folders / mirrors / portails), `id: nanoid()` pour le board par défaut. Rapport complet dans [PRE-PHASE7-AUDIT.md](PRE-PHASE7-AUDIT.md).
+>
+> **⚙️ Phase 7.1 fondations (2026-05-07)** — Automerge 3 installé, wrapper `src/store/automerge.ts` testé (12 tests verts : create/change/save/load roundtrip, merge commutatif, time machine `viewAt`/`getHeads`/`history`). Vite configuré pour WASM.
+>
+> **💾 Phase 7.2.A+B livrée (2026-05-07)** — Format `.glucose` v2 binaire Automerge opérationnel. Save/load avec détection automatique v1 (JSON legacy) / v2 (binaire). Migration transparente : un vieux `.glucose` JSON s'ouvre, et au prochain `Ctrl+S` il est ré-écrit en v2.
+>
+> **🧬 Phase 7.2.C livrée (2026-05-07)** — Store CRDT-first : le doc Automerge est désormais la **source de vérité** ; `project` est un proxy lecture-seule du doc. **~30 actions migrées** vers `mutate(message, mutator)` central. **Undo/redo** stocke des snapshots de doc (Automerge dédupplique en mémoire via structural sharing). **Save préserve l'historique CRDT complet** : ouvrir un v2 charge le doc tel quel, on peut continuer à éditer sans perdre les commits passés.
+>
+> **⏳ Phase 7.4 livrée (2026-05-07)** — Time Machine UI opérationnelle : `TimelinePanel` (Ctrl+H) avec slider d'historique, drag = preview live de l'état passé (PixiJS redraw automatique), bandeau jaune pleine-écran qui signale le mode preview, mutations bloquées dans ce mode. Boutons « ← Maintenant », « ⏪ Restaurer cet état » (commit qui réécrit l'état tout en préservant l'historique antérieur), « + Marquer un jalon » (📌 commit nommé). Liste des jalons cliquables sous la piste.
+>
+> **🛰️ Phase 7.5bis livrée (2026-05-07)** — **Multi-utilisateur LAN** ! mDNS-SD pour découvrir automatiquement les autres instances Glucose sur le réseau local + WebSocket pour échanger les patches Automerge en temps réel. Activation via Ctrl+Shift+L → panel avec statut, liste peers détectés (cliquable = se connecter), connexion manuelle IP:port en fallback. Toute modification locale est diffusée à tous les peers connectés ; les patches reçus s'appliquent en temps réel sans toucher l'undo local. **Phase 7 entièrement bouclée.**
+>
+> **🐞 Bugfix drag-and-drop (2026-05-07)** — `dragDropEnabled: false` dans `tauri.conf.json` (Tauri 2 interceptait les drops web depuis le navigateur). User-Agent navigateur réaliste + Referer racine + refus content-type non-image dans `fetch_image`. Détection HTML enrichie : `<picture><source>`, `<img data-src>` (lazy-load Pinterest), `og:image`, `background-image`. Détection URL CDN sans extension. Logs `[drop]` dans la console pour diagnostic.
 
 ---
 
@@ -55,7 +75,7 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 - [x] Storyboard avec panels configurables
 - [x] Undo/redo snapshot 50 niveaux
 - [x] Sauvegarde `.glucose` (JSON)
-- [x] Raccourcis clavier complets (V, T, N, A, Space, F, L, Ctrl+Z/Y/S/O/D/Shift+F)
+- [x] Raccourcis clavier complets (V, T, N, A, Space, F, L, Ctrl+Z/Y/S/O/D/Shift+F, **Shift+R/Shift+T** Phase 6)
 - [x] Ctrl+D duplication, Ctrl+Shift+F zoom-to-fit, L verrouillage images
 - [x] Tags images (pills barre contextuelle)
 - [x] Réordonnancement tabs drag-and-drop
@@ -230,39 +250,118 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 
 ---
 
-## 🟡 Phase 6 — Réglette Temporelle Sémantique (2 semaines)
+## ✅ Phase 6 — Réglette Temporelle Sémantique
 
 > Indépendante de la Time Machine (Phase 7). Filtre par date *du contenu décrit*, pas d'édition.
 
-- [ ] Ajouter `temporalAnchor?: { start, end, label? }` aux nœuds
-- [ ] Composant `TemporalRuler.tsx` zoomable en bas du canvas (échelle géologique → siècle → décennie → mois)
-- [ ] Mode "pôle" avec dictionnaire d'époques nommées extensible (ex: "Révolution française" au lieu de "1789")
-- [ ] Filtrage live du canvas selon la fenêtre temporelle (deux poignées)
-- [ ] Coloration auto par densité de domaines (placeholder, alimenté par Phase 8)
+- [x] Type `TemporalAnchor { start, end, label? }` ajouté à `Annotation` et `BoardImage` (validation Zod incluse) — *[src/types/index.ts](src/types/index.ts), [src/store/projectSchema.ts](src/store/projectSchema.ts)*
+- [x] Module pur `timeline.ts` — formatage adaptatif (1789 / 500 av. J.-C. / 10 ka / 1,5 Ma), parsing souple multi-formats, helper `nodeMatchesTemporalFilter`, dictionnaire `DEFAULT_ERAS` de 30 époques nommées (Crétacé, Renaissance, Lumières, Révolution française, Belle Époque, Ère numérique…) — *[src/utils/timeline.ts](src/utils/timeline.ts)* — couvert par 29 tests vitest
+- [x] Composant `TemporalRuler.tsx` zoomable en bas du canvas — graduations adaptatives (10 Ma → an), molette pour zoomer (centré sur curseur), bandes des époques en arrière-plan, deux poignées draggables + drag de la fenêtre entière — *[src/components/TemporalRuler.tsx](src/components/TemporalRuler.tsx)*
+- [x] Filtrage live : opacity 0.12 + pointerEvents:none sur les annotations hors fenêtre, `sprite.alpha` sur les images. Les nœuds **sans** `temporalAnchor` restent toujours pleinement visibles (atemporels). — *[src/canvas/HtmlAnnotationLayer.tsx](src/canvas/HtmlAnnotationLayer.tsx), [src/canvas/GlucoseCanvas.tsx](src/canvas/GlucoseCanvas.tsx)*
+- [x] Modal d'assignment `TemporalAnchorPrompt` (Shift+T sur sélection) — autocomplétion sur les époques, parsing live, bouton "Retirer l'ancrage" — *[src/components/TemporalAnchorPrompt.tsx](src/components/TemporalAnchorPrompt.tsx)*
+- [x] Badge 📅 visible sur les nœuds ancrés (cohérent avec Mirror/Domain badges) — *[src/canvas/AnnotationBadges.tsx](src/canvas/AnnotationBadges.tsx)*
+- [x] Store : `temporalFilter: { start, end } | null` + `setTemporalFilter` — *[src/store/index.ts](src/store/index.ts)*
+- [x] Raccourcis : `Shift+R` ouvre/ferme la réglette, `Shift+T` assigne une date à la sélection
+- [ ] Coloration auto par densité de domaines → différée Phase 8 (besoin du clustering IA)
+- [ ] Mode "pôle" (saisie d'une époque ouvre directement la réglette zoomée dessus) → Phase 6.5 si besoin
+
+**Livrable :** un projet peut contenir des nœuds ancrés à différentes époques (de la Préhistoire au futur). La réglette en bas du canvas filtre la visibilité par fenêtre temporelle. Les nœuds non datés restent toujours visibles. Saisie souple : "Renaissance" suffit, ou "10 ka", ou "1789-1799".
 
 ---
 
-## 🔵 Phase 7 — CRDT Automerge + Time Machine (4-6 semaines)
+## ✅ Phase 7.5 — Suppression LOD + Refonte Folders
 
-> Migration architecturale majeure mais bien préparée par les phases précédentes.
+> Insight terrain (10+ heures d'usage) : le système LOD était contre-intuitif (« on voit rien »). Et les dossiers manquaient de fluidité (création séparée, design flashy, navigation par double-clic uniquement).
 
-### Fondations Automerge
-- [ ] Migrer le store Zustand vers Automerge (Zustand reste l'API React, Automerge moteur de persistance)
-- [ ] Undo/redo passe en infini natif
-- [ ] Format `.glucose` devient binaire Automerge (plus compact)
-- [ ] Import legacy des `.glucose` JSON existants
+### Sprint A — Suppression LOD intégrale
+- [x] `src/canvas/lod.ts` + `lod.test.ts` supprimés
+- [x] `currentLod` / `setCurrentLod` retirés du store
+- [x] `LOD` retiré de `constants.ts` et `types/index.ts`
+- [x] `HtmlAnnotationLayer` : tous les branchements `isMeso`/`macro` supprimés, rendu pleine fidélité inconditionnel
+- [x] `ArrowSvgLayer` : règle anti-spaghetti retirée — flèches toujours visibles. Le toggle `transDomainVisible` reste pour masquer les liens trans-domaines en pointillés
+- [x] `FolderSvgLayer` : noms / preview / hint vide tous toujours visibles
+- [x] `GlucoseCanvas` : `computeLOD`/`setCurrentLod` retirés de `emitViewport` et de l'init
 
-### Time Machine
-- [ ] Slider d'historique d'édition en bas du canvas
-- [ ] Glisser = voir le canvas à l'instant T en temps réel sur PixiJS
-- [ ] Restauration à n'importe quel état passé
+### Sprint B — Refonte Folders « membrane »
+- [x] **Design transparent** : `fillOpacity` 0.025 (au lieu de 0.04), stroke pointillé discret, opacity réduite sur l'icône et le titre — le dossier se fond dans le canvas — *[FolderSvgLayer.tsx](src/canvas/FolderSvgLayer.tsx)*
+- [x] **Capture automatique au drag-create** : créer un folder par-dessus du contenu existant capture toutes les images / annotations / sous-folders dont le centre tombe dans la zone, et les transfère dans le child board avec coords relatives. Les flèches ne sont capturées que si leurs deux extrémités le sont. — *[store/index.ts createFolder](src/store/index.ts)*
+- [x] **Navigation par zoom** : zoomer fortement (scale ≥ 3.0) sur un folder → on entre. Dézoomer fortement (scale ≤ 0.4) dans un folder → on sort. Cooldown 700 ms anti ping-pong, viewport du child pré-positionné à scale=1 centré sur le contenu. — *[GlucoseCanvas.tsx checkAutoNavigate](src/canvas/GlucoseCanvas.tsx)*
+- [x] **`FolderViewportIndicator`** : bordure colorée pleine-écran de la couleur du folder actif (15% opacity en idle), s'intensifie progressivement quand on dézoome vers le seuil de sortie + bandeau « ⤴ continue à dézoomer pour sortir » — *[components/FolderViewportIndicator.tsx](src/components/FolderViewportIndicator.tsx)*
+- [x] **Breadcrumb façon VSCode** : aligné à gauche, séparateurs `›`, icônes folder vectorielles, **dropdown sur hover** listant les siblings du dossier courant pour navigation rapide entre frères — *[components/FolderBreadcrumb.tsx](src/components/FolderBreadcrumb.tsx)*
+- [x] **Preview folder améliorée** : formes différenciées par type (image/sticky/text/membrane/sous-folder), flèches rendues en lignes fines en arrière-plan, fond dégradé radial doux, récap textuel en bas (`12 img · 5 notes · 3 dossiers`)
 
-### Commit visuel
-- [ ] Ctrl+Shift+S = "Instantané de ma pensée" avec message court
-- [ ] Timeline des commits nommés
+### Reportés (non bloquants)
+- [ ] Animation lors de la capture (les blocs glissent vers le folder créé) — Phase 7.5.1 polish
+- [ ] Refonte des membranes auto et manuelles (utilisateur l'a évoqué) — Phase 7.5.2 sur volume
 
-### Multi-utilisateur (mode local)
-- [ ] Plusieurs utilisateurs sur le même fichier en LAN, fusion CRDT automatique
+**Livrable :** plus aucun calcul LOD. Folders quasi-invisibles en idle. Création par drag = capture instantanée. Navigation par scroll seul (zoom-in/out). Indication visuelle constante de « où je suis ». Breadcrumb avec sauts latéraux entre siblings. Preview qui donne enfin envie d'ouvrir un dossier.
+
+---
+
+## 🔵 Phase 7 — CRDT Automerge + Time Machine (en cours, ~4-6 semaines pour le total)
+
+> Migration architecturale majeure. Sprint 7.0 (pré-CRDT) et fondations 7.1 livrés.
+
+### ✅ Sprint 7.0 — Pré-CRDT (livré 2026-05-07)
+- [x] **Assets externalisés** : commandes Rust `save_asset` / `load_asset` / `get_assets_dir` avec dédup SHA-256, helper frontend `resolveAssetSrc`, externalisation à l'import (drop web + drag local). Plus de base64 dans `BoardImage.src` → identifiants logiques `asset:<hash>.<ext>` portables et CRDT-friendly. — *[src-tauri/src/lib.rs](src-tauri/src/lib.rs), [src/utils/assets.ts](src/utils/assets.ts)*
+- [x] **Migration legacy automatique** : à l'ouverture d'un `.glucose` v1, scan des `data:image/...` → externalisation transparente vers `assets/` — *[src/utils/project.ts loadProject](src/utils/project.ts)*
+- [x] **Cascade `removeFolders`** : suppression récursive du child board si plus aucun folder/miroir ne le référence (BFS) — *[src/store/index.ts](src/store/index.ts)*
+- [x] **Cascade `removeImages`/`removeAnnotations` sur les miroirs** : supprimer un original supprime aussi ses miroirs (point fixe sur les chaînes mirrorOf)
+- [x] **Cascade `removeBoard` sur les flèches portail** : `targetBoardId` orphelin → patch à `undefined`
+- [x] **`id: nanoid()` au board par défaut** (au lieu de `"main"` hardcodé) — évite les collisions au merge multi-utilisateurs
+
+### ✅ Phase 7.1 — Fondations Automerge (livré 2026-05-07)
+- [x] Dépendance `@automerge/automerge` 3.2.6 installée
+- [x] Configuration Vite WASM (`vite-plugin-wasm`, `vite-plugin-top-level-await`)
+- [x] Wrapper `src/store/automerge.ts` : API minimale et explicite (`create`, `change`, `save`, `load`, `merge`, `clone`, `viewAt`, `getHeads`, `history`, `asPlain`)
+- [x] **12 tests vitest verts** : roundtrip save/load, merge commutatif, branches divergentes, time machine `viewAt`, taille binaire compacte (< 1 KB pour mini-projet)
+
+### ✅ Phase 7.2.A+B — Format `.glucose` v2 binaire (livré 2026-05-07)
+- [x] **Backend Rust** : commandes `read_glucose_binary` / `write_glucose_binary` avec scope check, whitelist `.glucose`/`.atelier`, transport base64 (binaire Automerge n'est pas UTF-8 valide)
+- [x] **Helpers JS** : `bytesToBase64` / `base64ToBytes` chunk-safe pour gros buffers (32 KB)
+- [x] **`saveProject`** : sérialise toujours en v2 binaire via `A.create(project)` → `A.save(doc)` → bytes
+- [x] **`loadProject`** : détection automatique du format
+  - 1) tentative v2 binaire via `read_glucose_binary` + `A.load`
+  - 2) fallback v1 JSON via `read_project_file` + Zod
+  - migration transparente : un `.glucose` v1 ouvert sera ré-écrit en v2 au prochain `Ctrl+S`
+- [x] Tests : 3 tests roundtrip Project complet (numériques, booléens, arrays imbriqués, emojis, chaînes multi-lignes, valeurs négatives) — *[src/store/automerge.test.ts](src/store/automerge.test.ts)*
+
+### ✅ Phase 7.2.C — Store CRDT-first (livré 2026-05-07)
+- [x] **`_doc: Doc<Project>`** ajouté au store comme source de vérité ; `project` est désormais le doc casté (proxy Automerge ergonomique : `.find`, `.map`, `.length`, accès propriétés se comportent comme du JS plain)
+- [x] **Helper `mutate(message, mutator)`** central : tout passe par `Automerge.change()`. Le `message` est enregistré dans l'historique Automerge (visible dans la future Time Machine).
+- [x] **~30 actions migrées** : setViewport, addImage, updateImage, removeImages, updateMultipleImages, addAnnotation, updateAnnotation, removeAnnotations, deleteSelected, duplicateSelected, moveSelected, setStoryboardSettings, clearStoryboard, addPanel, updatePanel, removePanel, reorderPanels, addBoard, removeBoard, renameBoard, reorderBoards, setActiveBoardId, duplicateBoard, applyPresetToBoard, setBoardZones, addPreset, removePreset, updatePreset, addDomain, updateDomain, removeDomain, assignDomainToNode, mirrorAnnotation, mirrorImage, mirrorFolder, createFolder, updateFolder, removeFolders, enterFolder, exitFolder, exitToRoot, setProjectName, loadProject, loadDoc
+- [x] **Undo/redo refactoré** : `_undoStack: Doc[]` et `_redoStack: Doc[]` (max 50 chacun) — Automerge dédupplique en mémoire via structural sharing, donc 50 docs ne consomment pas 50× la mémoire
+- [x] **`pushHistory()` rendu obsolète** mais conservé pour compat (les ~5 appels externes ne plantent plus)
+- [x] **`saveProject` détecte un Doc** (via `getHeads`) et le sauvegarde tel quel → l'historique Automerge complet est préservé sur disque (binaire v2)
+- [x] **`loadProject` retourne `{ doc, project, path }`** : si v2, `doc` est défini → `loadDoc(doc)` côté store conserve l'historique. Si v1 (ou migration legacy d'assets), `loadDoc` est skip → `loadProject(project)` crée un doc neuf
+- [x] Helpers internes : `removeWhere(arr, predicate)` (filter destructif via splice — Automerge), `indexById(arr, id)`
+
+### ✅ Phase 7.4 — Time Machine UI (livré 2026-05-07)
+- [x] **Store** : `_previewHeads: Heads | null` + actions `setPreviewHeads`, `commitNamed(message)`, `restoreToPreview`. Quand un preview est actif, `project` reflète l'état passé via `A.viewAt(_doc, heads)`.
+- [x] **Garde-fou mutations** : `mutate()` ignore (avec warning console) les mutations en mode preview — l'historique est protégé jusqu'à ce que le user choisisse explicitement de restaurer ou de revenir au présent.
+- [x] **`undo`/`redo`/`loadDoc`/`loadProject`** sortent automatiquement du mode preview.
+- [x] **`TimelinePanel`** ([components/TimelinePanel.tsx](src/components/TimelinePanel.tsx)) : slider horizontal pleine-largeur, ticks par commit (jaunes pour les jalons 📌), curseur vert = présent, jaune = preview. Drag pointer = preview live. Liste des jalons cliquables sous la piste, message + temps relatif (`il y a 2 min`) du commit courant en header.
+- [x] **Overlay visuel** plein écran (bordure + glow jaunes) qui signale le mode preview historique.
+- [x] **Boutons** : « ← Maintenant » (revient au présent), « ⏪ Restaurer cet état » (commit `Restauration` qui réécrit le contenu pour matcher l'état preview, en gardant l'historique antérieur intact), « + Marquer un jalon » (modal qui demande un nom court → commit `📌 <nom>`).
+- [x] **Raccourci `Ctrl+H`** pour toggle, `Échap` ferme (ou sort du preview en premier).
+- [x] **3 nouveaux tests vitest** : viewAt restitue l'état passé, restauration via splice préserve l'historique antérieur, history expose les messages dans l'ordre (filtrage 📌 jalons).
+- [ ] Bouton dans la Toolbar (à ajouter quand on aura la place) — Ctrl+H suffit pour MVP
+
+### ✅ Phase 7.5bis — Multi-utilisateur LAN (livré 2026-05-07)
+- [x] **Backend Rust** ([src-tauri/src/multiplayer.rs](src-tauri/src/multiplayer.rs), ~330 lignes) :
+  - `mdns-sd` : annonce du service `_glucose._tcp.local` + browse pour découvrir les peers
+  - `tokio-tungstenite` : serveur WebSocket sur port 7777 par défaut + client pour rejoindre un peer
+  - Diffusion broadcast à tous les peers connectés via channels mpsc
+  - 5 commandes Tauri : `mp_start`, `mp_stop`, `mp_connect`, `mp_send_patch`, `mp_peers`
+  - 5 events émis vers le frontend : `mp:status`, `mp:peer-found`, `mp:peer-lost`, `mp:peer-connected`, `mp:peer-disconnected`, `mp:patch`
+- [x] **Hook frontend** [`useMultiplayerSync`](src/multiplayer/useMultiplayerSync.ts) : subscribe au `_doc` Zustand → diffuse `getChanges(old, new)` à chaque mutation locale ; listen `mp:patch` → `applyRemoteChanges` au store. Boucle naturellement coupée par Automerge (un change déjà connu n'est pas re-diffusé).
+- [x] **Action store `applyRemoteChanges`** : `applyChanges` au `_doc` SANS toucher `_undoStack` (les actions distantes ne sont pas dans l'undo local — Ctrl+Z annule uniquement TES propres actions).
+- [x] **Composant `MultiplayerPanel`** ([src/multiplayer/MultiplayerPanel.tsx](src/multiplayer/MultiplayerPanel.tsx)) : toggle ON/OFF, statut visuel (LED + texte), nom de l'instance + port, liste des peers découverts en temps réel cliquables, **connexion manuelle IP:port** en fallback, indicateur de peers connectés.
+- [x] **Raccourci Ctrl+Shift+L** pour ouvrir le panel.
+- [x] Wrapper Automerge enrichi : `getChanges(oldDoc, newDoc): Uint8Array[]`.
+- [ ] Curseurs flottants temps réel (Phase 7.5bis polish — ultérieur)
+- [ ] Reconnexion automatique en cas de coupure (idem polish)
+- [ ] Chiffrement TLS (LAN privé non chiffré pour MVP — OK car le LAN est de confiance)
 
 ---
 

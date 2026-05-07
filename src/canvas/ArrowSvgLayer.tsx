@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { Board } from "../types";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { getSymbioticHue } from "./HtmlAnnotationLayer";
-import { shouldRenderArrow } from "./lod";
 
 // CLEANUP C-02 — Type explicite pour les obstacles (remplace `any[]`)
 interface Obstacle {
@@ -204,18 +203,9 @@ interface Props {
 
 export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, onSelect }: Props) {
   const groupRef = useRef<SVGGElement>(null);
-  const currentLod = useGlucoseStore(s => s.currentLod);
-  const hoveredNodeId = useGlucoseStore(s => s.hoveredNodeId);
+  // Phase 7.5 — LOD supprimé : les flèches sont toujours rendues. Le toggle
+  // `transDomainVisible` permet juste de masquer les flèches trans-domaines.
   const transDomainVisible = useGlucoseStore(s => s.transDomainVisible);
-  const selectedImageIds = useGlucoseStore(s => s.selectedImageIds);
-  // Set unifié pour la règle anti-spaghetti : un nœud sélectionné peut être annotation OU image
-  const selectedNodeIds = new Set<string>([...selectedIds, ...selectedImageIds]);
-  const visibilityCtx = {
-    lod: currentLod,
-    selectedNodeIds,
-    hoveredNodeId,
-    transDomainVisible,
-  };
 
   // CLEANUP P-06 + C-02 — Calculs lourds extraits en useMemo (évite refait O(n) à chaque render)
   const obstacles = useMemo<Obstacle[]>(() => {
@@ -293,14 +283,10 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
 
           return board.annotations.filter(a => a.type === "arrow").map((ann) => {
             if (ann.id === editingId) return null;
-            // Règle anti-spaghetti — Phase 2 LOD + Phase 3 trans-domaines
-            // En cours d'édition (pas d'editingId mais flèche sans cible) : on rend toujours pour pouvoir la finaliser.
-            const arrowInProgress = !ann.targetId;
+            // Phase 7.5 — LOD supprimé : flèches toujours visibles. On masque
+            // seulement les trans-domaines si l'utilisateur a coupé le toggle.
             const transDomain = isTransDomain(ann.sourceId, ann.targetId);
-            if (!arrowInProgress && !shouldRenderArrow(
-              { arrowId: ann.id, sourceId: ann.sourceId, targetId: ann.targetId, pinned: ann.pinned, isTransDomain: transDomain },
-              visibilityCtx
-            )) return null;
+            if (transDomain && !transDomainVisible) return null;
 
           const vp = vpRef.current;
           

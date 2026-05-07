@@ -9,9 +9,9 @@ import rehypeKatex from "rehype-katex";
 import { ensureKatexCssIfMath } from "../utils/loadKatexCss";
 import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
-import type { LOD } from "./lod";
 import AppBridgeIcon from "../components/AppBridgeIcon";
-import { MirrorBadge, DomainBadges, resolveDomainBadges } from "./AnnotationBadges";
+import { MirrorBadge, DomainBadges, TemporalBadge, resolveDomainBadges } from "./AnnotationBadges";
+import { nodeMatchesTemporalFilter } from "../utils/timeline";
 
 interface Props {
   annotations: Annotation[];
@@ -45,12 +45,13 @@ export default function HtmlAnnotationLayer({
   const dragRef = useRef<any>(null);
   const lastClickRef = useRef<{ id: string; time: number } | null>(null);
   const { activeTool } = useGlucoseStore();
-  const currentLod = useGlucoseStore(s => s.currentLod);
   const setHoveredNodeId = useGlucoseStore(s => s.setHoveredNodeId);
   // ⚠️ Sélecteur Zustand : on récupère la ref directement, sans `?? []`,
   // pour ne pas créer une nouvelle ref à chaque render (qui ferait boucler React).
   // DEFAULT_PROJECT garantit toujours `domains: []`, et `loadProject` normalise.
   const domains = useGlucoseStore(s => s.project.domains) ?? [];
+  // Phase 6 — réglette temporelle : atténue les nœuds hors fenêtre.
+  const temporalFilter = useGlucoseStore(s => s.temporalFilter);
 
   // CLEANUP P-02 — Calcule les teintes symbiotiques en une passe au niveau parent
   // (memoïsé). Évite N×N à chaque render (1 par AnnotationItem qui re-itérait
@@ -102,12 +103,6 @@ export default function HtmlAnnotationLayer({
   useEffect(() => {
     // Observer pour mettre à jour la taille des annotations dans le store quand elles changent de taille
     resizeObserver.current = new ResizeObserver((entries) => {
-      // ⚠️ Garde-fou critique : en méso/macro, la boîte est rétrécie pour le rendu LOD
-      // (titre seul, height auto, minHeight retiré). Si on laissait l'observer écrire,
-      // les dimensions originales seraient écrasées de façon permanente à chaque dézoom.
-      // → On ne persiste les changements de taille QU'EN MICRO (rendu pleine fidélité).
-      if (useGlucoseStore.getState().currentLod !== "micro") return;
-
       const boardId = useGlucoseStore.getState().project.activeBoardId;
       for (const entry of entries) {
         const id = (entry.target as HTMLElement).dataset.id;
@@ -325,7 +320,9 @@ export default function HtmlAnnotationLayer({
       >
         {annotations.map((ann) => {
           if (ann.id === editingId) return null;
-          return (
+          // Phase 6 — atténuation temporelle (n'affecte pas les nœuds atemporels)
+          const dimmed = !nodeMatchesTemporalFilter(ann.temporalAnchor, temporalFilter);
+          const item = (
             <AnnotationItem
               key={ann.id}
               ann={ann}
@@ -333,7 +330,6 @@ export default function HtmlAnnotationLayer({
               auraHue={huesByAnnId.get(ann.id) ?? 0}
               selected={selectedIds.includes(ann.id)}
               activeTool={activeTool}
-              lod={currentLod}
               domains={domains}
               setHoveredNodeId={setHoveredNodeId}
               onEdit={onEdit}
@@ -343,6 +339,12 @@ export default function HtmlAnnotationLayer({
               hoveredBlocks={hoveredBlocks}
               previewTarget={previewTarget}
             />
+          );
+          if (!dimmed) return item;
+          return (
+            <div key={ann.id} style={{ opacity: 0.12, pointerEvents: "none", transition: "opacity 200ms" }}>
+              {item}
+            </div>
           );
         })}
 
@@ -482,14 +484,13 @@ function forwardWheel(e: React.WheelEvent) {
 }
 
 function AnnotationItem({
-  ann, allAnnotations: _allAnnotations, auraHue, selected: sel, activeTool, lod, domains, setHoveredNodeId,
+  ann, allAnnotations: _allAnnotations, auraHue, selected: sel, activeTool, domains, setHoveredNodeId,
   onEdit, handleDown, handleDblClick, resizeObserver, hoveredBlocks, previewTarget
 }: {
   ann: Annotation, allAnnotations: Annotation[],
   /** Phase P-02 : pré-calculé par le parent en une passe (Map) — évite N×N. */
   auraHue: number,
   selected: boolean, activeTool: string,
-  lod: LOD,
   domains: import("../types").Domain[],
   setHoveredNodeId: (id: string | null) => void,
   onEdit: (id: string) => void,
@@ -502,8 +503,7 @@ function AnnotationItem({
   // CLEANUP B-03 — déclenche le chargement à la demande du CSS KaTeX
   // si l'annotation contient du LaTeX.
   ensureKatexCssIfMath(ann.text);
-  // Badges domaines : poids > 0.4 (Phase 3) — masqués en macro pour réduire la densité
-  const domainBadges = lod === "macro" ? [] : resolveDomainBadges(ann.domains, domains);
+  const domainBadges = resolveDomainBadges(ann.domains, domains);
   // CLEANUP P-02 : auraHue vient désormais du parent (Map mémoïsée) — plus de calcul N×N par render
   const isBaseWhite = !ann.color || ann.color === "#ffffff" || ann.color === "#fff";
   const auraColor = isBaseWhite ? `hsl(${auraHue}, 75%, 65%)` : ann.color;
@@ -642,56 +642,8 @@ function AnnotationItem({
           // ── LOD ──
           // macro : marqueur de région (aura/bgColor visible, pas d'interaction)
           // meso  : titre seul (1ʳᵉ ligne tronquée, taille compacte)
-          // micro : rendu complet
-          const titleOnly = (() => {
-            const t = ann.text || "";
-            const firstLine = t.split("\n").find(l => l.trim().length > 0) || "";
-            return firstLine.length > 60 ? firstLine.slice(0, 57) + "…" : firstLine;
-          })();
-          const isMeso = lod === "meso";
-          const lodSourceText = isMeso ? (titleOnly || "Texte") : (ann.text || "Texte");
-
-          // Marqueur de région en macro — on garde la position et l'aura colorée mais on cache le contenu
-          if (lod === "macro") {
-            if (ann.type === "text") {
-              return (
-                <div
-                  key={ann.id}
-                  data-id={ann.id}
-                  style={{
-                    position: "absolute",
-                    left: ann.x, top: ann.y,
-                    width: ann.width || 200,
-                    height: ann.height || 60,
-                    background: `color-mix(in srgb, ${auraColor} 14%, transparent)`,
-                    boxShadow: `0 0 80px 40px color-mix(in srgb, ${auraColor} 25%, transparent)`,
-                    borderRadius: 32,
-                    pointerEvents: "none",
-                  }}
-                />
-              );
-            }
-            if (ann.type === "sticky") {
-              const w = ann.width ?? 160;
-              const h = ann.height ?? 120;
-              const bg = ann.bgColor ?? "#f5c542";
-              return (
-                <div
-                  key={ann.id}
-                  data-id={ann.id}
-                  style={{
-                    position: "absolute",
-                    left: ann.x, top: ann.y,
-                    width: w, height: h,
-                    background: bg, opacity: 0.55,
-                    borderRadius: 2,
-                    pointerEvents: "none",
-                  }}
-                />
-              );
-            }
-            return null;
-          }
+          // Phase 7.5 — LOD supprimé : rendu complet inconditionnel.
+          const lodSourceText = ann.text || "Texte";
 
           if (ann.type === "text") {
             const processedText = preprocessText(lodSourceText);
@@ -712,11 +664,11 @@ function AnnotationItem({
                   '--aura-color': auraColor,
                   position: "absolute",
                   left: ann.x, top: ann.y,
-                  width: isMeso ? "max-content" : (ann.width || "max-content"),
+                  width: ann.width || "max-content",
                   minWidth: "min-content",
-                  maxWidth: isMeso ? 400 : (ann.width ? undefined : 600),
+                  maxWidth: ann.width ? undefined : 600,
                   height: "fit-content",
-                  minHeight: isMeso ? undefined : ann.height,
+                  minHeight: ann.height,
                   pointerEvents: activeTool === "select" ? "all" : "none",
                   cursor: activeTool === "select" ? "move" : "default",
                   color: ann.color || "#ffffff",
@@ -744,9 +696,10 @@ function AnnotationItem({
 
                 <DomainBadges badges={domainBadges} />
                 <MirrorBadge mirrorOf={ann.mirrorOf} />
+                <TemporalBadge anchor={ann.temporalAnchor} />
 
                 {/* Poignées de redimensionnement pour le texte (micro uniquement — en méso la boîte s'adapte au titre) */}
-                {!isMeso && sel && activeTool === "select" && [
+                {sel && activeTool === "select" && [
                   { id: "br", cx: ann.width || 0, cy: ann.height || 0 },
                   { id: "bl", cx: 0, cy: ann.height || 0 },
                   { id: "tr", cx: ann.width || 0, cy: 0 },
@@ -815,6 +768,7 @@ function AnnotationItem({
               >
                 {op.label}
                 <MirrorBadge mirrorOf={ann.mirrorOf} />
+                <TemporalBadge anchor={ann.temporalAnchor} />
               </div>
             );
           }
@@ -823,7 +777,7 @@ function AnnotationItem({
             const w = ann.width ?? 160;
             const h = ann.height ?? 120;
             const bg = ann.bgColor ?? "#f5c542";
-            const processedText = preprocessText(lod === "meso" ? titleOnly : (ann.text || ""));
+            const processedText = preprocessText(ann.text || "");
             // const HANDLE = 7;
             const corners = [
               { id: "br", cx: w, cy: h },
@@ -844,8 +798,7 @@ function AnnotationItem({
                   position: "absolute",
                   left: ann.x, top: ann.y,
                   width: w,
-                  height: isMeso ? "auto" : h,
-                  minHeight: isMeso ? 40 : undefined,
+                  height: h,
                   backgroundColor: bg,
                   boxShadow: sel ? "0 0 0 2px #fff" : "0 4px 6px rgba(0,0,0,0.3)",
                   pointerEvents: activeTool === "select" ? "all" : "none",
@@ -884,7 +837,7 @@ function AnnotationItem({
                   style={{
                     color: "inherit", fontSize: "inherit", lineHeight: isSource ? 1.2 : 1.4,
                     width: "100%",
-                    height: isMeso ? "auto" : "100%",
+                    height: "100%",
                     overflow: "hidden",
                     paddingTop: isSource ? 28 : 16,
                     paddingLeft: 8, paddingRight: 8, paddingBottom: 8,
@@ -901,9 +854,10 @@ function AnnotationItem({
 
                 <DomainBadges badges={domainBadges} />
                 <MirrorBadge mirrorOf={ann.mirrorOf} />
+                <TemporalBadge anchor={ann.temporalAnchor} />
 
-                {/* Poignées de redimensionnement (micro uniquement) */}
-                {!isMeso && sel && corners.map((c) => (
+                {/* Poignées de redimensionnement */}
+                {sel && corners.map((c) => (
                   <div
                     key={c.id}
                     onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}

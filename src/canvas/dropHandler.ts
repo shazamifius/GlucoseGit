@@ -3,6 +3,8 @@ import { Annotation, BoardImage } from "../types";
 import { nanoid } from "../utils/nanoid";
 import { addImagesFromFiles } from "./fileImport";
 import { getCDNCandidates } from "../utils/imageUpgrade";
+// Phase 7.0 — assets externalisés (cf. PRE-PHASE7-AUDIT.md C-1)
+import { saveAsset } from "../utils/assets";
 
 type AddImageFn      = (boardId: string, img: BoardImage) => void;
 type AddAnnotationFn = (boardId: string, ann: Annotation) => void;
@@ -54,9 +56,12 @@ export async function addImagesFromDrop(
 ): Promise<void> {
   const items = Array.from(e.dataTransfer?.items || []);
   const files = Array.from(e.dataTransfer?.files || []);
+  const types = Array.from(e.dataTransfer?.types || []);
 
-  // 1. Source files from File objects (Tauri exposes .path on File objects)
-  //    Accepte n'importe quel fichier non-image
+  // Diagnostic — accessible via DevTools (Ctrl+Shift+I) onglet Console
+  console.debug("[drop] types:", types, "items:", items.length, "files:", files.length);
+
+  // ── 1. Fichiers locaux non-image → source sticky (App Bridge) ─────────
   if (addAnnotation) {
     const srcFiles = files.filter((f) => !IMAGE_EXTS.test(f.name) && !f.type.startsWith("image/"));
     if (srcFiles.length > 0) {
@@ -69,112 +74,116 @@ export async function addImagesFromDrop(
         );
         return;
       }
-      // Pas de chemin absolu disponible → laisser passer au handler text/uri-list ci-dessous
     }
   }
 
-  // 2. Local files with image mime type (from file manager via webview)
+  // ── 2. Fichiers image locaux (drag depuis explorer/file manager) ──────
   const imageFiles = files.filter((f) => f.type.startsWith("image/"));
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];
-    const src = await fileToDataUrl(file);
-    const { width, height } = await getImageDimensions(src);
-    addImage(boardId, makeImage(src, worldX + i * 24, worldY + i * 24, width, height));
+    const dataUrl = await fileToDataUrl(file);
+    const { width, height } = await getImageDimensions(dataUrl);
+    const ext = file.type.split("/")[1] || "png";
+    const assetSrc = await saveAsset(dataUrl, ext);
+    addImage(boardId, makeImage(assetSrc, worldX + i * 24, worldY + i * 24, width, height));
   }
   if (imageFiles.length > 0) return;
 
-  // 3. text/uri-list — handles both file:// URIs (Dolphin) and http(s):// image URLs
-  for (const item of items) {
-    if (item.kind === "string" && item.type === "text/uri-list") {
-      const raw = await readItem(item);
-      const uris = raw.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith("#"));
+  // ── 3. Drag depuis un navigateur web ──────────────────────────────────
+  // On collecte TOUTES les URLs candidates depuis tous les types disponibles
+  // (text/uri-list, text/html, text/plain) puis on les essaie dans l'ordre
+  // de pertinence — ressemble-à-une-image-d'abord. Plus robuste qu'un
+  // ordre figé qui peut rater Pinterest si l'URL est sans extension classique.
+  const candidates: string[] = [];
 
-      // Source file URIs — tout fichier non-image depuis file://
+  for (const item of items) {
+    if (item.kind !== "string") continue;
+    const data = await readItem(item);
+    if (!data) continue;
+
+    if (item.type === "text/uri-list") {
+      const uris = data.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith("#"));
+
+      // Sous-cas A : file:// non-image → source sticky
       if (addAnnotation) {
-        const sourcePaths = uris
-          .filter((u) => u.startsWith("file://") && !IMAGE_EXTS.test(u))
-          .map(uriToPath);
+        const sourcePaths = uris.filter((u) => u.startsWith("file://") && !IMAGE_EXTS.test(u)).map(uriToPath);
         if (sourcePaths.length > 0) {
           sourcePaths.forEach((p, i) => addAnnotation(boardId, makeSourceSticky(p, worldX + i * 24, worldY + i * 24)));
           return;
         }
       }
-
+      // Sous-cas B : file:// image
       const filePaths = uris
         .filter((u) => u.startsWith("file://"))
         .map(uriToPath)
         .filter((p) => IMAGE_EXTS.test(p));
-
       if (filePaths.length > 0) {
         await addImagesFromFiles(filePaths, worldX, worldY, boardId, addImage);
         return;
       }
-
-      const webUrl = uris.find((u) => (u.startsWith("http://") || u.startsWith("https://")) && IMAGE_EXTS.test(u));
-      if (webUrl) {
-        const fetched = await fetchBestImage(webUrl);
-        if (fetched) addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, webUrl));
-        return;
-      }
-    }
-  }
-
-  // 3. HTML img tag with srcset (from browser drag of img element)
-  for (const item of items) {
-    if (item.kind === "string" && item.type === "text/html") {
-      const html = await readItem(item);
-      const bestUrl = extractBestImageFromHtml(html);
-      if (bestUrl) {
-        const fetched = await fetchBestImage(bestUrl);
-        if (fetched) {
-          addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, bestUrl));
-        }
-        return;
-      }
-    }
-  }
-
-  // 4. Plain text URL
-  for (const item of items) {
-    if (item.kind === "string" && item.type === "text/uri-list") {
-      const url = await readItem(item);
-      if (url && isImageUrl(url)) {
-        const fetched = await fetchBestImage(url);
-        if (fetched) addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
-        return;
+      // Sous-cas C : URLs web → candidats à fetcher
+      for (const u of uris) {
+        if (u.startsWith("http://") || u.startsWith("https://")) candidates.push(u);
       }
     }
 
-    if (item.kind === "string" && item.type === "text/html") {
-      const html = await readItem(item);
-      const bestUrl = extractBestImageFromHtml(html);
-      if (bestUrl) {
-        const fetched = await fetchBestImage(bestUrl);
-        if (fetched) {
-          const { src, width, height } = fetched;
-          addImage(boardId, makeImage(src, worldX, worldY, width, height, bestUrl));
-        }
-        return;
-      }
+    if (item.type === "text/html") {
+      const best = extractBestImageFromHtml(data);
+      if (best) candidates.unshift(best); // priorité haute : extrait du HTML
+    }
+
+    if (item.type === "text/plain") {
+      const t = data.trim();
+      if (t.startsWith("http://") || t.startsWith("https://")) candidates.push(t);
     }
   }
 
-  // 5. Fallback: plain text URL
-  const text = e.dataTransfer?.getData("text/plain") || "";
-  if (isImageUrl(text)) {
-    const fetched = await fetchBestImage(text);
-    if (fetched) addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, text));
+  // Filet final : si dataTransfer.getData("text/plain") existe et n'est pas
+  // déjà capturé ci-dessus
+  const plain = (e.dataTransfer?.getData("text/plain") || "").trim();
+  if (plain && (plain.startsWith("http://") || plain.startsWith("https://")) && !candidates.includes(plain)) {
+    candidates.push(plain);
   }
+
+  // Déduplique et trie : URLs qui ressemblent à de l'image en priorité
+  const unique = Array.from(new Set(candidates));
+  unique.sort((a, b) => Number(isImageUrl(b)) - Number(isImageUrl(a)));
+
+  console.debug("[drop] candidates ordered:", unique);
+  if (unique.length === 0) {
+    console.warn("[drop] Aucun candidat exploitable. types reçus :", types);
+    return;
+  }
+
+  // Essai séquentiel — on prend le premier succès
+  for (const url of unique) {
+    const fetched = await fetchBestImage(url);
+    if (fetched) {
+      addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
+      console.debug("[drop] success via:", url);
+      return;
+    }
+  }
+  console.warn("[drop] tous les candidats ont échoué :", unique);
 }
 
 async function fetchBestImage(url: string): Promise<{ src: string; width: number; height: number } | null> {
+  // Phase 7.0 : on télécharge en data URL via Rust, on calcule les dimensions,
+  // puis on externalise immédiatement comme asset pour stocker un identifiant
+  // logique (asset:<hash>.<ext>) plutôt que la base64 dans le projet.
+  const extFromUrl = (u: string) => {
+    const m = u.toLowerCase().match(/\.([a-z0-9]+)(?:\?.*)?$/);
+    return m ? m[1] : "png";
+  };
+
   // Try CDN-upgraded URLs first (higher resolution, same image, no API key needed)
   const candidates = getCDNCandidates(url);
   for (const candidate of candidates) {
     try {
       const dataUrl: string = await invoke("fetch_image", { url: candidate });
       const { width, height } = await getImageDimensions(dataUrl);
-      return { src: dataUrl, width, height };
+      const assetSrc = await saveAsset(dataUrl, extFromUrl(candidate));
+      return { src: assetSrc, width, height };
     } catch {
       // Candidate unavailable — try next
     }
@@ -184,11 +193,13 @@ async function fetchBestImage(url: string): Promise<{ src: string; width: number
   try {
     const dataUrl: string = await invoke("fetch_image", { url });
     const { width, height } = await getImageDimensions(dataUrl);
-    return { src: dataUrl, width, height };
+    const assetSrc = await saveAsset(dataUrl, extFromUrl(url));
+    return { src: assetSrc, width, height };
   } catch (err) {
     console.error("Failed to fetch image:", err);
     try {
       const { width, height } = await getImageDimensions(url);
+      // Échec de l'externalisation : on garde l'URL HTTP. Rare et legacy.
       return { src: url, width, height };
     } catch {
       return null;
@@ -196,22 +207,64 @@ async function fetchBestImage(url: string): Promise<{ src: string; width: number
   }
 }
 
+/**
+ * Extrait la meilleure URL d'image possible du HTML draggué.
+ * Stratégies essayées dans l'ordre, on garde la première qui marche :
+ *   1. <picture><source srcset> (formats modernes, plusieurs résolutions)
+ *   2. <img srcset> → plus haute résolution
+ *   3. <img src>
+ *   4. <img data-src> / <img data-original> / <img data-lazy-src> (lazy loading,
+ *      typique de Pinterest, Instagram, Tumblr…)
+ *   5. <meta property="og:image"> (Open Graph) — souvent l'image canonique
+ *   6. <meta property="og:image:secure_url">
+ *   7. background-image: url(...) dans un style inline
+ */
 function extractBestImageFromHtml(html: string): string | null {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
 
-  // Priority: srcset > src
-  const img = doc.querySelector("img");
-  if (!img) return null;
-
-  const srcset = img.getAttribute("srcset");
-  if (srcset) {
-    const best = parseSrcset(srcset);
-    if (best) return best;
+  // 1) <picture><source srcset>
+  const sources = Array.from(doc.querySelectorAll("source[srcset]"));
+  for (const src of sources) {
+    const srcset = src.getAttribute("srcset");
+    if (srcset) {
+      const best = parseSrcset(srcset);
+      if (best) return best;
+    }
   }
 
-  const src = img.getAttribute("src");
-  return src ? normalizeUrl(src) : null;
+  // 2-4) <img>
+  const img = doc.querySelector("img");
+  if (img) {
+    const srcset = img.getAttribute("srcset");
+    if (srcset) {
+      const best = parseSrcset(srcset);
+      if (best) return best;
+    }
+    // Plusieurs sites lazy-load : src reste un placeholder, la vraie URL est
+    // dans data-src / data-original / data-lazy-src
+    for (const attr of ["src", "data-src", "data-original", "data-lazy-src", "data-fallback-src"]) {
+      const v = img.getAttribute(attr);
+      if (v && !v.startsWith("data:image/svg")) return normalizeUrl(v);
+    }
+  }
+
+  // 5-6) Meta Open Graph
+  for (const sel of ['meta[property="og:image:secure_url"]', 'meta[property="og:image"]', 'meta[name="twitter:image"]']) {
+    const m = doc.querySelector(sel);
+    const v = m?.getAttribute("content");
+    if (v) return normalizeUrl(v);
+  }
+
+  // 7) background-image: url(...)
+  const styled = Array.from(doc.querySelectorAll<HTMLElement>("[style*='background-image']"));
+  for (const el of styled) {
+    const style = el.getAttribute("style") ?? "";
+    const m = style.match(/background-image\s*:\s*url\((['"]?)([^'")]+)\1\)/i);
+    if (m && m[2]) return normalizeUrl(m[2]);
+  }
+
+  return null;
 }
 
 function parseSrcset(srcset: string): string | null {
@@ -235,11 +288,36 @@ function normalizeUrl(url: string): string {
   return url;
 }
 
+/** Domaines CDN connus pour héberger principalement des images, même sans
+ * extension de fichier dans l'URL. Permet d'accepter les URLs Pinterest/Twitter/
+ * Instagram/etc. qui sont parfois minifiées sans `.jpg`. */
+const IMAGE_CDN_HOSTS = [
+  /(^|\.)pinimg\.com$/i,
+  /(^|\.)pbs\.twimg\.com$/i,
+  /(^|\.)cdninstagram\.com$/i,
+  /(^|\.)fbcdn\.net$/i,
+  /(^|\.)redd\.it$/i,
+  /(^|\.)imgur\.com$/i,
+  /(^|\.)tumblr\.com$/i,
+  /(^|\.)wallhaven\.cc$/i,
+  /(^|\.)wixmp\.com$/i,
+  /artstation\.com\/p\/assets\//i,
+  /(^|\.)deviantart\.net$/i,
+  /(^|\.)staticflickr\.com$/i,
+  /(^|\.)media-amazon\.com$/i,
+  /(^|\.)googleusercontent\.com$/i,
+];
+
 function isImageUrl(url: string): boolean {
   try {
     const u = new URL(url);
-    return /\.(jpg|jpeg|png|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i.test(u.pathname) ||
-      u.protocol === "data:";
+    if (u.protocol === "data:") return true;
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    // 1) Extension classique
+    if (/\.(jpg|jpeg|png|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i.test(u.pathname)) return true;
+    // 2) Hôte CDN d'images connu (Pinterest, Twitter, Instagram, etc.)
+    if (IMAGE_CDN_HOSTS.some((rx) => rx.test(u.hostname) || rx.test(u.href))) return true;
+    return false;
   } catch {
     return false;
   }

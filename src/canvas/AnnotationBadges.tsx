@@ -1,7 +1,8 @@
 // CLEANUP C-01 — Composants extraits pour les badges des annotations.
 // Dédupliquait 3x dans HtmlAnnotationLayer (text, sticky standard, sticky-opérateur).
 
-import type { Domain, DomainAssignment } from "../types";
+import type { Domain, DomainAssignment, TemporalAnchor } from "../types";
+import { formatAnchor } from "../utils/timeline";
 
 // ════════════════════════════════════════════════════════════════════════════
 // Mirror badge (Phase 4)
@@ -92,6 +93,42 @@ export function DomainBadges({ badges }: DomainBadgesProps) {
         </span>
       ))}
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Temporal anchor badge (Phase 6)
+// ════════════════════════════════════════════════════════════════════════════
+
+export function TemporalBadge({ anchor }: { anchor?: TemporalAnchor }) {
+  if (!anchor) return null;
+  return (
+    <span
+      title={`Date : ${formatAnchor(anchor)}`}
+      style={{
+        position: "absolute",
+        bottom: -10,
+        right: -10,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: 18,
+        minWidth: 18,
+        padding: "0 6px",
+        borderRadius: 9,
+        background: "rgba(15,15,25,0.9)",
+        color: "#fde68a",
+        border: "1.5px solid #fbbf2499",
+        fontSize: 10,
+        lineHeight: 1,
+        pointerEvents: "none",
+        boxShadow: "0 0 6px rgba(251,191,36,0.35)",
+        whiteSpace: "nowrap",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
+      📅 {formatAnchor(anchor)}
+    </span>
   );
 }
 

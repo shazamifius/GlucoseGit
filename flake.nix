@@ -44,7 +44,7 @@
         # ── Build du frontend (React/Vite) ──
         frontend = pkgs.buildNpmPackage {
           pname = "glucose-frontend";
-          version = "0.2.0";
+          version = "0.3.0";
           src = pkgs.lib.cleanSourceWith {
             src = ./.;
             filter = path: type:
@@ -69,7 +69,7 @@
         # ── Glucose complet (frontend + backend Rust) ──
         glucose = pkgs.rustPlatform.buildRustPackage {
           pname = "glucose";
-          version = "0.2.0";
+          version = "0.3.0";
           src = ./.;
           sourceRoot = "source/src-tauri";
 

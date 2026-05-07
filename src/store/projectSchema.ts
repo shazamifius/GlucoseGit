@@ -22,6 +22,13 @@ const DomainSchema = z.object({
   createdAt: z.number(),
 });
 
+// Phase 6 — Ancrage temporel ; années entières, end >= start.
+const TemporalAnchorSchema = z.object({
+  start: z.number().int(),
+  end: z.number().int(),
+  label: z.string().optional(),
+}).refine((a) => a.end >= a.start, { message: "end doit être >= start" });
+
 const BoardImageSchema = z.object({
   id: z.string(),
   src: z.string(),
@@ -39,6 +46,7 @@ const BoardImageSchema = z.object({
   isVideo: z.boolean().optional(),
   domains: z.array(DomainAssignmentSchema).optional(),
   mirrorOf: z.string().optional(),
+  temporalAnchor: TemporalAnchorSchema.optional(),
 });
 
 const AnnotationTypeSchema = z.enum(["text", "sticky", "arrow", "membrane"]);
@@ -84,6 +92,7 @@ const AnnotationSchema = z.object({
   longText: z.string().optional(),
   targetBoardId: z.string().optional(),
   operator: z.enum(["AND", "OR", "BUT", "BECAUSE"]).optional(),
+  temporalAnchor: TemporalAnchorSchema.optional(),
 });
 
 const StoryboardPanelSchema = z.object({

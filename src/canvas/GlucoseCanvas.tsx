@@ -27,7 +27,9 @@ import { exportCanvasPng } from "../utils/exportPng";
 import { getPanDelta, setWrapBounds, startCursorGrab, stopCursorGrab } from "../utils/cursorWrap";
 import SyntaxEditor from "../components/SyntaxEditor";
 import ZoneSelectorOverlay from "./ZoneSelectorOverlay";
-import { computeLOD } from "./lod";
+import { nodeMatchesTemporalFilter } from "../utils/timeline";
+// Phase 7.0 — résolution des `asset:<filename>` vers une URL Tauri utilisable
+import { resolveAssetSrc } from "../utils/assets";
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
@@ -202,7 +204,6 @@ export default function GlucoseCanvas() {
       world.x = saved.x || app.screen.width / 2;
       world.y = saved.y || app.screen.height / 2;
       world.scale.set(saved.scale || 1);
-      useGlucoseStore.getState().setCurrentLod(computeLOD(world.scale.x));
 
       setupEvents(app, world);
       app.renderer.on("resize", (_w: number, _h: number) => {
@@ -267,9 +268,12 @@ export default function GlucoseCanvas() {
     newImgs.forEach(async (img) => {
       pendingLoadsRef.current.add(img.id);
       try {
+        // Phase 7.0 : résout les identifiants logiques `asset:<hash>.<ext>`
+        // en URL Tauri utilisable par Pixi (les data:/http(s):// passent tels quels).
+        const resolvedSrc = await resolveAssetSrc(img.src);
         const tex: Texture = img.isVideo
-          ? await Assets.load({ src: img.src, data: { autoPlay: true, loop: true, muted: true } })
-          : await Assets.load(img.src);
+          ? await Assets.load({ src: resolvedSrc, data: { autoPlay: true, loop: true, muted: true } })
+          : await Assets.load(resolvedSrc);
         if (!worldRef.current || spritesRef.current.has(img.id)) return;
         const sprite = new Sprite(tex);
         sprite.anchor.set(0.5);
@@ -277,6 +281,9 @@ export default function GlucoseCanvas() {
         sprite.x = img.x; sprite.y = img.y;
         sprite.width = img.width; sprite.height = img.height;
         sprite.rotation = img.rotation;
+        // Phase 6 — applique le dim temporel dès la création (sinon flash plein opacity)
+        const tf = useGlucoseStore.getState().temporalFilter;
+        sprite.alpha = nodeMatchesTemporalFilter(img.temporalAnchor, tf) ? 1 : 0.12;
         const idx = Math.max(1, worldRef.current.children.length - 2);
         worldRef.current.addChildAt(sprite, idx);
         spritesRef.current.set(img.id, sprite);
@@ -332,6 +339,21 @@ export default function GlucoseCanvas() {
     if (!pixiReady || !membraneRendererRef.current) return;
     membraneRendererRef.current.update(board.images, project.domains ?? []);
   }, [board.images, project.domains, pixiReady]);
+
+  // ── Phase 6 — Filtrage temporel des sprites images ────────────
+  // On dimme (alpha 0.12) les sprites dont le temporalAnchor n'intersecte pas
+  // la fenêtre du filtre. Les images atemporelles restent à alpha 1.
+  // La culling spatiale (sprite.visible) reste indépendante.
+  const temporalFilter = useGlucoseStore(s => s.temporalFilter);
+  useEffect(() => {
+    if (!pixiReady) return;
+    const byId = new Map(board.images.map((img) => [img.id, img]));
+    spritesRef.current.forEach((sprite, id) => {
+      const img = byId.get(id);
+      if (!img) return;
+      sprite.alpha = nodeMatchesTemporalFilter(img.temporalAnchor, temporalFilter) ? 1 : 0.12;
+    });
+  }, [temporalFilter, board.images, pixiReady]);
 
   // Cancel zone drawing when tool changes away (Échap in App.tsx sets tool to "select")
   useEffect(() => {
@@ -819,11 +841,52 @@ export default function GlucoseCanvas() {
     window.dispatchEvent(new CustomEvent("glucose:viewport-changed", {
       detail: { x: world.x, y: world.y, scale: world.scale.x },
     }));
-    // LOD dérivé du scale → store (Phase 2 : zoom sémantique)
-    useGlucoseStore.getState().setCurrentLod(computeLOD(world.scale.x));
+    // Phase 7.5 — navigation auto par zoom (folder enter/exit)
+    checkAutoNavigate(world);
     // Met à jour l'échelle du ghost quand l'utilisateur zoome
     const { x: cx, y: cy } = cursorPosRef.current;
     updateGhostPosition(cx, cy, world.scale.x);
+  }
+
+  // ── Phase 7.5 — Navigation automatique par zoom ─────────────────
+  // Zoomer fortement (scale ≥ ENTER) sur un dossier : on entre.
+  // Dézoomer fortement (scale ≤ EXIT) à l'intérieur d'un dossier : on sort.
+  // Cooldown 700 ms entre deux transitions pour éviter les ping-pong.
+  const lastNavRef = useRef(0);
+  const ENTER_SCALE = 3.0;
+  const EXIT_SCALE  = 0.4;
+  const NAV_COOLDOWN = 700;
+  function checkAutoNavigate(world: Container) {
+    const now = performance.now();
+    if (now - lastNavRef.current < NAV_COOLDOWN) return;
+    const app = appRef.current;
+    if (!app) return;
+    const scale = world.scale.x;
+    const state = useGlucoseStore.getState();
+    const board = getActiveBoard(state.project);
+
+    if (scale >= ENTER_SCALE) {
+      const cx = (app.screen.width / 2 - world.x) / scale;
+      const cy = (app.screen.height / 2 - world.y) / scale;
+      const target = (board.folders ?? []).find(
+        (f) => cx >= f.x && cx <= f.x + f.width && cy >= f.y && cy <= f.y + f.height
+      );
+      if (target) {
+        lastNavRef.current = now;
+        // Pré-positionne le viewport du child : centré sur le contenu, scale = 1.
+        const childCenterX = target.width / 2;
+        const childCenterY = target.height / 2;
+        state.setViewport(target.childBoardId, {
+          x: app.screen.width / 2 - childCenterX,
+          y: app.screen.height / 2 - childCenterY,
+          scale: 1,
+        });
+        state.enterFolder(target.id);
+      }
+    } else if (scale <= EXIT_SCALE && state.folderStack.length > 0) {
+      lastNavRef.current = now;
+      state.exitFolder();
+    }
   }
 
   // Positionne le ghost en coordonnées écran avec le bon scale
@@ -1558,6 +1621,13 @@ export default function GlucoseCanvas() {
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    // Diagnostic — visible dans DevTools console (Ctrl+Shift+I)
+    console.debug("[handleDrop] FIRED", {
+      types: Array.from(e.dataTransfer?.types || []),
+      filesCount: e.dataTransfer?.files?.length ?? 0,
+      itemsCount: e.dataTransfer?.items?.length ?? 0,
+    });
     const world = worldRef.current;
     if (!world) return;
 
@@ -1638,7 +1708,13 @@ export default function GlucoseCanvas() {
       ref={wrapperRef}
       style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0d0d0d", cursor: showGhost || activeTool === "zone-select" ? "crosshair" : undefined }}
       onDrop={handleDrop}
-      onDragOver={(e) => e.preventDefault()}
+      onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Indique au navigateur qu'on accepte le drop (curseur "+" au lieu de ⊘)
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      }}
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const cx = e.clientX - rect.left;

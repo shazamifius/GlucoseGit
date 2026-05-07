@@ -5,6 +5,7 @@ import Toolbar from "./components/Toolbar";
 import BoardTabs from "./components/BoardTabs";
 import PanelDock, { type TabId } from "./components/PanelDock";
 import PomodoroOverlay from "./components/PomodoroOverlay";
+import FolderViewportIndicator from "./components/FolderViewportIndicator";
 import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject } from "./utils/project";
 import Toast, { showToast } from "./components/Toast";
@@ -14,6 +15,14 @@ import Toast, { showToast } from "./components/Toast";
 const PresetPanel = lazy(() => import("./components/PresetPanel"));
 const DomainsPanel = lazy(() => import("./components/DomainsPanel"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
+// Phase 6 — réglette temporelle (lazy : visible seulement quand activée)
+const TemporalRuler = lazy(() => import("./components/TemporalRuler"));
+const TemporalAnchorPrompt = lazy(() => import("./components/TemporalAnchorPrompt"));
+// Phase 7.4 — Time Machine UI
+const TimelinePanel = lazy(() => import("./components/TimelinePanel"));
+// Phase 7.5bis — Multi-utilisateur LAN
+const MultiplayerPanel = lazy(() => import("./multiplayer/MultiplayerPanel"));
+import { useMultiplayerSync } from "./multiplayer/useMultiplayerSync";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -33,7 +42,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 export default function App() {
-  const { project, loadProject: loadStore, setActiveTool, undo, redo } = useGlucoseStore();
+  const { project, loadProject: loadStore, loadDoc, setActiveTool, undo, redo } = useGlucoseStore();
   const pathRef = useRef<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
@@ -43,6 +52,16 @@ export default function App() {
   }, [presetOpen, domainsOpen]);
   const [zenMode, setZenMode] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Phase 6 — état UI réglette temporelle
+  const [temporalRulerOpen, setTemporalRulerOpen] = useState(false);
+  const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
+  // Phase 7.4 — Time Machine UI
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  // Phase 7.5bis — Multi-utilisateur LAN
+  const [multiplayerOpen, setMultiplayerOpen] = useState(false);
+  const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
+  // Active la synchro Automerge ↔ peers tant que `multiplayerEnabled`
+  useMultiplayerSync(multiplayerEnabled);
   const [dockTabs, setDockTabs]           = useState<TabId[]>([]);
   const [dismissingTabs, setDismissingTabs] = useState<TabId[]>([]);
 
@@ -98,6 +117,7 @@ export default function App() {
         setPresetOpen(false);
         setZenMode(false);
         setSearchOpen(false);
+        setAnchorPromptOpen(false);
         setActiveTool("select");
         // Read current dockTabs via functional update to avoid stale closure
         setDockTabs((current) => {
@@ -125,6 +145,31 @@ export default function App() {
         useGlucoseStore.getState().toggleSmartGuides();
         const enabled = useGlucoseStore.getState().smartGuidesEnabled;
         showToast(enabled ? "Alignement intelligent activé" : "Alignement intelligent désactivé", "🧲");
+      }
+      // Phase 7.4 — Time Machine (toggle)
+      if ((e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H") && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setTimelineOpen((v) => !v);
+      }
+      // Phase 7.5bis — Multijoueur LAN (toggle panel)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "l" || e.key === "L")) {
+        e.preventDefault();
+        setMultiplayerOpen((v) => !v);
+      }
+      // Phase 6 — réglette temporelle
+      if (e.shiftKey && (e.key === "T" || e.key === "t")) {
+        e.preventDefault();
+        const { selectedAnnotationIds, selectedImageIds } = useGlucoseStore.getState();
+        const total = selectedAnnotationIds.length + selectedImageIds.length;
+        if (total === 0) {
+          showToast("Sélectionne d'abord un nœud à ancrer dans le temps", "📅");
+        } else {
+          setAnchorPromptOpen(true);
+        }
+      }
+      if (e.shiftKey && (e.key === "R" || e.key === "r")) {
+        e.preventDefault();
+        setTemporalRulerOpen((v) => !v);
       }
       if (e.key === "Delete" || e.key === "Backspace") {
         const { project: p, selectedImageIds, selectedAnnotationIds } = useGlucoseStore.getState();
@@ -232,16 +277,30 @@ export default function App() {
         e.preventDefault();
         setSearchOpen((v) => !v);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
         e.preventDefault();
-        saveProject(project, pathRef.current ?? undefined)
-          .then((p) => { if (p) { pathRef.current = p; showToast("Projet enregistré", "💾"); } })
+        // Ctrl+Maj+S = "Enregistrer sous" → ignore le path courant pour
+        // forcer un dialog. Ctrl+S = enregistrement rapide sur le path courant.
+        const forceDialog = e.shiftKey;
+        const targetPath = forceDialog ? undefined : (pathRef.current ?? undefined);
+        saveProject(project, targetPath)
+          .then((p) => {
+            if (p) {
+              pathRef.current = p;
+              showToast(forceDialog ? "Projet enregistré sous…" : "Projet enregistré", "💾");
+            }
+          })
           .catch((err) => alert(`Erreur de sauvegarde:\n${err?.message || String(err)}`));
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "o") {
         e.preventDefault();
         loadProject()
-          .then((r) => { if (r) { loadStore(r.project); pathRef.current = r.path; } })
+          .then((r) => {
+            if (!r) return;
+            if (r.doc) loadDoc(r.doc); // v2 — historique Automerge préservé
+            else loadStore(r.project);  // v1 ou migration legacy — doc neuf
+            pathRef.current = r.path;
+          })
           .catch((err) => alert(`Erreur de chargement:\n${err?.message || String(err)}`));
       }
     }
@@ -296,6 +355,9 @@ export default function App() {
           <GlucoseCanvas />
         </ErrorBoundary>
 
+        {/* Phase 7.5 — indicateur visuel "vous êtes dans un dossier" */}
+        <FolderViewportIndicator />
+
         {/* Floating right panels (lazy-loaded — Suspense montre rien le temps que ça charge) */}
         {presetOpen && (
           <ErrorBoundary>
@@ -326,6 +388,44 @@ export default function App() {
           <ErrorBoundary>
             <Suspense fallback={null}>
               <SearchPanel onClose={() => setSearchOpen(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {/* Phase 6 — réglette temporelle (Shift+R) */}
+        {temporalRulerOpen && (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <TemporalRuler onClose={() => setTemporalRulerOpen(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {anchorPromptOpen && (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <TemporalAnchorPrompt onClose={() => setAnchorPromptOpen(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {/* Phase 7.4 — Time Machine (Ctrl+H) */}
+        {timelineOpen && (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <TimelinePanel onClose={() => setTimelineOpen(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {/* Phase 7.5bis — Multijoueur LAN (Ctrl+Shift+L) */}
+        {multiplayerOpen && (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <MultiplayerPanel
+                enabled={multiplayerEnabled}
+                onToggle={setMultiplayerEnabled}
+                onClose={() => setMultiplayerOpen(false)}
+              />
             </Suspense>
           </ErrorBoundary>
         )}
