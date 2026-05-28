@@ -93,6 +93,7 @@ export default function GlucoseCanvas() {
     id: string; startX: number; startY: number; pStartX: number; pStartY: number;
   } | null>(null);
   const textCursorPosRef = useRef<number | undefined>(undefined);
+  const lastDomCreateRef = useRef<number>(0);
 
   const [pixiReady, setPixiReady] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -1235,6 +1236,8 @@ export default function GlucoseCanvas() {
       const wy = (e.globalY - world.y) / world.scale.y;
 
       if (tool === "text" || tool === "sticky") {
+        // Marque pour que le fallback DOM ne re-crée pas.
+        lastDomCreateRef.current = Date.now();
         const ann: Annotation = {
           id: nanoid(), type: tool, x: wx, y: wy, text: "",
           fontSize: tool === "text" ? 14 : 13,
@@ -1415,7 +1418,7 @@ export default function GlucoseCanvas() {
       const snapped = snapToNearest(wx, wy, arrowIdRef.current, arrowAnn?.sourceId);
 
       let targetId = snapped.elementId;
-      let targetBlockId = snapped.elementBlockId;
+      const targetBlockId = snapped.elementBlockId;
 
       if (!targetId) {
         const newBlockId = nanoid();
@@ -1715,6 +1718,47 @@ export default function GlucoseCanvas() {
         // Indique au navigateur qu'on accepte le drop (curseur "+" au lieu de ⊘)
         if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
       }}
+      onPointerDown={(e) => {
+        // Fallback DOM-level pour création texte/sticky : si pour une raison
+        // quelconque Pixi ne reçoit pas le pointerdown sur la stage, on crée
+        // l'annotation ici directement. Le store déduplique de fait (le dernier
+        // appel ne change rien si Pixi a déjà créé le bloc, et il n'y a qu'un
+        // seul handler React).
+        if (e.button !== 0) return;
+        const tool = useGlucoseStore.getState().activeTool;
+        const tgt = e.target as HTMLElement;
+        if (tool !== "text" && tool !== "sticky") return;
+        if (tgt.tagName !== "CANVAS") return;
+        if (lastDomCreateRef.current && Date.now() - lastDomCreateRef.current < 100) return;
+        lastDomCreateRef.current = Date.now();
+
+        const rect = tgt.getBoundingClientRect();
+        const vp = vpRef.current;
+        const wx = (e.clientX - rect.left - vp.x) / vp.scale;
+        const wy = (e.clientY - rect.top - vp.y) / vp.scale;
+        const ann: Annotation = {
+          id: nanoid(), type: tool, x: wx, y: wy, text: "",
+          fontSize: tool === "text" ? 14 : 13,
+          color: "#ffffff",
+          ...(tool === "sticky" ? { bgColor: "#f5c542", width: 160, height: 120 } : {}),
+        };
+        const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
+        useGlucoseStore.getState().addAnnotation(boardId, ann);
+        useGlucoseStore.getState().setActiveTool("select");
+        setEditOverlay({
+          annId: ann.id, type: tool,
+          screenX: rect.left + vp.x + ann.x * vp.scale,
+          screenY: rect.top + vp.y + ann.y * vp.scale,
+          scale: vp.scale,
+          width: ann.width ? ann.width * vp.scale : undefined,
+          height: ann.height ? ann.height * vp.scale : undefined,
+          fontSize: ann.fontSize ?? (tool === "sticky" ? 13 : 14),
+          color: ann.color ?? "#ffffff",
+          bgColor: ann.bgColor,
+          cursorPos: undefined,
+        });
+        setEditText("");
+      }}
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const cx = e.clientX - rect.left;
@@ -1730,7 +1774,7 @@ export default function GlucoseCanvas() {
         ref={gridOverlayRef}
         style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }}
       />
-      {/* Canvas PixiJS transparent — images uniquement */}
+      {/* Canvas PixiJS transparent — images uniquement. */}
       <div
         ref={canvasRef}
         style={{ position: "absolute", inset: 0 }}
