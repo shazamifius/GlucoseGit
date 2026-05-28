@@ -251,7 +251,7 @@ export default function App() {
         const board = getActiveBoard(state.project);
         const OFFSET = 40;
         let count = 0;
-        let cycleRefused = 0;
+        const cycleRefused = 0;
         for (const annId of state.selectedAnnotationIds) {
           const ann = board.annotations.find((a) => a.id === annId);
           if (!ann) continue;

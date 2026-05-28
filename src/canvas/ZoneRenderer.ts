@@ -2,6 +2,13 @@
 import { Board, BoardZone, Preset, PresetSlot } from "../types";
 import { useGlucoseStore } from "../store";
 
+// Graphics tagués avec des marqueurs custom pour le hit-test des poignées /
+// boutons (Pixi ne typant pas les propriétés ad-hoc, on s'en évite des `any`).
+interface MarkedGraphics extends Graphics {
+  _handlePart?: string;
+  _zoneAction?: "delete";
+}
+
 interface ZoneDragState {
   slotId:  string;
   part:    string;   // "body" | "resize-br/bl/tr/tl"
@@ -145,8 +152,8 @@ export class ZoneRenderer {
 
   private rebuildZoneGfx(c: Container, zone: BoardZone, slot: PresetSlot, selected: boolean) {
     while (c.children.length > 0) {
-      const ch = c.removeChildAt(0);
-      (ch as any).destroy?.({ children: true });
+      const ch = c.removeChildAt(0) as Container;
+      ch.destroy({ children: true });
     }
     const { width: w, height: h } = zone;
     const color = parseInt(slot.color.replace("#", ""), 16);
@@ -218,14 +225,15 @@ export class ZoneRenderer {
       const wy = (e.globalY - world.y) / world.scale.y;
 
       // Bouton supprimer
-      if ((e.target as any)?._zoneAction === "delete") {
+      const tgt = e.target as MarkedGraphics | null;
+      if (tgt?._zoneAction === "delete") {
         const zones = this.currentZones.filter((z) => z.slotId !== slotId);
         this.selectedSlotId = null;
         this.onZonesChange?.(zones);
         return;
       }
 
-      const part = (e.target as any)?._handlePart ?? "body";
+      const part = tgt?._handlePart ?? "body";
       const zone = this.currentZones.find((z) => z.slotId === slotId);
       if (!zone) return;
 
@@ -252,24 +260,24 @@ export class ZoneRenderer {
 // ── Helpers ──────────────────────────────────────────────────────
 
 function addZoneResizeHandle(parent: Container, x: number, y: number, corner: string) {
-  const h = new Graphics();
+  const h: MarkedGraphics = new Graphics();
   h.circle(0, 0, 12).fill({ color: 0xffffff, alpha: 0.01 });
   h.rect(-4, -4, 8, 8).fill({ color: 0xffffff, alpha: 0.8 }).stroke({ color: 0x000000, width: 1, alpha: 0.4 });
   h.x = x; h.y = y;
   h.interactive = true;
   h.cursor = (corner === "br" || corner === "tl") ? "nwse-resize" : "nesw-resize";
-  (h as any)._handlePart = `resize-${corner}`;
+  h._handlePart = `resize-${corner}`;
   parent.addChild(h);
 }
 
 function addZoneDeleteButton(parent: Container, w: number) {
-  const btn = new Graphics();
+  const btn: MarkedGraphics = new Graphics();
   btn.circle(0, 0, 10).fill({ color: 0x222222, alpha: 0.95 }).stroke({ color: 0x555555, width: 1 });
   btn.moveTo(-4, -4).lineTo(4, 4).stroke({ color: 0xff4444, width: 1.5 });
   btn.moveTo(4, -4).lineTo(-4, 4).stroke({ color: 0xff4444, width: 1.5 });
   btn.x = w - 6; btn.y = 6;
   btn.interactive = true;
   btn.cursor = "pointer";
-  (btn as any)._zoneAction = "delete";
+  btn._zoneAction = "delete";
   parent.addChild(btn);
 }

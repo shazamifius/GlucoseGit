@@ -21,10 +21,10 @@ function lerpHue(h1: number, h2: number, t: number): number {
 }
 
 function linesIntersect(a: {x:number, y:number}, b: {x:number, y:number}, c: {x:number, y:number}, d: {x:number, y:number}): boolean {
-  let det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
+  const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x);
   if (det === 0) return false;
-  let lambda = ((d.y - c.y) * (d.x - a.x) + (c.x - d.x) * (d.y - a.y)) / det;
-  let gamma = ((a.y - b.y) * (d.x - a.x) + (b.x - a.x) * (d.y - a.y)) / det;
+  const lambda = ((d.y - c.y) * (d.x - a.x) + (c.x - d.x) * (d.y - a.y)) / det;
+  const gamma = ((a.y - b.y) * (d.x - a.x) + (b.x - a.x) * (d.y - a.y)) / det;
   return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
 }
 
@@ -54,7 +54,7 @@ function getDynamicRoute(p1: {x:number, y:number}, p2: {x:number, y:number}, box
   for (const box of boxes) {
     if (visitedBoxes.has(box.id)) continue;
     if (lineIntersectsBox(p1, p2, box)) {
-       let d = Math.hypot((box.left+box.right)/2 - p1.x, (box.top+box.bottom)/2 - p1.y);
+       const d = Math.hypot((box.left+box.right)/2 - p1.x, (box.top+box.bottom)/2 - p1.y);
        if (d < minT) { minT = d; closestBox = box; }
     }
   }
@@ -76,9 +76,9 @@ function getDynamicRoute(p1: {x:number, y:number}, p2: {x:number, y:number}, box
   let bestPath: {x:number, y:number}[] = [];
   let bestDist = Infinity;
 
-  for (let path of paths) {
+  for (const path of paths) {
     let valid = true;
-    let localPts = [p1, ...path, p2];
+    const localPts = [p1, ...path, p2];
     for (let i = 0; i < localPts.length - 1; i++) {
       if (lineIntersectsBox(localPts[i], localPts[i+1], closestBox)) {
         valid = false;
@@ -100,9 +100,9 @@ function getDynamicRoute(p1: {x:number, y:number}, p2: {x:number, y:number}, box
   const newVisited = new Set(visitedBoxes);
   newVisited.add(closestBox.id);
 
-  let fullRoute: {x:number, y:number}[] = [];
+  const fullRoute: {x:number, y:number}[] = [];
   let currentP = p1;
-  for (let pt of bestPath) {
+  for (const pt of bestPath) {
     fullRoute.push(...getDynamicRoute(currentP, pt, boxes, newVisited, depth + 1));
     fullRoute.push(pt);
     currentP = pt;
@@ -451,8 +451,8 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
           const srcAnn = ann.sourceId ? board.annotations.find(a => a.id === ann.sourceId) : null;
           const tgtAnn = ann.targetId ? board.annotations.find(a => a.id === ann.targetId) : null;
           
-          const srcHue = srcAnn ? getSymbioticHue(srcAnn, board.annotations) : getSymbioticHue({ ...ann, x: pts[0].x, y: pts[0].y } as any, board.annotations);
-          const tgtHue = tgtAnn ? getSymbioticHue(tgtAnn, board.annotations) : getSymbioticHue({ ...ann, x: pts[n-1].x, y: pts[n-1].y } as any, board.annotations);
+          const srcHue = srcAnn ? getSymbioticHue(srcAnn, board.annotations) : getSymbioticHue({ ...ann, x: pts[0].x, y: pts[0].y }, board.annotations);
+          const tgtHue = tgtAnn ? getSymbioticHue(tgtAnn, board.annotations) : getSymbioticHue({ ...ann, x: pts[n-1].x, y: pts[n-1].y }, board.annotations);
           
           const colStart = `hsl(${srcHue}, 80%, 65%)`;
           const colEnd = `hsl(${tgtHue}, 80%, 65%)`;

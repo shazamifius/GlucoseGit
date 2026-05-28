@@ -2,6 +2,12 @@ import { Container, Graphics, Text, TextStyle, Rectangle, FederatedPointerEvent 
 import { Annotation } from "../types";
 import { useGlucoseStore, getActiveBoard } from "../store";
 
+// Graphics tagués pour le hit-test des poignées (Pixi ne typant pas les
+// propriétés ad-hoc, on évite l'usage de `any`).
+interface MarkedGraphics extends Graphics {
+  _handlePart?: string;
+}
+
 type OnSelect = (id: string, multi: boolean) => void;
 type OnMove   = (id: string, x: number, y: number) => void;
 type OnEdit   = (id: string) => void;
@@ -145,8 +151,8 @@ export class AnnotationLayer {
   ) {
     c.removeAllListeners();
     while (c.children.length > 0) {
-      const ch = c.removeChildAt(0);
-      (ch as any).destroy?.({ children: true });
+      const ch = c.removeChildAt(0) as Container;
+      ch.destroy({ children: true });
     }
     this.buildGfx(c, ann, sel);
     this.attachEvents(c, ann, onSelect, onEdit);
@@ -328,7 +334,7 @@ export class AnnotationLayer {
       if (!world) return;
       const wx = (e.globalX - world.x) / world.scale.x;
       const wy = (e.globalY - world.y) / world.scale.y;
-      const part = (e.target as any)?._handlePart ?? "body";
+      const part = (e.target as MarkedGraphics | null)?._handlePart ?? "body";
 
       // Resize handle sticky → commencer le redimensionnement
       if (part.startsWith("resize-")) {
@@ -473,30 +479,30 @@ function drawArrowhead(g: Graphics, col: number, sw: number, x: number, y: numbe
 */
 
 function addHandle(parent: Container, x: number, y: number, col: number, part: string) {
-  const h = new Graphics();
+  const h: MarkedGraphics = new Graphics();
   h.circle(0, 0, 14); h.fill({ color: 0xffffff, alpha: 0.01 });  // zone de clic large
   h.circle(0, 0, 6);  h.fill({ color: col, alpha: 0.9 });
   h.stroke({ color: 0x000000, width: 1.5, alpha: 0.5 });
   h.x = x; h.y = y;
   h.interactive = true; h.cursor = "crosshair";
-  (h as any)._handlePart = part;
+  h._handlePart = part;
   parent.addChild(h);
 }
 
 function addResizeHandle(parent: Container, x: number, y: number, corner: string) {
-  const h = new Graphics();
+  const h: MarkedGraphics = new Graphics();
   h.circle(0, 0, 12); h.fill({ color: 0xffffff, alpha: 0.01 });
   h.rect(-4, -4, 8, 8); h.fill({ color: 0xffffff, alpha: 0.85 });
   h.stroke({ color: 0x000000, width: 1, alpha: 0.4 });
   h.x = x; h.y = y;
   h.interactive = true;
   h.cursor = (corner === "br" || corner === "tl") ? "nwse-resize" : "nesw-resize";
-  (h as any)._handlePart = `resize-${corner}`;
+  h._handlePart = `resize-${corner}`;
   parent.addChild(h);
 }
 
 function addMidHandle(parent: Container, x: number, y: number, part: string) {
-  const h = new Graphics();
+  const h: MarkedGraphics = new Graphics();
   h.circle(0, 0, 16); h.fill({ color: 0xffffff, alpha: 0.01 });  // zone de clic invisible
   // Losange visible petit et discret
   h.poly([{ x: 0, y: -5 }, { x: 5, y: 0 }, { x: 0, y: 5 }, { x: -5, y: 0 }]);
@@ -504,6 +510,6 @@ function addMidHandle(parent: Container, x: number, y: number, part: string) {
   h.stroke({ color: 0xffffff, width: 1, alpha: 0.8 });
   h.x = x; h.y = y;
   h.interactive = true; h.cursor = "copy";
-  (h as any)._handlePart = part;
+  h._handlePart = part;
   parent.addChild(h);
 }
