@@ -1,5 +1,13 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { Application, Assets, Container, Sprite, Texture, Graphics, FederatedPointerEvent } from "pixi.js";
+
+// Sprite augmenté pour conserver la référence du contour de sélection
+// blanc dessiné autour de l'image quand elle est sélectionnée. Pixi ne
+// typant pas les propriétés ad-hoc, on définit une interface locale
+// plutôt que d'utiliser `as any`.
+interface SpriteWithSelGfx extends Sprite {
+  _selGfx?: Graphics | null;
+}
 import SvgAnnotationLayer, { measureTextSize } from "./SvgAnnotationLayer";
 import HtmlAnnotationLayer from "./HtmlAnnotationLayer";
 import ArrowSvgLayer from "./ArrowSvgLayer";
@@ -552,17 +560,18 @@ export default function GlucoseCanvas() {
 
   // ── Selection border ─────────────────────────────────────────
   useEffect(() => {
-    spritesRef.current.forEach((sprite, id) => {
+    spritesRef.current.forEach((spriteBase, id) => {
+      const sprite = spriteBase as SpriteWithSelGfx;
       const sel = selectedImageIds.includes(id);
-      const old = (sprite as any)._selGfx as Graphics | undefined;
-      if (old) { sprite.removeChild(old); old.destroy(); (sprite as any)._selGfx = null; }
+      const old = sprite._selGfx;
+      if (old) { sprite.removeChild(old); old.destroy(); sprite._selGfx = null; }
       if (!sel) return;
       const g = new Graphics();
       const w = sprite.texture.width; const h = sprite.texture.height;
       g.rect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6);
       g.stroke({ color: 0xffffff, width: 1.5 / (worldRef.current?.scale.x || 1), alpha: 0.7 });
       sprite.addChild(g);
-      (sprite as any)._selGfx = g;
+      sprite._selGfx = g;
     });
   }, [selectedImageIds]);
 
