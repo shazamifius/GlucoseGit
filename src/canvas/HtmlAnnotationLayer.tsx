@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, memo } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -23,9 +23,42 @@ interface Props {
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
 }
 
+// État interne du drag d'une annotation (déplacement OU resize via une corner).
+interface DragState {
+  id: string;
+  startX: number;
+  startY: number;
+  pStartX: number;
+  pStartY: number;
+  didMove: boolean;
+  t0: number;
+  corner?: string;
+  startW?: number;
+  startH?: number;
+}
+
+// Survol d'une flèche : informations sur les nœuds source/cible et les
+// sous-blocs (paragraphes) éventuellement ciblés. Utilisé pour surligner
+// le texte exact pointé par la flèche.
+interface HoveredBlocks {
+  sourceId?: string;
+  targetId?: string;
+  sourceBlockId?: string;
+  targetBlockId?: string;
+  sourceTextSel?: string;
+  targetTextSel?: string;
+}
+
+// Cible de prévisualisation (édition de flèche) — quel nœud / quel sous-bloc
+// est en train d'être ciblé par la flèche en cours d'édition.
+interface PreviewTarget {
+  annId: string;
+  blockId?: string;
+}
+
 // Composants fixes pour react-markdown pour éviter le unmount/remount
 const StableMarkdownComponents = {
-  text: memo(function StableText({ processedText, components }: { processedText: string, components: any }) {
+  text: memo(function StableText({ processedText, components }: { processedText: string, components: Components }) {
     return (
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
@@ -42,7 +75,7 @@ export default function HtmlAnnotationLayer({
   annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<any>(null);
+  const dragRef = useRef<DragState | null>(null);
   const lastClickRef = useRef<{ id: string; time: number } | null>(null);
   const { activeTool } = useGlucoseStore();
   const setHoveredNodeId = useGlucoseStore(s => s.setHoveredNodeId);
@@ -497,8 +530,8 @@ function AnnotationItem({
   handleDown: (ann: Annotation, e: React.PointerEvent, corner?: string) => void,
   handleDblClick: (ann: Annotation, e: React.MouseEvent) => void,
   resizeObserver: React.MutableRefObject<ResizeObserver | null>,
-  hoveredBlocks: any,
-  previewTarget: any
+  hoveredBlocks: HoveredBlocks | null,
+  previewTarget: PreviewTarget | null,
 }) {
   // CLEANUP B-03 — déclenche le chargement à la demande du CSS KaTeX
   // si l'annotation contient du LaTeX.
@@ -592,6 +625,11 @@ function AnnotationItem({
   // On mémoise les composants pour éviter le remount à chaque render
   const markdownComponents = useMemo(() => {
             const createBlockRenderer = (Tag: React.ElementType) => {
+              // react-markdown injecte un mix de props HTML intrinsèques (variant selon Tag) +
+              // un `node` mdast/hast — typer strictement obligerait à décliner BlockComponent
+              // par Tag (h1/h2/p/li) avec ComponentProps<Tag>, ce qui multiplie le code par 5
+              // sans gain de sûreté côté usage.
+              // biome-ignore lint/suspicious/noExplicitAny: voir commentaire ci-dessus
               return function BlockComponent({ node, children, ...props }: any) {
                 const line = node?.position?.start?.line;
                 if (!line) return <Tag {...props}>{children}</Tag>;
@@ -683,6 +721,10 @@ function AnnotationItem({
                   transition: "box-shadow 0.2s, outline 0.2s",
                   outline: (sel && activeTool === "select") ? "1px dashed rgba(255,255,255,0.5)" : "none",
                   outlineOffset: "4px",
+                  // `--aura-color` est une CSS custom property exposée par cette annotation pour
+                  // symbiose chromatique de ses enfants. React.CSSProperties ne valide pas les
+                  // propriétés `--*` ; le cast contourne ça.
+                  // biome-ignore lint/suspicious/noExplicitAny: voir commentaire ci-dessus
                 } as any}
                 onPointerDown={(e) => handleDown(ann, e)}
                 onDoubleClick={(e) => handleDblClick(ann, e)}
