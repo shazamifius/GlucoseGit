@@ -85,7 +85,6 @@ export interface Annotation {
   targetTextSel?: string;  // Texte exact sélectionné côté cible
   sourceFile?: string; // App Bridge — chemin absolu vers le fichier source
   cursorPos?: number; // Dernière position du curseur
-  pinned?: boolean; // Flèche épinglée (legacy Phase 2 LOD — sans effet en 7.5+)
   domains?: DomainAssignment[]; // Phase 3
   mirrorOf?: string;            // Phase 4 — id de l'annotation originale (alias / lien vivant)
   // Phase 5 — Flèches Sémantiques Premium
