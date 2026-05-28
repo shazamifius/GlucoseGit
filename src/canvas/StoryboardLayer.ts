@@ -57,7 +57,7 @@ export class StoryboardLayer {
     sel: boolean,
     getImageSrc: (id: string) => string | undefined,
   ) {
-    c.removeChildren().forEach((ch) => (ch as any).destroy?.({ children: true }));
+    c.removeChildren().forEach((ch) => ch.destroy({ children: true }));
     this.buildPanel(c, panel, settings, sel, getImageSrc);
   }
 
@@ -136,7 +136,7 @@ export class StoryboardLayer {
   }
 
   clear() {
-    this.container.removeChildren().forEach((ch) => (ch as any).destroy?.({ children: true }));
+    this.container.removeChildren().forEach((ch) => ch.destroy({ children: true }));
     this.panels.clear();
     this.thumbs.clear();
   }

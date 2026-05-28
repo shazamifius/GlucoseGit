@@ -238,7 +238,7 @@ function TextWithHighlights({ text, highlights, color }: { text: string, highlig
     const h1 = !h3 && !h2 && line.match(/^# (.+)/);
     const li = line.match(/^[-*] (.+)/);
     
-    let content = h3 ? h3[1] : h2 ? h2[1] : h1 ? h1[1] : li ? li[1] : line;
+    const content = h3 ? h3[1] : h2 ? h2[1] : h1 ? h1[1] : li ? li[1] : line;
     
     const rendered = highlights ? highlightText(content, highlights, color) : content;
     
