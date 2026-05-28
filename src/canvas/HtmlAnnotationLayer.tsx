@@ -316,7 +316,7 @@ export default function HtmlAnnotationLayer({
     >
       <div
         ref={containerRef}
-        style={{ transformOrigin: "0 0", position: "absolute", left: 0, top: 0, right: 0, bottom: 0 }}
+        style={{ transformOrigin: "0 0", position: "absolute", left: 0, top: 0, right: 0, bottom: 0, pointerEvents: "none" }}
       >
         {annotations.map((ann) => {
           if (ann.id === editingId) return null;
@@ -441,7 +441,7 @@ export function getSymbioticHue(ann: Annotation, allAnnotations: Annotation[]): 
     if (dist < RAYON) {
       const weight = Math.pow(1 - (dist / RAYON), 2);
       
-      let otherHue = getZoneHue(other.x, other.y) + ((idHash(other.id) % 80) - 40);
+      const otherHue = getZoneHue(other.x, other.y) + ((idHash(other.id) % 80) - 40);
       
       // Conversion de la couleur en vecteur (angle -> x, y)
       const rad = otherHue * (Math.PI / 180);
@@ -514,7 +514,7 @@ function AnnotationItem({
     if (!annRef.current || !hoveredBlocks) return;
     
     let textToHighlight: string | undefined;
-    let hlColor = auraColor; // Utiliser la couleur symbiotique du bloc
+    const hlColor = auraColor; // Utiliser la couleur symbiotique du bloc
     
     if (hoveredBlocks.sourceId === ann.id && hoveredBlocks.sourceTextSel) {
       textToHighlight = hoveredBlocks.sourceTextSel;
