@@ -48,6 +48,15 @@ export interface BoardImage {
 }
 
 // ── Annotations ───────────────────────────────────────────────
+//
+// R-TYP-01 (Sprint 1) — Union discriminée stricte par `type`.
+// Le narrowing TypeScript s'active à chaque `switch(ann.type)` ou
+// `if (ann.type === "arrow")` : plus besoin de `ann.x2!` ni de
+// `ann.predicate ?? ...` partout.
+//
+// Pour les listes hétérogènes, les helpers `isText / isSticky / isArrow /
+// isMembrane` permettent de filtrer-narrower en une passe.
+
 export type AnnotationType = "text" | "sticky" | "arrow" | "membrane";
 
 export type ArrowPredicate =
@@ -58,41 +67,84 @@ export type ArrowPredicate =
   | "depend_de"
   | "illustre";
 
-export interface Annotation {
+/** Champs communs à toutes les annotations. */
+interface AnnotationBase {
   id: string;
-  type: AnnotationType;
   x: number;
   y: number;
-  text?: string;
+  domains?: DomainAssignment[];     // Phase 3
+  mirrorOf?: string;                // Phase 4 — id de l'original (alias)
+  temporalAnchor?: TemporalAnchor;  // Phase 6 — date du contenu décrit
+}
+
+/** Bloc de texte avec rendu Markdown + LaTeX. */
+export interface TextAnnotation extends AnnotationBase {
+  type: "text";
+  text: string;
   fontSize?: number;
-  color?: string;        // text / arrow color
-  bgColor?: string;      // background (sticky)
+  color?: string;
   width?: number;
   height?: number;
-  x2?: number;           // arrow end point
-  y2?: number;
+  cursorPos?: number;
+}
+
+/** Note collante avec fond coloré + opérateur logique optionnel. */
+export interface StickyAnnotation extends AnnotationBase {
+  type: "sticky";
+  text: string;
+  fontSize?: number;
+  color?: string;
+  bgColor?: string;
+  width?: number;
+  height?: number;
+  cursorPos?: number;
+  operator?: "AND" | "OR" | "BUT" | "BECAUSE"; // Phase 5 — sticky-opérateur
+  sourceFile?: string; // App Bridge — chemin absolu vers le fichier source
+}
+
+/** Flèche orientée entre deux nœuds avec prédicat sémantique optionnel. */
+export interface ArrowAnnotation extends AnnotationBase {
+  type: "arrow";
+  x2: number;
+  y2: number;
+  text?: string;                               // label court affiché sur la flèche
+  fontSize?: number;                           // taille du label
+  color?: string;
   arrowType?: "straight" | "curved";
   arrowBidirectional?: boolean;
   predicate?: ArrowPredicate;
   strokeWidth?: number;
-  waypoints?: { x: number; y: number }[];  // points de passage intermédiaires
-  sourceId?: string;  // ID image/annotation attachée au début de la flèche
-  targetId?: string;  // ID image/annotation attachée à la fin
-  sourceBlockId?: string; // Sous-bloc (paragraphe) de départ
-  targetBlockId?: string; // Sous-bloc (paragraphe) d'arrivée
-  // ── Sélection de texte précise (mode édition flèche) ──
-  sourceTextSel?: string;  // Texte exact sélectionné côté source
-  targetTextSel?: string;  // Texte exact sélectionné côté cible
-  sourceFile?: string; // App Bridge — chemin absolu vers le fichier source
-  cursorPos?: number; // Dernière position du curseur
-  domains?: DomainAssignment[]; // Phase 3
-  mirrorOf?: string;            // Phase 4 — id de l'annotation originale (alias / lien vivant)
-  // Phase 5 — Flèches Sémantiques Premium
-  longText?: string;            // Description longue Markdown attachée à une flèche (ouvre un panneau coulissant)
-  targetBoardId?: string;       // Si défini, la flèche pointe vers un nœud d'un autre board (mode portail)
-  operator?: "AND" | "OR" | "BUT" | "BECAUSE"; // Sticky-opérateur logique (type === "sticky")
-  temporalAnchor?: TemporalAnchor; // Phase 6 — date du contenu décrit
+  waypoints?: { x: number; y: number }[];     // points de passage
+  sourceId?: string;                           // node attaché au début
+  targetId?: string;                           // node attaché à la fin
+  sourceBlockId?: string;                      // sous-bloc départ
+  targetBlockId?: string;                      // sous-bloc arrivée
+  sourceTextSel?: string;                      // texte exact sélectionné côté source
+  targetTextSel?: string;                      // texte exact sélectionné côté cible
+  longText?: string;                           // Phase 5 — description Markdown
+  targetBoardId?: string;                      // Phase 5 — flèche portail
 }
+
+/** Zone colorée organisationnelle (membrane manuelle dessinée à l'outil M). */
+export interface MembraneAnnotation extends AnnotationBase {
+  type: "membrane";
+  width: number;
+  height: number;
+  color?: string;
+  text?: string; // légende fixe optionnelle
+}
+
+export type Annotation =
+  | TextAnnotation
+  | StickyAnnotation
+  | ArrowAnnotation
+  | MembraneAnnotation;
+
+// ── Type guards (narrowing par filter/map sans switch) ────────────
+export const isTextAnnotation     = (a: Annotation): a is TextAnnotation     => a.type === "text";
+export const isStickyAnnotation   = (a: Annotation): a is StickyAnnotation   => a.type === "sticky";
+export const isArrowAnnotation    = (a: Annotation): a is ArrowAnnotation    => a.type === "arrow";
+export const isMembraneAnnotation = (a: Annotation): a is MembraneAnnotation => a.type === "membrane";
 
 // ── Storyboard ────────────────────────────────────────────────
 export type AspectRatio = "16:9" | "4:3" | "2.35:1" | "1:1" | "9:16";

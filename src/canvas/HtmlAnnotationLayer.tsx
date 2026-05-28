@@ -150,8 +150,10 @@ export default function HtmlAnnotationLayer({
         const ann = useGlucoseStore.getState().project.boards
           .find(b => b.id === boardId)?.annotations.find(a => a.id === id);
 
-        // On met à jour seulement s'il y a une différence notable
-        if (ann && (Math.abs((ann.width || 0) - w) > 2 || Math.abs((ann.height || 0) - h) > 2)) {
+        // On met à jour seulement s'il y a une différence notable.
+        // Les flèches n'ont pas de width/height — elles utilisent (x,y) → (x2,y2).
+        if (ann && ann.type !== "arrow"
+            && (Math.abs((ann.width || 0) - w) > 2 || Math.abs((ann.height || 0) - h) > 2)) {
           useGlucoseStore.getState().updateAnnotation(boardId, id, { width: w, height: h });
         }
       }
@@ -208,12 +210,16 @@ export default function HtmlAnnotationLayer({
     const { x: wx, y: wy } = screenToWorld(ev.clientX, ev.clientY);
     useGlucoseStore.getState().pushHistory();
 
+    // width/height n'existent pas sur les flèches (elles utilisent x2/y2).
+    const annW = ann.type === "arrow" ? 160 : (ann.width ?? 160);
+    const annH = ann.type === "arrow" ? 120 : (ann.height ?? 120);
+
     dragRef.current = {
       id: ann.id,
       startX: ann.x, startY: ann.y,
       pStartX: wx, pStartY: wy,
       didMove: false, t0: Date.now(),
-      corner, startW: ann.width ?? 160, startH: ann.height ?? 120,
+      corner, startW: annW, startH: annH,
     };
 
     function onGlobalMove(ev: PointerEvent) {
@@ -245,7 +251,7 @@ export default function HtmlAnnotationLayer({
         // Snapping intelligent
         if (smartEnabled && selectedIds.length === 1 && board) {
           const ann = board.annotations.find(a => a.id === ds.id);
-          if (ann) {
+          if (ann && ann.type !== "arrow") {
             const SNAP_DIST = 8;
             const currentX = ann.x + finalDX;
             const currentY = ann.y + finalDY;

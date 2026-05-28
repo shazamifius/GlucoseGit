@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Annotation } from "../types";
+import { Annotation, MembraneAnnotation } from "../types";
 import { useGlucoseStore } from "../store";
 
 const textMeasureCanvas = document.createElement("canvas");
@@ -76,12 +76,15 @@ export default function SvgAnnotationLayer({
     e.stopPropagation();
     useGlucoseStore.getState().pushHistory();
     const { x: wx, y: wy } = screenToWorld(e.clientX, e.clientY);
+    // width/height n'existent pas sur les flèches (qui utilisent x2/y2).
+    const annW = ann.type === "arrow" ? 160 : (ann.width ?? 160);
+    const annH = ann.type === "arrow" ? 120 : (ann.height ?? 120);
     dragRef.current = {
       id: ann.id,
       startX: ann.x, startY: ann.y,
       pStartX: wx, pStartY: wy,
       didMove: false, t0: Date.now(),
-      corner, startW: ann.width ?? 160, startH: ann.height ?? 120,
+      corner, startW: annW, startH: annH,
     };
 
     function onGlobalMove(ev: PointerEvent) {
@@ -139,9 +142,11 @@ export default function SvgAnnotationLayer({
     const now = Date.now();
     if (lastClickRef.current?.id === ann.id && now - lastClickRef.current.time < 350) {
       lastClickRef.current = null;
-      if (ann.sourceFile) {
-        invoke("open_in_app", { path: ann.sourceFile }).catch((err) => {
-          alert(`Impossible d'ouvrir le fichier :\n${ann.sourceFile}\n\n${err}`);
+      // App Bridge : seuls les sticky portent un sourceFile
+      const sourceFile = ann.type === "sticky" ? ann.sourceFile : undefined;
+      if (sourceFile) {
+        invoke("open_in_app", { path: sourceFile }).catch((err) => {
+          alert(`Impossible d'ouvrir le fichier :\n${sourceFile}\n\n${err}`);
         });
       } else {
         onEdit(ann.id);
@@ -168,9 +173,10 @@ export default function SvgAnnotationLayer({
     // Si un drag vient juste de se terminer, ne pas ouvrir l'édition
     if (dragRef.current?.didMove) return;
     e.stopPropagation();
-    if (ann.sourceFile) {
-      invoke("open_in_app", { path: ann.sourceFile }).catch((err) => {
-        alert(`Impossible d'ouvrir le fichier :\n${ann.sourceFile}\n\n${err}`);
+    const sourceFile = ann.type === "sticky" ? ann.sourceFile : undefined;
+    if (sourceFile) {
+      invoke("open_in_app", { path: sourceFile }).catch((err) => {
+        alert(`Impossible d'ouvrir le fichier :\n${sourceFile}\n\n${err}`);
       });
       return;
     }
@@ -225,9 +231,9 @@ export default function SvgAnnotationLayer({
     </svg>
   );
 
-  function renderMembrane(ann: Annotation, sel: boolean) {
-    const w   = ann.width  ?? 200;
-    const h   = ann.height ?? 160;
+  function renderMembrane(ann: MembraneAnnotation, sel: boolean) {
+    const w   = ann.width;
+    const h   = ann.height;
     const col = ann.color  ?? "#60a5fa";
     const HANDLE = 7;
     const corners: Array<[string, number, number]> = [

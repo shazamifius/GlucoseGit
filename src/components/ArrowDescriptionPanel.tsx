@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { useGlucoseStore, getActiveBoard } from "../store";
+import { isArrowAnnotation } from "../types";
 // CLEANUP B-03 : CSS KaTeX chargé à la demande quand le panel s'ouvre.
 import { ensureKatexCss } from "../utils/loadKatexCss";
 
@@ -26,7 +27,8 @@ interface Props {
 export default function ArrowDescriptionPanel({ arrowId, midX, midY, onClose }: Props) {
   const { project, updateAnnotation } = useGlucoseStore();
   const board = getActiveBoard(project);
-  const arrow = board.annotations.find(a => a.id === arrowId);
+  const arrowRaw = board.annotations.find(a => a.id === arrowId);
+  const arrow = arrowRaw && isArrowAnnotation(arrowRaw) ? arrowRaw : undefined;
   const initial = arrow?.longText ?? "";
   const [text, setText] = useState(initial);
   const [editing, setEditing] = useState(initial.length === 0); // si vide, on ouvre direct en édition

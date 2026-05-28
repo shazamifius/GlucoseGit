@@ -1,10 +1,22 @@
 import { useRef, useEffect, useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useGlucoseStore, getActiveBoard } from "../store";
+import { Annotation } from "../types";
 
 const MAP_W = 180;
 const MAP_H = 120;
 const PAD   = 12;
+
+/** Taille (w,h) d'une annotation pour le calcul de bbox de la minimap.
+ *  Les flèches ne portent que des points (x,y) + (x2,y2), donc 0×0 ici. */
+function annSize(ann: Annotation): { w: number; h: number } {
+  switch (ann.type) {
+    case "text":     return { w: ann.width ?? 80,  h: ann.height ?? 20  };
+    case "sticky":   return { w: ann.width ?? 160, h: ann.height ?? 120 };
+    case "membrane": return { w: ann.width,        h: ann.height        };
+    case "arrow":    return { w: 0, h: 0 };
+  }
+}
 
 interface MapInfo {
   minX: number; minY: number;
@@ -56,16 +68,13 @@ export default function Minimap() {
       maxY = Math.max(maxY, img.y + img.height / 2);
     });
     board.annotations.forEach((ann) => {
-      const w = ann.width ?? (ann.type === "text" ? 80 : ann.type === "sticky" ? 160 : 0);
-      const h = ann.height ?? (ann.type === "text" ? 20 : ann.type === "sticky" ? 120 : 0);
+      const { w, h } = annSize(ann);
       minX = Math.min(minX, ann.x); minY = Math.min(minY, ann.y);
       maxX = Math.max(maxX, ann.x + w); maxY = Math.max(maxY, ann.y + h);
-      
+
       if (ann.type === "arrow") {
-        const p2x = ann.x2 ?? ann.x;
-        const p2y = ann.y2 ?? ann.y;
-        minX = Math.min(minX, p2x); minY = Math.min(minY, p2y);
-        maxX = Math.max(maxX, p2x); maxY = Math.max(maxY, p2y);
+        minX = Math.min(minX, ann.x2); minY = Math.min(minY, ann.y2);
+        maxX = Math.max(maxX, ann.x2); maxY = Math.max(maxY, ann.y2);
       }
     });
     (board.folders ?? []).forEach((f) => {
@@ -100,8 +109,7 @@ export default function Minimap() {
       if (!refId) return { x: fallbackX, y: fallbackY };
       const refAnn = board.annotations.find(a => a.id === refId);
       if (refAnn) {
-        const w = refAnn.width ?? (refAnn.type === "text" ? 80 : 160);
-        const h = refAnn.height ?? (refAnn.type === "text" ? 20 : 120);
+        const { w, h } = annSize(refAnn);
         return { x: refAnn.x + w / 2, y: refAnn.y + h / 2 };
       }
       const refImg = board.images.find(i => i.id === refId);
