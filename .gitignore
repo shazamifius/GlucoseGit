@@ -13,6 +13,7 @@ src-tauri/target/
 src-tauri/gen/
 src-tauri/target-temp/
 src-tauri/target-serial/
+tauri.build.temp.json
 
 # Logs
 *.log

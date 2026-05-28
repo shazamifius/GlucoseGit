@@ -86,7 +86,6 @@ const AnnotationSchema = z.object({
   targetTextSel: z.string().optional(),
   sourceFile: z.string().optional(),
   cursorPos: z.number().optional(),
-  pinned: z.boolean().optional(),
   domains: z.array(DomainAssignmentSchema).optional(),
   mirrorOf: z.string().optional(),
   longText: z.string().optional(),

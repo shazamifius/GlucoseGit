@@ -180,7 +180,7 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 - [x] **Toggle "Trans-domaines"** dans la toolbar (icône deux cercles + ligne pointillée) — actif par défaut, ON/OFF stocké dans `transDomainVisible`
 - [x] **Champ `pinned?: boolean`** ajouté au type `Annotation` (UI épinglage en Phase 5)
 - [ ] Détection **trans-domaines** réelle — différée Phase 3 (besoin du système de domaines)
-- [ ] Brancher `Quadtree` sur le rendu — différé Phase 2.5 (le `SpatialHash` actif sur images suffit pour l'instant)
+- [x] ~~Brancher `Quadtree` sur le rendu~~ — **fermé OBSOLÈTE** depuis suppression LOD (Phase 7.5). Le `SpatialHash` actif sur images suffit ; aucun bénéfice mesurable à étendre au reste.
 
 **Livrable :** la règle des 4 conditions (sélection / hover / trans-domaines / épinglé) est appliquée. En zoom out (macro), on ne voit que les membranes + dossiers ; les flèches et annotations s'effacent. En zoom moyen (meso), on voit titres + flèches du nœud sélectionné. En zoom proche (micro), tout s'affiche au passage du curseur.
 
@@ -507,7 +507,7 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 | [src/canvas/HtmlAnnotationLayer.tsx](src/canvas/HtmlAnnotationLayer.tsx) | Texte/sticky LOD | 2 |
 | [src/canvas/FolderSvgLayer.tsx](src/canvas/FolderSvgLayer.tsx) | Refonte SVG + animation entrée | 0, 4 |
 | [src/canvas/MembraneRenderer.ts](src/canvas/MembraneRenderer.ts) | Couleur dérivée des domaines | 3 |
-| [src/canvas/Quadtree.ts](src/canvas/Quadtree.ts) | À brancher sur le rendu | 2 |
+| [src/canvas/Quadtree.ts](src/canvas/Quadtree.ts) | SpatialHash actif sur images (culling) — extension au reste fermée obsolète | — |
 | **Nouveau** `src/canvas/lod.ts` | Calcul Level of Detail | 2 |
 | **Nouveau** `src/canvas/ZoneSelectorOverlay.tsx` | Sélecteur de zone | 1 |
 | **Nouveau** `src/components/DomainsPanel.tsx` | Édition des domaines | 3 |

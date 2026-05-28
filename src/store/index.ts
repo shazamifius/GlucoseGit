@@ -38,13 +38,14 @@ import { DEFAULT_PRESETS } from "../data/defaultPresets";
 import { nanoid } from "../utils/nanoid";
 import { wouldCreateMirrorCycle } from "./mirrorGraph";
 import * as A from "./automerge";
+import { LIMITS } from "../constants";
 
 // ─────────── Bornes (CLEANUP R-02) ──────────────────────────────────────────
 const COORD_LIMIT = 1_000_000;
 const SIZE_LIMIT = 200_000;
 const MIN_SCALE = 0.005;
 const MAX_SCALE = 50;
-const UNDO_DEPTH = 50;
+const UNDO_DEPTH = LIMITS.UNDO_DEPTH;
 const clampNum = (v: number, min: number, max: number) =>
   Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : 0;
 const clampViewport = (vp: Viewport): Viewport => ({
@@ -55,7 +56,14 @@ const clampViewport = (vp: Viewport): Viewport => ({
 const COORD_FIELDS = ["x", "y", "x2", "y2"] as const;
 const SIZE_FIELDS = ["width", "height"] as const;
 function clampSpatial<T extends object>(obj: T): T {
-  const out = { ...obj } as Record<string, unknown>;
+  // Automerge n'accepte pas les valeurs `undefined` lors d'une insertion : il
+  // faut omettre la clé. On strippe d'abord, sinon `b.annotations.push(ann)`
+  // jette `Cannot assign undefined value at .../bgColor` et l'annotation n'est
+  // jamais créée (bug bloquant la création de texte/sticky depuis Phase 7.2.C).
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
   for (const f of COORD_FIELDS) {
     if (typeof out[f] === "number") out[f] = clampNum(out[f] as number, -COORD_LIMIT, COORD_LIMIT);
   }
