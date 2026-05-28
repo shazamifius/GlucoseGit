@@ -587,10 +587,12 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       for (const a of b.annotations) {
         if (selAnn.has(a.id)) {
           a.x += dx; a.y += dy;
-          if (a.x2 !== undefined) a.x2 += dx;
-          if (a.y2 !== undefined) a.y2 += dy;
-          if (a.waypoints) {
-            for (const wp of a.waypoints) { wp.x += dx; wp.y += dy; }
+          if (a.type === "arrow") {
+            a.x2 += dx;
+            a.y2 += dy;
+            if (a.waypoints) {
+              for (const wp of a.waypoints) { wp.x += dx; wp.y += dy; }
+            }
           }
           continue;
         }
@@ -743,7 +745,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       // Patch les flèches portail orphelines avant de retirer le board
       for (const b of d.boards) {
         for (const a of b.annotations) {
-          if (a.targetBoardId === id) a.targetBoardId = undefined;
+          if (a.type === "arrow" && a.targetBoardId === id) a.targetBoardId = undefined;
         }
       }
       d.boards.splice(removeIdx, 1);
@@ -1128,12 +1130,12 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
           annsToMove.push({ ...a, x: a.x - fx0, y: a.y - fy0 });
           return true;
         }
-        if (capturedArrowIds.has(a.id)) {
+        if (capturedArrowIds.has(a.id) && a.type === "arrow") {
           annsToMove.push({
             ...a,
             x: a.x - fx0, y: a.y - fy0,
-            x2: a.x2 !== undefined ? a.x2 - fx0 : undefined,
-            y2: a.y2 !== undefined ? a.y2 - fy0 : undefined,
+            x2: a.x2 - fx0,
+            y2: a.y2 - fy0,
             waypoints: a.waypoints?.map((p) => ({ x: p.x - fx0, y: p.y - fy0 })),
           });
           return true;

@@ -20,7 +20,6 @@ import { addImagesFromDrop, makeSourceSticky, VIDEO_FILE_EXTS, VIDEO_URL_RE } fr
 import { addImagesFromFiles } from "./fileImport";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
-import { AnnotationLayer } from "./AnnotationLayer";
 import { StoryboardLayer } from "./StoryboardLayer";
 import { MembraneRenderer } from "./MembraneRenderer";
 import FolderBreadcrumb from "../components/FolderBreadcrumb";
@@ -83,7 +82,6 @@ export default function GlucoseCanvas() {
   const vpRef = useRef({ x: 0, y: 0, scale: 1 });
   const selRectGfxRef = useRef<Graphics | null>(null);
   const zoneRendererRef = useRef<ZoneRenderer | null>(null);
-  const annLayerRef = useRef<AnnotationLayer | null>(null);
   const sbLayerRef = useRef<StoryboardLayer | null>(null);
   const membraneRendererRef = useRef<MembraneRenderer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
@@ -140,7 +138,8 @@ export default function GlucoseCanvas() {
   const board = getActiveBoard(project);
 
   const selectedArrow = selectedAnnotationIds.length === 1
-    ? board.annotations.find((a) => a.id === selectedAnnotationIds[0] && a.type === "arrow")
+    ? board.annotations.find((a): a is import("../types").ArrowAnnotation =>
+        a.id === selectedAnnotationIds[0] && a.type === "arrow")
     : undefined;
 
   // ── Convertit la position monde d'une annotation en coordonnées écran ──
@@ -158,11 +157,13 @@ export default function GlucoseCanvas() {
   }
 
   function openEditOverlay(ann: Annotation) {
+    // L'édition in-place ne concerne que text et sticky.
+    if (ann.type !== "text" && ann.type !== "sticky") return;
     const pos = annToScreen(ann);
     if (!pos) return;
     setEditOverlay({
       annId: ann.id,
-      type: ann.type as "text" | "sticky",
+      type: ann.type,
       screenX: pos.screenX,
       screenY: pos.screenY,
       scale: pos.scale,
@@ -170,7 +171,7 @@ export default function GlucoseCanvas() {
       height: ann.height ? ann.height * pos.scale : undefined,
       fontSize: ann.fontSize ?? (ann.type === "sticky" ? 13 : 14),
       color: ann.color ?? "#ffffff",
-      bgColor: ann.bgColor,
+      bgColor: ann.type === "sticky" ? ann.bgColor : undefined,
       cursorPos: ann.cursorPos,
     });
     setEditText(ann.text ?? "");
@@ -206,7 +207,6 @@ export default function GlucoseCanvas() {
 
       membraneRendererRef.current = new MembraneRenderer(world);
       zoneRendererRef.current = new ZoneRenderer(world, () => worldRef.current);
-      annLayerRef.current = new AnnotationLayer(world, () => worldRef.current);
       sbLayerRef.current = new StoryboardLayer(world);
 
       const saved = getActiveBoard(useGlucoseStore.getState().project).viewport;
@@ -240,7 +240,6 @@ export default function GlucoseCanvas() {
       selRectGfxRef.current = null;
       zoneRendererRef.current = null;
       membraneRendererRef.current?.destroy(); membraneRendererRef.current = null;
-      annLayerRef.current?.destroy(); annLayerRef.current = null;
       sbLayerRef.current?.destroy(); sbLayerRef.current = null;
       spritesRef.current.clear(); pendingLoadsRef.current.clear();
       zoneGfxRef.current = null; zoneStartRef.current = null;
@@ -303,34 +302,9 @@ export default function GlucoseCanvas() {
     });
   }, [board.images, pixiReady]);
 
-  // ── Sync annotations — AnnotationLayer ne reçoit QUE texte/sticky (les flèches sont 100% en SVG) ──
-  useEffect(() => {
-    if (!pixiReady || !annLayerRef.current) return;
-    annLayerRef.current.sync(
-      [], // REMOVED ARROWS from PixiJS to avoid the double-arrow ghost bug
-      selectedAnnotationIds,
-      editOverlay?.annId ?? null,
-      (id, multi) => {
-        setSelectedAnnotationIds(
-          multi
-            ? selectedAnnotationIds.includes(id)
-              ? selectedAnnotationIds.filter((x) => x !== id)
-              : [...selectedAnnotationIds, id]
-            : [id]
-        );
-        if (!multi) setSelectedImageIds([]);
-      },
-      (id, x, y) => {
-        const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-        updateAnnotation(boardId, id, { x, y });
-      },
-      (id) => {
-        const ann = board.annotations.find((a) => a.id === id);
-        if (!ann) return;
-        openEditOverlay(ann);
-      },
-    );
-  }, [board.annotations, selectedAnnotationIds, editOverlay?.annId, pixiReady]);
+  // ── Sync annotations Pixi : RETIRÉ (R-MOD-03) ───────────────
+  // Le rendu des annotations est désormais 100 % SVG (flèches) + HTML
+  // (texte/sticky), il n'y a plus rien à synchroniser côté Pixi.
 
   // ── Sync storyboard ──────────────────────────────────────────
   useEffect(() => {
@@ -454,7 +428,13 @@ export default function GlucoseCanvas() {
           if (!targetBoard) return;
           let tx = 0, ty = 0, found = false;
           const a = targetBoard.annotations.find(a => a.id === detail.targetId);
-          if (a) { tx = a.x + (a.width ?? 80) / 2; ty = a.y + (a.height ?? 20) / 2; found = true; }
+          if (a) {
+            const aw = a.type === "arrow" ? 80 : (a.width ?? 80);
+            const ah = a.type === "arrow" ? 20 : (a.height ?? 20);
+            tx = a.x + aw / 2;
+            ty = a.y + ah / 2;
+            found = true;
+          }
           if (!found) {
             const i = targetBoard.images.find(i => i.id === detail.targetId);
             if (i) { tx = i.x; ty = i.y; found = true; }
@@ -949,8 +929,12 @@ export default function GlucoseCanvas() {
       count++;
     }
     for (const ann of board.annotations) {
-      const ax2 = ann.x2 ?? ann.x;
-      const ay2 = ann.y2 ?? ann.y;
+      // Pour les flèches on étend aussi à (x2, y2). Pour les autres, le seul
+      // point géométrique est (x, y) — un peu pessimiste pour les blocs avec
+      // width/height, mais sans impact sur le fit-to-content (un nœud reste
+      // dans la zone même si on l'a sous-évalué).
+      const ax2 = ann.type === "arrow" ? ann.x2 : ann.x;
+      const ay2 = ann.type === "arrow" ? ann.y2 : ann.y;
       if (ann.x < minX) minX = ann.x; if (ann.x > maxX) maxX = ann.x;
       if (ax2 < minX) minX = ax2; if (ax2 > maxX) maxX = ax2;
       if (ann.y < minY) minY = ann.y; if (ann.y > maxY) maxY = ann.y;
@@ -981,10 +965,11 @@ export default function GlucoseCanvas() {
     const board = getActiveBoard(useGlucoseStore.getState().project);
     const ann = board.annotations.find(a => a.id === annId);
     if (!ann) return;
-    const w = ann.width || 200;
-    const h = ann.height || 100;
-    const centerX = ann.x + w / 2;
-    const centerY = ann.y + h / 2;
+    // Les flèches n'ont pas de width/height — on cible le milieu du segment.
+    const w = ann.type === "arrow" ? 0 : (ann.width  || 200);
+    const h = ann.type === "arrow" ? 0 : (ann.height || 100);
+    const centerX = ann.type === "arrow" ? (ann.x + ann.x2) / 2 : (ann.x + w / 2);
+    const centerY = ann.type === "arrow" ? (ann.y + ann.y2) / 2 : (ann.y + h / 2);
     // Zoom pour que le bloc remplisse ~60% de l'écran
     const ns = Math.min(
       (app.screen.width - padding * 2) / w,
@@ -1247,14 +1232,20 @@ export default function GlucoseCanvas() {
       if (tool === "text" || tool === "sticky") {
         // Marque pour que le fallback DOM ne re-crée pas.
         lastDomCreateRef.current = Date.now();
-        const ann: Annotation = {
-          id: nanoid(), type: tool, x: wx, y: wy, text: "",
-          fontSize: tool === "text" ? 14 : 13,
-          color: "#ffffff",
-          bgColor: tool === "sticky" ? "#f5c542" : undefined,
-          width: tool === "sticky" ? 160 : undefined,
-          height: tool === "sticky" ? 120 : undefined,
-        };
+        const ann: Annotation = tool === "sticky"
+          ? {
+              id: nanoid(), type: "sticky", x: wx, y: wy, text: "",
+              fontSize: 13,
+              color: "#ffffff",
+              bgColor: "#f5c542",
+              width: 160,
+              height: 120,
+            }
+          : {
+              id: nanoid(), type: "text", x: wx, y: wy, text: "",
+              fontSize: 14,
+              color: "#ffffff",
+            };
         useGlucoseStore.getState().addAnnotation(
           getActiveBoard(useGlucoseStore.getState().project).id, ann
         );
@@ -1262,16 +1253,19 @@ export default function GlucoseCanvas() {
         // Ouvre l'overlay en calculant la position depuis les coords monde
         const rect = app.canvas.getBoundingClientRect();
         const scale = world.scale.x;
+        const annW = ann.type === "sticky" ? ann.width  : undefined;
+        const annH = ann.type === "sticky" ? ann.height : undefined;
+        const annBg = ann.type === "sticky" ? ann.bgColor : undefined;
         setEditOverlay({
           annId: ann.id, type: tool,
           screenX: rect.left + world.x + ann.x * scale,
           screenY: rect.top + world.y + ann.y * scale,
           scale,
-          width: ann.width ? ann.width * scale : undefined,
-          height: ann.height ? ann.height * scale : undefined,
+          width: annW ? annW * scale : undefined,
+          height: annH ? annH * scale : undefined,
           fontSize: ann.fontSize ?? (tool === "sticky" ? 13 : 14),
           color: ann.color ?? "#ffffff",
-          bgColor: ann.bgColor,
+          bgColor: annBg,
           cursorPos: undefined,
         });
         setEditText("");
@@ -1332,7 +1326,6 @@ export default function GlucoseCanvas() {
 
     stage.on("pointermove", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.handleGlobalMove(e, world);
-      annLayerRef.current?.handleGlobalMove(e, world);
 
       if (zoneStartRef.current) {
         const { sx, sy } = zoneStartRef.current;
@@ -1368,7 +1361,8 @@ export default function GlucoseCanvas() {
         const wx = (e.globalX - world.x) / world.scale.x;
         const wy = (e.globalY - world.y) / world.scale.y;
         const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-        const arrowAnn = useGlucoseStore.getState().project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === arrowIdRef.current);
+        const arrowAnnRaw = useGlucoseStore.getState().project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === arrowIdRef.current);
+        const arrowAnn = arrowAnnRaw && arrowAnnRaw.type === "arrow" ? arrowAnnRaw : undefined;
         const snapped = snapToNearest(wx, wy, arrowIdRef.current, arrowAnn?.sourceId);
         useGlucoseStore.getState().updateAnnotation(boardId, arrowIdRef.current, {
           x2: snapped.x,
@@ -1423,7 +1417,8 @@ export default function GlucoseCanvas() {
     function finishArrow(wx: number, wy: number) {
       if (!arrowIdRef.current) return;
       const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-      const arrowAnn = useGlucoseStore.getState().project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === arrowIdRef.current);
+      const arrowAnnRaw = useGlucoseStore.getState().project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === arrowIdRef.current);
+      const arrowAnn = arrowAnnRaw && arrowAnnRaw.type === "arrow" ? arrowAnnRaw : undefined;
       const snapped = snapToNearest(wx, wy, arrowIdRef.current, arrowAnn?.sourceId);
 
       let targetId = snapped.elementId;
@@ -1465,7 +1460,6 @@ export default function GlucoseCanvas() {
 
     stage.on("pointerup", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.clearDragState();
-      annLayerRef.current?.clearDragState();
 
       if (zoneStartRef.current) {
         const { sx, sy } = zoneStartRef.current;
@@ -1530,8 +1524,10 @@ export default function GlucoseCanvas() {
           liveboard.annotations.forEach((ann) => {
             const sx2 = ann.x * world.scale.x + world.x;
             const sy2 = ann.y * world.scale.y + world.y;
-            let aw = ann.width ?? 0;
-            let ah = ann.height ?? 0;
+            // Les flèches sont des segments — on les considère comme un point
+            // (x,y). Pour les autres, on a un rectangle width × height.
+            let aw = ann.type === "arrow" ? 0 : (ann.width  ?? 0);
+            let ah = ann.type === "arrow" ? 0 : (ann.height ?? 0);
             aw *= world.scale.x;
             ah *= world.scale.y;
             if (sx2 + aw >= rx0 && sx2 <= rx1 && sy2 + ah >= ry0 && sy2 <= ry1) annHits.push(ann.id);
@@ -1553,7 +1549,6 @@ export default function GlucoseCanvas() {
 
     stage.on("pointerupoutside", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.clearDragState();
-      annLayerRef.current?.clearDragState();
       if (arrowIdRef.current) {
         const wx = (e.globalX - world.x) / world.scale.x;
         const wy = (e.globalY - world.y) / world.scale.y;
@@ -1745,25 +1740,36 @@ export default function GlucoseCanvas() {
         const vp = vpRef.current;
         const wx = (e.clientX - rect.left - vp.x) / vp.scale;
         const wy = (e.clientY - rect.top - vp.y) / vp.scale;
-        const ann: Annotation = {
-          id: nanoid(), type: tool, x: wx, y: wy, text: "",
-          fontSize: tool === "text" ? 14 : 13,
-          color: "#ffffff",
-          ...(tool === "sticky" ? { bgColor: "#f5c542", width: 160, height: 120 } : {}),
-        };
+        const ann: Annotation = tool === "sticky"
+          ? {
+              id: nanoid(), type: "sticky", x: wx, y: wy, text: "",
+              fontSize: 13,
+              color: "#ffffff",
+              bgColor: "#f5c542",
+              width: 160,
+              height: 120,
+            }
+          : {
+              id: nanoid(), type: "text", x: wx, y: wy, text: "",
+              fontSize: 14,
+              color: "#ffffff",
+            };
         const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
         useGlucoseStore.getState().addAnnotation(boardId, ann);
         useGlucoseStore.getState().setActiveTool("select");
+        const annW = ann.type === "sticky" ? ann.width  : undefined;
+        const annH = ann.type === "sticky" ? ann.height : undefined;
+        const annBg = ann.type === "sticky" ? ann.bgColor : undefined;
         setEditOverlay({
           annId: ann.id, type: tool,
           screenX: rect.left + vp.x + ann.x * vp.scale,
           screenY: rect.top + vp.y + ann.y * vp.scale,
           scale: vp.scale,
-          width: ann.width ? ann.width * vp.scale : undefined,
-          height: ann.height ? ann.height * vp.scale : undefined,
+          width: annW ? annW * vp.scale : undefined,
+          height: annH ? annH * vp.scale : undefined,
           fontSize: ann.fontSize ?? (tool === "sticky" ? 13 : 14),
           color: ann.color ?? "#ffffff",
-          bgColor: ann.bgColor,
+          bgColor: annBg,
           cursorPos: undefined,
         });
         setEditText("");

@@ -140,11 +140,11 @@ function WaypointHandle({ wp, annId, wpIndex, vpScale }: { wp: {x: number, y: nu
         const state = useGlucoseStore.getState();
         const boardId = getActiveBoard(state.project).id;
         const ann = state.project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === annId);
-        if (!ann || !ann.waypoints) return;
+        if (!ann || ann.type !== "arrow" || !ann.waypoints) return;
         const newWps = [...ann.waypoints];
-        newWps[wpIndex] = { 
-          x: newWps[wpIndex].x + e.movementX / vpScale, 
-          y: newWps[wpIndex].y + e.movementY / vpScale 
+        newWps[wpIndex] = {
+          x: newWps[wpIndex].x + e.movementX / vpScale,
+          y: newWps[wpIndex].y + e.movementY / vpScale
         };
         state.updateAnnotation(boardId, annId, { waypoints: newWps });
       }}
@@ -157,7 +157,7 @@ function WaypointHandle({ wp, annId, wpIndex, vpScale }: { wp: {x: number, y: nu
         const state = useGlucoseStore.getState();
         const boardId = getActiveBoard(state.project).id;
         const ann = state.project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === annId);
-        if (!ann || !ann.waypoints) return;
+        if (!ann || ann.type !== "arrow" || !ann.waypoints) return;
         const newWps = [...ann.waypoints];
         newWps.splice(wpIndex, 1);
         state.updateAnnotation(boardId, annId, { waypoints: newWps });
@@ -178,7 +178,7 @@ function MidHandle({ midX, midY, annId, insertIndex, vpScale }: { midX: number, 
         const state = useGlucoseStore.getState();
         const boardId = getActiveBoard(state.project).id;
         const ann = state.project.boards.find(b => b.id === boardId)?.annotations.find(a => a.id === annId);
-        if (!ann) return;
+        if (!ann || ann.type !== "arrow") return;
         const newWps = [...(ann.waypoints || [])];
         newWps.splice(insertIndex, 0, { x: midX, y: midY });
         state.updateAnnotation(boardId, annId, { waypoints: newWps });
@@ -362,9 +362,9 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
               }
             }
 
-            // Annotation entière
+            // Annotation entière (les flèches ne servent pas de cible pour ce calcul)
             const refAnn = board.annotations.find(a => a.id === refId);
-            if (refAnn) {
+            if (refAnn && refAnn.type !== "arrow") {
               const w = refAnn.width ?? (refAnn.type === "text" ? 80 : 160);
               const h = refAnn.height ?? (refAnn.type === "text" ? 20 : 120);
               

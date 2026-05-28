@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { getSymbioticHue } from "../canvas/HtmlAnnotationLayer";
+import { isArrowAnnotation } from "../types";
 
 /**
  * ArrowTextEditor — Mode d'édition interactif pour sélectionner le texte
@@ -23,7 +24,8 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
   const { project, updateAnnotation } = useGlucoseStore();
   const boardId = getActiveBoard(project).id;
   const board = project.boards.find(b => b.id === boardId);
-  const arrow = board?.annotations.find(a => a.id === arrowId);
+  const arrowRaw = board?.annotations.find(a => a.id === arrowId);
+  const arrow = arrowRaw && isArrowAnnotation(arrowRaw) ? arrowRaw : undefined;
   const allAnnotations = board?.annotations ?? [];
 
   const [step, setStep] = useState<EditStep>("source");

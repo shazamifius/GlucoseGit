@@ -1,5 +1,5 @@
 import { useGlucoseStore, getActiveBoard } from "../store";
-import { Annotation, ArrowPredicate } from "../types";
+import { ArrowAnnotation, ArrowPredicate } from "../types";
 
 const PREDICATE_OPTIONS: { value: ArrowPredicate; label: string; color: string }[] = [
   { value: "est_precurseur", label: "→ précurseur", color: "#f59e0b" },
@@ -11,7 +11,7 @@ const PREDICATE_OPTIONS: { value: ArrowPredicate; label: string; color: string }
 ];
 
 interface Props {
-  arrow: Annotation;
+  arrow: ArrowAnnotation;
   onEditText?: () => void;
 }
 
@@ -19,7 +19,7 @@ export default function ArrowOptions({ arrow, onEditText }: Props) {
   const { project, updateAnnotation } = useGlucoseStore();
   const boardId = getActiveBoard(project).id;
 
-  function patch(p: Partial<Annotation>) {
+  function patch(p: Partial<ArrowAnnotation>) {
     updateAnnotation(boardId, arrow.id, p);
   }
 

@@ -353,17 +353,18 @@ function FolderPreview({ folder, child, headerH }: {
     if (ann.type === "arrow") {
       items.push({ kind: "arrow",
         x1: ann.x, y1: ann.y,
-        x2: ann.x2 ?? ann.x + 60, y2: ann.y2 ?? ann.y,
+        x2: ann.x2, y2: ann.y2,
         color: ann.color || "#94a3b8" });
     } else if (ann.type === "membrane") {
       items.push({ kind: "membrane", x: ann.x, y: ann.y,
-        w: ann.width ?? 100, h: ann.height ?? 60,
+        w: ann.width, h: ann.height,
         color: ann.color || "#60a5fa" });
     } else {
+      const bg = ann.type === "sticky" ? ann.bgColor : undefined;
       items.push({ kind: ann.type === "sticky" ? "sticky" : "text",
         x: ann.x, y: ann.y,
         w: ann.width ?? 100, h: ann.height ?? 30,
-        color: ann.bgColor ?? ann.color ?? "#cbd5e1" });
+        color: bg ?? ann.color ?? "#cbd5e1" });
     }
   }
   for (const f of child.folders ?? []) {
