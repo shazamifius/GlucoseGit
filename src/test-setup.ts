@@ -34,7 +34,8 @@ if (typeof window !== "undefined") {
     window.ResizeObserver = StubResizeObserver as unknown as typeof ResizeObserver;
   }
   if (!URL.createObjectURL) {
-    URL.createObjectURL = () => "blob:test";
+    let counter = 0;
+    URL.createObjectURL = () => `blob:test-${counter++}`;
   }
   // jsdom ne fournit pas le contexte canvas 2D. ColorPicker et Minimap en
   // ont besoin. On stubbe le minimum nécessaire pour qu'un mount ne crash pas.
