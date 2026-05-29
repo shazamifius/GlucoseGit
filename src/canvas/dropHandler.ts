@@ -8,9 +8,17 @@ import { getCDNCandidates } from "../utils/imageUpgrade";
 // les ajoute via `addImage(boardId, img, bytes)` plutôt que de passer par
 // le disque. Plus de `src: "asset:..."` créé par les nouveaux drops.
 import { buildEmbedRef, dataUrlToBytes, mimeFromExt } from "../utils/assetRef";
+// R-FIL-02 (Sprint 2) : drop d'un dossier OS → folder mirror.
+import { scanFolderForMirror } from "./folderMirror";
 
 type AddImageFn      = (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
 type AddAnnotationFn = (boardId: string, ann: Annotation) => void;
+// R-FIL-02 : drop d'un dossier OS → folder mirror (scan + folder peuplé)
+type CreateFolderWithContentFn = (
+  parentBoardId: string,
+  folder: Omit<import("../types").CanvasFolder, "id" | "childBoardId">,
+  annotations: Annotation[],
+) => string;
 
 const IMAGE_EXTS  = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i;
 
@@ -145,6 +153,7 @@ export async function addImagesFromDrop(
   boardId: string,
   addImage: AddImageFn,
   addAnnotation?: AddAnnotationFn,
+  createFolderWithContent?: CreateFolderWithContentFn,
 ): Promise<void> {
   const items = Array.from(e.dataTransfer?.items || []);
   const files = Array.from(e.dataTransfer?.files || []);
@@ -224,10 +233,27 @@ export async function addImagesFromDrop(
     if (item.type === "text/uri-list") {
       const uris = data.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith("#"));
 
-      // Sous-cas A : file:// non-image → source sticky
+      // Sous-cas A : file:// non-image
       if (addAnnotation) {
         const sourcePaths = uris.filter((u) => u.startsWith("file://") && !IMAGE_EXTS.test(u)).map(uriToPath);
         if (sourcePaths.length > 0) {
+          // R-FIL-02 — On tente d'abord scan_directory côté Tauri. Si la
+          // commande renvoie une vraie liste d'entrées, c'est un dossier
+          // → on crée un folder mirror. Sinon, fallback sticky launcher.
+          if (createFolderWithContent) {
+            for (let i = 0; i < sourcePaths.length; i++) {
+              const p = sourcePaths[i];
+              try {
+                const result = await scanFolderForMirror(p, worldX + i * 280, worldY + i * 280);
+                createFolderWithContent(boardId, result.folder, result.annotations);
+                console.info(`[drop] R-FIL-02 folder mirror "${result.folder.name}" : ${result.annotations.length} entrées${result.truncated ? " (tronqué)" : ""}`);
+              } catch (_err) {
+                // Pas un dossier (ou hors-scope) → fallback sticky
+                addAnnotation(boardId, makeSourceSticky(p, worldX + i * 24, worldY + i * 24));
+              }
+            }
+            return;
+          }
           sourcePaths.forEach((p, i) => addAnnotation(boardId, makeSourceSticky(p, worldX + i * 24, worldY + i * 24)));
           return;
         }

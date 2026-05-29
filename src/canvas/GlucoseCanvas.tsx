@@ -1672,7 +1672,14 @@ export default function GlucoseCanvas() {
     const rect = canvasRef.current!.getBoundingClientRect();
     const wx = (e.clientX - rect.left - world.x) / world.scale.x;
     const wy = (e.clientY - rect.top - world.y) / world.scale.y;
-    await addImagesFromDrop(e.nativeEvent, wx, wy, getActiveBoard(useGlucoseStore.getState().project).id, addImage, addAnnotation);
+    const state = useGlucoseStore.getState();
+    await addImagesFromDrop(
+      e.nativeEvent, wx, wy,
+      getActiveBoard(state.project).id,
+      addImage,
+      addAnnotation,
+      state.createFolderWithContent, // R-FIL-02 : drop dossier OS → folder mirror
+    );
   }, []);
 
   function commitEdit() {

@@ -721,6 +721,104 @@ async fn load_asset(
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+/// R-FIL-02 (Sprint 2) — entrée d'un scan de répertoire.
+#[derive(serde::Serialize)]
+struct DirEntryDto {
+    /// Chemin absolu canonicalisé.
+    path: String,
+    /// Nom du fichier ou dossier (sans le chemin).
+    name: String,
+    /// Taille en octets (0 pour les dossiers).
+    size: u64,
+    /// True si c'est un sous-dossier.
+    is_dir: bool,
+    /// Extension en minuscules sans le point (vide si aucune).
+    ext: String,
+}
+
+/// R-FIL-02 — scanne un dossier (non-récursif) et renvoie ses entrées.
+///
+/// Garde-fous sécurité :
+/// - `path` est validé via `validate_scope` (refus UNC + scope strict).
+/// - Les extensions explicitement dangereuses (`FORBIDDEN_OPEN_EXTS`) sont
+///   filtrées du résultat — on ne les expose même pas au front pour ne pas
+///   tenter le user à les déposer.
+/// - `max_files` plafond strict (limite mémoire / payload Tauri).
+#[tauri::command]
+async fn scan_directory(
+    path: String,
+    max_files: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<DirEntryDto>, String> {
+    let canonical = validate_scope(&path, &app_handle)?;
+
+    if !canonical.is_dir() {
+        return Err(format!(
+            "{} n'est pas un dossier",
+            canonical.display()
+        ));
+    }
+
+    let mut entries = tokio::fs::read_dir(&canonical)
+        .await
+        .map_err(|e| format!("Lecture du dossier impossible : {e}"))?;
+
+    let limit = max_files.min(20_000) as usize;
+    let mut out: Vec<DirEntryDto> = Vec::with_capacity(64);
+
+    while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
+        if out.len() >= limit {
+            break;
+        }
+
+        let entry_path = entry.path();
+        let name = entry
+            .file_name()
+            .to_string_lossy()
+            .into_owned();
+
+        // Skip les fichiers cachés Unix-style et les .DS_Store / Thumbs.db.
+        // L'utilisateur préfère ne pas les voir polluer la grille.
+        if name.starts_with('.') && name != ".env" && name != ".gitignore" && name != ".gitattributes" {
+            continue;
+        }
+        if name == "Thumbs.db" || name == "desktop.ini" {
+            continue;
+        }
+
+        let meta = match entry.metadata().await {
+            Ok(m) => m,
+            Err(_) => continue, // entrée illisible — on l'ignore silencieusement
+        };
+
+        let is_dir = meta.is_dir();
+        let size = if is_dir { 0 } else { meta.len() };
+        let ext = get_ext(&entry_path);
+
+        // Refuse les extensions exécutables / scripts — on n'expose pas au front.
+        if !is_dir && FORBIDDEN_OPEN_EXTS.contains(&ext.as_str()) {
+            continue;
+        }
+
+        out.push(DirEntryDto {
+            path: entry_path.to_string_lossy().into_owned(),
+            name,
+            size,
+            is_dir,
+            ext,
+        });
+    }
+
+    // Tri stable : dossiers d'abord, puis par nom (case-insensitive).
+    out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+
+    Ok(out)
+}
+
 /// Whitelist d'extensions acceptées pour `save_asset`.
 fn sanitize_ext(ext: &str) -> Result<String, String> {
     let lower = ext.trim_start_matches('.').to_lowercase();
@@ -752,6 +850,8 @@ pub fn run() {
             save_asset,
             load_asset,
             get_assets_dir,
+            // R-FIL-02 (Sprint 2) — drop d'un dossier OS = folder mirror
+            scan_directory,
             // Phase 7.2 — format binaire `.glucose` v2 (Automerge)
             read_glucose_binary,
             write_glucose_binary,

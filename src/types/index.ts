@@ -231,6 +231,23 @@ export interface BoardZone {
 }
 
 // ── Canvas Folders (sous-canvases imbriqués) ──────────────────
+
+/** R-FIL-02 (Sprint 2) — Lien vers un dossier OS dont le contenu est
+ *  reflété dans le `CanvasFolder`. Si défini, le folder est un *mirror*
+ *  d'un dossier disque ; sinon, c'est un folder Glucose vanilla. */
+export interface FolderMirrorSource {
+  /** Chemin absolu du dossier OS scanné. */
+  rootPath: string;
+  /** `snapshot` = un scan unique au drop ; `live` = watcher (R-FIL-02 v2). */
+  mode: "snapshot" | "live";
+  /** Timestamp ms du dernier scan. */
+  lastScannedAt: number;
+  /** Glob optionnel (ex: "*.blend") — null = tout (sauf binaires interdits). */
+  pattern?: string;
+  /** True si on scanne aussi les sous-dossiers (réservé future). */
+  recursive: boolean;
+}
+
 export interface CanvasFolder {
   id: string;
   name: string;
@@ -242,6 +259,8 @@ export interface CanvasFolder {
   childBoardId: string;        // Important : un dossier-miroir partage le SAME childBoardId
                                // que l'original → toute mutation propage automatiquement.
   mirrorOf?: string;           // Phase 4 — id du dossier original (alias)
+  /** R-FIL-02 — Si défini, ce folder reflète un dossier OS. */
+  mirrorSource?: FolderMirrorSource;
 }
 
 // ── Boards ────────────────────────────────────────────────────

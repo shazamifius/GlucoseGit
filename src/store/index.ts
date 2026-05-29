@@ -238,6 +238,16 @@ interface GlucoseStore {
 
   // â”€â”€ Canvas Folders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   createFolder: (parentBoardId: string, folder: Omit<CanvasFolder, "childBoardId">) => void;
+  /**
+   * R-FIL-02 (Sprint 2) — crée un folder + son child board peuplé de
+   * `seedAnnotations` (typiquement issu d'un scan filesystem). Atomique pour
+   * undo/redo. Renvoie l'id du folder créé.
+   */
+  createFolderWithContent: (
+    parentBoardId: string,
+    folder: Omit<CanvasFolder, "id" | "childBoardId">,
+    seedAnnotations: Annotation[],
+  ) => string;
   updateFolder: (boardId: string, folderId: string, patch: Partial<CanvasFolder>) => void;
   removeFolders: (boardId: string, folderIds: string[]) => void;
   enterFolder: (folderId: string) => void;
@@ -1206,6 +1216,45 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       par.updatedAt = Date.now();
       d.updatedAt = Date.now();
     });
+  },
+
+  createFolderWithContent: (parentBoardId, folderData, seedAnnotations) => {
+    // R-FIL-02 — Variante de createFolder qui pré-peuple le child board.
+    // Utilisée par le drop d'un dossier OS (folderMirror.scanFolderForMirror).
+    const childBoardId = nanoid();
+    const folderId = nanoid();
+    const folder: CanvasFolder = clampSpatial({
+      ...folderData,
+      id: folderId,
+      childBoardId,
+    });
+
+    get().mutate("createFolderWithContent", (d) => {
+      // 1) Crée le child board pré-peuplé.
+      // ATTENTION : après push, on doit récupérer le PROXY Automerge pour
+      // pouvoir y push les annotations (cf. fix Sprint 1 — variables JS
+      // déconnectées du doc après push).
+      d.boards.push({ ...newBoard(folderData.name), id: childBoardId });
+      const childBoard = d.boards.find((b) => b.id === childBoardId);
+      if (!childBoard) return;
+
+      // 2) Insère les annotations dans le child board (deep-clone pour
+      // casser les refs avant push — pattern Sprint 1).
+      for (const ann of seedAnnotations) {
+        const plain = JSON.parse(JSON.stringify(ann)) as Annotation;
+        const safe = clampSpatial(plain);
+        childBoard.annotations.push(safe);
+      }
+
+      // 3) Ajoute le folder au parent board.
+      const par = d.boards.find((b) => b.id === parentBoardId);
+      if (!par) return;
+      if (!par.folders) par.folders = [];
+      par.folders.push(folder);
+      par.updatedAt = Date.now();
+      d.updatedAt = Date.now();
+    });
+    return folderId;
   },
 
   updateFolder: (boardId, folderId, patch) => {
