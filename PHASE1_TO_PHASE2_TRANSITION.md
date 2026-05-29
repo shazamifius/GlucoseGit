@@ -2,8 +2,8 @@
 
 > Document de synthèse architecturale et feuille de route stratégique.
 >
-> **Date :** 2026-05-28
-> **Version courante :** 0.3.0-rc (Phase 1 = tout ce qui est livré jusqu'à Phase 7.5bis incluse)
+> **Date :** 2026-05-28 (créé) · **maj 2026-05-29** (Sprint 2 file manager + Sprint 1 closé)
+> **Version courante :** 0.3.0-rc (Phase 1 = tout ce qui est livré jusqu'à Phase 7.5bis incluse, plus polish UI Sprint 1)
 > **Auteur :** Bilan technique pré-Phase 2.
 
 ---
@@ -52,6 +52,7 @@ encadrent toute décision technique :
 │  ─ Format .glucose v2 binaire (Automerge save())                         │
 │  ─ Migration transparente v1 JSON → v2 binaire                           │
 │  ─ Assets externalisés : asset:<sha256_16>.<ext> + dédup disque          │
+│       ⚠️ Sprint 2 R-EMB-01 va passer en embed Automerge par défaut       │
 │                                                                          │
 │  Backend Rust (src-tauri)                                                │
 │  ─ Tauri 2 (desktop) — capabilities strictes                             │
@@ -823,6 +824,260 @@ refactoring (Étape 2), ce qui porte le total préparatoire à
 
 ---
 
+## 2.6bis — MISE À JOUR mai 2026 : Glucose = file manager visuel 2D
+
+> Décisions utilisateur du 2026-05-29 qui transforment la portée de
+> Glucose : ce n'est plus juste un canvas cognitif, c'est aussi un
+> **explorateur de fichiers spatial** auto-portant. Ces tickets sont
+> insérés dans la fenêtre Sprint 2 — à traiter **avant** Phase 2.0 RAG
+> car ils touchent au format `.glucose` lui-même.
+
+### R-EMB-01 — Embedding réel des assets dans le `.glucose` 🔴 PRIORITÉ ABSOLUE
+
+**Problème (verbatim utilisateur)** : « je detest le fait que les fichier
+image soit enregistrer en relatif et pas en dure dans le glucose lui meme ».
+
+**État actuel (Phase 7.0)** : assets externalisés vers
+`app_data_dir/assets/<sha256>.<ext>`, le `.glucose` ne contient qu'une
+référence `asset:<sha>.png`. Copier le `.glucose` sur une autre machine
+SANS copier le dossier `assets/` casse toutes les images.
+
+**Décision** : passer à un modèle **dual** avec embed par défaut :
+
+```ts
+// types/index.ts — Phase 2
+type AssetRef =
+  | { kind: "inline"; data: Uint8Array; mime: string; sha256: string }
+  | { kind: "linked"; path: string; sha256?: string; sizeBytes?: number };
+
+interface BoardImage {
+  // ... champs existants
+  asset: AssetRef;       // remplace `src: string`
+  // legacy `src` strippé à load + migré
+}
+```
+
+| Cas | Mode par défaut | Override utilisateur |
+|---|---|---|
+| Image collée / drag depuis web | `inline` | Right-click → "Lier au fichier" |
+| Image drag depuis disque < 5 MB | `inline` | Right-click → "Lier au fichier" |
+| Image drag depuis disque ≥ 5 MB | `linked` (chemin absolu) | Right-click → "Intégrer dans le projet" |
+| Folder-mirror (cf. R-FIL-02) | `linked` (chemin relatif au manifest) | Pas d'override |
+
+**Implications techniques** :
+- Automerge supporte `Uint8Array` natif via `A.Bytes`. La dédup par
+  contenu se fait au niveau Automerge (un même blob référencé N fois =
+  stocké 1×) → pas de duplication même avec inline.
+- L'historique Automerge garde les blobs ; pour un projet créatif typique
+  (50 images × 500 KB = 25 MB), c'est OK. Pour Wiki Test (10M images),
+  on reste en `linked` + cache sidecar.
+- Migration : `loadProject` détecte les anciens `src: "asset:..."` et
+  les rapatrie automatiquement en `inline` au premier save (idempotent,
+  silencieux).
+
+**Effort** : **3-4 j** (changement de schéma + migration + UI right-click +
+tests roundtrip).
+
+**Priorité : HAUTE** — bloque la confiance de l'utilisateur dans le format.
+
+---
+
+### R-FIL-01 — Drag-and-drop universel de fichiers
+
+**Problème (verbatim)** : « il y a un truck qui existe toujours pas dans
+le glucose ces le fait de glisser deposer nimporte quel fichier et que on
+puisse le lire. tout les .json les .txt et les .md si on glisse depo sur
+glucose et bien on le vois sous forme de texte. et si il y a autre type
+de fichier que on ne peut pas lire et editer directement et bien il
+faudrai que ce soit un launcher genre les .blend tu clique depuis
+glucose sa te louvre sur blender ».
+
+**Aujourd'hui** : seuls les fichiers image / vidéo / `.glucose` sont
+reconnus. Tout autre fichier est ignoré au drop.
+
+**Nouveau type unifié** :
+
+```ts
+// types/index.ts — Phase 2
+interface FileNode extends AnnotationBase {
+  type: "file";
+  asset: AssetRef;
+  filename: string;
+  mime: string;
+  sizeBytes: number;
+  /** Détermine le rendu sur le canvas. */
+  view: FileView;
+}
+
+type FileView =
+  | { kind: "text-inline"; content: string; lang?: string }       // .txt/.md/.json/.log/.csv
+  | { kind: "code-inline"; content: string; lang: string }        // .ts/.js/.py/.rs/.go/...
+  | { kind: "markdown-inline"; content: string }                  // .md (rendu = TextAnnotation)
+  | { kind: "image-inline" }                                      // displaye via BoardImage
+  | { kind: "launcher"; icon: string; tooltip: string }           // .blend/.kra/.psd/.nuke/...
+  | { kind: "unsupported"; reason: string };                      // fallback safe
+```
+
+**Matrice de détection** (extension → vue par défaut) :
+
+| Extensions | Vue | Rendu |
+|---|---|---|
+| `.txt .log .csv .json .yaml .toml .ini .env .gitignore .md` | text-inline / markdown-inline | Bloc texte read-only avec scroll vertical interne + bouton "Éditer" |
+| `.ts .tsx .js .jsx .py .rs .go .c .cpp .java .rb .php .sh .ps1 .sql` | code-inline | Bloc code coloré (Shiki ou Prism — décision Sprint 3) |
+| `.png .jpg .jpeg .gif .webp .avif .svg .bmp` | image-inline | Existant — BoardImage |
+| `.mp4 .webm .mov .mkv` | image-inline (vidéo) | Existant — BoardImage + `isVideo` |
+| `.blend .kra .psd .nuke .ai .indd .clip .ma .mb .max .c4d` | launcher | Icône grand format + nom + "double-clic → ouvre dans l'app" |
+| `.pdf` | launcher (Phase 3 future : preview pages) | Icône PDF |
+| `.zip .tar .gz .7z .rar` | launcher | Icône archive — pas d'extraction inline (volume) |
+| tout autre (`.exe .dll .so .dylib` etc.) | unsupported | Refus avec toast explicatif (sécurité : déjà bloqué côté Rust) |
+
+**Comportements** :
+- Drop d'un fichier sur le canvas → crée un `FileNode` à la position du
+  curseur. Le contenu est embedé si < 5 MB (réutilise R-EMB-01).
+- Double-clic sur launcher → `open_in_app` (déjà existant, vérifié par
+  whitelist Rust).
+- Double-clic sur text-inline / code-inline → ouvre un éditeur modal
+  (lecture seule par défaut, bouton "Éditer" passe en write si le fichier
+  est `linked` ; un `inline` peut être édité et resté inline).
+
+**Effort** : **4-5 j** (lecture sécurisée côté Rust, détection MIME via
+`infer` crate, intégration dropHandler, 3 viewers, tests par type).
+
+---
+
+### R-FIL-02 — Drag d'un dossier → folder-mirror visuel
+
+**Problème (verbatim)** : « quand je dit un fichier ces que je parle d'un
+dossier sa crée un dossier sur le glucose, et sa crée des lien pour tout
+les fichier .blend, .krt .nuke bref tout. et comme sa permeterai avoir un
+univers visuel 2D ultra organiser ou tu litteralement un visuelateur de
+fichier avec les icon des fichier pour que ce soit visuel ».
+
+**Concept** : Glucose devient un **explorateur Finder/Explorer immersif**.
+Drag d'un dossier OS sur le canvas → un `CanvasFolder` est créé, son
+contenu est scanné, chaque fichier devient un `FileNode` (R-FIL-01)
+positionné en grille.
+
+**Schéma du `CanvasFolder` étendu** :
+
+```ts
+interface CanvasFolder {
+  // ... champs existants
+  /** Si le folder est un miroir d'un dossier OS, on stocke la racine. */
+  mirrorSource?: {
+    rootPath: string;        // chemin absolu du dossier OS
+    mode: "snapshot" | "live"; // live = re-sync sur changement disque
+    lastScannedAt: number;
+    pattern?: string;        // glob optionnel (ex: "*.blend")
+    recursive: boolean;
+  };
+  sortMode?: SortMode;       // cf. R-FIL-03
+}
+```
+
+**Modes de mirror** :
+
+| Mode | Comportement | Coût |
+|---|---|---|
+| `snapshot` (défaut) | Scan une fois au drop, FileNodes statiques | Faible |
+| `live` | Watch via Tauri `notify` + delta sync | Moyen — nouveaux fichiers ajoutés / supprimés en temps réel |
+
+**Layout par défaut au scan** :
+- Grille : `cols = ceil(sqrt(N))`, espacement = 200 px
+- Chaque FileNode est positionné en (col × 220, row × 220) relatif au
+  centre du folder.
+- Surcharge possible via R-FIL-03 (sort + filter).
+
+**Implications sécurité** :
+- Pas de scan transitive hors du `mirrorSource.rootPath` (validate_scope
+  Rust déjà strict).
+- Refus des fichiers `.exe .dll .lnk .bat .ps1` etc. au scan
+  (`FORBIDDEN_OPEN_EXTS` déjà existant).
+- Limite : pas de mirror sur un dossier > 10 000 fichiers sans confirmation
+  utilisateur (toast "10k+ fichiers, continuer ?").
+
+**Effort** : **5-6 j** (scan Rust, watcher optionnel, rendu grille, intégration
+R-FIL-01 par fichier, garde-fous quantité).
+
+---
+
+### R-FIL-03 — Tri et filtres multi-critères sur les folders
+
+**Problème (verbatim)** : « je pense qu'il serai interressant de crée des
+filtre de trie genre 'dernier fois que on a ouvert un fichier, derniere
+modifier, trier de A à Z ou encors des double truck du style trier par
+tipe de fichier et en me temps par ordre choronologique ou meme par
+taille ».
+
+**Schéma** :
+
+```ts
+type SortKey = "name" | "createdAt" | "modifiedAt" | "openedAt"
+             | "size" | "type" | "color";
+type SortDir = "asc" | "desc";
+
+interface SortMode {
+  primary: { key: SortKey; dir: SortDir };
+  /** Tri secondaire si égalité sur primary (ex: type asc + date desc). */
+  secondary?: { key: SortKey; dir: SortDir };
+  /** Filtre optionnel (ne supprime pas les nœuds, les atténue). */
+  filter?: {
+    extensions?: string[];      // ["blend", "nuke"]
+    dateRange?: { start: number; end: number };
+    sizeRange?: { minBytes: number; maxBytes: number };
+    query?: string;              // recherche textuelle dans filename
+  };
+}
+```
+
+**UI** :
+- Bouton « ⇅ Tri » dans le breadcrumb (en haut du folder) → ouvre un
+  petit popover compact :
+  - Tri primaire (dropdown 8 options) + sens (toggle ↑↓)
+  - Tri secondaire (optionnel)
+  - Filtres (sous-section repliée par défaut)
+- Le sort déplace les FileNodes via une animation 300 ms ease-out.
+- Le filter atténue (opacity 0.18) les nœuds qui ne matchent pas — comme
+  le filtre temporel existant (Phase 6).
+
+**Présélections rapides** (boutons d'accès direct dans le popover) :
+- « Récents d'abord » : `modifiedAt desc`
+- « Par type puis chronologique » : `type asc + modifiedAt desc`
+- « Du plus gros au plus petit » : `size desc`
+- « A → Z » : `name asc`
+
+**Persistance** : le `sortMode` est stocké dans le `CanvasFolder` (donc
+dans le doc Automerge) → préservé après reload, sync via multijoueur LAN.
+
+**Effort** : **3 j** (schéma, popover, application au layout, presets,
+tests, animation).
+
+---
+
+### Récap nouveaux tickets R-EMB / R-FIL
+
+| Ticket | Type | Effort | Priorité | Bloque |
+|---|---|---|---|---|
+| R-EMB-01 | Format `.glucose` | 3-4 j | **🔴 ABSOLUE** | toute confiance utilisateur dans le format |
+| R-FIL-01 | Feature drop universel | 4-5 j | **HAUTE** | dépend de R-EMB-01 |
+| R-FIL-02 | Feature folder-mirror | 5-6 j | **HAUTE** | dépend de R-FIL-01 |
+| R-FIL-03 | Feature tri/filtre | 3 j | **MOYENNE** | dépend de R-FIL-02 |
+
+**Total Sprint 2 (file manager) : 15-18 jours.**
+
+**Ordre d'exécution recommandé** :
+1. R-EMB-01 (fondation format) →
+2. R-FIL-01 (atome FileNode + rendu) →
+3. R-FIL-02 (folder-mirror utilise FileNode) →
+4. R-FIL-03 (tri/filtre par-dessus).
+
+Le Sprint 2 se fait **après** R-TYP-02 (Block) car `FileNode` et `Block`
+partagent des concepts (atome indexable, contenu typé, sourceFile). Il
+est même judicieux de fusionner les deux : un `FileNode` est un `Block`
+de `kind: "file"`. À trancher au début Sprint 2.
+
+---
+
 ## 2.7 Récap consolidé des tickets
 
 | Ticket | Type | Effort | Priorité |
@@ -839,8 +1094,22 @@ refactoring (Étape 2), ce qui porte le total préparatoire à
 | R-HYG-01..06 | Hygiène | S (½ j cumulé) | Basse |
 
 **Total refactoring (R-MOD / R-TYP / R-FRO / R-HYG) : 14-18 jours**.
-**Cumulé avec la dette résiduelle Phase 1 (cf. §2.6) : ~25-30 jours** avant
+**Total file manager (R-EMB / R-FIL, cf. §2.6bis) : 15-18 jours**.
+**Cumulé avec la dette résiduelle Phase 1 (cf. §2.6) : ~40-46 jours** avant
 l'ouverture Phase 2.0.
+
+### Ordre d'exécution global (Sprints 2 à 5)
+
+| Sprint | Contenu | Durée |
+|---|---|---|
+| **Sprint 1** ✅ | R-TYP-01 (union discriminée), 9 bugs Automerge, FolderBreadcrumb #310, polish UI Toolbar/Pomodoro | terminé |
+| **Sprint 2 — Format & file manager** | R-EMB-01 → R-FIL-01 → R-FIL-02 → R-FIL-03 | 15-18 j |
+| **Sprint 3 — Type Block + dérivation** | R-TYP-02 (peut fusionner avec FileNode), R-TYP-03 (Zod) | 2-3 j |
+| **Sprint 4 — Modularité** | R-MOD-01 (canvas), R-MOD-02 (store), R-MOD-03 (suppr AnnotationLayer) | 7-9 j |
+| **Sprint 5 — Frontière & dette résiduelle** | R-FRO-01/02/03 + dette R-RES-01..11 (sauf R-RES-10 différé) | 14-16 j |
+| **Phase 2.0** | RAG fondations | 3 sem |
+
+**Phase 2.0 atteignable autour de fin août 2026** dans ce calendrier.
 
 ---
 
