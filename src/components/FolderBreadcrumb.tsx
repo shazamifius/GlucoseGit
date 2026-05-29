@@ -24,6 +24,14 @@ export default function FolderBreadcrumb() {
   const [siblingsFor, setSiblingsFor] = useState<{ idx: number; siblings: Crumb[] } | null>(null);
   const hideTimerRef = useRef<number | null>(null);
 
+  // ⚠️ Tous les hooks DOIVENT être appelés inconditionnellement avant tout early return.
+  // Auparavant, ce useEffect était placé après `if (folderStack.length === 0) return null;`,
+  // ce qui causait React error #310 ("Rendered more hooks than during the previous render")
+  // au moment précis où on entrait dans le premier folder (passage de 0 → N segments).
+  useEffect(() => {
+    return () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); };
+  }, []);
+
   if (folderStack.length === 0) return null;
 
   const crumbs: Crumb[] = folderStack.map(({ boardId, folderId }) => {
@@ -70,10 +78,6 @@ export default function FolderBreadcrumb() {
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     hideTimerRef.current = window.setTimeout(() => setSiblingsFor(null), 220);
   }
-
-  useEffect(() => {
-    return () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); };
-  }, []);
 
   const FolderIcon = ({ color, size = 10 }: { color: string; size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>

@@ -227,7 +227,9 @@ export default function PanelDock({ openTabs, dismissingTabs, onDismiss }: Props
                 zIndex: isDragged ? 10 : 1,
               }}
             >
-              {/* Drag grip */}
+              {/* Drag grip — les dots restent en HAUT (paddingTop:2) pour ne pas
+                  chevaucher le header du panel ; la zone de capture pointer
+                  reste haute (24 px) pour rester confortable à attraper. */}
               <div
                 onPointerDown={(e) => onGripDown(e, idx)}
                 onPointerMove={onGripMove}
@@ -236,17 +238,18 @@ export default function PanelDock({ openTabs, dismissingTabs, onDismiss }: Props
                 style={{
                   position: "absolute",
                   top: 0, left: 0, right: 0,
-                  height: 30,
+                  height: 24,
                   cursor: isDragged ? "grabbing" : "grab",
                   zIndex: 2,
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   justifyContent: "center",
+                  paddingTop: 3,
                   borderRadius: "6px 6px 0 0",
                 }}
               >
                 <span style={{
-                  fontSize: 12,
+                  fontSize: 10,
                   color: isDragged ? "#888" : "#333",
                   letterSpacing: 3,
                   pointerEvents: "none",
