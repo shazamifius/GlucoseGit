@@ -13,6 +13,18 @@ type AddImageFn      = (boardId: string, img: BoardImage, embedBytes?: Uint8Arra
 type AddAnnotationFn = (boardId: string, ann: Annotation) => void;
 
 const IMAGE_EXTS  = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i;
+
+// R-FIL-01 (Sprint 2) — Fichiers textuels lisibles directement sur le canvas.
+// Affichés dans une TextAnnotation avec le contenu en Markdown (rendu KaTeX
+// inclus). Les `.md` sont rendus tels quels ; les autres formats sont enrobés
+// dans un fenced code block typé pour bénéficier de la coloration.
+const TEXT_FILE_EXTS = /\.(txt|md|markdown|json|jsonl|csv|tsv|log|yaml|yml|toml|ini|env|xml|html|htm|conf|cfg|gitignore|gitattributes)$/i;
+
+// Code source — même branche que TEXT_FILE_EXTS, juste un autre fenced lang.
+const CODE_FILE_EXTS = /\.(ts|tsx|js|jsx|mjs|cjs|py|rs|go|c|cc|cpp|h|hpp|java|rb|php|swift|kt|cs|scala|sh|bash|zsh|fish|ps1|sql|lua|r|jl|hs|erl|ex|exs|clj|fs|dart|nim|zig|asm|s|vim|tex|bib)$/i;
+
+// Taille max d'un fichier texte affiché inline. Au-delà, on tronque proprement.
+const TEXT_INLINE_MAX_BYTES = 100_000;
 export const VIDEO_FILE_EXTS = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;
 export const VIDEO_URL_RE = /(?:youtube\.com\/(?:watch|shorts)|youtu\.be\/|tiktok\.com\/@[^/]+\/video\/|instagram\.com\/(?:reel|p)\/|vimeo\.com\/\d)/i;
 
@@ -44,6 +56,83 @@ export function makeSourceSticky(filePath: string, x: number, y: number): Annota
   };
 }
 
+/**
+ * R-FIL-01 (Sprint 2) — Crée une TextAnnotation à partir d'un fichier texte
+ * lu. Si l'extension est du code, on enrobe dans un fenced code block typé
+ * pour bénéficier de la coloration markdown. Si c'est du `.md`, on le rend
+ * tel quel. Sinon, on enrobe dans un fenced « text ».
+ *
+ * @param filename — nom du fichier (sans le chemin) pour le header
+ * @param content  — contenu lu (déjà tronqué si > TEXT_INLINE_MAX_BYTES)
+ * @param wasTruncated — true si on a dû couper, pour ajouter un footer
+ */
+export function makeTextNodeFromFile(
+  filename: string,
+  content: string,
+  wasTruncated: boolean,
+  x: number,
+  y: number,
+): Annotation {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const isMarkdown = ext === "md" || ext === "markdown";
+  const isCode = CODE_FILE_EXTS.test("." + ext);
+
+  let body: string;
+  if (isMarkdown) {
+    body = content;
+  } else if (isCode) {
+    // Map a few extensions vers leur lang officiel pour les highlighters
+    const lang = ({
+      ts: "typescript", tsx: "tsx", js: "javascript", jsx: "jsx",
+      py: "python", rs: "rust", go: "go", c: "c", cc: "cpp", cpp: "cpp",
+      h: "c", hpp: "cpp", java: "java", rb: "ruby", php: "php",
+      swift: "swift", kt: "kotlin", cs: "csharp", scala: "scala",
+      sh: "bash", bash: "bash", zsh: "bash", fish: "fish", ps1: "powershell",
+      sql: "sql", lua: "lua", r: "r", jl: "julia", hs: "haskell",
+      ex: "elixir", exs: "elixir", clj: "clojure", fs: "fsharp",
+      dart: "dart", nim: "nim", zig: "zig", asm: "asm", s: "asm",
+      tex: "latex", bib: "bibtex",
+    } as Record<string, string>)[ext] ?? ext;
+    body = `\`\`\`${lang}\n${content}\n\`\`\``;
+  } else if (ext === "json" || ext === "jsonl") {
+    body = `\`\`\`json\n${content}\n\`\`\``;
+  } else if (ext === "csv" || ext === "tsv") {
+    body = `\`\`\`csv\n${content}\n\`\`\``;
+  } else if (ext === "yaml" || ext === "yml") {
+    body = `\`\`\`yaml\n${content}\n\`\`\``;
+  } else if (ext === "toml") {
+    body = `\`\`\`toml\n${content}\n\`\`\``;
+  } else if (ext === "xml" || ext === "html" || ext === "htm") {
+    body = `\`\`\`${ext}\n${content}\n\`\`\``;
+  } else {
+    body = `\`\`\`text\n${content}\n\`\`\``;
+  }
+
+  const header = `### 📄 ${filename}\n\n`;
+  const footer = wasTruncated
+    ? `\n\n_(tronqué à ${TEXT_INLINE_MAX_BYTES.toLocaleString()} octets — fichier plus grand)_`
+    : "";
+
+  return {
+    id: nanoid(),
+    type: "text",
+    x, y,
+    text: header + body + footer,
+    fontSize: 12,
+    width: 520,
+  };
+}
+
+/** Lit un File comme texte, tronqué à TEXT_INLINE_MAX_BYTES. Renvoie aussi
+ *  un flag indiquant si on a coupé. */
+async function readFileAsText(file: File): Promise<{ content: string; truncated: boolean }> {
+  const slice = file.size > TEXT_INLINE_MAX_BYTES
+    ? file.slice(0, TEXT_INLINE_MAX_BYTES)
+    : file;
+  const content = await slice.text();
+  return { content, truncated: file.size > TEXT_INLINE_MAX_BYTES };
+}
+
 // Convert Windows file:// pathname (/C:/foo) → C:/foo
 function uriToPath(u: string): string {
   return decodeURIComponent(new URL(u).pathname).replace(/^\/([A-Za-z]:)/, "$1");
@@ -64,7 +153,32 @@ export async function addImagesFromDrop(
   // Diagnostic — accessible via DevTools (Ctrl+Shift+I) onglet Console
   console.debug("[drop] types:", types, "items:", items.length, "files:", files.length);
 
-  // ── 1. Fichiers locaux non-image → source sticky (App Bridge) ─────────
+  // ── 1a. R-FIL-01 — Fichiers textuels lisibles → TextAnnotation inline ──
+  // Lecture côté browser (File.text()) — pas besoin de Tauri. Tronque à
+  // TEXT_INLINE_MAX_BYTES (100 KB) pour ne pas exploser un projet sur un log
+  // géant.
+  if (addAnnotation) {
+    const textFiles = files.filter(
+      (f) => TEXT_FILE_EXTS.test(f.name) || CODE_FILE_EXTS.test(f.name),
+    );
+    if (textFiles.length > 0) {
+      for (let i = 0; i < textFiles.length; i++) {
+        const file = textFiles[i];
+        try {
+          const { content, truncated } = await readFileAsText(file);
+          addAnnotation(
+            boardId,
+            makeTextNodeFromFile(file.name, content, truncated, worldX + i * 24, worldY + i * 24),
+          );
+        } catch (err) {
+          console.error(`[drop] échec lecture texte ${file.name}:`, err);
+        }
+      }
+      return;
+    }
+  }
+
+  // ── 1b. Fichiers locaux non-image et non-texte → source sticky (App Bridge) ──
   if (addAnnotation) {
     const srcFiles = files.filter((f) => !IMAGE_EXTS.test(f.name) && !f.type.startsWith("image/"));
     if (srcFiles.length > 0) {
