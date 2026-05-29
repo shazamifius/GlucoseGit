@@ -8,6 +8,11 @@ import { isArrowAnnotation } from "../types";
 // CLEANUP B-03 : CSS KaTeX chargé à la demande quand le panel s'ouvre.
 import { ensureKatexCss } from "../utils/loadKatexCss";
 
+// Constantes module-level — identité stable des deps ReactMarkdown internes
+// (cf. HtmlAnnotationLayer pour le rationale).
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REHYPE_PLUGINS = [rehypeKatex];
+
 /**
  * Phase 5 — Flèche déroulante (point D)
  *
@@ -131,7 +136,7 @@ export default function ArrowDescriptionPanel({ arrowId, midX, midY, onClose }: 
         ) : (
           <div className="prose prose-invert prose-sm max-w-none" style={{ fontSize: 13, lineHeight: 1.6, color: "#d4d4d4" }}>
             {text.trim()
-              ? <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{text}</ReactMarkdown>
+              ? <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>{text}</ReactMarkdown>
               : <span style={{ color: "#555", fontStyle: "italic" }}>Aucune description. Clique ✎ pour en ajouter une.</span>}
           </div>
         )}

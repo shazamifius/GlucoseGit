@@ -56,13 +56,20 @@ interface PreviewTarget {
   blockId?: string;
 }
 
+// ⚠️ Les arrays de plugins DOIVENT être des constantes module-level (identité stable).
+// Si on les inline dans le JSX, ReactMarkdown reçoit des refs neuves à chaque render,
+// son useEffect interne se rejoue infiniment, et un unmount/remount pendant un re-render
+// déclenche React error #310 ("rendered more hooks than during the previous render").
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REHYPE_PLUGINS = [rehypeKatex];
+
 // Composants fixes pour react-markdown pour éviter le unmount/remount
 const StableMarkdownComponents = {
   text: memo(function StableText({ processedText, components }: { processedText: string, components: Components }) {
     return (
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={REHYPE_PLUGINS}
         components={components}
       >
         {processedText}
