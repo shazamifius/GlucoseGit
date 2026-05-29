@@ -26,7 +26,8 @@ function computeLuminosity(img: BoardImage): Promise<number> {
       resolve(sum / (32 * 32 * 255));
     };
     el.onerror = () => resolve(0.5);
-    el.src = img.src;
+    // R-EMB-01 : img.src devenu optionnel — fallback transparente.
+    el.src = img.src ?? "";
   });
 }
 

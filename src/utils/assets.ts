@@ -85,7 +85,7 @@ export function isLegacyDataUrl(src: string | undefined): boolean {
  * Tolère les échecs individuels (l'image legacy reste en data: si externalisation
  * échoue — ce qui ne casse pas le rendu, juste ne corrige pas le bloat).
  */
-export async function migrateLegacyAssets<P extends { boards: { images: { src: string }[] }[] }>(
+export async function migrateLegacyAssets<P extends { boards: { images: { src?: string }[] }[] }>(
   project: P
 ): Promise<{ project: P; migrated: number; failed: number }> {
   let migrated = 0;
@@ -95,7 +95,7 @@ export async function migrateLegacyAssets<P extends { boards: { images: { src: s
   let hasLegacy = false;
   for (const b of project.boards) {
     for (const img of b.images) {
-      if (isLegacyDataUrl(img.src)) { hasLegacy = true; break; }
+      if (img.src && isLegacyDataUrl(img.src)) { hasLegacy = true; break; }
     }
     if (hasLegacy) break;
   }
@@ -106,7 +106,7 @@ export async function migrateLegacyAssets<P extends { boards: { images: { src: s
     project.boards.map(async (b) => {
       const newImages = await Promise.all(
         b.images.map(async (img) => {
-          if (!isLegacyDataUrl(img.src)) return img;
+          if (!img.src || !isLegacyDataUrl(img.src)) return img;
           try {
             const ext = guessExtFromDataUrl(img.src);
             const assetSrc = await saveAsset(img.src, ext);

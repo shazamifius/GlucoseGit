@@ -26,10 +26,47 @@ export interface TemporalAnchor {
   label?: string;       // texte affiché (ex: "Révolution française")
 }
 
+// ── Assets (R-EMB-01 — Sprint 2) ──────────────────────────────
+//
+// Un asset est une payload binaire (image, vidéo, fichier futur). Deux modes :
+//
+//   - `embed` : les octets vivent dans `Project.blobs[sha256]`. C'est le mode
+//      par défaut désormais : copier le `.glucose` ailleurs préserve tout.
+//      La dédup par sha256 est NATIVE — Automerge stocke un blob N×
+//      référencé une seule fois.
+//
+//   - `link`  : référence externe par URL/chemin. Utilisé pour :
+//        • images web (http(s)://...)
+//        • fichiers de très gros volume qu'on ne veut pas embeded
+//          (folder-mirror R-FIL-02, vidéos lourdes, etc.)
+//
+// La migration legacy `src: "asset:..."` / `src: "data:..."` / `src: "http..."`
+// est faite à `loadProject` (cf. `utils/projectMigration.ts`).
+export type AssetRef =
+  | { mode: "embed"; sha256: string; mime: string; sizeBytes?: number }
+  | { mode: "link"; href: string; sha256?: string; sizeBytes?: number };
+
+export function isEmbedAsset(
+  a: AssetRef
+): a is Extract<AssetRef, { mode: "embed" }> {
+  return a.mode === "embed";
+}
+export function isLinkAsset(
+  a: AssetRef
+): a is Extract<AssetRef, { mode: "link" }> {
+  return a.mode === "link";
+}
+
 // ── Images ────────────────────────────────────────────────────
 export interface BoardImage {
   id: string;
-  src: string;
+  /** Référence à l'asset binaire (image/vidéo). Source de vérité Sprint 2+. */
+  asset?: AssetRef;
+  /** Legacy field : `asset:<file>` | `data:...` | `http(s)://...`.
+   *  Migré vers `asset` au load par `migrateImagesAssets`. Conservé en
+   *  fallback pour les rendus en transition tant qu'il existe.
+   *  ⚠️ Ne plus écrire dans ce champ — utiliser `asset`. */
+  src?: string;
   x: number;
   y: number;
   width: number;
@@ -238,6 +275,10 @@ export interface Project {
   activeBoardId: string;
   presets: Preset[];
   domains?: Domain[]; // Phase 3 — partagé entre tous les boards
+  /** R-EMB-01 (Sprint 2) — Map content-addressed sha256 → bytes pour les
+   *  assets `mode: "embed"`. Optionnelle pour compat ascendante : un projet
+   *  legacy (avant Sprint 2) n'a pas ce champ ; il est créé à la 1re embed. */
+  blobs?: Record<string, Uint8Array>;
   createdAt: number;
   updatedAt: number;
 }

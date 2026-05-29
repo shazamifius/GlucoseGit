@@ -278,7 +278,8 @@ export default function GlucoseCanvas() {
       try {
         // Phase 7.0 : résout les identifiants logiques `asset:<hash>.<ext>`
         // en URL Tauri utilisable par Pixi (les data:/http(s):// passent tels quels).
-        const resolvedSrc = await resolveAssetSrc(img.src);
+        // R-EMB-01 (Sprint 2) : `img.src` est devenu optionnel — fallback "" si absent.
+        const resolvedSrc = await resolveAssetSrc(img.src ?? "");
         const tex: Texture = img.isVideo
           ? await Assets.load({ src: resolvedSrc, data: { autoPlay: true, loop: true, muted: true } })
           : await Assets.load(resolvedSrc);
