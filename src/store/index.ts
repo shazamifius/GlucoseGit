@@ -1,37 +1,38 @@
-// ────────────────────────────────────────────────────────────────────────────
-// Phase 7.2.C — Store CRDT-first (Automerge source de vérité)
-// ────────────────────────────────────────────────────────────────────────────
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Phase 7.2.C â€” Store CRDT-first (Automerge source de vÃ©ritÃ©)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
-// Le store maintient désormais un `_doc: Doc<Project>` Automerge comme source
-// de vérité. La vue React (`project`) est le doc lui-même casté en `Project`
+// Le store maintient dÃ©sormais un `_doc: Doc<Project>` Automerge comme source
+// de vÃ©ritÃ©. La vue React (`project`) est le doc lui-mÃªme castÃ© en `Project`
 // (les Proxy Automerge se comportent comme des objets/arrays JS standard pour
-// les lectures, ce qui suffit à React/PixiJS).
+// les lectures, ce qui suffit Ã  React/PixiJS).
 //
 // Toutes les mutations passent par `mutate(message, mutator)` qui :
-//   1. snapshot le doc courant dans `_undoStack` (Automerge dédupplique en
-//      mémoire grâce au structural sharing)
+//   1. snapshot le doc courant dans `_undoStack` (Automerge dÃ©dupplique en
+//      mÃ©moire grÃ¢ce au structural sharing)
 //   2. applique `Automerge.change` avec le label `message`
-//   3. met à jour `_doc` ET `project` (nouvelle référence → React re-render)
+//   3. met Ã  jour `_doc` ET `project` (nouvelle rÃ©fÃ©rence â†’ React re-render)
 //   4. vide `_redoStack` (toute mutation invalide le redo)
 //
-// `undo()` / `redo()` font simplement pop/push dans les stacks Doc — pas de
-// `Automerge.viewAt` ici car on veut un état modifiable, pas une vue.
+// `undo()` / `redo()` font simplement pop/push dans les stacks Doc â€” pas de
+// `Automerge.viewAt` ici car on veut un Ã©tat modifiable, pas une vue.
 //
-// IMPORTANT : à l'intérieur d'un mutator Automerge, on travaille sur un draft
+// IMPORTANT : Ã  l'intÃ©rieur d'un mutator Automerge, on travaille sur un draft
 // (Proxy). Donc :
 //   - `arr.push(x)` : OK (mute le doc)
 //   - `arr.splice(i, n)` : OK
-//   - `arr.filter(...)` / `arr.map(...)` : NE MUTENT PAS — utiliser splice/index
+//   - `arr.filter(...)` / `arr.map(...)` : NE MUTENT PAS â€” utiliser splice/index
 //   - `obj.foo = bar` : OK
 //   - `Object.assign(obj, patch)` : OK
-//   - delete `obj.foo` : utiliser `obj.foo = undefined` ou helper Automerge
+//   - delete `obj.foo` : utiliser `delete obj.foo` (Automerge **refuse**
+//     `obj.foo = undefined` avec une RangeError â€” `undefined` n'est pas JSON).
 //
 // La lecture est ergonomique : `d.boards[0].images.find(i => i.id === x)`
 // renvoie un proxy mutable de l'item.
 
 import { create } from "zustand";
 import {
-  Annotation, BoardImage, BoardZone, CanvasFolder, Domain, Preset,
+  Annotation, ArrowAnnotation, BoardImage, BoardZone, CanvasFolder, Domain, Preset,
   Project, StoryboardPanel, StoryboardSettings, Tool, Viewport
 } from "../types";
 import { DEFAULT_PRESETS } from "../data/defaultPresets";
@@ -40,7 +41,7 @@ import { wouldCreateMirrorCycle } from "./mirrorGraph";
 import * as A from "./automerge";
 import { LIMITS } from "../constants";
 
-// ─────────── Bornes (CLEANUP R-02) ──────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Bornes (CLEANUP R-02) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const COORD_LIMIT = 1_000_000;
 const SIZE_LIMIT = 200_000;
 const MIN_SCALE = 0.005;
@@ -57,9 +58,9 @@ const COORD_FIELDS = ["x", "y", "x2", "y2"] as const;
 const SIZE_FIELDS = ["width", "height"] as const;
 function clampSpatial<T extends object>(obj: T): T {
   // Automerge n'accepte pas les valeurs `undefined` lors d'une insertion : il
-  // faut omettre la clé. On strippe d'abord, sinon `b.annotations.push(ann)`
+  // faut omettre la clÃ©. On strippe d'abord, sinon `b.annotations.push(ann)`
   // jette `Cannot assign undefined value at .../bgColor` et l'annotation n'est
-  // jamais créée (bug bloquant la création de texte/sticky depuis Phase 7.2.C).
+  // jamais crÃ©Ã©e (bug bloquant la crÃ©ation de texte/sticky depuis Phase 7.2.C).
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (v !== undefined) out[k] = v;
@@ -79,7 +80,18 @@ function clampSpatial<T extends object>(obj: T): T {
   return out as T;
 }
 
-// ─────────── Defaults ───────────────────────────────────────────────────────
+/** ClÃ©s du patch dont la valeur est explicitement `undefined` â€” Automerge
+ *  refuse `obj.prop = undefined`, donc on les applique via `delete` aprÃ¨s le
+ *  Object.assign du reste. */
+function undefinedKeys(patch: object): string[] {
+  const keys: string[] = [];
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) keys.push(k);
+  }
+  return keys;
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Defaults â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function newBoard(name: string): import("../types").Board {
   return {
     id: nanoid(),
@@ -107,8 +119,8 @@ const DEFAULT_PROJECT: Project = {
   updatedAt: Date.now(),
 };
 
-// ─────────── Helpers Automerge-mutator ──────────────────────────────────────
-// Dans un draft, `arr.filter(...)` ne modifie pas le doc — il faut splice.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Helpers Automerge-mutator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Dans un draft, `arr.filter(...)` ne modifie pas le doc â€” il faut splice.
 function removeWhere<T>(arr: T[], predicate: (x: T) => boolean): T[] {
   const removed: T[] = [];
   for (let i = arr.length - 1; i >= 0; i--) {
@@ -124,25 +136,25 @@ function indexById<T extends { id: string }>(arr: T[], id: string): number {
 }
 
 interface GlucoseStore {
-  // ── Source de vérité Automerge ────────────────────────────
+  // â”€â”€ Source de vÃ©ritÃ© Automerge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _doc: A.Doc<Project>;
-  /** Vue React-friendly du doc. Reflète soit `_doc` (présent), soit l'état preview
-   *  Time Machine quand `_previewHeads` est défini. Nouvelle référence à chaque update. */
+  /** Vue React-friendly du doc. ReflÃ¨te soit `_doc` (prÃ©sent), soit l'Ã©tat preview
+   *  Time Machine quand `_previewHeads` est dÃ©fini. Nouvelle rÃ©fÃ©rence Ã  chaque update. */
   project: Project;
-  /** Helper central : toute mutation passe par là. Blocked si preview actif. */
+  /** Helper central : toute mutation passe par lÃ . Blocked si preview actif. */
   mutate: (message: string, mutator: (d: Project) => void) => void;
 
-  // ── Time Machine (Phase 7.4) ──────────────────────────────
-  /** Si défini, on est en mode "preview historique" : `project` est figé sur cet état. */
+  // â”€â”€ Time Machine (Phase 7.4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  /** Si dÃ©fini, on est en mode "preview historique" : `project` est figÃ© sur cet Ã©tat. */
   _previewHeads: A.Heads | null;
-  /** Active/désactive le mode preview. `null` = retour au présent. */
+  /** Active/dÃ©sactive le mode preview. `null` = retour au prÃ©sent. */
   setPreviewHeads: (heads: A.Heads | null) => void;
-  /** Crée un commit nommé sans changement de données (jalon visible dans la timeline). */
+  /** CrÃ©e un commit nommÃ© sans changement de donnÃ©es (jalon visible dans la timeline). */
   commitNamed: (message: string) => void;
-  /** Applique l'état preview comme nouveau commit. Sort du mode preview. */
+  /** Applique l'Ã©tat preview comme nouveau commit. Sort du mode preview. */
   restoreToPreview: () => void;
 
-  // ── Outil / sélection / navigation (état UI local, hors doc) ─
+  // â”€â”€ Outil / sÃ©lection / navigation (Ã©tat UI local, hors doc) â”€
   activeTool: Tool;
   selectedImageIds: string[];
   selectedAnnotationIds: string[];
@@ -151,35 +163,35 @@ interface GlucoseStore {
   setSelectedImageIds: (ids: string[]) => void;
   setSelectedAnnotationIds: (ids: string[]) => void;
 
-  // ── Undo / Redo (stacks de Doc Automerge) ────────────────
+  // â”€â”€ Undo / Redo (stacks de Doc Automerge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _undoStack: A.Doc<Project>[];
   _redoStack: A.Doc<Project>[];
-  /** Préservé pour rétro-compat : pousse manuellement le doc courant dans undoStack. */
+  /** PrÃ©servÃ© pour rÃ©tro-compat : pousse manuellement le doc courant dans undoStack. */
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
 
-  // ── Viewport ──────────────────────────────────────────────
+  // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setViewport: (boardId: string, vp: Viewport) => void;
 
-  // ── Images ────────────────────────────────────────────────
+  // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addImage: (boardId: string, img: BoardImage) => void;
   updateImage: (boardId: string, id: string, patch: Partial<BoardImage>) => void;
   removeImages: (boardId: string, ids: string[]) => void;
   updateMultipleImages: (boardId: string, updates: { id: string; patch: Partial<BoardImage> }[]) => void;
 
-  // ── Sélection ─────────────────────────────────────────────
+  // â”€â”€ SÃ©lection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   selectAll: (boardId: string) => void;
   deleteSelected: (boardId: string) => void;
   duplicateSelected: (boardId: string) => void;
   moveSelected: (boardId: string, dx: number, dy: number) => void;
 
-  // ── Annotations ───────────────────────────────────────────
+  // â”€â”€ Annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addAnnotation: (boardId: string, ann: Annotation) => void;
   updateAnnotation: (boardId: string, id: string, patch: Partial<Annotation>) => void;
   removeAnnotations: (boardId: string, ids: string[]) => void;
 
-  // ── Storyboard ────────────────────────────────────────────
+  // â”€â”€ Storyboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setStoryboardSettings: (boardId: string, settings: StoryboardSettings) => void;
   clearStoryboard: (boardId: string) => void;
   addPanel: (boardId: string, panel: StoryboardPanel) => void;
@@ -187,7 +199,7 @@ interface GlucoseStore {
   removePanel: (boardId: string, id: string) => void;
   reorderPanels: (boardId: string) => void;
 
-  // ── Boards ────────────────────────────────────────────────
+  // â”€â”€ Boards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addBoard: (name: string) => string;
   removeBoard: (id: string) => void;
   renameBoard: (id: string, name: string) => void;
@@ -197,20 +209,20 @@ interface GlucoseStore {
   applyPresetToBoard: (boardId: string, presetId: string | null, worldX?: number, worldY?: number) => void;
   setBoardZones: (boardId: string, zones: BoardZone[]) => void;
 
-  // ── Presets ───────────────────────────────────────────────
+  // â”€â”€ Presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addPreset: (preset: Preset) => void;
   removePreset: (id: string) => void;
   updatePreset: (id: string, patch: Partial<Preset>) => void;
   getAllPresets: () => Preset[];
 
-  // ── Domaines (Phase 3) ────────────────────────────────────
+  // â”€â”€ Domaines (Phase 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addDomain: (domain: Domain) => void;
   updateDomain: (id: string, patch: Partial<Domain>) => void;
   removeDomain: (id: string) => void;
   getDomains: () => Domain[];
   assignDomainToNode: (boardId: string, nodeId: string, domainId: string, weight: number) => void;
 
-  // ── Miroirs (Phase 4) ─────────────────────────────────────
+  // â”€â”€ Miroirs (Phase 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   mirrorAnnotation: (boardId: string, originalId: string, x: number, y: number) => string | null;
   mirrorImage: (boardId: string, originalId: string, x: number, y: number) => string | null;
   mirrorFolder: (parentBoardId: string, originalFolderId: string, x: number, y: number) => string | null;
@@ -218,7 +230,7 @@ interface GlucoseStore {
   findOriginalImage: (id: string) => BoardImage | undefined;
   findOriginalFolder: (id: string) => CanvasFolder | undefined;
 
-  // ── Canvas Folders ────────────────────────────────────────
+  // â”€â”€ Canvas Folders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   createFolder: (parentBoardId: string, folder: Omit<CanvasFolder, "childBoardId">) => void;
   updateFolder: (boardId: string, folderId: string, patch: Partial<CanvasFolder>) => void;
   removeFolders: (boardId: string, folderIds: string[]) => void;
@@ -226,9 +238,9 @@ interface GlucoseStore {
   exitFolder: () => void;
   exitToRoot: () => void;
 
-  // ── Project ───────────────────────────────────────────────
+  // â”€â”€ Project â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setProjectName: (name: string) => void;
-  /** Charge un Project plain → reconstruit un nouveau doc Automerge propre. */
+  /** Charge un Project plain â†’ reconstruit un nouveau doc Automerge propre. */
   loadProject: (project: Project) => void;
   /** Variante CRDT : remplace directement `_doc` (load v2 binaire). */
   loadDoc: (doc: A.Doc<Project>) => void;
@@ -238,25 +250,25 @@ interface GlucoseStore {
    *  local, Ctrl+Z annule uniquement TES propres actions). */
   applyRemoteChanges: (changes: Uint8Array[]) => void;
 
-  // ── Smart guides ─────────────────────────────────────────
+  // â”€â”€ Smart guides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   smartGuidesEnabled: boolean;
   toggleSmartGuides: () => void;
 
-  // ── UI panels ────────────────────────────────────────────
+  // â”€â”€ UI panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   rightPanelOpen: boolean;
   setRightPanelOpen: (open: boolean) => void;
 
-  // ── Hover & toggles ──────────────────────────────────────
+  // â”€â”€ Hover & toggles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   hoveredNodeId: string | null;
   setHoveredNodeId: (id: string | null) => void;
   transDomainVisible: boolean;
   toggleTransDomainVisible: () => void;
 
-  // ── Réglette temporelle (Phase 6) ────────────────────────
+  // â”€â”€ RÃ©glette temporelle (Phase 6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   temporalFilter: { start: number; end: number } | null;
   setTemporalFilter: (filter: { start: number; end: number } | null) => void;
 
-  // ── Pomodoro ─────────────────────────────────────────────
+  // â”€â”€ Pomodoro â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   pomodoroTotal: number;
   pomodoroLeft: number;
   pomodoroRunning: boolean;
@@ -266,7 +278,7 @@ interface GlucoseStore {
   pomodoroReset: (total: number) => void;
 }
 
-// ─────────── Pomodoro module-level ──────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Pomodoro module-level â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 let _pomInterval: ReturnType<typeof setInterval> | null = null;
 
 function _fireChime() {
@@ -289,15 +301,15 @@ function _fireNotification(totalSeconds: number) {
   const mins = Math.round(totalSeconds / 60);
   if (typeof Notification === "undefined") return;
   if (Notification.permission === "granted") {
-    new Notification("Pomodoro terminé !", { body: `Session de ${mins} min écoulée.`, silent: true });
+    new Notification("Pomodoro terminÃ© !", { body: `Session de ${mins} min Ã©coulÃ©e.`, silent: true });
   } else if (Notification.permission !== "denied") {
     Notification.requestPermission().then((p) => {
-      if (p === "granted") new Notification("Pomodoro terminé !", { body: `Session de ${mins} min écoulée.`, silent: true });
+      if (p === "granted") new Notification("Pomodoro terminÃ© !", { body: `Session de ${mins} min Ã©coulÃ©e.`, silent: true });
     });
   }
 }
 
-// ─────────── Création du doc initial ────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ CrÃ©ation du doc initial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const INITIAL_DOC = A.create<Project>(DEFAULT_PROJECT);
 
 export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
@@ -306,9 +318,9 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
 
   mutate: (message, mutator) => {
     set((s) => {
-      // Phase 7.4 — bloquer les mutations en mode preview Time Machine.
+      // Phase 7.4 â€” bloquer les mutations en mode preview Time Machine.
       if (s._previewHeads !== null) {
-        console.warn("[mutate] Mutation ignorée : mode Time Machine actif. Sors-en pour modifier.");
+        console.warn("[mutate] Mutation ignorÃ©e : mode Time Machine actif. Sors-en pour modifier.");
         return s;
       }
       const before = s._doc;
@@ -322,7 +334,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Time Machine ─────────────────────────────────────────
+  // â”€â”€ Time Machine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _previewHeads: null,
   setPreviewHeads: (heads) => {
     set((s) => {
@@ -341,11 +353,11 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   commitNamed: (message) => {
-    // Un commit Automerge requiert au moins une "modification" — on touche
-    // updatedAt pour matérialiser le jalon dans l'historique. Le `message` est
+    // Un commit Automerge requiert au moins une "modification" â€” on touche
+    // updatedAt pour matÃ©rialiser le jalon dans l'historique. Le `message` est
     // ce qui s'affichera dans la Time Machine.
     const trimmed = message.trim() || "Jalon";
-    get().mutate(`📌 ${trimmed}`, (d) => { d.updatedAt = Date.now(); });
+    get().mutate(`ðŸ“Œ ${trimmed}`, (d) => { d.updatedAt = Date.now(); });
   },
 
   restoreToPreview: () => {
@@ -361,10 +373,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     }
     // 1) Sortir du mode preview pour autoriser la mutation
     set({ _previewHeads: null, project: s._doc as unknown as Project });
-    // 2) Commit qui réécrit tout le contenu pour matcher l'état passé.
-    //    L'historique antérieur reste préservé : c'est un commit en avant
-    //    qui dit "reviens à l'état du jalon X".
-    get().mutate("⏪ Restauration depuis la timeline", (d) => {
+    // 2) Commit qui rÃ©Ã©crit tout le contenu pour matcher l'Ã©tat passÃ©.
+    //    L'historique antÃ©rieur reste prÃ©servÃ© : c'est un commit en avant
+    //    qui dit "reviens Ã  l'Ã©tat du jalon X".
+    get().mutate("âª Restauration depuis la timeline", (d) => {
       d.name = pastPlain.name;
       d.activeBoardId = pastPlain.activeBoardId;
       d.updatedAt = Date.now();
@@ -376,7 +388,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── État UI local (jamais dans le doc) ─────────────────────
+  // â”€â”€ Ã‰tat UI local (jamais dans le doc) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   activeTool: "select",
   selectedImageIds: [],
   selectedAnnotationIds: [],
@@ -395,7 +407,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   setRightPanelOpen: (open) => { if (get().rightPanelOpen !== open) set({ rightPanelOpen: open }); },
   toggleSmartGuides: () => set((s) => ({ smartGuidesEnabled: !s.smartGuidesEnabled })),
 
-  // ── Undo / Redo ───────────────────────────────────────────
+  // â”€â”€ Undo / Redo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _undoStack: [],
   _redoStack: [],
   pushHistory: () => {
@@ -405,13 +417,17 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   undo: () => {
     set((s) => {
       if (s._undoStack.length === 0) return s;
-      const prev = s._undoStack[s._undoStack.length - 1];
+      // Clone le doc avant restauration : un doc Automerge dÃ©jÃ  utilisÃ© comme
+      // input Ã  `A.change()` est gelÃ©, et la prochaine mutation jetterait
+      // Â« Attempting to change an outdated document Â». Le clone est cheap
+      // (structural sharing).
+      const prev = A.clone(s._undoStack[s._undoStack.length - 1]);
       return {
         _doc: prev,
         project: prev as unknown as Project,
         _undoStack: s._undoStack.slice(0, -1),
         _redoStack: [...s._redoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
-        // Sortir du preview Time Machine si actif (l'undo est une opération "live")
+        // Sortir du preview Time Machine si actif (l'undo est une opÃ©ration "live")
         _previewHeads: null,
         selectedImageIds: [],
         selectedAnnotationIds: [],
@@ -421,7 +437,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   redo: () => {
     set((s) => {
       if (s._redoStack.length === 0) return s;
-      const next = s._redoStack[s._redoStack.length - 1];
+      const next = A.clone(s._redoStack[s._redoStack.length - 1]);
       return {
         _doc: next,
         project: next as unknown as Project,
@@ -434,7 +450,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Viewport ──────────────────────────────────────────────
+  // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setViewport: (boardId, vp) => {
     const safe = clampViewport(vp);
     get().mutate("setViewport", (d) => {
@@ -443,7 +459,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Images ────────────────────────────────────────────────
+  // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addImage: (boardId, img) => {
     const safe = clampSpatial(img);
     get().mutate("addImage", (d) => {
@@ -457,6 +473,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
 
   updateImage: (boardId, id, patch) => {
     const safe = clampSpatial(patch);
+    const toDelete = undefinedKeys(patch);
     get().mutate("updateImage", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
@@ -466,14 +483,15 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       const dx = (safe.x !== undefined) ? safe.x - old.x : 0;
       const dy = (safe.y !== undefined) ? safe.y - old.y : 0;
       Object.assign(b.images[idx], safe);
-      // Déplacement induit des flèches attachées
+      for (const k of toDelete) delete (b.images[idx] as unknown as Record<string, unknown>)[k];
+      // DÃ©placement induit des flÃ¨ches attachÃ©es
       if (dx || dy) {
         for (const a of b.annotations) {
           if (a.type !== "arrow") continue;
           if (a.sourceId === id) { a.x += dx; a.y += dy; }
           if (a.targetId === id) {
-            a.x2 = (a.x2 ?? a.x + 100) + dx;
-            a.y2 = (a.y2 ?? a.y) + dy;
+            a.x2 = a.x2 + dx;
+            a.y2 = a.y2 + dy;
           }
         }
       }
@@ -495,8 +513,8 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   removeImages: (_boardId, ids) => {
-    // _boardId : conservé pour signature stable, mais la cascade miroirs traverse
-    // tous les boards (un miroir peut être ailleurs).
+    // _boardId : conservÃ© pour signature stable, mais la cascade miroirs traverse
+    // tous les boards (un miroir peut Ãªtre ailleurs).
     const idSet = new Set(ids);
     get().mutate("removeImages", (d) => {
       // Cascade miroirs : supprimer aussi les images dont mirrorOf est dans toRemove
@@ -513,10 +531,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
           }
         }
       }
-      // Suppression dans tous les boards (les miroirs peuvent être ailleurs)
+      // Suppression dans tous les boards (les miroirs peuvent Ãªtre ailleurs)
       for (const b of d.boards) {
         const removed = removeWhere(b.images, (img) => toRemove.has(img.id));
-        // Flèches orphelines (source ou cible supprimée)
+        // FlÃ¨ches orphelines (source ou cible supprimÃ©e)
         removeWhere(b.annotations, (a) => {
           if (a.type !== "arrow") return false;
           return (!!a.sourceId && toRemove.has(a.sourceId)) ||
@@ -528,7 +546,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set({ selectedImageIds: [] });
   },
 
-  // ── Sélection ─────────────────────────────────────────────
+  // â”€â”€ SÃ©lection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   selectAll: (boardId) => set((s) => {
     const board = s.project.boards.find((b) => b.id === boardId);
     if (!board) return s;
@@ -549,13 +567,22 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const board = project.boards.find((b) => b.id === boardId);
     if (!board) return;
     const OFFSET = 20;
-    // Pré-calcule les copies (ids générés hors du mutator)
+    // PrÃ©-calcule les copies (ids gÃ©nÃ©rÃ©s hors du mutator). Deep-clone via
+    // JSON pour casser les rÃ©fÃ©rences Proxy de l'arbre Automerge â€” sans Ã§a,
+    // les sous-arrays (tags, domains, waypoints) seraient des refs proxy que
+    // `push` refuserait. Puis clampSpatial pour stripper les undefined.
     const newImages: BoardImage[] = board.images
       .filter((img) => selectedImageIds.includes(img.id))
-      .map((img) => ({ ...img, id: nanoid(), x: img.x + OFFSET, y: img.y + OFFSET }));
+      .map((img) => {
+        const plain = JSON.parse(JSON.stringify(img)) as BoardImage;
+        return clampSpatial({ ...plain, id: nanoid(), x: plain.x + OFFSET, y: plain.y + OFFSET });
+      });
     const newAnnotations: Annotation[] = board.annotations
       .filter((ann) => selectedAnnotationIds.includes(ann.id))
-      .map((ann) => ({ ...ann, id: nanoid(), x: ann.x + OFFSET, y: ann.y + OFFSET }));
+      .map((ann) => {
+        const plain = JSON.parse(JSON.stringify(ann)) as Annotation;
+        return clampSpatial({ ...plain, id: nanoid(), x: plain.x + OFFSET, y: plain.y + OFFSET });
+      });
 
     get().mutate("duplicateSelected", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
@@ -579,7 +606,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("moveSelected", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
-      // Images sélectionnées
+      // Images sÃ©lectionnÃ©es
       for (const img of b.images) {
         if (selImg.has(img.id)) { img.x += dx; img.y += dy; }
       }
@@ -596,7 +623,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
           }
           continue;
         }
-        // Flèche dont source/cible attachée bouge
+        // FlÃ¨che dont source/cible attachÃ©e bouge
         if (a.type === "arrow") {
           if (a.sourceId && (selImg.has(a.sourceId) || selAnn.has(a.sourceId))) {
             a.x += dx; a.y += dy;
@@ -611,7 +638,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Annotations ───────────────────────────────────────────
+  // â”€â”€ Annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addAnnotation: (boardId, ann) => {
     const safe = clampSpatial(ann);
     get().mutate("addAnnotation", (d) => {
@@ -625,6 +652,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
 
   updateAnnotation: (boardId, id, patch) => {
     const safe = clampSpatial(patch);
+    const toDelete = undefinedKeys(patch);
     get().mutate("updateAnnotation", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
@@ -634,13 +662,14 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       const dx = (safe.x !== undefined) ? safe.x - old.x : 0;
       const dy = (safe.y !== undefined) ? safe.y - old.y : 0;
       Object.assign(b.annotations[idx], safe);
+      for (const k of toDelete) delete (b.annotations[idx] as unknown as Record<string, unknown>)[k];
       if (dx || dy) {
         for (const a of b.annotations) {
           if (a.type !== "arrow" || a.id === id) continue;
           if (a.sourceId === id) { a.x += dx; a.y += dy; }
           if (a.targetId === id) {
-            a.x2 = (a.x2 ?? a.x + 100) + dx;
-            a.y2 = (a.y2 ?? a.y) + dy;
+            a.x2 = a.x2 + dx;
+            a.y2 = a.y2 + dy;
           }
         }
       }
@@ -679,7 +708,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set({ selectedAnnotationIds: [] });
   },
 
-  // ── Storyboard ────────────────────────────────────────────
+  // â”€â”€ Storyboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setStoryboardSettings: (boardId, settings) => {
     get().mutate("setStoryboardSettings", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
@@ -690,7 +719,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("clearStoryboard", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
-      b.storyboard = undefined;
+      delete b.storyboard;
       b.panels.splice(0, b.panels.length);
     });
   },
@@ -725,7 +754,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Boards ────────────────────────────────────────────────
+  // â”€â”€ Boards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addBoard: (name) => {
     const board = newBoard(name);
     get().mutate("addBoard", (d) => {
@@ -742,14 +771,14 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("removeBoard", (d) => {
       const removeIdx = d.boards.findIndex((b) => b.id === id);
       if (removeIdx === -1) return;
-      // Patch les flèches portail orphelines avant de retirer le board
+      // Patch les flÃ¨ches portail orphelines avant de retirer le board
       for (const b of d.boards) {
         for (const a of b.annotations) {
-          if (a.type === "arrow" && a.targetBoardId === id) a.targetBoardId = undefined;
+          if (a.type === "arrow" && a.targetBoardId === id) delete a.targetBoardId;
         }
       }
       d.boards.splice(removeIdx, 1);
-      // Bascule activeBoardId si c'était celui supprimé
+      // Bascule activeBoardId si c'Ã©tait celui supprimÃ©
       if (d.activeBoardId === id) {
         const nextIdx = Math.max(0, removeIdx - 1);
         d.activeBoardId = d.boards[nextIdx]?.id ?? d.boards[0].id;
@@ -776,7 +805,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("reorderBoards", (d) => {
       if (fromIndex < 0 || fromIndex >= d.boards.length) return;
       if (toIndex < 0 || toIndex >= d.boards.length) return;
-      const [moved] = d.boards.splice(fromIndex, 1);
+      // Snapshot plain : le proxy retournÃ© par splice() devient invalide aprÃ¨s
+      // suppression de son emplacement, Automerge refuse de le rÃ©insÃ©rer.
+      const moved = JSON.parse(JSON.stringify(d.boards[fromIndex]));
+      d.boards.splice(fromIndex, 1);
       d.boards.splice(toIndex, 0, moved);
     });
   },
@@ -831,7 +863,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("applyPresetToBoard", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
-      b.presetId = presetId ?? undefined;
+      if (presetId) b.presetId = presetId; else delete b.presetId;
       // Replace zones array
       b.zones.splice(0, b.zones.length, ...zones);
       d.updatedAt = Date.now();
@@ -848,7 +880,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Presets ───────────────────────────────────────────────
+  // â”€â”€ Presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addPreset: (preset) => {
     get().mutate("addPreset", (d) => { d.presets.push(preset); });
   },
@@ -865,7 +897,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
   getAllPresets: () => [...DEFAULT_PRESETS, ...get().project.presets],
 
-  // ── Domaines (Phase 3) ────────────────────────────────────
+  // â”€â”€ Domaines (Phase 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addDomain: (domain) => {
     get().mutate("addDomain", (d) => {
       if (!d.domains) d.domains = [];
@@ -884,7 +916,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   removeDomain: (id) => {
     get().mutate("removeDomain", (d) => {
       if (d.domains) removeWhere(d.domains, (x) => x.id === id);
-      // Cascade : retire l'assignation de tous les nœuds
+      // Cascade : retire l'assignation de tous les nÅ“uds
       for (const b of d.boards) {
         for (const a of b.annotations) {
           if (a.domains) removeWhere(a.domains, (da) => da.domainId === id);
@@ -926,8 +958,8 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Miroirs (Phase 4) ─────────────────────────────────────
-  // Les findOriginal* sont des LECTURES → pas de mutate.
+  // â”€â”€ Miroirs (Phase 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Les findOriginal* sont des LECTURES â†’ pas de mutate.
   findOriginalAnnotation: (id) => {
     const project = get().project;
     let cur: Annotation | undefined;
@@ -987,7 +1019,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const original = get().findOriginalAnnotation(originalId);
     if (!original) return null;
     const newId = nanoid();
-    // Snapshot plain (le draft refusera un proxy importé)
+    // Snapshot plain (le draft refusera un proxy importÃ©)
     const ann: Annotation = JSON.parse(JSON.stringify({ ...original, id: newId, x, y, mirrorOf: original.id }));
     get().mutate("mirrorAnnotation", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
@@ -1014,7 +1046,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const original = get().findOriginalFolder(originalFolderId);
     if (!original) return null;
     if (wouldCreateMirrorCycle(get().project.boards, original.id, parentBoardId)) {
-      console.warn(`[mirrorFolder] Cycle refusé pour "${original.name}"`);
+      console.warn(`[mirrorFolder] Cycle refusÃ© pour "${original.name}"`);
       return null;
     }
     const newId = nanoid();
@@ -1025,7 +1057,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       x, y,
       width: original.width,
       height: original.height,
-      childBoardId: original.childBoardId, // partage le même childBoard
+      childBoardId: original.childBoardId, // partage le mÃªme childBoard
       mirrorOf: original.id,
     };
     get().mutate("mirrorFolder", (d) => {
@@ -1038,8 +1070,8 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     return newId;
   },
 
-  // ── Canvas Folders ────────────────────────────────────────
-  // Phase 7.5 — Capture des blocs au drag-create par-dessus.
+  // â”€â”€ Canvas Folders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Phase 7.5 â€” Capture des blocs au drag-create par-dessus.
   createFolder: (parentBoardId, folderData) => {
     const childBoardId = nanoid();
     const folder: CanvasFolder = clampSpatial({
@@ -1048,7 +1080,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       childBoardId,
     });
 
-    // On collecte d'abord les items capturés HORS du mutator (lecture pure)
+    // On collecte d'abord les items capturÃ©s HORS du mutator (lecture pure)
     const proj = get().project;
     const parent = proj.boards.find((b) => b.id === parentBoardId);
 
@@ -1076,7 +1108,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
         if (inside(cx, cy)) capturedAnnIds.add(a.id);
       }
     }
-    // Flèches : capturées si les deux extrémités le sont
+    // FlÃ¨ches : capturÃ©es si les deux extrÃ©mitÃ©s le sont
     const capturedArrowIds = new Set<string>();
     if (parent) {
       for (const a of parent.annotations) {
@@ -1091,30 +1123,35 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     }
 
     get().mutate("createFolder", (d) => {
-      // 1) Crée le child board
-      const childBoard = { ...newBoard(folderData.name), id: childBoardId };
-      d.boards.push(childBoard);
+      // 1) CrÃ©e le child board. ATTENTION : aprÃ¨s push, on doit re-rÃ©cupÃ©rer
+      // le PROXY Automerge â€” la variable JS d'origine n'est plus reliÃ©e au doc.
+      d.boards.push({ ...newBoard(folderData.name), id: childBoardId });
+      const childBoard = d.boards.find((b) => b.id === childBoardId);
+      if (!childBoard) return;
 
       const par = d.boards.find((b) => b.id === parentBoardId);
       if (!par) return;
 
-      // 2) Transfère les images capturées
+      // 2) TransfÃ¨re les images capturÃ©es (deep-clone via JSON pour casser
+      // les refs proxy avant push â€” sinon Automerge refuse)
       const imagesToMove: BoardImage[] = [];
       removeWhere(par.images, (img) => {
         if (capturedImageIds.has(img.id)) {
-          imagesToMove.push({ ...img, x: img.x - fx0, y: img.y - fy0 });
+          const plain = JSON.parse(JSON.stringify(img)) as BoardImage;
+          imagesToMove.push({ ...plain, x: plain.x - fx0, y: plain.y - fy0 });
           return true;
         }
         return false;
       });
       for (const img of imagesToMove) childBoard.images.push(img);
 
-      // 3) Transfère les sous-folders
+      // 3) TransfÃ¨re les sous-folders
       if (par.folders) {
         const foldersToMove: CanvasFolder[] = [];
         removeWhere(par.folders, (f) => {
           if (capturedFolderIds.has(f.id)) {
-            foldersToMove.push({ ...f, x: f.x - fx0, y: f.y - fy0 });
+            const plain = JSON.parse(JSON.stringify(f)) as CanvasFolder;
+            foldersToMove.push({ ...plain, x: plain.x - fx0, y: plain.y - fy0 });
             return true;
           }
           return false;
@@ -1123,21 +1160,25 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
         for (const f of foldersToMove) childBoard.folders.push(f);
       }
 
-      // 4) Transfère les annotations capturées
+      // 4) TransfÃ¨re les annotations capturÃ©es
       const annsToMove: Annotation[] = [];
       removeWhere(par.annotations, (a) => {
         if (capturedAnnIds.has(a.id)) {
-          annsToMove.push({ ...a, x: a.x - fx0, y: a.y - fy0 });
+          const plain = JSON.parse(JSON.stringify(a)) as Annotation;
+          annsToMove.push({ ...plain, x: plain.x - fx0, y: plain.y - fy0 });
           return true;
         }
         if (capturedArrowIds.has(a.id) && a.type === "arrow") {
-          annsToMove.push({
-            ...a,
-            x: a.x - fx0, y: a.y - fy0,
-            x2: a.x2 - fx0,
-            y2: a.y2 - fy0,
-            waypoints: a.waypoints?.map((p) => ({ x: p.x - fx0, y: p.y - fy0 })),
-          });
+          const plain = JSON.parse(JSON.stringify(a)) as ArrowAnnotation;
+          // clampSpatial strippe les clÃ©s undefined (ex: waypoints absents)
+          // qu'Automerge refuserait Ã  l'insertion.
+          annsToMove.push(clampSpatial({
+            ...plain,
+            x: plain.x - fx0, y: plain.y - fy0,
+            x2: plain.x2 - fx0,
+            y2: plain.y2 - fy0,
+            waypoints: plain.waypoints?.map((p) => ({ x: p.x - fx0, y: p.y - fy0 })),
+          }));
           return true;
         }
         return false;
@@ -1154,17 +1195,21 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
 
   updateFolder: (boardId, folderId, patch) => {
     const safe = clampSpatial(patch);
+    const toDelete = undefinedKeys(patch);
     get().mutate("updateFolder", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b || !b.folders) return;
       const idx = indexById(b.folders, folderId);
-      if (idx !== -1) Object.assign(b.folders[idx], safe);
+      if (idx !== -1) {
+        Object.assign(b.folders[idx], safe);
+        for (const k of toDelete) delete (b.folders[idx] as unknown as Record<string, unknown>)[k];
+      }
       d.updatedAt = Date.now();
     });
   },
 
   removeFolders: (boardId, folderIds) => {
-    // Pré-calcul des childBoardIds à potentiellement supprimer (BFS hors mutator)
+    // PrÃ©-calcul des childBoardIds Ã  potentiellement supprimer (BFS hors mutator)
     const proj = get().project;
     const parent = proj.boards.find((b) => b.id === boardId);
     const removed = (parent?.folders ?? []).filter((f) => folderIds.includes(f.id));
@@ -1175,7 +1220,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       const par = d.boards.find((b) => b.id === boardId);
       if (par?.folders) removeWhere(par.folders, (f) => folderIds.includes(f.id));
 
-      // 2) BFS pour identifier les child boards orphelins (cascade récursive)
+      // 2) BFS pour identifier les child boards orphelins (cascade rÃ©cursive)
       const stillReferenced = new Set<string>();
       for (const b of d.boards) {
         for (const f of b.folders ?? []) stillReferenced.add(f.childBoardId);
@@ -1204,12 +1249,12 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       // 3) Supprime les child boards orphelins
       removeWhere(d.boards, (b) => toDelete.has(b.id));
 
-      // 4) Si le board actif est supprimé, retombe sur le parent
+      // 4) Si le board actif est supprimÃ©, retombe sur le parent
       if (toDelete.has(d.activeBoardId)) d.activeBoardId = boardId;
       d.updatedAt = Date.now();
     });
 
-    // Nettoie le folderStack (état UI)
+    // Nettoie le folderStack (Ã©tat UI)
     set((s) => ({
       folderStack: s.folderStack.filter(
         (entry) => !folderIds.includes(entry.folderId) &&
@@ -1257,7 +1302,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Project ───────────────────────────────────────────────
+  // â”€â”€ Project â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setProjectName: (name) => {
     get().mutate("setProjectName", (d) => {
       d.name = name;
@@ -1298,11 +1343,11 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set((s) => {
       try {
         const next = A.applyChanges(s._doc, changes);
-        if (next === s._doc) return s; // pas de nouveauté (changes déjà connus)
+        if (next === s._doc) return s; // pas de nouveautÃ© (changes dÃ©jÃ  connus)
         return {
           _doc: next,
           project: next as unknown as Project,
-          // Pas de modification de _undoStack — les actions distantes ne sont pas
+          // Pas de modification de _undoStack â€” les actions distantes ne sont pas
           // dans la pile undo locale.
         };
       } catch (e) {
@@ -1312,7 +1357,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
-  // ── Pomodoro ─────────────────────────────────────────────
+  // â”€â”€ Pomodoro â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   pomodoroTotal: 25 * 60,
   pomodoroLeft: 25 * 60,
   pomodoroRunning: false,

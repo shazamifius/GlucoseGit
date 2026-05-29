@@ -4,6 +4,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+
+// Constantes module-level — identité stable des deps ReactMarkdown internes
+// (cf. HtmlAnnotationLayer pour le rationale).
+const REMARK_PLUGINS = [remarkGfm, remarkMath];
+const REHYPE_PLUGINS = [rehypeKatex];
 // CLEANUP SEC-09 : rehypeRaw retiré (anti-XSS).
 // CLEANUP B-03 : CSS KaTeX chargé à la demande quand l'éditeur s'ouvre.
 import { ensureKatexCss } from "../utils/loadKatexCss";
@@ -174,8 +179,8 @@ export default function SyntaxEditor({ value, onChange, onKeyDown, style, scale,
         </div>
         <div className="prose prose-invert prose-sm max-w-none break-words" style={{ lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
           <ReactMarkdown 
-            remarkPlugins={[remarkGfm, remarkMath]} 
-            rehypePlugins={[rehypeKatex]}
+            remarkPlugins={REMARK_PLUGINS}
+            rehypePlugins={REHYPE_PLUGINS}
           >
             {preprocessText(value) || " "}
           </ReactMarkdown>
