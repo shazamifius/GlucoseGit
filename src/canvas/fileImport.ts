@@ -1,33 +1,39 @@
 import { invoke } from "@tauri-apps/api/core";
 import { BoardImage } from "../types";
 import { nanoid } from "../utils/nanoid";
-// Phase 7.0 — assets externalisés (cf. PRE-PHASE7-AUDIT.md C-1)
-import { saveAsset } from "../utils/assets";
+// R-EMB-01 (Sprint 2) — embed direct dans le doc Automerge plutôt que
+// d'externaliser en `asset:<hash>.<ext>` sur disque. Plus de migration
+// nécessaire au prochain load : self-contained dès la création.
+import { buildEmbedRef, dataUrlToBytes, mimeFromExt } from "../utils/assetRef";
 
-type AddImageFn = (boardId: string, img: BoardImage) => void;
+type AddImageFn = (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
 
 export async function addImagesFromFiles(
   paths: string[],
   startX: number,
   startY: number,
   boardId: string,
-  addImage: AddImageFn
+  addImage: AddImageFn,
 ): Promise<void> {
   for (let i = 0; i < paths.length; i++) {
     const path = paths[i];
     try {
-      // Le backend retourne toujours une data URL. On l'externalise immédiatement
-      // dans le dossier assets pour éviter le bloat dans `.glucose`.
+      // Le backend retourne toujours une data URL `data:<mime>;base64,<payload>`.
       const dataUrl: string = await invoke("read_image_file", { path });
       const { width, height } = await getImageDimensions(dataUrl);
+
+      // R-EMB-01 : décode → bytes + build AssetRef embed
+      const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
       const ext = guessExtFromPath(path);
-      const assetSrc = await saveAsset(dataUrl, ext);
+      const mime = detectedMime || mimeFromExt(ext);
+      const assetRef = await buildEmbedRef(bytes, mime);
+
       const offset = i * 20;
       const maxW = 600;
       const scale = width > maxW ? maxW / width : 1;
       const img: BoardImage = {
         id: nanoid(),
-        src: assetSrc,
+        asset: assetRef,
         x: startX + offset,
         y: startY + offset,
         width: width * scale,
@@ -39,7 +45,7 @@ export async function addImagesFromFiles(
         originalWidth: width,
         originalHeight: height,
       };
-      addImage(boardId, img);
+      addImage(boardId, img, bytes);
     } catch (err) {
       console.error(`Failed to load ${path}:`, err);
     }

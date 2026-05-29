@@ -4,9 +4,12 @@ import { nanoid } from "../utils/nanoid";
 import { addImagesFromFiles } from "./fileImport";
 import { getCDNCandidates } from "../utils/imageUpgrade";
 // Phase 7.0 — assets externalisés (cf. PRE-PHASE7-AUDIT.md C-1)
-import { saveAsset } from "../utils/assets";
+// R-EMB-01 (Sprint 2) : on construit AssetRef embed à partir des bytes et on
+// les ajoute via `addImage(boardId, img, bytes)` plutôt que de passer par
+// le disque. Plus de `src: "asset:..."` créé par les nouveaux drops.
+import { buildEmbedRef, dataUrlToBytes, mimeFromExt } from "../utils/assetRef";
 
-type AddImageFn      = (boardId: string, img: BoardImage) => void;
+type AddImageFn      = (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
 type AddAnnotationFn = (boardId: string, ann: Annotation) => void;
 
 const IMAGE_EXTS  = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i;
@@ -84,8 +87,11 @@ export async function addImagesFromDrop(
     const dataUrl = await fileToDataUrl(file);
     const { width, height } = await getImageDimensions(dataUrl);
     const ext = file.type.split("/")[1] || "png";
-    const assetSrc = await saveAsset(dataUrl, ext);
-    addImage(boardId, makeImage(assetSrc, worldX + i * 24, worldY + i * 24, width, height));
+    // R-EMB-01 : embed direct dans le doc, plus de bypass disque
+    const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+    const mime = detectedMime || mimeFromExt(ext);
+    const img = await makeImageFromBytes(bytes, mime, worldX + i * 24, worldY + i * 24, width, height);
+    addImage(boardId, img, bytes);
   }
   if (imageFiles.length > 0) return;
 
@@ -159,7 +165,16 @@ export async function addImagesFromDrop(
   for (const url of unique) {
     const fetched = await fetchBestImage(url);
     if (fetched) {
-      addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
+      // R-EMB-01 : si on a les bytes, embed direct ; sinon link sur URL
+      if (fetched.bytes) {
+        const img = await makeImageFromBytes(
+          fetched.bytes, fetched.mime,
+          worldX, worldY, fetched.width, fetched.height, url,
+        );
+        addImage(boardId, img, fetched.bytes);
+      } else {
+        addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
+      }
       console.debug("[drop] success via:", url);
       return;
     }
@@ -167,43 +182,56 @@ export async function addImagesFromDrop(
   console.warn("[drop] tous les candidats ont échoué :", unique);
 }
 
-async function fetchBestImage(url: string): Promise<{ src: string; width: number; height: number } | null> {
-  // Phase 7.0 : on télécharge en data URL via Rust, on calcule les dimensions,
-  // puis on externalise immédiatement comme asset pour stocker un identifiant
-  // logique (asset:<hash>.<ext>) plutôt que la base64 dans le projet.
+interface FetchedImage {
+  /** Bytes décodés si dispo (préféré → embed). */
+  bytes?: Uint8Array;
+  /** MIME du blob ou de l'URL link. */
+  mime: string;
+  /** URL légacy de fallback (utilisée si bytes absent). */
+  src: string;
+  width: number;
+  height: number;
+}
+
+async function fetchBestImage(url: string): Promise<FetchedImage | null> {
+  // R-EMB-01 (Sprint 2) : on télécharge en data URL via Rust, on décode en
+  // bytes → AssetRef embed. Plus de bypass disque (saveAsset retiré).
   const extFromUrl = (u: string) => {
     const m = u.toLowerCase().match(/\.([a-z0-9]+)(?:\?.*)?$/);
     return m ? m[1] : "png";
   };
 
-  // Try CDN-upgraded URLs first (higher resolution, same image, no API key needed)
-  const candidates = getCDNCandidates(url);
-  for (const candidate of candidates) {
+  const tryUrl = async (target: string): Promise<FetchedImage | null> => {
     try {
-      const dataUrl: string = await invoke("fetch_image", { url: candidate });
+      const dataUrl: string = await invoke("fetch_image", { url: target });
       const { width, height } = await getImageDimensions(dataUrl);
-      const assetSrc = await saveAsset(dataUrl, extFromUrl(candidate));
-      return { src: assetSrc, width, height };
-    } catch {
-      // Candidate unavailable — try next
-    }
-  }
-
-  // Fall back to the original URL
-  try {
-    const dataUrl: string = await invoke("fetch_image", { url });
-    const { width, height } = await getImageDimensions(dataUrl);
-    const assetSrc = await saveAsset(dataUrl, extFromUrl(url));
-    return { src: assetSrc, width, height };
-  } catch (err) {
-    console.error("Failed to fetch image:", err);
-    try {
-      const { width, height } = await getImageDimensions(url);
-      // Échec de l'externalisation : on garde l'URL HTTP. Rare et legacy.
-      return { src: url, width, height };
+      const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+      const mime = detectedMime || mimeFromExt(extFromUrl(target));
+      return { bytes, mime, src: target, width, height };
     } catch {
       return null;
     }
+  };
+
+  // Try CDN-upgraded URLs first (higher resolution, same image, no API key needed)
+  const candidates = getCDNCandidates(url);
+  for (const candidate of candidates) {
+    const out = await tryUrl(candidate);
+    if (out) return out;
+  }
+
+  // Fall back to the original URL
+  const out = await tryUrl(url);
+  if (out) return out;
+
+  // Tout fetch a échoué : on tente de récupérer JUSTE les dimensions via
+  // un <img> côté DOM (CORS-permitting) et on garde l'URL en mode link.
+  try {
+    const { width, height } = await getImageDimensions(url);
+    return { mime: mimeFromExt(extFromUrl(url)), src: url, width, height };
+  } catch (err) {
+    console.error("Failed to fetch image:", err);
+    return null;
   }
 }
 
@@ -360,6 +388,39 @@ function makeImage(
     src,
     x,
     y,
+    width: width * scale,
+    height: height * scale,
+    rotation: 0,
+    locked: false,
+    tags: [],
+    sourceUrl,
+    originalWidth: width,
+    originalHeight: height,
+  };
+}
+
+/**
+ * R-EMB-01 (Sprint 2) — construit une BoardImage `mode: "embed"` à partir
+ * des bytes (ex: data URL drag depuis le web décodé). Le caller passe les
+ * bytes à `addImage(boardId, img, bytes)` pour qu'ils soient ajoutés au
+ * project.blobs dans la même mutation.
+ */
+async function makeImageFromBytes(
+  bytes: Uint8Array,
+  mime: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  sourceUrl?: string,
+): Promise<BoardImage> {
+  const asset = await buildEmbedRef(bytes, mime);
+  const maxW = 600;
+  const scale = width > maxW ? maxW / width : 1;
+  return {
+    id: nanoid(),
+    asset,
+    x, y,
     width: width * scale,
     height: height * scale,
     rotation: 0,

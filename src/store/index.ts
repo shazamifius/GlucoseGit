@@ -175,7 +175,13 @@ interface GlucoseStore {
   setViewport: (boardId: string, vp: Viewport) => void;
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  addImage: (boardId: string, img: BoardImage) => void;
+  /**
+   * Ajoute une image au board. Si `embedBytes` est fourni ET que `img.asset`
+   * est en mode "embed", les octets sont écrits dans `project.blobs[sha256]`
+   * dans la MÊME mutation (atomique pour undo). Pas d'écriture disque.
+   * R-EMB-01 (Sprint 2).
+   */
+  addImage: (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
   updateImage: (boardId: string, id: string, patch: Partial<BoardImage>) => void;
   removeImages: (boardId: string, ids: string[]) => void;
   updateMultipleImages: (boardId: string, updates: { id: string; patch: Partial<BoardImage> }[]) => void;
@@ -460,12 +466,21 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  addImage: (boardId, img) => {
+  addImage: (boardId, img, embedBytes) => {
     const safe = clampSpatial(img);
     get().mutate("addImage", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
       b.images.push(safe);
+      // R-EMB-01 (Sprint 2) : si on a des bytes à embedder pour cette image,
+      // on les ajoute à project.blobs dans la même mutation. Dédup naturelle :
+      // si un autre image partage déjà ce sha, on ne réécrit pas.
+      if (embedBytes && safe.asset?.mode === "embed") {
+        if (!d.blobs) d.blobs = {};
+        if (!d.blobs[safe.asset.sha256]) {
+          d.blobs[safe.asset.sha256] = embedBytes;
+        }
+      }
       b.updatedAt = Date.now();
       d.updatedAt = Date.now();
     });
