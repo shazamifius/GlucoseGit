@@ -2,6 +2,7 @@
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { BoardImage } from "../types";
 import { gridLayout, compactRowsLayout, sameHeightLayout, masonryLayout, bySlotLayout, boundsOfImages } from "../utils/layout";
+import { resolveImageSrc } from "../utils/assets";
 
 interface Props {
   docked?: boolean;
@@ -10,7 +11,11 @@ interface Props {
 type LayoutType = "compact" | "grid" | "masonry" | "sameHeight" | "bySlot";
 type SortType   = "none" | "size-desc" | "size-asc" | "ratio-port" | "ratio-land" | "lum-asc" | "lum-desc";
 
-function computeLuminosity(img: BoardImage): Promise<number> {
+async function computeLuminosity(img: BoardImage): Promise<number> {
+  // R-EMB-01 (Sprint 2) : on résout via le nouveau modèle AssetRef qui sait
+  // gérer les embeds (blob URL) comme les links.
+  const blobs = useGlucoseStore.getState().project.blobs;
+  const url = await resolveImageSrc(img.asset, img.src, blobs);
   return new Promise((resolve) => {
     const el = new Image();
     el.onload = () => {
@@ -26,8 +31,7 @@ function computeLuminosity(img: BoardImage): Promise<number> {
       resolve(sum / (32 * 32 * 255));
     };
     el.onerror = () => resolve(0.5);
-    // R-EMB-01 : img.src devenu optionnel — fallback transparente.
-    el.src = img.src ?? "";
+    el.src = url;
   });
 }
 

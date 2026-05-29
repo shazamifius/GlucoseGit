@@ -130,4 +130,23 @@ describe("Automerge — support Uint8Array (probe R-EMB-01)", () => {
     const hash2 = await sha256Hex(payload);
     expect(hash2).toBe(hash);
   });
+
+  it("6. asPlain preserve les Uint8Array (R-EMB-01 — sentinel __u8)", () => {
+    const payload = randBytes(256, 999);
+    const doc0 = A.create<BlobBag>({ blobs: {}, refs: [] });
+    const doc1 = A.change(doc0, "add", (d) => {
+      d.blobs["k"] = payload;
+      d.refs.push("k");
+    });
+
+    const plain = A.asPlain(doc1);
+    const got = plain.blobs["k"];
+    // Avec l'ancien asPlain naif, `got` serait `{0:..,1:..}` (Object).
+    // Avec le patch, c'est bien un Uint8Array reconstruit.
+    expect(got).toBeInstanceOf(Uint8Array);
+    expect(got.length).toBe(payload.length);
+    for (let i = 0; i < payload.length; i++) {
+      expect(got[i]).toBe(payload[i]);
+    }
+  });
 });

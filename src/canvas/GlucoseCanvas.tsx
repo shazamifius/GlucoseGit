@@ -36,7 +36,8 @@ import SyntaxEditor from "../components/SyntaxEditor";
 import ZoneSelectorOverlay from "./ZoneSelectorOverlay";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 // Phase 7.0 — résolution des `asset:<filename>` vers une URL Tauri utilisable
-import { resolveAssetSrc } from "../utils/assets";
+// R-EMB-01 (Sprint 2) — résolveur unifié AssetRef / src legacy
+import { resolveImageSrc } from "../utils/assets";
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
@@ -276,10 +277,10 @@ export default function GlucoseCanvas() {
     newImgs.forEach(async (img) => {
       pendingLoadsRef.current.add(img.id);
       try {
-        // Phase 7.0 : résout les identifiants logiques `asset:<hash>.<ext>`
-        // en URL Tauri utilisable par Pixi (les data:/http(s):// passent tels quels).
-        // R-EMB-01 (Sprint 2) : `img.src` est devenu optionnel — fallback "" si absent.
-        const resolvedSrc = await resolveAssetSrc(img.src ?? "");
+        // R-EMB-01 (Sprint 2) : résolveur unifié — privilégie asset (AssetRef)
+        // avec blob URL pour les embeds, fallback sur src legacy.
+        const blobs = useGlucoseStore.getState().project.blobs;
+        const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
         const tex: Texture = img.isVideo
           ? await Assets.load({ src: resolvedSrc, data: { autoPlay: true, loop: true, muted: true } })
           : await Assets.load(resolvedSrc);

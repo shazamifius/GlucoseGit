@@ -93,9 +93,32 @@ export function clone<T>(doc: Doc<T>): Doc<T> {
  *
  * Utile pour les composants UI qui s'attendent à un Object/Array natif. Coût
  * O(n) en deep copy — à n'utiliser qu'à la frontière React.
+ *
+ * R-EMB-01 — Gère les `Uint8Array` (utilisés pour Project.blobs) via un
+ * marqueur sentinelle dans le sérialiseur. Un JSON.parse(JSON.stringify)
+ * naïf transforme `Uint8Array` en objet `{0:1, 1:2, ...}` — corruption
+ * silencieuse des blobs. Le marqueur `__u8: number[]` est rebuilt en
+ * Uint8Array à la lecture.
  */
 export function asPlain<T>(doc: Doc<T>): T {
-  return JSON.parse(JSON.stringify(doc));
+  return JSON.parse(
+    JSON.stringify(doc, (_key, value) => {
+      if (value instanceof Uint8Array) {
+        return { __u8: Array.from(value) };
+      }
+      return value;
+    }),
+    (_key, value) => {
+      if (
+        value
+        && typeof value === "object"
+        && Array.isArray((value as { __u8?: unknown }).__u8)
+      ) {
+        return new Uint8Array((value as { __u8: number[] }).__u8);
+      }
+      return value;
+    }
+  );
 }
 
 /** Récupère l'historique sous forme de liste de commits Automerge. */

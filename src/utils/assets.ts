@@ -18,6 +18,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import type { AssetRef } from "../types";
+import { resolveAssetRefSync } from "./assetRef";
 
 let assetsDirCache: string | null = null;
 
@@ -70,6 +72,36 @@ export async function resolveAssetSrc(src: string): Promise<string> {
   }
   // Toute autre forme : laisser tel quel
   return src;
+}
+
+/**
+ * R-EMB-01 (Sprint 2) — Résolveur unifié image → URL renderable.
+ *
+ * Stratégie :
+ *   1. Si `asset` (AssetRef) défini → résolveur dédié
+ *      - mode "embed" → blob URL depuis project.blobs[sha256]
+ *      - mode "link"  → href tel quel (ou convertFileSrc si chemin local)
+ *   2. Sinon `src` legacy (string) → resolveAssetSrc
+ *   3. Sinon → chaîne vide
+ *
+ * Utilisé par PixiJS sprite loading, organize panel, etc.
+ */
+export async function resolveImageSrc(
+  asset: AssetRef | undefined,
+  src: string | undefined,
+  blobs: Record<string, Uint8Array> | undefined,
+): Promise<string> {
+  if (asset) {
+    if (asset.mode === "embed") {
+      // Blob URL → utilisable directement par Pixi.Assets.load(url) et <img>
+      return resolveAssetRefSync(asset, blobs);
+    }
+    // asset.mode === "link" — résout via la chaîne usuelle (asset:/data:/http)
+    return resolveAssetSrc(asset.href);
+  }
+  // Fallback legacy
+  if (src) return resolveAssetSrc(src);
+  return "";
 }
 
 /** Indique si un `src` est encore en base64 (legacy à migrer). */
