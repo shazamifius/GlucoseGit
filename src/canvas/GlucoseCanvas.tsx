@@ -18,6 +18,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
 import { scanFolderForMirror } from "./folderMirror";
+import { folderToEnter } from "./navigation";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -904,13 +905,16 @@ export default function GlucoseCanvas() {
   // Dézoomer fortement (scale ≤ EXIT) à l'intérieur d'un dossier : on sort.
   // Cooldown 700 ms entre deux transitions pour éviter les ping-pong.
   const lastNavRef = useRef(0);
-  // ENTRÉE ADAPTATIVE : on n'entre PLUS à un scale fixe (sinon on voit encore
-  // 5-6 dossiers et on plonge « au hasard » dans l'un d'eux). On entre seulement
-  // quand le dossier visé occupe l'essentiel de l'écran → on ne voit (presque)
-  // plus que lui. ENTER_COVERAGE = fraction d'une dimension écran que la boîte
-  // doit couvrir ; ENTER_MIN_SCALE = garde-fou bas pour ne pas entrer à dézoom.
-  const ENTER_COVERAGE = 0.62;
-  const ENTER_MIN_SCALE = 1.5;
+  // NAV-1 — ENTRÉE ADAPTATIVE : on entre dans un dossier UNIQUEMENT quand il est
+  // le SEUL dossier frère visible à l'écran (aucun autre ne croise le viewport)
+  // ET qu'il remplit ≥ ENTER_COVERAGE d'une dimension écran. Tant que 2 dossiers
+  // sont visibles, on ne plonge jamais au hasard (fini « on entre dans le
+  // mauvais dossier »). Critère géométrique → tient compte de la TAILLE réelle :
+  // un gros dossier déclenche à un zoom plus faible qu'un petit (plus de scale
+  // fixe). ENTER_MIN_SCALE n'est qu'un plancher anti-jitter (le vrai gate est
+  // couverture + unicité, cf. folderToEnter dans ./navigation).
+  const ENTER_COVERAGE = 0.6;
+  const ENTER_MIN_SCALE = 0.25;
   const EXIT_SCALE  = 0.4;
   // Cooldown > durée de l'animation de transition (400 ms) pour qu'aucune
   // transition auto ne se déclenche pendant l'arrivée (anti-cascade).
@@ -1019,26 +1023,23 @@ export default function GlucoseCanvas() {
     const state = useGlucoseStore.getState();
     const board = getActiveBoard(state.project);
 
-    // ── ENTRÉE adaptative ────────────────────────────────────────────────
-    // On localise le dossier sous le centre écran, puis on n'entre QUE s'il
-    // couvre ≥ ENTER_COVERAGE d'une dimension écran → on ne voit (presque) plus
-    // que lui (fini le « pof on rentre dans un des 5-6 dossiers visibles »).
-    if (scale >= ENTER_MIN_SCALE) {
-      const cx = (app.screen.width / 2 - world.x) / scale;
-      const cy = (app.screen.height / 2 - world.y) / scale;
-      const target = (board.folders ?? []).find(
-        (f) => cx >= f.x && cx <= f.x + f.width && cy >= f.y && cy <= f.y + f.height
-      );
-      if (target) {
-        const covW = (target.width * scale) / app.screen.width;
-        const covH = (target.height * scale) / app.screen.height;
-        if (Math.max(covW, covH) >= ENTER_COVERAGE) {
-          lastNavRef.current = now;
-          // Entrée paresseuse (scan à la volée si nécessaire) + cadrage fit.
-          void lazyEnter(board.id, target.id, app);
-          return;
-        }
-      }
+    // ── ENTRÉE adaptative (NAV-1) ────────────────────────────────────────
+    // On n'entre QUE si un seul dossier frère est visible à l'écran et qu'il le
+    // remplit (logique pure testable → ./navigation). Plus d'ambiguïté « lequel
+    // des dossiers visibles », donc plus d'entrée dans le mauvais dossier.
+    const targetId = folderToEnter(
+      board.folders ?? [],
+      { x: world.x, y: world.y, scale },
+      app.screen.width,
+      app.screen.height,
+      ENTER_COVERAGE,
+      ENTER_MIN_SCALE,
+    );
+    if (targetId) {
+      lastNavRef.current = now;
+      // Entrée paresseuse (scan à la volée si nécessaire) + cadrage fit.
+      void lazyEnter(board.id, targetId, app);
+      return;
     }
 
     // ── SORTIE adaptative ────────────────────────────────────────────────
