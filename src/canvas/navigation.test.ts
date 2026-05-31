@@ -6,7 +6,7 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 import { describe, expect, it } from "vitest";
-import { type FolderBox, folderToEnter, visibleWorldRect } from "./navigation";
+import { classifyWheel, type FolderBox, folderToEnter, visibleWorldRect } from "./navigation";
 
 const SCREEN_W = 1920;
 const SCREEN_H = 1080;
@@ -74,5 +74,41 @@ describe("folderToEnter — NAV-1", () => {
     // Viewport centré loin des deux, zoomé fort → rien de visible.
     const vp = centerOn(2500, 2500, 3.0);
     expect(folderToEnter([A, B], vp, SCREEN_W, SCREEN_H, COVERAGE, MIN_SCALE)).toBeNull();
+  });
+});
+
+describe("classifyWheel — NAV-2 (pavé tactile)", () => {
+  const base = { deltaX: 0, deltaY: 0, deltaMode: 0, ctrlKey: false } as const;
+
+  it("pincement tactile (ctrlKey synthétisé) → zoom", () => {
+    expect(classifyWheel({ ...base, ctrlKey: true, deltaY: -3, wheelDeltaY: 9 })).toBe("zoom");
+  });
+
+  it("ctrl + molette souris → zoom", () => {
+    expect(classifyWheel({ ...base, ctrlKey: true, deltaY: 100, wheelDeltaY: -120 })).toBe("zoom");
+  });
+
+  it("molette souris classique (cran ±120, vertical pur) → zoom", () => {
+    expect(classifyWheel({ ...base, deltaY: -100, wheelDeltaY: 120 })).toBe("zoom");
+    expect(classifyWheel({ ...base, deltaY: 100, wheelDeltaY: -120 })).toBe("zoom");
+    expect(classifyWheel({ ...base, deltaY: 200, wheelDeltaY: -240 })).toBe("zoom");
+  });
+
+  it("glissement 2 doigts vertical (petits deltas, pas multiple de 120) → pan", () => {
+    expect(classifyWheel({ ...base, deltaY: 12, wheelDeltaY: -36 })).toBe("pan");
+    expect(classifyWheel({ ...base, deltaY: -7, wheelDeltaY: 21 })).toBe("pan");
+  });
+
+  it("glissement 2 doigts horizontal (deltaX ≠ 0) → pan", () => {
+    expect(classifyWheel({ ...base, deltaX: 14, deltaY: 0, wheelDeltaY: 0 })).toBe("pan");
+  });
+
+  it("glissement 2 doigts diagonal → pan", () => {
+    expect(classifyWheel({ ...base, deltaX: 6, deltaY: 9, wheelDeltaY: -27 })).toBe("pan");
+  });
+
+  it("composante horizontale présente → jamais classé comme molette souris", () => {
+    // wheelDeltaY multiple de 120 MAIS deltaX ≠ 0 → c'est un pavé tactile → pan.
+    expect(classifyWheel({ ...base, deltaX: 5, deltaY: 100, wheelDeltaY: -120 })).toBe("pan");
   });
 });

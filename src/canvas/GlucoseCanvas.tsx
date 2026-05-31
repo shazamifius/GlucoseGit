@@ -18,7 +18,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
 import { scanFolderForMirror } from "./folderMirror";
-import { folderToEnter } from "./navigation";
+import { classifyWheel, folderToEnter } from "./navigation";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -1794,30 +1794,51 @@ export default function GlucoseCanvas() {
 
     app.canvas.addEventListener("wheel", (e: WheelEvent) => {
       e.preventDefault();
-      
-      // Continuous zoom proportional to scroll speed — smooth on trackpad,
-      // consistent on mouse wheel (120 units/notch on Windows)
-      let delta = e.deltaY;
-      if (e.deltaMode === 1) delta *= 40;  // line → pixel
-      if (e.deltaMode === 2) delta *= 600; // page → pixel
-      const factor = Math.pow(0.999, delta);
-      const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, world.scale.x * factor));
-      const rect = app.canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
-      world.x = mx - (mx - world.x) * (ns / world.scale.x);
-      world.y = my - (my - world.y) * (ns / world.scale.y);
-      world.scale.set(ns);
+
+      // NAV-2 — gestes pavé tactile (cf. ./navigation.classifyWheel) :
+      //   pincement (ctrlKey synthétisé) ou molette souris → ZOOM ;
+      //   glissement 2 doigts → PAN (gauche/droite/haut/bas), comme le web.
+      const intent = classifyWheel({
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        deltaMode: e.deltaMode,
+        ctrlKey: e.ctrlKey,
+        wheelDeltaY: (e as unknown as { wheelDeltaY?: number }).wheelDeltaY,
+      });
+
       // L'entrée/sortie de dossier par zoom est gérée dans checkAutoNavigate
       // (appelé via emitViewport). On capture le board AVANT : si une navigation
       // a eu lieu, checkAutoNavigate a déjà posé le bon cadrage du board cible —
-      // on NE DOIT PAS l'écraser avec le scale de la molette (sinon on atterrit
-      // à scale 3 dans le vide → "je vois rien" + cascade).
+      // on NE DOIT PAS l'écraser (sinon on atterrit dans le vide + cascade).
       const boardBefore = getActiveBoard(useGlucoseStore.getState().project).id;
+
+      if (intent === "zoom") {
+        // Continuous zoom proportional to scroll speed — smooth on trackpad,
+        // consistent on mouse wheel (120 units/notch on Windows)
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 40;  // line → pixel
+        if (e.deltaMode === 2) delta *= 600; // page → pixel
+        const factor = Math.pow(0.999, delta);
+        const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, world.scale.x * factor));
+        const rect = app.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+        world.x = mx - (mx - world.x) * (ns / world.scale.x);
+        world.y = my - (my - world.y) * (ns / world.scale.y);
+        world.scale.set(ns);
+      } else {
+        // PAN : la vue suit le glissement des 2 doigts (scroll-pan).
+        let dx = e.deltaX, dy = e.deltaY;
+        if (e.deltaMode === 1) { dx *= 16; dy *= 16; }            // ligne → px
+        else if (e.deltaMode === 2) { dx *= app.screen.width; dy *= app.screen.height; } // page → px
+        world.x -= dx;
+        world.y -= dy;
+      }
+
       refreshGrid(world);
       emitViewport(world);
       const boardAfter = getActiveBoard(useGlucoseStore.getState().project).id;
       if (boardAfter === boardBefore) {
-        setViewport(boardBefore, { x: world.x, y: world.y, scale: ns });
+        setViewport(boardBefore, { x: world.x, y: world.y, scale: world.scale.x });
       }
     }, { passive: false });
 

@@ -13,6 +13,40 @@ export interface FolderBox {
   height: number;
 }
 
+// ── NAV-2 — Classification des gestes molette / pavé tactile ────────────────
+
+export type WheelIntent = "zoom" | "pan";
+
+export interface WheelLike {
+  deltaX: number;
+  deltaY: number;
+  /** 0 = pixel, 1 = ligne, 2 = page. */
+  deltaMode: number;
+  /** Vrai pour ctrl+molette ET pour le pincement tactile (synthétisé par le moteur). */
+  ctrlKey: boolean;
+  /** Chromium/WebView2 : ±120 par cran de molette souris ; petit/variable au pavé tactile. */
+  wheelDeltaY?: number;
+}
+
+/**
+ * NAV-2 — Décide si un événement `wheel` est un ZOOM ou un PAN.
+ *
+ * Règle (demande user, calquée sur le web/Google Maps) :
+ *   • pincement (doigts qui se rapprochent/écartent) → le moteur synthétise
+ *     `ctrlKey` → **zoom**.
+ *   • molette souris classique (un cran = `wheelDeltaY` multiple de ±120, sans
+ *     composante horizontale) → **zoom** (préservé pour les souris).
+ *   • glissement 2 doigts sur le pavé tactile → **pan** (gauche/droite/haut/bas).
+ */
+export function classifyWheel(e: WheelLike): WheelIntent {
+  if (e.ctrlKey) return "zoom"; // pincement tactile OU ctrl+molette
+  const wd = e.wheelDeltaY ?? 0;
+  // Cran de molette souris : vertical pur + multiple de 120.
+  const isMouseNotch = e.deltaX === 0 && wd !== 0 && Math.abs(wd) % 120 === 0;
+  if (isMouseNotch) return "zoom";
+  return "pan"; // glissement 2 doigts
+}
+
 export interface NavViewport {
   /** Translation monde→écran en X (px écran). */
   x: number;

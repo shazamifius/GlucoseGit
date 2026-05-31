@@ -27,7 +27,11 @@ des dossiers — un gros dossier déclenche au même zoom qu'un petit. Le critè
 **Concerne :** `checkAutoNavigate` dans `src/canvas/GlucoseCanvas.tsx`.
 
 ### NAV-2 — Pavé tactile : impossible de naviguer comme sur le web
-**Statut :** 🔴 à faire
+**Statut :** 🟡 implémenté, à confirmer à la main (2026-05-31) — `classifyWheel`
+(`src/canvas/navigation.ts`, 7 tests) : pincement/ctrl+molette/molette souris → zoom ;
+glissement 2 doigts → pan. Avant, tout événement molette zoomait. **À valider** : pan
+2 doigts (G/D/H/B), pincement = dézoom, écartement = zoom, et la molette souris zoome
+toujours.
 **Voulu (gestes standard) :** 2 doigts qui glissent → pan (droite/gauche/haut/bas) ;
 pincement (doigts qui se rapprochent) → dézoom ; écartement → zoom.
 **Impact :** frustrant en permanence pendant le test (je suis sur pavé tactile).
