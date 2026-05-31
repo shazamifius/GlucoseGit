@@ -136,6 +136,53 @@ function indexById<T extends { id: string }>(arr: T[], id: string): number {
   return arr.findIndex((x) => x.id === id);
 }
 
+// ─────────── UNDO-1 — état de vue préservé à travers undo/redo ───────────────
+/** Reconstruit le chemin de dossiers (folderStack UI) qui mène à `activeBoardId`
+ *  à partir de la structure des folders. Pur (pas d'accès au store). */
+function buildFolderStack(
+  boards: Project["boards"],
+  activeBoardId: string,
+): Array<{ boardId: string; folderId: string }> {
+  const parentMap = new Map<string, { boardId: string; folderId: string }>();
+  for (const b of boards) {
+    for (const f of b.folders ?? []) {
+      parentMap.set(f.childBoardId, { boardId: b.id, folderId: f.id });
+    }
+  }
+  const stack: Array<{ boardId: string; folderId: string }> = [];
+  let curr = activeBoardId;
+  let guard = 256;
+  while (parentMap.has(curr) && guard-- > 0) {
+    const parent = parentMap.get(curr)!;
+    stack.unshift(parent);
+    curr = parent.boardId;
+  }
+  return stack;
+}
+
+/** UNDO-1 — Après un undo/redo on restaure le CONTENU mais on garde la caméra et
+ *  le dossier courant là où l'utilisateur se trouve : pas de téléportation. Renvoie
+ *  un nouveau doc = `restored` avec le viewport de chaque board + l'activeBoardId
+ *  recopiés depuis le présent (`current`). */
+function preserveView(restored: A.Doc<Project>, current: A.Doc<Project>): A.Doc<Project> {
+  const cur = current as unknown as Project;
+  return A.change(restored, "preserveView", (d) => {
+    // Board actif : on reste où on est, SAUF si ce board n'existe plus après le
+    // restore (ex : on annule la création du dossier dans lequel on était) — on
+    // laisse alors l'activeBoardId du snapshot.
+    if (d.boards.some((b) => b.id === cur.activeBoardId)) {
+      d.activeBoardId = cur.activeBoardId;
+    }
+    // Viewport : on recopie la caméra courante de chaque board encore présent.
+    for (const b of d.boards) {
+      const cb = cur.boards.find((x) => x.id === b.id);
+      if (cb?.viewport) {
+        b.viewport = { x: cb.viewport.x, y: cb.viewport.y, scale: cb.viewport.scale };
+      }
+    }
+  });
+}
+
 interface GlucoseStore {
   // â”€â”€ Source de vÃ©ritÃ© Automerge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _doc: A.Doc<Project>;
@@ -144,6 +191,17 @@ interface GlucoseStore {
   project: Project;
   /** Helper central : toute mutation passe par lÃ . Blocked si preview actif. */
   mutate: (message: string, mutator: (d: Project) => void) => void;
+  /** UNDO-1 — Comme `mutate` mais SANS entrée undo/redo. Réservé à l'état de
+   *  vue/navigation (viewport, activeBoardId) : ça ne doit jamais consommer un
+   *  Ctrl+Z ni invalider le redo en attente. */
+  mutateView: (message: string, mutator: (d: Project) => void) => void;
+  /** UNDO-1 — Transaction d'interaction : regroupe un drag / tracé de flèche en
+   *  UNE seule entrée undo. `beginLiveEdit` prend un snapshot unique ; tant que
+   *  la transaction est ouverte, `mutate` applique les changements live SANS
+   *  empiler. `endLiveEdit` referme. Idempotent ; `end` est sûr même sans `begin`. */
+  _liveEdit: boolean;
+  beginLiveEdit: () => void;
+  endLiveEdit: () => void;
 
   // â”€â”€ Time Machine (Phase 7.4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /** Si dÃ©fini, on est en mode "preview historique" : `project` est figÃ© sur cet Ã©tat. */
@@ -169,8 +227,11 @@ interface GlucoseStore {
   _redoStack: A.Doc<Project>[];
   /** PrÃ©servÃ© pour rÃ©tro-compat : pousse manuellement le doc courant dans undoStack. */
   pushHistory: () => void;
-  undo: () => void;
-  redo: () => void;
+  /** Annule la dernière édition. Renvoie `true` si quelque chose a été annulé
+   *  (pile non vide), `false` sinon → permet un feedback honnête (pas de toast
+   *  « Annulé » quand il n'y a rien à annuler). */
+  undo: () => boolean;
+  redo: () => boolean;
 
   // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setViewport: (boardId: string, vp: Viewport) => void;
@@ -196,6 +257,11 @@ interface GlucoseStore {
   // â”€â”€ Annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addAnnotation: (boardId: string, ann: Annotation) => void;
   updateAnnotation: (boardId: string, id: string, patch: Partial<Annotation>) => void;
+  /** UNDO-1 — Réconcilie la taille MESURÉE d'une annotation (ResizeObserver du
+   *  rendu). NON annulable (passe par mutateView) : c'est une taille dérivée du
+   *  rendu auto-fit, pas une édition utilisateur — ça ne doit jamais consommer un
+   *  Ctrl+Z ni vider le redo. */
+  syncAnnotationSize: (boardId: string, id: string, width: number, height: number) => void;
   removeAnnotations: (boardId: string, ids: string[]) => void;
 
   // â”€â”€ Storyboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -354,12 +420,45 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       }
       const before = s._doc;
       const next = A.change(before, message, (d) => mutator(d as Project));
+      // Pendant une transaction d'interaction (drag, tracé de flèche), la pile a
+      // déjà été snapshottée au beginLiveEdit → on n'empile pas à chaque frame.
+      if (s._liveEdit) {
+        return { _doc: next, project: next as unknown as Project };
+      }
       return {
         _doc: next,
         project: next as unknown as Project,
         _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), before],
         _redoStack: [],
       };
+    });
+  },
+
+  _liveEdit: false,
+  beginLiveEdit: () => {
+    set((s) => {
+      if (s._liveEdit || s._previewHeads !== null) return s; // déjà ouverte / Time Machine
+      // 1 seul snapshot pour TOUTE l'interaction ; démarrer une édition vide le redo.
+      return {
+        _liveEdit: true,
+        _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
+        _redoStack: [],
+      };
+    });
+  },
+  endLiveEdit: () => {
+    if (get()._liveEdit) set({ _liveEdit: false });
+  },
+
+  mutateView: (message, mutator) => {
+    // UNDO-1 — Mutation de l'état de VUE uniquement (viewport / activeBoardId).
+    // On applique le change Automerge (donc c'est persisté + visible Time Machine)
+    // mais on NE touche NI `_undoStack` NI `_redoStack` : naviguer/zoomer ne doit
+    // jamais s'empiler dans l'undo ni détruire un redo en attente.
+    set((s) => {
+      if (s._previewHeads !== null) return s; // bloqué en mode Time Machine
+      const next = A.change(s._doc, message, (d) => mutator(d as Project));
+      return { _doc: next, project: next as unknown as Project };
     });
   },
 
@@ -444,45 +543,60 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set((s) => ({ _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), s._doc], _redoStack: [] }));
   },
   undo: () => {
+    if (get()._undoStack.length === 0) return false;
     set((s) => {
       if (s._undoStack.length === 0) return s;
       // Clone le doc avant restauration : un doc Automerge dÃ©jÃ  utilisÃ© comme
       // input Ã  `A.change()` est gelÃ©, et la prochaine mutation jetterait
       // Â« Attempting to change an outdated document Â». Le clone est cheap
       // (structural sharing).
-      const prev = A.clone(s._undoStack[s._undoStack.length - 1]);
+      const restored = A.clone(s._undoStack[s._undoStack.length - 1]);
+      // UNDO-1 — on restaure le contenu mais on GARDE la caméra et le dossier
+      // courant (pas de téléportation) ; le folderStack est reconstruit pour
+      // matcher l'activeBoardId final.
+      const prev = preserveView(restored, s._doc);
+      const proj = prev as unknown as Project;
       return {
         _doc: prev,
-        project: prev as unknown as Project,
+        project: proj,
         _undoStack: s._undoStack.slice(0, -1),
         _redoStack: [...s._redoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
         // Sortir du preview Time Machine si actif (l'undo est une opÃ©ration "live")
         _previewHeads: null,
+        _liveEdit: false,
         selectedImageIds: [],
         selectedAnnotationIds: [],
+        folderStack: buildFolderStack(proj.boards, proj.activeBoardId),
       };
     });
+    return true;
   },
   redo: () => {
+    if (get()._redoStack.length === 0) return false;
     set((s) => {
       if (s._redoStack.length === 0) return s;
-      const next = A.clone(s._redoStack[s._redoStack.length - 1]);
+      const restored = A.clone(s._redoStack[s._redoStack.length - 1]);
+      const next = preserveView(restored, s._doc);
+      const proj = next as unknown as Project;
       return {
         _doc: next,
-        project: next as unknown as Project,
+        project: proj,
         _redoStack: s._redoStack.slice(0, -1),
         _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
         _previewHeads: null,
+        _liveEdit: false,
         selectedImageIds: [],
         selectedAnnotationIds: [],
+        folderStack: buildFolderStack(proj.boards, proj.activeBoardId),
       };
     });
+    return true;
   },
 
   // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setViewport: (boardId, vp) => {
     const safe = clampViewport(vp);
-    get().mutate("setViewport", (d) => {
+    get().mutateView("setViewport", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (b) b.viewport = safe;
     });
@@ -714,6 +828,20 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
+  syncAnnotationSize: (boardId, id, width, height) => {
+    // UNDO-1 — taille auto-fit mesurée par le rendu (ResizeObserver) → mutateView
+    // (jamais d'entrée d'undo). Sinon chaque reflow du markdown empilait un Ctrl+Z
+    // « fantôme » APRÈS la fermeture de la transaction d'édition → undo « inutile ».
+    const w = clampNum(width, 1, SIZE_LIMIT);
+    const h = clampNum(height, 1, SIZE_LIMIT);
+    get().mutateView("syncAnnotationSize", (d) => {
+      const b = d.boards.find((x) => x.id === boardId);
+      if (!b) return;
+      const a = b.annotations.find((x) => x.id === id);
+      if (a && a.type !== "arrow") { a.width = w; a.height = h; }
+    });
+  },
+
   removeAnnotations: (boardId, ids) => {
     const idSet = new Set(ids);
     get().mutate("removeAnnotations", (d) => {
@@ -852,22 +980,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   setActiveBoardId: (id) => {
-    // Reconstruit folderStack pour pointer vers le nouveau board s'il est sous-dossier
-    const proj = get().project;
-    const parentMap = new Map<string, { boardId: string; folderId: string }>();
-    for (const b of proj.boards) {
-      for (const f of b.folders ?? []) {
-        parentMap.set(f.childBoardId, { boardId: b.id, folderId: f.id });
-      }
-    }
-    const stack: Array<{ boardId: string; folderId: string }> = [];
-    let curr = id;
-    while (parentMap.has(curr)) {
-      const parent = parentMap.get(curr)!;
-      stack.unshift(parent);
-      curr = parent.boardId;
-    }
-    get().mutate("setActiveBoardId", (d) => { d.activeBoardId = id; });
+    // Navigation pure → mutateView (jamais dans l'undo). Reconstruit folderStack
+    // pour pointer vers le nouveau board s'il est sous-dossier.
+    const stack = buildFolderStack(get().project.boards, id);
+    get().mutateView("setActiveBoardId", (d) => { d.activeBoardId = id; });
     set({ selectedImageIds: [], selectedAnnotationIds: [], folderStack: stack });
   },
 
@@ -1359,7 +1475,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       placements.push({ parentBoardId: childBoardId, folder: { ...child.folder, id: nanoid(), childBoardId: subBoardId } as CanvasFolder });
     }
 
-    get().mutate("expandFolder", (d) => {
+    // UNDO-1 — le scan paresseux est un effet de bord de NAVIGATION (déclenché
+    // en entrant dans un dossier pendingScan), pas une édition : il ne doit pas
+    // consommer d'undo ni vider le redo. C'est idempotent + persisté (Automerge).
+    get().mutateView("expandFolder", (d) => {
       // 1) Crée les sous-child-boards (vides).
       for (const spec of boardSpecs) {
         d.boards.push({ ...newBoard(spec.name), id: spec.boardId });
@@ -1475,7 +1594,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const folder = (board?.folders ?? []).find((f) => f.id === folderId);
     if (!folder) return;
     const targetBoardId = folder.childBoardId;
-    get().mutate("enterFolder", (d) => { d.activeBoardId = targetBoardId; });
+    get().mutateView("enterFolder", (d) => { d.activeBoardId = targetBoardId; });
     set({
       folderStack: [...s.folderStack, { boardId, folderId }],
       selectedImageIds: [],
@@ -1487,7 +1606,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const s = get();
     if (s.folderStack.length === 0) return;
     const prev = s.folderStack[s.folderStack.length - 1];
-    get().mutate("exitFolder", (d) => { d.activeBoardId = prev.boardId; });
+    get().mutateView("exitFolder", (d) => { d.activeBoardId = prev.boardId; });
     set({
       folderStack: s.folderStack.slice(0, -1),
       selectedImageIds: [],
@@ -1499,7 +1618,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const s = get();
     if (s.folderStack.length === 0) return;
     const root = s.folderStack[0];
-    get().mutate("exitToRoot", (d) => { d.activeBoardId = root.boardId; });
+    get().mutateView("exitToRoot", (d) => { d.activeBoardId = root.boardId; });
     set({
       folderStack: [],
       selectedImageIds: [],
@@ -1523,6 +1642,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       project: newDoc as unknown as Project,
       _undoStack: [],
       _redoStack: [],
+      _liveEdit: false,
       _previewHeads: null,
       selectedImageIds: [],
       selectedAnnotationIds: [],
@@ -1536,6 +1656,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       project: doc as unknown as Project,
       _undoStack: [],
       _redoStack: [],
+      _liveEdit: false,
       _previewHeads: null,
       selectedImageIds: [],
       selectedAnnotationIds: [],

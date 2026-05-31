@@ -144,9 +144,12 @@ export default function GlucoseCanvas() {
   const [arrowDescPanel, setArrowDescPanel] = useState<{ arrowId: string; screenX: number; screenY: number } | null>(null);
 
   useEffect(() => {
-    if (editOverlay) {
-      // Place le caret en fin de texte n'est plus pertinent car SyntaxEditor s'occupe de l'autoFocus
-    }
+    // UNDO-1 — toute la session d'édition de texte (création du bloc + frappe +
+    // redimensions d'auto-fit + commit) tient dans UNE transaction d'undo. Elle
+    // est ouverte aux sites d'ouverture de l'overlay (outil texte/sticky, double-
+    // clic, flèche-dans-le-vide) et refermée ICI dès que l'overlay se ferme
+    // (commit, Échap, clic ailleurs). → 1 seul Ctrl+Z efface le bloc.
+    if (!editOverlay) useGlucoseStore.getState().endLiveEdit();
   }, [editOverlay?.annId]);
 
   const {
@@ -189,6 +192,8 @@ export default function GlucoseCanvas() {
     if ((ann as { sourceFile?: string }).sourceFile) return;
     const pos = annToScreen(ann);
     if (!pos) return;
+    // UNDO-1 — ouvre la transaction : toute l'édition de ce bloc = 1 entrée.
+    useGlucoseStore.getState().beginLiveEdit();
     setEditOverlay({
       annId: ann.id,
       type: ann.type,
@@ -1441,7 +1446,9 @@ export default function GlucoseCanvas() {
       }
       // Si déjà sélectionné, on ne touche à rien pour permettre le drag groupé (images + texte)
 
-      state.pushHistory();
+      // UNDO-1 — PAS de snapshot ici : un simple clic ne doit créer aucune entrée
+      // d'undo (et ne doit pas vider le redo). La transaction d'undo s'ouvre
+      // paresseusement au PREMIER mouvement réel (cf. branche drag de pointermove).
       const world = worldRef.current!;
       draggedSpriteRef.current = {
         id, startX: img.x, startY: img.y,
@@ -1480,6 +1487,9 @@ export default function GlucoseCanvas() {
               fontSize: 14,
               color: "#ffffff",
             };
+        // UNDO-1 — création + frappe + commit du nouveau bloc = 1 entrée d'undo
+        // (refermée à la fermeture de l'overlay). Un seul Ctrl+Z efface le bloc.
+        useGlucoseStore.getState().beginLiveEdit();
         useGlucoseStore.getState().addAnnotation(
           getActiveBoard(useGlucoseStore.getState().project).id, ann
         );
@@ -1516,6 +1526,8 @@ export default function GlucoseCanvas() {
           sourceId: snapped.elementId,
           sourceBlockId: snapped.elementBlockId,
         };
+        // UNDO-1 — tout le tracé (création + glisse + cible éventuelle) = 1 entrée.
+        useGlucoseStore.getState().beginLiveEdit();
         useGlucoseStore.getState().addAnnotation(
           getActiveBoard(useGlucoseStore.getState().project).id, ann
         );
@@ -1624,10 +1636,15 @@ export default function GlucoseCanvas() {
         const currentWY = (e.globalY - world.y) / world.scale.y;
         const dx = currentWX - pStartX;
         const dy = currentWY - pStartY;
-        draggedSpriteRef.current.pStartX = currentWX;
-        draggedSpriteRef.current.pStartY = currentWY;
-        const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-        useGlucoseStore.getState().moveSelected(boardId, dx, dy);
+        if (dx !== 0 || dy !== 0) {
+          draggedSpriteRef.current.pStartX = currentWX;
+          draggedSpriteRef.current.pStartY = currentWY;
+          // UNDO-1 — 1 seule entrée d'undo pour TOUT le drag : on ouvre la
+          // transaction au 1er mouvement (idempotent), refermée au pointerup.
+          const st = useGlucoseStore.getState();
+          if (!st._liveEdit) st.beginLiveEdit();
+          st.moveSelected(getActiveBoard(st.project).id, dx, dy);
+        }
         return;
       }
       if (selDragRef.current) {
@@ -1658,6 +1675,11 @@ export default function GlucoseCanvas() {
       let targetId = snapped.elementId;
       const targetBlockId = snapped.elementBlockId;
 
+      // UNDO-1 — si la flèche aboutit dans le vide, on crée un bloc texte cible
+      // et on ouvre son éditeur. Dans ce cas on GARDE la transaction d'undo
+      // ouverte (commencée au tracé) : elle englobera la frappe du nom et se
+      // refermera à la fermeture de l'overlay → 1 seul Ctrl+Z efface flèche+bloc.
+      let openedEditor = false;
       if (!targetId) {
         const newBlockId = nanoid();
         const newBlock: Annotation = {
@@ -1666,7 +1688,7 @@ export default function GlucoseCanvas() {
         };
         useGlucoseStore.getState().addAnnotation(boardId, newBlock);
         targetId = newBlockId;
-        
+
         // Auto-open edit
         const rect = appRef.current!.canvas.getBoundingClientRect();
         const scale = worldRef.current!.scale.x;
@@ -1680,6 +1702,7 @@ export default function GlucoseCanvas() {
           cursorPos: undefined,
         });
         setEditText("");
+        openedEditor = true;
       }
 
       useGlucoseStore.getState().updateAnnotation(boardId, arrowIdRef.current, {
@@ -1687,6 +1710,9 @@ export default function GlucoseCanvas() {
         targetId: targetId,
         targetBlockId: targetBlockId,
       });
+      // Cible existante → on referme la transaction tout de suite. Bloc créé dans
+      // le vide → on la laisse ouverte (l'overlay la fermera après la frappe).
+      if (!openedEditor) useGlucoseStore.getState().endLiveEdit();
       useGlucoseStore.getState().setActiveTool("select");
       arrowIdRef.current = null;
       window.dispatchEvent(new CustomEvent("glucose:arrow-target-preview", { detail: null }));
@@ -1734,6 +1760,7 @@ export default function GlucoseCanvas() {
         finishArrow(wx, wy);
         return;
       }
+      if (draggedSpriteRef.current) useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — fin du drag
       draggedSpriteRef.current = null;
       if (selDragRef.current) {
         const { sx, sy } = selDragRef.current;
@@ -1788,6 +1815,7 @@ export default function GlucoseCanvas() {
         const wy = (e.globalY - world.y) / world.scale.y;
         finishArrow(wx, wy);
       }
+      if (draggedSpriteRef.current) useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — fin du drag (hors zone)
       draggedSpriteRef.current = null;
       selDragRef.current = null;
       selRectGfxRef.current?.clear();
@@ -2022,6 +2050,9 @@ export default function GlucoseCanvas() {
               color: "#ffffff",
             };
         const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
+        // UNDO-1 — fallback DOM de création : même transaction que le chemin Pixi
+        // (création + frappe + commit = 1 entrée, refermée à la fermeture de l'overlay).
+        useGlucoseStore.getState().beginLiveEdit();
         useGlucoseStore.getState().addAnnotation(boardId, ann);
         useGlucoseStore.getState().setActiveTool("select");
         const annW = ann.type === "sticky" ? ann.width  : undefined;

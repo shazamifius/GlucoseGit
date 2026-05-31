@@ -177,7 +177,9 @@ export default function HtmlAnnotationLayer({
         // Les flèches n'ont pas de width/height — elles utilisent (x,y) → (x2,y2).
         if (ann && ann.type !== "arrow"
             && (Math.abs((ann.width || 0) - w) > 2 || Math.abs((ann.height || 0) - h) > 2)) {
-          useGlucoseStore.getState().updateAnnotation(boardId, id, { width: w, height: h });
+          // UNDO-1 — taille mesurée = réconciliation de rendu, JAMAIS une entrée
+          // d'undo (sinon Ctrl+Z annule des reflows fantômes au lieu de l'édition).
+          useGlucoseStore.getState().syncAnnotationSize(boardId, id, w, h);
         }
       }
     });
@@ -246,7 +248,9 @@ export default function HtmlAnnotationLayer({
 
   function startDrag(ann: Annotation, ev: React.PointerEvent, corner?: string) {
     const { x: wx, y: wy } = screenToWorld(ev.clientX, ev.clientY);
-    useGlucoseStore.getState().pushHistory();
+    // UNDO-1 — pas de snapshot au pointerdown : un simple clic ne doit créer
+    // aucune entrée d'undo ni vider le redo. La transaction s'ouvre au 1er
+    // mouvement réel (cf. onGlobalMove / didMove) → drag ET resize = 1 entrée.
 
     // width/height n'existent pas sur les flèches (elles utilisent x2/y2).
     const annW = ann.type === "arrow" ? 160 : (ann.width ?? 160);
@@ -266,7 +270,10 @@ export default function HtmlAnnotationLayer({
       const { x: wx2, y: wy2 } = screenToWorld(ev.clientX, ev.clientY);
       const dx = wx2 - ds.pStartX;
       const dy = wy2 - ds.pStartY;
-      if (Math.abs(dx) + Math.abs(dy) > 2) ds.didMove = true;
+      if (Math.abs(dx) + Math.abs(dy) > 2 && !ds.didMove) {
+        ds.didMove = true;
+        useGlucoseStore.getState().beginLiveEdit(); // UNDO-1 — ouvre la transaction au 1er vrai mouvement
+      }
       if (!ds.didMove) return;
 
       if (ds.corner) {
@@ -371,6 +378,7 @@ export default function HtmlAnnotationLayer({
           onSelect(ds.id, false);
         }
       }
+      useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si simple clic)
       dragRef.current = null;
       setGuides(null);
       window.removeEventListener("pointermove", onGlobalMove);

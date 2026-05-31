@@ -74,7 +74,8 @@ export default function SvgAnnotationLayer({
   function startDrag(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (activeTool !== "select") return;
     e.stopPropagation();
-    useGlucoseStore.getState().pushHistory();
+    // UNDO-1 — pas de snapshot au down ; la transaction s'ouvre au 1er mouvement
+    // réel (cf. didMove) → un clic ne crée aucune entrée, un drag/resize = 1 entrée.
     const { x: wx, y: wy } = screenToWorld(e.clientX, e.clientY);
     // width/height n'existent pas sur les flèches (qui utilisent x2/y2).
     const annW = ann.type === "arrow" ? 160 : (ann.width ?? 160);
@@ -93,7 +94,10 @@ export default function SvgAnnotationLayer({
       const { x: wx2, y: wy2 } = screenToWorld(ev.clientX, ev.clientY);
       const dx = wx2 - ds.pStartX;
       const dy = wy2 - ds.pStartY;
-      if (Math.abs(dx) + Math.abs(dy) > 2) ds.didMove = true;
+      if (Math.abs(dx) + Math.abs(dy) > 2 && !ds.didMove) {
+        ds.didMove = true;
+        useGlucoseStore.getState().beginLiveEdit(); // UNDO-1 — ouvre la transaction au 1er vrai mouvement
+      }
       if (!ds.didMove) return;
 
       if (ds.corner) {
@@ -125,6 +129,7 @@ export default function SvgAnnotationLayer({
           onSelect(ds.id, false);
         }
       }
+      useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si simple clic)
       dragRef.current = null;
       window.removeEventListener("pointermove", onGlobalMove);
       window.removeEventListener("pointerup",   onGlobalUp);

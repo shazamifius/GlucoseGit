@@ -202,12 +202,12 @@ export default function App() {
         window.dispatchEvent(new Event("glucose:trigger-import"));
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault(); undo();
-        showToast("Annulé", "↩");
+        e.preventDefault();
+        if (undo()) showToast("Annulé", "↩");
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault(); redo();
-        showToast("Rétabli", "↪");
+        e.preventDefault();
+        if (redo()) showToast("Rétabli", "↪");
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         const { selectedImageIds, selectedAnnotationIds } = useGlucoseStore.getState();

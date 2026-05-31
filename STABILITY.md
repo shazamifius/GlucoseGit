@@ -50,11 +50,49 @@ ramer (les off-screen se mettent en pause).
 **Concerne :** texture vidéo dans `folderMirror.ts` / rendu sprite (`makeLinkedMedia`).
 
 ### UNDO-1 — Ctrl+Z / Ctrl+Maj+Z pas fiables
-**Statut :** 🔴 à faire
-**Symptôme :** comportement incertain de l'annuler/refaire.
-**Exigence :** non-négociable pour la V1. Doit être **couvert par des tests** solides
-(voir TEST-1) pour qu'on sache à chaque commit s'il marche encore.
-**Concerne :** undo/redo par snapshots de doc dans `src/store/index.ts`.
+**Statut :** ✅ réglé+testé (2026-05-31) — 3 causes racines trouvées et corrigées,
+verrouillées par **39 tests** (`src/store/undo-redo.test.ts`).
+**Cause racine #1 (la pire) :** **la navigation polluait la pile d'undo.**
+`setViewport` (pan/zoom/fit, en continu), `setActiveBoardId`, `enterFolder`/
+`exitFolder`/`exitToRoot` et le scan paresseux `expandFolder` passaient tous par
+`mutate` → chaque geste empilait une entrée d'undo **et vidait le redo**. Donc
+Ctrl+Z annulait un mouvement de caméra au lieu de l'action, et le moindre pan
+détruisait le redo. → Nouveau `mutateView` (applique le change Automerge SANS
+toucher `_undoStack`/`_redoStack`) ; toute la navigation y est routée.
+**Cause racine #2 :** **un drag = 1 entrée par frame.** `moveSelected` /
+`updateAnnotation` / `updateFolder` étaient appelés à chaque `pointermove`, donc
+glisser un objet créait des dizaines d'entrées (Ctrl+Z ne reculait que d'1 px). →
+Transaction d'interaction `beginLiveEdit()` / `endLiveEdit()` : **1 seul snapshot**
+au 1ᵉʳ mouvement réel, mutations live agrégées ensuite. Branché sur les 5 chemins de
+drag/resize (sprites Pixi, texte/sticky/membrane, flèches, dossiers ; les zones
+commitaient déjà au pointerup).
+**Cause racine #3 :** **un simple clic créait une entrée no-op + vidait le redo**
+(`pushHistory()` au pointerdown). → Supprimé ; la transaction s'ouvre paresseusement
+au 1ᵉʳ vrai mouvement, donc un clic n'empile rien.
+**Cause racine #4 (2ᵉ retour user, 2026-05-31) :** **éditer du texte = 1 entrée par
+frappe/auto-fit.** Taper dans un bloc texte (ou nommer le bloc cible d'une flèche
+tracée dans le vide) générait une entrée d'undo par redimensionnement auto + une au
+commit → il fallait ~15 Ctrl+Z, et le texte « redevenait vide » avant de disparaître.
+→ La **session d'édition entière** (ouverture overlay → frappe → auto-fit → commit)
+est enveloppée dans UNE transaction `beginLiveEdit`/`endLiveEdit`, refermée à la
+fermeture de l'overlay. Création-dans-le-vide d'une flèche : la transaction du tracé
+reste ouverte jusqu'à la fin de la frappe → flèche+bloc effacés en 1 Ctrl+Z. 4 tests
+ajoutés. **Membrane :** confirmé OK par l'utilisateur après rechargement propre
+(le « bug » venait d'un état non rechargé) ; create/delete/undo verrouillés par 2 tests.
+**Cause racine #5 (3ᵉ retour user) — LE vrai coupable du texte :** le `ResizeObserver`
+de `HtmlAnnotationLayer` réécrivait la taille mesurée (`offsetWidth/Height`) via
+`updateAnnotation` → chaque reflow du markdown empilait un Ctrl+Z **fantôme APRÈS** la
+fermeture de la transaction (async, quand le bloc se rend post-commit). D'où « l'undo
+de texte ne fait rien » (le 1ᵉʳ Ctrl+Z annulait un ajustement de taille invisible).
+→ Nouvelle action `syncAnnotationSize` (via `mutateView`, **non annulable** : la taille
+auto-fit est dérivée du rendu, pas une édition). 2 tests de régression. La transaction
+d'édition (#4) + cette réconciliation hors-undo (#5) = ensemble nécessaire.
+**Bonus fiabilité :** undo()/redo() renvoient un booléen → le toast « Annulé » ne
+s'affiche que si une vraie action a eu lieu (plus de faux feedback) ; et undo/redo
+**ne téléportent plus la caméra** ni ne te sortent du dossier courant (`preserveView`
++ `buildFolderStack`).
+**Concerne :** `src/store/index.ts` (mutate/mutateView/beginLiveEdit), `GlucoseCanvas.tsx`,
+`HtmlAnnotationLayer.tsx`, `SvgAnnotationLayer.tsx`, `FolderSvgLayer.tsx`, `App.tsx`.
 
 ### PERF-1 — Lag du rendu couleur/glow/fumée pendant zoom/dézoom
 **Statut :** 🔴 à faire
@@ -111,10 +149,14 @@ son ancienne disposition tant qu'on ne le ré-importe pas.
 ## 🧰 Infrastructure de test
 
 ### TEST-1 — Scripts de tests « immenses » pour les features critiques
-**Statut :** 🟠 à faire
+**Statut :** ✅ fait pour undo/redo + navigation (2026-05-31).
 **Pourquoi :** impossible d'inventorier à la main tout ce qui marche/casse. Il faut une
 batterie de tests qui re-vérifie **à chaque fois** au minimum : **undo/redo** (UNDO-1) et
 **zoom/dézoom + entrée/sortie de dossier** (NAV-1). Ce sont les features non-régressables.
+**Couverture actuelle :** `src/store/undo-redo.test.ts` (39 tests) — navigation transparente
+(A), chaque mutation de contenu annulée+refaite (B), caméra/dossier préservés + feedback
+honnête (C), drag groupé en 1 entrée (D). `navigation.test.ts` (14) couvre NAV-1/NAV-2.
+**Total suite : 298 tests verts.**
 
 ---
 
