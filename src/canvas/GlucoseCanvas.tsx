@@ -114,6 +114,9 @@ export default function GlucoseCanvas() {
   const isDraggingRef = useRef(false);
   const arrowIdRef = useRef<string | null>(null);
   const jumpAnimRef = useRef<number | null>(null);
+  // PERF-1 — débounce du commit viewport au store (le rendu suit en impératif via
+  // emitViewport ; on ne persiste qu'au repos pour éviter une tempête de re-renders).
+  const viewportCommitTimerRef = useRef<number | null>(null);
   const selDragRef = useRef<{ sx: number; sy: number } | null>(null);
   const draggedSpriteRef = useRef<{
     id: string; startX: number; startY: number; pStartX: number; pStartY: number;
@@ -267,6 +270,11 @@ export default function GlucoseCanvas() {
       if (folderTransitionRafRef.current !== null) {
         cancelAnimationFrame(folderTransitionRafRef.current);
         folderTransitionRafRef.current = null;
+      }
+      // PERF-1 — annule un commit viewport débouncé en attente.
+      if (viewportCommitTimerRef.current !== null) {
+        clearTimeout(viewportCommitTimerRef.current);
+        viewportCommitTimerRef.current = null;
       }
       const a = appRef.current;
       appRef.current = null; worldRef.current = null;
@@ -1886,10 +1894,22 @@ export default function GlucoseCanvas() {
 
       refreshGrid(world);
       emitViewport(world);
+      // PERF-1 — pendant un zoom/pan continu, le rendu suit déjà en IMPÉRATIF via
+      // emitViewport (transform CSS/SVG + culling, 0 re-render React). On ne PERSISTE
+      // le viewport au store (ce qui re-render GlucoseCanvas + toutes les couches
+      // couleur/glow/flèches) qu'une fois le geste STABILISÉ (débounce) → fini le lag.
       const boardAfter = getActiveBoard(useGlucoseStore.getState().project).id;
+      if (viewportCommitTimerRef.current) clearTimeout(viewportCommitTimerRef.current);
       if (boardAfter === boardBefore) {
-        setViewport(boardBefore, { x: world.x, y: world.y, scale: world.scale.x });
+        viewportCommitTimerRef.current = window.setTimeout(() => {
+          viewportCommitTimerRef.current = null;
+          // Le geste a pu naviguer entre-temps → on commit le board réellement actif.
+          const liveId = getActiveBoard(useGlucoseStore.getState().project).id;
+          setViewport(liveId, { x: world.x, y: world.y, scale: world.scale.x });
+        }, 160);
       }
+      // Si une navigation a eu lieu (boardAfter ≠ boardBefore), le fit du board cible
+      // a déjà commité le bon viewport : on a annulé tout commit en attente ci-dessus.
     }, { passive: false });
 
     app.canvas.addEventListener("pointerdown", (e: PointerEvent) => {

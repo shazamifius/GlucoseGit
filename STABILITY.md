@@ -8,7 +8,7 @@
 >
 > Légende : 🔴 bloquant · 🟠 visible/important · 🟡 cosmétique · ✅ réglé+testé
 >
-> **Dernière mise à jour :** 2026-05-31
+> **Dernière mise à jour :** 2026-06-01
 
 ---
 
@@ -95,12 +95,22 @@ s'affiche que si une vraie action a eu lieu (plus de faux feedback) ; et undo/re
 `HtmlAnnotationLayer.tsx`, `SvgAnnotationLayer.tsx`, `FolderSvgLayer.tsx`, `App.tsx`.
 
 ### PERF-1 — Lag du rendu couleur/glow/fumée pendant zoom/dézoom
-**Statut :** 🔴 à faire
-**Symptôme :** tout ce qui émet de la couleur (fumées, glow, dégradés, flèches) fait
-saccader le zoom/dézoom. Or c'est **le cœur esthétique** de Glucose — il faut le garder
-ET le rendre ultra-fluide.
-**Portée V1 :** fluidité dans les cas **normaux**. (La masse extrême → voir « Plus tard ».)
-**Concerne :** `MembraneRenderer.ts`, `ZoneRenderer.ts`, couches de glow.
+**Statut :** 🟡 implémenté, à confirmer à l'œil (2026-06-01).
+**Cause racine :** le handler `wheel` appelait `setViewport` (store) **à chaque cran**
+de zoom/pan. Comme `GlucoseCanvas` lit `project` du store, **chaque** cran re-rendait
+GlucoseCanvas + les 4 couches d'annotations (re-filtrage, recalcul des chemins de
+flèches avec évitement d'obstacles, re-render markdown/glow). D'où « tout ce qui émet
+de la couleur saccade » : c'était une **tempête de re-renders React**, pas le GPU.
+**Fix :** le rendu suit déjà en **impératif** via `emitViewport` (transform CSS/SVG +
+culling, 0 re-render). On ne **persiste** le viewport au store (le seul truc qui
+re-render) qu'une fois le geste **stabilisé** (débounce 160 ms, `viewportCommitTimerRef`).
+Le commit gère la navigation (annulé si on a changé de board entre-temps).
+**À valider** : zoomer/dézoomer vite avec membranes/flèches/glow à l'écran = fluide.
+**Si lag résiduel SPÉCIFIQUE aux membranes** : le flou SVG (`feGaussianBlur 25`) se
+re-rastérise sous le transform `<g>` ; piste = passer le zoom en transform **CSS** sur
+les couches SVG (comme `HtmlAnnotationLayer`) pour composer au GPU. (Pas fait — à voir
+seulement si nécessaire après test.)
+**Concerne :** handler `wheel` dans `GlucoseCanvas.tsx`.
 
 ---
 
