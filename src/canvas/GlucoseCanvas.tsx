@@ -17,6 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
+import { scanFolderForMirror } from "./folderMirror";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -884,9 +885,10 @@ export default function GlucoseCanvas() {
       return { x: screenW / 2, y: screenH / 2, scale: 1 };
     }
     const margin = 1.25;
-    // Clamp [0.06, 1.1] : assez haut pour voir un petit dossier sans être en
-    // zone d'entrée (ENTER=3), assez bas pour les gros dossiers.
-    const scale = Math.min(1.1, Math.max(0.06, Math.min(
+    // Clamp [MIN_SCALE, 1.1] : assez haut pour voir un petit dossier sans être
+    // en zone d'entrée (ENTER=3), aussi bas que le moteur le permet pour les
+    // dossiers énormes (milliers de fichiers directs).
+    const scale = Math.min(1.1, Math.max(MIN_SCALE, Math.min(
       screenW / (b.w * margin),
       screenH / (b.h * margin),
     )));
@@ -906,13 +908,50 @@ export default function GlucoseCanvas() {
     const scaleFit = Math.min(screenW / (b.w * margin), screenH / (b.h * margin));
     // Facteur 0.55 : on garde une marge de zoom-out confortable pour explorer
     // le dossier AVANT d'être éjecté. Doit rester < le SCALE_BURST d'entrée
-    // (0.6) pour qu'une entrée ne déclenche jamais une sortie immédiate.
-    return Math.min(0.6, Math.max(0.04, scaleFit * 0.55));
+    // (0.6) pour qu'une entrée ne déclenche jamais une sortie immédiate. Borne
+    // basse = MIN_SCALE pour qu'un dossier énorme reste explorable sans
+    // éjection prématurée.
+    return Math.min(0.6, Math.max(MIN_SCALE, scaleFit * 0.55));
+  }
+
+  // R-FIL-02 v3 — entrée PARESSEUSE : si le dossier cible n'est pas encore
+  // scanné, on scanne son niveau (async) puis on l'étale, AVANT de naviguer et
+  // de cadrer. `navigatingRef` empêche toute ré-entrée pendant le scan async.
+  const navigatingRef = useRef(false);
+  async function lazyEnter(parentBoardId: string, targetId: string, app: Application) {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    try {
+      const st0 = useGlucoseStore.getState();
+      const parent0 = st0.project.boards.find((b) => b.id === parentBoardId);
+      const target0 = (parent0?.folders ?? []).find((f) => f.id === targetId);
+      if (!target0) return;
+
+      if (target0.mirrorSource?.pendingScan) {
+        const result = await scanFolderForMirror(
+          target0.mirrorSource.rootPath, 0, 0, target0.mirrorSource.sortBy,
+        );
+        useGlucoseStore.getState().expandFolder(parentBoardId, targetId, result.tree);
+      }
+
+      const st = useGlucoseStore.getState();
+      const childBoard = st.project.boards.find((b) => b.id === target0.childBoardId);
+      if (childBoard) {
+        st.setViewport(target0.childBoardId, fitViewportFor(childBoard, app.screen.width, app.screen.height));
+      }
+      st.enterFolder(targetId);
+      lastNavRef.current = performance.now(); // re-arme le cooldown après l'async
+    } catch (e) {
+      console.error("[lazyEnter] échec:", e);
+    } finally {
+      navigatingRef.current = false;
+    }
   }
 
   function checkAutoNavigate(world: Container) {
     const now = performance.now();
     if (now - lastNavRef.current < NAV_COOLDOWN) return;
+    if (navigatingRef.current) return;
     const app = appRef.current;
     if (!app) return;
     const scale = world.scale.x;
@@ -927,13 +966,8 @@ export default function GlucoseCanvas() {
       );
       if (target) {
         lastNavRef.current = now;
-        // Cadre TOUT le contenu du child board à l'arrivée → on voit tout, à une
-        // échelle sûre (pas de cascade). L'animation va directement à ce fit.
-        const childBoard = state.project.boards.find((b) => b.id === target.childBoardId);
-        if (childBoard) {
-          state.setViewport(target.childBoardId, fitViewportFor(childBoard, app.screen.width, app.screen.height));
-        }
-        state.enterFolder(target.id);
+        // Entrée paresseuse (scan à la volée si nécessaire) + cadrage fit.
+        void lazyEnter(board.id, target.id, app);
       }
     } else if (state.folderStack.length > 0) {
       const exitScale = adaptiveExitScale(board, app.screen.width, app.screen.height);

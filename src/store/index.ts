@@ -255,6 +255,12 @@ interface GlucoseStore {
    * racine.
    */
   createFolderTree: (parentBoardId: string, tree: FolderTreeNode) => string;
+  /**
+   * R-FIL-02 v3 (scan paresseux) — remplit le child board d'un folder
+   * `pendingScan` avec UN niveau scanné (tiles + sous-boîtes vides), puis
+   * marque le folder comme scanné. Idempotent.
+   */
+  expandFolder: (parentBoardId: string, folderId: string, level: FolderTreeNode) => void;
   updateFolder: (boardId: string, folderId: string, patch: Partial<CanvasFolder>) => void;
   removeFolders: (boardId: string, folderIds: string[]) => void;
   enterFolder: (folderId: string) => void;
@@ -1329,6 +1335,67 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       d.updatedAt = now;
     });
     return rootFolderId;
+  },
+
+  expandFolder: (parentBoardId, folderId, level) => {
+    // R-FIL-02 v3 — scan paresseux. `level` = un niveau scanné dont la racine
+    // correspond au folder DÉJÀ existant (folderId). On verse son contenu dans
+    // le child board existant et on crée des sous-boîtes vides (pendingScan).
+    const proj = get().project;
+    const parent = proj.boards.find((b) => b.id === parentBoardId);
+    const folder = (parent?.folders ?? []).find((f) => f.id === folderId);
+    if (!folder) return;
+    if (folder.mirrorSource && folder.mirrorSource.pendingScan === false) return; // déjà scanné
+    const childBoardId = folder.childBoardId;
+
+    // Aplatissement des sous-boîtes (children = sous-dossiers vides pendingScan).
+    interface BoardSpec { boardId: string; name: string; annotations: Annotation[]; images: BoardImage[]; }
+    interface Placement { parentBoardId: string; folder: CanvasFolder; }
+    const boardSpecs: BoardSpec[] = [];
+    const placements: Placement[] = [];
+    for (const child of level.children) {
+      const subBoardId = nanoid();
+      boardSpecs.push({ boardId: subBoardId, name: child.folder.name, annotations: child.annotations, images: child.images ?? [] });
+      placements.push({ parentBoardId: childBoardId, folder: { ...child.folder, id: nanoid(), childBoardId: subBoardId } as CanvasFolder });
+    }
+
+    get().mutate("expandFolder", (d) => {
+      // 1) Crée les sous-child-boards (vides).
+      for (const spec of boardSpecs) {
+        d.boards.push({ ...newBoard(spec.name), id: spec.boardId });
+      }
+      const byId = new Map<string, (typeof d.boards)[number]>();
+      for (const b of d.boards) byId.set(b.id, b);
+
+      // 2) Verse le contenu de CE niveau dans le child board existant.
+      const cb = byId.get(childBoardId);
+      if (cb) {
+        for (const ann of level.annotations) {
+          cb.annotations.push(clampSpatial(JSON.parse(JSON.stringify(ann)) as Annotation));
+        }
+        for (const img of level.images ?? []) {
+          cb.images.push(clampSpatial(JSON.parse(JSON.stringify(img)) as BoardImage));
+        }
+      }
+
+      // 3) Place les sous-boîtes (vides) dans le child board.
+      const now = Date.now();
+      for (const pl of placements) {
+        const par = byId.get(pl.parentBoardId);
+        if (!par) continue;
+        if (!par.folders) par.folders = [];
+        par.folders.push(clampSpatial(JSON.parse(JSON.stringify(pl.folder)) as CanvasFolder));
+      }
+
+      // 4) Marque le folder comme scanné.
+      const par2 = d.boards.find((b) => b.id === parentBoardId);
+      const f2 = (par2?.folders ?? []).find((f) => f.id === folderId);
+      if (f2?.mirrorSource) {
+        f2.mirrorSource.pendingScan = false;
+        f2.mirrorSource.lastScannedAt = now;
+      }
+      d.updatedAt = now;
+    });
   },
 
   updateFolder: (boardId, folderId, patch) => {

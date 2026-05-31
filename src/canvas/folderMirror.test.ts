@@ -86,7 +86,7 @@ describe("scanFolderForMirror — arbre + layout", () => {
     expect(texts).toContain("sticky");
   });
 
-  it("sous-dossier → FolderTreeNode enfant navigable (pas un sticky)", async () => {
+  it("scan PARESSEUX : sous-dossier → boîte pendingScan VIDE (scannée à l'entrée)", async () => {
     vi.mocked(invoke).mockResolvedValueOnce(
       root([dir("sub", [file("a.txt"), file("b.txt")])]),
     );
@@ -96,8 +96,12 @@ describe("scanFolderForMirror — arbre + layout", () => {
     const child: FolderTreeNode = result.tree.children[0];
     expect(child.folder.name).toBe("sub");
     expect(child.folder.mirrorSource?.rootPath).toBe("C:/w/sub");
-    expect(child.annotations.length).toBe(2);
-    expect(result.totalEntries).toBe(3);
+    // Le contenu du sous-dossier n'est PAS encore scanné (pendingScan).
+    expect(child.folder.mirrorSource?.pendingScan).toBe(true);
+    expect(child.annotations.length).toBe(0);
+    expect(child.children.length).toBe(0);
+    // Le folder racine, lui, EST scanné.
+    expect(result.tree.folder.mirrorSource?.pendingScan).toBe(false);
   });
 
   it("fichier → sticky launcher avec sourceFile", async () => {
@@ -111,18 +115,18 @@ describe("scanFolderForMirror — arbre + layout", () => {
     }
   });
 
-  it("imbrication profonde (a/b/c) → 3 niveaux d'enfants", async () => {
+  it("scan PARESSEUX : un seul niveau (les petits-enfants ne sont PAS scannés)", async () => {
+    // Même si le mock renvoie b/c imbriqués, scanFolderForMirror n'en garde
+    // que le 1er niveau (a) en pendingScan ; b/c seront scannés en entrant.
     vi.mocked(invoke).mockResolvedValueOnce(
       root([dir("a", [dir("b", [dir("c", [file("deep.txt")])])])]),
     );
     const result = await scanFolderForMirror("C:/w", 0, 0);
+    expect(result.tree.children.length).toBe(1);
     const a = result.tree.children[0];
-    const b = a.children[0];
-    const c = b.children[0];
     expect(a.folder.name).toBe("a");
-    expect(b.folder.name).toBe("b");
-    expect(c.folder.name).toBe("c");
-    expect(c.annotations.length).toBe(1);
+    expect(a.folder.mirrorSource?.pendingScan).toBe(true);
+    expect(a.children.length).toBe(0); // pas de b/c — paresseux
   });
 
   it("nom du folder racine = dernier segment du path", async () => {
@@ -238,5 +242,41 @@ describe("createFolderTree — action store", () => {
     useGlucoseStore.getState().undo();
     expect(useGlucoseStore.getState().project.boards.length).toBe(1);
     expect(useGlucoseStore.getState().project.boards[0].folders?.length ?? 0).toBe(0);
+  });
+
+  it("expandFolder remplit une boîte pendingScan + la marque scannée", () => {
+    loadRoot();
+    // 1) Crée un folder pendingScan vide (comme un sous-dossier lazy).
+    const pendingTree: FolderTreeNode = {
+      folder: {
+        name: "lazy", color: "#abc", x: 0, y: 0, width: 200, height: 168,
+        mirrorSource: { rootPath: "C:/w/lazy", mode: "snapshot", lastScannedAt: 0, recursive: true, pendingScan: true },
+      },
+      annotations: [], images: [], children: [],
+    };
+    const folderId = useGlucoseStore.getState().createFolderTree("root", pendingTree);
+
+    // 2) Niveau scanné (2 fichiers + 1 sous-dossier pending).
+    const level: FolderTreeNode = {
+      folder: { name: "lazy", color: "#abc", x: 0, y: 0, width: 200, height: 168 },
+      annotations: [{ id: nanoid(), type: "sticky", x: 0, y: 0, text: "f1", bgColor: "#fff", width: 100, height: 100, sourceFile: "C:/w/lazy/f1.blend" }],
+      images: [],
+      children: [{
+        folder: {
+          name: "deep", color: "#abc", x: 0, y: 0, width: 200, height: 168,
+          mirrorSource: { rootPath: "C:/w/lazy/deep", mode: "snapshot", lastScannedAt: 0, recursive: true, pendingScan: true },
+        },
+        annotations: [], images: [], children: [],
+      }],
+    };
+    useGlucoseStore.getState().expandFolder("root", folderId, level);
+
+    const project = useGlucoseStore.getState().project;
+    const folder = project.boards.find((b) => b.id === "root")?.folders?.[0];
+    expect(folder?.mirrorSource?.pendingScan).toBe(false); // marqué scanné
+    const childBoard = project.boards.find((b) => b.id === folder?.childBoardId);
+    expect(childBoard?.annotations.length).toBe(1);          // f1
+    expect(childBoard?.folders?.length).toBe(1);             // sous-dossier "deep"
+    expect(childBoard?.folders?.[0].mirrorSource?.pendingScan).toBe(true); // encore pending
   });
 });

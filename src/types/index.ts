@@ -261,6 +261,10 @@ export interface FolderMirrorSource {
   recursive: boolean;
   /** R-FIL-03 — ordre d'affichage. Défaut: dossiers d'abord puis A→Z. */
   sortBy?: FolderSortMode;
+  /** R-FIL-02 v3 — scan PARESSEUX : true tant que le contenu de ce dossier
+   *  n'a pas encore été scanné. On ne scanne qu'à l'entrée → import instantané
+   *  et complet à 100% quelle que soit la taille (49k+ fichiers). */
+  pendingScan?: boolean;
 }
 
 export interface CanvasFolder {

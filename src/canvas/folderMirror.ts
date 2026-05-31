@@ -69,8 +69,10 @@ function makeLinkedMedia(path: string, isVideo: boolean, x: number, y: number): 
   };
 }
 
+// Plafond d'entrées pour UN niveau (un seul dossier). Largement suffisant même
+// pour un dossier à plusieurs milliers de fichiers directs ; le reste de
+// l'arbo est scanné paresseusement à l'entrée de chaque sous-dossier.
 const MAX_ENTRIES = 20_000;
-const MAX_DEPTH = 12;
 const CELL = 220;
 const PADDING = 80;
 // Boîte de dossier COMPACTE (style explorateur). Son contenu vit dans le child
@@ -117,19 +119,53 @@ function sortNodes(nodes: DirNode[], mode: FolderSortMode): DirNode[] {
   return [...dirs, ...files];
 }
 
-// ── Construction de l'arbre ─────────────────────────────────────────────────
+// ── Construction d'UN niveau (scan paresseux) ────────────────────────────────
 
-function buildFolderNode(
+/** Boîte d'un sous-dossier NON encore scanné (pendingScan). Vide jusqu'à ce
+ *  qu'on y entre → expandFolder le remplit. */
+function makePendingFolderChild(
+  dir: DirNode,
+  x: number,
+  y: number,
+  sortBy: FolderSortMode,
+): FolderTreeNode {
+  return {
+    folder: {
+      name: dir.name,
+      color: "#60a5fa",
+      x, y,
+      width: FOLDER_BOX_W,
+      height: FOLDER_BOX_H,
+      mirrorSource: {
+        rootPath: dir.path,
+        mode: "snapshot",
+        lastScannedAt: 0,
+        recursive: true,
+        sortBy,
+        pendingScan: true,
+      },
+    },
+    annotations: [],
+    images: [],
+    children: [],
+  };
+}
+
+/**
+ * Construit UN SEUL niveau (les enfants directs de `dir`). Les sous-dossiers
+ * deviennent des boîtes `pendingScan` vides (scannées à l'entrée). Pas de
+ * récursion → import instantané quelle que soit la profondeur/taille.
+ */
+function buildLevelNode(
   dir: DirNode,
   folderX: number,
   folderY: number,
   sortBy: FolderSortMode,
+  pendingScan: boolean,
 ): FolderTreeNode {
   const entries = sortNodes(dir.children, sortBy);
   const N = entries.length;
   const cols = Math.max(1, Math.ceil(Math.sqrt(N)));
-  const rows = Math.max(1, Math.ceil(N / cols));
-  void rows; // (cols/rows servent au placement ci-dessous)
 
   const annotations: Annotation[] = [];
   const images: BoardImage[] = [];
@@ -141,9 +177,9 @@ function buildFolderNode(
     const x = PADDING + col * CELL;
     const y = PADDING + row * CELL;
 
-    // Sous-dossier → folder navigable (positionné DANS le board courant).
+    // Sous-dossier → boîte navigable VIDE (scan paresseux à l'entrée).
     if (e.is_dir) {
-      children.push(buildFolderNode(e, x, y, sortBy));
+      children.push(makePendingFolderChild(e, x, y, sortBy));
       return;
     }
     // Image → vignette liée (affiche la vraie image, chemin relatif).
@@ -178,6 +214,7 @@ function buildFolderNode(
     lastScannedAt: Date.now(),
     recursive: true,
     sortBy,
+    pendingScan,
   };
 
   return {
@@ -203,7 +240,10 @@ function countEntries(node: FolderTreeNode): number {
 }
 
 /**
- * Scanne un dossier OS récursivement et prépare l'arbre de folders miroir.
+ * Scanne UN niveau d'un dossier OS (scan paresseux). Les sous-dossiers
+ * deviennent des boîtes `pendingScan` vides — on ne descend pas. Import
+ * instantané et complet quelle que soit la taille (cf. `expandFolder` à
+ * l'entrée).
  *
  * @param rootPath chemin OS canonique
  * @param folderX  position x du folder racine dans le board parent
@@ -216,13 +256,14 @@ export async function scanFolderForMirror(
   folderY: number,
   sortBy: FolderSortMode = "name-asc",
 ): Promise<ScanFolderResult> {
+  // maxDepth = 1 → enfants directs seulement (paresseux).
   const root: DirNode = await invoke("scan_tree", {
     path: rootPath,
     maxEntries: MAX_ENTRIES,
-    maxDepth: MAX_DEPTH,
+    maxDepth: 1,
   });
 
-  const tree = buildFolderNode(root, folderX, folderY, sortBy);
+  const tree = buildLevelNode(root, folderX, folderY, sortBy, false);
   const totalEntries = countEntries(tree);
 
   return {
