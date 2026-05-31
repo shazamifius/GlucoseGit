@@ -460,7 +460,7 @@ function preprocessText(text: string) {
  *  le header markdown « ### 📄 nom » (redondant avec l'en-tête de la tuile) et
  *  le footer « tronqué », puis on clippe à `maxLines` (en refermant un fence de
  *  code resté ouvert) → coût du pipeline markdown BORNÉ par tuile. */
-function clipTextForTile(raw: string, maxLines = 60): string {
+export function clipTextForTile(raw: string, maxLines = 60): string {
   const t = (raw || "")
     .replace(/^###\s*📄[^\n]*\n+/, "")
     .replace(/_\(tronqué[^)]*\)_/g, "");
@@ -470,6 +470,96 @@ function clipTextForTile(raw: string, maxLines = 60): string {
   // Referme un éventuel bloc de code (```) laissé ouvert par la coupe.
   if (((clipped.match(/```/g) || []).length) % 2 === 1) clipped += "\n```";
   return `${clipped.trim()}\n…`;
+}
+
+// ── TXT-2 — Coloration syntaxique LÉGÈRE (sans dépendance) ───────────────────
+// Tokeniseur générique multi-langage (mots-clés / chaînes / nombres / commentaires)
+// avec couleurs façon VSCode Dark. Volontairement léger (cf. plafond perf documenté
+// `annotation-layer-no-culling`) : le contenu est déjà clippé, donc le coût est borné.
+const CODE_KEYWORDS = new Set([
+  "if","else","elif","for","while","do","switch","case","default","break","continue",
+  "return","yield","def","function","fn","func","class","struct","enum","interface","trait",
+  "impl","import","from","export","include","using","namespace","package","module","require",
+  "const","let","var","val","mut","static","public","private","protected","final","abstract",
+  "new","delete","this","self","super","null","none","nil","true","false","void","async","await",
+  "try","catch","except","finally","throw","raise","with","as","in","is","not","and","or","del",
+  "lambda","pass","global","nonlocal","match","where","then","begin","end","use","pub","extern",
+  "unsafe","move","ref","dyn","typedef","typename","template","operator","goto","sizeof","auto",
+  "int","float","str","bool","string","number","boolean","char","double","long","short","let",
+]);
+
+/** Préfixe de commentaire de ligne selon le langage du fence. */
+function lineCommentToken(lang: string): string {
+  if (/^(py|python|rb|ruby|sh|bash|zsh|fish|ya?ml|toml|ini|r|pl|perl|makefile|dockerfile|conf|cfg|env|nim|jl|julia|ex|exs|elixir|cr|crystal|tcl)/.test(lang)) return "#";
+  if (/^(sql|lua|hs|haskell|elm|ada|vhdl)/.test(lang)) return "--";
+  return "//";
+}
+
+/** Découpe `code` en spans colorés (commentaires, chaînes, nombres, mots-clés). */
+export function highlightCode(code: string, lang: string): React.ReactNode[] {
+  const lc = lineCommentToken(lang);
+  const re = new RegExp(
+    [
+      `(${lc}[^\\n]*)`,                                                                  // 1 commentaire ligne
+      `(/\\*[\\s\\S]*?\\*/)`,                                                            // 2 commentaire bloc
+      `("""[\\s\\S]*?"""|'''[\\s\\S]*?'''|"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|\`(?:\\\\.|[^\`\\\\])*\`)`, // 3 chaîne
+      `(\\b\\d[\\d_]*\\.?\\d*(?:[eE][+-]?\\d+)?\\b)`,                                    // 4 nombre
+      `([A-Za-z_$][\\w$]*)`,                                                             // 5 identifiant
+    ].join("|"),
+    "g",
+  );
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null = re.exec(code);
+  while (m !== null) {
+    if (m.index > last) out.push(code.slice(last, m.index));
+    let color = "";
+    if (m[1] || m[2]) color = "#6a9955";            // commentaire (vert)
+    else if (m[3]) color = "#ce9178";               // chaîne (orange)
+    else if (m[4]) color = "#b5cea8";               // nombre (vert clair)
+    else if (m[5] && CODE_KEYWORDS.has(m[5])) color = "#569cd6"; // mot-clé (bleu)
+    out.push(color ? <span key={key++} style={{ color }}>{m[0]}</span> : m[0]);
+    last = re.lastIndex;
+    m = re.exec(code);
+  }
+  if (last < code.length) out.push(code.slice(last));
+  return out;
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: props react-markdown hétérogènes (node + HTML)
+function MdPre({ children }: any) {
+  return (
+    <pre style={{
+      margin: "4px 0", padding: "7px 9px", background: "#1e1e2e", borderRadius: 6,
+      overflow: "hidden", fontFamily: "ui-monospace, monospace", fontSize: 11,
+      lineHeight: 1.45, whiteSpace: "pre-wrap", wordBreak: "break-word",
+    }}>
+      {children}
+    </pre>
+  );
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: props react-markdown hétérogènes (node + HTML)
+function MdCode({ className, children }: any) {
+  const text = String(children ?? "").replace(/\n$/, "");
+  const isBlock = /language-/.test(className || "");
+  if (!isBlock) {
+    return (
+      <code style={{
+        background: "rgba(255,255,255,0.08)", padding: "1px 4px", borderRadius: 4,
+        fontFamily: "ui-monospace, monospace", fontSize: "0.92em",
+      }}>
+        {text}
+      </code>
+    );
+  }
+  const lang = (/language-(\w+)/.exec(className || "")?.[1] ?? "").toLowerCase();
+  return (
+    <code style={{ fontFamily: "ui-monospace, monospace", color: "#d4d4d4" }}>
+      {highlightCode(text, lang)}
+    </code>
+  );
 }
 
 export function getSymbioticHue(ann: Annotation, allAnnotations: Annotation[]): number {
@@ -734,6 +824,9 @@ function AnnotationItem({
               h2: createBlockRenderer('h2'),
               h3: createBlockRenderer('h3'),
               li: createBlockRenderer('li'),
+              // TXT-2 — code coloré (façon VSCode) dans les blocs fenced.
+              pre: MdPre,
+              code: MdCode,
             };
           }, [ann.id, ann.color, activeTool, onEdit]);
 

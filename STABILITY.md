@@ -89,8 +89,12 @@ est coûteux — cf. mémoire `annotation-layer-no-culling`).
 **Concerne :** `folderMirror.ts` (placement) + `HtmlAnnotationLayer.tsx` (rendu).
 
 ### TXT-2 — Coloration syntaxique pour les scripts (.py & co)
-**Statut :** 🟠 à faire
-**Voulu :** colorer variables/mots-clés comme dans VSCode pour les `.py` (et autres scripts).
+**Statut :** 🟡 implémenté, à confirmer à l'œil (2026-05-31) — coloriseur **léger
+sans dépendance** (`highlightCode` dans `HtmlAnnotationLayer.tsx`) : mots-clés (bleu),
+chaînes (orange), nombres (vert clair), commentaires (vert), façon VSCode Dark.
+Commentaire de ligne choisi selon le langage (`#` py/ruby/sh, `//` C-like, `--` sql/lua).
+Branché via les composants `pre`/`code` de react-markdown → s'applique aux tuiles folder
+ET aux annotations texte. 7 tests. **À valider** : un `.py` est coloré comme dans VSCode.
 
 ### LAYOUT-1 — Auto-rangement spatial à l'import d'un dossier
 **Statut :** 🟡 implémenté, à confirmer à l'œil (2026-05-31) — disposition en **croix**
