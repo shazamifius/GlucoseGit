@@ -2101,7 +2101,15 @@ export default function GlucoseCanvas() {
           setSelectedFolderId(id);
           if (id) { setSelectedImageIds([]); setSelectedAnnotationIds([]); }
         }}
-        onEnter={(id) => enterFolder(id)}
+        onEnter={(id) => {
+          // R-FIL — double-clic sur une boîte dossier : entrée PARESSEUSE
+          // (scan à la volée si pendingScan + cadrage fit), comme le zoom-entrée.
+          // Sinon un sous-dossier pas encore scanné s'ouvrait sur une page vide.
+          const app = appRef.current;
+          const parentId = getActiveBoard(useGlucoseStore.getState().project).id;
+          if (app) void lazyEnter(parentId, id, app);
+          else enterFolder(id);
+        }}
         onMove={(id, x, y) => {
           const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
           useGlucoseStore.getState().updateFolder(boardId, id, { x, y });
