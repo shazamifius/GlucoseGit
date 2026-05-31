@@ -13,11 +13,10 @@ import { scanFolderForMirror } from "./folderMirror";
 
 type AddImageFn      = (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
 type AddAnnotationFn = (boardId: string, ann: Annotation) => void;
-// R-FIL-02 : drop d'un dossier OS → folder mirror (scan + folder peuplé)
-type CreateFolderWithContentFn = (
+// R-FIL-02 v2 : drop d'un dossier OS → arbre de folders miroir navigables
+type CreateFolderTreeFn = (
   parentBoardId: string,
-  folder: Omit<import("../types").CanvasFolder, "id" | "childBoardId">,
-  annotations: Annotation[],
+  tree: import("../types").FolderTreeNode,
 ) => string;
 
 const IMAGE_EXTS  = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i;
@@ -47,6 +46,10 @@ export const EXT_COLOR: Record<string, string> = {
   obj: "#f87171", fbx: "#f87171", glb: "#f87171", gltf: "#f87171",
   c4d: "#086adb", ma: "#00aaff", mb: "#00aaff",
   aep: "#9999ff", prproj: "#9999ff",
+  nuke: "#ffcc00", nk: "#ffcc00", hip: "#ff6600", hipnc: "#ff6600",
+  drp: "#ff6a00", indd: "#ff3366", clip: "#333333",
+  exr: "#2dd4a8", usd: "#fbbf24", abc: "#888888",
+  tar: "#a78bfa", gz: "#a78bfa", pptx: "#d24726",
 };
 
 export function makeSourceSticky(filePath: string, x: number, y: number): Annotation {
@@ -59,7 +62,8 @@ export function makeSourceSticky(filePath: string, x: number, y: number): Annota
     sourceFile: filePath,
     bgColor: EXT_COLOR[ext] ?? "#1a1a2e",
     color: "#cccccc",
-    width: 220, height: 80,
+    // Tuile icône carrée (style Mac/Android) plutôt que postit allongé.
+    width: 150, height: 140,
     fontSize: 11,
   };
 }
@@ -153,7 +157,7 @@ export async function addImagesFromDrop(
   boardId: string,
   addImage: AddImageFn,
   addAnnotation?: AddAnnotationFn,
-  createFolderWithContent?: CreateFolderWithContentFn,
+  createFolderTree?: CreateFolderTreeFn,
 ): Promise<void> {
   const items = Array.from(e.dataTransfer?.items || []);
   const files = Array.from(e.dataTransfer?.files || []);
@@ -237,16 +241,16 @@ export async function addImagesFromDrop(
       if (addAnnotation) {
         const sourcePaths = uris.filter((u) => u.startsWith("file://") && !IMAGE_EXTS.test(u)).map(uriToPath);
         if (sourcePaths.length > 0) {
-          // R-FIL-02 — On tente d'abord scan_directory côté Tauri. Si la
-          // commande renvoie une vraie liste d'entrées, c'est un dossier
-          // → on crée un folder mirror. Sinon, fallback sticky launcher.
-          if (createFolderWithContent) {
+          // R-FIL-02 — On tente d'abord scan_tree côté Tauri. Si la commande
+          // renvoie un arbre, c'est un dossier → folder mirror navigable.
+          // Sinon, fallback sticky launcher.
+          if (createFolderTree) {
             for (let i = 0; i < sourcePaths.length; i++) {
               const p = sourcePaths[i];
               try {
                 const result = await scanFolderForMirror(p, worldX + i * 280, worldY + i * 280);
-                createFolderWithContent(boardId, result.folder, result.annotations);
-                console.info(`[drop] R-FIL-02 folder mirror "${result.folder.name}" : ${result.annotations.length} entrées${result.truncated ? " (tronqué)" : ""}`);
+                createFolderTree(boardId, result.tree);
+                console.info(`[drop] R-FIL-02 folder mirror "${result.tree.folder.name}" : ${result.totalEntries} entrées${result.truncated ? " (tronqué)" : ""}`);
               } catch (_err) {
                 // Pas un dossier (ou hors-scope) → fallback sticky
                 addAnnotation(boardId, makeSourceSticky(p, worldX + i * 24, worldY + i * 24));
@@ -320,6 +324,119 @@ export async function addImagesFromDrop(
     }
   }
   console.warn("[drop] tous les candidats ont échoué :", unique);
+}
+
+/** Métadonnées d'un chemin droppé, renvoyées par `classify_paths` (Rust). */
+interface PathInfo {
+  path: string;
+  name: string;
+  is_dir: boolean;
+  ext: string;
+  size: number;
+  is_text: boolean;
+  is_image: boolean;
+}
+
+interface NativeDropDeps {
+  addImage: AddImageFn;
+  addAnnotation: AddAnnotationFn;
+  createFolderTree?: CreateFolderTreeFn;
+}
+
+/**
+ * R-FIL (Sprint 2) — Router du drag-drop **natif** Tauri.
+ *
+ * Contrairement à `addImagesFromDrop` (HTML5, basé sur `File`), ici on reçoit
+ * des **chemins absolus OS** depuis l'event `tauri://drag-drop`. C'est ce qui
+ * débloque le scan de dossier, le launch natif (open_in_app) et l'embed des
+ * images locales sans bypass disque.
+ *
+ * Dispatch par entrée (classée côté Rust via `classify_paths`) :
+ *   - dossier   → scanFolderForMirror → createFolderWithContent (folder miroir)
+ *   - texte/code→ read_text_file_inline → TextAnnotation markdown inline
+ *   - image     → read_image_file → bytes → embed (AssetRef mode embed)
+ *   - autre     → makeSourceSticky (launcher double-clic → open_in_app)
+ */
+export async function addPathsFromNativeDrop(
+  paths: string[],
+  worldX: number,
+  worldY: number,
+  boardId: string,
+  deps: NativeDropDeps,
+): Promise<void> {
+  if (paths.length === 0) return;
+  const { addImage, addAnnotation, createFolderTree } = deps;
+
+  let infos: PathInfo[];
+  try {
+    infos = await invoke<PathInfo[]>("classify_paths", { paths });
+  } catch (err) {
+    console.error("[native-drop] classify_paths a échoué:", err);
+    return;
+  }
+
+  // Curseurs de placement séparés : les fichiers cascadent en diagonale, les
+  // dossiers (gros) se décalent davantage pour ne pas se chevaucher.
+  let fileIdx = 0;
+  let folderIdx = 0;
+
+  for (const info of infos) {
+    // ── Dossier → arbre de folders miroir navigables ─────────────────────
+    if (info.is_dir) {
+      if (!createFolderTree) continue;
+      try {
+        const fx = worldX + folderIdx * 320;
+        const fy = worldY + folderIdx * 80;
+        const result = await scanFolderForMirror(info.path, fx, fy);
+        createFolderTree(boardId, result.tree);
+        folderIdx++;
+        console.info(
+          `[native-drop] folder "${result.tree.folder.name}" : ${result.totalEntries} entrées${result.truncated ? " (tronqué)" : ""}`,
+        );
+      } catch (err) {
+        console.error(`[native-drop] scan dossier ${info.path} a échoué:`, err);
+      }
+      continue;
+    }
+
+    const x = worldX + fileIdx * 28;
+    const y = worldY + fileIdx * 28;
+    fileIdx++;
+
+    // ── Texte / code → annotation inline ─────────────────────────────────
+    if (info.is_text) {
+      try {
+        const { content, truncated } = await invoke<{ content: string; truncated: boolean }>(
+          "read_text_file_inline",
+          { path: info.path },
+        );
+        addAnnotation(boardId, makeTextNodeFromFile(info.name, content, truncated, x, y));
+      } catch (err) {
+        console.error(`[native-drop] lecture texte ${info.path} a échoué:`, err);
+        addAnnotation(boardId, makeSourceSticky(info.path, x, y));
+      }
+      continue;
+    }
+
+    // ── Image → embed direct dans le doc ─────────────────────────────────
+    if (info.is_image) {
+      try {
+        const dataUrl = await invoke<string>("read_image_file", { path: info.path });
+        const { width, height } = await getImageDimensions(dataUrl);
+        const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+        const mime = detectedMime || mimeFromExt(info.ext);
+        const img = await makeImageFromBytes(bytes, mime, x, y, width, height, info.path);
+        addImage(boardId, img, bytes);
+      } catch (err) {
+        console.error(`[native-drop] lecture image ${info.path} a échoué:`, err);
+        addAnnotation(boardId, makeSourceSticky(info.path, x, y));
+      }
+      continue;
+    }
+
+    // ── Autre binaire → launcher (double-clic → open_in_app) ─────────────
+    addAnnotation(boardId, makeSourceSticky(info.path, x, y));
+  }
 }
 
 interface FetchedImage {

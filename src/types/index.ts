@@ -235,6 +235,16 @@ export interface BoardZone {
 /** R-FIL-02 (Sprint 2) — Lien vers un dossier OS dont le contenu est
  *  reflété dans le `CanvasFolder`. Si défini, le folder est un *mirror*
  *  d'un dossier disque ; sinon, c'est un folder Glucose vanilla. */
+/** R-FIL-03 — Modes de tri façon explorateur Windows pour un folder miroir. */
+export type FolderSortMode =
+  | "name-asc"      // A → Z
+  | "name-desc"     // Z → A
+  | "type"          // par extension, puis nom
+  | "size-desc"     // du plus gros au plus petit
+  | "size-asc"      // du plus petit au plus gros
+  | "modified-desc" // modifié récemment d'abord
+  | "modified-asc"; // plus ancien d'abord
+
 export interface FolderMirrorSource {
   /** Chemin absolu du dossier OS scanné. */
   rootPath: string;
@@ -244,8 +254,10 @@ export interface FolderMirrorSource {
   lastScannedAt: number;
   /** Glob optionnel (ex: "*.blend") — null = tout (sauf binaires interdits). */
   pattern?: string;
-  /** True si on scanne aussi les sous-dossiers (réservé future). */
+  /** True si on scanne aussi les sous-dossiers (R-FIL-02 v2 = navigables). */
   recursive: boolean;
+  /** R-FIL-03 — ordre d'affichage. Défaut: dossiers d'abord puis A→Z. */
+  sortBy?: FolderSortMode;
 }
 
 export interface CanvasFolder {
@@ -261,6 +273,18 @@ export interface CanvasFolder {
   mirrorOf?: string;           // Phase 4 — id du dossier original (alias)
   /** R-FIL-02 — Si défini, ce folder reflète un dossier OS. */
   mirrorSource?: FolderMirrorSource;
+}
+
+/**
+ * R-FIL-02 v2 — Arbre d'un folder miroir à créer (récursif). Produit par le
+ * scan filesystem (folderMirror), consommé par `createFolderTree` (store).
+ *   - `annotations` = fichiers de ce niveau (stickies launchers).
+ *   - `children`    = sous-dossiers navigables (mêmes nœuds, récursif).
+ */
+export interface FolderTreeNode {
+  folder: Omit<CanvasFolder, "id" | "childBoardId">;
+  annotations: Annotation[];
+  children: FolderTreeNode[];
 }
 
 // ── Boards ────────────────────────────────────────────────────

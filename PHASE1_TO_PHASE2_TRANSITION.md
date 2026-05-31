@@ -1065,6 +1065,85 @@ tests, animation).
 
 **Total Sprint 2 (file manager) : 15-18 jours.**
 
+---
+
+### ✅ État d'implémentation (2026-05-31)
+
+> Branche `fix/folder-310-and-ui-polish`. Le drag-drop a dû basculer en
+> **natif Tauri** (`dragDropEnabled: true`) car WebView2 ne donne le chemin
+> absolu d'un fichier déposé QUE dans ce mode (cf. R-DND-FORK ci-dessous).
+
+| Ticket | Statut | Détail |
+|---|---|---|
+| R-EMB-01 | ✅ Fait | embed Automerge `blobs[sha256]`, migration auto |
+| R-FIL-01 | ✅ Fait | drop texte/code → annotation inline (natif: `read_text_file_inline`) |
+| R-FIL-02 v1 | ✅ Fait | drop dossier → folder mirror plat |
+| R-FIL-02 v2 | ✅ Fait | `scan_tree` récursif borné (5000 entrées / depth 8), sous-dossiers **navigables** (`createFolderTree`), fichiers = launchers icônés |
+| Double-clic launch | ✅ Fait | `open_in_app` passé en **deny-list** (ouvre tout sauf exécutables) ; scan masque le bruit binaire mais garde les sources visibles |
+| Icônes | ✅ Partiel | `AppBridgeIcon` badges par extension (Blender, Nuke, InDesign, Houdini…). Logos OS réels → R-FIL-ICON-OS |
+| R-FIL-03 | 🟡 Logique faite | tri (`name/type/size/modified`, dossiers d'abord) appliqué au scan. **Reste : UI dropdown + re-scan** |
+
+### R-DND-FORK — Smart drop target wry (drag web + drag fichier simultanés)
+
+**Problème** : sur Windows/WebView2, `dragDropEnabled` est binaire — soit
+les chemins de fichiers OS (natif), soit le drag HTML5 (contenu web), jamais
+les deux (confirmé mainteneurs Tauri : issues #9830, #8581, discussion #9696).
+On a choisi **natif** (fichiers/dossiers = cœur du file manager) ; le drag
+d'image depuis un navigateur bascule sur **Ctrl+V** (déjà fonctionnel).
+
+**Solution future** : patcher `wry` via `[patch.crates-io]` (ne touche PAS
+l'app) avec un `IDropTarget` Windows « intelligent » qui inspecte le format
+OLE du drag : `CF_HDROP` → chemins ; `text/html`/`uri-list`/bitmap → URL/bytes.
+Tout passerait par un seul canal natif, drag web inclus.
+
+**Effort** : 3-5 j (COM/OLE bas niveau en Rust) + dette de maintenance du fork.
+**Priorité** : BASSE (Ctrl+V couvre le besoin). À déclencher en Phase 3 si le
+workflow Ctrl+V devient gênant.
+
+### R-FIL-ICON-OS — Logos d'application réels (icônes système)
+
+**Problème (verbatim)** : « récuperer leur logo pour pouvoir les afficher ».
+Actuellement `AppBridgeIcon` rend des badges typographiques par extension.
+L'utilisateur veut idéalement le **vrai logo** de l'app associée (icône Blender,
+Photoshop… extraite de l'OS).
+
+**Solution** : commande Rust `get_file_icon(path) -> base64 PNG`. Windows :
+`SHGetFileInfo` + `SHGFI_ICON` (crate `windows`). macOS : `NSWorkspace
+iconForFile`. Linux : thème d'icônes XDG. Cache par extension (`app_data/
+icon-cache/<ext>.png`).
+
+**Effort** : 3-4 j (API système par OS, encodage HICON→PNG, cache).
+**Priorité** : MOYENNE (les badges actuels sont déjà lisibles et cross-OS).
+
+### R-IMG-SRC — Import web intelligent : upscale + attribution auteur
+
+**Problème (verbatim 2026-05-31)** : « si on fait un glisser deposer [d'image
+depuis le web] : 1. rechercher sur tout le web si il existerait la même image
+en meilleure qualité → télécharger automatiquement la meilleure qualité ;
+2. pouvoir citer l'auteur, le nom qu'il a donné à l'image, et clic droit →
+accéder à la page du créateur + ses réseaux. »
+
+**Contexte** : depuis le passage en drag-drop natif, l'import web passe par
+Ctrl+V (URL ou bytes). C'est le bon moment pour enrichir CE chemin plutôt que
+le drag. L'utilisateur dit explicitement « clairement pas pour tout de suite ».
+
+**Pistes techniques** :
+- **Upscale/meilleure source** : on a DÉJÀ `getCDNCandidates` (imageUpgrade.ts)
+  qui tente les variantes haute-réso d'un même CDN. Étendre avec une vraie
+  **recherche d'image inversée** (TinEye API, Google Lens non-officiel, ou
+  Yandex) pour trouver la même image ailleurs en plus grand. Choix de la plus
+  grande résolution réelle (pas juste upscalée).
+- **Attribution** : extraire depuis la page d'origine les meta `og:`,
+  `author`, microdata `schema.org/ImageObject` (creator, license, name) +
+  liens réseaux (`rel=me`, profils détectés). Stocker dans `BoardImage` :
+  `{ author?, authorUrl?, authorSocials?: string[], license?, title? }`.
+- **UI clic droit** : menu contextuel sur l'image → « Voir le créateur »,
+  « Réseaux », « Licence », « Source originale ».
+
+**Effort** : 5-7 j (API recherche inversée + scraping attribution + schéma +
+menu contextuel). Dépend d'une clé API tierce pour la recherche inversée.
+**Priorité** : BASSE (idée long terme, post-Phase 2).
+
 **Ordre d'exécution recommandé** :
 1. R-EMB-01 (fondation format) →
 2. R-FIL-01 (atome FileNode + rendu) →

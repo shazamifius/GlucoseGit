@@ -32,7 +32,8 @@
 
 import { create } from "zustand";
 import {
-  Annotation, ArrowAnnotation, BoardImage, BoardZone, CanvasFolder, Domain, Preset,
+  Annotation, ArrowAnnotation, BoardImage, BoardZone, CanvasFolder, Domain,
+  FolderTreeNode, Preset,
   Project, StoryboardPanel, StoryboardSettings, Tool, Viewport
 } from "../types";
 import { DEFAULT_PRESETS } from "../data/defaultPresets";
@@ -248,6 +249,12 @@ interface GlucoseStore {
     folder: Omit<CanvasFolder, "id" | "childBoardId">,
     seedAnnotations: Annotation[],
   ) => string;
+  /**
+   * R-FIL-02 v2 — crée un arbre de folders miroir : 1 child board par dossier,
+   * sous-dossiers navigables. Atomique pour undo/redo. Renvoie l'id du folder
+   * racine.
+   */
+  createFolderTree: (parentBoardId: string, tree: FolderTreeNode) => string;
   updateFolder: (boardId: string, folderId: string, patch: Partial<CanvasFolder>) => void;
   removeFolders: (boardId: string, folderIds: string[]) => void;
   enterFolder: (folderId: string) => void;
@@ -1255,6 +1262,57 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       d.updatedAt = Date.now();
     });
     return folderId;
+  },
+
+  createFolderTree: (parentBoardId, tree) => {
+    // R-FIL-02 v2 — crée récursivement 1 child board par dossier. Toute
+    // l'arborescence dans UNE mutation = undo atomique.
+    const rootFolderId = nanoid();
+
+    // Récursion à l'intérieur du mutator. On re-récupère systématiquement les
+    // proxies par id (cf. fix Sprint 1 : après un push, les variables JS
+    // capturées sont déconnectées du doc Automerge).
+    const buildInto = (
+      d: Project,
+      parentId: string,
+      node: FolderTreeNode,
+      folderId: string,
+    ): void => {
+      const childBoardId = nanoid();
+
+      // 1) Child board de ce dossier.
+      d.boards.push({ ...newBoard(node.folder.name), id: childBoardId });
+      const childBoard = d.boards.find((b) => b.id === childBoardId);
+      if (childBoard) {
+        for (const ann of node.annotations) {
+          const plain = JSON.parse(JSON.stringify(ann)) as Annotation;
+          childBoard.annotations.push(clampSpatial(plain));
+        }
+      }
+
+      // 2) Folder box dans le board parent.
+      const par = d.boards.find((b) => b.id === parentId);
+      if (par) {
+        if (!par.folders) par.folders = [];
+        const folderPlain = JSON.parse(JSON.stringify(node.folder)) as Omit<
+          CanvasFolder,
+          "id" | "childBoardId"
+        >;
+        par.folders.push(clampSpatial({ ...folderPlain, id: folderId, childBoardId }));
+        par.updatedAt = Date.now();
+      }
+
+      // 3) Sous-dossiers → dans le child board qu'on vient de créer.
+      for (const child of node.children) {
+        buildInto(d, childBoardId, child, nanoid());
+      }
+    };
+
+    get().mutate("createFolderTree", (d) => {
+      buildInto(d, parentBoardId, tree, rootFolderId);
+      d.updatedAt = Date.now();
+    });
+    return rootFolderId;
   },
 
   updateFolder: (boardId, folderId, patch) => {

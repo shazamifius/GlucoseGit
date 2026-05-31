@@ -21,33 +21,39 @@ const ALLOWED_READ_EXTS: &[&str] = &[
     "glucose", "json",
 ];
 
-/// Extensions autorisées pour l'ouverture native (`open_in_app`).
-/// Volontairement restreint aux fichiers créatifs habituels.
-const ALLOWED_OPEN_EXTS: &[&str] = &[
-    // images
-    "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp",
-    // créatifs / 3D / design
-    "psd", "ai", "kra", "xcf", "blend", "fbx", "obj", "glb", "gltf",
-    "fig", "sketch", "procreate", "zpr", "c4d", "max", "ma", "mb",
-    // audio / video / docs / code (lecture seule)
-    "mp4", "mov", "webm", "mp3", "wav", "flac",
-    "pdf", "txt", "md", "json", "csv",
-    "ts", "tsx", "js", "jsx", "py", "rs", "go", "java", "c", "cpp", "h",
+/// Extensions refusées au LANCEMENT (`open_in_app`) — exécutables et scripts.
+/// C'est une **deny-list** : un gestionnaire de fichiers doit pouvoir ouvrir
+/// « bref tout » (.blend/.kra/.nuke/.indd/.docx/...), SAUF ce qui peut exécuter
+/// du code arbitraire au double-clic (protection RCE, cf. SEC-01..09).
+const FORBIDDEN_OPEN_EXTS: &[&str] = &[
+    "exe", "bat", "cmd", "ps1", "psm1", "psd1", "vbs", "vbe", "js", "jse",
+    "wsf", "wsh", "scr", "com", "msi", "msp", "lnk", "url", "inf", "reg",
+    "jar", "app", "dmg", "deb", "rpm", "appimage", "sh", "bash", "zsh",
+    "hta", "cpl", "msc", "pif", "scf", "gadget", "vb", "vbscript",
 ];
 
-/// Extensions explicitement refusées par sécurité (exécutables et scripts).
-const FORBIDDEN_OPEN_EXTS: &[&str] = &[
-    "exe", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js",
-    "scr", "com", "msi", "msp", "lnk", "url", "inf", "reg",
-    "jar", "app", "dmg", "deb", "rpm", "appimage", "sh", "bash",
+/// Extensions masquées au SCAN (folder mirror) : binaires/exécutables OS qui
+/// n'ont aucun intérêt visuel sur le canvas. On masque le bruit machine MAIS
+/// on garde visibles les fichiers source (.js/.ps1/...) — ils restent
+/// non-lançables via `FORBIDDEN_OPEN_EXTS`, juste affichés.
+const SCAN_HIDE_EXTS: &[&str] = &[
+    "exe", "dll", "sys", "com", "scr", "msi", "msp", "ocx", "drv",
+    "lnk", "pif", "cpl", "tmp", "bin",
 ];
 
 /// Vérifie qu'un chemin est dans un des dossiers autorisés (App Data, Documents,
 /// Downloads, Pictures, Videos, Desktop) ET qu'il n'utilise pas de chemin UNC.
 /// Retourne le chemin canonicalisé si OK, ou Err sinon.
 fn validate_scope(path: &str, app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
-    // 1) Refus chemins UNC (\\server\share)
-    if path.starts_with("\\\\") || path.starts_with("//") {
+    // 1) Refus chemins UNC (\\server\share). ATTENTION : sous Windows, le
+    //    drag-drop natif ET `std::fs::canonicalize` produisent des chemins
+    //    préfixés `\\?\` (extended-length) — ce N'EST PAS un chemin réseau.
+    //    On strip ce préfixe avant le test, et on rejette explicitement le
+    //    vrai UNC étendu `\\?\UNC\server\share`.
+    let is_extended_unc =
+        path.starts_with(r"\\?\UNC\") || path.starts_with(r"\\?\unc\");
+    let stripped = path.strip_prefix(r"\\?\").unwrap_or(path);
+    if is_extended_unc || stripped.starts_with("\\\\") || stripped.starts_with("//") {
         return Err("Chemins réseau (UNC) non autorisés".into());
     }
 
@@ -79,6 +85,17 @@ fn validate_scope(path: &str, app_handle: &tauri::AppHandle) -> Result<PathBuf, 
     }
 
     Ok(canonical)
+}
+
+/// Retire le préfixe Windows extended-length `\\?\` pour produire des chemins
+/// lisibles côté UI ET compatibles ShellExecute (qui n'aime pas `\\?\`).
+/// Sans effet sur macOS/Linux.
+fn display_path(p: &Path) -> String {
+    let s = p.to_string_lossy();
+    match s.strip_prefix(r"\\?\") {
+        Some(rest) => rest.to_string(),
+        None => s.into_owned(),
+    }
 }
 
 /// Récupère l'extension d'un chemin en lowercase, ou empty string si absente.
@@ -249,24 +266,20 @@ async fn open_in_app(
     // 1) Scope check (refuse UNC, chemins hors zones autorisées)
     let canonical = validate_scope(&path, &app_handle)?;
 
-    // 2) Refus extensions exécutables / scripts
+    // 2) Deny-list : on ouvre tout SAUF les exécutables / scripts (RCE).
     let ext = get_ext(&canonical);
     if FORBIDDEN_OPEN_EXTS.contains(&ext.as_str()) {
         return Err(format!(
             "Ouverture refusée pour des raisons de sécurité (.{ext})"
         ));
     }
-    if !ALLOWED_OPEN_EXTS.contains(&ext.as_str()) {
-        return Err(format!(
-            "Type de fichier non géré pour l'ouverture native (.{ext})"
-        ));
-    }
 
-    // 3) Normalize slashes pour Windows ShellExecute
+    // 3) Normalize slashes pour Windows ShellExecute. On retire le préfixe
+    //    `\\?\` que canonicalize ajoute : ShellExecute le rejette.
     #[cfg(windows)]
-    let path_str = canonical.to_string_lossy().replace('/', "\\");
+    let path_str = display_path(&canonical).replace('/', "\\");
     #[cfg(not(windows))]
-    let path_str = canonical.to_string_lossy().to_string();
+    let path_str = display_path(&canonical);
 
     open::that(&path_str).map_err(|e| format!("Impossible d'ouvrir «{}»: {}", path_str, e))
 }
@@ -795,13 +808,13 @@ async fn scan_directory(
         let size = if is_dir { 0 } else { meta.len() };
         let ext = get_ext(&entry_path);
 
-        // Refuse les extensions exécutables / scripts — on n'expose pas au front.
-        if !is_dir && FORBIDDEN_OPEN_EXTS.contains(&ext.as_str()) {
+        // Masque le bruit binaire OS (exe/dll/...) — les sources restent visibles.
+        if !is_dir && SCAN_HIDE_EXTS.contains(&ext.as_str()) {
             continue;
         }
 
         out.push(DirEntryDto {
-            path: entry_path.to_string_lossy().into_owned(),
+            path: display_path(&entry_path),
             name,
             size,
             is_dir,
@@ -817,6 +830,276 @@ async fn scan_directory(
     });
 
     Ok(out)
+}
+
+/// R-FIL-01/02 — extensions textuelles lisibles inline (doit rester en phase
+/// avec TEXT_FILE_EXTS + CODE_FILE_EXTS côté front, cf. dropHandler.ts).
+const TEXT_READ_EXTS: &[&str] = &[
+    // texte / data
+    "txt", "md", "markdown", "json", "jsonl", "csv", "tsv", "log",
+    "yaml", "yml", "toml", "ini", "env", "xml", "html", "htm",
+    "conf", "cfg", "gitignore", "gitattributes",
+    // code
+    "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "rs", "go",
+    "c", "cc", "cpp", "h", "hpp", "java", "rb", "php", "swift", "kt",
+    "cs", "scala", "sh", "bash", "zsh", "fish", "sql", "lua",
+    "r", "jl", "hs", "erl", "ex", "exs", "clj", "fs", "dart", "nim",
+    "zig", "asm", "s", "vim", "tex", "bib",
+];
+
+/// Plafond de lecture inline d'un fichier texte (100 KB — au-delà on tronque).
+const TEXT_INLINE_MAX_BYTES: usize = 100_000;
+
+/// Résultat de lecture d'un fichier texte (contenu + flag de troncature).
+#[derive(serde::Serialize)]
+struct TextFileDto {
+    content: String,
+    truncated: bool,
+}
+
+/// R-FIL-01/02 — lit un fichier texte/code par chemin absolu (le drag-drop
+/// natif nous donne des chemins, pas des objets `File`). Tronque à
+/// `TEXT_INLINE_MAX_BYTES` et signale la troncature.
+#[tauri::command]
+async fn read_text_file_inline(
+    path: String,
+    app_handle: tauri::AppHandle,
+) -> Result<TextFileDto, String> {
+    let canonical = validate_scope(&path, &app_handle)?;
+    let ext = get_ext(&canonical);
+    // Les fichiers spéciaux sans extension (.gitignore, .env) tombent ici via
+    // leur nom : on accepte aussi par nom de fichier complet.
+    let name = canonical
+        .file_name()
+        .map(|s| s.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let name_ok = matches!(name.as_str(), ".env" | ".gitignore" | ".gitattributes");
+    if !TEXT_READ_EXTS.contains(&ext.as_str()) && !name_ok {
+        return Err(format!("Extension non lisible en texte: .{ext}"));
+    }
+    let bytes = tokio::fs::read(&canonical)
+        .await
+        .map_err(|e| e.to_string())?;
+    let truncated = bytes.len() > TEXT_INLINE_MAX_BYTES;
+    let slice = if truncated { &bytes[..TEXT_INLINE_MAX_BYTES] } else { &bytes[..] };
+    // from_utf8_lossy : un fichier "texte" mal encodé (latin-1, binaire déguisé)
+    // ne doit pas faire planter — on remplace les octets invalides.
+    let content = String::from_utf8_lossy(slice).into_owned();
+    Ok(TextFileDto { content, truncated })
+}
+
+/// Classification d'un chemin droppé (fichier vs dossier + métadonnées).
+#[derive(serde::Serialize)]
+struct PathInfoDto {
+    path: String,
+    name: String,
+    is_dir: bool,
+    ext: String,
+    size: u64,
+    /// True si lisible inline (texte/code).
+    is_text: bool,
+    /// True si image affichable.
+    is_image: bool,
+}
+
+/// R-FIL — classe une liste de chemins droppés (le natif ne dit pas si c'est un
+/// dossier). Permet au front de router : dossier→mirror, texte→inline,
+/// image→embed, autre→launcher. Valide chaque chemin (scope) et ignore
+/// silencieusement les chemins hors-scope / illisibles.
+#[tauri::command]
+async fn classify_paths(
+    paths: Vec<String>,
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<PathInfoDto>, String> {
+    const IMAGE_EXTS: &[&str] = &[
+        "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "bmp", "tif", "tiff",
+    ];
+    let mut out = Vec::with_capacity(paths.len());
+    for p in paths {
+        // Hors-scope → on saute (pas d'erreur fatale : un drop mixte peut
+        // contenir un chemin interdit sans invalider les autres).
+        let canonical = match validate_scope(&p, &app_handle) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let meta = match std::fs::metadata(&canonical) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let is_dir = meta.is_dir();
+        let ext = get_ext(&canonical);
+        let name = canonical
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let name_lower = name.to_lowercase();
+        let is_text = !is_dir
+            && (TEXT_READ_EXTS.contains(&ext.as_str())
+                || matches!(name_lower.as_str(), ".env" | ".gitignore" | ".gitattributes"));
+        let is_image = !is_dir && IMAGE_EXTS.contains(&ext.as_str());
+        out.push(PathInfoDto {
+            path: display_path(&canonical),
+            name,
+            is_dir,
+            ext,
+            size: if is_dir { 0 } else { meta.len() },
+            is_text,
+            is_image,
+        });
+    }
+    Ok(out)
+}
+
+/// R-FIL-02 v2 — nœud d'un scan récursif (arbre de dossiers).
+#[derive(serde::Serialize)]
+struct DirNodeDto {
+    path: String,
+    name: String,
+    is_dir: bool,
+    ext: String,
+    size: u64,
+    /// Date de dernière modification (epoch secondes) — pour le tri R-FIL-03.
+    modified: u64,
+    /// Enfants directs (vide pour un fichier ou au-delà de max_depth).
+    children: Vec<DirNodeDto>,
+}
+
+/// True si on doit ignorer cette entrée (cachés, Thumbs.db, exécutables).
+fn skip_entry(name: &str, ext: &str, is_dir: bool) -> bool {
+    if name.starts_with('.')
+        && name != ".env"
+        && name != ".gitignore"
+        && name != ".gitattributes"
+    {
+        return true;
+    }
+    if name == "Thumbs.db" || name == "desktop.ini" {
+        return true;
+    }
+    if !is_dir && SCAN_HIDE_EXTS.contains(&ext) {
+        return true;
+    }
+    false
+}
+
+fn mtime_secs(meta: &std::fs::Metadata) -> u64 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// Récursion synchrone (exécutée dans spawn_blocking). `budget` est un plafond
+/// global d'entrées partagé entre tous les niveaux pour éviter d'exploser sur
+/// une arborescence énorme. `depth` borne la profondeur.
+fn scan_dir_rec(dir: &Path, depth: u32, max_depth: u32, budget: &mut usize) -> Vec<DirNodeDto> {
+    if depth >= max_depth || *budget == 0 {
+        return Vec::new();
+    }
+    let rd = match std::fs::read_dir(dir) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    let mut entries: Vec<std::fs::DirEntry> = rd.filter_map(|e| e.ok()).collect();
+    // Tri stable : dossiers d'abord puis nom (le front re-trie selon R-FIL-03).
+    entries.sort_by(|a, b| {
+        let ad = a.path().is_dir();
+        let bd = b.path().is_dir();
+        match (ad, bd) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a
+                .file_name()
+                .to_string_lossy()
+                .to_lowercase()
+                .cmp(&b.file_name().to_string_lossy().to_lowercase()),
+        }
+    });
+
+    let mut out = Vec::new();
+    for entry in entries {
+        if *budget == 0 {
+            break;
+        }
+        let p = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let ext = get_ext(&p);
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let is_dir = meta.is_dir();
+        if skip_entry(&name, &ext, is_dir) {
+            continue;
+        }
+        *budget -= 1;
+        let children = if is_dir {
+            scan_dir_rec(&p, depth + 1, max_depth, budget)
+        } else {
+            Vec::new()
+        };
+        out.push(DirNodeDto {
+            path: display_path(&p),
+            name,
+            is_dir,
+            ext,
+            size: if is_dir { 0 } else { meta.len() },
+            modified: mtime_secs(&meta),
+            children,
+        });
+    }
+    out
+}
+
+/// R-FIL-02 v2 — scanne un dossier **récursivement** et renvoie l'arbre complet
+/// (borné par `max_entries` et `max_depth`). Sert à construire un folder miroir
+/// avec sous-dossiers navigables.
+///
+/// Sécurité : `validate_scope` sur la racine (refus UNC + scope strict). La
+/// récursion reste sous la racine canonicalisée (les liens symboliques vers
+/// l'extérieur ne re-passent pas par validate_scope, donc on borne la
+/// profondeur pour éviter les cycles).
+#[tauri::command]
+async fn scan_tree(
+    path: String,
+    max_entries: u32,
+    max_depth: u32,
+    app_handle: tauri::AppHandle,
+) -> Result<DirNodeDto, String> {
+    let canonical = validate_scope(&path, &app_handle)?;
+    if !canonical.is_dir() {
+        return Err(format!("{} n'est pas un dossier", canonical.display()));
+    }
+    let depth_cap = max_depth.min(8);
+    let entry_cap = max_entries.min(5_000) as usize;
+
+    let root = canonical.clone();
+    let node = tokio::task::spawn_blocking(move || {
+        let mut budget = entry_cap;
+        let children = scan_dir_rec(&root, 0, depth_cap, &mut budget);
+        let name = root
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| root.to_string_lossy().into_owned());
+        let modified = std::fs::metadata(&root)
+            .as_ref()
+            .map(mtime_secs)
+            .unwrap_or(0);
+        DirNodeDto {
+            path: display_path(&root),
+            name,
+            is_dir: true,
+            ext: String::new(),
+            size: 0,
+            modified,
+            children,
+        }
+    })
+    .await
+    .map_err(|e| format!("Scan interrompu: {e}"))?;
+
+    Ok(node)
 }
 
 /// Whitelist d'extensions acceptées pour `save_asset`.
@@ -852,6 +1135,10 @@ pub fn run() {
             get_assets_dir,
             // R-FIL-02 (Sprint 2) — drop d'un dossier OS = folder mirror
             scan_directory,
+            scan_tree,
+            // R-FIL (Sprint 2) — drag-drop natif : classification + lecture texte
+            classify_paths,
+            read_text_file_inline,
             // Phase 7.2 — format binaire `.glucose` v2 (Automerge)
             read_glucose_binary,
             write_glucose_binary,

@@ -16,8 +16,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGlucoseStore, getActiveBoard } from "../store";
-import { addImagesFromDrop, makeSourceSticky, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
-import { addImagesFromFiles } from "./fileImport";
+import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -557,9 +556,12 @@ export default function GlucoseCanvas() {
     });
   }, [selectedImageIds]);
 
-  // ── Tauri file drop ──────────────────────────────────────────
+  // ── Tauri file drop (natif — chemins absolus OS) ─────────────
+  // R-FIL (Sprint 2) : depuis dragDropEnabled:true, l'event natif nous donne
+  // les vrais chemins absolus. On gère les vidéos ici (besoin convertFileSrc +
+  // dimensions), puis on délègue TOUT le reste (dossiers, texte, images,
+  // launchers) au routeur `addPathsFromNativeDrop`.
   useEffect(() => {
-    const IMAGE_RE = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp)$/i;
     const unlisten = listen<{ paths: string[]; position: { x: number; y: number } }>(
       "tauri://drag-drop",
       async (event) => {
@@ -570,11 +572,8 @@ export default function GlucoseCanvas() {
         const wy = (position.y - world.y) / world.scale.y;
         const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
 
-        const imgs = paths.filter((p) => IMAGE_RE.test(p));
+        // 1) Vidéos locales → lecteur inline (chemin gardé en relatif via asset URL)
         const videos = paths.filter((p) => VIDEO_FILE_EXTS.test(p));
-        const sources = paths.filter((p) => !IMAGE_RE.test(p) && !VIDEO_FILE_EXTS.test(p));
-
-        if (imgs.length > 0) await addImagesFromFiles(imgs, wx, wy, boardId, addImage);
         for (let i = 0; i < videos.length; i++) {
           const path = videos[i];
           const assetUrl = convertFileSrc(path);
@@ -588,9 +587,16 @@ export default function GlucoseCanvas() {
             originalWidth: vw, originalHeight: vh,
           });
         }
-        sources.forEach((path, i) =>
-          addAnnotation(boardId, makeSourceSticky(path, wx + i * 24, wy + i * 24))
-        );
+
+        // 2) Tout le reste (dossiers, texte/code, images, binaires) → routeur
+        const rest = paths.filter((p) => !VIDEO_FILE_EXTS.test(p));
+        if (rest.length > 0) {
+          await addPathsFromNativeDrop(rest, wx, wy, boardId, {
+            addImage,
+            addAnnotation,
+            createFolderTree: useGlucoseStore.getState().createFolderTree,
+          });
+        }
       }
     );
     return () => { unlisten.then((fn) => fn()); };
@@ -1678,7 +1684,7 @@ export default function GlucoseCanvas() {
       getActiveBoard(state.project).id,
       addImage,
       addAnnotation,
-      state.createFolderWithContent, // R-FIL-02 : drop dossier OS → folder mirror
+      state.createFolderTree, // R-FIL-02 v2 : drop dossier OS → folder mirror navigable
     );
   }, []);
 

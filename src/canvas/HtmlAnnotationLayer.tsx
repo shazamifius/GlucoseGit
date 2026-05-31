@@ -9,7 +9,7 @@ import rehypeKatex from "rehype-katex";
 import { ensureKatexCssIfMath } from "../utils/loadKatexCss";
 import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
-import AppBridgeIcon from "../components/AppBridgeIcon";
+import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
 import { MirrorBadge, DomainBadges, TemporalBadge, resolveDomainBadges } from "./AnnotationBadges";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 
@@ -843,6 +843,81 @@ function AnnotationItem({
 
             const isSource = !!ann.sourceFile;
             const title = ann.sourceFile?.split(/[\\/]/).pop() || "Code Source";
+
+            // ── Fichier source → TUILE ICÔNE (style Mac/Android, pas postit) ──
+            // Grande icône centrée + nom dessous + halo « fumée » dans la
+            // couleur dominante de l'app (Blender = orange, etc.). Double-clic
+            // → open_in_app (déjà câblé via handleDblClick).
+            if (isSource) {
+              const def = getAppDef(ann.sourceFile!);
+              const glow = def.bg;
+              const iconSize = Math.max(40, Math.min(w, h) * 0.46);
+              return (
+                <div
+                  key={ann.id}
+                  data-id={ann.id}
+                  ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
+                  title={`${def.name} — double-clic pour ouvrir`}
+                  style={{
+                    position: "absolute",
+                    left: ann.x, top: ann.y,
+                    width: w, height: h,
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center",
+                    gap: 8, padding: 8, boxSizing: "border-box",
+                    borderRadius: 14,
+                    background: `radial-gradient(circle at 50% 36%, ${glow}40 0%, ${glow}1f 38%, #161622 78%)`,
+                    border: `1px solid ${glow}66`,
+                    boxShadow: sel
+                      ? `0 0 0 2px #fff, 0 0 26px ${glow}88`
+                      : `0 0 20px ${glow}3a, 0 6px 14px rgba(0,0,0,0.45)`,
+                    pointerEvents: activeTool === "select" ? "all" : "none",
+                    cursor: activeTool === "select" ? "pointer" : "default",
+                    userSelect: "none",
+                  }}
+                  onPointerDown={(e) => handleDown(ann, e)}
+                  onDoubleClick={(e) => handleDblClick(ann, e)}
+                  onWheel={forwardWheel}
+                  onMouseEnter={() => setHoveredNodeId(ann.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
+                >
+                  <AppBridgeIcon filePath={ann.sourceFile!} size={iconSize} />
+                  <span style={{
+                    maxWidth: "100%",
+                    fontSize: 11, fontWeight: 600,
+                    color: "#e8e8f0",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    overflow: "hidden", textOverflow: "ellipsis",
+                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    wordBreak: "break-word",
+                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                  }}>
+                    {title}
+                  </span>
+
+                  <MirrorBadge mirrorOf={ann.mirrorOf} />
+                  <TemporalBadge anchor={ann.temporalAnchor} />
+
+                  {sel && corners.map((c) => (
+                    <div
+                      key={c.id}
+                      onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}
+                      style={{
+                        position: "absolute",
+                        left: c.cx - 12, top: c.cy - 12,
+                        width: 24, height: 24,
+                        cursor: c.id === "br" || c.id === "tl" ? "nwse-resize" : "nesw-resize",
+                        zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <div style={{ width: 8, height: 8, background: "#fff", border: "1px solid #333", borderRadius: "50%" }} />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
 
             return (
               <div
