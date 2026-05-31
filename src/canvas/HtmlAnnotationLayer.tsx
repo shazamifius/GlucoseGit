@@ -208,6 +208,11 @@ export default function HtmlAnnotationLayer({
   function handleDblClick(ann: Annotation, e: React.MouseEvent) {
     if (activeTool !== "select") return;
     e.stopPropagation();
+    // R-FIL-02 v2 — si le nœud reflète un fichier (folder mirror : launcher OU
+    // bloc texte lu d'un .md/.txt), double-clic = OUVRIR le fichier dans son
+    // app, pas éditer le texte en place (qui n'écrirait pas sur le disque).
+    const sf = (ann as { sourceFile?: string }).sourceFile;
+    if (sf) { openSourceFile(sf); return; }
     onEdit(ann.id);
   }
 
@@ -885,13 +890,7 @@ function AnnotationItem({
                     userSelect: "none",
                   }}
                   onPointerDown={(e) => handleDown(ann, e)}
-                  onDoubleClick={(e) => {
-                    // Double-clic = OUVRIR le fichier (pas renommer). Le renommage
-                    // reste accessible autrement (futur menu clic droit).
-                    if (activeTool !== "select") return;
-                    e.stopPropagation();
-                    openSourceFile(ann.sourceFile!);
-                  }}
+                  onDoubleClick={(e) => handleDblClick(ann, e)}
                   onWheel={forwardWheel}
                   onMouseEnter={() => setHoveredNodeId(ann.id)}
                   onMouseLeave={() => setHoveredNodeId(null)}

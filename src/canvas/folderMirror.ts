@@ -69,8 +69,8 @@ function makeLinkedMedia(path: string, isVideo: boolean, x: number, y: number): 
   };
 }
 
-const MAX_ENTRIES = 5_000;
-const MAX_DEPTH = 8;
+const MAX_ENTRIES = 20_000;
+const MAX_DEPTH = 12;
 const CELL = 220;
 const PADDING = 80;
 // Boîte de dossier COMPACTE (style explorateur). Son contenu vit dans le child
@@ -157,9 +157,15 @@ function buildFolderNode(
       return;
     }
     // Texte/code lu au scan → bloc texte (markdown/LaTeX) au format tuile.
+    // sourceFile → double-clic ouvre le vrai fichier (pas d'édition en place).
     if (typeof e.text === "string") {
       const node = makeTextNodeFromFile(e.name, e.text, false, x, y);
-      annotations.push({ ...node, width: TEXT_TILE_W, height: TEXT_TILE_H } as Annotation);
+      annotations.push({
+        ...node,
+        sourceFile: e.path,
+        width: TEXT_TILE_W,
+        height: TEXT_TILE_H,
+      } as Annotation);
       return;
     }
     // Sinon (binaire, ou texte trop gros) → launcher icôné (double-clic = ouvrir).

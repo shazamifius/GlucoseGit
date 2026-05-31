@@ -123,6 +123,9 @@ export interface TextAnnotation extends AnnotationBase {
   width?: number;
   height?: number;
   cursorPos?: number;
+  /** R-FIL-02 v2 — si ce bloc reflète un fichier (folder mirror), double-clic
+   *  ouvre le fichier au lieu d'éditer le texte en place. */
+  sourceFile?: string;
 }
 
 /** Note collante avec fond coloré + opérateur logique optionnel. */

@@ -1265,57 +1265,68 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   createFolderTree: (parentBoardId, tree) => {
-    // R-FIL-02 v2 — crée récursivement 1 child board par dossier. Toute
-    // l'arborescence dans UNE mutation = undo atomique.
+    // R-FIL-02 v2 — crée 1 child board par dossier. Toute l'arborescence dans
+    // UNE mutation = undo atomique.
+    //
+    // PERF : on aplatit l'arbre en JS pur (Phase 1) AVANT la mutation, puis on
+    // applique à plat avec un index Map id→proxy (Phase 2). Évite le O(n²) de
+    // `d.boards.find` par nœud qui gelait l'app sur les gros dossiers (et
+    // pouvait tronquer le rendu). Voir retours utilisateur "perd 70%".
     const rootFolderId = nanoid();
 
-    // Récursion à l'intérieur du mutator. On re-récupère systématiquement les
-    // proxies par id (cf. fix Sprint 1 : après un push, les variables JS
-    // capturées sont déconnectées du doc Automerge).
-    const buildInto = (
-      d: Project,
-      parentId: string,
-      node: FolderTreeNode,
-      folderId: string,
-    ): void => {
+    interface BoardSpec { boardId: string; name: string; annotations: Annotation[]; images: BoardImage[]; }
+    interface Placement { parentBoardId: string; folder: CanvasFolder; }
+    const boardSpecs: BoardSpec[] = [];
+    const placements: Placement[] = [];
+
+    // Phase 1 — aplatissement pur (récursion JS rapide, hors doc Automerge).
+    const walk = (parentId: string, node: FolderTreeNode, folderId: string): void => {
       const childBoardId = nanoid();
-
-      // 1) Child board de ce dossier.
-      d.boards.push({ ...newBoard(node.folder.name), id: childBoardId });
-      const childBoard = d.boards.find((b) => b.id === childBoardId);
-      if (childBoard) {
-        for (const ann of node.annotations) {
-          const plain = JSON.parse(JSON.stringify(ann)) as Annotation;
-          childBoard.annotations.push(clampSpatial(plain));
-        }
-        // R-FIL-02 v2 — images/vidéos liées (vignettes) dans le child board.
-        for (const img of node.images ?? []) {
-          const plain = JSON.parse(JSON.stringify(img)) as BoardImage;
-          childBoard.images.push(clampSpatial(plain));
-        }
-      }
-
-      // 2) Folder box dans le board parent.
-      const par = d.boards.find((b) => b.id === parentId);
-      if (par) {
-        if (!par.folders) par.folders = [];
-        const folderPlain = JSON.parse(JSON.stringify(node.folder)) as Omit<
-          CanvasFolder,
-          "id" | "childBoardId"
-        >;
-        par.folders.push(clampSpatial({ ...folderPlain, id: folderId, childBoardId }));
-        par.updatedAt = Date.now();
-      }
-
-      // 3) Sous-dossiers → dans le child board qu'on vient de créer.
-      for (const child of node.children) {
-        buildInto(d, childBoardId, child, nanoid());
-      }
+      boardSpecs.push({
+        boardId: childBoardId,
+        name: node.folder.name,
+        annotations: node.annotations,
+        images: node.images ?? [],
+      });
+      placements.push({
+        parentBoardId: parentId,
+        folder: { ...node.folder, id: folderId, childBoardId } as CanvasFolder,
+      });
+      for (const child of node.children) walk(childBoardId, child, nanoid());
     };
+    walk(parentBoardId, tree, rootFolderId);
 
     get().mutate("createFolderTree", (d) => {
-      buildInto(d, parentBoardId, tree, rootFolderId);
-      d.updatedAt = Date.now();
+      // Phase 2a — crée tous les child boards d'un coup.
+      for (const spec of boardSpecs) {
+        d.boards.push({ ...newBoard(spec.name), id: spec.boardId });
+      }
+      // Index O(1) (re-fetch des proxies après les push — cf. fix Sprint 1).
+      const byId = new Map<string, (typeof d.boards)[number]>();
+      for (const b of d.boards) byId.set(b.id, b);
+
+      // Phase 2b — peuple chaque board (annotations + images).
+      for (const spec of boardSpecs) {
+        const board = byId.get(spec.boardId);
+        if (!board) continue;
+        for (const ann of spec.annotations) {
+          board.annotations.push(clampSpatial(JSON.parse(JSON.stringify(ann)) as Annotation));
+        }
+        for (const img of spec.images) {
+          board.images.push(clampSpatial(JSON.parse(JSON.stringify(img)) as BoardImage));
+        }
+      }
+
+      // Phase 2c — place les folder boxes dans leurs parents.
+      const now = Date.now();
+      for (const pl of placements) {
+        const par = byId.get(pl.parentBoardId);
+        if (!par) continue;
+        if (!par.folders) par.folders = [];
+        par.folders.push(clampSpatial(JSON.parse(JSON.stringify(pl.folder)) as CanvasFolder));
+        par.updatedAt = now;
+      }
+      d.updatedAt = now;
     });
     return rootFolderId;
   },

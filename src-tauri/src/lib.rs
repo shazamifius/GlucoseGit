@@ -1109,8 +1109,8 @@ async fn scan_tree(
     if !canonical.is_dir() {
         return Err(format!("{} n'est pas un dossier", canonical.display()));
     }
-    let depth_cap = max_depth.min(8);
-    let entry_cap = max_entries.min(5_000) as usize;
+    let depth_cap = max_depth.min(16);
+    let entry_cap = max_entries.min(40_000) as usize;
 
     let root = canonical.clone();
     let node = tokio::task::spawn_blocking(move || {
