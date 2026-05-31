@@ -853,7 +853,9 @@ export default function GlucoseCanvas() {
   const lastNavRef = useRef(0);
   const ENTER_SCALE = 3.0;
   const EXIT_SCALE  = 0.4;
-  const NAV_COOLDOWN = 700;
+  // Cooldown > durée de l'animation de transition (400 ms) pour qu'aucune
+  // transition auto ne se déclenche pendant l'arrivée (anti-cascade).
+  const NAV_COOLDOWN = 850;
 
   /** Bounding box de tout le contenu d'un board (images + annotations +
    *  folders). Renvoie null si le board est vide. */
@@ -870,7 +872,27 @@ export default function GlucoseCanvas() {
       add(a.x, a.y, a.width ?? 160, a.height ?? 80);
     }
     if (minX === Infinity) return null;
-    return { w: maxX - minX, h: maxY - minY };
+    return { minX, minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  /** Viewport {x,y,scale} qui cadre TOUT le contenu d'un board, centré, à une
+   *  échelle confortable (ni en zone d'entrée, ni d'éjection). Sert à l'arrivée
+   *  dans un dossier (entrée OU sortie) → on voit tout d'un coup. */
+  function fitViewportFor(board: ReturnType<typeof getActiveBoard>, screenW: number, screenH: number) {
+    const b = contentBounds(board);
+    if (!b || b.w <= 0 || b.h <= 0) {
+      return { x: screenW / 2, y: screenH / 2, scale: 1 };
+    }
+    const margin = 1.25;
+    // Clamp [0.06, 1.1] : assez haut pour voir un petit dossier sans être en
+    // zone d'entrée (ENTER=3), assez bas pour les gros dossiers.
+    const scale = Math.min(1.1, Math.max(0.06, Math.min(
+      screenW / (b.w * margin),
+      screenH / (b.h * margin),
+    )));
+    const cx = b.minX + b.w / 2;
+    const cy = b.minY + b.h / 2;
+    return { x: screenW / 2 - cx * scale, y: screenH / 2 - cy * scale, scale };
   }
 
   /** R-FIL — Scale de sortie ADAPTATIF : on ne quitte le folder que lorsque
@@ -882,7 +904,10 @@ export default function GlucoseCanvas() {
     if (!b || b.w <= 0 || b.h <= 0) return EXIT_SCALE;
     const margin = 1.15;
     const scaleFit = Math.min(screenW / (b.w * margin), screenH / (b.h * margin));
-    return Math.min(0.6, Math.max(0.05, scaleFit * 0.85));
+    // Facteur 0.55 : on garde une marge de zoom-out confortable pour explorer
+    // le dossier AVANT d'être éjecté. Doit rester < le SCALE_BURST d'entrée
+    // (0.6) pour qu'une entrée ne déclenche jamais une sortie immédiate.
+    return Math.min(0.6, Math.max(0.04, scaleFit * 0.55));
   }
 
   function checkAutoNavigate(world: Container) {
@@ -902,20 +927,26 @@ export default function GlucoseCanvas() {
       );
       if (target) {
         lastNavRef.current = now;
-        // Pré-positionne le viewport du child : centré sur le contenu, scale = 1.
-        const childCenterX = target.width / 2;
-        const childCenterY = target.height / 2;
-        state.setViewport(target.childBoardId, {
-          x: app.screen.width / 2 - childCenterX,
-          y: app.screen.height / 2 - childCenterY,
-          scale: 1,
-        });
+        // Cadre TOUT le contenu du child board à l'arrivée → on voit tout, à une
+        // échelle sûre (pas de cascade). L'animation va directement à ce fit.
+        const childBoard = state.project.boards.find((b) => b.id === target.childBoardId);
+        if (childBoard) {
+          state.setViewport(target.childBoardId, fitViewportFor(childBoard, app.screen.width, app.screen.height));
+        }
         state.enterFolder(target.id);
       }
     } else if (state.folderStack.length > 0) {
       const exitScale = adaptiveExitScale(board, app.screen.width, app.screen.height);
       if (scale <= exitScale) {
         lastNavRef.current = now;
+        // À la sortie : cadre tout le contenu du PARENT → on atterrit en voyant
+        // le dossier entier (avec celui qu'on quitte dedans), à une échelle sûre
+        // bien au-dessus du seuil d'éjection → pas de cascade vers le haut.
+        const prev = state.folderStack[state.folderStack.length - 1];
+        const parentBoard = state.project.boards.find((b) => b.id === prev.boardId);
+        if (parentBoard) {
+          state.setViewport(prev.boardId, fitViewportFor(parentBoard, app.screen.width, app.screen.height));
+        }
         state.exitFolder();
       }
     }
@@ -971,16 +1002,27 @@ export default function GlucoseCanvas() {
       count++;
     }
     for (const ann of board.annotations) {
-      // Pour les flèches on étend aussi à (x2, y2). Pour les autres, le seul
-      // point géométrique est (x, y) — un peu pessimiste pour les blocs avec
-      // width/height, mais sans impact sur le fit-to-content (un nœud reste
-      // dans la zone même si on l'a sous-évalué).
-      const ax2 = ann.type === "arrow" ? ann.x2 : ann.x;
-      const ay2 = ann.type === "arrow" ? ann.y2 : ann.y;
-      if (ann.x < minX) minX = ann.x; if (ann.x > maxX) maxX = ann.x;
-      if (ax2 < minX) minX = ax2; if (ax2 > maxX) maxX = ax2;
-      if (ann.y < minY) minY = ann.y; if (ann.y > maxY) maxY = ann.y;
-      if (ay2 < minY) minY = ay2; if (ay2 > maxY) maxY = ay2;
+      // Flèches : étendre à (x2,y2). Autres : prendre la boîte (x,y,w,h) pour
+      // que les tuiles entières comptent dans le fit.
+      if (ann.type === "arrow") {
+        const ax2 = ann.x2, ay2 = ann.y2;
+        if (ann.x < minX) minX = ann.x; if (ann.x > maxX) maxX = ann.x;
+        if (ax2 < minX) minX = ax2; if (ax2 > maxX) maxX = ax2;
+        if (ann.y < minY) minY = ann.y; if (ann.y > maxY) maxY = ann.y;
+        if (ay2 < minY) minY = ay2; if (ay2 > maxY) maxY = ay2;
+      } else {
+        const aw = ann.width ?? 160, ah = ann.height ?? 80;
+        if (ann.x < minX) minX = ann.x; if (ann.x + aw > maxX) maxX = ann.x + aw;
+        if (ann.y < minY) minY = ann.y; if (ann.y + ah > maxY) maxY = ann.y + ah;
+      }
+      count++;
+    }
+    // R-FIL — CRITIQUE : inclure les sous-dossiers (boîtes folder) dans le fit.
+    // Sans ça, un dossier plein de sous-dossiers se cadrait sur du vide → "je
+    // vois rien" + cascade de zoom (cf. retours utilisateur).
+    for (const f of board.folders ?? []) {
+      if (f.x < minX) minX = f.x; if (f.x + f.width > maxX) maxX = f.x + f.width;
+      if (f.y < minY) minY = f.y; if (f.y + f.height > maxY) maxY = f.y + f.height;
       count++;
     }
     if (count === 0) return;
