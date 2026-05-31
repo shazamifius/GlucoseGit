@@ -79,6 +79,9 @@ export interface BoardImage {
   originalWidth: number;
   originalHeight: number;
   isVideo?: boolean;
+  /** R-FIL-02 v3 — vignette de folder mirror : le sprite se cadre DANS la boîte
+   *  (width×height) en préservant le ratio (jamais déformé). */
+  fit?: "contain";
   domains?: DomainAssignment[]; // Phase 3
   mirrorOf?: string;            // Phase 4 — id de l'image originale (alias / lien vivant)
   temporalAnchor?: TemporalAnchor; // Phase 6 — date du contenu décrit

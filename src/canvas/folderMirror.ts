@@ -24,6 +24,7 @@ import type {
   FolderTreeNode,
 } from "../types";
 import { nanoid } from "../utils/nanoid";
+import { useGlucoseStore } from "../store";
 import { makeSourceSticky, makeTextNodeFromFile } from "./dropHandler";
 
 export type { FolderTreeNode } from "../types";
@@ -51,12 +52,15 @@ interface DirNode {
   children: DirNode[];
 }
 
-/** Image/vidéo liée (chemin disque via convertFileSrc), tuile de taille fixe. */
+/** Image/vidéo liée (chemin disque via convertFileSrc). La boîte est carrée
+ *  mais le sprite se cadre DEDANS en préservant le ratio (`fit:"contain"`) —
+ *  jamais d'image déformée. */
 function makeLinkedMedia(path: string, isVideo: boolean, x: number, y: number): BoardImage {
   return {
     id: nanoid(),
     src: convertFileSrc(path),
     isVideo: isVideo || undefined,
+    fit: "contain",
     x, y,
     width: MEDIA_TILE_W,
     height: MEDIA_TILE_H,
@@ -164,48 +168,54 @@ function buildLevelNode(
   pendingScan: boolean,
 ): FolderTreeNode {
   const entries = sortNodes(dir.children, sortBy);
-  const N = entries.length;
-  const cols = Math.max(1, Math.ceil(Math.sqrt(N)));
 
   const annotations: Annotation[] = [];
   const images: BoardImage[] = [];
   const children: FolderTreeNode[] = [];
 
-  entries.forEach((e, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = PADDING + col * CELL;
-    const y = PADDING + row * CELL;
+  // R-FIL-02 v3 — LAYOUT PAR CATÉGORIES (en 3 bandes verticales) pour éviter le
+  // « gros bordel » où vidéos/images (sprites sous le z-order) se superposent
+  // aux icônes/texte (divs HTML) :
+  //   1) Dossiers + lanceurs (icônes)
+  //   2) Images + vidéos (médias)
+  //   3) Blocs texte (.md/.txt/code)
+  const isMedia = (e: DirNode) => IMAGE_EXTS.has(e.ext) || VIDEO_EXTS.has(e.ext);
+  const isText = (e: DirNode) => typeof e.text === "string";
+  const iconGroup = entries.filter((e) => e.is_dir || (!isMedia(e) && !isText(e)));
+  const mediaGroup = entries.filter((e) => !e.is_dir && isMedia(e));
+  const textGroup = entries.filter((e) => !e.is_dir && isText(e));
 
-    // Sous-dossier → boîte navigable VIDE (scan paresseux à l'entrée).
-    if (e.is_dir) {
-      children.push(makePendingFolderChild(e, x, y, sortBy));
-      return;
-    }
-    // Image → vignette liée (affiche la vraie image, chemin relatif).
-    if (IMAGE_EXTS.has(e.ext)) {
-      images.push(makeLinkedMedia(e.path, false, x, y));
-      return;
-    }
-    // Vidéo → lecteur lié.
-    if (VIDEO_EXTS.has(e.ext)) {
-      images.push(makeLinkedMedia(e.path, true, x, y));
-      return;
-    }
-    // Texte/code lu au scan → bloc texte (markdown/LaTeX) au format tuile.
-    // sourceFile → double-clic ouvre le vrai fichier (pas d'édition en place).
-    if (typeof e.text === "string") {
-      const node = makeTextNodeFromFile(e.name, e.text, false, x, y);
-      annotations.push({
-        ...node,
-        sourceFile: e.path,
-        width: TEXT_TILE_W,
-        height: TEXT_TILE_H,
-      } as Annotation);
-      return;
-    }
-    // Sinon (binaire, ou texte trop gros) → launcher icôné (double-clic = ouvrir).
-    annotations.push(makeSourceSticky(e.path, x, y));
+  const BAND_GAP = 180; // espace entre deux catégories
+  let bandY = PADDING;
+
+  /** Place un groupe en grille à partir de `bandY`, puis avance `bandY`. */
+  const placeGroup = (group: DirNode[], make: (e: DirNode, x: number, y: number) => void) => {
+    if (group.length === 0) return;
+    const cols = Math.max(1, Math.ceil(Math.sqrt(group.length)));
+    const rows = Math.ceil(group.length / cols);
+    group.forEach((e, i) => {
+      const x = PADDING + (i % cols) * CELL;
+      const y = bandY + Math.floor(i / cols) * CELL;
+      make(e, x, y);
+    });
+    bandY += rows * CELL + BAND_GAP;
+  };
+
+  placeGroup(iconGroup, (e, x, y) => {
+    if (e.is_dir) children.push(makePendingFolderChild(e, x, y, sortBy));
+    else annotations.push(makeSourceSticky(e.path, x, y));
+  });
+  placeGroup(mediaGroup, (e, x, y) => {
+    images.push(makeLinkedMedia(e.path, VIDEO_EXTS.has(e.ext), x, y));
+  });
+  placeGroup(textGroup, (e, x, y) => {
+    const node = makeTextNodeFromFile(e.name, e.text as string, false, x, y);
+    annotations.push({
+      ...node,
+      sourceFile: e.path,
+      width: TEXT_TILE_W,
+      height: TEXT_TILE_H,
+    } as Annotation);
   });
 
   const mirrorSource: FolderMirrorSource = {
@@ -271,4 +281,23 @@ export async function scanFolderForMirror(
     totalEntries,
     truncated: totalEntries >= MAX_ENTRIES,
   };
+}
+
+/**
+ * R-FIL-02 v3 — Si le folder est `pendingScan`, scanne son niveau et remplit
+ * son child board (via `expandFolder`). Idempotent. Utilisé AUSSI par la
+ * navigation breadcrumb (sinon : page vide sur un dossier pas encore scanné).
+ */
+export async function expandFolderIfPending(
+  parentBoardId: string,
+  folderId: string,
+): Promise<void> {
+  const st = useGlucoseStore.getState();
+  const parent = st.project.boards.find((b) => b.id === parentBoardId);
+  const folder = (parent?.folders ?? []).find((f) => f.id === folderId);
+  if (!folder?.mirrorSource?.pendingScan) return;
+  const result = await scanFolderForMirror(
+    folder.mirrorSource.rootPath, 0, 0, folder.mirrorSource.sortBy,
+  );
+  useGlucoseStore.getState().expandFolder(parentBoardId, folderId, result.tree);
 }

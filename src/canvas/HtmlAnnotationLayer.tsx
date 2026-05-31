@@ -12,8 +12,12 @@ import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
 import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
 
-/** R-FIL — ouvre un fichier source dans son app native (double-clic tuile). */
+/** R-FIL — ouvre un fichier source dans son app native (double-clic tuile).
+ *  Feedback immédiat (le lancement d'une grosse app comme Blender peut prendre
+ *  10-30 s) pour éviter l'impression que "rien ne se passe". */
 function openSourceFile(path: string) {
+  const name = path.split(/[\\/]/).pop() || path;
+  import("../components/Toast").then(({ showToast }) => showToast(`Ouverture de ${name}…`, "🚀"));
   invoke("open_in_app", { path }).catch(async (err) => {
     const { showToast } = await import("../components/Toast");
     showToast(`Impossible d'ouvrir : ${String(err)}`, "⚠️");
@@ -885,8 +889,11 @@ function AnnotationItem({
                     boxShadow: sel
                       ? `0 0 0 2px #fff, 0 0 26px ${glow}88`
                       : `0 0 20px ${glow}3a, 0 6px 14px rgba(0,0,0,0.45)`,
-                    pointerEvents: activeTool === "select" ? "all" : "none",
-                    cursor: activeTool === "select" ? "pointer" : "default",
+                    // Toujours cliquable : double-clic = ouvrir le fichier, quel
+                    // que soit l'outil actif. Évite que le clic traverse vers le
+                    // canvas (qui éditait/créait un postit) quand l'outil ≠ select.
+                    pointerEvents: "all",
+                    cursor: "pointer",
                     userSelect: "none",
                   }}
                   onPointerDown={(e) => handleDown(ann, e)}

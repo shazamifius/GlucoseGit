@@ -42,6 +42,21 @@ import { resolveImageSrc } from "../utils/assets";
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
 const DOT_GRID_SIZE = 60;
+
+/** Taille d'affichage d'un sprite. Pour les vignettes de folder mirror
+ *  (`fit:"contain"`), on cadre la texture DANS la boîte en préservant le ratio
+ *  (jamais d'image écrasée). Sinon on utilise width×height tels quels. */
+function fittedSpriteSize(
+  img: { width: number; height: number; fit?: "contain" },
+  texW: number,
+  texH: number,
+): { w: number; h: number } {
+  if (img.fit === "contain" && texW > 0 && texH > 0) {
+    const s = Math.min(img.width / texW, img.height / texH);
+    return { w: texW * s, h: texH * s };
+  }
+  return { w: img.width, h: img.height };
+}
 // const SNAP_DIST = 80;
 
 // Données du ghost de preview layout (preset ou storyboard)
@@ -267,7 +282,11 @@ export default function GlucoseCanvas() {
     });
     board.images.forEach((img) => {
       const s = spritesRef.current.get(img.id);
-      if (s) { s.x = img.x; s.y = img.y; s.width = img.width; s.height = img.height; s.rotation = img.rotation; }
+      if (s) {
+        s.x = img.x; s.y = img.y; s.rotation = img.rotation;
+        const fs = fittedSpriteSize(img, s.texture.width, s.texture.height);
+        s.width = fs.w; s.height = fs.h;
+      }
     });
     spatialHashRef.current.build(board.images);
     applyCulling();
@@ -281,15 +300,20 @@ export default function GlucoseCanvas() {
         // avec blob URL pour les embeds, fallback sur src legacy.
         const blobs = useGlucoseStore.getState().project.blobs;
         const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
+        // R-FIL-02 v3 : les vignettes de folder mirror NE s'auto-jouent PAS
+        // (sinon des dizaines de vidéos tournent en fond → lag). On garde la 1re
+        // frame comme poster. Les vidéos hors-folder gardent l'autoplay.
+        const autoPlay = !(img.fit === "contain");
         const tex: Texture = img.isVideo
-          ? await Assets.load({ src: resolvedSrc, data: { autoPlay: true, loop: true, muted: true } })
+          ? await Assets.load({ src: resolvedSrc, data: { autoPlay, loop: autoPlay, muted: true } })
           : await Assets.load(resolvedSrc);
         if (!worldRef.current || spritesRef.current.has(img.id)) return;
         const sprite = new Sprite(tex);
         sprite.anchor.set(0.5);
         sprite.interactive = true; sprite.cursor = "pointer";
         sprite.x = img.x; sprite.y = img.y;
-        sprite.width = img.width; sprite.height = img.height;
+        const fs = fittedSpriteSize(img, tex.width, tex.height);
+        sprite.width = fs.w; sprite.height = fs.h;
         sprite.rotation = img.rotation;
         // Phase 6 — applique le dim temporel dès la création (sinon flash plein opacity)
         const tf = useGlucoseStore.getState().temporalFilter;

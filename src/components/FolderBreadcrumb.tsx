@@ -58,14 +58,19 @@ export default function FolderBreadcrumb() {
     for (let k = 0; k < stepsBack; k++) exitFolder();
   }
 
-  function jumpToSibling(parentIdx: number, sib: Crumb) {
+  async function jumpToSibling(parentIdx: number, sib: Crumb) {
     // Remonte au niveau parent puis enter dans le sibling
     const stepsBack = crumbs.length - parentIdx;
     for (let k = 0; k < stepsBack; k++) exitFolder();
     // Assure le bon board actif (devrait l'être déjà)
     setActiveBoardId(sib.boardId);
-    enterFolder(sib.folderId);
+    // R-FIL-02 v3 — scan paresseux : si le sibling n'est pas encore scanné, on
+    // le remplit AVANT d'entrer (sinon page vide). Import dynamique pour éviter
+    // un cycle de modules avec le canvas.
     setSiblingsFor(null);
+    const { expandFolderIfPending } = await import("../canvas/folderMirror");
+    await expandFolderIfPending(sib.boardId, sib.folderId);
+    enterFolder(sib.folderId);
   }
 
   function showSiblings(idx: number) {
