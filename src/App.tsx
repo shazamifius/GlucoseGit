@@ -6,6 +6,7 @@ import BoardTabs from "./components/BoardTabs";
 import PanelDock, { type TabId } from "./components/PanelDock";
 import PomodoroOverlay from "./components/PomodoroOverlay";
 import FolderViewportIndicator from "./components/FolderViewportIndicator";
+import AppLaunchOverlay from "./components/AppLaunchOverlay";
 import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject } from "./utils/project";
 import Toast, { showToast } from "./components/Toast";
@@ -357,6 +358,9 @@ export default function App() {
 
         {/* Phase 7.5 — indicateur visuel "vous êtes dans un dossier" */}
         <FolderViewportIndicator />
+
+        {/* R-FIL — animation de lancement d'app native (logo + couleur dominante) */}
+        <AppLaunchOverlay />
 
         {/* Floating right panels (lazy-loaded — Suspense montre rien le temps que ça charge) */}
         {presetOpen && (

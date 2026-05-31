@@ -17,6 +17,9 @@ import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
  *  10-30 s) pour éviter l'impression que "rien ne se passe". */
 function openSourceFile(path: string) {
   const name = path.split(/[\\/]/).pop() || path;
+  // Animation de lancement (logo + couleur dominante de l'app) — signal clair
+  // que ça démarre, même si l'app met 10-40 s à apparaître (Blender).
+  window.dispatchEvent(new CustomEvent("glucose:app-launching", { detail: { path } }));
   import("../components/Toast").then(({ showToast }) => showToast(`Ouverture de ${name}…`, "🚀"));
   invoke("open_in_app", { path }).catch(async (err) => {
     const { showToast } = await import("../components/Toast");
