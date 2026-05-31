@@ -78,7 +78,6 @@ function makeLinkedMedia(path: string, isVideo: boolean, x: number, y: number): 
 // l'arbo est scanné paresseusement à l'entrée de chaque sous-dossier.
 const MAX_ENTRIES = 20_000;
 const CELL = 220;
-const PADDING = 80;
 // Boîte de dossier COMPACTE (style explorateur). Son contenu vit dans le child
 // board (qu'on voit en entrant), donc la boîte n'a PAS besoin d'être taillée à
 // son contenu — sinon les dossiers se chevauchent en un gros tas illisible.
@@ -173,43 +172,76 @@ function buildLevelNode(
   const images: BoardImage[] = [];
   const children: FolderTreeNode[] = [];
 
-  // R-FIL-02 v3 — LAYOUT PAR CATÉGORIES (en 3 bandes verticales) pour éviter le
-  // « gros bordel » où vidéos/images (sprites sous le z-order) se superposent
-  // aux icônes/texte (divs HTML) :
-  //   1) Dossiers + lanceurs (icônes)
-  //   2) Images + vidéos (médias)
-  //   3) Blocs texte (.md/.txt/code)
+  // LAYOUT-1 — DISPOSITION SPATIALE EN CROIX, façon « bureau organisé ». Chaque
+  // catégorie a sa ZONE, ce qui évite le « gros bordel » (sprites médias sous le
+  // z-order qui passaient sous les divs icônes/texte) ET donne un rangement
+  // lisible et constant :
+  //
+  //                    ┌───────────────┐
+  //                    │   (vide)      │
+  //   ┌──────────┐  ┌──┴───────────┐  ┌┴───────────┐
+  //   │   APPS   │  │  SOUS-DOSSIERS│  │  IMAGES /  │
+  //   │ (gauche) │  │   (centre)    │  │  VIDÉOS    │
+  //   └──────────┘  └──┬───────────┘  │  (droite)  │
+  //                    │   TEXTES     │  └───────────┘
+  //                    │   (bas)      │
+  //                    └──────────────┘
   const isMedia = (e: DirNode) => IMAGE_EXTS.has(e.ext) || VIDEO_EXTS.has(e.ext);
   const isText = (e: DirNode) => typeof e.text === "string";
-  const iconGroup = entries.filter((e) => e.is_dir || (!isMedia(e) && !isText(e)));
-  const mediaGroup = entries.filter((e) => !e.is_dir && isMedia(e));
-  const textGroup = entries.filter((e) => !e.is_dir && isText(e));
+  const folderGroup = entries.filter((e) => e.is_dir);                                // CENTRE
+  const appGroup = entries.filter((e) => !e.is_dir && !isMedia(e) && !isText(e));     // GAUCHE
+  const mediaGroup = entries.filter((e) => !e.is_dir && isMedia(e));                  // DROITE
+  const textGroup = entries.filter((e) => !e.is_dir && isText(e));                    // BAS
 
-  const BAND_GAP = 180; // espace entre deux catégories
-  let bandY = PADDING;
+  const ZONE_GAP = 160; // espace entre la zone centrale et chaque zone périphérique
 
-  /** Place un groupe en grille à partir de `bandY`, puis avance `bandY`. */
-  const placeGroup = (group: DirNode[], make: (e: DirNode, x: number, y: number) => void) => {
-    if (group.length === 0) return;
-    const cols = Math.max(1, Math.ceil(Math.sqrt(group.length)));
-    const rows = Math.ceil(group.length / cols);
-    group.forEach((e, i) => {
-      const x = PADDING + (i % cols) * CELL;
-      const y = bandY + Math.floor(i / cols) * CELL;
-      make(e, x, y);
-    });
-    bandY += rows * CELL + BAND_GAP;
+  /** Dimensions d'un bloc-grille ~carré (cellules CELL) pour `n` éléments. */
+  const blockDims = (n: number) => {
+    if (n === 0) return { cols: 0, rows: 0, w: 0, h: 0 };
+    const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+    const rows = Math.ceil(n / cols);
+    return { cols, rows, w: cols * CELL, h: rows * CELL };
   };
 
-  placeGroup(iconGroup, (e, x, y) => {
-    if (e.is_dir) children.push(makePendingFolderChild(e, x, y, sortBy));
-    else annotations.push(makeSourceSticky(e.path, x, y));
+  const fD = blockDims(folderGroup.length);
+  const aD = blockDims(appGroup.length);
+  const mD = blockDims(mediaGroup.length);
+  const tD = blockDims(textGroup.length);
+
+  // Zone centrale (dossiers) centrée sur (0,0). On garde un minimum CELL pour
+  // que les zones latérales restent écartées même sans dossier au centre.
+  const halfW = Math.max(fD.w, CELL) / 2;
+  const halfH = Math.max(fD.h, CELL) / 2;
+
+  // Origines (coin haut-gauche) de chaque bloc.
+  const fOrigin = { x: -fD.w / 2,                 y: -fD.h / 2 };              // centre
+  const aOrigin = { x: -halfW - ZONE_GAP - aD.w,  y: -aD.h / 2 };             // gauche, centré vert.
+  const mOrigin = { x: halfW + ZONE_GAP,          y: -mD.h / 2 };             // droite, centré vert.
+  const tOrigin = { x: -tD.w / 2,                 y: halfH + ZONE_GAP };      // bas, centré horiz.
+
+  /** Place un groupe en grille à partir d'une origine (coin haut-gauche du bloc). */
+  const placeAt = (
+    group: DirNode[],
+    origin: { x: number; y: number },
+    cols: number,
+    make: (e: DirNode, x: number, y: number) => void,
+  ) => {
+    group.forEach((e, i) => {
+      const x = origin.x + (i % cols) * CELL;
+      const y = origin.y + Math.floor(i / cols) * CELL;
+      make(e, x, y);
+    });
+  };
+
+  placeAt(folderGroup, fOrigin, Math.max(1, fD.cols), (e, x, y) => {
+    children.push(makePendingFolderChild(e, x, y, sortBy));
   });
-  placeGroup(mediaGroup, (e, x, y) => {
-    // Les sprites image sont ancrés au CENTRE (anchor 0.5) alors que la grille
-    // donne le coin haut-gauche de la cellule. Sans recentrage, les médias
-    // « partaient dans un coin » décalés d'un demi-tuile vs icônes/texte. On
-    // place donc l'image au centre de sa cellule → alignée avec le reste.
+  placeAt(appGroup, aOrigin, Math.max(1, aD.cols), (e, x, y) => {
+    annotations.push(makeSourceSticky(e.path, x, y));
+  });
+  placeAt(mediaGroup, mOrigin, Math.max(1, mD.cols), (e, x, y) => {
+    // Sprites ancrés au CENTRE (anchor 0.5) → on place au centre de la cellule
+    // (la grille donne le coin haut-gauche) pour aligner médias et tuiles.
     images.push(makeLinkedMedia(
       e.path,
       VIDEO_EXTS.has(e.ext),
@@ -217,7 +249,7 @@ function buildLevelNode(
       y + MEDIA_TILE_H / 2,
     ));
   });
-  placeGroup(textGroup, (e, x, y) => {
+  placeAt(textGroup, tOrigin, Math.max(1, tD.cols), (e, x, y) => {
     const node = makeTextNodeFromFile(e.name, e.text as string, false, x, y);
     annotations.push({
       ...node,

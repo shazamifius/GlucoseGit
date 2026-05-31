@@ -136,38 +136,44 @@ describe("scanFolderForMirror — arbre + layout", () => {
   });
 });
 
-describe("scanFolderForMirror — layout par catégories (R-FIL-02 v3)", () => {
-  it("3 catégories séparées : icônes (haut), médias (milieu), texte (bas)", async () => {
+describe("scanFolderForMirror — disposition en croix (LAYOUT-1)", () => {
+  it("apps à GAUCHE, sous-dossiers au CENTRE, médias à DROITE, textes en BAS", async () => {
     vi.mocked(invoke).mockResolvedValueOnce(root([
-      file("scene.blend"),                       // icône (launcher)
-      file("photo.png"),                         // média
-      file("notes.md", { text: "# notes" }),     // texte
+      file("scene.blend"),                       // app (launcher)  → gauche
+      file("photo.png"),                         // média           → droite
+      file("notes.md", { text: "# notes" }),     // texte           → bas
+      dir("sub"),                                // sous-dossier    → centre
     ]));
     const result = await scanFolderForMirror("C:/w", 0, 0);
-    const icon = result.tree.annotations.find((a) => isStickyAnnotation(a) && a.sourceFile?.endsWith(".blend"));
+    const app = result.tree.annotations.find((a) => isStickyAnnotation(a) && a.sourceFile?.endsWith(".blend"));
     const media = result.tree.images[0];
     const text = result.tree.annotations.find((a) => a.type === "text");
-    expect(icon).toBeDefined();
+    const folder = result.tree.children[0]?.folder; // dossier central
+    expect(app).toBeDefined();
     expect(media).toBeDefined();
     expect(text).toBeDefined();
-    // Les bandes sont empilées verticalement : icône au-dessus du média, média
-    // au-dessus du texte (chaque bande séparée par BAND_GAP).
-    expect(icon!.y).toBeLessThan(media!.y);
-    expect(media!.y).toBeLessThan(text!.y);
+    expect(folder).toBeDefined();
+    // Apps à gauche du centre, médias à droite du centre.
+    expect(app!.x).toBeLessThan(folder!.x);
+    expect(media!.x).toBeGreaterThan(folder!.x);
+    // Apps strictement à gauche des médias.
+    expect(app!.x).toBeLessThan(media!.x);
+    // Textes EN DESSOUS du centre.
+    expect(text!.y).toBeGreaterThan(folder!.y);
   });
 
-  it("médias centrés sur leur cellule (alignés, pas dans un coin)", async () => {
-    // Sprites ancrés au centre → x,y doivent être au CENTRE de la cellule
-    // (PADDING + demi-tuile), pas au coin haut-gauche (PADDING).
-    vi.mocked(invoke).mockResolvedValueOnce(root([file("a.png")]));
+  it("médias centrés sur leur cellule (alignés, pas dans un coin) + grille CELL", async () => {
+    // 2 médias adjacents : sprites ancrés au centre → espacés d'exactement CELL,
+    // même y, dimensions de tuile préservées.
+    vi.mocked(invoke).mockResolvedValueOnce(root([file("a.png"), file("b.png")]));
     const result = await scanFolderForMirror("C:/w", 0, 0);
-    const media = result.tree.images[0];
-    // PADDING=80, MEDIA_TILE_W=190, MEDIA_TILE_H=150 → centre = 80+95, bandeY+75.
-    expect(media.x).toBe(80 + 190 / 2);
-    expect(media.width).toBe(190);
-    expect(media.height).toBe(150);
-    // Ratio préservé : fit "contain".
-    expect(media.fit).toBe("contain");
+    const [m0, m1] = result.tree.images;
+    expect(result.tree.images.length).toBe(2);
+    expect(Math.abs(m1.x - m0.x)).toBe(220);   // CELL
+    expect(m0.y).toBe(m1.y);                    // même rangée
+    expect(m0.width).toBe(190);
+    expect(m0.height).toBe(150);
+    expect(m0.fit).toBe("contain");             // ratio préservé
   });
 
   it("tuiles texte de folder : taille FIXE (clampée) + sourceFile pour ouvrir", async () => {
@@ -191,8 +197,8 @@ describe("scanFolderForMirror — tri R-FIL-03", () => {
       root([file("z.txt"), dir("aaa"), file("a.txt")]),
     );
     const result = await scanFolderForMirror("C:/w", 0, 0, "name-asc");
-    expect(result.tree.children.length).toBe(1);
-    expect(result.tree.children[0].folder.x).toBe(80); // PADDING, première cellule
+    expect(result.tree.children.length).toBe(1); // "aaa" → dossier central
+    // Le tri reste « dossiers d'abord » puis fichiers par nom (position = croix).
     const names = result.tree.annotations.map((a) => (isStickyAnnotation(a) ? a.text : ""));
     expect(names).toEqual(["a.txt", "z.txt"]);
   });

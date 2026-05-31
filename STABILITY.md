@@ -86,13 +86,14 @@ est coûteux — cf. mémoire `annotation-layer-no-culling`).
 **Voulu :** colorer variables/mots-clés comme dans VSCode pour les `.py` (et autres scripts).
 
 ### LAYOUT-1 — Auto-rangement spatial à l'import d'un dossier
-**Statut :** 🟠 à faire
-**Voulu (disposition par défaut) :**
-- **Applications → à gauche**
-- **Sous-dossiers → au centre**
-- **Txt / MD / JSON / autres textes → en bas**
-- **Images / vidéos → à droite**
-**Concerne :** `folderMirror.ts` (actuellement bandes icône/texte/média).
+**Statut :** 🟡 implémenté, à confirmer à l'œil (2026-05-31) — disposition en **croix**
+dans `folderMirror.ts` (`buildLevelNode`) : apps **gauche**, sous-dossiers **centre**,
+images/vidéos **droite**, textes **bas**. Chaque catégorie a sa zone (cellules CELL=220,
+gap 160), centrée sur (0,0). 4 tests croix. Bonus : la séparation spatiale règle aussi
+l'ancien chevauchement médias↔icônes (z-order).
+**⚠️ S'applique aux NOUVEAUX imports** (calculé au scan). Un dossier déjà importé garde
+son ancienne disposition tant qu'on ne le ré-importe pas.
+**À valider** : importer un dossier mixte → voir la croix.
 
 ---
 
