@@ -116,6 +116,9 @@ export default function GlucoseCanvas() {
   } | null>(null);
   const textCursorPosRef = useRef<number | undefined>(undefined);
   const lastDomCreateRef = useRef<number>(0);
+  // Cache du seuil de sortie adaptatif (évite de recalculer contentBounds — O(n)
+  // sur tout le board — à CHAQUE frame de pan/zoom dans un gros dossier).
+  const exitScaleCacheRef = useRef<{ boardId: string; t: number; scale: number }>({ boardId: "", t: 0, scale: 0 });
 
   const [pixiReady, setPixiReady] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -868,7 +871,18 @@ export default function GlucoseCanvas() {
     const st0 = useGlucoseStore.getState();
     let exitScale = 0;
     if (app0 && st0.folderStack.length > 0) {
-      exitScale = adaptiveExitScale(getActiveBoard(st0.project), app0.screen.width, app0.screen.height);
+      // Cache 180 ms par board : le contenu ne bouge pas pendant un pan/zoom, et
+      // le seuil n'est qu'indicatif (cadre bleu) — pas besoin de recalculer à
+      // chaque frame sur un dossier à plusieurs milliers de fichiers.
+      const cache = exitScaleCacheRef.current;
+      const boardId = st0.project.activeBoardId;
+      const now = performance.now();
+      if (cache.boardId === boardId && now - cache.t < 180) {
+        exitScale = cache.scale;
+      } else {
+        exitScale = adaptiveExitScale(getActiveBoard(st0.project), app0.screen.width, app0.screen.height);
+        exitScaleCacheRef.current = { boardId, t: now, scale: exitScale };
+      }
     }
     window.dispatchEvent(new CustomEvent("glucose:viewport-changed", {
       detail: { x: world.x, y: world.y, scale: world.scale.x, exitScale },
@@ -905,7 +919,10 @@ export default function GlucoseCanvas() {
       minX = Math.min(minX, x); minY = Math.min(minY, y);
       maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
     };
-    for (const im of board.images) add(im.x, im.y, im.width, im.height);
+    // Les sprites image sont ancrés au CENTRE (anchor 0.5) → (x,y) = centre.
+    // On convertit en coin haut-gauche pour des bounds corrects (sinon le fit
+    // et le seuil de sortie adaptatif étaient décalés d'un demi-sprite).
+    for (const im of board.images) add(im.x - im.width / 2, im.y - im.height / 2, im.width, im.height);
     for (const f of board.folders ?? []) add(f.x, f.y, f.width, f.height);
     for (const a of board.annotations) {
       if (a.type === "arrow") { add(Math.min(a.x, a.x2 ?? a.x), Math.min(a.y, a.y2 ?? a.y), Math.abs((a.x2 ?? a.x) - a.x), Math.abs((a.y2 ?? a.y) - a.y)); continue; }
@@ -1256,15 +1273,16 @@ export default function GlucoseCanvas() {
     // On arme le cooldown ET on cadre le board d'arrivée au tick suivant (après
     // que activeBoardId ait basculé et que le board soit rendu).
     const onNavSettle = () => {
-      lastNavRef.current = performance.now() + 600; // suspend l'auto-nav un instant
+      // L'effet de bascule de board lance une animation « burst » de 400 ms qui
+      // pilote le viewport. Si on cadre trop tôt, le burst écrase notre fit.
+      // On suspend donc l'auto-nav ~1 s ET on cadre APRÈS le burst (~470 ms).
+      lastNavRef.current = performance.now() + 1000;
       navigatingRef.current = true;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          fitView();
-          lastNavRef.current = performance.now() + 400;
-          navigatingRef.current = false;
-        });
-      });
+      window.setTimeout(() => {
+        fitView();
+        lastNavRef.current = performance.now() + 300;
+        navigatingRef.current = false;
+      }, 470);
     };
 
     window.addEventListener("glucose:fit-view", onFit);

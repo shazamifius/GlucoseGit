@@ -136,6 +136,55 @@ describe("scanFolderForMirror — arbre + layout", () => {
   });
 });
 
+describe("scanFolderForMirror — layout par catégories (R-FIL-02 v3)", () => {
+  it("3 catégories séparées : icônes (haut), médias (milieu), texte (bas)", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(root([
+      file("scene.blend"),                       // icône (launcher)
+      file("photo.png"),                         // média
+      file("notes.md", { text: "# notes" }),     // texte
+    ]));
+    const result = await scanFolderForMirror("C:/w", 0, 0);
+    const icon = result.tree.annotations.find((a) => isStickyAnnotation(a) && a.sourceFile?.endsWith(".blend"));
+    const media = result.tree.images[0];
+    const text = result.tree.annotations.find((a) => a.type === "text");
+    expect(icon).toBeDefined();
+    expect(media).toBeDefined();
+    expect(text).toBeDefined();
+    // Les bandes sont empilées verticalement : icône au-dessus du média, média
+    // au-dessus du texte (chaque bande séparée par BAND_GAP).
+    expect(icon!.y).toBeLessThan(media!.y);
+    expect(media!.y).toBeLessThan(text!.y);
+  });
+
+  it("médias centrés sur leur cellule (alignés, pas dans un coin)", async () => {
+    // Sprites ancrés au centre → x,y doivent être au CENTRE de la cellule
+    // (PADDING + demi-tuile), pas au coin haut-gauche (PADDING).
+    vi.mocked(invoke).mockResolvedValueOnce(root([file("a.png")]));
+    const result = await scanFolderForMirror("C:/w", 0, 0);
+    const media = result.tree.images[0];
+    // PADDING=80, MEDIA_TILE_W=190, MEDIA_TILE_H=150 → centre = 80+95, bandeY+75.
+    expect(media.x).toBe(80 + 190 / 2);
+    expect(media.width).toBe(190);
+    expect(media.height).toBe(150);
+    // Ratio préservé : fit "contain".
+    expect(media.fit).toBe("contain");
+  });
+
+  it("tuiles texte de folder : taille FIXE (clampée) + sourceFile pour ouvrir", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(root([
+      file("a.md", { text: "ligne\n".repeat(500) }), // contenu énorme
+    ]));
+    const result = await scanFolderForMirror("C:/w", 0, 0);
+    const text = result.tree.annotations.find((a) => a.type === "text");
+    expect(text).toBeDefined();
+    // Dimensions FIXES (pas fit-content) → plus de chevauchement.
+    expect(text!.width).toBe(210);
+    expect(text!.height).toBe(180);
+    // sourceFile présent → double-clic ouvre le fichier natif.
+    expect((text as { sourceFile?: string }).sourceFile).toBe("C:/w/a.md");
+  });
+});
+
 describe("scanFolderForMirror — tri R-FIL-03", () => {
   it("dossiers toujours avant les fichiers (façon Windows)", async () => {
     vi.mocked(invoke).mockResolvedValueOnce(
