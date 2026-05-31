@@ -1679,13 +1679,18 @@ export default function GlucoseCanvas() {
       world.x = mx - (mx - world.x) * (ns / world.scale.x);
       world.y = my - (my - world.y) * (ns / world.scale.y);
       world.scale.set(ns);
-      // L'éjection de folder par dézoom est gérée de façon ADAPTATIVE dans
-      // checkAutoNavigate (appelé via emitViewport) : on ne sort que quand
-      // tout le contenu du dossier est visible. Plus de seuil fixe ici.
+      // L'entrée/sortie de dossier par zoom est gérée dans checkAutoNavigate
+      // (appelé via emitViewport). On capture le board AVANT : si une navigation
+      // a eu lieu, checkAutoNavigate a déjà posé le bon cadrage du board cible —
+      // on NE DOIT PAS l'écraser avec le scale de la molette (sinon on atterrit
+      // à scale 3 dans le vide → "je vois rien" + cascade).
+      const boardBefore = getActiveBoard(useGlucoseStore.getState().project).id;
       refreshGrid(world);
       emitViewport(world);
-      const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-      setViewport(boardId, { x: world.x, y: world.y, scale: ns });
+      const boardAfter = getActiveBoard(useGlucoseStore.getState().project).id;
+      if (boardAfter === boardBefore) {
+        setViewport(boardBefore, { x: world.x, y: world.y, scale: ns });
+      }
     }, { passive: false });
 
     app.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
