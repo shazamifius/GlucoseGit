@@ -39,7 +39,13 @@ pincement (doigts qui se rapprochent) → dézoom ; écartement → zoom.
 **Impact :** frustrant en permanence pendant le test (je suis sur pavé tactile).
 
 ### VID-1 — Vidéos affichées comme image fixe
-**Statut :** 🔴 à faire
+**Statut :** 🟡 implémenté, à confirmer à l'œil (2026-05-31) — cause : `autoPlay=false`
+pour les vidéos `fit:"contain"` (folder) → poster figé (choix anti-lag d'origine).
+Fix : vidéos chargées en boucle muette, lecture **pilotée par le culling** (`applyCulling`)
+→ seules les vidéos **visibles** jouent, les autres en pause (règle VID-1 **et** anticipe
+PERF-1 côté vidéo). `videoElsRef` (Map id→`<video>`), pause+cleanup au retrait du sprite.
+**À valider** : une vidéo dans un dossier joue (en boucle), et défiler vite ne fait pas
+ramer (les off-screen se mettent en pause).
 **Symptôme :** une vidéo dans un dossier s'affiche figée — l'image ne bouge pas, ne se lit pas.
 **Concerne :** texture vidéo dans `folderMirror.ts` / rendu sprite (`makeLinkedMedia`).
 

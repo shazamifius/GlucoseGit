@@ -103,6 +103,9 @@ export default function GlucoseCanvas() {
   const membraneRendererRef = useRef<MembraneRenderer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // VID-1 — éléments <video> des sprites vidéo, pour les jouer/mettre en pause
+  // selon le culling (seules les vidéos visibles tournent → anti-lag).
+  const videoElsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const spatialHashRef = useRef(new SpatialHash());
   const zoneGfxRef = useRef<Graphics | null>(null);
   const zoneStartRef = useRef<{ sx: number; sy: number } | null>(null);
@@ -285,6 +288,8 @@ export default function GlucoseCanvas() {
     const currentIds = new Set(board.images.map((img) => img.id));
     spritesRef.current.forEach((sprite, id) => {
       if (!currentIds.has(id)) {
+        const vid = videoElsRef.current.get(id);
+        if (vid) { try { vid.pause(); } catch { /* ignore */ } videoElsRef.current.delete(id); }
         world.removeChild(sprite); sprite.destroy();
         spritesRef.current.delete(id); pendingLoadsRef.current.delete(id);
       }
@@ -309,12 +314,12 @@ export default function GlucoseCanvas() {
         // avec blob URL pour les embeds, fallback sur src legacy.
         const blobs = useGlucoseStore.getState().project.blobs;
         const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
-        // R-FIL-02 v3 : les vignettes de folder mirror NE s'auto-jouent PAS
-        // (sinon des dizaines de vidéos tournent en fond → lag). On garde la 1re
-        // frame comme poster. Les vidéos hors-folder gardent l'autoplay.
-        const autoPlay = !(img.fit === "contain");
+        // VID-1 : les vidéos sont chargées prêtes à jouer (boucle, muet) mais ne
+        // s'auto-jouent PAS toutes — la lecture est pilotée par le culling
+        // (applyCulling) : seules les vidéos VISIBLES tournent, les autres sont
+        // en pause. Plus de poster figé, et pas de dizaines de vidéos en fond.
         const tex: Texture = img.isVideo
-          ? await Assets.load({ src: resolvedSrc, data: { autoPlay, loop: autoPlay, muted: true } })
+          ? await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } })
           : await Assets.load(resolvedSrc);
         if (!worldRef.current || spritesRef.current.has(img.id)) return;
         const sprite = new Sprite(tex);
@@ -330,6 +335,14 @@ export default function GlucoseCanvas() {
         const idx = Math.max(1, worldRef.current.children.length - 2);
         worldRef.current.addChildAt(sprite, idx);
         spritesRef.current.set(img.id, sprite);
+        // VID-1 : on récupère le <video> sous-jacent pour le piloter au culling.
+        if (img.isVideo) {
+          const res = (tex.source as unknown as { resource?: unknown }).resource;
+          if (res instanceof HTMLVideoElement) {
+            res.loop = true; res.muted = true; res.playsInline = true;
+            videoElsRef.current.set(img.id, res);
+          }
+        }
         attachSpriteEvents(sprite, img.id);
         applyCulling();
       } catch (err) { console.error("Texture load failed", img.id, err); }
@@ -863,7 +876,16 @@ export default function GlucoseCanvas() {
     // 50% margin on each side to pre-show sprites before they enter view
     const margin = Math.max(ww, wh) * 0.5;
     const visible = spatialHashRef.current.queryIds(wx, wy, ww, wh, margin);
-    spritesRef.current.forEach((sprite, id) => { sprite.visible = visible.has(id); });
+    spritesRef.current.forEach((sprite, id) => {
+      const vis = visible.has(id);
+      sprite.visible = vis;
+      // VID-1 : seules les vidéos visibles jouent (les autres en pause → anti-lag).
+      const vid = videoElsRef.current.get(id);
+      if (vid) {
+        if (vis && vid.paused) void vid.play().catch(() => { /* lecture refusée : ignore */ });
+        else if (!vis && !vid.paused) vid.pause();
+      }
+    });
   }
 
   function emitViewport(world: Container) {
