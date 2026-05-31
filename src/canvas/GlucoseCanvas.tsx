@@ -178,6 +178,11 @@ export default function GlucoseCanvas() {
   function openEditOverlay(ann: Annotation) {
     // L'édition in-place ne concerne que text et sticky.
     if (ann.type !== "text" && ann.type !== "sticky") return;
+    // R-FIL — Garde-fou : une tuile FICHIER (sourceFile : launcher d'app ou
+    // bloc texte de dossier) ne doit JAMAIS passer en édition de nom, quel que
+    // soit le chemin d'appel. Le lancement est géré en amont (handleDown), ici
+    // on bloque simplement l'édition.
+    if ((ann as { sourceFile?: string }).sourceFile) return;
     const pos = annToScreen(ann);
     if (!pos) return;
     setEditOverlay({

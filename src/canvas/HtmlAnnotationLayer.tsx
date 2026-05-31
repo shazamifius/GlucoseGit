@@ -195,6 +195,14 @@ export default function HtmlAnnotationLayer({
     const now = Date.now();
     if (lastClickRef.current?.id === ann.id && now - lastClickRef.current.time < 350) {
       lastClickRef.current = null;
+      // R-FIL — Détection de double-clic FIABLE (basée sur pointerdown, pas sur
+      // l'event dblclick natif qui ne se déclenche que si les 2 clics tombent au
+      // même pixel → lancement « 1 fois sur 10 »). Pour une tuile fichier
+      // (sourceFile : launcher OU bloc texte de dossier), double-clic = OUVRIR
+      // dans l'app native, JAMAIS éditer le nom. C'est l'unique point de décision
+      // du double-clic (handleDblClick ne relance pas → pas de double lancement).
+      const sf = (ann as { sourceFile?: string }).sourceFile;
+      if (sf) { openSourceFile(sf); return; }
       onEdit(ann.id);
       return;
     }
@@ -215,12 +223,14 @@ export default function HtmlAnnotationLayer({
   function handleDblClick(ann: Annotation, e: React.MouseEvent) {
     if (activeTool !== "select") return;
     e.stopPropagation();
-    // R-FIL-02 v2 — si le nœud reflète un fichier (folder mirror : launcher OU
-    // bloc texte lu d'un .md/.txt), double-clic = OUVRIR le fichier dans son
-    // app, pas éditer le texte en place (qui n'écrirait pas sur le disque).
+    // Le double-clic est géré de façon FIABLE dans handleDown (pointerdown).
+    // Ici on ne fait QUE consommer l'event natif dblclick pour qu'il ne remonte
+    // pas au canvas. Surtout : pour une tuile fichier (sourceFile) on ne relance
+    // PAS (sinon double lancement) et on n'édite JAMAIS le nom.
     const sf = (ann as { sourceFile?: string }).sourceFile;
-    if (sf) { openSourceFile(sf); return; }
-    onEdit(ann.id);
+    if (sf) return;
+    // Annotation normale : handleDown a déjà ouvert l'édition au 2ᵉ pointerdown ;
+    // on ne refait rien ici (idempotent) pour éviter tout effet de bord.
   }
 
   function screenToWorld(cx: number, cy: number) {
