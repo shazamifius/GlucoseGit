@@ -50,10 +50,7 @@ fn validate_scope(path: &str, app_handle: &tauri::AppHandle) -> Result<PathBuf, 
     //    préfixés `\\?\` (extended-length) — ce N'EST PAS un chemin réseau.
     //    On strip ce préfixe avant le test, et on rejette explicitement le
     //    vrai UNC étendu `\\?\UNC\server\share`.
-    let is_extended_unc =
-        path.starts_with(r"\\?\UNC\") || path.starts_with(r"\\?\unc\");
-    let stripped = path.strip_prefix(r"\\?\").unwrap_or(path);
-    if is_extended_unc || stripped.starts_with("\\\\") || stripped.starts_with("//") {
+    if is_forbidden_unc(path) {
         return Err("Chemins réseau (UNC) non autorisés".into());
     }
 
@@ -85,6 +82,17 @@ fn validate_scope(path: &str, app_handle: &tauri::AppHandle) -> Result<PathBuf, 
     }
 
     Ok(canonical)
+}
+
+/// True si `path` est un VRAI chemin réseau UNC (à rejeter). Distingue le
+/// préfixe extended-length Windows `\\?\` (produit par `canonicalize` et le
+/// drag-drop natif — totalement légitime) du vrai UNC `\\?\UNC\…` ou `\\serveur`.
+/// C'était LA cause du « rien ne marche » : `\\?\C:\…` était pris pour de l'UNC
+/// et tout (scan, lecture, image, lancement) était refusé.
+fn is_forbidden_unc(path: &str) -> bool {
+    let is_extended_unc = path.starts_with(r"\\?\UNC\") || path.starts_with(r"\\?\unc\");
+    let stripped = path.strip_prefix(r"\\?\").unwrap_or(path);
+    is_extended_unc || stripped.starts_with("\\\\") || stripped.starts_with("//")
 }
 
 /// Retire le préfixe Windows extended-length `\\?\` pour produire des chemins
@@ -1193,4 +1201,55 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Tests unitaires des helpers purs (sécurité chemins + utilitaires)
+// ════════════════════════════════════════════════════════════════════════════
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+    use std::path::Path;
+
+    #[test]
+    fn extended_length_prefix_is_not_unc() {
+        // RÉGRESSION : le préfixe \\?\ (canonicalize + drag-drop natif Windows)
+        // NE doit PAS être pris pour de l'UNC. C'était LE bug « rien ne marche ».
+        assert!(!is_forbidden_unc(r"\\?\C:\Users\me\scene.blend"));
+        assert!(!is_forbidden_unc(r"C:\Users\me\scene.blend"));
+        assert!(!is_forbidden_unc("/home/me/scene.blend"));
+    }
+
+    #[test]
+    fn real_unc_is_rejected() {
+        assert!(is_forbidden_unc(r"\\server\share\file"));
+        assert!(is_forbidden_unc(r"\\?\UNC\server\share"));
+        assert!(is_forbidden_unc(r"\\?\unc\server\share"));
+        assert!(is_forbidden_unc("//server/share"));
+    }
+
+    #[test]
+    fn display_path_strips_extended_prefix() {
+        // ShellExecute n'aime pas \\?\ → display_path doit le retirer.
+        assert_eq!(display_path(Path::new(r"\\?\C:\Users\me")), r"C:\Users\me");
+        assert_eq!(display_path(Path::new(r"C:\Users\me")), r"C:\Users\me");
+    }
+
+    #[test]
+    fn get_ext_is_lowercased() {
+        assert_eq!(get_ext(Path::new("Scene.BLEND")), "blend");
+        assert_eq!(get_ext(Path::new("archive.tar.GZ")), "gz");
+        assert_eq!(get_ext(Path::new("README")), "");
+    }
+
+    #[test]
+    fn public_ip_blocks_private_and_cloud_metadata() {
+        assert!(is_public_ip(&IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8))));
+        assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1))));
+        assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(10, 0, 0, 5))));
+        assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))));
+        // 169.254.169.254 = métadonnées cloud (AWS/GCP/Azure) — anti-SSRF.
+        assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(169, 254, 169, 254))));
+    }
 }
