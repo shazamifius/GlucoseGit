@@ -861,8 +861,17 @@ export default function GlucoseCanvas() {
     vpRef.current = { x: world.x, y: world.y, scale: world.scale.x };
     applyCulling();
     updateCssGrid(world.x, world.y, world.scale.x);
+    // R-FIL — on diffuse le seuil de sortie ADAPTATIF avec le viewport pour que
+    // l'indicateur (cadre bleu) ne s'allume qu'à l'approche réelle de la sortie
+    // (et pas en permanence dès scale<1 sur un gros dossier).
+    const app0 = appRef.current;
+    const st0 = useGlucoseStore.getState();
+    let exitScale = 0;
+    if (app0 && st0.folderStack.length > 0) {
+      exitScale = adaptiveExitScale(getActiveBoard(st0.project), app0.screen.width, app0.screen.height);
+    }
     window.dispatchEvent(new CustomEvent("glucose:viewport-changed", {
-      detail: { x: world.x, y: world.y, scale: world.scale.x },
+      detail: { x: world.x, y: world.y, scale: world.scale.x, exitScale },
     }));
     // Phase 7.5 — navigation auto par zoom (folder enter/exit)
     checkAutoNavigate(world);
@@ -876,7 +885,13 @@ export default function GlucoseCanvas() {
   // Dézoomer fortement (scale ≤ EXIT) à l'intérieur d'un dossier : on sort.
   // Cooldown 700 ms entre deux transitions pour éviter les ping-pong.
   const lastNavRef = useRef(0);
-  const ENTER_SCALE = 3.0;
+  // ENTRÉE ADAPTATIVE : on n'entre PLUS à un scale fixe (sinon on voit encore
+  // 5-6 dossiers et on plonge « au hasard » dans l'un d'eux). On entre seulement
+  // quand le dossier visé occupe l'essentiel de l'écran → on ne voit (presque)
+  // plus que lui. ENTER_COVERAGE = fraction d'une dimension écran que la boîte
+  // doit couvrir ; ENTER_MIN_SCALE = garde-fou bas pour ne pas entrer à dézoom.
+  const ENTER_COVERAGE = 0.62;
+  const ENTER_MIN_SCALE = 1.5;
   const EXIT_SCALE  = 0.4;
   // Cooldown > durée de l'animation de transition (400 ms) pour qu'aucune
   // transition auto ne se déclenche pendant l'arrivée (anti-cascade).
@@ -982,18 +997,30 @@ export default function GlucoseCanvas() {
     const state = useGlucoseStore.getState();
     const board = getActiveBoard(state.project);
 
-    if (scale >= ENTER_SCALE) {
+    // ── ENTRÉE adaptative ────────────────────────────────────────────────
+    // On localise le dossier sous le centre écran, puis on n'entre QUE s'il
+    // couvre ≥ ENTER_COVERAGE d'une dimension écran → on ne voit (presque) plus
+    // que lui (fini le « pof on rentre dans un des 5-6 dossiers visibles »).
+    if (scale >= ENTER_MIN_SCALE) {
       const cx = (app.screen.width / 2 - world.x) / scale;
       const cy = (app.screen.height / 2 - world.y) / scale;
       const target = (board.folders ?? []).find(
         (f) => cx >= f.x && cx <= f.x + f.width && cy >= f.y && cy <= f.y + f.height
       );
       if (target) {
-        lastNavRef.current = now;
-        // Entrée paresseuse (scan à la volée si nécessaire) + cadrage fit.
-        void lazyEnter(board.id, target.id, app);
+        const covW = (target.width * scale) / app.screen.width;
+        const covH = (target.height * scale) / app.screen.height;
+        if (Math.max(covW, covH) >= ENTER_COVERAGE) {
+          lastNavRef.current = now;
+          // Entrée paresseuse (scan à la volée si nécessaire) + cadrage fit.
+          void lazyEnter(board.id, target.id, app);
+          return;
+        }
       }
-    } else if (state.folderStack.length > 0) {
+    }
+
+    // ── SORTIE adaptative ────────────────────────────────────────────────
+    if (state.folderStack.length > 0) {
       const exitScale = adaptiveExitScale(board, app.screen.width, app.screen.height);
       if (scale <= exitScale) {
         lastNavRef.current = now;
@@ -1223,11 +1250,29 @@ export default function GlucoseCanvas() {
       zoomToAnnotation(annId, padding);
     };
 
+    // R-FIL — Atterrissage propre après une navigation breadcrumb (jump/sibling/
+    // racine). Sans ça, le viewport hérité du board précédent déclenchait
+    // immédiatement checkAutoNavigate → « ça nous revient dans notre dossier ».
+    // On arme le cooldown ET on cadre le board d'arrivée au tick suivant (après
+    // que activeBoardId ait basculé et que le board soit rendu).
+    const onNavSettle = () => {
+      lastNavRef.current = performance.now() + 600; // suspend l'auto-nav un instant
+      navigatingRef.current = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          fitView();
+          lastNavRef.current = performance.now() + 400;
+          navigatingRef.current = false;
+        });
+      });
+    };
+
     window.addEventListener("glucose:fit-view", onFit);
     window.addEventListener("glucose:export-png", onExport);
     window.addEventListener("glucose:jump-viewport", onJump);
     window.addEventListener("glucose:pan-viewport-to", onPanTo);
     window.addEventListener("glucose:zoom-to-annotation", onZoomToAnn);
+    window.addEventListener("glucose:nav-settle", onNavSettle);
     return () => {
       window.removeEventListener("keydown", onNumpadKey);
       window.removeEventListener("glucose:fit-view", onFit);
@@ -1235,6 +1280,7 @@ export default function GlucoseCanvas() {
       window.removeEventListener("glucose:jump-viewport", onJump);
       window.removeEventListener("glucose:pan-viewport-to", onPanTo);
       window.removeEventListener("glucose:zoom-to-annotation", onZoomToAnn);
+      window.removeEventListener("glucose:nav-settle", onNavSettle);
     };
   }, [pixiReady]);
 

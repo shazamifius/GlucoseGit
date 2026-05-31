@@ -52,10 +52,18 @@ export default function FolderBreadcrumb() {
       .map((f) => ({ boardId: cur.boardId, folderId: f.id, name: f.name, color: f.color }));
   }
 
+  // R-FIL — après une navigation breadcrumb, on demande au canvas un
+  // atterrissage propre (cadrage du board d'arrivée + suspension de l'auto-nav)
+  // pour éviter le « ça nous revient dans notre dossier ».
+  function settle() {
+    window.dispatchEvent(new CustomEvent("glucose:nav-settle"));
+  }
+
   function jumpTo(targetIdx: number) {
     // Exit jusqu'au niveau souhaité
     const stepsBack = crumbs.length - 1 - targetIdx;
     for (let k = 0; k < stepsBack; k++) exitFolder();
+    settle();
   }
 
   async function jumpToSibling(parentIdx: number, sib: Crumb) {
@@ -71,6 +79,7 @@ export default function FolderBreadcrumb() {
     const { expandFolderIfPending } = await import("../canvas/folderMirror");
     await expandFolderIfPending(sib.boardId, sib.folderId);
     enterFolder(sib.folderId);
+    settle();
   }
 
   function showSiblings(idx: number) {
@@ -106,7 +115,7 @@ export default function FolderBreadcrumb() {
     }}>
       {/* Racine */}
       <button
-        onClick={exitToRoot}
+        onClick={() => { exitToRoot(); settle(); }}
         title="Retour à la racine"
         style={crumbBtnStyle("#666")}
         onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.style.color = "#bbb"; }}

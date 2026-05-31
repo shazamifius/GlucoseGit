@@ -206,7 +206,16 @@ function buildLevelNode(
     else annotations.push(makeSourceSticky(e.path, x, y));
   });
   placeGroup(mediaGroup, (e, x, y) => {
-    images.push(makeLinkedMedia(e.path, VIDEO_EXTS.has(e.ext), x, y));
+    // Les sprites image sont ancrés au CENTRE (anchor 0.5) alors que la grille
+    // donne le coin haut-gauche de la cellule. Sans recentrage, les médias
+    // « partaient dans un coin » décalés d'un demi-tuile vs icônes/texte. On
+    // place donc l'image au centre de sa cellule → alignée avec le reste.
+    images.push(makeLinkedMedia(
+      e.path,
+      VIDEO_EXTS.has(e.ext),
+      x + MEDIA_TILE_W / 2,
+      y + MEDIA_TILE_H / 2,
+    ));
   });
   placeGroup(textGroup, (e, x, y) => {
     const node = makeTextNodeFromFile(e.name, e.text as string, false, x, y);

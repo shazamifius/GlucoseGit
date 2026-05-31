@@ -717,6 +717,106 @@ function AnnotationItem({
           if (ann.type === "text") {
             const processedText = preprocessText(lodSourceText);
 
+            // ── R-FIL — Tuile texte d'un FOLDER MIRROR (a un sourceFile) ──────
+            // Rendue en CARTE CLAMPÉE (taille fixe, contenu clippé) au lieu du
+            // `fit-content` qui faisait grandir la boîte à la hauteur réelle du
+            // fichier (des milliers de px) → les tuiles texte se chevauchaient
+            // en « pagaille ». Aperçu des 1ères lignes + double-clic = ouvrir.
+            const txtSource = (ann as { sourceFile?: string }).sourceFile;
+            if (txtSource) {
+              const tw = ann.width ?? 210;
+              const th = ann.height ?? 180;
+              const fname = txtSource.split(/[\\/]/).pop() || "Fichier";
+              // Aperçu brut : on retire le header markdown « ### 📄 nom » et les
+              // clôtures de code (```), on garde les premières lignes lisibles.
+              const preview = (ann.text || "")
+                .replace(/^###\s*📄[^\n]*\n+/, "")
+                .replace(/```[a-z0-9]*\n?/gi, "")
+                .replace(/_\(tronqué[^)]*\)_/g, "")
+                .split("\n").slice(0, 40).join("\n");
+              return (
+                <div
+                  key={ann.id}
+                  data-id={ann.id}
+                  ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
+                  title={`${fname} — double-clic pour ouvrir`}
+                  style={{
+                    position: "absolute",
+                    left: ann.x, top: ann.y,
+                    width: tw, height: th,
+                    boxSizing: "border-box",
+                    background: "#14141c",
+                    border: sel ? "1px solid #fff" : "1px solid #2c2c3a",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    pointerEvents: "all",
+                    cursor: "pointer",
+                    boxShadow: sel ? "0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,0.5)" : "0 4px 10px rgba(0,0,0,0.4)",
+                    display: "flex", flexDirection: "column",
+                  }}
+                  onPointerDown={(e) => handleDown(ann, e)}
+                  onDoubleClick={(e) => handleDblClick(ann, e)}
+                  onWheel={forwardWheel}
+                  onMouseEnter={() => setHoveredNodeId(ann.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
+                >
+                  {/* En-tête : icône + nom */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "5px 8px", flexShrink: 0,
+                    background: "rgba(255,255,255,0.05)",
+                    borderBottom: "1px solid #2c2c3a",
+                  }}>
+                    <AppBridgeIcon filePath={txtSource} size={16} />
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, color: "#e8e8f0",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {fname}
+                    </span>
+                  </div>
+                  {/* Aperçu clippé + fondu bas pour signaler « il y en a plus » */}
+                  <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+                    <pre style={{
+                      margin: 0, padding: "6px 8px",
+                      fontFamily: "monospace", fontSize: 9.5, lineHeight: 1.35,
+                      color: "#9aa0b5", whiteSpace: "pre-wrap", wordBreak: "break-word",
+                    }}>
+                      {preview}
+                    </pre>
+                    <div style={{
+                      position: "absolute", left: 0, right: 0, bottom: 0, height: 28,
+                      background: "linear-gradient(to bottom, rgba(20,20,28,0), #14141c)",
+                      pointerEvents: "none",
+                    }} />
+                  </div>
+
+                  <MirrorBadge mirrorOf={ann.mirrorOf} />
+                  <TemporalBadge anchor={ann.temporalAnchor} />
+
+                  {sel && [
+                    { id: "br", cx: tw, cy: th }, { id: "bl", cx: 0, cy: th },
+                    { id: "tr", cx: tw, cy: 0 }, { id: "tl", cx: 0, cy: 0 },
+                  ].map((c) => (
+                    <div
+                      key={c.id}
+                      onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}
+                      style={{
+                        position: "absolute",
+                        left: c.cx - 12, top: c.cy - 12,
+                        width: 24, height: 24,
+                        cursor: c.id === "br" || c.id === "tl" ? "nwse-resize" : "nesw-resize",
+                        zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <div style={{ width: 8, height: 8, background: "#fff", border: "1px solid #333", borderRadius: "50%" }} />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+
             const isHoveredBox = hoveredBlocks && (hoveredBlocks.sourceId === ann.id || hoveredBlocks.targetId === ann.id) && !hoveredBlocks.sourceBlockId && !hoveredBlocks.targetBlockId;
             const isPreviewedBox = previewTarget && previewTarget.annId === ann.id && !previewTarget.blockId;
             const isHighlightBox = isHoveredBox || isPreviewedBox;
