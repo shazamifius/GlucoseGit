@@ -1288,6 +1288,11 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
           const plain = JSON.parse(JSON.stringify(ann)) as Annotation;
           childBoard.annotations.push(clampSpatial(plain));
         }
+        // R-FIL-02 v2 — images/vidéos liées (vignettes) dans le child board.
+        for (const img of node.images ?? []) {
+          const plain = JSON.parse(JSON.stringify(img)) as BoardImage;
+          childBoard.images.push(clampSpatial(plain));
+        }
       }
 
       // 2) Folder box dans le board parent.

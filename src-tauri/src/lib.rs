@@ -960,8 +960,33 @@ struct DirNodeDto {
     size: u64,
     /// Date de dernière modification (epoch secondes) — pour le tri R-FIL-03.
     modified: u64,
+    /// R-FIL-02 v2 — contenu texte inline pour les fichiers texte/code sous la
+    /// limite (sinon None → launcher). Permet d'afficher un .md/.txt comme
+    /// bloc texte directement dans le folder, sans round-trip par fichier.
+    text: Option<String>,
     /// Enfants directs (vide pour un fichier ou au-delà de max_depth).
     children: Vec<DirNodeDto>,
+}
+
+/// Lit le contenu texte inline d'un fichier si éligible (extension texte/code,
+/// taille sous la limite, budget global restant). Décrémente le budget.
+fn read_inline_text(
+    path: &Path,
+    ext: &str,
+    name: &str,
+    size: u64,
+    text_budget: &mut usize,
+) -> Option<String> {
+    let name_lower = name.to_lowercase();
+    let is_text = TEXT_READ_EXTS.contains(&ext)
+        || matches!(name_lower.as_str(), ".env" | ".gitignore" | ".gitattributes");
+    if !is_text || size as usize > TEXT_INLINE_MAX_BYTES || *text_budget == 0 {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    let take = bytes.len().min(TEXT_INLINE_MAX_BYTES).min(*text_budget);
+    *text_budget -= take;
+    Some(String::from_utf8_lossy(&bytes[..take]).into_owned())
 }
 
 /// True si on doit ignorer cette entrée (cachés, Thumbs.db, exécutables).
@@ -993,7 +1018,13 @@ fn mtime_secs(meta: &std::fs::Metadata) -> u64 {
 /// Récursion synchrone (exécutée dans spawn_blocking). `budget` est un plafond
 /// global d'entrées partagé entre tous les niveaux pour éviter d'exploser sur
 /// une arborescence énorme. `depth` borne la profondeur.
-fn scan_dir_rec(dir: &Path, depth: u32, max_depth: u32, budget: &mut usize) -> Vec<DirNodeDto> {
+fn scan_dir_rec(
+    dir: &Path,
+    depth: u32,
+    max_depth: u32,
+    budget: &mut usize,
+    text_budget: &mut usize,
+) -> Vec<DirNodeDto> {
     if depth >= max_depth || *budget == 0 {
         return Vec::new();
     }
@@ -1034,8 +1065,14 @@ fn scan_dir_rec(dir: &Path, depth: u32, max_depth: u32, budget: &mut usize) -> V
             continue;
         }
         *budget -= 1;
+        let size = if is_dir { 0 } else { meta.len() };
+        let text = if is_dir {
+            None
+        } else {
+            read_inline_text(&p, &ext, &name, size, text_budget)
+        };
         let children = if is_dir {
-            scan_dir_rec(&p, depth + 1, max_depth, budget)
+            scan_dir_rec(&p, depth + 1, max_depth, budget, text_budget)
         } else {
             Vec::new()
         };
@@ -1044,8 +1081,9 @@ fn scan_dir_rec(dir: &Path, depth: u32, max_depth: u32, budget: &mut usize) -> V
             name,
             is_dir,
             ext,
-            size: if is_dir { 0 } else { meta.len() },
+            size,
             modified: mtime_secs(&meta),
+            text,
             children,
         });
     }
@@ -1077,7 +1115,10 @@ async fn scan_tree(
     let root = canonical.clone();
     let node = tokio::task::spawn_blocking(move || {
         let mut budget = entry_cap;
-        let children = scan_dir_rec(&root, 0, depth_cap, &mut budget);
+        // Budget global d'octets de texte inline (4 MB) — borne la lecture
+        // de contenu pour ne pas exploser sur un dossier plein de gros .md/.csv.
+        let mut text_budget: usize = 4 * 1024 * 1024;
+        let children = scan_dir_rec(&root, 0, depth_cap, &mut budget, &mut text_budget);
         let name = root
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
@@ -1093,6 +1134,7 @@ async fn scan_tree(
             ext: String::new(),
             size: 0,
             modified,
+            text: None,
             children,
         }
     })

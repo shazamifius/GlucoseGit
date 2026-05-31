@@ -284,6 +284,8 @@ export interface CanvasFolder {
 export interface FolderTreeNode {
   folder: Omit<CanvasFolder, "id" | "childBoardId">;
   annotations: Annotation[];
+  /** R-FIL-02 v2 — médias affichés directement (images/vidéos liées, pas embed). */
+  images: BoardImage[];
   children: FolderTreeNode[];
 }
 

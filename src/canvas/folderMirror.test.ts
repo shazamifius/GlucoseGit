@@ -30,6 +30,7 @@ interface DirNode {
   ext: string;
   size: number;
   modified: number;
+  text?: string | null;
   children: DirNode[];
 }
 
@@ -49,19 +50,40 @@ beforeEach(() => {
 });
 
 describe("scanFolderForMirror — arbre + layout", () => {
-  it("9 fichiers → 9 stickies + folder dimensionné, 0 enfant", async () => {
+  it("9 images → 9 vignettes (images), 0 sticky, boîte compacte", async () => {
     const files = Array.from({ length: 9 }, (_, i) => file(`f${i}.png`));
     vi.mocked(invoke).mockResolvedValueOnce(root(files));
 
     const result = await scanFolderForMirror("C:/w", 100, 200);
-    expect(result.tree.annotations.length).toBe(9);
+    // .png → vignettes images (pas des stickies launchers).
+    expect(result.tree.images.length).toBe(9);
+    expect(result.tree.annotations.length).toBe(0);
     expect(result.tree.children.length).toBe(0);
     expect(result.tree.folder.x).toBe(100);
     expect(result.tree.folder.y).toBe(200);
-    expect(result.tree.folder.width).toBeGreaterThanOrEqual(3 * 220 + 160);
+    // Boîte COMPACTE (contenu dans le child board) — pas taillée au contenu.
+    expect(result.tree.folder.width).toBeLessThanOrEqual(220);
+    expect(result.tree.folder.width).toBeGreaterThan(0);
     expect(result.tree.folder.mirrorSource?.rootPath).toBe("C:/w");
     expect(result.tree.folder.mirrorSource?.recursive).toBe(true);
     expect(result.totalEntries).toBe(9);
+  });
+
+  it("dispatch par type : image→images, vidéo→images(isVideo), texte→annotation, binaire→launcher", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(root([
+      file("a.png"),
+      file("b.mp4"),
+      file("c.md", { text: "# Titre\n$x^2$" }),
+      file("d.blend"),
+    ]));
+    const result = await scanFolderForMirror("C:/w", 0, 0);
+    expect(result.tree.images.length).toBe(2);          // png + mp4
+    expect(result.tree.images.some((im) => im.isVideo)).toBe(true);
+    // c.md (texte lu) → annotation texte ; d.blend → launcher sticky
+    expect(result.tree.annotations.length).toBe(2);
+    const texts = result.tree.annotations.map((a) => a.type);
+    expect(texts).toContain("text");
+    expect(texts).toContain("sticky");
   });
 
   it("sous-dossier → FolderTreeNode enfant navigable (pas un sticky)", async () => {
@@ -154,6 +176,7 @@ describe("createFolderTree — action store", () => {
         { id: nanoid(), type: "sticky", x: 0, y: 0, text: "A", bgColor: "#fff", width: 100, height: 100 },
         { id: nanoid(), type: "sticky", x: 100, y: 0, text: "B", bgColor: "#fff", width: 100, height: 100 },
       ],
+      images: [],
       children: [],
     };
     const folderId = useGlucoseStore.getState().createFolderTree("root", tree);
@@ -175,11 +198,13 @@ describe("createFolderTree — action store", () => {
       annotations: [
         { id: nanoid(), type: "sticky", x: 0, y: 0, text: "leaf", bgColor: "#fff", width: 100, height: 100 },
       ],
+      images: [],
       children: [],
     };
     const tree: FolderTreeNode = {
       folder: { name: "M", color: "#abc", x: 0, y: 0, width: 400, height: 300 },
       annotations: [],
+      images: [],
       children: [leaf],
     };
     useGlucoseStore.getState().createFolderTree("root", tree);
@@ -199,9 +224,11 @@ describe("createFolderTree — action store", () => {
     const tree: FolderTreeNode = {
       folder: { name: "M", color: "#abc", x: 0, y: 0, width: 400, height: 300 },
       annotations: [],
+      images: [],
       children: [{
         folder: { name: "sub", color: "#abc", x: 0, y: 0, width: 400, height: 300 },
         annotations: [{ id: nanoid(), type: "sticky", x: 0, y: 0, text: "x", bgColor: "#fff", width: 100, height: 100 }],
+        images: [],
         children: [],
       }],
     };

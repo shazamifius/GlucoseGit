@@ -15,16 +15,28 @@
 // dossier).
 // ────────────────────────────────────────────────────────────────────────────
 
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type {
   Annotation,
+  BoardImage,
   FolderMirrorSource,
   FolderSortMode,
   FolderTreeNode,
 } from "../types";
-import { makeSourceSticky } from "./dropHandler";
+import { nanoid } from "../utils/nanoid";
+import { makeSourceSticky, makeTextNodeFromFile } from "./dropHandler";
 
 export type { FolderTreeNode } from "../types";
+
+// Médias affichables directement (liés via convertFileSrc — chemin relatif,
+// PAS d'embed : un folder mirror ne doit pas gonfler le .glucose).
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "bmp"]);
+const VIDEO_EXTS = new Set(["mp4", "mov", "avi", "mkv", "webm", "m4v"]);
+
+const MEDIA_TILE_W = 190;
+const MEDIA_TILE_H = 150;
+const TEXT_TILE_W = 210;
+const TEXT_TILE_H = 180;
 
 /** Nœud brut renvoyé par `scan_tree` (Rust). */
 interface DirNode {
@@ -34,13 +46,38 @@ interface DirNode {
   ext: string;
   size: number;
   modified: number; // epoch secondes
+  /** Contenu texte inline si le fichier est lisible et sous la limite. */
+  text?: string | null;
   children: DirNode[];
+}
+
+/** Image/vidéo liée (chemin disque via convertFileSrc), tuile de taille fixe. */
+function makeLinkedMedia(path: string, isVideo: boolean, x: number, y: number): BoardImage {
+  return {
+    id: nanoid(),
+    src: convertFileSrc(path),
+    isVideo: isVideo || undefined,
+    x, y,
+    width: MEDIA_TILE_W,
+    height: MEDIA_TILE_H,
+    rotation: 0,
+    locked: false,
+    tags: [],
+    sourceUrl: path,
+    originalWidth: MEDIA_TILE_W,
+    originalHeight: MEDIA_TILE_H,
+  };
 }
 
 const MAX_ENTRIES = 5_000;
 const MAX_DEPTH = 8;
 const CELL = 220;
 const PADDING = 80;
+// Boîte de dossier COMPACTE (style explorateur). Son contenu vit dans le child
+// board (qu'on voit en entrant), donc la boîte n'a PAS besoin d'être taillée à
+// son contenu — sinon les dossiers se chevauchent en un gros tas illisible.
+const FOLDER_BOX_W = 200;
+const FOLDER_BOX_H = 168;
 
 export interface ScanFolderResult {
   tree: FolderTreeNode;
@@ -92,10 +129,10 @@ function buildFolderNode(
   const N = entries.length;
   const cols = Math.max(1, Math.ceil(Math.sqrt(N)));
   const rows = Math.max(1, Math.ceil(N / cols));
-  const folderW = Math.max(400, cols * CELL + PADDING * 2);
-  const folderH = Math.max(300, rows * CELL + PADDING * 2);
+  void rows; // (cols/rows servent au placement ci-dessous)
 
   const annotations: Annotation[] = [];
+  const images: BoardImage[] = [];
   const children: FolderTreeNode[] = [];
 
   entries.forEach((e, i) => {
@@ -104,13 +141,29 @@ function buildFolderNode(
     const x = PADDING + col * CELL;
     const y = PADDING + row * CELL;
 
+    // Sous-dossier → folder navigable (positionné DANS le board courant).
     if (e.is_dir) {
-      // Sous-dossier → folder navigable (positionné DANS le board courant).
       children.push(buildFolderNode(e, x, y, sortBy));
-    } else {
-      // Fichier → launcher icôné (double-clic → open_in_app).
-      annotations.push(makeSourceSticky(e.path, x, y));
+      return;
     }
+    // Image → vignette liée (affiche la vraie image, chemin relatif).
+    if (IMAGE_EXTS.has(e.ext)) {
+      images.push(makeLinkedMedia(e.path, false, x, y));
+      return;
+    }
+    // Vidéo → lecteur lié.
+    if (VIDEO_EXTS.has(e.ext)) {
+      images.push(makeLinkedMedia(e.path, true, x, y));
+      return;
+    }
+    // Texte/code lu au scan → bloc texte (markdown/LaTeX) au format tuile.
+    if (typeof e.text === "string") {
+      const node = makeTextNodeFromFile(e.name, e.text, false, x, y);
+      annotations.push({ ...node, width: TEXT_TILE_W, height: TEXT_TILE_H } as Annotation);
+      return;
+    }
+    // Sinon (binaire, ou texte trop gros) → launcher icôné (double-clic = ouvrir).
+    annotations.push(makeSourceSticky(e.path, x, y));
   });
 
   const mirrorSource: FolderMirrorSource = {
@@ -127,17 +180,18 @@ function buildFolderNode(
       color: "#60a5fa",
       x: folderX,
       y: folderY,
-      width: folderW,
-      height: folderH,
+      width: FOLDER_BOX_W,
+      height: FOLDER_BOX_H,
       mirrorSource,
     },
     annotations,
+    images,
     children,
   };
 }
 
 function countEntries(node: FolderTreeNode): number {
-  let n = node.annotations.length;
+  let n = node.annotations.length + node.images.length;
   for (const c of node.children) n += 1 + countEntries(c);
   return n;
 }

@@ -7,9 +7,18 @@ import rehypeKatex from "rehype-katex";
 // Toute injection HTML brute (ex. <img onerror=...>) est désormais ignorée.
 // CLEANUP B-03 : `katex.min.css` chargé à la demande (gain ~200 KB au boot).
 import { ensureKatexCssIfMath } from "../utils/loadKatexCss";
+import { invoke } from "@tauri-apps/api/core";
 import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
 import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
+
+/** R-FIL — ouvre un fichier source dans son app native (double-clic tuile). */
+function openSourceFile(path: string) {
+  invoke("open_in_app", { path }).catch(async (err) => {
+    const { showToast } = await import("../components/Toast");
+    showToast(`Impossible d'ouvrir : ${String(err)}`, "⚠️");
+  });
+}
 import { MirrorBadge, DomainBadges, TemporalBadge, resolveDomainBadges } from "./AnnotationBadges";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 
@@ -876,7 +885,13 @@ function AnnotationItem({
                     userSelect: "none",
                   }}
                   onPointerDown={(e) => handleDown(ann, e)}
-                  onDoubleClick={(e) => handleDblClick(ann, e)}
+                  onDoubleClick={(e) => {
+                    // Double-clic = OUVRIR le fichier (pas renommer). Le renommage
+                    // reste accessible autrement (futur menu clic droit).
+                    if (activeTool !== "select") return;
+                    e.stopPropagation();
+                    openSourceFile(ann.sourceFile!);
+                  }}
                   onWheel={forwardWheel}
                   onMouseEnter={() => setHoveredNodeId(ann.id)}
                   onMouseLeave={() => setHoveredNodeId(null)}

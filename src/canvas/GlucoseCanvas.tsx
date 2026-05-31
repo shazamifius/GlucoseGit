@@ -854,6 +854,37 @@ export default function GlucoseCanvas() {
   const ENTER_SCALE = 3.0;
   const EXIT_SCALE  = 0.4;
   const NAV_COOLDOWN = 700;
+
+  /** Bounding box de tout le contenu d'un board (images + annotations +
+   *  folders). Renvoie null si le board est vide. */
+  function contentBounds(board: ReturnType<typeof getActiveBoard>) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const add = (x: number, y: number, w: number, h: number) => {
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+    };
+    for (const im of board.images) add(im.x, im.y, im.width, im.height);
+    for (const f of board.folders ?? []) add(f.x, f.y, f.width, f.height);
+    for (const a of board.annotations) {
+      if (a.type === "arrow") { add(Math.min(a.x, a.x2 ?? a.x), Math.min(a.y, a.y2 ?? a.y), Math.abs((a.x2 ?? a.x) - a.x), Math.abs((a.y2 ?? a.y) - a.y)); continue; }
+      add(a.x, a.y, a.width ?? 160, a.height ?? 80);
+    }
+    if (minX === Infinity) return null;
+    return { w: maxX - minX, h: maxY - minY };
+  }
+
+  /** R-FIL — Scale de sortie ADAPTATIF : on ne quitte le folder que lorsque
+   *  TOUT son contenu tient dans l'écran (puis qu'on dézoome encore un peu).
+   *  Un gros dossier (1M de fichiers) se laisse explorer sans éjection ;
+   *  un petit dossier se quitte vite. Borné à [0.05, 0.6]. */
+  function adaptiveExitScale(board: ReturnType<typeof getActiveBoard>, screenW: number, screenH: number): number {
+    const b = contentBounds(board);
+    if (!b || b.w <= 0 || b.h <= 0) return EXIT_SCALE;
+    const margin = 1.15;
+    const scaleFit = Math.min(screenW / (b.w * margin), screenH / (b.h * margin));
+    return Math.min(0.6, Math.max(0.05, scaleFit * 0.85));
+  }
+
   function checkAutoNavigate(world: Container) {
     const now = performance.now();
     if (now - lastNavRef.current < NAV_COOLDOWN) return;
@@ -881,9 +912,12 @@ export default function GlucoseCanvas() {
         });
         state.enterFolder(target.id);
       }
-    } else if (scale <= EXIT_SCALE && state.folderStack.length > 0) {
-      lastNavRef.current = now;
-      state.exitFolder();
+    } else if (state.folderStack.length > 0) {
+      const exitScale = adaptiveExitScale(board, app.screen.width, app.screen.height);
+      if (scale <= exitScale) {
+        lastNavRef.current = now;
+        state.exitFolder();
+      }
     }
   }
 
@@ -1603,9 +1637,9 @@ export default function GlucoseCanvas() {
       world.x = mx - (mx - world.x) * (ns / world.scale.x);
       world.y = my - (my - world.y) * (ns / world.scale.y);
       world.scale.set(ns);
-      if (ns < 0.08 && useGlucoseStore.getState().folderStack.length > 0) {
-        useGlucoseStore.getState().exitFolder();
-      }
+      // L'éjection de folder par dézoom est gérée de façon ADAPTATIVE dans
+      // checkAutoNavigate (appelé via emitViewport) : on ne sort que quand
+      // tout le contenu du dossier est visible. Plus de seuil fixe ici.
       refreshGrid(world);
       emitViewport(world);
       const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
