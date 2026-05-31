@@ -176,18 +176,36 @@ describe("scanFolderForMirror — disposition en croix (LAYOUT-1)", () => {
     expect(m0.fit).toBe("contain");             // ratio préservé
   });
 
-  it("tuiles texte de folder : taille FIXE (clampée) + sourceFile pour ouvrir", async () => {
+  it("tuiles texte de folder : taille VARIABLE bornée + sourceFile pour ouvrir", async () => {
     vi.mocked(invoke).mockResolvedValueOnce(root([
       file("a.md", { text: "ligne\n".repeat(500) }), // contenu énorme
     ]));
     const result = await scanFolderForMirror("C:/w", 0, 0);
     const text = result.tree.annotations.find((a) => a.type === "text");
     expect(text).toBeDefined();
-    // Dimensions FIXES (pas fit-content) → plus de chevauchement.
-    expect(text!.width).toBe(210);
-    expect(text!.height).toBe(180);
+    // Dimensions VARIABLES mais BORNÉES (clippées) → plus de chevauchement, plus
+    // de boîtes de milliers de px. Un fichier énorme est capé à la hauteur max.
+    expect(text!.width).toBeGreaterThanOrEqual(200);
+    expect(text!.width).toBeLessThanOrEqual(360);
+    expect(text!.height).toBe(300); // 500 lignes → capé à TEXT_MAX_H
     // sourceFile présent → double-clic ouvre le fichier natif.
     expect((text as { sourceFile?: string }).sourceFile).toBe("C:/w/a.md");
+  });
+
+  it("tuiles texte : un petit fichier a une tuile plus PETITE qu'un gros", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce(root([
+      file("small.txt", { text: "hi" }),
+      file("big.txt", { text: "x".repeat(80) + "\n".repeat(40) }),
+    ]));
+    const result = await scanFolderForMirror("C:/w", 0, 0);
+    const texts = result.tree.annotations.filter((a) => a.type === "text");
+    const small = texts.find((a) => (a as { sourceFile?: string }).sourceFile?.endsWith("small.txt"));
+    const big = texts.find((a) => (a as { sourceFile?: string }).sourceFile?.endsWith("big.txt"));
+    expect(small).toBeDefined();
+    expect(big).toBeDefined();
+    // Le gros (lignes longues + nombreuses) est plus large ET plus haut.
+    expect(big!.width).toBeGreaterThan(small!.width!);
+    expect(big!.height).toBeGreaterThan(small!.height!);
   });
 });
 

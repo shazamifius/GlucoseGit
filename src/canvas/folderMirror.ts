@@ -36,8 +36,27 @@ const VIDEO_EXTS = new Set(["mp4", "mov", "avi", "mkv", "webm", "m4v"]);
 
 const MEDIA_TILE_W = 190;
 const MEDIA_TILE_H = 150;
-const TEXT_TILE_W = 210;
-const TEXT_TILE_H = 180;
+
+// TXT-1 — tuiles texte à TAILLE VARIABLE (estimée du contenu), packées en flow
+// (gauche→droite, retour à la ligne). Bornées pour rester lisibles et clippées
+// (le rendu réel est clippé dans HtmlAnnotationLayer → pas de débordement).
+const TEXT_MIN_W = 200;
+const TEXT_MAX_W = 360;
+const TEXT_MIN_H = 120;
+const TEXT_MAX_H = 300;
+const TEXT_GAP = 26;
+const TEXT_ROW_MAX_W = 1500; // largeur max d'une rangée avant retour à la ligne
+
+/** TXT-1 — estime une taille de tuile « optimale » à partir du contenu texte :
+ *  largeur ≈ la plus longue ligne, hauteur ≈ nb de lignes, le tout borné. */
+function estimateTextTileSize(content: string): { w: number; h: number } {
+  const lines = (content || "").split("\n");
+  let maxLen = 0;
+  for (const l of lines) if (l.length > maxLen) maxLen = l.length;
+  const w = Math.min(TEXT_MAX_W, Math.max(TEXT_MIN_W, Math.round(maxLen * 7.2) + 24));
+  const h = Math.min(TEXT_MAX_H, Math.max(TEXT_MIN_H, lines.length * 16 + 44));
+  return { w, h };
+}
 
 /** Nœud brut renvoyé par `scan_tree` (Rust). */
 interface DirNode {
@@ -206,18 +225,16 @@ function buildLevelNode(
   const fD = blockDims(folderGroup.length);
   const aD = blockDims(appGroup.length);
   const mD = blockDims(mediaGroup.length);
-  const tD = blockDims(textGroup.length);
 
   // Zone centrale (dossiers) centrée sur (0,0). On garde un minimum CELL pour
   // que les zones latérales restent écartées même sans dossier au centre.
   const halfW = Math.max(fD.w, CELL) / 2;
   const halfH = Math.max(fD.h, CELL) / 2;
 
-  // Origines (coin haut-gauche) de chaque bloc.
+  // Origines (coin haut-gauche) de chaque bloc à grille uniforme.
   const fOrigin = { x: -fD.w / 2,                 y: -fD.h / 2 };              // centre
   const aOrigin = { x: -halfW - ZONE_GAP - aD.w,  y: -aD.h / 2 };             // gauche, centré vert.
   const mOrigin = { x: halfW + ZONE_GAP,          y: -mD.h / 2 };             // droite, centré vert.
-  const tOrigin = { x: -tD.w / 2,                 y: halfH + ZONE_GAP };      // bas, centré horiz.
 
   /** Place un groupe en grille à partir d'une origine (coin haut-gauche du bloc). */
   const placeAt = (
@@ -249,15 +266,32 @@ function buildLevelNode(
       y + MEDIA_TILE_H / 2,
     ));
   });
-  placeAt(textGroup, tOrigin, Math.max(1, tD.cols), (e, x, y) => {
-    const node = makeTextNodeFromFile(e.name, e.text as string, false, x, y);
-    annotations.push({
-      ...node,
-      sourceFile: e.path,
-      width: TEXT_TILE_W,
-      height: TEXT_TILE_H,
-    } as Annotation);
-  });
+  // TXT-1 — zone TEXTE en BAS : tuiles à taille VARIABLE, packées en flow
+  // (gauche→droite, retour à la ligne quand la rangée dépasse TEXT_ROW_MAX_W),
+  // puis tout le bloc est centré horizontalement sous la zone centrale.
+  if (textGroup.length > 0) {
+    const sized = textGroup.map((e) => ({ e, ...estimateTextTileSize(e.text as string) }));
+    let curX = 0, curY = 0, rowH = 0, blockW = 0;
+    const placed = sized.map((t) => {
+      if (curX > 0 && curX + t.w > TEXT_ROW_MAX_W) { curX = 0; curY += rowH + TEXT_GAP; rowH = 0; }
+      const p = { e: t.e, x: curX, y: curY, w: t.w, h: t.h };
+      curX += t.w + TEXT_GAP;
+      if (t.h > rowH) rowH = t.h;
+      if (p.x + t.w > blockW) blockW = p.x + t.w;
+      return p;
+    });
+    const shiftX = -blockW / 2;        // centré horizontalement
+    const shiftY = halfH + ZONE_GAP;   // sous la zone centrale
+    for (const p of placed) {
+      const node = makeTextNodeFromFile(p.e.name, p.e.text as string, false, p.x + shiftX, p.y + shiftY);
+      annotations.push({
+        ...node,
+        sourceFile: p.e.path,
+        width: p.w,
+        height: p.h,
+      } as Annotation);
+    }
+  }
 
   const mirrorSource: FolderMirrorSource = {
     rootPath: dir.path,

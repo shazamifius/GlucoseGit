@@ -69,7 +69,14 @@ ET le rendre ultra-fluide.
 ## 🟠 Visible / important (V1)
 
 ### TXT-1 — Fichiers texte : vrai texte lisible, packé sans superposition
-**Statut :** 🟠 à faire — ⚠️ **annule mon correctif précédent** (carte fixe 210×180)
+**Statut :** 🟡 implémenté, à confirmer à l'œil (2026-05-31) — tailles **variables**
+estimées du contenu (`estimateTextTileSize` dans `folderMirror.ts`, bornées 200–360×120–300)
++ **flow-pack** dans la zone basse (gauche→droite, retour à la ligne). Rendu = **vrai
+markdown + LaTeX** (react-markdown/KaTeX) clippé à la tuile (`clipTextForTile`) → le
+ResizeObserver relit la taille fixe (pas de croissance/chevauchement). 2 tests sizing.
+**⚠️ Renverse le clamp 210×180 précédent + réutilise le pipeline markdown pour les tuiles
+folder** (cf. mémoire `annotation-layer-no-culling`, maj) — coût borné par le clip ; masse
+extrême = PERF-1. **À valider** : textes lisibles, pas de superposition, .md avec LaTeX.
 **Demande réelle (mal comprise avant) :** afficher le texte **comme du vrai texte**
 (rendu LaTeX/markdown, taille extensible), PAS de petits rectangles fixes.
 1. Utiliser la **taille la plus optimale/propre** pour visualiser chaque texte.

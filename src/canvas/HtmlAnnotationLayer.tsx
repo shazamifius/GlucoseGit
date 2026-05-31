@@ -456,6 +456,22 @@ function preprocessText(text: string) {
   return t;
 }
 
+/** TXT-1 — Borne le contenu rendu dans une tuile texte de dossier : on retire
+ *  le header markdown « ### 📄 nom » (redondant avec l'en-tête de la tuile) et
+ *  le footer « tronqué », puis on clippe à `maxLines` (en refermant un fence de
+ *  code resté ouvert) → coût du pipeline markdown BORNÉ par tuile. */
+function clipTextForTile(raw: string, maxLines = 60): string {
+  const t = (raw || "")
+    .replace(/^###\s*📄[^\n]*\n+/, "")
+    .replace(/_\(tronqué[^)]*\)_/g, "");
+  const lines = t.split("\n");
+  if (lines.length <= maxLines) return t.trim();
+  let clipped = lines.slice(0, maxLines).join("\n");
+  // Referme un éventuel bloc de code (```) laissé ouvert par la coupe.
+  if (((clipped.match(/```/g) || []).length) % 2 === 1) clipped += "\n```";
+  return `${clipped.trim()}\n…`;
+}
+
 export function getSymbioticHue(ann: Annotation, allAnnotations: Annotation[]): number {
   const idHash = (id: string) => {
     let h = 5381;
@@ -740,13 +756,11 @@ function AnnotationItem({
               const tw = ann.width ?? 210;
               const th = ann.height ?? 180;
               const fname = txtSource.split(/[\\/]/).pop() || "Fichier";
-              // Aperçu brut : on retire le header markdown « ### 📄 nom » et les
-              // clôtures de code (```), on garde les premières lignes lisibles.
-              const preview = (ann.text || "")
-                .replace(/^###\s*📄[^\n]*\n+/, "")
-                .replace(/```[a-z0-9]*\n?/gi, "")
-                .replace(/_\(tronqué[^)]*\)_/g, "")
-                .split("\n").slice(0, 40).join("\n");
+              // TXT-1 — VRAI texte rendu (markdown + LaTeX via react-markdown),
+              // clippé à la tuile (taille fixe calculée au scan → le ResizeObserver
+              // relit la même taille, pas de croissance/chevauchement). Le clip
+              // borne le coût du pipeline markdown par tuile.
+              const tileBody = clipTextForTile(ann.text || "");
               return (
                 <div
                   key={ann.id}
@@ -788,15 +802,17 @@ function AnnotationItem({
                       {fname}
                     </span>
                   </div>
-                  {/* Aperçu clippé + fondu bas pour signaler « il y en a plus » */}
+                  {/* TXT-1 — contenu rendu (markdown + LaTeX), clippé + fondu bas */}
                   <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
-                    <pre style={{
-                      margin: 0, padding: "6px 8px",
-                      fontFamily: "monospace", fontSize: 9.5, lineHeight: 1.35,
-                      color: "#9aa0b5", whiteSpace: "pre-wrap", wordBreak: "break-word",
-                    }}>
-                      {preview}
-                    </pre>
+                    <div
+                      className="glucose-tile-md"
+                      style={{
+                        padding: "6px 9px", fontSize: 11, lineHeight: 1.4,
+                        color: "#c8cce0", wordBreak: "break-word",
+                      }}
+                    >
+                      <StableMarkdownComponents.text processedText={tileBody} components={markdownComponents} />
+                    </div>
                     <div style={{
                       position: "absolute", left: 0, right: 0, bottom: 0, height: 28,
                       background: "linear-gradient(to bottom, rgba(20,20,28,0), #14141c)",
