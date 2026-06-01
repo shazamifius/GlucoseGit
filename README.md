@@ -2,7 +2,7 @@
 
 # 🧬 Glucose
 
-### L'espace infini où tu poses tes idées à plat — et où elles prennent vie
+### Un canvas infini pour poser tes idées à plat — et les faire grandir
 
 *Pose. Relie. Zoome. Explore.*
 
@@ -28,15 +28,25 @@
 - 🎲 **Jeux de rôle (JDR)** — univers, intrigues, cartes, fiches reliées
 - 🧠 **Réflexion & prise de notes** — recherche, écriture, design de monde : tout ce qui se pense sur la durée
 
-Une seule surface, **pas de modes** : pose ce que tu veux, relie comme tu veux, zoome à l'infini. Tes dossiers eux-mêmes peuvent devenir un paysage navigable — Glucose reflète ton système de fichiers comme un espace à explorer.
+Une seule surface, **pas de modes** : pose ce que tu veux, relie comme tu veux, zoome à l'infini. Tes dossiers eux-mêmes peuvent devenir un paysage navigable — Glucose peut refléter ton système de fichiers comme un espace à explorer.
 
-## 🌌 La vision
+> ℹ️ Glucose est un projet **jeune, en bêta** et en développement actif. Il y aura des imperfections — tes retours aident à le rendre meilleur.
 
-À terme, Glucose veut être la meilleure plateforme pour **réfléchir, prendre des notes — et partager un _espace mémoire latent_ avec une IA.**
+## 🌌 La vision (là où on aimerait aller)
 
-L'idée : **casser le prompt réduit à des mots.** Aujourd'hui, on parle à une IA en texte linéaire. Demain, on devrait pouvoir lui transmettre une pensée par **la couleur, l'espace et les relations** — un « prompt » qui sort du langage. Glucose est le terrain d'expérimentation de cette idée : un espace où l'humain et l'IA partagent la même carte mentale, **au-delà des mots**.
+L'envie derrière Glucose : un espace pour **réfléchir, prendre des notes — et peut-être, un jour, partager un _espace mémoire latent_ avec une IA.**
 
-> Pense Miro / FigJam, mais **offline et sans modes** — tourné vers l'exploration profonde plutôt que le brainstorm express, avec une ambition : devenir le pont visuel entre ta pensée et celle d'une IA.
+L'intuition est simple. Aujourd'hui on parle à une IA en texte linéaire ; on aimerait pouvoir lui transmettre une pensée autrement — par **la couleur, l'espace et les relations**, un « prompt » qui ne se réduit pas aux mots. Glucose est un terrain pour essayer cette idée. On en est encore très loin, et c'est normal.
+
+**Quelques pistes qu'on aimerait explorer un jour** *(rien de tout ça n'est à portée de main pour l'instant — ce sont des paris, pas des promesses)* :
+
+- 📚 **Remettre Wikipédia dans Glucose** — parcourir la connaissance comme un paysage plutôt qu'une liste de liens.
+- 🗣️ **Faire vivre une langue complète** dans Glucose — un terrain pour construire et explorer une langue de bout en bout.
+- 🤖 **Faire dialoguer plusieurs IA** entre elles sur un sujet, à travers l'espace de Glucose.
+
+Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
+
+> Dans l'esprit de Miro / FigJam, mais **offline et sans modes**. C'est un projet jeune et très perfectible — les retours sont les bienvenus.
 
 ## 🌟 Fonctionnalités
 
