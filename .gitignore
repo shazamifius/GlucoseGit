@@ -56,3 +56,8 @@ coverage/
 # Nix
 result
 result-*
+
+# Docs de travail internes (gardées en local, pas publiées)
+STABILITY.md
+PHASE1_TO_PHASE2_TRANSITION.md
+tauri-dev.log
