@@ -46,8 +46,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Bun pour le frontend ──
-      - uses: oven-sh/setup-bun@v2
+      # ── Node pour le frontend ──
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
       # ── Rust toolchain ──
       - uses: dtolnay/rust-toolchain@stable
@@ -75,14 +78,14 @@ jobs:
             wget
 
       - name: Install frontend dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       # ── Sanity check ──
       - name: Typecheck
-        run: bun run typecheck
+        run: npm run typecheck
 
       - name: Tests
-        run: bun run test
+        run: npm test
 
       # ── Build Tauri ──
       - name: Build Tauri app
