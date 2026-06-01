@@ -4,10 +4,9 @@
 >
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
 
-**Dernière mise à jour :** 2026-05-07
-**Version :** 0.3.0-rc (Sprint 1 + Phases 6, 7.5, 7.0 + fondations 7.1 — voir [CLEANUP.md](CLEANUP.md), [PRE-PHASE7-AUDIT.md](PRE-PHASE7-AUDIT.md))
+**Dernière mise à jour :** 2026-06-01
+**Version :** 1.0.0-beta.1
 **Architecture :** Tauri 2 (Rust) + React 19 + Tailwind 4 + PixiJS 8 (raster) + SVG overlay (vecteur) + Zustand + **Automerge 3 (CRDT, WASM)**
-**Archive de l'ancienne roadmap :** [ROADMAP.archive-2026-04-27.md](ROADMAP.archive-2026-04-27.md)
 
 > **🛡️ Sprint 1 sécurité bouclé (2026-05-07)** — 9 vulnérabilités critiques fermées (RCE, XSS, SSRF, scope FS), validation Zod, clamps coords, SHA256 yt-dlp, README+LICENSE+CI+Biome.
 >

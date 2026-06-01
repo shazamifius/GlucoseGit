@@ -1,8 +1,8 @@
 # 📖 Guide d'utilisation Glucose
 
-> **Glucose** est une surface cognitive infinie. Une seule interface, pas de modes : pose, relie, zoome, explore.
+> **Glucose** est un canvas infini pour poser tes idées à plat. Une seule interface, pas de modes : pose, relie, zoome, explore.
 
-**Version :** 0.3.0
+**Version :** 1.0.0-beta.1
 
 ---
 

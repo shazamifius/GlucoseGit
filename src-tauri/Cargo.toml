@@ -1,8 +1,8 @@
 [package]
 name = "glucose"
-version = "0.3.0"
-description = "Glucose — surface cognitive infinie"
-authors = ["you"]
+version = "1.0.0-beta.1"
+description = "Glucose — canvas infini pour poser ses idées à plat"
+authors = ["shazamifius"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
