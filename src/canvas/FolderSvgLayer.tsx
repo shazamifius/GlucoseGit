@@ -63,7 +63,8 @@ export default function FolderSvgLayer({
   function startDrag(folder: CanvasFolder, e: React.PointerEvent, mode: "move" | "resize") {
     if (activeTool !== "select") return;
     e.stopPropagation();
-    useGlucoseStore.getState().pushHistory();
+    // UNDO-1 — pas de snapshot au down ; transaction ouverte au 1er mouvement réel
+    // (cf. didMove) → un clic/double-clic ne crée aucune entrée, un drag/resize = 1.
     const { x: wx, y: wy } = screenToWorld(e.clientX, e.clientY);
     dragRef.current = {
       id: folder.id,
@@ -80,7 +81,10 @@ export default function FolderSvgLayer({
       const { x: wx2, y: wy2 } = screenToWorld(ev.clientX, ev.clientY);
       const dx = wx2 - ds.pStartX;
       const dy = wy2 - ds.pStartY;
-      if (Math.abs(dx) + Math.abs(dy) > 2) ds.didMove = true;
+      if (Math.abs(dx) + Math.abs(dy) > 2 && !ds.didMove) {
+        ds.didMove = true;
+        useGlucoseStore.getState().beginLiveEdit(); // UNDO-1 — ouvre la transaction au 1er vrai mouvement
+      }
       if (!ds.didMove) return;
       if (ds.mode === "move") {
         onMove(ds.id, ds.startX + dx, ds.startY + dy);
@@ -102,6 +106,7 @@ export default function FolderSvgLayer({
           onSelect(ds.id);
         }
       }
+      useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si clic/double-clic)
       dragRef.current = null;
       window.removeEventListener("pointermove", onGlobalMove);
       window.removeEventListener("pointerup",   onGlobalUp);

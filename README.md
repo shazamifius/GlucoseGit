@@ -11,7 +11,7 @@
 [![Tauri](https://img.shields.io/badge/Tauri-2-orange.svg?style=flat-square&logo=tauri)](https://tauri.app)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?style=flat-square&logo=react)](https://react.dev)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
-[![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen.svg?style=flat-square)](#)
+[![Tests](https://img.shields.io/badge/tests-304%20passing-brightgreen.svg?style=flat-square)](#)
 
 [**📥 Télécharger**](../../releases/latest) · [**📖 Guide**](GUIDE.md) · [**🗺️ Roadmap**](ROADMAP.md) · [**🐛 Issues**](../../issues)
 

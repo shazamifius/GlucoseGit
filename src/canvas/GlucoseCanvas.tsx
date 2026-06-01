@@ -16,8 +16,9 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useGlucoseStore, getActiveBoard } from "../store";
-import { addImagesFromDrop, makeSourceSticky, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
-import { addImagesFromFiles } from "./fileImport";
+import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
+import { scanFolderForMirror } from "./folderMirror";
+import { classifyWheel, folderToEnter } from "./navigation";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -36,11 +37,27 @@ import SyntaxEditor from "../components/SyntaxEditor";
 import ZoneSelectorOverlay from "./ZoneSelectorOverlay";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 // Phase 7.0 — résolution des `asset:<filename>` vers une URL Tauri utilisable
-import { resolveAssetSrc } from "../utils/assets";
+// R-EMB-01 (Sprint 2) — résolveur unifié AssetRef / src legacy
+import { resolveImageSrc } from "../utils/assets";
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
 const DOT_GRID_SIZE = 60;
+
+/** Taille d'affichage d'un sprite. Pour les vignettes de folder mirror
+ *  (`fit:"contain"`), on cadre la texture DANS la boîte en préservant le ratio
+ *  (jamais d'image écrasée). Sinon on utilise width×height tels quels. */
+function fittedSpriteSize(
+  img: { width: number; height: number; fit?: "contain" },
+  texW: number,
+  texH: number,
+): { w: number; h: number } {
+  if (img.fit === "contain" && texW > 0 && texH > 0) {
+    const s = Math.min(img.width / texW, img.height / texH);
+    return { w: texW * s, h: texH * s };
+  }
+  return { w: img.width, h: img.height };
+}
 // const SNAP_DIST = 80;
 
 // Données du ghost de preview layout (preset ou storyboard)
@@ -86,6 +103,9 @@ export default function GlucoseCanvas() {
   const membraneRendererRef = useRef<MembraneRenderer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // VID-1 — éléments <video> des sprites vidéo, pour les jouer/mettre en pause
+  // selon le culling (seules les vidéos visibles tournent → anti-lag).
+  const videoElsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const spatialHashRef = useRef(new SpatialHash());
   const zoneGfxRef = useRef<Graphics | null>(null);
   const zoneStartRef = useRef<{ sx: number; sy: number } | null>(null);
@@ -94,12 +114,18 @@ export default function GlucoseCanvas() {
   const isDraggingRef = useRef(false);
   const arrowIdRef = useRef<string | null>(null);
   const jumpAnimRef = useRef<number | null>(null);
+  // PERF-1 — débounce du commit viewport au store (le rendu suit en impératif via
+  // emitViewport ; on ne persiste qu'au repos pour éviter une tempête de re-renders).
+  const viewportCommitTimerRef = useRef<number | null>(null);
   const selDragRef = useRef<{ sx: number; sy: number } | null>(null);
   const draggedSpriteRef = useRef<{
     id: string; startX: number; startY: number; pStartX: number; pStartY: number;
   } | null>(null);
   const textCursorPosRef = useRef<number | undefined>(undefined);
   const lastDomCreateRef = useRef<number>(0);
+  // Cache du seuil de sortie adaptatif (évite de recalculer contentBounds — O(n)
+  // sur tout le board — à CHAQUE frame de pan/zoom dans un gros dossier).
+  const exitScaleCacheRef = useRef<{ boardId: string; t: number; scale: number }>({ boardId: "", t: 0, scale: 0 });
 
   const [pixiReady, setPixiReady] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -121,9 +147,12 @@ export default function GlucoseCanvas() {
   const [arrowDescPanel, setArrowDescPanel] = useState<{ arrowId: string; screenX: number; screenY: number } | null>(null);
 
   useEffect(() => {
-    if (editOverlay) {
-      // Place le caret en fin de texte n'est plus pertinent car SyntaxEditor s'occupe de l'autoFocus
-    }
+    // UNDO-1 — toute la session d'édition de texte (création du bloc + frappe +
+    // redimensions d'auto-fit + commit) tient dans UNE transaction d'undo. Elle
+    // est ouverte aux sites d'ouverture de l'overlay (outil texte/sticky, double-
+    // clic, flèche-dans-le-vide) et refermée ICI dès que l'overlay se ferme
+    // (commit, Échap, clic ailleurs). → 1 seul Ctrl+Z efface le bloc.
+    if (!editOverlay) useGlucoseStore.getState().endLiveEdit();
   }, [editOverlay?.annId]);
 
   const {
@@ -159,8 +188,15 @@ export default function GlucoseCanvas() {
   function openEditOverlay(ann: Annotation) {
     // L'édition in-place ne concerne que text et sticky.
     if (ann.type !== "text" && ann.type !== "sticky") return;
+    // R-FIL — Garde-fou : une tuile FICHIER (sourceFile : launcher d'app ou
+    // bloc texte de dossier) ne doit JAMAIS passer en édition de nom, quel que
+    // soit le chemin d'appel. Le lancement est géré en amont (handleDown), ici
+    // on bloque simplement l'édition.
+    if ((ann as { sourceFile?: string }).sourceFile) return;
     const pos = annToScreen(ann);
     if (!pos) return;
+    // UNDO-1 — ouvre la transaction : toute l'édition de ce bloc = 1 entrée.
+    useGlucoseStore.getState().beginLiveEdit();
     setEditOverlay({
       annId: ann.id,
       type: ann.type,
@@ -235,6 +271,11 @@ export default function GlucoseCanvas() {
         cancelAnimationFrame(folderTransitionRafRef.current);
         folderTransitionRafRef.current = null;
       }
+      // PERF-1 — annule un commit viewport débouncé en attente.
+      if (viewportCommitTimerRef.current !== null) {
+        clearTimeout(viewportCommitTimerRef.current);
+        viewportCommitTimerRef.current = null;
+      }
       const a = appRef.current;
       appRef.current = null; worldRef.current = null;
       selRectGfxRef.current = null;
@@ -260,13 +301,19 @@ export default function GlucoseCanvas() {
     const currentIds = new Set(board.images.map((img) => img.id));
     spritesRef.current.forEach((sprite, id) => {
       if (!currentIds.has(id)) {
+        const vid = videoElsRef.current.get(id);
+        if (vid) { try { vid.pause(); } catch { /* ignore */ } videoElsRef.current.delete(id); }
         world.removeChild(sprite); sprite.destroy();
         spritesRef.current.delete(id); pendingLoadsRef.current.delete(id);
       }
     });
     board.images.forEach((img) => {
       const s = spritesRef.current.get(img.id);
-      if (s) { s.x = img.x; s.y = img.y; s.width = img.width; s.height = img.height; s.rotation = img.rotation; }
+      if (s) {
+        s.x = img.x; s.y = img.y; s.rotation = img.rotation;
+        const fs = fittedSpriteSize(img, s.texture.width, s.texture.height);
+        s.width = fs.w; s.height = fs.h;
+      }
     });
     spatialHashRef.current.build(board.images);
     applyCulling();
@@ -276,18 +323,24 @@ export default function GlucoseCanvas() {
     newImgs.forEach(async (img) => {
       pendingLoadsRef.current.add(img.id);
       try {
-        // Phase 7.0 : résout les identifiants logiques `asset:<hash>.<ext>`
-        // en URL Tauri utilisable par Pixi (les data:/http(s):// passent tels quels).
-        const resolvedSrc = await resolveAssetSrc(img.src);
+        // R-EMB-01 (Sprint 2) : résolveur unifié — privilégie asset (AssetRef)
+        // avec blob URL pour les embeds, fallback sur src legacy.
+        const blobs = useGlucoseStore.getState().project.blobs;
+        const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
+        // VID-1 : les vidéos sont chargées prêtes à jouer (boucle, muet) mais ne
+        // s'auto-jouent PAS toutes — la lecture est pilotée par le culling
+        // (applyCulling) : seules les vidéos VISIBLES tournent, les autres sont
+        // en pause. Plus de poster figé, et pas de dizaines de vidéos en fond.
         const tex: Texture = img.isVideo
-          ? await Assets.load({ src: resolvedSrc, data: { autoPlay: true, loop: true, muted: true } })
+          ? await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } })
           : await Assets.load(resolvedSrc);
         if (!worldRef.current || spritesRef.current.has(img.id)) return;
         const sprite = new Sprite(tex);
         sprite.anchor.set(0.5);
         sprite.interactive = true; sprite.cursor = "pointer";
         sprite.x = img.x; sprite.y = img.y;
-        sprite.width = img.width; sprite.height = img.height;
+        const fs = fittedSpriteSize(img, tex.width, tex.height);
+        sprite.width = fs.w; sprite.height = fs.h;
         sprite.rotation = img.rotation;
         // Phase 6 — applique le dim temporel dès la création (sinon flash plein opacity)
         const tf = useGlucoseStore.getState().temporalFilter;
@@ -295,6 +348,14 @@ export default function GlucoseCanvas() {
         const idx = Math.max(1, worldRef.current.children.length - 2);
         worldRef.current.addChildAt(sprite, idx);
         spritesRef.current.set(img.id, sprite);
+        // VID-1 : on récupère le <video> sous-jacent pour le piloter au culling.
+        if (img.isVideo) {
+          const res = (tex.source as unknown as { resource?: unknown }).resource;
+          if (res instanceof HTMLVideoElement) {
+            res.loop = true; res.muted = true; res.playsInline = true;
+            videoElsRef.current.set(img.id, res);
+          }
+        }
         attachSpriteEvents(sprite, img.id);
         applyCulling();
       } catch (err) { console.error("Texture load failed", img.id, err); }
@@ -555,9 +616,12 @@ export default function GlucoseCanvas() {
     });
   }, [selectedImageIds]);
 
-  // ── Tauri file drop ──────────────────────────────────────────
+  // ── Tauri file drop (natif — chemins absolus OS) ─────────────
+  // R-FIL (Sprint 2) : depuis dragDropEnabled:true, l'event natif nous donne
+  // les vrais chemins absolus. On gère les vidéos ici (besoin convertFileSrc +
+  // dimensions), puis on délègue TOUT le reste (dossiers, texte, images,
+  // launchers) au routeur `addPathsFromNativeDrop`.
   useEffect(() => {
-    const IMAGE_RE = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp)$/i;
     const unlisten = listen<{ paths: string[]; position: { x: number; y: number } }>(
       "tauri://drag-drop",
       async (event) => {
@@ -568,11 +632,8 @@ export default function GlucoseCanvas() {
         const wy = (position.y - world.y) / world.scale.y;
         const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
 
-        const imgs = paths.filter((p) => IMAGE_RE.test(p));
+        // 1) Vidéos locales → lecteur inline (chemin gardé en relatif via asset URL)
         const videos = paths.filter((p) => VIDEO_FILE_EXTS.test(p));
-        const sources = paths.filter((p) => !IMAGE_RE.test(p) && !VIDEO_FILE_EXTS.test(p));
-
-        if (imgs.length > 0) await addImagesFromFiles(imgs, wx, wy, boardId, addImage);
         for (let i = 0; i < videos.length; i++) {
           const path = videos[i];
           const assetUrl = convertFileSrc(path);
@@ -586,9 +647,16 @@ export default function GlucoseCanvas() {
             originalWidth: vw, originalHeight: vh,
           });
         }
-        sources.forEach((path, i) =>
-          addAnnotation(boardId, makeSourceSticky(path, wx + i * 24, wy + i * 24))
-        );
+
+        // 2) Tout le reste (dossiers, texte/code, images, binaires) → routeur
+        const rest = paths.filter((p) => !VIDEO_FILE_EXTS.test(p));
+        if (rest.length > 0) {
+          await addPathsFromNativeDrop(rest, wx, wy, boardId, {
+            addImage,
+            addAnnotation,
+            createFolderTree: useGlucoseStore.getState().createFolderTree,
+          });
+        }
       }
     );
     return () => { unlisten.then((fn) => fn()); };
@@ -821,15 +889,44 @@ export default function GlucoseCanvas() {
     // 50% margin on each side to pre-show sprites before they enter view
     const margin = Math.max(ww, wh) * 0.5;
     const visible = spatialHashRef.current.queryIds(wx, wy, ww, wh, margin);
-    spritesRef.current.forEach((sprite, id) => { sprite.visible = visible.has(id); });
+    spritesRef.current.forEach((sprite, id) => {
+      const vis = visible.has(id);
+      sprite.visible = vis;
+      // VID-1 : seules les vidéos visibles jouent (les autres en pause → anti-lag).
+      const vid = videoElsRef.current.get(id);
+      if (vid) {
+        if (vis && vid.paused) void vid.play().catch(() => { /* lecture refusée : ignore */ });
+        else if (!vis && !vid.paused) vid.pause();
+      }
+    });
   }
 
   function emitViewport(world: Container) {
     vpRef.current = { x: world.x, y: world.y, scale: world.scale.x };
     applyCulling();
     updateCssGrid(world.x, world.y, world.scale.x);
+    // R-FIL — on diffuse le seuil de sortie ADAPTATIF avec le viewport pour que
+    // l'indicateur (cadre bleu) ne s'allume qu'à l'approche réelle de la sortie
+    // (et pas en permanence dès scale<1 sur un gros dossier).
+    const app0 = appRef.current;
+    const st0 = useGlucoseStore.getState();
+    let exitScale = 0;
+    if (app0 && st0.folderStack.length > 0) {
+      // Cache 180 ms par board : le contenu ne bouge pas pendant un pan/zoom, et
+      // le seuil n'est qu'indicatif (cadre bleu) — pas besoin de recalculer à
+      // chaque frame sur un dossier à plusieurs milliers de fichiers.
+      const cache = exitScaleCacheRef.current;
+      const boardId = st0.project.activeBoardId;
+      const now = performance.now();
+      if (cache.boardId === boardId && now - cache.t < 180) {
+        exitScale = cache.scale;
+      } else {
+        exitScale = adaptiveExitScale(getActiveBoard(st0.project), app0.screen.width, app0.screen.height);
+        exitScaleCacheRef.current = { boardId, t: now, scale: exitScale };
+      }
+    }
     window.dispatchEvent(new CustomEvent("glucose:viewport-changed", {
-      detail: { x: world.x, y: world.y, scale: world.scale.x },
+      detail: { x: world.x, y: world.y, scale: world.scale.x, exitScale },
     }));
     // Phase 7.5 — navigation auto par zoom (folder enter/exit)
     checkAutoNavigate(world);
@@ -843,39 +940,158 @@ export default function GlucoseCanvas() {
   // Dézoomer fortement (scale ≤ EXIT) à l'intérieur d'un dossier : on sort.
   // Cooldown 700 ms entre deux transitions pour éviter les ping-pong.
   const lastNavRef = useRef(0);
-  const ENTER_SCALE = 3.0;
+  // NAV-1 — ENTRÉE ADAPTATIVE : on entre dans un dossier UNIQUEMENT quand il est
+  // le SEUL dossier frère visible à l'écran (aucun autre ne croise le viewport)
+  // ET qu'il remplit ≥ ENTER_COVERAGE d'une dimension écran. Tant que 2 dossiers
+  // sont visibles, on ne plonge jamais au hasard (fini « on entre dans le
+  // mauvais dossier »). Critère géométrique → tient compte de la TAILLE réelle :
+  // un gros dossier déclenche à un zoom plus faible qu'un petit (plus de scale
+  // fixe). ENTER_MIN_SCALE n'est qu'un plancher anti-jitter (le vrai gate est
+  // couverture + unicité, cf. folderToEnter dans ./navigation).
+  const ENTER_COVERAGE = 0.6;
+  const ENTER_MIN_SCALE = 0.25;
   const EXIT_SCALE  = 0.4;
-  const NAV_COOLDOWN = 700;
+  // Cooldown > durée de l'animation de transition (400 ms) pour qu'aucune
+  // transition auto ne se déclenche pendant l'arrivée (anti-cascade).
+  const NAV_COOLDOWN = 850;
+
+  /** Bounding box de tout le contenu d'un board (images + annotations +
+   *  folders). Renvoie null si le board est vide. */
+  function contentBounds(board: ReturnType<typeof getActiveBoard>) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const add = (x: number, y: number, w: number, h: number) => {
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+    };
+    // Les sprites image sont ancrés au CENTRE (anchor 0.5) → (x,y) = centre.
+    // On convertit en coin haut-gauche pour des bounds corrects (sinon le fit
+    // et le seuil de sortie adaptatif étaient décalés d'un demi-sprite).
+    for (const im of board.images) add(im.x - im.width / 2, im.y - im.height / 2, im.width, im.height);
+    for (const f of board.folders ?? []) add(f.x, f.y, f.width, f.height);
+    for (const a of board.annotations) {
+      if (a.type === "arrow") { add(Math.min(a.x, a.x2 ?? a.x), Math.min(a.y, a.y2 ?? a.y), Math.abs((a.x2 ?? a.x) - a.x), Math.abs((a.y2 ?? a.y) - a.y)); continue; }
+      add(a.x, a.y, a.width ?? 160, a.height ?? 80);
+    }
+    if (minX === Infinity) return null;
+    return { minX, minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  /** Viewport {x,y,scale} qui cadre TOUT le contenu d'un board, centré, à une
+   *  échelle confortable (ni en zone d'entrée, ni d'éjection). Sert à l'arrivée
+   *  dans un dossier (entrée OU sortie) → on voit tout d'un coup. */
+  function fitViewportFor(board: ReturnType<typeof getActiveBoard>, screenW: number, screenH: number) {
+    const b = contentBounds(board);
+    if (!b || b.w <= 0 || b.h <= 0) {
+      return { x: screenW / 2, y: screenH / 2, scale: 1 };
+    }
+    const margin = 1.25;
+    // Clamp [MIN_SCALE, 1.1] : assez haut pour voir un petit dossier sans être
+    // en zone d'entrée (ENTER=3), aussi bas que le moteur le permet pour les
+    // dossiers énormes (milliers de fichiers directs).
+    const scale = Math.min(1.1, Math.max(MIN_SCALE, Math.min(
+      screenW / (b.w * margin),
+      screenH / (b.h * margin),
+    )));
+    const cx = b.minX + b.w / 2;
+    const cy = b.minY + b.h / 2;
+    return { x: screenW / 2 - cx * scale, y: screenH / 2 - cy * scale, scale };
+  }
+
+  /** R-FIL — Scale de sortie ADAPTATIF : on ne quitte le folder que lorsque
+   *  TOUT son contenu tient dans l'écran (puis qu'on dézoome encore un peu).
+   *  Un gros dossier (1M de fichiers) se laisse explorer sans éjection ;
+   *  un petit dossier se quitte vite. Borné à [0.05, 0.6]. */
+  function adaptiveExitScale(board: ReturnType<typeof getActiveBoard>, screenW: number, screenH: number): number {
+    const b = contentBounds(board);
+    if (!b || b.w <= 0 || b.h <= 0) return EXIT_SCALE;
+    const margin = 1.15;
+    const scaleFit = Math.min(screenW / (b.w * margin), screenH / (b.h * margin));
+    // Facteur 0.55 : on garde une marge de zoom-out confortable pour explorer
+    // le dossier AVANT d'être éjecté. Doit rester < le SCALE_BURST d'entrée
+    // (0.6) pour qu'une entrée ne déclenche jamais une sortie immédiate. Borne
+    // basse = MIN_SCALE pour qu'un dossier énorme reste explorable sans
+    // éjection prématurée.
+    return Math.min(0.6, Math.max(MIN_SCALE, scaleFit * 0.55));
+  }
+
+  // R-FIL-02 v3 — entrée PARESSEUSE : si le dossier cible n'est pas encore
+  // scanné, on scanne son niveau (async) puis on l'étale, AVANT de naviguer et
+  // de cadrer. `navigatingRef` empêche toute ré-entrée pendant le scan async.
+  const navigatingRef = useRef(false);
+  async function lazyEnter(parentBoardId: string, targetId: string, app: Application) {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    try {
+      const st0 = useGlucoseStore.getState();
+      const parent0 = st0.project.boards.find((b) => b.id === parentBoardId);
+      const target0 = (parent0?.folders ?? []).find((f) => f.id === targetId);
+      if (!target0) return;
+
+      if (target0.mirrorSource?.pendingScan) {
+        const result = await scanFolderForMirror(
+          target0.mirrorSource.rootPath, 0, 0, target0.mirrorSource.sortBy,
+        );
+        useGlucoseStore.getState().expandFolder(parentBoardId, targetId, result.tree);
+      }
+
+      const st = useGlucoseStore.getState();
+      const childBoard = st.project.boards.find((b) => b.id === target0.childBoardId);
+      if (childBoard) {
+        st.setViewport(target0.childBoardId, fitViewportFor(childBoard, app.screen.width, app.screen.height));
+      }
+      st.enterFolder(targetId);
+      lastNavRef.current = performance.now(); // re-arme le cooldown après l'async
+    } catch (e) {
+      console.error("[lazyEnter] échec:", e);
+    } finally {
+      navigatingRef.current = false;
+    }
+  }
+
   function checkAutoNavigate(world: Container) {
     const now = performance.now();
     if (now - lastNavRef.current < NAV_COOLDOWN) return;
+    if (navigatingRef.current) return;
     const app = appRef.current;
     if (!app) return;
     const scale = world.scale.x;
     const state = useGlucoseStore.getState();
     const board = getActiveBoard(state.project);
 
-    if (scale >= ENTER_SCALE) {
-      const cx = (app.screen.width / 2 - world.x) / scale;
-      const cy = (app.screen.height / 2 - world.y) / scale;
-      const target = (board.folders ?? []).find(
-        (f) => cx >= f.x && cx <= f.x + f.width && cy >= f.y && cy <= f.y + f.height
-      );
-      if (target) {
-        lastNavRef.current = now;
-        // Pré-positionne le viewport du child : centré sur le contenu, scale = 1.
-        const childCenterX = target.width / 2;
-        const childCenterY = target.height / 2;
-        state.setViewport(target.childBoardId, {
-          x: app.screen.width / 2 - childCenterX,
-          y: app.screen.height / 2 - childCenterY,
-          scale: 1,
-        });
-        state.enterFolder(target.id);
-      }
-    } else if (scale <= EXIT_SCALE && state.folderStack.length > 0) {
+    // ── ENTRÉE adaptative (NAV-1) ────────────────────────────────────────
+    // On n'entre QUE si un seul dossier frère est visible à l'écran et qu'il le
+    // remplit (logique pure testable → ./navigation). Plus d'ambiguïté « lequel
+    // des dossiers visibles », donc plus d'entrée dans le mauvais dossier.
+    const targetId = folderToEnter(
+      board.folders ?? [],
+      { x: world.x, y: world.y, scale },
+      app.screen.width,
+      app.screen.height,
+      ENTER_COVERAGE,
+      ENTER_MIN_SCALE,
+    );
+    if (targetId) {
       lastNavRef.current = now;
-      state.exitFolder();
+      // Entrée paresseuse (scan à la volée si nécessaire) + cadrage fit.
+      void lazyEnter(board.id, targetId, app);
+      return;
+    }
+
+    // ── SORTIE adaptative ────────────────────────────────────────────────
+    if (state.folderStack.length > 0) {
+      const exitScale = adaptiveExitScale(board, app.screen.width, app.screen.height);
+      if (scale <= exitScale) {
+        lastNavRef.current = now;
+        // À la sortie : cadre tout le contenu du PARENT → on atterrit en voyant
+        // le dossier entier (avec celui qu'on quitte dedans), à une échelle sûre
+        // bien au-dessus du seuil d'éjection → pas de cascade vers le haut.
+        const prev = state.folderStack[state.folderStack.length - 1];
+        const parentBoard = state.project.boards.find((b) => b.id === prev.boardId);
+        if (parentBoard) {
+          state.setViewport(prev.boardId, fitViewportFor(parentBoard, app.screen.width, app.screen.height));
+        }
+        state.exitFolder();
+      }
     }
   }
 
@@ -929,16 +1145,27 @@ export default function GlucoseCanvas() {
       count++;
     }
     for (const ann of board.annotations) {
-      // Pour les flèches on étend aussi à (x2, y2). Pour les autres, le seul
-      // point géométrique est (x, y) — un peu pessimiste pour les blocs avec
-      // width/height, mais sans impact sur le fit-to-content (un nœud reste
-      // dans la zone même si on l'a sous-évalué).
-      const ax2 = ann.type === "arrow" ? ann.x2 : ann.x;
-      const ay2 = ann.type === "arrow" ? ann.y2 : ann.y;
-      if (ann.x < minX) minX = ann.x; if (ann.x > maxX) maxX = ann.x;
-      if (ax2 < minX) minX = ax2; if (ax2 > maxX) maxX = ax2;
-      if (ann.y < minY) minY = ann.y; if (ann.y > maxY) maxY = ann.y;
-      if (ay2 < minY) minY = ay2; if (ay2 > maxY) maxY = ay2;
+      // Flèches : étendre à (x2,y2). Autres : prendre la boîte (x,y,w,h) pour
+      // que les tuiles entières comptent dans le fit.
+      if (ann.type === "arrow") {
+        const ax2 = ann.x2, ay2 = ann.y2;
+        if (ann.x < minX) minX = ann.x; if (ann.x > maxX) maxX = ann.x;
+        if (ax2 < minX) minX = ax2; if (ax2 > maxX) maxX = ax2;
+        if (ann.y < minY) minY = ann.y; if (ann.y > maxY) maxY = ann.y;
+        if (ay2 < minY) minY = ay2; if (ay2 > maxY) maxY = ay2;
+      } else {
+        const aw = ann.width ?? 160, ah = ann.height ?? 80;
+        if (ann.x < minX) minX = ann.x; if (ann.x + aw > maxX) maxX = ann.x + aw;
+        if (ann.y < minY) minY = ann.y; if (ann.y + ah > maxY) maxY = ann.y + ah;
+      }
+      count++;
+    }
+    // R-FIL — CRITIQUE : inclure les sous-dossiers (boîtes folder) dans le fit.
+    // Sans ça, un dossier plein de sous-dossiers se cadrait sur du vide → "je
+    // vois rien" + cascade de zoom (cf. retours utilisateur).
+    for (const f of board.folders ?? []) {
+      if (f.x < minX) minX = f.x; if (f.x + f.width > maxX) maxX = f.x + f.width;
+      if (f.y < minY) minY = f.y; if (f.y + f.height > maxY) maxY = f.y + f.height;
       count++;
     }
     if (count === 0) return;
@@ -1081,11 +1308,30 @@ export default function GlucoseCanvas() {
       zoomToAnnotation(annId, padding);
     };
 
+    // R-FIL — Atterrissage propre après une navigation breadcrumb (jump/sibling/
+    // racine). Sans ça, le viewport hérité du board précédent déclenchait
+    // immédiatement checkAutoNavigate → « ça nous revient dans notre dossier ».
+    // On arme le cooldown ET on cadre le board d'arrivée au tick suivant (après
+    // que activeBoardId ait basculé et que le board soit rendu).
+    const onNavSettle = () => {
+      // L'effet de bascule de board lance une animation « burst » de 400 ms qui
+      // pilote le viewport. Si on cadre trop tôt, le burst écrase notre fit.
+      // On suspend donc l'auto-nav ~1 s ET on cadre APRÈS le burst (~470 ms).
+      lastNavRef.current = performance.now() + 1000;
+      navigatingRef.current = true;
+      window.setTimeout(() => {
+        fitView();
+        lastNavRef.current = performance.now() + 300;
+        navigatingRef.current = false;
+      }, 470);
+    };
+
     window.addEventListener("glucose:fit-view", onFit);
     window.addEventListener("glucose:export-png", onExport);
     window.addEventListener("glucose:jump-viewport", onJump);
     window.addEventListener("glucose:pan-viewport-to", onPanTo);
     window.addEventListener("glucose:zoom-to-annotation", onZoomToAnn);
+    window.addEventListener("glucose:nav-settle", onNavSettle);
     return () => {
       window.removeEventListener("keydown", onNumpadKey);
       window.removeEventListener("glucose:fit-view", onFit);
@@ -1093,6 +1339,7 @@ export default function GlucoseCanvas() {
       window.removeEventListener("glucose:jump-viewport", onJump);
       window.removeEventListener("glucose:pan-viewport-to", onPanTo);
       window.removeEventListener("glucose:zoom-to-annotation", onZoomToAnn);
+      window.removeEventListener("glucose:nav-settle", onNavSettle);
     };
   }, [pixiReady]);
 
@@ -1207,7 +1454,9 @@ export default function GlucoseCanvas() {
       }
       // Si déjà sélectionné, on ne touche à rien pour permettre le drag groupé (images + texte)
 
-      state.pushHistory();
+      // UNDO-1 — PAS de snapshot ici : un simple clic ne doit créer aucune entrée
+      // d'undo (et ne doit pas vider le redo). La transaction d'undo s'ouvre
+      // paresseusement au PREMIER mouvement réel (cf. branche drag de pointermove).
       const world = worldRef.current!;
       draggedSpriteRef.current = {
         id, startX: img.x, startY: img.y,
@@ -1246,6 +1495,9 @@ export default function GlucoseCanvas() {
               fontSize: 14,
               color: "#ffffff",
             };
+        // UNDO-1 — création + frappe + commit du nouveau bloc = 1 entrée d'undo
+        // (refermée à la fermeture de l'overlay). Un seul Ctrl+Z efface le bloc.
+        useGlucoseStore.getState().beginLiveEdit();
         useGlucoseStore.getState().addAnnotation(
           getActiveBoard(useGlucoseStore.getState().project).id, ann
         );
@@ -1282,6 +1534,8 @@ export default function GlucoseCanvas() {
           sourceId: snapped.elementId,
           sourceBlockId: snapped.elementBlockId,
         };
+        // UNDO-1 — tout le tracé (création + glisse + cible éventuelle) = 1 entrée.
+        useGlucoseStore.getState().beginLiveEdit();
         useGlucoseStore.getState().addAnnotation(
           getActiveBoard(useGlucoseStore.getState().project).id, ann
         );
@@ -1390,10 +1644,15 @@ export default function GlucoseCanvas() {
         const currentWY = (e.globalY - world.y) / world.scale.y;
         const dx = currentWX - pStartX;
         const dy = currentWY - pStartY;
-        draggedSpriteRef.current.pStartX = currentWX;
-        draggedSpriteRef.current.pStartY = currentWY;
-        const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-        useGlucoseStore.getState().moveSelected(boardId, dx, dy);
+        if (dx !== 0 || dy !== 0) {
+          draggedSpriteRef.current.pStartX = currentWX;
+          draggedSpriteRef.current.pStartY = currentWY;
+          // UNDO-1 — 1 seule entrée d'undo pour TOUT le drag : on ouvre la
+          // transaction au 1er mouvement (idempotent), refermée au pointerup.
+          const st = useGlucoseStore.getState();
+          if (!st._liveEdit) st.beginLiveEdit();
+          st.moveSelected(getActiveBoard(st.project).id, dx, dy);
+        }
         return;
       }
       if (selDragRef.current) {
@@ -1424,6 +1683,11 @@ export default function GlucoseCanvas() {
       let targetId = snapped.elementId;
       const targetBlockId = snapped.elementBlockId;
 
+      // UNDO-1 — si la flèche aboutit dans le vide, on crée un bloc texte cible
+      // et on ouvre son éditeur. Dans ce cas on GARDE la transaction d'undo
+      // ouverte (commencée au tracé) : elle englobera la frappe du nom et se
+      // refermera à la fermeture de l'overlay → 1 seul Ctrl+Z efface flèche+bloc.
+      let openedEditor = false;
       if (!targetId) {
         const newBlockId = nanoid();
         const newBlock: Annotation = {
@@ -1432,7 +1696,7 @@ export default function GlucoseCanvas() {
         };
         useGlucoseStore.getState().addAnnotation(boardId, newBlock);
         targetId = newBlockId;
-        
+
         // Auto-open edit
         const rect = appRef.current!.canvas.getBoundingClientRect();
         const scale = worldRef.current!.scale.x;
@@ -1446,6 +1710,7 @@ export default function GlucoseCanvas() {
           cursorPos: undefined,
         });
         setEditText("");
+        openedEditor = true;
       }
 
       useGlucoseStore.getState().updateAnnotation(boardId, arrowIdRef.current, {
@@ -1453,6 +1718,9 @@ export default function GlucoseCanvas() {
         targetId: targetId,
         targetBlockId: targetBlockId,
       });
+      // Cible existante → on referme la transaction tout de suite. Bloc créé dans
+      // le vide → on la laisse ouverte (l'overlay la fermera après la frappe).
+      if (!openedEditor) useGlucoseStore.getState().endLiveEdit();
       useGlucoseStore.getState().setActiveTool("select");
       arrowIdRef.current = null;
       window.dispatchEvent(new CustomEvent("glucose:arrow-target-preview", { detail: null }));
@@ -1500,6 +1768,7 @@ export default function GlucoseCanvas() {
         finishArrow(wx, wy);
         return;
       }
+      if (draggedSpriteRef.current) useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — fin du drag
       draggedSpriteRef.current = null;
       if (selDragRef.current) {
         const { sx, sy } = selDragRef.current;
@@ -1554,6 +1823,7 @@ export default function GlucoseCanvas() {
         const wy = (e.globalY - world.y) / world.scale.y;
         finishArrow(wx, wy);
       }
+      if (draggedSpriteRef.current) useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — fin du drag (hors zone)
       draggedSpriteRef.current = null;
       selDragRef.current = null;
       selRectGfxRef.current?.clear();
@@ -1582,26 +1852,64 @@ export default function GlucoseCanvas() {
 
     app.canvas.addEventListener("wheel", (e: WheelEvent) => {
       e.preventDefault();
-      
-      // Continuous zoom proportional to scroll speed — smooth on trackpad,
-      // consistent on mouse wheel (120 units/notch on Windows)
-      let delta = e.deltaY;
-      if (e.deltaMode === 1) delta *= 40;  // line → pixel
-      if (e.deltaMode === 2) delta *= 600; // page → pixel
-      const factor = Math.pow(0.999, delta);
-      const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, world.scale.x * factor));
-      const rect = app.canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
-      world.x = mx - (mx - world.x) * (ns / world.scale.x);
-      world.y = my - (my - world.y) * (ns / world.scale.y);
-      world.scale.set(ns);
-      if (ns < 0.08 && useGlucoseStore.getState().folderStack.length > 0) {
-        useGlucoseStore.getState().exitFolder();
+
+      // NAV-2 — gestes pavé tactile (cf. ./navigation.classifyWheel) :
+      //   pincement (ctrlKey synthétisé) ou molette souris → ZOOM ;
+      //   glissement 2 doigts → PAN (gauche/droite/haut/bas), comme le web.
+      const intent = classifyWheel({
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        deltaMode: e.deltaMode,
+        ctrlKey: e.ctrlKey,
+        wheelDeltaY: (e as unknown as { wheelDeltaY?: number }).wheelDeltaY,
+      });
+
+      // L'entrée/sortie de dossier par zoom est gérée dans checkAutoNavigate
+      // (appelé via emitViewport). On capture le board AVANT : si une navigation
+      // a eu lieu, checkAutoNavigate a déjà posé le bon cadrage du board cible —
+      // on NE DOIT PAS l'écraser (sinon on atterrit dans le vide + cascade).
+      const boardBefore = getActiveBoard(useGlucoseStore.getState().project).id;
+
+      if (intent === "zoom") {
+        // Continuous zoom proportional to scroll speed — smooth on trackpad,
+        // consistent on mouse wheel (120 units/notch on Windows)
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 40;  // line → pixel
+        if (e.deltaMode === 2) delta *= 600; // page → pixel
+        const factor = Math.pow(0.999, delta);
+        const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, world.scale.x * factor));
+        const rect = app.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+        world.x = mx - (mx - world.x) * (ns / world.scale.x);
+        world.y = my - (my - world.y) * (ns / world.scale.y);
+        world.scale.set(ns);
+      } else {
+        // PAN : la vue suit le glissement des 2 doigts (scroll-pan).
+        let dx = e.deltaX, dy = e.deltaY;
+        if (e.deltaMode === 1) { dx *= 16; dy *= 16; }            // ligne → px
+        else if (e.deltaMode === 2) { dx *= app.screen.width; dy *= app.screen.height; } // page → px
+        world.x -= dx;
+        world.y -= dy;
       }
+
       refreshGrid(world);
       emitViewport(world);
-      const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
-      setViewport(boardId, { x: world.x, y: world.y, scale: ns });
+      // PERF-1 — pendant un zoom/pan continu, le rendu suit déjà en IMPÉRATIF via
+      // emitViewport (transform CSS/SVG + culling, 0 re-render React). On ne PERSISTE
+      // le viewport au store (ce qui re-render GlucoseCanvas + toutes les couches
+      // couleur/glow/flèches) qu'une fois le geste STABILISÉ (débounce) → fini le lag.
+      const boardAfter = getActiveBoard(useGlucoseStore.getState().project).id;
+      if (viewportCommitTimerRef.current) clearTimeout(viewportCommitTimerRef.current);
+      if (boardAfter === boardBefore) {
+        viewportCommitTimerRef.current = window.setTimeout(() => {
+          viewportCommitTimerRef.current = null;
+          // Le geste a pu naviguer entre-temps → on commit le board réellement actif.
+          const liveId = getActiveBoard(useGlucoseStore.getState().project).id;
+          setViewport(liveId, { x: world.x, y: world.y, scale: world.scale.x });
+        }, 160);
+      }
+      // Si une navigation a eu lieu (boardAfter ≠ boardBefore), le fit du board cible
+      // a déjà commité le bon viewport : on a annulé tout commit en attente ci-dessus.
     }, { passive: false });
 
     app.canvas.addEventListener("pointerdown", (e: PointerEvent) => {
@@ -1670,7 +1978,14 @@ export default function GlucoseCanvas() {
     const rect = canvasRef.current!.getBoundingClientRect();
     const wx = (e.clientX - rect.left - world.x) / world.scale.x;
     const wy = (e.clientY - rect.top - world.y) / world.scale.y;
-    await addImagesFromDrop(e.nativeEvent, wx, wy, getActiveBoard(useGlucoseStore.getState().project).id, addImage, addAnnotation);
+    const state = useGlucoseStore.getState();
+    await addImagesFromDrop(
+      e.nativeEvent, wx, wy,
+      getActiveBoard(state.project).id,
+      addImage,
+      addAnnotation,
+      state.createFolderTree, // R-FIL-02 v2 : drop dossier OS → folder mirror navigable
+    );
   }, []);
 
   function commitEdit() {
@@ -1755,6 +2070,9 @@ export default function GlucoseCanvas() {
               color: "#ffffff",
             };
         const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
+        // UNDO-1 — fallback DOM de création : même transaction que le chemin Pixi
+        // (création + frappe + commit = 1 entrée, refermée à la fermeture de l'overlay).
+        useGlucoseStore.getState().beginLiveEdit();
         useGlucoseStore.getState().addAnnotation(boardId, ann);
         useGlucoseStore.getState().setActiveTool("select");
         const annW = ann.type === "sticky" ? ann.width  : undefined;
@@ -1883,7 +2201,15 @@ export default function GlucoseCanvas() {
           setSelectedFolderId(id);
           if (id) { setSelectedImageIds([]); setSelectedAnnotationIds([]); }
         }}
-        onEnter={(id) => enterFolder(id)}
+        onEnter={(id) => {
+          // R-FIL — double-clic sur une boîte dossier : entrée PARESSEUSE
+          // (scan à la volée si pendingScan + cadrage fit), comme le zoom-entrée.
+          // Sinon un sous-dossier pas encore scanné s'ouvrait sur une page vide.
+          const app = appRef.current;
+          const parentId = getActiveBoard(useGlucoseStore.getState().project).id;
+          if (app) void lazyEnter(parentId, id, app);
+          else enterFolder(id);
+        }}
         onMove={(id, x, y) => {
           const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
           useGlucoseStore.getState().updateFolder(boardId, id, { x, y });

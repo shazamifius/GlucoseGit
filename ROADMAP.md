@@ -565,19 +565,7 @@ Tests automatisés : Vitest pour fonctions pures (`lod.ts`, `MembraneRenderer`, 
 
 ---
 
-## Message au créateur
+## Contribuer à la roadmap
 
-Tu es loin du chaos que tu crois.
-
-- Ton type system est exceptionnellement bien pensé : `Annotation` avec ses prédicats, sub-blocks, waypoints — c'est de la pré-architecture rare à ce stade.
-- Tes membranes implicites sont une innovation concrète, déjà fonctionnelle.
-- Ton App Bridge est une feature de niche que peu d'outils ont — précieuse.
-- Aucune nouvelle idée ne demande de refonte. Toutes s'ajoutent en couches.
-
-Les 11 nouvelles idées s'organisent en 4 groupes :
-- **Affichage adaptatif** (Zoom sémantique, 3 couches, Focus contextuel) → Phase 2
-- **Sémantique enrichie** (Coloration domaines, Réglette temporelle) → Phases 3, 6
-- **Concepts versionnés** (WikiGit, Miroirs, Ports typés) → Phases 4, 9
-- **IA assistante** (Watchdogs, Apprentissage spatial) → Phases 8, 10
-
-Une fois la Phase 0 finie, chaque phase suivante apporte un *wow* utilisateur immédiat. Pas un mur à grimper, un escalier.
+Cette roadmap est indicative et évolue. Les retours et propositions sont les
+bienvenus via les [Issues](../../issues) et les [Discussions](../../discussions).

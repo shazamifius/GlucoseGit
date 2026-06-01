@@ -24,6 +24,14 @@ export default function FolderBreadcrumb() {
   const [siblingsFor, setSiblingsFor] = useState<{ idx: number; siblings: Crumb[] } | null>(null);
   const hideTimerRef = useRef<number | null>(null);
 
+  // ⚠️ Tous les hooks DOIVENT être appelés inconditionnellement avant tout early return.
+  // Auparavant, ce useEffect était placé après `if (folderStack.length === 0) return null;`,
+  // ce qui causait React error #310 ("Rendered more hooks than during the previous render")
+  // au moment précis où on entrait dans le premier folder (passage de 0 → N segments).
+  useEffect(() => {
+    return () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); };
+  }, []);
+
   if (folderStack.length === 0) return null;
 
   const crumbs: Crumb[] = folderStack.map(({ boardId, folderId }) => {
@@ -44,20 +52,34 @@ export default function FolderBreadcrumb() {
       .map((f) => ({ boardId: cur.boardId, folderId: f.id, name: f.name, color: f.color }));
   }
 
+  // R-FIL — après une navigation breadcrumb, on demande au canvas un
+  // atterrissage propre (cadrage du board d'arrivée + suspension de l'auto-nav)
+  // pour éviter le « ça nous revient dans notre dossier ».
+  function settle() {
+    window.dispatchEvent(new CustomEvent("glucose:nav-settle"));
+  }
+
   function jumpTo(targetIdx: number) {
     // Exit jusqu'au niveau souhaité
     const stepsBack = crumbs.length - 1 - targetIdx;
     for (let k = 0; k < stepsBack; k++) exitFolder();
+    settle();
   }
 
-  function jumpToSibling(parentIdx: number, sib: Crumb) {
+  async function jumpToSibling(parentIdx: number, sib: Crumb) {
     // Remonte au niveau parent puis enter dans le sibling
     const stepsBack = crumbs.length - parentIdx;
     for (let k = 0; k < stepsBack; k++) exitFolder();
     // Assure le bon board actif (devrait l'être déjà)
     setActiveBoardId(sib.boardId);
-    enterFolder(sib.folderId);
+    // R-FIL-02 v3 — scan paresseux : si le sibling n'est pas encore scanné, on
+    // le remplit AVANT d'entrer (sinon page vide). Import dynamique pour éviter
+    // un cycle de modules avec le canvas.
     setSiblingsFor(null);
+    const { expandFolderIfPending } = await import("../canvas/folderMirror");
+    await expandFolderIfPending(sib.boardId, sib.folderId);
+    enterFolder(sib.folderId);
+    settle();
   }
 
   function showSiblings(idx: number) {
@@ -70,10 +92,6 @@ export default function FolderBreadcrumb() {
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
     hideTimerRef.current = window.setTimeout(() => setSiblingsFor(null), 220);
   }
-
-  useEffect(() => {
-    return () => { if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current); };
-  }, []);
 
   const FolderIcon = ({ color, size = 10 }: { color: string; size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
@@ -97,7 +115,7 @@ export default function FolderBreadcrumb() {
     }}>
       {/* Racine */}
       <button
-        onClick={exitToRoot}
+        onClick={() => { exitToRoot(); settle(); }}
         title="Retour à la racine"
         style={crumbBtnStyle("#666")}
         onMouseEnter={(e) => { e.currentTarget.style.background = "#222"; e.currentTarget.style.color = "#bbb"; }}

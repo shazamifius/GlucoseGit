@@ -26,10 +26,47 @@ export interface TemporalAnchor {
   label?: string;       // texte affiché (ex: "Révolution française")
 }
 
+// ── Assets (R-EMB-01 — Sprint 2) ──────────────────────────────
+//
+// Un asset est une payload binaire (image, vidéo, fichier futur). Deux modes :
+//
+//   - `embed` : les octets vivent dans `Project.blobs[sha256]`. C'est le mode
+//      par défaut désormais : copier le `.glucose` ailleurs préserve tout.
+//      La dédup par sha256 est NATIVE — Automerge stocke un blob N×
+//      référencé une seule fois.
+//
+//   - `link`  : référence externe par URL/chemin. Utilisé pour :
+//        • images web (http(s)://...)
+//        • fichiers de très gros volume qu'on ne veut pas embeded
+//          (folder-mirror R-FIL-02, vidéos lourdes, etc.)
+//
+// La migration legacy `src: "asset:..."` / `src: "data:..."` / `src: "http..."`
+// est faite à `loadProject` (cf. `utils/projectMigration.ts`).
+export type AssetRef =
+  | { mode: "embed"; sha256: string; mime: string; sizeBytes?: number }
+  | { mode: "link"; href: string; sha256?: string; sizeBytes?: number };
+
+export function isEmbedAsset(
+  a: AssetRef
+): a is Extract<AssetRef, { mode: "embed" }> {
+  return a.mode === "embed";
+}
+export function isLinkAsset(
+  a: AssetRef
+): a is Extract<AssetRef, { mode: "link" }> {
+  return a.mode === "link";
+}
+
 // ── Images ────────────────────────────────────────────────────
 export interface BoardImage {
   id: string;
-  src: string;
+  /** Référence à l'asset binaire (image/vidéo). Source de vérité Sprint 2+. */
+  asset?: AssetRef;
+  /** Legacy field : `asset:<file>` | `data:...` | `http(s)://...`.
+   *  Migré vers `asset` au load par `migrateImagesAssets`. Conservé en
+   *  fallback pour les rendus en transition tant qu'il existe.
+   *  ⚠️ Ne plus écrire dans ce champ — utiliser `asset`. */
+  src?: string;
   x: number;
   y: number;
   width: number;
@@ -42,6 +79,9 @@ export interface BoardImage {
   originalWidth: number;
   originalHeight: number;
   isVideo?: boolean;
+  /** R-FIL-02 v3 — vignette de folder mirror : le sprite se cadre DANS la boîte
+   *  (width×height) en préservant le ratio (jamais déformé). */
+  fit?: "contain";
   domains?: DomainAssignment[]; // Phase 3
   mirrorOf?: string;            // Phase 4 — id de l'image originale (alias / lien vivant)
   temporalAnchor?: TemporalAnchor; // Phase 6 — date du contenu décrit
@@ -86,6 +126,9 @@ export interface TextAnnotation extends AnnotationBase {
   width?: number;
   height?: number;
   cursorPos?: number;
+  /** R-FIL-02 v2 — si ce bloc reflète un fichier (folder mirror), double-clic
+   *  ouvre le fichier au lieu d'éditer le texte en place. */
+  sourceFile?: string;
 }
 
 /** Note collante avec fond coloré + opérateur logique optionnel. */
@@ -194,6 +237,39 @@ export interface BoardZone {
 }
 
 // ── Canvas Folders (sous-canvases imbriqués) ──────────────────
+
+/** R-FIL-02 (Sprint 2) — Lien vers un dossier OS dont le contenu est
+ *  reflété dans le `CanvasFolder`. Si défini, le folder est un *mirror*
+ *  d'un dossier disque ; sinon, c'est un folder Glucose vanilla. */
+/** R-FIL-03 — Modes de tri façon explorateur Windows pour un folder miroir. */
+export type FolderSortMode =
+  | "name-asc"      // A → Z
+  | "name-desc"     // Z → A
+  | "type"          // par extension, puis nom
+  | "size-desc"     // du plus gros au plus petit
+  | "size-asc"      // du plus petit au plus gros
+  | "modified-desc" // modifié récemment d'abord
+  | "modified-asc"; // plus ancien d'abord
+
+export interface FolderMirrorSource {
+  /** Chemin absolu du dossier OS scanné. */
+  rootPath: string;
+  /** `snapshot` = un scan unique au drop ; `live` = watcher (R-FIL-02 v2). */
+  mode: "snapshot" | "live";
+  /** Timestamp ms du dernier scan. */
+  lastScannedAt: number;
+  /** Glob optionnel (ex: "*.blend") — null = tout (sauf binaires interdits). */
+  pattern?: string;
+  /** True si on scanne aussi les sous-dossiers (R-FIL-02 v2 = navigables). */
+  recursive: boolean;
+  /** R-FIL-03 — ordre d'affichage. Défaut: dossiers d'abord puis A→Z. */
+  sortBy?: FolderSortMode;
+  /** R-FIL-02 v3 — scan PARESSEUX : true tant que le contenu de ce dossier
+   *  n'a pas encore été scanné. On ne scanne qu'à l'entrée → import instantané
+   *  et complet à 100% quelle que soit la taille (49k+ fichiers). */
+  pendingScan?: boolean;
+}
+
 export interface CanvasFolder {
   id: string;
   name: string;
@@ -205,6 +281,22 @@ export interface CanvasFolder {
   childBoardId: string;        // Important : un dossier-miroir partage le SAME childBoardId
                                // que l'original → toute mutation propage automatiquement.
   mirrorOf?: string;           // Phase 4 — id du dossier original (alias)
+  /** R-FIL-02 — Si défini, ce folder reflète un dossier OS. */
+  mirrorSource?: FolderMirrorSource;
+}
+
+/**
+ * R-FIL-02 v2 — Arbre d'un folder miroir à créer (récursif). Produit par le
+ * scan filesystem (folderMirror), consommé par `createFolderTree` (store).
+ *   - `annotations` = fichiers de ce niveau (stickies launchers).
+ *   - `children`    = sous-dossiers navigables (mêmes nœuds, récursif).
+ */
+export interface FolderTreeNode {
+  folder: Omit<CanvasFolder, "id" | "childBoardId">;
+  annotations: Annotation[];
+  /** R-FIL-02 v2 — médias affichés directement (images/vidéos liées, pas embed). */
+  images: BoardImage[];
+  children: FolderTreeNode[];
 }
 
 // ── Boards ────────────────────────────────────────────────────
@@ -238,6 +330,10 @@ export interface Project {
   activeBoardId: string;
   presets: Preset[];
   domains?: Domain[]; // Phase 3 — partagé entre tous les boards
+  /** R-EMB-01 (Sprint 2) — Map content-addressed sha256 → bytes pour les
+   *  assets `mode: "embed"`. Optionnelle pour compat ascendante : un projet
+   *  legacy (avant Sprint 2) n'a pas ce champ ; il est créé à la 1re embed. */
+  blobs?: Record<string, Uint8Array>;
   createdAt: number;
   updatedAt: number;
 }

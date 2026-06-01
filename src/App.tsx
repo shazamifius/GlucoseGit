@@ -6,6 +6,7 @@ import BoardTabs from "./components/BoardTabs";
 import PanelDock, { type TabId } from "./components/PanelDock";
 import PomodoroOverlay from "./components/PomodoroOverlay";
 import FolderViewportIndicator from "./components/FolderViewportIndicator";
+import AppLaunchOverlay from "./components/AppLaunchOverlay";
 import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject } from "./utils/project";
 import Toast, { showToast } from "./components/Toast";
@@ -201,12 +202,12 @@ export default function App() {
         window.dispatchEvent(new Event("glucose:trigger-import"));
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault(); undo();
-        showToast("Annulé", "↩");
+        e.preventDefault();
+        if (undo()) showToast("Annulé", "↩");
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault(); redo();
-        showToast("Rétabli", "↪");
+        e.preventDefault();
+        if (redo()) showToast("Rétabli", "↪");
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "c") {
         const { selectedImageIds, selectedAnnotationIds } = useGlucoseStore.getState();
@@ -357,6 +358,9 @@ export default function App() {
 
         {/* Phase 7.5 — indicateur visuel "vous êtes dans un dossier" */}
         <FolderViewportIndicator />
+
+        {/* R-FIL — animation de lancement d'app native (logo + couleur dominante) */}
+        <AppLaunchOverlay />
 
         {/* Floating right panels (lazy-loaded — Suspense montre rien le temps que ça charge) */}
         {presetOpen && (

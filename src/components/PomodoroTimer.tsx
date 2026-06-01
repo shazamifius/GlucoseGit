@@ -28,7 +28,7 @@ export default function PomodoroTimer() {
   return (
     <div style={{
       background: "#111", border: "1px solid #222", borderRadius: 8,
-      padding: "14px 18px",
+      padding: "18px 18px 14px 18px",
       display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
       minWidth: 160,
     }}>

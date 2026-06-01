@@ -32,7 +32,8 @@
 
 import { create } from "zustand";
 import {
-  Annotation, ArrowAnnotation, BoardImage, BoardZone, CanvasFolder, Domain, Preset,
+  Annotation, ArrowAnnotation, BoardImage, BoardZone, CanvasFolder, Domain,
+  FolderTreeNode, Preset,
   Project, StoryboardPanel, StoryboardSettings, Tool, Viewport
 } from "../types";
 import { DEFAULT_PRESETS } from "../data/defaultPresets";
@@ -135,6 +136,53 @@ function indexById<T extends { id: string }>(arr: T[], id: string): number {
   return arr.findIndex((x) => x.id === id);
 }
 
+// ─────────── UNDO-1 — état de vue préservé à travers undo/redo ───────────────
+/** Reconstruit le chemin de dossiers (folderStack UI) qui mène à `activeBoardId`
+ *  à partir de la structure des folders. Pur (pas d'accès au store). */
+function buildFolderStack(
+  boards: Project["boards"],
+  activeBoardId: string,
+): Array<{ boardId: string; folderId: string }> {
+  const parentMap = new Map<string, { boardId: string; folderId: string }>();
+  for (const b of boards) {
+    for (const f of b.folders ?? []) {
+      parentMap.set(f.childBoardId, { boardId: b.id, folderId: f.id });
+    }
+  }
+  const stack: Array<{ boardId: string; folderId: string }> = [];
+  let curr = activeBoardId;
+  let guard = 256;
+  while (parentMap.has(curr) && guard-- > 0) {
+    const parent = parentMap.get(curr)!;
+    stack.unshift(parent);
+    curr = parent.boardId;
+  }
+  return stack;
+}
+
+/** UNDO-1 — Après un undo/redo on restaure le CONTENU mais on garde la caméra et
+ *  le dossier courant là où l'utilisateur se trouve : pas de téléportation. Renvoie
+ *  un nouveau doc = `restored` avec le viewport de chaque board + l'activeBoardId
+ *  recopiés depuis le présent (`current`). */
+function preserveView(restored: A.Doc<Project>, current: A.Doc<Project>): A.Doc<Project> {
+  const cur = current as unknown as Project;
+  return A.change(restored, "preserveView", (d) => {
+    // Board actif : on reste où on est, SAUF si ce board n'existe plus après le
+    // restore (ex : on annule la création du dossier dans lequel on était) — on
+    // laisse alors l'activeBoardId du snapshot.
+    if (d.boards.some((b) => b.id === cur.activeBoardId)) {
+      d.activeBoardId = cur.activeBoardId;
+    }
+    // Viewport : on recopie la caméra courante de chaque board encore présent.
+    for (const b of d.boards) {
+      const cb = cur.boards.find((x) => x.id === b.id);
+      if (cb?.viewport) {
+        b.viewport = { x: cb.viewport.x, y: cb.viewport.y, scale: cb.viewport.scale };
+      }
+    }
+  });
+}
+
 interface GlucoseStore {
   // â”€â”€ Source de vÃ©ritÃ© Automerge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _doc: A.Doc<Project>;
@@ -143,6 +191,17 @@ interface GlucoseStore {
   project: Project;
   /** Helper central : toute mutation passe par lÃ . Blocked si preview actif. */
   mutate: (message: string, mutator: (d: Project) => void) => void;
+  /** UNDO-1 — Comme `mutate` mais SANS entrée undo/redo. Réservé à l'état de
+   *  vue/navigation (viewport, activeBoardId) : ça ne doit jamais consommer un
+   *  Ctrl+Z ni invalider le redo en attente. */
+  mutateView: (message: string, mutator: (d: Project) => void) => void;
+  /** UNDO-1 — Transaction d'interaction : regroupe un drag / tracé de flèche en
+   *  UNE seule entrée undo. `beginLiveEdit` prend un snapshot unique ; tant que
+   *  la transaction est ouverte, `mutate` applique les changements live SANS
+   *  empiler. `endLiveEdit` referme. Idempotent ; `end` est sûr même sans `begin`. */
+  _liveEdit: boolean;
+  beginLiveEdit: () => void;
+  endLiveEdit: () => void;
 
   // â”€â”€ Time Machine (Phase 7.4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /** Si dÃ©fini, on est en mode "preview historique" : `project` est figÃ© sur cet Ã©tat. */
@@ -168,14 +227,23 @@ interface GlucoseStore {
   _redoStack: A.Doc<Project>[];
   /** PrÃ©servÃ© pour rÃ©tro-compat : pousse manuellement le doc courant dans undoStack. */
   pushHistory: () => void;
-  undo: () => void;
-  redo: () => void;
+  /** Annule la dernière édition. Renvoie `true` si quelque chose a été annulé
+   *  (pile non vide), `false` sinon → permet un feedback honnête (pas de toast
+   *  « Annulé » quand il n'y a rien à annuler). */
+  undo: () => boolean;
+  redo: () => boolean;
 
   // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setViewport: (boardId: string, vp: Viewport) => void;
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  addImage: (boardId: string, img: BoardImage) => void;
+  /**
+   * Ajoute une image au board. Si `embedBytes` est fourni ET que `img.asset`
+   * est en mode "embed", les octets sont écrits dans `project.blobs[sha256]`
+   * dans la MÊME mutation (atomique pour undo). Pas d'écriture disque.
+   * R-EMB-01 (Sprint 2).
+   */
+  addImage: (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
   updateImage: (boardId: string, id: string, patch: Partial<BoardImage>) => void;
   removeImages: (boardId: string, ids: string[]) => void;
   updateMultipleImages: (boardId: string, updates: { id: string; patch: Partial<BoardImage> }[]) => void;
@@ -189,6 +257,11 @@ interface GlucoseStore {
   // â”€â”€ Annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addAnnotation: (boardId: string, ann: Annotation) => void;
   updateAnnotation: (boardId: string, id: string, patch: Partial<Annotation>) => void;
+  /** UNDO-1 — Réconcilie la taille MESURÉE d'une annotation (ResizeObserver du
+   *  rendu). NON annulable (passe par mutateView) : c'est une taille dérivée du
+   *  rendu auto-fit, pas une édition utilisateur — ça ne doit jamais consommer un
+   *  Ctrl+Z ni vider le redo. */
+  syncAnnotationSize: (boardId: string, id: string, width: number, height: number) => void;
   removeAnnotations: (boardId: string, ids: string[]) => void;
 
   // â”€â”€ Storyboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -232,6 +305,28 @@ interface GlucoseStore {
 
   // â”€â”€ Canvas Folders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   createFolder: (parentBoardId: string, folder: Omit<CanvasFolder, "childBoardId">) => void;
+  /**
+   * R-FIL-02 (Sprint 2) — crée un folder + son child board peuplé de
+   * `seedAnnotations` (typiquement issu d'un scan filesystem). Atomique pour
+   * undo/redo. Renvoie l'id du folder créé.
+   */
+  createFolderWithContent: (
+    parentBoardId: string,
+    folder: Omit<CanvasFolder, "id" | "childBoardId">,
+    seedAnnotations: Annotation[],
+  ) => string;
+  /**
+   * R-FIL-02 v2 — crée un arbre de folders miroir : 1 child board par dossier,
+   * sous-dossiers navigables. Atomique pour undo/redo. Renvoie l'id du folder
+   * racine.
+   */
+  createFolderTree: (parentBoardId: string, tree: FolderTreeNode) => string;
+  /**
+   * R-FIL-02 v3 (scan paresseux) — remplit le child board d'un folder
+   * `pendingScan` avec UN niveau scanné (tiles + sous-boîtes vides), puis
+   * marque le folder comme scanné. Idempotent.
+   */
+  expandFolder: (parentBoardId: string, folderId: string, level: FolderTreeNode) => void;
   updateFolder: (boardId: string, folderId: string, patch: Partial<CanvasFolder>) => void;
   removeFolders: (boardId: string, folderIds: string[]) => void;
   enterFolder: (folderId: string) => void;
@@ -325,12 +420,45 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       }
       const before = s._doc;
       const next = A.change(before, message, (d) => mutator(d as Project));
+      // Pendant une transaction d'interaction (drag, tracé de flèche), la pile a
+      // déjà été snapshottée au beginLiveEdit → on n'empile pas à chaque frame.
+      if (s._liveEdit) {
+        return { _doc: next, project: next as unknown as Project };
+      }
       return {
         _doc: next,
         project: next as unknown as Project,
         _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), before],
         _redoStack: [],
       };
+    });
+  },
+
+  _liveEdit: false,
+  beginLiveEdit: () => {
+    set((s) => {
+      if (s._liveEdit || s._previewHeads !== null) return s; // déjà ouverte / Time Machine
+      // 1 seul snapshot pour TOUTE l'interaction ; démarrer une édition vide le redo.
+      return {
+        _liveEdit: true,
+        _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
+        _redoStack: [],
+      };
+    });
+  },
+  endLiveEdit: () => {
+    if (get()._liveEdit) set({ _liveEdit: false });
+  },
+
+  mutateView: (message, mutator) => {
+    // UNDO-1 — Mutation de l'état de VUE uniquement (viewport / activeBoardId).
+    // On applique le change Automerge (donc c'est persisté + visible Time Machine)
+    // mais on NE touche NI `_undoStack` NI `_redoStack` : naviguer/zoomer ne doit
+    // jamais s'empiler dans l'undo ni détruire un redo en attente.
+    set((s) => {
+      if (s._previewHeads !== null) return s; // bloqué en mode Time Machine
+      const next = A.change(s._doc, message, (d) => mutator(d as Project));
+      return { _doc: next, project: next as unknown as Project };
     });
   },
 
@@ -415,57 +543,81 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set((s) => ({ _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), s._doc], _redoStack: [] }));
   },
   undo: () => {
+    if (get()._undoStack.length === 0) return false;
     set((s) => {
       if (s._undoStack.length === 0) return s;
       // Clone le doc avant restauration : un doc Automerge dÃ©jÃ  utilisÃ© comme
       // input Ã  `A.change()` est gelÃ©, et la prochaine mutation jetterait
       // Â« Attempting to change an outdated document Â». Le clone est cheap
       // (structural sharing).
-      const prev = A.clone(s._undoStack[s._undoStack.length - 1]);
+      const restored = A.clone(s._undoStack[s._undoStack.length - 1]);
+      // UNDO-1 — on restaure le contenu mais on GARDE la caméra et le dossier
+      // courant (pas de téléportation) ; le folderStack est reconstruit pour
+      // matcher l'activeBoardId final.
+      const prev = preserveView(restored, s._doc);
+      const proj = prev as unknown as Project;
       return {
         _doc: prev,
-        project: prev as unknown as Project,
+        project: proj,
         _undoStack: s._undoStack.slice(0, -1),
         _redoStack: [...s._redoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
         // Sortir du preview Time Machine si actif (l'undo est une opÃ©ration "live")
         _previewHeads: null,
+        _liveEdit: false,
         selectedImageIds: [],
         selectedAnnotationIds: [],
+        folderStack: buildFolderStack(proj.boards, proj.activeBoardId),
       };
     });
+    return true;
   },
   redo: () => {
+    if (get()._redoStack.length === 0) return false;
     set((s) => {
       if (s._redoStack.length === 0) return s;
-      const next = A.clone(s._redoStack[s._redoStack.length - 1]);
+      const restored = A.clone(s._redoStack[s._redoStack.length - 1]);
+      const next = preserveView(restored, s._doc);
+      const proj = next as unknown as Project;
       return {
         _doc: next,
-        project: next as unknown as Project,
+        project: proj,
         _redoStack: s._redoStack.slice(0, -1),
         _undoStack: [...s._undoStack.slice(-(UNDO_DEPTH - 1)), s._doc],
         _previewHeads: null,
+        _liveEdit: false,
         selectedImageIds: [],
         selectedAnnotationIds: [],
+        folderStack: buildFolderStack(proj.boards, proj.activeBoardId),
       };
     });
+    return true;
   },
 
   // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setViewport: (boardId, vp) => {
     const safe = clampViewport(vp);
-    get().mutate("setViewport", (d) => {
+    get().mutateView("setViewport", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (b) b.viewport = safe;
     });
   },
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  addImage: (boardId, img) => {
+  addImage: (boardId, img, embedBytes) => {
     const safe = clampSpatial(img);
     get().mutate("addImage", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
       b.images.push(safe);
+      // R-EMB-01 (Sprint 2) : si on a des bytes à embedder pour cette image,
+      // on les ajoute à project.blobs dans la même mutation. Dédup naturelle :
+      // si un autre image partage déjà ce sha, on ne réécrit pas.
+      if (embedBytes && safe.asset?.mode === "embed") {
+        if (!d.blobs) d.blobs = {};
+        if (!d.blobs[safe.asset.sha256]) {
+          d.blobs[safe.asset.sha256] = embedBytes;
+        }
+      }
       b.updatedAt = Date.now();
       d.updatedAt = Date.now();
     });
@@ -676,6 +828,20 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
+  syncAnnotationSize: (boardId, id, width, height) => {
+    // UNDO-1 — taille auto-fit mesurée par le rendu (ResizeObserver) → mutateView
+    // (jamais d'entrée d'undo). Sinon chaque reflow du markdown empilait un Ctrl+Z
+    // « fantôme » APRÈS la fermeture de la transaction d'édition → undo « inutile ».
+    const w = clampNum(width, 1, SIZE_LIMIT);
+    const h = clampNum(height, 1, SIZE_LIMIT);
+    get().mutateView("syncAnnotationSize", (d) => {
+      const b = d.boards.find((x) => x.id === boardId);
+      if (!b) return;
+      const a = b.annotations.find((x) => x.id === id);
+      if (a && a.type !== "arrow") { a.width = w; a.height = h; }
+    });
+  },
+
   removeAnnotations: (boardId, ids) => {
     const idSet = new Set(ids);
     get().mutate("removeAnnotations", (d) => {
@@ -814,22 +980,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   setActiveBoardId: (id) => {
-    // Reconstruit folderStack pour pointer vers le nouveau board s'il est sous-dossier
-    const proj = get().project;
-    const parentMap = new Map<string, { boardId: string; folderId: string }>();
-    for (const b of proj.boards) {
-      for (const f of b.folders ?? []) {
-        parentMap.set(f.childBoardId, { boardId: b.id, folderId: f.id });
-      }
-    }
-    const stack: Array<{ boardId: string; folderId: string }> = [];
-    let curr = id;
-    while (parentMap.has(curr)) {
-      const parent = parentMap.get(curr)!;
-      stack.unshift(parent);
-      curr = parent.boardId;
-    }
-    get().mutate("setActiveBoardId", (d) => { d.activeBoardId = id; });
+    // Navigation pure → mutateView (jamais dans l'undo). Reconstruit folderStack
+    // pour pointer vers le nouveau board s'il est sous-dossier.
+    const stack = buildFolderStack(get().project.boards, id);
+    get().mutateView("setActiveBoardId", (d) => { d.activeBoardId = id; });
     set({ selectedImageIds: [], selectedAnnotationIds: [], folderStack: stack });
   },
 
@@ -1193,6 +1347,176 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
+  createFolderWithContent: (parentBoardId, folderData, seedAnnotations) => {
+    // R-FIL-02 — Variante de createFolder qui pré-peuple le child board.
+    // Utilisée par le drop d'un dossier OS (folderMirror.scanFolderForMirror).
+    const childBoardId = nanoid();
+    const folderId = nanoid();
+    const folder: CanvasFolder = clampSpatial({
+      ...folderData,
+      id: folderId,
+      childBoardId,
+    });
+
+    get().mutate("createFolderWithContent", (d) => {
+      // 1) Crée le child board pré-peuplé.
+      // ATTENTION : après push, on doit récupérer le PROXY Automerge pour
+      // pouvoir y push les annotations (cf. fix Sprint 1 — variables JS
+      // déconnectées du doc après push).
+      d.boards.push({ ...newBoard(folderData.name), id: childBoardId });
+      const childBoard = d.boards.find((b) => b.id === childBoardId);
+      if (!childBoard) return;
+
+      // 2) Insère les annotations dans le child board (deep-clone pour
+      // casser les refs avant push — pattern Sprint 1).
+      for (const ann of seedAnnotations) {
+        const plain = JSON.parse(JSON.stringify(ann)) as Annotation;
+        const safe = clampSpatial(plain);
+        childBoard.annotations.push(safe);
+      }
+
+      // 3) Ajoute le folder au parent board.
+      const par = d.boards.find((b) => b.id === parentBoardId);
+      if (!par) return;
+      if (!par.folders) par.folders = [];
+      par.folders.push(folder);
+      par.updatedAt = Date.now();
+      d.updatedAt = Date.now();
+    });
+    return folderId;
+  },
+
+  createFolderTree: (parentBoardId, tree) => {
+    // R-FIL-02 v2 — crée 1 child board par dossier. Toute l'arborescence dans
+    // UNE mutation = undo atomique.
+    //
+    // PERF : on aplatit l'arbre en JS pur (Phase 1) AVANT la mutation, puis on
+    // applique à plat avec un index Map id→proxy (Phase 2). Évite le O(n²) de
+    // `d.boards.find` par nœud qui gelait l'app sur les gros dossiers (et
+    // pouvait tronquer le rendu). Voir retours utilisateur "perd 70%".
+    const rootFolderId = nanoid();
+
+    interface BoardSpec { boardId: string; name: string; annotations: Annotation[]; images: BoardImage[]; }
+    interface Placement { parentBoardId: string; folder: CanvasFolder; }
+    const boardSpecs: BoardSpec[] = [];
+    const placements: Placement[] = [];
+
+    // Phase 1 — aplatissement pur (récursion JS rapide, hors doc Automerge).
+    const walk = (parentId: string, node: FolderTreeNode, folderId: string): void => {
+      const childBoardId = nanoid();
+      boardSpecs.push({
+        boardId: childBoardId,
+        name: node.folder.name,
+        annotations: node.annotations,
+        images: node.images ?? [],
+      });
+      placements.push({
+        parentBoardId: parentId,
+        folder: { ...node.folder, id: folderId, childBoardId } as CanvasFolder,
+      });
+      for (const child of node.children) walk(childBoardId, child, nanoid());
+    };
+    walk(parentBoardId, tree, rootFolderId);
+
+    get().mutate("createFolderTree", (d) => {
+      // Phase 2a — crée tous les child boards d'un coup.
+      for (const spec of boardSpecs) {
+        d.boards.push({ ...newBoard(spec.name), id: spec.boardId });
+      }
+      // Index O(1) (re-fetch des proxies après les push — cf. fix Sprint 1).
+      const byId = new Map<string, (typeof d.boards)[number]>();
+      for (const b of d.boards) byId.set(b.id, b);
+
+      // Phase 2b — peuple chaque board (annotations + images).
+      for (const spec of boardSpecs) {
+        const board = byId.get(spec.boardId);
+        if (!board) continue;
+        for (const ann of spec.annotations) {
+          board.annotations.push(clampSpatial(JSON.parse(JSON.stringify(ann)) as Annotation));
+        }
+        for (const img of spec.images) {
+          board.images.push(clampSpatial(JSON.parse(JSON.stringify(img)) as BoardImage));
+        }
+      }
+
+      // Phase 2c — place les folder boxes dans leurs parents.
+      const now = Date.now();
+      for (const pl of placements) {
+        const par = byId.get(pl.parentBoardId);
+        if (!par) continue;
+        if (!par.folders) par.folders = [];
+        par.folders.push(clampSpatial(JSON.parse(JSON.stringify(pl.folder)) as CanvasFolder));
+        par.updatedAt = now;
+      }
+      d.updatedAt = now;
+    });
+    return rootFolderId;
+  },
+
+  expandFolder: (parentBoardId, folderId, level) => {
+    // R-FIL-02 v3 — scan paresseux. `level` = un niveau scanné dont la racine
+    // correspond au folder DÉJÀ existant (folderId). On verse son contenu dans
+    // le child board existant et on crée des sous-boîtes vides (pendingScan).
+    const proj = get().project;
+    const parent = proj.boards.find((b) => b.id === parentBoardId);
+    const folder = (parent?.folders ?? []).find((f) => f.id === folderId);
+    if (!folder) return;
+    if (folder.mirrorSource && folder.mirrorSource.pendingScan === false) return; // déjà scanné
+    const childBoardId = folder.childBoardId;
+
+    // Aplatissement des sous-boîtes (children = sous-dossiers vides pendingScan).
+    interface BoardSpec { boardId: string; name: string; annotations: Annotation[]; images: BoardImage[]; }
+    interface Placement { parentBoardId: string; folder: CanvasFolder; }
+    const boardSpecs: BoardSpec[] = [];
+    const placements: Placement[] = [];
+    for (const child of level.children) {
+      const subBoardId = nanoid();
+      boardSpecs.push({ boardId: subBoardId, name: child.folder.name, annotations: child.annotations, images: child.images ?? [] });
+      placements.push({ parentBoardId: childBoardId, folder: { ...child.folder, id: nanoid(), childBoardId: subBoardId } as CanvasFolder });
+    }
+
+    // UNDO-1 — le scan paresseux est un effet de bord de NAVIGATION (déclenché
+    // en entrant dans un dossier pendingScan), pas une édition : il ne doit pas
+    // consommer d'undo ni vider le redo. C'est idempotent + persisté (Automerge).
+    get().mutateView("expandFolder", (d) => {
+      // 1) Crée les sous-child-boards (vides).
+      for (const spec of boardSpecs) {
+        d.boards.push({ ...newBoard(spec.name), id: spec.boardId });
+      }
+      const byId = new Map<string, (typeof d.boards)[number]>();
+      for (const b of d.boards) byId.set(b.id, b);
+
+      // 2) Verse le contenu de CE niveau dans le child board existant.
+      const cb = byId.get(childBoardId);
+      if (cb) {
+        for (const ann of level.annotations) {
+          cb.annotations.push(clampSpatial(JSON.parse(JSON.stringify(ann)) as Annotation));
+        }
+        for (const img of level.images ?? []) {
+          cb.images.push(clampSpatial(JSON.parse(JSON.stringify(img)) as BoardImage));
+        }
+      }
+
+      // 3) Place les sous-boîtes (vides) dans le child board.
+      const now = Date.now();
+      for (const pl of placements) {
+        const par = byId.get(pl.parentBoardId);
+        if (!par) continue;
+        if (!par.folders) par.folders = [];
+        par.folders.push(clampSpatial(JSON.parse(JSON.stringify(pl.folder)) as CanvasFolder));
+      }
+
+      // 4) Marque le folder comme scanné.
+      const par2 = d.boards.find((b) => b.id === parentBoardId);
+      const f2 = (par2?.folders ?? []).find((f) => f.id === folderId);
+      if (f2?.mirrorSource) {
+        f2.mirrorSource.pendingScan = false;
+        f2.mirrorSource.lastScannedAt = now;
+      }
+      d.updatedAt = now;
+    });
+  },
+
   updateFolder: (boardId, folderId, patch) => {
     const safe = clampSpatial(patch);
     const toDelete = undefinedKeys(patch);
@@ -1270,7 +1594,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const folder = (board?.folders ?? []).find((f) => f.id === folderId);
     if (!folder) return;
     const targetBoardId = folder.childBoardId;
-    get().mutate("enterFolder", (d) => { d.activeBoardId = targetBoardId; });
+    get().mutateView("enterFolder", (d) => { d.activeBoardId = targetBoardId; });
     set({
       folderStack: [...s.folderStack, { boardId, folderId }],
       selectedImageIds: [],
@@ -1282,7 +1606,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const s = get();
     if (s.folderStack.length === 0) return;
     const prev = s.folderStack[s.folderStack.length - 1];
-    get().mutate("exitFolder", (d) => { d.activeBoardId = prev.boardId; });
+    get().mutateView("exitFolder", (d) => { d.activeBoardId = prev.boardId; });
     set({
       folderStack: s.folderStack.slice(0, -1),
       selectedImageIds: [],
@@ -1294,7 +1618,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const s = get();
     if (s.folderStack.length === 0) return;
     const root = s.folderStack[0];
-    get().mutate("exitToRoot", (d) => { d.activeBoardId = root.boardId; });
+    get().mutateView("exitToRoot", (d) => { d.activeBoardId = root.boardId; });
     set({
       folderStack: [],
       selectedImageIds: [],
@@ -1318,6 +1642,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       project: newDoc as unknown as Project,
       _undoStack: [],
       _redoStack: [],
+      _liveEdit: false,
       _previewHeads: null,
       selectedImageIds: [],
       selectedAnnotationIds: [],
@@ -1331,6 +1656,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       project: doc as unknown as Project,
       _undoStack: [],
       _redoStack: [],
+      _liveEdit: false,
       _previewHeads: null,
       selectedImageIds: [],
       selectedAnnotationIds: [],

@@ -5,8 +5,27 @@ import { Project } from "../types";
 import { parseProjectFile } from "../store/projectSchema";
 // Phase 7.0 — migration des images base64 legacy vers asset:<hash>.<ext>
 import { migrateLegacyAssets } from "./assets";
+// R-EMB-01 (Sprint 2) — migration asset:<file> / data: / http → AssetRef embed/link
+import { migrateProjectAssets, type AssetBytesFetcher } from "./projectMigration";
+import { dataUrlToBytes } from "./assetRef";
 // Phase 7.2 — format binaire `.glucose` v2 via Automerge
 import * as A from "../store/automerge";
+
+/**
+ * Fetcher Tauri pour la migration R-EMB-01 : lit un asset:<filename> du
+ * dossier `assets/` géré et renvoie ses bytes + mime. Renvoie null si
+ * introuvable / interdit.
+ */
+const tauriAssetBytesFetcher: AssetBytesFetcher = async (filename) => {
+  try {
+    // Le backend renvoie une data URL `data:<mime>;base64,<payload>`.
+    const dataUrl = await invoke<string>("load_asset", { filename });
+    return dataUrlToBytes(dataUrl);
+  } catch (e) {
+    console.debug(`[asset fetcher] échec ${filename}:`, e);
+    return null;
+  }
+};
 
 // ────────────────────────────────────────────────────────────────────────────
 // base64 ↔ Uint8Array (transport entre Rust et JS pour le binaire Automerge)
@@ -167,5 +186,22 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
   if (migration.failed > 0) {
     console.warn(`[loadProject] ${migration.failed} image(s) legacy n'ont pas pu être migrées`);
   }
-  return { project: migration.project, doc, path };
+
+  // R-EMB-01 (Sprint 2) — Migration des images vers le modèle dual AssetRef.
+  // Idempotente : un projet déjà migré est inchangé. Cette migration peut
+  // embedder de gros volumes (toutes les images du dossier assets/ sont
+  // rapatriées dans le .glucose) — c'est précisément l'objectif : un
+  // .glucose self-contained.
+  const embMigration = await migrateProjectAssets(migration.project, tauriAssetBytesFetcher);
+  if (embMigration.migrated > 0) {
+    console.info(
+      `[loadProject] R-EMB-01 : ${embMigration.migrated} image(s) migrée(s) en AssetRef ` +
+      `(${embMigration.blobsAdded} blob(s) ajoutés, ${embMigration.failed} échec(s))`
+    );
+    // Comme pour la migration précédente : le doc Automerge originel est
+    // désynchronisé du project muté → on force la re-création.
+    doc = undefined;
+  }
+
+  return { project: embMigration.project, doc, path };
 }

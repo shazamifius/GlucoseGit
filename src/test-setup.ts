@@ -34,6 +34,43 @@ if (typeof window !== "undefined") {
     window.ResizeObserver = StubResizeObserver as unknown as typeof ResizeObserver;
   }
   if (!URL.createObjectURL) {
-    URL.createObjectURL = () => "blob:test";
+    let counter = 0;
+    URL.createObjectURL = () => `blob:test-${counter++}`;
   }
+  // jsdom ne fournit pas le contexte canvas 2D. ColorPicker et Minimap en
+  // ont besoin. On stubbe le minimum nécessaire pour qu'un mount ne crash pas.
+  const proto = HTMLCanvasElement.prototype as unknown as {
+    getContext: (kind: string) => unknown;
+  };
+  const realGetContext = proto.getContext;
+  proto.getContext = function (kind: string) {
+    if (kind !== "2d") {
+      return typeof realGetContext === "function" ? realGetContext.call(this, kind) : null;
+    }
+    return {
+      canvas: this,
+      fillStyle: "#000", strokeStyle: "#000", lineWidth: 1,
+      globalAlpha: 1, font: "10px sans-serif",
+      createImageData: (w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4), width: w, height: h,
+        colorSpace: "srgb" as const,
+      }),
+      putImageData: () => {},
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4), width: w, height: h,
+        colorSpace: "srgb" as const,
+      }),
+      clearRect: () => {}, fillRect: () => {}, strokeRect: () => {},
+      beginPath: () => {}, closePath: () => {},
+      moveTo: () => {}, lineTo: () => {}, arc: () => {},
+      stroke: () => {}, fill: () => {},
+      save: () => {}, restore: () => {},
+      translate: () => {}, scale: () => {}, rotate: () => {},
+      setTransform: () => {}, resetTransform: () => {},
+      drawImage: () => {},
+      measureText: (text: string) => ({ width: text.length * 6 }),
+      fillText: () => {}, strokeText: () => {},
+      setLineDash: () => {}, getLineDash: () => [],
+    };
+  };
 }

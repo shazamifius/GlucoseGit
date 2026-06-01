@@ -94,7 +94,7 @@ export default function Toolbar({
       userSelect: "none", flexShrink: 0,
     }}>
       <span style={{ color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: 2, marginRight: 12, textTransform: "uppercase" }}>
-        Atelier
+        Glucose
       </span>
 
       {/* Tool group 1: select + pan */}

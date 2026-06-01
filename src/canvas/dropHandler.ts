@@ -4,12 +4,34 @@ import { nanoid } from "../utils/nanoid";
 import { addImagesFromFiles } from "./fileImport";
 import { getCDNCandidates } from "../utils/imageUpgrade";
 // Phase 7.0 — assets externalisés (cf. PRE-PHASE7-AUDIT.md C-1)
-import { saveAsset } from "../utils/assets";
+// R-EMB-01 (Sprint 2) : on construit AssetRef embed à partir des bytes et on
+// les ajoute via `addImage(boardId, img, bytes)` plutôt que de passer par
+// le disque. Plus de `src: "asset:..."` créé par les nouveaux drops.
+import { buildEmbedRef, dataUrlToBytes, mimeFromExt } from "../utils/assetRef";
+// R-FIL-02 (Sprint 2) : drop d'un dossier OS → folder mirror.
+import { scanFolderForMirror } from "./folderMirror";
 
-type AddImageFn      = (boardId: string, img: BoardImage) => void;
+type AddImageFn      = (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
 type AddAnnotationFn = (boardId: string, ann: Annotation) => void;
+// R-FIL-02 v2 : drop d'un dossier OS → arbre de folders miroir navigables
+type CreateFolderTreeFn = (
+  parentBoardId: string,
+  tree: import("../types").FolderTreeNode,
+) => string;
 
 const IMAGE_EXTS  = /\.(png|jpg|jpeg|gif|webp|avif|svg|bmp|tiff?)(\?.*)?$/i;
+
+// R-FIL-01 (Sprint 2) — Fichiers textuels lisibles directement sur le canvas.
+// Affichés dans une TextAnnotation avec le contenu en Markdown (rendu KaTeX
+// inclus). Les `.md` sont rendus tels quels ; les autres formats sont enrobés
+// dans un fenced code block typé pour bénéficier de la coloration.
+const TEXT_FILE_EXTS = /\.(txt|md|markdown|json|jsonl|csv|tsv|log|yaml|yml|toml|ini|env|xml|html|htm|conf|cfg|gitignore|gitattributes)$/i;
+
+// Code source — même branche que TEXT_FILE_EXTS, juste un autre fenced lang.
+const CODE_FILE_EXTS = /\.(ts|tsx|js|jsx|mjs|cjs|py|rs|go|c|cc|cpp|h|hpp|java|rb|php|swift|kt|cs|scala|sh|bash|zsh|fish|ps1|sql|lua|r|jl|hs|erl|ex|exs|clj|fs|dart|nim|zig|asm|s|vim|tex|bib)$/i;
+
+// Taille max d'un fichier texte affiché inline. Au-delà, on tronque proprement.
+const TEXT_INLINE_MAX_BYTES = 100_000;
 export const VIDEO_FILE_EXTS = /\.(mp4|mov|avi|mkv|webm|m4v)$/i;
 export const VIDEO_URL_RE = /(?:youtube\.com\/(?:watch|shorts)|youtu\.be\/|tiktok\.com\/@[^/]+\/video\/|instagram\.com\/(?:reel|p)\/|vimeo\.com\/\d)/i;
 
@@ -24,6 +46,10 @@ export const EXT_COLOR: Record<string, string> = {
   obj: "#f87171", fbx: "#f87171", glb: "#f87171", gltf: "#f87171",
   c4d: "#086adb", ma: "#00aaff", mb: "#00aaff",
   aep: "#9999ff", prproj: "#9999ff",
+  nuke: "#ffcc00", nk: "#ffcc00", hip: "#ff6600", hipnc: "#ff6600",
+  drp: "#ff6a00", indd: "#ff3366", clip: "#333333",
+  exr: "#2dd4a8", usd: "#fbbf24", abc: "#888888",
+  tar: "#a78bfa", gz: "#a78bfa", pptx: "#d24726",
 };
 
 export function makeSourceSticky(filePath: string, x: number, y: number): Annotation {
@@ -36,9 +62,87 @@ export function makeSourceSticky(filePath: string, x: number, y: number): Annota
     sourceFile: filePath,
     bgColor: EXT_COLOR[ext] ?? "#1a1a2e",
     color: "#cccccc",
-    width: 220, height: 80,
+    // Tuile icône carrée (style Mac/Android) plutôt que postit allongé.
+    width: 150, height: 140,
     fontSize: 11,
   };
+}
+
+/**
+ * R-FIL-01 (Sprint 2) — Crée une TextAnnotation à partir d'un fichier texte
+ * lu. Si l'extension est du code, on enrobe dans un fenced code block typé
+ * pour bénéficier de la coloration markdown. Si c'est du `.md`, on le rend
+ * tel quel. Sinon, on enrobe dans un fenced « text ».
+ *
+ * @param filename — nom du fichier (sans le chemin) pour le header
+ * @param content  — contenu lu (déjà tronqué si > TEXT_INLINE_MAX_BYTES)
+ * @param wasTruncated — true si on a dû couper, pour ajouter un footer
+ */
+export function makeTextNodeFromFile(
+  filename: string,
+  content: string,
+  wasTruncated: boolean,
+  x: number,
+  y: number,
+): Annotation {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const isMarkdown = ext === "md" || ext === "markdown";
+  const isCode = CODE_FILE_EXTS.test("." + ext);
+
+  let body: string;
+  if (isMarkdown) {
+    body = content;
+  } else if (isCode) {
+    // Map a few extensions vers leur lang officiel pour les highlighters
+    const lang = ({
+      ts: "typescript", tsx: "tsx", js: "javascript", jsx: "jsx",
+      py: "python", rs: "rust", go: "go", c: "c", cc: "cpp", cpp: "cpp",
+      h: "c", hpp: "cpp", java: "java", rb: "ruby", php: "php",
+      swift: "swift", kt: "kotlin", cs: "csharp", scala: "scala",
+      sh: "bash", bash: "bash", zsh: "bash", fish: "fish", ps1: "powershell",
+      sql: "sql", lua: "lua", r: "r", jl: "julia", hs: "haskell",
+      ex: "elixir", exs: "elixir", clj: "clojure", fs: "fsharp",
+      dart: "dart", nim: "nim", zig: "zig", asm: "asm", s: "asm",
+      tex: "latex", bib: "bibtex",
+    } as Record<string, string>)[ext] ?? ext;
+    body = `\`\`\`${lang}\n${content}\n\`\`\``;
+  } else if (ext === "json" || ext === "jsonl") {
+    body = `\`\`\`json\n${content}\n\`\`\``;
+  } else if (ext === "csv" || ext === "tsv") {
+    body = `\`\`\`csv\n${content}\n\`\`\``;
+  } else if (ext === "yaml" || ext === "yml") {
+    body = `\`\`\`yaml\n${content}\n\`\`\``;
+  } else if (ext === "toml") {
+    body = `\`\`\`toml\n${content}\n\`\`\``;
+  } else if (ext === "xml" || ext === "html" || ext === "htm") {
+    body = `\`\`\`${ext}\n${content}\n\`\`\``;
+  } else {
+    body = `\`\`\`text\n${content}\n\`\`\``;
+  }
+
+  const header = `### 📄 ${filename}\n\n`;
+  const footer = wasTruncated
+    ? `\n\n_(tronqué à ${TEXT_INLINE_MAX_BYTES.toLocaleString()} octets — fichier plus grand)_`
+    : "";
+
+  return {
+    id: nanoid(),
+    type: "text",
+    x, y,
+    text: header + body + footer,
+    fontSize: 12,
+    width: 520,
+  };
+}
+
+/** Lit un File comme texte, tronqué à TEXT_INLINE_MAX_BYTES. Renvoie aussi
+ *  un flag indiquant si on a coupé. */
+async function readFileAsText(file: File): Promise<{ content: string; truncated: boolean }> {
+  const slice = file.size > TEXT_INLINE_MAX_BYTES
+    ? file.slice(0, TEXT_INLINE_MAX_BYTES)
+    : file;
+  const content = await slice.text();
+  return { content, truncated: file.size > TEXT_INLINE_MAX_BYTES };
 }
 
 // Convert Windows file:// pathname (/C:/foo) → C:/foo
@@ -53,6 +157,7 @@ export async function addImagesFromDrop(
   boardId: string,
   addImage: AddImageFn,
   addAnnotation?: AddAnnotationFn,
+  createFolderTree?: CreateFolderTreeFn,
 ): Promise<void> {
   const items = Array.from(e.dataTransfer?.items || []);
   const files = Array.from(e.dataTransfer?.files || []);
@@ -61,7 +166,32 @@ export async function addImagesFromDrop(
   // Diagnostic — accessible via DevTools (Ctrl+Shift+I) onglet Console
   console.debug("[drop] types:", types, "items:", items.length, "files:", files.length);
 
-  // ── 1. Fichiers locaux non-image → source sticky (App Bridge) ─────────
+  // ── 1a. R-FIL-01 — Fichiers textuels lisibles → TextAnnotation inline ──
+  // Lecture côté browser (File.text()) — pas besoin de Tauri. Tronque à
+  // TEXT_INLINE_MAX_BYTES (100 KB) pour ne pas exploser un projet sur un log
+  // géant.
+  if (addAnnotation) {
+    const textFiles = files.filter(
+      (f) => TEXT_FILE_EXTS.test(f.name) || CODE_FILE_EXTS.test(f.name),
+    );
+    if (textFiles.length > 0) {
+      for (let i = 0; i < textFiles.length; i++) {
+        const file = textFiles[i];
+        try {
+          const { content, truncated } = await readFileAsText(file);
+          addAnnotation(
+            boardId,
+            makeTextNodeFromFile(file.name, content, truncated, worldX + i * 24, worldY + i * 24),
+          );
+        } catch (err) {
+          console.error(`[drop] échec lecture texte ${file.name}:`, err);
+        }
+      }
+      return;
+    }
+  }
+
+  // ── 1b. Fichiers locaux non-image et non-texte → source sticky (App Bridge) ──
   if (addAnnotation) {
     const srcFiles = files.filter((f) => !IMAGE_EXTS.test(f.name) && !f.type.startsWith("image/"));
     if (srcFiles.length > 0) {
@@ -84,8 +214,11 @@ export async function addImagesFromDrop(
     const dataUrl = await fileToDataUrl(file);
     const { width, height } = await getImageDimensions(dataUrl);
     const ext = file.type.split("/")[1] || "png";
-    const assetSrc = await saveAsset(dataUrl, ext);
-    addImage(boardId, makeImage(assetSrc, worldX + i * 24, worldY + i * 24, width, height));
+    // R-EMB-01 : embed direct dans le doc, plus de bypass disque
+    const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+    const mime = detectedMime || mimeFromExt(ext);
+    const img = await makeImageFromBytes(bytes, mime, worldX + i * 24, worldY + i * 24, width, height);
+    addImage(boardId, img, bytes);
   }
   if (imageFiles.length > 0) return;
 
@@ -104,10 +237,27 @@ export async function addImagesFromDrop(
     if (item.type === "text/uri-list") {
       const uris = data.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith("#"));
 
-      // Sous-cas A : file:// non-image → source sticky
+      // Sous-cas A : file:// non-image
       if (addAnnotation) {
         const sourcePaths = uris.filter((u) => u.startsWith("file://") && !IMAGE_EXTS.test(u)).map(uriToPath);
         if (sourcePaths.length > 0) {
+          // R-FIL-02 — On tente d'abord scan_tree côté Tauri. Si la commande
+          // renvoie un arbre, c'est un dossier → folder mirror navigable.
+          // Sinon, fallback sticky launcher.
+          if (createFolderTree) {
+            for (let i = 0; i < sourcePaths.length; i++) {
+              const p = sourcePaths[i];
+              try {
+                const result = await scanFolderForMirror(p, worldX + i * 280, worldY + i * 280);
+                createFolderTree(boardId, result.tree);
+                console.info(`[drop] R-FIL-02 folder mirror "${result.tree.folder.name}" : ${result.totalEntries} entrées${result.truncated ? " (tronqué)" : ""}`);
+              } catch (_err) {
+                // Pas un dossier (ou hors-scope) → fallback sticky
+                addAnnotation(boardId, makeSourceSticky(p, worldX + i * 24, worldY + i * 24));
+              }
+            }
+            return;
+          }
           sourcePaths.forEach((p, i) => addAnnotation(boardId, makeSourceSticky(p, worldX + i * 24, worldY + i * 24)));
           return;
         }
@@ -159,7 +309,16 @@ export async function addImagesFromDrop(
   for (const url of unique) {
     const fetched = await fetchBestImage(url);
     if (fetched) {
-      addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
+      // R-EMB-01 : si on a les bytes, embed direct ; sinon link sur URL
+      if (fetched.bytes) {
+        const img = await makeImageFromBytes(
+          fetched.bytes, fetched.mime,
+          worldX, worldY, fetched.width, fetched.height, url,
+        );
+        addImage(boardId, img, fetched.bytes);
+      } else {
+        addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
+      }
       console.debug("[drop] success via:", url);
       return;
     }
@@ -167,43 +326,169 @@ export async function addImagesFromDrop(
   console.warn("[drop] tous les candidats ont échoué :", unique);
 }
 
-async function fetchBestImage(url: string): Promise<{ src: string; width: number; height: number } | null> {
-  // Phase 7.0 : on télécharge en data URL via Rust, on calcule les dimensions,
-  // puis on externalise immédiatement comme asset pour stocker un identifiant
-  // logique (asset:<hash>.<ext>) plutôt que la base64 dans le projet.
+/** Métadonnées d'un chemin droppé, renvoyées par `classify_paths` (Rust). */
+interface PathInfo {
+  path: string;
+  name: string;
+  is_dir: boolean;
+  ext: string;
+  size: number;
+  is_text: boolean;
+  is_image: boolean;
+}
+
+interface NativeDropDeps {
+  addImage: AddImageFn;
+  addAnnotation: AddAnnotationFn;
+  createFolderTree?: CreateFolderTreeFn;
+}
+
+/**
+ * R-FIL (Sprint 2) — Router du drag-drop **natif** Tauri.
+ *
+ * Contrairement à `addImagesFromDrop` (HTML5, basé sur `File`), ici on reçoit
+ * des **chemins absolus OS** depuis l'event `tauri://drag-drop`. C'est ce qui
+ * débloque le scan de dossier, le launch natif (open_in_app) et l'embed des
+ * images locales sans bypass disque.
+ *
+ * Dispatch par entrée (classée côté Rust via `classify_paths`) :
+ *   - dossier   → scanFolderForMirror → createFolderWithContent (folder miroir)
+ *   - texte/code→ read_text_file_inline → TextAnnotation markdown inline
+ *   - image     → read_image_file → bytes → embed (AssetRef mode embed)
+ *   - autre     → makeSourceSticky (launcher double-clic → open_in_app)
+ */
+export async function addPathsFromNativeDrop(
+  paths: string[],
+  worldX: number,
+  worldY: number,
+  boardId: string,
+  deps: NativeDropDeps,
+): Promise<void> {
+  if (paths.length === 0) return;
+  const { addImage, addAnnotation, createFolderTree } = deps;
+
+  let infos: PathInfo[];
+  try {
+    infos = await invoke<PathInfo[]>("classify_paths", { paths });
+  } catch (err) {
+    console.error("[native-drop] classify_paths a échoué:", err);
+    return;
+  }
+
+  // Curseurs de placement séparés : les fichiers cascadent en diagonale, les
+  // dossiers (gros) se décalent davantage pour ne pas se chevaucher.
+  let fileIdx = 0;
+  let folderIdx = 0;
+
+  for (const info of infos) {
+    // ── Dossier → arbre de folders miroir navigables ─────────────────────
+    if (info.is_dir) {
+      if (!createFolderTree) continue;
+      try {
+        const fx = worldX + folderIdx * 320;
+        const fy = worldY + folderIdx * 80;
+        const result = await scanFolderForMirror(info.path, fx, fy);
+        createFolderTree(boardId, result.tree);
+        folderIdx++;
+        console.info(
+          `[native-drop] folder "${result.tree.folder.name}" : ${result.totalEntries} entrées${result.truncated ? " (tronqué)" : ""}`,
+        );
+      } catch (err) {
+        console.error(`[native-drop] scan dossier ${info.path} a échoué:`, err);
+      }
+      continue;
+    }
+
+    const x = worldX + fileIdx * 28;
+    const y = worldY + fileIdx * 28;
+    fileIdx++;
+
+    // ── Texte / code → annotation inline ─────────────────────────────────
+    if (info.is_text) {
+      try {
+        const { content, truncated } = await invoke<{ content: string; truncated: boolean }>(
+          "read_text_file_inline",
+          { path: info.path },
+        );
+        addAnnotation(boardId, makeTextNodeFromFile(info.name, content, truncated, x, y));
+      } catch (err) {
+        console.error(`[native-drop] lecture texte ${info.path} a échoué:`, err);
+        addAnnotation(boardId, makeSourceSticky(info.path, x, y));
+      }
+      continue;
+    }
+
+    // ── Image → embed direct dans le doc ─────────────────────────────────
+    if (info.is_image) {
+      try {
+        const dataUrl = await invoke<string>("read_image_file", { path: info.path });
+        const { width, height } = await getImageDimensions(dataUrl);
+        const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+        const mime = detectedMime || mimeFromExt(info.ext);
+        const img = await makeImageFromBytes(bytes, mime, x, y, width, height, info.path);
+        addImage(boardId, img, bytes);
+      } catch (err) {
+        console.error(`[native-drop] lecture image ${info.path} a échoué:`, err);
+        addAnnotation(boardId, makeSourceSticky(info.path, x, y));
+      }
+      continue;
+    }
+
+    // ── Autre binaire → launcher (double-clic → open_in_app) ─────────────
+    addAnnotation(boardId, makeSourceSticky(info.path, x, y));
+  }
+}
+
+interface FetchedImage {
+  /** Bytes décodés si dispo (préféré → embed). */
+  bytes?: Uint8Array;
+  /** MIME du blob ou de l'URL link. */
+  mime: string;
+  /** URL légacy de fallback (utilisée si bytes absent). */
+  src: string;
+  width: number;
+  height: number;
+}
+
+async function fetchBestImage(url: string): Promise<FetchedImage | null> {
+  // R-EMB-01 (Sprint 2) : on télécharge en data URL via Rust, on décode en
+  // bytes → AssetRef embed. Plus de bypass disque (saveAsset retiré).
   const extFromUrl = (u: string) => {
     const m = u.toLowerCase().match(/\.([a-z0-9]+)(?:\?.*)?$/);
     return m ? m[1] : "png";
   };
 
-  // Try CDN-upgraded URLs first (higher resolution, same image, no API key needed)
-  const candidates = getCDNCandidates(url);
-  for (const candidate of candidates) {
+  const tryUrl = async (target: string): Promise<FetchedImage | null> => {
     try {
-      const dataUrl: string = await invoke("fetch_image", { url: candidate });
+      const dataUrl: string = await invoke("fetch_image", { url: target });
       const { width, height } = await getImageDimensions(dataUrl);
-      const assetSrc = await saveAsset(dataUrl, extFromUrl(candidate));
-      return { src: assetSrc, width, height };
-    } catch {
-      // Candidate unavailable — try next
-    }
-  }
-
-  // Fall back to the original URL
-  try {
-    const dataUrl: string = await invoke("fetch_image", { url });
-    const { width, height } = await getImageDimensions(dataUrl);
-    const assetSrc = await saveAsset(dataUrl, extFromUrl(url));
-    return { src: assetSrc, width, height };
-  } catch (err) {
-    console.error("Failed to fetch image:", err);
-    try {
-      const { width, height } = await getImageDimensions(url);
-      // Échec de l'externalisation : on garde l'URL HTTP. Rare et legacy.
-      return { src: url, width, height };
+      const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+      const mime = detectedMime || mimeFromExt(extFromUrl(target));
+      return { bytes, mime, src: target, width, height };
     } catch {
       return null;
     }
+  };
+
+  // Try CDN-upgraded URLs first (higher resolution, same image, no API key needed)
+  const candidates = getCDNCandidates(url);
+  for (const candidate of candidates) {
+    const out = await tryUrl(candidate);
+    if (out) return out;
+  }
+
+  // Fall back to the original URL
+  const out = await tryUrl(url);
+  if (out) return out;
+
+  // Tout fetch a échoué : on tente de récupérer JUSTE les dimensions via
+  // un <img> côté DOM (CORS-permitting) et on garde l'URL en mode link.
+  try {
+    const { width, height } = await getImageDimensions(url);
+    return { mime: mimeFromExt(extFromUrl(url)), src: url, width, height };
+  } catch (err) {
+    console.error("Failed to fetch image:", err);
+    return null;
   }
 }
 
@@ -360,6 +645,39 @@ function makeImage(
     src,
     x,
     y,
+    width: width * scale,
+    height: height * scale,
+    rotation: 0,
+    locked: false,
+    tags: [],
+    sourceUrl,
+    originalWidth: width,
+    originalHeight: height,
+  };
+}
+
+/**
+ * R-EMB-01 (Sprint 2) — construit une BoardImage `mode: "embed"` à partir
+ * des bytes (ex: data URL drag depuis le web décodé). Le caller passe les
+ * bytes à `addImage(boardId, img, bytes)` pour qu'ils soient ajoutés au
+ * project.blobs dans la même mutation.
+ */
+async function makeImageFromBytes(
+  bytes: Uint8Array,
+  mime: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  sourceUrl?: string,
+): Promise<BoardImage> {
+  const asset = await buildEmbedRef(bytes, mime);
+  const maxW = 600;
+  const scale = width > maxW ? maxW / width : 1;
+  return {
+    id: nanoid(),
+    asset,
+    x, y,
     width: width * scale,
     height: height * scale,
     rotation: 0,

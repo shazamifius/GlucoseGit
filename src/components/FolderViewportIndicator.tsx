@@ -2,25 +2,34 @@
 //
 // Affiche un cadre subtil tout autour du viewport, de la couleur du dossier
 // courant. L'opacité augmente quand l'utilisateur dézoome vers le seuil de
-// sortie (EXIT_SCALE) → signal clair que continuer à dézoomer = sortir.
+// sortie RÉEL → signal clair que continuer à dézoomer = sortir.
+//
+// R-FIL — Le seuil de sortie est désormais ADAPTATIF (dépend de la taille du
+// dossier) : un petit dossier se quitte vite, un dossier énorme se laisse
+// explorer longtemps. Le cadre s'allumait AVANT en permanence (seuil fixe 0.4
+// vs FADE_START 1.0) alors qu'on était loin de sortir. On consomme maintenant
+// le `exitScale` diffusé par le canvas (event viewport-changed) et on ne révèle
+// le cadre qu'à l'APPROCHE réelle du seuil (entre exitScale et ~2× exitScale).
 //
 // Aucune interaction (pointer-events: none).
 
 import { useEffect, useState } from "react";
 import { useGlucoseStore } from "../store";
 
-const EXIT_SCALE = 0.4;       // doit matcher GlucoseCanvas
-const FADE_START = 1.0;       // au-dessus → invisible
-
 export default function FolderViewportIndicator() {
   const folderStack = useGlucoseStore((s) => s.folderStack);
   const project = useGlucoseStore((s) => s.project);
   const [scale, setScale] = useState(1);
+  // Seuil de sortie adaptatif diffusé par le canvas (0 = inconnu/hors dossier).
+  const [exitScale, setExitScale] = useState(0.4);
 
   useEffect(() => {
     const onVp = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { scale: number };
+      const detail = (e as CustomEvent).detail as { scale: number; exitScale?: number };
       if (typeof detail?.scale === "number") setScale(detail.scale);
+      if (typeof detail?.exitScale === "number" && detail.exitScale > 0) {
+        setExitScale(detail.exitScale);
+      }
     };
     window.addEventListener("glucose:viewport-changed", onVp);
     return () => window.removeEventListener("glucose:viewport-changed", onVp);
@@ -34,18 +43,17 @@ export default function FolderViewportIndicator() {
   const folder = parent?.folders.find((f) => f.id === top.folderId);
   if (!folder) return null;
 
-  // Opacité interpolée :
-  //   scale ≥ FADE_START      → 0   (rien à signaler, on est bien dedans)
-  //   scale ≤ EXIT_SCALE      → 1   (au seuil, sortie imminente)
-  //   entre les deux          → interpolation linéaire
-  const range = FADE_START - EXIT_SCALE;
-  const t = Math.min(1, Math.max(0, (FADE_START - scale) / range));
-  // Toujours un peu visible quand on est dans un folder, même à scale=1, pour
-  // rappeler le contexte (15% mini).
-  const baseOpacity = 0.15;
-  const opacity = baseOpacity + (1 - baseOpacity) * t;
+  // Fenêtre d'apparition : on commence à révéler le cadre à ~2× le seuil réel,
+  // plein à exitScale. Hors de cette fenêtre (bien dans le dossier) → 0 → rien.
+  const fadeStart = exitScale * 2.0;
+  const range = Math.max(0.0001, fadeStart - exitScale);
+  const t = Math.min(1, Math.max(0, (fadeStart - scale) / range));
 
-  // Largeur du cadre : épaisse quand t est grand, fine sinon
+  // Plus de glow constant : on n'affiche RIEN tant qu'on n'approche pas la
+  // sortie (corrige « la bande bleue est constamment active »).
+  if (t <= 0.02) return null;
+
+  const opacity = t;
   const borderW = 4 + 12 * t;
   const glow = 30 + 60 * t;
 

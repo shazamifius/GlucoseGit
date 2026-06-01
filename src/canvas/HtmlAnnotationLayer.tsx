@@ -7,9 +7,25 @@ import rehypeKatex from "rehype-katex";
 // Toute injection HTML brute (ex. <img onerror=...>) est désormais ignorée.
 // CLEANUP B-03 : `katex.min.css` chargé à la demande (gain ~200 KB au boot).
 import { ensureKatexCssIfMath } from "../utils/loadKatexCss";
+import { invoke } from "@tauri-apps/api/core";
 import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
-import AppBridgeIcon from "../components/AppBridgeIcon";
+import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
+
+/** R-FIL — ouvre un fichier source dans son app native (double-clic tuile).
+ *  Feedback immédiat (le lancement d'une grosse app comme Blender peut prendre
+ *  10-30 s) pour éviter l'impression que "rien ne se passe". */
+function openSourceFile(path: string) {
+  const name = path.split(/[\\/]/).pop() || path;
+  // Animation de lancement (logo + couleur dominante de l'app) — signal clair
+  // que ça démarre, même si l'app met 10-40 s à apparaître (Blender).
+  window.dispatchEvent(new CustomEvent("glucose:app-launching", { detail: { path } }));
+  import("../components/Toast").then(({ showToast }) => showToast(`Ouverture de ${name}…`, "🚀"));
+  invoke("open_in_app", { path }).catch(async (err) => {
+    const { showToast } = await import("../components/Toast");
+    showToast(`Impossible d'ouvrir : ${String(err)}`, "⚠️");
+  });
+}
 import { MirrorBadge, DomainBadges, TemporalBadge, resolveDomainBadges } from "./AnnotationBadges";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 
@@ -161,7 +177,9 @@ export default function HtmlAnnotationLayer({
         // Les flèches n'ont pas de width/height — elles utilisent (x,y) → (x2,y2).
         if (ann && ann.type !== "arrow"
             && (Math.abs((ann.width || 0) - w) > 2 || Math.abs((ann.height || 0) - h) > 2)) {
-          useGlucoseStore.getState().updateAnnotation(boardId, id, { width: w, height: h });
+          // UNDO-1 — taille mesurée = réconciliation de rendu, JAMAIS une entrée
+          // d'undo (sinon Ctrl+Z annule des reflows fantômes au lieu de l'édition).
+          useGlucoseStore.getState().syncAnnotationSize(boardId, id, w, h);
         }
       }
     });
@@ -179,6 +197,14 @@ export default function HtmlAnnotationLayer({
     const now = Date.now();
     if (lastClickRef.current?.id === ann.id && now - lastClickRef.current.time < 350) {
       lastClickRef.current = null;
+      // R-FIL — Détection de double-clic FIABLE (basée sur pointerdown, pas sur
+      // l'event dblclick natif qui ne se déclenche que si les 2 clics tombent au
+      // même pixel → lancement « 1 fois sur 10 »). Pour une tuile fichier
+      // (sourceFile : launcher OU bloc texte de dossier), double-clic = OUVRIR
+      // dans l'app native, JAMAIS éditer le nom. C'est l'unique point de décision
+      // du double-clic (handleDblClick ne relance pas → pas de double lancement).
+      const sf = (ann as { sourceFile?: string }).sourceFile;
+      if (sf) { openSourceFile(sf); return; }
       onEdit(ann.id);
       return;
     }
@@ -199,7 +225,14 @@ export default function HtmlAnnotationLayer({
   function handleDblClick(ann: Annotation, e: React.MouseEvent) {
     if (activeTool !== "select") return;
     e.stopPropagation();
-    onEdit(ann.id);
+    // Le double-clic est géré de façon FIABLE dans handleDown (pointerdown).
+    // Ici on ne fait QUE consommer l'event natif dblclick pour qu'il ne remonte
+    // pas au canvas. Surtout : pour une tuile fichier (sourceFile) on ne relance
+    // PAS (sinon double lancement) et on n'édite JAMAIS le nom.
+    const sf = (ann as { sourceFile?: string }).sourceFile;
+    if (sf) return;
+    // Annotation normale : handleDown a déjà ouvert l'édition au 2ᵉ pointerdown ;
+    // on ne refait rien ici (idempotent) pour éviter tout effet de bord.
   }
 
   function screenToWorld(cx: number, cy: number) {
@@ -215,7 +248,9 @@ export default function HtmlAnnotationLayer({
 
   function startDrag(ann: Annotation, ev: React.PointerEvent, corner?: string) {
     const { x: wx, y: wy } = screenToWorld(ev.clientX, ev.clientY);
-    useGlucoseStore.getState().pushHistory();
+    // UNDO-1 — pas de snapshot au pointerdown : un simple clic ne doit créer
+    // aucune entrée d'undo ni vider le redo. La transaction s'ouvre au 1er
+    // mouvement réel (cf. onGlobalMove / didMove) → drag ET resize = 1 entrée.
 
     // width/height n'existent pas sur les flèches (elles utilisent x2/y2).
     const annW = ann.type === "arrow" ? 160 : (ann.width ?? 160);
@@ -235,7 +270,10 @@ export default function HtmlAnnotationLayer({
       const { x: wx2, y: wy2 } = screenToWorld(ev.clientX, ev.clientY);
       const dx = wx2 - ds.pStartX;
       const dy = wy2 - ds.pStartY;
-      if (Math.abs(dx) + Math.abs(dy) > 2) ds.didMove = true;
+      if (Math.abs(dx) + Math.abs(dy) > 2 && !ds.didMove) {
+        ds.didMove = true;
+        useGlucoseStore.getState().beginLiveEdit(); // UNDO-1 — ouvre la transaction au 1er vrai mouvement
+      }
       if (!ds.didMove) return;
 
       if (ds.corner) {
@@ -340,6 +378,7 @@ export default function HtmlAnnotationLayer({
           onSelect(ds.id, false);
         }
       }
+      useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si simple clic)
       dragRef.current = null;
       setGuides(null);
       window.removeEventListener("pointermove", onGlobalMove);
@@ -423,6 +462,112 @@ function preprocessText(text: string) {
   // Préserver les lignes vides multiples en injectant un espace insécable
   t = t.replace(/\n(?=\n)/g, '\n&nbsp;');
   return t;
+}
+
+/** TXT-1 — Borne le contenu rendu dans une tuile texte de dossier : on retire
+ *  le header markdown « ### 📄 nom » (redondant avec l'en-tête de la tuile) et
+ *  le footer « tronqué », puis on clippe à `maxLines` (en refermant un fence de
+ *  code resté ouvert) → coût du pipeline markdown BORNÉ par tuile. */
+export function clipTextForTile(raw: string, maxLines = 60): string {
+  const t = (raw || "")
+    .replace(/^###\s*📄[^\n]*\n+/, "")
+    .replace(/_\(tronqué[^)]*\)_/g, "");
+  const lines = t.split("\n");
+  if (lines.length <= maxLines) return t.trim();
+  let clipped = lines.slice(0, maxLines).join("\n");
+  // Referme un éventuel bloc de code (```) laissé ouvert par la coupe.
+  if (((clipped.match(/```/g) || []).length) % 2 === 1) clipped += "\n```";
+  return `${clipped.trim()}\n…`;
+}
+
+// ── TXT-2 — Coloration syntaxique LÉGÈRE (sans dépendance) ───────────────────
+// Tokeniseur générique multi-langage (mots-clés / chaînes / nombres / commentaires)
+// avec couleurs façon VSCode Dark. Volontairement léger (cf. plafond perf documenté
+// `annotation-layer-no-culling`) : le contenu est déjà clippé, donc le coût est borné.
+const CODE_KEYWORDS = new Set([
+  "if","else","elif","for","while","do","switch","case","default","break","continue",
+  "return","yield","def","function","fn","func","class","struct","enum","interface","trait",
+  "impl","import","from","export","include","using","namespace","package","module","require",
+  "const","let","var","val","mut","static","public","private","protected","final","abstract",
+  "new","delete","this","self","super","null","none","nil","true","false","void","async","await",
+  "try","catch","except","finally","throw","raise","with","as","in","is","not","and","or","del",
+  "lambda","pass","global","nonlocal","match","where","then","begin","end","use","pub","extern",
+  "unsafe","move","ref","dyn","typedef","typename","template","operator","goto","sizeof","auto",
+  "int","float","str","bool","string","number","boolean","char","double","long","short","let",
+]);
+
+/** Préfixe de commentaire de ligne selon le langage du fence. */
+function lineCommentToken(lang: string): string {
+  if (/^(py|python|rb|ruby|sh|bash|zsh|fish|ya?ml|toml|ini|r|pl|perl|makefile|dockerfile|conf|cfg|env|nim|jl|julia|ex|exs|elixir|cr|crystal|tcl)/.test(lang)) return "#";
+  if (/^(sql|lua|hs|haskell|elm|ada|vhdl)/.test(lang)) return "--";
+  return "//";
+}
+
+/** Découpe `code` en spans colorés (commentaires, chaînes, nombres, mots-clés). */
+export function highlightCode(code: string, lang: string): React.ReactNode[] {
+  const lc = lineCommentToken(lang);
+  const re = new RegExp(
+    [
+      `(${lc}[^\\n]*)`,                                                                  // 1 commentaire ligne
+      `(/\\*[\\s\\S]*?\\*/)`,                                                            // 2 commentaire bloc
+      `("""[\\s\\S]*?"""|'''[\\s\\S]*?'''|"(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|\`(?:\\\\.|[^\`\\\\])*\`)`, // 3 chaîne
+      `(\\b\\d[\\d_]*\\.?\\d*(?:[eE][+-]?\\d+)?\\b)`,                                    // 4 nombre
+      `([A-Za-z_$][\\w$]*)`,                                                             // 5 identifiant
+    ].join("|"),
+    "g",
+  );
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null = re.exec(code);
+  while (m !== null) {
+    if (m.index > last) out.push(code.slice(last, m.index));
+    let color = "";
+    if (m[1] || m[2]) color = "#6a9955";            // commentaire (vert)
+    else if (m[3]) color = "#ce9178";               // chaîne (orange)
+    else if (m[4]) color = "#b5cea8";               // nombre (vert clair)
+    else if (m[5] && CODE_KEYWORDS.has(m[5])) color = "#569cd6"; // mot-clé (bleu)
+    out.push(color ? <span key={key++} style={{ color }}>{m[0]}</span> : m[0]);
+    last = re.lastIndex;
+    m = re.exec(code);
+  }
+  if (last < code.length) out.push(code.slice(last));
+  return out;
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: props react-markdown hétérogènes (node + HTML)
+function MdPre({ children }: any) {
+  return (
+    <pre style={{
+      margin: "4px 0", padding: "7px 9px", background: "#1e1e2e", borderRadius: 6,
+      overflow: "hidden", fontFamily: "ui-monospace, monospace", fontSize: 11,
+      lineHeight: 1.45, whiteSpace: "pre-wrap", wordBreak: "break-word",
+    }}>
+      {children}
+    </pre>
+  );
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: props react-markdown hétérogènes (node + HTML)
+function MdCode({ className, children }: any) {
+  const text = String(children ?? "").replace(/\n$/, "");
+  const isBlock = /language-/.test(className || "");
+  if (!isBlock) {
+    return (
+      <code style={{
+        background: "rgba(255,255,255,0.08)", padding: "1px 4px", borderRadius: 4,
+        fontFamily: "ui-monospace, monospace", fontSize: "0.92em",
+      }}>
+        {text}
+      </code>
+    );
+  }
+  const lang = (/language-(\w+)/.exec(className || "")?.[1] ?? "").toLowerCase();
+  return (
+    <code style={{ fontFamily: "ui-monospace, monospace", color: "#d4d4d4" }}>
+      {highlightCode(text, lang)}
+    </code>
+  );
 }
 
 export function getSymbioticHue(ann: Annotation, allAnnotations: Annotation[]): number {
@@ -687,6 +832,9 @@ function AnnotationItem({
               h2: createBlockRenderer('h2'),
               h3: createBlockRenderer('h3'),
               li: createBlockRenderer('li'),
+              // TXT-2 — code coloré (façon VSCode) dans les blocs fenced.
+              pre: MdPre,
+              code: MdCode,
             };
           }, [ann.id, ann.color, activeTool, onEdit]);
 
@@ -698,6 +846,106 @@ function AnnotationItem({
 
           if (ann.type === "text") {
             const processedText = preprocessText(lodSourceText);
+
+            // ── R-FIL — Tuile texte d'un FOLDER MIRROR (a un sourceFile) ──────
+            // Rendue en CARTE CLAMPÉE (taille fixe, contenu clippé) au lieu du
+            // `fit-content` qui faisait grandir la boîte à la hauteur réelle du
+            // fichier (des milliers de px) → les tuiles texte se chevauchaient
+            // en « pagaille ». Aperçu des 1ères lignes + double-clic = ouvrir.
+            const txtSource = (ann as { sourceFile?: string }).sourceFile;
+            if (txtSource) {
+              const tw = ann.width ?? 210;
+              const th = ann.height ?? 180;
+              const fname = txtSource.split(/[\\/]/).pop() || "Fichier";
+              // TXT-1 — VRAI texte rendu (markdown + LaTeX via react-markdown),
+              // clippé à la tuile (taille fixe calculée au scan → le ResizeObserver
+              // relit la même taille, pas de croissance/chevauchement). Le clip
+              // borne le coût du pipeline markdown par tuile.
+              const tileBody = clipTextForTile(ann.text || "");
+              return (
+                <div
+                  key={ann.id}
+                  data-id={ann.id}
+                  ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
+                  title={`${fname} — double-clic pour ouvrir`}
+                  style={{
+                    position: "absolute",
+                    left: ann.x, top: ann.y,
+                    width: tw, height: th,
+                    boxSizing: "border-box",
+                    background: "#14141c",
+                    border: sel ? "1px solid #fff" : "1px solid #2c2c3a",
+                    borderRadius: 10,
+                    overflow: "hidden",
+                    pointerEvents: "all",
+                    cursor: "pointer",
+                    boxShadow: sel ? "0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,0.5)" : "0 4px 10px rgba(0,0,0,0.4)",
+                    display: "flex", flexDirection: "column",
+                  }}
+                  onPointerDown={(e) => handleDown(ann, e)}
+                  onDoubleClick={(e) => handleDblClick(ann, e)}
+                  onWheel={forwardWheel}
+                  onMouseEnter={() => setHoveredNodeId(ann.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
+                >
+                  {/* En-tête : icône + nom */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "5px 8px", flexShrink: 0,
+                    background: "rgba(255,255,255,0.05)",
+                    borderBottom: "1px solid #2c2c3a",
+                  }}>
+                    <AppBridgeIcon filePath={txtSource} size={16} />
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, color: "#e8e8f0",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {fname}
+                    </span>
+                  </div>
+                  {/* TXT-1 — contenu rendu (markdown + LaTeX), clippé + fondu bas */}
+                  <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+                    <div
+                      className="glucose-tile-md"
+                      style={{
+                        padding: "6px 9px", fontSize: 11, lineHeight: 1.4,
+                        color: "#c8cce0", wordBreak: "break-word",
+                      }}
+                    >
+                      <StableMarkdownComponents.text processedText={tileBody} components={markdownComponents} />
+                    </div>
+                    <div style={{
+                      position: "absolute", left: 0, right: 0, bottom: 0, height: 28,
+                      background: "linear-gradient(to bottom, rgba(20,20,28,0), #14141c)",
+                      pointerEvents: "none",
+                    }} />
+                  </div>
+
+                  <MirrorBadge mirrorOf={ann.mirrorOf} />
+                  <TemporalBadge anchor={ann.temporalAnchor} />
+
+                  {sel && [
+                    { id: "br", cx: tw, cy: th }, { id: "bl", cx: 0, cy: th },
+                    { id: "tr", cx: tw, cy: 0 }, { id: "tl", cx: 0, cy: 0 },
+                  ].map((c) => (
+                    <div
+                      key={c.id}
+                      onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}
+                      style={{
+                        position: "absolute",
+                        left: c.cx - 12, top: c.cy - 12,
+                        width: 24, height: 24,
+                        cursor: c.id === "br" || c.id === "tl" ? "nwse-resize" : "nesw-resize",
+                        zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <div style={{ width: 8, height: 8, background: "#fff", border: "1px solid #333", borderRadius: "50%" }} />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
 
             const isHoveredBox = hoveredBlocks && (hoveredBlocks.sourceId === ann.id || hoveredBlocks.targetId === ann.id) && !hoveredBlocks.sourceBlockId && !hoveredBlocks.targetBlockId;
             const isPreviewedBox = previewTarget && previewTarget.annId === ann.id && !previewTarget.blockId;
@@ -843,6 +1091,84 @@ function AnnotationItem({
 
             const isSource = !!ann.sourceFile;
             const title = ann.sourceFile?.split(/[\\/]/).pop() || "Code Source";
+
+            // ── Fichier source → TUILE ICÔNE (style Mac/Android, pas postit) ──
+            // Grande icône centrée + nom dessous + halo « fumée » dans la
+            // couleur dominante de l'app (Blender = orange, etc.). Double-clic
+            // → open_in_app (déjà câblé via handleDblClick).
+            if (isSource) {
+              const def = getAppDef(ann.sourceFile!);
+              const glow = def.bg;
+              const iconSize = Math.max(40, Math.min(w, h) * 0.46);
+              return (
+                <div
+                  key={ann.id}
+                  data-id={ann.id}
+                  ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
+                  title={`${def.name} — double-clic pour ouvrir`}
+                  style={{
+                    position: "absolute",
+                    left: ann.x, top: ann.y,
+                    width: w, height: h,
+                    display: "flex", flexDirection: "column",
+                    alignItems: "center", justifyContent: "center",
+                    gap: 8, padding: 8, boxSizing: "border-box",
+                    borderRadius: 14,
+                    background: `radial-gradient(circle at 50% 36%, ${glow}40 0%, ${glow}1f 38%, #161622 78%)`,
+                    border: `1px solid ${glow}66`,
+                    boxShadow: sel
+                      ? `0 0 0 2px #fff, 0 0 26px ${glow}88`
+                      : `0 0 20px ${glow}3a, 0 6px 14px rgba(0,0,0,0.45)`,
+                    // Toujours cliquable : double-clic = ouvrir le fichier, quel
+                    // que soit l'outil actif. Évite que le clic traverse vers le
+                    // canvas (qui éditait/créait un postit) quand l'outil ≠ select.
+                    pointerEvents: "all",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                  onPointerDown={(e) => handleDown(ann, e)}
+                  onDoubleClick={(e) => handleDblClick(ann, e)}
+                  onWheel={forwardWheel}
+                  onMouseEnter={() => setHoveredNodeId(ann.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
+                >
+                  <AppBridgeIcon filePath={ann.sourceFile!} size={iconSize} />
+                  <span style={{
+                    maxWidth: "100%",
+                    fontSize: 11, fontWeight: 600,
+                    color: "#e8e8f0",
+                    textAlign: "center",
+                    lineHeight: 1.2,
+                    overflow: "hidden", textOverflow: "ellipsis",
+                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    wordBreak: "break-word",
+                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+                  }}>
+                    {title}
+                  </span>
+
+                  <MirrorBadge mirrorOf={ann.mirrorOf} />
+                  <TemporalBadge anchor={ann.temporalAnchor} />
+
+                  {sel && corners.map((c) => (
+                    <div
+                      key={c.id}
+                      onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}
+                      style={{
+                        position: "absolute",
+                        left: c.cx - 12, top: c.cy - 12,
+                        width: 24, height: 24,
+                        cursor: c.id === "br" || c.id === "tl" ? "nwse-resize" : "nesw-resize",
+                        zIndex: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <div style={{ width: 8, height: 8, background: "#fff", border: "1px solid #333", borderRadius: "50%" }} />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
 
             return (
               <div
