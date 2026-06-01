@@ -7,7 +7,7 @@
 *Pose. Relie. Zoome. Explore.*
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.0-green.svg?style=flat-square)](../../releases/latest)
+[![Version](https://img.shields.io/badge/version-1.0.0--beta.1-blue.svg?style=flat-square)](../../releases/latest)
 [![Tauri](https://img.shields.io/badge/Tauri-2-orange.svg?style=flat-square&logo=tauri)](https://tauri.app)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg?style=flat-square&logo=react)](https://react.dev)
 [![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
@@ -132,53 +132,18 @@ Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
 
 ## 📥 Installation
 
-Téléchargements sur la **[page Releases](../../releases/latest)** — un seul fichier à choisir selon ton OS.
+> 🧪 **Bêta publique.** Va sur la **[page Releases](../../releases/latest)** et prends le fichier qui correspond à ton OS — le numéro de version est dans le nom du fichier.
 
-### 🪟 Windows 10 / 11
+| OS | Fichier à prendre | En bref |
+|---|---|---|
+| 🪟 **Windows 10 / 11** | `Glucose_*_x64-setup.exe` | Double-clic · pas de droits admin · WebView2 embarqué |
+| 🍎 **macOS** (Apple Silicon · Intel via Rosetta 2) | `Glucose_*_aarch64.dmg` | Glisser dans `Applications` · 1er lancement : **clic-droit → Ouvrir** |
+| 🐧 **Linux** (universel) | `glucose_*_amd64.AppImage` | `chmod +x <fichier>` puis le lancer |
+| 📦 **Debian / Ubuntu** | `glucose_*_amd64.deb` | `sudo dpkg -i <fichier>` puis `sudo apt-get install -f` |
+| 🎩 **Fedora / RHEL** | `glucose-*.x86_64.rpm` | `sudo dnf install ./<fichier>` |
 
-1. Télécharger `Glucose_0.3.0_x64-setup.exe`
-2. Double-cliquer · *pas de droits admin requis*
-3. WebView2 est embarqué (silencieux si manquant)
-
-### 🍎 macOS
-
-Télécharger `Glucose_0.3.0_aarch64.dmg` — fonctionne **nativement sur Apple Silicon (M1/M2/M3)** et via **Rosetta 2 sur Intel**.
-
-Ouvrir le `.dmg`, glisser Glucose dans `Applications`. **Premier lancement** : clic-droit → Ouvrir (Gatekeeper non signé pour l'instant).
-
-> Sur Mac Intel sans Rosetta 2 installé, le système le proposera automatiquement au premier lancement.
-
-### 🐧 Linux
-
-**AppImage (universel, marche partout)** :
-```bash
-wget https://github.com/shazamifius/GlucoseGit/releases/latest/download/glucose_0.3.0_amd64.AppImage
-chmod +x glucose_0.3.0_amd64.AppImage
-./glucose_0.3.0_amd64.AppImage
-```
-
-**Debian / Ubuntu / dérivés** :
-```bash
-wget https://github.com/shazamifius/GlucoseGit/releases/latest/download/glucose_0.3.0_amd64.deb
-sudo dpkg -i glucose_0.3.0_amd64.deb
-sudo apt-get install -f  # résout les deps manquantes si besoin
-```
-
-**Fedora / RHEL / openSUSE** :
-```bash
-sudo dnf install ./glucose-0.3.0-1.x86_64.rpm
-```
-
-**❄️ NixOS** (via flake) :
-```bash
-# Lancer une fois sans installer :
-nix run github:shazamifius/GlucoseGit
-
-# Installer dans le profil utilisateur :
-nix profile install github:shazamifius/GlucoseGit
-```
-
-> Pour AppImage sur NixOS pur, active `programs.nix-ld.enable = true;` ou utilise `nix-shell -p appimage-run`.
+> 🍎 L'app n'est pas encore signée (macOS Gatekeeper) — au premier lancement, fais **clic-droit → Ouvrir**.
+> ❄️ NixOS : pour l'AppImage, active `programs.nix-ld.enable = true;` ou utilise `nix-shell -p appimage-run`.
 
 ### Désinstallation
 
