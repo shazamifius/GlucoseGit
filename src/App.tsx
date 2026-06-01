@@ -3,6 +3,7 @@ import "./App.css";
 import GlucoseCanvas from "./canvas/GlucoseCanvas";
 import Toolbar from "./components/Toolbar";
 import BoardTabs from "./components/BoardTabs";
+import { WebModeBanner } from "./components/WebModeBanner";
 import PanelDock, { type TabId } from "./components/PanelDock";
 import PomodoroOverlay from "./components/PomodoroOverlay";
 import FolderViewportIndicator from "./components/FolderViewportIndicator";
@@ -311,6 +312,7 @@ export default function App() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh", background: "#0d0d0d", overflow: "hidden" }}>
+      <WebModeBanner />
       {!zenMode && (
         <>
           <ErrorBoundary>

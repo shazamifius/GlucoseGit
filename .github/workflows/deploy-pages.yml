@@ -1,0 +1,50 @@
+name: Deploy Web (PWA) to GitHub Pages
+
+# Déploie la version WEB/PWA expérimentale de Glucose sur GitHub Pages.
+# (Le canvas fonctionne en navigateur ; l'accès aux fichiers PC, lui, est
+# réservé à l'app desktop Tauri.)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build web (PWA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build (VITE_WEB)
+        run: npm run build
+        env:
+          VITE_WEB: "1"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
