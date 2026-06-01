@@ -2,7 +2,7 @@
 
 # 🧬 Glucose
 
-### Une surface cognitive infinie pour penser sans limites
+### L'espace infini où tu poses tes idées à plat — et où elles prennent vie
 
 *Pose. Relie. Zoome. Explore.*
 
@@ -21,11 +21,22 @@
 
 ## ✨ Qu'est-ce que c'est ?
 
-**Glucose** est un canvas infini desktop pour penser à long terme : recherche, écriture, design de monde, prototypage de gameplay, conlanging, cartographie de connaissance.
+**Glucose** est une plateforme visuelle — desktop, offline — pour **poser tes idées à plat** sur un canvas infini et les faire grandir :
 
-Une seule interface — pas de modes. Pose ce que tu veux, relie comme tu veux, zoome jusqu'à l'infini.
+- 🎨 **Concept art** — moodboards, références, directions visuelles
+- 🏭 **Plans d'amélioration** — cartographier un système, un process, une industrie, et faire émerger les leviers
+- 🎲 **Jeux de rôle (JDR)** — univers, intrigues, cartes, fiches reliées
+- 🧠 **Réflexion & prise de notes** — recherche, écriture, design de monde : tout ce qui se pense sur la durée
 
-> Pensez Miro / FigJam, mais **offline, sans modes**, conçu pour l'exploration profonde plutôt que les sessions de brainstorm courtes.
+Une seule surface, **pas de modes** : pose ce que tu veux, relie comme tu veux, zoome à l'infini. Tes dossiers eux-mêmes peuvent devenir un paysage navigable — Glucose reflète ton système de fichiers comme un espace à explorer.
+
+## 🌌 La vision
+
+À terme, Glucose veut être la meilleure plateforme pour **réfléchir, prendre des notes — et partager un _espace mémoire latent_ avec une IA.**
+
+L'idée : **casser le prompt réduit à des mots.** Aujourd'hui, on parle à une IA en texte linéaire. Demain, on devrait pouvoir lui transmettre une pensée par **la couleur, l'espace et les relations** — un « prompt » qui sort du langage. Glucose est le terrain d'expérimentation de cette idée : un espace où l'humain et l'IA partagent la même carte mentale, **au-delà des mots**.
+
+> Pense Miro / FigJam, mais **offline et sans modes** — tourné vers l'exploration profonde plutôt que le brainstorm express, avec une ambition : devenir le pont visuel entre ta pensée et celle d'une IA.
 
 ## 🌟 Fonctionnalités
 
@@ -213,35 +224,33 @@ nix profile install github:shazamifius/GlucoseGit
 ## 🛠️ Build depuis les sources
 
 **Prérequis** :
+- [Node.js](https://nodejs.org/) 20+
 - [Rust toolchain](https://rustup.rs/) stable
-- [Bun](https://bun.sh/) ou Node 20+
 - Linux : voir [tauri prereqs](https://tauri.app/start/prerequisites/) (`libwebkit2gtk-4.1-dev`, etc.)
 
 ```bash
 git clone https://github.com/shazamifius/GlucoseGit
 cd GlucoseGit
-bun install
-bun run tauri dev      # mode développement
-bun run tauri build    # build release
+npm install
+npm run tauri dev      # mode développement
+npm run tauri build    # build release
 ```
 
 Tests + lint :
 ```bash
-bun run typecheck      # tsc --noEmit
-bun run test           # vitest (55 tests)
-bun run lint           # Biome
+npm run typecheck      # tsc --noEmit
+npm test               # vitest (304 tests)
+npm run lint           # Biome
 ```
 
 L'artefact release est dans `src-tauri/target/release/bundle/`.
 
 ## 🤝 Contribuer
 
-Contributions bienvenues ! Avant de soumettre une PR :
-- `bun run typecheck` passe
-- `bun run test` passe
-- `bun run lint` n'a pas d'erreurs (warnings tolérés)
-
-Pour les changements importants, ouvre d'abord une [issue](../../issues).
+Contributions bienvenues ! Le guide complet (setup, checklist, repères d'archi) est
+dans **[CONTRIBUTING.md](CONTRIBUTING.md)**. En deux mots : `npm run typecheck`,
+`npm test` et `npm run lint` doivent passer, et on discute les gros changements dans
+une [issue](../../issues) ou une [Discussion](../../discussions) d'abord.
 
 ## 📄 License
 
