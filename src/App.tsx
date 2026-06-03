@@ -22,9 +22,9 @@ const TemporalRuler = lazy(() => import("./components/TemporalRuler"));
 const TemporalAnchorPrompt = lazy(() => import("./components/TemporalAnchorPrompt"));
 // Phase 7.4 — Time Machine UI
 const TimelinePanel = lazy(() => import("./components/TimelinePanel"));
-// Phase 7.5bis — Multi-utilisateur LAN
+// Collaboration internet (automerge-repo + serveur de synchro)
 const MultiplayerPanel = lazy(() => import("./multiplayer/MultiplayerPanel"));
-import { useMultiplayerSync } from "./multiplayer/useMultiplayerSync";
+import { useAutosave } from "./utils/useAutosave";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -59,11 +59,11 @@ export default function App() {
   const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
   // Phase 7.4 — Time Machine UI
   const [timelineOpen, setTimelineOpen] = useState(false);
-  // Phase 7.5bis — Multi-utilisateur LAN
+  // Collaboration internet (automerge-repo). `multiplayerEnabled` = collab active.
   const [multiplayerOpen, setMultiplayerOpen] = useState(false);
   const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
-  // Active la synchro Automerge ↔ peers tant que `multiplayerEnabled`
-  useMultiplayerSync(multiplayerEnabled);
+  // Autosave disque débouncé (filet anti perte de données, solo + collab).
+  useAutosave(pathRef);
   const [dockTabs, setDockTabs]           = useState<TabId[]>([]);
   const [dismissingTabs, setDismissingTabs] = useState<TabId[]>([]);
 
@@ -327,6 +327,9 @@ export default function App() {
               storyboardPanelOpen={dockTabs.includes("storyboard")}
               onTogglePomodoro={() => toggleDockTab("pomodoro")}
               pomodoroOpen={dockTabs.includes("pomodoro")}
+              onToggleMultiplayer={() => setMultiplayerOpen((v) => !v)}
+              multiplayerPanelOpen={multiplayerOpen}
+              collabActive={multiplayerEnabled}
             />
           </ErrorBoundary>
           <ErrorBoundary>

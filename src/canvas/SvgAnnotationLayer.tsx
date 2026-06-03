@@ -252,21 +252,25 @@ export default function SvgAnnotationLayer({
         onPointerDown={(e) => handleDown(ann, e)}
         onDoubleClick={(e) => handleDblClick(ann, e)}
       >
-        {/* Glow layers organiques (Metaball style) */}
-        {[{p:20,a:0.04}, {p:10,a:0.06}].map(({p,a}) => (
+        {/* Glow ultra-discret — quasi imperceptible, ne voile jamais le texte */}
+        {[{p:20,a:0.012}, {p:10,a:0.018}].map(({p,a}) => (
           <rect key={p} x={-p} y={-p} width={w + p * 2} height={h + p * 2}
                 fill={col} fillOpacity={a} rx={60} style={{ pointerEvents: "none" }} filter="url(#membrane-glow)" />
         ))}
-        {/* Fill */}
-        <rect width={w} height={h} fill={col} fillOpacity={0.08} rx={60} />
-        {/* Border (filigrané) */}
+        {/* Fill — quasi invisible : la zone se lit par sa bordure + son label,
+            jamais par un remplissage qui masque le texte qu'elle contient */}
+        <rect width={w} height={h} fill={col} fillOpacity={0.02} rx={60} />
+        {/* Border — frontière nette (porte l'identité de la région) */}
         <rect width={w} height={h} fill="none"
-              stroke={col} strokeWidth={2} strokeOpacity={sel ? 0.9 : 0.3}
+              stroke={col} strokeWidth={2} strokeOpacity={sel ? 0.9 : 0.45}
               strokeDasharray={sel ? "none" : "10 10"}
               rx={60} vectorEffect="non-scaling-stroke" />
-        {/* Label */}
+        {/* Label — nom du thème, lisible (halo sombre) sur n'importe quel fond */}
         {ann.text && (
-          <text x={10} y={-6} fill={col} fontSize={11} fontFamily="system-ui, sans-serif" fillOpacity={0.8}>
+          <text x={16} y={-12} fill={col} fontSize={16} fontWeight={600}
+                fontFamily="system-ui, sans-serif"
+                stroke="#0b0b12" strokeWidth={4} strokeLinejoin="round"
+                style={{ paintOrder: "stroke" }}>
             {ann.text}
           </text>
         )}

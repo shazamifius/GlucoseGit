@@ -1,6 +1,6 @@
 [package]
 name = "glucose"
-version = "1.0.0-beta.1"
+version = "1.0.1-beta.1"
 description = "Glucose — canvas infini pour poser ses idées à plat"
 authors = ["shazamifius"]
 edition = "2021"

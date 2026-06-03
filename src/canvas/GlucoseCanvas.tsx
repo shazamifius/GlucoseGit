@@ -22,7 +22,6 @@ import { classifyWheel, folderToEnter } from "./navigation";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
-import { MembraneRenderer } from "./MembraneRenderer";
 import FolderBreadcrumb from "../components/FolderBreadcrumb";
 import { nanoid } from "../utils/nanoid";
 import { Annotation } from "../types";
@@ -31,7 +30,6 @@ import ArrowTextEditor from "../components/ArrowTextEditor";
 import ArrowDescriptionPanel from "../components/ArrowDescriptionPanel";
 import Minimap from "../components/Minimap";
 import ColorPicker from "../components/ColorPicker";
-import { exportCanvasPng } from "../utils/exportPng";
 import { getPanDelta, setWrapBounds, startCursorGrab, stopCursorGrab } from "../utils/cursorWrap";
 import SyntaxEditor from "../components/SyntaxEditor";
 import ZoneSelectorOverlay from "./ZoneSelectorOverlay";
@@ -100,7 +98,6 @@ export default function GlucoseCanvas() {
   const selRectGfxRef = useRef<Graphics | null>(null);
   const zoneRendererRef = useRef<ZoneRenderer | null>(null);
   const sbLayerRef = useRef<StoryboardLayer | null>(null);
-  const membraneRendererRef = useRef<MembraneRenderer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
   // VID-1 — éléments <video> des sprites vidéo, pour les jouer/mettre en pause
@@ -121,6 +118,10 @@ export default function GlucoseCanvas() {
   const draggedSpriteRef = useRef<{
     id: string; startX: number; startY: number; pStartX: number; pStartY: number;
   } | null>(null);
+  // Redimensionnement d'une image via une poignée de coin. Le centre (cx,cy)
+  // reste fixe (anchor 0.5) et le ratio (`aspect`) est verrouillé → jamais de
+  // déformation, seulement un agrandissement/réduction proportionnel.
+  const resizeRef = useRef<{ id: string; cx: number; cy: number; aspect: number } | null>(null);
   const textCursorPosRef = useRef<number | undefined>(undefined);
   const lastDomCreateRef = useRef<number>(0);
   // Cache du seuil de sortie adaptatif (évite de recalculer contentBounds — O(n)
@@ -241,7 +242,6 @@ export default function GlucoseCanvas() {
       app.stage.addChild(zoneGfx);
       zoneGfxRef.current = zoneGfx;
 
-      membraneRendererRef.current = new MembraneRenderer(world);
       zoneRendererRef.current = new ZoneRenderer(world, () => worldRef.current);
       sbLayerRef.current = new StoryboardLayer(world);
 
@@ -280,7 +280,6 @@ export default function GlucoseCanvas() {
       appRef.current = null; worldRef.current = null;
       selRectGfxRef.current = null;
       zoneRendererRef.current = null;
-      membraneRendererRef.current?.destroy(); membraneRendererRef.current = null;
       sbLayerRef.current?.destroy(); sbLayerRef.current = null;
       spritesRef.current.clear(); pendingLoadsRef.current.clear();
       zoneGfxRef.current = null; zoneStartRef.current = null;
@@ -378,11 +377,10 @@ export default function GlucoseCanvas() {
 
   // ── Folders : rendu géré par FolderSvgLayer (composant React SVG) ──
 
-  // ── Sync membranes ───────────────────────────────────────────
-  useEffect(() => {
-    if (!pixiReady || !membraneRendererRef.current) return;
-    membraneRendererRef.current.update(board.images, project.domains ?? []);
-  }, [board.images, project.domains, pixiReady]);
+  // ── Membranes AUTO (cluster d'images) : RETIRÉ ───────────────
+  // L'ancien MembraneRenderer entourait automatiquement chaque cluster
+  // d'images d'une « membrane organique ». Supprimé définitivement : seules
+  // les membranes MANUELLES (annotations type "membrane", outil M) subsistent.
 
   // ── Phase 6 — Filtrage temporel des sprites images ────────────
   // On dimme (alpha 0.12) les sprites dont le temporalAnchor n'intersecte pas
@@ -599,22 +597,63 @@ export default function GlucoseCanvas() {
     folderTransitionRafRef.current = requestAnimationFrame(animate);
   }, [project.activeBoardId, pixiReady]);
 
-  // ── Selection border ─────────────────────────────────────────
-  useEffect(() => {
+  // ── Contour de sélection + poignées de redimensionnement ──────
+  // Dessine, pour chaque image sélectionnée, son contour blanc et 4 poignées
+  // de coin. Les poignées sont des enfants du sprite, posées aux coins de la
+  // texture (±texW/2, ±texH/2) : elles suivent automatiquement la taille
+  // affichée quand on agrandit l'image. Grab d'une poignée → resizeRef.
+  const syncSelectionGfx = useCallback(() => {
+    const selIds = useGlucoseStore.getState().selectedImageIds;
+    const board = getActiveBoard(useGlucoseStore.getState().project);
     spritesRef.current.forEach((spriteBase, id) => {
       const sprite = spriteBase as SpriteWithSelGfx;
-      const sel = selectedImageIds.includes(id);
       const old = sprite._selGfx;
       if (old) { sprite.removeChild(old); old.destroy(); sprite._selGfx = null; }
-      if (!sel) return;
-      const g = new Graphics();
+      if (!selIds.includes(id)) return;
+      const img = board.images.find((i) => i.id === id);
       const w = sprite.texture.width; const h = sprite.texture.height;
+      // Compense l'échelle du sprite ET du monde pour des traits/poignées de
+      // taille ~constante à l'écran au moment du tracé.
+      const inv = 1 / ((sprite.scale.x || 1) * (worldRef.current?.scale.x || 1));
+      const g = new Graphics();
       g.rect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6);
-      g.stroke({ color: 0xffffff, width: 1.5 / (worldRef.current?.scale.x || 1), alpha: 0.7 });
+      g.stroke({ color: 0xffffff, width: 1.5 * inv, alpha: 0.7 });
+
+      // Poignées de coin — uniquement si l'image n'est pas verrouillée.
+      if (img && !img.locked) {
+        const hs = 11 * inv; // ~11px écran
+        const corners: Array<[number, number, string]> = [
+          [-w / 2, -h / 2, "nwse"], [w / 2, -h / 2, "nesw"],
+          [w / 2,  h / 2, "nwse"], [-w / 2,  h / 2, "nesw"],
+        ];
+        for (const [hx, hy, dir] of corners) {
+          const handle = new Graphics();
+          handle.rect(-hs / 2, -hs / 2, hs, hs)
+            .fill({ color: 0xffffff })
+            .stroke({ color: 0x3b82f6, width: Math.max(inv, hs * 0.14) });
+          handle.position.set(hx, hy);
+          handle.eventMode = "static";
+          handle.cursor = `${dir}-resize`;
+          handle.on("pointerdown", (ev: FederatedPointerEvent) => {
+            if (ev.button !== 0) return;
+            ev.stopPropagation(); // n'enclenche ni le drag du sprite ni le pan
+            const st = useGlucoseStore.getState();
+            const im = getActiveBoard(st.project).images.find((i) => i.id === id);
+            if (!im || im.locked) return;
+            resizeRef.current = {
+              id, cx: im.x, cy: im.y,
+              aspect: im.width / Math.max(1, im.height),
+            };
+          });
+          g.addChild(handle);
+        }
+      }
       sprite.addChild(g);
       sprite._selGfx = g;
     });
-  }, [selectedImageIds]);
+  }, []);
+
+  useEffect(() => { syncSelectionGfx(); }, [selectedImageIds, syncSelectionGfx]);
 
   // ── Tauri file drop (natif — chemins absolus OS) ─────────────
   // R-FIL (Sprint 2) : depuis dragDropEnabled:true, l'event natif nous donne
@@ -1212,18 +1251,6 @@ export default function GlucoseCanvas() {
 
   useEffect(() => {
     const onFit = () => fitView();
-    const onExport = () => {
-      const app = appRef.current;
-      if (!app) return;
-      // Force a render to fill the WebGL buffer, then capture synchronously
-      // BEFORE any async operation (dialog), otherwise the buffer is cleared
-      app.renderer.render({ container: app.stage });
-      const dataUrl = app.canvas.toDataURL("image/png");
-      const name = useGlucoseStore.getState().project.name || "atelier";
-      exportCanvasPng(dataUrl, name).catch((err) =>
-        alert(`Erreur export:\n${err?.message || String(err)}`)
-      );
-    };
     const onJump = (e: Event) => {
       const { wx, wy } = (e as CustomEvent<{ wx: number; wy: number }>).detail;
       const world = worldRef.current;
@@ -1327,7 +1354,6 @@ export default function GlucoseCanvas() {
     };
 
     window.addEventListener("glucose:fit-view", onFit);
-    window.addEventListener("glucose:export-png", onExport);
     window.addEventListener("glucose:jump-viewport", onJump);
     window.addEventListener("glucose:pan-viewport-to", onPanTo);
     window.addEventListener("glucose:zoom-to-annotation", onZoomToAnn);
@@ -1335,7 +1361,6 @@ export default function GlucoseCanvas() {
     return () => {
       window.removeEventListener("keydown", onNumpadKey);
       window.removeEventListener("glucose:fit-view", onFit);
-      window.removeEventListener("glucose:export-png", onExport);
       window.removeEventListener("glucose:jump-viewport", onJump);
       window.removeEventListener("glucose:pan-viewport-to", onPanTo);
       window.removeEventListener("glucose:zoom-to-annotation", onZoomToAnn);
@@ -1581,6 +1606,23 @@ export default function GlucoseCanvas() {
     stage.on("pointermove", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.handleGlobalMove(e, world);
 
+      // Redimensionnement d'image (poignée de coin) — centre fixe, ratio
+      // verrouillé : on agrandit/réduit proportionnellement, jamais déformé.
+      if (resizeRef.current) {
+        const { id, cx, cy, aspect } = resizeRef.current;
+        const wx = (e.globalX - world.x) / world.scale.x;
+        const wy = (e.globalY - world.y) / world.scale.y;
+        let newW = Math.abs(wx - cx) * 2;
+        let newH = Math.abs(wy - cy) * 2;
+        // Verrouille le ratio : on retient l'axe qui donne la plus grande boîte.
+        if (newW / aspect >= newH) newH = newW / aspect; else newW = newH * aspect;
+        if (newW < 24) { newW = 24; newH = 24 / aspect; }
+        const st = useGlucoseStore.getState();
+        if (!st._liveEdit) st.beginLiveEdit(); // 1 seule entrée d'undo
+        st.updateImage(getActiveBoard(st.project).id, id, { width: newW, height: newH });
+        return;
+      }
+
       if (zoneStartRef.current) {
         const { sx, sy } = zoneStartRef.current;
         const rx = Math.min(sx, e.globalX); const ry = Math.min(sy, e.globalY);
@@ -1729,6 +1771,14 @@ export default function GlucoseCanvas() {
     stage.on("pointerup", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.clearDragState();
 
+      // Fin d'un redimensionnement d'image.
+      if (resizeRef.current) {
+        resizeRef.current = null;
+        useGlucoseStore.getState().endLiveEdit();
+        syncSelectionGfx(); // recadre la taille des poignées
+        return;
+      }
+
       if (zoneStartRef.current) {
         const { sx, sy } = zoneStartRef.current;
         const rw = Math.abs(e.globalX - sx); const rh = Math.abs(e.globalY - sy);
@@ -1818,6 +1868,12 @@ export default function GlucoseCanvas() {
 
     stage.on("pointerupoutside", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.clearDragState();
+      if (resizeRef.current) {
+        resizeRef.current = null;
+        useGlucoseStore.getState().endLiveEdit();
+        syncSelectionGfx();
+        return;
+      }
       if (arrowIdRef.current) {
         const wx = (e.globalX - world.x) / world.scale.x;
         const wy = (e.globalY - world.y) / world.scale.y;

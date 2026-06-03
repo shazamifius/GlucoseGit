@@ -1,7 +1,7 @@
 {
   "name": "glucose",
   "private": true,
-  "version": "1.0.0-beta.1",
+  "version": "1.0.1-beta.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,9 @@
   },
   "dependencies": {
     "@automerge/automerge": "^3.2.6",
+    "@automerge/automerge-repo": "^2.5.6",
+    "@automerge/automerge-repo-network-websocket": "^2.5.6",
+    "@automerge/automerge-repo-storage-indexeddb": "^2.5.6",
     "@pixi/react": "^8.0.5",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.3",

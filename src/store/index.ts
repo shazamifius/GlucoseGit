@@ -41,6 +41,7 @@ import { nanoid } from "../utils/nanoid";
 import { wouldCreateMirrorCycle } from "./mirrorGraph";
 import * as A from "./automerge";
 import { LIMITS } from "../constants";
+import { getCollabHandle } from "../multiplayer/collabHandle";
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Bornes (CLEANUP R-02) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const COORD_LIMIT = 1_000_000;
@@ -181,6 +182,22 @@ function preserveView(restored: A.Doc<Project>, current: A.Doc<Project>): A.Doc<
       }
     }
   });
+}
+
+/** Réécrit EN AVANT le contenu d'un document pour qu'il corresponde à `plain`.
+ *  Contrairement à un échange de snapshot (qui ferait reculer l'historique
+ *  Automerge — interdit en mode collaboratif), ceci ajoute un nouveau change qui
+ *  remplace le contenu. Réutilisé par `restoreToPreview`, `undo` et `redo` quand
+ *  un handle de collaboration est attaché. NB : `blobs` n'est pas réécrit (les
+ *  octets ne font que s'ajouter ; un blob orphelin est inoffensif). */
+function rewriteProjectContent(d: Project, plain: Project): void {
+  d.name = plain.name;
+  d.activeBoardId = plain.activeBoardId;
+  d.boards.splice(0, d.boards.length, ...plain.boards);
+  d.presets.splice(0, d.presets.length, ...plain.presets);
+  if (d.domains) d.domains.splice(0, d.domains.length, ...(plain.domains ?? []));
+  else d.domains = plain.domains ?? [];
+  d.updatedAt = Date.now();
 }
 
 interface GlucoseStore {
@@ -412,6 +429,33 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   project: INITIAL_DOC as unknown as Project,
 
   mutate: (message, mutator) => {
+    const handle = getCollabHandle();
+    if (handle) {
+      // ── Mode COLLAB ── la mutation passe par le handle automerge-repo, qui
+      // synchronise et persiste automatiquement. On lit ensuite le doc résultant
+      // et on met à jour la vue + la pile undo, exactement comme en solo.
+      const s = get();
+      if (s._previewHeads !== null) {
+        console.warn("[mutate] Mutation ignorée : mode Time Machine actif. Sors-en pour modifier.");
+        return;
+      }
+      const before = s._doc;
+      handle.change((d) => mutator(d as Project), { message });
+      const next = handle.docSync() as unknown as A.Doc<Project>;
+      set((st) =>
+        st._liveEdit
+          ? { _doc: next, project: next as unknown as Project }
+          : {
+              _doc: next,
+              project: next as unknown as Project,
+              _undoStack: [...st._undoStack.slice(-(UNDO_DEPTH - 1)), before],
+              _redoStack: [],
+            }
+      );
+      return;
+    }
+
+    // ── Mode SOLO ── (comportement historique, inchangé)
     set((s) => {
       // Phase 7.4 â€” bloquer les mutations en mode preview Time Machine.
       if (s._previewHeads !== null) {
@@ -455,6 +499,14 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     // On applique le change Automerge (donc c'est persisté + visible Time Machine)
     // mais on NE touche NI `_undoStack` NI `_redoStack` : naviguer/zoomer ne doit
     // jamais s'empiler dans l'undo ni détruire un redo en attente.
+    const handle = getCollabHandle();
+    if (handle) {
+      if (get()._previewHeads !== null) return; // bloqué en mode Time Machine
+      handle.change((d) => mutator(d as Project), { message });
+      const next = handle.docSync() as unknown as A.Doc<Project>;
+      set({ _doc: next, project: next as unknown as Project });
+      return;
+    }
     set((s) => {
       if (s._previewHeads !== null) return s; // bloqué en mode Time Machine
       const next = A.change(s._doc, message, (d) => mutator(d as Project));
@@ -505,14 +557,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     //    L'historique antÃ©rieur reste prÃ©servÃ© : c'est un commit en avant
     //    qui dit "reviens Ã  l'Ã©tat du jalon X".
     get().mutate("âª Restauration depuis la timeline", (d) => {
-      d.name = pastPlain.name;
-      d.activeBoardId = pastPlain.activeBoardId;
-      d.updatedAt = Date.now();
-      // Replace boards array (Automerge accepte splice + spread)
-      d.boards.splice(0, d.boards.length, ...pastPlain.boards);
-      d.presets.splice(0, d.presets.length, ...pastPlain.presets);
-      if (d.domains) d.domains.splice(0, d.domains.length, ...(pastPlain.domains ?? []));
-      else d.domains = pastPlain.domains ?? [];
+      rewriteProjectContent(d, pastPlain);
     });
   },
 
@@ -544,6 +589,31 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
   undo: () => {
     if (get()._undoStack.length === 0) return false;
+    const handle = getCollabHandle();
+    if (handle) {
+      // Mode COLLAB : on ne peut pas faire reculer un doc Automerge partagé. On
+      // applique l'état passé EN AVANT (nouveau change qui réécrit le contenu),
+      // tout en conservant la caméra courante via preserveView.
+      const s = get();
+      const before = s._doc;
+      const restored = A.clone(s._undoStack[s._undoStack.length - 1]);
+      const mergedPlain = A.asPlain(preserveView(restored, before));
+      handle.change((d) => rewriteProjectContent(d as Project, mergedPlain), { message: "Annuler" });
+      const next = handle.docSync() as unknown as A.Doc<Project>;
+      const proj = next as unknown as Project;
+      set((st) => ({
+        _doc: next,
+        project: proj,
+        _undoStack: st._undoStack.slice(0, -1),
+        _redoStack: [...st._redoStack.slice(-(UNDO_DEPTH - 1)), before],
+        _previewHeads: null,
+        _liveEdit: false,
+        selectedImageIds: [],
+        selectedAnnotationIds: [],
+        folderStack: buildFolderStack(proj.boards, proj.activeBoardId),
+      }));
+      return true;
+    }
     set((s) => {
       if (s._undoStack.length === 0) return s;
       // Clone le doc avant restauration : un doc Automerge dÃ©jÃ  utilisÃ© comme
@@ -573,6 +643,28 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
   redo: () => {
     if (get()._redoStack.length === 0) return false;
+    const handle = getCollabHandle();
+    if (handle) {
+      const s = get();
+      const before = s._doc;
+      const restored = A.clone(s._redoStack[s._redoStack.length - 1]);
+      const mergedPlain = A.asPlain(preserveView(restored, before));
+      handle.change((d) => rewriteProjectContent(d as Project, mergedPlain), { message: "Rétablir" });
+      const next = handle.docSync() as unknown as A.Doc<Project>;
+      const proj = next as unknown as Project;
+      set((st) => ({
+        _doc: next,
+        project: proj,
+        _redoStack: st._redoStack.slice(0, -1),
+        _undoStack: [...st._undoStack.slice(-(UNDO_DEPTH - 1)), before],
+        _previewHeads: null,
+        _liveEdit: false,
+        selectedImageIds: [],
+        selectedAnnotationIds: [],
+        folderStack: buildFolderStack(proj.boards, proj.activeBoardId),
+      }));
+      return true;
+    }
     set((s) => {
       if (s._redoStack.length === 0) return s;
       const restored = A.clone(s._redoStack[s._redoStack.length - 1]);

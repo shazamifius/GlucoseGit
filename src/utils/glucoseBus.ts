@@ -50,7 +50,6 @@ export type GlucoseEvents = {
   "zone-selected": { x: number; y: number; w: number; h: number };
 
   // UI
-  "export-png": void;
   "delete-selected-folder": void;
   "trigger-import": void;
 };

@@ -3,6 +3,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { addImagesFromFiles } from "../canvas/fileImport";
 import { Tool } from "../types";
+import ExportMenu from "./ExportMenu";
 
 interface ToolbarProps {
   onTogglePreset: () => void;
@@ -15,6 +16,9 @@ interface ToolbarProps {
   storyboardPanelOpen: boolean;
   onTogglePomodoro: () => void;
   pomodoroOpen: boolean;
+  onToggleMultiplayer: () => void;
+  multiplayerPanelOpen: boolean;
+  collabActive: boolean;
 }
 
 export default function Toolbar({
@@ -23,6 +27,7 @@ export default function Toolbar({
   onToggleOrganize, organizePanelOpen,
   onToggleStoryboard, storyboardPanelOpen,
   onTogglePomodoro, pomodoroOpen,
+  onToggleMultiplayer, multiplayerPanelOpen, collabActive,
 }: ToolbarProps) {
   // CLEANUP P-08 — Selectors atomiques (pas de full-store subscribe)
   const activeTool = useGlucoseStore(s => s.activeTool);
@@ -224,17 +229,28 @@ export default function Toolbar({
 
       <div style={{ flex: 1 }} />
 
-      {/* Export PNG */}
-      <ActionBtn
-        onClick={() => window.dispatchEvent(new Event("glucose:export-png"))}
-        title="Exporter le canvas en PNG"
-      >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v9M4 8l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
-        Export PNG
+      {/* Collaboration (Ctrl+Shift+L) — pastille verte quand une session est active */}
+      <ActionBtn onClick={onToggleMultiplayer} active={multiplayerPanelOpen || collabActive} title="Collaborer en ligne (Ctrl+Shift+L)">
+        <span style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/>
+            <path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13" stroke="currentColor" strokeWidth="1.2"/>
+          </svg>
+          {collabActive && (
+            <span style={{
+              position: "absolute", top: -2, right: -3,
+              width: 6, height: 6, borderRadius: "50%",
+              background: "#10b981", boxShadow: "0 0 5px #10b981",
+            }} />
+          )}
+        </span>
+        Collaborer
       </ActionBtn>
+
+      {sep}
+
+      {/* Export — menu multi-formats (HTML interactif / PNG HD / SVG / Markdown) */}
+      <ExportMenu />
 
       {sep}
 
