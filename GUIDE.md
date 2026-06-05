@@ -2,7 +2,7 @@
 
 > **Glucose** est un canvas infini pour poser tes idées à plat. Une seule interface, pas de modes : pose, relie, zoome, explore.
 
-**Version :** 1.0.0-beta.1
+**Version :** 1.0.1-beta.1
 
 ---
 
@@ -130,20 +130,21 @@ Les jalons cliquables apparaissent sous la piste pour navigation rapide (« avan
 
 `Ctrl+Z` / `Ctrl+Y` = undo/redo classiques (équivalent à reculer/avancer d'un commit).
 
-### 🛰️ Multijoueur LAN
+### 🌐 Collaboration (internet)
 
-Édite un même projet à plusieurs sur le même réseau local — sync **temps réel**, fusion CRDT automatique, **zéro conflit**.
+Édite un même projet à plusieurs **par internet** — sync **temps réel**, fusion CRDT automatique, **zéro conflit**. La synchro passe par un **serveur always-on** : un pair peut fermer son PC, l'autre garde tout, et le rattrapage est automatique à la reconnexion.
 
-**Activer** : `Ctrl+Shift+L` → panel multijoueur → **« ▶ Activer le multijoueur »**.
+**Ouvrir le panel** : `Ctrl+Shift+L`.
 
-Glucose annonce ton instance via mDNS sur le réseau et écoute les autres. Toute autre machine du LAN qui active le multijoueur apparaît dans **« Instances sur le LAN »**. Click sur un peer = connexion établie (LED verte).
+Deux usages :
+- **Créer une chaîne** : `▶ Créer une chaîne` → Glucose génère un **code** `automerge:…`. Copie-le et envoie-le à ton/ta partenaire.
+- **Rejoindre une chaîne** : colle le code reçu dans `Rejoindre une chaîne`. ⚠️ Rejoindre ouvre **le projet de la chaîne** (ton projet local courant est mis de côté).
 
-À partir de là, **chaque modification de l'un est répliquée chez les autres en temps réel**. Tu peux travailler en parallèle sur différentes parties du canvas — Automerge merge tout automatiquement, même en cas de modifications simultanées.
+Une fois la chaîne active (LED verte = connecté au serveur), **chaque modification de l'un est répliquée chez les autres en temps réel**. Vous éditez à égalité ; `Ctrl+Z` n'annule que **tes** propres actions.
 
 **Limites MVP** :
-- Pas de curseurs flottants temps réel encore (Phase 7.5bis polish à venir)
-- Pas de chiffrement (LAN non-fiable → utilise un VPN)
-- Si la découverte mDNS échoue (firewall/routeur restrictif), entre l'IP manuellement (`192.168.x.x:7777`)
+- Pas encore de curseurs / présence temps réel des pairs
+- Synchro via un **serveur public** par défaut (pour un serveur privé, l'URL se change dans `src/multiplayer/repo.ts`)
 
 ---
 
@@ -154,6 +155,7 @@ Glucose annonce ton instance via mDNS sur le réseau et écoute les autres. Tout
 - **Drag-drop** une image depuis n'importe où (browser, explorer, copier-coller).
 - **URL d'image web** : drag-drop l'URL → Glucose télécharge en meilleure qualité automatiquement (Pinterest, Twitter, Instagram, Reddit, Imgur, Tumblr, Wallhaven, ArtStation, DeviantArt sont reconnus avec upgrade auto vers la résolution originale).
 - Les images sont stockées **externalisées** dans `assets/<hash>.<ext>` côté disque (pas en base64 dans le `.glucose`) — fichier projet compact, dédup automatique.
+- **Performance** : les images sont chargées **à la demande** selon ce que tu regardes (virtualisation + résolution de texture adaptée au zoom) — des **centaines d'images** restent fluides au pan/zoom, sans saturer la mémoire graphique.
 
 ### Vidéos
 
@@ -235,7 +237,7 @@ Le fichier `.glucose` est un **binaire Automerge** compact qui contient :
 | `Shift+R` | Réglette temporelle |
 | `Shift+T` | Ancrer une date à la sélection |
 | `Ctrl+H` | Time Machine |
-| `Ctrl+Shift+L` | Multijoueur LAN |
+| `Ctrl+Shift+L` | Collaboration (chaîne internet) |
 
 ---
 
@@ -268,7 +270,7 @@ Le fichier `.glucose` est un **binaire Automerge** compact qui contient :
 2. Dans *Histoire* : ancre chaque événement (`Shift+T`) → réglette temporelle = chronologie visuelle automatique
 3. Dans *Personnages* : un dossier par perso, chaque dossier contient refs + bio + relations
 4. Flèches inter-dossiers (le `targetBoardId` des flèches portail) → click = téléportation vers le board cible
-5. Multi-utilisateur LAN (`Ctrl+Shift+L`) si tu travailles en duo avec un coauteur sur le même réseau
+5. Collaboration internet (`Ctrl+Shift+L`) : crée une chaîne et envoie le code `automerge:…` à ton coauteur pour éditer à deux en temps réel
 
 ---
 
@@ -305,7 +307,7 @@ Tes fichiers `.glucose` sont sauvegardés là où tu choisis (par défaut dans t
 
 **…un projet ne s'ouvre pas** : Glucose valide la structure via Zod. Si le `.glucose` est corrompu, un message clair indique le champ fautif. Le projet courant n'est pas écrasé.
 
-**…le multijoueur LAN ne se découvre pas** : firewall ou routeur qui filtre mDNS. Solution : entre l'IP manuellement (`192.168.x.x:7777`) dans le panel. Vérifie aussi que les deux machines sont sur le même sous-réseau.
+**…la collaboration ne se connecte pas** : si la LED reste jaune (« connexion… »), vérifie ta connexion internet et que le serveur de synchro est joignable. Pour rejoindre une chaîne, colle bien le **code `automerge:…` complet**. Pour pointer vers un serveur de synchro privé, change l'URL dans `src/multiplayer/repo.ts`.
 
 **…un sticky source n'ouvre pas son fichier natif** : vérifie que le fichier existe encore au chemin enregistré, et que son extension est dans la whitelist (`.blend`, `.psd`, `.kra`, etc. — pas `.exe` ou similaires).
 

@@ -4,17 +4,21 @@
 >
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
 
-**Dernière mise à jour :** 2026-06-01
-**Version :** 1.0.0-beta.1
+**Dernière mise à jour :** 2026-06-05
+**Version :** 1.0.1-beta.1
 **Architecture :** Tauri 2 (Rust) + React 19 + Tailwind 4 + PixiJS 8 (raster) + SVG overlay (vecteur) + Zustand + **Automerge 3 (CRDT, WASM)**
 
+> **⚡ Perf images & fluidité (2026-06-05)** — Refonte performance pour tenir des centaines/milliers d'images : stockage « du dur » (images sorties du doc Automerge → fin du freeze de navigation), **virtualisation des textures** (chargées/déchargées selon le viewport), **LOD/downscale** (résolution de texture adaptée au zoom, ré-affinage au zoom-in sans flash), **rendu à la demande** (0 travail GPU au repos), **abonnements store ciblés** (fin des re-renders de l'arbre React sur chaque survol), antialias MSAA off + résolution plafonnée. Résultat : pan/zoom fluides sur 100+ images.
+>
+> **🌐 Collaboration internet (2026-06-05)** — La collab passe de mDNS/LAN à **automerge-repo + serveur de synchro public** : on crée une « chaîne » (code `automerge:…` à partager) ou on en rejoint une avec son code. Un pair peut fermer son PC, l'autre garde tout, catch-up automatique à la (re)connexion. Panel via `Ctrl+Shift+L`. (Remplace le multijoueur LAN de la Phase 7.5bis.)
+>
 > **🛡️ Sprint 1 sécurité bouclé (2026-05-07)** — 9 vulnérabilités critiques fermées (RCE, XSS, SSRF, scope FS), validation Zod, clamps coords, SHA256 yt-dlp, README+LICENSE+CI+Biome.
 >
 > **📅 Phase 6 livrée (2026-05-07)** — Réglette temporelle sémantique : `temporalAnchor`, `TemporalRuler` zoomable (Shift+R), 30 époques nommées, parsing souple, filtrage live, badge 📅, ancrage par Shift+T.
 >
 > **🗂️ Phase 7.5 livrée (2026-05-07)** — Suppression intégrale du LOD. Refonte folders : design transparent, capture au drag-create, navigation par zoom (enter/exit), indicateur visuel, breadcrumb VSCode, preview améliorée.
 >
-> **🧹 Sprint 7.0 livré (2026-05-07)** — Pré-CRDT bouclé : assets externalisés (`asset:<hash>.<ext>` au lieu de base64), migration legacy automatique au load, cascades de suppression (folders / mirrors / portails), `id: nanoid()` pour le board par défaut. Rapport complet dans [PRE-PHASE7-AUDIT.md](PRE-PHASE7-AUDIT.md).
+> **🧹 Sprint 7.0 livré (2026-05-07)** — Pré-CRDT bouclé : assets externalisés (`asset:<hash>.<ext>` au lieu de base64), migration legacy automatique au load, cascades de suppression (folders / mirrors / portails), `id: nanoid()` pour le board par défaut.
 >
 > **⚙️ Phase 7.1 fondations (2026-05-07)** — Automerge 3 installé, wrapper `src/store/automerge.ts` testé (12 tests verts : create/change/save/load roundtrip, merge commutatif, time machine `viewAt`/`getHeads`/`history`). Vite configuré pour WASM.
 >
@@ -346,7 +350,7 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 - [x] **3 nouveaux tests vitest** : viewAt restitue l'état passé, restauration via splice préserve l'historique antérieur, history expose les messages dans l'ordre (filtrage 📌 jalons).
 - [ ] Bouton dans la Toolbar (à ajouter quand on aura la place) — Ctrl+H suffit pour MVP
 
-### ✅ Phase 7.5bis — Multi-utilisateur LAN (livré 2026-05-07)
+### ✅ Phase 7.5bis — Multi-utilisateur LAN (livré 2026-05-07) — ⚠️ remplacé par la Phase 7.6 (collaboration internet)
 - [x] **Backend Rust** ([src-tauri/src/multiplayer.rs](src-tauri/src/multiplayer.rs), ~330 lignes) :
   - `mdns-sd` : annonce du service `_glucose._tcp.local` + browse pour découvrir les peers
   - `tokio-tungstenite` : serveur WebSocket sur port 7777 par défaut + client pour rejoindre un peer
@@ -361,6 +365,36 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 - [ ] Curseurs flottants temps réel (Phase 7.5bis polish — ultérieur)
 - [ ] Reconnexion automatique en cas de coupure (idem polish)
 - [ ] Chiffrement TLS (LAN privé non chiffré pour MVP — OK car le LAN est de confiance)
+
+---
+
+## ✅ Phase 7.6 — Collaboration internet (livré 2026-06-05)
+
+> Remplace le multijoueur LAN (7.5bis). La synchro ne dépend plus du réseau local : elle passe par **automerge-repo** + un serveur de synchro always-on qui stocke le document.
+
+- [x] **`src/multiplayer/repo.ts`** : `Repo` automerge-repo branché sur un serveur WebSocket public (`onConnectivityChange` / `isServerConnected` pour l'état de connexion)
+- [x] **Bridge** (`collabBridge.ts` / `collabHandle.ts`) : `createShare()` génère un code `automerge:…` partageable, `joinByCode()` adopte le projet d'un pair, `resumeShare()`/`reconnectFromDoc()` reprennent une chaîne existante, `leaveCollab()` repasse en solo
+- [x] **Store double-mode solo/collab** : `project.collabUrl` mémorise la chaîne ; reconnexion automatique à l'ouverture d'un `.glucose` partagé
+- [x] **Panel** `MultiplayerPanel` (Ctrl+Shift+L) : créer / rouvrir / rejoindre une chaîne, code copiable, LED de connexion serveur
+- [x] **Undo collab** : forward-revert (les actions distantes ne polluent pas l'undo local)
+- [ ] Serveur de synchro privé documenté (URL modifiable dans `repo.ts`)
+- [ ] Curseurs / présence temps réel des pairs
+
+---
+
+## ✅ Perf & Fluidité images (livré 2026-06-05)
+
+> Objectif : tenir des centaines à plusieurs milliers d'images sans freeze.
+
+- [x] **Stockage « du dur »** : images sorties du document Automerge (plus de blobs base64 embarqués) → ref `link` sur disque (`asset:<hash>`). `A.save()` redevient minuscule → **fin du freeze de 4-5 s à chaque navigation** (le doc resérialisait ~112 Mo d'images à chaque autosave)
+- [x] **Virtualisation des textures** : chargement/déchargement à la demande selon le viewport (région de charge +50 %, de conservation +250 %) — plus de chargement *eager* de toutes les images ; VRAM bornée
+- [x] **LOD / downscale** : chaque image décodée (`createImageBitmap`, hors thread principal) à la résolution adaptée au zoom courant ; ré-affinage async sans flash au zoom-in ; fallback pleine résolution robuste
+- [x] **Rendu à la demande** : `autoStart:false` + boucle qui ne rend qu'après une interaction (fenêtre 250 ms) ou tant qu'une vidéo joue → GPU au repos quand rien ne bouge
+- [x] **Abonnements store ciblés** (GlucoseCanvas / App / HtmlAnnotationLayer) : fin des re-renders de l'arbre React géant sur chaque changement d'état (ex. survol `hoveredNodeId`)
+- [x] **Pan throttlé en rAF** + **minimap en cache** (scène statique dessinée une fois, seul le rectangle de viewport recomposé par frame)
+- [x] **GPU** : antialias MSAA coupé (invisible sur bitmaps) + résolution plafonnée à 2 sur écran HiDPI
+- [ ] Format **bundle `.glucose/`** autonome (doc + `objects/` content-addressed) — phase suivante
+- [ ] Synchro des images en collab (fetch des objets manquants par hash, style Git-LFS) — phase suivante
 
 ---
 

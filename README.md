@@ -101,9 +101,9 @@ Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
 </td>
 <td width="50%">
 
-### 🛰️ Multi-utilisateur LAN
-- Découverte mDNS automatique sur le réseau local
-- Synchronisation en temps réel via WebSocket
+### 🌐 Collaboration internet
+- Crée une « chaîne » → code `automerge:…` à partager
+- Synchro temps réel via serveur always-on (automerge-repo)
 - Merge CRDT transparent — pas de conflits
 - Activation Ctrl+Shift+L
 
@@ -173,7 +173,7 @@ Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
 | `Espace` | Pan (maintenu) |
 | `Ctrl+Z` / `Ctrl+Y` | Undo / Redo infini |
 | `Ctrl+H` | Time Machine |
-| `Ctrl+Shift+L` | Multijoueur LAN |
+| `Ctrl+Shift+L` | Collaboration (chaîne internet) |
 | `Shift+R` | Réglette temporelle |
 | `Shift+T` | Ancrer une date à la sélection |
 | `F11` | Mode Zen (cache toute l'UI) |
@@ -192,7 +192,7 @@ Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
 │            ↓                                     │
 │  Tauri 2 (Rust)                                  │
 │  · reqwest (rustls)  · yt-dlp embarqué           │
-│  · mDNS-SD + tokio-tungstenite (multijoueur LAN) │
+│  · automerge-repo (collaboration internet)       │
 └──────────────────────────────────────────────────┘
 ```
 
