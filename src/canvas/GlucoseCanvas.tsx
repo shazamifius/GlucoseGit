@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { Application, Assets, Container, Sprite, Texture, Graphics, FederatedPointerEvent } from "pixi.js";
+import { Application, Assets, Container, Sprite, Texture, Graphics, FederatedPointerEvent, ImageSource } from "pixi.js";
 
 // Sprite augmenté pour conserver la référence du contour de sélection
 // blanc dessiné autour de l'image quand elle est sélectionnée. Pixi ne
@@ -10,6 +10,13 @@ interface SpriteWithSelGfx extends Sprite {
   // PERF-3 (virtualisation) — URL résolue de la texture, pour décrémenter le
   // ref-count et libérer la VRAM (Assets.unload) à l'éviction du sprite.
   _srcUrl?: string;
+  // PERF-4 (LOD) — la texture est-elle « possédée » (downscalée, à détruire au
+  // déchargement) ou gérée par Assets (vidéos / fallback pleine résolution) ?
+  _ownsTexture?: boolean;
+  // PERF-4 (LOD) — taille (px, grand côté) de la texture actuellement chargée, et
+  // garde anti-concurrence pendant un ré-affinage (swap haute résolution).
+  _texPx?: number;
+  _upgrading?: boolean;
 }
 import SvgAnnotationLayer, { measureTextSize } from "./SvgAnnotationLayer";
 import HtmlAnnotationLayer from "./HtmlAnnotationLayer";
@@ -45,6 +52,12 @@ import { buildEmbedRef } from "../utils/assetRef";
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
 const DOT_GRID_SIZE = 60;
+// PERF-4 (LOD textures) — on charge chaque image à une résolution adaptée à sa
+// taille à l'écran (zoom courant), pas à sa pleine définition. Énorme gain VRAM +
+// décodage à faible zoom ; ré-affinage à la demande quand on zoome.
+const LOD_HEADROOM = 1.25;       // marge de résolution au-dessus du strict nécessaire
+const MIN_TEX_PX = 256;          // plancher : une vignette reste lisible
+const LOD_UPGRADE_FACTOR = 1.8;  // re-décode quand le besoin dépasse le chargé ×1.8
 
 /** Taille d'affichage d'un sprite. Pour les vignettes de folder mirror
  *  (`fit:"contain"`), on cadre la texture DANS la boîte en préservant le ratio
@@ -146,6 +159,12 @@ export default function GlucoseCanvas() {
   // fois par frame d'affichage, pas une fois par event d'entrée. Le transform du
   // monde (world.x/y/scale) reste appliqué synchroniquement → 0 latence visible.
   const vpSyncScheduledRef = useRef(false);
+  // PERF-4 (rendu à la demande) — PixiJS rendait 60 fps en CONTINU même à l'arrêt.
+  // On passe en rendu « quand ça bouge » : `renderUntilRef` = horodatage jusqu'auquel
+  // on rend (prolongé par chaque interaction / mutation), + rendu continu tant qu'une
+  // vidéo joue. Au repos total → 0 travail GPU. `renderRafRef` = la boucle de rendu.
+  const renderUntilRef = useRef(0);
+  const renderRafRef = useRef<number | null>(null);
 
   const [pixiReady, setPixiReady] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -175,15 +194,27 @@ export default function GlucoseCanvas() {
     if (!editOverlay) useGlucoseStore.getState().endLiveEdit();
   }, [editOverlay?.annId]);
 
-  const {
-    project, addImage, addAnnotation, updateImage, setViewport,
-    setSelectedImageIds, selectedImageIds,
-    selectedAnnotationIds, setSelectedAnnotationIds,
-    updateAnnotation, removeAnnotations, removeImages,
-    applyPresetToBoard,
-    createFolder, enterFolder,
-    activeTool,
-  } = useGlucoseStore();
+  // PERF-4 — abonnements CIBLÉS au lieu de `useGlucoseStore()` (tout le store).
+  // Avant, ce composant géant (+ toutes ses couches enfants non mémoïsées) se
+  // re-rendait à CHAQUE changement d'état — y compris `hoveredNodeId` qui change à
+  // chaque image survolée → jank en mouvement. On ne s'abonne plus qu'aux tranches
+  // réellement affichées ; les actions sont des refs stables (aucun re-render).
+  const project = useGlucoseStore((s) => s.project);
+  const selectedImageIds = useGlucoseStore((s) => s.selectedImageIds);
+  const selectedAnnotationIds = useGlucoseStore((s) => s.selectedAnnotationIds);
+  const activeTool = useGlucoseStore((s) => s.activeTool);
+  const addImage = useGlucoseStore((s) => s.addImage);
+  const addAnnotation = useGlucoseStore((s) => s.addAnnotation);
+  const updateImage = useGlucoseStore((s) => s.updateImage);
+  const setViewport = useGlucoseStore((s) => s.setViewport);
+  const setSelectedImageIds = useGlucoseStore((s) => s.setSelectedImageIds);
+  const setSelectedAnnotationIds = useGlucoseStore((s) => s.setSelectedAnnotationIds);
+  const updateAnnotation = useGlucoseStore((s) => s.updateAnnotation);
+  const removeAnnotations = useGlucoseStore((s) => s.removeAnnotations);
+  const removeImages = useGlucoseStore((s) => s.removeImages);
+  const applyPresetToBoard = useGlucoseStore((s) => s.applyPresetToBoard);
+  const createFolder = useGlucoseStore((s) => s.createFolder);
+  const enterFolder = useGlucoseStore((s) => s.enterFolder);
   const board = getActiveBoard(project);
 
   const selectedArrow = selectedAnnotationIds.length === 1
@@ -242,8 +273,16 @@ export default function GlucoseCanvas() {
 
     app.init({
       backgroundAlpha: 0, resizeTo: container,
-      antialias: true, resolution: window.devicePixelRatio || 1,
+      // PERF-4 — antialias (MSAA) coupé : invisible sur des images bitmap (échan-
+      // tillonnage bilinéaire) et des rectangles de sélection alignés ; les flèches
+      // et dossiers sont en SVG (non concernés). Économise le coût de résolution
+      // MSAA chaque frame. Résolution plafonnée à 2 pour ne pas dessiner 3-4× les
+      // pixels sur un écran à très haute densité (gain GPU constant).
+      antialias: false, resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true, preference: "webgl",
+      // PERF-4 — on coupe le rendu automatique 60 fps : on rend nous-mêmes seulement
+      // quand la scène change (cf. requestRender + boucle renderTick ci-dessous).
+      autoStart: false,
     }).then(() => {
       if (!canvasRef.current || !appRef.current) return;
       app.canvas.style.cssText = "display:block;width:100%;height:100%;position:absolute;inset:0;";
@@ -278,11 +317,26 @@ export default function GlucoseCanvas() {
       app.renderer.on("resize", (_w: number, _h: number) => {
         const r = app.canvas.getBoundingClientRect();
         setWrapBounds(r.top, r.bottom, r.left, r.right);
+        requestRender(); // re-rendre après un resize de fenêtre
       });
       requestAnimationFrame(() => {
         const r = app.canvas.getBoundingClientRect();
         setWrapBounds(r.top, r.bottom, r.left, r.right);
       });
+      // PERF-4 — boucle de rendu À LA DEMANDE : rend uniquement si une fenêtre de
+      // rendu est ouverte (interaction/mutation récente via requestRender) ou si une
+      // vidéo joue (ses frames changent). Sinon le GPU reste au repos.
+      requestRender();
+      const renderTick = () => {
+        renderRafRef.current = requestAnimationFrame(renderTick);
+        if (!appRef.current) return;
+        let anyVideoPlaying = false;
+        videoElsRef.current.forEach((v) => { if (!v.paused) anyVideoPlaying = true; });
+        if (performance.now() < renderUntilRef.current || anyVideoPlaying) {
+          app.render();
+        }
+      };
+      renderTick();
       setPixiReady(true);
     }).catch((err) => {
       if (canvasRef.current)
@@ -290,6 +344,11 @@ export default function GlucoseCanvas() {
     });
 
     return () => {
+      // PERF-4 — arrête la boucle de rendu à la demande.
+      if (renderRafRef.current !== null) {
+        cancelAnimationFrame(renderRafRef.current);
+        renderRafRef.current = null;
+      }
       // Annule toute animation de transition de dossier en cours (Phase 4.5)
       if (folderTransitionRafRef.current !== null) {
         cancelAnimationFrame(folderTransitionRafRef.current);
@@ -347,9 +406,48 @@ export default function GlucoseCanvas() {
     applyCulling(); // charge le sous-ensemble visible, décharge le reste
   }, [board.images, pixiReady]);
 
-  // PERF-3 — chargement À LA DEMANDE d'un sprite (texture GPU) pour une image qui
-  // entre dans la région de chargement. Async → un retard de chargement provoque
-  // un léger « pop-in » (comme les tuiles d'une carte), JAMAIS un freeze.
+  // PERF-4 (LOD) — résolution cible (px, grand côté) d'une image selon sa taille
+  // À L'ÉCRAN au zoom courant. Bornée à [MIN_TEX_PX, taille d'origine].
+  function targetTexPx(img: BoardImage): number {
+    const worldLong = Math.max(img.width, img.height);
+    const origLong = Math.max(img.originalWidth ?? 0, img.originalHeight ?? 0);
+    const res = appRef.current?.renderer.resolution ?? 1;
+    const needed = Math.ceil(worldLong * vpRef.current.scale * res * LOD_HEADROOM);
+    const hi = origLong > 0 ? origLong : needed; // jamais au-dessus de l'original
+    return Math.max(MIN_TEX_PX, Math.min(hi, needed));
+  }
+
+  // PERF-4 (LOD) — décode l'image à `targetPx` (grand côté) via createImageBitmap
+  // (décode-et-réduit HORS thread principal), et en fait une texture Pixy possédée.
+  // → la VRAM et le coût d'upload suivent la taille AFFICHÉE, pas la pleine déf.
+  async function decodeTexture(
+    resolvedUrl: string, img: BoardImage, targetPx: number,
+  ): Promise<{ tex: Texture; texPx: number }> {
+    const origW = img.originalWidth ?? 0;
+    const origH = img.originalHeight ?? 0;
+    const origLong = Math.max(origW, origH);
+    const resp = await fetch(resolvedUrl);
+    const blob = await resp.blob();
+    let bmp: ImageBitmap;
+    if (origLong > 0 && targetPx < origLong) {
+      const ratio = targetPx / origLong;
+      bmp = await createImageBitmap(blob, {
+        resizeWidth: Math.max(1, Math.round(origW * ratio)),
+        resizeHeight: Math.max(1, Math.round(origH * ratio)),
+        resizeQuality: "high",
+      });
+    } else {
+      bmp = await createImageBitmap(blob);
+    }
+    const source = new ImageSource({ resource: bmp });
+    const tex = new Texture({ source });
+    return { tex, texPx: Math.max(bmp.width, bmp.height) };
+  }
+
+  // PERF-3/4 — chargement À LA DEMANDE d'un sprite pour une image entrant dans la
+  // région de chargement. Async → léger « pop-in » comme des tuiles de carte,
+  // JAMAIS un freeze. Image : texture downscalée possédée (LOD). Vidéo / fallback :
+  // texture Assets partagée + ref-count.
   async function loadSpriteFor(img: BoardImage) {
     if (!worldRef.current) return;
     if (spritesRef.current.has(img.id) || pendingLoadsRef.current.has(img.id)) return;
@@ -360,26 +458,43 @@ export default function GlucoseCanvas() {
       const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
       // VID-1 : vidéos chargées prêtes (boucle, muet), lecture pilotée par culling.
       let tex: Texture;
+      let texPx: number;
+      let owns: boolean;
       if (img.isVideo) {
         tex = await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } });
+        texPx = Math.max(tex.width, tex.height); owns = false;
       } else {
-        tex = await Assets.load({
-          src: resolvedSrc,
-          loadParser: img.asset?.mode === "embed" ? "loadTextures" : undefined,
-        });
-        // PERF — mipmaps : zoom arrière fluide (échantillonne un niveau pré-réduit
-        // au lieu de minifier la pleine résolution chaque frame).
         try {
-          tex.source.autoGenerateMipmaps = true;
-          tex.source.updateMipmaps();
-        } catch { /* format sans support mipmap : on ignore */ }
+          // LOD : décode à la résolution adaptée au zoom courant.
+          const r = await decodeTexture(resolvedSrc, img, targetTexPx(img));
+          tex = r.tex; texPx = r.texPx; owns = true;
+        } catch (e) {
+          // Fallback ROBUSTE : chargement pleine résolution via Assets (jamais de
+          // rendu cassé si fetch/createImageBitmap échoue sur un format exotique).
+          console.warn("[LOD] downscale échoué, fallback Assets:", img.id, e);
+          tex = await Assets.load({
+            src: resolvedSrc,
+            loadParser: img.asset?.mode === "embed" ? "loadTextures" : undefined,
+          });
+          texPx = Math.max(tex.width, tex.height); owns = false;
+        }
+        // Mipmaps : zoom arrière fluide (échantillonne un niveau pré-réduit).
+        try { tex.source.autoGenerateMipmaps = true; tex.source.updateMipmaps(); }
+        catch { /* format sans support mipmap : on ignore */ }
       }
       // Le board a pu changer / l'image avoir été évincée pendant l'await.
-      if (!worldRef.current || spritesRef.current.has(img.id)) return;
-      // Ref-count la texture partagée (doublons par hash) pour une éviction sûre.
-      texRefCountRef.current.set(resolvedSrc, (texRefCountRef.current.get(resolvedSrc) ?? 0) + 1);
+      if (!worldRef.current || spritesRef.current.has(img.id)) {
+        if (owns) tex.destroy(true); // texture possédée orpheline → on la libère
+        return;
+      }
+      // Texture Assets partagée (vidéo / fallback) → ref-count pour éviction sûre.
+      if (!owns) {
+        texRefCountRef.current.set(resolvedSrc, (texRefCountRef.current.get(resolvedSrc) ?? 0) + 1);
+      }
       const sprite: SpriteWithSelGfx = new Sprite(tex);
       sprite._srcUrl = resolvedSrc;
+      sprite._ownsTexture = owns;
+      sprite._texPx = texPx;
       sprite.anchor.set(0.5);
       sprite.interactive = true; sprite.cursor = "pointer";
       sprite.x = img.x; sprite.y = img.y;
@@ -409,26 +524,62 @@ export default function GlucoseCanvas() {
     finally { pendingLoadsRef.current.delete(img.id); }
   }
 
-  // PERF-3 — éviction d'un sprite : retire du monde, détruit le sprite (PAS la
-  // texture, gérée par ref-count) et libère la VRAM (Assets.unload) quand plus
-  // aucun sprite ne référence cette texture. Sert aussi à la suppression d'image.
+  // PERF-4 (LOD) — ré-affine en arrière-plan la texture d'un sprite zoomé devenu
+  // trop basse résolution : on décode une version plus nette puis on l'échange
+  // SANS flash (le sprite reste affiché pendant le décode). Pas de « downgrade »
+  // au dézoom (éviterait du churn) : la VRAM excédentaire est récupérée à
+  // l'éviction par le culling.
+  async function maybeUpgradeResolution(id: string, img: BoardImage) {
+    const sprite = spritesRef.current.get(id) as SpriteWithSelGfx | undefined;
+    if (!sprite || !sprite._ownsTexture || sprite._upgrading) return;
+    const origLong = Math.max(img.originalWidth ?? 0, img.originalHeight ?? 0);
+    const loaded = sprite._texPx ?? 0;
+    if (origLong > 0 && loaded >= origLong) return; // déjà pleine résolution
+    const needed = targetTexPx(img);
+    if (needed <= loaded * LOD_UPGRADE_FACTOR) return; // assez net pour ce zoom
+    sprite._upgrading = true;
+    try {
+      const blobs = useGlucoseStore.getState().project.blobs;
+      const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
+      const { tex, texPx } = await decodeTexture(resolvedSrc, img, needed);
+      const live = spritesRef.current.get(id) as SpriteWithSelGfx | undefined;
+      if (!live || live !== sprite) { tex.destroy(true); return; } // évincé entre-temps
+      try { tex.source.autoGenerateMipmaps = true; tex.source.updateMipmaps(); } catch { /* ignore */ }
+      const old = sprite.texture;
+      sprite.texture = tex;
+      sprite._texPx = texPx;
+      const fs = fittedSpriteSize(img, tex.width, tex.height);
+      sprite.width = fs.w; sprite.height = fs.h;
+      old.destroy(true); // libère l'ancienne (plus basse) résolution
+      if (useGlucoseStore.getState().selectedImageIds.includes(id)) syncSelectionGfx();
+      requestRender(); // PERF-4 — afficher la nouvelle texture plus nette
+    } catch { /* garde la texture actuelle */ }
+    finally { sprite._upgrading = false; }
+  }
+
+  // PERF-3 — éviction d'un sprite : retire du monde et libère la VRAM. Image
+  // (texture possédée) → destruction directe. Vidéo / fallback (texture Assets
+  // partagée) → ref-count puis Assets.unload au dernier utilisateur.
   function unloadSprite(id: string) {
     const sprite = spritesRef.current.get(id) as SpriteWithSelGfx | undefined;
     if (!sprite) return;
     const vid = videoElsRef.current.get(id);
     if (vid) { try { vid.pause(); } catch { /* ignore */ } videoElsRef.current.delete(id); }
     worldRef.current?.removeChild(sprite);
-    const url = sprite._srcUrl;
     spritesRef.current.delete(id);
     pendingLoadsRef.current.delete(id);
-    // On NE détruit PAS la texture ici : elle peut être partagée et est gérée par
-    // Assets + le ref-count ci-dessous.
+    if (sprite._ownsTexture) {
+      // Texture downscalée non partagée → on la détruit avec le sprite (VRAM libérée).
+      sprite.destroy({ children: true, texture: true, textureSource: true });
+      return;
+    }
+    // Texture Assets partagée : détruire le sprite seul, puis ref-count.
+    const url = sprite._srcUrl;
     sprite.destroy({ children: true, texture: false, textureSource: false });
     if (url) {
       const n = (texRefCountRef.current.get(url) ?? 1) - 1;
       if (n <= 0) {
         texRefCountRef.current.delete(url);
-        // Libère la texture GPU (VRAM). Re-chargée à la demande si l'image revient.
         void Assets.unload(url).catch(() => { /* déjà déchargée / partagée : ignore */ });
       } else {
         texRefCountRef.current.set(url, n);
@@ -447,6 +598,7 @@ export default function GlucoseCanvas() {
       board.panels, board.storyboard, [],
       (imageId) => board.images.find((img) => img.id === imageId)?.src,
     );
+    requestRender();
   }, [board.panels, board.storyboard, pixiReady]);
 
   // ── Folders : rendu géré par FolderSvgLayer (composant React SVG) ──
@@ -469,6 +621,7 @@ export default function GlucoseCanvas() {
       if (!img) return;
       sprite.alpha = nodeMatchesTemporalFilter(img.temporalAnchor, temporalFilter) ? 1 : 0.12;
     });
+    requestRender();
   }, [temporalFilter, board.images, pixiReady]);
 
   // Cancel zone drawing when tool changes away (Échap in App.tsx sets tool to "select")
@@ -725,9 +878,32 @@ export default function GlucoseCanvas() {
       sprite.addChild(g);
       sprite._selGfx = g;
     });
+    requestRender(); // PERF-4 — contours/poignées de sélection mis à jour → rendre
   }, []);
 
   useEffect(() => { syncSelectionGfx(); }, [selectedImageIds, syncSelectionGfx]);
+
+  // PERF-4 (rendu à la demande) — filet de sécurité : TOUTE interaction ouvre une
+  // fenêtre de rendu. Couvre les retours visuels qui ne passent pas par emitViewport
+  // (rectangle de sélection, rectangle de zone, poignées de resize en cours de
+  // glisser…) sans avoir à instrumenter chaque mutation. Au repos (aucun input,
+  // aucune vidéo), la boucle ne rend rien → GPU au repos.
+  useEffect(() => {
+    const kick = () => requestRender();
+    const opts = { capture: true, passive: true } as const;
+    window.addEventListener("pointermove", kick, opts);
+    window.addEventListener("pointerdown", kick, opts);
+    window.addEventListener("pointerup", kick, opts);
+    window.addEventListener("wheel", kick, opts);
+    window.addEventListener("keydown", kick, opts);
+    return () => {
+      window.removeEventListener("pointermove", kick, opts);
+      window.removeEventListener("pointerdown", kick, opts);
+      window.removeEventListener("pointerup", kick, opts);
+      window.removeEventListener("wheel", kick, opts);
+      window.removeEventListener("keydown", kick, opts);
+    };
+  }, []);
 
   // ── Tauri file drop (natif — chemins absolus OS) ─────────────
   // R-FIL (Sprint 2) : depuis dragDropEnabled:true, l'event natif nous donne
@@ -784,6 +960,7 @@ export default function GlucoseCanvas() {
       const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
       useGlucoseStore.getState().setBoardZones(boardId, zones);
     });
+    requestRender();
   }, [board.presetId, board.zones, pixiReady]);
 
   // ── Clipboard paste ──────────────────────────────────────────
@@ -1041,7 +1218,7 @@ export default function GlucoseCanvas() {
       if (!keep.has(id)) unloadSprite(id);
     }
 
-    // 3) Visibilité + lecture vidéo des sprites encore chargés.
+    // 3) Visibilité + lecture vidéo + ré-affinage LOD des sprites encore chargés.
     spritesRef.current.forEach((sprite, id) => {
       const vis = visible.has(id);
       sprite.visible = vis;
@@ -1050,8 +1227,14 @@ export default function GlucoseCanvas() {
       if (vid) {
         if (vis && vid.paused) void vid.play().catch(() => { /* lecture refusée : ignore */ });
         else if (!vis && !vid.paused) vid.pause();
+      } else if (vis) {
+        // PERF-4 (LOD) : image visible zoomée → ré-affine sa texture si besoin
+        // (no-op si déjà assez nette ; swap async sans flash sinon).
+        const img = imgByIdRef.current.get(id);
+        if (img) void maybeUpgradeResolution(id, img);
       }
     });
+    requestRender(); // PERF-4 — la scène a (potentiellement) changé → rendre.
   }
 
   function emitViewport(world: Container) {
@@ -1101,6 +1284,13 @@ export default function GlucoseCanvas() {
       const w = worldRef.current;
       if (w) emitViewport(w);
     });
+  }
+
+  // PERF-4 (rendu à la demande) — demande que la scène soit rendue pendant `ms`
+  // (par défaut 250 ms). À appeler à chaque mutation visuelle. La marge temporelle
+  // absorbe les rendus async (textures qui arrivent quelques frames plus tard).
+  function requestRender(ms = 250) {
+    renderUntilRef.current = Math.max(renderUntilRef.current, performance.now() + ms);
   }
 
   // ── Phase 7.5 — Navigation automatique par zoom ─────────────────

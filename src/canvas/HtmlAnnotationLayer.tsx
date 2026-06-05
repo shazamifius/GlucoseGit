@@ -103,7 +103,9 @@ export default function HtmlAnnotationLayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const lastClickRef = useRef<{ id: string; time: number } | null>(null);
-  const { activeTool } = useGlucoseStore();
+  // PERF-4 — sélecteur ciblé : cette couche rend TOUTES les annotations en DOM
+  // (sans culling) ; s'abonner à tout le store la re-rendait sur chaque survol.
+  const activeTool = useGlucoseStore((s) => s.activeTool);
   const setHoveredNodeId = useGlucoseStore(s => s.setHoveredNodeId);
   // ⚠️ Sélecteur Zustand : on récupère la ref directement, sans `?? []`,
   // pour ne pas créer une nouvelle ref à chaque render (qui ferait boucler React).

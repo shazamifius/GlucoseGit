@@ -46,7 +46,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 }
 
 export default function App() {
-  const { project, loadProject: loadStore, loadDoc, setActiveTool, undo, redo } = useGlucoseStore();
+  // PERF-4 — abonnements ciblés (avant : `useGlucoseStore()` = tout le store →
+  // App, la racine, se re-rendait à chaque changement d'état, y compris le survol).
+  const project = useGlucoseStore((s) => s.project);
+  const loadStore = useGlucoseStore((s) => s.loadProject);
+  const loadDoc = useGlucoseStore((s) => s.loadDoc);
+  const setActiveTool = useGlucoseStore((s) => s.setActiveTool);
+  const undo = useGlucoseStore((s) => s.undo);
+  const redo = useGlucoseStore((s) => s.redo);
   const pathRef = useRef<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
