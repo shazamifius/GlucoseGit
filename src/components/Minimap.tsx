@@ -25,6 +25,11 @@ interface MapInfo {
 
 export default function Minimap() {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
+  // PERF-2 — canvas hors-écran qui met en cache le dessin de la SCÈNE (images +
+  // annotations + folders). Il ne change que quand le contenu du board change,
+  // pas à chaque frame de pan. Par frame on ne fait plus qu'un drawImage de ce
+  // cache + le rectangle de viewport → fini le redraw des 117 images par frame.
+  const sceneCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const mapInfoRef  = useRef<MapInfo | null>(null);
   const liveVpRef   = useRef<{ x: number; y: number; scale: number } | null>(null);
   const isDragging       = useRef(false);
@@ -40,10 +45,18 @@ export default function Minimap() {
   // (panel droit largeur 320px + petit gap 12px = right: 344)
   const rightPanelOpen = useGlucoseStore((s) => s.rightPanelOpen);
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+  // PERF-2 — dessine la SCÈNE (images + annotations + folders) dans le canvas de
+  // cache hors-écran. Ne dépend QUE du contenu du board (deps [board]), donc ne
+  // tourne pas pendant un pan. Met à jour mapInfoRef pour le compositing.
+  const drawScene = useCallback(() => {
+    let scene = sceneCanvasRef.current;
+    if (!scene) {
+      scene = document.createElement("canvas");
+      scene.width = MAP_W;
+      scene.height = MAP_H;
+      sceneCanvasRef.current = scene;
+    }
+    const ctx = scene.getContext("2d");
     if (!ctx) return;
 
     ctx.clearRect(0, 0, MAP_W, MAP_H);
@@ -158,8 +171,31 @@ export default function Minimap() {
       ctx.setLineDash([]);
     });
 
+    ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, MAP_W - 1, MAP_H - 1);
+  }, [board]);
+
+  // PERF-2 — compositing par frame : blit du cache de scène + rectangle de
+  // viewport. C'est tout ce qui tourne pendant un pan/zoom (plus de redraw des
+  // 117 images à chaque frame). O(1) au lieu de O(images+annotations+folders).
+  const composite = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, MAP_W, MAP_H);
+    const scene = sceneCanvasRef.current;
+    if (scene) ctx.drawImage(scene, 0, 0);
+
     // Viewport indicator — live ref for real-time tracking ; fallback sur la
     // caméra locale (getViewport), pas sur le doc (la caméra n'y est plus en collab).
+    const info = mapInfoRef.current;
+    if (!info) return;
+    const toMap = (wx: number, wy: number) => ({
+      x: info.offX + (wx - info.minX) * info.scale,
+      y: info.offY + (wy - info.minY) * info.scale,
+    });
     const vp = liveVpRef.current ?? useGlucoseStore.getState().getViewport(board.id);
     if (vp) {
       const screenW = window.innerWidth;
@@ -173,23 +209,21 @@ export default function Minimap() {
       ctx.fillStyle = "rgba(255,255,255,0.04)";
       ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
     }
-
-    ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, MAP_W - 1, MAP_H - 1);
   }, [board]);
 
-  useEffect(() => { draw(); }, [draw]);
+  // Redessine le cache de scène quand le board change, puis recompose une fois.
+  useEffect(() => { drawScene(); composite(); }, [drawScene, composite]);
 
-  // Real-time viewport — bypass React render cycle
+  // Real-time viewport — bypass React render cycle : seul le compositing tourne.
   useEffect(() => {
     function onVpChanged(e: Event) {
       const { x, y, scale } = (e as CustomEvent<{ x: number; y: number; scale: number }>).detail;
       liveVpRef.current = { x, y, scale };
-      draw();
+      composite();
     }
     window.addEventListener("glucose:viewport-changed", onVpChanged);
     return () => window.removeEventListener("glucose:viewport-changed", onVpChanged);
-  }, [draw]);
+  }, [composite]);
 
   // Native DOM pointer handlers — bypasses React synthetic event delegation
   // so setPointerCapture works correctly when cursor leaves the minimap canvas

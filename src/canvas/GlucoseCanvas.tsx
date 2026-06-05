@@ -7,6 +7,9 @@ import { Application, Assets, Container, Sprite, Texture, Graphics, FederatedPoi
 // plutôt que d'utiliser `as any`.
 interface SpriteWithSelGfx extends Sprite {
   _selGfx?: Graphics | null;
+  // PERF-3 (virtualisation) — URL résolue de la texture, pour décrémenter le
+  // ref-count et libérer la VRAM (Assets.unload) à l'éviction du sprite.
+  _srcUrl?: string;
 }
 import SvgAnnotationLayer, { measureTextSize } from "./SvgAnnotationLayer";
 import HtmlAnnotationLayer from "./HtmlAnnotationLayer";
@@ -24,7 +27,7 @@ import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
 import FolderBreadcrumb from "../components/FolderBreadcrumb";
 import { nanoid } from "../utils/nanoid";
-import { Annotation } from "../types";
+import { Annotation, BoardImage } from "../types";
 import ArrowOptions from "../components/ArrowOptions";
 import ArrowTextEditor from "../components/ArrowTextEditor";
 import ArrowDescriptionPanel from "../components/ArrowDescriptionPanel";
@@ -101,6 +104,14 @@ export default function GlucoseCanvas() {
   const sbLayerRef = useRef<StoryboardLayer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // PERF-3 (virtualisation des textures) — ref-count par URL de texture résolue :
+  // plusieurs images identiques (même hash) partagent une texture ; on ne la
+  // libère (Assets.unload → VRAM) que lorsque le DERNIER sprite qui l'utilise est
+  // évincé. Sinon on casserait l'affichage des doublons encore à l'écran.
+  const texRefCountRef = useRef<Map<string, number>>(new Map());
+  // PERF-3 — index id→image du board courant (reconstruit quand board.images
+  // change), pour que applyCulling charge à la demande sans refaire un find O(n).
+  const imgByIdRef = useRef<Map<string, BoardImage>>(new Map());
   // VID-1 — éléments <video> des sprites vidéo, pour les jouer/mettre en pause
   // selon le culling (seules les vidéos visibles tournent → anti-lag).
   const videoElsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -128,6 +139,13 @@ export default function GlucoseCanvas() {
   // Cache du seuil de sortie adaptatif (évite de recalculer contentBounds — O(n)
   // sur tout le board — à CHAQUE frame de pan/zoom dans un gros dossier).
   const exitScaleCacheRef = useRef<{ boardId: string; t: number; scale: number }>({ boardId: "", t: 0, scale: 0 });
+  // PERF-2 — coalescence rAF du travail de viewport. Les souris haute fréquence
+  // (gaming 500-1000 Hz) et trackpads précis émettent bien plus de pointermove/
+  // wheel que d'images affichables par seconde. On ne fait donc le travail lourd
+  // (culling O(n) + dispatch viewport-changed → minimap/SVG + auto-nav) qu'UNE
+  // fois par frame d'affichage, pas une fois par event d'entrée. Le transform du
+  // monde (world.x/y/scale) reste appliqué synchroniquement → 0 latence visible.
+  const vpSyncScheduledRef = useRef(false);
 
   const [pixiReady, setPixiReady] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -250,6 +268,11 @@ export default function GlucoseCanvas() {
       world.x = saved.x || app.screen.width / 2;
       world.y = saved.y || app.screen.height / 2;
       world.scale.set(saved.scale || 1);
+      // PERF-3 — synchronise vpRef avec le viewport restauré AVANT le 1er
+      // applyCulling (déclenché par setPixiReady → effet de sync images). Sinon la
+      // virtualisation chargerait les images autour de l'origine (0,0) au lieu de
+      // l'endroit réellement regardé → écran blanc au démarrage.
+      vpRef.current = { x: world.x, y: world.y, scale: world.scale.x };
 
       setupEvents(app, world);
       app.renderer.on("resize", (_w: number, _h: number) => {
@@ -283,6 +306,10 @@ export default function GlucoseCanvas() {
       zoneRendererRef.current = null;
       sbLayerRef.current?.destroy(); sbLayerRef.current = null;
       spritesRef.current.clear(); pendingLoadsRef.current.clear();
+      // PERF-3 — réinitialise l'état de virtualisation (évite ref-counts périmés
+      // au remount StrictMode dev).
+      texRefCountRef.current.clear(); imgByIdRef.current.clear();
+      videoElsRef.current.clear();
       zoneGfxRef.current = null; zoneStartRef.current = null;
       setPixiReady(false);
       // En StrictMode dev, l'unmount peut survenir AVANT que app.init() ait terminé
@@ -295,17 +322,17 @@ export default function GlucoseCanvas() {
   }, []);
 
   // ── Sync images ──────────────────────────────────────────────
+  // PERF-3 (virtualisation) : on ne charge plus EAGERLY toutes les images du
+  // board ici. On met seulement à jour les sprites déjà chargés (position/taille),
+  // on retire ceux dont l'image a disparu, puis on délègue à applyCulling le
+  // chargement/déchargement À LA DEMANDE selon le viewport. → VRAM bornée, plus
+  // de blocage à l'ouverture d'un dossier de milliers d'images.
   useEffect(() => {
     const world = worldRef.current;
     if (!world || !pixiReady) return;
     const currentIds = new Set(board.images.map((img) => img.id));
-    spritesRef.current.forEach((sprite, id) => {
-      if (!currentIds.has(id)) {
-        const vid = videoElsRef.current.get(id);
-        if (vid) { try { vid.pause(); } catch { /* ignore */ } videoElsRef.current.delete(id); }
-        world.removeChild(sprite); sprite.destroy();
-        spritesRef.current.delete(id); pendingLoadsRef.current.delete(id);
-      }
+    spritesRef.current.forEach((_sprite, id) => {
+      if (!currentIds.has(id)) unloadSprite(id); // image supprimée du board
     });
     board.images.forEach((img) => {
       const s = spritesRef.current.get(img.id);
@@ -316,70 +343,98 @@ export default function GlucoseCanvas() {
       }
     });
     spatialHashRef.current.build(board.images);
-    applyCulling();
-    const newImgs = board.images.filter(
-      (img) => !spritesRef.current.has(img.id) && !pendingLoadsRef.current.has(img.id)
-    );
-    newImgs.forEach(async (img) => {
-      pendingLoadsRef.current.add(img.id);
-      try {
-        // R-EMB-01 (Sprint 2) : résolveur unifié — privilégie asset (AssetRef)
-        // avec blob URL pour les embeds, fallback sur src legacy.
-        const blobs = useGlucoseStore.getState().project.blobs;
-        const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
-        // VID-1 : les vidéos sont chargées prêtes à jouer (boucle, muet) mais ne
-        // s'auto-jouent PAS toutes — la lecture est pilotée par le culling
-        // (applyCulling) : seules les vidéos VISIBLES tournent, les autres sont
-        // en pause. Plus de poster figé, et pas de dizaines de vidéos en fond.
-        let tex: Texture;
-        if (img.isVideo) {
-          tex = await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } });
-        } else {
-          // PixiJS v8 a parfois du mal à parser les blob: URLs purs.
-          // On force le parser d'images pour les embeds (AssetRef).
-          tex = await Assets.load({
-            src: resolvedSrc,
-            loadParser: img.asset?.mode === "embed" ? "loadTextures" : undefined,
-          });
-          // PERF — mipmaps : le zoom arrière devient fluide. Sans mipmaps, la GPU
-          // minifie la texture PLEINE résolution à chaque frame de zoom (très
-          // coûteux avec beaucoup d'images, surtout en concept-art haute déf) →
-          // d'où le lag « invivable » au zoom. Avec mipmaps elle échantillonne un
-          // niveau pré-réduit. Invisible pour l'utilisateur, gros gain. (Pas sur
-          // les vidéos : leur contenu change chaque frame, régénérer serait pire.)
-          try {
-            tex.source.autoGenerateMipmaps = true;
-            tex.source.updateMipmaps();
-          } catch { /* format/source sans support mipmap : on ignore */ }
-        }
-        if (!worldRef.current || spritesRef.current.has(img.id)) return;
-        const sprite = new Sprite(tex);
-        sprite.anchor.set(0.5);
-        sprite.interactive = true; sprite.cursor = "pointer";
-        sprite.x = img.x; sprite.y = img.y;
-        const fs = fittedSpriteSize(img, tex.width, tex.height);
-        sprite.width = fs.w; sprite.height = fs.h;
-        sprite.rotation = img.rotation;
-        // Phase 6 — applique le dim temporel dès la création (sinon flash plein opacity)
-        const tf = useGlucoseStore.getState().temporalFilter;
-        sprite.alpha = nodeMatchesTemporalFilter(img.temporalAnchor, tf) ? 1 : 0.12;
-        const idx = Math.max(1, worldRef.current.children.length - 2);
-        worldRef.current.addChildAt(sprite, idx);
-        spritesRef.current.set(img.id, sprite);
-        // VID-1 : on récupère le <video> sous-jacent pour le piloter au culling.
-        if (img.isVideo) {
-          const res = (tex.source as unknown as { resource?: unknown }).resource;
-          if (res instanceof HTMLVideoElement) {
-            res.loop = true; res.muted = true; res.playsInline = true;
-            videoElsRef.current.set(img.id, res);
-          }
-        }
-        attachSpriteEvents(sprite, img.id);
-        applyCulling();
-      } catch (err) { console.error("Texture load failed", img.id, err); }
-      finally { pendingLoadsRef.current.delete(img.id); }
-    });
+    imgByIdRef.current = new Map(board.images.map((img) => [img.id, img]));
+    applyCulling(); // charge le sous-ensemble visible, décharge le reste
   }, [board.images, pixiReady]);
+
+  // PERF-3 — chargement À LA DEMANDE d'un sprite (texture GPU) pour une image qui
+  // entre dans la région de chargement. Async → un retard de chargement provoque
+  // un léger « pop-in » (comme les tuiles d'une carte), JAMAIS un freeze.
+  async function loadSpriteFor(img: BoardImage) {
+    if (!worldRef.current) return;
+    if (spritesRef.current.has(img.id) || pendingLoadsRef.current.has(img.id)) return;
+    pendingLoadsRef.current.add(img.id);
+    try {
+      // R-EMB-01 : résolveur unifié — asset (AssetRef) ou src legacy.
+      const blobs = useGlucoseStore.getState().project.blobs;
+      const resolvedSrc = await resolveImageSrc(img.asset, img.src, blobs);
+      // VID-1 : vidéos chargées prêtes (boucle, muet), lecture pilotée par culling.
+      let tex: Texture;
+      if (img.isVideo) {
+        tex = await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } });
+      } else {
+        tex = await Assets.load({
+          src: resolvedSrc,
+          loadParser: img.asset?.mode === "embed" ? "loadTextures" : undefined,
+        });
+        // PERF — mipmaps : zoom arrière fluide (échantillonne un niveau pré-réduit
+        // au lieu de minifier la pleine résolution chaque frame).
+        try {
+          tex.source.autoGenerateMipmaps = true;
+          tex.source.updateMipmaps();
+        } catch { /* format sans support mipmap : on ignore */ }
+      }
+      // Le board a pu changer / l'image avoir été évincée pendant l'await.
+      if (!worldRef.current || spritesRef.current.has(img.id)) return;
+      // Ref-count la texture partagée (doublons par hash) pour une éviction sûre.
+      texRefCountRef.current.set(resolvedSrc, (texRefCountRef.current.get(resolvedSrc) ?? 0) + 1);
+      const sprite: SpriteWithSelGfx = new Sprite(tex);
+      sprite._srcUrl = resolvedSrc;
+      sprite.anchor.set(0.5);
+      sprite.interactive = true; sprite.cursor = "pointer";
+      sprite.x = img.x; sprite.y = img.y;
+      const fs = fittedSpriteSize(img, tex.width, tex.height);
+      sprite.width = fs.w; sprite.height = fs.h;
+      sprite.rotation = img.rotation;
+      // Phase 6 — dim temporel dès la création (sinon flash plein opacity).
+      const tf = useGlucoseStore.getState().temporalFilter;
+      sprite.alpha = nodeMatchesTemporalFilter(img.temporalAnchor, tf) ? 1 : 0.12;
+      const idx = Math.max(1, worldRef.current.children.length - 2);
+      worldRef.current.addChildAt(sprite, idx);
+      spritesRef.current.set(img.id, sprite);
+      // VID-1 : récupère le <video> sous-jacent pour le piloter au culling.
+      if (img.isVideo) {
+        const res = (tex.source as unknown as { resource?: unknown }).resource;
+        if (res instanceof HTMLVideoElement) {
+          res.loop = true; res.muted = true; res.playsInline = true;
+          videoElsRef.current.set(img.id, res);
+        }
+      }
+      attachSpriteEvents(sprite, img.id);
+      // Restaure le contour de sélection si l'image est sélectionnée (elle a pu
+      // être évincée alors qu'elle était sélectionnée, puis re-rentrer à l'écran).
+      if (useGlucoseStore.getState().selectedImageIds.includes(img.id)) syncSelectionGfx();
+      applyCulling();
+    } catch (err) { console.error("Texture load failed", img.id, err); }
+    finally { pendingLoadsRef.current.delete(img.id); }
+  }
+
+  // PERF-3 — éviction d'un sprite : retire du monde, détruit le sprite (PAS la
+  // texture, gérée par ref-count) et libère la VRAM (Assets.unload) quand plus
+  // aucun sprite ne référence cette texture. Sert aussi à la suppression d'image.
+  function unloadSprite(id: string) {
+    const sprite = spritesRef.current.get(id) as SpriteWithSelGfx | undefined;
+    if (!sprite) return;
+    const vid = videoElsRef.current.get(id);
+    if (vid) { try { vid.pause(); } catch { /* ignore */ } videoElsRef.current.delete(id); }
+    worldRef.current?.removeChild(sprite);
+    const url = sprite._srcUrl;
+    spritesRef.current.delete(id);
+    pendingLoadsRef.current.delete(id);
+    // On NE détruit PAS la texture ici : elle peut être partagée et est gérée par
+    // Assets + le ref-count ci-dessous.
+    sprite.destroy({ children: true, texture: false, textureSource: false });
+    if (url) {
+      const n = (texRefCountRef.current.get(url) ?? 1) - 1;
+      if (n <= 0) {
+        texRefCountRef.current.delete(url);
+        // Libère la texture GPU (VRAM). Re-chargée à la demande si l'image revient.
+        void Assets.unload(url).catch(() => { /* déjà déchargée / partagée : ignore */ });
+      } else {
+        texRefCountRef.current.set(url, n);
+      }
+    }
+  }
 
   // ── Sync annotations Pixi : RETIRÉ (R-MOD-03) ───────────────
   // Le rendu des annotations est désormais 100 % SVG (flèches) + HTML
@@ -959,9 +1014,34 @@ export default function GlucoseCanvas() {
     const wh = app.screen.height / vp.scale;
     const wx = -vp.x / vp.scale;
     const wy = -vp.y / vp.scale;
-    // 50% margin on each side to pre-show sprites before they enter view
-    const margin = Math.max(ww, wh) * 0.5;
-    const visible = spatialHashRef.current.queryIds(wx, wy, ww, wh, margin);
+    const base = Math.max(ww, wh);
+    // Région de CHARGEMENT (= visibilité) : viewport + 50% pour pré-charger un
+    // sprite avant qu'il n'entre réellement dans le cadre (anti pop-in).
+    const loadMargin = base * 0.5;
+    // Région de CONSERVATION (PERF-3) : bien plus large (viewport + 250%). Au-delà
+    // on évince la texture GPU. L'hystérésis (load 0.5 vs keep 2.5) évite tout
+    // yoyo charge/décharge quand on fait des allers-retours près d'un bord.
+    const keepMargin = base * 2.5;
+
+    // queryIds RÉUTILISE le même Set d'un appel à l'autre → on copie le 1er
+    // résultat avant la 2e requête.
+    const visible = new Set(spatialHashRef.current.queryIds(wx, wy, ww, wh, loadMargin));
+    const keep = spatialHashRef.current.queryIds(wx, wy, ww, wh, keepMargin);
+
+    // 1) CHARGE à la demande les images entrées dans la région de chargement.
+    for (const id of visible) {
+      if (spritesRef.current.has(id) || pendingLoadsRef.current.has(id)) continue;
+      const img = imgByIdRef.current.get(id);
+      if (img) void loadSpriteFor(img);
+    }
+
+    // 2) ÉVINCE les sprites sortis de la région de conservation → libère la VRAM.
+    //    (Snapshot des clés : unloadSprite mute la Map pendant l'itération.)
+    for (const id of Array.from(spritesRef.current.keys())) {
+      if (!keep.has(id)) unloadSprite(id);
+    }
+
+    // 3) Visibilité + lecture vidéo des sprites encore chargés.
     spritesRef.current.forEach((sprite, id) => {
       const vis = visible.has(id);
       sprite.visible = vis;
@@ -1006,6 +1086,21 @@ export default function GlucoseCanvas() {
     // Met à jour l'échelle du ghost quand l'utilisateur zoome
     const { x: cx, y: cy } = cursorPosRef.current;
     updateGhostPosition(cx, cy, world.scale.x);
+  }
+
+  // PERF-2 — planifie un emitViewport au prochain rAF (coalescé). Plusieurs
+  // appels dans la même frame ⇒ un seul travail lourd. À utiliser dans les
+  // handlers d'entrée continus (pan natif, wheel) à la place d'un emitViewport
+  // synchrone. Le world a déjà été déplacé par l'appelant ; on lit worldRef au
+  // moment où la frame s'exécute pour refléter la position la plus récente.
+  function scheduleViewportSync() {
+    if (vpSyncScheduledRef.current) return;
+    vpSyncScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      vpSyncScheduledRef.current = false;
+      const w = worldRef.current;
+      if (w) emitViewport(w);
+    });
   }
 
   // ── Phase 7.5 — Navigation automatique par zoom ─────────────────
@@ -1936,8 +2031,9 @@ export default function GlucoseCanvas() {
       if (!delta) return;
       world.x += delta.dx;
       world.y += delta.dy;
-      refreshGrid(world);
-      emitViewport(world);
+      // PERF-2 — déplacement appliqué tout de suite (le ticker Pixi rend les
+      // sprites) ; le travail lourd (culling + minimap + auto-nav) est coalescé.
+      scheduleViewportSync();
     });
 
     app.canvas.addEventListener("wheel", (e: WheelEvent) => {
@@ -1983,6 +2079,11 @@ export default function GlucoseCanvas() {
       }
 
       refreshGrid(world);
+      // NB : emitViewport reste SYNCHRONE ici (≠ pan natif throttlé en rAF) car la
+      // détection d'entrée/sortie de dossier ci-dessous lit le board APRÈS que
+      // checkAutoNavigate (dans emitViewport) ait pu naviguer. Le coût par event
+      // est faible (minimap cachée). Les events wheel sont bien moins fréquents
+      // que les pointermove d'une souris 1000 Hz.
       emitViewport(world);
       // PERF-1 — pendant un zoom/pan continu, le rendu suit déjà en IMPÉRATIF via
       // emitViewport (transform CSS/SVG + culling, 0 re-render React). On ne PERSISTE
