@@ -29,9 +29,25 @@ const TemporalAnchorSchema = z.object({
   label: z.string().optional(),
 }).refine((a) => a.end >= a.start, { message: "end doit être >= start" });
 
+// R-EMB-01 (Sprint 2) — Schéma pour les références d'assets binaires.
+const AssetRefEmbedSchema = z.object({
+  mode: z.literal("embed"),
+  sha256: z.string(),
+  mime: z.string(),
+  sizeBytes: z.number().optional(),
+});
+const AssetRefLinkSchema = z.object({
+  mode: z.literal("link"),
+  href: z.string(),
+  sha256: z.string().optional(),
+  sizeBytes: z.number().optional(),
+});
+const AssetRefSchema = z.discriminatedUnion("mode", [AssetRefEmbedSchema, AssetRefLinkSchema]);
+
 const BoardImageSchema = z.object({
   id: z.string(),
-  src: z.string(),
+  asset: AssetRefSchema.optional(),
+  src: z.string().optional(),
   x: z.number().finite(),
   y: z.number().finite(),
   width: z.number().finite().positive(),
@@ -44,6 +60,7 @@ const BoardImageSchema = z.object({
   originalWidth: z.number().finite().positive(),
   originalHeight: z.number().finite().positive(),
   isVideo: z.boolean().optional(),
+  fit: z.enum(["contain"]).optional(),
   domains: z.array(DomainAssignmentSchema).optional(),
   mirrorOf: z.string().optional(),
   temporalAnchor: TemporalAnchorSchema.optional(),
@@ -178,6 +195,12 @@ export const ProjectSchema = z.object({
   activeBoardId: z.string(),
   presets: z.array(PresetSchema),
   domains: z.array(DomainSchema).optional().default([]),
+  // R-EMB-01 (Sprint 2) — blobs binaires pour les assets embarqués.
+  // Passthrough au niveau Zod : les Uint8Array ne sont pas validables par Zod
+  // mais on accepte la clé pour ne pas la stripper lors du parsing.
+  blobs: z.record(z.string(), z.any()).optional(),
+  // Lien de collaboration embarqué dans le document.
+  collabUrl: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

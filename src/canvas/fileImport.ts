@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { BoardImage } from "../types";
 import { nanoid } from "../utils/nanoid";
-// R-EMB-01 (Sprint 2) — embed direct dans le doc Automerge plutôt que
-// d'externaliser en `asset:<hash>.<ext>` sur disque. Plus de migration
-// nécessaire au prochain load : self-contained dès la création.
-import { buildEmbedRef, dataUrlToBytes, mimeFromExt } from "../utils/assetRef";
+// B-STORE — images « du dur » : on écrit l'image sur disque (store hashé) et on
+// ne garde dans le doc qu'une référence `link`. Plus d'embed dans `project.blobs`
+// (qui gonflait le doc et faisait freezer `A.save` à chaque navigation/sauvegarde).
+import { dataUrlToBytes, buildLinkRef, sha256Hex } from "../utils/assetRef";
+import { saveAsset } from "../utils/assets";
 
 type AddImageFn = (boardId: string, img: BoardImage, embedBytes?: Uint8Array) => void;
 
@@ -22,11 +23,12 @@ export async function addImagesFromFiles(
       const dataUrl: string = await invoke("read_image_file", { path });
       const { width, height } = await getImageDimensions(dataUrl);
 
-      // R-EMB-01 : décode → bytes + build AssetRef embed
-      const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
+      // B-STORE : décode pour le hash/taille, écrit sur disque, ref `link`.
+      const { bytes } = dataUrlToBytes(dataUrl);
       const ext = guessExtFromPath(path);
-      const mime = detectedMime || mimeFromExt(ext);
-      const assetRef = await buildEmbedRef(bytes, mime);
+      const assetId = await saveAsset(dataUrl, ext);
+      const sha256 = await sha256Hex(bytes);
+      const assetRef = buildLinkRef(assetId, { sha256, sizeBytes: bytes.length });
 
       const offset = i * 20;
       const maxW = 600;

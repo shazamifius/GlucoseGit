@@ -37,6 +37,7 @@ import { nodeMatchesTemporalFilter } from "../utils/timeline";
 // Phase 7.0 — résolution des `asset:<filename>` vers une URL Tauri utilisable
 // R-EMB-01 (Sprint 2) — résolveur unifié AssetRef / src legacy
 import { resolveImageSrc } from "../utils/assets";
+import { buildEmbedRef } from "../utils/assetRef";
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
@@ -245,7 +246,7 @@ export default function GlucoseCanvas() {
       zoneRendererRef.current = new ZoneRenderer(world, () => worldRef.current);
       sbLayerRef.current = new StoryboardLayer(world);
 
-      const saved = getActiveBoard(useGlucoseStore.getState().project).viewport;
+      const saved = useGlucoseStore.getState().getViewport(getActiveBoard(useGlucoseStore.getState().project).id);
       world.x = saved.x || app.screen.width / 2;
       world.y = saved.y || app.screen.height / 2;
       world.scale.set(saved.scale || 1);
@@ -330,9 +331,27 @@ export default function GlucoseCanvas() {
         // s'auto-jouent PAS toutes — la lecture est pilotée par le culling
         // (applyCulling) : seules les vidéos VISIBLES tournent, les autres sont
         // en pause. Plus de poster figé, et pas de dizaines de vidéos en fond.
-        const tex: Texture = img.isVideo
-          ? await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } })
-          : await Assets.load(resolvedSrc);
+        let tex: Texture;
+        if (img.isVideo) {
+          tex = await Assets.load({ src: resolvedSrc, data: { autoPlay: false, loop: true, muted: true, preload: true } });
+        } else {
+          // PixiJS v8 a parfois du mal à parser les blob: URLs purs.
+          // On force le parser d'images pour les embeds (AssetRef).
+          tex = await Assets.load({
+            src: resolvedSrc,
+            loadParser: img.asset?.mode === "embed" ? "loadTextures" : undefined,
+          });
+          // PERF — mipmaps : le zoom arrière devient fluide. Sans mipmaps, la GPU
+          // minifie la texture PLEINE résolution à chaque frame de zoom (très
+          // coûteux avec beaucoup d'images, surtout en concept-art haute déf) →
+          // d'où le lag « invivable » au zoom. Avec mipmaps elle échantillonne un
+          // niveau pré-réduit. Invisible pour l'utilisateur, gros gain. (Pas sur
+          // les vidéos : leur contenu change chaque frame, régénérer serait pire.)
+          try {
+            tex.source.autoGenerateMipmaps = true;
+            tex.source.updateMipmaps();
+          } catch { /* format/source sans support mipmap : on ignore */ }
+        }
         if (!worldRef.current || spritesRef.current.has(img.id)) return;
         const sprite = new Sprite(tex);
         sprite.anchor.set(0.5);
@@ -535,7 +554,7 @@ export default function GlucoseCanvas() {
     if (!world || !app) return;
 
     const targetBoard = getActiveBoard(useGlucoseStore.getState().project);
-    const saved = targetBoard.viewport;
+    const saved = useGlucoseStore.getState().getViewport(targetBoard.id);
     const finalX = saved.x || app.screen.width / 2;
     const finalY = saved.y || app.screen.height / 2;
     const finalScale = saved.scale || 1;
@@ -738,16 +757,31 @@ export default function GlucoseCanvas() {
       } catch (_) { }
     }
     async function addBlob(blob: Blob) {
-      const src = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob); });
-      const { width: w, height: h } = await getImageDimensions(src);
+      // R-EMB-01 fix : embed direct dans project.blobs (plus de data URL inline)
+      const arrayBuf = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuf);
+      const mime = blob.type || "image/png";
+
+      // Blob URL temporaire pour mesurer les dimensions
+      const blobUrl = URL.createObjectURL(blob);
+      const { width: w, height: h } = await getImageDimensions(blobUrl);
+      URL.revokeObjectURL(blobUrl);
+
+      // AssetRef embed (calcule sha256 + dédup native)
+      const asset = await buildEmbedRef(bytes, mime);
+
       const world = worldRef.current;
       const cx = world ? (appRef.current!.screen.width / 2 - world.x) / world.scale.x : 0;
       const cy = world ? (appRef.current!.screen.height / 2 - world.y) / world.scale.y : 0;
       const s = w > 600 ? 600 / w : 1;
-      useGlucoseStore.getState().addImage(getActiveBoard(useGlucoseStore.getState().project).id, {
-        id: nanoid(), src, x: cx, y: cy, width: w * s, height: h * s,
-        rotation: 0, locked: false, tags: [], originalWidth: w, originalHeight: h,
-      });
+      useGlucoseStore.getState().addImage(
+        getActiveBoard(useGlucoseStore.getState().project).id,
+        {
+          id: nanoid(), asset, x: cx, y: cy, width: w * s, height: h * s,
+          rotation: 0, locked: false, tags: [], originalWidth: w, originalHeight: h,
+        },
+        bytes,
+      );
       const { showToast } = await import("../components/Toast");
       showToast("Image collée", "📌");
     }

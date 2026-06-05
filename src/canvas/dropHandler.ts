@@ -3,11 +3,10 @@ import { Annotation, BoardImage } from "../types";
 import { nanoid } from "../utils/nanoid";
 import { addImagesFromFiles } from "./fileImport";
 import { getCDNCandidates } from "../utils/imageUpgrade";
-// Phase 7.0 — assets externalisés (cf. PRE-PHASE7-AUDIT.md C-1)
-// R-EMB-01 (Sprint 2) : on construit AssetRef embed à partir des bytes et on
-// les ajoute via `addImage(boardId, img, bytes)` plutôt que de passer par
-// le disque. Plus de `src: "asset:..."` créé par les nouveaux drops.
-import { buildEmbedRef, dataUrlToBytes, mimeFromExt } from "../utils/assetRef";
+// B-STORE — images « du dur » : on écrit l'image sur disque (store hashé) et on
+// ne garde dans le doc qu'une référence `link`. Plus d'embed dans project.blobs.
+import { dataUrlToBytes, mimeFromExt, buildLinkRef, sha256Hex, extFromMime } from "../utils/assetRef";
+import { saveAssetFromBytes } from "../utils/assets";
 // R-FIL-02 (Sprint 2) : drop d'un dossier OS → folder mirror.
 import { scanFolderForMirror } from "./folderMirror";
 
@@ -218,7 +217,7 @@ export async function addImagesFromDrop(
     const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
     const mime = detectedMime || mimeFromExt(ext);
     const img = await makeImageFromBytes(bytes, mime, worldX + i * 24, worldY + i * 24, width, height);
-    addImage(boardId, img, bytes);
+    addImage(boardId, img);
   }
   if (imageFiles.length > 0) return;
 
@@ -315,7 +314,7 @@ export async function addImagesFromDrop(
           fetched.bytes, fetched.mime,
           worldX, worldY, fetched.width, fetched.height, url,
         );
-        addImage(boardId, img, fetched.bytes);
+        addImage(boardId, img);
       } else {
         addImage(boardId, makeImage(fetched.src, worldX, worldY, fetched.width, fetched.height, url));
       }
@@ -426,7 +425,7 @@ export async function addPathsFromNativeDrop(
         const { bytes, mime: detectedMime } = dataUrlToBytes(dataUrl);
         const mime = detectedMime || mimeFromExt(info.ext);
         const img = await makeImageFromBytes(bytes, mime, x, y, width, height, info.path);
-        addImage(boardId, img, bytes);
+        addImage(boardId, img);
       } catch (err) {
         console.error(`[native-drop] lecture image ${info.path} a échoué:`, err);
         addAnnotation(boardId, makeSourceSticky(info.path, x, y));
@@ -657,10 +656,10 @@ function makeImage(
 }
 
 /**
- * R-EMB-01 (Sprint 2) — construit une BoardImage `mode: "embed"` à partir
- * des bytes (ex: data URL drag depuis le web décodé). Le caller passe les
- * bytes à `addImage(boardId, img, bytes)` pour qu'ils soient ajoutés au
- * project.blobs dans la même mutation.
+ * B-STORE — construit une BoardImage `mode: "link"` à partir des bytes : on
+ * écrit l'image sur disque (store hashé) et on ne garde dans le doc qu'une
+ * référence. Plus rien dans `project.blobs`. Le caller appelle simplement
+ * `addImage(boardId, img)` (sans bytes).
  */
 async function makeImageFromBytes(
   bytes: Uint8Array,
@@ -671,7 +670,9 @@ async function makeImageFromBytes(
   height: number,
   sourceUrl?: string,
 ): Promise<BoardImage> {
-  const asset = await buildEmbedRef(bytes, mime);
+  const assetId = await saveAssetFromBytes(bytes, extFromMime(mime));
+  const sha256 = await sha256Hex(bytes);
+  const asset = buildLinkRef(assetId, { sha256, sizeBytes: bytes.length });
   const maxW = 600;
   const scale = width > maxW ? maxW / width : 1;
   return {

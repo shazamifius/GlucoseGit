@@ -17,8 +17,10 @@
 // l'hôte ferme puis rouvre, il « reprend » le même document (le serveur en garde
 // l'état) au lieu d'en créer un nouveau qui casserait le lien du pair.
 
-import { getRepo } from "./repo";
-import { setCollabHandle } from "./collabHandle";
+import { getRepo, ensureConnected } from "./repo";
+import {
+  setCollabHandle, getCollabHandle, suppressAutoReconnect, isAutoReconnectSuppressed,
+} from "./collabHandle";
 import { useGlucoseStore } from "../store";
 import * as A from "../store/automerge";
 import type { Project } from "../types";
@@ -56,7 +58,7 @@ function wireHandle(handle: DocHandle<Project>): void {
 
   // Adopte immédiatement l'état courant du handle comme état du store. On repart
   // d'une pile undo/redo vierge : la session collaborative est un nouveau départ.
-  const doc = handle.docSync() as unknown as A.Doc<Project>;
+  const doc = handle.doc() as unknown as A.Doc<Project>;
   useGlucoseStore.setState({
     _doc: doc,
     project: doc as unknown as Project,
@@ -66,6 +68,9 @@ function wireHandle(handle: DocHandle<Project>): void {
     _previewHeads: null,
     selectedImageIds: [],
     selectedAnnotationIds: [],
+    // Caméra : on repart de celle du doc partagé (override local vidé). Ensuite
+    // chaque utilisateur a sa propre caméra, jamais synchronisée.
+    localViewports: {},
   });
 }
 
@@ -75,18 +80,68 @@ export function getSavedShareUrl(): AutomergeUrl | null {
   return v && isValidAutomergeUrl(v) ? v : null;
 }
 
+/** `repo.find` avec attente de la connexion serveur + quelques essais (le doc
+ *  peut mettre un instant à être répliqué depuis l'hôte vers le serveur). */
+async function findShared(url: AutomergeUrl): Promise<DocHandle<Project>> {
+  const repo = getRepo();
+  await ensureConnected();
+  for (let i = 0; i < 4; i++) {
+    try {
+      const handle = await repo.find<Project>(url);
+      await handle.whenReady();
+      return handle;
+    } catch (e) {
+      console.warn("[collab] find échec, nouvel essai…", e);
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+  throw new Error("Chaîne introuvable. Vérifie le code, et que l'autre a bien créé la chaîne (en restant connecté au moins une fois).");
+}
+
 /**
  * Crée un NOUVEAU partage à partir du projet local courant (avec tout son
  * historique Time Machine) et renvoie le code de partage. Écrase le lien
- * mémorisé.
+ * mémorisé. Attend la connexion au serveur pour que le doc y soit bien poussé
+ * avant qu'on diffuse le code.
  */
-export function createShare(): string {
+export async function createShare(): Promise<string> {
   const repo = getRepo();
   const bytes = A.save(useGlucoseStore.getState()._doc);
   const handle = repo.import<Project>(bytes);
+  // Embarque le lien DANS le document : il sera sauvegardé par Ctrl+S et
+  // permettra la reconnexion auto en rouvrant le fichier.
+  handle.change((d) => { (d as Project).collabUrl = handle.url; });
   localStorage.setItem(LS_KEY, handle.url);
   wireHandle(handle);
+  await ensureConnected(); // garantit que le serveur reçoit le doc
   return handle.url;
+}
+
+/**
+ * Reconnexion AUTOMATIQUE depuis le `collabUrl` embarqué dans le document
+ * courant (ex : on vient d'ouvrir un fichier .glucose qui appartenait à une
+ * chaîne). Fusionne les éventuelles modifications faites hors-ligne dans le
+ * document partagé (aucune perte), puis branche le handle.
+ */
+export async function reconnectFromDoc(): Promise<boolean> {
+  if (getCollabHandle()) return false; // déjà en collab
+  const st = useGlucoseStore.getState();
+  const url = (st.project as Project).collabUrl;
+  if (!url || !isValidAutomergeUrl(url)) return false;
+  if (isAutoReconnectSuppressed(url)) return false; // l'utilisateur a quitté exprès
+  const localDoc = st._doc; // état local (peut contenir des édits hors-ligne)
+  const handle = await findShared(url as AutomergeUrl);
+  // Fusionne le local dans la chaîne — clone d'abord (interdit de muter le doc
+  // du handle directement). merge() combine les deux historiques (ils partagent
+  // une racine commune puisque le fichier vient de cette chaîne).
+  try {
+    handle.update((d) => A.merge(A.clone(d as unknown as A.Doc<Project>), localDoc) as never);
+  } catch (e) {
+    console.warn("[collab] fusion locale au reconnect impossible :", e);
+  }
+  localStorage.setItem(LS_KEY, handle.url);
+  wireHandle(handle);
+  return true;
 }
 
 /**
@@ -96,9 +151,7 @@ export function createShare(): string {
 export async function resumeShare(): Promise<string> {
   const saved = getSavedShareUrl();
   if (!saved) return createShare();
-  const repo = getRepo();
-  const handle = await repo.find<Project>(saved);
-  await handle.whenReady();
+  const handle = await findShared(saved);
   wireHandle(handle);
   return handle.url;
 }
@@ -110,9 +163,7 @@ export async function resumeShare(): Promise<string> {
 export async function joinByCode(code: string): Promise<string> {
   const url = code.trim();
   if (!isValidAutomergeUrl(url)) throw new Error("Code de partage invalide");
-  const repo = getRepo();
-  const handle = await repo.find<Project>(url);
-  await handle.whenReady();
+  const handle = await findShared(url as AutomergeUrl);
   localStorage.setItem(LS_KEY, handle.url);
   wireHandle(handle);
   return handle.url;
@@ -124,6 +175,11 @@ export async function joinByCode(code: string): Promise<string> {
  * (on pourra reprendre le partage plus tard).
  */
 export function leaveCollab(): void {
+  // Empêche la reconnexion auto de re-joindre aussitôt cette chaîne (le
+  // collabUrl reste dans le doc, mais on respecte le choix de l'utilisateur
+  // pour la session courante).
+  const activeUrl = getCollabHandle()?.url;
+  if (activeUrl) suppressAutoReconnect(activeUrl);
   if (_changeOff) {
     _changeOff();
     _changeOff = null;

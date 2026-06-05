@@ -158,8 +158,9 @@ export default function Minimap() {
       ctx.setLineDash([]);
     });
 
-    // Viewport indicator — live ref for real-time tracking
-    const vp = liveVpRef.current ?? board.viewport;
+    // Viewport indicator — live ref for real-time tracking ; fallback sur la
+    // caméra locale (getViewport), pas sur le doc (la caméra n'y est plus en collab).
+    const vp = liveVpRef.current ?? useGlucoseStore.getState().getViewport(board.id);
     if (vp) {
       const screenW = window.innerWidth;
       const screenH = window.innerHeight - 80;

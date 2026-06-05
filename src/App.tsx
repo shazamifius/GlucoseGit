@@ -25,6 +25,8 @@ const TimelinePanel = lazy(() => import("./components/TimelinePanel"));
 // Collaboration internet (automerge-repo + serveur de synchro)
 const MultiplayerPanel = lazy(() => import("./multiplayer/MultiplayerPanel"));
 import { useAutosave } from "./utils/useAutosave";
+import { useZoomLock } from "./utils/useZoomLock";
+import { reconnectFromDoc } from "./multiplayer/collabBridge";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -64,6 +66,21 @@ export default function App() {
   const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
   // Autosave disque débouncé (filet anti perte de données, solo + collab).
   useAutosave(pathRef);
+  // Verrou anti zoom accidentel de la webview (boutons qui deviennent énormes).
+  useZoomLock();
+
+  // Reconnexion AUTOMATIQUE à la chaîne : si le document chargé porte un
+  // `collabUrl` (ex : on vient d'ouvrir un .glucose partagé, ou de rouvrir
+  // l'app), on rejoint la chaîne tout seul → le lien n'est jamais perdu.
+  const collabUrl = useGlucoseStore((s) => s.project.collabUrl);
+  useEffect(() => {
+    if (!collabUrl || multiplayerEnabled) return;
+    let cancelled = false;
+    reconnectFromDoc()
+      .then((ok) => { if (ok && !cancelled) setMultiplayerEnabled(true); })
+      .catch((e) => console.warn("[collab] reconnexion auto échouée :", e));
+    return () => { cancelled = true; };
+  }, [collabUrl, multiplayerEnabled]);
   const [dockTabs, setDockTabs]           = useState<TabId[]>([]);
   const [dismissingTabs, setDismissingTabs] = useState<TabId[]>([]);
 

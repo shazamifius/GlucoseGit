@@ -334,6 +334,10 @@ export interface Project {
    *  assets `mode: "embed"`. Optionnelle pour compat ascendante : un projet
    *  legacy (avant Sprint 2) n'a pas ce champ ; il est créé à la 1re embed. */
   blobs?: Record<string, Uint8Array>;
+  /** Lien de collaboration (`automerge:…`) embarqué dans le document : permet,
+   *  en rouvrant le fichier .glucose, de se RECONNECTER automatiquement à la
+   *  chaîne (le lien voyage avec le document et survit à un Ctrl+S). */
+  collabUrl?: string;
   createdAt: number;
   updatedAt: number;
 }

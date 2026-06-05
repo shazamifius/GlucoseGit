@@ -1164,6 +1164,21 @@ fn sanitize_ext(ext: &str) -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // PERF B-STORE — Freeze de ~4 s au changement de fenêtre Windows.
+    // Quand la fenêtre est occultée (alt-tab, recouverte), WebView2/Chromium la
+    // marque « occluded » : il suspend le rendu et peut libérer le contexte WebGL.
+    // Au retour, PixiJS doit réuploader TOUTES les textures sur le GPU → gel.
+    // On désactive le calcul d'occultation natif + le backgrounding : la webview
+    // reste « visible » pour Chromium, le contexte GPU n'est jamais lâché.
+    // (Lu par le runtime WebView2 via cette variable d'environnement.)
+    std::env::set_var(
+        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+        "--disable-features=CalculateNativeWinOcclusion \
+         --disable-renderer-backgrounding \
+         --disable-backgrounding-occluded-windows \
+         --disable-background-timer-throttling",
+    );
+
     let mp_state: SharedMpState = Arc::new(Mutex::new(MpState::new()));
 
     tauri::Builder::default()

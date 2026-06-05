@@ -53,8 +53,8 @@ export default function MultiplayerPanel({ enabled, onToggle, onClose }: Props) 
     }
   }
 
-  const handleCreate = () => withBusy(() => {
-    const url = createShare();
+  const handleCreate = () => withBusy(async () => {
+    const url = await createShare();
     savedUrl.current = url;
     setShareUrl(url);
     onToggle(true);
@@ -121,25 +121,25 @@ export default function MultiplayerPanel({ enabled, onToggle, onClose }: Props) 
 
       {!enabled ? (
         <>
-          {/* Héberger */}
-          <div style={sectionTitle()}>PARTAGER CE PROJET</div>
+          {/* Créer une chaîne */}
+          <div style={sectionTitle()}>CRÉER UNE CHAÎNE (à partir de ce projet)</div>
           <button onClick={handleCreate} disabled={busy} style={btnPrimary(busy)}>
-            ▶ Créer un partage
+            ▶ Créer une chaîne
           </button>
           {savedUrl.current && (
             <button onClick={handleResume} disabled={busy} style={btnSecondaryWide()}>
-              ↻ Reprendre le dernier partage
+              ↻ Rouvrir ma chaîne
             </button>
           )}
 
-          {/* Rejoindre */}
-          <div style={{ ...sectionTitle(), marginTop: 14 }}>REJOINDRE UN PARTAGE</div>
+          {/* Rejoindre une chaîne */}
+          <div style={{ ...sectionTitle(), marginTop: 14 }}>REJOINDRE UNE CHAÎNE</div>
           <div style={{ display: "flex", gap: 6 }}>
             <input
               value={joinInput}
               onChange={(e) => setJoinInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleJoin(); }}
-              placeholder="automerge:…"
+              placeholder="colle le code automerge:… ici"
               style={inputStyle()}
             />
             <button onClick={handleJoin} disabled={busy || !joinInput.trim()} style={btnSecondary()}>
@@ -147,24 +147,29 @@ export default function MultiplayerPanel({ enabled, onToggle, onClose }: Props) 
             </button>
           </div>
           <div style={{ marginTop: 6, fontSize: 10, color: "#9ca3af", lineHeight: 1.4 }}>
-            ⚠ Rejoindre remplace ton projet local courant par celui partagé.
+            ⚠ Rejoindre une chaîne ouvre SON projet (ton projet local courant est mis de côté).
           </div>
         </>
       ) : (
         <>
-          {/* Code de partage actif */}
-          <div style={sectionTitle()}>CODE DE PARTAGE (à envoyer à ton pote)</div>
+          {/* Code de la chaîne active */}
+          <div style={sectionTitle()}>CODE DE LA CHAÎNE (à envoyer à ton pote)</div>
           <div style={{ display: "flex", gap: 6 }}>
             <input readOnly value={shareUrl ?? ""} style={{ ...inputStyle(), color: "#10b981" }} onFocus={(e) => e.currentTarget.select()} />
             <button onClick={copyCode} style={btnSecondary()}>{copied ? "✓ Copié" : "Copier"}</button>
           </div>
           <div style={{ marginTop: 10, fontSize: 11, color: connected ? "#10b981" : "#fbbf24" }}>
             {connected
-              ? "Synchronisé en temps réel. Tu peux fermer l'app, le serveur garde tout."
-              : "Connexion au serveur de synchro en cours…"}
+              ? "Chaîne active. Vous éditez à deux, à égalité : chacun peut fermer et rouvrir quand il veut, le serveur garde tout à jour."
+              : "Connexion au serveur de la chaîne en cours…"}
           </div>
-          <button onClick={handleLeave} style={{ ...btnSecondaryWide(), marginTop: 12 }}>
-            ⏹ Quitter la collaboration
+          <button
+            onClick={handleLeave}
+            style={btnLeave()}
+            onMouseOver={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.16)"; e.currentTarget.style.borderColor = "rgba(239,68,68,0.5)"; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; e.currentTarget.style.borderColor = "rgba(239,68,68,0.28)"; }}
+          >
+            Quitter la chaîne
           </button>
         </>
       )}
@@ -203,6 +208,16 @@ function btnSecondaryWide(): React.CSSProperties {
     width: "100%", background: "transparent", border: "1px solid #444",
     color: "#cbd5e1", borderRadius: 6, padding: "7px 12px",
     fontSize: 12, cursor: "pointer",
+  };
+}
+function btnLeave(): React.CSSProperties {
+  return {
+    width: "100%", marginTop: 12,
+    background: "rgba(239,68,68,0.08)",
+    border: "1px solid rgba(239,68,68,0.28)",
+    color: "#f87171", borderRadius: 6, padding: "8px 12px",
+    fontSize: 12, fontWeight: 600, cursor: "pointer",
+    transition: "background 120ms, border-color 120ms",
   };
 }
 function btnIcon(): React.CSSProperties {

@@ -4,7 +4,8 @@ import { homeDir } from "@tauri-apps/api/path";
 import { Project } from "../types";
 import { parseProjectFile } from "../store/projectSchema";
 // Phase 7.0 — migration des images base64 legacy vers asset:<hash>.<ext>
-import { migrateLegacyAssets } from "./assets";
+// B-STORE — externalisation des blobs embarqués vers le store disque
+import { migrateLegacyAssets, externalizeEmbeddedBlobs } from "./assets";
 // R-EMB-01 (Sprint 2) — migration asset:<file> / data: / http → AssetRef embed/link
 import { migrateProjectAssets, type AssetBytesFetcher } from "./projectMigration";
 import { dataUrlToBytes } from "./assetRef";
@@ -203,5 +204,18 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
     doc = undefined;
   }
 
-  return { project: embMigration.project, doc, path };
+  // B-STORE — Externalisation « du dur » : sort toutes les images embarquées
+  // (project.blobs) vers le store disque et passe les refs en `link`. C'est ce
+  // qui vide le doc de ses ~112 Mo d'images et supprime le freeze de `A.save`.
+  // Idempotent (no-op si aucun blob). Force un doc neuf (sans l'historique gonflé).
+  const extMigration = await externalizeEmbeddedBlobs(embMigration.project);
+  if (extMigration.externalized > 0) {
+    console.info(
+      `[loadProject] B-STORE : ${extMigration.externalized} image(s) sortie(s) du doc vers le disque ` +
+      `(${extMigration.failed} échec(s)) — le projet sera allégé au prochain enregistrement`
+    );
+    doc = undefined;
+  }
+
+  return { project: extMigration.project, doc, path };
 }

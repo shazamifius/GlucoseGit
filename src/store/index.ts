@@ -1,4 +1,4 @@
-﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Phase 7.2.C â€” Store CRDT-first (Automerge source de vÃ©ritÃ©)
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
@@ -250,8 +250,16 @@ interface GlucoseStore {
   undo: () => boolean;
   redo: () => boolean;
 
-  // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // â”€â”€ Viewport (CAMÉRA LOCALE, jamais synchronisée) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  /** Caméra par board, LOCALE à cet utilisateur — n'est PAS dans le doc
+   *  Automerge en collaboration (sinon le zoom/déplacement d'un pair bougerait
+   *  l'écran de l'autre). En solo on la recopie aussi dans le doc pour qu'elle
+   *  soit sauvegardée dans le fichier .glucose. */
+  localViewports: Record<string, Viewport>;
   setViewport: (boardId: string, vp: Viewport) => void;
+  /** Caméra effective d'un board : override local d'abord, sinon valeur du doc
+   *  (fichier chargé), sinon défaut. */
+  getViewport: (boardId: string) => Viewport;
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /**
@@ -439,9 +447,13 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
         console.warn("[mutate] Mutation ignorée : mode Time Machine actif. Sors-en pour modifier.");
         return;
       }
+      // IMPORTANT : en collab on mute TOUJOURS via `handle.change` (jamais
+      // `A.change` brut sur le doc du handle — ça corrompt l'objet WASM
+      // « recursive use / unsafe aliasing »). Pendant un geste (_liveEdit) on ne
+      // pousse simplement pas d'entrée undo (1 seul snapshot pris au début).
       const before = s._doc;
       handle.change((d) => mutator(d as Project), { message });
-      const next = handle.docSync() as unknown as A.Doc<Project>;
+      const next = handle.doc() as unknown as A.Doc<Project>;
       set((st) =>
         st._liveEdit
           ? { _doc: next, project: next as unknown as Project }
@@ -503,7 +515,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     if (handle) {
       if (get()._previewHeads !== null) return; // bloqué en mode Time Machine
       handle.change((d) => mutator(d as Project), { message });
-      const next = handle.docSync() as unknown as A.Doc<Project>;
+      const next = handle.doc() as unknown as A.Doc<Project>;
       set({ _doc: next, project: next as unknown as Project });
       return;
     }
@@ -599,7 +611,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       const restored = A.clone(s._undoStack[s._undoStack.length - 1]);
       const mergedPlain = A.asPlain(preserveView(restored, before));
       handle.change((d) => rewriteProjectContent(d as Project, mergedPlain), { message: "Annuler" });
-      const next = handle.docSync() as unknown as A.Doc<Project>;
+      const next = handle.doc() as unknown as A.Doc<Project>;
       const proj = next as unknown as Project;
       set((st) => ({
         _doc: next,
@@ -650,7 +662,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       const restored = A.clone(s._redoStack[s._redoStack.length - 1]);
       const mergedPlain = A.asPlain(preserveView(restored, before));
       handle.change((d) => rewriteProjectContent(d as Project, mergedPlain), { message: "Rétablir" });
-      const next = handle.docSync() as unknown as A.Doc<Project>;
+      const next = handle.doc() as unknown as A.Doc<Project>;
       const proj = next as unknown as Project;
       set((st) => ({
         _doc: next,
@@ -686,12 +698,27 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   },
 
   // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  localViewports: {},
   setViewport: (boardId, vp) => {
     const safe = clampViewport(vp);
-    get().mutateView("setViewport", (d) => {
-      const b = d.boards.find((x) => x.id === boardId);
-      if (b) b.viewport = safe;
-    });
+    // 1) Override LOCAL (ce que lit le canvas) — jamais synchronisé.
+    set((s) => ({ localViewports: { ...s.localViewports, [boardId]: safe } }));
+    // 2) En SOLO uniquement, on recopie aussi dans le doc pour que la caméra
+    //    soit sauvegardée dans le .glucose. En collab on n'y touche PAS (sinon
+    //    la caméra d'un pair s'imposerait à l'autre et saturerait le réseau).
+    if (!getCollabHandle()) {
+      get().mutateView("setViewport", (d) => {
+        const b = d.boards.find((x) => x.id === boardId);
+        if (b) b.viewport = safe;
+      });
+    }
+  },
+  getViewport: (boardId) => {
+    const s = get();
+    const local = s.localViewports[boardId];
+    if (local) return local;
+    const b = s.project.boards.find((x) => x.id === boardId);
+    return b?.viewport ?? { x: 0, y: 0, scale: 1 };
   },
 
   // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -785,6 +812,19 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
                  (!!a.targetId && toRemove.has(a.targetId));
         });
         if (removed.length > 0) b.updatedAt = Date.now();
+      }
+      // R-EMB-01 — Nettoyage des blobs orphelins : on supprime de project.blobs
+      // les sha256 qui ne sont plus référencés par aucune image restante.
+      if (d.blobs) {
+        const usedSha = new Set<string>();
+        for (const b of d.boards) {
+          for (const img of b.images) {
+            if (img.asset?.mode === "embed") usedSha.add(img.asset.sha256);
+          }
+        }
+        for (const key of Object.keys(d.blobs)) {
+          if (!usedSha.has(key)) delete d.blobs[key];
+        }
       }
     });
     set({ selectedImageIds: [] });
@@ -1093,8 +1133,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   applyPresetToBoard: (boardId, presetId, worldX, worldY) => {
     const all = get().getAllPresets();
     const preset = presetId ? all.find((p) => p.id === presetId) : null;
-    const board = get().project.boards.find((b) => b.id === boardId);
-    const vp = board?.viewport ?? { x: 0, y: 0, scale: 1 };
+    const vp = get().getViewport(boardId);
     let zones: BoardZone[] = [];
     if (preset) {
       const ZONE_W = 340, ZONE_H = 700, GAP = 30;
@@ -1739,6 +1778,8 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       selectedImageIds: [],
       selectedAnnotationIds: [],
       folderStack: [],
+      // Nouveau projet → on repart des caméras du doc (pas d'override périmé).
+      localViewports: {},
     });
   },
 
@@ -1753,6 +1794,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       selectedImageIds: [],
       selectedAnnotationIds: [],
       folderStack: [],
+      localViewports: {},
     });
   },
 

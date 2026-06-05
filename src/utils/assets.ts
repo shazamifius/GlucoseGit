@@ -18,8 +18,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import type { AssetRef } from "../types";
-import { resolveAssetRefSync } from "./assetRef";
+import type { AssetRef, Project } from "../types";
+import { resolveAssetRefSync, extFromMime, buildLinkRef } from "./assetRef";
 
 let assetsDirCache: string | null = null;
 
@@ -49,6 +49,26 @@ export function _resetAssetsDirCache(): void {
 export async function saveAsset(base64Data: string, extHint = "png"): Promise<string> {
   const filename = await invoke<string>("save_asset", { base64Data, extHint });
   return `asset:${filename}`;
+}
+
+/**
+ * B-STORE — Persiste des octets bruts (image décodée) dans le store
+ * content-addressed sur disque et renvoie l'identifiant logique `asset:<file>`.
+ *
+ * C'est la primitive « du dur » : au lieu d'embarquer les bytes dans le doc
+ * Automerge (`project.blobs`, ce qui le gonfle et fait freezer `A.save`), on
+ * écrit l'image une seule fois sur disque (dédup par hash côté Rust) et on ne
+ * garde dans le doc qu'une référence `link`.
+ */
+export async function saveAssetFromBytes(bytes: Uint8Array, extHint = "png"): Promise<string> {
+  // base64 par chunks pour éviter "Maximum call stack size" sur les gros buffers.
+  const CHUNK = 32_768;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+  }
+  const b64 = btoa(binary);
+  return saveAsset(b64, extHint);
 }
 
 /**
@@ -107,6 +127,77 @@ export async function resolveImageSrc(
 /** Indique si un `src` est encore en base64 (legacy à migrer). */
 export function isLegacyDataUrl(src: string | undefined): boolean {
   return !!src && src.startsWith("data:");
+}
+
+/** Normalise un blob lu depuis le doc (peut être un proxy / objet indexé) en
+ *  vrai Uint8Array. */
+function toU8(raw: unknown): Uint8Array {
+  if (raw instanceof Uint8Array) return raw;
+  if (ArrayBuffer.isView(raw)) {
+    const v = raw as ArrayBufferView;
+    return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  }
+  const obj = raw as Record<number, number> & { length?: number };
+  const len = obj?.length ?? Object.keys(obj ?? {}).length;
+  const u8 = new Uint8Array(len);
+  for (let i = 0; i < len; i++) u8[i] = obj[i] ?? 0;
+  return u8;
+}
+
+/**
+ * B-STORE — Migration « du dur ». Sort toutes les images embarquées
+ * (`asset.mode === "embed"`, bytes dans `project.blobs`) vers le store disque
+ * content-addressed, convertit leurs refs en `link`, puis supprime `project.blobs`.
+ *
+ * Effet : le document Automerge ne contient plus aucun octet d'image → `A.save`
+ * redevient minuscule (fin du freeze 4-5 s). Idempotent : un projet déjà « du
+ * dur » (pas de blobs) est renvoyé inchangé.
+ *
+ * À appeler au `loadProject` (comme les autres migrations). Le caller force
+ * `doc = undefined` pour repartir d'un doc neuf sans l'historique gonflé.
+ */
+export async function externalizeEmbeddedBlobs(
+  project: Project,
+): Promise<{ project: Project; externalized: number; failed: number }> {
+  const blobs = project.blobs;
+  if (!blobs || Object.keys(blobs).length === 0) {
+    return { project, externalized: 0, failed: 0 };
+  }
+
+  let externalized = 0;
+  let failed = 0;
+
+  const newBoards = await Promise.all(
+    project.boards.map(async (b) => {
+      const newImages = await Promise.all(
+        b.images.map(async (img) => {
+          if (img.asset?.mode !== "embed") return img;
+          const sha = img.asset.sha256;
+          const raw = blobs[sha];
+          if (!raw) { failed++; return img; } // blob manquant → on laisse tel quel
+          try {
+            const ext = extFromMime(img.asset.mime);
+            const assetId = await saveAssetFromBytes(toU8(raw), ext);
+            externalized++;
+            return {
+              ...img,
+              asset: buildLinkRef(assetId, { sha256: sha, sizeBytes: img.asset.sizeBytes }),
+            };
+          } catch (e) {
+            console.warn("[externalizeEmbeddedBlobs] échec", sha.slice(0, 12), e);
+            failed++;
+            return img;
+          }
+        }),
+      );
+      return { ...b, images: newImages };
+    }),
+  );
+
+  // On supprime entièrement les blobs : le doc ne porte plus aucun octet.
+  const next: Project = { ...project, boards: newBoards };
+  delete next.blobs;
+  return { project: next, externalized, failed };
 }
 
 /**

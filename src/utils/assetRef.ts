@@ -179,12 +179,33 @@ export function resolveAssetRefSync(
   const cached = cacheGet(asset.sha256);
   if (cached) return cached;
 
-  const bytes = blobs?.[asset.sha256];
-  if (!bytes) return ""; // blob manquant — caller traite
+  const raw = blobs?.[asset.sha256];
+  if (!raw) return ""; // blob manquant — caller traite
+
+  // R-EMB-01 fix : les bytes lus depuis le proxy Automerge ne sont pas
+  // forcément un vrai Uint8Array (peut être un objet proxy ou un object
+  // indexé {0:x, 1:y, ...}). On normalise pour que new Blob() fonctionne.
+  let bytes: Uint8Array;
+  if (raw instanceof Uint8Array) {
+    bytes = raw;
+  } else if (ArrayBuffer.isView(raw)) {
+    bytes = new Uint8Array((raw as ArrayBufferView).buffer, (raw as ArrayBufferView).byteOffset, (raw as ArrayBufferView).byteLength);
+  } else {
+    // Proxy Automerge ou objet indexé : convertir en vrai Uint8Array
+    const len = (raw as { length?: number }).length ?? Object.keys(raw as object).length;
+    bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = (raw as Record<number, number>)[i] ?? 0;
+  }
 
   // Construction du blob URL et mise en cache LRU
   const blob = new Blob([bytes], { type: asset.mime });
-  const url = URL.createObjectURL(blob);
+  let url = URL.createObjectURL(blob);
+  
+  // Fix PixiJS v8 : Assets.load() a besoin d'une extension dans l'URL pour
+  // trouver le bon parser (loadTextures). Un blob URL pur échoue silencieusement.
+  const ext = extFromMime(asset.mime);
+  if (ext) url += `#ext=.${ext}`;
+  
   cacheSet(asset.sha256, url);
   return url;
 }

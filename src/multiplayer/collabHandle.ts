@@ -31,3 +31,12 @@ export function isCollabActive(): boolean {
 export function getActiveShareUrl(): string | null {
   return _handle ? _handle.url : null;
 }
+
+// ── Suppression de la reconnexion auto (par session) ─────────────
+// Quand l'utilisateur clique « Quitter la chaîne », on ne veut pas que la
+// reconnexion automatique (déclenchée par le `collabUrl` encore présent dans le
+// document) le re-connecte aussitôt. On retient les liens explicitement quittés
+// le temps de la session (réinitialisé au redémarrage de l'app).
+const _suppressed = new Set<string>();
+export function suppressAutoReconnect(url: string): void { _suppressed.add(url); }
+export function isAutoReconnectSuppressed(url: string): boolean { return _suppressed.has(url); }
