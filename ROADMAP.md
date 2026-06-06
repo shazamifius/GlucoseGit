@@ -2,12 +2,21 @@
 
 > **Vision :** Une surface cognitive infinie. Une seule interface — pas de modes — capable de soutenir aussi bien la création d'un jeu vidéo, l'élaboration d'une langue construite, que la cartographie versionnée de toute la connaissance humaine (Xanadu 2026 / WikiGit).
 >
+> **Mission (cap nord) :** devenir **la nouvelle feuille blanche entre humains** — la meilleure façon de partager une idée, qu'elle soit artistique, technique, scolaire ou mathématique, **mieux qu'une feuille de papier**. Glucose se veut un **PureRef officiel mais bien plus poussé** : pas juste poser des références, mais penser, relier, versionner, partager à grande échelle. Et, plus tard (beaucoup plus complexe), **le meilleur pont entre l'humain et l'IA**.
+>
+> **Pourquoi un système « à la Git » pour Glucose** (le cœur du projet, « porte n°1 du web3 version pure-ref ») :
+> 1. **IA & memory / latent space** — un projet Glucose est une carte spatiale d'idées que l'IA peut indexer/naviguer (cf. plugin glucose-notes : l'espace 2D EST le latent space).
+> 2. **Partage à grande échelle + retour arrière à tout instant** — collaborer à beaucoup, et pouvoir revenir à n'importe quel état (Time Machine / historique CRDT), sans jamais perdre.
+> 3. **Ultra-sûr, jamais de corruption, toujours à jour** — un `.glucose` doit être incassable et toujours synchronisable ; la donnée de l'utilisateur passe avant tout.
+>
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
 
-**Dernière mise à jour :** 2026-06-05
+**Dernière mise à jour :** 2026-06-06
 **Version :** 1.0.1-beta.1
 **Architecture :** Tauri 2 (Rust) + React 19 + Tailwind 4 + PixiJS 8 (raster) + SVG overlay (vecteur) + Zustand + **Automerge 3 (CRDT, WASM)**
 
+> **🩹 Anti-freeze enregistrement + collab honnête (2026-06-06)** — **(A) Enregistrement incrémental** : `Ctrl+S` n'écrit plus que le *delta* depuis le dernier save (append en fin de fichier via `append_glucose_binary`) au lieu de resérialiser tout l'historique Automerge → **fin du freeze sur grosse session**. Compaction auto (full save quand les deltas dépassent la taille du dernier full) + **`loadResilient`** : si la fin du fichier est corrompue (crash pendant un append), on recharge le plus grand préfixe sain → **jamais de fichier illisible**, on ne perd au pire que le dernier delta. (logique pure testée : 11 tests dédiés). **(B) Coller-image (Ctrl+V) sur disque** (ref `link`) comme le drag/import → ne regonfle plus le doc. **(C) Molette = zoom partout** : le `wheelDeltaY` était perdu en re-dispatchant l'event depuis les blocs (texte/dossier/annotation/flèche) → la vue *panait* au lieu de zoomer ; corrigé. **(D)** Tentative « images visibles en collab » par ré-embed des octets dans le doc **annulée** (réintroduisait le freeze ET ne transférait pas) → la vraie voie = **canal d'assets hors-document** (cf. section Synchronisation ci-dessous).
+>
 > **⚡ Perf images & fluidité (2026-06-05)** — Refonte performance pour tenir des centaines/milliers d'images : stockage « du dur » (images sorties du doc Automerge → fin du freeze de navigation), **virtualisation des textures** (chargées/déchargées selon le viewport), **LOD/downscale** (résolution de texture adaptée au zoom, ré-affinage au zoom-in sans flash), **rendu à la demande** (0 travail GPU au repos), **abonnements store ciblés** (fin des re-renders de l'arbre React sur chaque survol), antialias MSAA off + résolution plafonnée. Résultat : pan/zoom fluides sur 100+ images.
 >
 > **🌐 Collaboration internet (2026-06-05)** — La collab passe de mDNS/LAN à **automerge-repo + serveur de synchro public** : on crée une « chaîne » (code `automerge:…` à partager) ou on en rejoint une avec son code. Un pair peut fermer son PC, l'autre garde tout, catch-up automatique à la (re)connexion. Panel via `Ctrl+Shift+L`. (Remplace le multijoueur LAN de la Phase 7.5bis.)
@@ -379,6 +388,40 @@ Une flèche n'est rendue que si **au moins une** condition est vraie :
 - [x] **Undo collab** : forward-revert (les actions distantes ne polluent pas l'undo local)
 - [ ] Serveur de synchro privé documenté (URL modifiable dans `repo.ts`)
 - [ ] Curseurs / présence temps réel des pairs
+
+---
+
+## 🌐 Synchronisation & serveurs — sans budget (analyse 2026-06-06)
+
+> Contrainte : **aucun budget**. Objectif : collab fiable + images qui se transfèrent + vie privée, sur des serveurs **gratuits**.
+
+### Le problème de fond (P2P ↔ hors-ligne)
+
+Pour qu'une modif soit disponible quand **son auteur est hors-ligne**, il faut **au moins un nœud toujours allumé** qui détient la donnée. Le **P2P pur** (les 2 pairs en ligne simultanément) ne peut pas le garantir — c'est une limite structurelle, pas un bug. Même le « Web3 » ne la supprime pas : il la résout avec des nœuds de *pinning*/DHT always-on (souvent incités/payés). Donc la vraie question = **quel nœud always-on, gratuit ?**
+
+### État de l'art (groupes/méthodes de référence)
+
+- **Local-first software** — Ink & Switch (M. Kleppmann), essai 2019 ; auteurs d'**Automerge** (déjà utilisé). Le serveur de sync y est un **relais de secours**, pas un maître.
+- **Secure Scuttlebutt** — offline-first par gossip ; réponse au hors-ligne = les **« pubs »** (relais always-on store-and-forward). Exactement le motif visé.
+- **Yjs** + **y-websocket** / **y-sweet** (serveur open-source avec persistance) — l'autre grand CRDT.
+- **Earthstar / Willow**, **DXOS (ECHO/HALO)**, **Holepunch/Hypercore (Pears)**, **OrbitDB/IPFS** — familles local-first/P2P, toutes adossées à un nœud de réplication/pinning pour la dispo.
+- **Ink & Switch « Beehive »** (recherche) — contrôle d'accès **chiffré E2E** pour Automerge → permet un relais **non fiable** (ne voit que du chiffré).
+
+### Options de relais GRATUITES (à évaluer)
+
+1. **Oracle Cloud — Always Free** : VM ARM gratuite **à vie** (jusqu'à 24 Go RAM) = vrai always-on gratuit pour héberger le sync-server automerge. ⭐ piste #1.
+2. **Cloudflare Workers + Durable Objects** (ou **PartyKit**) : un DO = point always-on par document, WebSocket *hibernation*, free tier généreux. ⭐ simplicité.
+3. **Vieux PC / Raspberry Pi + Cloudflare Tunnel** (gratuit) : relais perso, 0 € d'hébergement, sous contrôle total.
+4. **Fly.io / Render / Railway / Koyeb / Deno Deploy** : free tiers (certains s'endorment → cold start, OK car le CRDT rattrape au réveil).
+
+### Cap technique pour Glucose (hybride)
+
+automerge-repo accepte **plusieurs adaptateurs réseau simultanés** → on combine :
+- [ ] **P2P WebRTC** quand les pairs sont en ligne ensemble (rapide, 0 charge serveur)
+- [ ] **+ relais always-on gratuit** (Oracle Free ou Cloudflare/PartyKit) pour le catch-up hors-ligne + persistance — il suffit de changer `SYNC_SERVER_URL` dans [repo.ts](src/multiplayer/repo.ts)
+- [ ] **+ chiffrement E2E** des changements côté client → relais non fiable acceptable, vie privée réglée (la clé vit dans le code de partage)
+- [ ] **+ canal d'assets hors-document** : fetch des images manquantes par `sha256` (style Git-LFS) → règle les **images en collab** SANS regonfler le doc (la leçon de la tentative annulée du 2026-06-06)
+- [ ] **Compaction d'historique partagé** : un nouvel arrivant ne doit pas télécharger tout l'historique (snapshots périodiques côté relais)
 
 ---
 

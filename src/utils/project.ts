@@ -11,6 +11,8 @@ import { migrateProjectAssets, type AssetBytesFetcher } from "./projectMigration
 import { dataUrlToBytes } from "./assetRef";
 // Phase 7.2 — format binaire `.glucose` v2 via Automerge
 import * as A from "../store/automerge";
+// SAVE-A — enregistrement incrémental (anti-freeze) : full au 1er save, delta ensuite.
+import { planSave, commitSave, markLoaded, resetSaveState, type SavePlan } from "./saveState";
 
 /**
  * Fetcher Tauri pour la migration R-EMB-01 : lit un asset:<filename> du
@@ -89,24 +91,34 @@ export async function saveProject(
 
   if (!path.endsWith(".glucose")) path += ".glucose";
 
-  let bytes: Uint8Array;
+  // ── SAVE-A — full vs incrémental ──────────────────────────────────────────
+  let doc: A.Doc<Project>;
+  let forceFull = false;
   if (isDoc(projectOrDoc)) {
-    // Cas standard : le doc est la source de vérité, on save tel quel.
-    // L'historique Automerge complet est préservé dans le binaire.
-    bytes = A.save(projectOrDoc);
+    // Cas standard : le doc est la source de vérité.
+    doc = projectOrDoc;
   } else {
-    // Cas legacy : project plain → on crée un doc neuf.
+    // Cas legacy : project plain → doc neuf, aucune filiation → toujours full.
     const plain = projectOrDoc as Project;
-    const stamped: Project = {
-      ...plain,
-      version: "2.0.0",
-      updatedAt: Date.now(),
-    };
-    const doc = A.create<Project>(stamped);
-    bytes = A.save(doc);
+    doc = A.create<Project>({ ...plain, version: "2.0.0", updatedAt: Date.now() });
+    forceFull = true;
   }
-  const b64 = bytesToBase64(bytes);
-  await invoke("write_glucose_binary", { path, base64Data: b64 });
+  // Pas de path fourni = dialog (« Enregistrer sous » / 1er save) → full (recompacte
+  // sur le nouveau fichier ; aucune filiation fiable avec un baseline existant).
+  if (!existingPath) forceFull = true;
+
+  const plan: SavePlan = forceFull ? { mode: "full", bytes: A.save(doc) } : planSave(doc, path);
+
+  if (plan.mode === "full") {
+    // Save COMPLET → écrase le fichier (truncate).
+    await invoke("write_glucose_binary", { path, base64Data: bytesToBase64(plan.bytes) });
+    commitSave(path, doc, plan);
+  } else if (plan.bytes.length > 0) {
+    // Save INCRÉMENTAL → ajoute le delta à la fin du fichier (O(édits), pas de freeze).
+    await invoke("append_glucose_binary", { path, base64Data: bytesToBase64(plan.bytes) });
+    commitSave(path, doc, plan);
+  }
+  // plan.bytes vide = rien n'a changé depuis le dernier save → no-op disque.
   return path;
 }
 
@@ -124,6 +136,9 @@ export interface LoadProjectResult {
   /** Toujours présent — vue plain pour les checks et migrations legacy. */
   project: Project;
   path: string;
+  /** SAVE-A — true si le fichier avait une fin corrompue récupérée (delta tronqué
+   *  ignoré) : l'UI doit prévenir l'utilisateur et l'inviter à réenregistrer. */
+  recovered?: boolean;
 }
 
 export async function loadProject(): Promise<LoadProjectResult | null> {
@@ -142,16 +157,29 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
 
   let project: Project | null = null;
   let doc: A.Doc<Project> | undefined;
+  let v2ByteLen = 0;       // SAVE-A — taille du fichier v2 chargé (baseline incrémental)
+  let recovered = false;   // SAVE-A — true si fin de fichier corrompue récupérée
 
   // 1) Tentative v2 binaire
   try {
     const b64 = await invoke<string>("read_glucose_binary", { path });
     const bytes = base64ToBytes(b64);
-    const loaded = A.load<Project>(bytes);
-    const plain = A.asPlain(loaded);
+    v2ByteLen = bytes.length;
+    // Chargement TOLÉRANT : une fin tronquée (crash pendant un append incrémental)
+    // ne doit pas rendre tout le fichier illisible — on récupère le plus grand
+    // préfixe sain.
+    const res = A.loadResilient<Project>(bytes);
+    recovered = res.recovered;
+    if (res.recovered) {
+      console.warn(
+        `[loadProject] fin de fichier corrompue récupérée (${res.droppedBytes} octet(s) ignorés) — ` +
+        `le projet sera réécrit proprement au prochain enregistrement`
+      );
+    }
+    const plain = A.asPlain(res.doc);
     if (plain && Array.isArray((plain as Project).boards)) {
       project = plain as Project;
-      doc = loaded;
+      doc = res.doc;
       console.info("[loadProject] format v2 (binaire Automerge) détecté");
     }
   } catch (binErr) {
@@ -217,5 +245,14 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
     doc = undefined;
   }
 
-  return { project: extMigration.project, doc, path };
+  // SAVE-A — baseline pour l'enregistrement incrémental. Si `doc` est encore défini
+  // ici, AUCUNE migration n'a touché le projet → le fichier sur disque correspond
+  // exactement à `save(doc)`, donc le 1er Ctrl+S pourra être incrémental. Sinon
+  // (migration legacy / v1 / blobs externalisés / fin récupérée), le doc en mémoire
+  // diffère du fichier → on force un save COMPLET au prochain enregistrement (ce
+  // qui réécrit/nettoie le fichier, notamment après une récupération).
+  if (doc && !recovered) markLoaded(path, doc, v2ByteLen);
+  else resetSaveState();
+
+  return { project: extMigration.project, doc, path, recovered };
 }

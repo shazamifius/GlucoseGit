@@ -328,6 +328,10 @@ export default function App() {
             if (r.doc) loadDoc(r.doc); // v2 — historique Automerge préservé
             else loadStore(r.project);  // v1 ou migration legacy — doc neuf
             pathRef.current = r.path;
+            // SAVE-A — fichier réparé (fin corrompue) : on prévient l'utilisateur.
+            if (r.recovered) {
+              showToast("Fichier réparé : fin corrompue ignorée, dernière modif perdue. Réenregistre pour nettoyer.", "⚠️");
+            }
           })
           .catch((err) => alert(`Erreur de chargement:\n${err?.message || String(err)}`));
       }

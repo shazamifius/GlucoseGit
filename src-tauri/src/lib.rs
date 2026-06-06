@@ -392,6 +392,42 @@ async fn write_glucose_binary(
         .map_err(|e| e.to_string())
 }
 
+/// SAVE-A — Enregistrement incrémental : AJOUTE des octets (un bloc de changements
+/// Automerge) à la fin d'un `.glucose` existant, sans réécrire tout le fichier.
+/// `A.load()` relit la concaténation [save complet]+[changements] à l'identique.
+/// Mêmes garde-fous que `write_glucose_binary` (scope + extension + taille).
+#[tauri::command]
+async fn append_glucose_binary(
+    path: String,
+    base64_data: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let path_buf = PathBuf::from(&path);
+    let parent = path_buf
+        .parent()
+        .ok_or_else(|| "Chemin sans parent valide".to_string())?;
+    validate_scope(&parent.to_string_lossy(), &app_handle)?;
+
+    let ext = get_ext(&path_buf);
+    if !["glucose", "atelier"].contains(&ext.as_str()) {
+        return Err(format!("Extension non autorisée pour écriture binaire: .{ext}"));
+    }
+
+    let bytes = STANDARD.decode(base64_data).map_err(|e| e.to_string())?;
+    if bytes.len() > 500 * 1024 * 1024 {
+        return Err("Contenu trop volumineux".into());
+    }
+    use tokio::io::AsyncWriteExt;
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .await
+        .map_err(|e| e.to_string())?;
+    file.write_all(&bytes).await.map_err(|e| e.to_string())?;
+    file.flush().await.map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn write_binary_file(
     path: String,
@@ -1802,6 +1838,7 @@ pub fn run() {
             // Phase 7.2 — format binaire `.glucose` v2 (Automerge)
             read_glucose_binary,
             write_glucose_binary,
+            append_glucose_binary,
             // Phase 8 — système de plugins (sidecar + manifeste)
             list_plugins,
             run_plugin,

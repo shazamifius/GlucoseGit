@@ -73,6 +73,48 @@ export function load<T>(bytes: Uint8Array): Doc<T> {
   return Automerge.load<T>(bytes);
 }
 
+/** Magic en tête de chaque chunk Automerge (document ou change). */
+function magicAt(b: Uint8Array, i: number): boolean {
+  return b[i] === 0x85 && b[i + 1] === 0x6f && b[i + 2] === 0x4a && b[i + 3] === 0x83;
+}
+
+/**
+ * SAVE-A — Chargement TOLÉRANT à une fin de fichier corrompue/tronquée.
+ *
+ * `Automerge.load` est tout-ou-rien : dès que le dernier chunk est incomplet (ex.
+ * crash pendant un append incrémental), il jette « unable to parse chunk » et
+ * TOUT le fichier devient illisible. Ici, si le load complet échoue, on recule
+ * jusqu'à la dernière frontière de chunk (magic `85 6f 4a 83`) qui charge
+ * correctement → on ne perd au pire que le dernier delta tronqué, jamais le reste
+ * du travail. Vérifié empiriquement.
+ *
+ * @returns le doc + `recovered` (true si on a dû tronquer) + nb d'octets ignorés.
+ */
+export function loadResilient<T>(bytes: Uint8Array): { doc: Doc<T>; recovered: boolean; droppedBytes: number } {
+  try {
+    return { doc: Automerge.load<T>(bytes), recovered: false, droppedBytes: 0 };
+  } catch (_) {
+    /* fin corrompue → tentative de récupération ci-dessous */
+  }
+  const starts: number[] = [];
+  for (let i = 0; i + 4 <= bytes.length; i++) {
+    if (magicAt(bytes, i)) starts.push(i);
+  }
+  // On essaie les frontières de chunk de la plus longue à la plus courte. Une
+  // frontière « fantôme » (magic tombant dans des données binaires) échouera au
+  // load → on recule encore. La première qui charge est le plus grand préfixe sain.
+  for (let k = starts.length - 1; k >= 1; k--) {
+    const prefix = bytes.subarray(0, starts[k]);
+    try {
+      return { doc: Automerge.load<T>(prefix), recovered: true, droppedBytes: bytes.length - prefix.length };
+    } catch (_) {
+      /* cette frontière ne charge pas → on continue */
+    }
+  }
+  // Aucun préfixe sain : on relance l'erreur d'origine (fichier réellement mort).
+  return { doc: Automerge.load<T>(bytes), recovered: false, droppedBytes: 0 };
+}
+
 /** Fusionne un document distant dans le local — résolution CRDT automatique. */
 export function merge<T>(local: Doc<T>, remote: Doc<T>): Doc<T> {
   return Automerge.merge(local, remote);
