@@ -19,6 +19,8 @@ interface ToolbarProps {
   onToggleMultiplayer: () => void;
   multiplayerPanelOpen: boolean;
   collabActive: boolean;
+  onTogglePlugins: () => void;
+  pluginsPanelOpen: boolean;
 }
 
 export default function Toolbar({
@@ -28,6 +30,7 @@ export default function Toolbar({
   onToggleStoryboard, storyboardPanelOpen,
   onTogglePomodoro, pomodoroOpen,
   onToggleMultiplayer, multiplayerPanelOpen, collabActive,
+  onTogglePlugins, pluginsPanelOpen,
 }: ToolbarProps) {
   // CLEANUP P-08 — Selectors atomiques (pas de full-store subscribe)
   const activeTool = useGlucoseStore(s => s.activeTool);
@@ -253,6 +256,14 @@ export default function Toolbar({
       <ExportMenu />
 
       {sep}
+
+      {/* Plugins — moteur IA (texte → cours spatialisé) */}
+      <ActionBtn onClick={onTogglePlugins} active={pluginsPanelOpen} title="Plugins — transformer un texte en carte (IA)">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M6 1.5h4v2.2a1.3 1.3 0 002.3.9 1.3 1.3 0 011.9 1.9 1.3 1.3 0 00.9 2.3H15v4h-2.2a1.3 1.3 0 00-.9 2.3 1.3 1.3 0 01-1.9 1.9 1.3 1.3 0 00-2.3.9V15H4v-2.2a1.3 1.3 0 00-2.3-.9 1.3 1.3 0 01-.2-2.7" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+        </svg>
+        Plugins
+      </ActionBtn>
 
       {/* Preset */}
       <ActionBtn onClick={onTogglePreset} active={presetPanelOpen} title="Presets artistiques">

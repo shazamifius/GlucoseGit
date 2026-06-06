@@ -582,12 +582,23 @@ export { getSymbioticHue };
 function forwardWheel(e: React.WheelEvent) {
   const canvas = document.querySelector("canvas");
   if (!canvas) return;
-  canvas.dispatchEvent(new WheelEvent("wheel", {
+  const we = new WheelEvent("wheel", {
     deltaX: e.deltaX, deltaY: e.deltaY, deltaZ: e.deltaZ, deltaMode: e.deltaMode,
     clientX: e.clientX, clientY: e.clientY,
     ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
     bubbles: false, cancelable: true,
-  }));
+  });
+  // `wheelDeltaY` (legacy, non standard) n'est PAS recopié par le constructeur
+  // WheelEvent → l'event synthétique aurait wheelDeltaY=0, et `classifyWheel` le
+  // prendrait pour un PAN (glissement 2 doigts) au lieu d'un cran de molette
+  // souris. Résultat : scroller la molette SUR un bloc faisait DÉFILER la vue vers
+  // le haut au lieu de zoomer (alors que dans le vide ça zoomait). On recopie donc
+  // la valeur native pour préserver l'intention zoom/pan, identique au vide.
+  const nativeWd = (e.nativeEvent as unknown as { wheelDeltaY?: number }).wheelDeltaY;
+  if (typeof nativeWd === "number") {
+    Object.defineProperty(we, "wheelDeltaY", { value: nativeWd, configurable: true });
+  }
+  canvas.dispatchEvent(we);
   e.preventDefault();
 }
 

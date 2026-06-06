@@ -32,7 +32,7 @@
 
 import { create } from "zustand";
 import {
-  Annotation, ArrowAnnotation, BoardImage, BoardZone, CanvasFolder, Domain,
+  Annotation, ArrowAnnotation, Board, BoardImage, BoardZone, CanvasFolder, Domain,
   FolderTreeNode, Preset,
   Project, StoryboardPanel, StoryboardSettings, Tool, Viewport
 } from "../types";
@@ -299,6 +299,8 @@ interface GlucoseStore {
 
   // â”€â”€ Boards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   addBoard: (name: string) => string;
+  /** Ajoute un board complet (ex. produit par un plugin) SANS écraser le projet. */
+  importBoard: (board: Board) => string;
   removeBoard: (id: string) => void;
   renameBoard: (id: string, name: string) => void;
   reorderBoards: (fromIndex: number, toIndex: number) => void;
@@ -1062,6 +1064,26 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
     set({ selectedImageIds: [], selectedAnnotationIds: [] });
     return board.id;
+  },
+
+  // Ajoute un board déjà constitué (résultat d'un plugin, déjà validé par
+  // parseProjectFile) à la suite des boards existants — le travail en cours
+  // n'est jamais écrasé. On clone en plain (le draft Automerge exige du JSON)
+  // et on régénère l'id du board pour écarter toute collision ; les annotations
+  // gardent leurs ids (les flèches s'y réfèrent via sourceId/targetId).
+  importBoard: (board) => {
+    const fresh: Board = {
+      ...(JSON.parse(JSON.stringify(board)) as Board),
+      id: nanoid(),
+      updatedAt: Date.now(),
+    };
+    get().mutate("importBoard", (d) => {
+      d.boards.push(fresh);
+      d.activeBoardId = fresh.id;
+      d.updatedAt = Date.now();
+    });
+    set({ selectedImageIds: [], selectedAnnotationIds: [], folderStack: [] });
+    return fresh.id;
   },
 
   removeBoard: (id) => {

@@ -332,6 +332,7 @@ describe("Toolbar", () => {
       onToggleStoryboard: vi.fn(), storyboardPanelOpen: false,
       onTogglePomodoro: vi.fn(), pomodoroOpen: false,
       onToggleMultiplayer: vi.fn(), multiplayerPanelOpen: false, collabActive: false,
+      onTogglePlugins: vi.fn(), pluginsPanelOpen: false,
     };
     const { rerender } = render(<Toolbar {...props} />);
     rerender(<Toolbar {...props} presetPanelOpen={true} domainsPanelOpen={true} />);

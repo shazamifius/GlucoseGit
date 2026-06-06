@@ -46,8 +46,8 @@ import ZoneSelectorOverlay from "./ZoneSelectorOverlay";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 // Phase 7.0 — résolution des `asset:<filename>` vers une URL Tauri utilisable
 // R-EMB-01 (Sprint 2) — résolveur unifié AssetRef / src legacy
-import { resolveImageSrc } from "../utils/assets";
-import { buildEmbedRef } from "../utils/assetRef";
+import { resolveImageSrc, saveAssetFromBytes } from "../utils/assets";
+import { buildLinkRef, sha256Hex, extFromMime } from "../utils/assetRef";
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
@@ -989,7 +989,10 @@ export default function GlucoseCanvas() {
       } catch (_) { }
     }
     async function addBlob(blob: Blob) {
-      // R-EMB-01 fix : embed direct dans project.blobs (plus de data URL inline)
+      // B-STORE — coller une image l'écrit sur DISQUE (store hashé) et ne garde
+      // dans le doc qu'une référence `link`, exactement comme le drag/import. Plus
+      // d'embed dans `project.blobs` : c'était la dernière voie qui regonflait le
+      // document → freeze de `A.save` au prochain enregistrement.
       const arrayBuf = await blob.arrayBuffer();
       const bytes = new Uint8Array(arrayBuf);
       const mime = blob.type || "image/png";
@@ -999,8 +1002,10 @@ export default function GlucoseCanvas() {
       const { width: w, height: h } = await getImageDimensions(blobUrl);
       URL.revokeObjectURL(blobUrl);
 
-      // AssetRef embed (calcule sha256 + dédup native)
-      const asset = await buildEmbedRef(bytes, mime);
+      // Écriture disque + ref link (dédup par hash côté Rust).
+      const assetId = await saveAssetFromBytes(bytes, extFromMime(mime));
+      const sha256 = await sha256Hex(bytes);
+      const asset = buildLinkRef(assetId, { sha256, sizeBytes: bytes.length });
 
       const world = worldRef.current;
       const cx = world ? (appRef.current!.screen.width / 2 - world.x) / world.scale.x : 0;
@@ -1012,7 +1017,6 @@ export default function GlucoseCanvas() {
           id: nanoid(), asset, x: cx, y: cy, width: w * s, height: h * s,
           rotation: 0, locked: false, tags: [], originalWidth: w, originalHeight: h,
         },
-        bytes,
       );
       const { showToast } = await import("../components/Toast");
       showToast("Image collée", "📌");

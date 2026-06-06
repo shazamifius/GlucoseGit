@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tokio::sync::Mutex;
 
 mod multiplayer;
@@ -1162,6 +1162,601 @@ fn sanitize_ext(ext: &str) -> Result<String, String> {
     Ok(lower)
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Phase 8 — Système de plugins (sidecar + manifeste)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Un PLUGIN = un binaire compagnon + un manifeste JSON, installés dans
+// `app_data_dir/plugins/<id>/`. Glucose les DÉCOUVRE (`list_plugins`) et les
+// EXÉCUTE (`run_plugin`). Même plomberie que `ensure_yt_dlp` (binaire externe
+// caché dans app_data) et `download_video` (spawn de process), avec le garde-fou
+// `validate_scope` sur le texte source.
+//
+// SÉCURITÉ : le frontend ne fournit JAMAIS un chemin de binaire. Il nomme un
+// `plugin_id` ; le backend résout le binaire DANS le dossier plugins (id
+// sanitizé, sans séparateur ni `..`). Un plugin ne peut donc pas faire exécuter
+// un exécutable arbitraire du disque. (Pour la prod : signer/checksummer les
+// plugins, comme yt-dlp est épinglé + vérifié SHA256.)
+
+/// Manifeste d'un plugin (lu depuis `plugins/<id>/manifest.json`). Décrit ce que
+/// l'UI doit afficher et comment lancer le binaire. Les champs en `#[serde(default)]`
+/// sont optionnels (forward-compatibles : `options`/axes viendront s'ajouter).
+/// Un choix d'une option de type "enum" (valeur passée au moteur + libellé UI).
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct PluginOptionChoice {
+    value: String,
+    label: String,
+}
+
+/// Une OPTION déclarée par le plugin (la "recette"). L'UI la rend automatiquement
+/// (auto-câblage) et sa valeur est passée au moteur en flag `--<id> <valeur>`.
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct PluginOption {
+    /// Doit correspondre à un flag CLI du moteur (ex. "axis" -> `--axis`).
+    id: String,
+    label: String,
+    #[serde(default, rename = "type")]
+    kind: String, // "enum" (défaut) | "bool"
+    #[serde(default)]
+    choices: Vec<PluginOptionChoice>,
+    #[serde(default)]
+    default: String,
+    #[serde(default)]
+    description: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct PluginManifest {
+    id: String,
+    name: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    version: String,
+    /// Nom du binaire compagnon (simple nom de fichier, résolu dans le dossier
+    /// du plugin — jamais un chemin).
+    binary: String,
+    /// Sous-commande à invoquer (défaut : "pipeline").
+    #[serde(default)]
+    command: String,
+    /// Réglages exposés par le plugin (l'UI les génère ; passés au moteur en flags).
+    #[serde(default)]
+    options: Vec<PluginOption>,
+}
+
+/// Dossier racine des plugins : `app_data_dir/plugins`.
+fn plugins_root(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("plugins"))
+}
+
+/// Sanitize un id de plugin : alphanumérique, tiret, underscore uniquement.
+/// Refuse tout séparateur de chemin / `..` (anti-traversal).
+fn sanitize_plugin_id(id: &str) -> Result<String, String> {
+    if id.is_empty() || id.len() > 64 {
+        return Err("Identifiant de plugin invalide".into());
+    }
+    if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err("Identifiant de plugin invalide (caractères interdits)".into());
+    }
+    Ok(id.to_string())
+}
+
+/// Découvre les plugins installés : scanne `app_data_dir/plugins/*/manifest.json`.
+/// Dossier absent / manifeste illisible → ignoré silencieusement (liste vide OK).
+#[tauri::command]
+async fn list_plugins(app_handle: tauri::AppHandle) -> Result<Vec<PluginManifest>, String> {
+    let root = plugins_root(&app_handle)?;
+    let mut out: Vec<PluginManifest> = Vec::new();
+    let mut rd = match tokio::fs::read_dir(&root).await {
+        Ok(r) => r,
+        Err(_) => return Ok(out), // pas de dossier plugins → liste vide
+    };
+    while let Some(entry) = rd.next_entry().await.map_err(|e| e.to_string())? {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let manifest_path = entry.path().join("manifest.json");
+        let txt = match tokio::fs::read_to_string(&manifest_path).await {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        match serde_json::from_str::<PluginManifest>(&txt) {
+            Ok(m) => out.push(m),
+            Err(e) => eprintln!(
+                "[list_plugins] manifeste invalide ({}): {e}",
+                manifest_path.display()
+            ),
+        }
+    }
+    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(out)
+}
+
+/// Exécute un plugin sur un fichier texte et renvoie le CHEMIN du `.glucose`
+/// produit (dans `app_data_dir/plugin-runs/<id-ts>/cours.glucose`). Le frontend
+/// le charge ensuite via `read_project_file` (app_data_dir est dans le scope).
+#[tauri::command]
+async fn run_plugin(
+    plugin_id: String,
+    text_path: String,
+    options: Option<std::collections::HashMap<String, String>>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    // 1) Résout le plugin + son binaire (id sanitizé, dans le dossier plugins).
+    let id = sanitize_plugin_id(&plugin_id)?;
+    let plugin_dir = plugins_root(&app_handle)?.join(&id);
+    let manifest_txt = tokio::fs::read_to_string(plugin_dir.join("manifest.json"))
+        .await
+        .map_err(|_| format!("Plugin introuvable : {id}"))?;
+    let manifest: PluginManifest =
+        serde_json::from_str(&manifest_txt).map_err(|e| format!("Manifeste invalide : {e}"))?;
+    if manifest.binary.contains('/')
+        || manifest.binary.contains('\\')
+        || manifest.binary.contains("..")
+    {
+        return Err("Nom de binaire de plugin invalide".into());
+    }
+    let binary = plugin_dir.join(&manifest.binary);
+    if !binary.exists() {
+        return Err(format!("Binaire du plugin absent : {}", binary.display()));
+    }
+
+    // 2) Valide le texte source (scope strict + extension texte lisible).
+    let src = validate_scope(&text_path, &app_handle)?;
+    let ext = get_ext(&src);
+    let fname = src
+        .file_name()
+        .map(|s| s.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let name_ok = matches!(fname.as_str(), ".env" | ".gitignore" | ".gitattributes");
+    if !TEXT_READ_EXTS.contains(&ext.as_str()) && !name_ok {
+        return Err(format!("Le fichier source n'est pas un texte lisible (.{ext})"));
+    }
+
+    // 3) Dossier de sortie horodaté dans app_data_dir/plugin-runs/<id-ts>.
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let out_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("plugin-runs")
+        .join(format!("{id}-{ts}"));
+    tokio::fs::create_dir_all(&out_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 4) Spawn : <binary> <command> --text-file <src> --out-dir <out> --yes
+    //    On STREAME la sortie du moteur ligne par ligne -> event `plugin-progress`
+    //    (le front en déduit une barre de progression). Sans ça, un run de ~15 min
+    //    ressemble à un plantage.
+    let command = if manifest.command.is_empty() {
+        "pipeline"
+    } else {
+        manifest.command.as_str()
+    };
+    let mut cmd = tokio::process::Command::new(&binary);
+    cmd.arg(command)
+        .arg("--text-file")
+        .arg(&src)
+        .arg("--out-dir")
+        .arg(&out_dir)
+        .arg("--yes");
+    // Options de la recette -> flags `--<id> <valeur>`. Validation stricte des
+    // caractères (k = [a-z-], v = alphanum + .-_) : pas d'injection d'arguments.
+    if let Some(opts) = &options {
+        for (k, v) in opts {
+            let key_ok = !k.is_empty()
+                && k.len() <= 32
+                && k.chars().all(|c| c.is_ascii_lowercase() || c == '-');
+            let val_ok = !v.is_empty()
+                && v.len() <= 64
+                && v.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+            if key_ok && val_ok {
+                cmd.arg(format!("--{k}")).arg(v);
+            }
+        }
+    }
+    let mut child = cmd
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Impossible de lancer le plugin : {e}"))?;
+
+    let stdout = child.stdout.take().ok_or("flux stdout du plugin indisponible")?;
+    let stderr = child.stderr.take().ok_or("flux stderr du plugin indisponible")?;
+
+    // Draine stderr en tâche de fond (évite un blocage si le pipe se remplit).
+    let err_task = tokio::spawn(async move {
+        let mut s = String::new();
+        let mut r = tokio::io::BufReader::new(stderr);
+        let _ = tokio::io::AsyncReadExt::read_to_string(&mut r, &mut s).await;
+        s
+    });
+
+    // Lit stdout ligne par ligne -> émet la progression, puis attend la fin.
+    let app = app_handle.clone();
+    let pump_and_wait = async move {
+        let mut lines = tokio::io::AsyncBufReadExt::lines(tokio::io::BufReader::new(stdout));
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app.emit("plugin-progress", ProgressPayload { line });
+        }
+        child.wait().await
+    };
+
+    let status = tokio::time::timeout(std::time::Duration::from_secs(30 * 60), pump_and_wait)
+        .await
+        .map_err(|_| "Le plugin a dépassé le délai (30 min).".to_string())?
+        .map_err(|e| format!("Erreur d'exécution du plugin : {e}"))?;
+
+    if !status.success() {
+        // On remonte la FIN de stderr (souvent le message d'erreur du moteur,
+        // ex. « Ollama injoignable »), pas tout le log.
+        let stderr = err_task.await.unwrap_or_default();
+        let mut tail: Vec<&str> = stderr.lines().rev().take(8).collect();
+        tail.reverse();
+        let msg = tail.join("\n");
+        return Err(format!(
+            "Le plugin a échoué.\n{}",
+            if msg.trim().is_empty() {
+                "(aucune sortie d'erreur — vérifie qu'Ollama tourne)".to_string()
+            } else {
+                msg
+            }
+        ));
+    }
+
+    // 5) Résultat attendu : <out_dir>/cours.glucose.
+    let result = out_dir.join("cours.glucose");
+    if !result.exists() {
+        return Err("Le plugin n'a pas produit de fichier .glucose.".into());
+    }
+    Ok(display_path(&result))
+}
+
+/// Payload d'un event de progression (une ligne de sortie du moteur / du pull).
+#[derive(serde::Serialize, Clone)]
+struct ProgressPayload {
+    line: String,
+}
+
+/// Installe un plugin depuis un DOSSIER (contenant `manifest.json` + le binaire)
+/// vers `app_data_dir/plugins/<id>/`. Copie UNIQUEMENT le manifeste et le binaire
+/// déclaré (pas de fichiers arbitraires). Renvoie le manifeste installé.
+#[tauri::command]
+async fn install_plugin(
+    src_dir: String,
+    app_handle: tauri::AppHandle,
+) -> Result<PluginManifest, String> {
+    // Le dossier source doit être dans le scope autorisé (Documents/Desktop/…).
+    let src = validate_scope(&src_dir, &app_handle)?;
+    if !src.is_dir() {
+        return Err("Sélectionne un DOSSIER de plugin (manifest.json + binaire).".into());
+    }
+    let manifest_txt = tokio::fs::read_to_string(src.join("manifest.json"))
+        .await
+        .map_err(|_| "Dossier invalide : manifest.json introuvable.".to_string())?;
+    let manifest: PluginManifest =
+        serde_json::from_str(&manifest_txt).map_err(|e| format!("Manifeste invalide : {e}"))?;
+    let id = sanitize_plugin_id(&manifest.id)?;
+    if manifest.binary.contains('/')
+        || manifest.binary.contains('\\')
+        || manifest.binary.contains("..")
+    {
+        return Err("Nom de binaire de plugin invalide".into());
+    }
+    let bin_src = src.join(&manifest.binary);
+    if !bin_src.exists() {
+        return Err(format!("Binaire déclaré absent du dossier : {}", manifest.binary));
+    }
+
+    let dest = plugins_root(&app_handle)?.join(&id);
+    tokio::fs::create_dir_all(&dest)
+        .await
+        .map_err(|e| e.to_string())?;
+    tokio::fs::copy(src.join("manifest.json"), dest.join("manifest.json"))
+        .await
+        .map_err(|e| format!("Copie du manifeste : {e}"))?;
+    tokio::fs::copy(&bin_src, dest.join(&manifest.binary))
+        .await
+        .map_err(|e| format!("Copie du binaire : {e}"))?;
+    Ok(manifest)
+}
+
+// ── Environnement : matériel + Ollama + modèle recommandé ──
+
+#[derive(serde::Serialize)]
+struct SystemSpecs {
+    ram_gb: u64,
+    cores: usize,
+    /// VRAM GPU NVIDIA en Go si détectable (nvidia-smi), sinon None.
+    vram_gb: Option<u64>,
+    /// Modèle Ollama conseillé pour cette machine.
+    recommended_model: String,
+}
+
+/// Choisit un modèle selon la mémoire disponible (VRAM prioritaire, sinon RAM).
+/// Heuristique simple et honnête — pas une science exacte.
+fn recommend_model(ram_gb: u64, vram_gb: Option<u64>) -> &'static str {
+    let budget = vram_gb.unwrap_or(0).max(ram_gb.saturating_sub(4)); // garde ~4 Go à l'OS
+    if budget >= 24 {
+        "qwen2.5:32b"
+    } else if budget >= 12 {
+        "qwen2.5:14b"
+    } else if budget >= 6 {
+        "qwen2.5:7b"
+    } else {
+        "qwen2.5:3b"
+    }
+}
+
+/// VRAM totale du 1er GPU NVIDIA (Go), via nvidia-smi si présent. None sinon.
+async fn nvidia_vram_gb() -> Option<u64> {
+    let out = tokio::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let txt = String::from_utf8_lossy(&out.stdout);
+    let mb: u64 = txt.lines().next()?.trim().parse().ok()?;
+    Some((mb as f64 / 1024.0).round() as u64)
+}
+
+/// Sonde la machine (RAM, cœurs, VRAM) et recommande un modèle Ollama.
+#[tauri::command]
+async fn system_specs() -> Result<SystemSpecs, String> {
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    let ram_gb = (sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0).round() as u64;
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let vram_gb = nvidia_vram_gb().await;
+    let recommended_model = recommend_model(ram_gb, vram_gb).to_string();
+    Ok(SystemSpecs { ram_gb, cores, vram_gb, recommended_model })
+}
+
+#[derive(serde::Serialize)]
+struct OllamaStatus {
+    reachable: bool,
+    models: Vec<String>,
+}
+
+/// Interroge le démon Ollama local (127.0.0.1:11434) : joignable ? quels modèles ?
+#[tauri::command]
+async fn ollama_status() -> Result<OllamaStatus, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = match client.get("http://127.0.0.1:11434/api/tags").send().await {
+        Ok(r) => r,
+        Err(_) => return Ok(OllamaStatus { reachable: false, models: vec![] }),
+    };
+    if !resp.status().is_success() {
+        return Ok(OllamaStatus { reachable: false, models: vec![] });
+    }
+    let json: serde_json::Value = resp.json().await.unwrap_or(serde_json::Value::Null);
+    let models = json
+        .get("models")
+        .and_then(|m| m.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| m.get("name").and_then(|n| n.as_str()).map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(OllamaStatus { reachable: true, models })
+}
+
+/// Télécharge un modèle via `ollama pull <model>` en STREAMANT sa progression
+/// (event `model-progress`). Nécessite qu'Ollama soit installé (binaire `ollama`
+/// sur le PATH). L'auto-installation du démon Ollama lui-même reste à faire.
+#[tauri::command]
+async fn pull_model(model: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    // Garde-fou : un nom de modèle = pas d'espace ni de métacaractère shell.
+    if model.is_empty()
+        || model.len() > 80
+        || !model
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '-' | '_' | '/'))
+    {
+        return Err("Nom de modèle invalide.".into());
+    }
+    let mut child = tokio::process::Command::new("ollama")
+        .arg("pull")
+        .arg(&model)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|_| "Ollama introuvable. Installe Ollama d'abord (ollama.com).".to_string())?;
+
+    let stdout = child.stdout.take().ok_or("flux indisponible")?;
+    let stderr = child.stderr.take().ok_or("flux indisponible")?;
+    let err_task = tokio::spawn(async move {
+        let mut s = String::new();
+        let mut r = tokio::io::BufReader::new(stderr);
+        let _ = tokio::io::AsyncReadExt::read_to_string(&mut r, &mut s).await;
+        s
+    });
+
+    // `ollama pull` écrit sa progression sur stderr ET stdout selon les versions —
+    // ici on suit stdout ; stderr est remonté en cas d'échec.
+    let app = app_handle.clone();
+    let pump_and_wait = async move {
+        let mut lines = tokio::io::AsyncBufReadExt::lines(tokio::io::BufReader::new(stdout));
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app.emit("model-progress", ProgressPayload { line });
+        }
+        child.wait().await
+    };
+    let status = tokio::time::timeout(std::time::Duration::from_secs(60 * 60), pump_and_wait)
+        .await
+        .map_err(|_| "Téléchargement du modèle : délai dépassé (60 min).".to_string())?
+        .map_err(|e| format!("Erreur ollama pull : {e}"))?;
+
+    if !status.success() {
+        let stderr = err_task.await.unwrap_or_default();
+        let tail: String = stderr.lines().rev().take(5).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+        return Err(format!("Échec du téléchargement.\n{tail}"));
+    }
+    Ok(())
+}
+
+// ── Auto-installation du démon Ollama ──
+//
+// Stratégie HONNÊTE et sûre : on délègue à **winget** (présent sur Win11, qui
+// vérifie LUI-MÊME l'intégrité du paquet — pas de SHA256 à coder en dur, à la
+// différence de yt-dlp). Si winget est absent, on OUVRE la page officielle plutôt
+// que de lancer un installeur non vérifié. Cas « installé mais serveur éteint » :
+// on retrouve le binaire et on démarre le serveur.
+
+/// Le démon Ollama répond-il sur le port local ?
+async fn ollama_reachable() -> bool {
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    matches!(
+        client.get("http://127.0.0.1:11434/api/tags").send().await,
+        Ok(r) if r.status().is_success()
+    )
+}
+
+/// `program args...` se lance-t-il avec succès ? (sonde de présence d'un outil)
+async fn cmd_ok(program: &str, args: &[&str]) -> bool {
+    tokio::process::Command::new(program)
+        .args(args)
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Emplacement standard du binaire Ollama (install per-user Windows).
+fn find_ollama_exe() -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Ok(local) = std::env::var("LOCALAPPDATA") {
+        let p = PathBuf::from(local).join("Programs").join("Ollama").join("ollama.exe");
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+/// Lance `program args...`, STREAME stdout ligne par ligne vers l'event `event`,
+/// et renvoie Ok(()) si le process réussit (sinon la fin de stderr). Helper partagé.
+async fn spawn_streamed(
+    app: &tauri::AppHandle,
+    event: &'static str,
+    program: &str,
+    args: &[&str],
+    timeout_secs: u64,
+) -> Result<(), String> {
+    let mut child = tokio::process::Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Lancement de « {program} » impossible : {e}"))?;
+    let stdout = child.stdout.take().ok_or("flux stdout indisponible")?;
+    let stderr = child.stderr.take().ok_or("flux stderr indisponible")?;
+    let err_task = tokio::spawn(async move {
+        let mut s = String::new();
+        let mut r = tokio::io::BufReader::new(stderr);
+        let _ = tokio::io::AsyncReadExt::read_to_string(&mut r, &mut s).await;
+        s
+    });
+    let app2 = app.clone();
+    let pump_and_wait = async move {
+        let mut lines = tokio::io::AsyncBufReadExt::lines(tokio::io::BufReader::new(stdout));
+        while let Ok(Some(line)) = lines.next_line().await {
+            let _ = app2.emit(event, ProgressPayload { line });
+        }
+        child.wait().await
+    };
+    let status = tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), pump_and_wait)
+        .await
+        .map_err(|_| "Délai dépassé.".to_string())?
+        .map_err(|e| format!("Erreur d'exécution : {e}"))?;
+    if !status.success() {
+        let stderr = err_task.await.unwrap_or_default();
+        let tail: String = stderr
+            .lines()
+            .rev()
+            .take(6)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join("\n");
+        return Err(if tail.trim().is_empty() {
+            "Échec (aucun détail).".into()
+        } else {
+            tail
+        });
+    }
+    Ok(())
+}
+
+/// Installe Ollama si nécessaire, puis démarre son serveur et attend qu'il réponde.
+/// Émet `ollama-install-progress` pendant l'installation winget.
+#[tauri::command]
+async fn install_ollama(app_handle: tauri::AppHandle) -> Result<String, String> {
+    if ollama_reachable().await {
+        return Ok("Ollama déjà actif.".into());
+    }
+
+    let mut exe = find_ollama_exe();
+    let on_path = exe.is_none() && cmd_ok("ollama", &["--version"]).await;
+
+    // 1) Pas installé → winget (intégrité vérifiée), sinon page officielle.
+    if exe.is_none() && !on_path {
+        if !cmd_ok("winget", &["--version"]).await {
+            let _ = open::that("https://ollama.com/download");
+            return Err("winget n'est pas disponible. J'ai ouvert la page de téléchargement officielle d'Ollama — lance l'installeur, puis rouvre ce panneau.".into());
+        }
+        spawn_streamed(
+            &app_handle,
+            "ollama-install-progress",
+            "winget",
+            &[
+                "install", "--id", "Ollama.Ollama", "-e", "--silent",
+                "--accept-source-agreements", "--accept-package-agreements",
+            ],
+            15 * 60,
+        )
+        .await?;
+        exe = find_ollama_exe();
+    }
+
+    // 2) Démarre le serveur (fire-and-forget) : binaire trouvé, sinon via le PATH.
+    let starter: std::ffi::OsString = exe
+        .map(|p| p.into_os_string())
+        .unwrap_or_else(|| std::ffi::OsString::from(if cfg!(windows) { "ollama.exe" } else { "ollama" }));
+    let _ = tokio::process::Command::new(&starter).arg("serve").spawn();
+
+    // 3) Attend que l'API réponde (~40 s).
+    for _ in 0..20 {
+        if ollama_reachable().await {
+            return Ok("Ollama est installé et démarré.".into());
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
+    Err("Ollama est installé mais le serveur n'a pas encore répondu. Relance ta session Windows (ou lance Ollama manuellement), puis reviens.".into())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // PERF B-STORE — Freeze de ~4 s au changement de fenêtre Windows.
@@ -1207,6 +1802,14 @@ pub fn run() {
             // Phase 7.2 — format binaire `.glucose` v2 (Automerge)
             read_glucose_binary,
             write_glucose_binary,
+            // Phase 8 — système de plugins (sidecar + manifeste)
+            list_plugins,
+            run_plugin,
+            install_plugin,
+            system_specs,
+            ollama_status,
+            pull_model,
+            install_ollama,
             // Phase 7.5bis — multi-utilisateur LAN
             multiplayer::mp_start,
             multiplayer::mp_stop,

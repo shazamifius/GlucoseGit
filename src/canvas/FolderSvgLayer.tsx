@@ -125,6 +125,13 @@ export default function FolderSvgLayer({
       ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
       bubbles: false, cancelable: true,
     });
+    // `wheelDeltaY` (legacy) n'est pas recopié par le constructeur → sans ça
+    // `classifyWheel` confondrait un cran de molette avec un pan 2 doigts et la
+    // vue défilerait au lieu de zoomer quand on scrolle sur un dossier.
+    const nativeWd = (e.nativeEvent as unknown as { wheelDeltaY?: number }).wheelDeltaY;
+    if (typeof nativeWd === "number") {
+      Object.defineProperty(evt, "wheelDeltaY", { value: nativeWd, configurable: true });
+    }
     canvas.dispatchEvent(evt);
     e.preventDefault();
   }

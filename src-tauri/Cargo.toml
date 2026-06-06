@@ -32,6 +32,8 @@ base64 = "0.22"
 tokio = { version = "1", features = ["fs", "process", "rt-multi-thread", "macros", "time", "net"] }
 mime_guess = "2"
 open = "5"
+# Phase 8 — sonde matérielle (RAM/CPU) pour recommander le modèle Ollama adapté
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 # CLEANUP SEC-06 : parsing d'URL pour la protection SSRF
 url = "2"
 # CLEANUP SEC-05 : vérification SHA256 du binaire yt-dlp téléchargé

@@ -115,12 +115,20 @@ function getDynamicRoute(p1: {x:number, y:number}, p2: {x:number, y:number}, box
 function forwardWheel(e: React.WheelEvent) {
   const canvas = document.querySelector("canvas");
   if (!canvas) return;
-  canvas.dispatchEvent(new WheelEvent("wheel", {
+  const evt = new WheelEvent("wheel", {
     deltaX: e.deltaX, deltaY: e.deltaY, deltaZ: e.deltaZ, deltaMode: e.deltaMode,
     clientX: e.clientX, clientY: e.clientY,
     ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
     bubbles: false, cancelable: true,
-  }));
+  });
+  // `wheelDeltaY` (legacy) n'est pas recopié par le constructeur → sans ça
+  // `classifyWheel` confondrait un cran de molette avec un pan 2 doigts et la
+  // vue défilerait au lieu de zoomer quand on scrolle sur une flèche.
+  const nativeWd = (e.nativeEvent as unknown as { wheelDeltaY?: number }).wheelDeltaY;
+  if (typeof nativeWd === "number") {
+    Object.defineProperty(evt, "wheelDeltaY", { value: nativeWd, configurable: true });
+  }
+  canvas.dispatchEvent(evt);
   e.preventDefault();
 }
 

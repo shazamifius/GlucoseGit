@@ -16,6 +16,7 @@ import Toast, { showToast } from "./components/Toast";
 // Ils ne sont chargés que quand l'utilisateur les ouvre.
 const PresetPanel = lazy(() => import("./components/PresetPanel"));
 const DomainsPanel = lazy(() => import("./components/DomainsPanel"));
+const PluginPanel = lazy(() => import("./components/PluginPanel"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
 // Phase 6 — réglette temporelle (lazy : visible seulement quand activée)
 const TemporalRuler = lazy(() => import("./components/TemporalRuler"));
@@ -57,6 +58,7 @@ export default function App() {
   const pathRef = useRef<string | null>(null);
   const [presetOpen, setPresetOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
+  const [pluginsOpen, setPluginsOpen] = useState(false);
   // Sync l'ouverture des panels droits avec le store → la minimap se décale automatiquement
   useEffect(() => {
     useGlucoseStore.getState().setRightPanelOpen(presetOpen || domainsOpen);
@@ -354,6 +356,8 @@ export default function App() {
               onToggleMultiplayer={() => setMultiplayerOpen((v) => !v)}
               multiplayerPanelOpen={multiplayerOpen}
               collabActive={multiplayerEnabled}
+              onTogglePlugins={() => setPluginsOpen((v) => !v)}
+              pluginsPanelOpen={pluginsOpen}
             />
           </ErrorBoundary>
           <ErrorBoundary>
@@ -403,6 +407,13 @@ export default function App() {
           <ErrorBoundary>
             <Suspense fallback={null}>
               <DomainsPanel onClose={() => setDomainsOpen(false)} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {pluginsOpen && (
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <PluginPanel onClose={() => setPluginsOpen(false)} />
             </Suspense>
           </ErrorBoundary>
         )}

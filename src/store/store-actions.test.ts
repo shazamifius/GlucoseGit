@@ -16,6 +16,7 @@ import type {
   Preset, StickyAnnotation, StoryboardPanel, TextAnnotation,
 } from "../types";
 import { nanoid } from "../utils/nanoid";
+import { buildLinkRef, buildEmbedRef } from "../utils/assetRef";
 
 // ─────────── Factories ──────────────────────────────────────────────
 function mkText(overrides: Partial<TextAnnotation> = {}): TextAnnotation {
@@ -134,6 +135,38 @@ describe("images", () => {
   it("removeImages clampe coords aberrantes sans planter", () => {
     const img = mkImage({ x: 1e15, y: -1e15 });
     expect(() => useGlucoseStore.getState().addImage("main", img)).not.toThrow();
+  });
+
+  // ── B-STORE — invariant « doc léger » ──────────────────────────────────────
+  // Aucune voie d'ajout d'image (drag, import, COLLER) ne doit remplir
+  // project.blobs avec des octets : seul un AssetRef explicitement `embed` le
+  // fait. C'est ce qui empêche A.save de re-freezer. Le coller (GlucoseCanvas
+  // addBlob) passe désormais par un ref `link` disque → ces tests verrouillent
+  // qu'on ne ré-embarque jamais par accident.
+  it("addImage en mode link ne remplit JAMAIS project.blobs (doc léger)", () => {
+    const img = mkImage({ src: undefined, asset: buildLinkRef("asset:abc.png", { sha256: "deadbeef", sizeBytes: 1234 }) });
+    useGlucoseStore.getState().addImage("main", img);
+    const p = useGlucoseStore.getState().project;
+    expect(p.blobs == null || Object.keys(p.blobs).length === 0).toBe(true);
+  });
+
+  it("addImage en mode link ignore des embedBytes éventuels (pas de bloat doc)", () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const img = mkImage({ src: undefined, asset: buildLinkRef("asset:def.png", { sha256: "cafe", sizeBytes: 4 }) });
+    // Même si un appelant passe des bytes par erreur, un asset `link` ne doit
+    // RIEN écrire dans blobs (seul déclencheur : asset.mode === "embed").
+    useGlucoseStore.getState().addImage("main", img, bytes);
+    const p = useGlucoseStore.getState().project;
+    expect(p.blobs == null || Object.keys(p.blobs).length === 0).toBe(true);
+  });
+
+  it("addImage en mode embed écrit bien dans project.blobs (contrôle inverse)", async () => {
+    const bytes = new Uint8Array([5, 6, 7, 8, 9]);
+    const asset = await buildEmbedRef(bytes, "image/png");
+    const img = mkImage({ src: undefined, asset });
+    useGlucoseStore.getState().addImage("main", img, bytes);
+    const p = useGlucoseStore.getState().project;
+    expect(p.blobs?.[asset.sha256]).toBeInstanceOf(Uint8Array);
   });
 });
 
