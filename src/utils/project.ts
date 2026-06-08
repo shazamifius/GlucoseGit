@@ -1,5 +1,9 @@
 import { save as saveDialog, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+// SAVE-C — écriture/lecture en octets BRUTS via plugin-fs (plus de base64 : fini
+// le +33 % de taille et la double passe CPU sur le thread principal). `rename`
+// permet l'écriture ATOMIQUE (tmp + rename) du save complet.
+import { writeFile, readFile, rename } from "@tauri-apps/plugin-fs";
 import { homeDir } from "@tauri-apps/api/path";
 import { Project } from "../types";
 import { parseProjectFile } from "../store/projectSchema";
@@ -29,27 +33,6 @@ const tauriAssetBytesFetcher: AssetBytesFetcher = async (filename) => {
     return null;
   }
 };
-
-// ────────────────────────────────────────────────────────────────────────────
-// base64 ↔ Uint8Array (transport entre Rust et JS pour le binaire Automerge)
-// ────────────────────────────────────────────────────────────────────────────
-
-function bytesToBase64(bytes: Uint8Array): string {
-  // Évite "Maximum call stack size" sur les gros buffers (chunks de 32 KB).
-  const CHUNK = 32_768;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
-  }
-  return btoa(binary);
-}
-
-function base64ToBytes(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Save — toujours en v2 binaire (Automerge)
@@ -110,12 +93,18 @@ export async function saveProject(
   const plan: SavePlan = forceFull ? { mode: "full", bytes: A.save(doc) } : planSave(doc, path);
 
   if (plan.mode === "full") {
-    // Save COMPLET → écrase le fichier (truncate).
-    await invoke("write_glucose_binary", { path, base64Data: bytesToBase64(plan.bytes) });
+    // Save COMPLET → écriture ATOMIQUE (octets bruts) : on écrit dans un fichier
+    // temporaire puis on le renomme par-dessus la cible. `rename` remplace
+    // atomiquement → un crash en pleine écriture ne laisse JAMAIS le .glucose
+    // existant à moitié écrasé (ferme le dernier trou de sécurité du save).
+    const tmp = `${path}.tmp`;
+    await writeFile(tmp, plan.bytes);
+    await rename(tmp, path);
     commitSave(path, doc, plan);
   } else if (plan.bytes.length > 0) {
-    // Save INCRÉMENTAL → ajoute le delta à la fin du fichier (O(édits), pas de freeze).
-    await invoke("append_glucose_binary", { path, base64Data: bytesToBase64(plan.bytes) });
+    // Save INCRÉMENTAL → ajoute le delta à la fin du fichier (octets bruts, O(édits)).
+    // Un crash en plein append est rattrapé par `loadResilient` au chargement.
+    await writeFile(path, plan.bytes, { append: true });
     commitSave(path, doc, plan);
   }
   // plan.bytes vide = rien n'a changé depuis le dernier save → no-op disque.
@@ -160,15 +149,21 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
   let v2ByteLen = 0;       // SAVE-A — taille du fichier v2 chargé (baseline incrémental)
   let recovered = false;   // SAVE-A — true si fin de fichier corrompue récupérée
 
+  // SAVE-C — lecture des octets BRUTS une seule fois (plus de base64).
+  let fileBytes: Uint8Array;
+  try {
+    fileBytes = await readFile(path);
+  } catch (readErr) {
+    throw new Error(`Impossible de lire le fichier .glucose.\n${(readErr as Error).message}`);
+  }
+
   // 1) Tentative v2 binaire
   try {
-    const b64 = await invoke<string>("read_glucose_binary", { path });
-    const bytes = base64ToBytes(b64);
-    v2ByteLen = bytes.length;
+    v2ByteLen = fileBytes.length;
     // Chargement TOLÉRANT : une fin tronquée (crash pendant un append incrémental)
     // ne doit pas rendre tout le fichier illisible — on récupère le plus grand
     // préfixe sain.
-    const res = A.loadResilient<Project>(bytes);
+    const res = A.loadResilient<Project>(fileBytes);
     recovered = res.recovered;
     if (res.recovered) {
       console.warn(
@@ -186,10 +181,10 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
     console.debug("[loadProject] v2 binaire KO, tentative v1 JSON :", binErr);
   }
 
-  // 2) Tentative v1 JSON (legacy)
+  // 2) Tentative v1 JSON (legacy) — on décode les mêmes octets en texte UTF-8.
   if (!project) {
     try {
-      const data = await invoke<string>("read_project_file", { path });
+      const data = new TextDecoder().decode(fileBytes);
       const raw = JSON.parse(data);
       const parsed = parseProjectFile(raw);
       if (!parsed.ok) {
