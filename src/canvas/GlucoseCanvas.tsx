@@ -29,6 +29,7 @@ import { useGlucoseStore, getActiveBoard } from "../store";
 import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_RE } from "./dropHandler";
 import { scanFolderForMirror } from "./folderMirror";
 import { classifyWheel, folderToEnter } from "./navigation";
+import { computeResize } from "./imageResize";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -146,7 +147,12 @@ export default function GlucoseCanvas() {
   // Redimensionnement d'une image via une poignée de coin. Le centre (cx,cy)
   // reste fixe (anchor 0.5) et le ratio (`aspect`) est verrouillé → jamais de
   // déformation, seulement un agrandissement/réduction proportionnel.
-  const resizeRef = useRef<{ id: string; cx: number; cy: number; aspect: number } | null>(null);
+  // cx,cy = centre au grab (mode Ctrl) ; ax,ay = coin OPPOSÉ à la poignée tirée,
+  // fixe par défaut (resize « comme un logiciel d'image »).
+  const resizeRef = useRef<{ id: string; cx: number; cy: number; aspect: number; ax: number; ay: number } | null>(null);
+  // Zoom auquel les poignées de sélection ont été dessinées (taille compensée).
+  // Sert à les redessiner quand le zoom change → taille constante à l'écran.
+  const selScaleRef = useRef<number>(0);
   const textCursorPosRef = useRef<number | undefined>(undefined);
   const lastDomCreateRef = useRef<number>(0);
   // Cache du seuil de sortie adaptatif (évite de recalculer contentBounds — O(n)
@@ -843,21 +849,26 @@ export default function GlucoseCanvas() {
       // taille ~constante à l'écran au moment du tracé.
       const inv = 1 / ((sprite.scale.x || 1) * (worldRef.current?.scale.x || 1));
       const g = new Graphics();
+      // Cadre de sélection — hairline BLANC constant à l'écran (brutaliste : zéro
+      // couleur sur la chrome, cf. style.md).
       g.rect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6);
-      g.stroke({ color: 0xffffff, width: 1.5 * inv, alpha: 0.7 });
+      g.stroke({ color: 0xffffff, width: 1.25 * inv, alpha: 0.8 });
 
       // Poignées de coin — uniquement si l'image n'est pas verrouillée.
       if (img && !img.locked) {
-        const hs = 11 * inv; // ~11px écran
+        const hs = 9 * inv; // carré ~9px à l'écran
         const corners: Array<[number, number, string]> = [
           [-w / 2, -h / 2, "nwse"], [w / 2, -h / 2, "nesw"],
           [w / 2,  h / 2, "nwse"], [-w / 2,  h / 2, "nesw"],
         ];
         for (const [hx, hy, dir] of corners) {
           const handle = new Graphics();
+          // Carré blanc à fin liseré quasi-noir → « découpe papier » lisible sur
+          // image claire (le liseré) ET sur canvas sombre (le blanc). Aucune
+          // couleur, aucun glow (brutaliste).
           handle.rect(-hs / 2, -hs / 2, hs, hs)
             .fill({ color: 0xffffff })
-            .stroke({ color: 0x3b82f6, width: Math.max(inv, hs * 0.14) });
+            .stroke({ color: 0x111111, width: 1.25 * inv, alpha: 0.9 });
           handle.position.set(hx, hy);
           handle.eventMode = "static";
           handle.cursor = `${dir}-resize`;
@@ -867,10 +878,20 @@ export default function GlucoseCanvas() {
             const st = useGlucoseStore.getState();
             const im = getActiveBoard(st.project).images.find((i) => i.id === id);
             if (!im || im.locked) return;
+            // Coin opposé à la poignée = ancre fixe par défaut. Le signe du coin
+            // tiré (hx,hy en repère texture, même orientation que le monde) donne
+            // le coin ; l'ancre est le coin diagonalement opposé en coords monde.
+            const sgnX = hx < 0 ? -1 : 1;
+            const sgnY = hy < 0 ? -1 : 1;
+            const hwc = im.width / 2;
+            const hhc = im.height / 2;
             resizeRef.current = {
               id, cx: im.x, cy: im.y,
               aspect: im.width / Math.max(1, im.height),
+              ax: im.x - sgnX * hwc,
+              ay: im.y - sgnY * hhc,
             };
+            try { appRef.current?.canvas.setPointerCapture(ev.pointerId); } catch { /* ignore */ }
           });
           g.addChild(handle);
         }
@@ -1250,6 +1271,15 @@ export default function GlucoseCanvas() {
     // (et pas en permanence dès scale<1 sur un gros dossier).
     const app0 = appRef.current;
     const st0 = useGlucoseStore.getState();
+    // BUG zoom — les poignées de sélection sont dessinées à une taille compensée
+    // pour le zoom COURANT (facteur `inv`). Quand le zoom change, on les redessine
+    // pour qu'elles gardent une taille CONSTANTE à l'écran (sinon elles enflent en
+    // zoom-in / rétrécissent en zoom-out). On ne le fait que sur changement de
+    // SCALE (le pan n'affecte pas la taille à l'écran) et si une image est sélectionnée.
+    if (st0.selectedImageIds.length > 0 && world.scale.x !== selScaleRef.current) {
+      selScaleRef.current = world.scale.x;
+      syncSelectionGfx();
+    }
     let exitScale = 0;
     if (app0 && st0.folderStack.length > 0) {
       // Cache 180 ms par board : le contenu ne bouge pas pendant un pan/zoom, et
@@ -1811,6 +1841,10 @@ export default function GlucoseCanvas() {
         pStartX: (e.globalX - world.x) / world.scale.x,
         pStartY: (e.globalY - world.y) / world.scale.y,
       };
+      // Capture du pointeur : tant que le bouton est tenu, TOUS les events de
+      // déplacement arrivent encore au canvas même si le curseur sort du sprite ou
+      // dépasse le bord (drag rapide / micro-lag) → l'image ne « décroche » plus.
+      try { appRef.current?.canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     });
   }
 
@@ -1926,23 +1960,25 @@ export default function GlucoseCanvas() {
       try { app.canvas.setPointerCapture((e.nativeEvent as PointerEvent).pointerId); } catch { /* ignore */ }
     });
 
-    stage.on("pointermove", (e: FederatedPointerEvent) => {
+    // `globalpointermove` (et non `pointermove`) : en PixiJS v8, `pointermove`
+    // n'est émis QUE quand le pointeur survole un objet interactif — un drag rapide
+    // « dépasse » la zone testée et des events sont perdus → l'image décroche.
+    // `globalpointermove` se déclenche à CHAQUE déplacement du pointeur.
+    stage.on("globalpointermove", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.handleGlobalMove(e, world);
 
-      // Redimensionnement d'image (poignée de coin) — centre fixe, ratio
-      // verrouillé : on agrandit/réduit proportionnellement, jamais déformé.
+      // Redimensionnement d'image (poignée de coin), ratio TOUJOURS verrouillé.
+      //   • défaut  → ancrage au COIN OPPOSÉ (le coin diagonalement opposé reste
+      //     fixe), comme un logiciel d'image ;
+      //   • Ctrl    → ancrage au CENTRE (croît symétriquement).
       if (resizeRef.current) {
-        const { id, cx, cy, aspect } = resizeRef.current;
         const wx = (e.globalX - world.x) / world.scale.x;
         const wy = (e.globalY - world.y) / world.scale.y;
-        let newW = Math.abs(wx - cx) * 2;
-        let newH = Math.abs(wy - cy) * 2;
-        // Verrouille le ratio : on retient l'axe qui donne la plus grande boîte.
-        if (newW / aspect >= newH) newH = newW / aspect; else newW = newH * aspect;
-        if (newW < 24) { newW = 24; newH = 24 / aspect; }
         const st = useGlucoseStore.getState();
         if (!st._liveEdit) st.beginLiveEdit(); // 1 seule entrée d'undo
-        st.updateImage(getActiveBoard(st.project).id, id, { width: newW, height: newH });
+        // Géométrie pure et testée (cf. imageResize.ts). Ctrl = ancrage centre.
+        const res = computeResize(resizeRef.current, wx, wy, e.ctrlKey);
+        st.updateImage(getActiveBoard(st.project).id, resizeRef.current.id, res);
         return;
       }
 
