@@ -118,6 +118,13 @@ export default function GlucoseCanvas() {
   const sbLayerRef = useRef<StoryboardLayer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // PERF/ROBUSTESSE — images dont le chargement a ÉCHOUÉ (asset disque manquant →
+  // 404). Sans ça, chaque passe de culling ré-essaie en boucle (« texture reload
+  // storm » : des milliers de 404/seconde qui noient le thread principal et figent
+  // les éditions). On blackliste l'id pour la session de board ; vidé au changement
+  // de board / rechargement de doc (cf. effet `[board.id]`), ce qui autorise une
+  // nouvelle tentative si l'asset a été re-lié.
+  const failedLoadsRef = useRef<Set<string>>(new Set());
   // PERF-3 (virtualisation des textures) — ref-count par URL de texture résolue :
   // plusieurs images identiques (même hash) partagent une texture ; on ne la
   // libère (Assets.unload → VRAM) que lorsque le DERNIER sprite qui l'utilise est
@@ -371,6 +378,7 @@ export default function GlucoseCanvas() {
       zoneRendererRef.current = null;
       sbLayerRef.current?.destroy(); sbLayerRef.current = null;
       spritesRef.current.clear(); pendingLoadsRef.current.clear();
+      failedLoadsRef.current.clear();
       // PERF-3 — réinitialise l'état de virtualisation (évite ref-counts périmés
       // au remount StrictMode dev).
       texRefCountRef.current.clear(); imgByIdRef.current.clear();
@@ -411,6 +419,12 @@ export default function GlucoseCanvas() {
     imgByIdRef.current = new Map(board.images.map((img) => [img.id, img]));
     applyCulling(); // charge le sous-ensemble visible, décharge le reste
   }, [board.images, pixiReady]);
+
+  // Change de board / rechargement de doc → on purge la blacklist de textures :
+  // ce qui manquait dans un board peut exister ailleurs, et un asset re-lié mérite
+  // une nouvelle tentative. (Déplacer une image ne change PAS board.id → la
+  // protection anti-storm reste active pendant l'édition.)
+  useEffect(() => { failedLoadsRef.current.clear(); }, [board.id]);
 
   // PERF-4 (LOD) — résolution cible (px, grand côté) d'une image selon sa taille
   // À L'ÉCRAN au zoom courant. Bornée à [MIN_TEX_PX, taille d'origine].
@@ -457,6 +471,7 @@ export default function GlucoseCanvas() {
   async function loadSpriteFor(img: BoardImage) {
     if (!worldRef.current) return;
     if (spritesRef.current.has(img.id) || pendingLoadsRef.current.has(img.id)) return;
+    if (failedLoadsRef.current.has(img.id)) return; // déjà échoué → on ne re-boucle pas
     pendingLoadsRef.current.add(img.id);
     try {
       // R-EMB-01 : résolveur unifié — asset (AssetRef) ou src legacy.
@@ -526,7 +541,13 @@ export default function GlucoseCanvas() {
       // être évincée alors qu'elle était sélectionnée, puis re-rentrer à l'écran).
       if (useGlucoseStore.getState().selectedImageIds.includes(img.id)) syncSelectionGfx();
       applyCulling();
-    } catch (err) { console.error("Texture load failed", img.id, err); }
+    } catch (err) {
+      // Échec définitif (asset disque manquant, format illisible…) → on blackliste
+      // l'image pour ne PAS ré-essayer à chaque frame de culling (sinon : storm de
+      // 404 qui gèle l'app). Un seul log par image, pas des milliers.
+      failedLoadsRef.current.add(img.id);
+      console.warn("Texture load failed (image ignorée)", img.id, err);
+    }
     finally { pendingLoadsRef.current.delete(img.id); }
   }
 
@@ -1233,6 +1254,7 @@ export default function GlucoseCanvas() {
     // 1) CHARGE à la demande les images entrées dans la région de chargement.
     for (const id of visible) {
       if (spritesRef.current.has(id) || pendingLoadsRef.current.has(id)) continue;
+      if (failedLoadsRef.current.has(id)) continue; // échec connu → pas de re-boucle
       const img = imgByIdRef.current.get(id);
       if (img) void loadSpriteFor(img);
     }
@@ -1960,11 +1982,12 @@ export default function GlucoseCanvas() {
       try { app.canvas.setPointerCapture((e.nativeEvent as PointerEvent).pointerId); } catch { /* ignore */ }
     });
 
-    // `globalpointermove` (et non `pointermove`) : en PixiJS v8, `pointermove`
-    // n'est émis QUE quand le pointeur survole un objet interactif — un drag rapide
-    // « dépasse » la zone testée et des events sont perdus → l'image décroche.
-    // `globalpointermove` se déclenche à CHAQUE déplacement du pointeur.
-    stage.on("globalpointermove", (e: FederatedPointerEvent) => {
+    // NB : on reste sur `pointermove` (comportement connu-stable). `globalpointermove`
+    // a été tenté pour fiabiliser le drag rapide mais soupçonné d'avoir cassé toutes
+    // les interactions sur ce setup → reverté. Le `setPointerCapture` au grab couvre
+    // déjà le cas « curseur sort du sprite ». Le stage a `hitArea = app.screen`, donc
+    // `pointermove` se déclenche sur toute la surface du canvas (events bubblés des sprites).
+    stage.on("pointermove", (e: FederatedPointerEvent) => {
       zoneRendererRef.current?.handleGlobalMove(e, world);
 
       // Redimensionnement d'image (poignée de coin), ratio TOUJOURS verrouillé.

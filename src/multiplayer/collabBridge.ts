@@ -23,6 +23,7 @@ import {
 } from "./collabHandle";
 import { useGlucoseStore } from "../store";
 import * as A from "../store/automerge";
+import { resetSaveState } from "../utils/saveState";
 import type { Project } from "../types";
 import type { AutomergeUrl, DocHandle, DocHandleChangePayload } from "@automerge/automerge-repo";
 import { isValidAutomergeUrl } from "@automerge/automerge-repo";
@@ -35,26 +36,43 @@ let _changeOff: (() => void) | null = null;
 function wireHandle(handle: DocHandle<Project>): void {
   // Réseau → local
   const onChange = (payload: DocHandleChangePayload<Project>) => {
+    // IMPORTANT — RE-ENTRANCE WASM : automerge-repo émet « change » AU MILIEU de
+    // son propre `handle.change` (le doc Rust est encore emprunté en mutation).
+    // Toucher le doc/le store de façon SYNCHRONE ici re-rentre dans l'objet WASM
+    // → « recursive use of an object … unsafe aliasing in rust », qui CORROMPT le
+    // handle et fige toute mutation suivante (c'était le gel du Ctrl+Z). On diffère
+    // d'un microtask : l'emprunt WASM est alors relâché. `payload.doc` est un
+    // snapshot Automerge immuable, donc sûr à lire plus tard.
     const doc = payload.doc as unknown as A.Doc<Project>;
-    const st = useGlucoseStore.getState();
-    if (doc === st._doc) return; // notre propre mutation locale : rien à faire
-    if (st._previewHeads !== null) {
-      // L'utilisateur explore la Time Machine : on met à jour le doc sous-jacent
-      // mais on garde la vue figée sur l'instant prévisualisé.
-      try {
-        const viewed = A.viewAt<Project>(doc, st._previewHeads);
-        useGlucoseStore.setState({ _doc: doc, project: viewed as unknown as Project });
-      } catch {
-        useGlucoseStore.setState({ _doc: doc });
+    queueMicrotask(() => {
+      const st = useGlucoseStore.getState();
+      if (doc === st._doc) return; // notre propre mutation locale, déjà adoptée
+      if (st._previewHeads !== null) {
+        // L'utilisateur explore la Time Machine : on met à jour le doc sous-jacent
+        // mais on garde la vue figée sur l'instant prévisualisé.
+        try {
+          const viewed = A.viewAt<Project>(doc, st._previewHeads);
+          useGlucoseStore.setState({ _doc: doc, project: viewed as unknown as Project });
+        } catch {
+          useGlucoseStore.setState({ _doc: doc });
+        }
+        return;
       }
-      return;
-    }
-    useGlucoseStore.setState({ _doc: doc, project: doc as unknown as Project });
+      useGlucoseStore.setState({ _doc: doc, project: doc as unknown as Project });
+    });
   };
   handle.on("change", onChange);
   _changeOff = () => handle.off("change", onChange);
 
   setCollabHandle(handle);
+
+  // CORRUPTION-GUARD — entrer en collab change la LIGNÉE du doc (`_doc` devient le
+  // doc du handle, souvent fusionné avec le distant). Le baseline d'enregistrement
+  // incrémental pointe encore sur l'ancien doc/fichier ; sans reset, le prochain
+  // Ctrl+S/autosave calculerait un delta `getChanges(ancien, nouveau)` qui référence
+  // des ops absentes du fichier → fichier abîmé (« MissingOps » au rechargement).
+  // On force donc un SAVE COMPLET propre au prochain enregistrement.
+  resetSaveState();
 
   // Adopte immédiatement l'état courant du handle comme état du store. On repart
   // d'une pile undo/redo vierge : la session collaborative est un nouveau départ.
@@ -186,4 +204,7 @@ export function leaveCollab(): void {
   }
   setCollabHandle(null);
   useGlucoseStore.setState({ _undoStack: [], _redoStack: [] });
+  // Même raison qu'à l'entrée : on quitte vers un `_doc` dont la lignée diffère du
+  // fichier baseline → prochain enregistrement = full propre (jamais d'append gappy).
+  resetSaveState();
 }

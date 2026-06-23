@@ -17,6 +17,7 @@ import type {
 } from "../types";
 import { nanoid } from "../utils/nanoid";
 import { buildLinkRef, buildEmbedRef } from "../utils/assetRef";
+import { LIMITS } from "../constants";
 
 // ─────────── Factories ──────────────────────────────────────────────
 function mkText(overrides: Partial<TextAnnotation> = {}): TextAnnotation {
@@ -295,14 +296,14 @@ describe("undo/redo", () => {
     expect(getActiveBoard(useGlucoseStore.getState().project).images).toHaveLength(1);
   });
 
-  it("undo limite à 50 entrées", () => {
-    for (let i = 0; i < 60; i++) {
+  it(`undo plafonné à UNDO_DEPTH (${LIMITS.UNDO_DEPTH}) entrées`, () => {
+    const over = LIMITS.UNDO_DEPTH + 20;
+    for (let i = 0; i < over; i++) {
       useGlucoseStore.getState().addImage("main", mkImage());
     }
-    // 60 ajouts; on peut undo au plus 50 fois
-    for (let i = 0; i < 50; i++) useGlucoseStore.getState().undo();
-    // Il reste >= 10 images (au moins)
-    expect(getActiveBoard(useGlucoseStore.getState().project).images.length).toBeGreaterThanOrEqual(10);
+    // Quel que soit le nombre de gestes, la pile ne garde que les UNDO_DEPTH
+    // derniers (mémoire bornée) — c'est le plafond de retour en arrière.
+    expect(useGlucoseStore.getState()._undoStack.length).toBeLessThanOrEqual(LIMITS.UNDO_DEPTH);
   });
 
   it("nouvelle mutation invalide la redo stack", () => {

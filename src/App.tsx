@@ -10,6 +10,7 @@ import FolderViewportIndicator from "./components/FolderViewportIndicator";
 import AppLaunchOverlay from "./components/AppLaunchOverlay";
 import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject } from "./utils/project";
+import { setCurrentPath } from "./utils/currentPath";
 import Toast, { showToast } from "./components/Toast";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
@@ -27,7 +28,6 @@ const TimelinePanel = lazy(() => import("./components/TimelinePanel"));
 const MultiplayerPanel = lazy(() => import("./multiplayer/MultiplayerPanel"));
 import { useAutosave } from "./utils/useAutosave";
 import { useZoomLock } from "./utils/useZoomLock";
-import { reconnectFromDoc } from "./multiplayer/collabBridge";
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -78,18 +78,15 @@ export default function App() {
   // Verrou anti zoom accidentel de la webview (boutons qui deviennent énormes).
   useZoomLock();
 
-  // Reconnexion AUTOMATIQUE à la chaîne : si le document chargé porte un
-  // `collabUrl` (ex : on vient d'ouvrir un .glucose partagé, ou de rouvrir
-  // l'app), on rejoint la chaîne tout seul → le lien n'est jamais perdu.
-  const collabUrl = useGlucoseStore((s) => s.project.collabUrl);
-  useEffect(() => {
-    if (!collabUrl || multiplayerEnabled) return;
-    let cancelled = false;
-    reconnectFromDoc()
-      .then((ok) => { if (ok && !cancelled) setMultiplayerEnabled(true); })
-      .catch((e) => console.warn("[collab] reconnexion auto échouée :", e));
-    return () => { cancelled = true; };
-  }, [collabUrl, multiplayerEnabled]);
+  // Reconnexion AUTOMATIQUE à la chaîne — DÉSACTIVÉE (2026-06-08).
+  // Un .glucose peut porter un `collabUrl` résiduel (vestige d'un test de collab).
+  // On re-joignait alors la chaîne SILENCIEUSEMENT à l'ouverture → un DocHandle
+  // automerge-repo était attaché à l'insu de l'utilisateur. Ctrl+Z passait dès lors
+  // par le chemin collab (`handle.change`), qui re-rentre dans le doc WASM en cours
+  // de mutation (« recursive use … unsafe aliasing in rust »), CORROMPT le handle et
+  // GÈLE toute édition suivante (déplacer/trier/dossier morts, seule l'UI répond).
+  // Tant que la collaboration n'est pas durcie (jalon collaboration), elle est
+  // 100 % opt-in via le panneau Multijoueur. Le `collabUrl` reste inerte dans le doc.
   const [dockTabs, setDockTabs]           = useState<TabId[]>([]);
   const [dismissingTabs, setDismissingTabs] = useState<TabId[]>([]);
 
@@ -315,6 +312,7 @@ export default function App() {
           .then((p) => {
             if (p) {
               pathRef.current = p;
+              setCurrentPath(p); // jalons durables : où écrire le dossier versions/
               showToast(forceDialog ? "Projet enregistré sous…" : "Projet enregistré", "💾");
             }
           })
@@ -328,6 +326,7 @@ export default function App() {
             if (r.doc) loadDoc(r.doc); // v2 — historique Automerge préservé
             else loadStore(r.project);  // v1 ou migration legacy — doc neuf
             pathRef.current = r.path;
+            setCurrentPath(r.path); // jalons durables : suit le fichier ouvert
             // SAVE-A — fichier réparé (fin corrompue) : on prévient l'utilisateur.
             if (r.recovered) {
               showToast("Fichier réparé : fin corrompue ignorée, dernière modif perdue. Réenregistre pour nettoyer.", "⚠️");

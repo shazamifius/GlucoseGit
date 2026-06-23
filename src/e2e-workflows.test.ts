@@ -168,7 +168,7 @@ describe("workflow undo/redo", () => {
     for (let i = 0; i < 100; i++) s.addImage("main", mkImage({ x: i, y: i }));
     for (let i = 0; i < 100; i++) s.undo();
     for (let i = 0; i < 100; i++) s.redo();
-    // On ne vérifie pas le nombre exact (UNDO_DEPTH limite à 50)
+    // On ne vérifie pas le nombre exact (UNDO_DEPTH plafonne la pile)
     // mais qu'on ne crashe pas et qu'au moins quelques images restent
     expect(getActiveBoard(useGlucoseStore.getState().project).images.length).toBeGreaterThan(0);
   });

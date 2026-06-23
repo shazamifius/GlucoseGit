@@ -16,6 +16,8 @@
     "fs:allow-write-file",
     "fs:allow-rename",
     "fs:allow-read-dir",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
     "fs:scope-appdata-recursive",
     "fs:scope-document-recursive",
     "fs:scope-download-recursive",

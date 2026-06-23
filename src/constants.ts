@@ -124,6 +124,9 @@ export const LIMITS = {
   MAX_PROJECT_FILE_SIZE: 200 * 1024 * 1024,
   /** Taille max d'un fichier image téléchargé (en octets). */
   MAX_IMAGE_FILE_SIZE: 100 * 1024 * 1024,
-  /** Niveaux d'undo conservés. */
-  UNDO_DEPTH: 50,
+  /** Niveaux d'undo conservés (plafond de retour en arrière). Au-delà, les plus
+   *  vieux gestes sortent de la pile → mémoire bornée. Git #1 : la profondeur
+   *  fine s'arrête ici ; pour remonter plus loin on utilise les jalons durables
+   *  (cf. src/utils/versions.ts). */
+  UNDO_DEPTH: 200,
 } as const;

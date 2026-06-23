@@ -162,26 +162,30 @@ function buildFolderStack(
 }
 
 /** UNDO-1 — Après un undo/redo on restaure le CONTENU mais on garde la caméra et
- *  le dossier courant là où l'utilisateur se trouve : pas de téléportation. Renvoie
- *  un nouveau doc = `restored` avec le viewport de chaque board + l'activeBoardId
- *  recopiés depuis le présent (`current`). */
-function preserveView(restored: A.Doc<Project>, current: A.Doc<Project>): A.Doc<Project> {
-  const cur = current as unknown as Project;
-  return A.change(restored, "preserveView", (d) => {
-    // Board actif : on reste où on est, SAUF si ce board n'existe plus après le
-    // restore (ex : on annule la création du dossier dans lequel on était) — on
-    // laisse alors l'activeBoardId du snapshot.
-    if (d.boards.some((b) => b.id === cur.activeBoardId)) {
-      d.activeBoardId = cur.activeBoardId;
+ *  le dossier courant là où l'utilisateur se trouve : pas de téléportation. Mute
+ *  `restored` (état passé, EN PLAIN JS) pour adopter la caméra de chaque board
+ *  encore présent + l'activeBoardId courant s'il existe toujours après le restore.
+ *
+ *  CRITIQUE — pourquoi en PLAIN JS et plus via `A.change` sur un snapshot :
+ *  cloner un snapshot puis `A.change()` dessus force Automerge à RECONSTRUIRE tout
+ *  l'op-set ; sur un doc dont l'historique a la moindre incohérence (ex. fichier
+ *  abîmé par d'anciens appends incrémentaux de collab), ça PANIQUE côté WASM
+ *  (« MissingOps » → `unreachable`) et TUE l'app — toute édition suivante meurt.
+ *  L'undo applique donc l'état passé EN AVANT (un nouveau change sur le doc vivant,
+ *  exactement comme un déplacement, qui n'ajoute que des ops et ne panique pas). */
+function preserveViewPlain(restored: Project, cur: Project): void {
+  // Board actif : on reste où on est, SAUF si ce board n'existe plus après le
+  // restore (ex : on annule la création du dossier dans lequel on était).
+  if (restored.boards.some((b) => b.id === cur.activeBoardId)) {
+    restored.activeBoardId = cur.activeBoardId;
+  }
+  // Viewport : on recopie la caméra courante de chaque board encore présent.
+  for (const b of restored.boards) {
+    const cb = cur.boards.find((x) => x.id === b.id);
+    if (cb?.viewport) {
+      b.viewport = { x: cb.viewport.x, y: cb.viewport.y, scale: cb.viewport.scale };
     }
-    // Viewport : on recopie la caméra courante de chaque board encore présent.
-    for (const b of d.boards) {
-      const cb = cur.boards.find((x) => x.id === b.id);
-      if (cb?.viewport) {
-        b.viewport = { x: cb.viewport.x, y: cb.viewport.y, scale: cb.viewport.scale };
-      }
-    }
-  });
+  }
 }
 
 /** Réécrit EN AVANT le contenu d'un document pour qu'il corresponde à `plain`.
@@ -229,6 +233,10 @@ interface GlucoseStore {
   commitNamed: (message: string) => void;
   /** Applique l'Ã©tat preview comme nouveau commit. Sort du mode preview. */
   restoreToPreview: () => void;
+  /** Git #1 — Restaure le CONTENU d'une version durable (chargée depuis disque)
+   *  EN AVANT sur le doc vivant (forward-revert sûr : jamais de clone+change d'un
+   *  snapshot, cf. memory undo-forward-revert-wasm-panic). Sort du mode preview. */
+  restoreFromPlain: (plain: Project) => void;
 
   // â”€â”€ Outil / sÃ©lection / navigation (Ã©tat UI local, hors doc) â”€
   activeTool: Tool;
@@ -575,6 +583,18 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     });
   },
 
+  restoreFromPlain: (plain) => {
+    // Sort d'un eventuel mode preview (sinon `mutate` est bloque), puis reecrit
+    // tout le contenu EN AVANT pour matcher la version durable. Aucun clone+change
+    // d'un snapshot -> pas de reconstruction d'op-set -> pas de panic MissingOps.
+    set((s) => (s._previewHeads !== null
+      ? { _previewHeads: null, project: s._doc as unknown as Project }
+      : s));
+    get().mutate("Restauration d'une version durable", (d) => {
+      rewriteProjectContent(d, plain);
+    });
+  },
+
   // â”€â”€ Ã‰tat UI local (jamais dans le doc) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   activeTool: "select",
   selectedImageIds: [],
@@ -610,9 +630,12 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       // tout en conservant la caméra courante via preserveView.
       const s = get();
       const before = s._doc;
-      const restored = A.clone(s._undoStack[s._undoStack.length - 1]);
-      const mergedPlain = A.asPlain(preserveView(restored, before));
-      handle.change((d) => rewriteProjectContent(d as Project, mergedPlain), { message: "Annuler" });
+      // FORWARD-REVERT — état passé lu EN PLAIN (sûr) puis appliqué EN AVANT. On ne
+      // clone/`change()` JAMAIS un snapshot : ça reconstruit l'op-set et panique en
+      // WASM sur un doc abîmé (cf. preserveViewPlain), tuant l'app.
+      const restoredPlain = A.asPlain(s._undoStack[s._undoStack.length - 1]) as Project;
+      preserveViewPlain(restoredPlain, before as unknown as Project);
+      handle.change((d) => rewriteProjectContent(d as Project, restoredPlain), { message: "Annuler" });
       const next = handle.doc() as unknown as A.Doc<Project>;
       const proj = next as unknown as Project;
       set((st) => ({
@@ -634,11 +657,12 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       // input Ã  `A.change()` est gelÃ©, et la prochaine mutation jetterait
       // Â« Attempting to change an outdated document Â». Le clone est cheap
       // (structural sharing).
-      const restored = A.clone(s._undoStack[s._undoStack.length - 1]);
+      const restoredPlain = A.asPlain(s._undoStack[s._undoStack.length - 1]) as Project;
       // UNDO-1 — on restaure le contenu mais on GARDE la caméra et le dossier
       // courant (pas de téléportation) ; le folderStack est reconstruit pour
       // matcher l'activeBoardId final.
-      const prev = preserveView(restored, s._doc);
+      preserveViewPlain(restoredPlain, s._doc as unknown as Project);
+      const prev = A.change(s._doc, "Annuler", (d) => rewriteProjectContent(d as Project, restoredPlain));
       const proj = prev as unknown as Project;
       return {
         _doc: prev,
@@ -661,9 +685,9 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     if (handle) {
       const s = get();
       const before = s._doc;
-      const restored = A.clone(s._redoStack[s._redoStack.length - 1]);
-      const mergedPlain = A.asPlain(preserveView(restored, before));
-      handle.change((d) => rewriteProjectContent(d as Project, mergedPlain), { message: "Rétablir" });
+      const restoredPlain = A.asPlain(s._redoStack[s._redoStack.length - 1]) as Project;
+      preserveViewPlain(restoredPlain, before as unknown as Project);
+      handle.change((d) => rewriteProjectContent(d as Project, restoredPlain), { message: "Rétablir" });
       const next = handle.doc() as unknown as A.Doc<Project>;
       const proj = next as unknown as Project;
       set((st) => ({
@@ -681,8 +705,9 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     }
     set((s) => {
       if (s._redoStack.length === 0) return s;
-      const restored = A.clone(s._redoStack[s._redoStack.length - 1]);
-      const next = preserveView(restored, s._doc);
+      const restoredPlain = A.asPlain(s._redoStack[s._redoStack.length - 1]) as Project;
+      preserveViewPlain(restoredPlain, s._doc as unknown as Project);
+      const next = A.change(s._doc, "Rétablir", (d) => rewriteProjectContent(d as Project, restoredPlain));
       const proj = next as unknown as Project;
       return {
         _doc: next,
