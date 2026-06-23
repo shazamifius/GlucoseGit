@@ -323,6 +323,7 @@ function ActionBtn({ active, onClick, title, children }: {
         background: active ? "#2d2d2d" : "transparent",
         color: active ? "#ccc" : "#666",
         outline: active ? "1px solid #444" : "none",
+        whiteSpace: "nowrap",
       }}
       onMouseOver={(e) => { e.currentTarget.style.color = "#ccc"; if (!active) e.currentTarget.style.background = "#1e1e1e"; }}
       onMouseOut={(e) => {
