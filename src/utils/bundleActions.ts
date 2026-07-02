@@ -22,7 +22,10 @@ function sanitize(name: string): string {
  */
 export async function exportPortableBundle(): Promise<void> {
   const { _doc, project } = useGlucoseStore.getState();
-  const dest = await saveDialog({ defaultPath: `${sanitize(project.name)}-portable` });
+  const dest = await saveDialog({
+    title: "Exporter en projet portable — nom du dossier à créer",
+    defaultPath: `${sanitize(project.name)}-portable`,
+  });
   if (!dest) return;
 
   const res = await exportBundle(_doc, dest);
@@ -47,7 +50,11 @@ export interface OpenBundleDeps {
  * magasin global, puis ouvre le doc via le flux `loadProject` normal.
  */
 export async function openPortableBundle(deps: OpenBundleDeps): Promise<void> {
-  const dir = await openDialog({ directory: true, multiple: false });
+  const dir = await openDialog({
+    directory: true,
+    multiple: false,
+    title: "Ouvrir un bundle portable — choisis le dossier « …-portable » (contient bundle.json)",
+  });
   if (!dir || typeof dir !== "string") return;
 
   const imp = await importBundle(dir);

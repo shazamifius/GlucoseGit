@@ -219,12 +219,24 @@ export interface BundleImportResult {
  * ouvrir. N'ouvre PAS le projet lui-même (le caller enchaîne sur `loadProject`).
  */
 export async function importBundle(bundleDir: string): Promise<BundleImportResult> {
+  // Lecture du manifeste — on distingue « fichier absent » (mauvais dossier
+  // choisi) de « JSON invalide ». `String(e)` car Tauri jette souvent une string
+  // (pas un Error) → `.message` donnerait « undefined » et cacherait la cause.
+  const manifestPath = joinPath(bundleDir, BUNDLE_MANIFEST_NAME);
+  let raw: Uint8Array;
+  try {
+    raw = await readFile(manifestPath);
+  } catch (e) {
+    throw new BundleError(
+      `${BUNDLE_MANIFEST_NAME} introuvable dans « ${bundleDir} ». Sélectionne le DOSSIER du bundle `
+      + `(celui qui contient ${BUNDLE_MANIFEST_NAME}, ${BUNDLE_DOC_NAME} et ${BUNDLE_OBJECTS_DIR}/). [${String(e)}]`,
+    );
+  }
   let manifest: BundleManifest;
   try {
-    const raw = await readFile(joinPath(bundleDir, BUNDLE_MANIFEST_NAME));
     manifest = JSON.parse(new TextDecoder().decode(raw)) as BundleManifest;
   } catch (e) {
-    throw new BundleError(`manifeste illisible : ${(e as Error).message}`);
+    throw new BundleError(`${BUNDLE_MANIFEST_NAME} illisible (JSON invalide) : ${String(e)}`);
   }
   if (manifest?.format !== BUNDLE_FORMAT) {
     throw new BundleError("ce dossier n'est pas un bundle Glucose (format inattendu)");
