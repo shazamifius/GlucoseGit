@@ -20,28 +20,35 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   },
 }));
 
+// La copie d'octets se fait côté Rust (bundle_export_assets / bundle_import_assets) :
+// on les mocke comme une copie entre le magasin global (`store`) et le fs (`files`).
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: async (cmd: string, args: Record<string, unknown>) => {
-    if (cmd === "load_asset") {
-      const b = store.get(args.filename as string);
-      if (!b) throw new Error("Asset introuvable");
-      let bin = "";
-      for (const byte of b) bin += String.fromCharCode(byte);
-      return `data:application/octet-stream;base64,${btoa(bin)}`;
+    if (cmd === "bundle_export_assets") {
+      const names = args.assetNames as string[];
+      const dest = args.destObjectsDir as string;
+      let copied = 0;
+      const missing: string[] = [];
+      for (const n of names) {
+        const b = store.get(n);
+        if (!b) { missing.push(n); continue; }
+        files.set(`${dest}/${n}`, b.slice()); // magasin global → objects/ du bundle
+        copied++;
+      }
+      return { copied, missing, corrupt: [] };
     }
-    if (cmd === "save_asset") {
-      const b64 = args.base64Data as string;
-      const raw = b64.startsWith("data:") ? b64.slice(b64.indexOf(",") + 1) : b64;
-      const bin = atob(raw);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const buf = await crypto.subtle.digest("SHA-256", bytes);
-      const arr = new Uint8Array(buf);
-      let hex = "";
-      for (const byte of arr) hex += byte.toString(16).padStart(2, "0");
-      const name = `${hex.slice(0, 16)}.${args.extHint as string}`;
-      store.set(name, bytes);
-      return name;
+    if (cmd === "bundle_import_assets") {
+      const names = args.assetNames as string[];
+      const src = args.srcObjectsDir as string;
+      let copied = 0;
+      const missing: string[] = [];
+      for (const n of names) {
+        const key = `${src}/${n}`;
+        if (!files.has(key)) { missing.push(n); continue; }
+        store.set(n, files.get(key)!.slice()); // objects/ du bundle → magasin global
+        copied++;
+      }
+      return { copied, missing, corrupt: [] };
     }
     throw new Error(`invoke inattendu: ${cmd}`);
   },

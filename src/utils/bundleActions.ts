@@ -66,6 +66,7 @@ export async function openPortableBundle(deps: OpenBundleDeps): Promise<void> {
   else deps.loadStore(r.project);
   resetAutoVersionAccumulator();
 
-  const warn = imp.missing.length ? ` (${imp.missing.length} image${imp.missing.length > 1 ? "s" : ""} manquante${imp.missing.length > 1 ? "s" : ""})` : "";
-  showToast(`Bundle ouvert — ${imp.rehydrated} image${imp.rehydrated > 1 ? "s" : ""} restaurée${imp.rehydrated > 1 ? "s" : ""}${warn}`, "🎒");
+  const problems = imp.missing.length + imp.corrupt.length;
+  const warn = problems ? ` (${problems} image${problems > 1 ? "s" : ""} manquante${problems > 1 ? "s" : ""})` : "";
+  showToast(`Bundle ouvert — ${imp.rehydrated} image${imp.rehydrated > 1 ? "s" : ""} OK${warn}`, "🎒");
 }

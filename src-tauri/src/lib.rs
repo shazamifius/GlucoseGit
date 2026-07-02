@@ -829,6 +829,123 @@ async fn load_asset(filename: String, app_handle: tauri::AppHandle) -> Result<St
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Bundle portable — copie d'assets DISQUE→DISQUE (pas de base64/IPC).
+// Un vrai projet = des centaines de Mo d'images ; les faire transiter en base64
+// via IPC (comme load_asset/save_asset) est lent et fragile (a calé à ~34 images
+// sur 129). Ici Rust copie les fichiers directement + vérifie l'intégrité (le nom
+// du magasin ENCODE le hash : `<hash16>.<ext>`), donc jamais un bundle corrompu.
+// ════════════════════════════════════════════════════════════════════════════
+
+#[derive(serde::Serialize)]
+struct BundleCopyReport {
+    copied: usize,
+    missing: Vec<String>,
+    corrupt: Vec<String>,
+}
+
+/// sha256 hex (16 premiers caractères) — le magasin nomme `<hash16>.<ext>`.
+fn sha16_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())[..16].to_string()
+}
+
+/// Un nom d'asset valide = pas de séparateur ni `..` (anti-traversal).
+fn asset_name_ok(name: &str) -> bool {
+    !name.is_empty() && !name.contains('/') && !name.contains('\\') && !name.contains("..")
+}
+
+/// Copie les assets du magasin global vers `dest_objects_dir` (le dossier
+/// `objects/` d'un bundle portable). Vérifie l'intégrité de chaque objet.
+/// `dest_objects_dir` doit exister (créé côté front via mkdir) et être dans un
+/// scope autorisé.
+#[tauri::command]
+async fn bundle_export_assets(
+    asset_names: Vec<String>,
+    dest_objects_dir: String,
+    app_handle: tauri::AppHandle,
+) -> Result<BundleCopyReport, String> {
+    let dest = validate_scope(&dest_objects_dir, &app_handle)?;
+    let src_dir = assets_dir(&app_handle)?;
+    let mut copied = 0usize;
+    let mut missing = Vec::new();
+    let mut corrupt = Vec::new();
+    for name in &asset_names {
+        if !asset_name_ok(name) {
+            return Err(format!("Nom d'asset invalide: {name}"));
+        }
+        let bytes = match tokio::fs::read(src_dir.join(name)).await {
+            Ok(b) => b,
+            Err(_) => {
+                missing.push(name.clone());
+                continue;
+            }
+        };
+        let stem = name.split('.').next().unwrap_or(name).to_lowercase();
+        if sha16_hex(&bytes) != stem {
+            corrupt.push(name.clone());
+            continue;
+        }
+        tokio::fs::write(dest.join(name), &bytes)
+            .await
+            .map_err(|e| format!("écriture {name}: {e}"))?;
+        copied += 1;
+    }
+    Ok(BundleCopyReport {
+        copied,
+        missing,
+        corrupt,
+    })
+}
+
+/// Ré-hydrate les assets d'un bundle (`src_objects_dir`) vers le magasin global,
+/// avec dédup (déjà présent = pas de recopie) et vérification d'intégrité.
+/// `src_objects_dir` doit être dans un scope autorisé.
+#[tauri::command]
+async fn bundle_import_assets(
+    src_objects_dir: String,
+    asset_names: Vec<String>,
+    app_handle: tauri::AppHandle,
+) -> Result<BundleCopyReport, String> {
+    let src_dir = validate_scope(&src_objects_dir, &app_handle)?;
+    let dest_dir = assets_dir(&app_handle)?;
+    let mut copied = 0usize;
+    let mut missing = Vec::new();
+    let mut corrupt = Vec::new();
+    for name in &asset_names {
+        if !asset_name_ok(name) {
+            return Err(format!("Nom d'asset invalide: {name}"));
+        }
+        let dst = dest_dir.join(name);
+        if dst.exists() {
+            copied += 1; // dédup : déjà dans le magasin
+            continue;
+        }
+        let bytes = match tokio::fs::read(src_dir.join(name)).await {
+            Ok(b) => b,
+            Err(_) => {
+                missing.push(name.clone());
+                continue;
+            }
+        };
+        let stem = name.split('.').next().unwrap_or(name).to_lowercase();
+        if sha16_hex(&bytes) != stem {
+            corrupt.push(name.clone());
+            continue;
+        }
+        tokio::fs::write(&dst, &bytes)
+            .await
+            .map_err(|e| format!("écriture {name}: {e}"))?;
+        copied += 1;
+    }
+    Ok(BundleCopyReport {
+        copied,
+        missing,
+        corrupt,
+    })
+}
+
 /// R-FIL-02 (Sprint 2) — entrée d'un scan de répertoire.
 #[derive(serde::Serialize)]
 struct DirEntryDto {
@@ -2011,6 +2128,8 @@ pub fn run() {
             save_asset,
             load_asset,
             get_assets_dir,
+            bundle_export_assets,
+            bundle_import_assets,
             // R-FIL-02 (Sprint 2) — drop d'un dossier OS = folder mirror
             scan_directory,
             scan_tree,

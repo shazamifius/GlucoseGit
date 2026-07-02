@@ -30,8 +30,7 @@ import { writeFile, readFile, mkdir } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import * as A from "../store/automerge";
 import type { Project } from "../types";
-import { sha256Hex, dataUrlToBytes } from "./assetRef";
-import { saveAssetFromBytes } from "./assets";
+import { sha256Hex } from "./assetRef";
 
 /** Échec de bundle (format invalide, intégrité, I/O). */
 export class BundleError extends Error {
@@ -152,8 +151,13 @@ export interface BundleExportResult {
   missing: string[];
   /** Assets présents mais dont le hash ne correspond pas (corruption disque). */
   corrupt: string[];
-  /** Octets d'assets écrits (hors doc). */
-  bytesWritten: number;
+}
+
+/** Rapport des commandes Rust bundle_*_assets (copie disque→disque). */
+export interface BundleCopyReport {
+  copied: number;
+  missing: string[];
+  corrupt: string[];
 }
 
 /**
@@ -171,46 +175,31 @@ export async function exportBundle(doc: A.Doc<Project>, destDir: string): Promis
   await mkdir(destDir, { recursive: true });
   await mkdir(objectsDir, { recursive: true });
 
-  const missing: string[] = [];
-  const corrupt: string[] = [];
-  let included = 0;
-  let bytesWritten = 0;
+  // Copie des octets CÔTÉ RUST (disque→disque, pas de base64/IPC) + intégrité.
+  // Indispensable pour un vrai projet (centaines de Mo) : l'ancienne boucle JS
+  // base64 calait au bout de ~34 images sur 129.
+  const report = await invoke<BundleCopyReport>("bundle_export_assets", {
+    assetNames: assets.map((a) => a.name),
+    destObjectsDir: objectsDir,
+  });
 
-  for (const a of assets) {
-    let bytes: Uint8Array;
-    try {
-      const dataUrl = await invoke<string>("load_asset", { filename: a.name });
-      bytes = dataUrlToBytes(dataUrl).bytes;
-    } catch {
-      missing.push(a.name); // octets absents du magasin global
-      continue;
-    }
-    if (!(await assetBytesMatch(a.name, bytes, a.sha256))) {
-      corrupt.push(a.name); // présents mais hash faux → on ne fabrique pas un bundle corrompu
-      continue;
-    }
-    await writeFile(joinPath(objectsDir, a.name), bytes);
-    included++;
-    bytesWritten += bytes.length;
-  }
-
-  // Le doc en dernier : A.save(doc) = état courant exact (édits non sauvegardés compris).
+  // Doc puis manifeste EN DERNIER → invariant : bundle.json présent ⇒ bundle complet.
   await writeFile(joinPath(destDir, BUNDLE_DOC_NAME), A.save(doc));
-
-  const manifest = buildBundleManifest(project, assets);
-  const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
+  const manifestBytes = new TextEncoder().encode(JSON.stringify(buildBundleManifest(project, assets), null, 2));
   await writeFile(joinPath(destDir, BUNDLE_MANIFEST_NAME), manifestBytes);
 
-  return { dir: destDir, included, missing, corrupt, bytesWritten };
+  return { dir: destDir, included: report.copied, missing: report.missing, corrupt: report.corrupt };
 }
 
 export interface BundleImportResult {
   /** Chemin du doc à ouvrir ensuite (flux loadProject normal). */
   docPath: string;
-  /** Nombre d'assets ré-hydratés dans le magasin global. */
+  /** Nombre d'assets disponibles dans le magasin après ré-hydratation (dédup inclus). */
   rehydrated: number;
-  /** Assets du manifeste absents/corrompus dans le bundle (images qui manqueront). */
+  /** Assets du manifeste absents du bundle (images qui manqueront). */
   missing: string[];
+  /** Assets présents mais au hash invalide (non installés). */
+  corrupt: string[];
 }
 
 /**
@@ -243,25 +232,16 @@ export async function importBundle(bundleDir: string): Promise<BundleImportResul
   }
 
   const objectsDir = joinPath(bundleDir, BUNDLE_OBJECTS_DIR);
-  const missing: string[] = [];
-  let rehydrated = 0;
+  // Copie objects/ → magasin global CÔTÉ RUST (dédup + vérification d'intégrité).
+  const report = await invoke<BundleCopyReport>("bundle_import_assets", {
+    srcObjectsDir: objectsDir,
+    assetNames: (manifest.assets ?? []).map((a) => a.name),
+  });
 
-  for (const a of manifest.assets ?? []) {
-    let bytes: Uint8Array;
-    try {
-      bytes = await readFile(joinPath(objectsDir, a.name));
-    } catch {
-      missing.push(a.name); // objet absent du bundle
-      continue;
-    }
-    if (!(await assetBytesMatch(a.name, bytes, a.sha256))) {
-      missing.push(a.name); // corrompu → on ne l'installe pas
-      continue;
-    }
-    const ext = a.name.split(".").pop() || "png";
-    await saveAssetFromBytes(bytes, ext); // → magasin global, dédup automatique
-    rehydrated++;
-  }
-
-  return { docPath: joinPath(bundleDir, BUNDLE_DOC_NAME), rehydrated, missing };
+  return {
+    docPath: joinPath(bundleDir, BUNDLE_DOC_NAME),
+    rehydrated: report.copied,
+    missing: report.missing,
+    corrupt: report.corrupt,
+  };
 }
