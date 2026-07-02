@@ -23,6 +23,18 @@ import { getCollabHandle } from "../multiplayer/collabHandle";
 import { noteSavedDelta, maybeCreateAutoVersion, resetAutoVersionAccumulator } from "./autoVersion";
 
 /**
+ * Git #1 Phase 4 — erreur de chargement porteuse du CHEMIN fautif. Permet au filet
+ * anti-corruption (App.tsx) de proposer un jalon durable sain pour CE fichier au
+ * lieu d'un simple message d'erreur qui laisse l'utilisateur sans issue.
+ */
+export class ProjectCorruptError extends Error {
+  constructor(message: string, public readonly path: string) {
+    super(message);
+    this.name = "ProjectCorruptError";
+  }
+}
+
+/**
  * Fetcher Tauri pour la migration R-EMB-01 : lit un asset:<filename> du
  * dossier `assets/` géré et renvoie ses bytes + mime. Renvoie null si
  * introuvable / interdit.
@@ -198,7 +210,7 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
   try {
     fileBytes = await readFile(path);
   } catch (readErr) {
-    throw new Error(`Impossible de lire le fichier .glucose.\n${(readErr as Error).message}`);
+    throw new ProjectCorruptError(`Impossible de lire le fichier .glucose.\n${(readErr as Error).message}`, path);
   }
 
   // 1) Tentative v2 binaire
@@ -237,8 +249,9 @@ export async function loadProject(): Promise<LoadProjectResult | null> {
       project = parsed.project;
       console.info("[loadProject] format v1 (JSON legacy) détecté — sera migré au prochain save");
     } catch (jsonErr) {
-      throw new Error(
-        `Impossible de lire le fichier .glucose. Ni JSON valide ni binaire Automerge.\n${(jsonErr as Error).message}`
+      throw new ProjectCorruptError(
+        `Impossible de lire le fichier .glucose. Ni JSON valide ni binaire Automerge.\n${(jsonErr as Error).message}`,
+        path,
       );
     }
   }

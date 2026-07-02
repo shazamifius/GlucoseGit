@@ -135,6 +135,28 @@ export async function loadVersionDoc(meta: VersionMeta): Promise<A.Doc<Project>>
 }
 
 /**
+ * Git #1 Phase 4 — filet anti-corruption. Charge le doc du jalon durable le PLUS
+ * RÉCENT qui se recharge SAINEMENT : si le dernier jalon est lui-même abîmé, on
+ * saute au précédent, et ainsi de suite. Renvoie null si aucun jalon sain n'existe.
+ * Tant qu'un jalon sain subsiste, un document ne peut pas être perdu.
+ */
+export async function loadLatestHealthyVersion(
+  mainPath: string,
+): Promise<{ doc: A.Doc<Project>; meta: VersionMeta } | null> {
+  const versions = await listVersions(mainPath); // déjà trié récent → ancien
+  for (const meta of versions) {
+    try {
+      const doc = await loadVersionDoc(meta);
+      const plain = A.asPlain(doc) as Project | null;
+      if (plain && Array.isArray(plain.boards)) return { doc, meta };
+    } catch {
+      // Ce jalon est abîmé → on essaie le précédent (plus ancien).
+    }
+  }
+  return null;
+}
+
+/**
  * Élague les versions AUTO pour n'en garder que `keep` (les plus récentes). Ne
  * touche JAMAIS aux versions manuelles (l'user les a posées exprès). Phase 3
  * (jalons auto) s'appuiera dessus pour que l'historique auto ne gonfle pas.

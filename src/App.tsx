@@ -9,9 +9,11 @@ import PomodoroOverlay from "./components/PomodoroOverlay";
 import FolderViewportIndicator from "./components/FolderViewportIndicator";
 import AppLaunchOverlay from "./components/AppLaunchOverlay";
 import { useGlucoseStore, getActiveBoard } from "./store";
-import { saveProject, loadProject } from "./utils/project";
+import { saveProject, loadProject, ProjectCorruptError } from "./utils/project";
 import { setCurrentPath } from "./utils/currentPath";
 import { resetAutoVersionAccumulator } from "./utils/autoVersion";
+import { loadLatestHealthyVersion } from "./utils/versions";
+import { resetSaveState } from "./utils/saveState";
 import Toast, { showToast } from "./components/Toast";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
@@ -336,7 +338,39 @@ export default function App() {
               showToast("Fichier réparé : fin corrompue ignorée, dernière modif perdue. Réenregistre pour nettoyer.", "⚠️");
             }
           })
-          .catch((err) => alert(`Erreur de chargement:\n${err?.message || String(err)}`));
+          .catch(async (err) => {
+            // Git #1 Phase 4 — filet anti-corruption : le fichier ne s'ouvre PAS
+            // (base abîmée). Si un jalon durable sain existe pour ce fichier, on
+            // propose de le restaurer plutôt que de laisser l'utilisateur bloqué.
+            const corruptPath = err instanceof ProjectCorruptError ? err.path : null;
+            if (corruptPath) {
+              try {
+                const restored = await loadLatestHealthyVersion(corruptPath);
+                if (restored) {
+                  const when = new Date(restored.meta.time).toLocaleString("fr-FR", {
+                    dateStyle: "short", timeStyle: "short",
+                  });
+                  const ok = window.confirm(
+                    `Ce document est abîmé et ne peut pas s'ouvrir.\n\n` +
+                    `Restaurer le dernier jalon sain du ${when} « ${restored.meta.label} » ?\n` +
+                    `(Le document sera rouvert depuis ce jalon ; réenregistre avec Ctrl+S pour réparer le fichier.)`
+                  );
+                  if (ok) {
+                    pathRef.current = corruptPath;
+                    setCurrentPath(corruptPath);
+                    resetSaveState();               // prochain save = full propre (écrase le fichier corrompu)
+                    resetAutoVersionAccumulator();
+                    loadDoc(restored.doc);
+                    showToast(`Restauré depuis le jalon du ${when}`, "🛟");
+                    return;
+                  }
+                }
+              } catch (recErr) {
+                console.error("[loadProject] filet de restauration échoué:", recErr);
+              }
+            }
+            alert(`Erreur de chargement:\n${err?.message || String(err)}`);
+          });
       }
     }
     window.addEventListener("keydown", onKey);
