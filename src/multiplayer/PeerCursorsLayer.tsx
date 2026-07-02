@@ -19,7 +19,7 @@ const COLORS = [
 ];
 
 function getOrCreateLocalUser() {
-  let user = sessionStorage.getItem("glucose:local-user");
+  const user = sessionStorage.getItem("glucose:local-user");
   if (user) {
     try {
       return JSON.parse(user) as { name: string; color: string };
@@ -58,12 +58,21 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
   const selectedAnnotationIds = useGlucoseStore((s) => s.selectedAnnotationIds);
   const selectedImageIds = useGlucoseStore((s) => s.selectedImageIds);
   const project = useGlucoseStore((s) => s.project);
-  
+
+  // État collab réactif : `isCollabActive()` est un singleton hors-React, mais on
+  // le relit à chaque rendu ; comme `project` change à l'entrée/sortie de collab
+  // (wireHandle/leaveCollab), ce booléen suit fidèlement les transitions collab.
+  const collabActive = isCollabActive();
+
   const board = project.boards.find((b) => b.id === activeBoardId);
   const lastCursorRef = useRef<{ x: number; y: number } | null>(null);
 
-  // 1. Sync CSS transform with viewport (translate & scale)
+  // 1. Sync CSS transform with viewport (translate & scale).
+  //    Ne tourne QUE en collab : en solo le composant rend `null` (aucun
+  //    container), donc une boucle rAF permanente ne ferait que gaspiller du CPU
+  //    à contre-courant du rendu à la demande du canvas.
   useEffect(() => {
+    if (!collabActive) return;
     let rafId: number;
     function updateTransform() {
       if (containerRef.current && vpRef.current) {
@@ -75,7 +84,7 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
     }
     updateTransform();
     return () => cancelAnimationFrame(rafId);
-  }, [vpRef]);
+  }, [vpRef, collabActive]);
 
   // 2. Track & broadcast local cursor position (throttled at ~40ms / 25fps)
   useEffect(() => {
@@ -186,9 +195,12 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
       handle.off("ephemeral-message", onEphemeralMessage);
       clearInterval(timer);
     };
-  }, [project]); // Re-subscribe when the automerge doc connection resets
+    // (dés)abonnement aux SEULES transitions collab (host/join/leave), pas à
+    // chaque édition du doc — le handle automerge-repo est stable pendant une
+    // session (repo.find renvoie la même instance, même après reconnexion).
+  }, [collabActive]);
 
-  if (!isCollabActive() || !board) return null;
+  if (!collabActive || !board) return null;
 
   // Active peers on the current board
   const activePeers = Object.values(peers).filter(
