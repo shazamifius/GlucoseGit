@@ -375,6 +375,12 @@ export interface GlucoseStore {
   loadProject: (project: Project) => void;
   /** Variante CRDT : remplace directement `_doc` (load v2 binaire). */
   loadDoc: (doc: A.Doc<Project>) => void;
+  /** Git #1 Phase 4 p2 — adopte le doc COMPACTÉ (lignée neuve, historique fin
+   *  aplati). CONSERVE `_undoStack`/`_redoStack` : leurs snapshots se ré-appliquent
+   *  EN AVANT (forward-revert), indépendamment de la lignée → l'undo reste valide
+   *  à travers la compaction et l'utilisateur garde toute sa profondeur. SOLO
+   *  uniquement (garde-fou amont dans runCompaction). */
+  compactCurrentDoc: (compacted: A.Doc<Project>) => void;
 
   /** Applique des changes Automerge venus d'un peer LAN (Phase 7.5bis).
    *  Ne touche pas `_undoStack` (les actions distantes ne sont pas dans l'undo
@@ -1882,6 +1888,18 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       selectedAnnotationIds: [],
       folderStack: buildFolderStack(proj.boards, proj.activeBoardId || proj.boards[0]?.id || DEFAULT_BOARD_ID),
       localViewports: {},
+    });
+  },
+
+  compactCurrentDoc: (compacted) => {
+    // On ne touche NI `_undoStack` NI `_redoStack` : le forward-revert lit
+    // `A.asPlain` d'un snapshot et le ré-applique en avant sur le doc vivant →
+    // lignée-agnostique. Zustand fusionne en surface, donc les piles absentes de
+    // cet objet sont préservées telles quelles.
+    set({
+      _doc: compacted,
+      project: compacted as unknown as Project,
+      _previewHeads: null,
     });
   },
 

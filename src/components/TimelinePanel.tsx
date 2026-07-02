@@ -24,6 +24,8 @@ import type { Project } from "../types";
 import { getCurrentPath } from "../utils/currentPath";
 import { saveVersion, listVersions, loadVersionDoc, type VersionMeta } from "../utils/versions";
 import { resetAutoVersionAccumulator } from "../utils/autoVersion";
+import { runCompaction } from "../utils/compaction";
+import { isCollabActive } from "../multiplayer/collabHandle";
 import { showToast } from "./Toast";
 
 interface Props {
@@ -55,6 +57,7 @@ export default function TimelinePanel({ onClose }: Props) {
   const restoreToPreview = useGlucoseStore((s) => s.restoreToPreview);
   const commitNamed = useGlucoseStore((s) => s.commitNamed);
   const restoreFromPlain = useGlucoseStore((s) => s.restoreFromPlain);
+  const compactCurrentDoc = useGlucoseStore((s) => s.compactCurrentDoc);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
@@ -128,6 +131,48 @@ export default function TimelinePanel({ onClose }: Props) {
     } catch (e) {
       console.error("[TimelinePanel] restore version échec:", e);
       showToast("Échec de la restauration de la version", "⚠️");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Compacte l'historique fin : aplatit l'op-set en un doc de lignée neuve pour
+  // alléger le fichier. Garde-fous béton dans runCompaction (solo, jalon avant,
+  // roundtrip vérifié, écriture atomique). L'état visible ne change pas.
+  async function doCompact() {
+    if (busy || inPreview) return;
+    if (!path) {
+      showToast("Enregistre le projet (Ctrl+S) avant de compacter.", "💾");
+      return;
+    }
+    if (isCollabActive()) {
+      showToast("Compaction indisponible en collaboration (mode solo requis).", "🔗");
+      return;
+    }
+    if (!window.confirm(
+      "Compacter l'historique fin ?\n\n"
+      + "Ton travail reste IDENTIQUE — seul l'historique des petits gestes est aplati "
+      + "pour alléger le fichier. Un jalon de secours « avant compaction » est posé, "
+      + "et tes versions durables restent intactes."
+    )) return;
+    try {
+      setBusy(true);
+      await Promise.resolve(); // laisse une éventuelle mutation en cours se poser
+      const res = await runCompaction(path, useGlucoseStore.getState()._doc);
+      if (!res) {
+        showToast("Historique déjà compact — rien à gagner.", "✨");
+        return;
+      }
+      compactCurrentDoc(res.compacted);
+      resetAutoVersionAccumulator();
+      const saved = Math.max(0, res.before - res.after);
+      const pct = res.before > 0 ? Math.round((saved / res.before) * 100) : 0;
+      const v = await listVersions(path);
+      setVersions(v);
+      showToast(`Historique compacté — fichier allégé de ${formatBytes(saved)} (${pct} %)`, "🗜️");
+    } catch (e) {
+      console.error("[TimelinePanel] compaction échec:", e);
+      showToast(`Échec de la compaction : ${(e as Error).message}`, "⚠️");
     } finally {
       setBusy(false);
     }
@@ -430,8 +475,8 @@ export default function TimelinePanel({ onClose }: Props) {
           )}
         </div>
 
-        {/* Footer : créer un jalon */}
-        <div style={{ padding: "10px 14px", borderTop: "1px solid #1f1f23" }}>
+        {/* Footer : créer un jalon + compacter l'historique */}
+        <div style={{ padding: "10px 14px", borderTop: "1px solid #1f1f23", display: "flex", flexDirection: "column", gap: 8 }}>
           <button
             onClick={() => setNamedDialog(true)}
             disabled={inPreview || busy}
@@ -443,6 +488,22 @@ export default function TimelinePanel({ onClose }: Props) {
             }}
           >
             + Marquer un jalon
+          </button>
+          <button
+            onClick={doCompact}
+            disabled={inPreview || busy || !path}
+            title={
+              !path ? "Enregistre le projet (Ctrl+S) d'abord"
+                : inPreview ? "Sors de l'aperçu pour compacter"
+                  : "Aplatir l'historique fin pour alléger le fichier (état inchangé, jalon de secours posé)"
+            }
+            style={{
+              ...btnSecondary(), width: "100%", padding: "7px 12px", fontSize: 11,
+              opacity: (inPreview || busy || !path) ? 0.4 : 1,
+              cursor: (inPreview || busy || !path) ? "default" : "pointer",
+            }}
+          >
+            🗜️ Compacter l'historique
           </button>
         </div>
       </div>
@@ -541,6 +602,12 @@ function btnPrimary(): React.CSSProperties {
     fontWeight: 600,
     fontFamily: "system-ui, sans-serif",
   };
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} o`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} Ko`;
+  return `${(n / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
 function formatTimeAgo(ts: number): string {
