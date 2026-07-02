@@ -17,6 +17,7 @@ import { sceneToPngDataUrl } from "./toPng";
 import { sceneToHtml } from "./toHtml";
 import { projectToMarkdown } from "./toMarkdown";
 import { mimeFromExt } from "../assetRef";
+import { toAbsolute } from "../pathResolver";
 
 export type ExportFormat = "html" | "png" | "svg" | "markdown";
 
@@ -84,8 +85,12 @@ async function resolveSceneImages(scene: ExportScene): Promise<void> {
       } else if (cleanPath.startsWith("file://")) {
         cleanPath = cleanPath.slice(7);
       }
-      const bytes = await readFile(cleanPath);
-      const ext = cleanPath.split(".").pop() || "png";
+      // Un href de fichier peut être RELATIF (chemins portables relatifs au
+      // .glucose) → le résoudre en absolu, sinon readFile lit contre le cwd de
+      // l'app et échoue. Idempotent sur un chemin déjà absolu.
+      const absPath = toAbsolute(cleanPath);
+      const bytes = await readFile(absPath);
+      const ext = absPath.split(".").pop() || "png";
       const mime = mimeFromExt(ext);
 
       // Conversion Uint8Array en base64

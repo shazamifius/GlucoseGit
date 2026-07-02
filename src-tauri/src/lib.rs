@@ -1507,6 +1507,9 @@ async fn run_plugin(
         manifest.command.as_str()
     };
     let mut cmd = tokio::process::Command::new(&binary);
+    // kill_on_drop : si le run dépasse le timeout (future droppée), le process
+    // enfant est tué au lieu de fuir en arrière-plan (CPU/RAM/GPU).
+    cmd.kill_on_drop(true);
     cmd.arg(command)
         .arg("--text-file")
         .arg(&src)
@@ -1764,6 +1767,7 @@ async fn pull_model(model: String, app_handle: tauri::AppHandle) -> Result<(), S
         return Err("Nom de modèle invalide.".into());
     }
     let mut child = tokio::process::Command::new("ollama")
+        .kill_on_drop(true)
         .arg("pull")
         .arg(&model)
         .stdout(std::process::Stdio::piped())
@@ -1869,6 +1873,7 @@ async fn spawn_streamed(
     timeout_secs: u64,
 ) -> Result<(), String> {
     let mut child = tokio::process::Command::new(program)
+        .kill_on_drop(true)
         .args(args)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

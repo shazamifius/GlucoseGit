@@ -78,7 +78,10 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
       if (containerRef.current && vpRef.current) {
         const { x, y, scale: s } = vpRef.current;
         containerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
-        setScale(s);
+        // La transform CSS suit chaque frame, mais on ne re-render React que si
+        // l'échelle change réellement : sinon setScale(s) forçait 60 re-renders/s
+        // du composant + enfants pour rien. Renvoyer `prev` fait bailout React.
+        setScale((prev) => (Math.abs(prev - s) < 0.001 ? prev : s));
       }
       rafId = requestAnimationFrame(updateTransform);
     }
