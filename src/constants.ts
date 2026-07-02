@@ -131,8 +131,12 @@ export const LIMITS = {
   UNDO_DEPTH: 200,
   /** Git #1 Phase 3 — jalon AUTO « à l'ampleur ». Volume de modifications (octets
    *  de delta Automerge) accumulé depuis le dernier jalon au-delà duquel un jalon
-   *  durable AUTO est posé sans intervention de l'utilisateur. */
-  AUTO_VERSION_DELTA_BYTES: 256 * 1024,
+   *  durable AUTO est posé sans intervention de l'utilisateur.
+   *  Calibrage (cf. autoVersion.integration.test.ts) : un geste ≈ 100-300 o de
+   *  delta (les images sont des liens `asset:`, quasi gratuites dans le doc). À
+   *  32 Ko ≈ un jalon auto toutes les ~110 cartes texte / ~280 déplacements = une
+   *  vraie grosse modif, atteignable, non spammy (on n'en garde que KEEP). */
+  AUTO_VERSION_DELTA_BYTES: 32 * 1024,
   /** Nombre de jalons AUTO conservés (les plus récents). Les jalons MANUELS ne
    *  sont jamais élagués. */
   AUTO_VERSION_KEEP: 10,
