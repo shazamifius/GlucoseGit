@@ -186,18 +186,23 @@ export interface LoadProjectResult {
   recovered?: boolean;
 }
 
-export async function loadProject(): Promise<LoadProjectResult | null> {
-  let defaultPath: string | undefined;
-  try {
-    defaultPath = await homeDir();
-  } catch (_) {}
+export async function loadProject(pathArg?: string): Promise<LoadProjectResult | null> {
+  // `pathArg` fourni (ex: ouverture d'un bundle portable) → on saute le dialogue
+  // et on ouvre directement ce fichier. Sinon, comportement historique (dialogue).
+  let path: string | null = pathArg ?? null;
+  if (!path) {
+    let defaultPath: string | undefined;
+    try {
+      defaultPath = await homeDir();
+    } catch (_) {}
 
-  const result = await openDialog({
-    defaultPath,
-    filters: [{ name: "Projet Glucose Git", extensions: ["glucose", "atelier"] }],
-    multiple: false,
-  });
-  const path = result as string | null;
+    const result = await openDialog({
+      defaultPath,
+      filters: [{ name: "Projet Glucose Git", extensions: ["glucose", "atelier"] }],
+      multiple: false,
+    });
+    path = result as string | null;
+  }
   if (!path) return null;
 
   let project: Project | null = null;

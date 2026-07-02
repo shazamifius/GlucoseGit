@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useGlucoseStore } from "../store";
 import { showToast } from "./Toast";
 import { exportProject, ExportFormat, FORMAT_META } from "../utils/export";
+import { exportPortableBundle } from "../utils/bundleActions";
 
 // Menu « Exporter ▾ » — remplace l'ancien bouton PNG unique. Propose 4 formats
 // auto-suffisants, partageables sans installer Glucose :
@@ -42,6 +43,7 @@ const ROWS: FormatRow[] = [
 export default function ExportMenu() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<ExportFormat | null>(null);
+  const [bundleBusy, setBundleBusy] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; maxHeight: number } | null>(null);
   const project = useGlucoseStore((s) => s.project);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -101,6 +103,19 @@ export default function ExportMenu() {
       showToast(`Échec export ${FORMAT_META[format].label} : ${(err as Error)?.message || err}`, "⚠");
     } finally {
       setBusy(null);
+      setOpen(false);
+    }
+  }
+
+  async function handleBundle() {
+    if (busy || bundleBusy) return;
+    setBundleBusy(true);
+    try {
+      await exportPortableBundle();
+    } catch (err) {
+      showToast(`Échec bundle portable : ${(err as Error)?.message || err}`, "⚠");
+    } finally {
+      setBundleBusy(false);
       setOpen(false);
     }
   }
@@ -174,6 +189,36 @@ export default function ExportMenu() {
               </button>
             );
           })}
+
+          <div style={{ height: 1, background: "#26262e", margin: "6px 4px" }} />
+          <div style={{ fontSize: 10, color: "#6a6a78", padding: "2px 8px 6px", letterSpacing: 0.4, textTransform: "uppercase" }}>
+            Copie portable (ré-ouvrable)
+          </div>
+          <button
+            disabled={busy != null || bundleBusy}
+            onClick={handleBundle}
+            style={{
+              display: "flex", alignItems: "flex-start", gap: 10, width: "100%",
+              textAlign: "left", padding: "8px 9px", borderRadius: 6,
+              border: "none", background: "transparent",
+              color: busy != null ? "#555" : "#d4d4dd",
+              cursor: busy != null ? "default" : "pointer",
+            }}
+            onMouseOver={(e) => { if (busy == null && !bundleBusy) e.currentTarget.style.background = "#23232b"; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" style={{ marginTop: 1, flexShrink: 0, color: "#8a8ad0" }}>
+              <path d="M4 5V4a2 2 0 0 1 4 0v1 M2.5 5h11l-.6 8H3.1z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600 }}>
+                Projet portable{bundleBusy ? " — export…" : ""}
+              </span>
+              <span style={{ fontSize: 11, color: "#7d7d8c", lineHeight: 1.35 }}>
+                Dossier auto-suffisant (doc + images) — survit au déplacement / changement de PC
+              </span>
+            </span>
+          </button>
         </div>
       )}
     </div>

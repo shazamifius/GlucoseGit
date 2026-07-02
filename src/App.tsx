@@ -12,6 +12,7 @@ import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject, ProjectCorruptError } from "./utils/project";
 import { setCurrentPath } from "./utils/currentPath";
 import { resetAutoVersionAccumulator } from "./utils/autoVersion";
+import { openPortableBundle } from "./utils/bundleActions";
 import { loadLatestHealthyVersion } from "./utils/versions";
 import { resetSaveState } from "./utils/saveState";
 import Toast, { showToast } from "./components/Toast";
@@ -323,7 +324,16 @@ export default function App() {
           })
           .catch((err) => alert(`Erreur de sauvegarde:\n${err?.message || String(err)}`));
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === "o") {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "o" || e.key === "O")) {
+        // Ctrl+Maj+O = ouvrir un BUNDLE portable (dossier doc + objects/).
+        e.preventDefault();
+        openPortableBundle({
+          loadDoc,
+          loadStore,
+          setPath: (p) => { pathRef.current = p; setCurrentPath(p); },
+        }).catch((err) => alert(`Ouverture du bundle échouée:\n${(err as Error)?.message || String(err)}`));
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "o") {
         e.preventDefault();
         loadProject()
           .then((r) => {
