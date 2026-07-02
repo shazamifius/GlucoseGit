@@ -17,6 +17,8 @@ import { dataUrlToBytes } from "./assetRef";
 import * as A from "../store/automerge";
 // SAVE-A — enregistrement incrémental (anti-freeze) : full au 1er save, delta ensuite.
 import { planSave, commitSave, markLoaded, resetSaveState, type SavePlan } from "./saveState";
+import { toRelative, getParentDir } from "./pathResolver";
+import { getCollabHandle } from "../multiplayer/collabHandle";
 
 /**
  * Fetcher Tauri pour la migration R-EMB-01 : lit un asset:<filename> du
@@ -88,7 +90,38 @@ export async function saveProject(
   }
   // Pas de path fourni = dialog (« Enregistrer sous » / 1er save) → full (recompacte
   // sur le nouveau fichier ; aucune filiation fiable avec un baseline existant).
-  if (!existingPath) forceFull = true;
+  // Normalise les chemins vers des chemins relatifs par rapport au fichier .glucose sauvegardé.
+  // ⚠️ SOLO UNIQUEMENT : en collab, `doc` est le doc d'un handle automerge-repo ;
+  // un `A.change` brut dessus déclenche le panic WASM « unsafe aliasing » (cf. mémoire
+  // collab-automerge-repo). Et sémantiquement, un chemin relatif au .glucose LOCAL n'a
+  // aucun sens à synchroniser vers un pair (chemins disque différents). On saute donc
+  // la réécriture quand un handle collab est actif.
+  const projectDir = getParentDir(path);
+  if (projectDir && !getCollabHandle()) {
+    const nextDoc = A.change(doc, "Portabilité des chemins", (proj) => {
+      for (const board of proj.boards) {
+        for (const img of board.images) {
+          if (img.sourceUrl) {
+            img.sourceUrl = toRelative(img.sourceUrl, path);
+          }
+        }
+        for (const ann of board.annotations) {
+          if ((ann as any).sourceFile) {
+            (ann as any).sourceFile = toRelative((ann as any).sourceFile, path);
+          }
+        }
+      }
+    });
+    doc = nextDoc;
+
+    // Met à jour le store Zustand de manière asynchrone pour synchroniser le document en mémoire
+    import("../store").then(({ useGlucoseStore }) => {
+      useGlucoseStore.setState({
+        _doc: nextDoc,
+        project: nextDoc as unknown as Project,
+      });
+    }).catch((e) => console.warn("[saveProject] échec de la mise à jour du store :", e));
+  }
 
   const plan: SavePlan = forceFull ? { mode: "full", bytes: A.save(doc) } : planSave(doc, path);
 

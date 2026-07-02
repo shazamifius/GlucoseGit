@@ -7,14 +7,16 @@
 // `fs:allow-write-text-file` → `writeTextFile` lèverait une erreur de permission
 // (fichier vide / page blanche). `writeFile` est la commande autorisée.
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { writeFile, readFile } from "@tauri-apps/plugin-fs";
 import { documentDir } from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import { Project } from "../../types";
-import { buildScene } from "./scene";
+import { buildScene, ExportScene } from "./scene";
 import { sceneToSvg } from "./toSvg";
 import { sceneToPngDataUrl } from "./toPng";
 import { sceneToHtml } from "./toHtml";
 import { projectToMarkdown } from "./toMarkdown";
+import { mimeFromExt } from "../assetRef";
 
 export type ExportFormat = "html" | "png" | "svg" | "markdown";
 
@@ -55,6 +57,54 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 const textToBytes = (s: string): Uint8Array => new TextEncoder().encode(s);
 
 /**
+ * Résout toutes les images locales ou de type 'asset:' d'une scène d'export en data URLs Base64.
+ */
+async function resolveSceneImages(scene: ExportScene): Promise<void> {
+  const promises = scene.images.map(async (im) => {
+    if (!im.href) return;
+    if (im.href.startsWith("data:")) return;
+    if (im.href.startsWith("http://") || im.href.startsWith("https://")) return;
+
+    if (im.href.startsWith("asset:")) {
+      const filename = im.href.slice("asset:".length);
+      try {
+        const dataUrl = await invoke<string>("load_asset", { filename });
+        im.href = dataUrl;
+      } catch (e) {
+        console.warn(`[export] Échec chargement asset ${filename} :`, e);
+      }
+      return;
+    }
+
+    // Chemin local (file:// ou chemin absolu)
+    try {
+      let cleanPath = im.href;
+      if (cleanPath.startsWith("file:///")) {
+        cleanPath = cleanPath.slice(8);
+      } else if (cleanPath.startsWith("file://")) {
+        cleanPath = cleanPath.slice(7);
+      }
+      const bytes = await readFile(cleanPath);
+      const ext = cleanPath.split(".").pop() || "png";
+      const mime = mimeFromExt(ext);
+
+      // Conversion Uint8Array en base64
+      const CHUNK = 32768;
+      let binary = "";
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+      }
+      const b64 = btoa(binary);
+      im.href = `data:${mime};base64,${b64}`;
+    } catch (e) {
+      console.warn(`[export] Échec chargement fichier local ${im.href} :`, e);
+    }
+  });
+
+  await Promise.all(promises);
+}
+
+/**
  * Exporte le board actif du projet dans `format`. Ouvre un dialogue de
  * sauvegarde, écrit le fichier, et renvoie le chemin (ou null si annulé).
  */
@@ -71,6 +121,7 @@ export async function exportProject(project: Project, format: ExportFormat): Pro
 
   // Les autres formats (html/svg/png) partent d'une scène avec images.
   const scene = buildScene(project, { includeImages: true });
+  await resolveSceneImages(scene);
 
   if (format === "svg") {
     const svg = sceneToSvg(scene);

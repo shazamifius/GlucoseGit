@@ -20,6 +20,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { AssetRef, Project } from "../types";
 import { resolveAssetRefSync, extFromMime, buildLinkRef } from "./assetRef";
+import { toAbsolute, isAbsolutePath } from "./pathResolver";
 
 let assetsDirCache: string | null = null;
 
@@ -90,7 +91,21 @@ export async function resolveAssetSrc(src: string): Promise<string> {
     const sep = dir.includes("\\") ? "\\" : "/";
     return convertFileSrc(`${dir}${sep}${filename}`);
   }
-  // Toute autre forme : laisser tel quel
+  
+  // Si c'est un chemin local (relatif, absolu ou file://). ⚠️ On exclut TOUTE URL
+  // à schéma (`data:`, `http:`, `mailto:`…) : `data:` n'a pas de `//` mais ne doit
+  // PAS être traité comme un chemin (sinon les images embarquées legacy cassent).
+  // Un lecteur Windows `C:/…` a un « schéma » d'une lettre mais est capté avant par
+  // isAbsolutePath, donc l'ordre du OR le préserve.
+  const hasUriScheme = /^[a-z][a-z0-9+.-]*:/i.test(src);
+  const isLocal = src.startsWith("file://") || isAbsolutePath(src) || !hasUriScheme;
+  if (isLocal) {
+    const abs = toAbsolute(src);
+    const cleanAbs = abs.startsWith("file://") ? abs.slice(7) : abs;
+    return convertFileSrc(cleanAbs);
+  }
+
+  // Toute autre forme (http/https/data) : laisser tel quel
   return src;
 }
 

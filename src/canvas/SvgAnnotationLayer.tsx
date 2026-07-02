@@ -2,6 +2,19 @@ import { useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Annotation, MembraneAnnotation } from "../types";
 import { useGlucoseStore } from "../store";
+import { showToast } from "../components/Toast";
+
+import { toAbsolute } from "../utils/pathResolver";
+
+function openSourceFile(path: string) {
+  const absPath = toAbsolute(path);
+  const name = absPath.split(/[\\/]/).pop() || absPath;
+  window.dispatchEvent(new CustomEvent("glucose:app-launching", { detail: { path: absPath } }));
+  showToast(`Ouverture de ${name}…`, "🚀");
+  invoke("open_in_app", { path: absPath }).catch((err) => {
+    showToast(`Impossible d'ouvrir : ${String(err)}`, "⚠️");
+  });
+}
 
 const textMeasureCanvas = document.createElement("canvas");
 const textMeasureCtx = textMeasureCanvas.getContext("2d")!;
@@ -114,7 +127,7 @@ export default function SvgAnnotationLayer({
         const currentDY = wy2 - ds.pStartY;
         ds.pStartX = wx2;
         ds.pStartY = wy2;
-        const boardId = useGlucoseStore.getState().project.activeBoardId;
+        const boardId = useGlucoseStore.getState().activeBoardId;
         useGlucoseStore.getState().moveSelected(boardId, currentDX, currentDY);
       }
     }
@@ -150,9 +163,7 @@ export default function SvgAnnotationLayer({
       // App Bridge : seuls les sticky portent un sourceFile
       const sourceFile = ann.type === "sticky" ? ann.sourceFile : undefined;
       if (sourceFile) {
-        invoke("open_in_app", { path: sourceFile }).catch((err) => {
-          alert(`Impossible d'ouvrir le fichier :\n${sourceFile}\n\n${err}`);
-        });
+        openSourceFile(sourceFile);
       } else {
         onEdit(ann.id);
       }
@@ -180,9 +191,7 @@ export default function SvgAnnotationLayer({
     e.stopPropagation();
     const sourceFile = ann.type === "sticky" ? ann.sourceFile : undefined;
     if (sourceFile) {
-      invoke("open_in_app", { path: sourceFile }).catch((err) => {
-        alert(`Impossible d'ouvrir le fichier :\n${sourceFile}\n\n${err}`);
-      });
+      openSourceFile(sourceFile);
       return;
     }
     onEdit(ann.id);

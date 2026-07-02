@@ -358,6 +358,8 @@ export async function scanFolderForMirror(
   };
 }
 
+import { toAbsolute } from "../utils/pathResolver";
+
 /**
  * R-FIL-02 v3 — Si le folder est `pendingScan`, scanne son niveau et remplit
  * son child board (via `expandFolder`). Idempotent. Utilisé AUSSI par la
@@ -371,8 +373,9 @@ export async function expandFolderIfPending(
   const parent = st.project.boards.find((b) => b.id === parentBoardId);
   const folder = (parent?.folders ?? []).find((f) => f.id === folderId);
   if (!folder?.mirrorSource?.pendingScan) return;
+  const absPath = toAbsolute(folder.mirrorSource.rootPath);
   const result = await scanFolderForMirror(
-    folder.mirrorSource.rootPath, 0, 0, folder.mirrorSource.sortBy,
+    absPath, 0, 0, folder.mirrorSource.sortBy,
   );
   useGlucoseStore.getState().expandFolder(parentBoardId, folderId, result.tree);
 }

@@ -15,20 +15,170 @@ import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
 // pour compat ascendante (ArrowSvgLayer, ArrowTextEditor l'importent d'ici).
 import { getSymbioticHue } from "../utils/symbioticHue";
 
-/** R-FIL — ouvre un fichier source dans son app native (double-clic tuile).
- *  Feedback immédiat (le lancement d'une grosse app comme Blender peut prendre
- *  10-30 s) pour éviter l'impression que "rien ne se passe". */
+import { toAbsolute, toRelative } from "../utils/pathResolver";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { useFileExistence, invalidateExistenceCache } from "../utils/fileExistence";
+
 function openSourceFile(path: string) {
-  const name = path.split(/[\\/]/).pop() || path;
+  const absPath = toAbsolute(path);
+  const name = absPath.split(/[\\/]/).pop() || absPath;
   // Animation de lancement (logo + couleur dominante de l'app) — signal clair
   // que ça démarre, même si l'app met 10-40 s à apparaître (Blender).
-  window.dispatchEvent(new CustomEvent("glucose:app-launching", { detail: { path } }));
+  window.dispatchEvent(new CustomEvent("glucose:app-launching", { detail: { path: absPath } }));
   import("../components/Toast").then(({ showToast }) => showToast(`Ouverture de ${name}…`, "🚀"));
-  invoke("open_in_app", { path }).catch(async (err) => {
+  invoke("open_in_app", { path: absPath }).catch(async (err) => {
     const { showToast } = await import("../components/Toast");
     showToast(`Impossible d'ouvrir : ${String(err)}`, "⚠️");
   });
 }
+
+interface SourceFileTileProps {
+  ann: any;
+  w: number;
+  h: number;
+  sel: boolean;
+  handleDown: (ann: any, e: any, corner?: string) => void;
+  handleDblClick: (ann: any, e: any) => void;
+  forwardWheel: (e: any) => void;
+  setHoveredNodeId: (id: string | null) => void;
+  resizeObserver: React.MutableRefObject<ResizeObserver | null>;
+  corners: { id: string; cx: number; cy: number }[];
+}
+
+const SourceFileTile: React.FC<SourceFileTileProps> = ({
+  ann,
+  w,
+  h,
+  sel,
+  handleDown,
+  handleDblClick,
+  forwardWheel,
+  setHoveredNodeId,
+  resizeObserver,
+  corners,
+}) => {
+  const fileStatus = useFileExistence(ann.sourceFile);
+  const def = getAppDef(ann.sourceFile!);
+  const glow = def.bg;
+  const iconSize = Math.max(40, Math.min(w, h) * 0.46);
+  const title = ann.sourceFile?.split(/[\\/]/).pop() || "Code Source";
+
+  const handleReassociate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const ext = ann.sourceFile?.split(".").pop();
+      const result = await openDialog({
+        filters: ext ? [{ name: `Fichier ${ext.toUpperCase()}`, extensions: [ext] }] : undefined,
+      });
+      if (typeof result === "string" && result) {
+        const state = useGlucoseStore.getState();
+        const boardId = state.activeBoardId || state.project.boards[0]?.id;
+        if (boardId) {
+          const relPath = toRelative(result);
+          state.updateAnnotation(boardId, ann.id, { sourceFile: relPath });
+          invalidateExistenceCache(relPath);
+          import("../components/Toast").then(({ showToast }) =>
+            showToast("Fichier réassocié avec succès", "🔗")
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Failed to reassociate file:", err);
+    }
+  };
+
+  return (
+    <div
+      data-id={ann.id}
+      ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
+      title={`${def.name} — ${fileStatus === "broken" ? "Lien rompu ! Cliquer sur le badge pour réassocier" : "double-clic pour ouvrir"}`}
+      style={{
+        position: "absolute",
+        left: ann.x, top: ann.y,
+        width: w, height: h,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        gap: 8, padding: 8, boxSizing: "border-box",
+        borderRadius: 14,
+        background: `radial-gradient(circle at 50% 36%, ${glow}40 0%, ${glow}1f 38%, #161622 78%)`,
+        border: fileStatus === "broken" ? "1px dashed #ef4444" : `1px solid ${glow}66`,
+        boxShadow: sel
+          ? `0 0 0 2px #fff, 0 0 26px ${glow}88`
+          : `0 0 20px ${glow}3a, 0 6px 14px rgba(0,0,0,0.45)`,
+        pointerEvents: "all",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+      onPointerDown={(e) => handleDown(ann, e)}
+      onDoubleClick={(e) => handleDblClick(ann, e)}
+      onWheel={forwardWheel}
+      onMouseEnter={() => setHoveredNodeId(ann.id)}
+      onMouseLeave={() => setHoveredNodeId(null)}
+    >
+      <AppBridgeIcon filePath={ann.sourceFile!} size={iconSize} />
+      <span style={{
+        maxWidth: "100%",
+        fontSize: 11, fontWeight: 600,
+        color: fileStatus === "broken" ? "#fca5a5" : "#e8e8f0",
+        textAlign: "center",
+        lineHeight: 1.2,
+        overflow: "hidden", textOverflow: "ellipsis",
+        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+        wordBreak: "break-word",
+        textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+      }}>
+        {title}
+      </span>
+
+      {fileStatus === "broken" && (
+        <div
+          title="Lien rompu — Cliquer pour réassocier le fichier"
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            background: "#ef4444",
+            color: "#fff",
+            fontSize: 9,
+            fontWeight: "bold",
+            padding: "2px 6px",
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
+            zIndex: 10,
+            cursor: "pointer",
+            border: "1px solid #fca5a5",
+          }}
+          onClick={handleReassociate}
+        >
+          ⚠️ Lien rompu
+        </div>
+      )}
+
+      <MirrorBadge mirrorOf={ann.mirrorOf} />
+      <TemporalBadge anchor={ann.temporalAnchor} />
+
+      {sel && corners.map((c) => (
+        <div
+          key={c.id}
+          onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}
+          style={{
+            position: "absolute",
+            left: c.cx - 12, top: c.cy - 12,
+            width: 24, height: 24,
+            cursor: c.id === "br" || c.id === "tl" ? "nwse-resize" : "nesw-resize",
+            zIndex: 10,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div style={{ width: 8, height: 8, background: "#fff", border: "1px solid #333", borderRadius: "50%" }} />
+        </div>
+      ))}
+    </div>
+  );
+};
 import { MirrorBadge, DomainBadges, TemporalBadge, resolveDomainBadges } from "./AnnotationBadges";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 
@@ -131,7 +281,8 @@ export default function HtmlAnnotationLayer({
     sourceTextSel?: string, targetTextSel?: string,
   } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<{ annId: string, blockId?: string } | null>(null);
-  const [guides, setGuides] = useState<{ x?: number[]; y?: number[] } | null>(null);
+  const guides = useGlucoseStore((s) => s.guides);
+  const setGuides = useGlucoseStore((s) => s.setGuides);
 
   useEffect(() => {
     const onHover = (e: Event) => setHoveredBlocks((e as CustomEvent).detail);
@@ -164,7 +315,7 @@ export default function HtmlAnnotationLayer({
   useEffect(() => {
     // Observer pour mettre à jour la taille des annotations dans le store quand elles changent de taille
     resizeObserver.current = new ResizeObserver((entries) => {
-      const boardId = useGlucoseStore.getState().project.activeBoardId;
+      const boardId = useGlucoseStore.getState().activeBoardId;
       for (const entry of entries) {
         const id = (entry.target as HTMLElement).dataset.id;
         if (!id || id === editingId) continue;
@@ -291,7 +442,7 @@ export default function HtmlAnnotationLayer({
         else if (ds.corner === "tl") { nw = Math.max(60, sw - dx); nh = Math.max(40, sh - dy); nx = ds.startX + (sw - nw); ny = ds.startY + (sh - nh); }
         onResize(ds.id, nx, ny, nw, nh);
       } else {
-        const boardId = useGlucoseStore.getState().project.activeBoardId;
+        const boardId = useGlucoseStore.getState().activeBoardId;
         const board = useGlucoseStore.getState().project.boards.find(b => b.id === boardId);
         const smartEnabled = useGlucoseStore.getState().smartGuidesEnabled;
         
@@ -1017,84 +1168,23 @@ function AnnotationItem({
               { id: "tl", cx: 0, cy: 0 },
             ];
 
-            const isSource = !!ann.sourceFile;
-            const title = ann.sourceFile?.split(/[\\/]/).pop() || "Code Source";
-
-            // ── Fichier source → TUILE ICÔNE (style Mac/Android, pas postit) ──
-            // Grande icône centrée + nom dessous + halo « fumée » dans la
-            // couleur dominante de l'app (Blender = orange, etc.). Double-clic
-            // → open_in_app (déjà câblé via handleDblClick).
+            const isSource = !!(ann as any).sourceFile;
+            const title = (ann as any).sourceFile?.split(/[\\/]/).pop() || "Code Source";
             if (isSource) {
-              const def = getAppDef(ann.sourceFile!);
-              const glow = def.bg;
-              const iconSize = Math.max(40, Math.min(w, h) * 0.46);
               return (
-                <div
+                <SourceFileTile
                   key={ann.id}
-                  data-id={ann.id}
-                  ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
-                  title={`${def.name} — double-clic pour ouvrir`}
-                  style={{
-                    position: "absolute",
-                    left: ann.x, top: ann.y,
-                    width: w, height: h,
-                    display: "flex", flexDirection: "column",
-                    alignItems: "center", justifyContent: "center",
-                    gap: 8, padding: 8, boxSizing: "border-box",
-                    borderRadius: 14,
-                    background: `radial-gradient(circle at 50% 36%, ${glow}40 0%, ${glow}1f 38%, #161622 78%)`,
-                    border: `1px solid ${glow}66`,
-                    boxShadow: sel
-                      ? `0 0 0 2px #fff, 0 0 26px ${glow}88`
-                      : `0 0 20px ${glow}3a, 0 6px 14px rgba(0,0,0,0.45)`,
-                    // Toujours cliquable : double-clic = ouvrir le fichier, quel
-                    // que soit l'outil actif. Évite que le clic traverse vers le
-                    // canvas (qui éditait/créait un postit) quand l'outil ≠ select.
-                    pointerEvents: "all",
-                    cursor: "pointer",
-                    userSelect: "none",
-                  }}
-                  onPointerDown={(e) => handleDown(ann, e)}
-                  onDoubleClick={(e) => handleDblClick(ann, e)}
-                  onWheel={forwardWheel}
-                  onMouseEnter={() => setHoveredNodeId(ann.id)}
-                  onMouseLeave={() => setHoveredNodeId(null)}
-                >
-                  <AppBridgeIcon filePath={ann.sourceFile!} size={iconSize} />
-                  <span style={{
-                    maxWidth: "100%",
-                    fontSize: 11, fontWeight: 600,
-                    color: "#e8e8f0",
-                    textAlign: "center",
-                    lineHeight: 1.2,
-                    overflow: "hidden", textOverflow: "ellipsis",
-                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                    wordBreak: "break-word",
-                    textShadow: "0 1px 3px rgba(0,0,0,0.6)",
-                  }}>
-                    {title}
-                  </span>
-
-                  <MirrorBadge mirrorOf={ann.mirrorOf} />
-                  <TemporalBadge anchor={ann.temporalAnchor} />
-
-                  {sel && corners.map((c) => (
-                    <div
-                      key={c.id}
-                      onPointerDown={(e) => { e.stopPropagation(); handleDown(ann, e, c.id); }}
-                      style={{
-                        position: "absolute",
-                        left: c.cx - 12, top: c.cy - 12,
-                        width: 24, height: 24,
-                        cursor: c.id === "br" || c.id === "tl" ? "nwse-resize" : "nesw-resize",
-                        zIndex: 10,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <div style={{ width: 8, height: 8, background: "#fff", border: "1px solid #333", borderRadius: "50%" }} />
-                    </div>
-                  ))}
-                </div>
+                  ann={ann}
+                  w={w}
+                  h={h}
+                  sel={sel}
+                  handleDown={handleDown}
+                  handleDblClick={handleDblClick}
+                  forwardWheel={forwardWheel}
+                  setHoveredNodeId={setHoveredNodeId}
+                  resizeObserver={resizeObserver}
+                  corners={corners}
+                />
               );
             }
 
