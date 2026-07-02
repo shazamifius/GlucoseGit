@@ -54,8 +54,6 @@ jobs:
       - name: cargo fmt --check
         working-directory: src-tauri
         run: cargo fmt --all -- --check
-        continue-on-error: true
       - name: clippy
         working-directory: src-tauri
         run: cargo clippy --release -- -D warnings
-        continue-on-error: true

@@ -16,8 +16,7 @@ use multiplayer::{MpState, SharedMpState};
 
 /// Extensions autorisées pour la lecture d'images / fichiers de projet.
 const ALLOWED_READ_EXTS: &[&str] = &[
-    "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg",
-    "mp4", "mov", "webm", "mkv",
+    "png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "svg", "mp4", "mov", "webm", "mkv",
     "glucose", "json",
 ];
 
@@ -26,10 +25,9 @@ const ALLOWED_READ_EXTS: &[&str] = &[
 /// « bref tout » (.blend/.kra/.nuke/.indd/.docx/...), SAUF ce qui peut exécuter
 /// du code arbitraire au double-clic (protection RCE, cf. SEC-01..09).
 const FORBIDDEN_OPEN_EXTS: &[&str] = &[
-    "exe", "bat", "cmd", "ps1", "psm1", "psd1", "vbs", "vbe", "js", "jse",
-    "wsf", "wsh", "scr", "com", "msi", "msp", "lnk", "url", "inf", "reg",
-    "jar", "app", "dmg", "deb", "rpm", "appimage", "sh", "bash", "zsh",
-    "hta", "cpl", "msc", "pif", "scf", "gadget", "vb", "vbscript",
+    "exe", "bat", "cmd", "ps1", "psm1", "psd1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "scr",
+    "com", "msi", "msp", "lnk", "url", "inf", "reg", "jar", "app", "dmg", "deb", "rpm", "appimage",
+    "sh", "bash", "zsh", "hta", "cpl", "msc", "pif", "scf", "gadget", "vb", "vbscript",
 ];
 
 /// Extensions masquées au SCAN (folder mirror) : binaires/exécutables OS qui
@@ -37,8 +35,8 @@ const FORBIDDEN_OPEN_EXTS: &[&str] = &[
 /// on garde visibles les fichiers source (.js/.ps1/...) — ils restent
 /// non-lançables via `FORBIDDEN_OPEN_EXTS`, juste affichés.
 const SCAN_HIDE_EXTS: &[&str] = &[
-    "exe", "dll", "sys", "com", "scr", "msi", "msp", "ocx", "drv",
-    "lnk", "pif", "cpl", "tmp", "bin",
+    "exe", "dll", "sys", "com", "scr", "msi", "msp", "ocx", "drv", "lnk", "pif", "cpl", "tmp",
+    "bin",
 ];
 
 /// Vérifie qu'un chemin est dans un des dossiers autorisés (App Data, Documents,
@@ -55,8 +53,7 @@ fn validate_scope(path: &str, app_handle: &tauri::AppHandle) -> Result<PathBuf, 
     }
 
     // 2) Canonicalize pour résoudre les ".." et liens symboliques
-    let canonical = std::fs::canonicalize(path)
-        .map_err(|e| format!("Chemin invalide: {e}"))?;
+    let canonical = std::fs::canonicalize(path).map_err(|e| format!("Chemin invalide: {e}"))?;
 
     // 3) Doit être dans un des roots autorisés
     let path_resolver = app_handle.path();
@@ -167,7 +164,9 @@ async fn fetch_image(url: String) -> Result<String, String> {
     const MAX_REDIRECTS: usize = 3;
 
     loop {
-        let host = current_url.host_str().ok_or_else(|| "URL sans hôte".to_string())?;
+        let host = current_url
+            .host_str()
+            .ok_or_else(|| "URL sans hôte".to_string())?;
 
         // 1. Résoudre et valider l'adresse IP (protection anti-SSRF)
         let resolved_ip = if let Ok(ip) = host.parse::<IpAddr>() {
@@ -193,9 +192,14 @@ async fn fetch_image(url: String) -> Result<String, String> {
         };
 
         // 2. Déterminer le port pour la résolution DNS custom (protection anti-DNS Rebinding)
-        let port = current_url.port_or_known_default().unwrap_or(
-            if current_url.scheme() == "https" { 443 } else { 80 }
-        );
+        let port =
+            current_url
+                .port_or_known_default()
+                .unwrap_or(if current_url.scheme() == "https" {
+                    443
+                } else {
+                    80
+                });
 
         // 3. Configurer le client reqwest pour forcer la résolution locale de ce host vers cette IP précise
         let client = reqwest::Client::builder()
@@ -219,7 +223,10 @@ async fn fetch_image(url: String) -> Result<String, String> {
         }
         // Accept large : certains CDN renvoient un HTML/JSON si on n'envoie pas
         // un Accept compatible image.
-        req = req.header(header::ACCEPT, "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
+        req = req.header(
+            header::ACCEPT,
+            "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        );
 
         let resp = req.send().await.map_err(|e| e.to_string())?;
         let status = resp.status();
@@ -229,15 +236,17 @@ async fn fetch_image(url: String) -> Result<String, String> {
                 return Err("Trop de redirections".into());
             }
             redirect_count += 1;
-            let location = resp.headers()
+            let location = resp
+                .headers()
                 .get(header::LOCATION)
                 .and_then(|v| v.to_str().ok())
                 .ok_or_else(|| "Redirection sans en-tête Location".to_string())?;
-            
+
             // Résolution relative ou absolue de l'URL de redirection
-            let next_url = current_url.join(location)
+            let next_url = current_url
+                .join(location)
                 .map_err(|e| format!("URL de redirection invalide: {e}"))?;
-            
+
             if !matches!(next_url.scheme(), "http" | "https") {
                 return Err("Seuls http/https sont autorisés pour les redirections".into());
             }
@@ -247,7 +256,11 @@ async fn fetch_image(url: String) -> Result<String, String> {
 
         // Refuse les codes d'erreur HTTP — sinon on bufferise une page d'erreur.
         if !status.is_success() {
-            return Err(format!("HTTP {} pour {}", status.as_u16(), current_url.as_str()));
+            return Err(format!(
+                "HTTP {} pour {}",
+                status.as_u16(),
+                current_url.as_str()
+            ));
         }
 
         let content_type = resp
@@ -285,10 +298,7 @@ async fn fetch_image(url: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn read_image_file(
-    path: String,
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+async fn read_image_file(path: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     let canonical = validate_scope(&path, &app_handle)?;
     let ext = get_ext(&canonical);
     if !ALLOWED_READ_EXTS.contains(&ext.as_str()) {
@@ -308,10 +318,7 @@ async fn read_image_file(
 }
 
 #[tauri::command]
-async fn open_in_app(
-    path: String,
-    app_handle: tauri::AppHandle,
-) -> Result<(), String> {
+async fn open_in_app(path: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     // 1) Scope check (refuse UNC, chemins hors zones autorisées)
     let canonical = validate_scope(&path, &app_handle)?;
 
@@ -362,10 +369,7 @@ async fn write_project_file(
 }
 
 #[tauri::command]
-async fn read_project_file(
-    path: String,
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+async fn read_project_file(path: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     let canonical = validate_scope(&path, &app_handle)?;
     let ext = get_ext(&canonical);
     if !["glucose", "json"].contains(&ext.as_str()) {
@@ -389,14 +393,13 @@ async fn read_project_file(
 // commandes dédiées qui transportent les bytes en base64 entre Rust et JS.
 
 #[tauri::command]
-async fn read_glucose_binary(
-    path: String,
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+async fn read_glucose_binary(path: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     let canonical = validate_scope(&path, &app_handle)?;
     let ext = get_ext(&canonical);
     if !["glucose", "atelier"].contains(&ext.as_str()) {
-        return Err(format!("Extension non autorisée pour lecture binaire: .{ext}"));
+        return Err(format!(
+            "Extension non autorisée pour lecture binaire: .{ext}"
+        ));
     }
     let bytes = tokio::fs::read(&canonical)
         .await
@@ -421,7 +424,9 @@ async fn write_glucose_binary(
 
     let ext = get_ext(&path_buf);
     if !["glucose", "atelier"].contains(&ext.as_str()) {
-        return Err(format!("Extension non autorisée pour écriture binaire: .{ext}"));
+        return Err(format!(
+            "Extension non autorisée pour écriture binaire: .{ext}"
+        ));
     }
 
     let bytes = STANDARD.decode(base64_data).map_err(|e| e.to_string())?;
@@ -451,7 +456,9 @@ async fn append_glucose_binary(
 
     let ext = get_ext(&path_buf);
     if !["glucose", "atelier"].contains(&ext.as_str()) {
-        return Err(format!("Extension non autorisée pour écriture binaire: .{ext}"));
+        return Err(format!(
+            "Extension non autorisée pour écriture binaire: .{ext}"
+        ));
     }
 
     let bytes = STANDARD.decode(base64_data).map_err(|e| e.to_string())?;
@@ -484,7 +491,9 @@ async fn write_binary_file(
     // Whitelist d'extensions binaires (export PNG essentiellement)
     let ext = get_ext(&path_buf);
     if !["png", "jpg", "jpeg", "webp", "pdf"].contains(&ext.as_str()) {
-        return Err(format!("Extension non autorisée pour export binaire: .{ext}"));
+        return Err(format!(
+            "Extension non autorisée pour export binaire: .{ext}"
+        ));
     }
 
     let bytes = STANDARD.decode(base64_data).map_err(|e| e.to_string())?;
@@ -497,10 +506,7 @@ async fn write_binary_file(
 }
 
 #[tauri::command]
-async fn download_video(
-    url: String,
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+async fn download_video(url: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     // Vérif basique d'URL (pas de SSRF — on ne télécharge que via yt-dlp qui
     // gère lui-même son réseau, mais on refuse au moins les chemins locaux).
     let parsed = url::Url::parse(&url).map_err(|e| format!("URL invalide: {e}"))?;
@@ -571,25 +577,20 @@ async fn download_video(
 const YT_DLP_VERSION: &str = "2024.11.18";
 
 #[cfg(windows)]
-const YT_DLP_URL: &str =
-    "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp.exe";
+const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp.exe";
 #[cfg(target_os = "macos")]
 const YT_DLP_URL: &str =
     "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp_macos";
 #[cfg(all(not(windows), not(target_os = "macos")))]
-const YT_DLP_URL: &str =
-    "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp";
+const YT_DLP_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/download/2024.11.18/yt-dlp";
 
 // SHA256 officiels de la release 2024.11.18 (source : SHA2-256SUMS upstream).
 #[cfg(windows)]
-const YT_DLP_SHA256: &str =
-    "4d88a8ce1bff829c7167dd21e8b4a8eeb0db1441bc27340f0896bbe781c9c3c0";
+const YT_DLP_SHA256: &str = "4d88a8ce1bff829c7167dd21e8b4a8eeb0db1441bc27340f0896bbe781c9c3c0";
 #[cfg(target_os = "macos")]
-const YT_DLP_SHA256: &str =
-    "3ea2a0c1768b630dfad127239882af4ea60ba6116bca0a6ce64974759eba0005";
+const YT_DLP_SHA256: &str = "3ea2a0c1768b630dfad127239882af4ea60ba6116bca0a6ce64974759eba0005";
 #[cfg(all(not(windows), not(target_os = "macos")))]
-const YT_DLP_SHA256: &str =
-    "78b4454c83d0f7efe9b26163e82bede0febf0039ae6bacf2963abcae941ac11a";
+const YT_DLP_SHA256: &str = "78b4454c83d0f7efe9b26163e82bede0febf0039ae6bacf2963abcae941ac11a";
 
 fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
@@ -622,10 +623,14 @@ async fn ensure_yt_dlp(data_dir: &std::path::Path) -> Result<std::path::PathBuf,
     }
 
     // 3) Système (PATH)
-    let probe = tokio::process::Command::new(if cfg!(windows) { "yt-dlp.exe" } else { "yt-dlp" })
-        .arg("--version")
-        .output()
-        .await;
+    let probe = tokio::process::Command::new(if cfg!(windows) {
+        "yt-dlp.exe"
+    } else {
+        "yt-dlp"
+    })
+    .arg("--version")
+    .output()
+    .await;
     if let Ok(out) = probe {
         if out.status.success() {
             return Ok(std::path::PathBuf::from(if cfg!(windows) {
@@ -754,24 +759,30 @@ async fn save_asset(
         // Devine l'extension depuis le mime
         let mime = header_part.split(';').next().unwrap_or("");
         let inferred = match mime {
-            "image/png"  => "png",
+            "image/png" => "png",
             "image/jpeg" => "jpg",
-            "image/jpg"  => "jpg",
+            "image/jpg" => "jpg",
             "image/webp" => "webp",
-            "image/gif"  => "gif",
+            "image/gif" => "gif",
             "image/avif" => "avif",
-            "image/bmp"  => "bmp",
+            "image/bmp" => "bmp",
             "image/svg+xml" => "svg",
             _ => "",
         };
-        let ext = if !inferred.is_empty() { inferred.to_string() } else { sanitize_ext(&ext_hint)? };
+        let ext = if !inferred.is_empty() {
+            inferred.to_string()
+        } else {
+            sanitize_ext(&ext_hint)?
+        };
         (payload.to_string(), ext)
     } else {
         (base64_data, sanitize_ext(&ext_hint)?)
     };
 
     // 2) Décoder
-    let bytes = STANDARD.decode(&b64).map_err(|e| format!("base64 invalide: {e}"))?;
+    let bytes = STANDARD
+        .decode(&b64)
+        .map_err(|e| format!("base64 invalide: {e}"))?;
     if bytes.len() > 100 * 1024 * 1024 {
         return Err("Asset trop volumineux (> 100 MB)".into());
     }
@@ -788,7 +799,9 @@ async fn save_asset(
     let dir = assets_dir(&app_handle)?;
     let path = dir.join(&filename);
     if !path.exists() {
-        tokio::fs::write(&path, &bytes).await.map_err(|e| e.to_string())?;
+        tokio::fs::write(&path, &bytes)
+            .await
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(filename)
@@ -797,10 +810,7 @@ async fn save_asset(
 /// Lit un asset par son nom de fichier (`<hash>.<ext>`) et renvoie une data URL.
 /// Utilisé pour l'export PNG ou les exports textuels qui ont besoin d'inliner.
 #[tauri::command]
-async fn load_asset(
-    filename: String,
-    app_handle: tauri::AppHandle,
-) -> Result<String, String> {
+async fn load_asset(filename: String, app_handle: tauri::AppHandle) -> Result<String, String> {
     // Sécurité : refuser tout `..` ou séparateur de chemin — on ne lit QUE
     // dans le dossier assets.
     if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
@@ -851,10 +861,7 @@ async fn scan_directory(
     let canonical = validate_scope(&path, &app_handle)?;
 
     if !canonical.is_dir() {
-        return Err(format!(
-            "{} n'est pas un dossier",
-            canonical.display()
-        ));
+        return Err(format!("{} n'est pas un dossier", canonical.display()));
     }
 
     let mut entries = tokio::fs::read_dir(&canonical)
@@ -870,14 +877,15 @@ async fn scan_directory(
         }
 
         let entry_path = entry.path();
-        let name = entry
-            .file_name()
-            .to_string_lossy()
-            .into_owned();
+        let name = entry.file_name().to_string_lossy().into_owned();
 
         // Skip les fichiers cachés Unix-style et les .DS_Store / Thumbs.db.
         // L'utilisateur préfère ne pas les voir polluer la grille.
-        if name.starts_with('.') && name != ".env" && name != ".gitignore" && name != ".gitattributes" {
+        if name.starts_with('.')
+            && name != ".env"
+            && name != ".gitignore"
+            && name != ".gitattributes"
+        {
             continue;
         }
         if name == "Thumbs.db" || name == "desktop.ini" {
@@ -921,15 +929,70 @@ async fn scan_directory(
 /// avec TEXT_FILE_EXTS + CODE_FILE_EXTS côté front, cf. dropHandler.ts).
 const TEXT_READ_EXTS: &[&str] = &[
     // texte / data
-    "txt", "md", "markdown", "json", "jsonl", "csv", "tsv", "log",
-    "yaml", "yml", "toml", "ini", "env", "xml", "html", "htm",
-    "conf", "cfg", "gitignore", "gitattributes",
+    "txt",
+    "md",
+    "markdown",
+    "json",
+    "jsonl",
+    "csv",
+    "tsv",
+    "log",
+    "yaml",
+    "yml",
+    "toml",
+    "ini",
+    "env",
+    "xml",
+    "html",
+    "htm",
+    "conf",
+    "cfg",
+    "gitignore",
+    "gitattributes",
     // code
-    "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "rs", "go",
-    "c", "cc", "cpp", "h", "hpp", "java", "rb", "php", "swift", "kt",
-    "cs", "scala", "sh", "bash", "zsh", "fish", "sql", "lua",
-    "r", "jl", "hs", "erl", "ex", "exs", "clj", "fs", "dart", "nim",
-    "zig", "asm", "s", "vim", "tex", "bib",
+    "ts",
+    "tsx",
+    "js",
+    "jsx",
+    "mjs",
+    "cjs",
+    "py",
+    "rs",
+    "go",
+    "c",
+    "cc",
+    "cpp",
+    "h",
+    "hpp",
+    "java",
+    "rb",
+    "php",
+    "swift",
+    "kt",
+    "cs",
+    "scala",
+    "sh",
+    "bash",
+    "zsh",
+    "fish",
+    "sql",
+    "lua",
+    "r",
+    "jl",
+    "hs",
+    "erl",
+    "ex",
+    "exs",
+    "clj",
+    "fs",
+    "dart",
+    "nim",
+    "zig",
+    "asm",
+    "s",
+    "vim",
+    "tex",
+    "bib",
 ];
 
 /// Plafond de lecture inline d'un fichier texte (100 KB — au-delà on tronque).
@@ -966,7 +1029,11 @@ async fn read_text_file_inline(
         .await
         .map_err(|e| e.to_string())?;
     let truncated = bytes.len() > TEXT_INLINE_MAX_BYTES;
-    let slice = if truncated { &bytes[..TEXT_INLINE_MAX_BYTES] } else { &bytes[..] };
+    let slice = if truncated {
+        &bytes[..TEXT_INLINE_MAX_BYTES]
+    } else {
+        &bytes[..]
+    };
     // from_utf8_lossy : un fichier "texte" mal encodé (latin-1, binaire déguisé)
     // ne doit pas faire planter — on remplace les octets invalides.
     let content = String::from_utf8_lossy(slice).into_owned();
@@ -1020,7 +1087,10 @@ async fn classify_paths(
         let name_lower = name.to_lowercase();
         let is_text = !is_dir
             && (TEXT_READ_EXTS.contains(&ext.as_str())
-                || matches!(name_lower.as_str(), ".env" | ".gitignore" | ".gitattributes"));
+                || matches!(
+                    name_lower.as_str(),
+                    ".env" | ".gitignore" | ".gitattributes"
+                ));
         let is_image = !is_dir && IMAGE_EXTS.contains(&ext.as_str());
         out.push(PathInfoDto {
             path: display_path(&canonical),
@@ -1064,7 +1134,10 @@ fn read_inline_text(
 ) -> Option<String> {
     let name_lower = name.to_lowercase();
     let is_text = TEXT_READ_EXTS.contains(&ext)
-        || matches!(name_lower.as_str(), ".env" | ".gitignore" | ".gitattributes");
+        || matches!(
+            name_lower.as_str(),
+            ".env" | ".gitignore" | ".gitattributes"
+        );
     if !is_text || size as usize > TEXT_INLINE_MAX_BYTES || *text_budget == 0 {
         return None;
     }
@@ -1076,11 +1149,7 @@ fn read_inline_text(
 
 /// True si on doit ignorer cette entrée (cachés, Thumbs.db, exécutables).
 fn skip_entry(name: &str, ext: &str, is_dir: bool) -> bool {
-    if name.starts_with('.')
-        && name != ".env"
-        && name != ".gitignore"
-        && name != ".gitattributes"
-    {
+    if name.starts_with('.') && name != ".env" && name != ".gitignore" && name != ".gitattributes" {
         return true;
     }
     if name == "Thumbs.db" || name == "desktop.ini" {
@@ -1123,7 +1192,7 @@ fn scan_dir_rec(
         Ok(r) => r,
         Err(_) => return Vec::new(),
     };
-    
+
     let mut scanned_entries: Vec<ScannedEntry> = rd
         .filter_map(|e| e.ok())
         .map(|entry| {
@@ -1138,12 +1207,10 @@ fn scan_dir_rec(
         .collect();
 
     // Tri stable : dossiers d'abord puis nom (le front re-trie selon R-FIL-03).
-    scanned_entries.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name_lower.cmp(&b.name_lower),
-        }
+    scanned_entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name_lower.cmp(&b.name_lower),
     });
 
     let mut out = Vec::new();
@@ -1156,12 +1223,12 @@ fn scan_dir_rec(
         let p = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
         let ext = get_ext(&p);
-        
+
         if skip_entry(&name, &ext, is_dir) {
             continue;
         }
         *budget -= 1;
-        
+
         let meta = match entry.metadata() {
             Ok(m) => m,
             Err(_) => continue,
@@ -1332,7 +1399,10 @@ fn sanitize_plugin_id(id: &str) -> Result<String, String> {
     if id.is_empty() || id.len() > 64 {
         return Err("Identifiant de plugin invalide".into());
     }
-    if !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+    if !id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
         return Err("Identifiant de plugin invalide (caractères interdits)".into());
     }
     Ok(id.to_string())
@@ -1365,7 +1435,7 @@ async fn list_plugins(app_handle: tauri::AppHandle) -> Result<Vec<PluginManifest
             ),
         }
     }
-    out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    out.sort_by_key(|m| m.name.to_lowercase());
     Ok(out)
 }
 
@@ -1407,7 +1477,9 @@ async fn run_plugin(
         .unwrap_or_default();
     let name_ok = matches!(fname.as_str(), ".env" | ".gitignore" | ".gitattributes");
     if !TEXT_READ_EXTS.contains(&ext.as_str()) && !name_ok {
-        return Err(format!("Le fichier source n'est pas un texte lisible (.{ext})"));
+        return Err(format!(
+            "Le fichier source n'est pas un texte lisible (.{ext})"
+        ));
     }
 
     // 3) Dossier de sortie horodaté dans app_data_dir/plugin-runs/<id-ts>.
@@ -1450,7 +1522,8 @@ async fn run_plugin(
                 && k.chars().all(|c| c.is_ascii_lowercase() || c == '-');
             let val_ok = !v.is_empty()
                 && v.len() <= 64
-                && v.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+                && v.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
             if key_ok && val_ok {
                 cmd.arg(format!("--{k}")).arg(v);
             }
@@ -1462,8 +1535,14 @@ async fn run_plugin(
         .spawn()
         .map_err(|e| format!("Impossible de lancer le plugin : {e}"))?;
 
-    let stdout = child.stdout.take().ok_or("flux stdout du plugin indisponible")?;
-    let stderr = child.stderr.take().ok_or("flux stderr du plugin indisponible")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("flux stdout du plugin indisponible")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("flux stderr du plugin indisponible")?;
 
     // Draine stderr en tâche de fond (évite un blocage si le pipe se remplit).
     let err_task = tokio::spawn(async move {
@@ -1546,7 +1625,10 @@ async fn install_plugin(
     }
     let bin_src = src.join(&manifest.binary);
     if !bin_src.exists() {
-        return Err(format!("Binaire déclaré absent du dossier : {}", manifest.binary));
+        return Err(format!(
+            "Binaire déclaré absent du dossier : {}",
+            manifest.binary
+        ));
     }
 
     let dest = plugins_root(&app_handle)?.join(&id);
@@ -1610,10 +1692,17 @@ async fn system_specs() -> Result<SystemSpecs, String> {
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
     let ram_gb = (sys.total_memory() as f64 / 1024.0 / 1024.0 / 1024.0).round() as u64;
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
     let vram_gb = nvidia_vram_gb().await;
     let recommended_model = recommend_model(ram_gb, vram_gb).to_string();
-    Ok(SystemSpecs { ram_gb, cores, vram_gb, recommended_model })
+    Ok(SystemSpecs {
+        ram_gb,
+        cores,
+        vram_gb,
+        recommended_model,
+    })
 }
 
 #[derive(serde::Serialize)]
@@ -1631,10 +1720,18 @@ async fn ollama_status() -> Result<OllamaStatus, String> {
         .map_err(|e| e.to_string())?;
     let resp = match client.get("http://127.0.0.1:11434/api/tags").send().await {
         Ok(r) => r,
-        Err(_) => return Ok(OllamaStatus { reachable: false, models: vec![] }),
+        Err(_) => {
+            return Ok(OllamaStatus {
+                reachable: false,
+                models: vec![],
+            })
+        }
     };
     if !resp.status().is_success() {
-        return Ok(OllamaStatus { reachable: false, models: vec![] });
+        return Ok(OllamaStatus {
+            reachable: false,
+            models: vec![],
+        });
     }
     let json: serde_json::Value = resp.json().await.unwrap_or(serde_json::Value::Null);
     let models = json
@@ -1646,7 +1743,10 @@ async fn ollama_status() -> Result<OllamaStatus, String> {
                 .collect()
         })
         .unwrap_or_default();
-    Ok(OllamaStatus { reachable: true, models })
+    Ok(OllamaStatus {
+        reachable: true,
+        models,
+    })
 }
 
 /// Télécharge un modèle via `ollama pull <model>` en STREAMANT sa progression
@@ -1697,7 +1797,15 @@ async fn pull_model(model: String, app_handle: tauri::AppHandle) -> Result<(), S
 
     if !status.success() {
         let stderr = err_task.await.unwrap_or_default();
-        let tail: String = stderr.lines().rev().take(5).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+        let tail: String = stderr
+            .lines()
+            .rev()
+            .take(5)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join("\n");
         return Err(format!("Échec du téléchargement.\n{tail}"));
     }
     Ok(())
@@ -1740,7 +1848,10 @@ async fn cmd_ok(program: &str, args: &[&str]) -> bool {
 fn find_ollama_exe() -> Option<PathBuf> {
     #[cfg(windows)]
     if let Ok(local) = std::env::var("LOCALAPPDATA") {
-        let p = PathBuf::from(local).join("Programs").join("Ollama").join("ollama.exe");
+        let p = PathBuf::from(local)
+            .join("Programs")
+            .join("Ollama")
+            .join("ollama.exe");
         if p.exists() {
             return Some(p);
         }
@@ -1825,8 +1936,13 @@ async fn install_ollama(app_handle: tauri::AppHandle) -> Result<String, String> 
             "ollama-install-progress",
             "winget",
             &[
-                "install", "--id", "Ollama.Ollama", "-e", "--silent",
-                "--accept-source-agreements", "--accept-package-agreements",
+                "install",
+                "--id",
+                "Ollama.Ollama",
+                "-e",
+                "--silent",
+                "--accept-source-agreements",
+                "--accept-package-agreements",
             ],
             15 * 60,
         )
@@ -1835,9 +1951,13 @@ async fn install_ollama(app_handle: tauri::AppHandle) -> Result<String, String> 
     }
 
     // 2) Démarre le serveur (fire-and-forget) : binaire trouvé, sinon via le PATH.
-    let starter: std::ffi::OsString = exe
-        .map(|p| p.into_os_string())
-        .unwrap_or_else(|| std::ffi::OsString::from(if cfg!(windows) { "ollama.exe" } else { "ollama" }));
+    let starter: std::ffi::OsString = exe.map(|p| p.into_os_string()).unwrap_or_else(|| {
+        std::ffi::OsString::from(if cfg!(windows) {
+            "ollama.exe"
+        } else {
+            "ollama"
+        })
+    });
     let _ = tokio::process::Command::new(&starter).arg("serve").spawn();
 
     // 3) Attend que l'API réponde (~40 s).
@@ -1962,6 +2082,8 @@ mod tests {
         assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(10, 0, 0, 5))));
         assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))));
         // 169.254.169.254 = métadonnées cloud (AWS/GCP/Azure) — anti-SSRF.
-        assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(169, 254, 169, 254))));
+        assert!(!is_public_ip(&IpAddr::V4(Ipv4Addr::new(
+            169, 254, 169, 254
+        ))));
     }
 }

@@ -121,11 +121,7 @@ fn machine_name() -> String {
 
 // ─── Serveur WebSocket : accepte les connexions entrantes ─────────────────
 
-async fn run_server(
-    listener: TcpListener,
-    state: SharedMpState,
-    app_handle: AppHandle,
-) {
+async fn run_server(listener: TcpListener, state: SharedMpState, app_handle: AppHandle) {
     while let Ok((stream, addr)) = listener.accept().await {
         let state = state.clone();
         let app_handle = app_handle.clone();
@@ -179,7 +175,13 @@ async fn register_peer<S>(
     // Enregistrer le peer
     {
         let mut s = state.lock().await;
-        s.peers.insert(key.clone(), PeerConn { tx, name: name.clone() });
+        s.peers.insert(
+            key.clone(),
+            PeerConn {
+                tx,
+                name: name.clone(),
+            },
+        );
     }
     let _ = app_handle.emit(
         "mp:peer-connected",
@@ -236,19 +238,12 @@ async fn register_peer<S>(
         let mut s = state.lock().await;
         s.peers.remove(&key);
     }
-    let _ = app_handle.emit(
-        "mp:peer-disconnected",
-        serde_json::json!({ "key": key }),
-    );
+    let _ = app_handle.emit("mp:peer-disconnected", serde_json::json!({ "key": key }));
 }
 
 // ─── mDNS browse ────────────────────────────────────────────────────────────
 
-async fn run_browse(
-    daemon: ServiceDaemon,
-    own_name: String,
-    app_handle: AppHandle,
-) {
+async fn run_browse(daemon: ServiceDaemon, own_name: String, app_handle: AppHandle) {
     let receiver = match daemon.browse(SERVICE_TYPE) {
         Ok(r) => r,
         Err(e) => {
@@ -266,13 +261,19 @@ async fn run_browse(
                 }
                 let port = info.get_port();
                 // Prend la première IPv4 dispo (le LAN typique)
-                let addr = info
-                    .get_addresses()
-                    .iter()
-                    .find_map(|ip| if ip.is_ipv4() { Some(ip.to_string()) } else { None });
+                let addr = info.get_addresses().iter().find_map(|ip| {
+                    if ip.is_ipv4() {
+                        Some(ip.to_string())
+                    } else {
+                        None
+                    }
+                });
                 if let Some(addr) = addr {
                     let payload = PeerFound {
-                        name: svc_name.replace(SERVICE_TYPE, "").trim_end_matches('.').to_string(),
+                        name: svc_name
+                            .replace(SERVICE_TYPE, "")
+                            .trim_end_matches('.')
+                            .to_string(),
                         addr,
                         port,
                     };
@@ -280,10 +281,7 @@ async fn run_browse(
                 }
             }
             ServiceEvent::ServiceRemoved(_, name) => {
-                let _ = app_handle.emit(
-                    "mp:peer-lost",
-                    serde_json::json!({ "name": name }),
-                );
+                let _ = app_handle.emit("mp:peer-lost", serde_json::json!({ "name": name }));
             }
             _ => {}
         }
@@ -312,7 +310,9 @@ pub async fn mp_start(
     let bind_addr: SocketAddr = format!("0.0.0.0:{port}")
         .parse()
         .map_err(|e: std::net::AddrParseError| e.to_string())?;
-    let listener = TcpListener::bind(bind_addr).await.map_err(|e| e.to_string())?;
+    let listener = TcpListener::bind(bind_addr)
+        .await
+        .map_err(|e| e.to_string())?;
     let actual_port = listener.local_addr().map_err(|e| e.to_string())?.port();
 
     // 2) Démarre le daemon mDNS
@@ -334,7 +334,11 @@ pub async fn mp_start(
     daemon.register(svc_info).map_err(|e| e.to_string())?;
 
     // 3) Spawn server + browse
-    let server_task = tokio::spawn(run_server(listener, state.inner().clone(), app_handle.clone()));
+    let server_task = tokio::spawn(run_server(
+        listener,
+        state.inner().clone(),
+        app_handle.clone(),
+    ));
     let browse_task = tokio::spawn(run_browse(
         daemon.clone(),
         full_service_name,
@@ -349,17 +353,27 @@ pub async fn mp_start(
         s.browse_task = Some(browse_task);
     }
 
-    let status = MpStatus::Listening { port: actual_port, name: instance_name };
+    let status = MpStatus::Listening {
+        port: actual_port,
+        name: instance_name,
+    };
     let _ = app_handle.emit("mp:status", &status);
     Ok(status)
 }
 
 #[tauri::command]
-pub async fn mp_stop(state: tauri::State<'_, SharedMpState>, app_handle: AppHandle) -> Result<(), String> {
+pub async fn mp_stop(
+    state: tauri::State<'_, SharedMpState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
     let mut s = state.lock().await;
     // Annule serveur + browse
-    if let Some(t) = s.server_task.take() { t.abort(); }
-    if let Some(t) = s.browse_task.take() { t.abort(); }
+    if let Some(t) = s.server_task.take() {
+        t.abort();
+    }
+    if let Some(t) = s.browse_task.take() {
+        t.abort();
+    }
     // Ferme toutes les connexions peer (drop des tx → tâches send finissent)
     s.peers.clear();
     // Ferme le daemon mDNS
@@ -387,7 +401,9 @@ pub async fn mp_connect(
         if let Err(e) = run_client(url, display, s, app.clone()).await {
             let _ = app.emit(
                 "mp:status",
-                &MpStatus::Error { message: format!("Connexion échouée : {e}") },
+                &MpStatus::Error {
+                    message: format!("Connexion échouée : {e}"),
+                },
             );
         }
     });
