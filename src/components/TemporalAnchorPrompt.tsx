@@ -21,11 +21,12 @@ export default function TemporalAnchorPrompt({ onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const project = useGlucoseStore((s) => s.project);
+  const activeBoardId = useGlucoseStore((s) => s.activeBoardId);
   const selectedAnnotationIds = useGlucoseStore((s) => s.selectedAnnotationIds);
   const selectedImageIds = useGlucoseStore((s) => s.selectedImageIds);
   const updateAnnotation = useGlucoseStore((s) => s.updateAnnotation);
   const updateImage = useGlucoseStore((s) => s.updateImage);
-  const board = project.boards.find((b) => b.id === project.activeBoardId);
+  const board = project.boards.find((b) => b.id === activeBoardId);
 
   // Pré-remplit avec la valeur déjà ancrée si une seule sélection commune
   useEffect(() => {

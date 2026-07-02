@@ -22,6 +22,7 @@ import SvgAnnotationLayer, { measureTextSize } from "./SvgAnnotationLayer";
 import HtmlAnnotationLayer from "./HtmlAnnotationLayer";
 import ArrowSvgLayer from "./ArrowSvgLayer";
 import FolderSvgLayer from "./FolderSvgLayer";
+import PeerCursorsLayer from "../multiplayer/PeerCursorsLayer";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -49,6 +50,7 @@ import { nodeMatchesTemporalFilter } from "../utils/timeline";
 // R-EMB-01 (Sprint 2) — résolveur unifié AssetRef / src legacy
 import { resolveImageSrc, saveAssetFromBytes } from "../utils/assets";
 import { buildLinkRef, sha256Hex, extFromMime } from "../utils/assetRef";
+import { toAbsolute } from "../utils/pathResolver";
 
 const MIN_SCALE = 0.02;
 const MAX_SCALE = 20;
@@ -213,6 +215,7 @@ export default function GlucoseCanvas() {
   // chaque image survolée → jank en mouvement. On ne s'abonne plus qu'aux tranches
   // réellement affichées ; les actions sont des refs stables (aucun re-render).
   const project = useGlucoseStore((s) => s.project);
+  const activeBoardId = useGlucoseStore((s) => s.activeBoardId);
   const selectedImageIds = useGlucoseStore((s) => s.selectedImageIds);
   const selectedAnnotationIds = useGlucoseStore((s) => s.selectedAnnotationIds);
   const activeTool = useGlucoseStore((s) => s.activeTool);
@@ -683,7 +686,7 @@ export default function GlucoseCanvas() {
       }
       if (!targetBoardId) return;
       // 2) Si nécessaire, basculer sur ce board (utilise setActiveBoardId — pas enterFolder qui empile le stack)
-      if (state.project.activeBoardId !== targetBoardId) {
+      if (state.activeBoardId !== targetBoardId) {
         useGlucoseStore.getState().setActiveBoardId(targetBoardId);
       }
       // 3) Centrer le viewport sur l'original (animation simple avec rAF)
@@ -731,7 +734,7 @@ export default function GlucoseCanvas() {
       const detail = (e as CustomEvent).detail as { boardId: string; targetId?: string };
       if (!detail?.boardId) return;
       const state = useGlucoseStore.getState();
-      if (state.project.activeBoardId !== detail.boardId) {
+      if (state.activeBoardId !== detail.boardId) {
         state.setActiveBoardId(detail.boardId);
       }
       // Centrage sur la cible après le tick (le board doit avoir basculé)
@@ -775,7 +778,7 @@ export default function GlucoseCanvas() {
   const folderTransitionRafRef = useRef<number | null>(null);
   useEffect(() => {
     if (!pixiReady) return;
-    const boardId = project.activeBoardId;
+    const boardId = activeBoardId;
     if (!prevBoardIdRef.current) {
       prevBoardIdRef.current = boardId;
       prevFolderStackLenRef.current = useGlucoseStore.getState().folderStack.length;
@@ -849,7 +852,7 @@ export default function GlucoseCanvas() {
       }
     };
     folderTransitionRafRef.current = requestAnimationFrame(animate);
-  }, [project.activeBoardId, pixiReady]);
+  }, [activeBoardId, pixiReady]);
 
   // ── Contour de sélection + poignées de redimensionnement ──────
   // Dessine, pour chaque image sélectionnée, son contour blanc et 4 poignées
@@ -1308,7 +1311,7 @@ export default function GlucoseCanvas() {
       // le seuil n'est qu'indicatif (cadre bleu) — pas besoin de recalculer à
       // chaque frame sur un dossier à plusieurs milliers de fichiers.
       const cache = exitScaleCacheRef.current;
-      const boardId = st0.project.activeBoardId;
+      const boardId = st0.activeBoardId;
       const now = performance.now();
       if (cache.boardId === boardId && now - cache.t < 180) {
         exitScale = cache.scale;
@@ -1442,8 +1445,9 @@ export default function GlucoseCanvas() {
       if (!target0) return;
 
       if (target0.mirrorSource?.pendingScan) {
+        const absPath = toAbsolute(target0.mirrorSource.rootPath);
         const result = await scanFolderForMirror(
-          target0.mirrorSource.rootPath, 0, 0, target0.mirrorSource.sortBy,
+          absPath, 0, 0, target0.mirrorSource.sortBy,
         );
         useGlucoseStore.getState().expandFolder(parentBoardId, targetId, result.tree);
       }
@@ -2069,13 +2073,95 @@ export default function GlucoseCanvas() {
         const dx = currentWX - pStartX;
         const dy = currentWY - pStartY;
         if (dx !== 0 || dy !== 0) {
-          draggedSpriteRef.current.pStartX = currentWX;
-          draggedSpriteRef.current.pStartY = currentWY;
-          // UNDO-1 — 1 seule entrée d'undo pour TOUT le drag : on ouvre la
-          // transaction au 1er mouvement (idempotent), refermée au pointerup.
           const st = useGlucoseStore.getState();
-          if (!st._liveEdit) st.beginLiveEdit();
-          st.moveSelected(getActiveBoard(st.project).id, dx, dy);
+          const smartEnabled = st.smartGuidesEnabled;
+          let finalDX = dx;
+          let finalDY = dy;
+          let snapX: number | undefined;
+          let snapY: number | undefined;
+
+          if (smartEnabled && selectedImageIds.length === 1 && board) {
+            const dragId = draggedSpriteRef.current.id;
+            const img = board.images.find(i => i.id === dragId);
+            if (img) {
+              const SNAP_DIST = 8;
+              const currentX = img.x + dx;
+              const currentY = img.y + dy;
+              const w = img.width;
+              const h = img.height;
+
+              const targetsX: { val: number; type: string }[] = [];
+              const targetsY: { val: number; type: string }[] = [];
+
+              board.images.forEach(other => {
+                if (other.id === img.id) return;
+                targetsX.push({ val: other.x, type: "center" });
+                targetsX.push({ val: other.x - other.width / 2, type: "left" });
+                targetsX.push({ val: other.x + other.width / 2, type: "right" });
+                targetsY.push({ val: other.y, type: "center" });
+                targetsY.push({ val: other.y - other.height / 2, type: "top" });
+                targetsY.push({ val: other.y + other.height / 2, type: "bottom" });
+              });
+
+              board.annotations.forEach(other => {
+                if (other.type === "arrow") return;
+                const ow = other.width || 200;
+                const oh = other.height || 100;
+                targetsX.push({ val: other.x, type: "left" });
+                targetsX.push({ val: other.x + ow, type: "right" });
+                targetsX.push({ val: other.x + ow / 2, type: "center" });
+                targetsY.push({ val: other.y, type: "top" });
+                targetsY.push({ val: other.y + oh, type: "bottom" });
+                targetsY.push({ val: other.y + oh / 2, type: "center" });
+              });
+
+              const myXPoints = [
+                { val: currentX - w / 2, type: "left" },
+                { val: currentX + w / 2, type: "right" },
+                { val: currentX, type: "center" }
+              ];
+              for (const myP of myXPoints) {
+                for (const target of targetsX) {
+                  if (Math.abs(myP.val - target.val) < SNAP_DIST) {
+                    snapX = target.val;
+                    finalDX = target.val - (myP.type === "left" ? img.x - w / 2 : myP.type === "right" ? img.x + w / 2 : img.x);
+                    break;
+                  }
+                }
+                if (snapX !== undefined) break;
+              }
+
+              const myYPoints = [
+                { val: currentY - h / 2, type: "top" },
+                { val: currentY + h / 2, type: "bottom" },
+                { val: currentY, type: "center" }
+              ];
+              for (const myP of myYPoints) {
+                for (const target of targetsY) {
+                  if (Math.abs(myP.val - target.val) < SNAP_DIST) {
+                    snapY = target.val;
+                    finalDY = target.val - (myP.type === "top" ? img.y - h / 2 : myP.type === "bottom" ? img.y + h / 2 : img.y);
+                    break;
+                  }
+                }
+                if (snapY !== undefined) break;
+              }
+
+              st.setGuides({
+                x: snapX !== undefined ? [snapX] : undefined,
+                y: snapY !== undefined ? [snapY] : undefined
+              });
+            }
+          } else {
+            st.setGuides(null);
+          }
+
+          if (Math.abs(finalDX) > 0.01 || Math.abs(finalDY) > 0.01) {
+            draggedSpriteRef.current.pStartX = draggedSpriteRef.current.pStartX + finalDX;
+            draggedSpriteRef.current.pStartY = draggedSpriteRef.current.pStartY + finalDY;
+            if (!st._liveEdit) st.beginLiveEdit();
+            st.moveSelected(getActiveBoard(st.project).id, finalDX, finalDY);
+          }
         }
         return;
       }
@@ -2200,7 +2286,10 @@ export default function GlucoseCanvas() {
         finishArrow(wx, wy);
         return;
       }
-      if (draggedSpriteRef.current) useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — fin du drag
+      if (draggedSpriteRef.current) {
+        useGlucoseStore.getState().endLiveEdit();
+        useGlucoseStore.getState().setGuides(null);
+      }
       draggedSpriteRef.current = null;
       if (selDragRef.current) {
         const { sx, sy } = selDragRef.current;
@@ -2261,7 +2350,10 @@ export default function GlucoseCanvas() {
         const wy = (e.globalY - world.y) / world.scale.y;
         finishArrow(wx, wy);
       }
-      if (draggedSpriteRef.current) useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — fin du drag (hors zone)
+      if (draggedSpriteRef.current) {
+        useGlucoseStore.getState().endLiveEdit();
+        useGlucoseStore.getState().setGuides(null);
+      }
       draggedSpriteRef.current = null;
       selDragRef.current = null;
       selRectGfxRef.current?.clear();
@@ -2616,6 +2708,9 @@ export default function GlucoseCanvas() {
           updateAnnotation(boardId, id, { x, y, width: w, height: h });
         }}
       />
+
+      {/* ── Curseurs et sélections des pairs en direct (Collaboration) ── */}
+      <PeerCursorsLayer vpRef={vpRef} />
 
       {/* ── Couche SVG vectorielle des flèches — au-dessus des stickies ── */}
       <ArrowSvgLayer

@@ -204,13 +204,13 @@ function rewriteProjectContent(d: Project, plain: Project): void {
   d.updatedAt = Date.now();
 }
 
-interface GlucoseStore {
-  // â”€â”€ Source de vÃ©ritÃ© Automerge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export interface GlucoseStore {
+  // ── Source de vérité Automerge ──────────────────────────────────────────
   _doc: A.Doc<Project>;
-  /** Vue React-friendly du doc. ReflÃ¨te soit `_doc` (prÃ©sent), soit l'Ã©tat preview
-   *  Time Machine quand `_previewHeads` est dÃ©fini. Nouvelle rÃ©fÃ©rence Ã  chaque update. */
+  /** Vue React-friendly du doc. Reflète soit `_doc` (présent), soit l'état preview
+   *  Time Machine quand `_previewHeads` est défini. Nouvelle référence à chaque update. */
   project: Project;
-  /** Helper central : toute mutation passe par lÃ . Blocked si preview actif. */
+  /** Helper central : toute mutation passe par là. Blocked si preview actif. */
   mutate: (message: string, mutator: (d: Project) => void) => void;
   /** UNDO-1 — Comme `mutate` mais SANS entrée undo/redo. Réservé à l'état de
    *  vue/navigation (viewport, activeBoardId) : ça ne doit jamais consommer un
@@ -238,11 +238,12 @@ interface GlucoseStore {
    *  snapshot, cf. memory undo-forward-revert-wasm-panic). Sort du mode preview. */
   restoreFromPlain: (plain: Project) => void;
 
-  // â”€â”€ Outil / sÃ©lection / navigation (Ã©tat UI local, hors doc) â”€
+  // ── Outil / sélection / navigation (état UI local, hors doc) ─
   activeTool: Tool;
   selectedImageIds: string[];
   selectedAnnotationIds: string[];
   folderStack: Array<{ boardId: string; folderId: string }>;
+  activeBoardId: string;
   setActiveTool: (tool: Tool) => void;
   setSelectedImageIds: (ids: string[]) => void;
   setSelectedAnnotationIds: (ids: string[]) => void;
@@ -380,9 +381,11 @@ interface GlucoseStore {
    *  local, Ctrl+Z annule uniquement TES propres actions). */
   applyRemoteChanges: (changes: Uint8Array[]) => void;
 
-  // â”€â”€ Smart guides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Smart guides ──────────────────────────────────────────
   smartGuidesEnabled: boolean;
   toggleSmartGuides: () => void;
+  guides: { x?: number[]; y?: number[] } | null;
+  setGuides: (guides: { x?: number[]; y?: number[] } | null) => void;
 
   // â”€â”€ UI panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   rightPanelOpen: boolean;
@@ -445,6 +448,7 @@ const INITIAL_DOC = A.create<Project>(DEFAULT_PROJECT);
 export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   _doc: INITIAL_DOC,
   project: INITIAL_DOC as unknown as Project,
+  activeBoardId: DEFAULT_BOARD_ID,
 
   mutate: (message, mutator) => {
     const handle = getCollabHandle();
@@ -540,6 +544,16 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   _previewHeads: null,
   setPreviewHeads: (heads) => {
     set((s) => {
+      // Évite le re-calcul si les heads n'ont pas changé (comparaison d'arrays de hashes)
+      if (s._previewHeads === heads) return s;
+      if (
+        s._previewHeads &&
+        heads &&
+        s._previewHeads.length === heads.length &&
+        s._previewHeads.every((h, i) => h === heads[i])
+      ) {
+        return s;
+      }
       if (heads === null) {
         // Sortie du mode preview : project revient au doc courant
         return { _previewHeads: null, project: s._doc as unknown as Project };
@@ -601,6 +615,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   selectedAnnotationIds: [],
   folderStack: [],
   smartGuidesEnabled: true,
+  guides: null,
   rightPanelOpen: false,
   hoveredNodeId: null,
   transDomainVisible: true,
@@ -613,6 +628,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   setTemporalFilter: (filter) => set({ temporalFilter: filter }),
   setRightPanelOpen: (open) => { if (get().rightPanelOpen !== open) set({ rightPanelOpen: open }); },
   toggleSmartGuides: () => set((s) => ({ smartGuidesEnabled: !s.smartGuidesEnabled })),
+  setGuides: (guides) => set({ guides }),
 
   // â”€â”€ Undo / Redo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _undoStack: [],
@@ -1087,7 +1103,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       d.activeBoardId = board.id;
       d.updatedAt = Date.now();
     });
-    set({ selectedImageIds: [], selectedAnnotationIds: [] });
+    set({ activeBoardId: board.id, selectedImageIds: [], selectedAnnotationIds: [] });
     return board.id;
   },
 
@@ -1107,7 +1123,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       d.activeBoardId = fresh.id;
       d.updatedAt = Date.now();
     });
-    set({ selectedImageIds: [], selectedAnnotationIds: [], folderStack: [] });
+    set({ activeBoardId: fresh.id, selectedImageIds: [], selectedAnnotationIds: [], folderStack: [] });
     return fresh.id;
   },
 
@@ -1116,27 +1132,36 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("removeBoard", (d) => {
       const removeIdx = d.boards.findIndex((b) => b.id === id);
       if (removeIdx === -1) return;
-      // Patch les flÃ¨ches portail orphelines avant de retirer le board
+      // Patch les flèches portail orphelines avant de retirer le board
       for (const b of d.boards) {
         for (const a of b.annotations) {
           if (a.type === "arrow" && a.targetBoardId === id) delete a.targetBoardId;
         }
       }
       d.boards.splice(removeIdx, 1);
-      // Bascule activeBoardId si c'Ã©tait celui supprimÃ©
+      // Bascule activeBoardId si c'était celui supprimé
       if (d.activeBoardId === id) {
         const nextIdx = Math.max(0, removeIdx - 1);
         d.activeBoardId = d.boards[nextIdx]?.id ?? d.boards[0].id;
       }
       d.updatedAt = Date.now();
     });
-    set((s) => ({
-      selectedImageIds: [],
-      selectedAnnotationIds: [],
-      folderStack: s.folderStack.filter(
-        (f) => f.boardId !== id && s.project.boards.some((b) => b.id === f.boardId)
-      ),
-    }));
+    set((s) => {
+      let activeBoardId = s.activeBoardId;
+      if (activeBoardId === id) {
+        const removeIdx = s.project.boards.findIndex((b) => b.id === id);
+        const nextIdx = Math.max(0, removeIdx - 1);
+        activeBoardId = s.project.boards[nextIdx]?.id ?? s.project.boards[0]?.id ?? DEFAULT_BOARD_ID;
+      }
+      return {
+        activeBoardId,
+        selectedImageIds: [],
+        selectedAnnotationIds: [],
+        folderStack: s.folderStack.filter(
+          (f) => f.boardId !== id && s.project.boards.some((b) => b.id === f.boardId)
+        ),
+      };
+    });
   },
 
   renameBoard: (id, name) => {
@@ -1150,8 +1175,8 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     get().mutate("reorderBoards", (d) => {
       if (fromIndex < 0 || fromIndex >= d.boards.length) return;
       if (toIndex < 0 || toIndex >= d.boards.length) return;
-      // Snapshot plain : le proxy retournÃ© par splice() devient invalide aprÃ¨s
-      // suppression de son emplacement, Automerge refuse de le rÃ©insÃ©rer.
+      // Snapshot plain : le proxy retourné par splice() devient invalide après
+      // suppression de son emplacement, Automerge refuse de le réinsérer.
       const moved = JSON.parse(JSON.stringify(d.boards[fromIndex]));
       d.boards.splice(fromIndex, 1);
       d.boards.splice(toIndex, 0, moved);
@@ -1162,8 +1187,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     // Navigation pure → mutateView (jamais dans l'undo). Reconstruit folderStack
     // pour pointer vers le nouveau board s'il est sous-dossier.
     const stack = buildFolderStack(get().project.boards, id);
-    get().mutateView("setActiveBoardId", (d) => { d.activeBoardId = id; });
-    set({ selectedImageIds: [], selectedAnnotationIds: [], folderStack: stack });
+    if (!getCollabHandle()) {
+      get().mutateView("setActiveBoardId", (d) => { d.activeBoardId = id; });
+    }
+    set({ activeBoardId: id, selectedImageIds: [], selectedAnnotationIds: [], folderStack: stack });
   },
 
   duplicateBoard: (id) => {
@@ -1175,6 +1202,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       d.boards.push(copy);
       d.activeBoardId = copy.id;
     });
+    set({ activeBoardId: copy.id });
   },
 
   applyPresetToBoard: (boardId, presetId, worldX, worldY) => {
@@ -1767,13 +1795,16 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
 
   enterFolder: (folderId) => {
     const s = get();
-    const boardId = s.project.activeBoardId;
+    const boardId = s.activeBoardId;
     const board = s.project.boards.find((b) => b.id === boardId);
     const folder = (board?.folders ?? []).find((f) => f.id === folderId);
     if (!folder) return;
     const targetBoardId = folder.childBoardId;
-    get().mutateView("enterFolder", (d) => { d.activeBoardId = targetBoardId; });
+    if (!getCollabHandle()) {
+      get().mutateView("enterFolder", (d) => { d.activeBoardId = targetBoardId; });
+    }
     set({
+      activeBoardId: targetBoardId,
       folderStack: [...s.folderStack, { boardId, folderId }],
       selectedImageIds: [],
       selectedAnnotationIds: [],
@@ -1784,8 +1815,11 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const s = get();
     if (s.folderStack.length === 0) return;
     const prev = s.folderStack[s.folderStack.length - 1];
-    get().mutateView("exitFolder", (d) => { d.activeBoardId = prev.boardId; });
+    if (!getCollabHandle()) {
+      get().mutateView("exitFolder", (d) => { d.activeBoardId = prev.boardId; });
+    }
     set({
+      activeBoardId: prev.boardId,
       folderStack: s.folderStack.slice(0, -1),
       selectedImageIds: [],
       selectedAnnotationIds: [],
@@ -1796,8 +1830,11 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const s = get();
     if (s.folderStack.length === 0) return;
     const root = s.folderStack[0];
-    get().mutateView("exitToRoot", (d) => { d.activeBoardId = root.boardId; });
+    if (!getCollabHandle()) {
+      get().mutateView("exitToRoot", (d) => { d.activeBoardId = root.boardId; });
+    }
     set({
+      activeBoardId: root.boardId,
       folderStack: [],
       selectedImageIds: [],
       selectedAnnotationIds: [],
@@ -1818,29 +1855,32 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set({
       _doc: newDoc,
       project: newDoc as unknown as Project,
+      activeBoardId: normalized.activeBoardId || normalized.boards[0]?.id || DEFAULT_BOARD_ID,
       _undoStack: [],
       _redoStack: [],
       _liveEdit: false,
       _previewHeads: null,
       selectedImageIds: [],
       selectedAnnotationIds: [],
-      folderStack: [],
+      folderStack: buildFolderStack(normalized.boards, normalized.activeBoardId || normalized.boards[0]?.id || DEFAULT_BOARD_ID),
       // Nouveau projet → on repart des caméras du doc (pas d'override périmé).
       localViewports: {},
     });
   },
 
   loadDoc: (doc) => {
+    const proj = doc as unknown as Project;
     set({
       _doc: doc,
-      project: doc as unknown as Project,
+      project: proj,
+      activeBoardId: proj.activeBoardId || proj.boards[0]?.id || DEFAULT_BOARD_ID,
       _undoStack: [],
       _redoStack: [],
       _liveEdit: false,
       _previewHeads: null,
       selectedImageIds: [],
       selectedAnnotationIds: [],
-      folderStack: [],
+      folderStack: buildFolderStack(proj.boards, proj.activeBoardId || proj.boards[0]?.id || DEFAULT_BOARD_ID),
       localViewports: {},
     });
   },
@@ -1850,11 +1890,19 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     set((s) => {
       try {
         const next = A.applyChanges(s._doc, changes);
-        if (next === s._doc) return s; // pas de nouveautÃ© (changes dÃ©jÃ  connus)
+        if (next === s._doc) return s; // pas de nouveauté (changes déjà connus)
+        let project = next as unknown as Project;
+        if (s._previewHeads !== null) {
+          try {
+            project = A.viewAt<Project>(next, s._previewHeads) as unknown as Project;
+          } catch (e) {
+            console.error("[applyRemoteChanges] viewAt failed, resetting preview:", e);
+          }
+        }
         return {
           _doc: next,
-          project: next as unknown as Project,
-          // Pas de modification de _undoStack â€” les actions distantes ne sont pas
+          project,
+          // Pas de modification de _undoStack — les actions distantes ne sont pas
           // dans la pile undo locale.
         };
       } catch (e) {
@@ -1897,5 +1945,17 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
 }));
 
 export function getActiveBoard(project: Project) {
-  return project.boards.find((b) => b.id === project.activeBoardId) ?? project.boards[0];
+  const activeId = useGlucoseStore.getState().activeBoardId;
+  return project.boards.find((b) => b.id === activeId) ?? project.boards[0];
 }
+
+// Subscrire pour s'assurer que activeBoardId pointe toujours vers un board existant
+useGlucoseStore.subscribe((state) => {
+  if (state.project && state.project.boards) {
+    const activeExists = state.project.boards.some((b) => b.id === state.activeBoardId);
+    if (!activeExists && state.project.boards.length > 0) {
+      const fallbackId = state.project.boards[0].id;
+      useGlucoseStore.setState({ activeBoardId: fallbackId });
+    }
+  }
+});

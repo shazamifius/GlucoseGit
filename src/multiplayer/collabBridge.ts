@@ -80,6 +80,7 @@ function wireHandle(handle: DocHandle<Project>): void {
   useGlucoseStore.setState({
     _doc: doc,
     project: doc as unknown as Project,
+    activeBoardId: doc.activeBoardId || doc.boards[0]?.id || "main",
     _undoStack: [],
     _redoStack: [],
     _liveEdit: false,
