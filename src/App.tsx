@@ -11,6 +11,7 @@ import AppLaunchOverlay from "./components/AppLaunchOverlay";
 import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject } from "./utils/project";
 import { setCurrentPath } from "./utils/currentPath";
+import { resetAutoVersionAccumulator } from "./utils/autoVersion";
 import Toast, { showToast } from "./components/Toast";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
@@ -329,6 +330,7 @@ export default function App() {
             setCurrentPath(r.path); // jalons durables : suit le fichier ouvert
             if (r.doc) loadDoc(r.doc); // v2 — historique Automerge préservé
             else loadStore(r.project);  // v1 ou migration legacy — doc neuf
+            resetAutoVersionAccumulator(); // Git #1 P3 : compteur d'ampleur remis à zéro pour ce projet
             // SAVE-A — fichier réparé (fin corrompue) : on prévient l'utilisateur.
             if (r.recovered) {
               showToast("Fichier réparé : fin corrompue ignorée, dernière modif perdue. Réenregistre pour nettoyer.", "⚠️");

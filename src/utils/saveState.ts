@@ -46,6 +46,11 @@ export interface SavePlan {
   mode: SaveMode;
   /** Octets à écrire. `full` → truncate ; `incremental` → append. Vide si rien à faire. */
   bytes: Uint8Array;
+  /** Git #1 Phase 3 — taille (octets) des SEULS changements Automerge depuis le
+   *  dernier écrit disque (toujours le « petit » nombre, même sur une compaction
+   *  full). 0 = rien de nouveau, ou nouvelle ligne de base (fichier neuf/save-as).
+   *  Sert à mesurer « l'ampleur » cumulée pour les jalons auto. */
+  deltaBytes: number;
 }
 
 /** Réinitialise tout (tests, nouveau projet, ou chargement nécessitant un full). */
@@ -83,17 +88,19 @@ function concat(chunks: Uint8Array[]): Uint8Array {
 export function planSave(doc: A.Doc<Project>, path: string): SavePlan {
   const b = _baseline;
   if (!b || b.path !== path) {
-    return { mode: "full", bytes: A.save(doc) };
+    return { mode: "full", bytes: A.save(doc), deltaBytes: 0 };
   }
   const changes = A.getChanges(b.doc, doc);
   if (changes.length === 0) {
-    return { mode: "incremental", bytes: new Uint8Array(0) };
+    return { mode: "incremental", bytes: new Uint8Array(0), deltaBytes: 0 };
   }
   const delta = concat(changes);
   if (b.appendedSize + delta.length > b.fullSize * COMPACT_RATIO) {
-    return { mode: "full", bytes: A.save(doc) };
+    // Compaction : on réécrit tout le doc, mais l'AMPLEUR réelle de ce save reste
+    // le petit delta (pas la taille du full) → évite un faux jalon auto.
+    return { mode: "full", bytes: A.save(doc), deltaBytes: delta.length };
   }
-  return { mode: "incremental", bytes: delta };
+  return { mode: "incremental", bytes: delta, deltaBytes: delta.length };
 }
 
 /**

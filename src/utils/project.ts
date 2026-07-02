@@ -19,6 +19,8 @@ import * as A from "../store/automerge";
 import { planSave, commitSave, markLoaded, resetSaveState, type SavePlan } from "./saveState";
 import { toRelative, getParentDir } from "./pathResolver";
 import { getCollabHandle } from "../multiplayer/collabHandle";
+// Git #1 Phase 3 — jalons AUTO à l'ampleur.
+import { noteSavedDelta, maybeCreateAutoVersion, resetAutoVersionAccumulator } from "./autoVersion";
 
 /**
  * Fetcher Tauri pour la migration R-EMB-01 : lit un asset:<filename> du
@@ -123,7 +125,7 @@ export async function saveProject(
     }).catch((e) => console.warn("[saveProject] échec de la mise à jour du store :", e));
   }
 
-  const plan: SavePlan = forceFull ? { mode: "full", bytes: A.save(doc) } : planSave(doc, path);
+  const plan: SavePlan = forceFull ? { mode: "full", bytes: A.save(doc), deltaBytes: 0 } : planSave(doc, path);
 
   if (plan.mode === "full") {
     // Save COMPLET → écriture ATOMIQUE (octets bruts) : on écrit dans un fichier
@@ -134,13 +136,22 @@ export async function saveProject(
     await writeFile(tmp, plan.bytes);
     await rename(tmp, path);
     commitSave(path, doc, plan);
+    // deltaBytes 0 = nouvelle ligne de base (fichier neuf / « Enregistrer sous »)
+    // → le compteur d'ampleur repart de zéro pour ce fichier.
+    if (plan.deltaBytes === 0) resetAutoVersionAccumulator();
   } else if (plan.bytes.length > 0) {
     // Save INCRÉMENTAL → ajoute le delta à la fin du fichier (octets bruts, O(édits)).
     // Un crash en plein append est rattrapé par `loadResilient` au chargement.
     await writeFile(path, plan.bytes, { append: true });
     commitSave(path, doc, plan);
   }
-  // plan.bytes vide = rien n'a changé depuis le dernier save → no-op disque.
+  // Git #1 Phase 3 — comptabilise l'ampleur réellement écrite ; au-delà du seuil,
+  // un jalon durable AUTO est posé (non bloquant, sûr en collab car A.save est en
+  // lecture seule). plan.bytes vide = rien n'a changé → no-op disque ET no-op ici.
+  if (plan.deltaBytes > 0) {
+    noteSavedDelta(plan.deltaBytes);
+    void maybeCreateAutoVersion(path, doc);
+  }
   return path;
 }
 

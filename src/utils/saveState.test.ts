@@ -145,6 +145,43 @@ describe("saveState — enregistrement incrémental", () => {
   });
 });
 
+describe("saveState — deltaBytes (ampleur pour jalons auto, Git #1 P3)", () => {
+  it("full initial → deltaBytes 0 (nouvelle ligne de base)", () => {
+    const doc = mkDoc();
+    expect(planSave(doc, "/d.glucose").deltaBytes).toBe(0);
+  });
+
+  it("incrémental → deltaBytes = taille du delta (>0)", () => {
+    let doc = mkDoc();
+    commitSave("/d.glucose", doc, planSave(doc, "/d.glucose"));
+    doc = A.change(doc, "e", (d) => { d.name = "édité"; });
+    const p = planSave(doc, "/d.glucose");
+    expect(p.mode).toBe("incremental");
+    expect(p.deltaBytes).toBe(p.bytes.length);
+    expect(p.deltaBytes).toBeGreaterThan(0);
+  });
+
+  it("aucun changement → deltaBytes 0", () => {
+    const doc = mkDoc();
+    commitSave("/d.glucose", doc, planSave(doc, "/d.glucose"));
+    expect(planSave(doc, "/d.glucose").deltaBytes).toBe(0);
+  });
+
+  it("compaction full → deltaBytes = taille des SEULS nouveaux changements (pas le full)", () => {
+    let doc = mkDoc();
+    commitSave("/d.glucose", doc, planSave(doc, "/d.glucose"));
+    const fullSize = _peekBaseline()!.fullSize;
+    const before = doc; // == baseline doc committé
+    doc = A.change(doc, "big", (d) => { d.name = "x".repeat(fullSize * 4 + 5000); });
+    const expectedDelta = concat(A.getChanges(before, doc)).length;
+    const p = planSave(doc, "/d.glucose");
+    expect(p.mode).toBe("full"); // compaction forcée
+    // deltaBytes = l'ampleur RÉELLE de ce save (le delta), pas la taille du full
+    // réécrit → pas de faux jalon auto au moment d'une compaction.
+    expect(p.deltaBytes).toBe(expectedDelta);
+  });
+});
+
 describe("loadResilient — récupération d'une fin de fichier corrompue", () => {
   it("fichier complet → pas de récupération, doc correct", () => {
     let doc = mkDoc();

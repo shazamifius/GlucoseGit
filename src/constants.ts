@@ -129,4 +129,11 @@ export const LIMITS = {
    *  fine s'arrête ici ; pour remonter plus loin on utilise les jalons durables
    *  (cf. src/utils/versions.ts). */
   UNDO_DEPTH: 200,
+  /** Git #1 Phase 3 — jalon AUTO « à l'ampleur ». Volume de modifications (octets
+   *  de delta Automerge) accumulé depuis le dernier jalon au-delà duquel un jalon
+   *  durable AUTO est posé sans intervention de l'utilisateur. */
+  AUTO_VERSION_DELTA_BYTES: 256 * 1024,
+  /** Nombre de jalons AUTO conservés (les plus récents). Les jalons MANUELS ne
+   *  sont jamais élagués. */
+  AUTO_VERSION_KEEP: 10,
 } as const;

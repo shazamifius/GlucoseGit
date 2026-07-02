@@ -23,6 +23,7 @@ import * as A from "../store/automerge";
 import type { Project } from "../types";
 import { getCurrentPath } from "../utils/currentPath";
 import { saveVersion, listVersions, loadVersionDoc, type VersionMeta } from "../utils/versions";
+import { resetAutoVersionAccumulator } from "../utils/autoVersion";
 import { showToast } from "./Toast";
 
 interface Props {
@@ -99,6 +100,7 @@ export default function TimelinePanel({ onClose }: Props) {
       setBusy(true);
       await Promise.resolve();    // laisse une éventuelle mutation collab se poser
       await saveVersion(path, useGlucoseStore.getState()._doc, name, "manuel");
+      resetAutoVersionAccumulator(); // Git #1 P3 : un jalon manuel remet le compteur d'ampleur à zéro
       const v = await listVersions(path);
       setVersions(v);
       showToast(`Version durable « ${name} » enregistrée`, "💾");
