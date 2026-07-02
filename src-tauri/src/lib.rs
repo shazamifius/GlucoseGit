@@ -148,28 +148,10 @@ fn is_public_ip(ip: &IpAddr) -> bool {
 
 #[tauri::command]
 async fn fetch_image(url: String) -> Result<String, String> {
-    // Parse l'URL et résout les hôtes pour bloquer SSRF.
-    let parsed = url::Url::parse(&url).map_err(|e| format!("URL invalide: {e}"))?;
-    if !matches!(parsed.scheme(), "http" | "https") {
+    // Parse l'URL et résout les hôtes pour bloquer SSRF et le DNS Rebinding.
+    let mut current_url = url::Url::parse(&url).map_err(|e| format!("URL invalide: {e}"))?;
+    if !matches!(current_url.scheme(), "http" | "https") {
         return Err("Seuls http/https sont autorisés".into());
-    }
-    if let Some(host) = parsed.host_str() {
-        // Si le host est déjà une IP, vérifier qu'elle est publique
-        if let Ok(ip) = host.parse::<IpAddr>() {
-            if !is_public_ip(&ip) {
-                return Err("IP privée non autorisée".into());
-            }
-        } else {
-            // Sinon, résoudre via DNS et vérifier toutes les IPs
-            let resolved = tokio::net::lookup_host((host, 0))
-                .await
-                .map_err(|e| format!("DNS: {e}"))?;
-            for addr in resolved {
-                if !is_public_ip(&addr.ip()) {
-                    return Err("L'hôte résout vers une IP privée".into());
-                }
-            }
-        }
     }
 
     // User-Agent navigateur réaliste : certains CDN (Pinterest, Twitter,
@@ -181,66 +163,125 @@ async fn fetch_image(url: String) -> Result<String, String> {
         env!("CARGO_PKG_VERSION")
     );
 
-    let client = reqwest::Client::builder()
-        .user_agent(ua)
-        .redirect(reqwest::redirect::Policy::limited(3))
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let mut redirect_count = 0;
+    const MAX_REDIRECTS: usize = 3;
 
-    // Referer = origine racine seulement (scheme://host) — beaucoup de CDN
-    // exigent un Referer mais on ne veut pas leaker le path/query de la page
-    // d'origine. C'est le compromis pragma SEC-06.
-    let referer = parsed
-        .host_str()
-        .map(|h| format!("{}://{}/", parsed.scheme(), h));
+    loop {
+        let host = current_url.host_str().ok_or_else(|| "URL sans hôte".to_string())?;
 
-    let mut req = client.get(parsed.as_str());
-    if let Some(ref r) = referer {
-        req = req.header(header::REFERER, r.clone());
+        // 1. Résoudre et valider l'adresse IP (protection anti-SSRF)
+        let resolved_ip = if let Ok(ip) = host.parse::<IpAddr>() {
+            if !is_public_ip(&ip) {
+                return Err("IP privée non autorisée".into());
+            }
+            ip
+        } else {
+            // Sinon, résoudre via DNS et vérifier toutes les IPs
+            let resolved = tokio::net::lookup_host((host, 0))
+                .await
+                .map_err(|e| format!("DNS: {e}"))?;
+            let mut found = None;
+            for addr in resolved {
+                if !is_public_ip(&addr.ip()) {
+                    return Err("L'hôte résout vers une IP privée".into());
+                }
+                if found.is_none() {
+                    found = Some(addr.ip());
+                }
+            }
+            found.ok_or_else(|| format!("Impossible de résoudre {host}"))?
+        };
+
+        // 2. Déterminer le port pour la résolution DNS custom (protection anti-DNS Rebinding)
+        let port = current_url.port_or_known_default().unwrap_or(
+            if current_url.scheme() == "https" { 443 } else { 80 }
+        );
+
+        // 3. Configurer le client reqwest pour forcer la résolution locale de ce host vers cette IP précise
+        let client = reqwest::Client::builder()
+            .user_agent(&ua)
+            .redirect(reqwest::redirect::Policy::none()) // Redirections gérées manuellement pour re-vérifier l'IP cible
+            .timeout(std::time::Duration::from_secs(30))
+            .resolve(host, std::net::SocketAddr::new(resolved_ip, port))
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        // Referer = origine racine seulement (scheme://host) — beaucoup de CDN
+        // exigent un Referer mais on ne veut pas leaker le path/query de la page
+        // d'origine. C'est le compromis pragma SEC-06.
+        let referer = current_url
+            .host_str()
+            .map(|h| format!("{}://{}/", current_url.scheme(), h));
+
+        let mut req = client.get(current_url.as_str());
+        if let Some(ref r) = referer {
+            req = req.header(header::REFERER, r.clone());
+        }
+        // Accept large : certains CDN renvoient un HTML/JSON si on n'envoie pas
+        // un Accept compatible image.
+        req = req.header(header::ACCEPT, "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
+
+        let resp = req.send().await.map_err(|e| e.to_string())?;
+        let status = resp.status();
+
+        if status.is_redirection() {
+            if redirect_count >= MAX_REDIRECTS {
+                return Err("Trop de redirections".into());
+            }
+            redirect_count += 1;
+            let location = resp.headers()
+                .get(header::LOCATION)
+                .and_then(|v| v.to_str().ok())
+                .ok_or_else(|| "Redirection sans en-tête Location".to_string())?;
+            
+            // Résolution relative ou absolue de l'URL de redirection
+            let next_url = current_url.join(location)
+                .map_err(|e| format!("URL de redirection invalide: {e}"))?;
+            
+            if !matches!(next_url.scheme(), "http" | "https") {
+                return Err("Seuls http/https sont autorisés pour les redirections".into());
+            }
+            current_url = next_url;
+            continue;
+        }
+
+        // Refuse les codes d'erreur HTTP — sinon on bufferise une page d'erreur.
+        if !status.is_success() {
+            return Err(format!("HTTP {} pour {}", status.as_u16(), current_url.as_str()));
+        }
+
+        let content_type = resp
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("image/png")
+            .to_string();
+        let mime = content_type
+            .split(';')
+            .next()
+            .unwrap_or("image/png")
+            .trim()
+            .to_string();
+
+        // Refuse les contenus non-image : sans ce check, une URL de PAGE (texte/html)
+        // est encodée comme data:text/html;base64,… qui finit dans `assets/` et ne
+        // s'affiche pas. Mieux vaut une vraie erreur que d'écrire un faux asset.
+        if !mime.starts_with("image/") {
+            return Err(format!(
+                "Le serveur a renvoyé du « {} » (pas une image). URL probablement non-image.",
+                mime
+            ));
+        }
+
+        // Limite taille à 25 MB
+        let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+        if bytes.len() > 25 * 1024 * 1024 {
+            return Err("Image trop volumineuse (> 25 MB)".into());
+        }
+
+        let b64 = STANDARD.encode(&bytes);
+        return Ok(format!("data:{};base64,{}", mime, b64));
     }
-    // Accept large : certains CDN renvoient un HTML/JSON si on n'envoie pas
-    // un Accept compatible image.
-    req = req.header(header::ACCEPT, "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
-
-    let resp = req.send().await.map_err(|e| e.to_string())?;
-
-    // Refuse les codes d'erreur HTTP — sinon on bufferise une page d'erreur.
-    let status = resp.status();
-    if !status.is_success() {
-        return Err(format!("HTTP {} pour {}", status.as_u16(), parsed.as_str()));
-    }
-
-    let content_type = resp
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("image/png")
-        .to_string();
-    let mime = content_type
-        .split(';')
-        .next()
-        .unwrap_or("image/png")
-        .trim()
-        .to_string();
-
-    // Refuse les contenus non-image : sans ce check, une URL de PAGE (texte/html)
-    // est encodée comme data:text/html;base64,… qui finit dans `assets/` et ne
-    // s'affiche pas. Mieux vaut une vraie erreur que d'écrire un faux asset.
-    if !mime.starts_with("image/") {
-        return Err(format!(
-            "Le serveur a renvoyé du « {} » (pas une image). URL probablement non-image."
-        , mime));
-    }
-
-    // Limite taille à 25 MB
-    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-    if bytes.len() > 25 * 1024 * 1024 {
-        return Err("Image trop volumineuse (> 25 MB)".into());
-    }
-
-    let b64 = STANDARD.encode(&bytes);
-    Ok(format!("data:{};base64,{}", mime, b64))
 }
 
 #[tauri::command]
@@ -1062,6 +1103,12 @@ fn mtime_secs(meta: &std::fs::Metadata) -> u64 {
 /// Récursion synchrone (exécutée dans spawn_blocking). `budget` est un plafond
 /// global d'entrées partagé entre tous les niveaux pour éviter d'exploser sur
 /// une arborescence énorme. `depth` borne la profondeur.
+struct ScannedEntry {
+    entry: std::fs::DirEntry,
+    is_dir: bool,
+    name_lower: String,
+}
+
 fn scan_dir_rec(
     dir: &Path,
     depth: u32,
@@ -1076,39 +1123,49 @@ fn scan_dir_rec(
         Ok(r) => r,
         Err(_) => return Vec::new(),
     };
-    let mut entries: Vec<std::fs::DirEntry> = rd.filter_map(|e| e.ok()).collect();
+    
+    let mut scanned_entries: Vec<ScannedEntry> = rd
+        .filter_map(|e| e.ok())
+        .map(|entry| {
+            let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+            let name_lower = entry.file_name().to_string_lossy().to_lowercase();
+            ScannedEntry {
+                entry,
+                is_dir,
+                name_lower,
+            }
+        })
+        .collect();
+
     // Tri stable : dossiers d'abord puis nom (le front re-trie selon R-FIL-03).
-    entries.sort_by(|a, b| {
-        let ad = a.path().is_dir();
-        let bd = b.path().is_dir();
-        match (ad, bd) {
+    scanned_entries.sort_by(|a, b| {
+        match (a.is_dir, b.is_dir) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
-            _ => a
-                .file_name()
-                .to_string_lossy()
-                .to_lowercase()
-                .cmp(&b.file_name().to_string_lossy().to_lowercase()),
+            _ => a.name_lower.cmp(&b.name_lower),
         }
     });
 
     let mut out = Vec::new();
-    for entry in entries {
+    for item in scanned_entries {
         if *budget == 0 {
             break;
         }
+        let entry = item.entry;
+        let is_dir = item.is_dir;
         let p = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
         let ext = get_ext(&p);
-        let meta = match entry.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-        let is_dir = meta.is_dir();
+        
         if skip_entry(&name, &ext, is_dir) {
             continue;
         }
         *budget -= 1;
+        
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
         let size = if is_dir { 0 } else { meta.len() };
         let text = if is_dir {
             None
