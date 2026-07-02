@@ -59,20 +59,21 @@ export default function App() {
   const [presetOpen, setPresetOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
-  // Sync l'ouverture des panels droits avec le store → la minimap se décale automatiquement
-  useEffect(() => {
-    useGlucoseStore.getState().setRightPanelOpen(presetOpen || domainsOpen);
-  }, [presetOpen, domainsOpen]);
-  const [zenMode, setZenMode] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  // Phase 6 — état UI réglette temporelle
-  const [temporalRulerOpen, setTemporalRulerOpen] = useState(false);
-  const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
   // Phase 7.4 — Time Machine UI
   const [timelineOpen, setTimelineOpen] = useState(false);
   // Collaboration internet (automerge-repo). `multiplayerEnabled` = collab active.
   const [multiplayerOpen, setMultiplayerOpen] = useState(false);
   const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Phase 6 — état UI réglette temporelle
+  const [temporalRulerOpen, setTemporalRulerOpen] = useState(false);
+  const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
+
+  // Sync l'ouverture des panels droits avec le store → la minimap se décale automatiquement
+  useEffect(() => {
+    useGlucoseStore.getState().setRightPanelOpen(presetOpen || domainsOpen || pluginsOpen || timelineOpen || multiplayerOpen);
+  }, [presetOpen, domainsOpen, pluginsOpen, timelineOpen, multiplayerOpen]);
   // Autosave disque débouncé (filet anti perte de données, solo + collab).
   useAutosave(pathRef);
   // Verrou anti zoom accidentel de la webview (boutons qui deviennent énormes).
@@ -172,8 +173,9 @@ export default function App() {
         showToast(enabled ? "Alignement intelligent activé" : "Alignement intelligent désactivé", "🧲");
       }
       // Phase 7.4 — Time Machine (toggle)
-      if ((e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H") && !e.shiftKey && !e.altKey) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "h" || e.key === "H")) {
         e.preventDefault();
+        if (e.repeat) return;
         setTimelineOpen((v) => !v);
       }
       // Phase 7.5bis — Multijoueur LAN (toggle panel)
@@ -308,7 +310,7 @@ export default function App() {
         // forcer un dialog. Ctrl+S = enregistrement rapide sur le path courant.
         const forceDialog = e.shiftKey;
         const targetPath = forceDialog ? undefined : (pathRef.current ?? undefined);
-        saveProject(project, targetPath)
+        saveProject(useGlucoseStore.getState()._doc, targetPath)
           .then((p) => {
             if (p) {
               pathRef.current = p;
@@ -323,10 +325,10 @@ export default function App() {
         loadProject()
           .then((r) => {
             if (!r) return;
-            if (r.doc) loadDoc(r.doc); // v2 — historique Automerge préservé
-            else loadStore(r.project);  // v1 ou migration legacy — doc neuf
             pathRef.current = r.path;
             setCurrentPath(r.path); // jalons durables : suit le fichier ouvert
+            if (r.doc) loadDoc(r.doc); // v2 — historique Automerge préservé
+            else loadStore(r.project);  // v1 ou migration legacy — doc neuf
             // SAVE-A — fichier réparé (fin corrompue) : on prévient l'utilisateur.
             if (r.recovered) {
               showToast("Fichier réparé : fin corrompue ignorée, dernière modif perdue. Réenregistre pour nettoyer.", "⚠️");
