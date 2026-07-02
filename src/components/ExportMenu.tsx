@@ -177,7 +177,7 @@ export default function ExportMenu() {
                 onMouseOver={(e) => { if (!busy) e.currentTarget.style.background = "#23232b"; }}
                 onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" style={{ marginTop: 1, flexShrink: 0, color: "#8a8ad0" }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" style={{ marginTop: 1, flexShrink: 0, color: "#9a9aa0" }}>
                   {row.icon}
                 </svg>
                 <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -207,7 +207,7 @@ export default function ExportMenu() {
             onMouseOver={(e) => { if (busy == null && !bundleBusy) e.currentTarget.style.background = "#23232b"; }}
             onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" style={{ marginTop: 1, flexShrink: 0, color: "#8a8ad0" }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" style={{ marginTop: 1, flexShrink: 0, color: "#9a9aa0" }}>
               <path d="M4 5V4a2 2 0 0 1 4 0v1 M2.5 5h11l-.6 8H3.1z" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
             </svg>
             <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
