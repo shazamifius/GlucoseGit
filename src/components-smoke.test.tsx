@@ -519,6 +519,38 @@ describe("OrganizePanel", () => {
     render(<OrganizePanel docked />);
     expectNoReactErrors();
   });
+
+  it("convertit correctement RGB en HSL", async () => {
+    const { rgbToHsl } = await import("./components/OrganizePanel");
+    
+    // Rouge pur
+    const [h1, s1, l1] = rgbToHsl(255, 0, 0);
+    expect(h1).toBeCloseTo(0, 1);
+    expect(s1).toBeCloseTo(1, 2);
+    expect(l1).toBeCloseTo(0.5, 2);
+
+    // Vert pur
+    const [h2, s2, l2] = rgbToHsl(0, 255, 0);
+    expect(h2).toBeCloseTo(120, 1);
+    expect(s2).toBeCloseTo(1, 2);
+    expect(l2).toBeCloseTo(0.5, 2);
+
+    // Bleu pur
+    const [h3, s3, l3] = rgbToHsl(0, 0, 255);
+    expect(h3).toBeCloseTo(240, 1);
+    expect(s3).toBeCloseTo(1, 2);
+    expect(l3).toBeCloseTo(0.5, 2);
+
+    // Blanc
+    const [, s4, l4] = rgbToHsl(255, 255, 255);
+    expect(s4).toBeCloseTo(0, 2);
+    expect(l4).toBeCloseTo(1, 2);
+
+    // Noir
+    const [, s5, l5] = rgbToHsl(0, 0, 0);
+    expect(s5).toBeCloseTo(0, 2);
+    expect(l5).toBeCloseTo(0, 2);
+  });
 });
 
 describe("StoryboardControls", () => {

@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { BoardImage } from "../types";
 import { gridLayout, compactRowsLayout, sameHeightLayout, masonryLayout, bySlotLayout, boundsOfImages } from "../utils/layout";
@@ -9,28 +9,118 @@ interface Props {
 }
 
 type LayoutType = "compact" | "grid" | "masonry" | "sameHeight" | "bySlot";
-type SortType   = "none" | "size-desc" | "size-asc" | "ratio-port" | "ratio-land" | "lum-asc" | "lum-desc";
+type SortType   = "none" | "size-desc" | "size-asc" | "ratio-port" | "ratio-land" | "lum-asc" | "lum-desc" | "color";
 
-async function computeLuminosity(img: BoardImage): Promise<number> {
-  // R-EMB-01 (Sprint 2) : on résout via le nouveau modèle AssetRef qui sait
-  // gérer les embeds (blob URL) comme les links.
+interface ImageColorStats {
+  lum: number;
+  hue: number;
+  sat: number;
+}
+
+const statsCache = new Map<string, ImageColorStats>();
+
+export function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return [h * 360, s, l];
+}
+
+async function computeImageStats(img: BoardImage): Promise<ImageColorStats> {
+  const key = img.asset?.sha256 || img.src || img.id;
+  const cached = statsCache.get(key);
+  if (cached) return cached;
+
   const blobs = useGlucoseStore.getState().project.blobs;
   const url = await resolveImageSrc(img.asset, img.src, blobs);
+  if (!url) {
+    const fallback = { lum: 0.5, hue: 0, sat: 0 };
+    statsCache.set(key, fallback);
+    return fallback;
+  }
+
   return new Promise((resolve) => {
     const el = new Image();
+    el.crossOrigin = "anonymous";
+
+    const timer = setTimeout(() => {
+      el.onload = null;
+      el.onerror = null;
+      const fallback = { lum: 0.5, hue: 0, sat: 0 };
+      statsCache.set(key, fallback);
+      resolve(fallback);
+    }, 1200);
+
     el.onload = () => {
-      const c = document.createElement("canvas");
-      c.width = 32; c.height = 32;
-      const ctx = c.getContext("2d")!;
-      ctx.drawImage(el, 0, 0, 32, 32);
-      const data = ctx.getImageData(0, 0, 32, 32).data;
-      let sum = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        sum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      clearTimeout(timer);
+      try {
+        const c = document.createElement("canvas");
+        c.width = 32; c.height = 32;
+        const ctx = c.getContext("2d")!;
+        ctx.drawImage(el, 0, 0, 32, 32);
+        const data = ctx.getImageData(0, 0, 32, 32).data;
+        
+        let sumLum = 0;
+        let sumSat = 0;
+        let sumHueX = 0;
+        let sumHueY = 0;
+        let satWeightSum = 0;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          sumLum += l;
+
+          const [h, s] = rgbToHsl(r, g, b);
+          sumSat += s;
+
+          const rad = (h * Math.PI) / 180;
+          const weight = s + 0.01;
+          sumHueX += Math.cos(rad) * weight;
+          sumHueY += Math.sin(rad) * weight;
+          satWeightSum += weight;
+        }
+
+        const avgLum = sumLum / (32 * 32);
+        const avgSat = sumSat / (32 * 32);
+        
+        let avgHue = 0;
+        if (satWeightSum > 0) {
+          avgHue = (Math.atan2(sumHueY, sumHueX) * 180) / Math.PI;
+          if (avgHue < 0) avgHue += 360;
+        }
+
+        const stats = { lum: avgLum, hue: avgHue, sat: avgSat };
+        statsCache.set(key, stats);
+        resolve(stats);
+      } catch (err) {
+        const fallback = { lum: 0.5, hue: 0, sat: 0 };
+        statsCache.set(key, fallback);
+        resolve(fallback);
       }
-      resolve(sum / (32 * 32 * 255));
     };
-    el.onerror = () => resolve(0.5);
+
+    el.onerror = () => {
+      clearTimeout(timer);
+      const fallback = { lum: 0.5, hue: 0, sat: 0 };
+      statsCache.set(key, fallback);
+      resolve(fallback);
+    };
+
     el.src = url;
   });
 }
@@ -66,10 +156,22 @@ export default function OrganizePanel({ docked }: Props) {
 
     let sorted = [...targetImages];
 
-    if (sortBy === "lum-asc" || sortBy === "lum-desc") {
-      const lums = await Promise.all(sorted.map(computeLuminosity));
-      const pairs = sorted.map((img, i) => ({ img, lum: lums[i] }));
-      pairs.sort((a, b) => sortBy === "lum-asc" ? a.lum - b.lum : b.lum - a.lum);
+    if (sortBy === "lum-asc" || sortBy === "lum-desc" || sortBy === "color") {
+      const stats = await Promise.all(sorted.map(computeImageStats));
+      const pairs = sorted.map((img, i) => ({ img, stat: stats[i] }));
+      if (sortBy === "color") {
+        pairs.sort((a, b) => {
+          const isMonoA = a.stat.sat < 0.15 || a.stat.lum < 0.1 || a.stat.lum > 0.92;
+          const isMonoB = b.stat.sat < 0.15 || b.stat.lum < 0.1 || b.stat.lum > 0.92;
+
+          if (isMonoA && !isMonoB) return 1;
+          if (!isMonoA && isMonoB) return -1;
+          if (isMonoA && isMonoB) return a.stat.lum - b.stat.lum;
+          return a.stat.hue - b.stat.hue;
+        });
+      } else {
+        pairs.sort((a, b) => sortBy === "lum-asc" ? a.stat.lum - b.stat.lum : b.stat.lum - a.stat.lum);
+      }
       sorted = pairs.map((p) => p.img);
     } else {
       sorted.sort((a, b) => {
@@ -157,6 +259,7 @@ export default function OrganizePanel({ docked }: Props) {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {([
               ["none",       "Ordre actuel"],
+              ["color",      "Couleur"],
               ["size-desc",  "Grand → Petit"],
               ["size-asc",   "Petit → Grand"],
               ["ratio-port", "Portrait"],
