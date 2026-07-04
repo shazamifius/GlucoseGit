@@ -338,6 +338,13 @@ export interface Project {
    *  en rouvrant le fichier .glucose, de se RECONNECTER automatiquement à la
    *  chaîne (le lien voyage avec le document et survit à un Ctrl+S). */
   collabUrl?: string;
+  /** Lien (`automerge:…`) du CANAL D'ASSETS : un 2ᵉ document Automerge, dédié aux
+   *  octets d'image (content-addressed), synchronisé par le même repo que le doc
+   *  principal. Il permet de transférer les images entre pairs SANS les mettre
+   *  dans le doc principal (qui doit rester minuscule pour ne pas refreezer
+   *  `A.save`). Écrit par l'hôte au `createShare` ; lu par le pair au join pour
+   *  matérialiser les octets manquants sur son disque local. */
+  assetChannelUrl?: string;
   createdAt: number;
   updatedAt: number;
 }

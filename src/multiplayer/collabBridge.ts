@@ -18,6 +18,7 @@
 // l'état) au lieu d'en créer un nouveau qui casserait le lien du pair.
 
 import { getRepo, ensureConnected } from "./repo";
+import { startAssetChannel, stopAssetChannel } from "./assetChannel";
 import {
   setCollabHandle, getCollabHandle, suppressAutoReconnect, isAutoReconnectSuppressed,
 } from "./collabHandle";
@@ -93,6 +94,20 @@ function wireHandle(handle: DocHandle<Project>): void {
   });
 }
 
+/**
+ * Branche le CANAL D'ASSETS (transfert des octets d'image) sur le handle courant.
+ * Best-effort : si le canal échoue, la collab TEXTE/positions continue de marcher
+ * (seules les images ne se partageraient pas) — on ne casse jamais la session.
+ * `canCreate` = true seulement côté hôte (il crée le canal et inscrit son URL).
+ */
+async function attachAssetChannel(handle: DocHandle<Project>, canCreate: boolean): Promise<void> {
+  try {
+    await startAssetChannel(getRepo(), handle, { canCreate });
+  } catch (e) {
+    console.warn("[collab] canal d'assets indisponible (images non partagées) :", e);
+  }
+}
+
 /** URL de partage mémorisée (lien stable), ou null. */
 export function getSavedShareUrl(): AutomergeUrl | null {
   const v = localStorage.getItem(LS_KEY);
@@ -133,6 +148,7 @@ export async function createShare(): Promise<string> {
   localStorage.setItem(LS_KEY, handle.url);
   wireHandle(handle);
   await ensureConnected(); // garantit que le serveur reçoit le doc
+  await attachAssetChannel(handle, /* canCreate */ true); // hôte → crée le canal
   return handle.url;
 }
 
@@ -160,6 +176,7 @@ export async function reconnectFromDoc(): Promise<boolean> {
   }
   localStorage.setItem(LS_KEY, handle.url);
   wireHandle(handle);
+  await attachAssetChannel(handle, /* canCreate */ false);
   return true;
 }
 
@@ -172,6 +189,7 @@ export async function resumeShare(): Promise<string> {
   if (!saved) return createShare();
   const handle = await findShared(saved);
   wireHandle(handle);
+  await attachAssetChannel(handle, /* canCreate */ true); // hôte reprend sa chaîne
   return handle.url;
 }
 
@@ -185,6 +203,7 @@ export async function joinByCode(code: string): Promise<string> {
   const handle = await findShared(url as AutomergeUrl);
   localStorage.setItem(LS_KEY, handle.url);
   wireHandle(handle);
+  await attachAssetChannel(handle, /* canCreate */ false); // pair → rejoint le canal
   return handle.url;
 }
 
@@ -203,6 +222,7 @@ export function leaveCollab(): void {
     _changeOff();
     _changeOff = null;
   }
+  stopAssetChannel(); // coupe le canal d'assets (écouteurs + mémoïsation)
   setCollabHandle(null);
   useGlucoseStore.setState({ _undoStack: [], _redoStack: [] });
   // Même raison qu'à l'entrée : on quitte vers un `_doc` dont la lignée diffère du

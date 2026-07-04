@@ -127,6 +127,10 @@ export default function GlucoseCanvas() {
   // de board / rechargement de doc (cf. effet `[board.id]`), ce qui autorise une
   // nouvelle tentative si l'asset a été re-lié.
   const failedLoadsRef = useRef<Set<string>>(new Set());
+  // Collab — miroir SYNCHRONE de `_assetEpoch`, lisible depuis loadSpriteFor (hors
+  // React). Sert à INVALIDER un chargement voué à l'échec quand des octets d'asset
+  // arrivent PENDANT ce chargement (course collab) au lieu de blacklister à tort.
+  const assetEpochRef = useRef(0);
   // PERF-3 (virtualisation des textures) — ref-count par URL de texture résolue :
   // plusieurs images identiques (même hash) partagent une texture ; on ne la
   // libère (Assets.unload → VRAM) que lorsque le DERNIER sprite qui l'utilise est
@@ -219,6 +223,9 @@ export default function GlucoseCanvas() {
   const selectedImageIds = useGlucoseStore((s) => s.selectedImageIds);
   const selectedAnnotationIds = useGlucoseStore((s) => s.selectedAnnotationIds);
   const activeTool = useGlucoseStore((s) => s.activeTool);
+  // Collab — incrémenté quand des octets d'image viennent d'être matérialisés sur
+  // le disque (canal d'assets). Déclenche une nouvelle tentative de chargement.
+  const assetEpoch = useGlucoseStore((s) => s._assetEpoch);
   const addImage = useGlucoseStore((s) => s.addImage);
   const addAnnotation = useGlucoseStore((s) => s.addAnnotation);
   const updateImage = useGlucoseStore((s) => s.updateImage);
@@ -429,6 +436,18 @@ export default function GlucoseCanvas() {
   // protection anti-storm reste active pendant l'édition.)
   useEffect(() => { failedLoadsRef.current.clear(); }, [board.id]);
 
+  // Collab (canal d'assets) — des octets d'image viennent d'arriver sur le disque.
+  // La référence `asset:<nom>` avait pu être reçue AVANT les octets → le chargement
+  // avait échoué et l'image était blacklistée (anti-storm 404). On purge la
+  // blacklist et on relance le chargement à la demande : les images manquantes
+  // s'affichent enfin, sans toucher au reste.
+  useEffect(() => {
+    assetEpochRef.current = assetEpoch; // garde le miroir synchrone à jour d'abord
+    if (!assetEpoch || !pixiReady) return;
+    failedLoadsRef.current.clear();
+    applyCulling();
+  }, [assetEpoch, pixiReady]);
+
   // PERF-4 (LOD) — résolution cible (px, grand côté) d'une image selon sa taille
   // À L'ÉCRAN au zoom courant. Bornée à [MIN_TEX_PX, taille d'origine].
   function targetTexPx(img: BoardImage): number {
@@ -449,7 +468,11 @@ export default function GlucoseCanvas() {
     const origW = img.originalWidth ?? 0;
     const origH = img.originalHeight ?? 0;
     const origLong = Math.max(origW, origH);
-    const resp = await fetch(resolvedUrl);
+    // `cache: "reload"` : NE JAMAIS resservir un 404 mis en cache par le WebView.
+    // En collab, la 1re tentative peut échouer (octets pas encore matérialisés) ;
+    // sans ça, le retry lirait l'échec en cache même après l'arrivée du fichier.
+    const resp = await fetch(resolvedUrl, { cache: "reload" });
+    if (!resp.ok) throw new Error(`asset introuvable (HTTP ${resp.status})`);
     const blob = await resp.blob();
     let bmp: ImageBitmap;
     if (origLong > 0 && targetPx < origLong) {
@@ -475,7 +498,11 @@ export default function GlucoseCanvas() {
     if (!worldRef.current) return;
     if (spritesRef.current.has(img.id) || pendingLoadsRef.current.has(img.id)) return;
     if (failedLoadsRef.current.has(img.id)) return; // déjà échoué → on ne re-boucle pas
+    // Course collab : on retient l'époque d'assets au DÉBUT du chargement. Si des
+    // octets arrivent pendant (voir catch), on retentera plutôt que de blacklister.
+    const startedAtEpoch = assetEpochRef.current;
     pendingLoadsRef.current.add(img.id);
+    let retryAfterAssetSync = false;
     try {
       // R-EMB-01 : résolveur unifié — asset (AssetRef) ou src legacy.
       const blobs = useGlucoseStore.getState().project.blobs;
@@ -545,13 +572,23 @@ export default function GlucoseCanvas() {
       if (useGlucoseStore.getState().selectedImageIds.includes(img.id)) syncSelectionGfx();
       applyCulling();
     } catch (err) {
-      // Échec définitif (asset disque manquant, format illisible…) → on blackliste
-      // l'image pour ne PAS ré-essayer à chaque frame de culling (sinon : storm de
-      // 404 qui gèle l'app). Un seul log par image, pas des milliers.
-      failedLoadsRef.current.add(img.id);
-      console.warn("Texture load failed (image ignorée)", img.id, err);
+      if (assetEpochRef.current !== startedAtEpoch) {
+        // COLLAB — des octets d'asset ont été matérialisés PENDANT ce chargement
+        // (course : la référence est arrivée avant les bytes). On NE blackliste PAS :
+        // le fichier existe désormais sur le disque → on retentera après le finally.
+        retryAfterAssetSync = true;
+      } else {
+        // Échec définitif (asset disque manquant, format illisible…) → on blackliste
+        // l'image pour ne PAS ré-essayer à chaque frame de culling (sinon : storm de
+        // 404 qui gèle l'app). Un seul log par image, pas des milliers.
+        failedLoadsRef.current.add(img.id);
+        console.warn("Texture load failed (image ignorée)", img.id, err);
+      }
     }
     finally { pendingLoadsRef.current.delete(img.id); }
+    // Retente APRÈS le finally (pending nettoyé) : le nouveau chargement lit le
+    // fichier désormais présent. Borné : ne retente que si l'époque d'assets a avancé.
+    if (retryAfterAssetSync) void loadSpriteFor(img);
   }
 
   // PERF-4 (LOD) — ré-affine en arrière-plan la texture d'un sprite zoomé devenu

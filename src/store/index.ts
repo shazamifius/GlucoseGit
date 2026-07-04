@@ -248,6 +248,15 @@ export interface GlucoseStore {
   setSelectedImageIds: (ids: string[]) => void;
   setSelectedAnnotationIds: (ids: string[]) => void;
 
+  // â”€â”€ Canal d'assets (collab) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  /** Compteur incrémenté quand des octets d'image ont été matérialisés sur le
+   *  disque local (pair qui reçoit les images d'une chaîne collab). Le canvas
+   *  s'y abonne pour purger sa blacklist de textures 404 et re-tenter le
+   *  chargement des images qui manquaient. */
+  _assetEpoch: number;
+  /** Signale qu'un ou plusieurs assets viennent d'apparaître sur le disque. */
+  bumpAssetEpoch: () => void;
+
   // â”€â”€ Undo / Redo (stacks de Doc Automerge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _undoStack: A.Doc<Project>[];
   _redoStack: A.Doc<Project>[];
@@ -635,6 +644,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   setRightPanelOpen: (open) => { if (get().rightPanelOpen !== open) set({ rightPanelOpen: open }); },
   toggleSmartGuides: () => set((s) => ({ smartGuidesEnabled: !s.smartGuidesEnabled })),
   setGuides: (guides) => set({ guides }),
+
+  // â”€â”€ Canal d'assets (collab) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  _assetEpoch: 0,
+  bumpAssetEpoch: () => set((s) => ({ _assetEpoch: s._assetEpoch + 1 })),
 
   // â”€â”€ Undo / Redo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _undoStack: [],
