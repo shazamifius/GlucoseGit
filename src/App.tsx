@@ -8,9 +8,11 @@ import PanelDock, { type TabId } from "./components/PanelDock";
 import PomodoroOverlay from "./components/PomodoroOverlay";
 import FolderViewportIndicator from "./components/FolderViewportIndicator";
 import AppLaunchOverlay from "./components/AppLaunchOverlay";
+import { invoke } from "@tauri-apps/api/core";
 import { useGlucoseStore, getActiveBoard } from "./store";
 import { saveProject, loadProject, ProjectCorruptError } from "./utils/project";
 import { setCurrentPath } from "./utils/currentPath";
+import { setWaylandMode } from "./utils/cursorWrap";
 import { resetAutoVersionAccumulator } from "./utils/autoVersion";
 import { openPortableBundle } from "./utils/bundleActions";
 import { loadLatestHealthyVersion } from "./utils/versions";
@@ -78,6 +80,11 @@ export default function App() {
   useEffect(() => {
     useGlucoseStore.getState().setRightPanelOpen(presetOpen || domainsOpen || pluginsOpen || timelineOpen || multiplayerOpen);
   }, [presetOpen, domainsOpen, pluginsOpen, timelineOpen, multiplayerOpen]);
+  // Wayland (Niri/Sway/…) : désactive le « cursor warp » du pan (boucle au bord +
+  // saccades). Détecté côté Rust une fois au démarrage.
+  useEffect(() => {
+    invoke<boolean>("is_wayland").then(setWaylandMode).catch(() => { /* non-Tauri/web : reste false */ });
+  }, []);
   // Autosave disque débouncé (filet anti perte de données, solo + collab).
   useAutosave(pathRef);
   // Verrou anti zoom accidentel de la webview (boutons qui deviennent énormes).

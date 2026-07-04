@@ -1,5 +1,17 @@
 ﻿import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
 
+// ── Wayland (Niri/Sway/GNOME-Wayland) ────────────────────────────────────────
+// Le « cursor warp » (téléporter le curseur au centre près d'un bord) est BLOQUÉ
+// ou instable sous Wayland → le curseur atteint le vrai bord d'écran (le
+// compositeur scrolle/looppe l'espace de travail) + chaque tentative de warp est
+// un appel IPC qui rate = saccades. Sous Wayland on DÉSACTIVE le warp et on garde
+// le curseur VISIBLE (le masquer sans confinement fiable = curseur invisible qui
+// balade). Réglé une fois au démarrage via la commande Rust `is_wayland`.
+let _wayland = false;
+export function setWaylandMode(on: boolean): void {
+  _wayland = on;
+}
+
 // ── Canvas bounds (updated by GlucoseCanvas on mount + resize) ───────────────
 let _bounds = { top: 0, bottom: 0, left: 0, right: 0 };
 export function setWrapBounds(top: number, bottom: number, left: number, right: number) {
@@ -15,14 +27,15 @@ export function startCursorGrab(): void {
   _grabActive = true;
   const win = getCurrentWindow();
   win.setCursorGrab(true).catch(() => {});
-  win.setCursorVisible(false).catch(() => {});
+  // Wayland : on garde le curseur visible (pas de masquage sans confinement fiable).
+  if (!_wayland) win.setCursorVisible(false).catch(() => {});
 }
 export function stopCursorGrab(): void {
   if (!_grabActive) return;
   _grabActive = false;
   const win = getCurrentWindow();
   win.setCursorGrab(false).catch(() => {});
-  win.setCursorVisible(true).catch(() => {});
+  if (!_wayland) win.setCursorVisible(true).catch(() => {});
 }
 
 // ── Delta-based pan ───────────────────────────────────────────────────────────
@@ -61,7 +74,9 @@ export function getPanDelta(
     clientY - top    < margin ||
     bottom - clientY < margin;
 
-  if (nearEdge) {
+  // Wayland : PAS de warp (bloqué/instable → boucle au bord + saccades). Le pan
+  // reste piloté par movementX/Y ; on ne téléporte simplement plus le curseur.
+  if (nearEdge && !_wayland) {
     const cx = Math.round((left + right)  / 2);
     const cy = Math.round((top  + bottom) / 2);
     getCurrentWindow()

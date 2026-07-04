@@ -829,6 +829,18 @@ async fn load_asset(filename: String, app_handle: tauri::AppHandle) -> Result<St
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+/// Vrai si la session graphique courante est Wayland (ex. Niri, Sway, GNOME
+/// Wayland). Sert au front à DÉSACTIVER le « cursor warp » du pan : téléporter le
+/// curseur (`setCursorPosition`) est bloqué/instable sous Wayland → boucles au bord
+/// d'écran + saccades. Sous X11/Windows/macOS, le warp reste actif (pan infini).
+#[tauri::command]
+fn is_wayland() -> bool {
+    std::env::var("WAYLAND_DISPLAY").is_ok()
+        || std::env::var("XDG_SESSION_TYPE")
+            .map(|v| v.eq_ignore_ascii_case("wayland"))
+            .unwrap_or(false)
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Bundle portable — copie d'assets DISQUE→DISQUE (pas de base64/IPC).
 // Un vrai projet = des centaines de Mo d'images ; les faire transiter en base64
@@ -2128,6 +2140,7 @@ pub fn run() {
             save_asset,
             load_asset,
             get_assets_dir,
+            is_wayland,
             bundle_export_assets,
             bundle_import_assets,
             // R-FIL-02 (Sprint 2) — drop d'un dossier OS = folder mirror
