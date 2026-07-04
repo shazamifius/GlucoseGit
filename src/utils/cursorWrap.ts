@@ -1,15 +1,46 @@
 ﻿import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
 
-// ── Wayland (Niri/Sway/GNOME-Wayland) ────────────────────────────────────────
-// Le « cursor warp » (téléporter le curseur au centre près d'un bord) est BLOQUÉ
-// ou instable sous Wayland → le curseur atteint le vrai bord d'écran (le
-// compositeur scrolle/looppe l'espace de travail) + chaque tentative de warp est
-// un appel IPC qui rate = saccades. Sous Wayland on DÉSACTIVE le warp et on garde
-// le curseur VISIBLE (le masquer sans confinement fiable = curseur invisible qui
-// balade). Réglé une fois au démarrage via la commande Rust `is_wayland`.
+// ── Linux / Wayland — pan robuste ────────────────────────────────────────────
+// DEUX bugs sous Linux (WebKitGTK) cassaient le déplacement :
+//  1) `movementX/Y` (deltas relatifs) sont NON FIABLES sous WebKitGTK → souvent 0
+//     ou faux ⇒ le pan (qui reposait dessus) ne bougeait pas / saccadait.
+//  2) le « cursor warp » (téléporter le curseur au bord, setCursorPosition) est
+//     bloqué sous Wayland ⇒ le curseur atteint le vrai bord, Niri scrolle l'espace
+//     (« boucle d'écran ») + IPC qui rate = saccades.
+// FIX sous Linux : on NE téléporte PAS et on NE grab PAS le curseur (il reste
+// libre et visible → ses positions absolues `clientX/Y` restent vivantes), et on
+// calcule le déplacement à partir des DELTAS de clientX/Y (fiables partout) au
+// lieu de movementX/Y. Compromis : on ne pane plus « à l'infini » en un seul geste
+// (le curseur peut atteindre le bord), mais le déplacement FONCTIONNE.
+const IS_LINUX =
+  typeof navigator !== "undefined" &&
+  /Linux/i.test(navigator.userAgent) &&
+  !/Android/i.test(navigator.userAgent);
+
 let _wayland = false;
 export function setWaylandMode(on: boolean): void {
   _wayland = on;
+}
+/** Vrai si on doit éviter warp+grab et paner via clientX/Y (Linux ou Wayland). */
+function noWarp(): boolean {
+  return IS_LINUX || _wayland;
+}
+
+// Dernière position absolue du curseur (mode clientX/Y). Remis à null au début/fin
+// d'un pan pour que le 1er event serve de référence (delta 0), pas de saut.
+let _lastClient: { x: number; y: number } | null = null;
+
+// Diagnostic pan (lu par l'overlay PanDebug) — aide à voir ce que la machine
+// renvoie vraiment quand un utilisateur signale un pan cassé.
+const _dbg = { mvX: 0, mvY: 0, cdx: 0, cdy: 0 };
+export function getPanDebug(): {
+  linux: boolean; wayland: boolean; mode: "clientXY" | "movement";
+  mvX: number; mvY: number; cdx: number; cdy: number;
+} {
+  return {
+    linux: IS_LINUX, wayland: _wayland, mode: noWarp() ? "clientXY" : "movement",
+    ..._dbg,
+  };
 }
 
 // ── Canvas bounds (updated by GlucoseCanvas on mount + resize) ───────────────
@@ -25,17 +56,22 @@ let _grabActive = false;
 export function startCursorGrab(): void {
   if (_grabActive) return;
   _grabActive = true;
+  _lastClient = null; // nouvelle session de pan → 1re position = référence
+  // Linux/Wayland : NI grab NI masquage (le curseur doit rester libre et visible
+  // pour que clientX/Y bougent → deltas fiables).
+  if (noWarp()) return;
   const win = getCurrentWindow();
   win.setCursorGrab(true).catch(() => {});
-  // Wayland : on garde le curseur visible (pas de masquage sans confinement fiable).
-  if (!_wayland) win.setCursorVisible(false).catch(() => {});
+  win.setCursorVisible(false).catch(() => {});
 }
 export function stopCursorGrab(): void {
   if (!_grabActive) return;
   _grabActive = false;
+  _lastClient = null;
+  if (noWarp()) return;
   const win = getCurrentWindow();
   win.setCursorGrab(false).catch(() => {});
-  if (!_wayland) win.setCursorVisible(true).catch(() => {});
+  win.setCursorVisible(true).catch(() => {});
 }
 
 // ── Delta-based pan ───────────────────────────────────────────────────────────
@@ -56,6 +92,26 @@ export function getPanDelta(
   clientX: number,
   clientY: number,
 ): { dx: number; dy: number } | null {
+  _dbg.mvX = movementX;
+  _dbg.mvY = movementY;
+
+  // ── Mode Linux/Wayland : delta = variation de clientX/Y (fiable sur WebKitGTK) ──
+  // Pas de warp, donc clientX/Y varient continûment → deltas propres, sans dépendre
+  // de movementX/Y (cassés sous WebKitGTK).
+  if (noWarp()) {
+    if (_lastClient === null) {
+      _lastClient = { x: clientX, y: clientY };
+      _dbg.cdx = 0; _dbg.cdy = 0;
+      return { dx: 0, dy: 0 };
+    }
+    const dx = clientX - _lastClient.x;
+    const dy = clientY - _lastClient.y;
+    _lastClient = { x: clientX, y: clientY };
+    _dbg.cdx = dx; _dbg.cdy = dy;
+    return { dx, dy };
+  }
+
+  // ── Mode warp (Windows / X11 / macOS) : movementX/Y + téléportation au bord ──
   // Skip the one stale post-teleport event (cursor jumped from edge to center)
   if (Math.abs(movementX) + Math.abs(movementY) > JUMP_THRESHOLD) return null;
 
