@@ -23,6 +23,8 @@
     "fs:scope-download-recursive",
     "fs:scope-picture-recursive",
     "fs:scope-video-recursive",
-    "fs:scope-desktop-recursive"
+    "fs:scope-desktop-recursive",
+    "updater:default",
+    "process:default"
   ]
 }

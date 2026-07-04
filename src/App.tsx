@@ -18,6 +18,7 @@ import { openPortableBundle } from "./utils/bundleActions";
 import { loadLatestHealthyVersion } from "./utils/versions";
 import { resetSaveState } from "./utils/saveState";
 import Toast, { showToast } from "./components/Toast";
+import UpdatePrompt from "./components/UpdatePrompt";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
 // Ils ne sont chargés que quand l'utilisateur les ouvre.
@@ -533,6 +534,7 @@ export default function App() {
         )}
       </div>
       <Toast />
+      <UpdatePrompt />
     </div>
   );
 }
