@@ -41,6 +41,8 @@ import ArrowOptions from "../components/ArrowOptions";
 import ArrowTextEditor from "../components/ArrowTextEditor";
 import ArrowDescriptionPanel from "../components/ArrowDescriptionPanel";
 import Minimap from "../components/Minimap";
+import CollabDebug from "../components/CollabDebug";
+import { getCollabHandle } from "../multiplayer/collabHandle";
 import ColorPicker from "../components/ColorPicker";
 import { getPanDelta, setWrapBounds, startCursorGrab, stopCursorGrab } from "../utils/cursorWrap";
 import SyntaxEditor from "../components/SyntaxEditor";
@@ -447,6 +449,23 @@ export default function GlucoseCanvas() {
     failedLoadsRef.current.clear();
     applyCulling();
   }, [assetEpoch, pixiReady]);
+
+  // Collab — FILET DE SÉCURITÉ auto-cicatrisant. Le mécanisme fin d'_assetEpoch peut
+  // rater une course (octets arrivés pendant un chargement en vol, etc.). Tant qu'on
+  // est EN COLLAB et qu'il reste des images blacklistées (chargement échoué), on purge
+  // la blacklist toutes les 2 s et on relance le culling : dès que les octets sont sur
+  // le disque, l'image finit par s'afficher, sans manip. Borné (2 s, collab only, et
+  // seulement s'il y a des échecs) → aucun « storm » de 404.
+  useEffect(() => {
+    if (!pixiReady) return;
+    const id = setInterval(() => {
+      if (!getCollabHandle()) return;             // hors collab : ne rien faire
+      if (failedLoadsRef.current.size === 0) return; // rien à retenter
+      failedLoadsRef.current.clear();
+      applyCulling();
+    }, 2000);
+    return () => clearInterval(id);
+  }, [pixiReady]);
 
   // PERF-4 (LOD) — résolution cible (px, grand côté) d'une image selon sa taille
   // À L'ÉCRAN au zoom courant. Bornée à [MIN_TEX_PX, taille d'origine].
@@ -3009,6 +3028,9 @@ export default function GlucoseCanvas() {
       )}
       {/* ── Minimap ── */}
       <Minimap />
+
+      {/* ── Diagnostic collab (canal d'assets) — visible seulement en collab ── */}
+      <CollabDebug />
 
       {/* ── Barre contextuelle sélection ── */}
       {(selectedImageIds.length + selectedAnnotationIds.length > 0) && !editOverlay && (

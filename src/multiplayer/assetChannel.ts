@@ -186,12 +186,30 @@ let _channel: DocHandle<AssetChannelDoc> | null = null;
 let _channelOff: (() => void) | null = null;
 let _mainOff: (() => void) | null = null;
 let _publishTimer: ReturnType<typeof setTimeout> | null = null;
+let _role: "hôte" | "pair" | null = null;
 const _materialized = new Set<string>();
 const _inflight = new Set<string>();
 
 /** Le handle du canal actif (ou null). Exposé pour debug/tests. */
 export function getAssetChannel(): DocHandle<AssetChannelDoc> | null {
   return _channel;
+}
+
+/** Instantané pour le diagnostic à l'écran (débogage collab). */
+export function getAssetChannelStats(): {
+  active: boolean;
+  role: string | null;
+  channelBlobs: number;
+  materialized: number;
+  inflight: number;
+} {
+  return {
+    active: _channel !== null,
+    role: _role,
+    channelBlobs: _channel ? Object.keys(_channel.doc()?.blobs ?? {}).length : 0,
+    materialized: _materialized.size,
+    inflight: _inflight.size,
+  };
 }
 
 async function resolveChannel(
@@ -250,6 +268,7 @@ export async function startAssetChannel(
   opts: { canCreate: boolean },
 ): Promise<void> {
   stopAssetChannel();
+  _role = opts.canCreate ? "hôte" : "pair";
 
   const channel = await resolveChannel(repo, mainHandle, opts.canCreate);
   if (!channel) {
@@ -302,6 +321,7 @@ export function stopAssetChannel(): void {
     _publishTimer = null;
   }
   _channel = null;
+  _role = null;
   _materialized.clear();
   _inflight.clear();
 }
