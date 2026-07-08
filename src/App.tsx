@@ -22,7 +22,7 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import DiagnosticsHUD from "./components/DiagnosticsHUD";
 import TelemetryConsent from "./components/TelemetryConsent";
 import { startPerfMonitor } from "./telemetry/perfMonitor";
-import { initTelemetry, reportError } from "./telemetry/telemetry";
+import { initTelemetry, reportError, setTelemetryContext } from "./telemetry/telemetry";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
 // Ils ne sont chargés que quand l'utilisateur les ouvre.
@@ -89,6 +89,21 @@ export default function App() {
   useEffect(() => {
     useGlucoseStore.getState().setRightPanelOpen(presetOpen || domainsOpen || pluginsOpen || timelineOpen || multiplayerOpen);
   }, [presetOpen, domainsOpen, pluginsOpen, timelineOpen, multiplayerOpen]);
+
+  // Télémétrie : contexte courant (panneaux ouverts) joint aux events perf/actions
+  // → permet de corréler « ça laguait quand tel panneau était ouvert » (ex. Time
+  // Machine). No-op si l'utilisateur n'a pas consenti.
+  useEffect(() => {
+    const panels: string[] = [];
+    if (presetOpen) panels.push("preset");
+    if (domainsOpen) panels.push("domains");
+    if (pluginsOpen) panels.push("plugins");
+    if (timelineOpen) panels.push("timeline");
+    if (multiplayerOpen) panels.push("multiplayer");
+    if (searchOpen) panels.push("search");
+    if (temporalRulerOpen) panels.push("ruler");
+    setTelemetryContext({ panels, collab: multiplayerEnabled });
+  }, [presetOpen, domainsOpen, pluginsOpen, timelineOpen, multiplayerOpen, searchOpen, temporalRulerOpen, multiplayerEnabled]);
   // Wayland (Niri/Sway/…) : désactive le « cursor warp » du pan (boucle au bord +
   // saccades). Détecté côté Rust une fois au démarrage.
   useEffect(() => {

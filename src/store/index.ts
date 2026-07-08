@@ -42,6 +42,7 @@ import { wouldCreateMirrorCycle } from "./mirrorGraph";
 import * as A from "./automerge";
 import { LIMITS } from "../constants";
 import { getCollabHandle } from "../multiplayer/collabHandle";
+import { recordAction } from "../telemetry/telemetry";
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Bornes (CLEANUP R-02) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const COORD_LIMIT = 1_000_000;
@@ -466,6 +467,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   activeBoardId: DEFAULT_BOARD_ID,
 
   mutate: (message, mutator) => {
+    const _t0 = performance.now(); // télémétrie : temps par action (no-op si non consenti)
     const handle = getCollabHandle();
     if (handle) {
       // ── Mode COLLAB ── la mutation passe par le handle automerge-repo, qui
@@ -493,6 +495,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
               _redoStack: [],
             }
       );
+      recordAction(message, performance.now() - _t0);
       return;
     }
 
@@ -517,6 +520,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
         _redoStack: [],
       };
     });
+    recordAction(message, performance.now() - _t0);
   },
 
   _liveEdit: false,
@@ -540,12 +544,14 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     // On applique le change Automerge (donc c'est persisté + visible Time Machine)
     // mais on NE touche NI `_undoStack` NI `_redoStack` : naviguer/zoomer ne doit
     // jamais s'empiler dans l'undo ni détruire un redo en attente.
+    const _t0 = performance.now();
     const handle = getCollabHandle();
     if (handle) {
       if (get()._previewHeads !== null) return; // bloqué en mode Time Machine
       handle.change((d) => mutator(d as Project), { message });
       const next = handle.doc() as unknown as A.Doc<Project>;
       set({ _doc: next, project: next as unknown as Project });
+      recordAction(message, performance.now() - _t0);
       return;
     }
     set((s) => {
@@ -553,6 +559,7 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
       const next = A.change(s._doc, message, (d) => mutator(d as Project));
       return { _doc: next, project: next as unknown as Project };
     });
+    recordAction(message, performance.now() - _t0);
   },
 
   // â”€â”€ Time Machine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
