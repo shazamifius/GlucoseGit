@@ -2121,14 +2121,30 @@ pub fn run() {
          --disable-background-timer-throttling",
     );
 
-    // PERF Linux — WebKitGTK sous Wayland (Niri/Sway/GNOME-Wayland) : le renderer
-    // DMABUF est fréquemment buggé / très lent (chemin de compositing GPU) → tout
-    // le rendu, dont le déplacement du canvas, devient « laggy de fou ». Le
-    // désactiver bascule WebKitGTK sur un chemin de rendu stable. C'est LE fix
-    // standard des apps Tauri sous Wayland. Doit être posé AVANT l'init de la
-    // webview (donc ici, tout au début de run()).
     #[cfg(target_os = "linux")]
-    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    {
+        // PERF Linux — WebKitGTK sous Wayland (Niri/Sway/GNOME-Wayland) : le
+        // renderer DMABUF est fréquemment buggé / très lent (compositing GPU) →
+        // tout le rendu, dont le déplacement du canvas, devient « laggy de fou ».
+        // Le désactiver bascule sur un chemin de rendu stable. Fix standard Wayland.
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
+        // AUTO-UPDATE AppImage — fix « cross-device link » (EXDEV / os error 18).
+        // L'updater télécharge dans TMPDIR (par défaut /tmp) puis fait un rename()
+        // pour remplacer l'AppImage. Si /tmp est sur un AUTRE système de fichiers
+        // que l'AppImage (cas fréquent : /tmp = tmpfs), rename() échoue en EXDEV.
+        // On force TMPDIR dans le dossier de l'AppImage (même FS) → rename
+        // intra-device → OK. Seulement si ce dossier est accessible en écriture.
+        if let Ok(appimage) = std::env::var("APPIMAGE") {
+            if let Some(dir) = std::path::Path::new(&appimage).parent() {
+                let probe = dir.join(".glucose_write_test");
+                if std::fs::write(&probe, b"").is_ok() {
+                    let _ = std::fs::remove_file(&probe);
+                    std::env::set_var("TMPDIR", dir);
+                }
+            }
+        }
+    }
 
     let mp_state: SharedMpState = Arc::new(Mutex::new(MpState::new()));
 
