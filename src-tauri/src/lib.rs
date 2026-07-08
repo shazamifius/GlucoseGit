@@ -2104,6 +2104,67 @@ async fn install_ollama(app_handle: tauri::AppHandle) -> Result<String, String> 
     Err("Ollama est installé mais le serveur n'a pas encore répondu. Relance ta session Windows (ou lance Ollama manuellement), puis reviens.".into())
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Télémétrie OPT-IN — dépôt des statistiques vers le serveur d'ingestion
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Le front collecte des MÉTRIQUES (jamais de contenu de document) et appelle
+// `telemetry_send` UNIQUEMENT si l'utilisateur a consenti (gate côté JS). Rust
+// ajoute ici l'OS/arch/version qui FONT AUTORITÉ (le front ne peut pas se tromper)
+// + la clé d'ingestion écriture-seule, puis POST vers le serveur auto-hébergé.
+//
+// SÉCURITÉ : la clé ci-dessous n'ouvre QUE l'écriture (POST /ingest). Le serveur
+// ne renvoie jamais de données avec cette clé — la fuiter ne permet que d'envoyer
+// des logs, pas d'en lire. L'endpoint est une CONSTANTE (pas d'entrée utilisateur)
+// → aucun risque de SSRF.
+
+/// Endpoint d'ingestion (serveur NixOS auto-hébergé, port 24000).
+/// IP publique de la box (port 24000 forwardé + ouvert au firewall). HTTP en clair
+/// (métriques anonymes) — passer en `https://` si un reverse-proxy TLS est ajouté
+/// (cf. server/README.md). Si l'IP publique devient dynamique → DDNS + domaine.
+const TELEMETRY_URL: &str = "http://88.167.242.251:24000/ingest";
+
+/// Clé d'ingestion ÉCRITURE-SEULE (doit correspondre à `INGEST_KEY` du serveur).
+const TELEMETRY_INGEST_KEY: &str = "8b0fb5242afe0c916aa92ac71330fa58a35e9e9f5c40e87d";
+
+#[tauri::command]
+async fn telemetry_send(body: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    // Endpoint pas encore configuré → no-op (le front avale l'erreur silencieusement).
+    if TELEMETRY_URL.contains("REPLACE_PUBLIC_HOST") {
+        return Err("Endpoint télémétrie non configuré".into());
+    }
+    if body.len() > 2 * 1024 * 1024 {
+        return Err("Payload télémétrie trop volumineux".into());
+    }
+    // Ré-emballe le lot du front avec les champs qui font autorité côté natif.
+    let payload: serde_json::Value =
+        serde_json::from_str(&body).map_err(|e| format!("JSON invalide: {e}"))?;
+    let version = app_handle.package_info().version.to_string();
+    let envelope = serde_json::json!({
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "app_version": version,
+        "payload": payload,
+    });
+
+    let client = reqwest::Client::builder()
+        .user_agent(format!("Glucose/{version}"))
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .post(TELEMETRY_URL)
+        .header("X-Glucose-Key", TELEMETRY_INGEST_KEY)
+        .json(&envelope)
+        .send()
+        .await
+        .map_err(|e| format!("Envoi télémétrie: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("Serveur télémétrie: HTTP {}", resp.status()));
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // PERF B-STORE — Freeze de ~4 s au changement de fenêtre Windows.
@@ -2188,6 +2249,8 @@ pub fn run() {
             ollama_status,
             pull_model,
             install_ollama,
+            // Télémétrie opt-in — dépôt des statistiques (serveur auto-hébergé)
+            telemetry_send,
             // Phase 7.5bis — multi-utilisateur LAN
             multiplayer::mp_start,
             multiplayer::mp_stop,

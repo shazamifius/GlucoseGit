@@ -60,6 +60,11 @@ coverage/
 result
 result-*
 
+# Serveur télémétrie (artefacts locaux)
+server/__pycache__/
+*.pyc
+glucose_telemetry.db*
+
 # Docs de travail internes (gardées en local, pas publiées)
 STABILITY.md
 PHASE1_TO_PHASE2_TRANSITION.md

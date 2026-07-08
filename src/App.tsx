@@ -19,6 +19,10 @@ import { loadLatestHealthyVersion } from "./utils/versions";
 import { resetSaveState } from "./utils/saveState";
 import Toast, { showToast } from "./components/Toast";
 import UpdatePrompt from "./components/UpdatePrompt";
+import DiagnosticsHUD from "./components/DiagnosticsHUD";
+import TelemetryConsent from "./components/TelemetryConsent";
+import { startPerfMonitor } from "./telemetry/perfMonitor";
+import { initTelemetry, reportError } from "./telemetry/telemetry";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
 // Ils ne sont chargés que quand l'utilisateur les ouvre.
@@ -39,6 +43,10 @@ import { useZoomLock } from "./utils/useZoomLock";
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(e: Error) { return { error: e }; }
+  componentDidCatch(error: Error) {
+    // Remonte le crash à la télémétrie (no-op si l'utilisateur n'a pas consenti).
+    reportError("react-boundary", error.message, error.stack);
+  }
   render() {
     if (this.state.error) {
       const err = this.state.error as Error;
@@ -85,6 +93,13 @@ export default function App() {
   // saccades). Détecté côté Rust une fois au démarrage.
   useEffect(() => {
     invoke<boolean>("is_wayland").then(setWaylandMode).catch(() => { /* non-Tauri/web : reste false */ });
+    // Moniteur de perf (FPS/gels) — tourne en continu, alimente le HUD (Ctrl+Shift+D)
+    // et, si l'utilisateur y consent, la télémétrie. Purement local par défaut.
+    startPerfMonitor();
+    // Télémétrie : attache les capteurs d'erreurs + démarre l'envoi SI déjà consenti.
+    // (Le tout premier lancement montre la popup de consentement ; rien n'est envoyé
+    //  avant.)
+    initTelemetry();
   }, []);
   // Autosave disque débouncé (filet anti perte de données, solo + collab).
   useAutosave(pathRef);
@@ -535,6 +550,8 @@ export default function App() {
       </div>
       <Toast />
       <UpdatePrompt />
+      <TelemetryConsent />
+      <DiagnosticsHUD />
     </div>
   );
 }
