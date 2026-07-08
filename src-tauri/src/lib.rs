@@ -1784,6 +1784,11 @@ struct SystemSpecs {
     cores: usize,
     /// VRAM GPU NVIDIA en Go si détectable (nvidia-smi), sinon None.
     vram_gb: Option<u64>,
+    /// Nom réel du GPU NVIDIA (ex. « NVIDIA GeForce RTX 4070 »). WebKitGTK masque
+    /// le renderer WebGL (« Apple GPU ») → on récupère le vrai nom via nvidia-smi.
+    gpu_name: Option<String>,
+    /// Version du pilote NVIDIA (ex. « 595.71.05 ») — décisif pour le support DMABUF.
+    driver_version: Option<String>,
     /// Modèle Ollama conseillé pour cette machine.
     recommended_model: String,
 }
@@ -1818,6 +1823,28 @@ async fn nvidia_vram_gb() -> Option<u64> {
     Some((mb as f64 / 1024.0).round() as u64)
 }
 
+/// Nom réel + version de pilote du 1er GPU NVIDIA via nvidia-smi. None sinon.
+/// Sert à afficher la VRAIE carte (WebKitGTK masque le renderer WebGL).
+async fn nvidia_name_driver() -> Option<(String, String)> {
+    let out = tokio::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=name,driver_version", "--format=csv,noheader"])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let txt = String::from_utf8_lossy(&out.stdout);
+    let line = txt.lines().next()?;
+    let mut parts = line.split(',');
+    let name = parts.next()?.trim().to_string();
+    let driver = parts.next()?.trim().to_string();
+    if name.is_empty() {
+        return None;
+    }
+    Some((name, driver))
+}
+
 /// Sonde la machine (RAM, cœurs, VRAM) et recommande un modèle Ollama.
 #[tauri::command]
 async fn system_specs() -> Result<SystemSpecs, String> {
@@ -1828,11 +1855,17 @@ async fn system_specs() -> Result<SystemSpecs, String> {
         .map(|n| n.get())
         .unwrap_or(1);
     let vram_gb = nvidia_vram_gb().await;
+    let (gpu_name, driver_version) = match nvidia_name_driver().await {
+        Some((n, d)) => (Some(n), Some(d)),
+        None => (None, None),
+    };
     let recommended_model = recommend_model(ram_gb, vram_gb).to_string();
     Ok(SystemSpecs {
         ram_gb,
         cores,
         vram_gb,
+        gpu_name,
+        driver_version,
         recommended_model,
     })
 }
@@ -2184,11 +2217,15 @@ pub fn run() {
 
     #[cfg(target_os = "linux")]
     {
-        // PERF Linux — WebKitGTK sous Wayland (Niri/Sway/GNOME-Wayland) : le
-        // renderer DMABUF est fréquemment buggé / très lent (compositing GPU) →
-        // tout le rendu, dont le déplacement du canvas, devient « laggy de fou ».
-        // Le désactiver bascule sur un chemin de rendu stable. Fix standard Wayland.
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        // PERF Linux — NE PAS désactiver le renderer DMABUF de WebKitGTK.
+        // On l'avait coupé (WEBKIT_DISABLE_DMABUF_RENDERER=1) en croyant DMABUF
+        // « buggé/lent » sous Wayland — c'était une erreur. La télémétrie a montré
+        // le contraire sur RTX 4070 + pilote NVIDIA 595 + Niri : le GPU rend bien
+        // (WebKit GPU process = 584 Mo VRAM), mais couper DMABUF force une COPIE
+        // CPU du framebuffer À CHAQUE FRAME → 1-2 cœurs à 100 %, ~22 FPS pendant que
+        // le GPU est à 17 %. DMABUF activé = partage GPU→compositeur zéro-copie →
+        // rendu fluide. On laisse donc le défaut WebKit (DMABUF ON).
+        // Un stack ancien/cassé peut toujours le re-couper via la variable d'env.
 
         // AUTO-UPDATE AppImage — fix « cross-device link » (EXDEV / os error 18).
         // L'updater télécharge dans TMPDIR (par défaut /tmp) puis fait un rename()

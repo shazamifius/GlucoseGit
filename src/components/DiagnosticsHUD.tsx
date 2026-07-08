@@ -26,6 +26,8 @@ interface Specs {
   ram_gb: number;
   cores: number;
   vram_gb: number | null;
+  gpu_name?: string | null;
+  driver_version?: string | null;
 }
 
 function osLabel(): string {
@@ -132,12 +134,9 @@ export default function DiagnosticsHUD() {
 
       <div style={{ height: 1, background: "#26262e", margin: "6px 0" }} />
 
-      <Row
-        k="GPU"
-        v={gpu ? gpu.renderer : "…"}
-        bad={gpu?.software}
-        good={gpu != null && !gpu.software && gpu.renderer !== "inconnu"}
-      />
+      {specs?.gpu_name && <Row k="GPU réel" v={specs.gpu_name} good />}
+      {specs?.driver_version && <Row k="Pilote" v={specs.driver_version} />}
+      <Row k="WebGL rend." v={gpu ? gpu.renderer : "…"} bad={gpu?.software} />
       {gpu?.software && <Row k="⚠ Rendu" v="LOGICIEL (CPU)" bad />}
       <Row k="WebGL" v={gpu ? gpu.api : "…"} bad={gpu?.api === "none"} />
       <Row k="Affichage" v={wayland == null ? "?" : wayland ? "Wayland" : "X11/natif"} />
