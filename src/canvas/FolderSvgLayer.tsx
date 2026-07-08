@@ -61,6 +61,7 @@ export default function FolderSvgLayer({
   }
 
   function startDrag(folder: CanvasFolder, e: React.PointerEvent, mode: "move" | "resize") {
+    if (e.button !== 0) return; // molette/droit = pan (géré au niveau canvas), pas un drag
     if (activeTool !== "select") return;
     e.stopPropagation();
     // UNDO-1 — pas de snapshot au down ; transaction ouverte au 1er mouvement réel

@@ -22,6 +22,9 @@ export interface PerfSnapshot {
   worstMs: number;
   /** Durée médiane de frame (ms) sur la dernière seconde. */
   medianMs: number;
+  /** Micro-saccades cumulées (28–50 ms) : petits à-coups que le seuil « jank »
+   *  rate mais que l'œil perçoit (le FPS moyen reste ~60 alors que ça saccade). */
+  microStutters: number;
   /** Frames « lentes » cumulées (> 50 ms ≈ sous 20 fps) depuis le démarrage. */
   jankFrames: number;
   /** Gels cumulés (> 200 ms — l'app a visiblement figé) depuis le démarrage. */
@@ -42,7 +45,9 @@ export interface GpuInfo {
   api: string;
 }
 
-// Seuils (ms). 50 ms ≈ 20 fps (saccade nette) ; 200 ms = gel franc.
+// Seuils (ms). 28 ms = une frame ratée à 60 Hz (micro-saccade perçue mais que le
+// FPS moyen masque) ; 50 ms ≈ 20 fps (saccade nette) ; 200 ms = gel franc.
+const MICRO_MS = 28;
 const JANK_MS = 50;
 const STALL_MS = 200;
 // Fenêtre glissante d'1 s de durées de frame (à 60 fps → ~60 échantillons).
@@ -52,6 +57,7 @@ let running = false;
 let rafId = 0;
 let last = 0;
 const recent: number[] = []; // durées de frame (ms) sur la dernière ~seconde
+let microStutters = 0;
 let jankFrames = 0;
 let stalls = 0;
 let totalFrames = 0;
@@ -69,6 +75,7 @@ function tick(now: number) {
       totalFrames++;
       if (dt > STALL_MS) stalls++;
       else if (dt > JANK_MS) jankFrames++;
+      else if (dt > MICRO_MS) microStutters++;
     }
   }
   last = now;
@@ -93,7 +100,7 @@ export function stopPerfMonitor(): void {
 /** Instantané courant. Sûr à appeler à tout moment (lecture pure). */
 export function getPerfSnapshot(): PerfSnapshot {
   if (recent.length === 0) {
-    return { fps: 0, worstMs: 0, medianMs: 0, jankFrames, stalls, totalFrames };
+    return { fps: 0, worstMs: 0, medianMs: 0, microStutters, jankFrames, stalls, totalFrames };
   }
   const sorted = [...recent].sort((a, b) => a - b);
   const worst = sorted[sorted.length - 1];
@@ -105,6 +112,7 @@ export function getPerfSnapshot(): PerfSnapshot {
     fps,
     worstMs: Math.round(worst),
     medianMs: Math.round(median),
+    microStutters,
     jankFrames,
     stalls,
     totalFrames,

@@ -1243,6 +1243,29 @@ export default function GlucoseCanvas() {
     return () => wrapper.removeEventListener("pointerdown", onDown, { capture: true });
   }, []);
 
+  // Molette (bouton du milieu) = PAN, même au-dessus d'un dossier ou d'une
+  // annotation. Ces couches overlay captureraient le pointerdown et lanceraient un
+  // DRAG (bug signalé : « clic-molette sur un dossier le déplace »). On intercepte
+  // en phase CAPTURE au niveau du wrapper : pour un clic-molette HORS du canvas nu,
+  // on démarre le pan (comme le handler natif du canvas) et on stoppe la propagation
+  // → pas de drag. Les clics sur le canvas lui-même restent gérés par son handler natif.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    function onMiddlePan(e: PointerEvent) {
+      if (e.button !== 1) return; // molette uniquement
+      const app = appRef.current;
+      if (!app || e.target === app.canvas) return; // canvas nu → handler natif du canvas
+      e.stopPropagation();
+      isDraggingRef.current = true;
+      selDragRef.current = null;
+      startCursorGrab();
+      try { app.canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    wrapper.addEventListener("pointerdown", onMiddlePan, { capture: true });
+    return () => wrapper.removeEventListener("pointerdown", onMiddlePan, { capture: true });
+  }, []);
+
   // ── Import vidéo depuis URL (YouTube / TikTok / Instagram / Vimeo) ──
   async function importVideoFromUrl(url: string) {
     setVideoLoading(true);

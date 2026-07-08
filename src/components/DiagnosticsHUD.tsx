@@ -129,6 +129,7 @@ export default function DiagnosticsHUD() {
       <Row k="FPS" v={perf ? String(perf.fps) : "…"} bad={fpsBad} good={perf != null && perf.fps >= 55} />
       <Row k="Pire frame" v={perf ? `${perf.worstMs} ms` : "…"} bad={worstBad} />
       <Row k="Médiane" v={perf ? `${perf.medianMs} ms` : "…"} />
+      <Row k="Micro-saccades" v={perf ? String(perf.microStutters) : "…"} bad={perf != null && perf.microStutters > 0} />
       <Row k="Frames lentes" v={perf ? String(perf.jankFrames) : "…"} bad={perf != null && perf.jankFrames > 0} />
       <Row k="Gels (>200ms)" v={perf ? String(perf.stalls) : "…"} bad={perf != null && perf.stalls > 0} />
 
