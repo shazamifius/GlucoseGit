@@ -3,7 +3,7 @@
 Reçoit les statistiques **anonymes et opt-in** envoyées par l'app Glucose et les
 affiche dans un tableau de bord. **Python 3 stdlib uniquement**, aucune dépendance.
 
-**Un seul port (24000)**, tout passe par le chemin :
+**Un seul port (24100)**, tout passe par le chemin :
 - `POST /ingest` — lots envoyés par l'app, protégés par une clé **écriture-seule**
   (`X-Glucose-Key`). La fuiter ne permet que d'*envoyer* des logs, jamais d'en *lire*.
 - `GET /health` — sonde de disponibilité (« ok »).
@@ -11,7 +11,7 @@ affiche dans un tableau de bord. **Python 3 stdlib uniquement**, aucune dépenda
 
 > Pourquoi un seul port ? Sur la box cible, 24001 est déjà pris (web3game) et seul un
 > port libre + ouvrable au firewall est dispo. Ingest et dashboard cohabitent donc
-> sur 24000, distingués par le chemin + une auth différente.
+> sur 24100, distingués par le chemin + une auth différente.
 
 L'app n'envoie **que des métriques** (FPS, gels, GPU, OS/RAM/cœurs, erreurs, version)
 — **jamais** le contenu d'un document. Stockage : un fichier SQLite.
@@ -36,12 +36,12 @@ journalctl --user -u glucose-telemetry -f      # logs en direct
 
 Le script de déploiement (`scratchpad/deploy.sh`) automatise tout ça.
 
-## ⚠ La seule étape sudo : ouvrir 24000 au firewall
+## ⚠ La seule étape sudo : ouvrir 24100 au firewall
 
 Le pare-feu NixOS n'ouvre que 24001 par défaut. Pour rendre l'ingestion joignable
-depuis l'extérieur, il faut ajouter 24000 à `networking.firewall.allowedTCPPorts`
+depuis l'extérieur, il faut ajouter 24100 à `networking.firewall.allowedTCPPorts`
 dans `/etc/nixos/configuration.nix` puis `sudo nixos-rebuild switch`. Le port doit
-aussi être **forwardé sur le routeur** vers `192.168.1.200:24000`.
+aussi être **forwardé sur le routeur** vers `192.168.1.200:24100`.
 
 ## Clé d'ingestion (doit correspondre à l'app)
 
@@ -53,7 +53,7 @@ tu la changes, change-la **des deux côtés**.
 
 | Variable | Rôle | Défaut |
 |---|---|---|
-| `GLUCOSE_PORT` | port d'écoute | `24000` |
+| `GLUCOSE_PORT` | port d'écoute | `24100` |
 | `GLUCOSE_BIND` | interface (`127.0.0.1` pour tester en local) | `0.0.0.0` |
 | `GLUCOSE_DB` | fichier SQLite | `./glucose_telemetry.db` |
 | `GLUCOSE_INGEST_KEY` | clé attendue des clients | clé par défaut de l'app |
@@ -63,7 +63,7 @@ tu la changes, change-la **des deux côtés**.
 ## (Optionnel) HTTPS via reverse-proxy
 
 L'ingestion est en **HTTP clair** (métriques anonymes). Avec un **domaine**, on peut
-chiffrer via Caddy (TLS auto) en `reverse_proxy localhost:24000`, puis passer
+chiffrer via Caddy (TLS auto) en `reverse_proxy localhost:24100`, puis passer
 `TELEMETRY_URL` de l'app en `https://…`. Sur une IP publique nue (sans domaine),
 Let's Encrypt ne peut pas émettre de certificat → on reste en HTTP.
 

@@ -2151,11 +2151,11 @@ async fn install_ollama(app_handle: tauri::AppHandle) -> Result<String, String> 
 // des logs, pas d'en lire. L'endpoint est une CONSTANTE (pas d'entrée utilisateur)
 // → aucun risque de SSRF.
 
-/// Endpoint d'ingestion (serveur NixOS auto-hébergé, port 24000).
-/// IP publique de la box (port 24000 forwardé + ouvert au firewall). HTTP en clair
-/// (métriques anonymes) — passer en `https://` si un reverse-proxy TLS est ajouté
-/// (cf. server/README.md). Si l'IP publique devient dynamique → DDNS + domaine.
-const TELEMETRY_URL: &str = "http://88.167.242.251:24000/ingest";
+/// Endpoint d'ingestion (serveur NixOS auto-hébergé, port 24100).
+/// 24000/24001 sont réservés au projet web3 de l'utilisateur → Glucose vit sur 24100
+/// (forwardé + ouvert au firewall). HTTP en clair (métriques anonymes) ; passer en
+/// `https://` si reverse-proxy TLS (cf. server/README.md). IP dynamique → DDNS.
+const TELEMETRY_URL: &str = "http://88.167.242.251:24100/ingest";
 
 /// Clé d'ingestion ÉCRITURE-SEULE (doit correspondre à `INGEST_KEY` du serveur).
 const TELEMETRY_INGEST_KEY: &str = "8b0fb5242afe0c916aa92ac71330fa58a35e9e9f5c40e87d";

@@ -44,12 +44,44 @@ INGEST_KEY = os.environ.get(
 )
 DB_PATH = os.environ.get("GLUCOSE_DB", "glucose_telemetry.db")
 BIND = os.environ.get("GLUCOSE_BIND", "0.0.0.0")  # 127.0.0.1 pour un test local
-PORT = int(os.environ.get("GLUCOSE_PORT", "24000"))
+PORT = int(os.environ.get("GLUCOSE_PORT", "24100"))  # 24000/24001 réservés à web3
 DASH_USER = os.environ.get("GLUCOSE_DASH_USER", "glucose")
 DASH_PASS = os.environ.get("GLUCOSE_DASH_PASS", "")  # vide → dashboard désactivé
 MAX_BODY = 2 * 1024 * 1024  # 2 Mo par lot
 
+# Rate-limit anti-flood : N requêtes max par IP sur une fenêtre glissante.
+RATE_MAX = int(os.environ.get("GLUCOSE_RATE_MAX", "120"))
+RATE_WINDOW = 60.0
+
 _db_lock = threading.Lock()
+_rate_lock = threading.Lock()
+_rate_hits: dict = {}  # ip -> [timestamps]
+
+
+def rate_ok(ip: str) -> bool:
+    """True si l'IP est sous le quota. En mémoire, borné (anti-DoS mémoire)."""
+    now = time.time()
+    with _rate_lock:
+        hits = _rate_hits.get(ip)
+        if hits is None:
+            hits = []
+            _rate_hits[ip] = hits
+        cutoff = now - RATE_WINDOW
+        drop = 0
+        for t in hits:
+            if t >= cutoff:
+                break
+            drop += 1
+        if drop:
+            del hits[:drop]
+        if len(hits) >= RATE_MAX:
+            return False
+        hits.append(now)
+        # Borne le nombre d'IP suivies (purge les entrées vides si trop nombreuses).
+        if len(_rate_hits) > 5000:
+            for k in [k for k, v in _rate_hits.items() if not v]:
+                del _rate_hits[k]
+        return True
 
 
 # ── Base de données ──────────────────────────────────────────────────────────
@@ -320,7 +352,17 @@ class Handler(BaseHTTPRequestHandler):
         expected = "Basic " + base64.b64encode(f"{DASH_USER}:{DASH_PASS}".encode()).decode()
         return self.headers.get("Authorization", "") == expected
 
+    def _rl(self) -> bool:
+        """Applique le rate-limit. Renvoie False (et répond 429) si dépassé."""
+        ip = self.client_address[0] if self.client_address else "?"
+        if rate_ok(ip):
+            return True
+        self._text(429, "trop de requêtes")
+        return False
+
     def do_GET(self):  # noqa: N802
+        if not self._rl():
+            return
         if self.path == "/health":
             self._text(200, "ok")
             return
@@ -336,6 +378,8 @@ class Handler(BaseHTTPRequestHandler):
         self._text(404, "")
 
     def do_POST(self):  # noqa: N802
+        if not self._rl():
+            return
         if self.path != "/ingest":
             self._text(404, "")
             return
