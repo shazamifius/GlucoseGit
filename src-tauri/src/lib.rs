@@ -2121,6 +2121,15 @@ pub fn run() {
          --disable-background-timer-throttling",
     );
 
+    // PERF Linux — WebKitGTK sous Wayland (Niri/Sway/GNOME-Wayland) : le renderer
+    // DMABUF est fréquemment buggé / très lent (chemin de compositing GPU) → tout
+    // le rendu, dont le déplacement du canvas, devient « laggy de fou ». Le
+    // désactiver bascule WebKitGTK sur un chemin de rendu stable. C'est LE fix
+    // standard des apps Tauri sous Wayland. Doit être posé AVANT l'init de la
+    // webview (donc ici, tout au début de run()).
+    #[cfg(target_os = "linux")]
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+
     let mp_state: SharedMpState = Arc::new(Mutex::new(MpState::new()));
 
     tauri::Builder::default()

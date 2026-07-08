@@ -42,7 +42,6 @@ import ArrowTextEditor from "../components/ArrowTextEditor";
 import ArrowDescriptionPanel from "../components/ArrowDescriptionPanel";
 import Minimap from "../components/Minimap";
 import CollabDebug from "../components/CollabDebug";
-import PanDebug from "../components/PanDebug";
 import { getCollabHandle } from "../multiplayer/collabHandle";
 import ColorPicker from "../components/ColorPicker";
 import { getPanDelta, setWrapBounds, startCursorGrab, stopCursorGrab } from "../utils/cursorWrap";
@@ -3032,9 +3031,6 @@ export default function GlucoseCanvas() {
 
       {/* ── Diagnostic collab (canal d'assets) — visible seulement en collab ── */}
       <CollabDebug />
-
-      {/* ── Diagnostic pan — visible seulement sous Linux (débogage déplacement) ── */}
-      <PanDebug />
 
       {/* ── Barre contextuelle sélection ── */}
       {(selectedImageIds.length + selectedAnnotationIds.length > 0) && !editOverlay && (
