@@ -163,9 +163,30 @@ export function asPlain<T>(doc: Doc<T>): T {
   );
 }
 
-/** Récupère l'historique sous forme de liste de commits Automerge. */
+/** Récupère l'historique sous forme de liste de commits Automerge.
+ * ⚠️ COÛTEUX : `getHistory` MATÉRIALISE l'état du doc à CHAQUE change (O(n·état)).
+ * Pour la Time Machine (qui ne veut que les libellés), préférer `changeMetas`. */
 export function history<T>(doc: Doc<T>) {
   return Automerge.getHistory(doc);
+}
+
+/** Métadonnée légère d'un change (sans matérialiser l'état) : libellé, date, hash. */
+export interface ChangeMeta {
+  message: string;
+  time: number; // secondes unix (comme Automerge)
+  hash: string;
+}
+
+/** Tous les changes bruts (Uint8Array), sans décodage — quasi gratuit (blobs stockés). */
+export function allChanges<T>(doc: Doc<T>): Uint8Array[] {
+  return Automerge.getAllChanges(doc);
+}
+
+/** Décode l'EN-TÊTE d'un change (libellé/date/hash) sans rejouer l'état — bien
+ *  moins cher que `getHistory`, qui reconstruit un snapshot par change. */
+export function decodeMeta(change: Uint8Array): ChangeMeta {
+  const d = Automerge.decodeChange(change);
+  return { message: d.message ?? "", time: d.time, hash: d.hash ?? "" };
 }
 
 /**

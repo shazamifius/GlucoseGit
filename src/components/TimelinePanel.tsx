@@ -178,26 +178,38 @@ export default function TimelinePanel({ onClose }: Props) {
     }
   }
 
+  // Cache incrémental des métadonnées de changes. C'ÉTAIT LE GEL : `A.history`
+  // (getHistory) MATÉRIALISE l'état du doc à CHAQUE change (~2000 ms sur un gros
+  // historique), et se relançait à chaque frame de pan (le doc est réécrit en
+  // continu). L'historique ne fait que CROÎTRE en solo → on décode seulement les
+  // NOUVEAUX changes (en-tête léger, pas de snapshot), on garde le reste en cache.
+  const metaCacheRef = useRef<A.ChangeMeta[]>([]);
+
   // ── Reconstruit la liste des commits depuis l'historique Automerge ────
   const commits = useMemo<CommitEntry[]>(() => {
     try {
-      // Phase 7.4 : on prend chaque change Automerge comme un point de timeline.
-      // Le `message` passé à `mutate(message, ...)` est conservé ici.
-      const history = A.history(stableDoc);
+      const changes = A.allChanges(stableDoc);
+      const cached = metaCacheRef.current;
+      const n = cached.length;
+      // Cache encore valide (même lignée qui a grandi) ? On compare le 1er et le
+      // dernier hash cachés — sinon (compaction / restauration / undo / fork), reset.
+      const stillValid =
+        n > 0 &&
+        changes.length >= n &&
+        A.decodeMeta(changes[0]).hash === cached[0].hash &&
+        A.decodeMeta(changes[n - 1]).hash === cached[n - 1].hash;
+      if (!stillValid) metaCacheRef.current = [];
+      const metas = metaCacheRef.current;
+      // Décode UNIQUEMENT les changes pas encore en cache.
+      for (let i = metas.length; i < changes.length; i++) {
+        metas.push(A.decodeMeta(changes[i]));
+      }
+      // Liste filtrée : on exclut les gestes de navigation/caméra (NAV_NOISE).
       const out: CommitEntry[] = [];
-      // Pour récupérer les heads à un point N de l'historique, on doit refaire
-      // un viewAt sur les changes.hash de chaque commit. On saute les gestes de
-      // navigation/caméra (NAV_NOISE) : ce ne sont pas de vraies éditions.
-      for (let i = 0; i < history.length; i++) {
-        const entry = history[i];
-        const message = entry.change.message || "(sans message)";
+      for (let i = 0; i < metas.length; i++) {
+        const message = metas[i].message || "(sans message)";
         if (NAV_NOISE.has(message)) continue;
-        out.push({
-          index: i,
-          message,
-          time: entry.change.time * 1000,
-          heads: [entry.change.hash],
-        });
+        out.push({ index: i, message, time: metas[i].time * 1000, heads: [metas[i].hash] });
       }
       return out;
     } catch (e) {

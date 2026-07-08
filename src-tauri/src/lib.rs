@@ -2217,15 +2217,15 @@ pub fn run() {
 
     #[cfg(target_os = "linux")]
     {
-        // PERF Linux — NE PAS désactiver le renderer DMABUF de WebKitGTK.
-        // On l'avait coupé (WEBKIT_DISABLE_DMABUF_RENDERER=1) en croyant DMABUF
-        // « buggé/lent » sous Wayland — c'était une erreur. La télémétrie a montré
-        // le contraire sur RTX 4070 + pilote NVIDIA 595 + Niri : le GPU rend bien
-        // (WebKit GPU process = 584 Mo VRAM), mais couper DMABUF force une COPIE
-        // CPU du framebuffer À CHAQUE FRAME → 1-2 cœurs à 100 %, ~22 FPS pendant que
-        // le GPU est à 17 %. DMABUF activé = partage GPU→compositeur zéro-copie →
-        // rendu fluide. On laisse donc le défaut WebKit (DMABUF ON).
-        // Un stack ancien/cassé peut toujours le re-couper via la variable d'env.
+        // PERF Linux — DMABUF WebKitGTK désactivé (choix empirique, A/B réel).
+        // Sur RTX 4070 + pilote 595 + Niri : DMABUF ACTIVÉ ≈ 14 FPS, DÉSACTIVÉ ≈ 22 FPS
+        // → on garde désactivé (le moins pire). MAIS ces ~22 FPS n'étaient PAS la vraie
+        // cause du lag ressenti : c'était le panneau Time Machine (getHistory O(n)
+        // relancé à chaque frame), corrigé séparément. Overridable : si l'utilisateur
+        // a déjà posé la variable, on la respecte (il peut re-tester DMABUF activé).
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
 
         // AUTO-UPDATE AppImage — fix « cross-device link » (EXDEV / os error 18).
         // L'updater télécharge dans TMPDIR (par défaut /tmp) puis fait un rename()

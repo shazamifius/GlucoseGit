@@ -189,6 +189,22 @@ describe("automerge wrapper — Time Machine API", () => {
     expect(past.boards[0].counter).toBe(10);
     expect(doc.boards[0].counter).toBe(99); // non muté
   });
+
+  it("allChanges + decodeMeta : mêmes libellés que getHistory, mais SANS matérialiser l'état", () => {
+    // C'est le chemin léger utilisé par la Time Machine (getHistory reconstruit un
+    // snapshot par change → gel ~2000 ms ; decodeMeta ne lit que l'en-tête).
+    let doc = A.create(makeInitial());
+    doc = A.change(doc, "📌 jalon", (d) => { d.boards[0].counter = 1; });
+    doc = A.change(doc, "edit", (d) => { d.boards[0].counter = 2; });
+
+    const viaHistory = A.history(doc).map((h) => h.change.message ?? "");
+    const metas = A.allChanges(doc).map((c) => A.decodeMeta(c));
+    expect(metas.map((m) => m.message)).toEqual(viaHistory); // mêmes messages, même ordre
+
+    // Le hash décodé suffit à faire un viewAt (aperçu d'un état passé).
+    const past = A.viewAt<MiniProject>(doc, [metas[1].hash]);
+    expect(past.boards[0].counter).toBe(1); // état juste après « 📌 jalon »
+  });
 });
 
 describe("automerge wrapper — asPlain", () => {
