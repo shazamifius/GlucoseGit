@@ -42,6 +42,13 @@ jobs:
             target: x86_64-unknown-linux-gnu
             label: Linux x64 (AppImage + .deb + .rpm)
             args: "--bundles appimage,deb,rpm"
+          # Linux ARM64 NATIF — pour Apple Silicon sous Linux (Asahi) & autres ARM.
+          # Sans lui, ces machines lancent le build x86 SOUS ÉMULATION → CPU émulé,
+          # rendu à ~20 FPS. Runner ARM hébergé GitHub (gratuit sur repo public).
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            label: Linux ARM64 (AppImage + .deb + .rpm)
+            args: "--bundles appimage,deb,rpm"
 
     steps:
       - uses: actions/checkout@v4
@@ -108,7 +115,8 @@ jobs:
             |---|---|---|
             | 🪟 **Windows** (10/11) | `Glucose_*_x64-setup.exe` | NSIS · sans droits admin |
             | 🍎 **macOS** (M1+ natif, Intel via Rosetta 2) | `Glucose_*_aarch64.dmg` | universel |
-            | 🐧 **Linux universel** | `glucose_*_amd64.AppImage` | Marche partout · NixOS via `nix-ld` |
+            | 🐧 **Linux x64** (Intel/AMD) | `Glucose_*_amd64.AppImage` | Marche partout · NixOS via `nix-ld` |
+            | 🦾 **Linux ARM64** (Apple Silicon/Asahi, RPi…) | `Glucose_*_aarch64.AppImage` | **Natif ARM — sans émulation** |
             | 📦 **Debian / Ubuntu** | `glucose_*_amd64.deb` | `sudo dpkg -i` |
             | 🎩 **Fedora / RHEL** | `glucose-*.x86_64.rpm` | `sudo dnf install` |
             | ❄️ **NixOS** | flake | `nix run github:${{ github.repository }}` |
