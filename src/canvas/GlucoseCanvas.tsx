@@ -305,6 +305,11 @@ export default function GlucoseCanvas() {
       // pixels sur un écran à très haute densité (gain GPU constant).
       antialias: false, resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true, preference: "webgl",
+      // PERF-Linux/hybride — demande EXPLICITEMENT le GPU discret (RTX). Sans ça,
+      // WebGL prend `powerPreference:"default"` et sur une config bi-GPU (portable
+      // à iGPU+dGPU, setups Wayland/NVIDIA hybrides) le driver peut router le
+      // contexte vers un chemin bas-régime. `high-performance` = pas d'ambiguïté.
+      powerPreference: "high-performance",
       // PERF-4 — on coupe le rendu automatique 60 fps : on rend nous-mêmes seulement
       // quand la scène change (cf. requestRender + boucle renderTick ci-dessous).
       autoStart: false,
