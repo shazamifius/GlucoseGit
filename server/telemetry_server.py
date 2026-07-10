@@ -228,6 +228,52 @@ def render_dashboard() -> str:
             acc["jank"] += int(d.get("jankFrames", 0) or 0)
             acc["stalls"] += int(d.get("stalls", 0) or 0)
 
+        # Latence PAR ACTION (depuis kind='action_stats'). Le pire temps (maxMs)
+        # d'une action = la signature d'un gel : si « enterFolder » pique à 400 ms,
+        # c'est LUI qui gèle. Agrégé par (os, nom d'action).
+        act_rows = _q(
+            conn,
+            "SELECT os, data FROM events WHERE kind='action_stats'"
+            " ORDER BY received_at DESC LIMIT 5000",
+        )
+        act_by_os: dict = {}  # os -> {name -> {count,totalMs,maxMs}}
+        for os_, data in act_rows:
+            try:
+                d = json.loads(data)
+            except Exception:
+                continue
+            actions = d.get("actions") or {}
+            if not isinstance(actions, dict):
+                continue
+            bucket = act_by_os.setdefault(os_, {})
+            for name, st in actions.items():
+                if not isinstance(st, dict):
+                    continue
+                agg = bucket.setdefault(str(name)[:40], {"count": 0, "totalMs": 0, "maxMs": 0})
+                agg["count"] += int(st.get("count", 0) or 0)
+                agg["totalMs"] += int(st.get("totalMs", 0) or 0)
+                agg["maxMs"] = max(agg["maxMs"], int(st.get("maxMs", 0) or 0))
+
+        # Benchmark machine (depuis kind='benchmark') — CPU vs GPU comparable
+        # entre machines. GL élevé = piste rendu logiciel/mou.
+        bench_rows = _q(
+            conn,
+            "SELECT os, data FROM events WHERE kind='benchmark'"
+            " ORDER BY received_at DESC LIMIT 2000",
+        )
+        bench_by_os: dict = {}  # os -> {cpu,gl,score,n}
+        for os_, data in bench_rows:
+            try:
+                d = json.loads(data)
+            except Exception:
+                continue
+            b = d.get("bench") or {}
+            acc = bench_by_os.setdefault(os_, {"cpu": 0.0, "gl": 0.0, "score": 0.0, "n": 0})
+            acc["cpu"] += float(b.get("cpuMs", 0) or 0)
+            acc["gl"] += float(b.get("glMs", 0) or 0)
+            acc["score"] += float(b.get("score", 0) or 0)
+            acc["n"] += 1
+
         # Dernières erreurs.
         errors = _q(
             conn,
@@ -245,6 +291,7 @@ def render_dashboard() -> str:
         "body{background:#0d0d0d;color:#d4d4dd;font:13px/1.6 system-ui,sans-serif;margin:0;padding:24px 28px}"
         "h1{font-size:18px;margin:0 0 2px}h2{font-size:14px;color:#9a9aa0;margin:26px 0 8px;"
         "border-bottom:1px solid #26262e;padding-bottom:5px;text-transform:uppercase;letter-spacing:.06em}"
+        "h3{font-size:12px;color:#c4c4cc;margin:12px 0 4px;font-weight:600}"
         ".cards{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}"
         ".card{background:#16161a;border:1px solid #26262e;border-radius:8px;padding:12px 16px;min-width:120px}"
         ".card .n{font-size:26px;color:#fff;font-weight:600}.card .l{color:#7d7d8c;font-size:11px}"
@@ -308,6 +355,47 @@ def render_dashboard() -> str:
             f"<td>{esc(a['stalls'])}</td><td>{esc(a['n'])}</td></tr>"
         )
     out.append("</table>")
+
+    # Benchmark CPU vs GPU
+    out.append("<h2>Benchmark machine (CPU vs GPU)</h2>")
+    if bench_by_os:
+        out.append("<table><tr><th>OS</th><th>CPU (boucle)</th><th>GPU (WebGL)</th><th>Score</th><th>éch.</th></tr>")
+        for os_, a in sorted(bench_by_os.items()):
+            n = a["n"] or 1
+            gl = a["gl"] / n
+            gl_cls = " class=bad" if gl > 60 else ""  # GL lent → piste rendu mou/logiciel
+            out.append(
+                f"<tr><td>{esc(os_)}</td><td>{a['cpu'] / n:.0f} ms</td>"
+                f"<td{gl_cls}>{gl:.0f} ms</td><td>{a['score'] / n:.0f}</td><td>{esc(a['n'])}</td></tr>"
+            )
+        out.append("</table>")
+        out.append(
+            "<div class=l style='color:#7d7d8c;margin-top:4px'>Temps d'une charge standard "
+            "(plus bas = plus rapide). GPU (WebGL) élevé = piste rendu logiciel/mou.</div>"
+        )
+    else:
+        out.append("<div class=l style='color:#7d7d8c'>Pas encore de benchmark reçu.</div>")
+
+    # Latence par action — LE tableau qui révèle quelle action gèle.
+    out.append("<h2>Latence par action (pire = cause de gel)</h2>")
+    if act_by_os:
+        for os_ in sorted(act_by_os):
+            bucket = act_by_os[os_]
+            top = sorted(bucket.items(), key=lambda kv: -kv[1]["maxMs"])[:15]
+            out.append(f"<h3>{esc(os_)}</h3>")
+            out.append("<table><tr><th>Action</th><th>Appels</th><th>Moy.</th><th>Pire</th></tr>")
+            for name, st in top:
+                cnt = st["count"] or 1
+                avg = st["totalMs"] / cnt
+                worst = st["maxMs"]
+                worst_cls = " class=bad" if worst > 100 else (" class=ok" if worst < 16 else "")
+                out.append(
+                    f"<tr><td class=mono>{esc(name)}</td><td>{esc(st['count'])}</td>"
+                    f"<td>{avg:.0f} ms</td><td{worst_cls}>{esc(worst)} ms</td></tr>"
+                )
+            out.append("</table>")
+    else:
+        out.append("<div class=l style='color:#7d7d8c'>Pas encore de stats d'action reçues.</div>")
 
     # Erreurs
     out.append("<h2>Dernières erreurs</h2><table>")
