@@ -210,23 +210,38 @@ def render_dashboard() -> str:
                     x11_linux += 1
         gpu_sorted = sorted(gpu_count.items(), key=lambda kv: -kv[1])
 
-        # Perf agrégée par OS (à partir des events perf).
+        # Perf agrégée par OS. ⚠️ Les compteurs (stalls/jank/micro) sont CUMULATIFS
+        # par session : chaque rapport périodique porte le TOTAL courant depuis le
+        # début de session. Sommer tous les rapports sur-compte massivement (ex. 6
+        # gels × 43 rapports = 258 FAUX gels). → on garde le DERNIER rapport de
+        # CHAQUE session (= son total réel), puis on agrège ces totaux-par-session
+        # entre sessions (et on affiche la MOYENNE par session).
         perf = _q(
             conn,
-            "SELECT os, data FROM events WHERE kind='perf' ORDER BY received_at DESC LIMIT 5000",
+            "SELECT os, session, data FROM events WHERE kind='perf' ORDER BY received_at",
         )
-        perf_by_os: dict = {}
-        for os_, data in perf:
+        per_session: dict = {}  # (os, session) -> dernier snapshot de la session
+        for os_, sess, data in perf:
             try:
                 d = json.loads(data)
             except Exception:
                 continue
-            acc = perf_by_os.setdefault(os_, {"n": 0, "fps": 0.0, "worst": 0, "jank": 0, "stalls": 0})
+            per_session[(os_, sess)] = {
+                "fps": float(d.get("fps", 0) or 0),
+                "worst": int(d.get("worstMs", 0) or 0),
+                "jank": int(d.get("jankFrames", 0) or 0),
+                "stalls": int(d.get("stalls", 0) or 0),
+                "micro": int(d.get("microStutters", 0) or 0),
+            }
+        perf_by_os: dict = {}
+        for (os_, _sess), v in per_session.items():
+            acc = perf_by_os.setdefault(os_, {"n": 0, "fps": 0.0, "worst": 0, "jank": 0, "stalls": 0, "micro": 0})
             acc["n"] += 1
-            acc["fps"] += float(d.get("fps", 0) or 0)
-            acc["worst"] = max(acc["worst"], int(d.get("worstMs", 0) or 0))
-            acc["jank"] += int(d.get("jankFrames", 0) or 0)
-            acc["stalls"] += int(d.get("stalls", 0) or 0)
+            acc["fps"] += v["fps"]
+            acc["worst"] = max(acc["worst"], v["worst"])
+            acc["jank"] += v["jank"]
+            acc["stalls"] += v["stalls"]
+            acc["micro"] += v["micro"]
 
         # Latence PAR ACTION (depuis kind='action_stats'). Le pire temps (maxMs)
         # d'une action = la signature d'un gel : si « enterFolder » pique à 400 ms,
@@ -342,17 +357,22 @@ def render_dashboard() -> str:
     out.append("</table>")
 
     # Perf
-    out.append("<h2>Performance (moyenne)</h2><table>")
-    out.append("<tr><th>OS</th><th>FPS moy.</th><th>Pire frame</th><th>Frames lentes</th><th>Gels</th><th>éch.</th></tr>")
+    out.append("<h2>Performance (moyenne par session)</h2><table>")
+    out.append(
+        "<tr><th>OS</th><th>Sessions</th><th>FPS moy.</th><th>Pire frame</th>"
+        "<th>Frames lentes /sess.</th><th>Micro /sess.</th><th>Gels /sess.</th></tr>"
+    )
     for os_, a in sorted(perf_by_os.items()):
         n = a["n"] or 1
         fps = a["fps"] / n
         fps_cls = " class=bad" if fps < 30 else (" class=ok" if fps >= 55 else "")
         worst_cls = " class=bad" if a["worst"] > 100 else ""
+        stalls_ps = a["stalls"] / n
+        stalls_cls = " class=bad" if stalls_ps >= 5 else ""
         out.append(
-            f"<tr><td>{esc(os_)}</td><td{fps_cls}>{fps:.0f}</td>"
-            f"<td{worst_cls}>{esc(a['worst'])} ms</td><td>{esc(a['jank'])}</td>"
-            f"<td>{esc(a['stalls'])}</td><td>{esc(a['n'])}</td></tr>"
+            f"<tr><td>{esc(os_)}</td><td>{esc(a['n'])}</td><td{fps_cls}>{fps:.0f}</td>"
+            f"<td{worst_cls}>{esc(a['worst'])} ms</td><td>{a['jank'] / n:.0f}</td>"
+            f"<td>{a['micro'] / n:.0f}</td><td{stalls_cls}>{stalls_ps:.1f}</td></tr>"
         )
     out.append("</table>")
 
