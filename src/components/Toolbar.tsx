@@ -92,16 +92,23 @@ export default function Toolbar({
     e.target.value = "";
   }
 
-  const sep = <div style={{ width: 1, height: 20, background: "#2a2a2a", margin: "0 4px" }} />;
+  const sep = <div style={{ width: 1, height: 20, background: "#2a2a2a", margin: "0 4px", flexShrink: 0 }} />;
 
   return (
-    <div style={{
+    <>
+    <style>{".glc-toolbar-scroll::-webkit-scrollbar{height:0;width:0;display:none}"}</style>
+    <div className="glc-toolbar-scroll" style={{
       display: "flex", alignItems: "center", gap: 2,
       padding: "0 12px", height: 44,
       background: "#1a1a1a", borderBottom: "1px solid #2a2a2a",
       userSelect: "none", flexShrink: 0,
+      // UX — aucun bouton ne se comprime (flexShrink:0 sur chaque enfant) : fini
+      // l'écrasement inégal « moche » quand la fenêtre rétrécit. Si la barre
+      // déborde, elle DÉFILE horizontalement (scrollbar masquée ci-dessus) au
+      // lieu de tasser les boutons les uns dans les autres.
+      overflowX: "auto", scrollbarWidth: "none",
     }}>
-      <span style={{ color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: 2, marginRight: 12, textTransform: "uppercase" }}>
+      <span style={{ color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: 2, marginRight: 12, textTransform: "uppercase", flexShrink: 0 }}>
         Glucose
       </span>
 
@@ -167,7 +174,7 @@ export default function Toolbar({
       {sep}
 
       {/* Panel buttons — grouped with consistent 8px gap */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 
       <ActionBtn onClick={onToggleOrganize} active={organizePanelOpen} title="Organiser les images">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -253,7 +260,7 @@ export default function Toolbar({
       {sep}
 
       {/* Export — menu multi-formats (HTML interactif / PNG HD / SVG / Markdown) */}
-      <ExportMenu />
+      <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}><ExportMenu /></div>
 
       {sep}
 
@@ -285,10 +292,11 @@ export default function Toolbar({
         Domaines
       </ActionBtn>
 
-      <span style={{ fontSize: 11, color: "#3a3a3a", marginLeft: 8 }}>
+      <span style={{ fontSize: 11, color: "#3a3a3a", marginLeft: 8, flexShrink: 0 }}>
         {board.images.length > 0 && `${board.images.length}img`}
       </span>
     </div>
+    </>
   );
 }
 
@@ -299,7 +307,7 @@ function ToolBtn({ tool: _tool, active, onClick, title, children }: {
     <button onClick={onClick} title={title} style={{
       display: "flex", alignItems: "center", justifyContent: "center",
       width: 30, height: 30, borderRadius: 4, border: "none",
-      cursor: "pointer",
+      cursor: "pointer", flexShrink: 0,
       background: active ? "#2d2d2d" : "transparent",
       color: active ? "#fff" : "#666",
       outline: active ? "1px solid #444" : "none",
@@ -319,7 +327,7 @@ function ActionBtn({ active, onClick, title, children }: {
       style={{
         display: "flex", alignItems: "center", gap: 5,
         padding: "4px 10px", borderRadius: 4, border: "none",
-        fontSize: 12, cursor: "pointer",
+        fontSize: 12, cursor: "pointer", flexShrink: 0,
         background: active ? "#2d2d2d" : "transparent",
         color: active ? "#ccc" : "#666",
         outline: active ? "1px solid #444" : "none",
