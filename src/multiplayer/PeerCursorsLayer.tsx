@@ -290,8 +290,14 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
               key={`sel-img-${peer.senderId}-${img.id}`}
               style={{
                 position: "absolute",
-                left: img.x - 4,
-                top: img.y - 4,
+                // Les sprites image sont ANCRÉS AU CENTRE (anchor 0.5) : (img.x, img.y)
+                // = centre, pas coin haut-gauche (cf. GlucoseCanvas). Le coin haut-gauche
+                // en coords monde = (img.x - width/2, img.y - height/2). Sans ce demi-
+                // décalage, la box d'un pair s'affichait toujours en bas-droite de l'image
+                // réelle (bug « box qui entoure du vide »). Les annotations, elles, SONT
+                // ancrées au coin → leur box (ann.x - 4) reste correcte.
+                left: img.x - img.width / 2 - 4,
+                top: img.y - img.height / 2 - 4,
                 width: img.width + 8,
                 height: img.height + 8,
                 border: `2px dashed ${peer.userColor}`,
