@@ -122,6 +122,12 @@ export default function GlucoseCanvas() {
   const sbLayerRef = useRef<StoryboardLayer | null>(null);
   const spritesRef = useRef<Map<string, Sprite>>(new Map());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // PERF (upload progressif) — file d'attente des textures à charger + plafond de
+  // concurrence. Charger les 134 images d'un coup (fit initial / gros dézoom)
+  // déclenchait une RAFALE de fetch+decode+upload GPU = gros gel. On en charge au
+  // plus MAX_CONCURRENT_LOADS à la fois, le reste patiente en file (priorité au
+  // plus proche du centre de l'écran) → « pop-in » étalé au lieu d'un freeze.
+  const loadQueueRef = useRef<string[]>([]);
   // PERF/ROBUSTESSE — images dont le chargement a ÉCHOUÉ (asset disque manquant →
   // 404). Sans ça, chaque passe de culling ré-essaie en boucle (« texture reload
   // storm » : des milliers de 404/seconde qui noient le thread principal et figent
@@ -514,6 +520,26 @@ export default function GlucoseCanvas() {
     return { tex, texPx: Math.max(bmp.width, bmp.height) };
   }
 
+  // PERF (upload progressif) — nombre max de textures chargées EN MÊME TEMPS.
+  // 6 = compromis : assez pour remplir l'écran vite, pas assez pour saturer le
+  // décodage + l'upload GPU en une seule frame (ce qui gelait au fit / dézoom).
+  const MAX_CONCURRENT_LOADS = 6;
+
+  // Démarre autant de chargements que le plafond l'autorise, en puisant dans la
+  // file (déjà triée par proximité du centre dans applyCulling). Rappelée à chaque
+  // fin de chargement (finally de loadSpriteFor) → pipeline continu et borné, plus
+  // jamais de rafale de 134 chargements simultanés.
+  function pumpLoadQueue() {
+    const q = loadQueueRef.current;
+    while (pendingLoadsRef.current.size < MAX_CONCURRENT_LOADS && q.length > 0) {
+      const id = q.shift();
+      if (id === undefined) break;
+      if (spritesRef.current.has(id) || pendingLoadsRef.current.has(id) || failedLoadsRef.current.has(id)) continue;
+      const img = imgByIdRef.current.get(id);
+      if (img) void loadSpriteFor(img); // ajoute à pendingLoadsRef de façon synchrone
+    }
+  }
+
   // PERF-3/4 — chargement À LA DEMANDE d'un sprite pour une image entrant dans la
   // région de chargement. Async → léger « pop-in » comme des tuiles de carte,
   // JAMAIS un freeze. Image : texture downscalée possédée (LOD). Vidéo / fallback :
@@ -609,7 +635,12 @@ export default function GlucoseCanvas() {
         console.warn("Texture load failed (image ignorée)", img.id, err);
       }
     }
-    finally { pendingLoadsRef.current.delete(img.id); }
+    finally {
+      pendingLoadsRef.current.delete(img.id);
+      // Une place se libère → on amorce le chargement suivant de la file (pipeline
+      // borné à MAX_CONCURRENT_LOADS). C'est ce qui étale les 134 uploads.
+      pumpLoadQueue();
+    }
     // Retente APRÈS le finally (pending nettoyé) : le nouveau chargement lit le
     // fichier désormais présent. Borné : ne retente que si l'époque d'assets a avancé.
     if (retryAfterAssetSync) void loadSpriteFor(img);
@@ -1338,13 +1369,31 @@ export default function GlucoseCanvas() {
     const visible = new Set(spatialHashRef.current.queryIds(wx, wy, ww, wh, loadMargin));
     const keep = spatialHashRef.current.queryIds(wx, wy, ww, wh, keepMargin);
 
-    // 1) CHARGE à la demande les images entrées dans la région de chargement.
+    // 1) CHARGE à la demande les images entrées dans la région de chargement, mais
+    //    de façon PROGRESSIVE (file + plafond de concurrence) au lieu de lancer tous
+    //    les chargements d'un coup — c'était LA rafale qui gelait au fit / dézoom.
+    //    On reconstruit la file avec les images encore à charger, triées par
+    //    proximité du CENTRE de l'écran (le centre se remplit d'abord), puis on
+    //    amorce la pompe. Les images sorties du champ tombent d'elles-mêmes (file
+    //    reconstruite à chaque cull) → on ne charge jamais ce qu'on a dépassé.
+    const cx = wx + ww / 2;
+    const cy = wy + wh / 2;
+    const queue: string[] = [];
     for (const id of visible) {
       if (spritesRef.current.has(id) || pendingLoadsRef.current.has(id)) continue;
       if (failedLoadsRef.current.has(id)) continue; // échec connu → pas de re-boucle
-      const img = imgByIdRef.current.get(id);
-      if (img) void loadSpriteFor(img);
+      queue.push(id);
     }
+    queue.sort((a, b) => {
+      const ia = imgByIdRef.current.get(a);
+      const ib = imgByIdRef.current.get(b);
+      if (!ia || !ib) return 0;
+      const da = (ia.x - cx) ** 2 + (ia.y - cy) ** 2;
+      const db = (ib.x - cx) ** 2 + (ib.y - cy) ** 2;
+      return da - db;
+    });
+    loadQueueRef.current = queue;
+    pumpLoadQueue();
 
     // 2) ÉVINCE les sprites sortis de la région de conservation → libère la VRAM.
     //    (Snapshot des clés : unloadSprite mute la Map pendant l'itération.)
