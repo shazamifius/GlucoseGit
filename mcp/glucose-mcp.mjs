@@ -19,8 +19,12 @@
 // ⚠️  RÈGLE D'OR stdio : stdout est RÉSERVÉ au protocole. Tout log de debug va
 //     sur stderr, jamais sur stdout (sinon on corrompt le flux JSON-RPC).
 //
-// LECTURE SEULE : ce serveur n'écrit jamais dans tes `.glucose`. Il liste, lit
-// et cherche. (L'écriture/annotation est un chantier séparé, opt-in.)
+// LECTURE **ET ÉCRITURE** : 6 outils lisent (list, read, search, analyze, lint,
+// detect) et 5 écrivent (create, add_note, connect_notes, apply_layout,
+// optimize_layout). Les outils d'écriture sauvegardent un `.bak` avant de
+// toucher un fichier existant, et acceptent `outPath` pour travailler sur copie.
+// Un `.glucose` v1 (JSON legacy) écrit est converti en v2 binaire, comme le fait
+// l'app à son prochain save.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { readFileSync, statSync, readdirSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
@@ -41,11 +45,34 @@ const MAX_DEPTH = 6;
 
 // ── Décodage d'un .glucose ──────────────────────────────────────────────────
 
+/**
+ * Décode les octets d'un `.glucose` : binaire Automerge (v2) OU JSON UTF-8 (v1
+ * legacy). Même ordre de tentatives que l'app (src/utils/project.ts) — sans le
+ * fallback JSON, les projets v1 sont rejetés alors qu'ils sont parfaitement
+ * lisibles, et l'app les migre au prochain save.
+ * @returns {{plain: object, doc: object|null, legacy: boolean}} doc=null si v1.
+ */
+function decodeGlucose(bytes, path) {
+  const u8 = new Uint8Array(bytes);
+  try {
+    const doc = A.load(u8);
+    const plain = typeof A.toJS === "function" ? A.toJS(doc) : JSON.parse(JSON.stringify(doc));
+    if (plain && Array.isArray(plain.boards)) return { plain, doc, legacy: false };
+  } catch { /* pas du binaire Automerge → on tente le JSON legacy */ }
+  let plain;
+  try {
+    plain = JSON.parse(new TextDecoder().decode(u8));
+  } catch (e) {
+    throw new Error(`Fichier .glucose illisible (ni binaire Automerge, ni JSON) : ${path}\n${e.message}`);
+  }
+  if (!plain || !Array.isArray(plain.boards))
+    throw new Error(`Fichier .glucose invalide (aucun tableau \`boards\`) : ${path}`);
+  return { plain, doc: null, legacy: true };
+}
+
 /** Charge un `.glucose` → objet Project plain JS. Lève si format illisible. */
 function loadProject(path) {
-  const bytes = readFileSync(path);
-  const doc = A.load(new Uint8Array(bytes));
-  return typeof A.toJS === "function" ? A.toJS(doc) : JSON.parse(JSON.stringify(doc));
+  return decodeGlucose(readFileSync(path), path).plain;
 }
 
 /** Compte les annotations d'un projet par type + images, sans tout extraire. */
@@ -544,7 +571,8 @@ const TOOLS = [
   {
     name: "add_note",
     description:
-      "Ajoute une note (text ou sticky) à un .glucose EXISTANT, sur le board actif. " +
+      "Ajoute une note (text ou sticky) à un .glucose EXISTANT. Par défaut sur le board " +
+      "le plus structuré — le même que celui qu'analysent read/analyze/lint. " +
       "Position auto sous le contenu existant si x/y non fournis. Fait une sauvegarde .bak.",
     inputSchema: {
       type: "object",
@@ -554,6 +582,8 @@ const TOOLS = [
         type: { type: "string", enum: ["text", "sticky"], description: "Défaut: text." },
         x: { type: "number", description: "Position X (optionnel)." },
         y: { type: "number", description: "Position Y (optionnel)." },
+        boardId: { type: "string", description: "Id du board ciblé — désignateur fiable (read_glucose includeIds=true)." },
+        board: { type: "string", description: "Nom du board ciblé. Lève si plusieurs boards portent ce nom : utilise boardId." },
       },
       required: ["path", "text"],
     },
@@ -580,6 +610,8 @@ const TOOLS = [
         label: { type: "string", description: "Étiquette libre sur la flèche (optionnel)." },
         sourceSel: { type: "string", description: "Phrase EXACTE à SOULIGNER côté source (la flèche pointe ce texte précis, pas le bloc entier). Doit exister dans la note. Mots contigus." },
         targetSel: { type: "string", description: "Phrase EXACTE à souligner côté cible. Idem." },
+        boardId: { type: "string", description: "Id du board ciblé — désignateur fiable (read_glucose includeIds=true)." },
+        board: { type: "string", description: "Nom du board ciblé. Lève si plusieurs boards portent ce nom : utilise boardId." },
       },
       required: ["path"],
     },
@@ -614,7 +646,8 @@ const TOOLS = [
         path: { type: "string", description: "Source .glucose (lu, jamais modifié si outPath diffère)." },
         outPath: { type: "string", description: "Destination (copie recommandée). Défaut : écrase path (avec .bak)." },
         overwrite: { type: "boolean", description: "Autoriser l'écrasement de outPath s'il existe déjà." },
-        board: { type: "string", description: "Board ciblé (défaut : board actif)." },
+        boardId: { type: "string", description: "Id du board ciblé — désignateur fiable, à préférer (les noms de boards ne sont pas uniques)." },
+        board: { type: "string", description: "Nom du board ciblé. Lève si ambigu. Défaut : le board le plus structuré." },
         removeIds: { type: "array", items: { type: "string" }, description: "Ids d'annotations à supprimer (ex. anciennes zones)." },
         moves: {
           type: "array", description: "Notes à déplacer.",
@@ -757,10 +790,14 @@ function toolCreate(args) {
   return `✅ Projet « ${args.name} » créé : ${anns.length} note(s).\n\`${path}\`\n\nOuvre-le dans Glucose pour le voir.`;
 }
 
-/** Charge un doc Automerge éditable depuis un .glucose existant. */
+/**
+ * Charge un doc Automerge ÉDITABLE depuis un .glucose existant.
+ * v1 legacy (JSON) → doc Automerge neuf, comme l'app qui migre au prochain save.
+ * Écrire dans un v1 le convertit donc en v2 (l'original reste dans le .bak).
+ */
 function loadDoc(path) {
-  const bytes = readFileSync(path);
-  return A.load(new Uint8Array(bytes));
+  const { doc, plain } = decodeGlucose(readFileSync(path), path);
+  return doc ?? A.from(plain);
 }
 
 function toolAddNote(args) {
@@ -770,8 +807,7 @@ function toolAddNote(args) {
   const type = args.type === "sticky" ? "sticky" : "text";
   let doc = loadDoc(path);
   const plain = typeof A.toJS === "function" ? A.toJS(doc) : JSON.parse(JSON.stringify(doc));
-  const board = (plain.boards ?? []).find((b) => b.id === plain.activeBoardId) ?? plain.boards?.[0];
-  if (!board) throw new Error("Le projet n'a aucun board.");
+  const board = resolveBoard(plain, args);
   // Position auto : sous l'annotation la plus basse (ou 0,0 si board vide).
   let x = args.x, y = args.y;
   if (typeof x !== "number" || typeof y !== "number") {
@@ -805,8 +841,7 @@ function toolConnect(args) {
     throw new Error(`Prédicat inconnu. Choix : ${PREDICATES.join(", ")}.`);
   let doc = loadDoc(path);
   const plain = typeof A.toJS === "function" ? A.toJS(doc) : JSON.parse(JSON.stringify(doc));
-  const board = (plain.boards ?? []).find((b) => b.id === plain.activeBoardId) ?? plain.boards?.[0];
-  if (!board) throw new Error("Le projet n'a aucun board.");
+  const board = resolveBoard(plain, args);
   const anns = board.annotations ?? [];
 
   // Résout une extrémité par id, sinon par sous-chaîne de texte (1 seul match).
@@ -1003,16 +1038,7 @@ function toolApplyLayout(args) {
 
   let doc = loadDoc(path);
   const plain = typeof A.toJS === "function" ? A.toJS(doc) : JSON.parse(JSON.stringify(doc));
-  let boardId;
-  if (args.board) {
-    const b = (plain.boards ?? []).find((x) => (x.name ?? "").toLowerCase() === args.board.toLowerCase());
-    if (!b) throw new Error(`Board « ${args.board} » introuvable.`);
-    boardId = b.id;
-  } else {
-    boardId = (plain.boards ?? []).some((b) => b.id === plain.activeBoardId)
-      ? plain.activeBoardId : plain.boards?.[0]?.id;
-  }
-  if (!boardId) throw new Error("Le projet n'a aucun board.");
+  const boardId = resolveBoard(plain, args).id;
 
   const removeIds = new Set(Array.isArray(args.removeIds) ? args.removeIds : []);
   const moves = Array.isArray(args.moves) ? args.moves : [];
@@ -1087,16 +1113,44 @@ function toolApplyLayout(args) {
   return msg;
 }
 
+/**
+ * Choisit le board le plus STRUCTURÉ (le plus de flèches, puis d'annotations).
+ * On ne suit PAS `activeBoardId` : dans les vrais projets il pointe souvent sur
+ * un board vide (dernier board consulté), ce qui ferait analyser — ou pire,
+ * écrire dans — le vide.
+ * Les noms de boards ne sont PAS uniques (dossiers-miroirs) → un nom ambigu lève
+ * plutôt que de désigner silencieusement le mauvais board.
+ */
 function pickStructuredBoard(p, name) {
   const boards = p.boards ?? [];
   if (name) {
-    const b = boards.find((x) => (x.name ?? "").toLowerCase() === name.toLowerCase());
-    if (!b) throw new Error(`Board « ${name} » introuvable.`);
-    return b;
+    const hits = boards.filter((x) => (x.name ?? "").toLowerCase() === name.toLowerCase());
+    if (!hits.length) throw new Error(`Board « ${name} » introuvable.`);
+    if (hits.length > 1)
+      throw new Error(
+        `Board « ${name} » ambigu : ${hits.length} boards portent ce nom (ids : ${hits.map((b) => b.id).join(", ")}). ` +
+        `Passe boardId pour lever le doute.`);
+    return hits[0];
   }
   const arrowsOf = (b) => (b.annotations ?? []).filter((a) => a.type === "arrow").length;
   return [...boards].sort((a, b) =>
     arrowsOf(b) - arrowsOf(a) || (b.annotations?.length ?? 0) - (a.annotations?.length ?? 0))[0];
+}
+
+/**
+ * Résolveur de board UNIQUE, partagé lecture ET écriture — c'est ce qui garantit
+ * qu'on écrit dans le board qu'on vient d'analyser. `boardId` est le désignateur
+ * fiable (les noms sont ambigus, `activeBoardId` est périmé).
+ */
+function resolveBoard(p, args = {}) {
+  const boards = p.boards ?? [];
+  if (!boards.length) throw new Error("Le projet n'a aucun board.");
+  if (args.boardId) {
+    const b = boards.find((x) => x.id === args.boardId);
+    if (!b) throw new Error(`Board id « ${args.boardId} » introuvable.`);
+    return b;
+  }
+  return pickStructuredBoard(p, args.board);
 }
 
 const MODE_LABEL = {
@@ -1290,7 +1344,7 @@ function chronoLayout(args, board, path) {
   }
 
   const removeIds = membranes.map((m) => m.id);
-  const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, board: board.name, removeIds, moves, zones, arrows: [], patches });
+  const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, boardId: board.id, removeIds, moves, zones, arrows: [], patches });
   return `${res}\n\n(layout ⏳ CHRONOLOGIQUE : ${dated.length} zones datées ${dated.map((m) => yearOf(m.text)).join(" → ")}, ${undated.length} thématiques sous la frise${axis ? ", axe repositionné" : ""}${axisLabels.length ? `, ${axisLabels.length} labels d'axe recasés` : ""}${patches.length ? `, ${patches.length} flèches transverses adoucies` : ""})`;
 }
 
@@ -1323,7 +1377,7 @@ function linearLayout(args, board, path) {
     moves.push({ id, x: col * (COLW + GAP), y }); y += h + 40;
   }
   const removeIds = anns.filter((a) => a.type === "membrane").map((m) => m.id);
-  const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, board: board.name, removeIds, moves, zones: [], arrows: [] });
+  const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, boardId: board.id, removeIds, moves, zones: [], arrows: [] });
   return `${res}\n\n(layout ➡️ LINÉAIRE : ${order.length} notes suivant le fil, ${col + 1} colonne(s))`;
 }
 
@@ -1379,7 +1433,7 @@ function hubLayout(args, board, path) {
   const offx = 120 - minx, offy = 120 - miny;
   const moves = nodes.map((n) => ({ id: n.id, x: Math.round(n.cx - n.w / 2 + offx), y: Math.round(n.cy - n.h / 2 + offy) }));
   const removeIds = anns.filter((a) => a.type === "membrane").map((m) => m.id);
-  const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, board: board.name, removeIds, moves, zones: [], arrows: [] });
+  const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, boardId: board.id, removeIds, moves, zones: [], arrows: [] });
   return `${res}\n\n(layout 🕸 HUB : « ${nodeLabel(hub).slice(0, 36)} » au centre, ${ring1.length} voisins en anneau, ${rest.length} en périphérie)`;
 }
 
@@ -1573,7 +1627,7 @@ function toolOptimizeLayout(args) {
 
   const removeIds = membranes.map((m) => m.id);
   const res = toolApplyLayout({
-    path, outPath: args.outPath, overwrite: args.overwrite, board: board.name,
+    path, outPath: args.outPath, overwrite: args.overwrite, boardId: board.id,
     removeIds, moves, zones, arrows: [],
   });
   return `${res}\n\n(force layout déterministe : ${nodes.length} nœuds · ${edges.length} arêtes · ${zones.length} territoires · ${iters} itérations · graine ${args.seed ?? 7})`;
@@ -1662,7 +1716,7 @@ function handle(msg) {
 }
 
 function main() {
-  log(`démarré (Automerge, lecture seule) — racine défaut : ${DEFAULT_ROOT}`);
+  log(`démarré (Automerge, lecture + écriture) — racine défaut : ${DEFAULT_ROOT}`);
   let buf = "";
   process.stdin.setEncoding("utf8");
   process.stdin.on("data", (chunk) => {
