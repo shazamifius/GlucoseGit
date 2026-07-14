@@ -21,14 +21,14 @@
 //
 // LECTURE **ET ÉCRITURE** : 6 outils lisent (list, read, search, analyze, lint,
 // detect) et 5 écrivent (create, add_note, connect_notes, apply_layout,
-// optimize_layout). Les outils d'écriture sauvegardent un `.bak` avant de
+// optimize_layout). Les outils d'écriture sauvegardent l'existant avant de
 // toucher un fichier existant, et acceptent `outPath` pour travailler sur copie.
 // Un `.glucose` v1 (JSON legacy) écrit est converti en v2 binaire, comme le fait
 // l'app à son prochain save.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { readFileSync, statSync, readdirSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
-import { join, extname, basename, resolve } from "node:path";
+import { readFileSync, statSync, readdirSync, writeFileSync, existsSync, copyFileSync, unlinkSync } from "node:fs";
+import { join, extname, basename, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { next as A } from "@automerge/automerge";
@@ -182,7 +182,7 @@ function allText(p) {
 // ── Écriture (création / annotation) ────────────────────────────────────────
 //
 // ⚠️  Ces outils MODIFIENT le disque. Garde-fous : extension .glucose obligatoire,
-//     pas d'écrasement sans `overwrite`, et une sauvegarde `<fichier>.bak` avant
+//     pas d'écrasement sans `overwrite`, et une sauvegarde `<fichier>.orig.bak` avant
 //     toute réécriture. On produit un doc Automerge complet (A.save) — format que
 //     l'app relit sans souci. NB : édite un projet FERMÉ dans Glucose (l'app ne
 //     surveille pas le fichier ; rouvre-le après écriture pour voir le résultat).
@@ -245,11 +245,50 @@ function buildProjectDoc(name, annotations) {
   return doc;
 }
 
-/** Écrit un doc en `.glucose` (save complet). Sauvegarde `.bak` si le fichier existe. */
+// Nombre de sauvegardes horodatées conservées, `.orig.bak` non compris. Volontairement
+// bas : un .glucose à images embarquées pèse >100 Mo, chaque copie coûte ce prix.
+const MAX_ROLLING_BAK = 3;
+
+/**
+ * Sauvegarde avant écrasement. DEUX filets, de rôles distincts :
+ *
+ *  - `<f>.orig.bak` — l'état d'avant la TOUTE PREMIÈRE écriture du pont. Écrit
+ *    une seule fois, jamais réécrit, jamais élagué. C'est lui qui rend le retour
+ *    en arrière possible quoi qu'il arrive : l'ancien `.bak` à chemin fixe était
+ *    écrasé à chaque run, donc deux runs suffisaient à perdre l'original.
+ *  - `<f>.<horodatage>.bak` — l'état d'avant CE run. On ne garde que les
+ *    MAX_ROLLING_BAK plus récents ; l'élagage retire les plus anciens.
+ *
+ * L'élagage ne touche JAMAIS `.orig.bak` (le plus ancien est le plus précieux :
+ * élaguer par ancienneté détruirait exactement ce qu'on protège) ni un éventuel
+ * `<f>.bak` hérité de l'ancien schéma.
+ */
+function backupBeforeWrite(path) {
+  if (!existsSync(path)) return;
+  const orig = `${path}.orig.bak`;
+  try { if (!existsSync(orig)) copyFileSync(path, orig); } catch { /* best-effort */ }
+
+  // Horodatage en UTC (suffixe Z) et non en heure locale : le tri lexicographique
+  // ci-dessous décide quelle sauvegarde élaguer, et l'heure locale se répète au
+  // passage à l'heure d'hiver — un tri faux élaguerait la mauvaise.
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + "Z";
+  try { copyFileSync(path, `${path}.${stamp}.bak`); } catch { /* best-effort */ }
+
+  try {
+    const dir = dirname(path), base = basename(path);
+    const rolling = readdirSync(dir)
+      .filter((f) => f.startsWith(`${base}.`) && f.endsWith(".bak")
+        && f !== `${base}.orig.bak` && f !== `${base}.bak`)
+      .sort(); // horodatage ISO ⇒ ordre lexicographique = ordre chronologique
+    for (const f of rolling.slice(0, -MAX_ROLLING_BAK)) {
+      try { unlinkSync(join(dir, f)); } catch { /* best-effort */ }
+    }
+  } catch { /* best-effort */ }
+}
+
+/** Écrit un doc en `.glucose` (save complet), après sauvegarde de l'existant. */
 function writeDoc(path, doc) {
-  if (existsSync(path)) {
-    try { copyFileSync(path, path + ".bak"); } catch { /* backup best-effort */ }
-  }
+  backupBeforeWrite(path);
   writeFileSync(path, Buffer.from(A.save(doc)));
 }
 
@@ -573,7 +612,8 @@ const TOOLS = [
     description:
       "Ajoute une note (text ou sticky) à un .glucose EXISTANT. Par défaut sur le board " +
       "le plus structuré — le même que celui qu'analysent read/analyze/lint. " +
-      "Position auto sous le contenu existant si x/y non fournis. Fait une sauvegarde .bak.",
+      "Position auto sous le contenu existant si x/y non fournis. Sauvegarde l'existant "
+      + "(<f>.orig.bak, écrit une seule fois, + horodatées).",
     inputSchema: {
       type: "object",
       properties: {
@@ -644,7 +684,7 @@ const TOOLS = [
       type: "object",
       properties: {
         path: { type: "string", description: "Source .glucose (lu, jamais modifié si outPath diffère)." },
-        outPath: { type: "string", description: "Destination (copie recommandée). Défaut : écrase path (avec .bak)." },
+        outPath: { type: "string", description: "Destination (copie recommandée). Défaut : écrase path, après sauvegarde (<f>.orig.bak + horodatée)." },
         overwrite: { type: "boolean", description: "Autoriser l'écrasement de outPath s'il existe déjà." },
         boardId: { type: "string", description: "Id du board ciblé — désignateur fiable, à préférer (les noms de boards ne sont pas uniques)." },
         board: { type: "string", description: "Nom du board ciblé. Lève si ambigu. Défaut : le board le plus structuré." },
@@ -713,7 +753,7 @@ const TOOLS = [
       type: "object",
       properties: {
         path: { type: "string", description: "Source .glucose." },
-        outPath: { type: "string", description: "Destination (copie recommandée). Défaut : écrase path (.bak)." },
+        outPath: { type: "string", description: "Destination (copie recommandée). Défaut : écrase path, après sauvegarde (<f>.orig.bak + horodatée)." },
         overwrite: { type: "boolean", description: "Autoriser l'écrasement de outPath." },
         board: { type: "string", description: "Board ciblé (défaut : le plus riche en flèches)." },
         mode: { type: "string", enum: ["auto", "chronological", "thematic", "hub", "linear"], description: "auto (défaut) = détecte et respecte l'intention. chronological = frise. thematic = territoires 2D. hub = radial. linear = parcours." },
@@ -793,7 +833,7 @@ function toolCreate(args) {
 /**
  * Charge un doc Automerge ÉDITABLE depuis un .glucose existant.
  * v1 legacy (JSON) → doc Automerge neuf, comme l'app qui migre au prochain save.
- * Écrire dans un v1 le convertit donc en v2 (l'original reste dans le .bak).
+ * Écrire dans un v1 le convertit donc en v2 (l'original reste dans <f>.orig.bak).
  */
 function loadDoc(path) {
   const { doc, plain } = decodeGlucose(readFileSync(path), path);
