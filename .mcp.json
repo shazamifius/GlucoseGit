@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "glucose": {
+      "command": "node",
+      "args": ["C:\\Users\\Administrator\\Documents\\GlucoseGit-main\\mcp\\glucose-mcp.mjs"]
+    }
+  }
+}

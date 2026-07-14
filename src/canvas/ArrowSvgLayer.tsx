@@ -421,26 +421,31 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
           const targetForStart = ann.waypoints?.length ? ann.waypoints[0] : anchorEnd;
           const targetForEnd = ann.waypoints?.length ? ann.waypoints[ann.waypoints.length - 1] : anchorStart;
 
-          const pStart = { x: anchorStart.x, y: anchorStart.y };
-          const pEnd = { x: anchorEnd.x, y: anchorEnd.y };
-
           const MARGIN = 12;
 
-          if (anchorStart.box) {
-            if (targetForStart.x < anchorStart.x) {
-              pStart.x = anchorStart.box.left - MARGIN;
-            } else {
-              pStart.x = anchorStart.box.right + MARGIN;
-            }
-          }
+          // Ancrage sur le PÉRIMÈTRE de la boîte, du côté qui fait face à la cible
+          // (haut/bas/gauche/droite), au lieu du seul flanc gauche/droit à mi-hauteur.
+          // On prend l'intersection du rayon (point d'ancrage → cible) avec le
+          // rectangle, puis on décale de MARGIN vers l'extérieur.
+          type Anchor = { x: number; y: number; box?: { left: number; right: number; top: number; bottom: number } };
+          const perimeterPoint = (anchor: Anchor, target: { x: number; y: number }) => {
+            if (!anchor.box) return { x: anchor.x, y: anchor.y };
+            const { left, right, top, bottom } = anchor.box;
+            const ax = anchor.x, ay = anchor.y;
+            const dx = target.x - ax, dy = target.y - ay;
+            if (dx === 0 && dy === 0) return { x: ax, y: ay };
+            let t = Infinity;
+            if (dx > 0) t = Math.min(t, (right - ax) / dx);
+            else if (dx < 0) t = Math.min(t, (left - ax) / dx);
+            if (dy > 0) t = Math.min(t, (bottom - ay) / dy);
+            else if (dy < 0) t = Math.min(t, (top - ay) / dy);
+            if (!isFinite(t) || t < 0) t = 0;
+            const len = Math.hypot(dx, dy) || 1;
+            return { x: ax + dx * t + (dx / len) * MARGIN, y: ay + dy * t + (dy / len) * MARGIN };
+          };
 
-          if (anchorEnd.box) {
-            if (targetForEnd.x < anchorEnd.x) {
-              pEnd.x = anchorEnd.box.left - MARGIN;
-            } else {
-              pEnd.x = anchorEnd.box.right + MARGIN;
-            }
-          }
+          const pStart = perimeterPoint(anchorStart, targetForStart);
+          const pEnd = perimeterPoint(anchorEnd, targetForEnd);
 
           const pts = [{ x: pStart.x, y: pStart.y }];
           if (ann.waypoints && ann.waypoints.length > 0) {
