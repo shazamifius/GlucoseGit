@@ -45,6 +45,79 @@ function lineIntersectsBox(p1: {x:number, y:number}, p2: {x:number, y:number}, b
   return false;
 }
 
+export type AnchorBox = { left: number; right: number; top: number; bottom: number };
+export type ArrowAnchor = { x: number; y: number; box?: AnchorBox };
+
+/** Ce qui décolle la pointe du bloc, pour qu'elle ne colle pas au texte. */
+const ANCHOR_MARGIN = 12;
+/** Longueur de flèche sous laquelle on refuse de descendre en rognant les marges. */
+const MIN_ARROW_LEN = 4;
+
+/**
+ * Point où le rayon (ancre → cible) sort de la boîte, SANS marge, plus la
+ * direction unitaire de cette sortie.
+ *
+ * Le point et la marge sont séparés à dessein : c'est ce qui permet de borner la
+ * marge ensuite, une fois les DEUX extrémités connues. Appliquée à l'aveugle,
+ * elle inverse la flèche (voir arrowEndpoints).
+ */
+function perimeterExit(anchor: ArrowAnchor, target: { x: number; y: number }) {
+  const ax = anchor.x, ay = anchor.y;
+  const dx = target.x - ax, dy = target.y - ay;
+  const len = Math.hypot(dx, dy);
+  // Sans boîte (extrémité libre) ou cible confondue avec l'ancre : rien à faire,
+  // et direction nulle ⇒ aucune marge ne sera appliquée.
+  if (!anchor.box || len === 0) return { x: ax, y: ay, ux: 0, uy: 0 };
+  const { left, right, top, bottom } = anchor.box;
+  let t = Infinity;
+  if (dx > 0) t = Math.min(t, (right - ax) / dx);
+  else if (dx < 0) t = Math.min(t, (left - ax) / dx);
+  if (dy > 0) t = Math.min(t, (bottom - ay) / dy);
+  else if (dy < 0) t = Math.min(t, (top - ay) / dy);
+  if (!isFinite(t) || t < 0) t = 0;
+  return { x: ax + dx * t, y: ay + dy * t, ux: dx / len, uy: dy / len };
+}
+
+/**
+ * Les deux extrémités d'une flèche : ancrées sur le PÉRIMÈTRE de leur bloc, du
+ * côté qui fait face à la cible, et décollées de ANCHOR_MARGIN.
+ *
+ * INVARIANT : la flèche ne s'inverse jamais. Sans point de passage, les deux
+ * extrémités se visent l'une l'autre — leurs marges rognent donc le MÊME segment
+ * et se consomment mutuellement. Deux blocs espacés de moins de 2·ANCHOR_MARGIN
+ * verraient leurs pointes se croiser et la flèche pointer à l'envers. Chaque
+ * marge est pour cela plafonnée à la moitié de la place disponible. Avec des
+ * points de passage, chaque extrémité vise le sien : les marges ne s'opposent
+ * plus, et chacune n'est bornée que par la distance à son propre point.
+ */
+export function arrowEndpoints(
+  start: ArrowAnchor,
+  end: ArrowAnchor,
+  waypoints?: { x: number; y: number }[],
+): { start: { x: number; y: number }; end: { x: number; y: number } } {
+  const wps = waypoints ?? [];
+  const a = perimeterExit(start, wps.length ? wps[0] : end);
+  const b = perimeterExit(end, wps.length ? wps[wps.length - 1] : start);
+
+  // Place disponible entre un point et sa cible, une fois MIN_ARROW_LEN réservé.
+  const room = (from: { x: number; y: number }, to: { x: number; y: number }) =>
+    Math.max(0, Math.hypot(to.x - from.x, to.y - from.y) - MIN_ARROW_LEN);
+
+  let mStart: number, mEnd: number;
+  if (wps.length) {
+    mStart = Math.min(ANCHOR_MARGIN, room(a, wps[0]));
+    mEnd = Math.min(ANCHOR_MARGIN, room(b, wps[wps.length - 1]));
+  } else {
+    const half = room(a, b) / 2; // les deux marges se partagent le même segment
+    mStart = Math.min(ANCHOR_MARGIN, half);
+    mEnd = mStart;
+  }
+  return {
+    start: { x: a.x + a.ux * mStart, y: a.y + a.uy * mStart },
+    end: { x: b.x + b.ux * mEnd, y: b.y + b.uy * mEnd },
+  };
+}
+
 function getDynamicRoute(p1: {x:number, y:number}, p2: {x:number, y:number}, boxes: Obstacle[], visitedBoxes = new Set<string>(), depth = 0): {x:number, y:number}[] {
   if (depth > 10) return [];
 
@@ -418,34 +491,7 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
           const anchorStart = getAnchor(ann.sourceId, ann.sourceBlockId, ann.x, ann.y, ann.sourceTextSel);
           const anchorEnd = getAnchor(ann.targetId, ann.targetBlockId, ann.x2 ?? ann.x + 100, ann.y2 ?? ann.y, ann.targetTextSel);
 
-          const targetForStart = ann.waypoints?.length ? ann.waypoints[0] : anchorEnd;
-          const targetForEnd = ann.waypoints?.length ? ann.waypoints[ann.waypoints.length - 1] : anchorStart;
-
-          const MARGIN = 12;
-
-          // Ancrage sur le PÉRIMÈTRE de la boîte, du côté qui fait face à la cible
-          // (haut/bas/gauche/droite), au lieu du seul flanc gauche/droit à mi-hauteur.
-          // On prend l'intersection du rayon (point d'ancrage → cible) avec le
-          // rectangle, puis on décale de MARGIN vers l'extérieur.
-          type Anchor = { x: number; y: number; box?: { left: number; right: number; top: number; bottom: number } };
-          const perimeterPoint = (anchor: Anchor, target: { x: number; y: number }) => {
-            if (!anchor.box) return { x: anchor.x, y: anchor.y };
-            const { left, right, top, bottom } = anchor.box;
-            const ax = anchor.x, ay = anchor.y;
-            const dx = target.x - ax, dy = target.y - ay;
-            if (dx === 0 && dy === 0) return { x: ax, y: ay };
-            let t = Infinity;
-            if (dx > 0) t = Math.min(t, (right - ax) / dx);
-            else if (dx < 0) t = Math.min(t, (left - ax) / dx);
-            if (dy > 0) t = Math.min(t, (bottom - ay) / dy);
-            else if (dy < 0) t = Math.min(t, (top - ay) / dy);
-            if (!isFinite(t) || t < 0) t = 0;
-            const len = Math.hypot(dx, dy) || 1;
-            return { x: ax + dx * t + (dx / len) * MARGIN, y: ay + dy * t + (dy / len) * MARGIN };
-          };
-
-          const pStart = perimeterPoint(anchorStart, targetForStart);
-          const pEnd = perimeterPoint(anchorEnd, targetForEnd);
+          const { start: pStart, end: pEnd } = arrowEndpoints(anchorStart, anchorEnd, ann.waypoints);
 
           const pts = [{ x: pStart.x, y: pStart.y }];
           if (ann.waypoints && ann.waypoints.length > 0) {
