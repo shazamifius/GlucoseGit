@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "glucose": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR}/mcp/glucose-mcp.mjs"],
+      "env": {
+        "GLUCOSE_ROOT": "${GLUCOSE_ROOT:-}"
+      }
+    }
+  }
+}
