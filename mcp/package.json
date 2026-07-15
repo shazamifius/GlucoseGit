@@ -1,0 +1,41 @@
+{
+  "name": "glucose-mcp",
+  "version": "0.1.0",
+  "description": "Serveur MCP pour les fichiers .glucose : donne à Claude la lecture, l'analyse et la réorganisation de tes cartes Glucose. 100% local, sans vision.",
+  "type": "module",
+  "bin": {
+    "glucose-mcp": "./glucose-mcp.mjs"
+  },
+  "main": "./glucose-mcp.mjs",
+  "files": [
+    "glucose-mcp.mjs",
+    "README.md"
+  ],
+  "dependencies": {
+    "@automerge/automerge": "^3.2.6"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "glucose",
+    "automerge",
+    "crdt",
+    "knowledge-map",
+    "spatial-canvas"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shazamifius/GlucoseGit.git",
+    "directory": "mcp"
+  },
+  "homepage": "https://github.com/shazamifius/GlucoseGit/tree/main/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/shazamifius/GlucoseGit/issues"
+  },
+  "author": "shazamifius",
+  "license": "MIT"
+}
