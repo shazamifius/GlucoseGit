@@ -40,6 +40,19 @@ export const H_CHROME = 194;
 /** Respiration minimale laissée entre deux boîtes quand on les sépare. */
 export const NOTE_GAP = 24;
 
+/**
+ * Seuil sous lequel un écartement n'existe plus.
+ *
+ * Sans lui, la séparation ne s'arrête JAMAIS d'elle-même : la pénétration décroît
+ * asymptotiquement (1e-13, 1e-14…) sans jamais atteindre 0, `ecarte` renvoie
+ * toujours `true`, et la boucle brûle son plafond entier bien après que les
+ * boîtes soient rangées. Mesuré : 500 notes rangées en ~2000 passes tournaient
+ * encore à 30000 — 21 s de calcul pour zéro déplacement visible.
+ *
+ * 1/100ᵉ de pixel : personne ne verra jamais ça, et le résidu flottant meurt.
+ */
+const EPS = 0.01;
+
 /** Nombre de lignes rendues, approximé par le retour à la ligne à `width`. */
 export function estimateLines(text, width) {
   const cpl = Math.max(Math.floor((width ?? COL_WIDTH) / 8), 20);
@@ -107,15 +120,27 @@ export function overlappingPairs(boxes) {
  * décroît strictement, donc ça converge.
  *
  * Mute `mobiles` en place.
+ *
+ * COÛT — mesuré, pas supposé. Le plafond est un FILET, pas un couperet : la
+ * boucle s'arrête d'elle-même dès que plus rien ne bouge (cf. EPS).
+ *   • Départ réaliste (colonnes, hauteur mal devinée) : 144 passes quelle que
+ *     soit la taille. 1500 notes → ~950 ms. C'est le cas de tous les jours.
+ *   • Pire cas (tout empilé au même point, ex. un hub dégénéré) : les passes
+ *     croissent avec n — 500 notes → ~3,7k passes / 2,8 s ; 1200 → ~8,5k / 39 s.
+ * D'où 20000 : au-delà du pire cas mesuré, donc l'invariant tient pour de vrai
+ * au lieu de rendre « j'abandonne » sur une carte simplement grande. À 500, il
+ * coupait AVANT l'arrivée dès 200 notes (18 paires restantes à 500 notes) — un
+ * invariant qui lâche à l'échelle même où il devient utile n'en est pas un.
+ *
  * @returns {{passes:number, ok:boolean, restant:number}} `ok:false` = plafond
  *   atteint sans convergence → l'appelant DOIT le dire au lieu de prétendre.
  */
-export function separateUntilClean(mobiles, fixes = [], margin = NOTE_GAP, maxPasses = 500) {
+export function separateUntilClean(mobiles, fixes = [], margin = NOTE_GAP, maxPasses = 20000) {
   const ecarte = (a, b, bougeB) => {
     const dx = b.cx - a.cx, dy = b.cy - a.cy;
     const ox = (a.w + b.w) / 2 + margin - Math.abs(dx);
     const oy = (a.h + b.h) / 2 + margin - Math.abs(dy);
-    if (ox <= 0 || oy <= 0) return false;
+    if (ox <= EPS || oy <= EPS) return false;
     // Signe stable quand les centres coïncident : sans ça, deux boîtes exactement
     // superposées (dx = dy = 0) ne se sépareraient jamais.
     const part = bougeB ? 0.5 : 1; // si b est fixe, a encaisse tout le déplacement

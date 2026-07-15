@@ -151,6 +151,33 @@ describe("separateUntilClean — l'invariant dur", () => {
     expect(m.map((b) => [b.x, b.y])).toEqual(apres1);
   });
 
+  it("S'ARRÊTE DE LUI-MÊME — sans EPS, il tournait dans le vide indéfiniment", () => {
+    // La pénétration décroît asymptotiquement (1e-13, 1e-14…) sans atteindre 0 :
+    // sans seuil, `ecarte` renvoyait toujours true et la boucle brûlait TOUT son
+    // plafond, longtemps après que les boîtes soient rangées. Le symptôme qui
+    // l'a trahi : le temps suivait le plafond linéairement (500 notes → 21 s à
+    // 30000 passes) alors que l'aire était à zéro depuis la passe ~2000.
+    const m = Array.from({ length: 40 }, (_, k) => box(`n${k}`, (k % 8) * 40, Math.floor(k / 8) * 40, 380, 300));
+    const r = separateUntilClean(m, [], NOTE_GAP, 20000);
+    expect(r.ok).toBe(true);
+    expect(r.passes).toBeLessThan(20000);        // il a fini AVANT le plafond
+    expect(overlappingPairs(m)).toHaveLength(0);
+  });
+
+  it("tient à l'échelle d'une carte d'architecture — 300 notes, 0 chevauchement", () => {
+    // La taille où l'invariant devient utile est justement celle où l'ancien
+    // plafond (500) le faisait lâcher : il rendait « ABANDON, 4 paires » dès 200
+    // notes. Un invariant qui capitule quand la carte grandit n'en est pas un.
+    const m = Array.from({ length: 300 }, (_, k) => {
+      const h = heightUpperBound("x".repeat(200 + (k % 7) * 80), 380);
+      let col = Math.floor(k / 12);
+      return box(`n${k}`, col * 440, (k % 12) * h * 0.75, 380, h);
+    });
+    const r = separateUntilClean(m);
+    expect(r.ok).toBe(true);
+    expect(overlappingPairs(m)).toHaveLength(0);
+  });
+
   it("avoue quand il n'y arrive pas au lieu de prétendre", () => {
     // Plafond volontairement ridicule sur un cas dur → il doit dire ok:false.
     const m = Array.from({ length: 8 }, (_, k) => box(`n${k}`, 100, 100, 380, 400));
