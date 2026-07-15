@@ -37,8 +37,17 @@ const SERVER_NAME = "glucose";
 const SERVER_VERSION = "0.1.0";
 const PROTOCOL_VERSION = "2024-11-05";
 
-// Racine par défaut des projets : le dossier Documents de l'utilisateur.
-const DEFAULT_ROOT = join(homedir(), "Documents");
+// Racine par défaut des projets, quand un outil ne reçoit pas de `root` explicite.
+// `GLUCOSE_ROOT` la surcharge : indispensable hors Windows, où ~/Documents n'existe
+// pas sur beaucoup d'installations (NixOS et les distros sans profil XDG complet)
+// et où les projets vivent ailleurs. Sans ce repli, list/search renverraient
+// « aucun projet » sur un disque qui en est plein — un échec muet, le pire genre.
+const DEFAULT_ROOT = (() => {
+  const fromEnv = (process.env.GLUCOSE_ROOT ?? "").trim();
+  if (fromEnv) return resolve(fromEnv);
+  const docs = join(homedir(), "Documents");
+  return existsSync(docs) ? docs : homedir();
+})();
 // Dossiers qu'on ne descend jamais (bruit / volumineux).
 const SKIP_DIRS = new Set(["node_modules", ".git", "target", "dist", "build", ".cache"]);
 const MAX_DEPTH = 6;
