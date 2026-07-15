@@ -12,7 +12,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: false,
-    include: ["src/**/*.test.{ts,tsx}"],
+    // `mcp/` inclus : la géométrie du pont décide où atterrissent les notes de
+    // l'utilisateur. Elle est restée non testée tant qu'elle vivait dans un
+    // fichier qui démarre un serveur au chargement — d'où geometry.mjs, pur et
+    // importable.
+    include: ["src/**/*.test.{ts,tsx}", "mcp/**/*.test.mjs"],
     setupFiles: ["./src/test-setup.ts"],
   },
 });
