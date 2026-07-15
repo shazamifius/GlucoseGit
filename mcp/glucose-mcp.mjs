@@ -30,7 +30,7 @@
 import { readFileSync, statSync, readdirSync, writeFileSync, existsSync, copyFileSync, unlinkSync } from "node:fs";
 import { join, extname, basename, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { next as A } from "@automerge/automerge";
 
 const SERVER_NAME = "glucose";
@@ -324,6 +324,50 @@ function annBox(a) {
 const pointInRect = (px, py, r) =>
   px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
 
+/**
+ * Appartenance note → zone : plus PETITE membrane contenant le CENTRE de la note
+ * (la plus petite gagne pour que des zones imbriquées désignent le sous-thème).
+ *
+ * UNE SEULE définition dans tout le fichier : le lint et les layouts la partagent.
+ * Deux définitions divergentes feraient produire un placement selon une règle et
+ * le juger selon une autre — le genre d'écart qui rend un score incompréhensible.
+ */
+function zonesOfNotes(notes, membranes) {
+  const zoneOf = new Map();
+  for (const n of notes) {
+    const nb = annBox(n);
+    let best = null, area = Infinity;
+    for (const m of membranes) {
+      const mb = annBox(m);
+      if (pointInRect(nb.cx, nb.cy, mb) && mb.w * mb.h < area) { area = mb.w * mb.h; best = m; }
+    }
+    zoneOf.set(n.id, best ? best.id : null);
+  }
+  return zoneOf;
+}
+
+/** Médiane (statistique d'ordre : robuste aux extrêmes, contrairement à la moyenne). */
+const median = (xs) => {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+// Décomposition d'une boîte AXIS-ALIGNED sur un repère sémantique (u, u⊥) : les
+// deux extents sont exacts (pas une approximation) pour tout u unitaire.
+const perpOf = (u) => ({ x: -u.y, y: u.x });
+const spanPerp = (b, u) => b.w * Math.abs(u.y) + b.h * Math.abs(u.x);
+const spanPara = (b, u) => b.w * Math.abs(u.x) + b.h * Math.abs(u.y);
+
+/** Recouvrement > 20px sur les DEUX axes (sous ce seuil, deux boîtes se frôlent). */
+const overlap20 = (a, b) =>
+  Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 20 &&
+  Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 20;
+
+/** a contient-elle b ? (zones imbriquées = taxonomie légitime, pas un défaut) */
+const boxContains = (a, b) =>
+  b.x >= a.x && b.y >= a.y && b.x + b.w <= a.x + a.w && b.y + b.h <= a.y + a.h;
+
 /** Union-Find minimal (clustering spatial + composantes du graphe). */
 function makeDSU(ids) {
   const parent = new Map(ids.map((id) => [id, id]));
@@ -425,6 +469,28 @@ function segCross(a, b, c, d) {
   return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
 }
 
+/**
+ * Croisement STRICT : deux segments qui se TOUCHENT ne se croisent pas.
+ *
+ * POURQUOI un second test alors que segCross existe : segCross s'appuie sur
+ * Math.sign, qui rend 0 pour un point colinéaire ; le test `o(a,b,c) !== o(a,b,d)`
+ * compare alors 0 à ±1 et déclare un croisement. Or deux flèches incidentes à la
+ * MÊME note partagent exactement un point (les extrémités sont des centres) : tout
+ * éventail sortant d'un nœud était donc facturé — 16 des 17 « croisements » du
+ * board de référence. Une incidence n'est pas un croisement : c'est la structure
+ * du graphe qui se voit, pas un défaut.
+ *
+ * segHitsRect, lui, GARDE segCross : pour un rectangle, un segment tangent à une
+ * arête touche bel et bien la note. Les deux tests ont des rôles distincts — les
+ * avoir confondus était le bug.
+ */
+function segCrossStrict(a, b, c, d) {
+  const o = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
+  if (o1 === 0 || o2 === 0 || o3 === 0 || o4 === 0) return false;
+  return o1 !== o2 && o3 !== o4;
+}
+
 /** Le segment [p1,p2] entre-t-il dans le rectangle r ? */
 function segHitsRect(p1, p2, r) {
   const inside = (p) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
@@ -435,16 +501,10 @@ function segHitsRect(p1, p2, r) {
     segCross(p1, p2, c3, c4) || segCross(p1, p2, c4, c1);
 }
 
-/** Endpoints d'une flèche : centres des notes reliées (comme l'app), sinon x/y. */
-function arrowSeg(ar, boxById) {
-  const p1 = ar.sourceId && boxById.has(ar.sourceId)
-    ? { x: boxById.get(ar.sourceId).cx, y: boxById.get(ar.sourceId).cy }
-    : { x: ar.x ?? 0, y: ar.y ?? 0 };
-  const p2 = ar.targetId && boxById.has(ar.targetId)
-    ? { x: boxById.get(ar.targetId).cx, y: boxById.get(ar.targetId).cy }
-    : { x: ar.x2 ?? 0, y: ar.y2 ?? 0 };
-  return [p1, p2];
-}
+// (arrowSeg a disparu avec l'ancien lint : sa table d'ancrage ne contenait que
+// les notes, donc une flèche pointant une zone ou une image retombait en silence
+// sur des coordonnées périmées. toolLint construit désormais une table fidèle à
+// getAnchor — toute annotation non-arrow + les images.)
 
 // ── Détection d'INTENTION d'organisation (déterministe, sans vision) ────────
 // Au lieu d'imposer un layout, on DÉTECTE la logique déjà présente et on la
@@ -728,15 +788,18 @@ const TOOLS = [
   {
     name: "lint_layout",
     description:
-      "QA VISUEL sans vision : calcule les défauts qu'on VERRAIT à l'écran — flèches " +
-      "qui traversent une note, flèches qui se croisent, notes qui se chevauchent, " +
-      "flèches trop longues. Déterministe, 0 token, 0 modèle. À lancer après une " +
-      "réorganisation pour contrôler le rendu et savoir quelles flèches nettoyer.",
+      "QA VISUEL sans vision : calcule les défauts qu'on VERRAIT à l'écran — notes qui " +
+      "se chevauchent, flèches qui masquent une note, arêtes qui se croisent — puis les " +
+      "défauts propres à l'INTENTION du board (détectée par detect_organization) : dans " +
+      "une frise, une flèche longue LE LONG du temps est le message et ne coûte rien, " +
+      "seul son écart EN TRAVERS est facturé. Déterministe, 0 token, 0 modèle. Le " +
+      "rapport annonce le mode et l'étalon qui ont servi à juger.",
     inputSchema: {
       type: "object",
       properties: {
         path: { type: "string", description: "Chemin absolu du .glucose à contrôler." },
-        board: { type: "string", description: "Board ciblé (défaut : le plus rempli)." },
+        board: { type: "string", description: "Board ciblé (défaut : le plus riche en flèches)." },
+        mode: { type: "string", enum: ["auto", "chronological", "thematic", "hub", "linear", "unstructured"], description: "Référentiel de jugement. auto (défaut) = détecte l'intention. Deux modes = deux jeux de critères : leurs scores ne se comparent pas." },
       },
       required: ["path"],
     },
@@ -1223,6 +1286,76 @@ function toolDetect(args) {
   ].join("\n");
 }
 
+// ── Lint CONSCIENT DE L'INTENTION ───────────────────────────────────────────
+//
+// Un lint ne juge pas un dessin : il juge un dessin SELON SON INTENTION. Trois
+// idées, dans cet ordre.
+//
+// 1. detectMode() sert de RÉFÉRENTIEL. Il existait depuis toujours et le lint ne
+//    l'appelait jamais : on appliquait à une frise les seuils d'un layout en
+//    colonnes. Le mode n'ajoute pas des règles — il dit quelle direction PORTE DU
+//    SENS, et une longueur portée par le sens n'est pas un défaut.
+//
+// 2. On DÉCOMPOSE au lieu de mesurer la norme. Math.hypot est ISOTROPE : il traite
+//    toutes les directions comme équivalentes. Dans une frise elles ne le sont
+//    pas — x = le temps = le message, y = la mise en page subie. Chaque mode
+//    définit un vecteur unitaire sémantique u, et toute arête v se décompose
+//    exactement en along = |v·u| (jamais facturé) et across = |v·u⊥| (seul
+//    facturé). Deux flèches de même longueur brute peuvent donc recevoir des
+//    verdicts opposés — c'est précisément le but.
+//
+// 3. On partitionne les flèches par leur STATUT STRUCTUREL (des champs), pas par
+//    leur géométrie (des pixels) : EDGE (dans le graphe de sens), CHROME (décor
+//    structurel, ex. l'axe du temps), DÉBRIS (défaut d'intégrité).
+//
+// Aucun LOD, aucune dépendance au zoom, aucune vision : des produits scalaires et
+// des intervalles sur la donnée.
+
+/**
+ * DÉCOR STRUCTUREL — une flèche est du décor ssi les TROIS clauses sont vraies :
+ *   D1 libre aux DEUX bouts   → elle ne référence aucun nœud, elle n'est pas
+ *                               dans le graphe de sens ;
+ *   D2 étiquetée              → sans texte, ce n'est pas du décor mais un trait
+ *                               oublié (→ DÉBRIS : sortir du graphe COÛTE, sauf à
+ *                               assumer une étiquette — l'exemption n'est pas une
+ *                               zone franche) ;
+ *   D3 extrémités dans le vide → une règle graduée ne pose pas ses bouts sur le
+ *                               contenu. Ferme le seul trou de D1+D2 : la flèche
+ *                               « A cause B » dessinée à la main entre deux notes
+ *                               sans les attacher est une ARÊTE, et reste jugée.
+ *
+ * NE FONDE RIEN sur strokeWidth ni sur le texte : strokeWidth est un attribut de
+ * style réglable en deux clics (fonder une exemption dessus = offrir un
+ * interrupteur « rends-moi invisible au lint ») et un regex de libellé rendrait
+ * l'exemption dépendante de la LANGUE. D1+D2+D3 ne dépendent que de la structure.
+ *
+ * L'exemption est BORNÉE : le décor échappe à la longueur et aux croisements
+ * (il n'est pas dans le graphe, il ne peut pas l'emmêler), JAMAIS à l'obstruction
+ * — un décor qui cache une note est un vrai défaut, quelle que soit son intention.
+ */
+function classifyArrows(arrows, notes, anchorById, segFrom) {
+  const edges = [], chrome = [], debris = [];
+  for (const ar of arrows) {
+    const entry = { ar, seg: segFrom(ar) };
+    if (!ar.sourceId && !ar.targetId) {
+      if (!(ar.text ?? "").trim()) { debris.push({ ar, why: "flèche libre sans étiquette" }); continue; }
+      // Pour une flèche libre, x/y/x2/y2 font FOI (getAnchor : `if (!refId) return
+      // {x: fallbackX, y: fallbackY}`) — contrairement à une flèche attachée, dont
+      // les coordonnées stockées sont périmées et ignorées par l'app.
+      const onNote = (pt) => notes.some((n) => pointInRect(pt.x, pt.y, annBox(n)));
+      if (onNote(entry.seg[0]) || onNote(entry.seg[1])) edges.push(entry);
+      else chrome.push(entry);
+      continue;
+    }
+    if ((ar.sourceId && !anchorById.has(ar.sourceId)) || (ar.targetId && !anchorById.has(ar.targetId))) {
+      debris.push({ ar, why: "référence morte (id introuvable)" });
+      continue;
+    }
+    edges.push(entry);
+  }
+  return { edges, chrome, debris };
+}
+
 function toolLint(args) {
   const path = requireGlucosePath(args.path);
   if (!existsSync(path)) throw new Error(`Fichier introuvable : ${path}`);
@@ -1241,60 +1374,277 @@ function toolLint(args) {
       arrowsOf(b) - arrowsOf(a) || (b.annotations?.length ?? 0) - (a.annotations?.length ?? 0))[0];
   }
   if (!board) return "Le projet n'a aucun board.";
+
+  // L'APPEL QUI MANQUAIT. `mode` force le référentiel ; par défaut on le détecte.
+  const forced = !!(args.mode && args.mode !== "auto");
+  const det = detectMode(board);
+  const mode = forced ? args.mode : det.mode;
+  const evidence = forced ? [`mode forcé par l'appelant (auto aurait dit « ${det.mode} »)`] : det.evidence;
+
   const anns = board.annotations ?? [];
   const notes = anns.filter((a) => a.type === "text" || a.type === "sticky");
+  const membranes = anns.filter((a) => a.type === "membrane");
   const arrows = anns.filter((a) => a.type === "arrow");
-  const boxById = new Map(notes.map((n) => [n.id, annBox(n)]));
-  const LONG = (COL_WIDTH + COL_GAP) * 1.6;
 
-  // Notes qui se chevauchent (>20px dans les deux axes).
+  // TABLE D'ANCRAGE — fidèle à getAnchor (ArrowSvgLayer) : l'app résout un refId
+  // contre TOUTE annotation non-arrow **et les images**. L'ancienne table ne
+  // contenait que les notes : une flèche pointant une membrane retombait en
+  // silence sur ses x/y/x2/y2 périmés, et le lint mesurait un segment FANTÔME que
+  // personne ne voit à l'écran. On élargit ce qui compte comme « attachée » ; on
+  // garde le centre-à-centre, qui est bien ce que l'app dessine.
+  const anchorById = new Map();
+  for (const a of anns) if (a.type !== "arrow") anchorById.set(a.id, annBox(a));
+  for (const im of board.images ?? []) {
+    const w = im.width ?? 0, h = im.height ?? 0, x = im.x ?? 0, y = im.y ?? 0;
+    anchorById.set(im.id, { x: x - w / 2, y: y - h / 2, w, h, cx: x, cy: y });
+  }
+  const segFrom = (ar) => {
+    const s = ar.sourceId ? anchorById.get(ar.sourceId) : null;
+    const t = ar.targetId ? anchorById.get(ar.targetId) : null;
+    return [
+      s ? { x: s.cx, y: s.cy } : { x: ar.x ?? 0, y: ar.y ?? 0 },
+      t ? { x: t.cx, y: t.cy } : { x: ar.x2 ?? 0, y: ar.y2 ?? 0 },
+    ];
+  };
+  const { edges, chrome, debris } = classifyArrows(arrows, notes, anchorById, segFrom);
+
+  // ── ÉTALON : dérivé du CONTENU, jamais des statistiques de ce qu'on mesure ──
+  // Un seuil tiré de la population mesurée est une cible mobile : raccourcir la
+  // pire arête ferait baisser la médiane des arêtes, donc refacturerait une arête
+  // saine — le score deviendrait un thermomètre qui bouge avec la fièvre. On le
+  // dérive donc de la TAILLE DES NOTES, invariante par re-layout : toolApplyLayout
+  // n'écrit que x/y/x2/y2, il ne redimensionne JAMAIS une note. C'est la raison
+  // exacte du choix — ni la longueur des arêtes ni la hauteur des zones n'ont
+  // cette propriété (chronoLayout les recalcule à chaque passage).
+  const K = 6;
+  const u = (() => {
+    if (mode === "chronological") {
+      const ax = chrome.find((c) => /chronolog|timeline|frise|le temps|ann[ée]e/i.test(c.ar.text || ""));
+      if (ax) {
+        const v = { x: ax.seg[1].x - ax.seg[0].x, y: ax.seg[1].y - ax.seg[0].y };
+        const n = Math.hypot(v.x, v.y);
+        if (n > 0) return { x: v.x / n, y: v.y / n }; // l'axe du temps DONNE le référentiel
+      }
+      const dated = membranes.filter((m) => yearOf(m.text) !== null).map(annBox);
+      if (dated.length >= 2) {
+        const spanX = Math.max(...dated.map((b) => b.cx)) - Math.min(...dated.map((b) => b.cx));
+        const spanY = Math.max(...dated.map((b) => b.cy)) - Math.min(...dated.map((b) => b.cy));
+        return spanX >= spanY ? { x: 1, y: 0 } : { x: 0, y: 1 }; // extension dominante
+      }
+    }
+    return { x: 1, y: 0 };
+  })();
+  const up = perpOf(u);
+  const boxes = notes.map(annBox);
+  const Sperp = median(boxes.map((b) => spanPerp(b, u)));
+  const Sdiag = median(boxes.map((b) => Math.hypot(b.w, b.h)));
+  const Tperp = K * Sperp, Tiso = K * Sdiag;
+  // Empreinte : deux scores ne sont comparables QUE si les étalons sont égaux.
+  // On préfère refuser une comparaison que la falsifier.
+  const fp = createHash("sha1")
+    .update([mode, u.x.toFixed(6), u.y.toFixed(6), Sperp.toFixed(3), Sdiag.toFixed(3), K].join("|"))
+    .digest("hex").slice(0, 12);
+
+  // ── DÉFAUTS UNIVERSELS (tous modes) ────────────────────────────────────────
+  // U1 — chevauchement de notes : illisible dans tous les modes, aucune intention
+  // ne le rachète.
   const overlaps = [];
   for (let i = 0; i < notes.length; i++)
-    for (let j = i + 1; j < notes.length; j++) {
-      const a = annBox(notes[i]), b = annBox(notes[j]);
-      const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-      const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-      if (ox > 20 && oy > 20) overlaps.push([notes[i], notes[j]]);
-    }
+    for (let j = i + 1; j < notes.length; j++)
+      if (overlap20(boxes[i], boxes[j])) overlaps.push([notes[i], notes[j]]);
 
-  // Flèches : collisions avec des notes tierces + longueur.
-  const segs = arrows.map((ar) => ({ ar, seg: arrowSeg(ar, boxById) }));
-  const collisions = [], longs = [];
-  for (const { ar, seg } of segs) {
-    const [p1, p2] = seg;
-    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    if (dist > LONG) longs.push({ ar, dist });
+  // U2 — obstruction : une flèche qui passe sur une note tierce cache du contenu.
+  // Compté PAR COUPLE (flèche × note) et non par flèche, à dessein : 4 notes
+  // masquées = 4 dégâts, c'est la vérité. Le CHROME est facturé ici, et ici seul.
+  const collisions = [];
+  for (const { ar, seg } of [...edges, ...chrome])
     for (const n of notes) {
       if (n.id === ar.sourceId || n.id === ar.targetId) continue;
-      if (segHitsRect(p1, p2, annBox(n))) collisions.push({ ar, note: n });
+      if (segHitsRect(seg[0], seg[1], annBox(n))) collisions.push({ ar, note: n });
     }
+
+  // U3 — croisement d'ARÊTES, avec les deux correctifs : (a) les paires qui
+  // partagent un nœud sont exclues par ID avant tout test géométrique — deux
+  // arêtes incidentes au même nœud s'y rencontrent par construction ; (b) test
+  // strict, le contact colinéaire n'est pas un croisement.
+  const sharesNode = (a, b) => {
+    const ia = [a.sourceId, a.targetId].filter(Boolean);
+    const ib = [b.sourceId, b.targetId].filter(Boolean);
+    return ia.some((i) => ib.includes(i));
+  };
+  let crossings = 0;
+  for (let i = 0; i < edges.length; i++)
+    for (let j = i + 1; j < edges.length; j++) {
+      if (sharesNode(edges[i].ar, edges[j].ar)) continue;
+      if (segCrossStrict(edges[i].seg[0], edges[i].seg[1], edges[j].seg[0], edges[j].seg[1])) crossings++;
+    }
+
+  // U4 — intégrité : référence morte ou trait oublié. Non mesuré géométriquement
+  // (il n'y a pas de géométrie fiable à mesurer) — signalé.
+  const base = overlaps.length * 2 + collisions.length * 2 + crossings + debris.length;
+
+  const L = [`# Lint visuel — « ${p.name} » · board « ${board.name} »`];
+  L.push(`${notes.length} notes · ${edges.length} arêtes · ${chrome.length} décor · ${membranes.length} zones`);
+  L.push(`\n**Mode retenu : ${mode}**${forced ? " (forcé)" : " (auto)"} — ${evidence.join(" · ") || "—"}`);
+  L.push(`> ${MODE_LABEL[mode] ?? mode}. Jugé selon les critères de ce mode : un autre mode`);
+  L.push(`> donnerait d'autres critères, et les scores de deux modes ne se comparent pas.`);
+  L.push(`\n_Étalon : u=(${u.x.toFixed(3)}, ${u.y.toFixed(3)}) · S⊥=${Sperp.toFixed(1)} · ` +
+    `T⊥=${Math.round(Tperp)} · S_diag=${Sdiag.toFixed(1)} · K=${K} · empreinte \`${fp}\`_`);
+
+  const extra = []; // lignes de détail propres au mode
+  let modeScore = 0;
+
+  if (mode === "chronological") {
+    const zoneOf = zonesOfNotes(notes, membranes);
+    const mById = new Map(membranes.map((m) => [m.id, m]));
+    const yrOf = (id) => {
+      const z = zoneOf.get(id);
+      return z && mById.has(z) ? yearOf(mById.get(z).text) : null;
+    };
+    // C1 — écart TRANSVERSAL : l'arête s'écarte de l'axe du temps de plus de K
+    // hauteurs-de-note. C'est un écart SUBI, pas une distance temporelle.
+    // |along| — la longueur LE LONG du temps — coûte ZÉRO, explicitement : relier
+    // 2005 à 2012 est le message de la frise, pas un désordre.
+    const c1 = [];
+    let c2 = 0;
+    for (const { ar, seg } of edges) {
+      const v = { x: seg[1].x - seg[0].x, y: seg[1].y - seg[0].y };
+      const along = Math.abs(v.x * u.x + v.y * u.y);
+      const across = Math.abs(v.x * up.x + v.y * up.y);
+      if (across > Tperp) c1.push({ ar, along, across });
+      // C2 — contre-sens temporel : testé sur les ANNÉES, pas sur le signe de v·u
+      // (robuste si l'axe est inversé ou oblique). C'est LE défaut propre à une
+      // frise : dans un dessin qui se lit gauche→droite, une flèche à rebours est
+      // la seule longueur qui coûte vraiment au lecteur.
+      const ys = yrOf(ar.sourceId), yt = yrOf(ar.targetId);
+      if (ys != null && yt != null && yt < ys) c2++;
+    }
+    // C3 — bande hors-format : le « parpaing ». Une bande sert à être balayée puis
+    // comparée à ses voisines ; au-delà de 3:1 le lecteur défile le long d'une
+    // bande et perd la comparaison — donc l'unique raison d'être des bandes.
+    const c3 = membranes.filter((m) => {
+      const b = annBox(m);
+      return spanPerp(b, u) > 3 * spanPara(b, u);
+    });
+    modeScore = c1.length + c2 + c3.length;
+    extra.push(`- **Écart transversal à l'axe (> ${Math.round(Tperp)}px) :** ${c1.length}`);
+    for (const { ar, along, across } of c1.sort((a, b) => b.across - a.across).slice(0, 6))
+      extra.push(`   - ${ar.text ? `« ${ar.text} »` : ar.predicate || "(sans label)"} — ` +
+        `le long du temps ${Math.round(along)}px (gratuit) · en travers ${Math.round(across)}px ✗`);
+    extra.push(`- **Contre-sens temporels :** ${c2}`);
+    extra.push(`- **Bandes hors-format (h > 3·l) :** ${c3.length}` +
+      (c3.length ? ` — ex. « ${nodeLabel(c3[0]).slice(0, 24)} » ` +
+        `${Math.round(spanPara(annBox(c3[0]), u))}×${Math.round(spanPerp(annBox(c3[0]), u))} ` +
+        `(1:${(spanPerp(annBox(c3[0]), u) / spanPara(annBox(c3[0]), u)).toFixed(1)})` : ""));
+  } else if (mode === "hub") {
+    // La LONGUEUR DES RAYONS n'est jamais facturée : un rayon long est la forme
+    // même d'un hub. Les croisements entre rayons sont gratuits sans règle
+    // spéciale — tous les rayons partagent H, donc U3(a) les élimine déjà tous.
+    const deg = new Map();
+    for (const { ar } of edges)
+      for (const id of [ar.sourceId, ar.targetId])
+        if (id) deg.set(id, (deg.get(id) ?? 0) + 1);
+    const H = [...deg.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0];
+    const hb = H ? anchorById.get(H) : null;
+    let h1 = 0, h2 = 0;
+    if (hb) {
+      const inc = (ar) => ar.sourceId === H || ar.targetId === H;
+      const spokes = edges.filter((e) => inc(e.ar));
+      const chords = edges.filter((e) => !inc(e.ar));
+      const k = spokes.length || 1;
+      // H1 — rayons confondus : un éventail de k rayons se partage 2π, pas idéal
+      // 2π/k ; deux rayons plus serrés que la MOITIÉ de ce pas se recouvrent
+      // visuellement. Auto-calibré : plus le hub est chargé, plus la tolérance est
+      // fine — exactement comme la lisibilité réelle.
+      const th = spokes.map(({ ar, seg }) => {
+        const far = ar.sourceId === H ? seg[1] : seg[0];
+        return Math.atan2(far.y - hb.cy, far.x - hb.cx);
+      });
+      for (let i = 0; i < th.length; i++)
+        for (let j = i + 1; j < th.length; j++) {
+          const d = Math.abs(th[i] - th[j]);
+          if (Math.min(d, 2 * Math.PI - d) < Math.PI / k) h1++;
+        }
+      // H2 — corde traversante : elle coupe le disque au lieu de longer la
+      // couronne, seul type de flèche qu'une étoile ne peut pas lire radialement.
+      h2 = chords.filter(({ seg }) => Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y) > Tiso).length;
+      extra.push(`- **Rayons confondus (Δθ < ${(180 / k).toFixed(0)}°) :** ${h1}  _(hub degré ${k})_`);
+      extra.push(`- **Cordes traversantes (> ${Math.round(Tiso)}px) :** ${h2}`);
+    }
+    modeScore = h1 + h2;
+  } else if (mode === "linear") {
+    // L1 — inversion de lecture : on réutilise readingOrder, la définition maison
+    // de « lire » (haut→bas puis gauche→droite, bande d'indifférence de 40px). On
+    // n'en invente pas une seconde.
+    let l1 = 0, l2 = 0;
+    for (const { ar, seg } of edges) {
+      const a = ar.sourceId ? anchorById.get(ar.sourceId) : null;
+      const b = ar.targetId ? anchorById.get(ar.targetId) : null;
+      if (a && b && readingOrder(a, b) > 0) l1++;
+      if (Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y) > Tiso) l2++;
+    }
+    modeScore = l1 + l2;
+    extra.push(`- **Inversions de lecture :** ${l1}`);
+    extra.push(`- **Sauts de séquence (> ${Math.round(Tiso)}px) :** ${l2}`);
+  } else if (mode === "thematic") {
+    // AUCUNE règle de longueur, dans aucune direction : une carte thématique n'a
+    // pas de direction privilégiée, donc pas de u, donc rien à décomposer. Et une
+    // arête qui relie deux zones éloignées est un PONT — l'affirmation la plus
+    // intéressante de la carte. La facturer, ce serait demander à l'auteur de
+    // taire ses rapprochements. U2 et U3 suffisent : une arête vraiment nuisible
+    // cache une note ou emmêle le graphe, et elle est comptée pour ce qu'elle
+    // FAIT, pas pour sa taille.
+    const zoneOf = zonesOfNotes(notes, membranes);
+    const mb = membranes.map(annBox);
+    let t1 = 0;
+    for (let i = 0; i < mb.length; i++)
+      for (let j = i + 1; j < mb.length; j++)
+        if (overlap20(mb[i], mb[j]) && !boxContains(mb[i], mb[j]) && !boxContains(mb[j], mb[i])) t1++;
+    let t2 = 0;
+    for (const n of notes)
+      for (const m of membranes)
+        if (overlap20(annBox(n), annBox(m)) && zoneOf.get(n.id) !== m.id) t2++;
+    const t3 = membranes.length ? notes.filter((n) => zoneOf.get(n.id) === null).length : 0;
+    const t4 = membranes.filter((m) => { const b = annBox(m); return spanPerp(b, u) > 3 * spanPara(b, u); }).length;
+    modeScore = 2 * t1 + t2 + t3 + t4;
+    extra.push(`- **Zones qui se chevauchent :** ${t1}  _(imbriquées = sous-thème, épargnées)_`);
+    extra.push(`- **Notes à cheval sur une autre zone :** ${t2}`);
+    extra.push(`- **Notes orphelines (hors de tout thème) :** ${t3}`);
+    extra.push(`- **Bandes hors-format (h > 3·l) :** ${t4}`);
+  } else {
+    // unstructured — sans intention détectée, aucune direction n'est privilégiée :
+    // on retombe sur la norme isotrope, mais mesurée en UNITÉS-NOTE du board et
+    // non avec le 704 hérité d'un layout en colonnes étranger au board mesuré. Un
+    // board dessiné en grand n'est pas un board en désordre.
+    const n1 = edges.filter(({ seg }) => Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y) > Tiso).length;
+    modeScore = n1;
+    extra.push(`- **Flèches trop longues (> ${Math.round(Tiso)}px = K·S_diag) :** ${n1}`);
   }
 
-  // Croisements de flèches.
-  let crossings = 0;
-  for (let i = 0; i < segs.length; i++)
-    for (let j = i + 1; j < segs.length; j++)
-      if (segCross(segs[i].seg[0], segs[i].seg[1], segs[j].seg[0], segs[j].seg[1])) crossings++;
-
-  const score = overlaps.length * 2 + collisions.length * 2 + longs.length + crossings;
-  const L = [`# Lint visuel — « ${p.name} » · board « ${board.name} »`];
-  L.push(`${notes.length} notes · ${arrows.length} flèches`);
-  L.push(`\n**Score de désordre : ${score}** (0 = impeccable)`);
+  const score = base + modeScore;
+  L.push(`\n**Score ${mode} : ${score}**  _(comparable à un run antérieur ssi l'empreinte d'étalon est identique)_`);
   L.push(`- **Notes qui se chevauchent :** ${overlaps.length}` +
     (overlaps.length ? ` — ex. « ${nodeLabel(overlaps[0][0]).slice(0, 28)} » ∩ « ${nodeLabel(overlaps[0][1]).slice(0, 28)} »` : ""));
-  L.push(`- **Flèches qui traversent une note :** ${collisions.length}` +
+  L.push(`- **Flèches qui masquent une note :** ${collisions.length}` +
     (collisions.length ? ` — ex. sur « ${nodeLabel(collisions[0].note).slice(0, 32)} »` : ""));
-  L.push(`- **Flèches trop longues (> ${Math.round(LONG)}px) :** ${longs.length}`);
-  L.push(`- **Croisements de flèches :** ${crossings}`);
-  if (longs.length) {
-    const top = longs.sort((a, b) => b.dist - a.dist).slice(0, 6);
-    L.push(`\n**Flèches les plus longues (candidates à retirer ou re-router) :**`);
-    for (const { ar, dist } of top) {
-      const lbl = ar.text ? `« ${ar.text} »` : ar.predicate || "(sans label)";
-      L.push(`- ${lbl} — ${Math.round(dist)}px  \`[${ar.sourceId ?? "?"}→${ar.targetId ?? "?"}]\``);
-    }
+  L.push(`- **Croisements d'arêtes :** ${crossings}  _(incidences sur un nœud commun exclues)_`);
+  L.push(`- **Intégrité :** ${debris.length}` + (debris.length ? ` — ex. ${debris[0].why}` : ""));
+  L.push(...extra);
+
+  if (chrome.length) {
+    L.push(`\n**Décor structurel (non facturé en longueur ni en croisement) :** ` +
+      chrome.map((c) => `« ${c.ar.text} » ${Math.round(Math.hypot(c.seg[1].x - c.seg[0].x, c.seg[1].y - c.seg[0].y))}px`).join(", "));
   }
-  L.push(`\n${score === 0 ? "✅ Rien à signaler." : score < 8 ? "🟡 Défauts mineurs." : "🔴 Rendu encombré — à nettoyer."}`);
+  // Le lint ne propose JAMAIS de supprimer un élément : il dit ce qu'il mesure.
+  // Suggérer de retirer l'axe du temps — le référentiel même de la frise — était
+  // le vrai défaut de ce rapport.
+
+  // Le score est EXTENSIF (une somme de comptages) : c'est ce qui le rend
+  // comparable dans le temps. Le VERDICT, lui, doit être intensif, sinon un board
+  // de 300 notes est rouge d'office et un board de 4 notes vert quoi qu'il arrive.
+  const d = score / Math.max(1, notes.length + edges.length);
+  L.push(`\nDensité de défauts : ${d.toFixed(2)} par objet.`);
+  L.push(d === 0 ? "✅ Rien à signaler." : d < 0.25 ? "🟡 Défauts mineurs." : "🔴 Rendu encombré — à nettoyer.");
   return L.join("\n");
 }
 
@@ -1308,84 +1658,367 @@ function mulberry32(a) {
   };
 }
 
-/** Layout CHRONOLOGIQUE : respecte la frise — zones datées en colonnes ordonnées
- *  gauche→droite par année, zones thématiques (non datées) sous la frise, axe
- *  temporel repositionné pour couvrir la période. NE piétine PAS la chronologie. */
+// ── Layout CHRONOLOGIQUE ────────────────────────────────────────────────────
+//
+// Il remplace une géométrie à DEUX RANGÉES qui fabriquait elle-même les défauts
+// que lint_layout dénonçait ensuite. Deux corrections, chacune adossée à un
+// théorème plutôt qu'à un réglage.
+//
+// 1. L'ABÎME (des flèches de 4000px). L'ancien code exilait sous la frise toute
+//    zone dont le TITRE ne contenait pas 4 chiffres, et posait cette rangée à
+//    `max_Z Σ hauteurs + 150` — un maximum GLOBAL, donc une fonction NON BORNÉE du
+//    contenu : une note longue de plus dans une colonne creusait l'abîme pour tout
+//    le monde. Les flèches datée↔non-datée devaient le traverser.
+//    Le critère d'exil devient TOPOLOGIQUE au lieu de lexical : « des flèches
+//    relient-elles cette zone à la frise ? ». D'où le théorème qui règle le
+//    problème — une composante SANS aucune arête vers la frise peut être posée
+//    n'importe où, elle n'allonge aucune flèche ; et réciproquement, une zone
+//    reliée à la frise EST attirée par elle et la rejoint. Le nombre d'arêtes
+//    frise↔bande est donc EXACTEMENT 0 après coup, par construction. La bande
+//    devient gratuite : le défaut n'est pas corrigé après coup, il est rendu
+//    impossible à fabriquer.
+//
+// 2. LE PARPAING (440 × 2928, ratio 1:6,6 — « impossible pour un humain de lire »).
+//    L'ancien code empilait chaque zone en UNE colonne sans plafond ; linearLayout
+//    possède depuis toujours le `if (y + h > CAP) { col++; y = 0 }` qui manquait
+//    ici. On replie donc chaque zone en couloirs, et on borne ce que l'humain LIT
+//    (la colonne) et non la boîte englobante — voir SIGMA_MAX.
+//
+// Aucun PRNG, aucune graine, aucune vision, aucun LOD : `iterations` et `seed` ne
+// concernent pas ce chemin et ne l'ont jamais concerné.
+
+// LANEGAP/THEMEGAP/BUCKETGAP : les trois échelles de séparation, de la plus fine
+// (deux couloirs d'une même zone) à la plus large (deux époques). Elles se
+// distinguent à l'œil, et toutes dépassent le seuil de 20px du lint.
+const LANEGAP = 40, THEMEGAP = 90, BUCKETGAP = 190, ROWGAP = 150, PAD = 30, PAD_V = 70;
+
+// SIGMA_MAX = « aucune colonne plus de 3× plus haute que large » : la plainte de
+// l'utilisateur, chiffrée, en UNE constante à sens humain direct.
+//
+// ⚠ Elle borne la COLONNE RÉELLEMENT LUE (hauteur de couloir / COL_WIDTH), pas la
+// boîte de la zone. La différence n'est pas cosmétique : une boîte élargie par un
+// couloir à moitié vide affiche un joli ratio pendant que le couloir 0, celui que
+// l'œil descend, reste un parpaing. Borner la colonne rend la contrainte
+// littéralement égale à la plainte — et la rend CLOSE : le plafond de couloir vaut
+// SIGMA_MAX·COL_WIDTH, sans recherche ni bissection, et il s'applique du même coup
+// à TOUTES les zones (frise comme bande), là où un critère de faisabilité par
+// bissection n'était vérifié que sur la frise.
+const SIGMA_MAX = 3;
+
+/**
+ * Layout CHRONOLOGIQUE : x = le temps, une seule rangée.
+ *
+ * Les zones datées par l'auteur sont le BORD FIXÉ ; les zones non datées reliées à
+ * la frise sont placées là où leurs liens les tirent (extension harmonique) ;
+ * celles que le graphe ne relie à rien restent hors du temps.
+ */
 function chronoLayout(args, board, path) {
   const anns = board.annotations ?? [];
   const notes = anns.filter((a) => a.type === "text" || a.type === "sticky");
   const membranes = anns.filter((a) => a.type === "membrane");
-  const axis = anns.find((a) => a.type === "arrow" && /chronolog|timeline|frise|le temps|ann[ée]e/i.test(a.text || ""));
+  const arrows = anns.filter((a) => a.type === "arrow");
 
-  // Chaque note → plus petite membrane qui la contient.
-  const zoneOf = new Map();
-  for (const n of notes) {
-    const nb = annBox(n); let best = null, area = Infinity;
-    for (const m of membranes) { const mb = annBox(m); if (pointInRect(nb.cx, nb.cy, mb) && mb.w * mb.h < area) { area = mb.w * mb.h; best = m; } }
-    zoneOf.set(n.id, best ? best.id : null);
-  }
-  const notesOfZone = (mid) => notes.filter((n) => zoneOf.get(n.id) === mid);
-  const noteH = (a) => Math.max(120, estimateLines(a.text || "", a.width ?? COL_WIDTH) * 28 + 100);
-  const COLW = COL_WIDTH, GAP = 90, ROWGAP = 150;
+  // Un axe est LIBRE, par définition : c'est un décor, pas une relation entre deux
+  // idées. Sans ce test, `find` élirait la première flèche ATTACHÉE dont le texte
+  // dit « la même année » — on écraserait ses coordonnées en pure perte (l'app
+  // recalcule depuis les nœuds) et le vrai axe ne serait jamais repositionné.
+  const axis = anns.find((a) => a.type === "arrow" && !a.sourceId && !a.targetId &&
+    /chronolog|timeline|frise|le temps|ann[ée]e/i.test(a.text || ""));
 
-  const dated = membranes.filter((m) => yearOf(m.text) !== null).sort((a, b) => yearOf(a.text) - yearOf(b.text));
-  const undated = membranes.filter((m) => yearOf(m.text) === null);
-  const moves = [], zones = [];
-  let timelineBottom = 0, timelineRight = 0;
-
-  // Rangée 1 — zones DATÉES en colonnes, gauche→droite par année.
-  dated.forEach((m, c) => {
-    const x = c * (COLW + GAP); let y = 0;
-    for (const n of notesOfZone(m.id)) { moves.push({ id: n.id, x, y }); y += noteH(n) + 40; }
-    zones.push({ x: x - 30, y: -70, width: COLW + 60, height: (y || 120) + 100, text: m.text, color: "#e9e9e9" });
-    timelineBottom = Math.max(timelineBottom, y); timelineRight = x + COLW;
-  });
-
-  // Axe temporel repositionné au-dessus, couvrant toute la frise.
-  if (axis) moves.push({ id: axis.id, x: -40, y: -120, x2: timelineRight + 40, y2: -120 });
-
-  // Rangée 2 — zones THÉMATIQUES (non datées) sous la frise.
-  const row2y = timelineBottom + ROWGAP;
-  undated.forEach((m, c) => {
-    const x = c * (COLW + GAP); let y = row2y;
-    for (const n of notesOfZone(m.id)) { moves.push({ id: n.id, x, y }); y += noteH(n) + 40; }
-    zones.push({ x: x - 30, y: row2y - 70, width: COLW + 60, height: (y - row2y || 120) + 100, text: m.text, color: "#efefef" });
-  });
-
-  // Labels d'axe (« ← 2000 », « 2012 → ») → aux EXTRÉMITÉS de l'axe, pas en « divers ».
+  const zoneOf = zonesOfNotes(notes, membranes);
+  const mById = new Map(membranes.map((m) => [m.id, m]));
   const isAxisLabel = (t) => { const s = (t || "").trim(); return s.length <= 15 && (/[←→]/.test(s) || (/\d{4}/.test(s) && s.replace(/[\s~←→]/g, "").length <= 5)); };
-  const allLoose = notes.filter((n) => zoneOf.get(n.id) === null);
-  const axisLabels = allLoose.filter((n) => isAxisLabel(n.text));
-  const loose = allLoose.filter((n) => !isAxisLabel(n.text));
-  const years = dated.map((m) => yearOf(m.text));
-  const minYr = Math.min(...years), maxYr = Math.max(...years);
+
+  // Hauteur de packing = la hauteur RENDUE (annBox) — celle que l'app dessine et
+  // que le lint mesure. L'ancienne réserve (estimateLines·28+100) était une
+  // TROISIÈME métrique, en désaccord avec les deux autres : elle faisait empiler
+  // les notes sur ~20% de vide (mesuré sur le board de référence), puis borner ce
+  // vide comme s'il était du contenu. Packer dans l'unité qu'on prétend borner est
+  // la condition pour que SIGMA_MAX veuille dire quelque chose.
+  const packH = (a) => annBox(a).h;
+
+  // ── 1. LE GRAPHE DE SENS : notes (hors labels d'axe) + arêtes attachées ──────
+  // L'axe libre n'a ni sourceId ni targetId → il n'entre jamais dans E, et c'est
+  // cohérent : l'axe n'est pas une relation entre idées, c'est le référentiel.
+  const V = notes.filter((n) => !isAxisLabel(n.text));
+  const vset = new Set(V.map((n) => n.id));
+  const adj = new Map(V.map((n) => [n.id, new Set()]));
+  for (const a of arrows) {
+    if (!a.sourceId || !a.targetId) continue;
+    if (!vset.has(a.sourceId) || !vset.has(a.targetId)) continue;
+    if (a.sourceId === a.targetId) continue; // boucle
+    adj.get(a.sourceId).add(a.targetId);
+    adj.get(a.targetId).add(a.sourceId);
+  }
+
+  // ── 2. PROBLÈME DE DIRICHLET SUR LE GRAPHE ──────────────────────────────────
+  // Bord fixé D = les notes des zones datées par l'auteur (leur millésime est une
+  // CONTRAINTE, jamais une inconnue : mathématiquement impossible à déplacer).
+  // On minimise ½·Σ(t_u − t_v)² à bord fixé, dont le point critique est la
+  // fonction HARMONIQUE : chaque note libre = moyenne exacte de ses voisins.
+  const t = new Map(), D = new Set();
+  for (const n of V) {
+    const z = zoneOf.get(n.id);
+    const y = z && mById.has(z) ? yearOf(mById.get(z).text) : null;
+    if (y !== null) { t.set(n.id, y); D.add(n.id); }
+  }
+  const U = V.filter((n) => !D.has(n.id)).map((n) => n.id); // ordre document = ordre canonique
+  const uset = new Set(U);
+
+  // Composantes de G[U] et leur frontière ∂C. C'est ICI que le système sait
+  // reconnaître son ignorance, par DÉFAUT DE RANG et non par un seuil :
+  //  • ∂C ≠ ∅ → L_UU|_C est à diagonale dominante irréductiblement → définie
+  //    positive → solution UNIQUE (et Gauss-Seidel converge inconditionnellement).
+  //  • ∂C = ∅ → L_UU|_C est le laplacien de C, ker = les constantes → SINGULIÈRE
+  //    → une infinité de solutions. Le graphe NE SAIT PAS ; on n'invente pas.
+  //    C'est un résultat calculé, pas un échec.
+  const seen = new Set(), solvable = new Set();
+  let freeComps = 0;
+  for (const id of U) {
+    if (seen.has(id)) continue;
+    const stack = [id], comp = []; seen.add(id);
+    while (stack.length) {
+      const v = stack.pop(); comp.push(v);
+      for (const w of adj.get(v)) if (uset.has(w) && !seen.has(w)) { seen.add(w); stack.push(w); }
+    }
+    let anchored = false;
+    for (const v of comp) for (const w of adj.get(v)) if (D.has(w)) anchored = true;
+    if (anchored) for (const v of comp) solvable.add(v); else freeComps++;
+  }
+
+  // Gauss-Seidel, ordre document, arrêt sur la DONNÉE (jamais sur le temps ni sur
+  // un compteur d'itérations) → reproductible bit à bit : uniquement +,−,×,÷
+  // IEEE-754, dans le même ordre, aucun transcendantal, aucun PRNG.
+  let sweeps = 0;
+  if (D.size && solvable.size) {
+    const mean = [...D].reduce((s, v) => s + t.get(v), 0) / D.size;
+    for (const id of U) if (solvable.has(id)) t.set(id, mean);
+    for (let s = 0; s < 10000; s++) {
+      let maxd = 0;
+      for (const v of U) {
+        if (!solvable.has(v)) continue;
+        const nb = [...adj.get(v)];
+        if (!nb.length) continue;
+        const nv = nb.reduce((acc, w) => acc + t.get(w), 0) / nb.length;
+        maxd = Math.max(maxd, Math.abs(nv - t.get(v)));
+        t.set(v, nv);
+      }
+      sweeps = s + 1;
+      if (maxd < 1e-9) break;
+    }
+  }
+
+  // ── 3. QUANTIFICATION : on garde les époques de l'AUTEUR ─────────────────────
+  // Il écrit « ~2012 » : le tilde EST la quantification. On respecte sa propre
+  // précision, on n'en fabrique pas une plus fine. Le principe du maximum
+  // (min_∂C ≤ t ≤ max_∂C) garantit que toute valeur déduite tombe dans la période
+  // écrite : aucune extrapolation n'est possible, par théorème. La sortie utile
+  // étant un ENTIER (l'indice d'époque), un résidu de 1e-9 est ~10⁹ fois sous le
+  // seuil de bascule : elle est prouvablement insensible au dernier bit.
+  const years = [...new Set(membranes.map((m) => yearOf(m.text)).filter((y) => y !== null))].sort((a, b) => a - b);
+  const bucketOf = (v) => {
+    let b = 0, bd = Infinity;
+    for (let j = 0; j < years.length; j++) {
+      const d = Math.abs(v - years[j]);
+      if (d < bd - 1e-12) { bd = d; b = j; } // ex æquo → j minimal (déterminisme)
+    }
+    return b;
+  };
+
+  // ── 4. OÙ VA CHAQUE ZONE ────────────────────────────────────────────────────
+  // Une zone non datée rejoint la frise SSI le graphe la tire vers UNE SEULE
+  // époque. Critère purement discret, zéro constante magique. Sinon — aucun
+  // signal, ou des liens étalés sur plusieurs époques — elle reste hors du temps :
+  // le silence du graphe est respecté comme un résultat, pas comblé par une
+  // heuristique.
+  const themes = [];
+  for (const m of membranes) {
+    const kids = V.filter((n) => zoneOf.get(n.id) === m.id);
+    const y = yearOf(m.text);
+    if (y !== null) { themes.push({ m, kids, bucket: bucketOf(y), onFrieze: true, dated: true }); continue; }
+    const dd = kids.filter((k) => solvable.has(k.id)).map((k) => t.get(k.id)).sort((a, b) => a - b);
+    if (!dd.length) { themes.push({ m, kids, bucket: null, onFrieze: false, dated: false }); continue; }
+    const bks = [...new Set(dd.map(bucketOf))];
+    themes.push({
+      m, kids, bucket: bks.length === 1 ? bks[0] : null, onFrieze: bks.length === 1, dated: false,
+      pull: dd[Math.ceil(dd.length / 2) - 1], // médiane basse : tombe sur une vraie valeur
+    });
+  }
+
+  // ── 5. COULOIRS SERPENTINS À COLONNE BORNÉE ─────────────────────────────────
+  // Plafond CLOS : SIGMA_MAX·COL_WIDTH, relevé à la plus haute note si une note
+  // dépasse à elle seule (meilleur effort, jamais d'échec).
+  const maxNote = V.length ? Math.max(...V.map(packH)) : 120;
+  const H_CAP = Math.max(SIGMA_MAX * COL_WIDTH, maxNote);
+  const packLanes = (kids, H) => {
+    const lanes = [[]]; let y = 0;
+    for (const n of kids) {
+      const h = packH(n);
+      if (y > 0 && y + h > H) { lanes.push([]); y = 0; } // le CAP que linearLayout a toujours eu
+      lanes[lanes.length - 1].push({ n, y });
+      y += h + LANEGAP;
+    }
+    return lanes;
+  };
+  const lanesHeight = (lanes) =>
+    Math.max(0, ...lanes.map((L) => (L.length ? L[L.length - 1].y + packH(L[L.length - 1].n) : 0)));
+  const packZone = (kids) => {
+    // ÉQUILIBRAGE : le next-fit brut laisse un couloir plein et un moignon (un 2ᵉ
+    // couloir rempli à 15% mesuré sur le board de référence) — la boîte s'élargit,
+    // le ratio s'embellit, et la colonne lue reste un parpaing. À nombre de
+    // couloirs FIXÉ, on cherche donc le plus PETIT plafond qui tient encore en
+    // autant de couloirs : les couloirs s'égalisent, la zone se remplit, et la
+    // colonne la plus haute ne peut que RÉTRÉCIR (H' ≤ H ⟹ max_couloir ≤ H').
+    const k = packLanes(kids, H_CAP).length;
+    let lo = Math.max(120, kids.length ? Math.max(...kids.map(packH)) : 120), hi = H_CAP, best = H_CAP;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (packLanes(kids, mid).length <= k) { best = mid; hi = mid - 1; } else lo = mid + 1;
+    }
+    const lanes = packLanes(kids, best);
+    const h = Math.max(120, lanesHeight(lanes));
+    // SERPENTIN — non cosmétique : replier une chaîne en k couloirs crée k−1
+    // flèches de repli. Couloirs alignés en haut, chaque repli est une diagonale
+    // qui retraverse toute la zone par-dessus les notes (obstruction, le défaut le
+    // plus cher du lint). Miroir vertical exact du couloir impair → le repli
+    // devient horizontal et court. Déterministe, sans paramètre.
+    lanes.forEach((L, i) => { if (i % 2 === 1) for (const e of L) e.y = h - (e.y + packH(e.n)); });
+    return { lanes, k: lanes.length, h };
+  };
+  const zoneW = (k) => k * COL_WIDTH + (k - 1) * LANEGAP + 2 * PAD;
+  const zoneH = (h) => h + 2 * PAD_V;
+
+  // ── 6. PLACEMENT — UNE SEULE RANGÉE, x = le temps ───────────────────────────
+  const moves = [], zones = [];
+  const onFrieze = themes.filter((z) => z.onFrieze);
+  let x = 0, friezeH = 0, firstBucket = true;
+  const marks = []; // repères époque → abscisse (pour dire la vérité sur l'échelle)
+  for (let j = 0; j < years.length; j++) {
+    const inB = onFrieze.filter((z) => z.bucket === j).sort((a, b) =>
+      (a.dated ? 0 : 1) - (b.dated ? 0 : 1) || // la zone datée par l'auteur d'abord
+      (a.m.x ?? 0) - (b.m.x ?? 0));            // puis l'ordre de l'auteur → idempotent
+    if (!inB.length) continue;
+    if (!firstBucket) x += BUCKETGAP;
+    firstBucket = false;
+    const x0 = x;
+    for (let i = 0; i < inB.length; i++) {
+      const pk = packZone(inB[i].kids);
+      inB[i].pk = pk;
+      pk.lanes.forEach((L, li) => {
+        const lx = x + li * (COL_WIDTH + LANEGAP);
+        for (const e of L) moves.push({ id: e.n.id, x: lx, y: e.y });
+      });
+      zones.push({
+        x: x - PAD, y: -PAD_V, width: zoneW(pk.k), height: zoneH(pk.h), text: inB[i].m.text,
+        // La couleur PORTE l'information « daté par l'auteur » vs « placé par ses
+        // liens ». Une zone déduite ne reçoit PAS l'autorité graphique d'un
+        // millésime écrit à la main : elle est peinte comme atemporelle et son
+        // TEXTE reste intact. Écrire « · déduit @2012 » dans le titre gèlerait
+        // l'inférence en donnée — yearOf la relirait au run suivant comme un
+        // millésime d'auteur, et plus personne ne pourrait l'en distinguer. Le
+        // document ne reçoit que ce que l'auteur a dit ; la déduction se recalcule
+        // à chaque passage et se lit dans le rapport.
+        color: inB[i].dated ? "#e9e9e9" : "#efefef",
+      });
+      friezeH = Math.max(friezeH, pk.h);
+      x += zoneW(pk.k) - 2 * PAD + (i < inB.length - 1 ? THEMEGAP : 0);
+    }
+    marks.push({ year: years[j], cx: Math.round((x0 + x) / 2) });
+  }
+  // Calculé APRÈS la boucle : l'ancien code réaffectait timelineRight à chaque
+  // itération et ne tenait que parce que la dernière colonne était la plus à
+  // droite — un tri différent cassait silencieusement l'axe ET son label.
+  const timelineRight = x + PAD;
+
+  // ── 7. BANDE ATEMPORELLE — prouvablement 0 flèche vers la frise ──────────────
+  // Sa distance ne coûte rien (théorème §1), et sa profondeur est désormais bornée
+  // par H_CAP au lieu d'être une fonction non bornée du contenu.
+  const bandTop = friezeH + PAD_V + ROWGAP;
+  const row2y = bandTop + PAD_V;
+  let bx = 0;
+  const band = themes.filter((z) => !z.onFrieze).sort((a, b) => (a.m.x ?? 0) - (b.m.x ?? 0));
+  for (const z of band) {
+    const pk = packZone(z.kids);
+    pk.lanes.forEach((L, li) => {
+      const lx = bx + li * (COL_WIDTH + LANEGAP);
+      for (const e of L) moves.push({ id: e.n.id, x: lx, y: row2y + e.y });
+    });
+    zones.push({ x: bx - PAD, y: bandTop, width: zoneW(pk.k), height: zoneH(pk.h), text: z.m.text, color: "#efefef" });
+    bx += zoneW(pk.k) - 2 * PAD + THEMEGAP;
+  }
+
+  // ── 8. AXE + LABELS ─────────────────────────────────────────────────────────
+  if (axis) moves.push({ id: axis.id, x: -40, y: -120, x2: timelineRight + 40, y2: -120 });
+  const axisLabels = notes.filter((n) => isAxisLabel(n.text));
   for (const n of axisLabels) {
-    const left = /←/.test(n.text || "") || (yearOf(n.text) != null && yearOf(n.text) <= minYr && !/→/.test(n.text || ""));
+    // `years[0]` est gardé par years.length : l'ancien code faisait
+    // Math.min(...[]) = Infinity quand aucune zone n'était datée, ce qui envoyait
+    // TOUS les labels à gauche, empilés au même pixel. (maxYr était calculé et
+    // jamais utilisé — supprimé.)
+    const left = /←/.test(n.text || "") ||
+      (yearOf(n.text) != null && years.length > 0 && yearOf(n.text) <= years[0] && !/→/.test(n.text || ""));
     moves.push({ id: n.id, x: left ? -280 : timelineRight + 60, y: -150 });
   }
 
-  // Vraies notes hors zone → colonne « divers » au bout de la rangée 2.
+  // Notes hors de toute zone → colonne au bout de la bande. Aucune membrane n'est
+  // créée pour elles : inventer une zone leur donnerait un thème que l'auteur n'a
+  // pas écrit. Elles restent visiblement non classées, ce qu'elles sont.
+  const loose = V.filter((n) => zoneOf.get(n.id) === null);
   if (loose.length) {
-    const x = undated.length * (COLW + GAP); let y = row2y;
-    for (const n of loose) { moves.push({ id: n.id, x, y }); y += noteH(n) + 40; }
+    const pk = packZone(loose);
+    pk.lanes.forEach((L, li) => {
+      const lx = bx + li * (COL_WIDTH + LANEGAP);
+      for (const e of L) moves.push({ id: e.n.id, x: lx, y: row2y + e.y });
+    });
   }
 
-  // Flèches TRANSVERSES (entre deux zones datées différentes = liens à travers le
-  // temps) → secondaires : courbes + fines, pour ne pas concurrencer la frise.
-  const datedIds = new Set(dated.map((m) => m.id));
+  // ── 9. Flèches transverses → secondaires (courbes + fines) ──────────────────
+  const datedIds = new Set(themes.filter((z) => z.dated).map((z) => z.m.id));
   const patches = [];
-  for (const ar of anns.filter((a) => a.type === "arrow")) {
+  for (const ar of arrows) {
     if (!ar.sourceId || !ar.targetId) continue;
     const zs = zoneOf.get(ar.sourceId), zt = zoneOf.get(ar.targetId);
     const isPartagent = /partagent/i.test(ar.text || "");
     const crossesTime = zs !== zt && (datedIds.has(zs) || datedIds.has(zt));
-    if (isPartagent || crossesTime)
-      patches.push({ id: ar.id, arrowType: "curved", strokeWidth: 1 });
+    if (isPartagent || crossesTime) patches.push({ id: ar.id, arrowType: "curved", strokeWidth: 1 });
   }
 
   const removeIds = membranes.map((m) => m.id);
   const res = toolApplyLayout({ path, outPath: args.outPath, overwrite: args.overwrite, boardId: board.id, removeIds, moves, zones, arrows: [], patches });
-  return `${res}\n\n(layout ⏳ CHRONOLOGIQUE : ${dated.length} zones datées ${dated.map((m) => yearOf(m.text)).join(" → ")}, ${undated.length} thématiques sous la frise${axis ? ", axe repositionné" : ""}${axisLabels.length ? `, ${axisLabels.length} labels d'axe recasés` : ""}${patches.length ? `, ${patches.length} flèches transverses adoucies` : ""})`;
+
+  // ── RAPPORT — dire ce qui a été DÉDUIT, et à quelle échelle ─────────────────
+  const deduced = onFrieze.filter((z) => !z.dated);
+  const R = [`\n(layout ⏳ CHRONOLOGIQUE — une seule rangée, x = le temps)`];
+  R.push(`- ${themes.filter((z) => z.dated).length} zones datées par toi : ${years.join(" → ")}`);
+  if (deduced.length)
+    R.push(`- ${deduced.length} zone(s) placée(s) par leurs LIENS (déduit, non écrit dans le fichier — ` +
+      `titre et couleur atemporelle inchangés) : ` +
+      deduced.map((z) => `« ${(z.m.text || "").trim()} » → près de ${years[z.bucket]}`).join(", "));
+  if (band.length)
+    R.push(`- ${band.length} zone(s) hors du temps : ${band.map((z) => `« ${(z.m.text || "").trim()} »`).join(", ")}` +
+      ` — aucune flèche ne les relie à la frise, leur distance ne coûte donc rien (0 arête à traverser).`);
+  if (freeComps) R.push(`- ${freeComps} composante(s) sans aucune ancre : le graphe ne les date pas, on n'invente pas de date.`);
+  if (sweeps) R.push(`- extension harmonique : ${sweeps} balayages, résidu < 1e-9 (déterministe, sans graine).`);
+  const sigmas = [...onFrieze, ...band].filter((z) => z.pk).map((z) => z.pk.h / COL_WIDTH);
+  if (sigmas.length)
+    R.push(`- colonnes repliées à ${SIGMA_MAX}:1 max — pire colonne lue : 1:${Math.max(...sigmas).toFixed(2)} ` +
+      `(plafond ${Math.round(H_CAP)}px).`);
+  if (marks.length >= 2) {
+    // HONNÊTETÉ D'ÉCHELLE : x est monotone (l'ordre des époques est exact) mais
+    // NON MÉTRIQUE — le pas encode le VOLUME des zones, jamais la durée. Une
+    // flèche longue ne dit donc PAS « beaucoup de temps franchi ». On publie la
+    // dispersion px/an au lieu de laisser croire à une proportionnalité.
+    const rates = [];
+    for (let i = 1; i < marks.length; i++) {
+      const dy = marks[i].year - marks[i - 1].year;
+      if (dy > 0) rates.push((marks[i].cx - marks[i - 1].cx) / dy);
+    }
+    if (rates.length)
+      R.push(`- ⚠ échelle NON métrique : ${Math.round(Math.min(...rates))} à ${Math.round(Math.max(...rates))} px/an ` +
+        `selon l'époque (le pas suit le volume des zones). L'ORDRE est exact, la DISTANCE ne mesure pas la durée.`);
+  }
+  if (patches.length) R.push(`- ${patches.length} flèches transverses adoucies (courbes, fines).`);
+  return res + R.join("\n");
 }
 
 /** Layout LINÉAIRE : respecte un parcours/chaîne — notes dans l'ordre du fil,
