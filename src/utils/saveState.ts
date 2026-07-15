@@ -122,6 +122,26 @@ export function commitSave(path: string, doc: A.Doc<Project>, plan: SavePlan): v
   }
 }
 
+/**
+ * Taille qu'aurait le fichier si nous étions le SEUL à y avoir écrit depuis le
+ * dernier save complet, ou `null` si nous n'avons pas de baseline pour ce chemin.
+ *
+ * C'est une signature gratuite : nous savons exactement combien d'octets nous
+ * avons posés (un full de `fullSize`, puis `appendedSize` d'ajouts). Si `stat()`
+ * répond autre chose, une autre main est passée — le pont MCP, un autre Glucose,
+ * une synchro. Sans ce contrôle, `planSave` ne compare que `b.path !== path` :
+ * il fait confiance à sa mémoire d'il y a dix minutes pour décider d'ÉCRASER un
+ * fichier qu'il n'a pas relu. C'est ce qui détruisait le travail de l'IA en deux
+ * frappes, sans une erreur.
+ *
+ * Ne dit pas QUI a écrit ni QUOI — seulement « ce n'est plus le fichier que j'ai
+ * laissé ». C'est tout ce qu'il faut pour cesser de le supposer.
+ */
+export function expectedFileSize(path: string): number | null {
+  const b = _baseline;
+  return b && b.path === path ? b.fullSize + b.appendedSize : null;
+}
+
 /** Lecture du baseline courant (tests / debug). */
 export function _peekBaseline(): { path: string; fullSize: number; appendedSize: number } | null {
   return _baseline
