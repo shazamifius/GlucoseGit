@@ -32,6 +32,10 @@ import { join, extname, basename, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 import { randomUUID, createHash } from "node:crypto";
 import { next as A } from "@automerge/automerge";
+import {
+  COL_WIDTH, LINE_H, NOTE_GAP, estimateLines, heightUpperBound,
+  annBox, imgBox, annCenter, overlappingPairs, separateUntilClean,
+} from "./geometry.mjs";
 
 const SERVER_NAME = "glucose";
 const SERVER_VERSION = "0.1.0";
@@ -207,14 +211,21 @@ const noteHasSel = (noteText, sel) =>
 
 // Constantes de mise en page reprises de glucose-notes (layout éprouvé, chargé
 // sans erreur par l'app) : colonnes de 380px, saut à la 3ᵉ section.
-const COL_WIDTH = 380, COL_GAP = 60, Y_GAP = 28, LINE_H = 22, SECTIONS_PER_COL = 3;
+// COL_WIDTH, LINE_H, estimateLines, heightUpperBound et la séparation viennent de
+// geometry.mjs : une seule source pour tout ce qui décide d'une position.
+const COL_GAP = 60, Y_GAP = 28, SECTIONS_PER_COL = 3;
 
-function estimateLines(text, width) {
-  const cpl = Math.max(Math.floor(width / 8), 20);
-  return text.split("\n").reduce((n, ln) => n + Math.max(1, Math.ceil(ln.length / cpl)), 0);
-}
-
-/** Dispose une liste de notes en colonnes → annotations {id,type,x,y,text,width,fontSize}. */
+/**
+ * Dispose une liste de notes en colonnes.
+ *
+ * On ÉCRIT `height` (la borne supérieure) au lieu de la laisser absente : sans
+ * elle, le pont range selon sa devinette et l'app dessine autre chose, si bien
+ * que les notes ne se chevauchent que là où personne ne mesure — à l'écran.
+ * Écrite, elle est la même des deux côtés dès la première seconde. L'app la
+ * corrigera à la baisse quand elle rendra vraiment la note (syncAnnotationSize) :
+ * une borne ne peut que se resserrer, donc l'espace ne peut que s'ouvrir, jamais
+ * se refermer sur un chevauchement.
+ */
 function layoutNotes(notes) {
   const anns = [];
   let col = 0, y = 0;
@@ -222,11 +233,12 @@ function layoutNotes(notes) {
     if (i > 0 && i % SECTIONS_PER_COL === 0) { col++; y = 0; }
     const x = col * (COL_WIDTH + COL_GAP);
     const type = n.type === "sticky" ? "sticky" : "text";
+    const height = heightUpperBound(n.text, COL_WIDTH);
     anns.push({
       id: nid(), type, x, y, text: n.text,
-      width: COL_WIDTH, fontSize: type === "sticky" ? 13 : 14,
+      width: COL_WIDTH, height, fontSize: type === "sticky" ? 13 : 14,
     });
-    y += estimateLines(n.text, COL_WIDTH) * LINE_H + Y_GAP;
+    y += height + Y_GAP;
   });
   return anns;
 }
@@ -301,13 +313,6 @@ function writeDoc(path, doc) {
   writeFileSync(path, Buffer.from(A.save(doc)));
 }
 
-/** Centre approximatif d'une annotation (pour ancrer une flèche). */
-function annCenter(a) {
-  const w = a.width ?? COL_WIDTH;
-  const h = a.height ?? 60;
-  return { x: (a.x ?? 0) + w / 2, y: (a.y ?? 0) + h / 2 };
-}
-
 const PREDICATES = ["est_precurseur", "contredit", "herite_de", "inspire", "depend_de", "illustre"];
 
 // ── Analyse d'architecture (STRUCTURE — géométrie + graphe, zéro vision) ─────
@@ -318,17 +323,6 @@ const PREDICATES = ["est_precurseur", "contredit", "herite_de", "inspire", "depe
 // réseau). Indépendant de tout modèle vision. Plus complet qu'une capture : on
 // voit les prédicats typés, l'appartenance aux zones, la hiérarchie — invisibles
 // à l'œil sur un rendu.
-
-/** Boîte englobante approximative d'une annotation (pour la géométrie). */
-function annBox(a) {
-  const w = a.width ?? COL_WIDTH;
-  let h = a.height;
-  if (typeof h !== "number") {
-    h = a.type === "membrane" ? 200 : estimateLines(a.text ?? "", w) * LINE_H + 16;
-  }
-  const x = a.x ?? 0, y = a.y ?? 0;
-  return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
-}
 
 const pointInRect = (px, py, r) =>
   px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
@@ -595,6 +589,104 @@ function findGlucoseFiles(root, depth = 0, acc = []) {
 }
 
 // ── Implémentation des outils ───────────────────────────────────────────────
+
+// ── Le mode d'emploi envoyé à l'IA au handshake (champ `instructions` du MCP) ─
+//
+// Une liste d'outils n'est pas un mode d'emploi. Une IA qui découvre Glucose lit
+// les noms, prend le plus évident, et rend un graphe brut : elle a « fini » après
+// create + connect, sans jamais soupçonner que les zones et les couleurs
+// existaient. Ce n'est pas sa faute — c'est un défaut de découvrabilité. La doc
+// fait partie de l'outil.
+//
+// Le test d'un bon outil n'est pas ce qu'un expert en tire, c'est ce qu'un novice
+// produit PAR DÉFAUT. Ce texte est le seul endroit où l'on peut agir sur ça
+// AVANT que l'IA ne choisisse.
+const INSTRUCTIONS = `Glucose est un canevas spatial infini : des notes posées en 2D, reliées par des
+flèches, regroupées dans des zones (membranes). Un .glucose est un document
+Automerge (CRDT) binaire. Tu le lis et l'écris par ces outils — jamais à la main.
+
+Tu ne vois PAS le canevas. Tu le comprends par sa STRUCTURE : géométrie, zones,
+graphe des flèches. C'est déterministe et ça suffit — n'essaie pas d'imaginer les
+pixels.
+
+═══ LA RÈGLE D'OR ═══
+
+TERMINE TOUJOURS PAR lint_layout, ET CORRIGE AVANT DE RENDRE.
+Une carte que tu n'as pas lintée est une carte que tu n'as pas vue. Le lint est
+ton seul œil : il calcule les défauts qu'un humain VERRAIT (notes qui se
+chevauchent, flèches qui masquent une note, croisements). Si tu rends sans linter,
+tu rends à l'aveugle.
+
+═══ LES TROIS RECETTES ═══
+
+Choisis-en une AVANT de commencer. Chacune produit une carte finie, pas un
+brouillon.
+
+┌─ PARCOURS (un cours, un fil, une démonstration : « A puis B puis C »)
+│  1. create_glucose_project(notes)          → les notes
+│  2. connect_notes(...) pour chaque étape   → le fil, dans l'ordre
+│  3. optimize_layout(mode:"linear")         → une colonne de lecture
+│  4. lint_layout                            → et tu corriges
+└─ Le lecteur suit une ligne. Les flèches disent « ensuite ».
+
+┌─ CARTE ZONÉE (des territoires par sujet : « voici les 4 familles d'idées »)
+│  1. create_glucose_project(notes)
+│  2. connect_notes(...)                     → les liens qui existent VRAIMENT
+│  3. apply_layout(zones:[...], patches:[...]) → CRÉE les zones et teinte les notes
+│  4. optimize_layout(mode:"thematic")       → force + clusters dans ces territoires
+│  5. lint_layout
+└─ ⚠️ L'étape 3 n'est PAS optionnelle : le mode "thematic" a besoin de zones qui
+   EXISTENT DÉJÀ. Sans elle, tu obtiens un tas gris. C'est l'erreur la plus
+   fréquente.
+
+┌─ FRISE (une chronologie : « de 2000 à 2012 »)
+│  1. create_glucose_project(notes)
+│  2. apply_layout(zones:[...])              → une zone par époque, titre DATÉ
+│                                              (ex. "Origine · ~2005" — l'année
+│                                              dans le titre est ce qui fait la date)
+│  3. connect_notes(...)                     → les liens entre époques
+│  4. optimize_layout(mode:"chronological")  → la frise, ordonnée par année
+│  5. lint_layout
+└─ Une flèche longue LE LONG du temps est le message, pas un défaut : le lint le
+   sait et ne la facture pas.
+
+═══ CE QUE CHAQUE OUTIL EST VRAIMENT ═══
+
+create_glucose_project — un STARTER MINIMAL : des notes en colonnes, rien d'autre.
+  Ce n'est PAS une carte finie. Il te rend les ids : garde-les, tu en auras besoin.
+apply_layout — LE CONSTRUCTEUR. Malgré son nom, il ne fait pas que réarranger : il
+  CRÉE les zones, teinte les notes (patches), ajoute des flèches — le tout
+  atomiquement. C'est lui qui fait la différence entre un graphe brut et une carte.
+optimize_layout — réarrange une carte EXISTANTE en respectant l'intention détectée.
+  Il ne rend jamais de chevauchement et te dit ce qu'il a corrigé.
+analyze_architecture — comment le projet est bâti : zones, clusters, hubs, racines,
+  feuilles, isolées. À lire AVANT de proposer quoi que ce soit sur un projet existant.
+detect_organization — la logique que l'auteur a DÉJÀ suivie. Respecte-la : ne
+  transforme pas sa frise en liste parce que tu préfères les listes.
+
+═══ LES FLÈCHES : UTILISE-LES ENTIÈREMENT ═══
+
+Une flèche peut pointer une PHRASE PRÉCISE, pas seulement le bloc entier :
+connect_notes(sourceSel:"la phrase exacte", targetSel:"...") souligne ce texte et
+la flèche le vise. C'est ce qui fait la différence entre « ces deux notes sont
+liées » et « CETTE IDÉE-LÀ cause CELLE-CI ».
+
+La phrase doit exister MOT POUR MOT dans la note (sous-chaîne exacte, mots
+contigus) — lis la note avant, n'invente jamais. Ajoute un predicate quand la
+relation a un nom : est_precurseur, contredit, herite_de, inspire, depend_de,
+illustre.
+
+═══ CE QUI FAIT PERDRE DU TEMPS ═══
+
+• Le board « actif » est souvent VIDE (c'est le dernier consulté, pas celui qui
+  compte). Les outils choisissent le board le plus structuré. Passe boardId si tu
+  veux être sûr.
+• Travaille sur une COPIE : outPath sur un chemin neuf. La source reste intacte.
+• L'app Glucose enregistre toute seule ~1,5 s après une modification : si elle est
+  ouverte sur le fichier que tu écris, elle écrasera ton travail. Demande à
+  l'utilisateur de fermer.
+• read_glucose(includeIds:true) avant connect_notes ou apply_layout : ces outils
+  désignent les notes par id.`;
 
 const TOOLS = [
   {
@@ -1219,9 +1311,87 @@ function toolApplyLayout(args) {
     d.updatedAt = Date.now();
   });
 
+  // ── INVARIANT : on ne rend jamais un chevauchement ────────────────────────
+  //
+  // Point de passage obligé de TOUS les layouts : c'est ici, une seule fois,
+  // qu'on vérifie ce qu'on s'apprête à écrire. Un layout qui se croit propre
+  // n'est pas une preuve — les notes se chevauchaient à l'écran précisément parce
+  // que personne ne regardait après coup.
+  //
+  // QUI BOUGE :
+  //  • les notes (annotations hors flèches/membranes) — elles s'écartent ;
+  //  • les IMAGES et VIDÉOS ne bougent JAMAIS : l'utilisateur les a posées là,
+  //    ce sont des ancres. Mais elles COMPTENT comme obstacles — les ignorer,
+  //    c'est empiler des notes sur des vidéos en annonçant « ✅ 0 chevauchement ».
+  //    Elles vivent dans `board.images`, pas dans `annotations`, et sont ancrées
+  //    par leur CENTRE (d'où `imgBox`) là où une note l'est par son coin.
+  //  • une membrane est un fond : elle englobe, elle ne chevauche pas.
+  //  • une flèche suit ses nœuds.
+  let repare = 0, subsiste = 0, zonesRecalees = 0;
+  {
+    const plainAfter = typeof A.toJS === "function" ? A.toJS(doc) : JSON.parse(JSON.stringify(doc));
+    const bAfter = (plainAfter.boards ?? []).find((bb) => bb.id === boardId);
+    const notes = (bAfter?.annotations ?? []).filter((a) => a.type !== "arrow" && a.type !== "membrane");
+    const mobiles = notes.map((n) => { const bx = annBox(n); return { id: n.id, x: bx.x, y: bx.y, w: bx.w, h: bx.h, cx: bx.cx, cy: bx.cy }; });
+    const fixes = (bAfter?.images ?? []).map((im) => { const bx = imgBox(im); return { id: im.id, x: bx.x, y: bx.y, w: bx.w, h: bx.h, cx: bx.cx, cy: bx.cy }; });
+
+    const avantN = mobiles.map((m) => ({ id: m.id, x: m.x, y: m.y }));
+    const avant = overlappingPairs([...mobiles, ...fixes]);
+    if (avant.length) {
+      const res = separateUntilClean(mobiles, fixes, NOTE_GAP);
+      const bouges = new Map();
+      mobiles.forEach((m, i) => {
+        if (Math.round(m.x) !== Math.round(avantN[i].x) || Math.round(m.y) !== Math.round(avantN[i].y)) bouges.set(m.id, m);
+      });
+      if (bouges.size) {
+        // Les membranes qui contenaient une note déplacée doivent la contenir
+        // encore : sinon la réparation sortirait la note de son territoire en
+        // silence, et casserait le sens de la carte pour sauver sa lisibilité.
+        const membranes = (bAfter?.annotations ?? []).filter((a) => a.type === "membrane");
+        const grandir = new Map();
+        for (const m of membranes) {
+          const mb = annBox(m);
+          const dedansAvant = avantN.filter((n0) => {
+            const w = mobiles.find((x) => x.id === n0.id);
+            return n0.x >= mb.x && n0.y >= mb.y && n0.x + w.w <= mb.x + mb.w && n0.y + w.h <= mb.y + mb.h;
+          });
+          if (!dedansAvant.length) continue;
+          let x1 = mb.x, y1 = mb.y, x2 = mb.x + mb.w, y2 = mb.y + mb.h;
+          for (const n0 of dedansAvant) {
+            const w = bouges.get(n0.id); if (!w) continue;
+            x1 = Math.min(x1, w.x - 20); y1 = Math.min(y1, w.y - 20);
+            x2 = Math.max(x2, w.x + w.w + 20); y2 = Math.max(y2, w.y + w.h + 20);
+          }
+          if (x1 !== mb.x || y1 !== mb.y || x2 !== mb.x + mb.w || y2 !== mb.y + mb.h)
+            grandir.set(m.id, { x: Math.round(x1), y: Math.round(y1), width: Math.round(x2 - x1), height: Math.round(y2 - y1) });
+        }
+        zonesRecalees = grandir.size;
+        doc = A.change(doc, "anti-chevauchement via mcp", (d) => {
+          const b = d.boards.find((bb) => bb.id === boardId);
+          for (const a of b.annotations) {
+            const w = bouges.get(a.id);
+            if (w) { a.x = Math.round(w.x); a.y = Math.round(w.y); continue; }
+            const g = grandir.get(a.id);
+            if (g) { a.x = g.x; a.y = g.y; a.width = g.width; a.height = g.height; }
+          }
+        });
+      }
+      repare = avant.length;
+      subsiste = res.ok ? 0 : res.restant;
+    }
+  }
+
   writeDoc(outPath, doc);
   let msg = `✅ Organisation appliquée → ${removed} retirée(s), ${moved} déplacée(s), ${addedZones} zone(s), ${addedArrows} flèche(s)${patched ? `, ${patched} patchée(s)` : ""}.\n\`${outPath}\``;
   if (missing.length) msg += `\n⚠️ ${missing.length} id(s) introuvable(s) : ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "…" : ""}`;
+  if (repare && !subsiste) {
+    msg += `\n🔧 ${repare} chevauchement(s) corrigé(s) automatiquement — la carte rendue n'en contient aucun (notes ET médias).`;
+    if (zonesRecalees) msg += `\n   ${zonesRecalees} zone(s) élargie(s) pour continuer à contenir leurs notes.`;
+  } else if (subsiste) {
+    msg += `\n❌ ${subsiste} chevauchement(s) IRRÉDUCTIBLE(S) : la carte est illisible à ces endroits. Ne fais pas comme si de rien n'était.`;
+  } else {
+    msg += `\n✅ 0 chevauchement (vérifié sur la géométrie rendue, notes ET médias — pas supposé).`;
+  }
   return msg;
 }
 
@@ -2371,6 +2541,7 @@ function handle(msg) {
         protocolVersion: params?.protocolVersion || PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
+        instructions: INSTRUCTIONS,
       });
       return;
     case "ping":

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 // SAVE-C — écriture/lecture en octets BRUTS via plugin-fs (plus de base64 : fini
 // le +33 % de taille et la double passe CPU sur le thread principal). `rename`
 // permet l'écriture ATOMIQUE (tmp + rename) du save complet.
-import { writeFile, readFile, rename } from "@tauri-apps/plugin-fs";
+import { writeFile, readFile, rename, stat } from "@tauri-apps/plugin-fs";
 import { homeDir } from "@tauri-apps/api/path";
 import { Project } from "../types";
 import { parseProjectFile } from "../store/projectSchema";
@@ -16,7 +16,7 @@ import { dataUrlToBytes } from "./assetRef";
 // Phase 7.2 — format binaire `.glucose` v2 via Automerge
 import * as A from "../store/automerge";
 // SAVE-A — enregistrement incrémental (anti-freeze) : full au 1er save, delta ensuite.
-import { planSave, commitSave, markLoaded, resetSaveState, type SavePlan } from "./saveState";
+import { planSave, commitSave, markLoaded, resetSaveState, expectedFileSize, type SavePlan } from "./saveState";
 import { toRelative, getParentDir } from "./pathResolver";
 import { getCollabHandle } from "../multiplayer/collabHandle";
 // Git #1 Phase 3 — jalons AUTO à l'ampleur.
@@ -128,13 +128,89 @@ export async function saveProject(
     });
     doc = nextDoc;
 
-    // Met à jour le store Zustand de manière asynchrone pour synchroniser le document en mémoire
-    import("../store").then(({ useGlucoseStore }) => {
+    // Synchronise le document en mémoire. `await` et non `.then()` : en
+    // fire-and-forget, ce setState pouvait atterrir APRÈS celui de la fusion
+    // anti-écrasement plus bas et reposer dans le store un doc qui ne connaît
+    // pas les changements relus du disque. L'import dynamique (et non statique)
+    // reste nécessaire pour casser le cycle project ↔ store ; l'attendre ne le
+    // rétablit pas.
+    try {
+      const { useGlucoseStore } = await import("../store");
       useGlucoseStore.setState({
         _doc: nextDoc,
         project: nextDoc as unknown as Project,
       });
-    }).catch((e) => console.warn("[saveProject] échec de la mise à jour du store :", e));
+    } catch (e) {
+      console.warn("[saveProject] échec de la mise à jour du store :", e);
+    }
+  }
+
+  // ── Anti-écrasement : le fichier est-il encore celui qu'on a laissé ? ──────
+  //
+  // `planSave` est PUR (c'est sa force : testable, pas d'I/O) — mais du coup il
+  // ne peut pas savoir que le disque a bougé. Il ne compare que `b.path !== path`
+  // et fait confiance à sa mémoire. Sur une compaction il renvoie alors mode
+  // "full", et le `rename` plus bas remplace ATOMIQUEMENT un fichier que
+  // quelqu'un d'autre avait enrichi entre-temps. Reproduit : l'IA écrit 10 notes
+  // par le pont MCP, l'utilisateur tape deux fois, les 10 notes n'existent plus.
+  // Aucune erreur, aucun log. Une perte silencieuse est le pire défaut possible.
+  //
+  // On ne devine pas : on regarde. Si la taille sur disque diffère de ce qu'on y
+  // a posé, on RELIT et on FUSIONNE. Automerge est fait pour ça — deux mains sur
+  // la même lignée, l'union est déterministe et personne n'écrase personne. On
+  // adopte le doc fusionné (l'utilisateur voit les notes de l'IA apparaître,
+  // c'est le comportement voulu) et on repart d'un baseline neuf.
+  const expected = expectedFileSize(path);
+  if (expected !== null) {
+    let actual: number | null = null;
+    try {
+      actual = (await stat(path)).size;
+    } catch {
+      actual = null;
+    }
+    if (actual === null) {
+      // Le fichier a disparu sous nos pieds. Notre baseline décrit un fichier
+      // qui n'existe plus : sans ce reset, `planSave` renverrait "incremental"
+      // et on écrirait un delta SEUL dans un fichier neuf — un .glucose dont les
+      // dépendances manquent, que `A.load` refuse d'ouvrir. On se serait
+      // fabriqué un fichier illisible en croyant enregistrer.
+      resetSaveState();
+    } else if (actual !== expected) {
+      const foreign = await readFile(path);
+      let merged: A.Doc<Project> | null = null;
+      try {
+        // `A.clone` d'abord : `A.merge(local, remote)` PÉRIME `local`, et ce doc
+        // est celui que l'appelant (et le store) tiennent encore. Le périmer
+        // ferait échouer le prochain `A.change` par « Attempting to change an
+        // outdated document ». On fusionne dans une copie ; l'original reste bon.
+        merged = A.merge(A.clone(doc as A.Doc<Project>), A.load<Project>(foreign));
+      } catch (e) {
+        // On n'a pas su relire ce qui est là. Dans le doute on n'écrase JAMAIS :
+        // mieux vaut un save qui échoue bruyamment qu'un fichier perdu en silence.
+        throw new ProjectCorruptError(
+          `Le fichier a changé sur le disque et n'a pas pu être relu pour fusion — ` +
+          `enregistrement annulé pour ne pas écraser son contenu. (${String(e)})`,
+          path,
+        );
+      }
+      doc = merged;
+      resetSaveState(); // notre baseline décrit un fichier qui n'existe plus
+      // L'adoption par le store est un CONFORT (voir les notes de l'IA
+      // apparaître) ; l'écriture est la GARANTIE. Si l'adoption échoue, on
+      // continue : les octets fusionnés partent quand même sur le disque, et
+      // l'utilisateur les verra au prochain chargement. Faire échouer le save
+      // ici perdrait le travail qu'on est précisément en train de protéger.
+      try {
+        const { useGlucoseStore } = await import("../store");
+        useGlucoseStore.setState({ _doc: merged, project: merged as unknown as Project });
+      } catch (e) {
+        console.warn("[saveProject] fusion écrite, mais le store n'a pas pu l'adopter :", e);
+      }
+      console.info(
+        `[saveProject] ${path} a changé sur le disque (${actual} o au lieu de ${expected}) ` +
+        `— fusion CRDT au lieu d'un écrasement.`,
+      );
+    }
   }
 
   const plan: SavePlan = forceFull ? { mode: "full", bytes: A.save(doc), deltaBytes: 0 } : planSave(doc, path);
