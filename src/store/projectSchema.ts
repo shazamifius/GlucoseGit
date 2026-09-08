@@ -9,6 +9,16 @@ import { z } from "zod";
 
 const PointSchema = z.object({ x: z.number().finite(), y: z.number().finite() });
 
+const TextAnchorSchema = z.object({
+  start: z.number(),
+  end: z.number(),
+  quote: z.string(),
+  prefix: z.string().optional(),
+  suffix: z.string().optional(),
+});
+
+const TextSelectionSchema = z.union([z.string(), z.array(TextAnchorSchema)]);
+
 const DomainAssignmentSchema = z.object({
   domainId: z.string(),
   weight: z.number().min(0).max(1),
@@ -99,8 +109,11 @@ const AnnotationSchema = z.object({
   targetId: z.string().optional(),
   sourceBlockId: z.string().optional(),
   targetBlockId: z.string().optional(),
-  sourceTextSel: z.string().optional(),
-  targetTextSel: z.string().optional(),
+  // Union : tableau d'ancres (forme actuelle) OU l'ancienne chaîne « a ‖ b »,
+  // normalisée à la lecture par `normalizeTextSel` — les projets d'avant la
+  // refonte se chargent sans migration ni perte.
+  sourceTextSel: TextSelectionSchema.optional(),
+  targetTextSel: TextSelectionSchema.optional(),
   sourceFile: z.string().optional(),
   cursorPos: z.number().optional(),
   domains: z.array(DomainAssignmentSchema).optional(),

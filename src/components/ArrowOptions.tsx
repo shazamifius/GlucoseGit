@@ -1,5 +1,6 @@
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { ArrowAnnotation, ArrowPredicate } from "../types";
+import { hasTextSelection } from "../utils/textAnchors";
 
 const PREDICATE_OPTIONS: { value: ArrowPredicate; label: string; color: string }[] = [
   { value: "est_precurseur", label: "→ précurseur", color: "#f59e0b" },
@@ -26,7 +27,8 @@ export default function ArrowOptions({ arrow, onEditText }: Props) {
   const sw      = arrow.strokeWidth ?? 2;
   const curved  = arrow.arrowType === "curved";
   const bi      = arrow.arrowBidirectional ?? false;
-  const hasTextSel = !!(arrow.sourceTextSel || arrow.targetTextSel);
+  // `[]` étant truthy, on teste le contenu réel des ancres et non la présence du champ.
+  const hasTextSel = hasTextSelection(arrow.sourceTextSel) || hasTextSelection(arrow.targetTextSel);
 
   const btnBase: React.CSSProperties = {
     padding: "3px 8px", fontSize: 11, borderRadius: 3,

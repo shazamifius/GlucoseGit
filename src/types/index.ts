@@ -1,3 +1,5 @@
+import type { TextSelection } from "../utils/textAnchors";
+
 // ── Domaines (Phase 3) ────────────────────────────────────────
 // Un domaine est une catégorie sémantique (Science, Art, JV, Conlang…). Un nœud
 // peut appartenir à plusieurs domaines avec un poids relatif (somme arbitraire).
@@ -162,8 +164,8 @@ export interface ArrowAnnotation extends AnnotationBase {
   targetId?: string;                           // node attaché à la fin
   sourceBlockId?: string;                      // sous-bloc départ
   targetBlockId?: string;                      // sous-bloc arrivée
-  sourceTextSel?: string;                      // texte exact sélectionné côté source
-  targetTextSel?: string;                      // texte exact sélectionné côté cible
+  sourceTextSel?: TextSelection;               // ancres de la sélection côté source
+  targetTextSel?: TextSelection;               // ancres de la sélection côté cible
   longText?: string;                           // Phase 5 — description Markdown
   targetBoardId?: string;                      // Phase 5 — flèche portail
 }

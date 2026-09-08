@@ -16,6 +16,8 @@
 // Inventaire complet des events (1 seul endroit pour les voir tous)
 // ════════════════════════════════════════════════════════════════════════════
 
+import type { TextSelection } from "./textAnchors";
+
 export type GlucoseEvents = {
   // Pan/zoom
   "viewport-changed": { x: number; y: number; scale: number };
@@ -40,8 +42,8 @@ export type GlucoseEvents = {
     sourceBlockId?: string;
     targetId?: string;
     targetBlockId?: string;
-    sourceTextSel?: string;
-    targetTextSel?: string;
+    sourceTextSel?: TextSelection;
+    targetTextSel?: TextSelection;
   };
   "arrow-target-preview": null | { annId: string; blockId?: string };
 

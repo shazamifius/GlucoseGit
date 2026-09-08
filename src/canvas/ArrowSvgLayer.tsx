@@ -2,6 +2,13 @@ import { useEffect, useMemo, useRef } from "react";
 import { Board } from "../types";
 import { useGlucoseStore, getActiveBoard } from "../store";
 import { getSymbioticHue } from "./HtmlAnnotationLayer";
+import {
+  type TextSelection,
+  normalizeTextSel,
+  resolveAnchors,
+  indexDomText,
+  domRangesFor,
+} from "../utils/textAnchors";
 
 // CLEANUP C-02 — Type explicite pour les obstacles (remplace `any[]`)
 interface Obstacle {
@@ -373,47 +380,39 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
 
           const vp = vpRef.current;
           
-          // Trouver la position Y du texte sélectionné dans un élément DOM
-          const findTextSelPosition = (annId: string, textSel: string): { relY: number; relH: number } | null => {
-            if (!textSel) return null;
+          // Position Y (relative au nœud) du texte ancré — même résolveur que le
+          // glow et que le panneau d'édition, donc même occurrence ciblée.
+          const findTextSelPosition = (annId: string, textSel: TextSelection): { relY: number; relH: number } | null => {
+            const anchors = normalizeTextSel(textSel);
+            if (anchors.length === 0) return null;
             const el = document.querySelector(`[data-id="${annId}"]`) as HTMLElement;
             if (!el) return null;
-            
-            const selections = textSel.split(" ‖ ").map(s => s.trim()).filter(Boolean);
+            const root = el.querySelector<HTMLElement>("[data-glucose-text]") ?? el;
+
+            const ranges = resolveAnchors(indexDomText(root).plain, anchors);
+            const domRanges = domRangesFor(root, ranges);
+            if (domRanges.length === 0) return null;
+
+            const elRect = el.getBoundingClientRect();
+            // Position relative à l'élément (non-scalée, car offsetParent)
+            const scale = elRect.width / (el.offsetWidth || 1);
             const positions: { top: number; bottom: number }[] = [];
-            
-            for (const sel of selections) {
-              const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-              let nd: Node | null;
-              while ((nd = walker.nextNode())) {
-                const nodeText = nd.textContent || "";
-                const idx = nodeText.toLowerCase().indexOf(sel.toLowerCase());
-                if (idx === -1) continue;
-                
-                try {
-                  const range = document.createRange();
-                  range.setStart(nd, idx);
-                  range.setEnd(nd, idx + sel.length);
-                  const rect = range.getBoundingClientRect();
-                  const elRect = el.getBoundingClientRect();
-                  // Position relative à l'élément (non-scalé, car offsetParent)
-                  const scale = elRect.width / (el.offsetWidth || 1);
-                  positions.push({
-                    top: (rect.top - elRect.top) / scale,
-                    bottom: (rect.bottom - elRect.top) / scale,
-                  });
-                } catch {}
-                break;
-              }
+            for (const range of domRanges) {
+              const rect = range.getBoundingClientRect();
+              if (rect.height === 0 && rect.width === 0) continue;
+              positions.push({
+                top: (rect.top - elRect.top) / scale,
+                bottom: (rect.bottom - elRect.top) / scale,
+              });
             }
-            
             if (positions.length === 0) return null;
+
             const avgTop = positions.reduce((s, p) => s + p.top, 0) / positions.length;
             const avgBottom = positions.reduce((s, p) => s + p.bottom, 0) / positions.length;
             return { relY: (avgTop + avgBottom) / 2, relH: avgBottom - avgTop };
           };
           
-          const getAnchor = (refId?: string, refBlockId?: string, fallbackX: number = 0, fallbackY: number = 0, textSel?: string) => {
+          const getAnchor = (refId?: string, refBlockId?: string, fallbackX: number = 0, fallbackY: number = 0, textSel?: TextSelection) => {
             if (!refId) return { x: fallbackX, y: fallbackY };
             
             // Sub-block HTML

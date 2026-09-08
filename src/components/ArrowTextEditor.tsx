@@ -1,16 +1,39 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { useGlucoseStore, getActiveBoard } from "../store";
-import { getSymbioticHue } from "../canvas/HtmlAnnotationLayer";
+import {
+  getSymbioticHue,
+  preprocessText,
+  MdPre,
+  MdCode,
+  REMARK_PLUGINS,
+  REHYPE_PLUGINS,
+} from "../canvas/HtmlAnnotationLayer";
 import { isArrowAnnotation } from "../types";
+import {
+  type TextAnchor,
+  addAnchor,
+  createAnchor,
+  domPointToOffset,
+  highlightDomRanges,
+  indexDomText,
+  normalizeTextSel,
+  resolveAnchors,
+} from "../utils/textAnchors";
 
 /**
  * ArrowTextEditor — Mode d'édition interactif pour sélectionner le texte
  * précis que la flèche connecte de chaque côté.
- * 
+ *
  * Flux :
  * 1. Zoom sur le bloc source → sélection de texte à la souris
  * 2. Bouton "Valider" → zoom sur le bloc target → sélection
  * 3. Bouton "Terminer" → sauvegarde et sortie
+ *
+ * La sélection est stockée en ANCRES (`utils/textAnchors`), pas en chaîne : deux
+ * occurrences d'un même mot sont deux ancres distinctes. Le bloc est rendu par
+ * le MÊME pipeline markdown que le canvas — même texte rendu de part et d'autre,
+ * donc mêmes offsets, donc même surlignage ici et là-bas.
  */
 
 interface Props {
@@ -29,20 +52,34 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
   const allAnnotations = board?.annotations ?? [];
 
   const [step, setStep] = useState<EditStep>("source");
-  const [sourceSelection, setSourceSelection] = useState(arrow?.sourceTextSel ?? "");
-  const [targetSelection, setTargetSelection] = useState(arrow?.targetTextSel ?? "");
-  const selectionRef = useRef<HTMLDivElement>(null);
+  const [sourceAnchors, setSourceAnchors] = useState<TextAnchor[]>(() => normalizeTextSel(arrow?.sourceTextSel));
+  const [targetAnchors, setTargetAnchors] = useState<TextAnchor[]>(() => normalizeTextSel(arrow?.targetTextSel));
+  const textRef = useRef<HTMLDivElement>(null);
 
   const srcAnn = arrow?.sourceId ? board?.annotations.find(a => a.id === arrow.sourceId) : null;
   const tgtAnn = arrow?.targetId ? board?.annotations.find(a => a.id === arrow.targetId) : null;
 
   const currentAnn = step === "source" ? srcAnn : tgtAnn;
-  const currentSel = step === "source" ? sourceSelection : targetSelection;
-  const setCurrentSel = step === "source" ? setSourceSelection : setTargetSelection;
+  const currentAnchors = step === "source" ? sourceAnchors : targetAnchors;
+  const setCurrentAnchors = step === "source" ? setSourceAnchors : setTargetAnchors;
 
   // Couleur symbiotique de l'annotation courante
   const currentHue = currentAnn ? getSymbioticHue(currentAnn, allAnnotations) : 200;
   const stepColor = `hsl(${currentHue}, 75%, 65%)`;
+
+  // Même prétraitement que le canvas — sinon les offsets ne correspondraient pas.
+  const processedText = preprocessText(currentAnn?.text || "");
+  // Mémoïsé : sans ça, React re-réconcilierait le sous-arbre markdown à chaque
+  // changement de sélection et arracherait les <mark> injectés dans le DOM.
+  const markdown = useMemo(() => (
+    <ReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
+      rehypePlugins={REHYPE_PLUGINS}
+      components={EDITOR_MD_COMPONENTS}
+    >
+      {processedText}
+    </ReactMarkdown>
+  ), [processedText]);
 
   // Zoom sur le bloc courant au changement d'étape
   useEffect(() => {
@@ -52,51 +89,81 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
     }));
   }, [step, currentAnn?.id]);
 
-  // Écouter les sélections de texte via un listener document-level
+  // ── Migration ascendante ──
+  // Les projets d'avant la refonte n'ont que la citation (`start: -1`). Dès que
+  // le bloc est rendu, on les rebase sur de vraies positions : rouvrir l'éditeur
+  // suffit à convertir l'ancienne donnée, sans passe de migration au chargement.
+  useEffect(() => {
+    const root = textRef.current;
+    if (!root) return;
+    if (!currentAnchors.some(a => a.start < 0)) return;
+    const plain = indexDomText(root).plain;
+    const rebased = resolveAnchors(plain, currentAnchors)
+      .map(r => createAnchor(plain, r.start, r.end))
+      .filter((a): a is TextAnchor => a !== null);
+    if (rebased.length > 0) setCurrentAnchors(rebased);
+  }, [step, processedText]);
+
+  // ── Surlignage des ancres dans l'aperçu ──
+  // Exactement le même résolveur que le glow du canvas.
+  useEffect(() => {
+    const root = textRef.current;
+    if (!root) return;
+    const ranges = resolveAnchors(indexDomText(root).plain, currentAnchors);
+    return highlightDomRanges(root, ranges, (mark) => {
+      mark.style.cssText = `
+        background: color-mix(in srgb, ${stepColor} 25%, transparent);
+        color: ${stepColor};
+        border-radius: 3px;
+        padding: 1px 4px;
+        outline: 1px solid color-mix(in srgb, ${stepColor} 40%, transparent);
+        outline-offset: 1px;
+        box-shadow: 0 0 8px color-mix(in srgb, ${stepColor} 15%, transparent);
+      `;
+    });
+  }, [currentAnchors, stepColor, processedText]);
+
+  // ── Capture d'une sélection souris ──
   useEffect(() => {
     function onMouseUp(e: MouseEvent) {
+      const root = textRef.current;
       const selection = window.getSelection();
-      if (!selection || selection.isCollapsed || !selectionRef.current) return;
+      if (!selection || selection.isCollapsed || !root) return;
 
       const range = selection.getRangeAt(0);
-      if (!selectionRef.current.contains(range.commonAncestorContainer)) return;
+      if (!root.contains(range.commonAncestorContainer)) return;
 
-      const selectedText = selection.toString().trim();
-      if (!selectedText) return;
+      // Offsets dans le texte rendu : c'est ce qui distingue la 1ʳᵉ occurrence
+      // d'un mot de la 2ᵉ, là où l'ancienne chaîne les confondait.
+      const plain = indexDomText(root).plain;
+      const start = domPointToOffset(root, range.startContainer, range.startOffset);
+      const end = domPointToOffset(root, range.endContainer, range.endOffset);
+      const anchor = createAnchor(plain, start, end);
+      if (!anchor) return;
 
       // Ctrl/Meta = multi-sélection (ajouter au lieu de remplacer)
       const isMulti = e.ctrlKey || e.metaKey;
-
-      if (isMulti) {
-        // Lire la sélection courante directement (éviter les closures stale)
-        const curSel = step === "source" ? sourceSelection : targetSelection;
-        const setter = step === "source" ? setSourceSelection : setTargetSelection;
-        if (curSel) {
-          const parts = curSel.split(" ‖ ");
-          if (!parts.includes(selectedText)) {
-            setter(parts.concat(selectedText).join(" ‖ "));
-          }
-        } else {
-          setter(selectedText);
-        }
-      } else {
-        const setter = step === "source" ? setSourceSelection : setTargetSelection;
-        setter(selectedText);
-      }
+      const setter = step === "source" ? setSourceAnchors : setTargetAnchors;
+      setter(prev => (isMulti ? addAnchor(prev, anchor) : [anchor]));
+      selection.removeAllRanges();
     }
 
     document.addEventListener("mouseup", onMouseUp);
     return () => document.removeEventListener("mouseup", onMouseUp);
-  }, [step, sourceSelection, targetSelection]);
+  }, [step]);
+
+  function commit() {
+    updateAnnotation(boardId, arrowId, {
+      sourceTextSel: sourceAnchors.length > 0 ? sourceAnchors : undefined,
+      targetTextSel: targetAnchors.length > 0 ? targetAnchors : undefined,
+    });
+  }
 
   function handleValidate() {
     if (step === "source") {
       setStep("target");
     } else if (step === "target") {
-      updateAnnotation(boardId, arrowId, {
-        sourceTextSel: sourceSelection || undefined,
-        targetTextSel: targetSelection || undefined,
-      });
+      commit();
       setStep("done");
       onClose();
     }
@@ -106,10 +173,7 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
     if (step === "source") {
       setStep("target");
     } else {
-      updateAnnotation(boardId, arrowId, {
-        sourceTextSel: sourceSelection || undefined,
-        targetTextSel: targetSelection || undefined,
-      });
+      commit();
       onClose();
     }
   }
@@ -170,8 +234,10 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
 
         {/* Zone de texte sélectionnable */}
         <div
-          ref={selectionRef}
+          ref={textRef}
           data-allow-select
+          data-glucose-text
+          className="prose prose-invert prose-sm max-w-none break-words"
           style={{
             background: "#0d0d0d",
             border: `1px solid color-mix(in srgb, ${stepColor} 13%, transparent)`,
@@ -184,29 +250,54 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
             color: "#ccc",
             cursor: "text",
             position: "relative",
+            whiteSpace: "pre-wrap",
           }}
         >
-          <TextWithHighlights text={currentAnn.text || ""} highlights={currentSel} color={stepColor} />
+          {markdown}
         </div>
 
         {/* Sélection actuelle */}
-        {currentSel && (
+        {currentAnchors.length > 0 && (
           <div style={{
             marginTop: 8, padding: "8px 12px",
             background: `color-mix(in srgb, ${stepColor} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${stepColor} 20%, transparent)`,
             borderRadius: 4, fontSize: 11, color: stepColor,
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600 }}>Sélectionné :</span>
+              <span style={{ fontWeight: 600 }}>
+                Sélectionné{currentAnchors.length > 1 ? ` (${currentAnchors.length})` : ""} :
+              </span>
               <button
-                onClick={() => setCurrentSel("")}
+                onClick={() => setCurrentAnchors([])}
                 style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 11 }}
               >
                 Effacer ✗
               </button>
             </div>
-            <div style={{ marginTop: 4, color: "#aaa", fontStyle: "italic" }}>
-              "{currentSel}"
+            {/* Une puce par ancre : deux occurrences du même mot restent deux
+                entrées distinctes, retirables séparément. */}
+            <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {currentAnchors.map((a, i) => (
+                <span
+                  key={`${a.start}-${a.end}-${i}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "2px 6px", borderRadius: 3,
+                    background: `color-mix(in srgb, ${stepColor} 12%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${stepColor} 25%, transparent)`,
+                    color: "#aaa", fontStyle: "italic",
+                  }}
+                >
+                  "{a.quote.length > 32 ? `${a.quote.slice(0, 30)}…` : a.quote}"
+                  <button
+                    onClick={() => setCurrentAnchors(currentAnchors.filter((_, j) => j !== i))}
+                    title="Retirer cette sélection"
+                    style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 11, padding: 0, lineHeight: 1 }}
+                  >
+                    ✗
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
         )}
@@ -230,70 +321,22 @@ export default function ArrowTextEditor({ arrowId, onClose }: Props) {
   );
 }
 
-/* ── Texte avec rendu Markdown et surlignage des sélections ── */
-function TextWithHighlights({ text, highlights, color }: { text: string, highlights: string, color: string }) {
-  const lines = text.split("\n");
-
-  function renderLine(line: string, idx: number) {
-    const h3 = line.match(/^### (.+)/);
-    const h2 = !h3 && line.match(/^## (.+)/);
-    const h1 = !h3 && !h2 && line.match(/^# (.+)/);
-    const li = line.match(/^[-*] (.+)/);
-    
-    const content = h3 ? h3[1] : h2 ? h2[1] : h1 ? h1[1] : li ? li[1] : line;
-    
-    const rendered = highlights ? highlightText(content, highlights, color) : content;
-    
-    if (h1) return <h1 key={idx} style={{ fontSize: 18, fontWeight: 700, margin: "8px 0 4px", color: "#eee" }}>{rendered}</h1>;
-    if (h2) return <h2 key={idx} style={{ fontSize: 15, fontWeight: 600, margin: "6px 0 3px", color: "#ddd" }}>{rendered}</h2>;
-    if (h3) return <h3 key={idx} style={{ fontSize: 13, fontWeight: 600, margin: "4px 0 2px", color: "#bbb" }}>{rendered}</h3>;
-    if (li) return <div key={idx} style={{ display: "flex", gap: 6, margin: "2px 0" }}><span style={{ color: "#555" }}>•</span><span>{rendered}</span></div>;
-    if (!line.trim()) return <div key={idx} style={{ height: 8 }} />;
-    return <p key={idx} style={{ margin: "3px 0" }}>{rendered}</p>;
-  }
-
-  return <>{lines.map((line, i) => renderLine(line, i))}</>;
-}
-
-function highlightText(text: string, highlights: string, color: string): React.ReactNode {
-  if (!highlights || !text) return text;
-  
-  const parts = highlights.split(" ‖ ");
-  let result: (string | React.ReactNode)[] = [text];
-
-  for (const part of parts) {
-    const newResult: (string | React.ReactNode)[] = [];
-    for (const segment of result) {
-      if (typeof segment !== "string") {
-        newResult.push(segment);
-        continue;
-      }
-      const idx = segment.toLowerCase().indexOf(part.toLowerCase());
-      if (idx === -1) {
-        newResult.push(segment);
-        continue;
-      }
-      if (idx > 0) newResult.push(segment.slice(0, idx));
-      newResult.push(
-        <mark key={`hl-${part.slice(0,10)}-${idx}`} style={{
-          background: `color-mix(in srgb, ${color} 25%, transparent)`,
-          color: color,
-          borderRadius: 3,
-          padding: "1px 4px",
-          outline: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
-          outlineOffset: 1,
-          boxShadow: `0 0 8px color-mix(in srgb, ${color} 15%, transparent)`,
-        }}>
-          {segment.slice(idx, idx + part.length)}
-        </mark>
-      );
-      if (idx + part.length < segment.length) newResult.push(segment.slice(idx + part.length));
-    }
-    result = newResult;
-  }
-
-  return <>{result}</>;
-}
+/* ── Rendu markdown de l'aperçu ──
+ * Uniquement du style : aucun composant n'ajoute ni ne retire de caractère, le
+ * texte rendu reste donc identique à celui du canvas (condition pour que les
+ * offsets des ancres soient valables des deux côtés). `pre` / `code` sont
+ * carrément ceux du canvas, qui normalisent le saut de ligne final des blocs. */
+const EDITOR_MD_COMPONENTS: Components = {
+  h1: ({ children }) => <h1 style={{ fontSize: 18, fontWeight: 700, margin: "8px 0 4px", color: "#eee" }}>{children}</h1>,
+  h2: ({ children }) => <h2 style={{ fontSize: 15, fontWeight: 600, margin: "6px 0 3px", color: "#ddd" }}>{children}</h2>,
+  h3: ({ children }) => <h3 style={{ fontSize: 13, fontWeight: 600, margin: "4px 0 2px", color: "#bbb" }}>{children}</h3>,
+  p: ({ children }) => <p style={{ margin: "3px 0" }}>{children}</p>,
+  ul: ({ children }) => <ul style={{ margin: "3px 0", paddingLeft: 18, listStyle: "disc" }}>{children}</ul>,
+  ol: ({ children }) => <ol style={{ margin: "3px 0", paddingLeft: 18 }}>{children}</ol>,
+  li: ({ children }) => <li style={{ margin: "2px 0" }}>{children}</li>,
+  pre: MdPre,
+  code: MdCode,
+};
 
 /* ── Styles ── */
 const overlayStyle: React.CSSProperties = {

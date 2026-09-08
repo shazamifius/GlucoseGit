@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState, useMemo, memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+import {
+  type TextSelection,
+  normalizeTextSel,
+  resolveAnchors,
+  indexDomText,
+  highlightDomRanges,
+} from "../utils/textAnchors";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -223,8 +230,8 @@ interface HoveredBlocks {
   targetId?: string;
   sourceBlockId?: string;
   targetBlockId?: string;
-  sourceTextSel?: string;
-  targetTextSel?: string;
+  sourceTextSel?: TextSelection;
+  targetTextSel?: TextSelection;
 }
 
 // Cible de prévisualisation (édition de flèche) — quel nœud / quel sous-bloc
@@ -238,8 +245,8 @@ interface PreviewTarget {
 // Si on les inline dans le JSX, ReactMarkdown reçoit des refs neuves à chaque render,
 // son useEffect interne se rejoue infiniment, et un unmount/remount pendant un re-render
 // déclenche React error #310 ("rendered more hooks than during the previous render").
-const REMARK_PLUGINS = [remarkGfm, remarkMath];
-const REHYPE_PLUGINS = [rehypeKatex];
+export const REMARK_PLUGINS = [remarkGfm, remarkMath];
+export const REHYPE_PLUGINS = [rehypeKatex];
 
 // Composants fixes pour react-markdown pour éviter le unmount/remount
 const StableMarkdownComponents = {
@@ -287,7 +294,7 @@ export default function HtmlAnnotationLayer({
   const [hoveredBlocks, setHoveredBlocks] = useState<{
     sourceId?: string, sourceBlockId?: string, 
     targetId?: string, targetBlockId?: string,
-    sourceTextSel?: string, targetTextSel?: string,
+    sourceTextSel?: TextSelection, targetTextSel?: TextSelection,
   } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<{ annId: string, blockId?: string } | null>(null);
   const guides = useGlucoseStore((s) => s.guides);
@@ -621,7 +628,7 @@ export default function HtmlAnnotationLayer({
   );
 }
 
-function preprocessText(text: string) {
+export function preprocessText(text: string) {
   let t = text.replace(/^-# (.*)$/gm, '<span class="text-[0.65em] opacity-75">$1</span>');
   // Préserver les lignes vides multiples en injectant un espace insécable
   t = t.replace(/\n(?=\n)/g, '\n&nbsp;');
@@ -700,7 +707,7 @@ export function highlightCode(code: string, lang: string): React.ReactNode[] {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: props react-markdown hétérogènes (node + HTML)
-function MdPre({ children }: any) {
+export function MdPre({ children }: any) {
   return (
     <pre style={{
       margin: "4px 0", padding: "7px 9px", background: "#1e1e2e", borderRadius: 6,
@@ -713,7 +720,7 @@ function MdPre({ children }: any) {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: props react-markdown hétérogènes (node + HTML)
-function MdCode({ className, children }: any) {
+export function MdCode({ className, children }: any) {
   const text = String(children ?? "").replace(/\n$/, "");
   const isBlock = /language-/.test(className || "");
   if (!isBlock) {
@@ -788,84 +795,40 @@ function AnnotationItem({
   const annRef = useRef<HTMLDivElement>(null);
 
   // ── Surlignage du texte exact quand une flèche est survolée ──
+  // Résolution déléguée à `utils/textAnchors` : le glow couvre désormais TOUTES
+  // les occurrences ancrées (l'ancien code s'arrêtait à la première via un
+  // `break`), et uniquement celles-là — un mot répété n'entraîne plus ses
+  // homonymes.
   useEffect(() => {
     if (!annRef.current || !hoveredBlocks) return;
-    
-    let textToHighlight: string | undefined;
-    const hlColor = auraColor; // Utiliser la couleur symbiotique du bloc
-    
-    if (hoveredBlocks.sourceId === ann.id && hoveredBlocks.sourceTextSel) {
-      textToHighlight = hoveredBlocks.sourceTextSel;
-    }
-    if (hoveredBlocks.targetId === ann.id && hoveredBlocks.targetTextSel) {
-      textToHighlight = hoveredBlocks.targetTextSel;
-    }
 
-    if (!textToHighlight) return;
+    let selection: TextSelection | undefined;
+    if (hoveredBlocks.sourceId === ann.id) selection = hoveredBlocks.sourceTextSel;
+    if (hoveredBlocks.targetId === ann.id) selection = hoveredBlocks.targetTextSel;
 
-    const container = annRef.current;
-    const marks: HTMLElement[] = [];
-    
-    const selections = textToHighlight.split(" ‖ ").map(s => s.trim()).filter(Boolean);
-    
-    for (const sel of selections) {
-      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-      const textNodes: Text[] = [];
-      let nd: Node | null;
-      while ((nd = walker.nextNode())) {
-        if ((nd.parentNode as HTMLElement)?.getAttribute?.("data-glucose-hl")) continue;
-        textNodes.push(nd as Text);
-      }
-      
-      for (const textNode of textNodes) {
-        const nodeText = textNode.textContent || "";
-        const idx = nodeText.toLowerCase().indexOf(sel.toLowerCase());
-        if (idx === -1) continue;
-        
-        try {
-          const before = nodeText.slice(0, idx);
-          const match = nodeText.slice(idx, idx + sel.length);
-          const after = nodeText.slice(idx + sel.length);
-          
-          const mark = document.createElement("mark");
-          mark.setAttribute("data-glucose-hl", "true");
-          mark.style.cssText = `
-            background: color-mix(in srgb, ${hlColor} 20%, transparent);
-            color: ${hlColor};
-            border-radius: 3px;
-            padding: 1px 3px;
-            box-shadow: 0 0 16px 6px color-mix(in srgb, ${hlColor} 25%, transparent);
-            outline: 1.5px solid color-mix(in srgb, ${hlColor} 45%, transparent);
-            outline-offset: 2px;
-            transition: all .15s ease-out;
-          `;
-          mark.textContent = match;
-          
-          const parent = textNode.parentNode;
-          if (!parent) continue;
-          
-          if (after) parent.insertBefore(document.createTextNode(after), textNode.nextSibling);
-          parent.insertBefore(mark, textNode.nextSibling);
-          textNode.textContent = before;
-          
-          marks.push(mark);
-        } catch {}
-        break;
-      }
-    }
+    const anchors = normalizeTextSel(selection);
+    if (anchors.length === 0) return;
 
-    return () => {
-      marks.forEach(mark => {
-        const parent = mark.parentNode;
-        if (parent) {
-          const text = mark.textContent || "";
-          parent.insertBefore(document.createTextNode(text), mark);
-          parent.removeChild(mark);
-          parent.normalize();
-        }
-      });
-    };
-  }, [hoveredBlocks, ann.id]);
+    // On borne au conteneur markdown : les badges de domaine, le titre de tuile
+    // et les autres décorations ne font pas partie de l'espace d'offsets.
+    const root = annRef.current.querySelector<HTMLElement>("[data-glucose-text]") ?? annRef.current;
+    const ranges = resolveAnchors(indexDomText(root).plain, anchors);
+    if (ranges.length === 0) return;
+
+    const hlColor = auraColor; // couleur symbiotique du bloc
+    return highlightDomRanges(root, ranges, (mark) => {
+      mark.style.cssText = `
+        background: color-mix(in srgb, ${hlColor} 20%, transparent);
+        color: ${hlColor};
+        border-radius: 3px;
+        padding: 1px 3px;
+        box-shadow: 0 0 16px 6px color-mix(in srgb, ${hlColor} 25%, transparent);
+        outline: 1.5px solid color-mix(in srgb, ${hlColor} 45%, transparent);
+        outline-offset: 2px;
+        transition: all .15s ease-out;
+      `;
+    });
+  }, [hoveredBlocks, ann.id, auraColor]);
 
   // On mémoise les composants pour éviter le remount à chaque render
   const markdownComponents = useMemo(() => {
@@ -993,6 +956,7 @@ function AnnotationItem({
                   {/* TXT-1 — contenu rendu (markdown + LaTeX), clippé + fondu bas */}
                   <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
                     <div
+                      data-glucose-text
                       className="glucose-tile-md"
                       style={{
                         padding: "6px 9px", fontSize: 11, lineHeight: 1.4,
@@ -1080,7 +1044,7 @@ function AnnotationItem({
                 onMouseEnter={() => setHoveredNodeId(ann.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
               >
-                <div className="prose prose-invert prose-sm max-w-none break-words glucose-text-block" style={{ color: "inherit", fontSize: "inherit", lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
+                <div data-glucose-text className="prose prose-invert prose-sm max-w-none break-words glucose-text-block" style={{ color: "inherit", fontSize: "inherit", lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
                   <StableMarkdownComponents.text processedText={processedText} components={markdownComponents} />
                 </div>
 
@@ -1240,6 +1204,7 @@ function AnnotationItem({
 
                 {/* Contenu Markdown ou Code */}
                 <div
+                  data-glucose-text
                   className={isSource ? "" : "prose prose-sm max-w-none break-words p-2"}
                   style={{
                     color: "inherit", fontSize: "inherit", lineHeight: isSource ? 1.2 : 1.4,
