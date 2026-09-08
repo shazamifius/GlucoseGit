@@ -62,6 +62,8 @@ export function isLinkAsset(
 // ── Images ────────────────────────────────────────────────────
 export interface BoardImage {
   id: string;
+  /** MEMB-1 — membrane propriétaire (cf. `AnnotationBase.membraneId`). */
+  membraneId?: string;
   /** Référence à l'asset binaire (image/vidéo). Source de vérité Sprint 2+. */
   asset?: AssetRef;
   /** Legacy field : `asset:<file>` | `data:...` | `http(s)://...`.
@@ -114,6 +116,11 @@ interface AnnotationBase {
   id: string;
   x: number;
   y: number;
+  /** MEMB-1 — membrane propriétaire. STOCKÉE, jamais redérivée de la géométrie :
+   *  une membrane minimisée est plus petite que son contenu à l'échelle 1, donc
+   *  un test d'inclusion la lui ferait perdre au moment même où elle le réduit.
+   *  L'appartenance est un ÉVÉNEMENT (dépôt, conversion), pas un prédicat. */
+  membraneId?: string;
   domains?: DomainAssignment[];     // Phase 3
   mirrorOf?: string;                // Phase 4 — id de l'original (alias)
   temporalAnchor?: TemporalAnchor;  // Phase 6 — date du contenu décrit
@@ -171,12 +178,23 @@ export interface ArrowAnnotation extends AnnotationBase {
 }
 
 /** Zone colorée organisationnelle (membrane manuelle dessinée à l'outil M). */
+/**
+ * MEMB-1 — Mode d'une membrane. `classic` est l'implicite : les projets d'avant
+ * la fonctionnalité n'ont pas ce champ et doivent se comporter exactement comme
+ * avant. Le mode ne décide que de deux choses — l'échelle du contenu a-t-elle le
+ * droit de descendre sous 1 (`minimized`), et la membrane s'agrandit-elle seule
+ * pour contenir son contenu (`stretched`). Voir `canvas/membraneSpace.ts`.
+ */
+export type MembraneMode = "classic" | "minimized" | "stretched";
+
 export interface MembraneAnnotation extends AnnotationBase {
   type: "membrane";
   width: number;
   height: number;
   color?: string;
   text?: string; // légende fixe optionnelle
+  /** Absent = "classic". Une membrane spéciale ne redevient jamais classique. */
+  mode?: MembraneMode;
 }
 
 export type Annotation =

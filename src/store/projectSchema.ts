@@ -66,6 +66,7 @@ const BoardImageSchema = z.object({
   locked: z.boolean(),
   tags: z.array(z.string()),
   slotId: z.string().optional(),
+  membraneId: z.string().optional(),
   sourceUrl: z.string().optional(),
   originalWidth: z.number().finite().positive(),
   originalHeight: z.number().finite().positive(),
@@ -114,6 +115,9 @@ const AnnotationSchema = z.object({
   // refonte se chargent sans migration ni perte.
   sourceTextSel: TextSelectionSchema.optional(),
   targetTextSel: TextSelectionSchema.optional(),
+  // MEMB-1 — mode de membrane ; absent = "classic" (projets d'avant).
+  mode: z.enum(["classic", "minimized", "stretched"]).optional(),
+  membraneId: z.string().optional(),
   sourceFile: z.string().optional(),
   cursorPos: z.number().optional(),
   domains: z.array(DomainAssignmentSchema).optional(),
