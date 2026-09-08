@@ -21,7 +21,9 @@ vi.mock("./repo", () => ({
 }));
 
 import MultiplayerPanel from "./MultiplayerPanel";
-import { USER_CHANGED_EVENT, USER_COLORS, _resetLocalUserCache, getLocalUser } from "./localUser";
+import {
+  USER_CHANGED_EVENT, USER_COLORS, _resetLocalUserCache, getLocalUser, setLocalUser,
+} from "./localUser";
 
 const KEY = "glucose:local-user";
 
@@ -64,6 +66,7 @@ describe("panneau collaboration — mon identité", () => {
   });
 
   it("choisir une couleur l'applique et la marque comme sélectionnée", () => {
+    setLocalUser({ color: USER_COLORS[0] }); // départ connu, cf. test ci-dessous
     monter();
     const cible = USER_COLORS[3];
     const pastille = screen.getByLabelText(`Couleur ${cible}`);
@@ -79,16 +82,22 @@ describe("panneau collaboration — mon identité", () => {
   });
 
   it("PRÉVIENT les pairs — sinon ils gardent l'ancien nom à l'écran", () => {
+    // La couleur de départ est TIRÉE AU SORT : sans la fixer, une fois sur dix
+    // on cliquerait celle qu'on a déjà, rien ne changerait, aucun événement ne
+    // partirait — et le test échouerait sans rien avoir de cassé.
+    setLocalUser({ color: USER_COLORS[0] });
+    const cible = USER_COLORS[5];
+
     const vu: unknown[] = [];
     const h = (e: Event) => vu.push((e as CustomEvent).detail);
     window.addEventListener(USER_CHANGED_EVENT, h);
 
     monter();
-    fireEvent.click(screen.getByLabelText(`Couleur ${USER_COLORS[5]}`));
+    fireEvent.click(screen.getByLabelText(`Couleur ${cible}`));
 
     window.removeEventListener(USER_CHANGED_EVENT, h);
     expect(vu).toHaveLength(1);
-    expect((vu[0] as { color: string }).color).toBe(USER_COLORS[5]);
+    expect((vu[0] as { color: string }).color).toBe(cible);
   });
 
   it("un nom vidé ne laisse pas un curseur anonyme", () => {

@@ -44,6 +44,7 @@ import {
   type CycleState, type PickCandidate,
 } from "./hitPriority";
 import { itemsOfBoard, resolveItems } from "./membraneSpace";
+import MembraneCurtainLayer from "./MembraneCurtainLayer";
 import {
   FOCUS, NO_FOCUS, focusBackground, focusDecision, focusView,
   type FocusState,
@@ -303,12 +304,14 @@ export default function GlucoseCanvas() {
     () => (focus.visible ? { ...board, annotations: focus.annotations, folders: focus.folders } : board),
     [board, focus],
   );
-  /** Couleur de la membrane focalisée — devient le fond de la scène. */
-  const focusColor = useMemo(() => {
+  /** La membrane focalisée elle-même — porte sa couleur et ses rideaux. */
+  const focusedMembrane = useMemo(() => {
     if (!focusedMembraneId) return null;
-    const m = board.annotations.find((a) => a.id === focusedMembraneId && a.type === "membrane");
-    return (m && m.type === "membrane" ? m.color : null) ?? "#60a5fa";
+    const m = board.annotations.find((a) => a.id === focusedMembraneId);
+    return m && m.type === "membrane" ? m : null;
   }, [board.annotations, focusedMembraneId]);
+  /** Couleur de la membrane focalisée — devient le fond de la scène. */
+  const focusColor = focusedMembrane ? (focusedMembrane.color ?? "#60a5fa") : null;
 
   const selectedArrow = selectedAnnotationIds.length === 1
     ? board.annotations.find((a): a is import("../types").ArrowAnnotation =>
@@ -3353,6 +3356,9 @@ export default function GlucoseCanvas() {
           updateAnnotation(boardId, id, { x, y, width: w, height: h });
         }}
       />
+
+      {/* ── MEMB-3 — Rideaux : uniquement en mode Focus, nulle part ailleurs ── */}
+      <MembraneCurtainLayer membrane={focusedMembrane} boardId={board.id} />
 
       {/* ── Curseurs et sélections des pairs en direct (Collaboration) ── */}
       <PeerCursorsLayer vpRef={vpRef} />

@@ -22,6 +22,8 @@
 // une palette exposée, assez contrastée pour rester distinguable en petit.
 // ────────────────────────────────────────────────────────────────────────────
 
+import { nanoid } from "../utils/nanoid";
+
 const STORAGE_KEY = "glucose:local-user";
 
 /** Palette proposée. Choisie pour rester lisible en pastille de quelques pixels
@@ -47,6 +49,10 @@ const ANIMALS = ["Renard", "Ours", "Aigle", "Chat", "Chien", "Lapin", "Loup", "C
 export const MAX_NAME_LENGTH = 24;
 
 export interface LocalUser {
+  /** Identifiant STABLE, jamais affiché. Le nom ne peut pas jouer ce rôle : il
+   *  se change, et il peut être identique chez deux personnes. C'est lui qui
+   *  dit à qui appartient un rideau (cf. `canvas/curtainModel`). */
+  id: string;
   name: string;
   color: string;
 }
@@ -105,7 +111,13 @@ function readStored(): LocalUser | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LocalUser>;
     if (typeof parsed?.name !== "string" || typeof parsed?.color !== "string") return null;
-    return { name: sanitizeName(parsed.name), color: sanitizeColor(parsed.color) };
+    return {
+      // Identité d'avant l'introduction de l'id : on lui en attribue un plutôt
+      // que de la jeter — sinon quelqu'un perdrait ses rideaux à la mise à jour.
+      id: typeof parsed.id === "string" && parsed.id ? parsed.id : nanoid(),
+      name: sanitizeName(parsed.name),
+      color: sanitizeColor(parsed.color),
+    };
   } catch {
     // Stockage indisponible (navigation privée, quota) ou JSON abîmé : on
     // repart d'une identité fraîche plutôt que de faire échouer la collaboration.
@@ -124,7 +136,7 @@ function writeStored(user: LocalUser) {
 /** L'identité locale, créée au premier appel. */
 export function getLocalUser(): LocalUser {
   if (cached) return cached;
-  cached = readStored() ?? { name: randomName(), color: randomColor() };
+  cached = readStored() ?? { id: nanoid(), name: randomName(), color: randomColor() };
   writeStored(cached);
   return cached;
 }
@@ -136,9 +148,10 @@ export function getLocalUser(): LocalUser {
  * chez les autres : sans lui, la présence n'est renvoyée qu'au prochain
  * mouvement de souris, et on reste affiché sous son ancien nom en attendant.
  */
-export function setLocalUser(patch: Partial<LocalUser>): LocalUser {
+export function setLocalUser(patch: Partial<Omit<LocalUser, "id">>): LocalUser {
   const current = getLocalUser();
   const next: LocalUser = {
+    id: current.id, // jamais modifiable : c'est l'ancre de la propriété
     name: patch.name !== undefined ? sanitizeName(patch.name) : current.name,
     color: patch.color !== undefined ? sanitizeColor(patch.color) : current.color,
   };

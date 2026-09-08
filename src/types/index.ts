@@ -187,6 +187,35 @@ export interface ArrowAnnotation extends AnnotationBase {
  */
 export type MembraneMode = "classic" | "minimized" | "stretched";
 
+/** MEMB-3 — Qui voit un rideau, et qui peut y toucher. Deux champs suffisent
+ *  aux trois usages : carnet (privé), vitrine (partagé + owner), atelier
+ *  (partagé + everyone). Voir `canvas/curtainModel`. */
+export type CurtainVisibility = "private" | "shared";
+export type CurtainEditable = "owner" | "everyone";
+
+export interface CurtainNote {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
+/** Rideau personnel posé sur une membrane, visible uniquement en mode Focus. */
+export interface MembraneCurtain {
+  id: string;
+  /** Propriétaire : l'identifiant STABLE de l'identité locale, jamais le nom. */
+  ownerId: string;
+  /** Nom et couleur RECOPIÉS — la présence ne circule que tant que la personne
+   *  est connectée, or sa languette doit rester nommée et colorée sans elle. */
+  ownerName: string;
+  ownerColor: string;
+  visibility: CurtainVisibility;
+  editable: CurtainEditable;
+  collapsedRatio?: number;
+  expandedRatio?: number;
+  notes: CurtainNote[];
+  createdAt: number;
+}
+
 export interface MembraneAnnotation extends AnnotationBase {
   type: "membrane";
   width: number;
@@ -195,6 +224,10 @@ export interface MembraneAnnotation extends AnnotationBase {
   text?: string; // légende fixe optionnelle
   /** Absent = "classic". Une membrane spéciale ne redevient jamais classique. */
   mode?: MembraneMode;
+  /** MEMB-3 — rideaux posés sur cette membrane. Aucun par défaut : il faut en
+   *  créer un. Rangés ici plutôt que sur le board pour qu'ils disparaissent
+   *  avec elle, sans ménage à faire. */
+  curtains?: MembraneCurtain[];
 }
 
 export type Annotation =

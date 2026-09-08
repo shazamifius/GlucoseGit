@@ -19,6 +19,27 @@ const TextAnchorSchema = z.object({
 
 const TextSelectionSchema = z.union([z.string(), z.array(TextAnchorSchema)]);
 
+// MEMB-3 — Rideau de membrane. Les proportions sont bornées à la lecture par
+// `normalizeConfig` : le schéma les laisse passer, le code refuse l'absurde.
+const CurtainNoteSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  createdAt: z.number(),
+});
+
+const CurtainSchema = z.object({
+  id: z.string(),
+  ownerId: z.string(),
+  ownerName: z.string(),
+  ownerColor: z.string(),
+  visibility: z.enum(["private", "shared"]),
+  editable: z.enum(["owner", "everyone"]),
+  collapsedRatio: z.number().optional(),
+  expandedRatio: z.number().optional(),
+  notes: z.array(CurtainNoteSchema),
+  createdAt: z.number(),
+});
+
 const DomainAssignmentSchema = z.object({
   domainId: z.string(),
   weight: z.number().min(0).max(1),
@@ -117,6 +138,7 @@ const AnnotationSchema = z.object({
   targetTextSel: TextSelectionSchema.optional(),
   // MEMB-1 — mode de membrane ; absent = "classic" (projets d'avant).
   mode: z.enum(["classic", "minimized", "stretched"]).optional(),
+  curtains: z.array(CurtainSchema).optional(),
   membraneId: z.string().optional(),
   sourceFile: z.string().optional(),
   cursorPos: z.number().optional(),

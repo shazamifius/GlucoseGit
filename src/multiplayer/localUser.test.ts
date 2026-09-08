@@ -94,7 +94,9 @@ describe("persistance — un nom choisi ne s'évapore pas", () => {
     // Avant, l'identité vivait dans sessionStorage. Mettre à jour l'application
     // en pleine session ne doit pas renommer l'utilisateur sous ses yeux.
     sessionStorage.setItem(KEY, JSON.stringify({ name: "Historique", color: "#f87171" }));
-    expect(getLocalUser()).toEqual({ name: "Historique", color: "#f87171" });
+    // L'id manque : on lui en attribue un plutôt que de jeter l'identité.
+    expect(getLocalUser()).toMatchObject({ name: "Historique", color: "#f87171" });
+    expect(getLocalUser().id).toMatch(/\S/);
   });
 
   it("un stockage abîmé ne casse pas la collaboration", () => {
@@ -122,13 +124,13 @@ describe("persistance — un nom choisi ne s'évapore pas", () => {
 describe("modification", () => {
   it("change le nom sans toucher à la couleur, et l'inverse", () => {
     const base = setLocalUser({ name: "Ada", color: "#34d399" });
-    expect(setLocalUser({ name: "Grace" })).toEqual({ name: "Grace", color: base.color });
-    expect(setLocalUser({ color: "#fb923c" })).toEqual({ name: "Grace", color: "#fb923c" });
+    expect(setLocalUser({ name: "Grace" })).toMatchObject({ name: "Grace", color: base.color });
+    expect(setLocalUser({ color: "#fb923c" })).toMatchObject({ name: "Grace", color: "#fb923c" });
   });
 
   it("nettoie ce qu'on lui donne", () => {
     expect(setLocalUser({ name: "  Ada  Lovelace ", color: "#ABC" }))
-      .toEqual({ name: "Ada Lovelace", color: "#aabbcc" });
+      .toMatchObject({ name: "Ada Lovelace", color: "#aabbcc" });
   });
 
   it("PRÉVIENT l'application — sinon les pairs gardent l'ancien nom affiché", () => {
@@ -137,7 +139,7 @@ describe("modification", () => {
     window.addEventListener(USER_CHANGED_EVENT, h);
     setLocalUser({ name: "Ada" });
     window.removeEventListener(USER_CHANGED_EVENT, h);
-    expect(vu).toEqual([{ name: "Ada", color: expect.any(String) }]);
+    expect(vu).toEqual([{ id: expect.any(String), name: "Ada", color: expect.any(String) }]);
   });
 
   it("ne prévient PAS quand rien ne change — pas de rediffusion inutile", () => {
@@ -149,5 +151,29 @@ describe("modification", () => {
     expect(setLocalUser({})).toBe(u);
     window.removeEventListener(USER_CHANGED_EVENT, h);
     expect(appels).toBe(0);
+  });
+});
+
+describe("identifiant stable", () => {
+  it("ne change jamais, meme en renommant ou recolorant", () => {
+    // C'est l'ancre de la propriete d'un rideau : s'il bougeait, on perdrait
+    // les siens en changeant de pseudo.
+    const id = getLocalUser().id;
+    setLocalUser({ name: "Ada" });
+    setLocalUser({ color: "#fb923c" });
+    expect(getLocalUser().id).toBe(id);
+  });
+
+  it("survit a une reouverture", () => {
+    const id = getLocalUser().id;
+    _resetLocalUserCache();
+    expect(getLocalUser().id).toBe(id);
+  });
+
+  it("deux identites fraiches ne partagent pas d'identifiant", () => {
+    const a = getLocalUser().id;
+    localStorage.clear();
+    _resetLocalUserCache();
+    expect(getLocalUser().id).not.toBe(a);
   });
 });
