@@ -1,38 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useGlucoseStore } from "../store";
 import { getCollabHandle, isCollabActive } from "./collabHandle";
-
-// Helper to get or create a session-based random peer name & color
-const ADJECTIVES = ["Bleu", "Rouge", "Vert", "Jaune", "Orange", "Violet", "Rose", "Cyan", "Indigo", "Émeraude"];
-const ANIMALS = ["Renard", "Ours", "Aigle", "Chat", "Chien", "Lapin", "Loup", "Cerf", "Hibou", "Écureuil"];
-const COLORS = [
-  "#38bdf8", // Sky blue
-  "#34d399", // Emerald
-  "#fb923c", // Orange
-  "#c084fc", // Purple
-  "#f472b6", // Pink
-  "#fbbf24", // Yellow
-  "#2dd4bf", // Teal
-  "#818cf8", // Indigo
-  "#f87171", // Red
-  "#a3e635"  // Lime
-];
-
-function getOrCreateLocalUser() {
-  const user = sessionStorage.getItem("glucose:local-user");
-  if (user) {
-    try {
-      return JSON.parse(user) as { name: string; color: string };
-    } catch {}
-  }
-  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const anim = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-  const name = `${anim} ${adj}`;
-  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-  const newUser = { name, color };
-  sessionStorage.setItem("glucose:local-user", JSON.stringify(newUser));
-  return newUser;
-}
+// COLLAB-1 — l'identité locale (nom, couleur) est modifiable et persistante ;
+// elle vit dans son propre module plutôt qu'enfouie ici.
+import { USER_CHANGED_EVENT, getLocalUser } from "./localUser";
 
 interface PeerState {
   senderId: string;
@@ -123,7 +94,7 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
       const cursor = { x: worldX, y: worldY };
       lastCursorRef.current = cursor;
 
-      const localUser = getOrCreateLocalUser();
+      const localUser = getLocalUser();
       handle.broadcast({
         type: "presence",
         boardId: activeBoardId,
@@ -139,13 +110,23 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
     return () => window.removeEventListener("pointermove", onPointerMove);
   }, [activeBoardId, selectedAnnotationIds, selectedImageIds, vpRef]);
 
-  // 3. Broadcast instant update when local selection changes
+  // COLLAB-1 — Un changement de nom ou de couleur doit se voir TOUT DE SUITE
+  // chez les pairs. Sans ce compteur, la présence n'est renvoyée qu'au prochain
+  // mouvement de souris et on reste affiché sous son ancien nom en attendant.
+  const [userRev, setUserRev] = useState(0);
+  useEffect(() => {
+    const onChange = () => setUserRev((v) => v + 1);
+    window.addEventListener(USER_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(USER_CHANGED_EVENT, onChange);
+  }, []);
+
+  // 3. Broadcast instant update when local selection changes (ou l'identité)
   useEffect(() => {
     if (!isCollabActive() || !lastCursorRef.current) return;
     const handle = getCollabHandle();
     if (!handle) return;
 
-    const localUser = getOrCreateLocalUser();
+    const localUser = getLocalUser();
     handle.broadcast({
       type: "presence",
       boardId: activeBoardId,
@@ -155,7 +136,7 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
       selectedAnnotationIds,
       selectedImageIds,
     });
-  }, [selectedAnnotationIds, selectedImageIds, activeBoardId]);
+  }, [selectedAnnotationIds, selectedImageIds, activeBoardId, userRev]);
 
   // 4. Listen to peer presence updates via Automerge ephemeral channels
   useEffect(() => {

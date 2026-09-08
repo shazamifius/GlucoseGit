@@ -17,6 +17,7 @@ import {
 } from "./collabBridge";
 import { getActiveShareUrl } from "./collabHandle";
 import { isServerConnected, onConnectivityChange } from "./repo";
+import { USER_COLORS, getLocalUser, setLocalUser } from "./localUser";
 
 interface Props {
   enabled: boolean;
@@ -27,6 +28,8 @@ interface Props {
 export default function MultiplayerPanel({ enabled, onToggle, onClose }: Props) {
   const [shareUrl, setShareUrl] = useState<string | null>(getActiveShareUrl());
   const [joinInput, setJoinInput] = useState("");
+  // COLLAB-1 — identité locale, éditable. `getLocalUser` la crée au besoin.
+  const [me, setMe] = useState(() => getLocalUser());
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,6 +180,50 @@ export default function MultiplayerPanel({ enabled, onToggle, onClose }: Props) 
       {error && (
         <div style={{ marginTop: 10, fontSize: 11, color: "#ef4444" }}>Erreur : {error}</div>
       )}
+
+      {/* ── COLLAB-1 — Mon identité ──────────────────────────────────────
+          Nom et couleur servent partout où l'on est représenté : curseur,
+          sélection distante, et languette de coulisse. Éditables ici, et
+          conservés d'une session à l'autre. */}
+      <div style={{ ...sectionTitle(), marginTop: 16 }}>MON IDENTITÉ</div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <span
+          aria-hidden
+          style={{
+            width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+            background: me.color, boxShadow: `0 0 8px ${me.color}`,
+          }}
+        />
+        <input
+          value={me.name}
+          aria-label="Mon nom"
+          maxLength={40}
+          onChange={(e) => setMe((u) => ({ ...u, name: e.target.value }))}
+          // On n'assainit qu'à la validation : nettoyer à chaque frappe
+          // empêcherait de taper une espace au milieu d'un nom.
+          onBlur={() => setMe(setLocalUser({ name: me.name }))}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          style={{ ...inputStyle(), fontFamily: "system-ui, sans-serif" }}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+        {USER_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            title={`Couleur ${c}`}
+            aria-label={`Couleur ${c}`}
+            aria-pressed={c === me.color}
+            onClick={() => setMe(setLocalUser({ color: c }))}
+            style={{
+              width: 20, height: 20, borderRadius: "50%", background: c, cursor: "pointer",
+              border: c === me.color ? "2px solid #f3f4f6" : "2px solid transparent",
+              boxShadow: c === me.color ? `0 0 10px ${c}` : "none",
+              padding: 0, transition: "box-shadow 120ms, border-color 120ms",
+            }}
+          />
+        ))}
+      </div>
 
       <div style={{ marginTop: 12, fontSize: 10, color: "#4b5563", lineHeight: 1.4 }}>
         Synchro via serveur public Automerge. Pour un serveur privé, modifie l'URL dans repo.ts.
