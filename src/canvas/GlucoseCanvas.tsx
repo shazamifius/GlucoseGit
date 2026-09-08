@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import { Application, Assets, Container, Sprite, Texture, Graphics, Rectangle, FederatedPointerEvent, ImageSource } from "pixi.js";
 
 // Sprite augmenté pour conserver la référence du contour de sélection
@@ -43,6 +43,11 @@ import {
   PICK, collectCandidates, pickAtDown, advanceOnRelease, hitHandle, handleCursor,
   type CycleState, type PickCandidate,
 } from "./hitPriority";
+import { itemsOfBoard, resolveItems } from "./membraneSpace";
+import {
+  FOCUS, NO_FOCUS, focusBackground, focusDecision, focusView,
+  type FocusState,
+} from "./membraneFocus";
 import { beginPick, registerPickHandler, markHijack, wasHijacked } from "./pickArbiter";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
@@ -222,6 +227,13 @@ export default function GlucoseCanvas() {
 
   const [pixiReady, setPixiReady] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  // MEMB-2 — Mode Focus. L'état de décision vit dans une ref (il change à chaque
+  // image de viewport et ne doit pas re-rendre), l'id focalisé dans un state
+  // React (les couches doivent, elles, se re-rendre pour masquer le dehors).
+  const focusStateRef = useRef<FocusState>(NO_FOCUS);
+  const [focusedMembraneId, setFocusedMembraneId] = useState<string | null>(null);
+  const focusVisibleRef = useRef<Set<string> | null>(null);
+  const focusAnimRafRef = useRef<number | null>(null);
   const [editOverlay, setEditOverlay] = useState<EditOverlay | null>(null);
   const [editText, setEditText] = useState("");
   const [tagInput, setTagInput] = useState("");
@@ -274,6 +286,29 @@ export default function GlucoseCanvas() {
   const createFolder = useGlucoseStore((s) => s.createFolder);
   const enterFolder = useGlucoseStore((s) => s.enterFolder);
   const board = getActiveBoard(project);
+
+  // ── MEMB-2 — Ce que le focus laisse voir ──────────────────────────────────
+  // Une seule dérivation (`focusView`), partagée avec le test d'intégration pour
+  // qu'il exerce exactement ce code. Hors focus elle rend le board tel quel,
+  // sans copie ni coût.
+  const focusItems = useMemo(() => itemsOfBoard(board), [board]);
+  const focus = useMemo(
+    () => focusView(board, focusItems, focusedMembraneId),
+    [board, focusItems, focusedMembraneId],
+  );
+  focusVisibleRef.current = focus.visible;
+
+  /** Board filtré, pour les couches qui prennent le board entier (flèches). */
+  const visibleBoard = useMemo(
+    () => (focus.visible ? { ...board, annotations: focus.annotations, folders: focus.folders } : board),
+    [board, focus],
+  );
+  /** Couleur de la membrane focalisée — devient le fond de la scène. */
+  const focusColor = useMemo(() => {
+    if (!focusedMembraneId) return null;
+    const m = board.annotations.find((a) => a.id === focusedMembraneId && a.type === "membrane");
+    return (m && m.type === "membrane" ? m.color : null) ?? "#60a5fa";
+  }, [board.annotations, focusedMembraneId]);
 
   const selectedArrow = selectedAnnotationIds.length === 1
     ? board.annotations.find((a): a is import("../types").ArrowAnnotation =>
@@ -421,6 +456,11 @@ export default function GlucoseCanvas() {
       if (folderTransitionRafRef.current !== null) {
         cancelAnimationFrame(folderTransitionRafRef.current);
         folderTransitionRafRef.current = null;
+      }
+      // MEMB-2 — idem pour le cadrage d'entrée en focus.
+      if (focusAnimRafRef.current !== null) {
+        cancelAnimationFrame(focusAnimRafRef.current);
+        focusAnimRafRef.current = null;
       }
       // PERF-1 — annule un commit viewport débouncé en attente.
       if (viewportCommitTimerRef.current !== null) {
@@ -1549,11 +1589,13 @@ export default function GlucoseCanvas() {
       const arrowId = hintOwner === "arrow" ? hintId : null;
 
       const multi = e.ctrlKey || e.metaKey || e.shiftKey;
+      // MEMB-2 — ce que le focus masque ne doit pas non plus être cliquable.
+      const fv = focusVisibleRef.current;
       const candidates = collectCandidates({
         wx, wy, scale: world.scale.x,
-        images: b.images,
-        annotations: b.annotations,
-        folders: b.folders ?? [],
+        images: fv ? b.images.filter((i) => fv.has(i.id)) : b.images,
+        annotations: fv ? b.annotations.filter((a) => fv.has(a.id)) : b.annotations,
+        folders: fv ? [] : b.folders ?? [],
         selectedImageIds: st.selectedImageIds,
         selectedAnnotationIds: st.selectedAnnotationIds,
         selectedFolderId: selectedFolderIdRef.current,
@@ -1777,7 +1819,9 @@ export default function GlucoseCanvas() {
 
     // 3) Visibilité + lecture vidéo + ré-affinage LOD des sprites encore chargés.
     spritesRef.current.forEach((sprite, id) => {
-      const vis = visible.has(id);
+      // MEMB-2 — sous focus, seul le contenu de la membrane reste à l'écran.
+      const fv = focusVisibleRef.current;
+      const vis = visible.has(id) && (!fv || fv.has(id));
       sprite.visible = vis;
       // VID-1 : seules les vidéos visibles jouent (les autres en pause → anti-lag).
       const vid = videoElsRef.current.get(id);
@@ -1830,11 +1874,76 @@ export default function GlucoseCanvas() {
     window.dispatchEvent(new CustomEvent("glucose:viewport-changed", {
       detail: { x: world.x, y: world.y, scale: world.scale.x, exitScale },
     }));
+    // MEMB-2 — bascule du mode Focus (avant la navigation dossier : une entrée
+    // en focus recadre la caméra, autant que le seuil de sortie de dossier le
+    // voie déjà à sa nouvelle valeur).
+    checkMembraneFocus(world);
     // Phase 7.5 — navigation auto par zoom (folder enter/exit)
     checkAutoNavigate(world);
     // Met à jour l'échelle du ghost quand l'utilisateur zoome
     const { x: cx, y: cy } = cursorPosRef.current;
     updateGhostPosition(cx, cy, world.scale.x);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MEMB-2 — Mode Focus : bascule et cadrage
+  // ══════════════════════════════════════════════════════════════════════════
+  //
+  // Toute la DÉCISION est dans `membraneFocus` (pure, démontrée sans
+  // oscillation) ; il ne reste ici qu'à appliquer. Le cadrage est animé sur une
+  // durée STRICTEMENT INFÉRIEURE au temps mort de la décision : aucune décision
+  // ne peut donc être prise pendant l'animation, et l'animation ne peut pas
+  // provoquer sa propre annulation.
+  function checkMembraneFocus(world: Container) {
+    const app = appRef.current;
+    if (!app) return;
+    // Une navigation de dossier est en cours : le board va changer sous nos
+    // pieds, on ne décide rien.
+    if (folderTransitionRafRef.current !== null) return;
+
+    const st = useGlucoseStore.getState();
+    const b = getActiveBoard(st.project);
+    const items = itemsOfBoard(b);
+    const action = focusDecision({
+      items,
+      resolved: resolveItems(items),
+      vp: { x: world.x, y: world.y, scale: world.scale.x },
+      screen: { width: app.screen.width, height: app.screen.height },
+      state: focusStateRef.current,
+      now: Date.now(),
+    });
+    if (action.kind === "stay") return;
+
+    focusStateRef.current = action.state;
+    if (action.kind === "exit") {
+      setFocusedMembraneId(null);
+      return;
+    }
+    setFocusedMembraneId(action.membraneId);
+    animateViewportTo(action.fit);
+  }
+
+  /** Glisse la caméra vers `target` en `FOCUS.FIT_ANIM_MS`. */
+  function animateViewportTo(target: { x: number; y: number; scale: number }) {
+    const world = worldRef.current;
+    if (!world) return;
+    if (focusAnimRafRef.current !== null) cancelAnimationFrame(focusAnimRafRef.current);
+    const from = { x: world.x, y: world.y, scale: world.scale.x };
+    const t0 = performance.now();
+    const step = () => {
+      const w = worldRef.current;
+      if (!w) { focusAnimRafRef.current = null; return; }
+      const p = Math.min(1, (performance.now() - t0) / FOCUS.FIT_ANIM_MS);
+      const e = 1 - (1 - p) ** 3; // easeOutCubic
+      const s = from.scale + (target.scale - from.scale) * e;
+      w.scale.set(s);
+      w.x = from.x + (target.x - from.x) * e;
+      w.y = from.y + (target.y - from.y) * e;
+      emitViewport(w);
+      requestRender();
+      focusAnimRafRef.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    focusAnimRafRef.current = requestAnimationFrame(step);
   }
 
   // PERF-2 — planifie un emitViewport au prochain rAF (coalescé). Plusieurs
@@ -3094,7 +3203,7 @@ export default function GlucoseCanvas() {
   return (
     <div
       ref={wrapperRef}
-      style={{ flex: 1, position: "relative", overflow: "hidden", background: "#0d0d0d", cursor: showGhost || activeTool === "zone-select" ? "crosshair" : undefined }}
+      style={{ flex: 1, position: "relative", overflow: "hidden", background: focusBackground(focusColor), transition: "background 240ms ease", cursor: showGhost || activeTool === "zone-select" ? "crosshair" : undefined }}
       onDrop={handleDrop}
       onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDragOver={(e) => {
@@ -3195,7 +3304,7 @@ export default function GlucoseCanvas() {
       />
       {/* ── Couche SVG vectorielle pour les membranes ── */}
       <SvgAnnotationLayer
-        annotations={board.annotations.filter((a) => a.type === "membrane")}
+        annotations={focus.annotations.filter((a) => a.type === "membrane")}
         selectedIds={selectedAnnotationIds}
         editingId={editOverlay?.annId ?? null}
         vpRef={vpRef}
@@ -3221,7 +3330,7 @@ export default function GlucoseCanvas() {
 
       {/* ── Couche HTML pour les textes et post-its (Markdown) ── */}
       <HtmlAnnotationLayer
-        annotations={board.annotations.filter((a) => a.type === "text" || a.type === "sticky")}
+        annotations={focus.annotations.filter((a) => a.type === "text" || a.type === "sticky")}
         selectedIds={selectedAnnotationIds}
         editingId={editOverlay?.annId ?? null}
         vpRef={vpRef}
@@ -3250,7 +3359,7 @@ export default function GlucoseCanvas() {
 
       {/* ── Couche SVG vectorielle des flèches — au-dessus des stickies ── */}
       <ArrowSvgLayer
-        board={board}
+        board={visibleBoard}
         vpRef={vpRef}
         editingId={editOverlay?.annId ?? null}
         selectedIds={selectedAnnotationIds}
@@ -3268,7 +3377,7 @@ export default function GlucoseCanvas() {
 
       {/* ── Couche SVG dossiers — rendu vectoriel net ── */}
       <FolderSvgLayer
-        folders={board.folders ?? []}
+        folders={focus.folders}
         boards={project.boards}
         selectedId={selectedFolderId}
         vpRef={vpRef}
