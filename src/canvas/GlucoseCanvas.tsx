@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { Application, Assets, Container, Sprite, Texture, Graphics, FederatedPointerEvent, ImageSource } from "pixi.js";
+import { Application, Assets, Container, Sprite, Texture, Graphics, Rectangle, FederatedPointerEvent, ImageSource } from "pixi.js";
 
 // Sprite augmenté pour conserver la référence du contour de sélection
 // blanc dessiné autour de l'image quand elle est sélectionnée. Pixi ne
@@ -31,6 +31,16 @@ import { addImagesFromDrop, addPathsFromNativeDrop, VIDEO_FILE_EXTS, VIDEO_URL_R
 import { scanFolderForMirror } from "./folderMirror";
 import { classifyWheel, folderToEnter } from "./navigation";
 import { computeResize } from "./imageResize";
+// SNAP-1 — alignement intelligent unifié (cf. smartAlign.ts). Sert au
+// déplacement, à la MISE À L'ÉCHELLE et — nouveauté — au PLACEMENT d'un élément
+// pas encore créé (texte, note, membrane, dossier).
+import {
+  beginSelectionSnap, endSnap, publishConfirmedGuides, snapMoveLive, snapPointLive,
+  type SelectionSnapSession,
+} from "./smartAlignRuntime";
+// PICK-1 — ordre de priorité de sélection au clic + cycle « re-clic = suivant ».
+import { PICK, collectCandidates, pickWithCycle, type CycleState } from "./hitPriority";
+import { beginPick, registerPickHandler, markHijack, wasHijacked } from "./pickArbiter";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
 import { StoryboardLayer } from "./StoryboardLayer";
@@ -152,7 +162,19 @@ export default function GlucoseCanvas() {
   const videoElsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const spatialHashRef = useRef(new SpatialHash());
   const zoneGfxRef = useRef<Graphics | null>(null);
-  const zoneStartRef = useRef<{ sx: number; sy: number } | null>(null);
+  // Départ d'un tracé de zone (membrane / dossier). `sx,sy` = écran (seuil de
+  // taille minimale) ; `wx,wy` = coin de départ ACCROCHÉ, en monde — c'est lui
+  // qui fait foi à la création.
+  const zoneStartRef = useRef<{ sx: number; sy: number; wx: number; wy: number } | null>(null);
+  // SNAP-1 — aperçu de PLACEMENT : tant que l'outil texte/note est armé, le
+  // fantôme suit le curseur en s'alignant déjà sur le board. `placeSnapRef`
+  // porte la position accrochée que consommera le clic de création.
+  const placeGfxRef = useRef<Graphics | null>(null);
+  const placeSnapRef = useRef<{ x: number; y: number } | null>(null);
+  // Rectangle de zone en cours de tracé, en MONDE et déjà accroché : c'est lui
+  // qui fait foi à la création (le recalculer depuis l'écran au pointerup
+  // perdrait l'accroche).
+  const zoneRectRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const zonePendingActionRef = useRef<"folder" | "membrane" | null>(null);
   const zoneLabelRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -164,6 +186,8 @@ export default function GlucoseCanvas() {
   const selDragRef = useRef<{ sx: number; sy: number } | null>(null);
   const draggedSpriteRef = useRef<{
     id: string; startX: number; startY: number; pStartX: number; pStartY: number;
+    /** SNAP-1 — session d'alignement figée au grab (pas de dérive sous le curseur). */
+    snap?: SelectionSnapSession;
   } | null>(null);
   // Redimensionnement d'une image via une poignée de coin. Le centre (cx,cy)
   // reste fixe (anchor 0.5) et le ratio (`aspect`) est verrouillé → jamais de
@@ -336,6 +360,11 @@ export default function GlucoseCanvas() {
       app.stage.addChild(zoneGfx);
       zoneGfxRef.current = zoneGfx;
 
+      // SNAP-1 — fantôme de placement (coords ÉCRAN, comme zoneGfx).
+      const placeGfx = new Graphics();
+      app.stage.addChild(placeGfx);
+      placeGfxRef.current = placeGfx;
+
       zoneRendererRef.current = new ZoneRenderer(world, () => worldRef.current);
       sbLayerRef.current = new StoryboardLayer(world);
 
@@ -407,6 +436,7 @@ export default function GlucoseCanvas() {
       texRefCountRef.current.clear(); imgByIdRef.current.clear();
       videoElsRef.current.clear();
       zoneGfxRef.current = null; zoneStartRef.current = null;
+      placeGfxRef.current = null; placeSnapRef.current = null;
       setPixiReady(false);
       // En StrictMode dev, l'unmount peut survenir AVANT que app.init() ait terminé
       // d'installer ses plugins (ResizePlugin etc.). destroy() lance alors
@@ -747,13 +777,43 @@ export default function GlucoseCanvas() {
   }, [temporalFilter, board.images, pixiReady]);
 
   // Cancel zone drawing when tool changes away (Échap in App.tsx sets tool to "select")
+  // SNAP-1 — au désarmement d'un outil de création, on retire aussi le fantôme de
+  // placement et ses guides (sauf pendant un tracé de zone, qui pose les siens).
   useEffect(() => {
     if (activeTool !== "zone-select") {
       zoneStartRef.current = null;
       zonePendingActionRef.current = null;
+      zoneRectRef.current = null;
       zoneGfxRef.current?.clear();
     }
+    const arming = activeTool === "text" || activeTool === "sticky"
+      || activeTool === "folder" || activeTool === "membrane";
+    if (!arming) {
+      placeGfxRef.current?.clear();
+      placeSnapRef.current = null;
+      if (activeTool !== "zone-select") endSnap();
+    }
   }, [activeTool]);
+
+  // SNAP-1 — Aperçu de PLACEMENT, écouté sur le WRAPPER et non sur le stage Pixi.
+  // Les tuiles HTML/SVG (textes, notes, membranes, dossiers) sont posées AU-DESSUS
+  // du canvas et capturent le pointeur : sur le stage, le fantôme se figeait dès
+  // qu'on survolait un élément existant — c'est-à-dire précisément là où on veut
+  // s'aligner. Sur le wrapper, l'event remonte quelle que soit la couche survolée.
+  useEffect(() => {
+    const arming = activeTool === "text" || activeTool === "sticky"
+      || activeTool === "folder" || activeTool === "membrane";
+    const el = wrapperRef.current;
+    if (!arming || !el || !pixiReady) return;
+    const onMove = (ev: PointerEvent) => updatePlacePreview(activeTool, ev.clientX, ev.clientY);
+    const onLeave = () => { placeGfxRef.current?.clear(); endSnap(); requestRender(); };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, [activeTool, pixiReady]);
 
   // Phase 4 — Téléportation vers un original quand on clique sur un badge ↻ de miroir
   useEffect(() => {
@@ -987,6 +1047,13 @@ export default function GlucoseCanvas() {
             .stroke({ color: 0x111111, width: 1.25 * inv, alpha: 0.9 });
           handle.position.set(hx, hy);
           handle.eventMode = "static";
+          // PICK-1 — la zone de PRÉHENSION est bien plus grande que le carré
+          // dessiné (≈36 px à l'écran contre 9). Viser « pile » sur un point de
+          // 9 px était le principal irritant du redimensionnement ; le dessin,
+          // lui, reste discret. Même tolérance que côté couches DOM, où
+          // l'arbitre applique `PICK.HANDLE_SLOP_PX` en rayon (cf. hitPriority).
+          const grab = PICK.HANDLE_SLOP_PX * 2 * inv;
+          handle.hitArea = new Rectangle(-grab / 2, -grab / 2, grab, grab);
           handle.cursor = `${dir}-resize`;
           handle.on("pointerdown", (ev: FederatedPointerEvent) => {
             if (ev.button !== 0) return;
@@ -1300,6 +1367,156 @@ export default function GlucoseCanvas() {
     }
     wrapper.addEventListener("pointerdown", onMiddlePan, { capture: true });
     return () => wrapper.removeEventListener("pointerdown", onMiddlePan, { capture: true });
+  }, []);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PICK-1 — Arbitrage de priorité du clic (cf. hitPriority.ts)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Démarre une interaction sur une IMAGE pour le compte de l'arbitre : même
+   *  travail que le `pointerdown` du sprite (ou que la poignée de coin quand
+   *  `corner` est fourni), mais déclenchable depuis un event natif — le clic a
+   *  pu tomber sur une membrane ou un dossier posé par-dessus. */
+  const beginImagePick = useCallback((id: string, e: PointerEvent, corner?: string) => {
+    const app = appRef.current;
+    const world = worldRef.current;
+    if (!app || !world) return;
+    const state = useGlucoseStore.getState();
+    const img = getActiveBoard(state.project).images.find((i) => i.id === id);
+    if (!img || img.locked) return;
+
+    if (corner) {
+      // Ancre = coin diagonalement opposé à la poignée tirée (cf. imageResize.ts).
+      const sgnX = corner.includes("l") ? -1 : 1;
+      const sgnY = corner.includes("t") ? -1 : 1;
+      resizeRef.current = {
+        id, cx: img.x, cy: img.y,
+        aspect: img.width / Math.max(1, img.height),
+        ax: img.x - sgnX * img.width / 2,
+        ay: img.y - sgnY * img.height / 2,
+      };
+      try { app.canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      return;
+    }
+
+    const curImgs = state.selectedImageIds;
+    const isSelected = curImgs.includes(id);
+    const multi = e.ctrlKey || e.metaKey || e.shiftKey;
+    if (multi) {
+      setSelectedImageIds(isSelected ? curImgs.filter((x) => x !== id) : [...curImgs, id]);
+    } else if (!isSelected) {
+      setSelectedImageIds([id]);
+      setSelectedAnnotationIds([]);
+      setSelectedFolderId(null);
+    }
+    // Si déjà sélectionné, on ne touche à rien → drag groupé (images + texte).
+
+    // UNDO-1 — pas de snapshot ici : un simple clic ne crée aucune entrée
+    // d'undo. La transaction s'ouvre au 1er mouvement réel (cf. pointermove).
+    const rect = app.canvas.getBoundingClientRect();
+    draggedSpriteRef.current = {
+      id, startX: img.x, startY: img.y,
+      pStartX: (e.clientX - rect.left - world.x) / world.scale.x,
+      pStartY: (e.clientY - rect.top - world.y) / world.scale.y,
+    };
+    try { app.canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+  }, [setSelectedImageIds, setSelectedAnnotationIds]);
+
+  useEffect(() => registerPickHandler("image", beginImagePick), [beginImagePick]);
+
+  // État du cycle « re-clic au même endroit = cible suivante ». Vit dans une ref :
+  // il ne change rien à l'affichage, seulement à la lecture du prochain clic.
+  const pickCycleRef = useRef<CycleState | null>(null);
+  const selectedFolderIdRef = useRef<string | null>(null);
+  selectedFolderIdRef.current = selectedFolderId;
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    // Le z-order du DOM ne décide plus de qui reçoit le clic. On intercepte en
+    // phase CAPTURE (donc avant toutes les couches), on demande à l'arbitre qui
+    // gagne selon la position du curseur, et on remet le clic à la couche
+    // propriétaire via `beginPick`.
+    function onPickDown(e: PointerEvent) {
+      // Remis à vrai uniquement si ce clic est effectivement détourné — c'est ce
+      // drapeau que lit `onPickDblClick` juste en dessous.
+      markHijack(false);
+      if (e.button !== 0) return;
+      // Un ghost de layout verrouillé mange le clic (cf. handler de placement).
+      if (ghostDataRef.current?.locked) return;
+      const app = appRef.current;
+      const world = worldRef.current;
+      if (!app || !world) return;
+      const st = useGlucoseStore.getState();
+      if (st.activeTool !== "select") return;
+
+      const target = e.target as Element | null;
+      if (!target || typeof target.closest !== "function") return;
+      // Micro-contrôles (badges, poignées de waypoint, champs) : clic inchangé.
+      if (target.closest("input, textarea, select, button, a, [contenteditable], [data-arbiter-skip]")) return;
+      // On n'arbitre qu'au-dessus du canvas nu et des couches de contenu.
+      const naturalRoot = target.closest("[data-pick-owner]") as HTMLElement | null;
+      if (target !== app.canvas && !naturalRoot) return;
+
+      const rect = app.canvas.getBoundingClientRect();
+      const wx = (e.clientX - rect.left - world.x) / world.scale.x;
+      const wy = (e.clientY - rect.top - world.y) / world.scale.y;
+      const b = getActiveBoard(st.project);
+      const arrowId = naturalRoot && naturalRoot.dataset.pickOwner === "arrow"
+        ? naturalRoot.dataset.pickId ?? null
+        : null;
+
+      const candidates = collectCandidates({
+        wx, wy, scale: world.scale.x,
+        images: b.images,
+        annotations: b.annotations,
+        folders: b.folders ?? [],
+        selectedImageIds: st.selectedImageIds,
+        selectedAnnotationIds: st.selectedAnnotationIds,
+        selectedFolderId: selectedFolderIdRef.current,
+        // Le tracé exact d'une flèche n'est connu que d'ArrowSvgLayer : c'est le
+        // DOM qui nous dit si le curseur est dessus.
+        arrowId,
+      });
+      // Rien sous le curseur → comportement natif (désélection, rectangle de
+      // sélection, pan) : on ne touche à rien.
+      if (candidates.length === 0) {
+        pickCycleRef.current = null;
+        return;
+      }
+
+      const { picked, cycle } = pickWithCycle(
+        candidates, pickCycleRef.current, e.clientX, e.clientY, Date.now(),
+        { alt: e.altKey, multi: e.ctrlKey || e.metaKey || e.shiftKey },
+      );
+      pickCycleRef.current = cycle;
+      if (!picked) return;
+
+      // Une flèche gagnante est forcément déjà la cible naturelle du DOM : on
+      // laisse filer l'event, ArrowSvgLayer fait le reste.
+      if (picked.owner === "arrow") return;
+
+      e.stopPropagation();
+      markHijack(true);
+      beginPick(picked.owner, picked.id, e, picked.corner);
+    }
+
+    // Un pointerdown détourné produit quand même un click/dblclick natif sur la
+    // cible d'ORIGINE : sans ça, double-cliquer une image posée dans une membrane
+    // ouvrirait l'éditeur de la membrane. Aucune perte — chaque couche détecte le
+    // double-clic sur pointerdown (ou pointerup pour les dossiers), jamais via
+    // l'event natif.
+    function onPickDblClick(e: MouseEvent) {
+      if (wasHijacked()) e.stopPropagation();
+    }
+
+    wrapper.addEventListener("pointerdown", onPickDown, { capture: true });
+    wrapper.addEventListener("dblclick", onPickDblClick, { capture: true });
+    return () => {
+      wrapper.removeEventListener("pointerdown", onPickDown, { capture: true });
+      wrapper.removeEventListener("dblclick", onPickDblClick, { capture: true });
+    };
   }, []);
 
   // ── Import vidéo depuis URL (YouTube / TikTok / Instagram / Vimeo) ──
@@ -1999,12 +2216,72 @@ export default function GlucoseCanvas() {
         id, startX: img.x, startY: img.y,
         pStartX: (e.globalX - world.x) / world.scale.x,
         pStartY: (e.globalY - world.y) / world.scale.y,
+        // SNAP-1 — boîte de référence figée ICI (la sélection vient d'être posée
+        // synchroniquement juste au-dessus).
+        snap: beginSelectionSnap(),
       };
       // Capture du pointeur : tant que le bouton est tenu, TOUS les events de
       // déplacement arrivent encore au canvas même si le curseur sort du sprite ou
       // dépasse le bord (drag rapide / micro-lag) → l'image ne « décroche » plus.
       try { appRef.current?.canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     });
+  }
+
+  // ── SNAP-1 — Aperçu de PLACEMENT (avant toute création) ────────────────
+  //
+  // Le manque historique : le snap ne servait qu'à REPOSITIONNER un élément déjà
+  // posé. Désormais, dès qu'un outil de création est armé, le curseur porte un
+  // fantôme qui s'aligne en direct — on pose donc juste, sans corriger après.
+
+  /** Encombrement connu à la pose. 0 = taille encore inconnue (texte : auto-fit
+   *  au premier rendu ; zones : définies par le tracé) → on accroche le POINT. */
+  function placementSize(tool: string): { w: number; h: number } {
+    if (tool === "sticky") return { w: 160, h: 120 };
+    return { w: 0, h: 0 };
+  }
+
+  /** Position de pose accrochée, en monde. */
+  function snapPlacement(tool: string, wx: number, wy: number, scale: number) {
+    const { w, h } = placementSize(tool);
+    const res = snapMoveLive({ left: wx, top: wy, width: w, height: h }, [], { scale });
+    return { x: wx + res.dx, y: wy + res.dy, w, h };
+  }
+
+  function clearPlacePreview() {
+    placeGfxRef.current?.clear();
+    placeSnapRef.current = null;
+    endSnap();
+  }
+
+  /** Met à jour le fantôme depuis une position ÉCRAN (clientX/clientY du DOM). */
+  function updatePlacePreview(tool: string, clientX: number, clientY: number) {
+    const canvas = appRef.current?.canvas;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const vp = vpRef.current;
+    // Coords canvas (= repère des Graphics du stage) puis monde.
+    const sx = clientX - rect.left;
+    const sy = clientY - rect.top;
+    const p = snapPlacement(tool, (sx - vp.x) / vp.scale, (sy - vp.y) / vp.scale, vp.scale);
+    placeSnapRef.current = { x: p.x, y: p.y };
+
+    const gfx = placeGfxRef.current;
+    if (!gfx) return;
+    const gx = p.x * vp.scale + vp.x;
+    const gy = p.y * vp.scale + vp.y;
+    gfx.clear();
+    if (p.w > 0) {
+      const gw = p.w * vp.scale; const gh = p.h * vp.scale;
+      gfx.rect(gx, gy, gw, gh).fill({ color: 0xffffff, alpha: 0.05 });
+      gfx.rect(gx, gy, gw, gh).stroke({ color: 0xffffff, width: 1, alpha: 0.45 });
+    } else {
+      // Taille inconnue à la pose → réticule sur le point d'ancrage.
+      const R = 9;
+      gfx.moveTo(gx - R, gy).lineTo(gx + R, gy);
+      gfx.moveTo(gx, gy - R).lineTo(gx, gy + R);
+      gfx.stroke({ color: 0xffffff, width: 1, alpha: 0.55 });
+    }
+    requestRender();
   }
 
   function setupEvents(app: Application, world: Container) {
@@ -2022,9 +2299,16 @@ export default function GlucoseCanvas() {
       if (tool === "text" || tool === "sticky") {
         // Marque pour que le fallback DOM ne re-crée pas.
         lastDomCreateRef.current = Date.now();
+        // SNAP-1 — le bloc naît DÉJÀ aligné : l'aperçu de placement (cf. la
+        // branche « outil armé » de pointermove) a calculé la position accrochée,
+        // on la consomme telle quelle. Repli sur le curseur brut si le pointeur
+        // n'a pas encore bougé depuis l'armement de l'outil.
+        const place = placeSnapRef.current ?? snapPlacement(tool, wx, wy, world.scale.x);
+        const px = place.x, py = place.y;
+        clearPlacePreview();
         const ann: Annotation = tool === "sticky"
           ? {
-              id: nanoid(), type: "sticky", x: wx, y: wy, text: "",
+              id: nanoid(), type: "sticky", x: px, y: py, text: "",
               fontSize: 13,
               color: "#ffffff",
               bgColor: "#f5c542",
@@ -2032,7 +2316,7 @@ export default function GlucoseCanvas() {
               height: 120,
             }
           : {
-              id: nanoid(), type: "text", x: wx, y: wy, text: "",
+              id: nanoid(), type: "text", x: px, y: py, text: "",
               fontSize: 14,
               color: "#ffffff",
             };
@@ -2084,24 +2368,23 @@ export default function GlucoseCanvas() {
         return;
       }
 
-      if (tool === "folder") {
-        zonePendingActionRef.current = "folder";
-        setZonePendingAction("folder");
-        zoneStartRef.current = { sx: e.globalX, sy: e.globalY };
-        useGlucoseStore.getState().setActiveTool("zone-select");
-        return;
-      }
-
-      if (tool === "membrane") {
-        zonePendingActionRef.current = "membrane";
-        setZonePendingAction("membrane");
-        zoneStartRef.current = { sx: e.globalX, sy: e.globalY };
+      if (tool === "folder" || tool === "membrane") {
+        // SNAP-1 — le COIN DE DÉPART du tracé s'accroche déjà : une membrane ou
+        // un dossier se cale sur les éléments existants dès le premier pixel,
+        // sans avoir à le repositionner après coup.
+        const start = placeSnapRef.current ?? snapPlacement(tool, wx, wy, world.scale.x);
+        clearPlacePreview();
+        zonePendingActionRef.current = tool;
+        setZonePendingAction(tool);
+        zoneStartRef.current = { sx: e.globalX, sy: e.globalY, wx: start.x, wy: start.y };
         useGlucoseStore.getState().setActiveTool("zone-select");
         return;
       }
 
       if (tool === "zone-select") {
-        zoneStartRef.current = { sx: e.globalX, sy: e.globalY };
+        // Même traitement que folder/membrane : le coin de départ s'accroche.
+        const start = snapPlacement(tool, wx, wy, world.scale.x);
+        zoneStartRef.current = { sx: e.globalX, sy: e.globalY, wx: start.x, wy: start.y };
         return;
       }
 
@@ -2136,16 +2419,35 @@ export default function GlucoseCanvas() {
         const wy = (e.globalY - world.y) / world.scale.y;
         const st = useGlucoseStore.getState();
         if (!st._liveEdit) st.beginLiveEdit(); // 1 seule entrée d'undo
+        // SNAP-1 — MISE À L'ÉCHELLE alignée. Le ratio d'une image est verrouillé :
+        // on accroche donc le CURSEUR (le coin tiré le suit), puis on ne garde que
+        // les guides que la géométrie finale touche vraiment — le verrou de ratio
+        // n'en retient au plus qu'un des deux.
+        const rz = resizeRef.current;
+        const snapped = snapPointLive(wx, wy, [rz.id], { scale: world.scale.x });
         // Géométrie pure et testée (cf. imageResize.ts). Ctrl = ancrage centre.
-        const res = computeResize(resizeRef.current, wx, wy, e.ctrlKey);
-        st.updateImage(getActiveBoard(st.project).id, resizeRef.current.id, res);
+        const res = computeResize(rz, snapped.x, snapped.y, e.ctrlKey);
+        publishConfirmedGuides(
+          { left: res.x - res.width / 2, top: res.y - res.height / 2, width: res.width, height: res.height },
+          snapped.guides,
+        );
+        st.updateImage(getActiveBoard(st.project).id, rz.id, res);
         return;
       }
 
       if (zoneStartRef.current) {
-        const { sx, sy } = zoneStartRef.current;
-        const rx = Math.min(sx, e.globalX); const ry = Math.min(sy, e.globalY);
-        const rw = Math.abs(e.globalX - sx); const rh = Math.abs(e.globalY - sy);
+        const zs = zoneStartRef.current;
+        const cwx = (e.globalX - world.x) / world.scale.x;
+        const cwy = (e.globalY - world.y) / world.scale.y;
+        // SNAP-1 — le coin TIRÉ s'accroche aussi (celui de départ l'a été au
+        // pointerdown) : membranes et dossiers naissent calés sur les deux coins.
+        const corner = snapPointLive(cwx, cwy, [], { scale: world.scale.x });
+        const wX = Math.min(zs.wx, corner.x); const wY = Math.min(zs.wy, corner.y);
+        const wW = Math.abs(corner.x - zs.wx); const wH = Math.abs(corner.y - zs.wy);
+        zoneRectRef.current = { x: wX, y: wY, w: wW, h: wH };
+        // Retour en écran pour le tracé (zoneGfx vit sur le stage, pas le monde).
+        const rx = wX * world.scale.x + world.x; const ry = wY * world.scale.y + world.y;
+        const rw = wW * world.scale.x; const rh = wH * world.scale.y;
         const gfx = zoneGfxRef.current;
         if (gfx) {
           gfx.clear();
@@ -2159,12 +2461,10 @@ export default function GlucoseCanvas() {
         const lbl = zoneLabelRef.current;
         if (lbl) {
           if (rw > 8 || rh > 8) {
-            const wW = Math.round(rw / world.scale.x);
-            const wH = Math.round(rh / world.scale.y);
             lbl.style.display = "block";
             lbl.style.left = `${e.globalX + 14}px`;
             lbl.style.top = `${e.globalY + 14}px`;
-            lbl.textContent = `${wW} × ${wH}`;
+            lbl.textContent = `${Math.round(wW)} × ${Math.round(wH)}`;
           } else {
             lbl.style.display = "none";
           }
@@ -2199,102 +2499,26 @@ export default function GlucoseCanvas() {
           detail: snapped.elementId ? { annId: snapped.elementId, blockId: snapped.elementBlockId } : null 
         }));
       }
+      // SNAP-1 — outil de création armé : rien à faire ici, l'aperçu de placement
+      // est piloté par un listener DOM sur le wrapper (cf. l'effet « aperçu de
+      // placement »), qui reçoit le curseur même au-dessus des tuiles HTML/SVG.
+      const armed = useGlucoseStore.getState().activeTool;
+      if (armed === "text" || armed === "sticky" || armed === "folder" || armed === "membrane") return;
+
       if (draggedSpriteRef.current) {
-        const { pStartX, pStartY } = draggedSpriteRef.current;
+        const ds = draggedSpriteRef.current;
         const currentWX = (e.globalX - world.x) / world.scale.x;
         const currentWY = (e.globalY - world.y) / world.scale.y;
-        const dx = currentWX - pStartX;
-        const dy = currentWY - pStartY;
-        if (dx !== 0 || dy !== 0) {
+        // SNAP-1 — déplacement de la sélection ENTIÈRE (images + textes + notes +
+        // membranes) contre tout le board, dossiers compris. La session raisonne
+        // en absolu depuis le grab → pas de dérive sous le curseur.
+        const { dx, dy } = (ds.snap ?? beginSelectionSnap()).move(
+          currentWX - ds.pStartX, currentWY - ds.pStartY, { scale: world.scale.x },
+        );
+        if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
           const st = useGlucoseStore.getState();
-          const smartEnabled = st.smartGuidesEnabled;
-          let finalDX = dx;
-          let finalDY = dy;
-          let snapX: number | undefined;
-          let snapY: number | undefined;
-
-          if (smartEnabled && selectedImageIds.length === 1 && board) {
-            const dragId = draggedSpriteRef.current.id;
-            const img = board.images.find(i => i.id === dragId);
-            if (img) {
-              const SNAP_DIST = 8;
-              const currentX = img.x + dx;
-              const currentY = img.y + dy;
-              const w = img.width;
-              const h = img.height;
-
-              const targetsX: { val: number; type: string }[] = [];
-              const targetsY: { val: number; type: string }[] = [];
-
-              board.images.forEach(other => {
-                if (other.id === img.id) return;
-                targetsX.push({ val: other.x, type: "center" });
-                targetsX.push({ val: other.x - other.width / 2, type: "left" });
-                targetsX.push({ val: other.x + other.width / 2, type: "right" });
-                targetsY.push({ val: other.y, type: "center" });
-                targetsY.push({ val: other.y - other.height / 2, type: "top" });
-                targetsY.push({ val: other.y + other.height / 2, type: "bottom" });
-              });
-
-              board.annotations.forEach(other => {
-                if (other.type === "arrow") return;
-                const ow = other.width || 200;
-                const oh = other.height || 100;
-                targetsX.push({ val: other.x, type: "left" });
-                targetsX.push({ val: other.x + ow, type: "right" });
-                targetsX.push({ val: other.x + ow / 2, type: "center" });
-                targetsY.push({ val: other.y, type: "top" });
-                targetsY.push({ val: other.y + oh, type: "bottom" });
-                targetsY.push({ val: other.y + oh / 2, type: "center" });
-              });
-
-              const myXPoints = [
-                { val: currentX - w / 2, type: "left" },
-                { val: currentX + w / 2, type: "right" },
-                { val: currentX, type: "center" }
-              ];
-              for (const myP of myXPoints) {
-                for (const target of targetsX) {
-                  if (Math.abs(myP.val - target.val) < SNAP_DIST) {
-                    snapX = target.val;
-                    finalDX = target.val - (myP.type === "left" ? img.x - w / 2 : myP.type === "right" ? img.x + w / 2 : img.x);
-                    break;
-                  }
-                }
-                if (snapX !== undefined) break;
-              }
-
-              const myYPoints = [
-                { val: currentY - h / 2, type: "top" },
-                { val: currentY + h / 2, type: "bottom" },
-                { val: currentY, type: "center" }
-              ];
-              for (const myP of myYPoints) {
-                for (const target of targetsY) {
-                  if (Math.abs(myP.val - target.val) < SNAP_DIST) {
-                    snapY = target.val;
-                    finalDY = target.val - (myP.type === "top" ? img.y - h / 2 : myP.type === "bottom" ? img.y + h / 2 : img.y);
-                    break;
-                  }
-                }
-                if (snapY !== undefined) break;
-              }
-
-              st.setGuides({
-                x: snapX !== undefined ? [snapX] : undefined,
-                y: snapY !== undefined ? [snapY] : undefined
-              });
-            }
-          } else {
-            st.setGuides(null);
-          }
-
-          if (Math.abs(finalDX) > 0.01 || Math.abs(finalDY) > 0.01) {
-            draggedSpriteRef.current.pStartX = draggedSpriteRef.current.pStartX + finalDX;
-            draggedSpriteRef.current.pStartY = draggedSpriteRef.current.pStartY + finalDY;
-            if (!st._liveEdit) st.beginLiveEdit();
-            st.moveSelected(getActiveBoard(st.project).id, finalDX, finalDY);
-          }
+          if (!st._liveEdit) st.beginLiveEdit();
+          st.moveSelected(getActiveBoard(st.project).id, dx, dy);
         }
         return;
       }
@@ -2383,12 +2607,24 @@ export default function GlucoseCanvas() {
       if (zoneStartRef.current) {
         const { sx, sy } = zoneStartRef.current;
         const rw = Math.abs(e.globalX - sx); const rh = Math.abs(e.globalY - sy);
+        // SNAP-1 — on reprend le rectangle ACCROCHÉ calculé au dernier
+        // pointermove (le recalculer depuis l'écran perdrait l'alignement).
+        // FILET : si aucun pointermove n'a atteint le stage (events avalés par une
+        // couche DOM au-dessus du canvas), on recalcule ici — une zone tracée ne
+        // doit JAMAIS être silencieusement perdue.
+        let live = zoneRectRef.current;
+        if (!live) {
+          const zs = zoneStartRef.current;
+          const cwx = (e.globalX - world.x) / world.scale.x;
+          const cwy = (e.globalY - world.y) / world.scale.y;
+          const corner = snapPointLive(cwx, cwy, [], { scale: world.scale.x });
+          live = {
+            x: Math.min(zs.wx, corner.x), y: Math.min(zs.wy, corner.y),
+            w: Math.abs(corner.x - zs.wx), h: Math.abs(corner.y - zs.wy),
+          };
+        }
         if (rw > 20 && rh > 20) {
-          const minSx = Math.min(sx, e.globalX); const minSy = Math.min(sy, e.globalY);
-          const wX = (minSx - world.x) / world.scale.x;
-          const wY = (minSy - world.y) / world.scale.y;
-          const wW = rw / world.scale.x;
-          const wH = rh / world.scale.y;
+          const wX = live.x, wY = live.y, wW = live.w, wH = live.h;
           const action = zonePendingActionRef.current;
           if (action === "folder") {
             const boardId = getActiveBoard(useGlucoseStore.getState().project).id;
@@ -2406,9 +2642,11 @@ export default function GlucoseCanvas() {
           window.dispatchEvent(new CustomEvent("glucose:zone-selected", { detail: { x: wX, y: wY, w: wW, h: wH } }));
         }
         zoneStartRef.current = null; zonePendingActionRef.current = null;
+        zoneRectRef.current = null;
         if (zoneLabelRef.current) zoneLabelRef.current.style.display = "none";
         setZonePendingAction(null);
         zoneGfxRef.current?.clear();
+        endSnap();
         useGlucoseStore.getState().setActiveTool("select");
         return;
       }
@@ -2421,7 +2659,7 @@ export default function GlucoseCanvas() {
       }
       if (draggedSpriteRef.current) {
         useGlucoseStore.getState().endLiveEdit();
-        useGlucoseStore.getState().setGuides(null);
+        endSnap();
       }
       draggedSpriteRef.current = null;
       if (selDragRef.current) {
@@ -2485,13 +2723,15 @@ export default function GlucoseCanvas() {
       }
       if (draggedSpriteRef.current) {
         useGlucoseStore.getState().endLiveEdit();
-        useGlucoseStore.getState().setGuides(null);
+        endSnap();
       }
       draggedSpriteRef.current = null;
       selDragRef.current = null;
       selRectGfxRef.current?.clear();
       zoneStartRef.current = null; zonePendingActionRef.current = null;
+      zoneRectRef.current = null;
       zoneGfxRef.current?.clear();
+      endSnap();
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
         stopCursorGrab();
@@ -2722,8 +2962,14 @@ export default function GlucoseCanvas() {
 
         const rect = tgt.getBoundingClientRect();
         const vp = vpRef.current;
-        const wx = (e.clientX - rect.left - vp.x) / vp.scale;
-        const wy = (e.clientY - rect.top - vp.y) / vp.scale;
+        const rawX = (e.clientX - rect.left - vp.x) / vp.scale;
+        const rawY = (e.clientY - rect.top - vp.y) / vp.scale;
+        // SNAP-1 — ce fallback DOM crée exactement le même bloc que le chemin
+        // PixiJS : il doit donc poser au même endroit ACCROCHÉ, sinon la pose
+        // sauterait selon le chemin emprunté.
+        const place = placeSnapRef.current ?? snapPlacement(tool, rawX, rawY, vp.scale);
+        const wx = place.x, wy = place.y;
+        clearPlacePreview();
         const ann: Annotation = tool === "sticky"
           ? {
               id: nanoid(), type: "sticky", x: wx, y: wy, text: "",
@@ -2804,7 +3050,7 @@ export default function GlucoseCanvas() {
                 : [...selectedAnnotationIds, id]
               : [id]
           );
-          if (!multi) setSelectedImageIds([]);
+          if (!multi) { setSelectedImageIds([]); setSelectedFolderId(null); }
         }}
         onEdit={(id) => {
           const ann = board.annotations.find((a) => a.id === id);
@@ -2830,7 +3076,7 @@ export default function GlucoseCanvas() {
                 : [...selectedAnnotationIds, id]
               : [id]
           );
-          if (!multi) setSelectedImageIds([]);
+          if (!multi) { setSelectedImageIds([]); setSelectedFolderId(null); }
         }}
         onEdit={(id) => {
           const ann = board.annotations.find((a) => a.id === id);
@@ -2859,7 +3105,7 @@ export default function GlucoseCanvas() {
                 : [...selectedAnnotationIds, id]
               : [id]
           );
-          if (!multi) setSelectedImageIds([]);
+          if (!multi) { setSelectedImageIds([]); setSelectedFolderId(null); }
         }}
       />
 

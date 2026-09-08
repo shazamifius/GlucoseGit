@@ -54,6 +54,39 @@ Chaque outil s'active par sa lettre. Sélectionne, fais ton geste, retombe en `V
 | `M` | **Membrane** | Drag pour dessiner une zone colorée fixe (organisationnelle). |
 | `Espace` (maintenu) | **Pan** | Drag = déplacer le viewport |
 
+### 🎯 Qui est sélectionné quand ça se superpose ?
+
+Une image posée dans une membrane, un texte posé sur une image… le clic doit
+choisir. Ce n'est plus l'empilement graphique qui tranche mais un **ordre de
+priorité**, du plus précis au plus englobant :
+
+| # | Cible | Rappel |
+|---|---|---|
+| 1 | **Poignée de redimensionnement** | Gagne toujours. Sa zone de préhension fait ~36 px à l'écran, quel que soit le zoom : plus besoin de viser pile le petit carré. |
+| 2 | **Bord de membrane / de dossier** | La bande autour du pointillé (et l'en-tête d'un dossier). C'est la poignée du conteneur. |
+| 3 | **Flèche** | Tracé fin, donc prioritaire. |
+| 4 | **Image** | |
+| 5 | **Sticky** | |
+| 6 | **Texte** | Toujours dernier. |
+| 7 | **Intérieur d'un dossier**, puis **intérieur d'une membrane** | Un conteneur ne vole jamais un clic à son contenu. |
+
+Concrètement : cliquer au **centre d'une image** posée dans une membrane
+sélectionne l'image ; cliquer sur les **pointillés** de la membrane sélectionne
+la membrane, même si elle est bondée d'images.
+
+**Re-cliquer sans bouger la souris descend d'un cran** dans cette liste : 1er clic
+sur le bord d'une membrane → la membrane ; 2e clic → l'image en dessous ; 3e clic
+→ le texte encore en dessous. La souris doit rester quasi immobile et les clics
+s'enchaîner (le cycle s'oublie après ~2,5 s).
+
+Le cycle **s'arrête sur un bloc texte ou un sticky** : à partir de là, un 2e clic
+redevient un double-clic et ouvre l'édition. C'est pour ça que le texte est
+toujours le dernier de la liste.
+
+> 💡 `Alt` + clic force le pas suivant — y compris pour passer *sous* une
+> poignée de redimensionnement ou repartir d'un bloc texte.
+> `Ctrl` / `Shift` + clic (multi-sélection) ne cycle jamais.
+
 ---
 
 ## 4. Concepts avancés

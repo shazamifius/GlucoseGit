@@ -1,10 +1,11 @@
-import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import "./App.css";
 import GlucoseCanvas from "./canvas/GlucoseCanvas";
 import Toolbar from "./components/Toolbar";
 import BoardTabs from "./components/BoardTabs";
 import { WebModeBanner } from "./components/WebModeBanner";
 import PanelDock, { type TabId } from "./components/PanelDock";
+import ErrorBoundary from "./components/ErrorBoundary";
 import PomodoroOverlay from "./components/PomodoroOverlay";
 import FolderViewportIndicator from "./components/FolderViewportIndicator";
 import AppLaunchOverlay from "./components/AppLaunchOverlay";
@@ -22,13 +23,10 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import DiagnosticsHUD from "./components/DiagnosticsHUD";
 import TelemetryConsent from "./components/TelemetryConsent";
 import { startPerfMonitor } from "./telemetry/perfMonitor";
-import { initTelemetry, reportError, setTelemetryContext } from "./telemetry/telemetry";
+import { initTelemetry, setTelemetryContext } from "./telemetry/telemetry";
 
 // CLEANUP B-02 — Lazy-loading des panels lourds (split JS)
 // Ils ne sont chargés que quand l'utilisateur les ouvre.
-const PresetPanel = lazy(() => import("./components/PresetPanel"));
-const DomainsPanel = lazy(() => import("./components/DomainsPanel"));
-const PluginPanel = lazy(() => import("./components/PluginPanel"));
 const SearchPanel = lazy(() => import("./components/SearchPanel"));
 // Phase 6 — réglette temporelle (lazy : visible seulement quand activée)
 const TemporalRuler = lazy(() => import("./components/TemporalRuler"));
@@ -40,27 +38,6 @@ const MultiplayerPanel = lazy(() => import("./multiplayer/MultiplayerPanel"));
 import { useAutosave } from "./utils/useAutosave";
 import { useZoomLock } from "./utils/useZoomLock";
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state = { error: null };
-  static getDerivedStateFromError(e: Error) { return { error: e }; }
-  componentDidCatch(error: Error) {
-    // Remonte le crash à la télémétrie (no-op si l'utilisateur n'a pas consenti).
-    reportError("react-boundary", error.message, error.stack);
-  }
-  render() {
-    if (this.state.error) {
-      const err = this.state.error as Error;
-      return (
-        <div style={{ padding: 32, color: "#f87171", background: "#0d0d0d", height: "100%", fontFamily: "monospace" }}>
-          <b>Erreur :</b> {err.message}
-          <pre style={{ fontSize: 11, marginTop: 12, color: "#666", whiteSpace: "pre-wrap" }}>{err.stack}</pre>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 export default function App() {
   // PERF-4 — abonnements ciblés (avant : `useGlucoseStore()` = tout le store →
   // App, la racine, se re-rendait à chaque changement d'état, y compris le survol).
@@ -71,9 +48,6 @@ export default function App() {
   const undo = useGlucoseStore((s) => s.undo);
   const redo = useGlucoseStore((s) => s.redo);
   const pathRef = useRef<string | null>(null);
-  const [presetOpen, setPresetOpen] = useState(false);
-  const [domainsOpen, setDomainsOpen] = useState(false);
-  const [pluginsOpen, setPluginsOpen] = useState(false);
   // Phase 7.4 — Time Machine UI
   const [timelineOpen, setTimelineOpen] = useState(false);
   // Collaboration internet (automerge-repo). `multiplayerEnabled` = collab active.
@@ -85,25 +59,30 @@ export default function App() {
   const [temporalRulerOpen, setTemporalRulerOpen] = useState(false);
   const [anchorPromptOpen, setAnchorPromptOpen] = useState(false);
 
-  // Sync l'ouverture des panels droits avec le store → la minimap se décale automatiquement
+  // Onglets du dock — déclarés ici car la télémétrie ci-dessous les lit.
+  const [dockTabs, setDockTabs]           = useState<TabId[]>([]);
+  const [dismissingTabs, setDismissingTabs] = useState<TabId[]>([]);
+
+  const DISMISS_DURATION = 200;
+
+  // Sync l'ouverture des panels droits avec le store → la minimap se décale
+  // automatiquement. Preset / Domaines / Plugins n'en font plus partie : ce sont
+  // désormais des tiroirs en haut à GAUCHE, ils n'empiètent plus sur la minimap.
   useEffect(() => {
-    useGlucoseStore.getState().setRightPanelOpen(presetOpen || domainsOpen || pluginsOpen || timelineOpen || multiplayerOpen);
-  }, [presetOpen, domainsOpen, pluginsOpen, timelineOpen, multiplayerOpen]);
+    useGlucoseStore.getState().setRightPanelOpen(timelineOpen || multiplayerOpen);
+  }, [timelineOpen, multiplayerOpen]);
 
   // Télémétrie : contexte courant (panneaux ouverts) joint aux events perf/actions
   // → permet de corréler « ça laguait quand tel panneau était ouvert » (ex. Time
   // Machine). No-op si l'utilisateur n'a pas consenti.
   useEffect(() => {
-    const panels: string[] = [];
-    if (presetOpen) panels.push("preset");
-    if (domainsOpen) panels.push("domains");
-    if (pluginsOpen) panels.push("plugins");
+    const panels: string[] = [...dockTabs];
     if (timelineOpen) panels.push("timeline");
     if (multiplayerOpen) panels.push("multiplayer");
     if (searchOpen) panels.push("search");
     if (temporalRulerOpen) panels.push("ruler");
     setTelemetryContext({ panels, collab: multiplayerEnabled });
-  }, [presetOpen, domainsOpen, pluginsOpen, timelineOpen, multiplayerOpen, searchOpen, temporalRulerOpen, multiplayerEnabled]);
+  }, [dockTabs.join(","), timelineOpen, multiplayerOpen, searchOpen, temporalRulerOpen, multiplayerEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
   // Wayland (Niri/Sway/…) : désactive le « cursor warp » du pan (boucle au bord +
   // saccades). Détecté côté Rust une fois au démarrage.
   useEffect(() => {
@@ -130,10 +109,6 @@ export default function App() {
   // GÈLE toute édition suivante (déplacer/trier/dossier morts, seule l'UI répond).
   // Tant que la collaboration n'est pas durcie (jalon collaboration), elle est
   // 100 % opt-in via le panneau Multijoueur. Le `collabUrl` reste inerte dans le doc.
-  const [dockTabs, setDockTabs]           = useState<TabId[]>([]);
-  const [dismissingTabs, setDismissingTabs] = useState<TabId[]>([]);
-
-  const DISMISS_DURATION = 200;
 
   function toggleDockTab(id: TabId) {
     if (dismissingTabs.includes(id)) {
@@ -182,7 +157,6 @@ export default function App() {
         useGlucoseStore.getState().setSelectedAnnotationIds([]);
       }
       if (e.key === "Escape") {
-        setPresetOpen(false);
         setZenMode(false);
         setSearchOpen(false);
         setAnchorPromptOpen(false);
@@ -432,10 +406,10 @@ export default function App() {
         <>
           <ErrorBoundary>
             <Toolbar
-              onTogglePreset={() => setPresetOpen((v) => !v)}
-              presetPanelOpen={presetOpen}
-              onToggleDomains={() => setDomainsOpen((v) => !v)}
-              domainsPanelOpen={domainsOpen}
+              onTogglePreset={() => toggleDockTab("preset")}
+              presetPanelOpen={dockTabs.includes("preset")}
+              onToggleDomains={() => toggleDockTab("domains")}
+              domainsPanelOpen={dockTabs.includes("domains")}
               onToggleOrganize={() => toggleDockTab("organize")}
               organizePanelOpen={dockTabs.includes("organize")}
               onToggleStoryboard={() => toggleDockTab("storyboard")}
@@ -445,8 +419,8 @@ export default function App() {
               onToggleMultiplayer={() => setMultiplayerOpen((v) => !v)}
               multiplayerPanelOpen={multiplayerOpen}
               collabActive={multiplayerEnabled}
-              onTogglePlugins={() => setPluginsOpen((v) => !v)}
-              pluginsPanelOpen={pluginsOpen}
+              onTogglePlugins={() => toggleDockTab("plugins")}
+              pluginsPanelOpen={dockTabs.includes("plugins")}
             />
           </ErrorBoundary>
           <ErrorBoundary>
@@ -484,37 +458,21 @@ export default function App() {
         {/* R-FIL — animation de lancement d'app native (logo + couleur dominante) */}
         <AppLaunchOverlay />
 
-        {/* Floating right panels (lazy-loaded — Suspense montre rien le temps que ça charge) */}
-        {presetOpen && (
-          <ErrorBoundary>
-            <Suspense fallback={null}>
-              <PresetPanel onClose={() => setPresetOpen(false)} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-        {domainsOpen && (
-          <ErrorBoundary>
-            <Suspense fallback={null}>
-              <DomainsPanel onClose={() => setDomainsOpen(false)} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-        {pluginsOpen && (
-          <ErrorBoundary>
-            <Suspense fallback={null}>
-              <PluginPanel onClose={() => setPluginsOpen(false)} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-
         {/* Pomodoro always-visible overlay when timer running */}
         <PomodoroOverlay onOpen={() => {
           if (!dockTabs.includes("pomodoro")) toggleDockTab("pomodoro");
         }} />
 
-        {/* Unified bottom-right dock */}
+        {/* Docks de panneaux — un seul composant, deux ancrages. Chacun ne prend
+            que les onglets qui lui reviennent (cf. TAB_ANCHOR dans PanelDock) :
+            Ordonner/Timer/Storyboard montent du bas, Plugins/Preset/Domaines
+            descendent du haut comme des tiroirs. Fermeture UNIQUEMENT à la
+            poignée — aucun de ces panneaux n'a de bouton de fermeture. */}
         <ErrorBoundary>
-          <PanelDock openTabs={dockTabs} dismissingTabs={dismissingTabs} onDismiss={onDockDismiss} />
+          <PanelDock anchor="top-left" openTabs={dockTabs} dismissingTabs={dismissingTabs} onDismiss={onDockDismiss} />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <PanelDock anchor="bottom-left" openTabs={dockTabs} dismissingTabs={dismissingTabs} onDismiss={onDockDismiss} />
         </ErrorBoundary>
 
         {searchOpen && (

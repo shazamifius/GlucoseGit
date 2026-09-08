@@ -10,10 +10,13 @@ const PRESET_COLORS = [
 const PRESET_ICONS = ["🔬", "🎨", "🎮", "📚", "🌍", "⚛", "✦", "♪", "△", "○", "✿", "❀"];
 
 interface Props {
-  onClose: () => void;
+  /** Fermeture programmatique (jamais un bouton : la poignée du dock ferme). */
+  onClose?: () => void;
+  /** Rendu en tiroir dans le dock : le dock fournit le positionnement. */
+  docked?: boolean;
 }
 
-export default function DomainsPanel({ onClose }: Props) {
+export default function DomainsPanel({ docked }: Props) {
   const { project, addDomain, removeDomain, updateDomain, assignDomainToNode,
     selectedAnnotationIds, selectedImageIds } = useGlucoseStore();
   const board = getActiveBoard(project);
@@ -60,19 +63,20 @@ export default function DomainsPanel({ onClose }: Props) {
 
   return (
     <div style={{
-      position: "absolute", top: 0, right: 0, bottom: 0,
-      width: 320, background: "#111", borderLeft: "1px solid #222",
-      display: "flex", flexDirection: "column", zIndex: 100,
+      ...(docked
+        ? { maxHeight: "70vh", border: "1px solid #222", borderRadius: 6, paddingBottom: 14 }
+        : { position: "absolute", top: 0, right: 0, bottom: 0, borderLeft: "1px solid #222", zIndex: 100 }),
+      width: 320, background: "#111",
+      display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
       {/* Header */}
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", alignItems: "center",
         padding: "12px 16px", borderBottom: "1px solid #1e1e1e",
       }}>
         <span style={{ color: "#ccc", fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
           Domaines
         </span>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 18, padding: 0 }}>×</button>
       </div>
 
       {/* Sélection courante */}

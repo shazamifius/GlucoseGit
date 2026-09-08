@@ -71,22 +71,30 @@ export default function PeerCursorsLayer({ vpRef }: Props) {
   //    Ne tourne QUE en collab : en solo le composant rend `null` (aucun
   //    container), donc une boucle rAF permanente ne ferait que gaspiller du CPU
   //    à contre-courant du rendu à la demande du canvas.
+  //    PERF-5 — abonnement à `glucose:viewport-changed` plutôt que sondage rAF
+  //    de `vpRef`. Sonder faisait lire le viewport de la frame PRÉCÉDENTE (la
+  //    callback de la boucle passait avant celle d'emitViewport, qui est seule
+  //    à écrire vpRef) → curseurs en retard d'une frame sur les sprites Pixi
+  //    pendant un pan. Même cause que la couche texte HTML.
   useEffect(() => {
     if (!collabActive) return;
-    let rafId: number;
-    function updateTransform() {
-      if (containerRef.current && vpRef.current) {
-        const { x, y, scale: s } = vpRef.current;
+    const apply = (x: number, y: number, s: number) => {
+      if (containerRef.current) {
         containerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
-        // La transform CSS suit chaque frame, mais on ne re-render React que si
-        // l'échelle change réellement : sinon setScale(s) forçait 60 re-renders/s
-        // du composant + enfants pour rien. Renvoyer `prev` fait bailout React.
-        setScale((prev) => (Math.abs(prev - s) < 0.001 ? prev : s));
       }
-      rafId = requestAnimationFrame(updateTransform);
-    }
-    updateTransform();
-    return () => cancelAnimationFrame(rafId);
+      // On ne re-render React que si l'échelle change réellement : sinon
+      // setScale(s) forçait un re-render du composant + enfants à chaque frame
+      // de pan pour rien. Renvoyer `prev` fait bailout React.
+      setScale((prev) => (Math.abs(prev - s) < 0.001 ? prev : s));
+    };
+    const onVp = (e: Event) => {
+      const { x, y, scale } = (e as CustomEvent<{ x: number; y: number; scale: number }>).detail;
+      apply(x, y, scale);
+    };
+    window.addEventListener("glucose:viewport-changed", onVp);
+    const { x, y, scale } = vpRef.current;
+    apply(x, y, scale);
+    return () => window.removeEventListener("glucose:viewport-changed", onVp);
   }, [vpRef, collabActive]);
 
   // 2. Track & broadcast local cursor position (throttled at ~40ms / 25fps)

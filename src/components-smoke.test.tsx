@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import { type RefObject } from "react";
 import { useGlucoseStore } from "./store";
+import type { TabId } from "./components/PanelDock";
 import type {
   Annotation, ArrowAnnotation, MembraneAnnotation, StickyAnnotation, TextAnnotation,
 } from "./types";
@@ -574,23 +575,86 @@ describe("TimelinePanel", () => {
 });
 
 describe("PanelDock", () => {
-  it("monte le dock avec différents tabs ouverts", async () => {
+  it("monte le dock du bas avec différents tabs ouverts", async () => {
     const PanelDock = (await import("./components/PanelDock")).default;
     loadBaselineProject();
     startCaptureReactErrors();
     const { rerender } = render(
-      <PanelDock openTabs={[]} dismissingTabs={[]} onDismiss={vi.fn()} />
+      <PanelDock anchor="bottom-left" openTabs={[]} dismissingTabs={[]} onDismiss={vi.fn()} />
     );
     rerender(
-      <PanelDock openTabs={["organize"]} dismissingTabs={[]} onDismiss={vi.fn()} />
+      <PanelDock anchor="bottom-left" openTabs={["organize"]} dismissingTabs={[]} onDismiss={vi.fn()} />
     );
     rerender(
-      <PanelDock openTabs={["organize", "storyboard", "pomodoro"]} dismissingTabs={[]} onDismiss={vi.fn()} />
+      <PanelDock anchor="bottom-left" openTabs={["organize", "storyboard", "pomodoro"]} dismissingTabs={[]} onDismiss={vi.fn()} />
     );
     rerender(
-      <PanelDock openTabs={["pomodoro"]} dismissingTabs={["organize"]} onDismiss={vi.fn()} />
+      <PanelDock anchor="bottom-left" openTabs={["pomodoro"]} dismissingTabs={["organize"]} onDismiss={vi.fn()} />
     );
     expectNoReactErrors();
+  });
+
+  it("monte les tiroirs du haut (plugins / preset / domaines)", async () => {
+    const PanelDock = (await import("./components/PanelDock")).default;
+    loadBaselineProject();
+    startCaptureReactErrors();
+    render(
+      <PanelDock anchor="top-left" openTabs={["plugins", "preset", "domains"]} dismissingTabs={[]} onDismiss={vi.fn()} />
+    );
+    expectNoReactErrors();
+  });
+
+  it("chaque dock ne prend QUE ses onglets — aucun panneau affiché deux fois", async () => {
+    const PanelDock = (await import("./components/PanelDock")).default;
+    loadBaselineProject();
+    const all: TabId[] = ["organize", "storyboard", "pomodoro", "plugins", "preset", "domains"];
+
+    // Le dock du bas ne connaît pas les tiroirs du haut : avec seulement ces
+    // derniers ouverts, il ne rend RIEN (et réciproquement). C'est ce qui
+    // garantit qu'un onglet ouvert n'apparaît jamais dans les deux docks.
+    const bottom = render(
+      <PanelDock anchor="bottom-left" openTabs={["plugins", "preset", "domains"]} dismissingTabs={[]} onDismiss={vi.fn()} />
+    );
+    expect(bottom.container.firstChild).toBeNull();
+    bottom.unmount();
+
+    const top = render(
+      <PanelDock anchor="top-left" openTabs={["organize", "storyboard", "pomodoro"]} dismissingTabs={[]} onDismiss={vi.fn()} />
+    );
+    expect(top.container.firstChild).toBeNull();
+    top.unmount();
+
+    // Tout ouvert : chaque dock rend exactement 3 panneaux, jamais 6.
+    for (const anchor of ["top-left", "bottom-left"] as const) {
+      const r = render(
+        <PanelDock anchor={anchor} openTabs={all} dismissingTabs={[]} onDismiss={vi.fn()} />
+      );
+      expect(r.container.querySelectorAll('[title^="Glisser horizontalement"]')).toHaveLength(3);
+      r.unmount();
+    }
+  });
+
+  // Les panneaux sont montés DIRECTEMENT et non via le dock : dans le dock ils
+  // passent par `lazy()`, dont la promesse n'est pas résolue au moment de
+  // l'assertion — le test serait vert sans rien avoir regardé.
+  it("aucun bouton de fermeture dans les tiroirs — la poignée est la seule sortie", async () => {
+    loadBaselineProject();
+    const panels = [
+      (await import("./components/PluginPanel")).default,
+      (await import("./components/PresetPanel")).default,
+      (await import("./components/DomainsPanel")).default,
+    ];
+    for (const Panel of panels) {
+      const { container, unmount } = render(<Panel docked onClose={vi.fn()} />);
+      // Garde-fou : si le panneau n'avait rien rendu, l'absence de « × »
+      // ne prouverait rien.
+      expect(container.querySelectorAll("div").length).toBeGreaterThan(3);
+      const closers = [...container.querySelectorAll("button")].filter(
+        (b) => b.textContent?.trim() === "×" || /fermer/i.test(b.getAttribute("title") ?? ""),
+      );
+      expect(closers.map((b) => b.outerHTML)).toEqual([]);
+      unmount();
+    }
   });
 });
 

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Board, CanvasFolder } from "../types";
 import { useGlucoseStore } from "../store";
+import { registerPickHandler } from "./pickArbiter";
+// SNAP-1 — alignement intelligent unifié : un dossier s'aligne comme n'importe
+// quel autre élément (et sert lui-même de cible aux autres).
+import { endSnap, snapMoveLive, snapResizeLive } from "./smartAlignRuntime";
 
 interface Props {
   folders: CanvasFolder[];
@@ -60,6 +64,17 @@ export default function FolderSvgLayer({
     };
   }
 
+  // PICK-1 — point d'entrée programmatique de l'arbitre de priorité (cf.
+  // hitPriority.ts). Un `corner` non vide = poignée bas-droite → resize.
+  const startDragRef = useRef(startDrag);
+  startDragRef.current = startDrag;
+  const foldersRef = useRef(folders);
+  foldersRef.current = folders;
+  useEffect(() => registerPickHandler("folder", (id, ev, corner) => {
+    const f = foldersRef.current.find((x) => x.id === id);
+    if (f) startDragRef.current(f, ev as unknown as React.PointerEvent, corner ? "resize" : "move");
+  }), []);
+
   function startDrag(folder: CanvasFolder, e: React.PointerEvent, mode: "move" | "resize") {
     if (e.button !== 0) return; // molette/droit = pan (géré au niveau canvas), pas un drag
     if (activeTool !== "select") return;
@@ -87,10 +102,22 @@ export default function FolderSvgLayer({
         useGlucoseStore.getState().beginLiveEdit(); // UNDO-1 — ouvre la transaction au 1er vrai mouvement
       }
       if (!ds.didMove) return;
+      const opts = { scale: vpRef.current.scale };
       if (ds.mode === "move") {
-        onMove(ds.id, ds.startX + dx, ds.startY + dy);
+        // Position ABSOLUE recalculée depuis le grab à chaque frame → une
+        // accroche ne décale jamais durablement le dossier sous le curseur.
+        const rect = { left: ds.startX + dx, top: ds.startY + dy, width: ds.startW, height: ds.startH };
+        const snap = snapMoveLive(rect, [ds.id], opts);
+        onMove(ds.id, rect.left + snap.dx, rect.top + snap.dy);
       } else {
-        onResize(ds.id, Math.max(180, ds.startW + dx), Math.max(120, ds.startH + dy));
+        // La poignée est en bas-droite : seuls ces deux bords accrochent
+        // (le coin haut-gauche reste ancré).
+        const rect = {
+          left: ds.startX, top: ds.startY,
+          width: Math.max(180, ds.startW + dx), height: Math.max(120, ds.startH + dy),
+        };
+        const snapped = snapResizeLive(rect, "br", [ds.id], { ...opts, minWidth: 180, minHeight: 120 });
+        onResize(ds.id, snapped.rect.width, snapped.rect.height);
       }
     }
 
@@ -109,6 +136,7 @@ export default function FolderSvgLayer({
       }
       useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si clic/double-clic)
       dragRef.current = null;
+      endSnap();
       window.removeEventListener("pointermove", onGlobalMove);
       window.removeEventListener("pointerup",   onGlobalUp);
     }
@@ -177,6 +205,9 @@ export default function FolderSvgLayer({
           return (
             <g
               key={folder.id}
+              /* PICK-1 — marqueurs lus par l'arbitre en phase capture (GlucoseCanvas). */
+              data-pick-owner="folder"
+              data-pick-id={folder.id}
               transform={`translate(${folder.x},${folder.y})`}
               style={{ pointerEvents: interactive ? "all" : "none" }}
             >
@@ -242,6 +273,7 @@ export default function FolderSvgLayer({
                 </foreignObject>
               ) : (
                 <text
+                  data-arbiter-skip=""
                   x={34} y={HEADER / 2 + 4}
                   fill={col} fillOpacity={sel ? 0.85 : 0.55}
                   fontSize={14} fontWeight="600"
@@ -275,6 +307,7 @@ export default function FolderSvgLayer({
                   Indique que ce dossier est un alias d'un original (changements propagés). */}
               {folder.mirrorOf && (
                 <g
+                  data-arbiter-skip=""
                   transform={`translate(-10, -10)`}
                   style={{ cursor: interactive ? "pointer" : "default", pointerEvents: interactive ? "all" : "none" }}
                   onPointerDown={(e) => e.stopPropagation()}

@@ -195,6 +195,26 @@ export default function Toolbar({
         Timer
       </ActionBtn>
 
+      <ActionBtn onClick={onToggleStoryboard} active={storyboardPanelOpen || !!board.storyboard} title="Storyboard">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="2" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+          <rect x="9" y="2" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+          <rect x="1" y="9" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+          <rect x="9" y="9" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+        </svg>
+        Storyboard
+        {board.storyboard && (
+          <span style={{ fontSize: 9, background: "#2a2a2a", borderRadius: 8, padding: "0 5px", color: "#666" }}>
+            {board.panels.length}
+          </span>
+        )}
+      </ActionBtn>
+
+      {/* Les trois boutons ci-dessus OUVRENT un panneau ; les deux suivants sont
+          des bascules d'affichage du canvas. Un filet les sépare — ils n'ont pas
+          le même effet, ils ne doivent pas se lire comme une seule rangée. */}
+      {sep}
+
       <ActionBtn
         onClick={() => useGlucoseStore.getState().toggleSmartGuides()}
         active={useGlucoseStore((s) => s.smartGuidesEnabled)}
@@ -218,21 +238,6 @@ export default function Toolbar({
           <path d="M5.5 8h5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="1.5 1.5"/>
         </svg>
         Trans-domaines
-      </ActionBtn>
-
-      <ActionBtn onClick={onToggleStoryboard} active={storyboardPanelOpen || !!board.storyboard} title="Storyboard">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <rect x="1" y="2" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-          <rect x="9" y="2" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-          <rect x="1" y="9" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-          <rect x="9" y="9" width="6" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
-        </svg>
-        Storyboard
-        {board.storyboard && (
-          <span style={{ fontSize: 9, background: "#2a2a2a", borderRadius: 8, padding: "0 5px", color: "#666" }}>
-            {board.panels.length}
-          </span>
-        )}
       </ActionBtn>
 
       </div>{/* end panel group */}

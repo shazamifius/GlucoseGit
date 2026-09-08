@@ -210,6 +210,7 @@ function WaypointHandle({ wp, annId, wpIndex, vpScale }: { wp: {x: number, y: nu
 
   return (
     <g
+      data-arbiter-skip=""
       style={{ cursor: "crosshair" }}
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -253,6 +254,7 @@ function WaypointHandle({ wp, annId, wpIndex, vpScale }: { wp: {x: number, y: nu
 function MidHandle({ midX, midY, annId, insertIndex, vpScale }: { midX: number, midY: number, annId: string, insertIndex: number, vpScale: number }) {
   return (
     <g
+      data-arbiter-skip=""
       style={{ cursor: "copy" }}
       onPointerDown={(e) => {
         e.stopPropagation();
@@ -585,6 +587,10 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
               </defs>
 
               <g style={{ pointerEvents: "auto", cursor: "pointer" }}
+                /* PICK-1 — l'arbitre lit ces marqueurs pour faire entrer la flèche
+                   dans l'ordre de priorité (son tracé exact n'est calculé qu'ici). */
+                data-pick-owner="arrow"
+                data-pick-id={ann.id}
                 onWheel={forwardWheel}
                 onMouseEnter={() => {
                   window.dispatchEvent(new CustomEvent("glucose:hover-arrow", { detail: hoverDetail }));
@@ -627,6 +633,7 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
                 {/* Anneau portail si la flèche pointe vers un autre board */}
                 {ann.targetBoardId && (
                   <g
+                    data-arbiter-skip=""
                     transform={`translate(${pts[n - 1].x}, ${pts[n - 1].y})`}
                     style={{ cursor: "pointer", pointerEvents: "auto" }}
                     onPointerDown={(e) => e.stopPropagation()}
@@ -678,6 +685,7 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
                   const iOffX = (ann.predicate || ann.text) ? 24 : 0;
                   return (
                     <g
+                      data-arbiter-skip=""
                       transform={`translate(${midX + iOffX}, ${midY + badgeOffY})`}
                       style={{ cursor: "pointer", pointerEvents: "auto" }}
                       onPointerDown={(e) => e.stopPropagation()}

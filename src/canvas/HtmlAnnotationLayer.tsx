@@ -10,6 +10,12 @@ import { ensureKatexCssIfMath } from "../utils/loadKatexCss";
 import { invoke } from "@tauri-apps/api/core";
 import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
+// SNAP-1 — alignement intelligent unifié (moteur pur + pont store).
+import { beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
+import type { ResizeHandle } from "./smartAlign";
+
+/** Demi-longueur d'un guide, en PIXELS ÉCRAN (convertie en monde au rendu). */
+const GUIDE_SPAN = 20000;
 import AppBridgeIcon, { getAppDef } from "../components/AppBridgeIcon";
 // Symbiose chromatique : fonction pure isolée dans utils/. Re-exportée plus bas
 // pour compat ascendante (ArrowSvgLayer, ArrowTextEditor l'importent d'ici).
@@ -18,6 +24,7 @@ import { getSymbioticHue } from "../utils/symbioticHue";
 import { toAbsolute, toRelative } from "../utils/pathResolver";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useFileExistence, invalidateExistenceCache } from "../utils/fileExistence";
+import { registerPickHandler } from "./pickArbiter";
 
 function openSourceFile(path: string) {
   const absPath = toAbsolute(path);
@@ -89,7 +96,7 @@ const SourceFileTile: React.FC<SourceFileTileProps> = ({
 
   return (
     <div
-      data-id={ann.id}
+      data-id={ann.id} data-pick-owner="annotation" data-pick-id={ann.id}
       ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
       title={`${def.name} — ${fileStatus === "broken" ? "Lien rompu ! Cliquer sur le badge pour réassocier" : "double-clic pour ouvrir"}`}
       style={{
@@ -204,6 +211,8 @@ interface DragState {
   corner?: string;
   startW?: number;
   startH?: number;
+  /** SNAP-1 — session d'alignement ouverte au grab (déplacement uniquement). */
+  snap?: SelectionSnapSession;
 }
 
 // Survol d'une flèche : informations sur les nœuds source/cible et les
@@ -282,7 +291,6 @@ export default function HtmlAnnotationLayer({
   } | null>(null);
   const [previewTarget, setPreviewTarget] = useState<{ annId: string, blockId?: string } | null>(null);
   const guides = useGlucoseStore((s) => s.guides);
-  const setGuides = useGlucoseStore((s) => s.setGuides);
 
   useEffect(() => {
     const onHover = (e: Event) => setHoveredBlocks((e as CustomEvent).detail);
@@ -299,17 +307,56 @@ export default function HtmlAnnotationLayer({
   const resizeObserver = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
-    // Synchronisation de la transformation CSS avec le viewport PixiJS
-    let rafId: number;
-    function updateTransform() {
-      if (containerRef.current && vpRef.current) {
-        const { x, y, scale } = vpRef.current;
-        containerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
-      }
-      rafId = requestAnimationFrame(updateTransform);
-    }
-    updateTransform();
-    return () => cancelAnimationFrame(rafId);
+    // PERF-5 — Synchronisation de la transformation CSS avec le viewport PixiJS.
+    //
+    // AVANT : boucle rAF autonome qui SONDAIT `vpRef.current`. Deux défauts :
+    //  1. UNE FRAME DE RETARD SYSTÉMATIQUE. `vpRef` n'est écrit que par
+    //     emitViewport, lui-même planifié en rAF depuis le pointermove
+    //     (scheduleViewportSync). Or cette boucle se réenregistrait à la fin de
+    //     chaque frame → dans la file rAF elle passait TOUJOURS avant la
+    //     callback d'emitViewport (enregistrée, elle, pendant le dispatch du
+    //     pointermove de la frame courante). Le texte lisait donc le viewport
+    //     de la frame N-1 pendant que les sprites Pixi (world.x muté
+    //     synchroniquement) et les couches SVG (event `viewport-changed`, émis
+    //     DANS emitViewport) étaient à jour. D'où le texte « en retard » sur
+    //     tout le reste, proportionnellement à la vitesse de pan.
+    //  2. La boucle tournait EN PERMANENCE, même board immobile → annulait le
+    //     rendu à la demande de PERF-4.
+    //
+    // APRÈS : on s'abonne à `glucose:viewport-changed` exactement comme
+    // SvgAnnotationLayer / FolderSvgLayer / ArrowSvgLayer. Même cadence
+    // (emitViewport reste coalescé en rAF), mais appliqué dans la BONNE frame,
+    // et zéro travail au repos.
+    let idleTimer: number | undefined;
+    const apply = (x: number, y: number, scale: number) => {
+      const el = containerRef.current;
+      if (!el) return;
+      el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+      // Promotion compositeur PENDANT le geste uniquement. Chaque bloc texte
+      // porte un `box-shadow: 0 0 60px 30px` (flou non composité) : sans couche
+      // dédiée, chaque changement de transform repeint tout le texte ET tous
+      // les flous sur le thread principal. On ne laisse pas `will-change` en
+      // permanence (une couche de la taille du board coûte de la VRAM) : on
+      // l'arme au 1er event et on le retire après 400 ms sans mouvement.
+      el.style.willChange = "transform";
+      if (idleTimer !== undefined) clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => {
+        idleTimer = undefined;
+        if (containerRef.current) containerRef.current.style.willChange = "auto";
+      }, 400);
+    };
+    const onVp = (e: Event) => {
+      const { x, y, scale } = (e as CustomEvent<{ x: number; y: number; scale: number }>).detail;
+      apply(x, y, scale);
+    };
+    window.addEventListener("glucose:viewport-changed", onVp);
+    // Valeur courante appliquée tout de suite (montage / changement de board).
+    const { x, y, scale } = vpRef.current;
+    apply(x, y, scale);
+    return () => {
+      window.removeEventListener("glucose:viewport-changed", onVp);
+      if (idleTimer !== undefined) clearTimeout(idleTimer);
+    };
   }, [vpRef]);
 
   useEffect(() => {
@@ -344,6 +391,19 @@ export default function HtmlAnnotationLayer({
       resizeObserver.current?.disconnect();
     };
   }, [editingId]);
+
+  // PICK-1 — point d'entrée programmatique de l'arbitre de priorité
+  // (cf. hitPriority.ts) : un clic tombé sur une membrane peut revenir ici si
+  // c'est le texte/sticky qui gagne, et inversement. Les refs gardent la
+  // fermeture à jour sans réenregistrer le handler à chaque render.
+  const handleDownRef = useRef(handleDown);
+  handleDownRef.current = handleDown;
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
+  useEffect(() => registerPickHandler("annotation", (id, ev, corner) => {
+    const ann = annotationsRef.current.find((a) => a.id === id);
+    if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
+  }), []);
 
   function handleDown(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (e.button !== 0) return;
@@ -418,6 +478,9 @@ export default function HtmlAnnotationLayer({
       pStartX: wx, pStartY: wy,
       didMove: false, t0: Date.now(),
       corner, startW: annW, startH: annH,
+      // SNAP-1 — la boîte de référence est figée au grab (cf. beginSelectionSnap) :
+      // aucune dérive sous le curseur quand on entre/sort des zones d'accroche.
+      snap: corner ? undefined : beginSelectionSnap(),
     };
 
     function onGlobalMove(ev: PointerEvent) {
@@ -440,87 +503,25 @@ export default function HtmlAnnotationLayer({
         else if (ds.corner === "bl") { nw = Math.max(60, sw - dx); nh = Math.max(40, sh + dy); nx = ds.startX + (sw - nw); }
         else if (ds.corner === "tr") { nw = Math.max(60, sw + dx); nh = Math.max(40, sh - dy); ny = ds.startY + (sh - nh); }
         else if (ds.corner === "tl") { nw = Math.max(60, sw - dx); nh = Math.max(40, sh - dy); nx = ds.startX + (sw - nw); ny = ds.startY + (sh - nh); }
-        onResize(ds.id, nx, ny, nw, nh);
+        // SNAP-1 — la MISE À L'ÉCHELLE s'aligne comme le déplacement : seuls les
+        // bords que la poignée tire peuvent accrocher (les deux autres ne bougent
+        // pas, ils ne doivent donc afficher aucun guide).
+        const snapped = snapResizeLive(
+          { left: nx, top: ny, width: nw, height: nh },
+          ds.corner as ResizeHandle,
+          [ds.id],
+          { scale: vpRef.current.scale, minWidth: 60, minHeight: 40 },
+        );
+        onResize(ds.id, snapped.rect.left, snapped.rect.top, snapped.rect.width, snapped.rect.height);
       } else {
         const boardId = useGlucoseStore.getState().activeBoardId;
-        const board = useGlucoseStore.getState().project.boards.find(b => b.id === boardId);
-        const smartEnabled = useGlucoseStore.getState().smartGuidesEnabled;
-        
-        let finalDX = wx2 - ds.pStartX;
-        let finalDY = wy2 - ds.pStartY;
-
-        // Snapping intelligent
-        if (smartEnabled && selectedIds.length === 1 && board) {
-          const ann = board.annotations.find(a => a.id === ds.id);
-          if (ann && ann.type !== "arrow") {
-            const SNAP_DIST = 8;
-            const currentX = ann.x + finalDX;
-            const currentY = ann.y + finalDY;
-            const w = ann.width || 200;
-            const h = ann.height || 100;
-
-            const targetsX: { val: number; type: string }[] = [];
-            const targetsY: { val: number; type: string }[] = [];
-
-            board.annotations.forEach(other => {
-              if (other.id === ann.id || (other.type !== "text" && other.type !== "sticky")) return;
-              const ow = other.width || 200;
-              const oh = other.height || 100;
-              targetsX.push({ val: other.x, type: "left" });
-              targetsX.push({ val: other.x + ow, type: "right" });
-              targetsX.push({ val: other.x + ow / 2, type: "center" });
-              targetsY.push({ val: other.y, type: "top" });
-              targetsY.push({ val: other.y + oh, type: "bottom" });
-              targetsY.push({ val: other.y + oh / 2, type: "center" });
-            });
-
-            let snapX: number | undefined;
-            let snapY: number | undefined;
-
-            const myXPoints = [
-              { val: currentX, type: "left" },
-              { val: currentX + w, type: "right" },
-              { val: currentX + w / 2, type: "center" }
-            ];
-            for (const myP of myXPoints) {
-              for (const target of targetsX) {
-                if (Math.abs(myP.val - target.val) < SNAP_DIST) {
-                  snapX = target.val;
-                  finalDX = target.val - (myP.type === "left" ? ann.x : myP.type === "right" ? ann.x + w : ann.x + w / 2);
-                  break;
-                }
-              }
-              if (snapX !== undefined) break;
-            }
-
-            const myYPoints = [
-              { val: currentY, type: "top" },
-              { val: currentY + h, type: "bottom" },
-              { val: currentY + h / 2, type: "center" }
-            ];
-            for (const myP of myYPoints) {
-              for (const target of targetsY) {
-                if (Math.abs(myP.val - target.val) < SNAP_DIST) {
-                  snapY = target.val;
-                  finalDY = target.val - (myP.type === "top" ? ann.y : myP.type === "bottom" ? ann.y + h : ann.y + h / 2);
-                  break;
-                }
-              }
-              if (snapY !== undefined) break;
-            }
-
-            setGuides({ 
-              x: snapX !== undefined ? [snapX] : undefined, 
-              y: snapY !== undefined ? [snapY] : undefined 
-            });
-          }
-        } else {
-          setGuides(null);
-        }
-
+        // SNAP-1 — déplacement : c'est la boîte englobante de TOUTE la sélection
+        // qui s'aligne (avant, seule une sélection d'un unique élément accrochait),
+        // contre images, textes, notes, membranes ET dossiers.
+        const { dx: finalDX, dy: finalDY } = (ds.snap ?? beginSelectionSnap()).move(
+          dx, dy, { scale: vpRef.current.scale },
+        );
         if (Math.abs(finalDX) > 0.01 || Math.abs(finalDY) > 0.01) {
-          ds.pStartX += finalDX;
-          ds.pStartY += finalDY;
           useGlucoseStore.getState().moveSelected(boardId, finalDX, finalDY);
         }
       }
@@ -536,7 +537,7 @@ export default function HtmlAnnotationLayer({
       }
       useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si simple clic)
       dragRef.current = null;
-      setGuides(null);
+      endSnap();
       window.removeEventListener("pointermove", onGlobalMove);
       window.removeEventListener("pointerup", onGlobalUp);
     }
@@ -589,19 +590,26 @@ export default function HtmlAnnotationLayer({
           );
         })}
 
-        {/* Guides intelligents d'alignement — Style léger et professionnel */}
+        {/* SNAP-1 — Guides d'alignement. Posés par TOUTES les couches (images,
+            textes, notes, membranes, dossiers) et par les outils de création,
+            via le store. Leur longueur est exprimée en unités MONDE : à seuil
+            fixe (−10000) un trait ne traversait plus l'écran une fois très
+            dézoomé — on la divise donc par l'échelle pour couvrir toujours
+            ~20000 px écran. Épaisseur idem : 1 px à l'écran quel que soit le zoom. */}
         {guides?.x?.map(gx => (
           <div key={`gx-${gx}`} style={{
-            position: "absolute", left: gx, top: -10000, bottom: -10000,
-            width: 1 / vpRef.current.scale, 
+            position: "absolute", left: gx,
+            top: -GUIDE_SPAN / vpRef.current.scale, bottom: -GUIDE_SPAN / vpRef.current.scale,
+            width: 1 / vpRef.current.scale,
             borderLeft: `${1 / vpRef.current.scale}px dashed rgba(255, 255, 255, 0.3)`,
             zIndex: 1000, pointerEvents: "none"
           }} />
         ))}
         {guides?.y?.map(gy => (
           <div key={`gy-${gy}`} style={{
-            position: "absolute", top: gy, left: -10000, right: -10000,
-            height: 1 / vpRef.current.scale, 
+            position: "absolute", top: gy,
+            left: -GUIDE_SPAN / vpRef.current.scale, right: -GUIDE_SPAN / vpRef.current.scale,
+            height: 1 / vpRef.current.scale,
             borderTop: `${1 / vpRef.current.scale}px dashed rgba(255, 255, 255, 0.3)`,
             zIndex: 1000, pointerEvents: "none"
           }} />
@@ -944,7 +952,7 @@ function AnnotationItem({
               return (
                 <div
                   key={ann.id}
-                  data-id={ann.id}
+                  data-id={ann.id} data-pick-owner="annotation" data-pick-id={ann.id}
                   ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
                   title={`${fname} — double-clic pour ouvrir`}
                   style={{
@@ -1033,7 +1041,7 @@ function AnnotationItem({
             return (
               <div
                 key={ann.id}
-                data-id={ann.id}
+                data-id={ann.id} data-pick-owner="annotation" data-pick-id={ann.id}
                 ref={(el) => { 
                   annRef.current = el;
                   if (el && resizeObserver.current) resizeObserver.current.observe(el); 
@@ -1125,7 +1133,7 @@ function AnnotationItem({
             return (
               <div
                 key={ann.id}
-                data-id={ann.id}
+                data-id={ann.id} data-pick-owner="annotation" data-pick-id={ann.id}
                 ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
                 style={{
                   position: "absolute",
@@ -1191,7 +1199,7 @@ function AnnotationItem({
             return (
               <div
                 key={ann.id}
-                data-id={ann.id}
+                data-id={ann.id} data-pick-owner="annotation" data-pick-id={ann.id}
                 ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
                 style={{
                   position: "absolute",

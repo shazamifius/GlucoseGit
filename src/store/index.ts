@@ -43,6 +43,7 @@ import * as A from "./automerge";
 import { LIMITS } from "../constants";
 import { getCollabHandle } from "../multiplayer/collabHandle";
 import { recordAction } from "../telemetry/telemetry";
+import { sameGuides } from "../canvas/smartAlign";
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Bornes (CLEANUP R-02) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const COORD_LIMIT = 1_000_000;
@@ -650,7 +651,10 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
   setTemporalFilter: (filter) => set({ temporalFilter: filter }),
   setRightPanelOpen: (open) => { if (get().rightPanelOpen !== open) set({ rightPanelOpen: open }); },
   toggleSmartGuides: () => set((s) => ({ smartGuidesEnabled: !s.smartGuidesEnabled })),
-  setGuides: (guides) => set({ guides }),
+  /** SNAP-1 — DÉDUPLIQUÉ : les couches appellent `setGuides` à CHAQUE frame de
+   *  drag. Sans cette garde, chaque frame re-rendait toute la couche
+   *  d'annotations pour redessiner deux traits identiques. */
+  setGuides: (guides) => { if (!sameGuides(get().guides, guides)) set({ guides }); },
 
   // â”€â”€ Canal d'assets (collab) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   _assetEpoch: 0,

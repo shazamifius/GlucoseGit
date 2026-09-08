@@ -3,6 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { Annotation, MembraneAnnotation } from "../types";
 import { useGlucoseStore } from "../store";
 import { showToast } from "../components/Toast";
+import { registerPickHandler } from "./pickArbiter";
+// SNAP-1 — alignement intelligent unifié : les membranes s'alignent désormais
+// comme les textes/notes/images, au déplacement ET à la mise à l'échelle.
+import { beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
+import type { ResizeHandle } from "./smartAlign";
 
 import { toAbsolute } from "../utils/pathResolver";
 
@@ -47,6 +52,8 @@ interface DragState {
   t0: number;
   corner?: string;
   startW?: number; startH?: number;
+  /** SNAP-1 — session d'alignement ouverte au grab (déplacement uniquement). */
+  snap?: SelectionSnapSession;
 }
 
 export default function SvgAnnotationLayer({
@@ -99,6 +106,7 @@ export default function SvgAnnotationLayer({
       pStartX: wx, pStartY: wy,
       didMove: false, t0: Date.now(),
       corner, startW: annW, startH: annH,
+      snap: corner ? undefined : beginSelectionSnap(),
     };
 
     function onGlobalMove(ev: PointerEvent) {
@@ -121,14 +129,22 @@ export default function SvgAnnotationLayer({
         else if (ds.corner === "bl") { nw = Math.max(60, sw - dx); nh = Math.max(40, sh + dy); nx = ds.startX + (sw - nw); }
         else if (ds.corner === "tr") { nw = Math.max(60, sw + dx); nh = Math.max(40, sh - dy); ny = ds.startY + (sh - nh); }
         else if (ds.corner === "tl") { nw = Math.max(60, sw - dx); nh = Math.max(40, sh - dy); nx = ds.startX + (sw - nw); ny = ds.startY + (sh - nh); }
-        onResize(ds.id, nx, ny, nw, nh);
+        // SNAP-1 — bords tirés alignés sur le reste du board.
+        const snapped = snapResizeLive(
+          { left: nx, top: ny, width: nw, height: nh },
+          ds.corner as ResizeHandle,
+          [ds.id],
+          { scale: vpRef.current.scale, minWidth: 60, minHeight: 40 },
+        );
+        onResize(ds.id, snapped.rect.left, snapped.rect.top, snapped.rect.width, snapped.rect.height);
       } else {
-        const currentDX = wx2 - ds.pStartX;
-        const currentDY = wy2 - ds.pStartY;
-        ds.pStartX = wx2;
-        ds.pStartY = wy2;
         const boardId = useGlucoseStore.getState().activeBoardId;
-        useGlucoseStore.getState().moveSelected(boardId, currentDX, currentDY);
+        const { dx: mdx, dy: mdy } = (ds.snap ?? beginSelectionSnap()).move(
+          dx, dy, { scale: vpRef.current.scale },
+        );
+        if (Math.abs(mdx) > 0.01 || Math.abs(mdy) > 0.01) {
+          useGlucoseStore.getState().moveSelected(boardId, mdx, mdy);
+        }
       }
     }
 
@@ -144,6 +160,7 @@ export default function SvgAnnotationLayer({
       }
       useGlucoseStore.getState().endLiveEdit(); // UNDO-1 — referme la transaction (no-op si simple clic)
       dragRef.current = null;
+      endSnap();
       window.removeEventListener("pointermove", onGlobalMove);
       window.removeEventListener("pointerup",   onGlobalUp);
     }
@@ -151,6 +168,19 @@ export default function SvgAnnotationLayer({
     window.addEventListener("pointermove", onGlobalMove);
     window.addEventListener("pointerup",   onGlobalUp);
   }
+
+  // PICK-1 — L'arbitre de priorité (cf. hitPriority.ts) peut décider qu'une
+  // membrane gagne un clic tombé sur une AUTRE couche (ou l'inverse). On lui
+  // expose donc un point d'entrée programmatique vers le même `handleDown` que
+  // le DOM. La ref garde la fermeture à jour sans réenregistrer à chaque render.
+  const handleDownRef = useRef(handleDown);
+  handleDownRef.current = handleDown;
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
+  useEffect(() => registerPickHandler("membrane", (id, ev, corner) => {
+    const ann = annotationsRef.current.find((a) => a.id === id);
+    if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
+  }), []);
 
   function handleDown(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (e.button !== 0) return;
@@ -263,6 +293,9 @@ export default function SvgAnnotationLayer({
     return (
       <g
         key={ann.id}
+        /* PICK-1 — marqueurs lus par l'arbitre en phase capture (GlucoseCanvas). */
+        data-pick-owner="membrane"
+        data-pick-id={ann.id}
         transform={`translate(${ann.x},${ann.y})`}
         style={{ pointerEvents: activeTool === "select" ? "all" : "none", cursor: activeTool === "select" ? "move" : "default" }}
         onPointerDown={(e) => handleDown(ann, e)}

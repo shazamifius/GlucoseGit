@@ -15,7 +15,10 @@ if (typeof document !== "undefined" && !document.getElementById("glucose-kf")) {
 }
 
 interface Props {
-  onClose: () => void;
+  /** Fermeture programmatique (jamais un bouton : la poignée du dock ferme). */
+  onClose?: () => void;
+  /** Rendu en tiroir dans le dock : le dock fournit le positionnement. */
+  docked?: boolean;
 }
 
 /** Nom de fichier seul (sans le chemin). */
@@ -41,7 +44,7 @@ function matchPass(line: string): { pct: number; label: string } | null {
   return best;
 }
 
-export default function PluginPanel({ onClose }: Props) {
+export default function PluginPanel({ docked }: Props) {
   const [plugins, setPlugins] = useState<PluginManifest[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [textPath, setTextPath] = useState<string | null>(null);
@@ -190,11 +193,10 @@ export default function PluginPanel({ onClose }: Props) {
   const modelInstalled = !!(recommended && ollama?.models.includes(recommended));
 
   return (
-    <div style={panel}>
+    <div style={docked ? { ...panel, ...panelDocked } : panel}>
       {/* Header */}
       <div style={header}>
         <span style={{ color: "#eee", fontWeight: 600, fontSize: 13, letterSpacing: 1 }}>Plugins</span>
-        <button onClick={onClose} title="Fermer" style={closeBtn}>×</button>
       </div>
 
       <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 18 }}>
@@ -423,13 +425,16 @@ const panel: React.CSSProperties = {
   width: 340, background: "#111", borderLeft: "1px solid #222",
   display: "flex", flexDirection: "column", zIndex: 100,
 };
-const header: React.CSSProperties = {
-  display: "flex", alignItems: "center", justifyContent: "space-between",
-  padding: "12px 16px", borderBottom: "1px solid #1e1e1e",
+/** En tiroir : le dock place le panneau, on annule donc l'ancrage plein écran.
+ *  Les 14 px du bas laissent respirer la poignée. */
+const panelDocked: React.CSSProperties = {
+  position: "static", top: "auto", right: "auto", bottom: "auto", zIndex: "auto",
+  maxHeight: "70vh", border: "1px solid #222", borderLeft: "1px solid #222",
+  borderRadius: 6, paddingBottom: 14, overflow: "hidden",
 };
-const closeBtn: React.CSSProperties = {
-  background: "transparent", border: "none", color: "#777",
-  fontSize: 20, lineHeight: 1, cursor: "pointer", padding: "0 4px",
+const header: React.CSSProperties = {
+  display: "flex", alignItems: "center",
+  padding: "12px 16px", borderBottom: "1px solid #1e1e1e",
 };
 const pluginRow: React.CSSProperties = {
   textAlign: "left", border: "1px solid #1f1f1f", borderRadius: 6,
