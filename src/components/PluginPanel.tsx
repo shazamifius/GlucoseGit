@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   listPlugins, installPluginFromDir, pickTextFile, runPluginAndImport,
   systemSpecs, ollamaStatus, pullModel, installOllama,
   onPluginProgress, onModelProgress, onOllamaInstallProgress,
   type PluginManifest, type SystemSpecs, type OllamaStatus,
 } from "../utils/plugins";
+import { BUILTIN_ENGINE, BUILTIN_ENGINE_ID, chooseModel, modelSizeB, runBuiltinEngine } from "../utils/builtinEngine";
 
 // Keyframes (injectées une fois) pour la barre de progression indéterminée.
 if (typeof document !== "undefined" && !document.getElementById("glucose-kf")) {
@@ -54,6 +55,9 @@ export default function PluginPanel({ docked }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [doneMsg, setDoneMsg] = useState<string | null>(null);
   const [optionValues, setOptionValues] = useState<Record<string, string>>({});
+  // Un traitement peut durer des dizaines de minutes : on doit pouvoir l'arrêter
+  // sans perdre les sections déjà produites (elles sont importées quand même).
+  const stopRef = useRef(false);
 
   // Environnement (Ollama / matériel)
   const [specs, setSpecs] = useState<SystemSpecs | null>(null);
@@ -66,17 +70,48 @@ export default function PluginPanel({ docked }: Props) {
   const [installLine, setInstallLine] = useState("");
   const [installErr, setInstallErr] = useState<string | null>(null);
 
+  // Le moteur INTÉGRÉ est toujours en tête de liste : il ne dépend d'aucun
+  // binaire à installer, donc « Lancer » est utilisable dès la première ouverture.
+  // Les plugins externes viennent s'ajouter à côté, jamais à sa place.
   async function refreshPlugins() {
-    const list = await listPlugins();
+    let installed: PluginManifest[] = [];
+    try {
+      installed = await listPlugins();
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e)); // dossier illisible : on garde le moteur intégré
+    }
+    const list = [BUILTIN_ENGINE, ...installed.filter((p) => p.id !== BUILTIN_ENGINE_ID)];
     setPlugins(list);
-    if (list.length === 1) setSelectedId(list[0].id);
+    setSelectedId((cur) => (cur && list.some((p) => p.id === cur) ? cur : list[0].id));
   }
 
   useEffect(() => {
     refreshPlugins().catch((e) => setError(String(e)));
     systemSpecs().then(setSpecs).catch(() => {});
-    ollamaStatus().then(setOllama).catch(() => {});
   }, []);
+
+  // L'environnement change SOUS l'application : l'utilisateur installe Ollama à
+  // côté, le démon met dix secondes à répondre, un modèle finit de se télécharger
+  // ailleurs… Une sonde unique au montage obligeait à relancer Glucose pour voir
+  // « Ollama actif ». On resonde donc tant que le panneau est ouvert.
+  useEffect(() => {
+    let alive = true;
+    const probe = () => {
+      // Pendant une install / un pull, ces flux pilotent déjà l'affichage : une
+      // sonde concurrente ferait clignoter la section.
+      if (pulling || installing) return;
+      ollamaStatus().then((s) => { if (alive) setOllama(s); }).catch(() => {});
+    };
+    probe();
+    const id = setInterval(probe, 4000);
+    // Retour d'un installeur externe → on veut la mise à jour immédiate.
+    window.addEventListener("focus", probe);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("focus", probe);
+    };
+  }, [pulling, installing]);
 
   // Quand le plugin sélectionné change : initialise les options à leurs défauts.
   useEffect(() => {
@@ -115,6 +150,7 @@ export default function PluginPanel({ docked }: Props) {
 
   async function launch() {
     if (!selectedId || !textPath || running) return;
+    stopRef.current = false;
     setRunning(true);
     setError(null);
     setDoneMsg(null);
@@ -122,14 +158,35 @@ export default function PluginPanel({ docked }: Props) {
     setLabel("Démarrage du moteur…");
     let un: (() => void) | null = null;
     try {
-      un = await onPluginProgress((line) => {
-        const m = matchPass(line);
-        if (m) {
-          setPct((p) => Math.max(p, m.pct));
-          setLabel(m.label);
+      if (selectedId === BUILTIN_ENGINE_ID) {
+        // Moteur intégré : il parle directement à l'IA locale et rapporte sa
+        // progression par callback (pas d'event Tauri, pas de process externe).
+        const model = chooseModel(recommended, ollama?.models ?? []);
+        if (!model) {
+          throw new Error(
+            "Aucun modèle d'IA locale n'est installé. Télécharge le modèle conseillé dans la section IA locale ci-dessus.",
+          );
         }
-      });
-      await runPluginAndImport(selectedId, textPath, optionValues);
+        await runBuiltinEngine({
+          textPath,
+          model,
+          options: optionValues,
+          onProgress: (p, l) => {
+            setPct((prev) => Math.max(prev, p));
+            setLabel(l);
+          },
+          shouldStop: () => stopRef.current,
+        });
+      } else {
+        un = await onPluginProgress((line) => {
+          const m = matchPass(line);
+          if (m) {
+            setPct((p) => Math.max(p, m.pct));
+            setLabel(m.label);
+          }
+        });
+        await runPluginAndImport(selectedId, textPath, optionValues);
+      }
       setPct(100);
       setLabel("Terminé");
       setDoneMsg("Cours ajouté comme nouveau board ✓");
@@ -192,6 +249,37 @@ export default function PluginPanel({ docked }: Props) {
   const recommended = specs?.recommended_model ?? null;
   const modelInstalled = !!(recommended && ollama?.models.includes(recommended));
 
+  // Un bouton grisé sans explication est un cul-de-sac : on nomme toujours la
+  // pièce qui manque. Depuis le moteur intégré, il n'en reste qu'une seule —
+  // le texte source.
+  const launchBlocker = running || plugins === null
+    ? null
+    : !selectedId
+      ? "Choisis un moteur dans la liste ci-dessus."
+      : !textPath
+        ? "Choisis un texte source ci-dessus : c'est la seule chose qui manque."
+        : null;
+  // L'IA locale peut manquer sans que ce soit bloquant (un plugin externe peut
+  // s'en passer) : on avertit, on ne grise pas.
+  const modelToUse = chooseModel(recommended, ollama?.models ?? []);
+  // Le modèle installé est-il nettement plus gros que celui qui tient dans la
+  // VRAM ? C'est le cas vécu (32b conseillé à tort sur un GPU de 6 Go) : ça
+  // marche, mais à ~1 mot/s. Mieux vaut le dire que laisser croire à un blocage.
+  const usedSize = modelToUse ? modelSizeB(modelToUse) : null;
+  const fitSize = recommended ? modelSizeB(recommended) : null;
+  const slowModel = !!(usedSize && fitSize && usedSize > fitSize * 1.5);
+  const launchWarning = launchBlocker
+    ? null
+    : ollama?.reachable === false
+      ? "Ollama ne répond pas : démarre l'IA locale ci-dessus, sinon le moteur échouera."
+      : ollama?.reachable && !modelToUse
+        ? "Aucun modèle installé : télécharge le modèle conseillé ci-dessus."
+        : slowModel
+          ? `« ${modelToUse} » dépasse ce que ta carte peut tenir : le traitement tournera sur le processeur, très lentement (plusieurs minutes par section). Télécharger ${recommended} ci-dessus le rendra bien plus rapide.`
+          : recommended && ollama?.reachable && !modelInstalled && modelToUse
+            ? `Modèle conseillé (${recommended}) absent — le moteur utilisera « ${modelToUse} ».`
+            : null;
+
   return (
     <div style={docked ? { ...panel, ...panelDocked } : panel}>
       {/* Header */}
@@ -252,12 +340,10 @@ export default function PluginPanel({ docked }: Props) {
 
         <Divider />
 
-        {/* ── Plugin ── */}
-        <Section title="Plugin">
+        {/* ── Moteur ── (le moteur intégré est toujours présent : plus de liste vide) */}
+        <Section title="Moteur">
           {plugins === null ? (
             <Muted>Chargement…</Muted>
-          ) : plugins.length === 0 ? (
-            <Muted>Aucun plugin installé pour l'instant.</Muted>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
               {plugins.map((p) => {
@@ -281,7 +367,6 @@ export default function PluginPanel({ docked }: Props) {
               })}
             </div>
           )}
-          <button onClick={installPlugin} style={softBtn}>Installer un plugin…</button>
         </Section>
 
         {/* ── Réglages (recette) — générés AUTOMATIQUEMENT depuis le manifeste ── */}
@@ -337,15 +422,41 @@ export default function PluginPanel({ docked }: Props) {
         >
           {running ? "Le moteur travaille…" : "Lancer"}
         </button>
+        {launchBlocker && <Muted>{launchBlocker}</Muted>}
+        {launchWarning && <div style={{ color: "#b9975b", fontSize: 11, lineHeight: 1.6 }}>{launchWarning}</div>}
 
         {running && (
           <>
             <ProgressBar pct={pct} line={label} />
             <Muted>L'IA locale traite ton texte — laisse la fenêtre ouverte.</Muted>
+            {selectedId === BUILTIN_ENGINE_ID && (
+              <button
+                onClick={() => {
+                  stopRef.current = true;
+                  setLabel("Arrêt demandé — la partie en cours se termine…");
+                }}
+                style={ghostBtn}
+              >
+                Arrêter et garder ce qui est déjà fait
+              </button>
+            )}
           </>
         )}
         {doneMsg && <div style={{ color: "#34d399", fontSize: 12 }}>{doneMsg}</div>}
         {error && <ErrBox>{error}</ErrBox>}
+
+        <Divider />
+
+        {/* ── Avancé ── : ajouter un moteur tiers. Volontairement en dernier —
+            le parcours normal (moteur intégré → texte → lancer) n'en a pas besoin. */}
+        <Section title="Avancé">
+          <button onClick={installPlugin} style={ghostBtn} disabled={running}>
+            Installer un plugin externe…
+          </button>
+          <div style={{ color: "#5e5e5e", fontSize: 10, marginTop: 6, lineHeight: 1.6 }}>
+            Un dossier contenant <code>manifest.json</code> et son binaire.
+          </div>
+        </Section>
       </div>
     </div>
   );
@@ -444,6 +555,12 @@ const softBtn: React.CSSProperties = {
   width: "100%", padding: "8px 10px", borderRadius: 6,
   border: "1px solid #2a2a2a", background: "#161616", color: "#bdbdbd",
   fontSize: 12, cursor: "pointer",
+};
+/** Action secondaire : lisible mais visiblement moins importante que `softBtn`. */
+const ghostBtn: React.CSSProperties = {
+  width: "100%", padding: "7px 10px", borderRadius: 6,
+  border: "1px solid #212121", background: "transparent", color: "#8a8a8a",
+  fontSize: 11, cursor: "pointer",
 };
 const primaryBtn: React.CSSProperties = {
   width: "100%", padding: "10px 12px", borderRadius: 6,

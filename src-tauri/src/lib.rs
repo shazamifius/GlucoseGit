@@ -1127,6 +1127,10 @@ const TEXT_READ_EXTS: &[&str] = &[
 /// Plafond de lecture inline d'un fichier texte (100 KB — au-delà on tronque).
 const TEXT_INLINE_MAX_BYTES: usize = 100_000;
 
+/// Plafond absolu quand l'appelant demande explicitement plus (moteur intégré :
+/// il doit voir tout le cours, pas son premier écran).
+const TEXT_SOURCE_MAX_BYTES: usize = 4_000_000;
+
 /// Résultat de lecture d'un fichier texte (contenu + flag de troncature).
 #[derive(serde::Serialize)]
 struct TextFileDto {
@@ -1140,6 +1144,7 @@ struct TextFileDto {
 #[tauri::command]
 async fn read_text_file_inline(
     path: String,
+    max_bytes: Option<usize>,
     app_handle: tauri::AppHandle,
 ) -> Result<TextFileDto, String> {
     let canonical = validate_scope(&path, &app_handle)?;
@@ -1157,12 +1162,11 @@ async fn read_text_file_inline(
     let bytes = tokio::fs::read(&canonical)
         .await
         .map_err(|e| e.to_string())?;
-    let truncated = bytes.len() > TEXT_INLINE_MAX_BYTES;
-    let slice = if truncated {
-        &bytes[..TEXT_INLINE_MAX_BYTES]
-    } else {
-        &bytes[..]
-    };
+    let cap = max_bytes
+        .unwrap_or(TEXT_INLINE_MAX_BYTES)
+        .clamp(1_000, TEXT_SOURCE_MAX_BYTES);
+    let truncated = bytes.len() > cap;
+    let slice = if truncated { &bytes[..cap] } else { &bytes[..] };
     // from_utf8_lossy : un fichier "texte" mal encodé (latin-1, binaire déguisé)
     // ne doit pas faire planter — on remplace les octets invalides.
     let content = String::from_utf8_lossy(slice).into_owned();
@@ -1796,7 +1800,15 @@ struct SystemSpecs {
 /// Choisit un modèle selon la mémoire disponible (VRAM prioritaire, sinon RAM).
 /// Heuristique simple et honnête — pas une science exacte.
 fn recommend_model(ram_gb: u64, vram_gb: Option<u64>) -> &'static str {
-    let budget = vram_gb.unwrap_or(0).max(ram_gb.saturating_sub(4)); // garde ~4 Go à l'OS
+    // Un modèle qui NE TIENT PAS dans la VRAM est déporté sur le CPU : on tombe
+    // à ~1 token/s au lieu de 20+, soit des heures pour un cours de 30 Ko.
+    // L'ancien `max(vram, ram - 4)` conseillait donc un 32b sur une carte de
+    // 6 Go — techniquement exécutable, humainement inutilisable. Un GPU présent
+    // FIXE le budget ; sans GPU on reste sur le CPU, donc on plafonne bas.
+    let budget = match vram_gb {
+        Some(v) if v >= 4 => v,
+        _ => ram_gb.saturating_sub(4).min(8), // garde ~4 Go à l'OS
+    };
     if budget >= 24 {
         "qwen2.5:32b"
     } else if budget >= 12 {
@@ -1807,6 +1819,7 @@ fn recommend_model(ram_gb: u64, vram_gb: Option<u64>) -> &'static str {
         "qwen2.5:3b"
     }
 }
+
 
 /// VRAM totale du 1er GPU NVIDIA (Go), via nvidia-smi si présent. None sinon.
 async fn nvidia_vram_gb() -> Option<u64> {
@@ -1928,14 +1941,20 @@ async fn pull_model(model: String, app_handle: tauri::AppHandle) -> Result<(), S
     {
         return Err("Nom de modèle invalide.".into());
     }
-    let mut child = tokio::process::Command::new("ollama")
+    let child = tokio::process::Command::new(ollama_program())
         .kill_on_drop(true)
         .arg("pull")
         .arg(&model)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|_| "Ollama introuvable. Installe Ollama d'abord (ollama.com).".to_string())?;
+        .spawn();
+    // Binaire introuvable (installé ailleurs, PATH de cette session pas encore à
+    // jour, Ollama en conteneur…) : le DÉMON, lui, répond. On télécharge par son
+    // API. Aucun redémarrage de Glucose à demander à l'utilisateur.
+    let mut child = match child {
+        Ok(c) => c,
+        Err(_) => return pull_model_via_api(&model, &app_handle).await,
+    };
 
     let stdout = child.stdout.take().ok_or("flux indisponible")?;
     let stderr = child.stderr.take().ok_or("flux indisponible")?;
@@ -1977,6 +1996,114 @@ async fn pull_model(model: String, app_handle: tauri::AppHandle) -> Result<(), S
     Ok(())
 }
 
+/// Repli de `pull_model` : télécharge le modèle via l'API HTTP du démon
+/// (`POST /api/pull`, non streamé). Plus lent à donner des nouvelles qu'un
+/// `ollama pull` (une seule réponse en fin de course), mais il n'exige NI binaire
+/// sur le disque NI PATH à jour — c'est ce qui rend le téléchargement possible
+/// immédiatement après l'installation d'Ollama.
+async fn pull_model_via_api(model: &str, app: &tauri::AppHandle) -> Result<(), String> {
+    let _ = app.emit(
+        "model-progress",
+        ProgressPayload {
+            line: format!("Téléchargement de {model} via l'API locale (sans détail de progression)…"),
+        },
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3 * 3600))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .post("http://127.0.0.1:11434/api/pull")
+        .json(&serde_json::json!({ "model": model, "stream": false }))
+        .send()
+        .await
+        .map_err(|_| {
+            "Ollama est injoignable : ni binaire trouvé sur le disque, ni démon sur              127.0.0.1:11434. Installe l'IA locale depuis ce panneau."
+                .to_string()
+        })?;
+    if !resp.status().is_success() {
+        let code = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Téléchargement refusé par Ollama ({code}). {}",
+            body.chars().take(300).collect::<String>()
+        ));
+    }
+    let v: serde_json::Value = resp.json().await.unwrap_or(serde_json::Value::Null);
+    if let Some(err) = v.get("error").and_then(|e| e.as_str()) {
+        return Err(format!("Téléchargement échoué : {err}"));
+    }
+    Ok(())
+}
+
+/// Requête ONE-SHOT au modèle local (`POST /api/generate`, non streamé) : le
+/// moteur intégré s'en sert pour transformer un texte en cartes. Passe par l'API
+/// HTTP, donc indépendante du binaire et du PATH : dès que le démon répond, ça
+/// marche — sans redémarrage.
+#[tauri::command]
+async fn ollama_generate(
+    model: String,
+    prompt: String,
+    system: Option<String>,
+    json: Option<bool>,
+    timeout_secs: Option<u64>,
+) -> Result<String, String> {
+    if model.is_empty() || model.len() > 80 {
+        return Err("Nom de modèle invalide.".into());
+    }
+    if prompt.trim().is_empty() {
+        return Err("Requête vide.".into());
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(
+            timeout_secs.unwrap_or(600).clamp(10, 3600),
+        ))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let mut body = serde_json::json!({
+        "model": model,
+        "prompt": prompt,
+        "stream": false,
+    });
+    if let Some(sys) = system {
+        body["system"] = serde_json::Value::String(sys);
+    }
+    if json.unwrap_or(false) {
+        // Contraint le modèle à répondre du JSON valide (Ollama le garantit).
+        body["format"] = serde_json::Value::String("json".into());
+    }
+    let resp = client
+        .post("http://127.0.0.1:11434/api/generate")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|_| {
+            "L'IA locale ne répond pas (127.0.0.1:11434). Démarre Ollama depuis le              panneau Plugins."
+                .to_string()
+        })?;
+    if !resp.status().is_success() {
+        let code = resp.status();
+        let raw = resp.text().await.unwrap_or_default();
+        if raw.contains("not found") || raw.contains("try pulling") {
+            return Err(format!(
+                "Le modèle « {model} » n'est pas installé. Télécharge-le depuis le panneau Plugins."
+            ));
+        }
+        return Err(format!(
+            "L'IA locale a refusé la requête ({code}). {}",
+            raw.chars().take(300).collect::<String>()
+        ));
+    }
+    let v: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Réponse de l'IA locale illisible : {e}"))?;
+    v.get("response")
+        .and_then(|r| r.as_str())
+        .map(String::from)
+        .ok_or_else(|| "L'IA locale a renvoyé une réponse vide.".to_string())
+}
+
 // ── Auto-installation du démon Ollama ──
 //
 // Stratégie HONNÊTE et sûre : on délègue à **winget** (présent sur Win11, qui
@@ -2010,19 +2137,45 @@ async fn cmd_ok(program: &str, args: &[&str]) -> bool {
         .unwrap_or(false)
 }
 
-/// Emplacement standard du binaire Ollama (install per-user Windows).
+/// Emplacements standards du binaire Ollama (per-user ET machine : winget et
+/// l'installeur officiel ne posent pas le binaire au même endroit selon la
+/// version et le mode d'installation).
 fn find_ollama_exe() -> Option<PathBuf> {
     #[cfg(windows)]
-    if let Ok(local) = std::env::var("LOCALAPPDATA") {
-        let p = PathBuf::from(local)
-            .join("Programs")
-            .join("Ollama")
-            .join("ollama.exe");
-        if p.exists() {
-            return Some(p);
+    {
+        let mut roots: Vec<PathBuf> = Vec::new();
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            roots.push(PathBuf::from(&local).join("Programs").join("Ollama"));
+            roots.push(PathBuf::from(&local).join("Ollama"));
+        }
+        for var in ["ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"] {
+            if let Ok(pf) = std::env::var(var) {
+                roots.push(PathBuf::from(pf).join("Ollama"));
+            }
+        }
+        for root in roots {
+            let p = root.join("ollama.exe");
+            if p.exists() {
+                return Some(p);
+            }
         }
     }
     None
+}
+
+/// Le binaire Ollama à lancer : son emplacement d'installation si on le trouve,
+/// sinon le PATH. Indispensable juste après une installation : le PATH du process
+/// Glucose date de son démarrage et ne connaît pas encore `ollama` — sans ce
+/// repli, il fallait relancer l'application pour pouvoir télécharger un modèle.
+fn ollama_program() -> std::ffi::OsString {
+    if let Some(p) = find_ollama_exe() {
+        return p.into_os_string();
+    }
+    std::ffi::OsString::from(if cfg!(windows) {
+        "ollama.exe"
+    } else {
+        "ollama"
+    })
 }
 
 /// Lance `program args...`, STREAME stdout ligne par ligne vers l'event `event`,
@@ -2118,23 +2271,21 @@ async fn install_ollama(app_handle: tauri::AppHandle) -> Result<String, String> 
     }
 
     // 2) Démarre le serveur (fire-and-forget) : binaire trouvé, sinon via le PATH.
-    let starter: std::ffi::OsString = exe.map(|p| p.into_os_string()).unwrap_or_else(|| {
-        std::ffi::OsString::from(if cfg!(windows) {
-            "ollama.exe"
-        } else {
-            "ollama"
-        })
-    });
+    let starter: std::ffi::OsString = exe
+        .map(|p| p.into_os_string())
+        .unwrap_or_else(ollama_program);
     let _ = tokio::process::Command::new(&starter).arg("serve").spawn();
 
-    // 3) Attend que l'API réponde (~40 s).
-    for _ in 0..20 {
+    // 3) Attend que l'API réponde (~90 s : un premier démarrage est lent).
+    for _ in 0..45 {
         if ollama_reachable().await {
             return Ok("Ollama est installé et démarré.".into());
         }
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }
-    Err("Ollama est installé mais le serveur n'a pas encore répondu. Relance ta session Windows (ou lance Ollama manuellement), puis reviens.".into())
+    // Le panneau resonde en continu : inutile de faire redémarrer quoi que ce soit,
+    // l'état passera au vert tout seul dès qu'Ollama répondra.
+    Err("Ollama est installé mais son serveur n'a pas encore répondu. Ouvre l'application Ollama une fois : ce panneau passera au vert automatiquement.".into())
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2284,6 +2435,7 @@ pub fn run() {
             install_plugin,
             system_specs,
             ollama_status,
+            ollama_generate,
             pull_model,
             install_ollama,
             // Télémétrie opt-in — dépôt des statistiques (serveur auto-hébergé)
@@ -2337,6 +2489,19 @@ mod tests {
         assert_eq!(get_ext(Path::new("Scene.BLEND")), "blend");
         assert_eq!(get_ext(Path::new("archive.tar.GZ")), "gz");
         assert_eq!(get_ext(Path::new("README")), "");
+    }
+
+    #[test]
+    fn recommend_model_follows_the_gpu_not_the_ram() {
+        // RÉGRESSION : 32 Go de RAM + un GPU de 6 Go conseillaient un 32b, qui
+        // débordait de la VRAM et tournait à ~1 token/s. Le GPU décide.
+        assert_eq!(recommend_model(32, Some(6)), "qwen2.5:7b");
+        assert_eq!(recommend_model(64, Some(12)), "qwen2.5:14b");
+        assert_eq!(recommend_model(64, Some(24)), "qwen2.5:32b");
+        // Sans GPU exploitable, on reste modeste : le CPU ne suit pas.
+        assert_eq!(recommend_model(32, None), "qwen2.5:7b");
+        assert_eq!(recommend_model(32, Some(2)), "qwen2.5:7b");
+        assert_eq!(recommend_model(8, None), "qwen2.5:3b");
     }
 
     #[test]
