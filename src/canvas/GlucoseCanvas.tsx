@@ -39,7 +39,10 @@ import {
   type SelectionSnapSession,
 } from "./smartAlignRuntime";
 // PICK-1 — ordre de priorité de sélection au clic + cycle « re-clic = suivant ».
-import { PICK, collectCandidates, pickWithCycle, type CycleState } from "./hitPriority";
+import {
+  PICK, collectCandidates, pickAtDown, advanceOnRelease, hitHandle, handleCursor,
+  type CycleState, type PickCandidate,
+} from "./hitPriority";
 import { beginPick, registerPickHandler, markHijack, wasHijacked } from "./pickArbiter";
 import { ZoneRenderer } from "./ZoneRenderer";
 import { SpatialHash } from "./Quadtree";
@@ -1430,9 +1433,87 @@ export default function GlucoseCanvas() {
   const selectedFolderIdRef = useRef<string | null>(null);
   selectedFolderIdRef.current = selectedFolderId;
 
+  /** Sélectionne la cible désignée par le pas du cycle — SANS ouvrir de drag :
+   *  on est au relâchement, le geste est fini. Toutes les couches lisent la même
+   *  sélection dans le store, il n'y a donc rien à router ici. */
+  const applyPickSelection = useCallback((picked: PickCandidate) => {
+    const st = useGlucoseStore.getState();
+    if (picked.owner === "image") {
+      st.setSelectedImageIds([picked.id]);
+      st.setSelectedAnnotationIds([]);
+      setSelectedFolderId(null);
+    } else if (picked.owner === "folder") {
+      st.setSelectedImageIds([]);
+      st.setSelectedAnnotationIds([]);
+      setSelectedFolderId(picked.id);
+    } else {
+      // Membrane, texte, sticky et flèche vivent tous dans `annotations`.
+      st.setSelectedImageIds([]);
+      st.setSelectedAnnotationIds([picked.id]);
+      setSelectedFolderId(null);
+    }
+  }, []);
+
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
+
+    // Contexte de l'appui courant, relu au relâchement pour jouer (ou non) le pas
+    // du cycle. `candidates` est celui de l'appui : tant que le pointeur n'a pas
+    // bougé, la pile sous le curseur est la même.
+    let pending: {
+      sx: number; sy: number;
+      candidates: PickCandidate[];
+      multi: boolean;
+      /** Board actif à l'appui : un double-clic sur un dossier peut naviguer
+       *  entre-temps, et les candidats ne décriraient plus rien. */
+      boardId: string;
+    } | null = null;
+
+    // Le pas du cycle se joue au RELÂCHEMENT (cf. `advanceOnRelease`), et il doit
+    // passer APRÈS les couches : SvgAnnotationLayer & co. re-sélectionnent leur
+    // élément sur un clic immobile. Comme elles posent leur écouteur `pointerup`
+    // sur `window` pendant `beginPick`, s'inscrire juste après nous place bien
+    // derrière elles dans l'ordre d'appel.
+    function armRelease(e: PointerEvent, candidates: PickCandidate[], multi: boolean, boardId: string) {
+      disarmRelease();
+      pending = { sx: e.clientX, sy: e.clientY, candidates, multi, boardId };
+      window.addEventListener("pointerup", onPickUp);
+      window.addEventListener("pointercancel", onPickCancel);
+    }
+
+    function disarmRelease() {
+      pending = null;
+      window.removeEventListener("pointerup", onPickUp);
+      window.removeEventListener("pointercancel", onPickCancel);
+    }
+
+    function onPickUp(e: PointerEvent) {
+      const ctx = pending;
+      disarmRelease();
+      if (!ctx) return;
+      // Le pointeur a bougé : c'était un GLISSER (déplacement ou resize), pas un
+      // clic. On ne saute aucun cran, et le cycle est oublié — la géométrie sous
+      // le curseur vient de changer.
+      if (ctx.multi || Math.hypot(e.clientX - ctx.sx, e.clientY - ctx.sy) > PICK.CYCLE_RADIUS_PX) {
+        pickCycleRef.current = null;
+        return;
+      }
+      // Le geste a navigué (double-clic sur un dossier, saut de portail…) :
+      // les candidats de l'appui appartiennent à un autre board.
+      if (getActiveBoard(useGlucoseStore.getState().project).id !== ctx.boardId) {
+        pickCycleRef.current = null;
+        return;
+      }
+      const { picked, cycle } = advanceOnRelease(ctx.candidates, pickCycleRef.current, Date.now());
+      pickCycleRef.current = cycle;
+      if (picked) applyPickSelection(picked);
+    }
+
+    function onPickCancel() {
+      disarmRelease();
+      pickCycleRef.current = null;
+    }
 
     // Le z-order du DOM ne décide plus de qui reçoit le clic. On intercepte en
     // phase CAPTURE (donc avant toutes les couches), on demande à l'arbitre qui
@@ -1463,10 +1544,11 @@ export default function GlucoseCanvas() {
       const wx = (e.clientX - rect.left - world.x) / world.scale.x;
       const wy = (e.clientY - rect.top - world.y) / world.scale.y;
       const b = getActiveBoard(st.project);
-      const arrowId = naturalRoot && naturalRoot.dataset.pickOwner === "arrow"
-        ? naturalRoot.dataset.pickId ?? null
-        : null;
+      const hintOwner = naturalRoot?.dataset.pickOwner as PickCandidate["owner"] | undefined;
+      const hintId = naturalRoot?.dataset.pickId ?? null;
+      const arrowId = hintOwner === "arrow" ? hintId : null;
 
+      const multi = e.ctrlKey || e.metaKey || e.shiftKey;
       const candidates = collectCandidates({
         wx, wy, scale: world.scale.x,
         images: b.images,
@@ -1478,28 +1560,37 @@ export default function GlucoseCanvas() {
         // Le tracé exact d'une flèche n'est connu que d'ArrowSvgLayer : c'est le
         // DOM qui nous dit si le curseur est dessus.
         arrowId,
+        // Filet : ce que le DOM aurait touché reste toujours atteignable, même si
+        // notre géométrie ne le retrouve pas (taille pas encore mesurée…).
+        domHint: hintOwner && hintOwner !== "arrow" && hintId ? { owner: hintOwner, id: hintId } : null,
       });
       // Rien sous le curseur → comportement natif (désélection, rectangle de
       // sélection, pan) : on ne touche à rien.
       if (candidates.length === 0) {
+        disarmRelease();
         pickCycleRef.current = null;
         return;
       }
 
-      const { picked, cycle } = pickWithCycle(
+      const { picked, cycle } = pickAtDown(
         candidates, pickCycleRef.current, e.clientX, e.clientY, Date.now(),
-        { alt: e.altKey, multi: e.ctrlKey || e.metaKey || e.shiftKey },
+        { alt: e.altKey, multi },
       );
       pickCycleRef.current = cycle;
       if (!picked) return;
 
       // Une flèche gagnante est forcément déjà la cible naturelle du DOM : on
-      // laisse filer l'event, ArrowSvgLayer fait le reste.
-      if (picked.owner === "arrow") return;
+      // laisse filer l'event, ArrowSvgLayer fait le reste — mais le cycle, lui,
+      // continue de compter les clics.
+      if (picked.owner === "arrow") {
+        armRelease(e, candidates, multi, b.id);
+        return;
+      }
 
       e.stopPropagation();
       markHijack(true);
       beginPick(picked.owner, picked.id, e, picked.corner);
+      armRelease(e, candidates, multi, b.id);
     }
 
     // Un pointerdown détourné produit quand même un click/dblclick natif sur la
@@ -1514,8 +1605,74 @@ export default function GlucoseCanvas() {
     wrapper.addEventListener("pointerdown", onPickDown, { capture: true });
     wrapper.addEventListener("dblclick", onPickDblClick, { capture: true });
     return () => {
+      disarmRelease();
       wrapper.removeEventListener("pointerdown", onPickDown, { capture: true });
       wrapper.removeEventListener("dblclick", onPickDblClick, { capture: true });
+    };
+  }, [applyPickSelection]);
+
+  // ── Retour visuel de préhension ───────────────────────────────────────────
+  // La zone de saisie d'une poignée fait ~48 px alors que le carré dessiné en
+  // fait 9 : sans retour, cette générosité est invisible et le redimensionnement
+  // a l'air de se déclencher au hasard. Au survol, on force donc le curseur de
+  // resize — « forcer » parce que la couche survolée (membrane, sticky…) impose
+  // sinon le sien, cf. les classes .pick-cursor-* dans App.css.
+  //
+  // Coût : nul tant que rien n'est sélectionné (aucune poignée n'existe alors),
+  // et sinon limité aux seuls éléments sélectionnés.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    let applied = "";
+
+    function setCursorClass(want: string) {
+      if (want === applied) return;
+      if (applied) wrapper!.classList.remove(applied);
+      if (want) wrapper!.classList.add(want);
+      applied = want;
+    }
+
+    function onHover(e: PointerEvent) {
+      // Bouton enfoncé = geste en cours : on FIGE le curseur tel quel, sinon il
+      // repasserait en « move » au premier pixel d'un redimensionnement.
+      if (e.buttons !== 0) return;
+
+      const app = appRef.current;
+      const world = worldRef.current;
+      const st = useGlucoseStore.getState();
+      const hasSel = st.selectedImageIds.length > 0
+        || st.selectedAnnotationIds.length > 0
+        || !!selectedFolderIdRef.current;
+
+      let want = "";
+      if (app && world && hasSel && st.activeTool === "select"
+          && !ghostDataRef.current?.locked) {
+        const rect = app.canvas.getBoundingClientRect();
+        const b = getActiveBoard(st.project);
+        const h = hitHandle({
+          wx: (e.clientX - rect.left - world.x) / world.scale.x,
+          wy: (e.clientY - rect.top - world.y) / world.scale.y,
+          scale: world.scale.x,
+          images: b.images,
+          annotations: b.annotations,
+          folders: b.folders ?? [],
+          selectedImageIds: st.selectedImageIds,
+          selectedAnnotationIds: st.selectedAnnotationIds,
+          selectedFolderId: selectedFolderIdRef.current,
+        });
+        if (h?.corner) want = `pick-cursor-${handleCursor(h.corner)}`;
+      }
+      setCursorClass(want);
+    }
+
+    const onLeave = () => setCursorClass("");
+
+    wrapper.addEventListener("pointermove", onHover);
+    wrapper.addEventListener("pointerleave", onLeave);
+    return () => {
+      wrapper.removeEventListener("pointermove", onHover);
+      wrapper.removeEventListener("pointerleave", onLeave);
+      setCursorClass("");
     };
   }, []);
 

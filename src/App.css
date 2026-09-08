@@ -54,3 +54,11 @@ textarea:focus-visible,
 }
 
 
+
+/* PICK-1 — Retour visuel de préhension des poignées de redimensionnement.
+   La zone de saisie (~48 px) dépasse largement le carré dessiné (~9 px) ; sans
+   ce forçage, le curseur resterait celui de la couche survolée (le « move »
+   d'une membrane, par exemple) et cette générosité serait invisible.
+   La classe est posée/retirée sur le wrapper du canvas par GlucoseCanvas. */
+.pick-cursor-nwse-resize, .pick-cursor-nwse-resize * { cursor: nwse-resize !important; }
+.pick-cursor-nesw-resize, .pick-cursor-nesw-resize * { cursor: nesw-resize !important; }
