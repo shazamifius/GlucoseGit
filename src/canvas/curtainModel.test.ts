@@ -215,6 +215,24 @@ describe("détachement — obligatoire avant toute écriture", () => {
     expect(detachCurtain(source).expandedRatio).toBe(0.7);
   });
 
+  it("préserve `boardId` — le champ qui porte le contenu du rideau", () => {
+    expect(detachCurtain(curtain({ boardId: "b-42" })).boardId).toBe("b-42");
+  });
+
+  it("GARDE-FOU : aucun champ du rideau n'est perdu à la recopie", () => {
+    // Recopier champ par champ est ce qui rend l'écriture détachable, mais
+    // c'est un piège : un champ ajouté au type et oublié ici est SILENCIEUSEMENT
+    // effacé à chaque écriture. C'est arrivé à `boardId`, et ça ne s'était vu
+    // qu'au test d'intégration. Ce test-ci le voit tout de suite.
+    const complet = curtain({
+      collapsedRatio: 0.12,
+      expandedRatio: 0.7,
+      boardId: "b-42",
+      notes: [{ id: "n1", text: "a", createdAt: 1 }],
+    });
+    expect(Object.keys(detachCurtain(complet)).sort()).toEqual(Object.keys(complet).sort());
+  });
+
   it("détache la liste entière, élément par élément", () => {
     const liste = [source, curtain({ id: "autre" })];
     const copie = detachCurtains(liste);

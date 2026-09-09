@@ -39,6 +39,11 @@ const TAB_COL = 30;
 
 export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
   const updateAnnotation = useGlucoseStore((s) => s.updateAnnotation);
+  // MEMB-7 — le contenu d'un rideau est un board : sa creation vit dans le store.
+  const ensureCurtainBoard = useGlucoseStore((s) => s.ensureCurtainBoard);
+  const removeCurtain = useGlucoseStore((s) => s.removeCurtain);
+  const beginLiveEdit = useGlucoseStore((s) => s.beginLiveEdit);
+  const endLiveEdit = useGlucoseStore((s) => s.endLiveEdit);
 
   // L'identité peut changer pendant la session (panneau Collaboration) : on se
   // réabonne plutôt que de figer le nom au montage.
@@ -104,7 +109,15 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
 
   function addCurtain() {
     const fresh = createCurtain(me);
-    writeCurtains([...(membrane!.curtains ?? []), fresh]);
+    // Créer le rideau et lui donner son board sont UN seul geste : séparés, un
+    // Ctrl+Z laisserait une languette dont le contenu n'existe pas.
+    beginLiveEdit();
+    try {
+      writeCurtains([...(membrane!.curtains ?? []), fresh]);
+      ensureCurtainBoard(boardId, membrane!.id, fresh.id);
+    } finally {
+      endLiveEdit();
+    }
     setActiveId(fresh.id);
     stateRef.current = { ...stateRef.current, phase: "expanded" };
   }
@@ -209,7 +222,9 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
                       onClick={() => patchCurtain(active.id, { expandedRatio: stepExpanded(active.expandedRatio, EXPAND_STEP) })}>⇤</button>
                     <button type="button" style={chip()} title="Supprimer ce rideau"
                       onClick={() => {
-                        writeCurtains((membrane.curtains ?? []).filter((c) => c.id !== active.id));
+                        // Le board du rideau part avec lui — sinon il resterait
+                        // dans le projet, invisible et inatteignable.
+                        removeCurtain(boardId, membrane.id, active.id);
                         setActiveId(null);
                       }}>✕</button>
                   </div>

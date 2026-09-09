@@ -212,6 +212,17 @@ export interface MembraneCurtain {
   editable: CurtainEditable;
   collapsedRatio?: number;
   expandedRatio?: number;
+  /**
+   * MEMB-7 — Board du rideau. Son contenu EST un board Glucose ordinaire, sur
+   * le modèle du `childBoardId` d'un dossier : c'est ce qui lui donne TOUS les
+   * outils sans en réimplémenter aucun. Absent tant qu'il n'a pas été créé
+   * (rideau d'avant cette version, ou pas encore ouvert).
+   */
+  boardId?: string;
+  /**
+   * LEGACY — les notes d'avant que le rideau soit un canvas. Migrées une fois
+   * vers `boardId` puis vidées ; conservées pour ne rien perdre en route.
+   */
   notes: CurtainNote[];
   createdAt: number;
 }

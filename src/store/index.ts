@@ -41,6 +41,8 @@ import { nanoid } from "../utils/nanoid";
 import { wouldCreateMirrorCycle } from "./mirrorGraph";
 // MEMB-1 — le déplacement doit connaître l'échelle des membranes minimisées.
 import { hasScaling, itemsOfBoard, resolveItems, scaleOf } from "../canvas/membraneSpace";
+// MEMB-7 — le contenu d'un rideau est un board : sa creation vit donc ici.
+import { detachCurtains, notesToAnnotations } from "../canvas/curtainModel";
 import * as A from "./automerge";
 import { LIMITS } from "../constants";
 import { getCollabHandle } from "../multiplayer/collabHandle";
@@ -381,6 +383,22 @@ export interface GlucoseStore {
   enterFolder: (folderId: string) => void;
   exitFolder: () => void;
   exitToRoot: () => void;
+
+  // ── MEMB-7 — Rideaux ────────────────────────────────────────────────────
+  /**
+   * Donne son board à un rideau qui n'en a pas encore, et rend son id.
+   *
+   * MÊME CHEMIN pour un rideau qu'on vient de créer et pour un rideau
+   * d'avant cette version : dans les deux cas il lui manque un board, et dans
+   * les deux cas on le fabrique en reprenant ses notes. Il n'y a donc pas de
+   * « code de migration » à faire vivre à côté du code normal — c'est le même,
+   * et il est exercé à chaque création.
+   *
+   * Idempotent : un rideau qui a déjà son board rend simplement cet id.
+   */
+  ensureCurtainBoard: (parentBoardId: string, membraneId: string, curtainId: string) => string | null;
+  /** Retire un rideau ET le board qu'il portait — sinon le board fuit. */
+  removeCurtain: (parentBoardId: string, membraneId: string, curtainId: string) => void;
 
   // â”€â”€ Project â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setProjectName: (name: string) => void;
@@ -1837,6 +1855,82 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
           get().project.boards.some((b) => b.id === entry.boardId)
       ),
     }));
+  },
+
+  // ── MEMB-7 — Rideaux ──────────────────────────────────────────────────────
+  //
+  // Le contenu d'un rideau EST un board, sur le modèle du `childBoardId` d'un
+  // dossier. C'est ce qui lui donne tous les outils de Glucose sans en
+  // réimplémenter un seul : membranes, flèches, images, alignement, undo,
+  // synchro — tout travaille déjà sur des boards.
+  //
+  // Le prix, assumé : les rideaux ne tiennent plus entièrement dans
+  // `updateAnnotation`. Créer un board n'est possible que depuis le store,
+  // parce que les boards vivent dans le projet, pas sur la membrane. En
+  // échange, tout ce que ce board sait faire est acquis pour toujours.
+  //
+  // ÉCRITURE DÉTACHÉE, comme partout ailleurs sur les rideaux : Automerge
+  // refuse qu'un objet déjà présent dans le document y soit réinséré, et
+  // réécrire le tableau réinsère fatalement les éléments non touchés. On
+  // recopie donc champ par champ (cf. `detachCurtains`).
+  ensureCurtainBoard: (parentBoardId, membraneId, curtainId) => {
+    const proj = get().project;
+    const parent = proj.boards.find((b) => b.id === parentBoardId);
+    const membrane = parent?.annotations.find((a) => a.id === membraneId);
+    if (!membrane || membrane.type !== "membrane") return null;
+    const curtain = (membrane.curtains ?? []).find((c) => c.id === curtainId);
+    if (!curtain) return null;
+    // Déjà pourvu — et le board existe toujours.
+    if (curtain.boardId && proj.boards.some((b) => b.id === curtain.boardId)) {
+      return curtain.boardId;
+    }
+
+    const childBoardId = nanoid();
+    // Les notes d'avant redeviennent des blocs de texte ordinaires. Calculé
+    // HORS du mutator : que des objets plains, aucun proxy Automerge.
+    const seed = notesToAnnotations(curtain.notes ?? []);
+    const next = detachCurtains(
+      (membrane.curtains ?? []).map((c) =>
+        (c.id === curtainId ? { ...c, boardId: childBoardId, notes: [] } : c)),
+    );
+
+    get().mutate("ensureCurtainBoard", (d) => {
+      // Après `push`, la variable JS d'origine n'est plus reliée au document :
+      // on relit le proxy (même précaution que `createFolder`).
+      d.boards.push({ ...newBoard(`Rideau de ${curtain.ownerName}`), id: childBoardId });
+      const child = d.boards.find((b) => b.id === childBoardId);
+      if (child) for (const a of seed) child.annotations.push(a);
+
+      const par = d.boards.find((b) => b.id === parentBoardId);
+      const m = par?.annotations.find((a) => a.id === membraneId);
+      if (m && m.type === "membrane") m.curtains = next;
+      d.updatedAt = Date.now();
+    });
+    return childBoardId;
+  },
+
+  removeCurtain: (parentBoardId, membraneId, curtainId) => {
+    const proj = get().project;
+    const parent = proj.boards.find((b) => b.id === parentBoardId);
+    const membrane = parent?.annotations.find((a) => a.id === membraneId);
+    if (!membrane || membrane.type !== "membrane") return;
+    const gone = (membrane.curtains ?? []).find((c) => c.id === curtainId);
+    if (!gone) return;
+    const next = detachCurtains((membrane.curtains ?? []).filter((c) => c.id !== curtainId));
+
+    get().mutate("removeCurtain", (d) => {
+      const par = d.boards.find((b) => b.id === parentBoardId);
+      const m = par?.annotations.find((a) => a.id === membraneId);
+      if (m && m.type === "membrane") m.curtains = next;
+
+      // Le board du rideau part avec lui — sinon il resterait dans le projet,
+      // invisible et inatteignable.
+      if (gone.boardId) {
+        if (d.activeBoardId === gone.boardId) d.activeBoardId = parentBoardId;
+        removeWhere(d.boards, (b) => b.id === gone.boardId);
+      }
+      d.updatedAt = Date.now();
+    });
   },
 
   enterFolder: (folderId) => {

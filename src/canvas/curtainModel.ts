@@ -31,7 +31,7 @@ import { nanoid } from "../utils/nanoid";
 import { CURTAIN, normalizeConfig, type CurtainConfig } from "./curtainPanel";
 
 import type {
-  CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
+  Annotation, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
 } from "../types";
 
 export type { CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain };
@@ -74,6 +74,48 @@ export function createNote(text: string, now: number = Date.now()): CurtainNote 
 }
 
 /** Texte de note utilisable : borné, sans blancs de bord. */
+/**
+ * MEMB-7 — Contenu de départ du board d'un rideau, à partir de ses notes.
+ *
+ * Le rideau ne contenait que des notes texte ; il devient un board. Ces notes
+ * ne sont pas jetées : chacune redevient un bloc de texte ordinaire, empilé en
+ * colonne. Une fois posées sur le board ce sont des blocs comme les autres —
+ * déplaçables, reliables, supprimables, annulables.
+ *
+ * Les notes vides sont écartées : elles ne décrivaient qu'un champ de saisie en
+ * attente, pas un contenu.
+ */
+export function notesToAnnotations(
+  notes: readonly CurtainNote[],
+  now: number = Date.now(),
+): Annotation[] {
+  const out: Annotation[] = [];
+  let y = CURTAIN_BOARD.MARGIN;
+  for (const n of notes) {
+    const text = sanitizeNoteText(n.text);
+    if (!text) continue;
+    out.push({
+      id: `${n.id}-b`,
+      type: "text",
+      x: CURTAIN_BOARD.MARGIN,
+      y,
+      text,
+      width: CURTAIN_BOARD.BLOCK_W,
+      fontSize: 14,
+    } as Annotation);
+    y += CURTAIN_BOARD.BLOCK_STEP;
+  }
+  void now;
+  return out;
+}
+
+/** Mise en page du contenu repris des notes. */
+export const CURTAIN_BOARD = {
+  MARGIN: 40,
+  BLOCK_W: 320,
+  BLOCK_STEP: 88,
+} as const;
+
 export function sanitizeNoteText(raw: string): string {
   return raw.replace(/\r\n/g, "\n").trim().slice(0, MAX_NOTE_LENGTH);
 }
@@ -103,13 +145,21 @@ export function detachCurtain(c: MembraneCurtain): MembraneCurtain {
     ownerColor: c.ownerColor,
     visibility: c.visibility,
     editable: c.editable,
-    notes: c.notes.map((n) => ({ id: n.id, text: n.text, createdAt: n.createdAt })),
+    notes: (c.notes ?? []).map((n) => ({ id: n.id, text: n.text, createdAt: n.createdAt })),
     createdAt: c.createdAt,
   };
   // Champs optionnels : présents seulement s'ils le sont, pour ne pas écrire
   // d'`undefined` dans le document.
+  //
+  // ⚠️ CETTE LISTE EST EXHAUSTIVE PAR CONSTRUCTION. Recopier champ par champ
+  // est ce qui rend l'écriture détachable (Automerge refuse qu'un objet déjà
+  // présent dans le document y soit réinséré), mais c'est aussi un piège :
+  // un champ ajouté au type et oublié ici est SILENCIEUSEMENT effacé à chaque
+  // écriture. C'est arrivé avec `boardId`. Tout ajout à `MembraneCurtain` doit
+  // passer par ici, et un test le vérifie.
   if (c.collapsedRatio !== undefined) out.collapsedRatio = c.collapsedRatio;
   if (c.expandedRatio !== undefined) out.expandedRatio = c.expandedRatio;
+  if (c.boardId !== undefined) out.boardId = c.boardId;
   return out;
 }
 
