@@ -43,7 +43,10 @@ import {
   PICK, collectCandidates, pickAtDown, advanceOnRelease, hitHandle, handleCursor,
   type CycleState, type PickCandidate,
 } from "./hitPriority";
-import { itemsOfBoard, reconcileMembership, resolveItems } from "./membraneSpace";
+import {
+  hasScaling, itemsOfBoard, projectBoard, reconcileMembership, resolveItems,
+  type ResolvedItem,
+} from "./membraneSpace";
 import MembraneCurtainLayer from "./MembraneCurtainLayer";
 import {
   FOCUS, NO_FOCUS, focusBackground, focusDecision, focusView,
@@ -299,6 +302,22 @@ export default function GlucoseCanvas() {
   );
   focusVisibleRef.current = focus.visible;
 
+  // ── MEMB-2 — Géométrie effective ─────────────────────────────────────────
+  // `null` tant qu'aucune membrane ne réduit quoi que ce soit : le rendu reprend
+  // alors EXACTEMENT le chemin d'avant, au même objet près (cf. `hasScaling`).
+  const geom: Map<string, ResolvedItem> | null = useMemo(
+    () => (hasScaling(focusItems)
+      ? resolveItems(focusItems, { focusedMembraneId })
+      : null),
+    [focusItems, focusedMembraneId],
+  );
+  /** Board tel qu'il s'AFFICHE — géométrie effective de bout en bout. */
+  const shownBoard = useMemo(() => projectBoard(board, geom), [board, geom]);
+  // Les gestionnaires impératifs (clic, survol) vivent dans des effets `[]` et
+  // ne voient pas les valeurs de rendu : ils les relisent ici.
+  const shownBoardRef = useRef(shownBoard);
+  shownBoardRef.current = shownBoard;
+
   /** Board filtré, pour les couches qui prennent le board entier (flèches). */
   const visibleBoard = useMemo(
     () => (focus.visible ? { ...board, annotations: focus.annotations, folders: focus.folders } : board),
@@ -502,11 +521,12 @@ export default function GlucoseCanvas() {
   useEffect(() => {
     const world = worldRef.current;
     if (!world || !pixiReady) return;
-    const currentIds = new Set(board.images.map((img) => img.id));
+    const shown = shownBoard.images;
+    const currentIds = new Set(shown.map((img) => img.id));
     spritesRef.current.forEach((_sprite, id) => {
       if (!currentIds.has(id)) unloadSprite(id); // image supprimée du board
     });
-    board.images.forEach((img) => {
+    shown.forEach((img) => {
       const s = spritesRef.current.get(img.id);
       if (s) {
         s.x = img.x; s.y = img.y; s.rotation = img.rotation;
@@ -514,10 +534,14 @@ export default function GlucoseCanvas() {
         s.width = fs.w; s.height = fs.h;
       }
     });
-    spatialHashRef.current.build(board.images);
-    imgByIdRef.current = new Map(board.images.map((img) => [img.id, img]));
+    // Le culling et le chargement raisonnent sur ce qui est À L'ÉCRAN : un
+    // élément réduit peut être visible alors que ses coordonnées naturelles sont
+    // hors cadre, et l'inverse. Bâtir le hachage sur le naturel le ferait
+    // disparaître.
+    spatialHashRef.current.build(shown);
+    imgByIdRef.current = new Map(shown.map((img) => [img.id, img]));
     applyCulling(); // charge le sous-ensemble visible, décharge le reste
-  }, [board.images, pixiReady]);
+  }, [shownBoard.images, pixiReady]);
 
   // Change de board / rechargement de doc → on purge la blacklist de textures :
   // ce qui manquait dans un board peut exister ailleurs, et un asset re-lié mérite
@@ -1627,12 +1651,15 @@ export default function GlucoseCanvas() {
       const arrowId = hintOwner === "arrow" ? hintId : null;
 
       const multi = e.ctrlKey || e.metaKey || e.shiftKey;
-      // MEMB-2 — ce que le focus masque ne doit pas non plus être cliquable.
+      // MEMB-2 — ce que le focus masque ne doit pas non plus être cliquable, et
+      // on teste sur ce qui est À L'ÉCRAN : dans une membrane minimisée, la
+      // boîte naturelle d'un élément n'est plus là où on le voit.
       const fv = focusVisibleRef.current;
+      const sb = shownBoardRef.current;
       const candidates = collectCandidates({
         wx, wy, scale: world.scale.x,
-        images: fv ? b.images.filter((i) => fv.has(i.id)) : b.images,
-        annotations: fv ? b.annotations.filter((a) => fv.has(a.id)) : b.annotations,
+        images: fv ? sb.images.filter((i) => fv.has(i.id)) : sb.images,
+        annotations: fv ? sb.annotations.filter((a) => fv.has(a.id)) : sb.annotations,
         folders: fv ? [] : b.folders ?? [],
         selectedImageIds: st.selectedImageIds,
         selectedAnnotationIds: st.selectedAnnotationIds,
@@ -1728,14 +1755,16 @@ export default function GlucoseCanvas() {
       if (app && world && hasSel && st.activeTool === "select"
           && !ghostDataRef.current?.locked) {
         const rect = app.canvas.getBoundingClientRect();
-        const b = getActiveBoard(st.project);
+        const b = shownBoardRef.current;
         const h = hitHandle({
           wx: (e.clientX - rect.left - world.x) / world.scale.x,
           wy: (e.clientY - rect.top - world.y) / world.scale.y,
           scale: world.scale.x,
           images: b.images,
           annotations: b.annotations,
-          folders: b.folders ?? [],
+          // Un dossier n'est jamais contenu dans une membrane : sa géométrie
+          // n'est pas projetée, on la lit sur le board réel.
+          folders: getActiveBoard(st.project).folders ?? [],
           selectedImageIds: st.selectedImageIds,
           selectedAnnotationIds: st.selectedAnnotationIds,
           selectedFolderId: selectedFolderIdRef.current,
@@ -3343,6 +3372,7 @@ export default function GlucoseCanvas() {
       {/* ── Couche SVG vectorielle pour les membranes ── */}
       <SvgAnnotationLayer
         annotations={focus.annotations.filter((a) => a.type === "membrane")}
+        geom={geom}
         selectedIds={selectedAnnotationIds}
         editingId={editOverlay?.annId ?? null}
         vpRef={vpRef}
@@ -3369,6 +3399,7 @@ export default function GlucoseCanvas() {
       {/* ── Couche HTML pour les textes et post-its (Markdown) ── */}
       <HtmlAnnotationLayer
         annotations={focus.annotations.filter((a) => a.type === "text" || a.type === "sticky")}
+        geom={geom}
         selectedIds={selectedAnnotationIds}
         editingId={editOverlay?.annId ?? null}
         vpRef={vpRef}

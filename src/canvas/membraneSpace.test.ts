@@ -9,7 +9,11 @@ import {
   itemsOfBoard,
   membraneAtPoint,
   naturalDelta,
+  hasScaling,
+  originOf,
   parentMap,
+  projectBoard,
+  scaleOf,
   reconcileMembership,
   resolveItems,
   stretchPlan,
@@ -445,5 +449,77 @@ describe("reconcileMembership — « je le glisse dedans, il lui appartient »",
     const items = [mini, dedans, nouveau];
     expect(reconcileMembership(items, resolveItems(items), ["N"]))
       .toEqual([{ id: "N", membraneId: "MINI" }]);
+  });
+});
+
+// ── Projection vers le rendu ────────────────────────────────────────────────
+
+describe("projection — le rendu ne paie que s'il y a lieu", () => {
+  const img = (id: string, x: number, y: number, w: number, h: number): BoardImage => ({
+    id, x, y, width: w, height: h, rotation: 0, locked: false, tags: [],
+    originalWidth: w, originalHeight: h,
+  });
+
+  it("GARDE-FOU : sans membrane minimisée, le board est rendu TEL QUEL", () => {
+    // C'est ce qui rend la migration sûre : tous les projets existants
+    // reprennent exactement le chemin d'avant, au même objet près.
+    const board = {
+      images: [img("I", 100, 100, 50, 50)],
+      annotations: [{ id: "M", type: "membrane", x: 0, y: 0, width: 400, height: 400 } as Annotation],
+    };
+    expect(hasScaling(itemsOfBoard(board))).toBe(false);
+    expect(projectBoard(board, null)).toBe(board);
+  });
+
+  it("une membrane minimisée déclenche la projection", () => {
+    const board = {
+      images: [],
+      annotations: [{ id: "M", type: "membrane", x: 0, y: 0, width: 100, height: 100, mode: "minimized" } as Annotation],
+    };
+    expect(hasScaling(itemsOfBoard(board))).toBe(true);
+  });
+
+  it("projette l'image en gardant l'ancrage au CENTRE de Pixi", () => {
+    const board = {
+      images: [{ ...img("I", 400, 400, 800, 800), membraneId: "M" }],
+      annotations: [{
+        id: "M", type: "membrane", x: 0, y: 0, width: 200, height: 200, mode: "minimized",
+      } as Annotation],
+    };
+    const resolved = resolveItems(itemsOfBoard(board));
+    const out = projectBoard(board, resolved);
+    // Échelle 0,25 : boîte 800 → 200, centre naturel (400,400) → (100,100).
+    expect(out.images[0]).toMatchObject({ x: 100, y: 100, width: 200, height: 200 });
+    // La donnée d'origine n'a pas bougé.
+    expect(board.images[0].x).toBe(400);
+  });
+
+  it("laisse intact ce qui n'est pas réduit, même quand d'autres le sont", () => {
+    const libre = img("LIBRE", 5000, 5000, 50, 50);
+    const board = {
+      images: [libre, { ...img("D", 400, 400, 800, 800), membraneId: "M" }],
+      annotations: [{
+        id: "M", type: "membrane", x: 0, y: 0, width: 200, height: 200, mode: "minimized",
+      } as Annotation],
+    };
+    const out = projectBoard(board, resolveItems(itemsOfBoard(board)));
+    expect(out.images[0]).toBe(libre); // même objet, aucune copie
+  });
+
+  it("scaleOf et originOf ne parlent que de ce qui est transformé", () => {
+    const board = {
+      images: [{ ...img("D", 400, 400, 800, 800), membraneId: "M" }],
+      annotations: [{
+        id: "M", type: "membrane", x: 0, y: 0, width: 200, height: 200, mode: "minimized",
+      } as Annotation],
+    };
+    const resolved = resolveItems(itemsOfBoard(board));
+    expect(scaleOf(resolved, "D")).toBe(0.25);
+    expect(originOf(resolved, "D")).toEqual({ x: 0, y: 0, scale: 0.25 });
+    // La membrane elle-même n'est pas réduite : elle est le cadre.
+    expect(scaleOf(resolved, "M")).toBe(1);
+    expect(originOf(resolved, "M")).toBeNull();
+    expect(scaleOf(null, "D")).toBe(1);
+    expect(originOf(null, "D")).toBeNull();
   });
 });

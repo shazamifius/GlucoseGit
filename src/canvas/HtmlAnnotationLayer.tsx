@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo, memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
+// MEMB-2 — un bloc rangé dans une membrane minimisée s'affiche réduit, sans
+// que ses coordonnées stockées ne bougent.
+import { originOf, type ResolvedItem } from "./membraneSpace";
 import {
   type TextSelection,
   normalizeTextSel,
@@ -57,6 +60,7 @@ interface SourceFileTileProps {
   setHoveredNodeId: (id: string | null) => void;
   resizeObserver: React.MutableRefObject<ResizeObserver | null>;
   corners: { id: string; cx: number; cy: number }[];
+  geom?: Map<string, ResolvedItem> | null;
 }
 
 const SourceFileTile: React.FC<SourceFileTileProps> = ({
@@ -70,6 +74,7 @@ const SourceFileTile: React.FC<SourceFileTileProps> = ({
   setHoveredNodeId,
   resizeObserver,
   corners,
+  geom,
 }) => {
   const fileStatus = useFileExistence(ann.sourceFile);
   const def = getAppDef(ann.sourceFile!);
@@ -108,7 +113,7 @@ const SourceFileTile: React.FC<SourceFileTileProps> = ({
       title={`${def.name} — ${fileStatus === "broken" ? "Lien rompu ! Cliquer sur le badge pour réassocier" : "double-clic pour ouvrir"}`}
       style={{
         position: "absolute",
-        left: ann.x, top: ann.y,
+        ...placementOf(ann, geom),
         width: w, height: h,
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
@@ -196,6 +201,23 @@ const SourceFileTile: React.FC<SourceFileTileProps> = ({
 import { MirrorBadge, DomainBadges, TemporalBadge, resolveDomainBadges } from "./AnnotationBadges";
 import { nodeMatchesTemporalFilter } from "../utils/timeline";
 
+/**
+ * Position à l'écran d'un bloc : son origine EFFECTIVE, plus une mise à
+ * l'échelle si une membrane minimisée le réduit.
+ *
+ * Une transformation d'échelle plutôt qu'une largeur divisée : réduire la boîte
+ * sans réduire la police ferait déborder le texte, alors que `scale` emporte
+ * tout d'un coup — cadre, police, marges, badges.
+ */
+function placementOf(
+  ann: { id: string; x: number; y: number },
+  geom: Map<string, ResolvedItem> | null | undefined,
+): React.CSSProperties {
+  const o = originOf(geom ?? null, ann.id);
+  if (!o) return { left: ann.x, top: ann.y };
+  return { left: o.x, top: o.y, transform: `scale(${o.scale})`, transformOrigin: "top left" };
+}
+
 interface Props {
   annotations: Annotation[];
   selectedIds: string[];
@@ -204,6 +226,8 @@ interface Props {
   onSelect: (id: string, multi: boolean) => void;
   onEdit: (id: string) => void;
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
+  /** Géométrie effective, ou `null` quand rien n'est réduit. */
+  geom?: Map<string, ResolvedItem> | null;
 }
 
 // État interne du drag d'une annotation (déplacement OU resize via une corner).
@@ -264,7 +288,7 @@ const StableMarkdownComponents = {
 };
 
 export default function HtmlAnnotationLayer({
-  annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize
+  annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize, geom = null
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -587,6 +611,7 @@ export default function HtmlAnnotationLayer({
               resizeObserver={resizeObserver}
               hoveredBlocks={hoveredBlocks}
               previewTarget={previewTarget}
+              geom={geom}
             />
           );
           if (!dimmed) return item;
@@ -770,7 +795,7 @@ function forwardWheel(e: React.WheelEvent) {
 
 function AnnotationItem({
   ann, allAnnotations: _allAnnotations, auraHue, selected: sel, activeTool, domains, setHoveredNodeId,
-  onEdit, handleDown, handleDblClick, resizeObserver, hoveredBlocks, previewTarget
+  onEdit, handleDown, handleDblClick, resizeObserver, hoveredBlocks, previewTarget, geom
 }: {
   ann: Annotation, allAnnotations: Annotation[],
   /** Phase P-02 : pré-calculé par le parent en une passe (Map) — évite N×N. */
@@ -784,6 +809,8 @@ function AnnotationItem({
   resizeObserver: React.MutableRefObject<ResizeObserver | null>,
   hoveredBlocks: HoveredBlocks | null,
   previewTarget: PreviewTarget | null,
+  /** MEMB-2 — géométrie effective, ou `null` quand rien n'est réduit. */
+  geom?: Map<string, ResolvedItem> | null,
 }) {
   // CLEANUP B-03 — déclenche le chargement à la demande du CSS KaTeX
   // si l'annotation contient du LaTeX.
@@ -920,7 +947,7 @@ function AnnotationItem({
                   title={`${fname} — double-clic pour ouvrir`}
                   style={{
                     position: "absolute",
-                    left: ann.x, top: ann.y,
+                    ...placementOf(ann, geom),
                     width: tw, height: th,
                     boxSizing: "border-box",
                     background: "#14141c",
@@ -1013,7 +1040,7 @@ function AnnotationItem({
                 style={{
                   '--aura-color': auraColor,
                   position: "absolute",
-                  left: ann.x, top: ann.y,
+                  ...placementOf(ann, geom),
                   width: ann.width || "max-content",
                   minWidth: "min-content",
                   maxWidth: ann.width ? undefined : 600,
@@ -1101,7 +1128,7 @@ function AnnotationItem({
                 ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
                 style={{
                   position: "absolute",
-                  left: ann.x, top: ann.y,
+                  ...placementOf(ann, geom),
                   width: opW, height: opH,
                   background: `${op.color}20`,
                   border: `1.5px solid ${op.color}`,
@@ -1156,6 +1183,7 @@ function AnnotationItem({
                   setHoveredNodeId={setHoveredNodeId}
                   resizeObserver={resizeObserver}
                   corners={corners}
+                  geom={geom}
                 />
               );
             }
@@ -1167,7 +1195,7 @@ function AnnotationItem({
                 ref={(el) => { if (el && resizeObserver.current) resizeObserver.current.observe(el); }}
                 style={{
                   position: "absolute",
-                  left: ann.x, top: ann.y,
+                  ...placementOf(ann, geom),
                   width: w,
                   height: h,
                   backgroundColor: bg,

@@ -39,6 +39,8 @@ import {
 import { DEFAULT_PRESETS } from "../data/defaultPresets";
 import { nanoid } from "../utils/nanoid";
 import { wouldCreateMirrorCycle } from "./mirrorGraph";
+// MEMB-1 — le déplacement doit connaître l'échelle des membranes minimisées.
+import { hasScaling, itemsOfBoard, resolveItems, scaleOf } from "../canvas/membraneSpace";
 import * as A from "./automerge";
 import { LIMITS } from "../constants";
 import { getCollabHandle } from "../multiplayer/collabHandle";
@@ -960,22 +962,36 @@ export const useGlucoseStore = create<GlucoseStore>((set, get) => ({
     const selAnn = new Set(selectedAnnotationIds);
     if (selImg.size === 0 && selAnn.size === 0) return;
 
+    // MEMB-1 — `dx/dy` arrivent en unités ÉCRAN-monde, celles du curseur. Un
+    // élément posé dans une membrane minimisée est rendu à l'échelle k : pour
+    // qu'il suive le curseur, sa coordonnée NATURELLE doit avancer de dx/k.
+    // Sans ça, tirer dans une membrane à 0,4 le ferait filer 2,5 fois trop vite.
+    // Chacun a son échelle : deux éléments de membranes différentes, sélectionnés
+    // ensemble, restent tous deux sous le curseur.
+    const board0 = get().project.boards.find((x) => x.id === boardId);
+    const items0 = board0 ? itemsOfBoard(board0) : [];
+    const scales = hasScaling(items0) ? resolveItems(items0) : null;
+    const dxOf = (id: string) => dx / scaleOf(scales, id);
+    const dyOf = (id: string) => dy / scaleOf(scales, id);
+
     get().mutate("moveSelected", (d) => {
       const b = d.boards.find((x) => x.id === boardId);
       if (!b) return;
       // Images sÃ©lectionnÃ©es
       for (const img of b.images) {
-        if (selImg.has(img.id)) { img.x += dx; img.y += dy; }
+        if (selImg.has(img.id)) { img.x += dxOf(img.id); img.y += dyOf(img.id); }
       }
       // Annotations
       for (const a of b.annotations) {
         if (selAnn.has(a.id)) {
-          a.x += dx; a.y += dy;
+          const ax = dxOf(a.id);
+          const ay = dyOf(a.id);
+          a.x += ax; a.y += ay;
           if (a.type === "arrow") {
-            a.x2 += dx;
-            a.y2 += dy;
+            a.x2 += ax;
+            a.y2 += ay;
             if (a.waypoints) {
-              for (const wp of a.waypoints) { wp.x += dx; wp.y += dy; }
+              for (const wp of a.waypoints) { wp.x += ax; wp.y += ay; }
             }
           }
           continue;

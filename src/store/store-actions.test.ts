@@ -278,6 +278,44 @@ describe("selection", () => {
     const a = getActiveBoard(useGlucoseStore.getState().project).annotations.find(x => x.id === arrow.id) as ArrowAnnotation;
     expect(a.x).toBe(100); expect(a.y).toBe(50);
   });
+
+  // MEMB-1 — Un élément rendu à l'échelle k doit avancer de dx/k pour rester
+  // sous le curseur. Sans ça, tirer dans une membrane à 0,25 le ferait filer
+  // quatre fois trop vite et il échapperait à la main.
+  it("moveSelected divise par l'échelle dans une membrane minimisée", () => {
+    const memb = mkMembrane({ x: 0, y: 0, width: 200, height: 200, mode: "minimized" });
+    const txt = mkText({ x: 400, y: 400, width: 400, height: 400, membraneId: memb.id });
+    useGlucoseStore.getState().addAnnotation("main", memb);
+    useGlucoseStore.getState().addAnnotation("main", txt);
+    useGlucoseStore.getState().setSelectedAnnotationIds([txt.id]);
+
+    // Échelle 0,25 : 10 px sous le curseur = 40 unités naturelles.
+    useGlucoseStore.getState().moveSelected("main", 10, 20);
+    const t = getActiveBoard(useGlucoseStore.getState().project).annotations.find(x => x.id === txt.id)!;
+    expect(t.x).toBe(440);
+    expect(t.y).toBe(480);
+  });
+
+  it("moveSelected ne divise rien hors membrane réduite", () => {
+    const txt = mkText({ x: 0, y: 0, width: 100, height: 100 });
+    useGlucoseStore.getState().addAnnotation("main", txt);
+    useGlucoseStore.getState().setSelectedAnnotationIds([txt.id]);
+    useGlucoseStore.getState().moveSelected("main", 10, 20);
+    const t = getActiveBoard(useGlucoseStore.getState().project).annotations.find(x => x.id === txt.id)!;
+    expect(t.x).toBe(10); expect(t.y).toBe(20);
+  });
+
+  it("chacun son échelle : deux membranes différentes suivent le même curseur", () => {
+    const petite = mkMembrane({ x: 0, y: 0, width: 200, height: 200, mode: "minimized" });
+    const dedans = mkText({ x: 400, y: 0, width: 400, height: 400, membraneId: petite.id });
+    const dehors = mkText({ x: 5000, y: 0, width: 100, height: 100 });
+    for (const a of [petite, dedans, dehors]) useGlucoseStore.getState().addAnnotation("main", a);
+    useGlucoseStore.getState().setSelectedAnnotationIds([dedans.id, dehors.id]);
+    useGlucoseStore.getState().moveSelected("main", 10, 0);
+    const anns = getActiveBoard(useGlucoseStore.getState().project).annotations;
+    expect(anns.find(x => x.id === dedans.id)!.x).toBe(440); // 10 / 0,25
+    expect(anns.find(x => x.id === dehors.id)!.x).toBe(5010); // 10 / 1
+  });
 });
 
 // ─────────── 5. UNDO / REDO ──────────────────────────────────────────

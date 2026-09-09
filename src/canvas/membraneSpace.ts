@@ -343,6 +343,75 @@ export function resolveItems(
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// Projection vers le rendu
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Une membrane réduit-elle quoi que ce soit sur ce board ?
+ *
+ * CHEMIN RAPIDE, et surtout GARDE-FOU : seul le mode `minimized` produit une
+ * échelle différente de 1. Tant qu'aucune membrane n'est minimisée, le rendu
+ * doit reprendre EXACTEMENT le chemin d'avant cette fonctionnalité — mêmes
+ * coordonnées, mêmes objets, aucun calcul en plus. C'est ce qui rend la
+ * migration sûre pour tous les projets existants.
+ */
+export function hasScaling(items: SpaceItem[]): boolean {
+  return items.some((i) => i.kind === "membrane" && i.mode === "minimized");
+}
+
+/**
+ * Board dont la géométrie est EFFECTIVE de bout en bout.
+ *
+ * Destiné à ce qui raisonne en BOÎTES : test de collision au clic, alignement
+ * intelligent, culling. Le rendu, lui, préfère « origine + échelle » : mettre
+ * un texte à la moitié de sa largeur sans réduire sa police le ferait déborder,
+ * alors qu'une transformation d'échelle emporte tout d'un coup.
+ *
+ * Rend le board TEL QUEL quand rien n'est réduit — pas de copie, pas de coût.
+ */
+export function projectBoard<T extends Pick<Board, "images" | "annotations">>(
+  board: T,
+  resolved: Map<string, ResolvedItem> | null,
+): Pick<Board, "images" | "annotations"> {
+  if (!resolved) return board;
+
+  const images = board.images.map((img) => {
+    const r = resolved.get(img.id);
+    if (!r || r.scale === 1) return img;
+    const c = imageCenterOf(r);
+    return { ...img, x: c.x, y: c.y, width: r.width, height: r.height };
+  });
+
+  const annotations = board.annotations.map((ann) => {
+    const r = resolved.get(ann.id);
+    if (!r || r.scale === 1) return ann;
+    if (ann.type === "arrow") {
+      // Une flèche suit ses extrémités ; à défaut d'ancrage, on la met à
+      // l'échelle autour de la même origine que le reste.
+      return ann;
+    }
+    return { ...ann, x: r.x, y: r.y, width: r.width, height: r.height };
+  });
+
+  return { images, annotations };
+}
+
+/** Échelle appliquée à un élément, 1 par défaut. */
+export function scaleOf(resolved: Map<string, ResolvedItem> | null, id: string): number {
+  return resolved?.get(id)?.scale ?? 1;
+}
+
+/** Origine effective d'un élément, ou `null` s'il n'est pas transformé. */
+export function originOf(
+  resolved: Map<string, ResolvedItem> | null,
+  id: string,
+): { x: number; y: number; scale: number } | null {
+  const r = resolved?.get(id);
+  if (!r || r.scale === 1) return null;
+  return { x: r.x, y: r.y, scale: r.scale };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // Appartenance au DÉPÔT
 // ════════════════════════════════════════════════════════════════════════════
 

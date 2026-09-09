@@ -4,6 +4,8 @@ import { Annotation, MembraneAnnotation } from "../types";
 import { useGlucoseStore } from "../store";
 import { showToast } from "../components/Toast";
 import { registerPickHandler } from "./pickArbiter";
+// MEMB-2 — une membrane posée dans une membrane MINIMISÉE est rendue réduite.
+import { originOf, type ResolvedItem } from "./membraneSpace";
 // SNAP-1 — alignement intelligent unifié : les membranes s'alignent désormais
 // comme les textes/notes/images, au déplacement ET à la mise à l'échelle.
 import { beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
@@ -42,6 +44,8 @@ interface Props {
   onSelect: (id: string, multi: boolean) => void;
   onEdit: (id: string) => void;
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
+  /** Géométrie effective, ou `null` quand rien n'est réduit. */
+  geom?: Map<string, ResolvedItem> | null;
 }
 
 interface DragState {
@@ -58,7 +62,7 @@ interface DragState {
 
 export default function SvgAnnotationLayer({
   annotations, selectedIds, editingId, vpRef,
-  onSelect, onEdit, onResize,
+  onSelect, onEdit, onResize, geom = null,
 }: Props) {
   const svgRef   = useRef<SVGSVGElement>(null);
   const groupRef = useRef<SVGGElement>(null);
@@ -282,6 +286,13 @@ export default function SvgAnnotationLayer({
     </svg>
   );
 
+  /** `translate` + `scale` effectifs de la membrane. */
+  function membraneTransform(ann: MembraneAnnotation): string {
+    const o = originOf(geom, ann.id);
+    if (!o) return `translate(${ann.x},${ann.y})`;
+    return `translate(${o.x},${o.y}) scale(${o.scale})`;
+  }
+
   function renderMembrane(ann: MembraneAnnotation, sel: boolean) {
     const w   = ann.width;
     const h   = ann.height;
@@ -296,7 +307,10 @@ export default function SvgAnnotationLayer({
         /* PICK-1 — marqueurs lus par l'arbitre en phase capture (GlucoseCanvas). */
         data-pick-owner="membrane"
         data-pick-id={ann.id}
-        transform={`translate(${ann.x},${ann.y})`}
+        /* Position et échelle EFFECTIVES : une membrane rangée dans une
+           membrane minimisée se dessine réduite, sans que ses coordonnées
+           stockées ne bougent. */
+        transform={membraneTransform(ann)}
         style={{ pointerEvents: activeTool === "select" ? "all" : "none", cursor: activeTool === "select" ? "move" : "default" }}
         onPointerDown={(e) => handleDown(ann, e)}
         onDoubleClick={(e) => handleDblClick(ann, e)}
