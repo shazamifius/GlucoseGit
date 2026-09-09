@@ -1,208 +1,242 @@
 # HANDOFF — Glucose (pour le prochain Claude)
 
-> Réécrit le **2026-07-02** à la fin de la session « bundle portable ».
-> Branche : **`checkpoint/avant-A`** · HEAD : **`2d2a9f1`** · **TOUT est poussé** sur `origin`.
-> Ce fichier est **non suivi par git** — il ne part pas dans le repo/PR. Supprime-le quand tu veux.
+> Réécrit le **2026-09-09**, fin de la session « membranes : focus, rideaux, modes ».
+> Branche **`main`** · HEAD **`3bb8db2`** · ⚠️ **3 commits NON POUSSÉS** (voir §1).
 
 ---
 
-## 0. TL;DR — où on en est
+## 0. TL;DR
 
-Glucose = app **Tauri v2** (Rust + WebView2) / **React 19** / **PixiJS 8** / **Zustand** / **Automerge 3** (CRDT).
-North star : rendre le `.glucose` **indestructible & incorruptible** (« mieux qu'une feuille »).
+Glucose = **Tauri v2** (Rust + WebView2) / **React 19** / **PixiJS 8** / **Zustand** / **Automerge 3**.
+North star : le `.glucose` **indestructible**, et *« poser, relier, zoomer, explorer — rien d'autre »*.
 
-- **Tout est fait, testé, poussé, CI relancée** sur la branche. Rien en attente de push.
-- **État technique** : `typecheck` 0 · **437 tests TS** verts · **5 tests Rust** verts · `biome` 0 erreur
-  (14 warnings `any` pré-existants) · `cargo fmt`+`clippy -D warnings` OK · build prod OK.
-- Dernière grosse livraison : **le bundle portable** (déplacer un `.glucose` emporte ses images) —
-  **validé en réel par l'user (« fonctionne trop bien »)** après le fix Rust.
+Cette session a livré, en 11 commits, **un second repère de coordonnées** pour les
+membranes (mode focus + membranes minimisées), **les rideaux personnels**, et
+l'**identité collaborative modifiable**.
 
-### La première chose à faire la prochaine fois
-1. **Lire `MEMORY.md` puis ce fichier** (voir §1). Rien n'est cassé, rien n'est à finir en urgence.
-2. Demander à l'user quelle **route** on prend (voir §3 « reste à faire »). Les 2 candidats chauds :
-   **bundle approche 2** (magasin co-localisé auto) ou **le cap nord P5** (exporteur sémantique + MCP).
-3. Lui rappeler (une fois) de **révoquer son token GitHub** (voir §6).
+**État technique** : `tsc --noEmit` 0 erreur · **845 tests TS verts** (57 fichiers) ·
+`biome check src` 0 erreur (14 warnings `any` **pré-existants**) · `cargo check` OK.
 
----
+### Les trois premières choses à faire
 
-## 1. D'OÙ VIENNENT MES RESSOURCES — quoi lire, dans quel ordre (⭐ ta question)
-
-**A) Ma mémoire persistante** (auto-chargée à CHAQUE session) vit dans :
-`C:\Users\Administrator\.claude\projects\c--Users-Administrator-Documents-GlucoseGit-main\memory\`
-- **`MEMORY.md`** = l'index (une ligne/souvenir). **À lire EN PREMIER.**
-- Chaque `*.md` = un fait. Les plus importants pour repartir :
-  - **`checkpoint-avant-A-wip-state.md`** → l'état de la branche + TOUS les commits + les pièges. **Lis-le tôt.**
-  - **`bundle-portable-mechanism.md`** → le dernier gros chantier (bundle) : comment il marche, ce qui reste.
-  - **`compaction-mechanism.md`** → la compaction d'historique (Git#1 Phase 4-p2).
-  - **`glucose-design-monochrome.md`** → RÈGLE DE DESIGN : UI noir/blanc/gris, couleur = statut seul.
-  - **`indestructible-incorruptible-north-star.md`** → la vision + le plan Git#1 (4 phases, toutes faites).
-  - **`glucose-hub-ia-plugin-architecture.md`** → l'archi cible 3 couches + les DEUX « git » distincts.
-  - **`undo-forward-revert-wasm-panic.md`** + **`undo-architecture-invariants.md`** → l'undo (règle porteuse).
-  - **`collab-automerge-repo.md`** + **`collab-silent-reconnect-disabled.md`** + **`collab-images-embed-vs-link.md`** → la collab.
-  - **`graphify-architecture-map.md`** → il existe un graphe du repo dans `graphify-out/graph.json`.
-
-**B) Les docs de VISION** (les plus à jour, écrits par/pour l'user), dans **`C:\Users\Administrator\Documents\`** :
-- **`Glucose-Vision-et-Etat.md`** + **`Presentation_Glucose.md`** (26/06/2026) → l'idée, les 4 sens de
-  communication Humain↔IA, les « 3 pierres » du pont IA. **À lire pour le CAP.**
-
-**C) Dans le repo (`C:\Users\Administrator\Documents\GlucoseGit-main\`) :**
-- **`ROADMAP.md`** = LE plan canonique **P1→P7** (audit 2026-06-10). Priorités, vision, fichiers critiques.
-- `README.md` ; `git ls-files "*.md"` pour le reste.
-- **`graphify-out/graph.json`** = carte du repo (interroge-la pour naviguer vite ; 2 chokepoints :
-  `validate_scope` côté Rust, `useGlucoseStore` = store monolithe ~1900 l.).
-
-**D) L'ÉCOSYSTÈME (4 dossiers, pas 1) — tous dans `Documents\` :**
-- **`GlucoseGit-main`** = l'app (le canvas). C'est ici qu'on code.
-- **`glucose-notes`** = moteur Rust séparé « texte → cours spatialisé » (cœur du pont IA→Humain), itéré
-  jusqu'à v10. Cf. mémoire `glucose-notes-plugin.md`.
-- **`glucose-plugins`** = packaging du plugin « Cours magistral » (déjà branché DANS l'app, Phase 8).
-- **`glucose-pipeline-v1…v10`** = bancs d'essai réels (cours de neurobio de la musique).
-
-**E) Les vrais fichiers `.glucose` de test de l'user** (pour vérifier un résultat sur disque, façon compaction) :
-- `Desktop\Blender\Projet\en cours\tst.glucose` (a servi à valider la compaction).
-- `Downloads\Nouveau projet-portable\` (bundle complet, 129 images — a servi à valider le bundle).
-
-**Règle d'or mémoire** : une mémoire reflète ce qui était vrai à l'écriture. Si elle cite un
-fichier/une fonction, **vérifie qu'il existe encore** avant de t'appuyer dessus. Le CODE est la vérité ;
-les mémoires disent le POURQUOI non-déductible du code.
+1. **Pousser.** Trois commits attendent, le token GitHub de la session précédente
+   a été refusé (`Invalid username or token`). **Demander un PAT à jour** à l'user.
+   Aucune autre méthode d'authentification n'est prévue — ne pas improviser.
+   Rien n'est perdu : arbre propre, 3 commits en avance sur `origin`.
+2. **Lire le §3** (les cinq invariants). Ils portent toute l'architecture, et
+   deux d'entre eux sont contre-intuitifs — les casser sans le savoir est facile.
+3. Demander à l'user **par quelle étape du §4** il veut continuer. Le plan
+   1→2→3 est terminé ; il reste 4, 5, 6 et il les connaît.
 
 ---
 
-## 2. Ce que CETTE session a fait (6 commits, tous poussés)
+## 1. Git — état exact
 
-Au-dessus de `14f0087` :
-- **`4b95ed3`** — Git#1 Phase 4-p2 = **COMPACTION** de l'historique (poussée + **testée en réel** :
-  `tst.glucose` 209 Ko → 17 Ko, −91,8 %, historique 4241→1 change, zéro perte). Cf. `compaction-mechanism`.
-- **`4833439`** — **fixes review Gemini** (bot auto sur la PR #13) : `kill_on_drop(true)` sur 3 spawns Rust,
-  export `toAbsolute`, `setScale` throttlé. Écartés à raison : isMounted (React 19 = no-op), IPv6 SSRF (pas une faille).
-- **`9e0aecc`** — **BUNDLE PORTABLE (approche 1)** : dossier auto-suffisant `project.glucose` + `objects/<hash>`
-  + `bundle.json`. UI : « Projet portable » dans ExportMenu + **Ctrl+Maj+O** pour ouvrir. +14 tests.
-- **`28f6004`** — fix import : message d'erreur RÉEL (Tauri jette des **strings**, pas des `Error`).
-- **`338d830`** — **⚠️ LE fix qui compte** : la copie d'assets passe **côté RUST** (`bundle_export_assets` /
-  `bundle_import_assets`, disque→disque). L'ancien « tout JS via base64/IPC » **calait à ~34 images sur 129**
-  (gros projet 190 Mo). **Validé en réel par l'user après rebuild.** Cf. `bundle-portable-mechanism`.
-- **`2d2a9f1`** — style : icônes ExportMenu violet→gris (règle `glucose-design-monochrome`).
-
----
-
-## 3. Ce qu'il RESTE à faire (rien d'urgent — proposer, laisser l'user choisir)
-
-| Priorité | Tâche | Détail |
-|---|---|---|
-| ○ | **Bundle approche 2** | Magasin co-localisé auto `mon.glucose.assets/` à côté du doc (comme `.versions/`) → fichier DU QUOTIDIEN portable sans export manuel. Suite prévue de l'approche 1. |
-| ⭐ | **Cap nord P5** | Exporteur sémantique `glucose → graphe lisible par une IA` (pur/testable, `buildScene` fait 80%) PUIS serveur **MCP** (l'IA lit/édite le canvas en direct). Le chaînon manquant du projet — attirant pour l'user. |
-| ○ | Déclencheur **AUTO** de compaction | Au-delà d'un seuil d'historique. Reporté (manuel d'abord = plus sûr). Réutiliser `runCompaction`, gate solo. |
-| ○ | **PR #13** `checkpoint/avant-A → main` | Fusionner ou non = décision user. |
-| 🔐 | **Révoquer le token** GitHub | L'user l'a collé + réutilisé plusieurs fois ce jour → à révoquer ; puis `gh auth login`. |
-| ○ | Bundle : inclure les jalons `.versions/` | v1 n'embarque que l'état courant. |
-
-Voir `ROADMAP.md` (P1→P7) pour le reste. Revue stratégique complète faite ce jour (l'user a choisi de
-FINIR l'arc « indestructible » avant le cap nord).
-
----
-
-## 4. Organisation du code (l'essentiel)
-
-**Pipeline de sauvegarde / Git#1** (`src/utils/`) :
-- `project.ts` — `saveProject`/`loadProject` (⚠️ **`loadProject(pathArg?)`** accepte désormais un chemin →
-  saute le dialogue ; utilisé par l'ouverture de bundle). Réécriture de chemins **SOLO only**.
-- `saveState.ts` — PUR. `planSave`/`commitSave`/`markLoaded`. `autoVersion.ts` — jalons AUTO à l'ampleur (32 Ko).
-- `versions.ts` — jalons DURABLES (`<path>.versions/`). `loadLatestHealthyVersion` = filet anti-corruption.
-- `compaction.ts` — `compactDoc` (pur, roundtrip) + `runCompaction` (I/O, garde-fous solo/atomique).
-- **`bundle.ts`** (NEW) — bundle portable : PUR (`collectReferencedAssets`/`buildBundleManifest`/`assetBytesMatch`)
-  + `exportBundle`/`importBundle` qui appellent les commandes RUST `bundle_export_assets`/`bundle_import_assets`.
-  **`bundleActions.ts`** = glue UI (dialogues + toast). Tests : `bundle.test.ts` (pur) + `bundle.integration.test.ts`.
-- `assets.ts` / `assetRef.ts` — magasin global content-addressed `app_data_dir/assets/<hash16>.<ext>` ; le doc
-  ne porte que des refs `asset:<name>` (mode "link" + sha256). C'est POURQUOI déplacer un `.glucose` perdait
-  les images → d'où le bundle. `currentPath.ts` — singleton `getCurrentPath()`.
-
-**Store** : `src/store/index.ts` (~1900 l., monolithe = gros chokepoint). Source de vérité = `_doc: Doc<Project>`.
-`src/store/automerge.ts` = wrapper `A.*` (create/change/save/load/**loadResilient**/asPlain/…).
-
-**UNDO (règle porteuse)** : forward-revert. `undo()` lit `A.asPlain(snapshot)` et le RÉ-APPLIQUE EN AVANT →
-lignée-agnostique (c'est pourquoi la compaction ne casse pas l'undo). Jamais d'`A.change` brut sur le doc d'un handle collab.
-
-**Rust** : `src-tauri/src/lib.rs`. Commandes clés : assets (`save_asset`/`load_asset`/`get_assets_dir`),
-**bundle** (`bundle_export_assets`/`bundle_import_assets` = copie disque→disque + intégrité + `validate_scope`),
-plugins (Phase 8), fetch web anti-SSRF. `validate_scope(path, app)` = frontière disque (canonicalize + roots autorisés).
-
-**UI** : `src/components/ExportMenu.tsx` (menu Exporter + « Projet portable »), `TimelinePanel.tsx` (Time Machine +
-Compacter), `PluginPanel.tsx`. `src/App.tsx` = raccourcis clavier (Ctrl+O ouvrir, **Ctrl+Maj+O ouvrir bundle**,
-Ctrl+S save, Ctrl+H time machine, Ctrl+Maj+L collab).
-
-**CI** : `.github/workflows/ci.yml` — tourne **uniquement sur `main` et PR vers `main`** (d'où la PR #13).
-Frontend (typecheck+lint+vitest) + Rust (`cargo check --release` + `fmt --check` + `clippy -D warnings`, **bloquants**).
-
----
-
-## 5. Commandes utiles
-
-```bash
-# Frontend (racine)
-npm run typecheck        # tsc --noEmit
-npm run lint             # biome check src   (⚠️ biome, PAS eslint)
-npm test                 # vitest run (toute la suite, 437)
-npx vitest run src/utils/bundle.test.ts   # un fichier
-npm run build            # tsc && vite build (prod)
-npm run tauri dev        # app desktop RÉELLE — recompile le Rust si besoin (nécessaire après un changement de commande Rust)
-
-# Rust (via --manifest-path pour éviter un cd)
-cargo fmt   --manifest-path src-tauri/Cargo.toml --all -- --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --release -- -D warnings
-cargo fmt   --manifest-path src-tauri/Cargo.toml --all            # applique le formatage
+```
+3bb8db2  feat(membranes): les boutons de mode          ← HEAD, non poussé
+93d1033  feat(membranes): le resolveur pilote le rendu ← non poussé
+b8a0743  feat(membranes): l'appartenance devient reelle← non poussé
+9c399f8  feat(membranes): le rideau, en vrai           ← poussé
+2313dd2  feat(collab): mon nom et ma couleur           ← poussé
+d384e3e  feat(membranes): rideau — modele d'interaction← poussé
+85d222d  feat(membranes): mode Focus                   ← poussé
+6cf266a  feat(membranes): repere local — la fondation  ← poussé
+d2a887c  fix(selection): cycle de priorite au relachement
+152f83c  fix(fleches): ancrer une selection par position
+5be958a  feat(plugins): moteur "Cours magistral" integre
 ```
 
-**Pousser** (seul moyen sur ce PC — `gh` pas connecté, helper git = GUI inutilisable en non-interactif) :
-```bash
-git push "https://<TOKEN>@github.com/shazamifius/GlucoseGit.git" checkpoint/avant-A 2>&1 | sed -E 's/github_pat_[A-Za-z0-9_]+/***REDACTED***/g'
-git update-ref refs/remotes/origin/checkpoint/avant-A HEAD   # OBLIGATOIRE : le push par URL inline n'avance PAS origin/…
-```
-🔐 **Le token vient de l'user à CHAQUE fois**, JAMAIS écrit sur disque/`.git/config`, JAMAIS ré-affiché
-(filtre `sed`). Ne pousse QUE quand il le demande. **Ordre de travail de l'user : coder → tester → PUIS pousser.**
+Workflow de push observé cette session (à reprendre tel quel) :
+`git fetch <url-avec-token> main` → vérifier `git rev-list --left-right --count HEAD...FETCH_HEAD`
+→ `git push <url-avec-token> main:main`. **Jamais de force-push.** Le token
+passe en URL ponctuelle et n'est **jamais** écrit dans `.git/config` (vérifié).
 
 ---
 
-## 6. Pièges & gotchas (mordu dessus)
+## 2. Ce qui existe maintenant
 
-1. **Copier beaucoup/de gros fichiers : JAMAIS via base64 à travers l'IPC Tauri.** L'export bundle « tout JS »
-   (load_asset base64 → JS → writeFile) **calait à 34 images sur 129** (190 Mo). → faire la copie **en Rust**
-   (`std::fs`/`tokio::fs`, disque→disque). Modèle : `bundle_export_assets`/`bundle_import_assets` dans lib.rs.
-2. **Tauri jette des STRINGS, pas des `Error`.** `(e as Error).message` → « undefined » et cache la vraie cause.
-   Utilise **`String(e)`** dans les catch d'appels Tauri.
-3. **Push par URL inline n'avance pas `origin/…`** → `git update-ref refs/remotes/origin/checkpoint/avant-A HEAD`
-   après, sinon `git status` ment (« en avance de N commits »).
-4. **`A.change` sur le doc d'un handle collab = panic WASM** (fatal). Toute mutation gatée `!getCollabHandle()`.
-   `A.save`/`A.asPlain` (lecture) sont sûrs en collab.
-5. **Design : noir/blanc/gris SEULEMENT**, couleur = statut (vert=ok, rouge=pas ok). Pas de violet/bleu déco
-   (cf. `glucose-design-monochrome`). Palette grise : texte `#d4d4dd`, secondaire `#7d7d8c`, icône `#9a9aa0`,
-   bordures `#26262e`/`#34343e`, fonds `#16161a`/`#23232b`.
-6. **Nouvelle commande Rust = rebuild** (`npm run tauri dev` recompile). Un simple HMR frontend ne suffit pas.
-7. **Tests : pas de `@types/node`.** Pour tester du code plugin-fs, **mocker le module avec une Map** (modèle :
-   `bundle.integration.test.ts`, `compaction.integration.test.ts`). Pour un test JETABLE qui lit un vrai fichier
-   disque, `import { readFile } from "node:fs"` marche sous vitest (esbuild ne typecheck pas) — supprime-le après.
-8. **CI ne voit la branche que via la PR #13** (workflow sur `main`/PR→main). Un push seul ne déclenche RIEN d'autre.
-9. **Seuil auto-version = 32 Ko** de delta (images = liens `asset:` quasi gratuits → doc grossit lentement).
-10. **PowerShell = shell primaire** (Windows). Bash dispo. `git commit -F -` + heredoc `<<'EOF'` pour les messages
-    multi-lignes (le heredoc évite les soucis d'accents/quotes). `$var` est mangé par bash si on lance
-    `powershell.exe` via l'outil Bash → utilise l'outil PowerShell directement.
+### Sélection au clic — `src/canvas/hitPriority.ts` ✅ branché
+
+Ordre de priorité : poignée → bord de conteneur → flèche → image → note → texte
+→ corps de conteneur. À rang égal entre conteneurs, **le plus petit gagne**.
+
+Le point non évident : **le cycle « re-clic = cible suivante » avance au
+RELÂCHEMENT, jamais à l'appui.** À l'appui on ne sait pas encore si le geste sera
+un clic ou un glisser ; avancer là faisait que « je clique mon image, puis je la
+tire » attrapait la membrane. Trois tests verrouillent ça.
+
+Poignées : préhension de 24 px **écran** (le carré dessiné fait 9), plafonnée à
+35 % du petit côté pour qu'un bloc minuscule reste déplaçable.
+
+### Le repère des membranes — `src/canvas/membraneSpace.ts` ✅ branché
+
+Le cœur. Trois modes : `classic` (implicite, comportement historique),
+`minimized`, `stretched`. Voir §3 pour les invariants.
+
+Branché sur : sprites Pixi, hachage spatial / culling, test de collision au clic,
+curseur de survol des poignées, `HtmlAnnotationLayer`, `SvgAnnotationLayer`, et
+`moveSelected` côté store.
+
+### Mode Focus — `src/canvas/membraneFocus.ts` ✅ branché
+
+Zoomer assez sur une membrane → la caméra se cale dessus, le fond prend sa
+couleur teintée, tout le reste disparaît. Dézoomer de 20 % en sort.
+
+**L'entrée et la sortie sont volontairement ASYMÉTRIQUES** : on entre sur la
+couverture d'écran (≥ 92 %), on sort sur le dézoom relatif à l'échelle du
+cadrage. Une fois entré, la couverture n'est **plus jamais** consultée — sinon le
+recadrage, en ajoutant ses marges, provoquerait sa propre annulation. Un test
+mesure explicitement que la couverture après cadrage (0,774) est sous le seuil
+d'entrée : le piège est réel, l'asymétrie est ce qui l'évite.
+L'animation de cadrage (320 ms) tient **strictement** dans le temps mort de la
+décision (400 ms) — un test verrouille la relation entre ces deux constantes.
+
+### Rideaux — `curtainPanel.ts` + `curtainModel.ts` + `MembraneCurtainLayer.tsx` ✅ branché
+
+Panneau personnel au bord droit, façon console Quake / Slide Over, visible
+**uniquement en mode focus**. Survol pour déployer, sans clic. Languettes
+empilées, une par personne, à sa couleur (variante A, validée sur maquette).
+
+**Le survol ne peut pas battre, et c'est géométrique** : se déployer pousse la
+frontière vers la gauche, donc elle *fuit* le curseur qui a déclenché le
+déploiement ; se replier la pousse à droite, même raison. L'animation renforce
+toujours la condition qui l'a déclenchée. La temporisation (90 ms / 40 ms) est là
+contre l'**ouverture accidentelle**, pas contre le battement.
+
+Permissions, deux champs pour trois usages :
+`private` → **carnet** · `shared`+`owner` → **vitrine** · `shared`+`everyone` → **atelier**.
+Un rideau neuf est **privé**. `canEdit` revalide la cohérence plutôt que de faire
+confiance à la combinaison stockée.
+
+### Modes de membrane — `src/components/MembraneOptions.tsx` ✅ branché
+
+Barre contextuelle quand une membrane est seule sélectionnée. Classique →
+minimisée / étirée, **aller sans retour** (bouton désactivé, pas caché).
+
+### Identité — `src/multiplayer/localUser.ts` ✅ branché
+
+Nom + couleur modifiables (panneau Collaboration), persistés en `localStorage`,
+avec un **identifiant stable** (`id`) qui porte la propriété des rideaux — le nom
+ne peut pas jouer ce rôle, il change. Un `USER_CHANGED_EVENT` fait rediffuser la
+présence immédiatement.
 
 ---
 
-## 7. Bosser avec l'user (shazamifius, FR)
+## 3. Les cinq invariants — à lire avant de toucher aux membranes
 
-- **Parle français.** Direct, collaboratif, **honnête sur prouvé vs supposé** (il remercie pour ça). Distingue
-  🟢 testé-réel / 🟡 logique-testée-I/O-mockée / 🔵 typé-buildé / 👤 validé-par-lui.
-- Il aime **détailler un chantier AVANT de coder**, puis choisir une option (souvent via une question à choix).
-  Mais quand il dit « **en autonomie** » / « **go** » → **fonce et code**, ne redemande pas.
-- **Il veut que tu TESTES DE TON CÔTÉ d'abord**, avant de lui demander de tester. Tu ne pilotes pas la fenêtre
-  Tauri, MAIS tu peux : lancer les tests, ET **inspecter/rejouer sur les vrais fichiers disque** (charger un
-  `.glucose`, recalculer des hash, rejouer un algo en Node) — c'est comme ça qu'on a validé compaction ET bundle.
-- **Ordre** : coder → tester → **et SEULEMENT après on pousse** (quand il le dit).
-- **CI 100 % vert, zéro X.** Ne casse jamais ça.
-- **North star** = boussole : « mieux qu'une feuille », indestructible & incorruptible. Chaque décision Git#1 se
-  juge là-dessus (jalon avant tout risque, vérifier avant de remplacer, écriture atomique).
-- Ne re-narre pas ce qui est établi : agis. `/graphify` existe (skill) ; `graphify-out/graph.json` = carte du repo.
+**① L'échelle du contenu ne se stocke pas, elle se déduit.**
+`k = min(1, largeur/étendueX, hauteur/étendueY)`. D'où, gratuitement : le `min`
+des deux axes (étirer en longueur seule ne fait pas regrossir une image), le
+plafond à 1, et l'impossibilité qu'une échelle stockée se désynchronise de la
+taille réelle. **Ne jamais introduire de champ `scale`.**
+
+**② L'appartenance, elle, SE STOCKE** (`membraneId`), et c'est contre-intuitif.
+Une membrane minimisée est *par construction* plus petite que son contenu à
+l'échelle 1 : un test d'inclusion géométrique déclarerait le contenu sorti à
+l'instant même où elle le réduit — elle se viderait en rangeant. L'appartenance
+est donc un **événement** : dépôt (`reconcileMembership`) ou conversion
+(`containedIn`). Jamais un prédicat continu.
+
+**③ La conversion est le seul moment où la géométrie peut décider.**
+En quittant `classic`, l'échelle vaut encore 1 : naturel == effectif, l'inclusion
+est sans ambiguïté. Après, le test s'inverse. C'est pour ça que l'instantané ne
+se prend **qu'en quittant classique**, jamais à chaque bascule.
+
+**④ `hasScaling()` est le garde-fou de toute la migration.**
+Tant qu'aucune membrane n'est minimisée, `projectBoard` rend le board **tel quel,
+au même objet près** — zéro calcul, zéro copie, chemin d'avant à l'identique.
+Trois tests d'intégration le vérifient en montant les vraies couches. **Ne
+jamais court-circuiter ce chemin rapide.**
+
+**⑤ Toute écriture dans le document doit être DÉTACHÉE.**
+Automerge refuse qu'un objet déjà présent y soit réinséré
+(`Cannot create a reference to an existing document object`). Réécrire un tableau
+réinsère fatalement les éléments non touchés. `detachCurtains` recopie champ par
+champ. **Ce bug ne se voit qu'en collaboration, au deuxième élément** — un test
+d'intégration l'a attrapé, pas la relecture.
 
 ---
 
-_Fin du handoff. Tout est vert, tout est poussé. Bonne session._
+## 4. Ce qui reste
+
+### Étape 4 — Mode étiré et avertissements de collision
+`stretchPlan()` est **écrit et testé mais appelé nulle part**. Aujourd'hui le
+bouton « Étirée » écrit le mode, le résolveur le respecte (échelle 1), mais la
+membrane **ne grandit pas toute seule** et rien n'avertit.
+
+À faire : appeler `stretchPlan` quand le contenu d'une membrane étirée dépasse,
+appliquer `allowed` (jamais `desired`), **entourer les `blockers`** et offrir un
+saut vers l'élément fautif. Décision déjà prise avec l'user : **l'étirement bute
+sur l'obstacle**, il ne le recouvre pas et ne le capture pas.
+
+### Étape 5 — Animation de dépôt
+Quand un élément entre ou sort d'une membrane minimisée, sa taille change d'un
+coup. L'user veut un passage **fluide** (image qui traverse d'un point A à un
+point B). Piste : animer `k` côté rendu sur ~200 ms, sans toucher aux données.
+
+### Étape 6 — Le rideau devient un vrai canvas *(le gros morceau)*
+Il ne contient aujourd'hui que des **notes texte**. L'user a confirmé vouloir
+« un canvas complet ». **Décision à lui soumettre d'abord** : seconde instance
+PixiJS dans le panneau (images comprises, coûteux) **ou** rendu DOM seul (textes,
+notes, flèches, membranes ; images en `<img>`). Recommandation de la session
+précédente : **DOM seul**.
+
+Le modèle est prêt à l'accueillir : les rideaux vivent sur la membrane et passent
+par `updateAnnotation`, donc ils héritent de l'undo et de la synchro sans surface
+de store supplémentaire.
+
+---
+
+## 5. Décisions ouvertes — à demander à l'user
+
+- **« Réservé »** : implémenté comme *réservé au propriétaire*. S'il voulait dire
+  « réservé à une personne nommée que je désigne », c'est un champ de plus.
+- **Le nom** : le code dit `curtain` partout. L'user hésite entre *rideau*,
+  *coulisse* et *loge*. Renommer coûtera peu maintenant, beaucoup plus tard.
+- **Le bouton « créer un rideau »** vit sur la languette, au bord droit. L'user
+  l'avait imaginé à côté des boutons de mode — qui existent désormais
+  (`MembraneOptions`). À déplacer si c'est ce qu'il veut.
+- **Le flou de la languette** entre en tension avec `style.md`, qui proscrit le
+  glassmorphisme. Il a été gardé parce que l'user l'a demandé explicitement, et
+  parce que ce qu'on floute est du *contenu*. Son arbitrage, pas le nôtre.
+
+---
+
+## 6. Dettes et pièges connus
+
+- **Code mort** : `stretchPlan`, `naturalDelta`, `toNatural`, `membraneAtPoint`
+  ne sont appelés **nulle part** hors tests. `stretchPlan` sert à l'étape 4 ; les
+  trois autres ont été rendus inutiles par des solutions plus simples
+  (l'écriture inverse se fait dans `moveSelected` via `scaleOf`). À supprimer ou
+  à employer, mais ne pas les laisser traîner en l'état.
+- **Un test instable non identifié** : une exécution de la suite a échoué
+  (815/816) puis **cinq exécutions consécutives sont passées**. Ni le test ni la
+  cause n'ont été retrouvés. Si ça resurgit, noter le nom du test *immédiatement*.
+- **Flèches non projetées** : `projectBoard` laisse les flèches telles quelles.
+  Une flèche dont les extrémités sont dans une membrane minimisée sera mal
+  ancrée. Pas encore rencontré à l'usage, mais c'est un vrai trou.
+- **PixiJS n'est pas couvert par les tests** (jsdom n'a pas de WebGL). Tout ce
+  qui touche aux sprites se raisonne, ne se vérifie pas.
+- Les 14 warnings `biome` sur `any` sont **antérieurs** à cette session.
+
+---
+
+## 7. Comment cet user travaille
+
+- **Il écrit en français, vite, sans ponctuation.** Prendre le temps de
+  reformuler ce qu'on a compris **avant** de coder : ça a évité deux
+  contresens coûteux cette session.
+- **Il valide sur du concret.** Quand une intention visuelle n'était pas claire,
+  une **maquette interactive publiée en Artifact** a tranché en un échange là où
+  trois paragraphes n'y arrivaient pas. À refaire.
+- **Il fait confiance au déterminisme** : *« tu n'es pas obligé de lancer le
+  logiciel tant que mathématiquement tu es certain »*. En contrepartie il attend
+  de **vraies preuves** — modules purs, simulations, tests d'intégration qui
+  montent les vraies couches et relisent le store.
+- **Il apprécie qu'on signale ce qu'on n'a pas vérifié.** Les réserves honnêtes
+  (« Pixi non couvert », « le ressenti reste à toi ») ont été bien reçues.
+- **Commits séparés par chantier**, messages en français qui expliquent le
+  *pourquoi*, pas le *quoi*. Attribution :
+  `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
+- **`style.md` fait loi** : Glucose est brutaliste, chrome monochrome strict, la
+  couleur appartient au contenu de l'utilisateur — jamais à l'interface.
