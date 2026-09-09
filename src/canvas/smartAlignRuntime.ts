@@ -152,6 +152,34 @@ export interface SelectionSnapSession {
  * appliquer : sortir d'une zone d'accroche rend exactement la position du
  * curseur, sans dérive.
  */
+/**
+ * MEMB-8 — Session de déplacement SANS aimantation.
+ *
+ * Une session ne fait pas qu'aimanter : elle convertit le déplacement TOTAL
+ * depuis le grab (ce que les couches savent calculer) en delta INCRÉMENTAL (ce
+ * que les déplaceurs attendent). Une couche qui doit se passer de l'aimantation
+ * a donc quand même besoin d'une session — sinon chaque frame réappliquerait le
+ * déplacement complet et l'élément partirait deux fois trop loin.
+ *
+ * C'est le cas d'un rideau : `beginSelectionSnap` lit la sélection GLOBALE et le
+ * board ACTIF, ni l'une ni l'autre ne décrivant le rideau. Il accrocherait le
+ * geste à une géométrie qui n'y est même pas.
+ */
+export function beginRawMoveSession(): SelectionSnapSession {
+  let appliedX = 0;
+  let appliedY = 0;
+  return {
+    move(rawDX, rawDY) {
+      const dx = rawDX - appliedX;
+      const dy = rawDY - appliedY;
+      appliedX = rawDX;
+      appliedY = rawDY;
+      return { dx, dy };
+    },
+    end: () => { /* aucun guide publié, rien à effacer */ },
+  };
+}
+
 export function beginSelectionSnap(): SelectionSnapSession {
   const st = useGlucoseStore.getState();
   const board = getActiveBoard(st.project);

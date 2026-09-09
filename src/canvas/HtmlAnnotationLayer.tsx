@@ -21,7 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Annotation } from "../types";
 import { useGlucoseStore } from "../store";
 // SNAP-1 — alignement intelligent unifié (moteur pur + pont store).
-import { beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
+import { beginRawMoveSession, beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
 import type { ResizeHandle } from "./smartAlign";
 
 /** Demi-longueur d'un guide, en PIXELS ÉCRAN (convertie en monde au rendu). */
@@ -34,7 +34,7 @@ import { getSymbioticHue } from "../utils/symbioticHue";
 import { toAbsolute, toRelative } from "../utils/pathResolver";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useFileExistence, invalidateExistenceCache } from "../utils/fileExistence";
-import { registerPickHandler } from "./pickArbiter";
+import { MAIN_SCOPE, registerPickHandler, type PickScope } from "./pickArbiter";
 
 function openSourceFile(path: string) {
   const absPath = toAbsolute(path);
@@ -226,6 +226,14 @@ interface Props {
   onSelect: (id: string, multi: boolean) => void;
   onEdit: (id: string) => void;
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
+  /**
+   * MEMB-8 — Déplacement de la sélection. Par défaut : `moveSelected` sur le
+   * board ACTIF et la sélection GLOBALE — ce que veut la scène. Une couche
+   * montée dans un rideau décrit un AUTRE board et une AUTRE sélection : elle
+   * reçoit ici son propre déplaceur. Sans ça, tirer un texte dans un rideau
+   * déplaçait ce qui était sélectionné DEHORS.
+   */
+  onMove?: (dx: number, dy: number) => void;
   /** Géométrie effective, ou `null` quand rien n'est réduit. */
   geom?: Map<string, ResolvedItem> | null;
   /**
@@ -235,13 +243,20 @@ interface Props {
    */
   viewportEvent?: string;
   /**
-   * MEMB-7 — S'inscrire auprès de l'arbitre de priorité au clic. Le registre
-   * est un singleton par type de couche : une seconde instance inscrite
-   * VOLERAIT le routage au canvas principal. Le rideau passe donc `false` — le
-   * panneau porte déjà `data-arbiter-skip`, l'arbitre principal l'ignore, et
-   * les couches y répondent à leurs propres évènements DOM.
+   * MEMB-7 — S'inscrire auprès de l'arbitre de priorité au clic. Mettre `false`
+   * ne prive pas seulement la couche du routage : cela la coupe du CYCLE
+   * « re-clic = cible suivante », qui passe par le même registre. Une couche
+   * qui vit dans un autre monde de clic garde donc `true` et change de
+   * `pickScope` — c'est ce que fait le rideau (MEMB-8).
    */
   registerPick?: boolean;
+  /**
+   * MEMB-8 — Portée du registre. Une couche montée dans un rideau décrit un
+   * AUTRE monde de clic : elle s'inscrit sous la portée de ce rideau, pas sous
+   * celle de la scène. Sans ça, les deux instances se disputeraient la même
+   * entrée de registre.
+   */
+  pickScope?: PickScope;
 }
 
 // État interne du drag d'une annotation (déplacement OU resize via une corner).
@@ -302,8 +317,8 @@ const StableMarkdownComponents = {
 };
 
 export default function HtmlAnnotationLayer({
-  annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize, geom = null,
-  viewportEvent = "glucose:viewport-changed", registerPick = true,
+  annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize, onMove, geom = null,
+  viewportEvent = "glucose:viewport-changed", registerPick = true, pickScope = MAIN_SCOPE,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -451,8 +466,8 @@ export default function HtmlAnnotationLayer({
     return registerPickHandler("annotation", (id, ev, corner) => {
       const ann = annotationsRef.current.find((a) => a.id === id);
       if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
-    });
-  }, [registerPick]);
+    }, pickScope);
+  }, [registerPick, pickScope]);
 
   function handleDown(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (e.button !== 0) return;
@@ -501,9 +516,16 @@ export default function HtmlAnnotationLayer({
   }
 
   function screenToWorld(cx: number, cy: number) {
-    const canvas = document.querySelector("canvas");
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
+    // MEMB-8 — L'origine est CELLE DE LA COUCHE, pas le premier <canvas> du
+    // document. La couche se superpose exactement au canvas de la scène, donc
+    // rien ne change là-bas ; mais un rideau n'a PAS de canvas (ses images sont
+    // en DOM), et la recherche globale y renvoyait soit le canvas de la scène —
+    // un repère qui n'est pas le sien — soit rien du tout, auquel cas cette
+    // fonction rendait (0, 0) et AUCUN déplacement n'était possible.
+    // Seuls des ÉCARTS sont lus en aval (pStart − courant), et l'origine s'y
+    // annule : changer de repère ne déplace donc rien de ce qui marchait.
+    const rect = (containerRef.current ?? document.querySelector("canvas"))?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
     const vx = vpRef.current.x, vy = vpRef.current.y, vs = vpRef.current.scale;
     return {
       x: (cx - rect.left - vx) / vs,
@@ -529,7 +551,12 @@ export default function HtmlAnnotationLayer({
       corner, startW: annW, startH: annH,
       // SNAP-1 — la boîte de référence est figée au grab (cf. beginSelectionSnap) :
       // aucune dérive sous le curseur quand on entre/sort des zones d'accroche.
-      snap: corner ? undefined : beginSelectionSnap(),
+      // MEMB-8 — La session convertit le déplacement TOTAL depuis le grab en delta
+      // INCRÉMENTAL : elle est indispensable même sans aimantation. Un déplaceur
+      // fourni possède AUSSI l'alignement, car `beginSelectionSnap` lit la
+      // sélection GLOBALE et le board ACTIF — dans un rideau il accrocherait le
+      // geste à une géométrie qui n'y est pas.
+      snap: corner ? undefined : (onMove ? beginRawMoveSession() : beginSelectionSnap()),
     };
 
     function onGlobalMove(ev: PointerEvent) {
@@ -567,11 +594,12 @@ export default function HtmlAnnotationLayer({
         // SNAP-1 — déplacement : c'est la boîte englobante de TOUTE la sélection
         // qui s'aligne (avant, seule une sélection d'un unique élément accrochait),
         // contre images, textes, notes, membranes ET dossiers.
-        const { dx: finalDX, dy: finalDY } = (ds.snap ?? beginSelectionSnap()).move(
+        const { dx: finalDX, dy: finalDY } = (ds.snap ?? beginRawMoveSession()).move(
           dx, dy, { scale: vpRef.current.scale },
         );
         if (Math.abs(finalDX) > 0.01 || Math.abs(finalDY) > 0.01) {
-          useGlucoseStore.getState().moveSelected(boardId, finalDX, finalDY);
+          if (onMove) onMove(finalDX, finalDY);
+          else useGlucoseStore.getState().moveSelected(boardId, finalDX, finalDY);
         }
       }
     }

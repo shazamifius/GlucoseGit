@@ -40,12 +40,21 @@ interface Props {
   boardId: string;
   vpRef: React.MutableRefObject<{ x: number; y: number; scale: number }>;
   onDismiss: () => void;
+  /** MEMB-8 — Caméra à suivre. Un rideau a la sienne (cf. CurtainCanvas). */
+  viewportEvent?: string;
+  /** MEMB-8 — Comment amener le bloqueur à l'écran. Par défaut on demande à la
+   *  caméra de la SCÈNE ; un rideau, qui n'est pas cette caméra-là, fournit le
+   *  saut de la sienne. */
+  onJump?: (wx: number, wy: number) => void;
 }
 
 /** Marge du contour autour du bloqueur, en unités MONDE (elle suit le zoom). */
 const OUTLINE_PAD = 6;
 
-export default function MembraneStretchAlert({ alert, boardId, vpRef, onDismiss }: Props) {
+export default function MembraneStretchAlert({
+  alert, boardId, vpRef, onDismiss,
+  viewportEvent = "glucose:viewport-changed", onJump,
+}: Props) {
   const project = useGlucoseStore((s) => s.project);
   const groupRef = useRef<SVGGElement>(null);
 
@@ -77,11 +86,11 @@ export default function MembraneStretchAlert({ alert, boardId, vpRef, onDismiss 
       const { x, y, scale } = (e as CustomEvent<{ x: number; y: number; scale: number }>).detail;
       apply(x, y, scale);
     };
-    window.addEventListener("glucose:viewport-changed", onVp);
+    window.addEventListener(viewportEvent, onVp);
     const { x, y, scale } = vpRef.current;
     apply(x, y, scale);
-    return () => window.removeEventListener("glucose:viewport-changed", onVp);
-  }, [vpRef, boxes.length]);
+    return () => window.removeEventListener(viewportEvent, onVp);
+  }, [vpRef, boxes.length, viewportEvent]);
 
   if (!alert || boxes.length === 0) return null;
 
@@ -89,9 +98,10 @@ export default function MembraneStretchAlert({ alert, boardId, vpRef, onDismiss 
   function goToBlocker() {
     const b = boxes[0];
     if (!b) return;
-    window.dispatchEvent(new CustomEvent("glucose:jump-viewport", {
-      detail: { wx: b.x + b.width / 2, wy: b.y + b.height / 2 },
-    }));
+    const wx = b.x + b.width / 2;
+    const wy = b.y + b.height / 2;
+    if (onJump) { onJump(wx, wy); return; }
+    window.dispatchEvent(new CustomEvent("glucose:jump-viewport", { detail: { wx, wy } }));
   }
 
   const n = boxes.length;

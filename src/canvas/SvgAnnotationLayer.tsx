@@ -3,12 +3,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { Annotation, MembraneAnnotation } from "../types";
 import { useGlucoseStore } from "../store";
 import { showToast } from "../components/Toast";
-import { registerPickHandler } from "./pickArbiter";
+import { MAIN_SCOPE, registerPickHandler, type PickScope } from "./pickArbiter";
 // MEMB-2 — une membrane posée dans une membrane MINIMISÉE est rendue réduite.
 import { originOf, type ResolvedItem } from "./membraneSpace";
 // SNAP-1 — alignement intelligent unifié : les membranes s'alignent désormais
 // comme les textes/notes/images, au déplacement ET à la mise à l'échelle.
-import { beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
+import { beginRawMoveSession, beginSelectionSnap, endSnap, snapResizeLive, type SelectionSnapSession } from "./smartAlignRuntime";
 import type { ResizeHandle } from "./smartAlign";
 
 import { toAbsolute } from "../utils/pathResolver";
@@ -44,6 +44,14 @@ interface Props {
   onSelect: (id: string, multi: boolean) => void;
   onEdit: (id: string) => void;
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
+  /**
+   * MEMB-8 — Déplacement de la sélection. Par défaut : `moveSelected` sur le
+   * board ACTIF et la sélection GLOBALE — ce que veut la scène. Une couche
+   * montée dans un rideau décrit un AUTRE board et une AUTRE sélection : elle
+   * reçoit ici son propre déplaceur. Sans ça, tirer un texte dans un rideau
+   * déplaçait ce qui était sélectionné DEHORS.
+   */
+  onMove?: (dx: number, dy: number) => void;
   /** Géométrie effective, ou `null` quand rien n'est réduit. */
   geom?: Map<string, ResolvedItem> | null;
   /**
@@ -53,13 +61,20 @@ interface Props {
    */
   viewportEvent?: string;
   /**
-   * MEMB-7 — S'inscrire auprès de l'arbitre de priorité au clic. Le registre
-   * est un singleton par type de couche : une seconde instance inscrite
-   * VOLERAIT le routage au canvas principal. Le rideau passe donc `false` — le
-   * panneau porte déjà `data-arbiter-skip`, l'arbitre principal l'ignore, et
-   * les couches y répondent à leurs propres évènements DOM.
+   * MEMB-7 — S'inscrire auprès de l'arbitre de priorité au clic. Mettre `false`
+   * ne prive pas seulement la couche du routage : cela la coupe du CYCLE
+   * « re-clic = cible suivante », qui passe par le même registre. Une couche
+   * qui vit dans un autre monde de clic garde donc `true` et change de
+   * `pickScope` — c'est ce que fait le rideau (MEMB-8).
    */
   registerPick?: boolean;
+  /**
+   * MEMB-8 — Portée du registre. Une couche montée dans un rideau décrit un
+   * AUTRE monde de clic : elle s'inscrit sous la portée de ce rideau, pas sous
+   * celle de la scène. Sans ça, les deux instances se disputeraient la même
+   * entrée de registre.
+   */
+  pickScope?: PickScope;
 }
 
 interface DragState {
@@ -76,8 +91,8 @@ interface DragState {
 
 export default function SvgAnnotationLayer({
   annotations, selectedIds, editingId, vpRef,
-  onSelect, onEdit, onResize, geom = null,
-  viewportEvent = "glucose:viewport-changed", registerPick = true,
+  onSelect, onEdit, onResize, onMove, geom = null,
+  viewportEvent = "glucose:viewport-changed", registerPick = true, pickScope = MAIN_SCOPE,
 }: Props) {
   const svgRef   = useRef<SVGSVGElement>(null);
   const groupRef = useRef<SVGGElement>(null);
@@ -125,7 +140,12 @@ export default function SvgAnnotationLayer({
       pStartX: wx, pStartY: wy,
       didMove: false, t0: Date.now(),
       corner, startW: annW, startH: annH,
-      snap: corner ? undefined : beginSelectionSnap(),
+      // MEMB-8 — La session convertit le déplacement TOTAL depuis le grab en delta
+      // INCRÉMENTAL : elle est indispensable même sans aimantation. Un déplaceur
+      // fourni possède AUSSI l'alignement, car `beginSelectionSnap` lit la
+      // sélection GLOBALE et le board ACTIF — dans un rideau il accrocherait le
+      // geste à une géométrie qui n'y est pas.
+      snap: corner ? undefined : (onMove ? beginRawMoveSession() : beginSelectionSnap()),
     };
 
     function onGlobalMove(ev: PointerEvent) {
@@ -158,11 +178,12 @@ export default function SvgAnnotationLayer({
         onResize(ds.id, snapped.rect.left, snapped.rect.top, snapped.rect.width, snapped.rect.height);
       } else {
         const boardId = useGlucoseStore.getState().activeBoardId;
-        const { dx: mdx, dy: mdy } = (ds.snap ?? beginSelectionSnap()).move(
+        const { dx: mdx, dy: mdy } = (ds.snap ?? beginRawMoveSession()).move(
           dx, dy, { scale: vpRef.current.scale },
         );
         if (Math.abs(mdx) > 0.01 || Math.abs(mdy) > 0.01) {
-          useGlucoseStore.getState().moveSelected(boardId, mdx, mdy);
+          if (onMove) onMove(mdx, mdy);
+          else useGlucoseStore.getState().moveSelected(boardId, mdx, mdy);
         }
       }
     }
@@ -201,8 +222,8 @@ export default function SvgAnnotationLayer({
     return registerPickHandler("membrane", (id, ev, corner) => {
       const ann = annotationsRef.current.find((a) => a.id === id);
       if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
-    });
-  }, [registerPick]);
+    }, pickScope);
+  }, [registerPick, pickScope]);
 
   function handleDown(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (e.button !== 0) return;
