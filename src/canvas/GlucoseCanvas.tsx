@@ -60,6 +60,7 @@ import FolderBreadcrumb from "../components/FolderBreadcrumb";
 import { nanoid } from "../utils/nanoid";
 import { Annotation, BoardImage } from "../types";
 import ArrowOptions from "../components/ArrowOptions";
+import MembraneOptions from "../components/MembraneOptions";
 import ArrowTextEditor from "../components/ArrowTextEditor";
 import ArrowDescriptionPanel from "../components/ArrowDescriptionPanel";
 import Minimap from "../components/Minimap";
@@ -331,6 +332,12 @@ export default function GlucoseCanvas() {
   }, [board.annotations, focusedMembraneId]);
   /** Couleur de la membrane focalisée — devient le fond de la scène. */
   const focusColor = focusedMembrane ? (focusedMembrane.color ?? "#60a5fa") : null;
+
+  /** Membrane sélectionnée seule → sa barre de modes. */
+  const selectedMembrane = selectedAnnotationIds.length === 1
+    ? board.annotations.find((a): a is import("../types").MembraneAnnotation =>
+        a.id === selectedAnnotationIds[0] && a.type === "membrane")
+    : undefined;
 
   const selectedArrow = selectedAnnotationIds.length === 1
     ? board.annotations.find((a): a is import("../types").ArrowAnnotation =>
@@ -3613,6 +3620,7 @@ export default function GlucoseCanvas() {
 
       {/* ── Options flèche sélectionnée ── */}
       {selectedArrow && <ArrowOptions arrow={selectedArrow} onEditText={() => setArrowEditorId(selectedArrow.id)} />}
+      {selectedMembrane && <MembraneOptions membrane={selectedMembrane} />}
 
       {/* ── Éditeur de texte flèche (modal) ── */}
       {arrowEditorId && (
