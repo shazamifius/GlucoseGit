@@ -289,9 +289,14 @@ interface Props {
   editingId: string | null;
   selectedIds: string[];
   onSelect: (id: string, multi: boolean) => void;
+  /** MEMB-7 — viewport à suivre : celui du rideau plutôt que celui de la scène. */
+  viewportEvent?: string;
 }
 
-export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, onSelect }: Props) {
+export default function ArrowSvgLayer({
+  board, vpRef, editingId, selectedIds, onSelect,
+  viewportEvent = "glucose:viewport-changed",
+}: Props) {
   const groupRef = useRef<SVGGElement>(null);
   // Phase 7.5 — LOD supprimé : les flèches sont toujours rendues. Le toggle
   // `transDomainVisible` permet juste de masquer les flèches trans-domaines.
@@ -340,11 +345,11 @@ export default function ArrowSvgLayer({ board, vpRef, editingId, selectedIds, on
       const { x, y, scale } = (e as CustomEvent).detail;
       apply(x, y, scale);
     };
-    window.addEventListener("glucose:viewport-changed", onVp);
+    window.addEventListener(viewportEvent, onVp);
     const { x, y, scale } = vpRef.current;
     apply(x, y, scale);
-    return () => window.removeEventListener("glucose:viewport-changed", onVp);
-  }, []);
+    return () => window.removeEventListener(viewportEvent, onVp);
+  }, [viewportEvent, vpRef]);
 
   return (
     <svg

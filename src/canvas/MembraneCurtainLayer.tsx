@@ -21,12 +21,14 @@ import type { MembraneAnnotation, MembraneCurtain } from "../types";
 import { useGlucoseStore } from "../store";
 import { getLocalUser, USER_CHANGED_EVENT } from "../multiplayer/localUser";
 import {
-  EXPAND_STEP, canEdit, configOf, createCurtain, createNote, curtainKind,
-  detachCurtains, sanitizeNoteText, stepExpanded, visibleCurtains,
+  EXPAND_STEP, canEdit, configOf, createCurtain, curtainKind,
+  detachCurtains, stepExpanded, visibleCurtains,
 } from "./curtainModel";
 import {
   initialState, panelRect, step, type CurtainState,
 } from "./curtainPanel";
+// MEMB-7 — le rideau n'affiche plus des notes : il affiche SON BOARD.
+import CurtainCanvas from "./CurtainCanvas";
 
 interface Props {
   /** Membrane focalisée, ou `null` — hors focus, la couche ne rend rien. */
@@ -124,6 +126,16 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
 
   const mine = active?.ownerId === me.id;
   const writable = active ? canEdit(active, me.id) : false;
+
+  // MEMB-7 — Le board du rideau est fabriqué À L'OUVERTURE, pas au chargement
+  // du projet : un rideau qu'on ne regarde jamais ne coûte rien. C'est aussi
+  // ce qui donne son board à un rideau d'AVANT cette version, par le même
+  // chemin que pour un rideau neuf — il n'y a pas de code de migration à part.
+  const activeBoardId = active?.boardId ?? null;
+  useEffect(() => {
+    if (!membrane || !active || active.boardId) return;
+    ensureCurtainBoard(boardId, membrane.id, active.id);
+  }, [membrane, active, boardId, ensureCurtainBoard]);
 
   // Le canvas garde toujours une bande à gauche : c'est l'invariant du module.
   const panel = panelRect(ratio, { width: rootRef.current?.clientWidth ?? 1000, height: 0 });
@@ -230,35 +242,17 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
                   </div>
                 )}
 
-                {active.notes.map((n) => (
-                  <NoteBlock
-                    key={n.id}
-                    text={n.text}
-                    editable={writable}
-                    onCommit={(text) => {
-                      const clean = sanitizeNoteText(text);
-                      const notes = clean
-                        ? active.notes.map((x) => (x.id === n.id ? { ...x, text: clean } : x))
-                        : active.notes.filter((x) => x.id !== n.id);
-                      patchCurtain(active.id, { notes });
-                    }}
-                  />
-                ))}
-
-                {writable ? (
-                  <button
-                    type="button"
-                    onClick={() => patchCurtain(active.id, { notes: [...active.notes, createNote("")] })}
-                    style={{
-                      ...chip(), alignSelf: "flex-start",
-                      borderStyle: "dashed", color: "#6f6f6f",
-                    }}
-                  >
-                    + note
-                  </button>
-                ) : (
-                  <div style={{ fontSize: 11, color: "#4a4a4a" }}>Lecture seule</div>
-                )}
+                {/* Le contenu du rideau EST un board : on monte le canvas de
+                    Glucose dessus, pas une liste de notes. */}
+                <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+                  {activeBoardId
+                    ? <CurtainCanvas boardId={activeBoardId} editable={writable} />
+                    : (
+                      <div style={{ fontSize: 11, color: "#4a4a4a", padding: "8px 0" }}>
+                        Préparation du canvas…
+                      </div>
+                    )}
+                </div>
               </div>
             )}
           </div>
@@ -313,44 +307,6 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
       )}
     </div>
   );
-}
-
-/** Bloc de note : édition en place, commit au relâchement du focus. */
-function NoteBlock({ text, editable, onCommit }: {
-  text: string; editable: boolean; onCommit: (t: string) => void;
-}) {
-  const [draft, setDraft] = useState(text);
-  useEffect(() => { setDraft(text); }, [text]);
-
-  if (!editable) {
-    return (
-      <div style={noteStyle()}>{text || <span style={{ color: "#4a4a4a" }}>(vide)</span>}</div>
-    );
-  }
-  return (
-    <textarea
-      value={draft}
-      autoFocus={text === ""}
-      aria-label="Note du rideau"
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { if (draft !== text) onCommit(draft); }}
-      onKeyDown={(e) => {
-        e.stopPropagation(); // les raccourcis du canvas ne doivent pas manger la frappe
-        if (e.key === "Escape") { setDraft(text); e.currentTarget.blur(); }
-      }}
-      rows={Math.min(8, Math.max(2, draft.split("\n").length))}
-      style={{ ...noteStyle(), resize: "vertical", outline: "none", fontFamily: "inherit" }}
-    />
-  );
-}
-
-function noteStyle(): React.CSSProperties {
-  return {
-    border: "1px solid #262626", background: "#111",
-    color: "rgba(230,230,230,0.86)",
-    padding: "8px 10px", fontSize: 12, lineHeight: 1.5,
-    whiteSpace: "pre-wrap", wordBreak: "break-word",
-  };
 }
 
 function chip(disabled = false): React.CSSProperties {

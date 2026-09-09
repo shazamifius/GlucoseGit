@@ -46,6 +46,20 @@ interface Props {
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
   /** Géométrie effective, ou `null` quand rien n'est réduit. */
   geom?: Map<string, ResolvedItem> | null;
+  /**
+   * MEMB-7 — Nom de l'évènement de viewport à suivre. Une couche montée dans le
+   * rideau vit dans un AUTRE repère que le canvas principal : elle doit suivre
+   * la caméra du rideau, pas celle de la scène.
+   */
+  viewportEvent?: string;
+  /**
+   * MEMB-7 — S'inscrire auprès de l'arbitre de priorité au clic. Le registre
+   * est un singleton par type de couche : une seconde instance inscrite
+   * VOLERAIT le routage au canvas principal. Le rideau passe donc `false` — le
+   * panneau porte déjà `data-arbiter-skip`, l'arbitre principal l'ignore, et
+   * les couches y répondent à leurs propres évènements DOM.
+   */
+  registerPick?: boolean;
 }
 
 interface DragState {
@@ -63,6 +77,7 @@ interface DragState {
 export default function SvgAnnotationLayer({
   annotations, selectedIds, editingId, vpRef,
   onSelect, onEdit, onResize, geom = null,
+  viewportEvent = "glucose:viewport-changed", registerPick = true,
 }: Props) {
   const svgRef   = useRef<SVGSVGElement>(null);
   const groupRef = useRef<SVGGElement>(null);
@@ -79,12 +94,12 @@ export default function SvgAnnotationLayer({
       const { x, y, scale } = (e as CustomEvent<{ x: number; y: number; scale: number }>).detail;
       apply(x, y, scale);
     };
-    window.addEventListener("glucose:viewport-changed", onVp);
+    window.addEventListener(viewportEvent, onVp);
     // Appliquer immédiatement la valeur courante
     const { x, y, scale } = vpRef.current;
     apply(x, y, scale);
-    return () => window.removeEventListener("glucose:viewport-changed", onVp);
-  }, []);
+    return () => window.removeEventListener(viewportEvent, onVp);
+  }, [viewportEvent, vpRef]);
 
   function screenToWorld(clientX: number, clientY: number) {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -181,10 +196,13 @@ export default function SvgAnnotationLayer({
   handleDownRef.current = handleDown;
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
-  useEffect(() => registerPickHandler("membrane", (id, ev, corner) => {
-    const ann = annotationsRef.current.find((a) => a.id === id);
-    if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
-  }), []);
+  useEffect(() => {
+    if (!registerPick) return;
+    return registerPickHandler("membrane", (id, ev, corner) => {
+      const ann = annotationsRef.current.find((a) => a.id === id);
+      if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
+    });
+  }, [registerPick]);
 
   function handleDown(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (e.button !== 0) return;

@@ -228,6 +228,20 @@ interface Props {
   onResize: (id: string, x: number, y: number, w: number, h: number) => void;
   /** Géométrie effective, ou `null` quand rien n'est réduit. */
   geom?: Map<string, ResolvedItem> | null;
+  /**
+   * MEMB-7 — Nom de l'évènement de viewport à suivre. Une couche montée dans le
+   * rideau vit dans un AUTRE repère que le canvas principal : elle doit suivre
+   * la caméra du rideau, pas celle de la scène.
+   */
+  viewportEvent?: string;
+  /**
+   * MEMB-7 — S'inscrire auprès de l'arbitre de priorité au clic. Le registre
+   * est un singleton par type de couche : une seconde instance inscrite
+   * VOLERAIT le routage au canvas principal. Le rideau passe donc `false` — le
+   * panneau porte déjà `data-arbiter-skip`, l'arbitre principal l'ignore, et
+   * les couches y répondent à leurs propres évènements DOM.
+   */
+  registerPick?: boolean;
 }
 
 // État interne du drag d'une annotation (déplacement OU resize via une corner).
@@ -288,7 +302,8 @@ const StableMarkdownComponents = {
 };
 
 export default function HtmlAnnotationLayer({
-  annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize, geom = null
+  annotations, selectedIds, editingId, vpRef, onSelect, onEdit, onResize, geom = null,
+  viewportEvent = "glucose:viewport-changed", registerPick = true,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -380,15 +395,15 @@ export default function HtmlAnnotationLayer({
       const { x, y, scale } = (e as CustomEvent<{ x: number; y: number; scale: number }>).detail;
       apply(x, y, scale);
     };
-    window.addEventListener("glucose:viewport-changed", onVp);
+    window.addEventListener(viewportEvent, onVp);
     // Valeur courante appliquée tout de suite (montage / changement de board).
     const { x, y, scale } = vpRef.current;
     apply(x, y, scale);
     return () => {
-      window.removeEventListener("glucose:viewport-changed", onVp);
+      window.removeEventListener(viewportEvent, onVp);
       if (idleTimer !== undefined) clearTimeout(idleTimer);
     };
-  }, [vpRef]);
+  }, [vpRef, viewportEvent]);
 
   useEffect(() => {
     // Observer pour mettre à jour la taille des annotations dans le store quand elles changent de taille
@@ -431,10 +446,13 @@ export default function HtmlAnnotationLayer({
   handleDownRef.current = handleDown;
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
-  useEffect(() => registerPickHandler("annotation", (id, ev, corner) => {
-    const ann = annotationsRef.current.find((a) => a.id === id);
-    if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
-  }), []);
+  useEffect(() => {
+    if (!registerPick) return;
+    return registerPickHandler("annotation", (id, ev, corner) => {
+      const ann = annotationsRef.current.find((a) => a.id === id);
+      if (ann) handleDownRef.current(ann, ev as unknown as React.PointerEvent, corner);
+    });
+  }, [registerPick]);
 
   function handleDown(ann: Annotation, e: React.PointerEvent, corner?: string) {
     if (e.button !== 0) return;
