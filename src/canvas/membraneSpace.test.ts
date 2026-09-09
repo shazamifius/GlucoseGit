@@ -10,6 +10,7 @@ import {
   membraneAtPoint,
   naturalDelta,
   parentMap,
+  reconcileMembership,
   resolveItems,
   stretchPlan,
   type MembraneMode,
@@ -360,5 +361,89 @@ describe("adaptateur — un board devient des boîtes", () => {
     }));
     expect(resolved.get("I")).toMatchObject({ x: 0, y: 25, width: 200, height: 150, scale: 1 });
     expect(resolved.get("M")).toMatchObject({ x: 0, y: 0, width: 400, height: 300, scale: 1 });
+  });
+});
+
+// ── Appartenance au dépôt ───────────────────────────────────────────────────
+
+describe("reconcileMembership — « je le glisse dedans, il lui appartient »", () => {
+  const M = memb("M", 0, 0, 400, 400);
+  const AUTRE = memb("AUTRE", 1000, 0, 400, 400);
+
+  /** Raccourci : les changements produits pour un dépôt de `ids`. */
+  function apres(items: SpaceItem[], ids: string[]) {
+    return reconcileMembership(items, resolveItems(items), ids);
+  }
+
+  it("un élément lâché dans une membrane la rejoint", () => {
+    const libre = box("I", 100, 100, 50, 50);
+    expect(apres([M, libre], ["I"])).toEqual([{ id: "I", membraneId: "M" }]);
+  });
+
+  it("un élément sorti de la membrane redevient libre", () => {
+    const parti = box("I", 5000, 5000, 50, 50, "M");
+    expect(apres([M, parti], ["I"])).toEqual([{ id: "I", membraneId: null }]);
+  });
+
+  it("rien à écrire quand rien n'a changé — pas de mutation inutile", () => {
+    expect(apres([M, box("I", 100, 100, 50, 50, "M")], ["I"])).toEqual([]);
+    expect(apres([M, box("I", 5000, 5000, 50, 50)], ["I"])).toEqual([]);
+  });
+
+  it("seuls les éléments déplacés sont examinés", () => {
+    const bouge = box("A", 100, 100, 50, 50);
+    const pasBouge = box("B", 120, 120, 50, 50);
+    expect(apres([M, bouge, pasBouge], ["A"]).map((c) => c.id)).toEqual(["A"]);
+  });
+
+  it("on change de membrane d'un seul geste", () => {
+    const migre = box("I", 1100, 100, 50, 50, "M");
+    expect(apres([M, AUTRE, migre], ["I"])).toEqual([{ id: "I", membraneId: "AUTRE" }]);
+  });
+
+  it("entre membranes imbriquées, la plus petite l'emporte", () => {
+    const petite = memb("PETITE", 50, 50, 100, 100);
+    const it0 = box("I", 80, 80, 20, 20);
+    expect(apres([M, petite, it0], ["I"])).toEqual([{ id: "I", membraneId: "PETITE" }]);
+  });
+
+  it("une membrane peut elle-même rejoindre une autre membrane", () => {
+    const petite = memb("PETITE", 50, 50, 100, 100);
+    expect(apres([M, petite], ["PETITE"])).toEqual([{ id: "PETITE", membraneId: "M" }]);
+  });
+
+  it("mais JAMAIS sa propre descendance — un cycle rend l'arbre inrésoluble", () => {
+    // La grande englobe la petite, qui lui appartient déjà. Déplacer la GRANDE
+    // ne doit pas la faire entrer dans sa propre enfant.
+    const grande = memb("GRANDE", 0, 0, 400, 400);
+    const petite = memb("PETITE", 0, 0, 380, 380, "classic", "GRANDE");
+    const changes = apres([grande, petite], ["GRANDE"]);
+    expect(changes).toEqual([]);
+  });
+
+  it("le centre décide, pas le recouvrement", () => {
+    // À cheval sur le bord, centre dehors : il reste libre.
+    const cheval = box("I", 380, 100, 100, 50);
+    expect(apres([M, cheval], ["I"])).toEqual([]);
+  });
+
+  it("un identifiant inconnu est ignoré sans broncher", () => {
+    expect(apres([M], ["fantome"])).toEqual([]);
+  });
+
+  it("aucun déplacement, aucun travail", () => {
+    expect(reconcileMembership([M], new Map(), [])).toEqual([]);
+  });
+
+  it("juge sur la géométrie VUE, pas sur les coordonnées naturelles", () => {
+    // Dans une membrane minimisée, le contenu est rendu bien plus près de
+    // l'origine que ne le disent ses coordonnées. Un élément dont le centre
+    // naturel est hors du cadre peut donc être visiblement DEDANS.
+    const mini = memb("MINI", 0, 0, 200, 200, "minimized");
+    const dedans = box("D", 0, 0, 800, 800, "MINI");   // rendu à l'échelle 0,25
+    const nouveau = box("N", 100, 100, 40, 40);        // centre vu à (120,120)
+    const items = [mini, dedans, nouveau];
+    expect(reconcileMembership(items, resolveItems(items), ["N"]))
+      .toEqual([{ id: "N", membraneId: "MINI" }]);
   });
 });

@@ -43,7 +43,7 @@ import {
   PICK, collectCandidates, pickAtDown, advanceOnRelease, hitHandle, handleCursor,
   type CycleState, type PickCandidate,
 } from "./hitPriority";
-import { itemsOfBoard, resolveItems } from "./membraneSpace";
+import { itemsOfBoard, reconcileMembership, resolveItems } from "./membraneSpace";
 import MembraneCurtainLayer from "./MembraneCurtainLayer";
 import {
   FOCUS, NO_FOCUS, focusBackground, focusDecision, focusView,
@@ -1521,14 +1521,49 @@ export default function GlucoseCanvas() {
     function armRelease(e: PointerEvent, candidates: PickCandidate[], multi: boolean, boardId: string) {
       disarmRelease();
       pending = { sx: e.clientX, sy: e.clientY, candidates, multi, boardId };
+      // MEMB-1 — L'appartenance se règle en phase CAPTURE, donc AVANT que les
+      // couches ne referment leur transaction d'annulation (`endLiveEdit` dans
+      // leur propre `pointerup`). Elle tombe ainsi dans la MÊME entrée d'undo
+      // que le déplacement : annuler le geste rend la position ET la membrane
+      // d'avant. Séparées, un Ctrl+Z laisserait un élément hors du cadre mais
+      // toujours membre — donc rendu à l'échelle d'une membrane qu'il a quittée.
+      window.addEventListener("pointerup", onDropMembership, true);
       window.addEventListener("pointerup", onPickUp);
       window.addEventListener("pointercancel", onPickCancel);
     }
 
     function disarmRelease() {
       pending = null;
+      window.removeEventListener("pointerup", onDropMembership, true);
       window.removeEventListener("pointerup", onPickUp);
       window.removeEventListener("pointercancel", onPickCancel);
+    }
+
+    /** Fin de glisser : ce qu'on vient de lâcher change-t-il de membrane ? */
+    function onDropMembership(e: PointerEvent) {
+      const ctx = pending;
+      if (!ctx) return;
+      // Un simple clic ne déplace rien, donc ne change aucune appartenance.
+      if (Math.hypot(e.clientX - ctx.sx, e.clientY - ctx.sy) <= PICK.CYCLE_RADIUS_PX) return;
+
+      const st = useGlucoseStore.getState();
+      const b = getActiveBoard(st.project);
+      if (b.id !== ctx.boardId) return; // on a navigué en cours de geste
+
+      const moved = [...st.selectedImageIds, ...st.selectedAnnotationIds];
+      if (moved.length === 0) return;
+
+      const items = itemsOfBoard(b);
+      const changes = reconcileMembership(items, resolveItems(items), moved);
+      if (changes.length === 0) return;
+
+      const imgIds = new Set(b.images.map((i) => i.id));
+      for (const c of changes) {
+        // `undefined` retire la clé du document ; `null` y écrirait une valeur.
+        const patch = { membraneId: c.membraneId ?? undefined };
+        if (imgIds.has(c.id)) st.updateImage(b.id, c.id, patch);
+        else st.updateAnnotation(b.id, c.id, patch as Partial<Annotation>);
+      }
     }
 
     function onPickUp(e: PointerEvent) {

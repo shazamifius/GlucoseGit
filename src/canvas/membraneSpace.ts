@@ -342,6 +342,80 @@ export function resolveItems(
   return out;
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Appartenance au DÉPÔT
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface MembershipChange {
+  id: string;
+  /** Nouvelle membrane, ou `null` si l'élément redevient libre. */
+  membraneId: string | null;
+}
+
+/**
+ * Changements d'appartenance à écrire après un DÉPÔT.
+ *
+ * C'est ici que « je glisse un élément dans une membrane, il lui appartient »
+ * devient vrai. L'appartenance étant stockée (cf. l'en-tête du module), elle ne
+ * bouge qu'à ce moment précis — jamais en continu, jamais parce qu'une membrane
+ * a grandi par-dessus quelque chose.
+ *
+ * On juge sur la géométrie EFFECTIVE, celle que l'utilisateur voit : il a lâché
+ * l'élément là où il le voyait, pas là où sont ses coordonnées naturelles.
+ *
+ * Une membrane ne peut jamais devenir membre de sa propre descendance — ce
+ * serait un cycle, et un cycle rend l'arbre inrésoluble.
+ */
+export function reconcileMembership(
+  items: SpaceItem[],
+  resolved: Map<string, ResolvedItem>,
+  movedIds: readonly string[],
+): MembershipChange[] {
+  if (movedIds.length === 0) return [];
+  const parents = parentMap(items);
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const membranes = items.filter((i) => i.kind === "membrane");
+  const out: MembershipChange[] = [];
+
+  /** `candidate` descend-il de `rootId` ? (garde anti-cycle) */
+  const descendsFrom = (candidate: string, rootId: string): boolean => {
+    const seen = new Set<string>();
+    let cur: string | undefined = candidate;
+    while (cur && !seen.has(cur)) {
+      if (cur === rootId) return true;
+      seen.add(cur);
+      cur = parents.get(cur);
+    }
+    return false;
+  };
+
+  for (const id of new Set(movedIds)) {
+    const item = byId.get(id);
+    const r = resolved.get(id);
+    if (!item || !r) continue;
+
+    const cx = r.x + r.width / 2;
+    const cy = r.y + r.height / 2;
+
+    let best: SpaceItem | null = null;
+    let bestArea = Number.POSITIVE_INFINITY;
+    for (const m of membranes) {
+      if (m.id === id) continue;
+      if (descendsFrom(m.id, id)) continue;
+      const rm = resolved.get(m.id);
+      if (!rm) continue;
+      if (cx < rm.x || cx > rm.x + rm.width || cy < rm.y || cy > rm.y + rm.height) continue;
+      const area = Math.abs(rm.width * rm.height);
+      if (area < bestArea) { best = m; bestArea = area; }
+    }
+
+    const next = best?.id ?? null;
+    const current = item.membraneId ?? null;
+    if (next !== current) out.push({ id, membraneId: next });
+  }
+  return out;
+}
+
 /**
  * Convertit un déplacement lu à l'ÉCRAN (donc en géométrie effective) vers le
  * déplacement NATUREL à écrire dans le store. Sans ça, glisser un élément dans
