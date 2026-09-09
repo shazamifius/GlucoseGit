@@ -1,7 +1,7 @@
 {
   "name": "glucose",
   "private": true,
-  "version": "1.0.1-beta.24",
+  "version": "1.0.2-beta.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
