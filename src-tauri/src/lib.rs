@@ -1820,7 +1820,6 @@ fn recommend_model(ram_gb: u64, vram_gb: Option<u64>) -> &'static str {
     }
 }
 
-
 /// VRAM totale du 1er GPU NVIDIA (Go), via nvidia-smi si présent. None sinon.
 async fn nvidia_vram_gb() -> Option<u64> {
     let out = tokio::process::Command::new("nvidia-smi")
@@ -2005,7 +2004,9 @@ async fn pull_model_via_api(model: &str, app: &tauri::AppHandle) -> Result<(), S
     let _ = app.emit(
         "model-progress",
         ProgressPayload {
-            line: format!("Téléchargement de {model} via l'API locale (sans détail de progression)…"),
+            line: format!(
+                "Téléchargement de {model} via l'API locale (sans détail de progression)…"
+            ),
         },
     );
     let client = reqwest::Client::builder()
