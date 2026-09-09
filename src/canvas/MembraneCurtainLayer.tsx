@@ -91,7 +91,28 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
     return () => cancelAnimationFrame(raf);
   }, [membrane, curtains.length, cfg]);
 
+  // MEMB-7 — Le board du rideau est fabriqué À L'OUVERTURE, pas au chargement
+  // du projet : un rideau qu'on ne regarde jamais ne coûte rien. C'est aussi
+  // ce qui donne son board à un rideau d'AVANT cette version, par le même
+  // chemin que pour un rideau neuf — il n'y a pas de code de migration à part.
+  //
+  // ⚠️ CET EFFET DOIT RESTER AU-DESSUS DU `return null` CI-DESSOUS, et c'est
+  // la règle des hooks, pas un détail de style. `membrane` passe de `null` à
+  // une valeur au moment précis où l'on entre en mode focus : un hook placé
+  // après la sortie anticipée n'est appelé QUE dans le second cas, donc React
+  // voit le compte de hooks augmenter d'un render à l'autre et lève l'erreur
+  // #310 (« Rendered more hooks than during the previous render »). Le symptôme
+  // n'est pas discret : l'application entière tombe en écran d'erreur dès qu'on
+  // zoome sur une membrane. Son corps se garde déjà lui-même contre `!membrane`.
+  useEffect(() => {
+    if (!membrane || !active || active.boardId) return;
+    ensureCurtainBoard(boardId, membrane.id, active.id);
+  }, [membrane, active, boardId, ensureCurtainBoard]);
+
+  // À partir d'ici, plus AUCUN hook : tout ce qui suit est conditionnel.
   if (!membrane) return null;
+
+  const activeBoardId = active?.boardId ?? null;
 
   // ── Écritures ────────────────────────────────────────────────────────────
   /** Toute écriture passe par ici — et DÉTACHE. Réinsérer dans le document un
@@ -109,16 +130,6 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
 
   const mine = active?.ownerId === me.id;
   const writable = active ? canEdit(active, me.id) : false;
-
-  // MEMB-7 — Le board du rideau est fabriqué À L'OUVERTURE, pas au chargement
-  // du projet : un rideau qu'on ne regarde jamais ne coûte rien. C'est aussi
-  // ce qui donne son board à un rideau d'AVANT cette version, par le même
-  // chemin que pour un rideau neuf — il n'y a pas de code de migration à part.
-  const activeBoardId = active?.boardId ?? null;
-  useEffect(() => {
-    if (!membrane || !active || active.boardId) return;
-    ensureCurtainBoard(boardId, membrane.id, active.id);
-  }, [membrane, active, boardId, ensureCurtainBoard]);
 
   // Le canvas garde toujours une bande à gauche : c'est l'invariant du module.
   const panel = panelRect(ratio, { width: rootRef.current?.clientWidth ?? 1000, height: 0 });

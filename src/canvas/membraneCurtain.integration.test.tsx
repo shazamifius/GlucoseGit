@@ -97,6 +97,32 @@ describe("le rideau n'existe que si on le crée", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("ENTRER en focus ne casse pas la couche — le compte de hooks ne bouge pas", () => {
+    // RÉGRESSION. `membrane` passe de `null` à une valeur au moment exact où
+    // l'on entre en mode focus. Un hook placé APRÈS le `return null` n'était
+    // alors appelé que dans le second render : React voyait le compte de hooks
+    // augmenter et levait l'erreur #310, écran d'erreur pour toute
+    // l'application dès qu'on zoomait sur une membrane.
+    //
+    // Ce que les tests d'avant ne pouvaient pas voir : ils montaient soit avec
+    // `null`, soit avec une membrane, jamais la TRANSITION sur la même
+    // instance. C'est la transition qui casse, pas l'un ou l'autre état.
+    seed();
+    const vue = render(<MembraneCurtainLayer membrane={null} boardId={BOARD} />);
+    expect(vue.container.firstChild).toBeNull();
+
+    // On entre en focus…
+    expect(() =>
+      vue.rerender(<MembraneCurtainLayer membrane={current()} boardId={BOARD} />),
+    ).not.toThrow();
+    expect(vue.container.firstChild).not.toBeNull();
+
+    // …et on en ressort : l'autre sens compte autant.
+    expect(() =>
+      vue.rerender(<MembraneCurtainLayer membrane={null} boardId={BOARD} />),
+    ).not.toThrow();
+  });
+
   it("sans rideau, la couche ne montre RIEN au bord droit", () => {
     // MEMB-9 — Le panneau montre des rideaux, il n'en propose pas : la création
     // vit sur la barre de modes de la membrane (cf. MembraneOptions), avec
