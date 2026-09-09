@@ -21,8 +21,8 @@ import type { MembraneAnnotation, MembraneCurtain } from "../types";
 import { useGlucoseStore } from "../store";
 import { getLocalUser, USER_CHANGED_EVENT } from "../multiplayer/localUser";
 import {
-  EXPAND_STEP, canEdit, configOf, createCurtain, curtainKind,
-  detachCurtains, stepExpanded, visibleCurtains,
+  COLLAPSE_STEP, EXPAND_STEP, canEdit, configOf, createCurtain, curtainKind,
+  detachCurtains, stepCollapsed, stepExpanded, visibleCurtains,
 } from "./curtainModel";
 import {
   initialState, panelRect, step, type CurtainState,
@@ -228,10 +228,17 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
                     >
                       {active.editable === "owner" ? "Moi seul" : "Tout le monde"}
                     </button>
-                    <button type="button" style={chip()} title="Rétrécir le rideau"
+                    <button type="button" style={chip()} title="Rétrécir le rideau déployé"
                       onClick={() => patchCurtain(active.id, { expandedRatio: stepExpanded(active.expandedRatio, -EXPAND_STEP) })}>⇥</button>
-                    <button type="button" style={chip()} title="Élargir le rideau"
+                    <button type="button" style={chip()} title="Élargir le rideau déployé"
                       onClick={() => patchCurtain(active.id, { expandedRatio: stepExpanded(active.expandedRatio, EXPAND_STEP) })}>⇤</button>
+                    {/* La LANGUETTE : ce qui reste visible une fois replié. Elle
+                        se règle séparément du déployé — l'une est une cible de
+                        survol, l'autre une surface de travail. */}
+                    <button type="button" style={chip()} title="Languette plus fine"
+                      onClick={() => patchCurtain(active.id, { collapsedRatio: stepCollapsed(active.collapsedRatio, -COLLAPSE_STEP) })}>▖</button>
+                    <button type="button" style={chip()} title="Languette plus large"
+                      onClick={() => patchCurtain(active.id, { collapsedRatio: stepCollapsed(active.collapsedRatio, COLLAPSE_STEP) })}>▄</button>
                     <button type="button" style={chip()} title="Supprimer ce rideau"
                       onClick={() => {
                         // Le board du rideau part avec lui — sinon il resterait

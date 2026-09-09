@@ -252,12 +252,32 @@ describe("mes réglages", () => {
     expect(stored()[0].editable).toBe("everyone");
   });
 
-  it("élargir enregistre une proportion, bornée", () => {
+  it("élargir le déployé enregistre une proportion, bornée", () => {
     monter([mien()]);
-    fireEvent.click(screen.getByTitle("Élargir le rideau"));
+    fireEvent.click(screen.getByTitle("Élargir le rideau déployé"));
     const r = stored()[0].expandedRatio!;
     expect(r).toBeGreaterThan(0);
     expect(r).toBeLessThan(1);
+  });
+
+  it("la LANGUETTE se règle séparément du déployé", () => {
+    // Deux réglages distincts parce que ce sont deux choses distinctes : l'une
+    // est une cible de survol, l'autre une surface de travail.
+    monter([mien()]);
+    fireEvent.click(screen.getByTitle("Languette plus large"));
+    const c = stored()[0].collapsedRatio!;
+    expect(c).toBeGreaterThan(0);
+    expect(stored()[0].expandedRatio).toBeUndefined();
+  });
+
+  it("la languette ne peut pas disparaître à force de la rétrécir", () => {
+    // Sans plancher, on la réduirait jusqu'à ne plus pouvoir la survoler — le
+    // rideau deviendrait inatteignable, sans rien pour le dire.
+    monter([mien()]);
+    for (let i = 0; i < 40; i++) {
+      fireEvent.click(screen.getByTitle("Languette plus fine"));
+    }
+    expect(stored()[0].collapsedRatio!).toBeGreaterThan(0);
   });
 
   it("supprimer retire le rideau", () => {

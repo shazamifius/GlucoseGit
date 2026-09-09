@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  COLLAPSE_STEP,
   EXPAND_STEP,
   detachCurtain,
   detachCurtains,
@@ -11,6 +12,7 @@ import {
   createNote,
   curtainKind,
   sanitizeNoteText,
+  stepCollapsed,
   stepExpanded,
   visibleCurtains,
   type MembraneCurtain,
@@ -238,5 +240,49 @@ describe("détachement — obligatoire avant toute écriture", () => {
     const copie = detachCurtains(liste);
     expect(copie).toEqual(liste);
     copie.forEach((c, i) => expect(c).not.toBe(liste[i]));
+  });
+});
+
+// ── Réglage de la languette ──────────────────────────────────────
+
+describe("stepCollapsed — la languette se règle, dans ses bornes", () => {
+  it("part de la valeur par défaut quand rien n'est encore réglé", () => {
+    expect(stepCollapsed(undefined, 0)).toBe(CURTAIN.DEFAULT_COLLAPSED);
+  });
+
+  it("élargit et rétrécit d'un cran", () => {
+    const large = stepCollapsed(0.1, COLLAPSE_STEP);
+    expect(large).toBeGreaterThan(0.1);
+    expect(stepCollapsed(large, -COLLAPSE_STEP)).toBeCloseTo(0.1, 6);
+  });
+
+  it("INVARIANT : la languette ne peut pas disparaître", () => {
+    // Sans plancher, on pourrait la réduire jusqu'à ne plus pouvoir la survoler
+    // — le rideau deviendrait inatteignable, sans rien pour le dire.
+    let v = 0.1;
+    for (let i = 0; i < 50; i++) v = stepCollapsed(v, -COLLAPSE_STEP);
+    expect(v).toBe(CURTAIN.MIN_COLLAPSED);
+    expect(v).toBeGreaterThan(0);
+  });
+
+  it("INVARIANT : elle ne peut pas manger le canvas non plus", () => {
+    let v = 0.1;
+    for (let i = 0; i < 50; i++) v = stepCollapsed(v, COLLAPSE_STEP);
+    expect(v).toBe(CURTAIN.MAX_COLLAPSED);
+  });
+
+  it("le cran de la languette est plus fin que celui du déployé", () => {
+    // Elle est dix fois plus étroite : le même cran la ferait sauter d'un bord
+    // à l'autre de ses bornes.
+    expect(COLLAPSE_STEP).toBeLessThan(EXPAND_STEP);
+  });
+
+  it("une languette élargie repousse le déployé si elle le rattrape", () => {
+    // L'écart minimal est ce qui garde un sens au geste : sans lui, replier et
+    // déployer donneraient la même chose.
+    const cfg = configOf({ ...curtain(), collapsedRatio: CURTAIN.MAX_COLLAPSED, expandedRatio: 0.3 });
+    // À la tolérance flottante près : 0,35 − 0,30 vaut 0,049999… en binaire. L'écart
+    // réel est sous le pixel, la règle est bien appliquée.
+    expect(cfg.expanded - cfg.collapsed).toBeGreaterThanOrEqual(CURTAIN.MIN_SPAN - 1e-9);
   });
 });

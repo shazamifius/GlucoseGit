@@ -223,5 +223,22 @@ export function stepExpanded(current: number | undefined, delta: number): number
   return normalizeConfig({ expanded: from + delta }).expanded;
 }
 
+/**
+ * Élargit ou rétrécit la LANGUETTE d'un cran.
+ *
+ * La languette est ce qui reste visible quand le rideau est replié : c'est elle
+ * qui dit « quelqu'un travaille ici » sans rien ouvrir. Trop fine, la cible de
+ * survol devient inatteignable ; trop large, elle mange le canvas. Les bornes
+ * portent cet arbitrage, et `normalizeConfig` les fait respecter dans les deux
+ * sens — elle repousse aussi le déployé si la languette venait le rattraper,
+ * pour que le geste garde un sens.
+ */
+export function stepCollapsed(current: number | undefined, delta: number): number {
+  const from = normalizeConfig({ collapsed: current }).collapsed;
+  return normalizeConfig({ collapsed: from + delta }).collapsed;
+}
+
 export const EXPAND_STEP = 0.1;
+/** Cran de la languette — plus fin : elle est dix fois plus étroite. */
+export const COLLAPSE_STEP = 0.02;
 export { CURTAIN };
