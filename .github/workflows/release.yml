@@ -125,3 +125,67 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Publication — le geste qui fait qu'une version atteint vraiment les gens.
+  #
+  # L'app interroge `/releases/latest/download/latest.json`, et cette URL ne voit
+  # QUE les releases publiées : un brouillon n'atteint personne. Quatre des cinq
+  # releases de l'historique sont restées bloquées là, faute d'un clic.
+  #
+  # Ce job le fait à notre place, mais SANS les deux risques d'une publication
+  # directe (`releaseDraft: false`) :
+  #
+  #   • Les builds restent en BROUILLON pendant qu'ils tournent. Ils finissent en
+  #     ordre dispersé, et un `latest.json` publié à mi-chemin ne décrirait
+  #     qu'une partie des plateformes. Invisible tant qu'il est incomplet.
+  #   • `needs: release` suffit à ne rien publier de cassé : si UN SEUL des trois
+  #     builds échoue, ce job est SAUTÉ et la release reste brouillon.
+  #
+  # Et il refuse de publier un manifeste qui laisserait une plateforme de côté —
+  # c'est précisément le bug qui a privé les Macs de mise à jour pendant des
+  # versions entières, sans que rien ne le signale.
+  # ══════════════════════════════════════════════════════════════════════════
+  publish:
+    name: Publier la release
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Vérifier le manifeste, puis publier
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          api() { curl -sfL -H "Authorization: Bearer $GH_TOKEN" \
+                       -H "Accept: application/vnd.github+json" "$@"; }
+
+          # Un brouillon n'est PAS retrouvable par /releases/tags/{tag} : il faut
+          # lister et filtrer soi-même.
+          rel=$(api "https://api.github.com/repos/$REPO/releases?per_page=100" \
+                | jq --arg t "$TAG" '.[] | select(.tag_name==$t)' | jq -s '.[0]')
+          id=$(jq -r '.id // empty' <<<"$rel")
+          [ -n "$id" ] || { echo "::error::Aucune release pour le tag $TAG"; exit 1; }
+
+          asset=$(jq -r '.assets[] | select(.name=="latest.json") | .id' <<<"$rel" | head -1)
+          [ -n "$asset" ] || { echo "::error::latest.json absent — rien à publier"; exit 1; }
+
+          curl -sfL -H "Authorization: Bearer $GH_TOKEN" \
+               -H "Accept: application/octet-stream" \
+               "https://api.github.com/repos/$REPO/releases/assets/$asset" -o latest.json
+
+          echo "Plateformes décrites par le manifeste :"
+          jq -r '.platforms | keys[]' latest.json | sed 's/^/  · /'
+
+          # Les trois familles doivent être là. Une absente = des utilisateurs
+          # qui n'auront jamais la mise à jour, en silence.
+          for p in windows-x86_64 linux-x86_64 darwin-aarch64; do
+            jq -e --arg p "$p" '.platforms | has($p)' latest.json > /dev/null \
+              || { echo "::error::latest.json ne couvre pas $p — la release reste en brouillon"; exit 1; }
+          done
+
+          api -X PATCH "https://api.github.com/repos/$REPO/releases/$id" \
+              -d '{"draft":false}' > /dev/null
+          echo "::notice::$TAG publiée — l'auto-update la propose désormais à tout le monde."
