@@ -21,7 +21,7 @@ import type { MembraneAnnotation, MembraneCurtain } from "../types";
 import { useGlucoseStore } from "../store";
 import { getLocalUser, USER_CHANGED_EVENT } from "../multiplayer/localUser";
 import {
-  COLLAPSE_STEP, EXPAND_STEP, canEdit, configOf, createCurtain, curtainKind,
+  COLLAPSE_STEP, EXPAND_STEP, canEdit, configOf, curtainKind,
   detachCurtains, stepCollapsed, stepExpanded, visibleCurtains,
 } from "./curtainModel";
 import {
@@ -44,8 +44,6 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
   // MEMB-7 — le contenu d'un rideau est un board : sa creation vit dans le store.
   const ensureCurtainBoard = useGlucoseStore((s) => s.ensureCurtainBoard);
   const removeCurtain = useGlucoseStore((s) => s.removeCurtain);
-  const beginLiveEdit = useGlucoseStore((s) => s.beginLiveEdit);
-  const endLiveEdit = useGlucoseStore((s) => s.endLiveEdit);
 
   // L'identité peut changer pendant la session (panneau Collaboration) : on se
   // réabonne plutôt que de figer le nom au montage.
@@ -109,21 +107,6 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
     writeCurtains((membrane!.curtains ?? []).map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
-  function addCurtain() {
-    const fresh = createCurtain(me);
-    // Créer le rideau et lui donner son board sont UN seul geste : séparés, un
-    // Ctrl+Z laisserait une languette dont le contenu n'existe pas.
-    beginLiveEdit();
-    try {
-      writeCurtains([...(membrane!.curtains ?? []), fresh]);
-      ensureCurtainBoard(boardId, membrane!.id, fresh.id);
-    } finally {
-      endLiveEdit();
-    }
-    setActiveId(fresh.id);
-    stateRef.current = { ...stateRef.current, phase: "expanded" };
-  }
-
   const mine = active?.ownerId === me.id;
   const writable = active ? canEdit(active, me.id) : false;
 
@@ -158,24 +141,13 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
       }}
     >
       {curtains.length === 0 ? (
-        // Aucun rideau : une seule languette, pour en créer un. Il n'en existe
-        // jamais par défaut.
-        <button
-          type="button"
-          onClick={addCurtain}
-          title="Créer mon rideau personnel"
-          aria-label="Créer mon rideau personnel"
-          style={{
-            position: "absolute", top: 0, right: 0, bottom: 0, width: TAB_COL,
-            pointerEvents: "auto", cursor: "pointer",
-            background: "rgba(10,10,10,0.72)",
-            backdropFilter: "blur(9px)", WebkitBackdropFilter: "blur(9px)",
-            border: 0, borderLeft: "1px solid #262626",
-            color: "#7c7c7c", fontSize: 15, padding: 0,
-          }}
-        >
-          +
-        </button>
+        // Aucun rideau : RIEN au bord droit. Le panneau montre des rideaux, il
+        // n'en propose pas — la création vit sur la barre de modes de la
+        // membrane, avec « minimisée » et « étirée » (cf. MembraneOptions).
+        // Une languette « + » ici ferait deux chemins pour une même action, et
+        // surtout elle mettrait la création derrière le mode focus, alors qu'on
+        // peut vouloir créer son rideau sans y entrer.
+        null
       ) : (
         <div
           style={{
@@ -294,21 +266,6 @@ export default function MembraneCurtainLayer({ membrane, boardId }: Props) {
                 }} />
               </button>
             ))}
-            {!curtains.some((c) => c.ownerId === me.id) && (
-              <button
-                type="button"
-                onClick={addCurtain}
-                title="Créer mon rideau personnel"
-                aria-label="Créer mon rideau personnel"
-                style={{
-                  flex: "0 0 auto", height: 40, border: 0,
-                  borderBottom: "1px solid #262626", background: "transparent",
-                  color: "#6f6f6f", cursor: "pointer", fontSize: 14, padding: 0,
-                }}
-              >
-                +
-              </button>
-            )}
           </div>
         </div>
       )}

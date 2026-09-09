@@ -1,7 +1,7 @@
 # HANDOFF — Glucose (pour le prochain Claude)
 
 > Réécrit le **2026-09-09**, fin de la session « le rideau devient un canvas ».
-> Branche **`main`** · HEAD **`31f3624`** · ⚠️ **14 commits NON POUSSÉS** (voir §1).
+> Branche **`main`** · poussée à jour sur `origin/main`.
 
 ---
 
@@ -15,44 +15,29 @@ North star : le `.glucose` **indestructible**, et *« poser, relier, zoomer, exp
 reste pas d'étape suivante connue : la prochaine session part d'une demande
 neuve, pas d'un reste.
 
-**État technique** : `tsc --noEmit` 0 erreur · **947 tests TS verts** (64 fichiers) ·
+**État technique** : `tsc --noEmit` 0 erreur · **949 tests TS verts** (64 fichiers) ·
 `biome check src` 0 erreur (14 warnings `any` **pré-existants**).
 
 ### Les trois premières choses à faire
 
-1. **Pousser.** Quatorze commits attendent. Le token GitHub des sessions
-   précédentes a été refusé (`Invalid username or token`) : **demander un PAT à
-   jour** à l'user. Aucune autre méthode d'authentification n'est prévue — ne
-   pas improviser. Rien n'est perdu : arbre propre, 14 commits d'avance.
-2. **Lire le §3** (les six invariants). Ils portent toute l'architecture, et
-   trois d'entre eux sont contre-intuitifs — les casser sans le savoir est facile.
-3. **Faire tourner l'application.** Tout ce qui suit est prouvé par des tests
+1. **Faire tourner l'application.** Tout ce qui suit est prouvé par des tests
    d'intégration qui montent les vraies couches et relisent le store, mais
    **rien n'a été vu tourner** : PixiJS reste hors tests, et le ressenti (les
    temporisations, la fluidité, la générosité des poignées) appartient à l'user.
+   C'est le seul reste connu de cette session.
+2. **Lire le §3** (les six invariants). Ils portent toute l'architecture, et
+   trois d'entre eux sont contre-intuitifs — les casser sans le savoir est facile.
+3. **Lire le §4 avant de proposer quoi que ce soit sur les rideaux** : quatre
+   décisions y sont closes, les rouvrir ferait refaire à l'user un travail fait.
 
 ---
 
 ## 1. Git — état exact
 
-```
-31f3624  test: le test instable est identifie                ← HEAD, non poussé
-b91c15f  feat(rideaux): monde de clic a part entiere         ← non poussé
-04dcfc6  feat(rideaux): largeur de la languette              ← non poussé
-72fb2cf  feat(rideaux): le panneau monte le canvas           ← non poussé
-f7e6593  feat(rideaux): le rideau porte un board             ← non poussé
-eb285e6  feat(membranes): le passage fluide                  ← non poussé
-9fc92d6  fix(membranes): les fleches suivent ce qu'elles relient
-38477c4  refactor(membranes): retirer le code mort
-bb45246  feat(membranes): le mode etire pousse pour de vrai
-4082b73  docs: passation de session
-3bb8db2  feat(membranes): les boutons de mode
-93d1033  feat(membranes): le resolveur pilote le rendu
-b8a0743  feat(membranes): l'appartenance devient reelle
-9c399f8  feat(membranes): le rideau, en vrai
-```
+**Tout est poussé.** `main` local == `origin/main`, arbre propre. Les quatorze
+commits qu'attendaient les sessions précédentes sont partis, plus ceux-ci.
 
-Workflow de push observé (à reprendre tel quel) :
+Workflow de push (à reprendre tel quel) :
 `git fetch <url-avec-token> main` → vérifier `git rev-list --left-right --count HEAD...FETCH_HEAD`
 → `git push <url-avec-token> main:main`. **Jamais de force-push.** Le token
 passe en URL ponctuelle et n'est **jamais** écrit dans `.git/config`.
@@ -140,6 +125,9 @@ Permissions, deux champs pour trois usages :
 Un rideau neuf est **privé**. `canEdit` revalide la cohérence plutôt que de faire
 confiance à la combinaison stockée.
 
+La **création** ne vit pas dans ce panneau mais sur `MembraneOptions`, avec les
+boutons de mode (§4). Sans rideau, le bord droit ne montre rien du tout.
+
 **Le contenu d'un rideau est un BOARD.** C'est la décision qui commande tout le
 reste : dans Glucose, tout outil travaille sur un board, donc en donner un au
 rideau lui offre membranes, flèches, images, alignement, undo et synchro sans en
@@ -208,7 +196,27 @@ se passer de l'aimantation prend `beginRawMoveSession`, pas rien.
 
 ---
 
-## 4. Ce qui n'a pas été fait, et pourquoi
+## 4. Décisions TRANCHÉES — ne pas les rouvrir
+
+Les quatre questions ouvertes des sessions précédentes ont été posées à l'user et
+tranchées. Elles sont closes ; les reposer lui ferait refaire un travail fait.
+
+- **Le nom reste `curtain` / « rideau »**, dans l'app comme dans le code. Ni
+  *coulisse* ni *loge*. Le mot dit le geste : quelque chose qu'on tire devant la
+  scène et qu'on ouvre quand on veut.
+- **« Réservé » = réservé à SON PROPRIÉTAIRE.** Pas à une personne nommée qu'on
+  désignerait — ce serait un champ de plus (`editorId`) et ça compliquerait les
+  trois usages actuels (carnet / vitrine / atelier).
+- **Le bouton « créer un rideau » vit sur `MembraneOptions`**, avec les boutons
+  de mode, et **nulle part ailleurs**. Il était sur la languette, donc
+  atteignable seulement en mode focus — alors que créer un rideau n'a rien à
+  voir avec le fait d'en regarder un. Le panneau montre des rideaux, il n'en
+  propose pas.
+- **Le flou de la languette est GARDÉ**, malgré `style.md` qui proscrit le
+  glassmorphisme. Ce qu'on floute est du *contenu utilisateur*, pas du chrome :
+  la règle visait l'interface. Arbitrage explicite de l'user.
+
+## 4bis. Ce qui n'a pas été fait, et pourquoi
 
 - **Le mouvement d'échange en profondeur** (une seconde façon d'ouvrir le rideau,
   gardée sur la maquette) n'est pas dans l'app : l'user a choisi le survol.
@@ -217,11 +225,6 @@ se passer de l'aimantation prend `beginRawMoveSession`, pas rien.
   seconde source de cibles. Le geste y est simplement libre.
 - **Le rideau n'a pas de dossiers.** Sa couche n'est pas montée, et l'arbitre du
   rideau passe donc `folders: []`. Rien ne l'interdit, ça n'a pas été demandé.
-- **Renommer `curtain`.** L'user hésitait entre *rideau*, *coulisse* et *loge*.
-  Le code dit `curtain` partout. Renommer coûtera peu maintenant, beaucoup plus
-  tard.
-- **« Réservé »** est implémenté comme *réservé au propriétaire*. S'il voulait
-  dire « réservé à une personne nommée que je désigne », c'est un champ de plus.
 
 ---
 

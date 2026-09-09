@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { getActiveBoard, useGlucoseStore } from "../store";
 import type { Annotation, BoardImage, MembraneAnnotation } from "../types";
+import { _resetLocalUserCache, getLocalUser } from "../multiplayer/localUser";
 import MembraneOptions from "./MembraneOptions";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -64,7 +65,11 @@ function monter() {
   return render(<MembraneOptions membrane={memb()} />);
 }
 
-beforeEach(() => { seed([membrane()]); });
+beforeEach(() => {
+  localStorage.clear();
+  _resetLocalUserCache();
+  seed([membrane()]);
+});
 afterEach(cleanup);
 
 // ── Les trois modes ─────────────────────────────────────────────────────────
@@ -171,5 +176,65 @@ describe("compte des membres", () => {
     seed([membrane(), texte("a", 10, 10, MEMB_ID)], [{ ...image("b", 20, 20), membraneId: MEMB_ID }]);
     monter();
     expect(screen.getByText("2 éléments")).toBeTruthy();
+  });
+});
+
+// ── Le rideau se crée ICI ───────────────────────────────────────────────────
+//
+// MEMB-9 — Le bouton vivait sur la languette, au bord droit, donc atteignable
+// uniquement en mode focus — alors que créer un rideau n'a rien à voir avec le
+// fait d'en regarder un. Les trois choses qu'on décide d'une membrane sont
+// désormais au même endroit.
+
+describe("création d'un rideau", () => {
+  it("le bouton écrit un rideau PRIVÉ dans le store, à mon nom", () => {
+    const moi = getLocalUser();
+    monter();
+    fireEvent.click(screen.getByText("Rideau"));
+
+    const cs = memb().curtains ?? [];
+    expect(cs).toHaveLength(1);
+    expect(cs[0].ownerId).toBe(moi.id);
+    expect(cs[0].ownerName).toBe(moi.name);
+    expect(cs[0].visibility).toBe("private");
+  });
+
+  it("le rideau naît avec son board — séparés, un Ctrl+Z laisserait une coquille", () => {
+    monter();
+    fireEvent.click(screen.getByText("Rideau"));
+
+    const c = (memb().curtains ?? [])[0];
+    expect(c.boardId).toBeTruthy();
+    expect(useGlucoseStore.getState().project.boards.some((b) => b.id === c.boardId)).toBe(true);
+  });
+
+  it("un seul rideau par personne : le bouton se DÉSACTIVE, il ne disparaît pas", () => {
+    // Comme pour les modes : une impossibilité se montre, elle ne s'escamote
+    // pas — un bouton disparu se lit comme un oubli, pas comme une décision.
+    monter();
+    fireEvent.click(screen.getByText("Rideau"));
+    cleanup();
+    monter();
+
+    const b = screen.getByText("Rideau");
+    expect(b).toBeTruthy();
+    expect(b).toBeDisabled();
+
+    fireEvent.click(b);
+    expect(memb().curtains ?? []).toHaveLength(1);
+  });
+
+  it("le rideau d'un autre ne m'empêche pas de créer le mien", () => {
+    useGlucoseStore.getState().updateAnnotation("main", MEMB_ID, {
+      curtains: [{
+        id: "c-autre", ownerId: "u-autre", ownerName: "Grace", ownerColor: "#34d399",
+        visibility: "private", editable: "owner", notes: [], createdAt: 1,
+      }],
+    } as Partial<Annotation>);
+    monter();
+
+    expect(screen.getByText("Rideau")).not.toBeDisabled();
+    fireEvent.click(screen.getByText("Rideau"));
+    expect(memb().curtains ?? []).toHaveLength(2);
   });
 });

@@ -19,14 +19,28 @@
 // déduire l'appartenance de la géométrie sans se tromper — après, la membrane
 // est plus petite que son contenu et le test s'inverserait.
 //
+// LE RIDEAU SE CRÉE ICI, et c'est délibéré. Il vivait sur la languette, au bord
+// droit — donc atteignable uniquement en mode focus, alors que créer un rideau
+// n'a rien à voir avec le fait d'en regarder un. Les trois choses qu'on décide
+// d'une membrane (minimisée, étirée, un rideau) sont désormais au même endroit,
+// et cette barre s'affiche aussi bien en focus qu'en dehors : elle ne dépend que
+// de la sélection.
+//
+// Un seul rideau par personne et par membrane : le bouton se désactive une fois
+// le sien créé plutôt que de disparaître — comme les modes, une impossibilité se
+// montre, elle ne s'escamote pas.
+//
 // Chrome monochrome (style.md) : la couleur affichée est celle de la membrane,
 // qui appartient à l'utilisateur.
 // ────────────────────────────────────────────────────────────────────────────
 
+import { useEffect, useState } from "react";
 import { getActiveBoard, useGlucoseStore } from "../store";
 import type { Annotation, MembraneAnnotation, MembraneMode } from "../types";
 import { canSwitchMode, containedIn, itemsOfBoard } from "../canvas/membraneSpace";
 import { applyBoardStretch } from "../canvas/membraneStretchRuntime";
+import { createCurtain, detachCurtains } from "../canvas/curtainModel";
+import { USER_CHANGED_EVENT, getLocalUser } from "../multiplayer/localUser";
 
 interface Props {
   membrane: MembraneAnnotation;
@@ -44,7 +58,19 @@ export default function MembraneOptions({ membrane }: Props) {
   const beginLiveEdit = useGlucoseStore((s) => s.beginLiveEdit);
   const endLiveEdit = useGlucoseStore((s) => s.endLiveEdit);
 
+  const ensureCurtainBoard = useGlucoseStore((s) => s.ensureCurtainBoard);
+
+  // L'identité peut changer pendant la session (panneau Collaboration) : on se
+  // réabonne plutôt que de figer le nom au montage.
+  const [me, setMe] = useState(() => getLocalUser());
+  useEffect(() => {
+    const onChange = () => setMe(getLocalUser());
+    window.addEventListener(USER_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(USER_CHANGED_EVENT, onChange);
+  }, []);
+
   const board = getActiveBoard(project);
+  const jenAiUn = (membrane.curtains ?? []).some((c) => c.ownerId === me.id);
   const current: MembraneMode = membrane.mode ?? "classic";
   const members = (board.annotations.filter(
     (a) => a.type !== "arrow" && a.membraneId === membrane.id,
@@ -95,6 +121,25 @@ export default function MembraneOptions({ membrane }: Props) {
     }
   }
 
+  /** Crée mon rideau sur cette membrane, avec son board. */
+  function addCurtain() {
+    if (jenAiUn) return;
+    const fresh = createCurtain(me);
+    // Créer le rideau et lui donner son board sont UN seul geste : séparés, un
+    // Ctrl+Z laisserait une languette dont le contenu n'existe pas.
+    beginLiveEdit();
+    try {
+      // Toute écriture DÉTACHE : réinsérer dans le document un objet qui en
+      // vient déjà fait lever Automerge (cf. `detachCurtains`).
+      updateAnnotation(board.id, membrane.id, {
+        curtains: detachCurtains([...(membrane.curtains ?? []), fresh]),
+      } as Partial<Annotation>);
+      ensureCurtainBoard(board.id, membrane.id, fresh.id);
+    } finally {
+      endLiveEdit();
+    }
+  }
+
   const btn: React.CSSProperties = {
     padding: "3px 8px", fontSize: 11, borderRadius: 3,
     border: "1px solid #333", cursor: "pointer", background: "#1a1a1a", color: "#888",
@@ -139,15 +184,23 @@ export default function MembraneOptions({ membrane }: Props) {
       })}
 
       <div style={{ width: 1, height: 16, background: "#2a2a2a" }} />
+
+      <button
+        type="button"
+        disabled={jenAiUn}
+        title={jenAiUn
+          ? "Vous avez déjà un rideau sur cette membrane"
+          : "Créer mon rideau personnel — il ne se voit qu'en mode focus"}
+        onClick={addCurtain}
+        style={jenAiUn ? btnOff : btn}
+      >
+        Rideau
+      </button>
+
+      <div style={{ width: 1, height: 16, background: "#2a2a2a" }} />
       <span style={{ fontSize: 10, color: "#444" }}>
         {members === 0 ? "vide" : members === 1 ? "1 élément" : `${members} éléments`}
       </span>
-
-      {current !== "classic" && (
-        <span style={{ fontSize: 10, color: "#444", maxWidth: 260, lineHeight: 1.4 }}>
-          · Les rideaux se créent depuis le bord droit, en mode focus.
-        </span>
-      )}
     </div>
   );
 }

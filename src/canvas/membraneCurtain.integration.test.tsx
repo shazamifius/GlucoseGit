@@ -97,22 +97,15 @@ describe("le rideau n'existe que si on le crée", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("sans rideau, une seule languette : celle qui en crée un", () => {
-    monter();
-    expect(screen.getByLabelText("Créer mon rideau personnel")).toBeTruthy();
+  it("sans rideau, la couche ne montre RIEN au bord droit", () => {
+    // MEMB-9 — Le panneau montre des rideaux, il n'en propose pas : la création
+    // vit sur la barre de modes de la membrane (cf. MembraneOptions), avec
+    // « minimisée » et « étirée ». Une languette « + » ici mettrait la création
+    // derrière le mode focus, alors qu'on peut vouloir créer son rideau sans y
+    // entrer — et ferait deux chemins pour une même action.
+    const { container } = monter();
+    expect(container.querySelector("button")).toBeNull();
     expect(screen.queryByLabelText(/^Rideau de /)).toBeNull();
-  });
-
-  it("créer écrit un rideau PRIVÉ dans le store, à mon nom", () => {
-    const moi = getLocalUser();
-    monter();
-    fireEvent.click(screen.getByLabelText("Créer mon rideau personnel"));
-
-    const cs = stored();
-    expect(cs).toHaveLength(1);
-    expect(cs[0].ownerId).toBe(moi.id);
-    expect(cs[0].ownerName).toBe(moi.name);
-    expect(cs[0].visibility).toBe("private");
   });
 });
 
@@ -196,8 +189,6 @@ describe("permissions — ce que le modèle interdit est inatteignable", () => {
     monter([curtainDe(AUTRUI)]);
     expect(screen.queryByLabelText("Rideau de Grace")).toBeNull();
     expect(screen.queryByText("secret")).toBeNull();
-    // Et je peux quand même créer le mien.
-    expect(screen.getByLabelText("Créer mon rideau personnel")).toBeTruthy();
   });
 
   it("la VITRINE d'un autre se voit mais ne s'édite pas", () => {
@@ -318,19 +309,14 @@ describe("languettes — variante A", () => {
     expect(screen.getByText("Grace")).toBeTruthy();
   });
 
-  it("la languette « + » disparaît quand j'ai déjà le mien", () => {
-    const moi = getLocalUser();
-    monter([{ id: "a", ownerId: moi.id, ownerName: moi.name, ownerColor: moi.color,
-      visibility: "private", editable: "owner", notes: [], createdAt: 1 }]);
-    expect(screen.queryByLabelText("Créer mon rideau personnel")).toBeNull();
-  });
-
   it("renommer l'identité ne me fait pas perdre mon rideau", () => {
-    // L'appartenance tient à l'identifiant stable, jamais au nom.
+    // L'appartenance tient à l'identifiant stable, jamais au nom : après
+    // renommage, mon rideau reste le mien et s'ouvre toujours.
     const moi = getLocalUser();
-    monter([{ id: "a", ownerId: moi.id, ownerName: moi.name, ownerColor: moi.color,
+    const vue = monter([{ id: "a", ownerId: moi.id, ownerName: moi.name, ownerColor: moi.color,
       visibility: "private", editable: "owner", notes: [], createdAt: 1 }]);
     setLocalUser({ name: "Tout autre chose" });
-    expect(screen.queryByLabelText("Créer mon rideau personnel")).toBeNull();
+    vue.refresh();
+    expect(screen.queryByLabelText(/^Rideau de /)).toBeTruthy();
   });
 });
