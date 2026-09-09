@@ -7,8 +7,6 @@ import {
   contentScale,
   imageBox,
   itemsOfBoard,
-  membraneAtPoint,
-  naturalDelta,
   hasScaling,
   originOf,
   parentMap,
@@ -94,27 +92,6 @@ describe("containedIn — l'instantané pris à la conversion", () => {
 
   it("ne se retient jamais elle-même", () => {
     expect(containedIn([M], M)).toEqual([]);
-  });
-});
-
-describe("membraneAtPoint — la règle du dépôt, en géométrie vue", () => {
-  const M = memb("M", 0, 0, 400, 300, "minimized");
-  const I = box("I", 0, 0, 800, 600, "M");
-
-  it("capture la membrane sous le curseur", () => {
-    const items = [M, I];
-    const r = resolveItems(items);
-    expect(membraneAtPoint(items, r, 200, 150)?.id).toBe("M");
-    expect(membraneAtPoint(items, r, 600, 150)).toBeNull();
-  });
-
-  it("entre membranes imbriquées, la plus petite à l'écran gagne", () => {
-    const OUT = memb("OUT", 0, 0, 1000, 1000);
-    const IN = memb("IN", 100, 100, 200, 200, "classic", "OUT");
-    const items = [OUT, IN];
-    const r = resolveItems(items);
-    expect(membraneAtPoint(items, r, 150, 150)?.id).toBe("IN");
-    expect(membraneAtPoint(items, r, 800, 800)?.id).toBe("OUT");
   });
 });
 
@@ -300,20 +277,6 @@ describe("transitions de mode — un aller sans retour", () => {
   it("rester sur place est toujours permis", () => {
     expect(canSwitchMode("minimized", "minimized")).toBe(true);
     expect(canSwitchMode("classic", "classic")).toBe(true);
-  });
-});
-
-// ── Écriture inverse (glisser dans une membrane réduite) ────────────────────
-
-describe("retour vers les coordonnées naturelles", () => {
-  it("un déplacement écran se divise par l'échelle avant d'être écrit", () => {
-    // Sans ça, glisser dans une membrane à 0,4 ferait filer l'élément 2,5× trop vite.
-    expect(naturalDelta(10, 20, 0.5)).toEqual({ dx: 20, dy: 40 });
-    expect(naturalDelta(10, 20, 1)).toEqual({ dx: 10, dy: 20 });
-  });
-
-  it("le plancher d'échelle protège d'une division explosive", () => {
-    expect(Number.isFinite(naturalDelta(1, 0, 0).dx)).toBe(true);
   });
 });
 

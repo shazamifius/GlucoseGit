@@ -93,10 +93,6 @@ export interface Box {
   height: number;
 }
 
-function area(b: Box): number {
-  return Math.abs(b.width * b.height);
-}
-
 function centerOf(b: Box): { cx: number; cy: number } {
   return { cx: b.x + b.width / 2, cy: b.y + b.height / 2 };
 }
@@ -170,33 +166,6 @@ export function parentMap(items: SpaceItem[]): Map<string, string> {
  */
 export function containedIn(items: SpaceItem[], membrane: SpaceItem): SpaceItem[] {
   return items.filter((it) => it.id !== membrane.id && containsCenter(membrane, it));
-}
-
-/**
- * Membrane à capturer pour un point donné, en géométrie EFFECTIVE — celle que
- * l'utilisateur voit. C'est la règle du DÉPÔT : on regarde où le curseur lâche
- * l'élément à l'écran, pas où ses coordonnées naturelles atterrissent.
- *
- * La plus petite gagne, comme pour la priorité au clic : une seule notion de
- * « dedans » à retenir dans toute l'application.
- */
-export function membraneAtPoint(
-  items: SpaceItem[],
-  resolved: Map<string, ResolvedItem>,
-  x: number,
-  y: number,
-): SpaceItem | null {
-  let best: SpaceItem | null = null;
-  let bestArea = Number.POSITIVE_INFINITY;
-  for (const it of items) {
-    if (it.kind !== "membrane") continue;
-    const r = resolved.get(it.id);
-    if (!r) continue;
-    if (x < r.x || x > r.x + r.width || y < r.y || y > r.y + r.height) continue;
-    const a = area(r);
-    if (a < bestArea) { best = it; bestArea = a; }
-  }
-  return best;
 }
 
 /** Les enfants DIRECTS de chaque membrane, dans l'ordre des `items`. */
@@ -483,29 +452,6 @@ export function reconcileMembership(
     if (next !== current) out.push({ id, membraneId: next });
   }
   return out;
-}
-
-/**
- * Convertit un déplacement lu à l'ÉCRAN (donc en géométrie effective) vers le
- * déplacement NATUREL à écrire dans le store. Sans ça, glisser un élément dans
- * une membrane minimisée à 0,4 le ferait filer 2,5 fois trop vite.
- */
-export function naturalDelta(dx: number, dy: number, scale: number): { dx: number; dy: number } {
-  const s = Math.max(MEMBRANE_SPACE.MIN_CONTENT_SCALE, scale);
-  return { dx: dx / s, dy: dy / s };
-}
-
-/** Position naturelle correspondant à un point effectif, pour un élément donné. */
-export function toNatural(
-  effX: number, effY: number,
-  resolved: ResolvedItem,
-  natural: Box,
-): { x: number; y: number } {
-  const s = Math.max(MEMBRANE_SPACE.MIN_CONTENT_SCALE, resolved.scale);
-  return {
-    x: natural.x + (effX - resolved.x) / s,
-    y: natural.y + (effY - resolved.y) / s,
-  };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
