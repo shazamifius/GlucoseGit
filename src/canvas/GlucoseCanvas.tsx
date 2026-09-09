@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from "react";
 import { Application, Assets, Container, Sprite, Texture, Graphics, Rectangle, FederatedPointerEvent, ImageSource } from "pixi.js";
 
 // Sprite augmenté pour conserver la référence du contour de sélection
@@ -51,6 +51,10 @@ import MembraneCurtainLayer from "./MembraneCurtainLayer";
 // MEMB-4 — mode etire : la membrane grandit, ou bute et le dit.
 import { applyBoardStretch } from "./membraneStretchRuntime";
 import MembraneStretchAlert, { type StretchAlertData } from "./MembraneStretchAlert";
+// MEMB-6 — le passage fluide quand un element entre ou sort d'une membrane.
+import {
+  MEMBRANE_TWEEN, ease, geomOrNatural, membershipSignature, planTween, tweenGeom,
+} from "./membraneTween";
 import {
   FOCUS, NO_FOCUS, focusBackground, focusDecision, focusView,
   type FocusState,
@@ -323,12 +327,89 @@ export default function GlucoseCanvas() {
   // ── MEMB-2 — Géométrie effective ─────────────────────────────────────────
   // `null` tant qu'aucune membrane ne réduit quoi que ce soit : le rendu reprend
   // alors EXACTEMENT le chemin d'avant, au même objet près (cf. `hasScaling`).
-  const geom: Map<string, ResolvedItem> | null = useMemo(
+  const geomTarget: Map<string, ResolvedItem> | null = useMemo(
     () => (hasScaling(focusItems)
       ? resolveItems(focusItems, { focusedMembraneId })
       : null),
     [focusItems, focusedMembraneId],
   );
+
+  // ── MEMB-6 — Le passage fluide ───────────────────────────────────────────
+  //
+  // L'animation s'insère ICI, et nulle part ailleurs : en interpolant `geom`,
+  // tout ce qui en dépend suit — sprites, textes, membranes, ancrage des
+  // flèches, test de collision au clic. Pendant l'animation, cliquer attrape
+  // donc l'élément là où il est VU, pas là où il finira.
+  //
+  // Le déclencheur est un fait DISCRET (appartenance ou mode), jamais une
+  // différence de géométrie : sans ça, tirer la poignée d'une membrane
+  // minimisée ferait traîner son contenu 200 ms derrière le curseur.
+  const tweenRef = useRef<{ from: Map<string, ResolvedItem>; ids: Set<string> } | null>(null);
+  const tweenRafRef = useRef<number | null>(null);
+  const [tweenP, setTweenP] = useState<number | null>(null);
+  const membershipSigRef = useRef<string | null>(null);
+  const prevGeomRef = useRef<Map<string, ResolvedItem> | null>(null);
+  const prevItemsRef = useRef(focusItems);
+
+  const membershipSig = useMemo(() => membershipSignature(focusItems), [focusItems]);
+
+  // `useLayoutEffect` et pas `useEffect` : au rendu où l'appartenance change,
+  // les couches ont déjà la géométrie FINALE. Démarrer après le paint ferait
+  // clignoter l'élément à l'arrivée avant de le renvoyer au départ. Ici on
+  // repositionne avant que le navigateur ne peigne quoi que ce soit.
+  useLayoutEffect(() => {
+    const prevSig = membershipSigRef.current;
+    membershipSigRef.current = membershipSig;
+    // Court-circuit du cas ultra-majoritaire : rien de discret n'a bougé.
+    // `planTween` le revérifie — c'est lui qui fait foi.
+    if (prevSig === membershipSig) return;
+
+    const plan = planTween(
+      { sig: prevSig, items: prevItemsRef.current, geom: prevGeomRef.current },
+      { sig: membershipSig, items: focusItems, geom: geomTarget },
+    );
+    if (!plan) return;
+
+    tweenRef.current = plan;
+    if (tweenRafRef.current !== null) cancelAnimationFrame(tweenRafRef.current);
+    const t0 = performance.now();
+    // Le rendu Pixi est à la demande (PERF-4) : sans ça, les sprites resteraient
+    // figés pendant que les couches HTML/SVG s'animent.
+    requestRender(MEMBRANE_TWEEN.MS + 100);
+    const stepTween = () => {
+      const p = (performance.now() - t0) / MEMBRANE_TWEEN.MS;
+      if (p >= 1) {
+        tweenRef.current = null;
+        tweenRafRef.current = null;
+        setTweenP(null);
+        return;
+      }
+      setTweenP(ease(p));
+      tweenRafRef.current = requestAnimationFrame(stepTween);
+    };
+    setTweenP(0);
+    tweenRafRef.current = requestAnimationFrame(stepTween);
+  }, [membershipSig]);
+
+  // Mémoire du rendu PRÉCÉDENT — doit être déclarée APRÈS l'effet ci-dessus,
+  // qui a besoin de lire l'état d'avant pour savoir d'où partir.
+  useLayoutEffect(() => {
+    prevGeomRef.current = geomTarget;
+    prevItemsRef.current = focusItems;
+  });
+
+  useEffect(() => () => {
+    if (tweenRafRef.current !== null) cancelAnimationFrame(tweenRafRef.current);
+  }, []);
+
+  /** Géométrie effective RENDUE : la cible, ou son interpolation en cours. */
+  const geom: Map<string, ResolvedItem> | null = useMemo(() => {
+    const tw = tweenRef.current;
+    // Hors animation on rend la cible ELLE-MÊME : le chemin rapide (`null`
+    // quand rien n'est réduit) traverse cette ligne sans rien calculer.
+    if (!tw || tweenP === null) return geomTarget;
+    return tweenGeom(tw.from, geomOrNatural(focusItems, geomTarget), tw.ids, tweenP);
+  }, [geomTarget, tweenP, focusItems]);
   /** Board tel qu'il s'AFFICHE — géométrie effective de bout en bout. */
   const shownBoard = useMemo(() => projectBoard(board, geom), [board, geom]);
   // Les gestionnaires impératifs (clic, survol) vivent dans des effets `[]` et
