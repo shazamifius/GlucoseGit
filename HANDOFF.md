@@ -246,6 +246,51 @@ tranchées. Elles sont closes ; les reposer lui ferait refaire un travail fait.
 
 ---
 
+## 5bis. Publier une version — et ce qui fait qu'elle atteint les gens
+
+**Couper une version** = bumper `version` dans **`package.json` ET
+`src-tauri/tauri.conf.json`** (le `version` de `Cargo.toml` ne sert pas, il est
+resté à `1.0.1-beta.1` depuis toujours), commiter, puis pousser un tag `vX.Y.Z`.
+Le tag déclenche `release.yml` : Windows NSIS, macOS DMG + `.app.tar.gz`, Linux
+AppImage/deb/rpm.
+
+**La chaîne de mise à jour, de bout en bout :**
+
+1. `bundle.createUpdaterArtifacts: true` produit les artefacts de mise à jour.
+2. La CI les signe avec le secret `TAURI_SIGNING_PRIVATE_KEY` (il existe ; la
+   clé n'a **pas** de mot de passe — le workflow passe aussi
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, qui n'est pas défini, et ça marche).
+   La clé publique est dans `tauri.conf.json`. **Sans signature, l'app refuse
+   la mise à jour** — c'est voulu.
+3. `tauri-action` génère et fusionne `latest.json` entre les trois jobs.
+4. L'app appelle `check()` au démarrage (`UpdatePrompt.tsx`) sur
+   `releases/latest/download/latest.json`.
+
+**LE PIÈGE, et il a coûté quatre versions.** `/releases/latest` ne voit que les
+releases **publiées** : un brouillon n'atteint personne. `v1.0.1-beta.1`, `.7`,
+`.16` et `.19` sont encore des brouillons — elles n'ont jamais été livrées à
+qui que ce soit. Depuis `v1.0.2-beta.1`, un job `publish` bascule le brouillon
+en publié **après** les trois plateformes, et refuse de publier un `latest.json`
+qui ne couvrirait pas les trois. Il n'y a donc plus de clic à ne pas oublier —
+mais si une release reste en brouillon, c'est que ce job a échoué ou a été
+sauté : **regarder son log avant de publier à la main**.
+
+**Le second piège, corrigé en même temps.** Le job macOS ne buildait que
+`--bundles dmg`. L'artefact de mise à jour de macOS est un `.app.tar.gz`, produit
+par le bundle `app` : sans lui, rien à signer. Résultat, jusqu'à `v1.0.1-beta.24`
+inclus, `latest.json` n'avait **aucune** entrée `darwin-aarch64` — les Macs
+installaient à la main puis ne recevaient plus jamais rien, sans le moindre
+signal. `--bundles app,dmg` répare la cause ; la vérification du manifeste dans
+le job `publish` empêche que ça se reproduise en silence.
+
+**La CI, aussi, avait un piège d'ordre.** `cargo fmt --check` s'exécute AVANT
+`clippy` dans le même job : tant que fmt échoue, clippy est **sauté**. La CI est
+alors rouge pour une raison cosmétique tout en ne vérifiant plus rien du
+backend. Si la CI est rouge sur le job Rust, lire QUELLE étape a échoué avant de
+conclure quoi que ce soit.
+
+---
+
 ## 6. Comment cet user travaille
 
 - **Il écrit en français, vite, sans ponctuation.** Prendre le temps de
