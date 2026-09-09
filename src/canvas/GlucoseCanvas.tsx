@@ -48,6 +48,9 @@ import {
   type ResolvedItem,
 } from "./membraneSpace";
 import MembraneCurtainLayer from "./MembraneCurtainLayer";
+// MEMB-4 — mode etire : la membrane grandit, ou bute et le dit.
+import { applyBoardStretch } from "./membraneStretchRuntime";
+import MembraneStretchAlert, { type StretchAlertData } from "./MembraneStretchAlert";
 import {
   FOCUS, NO_FOCUS, focusBackground, focusDecision, focusView,
   type FocusState,
@@ -239,6 +242,20 @@ export default function GlucoseCanvas() {
   const [focusedMembraneId, setFocusedMembraneId] = useState<string | null>(null);
   const focusVisibleRef = useRef<Set<string> | null>(null);
   const focusAnimRafRef = useRef<number | null>(null);
+  // MEMB-4 — dernier etirement bloque. `null` = rien a signaler. Il survit aux
+  // gestes suivants tant qu'ils butent encore, et disparait des qu'un geste
+  // passe sans obstacle : c'est le signe que le probleme est resolu.
+  const [stretchAlert, setStretchAlert] = useState<StretchAlertData | null>(null);
+  // Un étirement peut aussi être déclenché hors du canvas (conversion de mode
+  // depuis la barre `MembraneOptions`). L'avertissement reste UNIQUE quel que
+  // soit le geste qui l'a provoqué : c'est le même écran, la même règle.
+  useEffect(() => {
+    const onBlocked = (e: Event) => {
+      setStretchAlert((e as CustomEvent<StretchAlertData | null>).detail ?? null);
+    };
+    window.addEventListener("glucose:stretch-blocked", onBlocked);
+    return () => window.removeEventListener("glucose:stretch-blocked", onBlocked);
+  }, []);
   const [editOverlay, setEditOverlay] = useState<EditOverlay | null>(null);
   const [editText, setEditText] = useState("");
   const [tagInput, setTagInput] = useState("");
@@ -1586,7 +1603,6 @@ export default function GlucoseCanvas() {
 
       const items = itemsOfBoard(b);
       const changes = reconcileMembership(items, resolveItems(items), moved);
-      if (changes.length === 0) return;
 
       const imgIds = new Set(b.images.map((i) => i.id));
       for (const c of changes) {
@@ -1595,6 +1611,35 @@ export default function GlucoseCanvas() {
         if (imgIds.has(c.id)) st.updateImage(b.id, c.id, patch);
         else st.updateAnnotation(b.id, c.id, patch as Partial<Annotation>);
       }
+
+      // MEMB-4 — L'étirement vient APRÈS l'appartenance, et jamais avant : un
+      // élément qu'on vient de déposer doit compter dans l'étendue du contenu,
+      // sinon la membrane grandirait avec un geste de retard. On est toujours
+      // en phase CAPTURE, donc toujours dans la MÊME entrée d'annulation que le
+      // déplacement — annuler rend la position, l'appartenance ET la taille.
+      //
+      // Appelé même quand rien n'a changé de membrane : déplacer un élément
+      // DANS sa propre membrane étirée doit la faire grandir aussi.
+      applyStretchAfterGesture(b.id);
+    }
+
+    /**
+     * MEMB-4 — Fait grandir les membranes étirées, et signale ce qui les bloque.
+     *
+     * L'avertissement ne s'efface QUE sur un passage sans obstacle : un geste
+     * qui bute encore le laisse en place (rafraîchi), un geste ailleurs sur le
+     * board ne le fait pas disparaître par hasard.
+     */
+    function applyStretchAfterGesture(boardId: string) {
+      const blocked = applyBoardStretch(boardId).filter((o) => o.blocked);
+      if (blocked.length === 0) {
+        setStretchAlert((prev) => (prev === null ? prev : null));
+        return;
+      }
+      setStretchAlert({
+        membraneIds: blocked.map((o) => o.membraneId),
+        blockerIds: [...new Set(blocked.flatMap((o) => o.blockerIds))],
+      });
     }
 
     function onPickUp(e: PointerEvent) {
@@ -3432,6 +3477,14 @@ export default function GlucoseCanvas() {
 
       {/* ── MEMB-3 — Rideaux : uniquement en mode Focus, nulle part ailleurs ── */}
       <MembraneCurtainLayer membrane={focusedMembrane} boardId={board.id} />
+
+      {/* ── MEMB-4 — Ce qui empêche une membrane étirée de grandir ── */}
+      <MembraneStretchAlert
+        alert={stretchAlert}
+        boardId={board.id}
+        vpRef={vpRef}
+        onDismiss={() => setStretchAlert(null)}
+      />
 
       {/* ── Curseurs et sélections des pairs en direct (Collaboration) ── */}
       <PeerCursorsLayer vpRef={vpRef} />

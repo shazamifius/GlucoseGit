@@ -26,6 +26,7 @@
 import { getActiveBoard, useGlucoseStore } from "../store";
 import type { Annotation, MembraneAnnotation, MembraneMode } from "../types";
 import { canSwitchMode, containedIn, itemsOfBoard } from "../canvas/membraneSpace";
+import { applyBoardStretch } from "../canvas/membraneStretchRuntime";
 
 interface Props {
   membrane: MembraneAnnotation;
@@ -76,6 +77,19 @@ export default function MembraneOptions({ membrane }: Props) {
         }
       }
       updateAnnotation(board.id, membrane.id, { mode: next } as Partial<Annotation>);
+
+      // MEMB-4 — La conversion est le second instant où l'étirement se joue
+      // (l'autre est la fin d'un glisser). Il est DANS la transaction : passer
+      // en « étirée » et grandir sont un seul geste, donc une seule annulation.
+      // On appelle aussi en QUITTANT le mode étiré — pour effacer un
+      // avertissement qui n'a plus d'objet, la membrane ne poussant plus.
+      const blocked = applyBoardStretch(board.id).filter((o) => o.blocked);
+      window.dispatchEvent(new CustomEvent("glucose:stretch-blocked", {
+        detail: blocked.length === 0 ? null : {
+          membraneIds: blocked.map((o) => o.membraneId),
+          blockerIds: [...new Set(blocked.flatMap((o) => o.blockerIds))],
+        },
+      }));
     } finally {
       endLiveEdit();
     }
