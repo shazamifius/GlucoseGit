@@ -486,3 +486,113 @@ describe("projection — le rendu ne paie que s'il y a lieu", () => {
     expect(originOf(null, "D")).toBeNull();
   });
 });
+
+// ── Flèches ─────────────────────────────────────────────────────────────────
+
+describe("projection des flèches — elles suivent ce qu'elles relient", () => {
+  const img = (id: string, x: number, y: number, w: number, h: number): BoardImage => ({
+    id, x, y, width: w, height: h, rotation: 0, locked: false, tags: [],
+    originalWidth: w, originalHeight: h,
+  });
+
+  /** Membrane 200×200 dont le contenu s'étend sur 800 → échelle 0,25. */
+  const MINI = {
+    id: "M", type: "membrane", x: 0, y: 0, width: 200, height: 200, mode: "minimized",
+  } as Annotation;
+
+  const dedans = (id: string, x: number, y: number) =>
+    ({ ...img(id, x, y, 100, 100), membraneId: "M" });
+
+  const fleche = (over: Partial<Annotation> = {}) => ({
+    id: "F", type: "arrow", x: 0, y: 0, x2: 0, y2: 0, ...over,
+  } as Annotation);
+
+  /** Étend le contenu à 800 pour fixer l'échelle à 0,25, quoi qu'il arrive. */
+  const ETALON = { ...img("ETALON", 750, 750, 100, 100), membraneId: "M" };
+
+  function projeter(annotations: Annotation[], images = [ETALON]) {
+    const board = { images, annotations: [MINI, ...annotations] };
+    return projectBoard(board, resolveItems(itemsOfBoard(board)));
+  }
+
+  function flecheDe(out: { annotations: Annotation[] }) {
+    return out.annotations.find((a) => a.id === "F") as Annotation & { type: "arrow" };
+  }
+
+  it("attachée aux deux bouts dans la MÊME membrane, elle est réduite avec elle", () => {
+    const out = projeter(
+      [fleche({ sourceId: "A", targetId: "B", x: 100, y: 100, x2: 500, y2: 500 })],
+      [ETALON, dedans("A", 100, 100), dedans("B", 500, 500)],
+    );
+    const f = flecheDe(out);
+    expect(f.x).toBe(25);   // 100 × 0,25
+    expect(f.y).toBe(25);
+    expect(f.x2).toBe(125); // 500 × 0,25
+    expect(f.y2).toBe(125);
+  });
+
+  it("ses points de passage suivent aussi — sinon le tracé se déformerait", () => {
+    // Le point qui compte : les extrémités viennent des nœuds (déjà projetés),
+    // mais les points de passage n'appartiennent qu'à la flèche. Non projetés,
+    // ils feraient bomber le tracé hors de la membrane.
+    const out = projeter(
+      [fleche({
+        sourceId: "A", targetId: "B", x: 100, y: 100, x2: 500, y2: 500,
+        waypoints: [{ x: 300, y: 200 }],
+      })],
+      [ETALON, dedans("A", 100, 100), dedans("B", 500, 500)],
+    );
+    expect(flecheDe(out).waypoints).toEqual([{ x: 75, y: 50 }]);
+  });
+
+  it("une extrémité LIBRE la laisse dans le monde : on ne déplace pas ce point", () => {
+    // Elle sort de la membrane. Le bout libre est là où l'utilisateur l'a posé,
+    // à l'échelle du monde — le tirer serait déplacer son geste.
+    const out = projeter(
+      [fleche({ sourceId: "A", x: 100, y: 100, x2: 900, y2: 900 })],
+      [ETALON, dedans("A", 100, 100)],
+    );
+    expect(flecheDe(out).x2).toBe(900);
+  });
+
+  it("entre DEUX membranes différentes, chaque bout suit son nœud", () => {
+    const AUTRE = {
+      id: "N", type: "membrane", x: 2000, y: 0, width: 200, height: 200, mode: "minimized",
+    } as Annotation;
+    const out = projectBoard(
+      {
+        images: [
+          ETALON, dedans("A", 100, 100),
+          { ...img("B", 2100, 100, 100, 100), membraneId: "N" },
+        ],
+        annotations: [MINI, AUTRE, fleche({ sourceId: "A", targetId: "B" })],
+      },
+      resolveItems(itemsOfBoard({
+        images: [
+          ETALON, dedans("A", 100, 100),
+          { ...img("B", 2100, 100, 100, 100), membraneId: "N" },
+        ],
+        annotations: [MINI, AUTRE, fleche({ sourceId: "A", targetId: "B" })],
+      })),
+    );
+    // Aucun repère commun : la flèche n'est pas transformée, ses deux bouts
+    // sont lus sur les nœuds, eux déjà projetés chacun dans SA membrane.
+    expect(flecheDe(out).x).toBe(0);
+  });
+
+  it("une flèche entièrement libre « dans » une membrane n'y appartient pas", () => {
+    // Rien ne la rattache, et deviner par la géométrie est précisément ce que
+    // l'invariant d'appartenance interdit.
+    const out = projeter([fleche({ x: 50, y: 50, x2: 150, y2: 150 })]);
+    const f = flecheDe(out);
+    expect(f.x).toBe(50);
+    expect(f.x2).toBe(150);
+  });
+
+  it("hors membrane réduite, la flèche est rendue au MÊME objet — chemin d'avant", () => {
+    const f = fleche({ sourceId: "A", targetId: "B", x: 10, y: 10 });
+    const board = { images: [img("A", 0, 0, 10, 10), img("B", 90, 90, 10, 10)], annotations: [f] };
+    const out = projectBoard(board, resolveItems(itemsOfBoard(board)));
+    expect(out.annotations[0]).toBe(f);
+  });
+});

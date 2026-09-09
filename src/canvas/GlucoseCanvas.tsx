@@ -336,11 +336,22 @@ export default function GlucoseCanvas() {
   const shownBoardRef = useRef(shownBoard);
   shownBoardRef.current = shownBoard;
 
-  /** Board filtré, pour les couches qui prennent le board entier (flèches). */
-  const visibleBoard = useMemo(
-    () => (focus.visible ? { ...board, annotations: focus.annotations, folders: focus.folders } : board),
-    [board, focus],
-  );
+  /** Board filtré ET projeté, pour les couches qui prennent le board entier
+   *  (flèches). La projection est ce qui fait suivre une flèche dont les nœuds
+   *  sont dans une membrane minimisée : la couche lit la géométrie des nœuds
+   *  directement dans ce board, donc lui donner l'effective suffit — elle n'a
+   *  aucune notion de membrane à apprendre.
+   *
+   *  GARDE-FOU intact : sans membrane minimisée, `geom` est `null` et
+   *  `projectBoard` rend le board TEL QUEL, au même objet près. */
+  const visibleBoard = useMemo(() => {
+    const base = focus.visible
+      ? { ...board, annotations: focus.annotations, folders: focus.folders }
+      : board;
+    if (!geom) return base;
+    const p = projectBoard(base, geom);
+    return { ...base, images: p.images, annotations: p.annotations };
+  }, [board, focus, geom]);
   /** La membrane focalisée elle-même — porte sa couleur et ses rideaux. */
   const focusedMembrane = useMemo(() => {
     if (!focusedMembraneId) return null;

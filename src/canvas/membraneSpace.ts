@@ -351,18 +351,84 @@ export function projectBoard<T extends Pick<Board, "images" | "annotations">>(
     return { ...img, x: c.x, y: c.y, width: r.width, height: r.height };
   });
 
+  // Boîtes NATURELLES des membranes — le repère depuis lequel se projette une
+  // flèche. Construite une seule fois, et seulement s'il y a une flèche à
+  // projeter (le cas courant n'en paie donc pas le coût).
+  let naturalMembranes: Map<string, { x: number; y: number }> | null = null;
+  const membraneOrigin = (id: string) => {
+    if (!naturalMembranes) {
+      naturalMembranes = new Map();
+      for (const a of board.annotations) {
+        if (a.type === "membrane") naturalMembranes.set(a.id, { x: a.x, y: a.y });
+      }
+    }
+    return naturalMembranes.get(id) ?? null;
+  };
+
   const annotations = board.annotations.map((ann) => {
+    if (ann.type === "arrow") return projectArrow(ann, resolved, membraneOrigin);
     const r = resolved.get(ann.id);
     if (!r || r.scale === 1) return ann;
-    if (ann.type === "arrow") {
-      // Une flèche suit ses extrémités ; à défaut d'ancrage, on la met à
-      // l'échelle autour de la même origine que le reste.
-      return ann;
-    }
     return { ...ann, x: r.x, y: r.y, width: r.width, height: r.height };
   });
 
   return { images, annotations };
+}
+
+/**
+ * Membrane dans le repère de laquelle une flèche vit, ou `null`.
+ *
+ * Une flèche n'a pas de boîte propre et ne peut donc pas être MEMBRE de quoi
+ * que ce soit (cf. `itemsOfBoard`). Son repère se déduit de ses attaches, et
+ * seulement d'elles :
+ *
+ *   • ses DEUX extrémités attachées à des nœuds de la MÊME membrane → elle vit
+ *     dedans, entièrement, points de passage compris ;
+ *   • une extrémité libre → elle sort dans le monde, et le point libre est là où
+ *     l'utilisateur l'a posé, à l'échelle du monde. On ne le déplace pas ;
+ *   • deux membranes différentes → elle traverse, chaque bout suit son nœud.
+ *
+ * Une flèche entièrement libre dessinée « dans » une membrane n'y appartient
+ * donc pas : rien ne la rattache, et deviner par la géométrie est exactement ce
+ * que l'invariant d'appartenance interdit (une membrane minimisée est plus
+ * petite que son contenu, le test s'inverserait).
+ */
+function arrowFrame(
+  ann: Annotation & { type: "arrow" },
+  resolved: Map<string, ResolvedItem>,
+): string | null {
+  if (!ann.sourceId || !ann.targetId) return null;
+  const a = resolved.get(ann.sourceId)?.membraneId ?? null;
+  const b = resolved.get(ann.targetId)?.membraneId ?? null;
+  return a !== null && a === b ? a : null;
+}
+
+/** Flèche en géométrie EFFECTIVE, ou l'objet d'origine si rien ne la transforme. */
+function projectArrow(
+  ann: Annotation & { type: "arrow" },
+  resolved: Map<string, ResolvedItem>,
+  membraneOrigin: (id: string) => { x: number; y: number } | null,
+): Annotation {
+  const frameId = arrowFrame(ann, resolved);
+  if (!frameId) return ann;
+  const rM = resolved.get(frameId);
+  const nat = membraneOrigin(frameId);
+  if (!rM || !nat) return ann;
+
+  // Échelle vue par les ENFANTS de la membrane : la sienne, multipliée par
+  // celle qu'elle applique à son contenu.
+  const k = rM.scale * (rM.contentScale ?? 1);
+  if (k === 1) return ann; // rien à faire — on rend l'objet d'origine
+
+  const px = (x: number) => rM.x + (x - nat.x) * k;
+  const py = (y: number) => rM.y + (y - nat.y) * k;
+
+  return {
+    ...ann,
+    x: px(ann.x), y: py(ann.y),
+    x2: px(ann.x2), y2: py(ann.y2),
+    waypoints: ann.waypoints?.map((wp) => ({ x: px(wp.x), y: py(wp.y) })),
+  };
 }
 
 /** Échelle appliquée à un élément, 1 par défaut. */
