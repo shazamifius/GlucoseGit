@@ -93,6 +93,13 @@ function expectNoReactErrors() {
 // ─────────── HtmlAnnotationLayer ────────────────────────────────────
 describe("HtmlAnnotationLayer", () => {
   // Lazy-load pour ne pas crash si les imports indirects (Pixi, etc.) sont lourds.
+  //
+  // Délai élargi : c'est CE test qui échouait par intermittence (« 815/816 »,
+  // sans que le coupable soit retrouvé). Ce n'était pas une assertion mais un
+  // TIMEOUT — l'import paresseux tire react-markdown, remark, rehype et KaTeX,
+  // et sur une machine chargée la seule compilation du module dépasse les 5 s
+  // par défaut. Rien à corriger dans le code : il faut laisser à l'import le
+  // temps qu'il prend.
   it("monte avec annotations mixtes des 4 types et re-render sans crash", async () => {
     const HtmlAnnotationLayer = (await import("./canvas/HtmlAnnotationLayer")).default;
 
@@ -306,7 +313,7 @@ describe("FolderViewportIndicator — transition folderStack 0→1", () => {
     useGlucoseStore.getState().exitFolder();
     rerender(<FolderViewportIndicator />);
     expectNoReactErrors();
-  });
+  }, 20_000);
 });
 
 describe("BoardTabs", () => {
