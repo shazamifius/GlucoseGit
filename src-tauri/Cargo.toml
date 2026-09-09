@@ -12,7 +12,20 @@ edition = "2021"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "glucose_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# `rlib` SEUL, et c'est delibere. Le modele Tauri v2 met
+# ["staticlib", "cdylib", "rlib"] : `staticlib` sert a iOS, `cdylib` a Android.
+# Ce depot n'a aucun projet mobile (src-tauri/gen/ ne contient que `schemas`),
+# donc les deux sont des artefacts que personne ne charge.
+#
+# Ce n'est pas qu'un gain de temps de build : la `cdylib` EMPECHE de compiler
+# avec la chaine GNU/MinGW. `ld` y exporte l'integralite des symboles du DLL et
+# depasse la limite d'ordinaux (« export ordinal too large: 149094 »), ce qui
+# faisait echouer `npm run tauri dev` sur une machine sans MSVC. Le binaire, lui,
+# n'utilise que la `rlib` (cf. main.rs : `glucose_lib::run()`).
+#
+# Si un projet mobile est ajoute un jour : remettre "cdylib" (Android) et
+# "staticlib" (iOS) ici — et compiler sous MSVC sur Windows.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
