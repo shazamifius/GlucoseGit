@@ -34,10 +34,16 @@ jobs:
           # exécuter le DMG Apple Silicon via Rosetta 2 — c'est la pratique
           # standard. Si on veut un vrai build Intel un jour : `macos-13-large`
           # (payant) ou un runner self-hosted.
+          # `app` EN PLUS de `dmg`, et ce n'est pas cosmétique : sur macOS
+          # l'artefact de mise à jour est un `.app.tar.gz`, produit à partir du
+          # bundle `app`. En ne buildant que le DMG, on obtenait un installeur
+          # mais AUCUN artefact signé — d'où l'absence totale d'entrée
+          # `darwin-aarch64` dans `latest.json`, et des Macs qui installaient à
+          # la main sans jamais recevoir de mise à jour ensuite.
           - os: macos-14
             target: aarch64-apple-darwin
-            label: macOS Apple Silicon (DMG)
-            args: "--bundles dmg --target aarch64-apple-darwin"
+            label: macOS Apple Silicon (DMG + updater)
+            args: "--bundles app,dmg --target aarch64-apple-darwin"
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             label: Linux x64 (AppImage + .deb + .rpm)
