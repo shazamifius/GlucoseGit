@@ -10,17 +10,33 @@
 À l'ouverture, Glucose s'ouvre sur un canvas sombre infini quadrillé de points discrets.
 
 ### 🖱️ Gestes fondamentaux (PureRef style)
-1. **Glisser-déposer des images** depuis l'explorateur de fichiers OS directement dans la fenêtre → elles s'insèrent immédiatement à l'emplacement visé.
-2. **Pan (déplacer la vue)** :
+1. **Glisser-déposer des images** depuis l'explorateur de fichiers OS directement dans la fenêtre (WebP, PNG, JPEG, GIF, BMP) → elles s'insèrent immédiatement.
+2. **Coller depuis le presse-papiers (`Ctrl + V`)** :
+   - Copie n'importe quelle image depuis un navigateur (Pinterest, ArtStation, Google Images) ou capture d'écran, puis fais `Ctrl + V` dans Glucose : elle apparaît instantanément avec un toast de confirmation.
+3. **Bouton `+ Images` (`Ctrl + O`)** :
+   - Ouvre le sélecteur de fichiers natif de l'OS pour charger des lots complets d'images.
+4. **Pan (déplacer la vue)** :
    - Maintiens le **Clic milieu** et glisse la souris, OU
    - Maintiens le **Clic droit** et glisse la souris, OU
    - Maintiens la barre **`Espace`** et glisse avec le clic gauche.
-3. **Zoom au curseur** :
+5. **Zoom au curseur** :
    - Fais tourner la **molette de la souris** : le zoom s'effectue exactement centré sur le point du monde sous ton curseur.
-4. **Cadrer tout (Fit)** :
-   - Appuie sur **`Espace`** (sans glisser) ou sur **`F`** pour recalculer le cadrage optimal et afficher toutes tes images et annotations.
-5. **Always on Top (Épingler au-dessus)** :
-   - Appuie sur la touche **`T`** : Glucose reste au premier plan au-dessus de Blender, Photoshop, ZBrush ou Krita pendant que tu crées.
+6. **Cadrer tout (Fit)** :
+   - Appuie sur **`F`** pour recentrer la caméra sur l'origine du canvas.
+7. **Always on Top (Épingler au-dessus)** :
+   - Raccourci **`Alt + T`** : Glucose reste au premier plan au-dessus de Blender, Photoshop, ZBrush ou Krita pendant que tu crées.
+8. **Création rapide d'annotations** :
+   - **`T`** : Outil Carte Texte
+   - **`N`** : Outil Sticky Note
+   - **`A`** : Outil Flèche relationnelle
+   - **`M`** : Outil Membrane de regroupement
+   - **`V`** : Outil Sélection
+9. **Historique complet & Duplication** :
+   - **`Ctrl + Z`** : Annuler
+   - **`Ctrl + Y`** ou **`Ctrl + Shift + Z`** : Rétablir
+   - **`Ctrl + D`** : Dupliquer les éléments sélectionnés
+   - **`Suppr`** ou **`Retour arrière`** : Supprimer la sélection
+   - Bouton **`Ordonner`** : Réorganise instantanément les images et notes en grille propre.
 
 ---
 

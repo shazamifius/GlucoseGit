@@ -2,8 +2,10 @@
 
 mod app;
 mod canvas;
-mod rasterizer;
+mod icons;
 mod renderer;
+mod typography;
+mod ui;
 
 use app::GlucoseApp;
 use winit::event_loop::{ControlFlow, EventLoop};

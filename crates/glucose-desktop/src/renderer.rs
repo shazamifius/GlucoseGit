@@ -1,33 +1,34 @@
-//! Moteur de rendu 2D logiciel pour Glucose Desktop (PureRef-style).
-//! Entièrement basé sur notre propre Rasterizer pur Rust std (zéro dépendance vectorielle).
+//! Moteur de rendu 2D haute fidélité pour Glucose Desktop (PureRef-style).
+//! Utilise tiny-skia pour le rendu vectoriel anti-aliasé et fontdue pour la typographie.
 
 use crate::canvas::{screen_to_world, world_to_screen};
-use crate::rasterizer::FrameBuffer;
+use crate::typography::Typography;
+use crate::ui::{render_ui, UiState, TOTAL_HEADER_HEIGHT};
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
 use std::collections::HashMap;
 use std::path::Path;
-
-pub struct DecodedImage {
-    pub width: usize,
-    pub height: usize,
-    pub pixels: Vec<u32>, // 0xAARRGGBB
-}
+use tiny_skia::{
+    Color, FilterQuality, GradientStop, LineCap, Paint, PathBuilder, Pixmap, PixmapMut,
+    PixmapPaint, Point, RadialGradient, Rect, SpreadMode, Stroke, Transform,
+};
 
 pub struct Renderer {
-    pub image_cache: HashMap<String, DecodedImage>,
+    pub image_cache: HashMap<String, Pixmap>,
+    pub typography: Typography,
 }
 
 impl Renderer {
     pub fn new() -> Self {
         Self {
             image_cache: HashMap::new(),
+            typography: Typography::new(),
         }
     }
 
-    /// Charge ou récupère une image décodée en mémoire.
-    pub fn get_or_load_image(&mut self, src_or_path: &str) -> Option<&DecodedImage> {
+    /// Charge ou récupère une image décodée en Pixmap tiny-skia (supporte WebP, PNG, JPG, GIF, BMP).
+    pub fn get_or_load_image(&mut self, src_or_path: &str) -> Option<&Pixmap> {
         if self.image_cache.contains_key(src_or_path) {
             return self.image_cache.get(src_or_path);
         }
@@ -37,98 +38,108 @@ impl Renderer {
             if let Ok(dyn_img) = image::open(path) {
                 let rgba = dyn_img.to_rgba8();
                 let (w, h) = rgba.dimensions();
-                let raw = rgba.into_raw();
-                let mut pixels = Vec::with_capacity((w * h) as usize);
+                if let Some(mut pixmap) = Pixmap::new(w, h) {
+                    let src_bytes = rgba.into_raw();
+                    let dst_bytes = pixmap.data_mut();
 
-                for chunk in raw.chunks_exact(4) {
-                    let r = chunk[0] as u32;
-                    let g = chunk[1] as u32;
-                    let b = chunk[2] as u32;
-                    let a = chunk[3] as u32;
-                    pixels.push((a << 24) | (r << 16) | (g << 8) | b);
+                    // Conversion RGBA en prémultiplié pour tiny-skia
+                    for i in 0..(w as usize * h as usize) {
+                        let r = src_bytes[i * 4] as f32 / 255.0;
+                        let g = src_bytes[i * 4 + 1] as f32 / 255.0;
+                        let b = src_bytes[i * 4 + 2] as f32 / 255.0;
+                        let a = src_bytes[i * 4 + 3] as f32 / 255.0;
+
+                        dst_bytes[i * 4] = ((r * a) * 255.0) as u8;
+                        dst_bytes[i * 4 + 1] = ((g * a) * 255.0) as u8;
+                        dst_bytes[i * 4 + 2] = ((b * a) * 255.0) as u8;
+                        dst_bytes[i * 4 + 3] = (a * 255.0) as u8;
+                    }
+                    self.image_cache.insert(src_or_path.to_string(), pixmap);
+                    return self.image_cache.get(src_or_path);
                 }
-
-                self.image_cache.insert(
-                    src_or_path.to_string(),
-                    DecodedImage {
-                        width: w as usize,
-                        height: h as usize,
-                        pixels,
-                    },
-                );
-                return self.image_cache.get(src_or_path);
             }
         }
         None
     }
 
-    /// Rendu complet de la scène Glucose sur le framebuffer logiciel.
+    /// Rendu complet de la scène Glucose et de son interface
     pub fn render(
         &mut self,
-        fb: &mut FrameBuffer,
+        pixmap: &mut PixmapMut,
         store: &Store,
         guides: &SnapGuides,
         selection_box: Option<(f64, f64, f64, f64)>,
-        always_on_top: bool,
+        ui: &mut UiState,
+        mouse_x: f32,
+        mouse_y: f32,
     ) {
+        let width = pixmap.width();
+        let height = pixmap.height();
         let vp = store
             .active_board()
             .map(|b| b.viewport)
             .unwrap_or(Viewport::default());
 
-        // 1. Fond sombre PureRef (0x000D0E12)
-        fb.clear(0x000D0E12);
+        // 1. Fond sombre sleek PureRef #0D0E12
+        pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
 
         // 2. Grille de points infinie
-        self.draw_grid(fb, &vp);
+        self.draw_grid(pixmap, &vp, width, height);
 
-        // 3. Membranes
-        self.draw_membranes(fb, store, &vp);
+        // 3. Halos symbiotiques d'ambiance
+        self.draw_halos(pixmap, store, &vp);
 
-        // 4. Images
-        self.draw_images(fb, store, &vp);
+        // 4. Membranes
+        self.draw_membranes(pixmap, store, &vp);
 
-        // 5. Annotations (stickies, textes, flèches)
-        self.draw_annotations(fb, store, &vp);
+        // 5. Images
+        self.draw_images(pixmap, store, &vp);
 
-        // 6. Guides d'alignement SNAP-1
-        self.draw_guides(fb, guides, &vp);
+        // 6. Annotations (cartes de texte, stickies, flèches)
+        self.draw_annotations(pixmap, store, &vp);
 
-        // 7. Boîte de sélection élastique (Marquee)
-        if let Some((x1, y1, x2, y2)) = selection_box {
-            self.draw_selection_box(fb, x1, y1, x2, y2);
+        // 7. Guides d'alignement intelligents (SNAP-1)
+        if ui.smart_align {
+            self.draw_guides(pixmap, guides, &vp, width, height);
         }
 
-        // 8. HUD PureRef (Overlay statut et raccourcis)
-        self.draw_hud(fb, store, &vp, always_on_top);
+        // 8. Boîte de sélection élastique (Marquee)
+        if let Some((x1, y1, x2, y2)) = selection_box {
+            self.draw_selection_box(pixmap, x1, y1, x2, y2);
+        }
+
+        // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
+        render_ui(pixmap, store, ui, &self.typography, mouse_x, mouse_y);
     }
 
-    fn draw_grid(&self, fb: &mut FrameBuffer, vp: &Viewport) {
-        let (min_wx, min_wy) = screen_to_world(0.0, 0.0, vp);
-        let (max_wx, max_wy) = screen_to_world(fb.width as f64, fb.height as f64, vp);
+    fn draw_grid(&self, pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32) {
+        let (min_wx, min_wy) = screen_to_world(0.0, TOTAL_HEADER_HEIGHT as f64, vp);
+        let (max_wx, max_wy) = screen_to_world(w as f64, h as f64, vp);
 
-        let grid_step = if vp.scale > 2.0 {
-            20.0
-        } else if vp.scale < 0.2 {
-            100.0
-        } else {
-            40.0
-        };
-
+        let grid_step = 60.0;
         let start_x = (min_wx / grid_step).floor() * grid_step;
         let end_x = (max_wx / grid_step).ceil() * grid_step;
         let start_y = (min_wy / grid_step).floor() * grid_step;
         let end_y = (max_wy / grid_step).ceil() * grid_step;
 
-        let dot_color = 0x00262B35;
+        let dot_paint = {
+            let mut p = Paint::default();
+            p.set_color(Color::from_rgba8(255, 255, 255, 20));
+            p.anti_alias = true;
+            p
+        };
 
         let mut gx = start_x;
         while gx <= end_x {
             let mut gy = start_y;
             while gy <= end_y {
                 let (sx, sy) = world_to_screen(gx, gy, vp);
-                if sx >= 0.0 && (sx as usize) < fb.width && sy >= 0.0 && (sy as usize) < fb.height {
-                    fb.draw_dot(sx as i32, sy as i32, 1, dot_color);
+                if sy >= TOTAL_HEADER_HEIGHT as f64 {
+                    let mut pb = PathBuilder::new();
+                    pb.push_circle(sx as f32, sy as f32, 1.2);
+                    if let Some(path) = pb.finish() {
+                        pixmap.fill_path(&path, &dot_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                    }
                 }
                 gy += grid_step;
             }
@@ -136,7 +147,50 @@ impl Renderer {
         }
     }
 
-    fn draw_membranes(&self, fb: &mut FrameBuffer, store: &Store, vp: &Viewport) {
+    fn draw_halos(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
+        let board = match store.active_board() {
+            Some(b) => b,
+            None => return,
+        };
+
+        for ann in &board.annotations {
+            if let Annotation::Text { x, y, width, height, .. } = ann {
+                let (sx, sy) = world_to_screen(*x, *y, vp);
+                let w = width.unwrap_or(80.0) * vp.scale;
+                let h = height.unwrap_or(48.0) * vp.scale;
+
+                let cx = (sx + w / 2.0) as f32;
+                let cy = (sy + h / 2.0) as f32;
+                let radius = (w.max(h) * 1.6) as f32;
+
+                if radius > 10.0 {
+                    if let Some(shader) = RadialGradient::new(
+                        Point::from_xy(cx, cy),
+                        Point::from_xy(cx, cy),
+                        radius,
+                        vec![
+                            GradientStop::new(0.0, Color::from_rgba8(160, 90, 50, 24)),
+                            GradientStop::new(1.0, Color::from_rgba8(160, 90, 50, 0)),
+                        ],
+                        SpreadMode::Pad,
+                        Transform::identity(),
+                    ) {
+                        let mut p = Paint::default();
+                        p.shader = shader;
+                        p.anti_alias = true;
+
+                        let mut pb = PathBuilder::new();
+                        pb.push_circle(cx, cy, radius);
+                        if let Some(path) = pb.finish() {
+                            pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -145,32 +199,48 @@ impl Renderer {
         for ann in &board.annotations {
             if let Annotation::Membrane { id, x, y, width, height, text, .. } = ann {
                 let (sx, sy) = world_to_screen(*x, *y, vp);
-                let sw = (*width * vp.scale).max(4.0);
-                let sh = (*height * vp.scale).max(4.0);
+                let sw = (*width * vp.scale).max(4.0) as f32;
+                let sh = (*height * vp.scale).max(4.0) as f32;
 
-                let x0 = sx as i32;
-                let y0 = sy as i32;
-                let x1 = (sx + sw) as i32;
-                let y1 = (sy + sh) as i32;
+                if let Some(rect) = Rect::from_xywh(sx as f32, sy as f32, sw, sh) {
+                    // Fond translucide bleu
+                    let mut fill_paint = Paint::default();
+                    fill_paint.set_color(Color::from_rgba8(96, 165, 250, 18));
+                    pixmap.fill_rect(rect, &fill_paint, Transform::identity(), None);
 
-                // Fond translucide bleu
-                fb.fill_rect(x0, y0, x1, y1, 0x0060A5FA, 22);
+                    // Bordure
+                    let is_selected = store.selected_annotation_ids.contains(id);
+                    let mut stroke_paint = Paint::default();
+                    stroke_paint.set_color(if is_selected {
+                        Color::from_rgba8(56, 189, 248, 255)
+                    } else {
+                        Color::from_rgba8(96, 165, 250, 100)
+                    });
+                    let stroke = Stroke {
+                        width: if is_selected { 2.0 } else { 1.2 },
+                        dash: tiny_skia::StrokeDash::new(vec![5.0, 3.0], 0.0),
+                        ..Default::default()
+                    };
+                    let path = PathBuilder::from_rect(rect);
+                    pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
 
-                // Bordure
-                let is_selected = store.selected_annotation_ids.contains(id);
-                let stroke_color = if is_selected { 0x0038BDF8 } else { 0x0060A5FA };
-                let alpha = if is_selected { 255 } else { 120 };
-                fb.stroke_dashed_rect(x0, y0, x1, y1, stroke_color, 6, alpha);
-
-                // Libellé de la membrane
-                if let Some(lbl) = text {
-                    fb.draw_text(lbl, x0 + 8, y0 + 8, 1, 0x0093C5FD);
+                    if let Some(lbl) = text {
+                        self.typography.draw_text(
+                            pixmap,
+                            lbl,
+                            sx as f32 + 10.0,
+                            sy as f32 + 10.0,
+                            12.0,
+                            Color::from_rgba8(147, 197, 253, 220),
+                            true,
+                        );
+                    }
                 }
             }
         }
     }
 
-    fn draw_images(&mut self, fb: &mut FrameBuffer, store: &Store, vp: &Viewport) {
+    fn draw_images(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -198,52 +268,72 @@ impl Renderer {
 
             let is_selected = store.selected_image_ids.contains(&id);
 
-            let dst_x = sx as i32;
-            let dst_y = sy as i32;
-            let dst_w = sw as i32;
-            let dst_h = sh as i32;
-
             let mut drawn = false;
             if !src.is_empty() {
-                if let Some(loaded_img) = self.get_or_load_image(&src) {
-                    fb.blit_image(
-                        &loaded_img.pixels,
-                        loaded_img.width,
-                        loaded_img.height,
-                        dst_x,
-                        dst_y,
-                        dst_w,
-                        dst_h,
-                    );
+                if let Some(loaded_pixmap) = self.get_or_load_image(&src) {
+                    let ts = Transform::from_translate(sx as f32, sy as f32)
+                        .post_scale(sw / loaded_pixmap.width() as f32, sh / loaded_pixmap.height() as f32);
+                    let mut pp = PixmapPaint::default();
+                    pp.quality = FilterQuality::Bilinear;
+                    pixmap.draw_pixmap(0, 0, loaded_pixmap.as_ref(), &pp, ts, None);
                     drawn = true;
                 }
             }
 
             if !drawn {
-                // Placeholder pour image non trouvée sur disque
-                fb.fill_rect(dst_x, dst_y, dst_x + dst_w, dst_y + dst_h, 0x001E232D, 255);
-                fb.stroke_rect(dst_x, dst_y, dst_x + dst_w, dst_y + dst_h, 0x003C4655, 1, 255);
+                if let Some(rect) = Rect::from_xywh(sx as f32, sy as f32, sw, sh) {
+                    let mut p = Paint::default();
+                    p.set_color(Color::from_rgba8(30, 35, 45, 255));
+                    pixmap.fill_rect(rect, &p, Transform::identity(), None);
 
-                let label = format!("Image [{}]", id);
-                fb.draw_text(&label, dst_x + 8, dst_y + (dst_h / 2) - 4, 1, 0x008C96A5);
+                    let mut sp = Paint::default();
+                    sp.set_color(Color::from_rgba8(60, 70, 85, 255));
+                    let stroke = Stroke { width: 1.0, ..Default::default() };
+                    let path = PathBuilder::from_rect(rect);
+                    pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
+
+                    let label = format!("Image [{}]", id);
+                    self.typography.draw_text(
+                        pixmap,
+                        &label,
+                        sx as f32 + 10.0,
+                        sy as f32 + sh / 2.0 - 6.0,
+                        12.0,
+                        Color::from_rgba8(140, 150, 165, 200),
+                        false,
+                    );
+                }
             }
 
-            // Outline de sélection cyan
+            // Outline de sélection avec poignées
             if is_selected {
-                fb.stroke_rect(
-                    dst_x - 2,
-                    dst_y - 2,
-                    dst_x + dst_w + 2,
-                    dst_y + dst_h + 2,
-                    0x0038BDF8,
-                    2,
-                    255,
-                );
+                if let Some(rect) = Rect::from_xywh(sx as f32 - 1.0, sy as f32 - 1.0, sw + 2.0, sh + 2.0) {
+                    let mut sel_paint = Paint::default();
+                    sel_paint.set_color(Color::from_rgba8(56, 189, 248, 255));
+                    let stroke = Stroke { width: 2.0, ..Default::default() };
+                    let path = PathBuilder::from_rect(rect);
+                    pixmap.stroke_path(&path, &sel_paint, &stroke, Transform::identity(), None);
+
+                    // Poignées de coins
+                    let corners = [
+                        (sx as f32 - 4.0, sy as f32 - 4.0),
+                        (sx as f32 + sw - 4.0, sy as f32 - 4.0),
+                        (sx as f32 - 4.0, sy as f32 + sh - 4.0),
+                        (sx as f32 + sw - 4.0, sy as f32 + sh - 4.0),
+                    ];
+                    let mut handle_paint = Paint::default();
+                    handle_paint.set_color(Color::from_rgba8(255, 255, 255, 255));
+                    for (cx, cy) in corners {
+                        if let Some(hr) = Rect::from_xywh(cx, cy, 8.0, 8.0) {
+                            pixmap.fill_rect(hr, &handle_paint, Transform::identity(), None);
+                        }
+                    }
+                }
             }
         }
     }
 
-    fn draw_annotations(&self, fb: &mut FrameBuffer, store: &Store, vp: &Viewport) {
+    fn draw_annotations(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -251,105 +341,212 @@ impl Renderer {
 
         for ann in &board.annotations {
             match ann {
-                Annotation::Sticky { id, x, y, width, height, text, operator, .. } => {
+                Annotation::Text { id, x, y, width, height, text, .. } => {
                     let (sx, sy) = world_to_screen(*x, *y, vp);
-                    let sw = (width.unwrap_or(160.0) * vp.scale).max(8.0) as i32;
-                    let sh = (height.unwrap_or(120.0) * vp.scale).max(8.0) as i32;
-
-                    let x0 = sx as i32;
-                    let y0 = sy as i32;
-                    let x1 = x0 + sw;
-                    let y1 = y0 + sh;
-
-                    // Fond jaune sticky
-                    fb.fill_rect(x0, y0, x1, y1, 0x00FEF08A, 235);
+                    let sw = (width.unwrap_or(80.0) * vp.scale).max(50.0) as f32;
+                    let sh = (height.unwrap_or(48.0) * vp.scale).max(36.0) as f32;
 
                     let is_selected = store.selected_annotation_ids.contains(id);
-                    let stroke_color = if is_selected { 0x0038BDF8 } else { 0x00CA8A04 };
-                    let stroke_width = if is_selected { 2 } else { 1 };
-                    fb.stroke_rect(x0, y0, x1, y1, stroke_color, stroke_width, 255);
 
-                    if let Some(op) = operator {
-                        let op_str = format!("{:?}", op);
-                        fb.draw_text(&op_str, x0 + 8, y0 + 6, 1, 0x00A16207);
+                    // Carte en pilule arrondie #18181B (comme dans la capture Glucose)
+                    let mut pb = PathBuilder::new();
+                    let r = 18.0f32.min(sh / 2.0);
+                    pb.move_to(sx as f32 + r, sy as f32);
+                    pb.line_to(sx as f32 + sw - r, sy as f32);
+                    pb.quad_to(sx as f32 + sw, sy as f32, sx as f32 + sw, sy as f32 + r);
+                    pb.line_to(sx as f32 + sw, sy as f32 + sh - r);
+                    pb.quad_to(sx as f32 + sw, sy as f32 + sh, sx as f32 + sw - r, sy as f32 + sh);
+                    pb.line_to(sx as f32 + r, sy as f32 + sh);
+                    pb.quad_to(sx as f32, sy as f32 + sh, sx as f32, sy as f32 + sh - r);
+                    pb.line_to(sx as f32, sy as f32 + r);
+                    pb.quad_to(sx as f32, sy as f32, sx as f32 + r, sy as f32);
+                    pb.close();
+
+                    if let Some(path) = pb.finish() {
+                        let mut fill = Paint::default();
+                        fill.set_color(Color::from_rgba8(24, 24, 27, 245));
+                        fill.anti_alias = true;
+                        pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
+
+                        let mut stroke_paint = Paint::default();
+                        stroke_paint.set_color(if is_selected {
+                            Color::from_rgba8(56, 189, 248, 255)
+                        } else {
+                            Color::from_rgba8(45, 45, 52, 255)
+                        });
+                        let stroke = Stroke {
+                            width: if is_selected { 2.0 } else { 1.0 },
+                            ..Default::default()
+                        };
+                        pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
                     }
 
-                    fb.draw_text(text, x0 + 8, y0 + 22, 1, 0x001C1917);
-                }
-                Annotation::Text { id, x, y, text, .. } => {
-                    let (sx, sy) = world_to_screen(*x, *y, vp);
-                    let is_selected = store.selected_annotation_ids.contains(id);
-                    let color = if is_selected { 0x0038BDF8 } else { 0x00F1F5F9 };
+                    // Texte vectoriel anti-aliasé centré
+                    let font_size = (14.0 * vp.scale).clamp(11.0, 24.0) as f32;
+                    let (tw, th) = self.typography.measure_text(text, font_size, false);
+                    let tx = (sx as f32 + (sw - tw) / 2.0).max(sx as f32 + 8.0);
+                    let ty = (sy as f32 + (sh - th) / 2.0).max(sy as f32 + 4.0);
 
-                    fb.draw_text(text, sx as i32, sy as i32, 1, color);
+                    self.typography.draw_text(
+                        pixmap,
+                        text,
+                        tx,
+                        ty,
+                        font_size,
+                        Color::from_rgba8(255, 255, 255, 255),
+                        false,
+                    );
+                }
+                Annotation::Sticky { id, x, y, width, height, text, operator, .. } => {
+                    let (sx, sy) = world_to_screen(*x, *y, vp);
+                    let sw = (width.unwrap_or(160.0) * vp.scale).max(60.0) as f32;
+                    let sh = (height.unwrap_or(120.0) * vp.scale).max(40.0) as f32;
+
+                    let is_selected = store.selected_annotation_ids.contains(id);
+
+                    if let Some(rect) = Rect::from_xywh(sx as f32, sy as f32, sw, sh) {
+                        let mut p = Paint::default();
+                        p.set_color(Color::from_rgba8(254, 240, 138, 240));
+                        pixmap.fill_rect(rect, &p, Transform::identity(), None);
+
+                        let mut sp = Paint::default();
+                        sp.set_color(if is_selected {
+                            Color::from_rgba8(56, 189, 248, 255)
+                        } else {
+                            Color::from_rgba8(202, 138, 4, 180)
+                        });
+                        let stroke = Stroke {
+                            width: if is_selected { 2.0 } else { 1.0 },
+                            ..Default::default()
+                        };
+                        let path = PathBuilder::from_rect(rect);
+                        pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
+
+                        let mut cur_ty = sy as f32 + 8.0;
+
+                        if let Some(op) = operator {
+                            let op_str = format!("{:?}", op);
+                            self.typography.draw_text(
+                                pixmap,
+                                &op_str,
+                                sx as f32 + 8.0,
+                                cur_ty,
+                                11.0,
+                                Color::from_rgba8(161, 98, 7, 255),
+                                true,
+                            );
+                            cur_ty += 16.0;
+                        }
+
+                        self.typography.draw_text(
+                            pixmap,
+                            text,
+                            sx as f32 + 8.0,
+                            cur_ty,
+                            12.0,
+                            Color::from_rgba8(28, 25, 23, 255),
+                            false,
+                        );
+                    }
                 }
                 Annotation::Arrow { id, x, y, x2, y2, .. } => {
                     let (sx1, sy1) = world_to_screen(*x, *y, vp);
                     let (sx2, sy2) = world_to_screen(*x2, *y2, vp);
 
                     let is_selected = store.selected_annotation_ids.contains(id);
-                    let color = if is_selected { 0x0038BDF8 } else { 0x0094A3B8 };
-                    let width = if is_selected { 3 } else { 2 };
+                    let color = if is_selected {
+                        Color::from_rgba8(56, 189, 248, 255)
+                    } else {
+                        Color::from_rgba8(148, 163, 184, 220)
+                    };
 
-                    fb.draw_arrow(sx1 as i32, sy1 as i32, sx2 as i32, sy2 as i32, color, width, 12.0);
+                    let mut pb = PathBuilder::new();
+                    pb.move_to(sx1 as f32, sy1 as f32);
+                    pb.line_to(sx2 as f32, sy2 as f32);
+
+                    let angle = ((sy2 - sy1) as f32).atan2((sx2 - sx1) as f32);
+                    let arrow_len = 12.0f32;
+                    let arrow_angle = 0.45f32;
+
+                    let left_x = sx2 as f32 - arrow_len * (angle - arrow_angle).cos();
+                    let left_y = sy2 as f32 - arrow_len * (angle - arrow_angle).sin();
+                    let right_x = sx2 as f32 - arrow_len * (angle + arrow_angle).cos();
+                    let right_y = sy2 as f32 - arrow_len * (angle + arrow_angle).sin();
+
+                    pb.move_to(sx2 as f32, sy2 as f32);
+                    pb.line_to(left_x, left_y);
+                    pb.move_to(sx2 as f32, sy2 as f32);
+                    pb.line_to(right_x, right_y);
+
+                    if let Some(path) = pb.finish() {
+                        let mut p = Paint::default();
+                        p.set_color(color);
+                        p.anti_alias = true;
+                        let stroke = Stroke {
+                            width: if is_selected { 2.5 } else { 1.8 },
+                            line_cap: LineCap::Round,
+                            ..Default::default()
+                        };
+                        pixmap.stroke_path(&path, &p, &stroke, Transform::identity(), None);
+                    }
                 }
                 _ => {}
             }
         }
     }
 
-    fn draw_guides(&self, fb: &mut FrameBuffer, guides: &SnapGuides, vp: &Viewport) {
-        let guide_color = 0x00EC4899; // Magenta SNAP-1
+    fn draw_guides(&self, pixmap: &mut PixmapMut, guides: &SnapGuides, vp: &Viewport, w: u32, h: u32) {
+        let mut guide_paint = Paint::default();
+        guide_paint.set_color(Color::from_rgba8(236, 72, 153, 200));
+        let stroke = Stroke { width: 1.0, ..Default::default() };
 
         if let Some(ref xs) = guides.x {
             for &gx in xs {
                 let (sx, _) = world_to_screen(gx, 0.0, vp);
-                fb.draw_line(sx as i32, 0, sx as i32, fb.height as i32, guide_color, 1);
+                let mut pb = PathBuilder::new();
+                pb.move_to(sx as f32, TOTAL_HEADER_HEIGHT);
+                pb.line_to(sx as f32, h as f32);
+                if let Some(path) = pb.finish() {
+                    pixmap.stroke_path(&path, &guide_paint, &stroke, Transform::identity(), None);
+                }
             }
         }
 
         if let Some(ref ys) = guides.y {
             for &gy in ys {
                 let (_, sy) = world_to_screen(0.0, gy, vp);
-                fb.draw_line(0, sy as i32, fb.width as i32, sy as i32, guide_color, 1);
+                if sy >= TOTAL_HEADER_HEIGHT as f64 {
+                    let mut pb = PathBuilder::new();
+                    pb.move_to(0.0, sy as f32);
+                    pb.line_to(w as f32, sy as f32);
+                    if let Some(path) = pb.finish() {
+                        pixmap.stroke_path(&path, &guide_paint, &stroke, Transform::identity(), None);
+                    }
+                }
             }
         }
     }
 
-    fn draw_selection_box(&self, fb: &mut FrameBuffer, x1: f64, y1: f64, x2: f64, y2: f64) {
-        let left = x1.min(x2) as i32;
-        let top = y1.min(y2) as i32;
-        let right = x1.max(x2) as i32;
-        let bottom = y1.max(y2) as i32;
+    fn draw_selection_box(&self, pixmap: &mut PixmapMut, x1: f64, y1: f64, x2: f64, y2: f64) {
+        let left = x1.min(x2) as f32;
+        let top = y1.min(y2) as f32;
+        let width = (x1 - x2).abs() as f32;
+        let height = (y1 - y2).abs() as f32;
 
-        fb.fill_rect(left, top, right, bottom, 0x0038BDF8, 30);
-        fb.stroke_dashed_rect(left, top, right, bottom, 0x0038BDF8, 4, 200);
-    }
+        if let Some(rect) = Rect::from_xywh(left, top, width, height) {
+            let mut fill = Paint::default();
+            fill.set_color(Color::from_rgba8(56, 189, 248, 30));
+            pixmap.fill_rect(rect, &fill, Transform::identity(), None);
 
-    fn draw_hud(&self, fb: &mut FrameBuffer, store: &Store, vp: &Viewport, always_on_top: bool) {
-        let board_name = store.active_board().map(|b| b.name.as_str()).unwrap_or("Main");
-        let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
-        let ann_count = store.active_board().map(|b| b.annotations.len()).unwrap_or(0);
-
-        // Status gauche
-        let info_text = format!(
-            "GLUCOSE | Board: {} | {} images | {} notes",
-            board_name, img_count, ann_count
-        );
-        let h = fb.height as i32;
-        let w = fb.width as i32;
-
-        fb.draw_text(&info_text, 12, h - 20, 1, 0x0094A3B8);
-
-        // Zoom & statut droite
-        let zoom_pct = (vp.scale * 100.0).round() as i32;
-        let top_indicator = if always_on_top { "[ON TOP]" } else { "" };
-        let right_text = format!("{}  Zoom: {}%", top_indicator, zoom_pct);
-        let right_x = w - (right_text.len() as i32 * 8) - 12;
-        fb.draw_text(&right_text, right_x, h - 20, 1, 0x0094A3B8);
-
-        // Aide raccourcis haut
-        let help_text = "Clic-Glisser: Selection/Deplacement | Clic-Droit/Alt: Pan | Molette: Zoom | T: Always on Top | Del: Suppr";
-        fb.draw_text(help_text, 12, 12, 1, 0x0064748B);
+            let mut stroke_paint = Paint::default();
+            stroke_paint.set_color(Color::from_rgba8(56, 189, 248, 180));
+            let stroke = Stroke {
+                width: 1.0,
+                dash: tiny_skia::StrokeDash::new(vec![4.0, 3.0], 0.0),
+                ..Default::default()
+            };
+            let path = PathBuilder::from_rect(rect);
+            pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
+        }
     }
 }

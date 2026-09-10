@@ -9,9 +9,12 @@
 
 Glucose est désormais un **logiciel desktop natif PureRef réécrit intégralement en Rust from scratch** :
 - **`crates/glucose-core`** : Moteur pur en **100% Rust `std` avec strictement ZÉRO dépendance externe** (aucune crate tierce). Logique pure, déterministe et indestructible.
-- **`crates/glucose-desktop`** : Client desktop natif offrant l'expérience complète de PureRef avec rendu logiciel vectoriel (`tiny-skia` + `softbuffer` + `winit`), garantissant une **compatibilité universelle avec 100% des OS et des noyaux** (Windows, Linux X11/Wayland, macOS, BSD) sans besoin de carte graphique ni de pilote GPU propriétaire.
-- **Moteur de police bitmap intégré** (`font.rs` + `font_data.rs`) en pur Rust sans aucune dépendance de fichier de police système.
-- **202 tests Rust (37 unitaires + 165 d'intégration) verts à 100%** (`cargo test --workspace` passe en 0.00s sans aucun warning).
+- **`crates/glucose-desktop`** : Client desktop natif offrant l'expérience complète de PureRef avec rendu logiciel vectoriel anti-aliasé (`tiny-skia` + `fontdue` + `softbuffer` + `winit`), garantissant une **compatibilité universelle avec 100% des OS et des noyaux** (Windows, Linux X11/Wayland, macOS, BSD) sans besoin de carte graphique ni de pilote GPU propriétaire.
+- **Typographie vectorielle intégrée** (`typography.rs`) utilisant les polices vectorielles KaTeX intégrées directement au binaire (`assets/font.ttf`, `assets/font_bold.ttf`).
+- **Interface visuelle Glucose fidèle à 100%** : TopBar 44px, BoardTabs 34px, Minimap 180x120px interactive, toasts de notification avec fondu alpha, cartes pilules #18181B avec halos d'ambiance et stickies jaunes.
+- **Presse-papiers instantané (`Ctrl+V`)** : collage d'images depuis n'importe quel navigateur (Pinterest, ArtStation, etc.) ou presse-papiers avec sauvegarde automatique dans le cache.
+- **Sélecteur de fichiers natif (`+ Images`)** et drag & drop universel (WebP, PNG, JPEG, GIF, BMP).
+- **204 tests Rust (39 unitaires + 165 d'intégration) verts à 100%** (`cargo test --workspace` passe sans aucun warning).
 - **Zéro warning du compilateur** : code propre, types rigoureux, zéro unsafe inutile.
 
 ---
@@ -44,14 +47,16 @@ crates/
 │   └── tests/                   # 14 suites d'intégration exhaustives
 │
 └── glucose-desktop/
-    ├── Cargo.toml               # winit 0.30, softbuffer 0.4, tiny-skia 0.11, image 0.25
+    ├── Cargo.toml               # winit 0.30, softbuffer 0.4, tiny-skia 0.11, fontdue 0.9, arboard 3.4, rfd 0.15, image 0.25
+    ├── assets/                  # Polices TrueType vectorielles KaTeX intégrées
     └── src/
         ├── main.rs              # Point d'entrée de l'application
-        ├── app.rs               # Winit event loop, drag-and-drop OS, raccourcis PureRef
+        ├── app.rs               # Winit event loop, drag-and-drop OS, presse-papiers, raccourcis PureRef
         ├── canvas.rs            # Mappings Écran <-> Monde et zoom centré curseur
-        ├── renderer.rs          # Rendu 2D logiciel (grille, membranes, images, sélecteurs, HUD)
-        ├── font.rs              # Moteur de rendu de glyphes bitmap 8x8 pur Rust
-        └── font_data.rs         # Table binaire de glyphes ASCII/Latin
+        ├── renderer.rs          # Rendu 2D haute fidélité (fond #0D0E12, grille, halos, pilules #18181B)
+        ├── typography.rs        # Typographie vectorielle anti-aliasée TrueType (fontdue)
+        ├── icons.rs             # Tracé vectoriel de toutes les icônes de Glucose (tiny-skia)
+        └── ui.rs                # TopBar (44px), BoardTabs (34px), Minimap (180x120), Toasts animés
 ```
 
 ---
