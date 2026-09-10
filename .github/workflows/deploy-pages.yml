@@ -5,8 +5,6 @@ name: Deploy Web (PWA) to GitHub Pages
 # réservé à l'app desktop Tauri.)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
