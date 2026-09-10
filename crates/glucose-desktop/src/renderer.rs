@@ -1068,3 +1068,76 @@ impl Renderer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use glucose_core::types::Annotation;
+
+    fn make_test_card(id: &str, x: f64, y: f64) -> Annotation {
+        Annotation::Text {
+            id: id.into(),
+            x,
+            y,
+            width: Some(200.0),
+            height: Some(50.0),
+            text: format!("Card {}", id),
+            font_size: Some(14.0),
+            color: None,
+            cursor_pos: None,
+            source_file: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        }
+    }
+
+    #[test]
+    fn test_symbiotic_hue_cache_invalidation_radius() {
+        let mut cache = SymbioticHueCache::new();
+
+        // 3 cartes : T1 à (0,0), T2 à (500,0) (voisine), T3 à (3000,0) (lointaine)
+        let t1 = make_test_card("T1", 0.0, 0.0);
+        let t2 = make_test_card("T2", 500.0, 0.0);
+        let t3 = make_test_card("T3", 3000.0, 0.0);
+        let list = vec![t1.clone(), t2.clone(), t3.clone()];
+
+        cache.update_positions_and_invalidate(&list);
+        let _ = cache.get_or_compute(&t1, &list);
+        let _ = cache.get_or_compute(&t2, &list);
+        let _ = cache.get_or_compute(&t3, &list);
+
+        assert_eq!(cache.entries.len(), 3);
+
+        // Déplacer T1 de 50 px : T1 et T2 (< 1200 px) doivent être invalidées, T3 (> 1200 px) doit rester
+        let t1_moved = make_test_card("T1", 50.0, 0.0);
+        let list_moved = vec![t1_moved.clone(), t2.clone(), t3.clone()];
+
+        cache.update_positions_and_invalidate(&list_moved);
+
+        // T3 est restée en cache
+        assert!(cache.entries.contains_key("T3"));
+        // T1 et T2 ont été invalidées car dans le rayon de 1 200 px
+        assert!(!cache.entries.contains_key("T1"));
+        assert!(!cache.entries.contains_key("T2"));
+    }
+
+    #[test]
+    fn test_symbiotic_hue_cache_stationary_preserves_all_entries() {
+        let mut cache = SymbioticHueCache::new();
+        let t1 = make_test_card("T1", 100.0, 100.0);
+        let t2 = make_test_card("T2", 200.0, 200.0);
+        let list = vec![t1.clone(), t2.clone()];
+
+        cache.update_positions_and_invalidate(&list);
+        let (h1, _) = cache.get_or_compute(&t1, &list);
+        let (h2, _) = cache.get_or_compute(&t2, &list);
+
+        // Deuxième frame stationnaire : aucune modification de position
+        cache.update_positions_and_invalidate(&list);
+        assert_eq!(cache.entries.len(), 2);
+        assert_eq!(cache.entries.get("T1").unwrap().hue, h1);
+        assert_eq!(cache.entries.get("T2").unwrap().hue, h2);
+    }
+}

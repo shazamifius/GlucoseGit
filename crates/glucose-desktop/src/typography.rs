@@ -3,9 +3,9 @@
 //! Dispose d'un cache de glyphes (atlas mémoire) et d'un mélange alpha prémultiplié (R-26, R-27).
 
 use fontdue::{Font, FontSettings, Metrics};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::rc::Rc;
 use tiny_skia::{Color, PixmapMut};
 
 #[derive(Clone)]
@@ -17,7 +17,8 @@ pub struct GlyphEntry {
 pub struct Typography {
     pub regular: Font,
     pub bold: Font,
-    glyph_cache: RefCell<HashMap<(bool, char, u16), Arc<GlyphEntry>>>,
+    glyph_cache: RefCell<HashMap<(bool, char, u16), (Rc<GlyphEntry>, u64)>>,
+    access_counter: Cell<u64>,
 }
 
 impl Typography {
@@ -32,33 +33,37 @@ impl Typography {
             regular,
             bold,
             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
+            access_counter: Cell::new(0),
         }
     }
 
-    /// Récupère ou rastérise un glyphe avec mise en cache (R-26).
-    pub fn get_glyph(&self, ch: char, size: f32, bold: bool) -> (char, Arc<GlyphEntry>) {
+    /// Récupère ou rastérise un glyphe avec mise en cache LRU sans atomicité Arc (R-26, R-40).
+    pub fn get_glyph(&self, ch: char, size: f32, bold: bool) -> (char, Rc<GlyphEntry>) {
         let font = if bold { &self.bold } else { &self.regular };
         let safe_ch = normalize_char(font, ch);
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
         let key = (bold, safe_ch, size_key);
 
-        if let Some(entry) = self.glyph_cache.borrow().get(&key) {
+        let access = self.access_counter.get().wrapping_add(1);
+        self.access_counter.set(access);
+
+        let mut cache = self.glyph_cache.borrow_mut();
+        if let Some((entry, last_access)) = cache.get_mut(&key) {
+            *last_access = access;
             return (safe_ch, entry.clone());
         }
 
         let (metrics, bitmap) = font.rasterize(safe_ch, size);
-        let entry = Arc::new(GlyphEntry { metrics, bitmap });
+        let entry = Rc::new(GlyphEntry { metrics, bitmap });
 
-        let mut cache = self.glyph_cache.borrow_mut();
-        if cache.len() > 4096 {
-            // Éviction progressive : garder la moitié au lieu d'une table rase complète (R-40)
-            let mut count = 0;
-            cache.retain(|_, _| {
-                count += 1;
-                count % 2 == 0
-            });
+        if cache.len() >= 4096 {
+            // Éviction LRU (R-40) : évincer les 25% les plus anciens au lieu d'une table rase complète
+            let mut accesses: Vec<u64> = cache.values().map(|(_, a)| *a).collect();
+            accesses.sort_unstable();
+            let cutoff = accesses[accesses.len() / 4];
+            cache.retain(|_, (_, a)| *a > cutoff);
         }
-        cache.insert(key, entry.clone());
+        cache.insert(key, (entry.clone(), access));
 
         (safe_ch, entry)
     }
@@ -325,5 +330,32 @@ mod tests {
             true,
         );
         assert!(next_x > 10.0);
+    }
+
+    #[test]
+    fn test_lru_glyph_cache_eviction_retains_frequent_entries() {
+        let typo = Typography::new();
+        // Remplir avec 4096 glyphes uniques (différentes tailles)
+        for i in 0..4096 {
+            let size = 10.0 + (i as f32) * 0.1;
+            typo.get_glyph('A', size, false);
+        }
+        assert_eq!(typo.cached_glyph_count(), 4096);
+
+        // Ré-accéder fréquemment à un glyphe particulier pour qu'il ait un timestamp récent
+        typo.get_glyph('A', 10.0, false);
+
+        // Insérer un 4097e glyphe pour déclencher l'éviction LRU
+        typo.get_glyph('B', 12.0, false);
+
+        // L'éviction des 25% les plus anciens ramène la taille à ~3072 + 1
+        let count = typo.cached_glyph_count();
+        assert!(count < 4096);
+        assert!(count >= 3072);
+
+        // Le glyphe fréquemment ré-accédé doit toujours être présent en cache sans réallocation
+        let pre_count = typo.cached_glyph_count();
+        typo.get_glyph('A', 10.0, false);
+        assert_eq!(typo.cached_glyph_count(), pre_count);
     }
 }

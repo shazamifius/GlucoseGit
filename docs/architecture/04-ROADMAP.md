@@ -101,7 +101,7 @@ pour très peu de code neuf.
 | 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | ✅ **VÉRIFIÉ** — `mark_dirty()` → `request_redraw()` |
 | 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | 🟡 **(traité à vérifier)** — cadence exacte : curseur 500ms, plateau statique toast sans repaint, Pomodoro 1s, suppression du `mark_dirty` inconditionnel |
 | 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2 | *(coalescé / partiel)* |
-| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | ⚠️ **PARTIEL** — cache OK ; éviction `clear()` totale, `Arc` par glyphe |
+| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | 🟡 **(traité à vérifier)** — cache LRU avec conservation des 75% les plus récents, remplacement d'Arc par Rc, sortie de data_mut() des boucles internes |
 
 ### 1C — Le branchement du noyau
 

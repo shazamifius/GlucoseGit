@@ -1228,7 +1228,7 @@ visuel a effectivement changé.
 
 ---
 
-## R-39 — Allocations par frame dans le cache de teintes et l'index spatial
+## R-39 — Allocations par frame dans le cache de teintes et l'index spatial — 🟡 (traité à vérifier)
 
 **Gravité : MAJEUR.** Les deux optimisations de la phase 1 réallouent à chaque frame ce
 qu'elles sont censées éviter de recalculer.
@@ -1271,7 +1271,7 @@ carte réindexe les 10 000.
 
 ---
 
-## R-40 — Défauts ponctuels de la typographie
+## R-40 — Défauts ponctuels de la typographie — 🟡 (traité à vérifier)
 
 **Gravité : MINEUR à MAJEUR selon le point.**
 [typography.rs](../../crates/glucose-desktop/src/typography.rs)
