@@ -42,6 +42,7 @@ fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f3
     pb.close();
 }
 
+#[allow(dead_code)]
 pub fn draw_icon(
     pixmap: &mut PixmapMut,
     icon: IconType,

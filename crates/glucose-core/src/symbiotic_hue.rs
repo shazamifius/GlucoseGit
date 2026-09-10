@@ -153,9 +153,9 @@ mod tests {
         let h2 = get_zone_hue(10.0, 10.0);
         let h3 = get_zone_hue(2000.0, 2000.0);
 
-        assert!(h1 >= 0.0 && h1 <= 360.0);
-        assert!(h2 >= 0.0 && h2 <= 360.0);
-        assert!(h3 >= 0.0 && h3 <= 360.0);
+        assert!((0.0..=360.0).contains(&h1));
+        assert!((0.0..=360.0).contains(&h2));
+        assert!((0.0..=360.0).contains(&h3));
         // Continuité : petit déplacement donne petit delta
         assert!((h1 - h2).abs() < 15.0);
     }

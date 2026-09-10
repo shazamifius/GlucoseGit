@@ -194,12 +194,11 @@ fn test_workflow_fleches_deplacement_source_la_fleche_suit() {
     store.add_annotation("main", mk_text("T2", 200.0, 0.0, "node 2"));
     store.add_annotation("main", mk_arrow("A1", Some("T1"), Some("T2"), 0.0, 0.0, 200.0, 0.0));
 
-    store.update_annotation("main", "T1", |a| match a {
-        Annotation::Text { x, y, .. } => {
+    store.update_annotation("main", "T1", |a| {
+        if let Annotation::Text { x, y, .. } = a {
             *x = 100.0;
             *y = 100.0;
         }
-        _ => {}
     });
 
     let updated = store
@@ -262,7 +261,7 @@ fn test_workflow_100_mutations_100_undos_100_redos() {
     for _ in 0..100 {
         store.redo();
     }
-    assert!(store.active_board().unwrap().images.len() > 0);
+    assert!(!store.active_board().unwrap().images.is_empty());
 }
 
 #[test]

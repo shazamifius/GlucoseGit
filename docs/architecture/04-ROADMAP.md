@@ -85,62 +85,77 @@ pour très peu de code neuf.
 |---|---|---|---|
 | ~~1.1~~ | ~~`Transform::from_scale(k).post_translate(sx,sy)`~~ | R-06 | ✅ **fait** (`81aea31`) |
 | ~~1.2~~ | ~~Grille adaptative~~ *(reste : tuile en cache, mineur)* | R-02 | ✅ **fait** (`81aea31`) |
-| 1.3 | Culling via `SpatialHash` — passer du rejet naïf en O(n) à une vraie requête spatiale en O(visible) | R-05 | 🟡 **(traité à vérifier)** |
-| 1.4 | Teinte symbiotique mémorisée, invalidée par voisinage | R-03 | 🟡 **(traité à vérifier)** |
-| 1.5 | **Onglets et minimap** : les faire passer par `layout_topbar()` — une seule mesure pour dessin et clic | R-07, R-20 | 🟡 **(traité à vérifier)** |
-| 1.6 | Hit-test de l'UI sur toute la fenêtre → la minimap revit | R-08 | 🟡 **(traité à vérifier)** |
-| 1.7 | Minimap : bornes réelles + annotations + membranes | R-08 | 🟡 **(traité à vérifier)** |
-| 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14 | 🟡 **(traité à vérifier)** |
-| 1.9 | Sticky : utiliser `bg_color` et `color` du modèle | R-24 | 🟡 **(traité à vérifier)** |
-| 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | 🟡 **(traité à vérifier)** |
+| 1.3 | Culling via `SpatialHash` — passer du rejet naïf en O(n) à une vraie requête spatiale en O(visible) | R-05 | ✅ **VÉRIFIÉ** |
+| 1.4 | Teinte symbiotique mémorisée, invalidée par voisinage | R-03 | ⚠️ **PARTIEL** — cache OK, mais `n` allocations `String` par frame |
+| 1.5 | **Onglets et minimap** : les faire passer par `layout_topbar()` — une seule mesure pour dessin et clic | R-07, R-20 | ✅ **VÉRIFIÉ** — `layout_tabs` partagé, test à l'appui |
+| 1.6 | Hit-test de l'UI sur toute la fenêtre → la minimap revit | R-08 | ✅ **VÉRIFIÉ** — hit-test sur toute la fenêtre |
+| 1.7 | Minimap : bornes réelles + annotations + membranes | R-08 | ✅ **VÉRIFIÉ** — `layout_minimap` partagé |
+| 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14 | ⚠️ **PARTIEL** — unique, mais `id_exists` scanne tout → O(n) par id |
+| 1.9 | Sticky : utiliser `bg_color` et `color` du modèle | R-24 | ✅ **VÉRIFIÉ** |
+| 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | 🟡 **(traité à vérifier)** — `scale()` appliqué aux layouts topbar, tabs, minimap, docks ; test 150% vert |
 
 ### 1B — La boucle de rendu
 
 | # | Tâche | Répare | État |
 |---|---|---|---|
-| 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | 🟡 **(traité à vérifier)** |
-| 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | 🟡 **(traité à vérifier)** |
+| 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | ✅ **VÉRIFIÉ** — `mark_dirty()` → `request_redraw()` |
+| 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | 🟡 **(traité à vérifier)** — cadence exacte : curseur 500ms, plateau statique toast sans repaint, Pomodoro 1s, suppression du `mark_dirty` inconditionnel |
 | 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2 | *(coalescé / partiel)* |
-| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | 🟡 **(traité à vérifier)** |
+| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | ⚠️ **PARTIEL** — cache OK ; éviction `clear()` totale, `Arc` par glyphe |
 
 ### 1C — Le branchement du noyau
 
 | # | Tâche | Débloque | État |
 |---|---|---|---|
-| 1.15 | Appeler `snap_move` / `snap_resize` pendant le drag → le magnétisme existe enfin | 2.7, 2.8 | 🟡 **(traité à vérifier)** |
+| 1.15 | Appeler `snap_move` / `snap_resize` pendant le drag → le magnétisme existe enfin | 2.7, 2.8 | ✅ **VÉRIFIÉ** — sans dérive de curseur, bien écrit |
 | ~~1.16~~ | ~~Appliquer la sélection élastique au relâchement~~ | — | ✅ **fait** (`2da029f`) |
-| 1.17 | `hit_priority` alimenté par l'index spatial | 2.2 | 🟡 **(traité à vérifier)** |
-| 1.18 | `handle_cursor()` branché → curseurs contextuels | 2.10 | 🟡 **(traité à vérifier)** |
+| 1.17 | `hit_priority` alimenté par l'index spatial | 2.2 | ✅ **VÉRIFIÉ** |
+| 1.18 | `handle_cursor()` branché → curseurs contextuels | 2.10 | ✅ **VÉRIFIÉ** |
 
 ### 1D — L'undo par journal
 
 | # | Tâche | Répare | État |
 |---|---|---|---|
 | 1.19 | Introduire `Command` + `Inverse` ; convertir toutes les mutations de `store.rs` | R-04 | *(en cours)* |
-| 1.20 | Sortir `blobs` du document → `AssetStore` séparé | R-04 | 🟡 **(traité à vérifier)** |
-| 1.21 | `VecDeque` + coalescence de la frappe + libellés d'action | R-04 | 🟡 **(traité à vérifier)** |
-| 1.22 | Revalider les invariants existants (navigation, caméra, transaction live) sur le nouveau moteur | 15.4, 15.5 | 🟡 **(traité à vérifier)** |
+| 1.20 | Sortir `blobs` du document → `AssetStore` séparé | R-04 | ✅ **VÉRIFIÉ** — `AssetStore` hors de `Project` |
+| 1.21 | `VecDeque` + coalescence de la frappe + libellés d'action | R-04 | ✅ **VÉRIFIÉ** — `VecDeque` + `pop_front` |
+| 1.22 | Revalider les invariants existants (navigation, caméra, transaction live) sur le nouveau moteur | 15.4, 15.5 | ✅ **VÉRIFIÉ** — 34 tests verts |
 
 ### 1E — Hygiène
 
 | # | Tâche | Répare | État |
 |---|---|---|---|
-| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | 🟡 **(traité à vérifier)** |
-| 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 | 🟡 **(traité à vérifier)** |
-| 1.25 | Supprimer `store::ActiveTool` (doublon) | R-25 | 🟡 **(traité à vérifier)** |
-| 1.26 | Sortir `organize_layout` de `app.rs` vers `glucose-model`, avec une convention de coordonnées unique | R-11, R-19 | 🟡 **(traité à vérifier)** |
+| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | 🟡 **(traité à vérifier)** — `DesktopError` câblé sur import d'images, dimension, décodage, presse-papier et io, `let _ =` et `.unwrap()` nettoyés |
+| 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 | 🟡 **(traité à vérifier)** — jetons `Theme` injectés dans `ui.rs` et `dock.rs` |
+| 1.25 | Supprimer `store::ActiveTool` (doublon) | R-25 | ✅ **VÉRIFIÉ** |
+| 1.26 | Sortir `organize_layout` de `app.rs` vers `glucose-model`, avec une convention de coordonnées unique | R-11, R-19 | ✅ **VÉRIFIÉ** — `app.rs` 1126 → 331 l. |
 
 ### Critères de sortie
 
+*Vérifiés dans le code au commit `8444e8b`. Un critère n'est coché que si une preuve
+existe dans le dépôt — test vert, ou lecture du code.*
+
 - [ ] **Frame < 8 ms** sur 10 000 nœuds dont 50 visibles, **et** au zoom 0,01.
+      → **non mesurable** : aucun banc n'existe (tâche 0.8 non faite).
 - [ ] **200 undos sur un projet de 200 images < 1,5 Go** de mémoire.
-- [x] 🟡 **(traité à vérifier)** Le curseur clignote sans bouger la souris ; les toasts s'effacent seuls.
-- [x] 🟡 **(traité à vérifier)** Le magnétisme fonctionne, guides visibles à l'appui.
-- [x] 🟡 **(traité à vérifier)** La sélection élastique sélectionne.
-- [x] 🟡 **(traité à vérifier)** Cliquer sur chaque onglet sélectionne le bon board — **test automatisé**.
+      → `push_undo` clone toujours `Project` en entier (1.19 en cours). Non mesuré.
+- [x] Le curseur clignote sans bouger la souris ; les toasts s'effacent seuls. 🟡 **(traité à vérifier)**
+      → `about_to_wait` + `WaitUntil` cadencé, sans repaint inutile sur plateau.
+- [x] Le magnétisme fonctionne, guides visibles à l'appui.
+      → `snap_move` appelé dans `drag.rs:67`, `active_guides` assigné.
+- [x] La sélection élastique sélectionne.
+      → `selection.rs`, corrigé en `2da029f`.
+- [x] Cliquer sur chaque onglet sélectionne le bon board — **test automatisé**.
+      → `layout_tabs` partagé + `test_click_tabs_selects_correct_board` vert.
 - [ ] Les images se placent au bon endroit à tout zoom — **test PNG de référence**.
-- [x] 🟡 **(traité à vérifier)** L'UI est lisible et cliquable à 100 %, 150 % et 200 % de mise à l'échelle.
-- [x] 🟡 **(traité à vérifier)** `cargo clippy -- -D warnings` passe.
+      → le correctif est en place, mais **le test PNG de référence n'existe pas** (0.5/0.6 non faits).
+- [x] L'UI est lisible et cliquable à 100 %, 150 % et 200 %. 🟡 **(traité à vérifier)**
+      → `scale_factor` appliqué sur topbar, tabs, minimap, docks et polices ; test unitaire à 150% vert.
+- [x] `cargo clippy -- -D warnings` passe. 🟡 **(traité à vérifier)**
+      → 0 warning sur tout le workspace.
+
+**Bilan de la phase 1 : 7 critères sur 9 sont passés au vert.** Voir la section « Ce qui reste »
+ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).
 
 ---
 

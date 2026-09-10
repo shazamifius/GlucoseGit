@@ -2,6 +2,7 @@
 //! Reproduit fidèlement PanelDock.tsx, OrganizePanel.tsx, PomodoroTimer.tsx,
 //! StoryboardControls.tsx, PresetPanel.tsx, DomainsPanel.tsx, PluginPanel.tsx.
 
+use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::store::Store;
 use glucose_core::types::BoardImage;
@@ -377,6 +378,7 @@ pub struct PanelLayoutBox {
     pub width: f32,
     pub height: f32,
     pub grip_y: f32,
+    pub grip_height: f32,
     pub is_dragged: bool,
     pub visual_offset_x: f32,
     pub visual_offset_y: f32,
@@ -392,7 +394,7 @@ impl PanelLayoutBox {
     pub fn grip_contains_point(&self, px: f32, py: f32) -> bool {
         let vx = self.x + self.visual_offset_x;
         let gy = self.grip_y + self.visual_offset_y;
-        px >= vx && px < vx + self.width && py >= gy && py < gy + 16.0
+        px >= vx && px < vx + self.width && py >= gy && py < gy + self.grip_height
     }
 }
 
@@ -401,17 +403,20 @@ pub fn compute_panel_layouts(
     _screen_w: f32,
     screen_h: f32,
     header_h: f32,
+    scale: f32,
 ) -> Vec<PanelLayoutBox> {
     let mut layouts = Vec::new();
+    let s = scale.max(0.5);
 
     // 1. Top-left dock (Plugins, Preset, Domains)
-    let top_start_y = header_h + 8.0;
-    let mut cur_x = 12.0;
+    let top_start_y = header_h + 8.0 * s;
+    let mut cur_x = 12.0 * s;
 
     for &tab in &dock.top_tabs {
-        let w = tab.default_width();
-        let h = tab.default_height().min(screen_h - top_start_y - 24.0);
-        let grip_y = top_start_y + h - 16.0; // Grip at bottom for top-left drawer
+        let w = tab.default_width() * s;
+        let h = (tab.default_height() * s).min(screen_h - top_start_y - 24.0 * s);
+        let grip_h = 16.0 * s;
+        let grip_y = top_start_y + h - grip_h;
 
         let (is_dragged, vox, voy) = if let Some(ref d) = dock.drag {
             if d.tab == tab {
@@ -430,21 +435,23 @@ pub fn compute_panel_layouts(
             width: w,
             height: h,
             grip_y,
+            grip_height: grip_h,
             is_dragged,
             visual_offset_x: vox,
             visual_offset_y: voy,
         });
 
-        cur_x += w + 10.0;
+        cur_x += w + 10.0 * s;
     }
 
     // 2. Bottom-left dock (Organize, Pomodoro, Storyboard)
-    cur_x = 12.0;
+    cur_x = 12.0 * s;
     for &tab in &dock.bottom_tabs {
-        let w = tab.default_width();
-        let h = tab.default_height().min(screen_h - header_h - 24.0);
-        let y = screen_h - h - 12.0;
-        let grip_y = y; // Grip at top for bottom-left panel
+        let w = tab.default_width() * s;
+        let h = (tab.default_height() * s).min(screen_h - header_h - 24.0 * s);
+        let y = screen_h - h - 12.0 * s;
+        let grip_h = 16.0 * s;
+        let grip_y = y;
 
         let (is_dragged, vox, voy) = if let Some(ref d) = dock.drag {
             if d.tab == tab {
@@ -463,12 +470,13 @@ pub fn compute_panel_layouts(
             width: w,
             height: h,
             grip_y,
+            grip_height: grip_h,
             is_dragged,
             visual_offset_x: vox,
             visual_offset_y: voy,
         });
 
-        cur_x += w + 10.0;
+        cur_x += w + 10.0 * s;
     }
 
     layouts
@@ -490,11 +498,11 @@ fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f3
     pb.close();
 }
 
-fn draw_grip_dots(pixmap: &mut PixmapMut, cx: f32, cy: f32, active: bool) {
+fn draw_grip_dots(pixmap: &mut PixmapMut, cx: f32, cy: f32, active: bool, theme: &Theme, scale: f32) {
     let color = if active {
-        Color::from_rgba8(160, 160, 160, 255)
+        theme.dock_grip_active
     } else {
-        Color::from_rgba8(75, 75, 80, 255)
+        theme.dock_grip_inactive
     };
 
     let mut paint = Paint::default();
@@ -502,19 +510,321 @@ fn draw_grip_dots(pixmap: &mut PixmapMut, cx: f32, cy: f32, active: bool) {
     paint.anti_alias = true;
 
     // Deux colonnes de trois points (⠿⠿ style Glucose)
+    let s = scale.max(0.5);
     let mut pb = PathBuilder::new();
-    let col_xs = [cx - 6.0, cx - 2.0, cx + 3.0, cx + 7.0];
-    let row_ys = [cy - 3.0, cy, cy + 3.0];
+    let col_xs = [cx - 6.0 * s, cx - 2.0 * s, cx + 3.0 * s, cx + 7.0 * s];
+    let row_ys = [cy - 3.0 * s, cy, cy + 3.0 * s];
 
     for &x in &col_xs {
         for &y in &row_ys {
-            pb.push_circle(x, y, 0.9);
+            pb.push_circle(x, y, 0.9 * s);
         }
     }
 
     if let Some(path) = pb.finish() {
         pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
     }
+}
+
+// ── Structures de Layout Unifié pour Panneaux (R-37, R-34) ──────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WidgetRect {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+}
+
+impl WidgetRect {
+    pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self { x, y, w, h }
+    }
+
+    pub fn contains(&self, px: f32, py: f32) -> bool {
+        px >= self.x && px < self.x + self.w && py >= self.y && py < self.y + self.h
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OrganizeSortButton {
+    pub sort_type: SortType,
+    pub label: &'static str,
+    pub rect: WidgetRect,
+}
+
+#[derive(Debug, Clone)]
+pub struct OrganizeLayoutModeItem {
+    pub mode: LayoutMode,
+    pub title: &'static str,
+    pub desc: &'static str,
+    pub rect: WidgetRect,
+}
+
+#[derive(Debug, Clone)]
+pub struct OrganizePanelLayout {
+    pub target_count_rect: WidgetRect,
+    pub sort_buttons: Vec<OrganizeSortButton>,
+    pub layout_modes: Vec<OrganizeLayoutModeItem>,
+    pub target_size_rect: WidgetRect,
+    pub gap_rect: WidgetRect,
+    pub apply_rect: WidgetRect,
+}
+
+pub fn layout_organize_panel(
+    px: f32,
+    py: f32,
+    pw: f32,
+    ph: f32,
+    _state: &OrganizeState,
+    typo: &Typography,
+    scale: f32,
+) -> OrganizePanelLayout {
+    let s = scale.max(0.5);
+    let pad_x = 14.0 * s;
+    let target_count_rect = WidgetRect::new(px + pad_x, py + 38.0 * s, pw - 28.0 * s, 24.0 * s);
+    let mut cy = py + (38.0 + 32.0 + 14.0) * s;
+
+    let sort_buttons_def = [
+        (SortType::None, "Ordre actuel"),
+        (SortType::Color, "Couleur"),
+        (SortType::SizeDesc, "Grand → Petit"),
+        (SortType::SizeAsc, "Petit → Grand"),
+        (SortType::RatioPort, "Portrait"),
+        (SortType::RatioLand, "Paysage"),
+        (SortType::LumAsc, "Sombre → Clair"),
+        (SortType::LumDesc, "Clair → Sombre"),
+    ];
+
+    let mut sort_buttons = Vec::with_capacity(sort_buttons_def.len());
+    let mut sx = px + pad_x;
+    for (st, lbl) in sort_buttons_def {
+        let (tw, _) = typo.measure_text(lbl, 10.0 * s, false);
+        let bw = tw + 14.0 * s;
+        if sx + bw > px + pw - pad_x {
+            sx = px + pad_x;
+            cy += 22.0 * s;
+        }
+        let rect = WidgetRect::new(sx, cy, bw, 18.0 * s);
+        sort_buttons.push(OrganizeSortButton {
+            sort_type: st,
+            label: lbl,
+            rect,
+        });
+        sx += bw + 4.0 * s;
+    }
+    cy += 28.0 * s + 14.0 * s;
+
+    let layout_options_def = [
+        (LayoutMode::Compact, "Rangées compactes", "Respecte les ratios, remplit chaque ligne"),
+        (LayoutMode::Masonry, "Masonry (colonnes)", "Colonnes indépendantes — Pinterest"),
+        (LayoutMode::Grid, "Grille alignée", "Même largeur par colonne, ratios conservés"),
+        (LayoutMode::SameHeight, "Même hauteur", "Hauteur fixe, largeur proportionnelle"),
+        (LayoutMode::BySlot, "Par slot preset", "Colonnes séparées par catégorie"),
+    ];
+
+    let mut layout_modes = Vec::with_capacity(layout_options_def.len());
+    let lh = 30.0 * s;
+    for (lm, title, desc) in layout_options_def {
+        let rect = WidgetRect::new(px + pad_x, cy, pw - 28.0 * s, lh);
+        layout_modes.push(OrganizeLayoutModeItem {
+            mode: lm,
+            title,
+            desc,
+            rect,
+        });
+        cy += lh + 2.0 * s;
+    }
+    cy += 6.0 * s + 12.0 * s;
+
+    let col_w = (pw - 28.0 * s - 8.0 * s) / 2.0;
+    let target_size_rect = WidgetRect::new(px + pad_x, cy, col_w, 20.0 * s);
+    let gap_rect = WidgetRect::new(px + pad_x + col_w + 8.0 * s, cy, col_w, 20.0 * s);
+
+    let apply_rect = WidgetRect::new(px + pad_x, py + ph - 38.0 * s, pw - 28.0 * s, 26.0 * s);
+
+    OrganizePanelLayout {
+        target_count_rect,
+        sort_buttons,
+        layout_modes,
+        target_size_rect,
+        gap_rect,
+        apply_rect,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PomodoroPresetButton {
+    pub label: &'static str,
+    pub seconds: u32,
+    pub rect: WidgetRect,
+}
+
+#[derive(Debug, Clone)]
+pub struct PomodoroPanelLayout {
+    pub ring_cx: f32,
+    pub ring_cy: f32,
+    pub ring_radius: f32,
+    pub start_button: WidgetRect,
+    pub reset_button: WidgetRect,
+    pub presets: Vec<PomodoroPresetButton>,
+}
+
+pub fn layout_pomodoro_panel(
+    px: f32,
+    py: f32,
+    pw: f32,
+    _ph: f32,
+    state: &PomodoroState,
+    typo: &Typography,
+    scale: f32,
+) -> PomodoroPanelLayout {
+    let s = scale.max(0.5);
+    let cx = px + pw / 2.0;
+    let cy = py + 72.0 * s;
+    let r = 32.0 * s;
+
+    let by = py + 124.0 * s;
+    let btn_txt = if state.running { "Pause" } else { "Démarrer" };
+    let (btw, _) = typo.measure_text(btn_txt, 11.0 * s, false);
+    let bw = btw + 22.0 * s;
+
+    let start_button = WidgetRect::new(px + 22.0 * s, by, bw, 22.0 * s);
+    let reset_button = WidgetRect::new(px + 22.0 * s + bw + 6.0 * s, by, 22.0 * s, 22.0 * s);
+
+    let py2 = by + 28.0 * s;
+    let presets_def = [("25 min", 25 * 60), ("15 min", 15 * 60), ("5 min", 5 * 60)];
+    let pr_w = (pw - 28.0 * s - 8.0 * s) / 3.0;
+    let mut presets = Vec::with_capacity(3);
+    for (i, (lbl, secs)) in presets_def.into_iter().enumerate() {
+        let pr_x = px + 14.0 * s + i as f32 * (pr_w + 4.0 * s);
+        presets.push(PomodoroPresetButton {
+            label: lbl,
+            seconds: secs,
+            rect: WidgetRect::new(pr_x, py2, pr_w, 18.0 * s),
+        });
+    }
+
+    PomodoroPanelLayout {
+        ring_cx: cx,
+        ring_cy: cy,
+        ring_radius: r,
+        start_button,
+        reset_button,
+        presets,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StoryboardPanelLayout {
+    pub format_button: WidgetRect,
+    pub width_input: WidgetRect,
+    pub cols_input: WidgetRect,
+    pub gap_input: WidgetRect,
+    pub cells: Vec<WidgetRect>,
+    pub activate_button: WidgetRect,
+}
+
+pub fn layout_storyboard_panel(
+    px: f32,
+    py: f32,
+    pw: f32,
+    ph: f32,
+    scale: f32,
+) -> StoryboardPanelLayout {
+    let s = scale.max(0.5);
+    let pad_x = 14.0 * s;
+    let format_button = WidgetRect::new(px + pad_x, py + 52.0 * s, pw - 28.0 * s, 24.0 * s);
+
+    let cy = py + 84.0 * s + 12.0 * s;
+    let col_w = (pw - 28.0 * s - 12.0 * s) / 3.0;
+    let width_input = WidgetRect::new(px + pad_x, cy, col_w, 20.0 * s);
+    let cols_input = WidgetRect::new(px + pad_x + col_w + 6.0 * s, cy, col_w, 20.0 * s);
+    let gap_input = WidgetRect::new(px + pad_x + (col_w + 6.0 * s) * 2.0, cy, col_w, 20.0 * s);
+
+    let cell_y = cy + 30.0 * s;
+    let grid_w = pw - 28.0 * s;
+    let gcols = 4;
+    let grows = 2;
+    let cell_w = (grid_w - (gcols - 1) as f32 * 3.0 * s) / gcols as f32;
+    let cell_h = 24.0 * s;
+    let mut cells = Vec::with_capacity(gcols * grows);
+    for r in 0..grows {
+        for c in 0..gcols {
+            let cx = px + pad_x + c as f32 * (cell_w + 3.0 * s);
+            let cy_cell = cell_y + r as f32 * (cell_h + 3.0 * s);
+            cells.push(WidgetRect::new(cx, cy_cell, cell_w, cell_h));
+        }
+    }
+
+    let activate_button = WidgetRect::new(px + pad_x, py + ph - 38.0 * s, pw - 28.0 * s, 28.0 * s);
+
+    StoryboardPanelLayout {
+        format_button,
+        width_input,
+        cols_input,
+        gap_input,
+        cells,
+        activate_button,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PluginsPanelLayout {
+    pub download_button: WidgetRect,
+    pub card_rect: WidgetRect,
+    pub density_options: Vec<WidgetRect>,
+    pub disposition_options: Vec<WidgetRect>,
+}
+
+pub fn layout_plugins_panel(
+    px: f32,
+    py: f32,
+    pw: f32,
+    _ph: f32,
+    scale: f32,
+) -> PluginsPanelLayout {
+    let s = scale.max(0.5);
+    let pad_x = 14.0 * s;
+    let download_button = WidgetRect::new(px + pad_x, py + 104.0 * s, pw - 28.0 * s, 24.0 * s);
+    let card_rect = WidgetRect::new(px + pad_x, py + 152.0 * s, pw - 28.0 * s, 54.0 * s);
+
+    let dens_y = py + 244.0 * s;
+    let mut density_options = Vec::with_capacity(3);
+    for i in 0..3 {
+        density_options.push(WidgetRect::new(px + pad_x, dens_y + i as f32 * 16.0 * s, pw - 28.0 * s, 16.0 * s));
+    }
+
+    let disp_y = dens_y + 3.0 * 16.0 * s + 20.0 * s;
+    let mut disposition_options = Vec::with_capacity(2);
+    for i in 0..2 {
+        disposition_options.push(WidgetRect::new(px + pad_x, disp_y + i as f32 * 16.0 * s, pw - 28.0 * s, 16.0 * s));
+    }
+
+    PluginsPanelLayout {
+        download_button,
+        card_rect,
+        density_options,
+        disposition_options,
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DomainsPanelLayout {
+    pub add_button: WidgetRect,
+}
+
+pub fn layout_domains_panel(
+    px: f32,
+    py: f32,
+    pw: f32,
+    ph: f32,
+    scale: f32,
+) -> DomainsPanelLayout {
+    let s = scale.max(0.5);
+    let pad_x = 14.0 * s;
+    let add_button = WidgetRect::new(px + pad_x, py + ph - 40.0 * s, pw - 28.0 * s, 26.0 * s);
+    DomainsPanelLayout { add_button }
 }
 
 // ── Rendu Global des Docks Déroulants ─────────────────────────────────────
@@ -524,13 +834,16 @@ pub fn render_docks(
     dock: &DockManager,
     store: &Store,
     typo: &Typography,
+    theme: &Theme,
     screen_w: f32,
     screen_h: f32,
     header_h: f32,
+    scale: f32,
     mx: f32,
     my: f32,
 ) {
-    let layouts = compute_panel_layouts(dock, screen_w, screen_h, header_h);
+    let s = scale.max(0.5);
+    let layouts = compute_panel_layouts(dock, screen_w, screen_h, header_h, s);
 
     for b in &layouts {
         let px = b.x + b.visual_offset_x;
@@ -548,57 +861,57 @@ pub fn render_docks(
         sp.set_color(shadow_color);
         sp.anti_alias = true;
         let mut spb = PathBuilder::new();
-        push_rounded_rect(&mut spb, px - 2.0, py + 3.0, pw + 4.0, ph + 4.0, 8.0);
+        push_rounded_rect(&mut spb, px - 2.0 * s, py + 3.0 * s, pw + 4.0 * s, ph + 4.0 * s, 8.0 * s);
         if let Some(path) = spb.finish() {
             pixmap.fill_path(&path, &sp, tiny_skia::FillRule::Winding, Transform::identity(), None);
         }
 
-        // 2. Fond du panneau (#111111)
+        // 2. Fond du panneau
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(Color::from_rgba8(17, 17, 17, 255));
+        bg_paint.set_color(theme.bg_panel);
         bg_paint.anti_alias = true;
         let mut bpb = PathBuilder::new();
-        push_rounded_rect(&mut bpb, px, py, pw, ph, 6.0);
+        push_rounded_rect(&mut bpb, px, py, pw, ph, 6.0 * s);
         if let Some(path) = bpb.finish() {
             pixmap.fill_path(&path, &bg_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
-            // Bordure 1px #222222 (ou #444444 si en cours de drag)
+            // Bordure
             let border_color = if b.is_dragged {
-                Color::from_rgba8(68, 68, 68, 255)
+                theme.border_accent
             } else {
-                Color::from_rgba8(34, 34, 34, 255)
+                theme.border_subtle
             };
             let mut border_paint = Paint::default();
             border_paint.set_color(border_color);
             border_paint.anti_alias = true;
-            let stroke = Stroke { width: 1.0, ..Default::default() };
+            let stroke = Stroke { width: 1.0 * s, ..Default::default() };
             pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
         }
 
         // 3. Poignée `⠿⠿`
         let gy = b.grip_y + b.visual_offset_y;
-        let is_grip_hover = mx >= px && mx < px + pw && my >= gy && my < gy + 16.0;
-        draw_grip_dots(pixmap, px + pw / 2.0, gy + 8.0, b.is_dragged || is_grip_hover);
+        let is_grip_hover = b.grip_contains_point(mx, my);
+        draw_grip_dots(pixmap, px + pw / 2.0, gy + b.grip_height / 2.0, b.is_dragged || is_grip_hover, theme, s);
 
         // 4. Rendu du contenu spécifique du panneau
         match b.tab {
             TabId::Organize => {
-                render_organize_content(pixmap, &dock.organize, store, typo, px, py, pw, ph, mx, my);
+                render_organize_content(pixmap, &dock.organize, store, typo, theme, px, py, pw, ph, s, mx, my);
             }
             TabId::Pomodoro => {
-                render_pomodoro_content(pixmap, &dock.pomodoro, typo, px, py, pw, ph, mx, my);
+                render_pomodoro_content(pixmap, &dock.pomodoro, typo, theme, px, py, pw, ph, s, mx, my);
             }
             TabId::Storyboard => {
-                render_storyboard_content(pixmap, &dock.storyboard, typo, px, py, pw, ph, mx, my);
+                render_storyboard_content(pixmap, &dock.storyboard, typo, theme, px, py, pw, ph, s, mx, my);
             }
             TabId::Plugins => {
-                render_plugins_content(pixmap, &dock.plugins, typo, px, py, pw, ph, mx, my);
+                render_plugins_content(pixmap, &dock.plugins, typo, theme, px, py, pw, ph, s, mx, my);
             }
             TabId::Preset => {
-                render_preset_content(pixmap, &dock.presets, typo, px, py, pw, ph, mx, my);
+                render_preset_content(pixmap, &dock.presets, typo, theme, px, py, pw, ph, s, mx, my);
             }
             TabId::Domains => {
-                render_domains_content(pixmap, &dock.domains, store, typo, px, py, pw, ph, mx, my);
+                render_domains_content(pixmap, &dock.domains, store, typo, theme, px, py, pw, ph, s, mx, my);
             }
         }
     }
@@ -611,24 +924,27 @@ fn render_organize_content(
     state: &OrganizeState,
     store: &Store,
     typo: &Typography,
+    theme: &Theme,
     px: f32,
     py: f32,
     pw: f32,
-    _ph: f32,
-    _mx: f32,
-    _my: f32,
+    ph: f32,
+    scale: f32,
+    mx: f32,
+    my: f32,
 ) {
+    let s = scale.max(0.5);
     typo.draw_text(
         pixmap,
         "ORDONNER",
-        px + 14.0,
-        py + 18.0,
-        12.0,
-        Color::from_rgba8(204, 204, 204, 255),
+        px + 14.0 * s,
+        py + 18.0 * s,
+        12.0 * s,
+        theme.text_primary,
         true,
     );
 
-    let mut cy = py + 38.0;
+    let layout = layout_organize_panel(px, py, pw, ph, state, typo, s);
 
     // Badge Cible
     let sel_count = store.selected_image_ids.len();
@@ -640,160 +956,148 @@ fn render_organize_content(
     };
 
     let mut tbox_paint = Paint::default();
-    tbox_paint.set_color(if sel_count > 0 {
-        Color::from_rgba8(35, 30, 0, 255)
-    } else {
-        Color::from_rgba8(26, 26, 26, 255)
-    });
+    tbox_paint.set_color(theme.bg_card);
     tbox_paint.anti_alias = true;
     let mut tpb = PathBuilder::new();
-    push_rounded_rect(&mut tpb, px + 14.0, cy, pw - 28.0, 24.0, 3.0);
+    push_rounded_rect(&mut tpb, layout.target_count_rect.x, layout.target_count_rect.y, layout.target_count_rect.w, layout.target_count_rect.h, 3.0 * s);
     if let Some(p) = tpb.finish() {
         pixmap.fill_path(&p, &tbox_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
     }
     typo.draw_text(
         pixmap,
         &target_str,
-        px + 22.0,
-        cy + 6.0,
-        11.0,
-        if sel_count > 0 { Color::from_rgba8(220, 190, 0, 255) } else { Color::from_rgba8(110, 110, 115, 255) },
+        layout.target_count_rect.x + 8.0 * s,
+        layout.target_count_rect.y + 6.0 * s,
+        11.0 * s,
+        if sel_count > 0 { theme.accent_primary } else { theme.text_secondary },
         false,
     );
-    cy += 32.0;
 
     // TRIER AVANT DISPOSITION
     typo.draw_text(
         pixmap,
         "TRIER AVANT DISPOSITION",
-        px + 14.0,
-        cy,
-        9.5,
-        Color::from_rgba8(85, 85, 85, 255),
+        px + 14.0 * s,
+        py + 70.0 * s,
+        9.5 * s,
+        theme.text_muted,
         true,
     );
-    cy += 14.0;
 
-    let sort_buttons = [
-        (SortType::None, "Ordre actuel"),
-        (SortType::Color, "Couleur"),
-        (SortType::SizeDesc, "Grand → Petit"),
-        (SortType::SizeAsc, "Petit → Grand"),
-        (SortType::RatioPort, "Portrait"),
-        (SortType::RatioLand, "Paysage"),
-        (SortType::LumAsc, "Sombre → Clair"),
-        (SortType::LumDesc, "Clair → Sombre"),
-    ];
-
-    let mut sx = px + 14.0;
-    for (st, lbl) in sort_buttons {
-        let (tw, _) = typo.measure_text(lbl, 10.0, false);
-        let bw = tw + 14.0;
-        if sx + bw > px + pw - 14.0 {
-            sx = px + 14.0;
-            cy += 22.0;
-        }
-
-        let is_active = state.sort_by == st;
+    for btn in &layout.sort_buttons {
+        let is_active = state.sort_by == btn.sort_type;
+        let is_hover = btn.rect.contains(mx, my);
         let mut bp = Paint::default();
-        bp.set_color(if is_active { Color::from_rgba8(45, 45, 45, 255) } else { Color::from_rgba8(26, 26, 26, 255) });
+        bp.set_color(if is_active { theme.bg_active } else if is_hover { theme.bg_hover } else { theme.btn_bg });
         bp.anti_alias = true;
         let mut bpb = PathBuilder::new();
-        push_rounded_rect(&mut bpb, sx, cy, bw, 18.0, 3.0);
+        push_rounded_rect(&mut bpb, btn.rect.x, btn.rect.y, btn.rect.w, btn.rect.h, 3.0 * s);
         if let Some(p) = bpb.finish() {
             pixmap.fill_path(&p, &bp, tiny_skia::FillRule::Winding, Transform::identity(), None);
-            if is_active {
-                let mut sp = Paint::default();
-                sp.set_color(Color::from_rgba8(68, 68, 68, 255));
-                let stroke = Stroke { width: 1.0, ..Default::default() };
-                pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
-            }
+            let stroke_color = if is_active { theme.border_accent } else { theme.btn_border };
+            let mut sp = Paint::default();
+            sp.set_color(stroke_color);
+            let stroke = Stroke { width: 1.0 * s, ..Default::default() };
+            pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
         }
-        typo.draw_text(pixmap, lbl, sx + 7.0, cy + 4.0, 10.0, if is_active { Color::from_rgba8(230, 230, 230, 255) } else { Color::from_rgba8(115, 115, 120, 255) }, is_active);
-
-        sx += bw + 4.0;
+        let (tw, _) = typo.measure_text(btn.label, 10.0 * s, false);
+        typo.draw_text(
+            pixmap,
+            btn.label,
+            btn.rect.x + (btn.rect.w - tw) / 2.0,
+            btn.rect.y + 4.0 * s,
+            10.0 * s,
+            if is_active { theme.text_primary } else { theme.text_secondary },
+            is_active,
+        );
     }
-    cy += 28.0;
 
     // DISPOSITION
-    typo.draw_text(
-        pixmap,
-        "DISPOSITION",
-        px + 14.0,
-        cy,
-        9.5,
-        Color::from_rgba8(85, 85, 85, 255),
-        true,
-    );
-    cy += 14.0;
+    if let Some(first_mode) = layout.layout_modes.first() {
+        typo.draw_text(
+            pixmap,
+            "DISPOSITION",
+            px + 14.0 * s,
+            first_mode.rect.y - 14.0 * s,
+            9.5 * s,
+            theme.text_muted,
+            true,
+        );
+    }
 
-    let layout_options = [
-        (LayoutMode::Compact, "Rangées compactes", "Respecte les ratios, remplit chaque ligne"),
-        (LayoutMode::Masonry, "Masonry (colonnes)", "Colonnes indépendantes — Pinterest"),
-        (LayoutMode::Grid, "Grille alignée", "Même largeur par colonne, ratios conservés"),
-        (LayoutMode::SameHeight, "Même hauteur", "Hauteur fixe, largeur proportionnelle"),
-        (LayoutMode::BySlot, "Par slot preset", "Colonnes séparées par catégorie"),
-    ];
-
-    for (lm, title, desc) in layout_options {
-        let is_active = state.layout == lm;
-        let lh = 30.0;
+    for item in &layout.layout_modes {
+        let is_active = state.layout == item.mode;
+        let is_hover = item.rect.contains(mx, my);
         let mut lp = Paint::default();
-        lp.set_color(if is_active { Color::from_rgba8(30, 30, 30, 255) } else { Color::TRANSPARENT });
+        lp.set_color(if is_active { theme.bg_active } else if is_hover { theme.bg_hover } else { Color::TRANSPARENT });
         lp.anti_alias = true;
         let mut lpb = PathBuilder::new();
-        push_rounded_rect(&mut lpb, px + 14.0, cy, pw - 28.0, lh, 4.0);
+        push_rounded_rect(&mut lpb, item.rect.x, item.rect.y, item.rect.w, item.rect.h, 4.0 * s);
         if let Some(p) = lpb.finish() {
-            if is_active {
+            if is_active || is_hover {
                 pixmap.fill_path(&p, &lp, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            }
+            if is_active {
                 let mut sp = Paint::default();
-                sp.set_color(Color::from_rgba8(50, 50, 50, 255));
-                let stroke = Stroke { width: 1.0, ..Default::default() };
+                sp.set_color(theme.border_accent);
+                let stroke = Stroke { width: 1.0 * s, ..Default::default() };
                 pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
             }
         }
 
-        typo.draw_text(pixmap, title, px + 22.0, cy + 4.0, 11.0, if is_active { Color::from_rgba8(255, 255, 255, 255) } else { Color::from_rgba8(150, 150, 155, 255) }, is_active);
-        typo.draw_text(pixmap, desc, px + 22.0, cy + 17.0, 9.0, Color::from_rgba8(80, 80, 85, 255), false);
-        cy += lh + 2.0;
+        typo.draw_text(
+            pixmap,
+            item.title,
+            item.rect.x + 8.0 * s,
+            item.rect.y + 4.0 * s,
+            11.0 * s,
+            if is_active { theme.text_primary } else { theme.text_secondary },
+            is_active,
+        );
+        typo.draw_text(
+            pixmap,
+            item.desc,
+            item.rect.x + 8.0 * s,
+            item.rect.y + 17.0 * s,
+            9.0 * s,
+            theme.text_muted,
+            false,
+        );
     }
-    cy += 6.0;
 
     // LARGEUR CIBLE & ESPACEMENT
-    let col_w = (pw - 28.0 - 8.0) / 2.0;
-    typo.draw_text(pixmap, "LARGEUR CIBLE", px + 14.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), true);
-    typo.draw_text(pixmap, "ESPACEMENT", px + 14.0 + col_w + 8.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 12.0;
+    typo.draw_text(pixmap, "LARGEUR CIBLE", layout.target_size_rect.x, layout.target_size_rect.y - 12.0 * s, 9.0 * s, theme.text_muted, true);
+    typo.draw_text(pixmap, "ESPACEMENT", layout.gap_rect.x, layout.gap_rect.y - 12.0 * s, 9.0 * s, theme.text_muted, true);
 
     // Inputs
     let mut in_p = Paint::default();
-    in_p.set_color(Color::from_rgba8(26, 26, 26, 255));
+    in_p.set_color(theme.input_bg);
     in_p.anti_alias = true;
     let mut in_pb = PathBuilder::new();
-    push_rounded_rect(&mut in_pb, px + 14.0, cy, col_w, 20.0, 3.0);
-    push_rounded_rect(&mut in_pb, px + 14.0 + col_w + 8.0, cy, col_w, 20.0, 3.0);
+    push_rounded_rect(&mut in_pb, layout.target_size_rect.x, layout.target_size_rect.y, layout.target_size_rect.w, layout.target_size_rect.h, 3.0 * s);
+    push_rounded_rect(&mut in_pb, layout.gap_rect.x, layout.gap_rect.y, layout.gap_rect.w, layout.gap_rect.h, 3.0 * s);
     if let Some(p) = in_pb.finish() {
         pixmap.fill_path(&p, &in_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, &format!("{}", state.size as i32), px + 22.0, cy + 4.0, 11.0, Color::from_rgba8(200, 200, 200, 255), false);
-    typo.draw_text(pixmap, &format!("{}", state.gap as i32), px + 14.0 + col_w + 16.0, cy + 4.0, 11.0, Color::from_rgba8(200, 200, 200, 255), false);
-    cy += 28.0;
+    typo.draw_text(pixmap, &format!("{}", state.size as i32), layout.target_size_rect.x + 8.0 * s, layout.target_size_rect.y + 4.0 * s, 11.0 * s, theme.text_primary, false);
+    typo.draw_text(pixmap, &format!("{}", state.gap as i32), layout.gap_rect.x + 8.0 * s, layout.gap_rect.y + 4.0 * s, 11.0 * s, theme.text_primary, false);
 
     // Bouton APPLIQUER
+    let is_apply_hover = layout.apply_rect.contains(mx, my);
     let mut btn_p = Paint::default();
-    btn_p.set_color(Color::from_rgba8(34, 34, 34, 255));
+    btn_p.set_color(if is_apply_hover { theme.bg_hover } else { theme.btn_bg });
     btn_p.anti_alias = true;
     let mut btn_pb = PathBuilder::new();
-    push_rounded_rect(&mut btn_pb, px + 14.0, cy, pw - 28.0, 26.0, 4.0);
+    push_rounded_rect(&mut btn_pb, layout.apply_rect.x, layout.apply_rect.y, layout.apply_rect.w, layout.apply_rect.h, 4.0 * s);
     if let Some(p) = btn_pb.finish() {
         pixmap.fill_path(&p, &btn_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(55, 55, 55, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    let (aw, _) = typo.measure_text("Appliquer", 12.0, true);
-    typo.draw_text(pixmap, "Appliquer", px + (pw - aw) / 2.0, cy + 6.5, 12.0, Color::from_rgba8(220, 220, 220, 255), true);
+    let (aw, _) = typo.measure_text("Appliquer", 12.0 * s, true);
+    typo.draw_text(pixmap, "Appliquer", layout.apply_rect.x + (layout.apply_rect.w - aw) / 2.0, layout.apply_rect.y + 6.5 * s, 12.0 * s, theme.text_primary, true);
 }
 
 // ── 2. Panneau POMODORO ───────────────────────────────────────────────────
@@ -802,34 +1106,35 @@ fn render_pomodoro_content(
     pixmap: &mut PixmapMut,
     state: &PomodoroState,
     typo: &Typography,
+    theme: &Theme,
     px: f32,
     py: f32,
     pw: f32,
-    _ph: f32,
-    _mx: f32,
-    _my: f32,
+    ph: f32,
+    scale: f32,
+    mx: f32,
+    my: f32,
 ) {
+    let s = scale.max(0.5);
     typo.draw_text(
         pixmap,
         "POMODORO",
-        px + 14.0,
-        py + 18.0,
-        10.0,
-        Color::from_rgba8(115, 115, 120, 255),
+        px + 14.0 * s,
+        py + 18.0 * s,
+        10.0 * s,
+        theme.text_muted,
         true,
     );
 
-    let cx = px + pw / 2.0;
-    let cy = py + 72.0;
-    let r = 32.0;
+    let layout = layout_pomodoro_panel(px, py, pw, ph, state, typo, s);
 
-    // Anneau fond #1e1e1e
+    // Anneau fond
     let mut bg_paint = Paint::default();
-    bg_paint.set_color(Color::from_rgba8(30, 30, 30, 255));
+    bg_paint.set_color(theme.border_subtle);
     bg_paint.anti_alias = true;
-    let stroke_bg = Stroke { width: 4.5, ..Default::default() };
+    let stroke_bg = Stroke { width: 4.5 * s, ..Default::default() };
     let mut bg_pb = PathBuilder::new();
-    bg_pb.push_circle(cx, cy, r);
+    bg_pb.push_circle(layout.ring_cx, layout.ring_cy, layout.ring_radius);
     if let Some(p) = bg_pb.finish() {
         pixmap.stroke_path(&p, &bg_paint, &stroke_bg, Transform::identity(), None);
     }
@@ -844,20 +1149,20 @@ fn render_pomodoro_content(
     let ring_color = if state.left_seconds == 0 {
         Color::from_rgba8(74, 222, 128, 255)
     } else {
-        Color::from_rgba8(96, 165, 250, 255)
+        theme.accent_primary
     };
 
     let mut prog_paint = Paint::default();
     prog_paint.set_color(ring_color);
     prog_paint.anti_alias = true;
-    let prog_stroke = Stroke { width: 4.5, line_cap: tiny_skia::LineCap::Round, ..Default::default() };
+    let prog_stroke = Stroke { width: 4.5 * s, line_cap: tiny_skia::LineCap::Round, ..Default::default() };
 
     let steps = (progress * 60.0).max(1.0) as usize;
     let mut arc_pb = PathBuilder::new();
     for i in 0..=steps {
         let angle = -std::f32::consts::FRAC_PI_2 + (i as f32 / 60.0) * std::f32::consts::PI * 2.0;
-        let ax = cx + r * angle.cos();
-        let ay = cy + r * angle.sin();
+        let ax = layout.ring_cx + layout.ring_radius * angle.cos();
+        let ay = layout.ring_cy + layout.ring_radius * angle.sin();
         if i == 0 {
             arc_pb.move_to(ax, ay);
         } else {
@@ -872,71 +1177,80 @@ fn render_pomodoro_content(
     let mm = state.left_seconds / 60;
     let ss = state.left_seconds % 60;
     let time_str = format!("{:02}:{:02}", mm, ss);
-    let (tw, _) = typo.measure_text(&time_str, 16.0, true);
+    let (tw, _) = typo.measure_text(&time_str, 16.0 * s, true);
     typo.draw_text(
         pixmap,
         &time_str,
-        cx - tw / 2.0,
-        cy - 8.0,
-        16.0,
-        Color::from_rgba8(230, 230, 235, 255),
+        layout.ring_cx - tw / 2.0,
+        layout.ring_cy - 8.0 * s,
+        16.0 * s,
+        theme.text_primary,
         true,
     );
 
     // Boutons Démarrer / Pause et Reset ↺
-    let by = py + 124.0;
     let btn_txt = if state.running { "Pause" } else { "Démarrer" };
-    let (btw, _) = typo.measure_text(btn_txt, 11.0, false);
-    let bw = btw + 22.0;
-
+    let is_start_hover = layout.start_button.contains(mx, my);
     let mut p_start = Paint::default();
-    p_start.set_color(Color::from_rgba8(30, 30, 30, 255));
+    p_start.set_color(if is_start_hover { theme.bg_hover } else { theme.btn_bg });
     p_start.anti_alias = true;
     let mut pb_start = PathBuilder::new();
-    push_rounded_rect(&mut pb_start, px + 22.0, by, bw, 22.0, 4.0);
+    push_rounded_rect(&mut pb_start, layout.start_button.x, layout.start_button.y, layout.start_button.w, layout.start_button.h, 4.0 * s);
     if let Some(p) = pb_start.finish() {
         pixmap.fill_path(&p, &p_start, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(55, 55, 55, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, btn_txt, px + 22.0 + 11.0, by + 5.0, 11.0, Color::from_rgba8(204, 204, 204, 255), false);
+    let (btw, _) = typo.measure_text(btn_txt, 11.0 * s, false);
+    typo.draw_text(pixmap, btn_txt, layout.start_button.x + (layout.start_button.w - btw) / 2.0, layout.start_button.y + 5.0 * s, 11.0 * s, theme.text_primary, false);
 
     // Bouton ↺
-    let rx = px + 22.0 + bw + 6.0;
+    let is_reset_hover = layout.reset_button.contains(mx, my);
+    let mut p_reset = Paint::default();
+    p_reset.set_color(if is_reset_hover { theme.bg_hover } else { theme.btn_bg });
+    p_reset.anti_alias = true;
     let mut pb_reset = PathBuilder::new();
-    push_rounded_rect(&mut pb_reset, rx, by, 22.0, 22.0, 4.0);
+    push_rounded_rect(&mut pb_reset, layout.reset_button.x, layout.reset_button.y, layout.reset_button.w, layout.reset_button.h, 4.0 * s);
     if let Some(p) = pb_reset.finish() {
-        pixmap.fill_path(&p, &p_start, tiny_skia::FillRule::Winding, Transform::identity(), None);
+        pixmap.fill_path(&p, &p_reset, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(45, 45, 45, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, "↺", rx + 6.0, by + 4.0, 12.0, Color::from_rgba8(115, 115, 120, 255), false);
+    let (rw, _) = typo.measure_text("↺", 12.0 * s, false);
+    typo.draw_text(pixmap, "↺", layout.reset_button.x + (layout.reset_button.w - rw) / 2.0, layout.reset_button.y + 4.0 * s, 12.0 * s, theme.text_muted, false);
 
     // Boutons de présélection : 25 min, 15 min, 5 min
-    let py2 = by + 28.0;
-    let presets = [("25 min", 25 * 60), ("15 min", 15 * 60), ("5 min", 5 * 60)];
-    let pr_w = (pw - 28.0 - 8.0) / 3.0;
-    for (i, (lbl, secs)) in presets.into_iter().enumerate() {
-        let pr_x = px + 14.0 + i as f32 * (pr_w + 4.0);
-        let is_sel = state.total_seconds == secs;
+    for p_btn in &layout.presets {
+        let is_sel = state.total_seconds == p_btn.seconds;
+        let is_hover = p_btn.rect.contains(mx, my);
         let mut pp = Paint::default();
-        pp.set_color(if is_sel { Color::from_rgba8(42, 42, 42, 255) } else { Color::TRANSPARENT });
+        pp.set_color(if is_sel { theme.bg_active } else if is_hover { theme.bg_hover } else { Color::TRANSPARENT });
         pp.anti_alias = true;
         let mut ppb = PathBuilder::new();
-        push_rounded_rect(&mut ppb, pr_x, py2, pr_w, 18.0, 3.0);
+        push_rounded_rect(&mut ppb, p_btn.rect.x, p_btn.rect.y, p_btn.rect.w, p_btn.rect.h, 3.0 * s);
         if let Some(p) = ppb.finish() {
-            pixmap.fill_path(&p, &pp, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            if is_sel || is_hover {
+                pixmap.fill_path(&p, &pp, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            }
             let mut sp = Paint::default();
-            sp.set_color(if is_sel { Color::from_rgba8(68, 68, 68, 255) } else { Color::from_rgba8(35, 35, 35, 255) });
-            let stroke = Stroke { width: 1.0, ..Default::default() };
+            sp.set_color(if is_sel { theme.border_accent } else { theme.btn_border });
+            let stroke = Stroke { width: 1.0 * s, ..Default::default() };
             pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
         }
-        let (ptw, _) = typo.measure_text(lbl, 9.5, false);
-        typo.draw_text(pixmap, lbl, pr_x + (pr_w - ptw) / 2.0, py2 + 4.0, 9.5, if is_sel { Color::from_rgba8(200, 200, 200, 255) } else { Color::from_rgba8(100, 100, 105, 255) }, is_sel);
+        let (ptw, _) = typo.measure_text(p_btn.label, 9.5 * s, false);
+        typo.draw_text(
+            pixmap,
+            p_btn.label,
+            p_btn.rect.x + (p_btn.rect.w - ptw) / 2.0,
+            p_btn.rect.y + 4.0 * s,
+            9.5 * s,
+            if is_sel { theme.text_primary } else { theme.text_muted },
+            is_sel,
+        );
     }
 }
 
@@ -946,108 +1260,96 @@ fn render_storyboard_content(
     pixmap: &mut PixmapMut,
     state: &StoryboardState,
     typo: &Typography,
+    theme: &Theme,
     px: f32,
     py: f32,
     pw: f32,
-    _ph: f32,
-    _mx: f32,
-    _my: f32,
+    ph: f32,
+    scale: f32,
+    mx: f32,
+    my: f32,
 ) {
-    typo.draw_text(pixmap, "STORYBOARD", px + 14.0, py + 18.0, 12.0, Color::from_rgba8(204, 204, 204, 255), true);
+    let s = scale.max(0.5);
+    typo.draw_text(pixmap, "STORYBOARD", px + 14.0 * s, py + 18.0 * s, 12.0 * s, theme.text_primary, true);
 
-    let mut cy = py + 38.0;
+    let layout = layout_storyboard_panel(px, py, pw, ph, s);
 
     // FORMAT
-    typo.draw_text(pixmap, "FORMAT", px + 14.0, cy, 9.5, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 14.0;
+    typo.draw_text(pixmap, "FORMAT", px + 14.0 * s, layout.format_button.y - 14.0 * s, 9.5 * s, theme.text_muted, true);
 
     let formats = ["16:9 — Cinéma HD", "4:3 — Classique", "2.35:1 — Scope", "1:1 — Carré", "9:16 — Vertical"];
     let fmt_str = formats[state.format_idx.min(formats.len() - 1)];
 
+    let is_fmt_hover = layout.format_button.contains(mx, my);
     let mut f_paint = Paint::default();
-    f_paint.set_color(Color::from_rgba8(26, 26, 26, 255));
+    f_paint.set_color(if is_fmt_hover { theme.bg_hover } else { theme.input_bg });
     f_paint.anti_alias = true;
     let mut fpb = PathBuilder::new();
-    push_rounded_rect(&mut fpb, px + 14.0, cy, pw - 28.0, 24.0, 4.0);
+    push_rounded_rect(&mut fpb, layout.format_button.x, layout.format_button.y, layout.format_button.w, layout.format_button.h, 4.0 * s);
     if let Some(p) = fpb.finish() {
         pixmap.fill_path(&p, &f_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(45, 45, 45, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, fmt_str, px + 22.0, cy + 6.0, 11.0, Color::from_rgba8(220, 220, 220, 255), false);
-    typo.draw_text(pixmap, "⌄", px + pw - 28.0, cy + 4.0, 12.0, Color::from_rgba8(140, 140, 140, 255), false);
-    cy += 32.0;
+    typo.draw_text(pixmap, fmt_str, layout.format_button.x + 8.0 * s, layout.format_button.y + 6.0 * s, 11.0 * s, theme.text_primary, false);
+    typo.draw_text(pixmap, "⌄", layout.format_button.x + layout.format_button.w - 16.0 * s, layout.format_button.y + 4.0 * s, 12.0 * s, theme.text_muted, false);
 
     // 3 colonnes d'inputs
-    let col_w = (pw - 28.0 - 12.0) / 3.0;
-    typo.draw_text(pixmap, "LARGEUR", px + 14.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), true);
-    typo.draw_text(pixmap, "COLONNES", px + 14.0 + col_w + 6.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), true);
-    typo.draw_text(pixmap, "ESPACEMENT", px + 14.0 + (col_w + 6.0) * 2.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 12.0;
+    typo.draw_text(pixmap, "LARGEUR", layout.width_input.x, layout.width_input.y - 12.0 * s, 9.0 * s, theme.text_muted, true);
+    typo.draw_text(pixmap, "COLONNES", layout.cols_input.x, layout.cols_input.y - 12.0 * s, 9.0 * s, theme.text_muted, true);
+    typo.draw_text(pixmap, "ESPACEMENT", layout.gap_input.x, layout.gap_input.y - 12.0 * s, 9.0 * s, theme.text_muted, true);
 
-    for i in 0..3 {
-        let ix = px + 14.0 + i as f32 * (col_w + 6.0);
+    for input_rect in [&layout.width_input, &layout.cols_input, &layout.gap_input] {
         let mut in_pb = PathBuilder::new();
-        push_rounded_rect(&mut in_pb, ix, cy, col_w, 20.0, 3.0);
+        push_rounded_rect(&mut in_pb, input_rect.x, input_rect.y, input_rect.w, input_rect.h, 3.0 * s);
         if let Some(p) = in_pb.finish() {
             pixmap.fill_path(&p, &f_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
         }
     }
-    typo.draw_text(pixmap, &format!("{}", state.panel_width as i32), px + 22.0, cy + 4.0, 11.0, Color::from_rgba8(200, 200, 200, 255), false);
-    typo.draw_text(pixmap, &format!("{}", state.cols), px + 14.0 + col_w + 14.0, cy + 4.0, 11.0, Color::from_rgba8(200, 200, 200, 255), false);
-    typo.draw_text(pixmap, &format!("{}", state.gap as i32), px + 14.0 + (col_w + 6.0) * 2.0 + 14.0, cy + 4.0, 11.0, Color::from_rgba8(200, 200, 200, 255), false);
-    cy += 30.0;
+    typo.draw_text(pixmap, &format!("{}", state.panel_width as i32), layout.width_input.x + 8.0 * s, layout.width_input.y + 4.0 * s, 11.0 * s, theme.text_primary, false);
+    typo.draw_text(pixmap, &format!("{}", state.cols), layout.cols_input.x + 8.0 * s, layout.cols_input.y + 4.0 * s, 11.0 * s, theme.text_primary, false);
+    typo.draw_text(pixmap, &format!("{}", state.gap as i32), layout.gap_input.x + 8.0 * s, layout.gap_input.y + 4.0 * s, 11.0 * s, theme.text_primary, false);
 
-    // Grille des cellules 1 à 8
-    let grid_w = pw - 28.0;
-    let gcols = 4;
-    let grows = 2;
-    let cell_w = (grid_w - (gcols - 1) as f32 * 3.0) / gcols as f32;
-    let cell_h = 24.0;
-
+    // Grille des cellules
     let mut cp = Paint::default();
-    cp.set_color(Color::from_rgba8(22, 22, 22, 255));
+    cp.set_color(theme.bg_card);
     cp.anti_alias = true;
-    let cs = Stroke { width: 0.8, ..Default::default() };
+    let cs = Stroke { width: 0.8 * s, ..Default::default() };
     let mut csp = Paint::default();
-    csp.set_color(Color::from_rgba8(45, 45, 45, 255));
+    csp.set_color(theme.border_subtle);
 
-    for r in 0..grows {
-        for c in 0..gcols {
-            let num = r * gcols + c + 1;
-            let cx = px + 14.0 + c as f32 * (cell_w + 3.0);
-            let cy_cell = cy + r as f32 * (cell_h + 3.0);
-            let mut cpb = PathBuilder::new();
-            push_rounded_rect(&mut cpb, cx, cy_cell, cell_w, cell_h, 2.0);
-            if let Some(p) = cpb.finish() {
-                pixmap.fill_path(&p, &cp, tiny_skia::FillRule::Winding, Transform::identity(), None);
-                pixmap.stroke_path(&p, &csp, &cs, Transform::identity(), None);
-            }
-            let num_str = format!("{}", num);
-            let (nw, _) = typo.measure_text(&num_str, 9.0, false);
-            typo.draw_text(pixmap, &num_str, cx + (cell_w - nw) / 2.0, cy_cell + 7.0, 9.0, Color::from_rgba8(100, 100, 100, 255), false);
+    for (idx, cell) in layout.cells.iter().enumerate() {
+        let num = idx + 1;
+        let mut cpb = PathBuilder::new();
+        push_rounded_rect(&mut cpb, cell.x, cell.y, cell.w, cell.h, 2.0 * s);
+        if let Some(p) = cpb.finish() {
+            pixmap.fill_path(&p, &cp, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            pixmap.stroke_path(&p, &csp, &cs, Transform::identity(), None);
         }
+        let num_str = format!("{}", num);
+        let (nw, _) = typo.measure_text(&num_str, 9.0 * s, false);
+        typo.draw_text(pixmap, &num_str, cell.x + (cell.w - nw) / 2.0, cell.y + 7.0 * s, 9.0 * s, theme.text_muted, false);
     }
-    cy += grows as f32 * (cell_h + 3.0) + 16.0;
 
     // Bouton ACTIVER
+    let is_act_hover = layout.activate_button.contains(mx, my);
     let mut act_p = Paint::default();
-    act_p.set_color(if state.active { Color::from_rgba8(40, 40, 40, 255) } else { Color::from_rgba8(28, 28, 28, 255) });
+    act_p.set_color(if state.active { theme.bg_active } else if is_act_hover { theme.bg_hover } else { theme.btn_bg });
     act_p.anti_alias = true;
     let mut act_pb = PathBuilder::new();
-    push_rounded_rect(&mut act_pb, px + 14.0, cy, pw - 28.0, 28.0, 4.0);
+    push_rounded_rect(&mut act_pb, layout.activate_button.x, layout.activate_button.y, layout.activate_button.w, layout.activate_button.h, 4.0 * s);
     if let Some(p) = act_pb.finish() {
         pixmap.fill_path(&p, &act_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(55, 55, 55, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(if state.active { theme.border_accent } else { theme.btn_border });
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
     let btn_lbl = if state.active { "Désactiver" } else { "Activer" };
-    let (bw, _) = typo.measure_text(btn_lbl, 12.0, true);
-    typo.draw_text(pixmap, btn_lbl, px + (pw - bw) / 2.0, cy + 7.5, 12.0, Color::from_rgba8(220, 220, 220, 255), true);
+    let (bw, _) = typo.measure_text(btn_lbl, 12.0 * s, true);
+    typo.draw_text(pixmap, btn_lbl, layout.activate_button.x + (layout.activate_button.w - bw) / 2.0, layout.activate_button.y + 7.5 * s, 12.0 * s, theme.text_primary, true);
 }
 
 // ── 4. Panneau PLUGINS ────────────────────────────────────────────────────
@@ -1056,126 +1358,115 @@ fn render_plugins_content(
     pixmap: &mut PixmapMut,
     state: &PluginsState,
     typo: &Typography,
+    theme: &Theme,
     px: f32,
     py: f32,
     pw: f32,
-    _ph: f32,
-    _mx: f32,
-    _my: f32,
+    ph: f32,
+    scale: f32,
+    mx: f32,
+    my: f32,
 ) {
-    typo.draw_text(pixmap, "PLUGINS", px + 14.0, py + 16.0, 13.0, Color::from_rgba8(220, 220, 220, 255), true);
+    let s = scale.max(0.5);
+    typo.draw_text(pixmap, "PLUGINS", px + 14.0 * s, py + 16.0 * s, 13.0 * s, theme.text_primary, true);
 
-    let mut cy = py + 38.0;
+    let layout = layout_plugins_panel(px, py, pw, ph, s);
 
     // IA LOCALE
-    typo.draw_text(pixmap, "IA LOCALE", px + 14.0, cy, 9.5, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 14.0;
+    typo.draw_text(pixmap, "IA LOCALE", px + 14.0 * s, py + 38.0 * s, 9.5 * s, theme.text_muted, true);
 
     // Pastille verte
     let mut dot_paint = Paint::default();
     dot_paint.set_color(Color::from_rgba8(52, 211, 153, 255));
     dot_paint.anti_alias = true;
     let mut dpb = PathBuilder::new();
-    dpb.push_circle(px + 18.0, cy + 5.0, 3.5);
+    dpb.push_circle(px + 18.0 * s, py + 57.0 * s, 3.5 * s);
     if let Some(p) = dpb.finish() {
         pixmap.fill_path(&p, &dot_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, "Ollama actif", px + 26.0, cy, 11.0, Color::from_rgba8(220, 220, 220, 255), true);
-    cy += 16.0;
+    typo.draw_text(pixmap, "Ollama actif", px + 26.0 * s, py + 52.0 * s, 11.0 * s, theme.text_primary, true);
 
-    typo.draw_text(pixmap, "Ce PC : 32 Go RAM · 12 cœurs · GPU 6 Go", px + 14.0, cy, 10.0, Color::from_rgba8(115, 115, 120, 255), false);
-    cy += 14.0;
-
-    typo.draw_text(pixmap, "Modèle conseillé pour ce PC : ", px + 14.0, cy, 10.5, Color::from_rgba8(130, 130, 135, 255), false);
-    typo.draw_text(pixmap, "qwen2.5:7b", px + 142.0, cy, 10.5, Color::from_rgba8(255, 255, 255, 255), true);
-    cy += 16.0;
+    typo.draw_text(pixmap, "Ce PC : 32 Go RAM · 12 cœurs · GPU 6 Go", px + 14.0 * s, py + 68.0 * s, 10.0 * s, theme.text_muted, false);
+    typo.draw_text(pixmap, "Modèle conseillé pour ce PC : ", px + 14.0 * s, py + 82.0 * s, 10.5 * s, theme.text_secondary, false);
+    typo.draw_text(pixmap, "qwen2.5:7b", px + 142.0 * s, py + 82.0 * s, 10.5 * s, theme.text_primary, true);
 
     // Bouton Télécharger
+    let is_down_hover = layout.download_button.contains(mx, my);
     let mut down_p = Paint::default();
-    down_p.set_color(Color::from_rgba8(26, 26, 26, 255));
+    down_p.set_color(if is_down_hover { theme.bg_hover } else { theme.btn_bg });
     down_p.anti_alias = true;
     let mut dpb2 = PathBuilder::new();
-    push_rounded_rect(&mut dpb2, px + 14.0, cy, pw - 28.0, 24.0, 4.0);
+    push_rounded_rect(&mut dpb2, layout.download_button.x, layout.download_button.y, layout.download_button.w, layout.download_button.h, 4.0 * s);
     if let Some(p) = dpb2.finish() {
         pixmap.fill_path(&p, &down_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(45, 45, 45, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    let (dtw, _) = typo.measure_text("Télécharger qwen2.5:7b", 11.0, false);
-    typo.draw_text(pixmap, "Télécharger qwen2.5:7b", px + (pw - dtw) / 2.0, cy + 6.0, 11.0, Color::from_rgba8(200, 200, 200, 255), false);
-    cy += 34.0;
+    let (dtw, _) = typo.measure_text("Télécharger qwen2.5:7b", 11.0 * s, false);
+    typo.draw_text(pixmap, "Télécharger qwen2.5:7b", layout.download_button.x + (layout.download_button.w - dtw) / 2.0, layout.download_button.y + 6.0 * s, 11.0 * s, theme.text_primary, false);
 
     // MOTEUR
-    typo.draw_text(pixmap, "MOTEUR", px + 14.0, cy, 9.5, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 14.0;
+    typo.draw_text(pixmap, "MOTEUR", px + 14.0 * s, layout.card_rect.y - 14.0 * s, 9.5 * s, theme.text_muted, true);
 
     let mut card_p = Paint::default();
-    card_p.set_color(Color::from_rgba8(20, 22, 25, 255));
+    card_p.set_color(theme.bg_card);
     card_p.anti_alias = true;
     let mut cpb = PathBuilder::new();
-    push_rounded_rect(&mut cpb, px + 14.0, cy, pw - 28.0, 54.0, 6.0);
+    push_rounded_rect(&mut cpb, layout.card_rect.x, layout.card_rect.y, layout.card_rect.w, layout.card_rect.h, 6.0 * s);
     if let Some(p) = cpb.finish() {
         pixmap.fill_path(&p, &card_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
         sp.set_color(Color::from_rgba8(52, 211, 153, 200));
-        let stroke = Stroke { width: 1.2, ..Default::default() };
+        let stroke = Stroke { width: 1.2 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, "Cours magistral (intégré)", px + 22.0, cy + 8.0, 11.5, Color::from_rgba8(255, 255, 255, 255), true);
-    typo.draw_text(pixmap, "Transforme un texte en carte de concepts avec l'IA", px + 22.0, cy + 23.0, 9.5, Color::from_rgba8(130, 130, 135, 255), false);
-    typo.draw_text(pixmap, "locale. Aucun binaire à installer. v1.0", px + 22.0, cy + 35.0, 9.5, Color::from_rgba8(130, 130, 135, 255), false);
-    cy += 64.0;
+    typo.draw_text(pixmap, "Cours magistral (intégré)", layout.card_rect.x + 8.0 * s, layout.card_rect.y + 8.0 * s, 11.5 * s, theme.text_primary, true);
+    typo.draw_text(pixmap, "Transforme un texte en carte de concepts avec l'IA", layout.card_rect.x + 8.0 * s, layout.card_rect.y + 23.0 * s, 9.5 * s, theme.text_secondary, false);
+    typo.draw_text(pixmap, "locale. Aucun binaire à installer. v1.0", layout.card_rect.x + 8.0 * s, layout.card_rect.y + 35.0 * s, 9.5 * s, theme.text_muted, false);
 
     // RÉGLAGES
-    typo.draw_text(pixmap, "RÉGLAGES", px + 14.0, cy, 9.5, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 14.0;
+    typo.draw_text(pixmap, "RÉGLAGES", px + 14.0 * s, layout.card_rect.y + layout.card_rect.h + 16.0 * s, 9.5 * s, theme.text_muted, true);
 
     // Densité
-    typo.draw_text(pixmap, "Densité", px + 14.0, cy, 10.5, Color::from_rgba8(180, 180, 180, 255), true);
-    cy += 14.0;
+    typo.draw_text(pixmap, "Densité", px + 14.0 * s, layout.density_options[0].y - 14.0 * s, 10.5 * s, theme.text_secondary, true);
     let densities = ["Concis — les idées maîtresses", "Normal — équilibré", "Détaillé — chaque nuance"];
     for (i, d) in densities.into_iter().enumerate() {
         let is_checked = state.density_idx == i;
-        draw_radio_dot(pixmap, px + 20.0, cy + 5.0, is_checked);
-        typo.draw_text(pixmap, d, px + 30.0, cy, 10.0, if is_checked { Color::from_rgba8(220, 220, 220, 255) } else { Color::from_rgba8(120, 120, 125, 255) }, is_checked);
-        cy += 16.0;
+        let opt_rect = &layout.density_options[i];
+        draw_radio_dot(pixmap, opt_rect.x + 6.0 * s, opt_rect.y + 5.0 * s, is_checked, theme, s);
+        typo.draw_text(pixmap, d, opt_rect.x + 16.0 * s, opt_rect.y, 10.0 * s, if is_checked { theme.text_primary } else { theme.text_muted }, is_checked);
     }
-    cy += 6.0;
 
     // Disposition
-    typo.draw_text(pixmap, "Disposition", px + 14.0, cy, 10.5, Color::from_rgba8(180, 180, 180, 255), true);
-    cy += 14.0;
+    typo.draw_text(pixmap, "Disposition", px + 14.0 * s, layout.disposition_options[0].y - 14.0 * s, 10.5 * s, theme.text_secondary, true);
     let disps = ["Grille — lecture en blocs", "Fil — une section par ligne"];
     for (i, d) in disps.into_iter().enumerate() {
         let is_checked = state.disposition_idx == i;
-        draw_radio_dot(pixmap, px + 20.0, cy + 5.0, is_checked);
-        typo.draw_text(pixmap, d, px + 30.0, cy, 10.0, if is_checked { Color::from_rgba8(220, 220, 220, 255) } else { Color::from_rgba8(120, 120, 125, 255) }, is_checked);
-        cy += 16.0;
+        let opt_rect = &layout.disposition_options[i];
+        draw_radio_dot(pixmap, opt_rect.x + 6.0 * s, opt_rect.y + 5.0 * s, is_checked, theme, s);
+        typo.draw_text(pixmap, d, opt_rect.x + 16.0 * s, opt_rect.y, 10.0 * s, if is_checked { theme.text_primary } else { theme.text_muted }, is_checked);
     }
-    cy += 8.0;
-
-    // TEXTE SOURCE
-    typo.draw_text(pixmap, "TEXTE SOURCE", px + 14.0, cy, 9.5, Color::from_rgba8(85, 85, 85, 255), true);
 }
 
-fn draw_radio_dot(pixmap: &mut PixmapMut, cx: f32, cy: f32, checked: bool) {
+fn draw_radio_dot(pixmap: &mut PixmapMut, cx: f32, cy: f32, checked: bool, theme: &Theme, scale: f32) {
+    let s = scale.max(0.5);
     let mut p = Paint::default();
     p.anti_alias = true;
-    p.set_color(if checked { Color::from_rgba8(52, 211, 153, 255) } else { Color::from_rgba8(80, 80, 85, 255) });
-    let stroke = Stroke { width: 1.2, ..Default::default() };
+    p.set_color(if checked { theme.accent_primary } else { theme.border_medium });
+    let stroke = Stroke { width: 1.2 * s, ..Default::default() };
     let mut pb = PathBuilder::new();
-    pb.push_circle(cx, cy, 4.5);
+    pb.push_circle(cx, cy, 4.5 * s);
     if let Some(path) = pb.finish() {
         pixmap.stroke_path(&path, &p, &stroke, Transform::identity(), None);
     }
     if checked {
         let mut inner_p = Paint::default();
-        inner_p.set_color(Color::from_rgba8(52, 211, 153, 255));
+        inner_p.set_color(theme.accent_primary);
         inner_p.anti_alias = true;
         let mut ipb = PathBuilder::new();
-        ipb.push_circle(cx, cy, 2.2);
+        ipb.push_circle(cx, cy, 2.2 * s);
         if let Some(path) = ipb.finish() {
             pixmap.fill_path(&path, &inner_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         }
@@ -1188,19 +1479,22 @@ fn render_preset_content(
     pixmap: &mut PixmapMut,
     _state: &PresetsState,
     typo: &Typography,
+    theme: &Theme,
     px: f32,
     py: f32,
     pw: f32,
     _ph: f32,
-    _mx: f32,
-    _my: f32,
+    scale: f32,
+    mx: f32,
+    my: f32,
 ) {
-    typo.draw_text(pixmap, "PRESETS", px + 14.0, py + 16.0, 13.0, Color::from_rgba8(220, 220, 220, 255), true);
+    let s = scale.max(0.5);
+    typo.draw_text(pixmap, "PRESETS", px + 14.0 * s, py + 16.0 * s, 13.0 * s, theme.text_primary, true);
 
-    let mut cy = py + 38.0;
+    let mut cy = py + 38.0 * s;
 
-    typo.draw_text(pixmap, "CHOISIR UN PRESET POUR \"BOARD PRINCIPAL\"", px + 14.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), true);
-    cy += 16.0;
+    typo.draw_text(pixmap, "CHOISIR UN PRESET POUR \"BOARD PRINCIPAL\"", px + 14.0 * s, cy, 9.0 * s, theme.text_muted, true);
+    cy += 16.0 * s;
 
     let preset_items: [(&str, &[(&str, Color)], &str); 4] = [
         (
@@ -1258,17 +1552,17 @@ fn render_preset_content(
     ];
 
     for (title, chips, subtitle) in preset_items {
-        typo.draw_text(pixmap, title, px + 14.0, cy, 11.5, Color::from_rgba8(220, 220, 220, 255), true);
-        cy += 14.0;
+        typo.draw_text(pixmap, title, px + 14.0 * s, cy, 11.5 * s, theme.text_primary, true);
+        cy += 14.0 * s;
 
         let n = chips.len();
-        let gap = 2.0;
-        let total_w = pw - 28.0;
+        let gap = 2.0 * s;
+        let total_w = pw - 28.0 * s;
         let chip_w = (total_w - (n - 1) as f32 * gap) / n as f32;
-        let chip_h = 32.0;
+        let chip_h = 32.0 * s;
 
         for (i, (chip_lbl, col)) in chips.iter().enumerate() {
-            let cx = px + 14.0 + i as f32 * (chip_w + gap);
+            let cx = px + 14.0 * s + i as f32 * (chip_w + gap);
             let mut cp = Paint::default();
             let mut semi_col = *col;
             semi_col = Color::from_rgba8(
@@ -1281,38 +1575,40 @@ fn render_preset_content(
             cp.anti_alias = true;
 
             let mut cpb = PathBuilder::new();
-            push_rounded_rect(&mut cpb, cx, cy, chip_w, chip_h, 2.0);
+            push_rounded_rect(&mut cpb, cx, cy, chip_w, chip_h, 2.0 * s);
             if let Some(p) = cpb.finish() {
                 pixmap.fill_path(&p, &cp, tiny_skia::FillRule::Winding, Transform::identity(), None);
                 let mut sp = Paint::default();
                 sp.set_color(*col);
-                let stroke = Stroke { width: 0.8, ..Default::default() };
+                let stroke = Stroke { width: 0.8 * s, ..Default::default() };
                 pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
             }
-            let (cw, _) = typo.measure_text(chip_lbl, 7.5, false);
-            typo.draw_text(pixmap, chip_lbl, cx + (chip_w - cw) / 2.0, cy + 12.0, 7.5, *col, false);
+            let (cw, _) = typo.measure_text(chip_lbl, 7.5 * s, false);
+            typo.draw_text(pixmap, chip_lbl, cx + (chip_w - cw) / 2.0, cy + 12.0 * s, 7.5 * s, *col, false);
         }
-        cy += chip_h + 3.0;
+        cy += chip_h + 3.0 * s;
 
-        typo.draw_text(pixmap, subtitle, px + 14.0, cy, 9.0, Color::from_rgba8(85, 85, 85, 255), false);
-        cy += 16.0;
+        typo.draw_text(pixmap, subtitle, px + 14.0 * s, cy, 9.0 * s, theme.text_muted, false);
+        cy += 16.0 * s;
     }
 
     // Bouton "+ Créer un preset custom"
+    let custom_rect = WidgetRect::new(px + 14.0 * s, cy, pw - 28.0 * s, 24.0 * s);
+    let is_custom_hover = custom_rect.contains(mx, my);
     let mut custom_p = Paint::default();
-    custom_p.set_color(Color::from_rgba8(26, 26, 26, 255));
+    custom_p.set_color(if is_custom_hover { theme.bg_hover } else { theme.btn_bg });
     custom_p.anti_alias = true;
     let mut cpb = PathBuilder::new();
-    push_rounded_rect(&mut cpb, px + 14.0, cy, pw - 28.0, 24.0, 4.0);
+    push_rounded_rect(&mut cpb, custom_rect.x, custom_rect.y, custom_rect.w, custom_rect.h, 4.0 * s);
     if let Some(p) = cpb.finish() {
         pixmap.fill_path(&p, &custom_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(45, 45, 45, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    let (ctw, _) = typo.measure_text("+ Créer un preset custom", 10.5, false);
-    typo.draw_text(pixmap, "+ Créer un preset custom", px + (pw - ctw) / 2.0, cy + 6.0, 10.5, Color::from_rgba8(160, 160, 160, 255), false);
+    let (ctw, _) = typo.measure_text("+ Créer un preset custom", 10.5 * s, false);
+    typo.draw_text(pixmap, "+ Créer un preset custom", custom_rect.x + (custom_rect.w - ctw) / 2.0, custom_rect.y + 6.0 * s, 10.5 * s, theme.text_secondary, false);
 }
 
 // ── 6. Panneau DOMAINES ───────────────────────────────────────────────────
@@ -1322,61 +1618,65 @@ fn render_domains_content(
     state: &DomainsState,
     _store: &Store,
     typo: &Typography,
+    theme: &Theme,
     px: f32,
     py: f32,
     pw: f32,
-    _ph: f32,
-    _mx: f32,
-    _my: f32,
+    ph: f32,
+    scale: f32,
+    mx: f32,
+    my: f32,
 ) {
-    typo.draw_text(pixmap, "DOMAINES", px + 14.0, py + 16.0, 13.0, Color::from_rgba8(220, 220, 220, 255), true);
+    let s = scale.max(0.5);
+    typo.draw_text(pixmap, "DOMAINES", px + 14.0 * s, py + 16.0 * s, 13.0 * s, theme.text_primary, true);
 
-    let mut cy = py + 48.0;
+    let layout = layout_domains_panel(px, py, pw, ph, s);
+    let mut cy = py + 48.0 * s;
 
     if state.domains.is_empty() {
-        let (tw1, _) = typo.measure_text("Aucun domaine.", 12.0, false);
-        typo.draw_text(pixmap, "Aucun domaine.", px + (pw - tw1) / 2.0, cy, 12.0, Color::from_rgba8(115, 115, 120, 255), false);
-        cy += 18.0;
+        let (tw1, _) = typo.measure_text("Aucun domaine.", 12.0 * s, false);
+        typo.draw_text(pixmap, "Aucun domaine.", px + (pw - tw1) / 2.0, cy, 12.0 * s, theme.text_muted, false);
+        cy += 18.0 * s;
 
         let msg2 = "Crée-en un pour colorer les membranes selon leur";
-        let (tw2, _) = typo.measure_text(msg2, 11.0, false);
-        typo.draw_text(pixmap, msg2, px + (pw - tw2) / 2.0, cy, 11.0, Color::from_rgba8(95, 95, 100, 255), false);
-        cy += 16.0;
+        let (tw2, _) = typo.measure_text(msg2, 11.0 * s, false);
+        typo.draw_text(pixmap, msg2, px + (pw - tw2) / 2.0, cy, 11.0 * s, theme.text_muted, false);
+        cy += 16.0 * s;
 
         let msg3 = "sémantique.";
-        let (tw3, _) = typo.measure_text(msg3, 11.0, false);
-        typo.draw_text(pixmap, msg3, px + (pw - tw3) / 2.0, cy, 11.0, Color::from_rgba8(95, 95, 100, 255), false);
-        cy += 36.0;
+        let (tw3, _) = typo.measure_text(msg3, 11.0 * s, false);
+        typo.draw_text(pixmap, msg3, px + (pw - tw3) / 2.0, cy, 11.0 * s, theme.text_muted, false);
     } else {
         for dom in &state.domains {
             let mut dp = Paint::default();
             dp.set_color(dom.color);
             dp.anti_alias = true;
             let mut dpb = PathBuilder::new();
-            dpb.push_circle(px + 22.0, cy + 6.0, 4.0);
+            dpb.push_circle(px + 22.0 * s, cy + 6.0 * s, 4.0 * s);
             if let Some(p) = dpb.finish() {
                 pixmap.fill_path(&p, &dp, tiny_skia::FillRule::Winding, Transform::identity(), None);
             }
-            typo.draw_text(pixmap, &dom.name, px + 34.0, cy, 11.5, Color::from_rgba8(220, 220, 220, 255), false);
-            cy += 24.0;
+            typo.draw_text(pixmap, &dom.name, px + 34.0 * s, cy, 11.5 * s, theme.text_primary, false);
+            cy += 24.0 * s;
         }
     }
 
     // Bouton "+ Nouveau domaine"
+    let is_btn_hover = layout.add_button.contains(mx, my);
     let mut btn_p = Paint::default();
-    btn_p.set_color(Color::from_rgba8(26, 26, 26, 255));
+    btn_p.set_color(if is_btn_hover { theme.bg_hover } else { theme.btn_bg });
     btn_p.anti_alias = true;
     let mut bpb = PathBuilder::new();
-    push_rounded_rect(&mut bpb, px + 14.0, cy, pw - 28.0, 26.0, 4.0);
+    push_rounded_rect(&mut bpb, layout.add_button.x, layout.add_button.y, layout.add_button.w, layout.add_button.h, 4.0 * s);
     if let Some(p) = bpb.finish() {
         pixmap.fill_path(&p, &btn_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(45, 45, 45, 255));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
+        sp.set_color(theme.btn_border);
+        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
-    let (bw, _) = typo.measure_text("+ Nouveau domaine", 11.5, false);
-    typo.draw_text(pixmap, "+ Nouveau domaine", px + (pw - bw) / 2.0, cy + 6.5, 11.5, Color::from_rgba8(180, 180, 185, 255), false);
+    let (bw, _) = typo.measure_text("+ Nouveau domaine", 11.5 * s, false);
+    typo.draw_text(pixmap, "+ Nouveau domaine", layout.add_button.x + (layout.add_button.w - bw) / 2.0, layout.add_button.y + 6.5 * s, 11.5 * s, theme.text_secondary, false);
 }
 
 // ── Gestion des Interactions Souris sur les Panneaux Déroulants ────────────
@@ -1398,13 +1698,16 @@ pub enum PanelClickResult {
 pub fn handle_dock_click(
     dock: &mut DockManager,
     _store: &Store,
+    typo: &Typography,
     mx: f32,
     my: f32,
     screen_w: f32,
     screen_h: f32,
     header_h: f32,
+    scale: f32,
 ) -> Option<PanelClickResult> {
-    let layouts = compute_panel_layouts(dock, screen_w, screen_h, header_h);
+    let s = scale.max(0.5);
+    let layouts = compute_panel_layouts(dock, screen_w, screen_h, header_h, s);
 
     for b in layouts {
         if !b.contains_point(mx, my) {
@@ -1417,105 +1720,68 @@ pub fn handle_dock_click(
 
         match b.tab {
             TabId::Organize => {
-                let mut cy = py + 38.0 + 32.0 + 14.0;
-                let sort_buttons = [
-                    (SortType::None, "Ordre actuel"),
-                    (SortType::Color, "Couleur"),
-                    (SortType::SizeDesc, "Grand → Petit"),
-                    (SortType::SizeAsc, "Petit → Grand"),
-                    (SortType::RatioPort, "Portrait"),
-                    (SortType::RatioLand, "Paysage"),
-                    (SortType::LumAsc, "Sombre → Clair"),
-                    (SortType::LumDesc, "Clair → Sombre"),
-                ];
-                let mut sx = px + 14.0;
-                for (st, lbl) in sort_buttons {
-                    let bw = lbl.len() as f32 * 6.0 + 14.0;
-                    if sx + bw > px + pw - 14.0 {
-                        sx = px + 14.0;
-                        cy += 22.0;
-                    }
-                    if mx >= sx && mx < sx + bw && my >= cy && my < cy + 18.0 {
-                        dock.organize.sort_by = st;
+                let layout = layout_organize_panel(px, py, pw, b.height, &dock.organize, typo, s);
+                for btn in &layout.sort_buttons {
+                    if btn.rect.contains(mx, my) {
+                        dock.organize.sort_by = btn.sort_type;
                         return Some(PanelClickResult::Handled);
                     }
-                    sx += bw + 4.0;
                 }
-
-                cy += 28.0 + 14.0;
-                let layout_modes = [
-                    LayoutMode::Compact,
-                    LayoutMode::Masonry,
-                    LayoutMode::Grid,
-                    LayoutMode::SameHeight,
-                    LayoutMode::BySlot,
-                ];
-                for lm in layout_modes {
-                    if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= cy && my < cy + 30.0 {
-                        dock.organize.layout = lm;
+                for item in &layout.layout_modes {
+                    if item.rect.contains(mx, my) {
+                        dock.organize.layout = item.mode;
                         return Some(PanelClickResult::Handled);
                     }
-                    cy += 32.0;
                 }
-
-                let apply_y = py + b.height - 38.0;
-                if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= apply_y && my < apply_y + 28.0 {
+                if layout.apply_rect.contains(mx, my) {
                     return Some(PanelClickResult::ApplyLayout(dock.organize.clone()));
                 }
-
                 return Some(PanelClickResult::Handled);
             }
             TabId::Pomodoro => {
-                let by = py + 124.0;
-                if mx >= px + 22.0 && mx < px + 90.0 && my >= by && my < by + 22.0 {
+                let layout = layout_pomodoro_panel(px, py, pw, b.height, &dock.pomodoro, typo, s);
+                if layout.start_button.contains(mx, my) {
                     dock.pomodoro.running = !dock.pomodoro.running;
                     dock.pomodoro.last_tick = Instant::now();
                     return Some(PanelClickResult::TogglePomodoro);
                 }
-                if mx >= px + 96.0 && mx < px + 120.0 && my >= by && my < by + 22.0 {
+                if layout.reset_button.contains(mx, my) {
                     dock.pomodoro.left_seconds = dock.pomodoro.total_seconds;
                     dock.pomodoro.running = false;
                     return Some(PanelClickResult::ResetPomodoro);
                 }
-                let py2 = by + 28.0;
-                let presets = [25 * 60, 15 * 60, 5 * 60];
-                let pr_w = (pw - 28.0 - 8.0) / 3.0;
-                for (i, secs) in presets.into_iter().enumerate() {
-                    let pr_x = px + 14.0 + i as f32 * (pr_w + 4.0);
-                    if mx >= pr_x && mx < pr_x + pr_w && my >= py2 && my < py2 + 18.0 {
-                        dock.pomodoro.total_seconds = secs;
-                        dock.pomodoro.left_seconds = secs;
+                for p in &layout.presets {
+                    if p.rect.contains(mx, my) {
+                        dock.pomodoro.total_seconds = p.seconds;
+                        dock.pomodoro.left_seconds = p.seconds;
                         dock.pomodoro.running = false;
-                        return Some(PanelClickResult::SetPomodoroTime(secs));
+                        return Some(PanelClickResult::SetPomodoroTime(p.seconds));
                     }
                 }
                 return Some(PanelClickResult::Handled);
             }
             TabId::Storyboard => {
-                if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= py + 52.0 && my < py + 76.0 {
+                let layout = layout_storyboard_panel(px, py, pw, b.height, s);
+                if layout.format_button.contains(mx, my) {
                     dock.storyboard.format_idx = (dock.storyboard.format_idx + 1) % 5;
                     return Some(PanelClickResult::SelectFormat(dock.storyboard.format_idx));
                 }
-                let act_y = py + b.height - 38.0;
-                if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= act_y && my < act_y + 28.0 {
+                if layout.activate_button.contains(mx, my) {
                     dock.storyboard.active = !dock.storyboard.active;
                     return Some(PanelClickResult::ToggleStoryboard);
                 }
                 return Some(PanelClickResult::Handled);
             }
             TabId::Plugins => {
-                let dens_y = py + 38.0 + 14.0 + 16.0 + 14.0 + 16.0 + 24.0 + 34.0 + 14.0 + 54.0 + 14.0 + 14.0;
-                for i in 0..3 {
-                    let ry = dens_y + i as f32 * 16.0;
-                    if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= ry && my < ry + 16.0 {
+                let layout = layout_plugins_panel(px, py, pw, b.height, s);
+                for (i, opt) in layout.density_options.iter().enumerate() {
+                    if opt.contains(mx, my) {
                         dock.plugins.density_idx = i;
                         return Some(PanelClickResult::SelectDensity(i));
                     }
                 }
-                let disp_y = dens_y + 3.0 * 16.0 + 20.0;
-                for i in 0..2 {
-                    let ry = disp_y + i as f32 * 16.0;
-                    if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= ry && my < ry + 16.0 {
+                for (i, opt) in layout.disposition_options.iter().enumerate() {
+                    if opt.contains(mx, my) {
                         dock.plugins.disposition_idx = i;
                         return Some(PanelClickResult::SelectDisposition(i));
                     }
@@ -1526,8 +1792,8 @@ pub fn handle_dock_click(
                 return Some(PanelClickResult::Handled);
             }
             TabId::Domains => {
-                let btn_y = py + b.height - 40.0;
-                if mx >= px + 14.0 && mx < px + pw - 14.0 && my >= btn_y && my < btn_y + 28.0 {
+                let layout = layout_domains_panel(px, py, pw, b.height, s);
+                if layout.add_button.contains(mx, my) {
                     let colors = [
                         Color::from_rgba8(96, 165, 250, 255),
                         Color::from_rgba8(52, 211, 153, 255),
@@ -1671,6 +1937,7 @@ mod tests {
         pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
         let store = Store::new("Test");
         let typo = Typography::new();
+        let theme = Theme::dark();
 
         // 1. Bottom docks: Organize, Pomodoro, Storyboard
         let mut dock = DockManager::new();
@@ -1680,14 +1947,20 @@ mod tests {
             &dock,
             &store,
             &typo,
+            &theme,
             1440.0,
             900.0,
             42.0,
+            1.0,
             0.0,
             0.0,
         );
-        let _ = std::fs::create_dir_all("target");
-        let _ = pixmap.save_png("target/dock_bottom.png");
+        if let Err(e) = std::fs::create_dir_all("target") {
+            eprintln!("create_dir_all failed: {}", e);
+        }
+        if let Err(e) = pixmap.save_png("target/dock_bottom.png") {
+            eprintln!("save_png failed: {}", e);
+        }
 
         // 2. Top docks: Plugins, Preset, Domains
         let mut pixmap_top = tiny_skia::Pixmap::new(1440, 900).unwrap();
@@ -1699,12 +1972,54 @@ mod tests {
             &dock_top,
             &store,
             &typo,
+            &theme,
             1440.0,
             900.0,
             42.0,
+            1.0,
             0.0,
             0.0,
         );
-        let _ = pixmap_top.save_png("target/dock_top.png");
+        if let Err(e) = pixmap_top.save_png("target/dock_top.png") {
+            eprintln!("save_png failed: {}", e);
+        }
+    }
+
+    #[test]
+    fn test_organize_layout_exact_utf8_hit_test() {
+        let mut dock = DockManager::new();
+        dock.bottom_tabs = vec![TabId::Organize];
+        let store = Store::new("Hit Test");
+        let typo = Typography::new();
+
+        // 1. At scale 1.0
+        let layouts = compute_panel_layouts(&dock, 1440.0, 900.0, 78.0, 1.0);
+        let org_box = layouts.iter().find(|b| b.tab == TabId::Organize).unwrap();
+        let panel_layout = layout_organize_panel(org_box.x, org_box.y, org_box.width, org_box.height, &dock.organize, &typo, 1.0);
+
+        // Find "Sombre → Clair" button
+        let lum_asc_btn = panel_layout.sort_buttons.iter().find(|b| b.sort_type == SortType::LumAsc).unwrap();
+        let click_x = lum_asc_btn.rect.x + lum_asc_btn.rect.w / 2.0;
+        let click_y = lum_asc_btn.rect.y + lum_asc_btn.rect.h / 2.0;
+
+        let res = handle_dock_click(&mut dock, &store, &typo, click_x, click_y, 1440.0, 900.0, 78.0, 1.0);
+        assert_eq!(res, Some(PanelClickResult::Handled));
+        assert_eq!(dock.organize.sort_by, SortType::LumAsc);
+
+        // 2. At scale 1.5 (DPI scaling test)
+        let mut dock_hi = DockManager::new();
+        dock_hi.bottom_tabs = vec![TabId::Organize];
+        let layouts_hi = compute_panel_layouts(&dock_hi, 1440.0, 900.0, 78.0 * 1.5, 1.5);
+        let org_box_hi = layouts_hi.iter().find(|b| b.tab == TabId::Organize).unwrap();
+        assert_eq!(org_box_hi.width, TabId::Organize.default_width() * 1.5);
+
+        let panel_layout_hi = layout_organize_panel(org_box_hi.x, org_box_hi.y, org_box_hi.width, org_box_hi.height, &dock_hi.organize, &typo, 1.5);
+        let lum_desc_btn = panel_layout_hi.sort_buttons.iter().find(|b| b.sort_type == SortType::LumDesc).unwrap();
+        let click_x_hi = lum_desc_btn.rect.x + lum_desc_btn.rect.w / 2.0;
+        let click_y_hi = lum_desc_btn.rect.y + lum_desc_btn.rect.h / 2.0;
+
+        let res_hi = handle_dock_click(&mut dock_hi, &store, &typo, click_x_hi, click_y_hi, 1440.0, 900.0, 78.0 * 1.5, 1.5);
+        assert_eq!(res_hi, Some(PanelClickResult::Handled));
+        assert_eq!(dock_hi.organize.sort_by, SortType::LumDesc);
     }
 }

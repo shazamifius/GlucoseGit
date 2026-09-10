@@ -51,7 +51,12 @@ impl Typography {
 
         let mut cache = self.glyph_cache.borrow_mut();
         if cache.len() > 4096 {
-            cache.clear();
+            // Éviction progressive : garder la moitié au lieu d'une table rase complète (R-40)
+            let mut count = 0;
+            cache.retain(|_, _| {
+                count += 1;
+                count % 2 == 0
+            });
         }
         cache.insert(key, entry.clone());
 
@@ -81,6 +86,7 @@ impl Typography {
 
         let w = pixmap.width() as i32;
         let h = pixmap.height() as i32;
+        let data = pixmap.data_mut();
 
         for ch in text.chars() {
             if ch == '\n' {
@@ -101,7 +107,6 @@ impl Typography {
                         let py = (gy + row as f32) as i32;
                         if px >= 0 && px < w && py >= 0 && py < h {
                             let idx = ((py as usize) * (w as usize) + (px as usize)) * 4;
-                            let data = pixmap.data_mut();
                             let src_a = a * coverage;
                             let inv_src_a = 1.0 - src_a;
 
@@ -153,6 +158,7 @@ impl Typography {
 
         let w = pixmap.width() as i32;
         let h = pixmap.height() as i32;
+        let data = pixmap.data_mut();
 
         for ch in text.chars() {
             if ch == '\n' {
@@ -177,7 +183,6 @@ impl Typography {
                             let py = (gy + row as f32) as i32;
                             if px >= 0 && px < w && py >= 0 && py < h {
                                 let idx = ((py as usize) * (w as usize) + (px as usize)) * 4;
-                                let data = pixmap.data_mut();
                                 let src_a = out_a * coverage;
                                 let inv_src_a = 1.0 - src_a;
 
@@ -205,7 +210,6 @@ impl Typography {
                         let py = (base_gy + row as f32) as i32;
                         if px >= 0 && px < w && py >= 0 && py < h {
                             let idx = ((py as usize) * (w as usize) + (px as usize)) * 4;
-                            let data = pixmap.data_mut();
                             let src_a = a * coverage;
                             let inv_src_a = 1.0 - src_a;
 
@@ -228,10 +232,11 @@ impl Typography {
         x
     }
 
-    /// Mesure la largeur et hauteur d'un texte via le cache de glyphes
+    /// Mesure la largeur et hauteur d'un texte via le cache de glyphes et métriques de police réelles (R-40)
     pub fn measure_text(&self, text: &str, size: f32, bold: bool) -> (f32, f32) {
+        let font = if bold { &self.bold } else { &self.regular };
+        let height = font.horizontal_line_metrics(size).map(|m| m.new_line_size).unwrap_or(size * 1.2);
         let mut width = 0.0;
-        let height = size;
         for ch in text.chars() {
             if ch == '\n' {
                 continue;

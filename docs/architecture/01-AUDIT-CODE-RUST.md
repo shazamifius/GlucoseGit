@@ -9,6 +9,32 @@
 > et un correctif. **Aucun constat n'est une supposition** : tout ce qui est affirmé ici a été
 > vérifié dans le code ou dans la source de la dépendance concernée.
 
+> ### 🔍 Vérification indépendante au commit `8444e8b`
+>
+> **Tout ce qui suit a été relu ligne à ligne dans le code, pas sur déclaration.**
+> `cargo check` : 0 erreur. `cargo test --workspace` : **224 tests, 14 suites, tous verts**.
+> `cargo clippy --workspace --all-targets` : **12 warnings**.
+>
+> **Réellement fait et vérifié (14)** : 1.3, 1.5, 1.6, 1.7, 1.9, 1.11, 1.15, 1.17, 1.18,
+> 1.20, 1.21, 1.22, 1.25, 1.26 — plus R-12 (flèches aux deux bouts) et R-27 (alpha prémultiplié).
+> `app.rs` est passé de **1 126 à 331 lignes**, avec un module `interactions/` propre.
+> C'est du vrai travail d'architecture.
+>
+> **Annoncé fait, mais faux (3)** — voir R-34, R-35, R-36 :
+>
+> | Tâche | Annoncé | Réalité vérifiée |
+> |---|---|---|
+> | 1.10 / R-16 — DPI | « appliqué dynamiquement » | `ui.scale_factor` est **écrit deux fois et jamais lu**. Zéro effet. |
+> | 1.23 / R-21 — erreurs | « hiérarchie `GlucoseError`… » | `CoreError` + `DesktopError` = 115 lignes avec **0 référence hors de leur propre fichier**. |
+> | 1.24 / R-31 — thème | « structure `Theme` et jetons » | `Theme` lu **3 fois dans 1 fichier**. **211 littéraux de couleur hors thème**, dont 134 dans `dock.rs`. |
+>
+> **Partiellement fait (4)** : 1.4 (cache OK mais `n` allocations/frame), 1.8 (unique mais O(n)
+> par id), 1.12 (`WaitUntil` OK mais boucle à 33 fps), 1.14 (cache OK mais éviction totale).
+>
+> **Nouveaux constats introduits par ces commits** : **R-34 → R-40** (voir section dédiée).
+> Le plus grave est **R-37** : `dock.rs` (1 710 lignes, écrit après l'audit) reproduit R-20
+> à l'identique, avec un bug de divergence confirmé.
+
 > ### ⚠️ Re-vérification au commit `81aea31`
 >
 > Deux commits (`2da029f`, `81aea31`) sont arrivés pendant la rédaction de cet audit.
@@ -1040,6 +1066,252 @@ C'est la dynamique centrale à comprendre : à structure constante, chaque corre
 suivante plus coûteuse. C'est pour cela que la roadmap place l'éclatement de `app.rs` et la
 boucle de rendu unique en **phase 1**, avant toute nouvelle fonctionnalité — sinon la dette
 croît plus vite qu'on ne la rembourse.
+
+---
+
+# Nouveaux constats — vérification `8444e8b`
+
+*Introduits par les commits de la phase 1. Même méthode : lecture du code, rien sur déclaration.*
+
+## R-34 — Le DPI est câblé mais jamais appliqué — 🟡 (traité à vérifier)
+
+**Gravité : MAJEUR.** Annoncé comme fait (tâche 1.10), **ne l'est pas**.
+
+```rust
+// app.rs:219 et 259 — les DEUX seules occurrences hors déclaration
+self.ui.scale_factor = scale_factor as f32;
+```
+
+`UiState::scale_factor` est **écrit deux fois et lu zéro fois**. Recherche exhaustive sur tout
+`crates/glucose-desktop/src/` : aucune lecture. `layout_topbar`, `layout_tabs`,
+`layout_minimap`, `compute_panel_layouts` et l'ensemble de `dock.rs` travaillent toujours en
+constantes physiques (`TOPBAR_HEIGHT: f32 = 44.0`, boutons 30×30, polices 10–15 px).
+
+**R-16 est donc intact.** Sur un écran à 150 % — le réglage par défaut de beaucoup de portables
+Windows 11 — la barre fait toujours 44 px physiques ≈ 29 px logiques.
+
+Le `ScaleFactorChanged` a bien été ajouté, et c'est utile : il ne manque que la moitié qui agit.
+
+**Correctif** : passer `scale_factor` à chaque fonction de layout et multiplier toutes les
+constantes. Ou mieux — un type `Dip(f32)` qui ne se convertit en pixels qu'au dernier moment,
+pour que l'oubli devienne impossible à compiler.
+
+---
+
+## R-35 — Les types d'erreur sont du code mort neuf — 🟡 (traité à vérifier)
+
+**Gravité : MAJEUR.** Annoncé comme fait (tâche 1.23), **ne l'est pas**.
+
+`crates/glucose-core/src/error.rs` (51 l.) et `crates/glucose-desktop/src/error.rs` (64 l.)
+définissent `CoreError`, `CoreResult`, `DesktopError`, `DesktopResult`, avec des `Display`
+soignés, des conversions `From`, et deux tests.
+
+Recherche exhaustive de `CoreError|CoreResult|DesktopError|DesktopResult` dans tout `crates/`,
+en excluant leurs fichiers de définition : **zéro résultat.**
+
+Aucune fonction ne retourne ces types. Aucune ne les construit. Il n'y a pas de barre de statut.
+Il reste **7 `let _ =`** (4 dans `app.rs`, 3 dans `dock.rs`) et les `.unwrap()` sur
+`SystemTime::duration_since` sont toujours là (`clipboard.rs:74`).
+
+**C'est R-18 reproduit en direct** — et c'est la leçon la plus importante de cette vérification :
+*le réflexe du projet est d'écrire le module propre, et de s'arrêter avant de le brancher.*
+Les 115 lignes sont bonnes ; elles ne servent à rien tant qu'aucun `Result` ne les traverse.
+
+**Correctif** : convertir d'abord **un seul** chemin de bout en bout — le décodage d'image, qui a
+déjà sa variante `ImageDecodeFailed` — jusqu'à un toast d'erreur visible. Une fois ce chemin
+vivant, les autres suivent naturellement.
+
+---
+
+## R-36 — Le thème est ignoré par le code écrit en même temps que lui — 🟡 (traité à vérifier)
+
+**Gravité : MAJEUR.** Annoncé comme fait (tâche 1.24), **ne l'est pas**.
+
+`theme.rs` (153 l.) définit 25 jetons nommés. Nombre de lectures de `theme.` par fichier :
+
+| Fichier | Lectures du thème | Littéraux `from_rgba8` |
+|---|---:|---:|
+| `renderer.rs` | 3 | 37 |
+| `ui.rs` | **0** | 35 |
+| `dock.rs` | **0** | **134** |
+| `icons.rs` | **0** | 1 |
+| `typography.rs` | **0** | 4 |
+| **Total hors `theme.rs`** | **3** | **211** |
+
+L'audit initial comptait **73** littéraux. Il y en a maintenant **211**.
+**Le problème a triplé**, parce que `dock.rs` — 1 710 lignes écrites *après* la création du
+thème — a été rédigé intégralement en couleurs codées en dur.
+
+Un thème clair reste impossible. `theme.rs` est aujourd'hui un 26ᵉ module mort.
+
+---
+
+## R-37 — `dock.rs` reproduit R-20, avec un bug de divergence confirmé — 🟡 (traité à vérifier)
+
+**Gravité : MAJEUR — le constat le plus grave de cette vérification.**
+
+`dock.rs` fait **1 710 lignes** (limite fixée : 500) et contient 6 fonctions de rendu de
+87 à 192 lignes (limite : 60). Mais le vrai problème est structurel.
+
+`compute_panel_layouts()` produit bien une liste de boîtes de panneaux partagée — bonne idée.
+**Mais le contenu de chaque panneau a sa géométrie écrite deux fois**, exactement comme
+`render_topbar` / `handle_ui_click` avant le correctif :
+
+```rust
+// dock.rs:690 — RENDU
+let (tw, _) = typo.measure_text(lbl, 10.0, false);
+let bw = tw + 14.0;
+
+// dock.rs:1433 — CLIC
+let bw = lbl.len() as f32 * 6.0 + 14.0;
+```
+
+**Deux formules différentes pour la même largeur de bouton.** Et la seconde est doublement
+fausse :
+
+1. `len() * 6.0` est une estimation monospace arbitraire, sans rapport avec la police réelle ;
+2. `str::len()` compte des **octets, pas des caractères**. Les libellés du panneau ORDONNER
+   contiennent `→` (3 octets en UTF-8) : « Sombre → Clair » fait 14 caractères mais
+   **16 octets**.
+
+Conséquence mesurable : largeur au clic ≈ 16 × 6 + 14 = **110 px**, largeur au rendu ≈ **84 px**.
+**26 px de dérive par bouton**, cumulés sur 8 boutons, avec en prime un retour à la ligne
+(`if sx + bw > px + pw - 14.0`) qui ne se déclenche pas au même endroit dans les deux passes —
+donc des **rangées entières décalées**. Les boutons de tri du panneau ORDONNER ne cliquent pas
+où ils sont dessinés.
+
+Tout le reste de `handle_dock_click` (169 lignes) est du même tissu : `py + 38.0 + 32.0 + 14.0`,
+`cy += 32.0`, `py + b.height - 38.0`… recopiés à la main depuis les fonctions de rendu.
+
+**Ce constat vaut plus que sa gravité technique** : `layout_topbar()` a démontré le bon patron,
+il a ses tests, il marche — et le fichier suivant a été écrit sans lui. Tant que le patron n'est
+pas *le seul chemin possible*, il ne sera pas suivi.
+
+**Correctif** : `dock.rs` doit produire, comme la barre d'outils, une liste
+`Vec<DockWidget { id, rect }>` consommée par le rendu **et** par le clic. Et l'éclater en un
+fichier par panneau.
+
+---
+
+## R-38 — La boucle d'animation repeint tout l'écran 33 fois par seconde — 🟡 (traité à vérifier)
+
+**Gravité : MAJEUR.** [app.rs:300-330](../../crates/glucose-desktop/src/app.rs#L300-L330)
+
+```rust
+if self.ui.current_toast.is_some() {
+    need_anim = true;
+    min_timeout_ms = min_timeout_ms.min(30);   // ← 33 fps
+}
+// ...
+if need_anim {
+    event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
+    self.mark_dirty();                          // ← redessine TOUT, inconditionnellement
+}
+```
+
+Un toast dure 2 500 ms → **83 rendus plein écran** (fond + grille + halos + membranes + images +
+annotations + UI + docks) pour animer une pilule de 36 px de haut en bas d'écran.
+Une session d'édition de texte tourne à 10 fps en permanence, pour un curseur dont la période
+est de 500 ms — **2 redessins par seconde suffiraient**.
+
+`mark_dirty()` est appelé **sans condition** dans `about_to_wait` : rien ne vérifie que quelque
+chose a réellement changé depuis la frame précédente.
+
+Le correctif 1.11 (`request_redraw` au lieu de `redraw()` direct) est réel et bon. Mais sans
+rectangles sales (1.13, honnêtement marqué partiel), il déplace le problème au lieu de le
+résoudre : on est passé de « repeint plein écran à chaque événement souris » à « repeint plein
+écran 33 fois par seconde ».
+
+**Correctif** : cadencer sur la vraie période de l'animation (500 ms pour le curseur, ~16 ms
+seulement pendant les 400 ms de fondu du toast), et n'appeler `mark_dirty()` que si l'état
+visuel a effectivement changé.
+
+---
+
+## R-39 — Allocations par frame dans le cache de teintes et l'index spatial
+
+**Gravité : MAJEUR.** Les deux optimisations de la phase 1 réallouent à chaque frame ce
+qu'elles sont censées éviter de recalculer.
+
+**Cache de teintes** — [renderer.rs:97-101](../../crates/glucose-desktop/src/renderer.rs#L97-L101),
+appelé à chaque frame :
+
+```rust
+self.last_positions.clear();
+for ann in annotations {
+    if let Annotation::Text { id, x, y, .. } = ann {
+        self.last_positions.insert(id.clone(), (*x, *y));   // ← String allouée par carte
+    }
+}
+```
+
+Vide et reconstruit intégralement la table à chaque frame : **n allocations `String` + n
+insertions de hachage par frame**, même quand rien ne bouge. Sur 1 000 cartes immobiles, c'est
+1 000 allocations/frame pour découvrir qu'il n'y a rien à faire.
+
+**Index spatial** — [quadtree.rs:169-172](../../crates/glucose-core/src/quadtree.rs#L169-L172) :
+
+```rust
+for id in ids {
+    out.insert(id.clone());   // ← String allouée par élément visible, par requête
+}
+```
+
+`query_rect` retourne `HashSet<String>`. Chaque requête de visibilité alloue une `String` par
+élément trouvé, puis hache des chaînes au lieu d'entiers. Il y a une requête par frame pour le
+culling, plus une par test de clic.
+
+Enfin, `index_board()` fait un **rebuild complet en O(n)** dès que `store.version` change —
+c'est-à-dire **à chaque événement de souris pendant un drag**. Sur 10 000 nœuds, déplacer une
+carte réindexe les 10 000.
+
+**Correctif** : `Vec<NodeId>` d'entiers au lieu de `HashSet<String>` (déjà prescrit dans
+`02-ARCHITECTURE-CIBLE.md` § 3.3), tampons réutilisés d'une frame à l'autre, et
+`insert`/`remove` incrémentaux au lieu du rebuild.
+
+---
+
+## R-40 — Défauts ponctuels de la typographie
+
+**Gravité : MINEUR à MAJEUR selon le point.**
+[typography.rs](../../crates/glucose-desktop/src/typography.rs)
+
+Le cache de glyphes (1.14) est réel et le mélange alpha prémultiplié (R-27) est **correct** —
+vérifié : `dst = src·a + dst·(1−a)` sur une destination prémultipliée, avec l'alpha préservé.
+Restent quatre défauts :
+
+1. **Éviction par table rase** (l. 53) : `if cache.len() > 4096 { cache.clear(); }`.
+   Au 4 097ᵉ glyphe, on jette **tout** et on re-rastérise depuis zéro. Comme la clé inclut la
+   taille au dixième de pixel, un zoom continu génère une clé nouvelle par palier : le cache se
+   remplit vite et l'application repart de zéro périodiquement, en plein geste. Il faut une LRU.
+
+2. **`pixmap.data_mut()` appelé une fois par pixel** (l. 103, dans la double boucle
+   `row × col`). À sortir de la boucle : c'est un appel de fonction et une revérification
+   d'emprunt par pixel, soit des centaines de milliers d'appels par frame.
+
+3. **`Arc<GlyphEntry>` cloné à chaque glyphe** : une opération atomique par caractère dessiné,
+   dans un moteur strictement mono-thread. `Rc`, ou mieux un index dans un `Vec`, suffirait.
+
+4. **`measure_text` retourne toujours `(largeur, size)`** (l. 234) : la hauteur annoncée est la
+   taille de police, pas la hauteur de ligne réelle. Toute mise en page verticale qui s'y fie
+   est fausse — R-28 reste entier.
+
+---
+
+## Synthèse de la vérification `8444e8b`
+
+| | Nombre |
+|---|---:|
+| Tâches annoncées de la phase 1 | 21 |
+| **Réellement faites et vérifiées** | **14** |
+| Partiellement faites | 4 |
+| **Annoncées faites mais fausses** | **3** (R-34, R-35, R-36) |
+| Nouveaux constats introduits | **7** (R-34 → R-40) |
+| Critères de sortie de la phase 1 atteints | **5 / 9** |
+| Tests | 224, 14 suites, **tous verts** |
+| Warnings clippy | 12 |
+| Fichiers > 500 lignes | 5 (`dock.rs` 1710, `ui.rs` 1178, `store.rs` 1043, `renderer.rs` 1026, `hit_priority.rs` 1026) |
+| Fonctions > 60 lignes dans `dock.rs` | 8 |
 
 ---
 

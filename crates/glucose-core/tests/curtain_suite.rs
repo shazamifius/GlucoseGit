@@ -100,7 +100,7 @@ fn test_curtain_panel_simulation_and_dwell() {
     assert_eq!(s2.phase, CurtainPhase::Expanded);
 
     // Repli est plus court que déploiement
-    assert!(curtain_consts::COLLAPSE_DWELL_MS < curtain_consts::EXPAND_DWELL_MS);
+    const { assert!(curtain_consts::COLLAPSE_DWELL_MS < curtain_consts::EXPAND_DWELL_MS) };
 
     // Souris quitte la fenêtre -> repli
     let mut ouvert = CurtainState {

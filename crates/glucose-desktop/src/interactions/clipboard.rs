@@ -2,7 +2,7 @@
 
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
-use crate::ui::TOTAL_HEADER_HEIGHT;
+use crate::error::DesktopError;
 use arboard::Clipboard;
 use glucose_core::types::{Annotation, BoardImage};
 use std::path::{Path, PathBuf};
@@ -14,7 +14,7 @@ impl GlucoseApp {
         let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
         let (mut cur_wx, mut cur_wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
-        if self.mouse_pos.1 < TOTAL_HEADER_HEIGHT as f64 {
+        if self.mouse_pos.1 < self.ui.header_height() as f64 {
             cur_wx = 0.0;
             cur_wy = 0.0;
         }
@@ -26,7 +26,11 @@ impl GlucoseApp {
                     Ok((w, h)) => (w as f64, h as f64),
                     Err(err) => {
                         let filename = path_buf.file_name().and_then(|n| n.to_str()).unwrap_or("image");
-                        self.ui.show_toast(format!("⚠️ Image non lisible ({}) : {}", filename, err));
+                        let desktop_err = DesktopError::ImageDimensionsFailed {
+                            path: filename.to_string(),
+                            reason: err.to_string(),
+                        };
+                        self.ui.show_toast(format!("⚠️ {}", desktop_err));
                         continue;
                     }
                 };
@@ -64,72 +68,96 @@ impl GlucoseApp {
         let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
-        if let Ok(mut clipboard) = Clipboard::new() {
-            // 1. Tenter de coller une image bitmap (Pinterest, navigateur, capture d'écran)
-            if let Ok(img_data) = clipboard.get_image() {
-                let w = img_data.width as usize;
-                let h = img_data.height as usize;
-                let temp_dir = std::env::temp_dir().join("glucose_pasted");
-                let _ = std::fs::create_dir_all(&temp_dir);
-                let filename = format!("paste_{}.png", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
-                let file_path = temp_dir.join(filename);
+        match Clipboard::new() {
+            Ok(mut clipboard) => {
+                // 1. Tenter de coller une image bitmap (Pinterest, navigateur, capture d'écran)
+                if let Ok(img_data) = clipboard.get_image() {
+                    let w = img_data.width as usize;
+                    let h = img_data.height as usize;
+                    let temp_dir = std::env::temp_dir().join("glucose_pasted");
+                    if let Err(e) = std::fs::create_dir_all(&temp_dir) {
+                        let err = DesktopError::Io(e);
+                        self.ui.show_toast(format!("⚠️ {}", err));
+                        return;
+                    }
+                    let nanos = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_nanos();
+                    let filename = format!("paste_{}.png", nanos);
+                    let file_path = temp_dir.join(&filename);
 
-                if image::save_buffer(
-                    &file_path,
-                    &img_data.bytes,
-                    w as u32,
-                    h as u32,
-                    image::ExtendedColorType::Rgba8,
-                ).is_ok() {
-                    let id = self.store.generate_id("img-paste");
-                    let mut img = BoardImage::new(
-                        id,
-                        wx,
-                        wy,
-                        (w as f64).min(600.0),
-                        (h as f64) * ((w as f64).min(600.0) / (w as f64).max(1.0)),
-                    );
-                    img.src = Some(file_path.to_string_lossy().to_string());
-                    img.original_width = w as f64;
-                    img.original_height = h as f64;
+                    match image::save_buffer(
+                        &file_path,
+                        &img_data.bytes,
+                        w as u32,
+                        h as u32,
+                        image::ExtendedColorType::Rgba8,
+                    ) {
+                        Ok(_) => {
+                            let id = self.store.generate_id("img-paste");
+                            let mut img = BoardImage::new(
+                                id,
+                                wx,
+                                wy,
+                                (w as f64).min(600.0),
+                                (h as f64) * ((w as f64).min(600.0) / (w as f64).max(1.0)),
+                            );
+                            img.src = Some(file_path.to_string_lossy().to_string());
+                            img.original_width = w as f64;
+                            img.original_height = h as f64;
 
-                    self.store.add_image(&active_bid, img);
-                    self.ui.show_toast("📥 Image collée");
+                            self.store.add_image(&active_bid, img);
+                            self.ui.show_toast("📥 Image collée");
+                            self.mark_dirty();
+                            return;
+                        }
+                        Err(e) => {
+                            let err = DesktopError::ImageDecodeFailed {
+                                path: filename,
+                                reason: e.to_string(),
+                            };
+                            self.ui.show_toast(format!("⚠️ {}", err));
+                            return;
+                        }
+                    }
+                }
+
+                // 2. Tenter de coller du texte ou un chemin de fichier
+                if let Ok(text) = clipboard.get_text() {
+                    let trimmed = text.trim();
+                    let path = Path::new(trimmed);
+                    if path.exists() && path.is_file() {
+                        self.import_image_files(&[path.to_path_buf()]);
+                        return;
+                    }
+
+                    // Coller en tant que carte texte
+                    let aid = self.store.generate_id("text");
+                    let ann = Annotation::Text {
+                        id: aid,
+                        x: wx,
+                        y: wy,
+                        width: Some(220.0),
+                        height: Some(44.0),
+                        text: trimmed.to_string(),
+                        font_size: Some(13.0),
+                        color: None,
+                        cursor_pos: None,
+                        source_file: None,
+                        membrane_id: None,
+                        domains: Vec::new(),
+                        mirror_of: None,
+                        temporal_anchor: None,
+                    };
+                    self.store.add_annotation(&active_bid, ann);
+                    self.ui.show_toast("📝 Texte collé");
                     self.mark_dirty();
-                    return;
                 }
             }
-
-            // 2. Tenter de coller du texte ou un chemin de fichier
-            if let Ok(text) = clipboard.get_text() {
-                let trimmed = text.trim();
-                let path = Path::new(trimmed);
-                if path.exists() && path.is_file() {
-                    self.import_image_files(&[path.to_path_buf()]);
-                    return;
-                }
-
-                // Coller en tant que carte texte
-                let aid = self.store.generate_id("text");
-                let ann = Annotation::Text {
-                    id: aid,
-                    x: wx,
-                    y: wy,
-                    width: Some(220.0),
-                    height: Some(44.0),
-                    text: trimmed.to_string(),
-                    font_size: Some(13.0),
-                    color: None,
-                    cursor_pos: None,
-                    source_file: None,
-                    membrane_id: None,
-                    domains: Vec::new(),
-                    mirror_of: None,
-                    temporal_anchor: None,
-                };
-                self.store.add_annotation(&active_bid, ann);
-                self.ui.show_toast("📝 Texte collé");
-                self.mark_dirty();
+            Err(e) => {
+                let err = DesktopError::ClipboardError(e.to_string());
+                self.ui.show_toast(format!("⚠️ {}", err));
             }
         }
     }

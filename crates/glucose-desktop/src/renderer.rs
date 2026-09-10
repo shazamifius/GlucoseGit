@@ -4,7 +4,7 @@
 use crate::canvas::{screen_to_world, world_to_screen};
 use crate::theme::Theme;
 use crate::typography::Typography;
-use crate::ui::{render_ui, UiState, TOTAL_HEADER_HEIGHT};
+use crate::ui::{render_ui, UiState};
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
@@ -48,12 +48,12 @@ impl SymbioticHueCache {
     /// Invalidation par voisinage (1 200 px) : si une carte a bougé, seules les cartes à < 1 200 px sont invalidées
     pub fn update_positions_and_invalidate(&mut self, annotations: &[Annotation]) {
         let mut moved_points: Vec<(f64, f64)> = Vec::new();
-        let mut current_ids = HashSet::new();
+        let mut current_ids: HashSet<&str> = HashSet::with_capacity(annotations.len());
 
         for ann in annotations {
             if let Annotation::Text { id, x, y, .. } = ann {
-                current_ids.insert(id.clone());
-                match self.last_positions.get(id) {
+                current_ids.insert(id.as_str());
+                match self.last_positions.get(id.as_str()) {
                     Some(&(lx, ly)) => {
                         if (lx - x).abs() > 0.01 || (ly - y).abs() > 0.01 {
                             moved_points.push((*x, *y));
@@ -67,18 +67,22 @@ impl SymbioticHueCache {
             }
         }
 
-        // Détecter les cartes supprimées
-        for (old_id, &(lx, ly)) in &self.last_positions {
-            if !current_ids.contains(old_id) {
+        // Détecter les cartes supprimées et les retirer de last_positions sans réallocation globale
+        self.last_positions.retain(|old_id, pos| {
+            let (lx, ly) = *pos;
+            if !current_ids.contains(old_id.as_str()) {
                 moved_points.push((lx, ly));
+                false
+            } else {
+                true
             }
-        }
+        });
 
         // Si des cartes ont bougé / sont nées / sont mortes, invalider celles dans un rayon de 1 200 px
         if !moved_points.is_empty() {
             const INVALIDATION_RADIUS_SQ: f64 = 1200.0 * 1200.0;
             self.entries.retain(|id, entry| {
-                if !current_ids.contains(id) {
+                if !current_ids.contains(id.as_str()) {
                     return false;
                 }
                 for &(mx, my) in &moved_points {
@@ -92,11 +96,14 @@ impl SymbioticHueCache {
             });
         }
 
-        // Mettre à jour la table des positions
-        self.last_positions.clear();
+        // Mettre à jour les coordonnées en place sans réallouer de chaînes pour les cartes existantes (R-39)
         for ann in annotations {
             if let Annotation::Text { id, x, y, .. } = ann {
-                self.last_positions.insert(id.clone(), (*x, *y));
+                if let Some(pos) = self.last_positions.get_mut(id.as_str()) {
+                    *pos = (*x, *y);
+                } else {
+                    self.last_positions.insert(id.clone(), (*x, *y));
+                }
             }
         }
     }
@@ -184,12 +191,21 @@ impl Renderer {
 
     /// Charge ou récupère une image décodée en Pixmap tiny-skia (supporte WebP, PNG, JPG, GIF, BMP).
     /// Dispose d'un cache négatif pour ne jamais re-décoder un fichier inaccessible ou corrompu (R-29).
+    #[allow(dead_code)]
     pub fn get_or_load_image(&mut self, src_or_path: &str) -> Option<&Pixmap> {
-        if self.failed_images.contains(src_or_path) {
+        Self::load_image_impl(&mut self.image_cache, &mut self.failed_images, src_or_path)
+    }
+
+    pub fn load_image_impl<'a>(
+        image_cache: &'a mut HashMap<String, Pixmap>,
+        failed_images: &mut HashSet<String>,
+        src_or_path: &str,
+    ) -> Option<&'a Pixmap> {
+        if failed_images.contains(src_or_path) {
             return None;
         }
-        if self.image_cache.contains_key(src_or_path) {
-            return self.image_cache.get(src_or_path);
+        if image_cache.contains_key(src_or_path) {
+            return image_cache.get(src_or_path);
         }
 
         let path = Path::new(src_or_path);
@@ -213,13 +229,13 @@ impl Renderer {
                         dst_bytes[i * 4 + 2] = ((b * a) * 255.0) as u8;
                         dst_bytes[i * 4 + 3] = (a * 255.0) as u8;
                     }
-                    self.image_cache.insert(src_or_path.to_string(), pixmap);
-                    return self.image_cache.get(src_or_path);
+                    image_cache.insert(src_or_path.to_string(), pixmap);
+                    return image_cache.get(src_or_path);
                 }
             }
         }
         // Cache négatif (R-29) : ne pas retenter le décodage échoué chaque frame
-        self.failed_images.insert(src_or_path.to_string());
+        failed_images.insert(src_or_path.to_string());
         None
     }
 
@@ -251,31 +267,50 @@ impl Renderer {
             }
         }
 
-        let (min_wx, min_wy) = screen_to_world(0.0, TOTAL_HEADER_HEIGHT as f64, &vp);
+        let header_h = ui.header_height();
+        let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let visible_ids = self.spatial_hash.query_rect(min_wx, min_wy, max_wx, max_wy, 200.0);
+        let visible_ids = self.spatial_hash.query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
 
         // 1. Fond sombre sleek PureRef
         pixmap.fill(self.theme.bg_canvas);
 
         // 2. Grille de points infinie
-        self.draw_grid(pixmap, &vp, width, height);
+        self.draw_grid(pixmap, &vp, width, height, header_h);
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + gradient vectoriel circulaire)
-        self.draw_halos(pixmap, store, &vp, &visible_ids);
+        Self::draw_halos(&mut self.hue_cache, pixmap, store, &vp, &visible_ids, header_h);
 
         // 4. Membranes (large rayon rx=60, pointillés, titre protecteur en haut à gauche)
-        self.draw_membranes(pixmap, store, &vp, &visible_ids);
+        self.draw_membranes(pixmap, store, &vp, &visible_ids, header_h);
 
         // 5. Images
-        self.draw_images(pixmap, store, &vp, &visible_ids);
+        Self::draw_images(
+            &mut self.image_cache,
+            &mut self.failed_images,
+            &self.typography,
+            pixmap,
+            store,
+            &vp,
+            &visible_ids,
+            header_h,
+        );
 
         // 6. Annotations (cartes de texte, stickies, flèches + édition live in-place)
-        self.draw_annotations(pixmap, store, &vp, editing_session, &visible_ids);
+        Self::draw_annotations(
+            &mut self.hue_cache,
+            &self.typography,
+            pixmap,
+            store,
+            &vp,
+            editing_session,
+            &visible_ids,
+            header_h,
+        );
 
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
-            self.draw_guides(pixmap, guides, &vp, width, height);
+            self.draw_guides(pixmap, guides, &vp, width, height, header_h);
         }
 
         // 8. Boîte de sélection élastique (Marquee)
@@ -284,11 +319,11 @@ impl Renderer {
         }
 
         // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
-        render_ui(pixmap, store, ui, &self.typography, mouse_x, mouse_y);
+        render_ui(pixmap, store, ui, &self.typography, &self.theme, mouse_x, mouse_y);
     }
 
-    fn draw_grid(&self, pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32) {
-        let (min_wx, min_wy) = screen_to_world(0.0, TOTAL_HEADER_HEIGHT as f64, vp);
+    fn draw_grid(&self, pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, header_h: f32) {
+        let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, vp);
         let (max_wx, max_wy) = screen_to_world(w as f64, h as f64, vp);
 
         // Pas dynamique adaptatif : ne descend jamais sous ~32px à l'écran pour éviter toute explosion CPU
@@ -315,7 +350,7 @@ impl Renderer {
             let mut gy = start_y;
             while gy <= end_y {
                 let (sx, sy) = world_to_screen(gx, gy, vp);
-                if sy >= TOTAL_HEADER_HEIGHT as f64 && sx >= 0.0 && sx <= w as f64 && sy <= h as f64 {
+                if sy >= header_h as f64 && sx >= 0.0 && sx <= w as f64 && sy <= h as f64 {
                     pb.push_circle(sx as f32, sy as f32, 1.2);
                 }
                 gy += effective_step;
@@ -327,7 +362,14 @@ impl Renderer {
         }
     }
 
-    fn draw_halos(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<String>) {
+    fn draw_halos(
+        hue_cache: &mut SymbioticHueCache,
+        pixmap: &mut PixmapMut,
+        store: &Store,
+        vp: &Viewport,
+        visible_ids: &HashSet<&str>,
+        header_h: f32,
+    ) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -352,14 +394,14 @@ impl Renderer {
                 // Frustum culling : ignorer si complètement hors de l'écran visible ou trop microscopique
                 if cx + radius < 0.0
                     || cx - radius > screen_w
-                    || cy + radius < TOTAL_HEADER_HEIGHT
+                    || cy + radius < header_h
                     || cy - radius > screen_h
                     || radius < 4.0
                 {
                     continue;
                 }
 
-                let (_hue, (r, g, b)) = self.hue_cache.get_or_compute(ann, &board.annotations);
+                let (_hue, (r, g, b)) = hue_cache.get_or_compute(ann, &board.annotations);
 
                 if let Some(shader) = RadialGradient::new(
                     Point::from_xy(cx, cy),
@@ -386,7 +428,7 @@ impl Renderer {
         }
     }
 
-    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<String>) {
+    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<&str>, header_h: f32) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -407,7 +449,7 @@ impl Renderer {
                 // Frustum culling
                 if sx as f32 + sw < 0.0
                     || sx as f32 > screen_w
-                    || sy as f32 + sh < TOTAL_HEADER_HEIGHT
+                    || sy as f32 + sh < header_h
                     || sy as f32 > screen_h
                     || (sw < 2.0 && sh < 2.0)
                 {
@@ -525,7 +567,16 @@ impl Renderer {
         }
     }
 
-    fn draw_images(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<String>) {
+    fn draw_images(
+        image_cache: &mut HashMap<String, Pixmap>,
+        failed_images: &mut HashSet<String>,
+        typography: &Typography,
+        pixmap: &mut PixmapMut,
+        store: &Store,
+        vp: &Viewport,
+        visible_ids: &HashSet<&str>,
+        header_h: f32,
+    ) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -534,49 +585,38 @@ impl Renderer {
         let screen_w = pixmap.width() as f32;
         let screen_h = pixmap.height() as f32;
 
-        let images_data: Vec<_> = board
-            .images
-            .iter()
-            .filter(|img| visible_ids.contains(&img.id))
-            .map(|img| {
-                (
-                    img.id.clone(),
-                    img.src.clone().unwrap_or_default(),
-                    img.x,
-                    img.y,
-                    img.width,
-                    img.height,
-                )
-            })
-            .collect();
-
-        for (id, src, x, y, w, h) in images_data {
-            let (sx, sy) = world_to_screen(x - w / 2.0, y - h / 2.0, vp);
-            let sw = (w * vp.scale) as f32;
-            let sh = (h * vp.scale) as f32;
+        for img in &board.images {
+            if !visible_ids.contains(img.id.as_str()) {
+                continue;
+            }
+            let (sx, sy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, vp);
+            let sw = (img.width * vp.scale) as f32;
+            let sh = (img.height * vp.scale) as f32;
 
             // Frustum culling
             if sx as f32 + sw < 0.0
                 || sx as f32 > screen_w
-                || sy as f32 + sh < TOTAL_HEADER_HEIGHT
+                || sy as f32 + sh < header_h
                 || sy as f32 > screen_h
                 || (sw < 1.0 && sh < 1.0)
             {
                 continue;
             }
 
-            let is_selected = store.selected_image_ids.contains(&id);
+            let is_selected = store.selected_image_ids.contains(&img.id);
 
             let mut drawn = false;
-            if !src.is_empty() {
-                if let Some(loaded_pixmap) = self.get_or_load_image(&src) {
-                    let scale_x = sw / loaded_pixmap.width() as f32;
-                    let scale_y = sh / loaded_pixmap.height() as f32;
-                    let ts = Transform::from_scale(scale_x, scale_y).post_translate(sx as f32, sy as f32);
-                    let mut pp = PixmapPaint::default();
-                    pp.quality = FilterQuality::Bilinear;
-                    pixmap.draw_pixmap(0, 0, loaded_pixmap.as_ref(), &pp, ts, None);
-                    drawn = true;
+            if let Some(ref src) = img.src {
+                if !src.is_empty() {
+                    if let Some(loaded_pixmap) = Self::load_image_impl(image_cache, failed_images, src) {
+                        let scale_x = sw / loaded_pixmap.width() as f32;
+                        let scale_y = sh / loaded_pixmap.height() as f32;
+                        let ts = Transform::from_scale(scale_x, scale_y).post_translate(sx as f32, sy as f32);
+                        let mut pp = PixmapPaint::default();
+                        pp.quality = FilterQuality::Bilinear;
+                        pixmap.draw_pixmap(0, 0, loaded_pixmap.as_ref(), &pp, ts, None);
+                        drawn = true;
+                    }
                 }
             }
 
@@ -592,8 +632,8 @@ impl Renderer {
                     let path = PathBuilder::from_rect(rect);
                     pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
 
-                    let label = format!("Image [{}]", id);
-                    self.typography.draw_text(
+                    let label = format!("Image [{}]", img.id);
+                    typography.draw_text(
                         pixmap,
                         &label,
                         sx as f32 + 10.0,
@@ -634,12 +674,14 @@ impl Renderer {
     }
 
     fn draw_annotations(
-        &mut self,
+        hue_cache: &mut SymbioticHueCache,
+        typography: &Typography,
         pixmap: &mut PixmapMut,
         store: &Store,
         vp: &Viewport,
         editing_session: Option<&TextEditSession>,
-        visible_ids: &HashSet<String>,
+        visible_ids: &HashSet<&str>,
+        header_h: f32,
     ) {
         let board = match store.active_board() {
             Some(b) => b,
@@ -661,7 +703,7 @@ impl Renderer {
                     // Frustum culling
                     if sx as f32 + sw < 0.0
                         || sx as f32 > screen_w
-                        || sy as f32 + sh < TOTAL_HEADER_HEIGHT
+                        || sy as f32 + sh < header_h
                         || sy as f32 > screen_h
                         || (sw < 3.0 && sh < 3.0)
                     {
@@ -669,15 +711,16 @@ impl Renderer {
                     }
 
                     let is_selected = store.selected_annotation_ids.contains(id);
-                    let is_editing = editing_session.map(|s| s.ann_id == *id).unwrap_or(false);
+                    let active_edit = editing_session.filter(|s| s.ann_id == *id);
+                    let is_editing = active_edit.is_some();
 
-                    let (_hue, (hr, hg, hb)) = self.hue_cache.get_or_compute(ann, &board.annotations);
+                    let (_hue, (hr, hg, hb)) = hue_cache.get_or_compute(ann, &board.annotations);
                     let (r, g, b) = color.as_deref()
                         .map(|c| parse_hex_color(c, hr, hg, hb))
                         .unwrap_or((hr, hg, hb));
 
-                    let content = if is_editing {
-                        editing_session.unwrap().buffer.as_str()
+                    let content = if let Some(edit) = active_edit {
+                        edit.buffer.as_str()
                     } else {
                         text.as_str()
                     };
@@ -735,13 +778,10 @@ impl Renderer {
                         let mut cursor_drawn = false;
                         let mut char_count_acc = 0;
 
-                        let show_cursor = is_editing
-                            && (editing_session.unwrap().blink_timer.elapsed().as_millis() / 500) % 2 == 0;
-                        let cursor_idx = if is_editing {
-                            editing_session.unwrap().cursor_idx
-                        } else {
-                            0
-                        };
+                        let show_cursor = active_edit
+                            .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
+                            .unwrap_or(false);
+                        let cursor_idx = active_edit.map(|s| s.cursor_idx).unwrap_or(0);
 
                         for (line_num, line) in lines.iter().enumerate() {
                             let line_len = line.len();
@@ -770,7 +810,7 @@ impl Renderer {
 
                             let start_x = sx as f32 + pad_x + indent;
 
-                            self.typography.draw_text(
+                            typography.draw_text(
                                 pixmap,
                                 display_text,
                                 start_x,
@@ -783,7 +823,7 @@ impl Renderer {
                             if show_cursor && !cursor_drawn && cursor_idx >= line_start && (cursor_idx <= line_end || line_num == lines.len() - 1) {
                                 let prefix_len = cursor_idx.saturating_sub(line_start).min(line_len);
                                 let prefix = &line[..prefix_len];
-                                let (prefix_w, _) = self.typography.measure_text(prefix, f_size, is_bold);
+                                let (prefix_w, _) = typography.measure_text(prefix, f_size, is_bold);
 
                                 let cx = start_x + prefix_w;
                                 let cy = cur_y;
@@ -818,7 +858,7 @@ impl Renderer {
                     // Frustum culling
                     if sx as f32 + sw < 0.0
                         || sx as f32 > screen_w
-                        || sy as f32 + sh < TOTAL_HEADER_HEIGHT
+                        || sy as f32 + sh < header_h
                         || sy as f32 > screen_h
                         || (sw < 3.0 && sh < 3.0)
                     {
@@ -826,10 +866,11 @@ impl Renderer {
                     }
 
                     let is_selected = store.selected_annotation_ids.contains(id);
-                    let is_editing = editing_session.map(|s| s.ann_id == *id).unwrap_or(false);
+                    let active_edit = editing_session.filter(|s| s.ann_id == *id);
+                    let is_editing = active_edit.is_some();
 
-                    let content = if is_editing {
-                        editing_session.unwrap().buffer.as_str()
+                    let content = if let Some(edit) = active_edit {
+                        edit.buffer.as_str()
                     } else {
                         text.as_str()
                     };
@@ -872,7 +913,7 @@ impl Renderer {
                                     glucose_core::types::StickyOperator::But => "MAIS",
                                     glucose_core::types::StickyOperator::Because => "PARCE QUE",
                                 };
-                                self.typography.draw_text(
+                                typography.draw_text(
                                     pixmap,
                                     op_str,
                                     sx as f32 + 10.0,
@@ -890,7 +931,7 @@ impl Renderer {
                             let text_color = Color::from_rgba8(txt_r, txt_g, txt_b, 255);
 
                             for line in content.lines() {
-                                self.typography.draw_text(
+                                typography.draw_text(
                                     pixmap,
                                     line,
                                     sx as f32 + 10.0,
@@ -902,8 +943,11 @@ impl Renderer {
                                 cur_ty += line_h;
                             }
 
-                            if is_editing && (editing_session.unwrap().blink_timer.elapsed().as_millis() / 500) % 2 == 0 {
-                                let (cw, _) = self.typography.measure_text(content, f_size, false);
+                            let show_cursor = active_edit
+                                .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
+                                .unwrap_or(false);
+                            if show_cursor {
+                                let (cw, _) = typography.measure_text(content, f_size, false);
                                 let cx = (sx as f32 + 10.0 + cw).min(sx as f32 + sw - 6.0);
                                 let mut c_paint = Paint::default();
                                 c_paint.set_color(Color::from_rgba8(28, 25, 23, 255));
@@ -923,7 +967,7 @@ impl Renderer {
                     let min_y = (sy1.min(sy2) as f32) - 16.0;
                     let max_y = (sy1.max(sy2) as f32) + 16.0;
 
-                    if max_x < 0.0 || min_x > screen_w || max_y < TOTAL_HEADER_HEIGHT || min_y > screen_h {
+                    if max_x < 0.0 || min_x > screen_w || max_y < header_h || min_y > screen_h {
                         continue;
                     }
 
@@ -969,7 +1013,7 @@ impl Renderer {
         }
     }
 
-    fn draw_guides(&self, pixmap: &mut PixmapMut, guides: &SnapGuides, vp: &Viewport, w: u32, h: u32) {
+    fn draw_guides(&self, pixmap: &mut PixmapMut, guides: &SnapGuides, vp: &Viewport, w: u32, h: u32, header_h: f32) {
         let mut guide_paint = Paint::default();
         guide_paint.set_color(self.theme.snap_guide);
         let stroke = Stroke { width: 1.0, ..Default::default() };
@@ -978,7 +1022,7 @@ impl Renderer {
             for &gx in xs {
                 let (sx, _) = world_to_screen(gx, 0.0, vp);
                 let mut pb = PathBuilder::new();
-                pb.move_to(sx as f32, TOTAL_HEADER_HEIGHT);
+                pb.move_to(sx as f32, header_h);
                 pb.line_to(sx as f32, h as f32);
                 if let Some(path) = pb.finish() {
                     pixmap.stroke_path(&path, &guide_paint, &stroke, Transform::identity(), None);
@@ -989,7 +1033,7 @@ impl Renderer {
         if let Some(ref ys) = guides.y {
             for &gy in ys {
                 let (_, sy) = world_to_screen(0.0, gy, vp);
-                if sy >= TOTAL_HEADER_HEIGHT as f64 {
+                if sy >= header_h as f64 {
                     let mut pb = PathBuilder::new();
                     pb.move_to(0.0, sy as f32);
                     pb.line_to(w as f32, sy as f32);

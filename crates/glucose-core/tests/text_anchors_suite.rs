@@ -95,7 +95,7 @@ fn test_resolve_anchors_reanchor_after_edit() {
     let edited = format!("préface {}", PLAIN);
     let shifted = SECOND + "préface ".len();
     assert_eq!(
-        resolve_anchors(&edited, &[anchor.clone()]),
+        resolve_anchors(&edited, std::slice::from_ref(&anchor)),
         vec![ResolvedRange { start: shifted, end: shifted + 8 }]
     );
 

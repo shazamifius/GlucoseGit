@@ -2,7 +2,7 @@
 
 use crate::dock::{apply_organize_layout, render_docks, DockManager, OrganizeState};
 use crate::renderer::{Renderer, TextEditSession};
-use crate::ui::{UiState, TOTAL_HEADER_HEIGHT};
+use crate::ui::UiState;
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
 use glucose_core::store::Store;
 use glucose_core::types::Annotation;
@@ -51,6 +51,7 @@ pub struct GlucoseApp {
     // Session d'édition de texte in-place (double-clic)
     pub editing_session: Option<TextEditSession>,
     pub last_click: Option<LastClickInfo>,
+    pub last_blink_phase: bool,
 }
 
 impl GlucoseApp {
@@ -102,6 +103,7 @@ impl GlucoseApp {
             always_on_top: false,
             editing_session: None,
             last_click: None,
+            last_blink_phase: true,
         }
     }
 
@@ -112,7 +114,9 @@ impl GlucoseApp {
             let height = size.height.max(1);
 
             if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                let _ = surface.resize(w, h);
+                if let Err(e) = surface.resize(w, h) {
+                    eprintln!("[GlucoseDesktop] surface.resize failed: {e}");
+                }
             }
 
             let need_new_pixmap = match &self.pixmap {
@@ -142,11 +146,13 @@ impl GlucoseApp {
                     &self.dock_manager,
                     &self.store,
                     &self.renderer.typography,
+                    &self.renderer.theme,
                     width as f32,
                     height as f32,
-                    TOTAL_HEADER_HEIGHT,
+                    self.ui.header_height(),
                     self.mouse_pos.0 as f32,
                     self.mouse_pos.1 as f32,
+                    self.ui.scale_factor,
                 );
 
                 if let Ok(mut buffer) = surface.buffer_mut() {
@@ -154,7 +160,9 @@ impl GlucoseApp {
                     for (dst, chunk) in buffer.iter_mut().zip(src.chunks_exact(4)) {
                         *dst = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
                     }
-                    let _ = buffer.present();
+                    if let Err(e) = buffer.present() {
+                        eprintln!("[GlucoseDesktop] buffer.present failed: {e}");
+                    }
                 }
             }
         }
@@ -224,7 +232,9 @@ impl ApplicationHandler for GlucoseApp {
                         let width = size.width.max(1);
                         let height = size.height.max(1);
                         if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                            let _ = surface.resize(w, h);
+                            if let Err(e) = surface.resize(w, h) {
+                                eprintln!("[GlucoseDesktop] surface.resize failed: {e}");
+                            }
                         }
                         self.pixmap = Pixmap::new(width, height);
                         self.window = Some(window.clone());
@@ -248,7 +258,9 @@ impl ApplicationHandler for GlucoseApp {
                 let height = size.height.max(1);
                 if let Some(surface) = &mut self.surface {
                     if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                        let _ = surface.resize(w, h);
+                        if let Err(e) = surface.resize(w, h) {
+                            eprintln!("[GlucoseDesktop] surface.resize failed: {e}");
+                        }
                     }
                 }
                 self.pixmap = Pixmap::new(width, height);
@@ -296,19 +308,49 @@ impl ApplicationHandler for GlucoseApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let mut need_anim = false;
+        let mut has_timer = false;
         let mut min_timeout_ms = 1000u64;
 
         // 1. Clignotement du curseur d'édition de texte (période 500 ms)
-        if self.editing_session.is_some() {
-            need_anim = true;
-            min_timeout_ms = min_timeout_ms.min(100);
+        if let Some(session) = &self.editing_session {
+            let elapsed = session.blink_timer.elapsed().as_millis();
+            let phase = (elapsed / 500) % 2 == 0;
+            if phase != self.last_blink_phase {
+                self.last_blink_phase = phase;
+                self.mark_dirty();
+            }
+            let remaining = 500 - (elapsed % 500);
+            min_timeout_ms = min_timeout_ms.min(remaining.max(1) as u64);
+            has_timer = true;
+        } else {
+            self.last_blink_phase = true;
         }
 
         // 2. Toasts actifs (décompte d'affichage et animation de fondu)
-        if self.ui.current_toast.is_some() {
-            need_anim = true;
-            min_timeout_ms = min_timeout_ms.min(30);
+        if let Some(ref toast) = self.ui.current_toast {
+            let elapsed = toast.created_at.elapsed().as_millis() as f32;
+            let total = toast.duration.as_millis() as f32;
+
+            if toast.is_expired() {
+                self.ui.current_toast = None;
+                self.mark_dirty();
+            } else if elapsed < 150.0 {
+                // Fondu entrant actif (150 ms) -> rafraîchissement doux
+                self.mark_dirty();
+                min_timeout_ms = min_timeout_ms.min(16);
+                has_timer = true;
+            } else if elapsed < total - 400.0 {
+                // Plateau statique (alpha = 1.0) : AUCUN rafraîchissement nécessaire !
+                // On attend l'échéance du début de fondu sortant sans redessiner.
+                let wait_ms = ((total - 400.0) - elapsed).ceil().max(1.0) as u64;
+                min_timeout_ms = min_timeout_ms.min(wait_ms);
+                has_timer = true;
+            } else {
+                // Fondu sortant actif (400 ms) -> rafraîchissement doux
+                self.mark_dirty();
+                min_timeout_ms = min_timeout_ms.min(16);
+                has_timer = true;
+            }
         }
 
         // 3. Minuteur Pomodoro actif dans le dock
@@ -316,14 +358,15 @@ impl ApplicationHandler for GlucoseApp {
             if self.dock_manager.tick_pomodoro() {
                 self.mark_dirty();
             }
-            need_anim = true;
-            min_timeout_ms = min_timeout_ms.min(200);
+            let elapsed_ms = self.dock_manager.pomodoro.last_tick.elapsed().as_millis();
+            let remaining_ms = 1000_u128.saturating_sub(elapsed_ms);
+            min_timeout_ms = min_timeout_ms.min(remaining_ms.max(1) as u64);
+            has_timer = true;
         }
 
-        if need_anim {
+        if has_timer {
             let next_deadline = std::time::Instant::now() + std::time::Duration::from_millis(min_timeout_ms);
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
-            self.mark_dirty();
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }

@@ -47,6 +47,15 @@ pub struct Theme {
     pub toast_bg: Color,
     pub toast_border: Color,
     pub toast_text: Color,
+
+    // Docks & Boutons
+    pub dock_grip_inactive: Color,
+    pub dock_grip_active: Color,
+    pub input_bg: Color,
+    pub btn_bg: Color,
+    pub btn_border: Color,
+    pub badge_bg: Color,
+    pub badge_text: Color,
 }
 
 impl Default for Theme {
@@ -93,6 +102,14 @@ impl Theme {
             toast_bg: Color::from_rgba8(24, 24, 27, 245),
             toast_border: Color::from_rgba8(56, 189, 248, 120),
             toast_text: Color::from_rgba8(245, 245, 245, 255),
+
+            dock_grip_inactive: Color::from_rgba8(75, 75, 80, 255),
+            dock_grip_active: Color::from_rgba8(160, 160, 160, 255),
+            input_bg: Color::from_rgba8(26, 26, 30, 255),
+            btn_bg: Color::from_rgba8(30, 30, 34, 255),
+            btn_border: Color::from_rgba8(50, 52, 60, 255),
+            badge_bg: Color::from_rgba8(30, 30, 34, 255),
+            badge_text: Color::from_rgba8(160, 160, 170, 255),
         }
     }
 
@@ -133,6 +150,14 @@ impl Theme {
             toast_bg: Color::from_rgba8(255, 255, 255, 245),
             toast_border: Color::from_rgba8(14, 165, 233, 140),
             toast_text: Color::from_rgba8(24, 24, 27, 255),
+
+            dock_grip_inactive: Color::from_rgba8(180, 180, 185, 255),
+            dock_grip_active: Color::from_rgba8(100, 100, 105, 255),
+            input_bg: Color::from_rgba8(240, 240, 245, 255),
+            btn_bg: Color::from_rgba8(235, 235, 240, 255),
+            btn_border: Color::from_rgba8(210, 212, 220, 255),
+            badge_bg: Color::from_rgba8(230, 230, 235, 255),
+            badge_text: Color::from_rgba8(80, 80, 90, 255),
         }
     }
 }

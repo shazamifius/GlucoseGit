@@ -960,7 +960,7 @@ mod tests {
 
         let cands = collect_candidates(&input);
         assert_eq!(cands[0].id, "T1");
-        assert_eq!(cands[0].terminal, true);
+        assert!(cands[0].terminal);
     }
 
     #[test]

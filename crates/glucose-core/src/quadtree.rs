@@ -89,7 +89,7 @@ impl SpatialHash {
         }
     }
 
-    pub fn query_rect(&self, min_x: f64, min_y: f64, max_x: f64, max_y: f64, margin: f64) -> HashSet<String> {
+    pub fn query_rect_refs(&self, min_x: f64, min_y: f64, max_x: f64, max_y: f64, margin: f64) -> HashSet<&str> {
         let mut out = HashSet::new();
         let min_ci = ((min_x - margin) / self.cell_size).floor() as i32;
         let max_ci = ((max_x + margin) / self.cell_size).floor() as i32;
@@ -100,12 +100,19 @@ impl SpatialHash {
             for cj in min_cj..=max_cj {
                 if let Some(ids) = self.grid.get(&(ci, cj)) {
                     for id in ids {
-                        out.insert(id.clone());
+                        out.insert(id.as_str());
                     }
                 }
             }
         }
         out
+    }
+
+    pub fn query_rect(&self, min_x: f64, min_y: f64, max_x: f64, max_y: f64, margin: f64) -> HashSet<String> {
+        self.query_rect_refs(min_x, min_y, max_x, max_y, margin)
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     pub fn query_ids(&self, x: f64, y: f64, w: f64, h: f64, margin: f64) -> HashSet<String> {

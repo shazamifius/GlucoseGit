@@ -3,7 +3,7 @@
 use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
-use crate::ui::{handle_ui_click, ActiveTool, UiAction, TOTAL_HEADER_HEIGHT};
+use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, PickInput, PickOwner};
 use glucose_core::types::Annotation;
 use winit::dpi::PhysicalPosition;
@@ -30,7 +30,7 @@ impl GlucoseApp {
         } else if self.selection_box.is_some() {
             self.update_selection_box(position.x, position.y);
             self.mark_dirty();
-        } else if position.y < TOTAL_HEADER_HEIGHT as f64 {
+        } else if position.y < self.ui.header_height() as f64 {
             self.mark_dirty();
         }
 
@@ -128,7 +128,8 @@ impl GlucoseApp {
                     &self.dock_manager,
                     screen_w,
                     screen_h,
-                    TOTAL_HEADER_HEIGHT,
+                    self.ui.header_height(),
+                    self.ui.scale_factor,
                 );
 
                 let mut grip_hit = None;
@@ -153,11 +154,13 @@ impl GlucoseApp {
                 if let Some(action) = handle_dock_click(
                     &mut self.dock_manager,
                     &self.store,
+                    &self.renderer.typography,
                     mx,
                     my,
                     screen_w,
                     screen_h,
-                    TOTAL_HEADER_HEIGHT,
+                    self.ui.header_height(),
+                    self.ui.scale_factor,
                 ) {
                     match action {
                         PanelClickResult::ApplyLayout(state) => {
