@@ -471,30 +471,15 @@ impl Renderer {
                             let font_size = (16.0 * vp.scale).clamp(12.0, 22.0) as f32;
 
                             if font_size >= 10.0 {
-                                let shadow_offsets = [
-                                    (-2.0, 0.0), (2.0, 0.0), (0.0, -2.0), (0.0, 2.0),
-                                    (-1.5, -1.5), (1.5, -1.5), (-1.5, 1.5), (1.5, 1.5),
-                                ];
                                 let shadow_color = Color::from_rgba8(11, 11, 18, 255);
-                                for (ox, oy) in shadow_offsets {
-                                    self.typography.draw_text(
-                                        pixmap,
-                                        lbl,
-                                        lx + ox,
-                                        ly + oy,
-                                        font_size,
-                                        shadow_color,
-                                        true,
-                                    );
-                                }
-
-                                self.typography.draw_text(
+                                self.typography.draw_text_with_outline(
                                     pixmap,
                                     lbl,
                                     lx,
                                     ly,
                                     font_size,
                                     Color::from_rgba8(r, g, b, 255),
+                                    shadow_color,
                                     true,
                                 );
                             }
