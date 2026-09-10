@@ -1,5 +1,6 @@
 //! Git #1 (north star « indestructible ») — BUNDLE PORTABLE.
 //! 100% Rust Standard Library (0 dépendance).
+#![allow(clippy::manual_is_multiple_of, clippy::chunks_exact_to_as_chunks)]
 
 use crate::types::{AssetRef, Project};
 use std::collections::HashMap;

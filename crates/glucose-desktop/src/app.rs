@@ -9,7 +9,10 @@ use crate::renderer::Renderer;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction, UiState, TOTAL_HEADER_HEIGHT};
 use arboard::Clipboard;
 use glucose_core::hit_priority::{collect_candidates, PickInput, PickOwner};
-use glucose_core::smart_align::SnapGuides;
+use glucose_core::smart_align::{
+    collect_align_targets, rect_of_annotation, rect_of_folder, rect_of_image, snap_move,
+    union_rect, AlignRect, AlignTarget, SnapGuides, SnapOptions,
+};
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, BoardImage};
 use std::num::NonZeroU32;
@@ -48,6 +51,9 @@ pub struct GlucoseApp {
     pub is_panning: bool,
     pub is_dragging_item: bool,
     pub drag_start_world: (f64, f64),
+    pub drag_selection_base: Option<AlignRect>,
+    pub drag_snap_targets: Vec<AlignTarget>,
+    pub drag_applied_delta: (f64, f64),
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
     pub always_on_top: bool,
@@ -97,6 +103,9 @@ impl GlucoseApp {
             is_panning: false,
             is_dragging_item: false,
             drag_start_world: (0.0, 0.0),
+            drag_selection_base: None,
+            drag_snap_targets: Vec::new(),
+            drag_applied_delta: (0.0, 0.0),
             active_guides: SnapGuides::default(),
             selection_box: None,
             always_on_top: false,
@@ -482,11 +491,43 @@ impl ApplicationHandler for GlucoseApp {
                     let active_bid = self.store.project.active_board_id.clone();
                     let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
                     let (wx, wy) = screen_to_world(position.x, position.y, &vp);
-                    let w_dx = wx - self.drag_start_world.0;
-                    let w_dy = wy - self.drag_start_world.1;
+                    let raw_dx = wx - self.drag_start_world.0;
+                    let raw_dy = wy - self.drag_start_world.1;
 
-                    self.store.move_selected(&active_bid, w_dx, w_dy);
-                    self.drag_start_world = (wx, wy);
+                    let mut target_dx = raw_dx;
+                    let mut target_dy = raw_dy;
+
+                    if self.ui.smart_align {
+                        if let Some(base) = self.drag_selection_base {
+                            let proposed = AlignRect {
+                                left: base.left + raw_dx,
+                                top: base.top + raw_dy,
+                                width: base.width,
+                                height: base.height,
+                            };
+                            let snap = snap_move(
+                                proposed,
+                                &self.drag_snap_targets,
+                                SnapOptions {
+                                    scale: vp.scale,
+                                    ..Default::default()
+                                },
+                            );
+                            target_dx += snap.dx;
+                            target_dy += snap.dy;
+                            self.active_guides = snap.guides;
+                        }
+                    } else {
+                        self.active_guides = SnapGuides::default();
+                    }
+
+                    let step_dx = target_dx - self.drag_applied_delta.0;
+                    let step_dy = target_dy - self.drag_applied_delta.1;
+                    self.drag_applied_delta = (target_dx, target_dy);
+
+                    if step_dx.abs() > 1e-7 || step_dy.abs() > 1e-7 {
+                        self.store.move_selected(&active_bid, step_dx, step_dy);
+                    }
                     self.redraw();
                 } else if let Some((bx1, by1, _, _)) = self.selection_box {
                     self.selection_box = Some((bx1, by1, position.x, position.y));
@@ -544,77 +585,75 @@ impl ApplicationHandler for GlucoseApp {
                             let mx = self.mouse_pos.0 as f32;
                             let my = self.mouse_pos.1 as f32;
 
-                            // Clic sur l'interface (Header / TopBar / Tabs)
-                            if my < TOTAL_HEADER_HEIGHT {
-                                if let Some(action) = handle_ui_click(
-                                    mx,
-                                    my,
-                                    screen_w,
-                                    screen_h,
-                                    &self.store,
-                                    &mut self.ui,
-                                    &self.renderer.typography,
-                                ) {
-                                    match action {
-                                        UiAction::SelectTool(tool) => {
-                                            self.ui.active_tool = tool;
+                            // Clic sur l'interface (Header / TopBar / Tabs / Minimap)
+                            if let Some(action) = handle_ui_click(
+                                mx,
+                                my,
+                                screen_w,
+                                screen_h,
+                                &self.store,
+                                &mut self.ui,
+                                &self.renderer.typography,
+                            ) {
+                                match action {
+                                    UiAction::SelectTool(tool) => {
+                                        self.ui.active_tool = tool;
+                                    }
+                                    UiAction::AddImages => {
+                                        if let Some(files) = rfd::FileDialog::new()
+                                            .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
+                                            .pick_files()
+                                        {
+                                            self.import_image_files(&files);
                                         }
-                                        UiAction::AddImages => {
-                                            if let Some(files) = rfd::FileDialog::new()
-                                                .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
-                                                .pick_files()
-                                            {
-                                                self.import_image_files(&files);
-                                            }
-                                        }
-                                        UiAction::Organize => {
-                                            self.dock_manager.toggle_tab(TabId::Organize);
-                                        }
-                                        UiAction::ToggleTimer => {
-                                            self.dock_manager.toggle_tab(TabId::Pomodoro);
-                                        }
-                                        UiAction::ToggleStoryboard => {
-                                            self.dock_manager.toggle_tab(TabId::Storyboard);
-                                        }
-                                        UiAction::ToggleMagnet => {
-                                            // Déjà basculé dans handle_ui_click
-                                        }
-                                        UiAction::ToggleTransDomain => {
-                                            self.ui.show_toast(if self.ui.trans_domain {
-                                                "🌌 Trans-domaines activé"
-                                            } else {
-                                                "Trans-domaines désactivé"
-                                            });
-                                        }
-                                        UiAction::ToggleCollab => {
-                                            // Déjà basculé dans handle_ui_click
-                                        }
-                                        UiAction::ExportMenu => {
-                                            self.ui.show_toast("💾 Exportation du canvas");
-                                        }
-                                        UiAction::TogglePlugins => {
-                                            self.dock_manager.toggle_tab(TabId::Plugins);
-                                        }
-                                        UiAction::TogglePreset => {
-                                            self.dock_manager.toggle_tab(TabId::Preset);
-                                        }
-                                        UiAction::ToggleDomains => {
-                                            self.dock_manager.toggle_tab(TabId::Domains);
-                                        }
-                                        UiAction::SelectBoard(id) => {
-                                            self.store.set_active_board_id(&id);
-                                        }
-                                        UiAction::AddBoard => {
-                                            let new_name = format!("Board {}", self.store.project.boards.len() + 1);
-                                            let new_id = self.store.add_board(new_name);
-                                            self.store.set_active_board_id(new_id);
-                                            self.ui.show_toast("📋 Nouveau board créé");
-                                        }
-                                        UiAction::MinimapPan(wx, wy) => {
-                                            if let Some(b) = self.store.active_board_mut() {
-                                                b.viewport.x = screen_w as f64 / 2.0 - wx * b.viewport.scale;
-                                                b.viewport.y = screen_h as f64 / 2.0 - wy * b.viewport.scale;
-                                            }
+                                    }
+                                    UiAction::Organize => {
+                                        self.dock_manager.toggle_tab(TabId::Organize);
+                                    }
+                                    UiAction::ToggleTimer => {
+                                        self.dock_manager.toggle_tab(TabId::Pomodoro);
+                                    }
+                                    UiAction::ToggleStoryboard => {
+                                        self.dock_manager.toggle_tab(TabId::Storyboard);
+                                    }
+                                    UiAction::ToggleMagnet => {
+                                        // Déjà basculé dans handle_ui_click
+                                    }
+                                    UiAction::ToggleTransDomain => {
+                                        self.ui.show_toast(if self.ui.trans_domain {
+                                            "🌌 Trans-domaines activé"
+                                        } else {
+                                            "Trans-domaines désactivé"
+                                        });
+                                    }
+                                    UiAction::ToggleCollab => {
+                                        // Déjà basculé dans handle_ui_click
+                                    }
+                                    UiAction::ExportMenu => {
+                                        self.ui.show_toast("💾 Exportation du canvas");
+                                    }
+                                    UiAction::TogglePlugins => {
+                                        self.dock_manager.toggle_tab(TabId::Plugins);
+                                    }
+                                    UiAction::TogglePreset => {
+                                        self.dock_manager.toggle_tab(TabId::Preset);
+                                    }
+                                    UiAction::ToggleDomains => {
+                                        self.dock_manager.toggle_tab(TabId::Domains);
+                                    }
+                                    UiAction::SelectBoard(id) => {
+                                        self.store.set_active_board_id(&id);
+                                    }
+                                    UiAction::AddBoard => {
+                                        let new_name = format!("Board {}", self.store.project.boards.len() + 1);
+                                        let new_id = self.store.add_board(new_name);
+                                        self.store.set_active_board_id(new_id);
+                                        self.ui.show_toast("📋 Nouveau board créé");
+                                    }
+                                    UiAction::MinimapPan(wx, wy) => {
+                                        if let Some(b) = self.store.active_board_mut() {
+                                            b.viewport.x = screen_w as f64 / 2.0 - wx * b.viewport.scale;
+                                            b.viewport.y = screen_h as f64 / 2.0 - wy * b.viewport.scale;
                                         }
                                     }
                                 }
@@ -907,7 +946,36 @@ impl ApplicationHandler for GlucoseApp {
                             if selected {
                                 self.is_dragging_item = true;
                                 self.drag_start_world = (wx, wy);
+                                self.drag_applied_delta = (0.0, 0.0);
                                 self.store.begin_live_edit();
+
+                                // Préparer la boîte englobante et les cibles d'aimantation (SNAP-1)
+                                if let Some(board) = self.store.active_board() {
+                                    let mut exclude = std::collections::HashSet::new();
+                                    let mut rects = Vec::new();
+                                    for id in &self.store.selected_image_ids {
+                                        exclude.insert(id.clone());
+                                        if let Some(img) = board.images.iter().find(|i| &i.id == id) {
+                                            rects.push(rect_of_image(img));
+                                        }
+                                    }
+                                    for id in &self.store.selected_annotation_ids {
+                                        exclude.insert(id.clone());
+                                        if let Some(ann) = board.annotations.iter().find(|a| a.id() == id) {
+                                            if let Some(r) = rect_of_annotation(ann) {
+                                                rects.push(r);
+                                            }
+                                        }
+                                    }
+                                    if let Some(fid) = &self.store.selected_folder_id {
+                                        exclude.insert(fid.clone());
+                                        if let Some(f) = board.folders.iter().find(|f| &f.id == fid) {
+                                            rects.push(rect_of_folder(f));
+                                        }
+                                    }
+                                    self.drag_selection_base = union_rect(&rects);
+                                    self.drag_snap_targets = collect_align_targets(board, &exclude);
+                                }
                             } else {
                                 self.store.clear_selection();
                                 self.selection_box = Some((self.mouse_pos.0, self.mouse_pos.1, self.mouse_pos.0, self.mouse_pos.1));
@@ -926,6 +994,9 @@ impl ApplicationHandler for GlucoseApp {
                                 self.is_dragging_item = false;
                                 self.store.end_live_edit();
                                 self.active_guides = SnapGuides::default();
+                                self.drag_selection_base = None;
+                                self.drag_snap_targets.clear();
+                                self.drag_applied_delta = (0.0, 0.0);
                             }
                             if let Some((x1, y1, x2, y2)) = self.selection_box.take() {
                                 let sx_min = x1.min(x2);
@@ -1236,13 +1307,34 @@ impl ApplicationHandler for GlucoseApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let mut need_anim = false;
+        let mut min_timeout_ms = 1000u64;
+
+        // 1. Clignotement du curseur d'édition de texte (période 500 ms)
+        if self.editing_session.is_some() {
+            need_anim = true;
+            min_timeout_ms = min_timeout_ms.min(100);
+        }
+
+        // 2. Toasts actifs (décompte d'affichage et animation de fondu)
+        if self.ui.current_toast.is_some() {
+            need_anim = true;
+            min_timeout_ms = min_timeout_ms.min(30);
+        }
+
+        // 3. Minuteur Pomodoro actif dans le dock
         if self.dock_manager.pomodoro.running {
             if self.dock_manager.tick_pomodoro() {
                 self.redraw();
             }
-            event_loop.set_control_flow(ControlFlow::WaitUntil(
-                std::time::Instant::now() + std::time::Duration::from_millis(200),
-            ));
+            need_anim = true;
+            min_timeout_ms = min_timeout_ms.min(200);
+        }
+
+        if need_anim {
+            let next_deadline = std::time::Instant::now() + std::time::Duration::from_millis(min_timeout_ms);
+            event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
+            self.redraw();
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }

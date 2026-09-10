@@ -11,8 +11,9 @@ use crate::types::{
 };
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ActiveTool {
+    #[default]
     Select,
     Pan,
     Text,
@@ -21,12 +22,6 @@ pub enum ActiveTool {
     Folder,
     Membrane,
     ZoneSelect,
-}
-
-impl Default for ActiveTool {
-    fn default() -> Self {
-        Self::Select
-    }
 }
 
 /// Reconstruit la pile de dossiers UI menant au board actif.
@@ -79,6 +74,7 @@ pub struct Store {
     pub redo_stack: Vec<Project>,
     pub max_undo: usize,
     pub in_live_edit: bool,
+    pub next_id: u64,
 }
 
 impl Store {
@@ -95,6 +91,26 @@ impl Store {
             redo_stack: Vec::new(),
             max_undo: 200,
             in_live_edit: false,
+            next_id: 1,
+        }
+    }
+
+    pub fn id_exists(&self, id: &str) -> bool {
+        self.project.boards.iter().any(|b| {
+            b.id == id
+                || b.images.iter().any(|i| i.id == id)
+                || b.annotations.iter().any(|a| a.id() == id)
+                || b.folders.iter().any(|f| f.id == id || f.child_board_id == id)
+        })
+    }
+
+    pub fn generate_id(&mut self, prefix: &str) -> String {
+        loop {
+            self.next_id += 1;
+            let candidate = format!("{}-{}", prefix, self.next_id);
+            if !self.id_exists(&candidate) {
+                return candidate;
+            }
         }
     }
 
@@ -370,8 +386,8 @@ impl Store {
             b.images.retain(|img| !to_remove.contains(&img.id));
             b.annotations.retain(|a| match a {
                 Annotation::Arrow { source_id, target_id, .. } => {
-                    let src_orphan = source_id.as_ref().map_or(false, |s| to_remove.contains(s));
-                    let tgt_orphan = target_id.as_ref().map_or(false, |t| to_remove.contains(t));
+                    let src_orphan = source_id.as_ref().is_some_and(|s| to_remove.contains(s));
+                    let tgt_orphan = target_id.as_ref().is_some_and(|t| to_remove.contains(t));
                     !src_orphan && !tgt_orphan
                 }
                 _ => true,
@@ -440,46 +456,52 @@ impl Store {
         let mut new_imgs = Vec::new();
         let mut new_anns = Vec::new();
 
-        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
+        if let Some(b) = self.project.boards.iter().find(|b| b.id == board_id) {
             for id in &self.selected_image_ids {
                 if let Some(img) = b.images.iter().find(|i| &i.id == id) {
-                    let mut dup = img.clone();
-                    dup.id = format!("{}-dup", dup.id);
-                    dup.x += offset;
-                    dup.y += offset;
-                    new_imgs.push(dup);
+                    new_imgs.push(img.clone());
                 }
             }
             for id in &self.selected_annotation_ids {
                 if let Some(ann) = b.annotations.iter().find(|a| a.id() == id) {
-                    let mut dup = ann.clone();
-                    match &mut dup {
-                        Annotation::Text { id, x, y, .. }
-                        | Annotation::Sticky { id, x, y, .. }
-                        | Annotation::Membrane { id, x, y, .. } => {
-                            *id = format!("{}-dup", id);
-                            *x += offset;
-                            *y += offset;
-                        }
-                        Annotation::Arrow { id, x, y, x2, y2, waypoints, .. } => {
-                            *id = format!("{}-dup", id);
-                            *x += offset;
-                            *y += offset;
-                            *x2 += offset;
-                            *y2 += offset;
-                            for wp in waypoints {
-                                wp.x += offset;
-                                wp.y += offset;
-                            }
-                        }
-                    }
-                    new_anns.push(dup);
+                    new_anns.push(ann.clone());
                 }
             }
+        }
 
-            self.selected_image_ids = new_imgs.iter().map(|i| i.id.clone()).collect();
-            self.selected_annotation_ids = new_anns.iter().map(|a| a.id().to_string()).collect();
+        for img in &mut new_imgs {
+            img.id = self.generate_id("img");
+            img.x += offset;
+            img.y += offset;
+        }
 
+        for ann in &mut new_anns {
+            match ann {
+                Annotation::Text { id, x, y, .. }
+                | Annotation::Sticky { id, x, y, .. }
+                | Annotation::Membrane { id, x, y, .. } => {
+                    *id = self.generate_id("ann");
+                    *x += offset;
+                    *y += offset;
+                }
+                Annotation::Arrow { id, x, y, x2, y2, waypoints, .. } => {
+                    *id = self.generate_id("arrow");
+                    *x += offset;
+                    *y += offset;
+                    *x2 += offset;
+                    *y2 += offset;
+                    for wp in waypoints {
+                        wp.x += offset;
+                        wp.y += offset;
+                    }
+                }
+            }
+        }
+
+        self.selected_image_ids = new_imgs.iter().map(|i| i.id.clone()).collect();
+        self.selected_annotation_ids = new_anns.iter().map(|a| a.id().to_string()).collect();
+
+        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
             b.images.extend(new_imgs);
             b.annotations.extend(new_anns);
         }
@@ -547,8 +569,8 @@ impl Store {
             b.annotations.retain(|a| !id_set.contains(a.id()));
             b.annotations.retain(|a| match a {
                 Annotation::Arrow { source_id, target_id, .. } => {
-                    let src_orphan = source_id.as_ref().map_or(false, |s| id_set.contains(s.as_str()));
-                    let tgt_orphan = target_id.as_ref().map_or(false, |t| id_set.contains(t.as_str()));
+                    let src_orphan = source_id.as_ref().is_some_and(|s| id_set.contains(s.as_str()));
+                    let tgt_orphan = target_id.as_ref().is_some_and(|t| id_set.contains(t.as_str()));
                     !src_orphan && !tgt_orphan
                 }
                 _ => true,
@@ -559,11 +581,11 @@ impl Store {
 
     pub fn mirror_annotation(&mut self, board_id: &str, id: &str, x: f64, y: f64) -> Option<String> {
         self.push_undo();
+        let mid = self.generate_id("mirror");
         let mut mirror = None;
         if let Some(b) = self.project.boards.iter().find(|b| b.id == board_id) {
             if let Some(orig) = b.annotations.iter().find(|a| a.id() == id) {
                 let mut m = orig.clone();
-                let mid = format!("{}-mirror", orig.id());
                 match &mut m {
                     Annotation::Text { id: ref mut aid, x: ref mut ax, y: ref mut ay, ref mut mirror_of, .. }
                     | Annotation::Sticky { id: ref mut aid, x: ref mut ax, y: ref mut ay, ref mut mirror_of, .. }
@@ -583,7 +605,7 @@ impl Store {
                         *ay2 += dy;
                     }
                 }
-                mirror = Some((mid, m));
+                mirror = Some((mid.clone(), m));
             }
         }
 
@@ -633,7 +655,7 @@ impl Store {
 
     pub fn add_board(&mut self, name: impl Into<String>) -> String {
         self.push_undo();
-        let id = format!("board-{}", self.project.boards.len() + 1);
+        let id = self.generate_id("board");
         self.project.boards.push(Board::new(&id, name));
         id
     }
@@ -662,7 +684,10 @@ impl Store {
 
     pub fn create_folder(&mut self, parent_board_id: &str, mut folder: CanvasFolder) {
         self.push_undo();
-        let child_board_id = format!("board-{}", self.project.boards.len() + 1);
+        if folder.id.is_empty() {
+            folder.id = self.generate_id("folder");
+        }
+        let child_board_id = self.generate_id("board");
         folder.child_board_id = child_board_id.clone();
 
         let fx0 = folder.x;
@@ -746,11 +771,11 @@ impl Store {
     ) -> String {
         self.push_undo();
         let folder_id = if folder.id.is_empty() {
-            format!("folder-{}", folder.name)
+            self.generate_id("folder")
         } else {
             folder.id.clone()
         };
-        let child_board_id = format!("board-child-{}", folder_id);
+        let child_board_id = self.generate_id("board");
         folder.id = folder_id.clone();
         folder.child_board_id = child_board_id.clone();
 
@@ -796,16 +821,16 @@ impl Store {
 
     pub fn mirror_folder(&mut self, parent_board_id: &str, folder_id: &str, x: f64, y: f64) -> Option<String> {
         self.push_undo();
+        let mid = self.generate_id("mirror-folder");
         let mut mirrored = None;
         if let Some(b) = self.project.boards.iter().find(|b| b.id == parent_board_id) {
             if let Some(f) = b.folders.iter().find(|f| f.id == folder_id) {
                 let mut m = f.clone();
-                let mid = format!("{}-mirror", f.id);
                 m.id = mid.clone();
                 m.x = x;
                 m.y = y;
                 m.mirror_of = Some(folder_id.to_string());
-                mirrored = Some((mid, m));
+                mirrored = Some((mid.clone(), m));
             }
         }
 

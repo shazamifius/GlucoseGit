@@ -151,7 +151,7 @@ pub fn resolve_anchors(plain: &str, anchors: &[TextAnchor]) -> Vec<ResolvedRange
         if anchor.start >= 0
             && (anchor.end as usize) <= plain.len()
             && anchor.end > anchor.start
-            && &plain[anchor.start as usize..anchor.end as usize] == anchor.quote
+            && plain[anchor.start as usize..anchor.end as usize] == anchor.quote
         {
             ranges.push(ResolvedRange {
                 start: anchor.start as usize,

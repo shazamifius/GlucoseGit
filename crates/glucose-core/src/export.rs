@@ -87,15 +87,9 @@ pub struct ExportScene {
 
 pub const SCENE_BG: &str = "#0d0d0d";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SvgOptions {
     pub transparent: bool,
-}
-
-impl Default for SvgOptions {
-    fn default() -> Self {
-        Self { transparent: false }
-    }
 }
 
 pub fn html_escape(s: &str) -> String {
@@ -106,7 +100,7 @@ pub fn html_escape(s: &str) -> String {
 }
 
 pub fn strip_inline_markdown(s: &str) -> String {
-    s.replace("**", "").replace('*', "").replace('_', "").replace('`', "")
+    s.replace("**", "").replace(['*', '_', '`'], "")
 }
 
 /// Titre d'affichage d'une carte : 1er titre `#`/`##`/`###`, sinon 1re ligne.

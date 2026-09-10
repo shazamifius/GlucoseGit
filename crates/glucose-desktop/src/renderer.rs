@@ -7,7 +7,7 @@ use crate::ui::{render_ui, UiState, TOTAL_HEADER_HEIGHT};
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tiny_skia::{
     Color, FilterQuality, GradientStop, LineCap, Paint, PathBuilder, Pixmap, PixmapMut,
@@ -20,6 +20,104 @@ pub struct TextEditSession {
     pub buffer: String,
     pub cursor_idx: usize,
     pub blink_timer: std::time::Instant,
+}
+
+#[derive(Debug, Clone)]
+pub struct CachedHue {
+    pub x: f64,
+    pub y: f64,
+    pub hue: f64,
+    pub rgb: (u8, u8, u8),
+}
+
+pub struct SymbioticHueCache {
+    entries: HashMap<String, CachedHue>,
+    last_positions: HashMap<String, (f64, f64)>,
+}
+
+impl SymbioticHueCache {
+    pub fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
+            last_positions: HashMap::new(),
+        }
+    }
+
+    /// Invalidation par voisinage (1 200 px) : si une carte a bougé, seules les cartes à < 1 200 px sont invalidées
+    pub fn update_positions_and_invalidate(&mut self, annotations: &[Annotation]) {
+        let mut moved_points: Vec<(f64, f64)> = Vec::new();
+        let mut current_ids = HashSet::new();
+
+        for ann in annotations {
+            if let Annotation::Text { id, x, y, .. } = ann {
+                current_ids.insert(id.clone());
+                match self.last_positions.get(id) {
+                    Some(&(lx, ly)) => {
+                        if (lx - x).abs() > 0.01 || (ly - y).abs() > 0.01 {
+                            moved_points.push((*x, *y));
+                            moved_points.push((lx, ly));
+                        }
+                    }
+                    None => {
+                        moved_points.push((*x, *y));
+                    }
+                }
+            }
+        }
+
+        // Détecter les cartes supprimées
+        for (old_id, &(lx, ly)) in &self.last_positions {
+            if !current_ids.contains(old_id) {
+                moved_points.push((lx, ly));
+            }
+        }
+
+        // Si des cartes ont bougé / sont nées / sont mortes, invalider celles dans un rayon de 1 200 px
+        if !moved_points.is_empty() {
+            const INVALIDATION_RADIUS_SQ: f64 = 1200.0 * 1200.0;
+            self.entries.retain(|id, entry| {
+                if !current_ids.contains(id) {
+                    return false;
+                }
+                for &(mx, my) in &moved_points {
+                    let dx = entry.x - mx;
+                    let dy = entry.y - my;
+                    if dx * dx + dy * dy <= INVALIDATION_RADIUS_SQ {
+                        return false;
+                    }
+                }
+                true
+            });
+        }
+
+        // Mettre à jour la table des positions
+        self.last_positions.clear();
+        for ann in annotations {
+            if let Annotation::Text { id, x, y, .. } = ann {
+                self.last_positions.insert(id.clone(), (*x, *y));
+            }
+        }
+    }
+
+    pub fn get_or_compute(&mut self, ann: &Annotation, all_annotations: &[Annotation]) -> (f64, (u8, u8, u8)) {
+        let id = ann.id();
+        let ax = ann.x();
+        let ay = ann.y();
+
+        if let Some(entry) = self.entries.get(id) {
+            return (entry.hue, entry.rgb);
+        }
+
+        let hue = glucose_core::symbiotic_hue::get_symbiotic_hue(ann, all_annotations);
+        let rgb = glucose_core::symbiotic_hue::hsl_to_rgb(hue, 0.75, 0.65);
+        self.entries.insert(id.to_string(), CachedHue {
+            x: ax,
+            y: ay,
+            hue,
+            rgb,
+        });
+        (hue, rgb)
+    }
 }
 
 /// Décode une couleur hexadécimale #RRGGBB ou #RGB
@@ -60,6 +158,7 @@ fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f3
 pub struct Renderer {
     pub image_cache: HashMap<String, Pixmap>,
     pub typography: Typography,
+    pub hue_cache: SymbioticHueCache,
 }
 
 impl Renderer {
@@ -67,6 +166,7 @@ impl Renderer {
         Self {
             image_cache: HashMap::new(),
             typography: Typography::new(),
+            hue_cache: SymbioticHueCache::new(),
         }
     }
 
@@ -123,6 +223,10 @@ impl Renderer {
             .active_board()
             .map(|b| b.viewport)
             .unwrap_or(Viewport::default());
+
+        if let Some(board) = store.active_board() {
+            self.hue_cache.update_positions_and_invalidate(&board.annotations);
+        }
 
         // 1. Fond sombre sleek PureRef #0D0E12
         pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
@@ -196,7 +300,7 @@ impl Renderer {
         }
     }
 
-    fn draw_halos(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
+    fn draw_halos(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -225,8 +329,7 @@ impl Renderer {
                     continue;
                 }
 
-                let hue = glucose_core::symbiotic_hue::get_symbiotic_hue(ann, &board.annotations);
-                let (r, g, b) = glucose_core::symbiotic_hue::hsl_to_rgb(hue, 0.75, 0.65);
+                let (_hue, (r, g, b)) = self.hue_cache.get_or_compute(ann, &board.annotations);
 
                 if let Some(shader) = RadialGradient::new(
                     Point::from_xy(cx, cy),
@@ -512,7 +615,7 @@ impl Renderer {
     }
 
     fn draw_annotations(
-        &self,
+        &mut self,
         pixmap: &mut PixmapMut,
         store: &Store,
         vp: &Viewport,
@@ -545,8 +648,7 @@ impl Renderer {
                     let is_selected = store.selected_annotation_ids.contains(id);
                     let is_editing = editing_session.map(|s| s.ann_id == *id).unwrap_or(false);
 
-                    let hue = glucose_core::symbiotic_hue::get_symbiotic_hue(&ann, &board.annotations);
-                    let (hr, hg, hb) = glucose_core::symbiotic_hue::hsl_to_rgb(hue, 0.75, 0.65);
+                    let (_hue, (hr, hg, hb)) = self.hue_cache.get_or_compute(ann, &board.annotations);
                     let (r, g, b) = color.as_deref()
                         .map(|c| parse_hex_color(c, hr, hg, hb))
                         .unwrap_or((hr, hg, hb));
@@ -685,7 +787,7 @@ impl Renderer {
                         }
                     }
                 }
-                Annotation::Sticky { id, x, y, width, height, text, operator, .. } => {
+                Annotation::Sticky { id, x, y, width, height, text, color, bg_color, operator, .. } => {
                     let (sx, sy) = world_to_screen(*x, *y, vp);
                     let sw = (width.unwrap_or(160.0) * vp.scale) as f32;
                     let sh = (height.unwrap_or(120.0) * vp.scale) as f32;
@@ -713,8 +815,11 @@ impl Renderer {
                     push_rounded_rect(&mut pb, sx as f32, sy as f32, sw, sh, (6.0 * vp.scale as f32).clamp(2.0, 6.0));
 
                     if let Some(path) = pb.finish() {
+                        let (bg_r, bg_g, bg_b) = bg_color.as_deref()
+                            .map(|c| parse_hex_color(c, 254, 240, 138))
+                            .unwrap_or((254, 240, 138));
                         let mut p = Paint::default();
-                        p.set_color(Color::from_rgba8(254, 240, 138, 245));
+                        p.set_color(Color::from_rgba8(bg_r, bg_g, bg_b, 245));
                         p.anti_alias = true;
                         pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
@@ -738,10 +843,15 @@ impl Renderer {
                             let mut cur_ty = sy as f32 + (10.0 * vp.scale as f32).clamp(4.0, 10.0);
 
                             if let Some(op) = operator {
-                                let op_str = format!("{:?}", op);
+                                let op_str = match op {
+                                    glucose_core::types::StickyOperator::And => "ET",
+                                    glucose_core::types::StickyOperator::Or => "OU",
+                                    glucose_core::types::StickyOperator::But => "MAIS",
+                                    glucose_core::types::StickyOperator::Because => "PARCE QUE",
+                                };
                                 self.typography.draw_text(
                                     pixmap,
-                                    &op_str,
+                                    op_str,
                                     sx as f32 + 10.0,
                                     cur_ty,
                                     11.0,
@@ -751,6 +861,11 @@ impl Renderer {
                                 cur_ty += 16.0;
                             }
 
+                            let (txt_r, txt_g, txt_b) = color.as_deref()
+                                .map(|c| parse_hex_color(c, 28, 25, 23))
+                                .unwrap_or((28, 25, 23));
+                            let text_color = Color::from_rgba8(txt_r, txt_g, txt_b, 255);
+
                             for line in content.lines() {
                                 self.typography.draw_text(
                                     pixmap,
@@ -758,7 +873,7 @@ impl Renderer {
                                     sx as f32 + 10.0,
                                     cur_ty,
                                     f_size,
-                                    Color::from_rgba8(28, 25, 23, 255),
+                                    text_color,
                                     false,
                                 );
                                 cur_ty += line_h;

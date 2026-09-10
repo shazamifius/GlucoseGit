@@ -440,3 +440,50 @@ fn test_workflow_gros_volume_100_images_50_annotations() {
     store.create_folder("main", mk_folder("F", "F", 0.0, 0.0, 200.0, 200.0));
     assert!(store.project.boards.len() >= 2);
 }
+
+#[test]
+fn test_r13_no_duplicate_id_on_repeated_clones() {
+    let mut store = Store::new("test");
+    store.add_annotation("main", mk_text("orig", 0.0, 0.0, "Original"));
+
+    // Dupliquer une première fois
+    store.select_annotation("orig".to_string(), false);
+    store.duplicate_selected("main");
+    let dup1_id = store.selected_annotation_ids[0].clone();
+    assert_ne!(dup1_id, "orig");
+
+    // Resélectionner l'original et dupliquer à nouveau -> doit avoir un id DIFFÉRENT de dup1
+    store.select_annotation("orig".to_string(), false);
+    store.duplicate_selected("main");
+    let dup2_id = store.selected_annotation_ids[0].clone();
+    assert_ne!(dup2_id, "orig");
+    assert_ne!(dup2_id, dup1_id, "R-13: duplicate IDs must never collide!");
+
+    let board = store.active_board().unwrap();
+    let mut ids = std::collections::HashSet::new();
+    for ann in &board.annotations {
+        assert!(ids.insert(ann.id().to_string()), "Duplicate annotation ID found: {}", ann.id());
+    }
+}
+
+#[test]
+fn test_r14_no_board_id_collision_after_deletion() {
+    let mut store = Store::new("test");
+    let b2 = store.add_board("Board 2");
+    let b3 = store.add_board("Board 3");
+    assert_eq!(store.project.boards.len(), 3);
+
+    // Supprimer Board 2
+    store.remove_board(&b2);
+    assert_eq!(store.project.boards.len(), 2);
+
+    // Créer un nouveau board -> ne doit jamais entrer en collision avec b3
+    let b_new = store.add_board("New Board");
+    assert_ne!(b_new, b3, "R-14: newly created board ID must never collide with existing boards!");
+    assert_ne!(b_new, b2);
+
+    let mut board_ids = std::collections::HashSet::new();
+    for b in &store.project.boards {
+        assert!(board_ids.insert(b.id.clone()), "Duplicate board ID found: {}", b.id);
+    }
+}

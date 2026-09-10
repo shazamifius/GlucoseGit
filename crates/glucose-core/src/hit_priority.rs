@@ -136,6 +136,7 @@ fn corners_of_rect(x: f64, y: f64, w: f64, h: f64) -> [(&'static str, f64, f64);
     ]
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_handles(
     out: &mut Vec<PickCandidate>,
     owner: PickOwner,

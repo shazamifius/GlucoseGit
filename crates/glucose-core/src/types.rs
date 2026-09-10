@@ -143,41 +143,26 @@ pub enum StickyOperator {
     Because,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum MembraneMode {
+    #[default]
     Classic,
     Minimized,
     Stretched,
 }
 
-impl Default for MembraneMode {
-    fn default() -> Self {
-        Self::Classic
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CurtainVisibility {
+    #[default]
     Private,
     Shared,
 }
 
-impl Default for CurtainVisibility {
-    fn default() -> Self {
-        Self::Private
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CurtainEditable {
+    #[default]
     Owner,
     Everyone,
-}
-
-impl Default for CurtainEditable {
-    fn default() -> Self {
-        Self::Owner
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

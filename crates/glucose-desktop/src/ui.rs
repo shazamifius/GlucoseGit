@@ -3,6 +3,7 @@
 use crate::icons::{draw_icon, IconType};
 use crate::typography::Typography;
 use glucose_core::store::Store;
+use glucose_core::types::Annotation;
 use std::time::{Duration, Instant};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
@@ -463,6 +464,59 @@ fn render_topbar(
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct TabButtonLayout {
+    pub board_id: String,
+    pub name: String,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub is_active: bool,
+    pub is_plus: bool,
+}
+
+pub fn layout_tabs(
+    store: &Store,
+    typo: &Typography,
+    y_start: f32,
+) -> Vec<TabButtonLayout> {
+    let mut layouts = Vec::new();
+    let mut tab_x = 8.0;
+    let active_id = &store.project.active_board_id;
+
+    for board in &store.project.boards {
+        let is_active = &board.id == active_id;
+        let (tw, _) = typo.measure_text(&board.name, 12.0, is_active);
+        let tab_w = tw + 28.0;
+        layouts.push(TabButtonLayout {
+            board_id: board.id.clone(),
+            name: board.name.clone(),
+            x: tab_x,
+            y: y_start,
+            width: tab_w,
+            height: TABS_HEIGHT,
+            is_active,
+            is_plus: false,
+        });
+        tab_x += tab_w + 4.0;
+    }
+
+    // Bouton + (créer un board)
+    layouts.push(TabButtonLayout {
+        board_id: String::new(),
+        name: "+".into(),
+        x: tab_x,
+        y: y_start,
+        width: 30.0,
+        height: TABS_HEIGHT,
+        is_active: false,
+        is_plus: true,
+    });
+
+    layouts
+}
+
 fn render_board_tabs(
     pixmap: &mut PixmapMut,
     store: &Store,
@@ -488,69 +542,61 @@ fn render_board_tabs(
         pixmap.fill_rect(rect, &border_paint, Transform::identity(), None);
     }
 
-    let mut tab_x = 8.0;
-    let active_id = store.project.active_board_id.clone();
+    let tabs = layout_tabs(store, typo, y_start);
+    for tab in tabs {
+        let is_hover = mx >= tab.x && mx < tab.x + tab.width && my >= tab.y && my < tab.y + tab.height;
 
-    for board in &store.project.boards {
-        let is_active = board.id == active_id;
-        let (tw, _) = typo.measure_text(&board.name, 12.0, is_active);
-        let tab_w = tw + 28.0;
-
-        let is_hover = mx >= tab_x && mx < tab_x + tab_w && my >= y_start && my < y_start + TABS_HEIGHT;
-
-        if is_hover && !is_active {
-            let mut h_paint = Paint::default();
-            h_paint.set_color(Color::from_rgba8(26, 26, 26, 255));
-            if let Some(rect) = Rect::from_xywh(tab_x, y_start + 4.0, tab_w, TABS_HEIGHT - 6.0) {
-                pixmap.fill_rect(rect, &h_paint, Transform::identity(), None);
+        if tab.is_plus {
+            if is_hover {
+                let mut p_paint = Paint::default();
+                p_paint.set_color(Color::from_rgba8(30, 30, 30, 255));
+                if let Some(rect) = Rect::from_xywh(tab.x, y_start + 5.0, 24.0, 24.0) {
+                    pixmap.fill_rect(rect, &p_paint, Transform::identity(), None);
+                }
             }
-        }
-
-        let text_color = if is_active {
-            Color::from_rgba8(255, 255, 255, 255)
+            draw_icon(
+                pixmap,
+                IconType::Plus,
+                tab.x + 5.0,
+                y_start + 10.0,
+                Color::from_rgba8(120, 120, 120, 255),
+                1.5,
+            );
         } else {
-            Color::from_rgba8(140, 140, 140, 255)
-        };
+            if is_hover && !tab.is_active {
+                let mut h_paint = Paint::default();
+                h_paint.set_color(Color::from_rgba8(26, 26, 26, 255));
+                if let Some(rect) = Rect::from_xywh(tab.x, y_start + 4.0, tab.width, TABS_HEIGHT - 6.0) {
+                    pixmap.fill_rect(rect, &h_paint, Transform::identity(), None);
+                }
+            }
 
-        typo.draw_text(
-            pixmap,
-            &board.name,
-            tab_x + 14.0,
-            y_start + 10.0,
-            12.0,
-            text_color,
-            is_active,
-        );
+            let text_color = if tab.is_active {
+                Color::from_rgba8(255, 255, 255, 255)
+            } else {
+                Color::from_rgba8(140, 140, 140, 255)
+            };
 
-        // Ligne blanche inférieure pour l'onglet actif
-        if is_active {
-            let mut line_paint = Paint::default();
-            line_paint.set_color(Color::from_rgba8(255, 255, 255, 255));
-            if let Some(rect) = Rect::from_xywh(tab_x, y_start + TABS_HEIGHT - 2.0, tab_w, 2.0) {
-                pixmap.fill_rect(rect, &line_paint, Transform::identity(), None);
+            typo.draw_text(
+                pixmap,
+                &tab.name,
+                tab.x + 14.0,
+                y_start + 10.0,
+                12.0,
+                text_color,
+                tab.is_active,
+            );
+
+            // Ligne blanche inférieure pour l'onglet actif
+            if tab.is_active {
+                let mut line_paint = Paint::default();
+                line_paint.set_color(Color::from_rgba8(255, 255, 255, 255));
+                if let Some(rect) = Rect::from_xywh(tab.x, y_start + TABS_HEIGHT - 2.0, tab.width, 2.0) {
+                    pixmap.fill_rect(rect, &line_paint, Transform::identity(), None);
+                }
             }
         }
-
-        tab_x += tab_w + 4.0;
     }
-
-    // Bouton + (créer un board)
-    let is_plus_hover = mx >= tab_x && mx < tab_x + 28.0 && my >= y_start + 4.0 && my < y_start + 30.0;
-    if is_plus_hover {
-        let mut p_paint = Paint::default();
-        p_paint.set_color(Color::from_rgba8(30, 30, 30, 255));
-        if let Some(rect) = Rect::from_xywh(tab_x, y_start + 5.0, 24.0, 24.0) {
-            pixmap.fill_rect(rect, &p_paint, Transform::identity(), None);
-        }
-    }
-    draw_icon(
-        pixmap,
-        IconType::Plus,
-        tab_x + 5.0,
-        y_start + 10.0,
-        Color::from_rgba8(120, 120, 120, 255),
-        1.5,
-    );
 }
 
 fn draw_separator(pixmap: &mut PixmapMut, x: f32, y: f32) -> f32 {
@@ -692,39 +738,37 @@ fn draw_action_button(
     }
 }
 
-fn render_minimap(pixmap: &mut PixmapMut, store: &Store, w: f32, h: f32) {
-    let mm_w = 180.0;
-    let mm_h = 120.0;
-    let mm_x = w - mm_w - 16.0;
-    let mm_y = h - mm_h - 16.0;
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct MinimapBounds {
+    pub mm_x: f32,
+    pub mm_y: f32,
+    pub mm_w: f32,
+    pub mm_h: f32,
+    pub min_x: f64,
+    pub min_y: f64,
+    pub max_x: f64,
+    pub max_y: f64,
+    pub span_x: f64,
+    pub span_y: f64,
+    pub scale: f32,
+    pub cam_left: f64,
+    pub cam_top: f64,
+    pub vp_w: f64,
+    pub vp_h: f64,
+}
 
-    // Fond #16181D (85%)
-    let mut bg_paint = Paint::default();
-    bg_paint.set_color(Color::from_rgba8(22, 24, 29, 220));
-    if let Some(rect) = Rect::from_xywh(mm_x, mm_y, mm_w, mm_h) {
-        pixmap.fill_rect(rect, &bg_paint, Transform::identity(), None);
-    }
+pub fn layout_minimap(
+    store: &Store,
+    screen_w: f32,
+    screen_h: f32,
+) -> Option<MinimapBounds> {
+    let board = store.active_board()?;
+    let mm_w = 180.0f32;
+    let mm_h = 120.0f32;
+    let mm_x = screen_w - mm_w - 16.0;
+    let mm_y = screen_h - mm_h - 16.0;
 
-    // Bordure #262B35
-    let mut border_paint = Paint::default();
-    border_paint.set_color(Color::from_rgba8(38, 43, 53, 255));
-    let stroke = Stroke { width: 1.0, ..Default::default() };
-    let mut pb = PathBuilder::new();
-    pb.move_to(mm_x, mm_y);
-    pb.line_to(mm_x + mm_w, mm_y);
-    pb.line_to(mm_x + mm_w, mm_y + mm_h);
-    pb.line_to(mm_x, mm_y + mm_h);
-    pb.close();
-    if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
-    }
-
-    let board = match store.active_board() {
-        Some(b) => b,
-        None => return,
-    };
-
-    // Calcul de l'étendue des éléments du board
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
     let mut max_x = f64::NEG_INFINITY;
@@ -737,10 +781,42 @@ fn render_minimap(pixmap: &mut PixmapMut, store: &Store, w: f32, h: f32) {
         max_y = max_y.max(img.y + img.height / 2.0);
     }
 
-    // Inclure la vue caméra
+    for ann in &board.annotations {
+        match ann {
+            Annotation::Text { x, y, width, height, .. } => {
+                let w = width.unwrap_or(200.0);
+                let h = height.unwrap_or(48.0);
+                min_x = min_x.min(*x);
+                min_y = min_y.min(*y);
+                max_x = max_x.max(*x + w);
+                max_y = max_y.max(*y + h);
+            }
+            Annotation::Sticky { x, y, width, height, .. } => {
+                let w = width.unwrap_or(160.0);
+                let h = height.unwrap_or(120.0);
+                min_x = min_x.min(*x);
+                min_y = min_y.min(*y);
+                max_x = max_x.max(*x + w);
+                max_y = max_y.max(*y + h);
+            }
+            Annotation::Membrane { x, y, width, height, .. } => {
+                min_x = min_x.min(*x);
+                min_y = min_y.min(*y);
+                max_x = max_x.max(*x + *width);
+                max_y = max_y.max(*y + *height);
+            }
+            Annotation::Arrow { x, y, x2, y2, .. } => {
+                min_x = min_x.min(*x).min(*x2);
+                min_y = min_y.min(*y).min(*y2);
+                max_x = max_x.max(*x).max(*x2);
+                max_y = max_y.max(*y).max(*y2);
+            }
+        }
+    }
+
     let vp = &board.viewport;
-    let vp_w = w as f64 / vp.scale;
-    let vp_h = (h as f64 - TOTAL_HEADER_HEIGHT as f64) / vp.scale;
+    let vp_w = screen_w as f64 / vp.scale;
+    let vp_h = (screen_h as f64 - TOTAL_HEADER_HEIGHT as f64) / vp.scale;
     let cam_left = -vp.x / vp.scale;
     let cam_top = -vp.y / vp.scale;
 
@@ -756,24 +832,114 @@ fn render_minimap(pixmap: &mut PixmapMut, store: &Store, w: f32, h: f32) {
     let scale_y = (mm_h - 12.0) / span_y as f32;
     let scale = scale_x.min(scale_y);
 
+    Some(MinimapBounds {
+        mm_x,
+        mm_y,
+        mm_w,
+        mm_h,
+        min_x,
+        min_y,
+        max_x,
+        max_y,
+        span_x,
+        span_y,
+        scale,
+        cam_left,
+        cam_top,
+        vp_w,
+        vp_h,
+    })
+}
+
+fn render_minimap(pixmap: &mut PixmapMut, store: &Store, w: f32, h: f32) {
+    let mb = match layout_minimap(store, w, h) {
+        Some(m) => m,
+        None => return,
+    };
+
+    let board = match store.active_board() {
+        Some(b) => b,
+        None => return,
+    };
+
+    // Fond #16181D (85%)
+    let mut bg_paint = Paint::default();
+    bg_paint.set_color(Color::from_rgba8(22, 24, 29, 220));
+    if let Some(rect) = Rect::from_xywh(mb.mm_x, mb.mm_y, mb.mm_w, mb.mm_h) {
+        pixmap.fill_rect(rect, &bg_paint, Transform::identity(), None);
+    }
+
+    // Bordure #262B35
+    let mut border_paint = Paint::default();
+    border_paint.set_color(Color::from_rgba8(38, 43, 53, 255));
+    let stroke = Stroke { width: 1.0, ..Default::default() };
+    let mut pb = PathBuilder::new();
+    pb.move_to(mb.mm_x, mb.mm_y);
+    pb.line_to(mb.mm_x + mb.mm_w, mb.mm_y);
+    pb.line_to(mb.mm_x + mb.mm_w, mb.mm_y + mb.mm_h);
+    pb.line_to(mb.mm_x, mb.mm_y + mb.mm_h);
+    pb.close();
+    if let Some(path) = pb.finish() {
+        pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
+    }
+
     // Dessine miniatures images
     let mut item_paint = Paint::default();
     item_paint.set_color(Color::from_rgba8(90, 100, 120, 180));
     for img in &board.images {
-        let ix = mm_x + 6.0 + ((img.x - img.width / 2.0 - min_x) as f32 * scale);
-        let iy = mm_y + 6.0 + ((img.y - img.height / 2.0 - min_y) as f32 * scale);
-        let iw = (img.width as f32 * scale).max(2.0);
-        let ih = (img.height as f32 * scale).max(2.0);
+        let ix = mb.mm_x + 6.0 + ((img.x - img.width / 2.0 - mb.min_x) as f32 * mb.scale);
+        let iy = mb.mm_y + 6.0 + ((img.y - img.height / 2.0 - mb.min_y) as f32 * mb.scale);
+        let iw = (img.width as f32 * mb.scale).max(2.0);
+        let ih = (img.height as f32 * mb.scale).max(2.0);
         if let Some(r) = Rect::from_xywh(ix, iy, iw, ih) {
             pixmap.fill_rect(r, &item_paint, Transform::identity(), None);
         }
     }
 
+    // Dessine miniatures annotations & stickies & membranes
+    let mut ann_paint = Paint::default();
+    ann_paint.set_color(Color::from_rgba8(160, 150, 90, 160));
+    let mut membrane_paint = Paint::default();
+    membrane_paint.set_color(Color::from_rgba8(80, 140, 220, 100));
+
+    for ann in &board.annotations {
+        match ann {
+            Annotation::Text { x, y, width, height, .. } => {
+                let aw = width.unwrap_or(200.0) as f32 * mb.scale;
+                let ah = height.unwrap_or(48.0) as f32 * mb.scale;
+                let ax = mb.mm_x + 6.0 + ((*x - mb.min_x) as f32 * mb.scale);
+                let ay = mb.mm_y + 6.0 + ((*y - mb.min_y) as f32 * mb.scale);
+                if let Some(r) = Rect::from_xywh(ax, ay, aw.max(2.0), ah.max(2.0)) {
+                    pixmap.fill_rect(r, &ann_paint, Transform::identity(), None);
+                }
+            }
+            Annotation::Sticky { x, y, width, height, .. } => {
+                let aw = width.unwrap_or(160.0) as f32 * mb.scale;
+                let ah = height.unwrap_or(120.0) as f32 * mb.scale;
+                let ax = mb.mm_x + 6.0 + ((*x - mb.min_x) as f32 * mb.scale);
+                let ay = mb.mm_y + 6.0 + ((*y - mb.min_y) as f32 * mb.scale);
+                if let Some(r) = Rect::from_xywh(ax, ay, aw.max(2.0), ah.max(2.0)) {
+                    pixmap.fill_rect(r, &ann_paint, Transform::identity(), None);
+                }
+            }
+            Annotation::Membrane { x, y, width, height, .. } => {
+                let aw = *width as f32 * mb.scale;
+                let ah = *height as f32 * mb.scale;
+                let ax = mb.mm_x + 6.0 + ((*x - mb.min_x) as f32 * mb.scale);
+                let ay = mb.mm_y + 6.0 + ((*y - mb.min_y) as f32 * mb.scale);
+                if let Some(r) = Rect::from_xywh(ax, ay, aw.max(4.0), ah.max(4.0)) {
+                    pixmap.fill_rect(r, &membrane_paint, Transform::identity(), None);
+                }
+            }
+            _ => {}
+        }
+    }
+
     // Rectangle de la caméra
-    let cx = mm_x + 6.0 + ((cam_left - min_x) as f32 * scale);
-    let cy = mm_y + 6.0 + ((cam_top - min_y) as f32 * scale);
-    let cw = (vp_w as f32 * scale).max(4.0);
-    let ch = (vp_h as f32 * scale).max(4.0);
+    let cx = mb.mm_x + 6.0 + ((mb.cam_left - mb.min_x) as f32 * mb.scale);
+    let cy = mb.mm_y + 6.0 + ((mb.cam_top - mb.min_y) as f32 * mb.scale);
+    let cw = (mb.vp_w as f32 * mb.scale).max(4.0);
+    let ch = (mb.vp_h as f32 * mb.scale).max(4.0);
 
     let mut cam_paint = Paint::default();
     cam_paint.set_color(Color::from_rgba8(255, 255, 255, 220));
@@ -817,24 +983,26 @@ fn render_toast(pixmap: &mut PixmapMut, toast: &Toast, typo: &Typography, w: f32
     pb.quad_to(toast_x, toast_y + toast_h, toast_x, toast_y + toast_h - r);
     pb.line_to(toast_x, toast_y + r);
     pb.quad_to(toast_x, toast_y, toast_x + r, toast_y);
-    pb.close();
+    // Bordure subtile #333333
+    let mut border_paint = Paint::default();
+    let b_byte = (alpha * 120.0) as u8;
+    border_paint.set_color(Color::from_rgba8(60, 60, 65, b_byte));
+    let stroke = Stroke { width: 1.0, ..Default::default() };
 
     if let Some(path) = pb.finish() {
         pixmap.fill_path(&path, &bg_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
-
-        let mut border_paint = Paint::default();
-        border_paint.set_color(Color::from_rgba8(60, 60, 75, (alpha * 180.0) as u8));
-        let stroke = Stroke { width: 1.0, ..Default::default() };
         pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
     }
 
+    // Texte centré
+    let text_color = Color::from_rgba8(240, 240, 240, (alpha * 255.0) as u8);
     typo.draw_text(
         pixmap,
         &toast.message,
         toast_x + 20.0,
         toast_y + 11.0,
         13.0,
-        Color::from_rgba8(240, 240, 245, (alpha * 255.0) as u8),
+        text_color,
         false,
     );
 }
@@ -844,7 +1012,7 @@ pub fn handle_ui_click(
     x: f32,
     y: f32,
     screen_w: f32,
-    _screen_h: f32,
+    screen_h: f32,
     store: &Store,
     ui: &mut UiState,
     typo: &Typography,
@@ -855,16 +1023,9 @@ pub fn handle_ui_click(
         for btn in layout.buttons {
             if x >= btn.x && x < btn.x + btn.w && y >= btn.y && y < btn.y + btn.h {
                 match btn.action {
-                    UiAction::SelectTool(tool) => {
-                        ui.active_tool = tool;
-                    }
                     UiAction::ToggleMagnet => {
                         ui.smart_align = !ui.smart_align;
                         ui.show_toast(if ui.smart_align { "✨ Aimant activé" } else { "Aimant désactivé" });
-                    }
-                    UiAction::ToggleTransDomain => {
-                        ui.trans_domain = !ui.trans_domain;
-                        ui.show_toast(if ui.trans_domain { "🌌 Trans-domaines activé" } else { "Trans-domaines désactivé" });
                     }
                     UiAction::ToggleCollab => {
                         ui.collab_active = !ui.collab_active;
@@ -876,34 +1037,27 @@ pub fn handle_ui_click(
             }
         }
     } else if y >= TOPBAR_HEIGHT && y < TOTAL_HEADER_HEIGHT {
-        // Clic sur la BoardTabs bar
-        let mut tab_x = 8.0;
-        for board in &store.project.boards {
-            let (tw, _) = typo.measure_text(&board.name, 12.0, false);
-            let tab_w = tw + 28.0;
-            if x >= tab_x && x < tab_x + tab_w {
-                return Some(UiAction::SelectBoard(board.id.clone()));
+        // Clic sur la BoardTabs bar via layout_tabs unifié
+        let tabs = layout_tabs(store, typo, TOPBAR_HEIGHT);
+        for tab in tabs {
+            if x >= tab.x && x < tab.x + tab.width && y >= tab.y && y < tab.y + tab.height {
+                if tab.is_plus {
+                    return Some(UiAction::AddBoard);
+                } else {
+                    return Some(UiAction::SelectBoard(tab.board_id));
+                }
             }
-            tab_x += tab_w + 4.0;
-        }
-
-        // Clic sur le bouton +
-        if x >= tab_x && x < tab_x + 30.0 {
-            return Some(UiAction::AddBoard);
         }
     } else {
-        // Clic sur la Minimap (en bas à droite)
-        let mm_w = 180.0;
-        let mm_h = 120.0;
-        let mm_x = screen_w - mm_w - 16.0;
-        let mm_y = _screen_h - mm_h - 16.0;
-
-        if x >= mm_x && x <= mm_x + mm_w && y >= mm_y && y <= mm_y + mm_h {
-            let rel_x = (x - mm_x) / mm_w;
-            let rel_y = (y - mm_y) / mm_h;
-            let target_wx = (rel_x as f64 - 0.5) * 2000.0;
-            let target_wy = (rel_y as f64 - 0.5) * 2000.0;
-            return Some(UiAction::MinimapPan(target_wx, target_wy));
+        // Clic sur la Minimap via layout_minimap unifié (bornes réelles)
+        if let Some(mb) = layout_minimap(store, screen_w, screen_h) {
+            if x >= mb.mm_x && x <= mb.mm_x + mb.mm_w && y >= mb.mm_y && y <= mb.mm_y + mb.mm_h {
+                let rel_x = ((x - mb.mm_x - 6.0) / (mb.mm_w - 12.0).max(1.0) as f32).clamp(0.0, 1.0) as f64;
+                let rel_y = ((y - mb.mm_y - 6.0) / (mb.mm_h - 12.0).max(1.0) as f32).clamp(0.0, 1.0) as f64;
+                let target_wx = mb.min_x + rel_x * mb.span_x;
+                let target_wy = mb.min_y + rel_y * mb.span_y;
+                return Some(UiAction::MinimapPan(target_wx, target_wy));
+            }
         }
     }
 

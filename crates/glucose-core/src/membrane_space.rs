@@ -156,6 +156,7 @@ pub fn resolve_items(items: &[SpaceItem], opts: ResolveOptions) -> HashMap<Strin
     let mut out = HashMap::new();
     let focus_id = opts.focused_membrane_id;
 
+    #[allow(clippy::too_many_arguments)]
     fn walk(
         item: &SpaceItem,
         ox: f64,
@@ -576,7 +577,7 @@ pub fn project_board(board: &Board, resolved: Option<&HashMap<String, ResolvedIt
                                 color: color.clone(),
                                 arrow_type: arrow_type.clone(),
                                 arrow_bidirectional: *arrow_bidirectional,
-                                predicate: predicate.clone(),
+                                predicate: *predicate,
                                 stroke_width: *stroke_width,
                                 waypoints: new_waypoints,
                                 source_id: source_id.clone(),

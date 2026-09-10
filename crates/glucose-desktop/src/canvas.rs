@@ -59,4 +59,23 @@ mod tests {
         assert!((w_before_x - w_after_x).abs() < 1e-6);
         assert!((w_before_y - w_after_y).abs() < 1e-6);
     }
+
+    #[test]
+    fn test_smart_align_drag_snapping_simulation() {
+        use glucose_core::smart_align::{snap_move, AlignKind, AlignRect, AlignTarget, SnapOptions};
+
+        let target = AlignTarget {
+            id: "card-target".into(),
+            kind: AlignKind::Text,
+            rect: AlignRect::new(0.0, 0.0, 200.0, 100.0),
+        };
+
+        // Glisser un élément de 200x100 à x=203.0 (3px de décalage -> seuil 8px)
+        let dragged = AlignRect::new(203.0, 0.0, 200.0, 100.0);
+        let snap = snap_move(dragged, &[target], SnapOptions::default());
+
+        // L'aimantation comble le décalage de -3px et affiche le guide vertical à 200.0
+        assert!((snap.dx - (-3.0)).abs() < 1e-6);
+        assert_eq!(snap.guides.x, Some(vec![200.0]));
+    }
 }
