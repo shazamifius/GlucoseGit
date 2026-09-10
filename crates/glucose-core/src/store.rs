@@ -11,19 +11,6 @@ use crate::types::{
 };
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ActiveTool {
-    #[default]
-    Select,
-    Pan,
-    Text,
-    Sticky,
-    Arrow,
-    Folder,
-    Membrane,
-    ZoneSelect,
-}
-
 /// Reconstruit la pile de dossiers UI menant au board actif.
 pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(String, String)> {
     let mut parent_map = std::collections::HashMap::new();
@@ -63,7 +50,6 @@ pub fn preserve_view(restored: &mut Project, cur: &Project) {
 #[derive(Debug, Clone)]
 pub struct Store {
     pub project: Project,
-    pub active_tool: ActiveTool,
     pub selected_image_ids: Vec<String>,
     pub selected_annotation_ids: Vec<String>,
     pub selected_folder_id: Option<String>,
@@ -82,7 +68,6 @@ impl Store {
     pub fn new(project_name: impl Into<String>) -> Self {
         Self {
             project: Project::new(project_name),
-            active_tool: ActiveTool::Select,
             selected_image_ids: Vec::new(),
             selected_annotation_ids: Vec::new(),
             selected_folder_id: None,
