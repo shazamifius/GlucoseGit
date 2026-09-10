@@ -15,7 +15,7 @@ impl GlucoseApp {
                 self.is_panning = false;
             }
             self.update_cursor();
-            self.redraw();
+            self.mark_dirty();
             return;
         }
 
@@ -30,14 +30,14 @@ impl GlucoseApp {
             Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
                 self.store.delete_selected(&active_bid);
                 self.ui.show_toast("🗑 Supprimé");
-                self.redraw();
+                self.mark_dirty();
             }
             Key::Character(ref c) => match c.as_str() {
                 "h" | "H" => {
                     if !ctrl {
                         self.ui.active_tool = ActiveTool::Pan;
                         self.update_cursor();
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "v" | "V" => {
@@ -46,7 +46,7 @@ impl GlucoseApp {
                     } else {
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "z" | "Z" => {
@@ -58,7 +58,7 @@ impl GlucoseApp {
                         } else if self.store.undo() {
                             self.ui.show_toast("↩️ Annuler");
                         }
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "y" | "Y" => {
@@ -66,14 +66,14 @@ impl GlucoseApp {
                         if self.store.redo() {
                             self.ui.show_toast("🔁 Rétablir");
                         }
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "d" | "D" => {
                     if ctrl {
                         self.store.duplicate_selected(&active_bid);
                         self.ui.show_toast("📑 Dupliqué");
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "a" | "A" => {
@@ -84,11 +84,11 @@ impl GlucoseApp {
                             self.store.set_selected_image_ids(img_ids);
                             self.store.set_selected_annotation_ids(ann_ids);
                         }
-                        self.redraw();
+                        self.mark_dirty();
                     } else {
                         self.ui.active_tool = ActiveTool::Arrow;
                         self.update_cursor();
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "t" | "T" => {
@@ -106,22 +106,22 @@ impl GlucoseApp {
                         } else {
                             "Fenêtre normale"
                         });
-                        self.redraw();
+                        self.mark_dirty();
                     } else {
                         self.ui.active_tool = ActiveTool::Text;
                         self.update_cursor();
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
                 "n" | "N" => {
                     self.ui.active_tool = ActiveTool::Sticky;
                     self.update_cursor();
-                    self.redraw();
+                    self.mark_dirty();
                 }
                 "m" | "M" => {
                     self.ui.active_tool = ActiveTool::Membrane;
                     self.update_cursor();
-                    self.redraw();
+                    self.mark_dirty();
                 }
                 "f" | "F" => {
                     // Fit view / recentrer la caméra PureRef
@@ -131,7 +131,7 @@ impl GlucoseApp {
                         b.viewport.scale = 1.0;
                     }
                     self.ui.show_toast("🎯 Vue recentrée");
-                    self.redraw();
+                    self.mark_dirty();
                 }
                 "o" | "O" => {
                     if ctrl {

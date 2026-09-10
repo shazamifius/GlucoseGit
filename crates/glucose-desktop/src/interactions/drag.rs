@@ -87,7 +87,7 @@ impl GlucoseApp {
         if step_dx.abs() > 1e-7 || step_dy.abs() > 1e-7 {
             self.store.move_selected(&active_bid, step_dx, step_dy);
         }
-        self.redraw();
+        self.mark_dirty();
     }
 
     /// Termine la session de drag et nettoie les guides.

@@ -33,7 +33,7 @@ impl GlucoseApp {
                 }
             }
         }
-        self.redraw();
+        self.mark_dirty();
     }
 
     /// Déplacement relatif de la caméra lors d'un pan souris (bouton milieu, droit, ou Espace+gauche).
@@ -42,6 +42,6 @@ impl GlucoseApp {
         if dx.hypot(dy) < 300.0 {
             self.store.pan(dx, dy);
         }
-        self.redraw();
+        self.mark_dirty();
     }
 }

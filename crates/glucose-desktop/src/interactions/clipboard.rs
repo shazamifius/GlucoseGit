@@ -51,7 +51,7 @@ impl GlucoseApp {
 
         if count > 0 {
             self.ui.show_toast(format!("📥 {} image(s) ajoutée(s)", count));
-            self.redraw();
+            self.mark_dirty();
         }
     }
 
@@ -92,7 +92,7 @@ impl GlucoseApp {
 
                     self.store.add_image(&active_bid, img);
                     self.ui.show_toast("📥 Image collée");
-                    self.redraw();
+                    self.mark_dirty();
                     return;
                 }
             }
@@ -126,7 +126,7 @@ impl GlucoseApp {
                 };
                 self.store.add_annotation(&active_bid, ann);
                 self.ui.show_toast("📝 Texte collé");
-                self.redraw();
+                self.mark_dirty();
             }
         }
     }

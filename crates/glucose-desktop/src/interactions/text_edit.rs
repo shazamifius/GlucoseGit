@@ -16,7 +16,7 @@ impl GlucoseApp {
             cursor_idx: cur_idx,
             blink_timer: std::time::Instant::now(),
         });
-        self.redraw();
+        self.mark_dirty();
     }
 
     /// Valide et persiste le texte édité dans le store.
@@ -68,19 +68,19 @@ impl GlucoseApp {
         match event.logical_key {
             Key::Named(NamedKey::Escape) => {
                 self.commit_editing();
-                self.redraw();
+                self.mark_dirty();
                 return true;
             }
             Key::Named(NamedKey::Enter) => {
                 if !self.modifiers.shift_key() {
                     self.commit_editing();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 } else {
                     session.buffer.insert(session.cursor_idx, '\n');
                     session.cursor_idx += 1;
                     session.blink_timer = std::time::Instant::now();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 }
             }
@@ -93,7 +93,7 @@ impl GlucoseApp {
                     session.buffer.drain(prev..session.cursor_idx);
                     session.cursor_idx = prev;
                     session.blink_timer = std::time::Instant::now();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 }
             }
@@ -105,7 +105,7 @@ impl GlucoseApp {
                     }
                     session.buffer.drain(session.cursor_idx..next);
                     session.blink_timer = std::time::Instant::now();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 }
             }
@@ -117,7 +117,7 @@ impl GlucoseApp {
                     }
                     session.cursor_idx = prev;
                     session.blink_timer = std::time::Instant::now();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 }
             }
@@ -129,20 +129,20 @@ impl GlucoseApp {
                     }
                     session.cursor_idx = next;
                     session.blink_timer = std::time::Instant::now();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 }
             }
             Key::Named(NamedKey::Home) => {
                 session.cursor_idx = 0;
                 session.blink_timer = std::time::Instant::now();
-                self.redraw();
+                self.mark_dirty();
                 return true;
             }
             Key::Named(NamedKey::End) => {
                 session.cursor_idx = session.buffer.len();
                 session.blink_timer = std::time::Instant::now();
-                self.redraw();
+                self.mark_dirty();
                 return true;
             }
             Key::Character(ref c) => {
@@ -150,7 +150,7 @@ impl GlucoseApp {
                     session.buffer.insert_str(session.cursor_idx, c.as_str());
                     session.cursor_idx += c.len();
                     session.blink_timer = std::time::Instant::now();
-                    self.redraw();
+                    self.mark_dirty();
                     return true;
                 }
             }

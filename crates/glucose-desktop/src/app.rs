@@ -160,6 +160,13 @@ impl GlucoseApp {
         }
     }
 
+    /// Marque la vue comme sale et planifie un rafraîchissement asynchrone coalescé par Winit (Roadmap 1.11, R-15).
+    pub fn mark_dirty(&self) {
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+
     /// Réorganise automatiquement les éléments en grille ordonnée
     #[allow(dead_code)]
     pub fn organize_layout(&mut self) {
@@ -171,7 +178,7 @@ impl GlucoseApp {
         }
         self.store.push_undo();
         self.ui.show_toast("📐 Canvas ordonné");
-        self.redraw();
+        self.mark_dirty();
     }
 
     /// Applique la réorganisation issue du panneau ORDONNER (Masonry, Grille, Même Hauteur, etc.)
@@ -194,7 +201,7 @@ impl GlucoseApp {
         }
         self.store.push_undo();
         self.ui.show_toast(format!("📐 Disposition {} appliquée", state.layout.title()));
-        self.redraw();
+        self.mark_dirty();
     }
 }
 
@@ -224,7 +231,7 @@ impl ApplicationHandler for GlucoseApp {
                         window.set_cursor(winit::window::CursorIcon::Grab);
                         self.context = Some(context);
                         self.surface = Some(surface);
-                        self.redraw();
+                        self.mark_dirty();
                     }
                 }
             }
@@ -245,12 +252,12 @@ impl ApplicationHandler for GlucoseApp {
                     }
                 }
                 self.pixmap = Pixmap::new(width, height);
-                self.redraw();
+                self.mark_dirty();
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale_factor = scale_factor;
                 self.ui.scale_factor = scale_factor as f32;
-                self.redraw();
+                self.mark_dirty();
             }
             WindowEvent::RedrawRequested => {
                 self.redraw();
@@ -307,7 +314,7 @@ impl ApplicationHandler for GlucoseApp {
         // 3. Minuteur Pomodoro actif dans le dock
         if self.dock_manager.pomodoro.running {
             if self.dock_manager.tick_pomodoro() {
-                self.redraw();
+                self.mark_dirty();
             }
             need_anim = true;
             min_timeout_ms = min_timeout_ms.min(200);
@@ -316,7 +323,7 @@ impl ApplicationHandler for GlucoseApp {
         if need_anim {
             let next_deadline = std::time::Instant::now() + std::time::Duration::from_millis(min_timeout_ms);
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
-            self.redraw();
+            self.mark_dirty();
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }

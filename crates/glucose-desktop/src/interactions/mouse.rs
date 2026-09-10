@@ -19,7 +19,7 @@ impl GlucoseApp {
 
         if self.dock_manager.drag.is_some() {
             self.dock_manager.update_drag(position.x as f32, position.y as f32);
-            self.redraw();
+            self.mark_dirty();
             return;
         }
 
@@ -29,9 +29,9 @@ impl GlucoseApp {
             self.handle_item_drag_move(position.x, position.y);
         } else if self.selection_box.is_some() {
             self.update_selection_box(position.x, position.y);
-            self.redraw();
+            self.mark_dirty();
         } else if position.y < TOTAL_HEADER_HEIGHT as f64 {
-            self.redraw();
+            self.mark_dirty();
         }
 
         self.update_cursor();
@@ -44,7 +44,7 @@ impl GlucoseApp {
                 self.right_or_middle_down = true;
                 self.is_panning = true;
                 self.update_cursor();
-                self.redraw();
+                self.mark_dirty();
             }
             MouseButton::Left => {
                 let mx = self.mouse_pos.0 as f32;
@@ -119,7 +119,7 @@ impl GlucoseApp {
                         }
                     }
                     self.update_cursor();
-                    self.redraw();
+                    self.mark_dirty();
                     return;
                 }
 
@@ -146,7 +146,7 @@ impl GlucoseApp {
                         current_x: mx,
                         current_y: my,
                     });
-                    self.redraw();
+                    self.mark_dirty();
                     return;
                 }
 
@@ -174,7 +174,7 @@ impl GlucoseApp {
                         }
                         _ => {}
                     }
-                    self.redraw();
+                    self.mark_dirty();
                     return;
                 }
 
@@ -279,7 +279,7 @@ impl GlucoseApp {
                         self.ui.show_toast("↗️ Flèche ajoutée");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
-                        self.redraw();
+                        self.mark_dirty();
                         return;
                     }
                     ActiveTool::Membrane => {
@@ -303,7 +303,7 @@ impl GlucoseApp {
                         self.ui.show_toast("🧊 Membrane créée (rx=60)");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
-                        self.redraw();
+                        self.mark_dirty();
                         return;
                     }
                     ActiveTool::Folder => {
@@ -356,7 +356,7 @@ impl GlucoseApp {
                                     _ => String::new(),
                                 };
                                 self.start_text_edit(top.id.clone(), initial_text);
-                                self.redraw();
+                                self.mark_dirty();
                                 return;
                             }
                         }
@@ -394,7 +394,7 @@ impl GlucoseApp {
                 }
 
                 self.update_cursor();
-                self.redraw();
+                self.mark_dirty();
             }
             _ => {}
         }
@@ -407,12 +407,12 @@ impl GlucoseApp {
                 self.right_or_middle_down = false;
                 self.is_panning = false;
                 self.update_cursor();
-                self.redraw();
+                self.mark_dirty();
             }
             MouseButton::Left => {
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
                     self.ui.show_toast(format!("👋 Panneau {} fermé", dismissed.title()));
-                    self.redraw();
+                    self.mark_dirty();
                     return;
                 }
                 if !self.right_or_middle_down {
@@ -421,7 +421,7 @@ impl GlucoseApp {
                 self.finish_item_drag();
                 self.finish_selection_box();
                 self.update_cursor();
-                self.redraw();
+                self.mark_dirty();
             }
             _ => {}
         }
