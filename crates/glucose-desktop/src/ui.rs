@@ -451,6 +451,20 @@ fn draw_separator(pixmap: &mut PixmapMut, x: f32, y: f32) -> f32 {
     9.0
 }
 
+fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
+    let r = r.min(w / 2.0).min(h / 2.0);
+    pb.move_to(x + r, y);
+    pb.line_to(x + w - r, y);
+    pb.quad_to(x + w, y, x + w, y + r);
+    pb.line_to(x + w, y + h - r);
+    pb.quad_to(x + w, y + h, x + w - r, y + h);
+    pb.line_to(x + r, y + h);
+    pb.quad_to(x, y + h, x, y + h - r);
+    pb.line_to(x, y + r);
+    pb.quad_to(x, y, x + r, y);
+    pb.close();
+}
+
 fn draw_tool_button(
     pixmap: &mut PixmapMut,
     x: f32,
@@ -464,7 +478,7 @@ fn draw_tool_button(
     let bg_color = if active {
         Color::from_rgba8(45, 45, 45, 255)
     } else if hover {
-        Color::from_rgba8(32, 32, 32, 255)
+        Color::from_rgba8(35, 35, 38, 255)
     } else {
         Color::TRANSPARENT
     };
@@ -472,21 +486,21 @@ fn draw_tool_button(
     if bg_color != Color::TRANSPARENT {
         let mut p = Paint::default();
         p.set_color(bg_color);
-        if let Some(rect) = Rect::from_xywh(x, y, w, h) {
-            pixmap.fill_rect(rect, &p, Transform::identity(), None);
+        p.anti_alias = true;
+        let mut pb = PathBuilder::new();
+        push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0);
+        if let Some(path) = pb.finish() {
+            pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         }
     }
 
     if active {
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(68, 68, 68, 255));
+        sp.set_color(Color::from_rgba8(75, 75, 82, 255));
+        sp.anti_alias = true;
         let stroke = Stroke { width: 1.0, ..Default::default() };
         let mut pb = PathBuilder::new();
-        pb.move_to(x, y);
-        pb.line_to(x + w, y);
-        pb.line_to(x + w, y + h);
-        pb.line_to(x, y + h);
-        pb.close();
+        push_ui_rounded_rect(&mut pb, x + 0.5, y + 0.5, w - 1.0, h - 1.0, 4.0);
         if let Some(path) = pb.finish() {
             pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
         }
@@ -495,9 +509,9 @@ fn draw_tool_button(
     let icon_color = if active {
         Color::from_rgba8(255, 255, 255, 255)
     } else if hover {
-        Color::from_rgba8(200, 200, 200, 255)
+        Color::from_rgba8(220, 220, 220, 255)
     } else {
-        Color::from_rgba8(115, 115, 115, 255)
+        Color::from_rgba8(130, 130, 135, 255)
     };
 
     draw_icon(pixmap, icon, x + 8.0, y + 8.0, icon_color, 1.4);
@@ -518,7 +532,7 @@ fn draw_action_button(
     let bg_color = if active {
         Color::from_rgba8(45, 45, 45, 255)
     } else if hover {
-        Color::from_rgba8(30, 30, 30, 255)
+        Color::from_rgba8(35, 35, 38, 255)
     } else {
         Color::TRANSPARENT
     };
@@ -526,32 +540,32 @@ fn draw_action_button(
     if bg_color != Color::TRANSPARENT {
         let mut p = Paint::default();
         p.set_color(bg_color);
-        if let Some(rect) = Rect::from_xywh(x, y, w, h) {
-            pixmap.fill_rect(rect, &p, Transform::identity(), None);
+        p.anti_alias = true;
+        let mut pb = PathBuilder::new();
+        push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0);
+        if let Some(path) = pb.finish() {
+            pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
         }
     }
 
     if active {
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(68, 68, 68, 255));
+        sp.set_color(Color::from_rgba8(75, 75, 82, 255));
+        sp.anti_alias = true;
         let stroke = Stroke { width: 1.0, ..Default::default() };
         let mut pb = PathBuilder::new();
-        pb.move_to(x, y);
-        pb.line_to(x + w, y);
-        pb.line_to(x + w, y + h);
-        pb.line_to(x, y + h);
-        pb.close();
+        push_ui_rounded_rect(&mut pb, x + 0.5, y + 0.5, w - 1.0, h - 1.0, 4.0);
         if let Some(path) = pb.finish() {
             pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
         }
     }
 
     let color = if active {
-        Color::from_rgba8(240, 240, 240, 255)
+        Color::from_rgba8(245, 245, 245, 255)
     } else if hover {
-        Color::from_rgba8(210, 210, 210, 255)
+        Color::from_rgba8(220, 220, 220, 255)
     } else {
-        Color::from_rgba8(130, 130, 130, 255)
+        Color::from_rgba8(140, 140, 145, 255)
     };
 
     draw_icon(pixmap, icon, x + 8.0, y + 8.0, color, 1.3);

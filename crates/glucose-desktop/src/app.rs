@@ -17,7 +17,14 @@ use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{Key, ModifiersState, NamedKey};
+use crate::renderer::TextEditSession;
 use winit::window::{Window, WindowAttributes, WindowId, WindowLevel};
+
+pub struct LastClickInfo {
+    pub time: std::time::Instant,
+    pub pos: (f64, f64),
+    pub id: String,
+}
 
 pub struct GlucoseApp {
     pub store: Store,
@@ -37,6 +44,10 @@ pub struct GlucoseApp {
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
     pub always_on_top: bool,
+
+    // Session d'édition de texte in-place (double-clic)
+    pub editing_session: Option<TextEditSession>,
+    pub last_click: Option<LastClickInfo>,
 }
 
 impl GlucoseApp {
@@ -51,7 +62,7 @@ impl GlucoseApp {
             y: 0.0,
             width: Some(260.0),
             height: Some(48.0),
-            text: "Bienvenue dans Glucose !".into(),
+            text: "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer".into(),
             font_size: Some(14.0),
             color: None,
             cursor_pos: None,
@@ -79,6 +90,43 @@ impl GlucoseApp {
             active_guides: SnapGuides::default(),
             selection_box: None,
             always_on_top: false,
+            editing_session: None,
+            last_click: None,
+        }
+    }
+
+    pub fn commit_editing(&mut self) {
+        if let Some(session) = self.editing_session.take() {
+            let is_empty = session.buffer.trim().is_empty();
+            let mut should_delete = false;
+
+            if let Some(b) = self.store.active_board_mut() {
+                if let Some(ann) = b.annotations.iter_mut().find(|a| a.id() == session.ann_id) {
+                    match ann {
+                        Annotation::Text { text, .. } => {
+                            if is_empty {
+                                should_delete = true;
+                            } else {
+                                *text = session.buffer.clone();
+                            }
+                        }
+                        Annotation::Sticky { text, .. } => {
+                            *text = session.buffer.clone();
+                        }
+                        Annotation::Membrane { text, .. } => {
+                            *text = if is_empty { None } else { Some(session.buffer.clone()) };
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            if should_delete {
+                if let Some(b) = self.store.active_board_mut() {
+                    b.annotations.retain(|a| a.id() != session.ann_id);
+                }
+            }
+            self.store.push_undo();
         }
     }
 
@@ -108,6 +156,7 @@ impl GlucoseApp {
                     &self.active_guides,
                     self.selection_box,
                     &mut self.ui,
+                    self.editing_session.as_ref(),
                     self.mouse_pos.0 as f32,
                     self.mouse_pos.1 as f32,
                 );
@@ -513,13 +562,14 @@ impl ApplicationHandler for GlucoseApp {
                                 }
                                 ActiveTool::Text => {
                                     let aid = format!("text-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+                                    let initial_str = "Nouveau texte".to_string();
                                     let ann = Annotation::Text {
-                                        id: aid,
+                                        id: aid.clone(),
                                         x: wx,
                                         y: wy,
-                                        width: Some(180.0),
-                                        height: Some(44.0),
-                                        text: "Nouveau texte".into(),
+                                        width: Some(240.0),
+                                        height: Some(48.0),
+                                        text: initial_str.clone(),
                                         font_size: Some(14.0),
                                         color: None,
                                         cursor_pos: None,
@@ -530,20 +580,28 @@ impl ApplicationHandler for GlucoseApp {
                                         temporal_anchor: None,
                                     };
                                     self.store.add_annotation(&active_bid, ann);
-                                    self.ui.show_toast("📝 Carte texte ajoutée");
+                                    let cur_idx = initial_str.len();
+                                    self.editing_session = Some(TextEditSession {
+                                        ann_id: aid,
+                                        buffer: initial_str,
+                                        cursor_idx: cur_idx,
+                                        blink_timer: std::time::Instant::now(),
+                                    });
+                                    self.ui.show_toast("📝 Édition du texte");
                                     self.ui.active_tool = ActiveTool::Select;
                                     self.redraw();
                                     return;
                                 }
                                 ActiveTool::Sticky => {
                                     let aid = format!("sticky-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+                                    let initial_str = "Nouvelle note".to_string();
                                     let ann = Annotation::Sticky {
-                                        id: aid,
+                                        id: aid.clone(),
                                         x: wx,
                                         y: wy,
                                         width: Some(180.0),
                                         height: Some(130.0),
-                                        text: "Nouvelle note".into(),
+                                        text: initial_str.clone(),
                                         font_size: Some(12.0),
                                         color: Some("#1c1917".into()),
                                         bg_color: Some("#fef08a".into()),
@@ -556,7 +614,14 @@ impl ApplicationHandler for GlucoseApp {
                                         temporal_anchor: None,
                                     };
                                     self.store.add_annotation(&active_bid, ann);
-                                    self.ui.show_toast("📌 Sticky note ajoutée");
+                                    let cur_idx = initial_str.len();
+                                    self.editing_session = Some(TextEditSession {
+                                        ann_id: aid,
+                                        buffer: initial_str,
+                                        cursor_idx: cur_idx,
+                                        blink_timer: std::time::Instant::now(),
+                                    });
+                                    self.ui.show_toast("📌 Édition du sticky");
                                     self.ui.active_tool = ActiveTool::Select;
                                     self.redraw();
                                     return;
@@ -614,7 +679,7 @@ impl ApplicationHandler for GlucoseApp {
                                         temporal_anchor: None,
                                     };
                                     self.store.add_annotation(&active_bid, ann);
-                                    self.ui.show_toast("🧊 Membrane créée");
+                                    self.ui.show_toast("🧊 Membrane créée (rx=60)");
                                     self.ui.active_tool = ActiveTool::Select;
                                     self.redraw();
                                     return;
@@ -645,6 +710,48 @@ impl ApplicationHandler for GlucoseApp {
                                 };
                                 let candidates = collect_candidates(&input);
                                 if let Some(top) = candidates.first() {
+                                    // Détection de double-clic (intervalle < 350ms et delta < 8.0px sur le même élément)
+                                    let is_dbl_click = if let Some(ref lc) = self.last_click {
+                                        lc.id == top.id
+                                            && lc.time.elapsed().as_millis() < 350
+                                            && (lc.pos.0 - self.mouse_pos.0).hypot(lc.pos.1 - self.mouse_pos.1) < 8.0
+                                    } else {
+                                        false
+                                    };
+
+                                    self.last_click = Some(LastClickInfo {
+                                        time: std::time::Instant::now(),
+                                        pos: self.mouse_pos,
+                                        id: top.id.clone(),
+                                    });
+
+                                    if is_dbl_click {
+                                        if let Some(ann) = b.annotations.iter().find(|a| a.id() == top.id) {
+                                            let initial_text = match ann {
+                                                Annotation::Text { text, .. } => text.clone(),
+                                                Annotation::Sticky { text, .. } => text.clone(),
+                                                Annotation::Membrane { text, .. } => text.clone().unwrap_or_default(),
+                                                _ => String::new(),
+                                            };
+                                            let cur_idx = initial_text.len();
+                                            self.editing_session = Some(TextEditSession {
+                                                ann_id: top.id.clone(),
+                                                buffer: initial_text,
+                                                cursor_idx: cur_idx,
+                                                blink_timer: std::time::Instant::now(),
+                                            });
+                                            self.redraw();
+                                            return;
+                                        }
+                                    }
+
+                                    // Si on clique sur un autre élément alors qu'on éditait, valider l'édition
+                                    if let Some(ref session) = self.editing_session {
+                                        if session.ann_id != top.id {
+                                            self.commit_editing();
+                                        }
+                                    }
+
                                     match top.owner {
                                         PickOwner::Image => {
                                             self.store.select_image(top.id.clone(), self.modifiers.shift_key());
@@ -659,6 +766,9 @@ impl ApplicationHandler for GlucoseApp {
                                             selected = true;
                                         }
                                     }
+                                } else {
+                                    // Clic dans le vide -> valider l'édition en cours
+                                    self.commit_editing();
                                 }
                             }
 
@@ -687,6 +797,104 @@ impl ApplicationHandler for GlucoseApp {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                // Interception prioritaire si une session d'édition de texte est active
+                if let Some(ref mut session) = self.editing_session {
+                    if event.state == ElementState::Pressed {
+                        match event.logical_key {
+                            Key::Named(NamedKey::Escape) => {
+                                self.editing_session = None;
+                                self.redraw();
+                                return;
+                            }
+                            Key::Named(NamedKey::Enter) => {
+                                if self.modifiers.control_key() {
+                                    self.commit_editing();
+                                    self.redraw();
+                                    return;
+                                } else {
+                                    session.buffer.insert(session.cursor_idx, '\n');
+                                    session.cursor_idx += 1;
+                                    session.blink_timer = std::time::Instant::now();
+                                    self.redraw();
+                                    return;
+                                }
+                            }
+                            Key::Named(NamedKey::Backspace) => {
+                                if session.cursor_idx > 0 {
+                                    let mut prev = session.cursor_idx - 1;
+                                    while prev > 0 && !session.buffer.is_char_boundary(prev) {
+                                        prev -= 1;
+                                    }
+                                    session.buffer.drain(prev..session.cursor_idx);
+                                    session.cursor_idx = prev;
+                                    session.blink_timer = std::time::Instant::now();
+                                    self.redraw();
+                                    return;
+                                }
+                            }
+                            Key::Named(NamedKey::Delete) => {
+                                if session.cursor_idx < session.buffer.len() {
+                                    let mut next = session.cursor_idx + 1;
+                                    while next < session.buffer.len() && !session.buffer.is_char_boundary(next) {
+                                        next += 1;
+                                    }
+                                    session.buffer.drain(session.cursor_idx..next);
+                                    session.blink_timer = std::time::Instant::now();
+                                    self.redraw();
+                                    return;
+                                }
+                            }
+                            Key::Named(NamedKey::ArrowLeft) => {
+                                if session.cursor_idx > 0 {
+                                    let mut prev = session.cursor_idx - 1;
+                                    while prev > 0 && !session.buffer.is_char_boundary(prev) {
+                                        prev -= 1;
+                                    }
+                                    session.cursor_idx = prev;
+                                    session.blink_timer = std::time::Instant::now();
+                                    self.redraw();
+                                    return;
+                                }
+                            }
+                            Key::Named(NamedKey::ArrowRight) => {
+                                if session.cursor_idx < session.buffer.len() {
+                                    let mut next = session.cursor_idx + 1;
+                                    while next < session.buffer.len() && !session.buffer.is_char_boundary(next) {
+                                        next += 1;
+                                    }
+                                    session.cursor_idx = next;
+                                    session.blink_timer = std::time::Instant::now();
+                                    self.redraw();
+                                    return;
+                                }
+                            }
+                            Key::Named(NamedKey::Home) => {
+                                session.cursor_idx = 0;
+                                session.blink_timer = std::time::Instant::now();
+                                self.redraw();
+                                return;
+                            }
+                            Key::Named(NamedKey::End) => {
+                                session.cursor_idx = session.buffer.len();
+                                session.blink_timer = std::time::Instant::now();
+                                self.redraw();
+                                return;
+                            }
+                            Key::Character(ref c) => {
+                                if !self.modifiers.control_key() && !self.modifiers.alt_key() {
+                                    session.buffer.insert_str(session.cursor_idx, c.as_str());
+                                    session.cursor_idx += c.len();
+                                    session.blink_timer = std::time::Instant::now();
+                                    self.redraw();
+                                    return;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    return;
+                }
+
                 if event.state == ElementState::Pressed {
                     let ctrl = self.modifiers.control_key();
                     let active_bid = self.store.project.active_board_id.clone();

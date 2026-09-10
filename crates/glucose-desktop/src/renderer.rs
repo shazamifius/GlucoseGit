@@ -14,6 +14,49 @@ use tiny_skia::{
     PixmapPaint, Point, RadialGradient, Rect, SpreadMode, Stroke, Transform,
 };
 
+#[derive(Debug, Clone)]
+pub struct TextEditSession {
+    pub ann_id: String,
+    pub buffer: String,
+    pub cursor_idx: usize,
+    pub blink_timer: std::time::Instant,
+}
+
+/// Décode une couleur hexadécimale #RRGGBB ou #RGB
+fn parse_hex_color(hex: &str, default_r: u8, default_g: u8, default_b: u8) -> (u8, u8, u8) {
+    let s = hex.trim_start_matches('#');
+    if s.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&s[0..2], 16),
+            u8::from_str_radix(&s[2..4], 16),
+            u8::from_str_radix(&s[4..6], 16),
+        ) {
+            return (r, g, b);
+        }
+    } else if s.len() == 3 {
+        let r = u8::from_str_radix(&s[0..1], 16).map(|v| v * 17).unwrap_or(default_r);
+        let g = u8::from_str_radix(&s[1..2], 16).map(|v| v * 17).unwrap_or(default_g);
+        let b = u8::from_str_radix(&s[2..3], 16).map(|v| v * 17).unwrap_or(default_b);
+        return (r, g, b);
+    }
+    (default_r, default_g, default_b)
+}
+
+/// Ajoute un rectangle à coins arrondis dans un PathBuilder
+fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
+    let r = r.min(w / 2.0).min(h / 2.0);
+    pb.move_to(x + r, y);
+    pb.line_to(x + w - r, y);
+    pb.quad_to(x + w, y, x + w, y + r);
+    pb.line_to(x + w, y + h - r);
+    pb.quad_to(x + w, y + h, x + w - r, y + h);
+    pb.line_to(x + r, y + h);
+    pb.quad_to(x, y + h, x, y + h - r);
+    pb.line_to(x, y + r);
+    pb.quad_to(x, y, x + r, y);
+    pb.close();
+}
+
 pub struct Renderer {
     pub image_cache: HashMap<String, Pixmap>,
     pub typography: Typography,
@@ -70,6 +113,7 @@ impl Renderer {
         guides: &SnapGuides,
         selection_box: Option<(f64, f64, f64, f64)>,
         ui: &mut UiState,
+        editing_session: Option<&TextEditSession>,
         mouse_x: f32,
         mouse_y: f32,
     ) {
@@ -86,17 +130,17 @@ impl Renderer {
         // 2. Grille de points infinie
         self.draw_grid(pixmap, &vp, width, height);
 
-        // 3. Halos symbiotiques d'ambiance
+        // 3. Halos symbiotiques d'ambiance (Biome 2D + gradient vectoriel circulaire)
         self.draw_halos(pixmap, store, &vp);
 
-        // 4. Membranes
+        // 4. Membranes (large rayon rx=60, pointillés, titre protecteur en haut à gauche)
         self.draw_membranes(pixmap, store, &vp);
 
         // 5. Images
         self.draw_images(pixmap, store, &vp);
 
-        // 6. Annotations (cartes de texte, stickies, flèches)
-        self.draw_annotations(pixmap, store, &vp);
+        // 6. Annotations (cartes de texte, stickies, flèches + édition live in-place)
+        self.draw_annotations(pixmap, store, &vp, editing_session);
 
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
@@ -156,34 +200,35 @@ impl Renderer {
         for ann in &board.annotations {
             if let Annotation::Text { x, y, width, height, .. } = ann {
                 let (sx, sy) = world_to_screen(*x, *y, vp);
-                let w = width.unwrap_or(80.0) * vp.scale;
+                let w = width.unwrap_or(240.0) * vp.scale;
                 let h = height.unwrap_or(48.0) * vp.scale;
 
                 let cx = (sx + w / 2.0) as f32;
                 let cy = (sy + h / 2.0) as f32;
-                let radius = (w.max(h) * 1.6) as f32;
+                let radius = ((w.max(h) * 1.5) as f32 + 50.0 * vp.scale as f32).max(40.0);
 
-                if radius > 10.0 {
-                    if let Some(shader) = RadialGradient::new(
-                        Point::from_xy(cx, cy),
-                        Point::from_xy(cx, cy),
-                        radius,
-                        vec![
-                            GradientStop::new(0.0, Color::from_rgba8(160, 90, 50, 24)),
-                            GradientStop::new(1.0, Color::from_rgba8(160, 90, 50, 0)),
-                        ],
-                        SpreadMode::Pad,
-                        Transform::identity(),
-                    ) {
-                        let mut p = Paint::default();
-                        p.shader = shader;
-                        p.anti_alias = true;
+                let hue = glucose_core::symbiotic_hue::get_symbiotic_hue(ann, &board.annotations);
+                let (r, g, b) = glucose_core::symbiotic_hue::hsl_to_rgb(hue, 0.75, 0.65);
 
-                        let mut pb = PathBuilder::new();
-                        pb.push_circle(cx, cy, radius);
-                        if let Some(path) = pb.finish() {
-                            pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
-                        }
+                if let Some(shader) = RadialGradient::new(
+                    Point::from_xy(cx, cy),
+                    Point::from_xy(cx, cy),
+                    radius,
+                    vec![
+                        GradientStop::new(0.0, Color::from_rgba8(r, g, b, 35)),
+                        GradientStop::new(1.0, Color::from_rgba8(r, g, b, 0)),
+                    ],
+                    SpreadMode::Pad,
+                    Transform::identity(),
+                ) {
+                    let mut p = Paint::default();
+                    p.shader = shader;
+                    p.anti_alias = true;
+
+                    let mut pb = PathBuilder::new();
+                    pb.push_circle(cx, cy, radius);
+                    if let Some(path) = pb.finish() {
+                        pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
                     }
                 }
             }
@@ -197,43 +242,128 @@ impl Renderer {
         };
 
         for ann in &board.annotations {
-            if let Annotation::Membrane { id, x, y, width, height, text, .. } = ann {
+            if let Annotation::Membrane { id, x, y, width, height, text, color, .. } = ann {
                 let (sx, sy) = world_to_screen(*x, *y, vp);
-                let sw = (*width * vp.scale).max(4.0) as f32;
-                let sh = (*height * vp.scale).max(4.0) as f32;
+                let sw = (*width * vp.scale).max(40.0) as f32;
+                let sh = (*height * vp.scale).max(40.0) as f32;
 
-                if let Some(rect) = Rect::from_xywh(sx as f32, sy as f32, sw, sh) {
-                    // Fond translucide bleu
+                let (r, g, b) = color.as_deref()
+                    .map(|c| parse_hex_color(c, 96, 165, 250))
+                    .unwrap_or((96, 165, 250));
+
+                let is_selected = store.selected_annotation_ids.contains(id);
+                let rx = (60.0 * vp.scale as f32).clamp(16.0, 60.0).min(sw / 2.0).min(sh / 2.0);
+
+                // 1. Glow ultra-discret multicouche
+                for (pad, alpha) in [(20.0 * vp.scale as f32, 8u8), (10.0 * vp.scale as f32, 14u8)] {
+                    let mut glow_pb = PathBuilder::new();
+                    push_rounded_rect(
+                        &mut glow_pb,
+                        sx as f32 - pad,
+                        sy as f32 - pad,
+                        sw + pad * 2.0,
+                        sh + pad * 2.0,
+                        rx + pad * 0.5,
+                    );
+                    if let Some(path) = glow_pb.finish() {
+                        let mut gp = Paint::default();
+                        gp.set_color(Color::from_rgba8(r, g, b, alpha));
+                        gp.anti_alias = true;
+                        pixmap.fill_path(&path, &gp, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                    }
+                }
+
+                // 2. Fill translucide 2%
+                let mut fill_pb = PathBuilder::new();
+                push_rounded_rect(&mut fill_pb, sx as f32, sy as f32, sw, sh, rx);
+                if let Some(fill_path) = fill_pb.finish() {
                     let mut fill_paint = Paint::default();
-                    fill_paint.set_color(Color::from_rgba8(96, 165, 250, 18));
-                    pixmap.fill_rect(rect, &fill_paint, Transform::identity(), None);
+                    fill_paint.set_color(Color::from_rgba8(r, g, b, 8));
+                    fill_paint.anti_alias = true;
+                    pixmap.fill_path(&fill_path, &fill_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
-                    // Bordure
-                    let is_selected = store.selected_annotation_ids.contains(id);
+                    // 3. Bordure nette pointillée 10 10 (ou pleine si sélectionné)
                     let mut stroke_paint = Paint::default();
                     stroke_paint.set_color(if is_selected {
-                        Color::from_rgba8(56, 189, 248, 255)
+                        Color::from_rgba8(r, g, b, 235)
                     } else {
-                        Color::from_rgba8(96, 165, 250, 100)
+                        Color::from_rgba8(r, g, b, 115)
                     });
+                    stroke_paint.anti_alias = true;
+
                     let stroke = Stroke {
-                        width: if is_selected { 2.0 } else { 1.2 },
-                        dash: tiny_skia::StrokeDash::new(vec![5.0, 3.0], 0.0),
+                        width: if is_selected { 2.2 } else { 2.0 },
+                        dash: if is_selected {
+                            None
+                        } else {
+                            tiny_skia::StrokeDash::new(vec![10.0, 10.0], 0.0)
+                        },
+                        line_cap: LineCap::Round,
                         ..Default::default()
                     };
-                    let path = PathBuilder::from_rect(rect);
-                    pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
+                    pixmap.stroke_path(&fill_path, &stroke_paint, &stroke, Transform::identity(), None);
+                }
 
-                    if let Some(lbl) = text {
+                // 4. Label de section (titre) flottant en haut à gauche (x=16, y=-14)
+                // avec contour protecteur sombre 4px (#0b0b12)
+                if let Some(lbl) = text {
+                    if !lbl.is_empty() {
+                        let lx = sx as f32 + (16.0 * vp.scale as f32).clamp(8.0, 20.0);
+                        let ly = sy as f32 - (18.0 * vp.scale as f32).clamp(12.0, 24.0);
+                        let font_size = (16.0 * vp.scale).clamp(12.0, 22.0) as f32;
+
+                        // Contour d'ombre protecteur (4px outline)
+                        let shadow_offsets = [
+                            (-2.0, 0.0), (2.0, 0.0), (0.0, -2.0), (0.0, 2.0),
+                            (-1.5, -1.5), (1.5, -1.5), (-1.5, 1.5), (1.5, 1.5),
+                        ];
+                        let shadow_color = Color::from_rgba8(11, 11, 18, 255);
+                        for (ox, oy) in shadow_offsets {
+                            self.typography.draw_text(
+                                pixmap,
+                                lbl,
+                                lx + ox,
+                                ly + oy,
+                                font_size,
+                                shadow_color,
+                                true,
+                            );
+                        }
+
+                        // Texte principal avec la couleur de la membrane
                         self.typography.draw_text(
                             pixmap,
                             lbl,
-                            sx as f32 + 10.0,
-                            sy as f32 + 10.0,
-                            12.0,
-                            Color::from_rgba8(147, 197, 253, 220),
+                            lx,
+                            ly,
+                            font_size,
+                            Color::from_rgba8(r, g, b, 255),
                             true,
                         );
+                    }
+                }
+
+                // 5. Poignées de redimensionnement aux 4 coins si sélectionné
+                if is_selected {
+                    let handle_size = 7.0f32;
+                    let corners = [
+                        (sx as f32, sy as f32),
+                        (sx as f32 + sw, sy as f32),
+                        (sx as f32, sy as f32 + sh),
+                        (sx as f32 + sw, sy as f32 + sh),
+                    ];
+                    let mut hp = Paint::default();
+                    hp.set_color(Color::from_rgba8(26, 26, 26, 255));
+                    let mut h_stroke_p = Paint::default();
+                    h_stroke_p.set_color(Color::from_rgba8(r, g, b, 255));
+                    let h_stroke = Stroke { width: 1.0, ..Default::default() };
+
+                    for (cx, cy) in corners {
+                        if let Some(hr) = Rect::from_xywh(cx - handle_size / 2.0, cy - handle_size / 2.0, handle_size, handle_size) {
+                            pixmap.fill_rect(hr, &hp, Transform::identity(), None);
+                            let h_path = PathBuilder::from_rect(hr);
+                            pixmap.stroke_path(&h_path, &h_stroke_p, &h_stroke, Transform::identity(), None);
+                        }
                     }
                 }
             }
@@ -333,7 +463,13 @@ impl Renderer {
         }
     }
 
-    fn draw_annotations(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
+    fn draw_annotations(
+        &self,
+        pixmap: &mut PixmapMut,
+        store: &Store,
+        vp: &Viewport,
+        editing_session: Option<&TextEditSession>,
+    ) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -341,61 +477,152 @@ impl Renderer {
 
         for ann in &board.annotations {
             match ann {
-                Annotation::Text { id, x, y, width, height, text, .. } => {
+                Annotation::Text { id, x, y, width, height, text, color, .. } => {
                     let (sx, sy) = world_to_screen(*x, *y, vp);
-                    let sw = (width.unwrap_or(80.0) * vp.scale).max(50.0) as f32;
+                    let sw = (width.unwrap_or(240.0) * vp.scale).max(60.0) as f32;
                     let sh = (height.unwrap_or(48.0) * vp.scale).max(36.0) as f32;
 
                     let is_selected = store.selected_annotation_ids.contains(id);
+                    let is_editing = editing_session.map(|s| s.ann_id == *id).unwrap_or(false);
 
-                    // Carte en pilule arrondie #18181B (comme dans la capture Glucose)
+                    let hue = glucose_core::symbiotic_hue::get_symbiotic_hue(ann, &board.annotations);
+                    let (hr, hg, hb) = glucose_core::symbiotic_hue::hsl_to_rgb(hue, 0.75, 0.65);
+                    let (r, g, b) = color.as_deref()
+                        .map(|c| parse_hex_color(c, hr, hg, hb))
+                        .unwrap_or((hr, hg, hb));
+
+                    let content = if is_editing {
+                        editing_session.unwrap().buffer.as_str()
+                    } else {
+                        text.as_str()
+                    };
+
+                    // Formatage du texte et calcul de la hauteur nécessaire
+                    let font_size = (14.0 * vp.scale).clamp(11.0, 24.0) as f32;
+                    let line_height = font_size * 1.35;
+                    let pad_x = (18.0 * vp.scale as f32).clamp(12.0, 24.0);
+                    let pad_y = (12.0 * vp.scale as f32).clamp(8.0, 16.0);
+
+                    let lines: Vec<&str> = if content.is_empty() {
+                        vec![""]
+                    } else {
+                        content.lines().collect()
+                    };
+
+                    let content_h = pad_y * 2.0 + (lines.len().max(1) as f32) * line_height;
+                    let actual_sh = sh.max(content_h);
+
+                    let rx = (24.0 * vp.scale as f32).clamp(14.0, 28.0).min(actual_sh / 2.0);
+
+                    // 1. Aura douce d'ambiance (#18181B teinté avec 12% de la teinte symbiotique)
                     let mut pb = PathBuilder::new();
-                    let r = 18.0f32.min(sh / 2.0);
-                    pb.move_to(sx as f32 + r, sy as f32);
-                    pb.line_to(sx as f32 + sw - r, sy as f32);
-                    pb.quad_to(sx as f32 + sw, sy as f32, sx as f32 + sw, sy as f32 + r);
-                    pb.line_to(sx as f32 + sw, sy as f32 + sh - r);
-                    pb.quad_to(sx as f32 + sw, sy as f32 + sh, sx as f32 + sw - r, sy as f32 + sh);
-                    pb.line_to(sx as f32 + r, sy as f32 + sh);
-                    pb.quad_to(sx as f32, sy as f32 + sh, sx as f32, sy as f32 + sh - r);
-                    pb.line_to(sx as f32, sy as f32 + r);
-                    pb.quad_to(sx as f32, sy as f32, sx as f32 + r, sy as f32);
-                    pb.close();
+                    push_rounded_rect(&mut pb, sx as f32, sy as f32, sw, actual_sh, rx);
 
                     if let Some(path) = pb.finish() {
                         let mut fill = Paint::default();
-                        fill.set_color(Color::from_rgba8(24, 24, 27, 245));
+                        let bg_r = ((r as u16 * 12 + 24 * 88) / 100) as u8;
+                        let bg_g = ((g as u16 * 12 + 24 * 88) / 100) as u8;
+                        let bg_b = ((b as u16 * 12 + 27 * 88) / 100) as u8;
+                        fill.set_color(Color::from_rgba8(bg_r, bg_g, bg_b, 248));
                         fill.anti_alias = true;
                         pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
+                        // Bordure subtile ou brillante
                         let mut stroke_paint = Paint::default();
-                        stroke_paint.set_color(if is_selected {
-                            Color::from_rgba8(56, 189, 248, 255)
+                        stroke_paint.anti_alias = true;
+                        if is_editing {
+                            stroke_paint.set_color(Color::from_rgba8(56, 189, 248, 255));
+                        } else if is_selected {
+                            stroke_paint.set_color(Color::from_rgba8(56, 189, 248, 220));
                         } else {
-                            Color::from_rgba8(45, 45, 52, 255)
-                        });
+                            stroke_paint.set_color(Color::from_rgba8(r, g, b, 60));
+                        }
                         let stroke = Stroke {
-                            width: if is_selected { 2.0 } else { 1.0 },
+                            width: if is_editing || is_selected { 2.0 } else { 1.0 },
                             ..Default::default()
                         };
                         pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
                     }
 
-                    // Texte vectoriel anti-aliasé centré
-                    let font_size = (14.0 * vp.scale).clamp(11.0, 24.0) as f32;
-                    let (tw, th) = self.typography.measure_text(text, font_size, false);
-                    let tx = (sx as f32 + (sw - tw) / 2.0).max(sx as f32 + 8.0);
-                    let ty = (sy as f32 + (sh - th) / 2.0).max(sy as f32 + 4.0);
+                    // 2. Rendu des lignes de texte (avec support Markdown # titre, listes -)
+                    let mut cur_y = sy as f32 + pad_y;
+                    let mut cursor_drawn = false;
+                    let mut char_count_acc = 0;
 
-                    self.typography.draw_text(
-                        pixmap,
-                        text,
-                        tx,
-                        ty,
-                        font_size,
-                        Color::from_rgba8(255, 255, 255, 255),
-                        false,
-                    );
+                    let cursor_idx = editing_session.map(|s| s.cursor_idx).unwrap_or(0);
+                    let show_cursor = is_editing && (editing_session.unwrap().blink_timer.elapsed().as_millis() / 500) % 2 == 0;
+
+                    for (line_num, line) in lines.iter().enumerate() {
+                        let line_len = line.len();
+                        let line_start = char_count_acc;
+                        let line_end = line_start + line_len;
+
+                        let is_header = line.starts_with("# ");
+                        let is_bullet = line.starts_with("- ");
+
+                        let (display_text, f_size, f_color, is_bold) = if is_header {
+                            (&line[2..], font_size * 1.15, Color::from_rgba8(r, g, b, 255), true)
+                        } else if is_bullet {
+                            (&line[2..], font_size, Color::from_rgba8(235, 235, 240, 255), false)
+                        } else {
+                            (*line, font_size, Color::from_rgba8(240, 240, 245, 255), false)
+                        };
+
+                        let start_x = if is_bullet {
+                            // Puce de liste
+                            let mut bullet_pb = PathBuilder::new();
+                            bullet_pb.push_circle(sx as f32 + pad_x + 3.0, cur_y + f_size / 2.0, 2.5);
+                            if let Some(bpath) = bullet_pb.finish() {
+                                let mut bp = Paint::default();
+                                bp.set_color(Color::from_rgba8(r, g, b, 200));
+                                pixmap.fill_path(&bpath, &bp, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                            }
+                            sx as f32 + pad_x + 12.0
+                        } else {
+                            sx as f32 + pad_x
+                        };
+
+                        // Tracé du texte
+                        self.typography.draw_text(
+                            pixmap,
+                            display_text,
+                            start_x,
+                            cur_y,
+                            f_size,
+                            f_color,
+                            is_bold,
+                        );
+
+                        // Curseur clignotant
+                        if show_cursor && !cursor_drawn && cursor_idx >= line_start && (cursor_idx <= line_end || line_num == lines.len() - 1) {
+                            let prefix_len = cursor_idx.saturating_sub(line_start).min(line_len);
+                            let prefix = &line[..prefix_len];
+                            let (prefix_w, _) = self.typography.measure_text(prefix, f_size, is_bold);
+
+                            let cx = start_x + prefix_w;
+                            let cy = cur_y;
+                            let ch = f_size * 1.2;
+
+                            let mut c_paint = Paint::default();
+                            c_paint.set_color(Color::from_rgba8(56, 189, 248, 255));
+                            if let Some(cr) = Rect::from_xywh(cx, cy, 2.0, ch) {
+                                pixmap.fill_rect(cr, &c_paint, Transform::identity(), None);
+                            }
+                            cursor_drawn = true;
+                        }
+
+                        char_count_acc += line_len + 1; // +1 pour '\n'
+                        cur_y += line_height;
+                    }
+
+                    // Si curseur à la fin d'un texte vide
+                    if show_cursor && !cursor_drawn {
+                        let mut c_paint = Paint::default();
+                        c_paint.set_color(Color::from_rgba8(56, 189, 248, 255));
+                        if let Some(cr) = Rect::from_xywh(sx as f32 + pad_x, sy as f32 + pad_y, 2.0, font_size * 1.2) {
+                            pixmap.fill_rect(cr, &c_paint, Transform::identity(), None);
+                        }
+                    }
                 }
                 Annotation::Sticky { id, x, y, width, height, text, operator, .. } => {
                     let (sx, sy) = world_to_screen(*x, *y, vp);
@@ -403,33 +630,44 @@ impl Renderer {
                     let sh = (height.unwrap_or(120.0) * vp.scale).max(40.0) as f32;
 
                     let is_selected = store.selected_annotation_ids.contains(id);
+                    let is_editing = editing_session.map(|s| s.ann_id == *id).unwrap_or(false);
 
-                    if let Some(rect) = Rect::from_xywh(sx as f32, sy as f32, sw, sh) {
+                    let content = if is_editing {
+                        editing_session.unwrap().buffer.as_str()
+                    } else {
+                        text.as_str()
+                    };
+
+                    let mut pb = PathBuilder::new();
+                    push_rounded_rect(&mut pb, sx as f32, sy as f32, sw, sh, 6.0);
+
+                    if let Some(path) = pb.finish() {
                         let mut p = Paint::default();
-                        p.set_color(Color::from_rgba8(254, 240, 138, 240));
-                        pixmap.fill_rect(rect, &p, Transform::identity(), None);
+                        p.set_color(Color::from_rgba8(254, 240, 138, 245));
+                        p.anti_alias = true;
+                        pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
                         let mut sp = Paint::default();
-                        sp.set_color(if is_selected {
+                        sp.anti_alias = true;
+                        sp.set_color(if is_editing || is_selected {
                             Color::from_rgba8(56, 189, 248, 255)
                         } else {
                             Color::from_rgba8(202, 138, 4, 180)
                         });
                         let stroke = Stroke {
-                            width: if is_selected { 2.0 } else { 1.0 },
+                            width: if is_editing || is_selected { 2.0 } else { 1.0 },
                             ..Default::default()
                         };
-                        let path = PathBuilder::from_rect(rect);
                         pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
 
-                        let mut cur_ty = sy as f32 + 8.0;
+                        let mut cur_ty = sy as f32 + 10.0;
 
                         if let Some(op) = operator {
                             let op_str = format!("{:?}", op);
                             self.typography.draw_text(
                                 pixmap,
                                 &op_str,
-                                sx as f32 + 8.0,
+                                sx as f32 + 10.0,
                                 cur_ty,
                                 11.0,
                                 Color::from_rgba8(161, 98, 7, 255),
@@ -438,15 +676,32 @@ impl Renderer {
                             cur_ty += 16.0;
                         }
 
-                        self.typography.draw_text(
-                            pixmap,
-                            text,
-                            sx as f32 + 8.0,
-                            cur_ty,
-                            12.0,
-                            Color::from_rgba8(28, 25, 23, 255),
-                            false,
-                        );
+                        let f_size = (12.0 * vp.scale).clamp(10.0, 20.0) as f32;
+                        let line_h = f_size * 1.3;
+
+                        for line in content.lines() {
+                            self.typography.draw_text(
+                                pixmap,
+                                line,
+                                sx as f32 + 10.0,
+                                cur_ty,
+                                f_size,
+                                Color::from_rgba8(28, 25, 23, 255),
+                                false,
+                            );
+                            cur_ty += line_h;
+                        }
+
+                        // Curseur d'édition sticky
+                        if is_editing && (editing_session.unwrap().blink_timer.elapsed().as_millis() / 500) % 2 == 0 {
+                            let (cw, _) = self.typography.measure_text(content, f_size, false);
+                            let cx = (sx as f32 + 10.0 + cw).min(sx as f32 + sw - 6.0);
+                            let mut c_paint = Paint::default();
+                            c_paint.set_color(Color::from_rgba8(28, 25, 23, 255));
+                            if let Some(cr) = Rect::from_xywh(cx, cur_ty - line_h, 2.0, f_size * 1.2) {
+                                pixmap.fill_rect(cr, &c_paint, Transform::identity(), None);
+                            }
+                        }
                     }
                 }
                 Annotation::Arrow { id, x, y, x2, y2, .. } => {

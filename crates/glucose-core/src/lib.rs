@@ -19,6 +19,7 @@ pub mod mirror_graph;
 pub mod quadtree;
 pub mod smart_align;
 pub mod store;
+pub mod symbiotic_hue;
 pub mod text_anchors;
 pub mod timeline;
 pub mod types;
