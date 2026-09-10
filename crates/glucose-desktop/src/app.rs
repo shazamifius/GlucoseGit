@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 use crate::canvas::{screen_to_world, zoom_at};
+use crate::rasterizer::FrameBuffer;
 use crate::renderer::Renderer;
 use glucose_core::hit_priority::{collect_candidates, PickInput, PickOwner};
 use glucose_core::smart_align::SnapGuides;
@@ -8,7 +9,6 @@ use glucose_core::store::Store;
 use glucose_core::types::BoardImage;
 use std::num::NonZeroU32;
 use std::sync::Arc;
-use tiny_skia::Pixmap;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
@@ -19,6 +19,7 @@ use winit::window::{Window, WindowAttributes, WindowId, WindowLevel};
 pub struct GlucoseApp {
     pub store: Store,
     pub renderer: Renderer,
+    pub framebuffer: FrameBuffer,
     pub window: Option<Arc<Window>>,
     pub context: Option<softbuffer::Context<Arc<Window>>>,
     pub surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -43,7 +44,7 @@ impl GlucoseApp {
             y: 0.0,
             width: Some(380.0),
             height: Some(160.0),
-            text: "# Glucose Desktop (Rust PureRef)\n\nGlissez-deposez vos images ici !\nMolette: Zoom | Clic-droit: Pan\nDel: Supprimer | T: Toujours au-dessus".into(),
+            text: "# Glucose Desktop (Rust PureRef)\n\nGlissez-deposez vos images ici !\nMolette: Zoom | Clic-droit/Milieu: Pan\nDel: Suppr | T: Toujours au-dessus".into(),
             font_size: Some(15.0),
             color: Some("#38bdf8".into()),
             cursor_pos: None,
@@ -58,6 +59,7 @@ impl GlucoseApp {
         Self {
             store,
             renderer: Renderer::new(),
+            framebuffer: FrameBuffer::new(1280, 720),
             window: None,
             context: None,
             surface: None,
@@ -77,14 +79,13 @@ impl GlucoseApp {
             let width = size.width.max(1);
             let height = size.height.max(1);
 
-            let mut pixmap = match Pixmap::new(width, height) {
-                Some(p) => p,
-                None => return,
-            };
+            if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
+                let _ = surface.resize(w, h);
+            }
+            self.framebuffer.resize(width as usize, height as usize);
 
-            let mut pixmap_mut = pixmap.as_mut();
             self.renderer.render(
-                &mut pixmap_mut,
+                &mut self.framebuffer,
                 &self.store,
                 &self.active_guides,
                 self.selection_box,
@@ -92,14 +93,7 @@ impl GlucoseApp {
             );
 
             if let Ok(mut buffer) = surface.buffer_mut() {
-                let src_data = pixmap.data();
-                for (dst, src) in buffer.iter_mut().zip(src_data.chunks_exact(4)) {
-                    // Softbuffer 0.4 attend 0x00RRGGBB sur Windows/X11
-                    let r = src[0] as u32;
-                    let g = src[1] as u32;
-                    let b = src[2] as u32;
-                    *dst = (r << 16) | (g << 8) | b;
-                }
+                buffer.copy_from_slice(&self.framebuffer.pixels);
                 let _ = buffer.present();
             }
         }
@@ -116,7 +110,14 @@ impl ApplicationHandler for GlucoseApp {
             if let Ok(w) = event_loop.create_window(attrs) {
                 let window = Arc::new(w);
                 if let Ok(context) = softbuffer::Context::new(window.clone()) {
-                    if let Ok(surface) = softbuffer::Surface::new(&context, window.clone()) {
+                    if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
+                        let size = window.inner_size();
+                        let width = size.width.max(1);
+                        let height = size.height.max(1);
+                        if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
+                            let _ = surface.resize(w, h);
+                        }
+                        self.framebuffer.resize(width as usize, height as usize);
                         self.window = Some(window);
                         self.context = Some(context);
                         self.surface = Some(surface);
@@ -133,11 +134,14 @@ impl ApplicationHandler for GlucoseApp {
                 event_loop.exit();
             }
             WindowEvent::Resized(size) => {
+                let width = size.width.max(1);
+                let height = size.height.max(1);
                 if let Some(surface) = &mut self.surface {
-                    if let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) {
+                    if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
                         let _ = surface.resize(w, h);
                     }
                 }
+                self.framebuffer.resize(width as usize, height as usize);
                 self.redraw();
             }
             WindowEvent::RedrawRequested => {

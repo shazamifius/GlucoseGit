@@ -2,7 +2,7 @@
 
 mod app;
 mod canvas;
-mod font;
+mod rasterizer;
 mod renderer;
 
 use app::GlucoseApp;
