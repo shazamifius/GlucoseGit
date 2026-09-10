@@ -6,10 +6,10 @@
 //! - Cascade de suppression miroirs & flèches orphelines
 
 use crate::types::{
-    Annotation, Board, BoardImage, BoardZone, CanvasFolder, Domain, FolderTreeNode,
+    Annotation, AssetStore, Board, BoardImage, BoardZone, CanvasFolder, Domain, FolderTreeNode,
     Preset, Project, StoryboardPanel, TemporalAnchor, Viewport,
 };
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 /// Reconstruit la pile de dossiers UI menant au board actif.
 pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(String, String)> {
@@ -50,14 +50,15 @@ pub fn preserve_view(restored: &mut Project, cur: &Project) {
 #[derive(Debug, Clone)]
 pub struct Store {
     pub project: Project,
+    pub assets: AssetStore,
     pub selected_image_ids: Vec<String>,
     pub selected_annotation_ids: Vec<String>,
     pub selected_folder_id: Option<String>,
     pub folder_stack: Vec<(String, String)>,
     pub temporal_filter: Option<TemporalAnchor>,
 
-    pub undo_stack: Vec<Project>,
-    pub redo_stack: Vec<Project>,
+    pub undo_stack: VecDeque<Project>,
+    pub redo_stack: VecDeque<Project>,
     pub max_undo: usize,
     pub in_live_edit: bool,
     pub next_id: u64,
@@ -68,13 +69,14 @@ impl Store {
     pub fn new(project_name: impl Into<String>) -> Self {
         Self {
             project: Project::new(project_name),
+            assets: AssetStore::new(),
             selected_image_ids: Vec::new(),
             selected_annotation_ids: Vec::new(),
             selected_folder_id: None,
             folder_stack: Vec::new(),
             temporal_filter: None,
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
+            undo_stack: VecDeque::new(),
+            redo_stack: VecDeque::new(),
             max_undo: 200,
             in_live_edit: false,
             next_id: 1,
@@ -253,9 +255,9 @@ impl Store {
         if self.in_live_edit {
             return;
         }
-        self.undo_stack.push(self.project.clone());
+        self.undo_stack.push_back(self.project.clone());
         if self.undo_stack.len() > self.max_undo {
-            self.undo_stack.remove(0);
+            self.undo_stack.pop_front();
         }
         self.redo_stack.clear();
         self.bump_version();
@@ -283,10 +285,10 @@ impl Store {
     }
 
     pub fn undo(&mut self) -> bool {
-        if let Some(mut prev) = self.undo_stack.pop() {
+        if let Some(mut prev) = self.undo_stack.pop_back() {
             let current = self.project.clone();
             preserve_view(&mut prev, &current);
-            self.redo_stack.push(current);
+            self.redo_stack.push_back(current);
             self.project = prev;
             self.clear_selection();
             self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
@@ -299,10 +301,10 @@ impl Store {
     }
 
     pub fn redo(&mut self) -> bool {
-        if let Some(mut next) = self.redo_stack.pop() {
+        if let Some(mut next) = self.redo_stack.pop_back() {
             let current = self.project.clone();
             preserve_view(&mut next, &current);
-            self.undo_stack.push(current);
+            self.undo_stack.push_back(current);
             self.project = next;
             self.clear_selection();
             self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);

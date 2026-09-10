@@ -531,6 +531,37 @@ impl BoardZone {
     }
 }
 
+/// Magasin d'actifs binaires indépendant du document (Roadmap 1.20, R-04).
+/// Les octets bruts des images ne polluent plus jamais les snapshots de la pile d'undo.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AssetStore {
+    pub blobs: HashMap<String, Vec<u8>>,
+}
+
+impl AssetStore {
+    pub fn new() -> Self {
+        Self {
+            blobs: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, id: impl Into<String>, bytes: Vec<u8>) {
+        self.blobs.insert(id.into(), bytes);
+    }
+
+    pub fn get(&self, id: &str) -> Option<&[u8]> {
+        self.blobs.get(id).map(|v| v.as_slice())
+    }
+
+    pub fn len(&self) -> usize {
+        self.blobs.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.blobs.is_empty()
+    }
+}
+
 // ── Projet ──────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone, PartialEq)]
 pub struct Project {
@@ -540,7 +571,6 @@ pub struct Project {
     pub active_board_id: Id,
     pub presets: Vec<Preset>,
     pub domains: Vec<Domain>,
-    pub blobs: HashMap<String, Vec<u8>>,
     pub collab_url: Option<String>,
     pub asset_channel_url: Option<String>,
     pub created_at: i64,
@@ -558,7 +588,6 @@ impl Project {
             active_board_id: active_id,
             presets: Vec::new(),
             domains: Vec::new(),
-            blobs: HashMap::new(),
             collab_url: None,
             asset_channel_url: None,
             created_at: 0,
