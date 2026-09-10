@@ -1123,4 +1123,56 @@ mod tests {
         assert_eq!(plugins_btn.label, "Plugins");
         assert!(plugins_btn.w > 30.0);
     }
+
+    #[test]
+    fn test_click_tabs_selects_correct_board() {
+        let mut store = Store::new("Tabs Test");
+        let b1 = store.project.active_board_id.clone();
+        let b2 = store.add_board("Very Long Custom Board Name That Could Shift Layout");
+        let b3 = store.add_board("Short");
+        let b4 = store.add_board("Board 4");
+
+        let mut ui = UiState::new();
+        let typo = Typography::new();
+
+        // Tester en activant tour à tour chaque onglet pour prouver l'absence de dérive (R-07)
+        for target_id in [&b1, &b2, &b3, &b4] {
+            store.set_active_board_id(target_id);
+
+            let tabs = layout_tabs(&store, &typo, TOPBAR_HEIGHT);
+            assert_eq!(tabs.len(), 5); // 4 boards + 1 bouton '+'
+
+            for tab in &tabs {
+                let click_x = tab.x + tab.width / 2.0;
+                let click_y = tab.y + tab.height / 2.0;
+
+                let action = handle_ui_click(click_x, click_y, 1440.0, 900.0, &store, &mut ui, &typo);
+                if tab.is_plus {
+                    assert_eq!(action, Some(UiAction::AddBoard));
+                } else {
+                    assert_eq!(action, Some(UiAction::SelectBoard(tab.board_id.clone())));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_minimap_click_returns_minimap_pan() {
+        let mut store = Store::new("Minimap Test");
+        let bid = store.project.active_board_id.clone();
+        let img = glucose_core::types::BoardImage::new("img1", 500.0, 300.0, 400.0, 300.0);
+        store.add_image(&bid, img);
+
+        let mut ui = UiState::new();
+        let typo = Typography::new();
+
+        let mb = layout_minimap(&store, 1440.0, 900.0).expect("Minimap should have valid layout");
+
+        // Clic au centre de la minimap
+        let click_x = mb.mm_x + mb.mm_w / 2.0;
+        let click_y = mb.mm_y + mb.mm_h / 2.0;
+
+        let action = handle_ui_click(click_x, click_y, 1440.0, 900.0, &store, &mut ui, &typo);
+        assert!(matches!(action, Some(UiAction::MinimapPan(..))), "Minimap click must produce MinimapPan action");
+    }
 }
