@@ -12,6 +12,7 @@ pub mod curtain_panel;
 pub mod export;
 pub mod geometry;
 pub mod hit_priority;
+pub mod layout;
 pub mod membrane_focus;
 pub mod membrane_space;
 pub mod membrane_stretch;

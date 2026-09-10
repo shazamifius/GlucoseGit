@@ -21,6 +21,7 @@ mod app;
 mod canvas;
 pub mod dock;
 mod icons;
+pub mod interactions;
 mod renderer;
 mod typography;
 mod ui;

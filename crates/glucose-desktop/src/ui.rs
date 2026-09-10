@@ -79,6 +79,7 @@ pub struct UiState {
     #[allow(dead_code)]
     pub hovered_btn: Option<String>,
     pub current_toast: Option<Toast>,
+    pub scale_factor: f32,
 }
 
 impl UiState {
@@ -90,6 +91,7 @@ impl UiState {
             collab_active: false,
             hovered_btn: None,
             current_toast: Some(Toast::new("Bienvenue dans Glucose !")),
+            scale_factor: 1.0,
         }
     }
 

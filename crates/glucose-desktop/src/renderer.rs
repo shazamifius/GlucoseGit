@@ -4,6 +4,7 @@
 use crate::canvas::{screen_to_world, world_to_screen};
 use crate::typography::Typography;
 use crate::ui::{render_ui, UiState, TOTAL_HEADER_HEIGHT};
+use glucose_core::quadtree::SpatialHash;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
@@ -159,6 +160,9 @@ pub struct Renderer {
     pub image_cache: HashMap<String, Pixmap>,
     pub typography: Typography,
     pub hue_cache: SymbioticHueCache,
+    pub spatial_hash: SpatialHash,
+    pub spatial_version: u64,
+    pub active_board_id: String,
 }
 
 impl Renderer {
@@ -167,6 +171,9 @@ impl Renderer {
             image_cache: HashMap::new(),
             typography: Typography::new(),
             hue_cache: SymbioticHueCache::new(),
+            spatial_hash: SpatialHash::new(1000.0),
+            spatial_version: 0,
+            active_board_id: String::new(),
         }
     }
 
@@ -226,7 +233,16 @@ impl Renderer {
 
         if let Some(board) = store.active_board() {
             self.hue_cache.update_positions_and_invalidate(&board.annotations);
+            if self.spatial_version != store.version || self.active_board_id != board.id {
+                self.spatial_hash.index_board(board);
+                self.spatial_version = store.version;
+                self.active_board_id = board.id.clone();
+            }
         }
+
+        let (min_wx, min_wy) = screen_to_world(0.0, TOTAL_HEADER_HEIGHT as f64, &vp);
+        let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
+        let visible_ids = self.spatial_hash.query_rect(min_wx, min_wy, max_wx, max_wy, 200.0);
 
         // 1. Fond sombre sleek PureRef #0D0E12
         pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
@@ -235,16 +251,16 @@ impl Renderer {
         self.draw_grid(pixmap, &vp, width, height);
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + gradient vectoriel circulaire)
-        self.draw_halos(pixmap, store, &vp);
+        self.draw_halos(pixmap, store, &vp, &visible_ids);
 
         // 4. Membranes (large rayon rx=60, pointillés, titre protecteur en haut à gauche)
-        self.draw_membranes(pixmap, store, &vp);
+        self.draw_membranes(pixmap, store, &vp, &visible_ids);
 
         // 5. Images
-        self.draw_images(pixmap, store, &vp);
+        self.draw_images(pixmap, store, &vp, &visible_ids);
 
         // 6. Annotations (cartes de texte, stickies, flèches + édition live in-place)
-        self.draw_annotations(pixmap, store, &vp, editing_session);
+        self.draw_annotations(pixmap, store, &vp, editing_session, &visible_ids);
 
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
@@ -300,7 +316,7 @@ impl Renderer {
         }
     }
 
-    fn draw_halos(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
+    fn draw_halos(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<String>) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -310,6 +326,9 @@ impl Renderer {
         let screen_h = pixmap.height() as f32;
 
         for ann in &board.annotations {
+            if !visible_ids.contains(ann.id()) {
+                continue;
+            }
             if let Annotation::Text { x, y, width, height, .. } = ann {
                 let (sx, sy) = world_to_screen(*x, *y, vp);
                 let w = width.unwrap_or(240.0) * vp.scale;
@@ -356,7 +375,7 @@ impl Renderer {
         }
     }
 
-    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
+    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<String>) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -366,6 +385,9 @@ impl Renderer {
         let screen_h = pixmap.height() as f32;
 
         for ann in &board.annotations {
+            if !visible_ids.contains(ann.id()) {
+                continue;
+            }
             if let Annotation::Membrane { id, x, y, width, height, text, color, .. } = ann {
                 let (sx, sy) = world_to_screen(*x, *y, vp);
                 let sw = (*width * vp.scale) as f32;
@@ -507,7 +529,7 @@ impl Renderer {
         }
     }
 
-    fn draw_images(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport) {
+    fn draw_images(&mut self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<String>) {
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -519,6 +541,7 @@ impl Renderer {
         let images_data: Vec<_> = board
             .images
             .iter()
+            .filter(|img| visible_ids.contains(&img.id))
             .map(|img| {
                 (
                     img.id.clone(),
@@ -620,6 +643,7 @@ impl Renderer {
         store: &Store,
         vp: &Viewport,
         editing_session: Option<&TextEditSession>,
+        visible_ids: &HashSet<String>,
     ) {
         let board = match store.active_board() {
             Some(b) => b,
@@ -629,6 +653,9 @@ impl Renderer {
         let screen_h = pixmap.height() as f32;
 
         for ann in &board.annotations {
+            if !visible_ids.contains(ann.id()) {
+                continue;
+            }
             match ann {
                 Annotation::Text { id, x, y, width, height, text, color, .. } => {
                     let (sx, sy) = world_to_screen(*x, *y, vp);

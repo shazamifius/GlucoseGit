@@ -75,6 +75,7 @@ pub struct Store {
     pub max_undo: usize,
     pub in_live_edit: bool,
     pub next_id: u64,
+    pub version: u64,
 }
 
 impl Store {
@@ -92,7 +93,12 @@ impl Store {
             max_undo: 200,
             in_live_edit: false,
             next_id: 1,
+            version: 1,
         }
+    }
+
+    pub fn bump_version(&mut self) {
+        self.version = self.version.wrapping_add(1);
     }
 
     pub fn id_exists(&self, id: &str) -> bool {
@@ -267,6 +273,7 @@ impl Store {
             self.undo_stack.remove(0);
         }
         self.redo_stack.clear();
+        self.bump_version();
     }
 
     pub fn begin_live_edit(&mut self) {
@@ -279,6 +286,7 @@ impl Store {
 
     pub fn end_live_edit(&mut self) {
         self.in_live_edit = false;
+        self.bump_version();
     }
 
     pub fn can_undo(&self) -> bool {
@@ -298,6 +306,7 @@ impl Store {
             self.clear_selection();
             self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
             self.in_live_edit = false;
+            self.bump_version();
             true
         } else {
             false
@@ -313,6 +322,7 @@ impl Store {
             self.clear_selection();
             self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
             self.in_live_edit = false;
+            self.bump_version();
             true
         } else {
             false

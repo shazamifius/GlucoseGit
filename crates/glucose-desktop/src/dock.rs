@@ -1565,158 +1565,28 @@ pub struct LayoutResult {
 }
 
 pub fn apply_organize_layout(images: &[BoardImage], state: &OrganizeState) -> Vec<LayoutResult> {
-    if images.is_empty() {
-        return Vec::new();
-    }
-
-    let mut sorted = images.to_vec();
-
-    match state.sort_by {
-        SortType::None => {}
-        SortType::SizeDesc => {
-            sorted.sort_by(|a, b| (b.width * b.height).partial_cmp(&(a.width * a.height)).unwrap());
-        }
-        SortType::SizeAsc => {
-            sorted.sort_by(|a, b| (a.width * a.height).partial_cmp(&(b.width * b.height)).unwrap());
-        }
-        SortType::RatioPort => {
-            sorted.sort_by(|a, b| (a.width / a.height.max(1.0)).partial_cmp(&(b.width / b.height.max(1.0))).unwrap());
-        }
-        SortType::RatioLand => {
-            sorted.sort_by(|a, b| (b.width / b.height.max(1.0)).partial_cmp(&(a.width / a.height.max(1.0))).unwrap());
-        }
-        _ => {}
-    }
-
-    let avg_x = images.iter().map(|img| img.x).sum::<f64>() / images.len() as f64;
-    let avg_y = images.iter().map(|img| img.y).sum::<f64>() / images.len() as f64;
-    let start_x = avg_x - (images.len() as f64 * state.size * 0.3);
-    let start_y = avg_y - (state.size * 0.5);
-
-    match state.layout {
-        LayoutMode::Grid => {
-            let cols = if state.cols > 0 { state.cols } else { (images.len() as f64).sqrt().round().max(1.0) as usize };
-            let w = state.size;
-            let mut results = Vec::new();
-            let mut cur_y = start_y;
-
-            for chunk in sorted.chunks(cols) {
-                let max_h = chunk.iter().map(|img| {
-                    let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                    w / ratio
-                }).fold(0.0f64, f64::max);
-
-                for (i, img) in chunk.iter().enumerate() {
-                    let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                    let h = w / ratio;
-                    results.push(LayoutResult {
-                        id: img.id.clone(),
-                        x: start_x + i as f64 * (w + state.gap) + w / 2.0,
-                        y: cur_y + h / 2.0,
-                        width: w,
-                        height: h,
-                    });
-                }
-                cur_y += max_h + state.gap;
-            }
-            results
-        }
-        LayoutMode::Masonry => {
-            let cols = if state.cols > 0 { state.cols } else { 3 };
-            let w = state.size;
-            let mut col_y = vec![start_y; cols];
-            let mut results = Vec::new();
-
-            for img in sorted {
-                let mut min_idx = 0;
-                let mut min_y = col_y[0];
-                for (ci, &cy) in col_y.iter().enumerate() {
-                    if cy < min_y {
-                        min_y = cy;
-                        min_idx = ci;
-                    }
-                }
-
-                let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                let h = w / ratio;
-                let x = start_x + min_idx as f64 * (w + state.gap);
-                results.push(LayoutResult {
-                    id: img.id,
-                    x: x + w / 2.0,
-                    y: col_y[min_idx] + h / 2.0,
-                    width: w,
-                    height: h,
-                });
-                col_y[min_idx] += h + state.gap;
-            }
-            results
-        }
-        LayoutMode::SameHeight => {
-            let h = state.size;
-            let mut cur_x = start_x;
-            let mut results = Vec::new();
-
-            for img in sorted {
-                let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                let w = h * ratio;
-                results.push(LayoutResult {
-                    id: img.id,
-                    x: cur_x + w / 2.0,
-                    y: start_y + h / 2.0,
-                    width: w,
-                    height: h,
-                });
-                cur_x += w + state.gap;
-            }
-            results
-        }
-        _ => {
-            // CompactRows par défaut
-            let target_h = state.size;
-            let max_row_w = target_h * 5.0;
-            let mut results = Vec::new();
-
-            let scaled: Vec<_> = sorted.into_iter().map(|img| {
-                let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                (img.id, target_h * ratio, target_h)
-            }).collect();
-
-            let mut rows: Vec<Vec<(String, f64, f64)>> = Vec::new();
-            let mut current_row = Vec::new();
-            let mut current_w = 0.0;
-
-            for (id, w, h) in scaled {
-                if current_w + w > max_row_w && !current_row.is_empty() {
-                    rows.push(current_row);
-                    current_row = vec![(id, w, h)];
-                    current_w = w + state.gap;
-                } else {
-                    current_row.push((id, w, h));
-                    current_w += w + state.gap;
-                }
-            }
-            if !current_row.is_empty() {
-                rows.push(current_row);
-            }
-
-            let mut cur_y = start_y;
-            for row in rows {
-                let mut cur_x = start_x;
-                for (id, w, h) in row {
-                    results.push(LayoutResult {
-                        id,
-                        x: cur_x + w / 2.0,
-                        y: cur_y + h / 2.0,
-                        width: w,
-                        height: h,
-                    });
-                    cur_x += w + state.gap;
-                }
-                cur_y += target_h + state.gap;
-            }
-            results
-        }
-    }
+    let mode = match state.layout {
+        LayoutMode::Grid => glucose_core::layout::OrganizeMode::Grid,
+        LayoutMode::Masonry => glucose_core::layout::OrganizeMode::Masonry,
+        LayoutMode::SameHeight => glucose_core::layout::OrganizeMode::SameHeight,
+        LayoutMode::Compact | LayoutMode::BySlot => glucose_core::layout::OrganizeMode::CompactRows,
+    };
+    let sort = match state.sort_by {
+        SortType::None => glucose_core::layout::OrganizeSort::None,
+        SortType::SizeDesc => glucose_core::layout::OrganizeSort::SizeDesc,
+        SortType::SizeAsc => glucose_core::layout::OrganizeSort::SizeAsc,
+        SortType::RatioPort => glucose_core::layout::OrganizeSort::RatioPortrait,
+        SortType::RatioLand => glucose_core::layout::OrganizeSort::RatioLandscape,
+        _ => glucose_core::layout::OrganizeSort::None,
+    };
+    let results = glucose_core::layout::calculate_image_layout(images, mode, sort, state.size, state.gap, state.cols);
+    results.into_iter().map(|r| LayoutResult {
+        id: r.id,
+        x: r.x,
+        y: r.y,
+        width: r.width,
+        height: r.height,
+    }).collect()
 }
 
 #[cfg(test)]
