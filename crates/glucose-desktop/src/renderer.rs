@@ -2,6 +2,7 @@
 //! Utilise tiny-skia pour le rendu vectoriel anti-aliasé et fontdue pour la typographie.
 
 use crate::canvas::{screen_to_world, world_to_screen};
+use crate::theme::Theme;
 use crate::typography::Typography;
 use crate::ui::{render_ui, UiState, TOTAL_HEADER_HEIGHT};
 use glucose_core::quadtree::SpatialHash;
@@ -157,7 +158,9 @@ fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f3
 }
 
 pub struct Renderer {
+    pub theme: Theme,
     pub image_cache: HashMap<String, Pixmap>,
+    pub failed_images: HashSet<String>,
     pub typography: Typography,
     pub hue_cache: SymbioticHueCache,
     pub spatial_hash: SpatialHash,
@@ -168,7 +171,9 @@ pub struct Renderer {
 impl Renderer {
     pub fn new() -> Self {
         Self {
+            theme: Theme::dark(),
             image_cache: HashMap::new(),
+            failed_images: HashSet::new(),
             typography: Typography::new(),
             hue_cache: SymbioticHueCache::new(),
             spatial_hash: SpatialHash::new(1000.0),
@@ -178,7 +183,11 @@ impl Renderer {
     }
 
     /// Charge ou récupère une image décodée en Pixmap tiny-skia (supporte WebP, PNG, JPG, GIF, BMP).
+    /// Dispose d'un cache négatif pour ne jamais re-décoder un fichier inaccessible ou corrompu (R-29).
     pub fn get_or_load_image(&mut self, src_or_path: &str) -> Option<&Pixmap> {
+        if self.failed_images.contains(src_or_path) {
+            return None;
+        }
         if self.image_cache.contains_key(src_or_path) {
             return self.image_cache.get(src_or_path);
         }
@@ -209,6 +218,8 @@ impl Renderer {
                 }
             }
         }
+        // Cache négatif (R-29) : ne pas retenter le décodage échoué chaque frame
+        self.failed_images.insert(src_or_path.to_string());
         None
     }
 
@@ -244,8 +255,8 @@ impl Renderer {
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
         let visible_ids = self.spatial_hash.query_rect(min_wx, min_wy, max_wx, max_wy, 200.0);
 
-        // 1. Fond sombre sleek PureRef #0D0E12
-        pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
+        // 1. Fond sombre sleek PureRef
+        pixmap.fill(self.theme.bg_canvas);
 
         // 2. Grille de points infinie
         self.draw_grid(pixmap, &vp, width, height);
@@ -960,7 +971,7 @@ impl Renderer {
 
     fn draw_guides(&self, pixmap: &mut PixmapMut, guides: &SnapGuides, vp: &Viewport, w: u32, h: u32) {
         let mut guide_paint = Paint::default();
-        guide_paint.set_color(Color::from_rgba8(236, 72, 153, 200));
+        guide_paint.set_color(self.theme.snap_guide);
         let stroke = Stroke { width: 1.0, ..Default::default() };
 
         if let Some(ref xs) = guides.x {

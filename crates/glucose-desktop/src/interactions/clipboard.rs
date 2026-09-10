@@ -22,10 +22,13 @@ impl GlucoseApp {
         let mut count = 0;
         for path_buf in paths {
             if let Some(path_str) = path_buf.to_str() {
-                let (w, h) = if let Ok(dyn_img) = image::open(path_buf) {
-                    (dyn_img.width() as f64, dyn_img.height() as f64)
-                } else {
-                    (300.0, 200.0)
+                let (w, h) = match image::image_dimensions(path_buf) {
+                    Ok((w, h)) => (w as f64, h as f64),
+                    Err(err) => {
+                        let filename = path_buf.file_name().and_then(|n| n.to_str()).unwrap_or("image");
+                        self.ui.show_toast(format!("⚠️ Image non lisible ({}) : {}", filename, err));
+                        continue;
+                    }
                 };
 
                 let max_dim = 600.0f64;

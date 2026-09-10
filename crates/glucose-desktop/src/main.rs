@@ -20,10 +20,12 @@
 mod app;
 mod canvas;
 pub mod dock;
+pub mod error;
 mod icons;
 pub mod interactions;
 mod renderer;
 mod typography;
+pub mod theme;
 mod ui;
 
 use app::GlucoseApp;

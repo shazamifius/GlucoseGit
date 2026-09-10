@@ -9,6 +9,7 @@ pub mod arrow_anchor;
 pub mod bundle;
 pub mod curtain_model;
 pub mod curtain_panel;
+pub mod error;
 pub mod export;
 pub mod geometry;
 pub mod hit_priority;
