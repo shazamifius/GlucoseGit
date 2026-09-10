@@ -619,6 +619,50 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     out
 }
 
+/// Version accélérée par index spatial de collect_candidates (Roadmap 1.17).
+/// Filtre les images et annotations aux seules entités proches du curseur en O(local)
+/// au lieu de scanner l'intégralité du board en O(N).
+pub fn collect_candidates_indexed(
+    input: &PickInput,
+    spatial_index: &crate::quadtree::SpatialHash,
+) -> Vec<PickCandidate> {
+    let slop = (pick_consts::HANDLE_SLOP_PX * 2.0) / input.scale.max(1e-6);
+    let nearby_ids = spatial_index.query_rect(input.wx, input.wy, input.wx, input.wy, slop);
+    if nearby_ids.is_empty() && input.arrow_id.is_none() && input.dom_hint.is_none() {
+        return Vec::new();
+    }
+
+    let filtered_images: Vec<BoardImage> = input
+        .images
+        .iter()
+        .filter(|img| nearby_ids.contains(&img.id))
+        .cloned()
+        .collect();
+
+    let filtered_annotations: Vec<Annotation> = input
+        .annotations
+        .iter()
+        .filter(|ann| nearby_ids.contains(ann.id()))
+        .cloned()
+        .collect();
+
+    let filtered_input = PickInput {
+        wx: input.wx,
+        wy: input.wy,
+        scale: input.scale,
+        images: &filtered_images,
+        annotations: &filtered_annotations,
+        folders: input.folders,
+        selected_image_ids: input.selected_image_ids,
+        selected_annotation_ids: input.selected_annotation_ids,
+        selected_folder_id: input.selected_folder_id,
+        arrow_id: input.arrow_id,
+        dom_hint: input.dom_hint,
+    };
+
+    collect_candidates(&filtered_input)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CycleState {
     pub sx: f64,
@@ -917,5 +961,66 @@ mod tests {
         let cands = collect_candidates(&input);
         assert_eq!(cands[0].id, "T1");
         assert_eq!(cands[0].terminal, true);
+    }
+
+    #[test]
+    fn test_collect_candidates_indexed_matches_naive() {
+        use crate::quadtree::SpatialHash;
+
+        let mut hash = SpatialHash::new(500.0);
+        let mut images = Vec::new();
+        let mut annotations = Vec::new();
+
+        for i in 0..20 {
+            let id = format!("I{}", i);
+            let img_obj = img(&id, i as f64 * 1000.0, 0.0, 200.0, 200.0, false);
+            hash.insert_image(&img_obj);
+            images.push(img_obj);
+        }
+
+        let t = text_ann("T1", 5000.0, 0.0, 100.0, 40.0);
+        hash.insert_annotation(&t);
+        annotations.push(t);
+
+        let empty_folders = [];
+        let empty: [String; 0] = [];
+
+        let input = PickInput {
+            wx: 5020.0,
+            wy: 10.0,
+            scale: 1.0,
+            images: &images,
+            annotations: &annotations,
+            folders: &empty_folders,
+            selected_image_ids: &empty,
+            selected_annotation_ids: &empty,
+            selected_folder_id: None,
+            arrow_id: None,
+            dom_hint: None,
+        };
+
+        let naive = collect_candidates(&input);
+        let indexed = collect_candidates_indexed(&input, &hash);
+
+        assert_eq!(naive.len(), indexed.len());
+        assert_eq!(naive[0].id, indexed[0].id);
+        assert_eq!(naive[0].id, "I5");
+
+        // Clic loin dans le vide
+        let empty_input = PickInput {
+            wx: 99999.0,
+            wy: 99999.0,
+            scale: 1.0,
+            images: &images,
+            annotations: &annotations,
+            folders: &empty_folders,
+            selected_image_ids: &empty,
+            selected_annotation_ids: &empty,
+            selected_folder_id: None,
+            arrow_id: None,
+            dom_hint: None,
+        };
+        let empty_indexed = collect_candidates_indexed(&empty_input, &hash);
+        assert!(empty_indexed.is_empty());
     }
 }

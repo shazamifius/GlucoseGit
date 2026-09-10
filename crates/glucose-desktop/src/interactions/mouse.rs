@@ -4,7 +4,7 @@ use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
 use crate::ui::{handle_ui_click, ActiveTool, UiAction, TOTAL_HEADER_HEIGHT};
-use glucose_core::hit_priority::{collect_candidates, PickInput, PickOwner};
+use glucose_core::hit_priority::{collect_candidates_indexed, PickInput, PickOwner};
 use glucose_core::types::Annotation;
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
@@ -331,7 +331,7 @@ impl GlucoseApp {
                         arrow_id: None,
                         dom_hint: None,
                     };
-                    let candidates = collect_candidates(&input);
+                    let candidates = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
                     if let Some(top) = candidates.first() {
                         let is_dbl_click = if let Some(ref lc) = self.last_click {
                             lc.id == top.id

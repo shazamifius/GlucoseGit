@@ -2,7 +2,7 @@
 
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
-use glucose_core::hit_priority::{collect_candidates, PickCandidate, PickInput};
+use glucose_core::hit_priority::{collect_candidates_indexed, PickCandidate, PickInput};
 use glucose_core::types::Annotation;
 
 impl GlucoseApp {
@@ -104,7 +104,7 @@ impl GlucoseApp {
             arrow_id: None,
             dom_hint: None,
         };
-        let candidates = collect_candidates(&input);
+        let candidates = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
 
         candidates.into_iter().next()
     }
