@@ -1,0 +1,153 @@
+//! Jetons de design unifiés et thème de l'application Glucose (Roadmap 1.24, R-31).
+//! Centralise les littéraux de couleur et les dimensions pour assurer la cohérence visuelle.
+
+use tiny_skia::Color;
+
+#[derive(Debug, Clone)]
+pub struct Theme {
+    // Toile & Arrière-plans
+    pub bg_canvas: Color,
+    pub bg_header: Color,
+    pub bg_panel: Color,
+    pub bg_card: Color,
+    pub bg_hover: Color,
+    pub bg_active: Color,
+
+    // Bordures
+    pub border_subtle: Color,
+    pub border_medium: Color,
+    pub border_accent: Color,
+
+    // Accent (PureRef cyan / sky)
+    pub accent_primary: Color,
+    pub accent_muted: Color,
+    pub accent_subtle: Color,
+
+    // Typographie
+    pub text_primary: Color,
+    pub text_secondary: Color,
+    pub text_muted: Color,
+    pub text_accent: Color,
+
+    // Guides magnétiques
+    pub snap_guide: Color,
+
+    // Post-it / Sticky notes
+    pub sticky_yellow_bg: Color,
+    pub sticky_yellow_text: Color,
+    pub sticky_yellow_border: Color,
+
+    // Minimap
+    pub minimap_bg: Color,
+    pub minimap_border: Color,
+    pub minimap_viewport: Color,
+    pub minimap_element: Color,
+
+    // Notifications Toasts
+    pub toast_bg: Color,
+    pub toast_border: Color,
+    pub toast_text: Color,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl Theme {
+    /// Thème sombre sleek inspiré de PureRef moderne
+    pub fn dark() -> Self {
+        Self {
+            bg_canvas: Color::from_rgba8(13, 14, 18, 255),
+            bg_header: Color::from_rgba8(20, 21, 26, 250),
+            bg_panel: Color::from_rgba8(24, 24, 28, 240),
+            bg_card: Color::from_rgba8(24, 24, 27, 248),
+            bg_hover: Color::from_rgba8(39, 39, 42, 255),
+            bg_active: Color::from_rgba8(56, 189, 248, 45),
+
+            border_subtle: Color::from_rgba8(40, 42, 50, 255),
+            border_medium: Color::from_rgba8(60, 65, 75, 255),
+            border_accent: Color::from_rgba8(56, 189, 248, 200),
+
+            accent_primary: Color::from_rgba8(56, 189, 248, 255),
+            accent_muted: Color::from_rgba8(56, 189, 248, 180),
+            accent_subtle: Color::from_rgba8(56, 189, 248, 40),
+
+            text_primary: Color::from_rgba8(245, 245, 245, 255),
+            text_secondary: Color::from_rgba8(161, 161, 170, 255),
+            text_muted: Color::from_rgba8(113, 113, 122, 255),
+            text_accent: Color::from_rgba8(56, 189, 248, 255),
+
+            snap_guide: Color::from_rgba8(236, 72, 153, 200),
+
+            sticky_yellow_bg: Color::from_rgba8(254, 240, 138, 245),
+            sticky_yellow_text: Color::from_rgba8(28, 25, 23, 255),
+            sticky_yellow_border: Color::from_rgba8(202, 138, 4, 180),
+
+            minimap_bg: Color::from_rgba8(15, 16, 20, 220),
+            minimap_border: Color::from_rgba8(45, 48, 58, 200),
+            minimap_viewport: Color::from_rgba8(56, 189, 248, 200),
+            minimap_element: Color::from_rgba8(100, 110, 130, 200),
+
+            toast_bg: Color::from_rgba8(24, 24, 27, 245),
+            toast_border: Color::from_rgba8(56, 189, 248, 120),
+            toast_text: Color::from_rgba8(245, 245, 245, 255),
+        }
+    }
+
+    /// Thème clair optionnel pour la future personnalisation
+    pub fn light() -> Self {
+        Self {
+            bg_canvas: Color::from_rgba8(245, 245, 248, 255),
+            bg_header: Color::from_rgba8(255, 255, 255, 250),
+            bg_panel: Color::from_rgba8(250, 250, 252, 245),
+            bg_card: Color::from_rgba8(255, 255, 255, 250),
+            bg_hover: Color::from_rgba8(235, 235, 240, 255),
+            bg_active: Color::from_rgba8(14, 165, 233, 40),
+
+            border_subtle: Color::from_rgba8(220, 222, 230, 255),
+            border_medium: Color::from_rgba8(195, 200, 210, 255),
+            border_accent: Color::from_rgba8(14, 165, 233, 220),
+
+            accent_primary: Color::from_rgba8(14, 165, 233, 255),
+            accent_muted: Color::from_rgba8(14, 165, 233, 180),
+            accent_subtle: Color::from_rgba8(14, 165, 233, 35),
+
+            text_primary: Color::from_rgba8(24, 24, 27, 255),
+            text_secondary: Color::from_rgba8(82, 82, 91, 255),
+            text_muted: Color::from_rgba8(140, 140, 150, 255),
+            text_accent: Color::from_rgba8(14, 165, 233, 255),
+
+            snap_guide: Color::from_rgba8(219, 39, 119, 200),
+
+            sticky_yellow_bg: Color::from_rgba8(254, 240, 138, 245),
+            sticky_yellow_text: Color::from_rgba8(28, 25, 23, 255),
+            sticky_yellow_border: Color::from_rgba8(202, 138, 4, 180),
+
+            minimap_bg: Color::from_rgba8(240, 242, 248, 220),
+            minimap_border: Color::from_rgba8(200, 205, 215, 200),
+            minimap_viewport: Color::from_rgba8(14, 165, 233, 200),
+            minimap_element: Color::from_rgba8(160, 170, 185, 200),
+
+            toast_bg: Color::from_rgba8(255, 255, 255, 245),
+            toast_border: Color::from_rgba8(14, 165, 233, 140),
+            toast_text: Color::from_rgba8(24, 24, 27, 255),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_theme_tokens_valid() {
+        let theme = Theme::dark();
+        assert_eq!(theme.accent_primary, Color::from_rgba8(56, 189, 248, 255));
+        assert_eq!(theme.bg_canvas, Color::from_rgba8(13, 14, 18, 255));
+
+        let light = Theme::light();
+        assert_eq!(light.bg_canvas, Color::from_rgba8(245, 245, 248, 255));
+    }
+}

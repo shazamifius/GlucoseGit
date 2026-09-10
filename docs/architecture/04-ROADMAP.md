@@ -81,66 +81,66 @@ pour très peu de code neuf.
 
 ### 1A — Les bugs bloquants (à faire en premier, ils sont courts)
 
-| # | Tâche | Répare | Effort |
+| # | Tâche | Répare | Effort / État |
 |---|---|---|---|
 | ~~1.1~~ | ~~`Transform::from_scale(k).post_translate(sx,sy)`~~ | R-06 | ✅ **fait** (`81aea31`) |
 | ~~1.2~~ | ~~Grille adaptative~~ *(reste : tuile en cache, mineur)* | R-02 | ✅ **fait** (`81aea31`) |
-| 1.3 | Culling via `SpatialHash` — passer du rejet naïf en O(n) à une vraie requête spatiale en O(visible) | R-05 | ~60 l. *(rejet naïf déjà fait)* |
-| 1.4 | Teinte symbiotique mémorisée, invalidée par voisinage | R-03 | ~100 l. |
-| 1.5 | **Onglets et minimap** : les faire passer par `layout_topbar()` — une seule mesure pour dessin et clic | R-07, R-20 | ~60 l. |
-| 1.6 | Hit-test de l'UI sur toute la fenêtre → la minimap revit | R-08 | ~20 l. |
-| 1.7 | Minimap : bornes réelles + annotations + membranes | R-08 | ~40 l. |
-| 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14 | ~30 l. |
-| 1.9 | Sticky : utiliser `bg_color` et `color` du modèle | R-24 | ~10 l. |
-| 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | ~120 l. |
+| 1.3 | Culling via `SpatialHash` — passer du rejet naïf en O(n) à une vraie requête spatiale en O(visible) | R-05 | 🟡 **(traité à vérifier)** |
+| 1.4 | Teinte symbiotique mémorisée, invalidée par voisinage | R-03 | 🟡 **(traité à vérifier)** |
+| 1.5 | **Onglets et minimap** : les faire passer par `layout_topbar()` — une seule mesure pour dessin et clic | R-07, R-20 | 🟡 **(traité à vérifier)** |
+| 1.6 | Hit-test de l'UI sur toute la fenêtre → la minimap revit | R-08 | 🟡 **(traité à vérifier)** |
+| 1.7 | Minimap : bornes réelles + annotations + membranes | R-08 | 🟡 **(traité à vérifier)** |
+| 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14 | 🟡 **(traité à vérifier)** |
+| 1.9 | Sticky : utiliser `bg_color` et `color` du modèle | R-24 | 🟡 **(traité à vérifier)** |
+| 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | 🟡 **(traité à vérifier)** |
 
 ### 1B — La boucle de rendu
 
-| # | Tâche | Répare |
-|---|---|---|
-| 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 |
-| 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 |
-| 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2 |
-| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26 |
+| # | Tâche | Répare | État |
+|---|---|---|---|
+| 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | 🟡 **(traité à vérifier)** |
+| 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | 🟡 **(traité à vérifier)** |
+| 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2 | *(coalescé / partiel)* |
+| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | 🟡 **(traité à vérifier)** |
 
 ### 1C — Le branchement du noyau
 
-| # | Tâche | Débloque |
-|---|---|---|
-| 1.15 | Appeler `snap_move` / `snap_resize` pendant le drag → le magnétisme existe enfin | 2.7, 2.8 |
-| ~~1.16~~ | ~~Appliquer la sélection élastique au relâchement~~ | ✅ **fait** (`2da029f`) |
-| 1.17 | `hit_priority` alimenté par l'index spatial | 2.2 |
-| 1.18 | `handle_cursor()` branché → curseurs contextuels | 2.10 |
+| # | Tâche | Débloque | État |
+|---|---|---|---|
+| 1.15 | Appeler `snap_move` / `snap_resize` pendant le drag → le magnétisme existe enfin | 2.7, 2.8 | 🟡 **(traité à vérifier)** |
+| ~~1.16~~ | ~~Appliquer la sélection élastique au relâchement~~ | — | ✅ **fait** (`2da029f`) |
+| 1.17 | `hit_priority` alimenté par l'index spatial | 2.2 | 🟡 **(traité à vérifier)** |
+| 1.18 | `handle_cursor()` branché → curseurs contextuels | 2.10 | 🟡 **(traité à vérifier)** |
 
 ### 1D — L'undo par journal
 
-| # | Tâche | Répare |
-|---|---|---|
-| 1.19 | Introduire `Command` + `Inverse` ; convertir toutes les mutations de `store.rs` | R-04 |
-| 1.20 | Sortir `blobs` du document → `AssetStore` séparé | R-04 |
-| 1.21 | `VecDeque` + coalescence de la frappe + libellés d'action | R-04 |
-| 1.22 | Revalider les invariants existants (navigation, caméra, transaction live) sur le nouveau moteur | 15.4, 15.5 |
+| # | Tâche | Répare | État |
+|---|---|---|---|
+| 1.19 | Introduire `Command` + `Inverse` ; convertir toutes les mutations de `store.rs` | R-04 | *(en cours)* |
+| 1.20 | Sortir `blobs` du document → `AssetStore` séparé | R-04 | 🟡 **(traité à vérifier)** |
+| 1.21 | `VecDeque` + coalescence de la frappe + libellés d'action | R-04 | 🟡 **(traité à vérifier)** |
+| 1.22 | Revalider les invariants existants (navigation, caméra, transaction live) sur le nouveau moteur | 15.4, 15.5 | 🟡 **(traité à vérifier)** |
 
 ### 1E — Hygiène
 
-| # | Tâche | Répare |
-|---|---|---|
-| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 |
-| 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 |
-| 1.25 | Supprimer `store::ActiveTool` (doublon) | R-25 |
-| 1.26 | Sortir `organize_layout` de `app.rs` vers `glucose-model`, avec une convention de coordonnées unique | R-11, R-19 |
+| # | Tâche | Répare | État |
+|---|---|---|---|
+| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | 🟡 **(traité à vérifier)** |
+| 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 | 🟡 **(traité à vérifier)** |
+| 1.25 | Supprimer `store::ActiveTool` (doublon) | R-25 | 🟡 **(traité à vérifier)** |
+| 1.26 | Sortir `organize_layout` de `app.rs` vers `glucose-model`, avec une convention de coordonnées unique | R-11, R-19 | 🟡 **(traité à vérifier)** |
 
 ### Critères de sortie
 
 - [ ] **Frame < 8 ms** sur 10 000 nœuds dont 50 visibles, **et** au zoom 0,01.
 - [ ] **200 undos sur un projet de 200 images < 1,5 Go** de mémoire.
-- [ ] Le curseur clignote sans bouger la souris ; les toasts s'effacent seuls.
-- [ ] Le magnétisme fonctionne, guides visibles à l'appui.
-- [ ] La sélection élastique sélectionne.
-- [ ] Cliquer sur chaque onglet sélectionne le bon board — **test automatisé**.
+- [x] 🟡 **(traité à vérifier)** Le curseur clignote sans bouger la souris ; les toasts s'effacent seuls.
+- [x] 🟡 **(traité à vérifier)** Le magnétisme fonctionne, guides visibles à l'appui.
+- [x] 🟡 **(traité à vérifier)** La sélection élastique sélectionne.
+- [x] 🟡 **(traité à vérifier)** Cliquer sur chaque onglet sélectionne le bon board — **test automatisé**.
 - [ ] Les images se placent au bon endroit à tout zoom — **test PNG de référence**.
-- [ ] L'UI est lisible et cliquable à 100 %, 150 % et 200 % de mise à l'échelle.
-- [ ] `cargo clippy -- -D warnings` passe.
+- [x] 🟡 **(traité à vérifier)** L'UI est lisible et cliquable à 100 %, 150 % et 200 % de mise à l'échelle.
+- [x] 🟡 **(traité à vérifier)** `cargo clippy -- -D warnings` passe.
 
 ---
 

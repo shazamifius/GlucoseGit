@@ -57,41 +57,41 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 ### Bloquants — l'app est inutilisable ou perd des données
 - **R-01** — Aucune persistance
 - **R-02** — La grille de points est en O(surface) — ✅ **CORRIGÉ** (`81aea31`)
-- **R-03** — Teinte symbiotique en O(n²) par frame, deux fois
-- **R-04** — L'undo clone le projet entier, blobs compris, 200 fois
+- **R-03** — Teinte symbiotique en O(n²) par frame, deux fois — 🟡 **(traité à vérifier)**
+- **R-04** — L'undo clone le projet entier, blobs compris, 200 fois — 🟡 **(traité à vérifier)**
 - **R-05** — Aucun culling : tout est dessiné même hors écran — ✅ **CORRIGÉ** (`81aea31`)
 
 ### Majeurs — comportement faux, visible par l'utilisateur
 - **R-06** — Images placées au mauvais endroit (transform inversée) — ✅ **CORRIGÉ** (`81aea31`)
-- **R-07** — Les onglets ne cliquent pas où ils sont dessinés
-- **R-08** — La minimap est morte (code inatteignable)
-- **R-09** — Le moteur d'alignement n'est jamais appelé
+- **R-07** — Les onglets ne cliquent pas où ils sont dessinés — 🟡 **(traité à vérifier)**
+- **R-08** — La minimap est morte (code inatteignable) — 🟡 **(traité à vérifier)**
+- **R-09** — Le moteur d'alignement n'est jamais appelé — 🟡 **(traité à vérifier)**
 - **R-10** — La sélection élastique n'est jamais appliquée — ✅ **CORRIGÉ** (`2da029f`)
-- **R-11** — `organize_layout` mélange deux conventions de coordonnées
-- **R-12** — Les flèches ne suivent que leur source, jamais leur cible
-- **R-13** — Dupliquer deux fois crée deux éléments de même id
-- **R-14** — Les ids de boards se recollisionnent après suppression
-- **R-15** — Le curseur ne clignote pas, les toasts ne disparaissent pas
-- **R-16** — Aucune gestion du DPI
+- **R-11** — `organize_layout` mélange deux conventions de coordonnées — 🟡 **(traité à vérifier)**
+- **R-12** — Les flèches ne suivent que leur source, jamais leur cible — 🟡 **(traité à vérifier)**
+- **R-13** — Dupliquer deux fois crée deux éléments de même id — 🟡 **(traité à vérifier)**
+- **R-14** — Les ids de boards se recollisionnent après suppression — 🟡 **(traité à vérifier)**
+- **R-15** — Le curseur ne clignote pas, les toasts ne disparaissent pas — 🟡 **(traité à vérifier)**
+- **R-16** — Aucune gestion du DPI — 🟡 **(traité à vérifier)**
 - **R-17** — Pas d'IME : pas d'accents au clavier mort, pas de CJK
 
 ### Structurels — la dette qui te fait perdre des heures
 - **R-18** — 13 modules du noyau sur 18 sont du code mort
-- **R-19** — `app.rs` est un objet-dieu
-- **R-20** — L'UI calcule sa géométrie deux fois
-- **R-21** — Les erreurs sont jetées à la poubelle
+- **R-19** — `app.rs` est un objet-dieu — 🟡 **(traité à vérifier)**
+- **R-20** — L'UI calcule sa géométrie deux fois — 🟡 **(traité à vérifier)**
+- **R-21** — Les erreurs sont jetées à la poubelle — 🟡 **(traité à vérifier)**
 - **R-22** — Toute recherche est un scan linéaire
 - **R-23** — Le modèle répète 14 champs par variante
-- **R-24** — Des champs du modèle sont ignorés au rendu
-- **R-25** — Deux énumérations `ActiveTool` concurrentes
+- **R-24** — Des champs du modèle sont ignorés au rendu — 🟡 **(traité à vérifier)**
+- **R-25** — Deux énumérations `ActiveTool` concurrentes — 🟡 **(traité à vérifier)**
 
 ### Rendu & typographie
-- **R-26** — Aucun cache de glyphes
-- **R-27** — Le mélange alpha du texte est faux
+- **R-26** — Aucun cache de glyphes — 🟡 **(traité à vérifier)**
+- **R-27** — Le mélange alpha du texte est faux — 🟡 **(traité à vérifier)**
 - **R-28** — Pas de retour à la ligne, pas de crénage, pas de shaping
-- **R-29** — Le cache d'images est sans limite et sans mipmaps
-- **R-30** — Décodage complet d'une image juste pour lire ses dimensions
-- **R-31** — Le thème est ~130 nombres magiques éparpillés
+- **R-29** — Le cache d'images est sans limite et sans mipmaps — 🟡 **(traité à vérifier)** *(cache négatif)*
+- **R-30** — Décodage complet d'une image juste pour lire ses dimensions — 🟡 **(traité à vérifier)**
+- **R-31** — Le thème est ~130 nombres magiques éparpillés — 🟡 **(traité à vérifier)**
 
 ### Vérité du dépôt
 - **R-32** — Le message de commit ne correspond pas au code
