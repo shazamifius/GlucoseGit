@@ -44,7 +44,8 @@ impl Typography {
             if ch == '\n' {
                 continue;
             }
-            let (metrics, bitmap) = font.rasterize(ch, size);
+            let safe_ch = normalize_char(font, ch);
+            let (metrics, bitmap) = font.rasterize(safe_ch, size);
             let gx = x + metrics.xmin as f32;
             let gy = y + size - metrics.ymin as f32 - metrics.height as f32;
 
@@ -83,9 +84,37 @@ impl Typography {
         let mut width = 0.0;
         let height = size;
         for ch in text.chars() {
-            let metrics = font.metrics(ch, size);
+            let safe_ch = normalize_char(font, ch);
+            let metrics = font.metrics(safe_ch, size);
             width += metrics.advance_width;
         }
         (width, height)
+    }
+}
+
+fn normalize_char(font: &Font, ch: char) -> char {
+    if font.lookup_glyph_index(ch) != 0 {
+        return ch;
+    }
+    match ch {
+        'é' | 'è' | 'ê' | 'ë' => 'e',
+        'É' | 'È' | 'Ê' | 'Ë' => 'E',
+        'à' | 'â' | 'ä' => 'a',
+        'À' | 'Â' | 'Ä' => 'A',
+        'î' | 'ï' => 'i',
+        'Î' | 'Ï' => 'I',
+        'ô' | 'ö' => 'o',
+        'Ô' | 'Ö' => 'O',
+        'ù' | 'û' | 'ü' => 'u',
+        'Ù' | 'Û' | 'Ü' => 'U',
+        'ç' => 'c',
+        'Ç' => 'C',
+        'œ' => 'o',
+        '’' => '\'',
+        '—' | '–' => '-',
+        '→' => '>',
+        '←' => '<',
+        '↺' => 'R',
+        _ => ch,
     }
 }

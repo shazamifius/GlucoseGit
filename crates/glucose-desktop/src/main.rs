@@ -2,6 +2,7 @@
 
 mod app;
 mod canvas;
+pub mod dock;
 mod icons;
 mod renderer;
 mod typography;

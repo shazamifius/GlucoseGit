@@ -1,6 +1,10 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 use crate::canvas::{screen_to_world, zoom_at};
+use crate::dock::{
+    apply_organize_layout, compute_panel_layouts, handle_dock_click, render_docks, DockManager,
+    DragSession, OrganizeState, PanelClickResult, TabId,
+};
 use crate::renderer::Renderer;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction, UiState, TOTAL_HEADER_HEIGHT};
 use arboard::Clipboard;
@@ -15,7 +19,7 @@ use tiny_skia::Pixmap;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
-use winit::event_loop::ActiveEventLoop;
+use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use crate::renderer::TextEditSession;
 use winit::window::{Window, WindowAttributes, WindowId, WindowLevel};
@@ -31,6 +35,7 @@ pub struct GlucoseApp {
     pub renderer: Renderer,
     pub pixmap: Option<Pixmap>,
     pub ui: UiState,
+    pub dock_manager: DockManager,
     pub window: Option<Arc<Window>>,
     pub context: Option<softbuffer::Context<Arc<Window>>>,
     pub surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -81,6 +86,7 @@ impl GlucoseApp {
             renderer: Renderer::new(),
             pixmap: None,
             ui: UiState::new(),
+            dock_manager: DockManager::new(),
             window: None,
             context: None,
             surface: None,
@@ -161,6 +167,19 @@ impl GlucoseApp {
                     self.selection_box,
                     &mut self.ui,
                     self.editing_session.as_ref(),
+                    self.mouse_pos.0 as f32,
+                    self.mouse_pos.1 as f32,
+                );
+
+                // Rendu des panneaux déroulants & flottants (Top & Bottom Docks)
+                render_docks(
+                    &mut pixmap_mut,
+                    &self.dock_manager,
+                    &self.store,
+                    &self.renderer.typography,
+                    width as f32,
+                    height as f32,
+                    TOTAL_HEADER_HEIGHT,
                     self.mouse_pos.0 as f32,
                     self.mouse_pos.1 as f32,
                 );
@@ -299,6 +318,7 @@ impl GlucoseApp {
     }
 
     /// Réorganise automatiquement les éléments en grille ordonnée
+    #[allow(dead_code)]
     pub fn organize_layout(&mut self) {
         if let Some(board) = self.store.active_board_mut() {
             if board.images.is_empty() && board.annotations.is_empty() {
@@ -365,6 +385,29 @@ impl GlucoseApp {
         self.ui.show_toast("📐 Canvas ordonné");
         self.redraw();
     }
+
+    /// Applique la réorganisation issue du panneau ORDONNER (Masonry, Grille, Même Hauteur, etc.)
+    pub fn apply_dock_layout(&mut self, state: &OrganizeState) {
+        if let Some(board) = self.store.active_board_mut() {
+            if board.images.is_empty() {
+                self.ui.show_toast("⚠️ Aucune image sur le canvas");
+                return;
+            }
+
+            let results = apply_organize_layout(&board.images, state);
+            for res in results {
+                if let Some(img) = board.images.iter_mut().find(|i| i.id == res.id) {
+                    img.x = res.x;
+                    img.y = res.y;
+                    img.width = res.width;
+                    img.height = res.height;
+                }
+            }
+        }
+        self.store.push_undo();
+        self.ui.show_toast(format!("📐 Disposition {} appliquée", state.layout.title()));
+        self.redraw();
+    }
 }
 
 impl ApplicationHandler for GlucoseApp {
@@ -422,6 +465,12 @@ impl ApplicationHandler for GlucoseApp {
                 self.mouse_pos = (position.x, position.y);
                 let dx = position.x - prev_pos.0;
                 let dy = position.y - prev_pos.1;
+
+                if self.dock_manager.drag.is_some() {
+                    self.dock_manager.update_drag(position.x as f32, position.y as f32);
+                    self.redraw();
+                    return;
+                }
 
                 if self.is_panning {
                     // Protection contre les sauts anormaux du curseur OS
@@ -519,13 +568,13 @@ impl ApplicationHandler for GlucoseApp {
                                             }
                                         }
                                         UiAction::Organize => {
-                                            self.organize_layout();
+                                            self.dock_manager.toggle_tab(TabId::Organize);
                                         }
                                         UiAction::ToggleTimer => {
-                                            self.ui.show_toast("⏱ Timer démarré (25m)");
+                                            self.dock_manager.toggle_tab(TabId::Pomodoro);
                                         }
                                         UiAction::ToggleStoryboard => {
-                                            self.ui.show_toast("🎬 Mode Storyboard");
+                                            self.dock_manager.toggle_tab(TabId::Storyboard);
                                         }
                                         UiAction::ToggleMagnet => {
                                             // Déjà basculé dans handle_ui_click
@@ -544,13 +593,13 @@ impl ApplicationHandler for GlucoseApp {
                                             self.ui.show_toast("💾 Exportation du canvas");
                                         }
                                         UiAction::TogglePlugins => {
-                                            self.ui.show_toast("🧩 Extensions & Plugins");
+                                            self.dock_manager.toggle_tab(TabId::Plugins);
                                         }
                                         UiAction::TogglePreset => {
-                                            self.ui.show_toast("🎨 Préréglage PureRef appliqué");
+                                            self.dock_manager.toggle_tab(TabId::Preset);
                                         }
                                         UiAction::ToggleDomains => {
-                                            self.ui.show_toast("🏷 Domaines thématiques");
+                                            self.dock_manager.toggle_tab(TabId::Domains);
                                         }
                                         UiAction::SelectBoard(id) => {
                                             self.store.set_active_board_id(&id);
@@ -568,6 +617,63 @@ impl ApplicationHandler for GlucoseApp {
                                             }
                                         }
                                     }
+                                }
+                                self.redraw();
+                                return;
+                            }
+
+                            // Clic sur les panneaux déroulants & poignées (Dock)
+                            let dock_layouts = compute_panel_layouts(
+                                &self.dock_manager,
+                                screen_w,
+                                screen_h,
+                                TOTAL_HEADER_HEIGHT,
+                            );
+
+                            // A. Détection du clic sur la poignée (⠿⠿) pour réorganisation / fermeture
+                            let mut grip_hit = None;
+                            for layout in dock_layouts.iter().rev() {
+                                if layout.grip_contains_point(mx, my) {
+                                    grip_hit = Some(layout.tab);
+                                    break;
+                                }
+                            }
+                            if let Some(tab) = grip_hit {
+                                self.dock_manager.drag = Some(DragSession {
+                                    tab,
+                                    start_x: mx,
+                                    start_y: my,
+                                    current_x: mx,
+                                    current_y: my,
+                                });
+                                self.redraw();
+                                return;
+                            }
+
+                            // B. Clic à l'intérieur du corps d'un panneau
+                            if let Some(action) = handle_dock_click(
+                                &mut self.dock_manager,
+                                &self.store,
+                                mx,
+                                my,
+                                screen_w,
+                                screen_h,
+                                TOTAL_HEADER_HEIGHT,
+                            ) {
+                                match action {
+                                    PanelClickResult::ApplyLayout(state) => {
+                                        self.apply_dock_layout(&state);
+                                    }
+                                    PanelClickResult::AddDomain => {
+                                        let did = format!("domain-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+                                        let name = format!("Domaine {}", self.dock_manager.domains.domains.len() + 1);
+                                        self.dock_manager.domains.domains.push(crate::dock::DomainItem {
+                                            id: did,
+                                            name,
+                                            color: tiny_skia::Color::from_rgba8(168, 85, 247, 255),
+                                        });
+                                    }
+                                    _ => {}
                                 }
                                 self.redraw();
                                 return;
@@ -808,6 +914,11 @@ impl ApplicationHandler for GlucoseApp {
                             }
                             self.redraw();
                         } else {
+                            if let Some(dismissed) = self.dock_manager.finish_drag() {
+                                self.ui.show_toast(format!("👋 Panneau {} fermé", dismissed.title()));
+                                self.redraw();
+                                return;
+                            }
                             if !self.right_or_middle_down {
                                 self.is_panning = false;
                             }
@@ -1121,6 +1232,19 @@ impl ApplicationHandler for GlucoseApp {
                 self.import_image_files(&[path_buf]);
             }
             _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.dock_manager.pomodoro.running {
+            if self.dock_manager.tick_pomodoro() {
+                self.redraw();
+            }
+            event_loop.set_control_flow(ControlFlow::WaitUntil(
+                std::time::Instant::now() + std::time::Duration::from_millis(200),
+            ));
+        } else {
+            event_loop.set_control_flow(ControlFlow::Wait);
         }
     }
 }

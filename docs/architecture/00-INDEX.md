@@ -1,0 +1,207 @@
+# Glucose — Dossier d'architecture
+
+> **Rôle de ce dossier** : servir d'architecte. Il ne contient aucun code. Il contient l'état
+> réel du projet, les problèmes nommés et vérifiés, l'architecture cible et le plan pour
+> y arriver.
+>
+> **Date** : 2026-09-10 — audit au commit `7a13c86`, **re-vérifié** au commit `81aea31`
+> **Périmètre audité** : `crates/glucose-core` + `crates/glucose-desktop` (14 322 lignes Rust)
+> **Référence de parité** : la version TypeScript (`src/`, 45 218 lignes, 180 fichiers)
+
+---
+
+## Les documents
+
+| # | Document | Ce qu'il contient | Quand le lire |
+|---|---|---|---|
+| **01** | [Audit du code Rust](01-AUDIT-CODE-RUST.md) | **33 constats vérifiés** (dont **4 déjà corrigés** pendant la rédaction), avec gravité, fichier:ligne et correctif. Ce qui n'est pas pro, ce qui n'est pas optimisé, et pourquoi. | Maintenant. C'est le diagnostic. |
+| **02** | [Architecture cible](02-ARCHITECTURE-CIBLE.md) | Le découpage en crates, les 10 lois, la politique de dépendances, le modèle, l'undo, le rendu, la persistance. **Et la vraie solution à ton problème de glisser-déposer.** | Avant d'écrire la première ligne. |
+| **03** | [Parité fonctionnelle](03-PARITE-FONCTIONNELLE.md) | **279 fonctionnalités inventoriées**, avec leur état exact. Le chiffre réel : **17 %**, pas 3 %. | Pour savoir où tu en es, vraiment. |
+| **04** | [Roadmap](04-ROADMAP.md) | 13 phases, chacune avec ses travaux et ses **critères de sortie**. De 17 % à 100 %. | Pour savoir quoi faire lundi matin. |
+| **05** | [Standards de code](05-STANDARDS-DE-CODE.md) | Les règles qui empêchent le code de redevenir ce qu'il est. Diagnostic précis de « pourquoi c'est moche ». | Avant chaque merge. |
+
+---
+
+## Le diagnostic en cinq phrases
+
+1. **Le code n'est pas mauvais, il est débranché.** 13 des 18 modules de `glucose-core` sont
+   écrits, testés — et jamais appelés par l'application. C'est ≈ 3 700 lignes de travail réel
+   qui ne sert à rien pour l'utilisateur.
+
+2. **Tu n'es pas à 3 %, tu es à 17 %.** Et si tu ne faisais que **brancher** ce qui existe déjà,
+   sans écrire un seul algorithme nouveau, tu passerais à **26 %**.
+
+3. **L'application ne sait pas enregistrer.** Il n'existe aucune écriture de projet sur disque
+   dans tout `glucose-desktop`. Ce n'est pas encore un logiciel.
+
+4. **La teinte symbiotique est recalculée en O(n) par nœud visible, par frame, deux fois** —
+   pour un résultat identique à la frame précédente. *(Les deux autres fautes de performance,
+   la grille en O(surface) et l'absence de culling, viennent d'être corrigées par le commit
+   `81aea31`.)*
+
+5. **L'interface calcule sa géométrie deux fois** — une fois pour dessiner, une fois pour
+   cliquer, avec les mêmes nombres recopiés. Le commit `81aea31` vient de régler ça **pour la
+   barre d'outils**, avec des tests, et c'est exactement le bon patron. Mais la **barre
+   d'onglets** garde ses deux mesures divergentes (les onglets ne cliquent pas là où ils sont
+   dessinés), et la minimap reste dans du code strictement inatteignable.
+
+---
+
+## Tes questions, mes réponses d'architecte
+
+### « Est-ce que je dois continuer, ou tout reprendre ? »
+
+**Continue — mais restructure.** Ce n'est pas la même chose que « réécris ».
+
+Ce qui est bon et doit être **gardé tel quel** : `hit_priority`, `smart_align`, `symbiotic_hue`,
+`quadtree`, `mirror_graph`, `bundle`, `export`, les modules de membranes et de rideaux, et
+surtout les **3 194 lignes de tests**. Soit ≈ 2 800 lignes de logique métier valide.
+
+Ce qui doit être **refait** : `store.rs` (snapshots d'undo, scans linéaires, collisions d'ids),
+`app.rs` (objet-dieu de 1 029 lignes), `ui.rs` + `renderer.rs` (géométrie en double, aucun cache).
+
+**Ce n'est pas un redémarrage à zéro. C'est la même matière, dans une structure qui la laisse
+enfin servir.**
+
+### « Le "0 dépendance", c'est réaliste ? »
+
+**Presque. Vise 2, pas 0** — et surtout, place-les au bon endroit.
+
+Écrire ton propre rastériseur 2D (2 000-3 000 lignes) : **oui**, c'est faisable, agréable et
+ça t'appartient. Écrire ton propre décodeur WebP : **non** — c'est un décodeur VP8 complet,
+plusieurs mois, et une surface d'attaque sur des octets hostiles pour un gain de compréhension
+nul.
+
+Détail complet dans [`02-ARCHITECTURE-CIBLE.md` § 0](02-ARCHITECTURE-CIBLE.md).
+
+Note au passage : le commit `d7e460a` affirme avoir éliminé `tiny-skia`. **C'est faux** — il est
+importé dans 5 des 6 modules du desktop, et l'application dépend aujourd'hui de 7 crates directs
+et ≈ 200 transitifs. Un historique qui ment t'empêche de savoir où tu en es (R-32).
+
+### « Le glisser-déposer web ET fichiers, c'est impossible ? »
+
+**Non. Et c'est le meilleur argument "from scratch" de tout ton projet.**
+
+Ce n'est pas une limite de Rust ni de Tauri : c'est une limite de `winit`, qui n'expose que
+`DroppedFile` avec un chemin, et **jette tout le reste**.
+
+Or, quand tu fais glisser une image depuis un navigateur, Windows te propose **simultanément**
+`CF_HDROP`, `CFSTR_INETURL`, `CF_HTML`, `CF_UNICODETEXT`, `CFSTR_FILECONTENTS` et `CF_DIB`.
+En implémentant toi-même `IDropTarget` — environ 400 lignes — tu obtiens **fichiers locaux ET
+images web dans le même geste, avec l'URL d'origine préservée** (le champ `source_url` de ton
+modèle, qui n'a jamais été rempli).
+
+Ici, écrire soi-même n'est pas une question de fierté : **c'est la seule façon d'avoir la
+fonctionnalité.** Détail en [`02-ARCHITECTURE-CIBLE.md` § 0.1](02-ARCHITECTURE-CIBLE.md),
+phase 5 de la roadmap.
+
+### « Pourquoi j'ai l'impression d'être à 3 % ? »
+
+Deux raisons, toutes les deux mesurées :
+
+1. **10 boutons sur 19 n'ont aucun effet observable** — ils affichent un toast qui *décrit* une
+   action qui n'a pas lieu. « 🎨 Préréglage PureRef appliqué » : rien n'est appliqué. Il y a
+   **24 appels à `show_toast`** dans `app.rs`. Tu regardes l'écran et tu vois Glucose ; tu
+   cliques et il n'y a rien derrière.
+
+2. **27 fonctionnalités sont écrites mais débranchées.** Tu as fait le travail, il ne compte pas.
+   C'est démoralisant précisément parce que l'effort a été fourni.
+
+**Décision** : un bouton dont la fonction n'existe pas est retiré ou grisé. Jamais un toast qui
+simule. C'est la phase 0, et elle ne coûte presque rien.
+
+### « Pourquoi c'est si long de trouver et corriger un bug ? »
+
+Parce que `window_event` fait **490 lignes avec 7 niveaux d'imbrication**, et que `app.rs`
+mélange fenêtre, souris, clavier, presse-papiers, décodage d'images et algorithmes de mise en
+page. Il n'existe aucune frontière où poser un point d'arrêt mental.
+
+Et parce qu'il n'y a **aucun test** dans `glucose-desktop` (2 dans `canvas.rs`), **aucun type
+d'erreur** dans tout le projet, et **aucune erreur visible** par l'utilisateur : quand une image
+ne s'affiche pas, tu vois un rectangle gris et rien ne te dit pourquoi.
+
+Règles correctives en [`05-STANDARDS-DE-CODE.md`](05-STANDARDS-DE-CODE.md).
+
+### « Le code est moche. C'est réparable ? »
+
+Oui, et le diagnostic est précis : **ce n'est ni le nommage ni l'indentation** — ils sont
+corrects. C'est :
+
+- **60 %** de répétition structurelle : créer une annotation demande 14 lignes dont 8 disent
+  « rien », et ce bloc apparaît 4 fois dans `app.rs`. Cause : le modèle recopie ses champs
+  communs dans les 4 variantes.
+- **30 %** d'imbrication profonde.
+- **10 %** de nombres magiques en double.
+
+**La laideur est un symptôme de la structure, pas du style.** Une fois le modèle en composition
+et l'UI en layout-unique, écrire du code beau devient le chemin le plus facile — pas un effort
+en plus.
+
+---
+
+## Par où commencer, concrètement
+
+Les commits `2da029f` et `81aea31` viennent de régler les trois premiers points de cette liste
+(transform des images, grille adaptative, culling) et de corriger la sélection élastique.
+**Bonne direction — continue exactement comme ça.** Voici la suite :
+
+| Ordre | Action | Gain | Effort |
+|:--:|---|---|---|
+| ~~0~~ | ~~Transform des images, grille adaptative, culling, marquee~~ | ✅ **fait** (`2da029f`, `81aea31`) | — |
+| 1 | **Retirer les 10 boutons qui mentent** | Tu retrouves une vision juste de ton avancement | quelques heures |
+| 2 | **Étendre `layout_topbar()` aux onglets et à la minimap** (R-07, R-08) | Fin des clics qui tombent à côté ; la minimap revit | ~60 lignes |
+| 3 | **Mémoriser la teinte symbiotique** (R-03) | Dernière faute de performance de classe algorithmique | ~100 lignes |
+| 4 | **Boucle de rendu unique + `WaitUntil`** (R-15) | Le curseur clignote, les toasts s'effacent, et **tous les gains de perf précédents deviennent réels** | ~150 lignes |
+| 5 | **Brancher `smart_align`** (R-09) | Le magnétisme existe enfin — 458 lignes déjà écrites et testées | ~40 lignes |
+| 6 | **Générateur d'id unique** (R-13, R-14) | Fin des collisions silencieuses | ~30 lignes |
+| 7 | **Éclater `app.rs`** (R-19) | ⚠️ **Urgent** : `window_event` est passé de 490 à **728 lignes** en deux commits | phase 1 |
+| 8 | **Undo par journal** (R-04) | L'app ne meurt plus en mémoire | phase 1D |
+| 9 | **La persistance** (R-01) | **Glucose devient un logiciel** | phase 2 |
+
+Les points 2 à 6 représentent **moins de 400 lignes** et changent radicalement la sensation du
+logiciel. Ne commence pas par le rastériseur maison : commence par les gains visibles.
+
+⚠️ **Le point 7 mérite une alerte.** En deux commits, `window_event` a gagné 238 lignes et
+`redraw()` 15 appels : les bonnes corrections s'entassent dans l'objet-dieu **faute d'un endroit
+où les mettre**. À structure constante, chaque correction rend la suivante plus coûteuse.
+C'est la seule dynamique de ce dossier qui va dans le mauvais sens.
+
+---
+
+## Les chiffres à retenir
+
+*Au commit `81aea31`.*
+
+| | |
+|---|---:|
+| Lignes Rust | 14 322 |
+| Lignes de tests | 3 194 |
+| **Modules de noyau morts** | **13 / 18** |
+| Lignes de noyau inutilisées | ≈ 3 700 |
+| **Parité fonctionnelle réelle** | **17 %** |
+| Parité si on branche l'existant | **26 %** |
+| Fonctionnalités inventoriées | 279 |
+| Fonctionnalités « maquette » | 18 |
+| Plus grosse fonction (`window_event`) | **728 lignes** ⚠️ |
+| Appels directs à `redraw()` | **45** ⚠️ |
+| Types d'erreur définis | **0** |
+| **Chemins d'écriture de projet** | **0** |
+| Boutons qui agissent | **9 / 19** |
+
+---
+
+## Comment maintenir ce dossier
+
+- **`03-PARITE-FONCTIONNELLE.md`** est mis à jour à chaque fin de phase, avec les vrais chiffres.
+  C'est ton tableau de bord.
+- **`01-AUDIT-CODE-RUST.md`** : chaque constat `R-xx` est barré quand il est corrigé, avec le
+  commit qui l'a fait. Le document devient un historique de dette remboursée.
+- **`04-ROADMAP.md`** : les critères de sortie sont cochés. Une phase n'avance pas sans eux —
+  c'est exactement le mécanisme qui manquait quand `smart_align` a été écrit puis oublié.
+- **`docs/architecture/decisions/`** : une note par décision structurante, notamment toute
+  nouvelle dépendance.
+
+---
+
+*Ce dossier ne vaut que s'il reste vrai. Un document d'architecture qui ment est pire que pas de
+document du tout — c'est exactement le problème que ce dossier existe pour corriger.*

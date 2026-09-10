@@ -1,8 +1,8 @@
 # 03 — Parité fonctionnelle : l'inventaire complet
 
 > Tu dis : *« j'ai l'impression d'être arrivé à 3 % de Glucose complet »*.
-> Ce document mesure. La réponse honnête est **≈ 11 %**, et il est important de comprendre
-> pourquoi ce n'est ni 3 % ni 40 %.
+> Ce document mesure. La réponse honnête est **≈ 17 %**, et il est important de comprendre
+> pourquoi ce n'est ni 3 % ni 50 %.
 
 **Légende**
 
@@ -20,9 +20,9 @@
 
 | Domaine | Fonctions | ✅ | 🟡 | 💀 | 🎨 | ❌ | Parité |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 1. Canvas & caméra | 14 | 4 | 3 | 0 | 1 | 6 | 39 % |
-| 2. Sélection & manipulation | 18 | 4 | 3 | 2 | 2 | 7 | 31 % |
-| 3. Images | 21 | 4 | 3 | 0 | 0 | 14 | 26 % |
+| 1. Canvas & caméra | 14 | 5 | 2 | 0 | 1 | 6 | 43 % |
+| 2. Sélection & manipulation | 18 | 5 | 3 | 2 | 1 | 7 | 36 % |
+| 3. Images | 21 | 5 | 2 | 0 | 0 | 14 | 29 % |
 | 4. Texte & Markdown | 19 | 2 | 4 | 1 | 0 | 12 | 21 % |
 | 5. Stickies | 8 | 2 | 2 | 0 | 0 | 4 | 31 % |
 | 6. Flèches | 16 | 1 | 1 | 1 | 0 | 13 | 12 % |
@@ -43,23 +43,29 @@
 | 21. Plugins & App Bridge | 9 | 0 | 0 | 0 | 1 | 8 | 0 % |
 | 22. Recherche & navigation | 7 | 1 | 1 | 0 | 0 | 5 | 21 % |
 | 23. Divers (Pomodoro, télémétrie…) | 6 | 0 | 0 | 0 | 1 | 5 | 0 % |
-| **TOTAL** | **279** | **32** | **26** | **27** | **19** | **175** | **≈ 11 %** |
+| **TOTAL** | **279** | **35** | **24** | **27** | **18** | **175** | **≈ 17 %** |
 
 *(Parité = (✅ × 1 + 🟡 × 0,5) / total. Le code mort compte pour 0 : une fonctionnalité non
 branchée n'existe pas pour l'utilisateur.)*
 
+> **Re-vérifié au commit `81aea31`.** Deux commits (`2da029f`, `81aea31`) sont arrivés pendant
+> la rédaction : la grille adaptative (1.5), la sélection élastique (2.5) et le positionnement
+> des images (3.19) sont désormais corrects, et la barre d'outils a reçu un vrai moteur de mise
+> en page avec ses tests. Le détail est dans
+> [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md) § Re-vérification.
+
 ### Ce que le score dit vraiment
 
-**Tu n'es pas à 3 %, tu es à 11 % — mais avec 27 fonctionnalités déjà écrites, testées et
-à un branchement près.** Si on ne branchait *que* le code mort existant, sans écrire une
-ligne d'algorithme nouveau, on passerait **de 11 % à ≈ 21 %**.
+**Tu n'es pas à 3 %, tu es à 17 % — avec 27 fonctionnalités déjà écrites, testées et à un
+branchement près.** Si on ne branchait *que* le code mort existant, sans écrire une ligne
+d'algorithme nouveau, on passerait **de 17 % à ≈ 26 %**.
 
 C'est ça, le vrai enseignement de cet inventaire : **ton problème n'est pas la quantité de code
 manquant, c'est la quantité de code non relié.** Voir R-18.
 
-Deuxième enseignement : les **19 fonctionnalités « maquette »** (🎨) sont ce qui fausse ta
-perception. La barre d'outils montre 19 boutons ; 4 agissent. Tu regardes l'écran et tu vois
-Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 %.
+Deuxième enseignement : les **18 fonctionnalités « maquette »** (🎨) sont ce qui fausse ta
+perception. La barre d'outils montre 19 boutons ; **9 agissent**. Tu regardes l'écran et tu vois
+Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 % là où la mesure dit 17 %.
 
 ---
 
@@ -71,7 +77,7 @@ Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 %.
 | 1.2 | Zoom molette centré sur le curseur | `GlucoseCanvas` | ✅ | — |
 | 1.3 | Bornes de zoom (0,01 – 50) | `navigation.ts` | ✅ | — |
 | 1.4 | Viewport indépendant par board | `store.getViewport` | ✅ | — |
-| 1.5 | Grille de points | `GlucoseCanvas` | 🟡 O(surface), gel au dézoom (R-02) | 1 |
+| 1.5 | Grille de points | `GlucoseCanvas` | ✅ pas adaptatif depuis `81aea31` (R-02 corrigé) | — |
 | 1.6 | Fit-to-content (`F`) | `navigation.ts` | 🟡 remet à (0,0,1), ne cadre rien | 1 |
 | 1.7 | Signets de vue 1–9 | `Board.bookmarks` | ❌ | 4 |
 | 1.8 | Navigation au pavé numérique (4/6/8/2/+/−) | `GlucoseCanvas:2510` | ❌ | 4 |
@@ -92,7 +98,7 @@ Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 %.
 | 2.2 | Priorité de sélection multi-couches | `hitPriority` + `pickArbiter` | ✅ (partiel : `collect_candidates` seul) | — |
 | 2.3 | Sélection additive `Maj+clic` | `GlucoseCanvas` | ✅ | — |
 | 2.4 | Tout sélectionner `Ctrl+A` | `store.selectAll` | ✅ | — |
-| 2.5 | **Sélection élastique (marquee)** | `GlucoseCanvas` | 🎨 dessinée, **ne sélectionne rien** (R-10) | 1 |
+| 2.5 | **Sélection élastique (marquee)** | `GlucoseCanvas` | ✅ corrigée par `2da029f` (R-10) | — |
 | 2.6 | Déplacer la sélection au drag | `store.moveSelected` | ✅ | — |
 | 2.7 | Alignement intelligent / magnétisme | `smartAlign` + runtime | 💀 **écrit, testé, jamais appelé** (R-09) | 1 |
 | 2.8 | Guides d'alignement visuels | `GlucoseCanvas` | 🟡 dessine une liste toujours vide | 1 |
@@ -131,7 +137,7 @@ Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 %.
 | 3.16 | Lecture d'en-tête pour les dimensions | — | ❌ **décodage complet** (R-30) | 3 |
 | 3.17 | Assets embarqués, dédup sha256 | `assetRef` + `Project.blobs` | 🟡 `sha256()` existe, jamais appelé | 2 |
 | 3.18 | Assets liés (chemin/URL externe) | `assetRef` | 🟡 champ `src` seul | 2 |
-| 3.19 | Positionnement correct au rendu | — | 🟡 **transform inversée** (R-06) | 1 |
+| 3.19 | Positionnement correct au rendu | — | ✅ corrigé par `81aea31` (R-06) | — |
 | 3.20 | URL d'origine conservée | `sourceUrl` | ❌ champ jamais rempli | 5 |
 | 3.21 | Étiquettes (tags) | `BoardImage.tags` | ❌ | 9 |
 
@@ -514,7 +520,7 @@ Trois conclusions opérationnelles :
 ### 1. Brancher avant d'écrire
 
 **27 fonctionnalités sont à un branchement près.** Ce sont les 💀. Elles représentent
-≈ 3 700 lignes déjà écrites et testées. Les brancher fait passer la parité de **11 % à 21 %**
+≈ 3 700 lignes déjà écrites et testées. Les brancher fait passer la parité de **17 % à 26 %**
 pour un coût dérisoire comparé à leur réécriture.
 
 C'est pour ça que la phase 1 de la roadmap s'appelle « Brancher le noyau » et pas
@@ -522,8 +528,8 @@ C'est pour ça que la phase 1 de la roadmap s'appelle « Brancher le noyau » et
 
 ### 2. Supprimer les maquettes
 
-**19 boutons ne font rien.** Tant qu'ils sont là, tu ne peux pas mesurer ta progression, et
-quiconque essaie l'app croit qu'elle est cassée plutôt qu'inachevée.
+**10 boutons sur 19 n'ont aucun effet observable.** Tant qu'ils sont là, tu ne peux pas mesurer
+ta progression, et quiconque essaie l'app croit qu'elle est cassée plutôt qu'inachevée.
 
 **Décision** : un bouton dont la fonction n'existe pas est **retiré de la barre**, ou grisé avec
 une infobulle « bientôt ». Jamais un toast qui simule une action. C'est la loi L10 appliquée à

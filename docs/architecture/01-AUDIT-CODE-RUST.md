@@ -1,13 +1,32 @@
 # 01 — Audit du code Rust actuel
 
-> **Portée** : `crates/glucose-core` (5 546 lignes) + `crates/glucose-desktop` (3 180 lignes).
+> **Portée** : `crates/glucose-core` (5 546 l.) + `crates/glucose-desktop` (3 466 l.).
 > **Méthode** : lecture intégrale du code, `cargo check --workspace --all-targets` (0 erreur),
 > vérification des sémantiques de `tiny-skia` dans la source vendue du crate.
-> **Date** : 2026-09-10 — commit `7a13c86`.
+> **Audit initial** : commit `7a13c86` — **re-vérifié** au commit `81aea31`.
 >
 > Chaque constat porte un identifiant stable (`R-xx`), une gravité, un emplacement exact,
 > et un correctif. **Aucun constat n'est une supposition** : tout ce qui est affirmé ici a été
 > vérifié dans le code ou dans la source de la dépendance concernée.
+
+> ### ⚠️ Re-vérification au commit `81aea31`
+>
+> Deux commits (`2da029f`, `81aea31`) sont arrivés pendant la rédaction de cet audit.
+> **Quatre constats ont été corrigés entre-temps**, et sont marqués ✅ **CORRIGÉ** ci-dessous
+> avec le commit qui les a réglés :
+>
+> | Constat | État | Par |
+> |---|---|---|
+> | R-02 — grille en O(surface) | ✅ **CORRIGÉ** — pas adaptatif + un seul `fill_path` | `81aea31` |
+> | R-05 — aucun culling | ✅ **CORRIGÉ** (niveau naïf) — rejet par frustum dans les 4 passes | `81aea31` |
+> | R-06 — transform des images inversée | ✅ **CORRIGÉ** — `from_scale().post_translate()` | `81aea31` |
+> | R-10 — sélection élastique inerte | ✅ **CORRIGÉ** — le rectangle sélectionne | `2da029f` |
+> | R-20 — géométrie d'UI en double | 🟡 **PARTIEL** — `layout_topbar()` + 2 tests pour la barre ; **les onglets restent en double** |
+>
+> **Deux constats ont empiré** : `window_event` est passé de 490 à **728 lignes** (R-19), et les
+> appels directs à `redraw()` de 30 à **45** (R-15).
+>
+> Les 27 autres constats sont **inchangés**, re-vérifiés un par un dans le code actuel.
 
 ---
 
@@ -22,9 +41,10 @@ Le problème n'est pas la syntaxe, c'est **l'architecture**. Trois maladies :
 | 2 | **La logique métier vit dans le gestionnaire d'événements** | `app.rs` fait 1 029 lignes et mélange fenêtre, souris, clavier, presse-papiers, décodage d'images et algorithme de mise en page. Toute modification touche tout. |
 | 3 | **L'UI calcule sa géométrie deux fois** | Le dessin et le clic sont deux fonctions séparées avec les mêmes nombres magiques recopiés. Elles ont déjà divergé → des boutons qui ne cliquent pas là où ils sont dessinés. |
 
-À cela s'ajoutent **deux fautes de performance de classe algorithmique** (grille en O(surface),
-teinte symbiotique en O(n²) par frame ×2) qui rendent l'application inutilisable au-delà de
-quelques dizaines d'éléments ou d'un dézoom un peu franc, et **l'absence totale de persistance**.
+À cela s'ajoutait un trio de fautes de performance de classe algorithmique. Deux viennent d'être
+corrigées (grille en O(surface), absence de culling) ; **la troisième reste** : la teinte
+symbiotique est recalculée en O(n) **par nœud visible, par frame, deux fois**. Et surtout,
+**l'absence totale de persistance** demeure.
 
 **Le chiffre qui résume tout : l'application ne sait pas enregistrer.** Il n'existe aucune
 écriture de projet dans tout `glucose-desktop`. Tout ce que tu poses sur le canvas disparaît à
@@ -36,17 +56,17 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 
 ### Bloquants — l'app est inutilisable ou perd des données
 - **R-01** — Aucune persistance
-- **R-02** — La grille de points est en O(surface)
+- **R-02** — La grille de points est en O(surface) — ✅ **CORRIGÉ** (`81aea31`)
 - **R-03** — Teinte symbiotique en O(n²) par frame, deux fois
 - **R-04** — L'undo clone le projet entier, blobs compris, 200 fois
-- **R-05** — Aucun culling : tout est dessiné même hors écran
+- **R-05** — Aucun culling : tout est dessiné même hors écran — ✅ **CORRIGÉ** (`81aea31`)
 
 ### Majeurs — comportement faux, visible par l'utilisateur
-- **R-06** — Images placées au mauvais endroit (transform inversée)
+- **R-06** — Images placées au mauvais endroit (transform inversée) — ✅ **CORRIGÉ** (`81aea31`)
 - **R-07** — Les onglets ne cliquent pas où ils sont dessinés
 - **R-08** — La minimap est morte (code inatteignable)
 - **R-09** — Le moteur d'alignement n'est jamais appelé
-- **R-10** — La sélection élastique n'est jamais appliquée
+- **R-10** — La sélection élastique n'est jamais appliquée — ✅ **CORRIGÉ** (`2da029f`)
 - **R-11** — `organize_layout` mélange deux conventions de coordonnées
 - **R-12** — Les flèches ne suivent que leur source, jamais leur cible
 - **R-13** — Dupliquer deux fois crée deux éléments de même id
@@ -102,9 +122,20 @@ Voir `02-ARCHITECTURE-CIBLE.md` § « Format `.glucose` v2 ».
 
 ---
 
-### R-02 — La grille de points est en O(surface)
+### R-02 — La grille de points est en O(surface) — ✅ CORRIGÉ
 
-**Gravité : BLOQUANT.** [renderer.rs:157-190](../../crates/glucose-desktop/src/renderer.rs#L157-L190)
+> **Résolu par `81aea31`.** Le pas est maintenant adaptatif (`while effective_step * scale < 32.0 { *= 2 }`),
+> tous les points vont dans **un seul `PathBuilder`** et un seul `fill_path`, et les points hors
+> écran sont ignorés. Le nombre de points est désormais **borné à ~1 300 quel que soit le zoom**,
+> avec **1 allocation de chemin par frame** au lieu de 7,2 millions.
+>
+> **Reste à faire (mineur)** : la grille est toujours recalculée intégralement à chaque frame.
+> Une tuile 256×256 mise en cache par palier de zoom la rendrait quasi gratuite.
+>
+> *L'analyse ci-dessous est conservée : elle documente la faute, et sert de référence si le
+> problème réapparaît.*
+
+**Gravité initiale : BLOQUANT.** [renderer.rs:157-190](../../crates/glucose-desktop/src/renderer.rs#L157-L190) *(numérotation du commit `7a13c86`)*
 
 ```rust
 let grid_step = 60.0;                       // ← pas FIXE en unités monde
@@ -149,8 +180,15 @@ sont recalculés intégralement au mouvement suivant.
 
 ### R-03 — Teinte symbiotique en O(n²) par frame, deux fois
 
-**Gravité : BLOQUANT.** [renderer.rs:203](../../crates/glucose-desktop/src/renderer.rs#L203)
-et [renderer.rs:487](../../crates/glucose-desktop/src/renderer.rs#L487)
+**Gravité : BLOQUANT — toujours ouvert.**
+[renderer.rs:228](../../crates/glucose-desktop/src/renderer.rs#L228) et
+[renderer.rs:548](../../crates/glucose-desktop/src/renderer.rs#L548)
+
+> **Re-vérifié au commit `81aea31`** : les **deux** sites d'appel subsistent. Le culling ajouté
+> par ce commit atténue le symptôme — le coût passe de O(n²) à **O(visible × n)** — mais
+> n'attaque pas la cause. Sur un board de 1 000 cartes dont 50 visibles, cela reste
+> **100 000 évaluations par frame** (2 × 50 × 1 000), chacune avec 4 appels à `sin()`,
+> **pour un résultat identique à la frame précédente**.
 
 `get_symbiotic_hue(ann, &board.annotations)` parcourt **toutes** les annotations pour calculer
 la moyenne circulaire du voisinage. Elle est appelée :
@@ -219,10 +257,19 @@ Voir `02-ARCHITECTURE-CIBLE.md` § « Undo : journal, pas snapshot ».
 
 ---
 
-### R-05 — Aucun culling : tout est dessiné même hors écran
+### R-05 — Aucun culling : tout est dessiné même hors écran — ✅ CORRIGÉ
 
-**Gravité : BLOQUANT.** `draw_images`, `draw_annotations`, `draw_membranes` et `draw_halos`
-itèrent sur la **totalité** du board sans aucun test de visibilité.
+> **Résolu par `81aea31`** au niveau naïf : un rejet par frustum a été ajouté dans les quatre
+> passes (`draw_halos` l. 218, `draw_membranes` l. 278, `draw_images` l. 443,
+> `draw_annotations` l. 542). Les éléments hors écran ne sont plus rastérisés.
+>
+> **Reste à faire (structurel)** : chaque passe **itère toujours sur tous les nœuds** pour les
+> rejeter un par un. C'est O(n) par frame, pas O(visible). À 100 000 nœuds, on paie
+> 400 000 tests de rectangle par frame. La version définitive interroge l'index spatial
+> (`quadtree.rs`, toujours mort — R-18) et n'itère que sur ce qui est visible.
+
+**Gravité initiale : BLOQUANT.** `draw_images`, `draw_annotations`, `draw_membranes` et
+`draw_halos` itéraient sur la **totalité** du board sans aucun test de visibilité.
 
 Sur un canvas de 2 000 éléments dont 15 sont à l'écran, on paie pour 2 000. Pour les images, on
 paie en plus une `draw_pixmap` avec filtrage bilinéaire complet, dont `tiny-skia` ne peut pas
@@ -238,9 +285,19 @@ Une ligne. Le gain est immédiat et massif.
 
 ## Majeurs
 
-### R-06 — Images placées au mauvais endroit (transform inversée)
+### R-06 — Images placées au mauvais endroit (transform inversée) — ✅ CORRIGÉ
 
-**Gravité : MAJEUR.** [renderer.rs:404-408](../../crates/glucose-desktop/src/renderer.rs#L404-L408)
+> **Résolu par `81aea31`** — [renderer.rs:453](../../crates/glucose-desktop/src/renderer.rs#L453)
+> est désormais `Transform::from_scale(scale_x, scale_y).post_translate(sx, sy)`, ce qui est
+> l'ordre correct.
+>
+> **Ce constat est le meilleur argument du dossier en faveur des tests de rendu.** Le bug était
+> invisible à la lecture (le code *semblait* juste), silencieux à la compilation, et n'a été
+> attrapé que par la vérification de la sémantique de `post_scale` dans la source de `tiny-skia`.
+> **Une comparaison de PNG de référence l'aurait signalé en 30 secondes.** C'est pourquoi la
+> phase 0 de la roadmap met en place ce test.
+
+**Gravité initiale : MAJEUR.** *(code du commit `7a13c86`)*
 
 ```rust
 let ts = Transform::from_translate(sx as f32, sy as f32)
@@ -268,15 +325,26 @@ Et comme le facteur dépend du zoom, l'image **glisse** quand tu zoomes.
 
 ### R-07 — Les onglets ne cliquent pas où ils sont dessinés
 
-**Gravité : MAJEUR.** [ui.rs:385](../../crates/glucose-desktop/src/ui.rs#L385) contre
-[ui.rs:833](../../crates/glucose-desktop/src/ui.rs#L833)
+**Gravité : MAJEUR — toujours ouvert.**
+[ui.rs:496](../../crates/glucose-desktop/src/ui.rs#L496) contre
+[ui.rs:882](../../crates/glucose-desktop/src/ui.rs#L882)
 
 ```rust
-// Dessin  (l. 385) :
+// Dessin  (l. 496) :
 let (tw, _) = typo.measure_text(&board.name, 12.0, is_active);   // gras si actif
-// Clic    (l. 833) :
+// Clic    (l. 882) :
 let (tw, _) = typo.measure_text(&board.name, 12.0, false);       // JAMAIS gras
 ```
+
+> **Re-vérifié au commit `81aea31`.** Ce commit a introduit `layout_topbar()` — une vraie
+> fonction de mise en page qui produit une liste de boutons, consommée par le dessin **et** par
+> le clic, avec deux tests qui vérifient qu'aucun bouton ne se chevauche à 8 résolutions.
+> **C'est exactement le bon correctif** (loi L4).
+>
+> Mais il n'a été appliqué qu'à la **barre d'outils**. La **barre d'onglets** garde ses deux
+> mesures divergentes, et le bug est intact. C'est la démonstration parfaite que R-20 est un
+> problème d'architecture et non de vigilance : tant qu'il reste **un** endroit où la géométrie
+> est calculée deux fois, le bug y survit.
 
 L'onglet actif est dessiné en gras — donc plus large — mais mesuré en maigre pour le test de
 clic. Le décalage s'accumule : **tous les onglets situés après l'onglet actif ont une zone de
@@ -334,21 +402,20 @@ rien**. `draw_guides` dessine toujours une liste vide.
 
 ---
 
-### R-10 — La sélection élastique n'est jamais appliquée
+### R-10 — La sélection élastique n'est jamais appliquée — ✅ CORRIGÉ
 
-**Gravité : MAJEUR.** [app.rs:786-793](../../crates/glucose-desktop/src/app.rs#L786-L793)
+> **Résolu par `2da029f`.** [app.rs:819-850](../../crates/glucose-desktop/src/app.rs#L819-L850)
+> teste maintenant l'intersection du rectangle avec les images et les annotations, avec un
+> seuil anti-clic de 3 px. Le rectangle sélectionne enfin.
 
-`selection_box` est créée au clic dans le vide, mise à jour au mouvement, dessinée par
-`draw_selection_box`… et au relâchement :
+**Gravité initiale : MAJEUR.** `selection_box` était créée au clic dans le vide, mise à jour au
+mouvement, dessinée par `draw_selection_box`… et jetée au relâchement :
 
 ```rust
 if self.selection_box.is_some() {
     self.selection_box = None;      // ← on jette, sans rien sélectionner
 }
 ```
-
-Le rectangle de sélection est une animation. Il ne sélectionne rien. Aucun code ne teste
-l'intersection du rectangle avec les éléments du board.
 
 ---
 
@@ -460,10 +527,16 @@ toast reste affiché indéfiniment.** L'animation de fondu (400 ms) n'est visibl
 la souris pile à ce moment-là.
 
 Le symétrique est aussi vrai et aussi grave : **chaque événement provoque un repaint intégral
-synchrone**. `redraw()` est appelé directement depuis les handlers — 30 occurrences dans
-`app.rs` — au lieu de `window.request_redraw()`. Un simple survol de la barre d'outils
-([app.rs:436-439](../../crates/glucose-desktop/src/app.rs#L436-L439)) redessine la totalité de
-la scène, grille en O(surface) comprise.
+synchrone**. `redraw()` est appelé directement depuis les handlers — **45 occurrences** dans
+`app.rs` au commit `81aea31`, contre 30 au commit `7a13c86` — au lieu de
+`window.request_redraw()`. Un simple survol de la barre d'outils
+([app.rs:445](../../crates/glucose-desktop/src/app.rs#L445)) redessine la totalité de la scène.
+
+> **Re-vérifié au commit `81aea31` : ce constat a empiré.** Les correctifs de performance des
+> deux derniers commits (grille adaptative, culling) réduisent le coût *d'une* frame — mais
+> tant que chaque événement souris en déclenche une **complète et synchrone**, le gain est
+> partiellement consommé. C'est le correctif à plus fort effet de levier restant :
+> il multiplie l'efficacité de tous les autres.
 
 **Correctif** : `ControlFlow::WaitUntil(prochaine_échéance_d_animation)`, **un seul** point de
 rendu (`RedrawRequested`), et des handlers qui se contentent de marquer `dirty`.
@@ -547,8 +620,15 @@ Le cas le plus douloureux : **`quadtree.rs` résout R-05, `smart_align.rs` réso
 
 ### R-19 — `app.rs` est un objet-dieu
 
-**Gravité : STRUCTUREL.** 1 029 lignes, une structure `GlucoseApp` à 17 champs publics, et
-**une seule fonction `window_event` de 490 lignes** avec 7 niveaux d'imbrication.
+**Gravité : STRUCTUREL — en aggravation.** **1 126 lignes** au commit `81aea31` (contre 1 029),
+une structure `GlucoseApp` à 17 champs publics, et **une seule fonction `window_event` de
+728 lignes** (contre 490) avec 7 niveaux d'imbrication.
+
+> **Re-vérifié : ce constat a empiré de 49 %.** Les corrections de R-10 (sélection élastique) et
+> de la navigation ont été ajoutées **dans** `window_event`, parce qu'il n'existe aucun autre
+> endroit où les mettre. C'est le mécanisme exact par lequel un objet-dieu grossit : chaque
+> bonne correction l'alourdit, faute de structure d'accueil. C'est aussi pourquoi la phase 1
+> de la roadmap éclate ce fichier **avant** d'ajouter des fonctionnalités.
 
 Ce qui y est mélangé :
 
@@ -569,13 +649,21 @@ un point d'arrêt mental.
 
 ---
 
-### R-20 — L'UI calcule sa géométrie deux fois
+### R-20 — L'UI calcule sa géométrie deux fois — 🟡 PARTIELLEMENT CORRIGÉ
 
-**Gravité : STRUCTUREL — la faute la plus coûteuse du projet.**
+> **Résolu pour la barre d'outils par `81aea31`**, et de la bonne façon : une fonction
+> `layout_topbar(screen_w, ui, typo, img_count) -> Layout` produit une liste de boutons
+> (`x, y, w, h, action, label`) ; `render_topbar` la dessine, `handle_ui_click` la parcourt.
+> Deux tests ont été ajoutés (`test_topbar_no_overlap_across_all_resolutions` sur 8 résolutions,
+> `test_topbar_responsive_collapse`). **C'est exactement la loi L4.**
+>
+> **Toujours ouvert pour la barre d'onglets** (R-07) et pour la minimap (R-08), qui gardent leur
+> géométrie dupliquée. Tant qu'il reste un seul endroit non converti, la classe de bugs survit.
 
-`render_topbar` ([ui.rs:127-352](../../crates/glucose-desktop/src/ui.rs#L127-L352)) et
-`handle_ui_click` ([ui.rs:761-862](../../crates/glucose-desktop/src/ui.rs#L761-L862)) contiennent
-**deux copies indépendantes de la même mise en page** :
+**Gravité initiale : STRUCTUREL — la faute la plus coûteuse du projet.**
+
+`render_topbar` et `handle_ui_click` contenaient **deux copies indépendantes de la même mise en
+page** *(numérotation du commit `7a13c86`)* :
 
 | Élément | Dessin | Test de clic |
 |---|---|---|
@@ -599,10 +687,10 @@ Voir `02-ARCHITECTURE-CIBLE.md` § « UI : layout une seule fois ».
 
 **Gravité : STRUCTUREL.**
 
-`let _ = ...` : 8 occurrences dans `app.rs` (redimensionnement de surface, présentation du
-buffer, création de dossier temporaire). `.expect()` sur le chargement des polices
+`let _ = ...` : **5 occurrences** dans `app.rs` (redimensionnement de surface, présentation du
+buffer, création de dossier temporaire). `.unwrap()` : **8 occurrences**, dont
+`SystemTime::duration_since`. `.expect()` sur le chargement des polices
 ([typography.rs:17-19](../../crates/glucose-desktop/src/typography.rs#L17-L19)).
-`.unwrap()` sur `SystemTime::duration_since` : **6 occurrences**.
 
 **Aucun type d'erreur n'est défini dans aucun des deux crates. Aucune erreur n'atteint
 l'utilisateur.**
@@ -828,9 +916,9 @@ vignette de remplacement.
 
 **Gravité : STRUCTUREL.**
 
-`Color::from_rgba8(...)` apparaît **~90 fois** dans `renderer.rs` et **~40 fois** dans `ui.rs`,
-toujours avec des littéraux. Le bleu de sélection `(56, 189, 248)` est recopié **11 fois**. Le
-fond `(26, 26, 26)` **6 fois**. Aucune constante, aucune structure `Theme`.
+`Color::from_rgba8(...)` apparaît **73 fois** avec des littéraux : 39 dans `renderer.rs`,
+33 dans `ui.rs`, 1 dans `icons.rs`. Le bleu de sélection `(56, 189, 248)` est recopié **11 fois**.
+Le fond `(26, 26, 26)` **6 fois**. Aucune constante, aucune structure `Theme`.
 
 Changer la couleur d'accent = 11 remplacements manuels sans filet. Un thème clair est impossible
 sans réécrire les deux fichiers.
@@ -865,9 +953,19 @@ es** — et c'est exactement le sentiment que tu décris.
 
 ---
 
-### R-33 — 15 boutons sur 19 ne font qu'afficher un toast
+### R-33 — 10 boutons sur 19 n'ont aucun effet observable
 
-**Gravité : MAJEUR (perception).** [app.rs:495-540](../../crates/glucose-desktop/src/app.rs#L495-L540)
+**Gravité : MAJEUR (perception).** Décompte bouton par bouton, au commit `81aea31` :
+
+| Agissent réellement (9) | Sans effet observable (10) |
+|---|---|
+| Sélection, Pan, Texte, Sticky, Flèche, Membrane (outils) | **Dossier** — sélectionne l'outil, mais l'outil n'affiche qu'un toast |
+| **+ Images** — ouvre le dialogue | **Timer**, **Storyboard**, **Domaines**, **Preset**, **Plugins**, **Exporter** — toast uniquement |
+| **Ordonner** — réorganise | **Aimant** — bascule un booléen ; les guides sont toujours vides (R-09) |
+| **+** (nouveau board) | **Trans-domaines** — bascule un booléen jamais relu |
+| | **Collaborer** — bascule un booléen qui ne sert qu'à colorer le bouton |
+
+[app.rs:521-566](../../crates/glucose-desktop/src/app.rs#L521-L566)
 
 ```rust
 UiAction::ToggleTimer      => { self.ui.show_toast("⏱ Timer démarré (25m)"); }
@@ -878,12 +976,12 @@ UiAction::TogglePreset     => { self.ui.show_toast("🎨 Préréglage PureRef ap
 UiAction::ToggleDomains    => { self.ui.show_toast("🏷 Domaines thématiques"); }
 ```
 
-Aucun de ces toasts ne décrit une action réelle. « Préréglage PureRef appliqué » est
-factuellement faux — rien n'est appliqué. L'outil `Folder` fait de même
-([app.rs:693-697](../../crates/glucose-desktop/src/app.rs#L693-L697)).
+Aucun de ces toasts ne décrit une action réelle. « 🎨 Préréglage PureRef appliqué » est
+factuellement faux — rien n'est appliqué. Il y a **24 appels à `show_toast`** dans `app.rs`.
 
-C'est une **UI de maquette présentée comme une UI fonctionnelle**. C'est ce qui rend l'estimation
-d'avancement impossible : la barre suggère 15 fonctionnalités, il y en a 4.
+C'est une **UI de maquette présentée comme une UI fonctionnelle**, et c'est ce qui rend
+l'estimation d'avancement impossible : la barre suggère 19 fonctionnalités, 9 existent.
+Un utilisateur — toi compris — conclut « c'est cassé » là où la vérité est « c'est inachevé ».
 
 ---
 
@@ -909,21 +1007,39 @@ L'audit serait malhonnête s'il ne le disait pas.
 
 ## Récapitulatif chiffré
 
-| Indicateur | Valeur mesurée |
-|---|---:|
-| Lignes Rust totales | 14 036 (dont 3 194 de tests) |
-| Modules de noyau morts | **13 / 18** |
-| Lignes de noyau inutilisées par l'app | ≈ 3 700 |
-| Plus grosse fonction | `window_event` — **490 lignes**, 7 niveaux |
-| Plus gros fichier | `app.rs` — 1 029 lignes |
-| Tests dans `glucose-desktop` | **2** |
-| Types d'erreur définis | **0** |
-| `let _ =` / `.unwrap()` sur faillible | 8 / 6 |
-| `iter().find()` dans `store.rs` | 34 |
-| Littéraux `Color::from_rgba8` | ≈ 130 |
-| Dépendances directes du desktop | 7 (≈ 200 transitives) |
-| Chemins d'écriture de projet sur disque | **0** |
-| Boutons de la barre qui agissent réellement | **4 / 19** |
+*Mesures au commit `81aea31`, avec l'évolution depuis `7a13c86`.*
+
+| Indicateur | Valeur | Évolution |
+|---|---:|:--:|
+| Lignes Rust totales | 14 322 (dont 3 194 de tests) | ↗ +286 |
+| **Modules de noyau morts** | **13 / 18** | → |
+| Lignes de noyau inutilisées par l'app | ≈ 3 700 | → |
+| Plus grosse fonction (`window_event`) | **728 lignes**, 7 niveaux | ↗ **+238** ⚠️ |
+| Plus gros fichier (`app.rs`) | **1 126 lignes** | ↗ +97 ⚠️ |
+| Appels directs à `redraw()` | **45** | ↗ +15 ⚠️ |
+| Tests dans `glucose-desktop` | **4** | ↗ +2 ✅ |
+| Types d'erreur définis | **0** | → |
+| `let _ =` / `.unwrap()` dans `app.rs` | 5 / 8 | → |
+| `iter().find()` dans `store.rs` | 34 | → |
+| Littéraux `Color::from_rgba8` | 73 | → |
+| Appels à `show_toast` | 24 | → |
+| Dépendances directes du desktop | 7 (≈ 200 transitives) | → |
+| **Chemins d'écriture de projet sur disque** | **0** | → |
+| Boutons de la barre qui agissent | **9 / 19** | → |
+
+### Lecture de cette évolution
+
+Les deux derniers commits ont fait du **bon travail de correction** : 4 constats réglés, dont
+les deux fautes de performance les plus visibles, et l'introduction de `layout_topbar()` — qui
+est précisément le bon patron architectural.
+
+Mais dans le même temps, `window_event` a grossi de 238 lignes et `redraw()` a gagné
+15 appels. **Les corrections s'entassent dans l'objet-dieu, faute d'un endroit où les mettre.**
+
+C'est la dynamique centrale à comprendre : à structure constante, chaque correction rend la
+suivante plus coûteuse. C'est pour cela que la roadmap place l'éclatement de `app.rs` et la
+boucle de rendu unique en **phase 1**, avant toute nouvelle fonctionnalité — sinon la dette
+croît plus vite qu'on ne la rembourse.
 
 ---
 
