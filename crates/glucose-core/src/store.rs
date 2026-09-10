@@ -440,6 +440,24 @@ impl Store {
                     }
                 }
             }
+
+            // Suivi des flèches connectées non sélectionnées (R-12)
+            for ann in &mut b.annotations {
+                if !sel_ann.contains(ann.id()) {
+                    if let Annotation::Arrow { ref source_id, ref target_id, ref mut x, ref mut y, ref mut x2, ref mut y2, .. } = ann {
+                        let src_moved = source_id.as_ref().is_some_and(|s| sel_ann.contains(s) || sel_img.contains(s));
+                        let tgt_moved = target_id.as_ref().is_some_and(|t| sel_ann.contains(t) || sel_img.contains(t));
+                        if src_moved {
+                            *x += dx;
+                            *y += dy;
+                        }
+                        if tgt_moved {
+                            *x2 += dx;
+                            *y2 += dy;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -546,10 +564,14 @@ impl Store {
                 if let Some(cur_ann) = b.annotations.iter().find(|a| a.id() == id) {
                     let (nx, ny) = (cur_ann.x(), cur_ann.y());
                     for a in &mut b.annotations {
-                        if let Annotation::Arrow { ref source_id, ref mut x, ref mut y, .. } = a {
+                        if let Annotation::Arrow { ref source_id, ref target_id, ref mut x, ref mut y, ref mut x2, ref mut y2, .. } = a {
                             if source_id.as_deref() == Some(id) {
                                 *x = nx;
                                 *y = ny;
+                            }
+                            if target_id.as_deref() == Some(id) {
+                                *x2 = nx;
+                                *y2 = ny;
                             }
                         }
                     }
@@ -926,6 +948,96 @@ impl Store {
         self.push_undo();
         if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
             b.zones = zones;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arrow_follows_source_and_target_on_move() {
+        let mut store = Store::new("Test");
+        let bid = "main";
+
+        let card1 = Annotation::Text {
+            id: "card1".into(),
+            x: 10.0,
+            y: 20.0,
+            width: Some(100.0),
+            height: Some(50.0),
+            text: "Source".into(),
+            font_size: None,
+            color: None,
+            cursor_pos: None,
+            source_file: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        };
+        let card2 = Annotation::Text {
+            id: "card2".into(),
+            x: 200.0,
+            y: 200.0,
+            width: Some(100.0),
+            height: Some(50.0),
+            text: "Target".into(),
+            font_size: None,
+            color: None,
+            cursor_pos: None,
+            source_file: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        };
+        let arrow = Annotation::Arrow {
+            id: "arr1".into(),
+            x: 10.0,
+            y: 20.0,
+            x2: 200.0,
+            y2: 200.0,
+            text: None,
+            font_size: None,
+            color: None,
+            arrow_type: None,
+            arrow_bidirectional: false,
+            predicate: None,
+            stroke_width: None,
+            waypoints: Vec::new(),
+            source_id: Some("card1".into()),
+            target_id: Some("card2".into()),
+            source_block_id: None,
+            target_block_id: None,
+            source_text_sel: None,
+            target_text_sel: None,
+            long_text: None,
+            target_board_id: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        };
+
+        store.add_annotation(bid, card1);
+        store.add_annotation(bid, card2);
+        store.add_annotation(bid, arrow);
+
+        // Déplacer la cible uniquement (card2) de (50, 30)
+        store.select_annotation("card2".into(), false);
+        store.move_selected(bid, 50.0, 30.0);
+
+        let board = store.active_board().unwrap();
+        let arr = board.annotations.iter().find(|a| a.id() == "arr1").unwrap();
+        if let Annotation::Arrow { x, y, x2, y2, .. } = arr {
+            assert_eq!(*x, 10.0);
+            assert_eq!(*y, 20.0);
+            assert_eq!(*x2, 250.0);
+            assert_eq!(*y2, 230.0);
+        } else {
+            panic!("Expected arrow");
         }
     }
 }
