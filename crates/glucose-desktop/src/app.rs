@@ -38,6 +38,8 @@ pub struct GlucoseApp {
     // États d'interaction
     pub mouse_pos: (f64, f64),
     pub modifiers: ModifiersState,
+    pub space_pressed: bool,
+    pub right_or_middle_down: bool,
     pub is_panning: bool,
     pub is_dragging_item: bool,
     pub drag_start_world: (f64, f64),
@@ -84,6 +86,8 @@ impl GlucoseApp {
             surface: None,
             mouse_pos: (0.0, 0.0),
             modifiers: ModifiersState::empty(),
+            space_pressed: false,
+            right_or_middle_down: false,
             is_panning: false,
             is_dragging_item: false,
             drag_start_world: (0.0, 0.0),
@@ -420,7 +424,10 @@ impl ApplicationHandler for GlucoseApp {
                 let dy = position.y - prev_pos.1;
 
                 if self.is_panning {
-                    self.store.pan(dx, dy);
+                    // Protection contre les sauts anormaux du curseur OS
+                    if dx.hypot(dy) < 300.0 {
+                        self.store.pan(dx, dy);
+                    }
                     self.redraw();
                 } else if self.is_dragging_item {
                     let active_bid = self.store.project.active_board_id.clone();
@@ -441,16 +448,31 @@ impl ApplicationHandler for GlucoseApp {
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                let factor = match delta {
-                    MouseScrollDelta::LineDelta(_, y) => {
-                        if y > 0.0 { 1.15 } else { 0.85 }
+                match delta {
+                    MouseScrollDelta::LineDelta(x, y) => {
+                        if y.abs() > 0.001 {
+                            // Zoom continu centré sur le curseur (comme PureRef)
+                            let factor = (1.12f64).powf(y as f64);
+                            if let Some(board) = self.store.active_board_mut() {
+                                zoom_at(&mut board.viewport, factor, self.mouse_pos.0, self.mouse_pos.1);
+                            }
+                        }
+                        if x.abs() > 0.001 {
+                            self.store.pan(x as f64 * 30.0, 0.0);
+                        }
                     }
                     MouseScrollDelta::PixelDelta(p) => {
-                        if p.y > 0.0 { 1.10 } else { 0.90 }
+                        if self.modifiers.control_key() {
+                            // Pincement tactile / Ctrl + molette = zoom fin
+                            let factor = (1.003f64).powf(p.y);
+                            if let Some(board) = self.store.active_board_mut() {
+                                zoom_at(&mut board.viewport, factor, self.mouse_pos.0, self.mouse_pos.1);
+                            }
+                        } else {
+                            // Défilement 2 doigts pavé tactile = pan continu
+                            self.store.pan(p.x, p.y);
+                        }
                     }
-                };
-                if let Some(board) = self.store.active_board_mut() {
-                    zoom_at(&mut board.viewport, factor, self.mouse_pos.0, self.mouse_pos.1);
                 }
                 self.redraw();
             }
@@ -464,7 +486,9 @@ impl ApplicationHandler for GlucoseApp {
 
                 match button {
                     MouseButton::Right | MouseButton::Middle => {
-                        self.is_panning = state == ElementState::Pressed;
+                        self.right_or_middle_down = state == ElementState::Pressed;
+                        self.is_panning = self.right_or_middle_down;
+                        self.redraw();
                     }
                     MouseButton::Left => {
                         if state == ElementState::Pressed {
@@ -550,16 +574,18 @@ impl ApplicationHandler for GlucoseApp {
                             }
 
                             // Clic sur le canvas
+                            if self.space_pressed || self.ui.active_tool == ActiveTool::Pan {
+                                self.is_panning = true;
+                                return;
+                            }
+
                             let active_bid = self.store.project.active_board_id.clone();
                             let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
                             let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
                             // Outils interactifs
                             match self.ui.active_tool {
-                                ActiveTool::Pan => {
-                                    self.is_panning = true;
-                                    return;
-                                }
+                                ActiveTool::Pan => unreachable!(),
                                 ActiveTool::Text => {
                                     let aid = format!("text-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
                                     let initial_str = "Nouveau texte".to_string();
@@ -782,13 +808,77 @@ impl ApplicationHandler for GlucoseApp {
                             }
                             self.redraw();
                         } else {
+                            if !self.right_or_middle_down {
+                                self.is_panning = false;
+                            }
                             if self.is_dragging_item {
                                 self.is_dragging_item = false;
                                 self.store.end_live_edit();
                                 self.active_guides = SnapGuides::default();
                             }
-                            if self.selection_box.is_some() {
-                                self.selection_box = None;
+                            if let Some((x1, y1, x2, y2)) = self.selection_box.take() {
+                                let sx_min = x1.min(x2);
+                                let sx_max = x1.max(x2);
+                                let sy_min = y1.min(y2);
+                                let sy_max = y1.max(y2);
+
+                                if (sx_max - sx_min) > 3.0 || (sy_max - sy_min) > 3.0 {
+                                    let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
+                                    let (wx1, wy1) = screen_to_world(sx_min, sy_min, &vp);
+                                    let (wx2, wy2) = screen_to_world(sx_max, sy_max, &vp);
+                                    let box_left = wx1.min(wx2);
+                                    let box_right = wx1.max(wx2);
+                                    let box_top = wy1.min(wy2);
+                                    let box_bottom = wy1.max(wy2);
+
+                                    let mut hits_imgs = Vec::new();
+                                    let mut hits_anns = Vec::new();
+
+                                    if let Some(b) = self.store.active_board() {
+                                        for img in &b.images {
+                                            let il = img.x - img.width / 2.0;
+                                            let ir = img.x + img.width / 2.0;
+                                            let it = img.y - img.height / 2.0;
+                                            let ib = img.y + img.height / 2.0;
+                                            if ir >= box_left && il <= box_right && ib >= box_top && it <= box_bottom {
+                                                hits_imgs.push(img.id.clone());
+                                            }
+                                        }
+                                        for ann in &b.annotations {
+                                            let (al, ar, at, ab) = match ann {
+                                                Annotation::Arrow { x, y, x2, y2, .. } => {
+                                                    (x.min(*x2), x.max(*x2), y.min(*y2), y.max(*y2))
+                                                }
+                                                Annotation::Text { x, y, width, height, .. } => {
+                                                    let w = width.unwrap_or(240.0);
+                                                    let h = height.unwrap_or(48.0);
+                                                    (*x, *x + w, *y, *y + h)
+                                                }
+                                                Annotation::Sticky { x, y, width, height, .. } => {
+                                                    let w = width.unwrap_or(180.0);
+                                                    let h = height.unwrap_or(130.0);
+                                                    (*x, *x + w, *y, *y + h)
+                                                }
+                                                Annotation::Membrane { x, y, width, height, .. } => {
+                                                    (*x, *x + *width, *y, *y + *height)
+                                                }
+                                            };
+                                            if ar >= box_left && al <= box_right && ab >= box_top && at <= box_bottom {
+                                                hits_anns.push(ann.id().to_string());
+                                            }
+                                        }
+                                    }
+
+                                    if !self.modifiers.shift_key() {
+                                        self.store.clear_selection();
+                                    }
+                                    for id in hits_imgs {
+                                        self.store.select_image(id, true);
+                                    }
+                                    for id in hits_anns {
+                                        self.store.select_annotation(id, true);
+                                    }
+                                }
                             }
                             self.redraw();
                         }
@@ -895,6 +985,15 @@ impl ApplicationHandler for GlucoseApp {
                     return;
                 }
 
+                if event.logical_key == Key::Named(NamedKey::Space) {
+                    self.space_pressed = event.state == ElementState::Pressed;
+                    if !self.space_pressed && !self.right_or_middle_down && self.ui.active_tool != ActiveTool::Pan {
+                        self.is_panning = false;
+                    }
+                    self.redraw();
+                    return;
+                }
+
                 if event.state == ElementState::Pressed {
                     let ctrl = self.modifiers.control_key();
                     let active_bid = self.store.project.active_board_id.clone();
@@ -905,15 +1004,13 @@ impl ApplicationHandler for GlucoseApp {
                             self.ui.show_toast("🗑 Supprimé");
                             self.redraw();
                         }
-                        Key::Named(NamedKey::Space) => {
-                            self.ui.active_tool = if self.ui.active_tool == ActiveTool::Pan {
-                                ActiveTool::Select
-                            } else {
-                                ActiveTool::Pan
-                            };
-                            self.redraw();
-                        }
                         Key::Character(c) => match c.as_str() {
+                            "h" | "H" => {
+                                if !ctrl {
+                                    self.ui.active_tool = ActiveTool::Pan;
+                                    self.redraw();
+                                }
+                            }
                             "v" | "V" => {
                                 if ctrl {
                                     self.paste_from_clipboard();

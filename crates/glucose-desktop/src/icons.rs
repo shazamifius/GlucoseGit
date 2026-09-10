@@ -91,7 +91,7 @@ pub fn draw_icon_scaled(
     };
 
     let scale = target_size / src_size;
-    let ts = Transform::from_translate(x, y).post_scale(scale, scale);
+    let ts = Transform::from_scale(scale, scale).post_translate(x, y);
 
     let stroke = Stroke {
         width: s_width,

@@ -21,7 +21,7 @@ pub enum ActiveTool {
     Membrane,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UiAction {
     SelectTool(ActiveTool),
     AddImages,
@@ -130,9 +130,265 @@ pub fn render_ui(
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TopbarButtonDef {
+    pub action: UiAction,
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+    pub icon: IconType,
+    pub label: &'static str,
+    pub active: bool,
+    pub is_tool: bool,
+    pub is_collab: bool,
+}
+
+pub struct TopbarLayout {
+    pub buttons: Vec<TopbarButtonDef>,
+    pub separators: Vec<f32>,
+    pub img_badge: Option<(f32, String)>,
+}
+
+pub fn layout_topbar(
+    width: f32,
+    ui: &UiState,
+    _typo: &Typography,
+    board_img_count: usize,
+) -> TopbarLayout {
+    let mut buttons = Vec::new();
+    let mut separators = Vec::new();
+
+    // Responsive design :
+    // - Mode complet : width >= 1320px
+    // - Mode compact : 1050px <= width < 1320px (Plugins, Preset, Domaines en icônes seules)
+    // - Mode ultra-compact : width < 1050px (tous les boutons d'action en icônes seules)
+    let is_compact = width < 1320.0;
+    let is_ultra = width < 1050.0;
+
+    let mut cur_x = 100.0;
+
+    // 1. Outils de base (Select, Pan)
+    buttons.push(TopbarButtonDef {
+        action: UiAction::SelectTool(ActiveTool::Select),
+        x: cur_x,
+        y: 7.0,
+        w: 30.0,
+        h: 30.0,
+        icon: IconType::Select,
+        label: "",
+        active: ui.active_tool == ActiveTool::Select,
+        is_tool: true,
+        is_collab: false,
+    });
+    cur_x += 32.0;
+
+    buttons.push(TopbarButtonDef {
+        action: UiAction::SelectTool(ActiveTool::Pan),
+        x: cur_x,
+        y: 7.0,
+        w: 30.0,
+        h: 30.0,
+        icon: IconType::Pan,
+        label: "",
+        active: ui.active_tool == ActiveTool::Pan,
+        is_tool: true,
+        is_collab: false,
+    });
+    cur_x += 32.0;
+
+    // Séparateur 1
+    separators.push(cur_x + 3.0);
+    cur_x += 9.0;
+
+    // 2. Annotations (Text, Sticky, Arrow, Folder, Membrane)
+    let ann_tools = [
+        (ActiveTool::Text, IconType::Text),
+        (ActiveTool::Sticky, IconType::Sticky),
+        (ActiveTool::Arrow, IconType::Arrow),
+        (ActiveTool::Folder, IconType::Folder),
+        (ActiveTool::Membrane, IconType::Membrane),
+    ];
+    for (t, icon) in ann_tools {
+        buttons.push(TopbarButtonDef {
+            action: UiAction::SelectTool(t),
+            x: cur_x,
+            y: 7.0,
+            w: 30.0,
+            h: 30.0,
+            icon,
+            label: "",
+            active: ui.active_tool == t,
+            is_tool: true,
+            is_collab: false,
+        });
+        cur_x += 32.0;
+    }
+
+    // Séparateur 2
+    separators.push(cur_x + 3.0);
+    cur_x += 9.0;
+
+    // 3. + Images
+    let (img_w, img_label) = if is_ultra { (30.0, "") } else { (78.0, "Images") };
+    buttons.push(TopbarButtonDef {
+        action: UiAction::AddImages,
+        x: cur_x,
+        y: 8.0,
+        w: img_w,
+        h: 28.0,
+        icon: IconType::Plus,
+        label: img_label,
+        active: false,
+        is_tool: false,
+        is_collab: false,
+    });
+    cur_x += img_w + 6.0;
+
+    // Séparateur 3
+    separators.push(cur_x + 1.0);
+    cur_x += 7.0;
+
+    // 4. Ordonner, Timer, Storyboard
+    let panels = [
+        (UiAction::Organize, IconType::Organize, "Ordonner", 84.0f32, false),
+        (UiAction::ToggleTimer, IconType::Timer, "Timer", 66.0f32, false),
+        (UiAction::ToggleStoryboard, IconType::Storyboard, "Storyboard", 96.0f32, false),
+    ];
+    for (act, icon, lbl, full_w, active) in panels {
+        let (btn_w, btn_lbl) = if is_ultra { (30.0, "") } else { (full_w, lbl) };
+        buttons.push(TopbarButtonDef {
+            action: act,
+            x: cur_x,
+            y: 8.0,
+            w: btn_w,
+            h: 28.0,
+            icon,
+            label: btn_lbl,
+            active,
+            is_tool: false,
+            is_collab: false,
+        });
+        cur_x += btn_w + 4.0;
+    }
+
+    // Séparateur 4
+    separators.push(cur_x + 2.0);
+    cur_x += 8.0;
+
+    // 5. Aimant, Trans-domaines
+    let toggles = [
+        (UiAction::ToggleMagnet, IconType::Magnet, "Aimant", 76.0f32, ui.smart_align),
+        (UiAction::ToggleTransDomain, IconType::TransDomain, "Trans-domaines", 118.0f32, ui.trans_domain),
+    ];
+    for (act, icon, lbl, full_w, active) in toggles {
+        let (btn_w, btn_lbl) = if is_ultra { (30.0, "") } else { (full_w, lbl) };
+        buttons.push(TopbarButtonDef {
+            action: act,
+            x: cur_x,
+            y: 8.0,
+            w: btn_w,
+            h: 28.0,
+            icon,
+            label: btn_lbl,
+            active,
+            is_tool: false,
+            is_collab: false,
+        });
+        cur_x += btn_w + 4.0;
+    }
+
+    let left_end = cur_x;
+
+    // 6. Groupe de Droite
+    let (col_w, col_lbl) = if is_ultra { (30.0, "") } else { (96.0, "Collaborer") };
+    let (exp_w, exp_lbl) = if is_ultra { (30.0, "") } else { (84.0, "Exporter") };
+    let (plu_w, plu_lbl) = if is_compact { (30.0, "") } else { (76.0, "Plugins") };
+    let (pre_w, pre_lbl) = if is_compact { (30.0, "") } else { (72.0, "Preset") };
+    let (dom_w, dom_lbl) = if is_compact { (30.0, "") } else { (88.0, "Domaines") };
+
+    let badge_w = if board_img_count > 0 { 42.0 } else { 0.0 };
+    let right_total_w = col_w + 8.0 + exp_w + 8.0 + plu_w + 4.0 + pre_w + 4.0 + dom_w + badge_w + 16.0;
+
+    let right_start = (width - right_total_w - 12.0).max(left_end + 16.0);
+    let mut rx = right_start;
+
+    // Collaborer
+    buttons.push(TopbarButtonDef {
+        action: UiAction::ToggleCollab,
+        x: rx,
+        y: 8.0,
+        w: col_w,
+        h: 28.0,
+        icon: IconType::Collab,
+        label: col_lbl,
+        active: ui.collab_active,
+        is_tool: false,
+        is_collab: true,
+    });
+    rx += col_w + 5.0;
+
+    // Séparateur avant Exporter
+    separators.push(rx + 1.0);
+    rx += 7.0;
+
+    // Exporter
+    buttons.push(TopbarButtonDef {
+        action: UiAction::ExportMenu,
+        x: rx,
+        y: 8.0,
+        w: exp_w,
+        h: 28.0,
+        icon: IconType::Export,
+        label: exp_lbl,
+        active: false,
+        is_tool: false,
+        is_collab: false,
+    });
+    rx += exp_w + 5.0;
+
+    // Séparateur avant Plugins
+    separators.push(rx + 1.0);
+    rx += 7.0;
+
+    // Plugins, Preset, Domaines
+    let right_actions = [
+        (UiAction::TogglePlugins, IconType::Plugins, plu_lbl, plu_w),
+        (UiAction::TogglePreset, IconType::Preset, pre_lbl, pre_w),
+        (UiAction::ToggleDomains, IconType::Domains, dom_lbl, dom_w),
+    ];
+    for (act, icon, lbl, bw) in right_actions {
+        buttons.push(TopbarButtonDef {
+            action: act,
+            x: rx,
+            y: 8.0,
+            w: bw,
+            h: 28.0,
+            icon,
+            label: lbl,
+            active: false,
+            is_tool: false,
+            is_collab: false,
+        });
+        rx += bw + 4.0;
+    }
+
+    let img_badge = if board_img_count > 0 {
+        Some((rx + 4.0, format!("{}img", board_img_count)))
+    } else {
+        None
+    };
+
+    TopbarLayout {
+        buttons,
+        separators,
+        img_badge,
+    }
+}
+
 fn render_topbar(
     pixmap: &mut PixmapMut,
-    _store: &Store,
+    store: &Store,
     ui: &UiState,
     typo: &Typography,
     width: f32,
@@ -157,199 +413,54 @@ fn render_topbar(
     typo.draw_text(
         pixmap,
         "GLUCOSE",
+        12.0,
         14.0,
-        13.0,
-        15.0,
+        14.0,
         Color::from_rgba8(255, 255, 255, 255),
         true,
     );
 
-    let mut cur_x = 108.0;
+    let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
+    let layout = layout_topbar(width, ui, typo, img_count);
 
-    // Groupe Outils de base
-    let tools = [
-        (ActiveTool::Select, IconType::Select, "V"),
-        (ActiveTool::Pan, IconType::Pan, "Espace"),
-    ];
-    for (t, icon, _title) in tools {
-        let is_active = ui.active_tool == t;
-        let is_hovered = mx >= cur_x && mx < cur_x + 30.0 && my >= 7.0 && my < 37.0;
-        draw_tool_button(pixmap, cur_x, 7.0, 30.0, 30.0, icon, is_active, is_hovered);
-        cur_x += 32.0;
+    // Séparateurs (filet 1px #2a2a2a haut 20px)
+    for sep_x in layout.separators {
+        draw_separator(pixmap, sep_x, 12.0);
     }
 
-    cur_x += draw_separator(pixmap, cur_x, 12.0);
-
-    // Groupe Annotations
-    let ann_tools = [
-        (ActiveTool::Text, IconType::Text, "T"),
-        (ActiveTool::Sticky, IconType::Sticky, "N"),
-        (ActiveTool::Arrow, IconType::Arrow, "A"),
-        (ActiveTool::Folder, IconType::Folder, "F"),
-        (ActiveTool::Membrane, IconType::Membrane, "M"),
-    ];
-    for (t, icon, _title) in ann_tools {
-        let is_active = ui.active_tool == t;
-        let is_hovered = mx >= cur_x && mx < cur_x + 30.0 && my >= 7.0 && my < 37.0;
-        draw_tool_button(pixmap, cur_x, 7.0, 30.0, 30.0, icon, is_active, is_hovered);
-        cur_x += 32.0;
+    // Boutons
+    for btn in &layout.buttons {
+        let is_hover = mx >= btn.x && mx < btn.x + btn.w && my >= btn.y && my < btn.y + btn.h;
+        if btn.is_tool {
+            draw_tool_button(pixmap, btn.x, btn.y, btn.w, btn.h, btn.icon, btn.active, is_hover);
+        } else {
+            draw_action_button(pixmap, typo, btn.x, btn.y, btn.w, btn.h, btn.icon, btn.label, btn.active, is_hover);
+            if btn.is_collab && ui.collab_active {
+                // Pastille verte #10b981
+                let mut dot_paint = Paint::default();
+                dot_paint.set_color(Color::from_rgba8(16, 185, 129, 255));
+                dot_paint.anti_alias = true;
+                let mut dot_pb = PathBuilder::new();
+                dot_pb.push_circle(btn.x + 18.0, btn.y + 7.0, 3.0);
+                if let Some(p) = dot_pb.finish() {
+                    pixmap.fill_path(&p, &dot_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                }
+            }
+        }
     }
 
-    cur_x += draw_separator(pixmap, cur_x, 12.0);
-
-    // Bouton + Images
-    let img_hover = mx >= cur_x && mx < cur_x + 85.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        cur_x,
-        7.0,
-        85.0,
-        30.0,
-        IconType::Plus,
-        "Images",
-        false,
-        img_hover,
-    );
-    cur_x += 92.0;
-
-    cur_x += draw_separator(pixmap, cur_x, 12.0);
-
-    // Boutons de navigation & organisation
-    let actions = [
-        ("Ordonner", IconType::Organize, false),
-        ("Timer", IconType::Timer, false),
-        ("Storyboard", IconType::Storyboard, false),
-    ];
-    for (label, icon, active) in actions {
-        let (tw, _) = typo.measure_text(label, 12.0, false);
-        let btn_w = tw + 32.0;
-        let is_hover = mx >= cur_x && mx < cur_x + btn_w && my >= 7.0 && my < 37.0;
-        draw_action_button(pixmap, typo, cur_x, 7.0, btn_w, 30.0, icon, label, active, is_hover);
-        cur_x += btn_w + 6.0;
+    // Badge nombre d'images à droite
+    if let Some((badge_x, ref badge_txt)) = layout.img_badge {
+        typo.draw_text(
+            pixmap,
+            badge_txt,
+            badge_x,
+            16.0,
+            11.0,
+            Color::from_rgba8(75, 75, 80, 255),
+            false,
+        );
     }
-
-    cur_x += draw_separator(pixmap, cur_x, 12.0);
-
-    // Toggle Aimant SNAP-1
-    let aimant_hover = mx >= cur_x && mx < cur_x + 80.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        cur_x,
-        7.0,
-        80.0,
-        30.0,
-        IconType::Magnet,
-        "Aimant",
-        ui.smart_align,
-        aimant_hover,
-    );
-    cur_x += 86.0;
-
-    // Toggle Trans-domaines
-    let td_hover = mx >= cur_x && mx < cur_x + 120.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        cur_x,
-        7.0,
-        120.0,
-        30.0,
-        IconType::TransDomain,
-        "Trans-domaines",
-        ui.trans_domain,
-        td_hover,
-    );
-
-    // Côté droit
-    let mut right_x = width - 14.0;
-
-    // Domaines
-    right_x -= 88.0;
-    let dom_hover = mx >= right_x && mx < right_x + 88.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        right_x,
-        7.0,
-        88.0,
-        30.0,
-        IconType::Domains,
-        "Domaines",
-        false,
-        dom_hover,
-    );
-
-    // Preset
-    right_x -= 78.0;
-    let pre_hover = mx >= right_x && mx < right_x + 78.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        right_x,
-        7.0,
-        78.0,
-        30.0,
-        IconType::Preset,
-        "Preset",
-        false,
-        pre_hover,
-    );
-
-    // Plugins
-    right_x -= 82.0;
-    let plu_hover = mx >= right_x && mx < right_x + 82.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        right_x,
-        7.0,
-        82.0,
-        30.0,
-        IconType::Plugins,
-        "Plugins",
-        false,
-        plu_hover,
-    );
-
-    right_x -= 12.0;
-    draw_separator(pixmap, right_x, 12.0);
-
-    // Exporter
-    right_x -= 90.0;
-    let exp_hover = mx >= right_x && mx < right_x + 90.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        right_x,
-        7.0,
-        90.0,
-        30.0,
-        IconType::Export,
-        "Exporter",
-        false,
-        exp_hover,
-    );
-
-    right_x -= 12.0;
-    draw_separator(pixmap, right_x, 12.0);
-
-    // Collaborer
-    right_x -= 100.0;
-    let col_hover = mx >= right_x && mx < right_x + 100.0 && my >= 7.0 && my < 37.0;
-    draw_action_button(
-        pixmap,
-        typo,
-        right_x,
-        7.0,
-        100.0,
-        30.0,
-        IconType::Collab,
-        "Collaborer",
-        ui.collab_active,
-        col_hover,
-    );
 }
 
 fn render_board_tabs(
@@ -478,7 +589,7 @@ fn draw_tool_button(
     let bg_color = if active {
         Color::from_rgba8(45, 45, 45, 255)
     } else if hover {
-        Color::from_rgba8(35, 35, 38, 255)
+        Color::from_rgba8(34, 34, 37, 255)
     } else {
         Color::TRANSPARENT
     };
@@ -496,7 +607,7 @@ fn draw_tool_button(
 
     if active {
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(75, 75, 82, 255));
+        sp.set_color(Color::from_rgba8(68, 68, 68, 255));
         sp.anti_alias = true;
         let stroke = Stroke { width: 1.0, ..Default::default() };
         let mut pb = PathBuilder::new();
@@ -509,12 +620,14 @@ fn draw_tool_button(
     let icon_color = if active {
         Color::from_rgba8(255, 255, 255, 255)
     } else if hover {
-        Color::from_rgba8(220, 220, 220, 255)
+        Color::from_rgba8(204, 204, 204, 255)
     } else {
-        Color::from_rgba8(130, 130, 135, 255)
+        Color::from_rgba8(115, 115, 120, 255)
     };
 
-    draw_icon(pixmap, icon, x + 8.0, y + 8.0, icon_color, 1.4);
+    let icon_x = x + (w - 14.0) / 2.0;
+    let icon_y = y + (h - 14.0) / 2.0;
+    draw_icon(pixmap, icon, icon_x, icon_y, icon_color, 1.4);
 }
 
 fn draw_action_button(
@@ -532,7 +645,7 @@ fn draw_action_button(
     let bg_color = if active {
         Color::from_rgba8(45, 45, 45, 255)
     } else if hover {
-        Color::from_rgba8(35, 35, 38, 255)
+        Color::from_rgba8(34, 34, 37, 255)
     } else {
         Color::TRANSPARENT
     };
@@ -550,7 +663,7 @@ fn draw_action_button(
 
     if active {
         let mut sp = Paint::default();
-        sp.set_color(Color::from_rgba8(75, 75, 82, 255));
+        sp.set_color(Color::from_rgba8(68, 68, 68, 255));
         sp.anti_alias = true;
         let stroke = Stroke { width: 1.0, ..Default::default() };
         let mut pb = PathBuilder::new();
@@ -561,15 +674,22 @@ fn draw_action_button(
     }
 
     let color = if active {
-        Color::from_rgba8(245, 245, 245, 255)
+        Color::from_rgba8(255, 255, 255, 255)
     } else if hover {
-        Color::from_rgba8(220, 220, 220, 255)
+        Color::from_rgba8(204, 204, 204, 255)
     } else {
-        Color::from_rgba8(140, 140, 145, 255)
+        Color::from_rgba8(115, 115, 120, 255)
     };
 
-    draw_icon(pixmap, icon, x + 8.0, y + 8.0, color, 1.3);
-    typo.draw_text(pixmap, label, x + 26.0, y + 9.0, 12.0, color, active);
+    if label.is_empty() {
+        let icon_x = x + (w - 14.0) / 2.0;
+        let icon_y = y + (h - 14.0) / 2.0;
+        draw_icon(pixmap, icon, icon_x, icon_y, color, 1.3);
+    } else {
+        let icon_y = y + (h - 14.0) / 2.0;
+        draw_icon(pixmap, icon, x + 8.0, icon_y, color, 1.3);
+        typo.draw_text(pixmap, label, x + 26.0, y + 7.5, 12.0, color, active);
+    }
 }
 
 fn render_minimap(pixmap: &mut PixmapMut, store: &Store, w: f32, h: f32) {
@@ -730,101 +850,30 @@ pub fn handle_ui_click(
     typo: &Typography,
 ) -> Option<UiAction> {
     if y < TOPBAR_HEIGHT {
-        // Clic sur la TopBar
-        let mut cur_x = 108.0;
-
-        // Outils
-        if x >= cur_x && x < cur_x + 30.0 {
-            ui.active_tool = ActiveTool::Select;
-            return Some(UiAction::SelectTool(ActiveTool::Select));
-        }
-        cur_x += 32.0;
-        if x >= cur_x && x < cur_x + 30.0 {
-            ui.active_tool = ActiveTool::Pan;
-            return Some(UiAction::SelectTool(ActiveTool::Pan));
-        }
-        cur_x += 32.0 + 9.0;
-
-        // Annotations
-        let ann_tools = [
-            ActiveTool::Text,
-            ActiveTool::Sticky,
-            ActiveTool::Arrow,
-            ActiveTool::Folder,
-            ActiveTool::Membrane,
-        ];
-        for t in ann_tools {
-            if x >= cur_x && x < cur_x + 30.0 {
-                ui.active_tool = t;
-                return Some(UiAction::SelectTool(t));
+        let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
+        let layout = layout_topbar(screen_w, ui, typo, img_count);
+        for btn in layout.buttons {
+            if x >= btn.x && x < btn.x + btn.w && y >= btn.y && y < btn.y + btn.h {
+                match btn.action {
+                    UiAction::SelectTool(tool) => {
+                        ui.active_tool = tool;
+                    }
+                    UiAction::ToggleMagnet => {
+                        ui.smart_align = !ui.smart_align;
+                        ui.show_toast(if ui.smart_align { "✨ Aimant activé" } else { "Aimant désactivé" });
+                    }
+                    UiAction::ToggleTransDomain => {
+                        ui.trans_domain = !ui.trans_domain;
+                        ui.show_toast(if ui.trans_domain { "🌌 Trans-domaines activé" } else { "Trans-domaines désactivé" });
+                    }
+                    UiAction::ToggleCollab => {
+                        ui.collab_active = !ui.collab_active;
+                        ui.show_toast(if ui.collab_active { "🌐 Collaboration connectée" } else { "Collaboration déconnectée" });
+                    }
+                    _ => {}
+                }
+                return Some(btn.action);
             }
-            cur_x += 32.0;
-        }
-
-        cur_x += 9.0;
-
-        // + Images
-        if x >= cur_x && x < cur_x + 85.0 {
-            return Some(UiAction::AddImages);
-        }
-        cur_x += 92.0 + 9.0;
-
-        // Ordonner, Timer, Storyboard
-        let actions = [
-            ("Ordonner", UiAction::Organize),
-            ("Timer", UiAction::ToggleTimer),
-            ("Storyboard", UiAction::ToggleStoryboard),
-        ];
-        for (label, act) in actions {
-            let (tw, _) = typo.measure_text(label, 12.0, false);
-            let btn_w = tw + 32.0;
-            if x >= cur_x && x < cur_x + btn_w {
-                return Some(act);
-            }
-            cur_x += btn_w + 6.0;
-        }
-
-        cur_x += 9.0;
-
-        // Aimant SNAP-1
-        if x >= cur_x && x < cur_x + 80.0 {
-            ui.smart_align = !ui.smart_align;
-            ui.show_toast(if ui.smart_align { "✨ Aimant activé" } else { "Aimant désactivé" });
-            return Some(UiAction::ToggleMagnet);
-        }
-        cur_x += 86.0;
-
-        // Trans-domaines
-        if x >= cur_x && x < cur_x + 120.0 {
-            ui.trans_domain = !ui.trans_domain;
-            return Some(UiAction::ToggleTransDomain);
-        }
-
-        // Côté droit
-        let mut right_x = screen_w - 14.0;
-        right_x -= 88.0;
-        if x >= right_x && x < right_x + 88.0 {
-            return Some(UiAction::ToggleDomains);
-        }
-        right_x -= 78.0;
-        if x >= right_x && x < right_x + 78.0 {
-            return Some(UiAction::TogglePreset);
-        }
-        right_x -= 82.0;
-        if x >= right_x && x < right_x + 82.0 {
-            return Some(UiAction::TogglePlugins);
-        }
-        right_x -= 12.0;
-        right_x -= 90.0;
-        if x >= right_x && x < right_x + 90.0 {
-            return Some(UiAction::ExportMenu);
-        }
-        right_x -= 12.0;
-        right_x -= 100.0;
-        if x >= right_x && x < right_x + 100.0 {
-            ui.collab_active = !ui.collab_active;
-            ui.show_toast(if ui.collab_active { "🌐 Collaboration connectée" } else { "Collaboration déconnectée" });
-            return Some(UiAction::ToggleCollab);
         }
     } else if y >= TOPBAR_HEIGHT && y < TOTAL_HEADER_HEIGHT {
         // Clic sur la BoardTabs bar
@@ -859,4 +908,63 @@ pub fn handle_ui_click(
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::typography::Typography;
+
+    #[test]
+    fn test_topbar_no_overlap_across_all_resolutions() {
+        let ui = UiState::new();
+        let typo = Typography::new();
+        let test_widths = [640.0, 800.0, 1024.0, 1280.0, 1440.0, 1920.0, 2560.0, 3840.0];
+
+        for width in test_widths {
+            let layout = layout_topbar(width, &ui, &typo, 5);
+            assert!(!layout.buttons.is_empty(), "Buttons should not be empty for width {}", width);
+
+            // Vérifier que chaque bouton a une largeur et hauteur positive
+            for btn in &layout.buttons {
+                assert!(btn.w > 0.0, "Button width must be positive for width {}", width);
+                assert!(btn.h > 0.0, "Button height must be positive for width {}", width);
+            }
+
+            // Vérifier qu'aucun bouton ne se chevauche
+            for i in 0..layout.buttons.len() {
+                for j in (i + 1)..layout.buttons.len() {
+                    let b1 = &layout.buttons[i];
+                    let b2 = &layout.buttons[j];
+                    let overlap_x = b1.x < (b2.x + b2.w) && (b1.x + b1.w) > b2.x;
+                    let overlap_y = b1.y < (b2.y + b2.h) && (b1.y + b1.h) > b2.y;
+                    assert!(
+                        !(overlap_x && overlap_y),
+                        "Collision detected at screen width {} between button {} and button {} (b1: [{}, {}], b2: [{}, {}])",
+                        width, i, j, b1.x, b1.x + b1.w, b2.x, b2.x + b2.w
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_topbar_responsive_collapse() {
+        let ui = UiState::new();
+        let typo = Typography::new();
+
+        // Mode ultra-compact (< 1050px) : les boutons d'action doivent être réduits à 30px
+        let layout_ultra = layout_topbar(900.0, &ui, &typo, 0);
+        for btn in &layout_ultra.buttons {
+            if btn.label.is_empty() {
+                assert_eq!(btn.w, 30.0);
+            }
+        }
+
+        // Mode complet (> 1320px) : les boutons secondaires ont leurs labels
+        let layout_full = layout_topbar(1600.0, &ui, &typo, 2);
+        let plugins_btn = layout_full.buttons.iter().find(|b| b.action == UiAction::TogglePlugins).unwrap();
+        assert_eq!(plugins_btn.label, "Plugins");
+        assert!(plugins_btn.w > 30.0);
+    }
 }
