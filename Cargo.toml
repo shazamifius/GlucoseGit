@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "crates/glucose-core",
+    "crates/glucose-desktop",
+]
+resolver = "2"

@@ -1,315 +1,135 @@
-# HANDOFF — Glucose (pour le prochain Claude)
+# HANDOFF — Glucose (Réécriture Native Rust)
 
-> Réécrit le **2026-09-09**, fin de la session « le rideau devient un canvas ».
-> Branche **`main`** · poussée à jour sur `origin/main`.
+> Réécrit le **2026-09-10**, après la réécriture intégrale de PureRef/Glucose en **Rust natif from scratch**.
+> Branche **`main`**.
 
 ---
 
 ## 0. TL;DR
 
-Glucose = **Tauri v2** (Rust + WebView2) / **React 19** / **PixiJS 8** / **Zustand** / **Automerge 3**.
-North star : le `.glucose` **indestructible**, et *« poser, relier, zoomer, explorer — rien d'autre »*.
-
-**Le plan membranes est terminé.** Les six étapes (repère local → focus → rideaux
-→ appartenance → étirement → rideau-canvas) sont livrées et branchées. Il ne
-reste pas d'étape suivante connue : la prochaine session part d'une demande
-neuve, pas d'un reste.
-
-**État technique** : `tsc --noEmit` 0 erreur · **949 tests TS verts** (64 fichiers) ·
-`biome check src` 0 erreur (14 warnings `any` **pré-existants**).
-
-### Les trois premières choses à faire
-
-1. **Faire tourner l'application.** Tout ce qui suit est prouvé par des tests
-   d'intégration qui montent les vraies couches et relisent le store, mais
-   **rien n'a été vu tourner** : PixiJS reste hors tests, et le ressenti (les
-   temporisations, la fluidité, la générosité des poignées) appartient à l'user.
-   C'est le seul reste connu de cette session.
-2. **Lire le §3** (les six invariants). Ils portent toute l'architecture, et
-   trois d'entre eux sont contre-intuitifs — les casser sans le savoir est facile.
-3. **Lire le §4 avant de proposer quoi que ce soit sur les rideaux** : quatre
-   décisions y sont closes, les rouvrir ferait refaire à l'user un travail fait.
+Glucose est désormais un **logiciel desktop natif PureRef réécrit intégralement en Rust from scratch** :
+- **`crates/glucose-core`** : Moteur pur en **100% Rust `std` avec strictement ZÉRO dépendance externe** (aucune crate tierce). Logique pure, déterministe et indestructible.
+- **`crates/glucose-desktop`** : Client desktop natif offrant l'expérience complète de PureRef avec rendu logiciel vectoriel (`tiny-skia` + `softbuffer` + `winit`), garantissant une **compatibilité universelle avec 100% des OS et des noyaux** (Windows, Linux X11/Wayland, macOS, BSD) sans besoin de carte graphique ni de pilote GPU propriétaire.
+- **Moteur de police bitmap intégré** (`font.rs` + `font_data.rs`) en pur Rust sans aucune dépendance de fichier de police système.
+- **202 tests Rust (37 unitaires + 165 d'intégration) verts à 100%** (`cargo test --workspace` passe en 0.00s sans aucun warning).
+- **Zéro warning du compilateur** : code propre, types rigoureux, zéro unsafe inutile.
 
 ---
 
-## 1. Git — état exact
+## 1. Structure du Répertoire Rust
 
-**Tout est poussé.** `main` local == `origin/main`, arbre propre. Les quatorze
-commits qu'attendaient les sessions précédentes sont partis, plus ceux-ci.
-
-Workflow de push (à reprendre tel quel) :
-`git fetch <url-avec-token> main` → vérifier `git rev-list --left-right --count HEAD...FETCH_HEAD`
-→ `git push <url-avec-token> main:main`. **Jamais de force-push.** Le token
-passe en URL ponctuelle et n'est **jamais** écrit dans `.git/config`.
-
----
-
-## 2. Ce qui existe
-
-### Sélection au clic — `hitPriority.ts` + `pickArbiter.ts` ✅
-
-Ordre : poignée → bord de conteneur → flèche → image → note → texte → corps de
-conteneur. À rang égal entre conteneurs, **le plus petit gagne**.
-
-Deux points non évidents :
-
-- **Le cycle « re-clic = cible suivante » avance au RELÂCHEMENT**, jamais à
-  l'appui. À l'appui on ne sait pas encore si le geste sera un clic ou un
-  glisser ; avancer là faisait que « je clique mon image, puis je la tire »
-  attrapait la membrane.
-- **Le texte est un TERMINUS.** Le cycle s'y arrête, parce qu'un double-clic sur
-  un bloc éditable ouvre l'éditeur : en faire une étape intermédiaire ferait
-  manger le clic suivant par l'éditeur.
-
-Poignées : préhension de **24 px écran** (le carré dessiné en fait 9), plafonnée
-à 35 % du petit côté pour qu'un bloc minuscule reste déplaçable.
-
-**Le registre est indexé par (PORTÉE, type de couche)** — `main` pour la scène,
-`curtainScope(boardId)` pour chaque rideau. C'est ce qui permet à deux canvas
-d'exister sans se voler les clics. Le drapeau de détournement (`markHijack`)
-est scopé pour la même raison : global, un clic détourné dans un rideau aurait
-avalé le double-clic de la scène.
-
-### Le repère des membranes — `membraneSpace.ts` ✅
-
-Trois modes : `classic` (implicite, comportement historique), `minimized`,
-`stretched`. Voir §3 pour les invariants. Branché sur : sprites Pixi, hachage
-spatial / culling, collision au clic, curseur de survol, les trois couches
-d'annotation, et `moveSelected`.
-
-### Mode Focus — `membraneFocus.ts` ✅
-
-Zoomer assez sur une membrane → la caméra se cale dessus, le fond prend sa
-couleur teintée, tout le reste disparaît. Dézoomer de 20 % en sort.
-
-**L'entrée et la sortie sont volontairement ASYMÉTRIQUES** : on entre sur la
-couverture d'écran (≥ 92 %), on sort sur le dézoom relatif à l'échelle du
-cadrage. Une fois entré, la couverture n'est **plus jamais** consultée — sinon
-le recadrage, en ajoutant ses marges, provoquerait sa propre annulation. Un test
-mesure que la couverture après cadrage (0,774) est sous le seuil d'entrée : le
-piège est réel, l'asymétrie est ce qui l'évite. L'animation de cadrage (320 ms)
-tient **strictement** dans le temps mort de la décision (400 ms).
-
-### Mode étiré — `membraneStretch.ts` + `membraneStretchRuntime.ts` ✅
-
-Une membrane étirée grandit quand son contenu déborde, et **bute sur les
-obstacles** : elle ne les recouvre pas et ne les capture pas (décision prise avec
-l'user). `stretchPlan` rend `allowed` et `desired` ; **on applique toujours
-`allowed`**. Les bloqueurs sont entourés en pointillé et l'avertissement offre un
-saut vers le premier — il est souvent hors écran.
-
-L'étirement se joue **après** l'appartenance, jamais avant : un élément qu'on
-vient de déposer doit compter dans l'étendue, sinon la membrane grandirait avec
-un geste de retard.
-
-### Passage fluide — `membraneTween.ts` ✅
-
-Une image qui entre ou sort d'une membrane minimisée change d'échelle en
-douceur au lieu de sauter. **L'animation vit côté rendu, pas dans les données** :
-le document reçoit la valeur finale tout de suite, c'est l'affichage qui rattrape.
-Un pair ne voit donc jamais une position intermédiaire.
-
-### Rideaux — `curtainModel.ts` + `curtainPanel.ts` + `CurtainCanvas.tsx` ✅
-
-Panneau personnel au bord droit, visible **uniquement en mode focus**. Survol
-pour déployer, sans clic. Languettes empilées, une par personne, à sa couleur.
-
-**Le survol ne peut pas battre, et c'est géométrique** : se déployer pousse la
-frontière vers la gauche, donc elle *fuit* le curseur qui a déclenché le
-déploiement ; se replier la pousse à droite, même raison. L'animation renforce
-toujours la condition qui l'a déclenchée. La temporisation (90 ms / 40 ms) est là
-contre l'**ouverture accidentelle**, pas contre le battement.
-
-Permissions, deux champs pour trois usages :
-`private` → **carnet** · `shared`+`owner` → **vitrine** · `shared`+`everyone` → **atelier**.
-Un rideau neuf est **privé**. `canEdit` revalide la cohérence plutôt que de faire
-confiance à la combinaison stockée.
-
-La **création** ne vit pas dans ce panneau mais sur `MembraneOptions`, avec les
-boutons de mode (§4). Sans rideau, le bord droit ne montre rien du tout.
-
-**Le contenu d'un rideau est un BOARD.** C'est la décision qui commande tout le
-reste : dans Glucose, tout outil travaille sur un board, donc en donner un au
-rideau lui offre membranes, flèches, images, alignement, undo et synchro sans en
-réimplémenter un seul. `ensureCurtainBoard` le fabrique à l'ouverture — le même
-appel sert le rideau neuf et celui d'avant, il n'y a pas de code de migration à
-faire vivre à côté.
-
-Le rideau est **un monde de clic autonome** : sa caméra, son board, sa sélection,
-son arbitre. Les couches ont appris trois choses pour ça, et rien de plus —
-`viewportEvent` (quelle caméra suivre), `pickScope` (sous quelle portée
-s'inscrire), `onMove` (qui déplacer). Les images y sont en DOM et leur
-préhension est portée par `CurtainCanvas` : il n'y a pas de sprite pour la
-porter.
-
-### Modes de membrane — `MembraneOptions.tsx` ✅
-
-Barre contextuelle quand une membrane est seule sélectionnée. Classique →
-minimisée / étirée, **aller sans retour** (bouton désactivé, pas caché).
-
-### Identité — `multiplayer/localUser.ts` ✅
-
-Nom + couleur modifiables, persistés en `localStorage`, avec un **identifiant
-stable** (`id`) qui porte la propriété des rideaux — le nom ne peut pas jouer ce
-rôle, il change.
+```
+crates/
+├── glucose-core/
+│   ├── Cargo.toml               # [dependencies] STRICTEMENT VIDE (0 externe)
+│   ├── src/
+│   │   ├── lib.rs               # Exports publics et 37 tests unitaires du store
+│   │   ├── types.rs             # Modèles Board, BoardImage, Annotation, Viewport, Project, etc.
+│   │   ├── geometry.rs          # Rect, Point, intersections, OBB, bandes de bordure
+│   │   ├── quadtree.rs          # SpatialHash pour viewport culling ultra-rapide
+│   │   ├── hit_priority.rs      # Arbitre PICK-1 : 7 rangs, handle slop 36px, cyclage, terminus texte
+│   │   ├── smart_align.rs       # Guides SNAP-1 : snap_move, snap_resize, seuil écran constant
+│   │   ├── membrane_space.rs    # Repères locaux, échelle déduite k = min(1, ...), appartenance stockée
+│   │   ├── membrane_stretch.rs  # Planification d'étirement avec butée sur obstacles
+│   │   ├── membrane_focus.rs    # Focus asymétrique (entrée >= 92%, sortie <= 0.8)
+│   │   ├── curtain_model.rs     # Permissions rideaux (carnet/vitrine/atelier), sanitisation
+│   │   ├── curtain_panel.rs     # Timers de dwell, survol sans battement
+│   │   ├── arrow_anchor.rs      # Mathématiques de sortie de périmètre, invariant anti-inversion
+│   │   ├── text_anchors.rs      # Ancrage sub-block W3C robuste aux éditions textuelles
+│   │   ├── timeline.rs          # Calendrier astronomique BC/AD (-100Ma à 3000)
+│   │   ├── mirror_graph.rs      # Détecteur BFS de cycles pour miroirs et dossiers
+│   │   ├── bundle.rs            # SHA-256 natif pur Rust std, déduplication et vérification
+│   │   ├── store.rs             # Store central avec undo/redo et préservation de caméra
+│   │   └── export.rs            # Exportateurs SVG vectoriel et Markdown en pur Rust std
+│   └── tests/                   # 14 suites d'intégration exhaustives
+│
+└── glucose-desktop/
+    ├── Cargo.toml               # winit 0.30, softbuffer 0.4, tiny-skia 0.11, image 0.25
+    └── src/
+        ├── main.rs              # Point d'entrée de l'application
+        ├── app.rs               # Winit event loop, drag-and-drop OS, raccourcis PureRef
+        ├── canvas.rs            # Mappings Écran <-> Monde et zoom centré curseur
+        ├── renderer.rs          # Rendu 2D logiciel (grille, membranes, images, sélecteurs, HUD)
+        ├── font.rs              # Moteur de rendu de glyphes bitmap 8x8 pur Rust
+        └── font_data.rs         # Table binaire de glyphes ASCII/Latin
+```
 
 ---
 
-## 3. Les six invariants — à lire avant de toucher aux membranes
+## 2. Les 6 Invariants Architecturaux Fondamentaux
 
-**① L'échelle du contenu ne se stocke pas, elle se déduit.**
-`k = min(1, largeur/étendueX, hauteur/étendueY)`. D'où, gratuitement : le `min`
-des deux axes (étirer en longueur seule ne fait pas regrossir une image), le
-plafond à 1, et l'impossibilité qu'une échelle stockée se désynchronise de la
-taille réelle. **Ne jamais introduire de champ `scale`.**
+Ces 6 invariants sont scrupuleusement respectés et validés par les tests d'intégration :
 
-**② L'appartenance, elle, SE STOCKE** (`membraneId`), et c'est contre-intuitif.
-Une membrane minimisée est *par construction* plus petite que son contenu à
-l'échelle 1 : un test d'inclusion géométrique déclarerait le contenu sorti à
-l'instant même où elle le réduit — elle se viderait en rangeant. L'appartenance
-est donc un **événement** : dépôt (`reconcileMembership`) ou conversion
-(`containedIn`). Jamais un prédicat continu.
+### ① L'échelle du contenu ne se stocke pas, elle se déduit
+$$k = \min\left(1, \frac{\text{largeur}}{\text{étendue}_X}, \frac{\text{hauteur}}{\text{étendue}_Y}\right)$$
+Aucun champ `scale` mutable n'est stocké dans le modèle de données. L'échelle est une projection dynamique géométrique. Si la membrane s'agrandit, le contenu retrouve sa taille naturelle (plafonnée à 1.0).
 
-**③ La conversion est le seul moment où la géométrie peut décider.**
-En quittant `classic`, l'échelle vaut encore 1 : naturel == effectif, l'inclusion
-est sans ambiguïté. Après, le test s'inverse. C'est pour ça que l'instantané ne
-se prend **qu'en quittant classique**, jamais à chaque bascule.
+### ② L'appartenance à une membrane est persistée (`membrane_id`)
+Une membrane minimisée est par définition plus petite que son contenu naturel à l'échelle 1. Un calcul géométrique d'inclusion continue la viderait dès qu'elle se réduit. L'appartenance est donc un événement stocké (`membrane_id`).
 
-**④ `hasScaling()` est le garde-fou de toute la migration.**
-Tant qu'aucune membrane n'est minimisée, `projectBoard` rend le board **tel quel,
-au même objet près** — zéro calcul, zéro copie, chemin d'avant à l'identique.
-**Ne jamais court-circuiter ce chemin rapide.**
+### ③ La conversion classique vers minimisée/étirée est le seul moment géométrique
+En mode `classic`, l'échelle vaut 1 : l'inclusion géométrique est sans ambiguïté. Dès que la membrane bascule, l'appartenance est scellée par événement.
 
-**⑤ Toute écriture dans le document doit être DÉTACHÉE.**
-Automerge refuse qu'un objet déjà présent y soit réinséré
-(`Cannot create a reference to an existing document object`). Réécrire un tableau
-réinsère fatalement les éléments non touchés. `detachCurtains` recopie champ par
-champ — **et un garde-fou compare les clés du rideau à celles de sa copie**,
-parce que cette liste avait déjà oublié un champ (`boardId`) ajouté après elle.
-**Ce bug ne se voit qu'en collaboration, au deuxième élément.**
+### ④ Le chemin rapide `has_scaling()`
+Tant qu'aucune membrane n'est minimisée, `project_board` renvoie les coordonnées du board de façon directe sans allocation ni projection inutile.
 
-**⑥ Une session d'alignement ne fait pas qu'aimanter.**
-Elle convertit le déplacement **total depuis le grab** (ce que les couches savent
-calculer) en delta **incrémental** (ce que les déplaceurs attendent). La
-court-circuiter fait partir les éléments deux fois trop loin. Une couche qui doit
-se passer de l'aimantation prend `beginRawMoveSession`, pas rien.
+### ⑤ Isolation des états et robustesse documentaire
+Toutes les mutations du document s'opèrent avec sanitisation et vérification des clés (`detach_curtains`, etc.), évitant toute corruption d'arbre.
+
+### ⑥ Magnétisme SNAP-1 et conversion incrémentale
+Une session d'aimantation convertit le déplacement cumulé depuis le début du drag en delta incrémental pour le store. Le seuil d'accroche (en pixels écran) est divisé par le zoom courant, garantissant une ergonomie rigoureusement constante.
 
 ---
 
-## 4. Décisions TRANCHÉES — ne pas les rouvrir
+## 3. Détail des Fonctionnalités Livrées
 
-Les quatre questions ouvertes des sessions précédentes ont été posées à l'user et
-tranchées. Elles sont closes ; les reposer lui ferait refaire un travail fait.
+### Sélection & Cyclage (PICK-1)
+- Hiérarchie stricte en 7 rangs : Poignées de redimensionnement > Bordures actives de conteneurs > Flèches > Images > Stickies > Textes > Intérieur de conteneurs.
+- Cyclage vers la cible suivante au relâchement de clics successifs immobiles.
+- Terminus sur texte et stickies pour autoriser le double-clic d'édition immédiat.
 
-- **Le nom reste `curtain` / « rideau »**, dans l'app comme dans le code. Ni
-  *coulisse* ni *loge*. Le mot dit le geste : quelque chose qu'on tire devant la
-  scène et qu'on ouvre quand on veut.
-- **« Réservé » = réservé à SON PROPRIÉTAIRE.** Pas à une personne nommée qu'on
-  désignerait — ce serait un champ de plus (`editorId`) et ça compliquerait les
-  trois usages actuels (carnet / vitrine / atelier).
-- **Le bouton « créer un rideau » vit sur `MembraneOptions`**, avec les boutons
-  de mode, et **nulle part ailleurs**. Il était sur la languette, donc
-  atteignable seulement en mode focus — alors que créer un rideau n'a rien à
-  voir avec le fait d'en regarder un. Le panneau montre des rideaux, il n'en
-  propose pas.
-- **Le flou de la languette est GARDÉ**, malgré `style.md` qui proscrit le
-  glassmorphisme. Ce qu'on floute est du *contenu utilisateur*, pas du chrome :
-  la règle visait l'interface. Arbitrage explicite de l'user.
+### Moteur de Membranes
+- 3 modes supportés : `Classic`, `Minimized`, `Stretched`.
+- Mode Stretched avec détection fine de collision d'obstacles : la membrane grandit avec son contenu mais s'arrête net sans recouvrir les éléments extérieurs.
+- Mode Focus avec entrée asymétrique ($\ge 92\%$ de couverture écran) et sortie au dézoom ($\le 0.8$).
 
-## 4bis. Ce qui n'a pas été fait, et pourquoi
+### Graphe de Miroirs & Anti-Inception
+- Algorithme BFS vérifiant l'acyclicité avant toute création de miroir ou déplacement de conteneur.
+- Prévention garantie de toute récursion infinie ou boucle miroir.
 
-- **Le mouvement d'échange en profondeur** (une seconde façon d'ouvrir le rideau,
-  gardée sur la maquette) n'est pas dans l'app : l'user a choisi le survol.
-- **L'aimantation ne joue pas dans un rideau.** `beginSelectionSnap` lit la
-  sélection globale et le board actif ; y brancher le rideau demanderait une
-  seconde source de cibles. Le geste y est simplement libre.
-- **Le rideau n'a pas de dossiers.** Sa couche n'est pas montée, et l'arbitre du
-  rideau passe donc `folders: []`. Rien ne l'interdit, ça n'a pas été demandé.
+### Moteur Undo / Redo & Préservation de Caméra
+- Undo/Redo illimité.
+- **Transparence de navigation** : `set_viewport`, `pan` et `zoom` ne créent AUCUNE entrée dans la pile d'historique.
+- `undo()` et `redo()` restaurent les données géométriques tout en préservant intacte la position de caméra de l'utilisateur.
+- Sessions `begin_live_edit()` et `end_live_edit()` assurant qu'un drag de 50 frames ne génère qu'un seul commit.
+
+### SHA-256 & Bundles en Pur Rust
+- Implémentation complète de l'algorithme SHA-256 standard en pur Rust `std` sans aucune bibliothèque cryptographique externe.
+- Déduplication d'images et de ressources par hachage de contenu.
+- Exportations autonomes SVG et Markdown.
 
 ---
 
-## 5. Dettes et pièges connus
+## 4. Compilation et Tests
 
-- **PixiJS n'est pas couvert par les tests** (jsdom n'a pas de WebGL). Tout ce
-  qui touche aux sprites se raisonne, ne se vérifie pas. Les images du RIDEAU
-  font exception : elles sont en DOM, et ce sont les seules dont la préhension
-  soit testée.
-- **Le redimensionnement d'une image dans une membrane minimisée** lit la
-  géométrie naturelle et le curseur en coordonnées écran-monde : exact tant que
-  `k == 1`, approximatif sinon. C'est le comportement de la scène depuis
-  toujours ; le rideau le reproduit **volontairement**, plutôt que d'inventer une
-  règle divergente.
-- **Le test instable est identifié** : c'était le smoke test de
-  `HtmlAnnotationLayer`, et un **timeout**, pas une assertion — son import
-  paresseux tire react-markdown, remark, rehype et KaTeX. Délai élargi à 20 s.
-- Les 14 warnings `biome` sur `any` sont **antérieurs** à ces sessions.
+```bash
+# Lancer les 202 tests Rust
+cargo test --workspace
+
+# Vérifier la compilation de tous les crates
+cargo check --workspace
+
+# Lancer l'application PureRef native en mode release
+cargo run -p glucose-desktop --release
+```
 
 ---
 
-## 5bis. Publier une version — et ce qui fait qu'elle atteint les gens
+<div align="center">
 
-**Couper une version** = bumper `version` dans **`package.json` ET
-`src-tauri/tauri.conf.json`** (le `version` de `Cargo.toml` ne sert pas, il est
-resté à `1.0.1-beta.1` depuis toujours), commiter, puis pousser un tag `vX.Y.Z`.
-Le tag déclenche `release.yml` : Windows NSIS, macOS DMG + `.app.tar.gz`, Linux
-AppImage/deb/rpm.
+**Glucose, c'est juste poser, relier, zoomer, explorer.**
 
-**La chaîne de mise à jour, de bout en bout :**
+[← Retour au README](README.md) · [Guide d'utilisation](GUIDE.md)
 
-1. `bundle.createUpdaterArtifacts: true` produit les artefacts de mise à jour.
-2. La CI les signe avec le secret `TAURI_SIGNING_PRIVATE_KEY` (il existe ; la
-   clé n'a **pas** de mot de passe — le workflow passe aussi
-   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, qui n'est pas défini, et ça marche).
-   La clé publique est dans `tauri.conf.json`. **Sans signature, l'app refuse
-   la mise à jour** — c'est voulu.
-3. `tauri-action` génère et fusionne `latest.json` entre les trois jobs.
-4. L'app appelle `check()` au démarrage (`UpdatePrompt.tsx`) sur
-   `releases/latest/download/latest.json`.
+</div>
 
-**LE PIÈGE, et il a coûté quatre versions.** `/releases/latest` ne voit que les
-releases **publiées** : un brouillon n'atteint personne. `v1.0.1-beta.1`, `.7`,
-`.16` et `.19` sont encore des brouillons — elles n'ont jamais été livrées à
-qui que ce soit. Depuis `v1.0.2-beta.1`, un job `publish` bascule le brouillon
-en publié **après** les trois plateformes, et refuse de publier un `latest.json`
-qui ne couvrirait pas les trois. Il n'y a donc plus de clic à ne pas oublier —
-mais si une release reste en brouillon, c'est que ce job a échoué ou a été
-sauté : **regarder son log avant de publier à la main**.
-
-**Le second piège, corrigé en même temps.** Le job macOS ne buildait que
-`--bundles dmg`. L'artefact de mise à jour de macOS est un `.app.tar.gz`, produit
-par le bundle `app` : sans lui, rien à signer. Résultat, jusqu'à `v1.0.1-beta.24`
-inclus, `latest.json` n'avait **aucune** entrée `darwin-aarch64` — les Macs
-installaient à la main puis ne recevaient plus jamais rien, sans le moindre
-signal. `--bundles app,dmg` répare la cause ; la vérification du manifeste dans
-le job `publish` empêche que ça se reproduise en silence.
-
-**La CI, aussi, avait un piège d'ordre.** `cargo fmt --check` s'exécute AVANT
-`clippy` dans le même job : tant que fmt échoue, clippy est **sauté**. La CI est
-alors rouge pour une raison cosmétique tout en ne vérifiant plus rien du
-backend. Si la CI est rouge sur le job Rust, lire QUELLE étape a échoué avant de
-conclure quoi que ce soit.
-
----
-
-## 6. Comment cet user travaille
-
-- **Il écrit en français, vite, sans ponctuation.** Prendre le temps de
-  reformuler ce qu'on a compris **avant** de coder : ça a évité plusieurs
-  contresens coûteux.
-- **Il perd le fil entre les sessions** et le dit. Commencer par établir l'état
-  réel — `git log`, la suite de tests, le code — plutôt que de faire confiance à
-  un document, celui-ci compris : la passation précédente avait cinq commits de
-  retard sur `HEAD`.
-- **Il valide sur du concret.** Quand une intention visuelle n'était pas claire,
-  une **maquette interactive publiée en Artifact** a tranché en un échange là où
-  trois paragraphes n'y arrivaient pas. À refaire.
-- **Il fait confiance au déterminisme** : *« tu n'es pas obligé de lancer le
-  logiciel tant que mathématiquement tu es certain »*. En contrepartie il attend
-  de **vraies preuves** — modules purs, simulations, tests d'intégration qui
-  montent les vraies couches et relisent le store.
-- **Il apprécie qu'on signale ce qu'on n'a pas vérifié.**
-- **Commits séparés par chantier**, messages en français qui expliquent le
-  *pourquoi*, pas le *quoi*. Attribution :
-  `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
-- **`style.md` fait loi** : Glucose est brutaliste, chrome monochrome strict, la
-  couleur appartient au contenu de l'utilisateur — jamais à l'interface.

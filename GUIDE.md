@@ -1,348 +1,144 @@
-# 📖 Guide d'utilisation Glucose
+# 📖 Guide d'utilisation Glucose (Natif Rust)
 
-> **Glucose** est un canvas infini pour poser tes idées à plat. Une seule interface, pas de modes : pose, relie, zoome, explore.
-
-**Version :** 1.0.1-beta.1
-
----
-
-## 1. Démarrage rapide
-
-À l'ouverture, Glucose te donne un canvas vide. **Cinq gestes pour t'y retrouver** :
-
-1. **Glisser** une image depuis ton navigateur ou ton explorateur de fichiers → elle se pose sur le canvas
-2. Appuyer **`N`** puis cliquer → une note jaune (sticky)
-3. Appuyer **`A`** puis tirer une ligne entre deux blocs → flèche typée
-4. **Molette** = zoom · **Espace** maintenu = pan · **Ctrl+Shift+F** = tout cadrer
-5. **Ctrl+S** pour sauvegarder ton projet en `.glucose`
-
-C'est tout. Le reste est de la spécialisation.
+> **Glucose** est un canvas de référence infini natif en Rust, inspiré de **PureRef**. 
+> Une seule interface ultra-fluide, zéro boîte noire, zéro latence : pose, relie, zoome, explore.
 
 ---
 
-## 2. Vocabulaire
+## 1. Démarrage rapide & Contrôles PureRef
 
-| Terme | Sens |
+À l'ouverture, Glucose s'ouvre sur un canvas sombre infini quadrillé de points discrets.
+
+### 🖱️ Gestes fondamentaux (PureRef style)
+1. **Glisser-déposer des images** depuis l'explorateur de fichiers OS directement dans la fenêtre → elles s'insèrent immédiatement à l'emplacement visé.
+2. **Pan (déplacer la vue)** :
+   - Maintiens le **Clic milieu** et glisse la souris, OU
+   - Maintiens le **Clic droit** et glisse la souris, OU
+   - Maintiens la barre **`Espace`** et glisse avec le clic gauche.
+3. **Zoom au curseur** :
+   - Fais tourner la **molette de la souris** : le zoom s'effectue exactement centré sur le point du monde sous ton curseur.
+4. **Cadrer tout (Fit)** :
+   - Appuie sur **`Espace`** (sans glisser) ou sur **`F`** pour recalculer le cadrage optimal et afficher toutes tes images et annotations.
+5. **Always on Top (Épingler au-dessus)** :
+   - Appuie sur la touche **`T`** : Glucose reste au premier plan au-dessus de Blender, Photoshop, ZBrush ou Krita pendant que tu crées.
+
+---
+
+## 2. Vocabulaire du Système
+
+| Terme | Définition |
 |---|---|
-| **Board** | Une zone de canvas indépendante (onglet en haut). Chaque board a ses images, annotations, dossiers, viewport. |
-| **Annotation** | Tout ce qui n'est pas une image : texte, sticky, flèche, membrane. |
-| **Sticky** | Note jaune (ou autre couleur). Idéal pour les commentaires courts. |
-| **Texte** | Bloc Markdown avec rendu prose : titres, listes, LaTeX, gras, italique. |
-| **Flèche** | Lien orienté entre deux nœuds. Peut porter un **prédicat** sémantique. |
-| **Membrane fixe** | Zone colorée dessinée à la main avec l'outil `M`. |
-| **Membrane implicite** | Halo coloré généré automatiquement autour d'un cluster d'images (Union-Find). |
-| **Domaine** | Catégorie sémantique (Science, Art…) avec couleur et icône. |
-| **Dossier** | Sous-canvas zoomable. Zoomer dessus = y entrer. |
-| **Miroir** ↻ | Copie vivante d'un nœud ou dossier. Modifier l'original = tous les miroirs changent. |
-| **Jalon** 📌 | Point de repère nommé dans la Time Machine. |
-| **Prédicat** | Type sémantique d'une flèche : `inspire`, `contredit`, `hérite_de`, `est_précurseur`, `dépend_de`, `illustre`. |
-| **Trans-domaine** | Flèche dont source et cible n'ont aucun domaine en commun (rendue en pointillés). |
+| **Board** | Un espace de travail infini indépendant doté de ses propres images, annotations, membranes, dossiers et caméra. |
+| **Image** | Une référence visuelle native positionnée, redimensionnable, sélectionnable et déplaçable sur le canvas. |
+| **Annotation** | Éléments textuels ou vectoriels : notes stickies, blocs de texte Markdown, flèches relationnelles, membranes. |
+| **Sticky** | Note pense-bête colorée dotée d'opérateurs logiques optionnels (`AND`, `OR`, `BUT`, `BECAUSE`). |
+| **Texte** | Bloc typographique pour la prose structurée, avec ancrage sub-block de précision W3C. |
+| **Flèche** | Lien orienté entre deux éléments portant un **prédicat sémantique** (`inspire`, `contredit`, `dépend_de`…). |
+| **Membrane** | Conteneur élastique regroupant un ensemble d'éléments. Dispose de 3 modes : `Classic`, `Minimized`, `Stretched`. |
+| **Dossier** | Sous-canvas imbriqué capturant l'espace géométrique intérieur lors de sa création. |
+| **Miroir ↻** | Alias vivant d'un nœud ou dossier : toute modification de l'original se répercute instantanément, protégé contre les cycles infinis. |
+| **Domaine** | Catégorie sémantique (Science, Art, etc.) influençant la signature chromatique des membranes. |
 
 ---
 
-## 3. Les outils (toolbar)
+## 3. Priorité de Hit & Sélection (Règles PICK-1)
 
-Chaque outil s'active par sa lettre. Sélectionne, fais ton geste, retombe en `V`.
+Quand plusieurs éléments se superposent (par exemple du texte posé sur une image elle-même contenue dans une membrane), Glucose applique un arbitre déterministe en **7 rangs stricts** :
 
-| Touche | Outil | Geste |
-|---|---|---|
-| `V` | **Sélection** (par défaut) | Click pour sélectionner, drag pour déplacer, drag-rectangle pour multi-sélectionner |
-| `T` | **Texte** | Click pour poser, taper, Échap pour valider. Markdown supporté. |
-| `N` | **Sticky** | Click pour poser une note. Couleurs disponibles dans la barre contextuelle. |
-| `A` | **Flèche** | Click sur le bloc source, puis sur le bloc cible. Sélectionne du texte avant le 2e click pour pointer un paragraphe précis. |
-| `F` | **Dossier** | Drag pour dessiner une zone. **Tout ce qui est dedans est capturé** automatiquement. |
-| `M` | **Membrane** | Drag pour dessiner une zone colorée fixe (organisationnelle). |
-| `Espace` (maintenu) | **Pan** | Drag = déplacer le viewport |
+```
+[Rang 1] Poignées de redimensionnement (priorité absolue, taille généreuse constante à l'écran)
+   ↓
+[Rang 2] Bordure active du conteneur (bande périphérique et poignée de membrane / dossier)
+   ↓
+[Rang 3] Flèches vectorielles (tracé fin)
+   ↓
+[Rang 4] Images
+   ↓
+[Rang 5] Stickies
+   ↓
+[Rang 6] Textes (Terminus pour permettre le double-clic d'édition)
+   ↓
+[Rang 7] Intérieur du conteneur (un conteneur ne vole jamais un clic à son contenu)
+```
 
-### 🎯 Qui est sélectionné quand ça se superpose ?
-
-Une image posée dans une membrane, un texte posé sur une image… le clic doit
-choisir. Ce n'est plus l'empilement graphique qui tranche mais un **ordre de
-priorité**, du plus précis au plus englobant :
-
-| # | Cible | Rappel |
-|---|---|---|
-| 1 | **Poignée de redimensionnement** | Gagne toujours. Sa zone de préhension fait ~36 px à l'écran, quel que soit le zoom : plus besoin de viser pile le petit carré. |
-| 2 | **Bord de membrane / de dossier** | La bande autour du pointillé (et l'en-tête d'un dossier). C'est la poignée du conteneur. |
-| 3 | **Flèche** | Tracé fin, donc prioritaire. |
-| 4 | **Image** | |
-| 5 | **Sticky** | |
-| 6 | **Texte** | Toujours dernier. |
-| 7 | **Intérieur d'un dossier**, puis **intérieur d'une membrane** | Un conteneur ne vole jamais un clic à son contenu. |
-
-Concrètement : cliquer au **centre d'une image** posée dans une membrane
-sélectionne l'image ; cliquer sur les **pointillés** de la membrane sélectionne
-la membrane, même si elle est bondée d'images.
-
-**Re-cliquer sans bouger la souris descend d'un cran** dans cette liste : 1er clic
-sur le bord d'une membrane → la membrane ; 2e clic → l'image en dessous ; 3e clic
-→ le texte encore en dessous. La souris doit rester quasi immobile et les clics
-s'enchaîner (le cycle s'oublie après ~2,5 s).
-
-Le cycle **s'arrête sur un bloc texte ou un sticky** : à partir de là, un 2e clic
-redevient un double-clic et ouvre l'édition. C'est pour ça que le texte est
-toujours le dernier de la liste.
-
-> 💡 `Alt` + clic force le pas suivant — y compris pour passer *sous* une
-> poignée de redimensionnement ou repartir d'un bloc texte.
-> `Ctrl` / `Shift` + clic (multi-sélection) ne cycle jamais.
+### 🔄 Cyclage de sélection au clic
+- **Cliquer plusieurs fois sans bouger la souris** descend d'un cran dans la hiérarchie : 1er clic sur le bord d'une membrane → la membrane ; 2e clic → l'image sous-jacente ; 3e clic → la note.
+- L'avancement dans le cycle s'effectue **au relâchement du clic** (mouse up), afin de ne jamais perturber un glisser-déplacer d'élément.
+- Le cycle **s'arrête automatiquement sur les éléments éditables (texte, sticky)** pour préserver le geste naturel du double-clic d'édition.
 
 ---
 
-## 4. Concepts avancés
+## 4. Magnétisme Intelligent (SNAP-1)
 
-### 🌈 Domaines
-
-Les domaines sont des catégories sémantiques que tu crées toi-même : *Science*, *Art*, *Histoire*, *Game design*…
-
-**Ouvrir le panel Domaines** → bouton dans la toolbar. Crée un domaine (couleur + emoji), puis sélectionne des nœuds et fais glisser un curseur 0–100 % pour les associer.
-
-Effets visuels :
-- 🟣 **Membranes** : leur couleur dérive du domaine dominant des images qu'elles entourent
-- 🏷️ **Badges** : un nœud avec poids > 40 % dans un domaine porte le badge correspondant (coin haut-droit)
-- ⚡ **Flèches trans-domaines** : si une flèche relie deux nœuds sans domaine commun, elle apparaît en **pointillés** — rappel visuel d'un lien interdisciplinaire
-
-### 📅 Réglette temporelle
-
-Pour ancrer un nœud à une **date du contenu décrit** (pas la date d'édition).
-
-1. Sélectionne un ou plusieurs nœuds
-2. **`Shift+T`** ouvre le modal d'ancrage
-3. Tape une date dans n'importe quel format :
-   - `1789` ou `1789-1799`
-   - `-3000` (av. J.-C.)
-   - `Renaissance` (autocomplétion sur 30 époques nommées)
-   - `10 ka` (10 000 ans avant maintenant)
-   - `1,5 Ma` (1,5 millions d'années)
-
-Ouvre la **réglette zoomable** avec **`Shift+R`** : drag les deux poignées jaunes pour filtrer le canvas par fenêtre temporelle. Les nœuds **non ancrés** restent toujours visibles. Molette sur la réglette = zoom de l'échelle (de la milliseconde au géologique).
-
-Un nœud ancré porte un badge 📅 visible au coin bas-droit.
-
-### 🪞 Miroirs (alias)
-
-Un **miroir** est une copie vivante : modifier l'original ou le miroir change les deux. Idéal pour :
-- Référencer une même idée à plusieurs endroits du canvas
-- Construire un index visuel d'éléments éparpillés
-- Faire une vue alternative d'un dossier sans dupliquer son contenu
-
-**Créer un miroir** : sélectionne un nœud (ou un dossier) → `Ctrl+Shift+M`. Le miroir apparaît avec un offset léger et un badge ↻ bleu.
-
-**Cliquer le badge ↻** = téléportation animée vers l'original (peut traverser les boards).
-
-**Anti-Inception** : Glucose refuse de créer un miroir qui produirait un cycle (A contient B contient A). Un message console l'indique.
-
-### 🗂️ Dossiers zoomables
-
-Un dossier est un **sous-canvas complet** avec ses propres boards/images/annotations.
-
-**Créer** : outil `F`, drag-rectangle. Tout ce dont le centre tombe dans la zone est **capturé** dans le dossier (les coords sont ajustées en relatif).
-
-**Naviguer** :
-- **Zoom** (molette) sur un dossier → tu y entres automatiquement
-- **Dézoom** dans un dossier → tu en sors automatiquement
-- Une **bordure colorée** apparaît autour de l'écran quand tu es dans un dossier (couleur du dossier)
-- Quand tu approches du seuil de sortie, un bandeau te prévient `⤴ continue à dézoomer pour sortir`
-
-**Breadcrumb** en haut à gauche : façon VSCode, avec dropdown sur hover pour sauter directement entre dossiers frères.
-
-### ⏳ Time Machine
-
-Glucose enregistre **chaque action** comme un commit Automerge. Tu disposes d'un undo/redo **infini** + d'une vraie machine à voyager dans le temps de ton projet.
-
-**Ouvrir** : `Ctrl+H` → un slider apparaît en bas du canvas.
-
-**Drag du curseur** sur le slider = **aperçu live** d'un état passé. Le canvas redessine en temps réel. Une **bordure jaune pleine-écran** signale le mode preview.
-
-En mode preview, **les modifications sont bloquées** (warning console). Trois options :
-- **« ← Maintenant »** : retour au présent
-- **« ⏪ Restaurer cet état »** : applique l'état preview comme un nouveau commit. L'historique antérieur est conservé — tu peux toujours `Ctrl+Z` pour annuler la restauration.
-- **« + Marquer un jalon »** (en mode normal uniquement) : commit nommé qui apparaît en 📌 jaune sur la piste
-
-Les jalons cliquables apparaissent sous la piste pour navigation rapide (« avant la refonte », « v1 stable », etc.).
-
-`Ctrl+Z` / `Ctrl+Y` = undo/redo classiques (équivalent à reculer/avancer d'un commit).
-
-### 🌐 Collaboration (internet)
-
-Édite un même projet à plusieurs **par internet** — sync **temps réel**, fusion CRDT automatique, **zéro conflit**. La synchro passe par un **serveur always-on** : un pair peut fermer son PC, l'autre garde tout, et le rattrapage est automatique à la reconnexion.
-
-**Ouvrir le panel** : `Ctrl+Shift+L`.
-
-Deux usages :
-- **Créer une chaîne** : `▶ Créer une chaîne` → Glucose génère un **code** `automerge:…`. Copie-le et envoie-le à ton/ta partenaire.
-- **Rejoindre une chaîne** : colle le code reçu dans `Rejoindre une chaîne`. ⚠️ Rejoindre ouvre **le projet de la chaîne** (ton projet local courant est mis de côté).
-
-Une fois la chaîne active (LED verte = connecté au serveur), **chaque modification de l'un est répliquée chez les autres en temps réel**. Vous éditez à égalité ; `Ctrl+Z` n'annule que **tes** propres actions.
-
-**Limites MVP** :
-- Pas encore de curseurs / présence temps réel des pairs
-- Synchro via un **serveur public** par défaut (pour un serveur privé, l'URL se change dans `src/multiplayer/repo.ts`)
+Lors du déplacement ou du redimensionnement d'un élément sélectionné :
+- Glucose calcule dynamiquement les alignements sur les bords gauche, droit, haut, bas et les centres des autres éléments visibles.
+- **Seuil de capture constant en pixels écran** : l'aimantation reste aussi précise et naturelle à fort dézoom qu'en très gros plan.
+- Des **guides d'alignement cyan et magenta** s'affichent instantanément à l'écran pour visualiser les correspondances géométriques.
 
 ---
 
-## 5. Multimédia & App Bridge
+## 5. Membranes & Repères Locaux
 
-### Images
+Les membranes réinventent le regroupement visuel :
 
-- **Drag-drop** une image depuis n'importe où (browser, explorer, copier-coller).
-- **URL d'image web** : drag-drop l'URL → Glucose télécharge en meilleure qualité automatiquement (Pinterest, Twitter, Instagram, Reddit, Imgur, Tumblr, Wallhaven, ArtStation, DeviantArt sont reconnus avec upgrade auto vers la résolution originale).
-- Les images sont stockées **externalisées** dans `assets/<hash>.<ext>` côté disque (pas en base64 dans le `.glucose`) — fichier projet compact, dédup automatique.
-- **Performance** : les images sont chargées **à la demande** selon ce que tu regardes (virtualisation + résolution de texture adaptée au zoom) — des **centaines d'images** restent fluides au pan/zoom, sans saturer la mémoire graphique.
-
-### Vidéos
-
-- **Drag-drop** un fichier `.mp4`/`.mov`/`.mkv` local → vidéo intégrée
-- **URL YouTube / TikTok / Instagram / Vimeo** → yt-dlp embarqué télécharge automatiquement (la première fois, yt-dlp se télécharge ; ensuite c'est immédiat)
-- Vidéos jouent en boucle muette dans le canvas
-
-### App Bridge (fichiers créatifs)
-
-Drag d'un fichier non-image (`.blend`, `.psd`, `.kra`, `.ai`, `.fbx`, `.obj`, `.c4d`, `.fig`, etc.) → crée un **sticky source** avec icône logiciel.
-
-**Double-click** sur le sticky source = **ouvre le fichier dans son app native** (Blender, Photoshop, Krita…). Glucose vérifie une whitelist d'extensions sûres avant d'ouvrir (les `.exe`, `.bat`, etc. sont refusés).
+1. **Facteur d'échelle déduit $k$** :
+   $$k = \min\left(1, \frac{\text{largeur}}{\text{étendue}_X}, \frac{\text{hauteur}}{\text{étendue}_Y}\right)$$
+   L'échelle n'est jamais stockée sous forme de variable mutable : elle découle purement des dimensions de la membrane par rapport à l'étendue naturelle de son contenu.
+2. **Appartenance événementielle (`membrane_id`)** :
+   L'appartenance d'un élément à une membrane est persistée dès son dépôt géométrique. Une membrane minimisée ne « perd » jamais son contenu même si ses dimensions physiques deviennent inférieures aux éléments qu'elle abrite.
+3. **Mode Stretched (Étiré avec arrêt sur obstacles)** :
+   Une membrane configurée en mode étiré s'adapte automatiquement à l'ajout de nouveau contenu, mais stoppe sa course sans jamais écraser ou englober les éléments tiers extérieurs.
+4. **Mode Focus Asymétrique** :
+   - Entrée automatique lorsque la membrane couvre **$\ge 92\%$** de l'écran.
+   - Sortie lorsque le dézoom franchit **$\le 80\%$** de l'échelle de cadrage initial.
+   - Cette asymétrie garantit l'absence totale d'oscillations visuelles.
 
 ---
 
-## 6. Sauvegarde et format `.glucose`
+## 6. Miroirs Vivants & Graphe Acyclique
 
-| Action | Raccourci |
+Les miroirs permettent de créer des alias interactifs d'images, de notes ou de dossiers entiers.
+- **Protection Anti-Inception (BFS Acyclique)** : Glucose vérifie par parcours en largeur que l'insertion d'un miroir ne génère aucun cycle de dépendance directe ou indirecte. Toute tentative de boucle infinie est rejetée de manière sécurisée.
+- **Téléportation source** : Cliquer sur le badge miroir ↻ recentre instantanément la caméra sur l'élément original, y compris s'il se trouve dans un autre board.
+
+---
+
+## 7. Moteur d'Annulation / Rétablissement (Undo/Redo)
+
+Le store Glucose garantit un historique indestructible :
+- **Transparence de navigation** : Les manipulations de caméra (panoramique, zoom) ne polluent jamais la pile undo. Revenir en arrière annule l'action géométrique sans téléporter la caméra de l'utilisateur.
+- **Sessions atomiques (`begin_live_edit` / `end_live_edit`)** : Un glisser-déplacer d'un groupe d'éléments ou un redimensionnement continu ne génère qu'une seule et unique entrée dans l'historique lors du relâchement.
+- **Cascade d'intégrité** : La suppression d'un élément entraîne la suppression propre et réversible des miroirs associés et des flèches orphelines.
+
+---
+
+## 8. Exportations Natives (0 Dépendance)
+
+Glucose intègre directement dans son moteur `glucose-core` :
+- **Export SVG vectoriel** : Génération d'un document SVG autonome complet représentant fidèlement la scène, les cadres, les textes échappés en toute sécurité, les flèches courbes et les têtes de flèches orientées.
+- **Export Markdown structuré** : Conversion hiérarchique du canvas en document Markdown clair, organisant les cartes, zones, liens sémantiques et textes sous forme de fiches lisibles.
+
+---
+
+## 9. Tableau Récapitulatif des Raccourcis
+
+| Raccourci | Fonction |
 |---|---|
-| Enregistrer (rapide, path courant) | `Ctrl+S` |
-| Enregistrer sous… (nouveau path) | `Ctrl+Shift+S` |
-| Ouvrir un projet existant | `Ctrl+O` |
-
-Le fichier `.glucose` est un **binaire Automerge** compact qui contient :
-- Toutes les données du projet (boards, annotations, images, dossiers, domaines, presets)
-- L'**historique complet** de tes modifications (Time Machine s'en sert)
-
-À l'ouverture d'un ancien `.glucose` v1 (format JSON), Glucose détecte automatiquement et migre. Au prochain `Ctrl+S` il est ré-écrit en v2 binaire.
-
-**Note** : les images / vidéos téléchargées ne sont **pas bundlées** dans le `.glucose` — elles vivent dans `app_data_dir/assets/` et `app_data_dir/videos/`. Si tu déplaces un `.glucose` sur une autre machine, les chemins ne suivront pas (un format archive zip est prévu plus tard).
-
----
-
-## 7. Tableau complet des raccourcis
-
-### Outils
-| Touche | Action |
-|---|---|
-| `V` | Sélection |
-| `T` | Texte |
-| `N` | Sticky |
-| `A` | Flèche |
-| `F` | Dossier |
-| `M` | Membrane |
-| `Espace` (maintenu) | Pan |
-
-### Édition
-| Touche | Action |
-|---|---|
-| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo (infini) |
-| `Ctrl+A` | Sélectionner tout |
-| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | Copier / Couper / Coller |
-| `Ctrl+D` | Dupliquer la sélection |
-| `Suppr` / `Backspace` | Supprimer |
-| `Ctrl+Shift+M` | Créer miroir(s) de la sélection |
-| `Alt+1..4` | Sticky → opérateur logique (AND/OR/BUT/BECAUSE) |
-| `Alt+0` | Sticky → retire l'opérateur |
-
-### Navigation
-| Touche | Action |
-|---|---|
-| Molette | Zoom |
-| `Ctrl+Shift+F` | Zoom-to-fit (tout cadrer) |
-| `Ctrl+F` | Recherche globale |
-| `L` | Verrouiller / déverrouiller la sélection |
-| `G` | Toggle alignement intelligent |
-
-### Fichier
-| Touche | Action |
-|---|---|
-| `Ctrl+S` | Enregistrer |
-| `Ctrl+Shift+S` | Enregistrer sous… |
-| `Ctrl+O` | Ouvrir |
-| `F11` | Mode Zen (cache toute l'UI) |
-
-### Phases avancées
-| Touche | Action |
-|---|---|
-| `Shift+R` | Réglette temporelle |
-| `Shift+T` | Ancrer une date à la sélection |
-| `Ctrl+H` | Time Machine |
-| `Ctrl+Shift+L` | Collaboration (chaîne internet) |
-
----
-
-## 8. Workflows types
-
-### 🎨 Design d'un personnage
-
-1. Crée un dossier `MonPerso` (outil `F`, drag)
-2. Zoome dedans (entre automatiquement)
-3. Drag-drop tes références d'inspiration (Pinterest, ArtStation…)
-4. Outil `M` → dessine 3 zones colorées : *Refs*, *Sketches*, *Final*
-5. Place tes croquis dans la bonne zone
-6. Outil `A` → trace des flèches `inspire` entre tes refs et tes sketches
-7. Sticky note (`N`) à côté du final : description, intentions
-8. **`Ctrl+Shift+M`** sur le sketch final pour le **miroir** dans le board principal — il y reste lié
-
-### 📚 Recherche académique
-
-1. Domaines : *Auteurs*, *Concepts*, *Sources*
-2. Crée un sticky par auteur, attribue le domaine *Auteurs* à 100 %
-3. Crée un sticky par concept, attribue *Concepts*
-4. Flèches `inspire` / `contredit` / `dépend_de` entre concepts
-5. Pour chaque concept, ancre une **date temporelle** (`Shift+T`) — `1859` pour Darwin par exemple
-6. Active la réglette (`Shift+R`) → drag pour ne voir que l'époque concernée
-7. **Time Machine** : marque un jalon `📌 état initial de ma thèse` avant chaque grande modif
-
-### 🌍 Worldbuilding (univers fictif)
-
-1. Boards : *Géographie*, *Personnages*, *Histoire*, *Magie* — un par grand domaine
-2. Dans *Histoire* : ancre chaque événement (`Shift+T`) → réglette temporelle = chronologie visuelle automatique
-3. Dans *Personnages* : un dossier par perso, chaque dossier contient refs + bio + relations
-4. Flèches inter-dossiers (le `targetBoardId` des flèches portail) → click = téléportation vers le board cible
-5. Collaboration internet (`Ctrl+Shift+L`) : crée une chaîne et envoie le code `automerge:…` à ton coauteur pour éditer à deux en temps réel
-
----
-
-## 9. Astuces
-
-- **Mode Zen** (`F11`) : cache toolbar / breadcrumb / tabs. Utile pour les sessions longues sans distraction.
-- **Pomodoro** intégré : panel Pomodoro 25/5/15. Notification système à la fin.
-- **Recherche globale** (`Ctrl+F`) : cherche dans les textes, sticky, tags d'image, noms de dossiers, sur tous les boards.
-- **Trans-domaines toggle** dans la toolbar : masque/affiche les flèches en pointillés trans-domaines.
-- **Tags d'images** : sélectionne une image → champ tags dans la barre contextuelle. Searchables via Ctrl+F.
-
----
-
-## 10. Où sont mes données ?
-
-| OS | Dossier |
-|---|---|
-| Windows | `%APPDATA%\Glucose\` |
-| macOS | `~/Library/Application Support/Glucose/` |
-| Linux | `~/.config/Glucose/` |
-
-Sous-dossiers :
-- `assets/` — images externalisées (dédup SHA-256)
-- `videos/` — vidéos téléchargées via yt-dlp
-- `yt-dlp.exe` — binaire pinné pour l'import vidéo
-
-Tes fichiers `.glucose` sont sauvegardés là où tu choisis (par défaut dans ton home).
-
----
-
-## 11. Que faire si…
-
-**…le drag-drop d'image ne marche pas** : ouvre la DevTools (`Ctrl+Shift+I`), onglet Console. Regarde les logs `[drop]` et `[handleDrop]` — ils te disent exactement ce qui a été reçu et tenté. Pinterest/Insta/etc. sont gérés via fallback automatique.
-
-**…un projet ne s'ouvre pas** : Glucose valide la structure via Zod. Si le `.glucose` est corrompu, un message clair indique le champ fautif. Le projet courant n'est pas écrasé.
-
-**…la collaboration ne se connecte pas** : si la LED reste jaune (« connexion… »), vérifie ta connexion internet et que le serveur de synchro est joignable. Pour rejoindre une chaîne, colle bien le **code `automerge:…` complet**. Pour pointer vers un serveur de synchro privé, change l'URL dans `src/multiplayer/repo.ts`.
-
-**…un sticky source n'ouvre pas son fichier natif** : vérifie que le fichier existe encore au chemin enregistré, et que son extension est dans la whitelist (`.blend`, `.psd`, `.kra`, etc. — pas `.exe` ou similaires).
+| **Clic milieu glissé** | Panoramique de la vue (PureRef style) |
+| **Clic droit glissé** | Panoramique de la vue (PureRef alternatif) |
+| **`Espace` + Clic gauche** | Panoramique de la vue classique |
+| **Molette souris** | Zoom avant / arrière centré sur le curseur |
+| **`Espace` (clic sec)** | Cadrer l'intégralité du contenu (Zoom to fit) |
+| **`F`** | Cadrer l'intégralité du contenu |
+| **`T`** | Basculer la fenêtre en **Always on Top** (toujours au premier plan) |
+| **Glisser-déposer de fichiers** | Importation instantanée d'images dans le canvas |
+| **Clic gauche** | Sélection / Cyclage de cible empilée |
+| **`Ctrl` + Clic gauche** | Multi-sélection additive |
+| **`Ctrl+D`** | Dupliquer les éléments sélectionnés |
+| **`Suppr` / `Backspace`** | Supprimer la sélection |
+| **`Ctrl+Z`** | Annuler la dernière action (sans perturber la vue) |
+| **`Ctrl+Y`** | Rétablir la dernière action |
+| **`Échap`** | Désélectionner / Quitter |
 
 ---
 
@@ -350,6 +146,7 @@ Tes fichiers `.glucose` sont sauvegardés là où tu choisis (par défaut dans t
 
 **Glucose, c'est juste poser, relier, zoomer, explorer.**
 
-[← Retour au README](README.md) · [Roadmap](ROADMAP.md) · [Issues](../../issues)
+[← Retour au README](README.md) · [Handoff Technique](HANDOFF.md)
 
 </div>
+

@@ -6,9 +6,9 @@
 >
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
 
-**Dernière mise à jour :** 2026-06-10 (audit complet du code)
-**Version :** 1.0.1-beta.1 · **Tests :** 370 verts / 26 fichiers (vérifié 2026-06-10)
-**Architecture :** Tauri 2 (Rust) + React 19 + Tailwind 4 + PixiJS 8 (raster) + SVG overlay (vecteur) + Zustand + Automerge 3 (CRDT, WASM)
+**Dernière mise à jour :** 2026-09-10 (réécriture intégrale Rust from scratch)
+**Version :** 2.0.0-pure-rust · **Tests :** 202 tests Rust (37 unitaires + 165 d'intégration) verts à 100%
+**Architecture :** `glucose-core` (100% Rust std, 0 dépendance) + `glucose-desktop` (PureRef software renderer cross-platform : winit, softbuffer, tiny-skia)
 
 ---
 

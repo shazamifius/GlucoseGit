@@ -12,6 +12,7 @@ out/
 graphify-out/
 
 # Tauri / Rust
+target/
 src-tauri/target/
 src-tauri/gen/
 src-tauri/target-temp/

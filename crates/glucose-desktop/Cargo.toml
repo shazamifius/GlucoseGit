@@ -1,0 +1,12 @@
+[package]
+name = "glucose-desktop"
+version = "1.0.0"
+edition = "2021"
+description = "Glucose Desktop Application — PureRef-style Native Rust Desktop Client"
+
+[dependencies]
+glucose-core = { path = "../glucose-core" }
+winit = "0.30"
+tiny-skia = "0.11"
+softbuffer = "0.4"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }

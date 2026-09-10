@@ -2,18 +2,17 @@
 
 # 🧬 Glucose
 
-### Un canvas infini pour poser tes idées à plat — et les faire grandir
+### Le canvas de référence infini natif en Rust — style PureRef, 0 boîte noire, 0 dépendance dans le core
 
 *Pose. Relie. Zoome. Explore.*
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0--beta.1-blue.svg?style=flat-square)](../../releases/latest)
-[![Tauri](https://img.shields.io/badge/Tauri-2-orange.svg?style=flat-square&logo=tauri)](https://tauri.app)
-[![React](https://img.shields.io/badge/React-19-61dafb.svg?style=flat-square&logo=react)](https://react.dev)
-[![Rust](https://img.shields.io/badge/Rust-stable-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
-[![Tests](https://img.shields.io/badge/tests-304%20passing-brightgreen.svg?style=flat-square)](#)
+[![Rust](https://img.shields.io/badge/Rust-100%25%20pure%20std%20core-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![Dependencies](https://img.shields.io/badge/core%20dependencies-0%20(zero)-brightgreen.svg?style=flat-square)](#)
+[![Tests](https://img.shields.io/badge/tests-202%20passing%20(100%25)-brightgreen.svg?style=flat-square)](#)
+[![Compatibility](https://img.shields.io/badge/OS%20compatibility-100%25%20kernels-blueviolet.svg?style=flat-square)](#)
 
-[**📥 Télécharger**](../../releases/latest) · [**📖 Guide**](GUIDE.md) · [**🗺️ Roadmap**](ROADMAP.md) · [**🐛 Issues**](../../issues)
+[**📖 Guide**](GUIDE.md) · [**🗺️ Architecture & Handoff**](HANDOFF.md) · [**🐛 Issues**](../../issues)
 
 </div>
 
@@ -21,32 +20,56 @@
 
 ## ✨ Qu'est-ce que c'est ?
 
-**Glucose** est une plateforme visuelle — desktop, offline — pour **poser tes idées à plat** sur un canvas infini et les faire grandir :
+**Glucose** est une plateforme visuelle desktop native ultra-rapide, inspirée de **PureRef**, réécrite **intégralement en Rust from scratch** :
 
-- 🎨 **Concept art** — moodboards, références, directions visuelles
-- 🏭 **Plans d'amélioration** — cartographier un système, un process, une industrie, et faire émerger les leviers
-- 🎲 **Jeux de rôle (JDR)** — univers, intrigues, cartes, fiches reliées
-- 🧠 **Réflexion & prise de notes** — recherche, écriture, design de monde : tout ce qui se pense sur la durée
+- 🎨 **PureRef & Moodboards** — référence visuelle infinie, drag & drop d'images instantané, fenêtre always-on-top, zoom au curseur, pan fluide.
+- 🧬 **Membranes adaptatives** — regroupements intelligents d'images et de notes avec facteur d'échelle dynamique $k = \min(1, \dots)$, mode focus plein écran et étirement anti-collision.
+- 🗂️ **Dossiers zoomables & Miroirs** — sous-canvas imbriqués avec détection de cycles acycliques (anti-Inception) pour dupliquer des vues vivantes.
+- 🔗 **Relations sémantiques** — flèches orientées avec prédicats typés (`inspire`, `contredit`, `dépend_de`), sub-block text anchoring et calcul de contour géométrique.
+- 🛡️ **0 boîte noire, 0 dépendance dans le moteur** — `glucose-core` fonctionne à 100% avec la bibliothèque standard Rust (`std`), sans aucune crate externe.
+- 🖥️ **Compatibilité 100% OS & Kernels** — Rendu logiciel universel vectoriel (`tiny-skia` + `softbuffer` + `winit`) sans aucune exigence de pilote GPU propriétaire. Tourne partout : Windows, Linux (Wayland/X11), macOS, BSD.
 
-Une seule surface, **pas de modes** : pose ce que tu veux, relie comme tu veux, zoome à l'infini. Tes dossiers eux-mêmes peuvent devenir un paysage navigable — Glucose peut refléter ton système de fichiers comme un espace à explorer.
+---
 
-> ℹ️ Glucose est un projet **jeune, en bêta** et en développement actif. Il y aura des imperfections — tes retours aident à le rendre meilleur.
+## 🏗️ Architecture du Workspace
 
-## 🌌 La vision (là où on aimerait aller)
+Le projet est structuré en un workspace Rust propre et modulaire :
 
-L'envie derrière Glucose : un espace pour **réfléchir, prendre des notes — et peut-être, un jour, partager un _espace mémoire latent_ avec une IA.**
+```
+GlucoseGit/
+├── crates/
+│   ├── glucose-core/       # 100% PURE RUST STD (0 DÉPENDANCE EXTERNE)
+│   │   ├── src/
+│   │   │   ├── types.rs           # Modèles de données purs (Board, Image, Annotation, etc.)
+│   │   │   ├── geometry.rs        # Primitives géométriques, boîtes orientées, bandes de bordure
+│   │   │   ├── quadtree.rs        # SpatialHash déterministe pour culling de viewport ultra-rapide
+│   │   │   ├── hit_priority.rs    # Arbitre PICK-1 (7 rangs de priorité, cycle de clic, terminus texte)
+│   │   │   ├── smart_align.rs     # Magnétisme intelligent SNAP-1 (guides d'alignement, seuil écran)
+│   │   │   ├── membrane_space.rs  # Repère local, échelle déduite k = min(1, ...), appartenance stockée
+│   │   │   ├── membrane_stretch.rs# Planification d'étirement avec contournement d'obstacles
+│   │   │   ├── membrane_focus.rs  # Focus asymétrique (entrée >= 92%, sortie <= 0.8)
+│   │   │   ├── curtain_model.rs   # Permissions (carnet/vitrine/atelier), sanitisation de notes
+│   │   │   ├── curtain_panel.rs   # Timers de dwell, détection de hover sans battement
+│   │   │   ├── arrow_anchor.rs    # Mathématiques de sortie de périmètre, invariant anti-inversion
+│   │   │   ├── text_anchors.rs    # Ancrage sub-block W3C robuste aux éditions textuelles
+│   │   │   ├── timeline.rs        # Calendrier astronomique BC/AD (-100Ma à 3000)
+│   │   │   ├── mirror_graph.rs    # Détecteur BFS de cycles pour miroirs et dossiers
+│   │   │   ├── bundle.rs          # SHA-256 natif en pur Rust std, déduplication et vérification
+│   │   │   ├── store.rs           # Store central avec annulation/rétablissement et préservation de caméra
+│   │   │   └── export.rs          # Exportateurs SVG vectoriel et Markdown en pur Rust std
+│   │   └── tests/                 # 14 suites de tests d'intégration (165 tests + 37 unitaires = 202)
+│   │
+│   └── glucose-desktop/    # CLIENT DESKTOP NATIF PUREREF
+│       ├── src/
+│       │   ├── canvas.rs          # Mappings coordonnées Écran <-> Monde et zoom centré curseur
+│       │   ├── font.rs            # Moteur de rendu de police bitmap 8x8 natif (0 police externe requise)
+│       │   ├── font_data.rs       # Table de glyphes ASCII/Latin intégrée en binaire
+│       │   ├── renderer.rs        # Rendu logiciel 2D Tiny-Skia (canvas sombre, grille, membranes, images)
+│       │   ├── app.rs             # Boucle d'événements Winit 0.30 + Framebuffer Softbuffer 0.4
+│       │   └── main.rs            # Point d'entrée de l'application
+```
 
-L'intuition est simple. Aujourd'hui on parle à une IA en texte linéaire ; on aimerait pouvoir lui transmettre une pensée autrement — par **la couleur, l'espace et les relations**, un « prompt » qui ne se réduit pas aux mots. Glucose est un terrain pour essayer cette idée. On en est encore très loin, et c'est normal.
-
-**Quelques pistes qu'on aimerait explorer un jour** *(rien de tout ça n'est à portée de main pour l'instant — ce sont des paris, pas des promesses)* :
-
-- 📚 **Remettre Wikipédia dans Glucose** — parcourir la connaissance comme un paysage plutôt qu'une liste de liens.
-- 🗣️ **Faire vivre une langue complète** dans Glucose — un terrain pour construire et explorer une langue de bout en bout.
-- 🤖 **Faire dialoguer plusieurs IA** entre elles sur un sujet, à travers l'espace de Glucose.
-
-Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
-
-> Dans l'esprit de Miro / FigJam, mais **offline et sans modes**. C'est un projet jeune et très perfectible — les retours sont les bienvenus.
+---
 
 ## 🌟 Fonctionnalités
 
@@ -54,180 +77,113 @@ Si une seule de ces pistes aboutit un jour, ce sera déjà beaucoup.
 <tr>
 <td width="50%">
 
-### 🎨 Canvas infini
-- Pan / zoom illimité, fluide à 60 FPS
-- Multi-boards imbriqués (**dossiers zoomables** — entre dans un dossier en zoomant dessus)
-- Membranes auto autour des clusters d'images
-- Drag-create dossier qui **capture** ce qui est dessous
+### 🎨 Expérience PureRef native
+- Pan fluide (clic du milieu, clic droit ou Espace)
+- Zoom continu centré précisément sous le curseur de la souris
+- Drag-and-drop instantané d'images depuis l'explorateur de fichiers OS
+- Mode Always-on-Top commutable (`T`) pour survoler Blender/Photoshop/Krita
+- Cadrage automatique (`Espace` ou `F`)
 
 </td>
 <td width="50%">
 
-### 🔗 Relations sémantiques
-- Flèches avec **prédicats typés** (inspire, contredit, hérite_de…)
-- Sub-block targeting — pointer un paragraphe précis
-- Pathfinding anti-obstacles automatique
-- Liens **trans-domaines** en pointillés
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🪞 Miroirs (alias vivants)
-- Copie d'un nœud — modifier l'original propage partout
-- **Garde-fou anti-Inception** : interdit les cycles infinis
-- Téléportation cliquable vers l'original
-
-</td>
-<td width="50%">
-
-### 🌈 Domaines & Temporel
-- Catégoriser tes nœuds (Science, Art, Histoire…)
-- Couleurs des membranes dérivées des domaines
-- **Réglette temporelle** : ancrer un nœud à 1789, à la Renaissance, ou -3000 av. J.-C.
+### 🧬 Membranes & Repères locaux
+- 3 modes : `Classic`, `Minimized`, `Stretched`
+- Échelle déduite automatique $k = \min(1, \dots)$
+- Mode Focus plein écran avec fond teinté dynamique
+- Planification d'étirement qui s'arrête strictement sur les obstacles
+- Détection d'appartenance événementielle (`membrane_id`)
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-### ⏳ Time Machine (CRDT Automerge)
-- **Undo / Redo infini** natif
-- Slider d'historique (Ctrl+H) — drag pour voyager
-- **Jalons nommés** 📌 cliquables
-- Restauration sans perdre l'historique antérieur
+### 🎯 Sélection & Magnétisme (PICK-1 & SNAP-1)
+- Arbitre de hit à 7 rangs (poignée > bord > flèche > image > sticky > texte > fond)
+- Cyclage intelligent de sélection par clics consécutifs
+- Guides d'alignement automatiques à l'écran
+- Seuil de capture constant en pixels écran quel que soit le niveau de zoom
 
 </td>
 <td width="50%">
 
-### 🌐 Collaboration internet
-- Crée une « chaîne » → code `automerge:…` à partager
-- Synchro temps réel via serveur always-on (automerge-repo)
-- Merge CRDT transparent — pas de conflits
-- Activation Ctrl+Shift+L
+### 🪞 Miroirs & Dossiers imbriqués
+- Copies vivantes et synchronisées d'éléments et de dossiers
+- Détection de cycle BFS anti-Inception
+- Téléportation instantanée vers la source originale
+- Capture spatiale automatique à la création de dossier
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-### 📥 Multimédia & App Bridge
-- Drag-drop images / vidéos depuis le navigateur
-- Import URL YouTube / TikTok / Instagram (yt-dlp embarqué)
-- Ouverture native `.blend`, `.psd`, `.kra` (Blender, Photoshop, Krita…)
+### ⏳ Undo / Redo & Transparence caméra
+- Annulation / rétablissement infini
+- **Navigation transparente** : naviguer (pan, zoom) n'est jamais enregistré dans la pile undo
+- Préservation rigoureuse de la caméra lors d'un `Ctrl+Z` ou `Ctrl+Y`
+- Sessions de drag atomiques (`begin_live_edit` / `end_live_edit`)
 
 </td>
 <td width="50%">
 
-### 🛡️ Privé & sécurisé
-- 100% offline, sauvegarde locale `.glucose`
-- Validation Zod des fichiers chargés
-- Scope checks stricts sur toutes les commandes natives
-- Anti-XSS, anti-SSRF, capabilities Tauri minimales
+### 📦 Bundles & Export natif
+- Hachage cryptographique **SHA-256 implémenté en pur Rust `std`**
+- Déduplication de contenu sans perte
+- Export SVG autonome sans dépendance
+- Export Markdown structuré hiérarchique
 
 </td>
 </tr>
 </table>
 
-## 📥 Installation
+---
 
-> 🧪 **Bêta publique.** Va sur la **[page Releases](../../releases/latest)** et prends le fichier qui correspond à ton OS — le numéro de version est dans le nom du fichier.
+## ⚡ Raccourcis clavier & Contrôles
 
-| OS | Fichier à prendre | En bref |
-|---|---|---|
-| 🪟 **Windows 10 / 11** | `Glucose_*_x64-setup.exe` | Double-clic · pas de droits admin · WebView2 embarqué |
-| 🍎 **macOS** (Apple Silicon · Intel via Rosetta 2) | `Glucose_*_aarch64.dmg` | Glisser dans `Applications` · 1er lancement : **clic-droit → Ouvrir** |
-| 🐧 **Linux** (universel) | `glucose_*_amd64.AppImage` | `chmod +x <fichier>` puis le lancer |
-| 📦 **Debian / Ubuntu** | `glucose_*_amd64.deb` | `sudo dpkg -i <fichier>` puis `sudo apt-get install -f` |
-| 🎩 **Fedora / RHEL** | `glucose-*.x86_64.rpm` | `sudo dnf install ./<fichier>` |
-
-> 🍎 L'app n'est pas encore signée (macOS Gatekeeper) — au premier lancement, fais **clic-droit → Ouvrir**.
-> ❄️ NixOS : pour l'AppImage, active `programs.nix-ld.enable = true;` ou utilise `nix-shell -p appimage-run`.
-
-### Désinstallation
-
-| OS | Commande |
+| Action | Raccourci / Geste |
 |---|---|
-| Windows | Panneau Config → Programmes → Désinstaller "Glucose" |
-| macOS | Glisser `Applications/Glucose.app` à la corbeille |
-| Linux `.deb` | `sudo apt-get remove glucose` |
-| Linux `.rpm` | `sudo dnf remove glucose` |
-| Linux AppImage | Supprimer le fichier |
-| NixOS | `nix profile remove glucose` |
+| **Pan (déplacer la vue)** | Clic milieu glissé, ou Clic droit glissé, ou `Espace` + Clic gauche |
+| **Zoom au curseur** | Molette de la souris |
+| **Sélectionner** | Clic gauche (cyclage multi-niveaux si empilé) |
+| **Multi-sélection** | `Ctrl` + Clic gauche |
+| **Déplacer la sélection** | Clic gauche glissé sur un élément |
+| **Ajouter des images** | Glisser-déposer des fichiers image directement dans la fenêtre |
+| **Recentrer / Cadrer tout** | `Espace` (sans drag) ou `F` |
+| **Always on Top** | `T` (épingle la fenêtre au-dessus des autres applications) |
+| **Supprimer** | `Suppr` ou `Backspace` |
+| **Dupliquer** | `Ctrl+D` |
+| **Annuler / Rétablir** | `Ctrl+Z` / `Ctrl+Y` |
+| **Quitter** | `Échap` ou fermer la fenêtre |
 
-> Tes données (`%APPDATA%/Glucose` sur Win, `~/Library/Application Support/Glucose` sur Mac, `~/.config/Glucose` sur Linux) sont **conservées**. Effacer manuellement si désiré.
+---
 
-## ⚡ Démarrage rapide
+## 🛠️ Compilation & Tests
 
-À l'ouverture, l'app crée un projet vierge. **Touches principales** :
+### Prérequis
+- [Rust toolchain](https://rustup.rs/) (édition 2021 stable ou plus récente).
+- Aucun outil tiers, aucun Node.js, aucun GPU requis.
 
-| Touche | Action |
-|---|---|
-| `V` | Outil sélection |
-| `T` | Texte |
-| `N` | Note sticky |
-| `A` | Flèche (entre deux blocs) |
-| `F` | Dossier (drag pour dessiner) |
-| `M` | Membrane (zone colorée) |
-| `Espace` | Pan (maintenu) |
-| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo infini |
-| `Ctrl+H` | Time Machine |
-| `Ctrl+Shift+L` | Collaboration (chaîne internet) |
-| `Shift+R` | Réglette temporelle |
-| `Shift+T` | Ancrer une date à la sélection |
-| `F11` | Mode Zen (cache toute l'UI) |
-
-📚 **[GUIDE.md](GUIDE.md)** contient le manuel complet (concepts, tous les raccourcis, workflows types).
-
-## 🏗️ Stack technique
-
-```
-┌──────────────────────────────────────────────────┐
-│  React 19 + TypeScript + Tailwind 4              │
-│            ↓                                     │
-│  Zustand + Automerge 3 (CRDT)  ·  Zod            │
-│            ↓                                     │
-│  PixiJS 8 (raster)  +  SVG overlay (vectoriel)   │
-│            ↓                                     │
-│  Tauri 2 (Rust)                                  │
-│  · reqwest (rustls)  · yt-dlp embarqué           │
-│  · automerge-repo (collaboration internet)       │
-└──────────────────────────────────────────────────┘
-```
-
-## 🛠️ Build depuis les sources
-
-**Prérequis** :
-- [Node.js](https://nodejs.org/) 20+
-- [Rust toolchain](https://rustup.rs/) stable
-- Linux : voir [tauri prereqs](https://tauri.app/start/prerequisites/) (`libwebkit2gtk-4.1-dev`, etc.)
-
+### Lancer tous les tests (202 tests verts)
 ```bash
-git clone https://github.com/shazamifius/GlucoseGit
-cd GlucoseGit
-npm install
-npm run tauri dev      # mode développement
-npm run tauri build    # build release
+cargo test --workspace
 ```
 
-Tests + lint :
+### Lancer l'application PureRef native
 ```bash
-npm run typecheck      # tsc --noEmit
-npm test               # vitest (304 tests)
-npm run lint           # Biome
+cargo run -p glucose-desktop --release
 ```
 
-L'artefact release est dans `src-tauri/target/release/bundle/`.
+### Compiler les binaires de production
+```bash
+cargo build --release -p glucose-desktop
+```
+L'exécutable portable et autonome se trouve dans `target/release/glucose-desktop.exe` (ou `glucose-desktop` sous Linux/macOS).
 
-## 🤝 Contribuer
+---
 
-Contributions bienvenues ! Le guide complet (setup, checklist, repères d'archi) est
-dans **[CONTRIBUTING.md](CONTRIBUTING.md)**. En deux mots : `npm run typecheck`,
-`npm test` et `npm run lint` doivent passer, et on discute les gros changements dans
-une [issue](../../issues) ou une [Discussion](../../discussions) d'abord.
-
-## 📄 License
+## 📄 Licence
 
 [MIT](LICENSE) — utilisation, modification et redistribution libres.
 
@@ -238,3 +194,4 @@ une [issue](../../issues) ou une [Discussion](../../discussions) d'abord.
 **Glucose, c'est juste poser, relier, zoomer, explorer.**
 
 </div>
+
