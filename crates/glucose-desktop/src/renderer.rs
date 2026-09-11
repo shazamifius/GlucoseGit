@@ -164,6 +164,11 @@ fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f3
     pb.close();
 }
 
+/// Échelle de viewport en dessous de laquelle la grille n'est plus dessinable.
+const MIN_GRID_SCALE: f64 = 1e-6;
+/// Nombre maximal de doublements du pas de grille (borne la boucle d'adaptation).
+const MAX_GRID_DOUBLINGS: u32 = 64;
+
 pub struct Renderer {
     pub theme: Theme,
     pub image_cache: HashMap<String, Pixmap>,
@@ -271,18 +276,23 @@ impl Renderer {
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
         let visible_ids = self.spatial_hash.query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
+        crate::perf::stage("cull");
 
         // 1. Fond sombre sleek PureRef
         pixmap.fill(self.theme.bg_canvas);
+        crate::perf::stage("clear");
 
         // 2. Grille de points infinie
         self.draw_grid(pixmap, &vp, width, height, header_h);
+        crate::perf::stage("grid");
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + gradient vectoriel circulaire)
         Self::draw_halos(&mut self.hue_cache, pixmap, store, &vp, &visible_ids, header_h);
+        crate::perf::stage("halos");
 
         // 4. Membranes (large rayon rx=60, pointillés, titre protecteur en haut à gauche)
         self.draw_membranes(pixmap, store, &vp, &visible_ids, header_h);
+        crate::perf::stage("membranes");
 
         // 5. Images
         Self::draw_images(
@@ -295,6 +305,7 @@ impl Renderer {
             &visible_ids,
             header_h,
         );
+        crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, stickies, flèches + édition live in-place)
         Self::draw_annotations(
@@ -307,6 +318,7 @@ impl Renderer {
             &visible_ids,
             header_h,
         );
+        crate::perf::stage("annotations");
 
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
@@ -320,16 +332,30 @@ impl Renderer {
 
         // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
         render_ui(pixmap, store, ui, &self.typography, &self.theme, mouse_x, mouse_y);
+        crate::perf::stage("ui");
     }
 
     fn draw_grid(&self, pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, header_h: f32) {
+        // Une échelle nulle, négative ou NaN rendait la boucle d'adaptation du pas
+        // infinie : on la borne inconditionnellement.
+        let safe_scale = if vp.scale.is_finite() && vp.scale > MIN_GRID_SCALE {
+            vp.scale
+        } else {
+            return;
+        };
+
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, vp);
         let (max_wx, max_wy) = screen_to_world(w as f64, h as f64, vp);
+        if ![min_wx, min_wy, max_wx, max_wy].iter().all(|v| v.is_finite()) {
+            return;
+        }
 
         // Pas dynamique adaptatif : ne descend jamais sous ~32px à l'écran pour éviter toute explosion CPU
         let mut effective_step = 60.0f64;
-        while effective_step * vp.scale < 32.0 {
+        let mut doublings = 0u32;
+        while effective_step * safe_scale < 32.0 && doublings < MAX_GRID_DOUBLINGS {
             effective_step *= 2.0;
+            doublings += 1;
         }
 
         let start_x = (min_wx / effective_step).floor() * effective_step;
@@ -1090,6 +1116,79 @@ mod tests {
             domains: Vec::new(),
             mirror_of: None,
             temporal_anchor: None,
+        }
+    }
+
+    /// Budget de temps d'une frame complète (scène + docks) en 1440x900, en debug.
+    ///
+    /// Garde-fou de démarrage : une frame qui dépasse ce budget affame la pompe
+    /// de messages de l'OS et produit une fenêtre blanche « Ne répond pas ».
+    const FULL_FRAME_BUDGET_MS: u128 = 2_000;
+
+    fn render_one_frame(
+        renderer: &mut Renderer,
+        pixmap: &mut Pixmap,
+        store: &Store,
+        ui: &mut UiState,
+        dock: &crate::dock::DockManager,
+    ) {
+        let guides = SnapGuides::default();
+        let mut view = pixmap.as_mut();
+        renderer.render(&mut view, store, &guides, None, ui, None, 0.0, 0.0);
+        crate::dock::render_docks(
+            &mut view,
+            dock,
+            store,
+            &renderer.typography,
+            &renderer.theme,
+            1440.0,
+            900.0,
+            ui.header_height(),
+            ui.scale_factor,
+            0.0,
+            0.0,
+        );
+    }
+
+    #[test]
+    fn test_full_frame_render_stays_within_time_budget() {
+        let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
+        let mut store = Store::new("Budget");
+        let board_id = store.project.active_board_id.clone();
+        store.add_annotation(&board_id, make_test_card("budget-1", 0.0, 0.0));
+
+        let mut renderer = Renderer::new();
+        let mut ui = UiState::new();
+        let dock = crate::dock::DockManager::new();
+
+        // Frame de chauffe : remplit le cache de glyphes et l'index spatial.
+        render_one_frame(&mut renderer, &mut pixmap, &store, &mut ui, &dock);
+
+        let started = std::time::Instant::now();
+        render_one_frame(&mut renderer, &mut pixmap, &store, &mut ui, &dock);
+        let elapsed = started.elapsed().as_millis();
+
+        assert!(
+            elapsed < FULL_FRAME_BUDGET_MS,
+            "frame complète : {elapsed} ms (budget {FULL_FRAME_BUDGET_MS} ms)"
+        );
+    }
+
+    #[test]
+    fn test_draw_grid_terminates_on_degenerate_scale() {
+        let mut pixmap = Pixmap::new(320, 240).expect("pixmap 320x240");
+        let renderer = Renderer::new();
+
+        for bad_scale in [0.0_f64, -1.0, f64::NAN, f64::INFINITY, 1e-12] {
+            let mut vp = Viewport::default();
+            vp.scale = bad_scale;
+            let started = std::time::Instant::now();
+            let mut view = pixmap.as_mut();
+            renderer.draw_grid(&mut view, &vp, 320, 240, 40.0);
+            assert!(
+                started.elapsed().as_millis() < 500,
+                "draw_grid ne se termine pas pour scale={bad_scale}"
+            );
         }
     }
 

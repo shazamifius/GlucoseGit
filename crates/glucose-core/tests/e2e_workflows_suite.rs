@@ -109,7 +109,7 @@ fn test_workflow_folder_cycle_complet() {
     assert_eq!(store.active_board().unwrap().folders.len(), 1);
 
     // 3. Entre dans le folder
-    store.enter_folder("F");
+    store.try_enter_folder("F").expect("le dossier existe");
     assert_eq!(store.active_board().unwrap().images.len(), 1);
     assert_eq!(store.active_board().unwrap().annotations.len(), 1);
 
@@ -132,7 +132,7 @@ fn test_workflow_folder_cycle_complet() {
 fn test_workflow_creer_folder_vide_entrer_sortir_supprimer() {
     let mut store = Store::new("test");
     store.create_folder("main", mk_folder("F1", "F", 0.0, 0.0, 100.0, 100.0));
-    store.enter_folder("F1");
+    store.try_enter_folder("F1").expect("le dossier existe");
     store.exit_folder();
     store.remove_folders("main", &["F1"]);
     assert_eq!(store.project.boards.len(), 1);
@@ -142,11 +142,11 @@ fn test_workflow_creer_folder_vide_entrer_sortir_supprimer() {
 fn test_workflow_nested_folders() {
     let mut store = Store::new("test");
     store.create_folder("main", mk_folder("F", "F", 0.0, 0.0, 100.0, 100.0));
-    store.enter_folder("F");
+    store.try_enter_folder("F").expect("le dossier existe");
     let child_f = store.project.active_board_id.clone();
 
     store.create_folder(&child_f, mk_folder("G", "G", 0.0, 0.0, 50.0, 50.0));
-    store.enter_folder("G");
+    store.try_enter_folder("G").expect("le dossier existe");
     assert_eq!(store.folder_stack.len(), 2);
 
     store.exit_folder();
@@ -162,7 +162,7 @@ fn test_workflow_renommer_folder_ne_casse_pas_la_navigation() {
     let mut store = Store::new("test");
     store.create_folder("main", mk_folder("F", "Old", 0.0, 0.0, 100.0, 100.0));
     store.update_folder("main", "F", |f| f.name = "New".into());
-    store.enter_folder("F");
+    store.try_enter_folder("F").expect("le dossier existe");
     store.exit_folder();
     assert_eq!(store.project.active_board_id, "main");
 }
@@ -171,14 +171,13 @@ fn test_workflow_renommer_folder_ne_casse_pas_la_navigation() {
 fn test_workflow_mirror_folder() {
     let mut store = Store::new("test");
     store.create_folder("main", mk_folder("F", "F", 0.0, 0.0, 100.0, 100.0));
-    store.enter_folder("F");
+    store.try_enter_folder("F").expect("le dossier existe");
     let f_child = store.project.active_board_id.clone();
     store.add_annotation(&f_child, mk_text("T-in-F", 0.0, 0.0, "hello"));
     store.exit_folder();
 
-    let mid = store.mirror_folder("main", "F", 300.0, 300.0);
-    assert!(mid.is_some());
-    store.enter_folder(&mid.unwrap());
+    let mid = store.try_mirror_folder("main", "F", 300.0, 300.0).expect("le dossier F existe");
+    store.try_enter_folder(&mid).expect("le miroir de dossier est navigable");
 
     // Le miroir partage le child_board_id : le contenu doit être présent
     let child = store.active_board().unwrap();
@@ -240,7 +239,7 @@ fn test_workflow_fleche_portail_vers_autre_board() {
         assert_eq!(target_board_id.as_deref(), Some(other.as_str()));
     }
 
-    store.remove_board(&other);
+    store.try_remove_board(&other).expect("tableau existant, et pas le dernier du projet");
     let ann_after = &store.active_board().unwrap().annotations[0];
     if let Annotation::Arrow { target_board_id, .. } = ann_after {
         assert_eq!(*target_board_id, None);
@@ -300,10 +299,10 @@ fn test_workflow_duplicate_selection_mixte() {
 fn test_workflow_mirror_annotation() {
     let mut store = Store::new("test");
     store.add_annotation("main", mk_text("O", 0.0, 0.0, "hello"));
-    let mid = store.mirror_annotation("main", "O", 50.0, 50.0);
+    let mid = store.try_mirror_annotation("main", "O", 50.0, 50.0).expect("l'annotation O existe");
 
     let b = store.active_board().unwrap();
-    let mirror = b.annotations.iter().find(|a| Some(a.id().to_string()) == mid).unwrap();
+    let mirror = b.annotations.iter().find(|a| a.id() == mid).unwrap();
     match mirror {
         Annotation::Text { mirror_of, .. } => {
             assert_eq!(mirror_of.as_deref(), Some("O"));
@@ -337,8 +336,8 @@ fn test_workflow_domains_et_temporal() {
     store.add_annotation("main", t1);
     store.add_annotation("main", t2);
 
-    store.assign_domain_to_node("main", "T1", "D1", 0.7);
-    store.assign_domain_to_node("main", "T2", "D1", 0.5);
+    store.try_assign_domain_to_node("main", "T1", "D1", 0.7).expect("T1 existe");
+    store.try_assign_domain_to_node("main", "T2", "D1", 0.5).expect("T2 existe");
 
     store.set_temporal_filter(Some(TemporalAnchor { start: 1800, end: 2000, label: None }));
     assert!(store.temporal_filter.is_some());
@@ -388,7 +387,7 @@ fn test_workflow_folder_avec_markdown_et_latex() {
     assert_eq!(store.active_board().unwrap().annotations.len(), 0);
     assert_eq!(store.active_board().unwrap().folders.len(), 1);
 
-    store.enter_folder("F");
+    store.try_enter_folder("F").expect("le dossier existe");
     let child = store.active_board().unwrap();
     assert!(child.annotations.iter().any(|a| a.id() == "MD"));
 
@@ -404,7 +403,7 @@ fn test_workflow_sticky_avec_operateur() {
         mk_sticky("OP", 50.0, 50.0, "Formule", Some(StickyOperator::Because)),
     );
     store.create_folder("main", mk_folder("F", "F", 0.0, 0.0, 200.0, 200.0));
-    store.enter_folder("F");
+    store.try_enter_folder("F").expect("le dossier existe");
     store.exit_folder();
     assert_eq!(store.project.active_board_id, "main");
 }
@@ -473,7 +472,7 @@ fn test_r14_no_board_id_collision_after_deletion() {
     assert_eq!(store.project.boards.len(), 3);
 
     // Supprimer Board 2
-    store.remove_board(&b2);
+    store.try_remove_board(&b2).expect("tableau existant, et pas le dernier du projet");
     assert_eq!(store.project.boards.len(), 2);
 
     // Créer un nouveau board -> ne doit jamais entrer en collision avec b3

@@ -39,6 +39,7 @@ impl Typography {
 
     /// Récupère ou rastérise un glyphe avec mise en cache LRU sans atomicité Arc (R-26, R-40).
     pub fn get_glyph(&self, ch: char, size: f32, bold: bool) -> (char, Rc<GlyphEntry>) {
+        let size = clamp_font_size(size);
         let font = if bold { &self.bold } else { &self.regular };
         let safe_ch = normalize_char(font, ch);
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
@@ -84,6 +85,7 @@ impl Typography {
         color: Color,
         bold: bool,
     ) -> f32 {
+        let size = clamp_font_size(size);
         let r = (color.red() * 255.0) as f32;
         let g = (color.green() * 255.0) as f32;
         let b = (color.blue() * 255.0) as f32;
@@ -146,6 +148,7 @@ impl Typography {
         outline_color: Color,
         bold: bool,
     ) -> f32 {
+        let size = clamp_font_size(size);
         let shadow_offsets: [(f32, f32); 8] = [
             (-1.5, 0.0), (1.5, 0.0), (0.0, -1.5), (0.0, 1.5),
             (-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0),
@@ -239,6 +242,7 @@ impl Typography {
 
     /// Mesure la largeur et hauteur d'un texte via le cache de glyphes et métriques de police réelles (R-40)
     pub fn measure_text(&self, text: &str, size: f32, bold: bool) -> (f32, f32) {
+        let size = clamp_font_size(size);
         let font = if bold { &self.bold } else { &self.regular };
         let height = font.horizontal_line_metrics(size).map(|m| m.new_line_size).unwrap_or(size * 1.2);
         let mut width = 0.0;
@@ -251,6 +255,24 @@ impl Typography {
         }
         (width, height)
     }
+}
+
+/// Taille de glyphe maximale rastérisable.
+///
+/// Un glyphe est rastérisé dans un bitmap de `size * size` octets puis composé
+/// pixel par pixel : sans borne, une taille aberrante (échelle corrompue,
+/// NaN, argument inversé) transforme un seul appel de texte en plusieurs
+/// centaines de millions d'itérations et gèle l'application. La borne rend ce
+/// scénario impossible par construction.
+pub const MAX_FONT_SIZE: f32 = 512.0;
+
+/// Normalise une taille de police : NaN et valeurs aberrantes sont ramenées
+/// dans une plage rastérisable en temps borné.
+pub fn clamp_font_size(size: f32) -> f32 {
+    if size.is_nan() {
+        return 1.0;
+    }
+    size.clamp(1.0, MAX_FONT_SIZE)
 }
 
 fn normalize_char(font: &Font, ch: char) -> char {

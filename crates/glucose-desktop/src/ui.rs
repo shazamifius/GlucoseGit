@@ -98,7 +98,7 @@ impl UiState {
 
     #[inline]
     pub fn scale(&self) -> f32 {
-        self.scale_factor.max(0.5)
+        crate::theme::clamp_ui_scale(self.scale_factor)
     }
 
     #[inline]
@@ -518,7 +518,7 @@ pub fn layout_tabs(
     y_start: f32,
     scale: f32,
 ) -> Vec<TabButtonLayout> {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let mut layouts = Vec::new();
     let mut tab_x = 8.0 * s;
     let tabs_h = TABS_HEIGHT * s;
@@ -814,7 +814,7 @@ pub fn layout_minimap(
     scale: f32,
 ) -> Option<MinimapBounds> {
     let board = store.active_board()?;
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let mm_w = 180.0f32 * s;
     let mm_h = 120.0f32 * s;
     let mm_x = screen_w - mm_w - 16.0 * s;
@@ -877,6 +877,14 @@ pub fn layout_minimap(
     max_x = max_x.max(cam_left + vp_w) + 200.0;
     max_y = max_y.max(cam_top + vp_h) + 200.0;
 
+    // Garde-fou : un viewport corrompu (échelle nulle, NaN) ou un board vide
+    // laisserait des bornes infinies, puis des coordonnées NaN transmises au
+    // rasterizer. On renonce alors à la minimap plutôt que de dessiner du bruit.
+    let finite = [min_x, min_y, max_x, max_y, cam_left, cam_top, vp_w, vp_h];
+    if finite.iter().any(|v| !v.is_finite()) {
+        return None;
+    }
+
     let span_x = (max_x - min_x).max(1.0);
     let span_y = (max_y - min_y).max(1.0);
 
@@ -904,7 +912,7 @@ pub fn layout_minimap(
 }
 
 fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Theme, w: f32, h: f32, scale: f32) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let mb = match layout_minimap(store, w, h, s) {
         Some(m) => m,
         None => return,
@@ -1024,7 +1032,7 @@ fn render_toast(
         return;
     }
 
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let (tw, _) = typo.measure_text(&toast.message, 13.0 * s, false);
     let toast_w = tw + 40.0 * s;
     let toast_h = 36.0 * s;

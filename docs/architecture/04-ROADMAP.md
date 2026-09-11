@@ -92,16 +92,16 @@ pour très peu de code neuf.
 | 1.7 | Minimap : bornes réelles + annotations + membranes | R-08 | ✅ **VÉRIFIÉ** — `layout_minimap` partagé |
 | 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14 | ⚠️ **PARTIEL** — unique, mais `id_exists` scanne tout → O(n) par id |
 | 1.9 | Sticky : utiliser `bg_color` et `color` du modèle | R-24 | ✅ **VÉRIFIÉ** |
-| 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | 🟡 **(traité à vérifier)** — `scale()` appliqué aux layouts topbar, tabs, minimap, docks ; test 150% vert |
+| 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | ✅ **VÉRIFIÉ** — layouts, polices et docks scalés ; test 150 % avec hit-testing |
 
 ### 1B — La boucle de rendu
 
 | # | Tâche | Répare | État |
 |---|---|---|---|
 | 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | ✅ **VÉRIFIÉ** — `mark_dirty()` → `request_redraw()` |
-| 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | 🟡 **(traité à vérifier)** — cadence exacte : curseur 500ms, plateau statique toast sans repaint, Pomodoro 1s, suppression du `mark_dirty` inconditionnel |
+| 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | ✅ **VÉRIFIÉ** — curseur 2 fps, plateau toast à 0 repaint, `Wait` au repos |
 | 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2 | *(coalescé / partiel)* |
-| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | 🟡 **(traité à vérifier)** — cache LRU avec conservation des 75% les plus récents, remplacement d'Arc par Rc, sortie de data_mut() des boucles internes |
+| 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | ✅ **VÉRIFIÉ** — LRU réelle, `Rc`, `data_mut()` hissé, métriques réelles |
 
 ### 1C — Le branchement du noyau
 
@@ -125,22 +125,22 @@ pour très peu de code neuf.
 
 | # | Tâche | Répare | État |
 |---|---|---|---|
-| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | 🟡 **(traité à vérifier)** — `DesktopError` câblé sur import d'images, dimension, décodage, presse-papier et io, `let _ =` et `.unwrap()` nettoyés |
-| 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 | 🟡 **(traité à vérifier)** — jetons `Theme` injectés dans `ui.rs` et `dock.rs` |
+| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | ⚠️ **PARTIEL** — `DesktopError` câblé (5 sites, toasts visibles), `let _ =`/`unwrap` nettoyés ✅ ; mais **`CoreError` toujours 0 référence** et aucune barre de statut |
+| 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 | ⚠️ **PARTIEL** — `dock.rs` 134→41 littéraux, `ui.rs` 35→4 ✅ ; mais **`renderer.rs` intact (37 littéraux, 3 usages)** et `Theme::light()` jamais appelé |
 | 1.25 | Supprimer `store::ActiveTool` (doublon) | R-25 | ✅ **VÉRIFIÉ** |
 | 1.26 | Sortir `organize_layout` de `app.rs` vers `glucose-model`, avec une convention de coordonnées unique | R-11, R-19 | ✅ **VÉRIFIÉ** — `app.rs` 1126 → 331 l. |
 
 ### Critères de sortie
 
-*Vérifiés dans le code au commit `8444e8b`. Un critère n'est coché que si une preuve
+*Vérifiés dans le code au commit `3bd9bda`. Un critère n'est coché que si une preuve
 existe dans le dépôt — test vert, ou lecture du code.*
 
 - [ ] **Frame < 8 ms** sur 10 000 nœuds dont 50 visibles, **et** au zoom 0,01.
       → **non mesurable** : aucun banc n'existe (tâche 0.8 non faite).
 - [ ] **200 undos sur un projet de 200 images < 1,5 Go** de mémoire.
       → `push_undo` clone toujours `Project` en entier (1.19 en cours). Non mesuré.
-- [x] Le curseur clignote sans bouger la souris ; les toasts s'effacent seuls. 🟡 **(traité à vérifier)**
-      → `about_to_wait` + `WaitUntil` cadencé, sans repaint inutile sur plateau.
+- [x] Le curseur clignote sans bouger la souris ; les toasts s'effacent seuls.
+      → cadence vérifiée : 2 fps curseur, 0 repaint sur plateau, `Wait` au repos.
 - [x] Le magnétisme fonctionne, guides visibles à l'appui.
       → `snap_move` appelé dans `drag.rs:67`, `active_guides` assigné.
 - [x] La sélection élastique sélectionne.
@@ -149,10 +149,10 @@ existe dans le dépôt — test vert, ou lecture du code.*
       → `layout_tabs` partagé + `test_click_tabs_selects_correct_board` vert.
 - [ ] Les images se placent au bon endroit à tout zoom — **test PNG de référence**.
       → le correctif est en place, mais **le test PNG de référence n'existe pas** (0.5/0.6 non faits).
-- [x] L'UI est lisible et cliquable à 100 %, 150 % et 200 %. 🟡 **(traité à vérifier)**
-      → `scale_factor` appliqué sur topbar, tabs, minimap, docks et polices ; test unitaire à 150% vert.
-- [x] `cargo clippy -- -D warnings` passe. 🟡 **(traité à vérifier)**
-      → 0 warning sur tout le workspace.
+- [x] L'UI est lisible et cliquable à 100 %, 150 % et 200 %.
+      → `test_ui_dpi_scaling_and_hit_testing_at_150_percent` + `test_organize_layout_exact_utf8_hit_test` verts.
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` passe.
+      → vérifié : code de sortie 0, 0 avertissement.
 
 **Bilan de la phase 1 : 7 critères sur 9 sont passés au vert.** Voir la section « Ce qui reste »
 ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).

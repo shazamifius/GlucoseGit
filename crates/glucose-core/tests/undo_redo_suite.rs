@@ -154,9 +154,9 @@ fn test_enter_folder_exit_folder_ne_creent_aucune_entree_undo() {
     let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), vec![mk_text("t1", "hi")]);
     let base = store.undo_stack.len(); // 1 = la création du dossier
 
-    store.enter_folder(&fid);
+    store.try_enter_folder(&fid).expect("le dossier existe");
     store.exit_folder();
-    store.enter_folder(&fid);
+    store.try_enter_folder(&fid).expect("le dossier existe");
     store.exit_to_root();
     assert_eq!(store.undo_stack.len(), base);
 }
@@ -389,7 +389,7 @@ fn test_add_and_remove_board_roundtrip() {
     assert_eq!(store.project.boards.len(), 2);
 
     store.set_active_board_id("main");
-    store.remove_board(&other);
+    store.try_remove_board(&other).expect("tableau existant, et pas le dernier du projet");
     assert_eq!(store.project.boards.len(), 1);
 
     assert!(store.undo());
@@ -522,7 +522,7 @@ fn test_redo_ne_teleporte_pas_la_camera() {
 fn test_annuler_edition_dans_un_dossier_garde_dans_le_dossier() {
     let mut store = Store::new("test");
     let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), Vec::new());
-    store.enter_folder(&fid);
+    store.try_enter_folder(&fid).expect("le dossier existe");
 
     let child_id = store.project.active_board_id.clone();
     store.add_annotation(&child_id, mk_text("t1", "inside"));
@@ -539,7 +539,7 @@ fn test_annuler_creation_dossier_ou_on_est_retombe_racine() {
     let mut store = Store::new("test");
     store.add_annotation("main", mk_text("t0", "root"));
     let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), Vec::new());
-    store.enter_folder(&fid);
+    store.try_enter_folder(&fid).expect("le dossier existe");
 
     let child_id = store.project.active_board_id.clone();
     assert!(store.undo()); // annule create_folder_with_content

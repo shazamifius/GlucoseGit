@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 use crate::dock::{apply_organize_layout, render_docks, DockManager, OrganizeState};
+use crate::error::{DesktopError, DesktopResult};
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::UiState;
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
@@ -15,6 +16,11 @@ use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::ModifiersState;
 use winit::window::{Window, WindowAttributes, WindowId};
+
+/// Cadence minimale d'une animation d'interface (~60 Hz).
+const ANIMATION_MIN_INTERVAL_MS: u64 = 16;
+/// Cadence minimale de repli quand une frame est anormalement lente.
+const ANIMATION_MAX_INTERVAL_MS: u64 = 250;
 
 pub struct LastClickInfo {
     pub time: std::time::Instant,
@@ -52,6 +58,8 @@ pub struct GlucoseApp {
     pub editing_session: Option<TextEditSession>,
     pub last_click: Option<LastClickInfo>,
     pub last_blink_phase: bool,
+    /// Durée de la dernière frame présentée, en millisecondes.
+    pub last_frame_ms: u64,
 }
 
 impl GlucoseApp {
@@ -104,11 +112,14 @@ impl GlucoseApp {
             editing_session: None,
             last_click: None,
             last_blink_phase: true,
+            last_frame_ms: 0,
         }
     }
 
     pub fn redraw(&mut self) {
         if let (Some(window), Some(surface)) = (&self.window, &mut self.surface) {
+            crate::perf::frame_begin();
+            let frame_started = std::time::Instant::now();
             let size = window.inner_size();
             let width = size.width.max(1);
             let height = size.height.max(1);
@@ -141,6 +152,8 @@ impl GlucoseApp {
                 );
 
                 // Rendu des panneaux déroulants & flottants (Top & Bottom Docks)
+                // L'ordre des arguments est `scale`, puis `mx`, `my` : toute
+                // inversion fait exploser l'échelle des panneaux (gel complet).
                 render_docks(
                     &mut pixmap_mut,
                     &self.dock_manager,
@@ -150,22 +163,30 @@ impl GlucoseApp {
                     width as f32,
                     height as f32,
                     self.ui.header_height(),
+                    self.ui.scale_factor,
                     self.mouse_pos.0 as f32,
                     self.mouse_pos.1 as f32,
-                    self.ui.scale_factor,
                 );
+                crate::perf::stage("docks");
 
-                if let Ok(mut buffer) = surface.buffer_mut() {
-                    let src = pixmap.data();
-                    for (dst, chunk) in buffer.iter_mut().zip(src.chunks_exact(4)) {
-                        *dst = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
-                    }
-                    if let Err(e) = buffer.present() {
-                        eprintln!("[GlucoseDesktop] buffer.present failed: {e}");
-                    }
+                if let Err(e) = blit_and_present(surface, pixmap) {
+                    eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
+            self.last_frame_ms = frame_started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            crate::perf::frame_end();
         }
+    }
+
+    /// Intervalle minimal entre deux frames animées.
+    ///
+    /// On ne demande jamais un rafraîchissement plus vite que la durée réelle de
+    /// la dernière frame : sur une machine lente, une cadence fixe de 16 ms
+    /// remplirait la file d'événements plus vite qu'elle ne se vide et priverait
+    /// la pompe de messages de l'OS de temps de traitement.
+    fn animation_interval_ms(&self) -> u64 {
+        self.last_frame_ms
+            .clamp(ANIMATION_MIN_INTERVAL_MS, ANIMATION_MAX_INTERVAL_MS)
     }
 
     /// Marque la vue comme sale et planifie un rafraîchissement asynchrone coalescé par Winit (Roadmap 1.11, R-15).
@@ -211,41 +232,80 @@ impl GlucoseApp {
         self.ui.show_toast(format!("📐 Disposition {} appliquée", state.layout.title()));
         self.mark_dirty();
     }
+
+    /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
+    /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
+    fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
+        let attrs = WindowAttributes::default()
+            .with_title("GLUCOSE — PureRef Native Rust")
+            .with_inner_size(LogicalSize::new(1440.0, 900.0));
+
+        let window = event_loop
+            .create_window(attrs)
+            .map(Arc::new)
+            .map_err(|e| DesktopError::WindowError(format!("create_window : {e}")))?;
+
+        let scale_factor = window.scale_factor();
+        self.scale_factor = scale_factor;
+        self.ui.scale_factor = scale_factor as f32;
+
+        let context = softbuffer::Context::new(window.clone())
+            .map_err(|e| DesktopError::WindowError(format!("softbuffer::Context : {e}")))?;
+        let mut surface = softbuffer::Surface::new(&context, window.clone())
+            .map_err(|e| DesktopError::WindowError(format!("softbuffer::Surface : {e}")))?;
+
+        let size = window.inner_size();
+        let width = size.width.max(1);
+        let height = size.height.max(1);
+        if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
+            surface
+                .resize(w, h)
+                .map_err(|e| DesktopError::WindowError(format!("surface.resize : {e}")))?;
+        }
+
+        self.pixmap = Pixmap::new(width, height);
+        window.set_cursor(winit::window::CursorIcon::Grab);
+        self.window = Some(window);
+        self.context = Some(context);
+        self.surface = Some(surface);
+        self.mark_dirty();
+        Ok(())
+    }
+}
+
+/// Recopie le pixmap tiny-skia (RGBA prémultiplié) dans le framebuffer
+/// softbuffer (0RGB 32 bits) puis présente la frame.
+fn blit_and_present(
+    surface: &mut softbuffer::Surface<Arc<Window>, Arc<Window>>,
+    pixmap: &Pixmap,
+) -> DesktopResult<()> {
+    let mut buffer = surface
+        .buffer_mut()
+        .map_err(|e| DesktopError::WindowError(format!("buffer_mut : {e}")))?;
+    let src = pixmap.data();
+    for (dst, chunk) in buffer.iter_mut().zip(src.chunks_exact(4)) {
+        *dst = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
+    }
+    crate::perf::stage("blit");
+    buffer
+        .present()
+        .map_err(|e| DesktopError::WindowError(format!("present : {e}")))?;
+    crate::perf::stage("present");
+    Ok(())
 }
 
 impl ApplicationHandler for GlucoseApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.window.is_none() {
-            let attrs = WindowAttributes::default()
-                .with_title("GLUCOSE — PureRef Native Rust")
-                .with_inner_size(LogicalSize::new(1440.0, 900.0));
-
-            if let Ok(w) = event_loop.create_window(attrs) {
-                let window = Arc::new(w);
-                let scale_factor = window.scale_factor();
-                self.scale_factor = scale_factor;
-                self.ui.scale_factor = scale_factor as f32;
-
-                if let Ok(context) = softbuffer::Context::new(window.clone()) {
-                    if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-                        let size = window.inner_size();
-                        let width = size.width.max(1);
-                        let height = size.height.max(1);
-                        if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                            if let Err(e) = surface.resize(w, h) {
-                                eprintln!("[GlucoseDesktop] surface.resize failed: {e}");
-                            }
-                        }
-                        self.pixmap = Pixmap::new(width, height);
-                        self.window = Some(window.clone());
-                        window.set_cursor(winit::window::CursorIcon::Grab);
-                        self.context = Some(context);
-                        self.surface = Some(surface);
-                        self.mark_dirty();
-                    }
-                }
-            }
+        if self.window.is_some() {
+            return;
         }
+        let started = std::time::Instant::now();
+        if let Err(e) = self.init_window(event_loop) {
+            eprintln!("[GlucoseDesktop] initialisation de la fenêtre impossible : {e}");
+            event_loop.exit();
+            return;
+        }
+        crate::perf::event("resumed", started);
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
@@ -337,7 +397,7 @@ impl ApplicationHandler for GlucoseApp {
             } else if elapsed < 150.0 {
                 // Fondu entrant actif (150 ms) -> rafraîchissement doux
                 self.mark_dirty();
-                min_timeout_ms = min_timeout_ms.min(16);
+                min_timeout_ms = min_timeout_ms.min(self.animation_interval_ms());
                 has_timer = true;
             } else if elapsed < total - 400.0 {
                 // Plateau statique (alpha = 1.0) : AUCUN rafraîchissement nécessaire !
@@ -348,7 +408,7 @@ impl ApplicationHandler for GlucoseApp {
             } else {
                 // Fondu sortant actif (400 ms) -> rafraîchissement doux
                 self.mark_dirty();
-                min_timeout_ms = min_timeout_ms.min(16);
+                min_timeout_ms = min_timeout_ms.min(self.animation_interval_ms());
                 has_timer = true;
             }
         }

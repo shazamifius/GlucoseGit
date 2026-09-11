@@ -23,6 +23,7 @@ pub mod dock;
 pub mod error;
 mod icons;
 pub mod interactions;
+pub mod perf;
 mod renderer;
 mod typography;
 pub mod theme;

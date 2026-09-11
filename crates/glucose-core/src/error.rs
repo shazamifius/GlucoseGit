@@ -10,6 +10,9 @@ pub enum CoreError {
     ImageNotFound(String),
     FolderNotFound(String),
     InvalidId(String),
+    /// Opération refusée par un invariant du modèle (dernier tableau, cycle, etc.).
+    /// Le message dit **quoi faire**, pas seulement ce qui a échoué (standard 6.5).
+    InvalidOperation(String),
     CycleDetected(String),
     IoError(String),
     SerializationError(String),
@@ -24,6 +27,7 @@ impl fmt::Display for CoreError {
             Self::ImageNotFound(id) => write!(f, "Image introuvable : '{}'", id),
             Self::FolderNotFound(id) => write!(f, "Dossier introuvable : '{}'", id),
             Self::InvalidId(id) => write!(f, "Identifiant invalide : '{}'", id),
+            Self::InvalidOperation(msg) => write!(f, "Opération impossible : {}", msg),
             Self::CycleDetected(msg) => write!(f, "Cycle interdit : {}", msg),
             Self::IoError(msg) => write!(f, "Erreur E/S noyau : {}", msg),
             Self::SerializationError(msg) => write!(f, "Erreur de sérialisation : {}", msg),
@@ -47,5 +51,8 @@ mod tests {
 
         let cycle = CoreError::CycleDetected("A -> B -> A".into());
         assert_eq!(cycle.to_string(), "Cycle interdit : A -> B -> A");
+
+        let refus = CoreError::InvalidOperation("c'est le dernier tableau".into());
+        assert_eq!(refus.to_string(), "Opération impossible : c'est le dernier tableau");
     }
 }

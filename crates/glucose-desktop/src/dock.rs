@@ -406,7 +406,7 @@ pub fn compute_panel_layouts(
     scale: f32,
 ) -> Vec<PanelLayoutBox> {
     let mut layouts = Vec::new();
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
 
     // 1. Top-left dock (Plugins, Preset, Domains)
     let top_start_y = header_h + 8.0 * s;
@@ -510,7 +510,7 @@ fn draw_grip_dots(pixmap: &mut PixmapMut, cx: f32, cy: f32, active: bool, theme:
     paint.anti_alias = true;
 
     // Deux colonnes de trois points (⠿⠿ style Glucose)
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let mut pb = PathBuilder::new();
     let col_xs = [cx - 6.0 * s, cx - 2.0 * s, cx + 3.0 * s, cx + 7.0 * s];
     let row_ys = [cy - 3.0 * s, cy, cy + 3.0 * s];
@@ -580,7 +580,7 @@ pub fn layout_organize_panel(
     typo: &Typography,
     scale: f32,
 ) -> OrganizePanelLayout {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let pad_x = 14.0 * s;
     let target_count_rect = WidgetRect::new(px + pad_x, py + 38.0 * s, pw - 28.0 * s, 24.0 * s);
     let mut cy = py + (38.0 + 32.0 + 14.0) * s;
@@ -679,7 +679,7 @@ pub fn layout_pomodoro_panel(
     typo: &Typography,
     scale: f32,
 ) -> PomodoroPanelLayout {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let cx = px + pw / 2.0;
     let cy = py + 72.0 * s;
     let r = 32.0 * s;
@@ -732,7 +732,7 @@ pub fn layout_storyboard_panel(
     ph: f32,
     scale: f32,
 ) -> StoryboardPanelLayout {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let pad_x = 14.0 * s;
     let format_button = WidgetRect::new(px + pad_x, py + 52.0 * s, pw - 28.0 * s, 24.0 * s);
 
@@ -784,7 +784,7 @@ pub fn layout_plugins_panel(
     _ph: f32,
     scale: f32,
 ) -> PluginsPanelLayout {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let pad_x = 14.0 * s;
     let download_button = WidgetRect::new(px + pad_x, py + 104.0 * s, pw - 28.0 * s, 24.0 * s);
     let card_rect = WidgetRect::new(px + pad_x, py + 152.0 * s, pw - 28.0 * s, 54.0 * s);
@@ -821,7 +821,7 @@ pub fn layout_domains_panel(
     ph: f32,
     scale: f32,
 ) -> DomainsPanelLayout {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let pad_x = 14.0 * s;
     let add_button = WidgetRect::new(px + pad_x, py + ph - 40.0 * s, pw - 28.0 * s, 26.0 * s);
     DomainsPanelLayout { add_button }
@@ -842,7 +842,7 @@ pub fn render_docks(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let layouts = compute_panel_layouts(dock, screen_w, screen_h, header_h, s);
 
     for b in &layouts {
@@ -933,7 +933,7 @@ fn render_organize_content(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     typo.draw_text(
         pixmap,
         "ORDONNER",
@@ -1115,7 +1115,7 @@ fn render_pomodoro_content(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     typo.draw_text(
         pixmap,
         "POMODORO",
@@ -1269,7 +1269,7 @@ fn render_storyboard_content(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     typo.draw_text(pixmap, "STORYBOARD", px + 14.0 * s, py + 18.0 * s, 12.0 * s, theme.text_primary, true);
 
     let layout = layout_storyboard_panel(px, py, pw, ph, s);
@@ -1367,7 +1367,7 @@ fn render_plugins_content(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     typo.draw_text(pixmap, "PLUGINS", px + 14.0 * s, py + 16.0 * s, 13.0 * s, theme.text_primary, true);
 
     let layout = layout_plugins_panel(px, py, pw, ph, s);
@@ -1451,7 +1451,7 @@ fn render_plugins_content(
 }
 
 fn draw_radio_dot(pixmap: &mut PixmapMut, cx: f32, cy: f32, checked: bool, theme: &Theme, scale: f32) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let mut p = Paint::default();
     p.anti_alias = true;
     p.set_color(if checked { theme.accent_primary } else { theme.border_medium });
@@ -1488,7 +1488,7 @@ fn render_preset_content(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     typo.draw_text(pixmap, "PRESETS", px + 14.0 * s, py + 16.0 * s, 13.0 * s, theme.text_primary, true);
 
     let mut cy = py + 38.0 * s;
@@ -1627,7 +1627,7 @@ fn render_domains_content(
     mx: f32,
     my: f32,
 ) {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     typo.draw_text(pixmap, "DOMAINES", px + 14.0 * s, py + 16.0 * s, 13.0 * s, theme.text_primary, true);
 
     let layout = layout_domains_panel(px, py, pw, ph, s);
@@ -1706,7 +1706,7 @@ pub fn handle_dock_click(
     header_h: f32,
     scale: f32,
 ) -> Option<PanelClickResult> {
-    let s = scale.max(0.5);
+    let s = crate::theme::clamp_ui_scale(scale);
     let layouts = compute_panel_layouts(dock, screen_w, screen_h, header_h, s);
 
     for b in layouts {
@@ -1929,6 +1929,48 @@ mod tests {
         let res = apply_organize_layout(&images, &state);
         assert_eq!(res.len(), 6);
         assert_eq!(res[0].width, 200.0);
+    }
+
+    /// Budget de temps maximal accepté pour un rendu complet de docks (debug).
+    const DOCK_RENDER_BUDGET_MS: u128 = 2_000;
+
+    /// Non-régression du gel de démarrage : `redraw()` passait la position de la
+    /// souris à l'emplacement de l'argument `scale`, ce qui portait l'échelle des
+    /// panneaux à 170 et le coût d'une frame à plus de 10 s — la pompe de messages
+    /// Windows était affamée et la fenêtre restait blanche et « Ne répond pas ».
+    #[test]
+    fn test_render_docks_absurd_scale_is_clamped_and_bounded() {
+        let mut pixmap = tiny_skia::Pixmap::new(1440, 900).expect("pixmap 1440x900");
+        pixmap.fill(Theme::dark().bg_canvas);
+        let store = Store::new("Clamp");
+        let typo = Typography::new();
+        let theme = Theme::dark();
+        let dock = DockManager::new();
+
+        let started = Instant::now();
+        render_docks(
+            &mut pixmap.as_mut(),
+            &dock,
+            &store,
+            &typo,
+            &theme,
+            1440.0,
+            900.0,
+            78.0,
+            170.0,
+            0.0,
+            0.0,
+        );
+        let elapsed = started.elapsed().as_millis();
+        assert!(
+            elapsed < DOCK_RENDER_BUDGET_MS,
+            "rendu des docks à échelle aberrante : {elapsed} ms (budget {DOCK_RENDER_BUDGET_MS} ms)"
+        );
+
+        for b in compute_panel_layouts(&dock, 1440.0, 900.0, 78.0, 170.0) {
+            assert!(b.width <= 1440.0, "panneau {:?} plus large que l'écran", b.tab);
+            assert!(b.height <= 900.0, "panneau {:?} plus haut que l'écran", b.tab);
+        }
     }
 
     #[test]

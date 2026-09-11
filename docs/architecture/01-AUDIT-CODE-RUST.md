@@ -9,7 +9,29 @@
 > et un correctif. **Aucun constat n'est une supposition** : tout ce qui est affirmé ici a été
 > vérifié dans le code ou dans la source de la dépendance concernée.
 
-> ### 🔍 Vérification indépendante au commit `8444e8b`
+> ### 🔍 Vérification indépendante au commit `3bd9bda`
+>
+> `cargo check` : 0 erreur. `cargo test --workspace` : **230 tests, 15 binaires, tous verts**.
+> `cargo clippy --workspace --all-targets -- -D warnings` : **code de sortie 0**.
+>
+> **Les 3 « mensonges » du tour précédent ont été traités, et bien traités :**
+>
+> | Constat | État vérifié |
+> |---|---|
+> | **R-34 — DPI** | ✅ **RÉSOLU.** `scale()`, `topbar_height()`, `tabs_height()`, `header_height()` ; layouts, marges **et polices** (`14.0 * s`) scalés ; `dock.rs` reçoit `scale: f32` ; `renderer` utilise `ui.header_height()`. Test à 150 % qui valide dimensions **et** hit-testing. |
+> | **R-37 — `dock.rs` géométrie double** | ✅ **RÉSOLU.** `WidgetRect` + `layout_organize_panel` → `sort_buttons: Vec<OrganizeSortButton>`, consommé par le rendu (l. 987) **et** par le clic (l. 1724). Le `len() as f32 * 6.0` a disparu. Test UTF-8 à l'échelle 1,0 **et** 1,5. |
+> | **R-38 — boucle d'animation** | ✅ **RÉSOLU, et exactement comme il fallait.** Plus de `mark_dirty()` inconditionnel ; curseur repeint uniquement au basculement de phase (2 fps) ; **plateau du toast à 0 repaint** ; Pomodoro sur changement de seconde ; `ControlFlow::Wait` au repos. |
+> | **R-40 — typographie** | ✅ **RÉSOLU sur les 4 points.** LRU réelle (compteur d'accès mis à jour **aussi sur hit**), `Rc` au lieu d'`Arc`, `data_mut()` hissé hors des boucles, `measure_text` via `horizontal_line_metrics().new_line_size`. |
+> | **R-35 — erreurs** | ⚠️ **PARTIEL.** `DesktopError` est câblé (5 sites dans `clipboard.rs`, toasts `⚠️` visibles) ✅. `let _ =` : 7 → **3, tous en tests** ✅. `.unwrap()` hors tests : **0** ✅. **Mais `CoreError`/`CoreResult` ont toujours 0 référence**, et le chargement d'images de `renderer.rs` échoue toujours en silence. |
+> | **R-36 — thème** | ⚠️ **PARTIEL.** `dock.rs` 134 → **41** littéraux (93 usages du thème), `ui.rs` 35 → **4** (43 usages) ✅. **Mais `renderer.rs` est intact : 37 littéraux, 3 usages**, et **`Theme::light()` n'est jamais appelé** — thème clair mort-né. |
+> | **R-39 — allocations** | ⚠️ **PARTIEL.** Cache de teintes corrigé (`retain` + `get_mut`, plus de reconstruction totale) ✅ ; `query_rect_refs() -> HashSet<&str>` ajouté et utilisé par le renderer ✅. **Mais `hit_priority.rs:630` utilise encore la version `String`**, et **`index_board()` reste un rebuild complet O(n) à chaque changement de `store.version`** — donc à chaque mouvement de souris pendant un drag. |
+>
+> **Nouveau constat : R-41** — la taille des fichiers et des fonctions continue de croître.
+>
+> **Bilan : 7 critères de sortie de la phase 1 sur 9 sont verts.** Les 2 restants ne sont pas
+> « presque faits » : ils sont **non mesurables** faute d'outillage (tâches 0.5, 0.6, 0.8).
+
+> ### 🔍 Vérification précédente au commit `8444e8b`
 >
 > **Tout ce qui suit a été relu ligne à ligne dans le code, pas sur déclaration.**
 > `cargo check` : 0 erreur. `cargo test --workspace` : **224 tests, 14 suites, tous verts**.
@@ -1295,6 +1317,50 @@ Restent quatre défauts :
 4. **`measure_text` retourne toujours `(largeur, size)`** (l. 234) : la hauteur annoncée est la
    taille de police, pas la hauteur de ligne réelle. Toute mise en page verticale qui s'y fie
    est fausse — R-28 reste entier.
+
+---
+
+## R-41 — Les fichiers et les fonctions continuent de grossir
+
+**Gravité : STRUCTUREL — la seule courbe qui va encore dans le mauvais sens.**
+
+Malgré l'éclatement réussi d'`app.rs` (1 126 → 331 l.), la masse s'est déplacée, pas dissoute.
+
+| Fichier | `7a13c86` | `8444e8b` | `3bd9bda` | Limite fixée |
+|---|---:|---:|---:|---:|
+| `dock.rs` | — | 1 710 | **2 025** | 500 |
+| `ui.rs` | 862 | 1 178 | **1 348** | 500 |
+| `renderer.rs` | 807 | 1 026 | **1 143** | 500 |
+| `store.rs` | 909 | 1 043 | 1 043 | 500 |
+| `hit_priority.rs` | 920 | 1 026 | 1 026 | 500 |
+
+**5 fichiers dépassent la limite de 500 lignes**, et les trois qui bougent grossissent à chaque
+commit — y compris `dock.rs`, qui vient pourtant d'être *refactorisé* (+315 lignes).
+
+**35 fonctions dépassent 60 lignes** dans `glucose-desktop`. Les pires :
+
+| Lignes | Fonction |
+|---:|---|
+| **366** | `interactions/mouse.rs` — gestionnaire principal |
+| **340** | `renderer.rs::draw_annotations` |
+| **316** | `icons.rs` — fonction de dessin d'icônes |
+| **244** | `ui.rs::layout_topbar` |
+| 183 | `dock.rs::render_organize_content` |
+| 154 | `dock.rs::render_pomodoro_content` |
+| 141 | `interactions/shortcuts.rs` |
+| 139 | `renderer.rs::draw_membranes` |
+| 138 | `dock.rs::render_preset_content` |
+| 135 | `dock.rs::handle_dock_click` |
+
+`mouse.rs` à 366 lignes est particulièrement notable : c'est l'ancien `window_event` qui a
+simplement changé de fichier. Le découpage a été fait **par catégorie d'événement**, pas par
+niveau d'abstraction — chaque module reste un `impl GlucoseApp` avec accès à ses 24 champs
+publics. C'est une amélioration réelle de la lisibilité, mais pas encore une décomposition :
+aucun de ces modules n'est testable sans construire une fenêtre.
+
+**Correctif** : appliquer la règle 1.7 des standards — l'événement est traduit en **intention**,
+et l'intention est traitée par une fonction pure prenant l'état minimal dont elle a besoin.
+C'est ce qui rendra `interactions/` testable, et c'est ce qui arrêtera la croissance.
 
 ---
 

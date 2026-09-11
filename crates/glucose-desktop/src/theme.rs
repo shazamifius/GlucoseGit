@@ -3,6 +3,23 @@
 
 use tiny_skia::Color;
 
+/// Échelle d'interface minimale acceptée.
+pub const MIN_UI_SCALE: f32 = 0.5;
+/// Échelle d'interface maximale acceptée (au-delà, aucun écran réel n'existe).
+pub const MAX_UI_SCALE: f32 = 4.0;
+
+/// Normalise un facteur d'échelle d'interface.
+///
+/// Toute valeur non finie ou hors plage (facteur corrompu, argument inversé)
+/// produirait des panneaux de plusieurs milliers de pixels et un temps de rendu
+/// non borné : la borne rend ce scénario impossible par construction.
+pub fn clamp_ui_scale(scale: f32) -> f32 {
+    if scale.is_nan() {
+        return 1.0;
+    }
+    scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE)
+}
+
 #[derive(Debug, Clone)]
 pub struct Theme {
     // Toile & Arrière-plans
@@ -165,6 +182,16 @@ impl Theme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_clamp_ui_scale_rejects_absurd_factors() {
+        assert_eq!(clamp_ui_scale(1.25), 1.25);
+        assert_eq!(clamp_ui_scale(0.0), MIN_UI_SCALE);
+        assert_eq!(clamp_ui_scale(-3.0), MIN_UI_SCALE);
+        assert_eq!(clamp_ui_scale(170.0), MAX_UI_SCALE);
+        assert_eq!(clamp_ui_scale(f32::NAN), 1.0);
+        assert_eq!(clamp_ui_scale(f32::INFINITY), MAX_UI_SCALE);
+    }
 
     #[test]
     fn test_theme_tokens_valid() {

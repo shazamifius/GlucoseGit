@@ -1,0 +1,87 @@
+//! Pile Undo/Redo infinie et transactions live.
+//!
+//! INVARIANT UNDO-1 — la caméra et le board actif sont préservés à travers un undo/redo :
+//! annuler un déplacement ne doit jamais téléporter l'utilisateur ailleurs dans le document.
+
+use super::{build_folder_stack, Store};
+use crate::types::Project;
+
+/// Préserve la caméra et le board actif lors d'un Undo ou Redo.
+pub fn preserve_view(restored: &mut Project, cur: &Project) {
+    if restored.boards.iter().any(|b| b.id == cur.active_board_id) {
+        restored.active_board_id = cur.active_board_id.clone();
+    } else if let Some(first) = restored.boards.first() {
+        restored.active_board_id = first.id.clone();
+    }
+    for b in &mut restored.boards {
+        if let Some(cb) = cur.boards.iter().find(|x| x.id == b.id) {
+            b.viewport = cb.viewport;
+        }
+    }
+}
+
+impl Store {
+    pub fn push_undo(&mut self) {
+        if self.in_live_edit {
+            return;
+        }
+        self.undo_stack.push_back(self.project.clone());
+        if self.undo_stack.len() > self.max_undo {
+            self.undo_stack.pop_front();
+        }
+        self.redo_stack.clear();
+        self.bump_version();
+    }
+
+    pub fn begin_live_edit(&mut self) {
+        if self.in_live_edit {
+            return;
+        }
+        self.push_undo();
+        self.in_live_edit = true;
+    }
+
+    pub fn end_live_edit(&mut self) {
+        self.in_live_edit = false;
+        self.bump_version();
+    }
+
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
+    }
+
+    pub fn undo(&mut self) -> bool {
+        let Some(mut prev) = self.undo_stack.pop_back() else {
+            return false;
+        };
+        let current = self.project.clone();
+        preserve_view(&mut prev, &current);
+        self.redo_stack.push_back(current);
+        self.adopt_restored_project(prev);
+        true
+    }
+
+    pub fn redo(&mut self) -> bool {
+        let Some(mut next) = self.redo_stack.pop_back() else {
+            return false;
+        };
+        let current = self.project.clone();
+        preserve_view(&mut next, &current);
+        self.undo_stack.push_back(current);
+        self.adopt_restored_project(next);
+        true
+    }
+
+    /// Partie commune de `undo` et `redo` : le document restauré redevient le document courant.
+    fn adopt_restored_project(&mut self, project: Project) {
+        self.project = project;
+        self.clear_selection();
+        self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
+        self.in_live_edit = false;
+        self.bump_version();
+    }
+}
