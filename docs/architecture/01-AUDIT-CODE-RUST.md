@@ -1644,6 +1644,38 @@ le texte en DOM et laisse **une** transformation CSS mettre l'ensemble à l'éch
 re-rend les glyphes à la bonne taille et tout se met à l'échelle **ensemble, par construction**.
 Le portage Rust a remplacé une transformation unique par onze bornes manuelles.
 
+### La règle existait, écrite, dans le code d'origine
+
+Ce n'est pas une subtilité qu'on pouvait rater : l'auteur du TypeScript avait **anticipé
+exactement ce défaut** et laissé le raisonnement en commentaire
+([`HtmlAnnotationLayer.tsx:203-210`](../../src/canvas/HtmlAnnotationLayer.tsx#L203-L210)) :
+
+> *« Une transformation d'échelle plutôt qu'une largeur divisée : **réduire la boîte sans réduire
+> la police ferait déborder le texte**, alors que `scale` emporte tout d'un coup — cadre, police,
+> marges, badges. »*
+
+Et la couche entière est mise à l'échelle d'un seul geste (l. 395) :
+
+```js
+el.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+```
+
+**La seule exception admise est une contre-échelle, jamais une borne.** Pour ce qui doit garder une
+taille constante à l'écran — les guides d'alignement — le TSX divise explicitement par l'échelle
+(l. 676-682) :
+
+```js
+width: 1 / scale,
+borderLeft: `${1 / scale}px dashed …`,
+```
+
+D'où la règle à appliquer, et qui devient la règle **§ 4.4** des standards :
+
+> Tout ce qui appartient au monde subit **une seule** transformation, ensemble. Ce qui doit garder
+> une taille écran constante est divisé par l'échelle (`1 / scale`). **Aucune valeur dérivée du
+> zoom n'est jamais bornée individuellement** : une borne sur la police sans borne équivalente sur
+> la boîte casse la mise en page, et six bornes à six seuils la cassent six fois.
+
 **Correctif** : une carte se dessine **une fois en coordonnées locales**, puis subit **une seule**
 transformation. Si l'on veut des bornes de lisibilité, elles s'appliquent à la transformation
 entière, jamais valeur par valeur.

@@ -176,6 +176,28 @@ hors de la définition du thème.
 
 ---
 
+**4.4 — Une seule transformation, jamais une borne par valeur.**
+Tout ce qui appartient au monde subit **une seule** transformation d'échelle, ensemble : cadre,
+police, marges, rayons, badges. Ce qui doit garder une taille constante **à l'écran** — guides,
+poignées, traits d'un pixel — est divisé par l'échelle (`1 / scale`).
+
+**Aucune valeur dérivée du zoom n'est bornée individuellement.**
+
+```rust
+// INTERDIT — la boîte se met à l'échelle librement, son contenu non.
+let sw        = (width * vp.scale) as f32;
+let font_size = (14.0 * vp.scale).clamp(8.0, 24.0) as f32;
+let pad_x     = (18.0 * vp.scale as f32).clamp(4.0, 24.0);
+```
+
+Une borne sur la police sans borne équivalente sur la boîte fait déborder le texte ; six bornes à
+six seuils différents cassent la mise en page six fois, à six niveaux de zoom différents. C'est le
+constat R-45, et le code TypeScript d'origine documentait déjà cette règle
+(`HtmlAnnotationLayer.tsx:203-210`).
+
+Si une borne de lisibilité est souhaitée, elle s'applique **à la transformation entière**, en un
+seul endroit.
+
 ### § 5 — L'interface
 
 **5.1 — Loi L4 : layout une seule fois.** Une fonction produit `Vec<Widget { id, rect, visual }>`.
