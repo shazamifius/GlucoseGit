@@ -28,9 +28,9 @@
 
 use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
+use crate::params::ViewPass;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
-use std::collections::HashSet;
 use tiny_skia::{PixmapMut, PremultipliedColorU8};
 
 /// Opacité du halo en son centre, sur 255. Elle décroît linéairement jusqu'au bord.
@@ -239,10 +239,10 @@ pub fn draw_halos(
     hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     store: &Store,
-    vp: &Viewport,
-    visible_ids: &HashSet<&str>,
-    header_h: f32,
+    pass: ViewPass<'_>,
 ) {
+    let ViewPass { visible_ids, header_h, .. } = pass;
+    let vp = &pass.vp;
     let Some(board) = store.active_board() else {
         return;
     };
@@ -265,6 +265,7 @@ pub fn draw_halos(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use tiny_skia::{
         Color, FillRule, GradientStop, Paint, PathBuilder, Pixmap, Point, RadialGradient,
         SpreadMode, Transform,
@@ -283,8 +284,7 @@ mod tests {
         radius: f32,
         (r, g, b): (u8, u8, u8),
     ) {
-        let mut paint = Paint::default();
-        paint.shader = RadialGradient::new(
+        let shader = RadialGradient::new(
             Point::from_xy(cx, cy),
             Point::from_xy(cx, cy),
             radius,
@@ -296,7 +296,7 @@ mod tests {
             Transform::identity(),
         )
         .expect("rayon strictement positif : le dégradé ne peut pas être dégénéré");
-        paint.anti_alias = true;
+        let paint = Paint { shader, anti_alias: true, ..Default::default() };
 
         let mut pb = PathBuilder::new();
         pb.push_circle(cx, cy, radius);
@@ -470,13 +470,13 @@ mod tests {
         // Frame de chauffe : remplit le cache de teintes symbiotiques.
         {
             let mut view = pixmap.as_mut();
-            draw_halos(&mut hue_cache, &mut view, &store, &vp, &visible, 40.0);
+            draw_halos(&mut hue_cache, &mut view, &store, ViewPass { vp, visible_ids: &visible, header_h: 40.0 });
         }
 
         let started = std::time::Instant::now();
         {
             let mut view = pixmap.as_mut();
-            draw_halos(&mut hue_cache, &mut view, &store, &vp, &visible, 40.0);
+            draw_halos(&mut hue_cache, &mut view, &store, ViewPass { vp, visible_ids: &visible, header_h: 40.0 });
         }
         let elapsed = started.elapsed().as_millis();
 

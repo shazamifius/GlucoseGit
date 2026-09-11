@@ -1,21 +1,4 @@
 //! Point d'entrée de Glucose Desktop Native (PureRef en Rust pur).
-#![allow(
-    clippy::too_many_arguments,
-    clippy::field_reassign_with_default,
-    clippy::manual_strip,
-    clippy::manual_is_multiple_of,
-    clippy::manual_range_contains,
-    clippy::unnecessary_cast,
-    clippy::collapsible_if,
-    clippy::collapsible_else_if,
-    clippy::collapsible_match,
-    clippy::single_match,
-    clippy::chunks_exact_to_as_chunks,
-    clippy::derivable_impls,
-    clippy::new_without_default,
-    clippy::type_complexity,
-    clippy::unwrap_or_default
-)]
 
 mod app;
 mod canvas;
@@ -23,6 +6,7 @@ pub mod dock;
 pub mod error;
 mod icons;
 pub mod interactions;
+pub mod params;
 pub mod perf;
 mod renderer;
 mod typography;

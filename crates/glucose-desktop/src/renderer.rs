@@ -4,8 +4,9 @@
 pub mod halo;
 
 use crate::canvas::{screen_to_world, world_to_screen};
+use crate::params::{Pointer, SceneOverlay, ViewPass};
 use crate::theme::Theme;
-use crate::typography::Typography;
+use crate::typography::{TextStyle, Typography};
 use crate::ui::{render_ui, UiState};
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::smart_align::SnapGuides;
@@ -252,19 +253,16 @@ impl Renderer {
         &mut self,
         pixmap: &mut PixmapMut,
         store: &Store,
-        guides: &SnapGuides,
-        selection_box: Option<(f64, f64, f64, f64)>,
         ui: &mut UiState,
-        editing_session: Option<&TextEditSession>,
-        mouse_x: f32,
-        mouse_y: f32,
+        overlay: SceneOverlay<'_>,
+        pointer: Pointer,
     ) {
         let width = pixmap.width();
         let height = pixmap.height();
         let vp = store
             .active_board()
             .map(|b| b.viewport)
-            .unwrap_or(Viewport::default());
+            .unwrap_or_default();
 
         if let Some(board) = store.active_board() {
             self.hue_cache.update_positions_and_invalidate(&board.annotations);
@@ -280,6 +278,7 @@ impl Renderer {
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
         let visible_ids = self.spatial_hash.query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
         crate::perf::stage("cull");
+        let pass = ViewPass { vp, visible_ids: &visible_ids, header_h };
 
         // 1. Fond sombre sleek PureRef
         pixmap.fill(self.theme.bg_canvas);
@@ -290,11 +289,11 @@ impl Renderer {
         crate::perf::stage("grid");
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + gradient vectoriel circulaire)
-        halo::draw_halos(&mut self.hue_cache, pixmap, store, &vp, &visible_ids, header_h);
+        halo::draw_halos(&mut self.hue_cache, pixmap, store, pass);
         crate::perf::stage("halos");
 
         // 4. Membranes (large rayon rx=60, pointillés, titre protecteur en haut à gauche)
-        self.draw_membranes(pixmap, store, &vp, &visible_ids, header_h);
+        self.draw_membranes(pixmap, store, pass);
         crate::perf::stage("membranes");
 
         // 5. Images
@@ -304,9 +303,7 @@ impl Renderer {
             &self.typography,
             pixmap,
             store,
-            &vp,
-            &visible_ids,
-            header_h,
+            pass,
         );
         crate::perf::stage("images");
 
@@ -316,25 +313,23 @@ impl Renderer {
             &self.typography,
             pixmap,
             store,
-            &vp,
-            editing_session,
-            &visible_ids,
-            header_h,
+            overlay.editing,
+            pass,
         );
         crate::perf::stage("annotations");
 
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
-            self.draw_guides(pixmap, guides, &vp, width, height, header_h);
+            self.draw_guides(pixmap, overlay.guides, &vp, width, height, header_h);
         }
 
         // 8. Boîte de sélection élastique (Marquee)
-        if let Some((x1, y1, x2, y2)) = selection_box {
+        if let Some((x1, y1, x2, y2)) = overlay.selection_box {
             self.draw_selection_box(pixmap, x1, y1, x2, y2);
         }
 
         // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
-        render_ui(pixmap, store, ui, &self.typography, &self.theme, mouse_x, mouse_y);
+        render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
         crate::perf::stage("ui");
     }
 
@@ -391,7 +386,9 @@ impl Renderer {
         }
     }
 
-    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, vp: &Viewport, visible_ids: &HashSet<&str>, header_h: f32) {
+    fn draw_membranes(&self, pixmap: &mut PixmapMut, store: &Store, pass: ViewPass<'_>) {
+        let ViewPass { visible_ids, header_h, .. } = pass;
+        let vp = &pass.vp;
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -493,10 +490,8 @@ impl Renderer {
                                     lbl,
                                     lx,
                                     ly,
-                                    font_size,
-                                    Color::from_rgba8(r, g, b, 255),
+                                    TextStyle { size: font_size, color: Color::from_rgba8(r, g, b, 255), bold: true },
                                     shadow_color,
-                                    true,
                                 );
                             }
                         }
@@ -536,10 +531,10 @@ impl Renderer {
         typography: &Typography,
         pixmap: &mut PixmapMut,
         store: &Store,
-        vp: &Viewport,
-        visible_ids: &HashSet<&str>,
-        header_h: f32,
+        pass: ViewPass<'_>,
     ) {
+        let ViewPass { visible_ids, header_h, .. } = pass;
+        let vp = &pass.vp;
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -575,8 +570,7 @@ impl Renderer {
                         let scale_x = sw / loaded_pixmap.width() as f32;
                         let scale_y = sh / loaded_pixmap.height() as f32;
                         let ts = Transform::from_scale(scale_x, scale_y).post_translate(sx as f32, sy as f32);
-                        let mut pp = PixmapPaint::default();
-                        pp.quality = FilterQuality::Bilinear;
+                        let pp = PixmapPaint { quality: FilterQuality::Bilinear, ..Default::default() };
                         pixmap.draw_pixmap(0, 0, loaded_pixmap.as_ref(), &pp, ts, None);
                         drawn = true;
                     }
@@ -601,9 +595,7 @@ impl Renderer {
                         &label,
                         sx as f32 + 10.0,
                         sy as f32 + sh / 2.0 - 6.0,
-                        12.0,
-                        Color::from_rgba8(140, 150, 165, 200),
-                        false,
+                        TextStyle { size: 12.0, color: Color::from_rgba8(140, 150, 165, 200), bold: false },
                     );
                 }
             }
@@ -641,11 +633,11 @@ impl Renderer {
         typography: &Typography,
         pixmap: &mut PixmapMut,
         store: &Store,
-        vp: &Viewport,
         editing_session: Option<&TextEditSession>,
-        visible_ids: &HashSet<&str>,
-        header_h: f32,
+        pass: ViewPass<'_>,
     ) {
+        let ViewPass { visible_ids, header_h, .. } = pass;
+        let vp = &pass.vp;
         let board = match store.active_board() {
             Some(b) => b,
             None => return,
@@ -719,8 +711,7 @@ impl Renderer {
                         pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
                         // Bordure subtile ou brillante
-                        let mut stroke_paint = Paint::default();
-                        stroke_paint.anti_alias = true;
+                        let mut stroke_paint = Paint { anti_alias: true, ..Default::default() };
                         if is_editing {
                             stroke_paint.set_color(Color::from_rgba8(56, 189, 248, 255));
                         } else if is_selected {
@@ -751,10 +742,10 @@ impl Renderer {
                             let line_start = char_count_acc;
                             let line_end = line_start + line_len;
 
-                            let (display_text, is_bold, f_size, f_color, indent) = if line.starts_with("# ") {
-                                (&line[2..], true, font_size * 1.25, Color::from_rgba8(255, 255, 255, 255), 0.0)
-                            } else if line.starts_with("## ") {
-                                (&line[3..], true, font_size * 1.1, Color::from_rgba8(240, 240, 245, 255), 0.0)
+                            let (display_text, is_bold, f_size, f_color, indent) = if let Some(rest) = line.strip_prefix("# ") {
+                                (rest, true, font_size * 1.25, Color::from_rgba8(255, 255, 255, 255), 0.0)
+                            } else if let Some(rest) = line.strip_prefix("## ") {
+                                (rest, true, font_size * 1.1, Color::from_rgba8(240, 240, 245, 255), 0.0)
                             } else if line.starts_with("- ") || line.starts_with("* ") {
                                 let bullet_x = sx as f32 + pad_x;
                                 let bullet_y = cur_y + font_size * 0.45;
@@ -778,9 +769,7 @@ impl Renderer {
                                 display_text,
                                 start_x,
                                 cur_y,
-                                f_size,
-                                f_color,
-                                is_bold,
+                                TextStyle { size: f_size, color: f_color, bold: is_bold },
                             );
 
                             if show_cursor && !cursor_drawn && cursor_idx >= line_start && (cursor_idx <= line_end || line_num == lines.len() - 1) {
@@ -850,8 +839,7 @@ impl Renderer {
                         p.anti_alias = true;
                         pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
 
-                        let mut sp = Paint::default();
-                        sp.anti_alias = true;
+                        let mut sp = Paint { anti_alias: true, ..Default::default() };
                         sp.set_color(if is_editing || is_selected {
                             Color::from_rgba8(56, 189, 248, 255)
                         } else {
@@ -881,9 +869,7 @@ impl Renderer {
                                     op_str,
                                     sx as f32 + 10.0,
                                     cur_ty,
-                                    11.0,
-                                    Color::from_rgba8(161, 98, 7, 255),
-                                    true,
+                                    TextStyle { size: 11.0, color: Color::from_rgba8(161, 98, 7, 255), bold: true },
                                 );
                                 cur_ty += 16.0;
                             }
@@ -899,9 +885,7 @@ impl Renderer {
                                     line,
                                     sx as f32 + 10.0,
                                     cur_ty,
-                                    f_size,
-                                    text_color,
-                                    false,
+                                    TextStyle { size: f_size, color: text_color, bold: false },
                                 );
                                 cur_ty += line_h;
                             }
@@ -1071,19 +1055,22 @@ mod tests {
     ) {
         let guides = SnapGuides::default();
         let mut view = pixmap.as_mut();
-        renderer.render(&mut view, store, &guides, None, ui, None, 0.0, 0.0);
+        let overlay = SceneOverlay { guides: &guides, selection_box: None, editing: None };
+        let origin = Pointer { x: 0.0, y: 0.0 };
+        renderer.render(&mut view, store, ui, overlay, origin);
         crate::dock::render_docks(
             &mut view,
             dock,
             store,
             &renderer.typography,
             &renderer.theme,
-            1440.0,
-            900.0,
-            ui.header_height(),
-            ui.scale_factor,
-            0.0,
-            0.0,
+            crate::params::ScreenFrame {
+                width: 1440.0,
+                height: 900.0,
+                header_h: ui.header_height(),
+                scale: ui.scale_factor,
+            },
+            origin,
         );
     }
 
@@ -1117,8 +1104,7 @@ mod tests {
         let renderer = Renderer::new();
 
         for bad_scale in [0.0_f64, -1.0, f64::NAN, f64::INFINITY, 1e-12] {
-            let mut vp = Viewport::default();
-            vp.scale = bad_scale;
+            let vp = Viewport { scale: bad_scale, ..Default::default() };
             let started = std::time::Instant::now();
             let mut view = pixmap.as_mut();
             renderer.draw_grid(&mut view, &vp, 320, 240, 40.0);

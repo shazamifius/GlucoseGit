@@ -2,6 +2,7 @@
 
 use crate::dock::{apply_organize_layout, render_docks, DockManager, OrganizeState};
 use crate::error::{DesktopError, DesktopResult};
+use crate::params::{Pointer, SceneOverlay, ScreenFrame};
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::UiState;
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
@@ -140,32 +141,35 @@ impl GlucoseApp {
 
             if let Some(pixmap) = &mut self.pixmap {
                 let mut pixmap_mut = pixmap.as_mut();
+                let pointer = Pointer { x: self.mouse_pos.0 as f32, y: self.mouse_pos.1 as f32 };
                 self.renderer.render(
                     &mut pixmap_mut,
                     &self.store,
-                    &self.active_guides,
-                    self.selection_box,
                     &mut self.ui,
-                    self.editing_session.as_ref(),
-                    self.mouse_pos.0 as f32,
-                    self.mouse_pos.1 as f32,
+                    SceneOverlay {
+                        guides: &self.active_guides,
+                        selection_box: self.selection_box,
+                        editing: self.editing_session.as_ref(),
+                    },
+                    pointer,
                 );
 
-                // Rendu des panneaux déroulants & flottants (Top & Bottom Docks)
-                // L'ordre des arguments est `scale`, puis `mx`, `my` : toute
-                // inversion fait exploser l'échelle des panneaux (gel complet).
+                // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
+                // `scale` et les coordonnées de la souris sont désormais portés par
+                // deux types distincts : les intervertir ne compile plus (R-44).
                 render_docks(
                     &mut pixmap_mut,
                     &self.dock_manager,
                     &self.store,
                     &self.renderer.typography,
                     &self.renderer.theme,
-                    width as f32,
-                    height as f32,
-                    self.ui.header_height(),
-                    self.ui.scale_factor,
-                    self.mouse_pos.0 as f32,
-                    self.mouse_pos.1 as f32,
+                    ScreenFrame {
+                        width: width as f32,
+                        height: height as f32,
+                        header_h: self.ui.header_height(),
+                        scale: self.ui.scale_factor,
+                    },
+                    pointer,
                 );
                 crate::perf::stage("docks");
 
@@ -282,8 +286,8 @@ fn blit_and_present(
     let mut buffer = surface
         .buffer_mut()
         .map_err(|e| DesktopError::WindowError(format!("buffer_mut : {e}")))?;
-    let src = pixmap.data();
-    for (dst, chunk) in buffer.iter_mut().zip(src.chunks_exact(4)) {
+    let (src, _) = pixmap.data().as_chunks::<4>();
+    for (dst, chunk) in buffer.iter_mut().zip(src) {
         *dst = ((chunk[0] as u32) << 16) | ((chunk[1] as u32) << 8) | (chunk[2] as u32);
     }
     crate::perf::stage("blit");

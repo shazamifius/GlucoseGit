@@ -3,6 +3,7 @@
 use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
+use crate::params::{Pointer, ScreenFrame};
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, PickInput, PickOwner};
 use glucose_core::types::Annotation;
@@ -151,16 +152,17 @@ impl GlucoseApp {
                     return;
                 }
 
+                let screen = ScreenFrame {
+                    width: screen_w,
+                    height: screen_h,
+                    header_h: self.ui.header_height(),
+                    scale: self.ui.scale_factor,
+                };
                 if let Some(action) = handle_dock_click(
                     &mut self.dock_manager,
-                    &self.store,
                     &self.renderer.typography,
-                    mx,
-                    my,
-                    screen_w,
-                    screen_h,
-                    self.ui.header_height(),
-                    self.ui.scale_factor,
+                    screen,
+                    Pointer { x: mx, y: my },
                 ) {
                     match action {
                         PanelClickResult::ApplyLayout(state) => {

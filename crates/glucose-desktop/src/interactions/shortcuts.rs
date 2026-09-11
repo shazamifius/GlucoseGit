@@ -133,14 +133,12 @@ impl GlucoseApp {
                     self.ui.show_toast("🎯 Vue recentrée");
                     self.mark_dirty();
                 }
-                "o" | "O" => {
-                    if ctrl {
-                        if let Some(files) = rfd::FileDialog::new()
-                            .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
-                            .pick_files()
-                        {
-                            self.import_image_files(&files);
-                        }
+                "o" | "O" if ctrl => {
+                    if let Some(files) = rfd::FileDialog::new()
+                        .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
+                        .pick_files()
+                    {
+                        self.import_image_files(&files);
                     }
                 }
                 _ => {}

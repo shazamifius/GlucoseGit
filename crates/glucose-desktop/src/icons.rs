@@ -253,7 +253,7 @@ pub fn draw_icon_scaled(
                     (color.red() * 255.0) as u8,
                     (color.green() * 255.0) as u8,
                     (color.blue() * 255.0) as u8,
-                    ((color.alpha() * 255.0) as f32 * 0.45) as u8,
+                    (color.alpha() * 255.0 * 0.45) as u8,
                 );
                 faint_paint.set_color(col);
                 faint_paint.anti_alias = true;

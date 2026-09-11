@@ -72,8 +72,8 @@ impl GlucoseApp {
             Ok(mut clipboard) => {
                 // 1. Tenter de coller une image bitmap (Pinterest, navigateur, capture d'écran)
                 if let Ok(img_data) = clipboard.get_image() {
-                    let w = img_data.width as usize;
-                    let h = img_data.height as usize;
+                    let w = img_data.width;
+                    let h = img_data.height;
                     let temp_dir = std::env::temp_dir().join("glucose_pasted");
                     if let Err(e) = std::fs::create_dir_all(&temp_dir) {
                         let err = DesktopError::Io(e);

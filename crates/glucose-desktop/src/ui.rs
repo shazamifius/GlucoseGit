@@ -1,8 +1,9 @@
 //! Composants graphiques d'interface de Glucose (TopBar, BoardTabs, Minimap, Toasts).
 
 use crate::icons::{draw_icon_scaled, IconType};
+use crate::params::{ButtonState, Pointer, ScaledRect};
 use crate::theme::Theme;
-use crate::typography::Typography;
+use crate::typography::{TextStyle, Typography};
 use glucose_core::store::Store;
 use glucose_core::types::Annotation;
 use std::time::{Duration, Instant};
@@ -127,8 +128,7 @@ pub fn render_ui(
     ui: &mut UiState,
     typo: &Typography,
     theme: &Theme,
-    mouse_x: f32,
-    mouse_y: f32,
+    pointer: Pointer,
 ) {
     let w = pixmap.width() as f32;
     let h = pixmap.height() as f32;
@@ -141,10 +141,10 @@ pub fn render_ui(
     }
 
     // 1. Barre supérieure
-    render_topbar(pixmap, store, ui, typo, theme, w, mouse_x, mouse_y);
+    render_topbar(pixmap, store, ui, typo, theme, w, pointer);
 
     // 2. Barre d'onglets
-    render_board_tabs(pixmap, store, ui, typo, theme, w, mouse_x, mouse_y);
+    render_board_tabs(pixmap, store, ui, typo, theme, w, pointer);
 
     // 3. Minimap (en bas à droite)
     render_minimap(pixmap, store, theme, w, h, ui.scale_factor);
@@ -426,9 +426,9 @@ fn render_topbar(
     typo: &Typography,
     theme: &Theme,
     width: f32,
-    mx: f32,
-    my: f32,
+    pointer: Pointer,
 ) {
+    let (mx, my) = (pointer.x, pointer.y);
     let s = ui.scale();
     let topbar_h = ui.topbar_height();
 
@@ -452,9 +452,7 @@ fn render_topbar(
         "GLUCOSE",
         12.0 * s,
         (topbar_h - 14.0 * s) / 2.0,
-        14.0 * s,
-        theme.text_primary,
-        true,
+        TextStyle { size: 14.0 * s, color: theme.text_primary, bold: true },
     );
 
     let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
@@ -468,10 +466,11 @@ fn render_topbar(
     // Boutons
     for btn in &layout.buttons {
         let is_hover = mx >= btn.x && mx < btn.x + btn.w && my >= btn.y && my < btn.y + btn.h;
+        let state = ButtonState { active: btn.active, hover: is_hover };
         if btn.is_tool {
-            draw_tool_button(pixmap, theme, btn.x, btn.y, btn.w, btn.h, btn.icon, btn.active, is_hover, s);
+            draw_tool_button(pixmap, theme, box_of(btn, s), btn.icon, state);
         } else {
-            draw_action_button(pixmap, typo, theme, btn.x, btn.y, btn.w, btn.h, btn.icon, btn.label, btn.active, is_hover, s);
+            draw_action_button(pixmap, typo, theme, box_of(btn, s), btn.icon, btn.label, state);
             if btn.is_collab && ui.collab_active {
                 // Pastille verte #10b981
                 let mut dot_paint = Paint::default();
@@ -493,9 +492,7 @@ fn render_topbar(
             badge_txt,
             badge_x,
             (topbar_h - 11.0 * s) / 2.0,
-            11.0 * s,
-            theme.badge_text,
-            false,
+            TextStyle { size: 11.0 * s, color: theme.badge_text, bold: false },
         );
     }
 }
@@ -563,9 +560,9 @@ fn render_board_tabs(
     typo: &Typography,
     theme: &Theme,
     width: f32,
-    mx: f32,
-    my: f32,
+    pointer: Pointer,
 ) {
+    let (mx, my) = (pointer.x, pointer.y);
     let s = ui.scale();
     let y_start = ui.topbar_height();
     let tabs_h = ui.tabs_height();
@@ -625,9 +622,7 @@ fn render_board_tabs(
                 &tab.name,
                 tab.x + 14.0 * s,
                 y_start + 10.0 * s,
-                12.0 * s,
-                text_color,
-                tab.is_active,
+                TextStyle { size: 12.0 * s, color: text_color, bold: tab.is_active },
             );
 
             // Ligne d'accentuation inférieure pour l'onglet actif
@@ -665,18 +660,20 @@ fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r:
     pb.close();
 }
 
+/// Rectangle d'un bouton de barre d'outils, échelle UI comprise.
+fn box_of(btn: &TopbarButtonDef, scale: f32) -> ScaledRect {
+    ScaledRect { x: btn.x, y: btn.y, w: btn.w, h: btn.h, scale }
+}
+
 fn draw_tool_button(
     pixmap: &mut PixmapMut,
     theme: &Theme,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
+    rect: ScaledRect,
     icon: IconType,
-    active: bool,
-    hover: bool,
-    scale: f32,
+    state: ButtonState,
 ) {
+    let ScaledRect { x, y, w, h, scale } = rect;
+    let ButtonState { active, hover } = state;
     let bg_color = if active {
         theme.bg_active
     } else if hover {
@@ -726,16 +723,13 @@ fn draw_action_button(
     pixmap: &mut PixmapMut,
     typo: &Typography,
     theme: &Theme,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
+    rect: ScaledRect,
     icon: IconType,
     label: &str,
-    active: bool,
-    hover: bool,
-    scale: f32,
+    state: ButtonState,
 ) {
+    let ScaledRect { x, y, w, h, scale } = rect;
+    let ButtonState { active, hover } = state;
     let bg_color = if active {
         theme.bg_active
     } else if hover {
@@ -783,7 +777,7 @@ fn draw_action_button(
     } else {
         let icon_y = y + (h - icon_size) / 2.0;
         draw_icon_scaled(pixmap, icon, x + 8.0 * scale, icon_y, icon_size, color, 1.3 * scale);
-        typo.draw_text(pixmap, label, x + 26.0 * scale, y + (h - 12.0 * scale) / 2.0, 12.0 * scale, color, active);
+        typo.draw_text(pixmap, label, x + 26.0 * scale, y + (h - 12.0 * scale) / 2.0, TextStyle { size: 12.0 * scale, color, bold: active });
     }
 }
 
@@ -1089,9 +1083,7 @@ fn render_toast(
         &toast.message,
         toast_x + 20.0 * s,
         toast_y + (toast_h - 13.0 * s) / 2.0,
-        13.0 * s,
-        text_color,
-        false,
+        TextStyle { size: 13.0 * s, color: text_color, bold: false },
     );
 }
 

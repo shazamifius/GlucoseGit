@@ -158,7 +158,7 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 ### Introduits par la mesure du budget de frame (`def3800`)
 - **R-42** — Les docks sont le premier poste de rendu (43 % de la frame) et ne changent jamais
 - **R-43** — `draw_grid` reconstruit un `PathBuilder` complet à chaque frame (14 % de la frame)
-- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel
+- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel — 🟡 **(traité à vérifier)**
 
 ---
 
@@ -1521,6 +1521,27 @@ la liste, `too_many_arguments`, aurait signalé la fonction qui a rendu le logic
 qui demandent un vrai travail — `too_many_arguments` et `type_complexity` — sont précisément ceux
 qui désignent les fonctions à refactoriser. Aucun `#[allow]` ne doit être réintroduit ailleurs
 pour compenser : ce serait déplacer la dette, pas la payer.
+
+### Correctif appliqué — 🟡 (traité à vérifier)
+
+Le bloc `#![allow(…)]` est supprimé de `main.rs`. Les 46 avertissements qu'il masquait sont
+corrigés, aucun `#[allow(clippy::…)]` n'a été réintroduit nulle part, et
+`cargo clippy --workspace --all-targets -- -D warnings` sort en 0 sur un crate dont plus aucune
+alarme n'est éteinte.
+
+Cinq des quinze lints ne supprimaient plus rien au moment de la suppression
+(`manual_is_multiple_of`, `manual_range_contains`, `collapsible_if`, `collapsible_else_if`,
+`single_match`) : ils étaient devenus du bruit qui protégeait les dix autres.
+
+Répartition des 46 avertissements : `too_many_arguments` 17, `unnecessary_cast` 12,
+`field_reassign_with_default` 7, `type_complexity` 2, `collapsible_match` 2, `manual_strip` 2,
+`chunks_exact_to_as_chunks` 1, `derivable_impls` 1, `new_without_default` 1, `unwrap_or_default` 1.
+
+Les 17 `too_many_arguments` sont traités par regroupement en **types nommés**, pas par découpage :
+`crates/glucose-desktop/src/params.rs` déclare `Pointer`, `ScreenFrame`, `ScaledRect`,
+`ButtonState`, `SceneOverlay` et `ViewPass`, construits avec leurs champs explicites au point
+d'appel. `render_docks` — la fonction du gel — reçoit désormais `ScreenFrame` et `Pointer` :
+intervertir `scale` et `mouse_x` ne compile plus.
 
 ---
 

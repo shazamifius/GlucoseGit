@@ -151,11 +151,11 @@ existe dans le dépôt — test vert, ou lecture du code.*
       → le correctif est en place, mais **le test PNG de référence n'existe pas** (0.5/0.6 non faits).
 - [x] L'UI est lisible et cliquable à 100 %, 150 % et 200 %.
       → `test_ui_dpi_scaling_and_hit_testing_at_150_percent` + `test_organize_layout_exact_utf8_hit_test` verts.
-- [~] `cargo clippy --workspace --all-targets -- -D warnings` passe.
-      → code de sortie 0, 0 avertissement — **mais le critère est creux** : `main.rs:2`
-      désactive 15 lints pour tout `glucose-desktop` (R-44), dont `too_many_arguments`,
-      qui aurait signalé la fonction responsable du gel au démarrage. Le critère ne
-      redeviendra honnête qu'une fois le bloc `#![allow(…)]` supprimé.
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` passe.
+      → code de sortie 0, 0 avertissement, **et le critère n'est plus creux** : le bloc
+      `#![allow(…)]` de `main.rs:2` est supprimé (R-44). Les 46 avertissements qu'il
+      masquait sont corrigés, dont les 17 `too_many_arguments` — regroupés en types
+      nommés dans `params.rs` — et aucun `#[allow(clippy::…)]` n'a été réintroduit.
 
 ### Budget de frame mesuré (`def3800`)
 

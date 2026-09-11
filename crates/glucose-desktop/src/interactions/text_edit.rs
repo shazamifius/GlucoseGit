@@ -57,6 +57,10 @@ impl GlucoseApp {
 
     /// Traite les touches clavier lors d'une session d'édition active.
     pub fn handle_text_key(&mut self, event: &KeyEvent) -> bool {
+        // Le garde de l'arme `Key::Character` est évalué alors que `session`
+        // emprunte déjà `self` : la question « la frappe produit-elle du texte ? »
+        // se résout donc AVANT l'emprunt, pas dans le garde.
+        let produces_text = !self.modifiers.control_key() && !self.modifiers.alt_key();
         let Some(session) = &mut self.editing_session else {
             return false;
         };
@@ -145,14 +149,12 @@ impl GlucoseApp {
                 self.mark_dirty();
                 return true;
             }
-            Key::Character(ref c) => {
-                if !self.modifiers.control_key() && !self.modifiers.alt_key() {
-                    session.buffer.insert_str(session.cursor_idx, c.as_str());
-                    session.cursor_idx += c.len();
-                    session.blink_timer = std::time::Instant::now();
-                    self.mark_dirty();
-                    return true;
-                }
+            Key::Character(ref c) if produces_text => {
+                session.buffer.insert_str(session.cursor_idx, c.as_str());
+                session.cursor_idx += c.len();
+                session.blink_timer = std::time::Instant::now();
+                self.mark_dirty();
+                return true;
             }
             _ => {}
         }

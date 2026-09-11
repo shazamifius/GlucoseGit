@@ -14,10 +14,27 @@ pub struct GlyphEntry {
     pub bitmap: Vec<u8>,
 }
 
+/// Clé de cache d'un glyphe : graisse, caractère, taille en dixièmes de point.
+type GlyphKey = (bool, char, u16);
+
+/// Valeur de cache : le glyphe partagé et l'horodatage de son dernier accès (LRU, R-40).
+type CachedGlyph = (Rc<GlyphEntry>, u64);
+
+/// Style d'un tracé de texte.
+///
+/// Regroupe les trois paramètres de style pour qu'aucun d'eux — `size` en
+/// particulier — ne puisse être confondu avec une coordonnée (R-44).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextStyle {
+    pub size: f32,
+    pub color: Color,
+    pub bold: bool,
+}
+
 pub struct Typography {
     pub regular: Font,
     pub bold: Font,
-    glyph_cache: RefCell<HashMap<(bool, char, u16), (Rc<GlyphEntry>, u64)>>,
+    glyph_cache: RefCell<HashMap<GlyphKey, CachedGlyph>>,
     access_counter: Cell<u64>,
 }
 
@@ -81,14 +98,13 @@ impl Typography {
         text: &str,
         mut x: f32,
         y: f32,
-        size: f32,
-        color: Color,
-        bold: bool,
+        style: TextStyle,
     ) -> f32 {
-        let size = clamp_font_size(size);
-        let r = (color.red() * 255.0) as f32;
-        let g = (color.green() * 255.0) as f32;
-        let b = (color.blue() * 255.0) as f32;
+        let TextStyle { color, bold, .. } = style;
+        let size = clamp_font_size(style.size);
+        let r = color.red() * 255.0;
+        let g = color.green() * 255.0;
+        let b = color.blue() * 255.0;
         let a = color.alpha();
 
         let w = pixmap.width() as i32;
@@ -143,25 +159,24 @@ impl Typography {
         text: &str,
         mut x: f32,
         y: f32,
-        size: f32,
-        color: Color,
+        style: TextStyle,
         outline_color: Color,
-        bold: bool,
     ) -> f32 {
-        let size = clamp_font_size(size);
+        let TextStyle { color, bold, .. } = style;
+        let size = clamp_font_size(style.size);
         let shadow_offsets: [(f32, f32); 8] = [
             (-1.5, 0.0), (1.5, 0.0), (0.0, -1.5), (0.0, 1.5),
             (-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0),
         ];
 
-        let out_r = (outline_color.red() * 255.0) as f32;
-        let out_g = (outline_color.green() * 255.0) as f32;
-        let out_b = (outline_color.blue() * 255.0) as f32;
+        let out_r = outline_color.red() * 255.0;
+        let out_g = outline_color.green() * 255.0;
+        let out_b = outline_color.blue() * 255.0;
         let out_a = outline_color.alpha();
 
-        let r = (color.red() * 255.0) as f32;
-        let g = (color.green() * 255.0) as f32;
-        let b = (color.blue() * 255.0) as f32;
+        let r = color.red() * 255.0;
+        let g = color.green() * 255.0;
+        let b = color.blue() * 255.0;
         let a = color.alpha();
 
         let w = pixmap.width() as i32;
@@ -314,12 +329,12 @@ mod tests {
 
         let mut pixmap = Pixmap::new(200, 100).unwrap();
         let color = Color::from_rgba8(255, 255, 255, 255);
-        typo.draw_text(&mut pixmap.as_mut(), "Hello", 10.0, 20.0, 14.0, color, false);
+        typo.draw_text(&mut pixmap.as_mut(), "Hello", 10.0, 20.0, TextStyle { size: 14.0, color, bold: false });
         let count_after_first = typo.cached_glyph_count();
         assert!(count_after_first > 0);
 
         // Réutiliser le texte ne doit pas augmenter le nombre de glyphes rastérisés
-        typo.draw_text(&mut pixmap.as_mut(), "Hello", 10.0, 50.0, 14.0, color, false);
+        typo.draw_text(&mut pixmap.as_mut(), "Hello", 10.0, 50.0, TextStyle { size: 14.0, color, bold: false });
         assert_eq!(typo.cached_glyph_count(), count_after_first);
     }
 
@@ -328,7 +343,7 @@ mod tests {
         let typo = Typography::new();
         let mut pixmap = Pixmap::new(100, 50).unwrap();
         let color = Color::from_rgba8(255, 255, 255, 128);
-        typo.draw_text(&mut pixmap.as_mut(), "A", 10.0, 10.0, 16.0, color, false);
+        typo.draw_text(&mut pixmap.as_mut(), "A", 10.0, 10.0, TextStyle { size: 16.0, color, bold: false });
 
         // Les pixels hors de la lettre doivent conserver un alpha transparent (0)
         let data = pixmap.data();
@@ -346,10 +361,8 @@ mod tests {
             "Membrane 1",
             10.0,
             20.0,
-            16.0,
-            text_color,
+            TextStyle { size: 16.0, color: text_color, bold: true },
             outline_color,
-            true,
         );
         assert!(next_x > 10.0);
     }
