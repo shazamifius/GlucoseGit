@@ -90,7 +90,7 @@ pour très peu de code neuf.
 | 1.5 | **Onglets et minimap** : les faire passer par `layout_topbar()` — une seule mesure pour dessin et clic | R-07, R-20 | ✅ **VÉRIFIÉ** — `layout_tabs` partagé, test à l'appui |
 | 1.6 | Hit-test de l'UI sur toute la fenêtre → la minimap revit | R-08 | ✅ **VÉRIFIÉ** — hit-test sur toute la fenêtre |
 | 1.7 | Minimap : bornes réelles + annotations + membranes | R-08 | ✅ **VÉRIFIÉ** — `layout_minimap` partagé |
-| 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14 | ⚠️ **PARTIEL** — unique, mais `id_exists` scanne tout → O(n) par id |
+| 1.8 | Générateur d'id monotone unique (fin de `-dup`, `-mirror`, `board-{len}`) | R-13, R-14, R-22 | ✅ **VÉRIFIÉ** — `generate_id` est un simple incrément O(1) ; `id_exists` a quitté le chemin de génération et ne sert plus qu'aux tests. L'unique point de scan est `resync_next_id`, documenté comme INVARIANT ID-1 |
 | 1.9 | Sticky : utiliser `bg_color` et `color` du modèle | R-24 | ✅ **VÉRIFIÉ** |
 | 1.10 | DPI : facteur d'échelle appliqué à toute l'UI + `ScaleFactorChanged` | R-16 | ✅ **VÉRIFIÉ** — layouts, polices et docks scalés ; test 150 % avec hit-testing |
 
@@ -100,7 +100,7 @@ pour très peu de code neuf.
 |---|---|---|---|
 | 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | ✅ **VÉRIFIÉ** — `mark_dirty()` → `request_redraw()` |
 | 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | ✅ **VÉRIFIÉ** — curseur 2 fps, plateau toast à 0 repaint, `Wait` au repos |
-| 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2, **R-42** | ⏳ **PRIORITÉ 1** — mesuré : `docks` 7,6 ms/frame (43 %) redessinés alors qu'ils ne changent jamais |
+| 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2, **R-42** | ⏳ **PRIORITÉ 1, en cours** — mesuré : `docks` 7,0 ms + `ui` 3,0 ms = **59 % de la frame**, redessinés alors qu'ils ne changent jamais. Contrainte de conception retenue : invalidation par **empreinte recalculée chaque frame**, jamais par un `invalidate()` qu'il faut penser à appeler |
 | 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | ✅ **VÉRIFIÉ** — LRU réelle, `Rc`, `data_mut()` hissé, métriques réelles |
 
 ### 1C — Le branchement du noyau
@@ -125,7 +125,7 @@ pour très peu de code neuf.
 
 | # | Tâche | Répare | État |
 |---|---|---|---|
-| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | ⚠️ **PARTIEL** — `DesktopError` câblé (5 sites, toasts visibles), `let _ =`/`unwrap` nettoyés ✅ ; mais **`CoreError` toujours 0 référence** et aucune barre de statut |
+| 1.23 | `GlucoseError` par crate ; barre de statut qui affiche les erreurs | R-21 | ⚠️ **PARTIEL** — `DesktopError` câblé (5 sites, toasts visibles), `let _ =`/`unwrap` nettoyés ✅ ; **`CoreError` désormais câblé pour de bon : 32 références dans 6 fichiers** ✅ ; **reste** la barre de statut, et le chargement d'images qui échoue en silence |
 | 1.24 | Structure `Theme` : les ~130 littéraux de couleur deviennent des jetons | R-31 | ⚠️ **PARTIEL** — `dock.rs` 134→41 littéraux, `ui.rs` 35→4 ✅ ; mais **`renderer.rs` intact (37 littéraux, 3 usages)** et `Theme::light()` jamais appelé |
 | 1.25 | Supprimer `store::ActiveTool` (doublon) | R-25 | ✅ **VÉRIFIÉ** |
 | 1.26 | Sortir `organize_layout` de `app.rs` vers `glucose-model`, avec une convention de coordonnées unique | R-11, R-19 | ✅ **VÉRIFIÉ** — `app.rs` 1126 → 331 l. |

@@ -22,9 +22,9 @@
 > | **R-37 — `dock.rs` géométrie double** | ✅ **RÉSOLU.** `WidgetRect` + `layout_organize_panel` → `sort_buttons: Vec<OrganizeSortButton>`, consommé par le rendu (l. 987) **et** par le clic (l. 1724). Le `len() as f32 * 6.0` a disparu. Test UTF-8 à l'échelle 1,0 **et** 1,5. |
 > | **R-38 — boucle d'animation** | ✅ **RÉSOLU, et exactement comme il fallait.** Plus de `mark_dirty()` inconditionnel ; curseur repeint uniquement au basculement de phase (2 fps) ; **plateau du toast à 0 repaint** ; Pomodoro sur changement de seconde ; `ControlFlow::Wait` au repos. |
 > | **R-40 — typographie** | ✅ **RÉSOLU sur les 4 points.** LRU réelle (compteur d'accès mis à jour **aussi sur hit**), `Rc` au lieu d'`Arc`, `data_mut()` hissé hors des boucles, `measure_text` via `horizontal_line_metrics().new_line_size`. |
-> | **R-35 — erreurs** | ⚠️ **PARTIEL.** `DesktopError` est câblé (5 sites dans `clipboard.rs`, toasts `⚠️` visibles) ✅. `let _ =` : 7 → **3, tous en tests** ✅. `.unwrap()` hors tests : **0** ✅. **Mais `CoreError`/`CoreResult` ont toujours 0 référence**, et le chargement d'images de `renderer.rs` échoue toujours en silence. |
+> | **R-35 — erreurs** | ⚠️ **PARTIEL, mais nettement avancé** *(revérifié à `138357c`)*. `DesktopError` câblé (5 sites dans `clipboard.rs`, toasts `⚠️` visibles) ✅. `let _ =` : 7 → **3, tous en tests** ✅. `.unwrap()` hors tests : **0** ✅. `CoreError`/`CoreResult` sont désormais **réellement câblés** : **32 références dans 6 fichiers** (`store.rs`, `store/{annotations,boards,catalog,folders,navigation}.rs`) ✅ — `try_remove_board`, `try_update_annotation` et le catalogue retournent de vraies erreurs typées. **Reste** : le chargement d'images de `renderer.rs` échoue toujours en silence, et aucune barre de statut n'affiche ces erreurs à l'utilisateur. |
 > | **R-36 — thème** | ⚠️ **PARTIEL.** `dock.rs` 134 → **41** littéraux (93 usages du thème), `ui.rs` 35 → **4** (43 usages) ✅. **Mais `renderer.rs` est intact : 37 littéraux, 3 usages**, et **`Theme::light()` n'est jamais appelé** — thème clair mort-né. |
-> | **R-39 — allocations** | ⚠️ **PARTIEL.** Cache de teintes corrigé (`retain` + `get_mut`, plus de reconstruction totale) ✅ ; `query_rect_refs() -> HashSet<&str>` ajouté et utilisé par le renderer ✅. **Mais `hit_priority.rs:630` utilise encore la version `String`**, et **`index_board()` reste un rebuild complet O(n) à chaque changement de `store.version`** — donc à chaque mouvement de souris pendant un drag. |
+> | **R-39 — allocations** | ✅ **RÉSOLU** *(revérifié à `138357c`)*. Cache de teintes corrigé (`retain` + `get_mut`) ✅. `query_rect_refs() -> HashSet<&str>` utilisé **des deux côtés** : `renderer.rs:279` **et** `hit_priority/candidates.rs:321` ✅ — la version `String` a disparu du chemin chaud. `index_board()` n'est plus un rebuild : `sync_at` compare l'entrée mise en cache et n'appelle `upsert` que si le nœud a changé de cellule, et le balayage O(n) n'a lieu **que** si un nœud a disparu ✅. **Réserve honnête** : la traversée reste O(n) sur le nombre de nœuds à chaque changement de `store.version`, même si chaque nœud ne coûte plus qu'une comparaison. Invérifiable à 10 000 nœuds tant que le banc de la tâche 0.8 n'existe pas. |
 >
 > **Nouveau constat : R-41** — la taille des fichiers et des fonctions continue de croître.
 >
@@ -770,13 +770,26 @@ décodage raté est **retenté à chaque frame**.
 
 **Gravité : STRUCTUREL.**
 
-`store.rs` contient **34 occurrences** de `iter().find(...)` / `iter_mut().find(...)`.
+`store.rs` contenait **34 occurrences** de `iter().find(...)` / `iter_mut().find(...)`. Après
+le découpage en modules (`def3800`), elles sont **40**, réparties sur 7 fichiers — le découpage
+a amélioré la lisibilité, **il n'a rien changé à la complexité**. C'est attendu, mais il faut le
+dire : déplacer un scan linéaire ne l'accélère pas.
+
 `active_board()` scanne les boards **à chaque appel** — et il est appelé plusieurs fois par
 frame par le renderer.
 
-`move_selected` reconstruit **deux `HashSet` complets** à chaque appel
-([store.rs:384-385](../../crates/glucose-core/src/store.rs#L384-L385)) — donc à chaque événement
-`CursorMoved` pendant un drag.
+`move_selected` appelle `selection_sets()`, qui reconstruit **deux `HashSet` complets** en
+clonant chaque identifiant sélectionné
+([store/images.rs:17-23](../../crates/glucose-core/src/store/images.rs#L17-L23)) — donc à chaque
+événement `CursorMoved` pendant un drag. Sur une sélection de 500 images, c'est 500 `String`
+clonées par mouvement de souris.
+
+**Ce qui est en revanche correct, et mérite d'être noté** : `push_undo()` est bien neutralisé
+pendant un glissement par le garde `in_live_edit`
+([store/undo.rs:25](../../crates/glucose-core/src/store/undo.rs#L25)), et ce garde est réellement
+appelé depuis [`drag.rs:17`](../../crates/glucose-desktop/src/interactions/drag.rs#L17) et
+relâché en `drag.rs:97`. Le projet ne clone donc **pas** le document entier à chaque pixel de
+déplacement. C'est l'un des rares endroits où un mécanisme a été écrit **et** branché.
 
 `remove_images` fait une boucle `while grew` sur **tous les boards × toutes les images** jusqu'à
 point fixe pour propager la cascade de miroirs : O(n²) sur une suppression.
