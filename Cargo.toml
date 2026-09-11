@@ -4,3 +4,20 @@ members = [
     "crates/glucose-desktop",
 ]
 resolver = "2"
+
+# Le profil `dev` par defaut rendait l'application inutilisable : 240 ms par
+# frame, soit 4 fps. Mesure sur un board vide, en trois etapes :
+#
+#   deps opt 0 + nous opt 0   240,00 ms/frame
+#   deps opt 3 + nous opt 0    55,00 ms/frame   (blit 31,5 ms)
+#   deps opt 3 + nous opt 1    22,30 ms/frame   (blit  1,5 ms)
+#
+# Les dependances passent en opt-level 3 : elles ne se recompilent qu'une fois
+# et ne se debuggent jamais. Notre propre code reste en opt-level 1, qui suffit
+# a faire tomber la boucle scalaire de `blit` (1,3 M pixels) de 31,5 a 1,5 ms
+# tout en conservant les symboles de debug.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

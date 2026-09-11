@@ -2,7 +2,7 @@
 //! (Anciens tests unitaires de `hit_priority.rs`, deplaces lors de son decoupage.)
 
 use glucose_core::hit_priority::*;
-use glucose_core::types::{Annotation, BoardImage, CanvasFolder};
+use glucose_core::types::{Annotation, BoardImage};
 fn img(id: &str, x: f64, y: f64, w: f64, h: f64, locked: bool) -> BoardImage {
     let mut img = BoardImage::new(id, x, y, w, h);
     img.locked = locked;
