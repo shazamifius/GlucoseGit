@@ -55,10 +55,12 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
         header_h: 0.0,
     };
     let mut hue = SymbioticHueCache::new();
+    let theme = crate::theme::Theme::dark();
     let mut tints = crate::renderer::domain::DomainTints::new();
-    tints.refresh(&store, &crate::theme::Theme::dark());
+    tints.refresh(&store, &theme);
     let mut view = pixmap.as_mut();
-    draw_annotations(&mut hue, typo, &tints, &mut view, &store, None, pass);
+    let kit = PaintKit { typography: typo, tints: &tints, theme: &theme };
+    draw_annotations(&mut hue, kit, &mut view, &store, None, pass);
     pixmap
 }
 

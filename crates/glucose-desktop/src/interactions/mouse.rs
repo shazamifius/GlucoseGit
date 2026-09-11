@@ -4,6 +4,7 @@ use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
 use crate::params::{Pointer, ScreenFrame};
+use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, PickInput, PickOwner};
 use glucose_core::types::Annotation;
@@ -26,6 +27,8 @@ impl GlucoseApp {
 
         if self.is_panning {
             self.handle_pan_move(dx, dy);
+        } else if self.resize_session.is_some() {
+            self.handle_resize_move(position.x, position.y);
         } else if self.is_dragging_item {
             self.handle_item_drag_move(position.x, position.y);
         } else if self.selection_box.is_some() {
@@ -190,12 +193,14 @@ impl GlucoseApp {
                     ActiveTool::Text => {
                         let aid = self.store.generate_id("text");
                         let initial_str = "Nouveau texte".to_string();
+                        // TEXT-FIT-1 : la hauteur d'une carte est celle de son texte.
+                        let height = text_card_fit_height(&self.renderer.typography, &initial_str, 240.0);
                         let ann = Annotation::Text {
                             id: aid.clone(),
                             x: wx,
                             y: wy,
                             width: Some(240.0),
-                            height: Some(48.0),
+                            height: Some(height),
                             text: initial_str.clone(),
                             font_size: Some(14.0),
                             color: None,
@@ -310,7 +315,15 @@ impl GlucoseApp {
                     ActiveTool::Select => {}
                 }
 
-                // 4. Sélection par clic (PICK-1)
+                // 4. Une poignée sous le clic : le geste de redimensionnement (RESIZE-1).
+                // La priorité poignée > nœud > canevas est celle de `hit_priority`.
+                if self.begin_resize_at(wx, wy) {
+                    self.update_cursor();
+                    self.mark_dirty();
+                    return;
+                }
+
+                // 5. Sélection par clic (PICK-1)
                 let mut selected = false;
                 if let Some(b) = self.store.active_board() {
                     let input = PickInput {
@@ -413,6 +426,7 @@ impl GlucoseApp {
                 if !self.right_or_middle_down {
                     self.is_panning = false;
                 }
+                self.finish_resize();
                 self.finish_item_drag();
                 self.finish_selection_box();
                 self.update_cursor();

@@ -2,7 +2,9 @@
 
 use crate::dock::{apply_organize_layout, render_docks, DockManager, OrganizeState};
 use crate::error::{DesktopError, DesktopResult};
+use crate::interactions::resize::ResizeSession;
 use crate::params::{Pointer, SceneOverlay, ScreenFrame};
+use crate::renderer::card::text_card_fit_height;
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::UiState;
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
@@ -51,6 +53,8 @@ pub struct GlucoseApp {
     pub drag_selection_base: Option<AlignRect>,
     pub drag_snap_targets: Vec<AlignTarget>,
     pub drag_applied_delta: (f64, f64),
+    /// Le redimensionnement en cours, s'il y en a un (RESIZE-1).
+    pub resize_session: Option<ResizeSession>,
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
     pub always_on_top: bool,
@@ -79,15 +83,18 @@ impl GlucoseApp {
     pub fn new() -> Self {
         let mut store = Store::new("Glucose Native");
         let active_bid = store.project.active_board_id.clone();
+        let renderer = Renderer::new();
 
-        // Carte d'accueil par défaut au look Glucose moderne
+        // Carte d'accueil par défaut au look Glucose moderne. Sa hauteur est celle de son
+        // texte à sa largeur (TEXT-FIT-1) : la boîte du document est celle de l'écran.
+        let welcome_text = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
         let welcome_card = Annotation::Text {
             id: "welcome-card".into(),
             x: 0.0,
             y: 0.0,
             width: Some(260.0),
-            height: Some(48.0),
-            text: "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer".into(),
+            height: Some(text_card_fit_height(&renderer.typography, welcome_text, 260.0)),
+            text: welcome_text.into(),
             font_size: Some(14.0),
             color: None,
             cursor_pos: None,
@@ -104,7 +111,7 @@ impl GlucoseApp {
 
         Self {
             store,
-            renderer: Renderer::new(),
+            renderer,
             pixmap: None,
             ui: UiState::new(),
             dock_manager: DockManager::new(),
@@ -122,6 +129,7 @@ impl GlucoseApp {
             drag_selection_base: None,
             drag_snap_targets: Vec::new(),
             drag_applied_delta: (0.0, 0.0),
+            resize_session: None,
             active_guides: SnapGuides::default(),
             selection_box: None,
             always_on_top: false,

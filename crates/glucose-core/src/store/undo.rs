@@ -33,11 +33,21 @@ impl Store {
         self.bump_version();
     }
 
+    /// Ouvre une transaction : l'état d'avant est mis de côté, et tout `push_undo` jusqu'à
+    /// `end_live_edit` est absorbé.
+    ///
+    /// La version n'avance pas ici : rien n'a encore changé. C'est `end_live_edit` qui la
+    /// fait avancer, une fois le geste écrit ; et un geste abandonné (`cancel_live_edit`)
+    /// ou resté immobile ne la touche pas — le document n'est pas « modifié » pour un clic.
     pub fn begin_live_edit(&mut self) {
         if self.in_live_edit {
             return;
         }
-        self.push_undo();
+        self.undo_stack.push_back(self.project.clone());
+        if self.undo_stack.len() > self.max_undo {
+            self.undo_stack.pop_front();
+        }
+        self.redo_stack.clear();
         self.in_live_edit = true;
     }
 
@@ -51,7 +61,9 @@ impl Store {
     /// Le document revient à l'état d'avant `begin_live_edit`, et l'entrée d'undo posée à
     /// l'ouverture disparaît avec lui : un geste annulé ne laisse **aucune** trace dans la
     /// pile, ni à annuler ni à rétablir. La sélection est conservée — les nœuds existent
-    /// toujours — et la caméra aussi (UNDO-1). Rend `false` hors transaction.
+    /// toujours — et la caméra aussi (UNDO-1). La version ne bouge pas : le document est
+    /// exactement celui de la version courante, que les index connaissent déjà. Rend `false`
+    /// hors transaction.
     pub fn cancel_live_edit(&mut self) -> bool {
         if !self.in_live_edit {
             return false;
@@ -62,7 +74,6 @@ impl Store {
         };
         preserve_view(&mut before, &self.project);
         self.project = before;
-        self.bump_version();
         true
     }
 

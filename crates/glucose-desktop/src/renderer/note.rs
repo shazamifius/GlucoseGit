@@ -6,12 +6,22 @@
 //! `clamp(8, 20)`, son rayon à `clamp(2, 6)` et sa marge haute à `clamp(4, 10)`, pendant
 //! que sa marge gauche et le pas de son badge d'opérateur ne suivaient pas le zoom **du
 //! tout** : trois seuils et deux constantes écran pour une seule forme.
+//!
+//! # STICKY-FIT-1 — un pense-bête est un papier de taille fixe
+//!
+//! À l'inverse de la carte (TEXT-FIT-1), le pense-bête se tire librement dans les deux
+//! sens : c'est un post-it, l'utilisateur choisit le papier. Son texte reflue à sa largeur
+//! (WRAP-1) et **se coupe** en bas quand il ne tient plus — jamais de débordement, jamais
+//! de hauteur qui bouge toute seule. Le choix est nommé pour ne pas être un mélange silencieux.
 
 use super::card::{Clip, Pass, SELECTION_RING};
+use super::handles::draw_resize_handles;
 use super::scale::WorldScale;
+use super::wrap::wrap_paragraph;
 use super::{parse_hex_color, push_rounded_rect, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::typography::{TextStyle, Typography};
+use glucose_core::resize::Handle;
 use glucose_core::types::{Annotation, StickyOperator};
 use tiny_skia::{Color, LineCap, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
@@ -140,31 +150,50 @@ pub(super) fn draw_sticky(
     pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
 
     // SCALE-2 — l'unique niveau de détail : sous le seuil, le pense-bête s'arrête là.
-    if !ctx.scale.draws_detail() {
-        return;
+    if ctx.scale.draws_detail() {
+        let content = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
+        let ink = color.as_deref().map(|c| parse_hex_color(c, 28, 25, 23)).unwrap_or((28, 25, 23));
+        // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
+        let lines = sticky_lines(ctx.typography, content, width.unwrap_or(STICKY_WIDTH) as f32);
+        let blink = editing.map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0).unwrap_or(false);
+        let cursor = editing.filter(|_| blink).map(|s| s.cursor_idx);
+        draw_sticky_text(ctx, pixmap, (sx, sy), &layout, StickyText { content, lines: &lines, ink, operator, cursor });
     }
-    let content = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
-    let ink = color.as_deref().map(|c| parse_hex_color(c, 28, 25, 23)).unwrap_or((28, 25, 23));
-    draw_sticky_text(ctx.typography, pixmap, (sx, sy), &layout, StickyText { content, ink, operator });
-    if editing.map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0).unwrap_or(false) {
-        draw_sticky_cursor(ctx, pixmap, (sx, sy), &layout, content);
+    if selected {
+        draw_resize_handles(pixmap, ctx.theme, ctx.scale, (sx, sy, layout.width, layout.height), &Handle::ALL);
     }
+}
+
+/// WRAP-1 — les lignes visuelles d'un pense-bête de `width` unités monde, en tranches
+/// d'octets de `content`. Un pense-bête n'a pas de Markdown : chaque ligne source est un
+/// paragraphe tel quel.
+fn sticky_lines(typography: &Typography, content: &str, width: f32) -> Vec<(usize, usize)> {
+    let usable = (width - STICKY_PAD * 2.0).max(STICKY_FONT);
+    let advance = |ch: char| typography.get_glyph(ch, STICKY_FONT, false).metrics.advance_width;
+    let mut lines = Vec::new();
+    let mut offset = 0usize;
+    for paragraph in content.split('\n') {
+        for (s, e) in wrap_paragraph(paragraph, usable, advance) {
+            lines.push((offset + s, offset + e));
+        }
+        offset += paragraph.len() + 1;
+    }
+    lines
 }
 
 /// Ce qu'un pense-bête a à écrire.
 struct StickyText<'a> {
     content: &'a str,
+    /// Les lignes visuelles de `content`, tranches d'octets (WRAP-1).
+    lines: &'a [(usize, usize)],
     ink: (u8, u8, u8),
     operator: &'a Option<StickyOperator>,
+    /// Position du curseur d'édition à dessiner, si la session clignote « allumé ».
+    cursor: Option<usize>,
 }
 
-fn draw_sticky_text(
-    typography: &Typography,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &StickyLayout,
-    body: StickyText<'_>,
-) {
+fn draw_sticky_text(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &StickyLayout, body: StickyText<'_>) {
+    let typography = ctx.typography;
     let mut cur_y = at.1 + layout.pad;
     if let Some(op) = body.operator {
         let label = match op {
@@ -187,25 +216,28 @@ fn draw_sticky_text(
         color: Color::from_rgba8(body.ink.0, body.ink.1, body.ink.2, 255),
         bold: false,
     };
-    for line in body.content.lines() {
-        typography.draw_text(pixmap, line, at.0 + layout.pad, cur_y, style);
+    // STICKY-FIT-1 : le papier est fixe, une ligne qui ne tient plus n'est pas dessinée.
+    let floor = at.1 + layout.height - layout.pad;
+    let mut cursor_drawn = false;
+    for (num, &(start, end)) in body.lines.iter().enumerate() {
+        if cur_y + layout.line_height > floor + 1e-3 {
+            break;
+        }
+        typography.draw_text(pixmap, &body.content[start..end], at.0 + layout.pad, cur_y, style);
+        let last = num + 1 == body.lines.len();
+        if let Some(idx) = body.cursor.filter(|&i| !cursor_drawn && i >= start && (i <= end || last)) {
+            let (prefix_w, _) = typography.measure_text(&body.content[start..idx.clamp(start, end)], layout.font, false);
+            draw_sticky_cursor(ctx, pixmap, (at.0 + layout.pad + prefix_w, cur_y), layout);
+            cursor_drawn = true;
+        }
         cur_y += layout.line_height;
     }
 }
 
-fn draw_sticky_cursor(
-    ctx: &Pass,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &StickyLayout,
-    content: &str,
-) {
-    let (measured, _) = ctx.typography.measure_text(content, layout.font, false);
-    let cx = (at.0 + layout.pad + measured).min(at.0 + layout.width - layout.pad * 0.6);
-    let cy = at.1 + layout.pad + layout.operator_advance;
+fn draw_sticky_cursor(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &StickyLayout) {
     let mut paint = Paint::default();
     paint.set_color(Color::from_rgba8(28, 25, 23, 255));
-    if let Some(rect) = Rect::from_xywh(cx, cy, ctx.scale.screen(SELECTION_RING), layout.font * 1.2) {
+    if let Some(rect) = Rect::from_xywh(at.0, at.1, ctx.scale.screen(SELECTION_RING), layout.font * 1.2) {
         pixmap.fill_rect(rect, &paint, Transform::identity(), None);
     }
 }

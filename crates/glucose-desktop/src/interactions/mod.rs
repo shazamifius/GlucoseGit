@@ -10,6 +10,7 @@ pub mod domains;
 pub mod drag;
 pub mod mouse;
 pub mod pan_zoom;
+pub mod resize;
 pub mod selection;
 pub mod shortcuts;
 pub mod text_edit;

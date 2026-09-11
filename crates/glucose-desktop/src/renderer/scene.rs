@@ -8,16 +8,19 @@
 //! un pointillé de 10 px qui ne suivait pas le zoom du tout.
 //!
 //! Les guides, les poignées et les points de la grille, eux, gardent une **taille écran
-//! constante** : c'est l'exception de SCALE-1, celle que le TSX écrit `1 / scale`.
+//! constante** : c'est l'exception de SCALE-1. Les poignées elles-mêmes sont dessinées par
+//! [`super::handles`], aux positions que le test de clic utilise (RESIZE-1).
 
 use super::card::{Clip, SELECTION_RING};
-use super::domain::{draw_domain_gauge, gauge_width, DomainTints};
+use super::domain::{draw_domain_gauge, gauge_width};
+use super::handles::draw_resize_handles;
 use super::scale::WorldScale;
-use super::{parse_hex_color, push_rounded_rect};
+use super::{parse_hex_color, push_rounded_rect, PaintKit};
 use crate::canvas::{screen_to_world, world_to_screen};
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::{TextStyle, Typography};
+use glucose_core::resize::Handle;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
@@ -52,10 +55,6 @@ const MEMBRANE_LABEL_FONT: f32 = 16.0;
 const MEMBRANE_BORDER: f32 = 2.0;
 /// Longueur d'un tiret du pointillé, en unités monde.
 const MEMBRANE_DASH: f32 = 10.0;
-/// Côté d'une poignée de redimensionnement, en pixels écran (affordance).
-const HANDLE_SIZE: f32 = 7.0;
-/// Côté d'une poignée d'image, en pixels écran (affordance).
-const IMAGE_HANDLE_SIZE: f32 = 8.0;
 
 // ── Grille ──────────────────────────────────────────────────────────────────
 
@@ -151,16 +150,11 @@ impl MembraneLayout {
     }
 }
 
-pub(super) fn draw_membranes(
-    typography: &Typography,
-    tints: &DomainTints,
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    pass: ViewPass<'_>,
-) {
+pub(super) fn draw_membranes(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &Store, pass: ViewPass<'_>) {
     let Some(board) = store.active_board() else {
         return;
     };
+    let PaintKit { typography, tints, theme } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -202,7 +196,7 @@ pub(super) fn draw_membranes(
             }
         }
         if selected {
-            draw_handles(pixmap, (sx, sy), (layout.width, layout.height), tint, HANDLE_SIZE);
+            draw_resize_handles(pixmap, theme, scale, (sx, sy, layout.width, layout.height), &Handle::ALL);
         }
         // La réglette d'une membrane s'aligne à DROITE de son bord haut : le coin haut-gauche
         // est déjà occupé par le titre protecteur, et deux textes superposés ne se lisent ni
@@ -274,34 +268,12 @@ fn draw_membrane_shape(
     pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
 }
 
-/// Poignées de redimensionnement aux quatre coins — taille **écran** constante.
-fn draw_handles(pixmap: &mut PixmapMut, at: (f32, f32), size: (f32, f32), tint: (u8, u8, u8), side: f32) {
-    let mut fill = Paint::default();
-    fill.set_color(Color::from_rgba8(26, 26, 26, 255));
-    let mut border = Paint::default();
-    border.set_color(Color::from_rgba8(tint.0, tint.1, tint.2, 255));
-    let stroke = Stroke { width: 1.0, ..Default::default() };
-
-    for (cx, cy) in [
-        (at.0, at.1),
-        (at.0 + size.0, at.1),
-        (at.0, at.1 + size.1),
-        (at.0 + size.0, at.1 + size.1),
-    ] {
-        if let Some(rect) = Rect::from_xywh(cx - side / 2.0, cy - side / 2.0, side, side) {
-            pixmap.fill_rect(rect, &fill, Transform::identity(), None);
-            pixmap.stroke_path(&PathBuilder::from_rect(rect), &border, &stroke, Transform::identity(), None);
-        }
-    }
-}
-
 // ── Images ──────────────────────────────────────────────────────────────────
 
 pub(super) fn draw_images(
     image_cache: &mut HashMap<String, Pixmap>,
     failed_images: &mut HashSet<String>,
-    typography: &Typography,
-    tints: &DomainTints,
+    kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
@@ -309,6 +281,7 @@ pub(super) fn draw_images(
     let Some(board) = store.active_board() else {
         return;
     };
+    let PaintKit { typography, tints, theme } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -341,6 +314,7 @@ pub(super) fn draw_images(
         }
         if store.selected_image_ids.contains(&img.id) {
             draw_image_selection(pixmap, (sx, sy), (sw, sh));
+            draw_resize_handles(pixmap, theme, scale, (sx, sy, sw, sh), &Handle::ALL);
         }
         draw_domain_gauge(typography, tints, pixmap, scale, (sx, sy), &img.domains);
     }
@@ -382,20 +356,6 @@ fn draw_image_selection(pixmap: &mut PixmapMut, at: (f32, f32), size: (f32, f32)
     paint.set_color(Color::from_rgba8(56, 189, 248, 255));
     let stroke = Stroke { width: SELECTION_RING, ..Default::default() };
     pixmap.stroke_path(&PathBuilder::from_rect(rect), &paint, &stroke, Transform::identity(), None);
-
-    let mut handle = Paint::default();
-    handle.set_color(Color::from_rgba8(255, 255, 255, 255));
-    let half = IMAGE_HANDLE_SIZE / 2.0;
-    for (cx, cy) in [
-        (at.0 - half, at.1 - half),
-        (at.0 + size.0 - half, at.1 - half),
-        (at.0 - half, at.1 + size.1 - half),
-        (at.0 + size.0 - half, at.1 + size.1 - half),
-    ] {
-        if let Some(hr) = Rect::from_xywh(cx, cy, IMAGE_HANDLE_SIZE, IMAGE_HANDLE_SIZE) {
-            pixmap.fill_rect(hr, &handle, Transform::identity(), None);
-        }
-    }
 }
 
 // ── Guides et boîte de sélection — taille écran constante ───────────────────
