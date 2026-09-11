@@ -1,4 +1,4 @@
-# 04 — Roadmap : de 20 % à 100 %
+# 04 — Roadmap : de 22 % à 100 %
 
 > **Principe directeur** : chaque phase se termine sur une application **utilisable**,
 > pas sur un chantier ouvert. À aucun moment tu ne dois te retrouver avec du code à moitié
@@ -14,7 +14,7 @@
 
 | Ph. | Nom | Objectif | Parité à la sortie |
 |:--:|---|---|---:|
-| **0** | Vérité & garde-fous | Que le dépôt arrête de mentir. Mesurer. | 20 % |
+| **0** | Vérité & garde-fous | Que le dépôt arrête de mentir. Mesurer. | 22 % |
 | **1** | Brancher le noyau | Utiliser ce qui est déjà écrit. Tuer les bugs bloquants. | **30 %** |
 | **2** | Persistance | L'app sait enregistrer et ouvrir. **Elle devient un logiciel.** | **37 %** — ⏳ *enregistrer/ouvrir livrés (`ed56e2b`) ; restent journal, autosave, import v1, et l'alerte de fermeture* |
 | **3** | Manipulation directe | Redimensionner, pivoter, menu contextuel, panneaux. | **47 %** |
@@ -71,9 +71,10 @@ défauts qui **dégradent tout ce qui est déjà acquis**.
 | 1.28 | Positionnement **sous-pixel** des glyphes | R-46 | ✅ **VÉRIFIÉ** — 4 phases par axe dans la clé du cache, variantes dérivées par interpolation bilinéaire ; coût frame nul (16,84 → 16,70 ms), cache borné inchangé |
 | 1.29 | Capture PNG comparée entre zoom 0,25 / 0,5 / 1 / 2 / 4 pour prouver la fidélité | R-45, R-46 | ✅ **VÉRIFIÉ** — rapport encre/boîte : avant 1,031 → *néant* → 0,245 ; après 0,615 → 0,593. Test permanent `renderer/card/proof.rs` |
 | 1.30 | **Plafonner le rayon du halo en unités écran.** Il croît aujourd'hui linéairement avec le zoom, sans borne : à ×3 une seule carte remplit l'écran et coûte 10,1 ms. Un halo est un effet de présentation, il n'a pas à grandir indéfiniment. Utiliser `WorldScale::screen()`. | **R-50** | ⏳ **PRIORITÉ** |
+| 1.31 | **Police avec accents.** La police embarquée couvre 121 points de code, aucun accent : 50 chaînes d'interface et tout texte tapé en français sont amputés. Embarquer Latin-1 + Latin Ext-A + les symboles d'interface, et un **test de couverture** qui lit le `cmap`. | **R-51** | ⏳ **PRIORITÉ 1** — c'est du contenu utilisateur, pas de la décoration |
 
 Ces trois tâches passent **avant** toute nouvelle fonctionnalité : il est moins coûteux de
-réparer la fidélité sur 20 % du logiciel que sur 100 %.
+réparer la fidélité sur 22 % du logiciel que sur 100 %.
 
 **Le point de bascule est la phase 2.** Avant, tu construis un prototype. Après, tu construis un
 logiciel — et tu peux enfin l'utiliser toi-même tous les jours, ce qui est la meilleure source de

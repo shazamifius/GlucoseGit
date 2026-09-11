@@ -1,7 +1,7 @@
 # 03 — Parité fonctionnelle : l'inventaire complet
 
 > Tu dis : *« j'ai l'impression d'être arrivé à 3 % de Glucose complet »*.
-> Ce document mesure. La réponse honnête est **≈ 20 %**, et il est important de comprendre
+> Ce document mesure. La réponse honnête est **≈ 22 %**, et il est important de comprendre
 > pourquoi ce n'est ni 3 % ni 50 %.
 
 **Légende**
@@ -36,7 +36,7 @@
 | 8. Rideaux (curtains) | 11 | 0 | 0 | 2 | 0 | 9 | 0 % |
 | 9. Dossiers & sous-canvas | 15 | 0 | 0 | 4 | 1 | 10 | 0 % |
 | 10. Miroirs (alias vivants) | 7 | 0 | 0 | 3 | 0 | 4 | 0 % |
-| 11. Domaines sémantiques | 9 | 0 | 0 | 0 | 2 | 7 | 0 % |
+| 11. Domaines sémantiques | 9 | 6 | 0 | 0 | 1 | 2 | 67 % |
 | 12. Temporalité | 8 | 0 | 0 | 2 | 0 | 6 | 0 % |
 | 13. Storyboard | 8 | 0 | 0 | 0 | 1 | 7 | 0 % |
 | 14. Presets & zones | 7 | 0 | 0 | 0 | 1 | 6 | 0 % |
@@ -49,7 +49,7 @@
 | 21. Plugins & App Bridge | 9 | 0 | 0 | 0 | 1 | 8 | 0 % |
 | 22. Recherche & navigation | 7 | 1 | 1 | 0 | 0 | 5 | 21 % |
 | 23. Divers | 6 | 0 | 0 | 0 | 1 | 5 | 0 % |
-| **TOTAL** | **279** | **42** | **28** | **24** | **20** | **165** | **≈ 20 %** |
+| **TOTAL** | **279** | **48** | **28** | **24** | **19** | **160** | **≈ 22 %** |
 
 *(Parité = (✅ × 1 + 🟡 × 0,5) / total. Le code mort compte pour 0 : une fonctionnalité non
 branchée n'existe pas pour l'utilisateur.)*
@@ -62,16 +62,16 @@ branchée n'existe pas pour l'utilisateur.)*
 
 ### Ce que le score dit vraiment
 
-**Tu n'es pas à 3 %, tu es à 20 % — avec 24 fonctionnalités déjà écrites, testées et à un
+**Tu n'es pas à 3 %, tu es à 22 % — avec 24 fonctionnalités déjà écrites, testées et à un
 branchement près.** Si on ne branchait *que* le code mort existant, sans écrire une ligne
-d'algorithme nouveau, on passerait **de 20 % à ≈ 29 %**.
+d'algorithme nouveau, on passerait **de 22 % à ≈ 31 %**.
 
 C'est ça, le vrai enseignement de cet inventaire : **ton problème n'est pas la quantité de code
 manquant, c'est la quantité de code non relié.** Voir R-18.
 
 Deuxième enseignement : les **18 fonctionnalités « maquette »** (🎨) sont ce qui fausse ta
 perception. La barre d'outils montre 19 boutons ; **9 agissent**. Tu regardes l'écran et tu vois
-Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 % là où la mesure dit 20 %.
+Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 % là où la mesure dit 22 %.
 
 ### Ce que le score ne dit PAS, et qu'il faut ajouter
 
@@ -126,7 +126,7 @@ sont `types`, `store`, `layout`, `smart_align`, `hit_priority`, `quadtree`, `sym
 C'est la mesure exacte de R-18, et elle est pire que l'estimation initiale : ce n'est pas « du
 code mort », c'est **la moitié du noyau**.
 
-#### 3. Même les 20 % acquis ne rendent pas ce qu'ils devraient
+#### 3. Même les 22 % acquis ne rendent pas ce qu'ils devraient
 
 Le score compte une fonctionnalité comme ✅ dès qu'elle marche. Il ne dit rien de sa **fidélité**.
 Deux défauts, documentés en R-45 et R-46, dégradent **tout** ce qui s'affiche :
@@ -137,7 +137,7 @@ Deux défauts, documentés en R-45 et R-46, dégradent **tout** ce qui s'affiche
 - **Les glyphes sont posés à des coordonnées entières tronquées.** Ni sous-pixel, ni arrondi. D'où
   un espacement irrégulier, un tremblement au déplacement, et une impression de pixelisation.
 
-Autrement dit : **20 % des fonctionnalités existent, et elles s'affichent mal.** Le ressenti de
+Autrement dit : **22 % des fonctionnalités existent, et elles s'affichent mal.** Le ressenti de
 « 3 % » ne vient pas seulement de ce qui manque — il vient aussi de ce qui est là et paraît faux.
 
 #### 4. Ce qui n'est dans aucune ligne du tableau
@@ -377,15 +377,15 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 
 | # | Fonction | Source TS | Rust | Phase |
 |---|---|---|:--:|:--:|
-| 11.1 | Créer / éditer / supprimer un domaine | `DomainsPanel` | ❌ (store écrit, non branché) | 9 |
-| 11.2 | Panneau Domaines | `DomainsPanel` (211 l.) | 🎨 bouton → toast | 9 |
-| 11.3 | Affecter un domaine avec un poids | `assignDomainToNode` | ❌ | 9 |
+| 11.1 | Créer / éditer / supprimer un domaine | `DomainsPanel` | ✅ `try_add/update/remove_domain`, **cascade** sur tous les boards, annotations et images | — |
+| 11.2 | Panneau Domaines | `DomainsPanel` (211 l.) | ✅ vue de `store.project.domains`, `DomainsState` supprimé | — |
+| 11.3 | Affecter un domaine avec un poids | `assignDomainToNode` | ✅ `try_assign` / `try_unassign`, poids validé `0..1`, `NaN` refusé | — |
 | 11.4 | Couleur de membrane dérivée des poids | — | ❌ | 9 |
-| 11.5 | Badges de domaine sur les nœuds | `AnnotationBadges` | ❌ | 9 |
+| 11.5 | Badges de domaine sur les nœuds | `AnnotationBadges` | ✅ jauge par domaine au-dessus du nœud : sigle, couleur, niveau de pondération | — |
 | 11.6 | Liens trans-domaines en pointillés | `Toolbar` toggle | 🎨 bascule un booléen inutilisé | 9 |
 | 11.7 | Filtrer par domaine | — | ❌ | 9 |
-| 11.8 | Icône / emoji de domaine | `Domain.icon` | ❌ | 9 |
-| 11.9 | Domaines partagés entre boards | `Project.domains` | ❌ | 9 |
+| 11.8 | Icône / emoji de domaine | `Domain.icon` | ✅ sigle texte cyclable — *pas d'emoji : la police n'en a pas (R-51)* | — |
+| 11.9 | Domaines partagés entre boards | `Project.domains` | ✅ catalogue au niveau projet, cascade multi-boards testée | — |
 
 ---
 

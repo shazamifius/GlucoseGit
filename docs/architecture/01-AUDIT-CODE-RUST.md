@@ -163,7 +163,9 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 ### Introduits par la confrontation au code TypeScript
 - **R-45** — Le texte ne suit pas le zoom : **12** `clamp` bornent le contenu, pas la boîte — ✅ **CORRIGÉ** *(SCALE-1 : une seule transformation, 12 `clamp` retirés)*
 - **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement) — ✅ **CORRIGÉ** *(GLYPH-1 : 4 phases sous-pixel par axe, dans la clé du cache)*
-- **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document
+- **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document — ✅ **CORRIGÉ** (`234b8b0` + `598b89b`, noyau **et** interface)
+- **R-51** — La police embarquée couvre 121 points de code : **aucun accent, aucun symbole** — pour un logiciel en français
+- **R-52** — Fins de ligne mixtes (25 `.rs` sur 109 en CRLF), aucune politique — ✅ **CORRIGÉ** (`3726906`, `.gitattributes`)
 - **R-49** — La carte d'accueil n'était jamais dessinée : le culling lisait la hauteur *déclarée* — ✅ **CORRIGÉ** (`ba5bddc`)
 - **R-50** — Le coût du halo croît avec le carré du zoom, sans plafond
 - **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)* — ✅ **CORRIGÉ** *(SAVE-3 : la croix pose la question, un enregistrement raté ne ferme pas)*
@@ -1372,7 +1374,7 @@ Malgré l'éclatement réussi d'`app.rs` (1 126 → 331 l.), la masse s'est dép
 
 | Fichier | `7a13c86` | `8444e8b` | `3bd9bda` | `def3800` | Limite fixée |
 |---|---:|---:|---:|---:|---:|
-| `dock.rs` | — | 1 710 | 2 025 | **2 067** | 500 |
+| `dock.rs` | — | 1 710 | 2 025 | **1 920** | 500 |
 | `ui.rs` | 862 | 1 178 | 1 348 | **1 356** | 500 |
 | `renderer.rs` | 807 | 1 026 | 1 143 | **309** ✅ | 500 |
 | `store.rs` | 909 | 1 043 | 1 043 | **96** ✅ | 500 |
@@ -1976,6 +1978,97 @@ par carte — mais elle divise un coût qui, lui, n'est pas borné. Le vrai déf
 **Correctif** : plafonner le rayon du halo en unités **écran**, pas en unités monde. Un halo est un
 effet de présentation ; il n'a aucune raison de grandir indéfiniment avec le zoom. C'est exactement
 l'usage de `WorldScale::screen()` que `ba5bddc` vient d'introduire.
+
+---
+
+## Correctif vérifié — R-47 (`234b8b0`, `598b89b`)
+
+Le brief exigeait de réparer le noyau **et** l'interface, parce que le noyau était lui-même à
+moitié fait. Vérifié point par point :
+
+| Défaut du noyau | État |
+|---|---|
+| `remove_domain` sans cascade | ✅ `try_remove_domain` parcourt **toutes** les listes d'assignations de tous les boards, annotations et images, et rend le nombre de nœuds détachés |
+| `update_domain` ne changeait que le nom | ✅ `DomainPatch` : `with_name`, `with_color`, `with_icon` |
+| Aucune désassignation | ✅ `try_unassign_domain_from_node` |
+| `weight` jamais validé | ✅ `check_weight` : `0..=1`, `NaN` refusé par `CoreError` |
+| Assignation limitée aux annotations | ✅ annotations **et** images |
+| `push_undo` avant vérification | ✅ existence vérifiée d'abord ; plus d'entrée d'annulation vide |
+| Enveloppe `#[deprecated]` silencieuse | ✅ supprimée |
+
+Et deux ajouts que le brief ne demandait pas, mais que R1 impliquait : `orphan_domain_references()`
+**détecte** les références orphelines, et `repair_domain_assignments()` les **répare** à l'ouverture
+d'un fichier écrit avant la cascade — testé
+(`test_loading_a_document_written_before_the_cascade_repairs_and_reports_it`).
+
+Côté interface : `DomainsState` **n'existe plus**. Le panneau lit `store.project.domains` et lui
+envoie des commandes ; il ne détient aucun état propre. Sur le canvas, chaque nœud porte une
+**jauge par domaine** — sigle, couleur, niveau de pondération — lisible même à plusieurs domaines
+(`target/domain-gauge/card-x1.0.png`).
+
+Chiffres : **426 tests** (+77), clippy 0, aucune dépendance, `dock.rs` 2 016 → **1 920**.
+
+**Ce qu'il en coûte de faire à fond** : le brief initial disait « brancher le panneau ». En
+regardant le noyau, il s'est avéré qu'il n'y avait rien de fiable à brancher. La mission a doublé
+de taille, et c'est normal — c'est exactement ce que R1 veut dire.
+
+---
+
+## R-51 — La police embarquée n'a aucun accent
+
+**Gravité : BLOQUANT — pour un logiciel en français, c'est le défaut de fidélité le plus visible
+qui reste, et personne ne l'avait vu.**
+
+Mesuré en lisant la table `cmap` de `crates/glucose-desktop/assets/font.ttf` (19 Ko) :
+
+| | |
+|---|---|
+| Points de code couverts | **121** (`font_bold.ttf` : 120) |
+| Plus haut point de code | U+201D (guillemet anglais) |
+| Accents (`é è ê ë à â ù û ô î ï ç É È À Ç œ Œ`) | **AUCUN** |
+| Symboles (`→ ⚠ ● • … « » – —`) | deux seulement |
+
+Conséquences, toutes vérifiées :
+
+- **50 chaînes d'interface** de `glucose-desktop` contiennent des accents ou des emoji qui ne
+  peuvent pas se rendre. `fontdue` rastérise le `.notdef` — un pictogramme vide ou invisible.
+- **La carte d'accueil** dit « Double-cliquez pour éditer » : le « é » est absent à l'écran.
+- **Tout texte que l'utilisateur tape** avec un accent est amputé. Ce n'est pas un défaut
+  d'interface, c'est un défaut de **contenu** : un moodboard en français ne peut pas contenir
+  de français.
+- L'agent qui a livré les domaines a dû **remplacer les emoji d'icône par des sigles texte** et a
+  tenté de retirer les accents de ses messages — deux contournements d'un même défaut, dont le
+  second a été refusé (voir `8947e82`).
+
+C'est très probablement une partie de ce que l'utilisateur décrit comme « ultra pixelisé et
+flou » : un texte troué de glyphes manquants paraît dégradé même quand ce qui reste est net.
+
+**Correctif** : embarquer une police qui couvre au minimum Latin-1 + Latin Extended-A (accents
+français, `œ`, guillemets français, tirets) et les quelques symboles d'interface utilisés
+(`→ ● • …`). Une police complète pèse 100 à 300 Ko contre 19 : sans conséquence. Vérifier la
+couverture par un **test** qui lit le `cmap` et affirme la présence de chaque caractère utilisé
+dans les chaînes de l'application — sinon le défaut reviendra au prochain changement de police.
+
+Sur les emoji : ils exigent une police de couleur, un tout autre sujet. La décision juste est
+celle prise pour les domaines — **des sigles ou des icônes vectorielles, jamais des emoji** dans
+le texte de l'interface. Les 24 `show_toast` à préfixe emoji sont à traiter de la même façon.
+
+---
+
+## R-52 — Fins de ligne mixtes, sans politique — ✅ corrigé (`3726906`)
+
+**Gravité : MAJEUR pour la maintenance — invisible dans le code, coûteux à chaque diff.**
+
+Relevé sur les blobs de `HEAD` : **25 fichiers `.rs` sur 109 en CRLF**, 84 en LF ; 5 `.md` sur
+21 en CRLF. `core.autocrlf` désactivé, aucun `.gitattributes`.
+
+Conséquence : un outil qui réécrit un fichier CRLF en LF — `sed`, un éditeur, un agent — produit
+un diff de **300 lignes pour 3 mots modifiés**, et enterre le vrai changement. C'est arrivé à
+l'agent persistance, puis dix minutes plus tard sur `interactions/domains.rs`.
+
+Correctif appliqué : `.gitattributes` avec `* text=auto eol=lf`, extensions binaires épinglées
+(`.ttf`, `.png`, `.glucose`…), et une renormalisation unique de 30 fichiers. Tests et clippy
+identiques avant et après.
 
 ---
 
