@@ -2028,6 +2028,21 @@ Mesuré en lisant la table `cmap` de `crates/glucose-desktop/assets/font.ttf` (1
 | Accents (`é è ê ë à â ù û ô î ï ç É È À Ç œ Œ`) | **AUCUN** |
 | Symboles (`→ ⚠ ● • … « » – —`) | deux seulement |
 
+### D'où vient cette police
+
+J'ai lu sa table `name` : c'est **`KaTeX_SansSerif`**, la police de la bibliothèque de rendu
+mathématique KaTeX. Et `font.ttf` est **identique octet pour octet** à
+`node_modules/katex/dist/fonts/KaTeX_SansSerif-Regular.ttf`.
+
+Autrement dit : le Glucose « sans dépendance, sans boîte noire » rend l'intégralité de son
+interface avec une **police de formules mathématiques copiée depuis les dépendances JavaScript de
+l'ancienne version**. Cette police ne couvre, par conception, que ce qu'il faut pour composer des
+équations — chiffres, lettres latines de base, quelques opérateurs. Elle n'a jamais été une police
+d'interface, et encore moins une police pour du texte en français.
+
+C'est la règle **R2** violée d'une manière que personne n'avait envisagée : pas du code copié du
+TypeScript, mais un *actif* copié de ses `node_modules`, avec les limites de son usage d'origine.
+
 Conséquences, toutes vérifiées :
 
 - **50 chaînes d'interface** de `glucose-desktop` contiennent des accents ou des emoji qui ne
@@ -2043,9 +2058,11 @@ Conséquences, toutes vérifiées :
 C'est très probablement une partie de ce que l'utilisateur décrit comme « ultra pixelisé et
 flou » : un texte troué de glyphes manquants paraît dégradé même quand ce qui reste est net.
 
-**Correctif** : embarquer une police qui couvre au minimum Latin-1 + Latin Extended-A (accents
-français, `œ`, guillemets français, tirets) et les quelques symboles d'interface utilisés
-(`→ ● • …`). Une police complète pèse 100 à 300 Ko contre 19 : sans conséquence. Vérifier la
+**Correctif** : embarquer une police d'interface complète sous licence libre. Candidate vérifiée
+sur la machine de développement : **Inter 3.019** (`C:\Windows\Fonts\Inter-Regular.ttf`,
+`Inter-SemiBold.ttf`), SIL Open Font License 1.1 — l'embarquement est explicitement autorisé —,
+**2 505 points de code**, ~305 Ko chacune, accents français complets, `œ`, guillemets français,
+tirets, flèches, puces. La licence doit être embarquée à côté des fichiers. Vérifier la
 couverture par un **test** qui lit le `cmap` et affirme la présence de chaque caractère utilisé
 dans les chaînes de l'application — sinon le défaut reviendra au prochain changement de police.
 
