@@ -46,7 +46,7 @@ priorités qui existe.
 ### Pourquoi cette phase existe
 
 Aujourd'hui l'historique dit que tiny-skia a été éliminé alors qu'il est partout (R-32), et la
-barre d'outils affiche 19 fonctionnalités dont 4 existent (R-33). **Tu ne peux pas piloter un
+barre d'outils affiche 19 fonctionnalités dont 9 existent (R-33). **Tu ne peux pas piloter un
 projet dont les instruments mentent.**
 
 ### Travaux
@@ -100,7 +100,7 @@ pour très peu de code neuf.
 |---|---|---|---|
 | 1.11 | Un seul point de rendu : les handlers marquent `dirty`, `RedrawRequested` peint | R-15 | ✅ **VÉRIFIÉ** — `mark_dirty()` → `request_redraw()` |
 | 1.12 | `ControlFlow::WaitUntil` piloté par la prochaine échéance d'animation → curseur qui clignote, toasts qui s'effacent | R-15 | ✅ **VÉRIFIÉ** — curseur 2 fps, plateau toast à 0 repaint, `Wait` au repos |
-| 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2 | *(coalescé / partiel)* |
+| 1.13 | Rectangles sales : ne repeindre que ce qui a changé | L2, **R-42** | ⏳ **PRIORITÉ 1** — mesuré : `docks` 7,6 ms/frame (43 %) redessinés alors qu'ils ne changent jamais |
 | 1.14 | Cache de glyphes (atlas) ; contour de membrane rastérisé une fois | R-26, R-27 | ✅ **VÉRIFIÉ** — LRU réelle, `Rc`, `data_mut()` hissé, métriques réelles |
 
 ### 1C — Le branchement du noyau
@@ -151,8 +151,35 @@ existe dans le dépôt — test vert, ou lecture du code.*
       → le correctif est en place, mais **le test PNG de référence n'existe pas** (0.5/0.6 non faits).
 - [x] L'UI est lisible et cliquable à 100 %, 150 % et 200 %.
       → `test_ui_dpi_scaling_and_hit_testing_at_150_percent` + `test_organize_layout_exact_utf8_hit_test` verts.
-- [x] `cargo clippy --workspace --all-targets -- -D warnings` passe.
-      → vérifié : code de sortie 0, 0 avertissement.
+- [~] `cargo clippy --workspace --all-targets -- -D warnings` passe.
+      → code de sortie 0, 0 avertissement — **mais le critère est creux** : `main.rs:2`
+      désactive 15 lints pour tout `glucose-desktop` (R-44), dont `too_many_arguments`,
+      qui aurait signalé la fonction responsable du gel au démarrage. Le critère ne
+      redeviendra honnête qu'une fois le bloc `#![allow(…)]` supprimé.
+
+### Budget de frame mesuré (`def3800`)
+
+Le premier chiffrage réel du rendu, board par défaut, profil dev, `GLUCOSE_PERF=2`.
+Il remplace les impressions par des priorités.
+
+| Poste | Coût | Part | Constat | Tâche |
+|---|---:|---:|---|---|
+| `docks` | 7,57 ms | 43 % | R-42 — redessiné intégralement chaque frame | **1.13** |
+| `ui` | 3,50 ms | 20 % | même cause | **1.13** |
+| `grid` | 2,49 ms | 14 % | R-43 — `PathBuilder` réalloué chaque frame | *nouvelle* |
+| `blit` | 1,78 ms | 10 % | boucle scalaire sur 1,3 M pixels | — |
+| `halos` | 1,50 ms | 9 % | ✅ corrigé (7,19 → 1,50 ms, ×4,8) | — |
+| `present` | 0,76 ms | 4 % | — | — |
+| **Total** | **17,50 ms** | | cible : < 8 ms | |
+
+**Ce que ça change dans l'ordre des travaux** : les rectangles sales (1.13) ne sont plus une
+optimisation de confort, ils portent **63 % de la frame** à eux seuls (`docks` + `ui`). C'est le
+prochain chantier de performance le plus rentable du projet, loin devant tout le reste.
+
+Deux réserves sur ce tableau. D'abord il est mesuré sur un board **quasi vide** : c'est le coût
+plancher, celui qu'on paie même sans rien afficher. Ensuite il reste une mesure ponctuelle et non
+un banc reproductible — la tâche **0.8** est toujours à faire, et tant qu'elle ne l'est pas, le
+critère « frame < 8 ms sur 10 000 nœuds » reste invérifiable.
 
 **Bilan de la phase 1 : 7 critères sur 9 sont passés au vert.** Voir la section « Ce qui reste »
 ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).

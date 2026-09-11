@@ -143,7 +143,22 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 
 ### Vérité du dépôt
 - **R-32** — Le message de commit ne correspond pas au code
-- **R-33** — 15 boutons sur 19 ne font qu'afficher un toast
+- **R-33** — 10 boutons sur 19 ne font qu'afficher un toast
+
+### Introduits après la première passe
+- **R-34** — Le DPI est câblé mais jamais appliqué — 🟡 **(traité à vérifier)**
+- **R-35** — Les types d'erreur sont du code mort neuf — 🟡 **(traité à vérifier)**
+- **R-36** — Le thème est ignoré par le code écrit en même temps que lui — 🟡 **(traité à vérifier)**
+- **R-37** — `dock.rs` reproduit R-20, avec un bug de divergence confirmé — 🟡 **(traité à vérifier)**
+- **R-38** — La boucle d'animation repeint tout l'écran 33 fois par seconde — 🟡 **(traité à vérifier)**
+- **R-39** — Allocations par frame dans le cache de teintes et l'index spatial — 🟡 **(traité à vérifier)**
+- **R-40** — Défauts ponctuels de la typographie — 🟡 **(traité à vérifier)**
+- **R-41** — Les fichiers et les fonctions continuent de grossir — 🟡 *(inversé dans `glucose-core` seulement)*
+
+### Introduits par la mesure du budget de frame (`def3800`)
+- **R-42** — Les docks sont le premier poste de rendu (43 % de la frame) et ne changent jamais
+- **R-43** — `draw_grid` reconstruit un `PathBuilder` complet à chaque frame (14 % de la frame)
+- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel
 
 ---
 
@@ -1326,16 +1341,24 @@ Restent quatre défauts :
 
 Malgré l'éclatement réussi d'`app.rs` (1 126 → 331 l.), la masse s'est déplacée, pas dissoute.
 
-| Fichier | `7a13c86` | `8444e8b` | `3bd9bda` | Limite fixée |
-|---|---:|---:|---:|---:|
-| `dock.rs` | — | 1 710 | **2 025** | 500 |
-| `ui.rs` | 862 | 1 178 | **1 348** | 500 |
-| `renderer.rs` | 807 | 1 026 | **1 143** | 500 |
-| `store.rs` | 909 | 1 043 | 1 043 | 500 |
-| `hit_priority.rs` | 920 | 1 026 | 1 026 | 500 |
+| Fichier | `7a13c86` | `8444e8b` | `3bd9bda` | `def3800` | Limite fixée |
+|---|---:|---:|---:|---:|---:|
+| `dock.rs` | — | 1 710 | 2 025 | **2 067** | 500 |
+| `ui.rs` | 862 | 1 178 | 1 348 | **1 356** | 500 |
+| `renderer.rs` | 807 | 1 026 | 1 143 | **1 179** | 500 |
+| `store.rs` | 909 | 1 043 | 1 043 | **96** ✅ | 500 |
+| `hit_priority.rs` | 920 | 1 026 | 1 026 | **136** ✅ | 500 |
+| `membrane_space.rs` | — | — | 773 | **773** | 500 |
+| `types.rs` | — | — | 597 | **597** | 500 |
 
-**5 fichiers dépassent la limite de 500 lignes**, et les trois qui bougent grossissent à chaque
-commit — y compris `dock.rs`, qui vient pourtant d'être *refactorisé* (+315 lignes).
+**La courbe s'est enfin inversée, mais seulement dans `glucose-core`.** Le découpage de
+`store.rs` (1 043 → 96 l. + 9 modules) et de `hit_priority.rs` (1 026 → 136 l. + 3 modules)
+est réel, l'API publique n'a pas bougé et `glucose-desktop` a compilé sans retouche.
+
+**4 fichiers dépassent encore la limite**, et les trois de `glucose-desktop` continuent de
+grossir à chaque commit — y compris `dock.rs`, qui vient pourtant d'être *refactorisé*.
+Seul `renderer.rs` a reculé (1 242 → 1 179) parce que le halo en est sorti : c'est la preuve
+que la méthode fonctionne quand on l'applique.
 
 **35 fonctions dépassent 60 lignes** dans `glucose-desktop`. Les pires :
 
@@ -1378,6 +1401,126 @@ C'est ce qui rendra `interactions/` testable, et c'est ce qui arrêtera la crois
 | Warnings clippy | 12 |
 | Fichiers > 500 lignes | 5 (`dock.rs` 1710, `ui.rs` 1178, `store.rs` 1043, `renderer.rs` 1026, `hit_priority.rs` 1026) |
 | Fonctions > 60 lignes dans `dock.rs` | 8 |
+
+---
+
+## Vérification `def3800` — le premier budget de frame mesuré
+
+C'est la première fois que ce projet dispose d'un **budget de frame chiffré** plutôt que d'une
+impression. Il a fallu deux corrections pour l'obtenir.
+
+### Le gel au démarrage : une erreur d'ordre des arguments
+
+La fenêtre restait blanche et Windows affichait « ne répond pas ». Cause : `render_docks()`
+était appelée avec ses arguments dans le mauvais ordre, et le paramètre `scale` recevait
+`mouse_x`, soit **170**. Les glyphes étaient rastérisés à 2 040 px. Coût : **10 697 ms par
+frame**, soit une image toutes les onze secondes.
+
+Deux choses méritent d'être retenues, parce qu'elles se reproduiront :
+
+1. **254 tests verts et clippy propre n'ont rien vu.** Le défaut n'était pas dans une fonction
+   mais dans un *site d'appel*. Les tests unitaires ne testent pas les sites d'appel.
+2. **`clippy::too_many_arguments` aurait signalé cette fonction** — 11 paramètres dont 5 `f32`
+   consécutifs et interchangeables par le compilateur. Ce lint était désactivé à la ligne 2 de
+   `main.rs`. La dette de configuration a directement coûté un logiciel qui ne démarre plus.
+
+### Le profil `dev` : 240 ms par frame, soit 4 images par seconde
+
+Le profil de compilation par défaut rendait l'application inutilisable, et masquait complètement
+le profil de rendu réel. Mesure en trois étapes :
+
+| Configuration | Frame | dont `blit` |
+|---|---:|---:|
+| dépendances opt 0 + notre code opt 0 | 240,00 ms | — |
+| dépendances opt 3 + notre code opt 0 | 55,00 ms | 31,50 ms |
+| **dépendances opt 3 + notre code opt 1** | **22,30 ms** | **1,52 ms** |
+
+Optimiser les seules dépendances ne donnait que ×4,4, parce que `blit` — une boucle scalaire sur
+1,3 M de pixels, **notre** code — représentait alors 57 % de la frame. Il a fallu monter aussi
+nos deux crates à `opt-level = 1`, ce qui conserve les symboles de debug. Gain total : **×10,8**.
+
+### Le budget de frame après le cache de halos
+
+Board par défaut, quasi vide, profil dev, `GLUCOSE_PERF=2` :
+
+| Poste | Avant `def3800` | Après `def3800` | Part |
+|---|---:|---:|---:|
+| `docks` | 7,11 ms | **7,57 ms** | **43 %** |
+| `ui` | 3,27 ms | 3,50 ms | 20 % |
+| `grid` | 2,42 ms | 2,49 ms | 14 % |
+| `blit` | 1,52 ms | 1,78 ms | 10 % |
+| `halos` | **7,19 ms** | **1,50 ms** | 9 % |
+| `present` | 0,75 ms | 0,76 ms | 4 % |
+| **Total** | **22,30 ms** | **17,50 ms** | |
+
+---
+
+## R-42 — Les docks sont le premier poste de rendu, et ils ne changent jamais
+
+**Gravité : MAJEUR — 43 % de la frame dépensés à redessiner ce qui n'a pas bougé.**
+
+`render_docks()` coûte **7,6 ms à chaque image**, mesuré sur un board vide. C'est désormais le
+poste le plus cher du rendu, devant l'UI, la grille et les halos réunis.
+
+Or un dock ne change presque jamais : ni au déplacement de la souris sur le canvas, ni au zoom,
+ni au défilement, ni pendant une animation de carte. Tout son contenu — panneaux, boutons,
+libellés, icônes — est pourtant reconstruit et recomposé intégralement soixante fois par seconde.
+
+**Correctif** : rendre chaque dock une fois dans son propre `Pixmap`, et ne le recomposer que
+lorsque son état change. C'est la tâche 1.13 de la feuille de route (dirty rects), qui devient
+le prochain gain de performance le plus rentable du projet.
+
+---
+
+## R-43 — `draw_grid` reconstruit un chemin complet à chaque frame
+
+**Gravité : MAJEUR — viole la règle 4.3 des standards (aucune allocation dans la boucle de rendu).**
+
+`renderer.rs:376` alloue un `PathBuilder` neuf à chaque image, y empile **un cercle par point de
+grille visible** via une double boucle `while`, puis remplit le tout en un seul `fill_path`
+anti-aliasé.
+
+```rust
+let mut pb = PathBuilder::new();        // alloué à chaque frame
+while gx <= end_x {
+    while gy <= end_y {
+        pb.push_circle(sx as f32, sy as f32, 1.2);   // 4 courbes de Bézier par point
+```
+
+Chaque `push_circle` produit quatre courbes de Bézier, que le rastériseur doit ensuite aplatir en
+segments puis couvrir en anti-aliasé — pour dessiner un point de 2,4 px de diamètre. Le nombre de
+points dépend du viewport et du zoom : plusieurs centaines au minimum, davantage en dézoomant.
+
+Coût mesuré : **2,49 ms par frame sur un board vide**, soit 14 % de la frame.
+
+**Correctif** : un point de grille n'a pas besoin du pipeline de chemins. Un `fill_rect` de 2×2 px
+par point, ou mieux, une composition directe des pixels comme celle qui vient d'être écrite pour
+les halos dans `renderer/halo.rs`, coûterait une fraction de ce prix — et supprimerait l'allocation.
+
+---
+
+## R-44 — 15 lints clippy désactivés à l'échelle du crate
+
+**Gravité : MAJEUR — dont celui qui aurait évité le gel au démarrage.**
+
+`crates/glucose-desktop/src/main.rs:2` désactive **15 lints** pour tout le crate :
+
+```
+too_many_arguments, field_reassign_with_default, manual_strip, manual_is_multiple_of,
+manual_range_contains, unnecessary_cast, collapsible_if, collapsible_else_if,
+collapsible_match, single_match, chunks_exact_to_as_chunks, derivable_impls,
+new_without_default, type_complexity, unwrap_or_default
+```
+
+Tant que ce bloc existe, `cargo clippy --all-targets -- -D warnings` **ne prouve rien** sur
+`glucose-desktop` : il valide un crate dont on a préalablement éteint les alarmes. Le premier de
+la liste, `too_many_arguments`, aurait signalé la fonction qui a rendu le logiciel indémarrable.
+
+**Correctif** : supprimer le bloc, puis traiter les avertissements un par un. Les lints de style
+(`collapsible_if`, `single_match`, `manual_range_contains`) se corrigent mécaniquement. Les deux
+qui demandent un vrai travail — `too_many_arguments` et `type_complexity` — sont précisément ceux
+qui désignent les fonctions à refactoriser. Aucun `#[allow]` ne doit être réintroduit ailleurs
+pour compenser : ce serait déplacer la dette, pas la payer.
 
 ---
 
