@@ -98,12 +98,9 @@ pub fn handle_slop_world(scale: f64, box_w: f64, box_h: f64) -> f64 {
     wanted.min(cap)
 }
 
+/// Nom CSS du curseur d'une poignee (`PickCandidate::corner`), `default` si le nom est inconnu.
 pub fn handle_cursor(corner: &str) -> &'static str {
-    if corner == "tl" || corner == "br" {
-        "nwse-resize"
-    } else {
-        "nesw-resize"
-    }
+    crate::resize::Handle::parse(corner).map_or("default", |h| h.cursor())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -2,30 +2,41 @@
 //!
 //! Une poignee prime sur tout le reste (`PICK_RANK_HANDLE` = 0) : c'est la cible la plus
 //! petite a l'ecran, donc la plus couteuse a rater.
+//!
+//! Chaque noeud selectionne expose les huit poignees de [`Handle::ALL`] — quatre coins,
+//! quatre milieux de cote — sauf la carte de texte, dont la hauteur suit son texte
+//! (TEXT-FIT-1) et qui n'offre donc que celles de [`Handle::HORIZONTAL`]. Le nom range dans
+//! `PickCandidate::corner` est celui de [`Handle::as_str`].
 
 use super::*;
+use crate::resize::Handle;
+use crate::smart_align::AlignRect;
 
-fn corners_of_rect(x: f64, y: f64, w: f64, h: f64) -> [(&'static str, f64, f64); 4] {
-    [
-        ("tl", x, y),
-        ("tr", x + w, y),
-        ("bl", x, y + h),
-        ("br", x + w, y + h),
-    ]
+/// Pousse dans `out` les poignees de `handles` posees sur `rect` qui sont a portee du curseur.
+fn push_rect_handles(
+    out: &mut Vec<PickCandidate>,
+    owner: PickOwner,
+    id: &str,
+    z: usize,
+    rect: AlignRect,
+    handles: &[Handle],
+    input: &PickInput,
+) {
+    let slop = handle_slop_world(input.scale, rect.width, rect.height);
+    let positions = handles.iter().map(|h| (*h, h.position_on(rect)));
+    push_handles(out, owner, id, z, positions, (input.wx, input.wy), slop);
 }
 
-#[allow(clippy::too_many_arguments)]
 fn push_handles(
     out: &mut Vec<PickCandidate>,
     owner: PickOwner,
     id: &str,
     z: usize,
-    corners: &[(&'static str, f64, f64)],
-    wx: f64,
-    wy: f64,
+    positions: impl Iterator<Item = (Handle, (f64, f64))>,
+    (wx, wy): (f64, f64),
     slop: f64,
 ) {
-    for &(corner, cx, cy) in corners {
+    for (handle, (cx, cy)) in positions {
         let d = f64::hypot(wx - cx, wy - cy);
         if d <= slop {
             out.push(PickCandidate {
@@ -34,7 +45,7 @@ fn push_handles(
                 kind: PickKind::Handle,
                 rank: PICK_RANK_HANDLE,
                 z,
-                corner: Some(corner.to_string()),
+                corner: Some(handle.as_str().to_string()),
                 dist: d,
                 area: 0.0,
                 terminal: false,
@@ -43,120 +54,56 @@ fn push_handles(
     }
 }
 
+/// Les poignees d'une image tournent avec elle : posees sur sa boite locale, centree,
+/// puis ramenees dans le monde par sa rotation.
+fn push_image_handles(out: &mut Vec<PickCandidate>, img: &BoardImage, z: usize, input: &PickInput) {
+    let local = AlignRect::new(-img.width / 2.0, -img.height / 2.0, img.width, img.height);
+    let (c, s) = (img.rotation.cos(), img.rotation.sin());
+    let positions = Handle::ALL.iter().map(|h| {
+        let (ox, oy) = h.position_on(local);
+        (*h, (img.x + ox * c - oy * s, img.y + ox * s + oy * c))
+    });
+    let slop = handle_slop_world(input.scale, img.width, img.height);
+    push_handles(out, PickOwner::Image, &img.id, z, positions, (input.wx, input.wy), slop);
+}
+
+/// Boite et poignees d'une annotation selectionnee ; `None` pour une fleche.
+fn annotation_handles(ann: &Annotation) -> Option<(PickOwner, AlignRect, &'static [Handle])> {
+    match ann {
+        Annotation::Arrow { .. } => None,
+        Annotation::Membrane { x, y, width, height, .. } => {
+            Some((PickOwner::Membrane, AlignRect::new(*x, *y, *width, *height), &Handle::ALL))
+        }
+        Annotation::Text { x, y, width, height, .. } => {
+            let (w, h) = (width.unwrap_or(0.0), height.unwrap_or(0.0));
+            (w > 0.0 && h > 0.0)
+                .then(|| (PickOwner::Annotation, AlignRect::new(*x, *y, w, h), &Handle::HORIZONTAL[..]))
+        }
+        Annotation::Sticky { x, y, width, height, .. } => {
+            let (w, h) = (width.unwrap_or(160.0), height.unwrap_or(120.0));
+            (w > 0.0 && h > 0.0).then(|| (PickOwner::Annotation, AlignRect::new(*x, *y, w, h), &Handle::ALL[..]))
+        }
+    }
+}
+
 /// Collecte les poignees sous le curseur. Utilisee aussi par `candidates`.
 pub(super) fn collect_handles(input: &PickInput, out: &mut Vec<PickCandidate>) {
-    let wx = input.wx;
-    let wy = input.wy;
-    let scale = input.scale;
-
     if !input.selected_image_ids.is_empty() {
         for (z, img) in input.images.iter().enumerate() {
             if img.locked || !input.selected_image_ids.contains(&img.id) {
                 continue;
             }
-            let hw = img.width / 2.0;
-            let hh = img.height / 2.0;
-            let rot = img.rotation;
-            let c = rot.cos();
-            let s = rot.sin();
-            let offsets = [
-                ("tl", -hw, -hh),
-                ("tr", hw, -hh),
-                ("bl", -hw, hh),
-                ("br", hw, hh),
-            ];
-            let corners: Vec<(&'static str, f64, f64)> = offsets
-                .iter()
-                .map(|&(k, ox, oy)| (k, img.x + ox * c - oy * s, img.y + ox * s + oy * c))
-                .collect();
-            push_handles(
-                out,
-                PickOwner::Image,
-                &img.id,
-                z,
-                &corners,
-                wx,
-                wy,
-                handle_slop_world(scale, img.width, img.height),
-            );
+            push_image_handles(out, img, z, input);
         }
     }
 
     if !input.selected_annotation_ids.is_empty() {
         for (z, ann) in input.annotations.iter().enumerate() {
-            if !input.selected_annotation_ids.contains(&ann.id().to_string()) {
+            if !input.selected_annotation_ids.iter().any(|s| s == ann.id()) {
                 continue;
             }
-            match ann {
-                Annotation::Arrow { .. } => continue,
-                Annotation::Membrane {
-                    id,
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..
-                } => {
-                    let corners = corners_of_rect(*x, *y, *width, *height);
-                    push_handles(
-                        out,
-                        PickOwner::Membrane,
-                        id,
-                        z,
-                        &corners,
-                        wx,
-                        wy,
-                        handle_slop_world(scale, *width, *height),
-                    );
-                }
-                Annotation::Text {
-                    id,
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..
-                } => {
-                    let w = width.unwrap_or(0.0);
-                    let h = height.unwrap_or(0.0);
-                    if w > 0.0 && h > 0.0 {
-                        let corners = corners_of_rect(*x, *y, w, h);
-                        push_handles(
-                            out,
-                            PickOwner::Annotation,
-                            id,
-                            z,
-                            &corners,
-                            wx,
-                            wy,
-                            handle_slop_world(scale, w, h),
-                        );
-                    }
-                }
-                Annotation::Sticky {
-                    id,
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..
-                } => {
-                    let w = width.unwrap_or(160.0);
-                    let h = height.unwrap_or(120.0);
-                    if w > 0.0 && h > 0.0 {
-                        let corners = corners_of_rect(*x, *y, w, h);
-                        push_handles(
-                            out,
-                            PickOwner::Annotation,
-                            id,
-                            z,
-                            &corners,
-                            wx,
-                            wy,
-                            handle_slop_world(scale, w, h),
-                        );
-                    }
-                }
+            if let Some((owner, rect, handles)) = annotation_handles(ann) {
+                push_rect_handles(out, owner, ann.id(), z, rect, handles, input);
             }
         }
     }
@@ -166,18 +113,8 @@ pub(super) fn collect_handles(input: &PickInput, out: &mut Vec<PickCandidate>) {
             if f.id != sel_folder_id {
                 continue;
             }
-            let k = pick_consts::FOLDER_HANDLE_INSET;
-            let br = [("br", f.x + f.width - k, f.y + f.height - k)];
-            push_handles(
-                out,
-                PickOwner::Folder,
-                &f.id,
-                z,
-                &br,
-                wx,
-                wy,
-                handle_slop_world(scale, f.width, f.height),
-            );
+            let rect = AlignRect::new(f.x, f.y, f.width, f.height);
+            push_rect_handles(out, PickOwner::Folder, &f.id, z, rect, &Handle::ALL, input);
         }
     }
 }

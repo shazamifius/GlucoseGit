@@ -24,6 +24,7 @@
 //! | [`folders`] | dossiers de canevas et leurs boards enfants |
 //! | [`catalog`] | presets, zones de tableau, métadonnées de projet |
 //! | [`domains`] | catalogue de domaines et pondérations des nœuds (DOM-1..DOM-3) |
+//! | [`resize`] | la boîte d'un nœud, posée par le geste de redimensionnement (RESIZE-1) |
 //!
 //! # R-35 — Les erreurs ne sont plus silencieuses
 //!
@@ -40,6 +41,7 @@ mod folders;
 mod ids;
 mod images;
 mod navigation;
+mod resize;
 mod selection;
 mod undo;
 

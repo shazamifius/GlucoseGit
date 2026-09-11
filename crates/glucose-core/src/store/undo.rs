@@ -46,6 +46,26 @@ impl Store {
         self.bump_version();
     }
 
+    /// Abandonne la transaction live en cours (`Échap` pendant un geste).
+    ///
+    /// Le document revient à l'état d'avant `begin_live_edit`, et l'entrée d'undo posée à
+    /// l'ouverture disparaît avec lui : un geste annulé ne laisse **aucune** trace dans la
+    /// pile, ni à annuler ni à rétablir. La sélection est conservée — les nœuds existent
+    /// toujours — et la caméra aussi (UNDO-1). Rend `false` hors transaction.
+    pub fn cancel_live_edit(&mut self) -> bool {
+        if !self.in_live_edit {
+            return false;
+        }
+        self.in_live_edit = false;
+        let Some(mut before) = self.undo_stack.pop_back() else {
+            return false;
+        };
+        preserve_view(&mut before, &self.project);
+        self.project = before;
+        self.bump_version();
+        true
+    }
+
     pub fn can_undo(&self) -> bool {
         !self.undo_stack.is_empty()
     }
