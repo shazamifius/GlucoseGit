@@ -158,12 +158,14 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 ### Introduits par la mesure du budget de frame (`def3800`)
 - **R-42** — Les docks sont le premier poste de rendu (43 % de la frame) et ne changent jamais
 - **R-43** — `draw_grid` reconstruit un `PathBuilder` complet à chaque frame (14 % de la frame)
-- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel — ⚠️ **PARTIEL** *(`glucose-desktop` propre ; `glucose-core` en éteint encore 3)*
+- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel — ⚠️ **PARTIEL** *(`glucose-desktop` propre ; `glucose-core` en éteint encore 2)*
 
 ### Introduits par la confrontation au code TypeScript
-- **R-45** — Le texte ne suit pas le zoom : 11 `clamp` bornent le contenu, pas la boîte — ✅ **CORRIGÉ** *(SCALE-1 : une seule transformation, 12 `clamp` retirés)*
+- **R-45** — Le texte ne suit pas le zoom : **12** `clamp` bornent le contenu, pas la boîte — ✅ **CORRIGÉ** *(SCALE-1 : une seule transformation, 12 `clamp` retirés)*
 - **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement) — ✅ **CORRIGÉ** *(GLYPH-1 : 4 phases sous-pixel par axe, dans la clé du cache)*
 - **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document
+- **R-49** — La carte d'accueil n'était jamais dessinée : le culling lisait la hauteur *déclarée* — ✅ **CORRIGÉ** (`ba5bddc`)
+- **R-50** — Le coût du halo croît avec le carré du zoom, sans plafond
 - **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)* — ✅ **CORRIGÉ** *(SAVE-3 : la croix pose la question, un enregistrement raté ne ferme pas)*
 
 ---
@@ -1372,7 +1374,7 @@ Malgré l'éclatement réussi d'`app.rs` (1 126 → 331 l.), la masse s'est dép
 |---|---:|---:|---:|---:|---:|
 | `dock.rs` | — | 1 710 | 2 025 | **2 067** | 500 |
 | `ui.rs` | 862 | 1 178 | 1 348 | **1 356** | 500 |
-| `renderer.rs` | 807 | 1 026 | 1 143 | **1 179** | 500 |
+| `renderer.rs` | 807 | 1 026 | 1 143 | **309** ✅ | 500 |
 | `store.rs` | 909 | 1 043 | 1 043 | **96** ✅ | 500 |
 | `hit_priority.rs` | 920 | 1 026 | 1 026 | **136** ✅ | 500 |
 | `membrane_space.rs` | — | — | 773 | **773** | 500 |
@@ -1438,9 +1440,12 @@ qui a laissé passer le gel** :
 
 | Emplacement | Lint | Portée |
 |---|---|---|
-| `bundle.rs:3` | `manual_is_multiple_of`, `chunks_exact_to_as_chunks` | **module entier** |
+| ~~`bundle.rs:3`~~ | ~~`manual_is_multiple_of`, `chunks_exact_to_as_chunks`~~ | ✅ **supprimé** en `ed56e2b`, les deux lints réellement réparés |
 | `hit_priority/handles.rs:17` | `too_many_arguments` | une fonction |
 | `membrane_space.rs:159` | `too_many_arguments` | une fonction |
+
+**Il en reste donc 2, pas 3** *(revérifié à `ba5bddc`)*. Le `#![allow]` de portée module a
+disparu ; les deux survivants sont au niveau fonction.
 
 Les deux derniers ne sont pas théoriques. Chacune de ces fonctions présente **trois scalaires
 flottants consécutifs et interchangeables**, la forme précise du défaut qui a rendu le logiciel
@@ -1877,6 +1882,92 @@ bouton est donc écrit dans le corps du message.
 lui-même, dans son rapport, au lieu de déclarer R-01 « résolu ». C'est exactement le comportement
 qu'on attend — et c'est la raison pour laquelle un critère de sortie doit toujours être vérifié
 *par quelqu'un d'autre* que celui qui l'a écrit.
+
+---
+
+## La preuve de R-45, mesurée et non affirmée (`ba5bddc`)
+
+**Le décompte de cet audit était faux : il y avait 12 `clamp`, pas 11.** Le douzième (`arrow_len`,
+l. 933) manquait au relevé. Et surtout, six **seuils implicites** n'étaient comptés nulle part
+(`font_size >= 9.0`, `sw > 16 && actual_sh > 12`, etc.) : ce sont eux qui faisaient *disparaître*
+le texte sans rien dire, plutôt que de le déformer.
+
+Rapport encre/boîte de la même carte, obtenu en la rendant **deux fois — avec et sans son texte —
+puis en différenciant les images**. La mesure ne dépend donc pas de l'implémentation qu'elle teste.
+
+| zoom | avant | après |
+|---:|---:|---:|
+| 0,25 | **1,031** — le texte débordait de la carte | 0,615 |
+| 0,50 | **aucune encre** — le texte disparaissait | 0,608 |
+| 1,00 | 0,596 | 0,600 |
+| 2,00 | 0,490 | 0,596 |
+| 4,00 | **0,245** — texte minuscule dans une carte géante | 0,593 |
+
+Avant : de 1,03 à 0,25, en passant par *rien du tout*. Après : entre 0,593 et 0,615, soit **3,5 %
+d'écart sur un facteur de zoom de 16**. Captures dans
+`crates/glucose-desktop/target/r45-{before,after}/`, celles d'« après » régénérées par
+`cargo test` (`renderer/card/proof.rs`).
+
+Point de conception à retenir : **la mise en page est désormais calculée avant la mise à
+l'échelle.** Dans l'autre ordre, la hauteur nécessaire dépendrait d'une police déjà bornée — c'est
+la cause profonde du défaut, plus que les `clamp` eux-mêmes.
+
+Coût de R-46 : mesure A/B sur 32 frames, **16,84 → 16,70 ms**. `ui` et `docks` sont les étapes les
+plus riches en texte et ne sont **pas** touchées par R-45 : leur stabilité (3,19 → 3,06 et
+7,44 → 7,11) mesure proprement le coût des phases sous-pixel, et il est nul. Le cache reste borné
+à 4 096 entrées ; 518 variantes suffisent à une frame complète.
+
+---
+
+## R-49 — La carte d'accueil n'était jamais dessinée
+
+**Gravité : MAJEUR — trouvé par effet de bord, et il explique une capture d'écran de l'utilisateur.**
+
+Le test de visibilité d'une carte utilisait sa hauteur **déclarée** (48) et non celle que son texte
+exige (99,6). Sur une machine à 125 % de DPI, bandeau à ~52 px, la carte d'accueil du viewport par
+défaut tombait **entièrement** du mauvais côté du test : seul son **halo** était dessiné.
+
+C'est la signature qu'on lisait dans le budget de frame sans la comprendre : `annotations = 0,01 ms`
+avant, **0,82 ms** après. Une passe d'annotations à 0,01 ms ne veut pas dire « rapide », elle veut
+dire « vide ».
+
+Corrigé par la même cause que R-45 — la mise en page précède désormais le test de visibilité, donc
+le test porte sur la vraie hauteur. Mais le défaut mérite son propre numéro : il ne venait pas des
+bornes, il venait de l'**ordre des opérations**.
+
+**Leçon de méthode** : une métrique de performance anormalement bonne est une alerte, pas une
+récompense. `annotations = 0,01 ms` a été publié **trois fois** dans les tableaux de budget de cet
+audit sans que personne ne se demande ce qui pouvait bien coûter si peu.
+
+---
+
+## R-50 — Le coût du halo croît avec le carré du zoom, sans plafond
+
+**Gravité : MAJEUR — viole la loi L2, et corrige une conclusion publiée trop vite dans ce document.**
+
+`renderer/halo.rs:221` :
+
+```rust
+let radius = ((w.max(h) * HALO_RADIUS_FACTOR) as f32 + (HALO_RADIUS_MARGIN * vp.scale) as f32)
+```
+
+`w` et `h` contiennent déjà `* vp.scale`. Le rayon est donc **linéaire en zoom et sans plafond**, et
+l'aire du disque croît comme son carré. À zoom ×3 le rayon dépasse 1 200 px : **une seule carte
+remplit tout l'écran de halo**. Le coût par carte sature à la surface de la fenêtre, mais N cartes
+qui se recouvrent coûtent N remplissages plein écran.
+
+Mesure rapportée sur le binaire non modifié, à un viewport zoomé ×3 : `halos = 10,1 ms` pour **une
+seule** carte, contre 1,1 ms au zoom 1.
+
+**Ce que ça corrige dans ce document.** La section « Vérification `def3800` » conclut que les halos
+sont réglés, sur la foi de `halos = 1,50 ms`. Cette mesure a été prise **au zoom 1 uniquement** et
+présentée comme un budget général. L'optimisation en anneaux est réelle et vaut toujours son ×6,3
+par carte — mais elle divise un coût qui, lui, n'est pas borné. Le vrai défaut n'était pas seulement
+*comment* on dessine le halo : c'était *combien de surface* on lui laisse couvrir.
+
+**Correctif** : plafonner le rayon du halo en unités **écran**, pas en unités monde. Un halo est un
+effet de présentation ; il n'a aucune raison de grandir indéfiniment avec le zoom. C'est exactement
+l'usage de `WorldScale::screen()` que `ba5bddc` vient d'introduire.
 
 ---
 

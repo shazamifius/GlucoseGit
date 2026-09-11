@@ -67,9 +67,10 @@ défauts qui **dégradent tout ce qui est déjà acquis**.
 
 | # | Tâche | Constat | Où |
 |---|---|---|---|
-| 1.27 | Une carte se dessine en coordonnées locales puis subit **une seule** transformation. Supprimer les 11 `clamp` qui bornent police, marges et rayons indépendamment de la boîte. | R-45 | `renderer.rs` |
-| 1.28 | Positionnement **sous-pixel** des glyphes : remplacer `(gx + col as f32) as i32` par un placement avec fraction, ou au minimum un arrondi cohérent sur toute une ligne de texte. | R-46 | `typography.rs` |
-| 1.29 | Capture PNG comparée entre zoom 0,25 / 1 / 4 pour prouver que la carte reste fidèle. Dépend de 0.5/0.6. | R-45, R-46 | `glucose-cli` |
+| 1.27 | Une carte se dessine en coordonnées locales puis subit **une seule** transformation | R-45 | ✅ **VÉRIFIÉ** — **12** `clamp` retirés (l'audit en annonçait 11) + 6 seuils implicites qui faisaient disparaître le texte ; `renderer/scale.rs` centralise `world()` / `screen()` |
+| 1.28 | Positionnement **sous-pixel** des glyphes | R-46 | ✅ **VÉRIFIÉ** — 4 phases par axe dans la clé du cache, variantes dérivées par interpolation bilinéaire ; coût frame nul (16,84 → 16,70 ms), cache borné inchangé |
+| 1.29 | Capture PNG comparée entre zoom 0,25 / 0,5 / 1 / 2 / 4 pour prouver la fidélité | R-45, R-46 | ✅ **VÉRIFIÉ** — rapport encre/boîte : avant 1,031 → *néant* → 0,245 ; après 0,615 → 0,593. Test permanent `renderer/card/proof.rs` |
+| 1.30 | **Plafonner le rayon du halo en unités écran.** Il croît aujourd'hui linéairement avec le zoom, sans borne : à ×3 une seule carte remplit l'écran et coûte 10,1 ms. Un halo est un effet de présentation, il n'a pas à grandir indéfiniment. Utiliser `WorldScale::screen()`. | **R-50** | ⏳ **PRIORITÉ** |
 
 Ces trois tâches passent **avant** toute nouvelle fonctionnalité : il est moins coûteux de
 réparer la fidélité sur 20 % du logiciel que sur 100 %.
@@ -152,7 +153,7 @@ pour très peu de code neuf.
 | 1.15 | Appeler `snap_move` / `snap_resize` pendant le drag → le magnétisme existe enfin | 2.7, 2.8 | ✅ **VÉRIFIÉ** — sans dérive de curseur, bien écrit |
 | ~~1.16~~ | ~~Appliquer la sélection élastique au relâchement~~ | — | ✅ **fait** (`2da029f`) |
 | 1.17 | `hit_priority` alimenté par l'index spatial | 2.2 | ✅ **VÉRIFIÉ** |
-| 1.18 | `handle_cursor()` branché → curseurs contextuels | 2.10 | ✅ **VÉRIFIÉ** |
+| 1.18 | `handle_cursor()` branché → curseurs contextuels | 2.11 | ✅ **VÉRIFIÉ** |
 
 ### 1D — L'undo par journal
 
@@ -242,13 +243,13 @@ ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).
 | 2.4 | Sommes de contrôle par section ; détection et récupération partielle d'un fichier tronqué | 🟡 détection ✅ (sha256 par section) ; récupération partielle non faite |
 | 2.5 | **Écriture atomique** : `.tmp` → `fsync` → renommage. Un crash ne détruit jamais le fichier | ✅ `glucose-desktop/src/persist/atomic.rs` |
 | 2.6 | `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, fichiers récents, titre de fenêtre avec indicateur de modification | 🟡 les trois raccourcis ✅ et le titre ✅ ; fichiers récents non faits |
-| 2.7 | **Alerte de fermeture** : sur `CloseRequested`, si le document est modifié, proposer Enregistrer / Ne pas enregistrer / Annuler. Sans elle, le marqueur « modifié » annonce une perte au lieu de l'éviter. | **R-48** | ⏳ **PRIORITÉ** — ~30 l. |
-| 2.7 | Sauvegarde automatique par journal (delta uniquement) | ❌ |
-| 2.8 | Récupération après crash : au démarrage, proposer de reprendre le journal orphelin | ❌ |
-| 2.9 | Ramasse-miettes des assets à la sauvegarde | ✅ le magasin est reconstruit à chaque écriture |
-| 2.10 | Chaîne de migrations `v2 → v3 → …`, avec un test par saut de version | 🟡 les deux numéros de version sont en place, aucune migration à écrire pour l'instant |
-| 2.11 | **Importeur du `.glucose` v1** (bundle TypeScript), lecture seule | ❌ refusé par un message explicite |
-| 2.12 | Chargement paresseux des images : le document s'ouvre d'abord, les images arrivent ensuite | ❌ |
+| 2.7 | **Alerte de fermeture** : sur `CloseRequested`, si le document est modifié, proposer Enregistrer / Ne pas enregistrer / Annuler | **R-48** | ✅ **VÉRIFIÉ** — `persist/close.rs`, INVARIANT SAVE-3 : après « Enregistrer », l'état modifié est **relu** plutôt que la réponse du dialogue, donc un enregistrement raté ou un chemin annulé laissent la fenêtre ouverte |
+| 2.8 | Sauvegarde automatique par journal (delta uniquement) | ❌ |
+| 2.9 | Récupération après crash : au démarrage, proposer de reprendre le journal orphelin | ❌ |
+| 2.10 | Ramasse-miettes des assets à la sauvegarde | ✅ le magasin est reconstruit à chaque écriture |
+| 2.11 | Chaîne de migrations `v2 → v3 → …`, avec un test par saut de version | 🟡 les deux numéros de version sont en place, aucune migration à écrire pour l'instant |
+| 2.12 | **Importeur du `.glucose` v1** (bundle TypeScript), lecture seule | ❌ refusé par un message explicite |
+| 2.13 | Chargement paresseux des images : le document s'ouvre d'abord, les images arrivent ensuite | ❌ |
 
 ### Critères de sortie
 
@@ -272,8 +273,8 @@ ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).
 | # | Tâche | Fonctions débloquées |
 |---|---|---|
 | 3.1 | Poignées de redimensionnement interactives, avec magnétisme et préservation de ratio | 2.9, 3.9, 3.10, 5.8, 7.4 |
-| 3.2 | Rotation à la poignée | 2.11 |
-| 3.3 | Verrouillage : indicateur visuel + bascule | 2.12 |
+| 3.2 | Rotation à la poignée | 2.12 |
+| 3.3 | Verrouillage : indicateur visuel + bascule | 2.13 |
 | 3.4 | Ordre d'empilement : premier/dernier plan, `Ctrl+]` / `Ctrl+[` | 2.17 |
 | 3.5 | **Menu contextuel** ; le pan passe au bouton du milieu / `Espace` | 2.16, 19.14 |
 | 3.6 | Mipmaps + échantillonnage trilinéaire | 3.12 |
