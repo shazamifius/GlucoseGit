@@ -1402,6 +1402,39 @@ C'est ce qui rendra `interactions/` testable, et c'est ce qui arrêtera la crois
 | Fichiers > 500 lignes | 5 (`dock.rs` 1710, `ui.rs` 1178, `store.rs` 1043, `renderer.rs` 1026, `hit_priority.rs` 1026) |
 | Fonctions > 60 lignes dans `dock.rs` | 8 |
 
+
+### Ce qui reste ouvert dans R-44 : `glucose-core` éteint encore trois alarmes
+
+`glucose-desktop` est propre, mais le crate censé être exemplaire ne l'est pas. Trois
+`allow(clippy::…)` subsistent dans `glucose-core`, et **deux d'entre eux sont exactement le lint
+qui a laissé passer le gel** :
+
+| Emplacement | Lint | Portée |
+|---|---|---|
+| `bundle.rs:3` | `manual_is_multiple_of`, `chunks_exact_to_as_chunks` | **module entier** |
+| `hit_priority/handles.rs:17` | `too_many_arguments` | une fonction |
+| `membrane_space.rs:159` | `too_many_arguments` | une fonction |
+
+Les deux derniers ne sont pas théoriques. Chacune de ces fonctions présente **trois scalaires
+flottants consécutifs et interchangeables**, la forme précise du défaut qui a rendu le logiciel
+indémarrable :
+
+```rust
+fn push_handles(out, owner, id, z, corners, wx: f64, wy: f64, slop: f64)
+fn walk(item, ox: f64, oy: f64, s: f64, in_focus, members, children, focus_id, out)
+```
+
+Dans `walk`, `s` est une **échelle** posée juste après deux **coordonnées** — littéralement le
+couple `scale` / `mouse_x` qui a coûté une fenêtre gelée, cette fois dans le noyau. Intervertir
+`oy` et `s` compile sans un mot et déplace silencieusement toute une membrane.
+
+**Correctif** : appliquer à `glucose-core` le remède déjà écrit pour `glucose-desktop` —
+`push_handles` prend un point et une tolérance nommés, `walk` prend une transformation nommée
+(origine + échelle) — puis supprimer les trois `allow`. Le `#![allow]` de `bundle.rs` est de
+portée module, donc à traiter en priorité : il éteint l'alarme pour du code qui n'existe pas
+encore.
+
+
 ---
 
 ## Vérification `def3800` — le premier budget de frame mesuré
@@ -1525,7 +1558,7 @@ pour compenser : ce serait déplacer la dette, pas la payer.
 ### Correctif appliqué — 🟡 (traité à vérifier)
 
 Le bloc `#![allow(…)]` est supprimé de `main.rs`. Les 46 avertissements qu'il masquait sont
-corrigés, aucun `#[allow(clippy::…)]` n'a été réintroduit nulle part, et
+corrigés, aucun `#[allow(clippy::…)]` n'a été réintroduit **dans `glucose-desktop`**, et
 `cargo clippy --workspace --all-targets -- -D warnings` sort en 0 sur un crate dont plus aucune
 alarme n'est éteinte.
 
