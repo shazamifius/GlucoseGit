@@ -25,7 +25,21 @@
 //! Le seul état conservé d'une frame à l'autre reste donc la teinte symbiotique, dans
 //! [`SymbioticHueCache`] : elle, contrairement au profil du halo, dépend du voisinage et
 //! coûte cher à recalculer.
+//!
+//! # HALO-3 — le rayon suit la carte, mais il est plafonné en pixels écran
+//!
+//! Le halo est un effet de **présentation** : il teinte le voisinage d'une carte, il n'en
+//! fait pas partie. Son rayon suivait pourtant le zoom sans aucune limite — 410 px pour la
+//! carte par défaut à ×1, 1 230 px à ×3 — et le coût du disque suit le carré du rayon :
+//! mesuré, `halos` passait de 1,1 ms à ×1 à 10,1 ms à ×3 pour **une seule carte**, dont le
+//! halo couvrait alors l'écran entier d'un lavis uniforme (**R-50**, loi L2).
+//!
+//! Le rayon reste une longueur monde — il grandit avec la carte, comme le veut SCALE-1 —
+//! puis il est plafonné par [`HALO_MAX_SCREEN_RADIUS`], une longueur écran passée par
+//! [`WorldScale::screen`] : c'est l'exception admise par SCALE-1, et elle est nommée. Le
+//! plafond ne touche pas l'algorithme en anneaux de [`draw_halo`], qui reste exact.
 
+use super::scale::WorldScale;
 use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
@@ -42,13 +56,25 @@ pub(super) const DEFAULT_TEXT_CARD_WIDTH: f64 = 240.0;
 pub(super) const DEFAULT_TEXT_CARD_HEIGHT: f64 = 48.0;
 
 /// Facteur appliqué à la plus grande dimension de la carte pour obtenir le rayon.
-const HALO_RADIUS_FACTOR: f64 = 1.5;
+const HALO_RADIUS_FACTOR: f32 = 1.5;
 /// Marge constante, en unités monde, ajoutée au rayon du halo.
-const HALO_RADIUS_MARGIN: f64 = 50.0;
+const HALO_RADIUS_MARGIN: f32 = 50.0;
 /// Rayon minimal du halo, en unités monde.
-const HALO_MIN_RADIUS: f64 = 20.0;
+const HALO_MIN_RADIUS: f32 = 20.0;
 /// En dessous de ce rayon écran, le halo ne couvre plus assez de pixels pour être vu.
 const HALO_CULL_RADIUS: f32 = 4.0;
+
+/// Rayon maximal d'un halo, **en pixels écran** (HALO-3).
+///
+/// 512 px, pour trois raisons mesurées :
+///
+/// 1. c'est **au-dessus** des 410 px de la carte par défaut à ×1 (240 × 1,5 + 50) : l'aspect
+///    de référence ne change pas d'un pixel, et son coût de 1,1 ms non plus ;
+/// 2. un disque de 1 024 px de diamètre couvre déjà toute la hauteur d'un écran 1080p ;
+///    au-delà, le dégradé cesse d'être perçu comme un halo — il ne reste qu'un lavis ;
+/// 3. l'aire est bornée à π · 512² ≈ 0,82 Mpx, soit **au plus 1,6 ms** pour un halo, quel
+///    que soit le zoom ou la taille de la carte, contre 10 ms sans plafond à ×3.
+pub(super) const HALO_MAX_SCREEN_RADIUS: f32 = 512.0;
 
 /// Divise par 255 avec arrondi au plus proche, sans division entière.
 ///
@@ -194,7 +220,7 @@ pub fn draw_halo(dst: &mut PixmapMut, cx: f32, cy: f32, radius: f32, rgb: (u8, u
 }
 
 /// Géométrie écran du halo d'une carte de texte, ou `None` si elle sort du cadre.
-fn halo_geometry(
+pub(super) fn halo_geometry(
     ann: &Annotation,
     vp: &Viewport,
     screen_w: f32,
@@ -212,14 +238,19 @@ fn halo_geometry(
         return None;
     };
 
+    let scale = WorldScale::new(vp.scale);
     let (sx, sy) = world_to_screen(*x, *y, vp);
-    let w = width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH) * vp.scale;
-    let h = height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) * vp.scale;
+    let w = scale.world(width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH) as f32);
+    let h = scale.world(height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) as f32);
 
-    let cx = (sx + w / 2.0) as f32;
-    let cy = (sy + h / 2.0) as f32;
-    let radius = ((w.max(h) * HALO_RADIUS_FACTOR) as f32 + (HALO_RADIUS_MARGIN * vp.scale) as f32)
-        .max((HALO_MIN_RADIUS * vp.scale) as f32);
+    let cx = sx as f32 + w / 2.0;
+    let cy = sy as f32 + h / 2.0;
+    // Une longueur monde, mise à l'échelle avec la carte (SCALE-1)…
+    let world_radius = (w.max(h) * HALO_RADIUS_FACTOR + scale.world(HALO_RADIUS_MARGIN))
+        .max(scale.world(HALO_MIN_RADIUS));
+    // … puis plafonnée en pixels écran (HALO-3) : un halo ne grandit pas au-delà de ce
+    // qu'un écran peut encore montrer comme un dégradé.
+    let radius = world_radius.min(scale.screen(HALO_MAX_SCREEN_RADIUS));
 
     // Frustum culling : hors écran, ou trop microscopique pour couvrir un pixel.
     if cx + radius < 0.0
@@ -263,226 +294,4 @@ pub fn draw_halos(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::HashSet;
-    use tiny_skia::{
-        Color, FillRule, GradientStop, Paint, PathBuilder, Pixmap, Point, RadialGradient,
-        SpreadMode, Transform,
-    };
-
-    /// Fond de référence des tests : la couleur de toile du thème sombre.
-    fn background() -> Color {
-        Color::from_rgba8(13, 14, 18, 255)
-    }
-
-    /// Rend le halo comme avant : un `RadialGradient` reconstruit et un disque rempli.
-    fn draw_reference_halo(
-        dst: &mut PixmapMut,
-        cx: f32,
-        cy: f32,
-        radius: f32,
-        (r, g, b): (u8, u8, u8),
-    ) {
-        let shader = RadialGradient::new(
-            Point::from_xy(cx, cy),
-            Point::from_xy(cx, cy),
-            radius,
-            vec![
-                GradientStop::new(0.0, Color::from_rgba8(r, g, b, HALO_CENTER_ALPHA)),
-                GradientStop::new(1.0, Color::from_rgba8(r, g, b, 0)),
-            ],
-            SpreadMode::Pad,
-            Transform::identity(),
-        )
-        .expect("rayon strictement positif : le dégradé ne peut pas être dégénéré");
-        let paint = Paint { shader, anti_alias: true, ..Default::default() };
-
-        let mut pb = PathBuilder::new();
-        pb.push_circle(cx, cy, radius);
-        let path = pb
-            .finish()
-            .expect("un cercle de rayon > 0 est toujours un chemin valide");
-        dst.fill_path(&path, &paint, FillRule::Winding, Transform::identity(), None);
-    }
-
-    fn render(radius: f32, rgb: (u8, u8, u8), reference: bool) -> Pixmap {
-        let side = (radius * 2.0).ceil() as u32 + 8;
-        let mut pixmap = Pixmap::new(side, side).expect("pixmap de test");
-        pixmap.fill(background());
-        let center = side as f32 / 2.0;
-        let mut view = pixmap.as_mut();
-        if reference {
-            draw_reference_halo(&mut view, center, center, radius, rgb);
-        } else {
-            draw_halo(&mut view, center, center, radius, rgb);
-        }
-        pixmap
-    }
-
-    /// Écart maximal, canal par canal, entre deux pixmaps de même taille.
-    fn max_channel_delta(a: &Pixmap, b: &Pixmap) -> u8 {
-        a.data()
-            .iter()
-            .zip(b.data().iter())
-            .map(|(x, y)| x.abs_diff(*y))
-            .max()
-            .unwrap_or(0)
-    }
-
-    /// Écart maximal admis entre la composition par anneaux et le dégradé d'origine.
-    ///
-    /// Deux niveaux sur 255, soit 0,8 % : c'est le cumul de la quantification de
-    /// l'opacité sur des entiers et de l'arrondi propre au pipeline de tiny-skia.
-    /// Mesuré sur les cas ci-dessous, aucun pixel ne dépasse cet écart, et l'immense
-    /// majorité est à zéro ou un niveau — invisible sur la toile sombre.
-    const MAX_TOLERATED_DELTA: u8 = 2;
-
-    /// HALO-1 — la composition par anneaux reste le dégradé d'origine, à deux niveaux près.
-    #[test]
-    fn test_ring_composition_matches_reference_gradient() {
-        for rgb in [(96, 165, 250), (250, 204, 21), (255, 255, 255)] {
-            for radius in [12.0_f32, 60.0, 180.0, 440.0] {
-                let delta =
-                    max_channel_delta(&render(radius, rgb, true), &render(radius, rgb, false));
-                assert!(
-                    delta <= MAX_TOLERATED_DELTA,
-                    "halo {rgb:?} de rayon {radius} : écart max {delta} niveaux                      (toléré : {MAX_TOLERATED_DELTA})"
-                );
-            }
-        }
-    }
-
-    /// HALO-1 — hors du disque, pas un pixel n'est touché.
-    #[test]
-    fn test_nothing_is_drawn_outside_the_disc() {
-        let radius = 40.0_f32;
-        let rendered = render(radius, (255, 0, 0), false);
-        let side = rendered.width();
-        let center = side as f32 / 2.0;
-
-        for y in 0..side {
-            for x in 0..side {
-                let dx = x as f32 + 0.5 - center;
-                let dy = y as f32 + 0.5 - center;
-                if dx * dx + dy * dy <= radius * radius {
-                    continue;
-                }
-                let pixel = rendered.pixels()[(y * side + x) as usize];
-                assert_eq!(
-                    (pixel.red(), pixel.green(), pixel.blue()),
-                    (13, 14, 18),
-                    "le pixel ({x}, {y}), hors du disque, a été modifié"
-                );
-            }
-        }
-    }
-
-    /// HALO-1 — le centre atteint bien l'opacité nominale sur fond transparent.
-    #[test]
-    fn test_center_reaches_the_nominal_opacity() {
-        let mut pixmap = Pixmap::new(64, 64).expect("pixmap de test");
-        let mut view = pixmap.as_mut();
-        draw_halo(&mut view, 32.0, 32.0, 30.0, (255, 255, 255));
-        let center = pixmap.pixels()[32 * 64 + 32];
-        assert!(
-            center.alpha().abs_diff(HALO_CENTER_ALPHA) <= 1,
-            "alpha central {}, attendu {HALO_CENTER_ALPHA}",
-            center.alpha()
-        );
-    }
-
-    /// Un rayon dégénéré ne doit ni paniquer ni boucler : le coût reste borné par l'écran.
-    #[test]
-    fn test_degenerate_radius_is_bounded_and_safe() {
-        let mut pixmap = Pixmap::new(128, 128).expect("pixmap de test");
-        for radius in [0.0_f32, -12.0, f32::NAN, f32::INFINITY, 1e9] {
-            let started = std::time::Instant::now();
-            let mut view = pixmap.as_mut();
-            draw_halo(&mut view, 64.0, 64.0, radius, (120, 200, 255));
-            assert!(
-                started.elapsed().as_millis() < 500,
-                "draw_halo ne se termine pas pour radius={radius}"
-            );
-        }
-    }
-
-    /// `div255` rend exactement l'arrondi au plus proche de `x / 255`.
-    #[test]
-    fn test_div255_is_exact_rounding() {
-        for x in 0..=(255u32 * 255) {
-            let expected = ((x as f64) / 255.0).round() as u32;
-            assert_eq!(div255(x), expected, "div255({x})");
-        }
-    }
-
-    /// Nombre de cartes du banc de performance de la passe de halos.
-    const BENCH_CARD_COUNT: usize = 40;
-
-    /// Budget de la passe de halos pour [`BENCH_CARD_COUNT`] cartes, en 1440x900, en debug.
-    ///
-    /// Loi L2 — le coût d'une frame ne suit pas la taille du document. Mesuré sur la
-    /// machine de développement : 364 ms avec le `RadialGradient` reconstruit par carte,
-    /// 58 ms avec la composition par anneaux. Le budget laisse de la marge au matériel
-    /// le plus lent tout en échouant franchement si le dégradé par frame revenait.
-    const HALO_PASS_BUDGET_MS: u128 = 250;
-
-    fn bench_card(id: &str, x: f64, y: f64) -> Annotation {
-        Annotation::Text {
-            id: id.into(),
-            x,
-            y,
-            width: Some(200.0),
-            height: Some(50.0),
-            text: String::new(),
-            font_size: Some(14.0),
-            color: None,
-            cursor_pos: None,
-            source_file: None,
-            membrane_id: None,
-            domains: Vec::new(),
-            mirror_of: None,
-            temporal_anchor: None,
-        }
-    }
-
-    /// HALO-1 — banc de performance : la passe reste dans son budget pour 40 cartes.
-    #[test]
-    fn test_halo_pass_stays_within_budget_for_a_dense_board() {
-        let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
-        let mut store = Store::new("Banc halos");
-        let board_id = store.project.active_board_id.clone();
-        for i in 0..BENCH_CARD_COUNT {
-            let card = bench_card(
-                &format!("halo-bench-{i}"),
-                ((i % 8) as f64) * 180.0,
-                ((i / 8) as f64) * 180.0,
-            );
-            store.add_annotation(&board_id, card);
-        }
-
-        let mut hue_cache = SymbioticHueCache::new();
-        let vp = Viewport::default();
-        let board = store.active_board().expect("le board vient d'être rempli");
-        let visible: HashSet<&str> = board.annotations.iter().map(|a| a.id()).collect();
-        hue_cache.update_positions_and_invalidate(&board.annotations);
-
-        // Frame de chauffe : remplit le cache de teintes symbiotiques.
-        {
-            let mut view = pixmap.as_mut();
-            draw_halos(&mut hue_cache, &mut view, &store, ViewPass { vp, visible_ids: &visible, header_h: 40.0 });
-        }
-
-        let started = std::time::Instant::now();
-        {
-            let mut view = pixmap.as_mut();
-            draw_halos(&mut hue_cache, &mut view, &store, ViewPass { vp, visible_ids: &visible, header_h: 40.0 });
-        }
-        let elapsed = started.elapsed().as_millis();
-
-        assert!(
-            elapsed < HALO_PASS_BUDGET_MS,
-            "passe de halos pour {BENCH_CARD_COUNT} cartes : {elapsed} ms              (budget {HALO_PASS_BUDGET_MS} ms)"
-        );
-    }
-}
+mod tests;
