@@ -43,7 +43,7 @@ impl GlucoseApp {
                             path: filename.to_string(),
                             reason: err.to_string(),
                         };
-                        self.ui.show_toast(format!("⚠️ {}", desktop_err));
+                        self.ui.show_toast(desktop_err.to_string());
                         continue;
                     }
                 };
@@ -70,7 +70,7 @@ impl GlucoseApp {
         }
 
         if count > 0 {
-            self.ui.show_toast(format!("📥 {} image(s) ajoutée(s)", count));
+            self.ui.show_toast(format!("{} image(s) ajoutée(s)", count));
             self.mark_dirty();
         }
     }
@@ -90,7 +90,7 @@ impl GlucoseApp {
                     let temp_dir = std::env::temp_dir().join("glucose_pasted");
                     if let Err(e) = std::fs::create_dir_all(&temp_dir) {
                         let err = DesktopError::Io(e);
-                        self.ui.show_toast(format!("⚠️ {}", err));
+                        self.ui.show_toast(err.to_string());
                         return;
                     }
                     let nanos = std::time::SystemTime::now()
@@ -121,7 +121,7 @@ impl GlucoseApp {
                             img.original_height = h as f64;
 
                             self.store.add_image(&active_bid, img);
-                            self.ui.show_toast("📥 Image collée");
+                            self.ui.show_toast("Image collée");
                             self.mark_dirty();
                             return;
                         }
@@ -130,7 +130,7 @@ impl GlucoseApp {
                                 path: filename,
                                 reason: e.to_string(),
                             };
-                            self.ui.show_toast(format!("⚠️ {}", err));
+                            self.ui.show_toast(err.to_string());
                             return;
                         }
                     }
@@ -164,13 +164,13 @@ impl GlucoseApp {
                         temporal_anchor: None,
                     };
                     self.store.add_annotation(&active_bid, ann);
-                    self.ui.show_toast("📝 Texte collé");
+                    self.ui.show_toast("Texte collé");
                     self.mark_dirty();
                 }
             }
             Err(e) => {
                 let err = DesktopError::ClipboardError(e.to_string());
-                self.ui.show_toast(format!("⚠️ {}", err));
+                self.ui.show_toast(err.to_string());
             }
         }
     }

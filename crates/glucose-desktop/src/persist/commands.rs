@@ -138,7 +138,7 @@ impl GlucoseApp {
                 self.saved_version = self.store.version;
                 self.ui.show_toast(save_message(&report, &self.document_label()));
             }
-            Err(err) => self.ui.show_toast(format!("⚠️ {err}")),
+            Err(err) => self.ui.show_toast(err.to_string()),
         }
         self.sync_window_title();
         self.mark_dirty();
@@ -165,7 +165,7 @@ impl GlucoseApp {
                 self.saved_version = self.store.version;
                 self.ui.show_toast(open_message(&self.store.project, &report));
             }
-            Err(err) => self.ui.show_toast(format!("⚠️ {err}")),
+            Err(err) => self.ui.show_toast(err.to_string()),
         }
         self.sync_window_title();
         self.mark_dirty();
@@ -198,7 +198,7 @@ struct OpenReport {
 }
 
 fn save_message(report: &SaveReport, label: &str) -> String {
-    let mut msg = format!("💾 « {label} » enregistré — {}", human_size(report.bytes));
+    let mut msg = format!("« {label} » enregistré — {}", human_size(report.bytes));
     if report.assets > 0 {
         msg.push_str(&format!(", {} image(s) incorporée(s)", report.assets));
     }
@@ -210,7 +210,7 @@ fn save_message(report: &SaveReport, label: &str) -> String {
 
 fn open_message(project: &Project, report: &OpenReport) -> String {
     let boards = project.boards.len();
-    let mut msg = format!("📂 « {} » ouvert — {boards} tableau(x)", project.name);
+    let mut msg = format!("« {} » ouvert — {boards} tableau(x)", project.name);
     if report.restored > 0 {
         msg.push_str(&format!(", {} image(s) restituée(s)", report.restored));
     }

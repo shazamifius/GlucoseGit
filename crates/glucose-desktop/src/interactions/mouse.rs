@@ -80,14 +80,14 @@ impl GlucoseApp {
                         UiAction::ToggleMagnet => {}
                         UiAction::ToggleTransDomain => {
                             self.ui.show_toast(if self.ui.trans_domain {
-                                "🌌 Trans-domaines activé"
+                                "Trans-domaines activé"
                             } else {
                                 "Trans-domaines désactivé"
                             });
                         }
                         UiAction::ToggleCollab => {}
                         UiAction::ExportMenu => {
-                            self.ui.show_toast("💾 Exportation du canvas");
+                            self.ui.show_toast("Exportation du canvas");
                         }
                         UiAction::TogglePlugins => {
                             self.dock_manager.toggle_tab(TabId::Plugins);
@@ -105,7 +105,7 @@ impl GlucoseApp {
                             let new_name = format!("Board {}", self.store.project.boards.len() + 1);
                             let new_id = self.store.add_board(new_name);
                             self.store.set_active_board_id(new_id);
-                            self.ui.show_toast("📋 Nouveau board créé");
+                            self.ui.show_toast("Nouveau board créé");
                         }
                         UiAction::MinimapPan(wx, wy) => {
                             if let Some(b) = self.store.active_board_mut() {
@@ -208,7 +208,7 @@ impl GlucoseApp {
                         };
                         self.store.add_annotation(&active_bid, ann);
                         self.start_text_edit(aid, initial_str);
-                        self.ui.show_toast("📝 Édition du texte");
+                        self.ui.show_toast("Édition du texte");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
                         return;
@@ -236,7 +236,7 @@ impl GlucoseApp {
                         };
                         self.store.add_annotation(&active_bid, ann);
                         self.start_text_edit(aid, initial_str);
-                        self.ui.show_toast("📌 Édition du sticky");
+                        self.ui.show_toast("Édition du sticky");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
                         return;
@@ -271,7 +271,7 @@ impl GlucoseApp {
                             temporal_anchor: None,
                         };
                         self.store.add_annotation(&active_bid, ann);
-                        self.ui.show_toast("↗️ Flèche ajoutée");
+                        self.ui.show_toast("Flèche ajoutée");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
                         self.mark_dirty();
@@ -295,14 +295,14 @@ impl GlucoseApp {
                             temporal_anchor: None,
                         };
                         self.store.add_annotation(&active_bid, ann);
-                        self.ui.show_toast("🧊 Membrane créée (rx=60)");
+                        self.ui.show_toast("Membrane créée (rx=60)");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
                         self.mark_dirty();
                         return;
                     }
                     ActiveTool::Folder => {
-                        self.ui.show_toast("📁 Dossier");
+                        self.ui.show_toast("Dossier");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
                         return;
@@ -406,7 +406,7 @@ impl GlucoseApp {
             }
             MouseButton::Left => {
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
-                    self.ui.show_toast(format!("👋 Panneau {} fermé", dismissed.title()));
+                    self.ui.show_toast(format!("Panneau {} fermé", dismissed.title()));
                     self.mark_dirty();
                     return;
                 }

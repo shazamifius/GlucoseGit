@@ -153,6 +153,36 @@ impl Measured {
     }
 }
 
+/// Le texte de la preuve visuelle de R-51 : chaque accent du français courant, la ligature
+/// et le tiret cadratin, dans une phrase qu'un moodboard pourrait vraiment porter.
+const ACCENTED_TEXT: &str = "Éditer — déjà prêt, à bientôt, cœur";
+/// La même phrase amputée de ses accents : ce que l'ancienne police en faisait.
+const STRIPPED_TEXT: &str = "Editer - deja pret, a bientot, coeur";
+
+#[test]
+fn test_r51_accented_text_is_drawn_on_the_card() {
+    // Avant Inter, la police n'avait aucun accent : « Éditer » se dessinait « Editer » par
+    // repli silencieux, et « cœur » devenait « cour ». On ne mesure pas la police, on mesure
+    // l'encre : la carte accentuée doit différer de la carte amputée, et déborder au-dessus
+    // de la capitale là où l'accent aigu de « É » se pose.
+    let dir = std::path::Path::new("target/r51-font");
+    std::fs::create_dir_all(dir).expect("dossier de capture");
+    let typo = Typography::new();
+    for zoom in [1.0_f64, 2.0] {
+        let accented = render_proof(&typo, ACCENTED_TEXT, zoom);
+        let stripped = render_proof(&typo, STRIPPED_TEXT, zoom);
+        let empty = render_proof(&typo, "", zoom);
+        let (_, top_accented, _, _) = ink_bbox(&accented, &empty).expect("la carte porte du texte");
+        let (_, top_stripped, _, _) = ink_bbox(&stripped, &empty).expect("la carte porte du texte");
+        assert_ne!(accented.data(), stripped.data(), "zoom {zoom} : les accents ne laissent aucune encre");
+        assert!(
+            top_accented < top_stripped,
+            "zoom {zoom} : l'accent de « É » devrait dépasser la capitale ({top_accented} >= {top_stripped})"
+        );
+        accented.save_png(dir.join(format!("card-x{zoom:.2}.png"))).expect("ecriture png");
+    }
+}
+
 #[test]
 fn test_scale_2_below_the_threshold_the_card_keeps_its_frame_and_drops_its_text() {
     let typo = Typography::new();

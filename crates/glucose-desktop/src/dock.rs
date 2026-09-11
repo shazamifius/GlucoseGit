@@ -1240,7 +1240,7 @@ fn render_storyboard_content(
         pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
     }
     typo.draw_text(pixmap, fmt_str, layout.format_button.x + 8.0 * s, layout.format_button.y + 6.0 * s, TextStyle { size: 11.0 * s, color: theme.text_primary, bold: false });
-    typo.draw_text(pixmap, "⌄", layout.format_button.x + layout.format_button.w - 16.0 * s, layout.format_button.y + 4.0 * s, TextStyle { size: 12.0 * s, color: theme.text_muted, bold: false });
+    typo.draw_text(pixmap, "˅", layout.format_button.x + layout.format_button.w - 16.0 * s, layout.format_button.y + 4.0 * s, TextStyle { size: 12.0 * s, color: theme.text_muted, bold: false });
 
     // 3 colonnes d'inputs
     typo.draw_text(pixmap, "LARGEUR", layout.width_input.x, layout.width_input.y - 12.0 * s, TextStyle { size: 9.0 * s, color: theme.text_muted, bold: true });
@@ -1330,8 +1330,9 @@ fn render_plugins_content(
     typo.draw_text(pixmap, "Ollama actif", px + 26.0 * s, py + 52.0 * s, TextStyle { size: 11.0 * s, color: theme.text_primary, bold: true });
 
     typo.draw_text(pixmap, "Ce PC : 32 Go RAM · 12 cœurs · GPU 6 Go", px + 14.0 * s, py + 68.0 * s, TextStyle { size: 10.0 * s, color: theme.text_muted, bold: false });
-    typo.draw_text(pixmap, "Modèle conseillé pour ce PC : ", px + 14.0 * s, py + 82.0 * s, TextStyle { size: 10.5 * s, color: theme.text_secondary, bold: false });
-    typo.draw_text(pixmap, "qwen2.5:7b", px + 142.0 * s, py + 82.0 * s, TextStyle { size: 10.5 * s, color: theme.text_primary, bold: true });
+    // Le nom du modèle suit la plume, pas un décalage fixe calibré sur une police (R-51).
+    let after_label = typo.draw_text(pixmap, "Modèle conseillé pour ce PC : ", px + 14.0 * s, py + 82.0 * s, TextStyle { size: 10.5 * s, color: theme.text_secondary, bold: false });
+    typo.draw_text(pixmap, "qwen2.5:7b", after_label, py + 82.0 * s, TextStyle { size: 10.5 * s, color: theme.text_primary, bold: true });
 
     // Bouton Télécharger
     let is_down_hover = layout.download_button.contains(mx, my);

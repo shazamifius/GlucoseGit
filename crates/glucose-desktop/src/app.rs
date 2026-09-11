@@ -232,7 +232,7 @@ impl GlucoseApp {
             glucose_core::layout::organize_board_grid(board, 40.0);
         }
         self.store.push_undo();
-        self.ui.show_toast("📐 Canvas ordonné");
+        self.ui.show_toast("Canvas ordonné");
         self.mark_dirty();
     }
 
@@ -240,7 +240,7 @@ impl GlucoseApp {
     pub fn apply_dock_layout(&mut self, state: &OrganizeState) {
         if let Some(board) = self.store.active_board_mut() {
             if board.images.is_empty() {
-                self.ui.show_toast("⚠️ Aucune image sur le canvas");
+                self.ui.show_toast("Aucune image sur le canvas");
                 return;
             }
 
@@ -255,7 +255,7 @@ impl GlucoseApp {
             }
         }
         self.store.push_undo();
-        self.ui.show_toast(format!("📐 Disposition {} appliquée", state.layout.title()));
+        self.ui.show_toast(format!("Disposition {} appliquée", state.layout.title()));
         self.mark_dirty();
     }
 

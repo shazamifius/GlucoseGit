@@ -189,7 +189,7 @@ mod tests {
         );
         assert!(app.is_dirty(), "rien n'a ete ecrit : le document reste modifie");
         let toast = app.ui.current_toast.as_ref().expect("l'echec doit etre explique");
-        assert!(toast.message.contains("⚠️"), "toast : {}", toast.message);
+        assert!(toast.message.contains("Enregistrement impossible"), "toast : {}", toast.message);
     }
 
     #[test]

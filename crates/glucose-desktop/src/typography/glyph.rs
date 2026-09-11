@@ -20,10 +20,12 @@ pub(super) const PHASE_ORIGIN: u8 = 0;
 
 /// Nombre maximal de variantes de glyphes gardées en mémoire.
 ///
-/// Mesuré, pas deviné : une frame complète en 1440×900, docks compris, occupe **518**
+/// Mesuré, pas deviné : une frame complète en 1440×900, docks compris, occupe **531**
 /// variantes (`test_full_frame_render_stays_within_time_budget`), et un balayage continu de
 /// 600 positions sur cinq tailles — qui traverse donc les seize phases de chaque glyphe —
-/// s'arrête à **754** (`test_glyph_1_the_cache_stays_bounded_across_every_phase`). Le
+/// s'arrête à **772** (`test_glyph_1_the_cache_stays_bounded_across_every_phase`). Ces
+/// deux chiffres sont ceux d'Inter (FONT-1) ; ils valaient 518 et 754 avec la police
+/// d'origine, et le passage n'a rien changé au plafond. Le
 /// plafond hérité de R-40 laisse donc plus de cinq fois la marge nécessaire, et l'éviction
 /// LRU borne le reste par construction : le positionnement sous-pixel n'a pas eu besoin
 /// d'agrandir le cache.

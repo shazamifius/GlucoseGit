@@ -2,6 +2,23 @@
 //! Embarque directement les polices TTF pour garantir 0 dépendance système externe.
 //! Dispose d'un cache de glyphes (atlas mémoire) et d'un mélange alpha prémultiplié (R-26, R-27).
 //!
+//! # FONT-1 — la police embarquée couvre le français, et un test le prouve
+//!
+//! La police d'origine était `KaTeX_SansSerif`, copiée telle quelle depuis les dépendances
+//! JavaScript de l'ancienne version : une police de **formules**, 121 points de code, pas un
+//! seul accent (**R-51**). Chaque « é » de l'interface passait par une table de repli qui le
+//! remplaçait par « e », et tout ce que l'utilisateur tapait avec un accent était amputé —
+//! un moodboard en français ne pouvait pas contenir de français.
+//!
+//! La police est désormais **Inter** (Regular et SemiBold, SIL Open Font License 1.1, texte
+//! dans `assets/LICENSE-Inter.txt`) : 2 505 points de code, accents français complets,
+//! ligatures, guillemets, tirets, flèches. Il n'y a plus de table de repli : un caractère
+//! absent de la police se dessine en `.notdef`, visiblement, plutôt que d'être remplacé en
+//! silence par un autre. Et `typography/coverage.rs` lit la table `cmap` de chaque police
+//! embarquée pour affirmer la présence d'un ensemble nommé de caractères, dont **tous les
+//! caractères non-ASCII des chaînes littérales de ce crate** : changer de police sans
+//! couvrir le français casse la build, au lieu de casser l'écran.
+//!
 //! # GLYPH-1 — un glyphe se pose à sa vraie place, pas à la place entière la plus proche
 //!
 //! La position calculée d'un glyphe est fractionnaire : la plume avance de
@@ -23,6 +40,8 @@
 //!
 //! [`SUBPIXEL_PHASES`] positions par axe bornent l'erreur résiduelle à un huitième de pixel.
 
+#[cfg(test)]
+mod coverage;
 mod glyph;
 
 use fontdue::{Font, FontSettings};
@@ -48,6 +67,11 @@ pub struct TextStyle {
     pub bold: bool,
 }
 
+/// La police d'interface, graisse normale (FONT-1).
+pub(crate) const REGULAR_FONT_BYTES: &[u8] = include_bytes!("../assets/Inter-Regular.ttf");
+/// La police d'interface, graisse forte (FONT-1).
+pub(crate) const BOLD_FONT_BYTES: &[u8] = include_bytes!("../assets/Inter-SemiBold.ttf");
+
 pub struct Typography {
     pub regular: Font,
     pub bold: Font,
@@ -57,12 +81,10 @@ pub struct Typography {
 
 impl Typography {
     pub fn new() -> Self {
-        let reg_bytes = include_bytes!("../assets/font.ttf");
-        let bold_bytes = include_bytes!("../assets/font_bold.ttf");
-        let regular =
-            Font::from_bytes(reg_bytes as &[u8], FontSettings::default()).expect("Failed to load regular font");
-        let bold =
-            Font::from_bytes(bold_bytes as &[u8], FontSettings::default()).expect("Failed to load bold font");
+        let regular = Font::from_bytes(REGULAR_FONT_BYTES, FontSettings::default())
+            .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue");
+        let bold = Font::from_bytes(BOLD_FONT_BYTES, FontSettings::default())
+            .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue");
         Self {
             regular,
             bold,
@@ -72,11 +94,9 @@ impl Typography {
     }
 
     /// Récupère ou rastérise un glyphe **non décalé** (R-26, R-40).
-    pub fn get_glyph(&self, ch: char, size: f32, bold: bool) -> (char, Rc<GlyphEntry>) {
+    pub fn get_glyph(&self, ch: char, size: f32, bold: bool) -> Rc<GlyphEntry> {
         let size = clamp_font_size(size);
-        let font = if bold { &self.bold } else { &self.regular };
-        let safe_ch = normalize_char(font, ch);
-        (safe_ch, self.glyph_variant(safe_ch, size, bold, PHASE_ORIGIN))
+        self.glyph_variant(ch, size, bold, PHASE_ORIGIN)
     }
 
     /// Récupère la variante de `ch` décalée de `phase` (GLYPH-1).
@@ -85,29 +105,29 @@ impl Typography {
     /// rastérisation : `fontdue` n'est donc appelé qu'**une fois par (caractère, taille,
     /// graisse)**, quel que soit le nombre de phases. La lecture de l'origine met à jour
     /// son horodatage, ce qui la garde en cache tant que l'une de ses phases sert.
-    fn glyph_variant(&self, safe_ch: char, size: f32, bold: bool, phase: u8) -> Rc<GlyphEntry> {
+    fn glyph_variant(&self, ch: char, size: f32, bold: bool, phase: u8) -> Rc<GlyphEntry> {
         let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
         let access = self.access_counter.get().wrapping_add(1);
         self.access_counter.set(access);
 
         let mut cache = self.glyph_cache.borrow_mut();
-        if let Some((entry, last_access)) = cache.get_mut(&(bold, safe_ch, size_key, phase)) {
+        if let Some((entry, last_access)) = cache.get_mut(&(bold, ch, size_key, phase)) {
             *last_access = access;
             return entry.clone();
         }
 
-        let origin = match cache.get_mut(&(bold, safe_ch, size_key, PHASE_ORIGIN)) {
+        let origin = match cache.get_mut(&(bold, ch, size_key, PHASE_ORIGIN)) {
             Some((entry, last_access)) => {
                 *last_access = access;
                 entry.clone()
             }
             None => {
                 let font = if bold { &self.bold } else { &self.regular };
-                let (metrics, bitmap) = font.rasterize(safe_ch, size);
+                let (metrics, bitmap) = font.rasterize(ch, size);
                 let (width, height) = (metrics.width, metrics.height);
                 let entry = Rc::new(GlyphEntry { metrics, bitmap, width, height });
                 evict_if_full(&mut cache);
-                cache.insert((bold, safe_ch, size_key, PHASE_ORIGIN), (entry.clone(), access));
+                cache.insert((bold, ch, size_key, PHASE_ORIGIN), (entry.clone(), access));
                 entry
             }
         };
@@ -117,7 +137,7 @@ impl Typography {
 
         let shifted = Rc::new(shifted_glyph(&origin, phase));
         evict_if_full(&mut cache);
-        cache.insert((bold, safe_ch, size_key, phase), (shifted.clone(), access));
+        cache.insert((bold, ch, size_key, phase), (shifted.clone(), access));
         shifted
     }
 
@@ -149,15 +169,13 @@ impl Typography {
         // La partie fractionnaire verticale est la même pour toute la ligne : `ymin` et
         // `height` sont entiers, donc seule l'ordonnée de base porte une phase (GLYPH-1).
         let (cell_y, phase_y) = split_position(y + size);
-        let font = if bold { &self.bold } else { &self.regular };
 
         for ch in text.chars() {
             if ch == '\n' {
                 continue;
             }
-            let safe_ch = normalize_char(font, ch);
             let (cell_x, phase_x) = split_position(x);
-            let entry = self.glyph_variant(safe_ch, size, bold, phase_y * SUBPIXEL_PHASES + phase_x);
+            let entry = self.glyph_variant(ch, size, bold, phase_y * SUBPIXEL_PHASES + phase_x);
             let metrics = &entry.metrics;
 
             let gx = cell_x + metrics.xmin;
@@ -198,13 +216,11 @@ impl Typography {
         let w = pixmap.width() as i32;
         let h = pixmap.height() as i32;
         let data = pixmap.data_mut();
-        let font = if bold { &self.bold } else { &self.regular };
 
         for ch in text.chars() {
             if ch == '\n' {
                 continue;
             }
-            let safe_ch = normalize_char(font, ch);
             let advance = {
                 // 1. Passe contour : chaque décalage a sa propre phase, comme n'importe
                 //    quelle position. Les huit offsets n'en produisent que quatre distinctes.
@@ -212,7 +228,7 @@ impl Typography {
                     self.blend_positioned(
                         data,
                         (w, h),
-                        (safe_ch, size, bold),
+                        (ch, size, bold),
                         (x + ox, y + size + oy),
                         (out_r, out_g, out_b, out_a),
                     );
@@ -221,7 +237,7 @@ impl Typography {
                 self.blend_positioned(
                     data,
                     (w, h),
-                    (safe_ch, size, bold),
+                    (ch, size, bold),
                     (x, y + size),
                     (r, g, b, a),
                 )
@@ -240,10 +256,10 @@ impl Typography {
         at: (f32, f32),
         color: (f32, f32, f32, f32),
     ) -> f32 {
-        let (safe_ch, size, bold) = glyph;
+        let (ch, size, bold) = glyph;
         let (cell_x, phase_x) = split_position(at.0);
         let (cell_y, phase_y) = split_position(at.1);
-        let entry = self.glyph_variant(safe_ch, size, bold, phase_y * SUBPIXEL_PHASES + phase_x);
+        let entry = self.glyph_variant(ch, size, bold, phase_y * SUBPIXEL_PHASES + phase_x);
         let gx = cell_x + entry.metrics.xmin;
         let gy = cell_y - entry.metrics.ymin - entry.metrics.height as i32;
         blend_glyph(data, bounds, &entry, (gx, gy), color);
@@ -260,8 +276,7 @@ impl Typography {
             if ch == '\n' {
                 continue;
             }
-            let (_, entry) = self.get_glyph(ch, size, bold);
-            width += entry.metrics.advance_width;
+            width += self.get_glyph(ch, size, bold).metrics.advance_width;
         }
         (width, height)
     }
@@ -283,33 +298,6 @@ pub fn clamp_font_size(size: f32) -> f32 {
         return 1.0;
     }
     size.clamp(1.0, MAX_FONT_SIZE)
-}
-
-fn normalize_char(font: &Font, ch: char) -> char {
-    if font.lookup_glyph_index(ch) != 0 {
-        return ch;
-    }
-    match ch {
-        'é' | 'è' | 'ê' | 'ë' => 'e',
-        'É' | 'È' | 'Ê' | 'Ë' => 'E',
-        'à' | 'â' | 'ä' => 'a',
-        'À' | 'Â' | 'Ä' => 'A',
-        'î' | 'ï' => 'i',
-        'Î' | 'Ï' => 'I',
-        'ô' | 'ö' => 'o',
-        'Ô' | 'Ö' => 'O',
-        'ù' | 'û' | 'ü' => 'u',
-        'Ù' | 'Û' | 'Ü' => 'U',
-        'ç' => 'c',
-        'Ç' => 'C',
-        'œ' => 'o',
-        '’' => '\'',
-        '—' | '–' => '-',
-        '→' => '>',
-        '←' => '<',
-        '↺' => 'R',
-        _ => ch,
-    }
 }
 
 #[cfg(test)]
@@ -421,11 +409,17 @@ mod tests {
             typo.draw_text(&mut pixmap.as_mut(), "i", 20.0 + advance * n as f32, 10.0, style);
             centres.push(ink_centroid_x(&pixmap));
         }
-        for pair in centres.windows(2) {
-            let step = pair[1] - pair[0];
+        // Chaque lettre est mesuree par rapport a la premiere, pas a sa voisine : l'erreur
+        // d'une phase (un huitieme de pixel) ne s'accumule pas, alors qu'une troncature
+        // par glyphe derivait jusqu'a un pixel entier au bout du mot. Comparer deux
+        // voisines cumulerait les deux arrondis et ne verrait rien quand l'avance est
+        // proche d'un entier.
+        for (n, centre) in centres.iter().enumerate() {
+            let observed = centre - centres[0];
+            let expected = advance * n as f32;
             assert!(
-                (step - advance).abs() < 0.2,
-                "pas de {step} au lieu de {advance} — l'espacement derive"
+                (observed - expected).abs() < 0.2,
+                "lettre {n} a {observed} au lieu de {expected} — l'espacement derive"
             );
         }
     }
@@ -434,7 +428,7 @@ mod tests {
     fn test_glyph_1_the_phase_belongs_to_the_cache_key() {
         // Servir le bitmap d'une phase pour une autre annulerait tout le correctif.
         let typo = Typography::new();
-        let (_, origin) = typo.get_glyph('A', 16.0, false);
+        let origin = typo.get_glyph('A', 16.0, false);
         let shifted = typo.glyph_variant('A', 16.0, false, 2);
         assert_ne!(origin.bitmap, shifted.bitmap, "deux phases doivent differer");
         assert_eq!(typo.cached_glyph_count(), 2, "les deux variantes coexistent en cache");

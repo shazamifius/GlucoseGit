@@ -13,6 +13,24 @@ pub const TOPBAR_HEIGHT: f32 = 44.0;
 pub const TABS_HEIGHT: f32 = 34.0;
 pub const TOTAL_HEADER_HEIGHT: f32 = TOPBAR_HEIGHT + TABS_HEIGHT;
 
+/// Corps du libellé d'un bouton d'action de la barre d'outils.
+const ACTION_LABEL_FONT: f32 = 12.0;
+/// Abscisse du libellé dans un bouton d'action : la marge de l'icône, l'icône, son écart.
+const ACTION_LABEL_X: f32 = 26.0;
+/// Marge entre la fin du libellé et le bord droit d'un bouton d'action.
+const ACTION_LABEL_PAD_RIGHT: f32 = 10.0;
+
+/// Largeur d'un bouton d'action pour `label`, à l'échelle `s`.
+///
+/// Le libellé est **mesuré**, pas supposé : les largeurs étaient des littéraux calibrés à
+/// l'œil sur une police donnée, et le premier changement de police (R-51) a fait déborder
+/// « Trans-domaines » de son cadre. Il est mesuré en gras — la graisse du bouton actif, la
+/// plus large — pour qu'un bouton ne change pas de taille quand on le bascule.
+fn action_button_width(typo: &Typography, label: &str, s: f32) -> f32 {
+    let (text_w, _) = typo.measure_text(label, ACTION_LABEL_FONT * s, true);
+    (ACTION_LABEL_X + ACTION_LABEL_PAD_RIGHT) * s + text_w
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActiveTool {
     Select,
@@ -178,12 +196,13 @@ pub struct TopbarLayout {
 pub fn layout_topbar(
     width: f32,
     ui: &UiState,
-    _typo: &Typography,
+    typo: &Typography,
     board_img_count: usize,
 ) -> TopbarLayout {
     let mut buttons = Vec::new();
     let mut separators = Vec::new();
     let s = ui.scale();
+    let label_w = |label: &str| action_button_width(typo, label, s);
 
     // Responsive design :
     // - Mode complet : width >= 1320px * scale
@@ -263,7 +282,7 @@ pub fn layout_topbar(
     let act_h = 28.0 * s;
     let act_y = (topbar_h - act_h) / 2.0;
 
-    let (img_w, img_label) = if is_ultra { (tool_size, "") } else { (78.0 * s, "Images") };
+    let (img_w, img_label) = if is_ultra { (tool_size, "") } else { (label_w("Images"), "Images") };
     buttons.push(TopbarButtonDef {
         action: UiAction::AddImages,
         x: cur_x,
@@ -284,12 +303,12 @@ pub fn layout_topbar(
 
     // 4. Ordonner, Timer, Storyboard
     let panels = [
-        (UiAction::Organize, IconType::Organize, "Ordonner", 84.0 * s, false),
-        (UiAction::ToggleTimer, IconType::Timer, "Timer", 66.0 * s, false),
-        (UiAction::ToggleStoryboard, IconType::Storyboard, "Storyboard", 96.0 * s, false),
+        (UiAction::Organize, IconType::Organize, "Ordonner", false),
+        (UiAction::ToggleTimer, IconType::Timer, "Timer", false),
+        (UiAction::ToggleStoryboard, IconType::Storyboard, "Storyboard", false),
     ];
-    for (act, icon, lbl, full_w, active) in panels {
-        let (btn_w, btn_lbl) = if is_ultra { (tool_size, "") } else { (full_w, lbl) };
+    for (act, icon, lbl, active) in panels {
+        let (btn_w, btn_lbl) = if is_ultra { (tool_size, "") } else { (label_w(lbl), lbl) };
         buttons.push(TopbarButtonDef {
             action: act,
             x: cur_x,
@@ -311,11 +330,11 @@ pub fn layout_topbar(
 
     // 5. Aimant, Trans-domaines
     let toggles = [
-        (UiAction::ToggleMagnet, IconType::Magnet, "Aimant", 76.0 * s, ui.smart_align),
-        (UiAction::ToggleTransDomain, IconType::TransDomain, "Trans-domaines", 118.0 * s, ui.trans_domain),
+        (UiAction::ToggleMagnet, IconType::Magnet, "Aimant", ui.smart_align),
+        (UiAction::ToggleTransDomain, IconType::TransDomain, "Trans-domaines", ui.trans_domain),
     ];
-    for (act, icon, lbl, full_w, active) in toggles {
-        let (btn_w, btn_lbl) = if is_ultra { (tool_size, "") } else { (full_w, lbl) };
+    for (act, icon, lbl, active) in toggles {
+        let (btn_w, btn_lbl) = if is_ultra { (tool_size, "") } else { (label_w(lbl), lbl) };
         buttons.push(TopbarButtonDef {
             action: act,
             x: cur_x,
@@ -334,11 +353,11 @@ pub fn layout_topbar(
     let left_end = cur_x;
 
     // 6. Groupe de Droite
-    let (col_w, col_lbl) = if is_ultra { (tool_size, "") } else { (96.0 * s, "Collaborer") };
-    let (exp_w, exp_lbl) = if is_ultra { (tool_size, "") } else { (84.0 * s, "Exporter") };
-    let (plu_w, plu_lbl) = if is_compact { (tool_size, "") } else { (76.0 * s, "Plugins") };
-    let (pre_w, pre_lbl) = if is_compact { (tool_size, "") } else { (72.0 * s, "Preset") };
-    let (dom_w, dom_lbl) = if is_compact { (tool_size, "") } else { (88.0 * s, "Domaines") };
+    let (col_w, col_lbl) = if is_ultra { (tool_size, "") } else { (label_w("Collaborer"), "Collaborer") };
+    let (exp_w, exp_lbl) = if is_ultra { (tool_size, "") } else { (label_w("Exporter"), "Exporter") };
+    let (plu_w, plu_lbl) = if is_compact { (tool_size, "") } else { (label_w("Plugins"), "Plugins") };
+    let (pre_w, pre_lbl) = if is_compact { (tool_size, "") } else { (label_w("Preset"), "Preset") };
+    let (dom_w, dom_lbl) = if is_compact { (tool_size, "") } else { (label_w("Domaines"), "Domaines") };
 
     let badge_w = if board_img_count > 0 { 42.0 * s } else { 0.0 };
     let right_total_w = col_w + 8.0 * s + exp_w + 8.0 * s + plu_w + 4.0 * s + pre_w + 4.0 * s + dom_w + badge_w + 16.0 * s;
@@ -637,13 +656,18 @@ fn render_board_tabs(
     }
 }
 
-fn draw_separator(pixmap: &mut PixmapMut, x: f32, y: f32, h: f32, color: Color) -> f32 {
+/// Un trait vertical d'un pixel, **posé sur la grille de pixels**.
+///
+/// Les boutons sont désormais mesurés, donc leurs abscisses sont fractionnaires. Un trait
+/// d'un pixel à une abscisse fractionnaire s'étale en gris sur deux colonnes ; et dans un
+/// build de debug, `tiny-skia` refuse par assertion le rectangle intérieur de largeur nulle
+/// que produit son anti-aliasing sur ce cas. Arrondir est la seule bonne réponse aux deux.
+fn draw_separator(pixmap: &mut PixmapMut, x: f32, y: f32, h: f32, color: Color) {
     let mut paint = Paint::default();
     paint.set_color(color);
-    if let Some(rect) = Rect::from_xywh(x, y, 1.0, h) {
+    if let Some(rect) = Rect::from_xywh(x.round(), y.round(), 1.0, h) {
         pixmap.fill_rect(rect, &paint, Transform::identity(), None);
     }
-    9.0
 }
 
 fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
@@ -777,7 +801,8 @@ fn draw_action_button(
     } else {
         let icon_y = y + (h - icon_size) / 2.0;
         draw_icon_scaled(pixmap, icon, x + 8.0 * scale, icon_y, icon_size, color, 1.3 * scale);
-        typo.draw_text(pixmap, label, x + 26.0 * scale, y + (h - 12.0 * scale) / 2.0, TextStyle { size: 12.0 * scale, color, bold: active });
+        let font = ACTION_LABEL_FONT * scale;
+        typo.draw_text(pixmap, label, x + ACTION_LABEL_X * scale, y + (h - font) / 2.0, TextStyle { size: font, color, bold: active });
     }
 }
 
@@ -1109,11 +1134,11 @@ pub fn handle_ui_click(
                 match btn.action {
                     UiAction::ToggleMagnet => {
                         ui.smart_align = !ui.smart_align;
-                        ui.show_toast(if ui.smart_align { "✨ Aimant activé" } else { "Aimant désactivé" });
+                        ui.show_toast(if ui.smart_align { "Aimant activé" } else { "Aimant désactivé" });
                     }
                     UiAction::ToggleCollab => {
                         ui.collab_active = !ui.collab_active;
-                        ui.show_toast(if ui.collab_active { "🌐 Collaboration connectée" } else { "Collaboration déconnectée" });
+                        ui.show_toast(if ui.collab_active { "Collaboration connectée" } else { "Collaboration déconnectée" });
                     }
                     _ => {}
                 }
@@ -1181,6 +1206,28 @@ mod tests {
                         !(overlap_x && overlap_y),
                         "Collision detected at screen width {} between button {} and button {} (b1: [{}, {}], b2: [{}, {}])",
                         width, i, j, b1.x, b1.x + b1.w, b2.x, b2.x + b2.w
+                    );
+                }
+            }
+        }
+    }
+
+    /// R-51 — le libellé d'un bouton d'action tient dans son cadre, en gras comme en maigre.
+    #[test]
+    fn test_topbar_labels_fit_inside_their_buttons_whatever_the_weight() {
+        let ui = UiState::new();
+        let typo = Typography::new();
+        for width in [1440.0, 1920.0] {
+            let layout = layout_topbar(width, &ui, &typo, 0);
+            for btn in layout.buttons.iter().filter(|b| !b.label.is_empty()) {
+                for bold in [false, true] {
+                    let (text_w, _) = typo.measure_text(btn.label, ACTION_LABEL_FONT * ui.scale(), bold);
+                    let right_edge = ACTION_LABEL_X * ui.scale() + text_w;
+                    assert!(
+                        right_edge <= btn.w - ACTION_LABEL_PAD_RIGHT * ui.scale() + 0.01,
+                        "« {} » (gras : {bold}) finit a {right_edge:.1} px dans un bouton de {:.1} px",
+                        btn.label,
+                        btn.w
                     );
                 }
             }

@@ -35,7 +35,7 @@ impl GlucoseApp {
             Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
                 let active_bid = self.store.project.active_board_id.clone();
                 self.store.delete_selected(&active_bid);
-                self.ui.show_toast("🗑 Supprimé");
+                self.ui.show_toast("Supprimé");
                 self.mark_dirty();
             }
             Key::Character(ref c) => {
@@ -73,19 +73,19 @@ impl GlucoseApp {
             "z" | "Z" => {
                 if self.modifiers.shift_key() {
                     let done = self.store.redo();
-                    self.toast_if(done, "🔁 Rétablir");
+                    self.toast_if(done, "Rétablir");
                 } else {
                     let done = self.store.undo();
-                    self.toast_if(done, "↩️ Annuler");
+                    self.toast_if(done, "Annuler");
                 }
             }
             "y" | "Y" => {
                 let done = self.store.redo();
-                self.toast_if(done, "🔁 Rétablir");
+                self.toast_if(done, "Rétablir");
             }
             "d" | "D" => {
                 self.store.duplicate_selected(&active_bid);
-                self.ui.show_toast("📑 Dupliqué");
+                self.ui.show_toast("Dupliqué");
             }
             "a" | "A" => self.select_all(),
             _ => return false,
@@ -144,7 +144,7 @@ impl GlucoseApp {
             board.viewport.y = 0.0;
             board.viewport.scale = 1.0;
         }
-        self.ui.show_toast("🎯 Vue recentrée");
+        self.ui.show_toast("Vue recentrée");
         self.mark_dirty();
     }
 
@@ -158,7 +158,7 @@ impl GlucoseApp {
             });
         }
         self.ui.show_toast(if self.always_on_top {
-            "📌 Toujours au premier plan"
+            "Toujours au premier plan"
         } else {
             "Fenêtre normale"
         });
