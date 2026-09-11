@@ -3,7 +3,8 @@
 //! Contient l'intégralité du modèle de données, de la géométrie, des moteurs
 //! d'alignement intelligent, de priorité de sélection, d'espace de membranes,
 //! de mode focus, de modèle de rideaux, d'ancres de flèches et de textes,
-//! d'index spatial, de graphe de miroirs, de déduplication d'assets et d'export.
+//! d'index spatial, de graphe de miroirs, de déduplication d'assets, d'export
+//! et de **persistance** (le format `.glucose` v2, cf. [`persist`]).
 
 pub mod arrow_anchor;
 pub mod bundle;
@@ -18,6 +19,7 @@ pub mod membrane_focus;
 pub mod membrane_space;
 pub mod membrane_stretch;
 pub mod mirror_graph;
+pub mod persist;
 pub mod quadtree;
 pub mod smart_align;
 pub mod store;

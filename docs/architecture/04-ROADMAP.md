@@ -234,30 +234,33 @@ ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).
 
 ### Travaux
 
-| # | Tâche |
-|---|---|
-| 2.1 | Sérialisation binaire maison de `Document` (0 dépendance), avec numéro de version en tête |
-| 2.2 | `AssetStore` content-addressed sur disque (sha256 → octets), dédup native |
-| 2.3 | Conteneur `.glucose` v2 : `manifest` + `document` + `assets/` + `journal` |
-| 2.4 | Sommes de contrôle par section ; détection et récupération partielle d'un fichier tronqué |
-| 2.5 | **Écriture atomique** : `.tmp` → `fsync` → renommage. Un crash ne détruit jamais le fichier |
-| 2.6 | `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, fichiers récents, titre de fenêtre avec indicateur de modification |
-| 2.7 | Sauvegarde automatique par journal (delta uniquement) |
-| 2.8 | Récupération après crash : au démarrage, proposer de reprendre le journal orphelin |
-| 2.9 | Ramasse-miettes des assets à la sauvegarde |
-| 2.10 | Chaîne de migrations `v2 → v3 → …`, avec un test par saut de version |
-| 2.11 | **Importeur du `.glucose` v1** (bundle TypeScript), lecture seule |
-| 2.12 | Chargement paresseux des images : le document s'ouvre d'abord, les images arrivent ensuite |
+| # | Tâche | État |
+|---|---|---|
+| 2.1 | Sérialisation binaire maison de `Document` (0 dépendance), avec numéro de version en tête | ✅ `glucose-core/src/persist/` |
+| 2.2 | `AssetStore` content-addressed sur disque (sha256 → octets), dédup native | ✅ |
+| 2.3 | Conteneur `.glucose` v2 : `manifest` + `document` + `assets/` + `journal` | 🟡 les trois premières sections ; la nature `journal` est réservée et sautée |
+| 2.4 | Sommes de contrôle par section ; détection et récupération partielle d'un fichier tronqué | 🟡 détection ✅ (sha256 par section) ; récupération partielle non faite |
+| 2.5 | **Écriture atomique** : `.tmp` → `fsync` → renommage. Un crash ne détruit jamais le fichier | ✅ `glucose-desktop/src/persist/atomic.rs` |
+| 2.6 | `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, fichiers récents, titre de fenêtre avec indicateur de modification | 🟡 les trois raccourcis ✅ et le titre ✅ ; fichiers récents non faits |
+| 2.7 | Sauvegarde automatique par journal (delta uniquement) | ❌ |
+| 2.8 | Récupération après crash : au démarrage, proposer de reprendre le journal orphelin | ❌ |
+| 2.9 | Ramasse-miettes des assets à la sauvegarde | ✅ le magasin est reconstruit à chaque écriture |
+| 2.10 | Chaîne de migrations `v2 → v3 → …`, avec un test par saut de version | 🟡 les deux numéros de version sont en place, aucune migration à écrire pour l'instant |
+| 2.11 | **Importeur du `.glucose` v1** (bundle TypeScript), lecture seule | ❌ refusé par un message explicite |
+| 2.12 | Chargement paresseux des images : le document s'ouvre d'abord, les images arrivent ensuite | ❌ |
 
 ### Critères de sortie
 
-- [ ] Créer un projet, le fermer, le rouvrir : **identique au bit près** (test de round-trip).
-- [ ] Tuer le processus pendant une sauvegarde : le fichier précédent est intact.
+- [x] Créer un projet, le fermer, le rouvrir : **identique au bit près** (test de round-trip).
+      → `crates/glucose-core/tests/persist_suite.rs`, `crates/glucose-desktop/src/persist/commands.rs`
+- [x] Tuer le processus pendant une sauvegarde : le fichier précédent est intact.
+      → écriture atomique, `crates/glucose-desktop/src/persist/atomic.rs`
 - [ ] Tuer le processus après 50 modifications : au redémarrage, les 50 sont récupérées.
 - [ ] Ouverture d'un projet de 500 nœuds + 200 images : **premier affichage < 400 ms**.
 - [ ] Sauvegarde incrémentale **< 30 ms**.
 - [ ] Un `.glucose` produit par la version TypeScript s'ouvre sans perte de contenu.
-- [ ] La même image insérée 10 fois occupe **un seul blob** dans le fichier.
+- [x] La même image insérée 10 fois occupe **un seul blob** dans le fichier.
+      → `test_a_duplicated_asset_writes_a_single_blob`
 
 ---
 

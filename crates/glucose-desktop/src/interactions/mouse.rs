@@ -66,12 +66,7 @@ impl GlucoseApp {
                             self.ui.active_tool = tool;
                         }
                         UiAction::AddImages => {
-                            if let Some(files) = rfd::FileDialog::new()
-                                .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif", "bmp"])
-                                .pick_files()
-                            {
-                                self.import_image_files(&files);
-                            }
+                            self.pick_and_import_images();
                         }
                         UiAction::Organize => {
                             self.dock_manager.toggle_tab(TabId::Organize);

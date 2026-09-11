@@ -8,6 +8,7 @@ mod icons;
 pub mod interactions;
 pub mod params;
 pub mod perf;
+pub mod persist;
 mod renderer;
 mod typography;
 pub mod theme;

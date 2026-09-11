@@ -61,6 +61,18 @@ pub struct GlucoseApp {
     pub last_blink_phase: bool,
     /// Durée de la dernière frame présentée, en millisecondes.
     pub last_frame_ms: u64,
+
+    /// Chemin du `.glucose` courant. `None` tant que le projet n'a jamais été enregistré :
+    /// c'est ce qui fait que `Ctrl+S` ouvre un dialogue la première fois seulement.
+    pub project_path: Option<std::path::PathBuf>,
+    /// `store.version` au moment du dernier enregistrement ou de la dernière ouverture.
+    ///
+    /// INVARIANT SAVE-2 — « modifié » se lit `store.version != saved_version`. Aucun drapeau
+    /// à lever dans chaque mutation, donc aucune mutation ne peut oublier de le lever : la
+    /// pile d'undo fait déjà avancer la version, et elle seule (la navigation ne la touche pas).
+    pub saved_version: u64,
+    /// Dernier titre posé sur la fenêtre, pour ne pas repayer un appel système par frame.
+    pub window_title_cache: String,
 }
 
 impl GlucoseApp {
@@ -86,6 +98,9 @@ impl GlucoseApp {
             temporal_anchor: None,
         };
         store.add_annotation(&active_bid, welcome_card);
+        // La carte d'accueil n'est pas une modification de l'utilisateur : le document part
+        // propre, sans marqueur dans le titre.
+        let saved_version = store.version;
 
         Self {
             store,
@@ -114,10 +129,17 @@ impl GlucoseApp {
             last_click: None,
             last_blink_phase: true,
             last_frame_ms: 0,
+            project_path: None,
+            saved_version,
+            window_title_cache: String::new(),
         }
     }
 
     pub fn redraw(&mut self) {
+        // Le marqueur « modifié » du titre suit l'état réel du document (INVARIANT SAVE-2).
+        // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;
+        // `sync_window_title` ne touche la fenêtre que lorsque le titre change vraiment.
+        self.sync_window_title();
         if let (Some(window), Some(surface)) = (&self.window, &mut self.surface) {
             crate::perf::frame_begin();
             let frame_started = std::time::Instant::now();
@@ -240,8 +262,9 @@ impl GlucoseApp {
     /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
     /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
     fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
+        let title = self.window_title();
         let attrs = WindowAttributes::default()
-            .with_title("GLUCOSE — PureRef Native Rust")
+            .with_title(&title)
             .with_inner_size(LogicalSize::new(1440.0, 900.0));
 
         let window = event_loop
@@ -269,6 +292,7 @@ impl GlucoseApp {
 
         self.pixmap = Pixmap::new(width, height);
         window.set_cursor(winit::window::CursorIcon::Grab);
+        self.window_title_cache = title;
         self.window = Some(window);
         self.context = Some(context);
         self.surface = Some(surface);

@@ -7,7 +7,20 @@ use arboard::Clipboard;
 use glucose_core::types::{Annotation, BoardImage};
 use std::path::{Path, PathBuf};
 
+/// Extensions proposees par le dialogue d'import d'images.
+const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
+
 impl GlucoseApp {
+    /// Ouvre le dialogue natif d'import d'images (Ctrl+I, bouton « Ajouter » de la barre).
+    pub fn pick_and_import_images(&mut self) {
+        if let Some(files) = rfd::FileDialog::new()
+            .add_filter("Images", &IMAGE_EXTENSIONS)
+            .pick_files()
+        {
+            self.import_image_files(&files);
+        }
+    }
+
     /// Importe une liste de chemins de fichiers image dans le board actif.
     pub fn import_image_files(&mut self, paths: &[PathBuf]) {
         let active_bid = self.store.project.active_board_id.clone();

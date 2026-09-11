@@ -3,8 +3,21 @@
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;
 use glucose_core::types::Annotation;
-use winit::event::KeyEvent;
-use winit::keyboard::{Key, NamedKey};
+use winit::event::{ElementState, KeyEvent};
+use winit::keyboard::{Key, ModifiersState, NamedKey};
+
+/// La frappe est-elle une commande de fichier (`Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`) ?
+///
+/// Une session d'édition avale TOUTES les touches — c'est ce qui permet de taper `s` dans une
+/// carte sans déclencher un raccourci. Mais `Ctrl+S` au milieu d'une phrase veut dire
+/// « enregistre », pas « ignore-moi » : sans cette exception, enregistrer serait impossible
+/// tant qu'un curseur clignote quelque part.
+fn is_file_command(modifiers: &ModifiersState, key: &Key) -> bool {
+    if !modifiers.control_key() {
+        return false;
+    }
+    matches!(key, Key::Character(c) if matches!(c.as_str(), "s" | "S" | "o" | "O"))
+}
 
 impl GlucoseApp {
     /// Initialise une session d'édition in-place pour une annotation.
@@ -57,6 +70,17 @@ impl GlucoseApp {
 
     /// Traite les touches clavier lors d'une session d'édition active.
     pub fn handle_text_key(&mut self, event: &KeyEvent) -> bool {
+        // Enregistrer ou ouvrir pendant une saisie : on valide d'abord le texte en cours,
+        // puis on laisse la touche descendre aux raccourcis globaux.
+        if event.state == ElementState::Pressed
+            && self.editing_session.is_some()
+            && is_file_command(&self.modifiers, &event.logical_key)
+        {
+            self.commit_editing();
+            self.mark_dirty();
+            return false;
+        }
+
         // Le garde de l'arme `Key::Character` est évalué alors que `session`
         // emprunte déjà `self` : la question « la frappe produit-elle du texte ? »
         // se résout donc AVANT l'emprunt, pas dans le garde.
@@ -65,7 +89,7 @@ impl GlucoseApp {
             return false;
         };
 
-        if event.state != winit::event::ElementState::Pressed {
+        if event.state != ElementState::Pressed {
             return true;
         }
 
@@ -159,5 +183,33 @@ impl GlucoseApp {
             _ => {}
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winit::keyboard::SmolStr;
+
+    fn character(c: &str) -> Key {
+        Key::Character(SmolStr::new(c))
+    }
+
+    #[test]
+    fn test_ctrl_s_and_ctrl_o_escape_a_text_edit_session() {
+        let ctrl = ModifiersState::CONTROL;
+        assert!(is_file_command(&ctrl, &character("s")));
+        assert!(is_file_command(&ctrl, &character("S")));
+        assert!(is_file_command(&ctrl, &character("o")));
+    }
+
+    #[test]
+    fn test_plain_letters_still_belong_to_the_text_being_typed() {
+        let none = ModifiersState::empty();
+        assert!(!is_file_command(&none, &character("s")));
+        assert!(!is_file_command(&none, &character("o")));
+        // Ctrl+A reste une sélection de texte, pas une commande de fichier.
+        assert!(!is_file_command(&ModifiersState::CONTROL, &character("a")));
+        assert!(!is_file_command(&ModifiersState::CONTROL, &Key::Named(NamedKey::Enter)));
     }
 }

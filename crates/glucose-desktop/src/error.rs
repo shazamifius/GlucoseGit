@@ -10,6 +10,11 @@ pub enum DesktopError {
     ImageDimensionsFailed { path: String, reason: String },
     ClipboardError(String),
     WindowError(String),
+    /// Échec d'écriture d'un projet. Le fichier précédent est intact : l'écriture atomique
+    /// n'a jamais touché la destination (voir `persist::atomic`).
+    SaveFailed { path: String, reason: String },
+    /// Échec de lecture d'un projet, avant même le décodage (fichier absent, droits refusés).
+    OpenFailed { path: String, reason: String },
     Io(std::io::Error),
 }
 
@@ -25,6 +30,17 @@ impl fmt::Display for DesktopError {
             }
             Self::ClipboardError(msg) => write!(f, "Presse-papiers : {}", msg),
             Self::WindowError(msg) => write!(f, "Fenêtre : {}", msg),
+            Self::SaveFailed { path, reason } => write!(
+                f,
+                "Enregistrement impossible dans '{}' : {} — le fichier précédent est intact, \
+                 choisis un autre dossier avec Ctrl+Maj+S",
+                path, reason
+            ),
+            Self::OpenFailed { path, reason } => write!(
+                f,
+                "Ouverture impossible de '{}' : {} — vérifie que le fichier existe encore",
+                path, reason
+            ),
             Self::Io(err) => write!(f, "E/S : {}", err),
         }
     }

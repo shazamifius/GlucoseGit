@@ -445,21 +445,23 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 
 ## 16. Persistance
 
-*Le domaine à **0 %**, et le plus urgent.*
+*R-01 est réparé : le format `.glucose` v2 écrit et relit un projet complet
+(`glucose-core/src/persist/`, écriture atomique dans `glucose-desktop/src/persist/`).
+Restent le journal incrémental, l'autosave et l'import du v1 TypeScript.*
 
 | # | Fonction | Source TS | Rust | Phase |
 |---|---|---|:--:|:--:|
-| 16.1 | **Enregistrer un projet** | `project.ts` | ❌ (R-01) | 2 |
-| 16.2 | **Ouvrir un projet** | `project.ts` | ❌ (R-01) | 2 |
-| 16.3 | Enregistrer sous | `saveState` | ❌ | 2 |
-| 16.4 | Format de fichier `.glucose` | `bundle.ts` | ❌ | 2 |
-| 16.5 | Assets embarqués dans le fichier | `Project.blobs` | ❌ | 2 |
-| 16.6 | Dédup sha256 | `bundle.sha256` | 💀 fonction écrite (353 l. + 246 l. de tests) | 2 |
+| 16.1 | **Enregistrer un projet** | `project.ts` | ✅ `Ctrl+S` | — |
+| 16.2 | **Ouvrir un projet** | `project.ts` | ✅ `Ctrl+O` | — |
+| 16.3 | Enregistrer sous | `saveState` | ✅ `Ctrl+Maj+S` | — |
+| 16.4 | Format de fichier `.glucose` | `bundle.ts` | ✅ v2 binaire, somme de contrôle par section | — |
+| 16.5 | Assets embarqués dans le fichier | `Project.blobs` | ✅ sections `assets/<sha256>` | — |
+| 16.6 | Dédup sha256 | `bundle.sha256` | ✅ `bundle::sha256` branché par `persist::encode` | — |
 | 16.7 | Sauvegarde automatique | `useAutosave` | ❌ | 2 |
-| 16.8 | Écriture atomique (anti-corruption) | `saveOverwrite` | ❌ | 2 |
+| 16.8 | Écriture atomique (anti-corruption) | `saveOverwrite` | ✅ temporaire + `sync_all` + `rename` | — |
 | 16.9 | Versions automatiques | `autoVersion`, `versions` | ❌ | 2 |
 | 16.10 | Compaction du document | `compaction` | ❌ | 2 |
-| 16.11 | Migration des anciens formats | `projectMigration` | 💀 concept présent dans `bundle.rs` | 2 |
+| 16.11 | Migration des anciens formats | `projectMigration` | 🟡 versions en tête, refus explicite du v1 ; migrations à écrire | 2 |
 | 16.12 | Récupération après crash | — | ❌ | 2 |
 
 ---
@@ -518,7 +520,7 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 | 19.4 | `Ctrl+V` coller | `App.tsx` | ✅ | — |
 | 19.5 | `Alt+T` toujours au premier plan | — | ✅ *(bonus PureRef, absent en TS)* | — |
 | 19.6 | `Échap` annule le geste courant | `App.tsx:159` | 🟡 sort de l'édition seulement | 4 |
-| 19.7 | `Ctrl+S` / `Ctrl+O` projet | `App.tsx:323,348` | ❌ (R-01) | 2 |
+| 19.7 | `Ctrl+S` / `Ctrl+Maj+S` / `Ctrl+O` projet | `App.tsx:323,348` | ✅ | — |
 | 19.8 | `Ctrl+F` recherche | `App.tsx:319` | ❌ | 12 |
 | 19.9 | `F11` plein écran | `App.tsx:177` | ❌ | 4 |
 | 19.10 | `Ctrl+Maj+M` / `Ctrl+Maj+F` / `Ctrl+H` … | `App.tsx` | ❌ | 4 |

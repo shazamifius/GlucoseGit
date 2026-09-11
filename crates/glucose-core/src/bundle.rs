@@ -1,6 +1,5 @@
 //! Git #1 (north star « indestructible ») — BUNDLE PORTABLE.
 //! 100% Rust Standard Library (0 dépendance).
-#![allow(clippy::manual_is_multiple_of, clippy::chunks_exact_to_as_chunks)]
 
 use crate::types::{AssetRef, Project};
 use std::collections::HashMap;
@@ -139,12 +138,13 @@ pub fn base64_decode(input: &str) -> Result<Vec<u8>, &'static str> {
     if bytes.is_empty() {
         return Ok(Vec::new());
     }
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return Err("Invalid base64 length");
     }
 
     let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
-    for chunk in bytes.chunks_exact(4) {
+    let (quads, _) = bytes.as_chunks::<4>();
+    for chunk in quads {
         let b0 = TABLE[chunk[0] as usize];
         let b1 = TABLE[chunk[1] as usize];
         let b2 = if chunk[2] == b'=' { 0 } else { TABLE[chunk[2] as usize] };
@@ -228,12 +228,13 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
     let bit_len = (data.len() as u64) * 8;
     let mut msg = data.to_vec();
     msg.push(0x80);
-    while (msg.len() + 8) % 64 != 0 {
+    while !(msg.len() + 8).is_multiple_of(64) {
         msg.push(0x00);
     }
     msg.extend_from_slice(&bit_len.to_be_bytes());
 
-    for chunk in msg.chunks_exact(64) {
+    let (blocks, _) = msg.as_chunks::<64>();
+    for chunk in blocks {
         let mut w = [0u32; 64];
         for i in 0..16 {
             w[i] = u32::from_be_bytes([chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3]]);
@@ -294,13 +295,22 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 }
 
 pub fn sha256_hex(data: &[u8]) -> String {
-    let hash = sha256(data);
-    let mut s = String::with_capacity(64);
-    for b in hash {
-        use std::fmt::Write;
-        write!(&mut s, "{:02x}", b).unwrap();
+    hex_of(&sha256(data))
+}
+
+/// Écriture hexadécimale minuscule d'une empreinte — le nom sous lequel un actif est rangé.
+///
+/// Table de chiffres plutôt que `write!` : formater dans une `String` ne peut pas échouer, mais
+/// l'API de `write!` rend un `Result` qu'il faudrait `unwrap()`, ce que le standard § 6.2
+/// interdit hors invariant prouvé. La table supprime la question.
+pub fn hex_of(digest: &[u8; 32]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(64);
+    for byte in digest {
+        out.push(DIGITS[(byte >> 4) as usize] as char);
+        out.push(DIGITS[(byte & 0x0f) as usize] as char);
     }
-    s
+    out
 }
 
 #[cfg(test)]
@@ -321,6 +331,13 @@ mod tests {
             sha256_hex(b"hello"),
             "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
         );
+    }
+
+    #[test]
+    fn test_hex_of_writes_lowercase_and_pads_every_byte() {
+        assert_eq!(hex_of(&[0u8; 32]), "0".repeat(64));
+        assert_eq!(hex_of(&[0x0f; 32]), "0f".repeat(32));
+        assert_eq!(hex_of(&sha256(b"hello")), sha256_hex(b"hello"));
     }
 
     #[test]
