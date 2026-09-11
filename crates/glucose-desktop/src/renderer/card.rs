@@ -29,6 +29,7 @@
 //! unités monde ; calculée après, elle dépendrait d'une police écran et la carte se
 //! réorganiserait à chaque palier de zoom.
 
+use super::domain::{draw_domain_gauge, DomainTints};
 use super::hue::SymbioticHueCache;
 use super::note::{draw_arrow, draw_sticky};
 use super::scale::WorldScale;
@@ -38,7 +39,7 @@ use crate::params::ViewPass;
 use crate::renderer::halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
 use crate::typography::{TextStyle, Typography};
 use glucose_core::store::Store;
-use glucose_core::types::{Annotation, Viewport};
+use glucose_core::types::{Annotation, DomainAssignment, Viewport};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────
@@ -98,6 +99,8 @@ impl Clip {
 /// Ce qui ne change pas d'une annotation à l'autre pendant une frame.
 pub(super) struct Pass<'a> {
     pub typography: &'a Typography,
+    /// `domain_id → teinte`, déjà résolue pour cette version du document (DOMAIN-TINT-1).
+    pub tints: &'a DomainTints,
     pub vp: Viewport,
     pub scale: WorldScale,
     pub clip: Clip,
@@ -170,6 +173,7 @@ impl CardLayout {
 pub(super) fn draw_annotations(
     hue_cache: &mut SymbioticHueCache,
     typography: &Typography,
+    tints: &DomainTints,
     pixmap: &mut PixmapMut,
     store: &Store,
     editing_session: Option<&TextEditSession>,
@@ -180,6 +184,7 @@ pub(super) fn draw_annotations(
     };
     let ctx = Pass {
         typography,
+        tints,
         vp: pass.vp,
         scale: WorldScale::new(pass.vp.scale),
         clip: Clip {
@@ -205,14 +210,28 @@ pub(super) fn draw_annotations(
                     height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) as f32,
                 );
                 draw_text_card(&ctx, pixmap, TextCard { origin: (*x, *y), size, body, tint, selected, editing });
+                draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
             }
-            Annotation::Sticky { .. } => draw_sticky(&ctx, pixmap, ann, selected, editing),
+            Annotation::Sticky { x, y, .. } => {
+                draw_sticky(&ctx, pixmap, ann, selected, editing);
+                draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
+            }
             Annotation::Arrow { x, y, x2, y2, .. } => {
                 draw_arrow(&ctx, pixmap, (*x, *y), (*x2, *y2), selected);
             }
             _ => {}
         }
     }
+}
+
+/// Pose la réglette de domaines d'une annotation au-dessus de son bord haut.
+///
+/// La conversion monde → écran est refaite ici plutôt que passée par la forme dessinée :
+/// c'est la même ligne pour les quatre genres d'annotation, et elle ne dépend que de l'origine
+/// du nœud, qui est justement ce que le modèle range (§ 2.3).
+fn draw_node_gauge(ctx: &Pass, pixmap: &mut PixmapMut, origin: (f64, f64), domains: &[DomainAssignment]) {
+    let (wx, wy) = world_to_screen(origin.0, origin.1, &ctx.vp);
+    draw_domain_gauge(ctx.typography, ctx.tints, pixmap, ctx.scale, (wx as f32, wy as f32), domains);
 }
 
 /// Une carte de texte prête à dessiner : sa géométrie **monde** et son contenu.

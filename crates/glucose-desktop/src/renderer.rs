@@ -9,12 +9,14 @@
 //! |---|---|
 //! | [`scale`] | l'unique mise à l'échelle monde → écran (standard § 4.4) |
 //! | [`hue`] | les teintes symbiotiques et leur invalidation |
+//! | [`domain`] | la réglette de domaines et la table de teintes qui l'alimente |
 //! | [`scene`] | grille, membranes, images, guides, boîte de sélection |
 //! | [`halo`] | les halos d'ambiance |
 //! | [`card`] | les cartes de texte |
 //! | [`note`] | les pense-bêtes et les flèches |
 
 pub mod card;
+pub mod domain;
 pub mod halo;
 pub mod hue;
 pub mod note;
@@ -28,6 +30,7 @@ use crate::typography::Typography;
 use crate::ui::{render_ui, UiState};
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
+use domain::DomainTints;
 use hue::SymbioticHueCache;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -86,6 +89,8 @@ pub struct Renderer {
     pub failed_images: HashSet<String>,
     pub typography: Typography,
     pub hue_cache: SymbioticHueCache,
+    /// `domain_id → teinte`, reconstruite une fois par version du document (DOMAIN-TINT-1).
+    pub domain_tints: DomainTints,
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
     pub active_board_id: String,
@@ -99,6 +104,7 @@ impl Renderer {
             failed_images: HashSet::new(),
             typography: Typography::new(),
             hue_cache: SymbioticHueCache::new(),
+            domain_tints: DomainTints::new(),
             spatial_hash: SpatialHash::new(1000.0),
             spatial_version: 0,
             active_board_id: String::new(),
@@ -168,6 +174,7 @@ impl Renderer {
         let height = pixmap.height();
         let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
 
+        self.domain_tints.refresh(store, &self.theme);
         if let Some(board) = store.active_board() {
             self.hue_cache.update_positions_and_invalidate(&board.annotations);
             if self.spatial_version != store.version || self.active_board_id != board.id {
@@ -197,7 +204,7 @@ impl Renderer {
         crate::perf::stage("halos");
 
         // 4. Membranes (pointillés, titre protecteur en haut à gauche)
-        scene::draw_membranes(&self.typography, pixmap, store, pass);
+        scene::draw_membranes(&self.typography, &self.domain_tints, pixmap, store, pass);
         crate::perf::stage("membranes");
 
         // 5. Images
@@ -205,6 +212,7 @@ impl Renderer {
             &mut self.image_cache,
             &mut self.failed_images,
             &self.typography,
+            &self.domain_tints,
             pixmap,
             store,
             pass,
@@ -215,6 +223,7 @@ impl Renderer {
         card::draw_annotations(
             &mut self.hue_cache,
             &self.typography,
+            &self.domain_tints,
             pixmap,
             store,
             overlay.editing,

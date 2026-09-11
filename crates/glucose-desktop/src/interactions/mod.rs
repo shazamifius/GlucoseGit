@@ -6,9 +6,11 @@
 
 pub mod clipboard;
 pub mod cursor;
+pub mod domains;
 pub mod drag;
 pub mod mouse;
 pub mod pan_zoom;
 pub mod selection;
 pub mod shortcuts;
 pub mod text_edit;
+pub mod text_entry;

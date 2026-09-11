@@ -42,8 +42,9 @@ pub struct SaveReport {
 // ── I/O de fichier, sans fenêtre ni dialogue ────────────────────────────────
 
 /// Millisecondes depuis l'époque Unix. Le noyau ne lit jamais l'horloge : c'est ici que la
-/// date d'enregistrement entre dans le manifeste.
-fn now_millis() -> i64 {
+/// date d'enregistrement entre dans le manifeste, et que la date de création d'un domaine
+/// entre dans le document.
+pub fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))

@@ -1,6 +1,10 @@
 //! Module Dock & Panneaux Déroulants (PanelDock) en Rust Natif.
-//! Reproduit fidèlement PanelDock.tsx, OrganizePanel.tsx, PomodoroTimer.tsx,
-//! StoryboardControls.tsx, PresetPanel.tsx, DomainsPanel.tsx, PluginPanel.tsx.
+//!
+//! | Sous-module | Panneau |
+//! |---|---|
+//! | [`domains`] | DOMAINES — une vue du catalogue du document (DOM-UI-1) |
+
+pub mod domains;
 
 use crate::params::{Pointer, ScaledRect, ScreenFrame};
 use crate::theme::Theme;
@@ -46,7 +50,7 @@ impl TabId {
             Self::Storyboard => 280.0,
             Self::Plugins => 320.0,
             Self::Preset => 280.0,
-            Self::Domains => 310.0,
+            Self::Domains => 336.0,
         }
     }
 
@@ -57,7 +61,7 @@ impl TabId {
             Self::Storyboard => 340.0,
             Self::Plugins => 460.0,
             Self::Preset => 460.0,
-            Self::Domains => 300.0,
+            Self::Domains => 430.0,
         }
     }
 }
@@ -186,18 +190,6 @@ pub struct PresetsState {
 }
 
 #[derive(Debug, Clone)]
-pub struct DomainItem {
-    pub id: String,
-    pub name: String,
-    pub color: Color,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct DomainsState {
-    pub domains: Vec<DomainItem>,
-}
-
-#[derive(Debug, Clone)]
 pub struct DragSession {
     pub tab: TabId,
     pub start_x: f32,
@@ -216,7 +208,10 @@ pub struct DockManager {
     pub storyboard: StoryboardState,
     pub plugins: PluginsState,
     pub presets: PresetsState,
-    pub domains: DomainsState,
+    /// L'état d'**interaction** du panneau DOMAINES : ce qui attend une confirmation, ce qui
+    /// est en cours de frappe. Aucune donnée de domaine — celles-ci vivent dans le document
+    /// (DOM-UI-1, `dock::domains`).
+    pub domains: domains::DomainsUi,
 }
 
 /// `new()` n'est pas dérivable : l'état initial ouvre deux onglets bas.
@@ -237,7 +232,7 @@ impl DockManager {
             storyboard: StoryboardState::default(),
             plugins: PluginsState::default(),
             presets: PresetsState::default(),
-            domains: DomainsState::default(),
+            domains: domains::DomainsUi::default(),
         }
     }
 
@@ -809,24 +804,6 @@ pub fn layout_plugins_panel(
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct DomainsPanelLayout {
-    pub add_button: WidgetRect,
-}
-
-pub fn layout_domains_panel(
-    px: f32,
-    py: f32,
-    pw: f32,
-    ph: f32,
-    scale: f32,
-) -> DomainsPanelLayout {
-    let s = crate::theme::clamp_ui_scale(scale);
-    let pad_x = 14.0 * s;
-    let add_button = WidgetRect::new(px + pad_x, py + ph - 40.0 * s, pw - 28.0 * s, 26.0 * s);
-    DomainsPanelLayout { add_button }
-}
-
 // ── Rendu Global des Docks Déroulants ─────────────────────────────────────
 
 pub fn render_docks(
@@ -909,7 +886,7 @@ pub fn render_docks(
                 render_preset_content(pixmap, &dock.presets, typo, theme, frame, pointer);
             }
             TabId::Domains => {
-                render_domains_content(pixmap, &dock.domains, store, typo, theme, frame, pointer);
+                domains::render_domains_panel(pixmap, store, &dock.domains, typo, theme, frame, pointer);
             }
         }
     }
@@ -1576,71 +1553,6 @@ fn render_preset_content(
     typo.draw_text(pixmap, "+ Créer un preset custom", custom_rect.x + (custom_rect.w - ctw) / 2.0, custom_rect.y + 6.0 * s, TextStyle { size: 10.5 * s, color: theme.text_secondary, bold: false });
 }
 
-// ── 6. Panneau DOMAINES ───────────────────────────────────────────────────
-
-fn render_domains_content(
-    pixmap: &mut PixmapMut,
-    state: &DomainsState,
-    _store: &Store,
-    typo: &Typography,
-    theme: &Theme,
-    frame: ScaledRect,
-    pointer: Pointer,
-) {
-    let ScaledRect { x: px, y: py, w: pw, h: ph, .. } = frame;
-    let (mx, my) = (pointer.x, pointer.y);
-    let s = crate::theme::clamp_ui_scale(frame.scale);
-    typo.draw_text(pixmap, "DOMAINES", px + 14.0 * s, py + 16.0 * s, TextStyle { size: 13.0 * s, color: theme.text_primary, bold: true });
-
-    let layout = layout_domains_panel(px, py, pw, ph, s);
-    let mut cy = py + 48.0 * s;
-
-    if state.domains.is_empty() {
-        let (tw1, _) = typo.measure_text("Aucun domaine.", 12.0 * s, false);
-        typo.draw_text(pixmap, "Aucun domaine.", px + (pw - tw1) / 2.0, cy, TextStyle { size: 12.0 * s, color: theme.text_muted, bold: false });
-        cy += 18.0 * s;
-
-        let msg2 = "Crée-en un pour colorer les membranes selon leur";
-        let (tw2, _) = typo.measure_text(msg2, 11.0 * s, false);
-        typo.draw_text(pixmap, msg2, px + (pw - tw2) / 2.0, cy, TextStyle { size: 11.0 * s, color: theme.text_muted, bold: false });
-        cy += 16.0 * s;
-
-        let msg3 = "sémantique.";
-        let (tw3, _) = typo.measure_text(msg3, 11.0 * s, false);
-        typo.draw_text(pixmap, msg3, px + (pw - tw3) / 2.0, cy, TextStyle { size: 11.0 * s, color: theme.text_muted, bold: false });
-    } else {
-        for dom in &state.domains {
-            let mut dp = Paint::default();
-            dp.set_color(dom.color);
-            dp.anti_alias = true;
-            let mut dpb = PathBuilder::new();
-            dpb.push_circle(px + 22.0 * s, cy + 6.0 * s, 4.0 * s);
-            if let Some(p) = dpb.finish() {
-                pixmap.fill_path(&p, &dp, tiny_skia::FillRule::Winding, Transform::identity(), None);
-            }
-            typo.draw_text(pixmap, &dom.name, px + 34.0 * s, cy, TextStyle { size: 11.5 * s, color: theme.text_primary, bold: false });
-            cy += 24.0 * s;
-        }
-    }
-
-    // Bouton "+ Nouveau domaine"
-    let is_btn_hover = layout.add_button.contains(mx, my);
-    let mut btn_p = Paint::default();
-    btn_p.set_color(if is_btn_hover { theme.bg_hover } else { theme.btn_bg });
-    btn_p.anti_alias = true;
-    let mut bpb = PathBuilder::new();
-    push_rounded_rect(&mut bpb, layout.add_button.x, layout.add_button.y, layout.add_button.w, layout.add_button.h, 4.0 * s);
-    if let Some(p) = bpb.finish() {
-        pixmap.fill_path(&p, &btn_p, tiny_skia::FillRule::Winding, Transform::identity(), None);
-        let mut sp = Paint::default();
-        sp.set_color(theme.btn_border);
-        let stroke = Stroke { width: 1.0 * s, ..Default::default() };
-        pixmap.stroke_path(&p, &sp, &stroke, Transform::identity(), None);
-    }
-    let (bw, _) = typo.measure_text("+ Nouveau domaine", 11.5 * s, false);
-    typo.draw_text(pixmap, "+ Nouveau domaine", layout.add_button.x + (layout.add_button.w - bw) / 2.0, layout.add_button.y + 6.5 * s, TextStyle { size: 11.5 * s, color: theme.text_secondary, bold: false });
-}
-
 // ── Gestion des Interactions Souris sur les Panneaux Déroulants ────────────
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1654,11 +1566,13 @@ pub enum PanelClickResult {
     SelectFormat(usize),
     SelectDensity(usize),
     SelectDisposition(usize),
-    AddDomain,
+    /// Un geste du panneau DOMAINES, à traduire en commande par `interactions::domains`.
+    Domain(domains::DomainIntent),
 }
 
 pub fn handle_dock_click(
     dock: &mut DockManager,
+    store: &Store,
     typo: &Typography,
     screen: ScreenFrame,
     pointer: Pointer,
@@ -1750,26 +1664,15 @@ pub fn handle_dock_click(
                 return Some(PanelClickResult::Handled);
             }
             TabId::Domains => {
-                let layout = layout_domains_panel(px, py, pw, b.height, s);
-                if layout.add_button.contains(mx, my) {
-                    let colors = [
-                        Color::from_rgba8(96, 165, 250, 255),
-                        Color::from_rgba8(52, 211, 153, 255),
-                        Color::from_rgba8(244, 114, 182, 255),
-                        Color::from_rgba8(251, 191, 36, 255),
-                        Color::from_rgba8(167, 139, 250, 255),
-                    ];
-                    let idx = dock.domains.domains.len() % colors.len();
-                    let new_id = format!("domain-{}", dock.domains.domains.len() + 1);
-                    let new_name = format!("Domaine {}", dock.domains.domains.len() + 1);
-                    dock.domains.domains.push(DomainItem {
-                        id: new_id,
-                        name: new_name,
-                        color: colors[idx],
-                    });
-                    return Some(PanelClickResult::AddDomain);
-                }
-                return Some(PanelClickResult::Handled);
+                let frame = ScaledRect { x: px, y: py, w: pw, h: b.height, scale: s };
+                let layout = domains::layout_domains_panel(frame, store, &dock.domains);
+                let has_selection = !store.selected_annotation_ids.is_empty()
+                    || !store.selected_image_ids.is_empty();
+                let intent = domains::hit_domains_panel(&layout, store, pointer, has_selection);
+                return Some(match intent {
+                    Some(intent) => PanelClickResult::Domain(intent),
+                    None => PanelClickResult::Handled,
+                });
             }
         }
     }
@@ -1992,7 +1895,8 @@ mod tests {
         let click_y = lum_asc_btn.rect.y + lum_asc_btn.rect.h / 2.0;
 
         let screen = ScreenFrame { width: 1440.0, height: 900.0, header_h: 78.0, scale: 1.0 };
-        let res = handle_dock_click(&mut dock, &typo, screen, Pointer { x: click_x, y: click_y });
+        let store = Store::new("Clic");
+        let res = handle_dock_click(&mut dock, &store, &typo, screen, Pointer { x: click_x, y: click_y });
         assert_eq!(res, Some(PanelClickResult::Handled));
         assert_eq!(dock.organize.sort_by, SortType::LumAsc);
 
@@ -2009,7 +1913,7 @@ mod tests {
         let click_y_hi = lum_desc_btn.rect.y + lum_desc_btn.rect.h / 2.0;
 
         let screen_hi = ScreenFrame { width: 1440.0, height: 900.0, header_h: 78.0 * 1.5, scale: 1.5 };
-        let res_hi = handle_dock_click(&mut dock_hi, &typo, screen_hi, Pointer { x: click_x_hi, y: click_y_hi });
+        let res_hi = handle_dock_click(&mut dock_hi, &store, &typo, screen_hi, Pointer { x: click_x_hi, y: click_y_hi });
         assert_eq!(res_hi, Some(PanelClickResult::Handled));
         assert_eq!(dock_hi.organize.sort_by, SortType::LumDesc);
     }

@@ -155,6 +155,7 @@ impl GlucoseApp {
                 };
                 if let Some(action) = handle_dock_click(
                     &mut self.dock_manager,
+                    &self.store,
                     &self.renderer.typography,
                     screen,
                     Pointer { x: mx, y: my },
@@ -163,14 +164,8 @@ impl GlucoseApp {
                         PanelClickResult::ApplyLayout(state) => {
                             self.apply_dock_layout(&state);
                         }
-                        PanelClickResult::AddDomain => {
-                            let did = self.store.generate_id("domain");
-                            let name = format!("Domaine {}", self.dock_manager.domains.domains.len() + 1);
-                            self.dock_manager.domains.domains.push(crate::dock::DomainItem {
-                                id: did,
-                                name,
-                                color: tiny_skia::Color::from_rgba8(168, 85, 247, 255),
-                            });
+                        PanelClickResult::Domain(intent) => {
+                            self.apply_domain_intent(intent);
                         }
                         _ => {}
                     }

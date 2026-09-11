@@ -11,6 +11,7 @@
 //! constante** : c'est l'exception de SCALE-1, celle que le TSX écrit `1 / scale`.
 
 use super::card::{Clip, SELECTION_RING};
+use super::domain::{draw_domain_gauge, gauge_width, DomainTints};
 use super::scale::WorldScale;
 use super::{parse_hex_color, push_rounded_rect};
 use crate::canvas::{screen_to_world, world_to_screen};
@@ -152,6 +153,7 @@ impl MembraneLayout {
 
 pub(super) fn draw_membranes(
     typography: &Typography,
+    tints: &DomainTints,
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
@@ -170,7 +172,7 @@ pub(super) fn draw_membranes(
         if !pass.visible_ids.contains(ann.id()) {
             continue;
         }
-        let Annotation::Membrane { id, x, y, width, height, text, color, .. } = ann else {
+        let Annotation::Membrane { id, x, y, width, height, text, color, domains, .. } = ann else {
             continue;
         };
         let layout = MembraneLayout::new(*width as f32, *height as f32).scaled(scale);
@@ -202,6 +204,11 @@ pub(super) fn draw_membranes(
         if selected {
             draw_handles(pixmap, (sx, sy), (layout.width, layout.height), tint, HANDLE_SIZE);
         }
+        // La réglette d'une membrane s'aligne à DROITE de son bord haut : le coin haut-gauche
+        // est déjà occupé par le titre protecteur, et deux textes superposés ne se lisent ni
+        // l'un ni l'autre.
+        let gauge_x = sx + layout.width - gauge_width(scale, domains.len());
+        draw_domain_gauge(typography, tints, pixmap, scale, (gauge_x, sy), domains);
     }
 }
 
@@ -294,6 +301,7 @@ pub(super) fn draw_images(
     image_cache: &mut HashMap<String, Pixmap>,
     failed_images: &mut HashSet<String>,
     typography: &Typography,
+    tints: &DomainTints,
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
@@ -301,6 +309,7 @@ pub(super) fn draw_images(
     let Some(board) = store.active_board() else {
         return;
     };
+    let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
         height: pixmap.height() as f32,
@@ -333,6 +342,7 @@ pub(super) fn draw_images(
         if store.selected_image_ids.contains(&img.id) {
             draw_image_selection(pixmap, (sx, sy), (sw, sh));
         }
+        draw_domain_gauge(typography, tints, pixmap, scale, (sx, sy), &img.domains);
     }
 }
 

@@ -8,6 +8,32 @@ pub const MIN_UI_SCALE: f32 = 0.5;
 /// Échelle d'interface maximale acceptée (au-delà, aucun écran réel n'existe).
 pub const MAX_UI_SCALE: f32 = 4.0;
 
+/// Palette proposée aux domaines, **en hexadécimal**.
+///
+/// Elle est écrite en texte et non en [`Color`] parce que c'est ainsi que le *document* range
+/// la couleur d'un domaine (`Domain::color`) : le modèle ne connaît pas tiny-skia, et ne doit
+/// pas l'apprendre. Elle vit tout de même ici, parce que le thème est la seule autorité sur
+/// les couleurs de l'application (standard § 4.6) et que ces huit teintes sont choisies pour
+/// rester distinctes les unes des autres sur le fond sombre du canevas.
+pub const DOMAIN_PALETTE: [&str; 8] = [
+    "#38bdf8", // ciel
+    "#34d399", // émeraude
+    "#f472b6", // rose
+    "#fbbf24", // ambre
+    "#a78bfa", // violet
+    "#fb7185", // corail
+    "#4ade80", // vert
+    "#f0abfc", // orchidée
+];
+
+/// Sigles proposés aux domaines, dans l'ordre où le panneau les parcourt.
+///
+/// Trois caractères au plus : c'est ce qu'une colonne de réglette peut porter sans empiéter
+/// sur sa voisine. Ils sont en capitales latines, et rien d'autre : la police embarquée
+/// (`assets/font.ttf`) ne porte pas d'émoji, et un caractère qu'elle ne connaît pas se
+/// rastérise en glyphe vide — un « icône » invisible est pire qu'une absence d'icône.
+pub const DOMAIN_SIGILS: [&str; 8] = ["SCI", "ART", "JV", "LNG", "HIS", "TEC", "PHI", "MUS"];
+
 /// Normalise un facteur d'échelle d'interface.
 ///
 /// Toute valeur non finie ou hors plage (facteur corrompu, argument inversé)
@@ -73,6 +99,10 @@ pub struct Theme {
     pub btn_border: Color,
     pub badge_bg: Color,
     pub badge_text: Color,
+
+    /// Teinte de repli d'un domaine dont la couleur du document est illisible.
+    /// Un domaine sans teinte lisible reste visible plutôt que de disparaître.
+    pub domain_fallback: Color,
 }
 
 impl Default for Theme {
@@ -127,6 +157,8 @@ impl Theme {
             btn_border: Color::from_rgba8(50, 52, 60, 255),
             badge_bg: Color::from_rgba8(30, 30, 34, 255),
             badge_text: Color::from_rgba8(160, 160, 170, 255),
+
+            domain_fallback: Color::from_rgba8(148, 163, 184, 255),
         }
     }
 
@@ -175,6 +207,8 @@ impl Theme {
             btn_border: Color::from_rgba8(210, 212, 220, 255),
             badge_bg: Color::from_rgba8(230, 230, 235, 255),
             badge_text: Color::from_rgba8(80, 80, 90, 255),
+
+            domain_fallback: Color::from_rgba8(100, 116, 139, 255),
         }
     }
 }
@@ -201,5 +235,19 @@ mod tests {
 
         let light = Theme::light();
         assert_eq!(light.bg_canvas, Color::from_rgba8(245, 245, 248, 255));
+    }
+
+    /// § 4.6 — la palette des domaines vit dans le thème, et chacune de ses entrées est un
+    /// hexadécimal que le modèle peut ranger tel quel dans `Domain::color`.
+    #[test]
+    fn test_domain_palette_entries_are_readable_hex_colours() {
+        let mut seen = Vec::new();
+        for hex in DOMAIN_PALETTE {
+            assert_eq!(hex.len(), 7, "{hex} n'est pas un #RRGGBB");
+            assert!(hex.starts_with('#'), "{hex}");
+            assert!(hex[1..].chars().all(|c| c.is_ascii_hexdigit()), "{hex}");
+            assert!(!seen.contains(&hex), "{hex} apparaît deux fois dans la palette");
+            seen.push(hex);
+        }
     }
 }

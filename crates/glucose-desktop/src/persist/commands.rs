@@ -131,7 +131,7 @@ impl GlucoseApp {
     }
 
     /// Le chemin est connu : encoder, écrire, confirmer ou dire pourquoi ça a échoué.
-    fn save_to(&mut self, path: PathBuf) {
+    pub(crate) fn save_to(&mut self, path: PathBuf) {
         match self.try_save(&path) {
             Ok(report) => {
                 self.project_path = Some(path);
@@ -158,12 +158,12 @@ impl GlucoseApp {
     }
 
     /// Le chemin est connu : lire, décoder, adopter le document ou dire pourquoi ça a échoué.
-    fn open_from(&mut self, path: PathBuf) {
+    pub(crate) fn open_from(&mut self, path: PathBuf) {
         match self.try_open(&path) {
-            Ok(restored) => {
+            Ok(report) => {
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
-                self.ui.show_toast(open_message(&self.store.project, restored));
+                self.ui.show_toast(open_message(&self.store.project, &report));
             }
             Err(err) => self.ui.show_toast(format!("⚠️ {err}")),
         }
@@ -171,20 +171,30 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    fn try_open(&mut self, path: &Path) -> DesktopResult<usize> {
+    fn try_open(&mut self, path: &Path) -> DesktopResult<OpenReport> {
         let mut file = read_project_file(path)?;
         let restored = assets::restore(&mut file.project, &file.assets);
 
-        // L'édition en cours porte sur un document qui n'existe plus.
+        // L'édition en cours porte sur un document qui n'existe plus. Le panneau DOMAINES non
+        // plus : ce qu'il retient — un renommage ouvert, une suppression en attente — désigne
+        // des identifiants du document précédent (DOM-UI-1).
         self.editing_session = None;
         self.selection_box = None;
-        self.store.load_project(file.project);
+        self.dock_manager.domains.reset();
+        let repaired = self.store.load_project(file.project);
         self.store.assets = file.assets;
         // `load_project` ne fait pas avancer la version ; sans ce coup de pouce, l'index
         // spatial du renderer croirait regarder le document précédent et n'afficherait rien.
         self.store.bump_version();
-        Ok(restored)
+        Ok(OpenReport { restored, repaired })
     }
+}
+
+/// Ce qu'une ouverture a dû rattraper : images réincorporées, assignations de domaine
+/// réparées. Les deux se disent à l'utilisateur plutôt que de se faire en silence (§ 6.4).
+struct OpenReport {
+    restored: usize,
+    repaired: usize,
 }
 
 fn save_message(report: &SaveReport, label: &str) -> String {
@@ -198,11 +208,17 @@ fn save_message(report: &SaveReport, label: &str) -> String {
     msg
 }
 
-fn open_message(project: &Project, restored: usize) -> String {
+fn open_message(project: &Project, report: &OpenReport) -> String {
     let boards = project.boards.len();
     let mut msg = format!("📂 « {} » ouvert — {boards} tableau(x)", project.name);
-    if restored > 0 {
-        msg.push_str(&format!(", {restored} image(s) restituée(s)"));
+    if report.restored > 0 {
+        msg.push_str(&format!(", {} image(s) restituée(s)", report.restored));
+    }
+    if report.repaired > 0 {
+        msg.push_str(&format!(
+            ", {} nœud(s) réparé(s) : domaine disparu ou pondération aberrante",
+            report.repaired
+        ));
     }
     msg
 }
@@ -346,8 +362,12 @@ mod tests {
 
         let mut project = Project::new("deux tableaux");
         project.boards.push(glucose_core::types::Board::new("b2", "Annexe"));
-        let opened = open_message(&project, 3);
+        let opened = open_message(&project, &OpenReport { restored: 3, repaired: 0 });
         assert!(opened.contains("2 tableau(x)"));
         assert!(opened.contains("3 image(s) restituée(s)"));
+        assert!(!opened.contains("réparé"), "un document sain ne parle pas de réparation");
+
+        let repaired = open_message(&project, &OpenReport { restored: 0, repaired: 4 });
+        assert!(repaired.contains("4 nœud(s) réparé(s)"), "{repaired}");
     }
 }
