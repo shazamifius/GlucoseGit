@@ -51,7 +51,7 @@ use tiny_skia::{PixmapMut, PremultipliedColorU8};
 const HALO_CENTER_ALPHA: u8 = 35;
 
 /// Largeur par défaut d'une carte de texte, reprise du modèle.
-pub(super) const DEFAULT_TEXT_CARD_WIDTH: f64 = 240.0;
+pub(crate) const DEFAULT_TEXT_CARD_WIDTH: f64 = 240.0;
 /// Hauteur par défaut d'une carte de texte, reprise du modèle.
 pub(super) const DEFAULT_TEXT_CARD_HEIGHT: f64 = 48.0;
 

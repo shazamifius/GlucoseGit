@@ -87,7 +87,6 @@ impl GlucoseApp {
     }
 
     /// Résout l'élément sous le clic à l'aide de hit_priority.
-    #[allow(dead_code)]
     pub fn pick_candidate_at(&self, wx: f64, wy: f64) -> Option<PickCandidate> {
         let board = self.store.active_board()?;
         let vp = board.viewport;

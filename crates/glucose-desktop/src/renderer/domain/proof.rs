@@ -12,6 +12,7 @@ use super::*;
 use crate::params::ViewPass;
 use crate::renderer::card::draw_annotations;
 use crate::renderer::hue::SymbioticHueCache;
+use crate::renderer::PaintKit;
 use glucose_core::store::DomainPatch;
 use glucose_core::types::{Annotation, BoardImage, Domain, Viewport};
 use std::collections::HashSet;
@@ -86,7 +87,8 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
     };
     let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
-    draw_annotations(&mut hue, typo, &tints, &mut view, store, None, pass);
+    let kit = PaintKit { typography: typo, tints: &tints, theme: &theme };
+    draw_annotations(&mut hue, kit, &mut view, store, None, pass);
     pixmap
 }
 
@@ -309,7 +311,8 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     let mut view = pixmap.as_mut();
     let mut cache = std::collections::HashMap::new();
     let mut failed = HashSet::new();
-    crate::renderer::scene::draw_membranes(typo, &tints, &mut view, &store, pass);
-    crate::renderer::scene::draw_images(&mut cache, &mut failed, typo, &tints, &mut view, &store, pass);
+    let kit = PaintKit { typography: typo, tints: &tints, theme: &theme };
+    crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
+    crate::renderer::scene::draw_images(&mut cache, &mut failed, kit, &mut view, &store, pass);
     pixmap.save_png(dir.join("scene-image-et-membrane.png")).expect("écriture du png");
 }

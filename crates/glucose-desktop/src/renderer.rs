@@ -14,14 +14,18 @@
 //! | [`halo`] | les halos d'ambiance |
 //! | [`card`] | les cartes de texte |
 //! | [`note`] | les pense-bêtes et les flèches |
+//! | [`handles`] | les poignées de redimensionnement, là où le test de clic les cherche |
+//! | [`wrap`] | le découpage d'un paragraphe en lignes (WRAP-1) |
 
 pub mod card;
 pub mod domain;
 pub mod halo;
+pub mod handles;
 pub mod hue;
 pub mod note;
 pub mod scale;
 pub mod scene;
+mod wrap;
 
 use crate::canvas::screen_to_world;
 use crate::params::{Pointer, SceneOverlay, ViewPass};
@@ -81,6 +85,15 @@ pub(crate) fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h:
     pb.line_to(x, y + r);
     pb.quad_to(x, y, x + r, y);
     pb.close();
+}
+
+/// Ce avec quoi une passe peint, et qui ne change pas de la frame : la police, la table des
+/// teintes de domaine et le thème. Un seul paramètre au lieu de trois (R-44).
+#[derive(Clone, Copy)]
+pub(crate) struct PaintKit<'a> {
+    pub typography: &'a Typography,
+    pub tints: &'a DomainTints,
+    pub theme: &'a Theme,
 }
 
 pub struct Renderer {
@@ -190,6 +203,7 @@ impl Renderer {
         let visible_ids = self.spatial_hash.query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
         crate::perf::stage("cull");
         let pass = ViewPass { vp, visible_ids: &visible_ids, header_h };
+        let kit = PaintKit { typography: &self.typography, tints: &self.domain_tints, theme: &self.theme };
 
         // 1. Fond sombre sleek PureRef
         pixmap.fill(self.theme.bg_canvas);
@@ -204,31 +218,15 @@ impl Renderer {
         crate::perf::stage("halos");
 
         // 4. Membranes (pointillés, titre protecteur en haut à gauche)
-        scene::draw_membranes(&self.typography, &self.domain_tints, pixmap, store, pass);
+        scene::draw_membranes(kit, pixmap, store, pass);
         crate::perf::stage("membranes");
 
         // 5. Images
-        scene::draw_images(
-            &mut self.image_cache,
-            &mut self.failed_images,
-            &self.typography,
-            &self.domain_tints,
-            pixmap,
-            store,
-            pass,
-        );
+        scene::draw_images(&mut self.image_cache, &mut self.failed_images, kit, pixmap, store, pass);
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
-        card::draw_annotations(
-            &mut self.hue_cache,
-            &self.typography,
-            &self.domain_tints,
-            pixmap,
-            store,
-            overlay.editing,
-            pass,
-        );
+        card::draw_annotations(&mut self.hue_cache, kit, pixmap, store, overlay.editing, pass);
         crate::perf::stage("annotations");
 
         // 7. Guides d'alignement intelligents (SNAP-1)

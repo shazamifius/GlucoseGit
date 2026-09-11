@@ -20,24 +20,34 @@
 //! | 2 | texte figé à 24 px : 0,49 de la largeur au lieu de 0,60 |
 //! | 4 | texte toujours figé : 0,25 de la largeur |
 //!
-//! La boîte trop haute à 0,25 n'est pas une coquetterie : la hauteur nécessaire au contenu
-//! était calculée à partir de la police **bornée**, donc la carte se réorganisait au moment
-//! précis où son texte disparaissait.
+//! Corollaire important : **la mise en page se calcule avant la mise à l'échelle**. Le
+//! découpage en lignes ([`layout_lines`], WRAP-1) et la hauteur nécessaire au contenu
+//! (`CardLayout::text_card`) sont dérivés d'une police en unités monde ; calculés après, ils
+//! dépendraient d'une police écran et la carte se réorganiserait à chaque palier de zoom.
 //!
-//! Corollaire important : **la mise en page se calcule avant la mise à l'échelle**. La
-//! hauteur nécessaire au contenu (`CardLayout::text_card`) est dérivée d'une police en
-//! unités monde ; calculée après, elle dépendrait d'une police écran et la carte se
-//! réorganiserait à chaque palier de zoom.
+//! # TEXT-FIT-1 — la hauteur d'une carte de texte suit son texte
+//!
+//! L'utilisateur choisit la **largeur** d'une carte ; sa hauteur est celle de son texte
+//! reflué à cette largeur, ni plus ni moins. Une carte ne tronque jamais son contenu, et
+//! n'offre donc pas de poignée verticale ([`Handle::HORIZONTAL`]). Le geste de
+//! redimensionnement et la validation d'une saisie écrivent cette hauteur dans le document
+//! ([`text_card_fit_height`]), pour que le test de clic, l'index spatial et les poignées
+//! voient la même boîte que l'écran. `text_card` garde un `max` de sécurité pour les
+//! documents antérieurs à cette règle.
 
 use super::domain::{draw_domain_gauge, DomainTints};
+use super::handles::draw_resize_handles;
 use super::hue::SymbioticHueCache;
 use super::note::{draw_arrow, draw_sticky};
 use super::scale::WorldScale;
-use super::{parse_hex_color, push_rounded_rect, TextEditSession};
+use super::wrap::wrap_paragraph;
+use super::{parse_hex_color, push_rounded_rect, PaintKit, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::renderer::halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
+use crate::theme::Theme;
 use crate::typography::{TextStyle, Typography};
+use glucose_core::resize::Handle;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, DomainAssignment, Viewport};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
@@ -101,9 +111,120 @@ pub(super) struct Pass<'a> {
     pub typography: &'a Typography,
     /// `domain_id → teinte`, déjà résolue pour cette version du document (DOMAIN-TINT-1).
     pub tints: &'a DomainTints,
+    pub theme: &'a Theme,
     pub vp: Viewport,
     pub scale: WorldScale,
     pub clip: Clip,
+}
+
+// ── Les lignes d'une carte (WRAP-1) ─────────────────────────────────────────
+
+/// Le genre d'un paragraphe, lu sur son préfixe Markdown minimal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum LineKind {
+    Heading1,
+    Heading2,
+    Bullet,
+    Body,
+}
+
+impl LineKind {
+    /// Le genre du paragraphe et la longueur en octets de son préfixe.
+    fn of(paragraph: &str) -> (Self, usize) {
+        if paragraph.starts_with("# ") {
+            (Self::Heading1, 2)
+        } else if paragraph.starts_with("## ") {
+            (Self::Heading2, 3)
+        } else if paragraph.starts_with("- ") || paragraph.starts_with("* ") {
+            (Self::Bullet, 2)
+        } else {
+            (Self::Body, 0)
+        }
+    }
+
+    /// Les grossissements de titre sont des multiples du corps : ils héritent de l'unique
+    /// transformation au lieu de redériver du zoom.
+    fn font(self, body: f32) -> f32 {
+        match self {
+            Self::Heading1 => body * H1_FACTOR,
+            Self::Heading2 => body * H2_FACTOR,
+            Self::Bullet | Self::Body => body,
+        }
+    }
+
+    fn bold(self) -> bool {
+        matches!(self, Self::Heading1 | Self::Heading2)
+    }
+
+    fn indent(self, layout: &CardLayout) -> f32 {
+        if self == Self::Bullet {
+            layout.indent
+        } else {
+            0.0
+        }
+    }
+
+    fn color(self) -> Color {
+        match self {
+            Self::Heading1 => Color::from_rgba8(255, 255, 255, 255),
+            Self::Heading2 => Color::from_rgba8(240, 240, 245, 255),
+            Self::Bullet | Self::Body => Color::from_rgba8(220, 225, 235, 255),
+        }
+    }
+
+    fn style(self, layout: &CardLayout) -> TextStyle {
+        TextStyle { size: self.font(layout.font), color: self.color(), bold: self.bold() }
+    }
+}
+
+/// Une ligne visuelle : une tranche `[start, end)` du corps, et le paragraphe dont elle vient.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct VisualLine {
+    pub start: usize,
+    pub end: usize,
+    pub kind: LineKind,
+    /// Première ligne de son paragraphe : la seule qui porte la puce.
+    pub first: bool,
+    /// Début du paragraphe brut, préfixe compris — là où un curseur posé dans le préfixe
+    /// se rattache.
+    pub paragraph_start: usize,
+}
+
+/// WRAP-1 — les lignes visuelles de `body` dans une carte de `width` unités monde.
+///
+/// Chaque paragraphe (une ligne du texte source) est reflué à la largeur utile de la carte,
+/// avec la police et l'indentation de son genre. Tout est en unités monde : le résultat ne
+/// dépend pas du zoom.
+pub(super) fn layout_lines(typography: &Typography, body: &str, width: f32) -> Vec<VisualLine> {
+    let base = CardLayout::text_card(width, 0.0, 1);
+    let mut lines = Vec::new();
+    let mut offset = 0usize;
+    for paragraph in body.split('\n') {
+        let (kind, prefix) = LineKind::of(paragraph);
+        let text = &paragraph[prefix..];
+        let usable = (width - PAD_X * 2.0 - kind.indent(&base)).max(BODY_FONT);
+        let font = kind.font(BODY_FONT);
+        let advance = |ch: char| typography.get_glyph(ch, font, kind.bold()).metrics.advance_width;
+        for (i, (s, e)) in wrap_paragraph(text, usable, advance).into_iter().enumerate() {
+            lines.push(VisualLine {
+                start: offset + prefix + s,
+                end: offset + prefix + e,
+                kind,
+                first: i == 0,
+                paragraph_start: offset,
+            });
+        }
+        offset += paragraph.len() + 1;
+    }
+    lines
+}
+
+/// TEXT-FIT-1 — la hauteur, en unités monde, qu'une carte de `width` doit avoir pour
+/// contenir `text` sans le tronquer. C'est ce que le geste de redimensionnement et la
+/// validation d'une saisie écrivent dans le document.
+pub(crate) fn text_card_fit_height(typography: &Typography, text: &str, width: f64) -> f64 {
+    let lines = layout_lines(typography, text, width as f32).len();
+    CardLayout::text_card(width as f32, 0.0, lines).height as f64
 }
 
 // ── Mise en page d'une carte ────────────────────────────────────────────────
@@ -129,7 +250,7 @@ impl CardLayout {
     /// Mise en page d'une carte de `width` × `height` unités monde contenant `lines` lignes.
     ///
     /// La hauteur s'étire pour contenir le texte : une carte ne tronque jamais son contenu.
-    fn text_card(width: f32, height: f32, lines: usize) -> Self {
+    pub(super) fn text_card(width: f32, height: f32, lines: usize) -> Self {
         let line_height = BODY_FONT * LINE_FACTOR;
         let needed = PAD_Y * 2.0 + lines.max(1) as f32 * line_height;
         Self {
@@ -150,7 +271,7 @@ impl CardLayout {
     /// L'UNIQUE transformation d'échelle de la carte (SCALE-1) : tous les champs, le même
     /// facteur, au même instant. Ajouter un champ ici sans le mettre à l'échelle, ou le
     /// borner au passage, c'est ramener R-45.
-    fn scaled(self, s: WorldScale) -> Self {
+    pub(super) fn scaled(self, s: WorldScale) -> Self {
         Self {
             width: s.world(self.width),
             height: s.world(self.height),
@@ -172,8 +293,7 @@ impl CardLayout {
 /// Dessine les annotations visibles du tableau actif.
 pub(super) fn draw_annotations(
     hue_cache: &mut SymbioticHueCache,
-    typography: &Typography,
-    tints: &DomainTints,
+    kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
     editing_session: Option<&TextEditSession>,
@@ -183,8 +303,9 @@ pub(super) fn draw_annotations(
         return;
     };
     let ctx = Pass {
-        typography,
-        tints,
+        typography: kit.typography,
+        tints: kit.tints,
+        theme: kit.theme,
         vp: pass.vp,
         scale: WorldScale::new(pass.vp.scale),
         clip: Clip {
@@ -225,10 +346,6 @@ pub(super) fn draw_annotations(
 }
 
 /// Pose la réglette de domaines d'une annotation au-dessus de son bord haut.
-///
-/// La conversion monde → écran est refaite ici plutôt que passée par la forme dessinée :
-/// c'est la même ligne pour les quatre genres d'annotation, et elle ne dépend que de l'origine
-/// du nœud, qui est justement ce que le modèle range (§ 2.3).
 fn draw_node_gauge(ctx: &Pass, pixmap: &mut PixmapMut, origin: (f64, f64), domains: &[DomainAssignment]) {
     let (wx, wy) = world_to_screen(origin.0, origin.1, &ctx.vp);
     draw_domain_gauge(ctx.typography, ctx.tints, pixmap, ctx.scale, (wx as f32, wy as f32), domains);
@@ -245,7 +362,9 @@ struct TextCard<'a> {
 }
 
 fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
-    let lines: Vec<&str> = if card.body.is_empty() { vec![""] } else { card.body.lines().collect() };
+    // Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
+    // l'unique mise à l'échelle (CARD-1, WRAP-1).
+    let lines = layout_lines(ctx.typography, card.body, card.size.0);
     let layout = CardLayout::text_card(card.size.0, card.size.1, lines.len()).scaled(ctx.scale);
 
     let (wx, wy) = world_to_screen(card.origin.0, card.origin.1, &ctx.vp);
@@ -257,10 +376,13 @@ fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     draw_card_frame(ctx, pixmap, (sx, sy), &layout, &card);
 
     // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
-    if !ctx.scale.draws_detail() {
-        return;
+    if ctx.scale.draws_detail() {
+        draw_card_body(ctx, pixmap, (sx, sy), &layout, &lines, &card);
     }
-    draw_card_body(ctx, pixmap, (sx, sy), &layout, &lines, &card);
+    if card.selected {
+        let screen_box = (sx, sy, layout.width, layout.height);
+        draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::HORIZONTAL);
+    }
 }
 
 /// Le fond teinté de la carte et son cadre.
@@ -298,13 +420,13 @@ fn draw_card_frame(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &
     pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
 }
 
-/// Le texte de la carte, ligne à ligne, curseur d'édition compris.
+/// Le texte de la carte, ligne visuelle par ligne visuelle, curseur d'édition compris.
 fn draw_card_body(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     layout: &CardLayout,
-    lines: &[&str],
+    lines: &[VisualLine],
     card: &TextCard,
 ) {
     let show_cursor = card
@@ -314,61 +436,29 @@ fn draw_card_body(
     let cursor_idx = card.editing.map(|s| s.cursor_idx).unwrap_or(0);
 
     let mut cur_y = at.1 + layout.pad_y;
-    let mut consumed = 0usize;
     let mut cursor_drawn = false;
 
     for (num, line) in lines.iter().enumerate() {
-        let style = line_style(line, layout);
-        if style.bulleted {
+        let style = line.kind.style(layout);
+        if line.first && line.kind == LineKind::Bullet {
             draw_bullet(pixmap, (at.0 + layout.pad_x, cur_y), layout, card.tint);
         }
-        let start_x = at.0 + layout.pad_x + style.indent;
-        ctx.typography.draw_text(pixmap, style.text, start_x, cur_y, style.style);
+        let start_x = at.0 + layout.pad_x + line.kind.indent(layout);
+        let text = &card.body[line.start..line.end];
+        ctx.typography.draw_text(pixmap, text, start_x, cur_y, style);
 
+        // Un curseur posé dans le préfixe (`# `) se rattache au début de sa première ligne ;
+        // la dernière ligne recueille tout ce qui dépasse.
         let last = num + 1 == lines.len();
-        let in_line = cursor_idx >= consumed && (cursor_idx <= consumed + line.len() || last);
+        let from = if line.first { line.paragraph_start } else { line.start };
+        let in_line = cursor_idx >= from && (cursor_idx <= line.end || last);
         if show_cursor && !cursor_drawn && in_line {
-            let prefix = &line[..cursor_idx.saturating_sub(consumed).min(line.len())];
-            let (prefix_w, _) = ctx.typography.measure_text(prefix, style.style.size, style.style.bold);
+            let prefix = &card.body[line.start..cursor_idx.clamp(line.start, line.end)];
+            let (prefix_w, _) = ctx.typography.measure_text(prefix, style.size, style.bold);
             draw_cursor(pixmap, (start_x + prefix_w, cur_y), layout, ctx.scale);
             cursor_drawn = true;
         }
-
-        consumed += line.len() + 1;
         cur_y += layout.line_height;
-    }
-
-    if show_cursor && !cursor_drawn {
-        draw_cursor(pixmap, (at.0 + layout.pad_x, at.1 + layout.pad_y), layout, ctx.scale);
-    }
-}
-
-/// Ce qu'une ligne de Markdown minimal devient à l'écran.
-struct LineStyle<'a> {
-    text: &'a str,
-    style: TextStyle,
-    indent: f32,
-    bulleted: bool,
-}
-
-/// Interprète les préfixes `# `, `## ` et `- ` d'une ligne.
-///
-/// Les grossissements de titre sont des multiples du corps **déjà mis à l'échelle** : ils
-/// ne redérivent pas du zoom, ils héritent de l'unique transformation.
-fn line_style<'a>(line: &'a str, layout: &CardLayout) -> LineStyle<'a> {
-    let body = Color::from_rgba8(220, 225, 235, 255);
-    if let Some(rest) = line.strip_prefix("# ") {
-        let style = TextStyle { size: layout.font * H1_FACTOR, color: Color::from_rgba8(255, 255, 255, 255), bold: true };
-        LineStyle { text: rest, style, indent: 0.0, bulleted: false }
-    } else if let Some(rest) = line.strip_prefix("## ") {
-        let style = TextStyle { size: layout.font * H2_FACTOR, color: Color::from_rgba8(240, 240, 245, 255), bold: true };
-        LineStyle { text: rest, style, indent: 0.0, bulleted: false }
-    } else if line.starts_with("- ") || line.starts_with("* ") {
-        let style = TextStyle { size: layout.font, color: body, bold: false };
-        LineStyle { text: &line[2..], style, indent: layout.indent, bulleted: true }
-    } else {
-        let style = TextStyle { size: layout.font, color: body, bold: false };
-        LineStyle { text: line, style, indent: 0.0, bulleted: false }
     }
 }
 
@@ -398,67 +488,4 @@ fn draw_cursor(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, scal
 mod proof;
 
 #[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    /// Carte d'essai partagée avec les autres suites du renderer.
-    pub fn probe_card(id: &str, x: f64, y: f64) -> Annotation {
-        Annotation::Text {
-            id: id.into(),
-            x,
-            y,
-            width: Some(200.0),
-            height: Some(50.0),
-            text: format!("Card {id}"),
-            font_size: Some(14.0),
-            color: None,
-            cursor_pos: None,
-            source_file: None,
-            membrane_id: None,
-            domains: Vec::new(),
-            mirror_of: None,
-            temporal_anchor: None,
-        }
-    }
-
-    #[test]
-    fn test_scale_1_the_layout_is_self_similar_at_every_zoom() {
-        // Le rapport de chaque mesure à la largeur de la boîte doit être celui du monde.
-        let world = CardLayout::text_card(260.0, 120.0, 4);
-        for zoom in [0.25_f64, 0.5, 1.0, 2.0, 4.0, 16.0] {
-            let screen = world.scaled(WorldScale::new(zoom));
-            let pairs = [
-                (screen.font, world.font),
-                (screen.pad_x, world.pad_x),
-                (screen.pad_y, world.pad_y),
-                (screen.radius, world.radius),
-                (screen.indent, world.indent),
-                (screen.bullet, world.bullet),
-                (screen.border, world.border),
-                (screen.line_height, world.line_height),
-                (screen.height, world.height),
-            ];
-            for (on_screen, in_world) in pairs {
-                let expected = in_world / world.width;
-                let observed = on_screen / screen.width;
-                assert!(
-                    (observed - expected).abs() < 1e-6,
-                    "zoom {zoom} : rapport {observed} au lieu de {expected}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_a_card_stretches_to_fit_its_text_in_world_units() {
-        // La hauteur necessaire se calcule AVANT la mise a l'echelle : deux zooms doivent
-        // donner la meme carte a un facteur pres, sinon la mise en page se reorganise.
-        let short = CardLayout::text_card(260.0, 48.0, 1);
-        let tall = CardLayout::text_card(260.0, 48.0, 8);
-        assert_eq!(short.height, 48.0, "une carte assez haute garde sa hauteur");
-        assert!(tall.height > 48.0, "une carte trop courte s'etire");
-        let ratio_1 = tall.scaled(WorldScale::new(0.3)).height / tall.scaled(WorldScale::new(0.3)).width;
-        let ratio_2 = tall.scaled(WorldScale::new(3.0)).height / tall.scaled(WorldScale::new(3.0)).width;
-        assert!((ratio_1 - ratio_2).abs() < 1e-6, "{ratio_1} != {ratio_2}");
-    }
-}
+pub mod tests;

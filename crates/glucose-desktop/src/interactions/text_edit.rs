@@ -33,10 +33,15 @@ impl GlucoseApp {
     }
 
     /// Valide et persiste le texte édité dans le store.
+    ///
+    /// La saisie entière est **une** entrée d'undo (§ 3.6), posée AVANT l'écriture : c'est
+    /// `begin_live_edit` qui la pose, et `end_live_edit` qui la referme une fois le texte et
+    /// la hauteur de la carte (TEXT-FIT-1) écrits.
     pub fn commit_editing(&mut self) {
         if let Some(session) = self.editing_session.take() {
             let is_empty = session.buffer.trim().is_empty();
             let mut should_delete = false;
+            self.store.begin_live_edit();
 
             if let Some(b) = self.store.active_board_mut() {
                 if let Some(ann) = b.annotations.iter_mut().find(|a| a.id() == session.ann_id) {
@@ -63,8 +68,10 @@ impl GlucoseApp {
                 if let Some(b) = self.store.active_board_mut() {
                     b.annotations.retain(|a| a.id() != session.ann_id);
                 }
+            } else {
+                self.fit_text_card_height(&session.ann_id);
             }
-            self.store.push_undo();
+            self.store.end_live_edit();
         }
     }
 

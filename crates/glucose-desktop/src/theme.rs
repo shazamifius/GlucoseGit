@@ -75,6 +75,11 @@ pub struct Theme {
     // Guides magnétiques
     pub snap_guide: Color,
 
+    /// Poignées de redimensionnement : le carré et son liseré (RESIZE-1). Elles gardent
+    /// une taille écran constante, et un contraste qui ne dépend pas du nœud dessous.
+    pub handle_fill: Color,
+    pub handle_outline: Color,
+
     // Post-it / Sticky notes
     pub sticky_yellow_bg: Color,
     pub sticky_yellow_text: Color,
@@ -137,6 +142,9 @@ impl Theme {
 
             snap_guide: Color::from_rgba8(236, 72, 153, 200),
 
+            handle_fill: Color::from_rgba8(255, 255, 255, 255),
+            handle_outline: Color::from_rgba8(13, 14, 18, 255),
+
             sticky_yellow_bg: Color::from_rgba8(254, 240, 138, 245),
             sticky_yellow_text: Color::from_rgba8(28, 25, 23, 255),
             sticky_yellow_border: Color::from_rgba8(202, 138, 4, 180),
@@ -186,6 +194,9 @@ impl Theme {
             text_accent: Color::from_rgba8(14, 165, 233, 255),
 
             snap_guide: Color::from_rgba8(219, 39, 119, 200),
+
+            handle_fill: Color::from_rgba8(255, 255, 255, 255),
+            handle_outline: Color::from_rgba8(24, 24, 27, 255),
 
             sticky_yellow_bg: Color::from_rgba8(254, 240, 138, 245),
             sticky_yellow_text: Color::from_rgba8(28, 25, 23, 255),

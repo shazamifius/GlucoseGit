@@ -183,6 +183,10 @@ impl GlucoseApp {
         self.dock_manager.domains.reset();
         let repaired = self.store.load_project(file.project);
         self.store.assets = file.assets;
+        // Un document antérieur à TEXT-FIT-1 peut porter des cartes dont la hauteur rangée
+        // n'est pas celle de leur texte : on la recale à l'ouverture, hors undo, pour que le
+        // test de clic et les poignées voient la boîte dessinée.
+        self.fit_all_text_cards();
         // `load_project` ne fait pas avancer la version ; sans ce coup de pouce, l'index
         // spatial du renderer croirait regarder le document précédent et n'afficherait rien.
         self.store.bump_version();

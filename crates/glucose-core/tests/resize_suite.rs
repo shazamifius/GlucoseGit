@@ -301,7 +301,7 @@ fn test_cancel_live_edit_restores_the_document_and_leaves_no_undo_entry() {
     assert_eq!((img.width, img.height), (200.0, 100.0));
     assert_eq!(store.undo_stack.len(), before, "aucune entrée d'undo ne reste");
     assert!(!store.in_live_edit);
-    assert_ne!(store.version, version, "la vue doit se rafraîchir");
+    assert_eq!(store.version, version, "rien n'a changé : le document n'est pas « modifié »");
     assert_eq!(store.selected_image_ids, vec!["I1".to_string()], "la sélection survit");
     assert!(!store.cancel_live_edit(), "rien à annuler hors geste");
 }

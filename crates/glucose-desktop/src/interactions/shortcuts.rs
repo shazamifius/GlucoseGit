@@ -22,16 +22,29 @@ use winit::window::WindowLevel;
 impl GlucoseApp {
     /// Traite les raccourcis clavier hors session d'édition de texte.
     pub fn handle_keyboard_shortcut(&mut self, event: &KeyEvent) {
-        if event.logical_key == Key::Named(NamedKey::Space) {
-            self.handle_space_pan(event.state == ElementState::Pressed);
+        self.handle_shortcut_input(&event.logical_key, event.state);
+    }
+
+    /// Le corps de [`GlucoseApp::handle_keyboard_shortcut`], sans le `KeyEvent` de winit,
+    /// qui ne se construit pas hors de la boucle d'événements : tout ce qui décide se teste
+    /// ici, sans fenêtre (§ 7.1).
+    pub fn handle_shortcut_input(&mut self, logical_key: &Key, state: ElementState) {
+        if *logical_key == Key::Named(NamedKey::Space) {
+            self.handle_space_pan(state == ElementState::Pressed);
             return;
         }
 
-        if event.state != ElementState::Pressed {
+        if state != ElementState::Pressed {
             return;
         }
 
-        match event.logical_key {
+        match logical_key {
+            Key::Named(NamedKey::Escape) => {
+                // Un geste de redimensionnement en cours reprend sa taille de départ.
+                if self.cancel_resize() {
+                    self.ui.show_toast("Redimensionnement annulé");
+                }
+            }
             Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
                 let active_bid = self.store.project.active_board_id.clone();
                 self.store.delete_selected(&active_bid);
