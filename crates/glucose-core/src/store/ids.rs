@@ -90,14 +90,25 @@ impl Store {
         self.next_id = self.next_id.max(max_numeric_suffix(&self.project));
     }
 
-    pub fn load_project(&mut self, project: Project) {
+    /// Adopte un projet venu de l'extérieur (disque, import) comme document courant.
+    ///
+    /// Rend le nombre de nœuds dont une assignation de domaine invalide a été retirée — voir
+    /// [`Store::repair_domain_assignments`]. Ce n'est pas une réparation silencieuse : le
+    /// compte remonte à l'appelant, à qui il revient de le dire à l'utilisateur (standard
+    /// § 6.4). Il vaut zéro sur tout document écrit par une version qui fait cascader
+    /// `try_remove_domain` — c'est-à-dire toutes celles qui suivent R-47 — et n'est non nul
+    /// que pour un fichier antérieur, dont les références vers des domaines disparus seraient
+    /// sinon réécrites au prochain `Ctrl+S`.
+    pub fn load_project(&mut self, project: Project) -> usize {
         self.project = project;
         self.resync_next_id();
+        let repaired = self.repair_domain_assignments();
         self.undo_stack.clear();
         self.redo_stack.clear();
         self.clear_selection();
         self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
         self.in_live_edit = false;
+        repaired
     }
 }
 

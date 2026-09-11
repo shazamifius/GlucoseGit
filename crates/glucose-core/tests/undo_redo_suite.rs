@@ -6,7 +6,7 @@
 //! C. ROBUSTESSE INTER-NAVIGATION — la caméra n'est jamais téléportée, on reste dans le dossier courant, le redo survit à la nav
 //! D. TRANSACTIONS D'INTERACTION — drag, resize, tracé = 1 seule entrée undo (begin_live_edit / end_live_edit)
 
-use glucose_core::store::Store;
+use glucose_core::store::{DomainPatch, Store};
 use glucose_core::types::{
     Annotation, BoardImage, CanvasFolder, Domain, FolderTreeNode,
     Preset, StoryboardPanel, Viewport,
@@ -453,10 +453,12 @@ fn test_preset_and_domain_roundtrip() {
         icon: "🔬".into(),
         created_at: 0,
     };
-    store.add_domain(dom);
+    store.try_add_domain(dom).expect("catalogue vide");
     assert_eq!(store.project.domains.len(), 1);
 
-    store.update_domain("d1", "Algèbre");
+    store
+        .try_update_domain("d1", DomainPatch::new().with_name("Algèbre"))
+        .expect("d1 est au catalogue");
     assert_eq!(store.project.domains[0].name, "Algèbre");
 
     assert!(store.undo());

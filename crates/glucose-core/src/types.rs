@@ -335,6 +335,22 @@ impl Annotation {
         }
     }
 
+    /// Les pondérations de domaine portées par cette annotation.
+    ///
+    /// Contrepartie en lecture de [`Annotation::domains_mut`]. Les deux ne devraient pas
+    /// exister : `domains` est recopié dans les quatre variantes de l'énumération, ce que le
+    /// standard § 2.1 interdit (« un champ présent dans plusieurs variantes remonte dans le
+    /// tronc commun »). Tant que le modèle n'est pas composé, ces deux accesseurs sont le seul
+    /// moyen de ne pas répéter un `match` à quatre bras à chaque lecture.
+    pub fn domains(&self) -> &[DomainAssignment] {
+        match self {
+            Self::Text { domains, .. }
+            | Self::Sticky { domains, .. }
+            | Self::Arrow { domains, .. }
+            | Self::Membrane { domains, .. } => domains,
+        }
+    }
+
     pub fn domains_mut(&mut self) -> &mut Vec<DomainAssignment> {
         match self {
             Self::Text { domains, .. }

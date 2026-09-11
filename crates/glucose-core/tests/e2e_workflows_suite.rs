@@ -320,10 +320,10 @@ fn test_workflow_domains_et_temporal() {
         id: "D1".into(),
         name: "Sci".into(),
         color: "#60a5fa".into(),
-        icon: "🔬".into(),
+        icon: "SCI".into(),
         created_at: 0,
     };
-    store.add_domain(d);
+    store.try_add_domain(d).expect("catalogue vide");
 
     let mut t1 = mk_text("T1", 0.0, 0.0, "Newton");
     if let Annotation::Text { ref mut temporal_anchor, .. } = t1 {

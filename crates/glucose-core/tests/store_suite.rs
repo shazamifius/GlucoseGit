@@ -3,7 +3,7 @@
 
 use glucose_core::error::CoreError;
 use glucose_core::store::Store;
-use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, Project};
+use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, Domain, Project};
 
 fn mk_text(id: &str, x: f64, y: f64) -> Annotation {
     Annotation::Text {
@@ -215,9 +215,19 @@ fn test_try_mirror_signale_une_source_introuvable() {
 #[test]
 fn test_try_assign_domain_to_node_signale_un_noeud_introuvable() {
     let mut store = Store::new("P");
+    store
+        .try_add_domain(Domain {
+            id: "D1".into(),
+            name: "Science".into(),
+            color: "#60a5fa".into(),
+            icon: "SCI".into(),
+            created_at: 0,
+        })
+        .expect("catalogue vide");
+
     assert_eq!(
         store.try_assign_domain_to_node("main", "fantome", "D1", 1.0),
-        Err(CoreError::AnnotationNotFound("fantome".into()))
+        Err(CoreError::NodeNotFound("fantome".into()))
     );
     assert_eq!(
         store.try_assign_domain_to_node("board-fantome", "n", "D1", 1.0),
@@ -225,10 +235,15 @@ fn test_try_assign_domain_to_node_signale_un_noeud_introuvable() {
     );
 
     store.add_annotation("main", mk_text("T", 0.0, 0.0));
+    // Un domaine absent du catalogue est refusé : c'est ce refus qui empêche la création
+    // d'une référence orpheline dès l'assignation (DOM-1).
+    assert_eq!(
+        store.try_assign_domain_to_node("main", "T", "inconnu", 0.5),
+        Err(CoreError::DomainNotFound("inconnu".into()))
+    );
+
     assert!(store.try_assign_domain_to_node("main", "T", "D1", 0.5).is_ok());
-    let board = store.active_board_mut().expect("board actif");
-    let ann = board.annotations.iter_mut().find(|a| a.id() == "T").expect("T existe");
-    let assigned = ann.domains_mut();
+    let assigned = store.node_domains("main", "T").expect("T existe");
     assert_eq!(assigned.len(), 1);
     assert_eq!(assigned[0].domain_id, "D1");
 }
@@ -249,7 +264,6 @@ fn test_les_enveloppes_historiques_restent_silencieuses() {
     assert_eq!(store.mirror_annotation("main", "fantome", 0.0, 0.0), None);
     assert_eq!(store.mirror_folder("main", "fantome", 0.0, 0.0), None);
 
-    store.assign_domain_to_node("main", "fantome", "D1", 1.0);
     store.set_active_board_id("fantome");
     assert_eq!(store.project.active_board_id, "main");
 }

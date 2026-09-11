@@ -22,7 +22,8 @@
 //! | [`annotations`] | mutations d'annotations, miroirs, panneaux storyboard |
 //! | [`boards`] | création, renommage et suppression de tableaux |
 //! | [`folders`] | dossiers de canevas et leurs boards enfants |
-//! | [`catalog`] | presets, domaines, métadonnées de projet |
+//! | [`catalog`] | presets, zones de tableau, métadonnées de projet |
+//! | [`domains`] | catalogue de domaines et pondérations des nœuds (DOM-1..DOM-3) |
 //!
 //! # R-35 — Les erreurs ne sont plus silencieuses
 //!
@@ -34,6 +35,7 @@
 mod annotations;
 mod boards;
 mod catalog;
+mod domains;
 mod folders;
 mod ids;
 mod images;
@@ -41,6 +43,7 @@ mod navigation;
 mod selection;
 mod undo;
 
+pub use domains::DomainPatch;
 pub use navigation::build_folder_stack;
 pub use undo::preserve_view;
 
