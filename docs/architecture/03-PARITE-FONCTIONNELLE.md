@@ -67,6 +67,86 @@ Deuxième enseignement : les **18 fonctionnalités « maquette »** (🎨) sont 
 perception. La barre d'outils montre 19 boutons ; **9 agissent**. Tu regardes l'écran et tu vois
 Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 % là où la mesure dit 17 %.
 
+### Ce que le score ne dit PAS, et qu'il faut ajouter
+
+Ce tableau compte des **fonctionnalités**, pas du **travail**. C'est une mesure utile mais
+trompeuse, et il faut la corriger sur deux points.
+
+#### 1. Une ligne du tableau peut valoir 2 000 lignes de code
+
+« Collaboration : 12 fonctions, 0 % » occupe une ligne, comme « Storyboard ». Ce n'est pas le
+même chantier. Volume réel à porter, mesuré sur le TypeScript hors tests :
+
+| Sous-système | TS à porter | Noyau Rust | Branché à l'UI ? |
+|---|---:|---|---|
+| Membranes (espace, focus, tween, étirement) | **2 661 l.** | 1 442 l. écrites | ❌ **3 modules morts** |
+| Persistance (projet, schéma, bundle, assets, versions) | **2 572 l.** | 354 l. (`bundle`) | ❌ **mort** |
+| Texte riche : Markdown + KaTeX + éditeur | **2 229 l.** | — | ❌ **rien** |
+| Collaboration (CRDT, curseurs, canal d'assets) | **1 920 l.** | — | ❌ **rien** (1 bouton) |
+| Export (SVG, HTML, PNG, Markdown, scène) | **1 565 l.** | 430 l. écrites | ❌ **mort** |
+| Plugins & App Bridge | **1 471 l.** | — | ❌ **rien** (1 bouton) |
+| Flèches (tracé, ancrage, texte, options) | **1 386 l.** | 166 l. (`arrow_anchor`) | ❌ **mort** |
+| Dossiers & miroirs | **1 307 l.** | 110 l. (`mirror_graph`) | ❌ **mort** |
+| Temporalité (timeline, règle, ancres) | **1 296 l.** | 256 l. (`timeline`) | ❌ **mort** |
+| Rideaux (curtains) | **1 178 l.** | 417 l. écrites | ❌ **2 modules morts** |
+| Télémétrie & diagnostics | 788 l. | — | ❌ rien |
+| Presets & zones | 622 l. | — | 🎨 maquette |
+| Storyboard | 464 l. | — | 🎨 maquette |
+| Domaines sémantiques | 211 l. | complet et testé | ❌ **liste fantôme (R-47)** |
+| **Total de ces 14 sous-systèmes** | **19 670 l.** | | |
+
+Sur **32 423 lignes** de TypeScript hors tests, ces quatorze sous-systèmes en représentent **61 %**
+— et **aucun** n'est utilisable aujourd'hui. Le reste (~12 750 l.) est le cœur du canvas
+(`GlucoseCanvas.tsx` 4 181 l., `store/index.ts` 2 113 l., sélection, glisser-déposer, alignement),
+qui est la partie réellement portée.
+
+#### 2. Douze modules du noyau sur vingt ne sont appelés par personne
+
+Mesure directe des références depuis `glucose-desktop`, au commit `e2cd410` :
+
+| Module mort | l. | | Module mort | l. |
+|---|---:|---|---|---:|
+| `membrane_space` | 773 | | `curtain_model` | 216 |
+| `membrane_focus` | 438 | | `geometry` | 215 |
+| `export` | 430 | | `text_anchors` | 211 |
+| `bundle` | 354 | | `curtain_panel` | 201 |
+| `timeline` | 256 | | `arrow_anchor` | 166 |
+| `membrane_stretch` | 231 | | `mirror_graph` | 110 |
+
+**3 601 lignes écrites, testées, et inatteignables depuis l'interface.** Les huit modules vivants
+sont `types`, `store`, `layout`, `smart_align`, `hit_priority`, `quadtree`, `symbiotic_hue`,
+`error`.
+
+C'est la mesure exacte de R-18, et elle est pire que l'estimation initiale : ce n'est pas « du
+code mort », c'est **la moitié du noyau**.
+
+#### 3. Même les 17 % acquis ne rendent pas ce qu'ils devraient
+
+Le score compte une fonctionnalité comme ✅ dès qu'elle marche. Il ne dit rien de sa **fidélité**.
+Deux défauts, documentés en R-45 et R-46, dégradent **tout** ce qui s'affiche :
+
+- **Le texte ne suit pas le zoom.** Onze `clamp` bornent la police, les marges et les rayons de
+  coin, alors que la boîte de la carte, elle, se met à l'échelle librement. La carte n'est fidèle
+  qu'à `scale ≈ 1` ; partout ailleurs elle se déforme par paliers. C'est le « LOD » involontaire.
+- **Les glyphes sont posés à des coordonnées entières tronquées.** Ni sous-pixel, ni arrondi. D'où
+  un espacement irrégulier, un tremblement au déplacement, et une impression de pixelisation.
+
+Autrement dit : **17 % des fonctionnalités existent, et elles s'affichent mal.** Le ressenti de
+« 3 % » ne vient pas seulement de ce qui manque — il vient aussi de ce qui est là et paraît faux.
+
+#### 4. Ce qui n'est dans aucune ligne du tableau
+
+Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnalités :
+
+- **Aucune animation.** `dock.rs` n'a ni `tween`, ni interpolation, ni easing — zéro occurrence.
+  Côté TS, **30 fichiers** portent des transitions, et `PanelDock.tsx` ramène un panneau à sa
+  place avec `transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)`. D'où l'impression de fenêtres
+  « complètement libres » : elles le sont littéralement, rien ne les rappelle.
+- **`membraneTween.ts` (216 l.)** est un moteur d'animation dédié aux membranes, entièrement
+  absent du portage.
+- **Le redimensionnement** (`imageResize.ts`, poignées, contraintes de ratio) n'a pas d'équivalent
+  branché.
+
 ---
 
 ## 1. Canvas & caméra

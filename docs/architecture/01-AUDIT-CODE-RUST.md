@@ -124,7 +124,7 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 - **R-17** — Pas d'IME : pas d'accents au clavier mort, pas de CJK
 
 ### Structurels — la dette qui te fait perdre des heures
-- **R-18** — 13 modules du noyau sur 18 sont du code mort
+- **R-18** — 12 modules du noyau sur 20 sont du code mort — ⚠️ *(remesuré à `e2cd410` : 2 branchés, 2 modules créés)*
 - **R-19** — `app.rs` est un objet-dieu — 🟡 **(traité à vérifier)**
 - **R-20** — L'UI calcule sa géométrie deux fois — 🟡 **(traité à vérifier)**
 - **R-21** — Les erreurs sont jetées à la poubelle — 🟡 **(traité à vérifier)**
@@ -158,7 +158,12 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 ### Introduits par la mesure du budget de frame (`def3800`)
 - **R-42** — Les docks sont le premier poste de rendu (43 % de la frame) et ne changent jamais
 - **R-43** — `draw_grid` reconstruit un `PathBuilder` complet à chaque frame (14 % de la frame)
-- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel — 🟡 **(traité à vérifier)**
+- **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel — ⚠️ **PARTIEL** *(`glucose-desktop` propre ; `glucose-core` en éteint encore 3)*
+
+### Introduits par la confrontation au code TypeScript
+- **R-45** — Le texte ne suit pas le zoom : 11 `clamp` bornent le contenu, pas la boîte
+- **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement)
+- **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document
 
 ---
 
@@ -642,34 +647,42 @@ demi-caractères à l'écran.
 
 ## Structurels
 
-### R-18 — 13 modules du noyau sur 18 sont du code mort
+### R-18 — 12 modules du noyau sur 20 sont du code mort
 
 **Gravité : STRUCTUREL — c'est la cause directe de ta frustration.**
 
 Vérification par recherche des références `glucose_core::<module>` depuis `glucose-desktop` :
 
-| Module | Lignes | Tests | Utilisé par l'app ? |
-|--------|-------:|------:|---------------------|
-| `types` | 583 | — | ✅ |
-| `store` | 909 | 707 | ✅ |
-| `hit_priority` | 920 | 348 | ✅ — uniquement `collect_candidates` |
-| `smart_align` | 458 | 346 | ⚠️ importé, **jamais appelé** (R-09) |
-| `symbiotic_hue` | 169 | — | ✅ |
-| `membrane_space` | 772 | 422 | ❌ **mort** |
-| `export` | 436 | 222 | ❌ **mort** |
-| `membrane_focus` | 438 | 337 | ❌ **mort** |
-| `bundle` | 353 | 246 | ❌ **mort** |
-| `timeline` | 256 | 174 | ❌ **mort** |
-| `membrane_stretch` | 231 | 199 | ❌ **mort** |
-| `curtain_model` | 216 | 287 | ❌ **mort** |
-| `geometry` | 215 | — | ❌ **mort** |
-| `text_anchors` | 211 | 135 | ❌ **mort** |
-| `curtain_panel` | 201 | — | ❌ **mort** |
-| `arrow_anchor` | 166 | 87 | ❌ **mort** |
-| `mirror_graph` | 110 | 93 | ❌ **mort** |
-| `quadtree` | 79 | — | ❌ **mort** |
+| Module | Lignes | Utilisé par l'app ? |
+|--------|-------:|---------------------|
+| `types` | 597 | ✅ 18 références |
+| `layout` | 375 | ✅ 12 références *(module créé depuis)* |
+| `store` | 96 + 9 modules | ✅ 5 références |
+| `smart_align` | 458 | ✅ 5 références — **branché depuis** (R-09 corrigé) |
+| `symbiotic_hue` | 169 | ✅ 2 références |
+| `hit_priority` | 136 + 3 modules | ✅ 2 références |
+| `quadtree` | 451 | ✅ 1 référence — **branché depuis** |
+| `error` | 58 | ✅ 1 référence *(module créé depuis)* |
+| `membrane_space` | 773 | ❌ **mort** |
+| `membrane_focus` | 438 | ❌ **mort** |
+| `export` | 430 | ❌ **mort** |
+| `bundle` | 354 | ❌ **mort** |
+| `timeline` | 256 | ❌ **mort** |
+| `membrane_stretch` | 231 | ❌ **mort** |
+| `curtain_model` | 216 | ❌ **mort** |
+| `geometry` | 215 | ❌ **mort** |
+| `text_anchors` | 211 | ❌ **mort** |
+| `curtain_panel` | 201 | ❌ **mort** |
+| `arrow_anchor` | 166 | ❌ **mort** |
+| `mirror_graph` | 110 | ❌ **mort** |
 
-**≈ 3 700 lignes de noyau, dont ~2 200 de tests, ne servent à rien dans l'application.**
+**3 601 lignes de noyau — la moitié des modules — sont inatteignables depuis l'interface.**
+
+*Remesuré au commit `e2cd410` par recherche de `glucose_core::<module>` dans `glucose-desktop`.
+Depuis la première passe, `quadtree` et `smart_align` ont été branchés et deux modules ont été
+créés (`layout`, `error`), tous deux vivants. Le nombre de modules morts est passé de 13 à 12
+pendant que le noyau grossissait de 18 à 20 modules : **le rythme de branchement ne suit pas le
+rythme d'écriture.***
 
 C'est exactement pour ça que tu as l'impression d'être à 3 % : tu as porté les **algorithmes**
 de la version TypeScript, mais **pas les fonctionnalités**. Entre un algorithme et une
@@ -1588,6 +1601,131 @@ Les 17 `too_many_arguments` sont traités par regroupement en **types nommés**,
 `ButtonState`, `SceneOverlay` et `ViewPass`, construits avec leurs champs explicites au point
 d'appel. `render_docks` — la fonction du gel — reçoit désormais `ScreenFrame` et `Pointer` :
 intervertir `scale` et `mouse_x` ne compile plus.
+
+---
+
+## R-45 — Le texte ne suit pas le zoom : la carte grandit, son contenu non
+
+**Gravité : BLOQUANT pour la fidélité — c'est le « LOD » visible en dézoomant.**
+
+Dans `renderer.rs`, la **boîte** d'une carte est mise à l'échelle linéairement, sans borne :
+
+```rust
+let sw = (width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH)  * vp.scale) as f32;   // libre
+let sh = (height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) * vp.scale) as f32;  // libre
+```
+
+Mais **tout ce qu'elle contient est borné** :
+
+| Valeur | Ligne | Expression | Plage où elle reste fidèle |
+|---|---:|---|---|
+| Police du corps | 684 | `(14.0 * scale).clamp(8.0, 24.0)` | `scale ∈ [0,57 ; 1,71]` |
+| Marge horizontale | 686 | `(18.0 * scale).clamp(4.0, 24.0)` | `scale ∈ [0,22 ; 1,33]` |
+| Marge verticale | 687 | `(12.0 * scale).clamp(4.0, 16.0)` | `scale ∈ [0,33 ; 1,33]` |
+| Rayon de coin | 698 | `(24.0 * scale).clamp(4.0, 28.0)` | `scale ∈ [0,17 ; 1,17]` |
+| Police de titre | 484 | `(16.0 * scale).clamp(12.0, 22.0)` | `scale ∈ [0,75 ; 1,37]` |
+| Police secondaire | 854 | `(12.0 * scale).clamp(8.0, 20.0)` | `scale ∈ [0,67 ; 1,67]` |
+
+**Onze `clamp`** au total sur des valeurs dérivées du zoom, et **aucun** sur la boîte.
+
+Conséquence, exactement celle décrite par l'utilisateur :
+
+- **En dézoomant** sous `scale = 0,57`, la boîte continue de rétrécir pendant que le texte reste
+  figé à 8 px. Le texte déborde, les marges mangent la carte, la mise en page se réorganise. Ce
+  n'est pas un niveau de détail choisi : c'est l'effet de bord de six bornes indépendantes qui se
+  déclenchent à **six seuils différents** — d'où l'impression de « petits trucs » qui apparaissent
+  les uns après les autres.
+- **En zoomant**, les rayons de coin se figent à 1,17, puis les marges à 1,33, puis le titre à
+  1,37, puis le corps à 1,71. La carte se déforme par paliers successifs.
+- **La carte n'est fidèle qu'à `scale ≈ 1`** : c'est la seule valeur où aucune borne n'est atteinte.
+
+**Pourquoi la version TypeScript n'a pas ce problème.** `HtmlAnnotationLayer.tsx` (1 333 l.) pose
+le texte en DOM et laisse **une** transformation CSS mettre l'ensemble à l'échelle. Le navigateur
+re-rend les glyphes à la bonne taille et tout se met à l'échelle **ensemble, par construction**.
+Le portage Rust a remplacé une transformation unique par onze bornes manuelles.
+
+**Correctif** : une carte se dessine **une fois en coordonnées locales**, puis subit **une seule**
+transformation. Si l'on veut des bornes de lisibilité, elles s'appliquent à la transformation
+entière, jamais valeur par valeur.
+
+---
+
+## R-46 — Les glyphes sont posés à des positions entières tronquées
+
+**Gravité : MAJEUR — source du flou et de l'irrégularité du texte.**
+
+`typography.rs` rastérise correctement chaque glyphe à sa taille réelle (`font.rasterize(ch, size)`,
+clé de cache au dixième de pixel près). Puis il le pose ainsi :
+
+```rust
+let px = (gx + col as f32) as i32;
+let py = (gy + row as f32) as i32;
+```
+
+`as i32` **tronque**. Ni positionnement sous-pixel, ni rééchantillonnage, ni même un arrondi. Un
+glyphe dont l'origine calculée tombe à `x = 100,6` est écrit à `x = 100`.
+
+Trois conséquences visibles :
+
+1. **L'espacement des lettres est faux de façon irrégulière** — chaque glyphe est tronqué
+   indépendamment, donc l'erreur varie de 0 à 1 px d'une lettre à l'autre dans un même mot.
+2. **Le texte tremble** pendant un déplacement ou un zoom : chaque glyphe franchit son seuil à un
+   moment différent.
+3. **Le rendu paraît pixelisé** alors que la rastérisation, elle, est bonne. Le défaut n'est pas
+   dans le glyphe, il est dans l'endroit où on le pose.
+
+À noter : l'en-tête d'`icons.rs` annonce « anti-aliasing et **subpixel rendering** ». C'est vrai
+des icônes, qui sont des tracés vectoriels. **Ce n'est pas vrai du texte.** Le commentaire décrit
+une intention, pas le code — même motif que R-32.
+
+**Réserve honnête** : l'utilisateur signale aussi les **icônes** comme pixelisées. Je ne l'ai pas
+reproduit : 6 appels sur 7 passent par `draw_icon_scaled`, vectoriel et sensible au DPI. Il faut
+une capture comparée avant de conclure — c'est précisément ce que permettraient les tâches 0.5/0.6.
+
+---
+
+## R-47 — Le panneau DOMAINES écrit dans une liste fantôme
+
+**Gravité : BLOQUANT — l'illustration la plus nette de la maladie chronique du projet.**
+
+`glucose-core` implémente les domaines **au complet**, et c'est testé
+([`e2e_workflows_suite.rs:326-339`](../../crates/glucose-core/tests/e2e_workflows_suite.rs#L326-L339)) :
+
+```rust
+store.add_domain(d);
+store.update_domain(id, name);
+store.remove_domain(id);
+store.try_assign_domain_to_node("main", "T1", "D1", 0.7)?;   // avec pondération
+```
+
+Le panneau de l'interface entretient sa **propre liste**, sans rapport avec le document
+([`dock.rs:196`](../../crates/glucose-desktop/src/dock.rs#L196)) :
+
+```rust
+pub struct DomainsState { pub domains: Vec<DomainItem> }
+```
+
+Et le bouton « + Nouveau domaine » ([`dock.rs:1754`](../../crates/glucose-desktop/src/dock.rs#L1754)) :
+
+```rust
+dock.domains.domains.push(DomainItem {
+    id:    format!("domain-{}", dock.domains.domains.len() + 1),
+    name:  format!("Domaine {}", dock.domains.domains.len() + 1),
+    color: colors[idx],
+});
+```
+
+**`store.add_domain()` n'est jamais appelé.** Les domaines créés n'entrent pas dans le document :
+ni assignables à un nœud, ni pondérables, ni renommables, ni supprimables, ni enregistrables. La
+capture de l'utilisateur montre « Domaine 1 » à « Domaine 20 » — vingt clics, vingt lignes
+décoratives.
+
+Écart avec `DomainsPanel.tsx` (211 l.), qui sait : créer, renommer en ligne, supprimer avec
+cascade de désassignation confirmée, choisir parmi **12 couleurs et 12 icônes**, assigner à la
+sélection **avec un poids**, et afficher le poids moyen agrégé sur la sélection courante.
+
+**Correctif** : supprimer `DomainsState` et faire du panneau une vue de `store.project.domains`.
+Le noyau est prêt — il n'y a rien à écrire côté modèle, seulement à brancher.
 
 ---
 

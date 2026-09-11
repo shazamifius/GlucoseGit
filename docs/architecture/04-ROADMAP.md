@@ -32,6 +32,48 @@
 phases 0-2 ≈ 20 % de l'effort total, phases 3-5 ≈ 20 %, phases 6-9 ≈ 35 %,
 phases 10-12 ≈ 25 %.
 
+### Le volume réel derrière ces pourcentages
+
+Les pourcentages de parité comptent des **fonctionnalités**. Voici ce qu'ils représentent en
+**lignes de TypeScript à porter**, mesuré sur la source hors tests (`e2cd410`) :
+
+| Phase | Sous-systèmes | TS à porter | Noyau Rust déjà écrit |
+|:--:|---|---:|---|
+| 2 | Persistance, assets, versions, compaction | **2 572 l.** | 354 l. (`bundle`) — **morte** |
+| 4 | Markdown, KaTeX, éditeur, ancres de texte | **2 229 l.** | 211 l. (`text_anchors`) — **morte** |
+| 6 | Membranes : espace, focus, tween, étirement | **2 661 l.** | 1 442 l. — **mortes** |
+| 7 | Dossiers & miroirs | **1 307 l.** | 110 l. (`mirror_graph`) — **morte** |
+| 8 | Flèches : tracé, ancrage, texte, options | **1 386 l.** | 166 l. (`arrow_anchor`) — **morte** |
+| 9 | Domaines, temporalité, storyboard, presets | **2 593 l.** | domaines complets — **liste fantôme (R-47)** |
+| 10 | Export SVG / HTML / PNG / Markdown | **1 565 l.** | 430 l. (`export`) — **morte** |
+| 11 | Collaboration CRDT, curseurs, rideaux | **3 098 l.** | 417 l. (curtains) — **mortes** |
+| 12 | Plugins, App Bridge, télémétrie | **2 259 l.** | — |
+| | **Total** | **19 670 l.** | **3 601 l. écrites et mortes** |
+
+Sur **32 423 lignes** de TypeScript hors tests, ces sous-systèmes en représentent **61 %**. Le
+reste — environ 12 750 lignes — est le cœur du canvas (`GlucoseCanvas.tsx` 4 181 l.,
+`store/index.ts` 2 113 l., sélection, glisser-déposer, alignement), qui est la partie réellement
+portée aujourd'hui.
+
+**À retenir** : aucune optimisation de performance ne réduit ces 19 670 lignes. Les gains de
+rendu obtenus (240 ms → 17 ms par frame) rendent le prototype utilisable pour développer ; ils ne
+font avancer la parité d'aucun point.
+
+### Insertion : la fidélité du rendu
+
+Deux constats découverts en confrontant le rendu Rust au TypeScript (R-45, R-46) ne relèvent
+d'aucune phase existante, parce que ce ne sont pas des fonctionnalités manquantes : ce sont des
+défauts qui **dégradent tout ce qui est déjà acquis**.
+
+| # | Tâche | Constat | Où |
+|---|---|---|---|
+| 1.27 | Une carte se dessine en coordonnées locales puis subit **une seule** transformation. Supprimer les 11 `clamp` qui bornent police, marges et rayons indépendamment de la boîte. | R-45 | `renderer.rs` |
+| 1.28 | Positionnement **sous-pixel** des glyphes : remplacer `(gx + col as f32) as i32` par un placement avec fraction, ou au minimum un arrondi cohérent sur toute une ligne de texte. | R-46 | `typography.rs` |
+| 1.29 | Capture PNG comparée entre zoom 0,25 / 1 / 4 pour prouver que la carte reste fidèle. Dépend de 0.5/0.6. | R-45, R-46 | `glucose-cli` |
+
+Ces trois tâches passent **avant** toute nouvelle fonctionnalité : il est moins coûteux de
+réparer la fidélité sur 17 % du logiciel que sur 100 %.
+
 **Le point de bascule est la phase 2.** Avant, tu construis un prototype. Après, tu construis un
 logiciel — et tu peux enfin l'utiliser toi-même tous les jours, ce qui est la meilleure source de
 priorités qui existe.

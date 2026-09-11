@@ -105,7 +105,21 @@ Deux raisons, toutes les deux mesurées :
    cliques et il n'y a rien derrière.
 
 2. **27 fonctionnalités sont écrites mais débranchées.** Tu as fait le travail, il ne compte pas.
-   C'est démoralisant précisément parce que l'effort a été fourni.
+   C'est démoralisant précisément parce que l'effort a été fourni. Mesure exacte au commit
+   `e2cd410` : **12 des 20 modules de `glucose-core` ne sont appelés par personne**, soit
+   **3 601 lignes** écrites, testées, inatteignables (R-18).
+
+3. **Ce qui s'affiche s'affiche mal.** Deux défauts dégradent *tout* le rendu, indépendamment des
+   fonctionnalités : le texte ne suit pas le zoom (onze `clamp` bornent le contenu des cartes
+   pendant que leur boîte se met à l'échelle librement — R-45), et les glyphes sont posés à des
+   coordonnées entières tronquées, sans positionnement sous-pixel (R-46). Résultat : le
+   « LOD » involontaire en dézoomant, et l'impression de flou.
+
+4. **Une ligne du tableau de parité peut valoir 2 000 lignes de code.** « Collaboration : 0 % »
+   pèse autant visuellement que « Storyboard : 0 % », alors que la première représente 1 920
+   lignes de CRDT et la seconde 464. Le décompte par volume est dans
+   [`03-PARITE-FONCTIONNELLE.md`](03-PARITE-FONCTIONNELLE.md) § *Ce que le score ne dit PAS* :
+   **quatorze sous-systèmes, 19 670 lignes de TypeScript, dont aucun n'est utilisable.**
 
 **Décision** : un bouton dont la fonction n'existe pas est retiré ou grisé. Jamais un toast qui
 simule. C'est la phase 0, et elle ne coûte presque rien.
@@ -141,22 +155,27 @@ en plus.
 
 ## Par où commencer, concrètement
 
-Les commits `2da029f` et `81aea31` viennent de régler les trois premiers points de cette liste
-(transform des images, grille adaptative, culling) et de corriger la sélection élastique.
-**Bonne direction — continue exactement comme ça.** Voici la suite :
+Les points 1 à 8 de la liste d'origine sont **faits** : transform des images, grille adaptative,
+culling, sélection élastique, layout unique, teinte mémorisée, boucle de rendu unique,
+`smart_align` branché, générateur d'id en O(1), `app.rs` éclaté (1 126 → 438 l.). La frame est
+passée de 240 ms à 17 ms. Voici la suite réelle, mesurée au commit `e2cd410`.
 
-| Ordre | Action | Gain | Effort |
+| Ordre | Action | Pourquoi maintenant | Poids |
 |:--:|---|---|---|
-| ~~0~~ | ~~Transform des images, grille adaptative, culling, marquee~~ | ✅ **fait** (`2da029f`, `81aea31`) | — |
-| 1 | **Retirer les 10 boutons qui mentent** | Tu retrouves une vision juste de ton avancement | quelques heures |
-| 2 | **Étendre `layout_topbar()` aux onglets et à la minimap** (R-07, R-08) | Fin des clics qui tombent à côté ; la minimap revit | ~60 lignes |
-| 3 | **Mémoriser la teinte symbiotique** (R-03) | Dernière faute de performance de classe algorithmique | ~100 lignes |
-| 4 | **Boucle de rendu unique + `WaitUntil`** (R-15) | Le curseur clignote, les toasts s'effacent, et **tous les gains de perf précédents deviennent réels** | ~150 lignes |
-| 5 | **Brancher `smart_align`** (R-09) | Le magnétisme existe enfin — 458 lignes déjà écrites et testées | ~40 lignes |
-| 6 | **Générateur d'id unique** (R-13, R-14) | Fin des collisions silencieuses | ~30 lignes |
-| 7 | **Éclater `app.rs`** (R-19) | ⚠️ **Urgent** : `window_event` est passé de 490 à **728 lignes** en deux commits | phase 1 |
-| 8 | **Undo par journal** (R-04) | L'app ne meurt plus en mémoire | phase 1D |
-| 9 | **La persistance** (R-01) | **Glucose devient un logiciel** | phase 2 |
+| 1 | **La persistance** (R-01, phase 2) | **Rien n'est encore écrit sur disque.** Tant que ça dure, tout le reste est du travail qu'on perd en fermant la fenêtre. C'est la seule tâche qui transforme un prototype en logiciel. | 2 572 l. TS |
+| 2 | **La fidélité du rendu** (R-45, R-46) | Ce que tu vois est faux à tout zoom ≠ 1, et le texte est flou. Ça dégrade les 17 % déjà acquis, donc ça coûte plus cher que ça n'en a l'air. | ~200 l. |
+| 3 | **Brancher les 12 modules morts** (R-18, R-47) | **3 601 lignes déjà écrites et testées.** Les domaines sont l'exemple type : le noyau sait tout faire, l'interface écrit dans une liste fantôme. Meilleur rapport résultat/effort du projet. | déjà payé |
+| 4 | **Retirer les 10 boutons qui mentent** (R-33, phase 0) | Sans ça tu ne peux pas mesurer ton avancement — et c'est la cause directe du ressenti « 3 % ». | quelques heures |
+| 5 | **Rectangles sales** (R-42, tâche 1.13) | `docks` + `ui` = 59 % de la frame passés à redessiner l'immobile. | ~300 l. |
+| 6 | **Texte riche : Markdown + KaTeX** | 2 229 l. TS, aucune ligne portée. C'est ce qui fait de Glucose un outil de pensée et pas un tableau d'images. | 2 229 l. TS |
+| 7 | **Membranes** (3 modules morts + tween) | 2 661 l. TS ; 1 442 l. de noyau déjà écrites mais mortes. | 2 661 l. TS |
+| 8 | **Flèches, dossiers, miroirs, temporalité, rideaux** | 5 167 l. TS ; noyau partiellement écrit, intégralement mort. | 5 167 l. TS |
+| 9 | **Collaboration, plugins, télémétrie** | 4 179 l. TS, rien de porté. À traiter en dernier : ce sont les seuls sous-systèmes qui ne bloquent aucun usage solo. | 4 179 l. TS |
+
+**Ce que cette table dit, et qu'il faut regarder en face** : les points 1 à 5 représentent
+quelques milliers de lignes et rendraient le logiciel *utilisable*. Les points 6 à 9 représentent
+**environ 14 000 lignes de TypeScript à porter** — c'est là qu'est le gros du chemin restant, et
+aucune optimisation de performance ne le raccourcira.
 
 Les points 2 à 6 représentent **moins de 400 lignes** et changent radicalement la sensation du
 logiciel. Ne commence pas par le rastériseur maison : commence par les gains visibles.
