@@ -50,15 +50,29 @@ fn ink_bbox(frame: &Pixmap) -> Option<(u32, u32, u32, u32)> {
     (x0 != u32::MAX).then_some((x0, y0, x1, y1))
 }
 
-/// Boîte englobante des pixels qui diffèrent entre deux frames.
-fn diff_bbox(a: &Pixmap, b: &Pixmap) -> Option<(u32, u32, u32, u32)> {
+/// Boîte englobante des pixels qui diffèrent entre deux frames, à l'intérieur de `clip`.
+///
+/// Le découpage n'est pas un confort : le **halo** d'une carte tire sa teinte de son contenu
+/// (`SymbioticHueCache` → `get_symbiotic_hue`), donc deux frames qui ne diffèrent que par le
+/// texte diffèrent **aussi** sur tout le disque du halo, large de plusieurs centaines de
+/// pixels. Sans découpage, la mesure rendrait la taille du halo et non celle du texte.
+///
+/// On mesure donc l'encre **dans la carte**, qui est précisément ce que la preuve affirme :
+/// le texte a reflué à l'intérieur de sa boîte. Qu'un mot trop long soit coupé plutôt que de
+/// déborder est vérifié à part, par `wrap::tests`.
+fn diff_bbox_within(a: &Pixmap, b: &Pixmap, clip: (f64, f64, f64, f64)) -> Option<(u32, u32, u32, u32)> {
     let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0u32, 0u32);
     let w = a.width();
+    let (cx0, cy0, cx1, cy1) = clip;
     let (left, _) = a.data().as_chunks::<4>();
     let (right, _) = b.data().as_chunks::<4>();
     for (i, (p, q)) in left.iter().zip(right).enumerate() {
         if p != q {
             let (x, y) = (i as u32 % w, i as u32 / w);
+            let (fx, fy) = (x as f64, y as f64);
+            if fx < cx0 || fx >= cx1 || fy < cy0 || fy >= cy1 {
+                continue;
+            }
             x0 = x0.min(x);
             y0 = y0.min(y);
             x1 = x1.max(x + 1);
@@ -67,6 +81,7 @@ fn diff_bbox(a: &Pixmap, b: &Pixmap) -> Option<(u32, u32, u32, u32)> {
     }
     (x0 != u32::MAX).then_some((x0, y0, x1, y1))
 }
+
 
 fn screen_box(app: &GlucoseApp, rect: AlignRect) -> (f64, f64, f64, f64) {
     let vp = app.store.active_board().map(|b| b.viewport).unwrap_or_default();
@@ -133,7 +148,14 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     std::fs::create_dir_all(dir).expect("dossier de capture");
     let text = "Une carte de texte redimensionnée en largeur reflue son texte : la largeur change, le découpage en lignes change, et la hauteur suit.";
 
-    let frame_with = |text: &str, width: f64| {
+    // La scène, à une géométrie de carte imposée. `height` vaut `None` pour la carte sous
+    // test — sa hauteur suit alors son texte — et `Some(h)` pour la carte de référence vide.
+    //
+    // Cette distinction est le cœur de la mesure. L'encre du texte se lit en différenciant la
+    // frame avec texte et la frame sans, donc **tout le reste doit être identique au pixel**.
+    // Laisser `fit_text_card_height` dimensionner la carte vide lui donnerait une autre
+    // hauteur, et la différence capturerait le cadre, le fond et le halo au lieu du texte.
+    let frame_with = |text: &str, width: f64, height: Option<f64>| {
         let mut app = GlucoseApp::new();
         let board = app.store.project.active_board_id.clone();
         if let Some(b) = app.store.active_board_mut() {
@@ -142,17 +164,29 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
             b.viewport.y = 300.0;
         }
         app.store.add_annotation(&board, text_card("carte", 0.0, 0.0, width, text));
-        app.fit_text_card_height("carte");
+        match height {
+            Some(h) => {
+                if let Some(Annotation::Text { height: card, .. }) = app
+                    .store
+                    .active_board_mut()
+                    .and_then(|b| b.annotations.iter_mut().find(|a| a.id() == "carte"))
+                {
+                    *card = Some(h);
+                }
+            }
+            None => app.fit_text_card_height("carte"),
+        }
         app
     };
 
     // Avant : la carte large, et son encre de texte (frame pleine moins frame vide).
-    let mut app = frame_with(text, 640.0);
+    let mut app = frame_with(text, 640.0, None);
     let before = render_frame(&mut app);
-    let mut blank = frame_with("", 640.0);
-    let before_blank = render_frame(&mut blank);
-    let ink_before = diff_bbox(&before, &before_blank).expect("la carte porte du texte");
     let start = rect_of_annotation(&app.store.active_board().expect("board").annotations[0]).expect("boîte");
+    let mut blank = frame_with("", 640.0, Some(start.height));
+    let before_blank = render_frame(&mut blank);
+    let ink_before =
+        diff_bbox_within(&before, &before_blank, screen_box(&app, start)).expect("la carte porte du texte");
     before.save_png(dir.join("carte-avant.png")).expect("png");
 
     // Le geste : la poignée droite, tirée vers la gauche.
@@ -164,9 +198,10 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     assert!((narrowed.width - 240.0).abs() < 1e-9, "{narrowed:?}");
     assert!(narrowed.height > start.height, "la hauteur suit le texte : {narrowed:?} vs {start:?}");
 
-    let mut blank = frame_with("", 240.0);
+    let mut blank = frame_with("", 240.0, Some(narrowed.height));
     let after_blank = render_frame(&mut blank);
-    let ink_after = diff_bbox(&after, &after_blank).expect("la carte rétrécie porte du texte");
+    let ink_after = diff_bbox_within(&after, &after_blank, screen_box(&app, narrowed))
+        .expect("la carte rétrécie porte du texte");
     after.save_png(dir.join("carte-apres.png")).expect("png");
 
     let (w_before, h_before) = (ink_before.2 - ink_before.0, ink_before.3 - ink_before.1);
@@ -174,7 +209,11 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     println!("[proof] carte : encre {w_before}x{h_before} -> {w_after}x{h_after} ({})", dir.display());
     assert!(w_after < w_before, "le texte est plus étroit");
     assert!(h_after > h_before * 2, "et bien plus haut : il a reflué sur plusieurs lignes");
-    // L'encre reste dans la carte : rien ne déborde à droite.
-    let (_, _, right_edge, _) = screen_box(&app, narrowed);
-    assert!((ink_after.2 as f64) <= right_edge, "le texte déborde de la carte");
+    // L'encre tient dans la largeur utile : la carte moins ses deux marges.
+    let (x0, _, x1, _) = screen_box(&app, narrowed);
+    assert!(
+        (w_after as f64) < x1 - x0,
+        "l'encre {w_after} px dépasse la largeur de la carte {} px",
+        x1 - x0
+    );
 }
