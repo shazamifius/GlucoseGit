@@ -1,0 +1,20 @@
+# Fins de ligne : LF partout, une fois pour toutes.
+#
+# Le dépôt mélangeait CRLF et LF (25 fichiers .rs sur 109, 5 .md sur 21) sans aucune
+# politique. Résultat : un outil qui réécrit un fichier CRLF en LF produit un diff de
+# 300 lignes pour 3 mots modifiés, et masque le vrai changement. Constat R-52.
+#
+# `text=auto` laisse git détecter le binaire ; `eol=lf` normalise tout le texte en LF
+# dans le dépôt ET dans l'arbre de travail, quel que soit l'OS.
+*           text=auto eol=lf
+
+# Binaires : jamais touchés.
+*.ttf       binary
+*.otf       binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.gif       binary
+*.ico       binary
+*.glucose   binary
