@@ -95,6 +95,19 @@ Ici, écrire soi-même n'est pas une question de fierté : **c'est la seule faç
 fonctionnalité.** Détail en [`02-ARCHITECTURE-CIBLE.md` § 0.1](02-ARCHITECTURE-CIBLE.md),
 phase 5 de la roadmap.
 
+### Les deux règles qui priment sur tout le reste
+
+Elles sont détaillées dans [`05-STANDARDS-DE-CODE.md`](05-STANDARDS-DE-CODE.md), en tête des règles.
+
+**R1 — Rien à moitié.** Une fonctionnalité livrée à moitié est pire que pas livrée : elle a l'air
+de marcher. Une fonctionnalité n'est finie que si elle est **branchée**, **visible**,
+**annulable** et **conservée à l'enregistrement**. Quatre conditions. Ce dépôt est un catalogue de
+ce que coûte l'inverse — voir R-18, R-33, R-47.
+
+**R2 — L'ancien code TypeScript n'est pas un modèle.** Il sert d'inventaire de ce qui existe, et
+à rien d'autre. Son implémentation n'est ni portée, ni imitée, ni citée comme justification. Une
+décision se défend par un raisonnement et une mesure. On refait tout en Rust, **mieux**.
+
 ### « Pourquoi j'ai l'impression d'être à 3 % ? »
 
 Deux raisons, toutes les deux mesurées :

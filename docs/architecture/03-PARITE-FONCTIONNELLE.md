@@ -16,6 +16,12 @@
 
 ---
 
+> **À quoi sert le code TypeScript dans ce document.** Uniquement à **inventorier** : quelles
+> fonctionnalités existent, quel comportement elles offrent, et quel volume elles représentent.
+> Son implémentation n'est **pas** un modèle et ne doit être ni portée ni imitée — c'est la règle
+> **R2** de [`05-STANDARDS-DE-CODE.md`](05-STANDARDS-DE-CODE.md). Les lignes de TS citées ici
+> mesurent une **quantité de travail à refaire**, pas une quantité de code à traduire.
+
 ## Le score
 
 | Domaine | Fonctions | ✅ | 🟡 | 💀 | 🎨 | ❌ | Parité |

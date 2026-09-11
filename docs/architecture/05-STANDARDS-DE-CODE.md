@@ -65,6 +65,45 @@ Chaque littéral est une occasion de divergence, et R-07 en est la preuve vivant
 
 ---
 
+## Les deux règles qui passent avant les autres
+
+Elles ne sont pas des conventions de style. Elles viennent du propriétaire du projet, et elles
+priment sur tout ce qui suit.
+
+### R1 — Rien à moitié
+
+**Ce qui est fait doit être fait à fond.** Une fonctionnalité livrée à moitié est pire que pas
+livrée du tout, parce qu'elle a l'air de marcher — et parce qu'elle consomme la confiance qu'on
+place dans le reste.
+
+Ce dépôt est un catalogue de ce que coûte l'inverse : douze modules du noyau écrits, testés, et
+appelés par personne ; un panneau de domaines qui empile des lignes décoratives dans une liste
+que rien ne lit ; dix boutons qui affichent un message décrivant une action qui n'a pas lieu ;
+une suppression de domaine qui oublie ses assignations et les écrit sur disque.
+
+En pratique :
+
+- Une fonctionnalité n'est **pas** finie tant qu'elle n'est pas **branchée**, **visible**
+  par l'utilisateur, **annulable** si elle modifie le document, et **conservée** à
+  l'enregistrement. Quatre conditions, pas une.
+- Une assignation qu'on ne voit nulle part n'est pas une assignation, c'est un champ.
+- Si un morceau ne peut pas être fini proprement, **il se dit** — dans le rapport, dans l'audit,
+  dans un `TODO` daté. Jamais en silence.
+
+### R2 — L'ancien code TypeScript n'est pas un modèle
+
+Le dossier `src/` contient la version TS/TSX (32 423 lignes hors tests). Elle sert d'**inventaire
+de ce qui existe** — quelles fonctionnalités, quel comportement attendu — et **à rien d'autre**.
+
+**Son implémentation ne doit être ni portée, ni imitée, ni citée comme justification.** On
+réécrit tout en Rust, et on le fait **mieux**. Une décision se défend par son raisonnement et par
+une mesure, jamais par « c'est comme ça que le TypeScript faisait ».
+
+Le corollaire vaut aussi dans l'autre sens : quand cette documentation invoquait le TSX pour
+appuyer une règle, c'était un raccourci fautif. Les règles de ce document doivent tenir sans lui.
+
+---
+
 ## Les règles
 
 ### § 1 — Structure
@@ -190,13 +229,32 @@ let font_size = (14.0 * vp.scale).clamp(8.0, 24.0) as f32;
 let pad_x     = (18.0 * vp.scale as f32).clamp(4.0, 24.0);
 ```
 
-Une borne sur la police sans borne équivalente sur la boîte fait déborder le texte ; six bornes à
-six seuils différents cassent la mise en page six fois, à six niveaux de zoom différents. C'est le
-constat R-45, et le code TypeScript d'origine documentait déjà cette règle
-(`HtmlAnnotationLayer.tsx:203-210`).
+Le raisonnement tient tout seul. Une boîte et son contenu forment **une seule** mise en page :
+borner l'un sans borner l'autre, c'est décider que la mise en page se déforme. Et comme chaque
+borne se déclenche à son propre seuil, N bornes cassent la mise en page à N niveaux de zoom
+différents, chacun avec son symptôme — ici le texte débordait à 0,25, disparaissait à 0,50, et
+n'occupait plus qu'un quart de la carte à 4,00.
+
+**Ce n'est pas une opinion, c'est mesuré.** Rapport encre/boîte de la même carte, obtenu en la
+rendant deux fois — avec et sans son texte — puis en différenciant les images :
+
+| zoom | avec les bornes | avec une seule transformation |
+|---:|---:|---:|
+| 0,25 | 1,031 *(débordement)* | 0,615 |
+| 0,50 | *aucune encre* | 0,608 |
+| 1,00 | 0,596 | 0,600 |
+| 2,00 | 0,490 | 0,596 |
+| 4,00 | 0,245 | 0,593 |
+
+3,5 % d'écart sur un facteur de zoom de 16, contre un rapport qui variait du simple au quadruple.
+Le test est permanent : `renderer/card/proof.rs`.
+
+Corollaire d'implémentation, et c'est lui la vraie cause du défaut : **la mise en page se calcule
+avant la mise à l'échelle.** Dans l'autre ordre, la hauteur nécessaire dépend d'une police déjà
+bornée, et le défaut revient par la fenêtre.
 
 Si une borne de lisibilité est souhaitée, elle s'applique **à la transformation entière**, en un
-seul endroit.
+seul endroit, et elle porte un nom. C'est alors un niveau de détail assumé, pas un accident.
 
 ### § 5 — L'interface
 

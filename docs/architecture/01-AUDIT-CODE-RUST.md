@@ -1645,16 +1645,22 @@ Conséquence, exactement celle décrite par l'utilisateur :
   1,37, puis le corps à 1,71. La carte se déforme par paliers successifs.
 - **La carte n'est fidèle qu'à `scale ≈ 1`** : c'est la seule valeur où aucune borne n'est atteinte.
 
-**Pourquoi la version TypeScript n'a pas ce problème.** `HtmlAnnotationLayer.tsx` (1 333 l.) pose
-le texte en DOM et laisse **une** transformation CSS mettre l'ensemble à l'échelle. Le navigateur
-re-rend les glyphes à la bonne taille et tout se met à l'échelle **ensemble, par construction**.
-Le portage Rust a remplacé une transformation unique par onze bornes manuelles.
+**Pourquoi ce défaut est apparu.** Le rendu d'origine déléguait la mise à l'échelle : une seule
+transformation portait la carte entière, donc cadre, police et marges bougeaient ensemble **par
+construction**, sans que personne ait à y penser. En reprenant le rendu à la main, il a fallu
+décider explicitement de ce qui suit le zoom — et onze décisions séparées ont été prises, chacune
+raisonnable isolément, incohérentes ensemble.
 
-### La règle existait, écrite, dans le code d'origine
+C'est le risque propre à un rendu écrit soi-même, et c'est le prix à payer pour ne pas avoir de
+boîte noire : ce que le système faisait gratuitement doit désormais être **énoncé comme une
+règle**. D'où la § 4.4.
 
-Ce n'est pas une subtilité qu'on pouvait rater : l'auteur du TypeScript avait **anticipé
-exactement ce défaut** et laissé le raisonnement en commentaire
-([`HtmlAnnotationLayer.tsx:203-210`](../../src/canvas/HtmlAnnotationLayer.tsx#L203-L210)) :
+### Le défaut était connu avant d'être commis
+
+**Note de méthode (règle R2 des standards).** L'ancien code TypeScript sert d'inventaire de ce
+qui existe, **jamais de modèle d'implémentation** : il est mauvais, et on réécrit tout en mieux.
+Ce qui suit n'est donc pas une autorité à suivre, c'est une observation historique — le piège
+avait été identifié et écrit noir sur blanc avant que le portage ne tombe dedans :
 
 > *« Une transformation d'échelle plutôt qu'une largeur divisée : **réduire la boîte sans réduire
 > la police ferait déborder le texte**, alors que `scale` emporte tout d'un coup — cadre, police,
@@ -1675,7 +1681,9 @@ width: 1 / scale,
 borderLeft: `${1 / scale}px dashed …`,
 ```
 
-D'où la règle à appliquer, et qui devient la règle **§ 4.4** des standards :
+La règle qui en découle — et qui devient la **§ 4.4** des standards — ne tient cependant pas
+parce qu'elle était écrite ailleurs. Elle tient parce qu'une boîte et son contenu forment une
+seule mise en page, et parce que la mesure le confirme :
 
 > Tout ce qui appartient au monde subit **une seule** transformation, ensemble. Ce qui doit garder
 > une taille écran constante est divisé par l'échelle (`1 / scale`). **Aucune valeur dérivée du
