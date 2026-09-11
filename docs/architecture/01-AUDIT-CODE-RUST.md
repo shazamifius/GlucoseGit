@@ -161,8 +161,8 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 - **R-44** — 15 lints clippy désactivés à l'échelle du crate, dont celui qui aurait évité le gel — ⚠️ **PARTIEL** *(`glucose-desktop` propre ; `glucose-core` en éteint encore 3)*
 
 ### Introduits par la confrontation au code TypeScript
-- **R-45** — Le texte ne suit pas le zoom : 11 `clamp` bornent le contenu, pas la boîte
-- **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement)
+- **R-45** — Le texte ne suit pas le zoom : 11 `clamp` bornent le contenu, pas la boîte — ✅ **CORRIGÉ** *(SCALE-1 : une seule transformation, 12 `clamp` retirés)*
+- **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement) — ✅ **CORRIGÉ** *(GLYPH-1 : 4 phases sous-pixel par axe, dans la clé du cache)*
 - **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document
 - **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)* — ✅ **CORRIGÉ** *(SAVE-3 : la croix pose la question, un enregistrement raté ne ferme pas)*
 
@@ -1681,6 +1681,39 @@ D'où la règle à appliquer, et qui devient la règle **§ 4.4** des standards 
 transformation. Si l'on veut des bornes de lisibilité, elles s'appliquent à la transformation
 entière, jamais valeur par valeur.
 
+### Correctif livré — SCALE-1 et SCALE-2
+
+`crates/glucose-desktop/src/renderer/scale.rs` porte la règle : `WorldScale::world` est la
+**seule** façon de dériver une longueur du zoom, et `WorldScale::screen` la seule exception —
+la contrepartie du `1 / scale` du TSX, réservée aux affordances (anneau de sélection, poignées,
+curseur d'édition, points de la grille).
+
+Chaque forme décrit désormais sa mise en page **en unités monde** (`CardLayout`,
+`StickyLayout`, `MembraneLayout`), et une unique méthode `scaled()` applique le même facteur à
+tous ses champs d'un coup. **12 `clamp` dérivés du zoom ont disparu** (l'audit en annonçait 11 ;
+le douzième — `arrow_len` — avait été oublié du décompte), ainsi que les seuils implicites
+`font_size >= 9.0` et `>= 10.0` qui faisaient disparaître le texte sans le dire.
+
+À leur place, **un seul** niveau de détail, nommé et testé : sous
+`WorldScale::SIMPLIFIED_BELOW = 0,2`, une carte se dessine simplifiée — son cadre, sans son
+texte. À ce seuil le corps mesure 2,8 px à l'écran ; en deçà, le glyphe ne transporte plus
+d'information.
+
+**Preuve mesurée**, et non supposée (`renderer/card/proof.rs`) : la même carte est rendue avec
+et sans son texte à cinq zooms, et la différence des deux images donne la boîte englobante de
+l'encre, indépendamment de l'implémentation.
+
+| Zoom | Avant : encre / boîte | Après : encre / boîte |
+|---:|---|---|
+| 0,25 | **aucun texte**, et une boîte de 51 px au lieu de 30 | 0,615 |
+| 0,5 | **aucun texte** | 0,608 |
+| 1 | 0,596 | 0,600 |
+| 2 | 0,490 | 0,596 |
+| 4 | 0,245 | 0,593 |
+
+Les captures sont dans `crates/glucose-desktop/target/r45-after/`.
+
+
 ---
 
 ## R-46 — Les glyphes sont posés à des positions entières tronquées
@@ -1711,6 +1744,43 @@ Trois conséquences visibles :
 des icônes, qui sont des tracés vectoriels. **Ce n'est pas vrai du texte.** Le commentaire décrit
 une intention, pas le code — même motif que R-32.
 
+### Correctif livré — GLYPH-1
+
+La partie fractionnaire de la position d'un glyphe devient une **phase** : 4 positions
+sous-pixel par axe, soit 16 variantes possibles, et la phase entre dans la clé du cache
+(`(graisse, caractère, taille, phase)`). Une variante décalée se dérive de la variante
+d'origine par interpolation bilinéaire, donc `fontdue` n'est appelé qu'une fois par
+(caractère, taille, graisse) quel que soit le nombre de phases, et le blit reste une boucle
+entière : **le coût par frame ne change pas**.
+
+Le cache n'a pas eu besoin de grandir. Mesuré : **518** variantes pour une frame complète en
+1440×900 docks compris, **754** pour un balayage continu de 600 positions sur cinq tailles —
+loin du plafond de 4 096 hérité de R-40.
+
+Erreur résiduelle : un huitième de pixel.
+
+**Coût mesuré**, moyenne de 32 frames avant et après, même scène et même fenêtre
+(`GLUCOSE_PERF=2`) :
+
+| Étape | Avant | Après |
+|---|---:|---:|
+| `grid` | 2,43 | 2,42 |
+| `halos` | 1,30 | 1,11 |
+| `annotations` | 0,01 | 0,82 |
+| `ui` | 3,19 | 3,06 |
+| `docks` | 7,44 | 7,11 |
+| `blit` | 1,23 | 1,16 |
+| **total** | **16,84** | **16,70** |
+
+`ui` et `docks` sont les deux étapes les plus riches en texte et **aucune** n'est touchée par
+R-45 : leur stabilité est donc la mesure propre du coût des phases sous-pixel, et il est nul.
+
+`annotations` passe de 0,01 à 0,82 ms parce que la carte d'accueil est désormais **dessinée**.
+Elle ne l'était pas : le test de visibilité utilisait la hauteur déclarée de la carte (48) et
+non celle que son texte exige (99,6), donc une carte posée en haut du canevas passait pour
+cachée sous le bandeau et était écartée — son halo, lui, continuait de s'afficher. C'est un
+défaut voisin de R-45, réparé par la même cause : la mise en page se calcule maintenant avant
+le test de visibilité, pas après.
 **Réserve honnête** : l'utilisateur signale aussi les **icônes** comme pixelisées. Je ne l'ai pas
 reproduit : 6 appels sur 7 passent par `draw_icon_scaled`, vectoriel et sensible au DPI. Il faut
 une capture comparée avant de conclure — c'est précisément ce que permettraient les tâches 0.5/0.6.

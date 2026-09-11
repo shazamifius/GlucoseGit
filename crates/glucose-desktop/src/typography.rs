@@ -1,24 +1,41 @@
 //! Moteur de rendu typographique vectoriel anti-aliasé haute performance via fontdue.
 //! Embarque directement les polices TTF pour garantir 0 dépendance système externe.
 //! Dispose d'un cache de glyphes (atlas mémoire) et d'un mélange alpha prémultiplié (R-26, R-27).
+//!
+//! # GLYPH-1 — un glyphe se pose à sa vraie place, pas à la place entière la plus proche
+//!
+//! La position calculée d'un glyphe est fractionnaire : la plume avance de
+//! `advance_width`, qui ne tombe jamais sur un entier. Le code d'origine écrivait
+//! `(gx + col as f32) as i32`, c'est-à-dire une **troncature**, indépendante pour chaque
+//! glyphe. Trois conséquences, toutes visibles (**R-46**) :
+//!
+//! 1. l'espacement entre deux lettres d'un même mot était faux de 0 à 1 px, au hasard de
+//!    l'endroit où chacune tombait ;
+//! 2. le texte tremblait pendant un déplacement, chaque glyphe franchissant son seuil
+//!    d'arrondi à un instant différent ;
+//! 3. le rendu paraissait pixelisé alors que la rastérisation, elle, était bonne.
+//!
+//! Ici, la partie fractionnaire de la position devient une **phase** : le glyphe est
+//! rastérisé une fois par `fontdue`, puis décalé d'une fraction de pixel par interpolation
+//! bilinéaire, et la variante obtenue est mise en cache avec sa phase dans la clé. Le blit
+//! reste une boucle entière, donc le coût par frame ne change pas ; ce qu'on paie est une
+//! interpolation par variante, une seule fois, et quelques entrées de cache de plus.
+//!
+//! [`SUBPIXEL_PHASES`] positions par axe bornent l'erreur résiduelle à un huitième de pixel.
 
-use fontdue::{Font, FontSettings, Metrics};
+mod glyph;
+
+use fontdue::{Font, FontSettings};
+use glyph::{
+    blend_glyph, evict_if_full, shifted_glyph, split_position, CachedGlyph, GlyphKey,
+    PHASE_ORIGIN, SUBPIXEL_PHASES,
+};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use tiny_skia::{Color, PixmapMut};
 
-#[derive(Clone)]
-pub struct GlyphEntry {
-    pub metrics: Metrics,
-    pub bitmap: Vec<u8>,
-}
-
-/// Clé de cache d'un glyphe : graisse, caractère, taille en dixièmes de point.
-type GlyphKey = (bool, char, u16);
-
-/// Valeur de cache : le glyphe partagé et l'horodatage de son dernier accès (LRU, R-40).
-type CachedGlyph = (Rc<GlyphEntry>, u64);
+pub use glyph::GlyphEntry;
 
 /// Style d'un tracé de texte.
 ///
@@ -54,36 +71,54 @@ impl Typography {
         }
     }
 
-    /// Récupère ou rastérise un glyphe avec mise en cache LRU sans atomicité Arc (R-26, R-40).
+    /// Récupère ou rastérise un glyphe **non décalé** (R-26, R-40).
     pub fn get_glyph(&self, ch: char, size: f32, bold: bool) -> (char, Rc<GlyphEntry>) {
         let size = clamp_font_size(size);
         let font = if bold { &self.bold } else { &self.regular };
         let safe_ch = normalize_char(font, ch);
-        let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
-        let key = (bold, safe_ch, size_key);
+        (safe_ch, self.glyph_variant(safe_ch, size, bold, PHASE_ORIGIN))
+    }
 
+    /// Récupère la variante de `ch` décalée de `phase` (GLYPH-1).
+    ///
+    /// Une variante décalée se dérive de la variante d'origine plutôt que d'une nouvelle
+    /// rastérisation : `fontdue` n'est donc appelé qu'**une fois par (caractère, taille,
+    /// graisse)**, quel que soit le nombre de phases. La lecture de l'origine met à jour
+    /// son horodatage, ce qui la garde en cache tant que l'une de ses phases sert.
+    fn glyph_variant(&self, safe_ch: char, size: f32, bold: bool, phase: u8) -> Rc<GlyphEntry> {
+        let size_key = (size * 10.0).round().clamp(1.0, 65535.0) as u16;
         let access = self.access_counter.get().wrapping_add(1);
         self.access_counter.set(access);
 
         let mut cache = self.glyph_cache.borrow_mut();
-        if let Some((entry, last_access)) = cache.get_mut(&key) {
+        if let Some((entry, last_access)) = cache.get_mut(&(bold, safe_ch, size_key, phase)) {
             *last_access = access;
-            return (safe_ch, entry.clone());
+            return entry.clone();
         }
 
-        let (metrics, bitmap) = font.rasterize(safe_ch, size);
-        let entry = Rc::new(GlyphEntry { metrics, bitmap });
-
-        if cache.len() >= 4096 {
-            // Éviction LRU (R-40) : évincer les 25% les plus anciens au lieu d'une table rase complète
-            let mut accesses: Vec<u64> = cache.values().map(|(_, a)| *a).collect();
-            accesses.sort_unstable();
-            let cutoff = accesses[accesses.len() / 4];
-            cache.retain(|_, (_, a)| *a > cutoff);
+        let origin = match cache.get_mut(&(bold, safe_ch, size_key, PHASE_ORIGIN)) {
+            Some((entry, last_access)) => {
+                *last_access = access;
+                entry.clone()
+            }
+            None => {
+                let font = if bold { &self.bold } else { &self.regular };
+                let (metrics, bitmap) = font.rasterize(safe_ch, size);
+                let (width, height) = (metrics.width, metrics.height);
+                let entry = Rc::new(GlyphEntry { metrics, bitmap, width, height });
+                evict_if_full(&mut cache);
+                cache.insert((bold, safe_ch, size_key, PHASE_ORIGIN), (entry.clone(), access));
+                entry
+            }
+        };
+        if phase == PHASE_ORIGIN {
+            return origin;
         }
-        cache.insert(key, (entry.clone(), access));
 
-        (safe_ch, entry)
+        let shifted = Rc::new(shifted_glyph(&origin, phase));
+        evict_if_full(&mut cache);
+        cache.insert((bold, safe_ch, size_key, phase), (shifted.clone(), access));
+        shifted
     }
 
     /// Nombre de glyphes actuellement en cache
@@ -111,42 +146,23 @@ impl Typography {
         let h = pixmap.height() as i32;
         let data = pixmap.data_mut();
 
+        // La partie fractionnaire verticale est la même pour toute la ligne : `ymin` et
+        // `height` sont entiers, donc seule l'ordonnée de base porte une phase (GLYPH-1).
+        let (cell_y, phase_y) = split_position(y + size);
+        let font = if bold { &self.bold } else { &self.regular };
+
         for ch in text.chars() {
             if ch == '\n' {
                 continue;
             }
-            let (_, entry) = self.get_glyph(ch, size, bold);
+            let safe_ch = normalize_char(font, ch);
+            let (cell_x, phase_x) = split_position(x);
+            let entry = self.glyph_variant(safe_ch, size, bold, phase_y * SUBPIXEL_PHASES + phase_x);
             let metrics = &entry.metrics;
-            let bitmap = &entry.bitmap;
 
-            let gx = x + metrics.xmin as f32;
-            let gy = y + size - metrics.ymin as f32 - metrics.height as f32;
-
-            for row in 0..metrics.height {
-                for col in 0..metrics.width {
-                    let coverage = bitmap[row * metrics.width + col] as f32 / 255.0;
-                    if coverage > 0.0 {
-                        let px = (gx + col as f32) as i32;
-                        let py = (gy + row as f32) as i32;
-                        if px >= 0 && px < w && py >= 0 && py < h {
-                            let idx = ((py as usize) * (w as usize) + (px as usize)) * 4;
-                            let src_a = a * coverage;
-                            let inv_src_a = 1.0 - src_a;
-
-                            let dr = data[idx] as f32;
-                            let dg = data[idx + 1] as f32;
-                            let db = data[idx + 2] as f32;
-                            let da = data[idx + 3] as f32;
-
-                            // R-27: Correction du mélange alpha prémultiplié sans écraser l'alpha
-                            data[idx] = (r * src_a + dr * inv_src_a).min(255.0) as u8;
-                            data[idx + 1] = (g * src_a + dg * inv_src_a).min(255.0) as u8;
-                            data[idx + 2] = (b * src_a + db * inv_src_a).min(255.0) as u8;
-                            data[idx + 3] = (src_a * 255.0 + da * inv_src_a).min(255.0) as u8;
-                        }
-                    }
-                }
-            }
+            let gx = cell_x + metrics.xmin;
+            let gy = cell_y - metrics.ymin - metrics.height as i32;
+            blend_glyph(data, (w, h), &entry, (gx, gy), (r, g, b, a));
             x += metrics.advance_width;
         }
         x
@@ -182,77 +198,56 @@ impl Typography {
         let w = pixmap.width() as i32;
         let h = pixmap.height() as i32;
         let data = pixmap.data_mut();
+        let font = if bold { &self.bold } else { &self.regular };
 
         for ch in text.chars() {
             if ch == '\n' {
                 continue;
             }
-            let (_, entry) = self.get_glyph(ch, size, bold);
-            let metrics = &entry.metrics;
-            let bitmap = &entry.bitmap;
-
-            let base_gx = x + metrics.xmin as f32;
-            let base_gy = y + size - metrics.ymin as f32 - metrics.height as f32;
-
-            // 1. Passe contour (8 offsets avec l'outline)
-            for &(ox, oy) in &shadow_offsets {
-                let gx = base_gx + ox;
-                let gy = base_gy + oy;
-                for row in 0..metrics.height {
-                    for col in 0..metrics.width {
-                        let coverage = bitmap[row * metrics.width + col] as f32 / 255.0;
-                        if coverage > 0.0 {
-                            let px = (gx + col as f32) as i32;
-                            let py = (gy + row as f32) as i32;
-                            if px >= 0 && px < w && py >= 0 && py < h {
-                                let idx = ((py as usize) * (w as usize) + (px as usize)) * 4;
-                                let src_a = out_a * coverage;
-                                let inv_src_a = 1.0 - src_a;
-
-                                let dr = data[idx] as f32;
-                                let dg = data[idx + 1] as f32;
-                                let db = data[idx + 2] as f32;
-                                let da = data[idx + 3] as f32;
-
-                                data[idx] = (out_r * src_a + dr * inv_src_a).min(255.0) as u8;
-                                data[idx + 1] = (out_g * src_a + dg * inv_src_a).min(255.0) as u8;
-                                data[idx + 2] = (out_b * src_a + db * inv_src_a).min(255.0) as u8;
-                                data[idx + 3] = (src_a * 255.0 + da * inv_src_a).min(255.0) as u8;
-                            }
-                        }
-                    }
+            let safe_ch = normalize_char(font, ch);
+            let advance = {
+                // 1. Passe contour : chaque décalage a sa propre phase, comme n'importe
+                //    quelle position. Les huit offsets n'en produisent que quatre distinctes.
+                for &(ox, oy) in &shadow_offsets {
+                    self.blend_positioned(
+                        data,
+                        (w, h),
+                        (safe_ch, size, bold),
+                        (x + ox, y + size + oy),
+                        (out_r, out_g, out_b, out_a),
+                    );
                 }
-            }
-
-            // 2. Passe principale
-            for row in 0..metrics.height {
-                for col in 0..metrics.width {
-                    let coverage = bitmap[row * metrics.width + col] as f32 / 255.0;
-                    if coverage > 0.0 {
-                        let px = (base_gx + col as f32) as i32;
-                        let py = (base_gy + row as f32) as i32;
-                        if px >= 0 && px < w && py >= 0 && py < h {
-                            let idx = ((py as usize) * (w as usize) + (px as usize)) * 4;
-                            let src_a = a * coverage;
-                            let inv_src_a = 1.0 - src_a;
-
-                            let dr = data[idx] as f32;
-                            let dg = data[idx + 1] as f32;
-                            let db = data[idx + 2] as f32;
-                            let da = data[idx + 3] as f32;
-
-                            data[idx] = (r * src_a + dr * inv_src_a).min(255.0) as u8;
-                            data[idx + 1] = (g * src_a + dg * inv_src_a).min(255.0) as u8;
-                            data[idx + 2] = (b * src_a + db * inv_src_a).min(255.0) as u8;
-                            data[idx + 3] = (src_a * 255.0 + da * inv_src_a).min(255.0) as u8;
-                        }
-                    }
-                }
-            }
-
-            x += metrics.advance_width;
+                // 2. Passe principale
+                self.blend_positioned(
+                    data,
+                    (w, h),
+                    (safe_ch, size, bold),
+                    (x, y + size),
+                    (r, g, b, a),
+                )
+            };
+            x += advance;
         }
         x
+    }
+
+    /// Compose un glyphe à une position fractionnaire et rend son avance.
+    fn blend_positioned(
+        &self,
+        data: &mut [u8],
+        bounds: (i32, i32),
+        glyph: (char, f32, bool),
+        at: (f32, f32),
+        color: (f32, f32, f32, f32),
+    ) -> f32 {
+        let (safe_ch, size, bold) = glyph;
+        let (cell_x, phase_x) = split_position(at.0);
+        let (cell_y, phase_y) = split_position(at.1);
+        let entry = self.glyph_variant(safe_ch, size, bold, phase_y * SUBPIXEL_PHASES + phase_x);
+        let gx = cell_x + entry.metrics.xmin;
+        let gy = cell_y - entry.metrics.ymin - entry.metrics.height as i32;
+        blend_glyph(data, bounds, &entry, (gx, gy), color);
+        entry.metrics.advance_width
     }
 
     /// Mesure la largeur et hauteur d'un texte via le cache de glyphes et métriques de police réelles (R-40)
@@ -319,6 +314,7 @@ fn normalize_char(font: &Font, ch: char) -> char {
 
 #[cfg(test)]
 mod tests {
+    use super::glyph::GLYPH_CACHE_CAPACITY;
     use super::*;
     use tiny_skia::Pixmap;
 
@@ -365,6 +361,111 @@ mod tests {
             outline_color,
         );
         assert!(next_x > 10.0);
+    }
+
+    /// Abscisse du centre de gravité de l'encre, pondérée par la couverture.
+    ///
+    /// C'est une mesure **sous-pixel** : elle voit un déplacement d'un quart de pixel là où
+    /// une boîte englobante ne verrait rien.
+    fn ink_centroid_x(pixmap: &Pixmap) -> f32 {
+        let w = pixmap.width() as usize;
+        let (mut weighted, mut total) = (0.0_f64, 0.0_f64);
+        let (chunks, _) = pixmap.data().as_chunks::<4>();
+        for (i, px) in chunks.iter().enumerate() {
+            let alpha = px[3] as f64;
+            weighted += alpha * (i % w) as f64;
+            total += alpha;
+        }
+        assert!(total > 0.0, "aucune encre a mesurer");
+        (weighted / total) as f32
+    }
+
+    fn draw_probe(typo: &Typography, x: f32) -> Pixmap {
+        let mut pixmap = Pixmap::new(120, 60).expect("pixmap");
+        let color = Color::from_rgba8(255, 255, 255, 255);
+        typo.draw_text(&mut pixmap.as_mut(), "H", x, 10.0, TextStyle { size: 20.0, color, bold: false });
+        pixmap
+    }
+
+    #[test]
+    fn test_glyph_1_a_fraction_of_a_pixel_moves_the_glyph_by_that_fraction() {
+        // Le cœur de R-46. Avec la troncature d'origine, les cinq décalages ci-dessous
+        // donnaient tous exactement le MÊME centre de gravité : le glyphe ne bougeait qu'au
+        // franchissement de l'entier, d'où le tremblement et l'espacement irrégulier.
+        let typo = Typography::new();
+        let reference = ink_centroid_x(&draw_probe(&typo, 30.0));
+        for offset in [0.25_f32, 0.5, 0.75, 0.3, 0.9] {
+            let observed = ink_centroid_x(&draw_probe(&typo, 30.0 + offset)) - reference;
+            // La phase arrondit au huitième de pixel ; l'arrondi de la couverture sur 8 bits
+            // ajoute un bruit du même ordre.
+            assert!(
+                (observed - offset).abs() < 0.2,
+                "decalage demande {offset}, obtenu {observed}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_glyph_1_letter_spacing_does_not_drift_along_a_word() {
+        // L'avance de la plume est fractionnaire : au bout de dix lettres, une troncature
+        // par glyphe avait accumule jusqu'a un pixel d'ecart entre deux paires voisines.
+        let typo = Typography::new();
+        let color = Color::from_rgba8(255, 255, 255, 255);
+        let style = TextStyle { size: 18.0, color, bold: false };
+        let advance = typo.measure_text("i", 18.0, false).0;
+
+        let mut centres = Vec::new();
+        for n in 0..10 {
+            let mut pixmap = Pixmap::new(400, 60).expect("pixmap");
+            // Une seule lettre par image, posee la ou la plume l'aurait laissee.
+            typo.draw_text(&mut pixmap.as_mut(), "i", 20.0 + advance * n as f32, 10.0, style);
+            centres.push(ink_centroid_x(&pixmap));
+        }
+        for pair in centres.windows(2) {
+            let step = pair[1] - pair[0];
+            assert!(
+                (step - advance).abs() < 0.2,
+                "pas de {step} au lieu de {advance} — l'espacement derive"
+            );
+        }
+    }
+
+    #[test]
+    fn test_glyph_1_the_phase_belongs_to_the_cache_key() {
+        // Servir le bitmap d'une phase pour une autre annulerait tout le correctif.
+        let typo = Typography::new();
+        let (_, origin) = typo.get_glyph('A', 16.0, false);
+        let shifted = typo.glyph_variant('A', 16.0, false, 2);
+        assert_ne!(origin.bitmap, shifted.bitmap, "deux phases doivent differer");
+        assert_eq!(typo.cached_glyph_count(), 2, "les deux variantes coexistent en cache");
+        // Redemander la meme phase ne rastérise rien de neuf.
+        let again = typo.glyph_variant('A', 16.0, false, 2);
+        assert_eq!(again.bitmap, shifted.bitmap);
+        assert_eq!(typo.cached_glyph_count(), 2);
+    }
+
+    #[test]
+    fn test_glyph_1_the_cache_stays_bounded_across_every_phase() {
+        // Un déplacement continu traverse les seize phases de chaque glyphe : le cache doit
+        // rester borné, sinon le correctif de R-46 achète la fidélité avec une fuite.
+        let typo = Typography::new();
+        let color = Color::from_rgba8(255, 255, 255, 255);
+        let mut pixmap = Pixmap::new(600, 40).expect("pixmap");
+        for step in 0..600 {
+            let offset = step as f32 * 0.07;
+            for size in [11.0_f32, 13.0, 14.0, 16.0, 18.0] {
+                typo.draw_text(
+                    &mut pixmap.as_mut(),
+                    "Glucose 0123 — fidelite",
+                    10.0 + offset,
+                    5.0 + offset,
+                    TextStyle { size, color, bold: false },
+                );
+            }
+        }
+        let count = typo.cached_glyph_count();
+        assert!(count <= GLYPH_CACHE_CAPACITY, "cache de {count} variantes");
+        println!("[R-46] variantes en cache apres un balayage complet : {count}");
     }
 
     #[test]
