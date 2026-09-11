@@ -16,8 +16,8 @@
 |---|---|---|---|
 | **01** | [Audit du code Rust](01-AUDIT-CODE-RUST.md) | **33 constats vérifiés** (dont **4 déjà corrigés** pendant la rédaction), avec gravité, fichier:ligne et correctif. Ce qui n'est pas pro, ce qui n'est pas optimisé, et pourquoi. | Maintenant. C'est le diagnostic. |
 | **02** | [Architecture cible](02-ARCHITECTURE-CIBLE.md) | Le découpage en crates, les 10 lois, la politique de dépendances, le modèle, l'undo, le rendu, la persistance. **Et la vraie solution à ton problème de glisser-déposer.** | Avant d'écrire la première ligne. |
-| **03** | [Parité fonctionnelle](03-PARITE-FONCTIONNELLE.md) | **279 fonctionnalités inventoriées**, avec leur état exact. Le chiffre réel : **17 %**, pas 3 %. | Pour savoir où tu en es, vraiment. |
-| **04** | [Roadmap](04-ROADMAP.md) | 13 phases, chacune avec ses travaux et ses **critères de sortie**. De 17 % à 100 %. | Pour savoir quoi faire lundi matin. |
+| **03** | [Parité fonctionnelle](03-PARITE-FONCTIONNELLE.md) | **279 fonctionnalités inventoriées**, avec leur état exact. Le chiffre réel : **20 %**, pas 3 %. | Pour savoir où tu en es, vraiment. |
+| **04** | [Roadmap](04-ROADMAP.md) | 13 phases, chacune avec ses travaux et ses **critères de sortie**. De 20 % à 100 %. | Pour savoir quoi faire lundi matin. |
 | **05** | [Standards de code](05-STANDARDS-DE-CODE.md) | Les règles qui empêchent le code de redevenir ce qu'il est. Diagnostic précis de « pourquoi c'est moche ». | Avant chaque merge. |
 
 ---
@@ -28,7 +28,7 @@
    écrits, testés — et jamais appelés par l'application. C'est ≈ 3 700 lignes de travail réel
    qui ne sert à rien pour l'utilisateur.
 
-2. **Tu n'es pas à 3 %, tu es à 17 %.** Et si tu ne faisais que **brancher** ce qui existe déjà,
+2. **Tu n'es pas à 3 %, tu es à 20 %.** Et si tu ne faisais que **brancher** ce qui existe déjà,
    sans écrire un seul algorithme nouveau, tu passerais à **26 %**.
 
 3. **L'application ne sait pas enregistrer.** Il n'existe aucune écriture de projet sur disque
@@ -104,7 +104,7 @@ Deux raisons, toutes les deux mesurées :
    **24 appels à `show_toast`** dans `app.rs`. Tu regardes l'écran et tu vois Glucose ; tu
    cliques et il n'y a rien derrière.
 
-2. **27 fonctionnalités sont écrites mais débranchées.** Tu as fait le travail, il ne compte pas.
+2. **24 fonctionnalités sont écrites mais débranchées.** Tu as fait le travail, il ne compte pas.
    C'est démoralisant précisément parce que l'effort a été fourni. Mesure exacte au commit
    `e2cd410` : **12 des 20 modules de `glucose-core` ne sont appelés par personne**, soit
    **3 601 lignes** écrites, testées, inatteignables (R-18).
@@ -163,7 +163,7 @@ passée de 240 ms à 17 ms. Voici la suite réelle, mesurée au commit `e2cd410`
 | Ordre | Action | Pourquoi maintenant | Poids |
 |:--:|---|---|---|
 | 1 | **La persistance** (R-01, phase 2) | **Rien n'est encore écrit sur disque.** Tant que ça dure, tout le reste est du travail qu'on perd en fermant la fenêtre. C'est la seule tâche qui transforme un prototype en logiciel. | 2 572 l. TS |
-| 2 | **La fidélité du rendu** (R-45, R-46) | Ce que tu vois est faux à tout zoom ≠ 1, et le texte est flou. Ça dégrade les 17 % déjà acquis, donc ça coûte plus cher que ça n'en a l'air. | ~200 l. |
+| 2 | **La fidélité du rendu** (R-45, R-46) | Ce que tu vois est faux à tout zoom ≠ 1, et le texte est flou. Ça dégrade les 20 % déjà acquis, donc ça coûte plus cher que ça n'en a l'air. | ~200 l. |
 | 3 | **Brancher les 12 modules morts** (R-18, R-47) | **3 601 lignes déjà écrites et testées.** Les domaines sont l'exemple type : le noyau sait tout faire, l'interface écrit dans une liste fantôme. Meilleur rapport résultat/effort du projet. | déjà payé |
 | 4 | **Retirer les 10 boutons qui mentent** (R-33, phase 0) | Sans ça tu ne peux pas mesurer ton avancement — et c'est la cause directe du ressenti « 3 % ». | quelques heures |
 | 5 | **Rectangles sales** (R-42, tâche 1.13) | `docks` + `ui` = 59 % de la frame passés à redessiner l'immobile. | ~300 l. |
@@ -197,7 +197,7 @@ C'est la seule dynamique de ce dossier qui va dans le mauvais sens.
 | Lignes de tests | 3 194 |
 | **Modules de noyau morts** | **13 / 18** |
 | Lignes de noyau inutilisées | ≈ 3 700 |
-| **Parité fonctionnelle réelle** | **17 %** |
+| **Parité fonctionnelle réelle** | **20 %** |
 | Parité si on branche l'existant | **26 %** |
 | Fonctionnalités inventoriées | 279 |
 | Fonctionnalités « maquette » | 18 |

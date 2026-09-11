@@ -164,6 +164,7 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 - **R-45** — Le texte ne suit pas le zoom : 11 `clamp` bornent le contenu, pas la boîte
 - **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement)
 - **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document
+- **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)*
 
 ---
 
@@ -1758,6 +1759,40 @@ sélection **avec un poids**, et afficher le poids moyen agrégé sur la sélect
 
 **Correctif** : supprimer `DomainsState` et faire du panneau une vue de `store.project.domains`.
 Le noyau est prêt — il n'y a rien à écrire côté modèle, seulement à brancher.
+
+---
+
+## R-48 — Fermer la fenêtre perd le travail non enregistré, sans un mot
+
+**Gravité : BLOQUANT — c'est le dernier chemin de perte de données, et il est à une poignée de
+lignes d'être fermé.**
+
+Depuis `ed56e2b`, Glucose sait enregistrer et ouvrir. Le titre de la fenêtre porte même un
+marqueur de modification. Mais la fermeture n'en tient aucun compte
+([`app.rs:341`](../../crates/glucose-desktop/src/app.rs#L341)) :
+
+```rust
+WindowEvent::CloseRequested => {
+    event_loop.exit();
+}
+```
+
+L'utilisateur voit le marqueur « modifié », clique sur la croix, et tout disparaît. C'est
+d'autant plus cruel que **le travail était récupérable** : l'état est en mémoire, la sérialisation
+fonctionne, le chemin du fichier est connu. Il ne manque que la question.
+
+À noter : ce défaut n'existait pas avant la persistance, parce qu'il n'y avait rien à perdre — on
+ne pouvait de toute façon rien enregistrer. Réparer R-01 **crée** R-48. C'est normal, mais ça
+veut dire que R-01 n'est pas clos tant que R-48 ne l'est pas.
+
+**Correctif** : sur `CloseRequested`, si `store.version != saved_version`, proposer
+**Enregistrer / Ne pas enregistrer / Annuler** (`rfd::MessageDialog`, déjà disponible), et
+n'appeler `event_loop.exit()` que dans les deux premiers cas. Une trentaine de lignes.
+
+**Ce que ça révèle sur la méthode** : l'agent qui a livré la persistance a signalé ce trou de
+lui-même, dans son rapport, au lieu de déclarer R-01 « résolu ». C'est exactement le comportement
+qu'on attend — et c'est la raison pour laquelle un critère de sortie doit toujours être vérifié
+*par quelqu'un d'autre* que celui qui l'a écrit.
 
 ---
 

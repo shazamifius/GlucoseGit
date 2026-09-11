@@ -1,4 +1,4 @@
-# 04 — Roadmap : de 17 % à 100 %
+# 04 — Roadmap : de 20 % à 100 %
 
 > **Principe directeur** : chaque phase se termine sur une application **utilisable**,
 > pas sur un chantier ouvert. À aucun moment tu ne dois te retrouver avec du code à moitié
@@ -14,9 +14,9 @@
 
 | Ph. | Nom | Objectif | Parité à la sortie |
 |:--:|---|---|---:|
-| **0** | Vérité & garde-fous | Que le dépôt arrête de mentir. Mesurer. | 17 % |
+| **0** | Vérité & garde-fous | Que le dépôt arrête de mentir. Mesurer. | 20 % |
 | **1** | Brancher le noyau | Utiliser ce qui est déjà écrit. Tuer les bugs bloquants. | **30 %** |
-| **2** | Persistance | L'app sait enregistrer et ouvrir. **Elle devient un logiciel.** | **37 %** |
+| **2** | Persistance | L'app sait enregistrer et ouvrir. **Elle devient un logiciel.** | **37 %** — ⏳ *enregistrer/ouvrir livrés (`ed56e2b`) ; restent journal, autosave, import v1, et l'alerte de fermeture* |
 | **3** | Manipulation directe | Redimensionner, pivoter, menu contextuel, panneaux. | **47 %** |
 | **4** | Texte professionnel | Retour à la ligne, Markdown, IME, sélection. | **57 %** |
 | **5** | Entrée universelle | Glisser-déposer web **et** fichiers. Ton besoin n°1. | **62 %** |
@@ -72,7 +72,7 @@ défauts qui **dégradent tout ce qui est déjà acquis**.
 | 1.29 | Capture PNG comparée entre zoom 0,25 / 1 / 4 pour prouver que la carte reste fidèle. Dépend de 0.5/0.6. | R-45, R-46 | `glucose-cli` |
 
 Ces trois tâches passent **avant** toute nouvelle fonctionnalité : il est moins coûteux de
-réparer la fidélité sur 17 % du logiciel que sur 100 %.
+réparer la fidélité sur 20 % du logiciel que sur 100 %.
 
 **Le point de bascule est la phase 2.** Avant, tu construis un prototype. Après, tu construis un
 logiciel — et tu peux enfin l'utiliser toi-même tous les jours, ce qui est la meilleure source de
@@ -242,6 +242,7 @@ ci-dessous et [`01-AUDIT-CODE-RUST.md`](01-AUDIT-CODE-RUST.md).
 | 2.4 | Sommes de contrôle par section ; détection et récupération partielle d'un fichier tronqué | 🟡 détection ✅ (sha256 par section) ; récupération partielle non faite |
 | 2.5 | **Écriture atomique** : `.tmp` → `fsync` → renommage. Un crash ne détruit jamais le fichier | ✅ `glucose-desktop/src/persist/atomic.rs` |
 | 2.6 | `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, fichiers récents, titre de fenêtre avec indicateur de modification | 🟡 les trois raccourcis ✅ et le titre ✅ ; fichiers récents non faits |
+| 2.7 | **Alerte de fermeture** : sur `CloseRequested`, si le document est modifié, proposer Enregistrer / Ne pas enregistrer / Annuler. Sans elle, le marqueur « modifié » annonce une perte au lieu de l'éviter. | **R-48** | ⏳ **PRIORITÉ** — ~30 l. |
 | 2.7 | Sauvegarde automatique par journal (delta uniquement) | ❌ |
 | 2.8 | Récupération après crash : au démarrage, proposer de reprendre le journal orphelin | ❌ |
 | 2.9 | Ramasse-miettes des assets à la sauvegarde | ✅ le magasin est reconstruit à chaque écriture |

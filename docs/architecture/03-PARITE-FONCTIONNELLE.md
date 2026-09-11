@@ -1,7 +1,7 @@
 # 03 — Parité fonctionnelle : l'inventaire complet
 
 > Tu dis : *« j'ai l'impression d'être arrivé à 3 % de Glucose complet »*.
-> Ce document mesure. La réponse honnête est **≈ 17 %**, et il est important de comprendre
+> Ce document mesure. La réponse honnête est **≈ 20 %**, et il est important de comprendre
 > pourquoi ce n'est ni 3 % ni 50 %.
 
 **Légende**
@@ -20,30 +20,30 @@
 
 | Domaine | Fonctions | ✅ | 🟡 | 💀 | 🎨 | ❌ | Parité |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 1. Canvas & caméra | 14 | 5 | 2 | 0 | 1 | 6 | 43 % |
-| 2. Sélection & manipulation | 18 | 5 | 3 | 2 | 1 | 7 | 36 % |
-| 3. Images | 21 | 5 | 2 | 0 | 0 | 14 | 29 % |
+| 1. Canvas & caméra | 14 | 5 | 1 | 0 | 1 | 7 | 39 % |
+| 2. Sélection & manipulation | 18 | 7 | 3 | 2 | 1 | 5 | 47 % |
+| 3. Images | 21 | 4 | 3 | 0 | 0 | 14 | 26 % |
 | 4. Texte & Markdown | 19 | 2 | 4 | 1 | 0 | 12 | 21 % |
-| 5. Stickies | 8 | 2 | 2 | 0 | 0 | 4 | 31 % |
-| 6. Flèches | 16 | 1 | 1 | 1 | 0 | 13 | 12 % |
-| 7. Membranes | 17 | 1 | 1 | 5 | 0 | 10 | 12 % |
-| 8. Rideaux (curtains) | 11 | 0 | 0 | 3 | 0 | 8 | 0 % |
-| 9. Dossiers & sous-canvas | 15 | 0 | 0 | 3 | 1 | 11 | 3 % |
-| 10. Miroirs | 7 | 0 | 0 | 4 | 0 | 3 | 0 % |
-| 11. Domaines sémantiques | 9 | 0 | 0 | 0 | 1 | 8 | 3 % |
+| 5. Stickies | 8 | 2 | 2 | 0 | 0 | 4 | 38 % |
+| 6. Flèches | 16 | 1 | 2 | 1 | 0 | 12 | 12 % |
+| 7. Membranes | 17 | 1 | 3 | 5 | 1 | 7 | 15 % |
+| 8. Rideaux (curtains) | 11 | 0 | 0 | 2 | 0 | 9 | 0 % |
+| 9. Dossiers & sous-canvas | 15 | 0 | 0 | 4 | 1 | 10 | 0 % |
+| 10. Miroirs (alias vivants) | 7 | 0 | 0 | 3 | 0 | 4 | 0 % |
+| 11. Domaines sémantiques | 9 | 0 | 0 | 0 | 2 | 7 | 0 % |
 | 12. Temporalité | 8 | 0 | 0 | 2 | 0 | 6 | 0 % |
-| 13. Storyboard | 8 | 0 | 0 | 0 | 1 | 7 | 3 % |
-| 14. Presets & zones | 7 | 0 | 0 | 0 | 1 | 6 | 4 % |
+| 13. Storyboard | 8 | 0 | 0 | 0 | 1 | 7 | 0 % |
+| 14. Presets & zones | 7 | 0 | 0 | 0 | 1 | 6 | 0 % |
 | 15. Undo / historique | 9 | 3 | 2 | 0 | 0 | 4 | 44 % |
-| 16. Persistance | 12 | 0 | 0 | 2 | 0 | 10 | 0 % |
+| 16. Persistance | 12 | 7 | 1 | 0 | 0 | 4 | 62 % |
 | 17. Export | 8 | 0 | 0 | 4 | 1 | 3 | 0 % |
-| 18. Interface & panneaux | 22 | 5 | 3 | 0 | 8 | 6 | 30 % |
-| 19. Entrées & plateforme | 16 | 5 | 3 | 0 | 0 | 8 | 41 % |
-| 20. Collaboration | 12 | 0 | 0 | 0 | 1 | 11 | 0 % |
+| 18. Interface & panneaux | 22 | 3 | 3 | 0 | 7 | 9 | 20 % |
+| 19. Entrées & plateforme | 16 | 6 | 3 | 0 | 0 | 7 | 47 % |
+| 20. Collaboration | 12 | 0 | 0 | 0 | 2 | 10 | 0 % |
 | 21. Plugins & App Bridge | 9 | 0 | 0 | 0 | 1 | 8 | 0 % |
 | 22. Recherche & navigation | 7 | 1 | 1 | 0 | 0 | 5 | 21 % |
-| 23. Divers (Pomodoro, télémétrie…) | 6 | 0 | 0 | 0 | 1 | 5 | 0 % |
-| **TOTAL** | **279** | **35** | **24** | **27** | **18** | **175** | **≈ 17 %** |
+| 23. Divers | 6 | 0 | 0 | 0 | 1 | 5 | 0 % |
+| **TOTAL** | **279** | **42** | **28** | **24** | **20** | **165** | **≈ 20 %** |
 
 *(Parité = (✅ × 1 + 🟡 × 0,5) / total. Le code mort compte pour 0 : une fonctionnalité non
 branchée n'existe pas pour l'utilisateur.)*
@@ -56,16 +56,16 @@ branchée n'existe pas pour l'utilisateur.)*
 
 ### Ce que le score dit vraiment
 
-**Tu n'es pas à 3 %, tu es à 17 % — avec 27 fonctionnalités déjà écrites, testées et à un
+**Tu n'es pas à 3 %, tu es à 20 % — avec 24 fonctionnalités déjà écrites, testées et à un
 branchement près.** Si on ne branchait *que* le code mort existant, sans écrire une ligne
-d'algorithme nouveau, on passerait **de 17 % à ≈ 26 %**.
+d'algorithme nouveau, on passerait **de 20 % à ≈ 29 %**.
 
 C'est ça, le vrai enseignement de cet inventaire : **ton problème n'est pas la quantité de code
 manquant, c'est la quantité de code non relié.** Voir R-18.
 
 Deuxième enseignement : les **18 fonctionnalités « maquette »** (🎨) sont ce qui fausse ta
 perception. La barre d'outils montre 19 boutons ; **9 agissent**. Tu regardes l'écran et tu vois
-Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 % là où la mesure dit 17 %.
+Glucose ; tu cliques et il n'y a rien derrière. D'où l'impression de 3 % là où la mesure dit 20 %.
 
 ### Ce que le score ne dit PAS, et qu'il faut ajouter
 
@@ -120,7 +120,7 @@ sont `types`, `store`, `layout`, `smart_align`, `hit_priority`, `quadtree`, `sym
 C'est la mesure exacte de R-18, et elle est pire que l'estimation initiale : ce n'est pas « du
 code mort », c'est **la moitié du noyau**.
 
-#### 3. Même les 17 % acquis ne rendent pas ce qu'ils devraient
+#### 3. Même les 20 % acquis ne rendent pas ce qu'ils devraient
 
 Le score compte une fonctionnalité comme ✅ dès qu'elle marche. Il ne dit rien de sa **fidélité**.
 Deux défauts, documentés en R-45 et R-46, dégradent **tout** ce qui s'affiche :
@@ -131,7 +131,7 @@ Deux défauts, documentés en R-45 et R-46, dégradent **tout** ce qui s'affiche
 - **Les glyphes sont posés à des coordonnées entières tronquées.** Ni sous-pixel, ni arrondi. D'où
   un espacement irrégulier, un tremblement au déplacement, et une impression de pixelisation.
 
-Autrement dit : **17 % des fonctionnalités existent, et elles s'affichent mal.** Le ressenti de
+Autrement dit : **20 % des fonctionnalités existent, et elles s'affichent mal.** Le ressenti de
 « 3 % » ne vient pas seulement de ce qui manque — il vient aussi de ce qui est là et paraît faux.
 
 #### 4. Ce qui n'est dans aucune ligne du tableau
@@ -602,7 +602,7 @@ Trois conclusions opérationnelles :
 ### 1. Brancher avant d'écrire
 
 **27 fonctionnalités sont à un branchement près.** Ce sont les 💀. Elles représentent
-≈ 3 700 lignes déjà écrites et testées. Les brancher fait passer la parité de **17 % à 26 %**
+3 601 lignes déjà écrites et testées. Les brancher fait passer la parité de **20 % à 29 %**
 pour un coût dérisoire comparé à leur réécriture.
 
 C'est pour ça que la phase 1 de la roadmap s'appelle « Brancher le noyau » et pas
