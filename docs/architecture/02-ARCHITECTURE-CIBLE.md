@@ -436,6 +436,87 @@ fermeture au `Échap`. Écrire douze panneaux à la main, c'est douze fois R-20.
 
 ---
 
+## 7 bis. Les dépendances, mesurées — et le chemin pour les réduire
+
+*Mesuré au commit `6d48234`. Ce tableau existe parce que « zéro dépendance, zéro boîte noire » est
+un objectif du projet, pas un slogan : il faut donc savoir précisément ce qu'on paie et pour quoi.*
+
+### L'état exact
+
+`glucose-core` : **0 dépendance**, et ce n'est pas un vœu — c'est vérifié à chaque rendu d'agent
+par `git diff --stat -- '*Cargo.toml' '*Cargo.lock'`. Le SHA-256 de la persistance, le lecteur de
+table `cmap` des polices, la sérialisation binaire, le hachage spatial : tout est écrit à la main
+sur `std`.
+
+`glucose-desktop` : **7 dépendances directes, 54 crates** dans le graphe complet.
+
+| Dépendance | Crates transitives | Appels dans le code | Ratio |
+|---|---:|---:|---|
+| `arboard` | 28 | **1** | le pire du projet |
+| `image` | 21 | **4** | mauvais |
+| `tiny-skia` | 15 | 58 | justifié |
+| `winit` | 12 | 22 | justifié |
+| `fontdue` | 7 | 4 | à surveiller |
+| `softbuffer` | 6 | 7 | justifié |
+| `rfd` | 5 | 10 | justifié |
+
+### Ce que les chiffres bruts font croire, et ce qui est vrai
+
+« 28 crates pour un seul appel » invite à supprimer `arboard` en premier. **C'est une erreur de
+raisonnement, et la mesure le montre** : les graphes se recouvrent largement.
+
+- Retirer **`image` seul** ferait disparaître **0 crate**. La totalité de son arbre est déjà amenée
+  par d'autres. Le gain en nombre de dépendances serait **nul**.
+- Retirer **`arboard` seul** ferait disparaître **3 crates**.
+- Retirer **les deux** ferait tomber le graphe de **54 à 39**, soit 15 crates :
+  `arboard`, `clipboard-win`, `error-code`, `quick-error`, `image`, `image-webp`, `gif`, `weezl`,
+  `color_quant`, `zune-core`, `zune-jpeg`, `byteorder-lite`, `moxcms`, `num-traits`, `pxfm`.
+
+**Leçon** : le coût d'une dépendance ne se lit pas sur sa ligne du `Cargo.toml`. Il se mesure
+**à la marge**, en retirant effectivement le nœud du graphe. Toute décision de suppression doit
+être précédée de cette mesure, sinon on travaille beaucoup pour ne rien gagner.
+
+### Le vrai argument contre `image` n'est pas le nombre de crates
+
+Il est dans ce que fait cette dépendance : **décoder les images**. C'est le cœur d'un moodboard,
+et c'est aujourd'hui une boîte noire. Trois conséquences concrètes, toutes déjà constatées :
+
+- **R-30** — lire les dimensions d'une image en appelant `image::open`, qui **décode le fichier
+  entier**. Pour une photo de 40 Mpx, c'est 160 Mo alloués pour connaître deux entiers.
+- Aucun contrôle sur le **décodage progressif**, les **mipmaps**, ni le **budget mémoire**
+  (R-29 : le cache d'images est toujours non borné).
+- Aucune prise sur les formats : ce qui est accepté, ce qui est refusé, et comment un fichier
+  corrompu échoue.
+
+Un décodeur PNG maison est de l'ordre de 400 à 600 lignes (`inflate` compris) et rend tout ce
+contrôle. Le JPEG est un autre ordre de grandeur — c'est le vrai arbitrage à poser, pas le nombre
+de crates.
+
+### Ce qui est réellement inévitable
+
+| Besoin | Dépendance | Pourquoi c'est inévitable |
+|---|---|---|
+| Fenêtre, événements, IME, DPI | `winit` | Réécrire Win32 + X11 + Wayland + Cocoa n'est pas un projet de moodboard, c'est un projet de toolkit. |
+| Tampon de pixels vers l'écran | `softbuffer` | Même raison, en plus petit. |
+| Dialogues natifs de fichiers | `rfd` | Idem — et l'utilisateur attend les dialogues de **son** système. |
+| Rastérisation vectorielle | `tiny-skia` | 58 appels, portage de Skia. Remplaçable en théorie, c'est un projet en soi. |
+
+Les quatre premiers sont des **frontières avec le système d'exploitation**. C'est exactement le
+rôle que le § 2 assigne à `glucose-platform` : la dépendance y est isolée derrière une interface
+maison, de sorte qu'elle reste remplaçable et qu'elle ne contamine jamais le reste du code.
+
+`fontdue` (4 appels, 7 crates) est le candidat le plus discret : la rastérisation de glyphes est
+un problème fini et bien documenté, et le projet sait déjà lire une table `cmap` en Rust pur.
+
+### La règle qui en découle
+
+**Aucune dépendance ne s'ajoute sans un ADR** (`docs/architecture/decisions/`), et cet ADR doit
+porter trois chiffres : le nombre de crates **ajoutées à la marge** au graphe existant, le nombre
+d'appels prévus, et ce que coûterait l'écrire soi-même. Sans ces trois chiffres, la discussion
+n'est pas une décision d'architecture, c'est une préférence.
+
+---
+
 ## 8. Persistance : le format `.glucose` v2 (répare R-01)
 
 C'est **la** priorité fonctionnelle. Sans elle, rien d'autre n'a de valeur.
