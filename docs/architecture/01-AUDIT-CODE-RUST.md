@@ -164,10 +164,10 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 - **R-45** — Le texte ne suit pas le zoom : **12** `clamp` bornent le contenu, pas la boîte — ✅ **CORRIGÉ** *(SCALE-1 : une seule transformation, 12 `clamp` retirés)*
 - **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement) — ✅ **CORRIGÉ** *(GLYPH-1 : 4 phases sous-pixel par axe, dans la clé du cache)*
 - **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document — ✅ **CORRIGÉ** (`234b8b0` + `598b89b`, noyau **et** interface)
-- **R-51** — La police embarquée couvre 121 points de code : **aucun accent, aucun symbole** — pour un logiciel en français
+- **R-51** — La police embarquée couvre 121 points de code : **aucun accent** — ✅ **CORRIGÉ** (`b748957`, Inter OFL + test de couverture `cmap`)
 - **R-52** — Fins de ligne mixtes (25 `.rs` sur 109 en CRLF), aucune politique — ✅ **CORRIGÉ** (`3726906`, `.gitattributes`)
 - **R-49** — La carte d'accueil n'était jamais dessinée : le culling lisait la hauteur *déclarée* — ✅ **CORRIGÉ** (`ba5bddc`)
-- **R-50** — Le coût du halo croît avec le carré du zoom, sans plafond
+- **R-50** — Le coût du halo croît avec le carré du zoom, sans plafond — ✅ **CORRIGÉ** (`0d727d0`, plafond 512 px écran)
 - **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)* — ✅ **CORRIGÉ** *(SAVE-3 : la croix pose la question, un enregistrement raté ne ferme pas)*
 
 ---
@@ -2086,6 +2086,52 @@ l'agent persistance, puis dix minutes plus tard sur `interactions/domains.rs`.
 Correctif appliqué : `.gitattributes` avec `* text=auto eol=lf`, extensions binaires épinglées
 (`.ttf`, `.png`, `.glucose`…), et une renormalisation unique de 30 fichiers. Tests et clippy
 identiques avant et après.
+
+---
+
+## Correctifs vérifiés — R-51 et R-50 (`b748957`, `0d727d0`)
+
+### R-51 — Inter remplace KaTeX_SansSerif
+
+Vérifié : `Inter-Regular.ttf` et `Inter-SemiBold.ttf` (SIL OFL 1.1, licence embarquée dans
+`assets/LICENSE-Inter.txt`), plus aucune référence à KaTeX dans le code, **435 tests**, clippy 0,
+binaire +584 Ko. Capture `target/r51-font/card-x1.00.png` : « Éditer — déjà prêt, à bientôt,
+cœur » — chaque caractère est là.
+
+**Le vrai livrable est le test** (`typography/coverage.rs`, lecteur `cmap` formats 4 et 12 sur
+`std`, ~40 lignes) : il affirme un ensemble nommé — lettres, tous les accents français, `œ Œ æ Æ`,
+guillemets `« » ‹ › ' ' " "`, tirets, `…`, puces, flèches, `° €` — **et** les 58 caractères
+non-ASCII extraits des littéraux du crate au moment du test. Plus un test « les accents sont
+dessinés, pas retirés », qui verrouille le contournement refusé en `8947e82`. Changer de police
+sans couvrir ces caractères ne compile plus en vert.
+
+Effets de bord des nouvelles métriques, tous corrigés : « Trans-domaines » débordait de son bouton
+(largeurs littérales calibrées sur KaTeX) → les boutons mesurent désormais leur libellé ;
+`⌄` (U+2304, absent partout) → `˅` ; la table de repli `normalize_char` qui *remplaçait* les
+caractères absents est **supprimée** — un glyphe manquant se voit, il ne se cache plus.
+
+**32 toasts** débarrassés de leur emoji, pas 24 : `toast_if`, `save_message`, `open_message` et
+deux `if/else` en portaient aussi que le relevé initial avait manqués.
+
+**Coût honnête** : `docks` 6,9 → 7,4 ms et `ui` 2,95 → 3,1 ms, soit **+0,7 ms par frame**. Inter est
+plus large et plus haute que KaTeX : plus de pixels de couverture par glyphe. Le cache reste borné
+(531 variantes pour une frame complète, plafond 4 096). R-45 tient : rapport encre/boîte de 0,708
+à 0,682 sur ×16 (3,7 % d'écart, contre 3,6 % avant le changement de police).
+
+### R-50 — plafond de 512 px écran sur le rayon du halo
+
+`HALO_MAX_SCREEN_RADIUS = 512`, via `WorldScale::screen()`, algorithme en anneaux intact.
+Justification retenue : au-dessus des 410 px d'une carte par défaut à ×1 (aspect et coût de
+référence inchangés) ; un disque de 1 024 px couvre la hauteur d'un 1080p — au-delà ce n'est plus
+un halo, c'est un lavis ; aire bornée à π·512² ≈ 0,82 Mpx.
+
+| zoom | pixels touchés avant | après | temps avant | après |
+|---:|---:|---:|---:|---:|
+| ×1 | 513 104 | 513 104 | 2,4 ms | 2,4 ms |
+| ×3 | **1 296 000** *(tout l'écran)* | **766 496** | 5,3–5,6 ms | **3,4 ms** |
+
+Le coût est désormais **borné** quel que soit le zoom — c'est ce que L2 exige. Un zoom `NaN` rend
+`None` au lieu d'un rayon `NaN`.
 
 ---
 
