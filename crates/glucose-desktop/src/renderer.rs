@@ -1,6 +1,8 @@
 //! Moteur de rendu 2D haute fidélité pour Glucose Desktop (PureRef-style).
 //! Utilise tiny-skia pour le rendu vectoriel anti-aliasé et fontdue pour la typographie.
 
+pub mod halo;
+
 use crate::canvas::{screen_to_world, world_to_screen};
 use crate::theme::Theme;
 use crate::typography::Typography;
@@ -9,11 +11,12 @@ use glucose_core::quadtree::SpatialHash;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
+use halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tiny_skia::{
-    Color, FilterQuality, GradientStop, LineCap, Paint, PathBuilder, Pixmap, PixmapMut,
-    PixmapPaint, Point, RadialGradient, Rect, SpreadMode, Stroke, Transform,
+    Color, FilterQuality, LineCap, Paint, PathBuilder, Pixmap, PixmapMut, PixmapPaint, Rect,
+    Stroke, Transform,
 };
 
 #[derive(Debug, Clone)]
@@ -287,7 +290,7 @@ impl Renderer {
         crate::perf::stage("grid");
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + gradient vectoriel circulaire)
-        Self::draw_halos(&mut self.hue_cache, pixmap, store, &vp, &visible_ids, header_h);
+        halo::draw_halos(&mut self.hue_cache, pixmap, store, &vp, &visible_ids, header_h);
         crate::perf::stage("halos");
 
         // 4. Membranes (large rayon rx=60, pointillés, titre protecteur en haut à gauche)
@@ -385,72 +388,6 @@ impl Renderer {
         }
         if let Some(path) = pb.finish() {
             pixmap.fill_path(&path, &dot_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
-        }
-    }
-
-    fn draw_halos(
-        hue_cache: &mut SymbioticHueCache,
-        pixmap: &mut PixmapMut,
-        store: &Store,
-        vp: &Viewport,
-        visible_ids: &HashSet<&str>,
-        header_h: f32,
-    ) {
-        let board = match store.active_board() {
-            Some(b) => b,
-            None => return,
-        };
-
-        let screen_w = pixmap.width() as f32;
-        let screen_h = pixmap.height() as f32;
-
-        for ann in &board.annotations {
-            if !visible_ids.contains(ann.id()) {
-                continue;
-            }
-            if let Annotation::Text { x, y, width, height, .. } = ann {
-                let (sx, sy) = world_to_screen(*x, *y, vp);
-                let w = width.unwrap_or(240.0) * vp.scale;
-                let h = height.unwrap_or(48.0) * vp.scale;
-
-                let cx = (sx + w / 2.0) as f32;
-                let cy = (sy + h / 2.0) as f32;
-                let radius = ((w.max(h) * 1.5) as f32 + 50.0 * vp.scale as f32).max(20.0 * vp.scale as f32);
-
-                // Frustum culling : ignorer si complètement hors de l'écran visible ou trop microscopique
-                if cx + radius < 0.0
-                    || cx - radius > screen_w
-                    || cy + radius < header_h
-                    || cy - radius > screen_h
-                    || radius < 4.0
-                {
-                    continue;
-                }
-
-                let (_hue, (r, g, b)) = hue_cache.get_or_compute(ann, &board.annotations);
-
-                if let Some(shader) = RadialGradient::new(
-                    Point::from_xy(cx, cy),
-                    Point::from_xy(cx, cy),
-                    radius,
-                    vec![
-                        GradientStop::new(0.0, Color::from_rgba8(r, g, b, 35)),
-                        GradientStop::new(1.0, Color::from_rgba8(r, g, b, 0)),
-                    ],
-                    SpreadMode::Pad,
-                    Transform::identity(),
-                ) {
-                    let mut p = Paint::default();
-                    p.shader = shader;
-                    p.anti_alias = true;
-
-                    let mut pb = PathBuilder::new();
-                    pb.push_circle(cx, cy, radius);
-                    if let Some(path) = pb.finish() {
-                        pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
-                    }
-                }
-            }
         }
     }
 
@@ -723,8 +660,8 @@ impl Renderer {
             match ann {
                 Annotation::Text { id, x, y, width, height, text, color, .. } => {
                     let (sx, sy) = world_to_screen(*x, *y, vp);
-                    let sw = (width.unwrap_or(240.0) * vp.scale) as f32;
-                    let sh = (height.unwrap_or(48.0) * vp.scale) as f32;
+                    let sw = (width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH) * vp.scale) as f32;
+                    let sh = (height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) * vp.scale) as f32;
 
                     // Frustum culling
                     if sx as f32 + sw < 0.0
