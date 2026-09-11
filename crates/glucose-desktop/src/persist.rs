@@ -16,6 +16,7 @@
 
 pub mod assets;
 pub mod atomic;
+pub mod close;
 pub mod commands;
 
 use crate::error::{DesktopError, DesktopResult};

@@ -339,7 +339,13 @@ impl ApplicationHandler for GlucoseApp {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
-                event_loop.exit();
+                // R-48 — la croix ne jette plus le travail : un document modifié pose la
+                // question, et un enregistrement raté annule la fermeture (SAVE-3).
+                if self.request_close() {
+                    event_loop.exit();
+                } else {
+                    self.mark_dirty();
+                }
             }
             WindowEvent::Resized(size) => {
                 let width = size.width.max(1);

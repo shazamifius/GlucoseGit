@@ -32,7 +32,6 @@ fn pick_open_path() -> Option<PathBuf> {
         .pick_file()
 }
 
-
 // ── Commandes de l'application ──────────────────────────────────────────────
 
 impl GlucoseApp {

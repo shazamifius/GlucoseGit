@@ -164,7 +164,7 @@ la fermeture de la fenêtre. Ce n'est pas encore un logiciel, c'est une démo.
 - **R-45** — Le texte ne suit pas le zoom : 11 `clamp` bornent le contenu, pas la boîte
 - **R-46** — Les glyphes sont posés à des positions entières tronquées (flou, tremblement)
 - **R-47** — Le panneau DOMAINES écrit dans une liste fantôme, jamais dans le document
-- **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)*
+- **R-48** — Fermer la fenêtre perd le travail non enregistré, sans un mot *(créé par la réparation de R-01)* — ✅ **CORRIGÉ** *(SAVE-3 : la croix pose la question, un enregistrement raté ne ferme pas)*
 
 ---
 
@@ -1788,6 +1788,20 @@ veut dire que R-01 n'est pas clos tant que R-48 ne l'est pas.
 **Correctif** : sur `CloseRequested`, si `store.version != saved_version`, proposer
 **Enregistrer / Ne pas enregistrer / Annuler** (`rfd::MessageDialog`, déjà disponible), et
 n'appeler `event_loop.exit()` que dans les deux premiers cas. Une trentaine de lignes.
+
+### Correctif livré — INVARIANT SAVE-3
+
+`GlucoseApp::request_close` (`crates/glucose-desktop/src/persist/commands.rs`) est branché sur
+`WindowEvent::CloseRequested`. Un document propre se ferme sans un mot ; un document modifié ouvre
+une `rfd::MessageDialog` à trois réponses, et la décision passe par `close_with`, qui relit
+`is_dirty()` **après** l'enregistrement : tant que le document est modifié, rien n'a été écrit,
+donc la fenêtre reste ouverte. Fermer après un échec d'écriture serait une version pire du bug
+d'origine ; c'est ce que vérifie `test_save_3_a_failed_save_does_not_close_the_window`.
+
+Les libellés restent `Oui / Non / Annuler` : les renommer exigerait la variante
+`common-controls-v6` de `rfd`, donc une modification des dépendances, et sans elle Windows retombe
+sur `MessageBoxW` qui **ignore silencieusement** les libellés personnalisés. Le sens de chaque
+bouton est donc écrit dans le corps du message.
 
 **Ce que ça révèle sur la méthode** : l'agent qui a livré la persistance a signalé ce trou de
 lui-même, dans son rapport, au lieu de déclarer R-01 « résolu ». C'est exactement le comportement
