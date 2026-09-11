@@ -4,6 +4,12 @@
 //! seul endroit où une intention devient une commande du noyau. Chaque échec remonte par la
 //! barre de toasts, jamais en silence (§ 6.4).
 //!
+//! Les messages n'y portent **aucun émoji**, contrairement au reste de l'application : la
+//! police embarquée (`assets/font.ttf`) couvre 122 points de code, tous latins de base. Un
+//! `⚠️` n'y a pas de glyphe, donc `fontdue` rastérise le `.notdef` — un pictogramme invisible
+//! n'avertit de rien. Le texte des [`CoreError`](glucose_core::error::CoreError) commence déjà
+//! par ce qui a échoué et finit par ce qu'il faut faire (§ 6.5) : il se suffit.
+//!
 //! # DOM-APP-1 — un geste de l'utilisateur, une entrée d'annulation
 //!
 //! Assigner un domaine à une sélection de quarante nœuds, c'est **un** geste. Sans précaution,
@@ -66,13 +72,13 @@ impl GlucoseApp {
                 self.start_domain_rename(&id);
                 self.ui.show_toast("Domaine créé — tape son nom, Entrée pour valider");
             }
-            Err(err) => self.ui.show_toast(format!("⚠️ {err}")),
+            Err(err) => self.ui.show_toast(err.to_string()),
         }
     }
 
     fn start_domain_rename(&mut self, id: &str) {
         let Some(domain) = self.store.domain(id) else {
-            self.ui.show_toast("⚠️ Ce domaine n'existe plus — le panneau vient d'être rafraîchi");
+            self.ui.show_toast("Ce domaine n'existe plus — le panneau vient d'être rafraîchi");
             self.dock_manager.domains.reset();
             return;
         };
@@ -102,7 +108,7 @@ impl GlucoseApp {
     /// Envoie un patch au noyau et dit pourquoi si le noyau refuse.
     fn patch_domain(&mut self, id: &str, patch: DomainPatch) {
         if let Err(err) = self.store.try_update_domain(id, patch) {
-            self.ui.show_toast(format!("⚠️ {err}"));
+            self.ui.show_toast(err.to_string());
         }
     }
 
@@ -113,7 +119,7 @@ impl GlucoseApp {
             Ok(detached) => self.ui.show_toast(format!(
                 "Domaine « {label} » supprimé — retiré de {detached} nœud(s)"
             )),
-            Err(err) => self.ui.show_toast(format!("⚠️ {err}")),
+            Err(err) => self.ui.show_toast(err.to_string()),
         }
         self.dock_manager.domains.pending_delete = None;
         if self.dock_manager.domains.rename.as_ref().is_some_and(|r| r.domain_id == id) {
@@ -149,7 +155,7 @@ impl GlucoseApp {
 
         let percent = (weight * 100.0).round() as i32;
         match (done, failure) {
-            (0, Some(err)) => self.ui.show_toast(format!("⚠️ {err}")),
+            (0, Some(err)) => self.ui.show_toast(err.to_string()),
             (0, None) => {}
             (n, _) => self.ui.show_toast(format!("Domaine assigné à {n} nœud(s) — {percent} %")),
         }
@@ -272,7 +278,7 @@ impl GlucoseApp {
         };
         let name = rename.entry.into_text().trim().to_string();
         if name.is_empty() {
-            self.ui.show_toast("⚠️ Un domaine a besoin d'un nom — renommage abandonné");
+            self.ui.show_toast("Un domaine a besoin d'un nom — renommage abandonné");
             return;
         }
         self.patch_domain(&rename.domain_id, DomainPatch::new().with_name(name));
