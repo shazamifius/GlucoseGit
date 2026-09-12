@@ -6,6 +6,7 @@
 //! d'index spatial, de graphe de miroirs, de déduplication d'assets, d'export
 //! et de **persistance** (le format `.glucose` v2, cf. [`persist`]).
 
+pub mod anim;
 pub mod arena;
 pub mod arrow_anchor;
 pub mod hash;

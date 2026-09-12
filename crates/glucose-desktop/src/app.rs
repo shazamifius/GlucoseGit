@@ -34,6 +34,8 @@ pub struct LastClickInfo {
 pub struct GlucoseApp {
     pub store: Store,
     pub renderer: Renderer,
+    /// Les animations en cours — pour l'instant, le vol de la caméra.
+    pub animator: crate::animation::Animator,
     pub pixmap: Option<Pixmap>,
     pub ui: UiState,
     pub dock_manager: DockManager,
@@ -115,6 +117,7 @@ impl GlucoseApp {
         Self {
             store,
             renderer,
+            animator: crate::animation::Animator::new(),
             pixmap: None,
             ui: UiState::new(),
             dock_manager: DockManager::new(),
@@ -458,6 +461,14 @@ impl ApplicationHandler for GlucoseApp {
                     has_timer = true;
                 }
             }
+        }
+
+        // 2 bis. Vol de la caméra : chaque image avance le viewport, et l'animation dit
+        // elle-même dans combien de temps la suivante est due.
+        if let Some(reste_ms) = self.animator.tick(&mut self.store) {
+            self.mark_dirty();
+            min_timeout_ms = min_timeout_ms.min(reste_ms.max(1).min(self.animation_interval_ms()));
+            has_timer = true;
         }
 
         // 3. Minuteur Pomodoro actif dans le dock

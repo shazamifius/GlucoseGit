@@ -224,6 +224,15 @@ fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
 
 // ── Les dossiers : créer, entrer, remonter ───────────────────────────────────
 
+/// Termine sur-le-champ le vol de caméra en cours, s'il y en a un.
+///
+/// Entrer dans un dossier plonge la caméra pendant 400 ms avant de basculer (fiche 07 § 1) :
+/// un test qui vérifie l'arrivée doit faire passer ce temps, et le faire passer d'un coup
+/// plutôt que d'attendre pour de vrai.
+fn finish_flight(app: &mut GlucoseApp) {
+    app.animator.skip(&mut app.store);
+}
+
 /// Pose le curseur au point monde `(wx, wy)` et clique.
 fn click_world(app: &mut GlucoseApp, wx: f64, wy: f64) {
     let vp = app.store.active_board().map(|b| b.viewport).unwrap_or_default();
@@ -275,8 +284,11 @@ fn test_double_clicking_a_folder_enters_it() {
     assert_eq!(app.store.selected_folder_id.as_deref(), Some(folder_id.as_str()));
     assert_eq!(app.store.project.active_board_id, racine, "un seul clic n'ouvre rien");
 
-    // Le second, au même endroit et dans les temps, ouvre.
+    // Le second, au même endroit et dans les temps, lance la plongée.
     click_world(&mut app, 700.0, 500.0);
+    assert!(app.animator.is_running(), "la caméra plonge avant de basculer");
+    assert_eq!(app.store.project.active_board_id, racine, "on est encore dans le parent");
+    finish_flight(&mut app);
     assert_eq!(app.store.project.active_board_id, child, "le tableau enfant est actif");
     assert_eq!(app.store.folder_path().len(), 2, "on est descendu d'un cran");
 }
@@ -292,6 +304,7 @@ fn test_entering_a_folder_is_not_an_undoable_edit() {
 
     click_world(&mut app, 700.0, 500.0);
     click_world(&mut app, 700.0, 500.0);
+    finish_flight(&mut app);
     assert_eq!(app.store.folder_path().len(), 2, "on est bien entré");
     assert_eq!(
         app.store.journal.depth(),
@@ -310,6 +323,7 @@ fn test_clicking_the_breadcrumb_goes_back_up() {
     let racine = app.store.project.active_board_id.clone();
     click_world(&mut app, 700.0, 500.0);
     click_world(&mut app, 700.0, 500.0);
+    finish_flight(&mut app);
     assert_ne!(app.store.project.active_board_id, racine, "on est entré");
 
     // Le premier segment du fil : la racine du projet.
@@ -330,4 +344,35 @@ fn test_clicking_the_breadcrumb_goes_back_up() {
 
     assert_eq!(app.store.project.active_board_id, racine, "on est remonté à la racine");
     assert_eq!(app.store.folder_path().len(), 1);
+}
+
+/// **Un clic pendant la plongée abrège l'animation.** Quelqu'un de pressé arrive tout de
+/// suite ; le clic est consommé plutôt que de viser au hasard dans le tableau d'arrivée.
+#[test]
+fn test_a_click_during_the_dive_cuts_it_short() {
+    let mut app = GlucoseApp::new();
+    app.ui.active_tool = ActiveTool::Folder;
+    click_world(&mut app, 600.0, 400.0);
+    let child = app
+        .store
+        .active_board()
+        .and_then(|b| b.folders.last())
+        .map(|f| f.child_board_id.clone())
+        .expect("le dossier");
+
+    click_world(&mut app, 700.0, 500.0);
+    click_world(&mut app, 700.0, 500.0);
+    assert!(app.animator.is_running(), "la plongée est en cours");
+
+    // Un clic n'importe où pendant la plongée.
+    app.handle_cursor_moved(PhysicalPosition::new(50.0, 700.0));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    app.handle_mouse_up(MouseButton::Left);
+
+    assert!(!app.animator.is_running(), "elle est finie");
+    assert_eq!(app.store.project.active_board_id, child, "et l'on est arrivé");
+    assert!(
+        app.store.selected_image_ids.is_empty() && app.store.selected_annotation_ids.is_empty(),
+        "le clic n'a rien sélectionné dans le tableau d'arrivée"
+    );
 }
