@@ -105,6 +105,11 @@ impl Store {
         self.project = project;
         self.resync_next_id();
         let repaired = self.repair_domain_assignments();
+        // Fiche 09 § 1 : la caméra d'un fichier — abîmé, ou écrit par une autre version —
+        // entre dans le domaine du modèle comme toute autre écriture.
+        for b in &mut self.project.boards {
+            b.viewport = b.viewport.normalized();
+        }
         // JRN-2 : le document vient d'être remplacé en dehors du journal ; ses index ne
         // décrivent plus rien. On vide plutôt que de garder une pile qui ment.
         self.journal.clear();

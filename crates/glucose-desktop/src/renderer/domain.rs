@@ -400,7 +400,7 @@ mod tests {
 
         // Une passe de navigation ne fait pas avancer la version : rien n'est reconstruit.
         store.pan(120.0, 40.0);
-        store.zoom(2.0, 0.0, 0.0);
+        store.zoom(2.0, 0.0, 0.0, glucose_core::types::Viewport::SCALE_RANGE);
         tints.refresh(&store, &theme);
         assert_eq!(tints.built_for, built, "le pan ne doit pas relancer la construction");
 

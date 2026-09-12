@@ -3,7 +3,7 @@
 
 use glucose_core::error::CoreError;
 use glucose_core::store::Store;
-use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, Domain, Project};
+use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, Domain, Project, Viewport};
 
 fn mk_text(id: &str, x: f64, y: f64) -> Annotation {
     Annotation::Text {
@@ -294,4 +294,68 @@ fn test_les_enveloppes_historiques_restent_silencieuses() {
 
     store.set_active_board_id("fantome");
     assert_eq!(store.project.active_board_id, "main");
+}
+
+// ── Fiche 09 § 1 — bornes numériques du modèle : l'échelle ───────────────────
+
+/// « Échelle de zoom bornée entre 0.005 (×200 dézoomé) et 50.0 (×50 zoomé). »
+///
+/// Les chiffres eux-mêmes, puis la propriété : **tout** viewport qui entre dans le store est
+/// dans ce domaine, quel que soit le chemin — pose directe, zoom, chargement d'un fichier.
+#[test]
+fn test_l_echelle_du_modele_est_bornee_a_0_005_et_50() {
+    assert_eq!(Viewport::MIN_SCALE, 0.005, "fiche 09 § 1 : ×200 dézoomé");
+    assert_eq!(Viewport::MAX_SCALE, 50.0, "fiche 09 § 1 : ×50 zoomé");
+
+    let mut store = Store::new("P");
+    let scale = |store: &Store| store.active_board().expect("main").viewport.scale;
+
+    store.set_viewport("main", Viewport { x: 0.0, y: 0.0, scale: 0.0001 });
+    assert_eq!(scale(&store), 0.005, "en dessous, rabattu sur la borne basse");
+    store.set_viewport("main", Viewport { x: 0.0, y: 0.0, scale: 1_000.0 });
+    assert_eq!(scale(&store), 50.0, "au-dessus, rabattu sur la borne haute");
+
+    store.set_viewport("main", Viewport::default());
+    store.zoom(1e9, 0.0, 0.0, Viewport::SCALE_RANGE);
+    assert_eq!(scale(&store), 50.0, "un zoom ne franchit pas la borne haute");
+    store.zoom(1e-9, 0.0, 0.0, Viewport::SCALE_RANGE);
+    assert_eq!(scale(&store), 0.005, "ni la basse");
+
+    // L'appelant peut demander plus étroit — jamais plus large.
+    store.set_viewport("main", Viewport::default());
+    store.zoom(1e9, 0.0, 0.0, (0.02, 20.0));
+    assert_eq!(scale(&store), 20.0, "la borne du geste s'ajoute à celle du modèle");
+    store.zoom(1e9, 0.0, 0.0, (0.0, 1e9));
+    assert_eq!(scale(&store), 50.0, "et ne peut pas l'élargir");
+}
+
+/// Un fichier abîmé peut porter une caméra à `NaN` ou à l'infini. `clamp` laisse passer
+/// `NaN`, et une caméra à `NaN` rend chaque pixel invisible sans faire tomber le programme —
+/// un écran vide qui ne dit pas pourquoi. Le chargement ramène donc la caméra dans le modèle.
+#[test]
+fn test_charger_un_projet_ramene_la_camera_dans_le_modele() {
+    let mut project = Project::new("Abîmé");
+    project.boards[0].viewport = Viewport { x: f64::NAN, y: f64::INFINITY, scale: f64::NAN };
+    let mut extra = Board::new("b2", "Trop zoomé");
+    extra.viewport = Viewport { x: 10.0, y: 20.0, scale: 999.0 };
+    project.boards.push(extra);
+    let mut zero = Board::new("b3", "Échelle nulle");
+    zero.viewport = Viewport { x: 0.0, y: 0.0, scale: 0.0 };
+    project.boards.push(zero);
+
+    let mut store = Store::new("P");
+    store.load_project(project);
+
+    let main = store.project.boards[0].viewport;
+    assert_eq!((main.x, main.y, main.scale), (0.0, 0.0, 1.0), "non-nombres → caméra neutre");
+    let b2 = store.project.boards[1].viewport;
+    assert_eq!((b2.x, b2.y, b2.scale), (10.0, 20.0, 50.0), "hors borne → rabattu, le reste intact");
+    // Zéro est un nombre : il est rabattu sur la borne basse, comme dans la version de
+    // référence — c'est `NaN`, et lui seul, qui redevient 1.
+    assert_eq!(store.project.boards[2].viewport.scale, 0.005);
+
+    // Et un zoom sur une caméra qui aurait échappé à la normalisation ne produit pas de NaN.
+    let mut vp = Viewport { x: 0.0, y: 0.0, scale: 0.0 };
+    vp.zoom_at(2.0, 100.0, 100.0, Viewport::SCALE_RANGE);
+    assert!(vp.scale.is_finite() && vp.x.is_finite() && vp.y.is_finite(), "{vp:?}");
 }

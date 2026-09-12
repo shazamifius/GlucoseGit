@@ -7,7 +7,7 @@ use crate::params::{Pointer, ScreenFrame};
 use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, PickInput, PickOwner};
-use glucose_core::types::Annotation;
+use glucose_core::types::{Annotation, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
 
@@ -111,9 +111,16 @@ impl GlucoseApp {
                             self.ui.show_toast("Nouveau board créé");
                         }
                         UiAction::MinimapPan(wx, wy) => {
-                            if let Some(b) = self.store.active_board_mut() {
-                                b.viewport.x = screen_w as f64 / 2.0 - wx * b.viewport.scale;
-                                b.viewport.y = screen_h as f64 / 2.0 - wy * b.viewport.scale;
+                            if let Some(b) = self.store.active_board() {
+                                let (bid, scale) = (b.id.clone(), b.viewport.scale);
+                                self.store.set_viewport(
+                                    &bid,
+                                    Viewport {
+                                        x: screen_w as f64 / 2.0 - wx * scale,
+                                        y: screen_h as f64 / 2.0 - wy * scale,
+                                        scale,
+                                    },
+                                );
                             }
                         }
                     }
