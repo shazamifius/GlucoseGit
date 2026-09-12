@@ -108,3 +108,20 @@ fn test_text_fit_1_the_fitted_height_follows_the_line_count() {
     assert!(narrow > wide, "{narrow} <= {wide}");
     assert_eq!(text_card_fit_height(&typo, "", 240.0), one, "une carte vide garde une ligne");
 }
+
+/// Fiche 08 § 2.1 — ce que le moteur de texte reconnaît du Markdown, ni plus ni moins :
+/// `#` et `##` comme titres, `-` et `*` comme puces. `###` à `######`, les citations, les
+/// tableaux, le code, le gras et l'italique sont lus comme du corps de texte. Ce test tient
+/// les deux moitiés : il tombera quand la seconde sera écrite, et c'est le but.
+#[test]
+fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
+    assert_eq!(LineKind::of("# Titre"), (LineKind::Heading1, 2));
+    assert_eq!(LineKind::of("## Sous-titre"), (LineKind::Heading2, 3));
+    assert_eq!(LineKind::of("- une puce"), (LineKind::Bullet, 2));
+    assert_eq!(LineKind::of("* une autre"), (LineKind::Bullet, 2));
+
+    for not_yet in ["### H3", "###### H6", "> citation", "| a | b |", "```rust", "**gras**", "*italique*"] {
+        assert_eq!(LineKind::of(not_yet), (LineKind::Body, 0), "{not_yet:?} n'est pas encore compris");
+    }
+    assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0, "les titres sont plus grands que le corps");
+}

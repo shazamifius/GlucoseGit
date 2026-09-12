@@ -100,3 +100,28 @@ fn test_find_board_containing_folder() {
     );
     assert_eq!(find_board_containing_folder(&boards, "ghost"), None);
 }
+
+/// Fiche 08 § 6.2 — la fiche parlait d'une « limite de profondeur de chaîne fixée à 16 ».
+/// Le parcours en largeur avec ensemble des visités n'a pas besoin de limite : un cycle est
+/// détecté à toute profondeur, et un graphe sain de toute profondeur est accepté. La
+/// constante a disparu au lieu d'être réglée ; ce test le tient à 40 niveaux.
+#[test]
+fn test_a_cycle_is_detected_at_any_depth_without_a_limit() {
+    let depth = 40;
+    let mut boards = Vec::new();
+    for i in 0..depth {
+        let folder = format!("f{i}");
+        let child = format!("b{}", i + 1);
+        boards.push(make_board(&format!("b{i}"), &[(folder.as_str(), child.as_str())]));
+    }
+    boards.push(make_board(&format!("b{depth}"), &[]));
+
+    assert!(
+        would_create_mirror_cycle(&boards, "f0", &format!("b{depth}")),
+        "un miroir de f0 tout au fond de sa propre descendance boucle"
+    );
+    assert!(
+        !would_create_mirror_cycle(&boards, &format!("f{}", depth - 1), "b0"),
+        "un miroir du dernier dossier à la racine ne boucle pas : b0 n'est pas sous lui"
+    );
+}
