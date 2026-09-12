@@ -3,7 +3,7 @@
 > **Rôle de ce document** : fournir la **spécification unitaire et exhaustive** de chaque type d'élément pouvant vivre sur le canvas de Glucose, de ses propriétés, de ses contraintes d'affichage et de ses algorithmes de manipulation.
 > Ce document sert de contrat technique pour le portage de toute la couche logique métier en Rust natif.
 >
-> **Méthode (12/09/2026)** : chaque point est allé voir le code. Ce qui est implémenté **et tenu par un test** est sorti de cette fiche ; ce qui reste est la liste de travail. Le constat d'ensemble : **le noyau est écrit et testé bien au-delà de ce que l'interface branche** — miroirs, modes de membrane, opérateurs, prédicats existent dans `glucose-core` et n'ont pas de geste dans `glucose-desktop`. Les dossiers, eux, sont désormais **dessinés** (fiche 06 § 8) ; ce qui leur manque est le geste d'entrée, non les pixels.
+> **Méthode (12/09/2026)** : chaque point est allé voir le code. Ce qui est implémenté **et tenu par un test** est sorti de cette fiche ; ce qui reste est la liste de travail. Le constat d'ensemble : **le noyau est écrit et testé bien au-delà de ce que l'interface branche** — miroirs, modes de membrane, opérateurs, prédicats existent dans `glucose-core` et n'ont pas de geste dans `glucose-desktop`. Les dossiers, eux, sont sortis de cette liste : dessinés (fiche 06 § 8), créés par leur outil, ouverts au double-clic, quittés par le fil d'Ariane. Il leur manque les animations et la mini-carte de contenu, pas l'existence.
 
 ---
 
@@ -82,8 +82,8 @@
 > Tenu : `child_board_id` pointe un tableau complet, l'imbrication est sans limite (`test_workflow_nested_folders`), et le store sait entrer, sortir, renommer et supprimer sans casser la navigation (`e2e_workflows_suite`).
 
 ### 5.2 Navigation & Fil d'Ariane
-* **À FAIRE** — **Entrée** : double-clic sur le bandeau ou le corps d'un dossier ; la caméra plonge en zoom avant ($400\text{ ms}$), puis le canvas charge le board enfant. Le store a `try_enter_folder`, testé ; **aucun geste du desktop ne l'appelle**.
-* **À FAIRE** — **Fil d'Ariane (`FolderBreadcrumb`)** en haut à gauche sous la barre d'outils (`Projet > Recherches > Dossier 1`) ; cliquer un niveau remonte. Le store tient `folder_stack` ; rien ne l'affiche.
+* **À FAIRE** — **L'animation** de l'entrée : la caméra devrait plonger en zoom avant ($400\text{ ms}$) avant que le canvas charge le tableau enfant. Le double-clic entre bel et bien (`test_double_clicking_a_folder_enters_it`), mais la bascule est instantanée — il n'existe **aucune animation** dans le projet, et c'est un chantier à soi seul.
+> Le fil d'Ariane est affiché sous la barre d'onglets et cliquable (`ui/breadcrumb.rs`, dix tests) ; il n'apparaît qu'une fois entré quelque part, et un dossier dont le nom a disparu donne un segment « ? » plutôt qu'un trou.
 * **À FAIRE** — **Zoom de sortie adaptatif** : dézoomer fortement dans un dossier fait surface vers le parent sans bouton.
 
 ### 5.3 Dossiers Miroirs du Disque OS (Folder Mirror)

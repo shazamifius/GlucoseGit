@@ -10,6 +10,8 @@ use std::time::{Duration, Instant};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 pub const TOPBAR_HEIGHT: f32 = 44.0;
+pub mod breadcrumb;
+
 pub const TABS_HEIGHT: f32 = 34.0;
 pub const TOTAL_HEADER_HEIGHT: f32 = TOPBAR_HEIGHT + TABS_HEIGHT;
 
@@ -204,6 +206,16 @@ pub fn render_ui(
 
     // 2. Barre d'onglets
     render_board_tabs(pixmap, store, ui, typo, theme, w, pointer);
+
+    // 2 bis. Fil d'Ariane des dossiers — seulement quand on est entré quelque part.
+    breadcrumb::draw_breadcrumb(
+        pixmap,
+        store,
+        typo,
+        theme,
+        TOTAL_HEADER_HEIGHT * ui.scale(),
+        ui.scale_factor,
+    );
 
     // 3. Minimap (en bas à droite)
     render_minimap(pixmap, store, theme, w, h, ui.scale_factor);

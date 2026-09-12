@@ -221,3 +221,113 @@ fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
     }
     assert_eq!(scale(&app), 0.02, "zoom arrière borné");
 }
+
+// ── Les dossiers : créer, entrer, remonter ───────────────────────────────────
+
+/// Pose le curseur au point monde `(wx, wy)` et clique.
+fn click_world(app: &mut GlucoseApp, wx: f64, wy: f64) {
+    let vp = app.store.active_board().map(|b| b.viewport).unwrap_or_default();
+    let (sx, sy) = crate::canvas::world_to_screen(wx, wy, &vp);
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    app.handle_mouse_up(MouseButton::Left);
+}
+
+/// **L'outil Dossier crée un dossier.** Il se contentait d'un toast « Dossier » : un bouton qui
+/// annonce ce qu'il n'a pas fait, ce que la fiche 11 § A.2 interdit.
+#[test]
+fn test_the_folder_tool_actually_creates_a_folder() {
+    let mut app = GlucoseApp::new();
+    let avant = app.store.active_board().map(|b| b.folders.len()).unwrap_or(0);
+    let boards_avant = app.store.project.boards.len();
+
+    app.ui.active_tool = ActiveTool::Folder;
+    click_world(&mut app, 600.0, 400.0);
+
+    let board = app.store.active_board().expect("un tableau");
+    assert_eq!(board.folders.len(), avant + 1, "le dossier existe");
+    let f = board.folders.last().expect("le dossier");
+    assert_eq!((f.x, f.y), (600.0, 400.0), "posé sous le curseur");
+    assert_eq!((f.width, f.height), FOLDER_DEFAULT_SIZE);
+    assert!(!f.child_board_id.is_empty(), "et son tableau enfant est créé");
+    assert_eq!(app.store.project.boards.len(), boards_avant + 1);
+
+    // R1 — le geste est annulable, et il ne laisse rien derrière lui.
+    assert!(app.store.undo(), "la création s'annule");
+    assert_eq!(app.store.active_board().map(|b| b.folders.len()), Some(avant));
+}
+
+/// **Un double-clic sur un dossier y entre.** Le store savait le faire — `try_enter_folder`,
+/// testé — et aucun geste ne l'appelait.
+#[test]
+fn test_double_clicking_a_folder_enters_it() {
+    let mut app = GlucoseApp::new();
+    app.ui.active_tool = ActiveTool::Folder;
+    click_world(&mut app, 600.0, 400.0);
+    let (folder_id, child) = {
+        let f = app.store.active_board().and_then(|b| b.folders.last()).expect("le dossier");
+        (f.id.clone(), f.child_board_id.clone())
+    };
+    let racine = app.store.project.active_board_id.clone();
+
+    // Un premier clic au milieu du dossier sélectionne, il n'entre pas.
+    click_world(&mut app, 700.0, 500.0);
+    assert_eq!(app.store.selected_folder_id.as_deref(), Some(folder_id.as_str()));
+    assert_eq!(app.store.project.active_board_id, racine, "un seul clic n'ouvre rien");
+
+    // Le second, au même endroit et dans les temps, ouvre.
+    click_world(&mut app, 700.0, 500.0);
+    assert_eq!(app.store.project.active_board_id, child, "le tableau enfant est actif");
+    assert_eq!(app.store.folder_path().len(), 2, "on est descendu d'un cran");
+}
+
+/// Entrer dans un dossier n'est pas une modification du document : la navigation ne touche
+/// jamais à la pile d'annulation (loi UNDO-1).
+#[test]
+fn test_entering_a_folder_is_not_an_undoable_edit() {
+    let mut app = GlucoseApp::new();
+    app.ui.active_tool = ActiveTool::Folder;
+    click_world(&mut app, 600.0, 400.0);
+    let profondeur_pile = app.store.journal.depth();
+
+    click_world(&mut app, 700.0, 500.0);
+    click_world(&mut app, 700.0, 500.0);
+    assert_eq!(app.store.folder_path().len(), 2, "on est bien entré");
+    assert_eq!(
+        app.store.journal.depth(),
+        profondeur_pile,
+        "et la pile n'a pas bougé"
+    );
+}
+
+/// **Cliquer le fil d'Ariane ramène en arrière.** Sans lui, entrer dans un dossier était un
+/// aller sans retour visible.
+#[test]
+fn test_clicking_the_breadcrumb_goes_back_up() {
+    let mut app = GlucoseApp::new();
+    app.ui.active_tool = ActiveTool::Folder;
+    click_world(&mut app, 600.0, 400.0);
+    let racine = app.store.project.active_board_id.clone();
+    click_world(&mut app, 700.0, 500.0);
+    click_world(&mut app, 700.0, 500.0);
+    assert_ne!(app.store.project.active_board_id, racine, "on est entré");
+
+    // Le premier segment du fil : la racine du projet.
+    let segs = crate::ui::breadcrumb::layout_breadcrumb(
+        &app.store,
+        &app.renderer.typography,
+        app.ui.header_height(),
+        app.ui.scale_factor,
+    );
+    let seg = segs.first().expect("le fil est affiché");
+    let (cx, cy) = (
+        (seg.rect.0 + seg.rect.2 / 2.0) as f64,
+        (seg.rect.1 + seg.rect.3 / 2.0) as f64,
+    );
+    app.handle_cursor_moved(PhysicalPosition::new(cx, cy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    app.handle_mouse_up(MouseButton::Left);
+
+    assert_eq!(app.store.project.active_board_id, racine, "on est remonté à la racine");
+    assert_eq!(app.store.folder_path().len(), 1);
+}

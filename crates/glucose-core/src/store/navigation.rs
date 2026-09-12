@@ -117,6 +117,43 @@ impl Store {
         }
     }
 
+    /// Le chemin courant, de la racine au dossier ouvert : `["Projet", "Recherches", "Notes"]`.
+    ///
+    /// C'est ce que le fil d'Ariane affiche. Le premier segment est le projet lui-même — on est
+    /// toujours quelque part —, les suivants sont les dossiers traversés, dans l'ordre. Un
+    /// dossier dont le nom a disparu du tableau parent devient `"?"` plutôt que de faire
+    /// disparaître le segment : un chemin à trou serait pire qu'un chemin incertain.
+    pub fn folder_path(&self) -> Vec<String> {
+        let mut chemin = vec![self.project.name.clone()];
+        for (parent_board_id, folder_id) in &self.folder_stack {
+            let nom = self
+                .project
+                .boards
+                .iter()
+                .find(|b| &b.id == parent_board_id)
+                .and_then(|b| b.folders.iter().find(|f| &f.id == folder_id))
+                .map(|f| f.name.clone())
+                .unwrap_or_else(|| "?".to_string());
+            chemin.push(nom);
+        }
+        chemin
+    }
+
+    /// Remonte jusqu'à la profondeur `depth` : 0 est la racine, 1 le premier dossier.
+    ///
+    /// Rend `true` si le tableau actif a changé. Remonter à une profondeur égale ou supérieure
+    /// à la profondeur courante ne fait rien — cliquer sur le segment où l'on est déjà n'est
+    /// pas une erreur, c'est un geste sans effet.
+    pub fn exit_to_depth(&mut self, depth: usize) -> bool {
+        let mut bouge = false;
+        while self.folder_stack.len() > depth {
+            let avant = self.project.active_board_id.clone();
+            self.exit_folder();
+            bouge |= self.project.active_board_id != avant;
+        }
+        bouge
+    }
+
     pub fn exit_to_root(&mut self) {
         if let Some((root_board_id, _)) = self.folder_stack.first().cloned() {
             self.folder_stack.clear();
