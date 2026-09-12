@@ -6,6 +6,7 @@ description = "Glucose Desktop Application — PureRef-style Native Rust Desktop
 
 [dependencies]
 glucose-core = { path = "../glucose-core" }
+glucose-math = { path = "../glucose-math" }
 winit = "0.30"
 softbuffer = "0.4"
 tiny-skia = "0.11"

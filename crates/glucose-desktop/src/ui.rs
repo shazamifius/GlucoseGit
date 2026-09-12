@@ -134,6 +134,57 @@ pub struct UiState {
     pub hovered_btn: Option<String>,
     pub current_toast: Option<Toast>,
     pub scale_factor: f32,
+    /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
+    pub minimap_cache: Option<MinimapCache>,
+}
+
+/// Le fond de la minimap, gardé d'une image à l'autre.
+///
+/// # Pourquoi
+///
+/// La minimap dessinait **un rectangle par nœud du tableau, à chaque image**, dans une vignette
+/// de 180 × 120 pixels où la plupart tombent les uns sur les autres. Le banc a chiffré ce que
+/// cela coûte : **5,1 ms sur les 9,4 d'une image** à dix mille nœuds, soit plus de la moitié du
+/// budget, pour redessiner à l'identique ce qui était déjà là.
+///
+/// Or ce fond ne dépend que de deux choses : le document, et le cadrage de la carte. Le
+/// rectangle de caméra, lui, bouge à chaque déplacement — mais c'est **un** rectangle, et il se
+/// dessine par-dessus.
+///
+/// # Pourquoi la clé tient malgré le pan
+///
+/// Le cadrage de la minimap englobe le contenu **et** la caméra : c'est ce qui permet de voir
+/// où l'on est quand on s'éloigne du document. Tant qu'on travaille à l'intérieur du contenu —
+/// le cas normal — la caméra ne change rien aux bornes, et la clé reste identique d'une image à
+/// l'autre. Ce n'est qu'en sortant du document que le cadrage bouge, et le fond se refait alors
+/// le temps du déplacement.
+///
+/// # Ce que la composition coûte vraiment, et qui n'était pas ce que je croyais
+///
+/// « Source par-dessus » est associatif **en réels** : composer le fond puis la scène donne le
+/// même résultat que tout composer d'un coup. Il ne l'est pas **en entiers de huit bits**, où
+/// chaque étape arrondit. Passer par un pixmap intermédiaire ajoute donc un arrondi, et l'écart
+/// atteint un niveau de quantification sur les pixels semi-transparents.
+///
+/// L'empreinte de la scène témoin a changé pour cette raison, et la capture a été regardée :
+/// la minimap y est identique à l'œil. Un niveau sur 255 est en dessous de ce qu'un écran
+/// distingue — mais il fallait le mesurer, pas le supposer, et surtout pas écrire « au bit
+/// près » comme je l'avais fait.
+pub struct MinimapCache {
+    pixmap: tiny_skia::Pixmap,
+    key: MinimapKey,
+}
+
+/// Ce qui, s'il change, oblige à refaire le fond de la minimap.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MinimapKey {
+    /// La version du document : toute modification la fait avancer.
+    version: u64,
+    /// La taille de la vignette en pixels entiers — elle change avec l'échelle de l'interface.
+    size: (u32, u32),
+    /// Les bornes du cadrage, en bits : deux `f64` égaux ont les mêmes bits, et c'est la seule
+    /// comparaison qui ait un sens ici (on ne veut pas d'un seuil arbitraire).
+    bounds: [u64; 4],
 }
 
 /// Le mot d'accueil, posé par l'application au démarrage — pas par le constructeur.
@@ -171,6 +222,7 @@ impl UiState {
             hovered_btn: None,
             current_toast: None,
             scale_factor: 1.0,
+            minimap_cache: None,
         }
     }
 
@@ -243,7 +295,8 @@ pub fn render_ui(
     );
 
     // 3. Minimap (en bas à droite)
-    render_minimap(pixmap, store, theme, w, h, ui.scale_factor);
+    let echelle_ui = ui.scale_factor;
+    render_minimap(pixmap, store, theme, w, h, echelle_ui, &mut ui.minimap_cache);
 
     // 4. Toast notification (au centre en bas)
     if let Some(ref toast) = ui.current_toast {
@@ -1019,17 +1072,61 @@ pub fn layout_minimap(
     })
 }
 
-pub(crate) fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Theme, w: f32, h: f32, scale: f32) {
+pub(crate) fn render_minimap(
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    theme: &Theme,
+    w: f32,
+    h: f32,
+    scale: f32,
+    cache: &mut Option<MinimapCache>,
+) {
     let s = crate::theme::clamp_ui_scale(scale);
     let mb = match layout_minimap(store, w, h, s) {
         Some(m) => m,
         None => return,
     };
+    if store.active_board().is_none() {
+        return;
+    }
 
-    let board = match store.active_board() {
-        Some(b) => b,
-        None => return,
+    let cle = MinimapKey {
+        version: store.version,
+        size: (mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32),
+        bounds: [mb.min_x.to_bits(), mb.min_y.to_bits(), mb.max_x.to_bits(), mb.max_y.to_bits()],
     };
+    if cache.as_ref().map(|c| c.key) != Some(cle) {
+        *cache = dessine_fond(store, theme, &mb, s).map(|pixmap| MinimapCache { pixmap, key: cle });
+    }
+    if let Some(c) = cache.as_ref() {
+        pixmap.draw_pixmap(
+            mb.mm_x.round() as i32,
+            mb.mm_y.round() as i32,
+            c.pixmap.as_ref(),
+            &tiny_skia::PixmapPaint::default(),
+            Transform::identity(),
+            None,
+        );
+    }
+
+    dessine_camera(pixmap, theme, &mb, s);
+}
+
+/// Dessine le fond de la minimap — tout sauf le rectangle de caméra — dans un pixmap à part.
+///
+/// Les coordonnées y sont relatives au coin de la vignette, puisqu'elle sera composée à sa
+/// place : c'est la seule différence avec le dessin direct d'avant.
+fn dessine_fond(
+    store: &Store,
+    theme: &Theme,
+    mb: &MinimapBounds,
+    s: f32,
+) -> Option<tiny_skia::Pixmap> {
+    let board = store.active_board()?;
+    let mut vignette = tiny_skia::Pixmap::new(mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32)?;
+    let pixmap = &mut vignette.as_mut();
+    // Le fond se dessine à l'origine de sa propre vignette.
+    let mb = &MinimapBounds { mm_x: 0.0, mm_y: 0.0, ..mb.clone() };
 
     // Fond minimap
     let mut bg_paint = Paint::default();
@@ -1134,7 +1231,13 @@ pub(crate) fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Them
         }
     }
 
-    // Rectangle de la caméra
+    Some(vignette)
+}
+
+/// Dessine le rectangle de caméra. Il bouge à chaque déplacement, donc il n'est jamais mis en
+/// cache — mais c'est **un** rectangle, pas un par nœud.
+fn dessine_camera(pixmap: &mut PixmapMut, theme: &Theme, mb: &MinimapBounds, s: f32) {
+    let pad = 6.0 * s;
     let cx = mb.mm_x + pad + ((mb.cam_left - mb.min_x) as f32 * mb.scale);
     let cy = mb.mm_y + pad + ((mb.cam_top - mb.min_y) as f32 * mb.scale);
     let cw = (mb.vp_w as f32 * mb.scale).max(4.0 * s);

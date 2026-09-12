@@ -23,7 +23,7 @@ fn app_with_panel() -> GlucoseApp {
     let board = app.store.project.active_board_id.clone();
     // La hauteur d'une carte est celle de son texte (TEXT-FIT-1) : une carte créée
     // autrement serait recalée à l'ouverture, et le document relu différerait.
-    let height = crate::renderer::card::text_card_fit_height(&app.renderer.typography, "Newton", 240.0);
+    let height = crate::renderer::card::text_card_fit_height(&app.renderer.typography, &app.renderer.math, "Newton", 240.0);
     app.store.add_annotation(
         &board,
         Annotation::Text {

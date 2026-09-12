@@ -975,6 +975,7 @@ dependencies = [
  "arboard",
  "fontdue",
  "glucose-core",
+ "glucose-math",
  "image",
  "rfd",
  "softbuffer",

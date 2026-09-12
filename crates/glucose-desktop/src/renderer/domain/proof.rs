@@ -87,7 +87,7 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
     };
     let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
-    let kit = PaintKit { typography: typo, tints: &tints, theme: &theme };
+    let kit = PaintKit { typography: typo, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
     draw_annotations(&mut hue, kit, &mut view, store, None, pass);
     pixmap
 }
@@ -311,7 +311,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     let mut view = pixmap.as_mut();
     let mut cache = std::collections::HashMap::new();
     let mut failed = HashSet::new();
-    let kit = PaintKit { typography: typo, tints: &tints, theme: &theme };
+    let kit = PaintKit { typography: typo, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
     crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
     crate::renderer::scene::draw_images(&mut cache, &mut failed, kit, &mut view, &store, pass);
     pixmap.save_png(dir.join("scene-image-et-membrane.png")).expect("écriture du png");

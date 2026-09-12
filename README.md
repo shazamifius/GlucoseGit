@@ -9,7 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-100%25%20pure%20std%20core-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
 [![Dependencies](https://img.shields.io/badge/core%20dependencies-0%20(zero)-brightgreen.svg?style=flat-square)](#)
-[![Tests](https://img.shields.io/badge/tests-204%20passing%20(100%25)-brightgreen.svg?style=flat-square)](#)
+[![Tests](https://img.shields.io/badge/tests-691%20passing%20(100%25)-brightgreen.svg?style=flat-square)](#)
+[![LaTeX](https://img.shields.io/badge/LaTeX-KaTeX%20natif-8b5cf6.svg?style=flat-square)](#-les-formules-sont-natives)
 [![Compatibility](https://img.shields.io/badge/OS%20compatibility-100%25%20kernels-blueviolet.svg?style=flat-square)](#)
 
 [**📖 Guide**](GUIDE.md) · [**🗺️ Architecture & Handoff**](HANDOFF.md) · [**🐛 Issues**](../../issues)
@@ -31,6 +32,76 @@
 - 🔗 **Relations sémantiques** — flèches orientées avec prédicats typés (`inspire`, `contredit`, `dépend_de`), sub-block text anchoring et calcul de contour géométrique.
 - 🛡️ **0 boîte noire, 0 dépendance dans le moteur** — `glucose-core` fonctionne à 100% avec la bibliothèque standard Rust (`std`), sans aucune crate externe (`[dependencies]` strictement vide).
 - 🖥️ **Compatibilité 100% OS & Kernels** — Rendu logiciel universel vectoriel (`tiny-skia` + `softbuffer` + `winit`) sans aucune exigence de pilote GPU propriétaire. Tourne partout : Windows, Linux (Wayland/X11), macOS, BSD.
+
+---
+
+## 📸 À quoi ça ressemble
+
+<div align="center">
+
+![Le canvas de Glucose, avec ses membranes, ses dossiers, ses flèches et ses formules](docs/screenshots/vitrine.png)
+
+*Un tableau de travail : cartes Markdown, membrane colorée, dossier-sous-canvas, flèches, minimap — et des formules LaTeX rendues nativement.*
+
+</div>
+
+### 🧮 Les formules sont natives
+
+Glucose rend le LaTeX **sans navigateur, sans JavaScript et sans moteur de rendu HTML**. La mise
+en page vient de [`katex-rs`](https://crates.io/crates/katex-rs), le portage Rust de KaTeX ; le
+dessin est fait par le rastériseur du projet, avec les vingt fontes de KaTeX embarquées (540 Ko).
+
+Conséquence directe : une formule est **vectorielle**, donc nette à n'importe quel zoom — ce
+n'est pas une image que l'on agrandit.
+
+<div align="center">
+
+![Un gros plan sur des formules LaTeX rendues au zoom x1,9](docs/screenshots/vitrine-zoom.png)
+
+*Le même document à ×1,9. Les sommes gardent leurs bornes, les exposants leur place, et rien
+n'est pixelisé : tout est retracé.*
+
+</div>
+
+Une formule qui ne compile pas n'est pas avalée en silence : elle s'affiche **en rouge, avec sa
+source**, là où elle est.
+
+---
+
+## 📊 Ce qui est mesuré, pas affirmé
+
+Chaque chiffre de ce tableau se reproduit par une commande, sur des documents synthétiques
+déterministes (`glucose_core::synth`).
+
+| | Mesure | Comment la refaire |
+|---|---|---|
+| **Tests** | **691**, zéro échec, zéro avertissement de compilation | `cargo test --workspace` |
+| **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
+| **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
+| **Chargement de 10⁷ nœuds** | **141 ms** | idem |
+| **Requête de viewport** | **0,21 µs** | idem |
+| **Une image de rendu** | **1,8 ms** à mille nœuds, **4,6 ms** à dix mille (1080p) | `cargo run --release -p glucose-desktop --example bench_frame` |
+| **Le rendu est reproductible** | deux images de la même scène sont **identiques au bit près** | `cargo test -p glucose-desktop --lib bench` |
+
+Le banc n'est pas décoratif. En une journée d'existence, il a trouvé que le rendu **n'était
+pas** déterministe — un toast portait une horloge, et deux images de la même scène différaient
+de sept mille pixels — puis que la minimap redessinait un rectangle par nœud à chaque image.
+
+| Une image, à dix mille nœuds | Avant | Après |
+|---|---:|---:|
+| 1080p | 17,3 ms | **4,6 ms** |
+| 1440p | 37,3 ms | **10,9 ms** |
+| 4K | 27,2 ms | **17,6 ms** |
+
+Le budget de 10 ms n'est pas encore tenu partout — en 4K, et sur les documents très dézoomés,
+il reste du travail, et il est chiffré poste par poste dans la
+[fiche 12](docs/architecture/12-PLAN-D-EXECUTION.md).
+
+> **Où en est vraiment le portage.** Le dossier [`docs/architecture/`](docs/architecture/) tient
+> l'inventaire honnête, fonctionnalité par fonctionnalité, de ce qui est branché et de ce qui ne
+> l'est pas encore. Certaines briques listées plus bas existent dans le noyau, testées, sans
+> geste qui les atteigne — c'est écrit noir sur blanc dans la
+> [fiche 12](docs/architecture/12-PLAN-D-EXECUTION.md), avec l'ordre dans lequel elles arrivent.
 
 ---
 

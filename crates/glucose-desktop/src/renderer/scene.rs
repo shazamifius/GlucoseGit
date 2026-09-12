@@ -181,7 +181,7 @@ pub(super) fn draw_membranes(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &
     let Some(board) = store.active_board() else {
         return;
     };
-    let PaintKit { typography, tints, theme } = kit;
+    let PaintKit { typography, tints, theme, .. } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -308,7 +308,7 @@ pub(super) fn draw_images(
     let Some(board) = store.active_board() else {
         return;
     };
-    let PaintKit { typography, tints, theme } = kit;
+    let PaintKit { typography, tints, theme, .. } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
