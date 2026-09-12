@@ -138,7 +138,15 @@ impl UiState {
     pub fn show_toast(&mut self, msg: impl Into<String>) {
         self.current_toast = Some(Toast::new(msg));
     }
+
+    /// Le message du toast affiché, s'il y en a un.
+    pub fn toast_message(&self) -> Option<&str> {
+        self.current_toast.as_ref().map(|t| t.message.as_str())
+    }
 }
+
+/// Ce que dit le bouton Collab tant que la collaboration (fiche 09 § 9) n'existe pas.
+pub const NOT_YET_COLLAB: &str = "Collaboration : pas encore disponible";
 
 pub fn render_ui(
     pixmap: &mut PixmapMut,
@@ -1137,8 +1145,10 @@ pub fn handle_ui_click(
                         ui.show_toast(if ui.smart_align { "Aimant activé" } else { "Aimant désactivé" });
                     }
                     UiAction::ToggleCollab => {
-                        ui.collab_active = !ui.collab_active;
-                        ui.show_toast(if ui.collab_active { "Collaboration connectée" } else { "Collaboration déconnectée" });
+                        // Fiche 09 § 9 : aucun réseau n'existe. Le bouton ne « connecte »
+                        // rien, et ne doit pas le prétendre.
+                        ui.collab_active = false;
+                        ui.show_toast(NOT_YET_COLLAB);
                     }
                     _ => {}
                 }

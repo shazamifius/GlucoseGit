@@ -54,99 +54,69 @@
 
 Glucose permet d'exporter ses tableaux vers le monde extérieur :
 
-| Format d'export | Caractéristiques techniques |
-|---|---|
-| **HTML Interactif Autonome** | Produit un fichier `.html` unique avec JavaScript embarqué. N'importe quel navigateur peut ouvrir le tableau, naviguer au pan/zoom et consulter les notes sans avoir Glucose installé. |
-| **PNG Haute Définition** | Rendu matriciel complet de la scène avec facteur d'échelle réglable ($\times 1$, $\times 2$, $\times 4$) pour impression ou projection. |
-| **SVG Vectoriel** | Fichier vectoriel pur avec calques distincts pour les cartes, flèches, membranes et textes, directement éditable dans Illustrator ou Inkscape. |
-| **Markdown Structuré** | Extrait l'ensemble des blocs de texte, notes adhésives et descriptions de flèches dans un document Markdown linéaire hiérarchisé selon la disposition spatiale des cartes. |
+> **État le 12/09/2026** : aucun export n'est atteignable par l'utilisateur — pas de commande, pas de bouton (`[Export]` de la barre d'outils, fiche 10). Le noyau porte `export.rs` (SVG et Markdown, purs, 8 tests) sans aucun appelant de production.
+
+| Format d'export | État | Caractéristiques techniques |
+|---|---|---|
+| **HTML Interactif Autonome** | **À FAIRE** — rien | Produit un fichier `.html` unique avec JavaScript embarqué. N'importe quel navigateur peut ouvrir le tableau, naviguer au pan/zoom et consulter les notes sans avoir Glucose installé. |
+| **PNG Haute Définition** | **À FAIRE** — rien | Rendu matriciel complet de la scène avec facteur d'échelle réglable ($\times 1$, $\times 2$, $\times 4$) pour impression ou projection. |
+| **SVG Vectoriel** | **À FAIRE** — noyau écrit (`scene_to_svg`), non branché ; un seul calque (`<g class="card">`), pas de calques distincts | Fichier vectoriel pur avec calques distincts pour les cartes, flèches, membranes et textes, directement éditable dans Illustrator ou Inkscape. |
+| **Markdown Structuré** | **À FAIRE** — noyau écrit (`project_to_markdown`, zones → cartes → liens), non branché | Extrait l'ensemble des blocs de texte, notes adhésives et descriptions de flèches dans un document Markdown linéaire hiérarchisé selon la disposition spatiale des cartes. |
 
 ---
 
 ## 6. Domaines Sémantiques & Calcul Chromatique des Membranes
 
-Les domaines catégorisent la connaissance (ex: *Sciences*, *Histoire*, *Design*, *Mythologie*).
-
-### 6.1 Structure d'un Domaine
-```rust
-pub struct Domain {
-    pub id: String,
-    pub name: String,
-    pub color: String, // Code couleur HSL ou Hex (ex: "#3b82f6")
-    pub icon: String,  // Symbole ou émoji affiché dans les badges
-    pub created_at: u64,
-}
-```
-
-### 6.2 Signature Poly-Sémantique d'un Nœud
-Un élément peut appartenir à plusieurs domaines avec des poids distincts :
-$$\text{domains} = [(\text{Science}, 0.7), (\text{Histoire}, 0.3)]$$
-
 ### 6.3 Dérivation Chromatique des Membranes
-La couleur d'une membrane n'est pas choisie au hasard par l'application : elle est **dérivée de la moyenne pondérée des domaines de son contenu** :
-$$H_{\text{membrane}} = \sum (H_i \times \text{poids}_i) \Big/ \sum \text{poids}_i$$
-Une membrane contenant majoritairement des cartes liées au domaine *Sciences* (bleu) et un peu d'*Art* (jaune) se teintera automatiquement d'un vert bleuté harmonieux.
+* **À FAIRE** — La couleur d'une membrane est **dérivée de la moyenne pondérée des domaines de son contenu** : une membrane surtout *Sciences* (bleu) avec un peu d'*Art* (jaune) se teinte d'un vert bleuté. Rien n'existe : `DomainTints` teinte les badges domaine par domaine, la teinte symbiotique est positionnelle, et aucune des deux ne lit les domaines du contenu d'une membrane.
+* **Formule à corriger avant de l'implémenter.** La fiche donnait $H = \sum H_i\,w_i \big/ \sum w_i$ : une moyenne *arithmétique* d'angles, fausse dès que les teintes chevauchent 0° — deux rouges à $350°$ et $10°$ moyennent à $180°$, un cyan. La moyenne juste est **vectorielle circulaire**, celle que `symbiotic_hue.rs` applique déjà aux voisines : $H = \operatorname{atan2}\big(\sum w_i \sin H_i,\ \sum w_i \cos H_i\big)$. L'exemple bleu + jaune donne un vert dans les deux cas, ce qui a masqué l'erreur.
 
 ---
 
 ## 7. Temporalité & Time Machine (Ancrage Historique)
 
-Glucose permet de cartographier des évènements à travers le temps géologique et humain.
-
-### 7.1 L'Ancre Temporelle (`TemporalAnchor`)
-* Représente la date du **sujet décrit** par la carte (pas la date de modification du fichier).
-* Années calendaires sous forme d'entiers signés :
-  * Valeur positive : ère commune (ex: `1789` = Révolution française).
-  * Valeur négative : avant J.-C. (ex: `-3000` = Invention de l'écriture en Mésopotamie).
-* Plages continues : intervalle `[start, end]` (ex: Renaissance `[1400, 1600]`).
-
 ### 7.2 Réglette Temporelle (Shift+R) & Filtrage Dynamique
-* Ouvre une réglette interactive en bas de l'écran couvrant de $-10\,000$ à $+2100$.
-* En déplaçant le curseur temporel, les nœuds dont la période ne correspond pas à l'époque observée subissent une atténuation d'opacité vers $0.10$, mettant en relief la contemporanéité des idées.
+* **À FAIRE** — Ouvre une réglette interactive en bas de l'écran couvrant de $-10\,000$ à $+2100$. Rien côté interface : ni raccourci, ni réglette. Le noyau porte déjà ce qu'il faut pour la graduer (`timeline::tick_step`, ères nommées `DEFAULT_ERAS`, `format_year` du géologique au calendaire).
+* **À FAIRE** — En déplaçant le curseur temporel, les nœuds dont la période ne correspond pas à l'époque observée subissent une atténuation d'opacité vers $0.10$. Le noyau sait décider (`node_matches_temporal_filter`, testé) et le store porte `temporal_filter` avec `set_temporal_filter` — qu'aucun code de production n'appelle ; le rendu ne lit pas le filtre.
 
 ---
 
 ## 8. Mode Storyboard & Mise en Scène Séquentielle
 
-Transforme un ensemble d'images libres en une séquence narrative de plans (pour le cinéma, l'animation, la BD ou le jeu vidéo).
+> **État le 12/09/2026** : le panneau STORYBOARD existe (format, largeur, colonnes, espacement, grille de cellules, bouton Activer) et **ne touche pas au canevas** — il était une façade dont le bouton s'allumait sans effet ; il dit désormais « pas encore disponible » (testé : `test_the_storyboard_activate_button_does_not_stay_lit`). Le modèle porte `StoryboardPanel { order, description, x, y, width, height }` et le store `add_panel` / `update_panel`, journalisés, sans appelant.
 
-* **Ratios de cadrage standardisés** : `16:9` (Cinéma/TV), `4:3` (Classique), `2.35:1` (Cinémascope anamorphique), `1:1` (Carré), `9:16` (Vertical/Mobile).
-* **Grille de mise en page automatique** : Alignement automatique des vignettes en colonnes et rangées configurables avec espacement régulier.
-* **Légendes de production** : Chaque panneau associe une image à une description narrative, un numéro d'ordre et un temps de plan.
+* **À FAIRE** — **Ratios de cadrage standardisés** : `16:9` (Cinéma/TV), `4:3` (Classique), `2.35:1` (Cinémascope anamorphique), `1:1` (Carré), `9:16` (Vertical/Mobile). Les cinq libellés sont dans le panneau, sans effet.
+* **À FAIRE** — **Grille de mise en page automatique** : alignement des vignettes en colonnes et rangées configurables avec espacement régulier.
+* **À FAIRE** — **Légendes de production** : chaque panneau associe une image à une description narrative, un numéro d'ordre et un temps de plan. Le modèle n'a ni lien vers l'image, ni temps de plan.
 
 ---
 
 ## 9. Collaboration Multi-Utilisateur en Temps Réel (CRDT & Réseau)
 
-Conçu pour fonctionner en réseau local (LAN) ou distant sans serveur central complexe.
+> **État le 12/09/2026** : rien. Ni réseau, ni CRDT, ni pairs. `Project` porte `collab_url` et `asset_channel_url`, persistés et jamais lus. Le bouton **[Collab]** disait « Collaboration connectée » ; il dit désormais « pas encore disponible » et ne s'allume pas (testé). **À décider avant tout le reste** : Automerge (§ 3.1) n'a de sens qu'avec ce paragraphe, et ce paragraphe engage une dépendance lourde — voir la charte, exigence 1.
 
 ### 9.1 Synchronisation par CRDT Automerge
-* Les modifications concurrentes de deux collaborateurs sont fusionnées sans aucun conflit d'écrasement grâce au formalisme mathématique des CRDT (Conflict-free Replicated Data Types).
-* Si deux utilisateurs déplacent deux cartes différentes en même temps, les deux cartes bougent sur les deux écrans sans aucun verrouillage de fichier.
+* **À FAIRE** — Les modifications concurrentes de deux collaborateurs sont fusionnées sans conflit d'écrasement (CRDT). Deux utilisateurs déplaçant deux cartes différentes en même temps voient les deux bouger sur les deux écrans, sans verrouillage de fichier.
 
 ### 9.2 Canal Séparé pour les Octets Lourds (`assetChannelUrl`)
-* **Le piège classique des CRDT** : Mettre des octets d'images dans le document CRDT fait exploser la taille de l'historique et gèle les calculs de fusion.
-* **L'architecture Glucose** :
-  * Le document principal ne contient que les métadonnées légères ($< 500\text{ Ko}$).
-  * Un **canal d'assets secondaire dédié** transfère les flux binaires d'images de pair à pair en arrière-plan.
+* **À FAIRE** — Le document principal ne contient que les métadonnées légères ($< 500\text{ Ko}$) ; un canal d'assets secondaire transfère les octets d'images de pair à pair en arrière-plan. (Le conteneur `.glucose` sépare déjà document et actifs en sections distinctes : c'est la base de cette séparation.)
 
-### 9.3 Curseurs Distants Fluides (`PeerCursorsLayer.tsx`)
-* Les mouvements de souris des pairs sont diffusés en coordonnées monde avec horodatage.
-* Le moteur local interpole la trajectoire des curseurs distants par lissage polynomial (spline), affichant une flèche fluide à la couleur du collaborateur coiffée de son nom d'utilisateur.
+### 9.3 Curseurs Distants Fluides
+* **À FAIRE** — Les mouvements de souris des pairs sont diffusés en coordonnées monde avec horodatage ; le moteur local interpole leur trajectoire (spline) et affiche une flèche à la couleur du collaborateur, coiffée de son nom.
 
 ---
 
 ## 10. Extensibilité : Système de Plugins & IA Locale (Ollama)
 
-Glucose s'interface avec l'écosystème machine local via des processus sidecars légers.
+> **État le 12/09/2026** : rien. Le panneau PLUGINS reproduit la maquette (IA LOCALE, Cours magistral, densité, disposition) — mais il affichait une pastille verte **« Ollama actif »** et **« Ce PC : 32 Go RAM · 12 cœurs · GPU 6 Go »** écrits en dur, sans avoir jamais interrogé quoi que ce soit. Il affiche désormais l'état réel (« Ollama : non détecté », pastille grise), et le bouton Télécharger dit qu'il ne télécharge pas (testé : `test_the_download_model_button_does_not_pretend_to_download`).
 
 ### 10.1 Manifeste de Plugin (`plugin.json`)
-Chaque plugin est un dossier autonome décrivant ses capacités, ses déclencheurs et ses paramètres d'interface.
+* **À FAIRE** — Chaque plugin est un dossier autonome décrivant ses capacités, ses déclencheurs et ses paramètres d'interface.
 
 ### 10.2 Pont IPC Sécurisé
-Les plugins s'exécutent en sandbox et communiquent avec le noyau via des canaux IPC standards (JSON stdin/stdout). Ils peuvent lire le board courant, proposer de nouvelles dispositions géométriques ou injecter des nœuds.
+* **À FAIRE** — Les plugins s'exécutent en sandbox et communiquent avec le noyau par JSON sur stdin/stdout. Ils peuvent lire le board courant, proposer des dispositions ou injecter des nœuds.
 
 ### 10.3 Moteur IA Local (Ollama Bridge)
-* Détection automatique d'Ollama sur la machine (`http://localhost:11434`).
-* Possibilité de télécharger des modèles légers (Llama 3, Mistral, Gemma) en un clic.
-* **Génération Spatiale de Savoir** : L'utilisateur colle un texte brut ou un article de recherche ; le plugin interroge le LLM local qui analyse les concepts-clés et génère automatiquement un réseau complet de cartes et de flèches logiques spatialisées sur le canvas.
+* **À FAIRE** — Détection automatique d'Ollama (`http://localhost:11434`).
+* **À FAIRE** — Téléchargement de modèles légers (Llama 3, Mistral, Gemma) en un clic.
+* **À FAIRE** — **Génération spatiale de savoir** : l'utilisateur colle un texte ; le LLM local en extrait les concepts-clés et génère un réseau de cartes et de flèches spatialisées sur le canvas. C'est le cas d'usage qui fixe l'échelle du projet (charte : le canva de Wikipédia).

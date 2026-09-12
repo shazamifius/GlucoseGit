@@ -1300,6 +1300,10 @@ fn render_storyboard_content(
 
 // ── 4. Panneau PLUGINS ────────────────────────────────────────────────────
 
+/// L'état affiché d'Ollama tant qu'aucune détection n'existe. Le jour où `localhost:11434`
+/// est interrogé, cette constante disparaît au profit du résultat.
+pub const OLLAMA_STATUS: &str = "Ollama : non détecté";
+
 fn render_plugins_content(
     pixmap: &mut PixmapMut,
     state: &PluginsState,
@@ -1318,18 +1322,20 @@ fn render_plugins_content(
     // IA LOCALE
     typo.draw_text(pixmap, "IA LOCALE", px + 14.0 * s, py + 38.0 * s, TextStyle { size: 9.5 * s, color: theme.text_muted, bold: true });
 
-    // Pastille verte
+    // Pastille d'état. Grise tant qu'aucune détection n'existe (fiche 09 § 10.3) : elle
+    // était verte et disait « Ollama actif » sans avoir jamais interrogé `localhost:11434`,
+    // au-dessus de caractéristiques machine écrites en dur.
     let mut dot_paint = Paint::default();
-    dot_paint.set_color(Color::from_rgba8(52, 211, 153, 255));
+    dot_paint.set_color(theme.text_muted);
     dot_paint.anti_alias = true;
     let mut dpb = PathBuilder::new();
     dpb.push_circle(px + 18.0 * s, py + 57.0 * s, 3.5 * s);
     if let Some(p) = dpb.finish() {
         pixmap.fill_path(&p, &dot_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
     }
-    typo.draw_text(pixmap, "Ollama actif", px + 26.0 * s, py + 52.0 * s, TextStyle { size: 11.0 * s, color: theme.text_primary, bold: true });
+    typo.draw_text(pixmap, OLLAMA_STATUS, px + 26.0 * s, py + 52.0 * s, TextStyle { size: 11.0 * s, color: theme.text_primary, bold: true });
 
-    typo.draw_text(pixmap, "Ce PC : 32 Go RAM · 12 cœurs · GPU 6 Go", px + 14.0 * s, py + 68.0 * s, TextStyle { size: 10.0 * s, color: theme.text_muted, bold: false });
+    typo.draw_text(pixmap, "Détection de la machine : à venir", px + 14.0 * s, py + 68.0 * s, TextStyle { size: 10.0 * s, color: theme.text_muted, bold: false });
     // Le nom du modèle suit la plume, pas un décalage fixe calibré sur une police (R-51).
     let after_label = typo.draw_text(pixmap, "Modèle conseillé pour ce PC : ", px + 14.0 * s, py + 82.0 * s, TextStyle { size: 10.5 * s, color: theme.text_secondary, bold: false });
     typo.draw_text(pixmap, "qwen2.5:7b", after_label, py + 82.0 * s, TextStyle { size: 10.5 * s, color: theme.text_primary, bold: true });
@@ -1567,6 +1573,8 @@ pub enum PanelClickResult {
     SelectFormat(usize),
     SelectDensity(usize),
     SelectDisposition(usize),
+    /// Le bouton « Télécharger » du panneau PLUGINS (fiche 09 § 10.3) — sans moteur derrière.
+    DownloadModel,
     /// Un geste du panneau DOMAINES, à traduire en commande par `interactions::domains`.
     Domain(domains::DomainIntent),
 }
@@ -1647,6 +1655,9 @@ pub fn handle_dock_click(
             }
             TabId::Plugins => {
                 let layout = layout_plugins_panel(px, py, pw, b.height, s);
+                if layout.download_button.contains(mx, my) {
+                    return Some(PanelClickResult::DownloadModel);
+                }
                 for (i, opt) in layout.density_options.iter().enumerate() {
                     if opt.contains(mx, my) {
                         dock.plugins.density_idx = i;

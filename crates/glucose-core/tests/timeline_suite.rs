@@ -337,3 +337,19 @@ fn test_default_eras_valid() {
     assert!(names.contains(&"Révolution française"));
     assert!(names.contains(&"Antiquité"));
 }
+
+/// Fiche 09 § 7.1 — les trois exemples de la fiche, tels quels : `1789`, `-3000` (avant
+/// J.-C., entier signé), et la Renaissance comme plage continue `[1400, 1600]`.
+#[test]
+fn test_the_anchor_examples_of_the_spec() {
+    let year = |y: i64| TemporalAnchor { start: y, end: y, label: None };
+    assert_eq!(parse_anchor("1789", DEFAULT_ERAS), Some(year(1789)));
+    assert_eq!(parse_anchor("-3000", DEFAULT_ERAS), Some(year(-3000)));
+    assert_eq!(
+        parse_anchor("1400-1600", DEFAULT_ERAS),
+        Some(TemporalAnchor { start: 1400, end: 1600, label: None })
+    );
+    // Et la date est celle du sujet, pas celle du fichier : rien dans l'ancre ne vient
+    // d'une horloge, elle se construit et se relit à l'identique.
+    assert_eq!(format_anchor(&year(-3000)), format_anchor(&year(-3000)));
+}
