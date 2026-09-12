@@ -20,7 +20,10 @@ fn make_folder(id: &str, child_board_id: &str) -> CanvasFolder {
 
 fn make_board(id: &str, folders: &[(&str, &str)]) -> Board {
     let mut b = Board::new(id, id);
-    b.folders = folders.iter().map(|&(fid, cid)| make_folder(fid, cid)).collect();
+    b.folders = folders
+        .iter()
+        .map(|&(fid, cid)| make_folder(fid, cid))
+        .collect();
     b
 }
 
@@ -87,7 +90,13 @@ fn test_find_board_containing_folder() {
         make_board("b1", &[("f1", "b2")]),
         make_board("b2", &[("f2", "b3")]),
     ];
-    assert_eq!(find_board_containing_folder(&boards, "f1").map(|b| b.id.as_str()), Some("b1"));
-    assert_eq!(find_board_containing_folder(&boards, "f2").map(|b| b.id.as_str()), Some("b2"));
+    assert_eq!(
+        find_board_containing_folder(&boards, "f1").map(|b| b.id.as_str()),
+        Some("b1")
+    );
+    assert_eq!(
+        find_board_containing_folder(&boards, "f2").map(|b| b.id.as_str()),
+        Some("b2")
+    );
     assert_eq!(find_board_containing_folder(&boards, "ghost"), None);
 }

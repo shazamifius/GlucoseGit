@@ -48,11 +48,10 @@ pub fn would_create_mirror_cycle(
     false
 }
 
-pub fn find_board_containing_folder<'a>(
-    boards: &'a [Board],
-    folder_id: &str,
-) -> Option<&'a Board> {
-    boards.iter().find(|b| b.folders.iter().any(|f| f.id == folder_id))
+pub fn find_board_containing_folder<'a>(boards: &'a [Board], folder_id: &str) -> Option<&'a Board> {
+    boards
+        .iter()
+        .find(|b| b.folders.iter().any(|f| f.id == folder_id))
 }
 
 #[cfg(test)]
@@ -104,7 +103,16 @@ mod tests {
         assert!(would_create_mirror_cycle(&boards, "fA", "b3"));
         // Mettre un miroir de fB dans b1 ne crée pas de cycle vers un nouveau board neutre
         let b_neutral = board("b_neutral", vec![]);
-        let boards_neutral = [boards[0].clone(), boards[1].clone(), boards[2].clone(), b_neutral];
-        assert!(!would_create_mirror_cycle(&boards_neutral, "fA", "b_neutral"));
+        let boards_neutral = [
+            boards[0].clone(),
+            boards[1].clone(),
+            boards[2].clone(),
+            b_neutral,
+        ];
+        assert!(!would_create_mirror_cycle(
+            &boards_neutral,
+            "fA",
+            "b_neutral"
+        ));
     }
 }

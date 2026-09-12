@@ -68,7 +68,9 @@ impl Store {
             b.id == id
                 || b.images.iter().any(|i| i.id == id)
                 || b.annotations.iter().any(|a| a.id() == id)
-                || b.folders.iter().any(|f| f.id == id || f.child_board_id == id)
+                || b.folders
+                    .iter()
+                    .any(|f| f.id == id || f.child_board_id == id)
         })
     }
 

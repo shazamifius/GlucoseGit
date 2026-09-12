@@ -1,9 +1,9 @@
 //! Tests portés fidèlement de src/canvas/membraneSpace.test.ts
 
 use glucose_core::membrane_space::{
-    can_switch_mode, contained_in, content_extent, content_scale, has_scaling,
-    items_of_board, origin_of, parent_map, project_board, reconcile_membership, resolve_items,
-    scale_of, ResolveOptions, SpaceItem, SpaceItemKind, MIN_CONTENT_SCALE,
+    can_switch_mode, contained_in, content_extent, content_scale, has_scaling, items_of_board,
+    origin_of, parent_map, project_board, reconcile_membership, resolve_items, scale_of,
+    ResolveOptions, SpaceItem, SpaceItemKind, MIN_CONTENT_SCALE,
 };
 use glucose_core::membrane_stretch::stretch_plan;
 use glucose_core::types::{Annotation, Board, BoardImage, MembraneMode, Point2D};
@@ -12,7 +12,15 @@ fn approx_eq(a: f64, b: f64) -> bool {
     (a - b).abs() < 1e-5
 }
 
-fn memb(id: &str, x: f64, y: f64, w: f64, h: f64, mode: MembraneMode, membrane_id: Option<&str>) -> SpaceItem {
+fn memb(
+    id: &str,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    mode: MembraneMode,
+    membrane_id: Option<&str>,
+) -> SpaceItem {
     SpaceItem {
         id: id.to_string(),
         kind: SpaceItemKind::Membrane,
@@ -38,9 +46,20 @@ fn box_item(id: &str, x: f64, y: f64, w: f64, h: f64, membrane_id: Option<&str>)
     }
 }
 
-fn eff(items: &[SpaceItem], id: &str, focused_membrane_id: Option<&str>) -> glucose_core::membrane_space::ResolvedItem {
-    let r = resolve_items(items, ResolveOptions { focused_membrane_id });
-    r.get(id).cloned().unwrap_or_else(|| panic!("{} absent de la résolution", id))
+fn eff(
+    items: &[SpaceItem],
+    id: &str,
+    focused_membrane_id: Option<&str>,
+) -> glucose_core::membrane_space::ResolvedItem {
+    let r = resolve_items(
+        items,
+        ResolveOptions {
+            focused_membrane_id,
+        },
+    );
+    r.get(id)
+        .cloned()
+        .unwrap_or_else(|| panic!("{} absent de la résolution", id))
 }
 
 #[test]
@@ -73,14 +92,38 @@ fn test_membership_non_membrane_parent_ignored() {
 
 #[test]
 fn test_membership_self_reference_ignored() {
-    let items = [memb("M", 0.0, 0.0, 10.0, 10.0, MembraneMode::Classic, Some("M"))];
+    let items = [memb(
+        "M",
+        0.0,
+        0.0,
+        10.0,
+        10.0,
+        MembraneMode::Classic,
+        Some("M"),
+    )];
     assert!(!parent_map(&items).contains_key("M"));
 }
 
 #[test]
 fn test_membership_cycle_broken_and_resolves() {
-    let a = memb("A", 0.0, 0.0, 100.0, 100.0, MembraneMode::Minimized, Some("B"));
-    let b = memb("B", 0.0, 0.0, 100.0, 100.0, MembraneMode::Minimized, Some("A"));
+    let a = memb(
+        "A",
+        0.0,
+        0.0,
+        100.0,
+        100.0,
+        MembraneMode::Minimized,
+        Some("B"),
+    );
+    let b = memb(
+        "B",
+        0.0,
+        0.0,
+        100.0,
+        100.0,
+        MembraneMode::Minimized,
+        Some("A"),
+    );
     let items = [a, b];
     assert_eq!(parent_map(&items).len(), 0);
     assert_eq!(resolve_items(&items, ResolveOptions::default()).len(), 2);
@@ -105,25 +148,46 @@ fn test_content_scale_single_and_both_axes() {
     let contenu = box_item("I", 0.0, 0.0, 800.0, 600.0, Some("M"));
     let m = memb("M", 0.0, 0.0, 400.0, 300.0, MembraneMode::Minimized, None);
     let (ext_w, ext_h) = content_extent(m.rect(), &[&contenu]);
-    assert!(approx_eq(content_scale(MembraneMode::Minimized, m.rect(), ext_w, ext_h), 0.5));
-    assert!(approx_eq(eff(&[m.clone(), contenu.clone()], "I", None).width, 400.0));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Minimized, m.rect(), ext_w, ext_h),
+        0.5
+    ));
+    assert!(approx_eq(
+        eff(&[m.clone(), contenu.clone()], "I", None).width,
+        400.0
+    ));
 
     // Étirer un seul axe ne fait pas regrossir le contenu (min des deux)
     let large = memb("M", 0.0, 0.0, 800.0, 300.0, MembraneMode::Minimized, None);
     let (ext_lw, ext_lh) = content_extent(large.rect(), &[&contenu]);
-    assert!(approx_eq(content_scale(MembraneMode::Minimized, large.rect(), ext_lw, ext_lh), 0.5));
-    assert!(approx_eq(eff(&[large, contenu.clone()], "I", None).width, 400.0));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Minimized, large.rect(), ext_lw, ext_lh),
+        0.5
+    ));
+    assert!(approx_eq(
+        eff(&[large, contenu.clone()], "I", None).width,
+        400.0
+    ));
 
     // Étirer le second axe libère la croissance
     let carre = memb("M", 0.0, 0.0, 800.0, 600.0, MembraneMode::Minimized, None);
     let (ext_cw, ext_ch) = content_extent(carre.rect(), &[&contenu]);
-    assert!(approx_eq(content_scale(MembraneMode::Minimized, carre.rect(), ext_cw, ext_ch), 1.0));
-    assert!(approx_eq(eff(&[carre, contenu.clone()], "I", None).width, 800.0));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Minimized, carre.rect(), ext_cw, ext_ch),
+        1.0
+    ));
+    assert!(approx_eq(
+        eff(&[carre, contenu.clone()], "I", None).width,
+        800.0
+    ));
 
     // Plafonne à 1
     let vaste = memb("M", 0.0, 0.0, 1000.0, 800.0, MembraneMode::Minimized, None);
     let (ext_vw, ext_vh) = content_extent(vaste.rect(), &[&contenu]);
-    assert!(approx_eq(content_scale(MembraneMode::Minimized, vaste.rect(), ext_vw, ext_vh), 1.0));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Minimized, vaste.rect(), ext_vw, ext_vh),
+        1.0
+    ));
 
     // Plancher
     let minuscule = memb("M", 0.0, 0.0, 1.0, 1.0, MembraneMode::Minimized, None);
@@ -134,11 +198,20 @@ fn test_content_scale_single_and_both_axes() {
 
     // Classic & Stretched restent à 1
     let m_classic = memb("M", 0.0, 0.0, 400.0, 300.0, MembraneMode::Classic, None);
-    assert!(approx_eq(content_scale(MembraneMode::Classic, m_classic.rect(), ext_w, ext_h), 1.0));
-    assert!(approx_eq(content_scale(MembraneMode::Stretched, m_classic.rect(), ext_w, ext_h), 1.0));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Classic, m_classic.rect(), ext_w, ext_h),
+        1.0
+    ));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Stretched, m_classic.rect(), ext_w, ext_h),
+        1.0
+    ));
 
     // Vide reste à 1
-    assert!(approx_eq(content_scale(MembraneMode::Minimized, m.rect(), 0.0, 0.0), 1.0));
+    assert!(approx_eq(
+        content_scale(MembraneMode::Minimized, m.rect(), 0.0, 0.0),
+        1.0
+    ));
 }
 
 #[test]
@@ -153,21 +226,48 @@ fn test_focus_mode() {
     assert_eq!(i.width, 800.0);
 
     // Propagé aux membranes imbriquées
-    let inner = memb("IN", 0.0, 0.0, 100.0, 100.0, MembraneMode::Minimized, Some("M"));
+    let inner = memb(
+        "IN",
+        0.0,
+        0.0,
+        100.0,
+        100.0,
+        MembraneMode::Minimized,
+        Some("M"),
+    );
     let deep = box_item("D", 0.0, 0.0, 400.0, 400.0, Some("IN"));
     let items_nested = [m, inner, deep];
     assert!(approx_eq(eff(&items_nested, "D", Some("M")).scale, 1.0));
 
     // Focaliser une autre ne change rien ici
-    let autre = memb("AUTRE", 5000.0, 5000.0, 100.0, 100.0, MembraneMode::Classic, None);
+    let autre = memb(
+        "AUTRE",
+        5000.0,
+        5000.0,
+        100.0,
+        100.0,
+        MembraneMode::Classic,
+        None,
+    );
     let items_autre = [items[0].clone(), items[1].clone(), autre];
-    assert!(approx_eq(eff(&items_autre, "I", Some("AUTRE")).width, 400.0));
+    assert!(approx_eq(
+        eff(&items_autre, "I", Some("AUTRE")).width,
+        400.0
+    ));
 }
 
 #[test]
 fn test_nested_membranes_compose_scale() {
     let outer = memb("O", 0.0, 0.0, 500.0, 500.0, MembraneMode::Minimized, None);
-    let inner = memb("IN", 0.0, 0.0, 1000.0, 1000.0, MembraneMode::Minimized, Some("O"));
+    let inner = memb(
+        "IN",
+        0.0,
+        0.0,
+        1000.0,
+        1000.0,
+        MembraneMode::Minimized,
+        Some("O"),
+    );
     let leaf = box_item("L", 0.0, 0.0, 2000.0, 2000.0, Some("IN"));
     let items = [outer, inner, leaf];
 
@@ -176,7 +276,15 @@ fn test_nested_membranes_compose_scale() {
     assert!(approx_eq(eff(&items, "L", None).width, 500.0));
 
     // Ancré sur le coin haut-gauche
-    let m = memb("M", 100.0, 100.0, 200.0, 200.0, MembraneMode::Minimized, None);
+    let m = memb(
+        "M",
+        100.0,
+        100.0,
+        200.0,
+        200.0,
+        MembraneMode::Minimized,
+        None,
+    );
     let a = box_item("A", 100.0, 100.0, 400.0, 400.0, Some("M"));
     assert!(approx_eq(eff(&[m, a], "A", None).x, 100.0));
 
@@ -195,7 +303,10 @@ fn test_stretched_mode_plan() {
     let dedans = box_item("I", 0.0, 0.0, 300.0, 100.0, Some("M"));
 
     let plan = stretch_plan(&m, &[&dedans], &[]);
-    assert!(approx_eq(plan.desired.width, 300.0 + glucose_core::membrane_space::STRETCH_PADDING));
+    assert!(approx_eq(
+        plan.desired.width,
+        300.0 + glucose_core::membrane_space::STRETCH_PADDING
+    ));
     assert_eq!(plan.allowed, plan.desired);
     assert!(!plan.blocked);
     assert_eq!(plan.blockers.len(), 0);
@@ -212,20 +323,52 @@ fn test_stretched_mode_plan() {
 
 #[test]
 fn test_can_switch_mode() {
-    assert!(can_switch_mode(MembraneMode::Minimized, MembraneMode::Stretched));
-    assert!(can_switch_mode(MembraneMode::Stretched, MembraneMode::Minimized));
-    assert!(can_switch_mode(MembraneMode::Classic, MembraneMode::Minimized));
-    assert!(can_switch_mode(MembraneMode::Classic, MembraneMode::Stretched));
-    assert!(!can_switch_mode(MembraneMode::Minimized, MembraneMode::Classic));
-    assert!(!can_switch_mode(MembraneMode::Stretched, MembraneMode::Classic));
-    assert!(can_switch_mode(MembraneMode::Minimized, MembraneMode::Minimized));
-    assert!(can_switch_mode(MembraneMode::Classic, MembraneMode::Classic));
+    assert!(can_switch_mode(
+        MembraneMode::Minimized,
+        MembraneMode::Stretched
+    ));
+    assert!(can_switch_mode(
+        MembraneMode::Stretched,
+        MembraneMode::Minimized
+    ));
+    assert!(can_switch_mode(
+        MembraneMode::Classic,
+        MembraneMode::Minimized
+    ));
+    assert!(can_switch_mode(
+        MembraneMode::Classic,
+        MembraneMode::Stretched
+    ));
+    assert!(!can_switch_mode(
+        MembraneMode::Minimized,
+        MembraneMode::Classic
+    ));
+    assert!(!can_switch_mode(
+        MembraneMode::Stretched,
+        MembraneMode::Classic
+    ));
+    assert!(can_switch_mode(
+        MembraneMode::Minimized,
+        MembraneMode::Minimized
+    ));
+    assert!(can_switch_mode(
+        MembraneMode::Classic,
+        MembraneMode::Classic
+    ));
 }
 
 #[test]
 fn test_reconcile_membership() {
     let m = memb("M", 0.0, 0.0, 400.0, 400.0, MembraneMode::Classic, None);
-    let autre = memb("AUTRE", 1000.0, 0.0, 400.0, 400.0, MembraneMode::Classic, None);
+    let autre = memb(
+        "AUTRE",
+        1000.0,
+        0.0,
+        400.0,
+        400.0,
+        MembraneMode::Classic,
+        None,
+    );
 
     // Lâché dedans rejoint la membrane
     let libre = box_item("I", 100.0, 100.0, 50.0, 50.0, None);
@@ -253,7 +396,15 @@ fn test_reconcile_membership() {
     assert_eq!(ch_migre[0].membrane_id.as_deref(), Some("AUTRE"));
 
     // Petite l'emporte
-    let petite = memb("PETITE", 50.0, 50.0, 100.0, 100.0, MembraneMode::Classic, None);
+    let petite = memb(
+        "PETITE",
+        50.0,
+        50.0,
+        100.0,
+        100.0,
+        MembraneMode::Classic,
+        None,
+    );
     let it0 = box_item("I", 80.0, 80.0, 20.0, 20.0, None);
     let items_imb = vec![m.clone(), petite.clone(), it0];
     let res_imb = resolve_items(&items_imb, ResolveOptions::default());
@@ -262,8 +413,24 @@ fn test_reconcile_membership() {
     assert_eq!(ch_imb[0].membrane_id.as_deref(), Some("PETITE"));
 
     // Anti-cycle : grande ne peut pas entrer dans petite qui lui appartient
-    let grande = memb("GRANDE", 0.0, 0.0, 400.0, 400.0, MembraneMode::Classic, None);
-    let petite_child = memb("PETITE_C", 0.0, 0.0, 380.0, 380.0, MembraneMode::Classic, Some("GRANDE"));
+    let grande = memb(
+        "GRANDE",
+        0.0,
+        0.0,
+        400.0,
+        400.0,
+        MembraneMode::Classic,
+        None,
+    );
+    let petite_child = memb(
+        "PETITE_C",
+        0.0,
+        0.0,
+        380.0,
+        380.0,
+        MembraneMode::Classic,
+        Some("GRANDE"),
+    );
     let items_cycle = vec![grande, petite_child];
     let res_cycle = resolve_items(&items_cycle, ResolveOptions::default());
     let ch_cycle = reconcile_membership(&items_cycle, &res_cycle, &["GRANDE".into()]);
@@ -409,7 +576,15 @@ fn test_project_arrow_in_membrane() {
         .iter()
         .find(|ann| ann.id() == "F")
         .unwrap();
-    if let Annotation::Arrow { x, y, x2, y2, waypoints, .. } = f {
+    if let Annotation::Arrow {
+        x,
+        y,
+        x2,
+        y2,
+        waypoints,
+        ..
+    } = f
+    {
         assert!(approx_eq(*x, 25.0));
         assert!(approx_eq(*y, 25.0));
         assert!(approx_eq(*x2, 125.0));

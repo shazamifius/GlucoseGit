@@ -101,7 +101,10 @@ pub fn plan_board_stretch(items: &[SpaceItem]) -> Vec<StretchOutcome> {
     let mut target_indices: Vec<usize> = work
         .iter()
         .enumerate()
-        .filter(|(_, i)| i.kind == crate::membrane_space::SpaceItemKind::Membrane && i.mode == Some(MembraneMode::Stretched))
+        .filter(|(_, i)| {
+            i.kind == crate::membrane_space::SpaceItemKind::Membrane
+                && i.mode == Some(MembraneMode::Stretched)
+        })
         .map(|(idx, _)| idx)
         .collect();
 

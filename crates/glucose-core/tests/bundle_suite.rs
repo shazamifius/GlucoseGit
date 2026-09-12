@@ -2,9 +2,8 @@
 //! Ports de src/utils/bundle.test.ts, assetRef.test.ts et assets.test.ts
 
 use glucose_core::bundle::{
-    asset_bytes_match, build_bundle_manifest, collect_referenced_assets,
-    data_url_to_bytes, ext_from_mime, mime_from_ext, resolve_asset_src,
-    sha256_hex, BUNDLE_FORMAT, BUNDLE_VERSION,
+    asset_bytes_match, build_bundle_manifest, collect_referenced_assets, data_url_to_bytes,
+    ext_from_mime, mime_from_ext, resolve_asset_src, sha256_hex, BUNDLE_FORMAT, BUNDLE_VERSION,
 };
 use glucose_core::types::{AssetRef, BoardImage, Project};
 
@@ -64,7 +63,10 @@ fn test_collecte_aussi_le_champ_legacy_src_asset() {
 #[test]
 fn test_deduplique_un_meme_asset_sur_plusieurs_images() {
     let p = mk_project(vec![
-        vec![link_img("i1", "dup.png", None, None), link_img("i2", "dup.png", None, None)],
+        vec![
+            link_img("i1", "dup.png", None, None),
+            link_img("i2", "dup.png", None, None),
+        ],
         vec![link_img("i3", "dup.png", None, None)],
     ]);
     assert_eq!(collect_referenced_assets(&p).len(), 1);
@@ -224,8 +226,14 @@ fn test_resolve_asset_src_routage() {
     let data = "data:image/png;base64,AAAABBBBCCCC";
     assert_eq!(resolve_asset_src(data, None, None), data);
 
-    assert_eq!(resolve_asset_src("https://exemple.com/y.png", None, None), "https://exemple.com/y.png");
-    assert_eq!(resolve_asset_src("http://exemple.com/y.png", None, None), "http://exemple.com/y.png");
+    assert_eq!(
+        resolve_asset_src("https://exemple.com/y.png", None, None),
+        "https://exemple.com/y.png"
+    );
+    assert_eq!(
+        resolve_asset_src("http://exemple.com/y.png", None, None),
+        "http://exemple.com/y.png"
+    );
 
     assert_eq!(
         resolve_asset_src("asset:abc.jpg", Some("C:/assets"), None),

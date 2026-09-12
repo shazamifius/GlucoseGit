@@ -55,7 +55,10 @@ impl Store {
     fn clear_portal_arrows_to(&mut self, removed_board_id: &str) {
         for b in &mut self.project.boards {
             for a in &mut b.annotations {
-                if let Annotation::Arrow { target_board_id, .. } = a {
+                if let Annotation::Arrow {
+                    target_board_id, ..
+                } = a
+                {
                     if target_board_id.as_deref() == Some(removed_board_id) {
                         *target_board_id = None;
                     }

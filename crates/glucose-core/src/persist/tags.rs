@@ -14,7 +14,8 @@
 
 use crate::error::{CoreError, CoreResult};
 use crate::types::{
-    ArrowPredicate, CurtainEditable, CurtainVisibility, FolderSortMode, MembraneMode, StickyOperator,
+    ArrowPredicate, CurtainEditable, CurtainVisibility, FolderSortMode, MembraneMode,
+    StickyOperator,
 };
 
 pub fn unknown(kind: &str, tag: u8) -> CoreError {
@@ -160,12 +161,24 @@ mod tests {
     #[test]
     fn test_an_unknown_discriminant_asks_the_user_to_update() {
         for message in [
-            predicate_from_tag(200).expect_err("200 n'est pas un prédicat").to_string(),
-            operator_from_tag(200).expect_err("200 n'est pas un opérateur").to_string(),
-            membrane_mode_from_tag(200).expect_err("200 n'est pas un mode").to_string(),
-            visibility_from_tag(200).expect_err("200 n'est pas une visibilité").to_string(),
-            editable_from_tag(200).expect_err("200 n'est pas un droit").to_string(),
-            sort_mode_from_tag(200).expect_err("200 n'est pas un tri").to_string(),
+            predicate_from_tag(200)
+                .expect_err("200 n'est pas un prédicat")
+                .to_string(),
+            operator_from_tag(200)
+                .expect_err("200 n'est pas un opérateur")
+                .to_string(),
+            membrane_mode_from_tag(200)
+                .expect_err("200 n'est pas un mode")
+                .to_string(),
+            visibility_from_tag(200)
+                .expect_err("200 n'est pas une visibilité")
+                .to_string(),
+            editable_from_tag(200)
+                .expect_err("200 n'est pas un droit")
+                .to_string(),
+            sort_mode_from_tag(200)
+                .expect_err("200 n'est pas un tri")
+                .to_string(),
         ] {
             assert!(message.contains("mets-la à jour"), "message : {message}");
         }

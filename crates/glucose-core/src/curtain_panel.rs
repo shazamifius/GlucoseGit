@@ -185,7 +185,10 @@ mod tests {
 
     #[test]
     fn test_normalize_config() {
-        let bad = CurtainConfig { collapsed: -0.5, expanded: 2.0 };
+        let bad = CurtainConfig {
+            collapsed: -0.5,
+            expanded: 2.0,
+        };
         let norm = normalize_config(Some(bad));
         assert_eq!(norm.collapsed, curtain_consts::MIN_COLLAPSED);
         assert_eq!(norm.expanded, curtain_consts::MAX_EXPANDED);

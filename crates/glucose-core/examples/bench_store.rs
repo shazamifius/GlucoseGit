@@ -52,7 +52,10 @@ struct Lcg(u64);
 
 impl Lcg {
     fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         self.0 >> 11
     }
     fn coord(&mut self, span: f64) -> f64 {
@@ -209,6 +212,8 @@ fn main() {
     println!("\nLecture :");
     println!("  • « alloué Mo »  = mémoire allouée par UNE seule mutation ordinaire.");
     println!("  • « grab+30 ms » = un glisser complet : begin_live_edit + 30 déplacements + end_live_edit.");
-    println!("  • « lookup µs »  = retrouver un nœud par identifiant (balayage linéaire du board).");
+    println!(
+        "  • « lookup µs »  = retrouver un nœud par identifiant (balayage linéaire du board)."
+    );
     println!("  • Loi L3 : une modification doit coûter la taille de la modification, pas celle du document.");
 }

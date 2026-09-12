@@ -38,7 +38,13 @@ impl Store {
             return;
         };
         for (i, slot) in preset.slots.iter().enumerate() {
-            b.zones.push(BoardZone::new(&slot.id, (i as f64) * 250.0, 0.0, 240.0, 180.0));
+            b.zones.push(BoardZone::new(
+                &slot.id,
+                (i as f64) * 250.0,
+                0.0,
+                240.0,
+                180.0,
+            ));
         }
     }
 

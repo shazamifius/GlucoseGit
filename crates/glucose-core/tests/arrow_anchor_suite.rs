@@ -18,12 +18,16 @@ fn test_arrow_endpoints_exit_facing_side() {
     let ep = arrow_endpoints(a, b, &[]);
 
     assert!(ep.start.y > 100.0); // sous le bas de A (y=100)
-    assert!(ep.end.y < 500.0);   // au-dessus du haut de B (y=500)
+    assert!(ep.end.y < 500.0); // au-dessus du haut de B (y=500)
     assert!(approx_eq(ep.start.x, 100.0)); // pile sous le centre
     assert!(approx_eq(ep.end.x, 100.0));
 
     // Sort par la droite quand la cible est à droite
-    let ep_horiz = arrow_endpoints(note(0.0, 0.0, 200.0, 100.0), note(500.0, 0.0, 200.0, 100.0), &[]);
+    let ep_horiz = arrow_endpoints(
+        note(0.0, 0.0, 200.0, 100.0),
+        note(500.0, 0.0, 200.0, 100.0),
+        &[],
+    );
     assert!(ep_horiz.start.x > 200.0);
     assert!(ep_horiz.end.x < 500.0);
     assert!(approx_eq(ep_horiz.start.y, 50.0));
@@ -35,26 +39,38 @@ fn test_arrow_endpoints_exit_facing_side() {
 #[test]
 fn test_arrow_never_inverts() {
     // Ne croise pas les pointes sur des blocs quasi collés (< 24px d'écart)
-    let a = note(0.0, 0.0, 200.0, 100.0);   // bas à y=100
+    let a = note(0.0, 0.0, 200.0, 100.0); // bas à y=100
     let b = note(0.0, 110.0, 200.0, 100.0); // haut à y=110 - 10px d'écart
     let ep = arrow_endpoints(a, b, &[]);
     assert!(ep.end.y >= ep.start.y); // sens conservé
 
     // Garde le sens pour tout écart de 0 à 40px vertical
     for gap in 0..=40 {
-        let ep_v = arrow_endpoints(note(0.0, 0.0, 200.0, 100.0), note(0.0, 100.0 + (gap as f64), 200.0, 100.0), &[]);
+        let ep_v = arrow_endpoints(
+            note(0.0, 0.0, 200.0, 100.0),
+            note(0.0, 100.0 + (gap as f64), 200.0, 100.0),
+            &[],
+        );
         assert!(ep_v.end.y >= ep_v.start.y, "failed at gap {}", gap);
     }
 
     // Garde le sens à l'horizontale aussi
     for gap in 0..=40 {
-        let ep_h = arrow_endpoints(note(0.0, 0.0, 200.0, 100.0), note(200.0 + (gap as f64), 0.0, 200.0, 100.0), &[]);
+        let ep_h = arrow_endpoints(
+            note(0.0, 0.0, 200.0, 100.0),
+            note(200.0 + (gap as f64), 0.0, 200.0, 100.0),
+            &[],
+        );
         assert!(ep_h.end.x >= ep_h.start.x, "failed at gap {}", gap);
     }
 
     // Ne consomme jamais plus que la place disponible
     for &gap in &[0.0, 5.0, 10.0, 23.0, 24.0, 25.0, 100.0] {
-        let ep_gap = arrow_endpoints(note(0.0, 0.0, 200.0, 100.0), note(0.0, 100.0 + gap, 200.0, 100.0), &[]);
+        let ep_gap = arrow_endpoints(
+            note(0.0, 0.0, 200.0, 100.0),
+            note(0.0, 100.0 + gap, 200.0, 100.0),
+            &[],
+        );
         let d = ep_gap.start.distance_to(ep_gap.end);
         assert!(d <= gap + 0.001, "failed at gap {}", gap);
     }
@@ -64,12 +80,20 @@ fn test_arrow_never_inverts() {
 fn test_arrow_waypoints_and_free_ends() {
     // Vise le point de passage
     let wp = [Point::new(-300.0, 50.0)];
-    let ep_wp = arrow_endpoints(note(0.0, 0.0, 200.0, 100.0), note(500.0, 0.0, 200.0, 100.0), &wp);
+    let ep_wp = arrow_endpoints(
+        note(0.0, 0.0, 200.0, 100.0),
+        note(500.0, 0.0, 200.0, 100.0),
+        &wp,
+    );
     assert!(ep_wp.start.x < 0.0);
 
     // Borne la marge sur un point de passage très proche
     let close_wp = [Point::new(100.0, 105.0)]; // 5px sous le bas de A
-    let ep_close = arrow_endpoints(note(0.0, 0.0, 200.0, 100.0), note(0.0, 500.0, 200.0, 100.0), &close_wp);
+    let ep_close = arrow_endpoints(
+        note(0.0, 0.0, 200.0, 100.0),
+        note(0.0, 500.0, 200.0, 100.0),
+        &close_wp,
+    );
     assert!(ep_close.start.y <= close_wp[0].y);
 
     // Extrémité libre sans boîte

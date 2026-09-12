@@ -57,7 +57,11 @@ fn test_index_board_place_images_et_annotations() {
 fn test_drag_de_200_pas_nindexe_jamais_tout_le_board() {
     let mut board = Board::new("b", "Drag");
     for i in 0..2000 {
-        board.images.push(mk_image(&format!("img-{}", i), (i % 50) as f64 * 300.0, (i / 50) as f64 * 300.0));
+        board.images.push(mk_image(
+            &format!("img-{}", i),
+            (i % 50) as f64 * 300.0,
+            (i / 50) as f64 * 300.0,
+        ));
     }
 
     // Le nœud mobile est placé au cœur d'une cellule : 200 pas d'1 px ne la quittent pas.
@@ -100,7 +104,9 @@ fn test_drag_de_200_pas_nindexe_jamais_tout_le_board() {
 fn test_traversee_de_cellule_met_a_jour_lindex_localement() {
     let mut board = Board::new("b", "Cross");
     for i in 0..500 {
-        board.images.push(mk_image(&format!("img-{}", i), 5000.0 + i as f64, 5000.0));
+        board
+            .images
+            .push(mk_image(&format!("img-{}", i), 5000.0 + i as f64, 5000.0));
     }
     board.images.push(mk_image("mobile", 100.0, 100.0));
 
@@ -122,7 +128,9 @@ fn test_traversee_de_cellule_met_a_jour_lindex_localement() {
         ecritures
     );
     assert!(sh.query_rect_refs(0.0, 0.0, 500.0, 500.0, 0.0).is_empty());
-    assert!(sh.query_rect_refs(20_000.0, 20_000.0, 20_500.0, 20_500.0, 0.0).contains("mobile"));
+    assert!(sh
+        .query_rect_refs(20_000.0, 20_000.0, 20_500.0, 20_500.0, 0.0)
+        .contains("mobile"));
     assert_eq!(sh.rebuild_count(), 0);
 }
 
@@ -147,7 +155,11 @@ fn test_suppression_dun_noeud_est_propagee_sans_reconstruction() {
     assert!(!sh.contains("t"));
     assert!(sh.contains("b"));
     assert_eq!(sh.query_rect_refs(0.0, 0.0, 500.0, 500.0, 0.0).len(), 1);
-    assert_eq!(sh.rebuild_count(), 0, "aucune reconstruction ne doit avoir eu lieu");
+    assert_eq!(
+        sh.rebuild_count(),
+        0,
+        "aucune reconstruction ne doit avoir eu lieu"
+    );
 }
 
 /// SPAT-1 — Changer de board actif réutilise le même index : les nœuds de l'ancien board
@@ -165,7 +177,11 @@ fn test_changement_de_board_est_une_synchronisation() {
 
     assert!(sh.contains("y"));
     assert!(!sh.contains("x"));
-    assert_eq!(sh.rebuild_count(), 0, "index_board ne doit jamais appeler clear()");
+    assert_eq!(
+        sh.rebuild_count(),
+        0,
+        "index_board ne doit jamais appeler clear()"
+    );
 }
 
 /// L'index reste cohérent avec le `Store` réel après une suite de mutations applicatives :
@@ -177,7 +193,9 @@ fn test_index_suit_les_mutations_du_store() {
     store.add_annotation("main", mk_text("t2", 4000.0, 4000.0));
 
     let mut sh = SpatialHash::new(1000.0);
-    let board = store.active_board().expect("board actif créé par Store::new");
+    let board = store
+        .active_board()
+        .expect("board actif créé par Store::new");
     sh.index_board(board);
     assert_eq!(sh.len(), 2);
 
@@ -192,7 +210,9 @@ fn test_index_suit_les_mutations_du_store() {
 
     assert_eq!(sh.rebuild_count(), 0);
     assert_eq!(sh.len(), 2);
-    assert!(sh.query_rect_refs(0.0, 0.0, 300.0, 300.0, 0.0).contains("t1"));
+    assert!(sh
+        .query_rect_refs(0.0, 0.0, 300.0, 300.0, 0.0)
+        .contains("t1"));
 
     store.delete_selected("main");
     let board = store.active_board().expect("board actif toujours présent");
@@ -207,7 +227,9 @@ fn test_index_suit_les_mutations_du_store() {
 fn test_reordonner_le_board_ne_corrompt_pas_lindex() {
     let mut board = Board::new("b", "Reorder");
     for i in 0..10 {
-        board.images.push(mk_image(&format!("img-{}", i), i as f64 * 2000.0, 0.0));
+        board
+            .images
+            .push(mk_image(&format!("img-{}", i), i as f64 * 2000.0, 0.0));
     }
 
     let mut sh = SpatialHash::new(1000.0);
@@ -220,7 +242,9 @@ fn test_reordonner_le_board_ne_corrompt_pas_lindex() {
         let id = format!("img-{}", i);
         assert!(sh.contains(&id), "{} a disparu apres reordonnancement", id);
         let x = i as f64 * 2000.0;
-        assert!(sh.query_rect_refs(x - 50.0, -50.0, x + 50.0, 50.0, 0.0).contains(id.as_str()));
+        assert!(sh
+            .query_rect_refs(x - 50.0, -50.0, x + 50.0, 50.0, 0.0)
+            .contains(id.as_str()));
     }
 
     // Suppression au milieu, puis insertion d'un nouveau nœud : décalage de toutes les

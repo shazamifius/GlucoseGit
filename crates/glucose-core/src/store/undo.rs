@@ -36,7 +36,11 @@ impl View {
     fn capture(p: &Project) -> Self {
         Self {
             active_board_id: p.active_board_id.clone(),
-            viewports: p.boards.iter().map(|b| (b.id.clone(), b.viewport)).collect(),
+            viewports: p
+                .boards
+                .iter()
+                .map(|b| (b.id.clone(), b.viewport))
+                .collect(),
         }
     }
 
@@ -143,6 +147,19 @@ impl Store {
         true
     }
 
+    /// Consigne une édition, et publie la nouvelle version du document.
+    ///
+    /// **La version n'avance pas pendant un geste continu.** Elle dit à l'extérieur — index
+    /// spatiaux, rendu, autosave — que le document a changé ; pendant un glisser, le
+    /// changement n'est publié qu'au relâchement, par `end_live_edit`. Un geste abandonné en
+    /// route ne doit donc laisser aucune trace, pas même un numéro de version consommé.
+    pub(super) fn record_edit(&mut self, edit: crate::store::journal::Edit) {
+        self.journal.record(edit);
+        if !self.journal.is_open() {
+            self.bump_version();
+        }
+    }
+
     /// Enregistre plusieurs éditions comme **un seul geste** annulable.
     ///
     /// Respecte une transaction déjà ouverte : pendant un glisser, tout reste un geste unique.
@@ -161,8 +178,8 @@ impl Store {
         }
         if !already_open {
             self.journal.end();
+            self.bump_version();
         }
-        self.bump_version();
     }
 
     pub fn can_undo(&self) -> bool {

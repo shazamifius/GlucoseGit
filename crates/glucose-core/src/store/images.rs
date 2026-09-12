@@ -35,11 +35,10 @@ impl Store {
         let index = b.images.len();
         b.images.push(img.clone());
 
-        self.journal.record(Edit::Image {
+        self.record_edit(Edit::Image {
             board: board_id.to_string(),
             slot: Slot::inserted(index, img),
         });
-        self.bump_version();
         self.select_image(id, false);
     }
 
@@ -59,11 +58,10 @@ impl Store {
         f(&mut b.images[index]);
         let after = b.images[index].clone();
 
-        self.journal.record(Edit::Image {
+        self.record_edit(Edit::Image {
             board: board_id.to_string(),
             slot: Slot::changed(index, before, after),
         });
-        self.bump_version();
     }
 
     /// Ferme l'ensemble des identifiants à supprimer par la cascade des miroirs :
@@ -88,7 +86,11 @@ impl Store {
     /// Vrai si une extrémité de cette flèche pointe vers un nœud supprimé.
     fn is_orphan_arrow(ann: &Annotation, removed: &HashSet<String>) -> bool {
         match ann {
-            Annotation::Arrow { source_id, target_id, .. } => {
+            Annotation::Arrow {
+                source_id,
+                target_id,
+                ..
+            } => {
                 source_id.as_ref().is_some_and(|s| removed.contains(s))
                     || target_id.as_ref().is_some_and(|t| removed.contains(t))
             }
@@ -115,7 +117,10 @@ impl Store {
             for i in (0..b.images.len()).rev() {
                 if to_remove.contains(&b.images[i].id) {
                     let img = b.images.remove(i);
-                    edits.push(Edit::Image { board: b.id.clone(), slot: Slot::removed(i, img) });
+                    edits.push(Edit::Image {
+                        board: b.id.clone(),
+                        slot: Slot::removed(i, img),
+                    });
                 }
             }
             for i in (0..b.annotations.len()).rev() {
@@ -206,8 +211,6 @@ impl Store {
         if self.selected_image_ids.is_empty() && self.selected_annotation_ids.is_empty() {
             return;
         }
-        self.push_undo();
-
         let (mut new_imgs, mut new_anns) = self.clone_selection(board_id);
         const OFFSET: f64 = 20.0;
 
@@ -217,7 +220,11 @@ impl Store {
             img.y += OFFSET;
         }
         for ann in &mut new_anns {
-            let prefix = if matches!(ann, Annotation::Arrow { .. }) { "arrow" } else { "ann" };
+            let prefix = if matches!(ann, Annotation::Arrow { .. }) {
+                "arrow"
+            } else {
+                "ann"
+            };
             let fresh = self.generate_id(prefix);
             set_annotation_id(ann, fresh);
             translate_annotation(ann, OFFSET, OFFSET);
@@ -226,10 +233,26 @@ impl Store {
         self.selected_image_ids = new_imgs.iter().map(|i| i.id.clone()).collect();
         self.selected_annotation_ids = new_anns.iter().map(|a| a.id().to_string()).collect();
 
+        let mut edits = Vec::new();
         if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
-            b.images.extend(new_imgs);
-            b.annotations.extend(new_anns);
+            for img in new_imgs {
+                let index = b.images.len();
+                b.images.push(img.clone());
+                edits.push(Edit::Image {
+                    board: board_id.to_string(),
+                    slot: Slot::inserted(index, img),
+                });
+            }
+            for ann in new_anns {
+                let index = b.annotations.len();
+                b.annotations.push(ann.clone());
+                edits.push(Edit::Annotation {
+                    board: board_id.to_string(),
+                    slot: Slot::inserted(index, ann),
+                });
+            }
         }
+        self.record_as_one_gesture(edits);
     }
 
     /// Copies brutes des éléments sélectionnés, avant réattribution d'identifiants.
@@ -279,7 +302,14 @@ pub(super) fn translate_annotation(ann: &mut Annotation, dx: f64, dy: f64) {
             *x += dx;
             *y += dy;
         }
-        Annotation::Arrow { x, y, x2, y2, waypoints, .. } => {
+        Annotation::Arrow {
+            x,
+            y,
+            x2,
+            y2,
+            waypoints,
+            ..
+        } => {
             *x += dx;
             *y += dy;
             *x2 += dx;
@@ -304,22 +334,34 @@ fn set_annotation_id(ann: &mut Annotation, new_id: String) {
 /// R-12 — une flèche non sélectionnée suit l'extrémité dont le nœud, lui, bouge.
 /// Vrai si cette extrémité est attachée à un nœud que le geste déplace.
 fn end_follows(id: &Option<String>, sel: &SelectionSets) -> bool {
-    id.as_ref().is_some_and(|s| sel.annotations.contains(s) || sel.images.contains(s))
+    id.as_ref()
+        .is_some_and(|s| sel.annotations.contains(s) || sel.images.contains(s))
 }
 
 /// Vrai si cette annotation est une flèche dont au moins une extrémité suit la sélection.
 fn arrow_follows_selection(ann: &Annotation, sel: &SelectionSets) -> bool {
     match ann {
-        Annotation::Arrow { source_id, target_id, .. } => {
-            end_follows(source_id, sel) || end_follows(target_id, sel)
-        }
+        Annotation::Arrow {
+            source_id,
+            target_id,
+            ..
+        } => end_follows(source_id, sel) || end_follows(target_id, sel),
         _ => false,
     }
 }
 
 /// Traîne les extrémités d'une flèche attachées à la sélection. Sans effet sur autre chose.
 fn drag_arrow_ends(ann: &mut Annotation, sel: &SelectionSets, dx: f64, dy: f64) {
-    let Annotation::Arrow { source_id, target_id, x, y, x2, y2, .. } = ann else {
+    let Annotation::Arrow {
+        source_id,
+        target_id,
+        x,
+        y,
+        x2,
+        y2,
+        ..
+    } = ann
+    else {
         return;
     };
     if end_follows(source_id, sel) {

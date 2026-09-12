@@ -186,7 +186,12 @@ pub fn resolve_items(items: &[SpaceItem], opts: ResolveOptions) -> HashMap<Strin
             let k = if focus_here {
                 1.0
             } else {
-                content_scale(item.mode.unwrap_or(MembraneMode::Classic), item.rect(), ext_w, ext_h)
+                content_scale(
+                    item.mode.unwrap_or(MembraneMode::Classic),
+                    item.rect(),
+                    ext_w,
+                    ext_h,
+                )
             };
             resolved.content_scale = Some(k);
 
@@ -216,15 +221,7 @@ pub fn resolve_items(items: &[SpaceItem], opts: ResolveOptions) -> HashMap<Strin
             continue;
         }
         walk(
-            it,
-            it.x,
-            it.y,
-            1.0,
-            false,
-            &members,
-            &children,
-            focus_id,
-            &mut out,
+            it, it.x, it.y, 1.0, false, &members, &children, focus_id, &mut out,
         );
     }
 
@@ -232,15 +229,7 @@ pub fn resolve_items(items: &[SpaceItem], opts: ResolveOptions) -> HashMap<Strin
     for it in items {
         if !out.contains_key(&it.id) {
             walk(
-                it,
-                it.x,
-                it.y,
-                1.0,
-                false,
-                &members,
-                &children,
-                focus_id,
-                &mut out,
+                it, it.x, it.y, 1.0, false, &members, &children, focus_id, &mut out,
             );
         }
     }
@@ -250,7 +239,9 @@ pub fn resolve_items(items: &[SpaceItem], opts: ResolveOptions) -> HashMap<Strin
 
 /// CHEMIN RAPIDE : une membrane réduit-elle quoi que ce soit sur ce board ?
 pub fn has_scaling(items: &[SpaceItem]) -> bool {
-    items.iter().any(|i| i.kind == SpaceItemKind::Membrane && i.mode == Some(MembraneMode::Minimized))
+    items
+        .iter()
+        .any(|i| i.kind == SpaceItemKind::Membrane && i.mode == Some(MembraneMode::Minimized))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -270,7 +261,10 @@ pub fn reconcile_membership(
     }
     let parents = parent_map(items);
     let by_id: HashMap<&str, &SpaceItem> = items.iter().map(|i| (i.id.as_str(), i)).collect();
-    let membranes: Vec<&SpaceItem> = items.iter().filter(|i| i.kind == SpaceItemKind::Membrane).collect();
+    let membranes: Vec<&SpaceItem> = items
+        .iter()
+        .filter(|i| i.kind == SpaceItemKind::Membrane)
+        .collect();
     let mut out = Vec::new();
 
     let descends_from = |candidate: &str, root_id: &str| -> bool {
@@ -447,7 +441,10 @@ pub struct OriginScale {
 }
 
 pub fn scale_of(resolved: Option<&HashMap<String, ResolvedItem>>, id: &str) -> f64 {
-    resolved.and_then(|r| r.get(id)).map(|r| r.scale).unwrap_or(1.0)
+    resolved
+        .and_then(|r| r.get(id))
+        .map(|r| r.scale)
+        .unwrap_or(1.0)
 }
 
 pub fn origin_of(
@@ -553,8 +550,11 @@ pub fn project_board(board: &Board, resolved: Option<&HashMap<String, ResolvedIt
                 mirror_of,
                 temporal_anchor,
             } => {
-                if let Some(frame_id) = arrow_frame(source_id.as_deref(), target_id.as_deref(), res) {
-                    if let (Some(r_m), Some(&(nat_x, nat_y))) = (res.get(&frame_id), natural_membranes.get(&frame_id)) {
+                if let Some(frame_id) = arrow_frame(source_id.as_deref(), target_id.as_deref(), res)
+                {
+                    if let (Some(r_m), Some(&(nat_x, nat_y))) =
+                        (res.get(&frame_id), natural_membranes.get(&frame_id))
+                    {
                         let k = r_m.scale * r_m.content_scale.unwrap_or(1.0);
                         if (k - 1.0).abs() >= 1e-9 {
                             let px = |coord: f64| r_m.x + (coord - nat_x) * k;
@@ -746,21 +746,30 @@ mod tests {
             SpaceItem {
                 id: "A".into(),
                 kind: SpaceItemKind::Membrane,
-                x: 0.0, y: 0.0, width: 100.0, height: 100.0,
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 100.0,
                 mode: None,
                 membrane_id: Some("B".into()),
             },
             SpaceItem {
                 id: "B".into(),
                 kind: SpaceItemKind::Membrane,
-                x: 0.0, y: 0.0, width: 100.0, height: 100.0,
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 100.0,
                 mode: None,
                 membrane_id: Some("A".into()), // cycle A <-> B
             },
             SpaceItem {
                 id: "C".into(),
                 kind: SpaceItemKind::Image,
-                x: 0.0, y: 0.0, width: 10.0, height: 10.0,
+                x: 0.0,
+                y: 0.0,
+                width: 10.0,
+                height: 10.0,
                 mode: None,
                 membrane_id: Some("A".into()),
             },

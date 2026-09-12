@@ -217,11 +217,19 @@ pub fn collect_align_targets(board: &Board, exclude: &HashSet<String>) -> Vec<Al
 }
 
 fn target_lines_x(rect: AlignRect) -> [f64; 3] {
-    [rect.left, rect.left + rect.width / 2.0, rect.left + rect.width]
+    [
+        rect.left,
+        rect.left + rect.width / 2.0,
+        rect.left + rect.width,
+    ]
 }
 
 fn target_lines_y(rect: AlignRect) -> [f64; 3] {
-    [rect.top, rect.top + rect.height / 2.0, rect.top + rect.height]
+    [
+        rect.top,
+        rect.top + rect.height / 2.0,
+        rect.top + rect.height,
+    ]
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -448,11 +456,27 @@ mod tests {
     fn test_snap_scale_threshold() {
         let t = [ref_target()];
         // scale 0.1 -> threshold = 8 / 0.1 = 80 unités monde -> 20 unités accroche
-        let p1 = snap_point(20.0, 500.0, &t, SnapOptions { scale: 0.1, ..Default::default() });
+        let p1 = snap_point(
+            20.0,
+            500.0,
+            &t,
+            SnapOptions {
+                scale: 0.1,
+                ..Default::default()
+            },
+        );
         assert!((p1.x - 0.0).abs() < 1e-6);
 
         // scale 4.0 -> threshold = 8 / 4 = 2 unités monde -> 20 unités n'accroche pas
-        let p2 = snap_point(20.0, 500.0, &t, SnapOptions { scale: 4.0, ..Default::default() });
+        let p2 = snap_point(
+            20.0,
+            500.0,
+            &t,
+            SnapOptions {
+                scale: 4.0,
+                ..Default::default()
+            },
+        );
         assert_eq!(p2.x, 20.0);
     }
 }

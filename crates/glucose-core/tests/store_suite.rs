@@ -61,13 +61,20 @@ fn test_arrow_follows_source_and_target_on_move() {
     let mut store = Store::new("Test");
     store.add_annotation("main", mk_text("card1", 10.0, 20.0));
     store.add_annotation("main", mk_text("card2", 200.0, 200.0));
-    store.add_annotation("main", mk_arrow("arr1", "card1", "card2", 10.0, 20.0, 200.0, 200.0));
+    store.add_annotation(
+        "main",
+        mk_arrow("arr1", "card1", "card2", 10.0, 20.0, 200.0, 200.0),
+    );
 
     store.select_annotation("card2".into(), false);
     store.move_selected("main", 50.0, 30.0);
 
     let board = store.active_board().expect("board actif");
-    let arr = board.annotations.iter().find(|a| a.id() == "arr1").expect("la flèche existe");
+    let arr = board
+        .annotations
+        .iter()
+        .find(|a| a.id() == "arr1")
+        .expect("la flèche existe");
     match arr {
         Annotation::Arrow { x, y, x2, y2, .. } => {
             assert_eq!((*x, *y), (10.0, 20.0));
@@ -97,9 +104,13 @@ fn test_generate_id_ne_collisionne_jamais_sur_un_projet_neuf() {
 fn test_load_project_recale_next_id_au_dessus_des_ids_existants() {
     let mut project = Project::new("Chargé");
     let mut board = Board::new("board-900", "Chargé");
-    board.images.push(BoardImage::new("img-4242", 0.0, 0.0, 10.0, 10.0));
+    board
+        .images
+        .push(BoardImage::new("img-4242", 0.0, 0.0, 10.0, 10.0));
     board.annotations.push(mk_text("ann-77", 0.0, 0.0));
-    board.folders.push(CanvasFolder::new("folder-88", "F", "board-901"));
+    board
+        .folders
+        .push(CanvasFolder::new("folder-88", "F", "board-901"));
     project.boards.push(board);
     project.active_board_id = "board-900".into();
 
@@ -112,7 +123,10 @@ fn test_load_project_recale_next_id_au_dessus_des_ids_existants() {
     }
     let next = store.generate_id("ann");
     assert!(!store.id_exists(&next));
-    assert!(store.next_id > 4242, "next_id doit dominer le plus grand suffixe chargé");
+    assert!(
+        store.next_id > 4242,
+        "next_id doit dominer le plus grand suffixe chargé"
+    );
 }
 
 /// R-22 — la génération est O(1). L'implémentation d'origine appelait `id_exists` (scan
@@ -172,11 +186,21 @@ fn test_try_enter_folder_signale_un_dossier_inconnu() {
 #[test]
 fn test_try_remove_board_refuse_le_dernier_tableau_en_disant_quoi_faire() {
     let mut store = Store::new("P");
-    let err = store.try_remove_board("main").expect_err("le dernier tableau est protégé");
+    let err = store
+        .try_remove_board("main")
+        .expect_err("le dernier tableau est protégé");
     match err {
         CoreError::InvalidOperation(msg) => {
-            assert!(msg.contains("dernier tableau"), "message peu utile : {}", msg);
-            assert!(msg.contains("créer un autre"), "le message doit dire quoi faire : {}", msg);
+            assert!(
+                msg.contains("dernier tableau"),
+                "message peu utile : {}",
+                msg
+            );
+            assert!(
+                msg.contains("créer un autre"),
+                "le message doit dire quoi faire : {}",
+                msg
+            );
         }
         other => panic!("variante inattendue : {:?}", other),
     }
@@ -207,7 +231,9 @@ fn test_try_mirror_signale_une_source_introuvable() {
     );
 
     store.add_annotation("main", mk_text("O", 0.0, 0.0));
-    let mid = store.try_mirror_annotation("main", "O", 50.0, 50.0).expect("O existe");
+    let mid = store
+        .try_mirror_annotation("main", "O", 50.0, 50.0)
+        .expect("O existe");
     let board = store.active_board().expect("board actif");
     assert!(board.annotations.iter().any(|a| a.id() == mid));
 }
@@ -242,7 +268,9 @@ fn test_try_assign_domain_to_node_signale_un_noeud_introuvable() {
         Err(CoreError::DomainNotFound("inconnu".into()))
     );
 
-    assert!(store.try_assign_domain_to_node("main", "T", "D1", 0.5).is_ok());
+    assert!(store
+        .try_assign_domain_to_node("main", "T", "D1", 0.5)
+        .is_ok());
     let assigned = store.node_domains("main", "T").expect("T existe");
     assert_eq!(assigned.len(), 1);
     assert_eq!(assigned[0].domain_id, "D1");

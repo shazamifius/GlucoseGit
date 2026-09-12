@@ -6,10 +6,10 @@
 //! (INVARIANT PERSIST-1).
 
 use glucose_core::types::{
-    Annotation, ArrowPredicate, AssetRef, Board, BoardImage, BoardZone, CanvasFolder, CurtainEditable,
-    CurtainNote, CurtainVisibility, Domain, DomainAssignment, FolderMirrorSource, FolderSortMode,
-    MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot, Project, StickyOperator,
-    StoryboardPanel, TemporalAnchor, TextAnchor, TextSelection, Viewport,
+    Annotation, ArrowPredicate, AssetRef, Board, BoardImage, BoardZone, CanvasFolder,
+    CurtainEditable, CurtainNote, CurtainVisibility, Domain, DomainAssignment, FolderMirrorSource,
+    FolderSortMode, MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot, Project,
+    StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor, TextSelection, Viewport,
 };
 
 fn anchor(start: i64, end: i64, label: &str) -> TemporalAnchor {
@@ -124,7 +124,10 @@ fn arrow_annotation() -> Annotation {
         stroke_width: Some(2.5),
         waypoints: vec![
             Point2D { x: 100.0, y: 0.0 },
-            Point2D { x: 220.5, y: -110.25 },
+            Point2D {
+                x: 220.5,
+                y: -110.25,
+            },
         ],
         source_id: Some("ann-text-1".into()),
         target_id: Some("img-1".into()),

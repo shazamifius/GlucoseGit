@@ -58,7 +58,10 @@ fn test_every_truncation_length_is_rejected_and_none_panics() {
             file.len()
         );
     }
-    assert!(persist::decode(&file).is_ok(), "le fichier complet doit passer");
+    assert!(
+        persist::decode(&file).is_ok(),
+        "le fichier complet doit passer"
+    );
 }
 
 // ── Altération ──────────────────────────────────────────────────────────────
@@ -69,7 +72,10 @@ fn test_a_flipped_bit_in_the_document_breaks_its_checksum() {
     let last = file.len() - 1;
     file[last] ^= 0x01;
     let msg = message_of(&file);
-    assert!(msg.contains("somme de contrôle"), "message inattendu : {msg}");
+    assert!(
+        msg.contains("somme de contrôle"),
+        "message inattendu : {msg}"
+    );
 }
 
 #[test]
@@ -78,7 +84,10 @@ fn test_a_forged_checksum_in_the_table_is_detected() {
     // Empreinte de la première entrée de table : octets 24..56 de l'entrée.
     file[container::HEADER_LEN + 24] ^= 0xff;
     let msg = message_of(&file);
-    assert!(msg.contains("somme de contrôle"), "message inattendu : {msg}");
+    assert!(
+        msg.contains("somme de contrôle"),
+        "message inattendu : {msg}"
+    );
 }
 
 #[test]
@@ -103,7 +112,10 @@ fn test_a_container_from_a_newer_glucose_says_to_update() {
     file[8..10].copy_from_slice(&99u16.to_le_bytes());
     let msg = message_of(&file);
     assert!(msg.contains("v99"), "message inattendu : {msg}");
-    assert!(msg.contains("mets Glucose à jour"), "message inattendu : {msg}");
+    assert!(
+        msg.contains("mets Glucose à jour"),
+        "message inattendu : {msg}"
+    );
 }
 
 #[test]
@@ -146,7 +158,10 @@ fn test_a_newer_document_schema_says_to_update() {
 
     let msg = message_of(&file);
     assert!(msg.contains("schéma"), "message inattendu : {msg}");
-    assert!(msg.contains("mets Glucose à jour"), "message inattendu : {msg}");
+    assert!(
+        msg.contains("mets Glucose à jour"),
+        "message inattendu : {msg}"
+    );
 }
 
 // ── Sections ────────────────────────────────────────────────────────────────
@@ -192,7 +207,8 @@ fn test_a_journal_section_is_skipped_not_refused() {
         },
     ]);
 
-    let reloaded = persist::decode(&file).expect("le journal doit être ignoré, pas refuser le fichier");
+    let reloaded =
+        persist::decode(&file).expect("le journal doit être ignoré, pas refuser le fichier");
     assert_eq!(reloaded.project, project);
 }
 
@@ -250,8 +266,14 @@ fn test_a_duplicated_asset_writes_a_single_blob() {
 
     let reloaded = persist::decode(&file).expect("relecture");
     assert_eq!(reloaded.assets.len(), 4, "les 4 clés doivent revenir");
-    assert_eq!(reloaded.assets.get("C:/photos/a.png"), reloaded.assets.get("D:/sauvegarde/a.png"));
-    assert_eq!(reloaded.assets.get("C:/photos/b.png").map(<[u8]>::len), Some(2048));
+    assert_eq!(
+        reloaded.assets.get("C:/photos/a.png"),
+        reloaded.assets.get("D:/sauvegarde/a.png")
+    );
+    assert_eq!(
+        reloaded.assets.get("C:/photos/b.png").map(<[u8]>::len),
+        Some(2048)
+    );
 }
 
 #[test]
@@ -274,5 +296,8 @@ fn test_an_asset_whose_bytes_were_swapped_is_detected() {
     let last = file.len() - 1;
     file[last] ^= 0xff;
     let msg = message_of(&file);
-    assert!(msg.contains("somme de contrôle"), "message inattendu : {msg}");
+    assert!(
+        msg.contains("somme de contrôle"),
+        "message inattendu : {msg}"
+    );
 }

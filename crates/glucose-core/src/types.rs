@@ -399,7 +399,11 @@ pub struct CanvasFolder {
 }
 
 impl CanvasFolder {
-    pub fn new(id: impl Into<String>, name: impl Into<String>, child_board_id: impl Into<String>) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        child_board_id: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -504,7 +508,6 @@ impl Default for Board {
         Self::new("default", "Default Board")
     }
 }
-
 
 // ── Presets & Zones ─────────────────────────────────────────────────────────
 #[derive(Debug, Clone, PartialEq)]

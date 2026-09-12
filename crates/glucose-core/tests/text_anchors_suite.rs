@@ -34,13 +34,19 @@ fn test_resolve_anchors_original_bug() {
     let anchor = create_anchor(PLAIN, SECOND, SECOND + 8).unwrap();
     assert_eq!(
         resolve_anchors(PLAIN, &[anchor]),
-        vec![ResolvedRange { start: SECOND, end: SECOND + 8 }]
+        vec![ResolvedRange {
+            start: SECOND,
+            end: SECOND + 8
+        }]
     );
 
     let first = create_anchor(PLAIN, FIRST, FIRST + 8).unwrap();
     assert_eq!(
         resolve_anchors(PLAIN, &[first]),
-        vec![ResolvedRange { start: FIRST, end: FIRST + 8 }]
+        vec![ResolvedRange {
+            start: FIRST,
+            end: FIRST + 8
+        }]
     );
 
     let mut anchors = Vec::new();
@@ -50,8 +56,14 @@ fn test_resolve_anchors_original_bug() {
     assert_eq!(
         resolve_anchors(PLAIN, &anchors),
         vec![
-            ResolvedRange { start: FIRST, end: FIRST + 8 },
-            ResolvedRange { start: SECOND, end: SECOND + 8 },
+            ResolvedRange {
+                start: FIRST,
+                end: FIRST + 8
+            },
+            ResolvedRange {
+                start: SECOND,
+                end: SECOND + 8
+            },
         ]
     );
 
@@ -82,8 +94,20 @@ fn test_resolve_anchors_original_bug() {
     let ranges = resolve_anchors(
         "abcdef",
         &[
-            TextAnchor { start: 0, end: 3, quote: "abc".into(), prefix: None, suffix: None },
-            TextAnchor { start: 2, end: 5, quote: "cde".into(), prefix: None, suffix: None },
+            TextAnchor {
+                start: 0,
+                end: 3,
+                quote: "abc".into(),
+                prefix: None,
+                suffix: None,
+            },
+            TextAnchor {
+                start: 2,
+                end: 5,
+                quote: "cde".into(),
+                prefix: None,
+                suffix: None,
+            },
         ],
     );
     assert_eq!(ranges, vec![ResolvedRange { start: 0, end: 5 }]);
@@ -96,21 +120,30 @@ fn test_resolve_anchors_reanchor_after_edit() {
     let shifted = SECOND + "préface ".len();
     assert_eq!(
         resolve_anchors(&edited, std::slice::from_ref(&anchor)),
-        vec![ResolvedRange { start: shifted, end: shifted + 8 }]
+        vec![ResolvedRange {
+            start: shifted,
+            end: shifted + 8
+        }]
     );
 
     // Tranche entre occurrences homonymes grâce au contexte
     let edited2 = format!("XX{}", PLAIN);
     assert_eq!(
         resolve_anchors(&edited2, &[anchor]),
-        vec![ResolvedRange { start: SECOND + 2, end: SECOND + 10 }]
+        vec![ResolvedRange {
+            start: SECOND + 2,
+            end: SECOND + 10
+        }]
     );
 
     // Privilégie la position tant qu'elle reste valide
     let first = create_anchor(PLAIN, FIRST, FIRST + 8).unwrap();
     assert_eq!(
         resolve_anchors(PLAIN, &[first]),
-        vec![ResolvedRange { start: FIRST, end: FIRST + 8 }]
+        vec![ResolvedRange {
+            start: FIRST,
+            end: FIRST + 8
+        }]
     );
 }
 
@@ -121,15 +154,35 @@ fn test_normalize_and_resolve_legacy_text_sel() {
     assert_eq!(
         normalized,
         vec![
-            TextAnchor { start: -1, end: -1, quote: "bonjours".into(), prefix: None, suffix: None },
-            TextAnchor { start: -1, end: -1, quote: "test".into(), prefix: None, suffix: None },
+            TextAnchor {
+                start: -1,
+                end: -1,
+                quote: "bonjours".into(),
+                prefix: None,
+                suffix: None
+            },
+            TextAnchor {
+                start: -1,
+                end: -1,
+                quote: "test".into(),
+                prefix: None,
+                suffix: None
+            },
         ]
     );
 
     let resolved = resolve_text_sel(PLAIN, Some(&TextSelection::Legacy("bonjours".into())));
-    assert_eq!(resolved, vec![ResolvedRange { start: FIRST, end: FIRST + 8 }]);
+    assert_eq!(
+        resolved,
+        vec![ResolvedRange {
+            start: FIRST,
+            end: FIRST + 8
+        }]
+    );
 
     assert!(!has_text_selection(None));
     assert!(!has_text_selection(Some(&TextSelection::Anchors(vec![]))));
-    assert!(has_text_selection(Some(&TextSelection::Legacy("bonjours".into()))));
+    assert!(has_text_selection(Some(&TextSelection::Legacy(
+        "bonjours".into()
+    ))));
 }

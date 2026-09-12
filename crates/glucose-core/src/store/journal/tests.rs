@@ -11,9 +11,19 @@ const BOARD: &str = "main";
 
 fn project_with(images: usize) -> Project {
     let mut p = Project::new("test");
-    let board = p.boards.iter_mut().find(|b| b.id == BOARD).expect("board main");
+    let board = p
+        .boards
+        .iter_mut()
+        .find(|b| b.id == BOARD)
+        .expect("board main");
     for i in 0..images {
-        board.images.push(BoardImage::new(format!("img-{i}"), i as f64, 0.0, 10.0, 10.0));
+        board.images.push(BoardImage::new(
+            format!("img-{i}"),
+            i as f64,
+            0.0,
+            10.0,
+            10.0,
+        ));
     }
     p
 }
@@ -75,7 +85,11 @@ fn supprimer_puis_defaire_remet_a_la_meme_place() {
     assert_eq!(images(&p), ["img-0", "img-2"]);
 
     assert!(j.undo(&mut p).is_some());
-    assert_eq!(images(&p), ["img-0", "img-1", "img-2"], "l'élément revient à son rang exact");
+    assert_eq!(
+        images(&p),
+        ["img-0", "img-1", "img-2"],
+        "l'élément revient à son rang exact"
+    );
 }
 
 #[test]
@@ -90,7 +104,10 @@ fn modifier_puis_defaire_restaure_la_valeur_precedente() {
     do_edit(
         &mut j,
         &mut p,
-        Edit::Image { board: BOARD.to_string(), slot: Slot::changed(1, before, after) },
+        Edit::Image {
+            board: BOARD.to_string(),
+            slot: Slot::changed(1, before, after),
+        },
     );
 
     let x = |p: &Project| p.boards[0].images[1].x;
@@ -129,7 +146,10 @@ fn une_transaction_vide_ne_laisse_aucune_trace() {
     j.begin();
     j.end();
 
-    assert!(!j.can_undo(), "un clic qui ne bouge rien n'est pas un geste");
+    assert!(
+        !j.can_undo(),
+        "un clic qui ne bouge rien n'est pas un geste"
+    );
     assert_eq!(images(&p).len(), 1);
 }
 
@@ -143,7 +163,11 @@ fn annuler_une_transaction_ouverte_defait_ce_qu_elle_avait_ecrit() {
     assert_eq!(images(&p).len(), 3);
 
     assert!(j.cancel(&mut p));
-    assert_eq!(images(&p), ["img-0", "img-1"], "Échap remet l'état d'avant le geste");
+    assert_eq!(
+        images(&p),
+        ["img-0", "img-1"],
+        "Échap remet l'état d'avant le geste"
+    );
     assert!(!j.can_undo(), "et ne laisse rien dans la pile");
 }
 
@@ -169,7 +193,11 @@ fn la_profondeur_est_bornee() {
         do_edit(&mut j, &mut p, insert(i, &format!("img-{i}")));
     }
 
-    assert_eq!(j.depth(), 3, "au-delà de la profondeur, les gestes les plus anciens sortent");
+    assert_eq!(
+        j.depth(),
+        3,
+        "au-delà de la profondeur, les gestes les plus anciens sortent"
+    );
 }
 
 #[test]
@@ -184,7 +212,10 @@ fn un_index_devenu_faux_vide_le_journal_plutot_que_de_mentir() {
     p.boards[0].images.clear();
 
     assert!(j.undo(&mut p).is_none(), "l'undo échoue proprement");
-    assert!(!j.can_undo() && !j.can_redo(), "et la pile est vidée, pas laissée fausse");
+    assert!(
+        !j.can_undo() && !j.can_redo(),
+        "et la pile est vidée, pas laissée fausse"
+    );
 }
 
 /// **Le test qui compte.** La loi JRN-1 dit : `T(n, k) = α + β·k` avec `∂T/∂n = 0`.
@@ -208,7 +239,10 @@ fn le_poids_d_un_geste_ne_depend_pas_de_la_taille_du_document() {
         do_edit(
             &mut j,
             &mut p,
-            Edit::Image { board: BOARD.to_string(), slot: Slot::changed(0, before, after) },
+            Edit::Image {
+                board: BOARD.to_string(),
+                slot: Slot::changed(0, before, after),
+            },
         );
         j.weight()
     }
@@ -218,7 +252,10 @@ fn le_poids_d_un_geste_ne_depend_pas_de_la_taille_du_document() {
     let grand = weight_of_one_move(100_000);
 
     assert_eq!(petit, moyen);
-    assert_eq!(moyen, grand, "∂T/∂n = 0 — déplacer une carte coûte pareil partout");
+    assert_eq!(
+        moyen, grand,
+        "∂T/∂n = 0 — déplacer une carte coûte pareil partout"
+    );
     assert!(petit > 0, "et le geste pèse bien quelque chose");
 }
 
@@ -237,7 +274,10 @@ fn le_poids_croit_lineairement_avec_la_taille_du_geste() {
             do_edit(
                 &mut j,
                 &mut p,
-                Edit::Image { board: BOARD.to_string(), slot: Slot::changed(i, before, after) },
+                Edit::Image {
+                    board: BOARD.to_string(),
+                    slot: Slot::changed(i, before, after),
+                },
             );
         }
         j.end();
@@ -278,7 +318,10 @@ fn les_annotations_suivent_la_meme_mecanique_que_les_images() {
     do_edit(
         &mut j,
         &mut p,
-        Edit::Annotation { board: BOARD.to_string(), slot: Slot::inserted(0, ann) },
+        Edit::Annotation {
+            board: BOARD.to_string(),
+            slot: Slot::inserted(0, ann),
+        },
     );
     assert_eq!(p.boards[0].annotations.len(), 1);
 
@@ -301,19 +344,33 @@ fn l_ordre_des_gestes_est_respecte_meme_en_pile_mixte() {
 
     // Geste 2 — pas encore migré : snapshot pris avant la mutation, comme le fait `push_undo`.
     j.push_snapshot(&p);
-    p.boards[0].images.push(BoardImage::new("b", 0.0, 0.0, 10.0, 10.0));
+    p.boards[0]
+        .images
+        .push(BoardImage::new("b", 0.0, 0.0, 10.0, 10.0));
 
     // Geste 3 — migré à nouveau.
     do_edit(&mut j, &mut p, insert(3, "c"));
 
     assert_eq!(images(&p), ["img-0", "a", "b", "c"]);
-    assert_eq!(j.snapshot_count(), 1, "un seul geste reste sur l'ancien mécanisme");
+    assert_eq!(
+        j.snapshot_count(),
+        1,
+        "un seul geste reste sur l'ancien mécanisme"
+    );
 
     // On défait dans l'ordre inverse strict : c, puis b, puis a.
     assert_eq!(j.undo(&mut p), Some(Step::Local));
-    assert_eq!(images(&p), ["img-0", "a", "b"], "le dernier geste, pas le dernier journalisé");
+    assert_eq!(
+        images(&p),
+        ["img-0", "a", "b"],
+        "le dernier geste, pas le dernier journalisé"
+    );
 
-    assert_eq!(j.undo(&mut p), Some(Step::Replaced), "un snapshot remplace le document");
+    assert_eq!(
+        j.undo(&mut p),
+        Some(Step::Replaced),
+        "un snapshot remplace le document"
+    );
     assert_eq!(images(&p), ["img-0", "a"]);
 
     assert_eq!(j.undo(&mut p), Some(Step::Local));
@@ -340,7 +397,10 @@ fn un_journal_sans_snapshot_ne_pese_que_ses_gestes() {
     do_edit(
         &mut j,
         &mut p,
-        Edit::Image { board: BOARD.to_string(), slot: Slot::changed(0, before, after) },
+        Edit::Image {
+            board: BOARD.to_string(),
+            slot: Slot::changed(0, before, after),
+        },
     );
 
     assert_eq!(j.snapshot_count(), 0);

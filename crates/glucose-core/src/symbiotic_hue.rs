@@ -81,7 +81,8 @@ pub fn get_symbiotic_hue(ann: &Annotation, all_annotations: &[Annotation]) -> f6
         if dist < RAYON {
             let weight = (1.0 - (dist / RAYON)).powi(2);
             let other_id_offset = ((id_hash(other.id()) % 80) as f64) - 40.0;
-            let other_hue = (get_zone_hue(other.x(), other.y()) + other_id_offset).rem_euclid(360.0);
+            let other_hue =
+                (get_zone_hue(other.x(), other.y()) + other_id_offset).rem_euclid(360.0);
 
             let rad = other_hue.to_radians();
             sum_x += rad.cos() * weight;

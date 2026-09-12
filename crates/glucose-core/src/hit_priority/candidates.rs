@@ -247,10 +247,8 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     // Folders
     for (z, f) in input.folders.iter().enumerate() {
         let area = (f.width * f.height).abs();
-        let on_header = wx >= f.x
-            && wx <= f.x + f.width
-            && wy >= f.y
-            && wy <= f.y + pick_consts::FOLDER_HEADER;
+        let on_header =
+            wx >= f.x && wx <= f.x + f.width && wy >= f.y && wy <= f.y + pick_consts::FOLDER_HEADER;
         if on_header || on_rect_edge(wx, wy, f.x, f.y, f.width, f.height, band) {
             out.push(PickCandidate {
                 owner: PickOwner::Folder,
@@ -299,8 +297,16 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     out.sort_by(|a, b| {
         a.rank
             .cmp(&b.rank)
-            .then_with(|| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal))
-            .then_with(|| a.area.partial_cmp(&b.area).unwrap_or(std::cmp::Ordering::Equal))
+            .then_with(|| {
+                a.dist
+                    .partial_cmp(&b.dist)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| {
+                a.area
+                    .partial_cmp(&b.area)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .then_with(|| b.z.cmp(&a.z))
             .then_with(|| a.id.cmp(&b.id))
             .then_with(|| a.corner.cmp(&b.corner))

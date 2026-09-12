@@ -73,17 +73,29 @@ pub struct Slot<T> {
 impl<T> Slot<T> {
     /// Un élément apparaît.
     pub fn inserted(index: usize, value: T) -> Self {
-        Self { index, before: None, after: Some(Box::new(value)) }
+        Self {
+            index,
+            before: None,
+            after: Some(Box::new(value)),
+        }
     }
 
     /// Un élément disparaît.
     pub fn removed(index: usize, value: T) -> Self {
-        Self { index, before: Some(Box::new(value)), after: None }
+        Self {
+            index,
+            before: Some(Box::new(value)),
+            after: None,
+        }
     }
 
     /// Un élément change.
     pub fn changed(index: usize, before: T, after: T) -> Self {
-        Self { index, before: Some(Box::new(before)), after: Some(Box::new(after)) }
+        Self {
+            index,
+            before: Some(Box::new(before)),
+            after: Some(Box::new(after)),
+        }
     }
 
     /// Échange les deux états. Défaire et refaire sont la même opération.
@@ -138,10 +150,22 @@ impl<T> Slot<T> {
 /// d'appliquer, ce qui évite de stocker une référence et garde l'entrée sérialisable.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Edit {
-    Image { board: String, slot: Slot<BoardImage> },
-    Annotation { board: String, slot: Slot<Annotation> },
-    Folder { board: String, slot: Slot<CanvasFolder> },
-    Panel { board: String, slot: Slot<StoryboardPanel> },
+    Image {
+        board: String,
+        slot: Slot<BoardImage>,
+    },
+    Annotation {
+        board: String,
+        slot: Slot<Annotation>,
+    },
+    Folder {
+        board: String,
+        slot: Slot<CanvasFolder>,
+    },
+    Panel {
+        board: String,
+        slot: Slot<StoryboardPanel>,
+    },
 }
 
 impl Edit {
@@ -264,10 +288,14 @@ impl Entry {
         match self {
             Self::Transaction(tx) => tx.weight(),
             // Un snapshot pèse tout le document : c'est exactement ce qu'on élimine.
-            Self::Snapshot(p) => {
-                p.boards.iter().map(|b| b.images.len() * std::mem::size_of::<BoardImage>()
-                    + b.annotations.len() * std::mem::size_of::<Annotation>()).sum()
-            }
+            Self::Snapshot(p) => p
+                .boards
+                .iter()
+                .map(|b| {
+                    b.images.len() * std::mem::size_of::<BoardImage>()
+                        + b.annotations.len() * std::mem::size_of::<Annotation>()
+                })
+                .sum(),
         }
     }
 }
@@ -336,7 +364,11 @@ impl Journal {
     /// Poids total du journal, en octets de modèle. Borné par la somme des gestes, jamais par
     /// `n` — c'est la propriété que les snapshots ne pouvaient pas tenir.
     pub fn weight(&self) -> usize {
-        self.done.iter().chain(&self.undone).map(Entry::weight).sum()
+        self.done
+            .iter()
+            .chain(&self.undone)
+            .map(Entry::weight)
+            .sum()
     }
 
     /// Nombre d'entrées encore stockées sous forme de snapshot. Sert de **compteur de dette

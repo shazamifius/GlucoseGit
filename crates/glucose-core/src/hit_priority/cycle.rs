@@ -135,9 +135,6 @@ pub fn advance_on_release(
 
     let index = (c.index + 1) % cyclable.len();
     let picked = cyclable.get(index).cloned();
-    let next_cycle = CycleState {
-        index,
-        ..settled
-    };
+    let next_cycle = CycleState { index, ..settled };
     (picked, Some(next_cycle))
 }

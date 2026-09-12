@@ -1,9 +1,7 @@
 //! MEMB-3 — Rideaux : données, propriété et permissions (0 dépendance).
 
 use crate::curtain_panel::{normalize_config, CurtainConfig};
-use crate::types::{
-    Annotation, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
-};
+use crate::types::{Annotation, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain};
 
 pub const MAX_NOTE_LENGTH: usize = 2000;
 
@@ -200,8 +198,16 @@ mod tests {
 
     #[test]
     fn test_visible_curtains_sorting() {
-        let owner1 = CurtainOwner { id: "alice".into(), name: "A".into(), color: "red".into() };
-        let owner2 = CurtainOwner { id: "bob".into(), name: "B".into(), color: "blue".into() };
+        let owner1 = CurtainOwner {
+            id: "alice".into(),
+            name: "A".into(),
+            color: "red".into(),
+        };
+        let owner2 = CurtainOwner {
+            id: "bob".into(),
+            name: "B".into(),
+            color: "blue".into(),
+        };
 
         let mut c1 = create_curtain("c1", owner1, 100);
         c1.visibility = CurtainVisibility::Shared;

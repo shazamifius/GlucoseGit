@@ -24,9 +24,7 @@ use super::tags::{
     operator_tag, predicate_from_tag, predicate_tag, unknown, visibility_from_tag, visibility_tag,
 };
 use crate::error::CoreResult;
-use crate::types::{
-    Annotation, CurtainNote, MembraneCurtain, Point2D, TextAnchor, TextSelection,
-};
+use crate::types::{Annotation, CurtainNote, MembraneCurtain, Point2D, TextAnchor, TextSelection};
 
 const KIND_TEXT: u8 = 0;
 const KIND_STICKY: u8 = 1;
@@ -46,8 +44,20 @@ pub fn write_annotation(w: &mut Writer, ann: &Annotation) {
 
 fn write_text(w: &mut Writer, ann: &Annotation) {
     let Annotation::Text {
-        id, x, y, width, height, text, font_size, color, cursor_pos, source_file, membrane_id,
-        domains, mirror_of, temporal_anchor,
+        id,
+        x,
+        y,
+        width,
+        height,
+        text,
+        font_size,
+        color,
+        cursor_pos,
+        source_file,
+        membrane_id,
+        domains,
+        mirror_of,
+        temporal_anchor,
     } = ann
     else {
         return;
@@ -72,8 +82,22 @@ fn write_text(w: &mut Writer, ann: &Annotation) {
 
 fn write_sticky(w: &mut Writer, ann: &Annotation) {
     let Annotation::Sticky {
-        id, x, y, width, height, text, font_size, color, bg_color, cursor_pos, operator,
-        source_file, membrane_id, domains, mirror_of, temporal_anchor,
+        id,
+        x,
+        y,
+        width,
+        height,
+        text,
+        font_size,
+        color,
+        bg_color,
+        cursor_pos,
+        operator,
+        source_file,
+        membrane_id,
+        domains,
+        mirror_of,
+        temporal_anchor,
     } = ann
     else {
         return;
@@ -100,10 +124,31 @@ fn write_sticky(w: &mut Writer, ann: &Annotation) {
 
 fn write_arrow(w: &mut Writer, ann: &Annotation) {
     let Annotation::Arrow {
-        id, x, y, x2, y2, text, font_size, color, arrow_type, arrow_bidirectional, predicate,
-        stroke_width, waypoints, source_id, target_id, source_block_id, target_block_id,
-        source_text_sel, target_text_sel, long_text, target_board_id, membrane_id, domains,
-        mirror_of, temporal_anchor,
+        id,
+        x,
+        y,
+        x2,
+        y2,
+        text,
+        font_size,
+        color,
+        arrow_type,
+        arrow_bidirectional,
+        predicate,
+        stroke_width,
+        waypoints,
+        source_id,
+        target_id,
+        source_block_id,
+        target_block_id,
+        source_text_sel,
+        target_text_sel,
+        long_text,
+        target_board_id,
+        membrane_id,
+        domains,
+        mirror_of,
+        temporal_anchor,
     } = ann
     else {
         return;
@@ -139,7 +184,18 @@ fn write_arrow(w: &mut Writer, ann: &Annotation) {
 
 fn write_membrane(w: &mut Writer, ann: &Annotation) {
     let Annotation::Membrane {
-        id, x, y, width, height, color, text, mode, curtains, membrane_id, domains, mirror_of,
+        id,
+        x,
+        y,
+        width,
+        height,
+        color,
+        text,
+        mode,
+        curtains,
+        membrane_id,
+        domains,
+        mirror_of,
         temporal_anchor,
     } = ann
     else {
@@ -372,7 +428,11 @@ fn read_curtain(r: &mut Reader<'_>) -> CoreResult<MembraneCurtain> {
 }
 
 fn write_curtain_note(w: &mut Writer, note: &CurtainNote) {
-    let CurtainNote { id, text, created_at } = note;
+    let CurtainNote {
+        id,
+        text,
+        created_at,
+    } = note;
     w.text(id);
     w.text(text);
     w.i64(*created_at);

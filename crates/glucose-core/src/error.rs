@@ -22,7 +22,10 @@ pub enum CoreError {
     /// Pondération hors de `0.0..=1.0`, infinie ou `NaN`.
     InvalidWeight(f64),
     /// Le nœud ne porte pas ce domaine : il n'y a rien à retirer.
-    DomainNotAssigned { node_id: String, domain_id: String },
+    DomainNotAssigned {
+        node_id: String,
+        domain_id: String,
+    },
     InvalidId(String),
     /// Opération refusée par un invariant du modèle (dernier tableau, cycle, etc.).
     /// Le message dit **quoi faire**, pas seulement ce qui a échoué (standard 6.5).
@@ -92,7 +95,10 @@ mod tests {
         assert_eq!(cycle.to_string(), "Cycle interdit : A -> B -> A");
 
         let refus = CoreError::InvalidOperation("c'est le dernier tableau".into());
-        assert_eq!(refus.to_string(), "Opération impossible : c'est le dernier tableau");
+        assert_eq!(
+            refus.to_string(),
+            "Opération impossible : c'est le dernier tableau"
+        );
     }
 
     /// Standard 6.5 — chacune des erreurs de domaine nomme la faute **et** dit quoi faire.
@@ -108,7 +114,9 @@ mod tests {
         let weight = CoreError::InvalidWeight(1.7).to_string();
         assert!(weight.contains("1.7"), "{weight}");
         assert!(weight.contains("0,0 à 1,0"), "{weight}");
-        assert!(CoreError::InvalidWeight(f64::NAN).to_string().contains("NaN"));
+        assert!(CoreError::InvalidWeight(f64::NAN)
+            .to_string()
+            .contains("NaN"));
 
         let node = CoreError::NodeNotFound("n-1".into()).to_string();
         assert!(node.contains("ni annotation ni image"), "{node}");

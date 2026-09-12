@@ -75,7 +75,13 @@ pub fn organize_board_grid(board: &mut Board, padding: f64) {
     // 2. Placement des annotations (ancrage HAUT-GAUCHE)
     for ann in &mut board.annotations {
         match ann {
-            Annotation::Text { x, y, width, height, .. } => {
+            Annotation::Text {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let w = width.unwrap_or(240.0);
                 let h = height.unwrap_or(48.0);
                 *x = cur_x;
@@ -84,7 +90,13 @@ pub fn organize_board_grid(board: &mut Board, padding: f64) {
                 cur_x += w + padding;
                 idx += 1;
             }
-            Annotation::Sticky { x, y, width, height, .. } => {
+            Annotation::Sticky {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let w = width.unwrap_or(160.0);
                 let h = height.unwrap_or(120.0);
                 *x = cur_x;
@@ -93,7 +105,13 @@ pub fn organize_board_grid(board: &mut Board, padding: f64) {
                 cur_x += w + padding;
                 idx += 1;
             }
-            Annotation::Membrane { x, y, width, height, .. } => {
+            Annotation::Membrane {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 *x = cur_x;
                 *y = cur_y;
                 row_max_h = row_max_h.max(*height);
@@ -140,16 +158,32 @@ pub fn calculate_image_layout(
     match sort {
         OrganizeSort::None => {}
         OrganizeSort::SizeDesc => {
-            sorted.sort_by(|a, b| (b.width * b.height).partial_cmp(&(a.width * a.height)).unwrap());
+            sorted.sort_by(|a, b| {
+                (b.width * b.height)
+                    .partial_cmp(&(a.width * a.height))
+                    .unwrap()
+            });
         }
         OrganizeSort::SizeAsc => {
-            sorted.sort_by(|a, b| (a.width * a.height).partial_cmp(&(b.width * b.height)).unwrap());
+            sorted.sort_by(|a, b| {
+                (a.width * a.height)
+                    .partial_cmp(&(b.width * b.height))
+                    .unwrap()
+            });
         }
         OrganizeSort::RatioPortrait => {
-            sorted.sort_by(|a, b| (a.width / a.height.max(1.0)).partial_cmp(&(b.width / b.height.max(1.0))).unwrap());
+            sorted.sort_by(|a, b| {
+                (a.width / a.height.max(1.0))
+                    .partial_cmp(&(b.width / b.height.max(1.0)))
+                    .unwrap()
+            });
         }
         OrganizeSort::RatioLandscape => {
-            sorted.sort_by(|a, b| (b.width / b.height.max(1.0)).partial_cmp(&(a.width / a.height.max(1.0))).unwrap());
+            sorted.sort_by(|a, b| {
+                (b.width / b.height.max(1.0))
+                    .partial_cmp(&(a.width / a.height.max(1.0)))
+                    .unwrap()
+            });
         }
         _ => {}
     }
@@ -161,16 +195,23 @@ pub fn calculate_image_layout(
 
     match mode {
         OrganizeMode::Grid => {
-            let actual_cols = if cols > 0 { cols } else { (images.len() as f64).sqrt().round().max(1.0) as usize };
+            let actual_cols = if cols > 0 {
+                cols
+            } else {
+                (images.len() as f64).sqrt().round().max(1.0) as usize
+            };
             let w = target_size;
             let mut results = Vec::new();
             let mut cur_y = start_y;
 
             for chunk in sorted.chunks(actual_cols) {
-                let max_h = chunk.iter().map(|img| {
-                    let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                    w / ratio
-                }).fold(0.0f64, f64::max);
+                let max_h = chunk
+                    .iter()
+                    .map(|img| {
+                        let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
+                        w / ratio
+                    })
+                    .fold(0.0f64, f64::max);
 
                 for (i, img) in chunk.iter().enumerate() {
                     let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
@@ -261,11 +302,14 @@ pub fn calculate_image_layout(
             let max_row_w = target_h * 5.0;
             let mut results = Vec::new();
 
-            let scaled: Vec<_> = sorted.into_iter().map(|img| {
-                let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
-                let w = target_h * ratio;
-                (img.id, w, target_h)
-            }).collect();
+            let scaled: Vec<_> = sorted
+                .into_iter()
+                .map(|img| {
+                    let ratio = (img.original_width / img.original_height.max(1.0)).max(0.1);
+                    let w = target_h * ratio;
+                    (img.id, w, target_h)
+                })
+                .collect();
 
             let mut cur_row: Vec<(String, f64, f64)> = Vec::new();
             let mut cur_w = 0.0;
@@ -354,7 +398,14 @@ mod tests {
             bboxes.push((img.x - hw, img.y - hh, img.x + hw, img.y + hh));
         }
         for ann in &board.annotations {
-            if let Annotation::Text { x, y, width, height, .. } = ann {
+            if let Annotation::Text {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } = ann
+            {
                 let w = width.unwrap();
                 let h = height.unwrap();
                 bboxes.push((*x, *y, *x + w, *y + h));
@@ -368,7 +419,12 @@ mod tests {
                 let b2 = &bboxes[j];
                 let overlap_x = b1.0 < b2.2 && b1.2 > b2.0;
                 let overlap_y = b1.1 < b2.3 && b1.3 > b2.1;
-                assert!(!(overlap_x && overlap_y), "Overlap detected between item {} and item {}", i, j);
+                assert!(
+                    !(overlap_x && overlap_y),
+                    "Overlap detected between item {} and item {}",
+                    i,
+                    j
+                );
             }
         }
     }

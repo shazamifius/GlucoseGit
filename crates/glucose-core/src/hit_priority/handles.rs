@@ -64,24 +64,63 @@ fn push_image_handles(out: &mut Vec<PickCandidate>, img: &BoardImage, z: usize, 
         (*h, (img.x + ox * c - oy * s, img.y + ox * s + oy * c))
     });
     let slop = handle_slop_world(input.scale, img.width, img.height);
-    push_handles(out, PickOwner::Image, &img.id, z, positions, (input.wx, input.wy), slop);
+    push_handles(
+        out,
+        PickOwner::Image,
+        &img.id,
+        z,
+        positions,
+        (input.wx, input.wy),
+        slop,
+    );
 }
 
 /// Boite et poignees d'une annotation selectionnee ; `None` pour une fleche.
 fn annotation_handles(ann: &Annotation) -> Option<(PickOwner, AlignRect, &'static [Handle])> {
     match ann {
         Annotation::Arrow { .. } => None,
-        Annotation::Membrane { x, y, width, height, .. } => {
-            Some((PickOwner::Membrane, AlignRect::new(*x, *y, *width, *height), &Handle::ALL))
-        }
-        Annotation::Text { x, y, width, height, .. } => {
+        Annotation::Membrane {
+            x,
+            y,
+            width,
+            height,
+            ..
+        } => Some((
+            PickOwner::Membrane,
+            AlignRect::new(*x, *y, *width, *height),
+            &Handle::ALL,
+        )),
+        Annotation::Text {
+            x,
+            y,
+            width,
+            height,
+            ..
+        } => {
             let (w, h) = (width.unwrap_or(0.0), height.unwrap_or(0.0));
-            (w > 0.0 && h > 0.0)
-                .then(|| (PickOwner::Annotation, AlignRect::new(*x, *y, w, h), &Handle::HORIZONTAL[..]))
+            (w > 0.0 && h > 0.0).then(|| {
+                (
+                    PickOwner::Annotation,
+                    AlignRect::new(*x, *y, w, h),
+                    &Handle::HORIZONTAL[..],
+                )
+            })
         }
-        Annotation::Sticky { x, y, width, height, .. } => {
+        Annotation::Sticky {
+            x,
+            y,
+            width,
+            height,
+            ..
+        } => {
             let (w, h) = (width.unwrap_or(160.0), height.unwrap_or(120.0));
-            (w > 0.0 && h > 0.0).then(|| (PickOwner::Annotation, AlignRect::new(*x, *y, w, h), &Handle::ALL[..]))
+            (w > 0.0 && h > 0.0).then(|| {
+                (
+                    PickOwner::Annotation,
+                    AlignRect::new(*x, *y, w, h),
+                    &Handle::ALL[..],
+                )
+            })
         }
     }
 }
@@ -125,6 +164,10 @@ pub fn hit_handle(input: &PickInput) -> Option<PickCandidate> {
     if out.is_empty() {
         return None;
     }
-    out.sort_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal));
+    out.sort_by(|a, b| {
+        a.dist
+            .partial_cmp(&b.dist)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     out.into_iter().next()
 }

@@ -279,7 +279,9 @@ fn test_handles_absolute_priority() {
         selected_annotation_ids: &empty,
         ..input
     };
-    assert!(collect_candidates(&input_nosel).iter().all(|c| c.kind != PickKind::Handle));
+    assert!(collect_candidates(&input_nosel)
+        .iter()
+        .all(|c| c.kind != PickKind::Handle));
 
     // Préhension constante à l'écran (grandit au dézoom)
     let far_scale1 = PickInput {
@@ -324,13 +326,24 @@ fn test_click_cycle_chain() {
     let mut seen = Vec::new();
 
     for _ in 0..5 {
-        let (down_picked, down_cycle) = pick_at_down(&cands, cycle.as_ref(), 300.0, 300.0, time, PickOptions::default());
+        let (down_picked, down_cycle) = pick_at_down(
+            &cands,
+            cycle.as_ref(),
+            300.0,
+            300.0,
+            time,
+            PickOptions::default(),
+        );
         cycle = down_cycle;
         time += 60; // appui court
         let (up_picked, up_cycle) = advance_on_release(&cands, cycle.as_ref(), time);
         cycle = up_cycle;
         let final_picked = up_picked.or(down_picked);
-        seen.push(format!("{}:{}", final_picked.as_ref().unwrap().kind.as_str(), final_picked.unwrap().id));
+        seen.push(format!(
+            "{}:{}",
+            final_picked.as_ref().unwrap().kind.as_str(),
+            final_picked.unwrap().id
+        ));
         time += 500; // pause au-delà du double-clic
     }
 

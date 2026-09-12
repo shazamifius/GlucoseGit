@@ -179,7 +179,9 @@ fn read_entry<'a>(bytes: &'a [u8], entry: &[u8]) -> CoreResult<ParsedSection<'a>
 
     let start = usize::try_from(offset).map_err(|_| truncated("un contenu de section"))?;
     let len = usize::try_from(length).map_err(|_| truncated("un contenu de section"))?;
-    let end = start.checked_add(len).ok_or_else(|| truncated("un contenu de section"))?;
+    let end = start
+        .checked_add(len)
+        .ok_or_else(|| truncated("un contenu de section"))?;
     if end > bytes.len() {
         return Err(CoreError::DeserializationError(format!(
             "fichier .glucose tronqué : {} annonce {} octets à l'offset {}, le fichier n'en compte que {} — \
@@ -200,7 +202,11 @@ fn read_entry<'a>(bytes: &'a [u8], entry: &[u8]) -> CoreResult<ParsedSection<'a>
         )));
     }
 
-    Ok(ParsedSection { kind, digest, payload })
+    Ok(ParsedSection {
+        kind,
+        digest,
+        payload,
+    })
 }
 
 /// Vérifie l'en-tête, la table et **toutes** les sommes de contrôle, puis rend les sections.
@@ -210,7 +216,11 @@ fn read_entry<'a>(bytes: &'a [u8], entry: &[u8]) -> CoreResult<ParsedSection<'a>
 pub fn parse(bytes: &[u8]) -> CoreResult<Vec<ParsedSection<'_>>> {
     let count = read_header(bytes)?;
     let table_end = HEADER_LEN
-        .checked_add(ENTRY_LEN.checked_mul(count).ok_or_else(|| truncated("la table des sections"))?)
+        .checked_add(
+            ENTRY_LEN
+                .checked_mul(count)
+                .ok_or_else(|| truncated("la table des sections"))?,
+        )
         .ok_or_else(|| truncated("la table des sections"))?;
     if bytes.len() < table_end {
         return Err(truncated("la table des sections"));
