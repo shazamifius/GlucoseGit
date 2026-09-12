@@ -182,7 +182,7 @@ fn draw_name(
         (m.pad / 8.0).max(1.0),
         m.name_size * 1.2,
     );
-    fill_rect(pixmap, caret, 0.0, p.theme.accent_primary);
+    fill_rect(pixmap, caret, 0.0, p.theme.text_accent);
 }
 
 /// Les cinq paliers de pondération.
@@ -237,7 +237,7 @@ fn draw_confirm(p: &Painter, pixmap: &mut PixmapMut, row: &DomainRowLayout, butt
     for (rect, label, danger) in [(yes, "Oui", true), (no, "Non", false)] {
         let hovered = rect.contains(p.pointer.x, p.pointer.y);
         let background = match (danger, hovered) {
-            (true, true) => p.theme.snap_guide,
+            (true, true) => p.theme.danger,
             (true, false) => p.theme.bg_hover,
             (false, true) => p.theme.bg_hover,
             (false, false) => p.theme.btn_bg,
