@@ -359,3 +359,37 @@ fn test_click_cycle_chain() {
         ]
     );
 }
+
+// ── Fiche 07 § 3 — les chiffres de l'arbitre de clic, un par un ─────────────
+
+use glucose_core::hit_priority::pick_consts;
+
+/// § 3.1 — l'échelle de priorité : poignée 0, bords de conteneur 10, flèche 20, image 30,
+/// note 40, texte 50, corps de conteneur 60. Une membrane ne gagne jamais sur son contenu.
+#[test]
+fn test_the_pick_ranks_are_those_of_the_spec() {
+    use glucose_core::hit_priority::*;
+    assert_eq!(PICK_RANK_HANDLE, 0);
+    assert_eq!(PICK_RANK_MEMBRANE_EDGE, 10);
+    assert_eq!(PICK_RANK_FOLDER_EDGE, 10);
+    assert_eq!(PICK_RANK_ARROW, 20);
+    assert_eq!(PICK_RANK_IMAGE, 30);
+    assert_eq!(PICK_RANK_STICKY, 40);
+    assert_eq!(PICK_RANK_TEXT, 50);
+    assert_eq!(PICK_RANK_MEMBRANE_BODY, 60);
+    assert_eq!(PICK_RANK_FOLDER_BODY, 60);
+}
+
+/// § 3.1 et § 3.2 — bande de 14 px autour d'un contour ; rayon de saisie d'une poignée
+/// 24 px, plafonné à 35 % du petit côté, plancher 6 px.
+/// § 3.3 — re-clic au même endroit : moins de 8 px, moins de 2,5 s ; fenêtre du double-clic.
+#[test]
+fn test_the_pick_tolerances_are_those_of_the_spec() {
+    assert_eq!(pick_consts::EDGE_BAND_PX, 14.0);
+    assert_eq!(pick_consts::HANDLE_SLOP_PX, 24.0);
+    assert_eq!(pick_consts::HANDLE_SLOP_MAX_RATIO, 0.35);
+    assert_eq!(pick_consts::HANDLE_SLOP_MIN_PX, 6.0);
+    assert_eq!(pick_consts::CYCLE_RADIUS_PX, 8.0);
+    assert_eq!(pick_consts::CYCLE_TTL_MS, 2500);
+    assert_eq!(pick_consts::DBLCLICK_MS, 350, "une seule fenêtre de double-clic");
+}

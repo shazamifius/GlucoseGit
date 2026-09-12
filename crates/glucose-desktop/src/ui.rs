@@ -68,11 +68,18 @@ pub struct Toast {
 }
 
 impl Toast {
+    /// Temps de vie à l'écran (fiche 07 § 1, `TOAST_DURATION`).
+    pub const DURATION_MS: u64 = 2400;
+    /// Apparition (fiche 07 § 1, `TOAST_ANIM_IN`).
+    pub const FADE_IN_MS: f32 = 180.0;
+    /// Disparition. La référence retire son toast d'un coup ; un fondu est une extension.
+    pub const FADE_OUT_MS: f32 = 400.0;
+
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
             created_at: Instant::now(),
-            duration: Duration::from_millis(2500),
+            duration: Duration::from_millis(Self::DURATION_MS),
         }
     }
 
@@ -83,12 +90,37 @@ impl Toast {
     pub fn alpha(&self) -> f32 {
         let elapsed = self.created_at.elapsed().as_millis() as f32;
         let total = self.duration.as_millis() as f32;
-        if elapsed > total - 400.0 {
-            ((total - elapsed) / 400.0).clamp(0.0, 1.0)
+        if elapsed > total - Self::FADE_OUT_MS {
+            ((total - elapsed) / Self::FADE_OUT_MS).clamp(0.0, 1.0)
         } else {
-            (elapsed / 150.0).clamp(0.0, 1.0)
+            (elapsed / Self::FADE_IN_MS).clamp(0.0, 1.0)
         }
     }
+
+    /// Ce que le toast demande à la boucle : `Redraw` pendant un fondu, `Sleep(ms)` sur le
+    /// plateau jusqu'au début du fondu sortant, `Gone` une fois expiré. La boucle n'a ainsi
+    /// aucun chiffre à connaître — les siens, dupliqués, avaient déjà divergé une fois.
+    pub fn repaint_need(&self) -> ToastRepaint {
+        if self.is_expired() {
+            return ToastRepaint::Gone;
+        }
+        let elapsed = self.created_at.elapsed().as_millis() as f32;
+        let total = self.duration.as_millis() as f32;
+        let fade_out_at = total - Self::FADE_OUT_MS;
+        if elapsed < Self::FADE_IN_MS || elapsed >= fade_out_at {
+            ToastRepaint::Redraw
+        } else {
+            ToastRepaint::Sleep((fade_out_at - elapsed).ceil().max(1.0) as u64)
+        }
+    }
+}
+
+/// Voir [`Toast::repaint_need`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToastRepaint {
+    Redraw,
+    Sleep(u64),
+    Gone,
 }
 
 pub struct UiState {
@@ -139,7 +171,8 @@ impl UiState {
         self.current_toast = Some(Toast::new(msg));
     }
 
-    /// Le message du toast affiché, s'il y en a un.
+    /// Le message du toast affiché, s'il y en a un — ce que les tests lisent.
+    #[cfg(test)]
     pub fn toast_message(&self) -> Option<&str> {
         self.current_toast.as_ref().map(|t| t.message.as_str())
     }
@@ -1377,28 +1410,40 @@ mod tests {
         toast.created_at = base_instant;
         assert_eq!(toast.alpha(), 0.0);
 
-        // 2. Mi-course du fondu entrant (75 ms / 150 ms)
-        toast.created_at = base_instant - Duration::from_millis(75);
+        // Fiche 07 § 1 : 2 400 ms de vie, 180 ms d'apparition.
+        assert_eq!(Toast::DURATION_MS, 2400);
+        assert_eq!(Toast::FADE_IN_MS, 180.0);
+
+        // 2. Mi-course du fondu entrant (90 ms / 180 ms)
+        toast.created_at = base_instant - Duration::from_millis(90);
         assert!((toast.alpha() - 0.5).abs() < 0.05);
 
-        // 3. Fin du fondu entrant (150 ms)
-        toast.created_at = base_instant - Duration::from_millis(150);
+        // 3. Fin du fondu entrant (180 ms)
+        toast.created_at = base_instant - Duration::from_millis(180);
         assert_eq!(toast.alpha(), 1.0);
 
-        // 4. Plateau statique où aucun repaint n'est requis (1000 ms)
+        // 4. Plateau statique où aucun repaint n'est requis (1000 ms) : le toast demande
+        // à dormir exactement jusqu'au début du fondu sortant.
         toast.created_at = base_instant - Duration::from_millis(1000);
         assert_eq!(toast.alpha(), 1.0);
+        assert_eq!(toast.repaint_need(), ToastRepaint::Sleep(1000));
+        toast.created_at = base_instant - Duration::from_millis(90);
+        assert_eq!(toast.repaint_need(), ToastRepaint::Redraw, "en plein fondu entrant");
+        toast.created_at = base_instant - Duration::from_millis(2200);
+        assert_eq!(toast.repaint_need(), ToastRepaint::Redraw, "en plein fondu sortant");
+        toast.created_at = base_instant - Duration::from_millis(2400);
+        assert_eq!(toast.repaint_need(), ToastRepaint::Gone);
 
-        // 5. Début du fondu sortant (2100 ms = 2500 - 400)
-        toast.created_at = base_instant - Duration::from_millis(2100);
+        // 5. Début du fondu sortant (2000 ms = 2400 - 400)
+        toast.created_at = base_instant - Duration::from_millis(2000);
         assert_eq!(toast.alpha(), 1.0);
 
-        // 6. Mi-course du fondu sortant (2300 ms = 2500 - 200)
-        toast.created_at = base_instant - Duration::from_millis(2300);
+        // 6. Mi-course du fondu sortant (2200 ms = 2400 - 200)
+        toast.created_at = base_instant - Duration::from_millis(2200);
         assert!((toast.alpha() - 0.5).abs() < 0.05);
 
-        // 7. Expiration (>= 2500 ms)
-        toast.created_at = base_instant - Duration::from_millis(2500);
+        // 7. Expiration (>= 2400 ms)
+        toast.created_at = base_instant - Duration::from_millis(2400);
         assert_eq!(toast.alpha(), 0.0);
         assert!(toast.is_expired());
     }

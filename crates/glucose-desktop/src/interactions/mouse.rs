@@ -6,7 +6,7 @@ use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelCl
 use crate::params::{Pointer, ScreenFrame};
 use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
-use glucose_core::hit_priority::{collect_candidates_indexed, PickInput, PickOwner};
+use glucose_core::hit_priority::{collect_candidates_indexed, pick_consts, PickInput, PickOwner};
 use glucose_core::types::{Annotation, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
@@ -369,7 +369,7 @@ impl GlucoseApp {
                     if let Some(top) = candidates.first() {
                         let is_dbl_click = if let Some(ref lc) = self.last_click {
                             lc.id == top.id
-                                && lc.time.elapsed().as_millis() < 350
+                                && (lc.time.elapsed().as_millis() as i64) < pick_consts::DBLCLICK_MS
                                 && (lc.pos.0 - self.mouse_pos.0).hypot(lc.pos.1 - self.mouse_pos.1) < 8.0
                         } else {
                             false

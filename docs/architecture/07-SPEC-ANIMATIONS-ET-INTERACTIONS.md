@@ -2,247 +2,93 @@
 
 > **Rôle de ce document** : définir avec une précision chronométrique et mathématique absolue l'intégralité des **animations, courbes d'accélération, cinétiques, transitions d'état et règles d'interaction** de Glucose.
 > Il constitue la référence indispensable pour recréer en Rust natif le ressenti fluide, réactif et organique ("feel & polish") de la version originale.
+>
+> **Méthode (12/09/2026)** : chaque chiffre est allé voir le code, puis la référence TypeScript quand les deux divergeaient. Ce qui est implémenté **et tenu par un test** est sorti ; ce qui reste est la liste de travail. Constat d'ensemble : **l'arbitre de clic, l'aimantation, la géométrie des membranes et des rideaux sont exacts dans le noyau ; le desktop n'anime rien** — aucune interpolation, aucune courbe, aucune transition de caméra.
 
 ---
 
 ## 1. Table Chronométrique & Délais de Référence (TIMING)
 
-L'application repose sur des constantes temporelles unifiées (extraites de `src/constants.ts` et des composants canvas) :
+> Tenus par test : `DOUBLE_CLICK_WINDOW` 350 ms (une seule constante, `pick_consts::DBLCLICK_MS` — la référence en avait deux, 350 et 400, avec 50 ms entre les deux où un clic n'était ni double-clic ni re-clic) ; `CYCLE_TTL_MS` 2 500 ms ; `TOAST_DURATION` 2 400 ms et `TOAST_ANIM_IN` 180 ms (la référence déclarait 2 400 et codait 2 200 en dur ; le Rust codait 2 500 et 150 ; les constantes nommées font foi). Extension gardée : le toast a un fondu sortant de 400 ms, là où la référence le retire d'un coup.
 
-| Constante | Durée (ms) | Description & Comportement |
-|---|---:|---|
-| `MEMBRANE_TWEEN` | **200 ms** | Passage fluide d'une image/texte entrant ou sortant d'une membrane minimisée |
-| `FOLDER_TRANSITION`| **400 ms** | Plongée fluide de la caméra lors de l'entrée ou la sortie d'un dossier (sous-canvas) |
-| `MIRROR_TELEPORT` | **400 ms** | Téléportation animée de la caméra vers l'original d'un miroir (`↻`) |
-| `PANEL_DISMISS` | **200 ms** | Glissement d'éviction et disparition d'un panneau du dock tiré vers sa sortie |
-| `MINIMAP_SLIDE` | **180 ms** | Translation horizontale de la minimap quand un panneau droit s'ouvre/se ferme |
-| `ARROW_PANEL_IN` | **180 ms** | Fondu et déploiement du panneau de description Markdown d'une flèche |
-| `TOAST_DURATION` | **2 400 ms** | Temps de vie à l'écran d'une notification toast avant son auto-destruction |
-| `TOAST_ANIM_IN` | **180 ms** | Trajectoire d'entrée verticale et apparition en opacité d'un toast |
-| `DOUBLE_CLICK_WINDOW`| **350–400 ms**| Fenêtre temporelle maximale pour valider un double-clic (édition texte, dossier) |
-| `CYCLE_TTL_MS` | **2 500 ms** | Délai d'expiration du cycle de sélection : au-delà, le clic repart au rang prioritaire |
-| `AUTOSAVE_DEBOUNCE` | **2 000 ms** | Temporisation d'inactivité avant déclenchement de l'écriture disque du projet |
+| Constante | Durée (ms) | État | Description & Comportement |
+|---|---:|---|---|
+| `MEMBRANE_TWEEN` | **200 ms** | **À FAIRE** — aucun tween | Passage fluide d'une image/texte entrant ou sortant d'une membrane minimisée |
+| `FOLDER_TRANSITION`| **400 ms** | **À FAIRE** — l'entrée dans un dossier n'existe pas (fiche 08 § 5.2) | Plongée fluide de la caméra lors de l'entrée ou la sortie d'un dossier |
+| `MIRROR_TELEPORT` | **400 ms** | **À FAIRE** — les miroirs n'ont pas de geste (fiche 08 § 6) | Téléportation animée de la caméra vers l'original d'un miroir (`↻`) |
+| `PANEL_DISMISS` | **200 ms** | **À FAIRE** — le panneau disparaît d'un coup | Glissement d'éviction d'un panneau du dock tiré vers sa sortie |
+| `MINIMAP_SLIDE` | **180 ms** | **À FAIRE** — pas de translation | Translation horizontale de la minimap quand un panneau droit s'ouvre/se ferme |
+| `ARROW_PANEL_IN` | **180 ms** | **À FAIRE** — pas de panneau de flèche | Fondu et déploiement du panneau de description Markdown d'une flèche |
+| `AUTOSAVE_DEBOUNCE` | **2 000 ms** | **À FAIRE** (fiche 09 § 3.3) | Temporisation d'inactivité avant l'écriture disque du projet |
 
 ---
 
 ## 2. Fonctions d'Amortissement & Courbes d'Accélération (Easing)
 
-Toutes les animations de Glucose refusent les mouvements linéaires brutaux. Elles emploient des fonctions d'amortissement spécifiques :
+> Rien n'existe : le desktop ne connaît aucune courbe. Toute animation ci-dessous attend d'abord un mécanisme de tween (une valeur, une durée, une courbe, une horloge) — à concevoir une fois, avec le rendu GPU (plan de marche RQ-2), et à réutiliser partout.
 
-```
-          1.0 +-------------+ (Arrivée douce)
-              |            /
-              |           /
-              |         /
-              |       /
-          0.0 +------+
-              0.0   0.5   1.0
-```
-
-### 2.1 Cubic Ease-Out (Amorti Universel)
-Utilisé pour le tweening des membranes (`membraneTween.ts`), le cadrage caméra du mode Focus (`membraneFocus.ts`), le slide de la minimap et les apparitions de popovers :
-$$f(t) = 1 - (1 - t)^3 \quad \text{pour } t \in [0, 1]$$
-
-*Implémentation Rust :*
-```rust
-pub fn ease_out_cubic(t: f32) -> f32 {
-    let c = t.clamp(0.0, 1.0);
-    1.0 - (1.0 - c).powi(3)
-}
-```
-
-### 2.2 Rebond Élastique de Préhension (Dock Panel Bounce)
-Lorsqu'un panneau du dock s'ouvre ou est relâché après un léger glissement (`PanelDock.tsx`), il utilise une courbe de Bézier cubique avec dépassement élastique (overshoot de 156%) :
-$$\text{cubic-bezier}(0.34,\, 1.56,\, 0.64,\, 1.0)$$
-
-*Effet ressenti* : Le panneau monte légèrement au-dessus de sa position finale avant de se caler fermement, donnant une sensation tactile mécanique très gratifiante.
-
-### 2.3 Transition FLIP de Réordonnancement (Dock Swap)
-Lorsqu'on glisse un panneau horizontalement pour échanger sa place avec un voisin :
-$$\text{cubic-bezier}(0.22,\, 1.0,\, 0.36,\, 1.0) \quad \text{sur } 250\text{ ms}$$
-
-### 2.4 Animation Toast (Slide-Up)
-Entrée du toast :
-```css
-@keyframes toastIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-/* transition: 180ms ease-out */
-```
-
-### 2.5 Pulsation de Fantôme (Ghost Pulse)
-Utilisé pour les fantômes de placement et les opérations en cours :
-```css
-@keyframes ghostPulse {
-  0%, 100% { opacity: 0.55; }
-  50%       { opacity: 0.35; }
-}
-```
+* **À FAIRE** — **Cubic ease-out**, l'amorti universel : $f(t) = 1 - (1 - t)^3$ pour $t \in [0, 1]$. Tweening des membranes, cadrage du mode focus, slide de la minimap, apparition des popovers.
+* **À FAIRE** — **Rebond de préhension du dock** : `cubic-bezier(0.34, 1.56, 0.64, 1.0)` — le panneau dépasse légèrement sa position finale avant de se caler.
+* **À FAIRE** — **Transition FLIP de réordonnancement** du dock : `cubic-bezier(0.22, 1.0, 0.36, 1.0)` sur 250 ms.
+* **À FAIRE** — **Entrée du toast** : opacité 0 → 1 et `translateY(8px)` → 0 en 180 ms ease-out. Le fondu d'opacité existe (linéaire) ; la translation et la courbe manquent.
+* **À FAIRE** — **Pulsation de fantôme** : opacité 0,55 ↔ 0,35, pour les fantômes de placement et opérations en cours.
 
 ---
 
 ## 3. L'Arbitre de Clic & Priorité de Sélection (PICK-1)
 
-Dans une interface canvas multi-couches, les éléments se superposent (images, textes, membranes, flèches).
-**Le problème fondamental** : Si le clic dépend de l'ordre d'affichage, une grande membrane transparente avale tous les clics sur les images qu'elle contient.
-**La solution de Glucose (PICK-1)** : Un arbitrage géométrique strict basé sur **l'intention de l'utilisateur**.
+> Tenus par test (`hit_priority_suite`, `hit_priority_pick_suite`, et par la souris dans `interactions/resize/tests.rs`) : l'échelle de priorité complète — poignée 0, bords de conteneur 10, flèche 20, image 30, note 40, texte 50, corps de conteneur 60 — avec ses règles de départage (le plus petit conteneur gagne, une membrane ne gagne jamais sur son contenu, le texte est terminal) ; la bande de 14 px des contours ; le rayon de saisie des poignées de 24 px, plafonné à 35 % du petit côté, plancher 6 px.
 
 ### 3.1 Échelle de Priorité Absolue (PICK_RANK)
-
-```
-[Rang 0]  Poignées de redimensionnement de la sélection active  (Intention absolue)
-   |
-[Rang 10] Bords de conteneurs (Pointillés de membrane, header de dossier)
-   |
-[Rang 20] Flèches (Tracé fin, difficile à viser)
-   |
-[Rang 30] Images
-   |
-[Rang 40] Notes Sticky
-   |
-[Rang 50] Blocs de Texte (Dernier parmi les contenus, ouvre l'édition)
-   |
-[Rang 60] Corps intérieur de conteneur (Une membrane ne gagne jamais sur son contenu)
-```
-
-| Rang | Type d'élément | Règle de départage |
-|:---:|---|---|
-| **0** | **Poignée de sélection (`handle`)** | Gagne **toujours**. Permet de redimensionner même si un autre élément passe sous la poignée. |
-| **10** | **Bord de conteneur (`membrane-edge`, `folder-edge`)** | Bande de $14\text{px}$ écran autour du contour. Entre 2 conteneurs, **le plus petit en surface gagne**. |
-| **20** | **Flèche (`arrow`)** | Ligne vectorielle avec zone tampon de $24\text{px}$. |
-| **30** | **Image (`image`)** | Rectangle de texture. Entre 2 images superposées, celle peinte au-dessus (z-index) gagne. |
-| **40** | **Note adhésive (`sticky`)** | Rectangle de la note. |
-| **50** | **Bloc de texte (`text`)** | Toujours **dernier des contenus**. Double-clic = ouverture édition (état terminal). |
-| **60** | **Corps intérieur de conteneur (`membrane-body`, `folder-body`)** | Remplissage intérieur. Ne capture le clic que si aucun contenu n'est sous le curseur. |
-
-### 3.2 Tolérance de Préhension des Poignées (Hitbox Magnétique)
-Le carré visuel d'une poignée de coin ne mesure que $9\text{px}$ à l'écran. Viser précisément $9\text{px}$ à la souris est irritant.
-* **Rayon de saisie étendu** : $24\text{px}$ écran (`PICK.HANDLE_SLOP_PX = 24`).
-* **Plafond de sécurité proportionnel** : Une poignée ne doit jamais couvrir plus de $35\%$ du petit côté de la boîte (`HANDLE_SLOP_MAX_RATIO = 0.35`), avec un plancher de $6\text{px}$ (`HANDLE_SLOP_MIN_PX = 6`). Cela empêche les poignées d'une carte miniature dézoomée de saturer tout l'intérieur de la carte.
+* **À FAIRE** — **Les flèches ne sont pas cliquables.** Le rang 20 et la zone tampon de $24\text{ px}$ autour du tracé sont prévus par l'arbitre, mais le desktop ne fournit jamais de candidat flèche (`arrow_id: None` partout) : aucun test de distance au segment n'existe.
+* **Dette** — `collect_candidates_indexed` clone les nœuds proches du curseur à chaque clic pour les présenter en tranches contiguës. En O(local), mais des clones tout de même ; à faire travailler sur des références.
 
 ### 3.3 Mécanique du Cycle de Profondeur (« Switch Priority »)
-Quand plusieurs éléments sont empilés sous le curseur :
-1. **Premier clic** : Sélectionne la cible de rang le plus prioritaire (ex. l'image au premier plan).
-2. **Re-clic au même endroit sans bouger** (déplacement $< 8\text{px}$ écran) :
-   * L'arbitre avance d'un cran dans la liste des candidats ordonnés et sélectionne l'élément situé derrière (ex. la membrane qui englobe l'image).
-   * **Le saut s'effectue au RELÂCHEMENT du bouton (pointerup)**, jamais à l'enfoncement (pointerdown). Ainsi, si l'utilisateur appuie et glisse, il déplace l'élément courant sans déclencher de saut intempestif.
-3. **Terminus du cycle (`terminal: true`)** :
-   * Si la cible atteinte est un texte ou un sticky éditable, le cycle s'arrête là : le clic suivant doit ouvrir l'éditeur de texte et non basculer sur un conteneur d'arrière-plan.
-4. **Réinitialisation du cycle** :
-   * Le cycle est réinitialisé si le curseur bouge de plus de $8\text{px}$, si plus de $2.5\text{ s}$ s'écoulent (`CYCLE_TTL_MS = 2500`), ou lors d'un double-clic ($< 400\text{ ms}$).
+* **À FAIRE** — **Le cycle est écrit dans le noyau et n'est pas branché** (`pick_at_down`, `advance_on_release` : aucun appelant). Le desktop prend toujours le premier candidat. À brancher : premier clic → rang le plus prioritaire ; re-clic au même endroit ($< 8\text{ px}$, $< 2{,}5\text{ s}$, au **relâchement** pour ne jamais gêner un glisser) → l'élément derrière ; arrêt sur un texte ou une note éditable (`terminal`) ; réinitialisation au-delà de 8 px, de 2,5 s, ou sur double-clic.
 
 ---
 
 ## 4. Alignement Intelligent & Guides Magnétiques (SNAP-1)
 
-L'alignement intelligent assiste le déplacement, le redimensionnement et la création de tout élément sur le canvas.
-
-### 4.1 Invariants du Moteur de Snap
-1. **Seuil d'accroche fixe à l'écran** :
-   L'aimant s'active dès que la distance à une cible est inférieure à **$8\text{ pixels écran}$** (`SNAP_SCREEN_PX = 8`). En coordonnées monde :
-   $$\text{seuil}_{\text{monde}} = \frac{8}{\text{scale}}$$
-   *Conséquence* : L'aimant a exactement la même sensation physique de force à $10\%$ de zoom comme à $500\%$ de zoom.
-2. **Session figée au départ du geste (Anti-Drift)** :
-   Lorsqu'un déplacement commence à $(x_0, y_0)$, la boîte de départ est mémorisée. À chaque frame de déplacement, la correction $(\Delta x, \Delta y)$ est calculée par rapport à la position d'origine absolue, **jamais par rapport à la frame précédente**.
-   *Conséquence* : L'aimant n'accumule aucune dérive sous la souris. Si on écarte la souris de plus de 8px, la carte se décroche immédiatement et revient exactement sous le curseur.
+> Tenus par test (`smart_align_suite`, 17 tests, et `interactions/resize/tests.rs::test_snap_1_*`) : le seuil de $8$ pixels écran (`SNAP_SCREEN_PX = 8`, seuil monde $= 8 / \text{scale}$, même sensation à tout zoom — `test_snap_move_scale_constant_on_screen`) ; les six axes (bords et centres, `test_snap_move_left_edge`, `test_snap_move_centers`) ; la session figée au départ du geste — `drag.rs` calcule chaque correction depuis la boîte d'origine, jamais depuis la frame précédente (`drag_applied_delta`).
 
 ### 4.2 Lignes de Guidage Infinies
-Quand un bord s'aligne magnétiquement sur un voisin :
-* Une ligne guide infinie apparaît à travers tout l'écran.
-* Épaisseur : $1\text{px}$ constant à l'écran ($\frac{1}{\text{scale}}$ en monde).
-* Style : Pointillés blancs semi-transparents : `border: 1px dashed rgba(255, 255, 255, 0.30)`.
-* Les 6 axes alignables :
-  * Horizontaux : bord haut ($y_1$), centre vertical ($y_c$), bord bas ($y_2$).
-  * Verticaux : bord gauche ($x_1$), centre horizontal ($x_c$), bord droit ($x_2$).
+* **À VÉRIFIER (fiche 06)** — Ligne guide infinie à travers tout l'écran, $1\text{ px}$ constant à l'écran, pointillés blancs `rgba(255, 255, 255, 0.30)`.
 
 ---
 
 ## 5. Physique et Tweening des Membranes (MEMB-1 à MEMB-6)
 
-Une membrane est une région vivante qui adapte la taille de son contenu.
-
-### 5.1 La Loi d'Échelle Déduite (Sans Stockage d'Échelle)
-Le taux d'échelle $k$ d'une membrane minimisée n'est **jamais stocké dans la base de données** ; il est recalculé dynamiquement :
-$$k = \min\left(1.0,\, \frac{W_{\text{membrane}}}{\text{étendue}_X},\, \frac{H_{\text{membrane}}}{\text{étendue}_Y}\right)$$
-où $\text{étendue}_X$ et $\text{étendue}_Y$ mesurent l'encombrement du contenu naturel.
-* **Règle du Min** : Étirer la membrane sur un seul axe ne déforme pas les images ; le ratio reste isotrope.
-* **Plafond à 1.0** : Agrandir une membrane minimisée ramène d'abord son contenu à $100\%$ de sa taille d'origine, puis crée du vide autour.
-* **Plancher de lisibilité** : $k \ge 0.08$ (`MIN_CONTENT_SCALE = 0.08`).
+> Tenu (`membrane_space_suite`) : la loi d'échelle déduite $k = \min(1,\ W/\text{étendue}_X,\ H/\text{étendue}_Y)$, jamais stockée ; plafond à 1 ; plancher $0{,}08$ (`MIN_CONTENT_SCALE`) ; l'étirement d'un seul axe ne déforme rien. Et le cadrage du mode focus (`membrane_focus_suite`) : marge de **6 %** (`FIT_PADDING = 0.06`, comme la référence — la fiche disait 10 %), en 320 ms.
 
 ### 5.2 Le Tweening Fluide (MEMB-6)
-Quand une image entre ou sort d'une membrane minimisée :
-* **Durée** : $200\text{ ms}$ (`MEMBRANE_TWEEN.MS = 200`).
-* **Courbe** : `ease_out_cubic`.
-* **Interpolation** :
-  $$\text{pos}(t) = \text{pos}_{\text{départ}} + (\text{pos}_{\text{arrivée}} - \text{pos}_{\text{départ}}) \times \text{ease}(t)$$
-  $$\text{scale}(t) = \text{scale}_{\text{départ}} + (\text{scale}_{\text{arrivée}} - \text{scale}_{\text{départ}}) \times \text{ease}(t)$$
-* **Déclencheur discret** : L'animation démarre **uniquement** sur changement d'appartenance ou changement de mode (`membershipSignature`), jamais pendant le redimensionnement manuel à la poignée (qui reste instantané pour ne pas introduire de lag).
+* **À FAIRE** — À l'entrée ou la sortie d'une membrane minimisée : 200 ms, `ease_out_cubic`, interpolation linéaire de la position et de l'échelle sous la courbe ; déclenché **uniquement** sur changement d'appartenance ou de mode (`membershipSignature`), jamais pendant un redimensionnement à la poignée.
 
 ### 5.3 Mode Focus & Assombrissement Extérieur
-Au zoom ou double-clic sur une membrane :
-* La caméra glisse doucement pour cadrer la boîte de membrane au centre de l'écran avec une marge de $10\%$.
-* Tous les éléments extérieurs à la membrane subissent un fondu d'opacité vers $0.05$ (assombrissement au noir), isolant visuellement l'utilisateur dans son espace de travail courant.
+* **À FAIRE** — Le mode focus n'est pas branché (aucun appel de `membrane_focus` dans le desktop) : ni le cadrage animé au double-clic, ni le fondu des éléments extérieurs vers une opacité de $0{,}05$.
 
 ---
 
 ## 6. Mécanique des Rideaux de Comparaison (Curtains)
 
-Le rideau est un panneau latéral coulissant attaché à une membrane (mode Focus), permettant de confronter deux versions ou de tenir un carnet privé.
+> Tenu dans le noyau (`curtain_suite`, 12 tests) : le modèle, les permissions, la géométrie, les ratios par défaut **0,1 replié / 0,9 déployé** (comme la référence — la fiche disait ≈ 0,05 et ≈ 0,60), et la progression exponentielle $r(t + \Delta t) = r(t) + (r_{\text{cible}} - r(t))(1 - e^{-\Delta t / \tau})$ (`test_curtain_panel_animation_monotone`).
 
-```
-+---------------------------+====+ (Poignée / Languette 30px)
-|                           | R  |
-|      Canvas Membrane      | I  | <-- Se déploie de droite à gauche
-|                           | D  |     au survol ou glisser
-|                           | E  |
-+---------------------------+====+
-```
-
-1. **Languettes permanentes** :
-   * Largeur fixe : $30\text{px}$ écran (`TAB_COL = 30`).
-   * Reste visible même replié, à la couleur du propriétaire du rideau.
-2. **Déploiement au survol** :
-   * Seuil de déclenchement : approche du bord droit.
-   * Progression continue du ratio : de `collapsedRatio` ($\approx 0.05$) à `expandedRatio` ($\approx 0.60$).
-   * Calcul par frame :
-     $$r(t + \Delta t) = r(t) + (r_{\text{cible}} - r(t)) \times \left(1 - e^{-\frac{\Delta t}{\tau}}\right)$$
-3. **Monde de clic indépendant** :
-   * Le rideau possède son propre repère de caméra (`glucose:curtain-viewport`) et son propre arbitre de sélection (`curtainScope`).
-   * Faire glisser le rideau ne déplace jamais la scène arrière.
+* **À FAIRE** — **Le desktop ne dessine aucun rideau** et n'a aucun geste pour en ouvrir : languettes permanentes de $30\text{ px}$ (`TAB_COL`) à la couleur du propriétaire, déploiement au survol du bord droit, repère de caméra et arbitre de sélection propres (`curtainScope`), glisser le rideau sans déplacer la scène.
 
 ---
 
 ## 7. Gestuelle de la Caméra & Navigation
 
-### 7.1 Zoom Ancré sous le Curseur
-Le zoom à la molette ou trackpad maintient le point du monde situé sous le curseur de souris rigoureusement immobile à l'écran.
-
-*Formule mathématique :*
-Soit $(c_x, c_y)$ les coordonnées de la souris en pixels écran, $(v_x, v_y)$ le décalage de la caméra, et $s$ son échelle courante :
-$$s_{\text{nouveau}} = \text{clamp}(s \times \text{facteur},\, 0.02,\, 20.0)$$
-$$v'_x = c_x - (c_x - v_x) \times \frac{s_{\text{nouveau}}}{s}$$
-$$v'_y = c_y - (c_y - v_y) \times \frac{s_{\text{nouveau}}}{s}$$
+> Tenus par test : le zoom ancré — le point du monde sous le curseur ne bouge pas (`test_zoom_at_keeps_the_world_point_under_the_cursor_still`), formule unique sur `Viewport::zoom_at`, bornes du geste $0{,}02$–$20$ à la molette (`test_the_wheel_zoom_is_bounded_between_0_02_and_20`) ; le pan à l'espace + clic gauche, au bouton du milieu ou au bouton droit (`mouse.rs`) ; la sélection élastique — seuil de $4\text{ px}$ écran, sélection par boîte englobante (`test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box`).
 
 ### 7.2 Pan & Bouclage de Curseur (Cursor Wrap)
-* Déplacement activé par : barre d'espace + clic gauche, clic molette (bouton 1) ou clic droit (bouton 2).
-* **Bouclage infini aux bords de l'écran** :
-  Quand le curseur atteint le bord gauche de l'écran pendant un pan, il est téléporté instantanément au bord droit (et inversement) via `setCursorPosition` OS, permettant un défilement continu sur des millions de pixels sans heurter les limites physiques du moniteur.
+* **À FAIRE** — **Bouclage infini** : le curseur qui atteint un bord de l'écran pendant un pan est téléporté au bord opposé (`set_cursor_position`), pour un défilement continu sans heurter le moniteur.
 
 ### 7.3 Sélection Élastique (Lasso / Rubberband)
-* Déclenchée par clic gauche maintenu sur le vide du canvas.
-* **Seuil d'activation** : Déplacement $> 4\text{px}$ écran (évite les micro-sélections accidentelles sur simple clic).
-* **Rendu visuel** :
-  * Rectangle en coordonnées écran.
-  * Contour : `rgba(255, 255, 255, 0.50)`, épaisseur $1\text{px}$.
-  * Remplissage intérieur : `rgba(255, 255, 255, 0.03)`.
-* **Sélection AABB** : Tout nœud dont la boîte englobante intersecte le rectangle élastique est ajouté à la sélection multi-éléments.
+* **À VÉRIFIER (fiche 06)** — Contour `rgba(255, 255, 255, 0.50)` de $1\text{ px}$, remplissage `rgba(255, 255, 255, 0.03)`.
 
 ---
 
 ## 8. Rendu à la Demande (Zero-GPU Idle Engine)
 
-L'application ne tourne **jamais** en boucle de rendu continue à 60 ou 144 FPS quand l'utilisateur ne fait rien :
-1. Une variable `renderUntil` mémorise l'horodatage futur jusqu'auquel le rafraîchissement d'écran est requis.
-2. Chaque déplacement de souris, touche clavier, frame d'animation ou réception de message réseau repousse `renderUntil = now + 250ms`.
-3. Dès que $now > renderUntil$ et qu'aucune vidéo n'est en cours de lecture : la boucle d'affichage s'endort totalement. **Consommation GPU = 0%**.
+> Tenu, et au-delà : la boucle passe en `ControlFlow::Wait` dès qu'aucune animation ni minuterie n'est en cours — elle ne dessine que sur événement ou à l'échéance qu'un toast, un curseur clignotant ou le minuteur lui donnent, sans la fenêtre de 250 ms de la référence. Le toast dit lui-même quand le redessiner (`Toast::repaint_need`, testé) : la boucle n'a plus aucun chiffre à connaître — les siens, dupliqués, avaient divergé une fois.

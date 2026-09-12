@@ -323,7 +323,10 @@ pub fn collect_candidates_indexed(
     spatial_index: &crate::quadtree::SpatialHash,
 ) -> Vec<PickCandidate> {
     let slop = (pick_consts::HANDLE_SLOP_PX * 2.0) / input.scale.max(1e-6);
-    // R-39 : variante empruntée — aucune `String` allouée par test de clic.
+    // R-39 : la requête d'index n'alloue aucune `String`. Les nœuds retenus, eux, sont
+    // **clonés** ci-dessous — quelques annotations par clic, en O(local), mais des clones
+    // tout de même : `collect_candidates` veut des tranches contiguës. À faire disparaître
+    // en le faisant travailler sur des références (fiche 07 § 3).
     let nearby_ids = spatial_index.query_rect_refs(input.wx, input.wy, input.wx, input.wy, slop);
     if nearby_ids.is_empty() && input.arrow_id.is_none() && input.dom_hint.is_none() {
         return Vec::new();
