@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-100%25%20pure%20std%20core-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
 [![Dependencies](https://img.shields.io/badge/core%20dependencies-0%20(zero)-brightgreen.svg?style=flat-square)](#)
-[![Tests](https://img.shields.io/badge/tests-691%20passing%20(100%25)-brightgreen.svg?style=flat-square)](#)
+[![Tests](https://img.shields.io/badge/tests-697%20passing%20(100%25)-brightgreen.svg?style=flat-square)](#)
 [![LaTeX](https://img.shields.io/badge/LaTeX-KaTeX%20natif-8b5cf6.svg?style=flat-square)](#-les-formules-sont-natives)
 [![Compatibility](https://img.shields.io/badge/OS%20compatibility-100%25%20kernels-blueviolet.svg?style=flat-square)](#)
 
@@ -75,27 +75,30 @@ déterministes (`glucose_core::synth`).
 
 | | Mesure | Comment la refaire |
 |---|---|---|
-| **Tests** | **691**, zéro échec, zéro avertissement de compilation | `cargo test --workspace` |
+| **Tests** | **697**, zéro échec, zéro avertissement de compilation | `cargo test --workspace` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
 | **Requête de viewport** | **0,21 µs** | idem |
-| **Une image de rendu** | **1,8 ms** à mille nœuds, **4,6 ms** à dix mille (1080p) | `cargo run --release -p glucose-desktop --example bench_frame` |
+| **Une image de rendu** | **1,2 ms** à mille nœuds, **4,1 ms** à dix mille (1080p) ; **9,1 ms** à mille nœuds en **4K** | `cargo run --release -p glucose-desktop --example bench_frame` |
 | **Le rendu est reproductible** | deux images de la même scène sont **identiques au bit près** | `cargo test -p glucose-desktop --lib bench` |
 
 Le banc n'est pas décoratif. En une journée d'existence, il a trouvé que le rendu **n'était
 pas** déterministe — un toast portait une horloge, et deux images de la même scène différaient
-de sept mille pixels — puis que la minimap redessinait un rectangle par nœud à chaque image.
+de sept mille pixels — puis que la minimap redessinait un rectangle par nœud à chaque image, et
+que la grille de fond construisait huit mille cercles de Bézier par image en 4K.
 
-| Une image, à dix mille nœuds | Avant | Après |
-|---|---:|---:|
-| 1080p | 17,3 ms | **4,6 ms** |
-| 1440p | 37,3 ms | **10,9 ms** |
-| 4K | 27,2 ms | **17,6 ms** |
+| Une image, à dix mille nœuds, au zoom 1 | Avant | Après | |
+|---|---:|---:|---|
+| 1080p | 17,3 ms | **4,1 ms** | ×4,2 |
+| 1440p | 37,3 ms | **8,2 ms** | ×4,5 |
+| 4K | 27,2 ms | **11,1 ms** | ×2,4 |
 
-Le budget de 10 ms n'est pas encore tenu partout — en 4K, et sur les documents très dézoomés,
-il reste du travail, et il est chiffré poste par poste dans la
-[fiche 12](docs/architecture/12-PLAN-D-EXECUTION.md).
+Le budget de 10 ms n'est pas encore tenu partout — la 4K à dix mille nœuds le dépasse d'une
+milliseconde, et les documents très dézoomés ou à cent mille nœuds restent loin. Ce qui reste
+est chiffré poste par poste dans la [fiche 12](docs/architecture/12-PLAN-D-EXECUTION.md) ; le
+premier poste en 4K est désormais l'effacement du fond, un coût de surface que seule une couche
+de présentation GPU réduira.
 
 > **Où en est vraiment le portage.** Le dossier [`docs/architecture/`](docs/architecture/) tient
 > l'inventaire honnête, fonctionnalité par fonctionnalité, de ce qui est branché et de ce qui ne
