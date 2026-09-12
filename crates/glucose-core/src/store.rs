@@ -48,7 +48,6 @@ mod undo;
 
 pub use domains::DomainPatch;
 pub use navigation::build_folder_stack;
-pub use undo::preserve_view;
 
 use crate::types::{AssetStore, Project, TemporalAnchor};
 

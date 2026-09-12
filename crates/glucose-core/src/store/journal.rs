@@ -339,69 +339,15 @@ impl Transaction {
     }
 }
 
-/// Une entrée de la pile d'annulation.
+/// La pile d'annulation : deux piles de gestes, et un geste en cours.
 ///
-/// # Pourquoi deux formes coexistent (transitoire)
-///
-/// Les 34 sites de mutation migrent des snapshots vers le journal **un par un**, pour garder
-/// les tests verts à chaque pas. Pendant cette migration, un geste migré produit une
-/// [`Transaction`] et un geste non migré un [`Entry::Snapshot`].
-///
-/// Ces deux formes doivent vivre dans **la même pile**, pas dans deux piles parallèles : avec
-/// deux piles, Ctrl+Z ne défait plus le dernier geste mais le dernier geste *de son
-/// mécanisme*, et l'ordre chronologique est perdu dès que l'utilisateur alterne entre un
-/// geste migré et un geste qui ne l'est pas.
-///
-/// La variante `Snapshot` disparaît quand le dernier site est migré. Tant qu'elle existe,
-/// elle est la raison pour laquelle [`Journal::weight`] peut encore croître avec `n`.
-#[derive(Debug, Clone)]
-pub enum Entry {
-    /// Un geste décrit par ce qu'il a changé — coût proportionnel au geste (JRN-1).
-    Transaction(Transaction),
-    /// Un geste décrit par l'état complet d'avant — coût proportionnel au document.
-    Snapshot(Box<Project>),
-}
-
-impl Entry {
-    fn weight(&self) -> usize {
-        match self {
-            Self::Transaction(tx) => tx.weight(),
-            // Un snapshot pèse tout le document : c'est exactement ce qu'on élimine.
-            Self::Snapshot(p) => p
-                .boards
-                .iter()
-                .map(|b| {
-                    b.images.len() * std::mem::size_of::<BoardImage>()
-                        + b.annotations.len() * std::mem::size_of::<Annotation>()
-                })
-                .sum(),
-        }
-    }
-}
-
-/// Ce qu'un pas d'annulation vient de faire — l'appelant en a besoin pour savoir s'il doit
-/// rétablir la vue (un snapshot écrase la caméra, une transaction n'y touche pas).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Step {
-    /// Le document a été modifié localement. Caméra, sélection et pile de dossiers intactes.
-    Local,
-    /// Le document entier a été remplacé. L'appelant doit rétablir la vue (UNDO-1).
-    Replaced,
-}
-
-/// La pile d'annulation : deux piles d'entrées, et une transaction ouverte.
-///
-/// Contrairement aux snapshots, rien ici ne grandit avec le document : une pile pleine pèse la
-/// somme des gestes qu'elle contient.
+/// Rien ici ne grandit avec le document : une pile pleine pèse la somme des gestes qu'elle
+/// contient, pas la taille du canvas.
 #[derive(Debug, Clone, Default)]
 pub struct Journal {
-    done: Vec<Entry>,
-    undone: Vec<Entry>,
+    done: Vec<Transaction>,
+    undone: Vec<Transaction>,
     open: Option<Transaction>,
-    /// Rang, dans `done`, du snapshot posé à l'ouverture du geste courant.
-    open_snapshot: Option<usize>,
-    /// Vrai si un site **non migré** a réclamé un snapshot pendant le geste courant.
-    snapshot_claimed: bool,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
 }
@@ -412,8 +358,6 @@ impl Journal {
             done: Vec::new(),
             undone: Vec::new(),
             open: None,
-            open_snapshot: None,
-            snapshot_claimed: false,
             max_depth,
         }
     }
@@ -434,39 +378,14 @@ impl Journal {
         self.undone.len()
     }
 
-    /// Efface la pile de rétablissement sans toucher au reste. Sert à `cancel_live_edit` :
-    /// un geste abandonné ne doit laisser aucune trace, pas même à refaire.
-    pub fn forget_redo(&mut self) {
-        self.undone.clear();
-    }
-
     /// Poids total du journal, en octets de modèle. Borné par la somme des gestes, jamais par
     /// `n` — c'est la propriété que les snapshots ne pouvaient pas tenir.
     pub fn weight(&self) -> usize {
         self.done
             .iter()
             .chain(&self.undone)
-            .map(Entry::weight)
+            .map(Transaction::weight)
             .sum()
-    }
-
-    /// Nombre d'entrées encore stockées sous forme de snapshot. Sert de **compteur de dette
-    /// de migration** : il doit atteindre zéro, et un test le surveille.
-    pub fn snapshot_count(&self) -> usize {
-        self.done
-            .iter()
-            .chain(&self.undone)
-            .filter(|e| matches!(e, Entry::Snapshot(_)))
-            .count()
-    }
-
-    /// Empile l'état complet d'avant un geste — le mécanisme historique, pour les sites pas
-    /// encore migrés. Ignoré pendant une transaction ouverte, comme l'était `push_undo`.
-    pub fn push_snapshot(&mut self, project: &Project) {
-        if self.open.is_some() {
-            return;
-        }
-        self.commit(Entry::Snapshot(Box::new(project.clone())));
     }
 
     /// Vide tout. Appelé quand une édition a contourné le journal (chargement d'un projet,
@@ -475,8 +394,6 @@ impl Journal {
         self.done.clear();
         self.undone.clear();
         self.open = None;
-        self.open_snapshot = None;
-        self.snapshot_claimed = false;
     }
 
     /// Ouvre une transaction. Sans appel explicite, chaque édition forme son propre geste.
@@ -488,37 +405,7 @@ impl Journal {
     pub fn begin(&mut self) {
         if self.open.is_none() {
             self.open = Some(Transaction::default());
-            self.snapshot_claimed = false;
             self.undone.clear();
-        }
-    }
-
-    /// Ouvre un geste continu : un filet de sécurité, puis la transaction.
-    ///
-    /// # Pourquoi un filet, et pourquoi il disparaîtra
-    ///
-    /// Un geste peut encore toucher des sites non migrés, qui ne savent décrire leur
-    /// modification que par un état complet d'avant. Le snapshot posé ici les couvre.
-    ///
-    /// **Un geste ne doit produire qu'une seule entrée** : à la fermeture, l'une des deux
-    /// formes est éliminée. Si aucun site non migré n'a réclamé le filet, la transaction
-    /// prend sa place ; sinon le filet reste et la transaction est jetée, puisqu'il la
-    /// couvre déjà. Le jour où le dernier site sera migré, `snapshot_claimed` restera faux
-    /// pour toujours et le filet ne survivra plus jamais — sans qu'aucun drapeau n'ait à
-    /// être changé à la main.
-    pub fn begin_gesture(&mut self, project: &Project) {
-        if self.open.is_some() {
-            return;
-        }
-        self.push_snapshot(project);
-        self.open_snapshot = self.done.len().checked_sub(1);
-        self.begin();
-    }
-
-    /// Signale qu'un site non migré a besoin du filet de sécurité du geste courant.
-    pub fn claim_snapshot(&mut self) {
-        if self.open.is_some() {
-            self.snapshot_claimed = true;
         }
     }
 
@@ -533,36 +420,19 @@ impl Journal {
             None => {
                 let mut tx = Transaction::default();
                 tx.push(edit);
-                self.commit(Entry::Transaction(tx));
+                self.commit(tx);
             }
         }
     }
 
-    /// Ferme le geste ouvert, en ne laissant qu'**une seule** entrée.
-    ///
-    /// Une transaction vide — un clic qui n'a rien bougé — n'ajoute rien de son côté.
+    /// Ferme le geste ouvert. Une transaction vide — un clic qui n'a rien bougé — ne laisse
+    /// aucune trace : rien à annuler.
     pub fn end(&mut self) {
-        let Some(tx) = self.open.take() else {
-            return;
-        };
-        let filet = self.open_snapshot.take();
-        let claimed = std::mem::take(&mut self.snapshot_claimed);
-
-        // Rien de journalisé : le geste est décrit par le filet, s'il y en a un.
-        if tx.is_empty() {
-            return;
-        }
-        // Un site non migré s'est exprimé : le filet couvre tout, y compris la transaction.
-        if claimed {
-            return;
-        }
-        // Tous les sites touchés étaient migrés : la transaction remplace le filet.
-        if let Some(i) = filet {
-            if matches!(self.done.get(i), Some(Entry::Snapshot(_))) {
-                self.done.remove(i);
+        if let Some(tx) = self.open.take() {
+            if !tx.is_empty() {
+                self.commit(tx);
             }
         }
-        self.commit(Entry::Transaction(tx));
     }
 
     /// Abandonne la transaction ouverte en défaisant ce qu'elle a déjà écrit.
@@ -571,8 +441,6 @@ impl Journal {
         let Some(mut tx) = self.open.take() else {
             return false;
         };
-        self.open_snapshot = None;
-        self.snapshot_claimed = false;
         if tx.is_empty() {
             return true;
         }
@@ -583,54 +451,47 @@ impl Journal {
         true
     }
 
-    fn commit(&mut self, entry: Entry) {
-        self.done.push(entry);
+    fn commit(&mut self, tx: Transaction) {
+        self.done.push(tx);
         if self.done.len() > self.max_depth {
             self.done.remove(0);
         }
         self.undone.clear();
     }
 
-    /// Défait le dernier geste. Rend `None` s'il n'y a rien à défaire.
-    pub fn undo(&mut self, project: &mut Project) -> Option<Step> {
+    /// Défait le dernier geste. Rend `false` s'il n'y a rien à défaire.
+    pub fn undo(&mut self, project: &mut Project) -> bool {
         self.step(project, true)
     }
 
-    /// Refait le dernier geste défait. Rend `None` s'il n'y a rien à refaire.
-    pub fn redo(&mut self, project: &mut Project) -> Option<Step> {
+    /// Refait le dernier geste défait. Rend `false` s'il n'y a rien à refaire.
+    pub fn redo(&mut self, project: &mut Project) -> bool {
         self.step(project, false)
     }
 
     /// Défaire et refaire sont le même mouvement, entre deux piles échangées.
     ///
-    /// Les deux formes d'entrée se défont par la même idée — échanger l'avant et l'après.
-    /// Pour une transaction c'est [`Slot::flip`] ; pour un snapshot c'est `mem::swap` entre le
-    /// document et l'entrée. Dans les deux cas l'opération est **sa propre inverse**, ce qui
-    /// est la raison pour laquelle `undo` et `redo` n'ont pas besoin de code distinct.
-    fn step(&mut self, project: &mut Project, backward: bool) -> Option<Step> {
+    /// Une transaction se défait en échangeant l'avant et l'après de chacune de ses
+    /// éditions ([`Slot::flip`]) : l'opération est **sa propre inverse**, ce qui est la
+    /// raison pour laquelle `undo` et `redo` n'ont pas besoin de code distinct.
+    fn step(&mut self, project: &mut Project, backward: bool) -> bool {
         let (from, to) = if backward {
             (&mut self.done, &mut self.undone)
         } else {
             (&mut self.undone, &mut self.done)
         };
-        match from.pop()? {
-            Entry::Transaction(mut tx) => {
-                tx.invert();
-                if !tx.apply(project) {
-                    // JRN-2 rompu : le document n'est plus celui qu'on croyait. On vide plutôt
-                    // que de laisser une pile qui ment.
-                    self.clear();
-                    return None;
-                }
-                to.push(Entry::Transaction(tx));
-                Some(Step::Local)
-            }
-            Entry::Snapshot(mut snapshot) => {
-                std::mem::swap(project, &mut snapshot);
-                to.push(Entry::Snapshot(snapshot));
-                Some(Step::Replaced)
-            }
+        let Some(mut tx) = from.pop() else {
+            return false;
+        };
+        tx.invert();
+        if !tx.apply(project) {
+            // JRN-2 rompu : le document n'est plus celui qu'on croyait. On vide plutôt que de
+            // laisser une pile qui ment.
+            self.clear();
+            return false;
         }
+        to.push(tx);
+        true
     }
 }
 

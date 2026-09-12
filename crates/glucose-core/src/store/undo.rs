@@ -1,70 +1,23 @@
-//! Undo/Redo — la pile, les transactions, et la préservation de la vue.
+//! Undo/Redo — la sémantique des gestes, par-dessus le journal d'éditions.
 //!
 //! Le stockage est délégué à [`journal::Journal`]. Ce module ne garde que ce qui relève du
-//! store : la sémantique des gestes, et l'invariant de vue.
+//! store : ce qui fait un geste, et les invariants qu'un pas d'annulation doit tenir.
 //!
-//! # INVARIANT UNDO-1
+//! # INVARIANT UNDO-1 — la caméra ne bouge pas
 //!
-//! La caméra et le board actif sont préservés à travers un undo/redo : annuler un déplacement
-//! ne doit jamais téléporter l'utilisateur ailleurs dans le document.
+//! Annuler un déplacement ne doit jamais téléporter l'utilisateur ailleurs dans le document.
 //!
-//! Il ne concerne que les entrées qui **remplacent** le document ([`journal::Step::Replaced`]).
-//! Une entrée journalisée ne touche que les éléments qu'elle a modifiés : la caméra n'est pas
-//! dans son périmètre, et il n'y a donc rien à rétablir — l'invariant est tenu par
-//! construction plutôt que par réparation.
+//! Il n'y a **rien à faire** pour le tenir : une entrée du journal ne touche que les éléments
+//! qu'elle a modifiés, et la caméra n'est pas dans son périmètre. Tant que l'undo restaurait
+//! un document complet, il fallait au contraire capturer la vue avant chaque pas et la
+//! réappliquer après — c'est ce que faisait `preserve_view`, partie avec le dernier snapshot.
+//! L'invariant a cessé d'être une réparation pour devenir une propriété.
 //!
-//! # État de la migration
+//! # INVARIANT NAV-1 — la navigation ne pointe pas dans le vide
 //!
-//! Les 34 sites de mutation appellent encore [`Store::push_undo`], qui empile un snapshot.
-//! Ce module les laisse intacts : seule la mécanique en dessous a changé. Chaque site migré
-//! vers [`journal::Edit`] fait baisser [`Store::snapshot_count`], jusqu'à zéro.
+//! Celui-là, en revanche, demande un geste : voir [`Store::settle_navigation`].
 
 use super::{build_folder_stack, Store};
-use crate::store::journal::Step;
-use crate::types::{Project, Viewport};
-
-/// Ce qu'il faut retenir de la vue pour la rétablir après un remplacement de document.
-///
-/// On ne clone pas le projet pour ça : seuls le board actif et les caméras comptent, soit
-/// quelques dizaines d'octets au lieu de la totalité du document.
-struct View {
-    active_board_id: String,
-    viewports: Vec<(String, Viewport)>,
-}
-
-impl View {
-    fn capture(p: &Project) -> Self {
-        Self {
-            active_board_id: p.active_board_id.clone(),
-            viewports: p
-                .boards
-                .iter()
-                .map(|b| (b.id.clone(), b.viewport))
-                .collect(),
-        }
-    }
-
-    /// Réapplique la vue au document restauré (UNDO-1).
-    fn restore(&self, p: &mut Project) {
-        if p.boards.iter().any(|b| b.id == self.active_board_id) {
-            p.active_board_id = self.active_board_id.clone();
-        } else if let Some(first) = p.boards.first() {
-            p.active_board_id = first.id.clone();
-        }
-        for b in &mut p.boards {
-            if let Some((_, vp)) = self.viewports.iter().find(|(id, _)| *id == b.id) {
-                b.viewport = *vp;
-            }
-        }
-    }
-}
-
-/// Préserve la caméra et le board actif lors d'un Undo ou Redo.
-///
-/// Conservée pour les appelants existants ; l'implémentation passe désormais par [`View`].
-pub fn preserve_view(restored: &mut Project, cur: &Project) {
-    View::capture(cur).restore(restored);
-}
 
 impl Store {
     /// Profondeur de la pile d'annulation, en nombre de gestes.
@@ -80,12 +33,6 @@ impl Store {
     /// Vrai pendant un geste continu (glisser, frappe de texte).
     pub fn in_live_edit(&self) -> bool {
         self.journal.is_open()
-    }
-
-    /// Nombre de gestes encore stockés sous forme de snapshot — la dette de migration.
-    /// Doit atteindre zéro.
-    pub fn snapshot_count(&self) -> usize {
-        self.journal.snapshot_count()
     }
 
     /// Ouvre une transaction : tout ce qui suit jusqu'à `end_live_edit` forme un seul geste.
@@ -237,22 +184,14 @@ impl Store {
     }
 
     /// Un pas d'annulation, dans un sens ou dans l'autre.
-    ///
-    /// Seul un pas qui **remplace** le document demande de rétablir la vue et de repartir
-    /// d'une sélection vide : une entrée journalisée n'a touché que ses propres éléments.
     fn step(&mut self, backward: bool) -> bool {
-        let view = View::capture(&self.project);
-        let outcome = if backward {
+        let moved = if backward {
             self.journal.undo(&mut self.project)
         } else {
             self.journal.redo(&mut self.project)
         };
-        let Some(kind) = outcome else {
+        if !moved {
             return false;
-        };
-        if kind == Step::Replaced {
-            view.restore(&mut self.project);
-            self.clear_selection();
         }
         self.settle_navigation();
         self.bump_version();
