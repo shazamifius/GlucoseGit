@@ -136,7 +136,32 @@ pub struct UiState {
     pub scale_factor: f32,
 }
 
+/// Le mot d'accueil, posé par l'application au démarrage — pas par le constructeur.
+pub const WELCOME_TOAST: &str = "Bienvenue dans Glucose !";
+
+/// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
+/// Le déclarer évite qu'un appelant générique ait à connaître le nom `new`.
+impl Default for UiState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UiState {
+    /// Un état d'interface **neutre** : aucun message affiché, aucune horloge en marche.
+    ///
+    /// # Pourquoi le toast de bienvenue n'est plus ici
+    ///
+    /// Il y était, et il rendait le rendu **non déterministe** : un toast porte un `Instant` de
+    /// naissance et une opacité qui en dépend, donc deux frames de la même scène ne donnaient
+    /// pas les mêmes pixels — environ sept mille par frame. Rien ne le voyait, parce que rien
+    /// ne comparait jamais deux frames ; c'est le banc de capture qui l'a trouvé, le jour même
+    /// où il a existé.
+    ///
+    /// Au-delà de la mesure, un constructeur d'état ne devrait pas déclencher une notification :
+    /// « quel est l'état de l'interface » et « que vient-il de se passer » sont deux questions
+    /// différentes. Le mot d'accueil est donc posé par [`crate::app::GlucoseApp::new`], là où le
+    /// démarrage a lieu.
     pub fn new() -> Self {
         Self {
             active_tool: ActiveTool::Select,
@@ -144,7 +169,7 @@ impl UiState {
             trans_domain: true,
             collab_active: false,
             hovered_btn: None,
-            current_toast: Some(Toast::new("Bienvenue dans Glucose !")),
+            current_toast: None,
             scale_factor: 1.0,
         }
     }

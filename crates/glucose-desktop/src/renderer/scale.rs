@@ -25,7 +25,7 @@
 
 /// Le facteur de zoom d'une passe de rendu, et la seule façon d'en dériver une longueur.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct WorldScale(f32);
+pub struct WorldScale(f32);
 
 impl WorldScale {
     /// Échelle sous laquelle un élément se dessine simplifié, sans son texte (SCALE-2).
@@ -34,7 +34,7 @@ impl WorldScale {
     /// soit moins que l'épaisseur d'un jambage. En deçà, le glyphe ne transporte plus
     /// d'information — le rastériser remplirait le cache de tailles que personne ne lit,
     /// et le composer coûterait une passe de mélange pour un gris uniforme.
-    pub(super) const SIMPLIFIED_BELOW: f32 = 0.2;
+    pub const SIMPLIFIED_BELOW: f32 = 0.2;
 
     /// Adopte le zoom d'un viewport.
     ///
@@ -51,7 +51,7 @@ impl WorldScale {
     }
 
     /// Met une longueur exprimée en **unités monde** à l'échelle de l'écran.
-    pub(super) fn world(self, length: f32) -> f32 {
+    pub fn world(self, length: f32) -> f32 {
         length * self.0
     }
 
@@ -60,7 +60,7 @@ impl WorldScale {
     /// C'est l'exception de SCALE-1, réservée aux affordances : poignées, anneau de
     /// sélection, traits d'un pixel. Le passage par cette fonction est délibéré — il rend
     /// l'exception visible au point d'appel au lieu d'un littéral muet.
-    pub(super) fn screen(self, pixels: f32) -> f32 {
+    pub fn screen(self, pixels: f32) -> f32 {
         let _ = self;
         pixels
     }

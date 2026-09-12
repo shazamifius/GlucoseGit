@@ -13,7 +13,7 @@ use std::rc::Rc;
 /// de perception — pour au plus seize variantes par glyphe. Monter à huit diviserait
 /// l'erreur par deux et multiplierait par quatre la pression sur le cache, pour une
 /// différence que personne ne verrait.
-pub(super) const SUBPIXEL_PHASES: u8 = 4;
+pub const SUBPIXEL_PHASES: u8 = 4;
 
 /// La variante non décalée : celle que `fontdue` a réellement rastérisée.
 pub(super) const PHASE_ORIGIN: u8 = 0;

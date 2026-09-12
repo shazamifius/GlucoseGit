@@ -81,6 +81,14 @@ pub struct GlucoseApp {
     pub window_title_cache: String,
 }
 
+/// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
+/// Le déclarer évite qu'un appelant générique ait à connaître le nom `new`.
+impl Default for GlucoseApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GlucoseApp {
     pub fn new() -> Self {
         let mut store = Store::new("Glucose Native");
@@ -119,7 +127,14 @@ impl GlucoseApp {
             renderer,
             animator: crate::animation::Animator::new(),
             pixmap: None,
-            ui: UiState::new(),
+            // Le mot d'accueil est posé ici, au démarrage, et non dans `UiState::new` : un
+            // constructeur d'état ne déclenche pas de notification, et un toast porte une
+            // horloge qui rendait tout rendu non reproductible.
+            ui: {
+                let mut ui = UiState::new();
+                ui.show_toast(crate::ui::WELCOME_TOAST);
+                ui
+            },
             dock_manager: DockManager::new(),
             window: None,
             context: None,

@@ -55,7 +55,7 @@ const ARROW_MARGIN: f32 = 16.0;
 
 /// Mise en page d'un pense-bête. **En unités monde tant que `scaled` n'a pas été appelée.**
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct StickyLayout {
+pub struct StickyLayout {
     width: f32,
     height: f32,
     font: f32,
@@ -83,7 +83,7 @@ impl StickyLayout {
     }
 
     /// L'UNIQUE transformation d'échelle du pense-bête (SCALE-1).
-    fn scaled(self, s: WorldScale) -> Self {
+    pub fn scaled(self, s: WorldScale) -> Self {
         Self {
             width: s.world(self.width),
             height: s.world(self.height),

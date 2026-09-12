@@ -1,21 +1,10 @@
 //! Point d'entrée de Glucose Desktop Native (PureRef en Rust pur).
+//!
+//! Tout le programme vit dans la bibliothèque du même crate ([`glucose_desktop`]) ; il ne reste
+//! ici que l'ouverture de la fenêtre. Voir l'en-tête de `lib.rs` pour la raison : un binaire pur
+//! ne peut être ni mesuré, ni capturé, ni instrumenté de l'extérieur.
 
-pub mod animation;
-mod app;
-mod canvas;
-pub mod dock;
-pub mod error;
-mod icons;
-pub mod interactions;
-pub mod params;
-pub mod perf;
-pub mod persist;
-mod renderer;
-mod typography;
-pub mod theme;
-mod ui;
-
-use app::GlucoseApp;
+use glucose_desktop::app::GlucoseApp;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -42,7 +42,7 @@
 
 #[cfg(test)]
 mod coverage;
-mod glyph;
+pub mod glyph;
 
 use fontdue::{Font, FontSettings};
 use glyph::{
@@ -77,6 +77,14 @@ pub struct Typography {
     pub bold: Font,
     glyph_cache: RefCell<HashMap<GlyphKey, CachedGlyph>>,
     access_counter: Cell<u64>,
+}
+
+/// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
+/// Le déclarer évite qu'un appelant générique ait à connaître le nom `new`.
+impl Default for Typography {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Typography {

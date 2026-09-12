@@ -290,6 +290,109 @@ pub enum Annotation {
 }
 
 impl Annotation {
+    /// Une carte de texte, avec ses seuls champs obligatoires.
+    ///
+    /// # Pourquoi ces constructeurs existent
+    ///
+    /// Une `Annotation::Text` a quatorze champs dont douze sont vides à la création. Sans
+    /// constructeur, chaque site qui en crée une recopie les douze — et le projet en compte
+    /// plus de cent cinquante. C'est la « répétition structurelle » que la fiche 05 nomme, et
+    /// elle a un coût réel : ajouter un champ au modèle oblige à visiter tous ces sites, et la
+    /// moindre valeur par défaut oubliée passe inaperçue.
+    ///
+    /// Les champs facultatifs se posent ensuite, nommément, sur la valeur rendue. Le code neuf
+    /// passe par ici ; les sites existants restent à convertir.
+    pub fn text(id: impl Into<Id>, x: f64, y: f64, text: impl Into<String>) -> Self {
+        Self::Text {
+            id: id.into(),
+            x,
+            y,
+            width: None,
+            height: None,
+            text: text.into(),
+            font_size: None,
+            color: None,
+            cursor_pos: None,
+            source_file: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        }
+    }
+
+    /// Un pense-bête, avec ses seuls champs obligatoires. Voir [`Annotation::text`].
+    pub fn sticky(id: impl Into<Id>, x: f64, y: f64, text: impl Into<String>) -> Self {
+        Self::Sticky {
+            id: id.into(),
+            x,
+            y,
+            width: None,
+            height: None,
+            text: text.into(),
+            font_size: None,
+            color: None,
+            bg_color: None,
+            cursor_pos: None,
+            operator: None,
+            source_file: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        }
+    }
+
+    /// Une flèche d'un point à un autre. Voir [`Annotation::text`].
+    pub fn arrow(id: impl Into<Id>, x: f64, y: f64, x2: f64, y2: f64) -> Self {
+        Self::Arrow {
+            id: id.into(),
+            x,
+            y,
+            x2,
+            y2,
+            text: None,
+            font_size: None,
+            color: None,
+            arrow_type: None,
+            arrow_bidirectional: false,
+            predicate: None,
+            stroke_width: None,
+            waypoints: Vec::new(),
+            source_id: None,
+            target_id: None,
+            source_block_id: None,
+            target_block_id: None,
+            source_text_sel: None,
+            target_text_sel: None,
+            long_text: None,
+            target_board_id: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        }
+    }
+
+    /// Une membrane classique, sans rideau. Voir [`Annotation::text`].
+    pub fn membrane(id: impl Into<Id>, x: f64, y: f64, width: f64, height: f64) -> Self {
+        Self::Membrane {
+            id: id.into(),
+            x,
+            y,
+            width,
+            height,
+            color: None,
+            text: None,
+            mode: MembraneMode::Classic,
+            curtains: Vec::new(),
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        }
+    }
+
     pub fn id(&self) -> &str {
         match self {
             Self::Text { id, .. }

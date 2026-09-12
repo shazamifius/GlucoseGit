@@ -48,7 +48,7 @@ use glucose_core::types::{Annotation, Viewport};
 use tiny_skia::{PixmapMut, PremultipliedColorU8};
 
 /// Opacité du halo en son centre, sur 255. Elle décroît linéairement jusqu'au bord.
-const HALO_CENTER_ALPHA: u8 = 35;
+pub const HALO_CENTER_ALPHA: u8 = 35;
 
 /// Largeur par défaut d'une carte de texte, reprise du modèle.
 pub(crate) const DEFAULT_TEXT_CARD_WIDTH: f64 = 240.0;
@@ -74,7 +74,7 @@ const HALO_CULL_RADIUS: f32 = 4.0;
 ///    au-delà, le dégradé cesse d'être perçu comme un halo — il ne reste qu'un lavis ;
 /// 3. l'aire est bornée à π · 512² ≈ 0,82 Mpx, soit **au plus 1,6 ms** pour un halo, quel
 ///    que soit le zoom ou la taille de la carte, contre 10 ms sans plafond à ×3.
-pub(super) const HALO_MAX_SCREEN_RADIUS: f32 = 512.0;
+pub const HALO_MAX_SCREEN_RADIUS: f32 = 512.0;
 
 /// Divise par 255 avec arrondi au plus proche, sans division entière.
 ///

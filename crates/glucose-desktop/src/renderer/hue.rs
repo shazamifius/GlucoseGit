@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 /// Rayon d'influence d'un déplacement, en unités monde. Au-delà, une carte qui bouge ne
 /// change la teinte de personne : son entrée de cache reste valide.
-const INVALIDATION_RADIUS: f64 = 1200.0;
+pub const INVALIDATION_RADIUS: f64 = 1200.0;
 
 #[derive(Debug, Clone)]
 pub struct CachedHue {
@@ -23,6 +23,14 @@ pub struct CachedHue {
 pub struct SymbioticHueCache {
     entries: HashMap<String, CachedHue>,
     last_positions: HashMap<String, (f64, f64)>,
+}
+
+/// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
+/// Le déclarer évite qu'un appelant générique ait à connaître le nom `new`.
+impl Default for SymbioticHueCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SymbioticHueCache {

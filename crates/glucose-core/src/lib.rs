@@ -27,6 +27,7 @@ pub mod quadtree;
 pub mod resize;
 pub mod smart_align;
 pub mod store;
+pub mod synth;
 pub mod symbiotic_hue;
 pub mod text_anchors;
 pub mod timeline;
