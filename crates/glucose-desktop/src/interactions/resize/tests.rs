@@ -318,7 +318,7 @@ fn test_text_fit_1_narrowing_a_card_reflows_its_text_and_its_height_follows() {
     assert!(approx(after.width, 180.0), "{after:?}");
     assert!(after.height > start.height, "plus de lignes, carte plus haute : {after:?} vs {start:?}");
     assert!(approx(after.top, start.top), "la hauteur suit le texte, le haut ne bouge pas");
-    let expected = text_card_fit_height(&app.renderer.typography, text, 180.0);
+    let expected = text_card_fit_height(&app.renderer.typography, &app.renderer.math, text, 180.0);
     assert!(approx(after.height, expected), "hauteur du document = hauteur reflué");
 }
 
@@ -487,7 +487,7 @@ fn test_text_fit_1_an_older_document_gets_its_card_heights_fitted_on_open() {
     let mut reopened = GlucoseApp::new();
     reopened.open_from(path);
     let fitted = ann_box(&reopened, "T1").height;
-    assert!(approx(fitted, text_card_fit_height(&reopened.renderer.typography, "un\ndeux\ntrois\nquatre", 240.0)));
+    assert!(approx(fitted, text_card_fit_height(&reopened.renderer.typography, &reopened.renderer.math, "un\ndeux\ntrois\nquatre", 240.0)));
     assert!(fitted > 48.0);
     assert!(!reopened.is_dirty(), "recaler à l'ouverture n'est pas une modification");
     std::fs::remove_dir_all(&dir).expect("nettoyage");

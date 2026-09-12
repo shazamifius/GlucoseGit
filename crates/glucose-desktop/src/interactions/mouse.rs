@@ -256,7 +256,7 @@ impl GlucoseApp {
                         let aid = self.store.generate_id("text");
                         let initial_str = "Nouveau texte".to_string();
                         // TEXT-FIT-1 : la hauteur d'une carte est celle de son texte.
-                        let height = text_card_fit_height(&self.renderer.typography, &initial_str, 240.0);
+                        let height = text_card_fit_height(&self.renderer.typography, &self.renderer.math, &initial_str, 240.0);
                         let ann = Annotation::Text {
                             id: aid.clone(),
                             x: wx,

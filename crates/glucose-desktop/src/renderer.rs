@@ -20,6 +20,7 @@
 pub mod card;
 pub mod domain;
 pub mod folder;
+pub mod math;
 pub mod halo;
 pub mod handles;
 pub mod hue;
@@ -93,6 +94,7 @@ pub(crate) fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h:
 #[derive(Clone, Copy)]
 pub(crate) struct PaintKit<'a> {
     pub typography: &'a Typography,
+    pub math: &'a math::MathRenderer,
     pub tints: &'a DomainTints,
     pub theme: &'a Theme,
 }
@@ -102,6 +104,7 @@ pub struct Renderer {
     pub image_cache: HashMap<String, Pixmap>,
     pub failed_images: HashSet<String>,
     pub typography: Typography,
+    pub math: math::MathRenderer,
     pub hue_cache: SymbioticHueCache,
     /// `domain_id → teinte`, reconstruite une fois par version du document (DOMAIN-TINT-1).
     pub domain_tints: DomainTints,
@@ -125,6 +128,7 @@ impl Renderer {
             image_cache: HashMap::new(),
             failed_images: HashSet::new(),
             typography: Typography::new(),
+            math: math::MathRenderer::new(),
             hue_cache: SymbioticHueCache::new(),
             domain_tints: DomainTints::new(),
             spatial_hash: SpatialHash::new(1000.0),
@@ -226,7 +230,7 @@ impl Renderer {
         let visible_ids = self.spatial_hash.query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
         crate::perf::stage("cull");
         let pass = ViewPass { vp, visible_ids: &visible_ids, header_h };
-        let kit = PaintKit { typography: &self.typography, tints: &self.domain_tints, theme: &self.theme };
+        let kit = PaintKit { typography: &self.typography, math: &self.math, tints: &self.domain_tints, theme: &self.theme };
 
         // 1. Le fond du canevas
         pixmap.fill(self.theme.bg_canvas);

@@ -46,6 +46,7 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::renderer::halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
 use crate::theme::Theme;
+use crate::renderer::math::MathRenderer;
 use crate::typography::{TextStyle, Typography};
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
@@ -109,6 +110,8 @@ impl Clip {
 /// Ce qui ne change pas d'une annotation à l'autre pendant une frame.
 pub(super) struct Pass<'a> {
     pub typography: &'a Typography,
+    /// Le moteur de formules — il ne mute rien de visible, son cache est interne.
+    pub math: &'a MathRenderer,
     /// `domain_id → teinte`, déjà résolue pour cette version du document (DOMAIN-TINT-1).
     pub tints: &'a DomainTints,
     pub theme: &'a Theme,
@@ -126,12 +129,38 @@ pub enum LineKind {
     Heading2,
     Bullet,
     Body,
+    /// Un paragraphe qui est **entièrement** une formule : `$...$` ou `$$...$$`, seuls sur leur
+    /// ligne. Il ne se reflue pas — une formule ne se coupe pas en deux — et se dessine par le
+    /// moteur mathématique au lieu du moteur de texte.
+    Math,
+}
+
+/// Les délimiteurs d'une formule qui occupe tout un paragraphe, et le mode qu'ils demandent.
+///
+/// Le LaTeX **au milieu** d'une phrase n'est pas traité ici : il demande de découper une ligne
+/// en segments de nature différente, et de mesurer chacun. C'est un chantier à part, et le cas
+/// fréquent dans un canva est la formule posée seule.
+fn formule_entiere(paragraph: &str) -> Option<(&str, glucose_math::Mode)> {
+    let t = paragraph.trim();
+    if let Some(corps) = t.strip_prefix("$$").and_then(|r| r.strip_suffix("$$")) {
+        if !corps.trim().is_empty() {
+            return Some((corps, glucose_math::Mode::Display));
+        }
+    }
+    if let Some(corps) = t.strip_prefix('$').and_then(|r| r.strip_suffix('$')) {
+        if !corps.trim().is_empty() && !corps.contains('$') {
+            return Some((corps, glucose_math::Mode::Inline));
+        }
+    }
+    None
 }
 
 impl LineKind {
     /// Le genre du paragraphe et la longueur en octets de son préfixe.
     fn of(paragraph: &str) -> (Self, usize) {
-        if paragraph.starts_with("# ") {
+        if formule_entiere(paragraph).is_some() {
+            (Self::Math, 0)
+        } else if paragraph.starts_with("# ") {
             (Self::Heading1, 2)
         } else if paragraph.starts_with("## ") {
             (Self::Heading2, 3)
@@ -148,7 +177,7 @@ impl LineKind {
         match self {
             Self::Heading1 => body * H1_FACTOR,
             Self::Heading2 => body * H2_FACTOR,
-            Self::Bullet | Self::Body => body,
+            Self::Bullet | Self::Body | Self::Math => body,
         }
     }
 
@@ -168,7 +197,7 @@ impl LineKind {
         match self {
             Self::Heading1 => Color::from_rgba8(255, 255, 255, 255),
             Self::Heading2 => Color::from_rgba8(240, 240, 245, 255),
-            Self::Bullet | Self::Body => Color::from_rgba8(220, 225, 235, 255),
+            Self::Bullet | Self::Body | Self::Math => Color::from_rgba8(220, 225, 235, 255),
         }
     }
 
@@ -195,12 +224,42 @@ pub struct VisualLine {
 /// Chaque paragraphe (une ligne du texte source) est reflué à la largeur utile de la carte,
 /// avec la police et l'indentation de son genre. Tout est en unités monde : le résultat ne
 /// dépend pas du zoom.
-pub fn layout_lines(typography: &Typography, body: &str, width: f32) -> Vec<VisualLine> {
+pub fn layout_lines(
+    typography: &Typography,
+    math: &MathRenderer,
+    body: &str,
+    width: f32,
+) -> Vec<VisualLine> {
     let base = CardLayout::text_card(width, 0.0, 1);
     let mut lines = Vec::new();
     let mut offset = 0usize;
     for paragraph in body.split('\n') {
         let (kind, prefix) = LineKind::of(paragraph);
+
+        // Une formule occupe **plusieurs hauteurs de ligne**, mais une seule d'entre elles
+        // porte sa source : les autres ne sont là que pour réserver la place. C'est ce qui
+        // permet à la hauteur d'une carte de rester « le nombre de lignes × la hauteur d'une
+        // ligne », sans cas particulier ailleurs.
+        if kind == LineKind::Math {
+            let (corps, mode) = formule_entiere(paragraph).expect("le genre vient d'être reconnu");
+            let hauteur = math
+                .measure(corps, mode, BODY_FONT)
+                .map(|(_, h, d)| h + d)
+                .unwrap_or(base.line_height);
+            let rangs = (hauteur / base.line_height).ceil().max(1.0) as usize;
+            for i in 0..rangs {
+                lines.push(VisualLine {
+                    start: if i == 0 { offset } else { offset + paragraph.len() },
+                    end: offset + paragraph.len(),
+                    kind,
+                    first: i == 0,
+                    paragraph_start: offset,
+                });
+            }
+            offset += paragraph.len() + 1;
+            continue;
+        }
+
         let text = &paragraph[prefix..];
         let usable = (width - PAD_X * 2.0 - kind.indent(&base)).max(BODY_FONT);
         let font = kind.font(BODY_FONT);
@@ -222,8 +281,13 @@ pub fn layout_lines(typography: &Typography, body: &str, width: f32) -> Vec<Visu
 /// TEXT-FIT-1 — la hauteur, en unités monde, qu'une carte de `width` doit avoir pour
 /// contenir `text` sans le tronquer. C'est ce que le geste de redimensionnement et la
 /// validation d'une saisie écrivent dans le document.
-pub fn text_card_fit_height(typography: &Typography, text: &str, width: f64) -> f64 {
-    let lines = layout_lines(typography, text, width as f32).len();
+pub fn text_card_fit_height(
+    typography: &Typography,
+    math: &MathRenderer,
+    text: &str,
+    width: f64,
+) -> f64 {
+    let lines = layout_lines(typography, math, text, width as f32).len();
     CardLayout::text_card(width as f32, 0.0, lines).height as f64
 }
 
@@ -304,6 +368,7 @@ pub(super) fn draw_annotations(
     };
     let ctx = Pass {
         typography: kit.typography,
+        math: kit.math,
         tints: kit.tints,
         theme: kit.theme,
         vp: pass.vp,
@@ -364,7 +429,7 @@ struct TextCard<'a> {
 fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     // Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
     // l'unique mise à l'échelle (CARD-1, WRAP-1).
-    let lines = layout_lines(ctx.typography, card.body, card.size.0);
+    let lines = layout_lines(ctx.typography, ctx.math, card.body, card.size.0);
     let layout = CardLayout::text_card(card.size.0, card.size.1, lines.len()).scaled(ctx.scale);
 
     let (wx, wy) = world_to_screen(card.origin.0, card.origin.1, &ctx.vp);
@@ -445,6 +510,49 @@ fn draw_card_body(
         }
         let start_x = at.0 + layout.pad_x + line.kind.indent(layout);
         let text = &card.body[line.start..line.end];
+
+        // Une formule se dessine **au repos** ; pendant l'édition, c'est sa source qu'on
+        // montre. C'est ce que fait la référence, et c'est la seule façon d'y poser un curseur
+        // qui ait un sens — on n'édite pas une fraction, on édite le texte qui la décrit.
+        if line.kind == LineKind::Math && card.editing.is_none() {
+            if line.first {
+                if let Some((corps, mode)) = formule_entiere(text) {
+                    // La ligne de base se pose **sous ce que la formule monte**. La poser à une
+                    // hauteur fixe ferait déborder par le haut tout ce qui monte plus qu'un
+                    // corps de texte — une intégrale, une somme, un exposant d'exposant — et la
+                    // formule mordrait sur la ligne précédente.
+                    let au_dessus = ctx
+                        .math
+                        .measure(corps, mode, style.size)
+                        .map(|(_, h, _)| h)
+                        .unwrap_or(style.size);
+                    let dessinee = ctx.math.draw(
+                        pixmap,
+                        ctx.typography,
+                        corps,
+                        mode,
+                        start_x,
+                        cur_y + au_dessus,
+                        style.size,
+                        Color::from_rgba8(230, 234, 245, 255),
+                    );
+                    if !dessinee {
+                        // Une formule fausse montre sa source, en rouge : l'erreur se voit là
+                        // où elle est, pas dans une console.
+                        ctx.typography.draw_text(
+                            pixmap,
+                            text,
+                            start_x,
+                            cur_y,
+                            TextStyle { color: Color::from_rgba8(248, 113, 113, 255), ..style },
+                        );
+                    }
+                }
+            }
+            cur_y += layout.line_height;
+            continue;
+        }
+
         ctx.typography.draw_text(pixmap, text, start_x, cur_y, style);
 
         // Un curseur posé dans le préfixe (`# `) se rattache au début de sa première ligne ;

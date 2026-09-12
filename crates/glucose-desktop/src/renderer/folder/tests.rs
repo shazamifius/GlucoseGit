@@ -31,7 +31,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
     let typography = Typography::new();
     let theme = Theme::dark();
     let tints = DomainTints::default();
-    let kit = PaintKit { typography: &typography, tints: &tints, theme: &theme };
+    let kit = PaintKit { typography: &typography, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
     let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
     let vus: std::collections::HashSet<&str> = std::collections::HashSet::new();
     let pass = ViewPass { vp, visible_ids: &vus, header_h: 0.0 };
@@ -221,7 +221,7 @@ fn test_un_dossier_laisse_une_trace_coloree_dans_la_minimap() {
     let trace = |store: &Store| {
         let mut pixmap = Pixmap::new(1_440, 900).expect("pixmap");
         pixmap.fill(Color::from_rgba8(0, 0, 0, 255));
-        crate::ui::render_minimap(&mut pixmap.as_mut(), store, &theme, 1_440.0, 900.0, 1.0);
+        crate::ui::render_minimap(&mut pixmap.as_mut(), store, &theme, 1_440.0, 900.0, 1.0, &mut None);
         // La minimap occupe le coin bas-droit : on n'y regarde que là.
         let mut bleus = 0usize;
         for y in 760..890 {

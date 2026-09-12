@@ -28,9 +28,29 @@ fn main() {
     let mut dezoome = temoin.clone();
     bench::frame_document(&mut dezoome, 0.45, w0, h0);
 
-    for (nom, store, w, h) in
-        [("temoin", &temoin, w0, h0), ("temoin-dezoome", &dezoome, w0, h0)]
+    // La vitrine : le document soigné, celui des captures du dépôt.
+    let vitrine = synth::showcase();
+    let mut vitrine_large = vitrine.clone();
+    bench::frame_document(&mut vitrine_large, 0.8, 1920, 1080);
+
+    // Un gros plan sur les formules : c'est ce qui se voit le moins sur une vue d'ensemble,
+    // et le plus sur une capture de dépôt.
+    let mut vitrine_zoom = vitrine.clone();
     {
+        let board = vitrine_zoom.project.active_board_id.clone();
+        vitrine_zoom.set_viewport(
+            &board,
+            glucose_core::types::Viewport { x: 1_150.0, y: 640.0, scale: 1.9 },
+        );
+    }
+
+    for (nom, store, w, h) in [
+        ("temoin", &temoin, w0, h0),
+        ("temoin-dezoome", &dezoome, w0, h0),
+        ("vitrine", &vitrine, 1920u32, 1080u32),
+        ("vitrine-large", &vitrine_large, 1920, 1080),
+        ("vitrine-zoom", &vitrine_zoom, 1600, 900),
+    ] {
         let png = bench::capture(store, w, h);
         let chemin = format!("{dossier}/{nom}.png");
         match std::fs::write(&chemin, &png) {

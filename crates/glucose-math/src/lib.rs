@@ -126,7 +126,7 @@ impl Style {
 }
 
 /// Comment une formule se pose dans le texte qui l'entoure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Mode {
     /// `$...$` — dans le fil du texte. Les indices se serrent contre leur opérateur, les
     /// fractions se resserrent.

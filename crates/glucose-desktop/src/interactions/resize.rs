@@ -218,7 +218,7 @@ impl GlucoseApp {
                 })
                 .unwrap_or_default(),
         };
-        text_card_fit_height(&self.renderer.typography, &text, width)
+        text_card_fit_height(&self.renderer.typography, &self.renderer.math, &text, width)
     }
 
     /// Relâchement : le geste se referme sur une seule entrée d'undo, ou sur aucune s'il
@@ -269,7 +269,7 @@ impl GlucoseApp {
         }) else {
             return;
         };
-        let height = text_card_fit_height(&self.renderer.typography, &text, rect.width);
+        let height = text_card_fit_height(&self.renderer.typography, &self.renderer.math, &text, rect.width);
         if (height - rect.height).abs() > 1e-6 {
             self.store.set_annotation_rect(&board, ann_id, AlignRect { height, ..rect });
         }
@@ -282,6 +282,7 @@ impl GlucoseApp {
     /// elle n'entre pas dans la pile d'undo, que `load_project` vient de vider.
     pub fn fit_all_text_cards(&mut self) {
         let typography = &self.renderer.typography;
+        let math = &self.renderer.math;
         for board in &mut self.store.project.boards {
             for ann in &mut board.annotations {
                 let Annotation::Text { width, height, text, .. } = ann else {
@@ -289,7 +290,7 @@ impl GlucoseApp {
                 };
                 let w = width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH);
                 *width = Some(w);
-                *height = Some(text_card_fit_height(typography, text, w));
+                *height = Some(text_card_fit_height(typography, math, text, w));
             }
         }
     }

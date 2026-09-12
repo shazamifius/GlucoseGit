@@ -187,6 +187,15 @@ pub fn witness() -> Store {
         BOARD,
         Annotation::text("t-accents", -520.0, 40.0, "Accents : éàçùôêîï — « guillemets »"),
     );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "t-maths",
+            60.0,
+            340.0,
+            "Une formule, seule sur sa ligne :\n$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$\nEt une qui ne compile pas :\n$$\\frac{a}{$$",
+        ),
+    );
     store.add_annotation(BOARD, Annotation::sticky("s-simple", -520.0, 180.0, "un pense-bête"));
     store.add_annotation(BOARD, Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0));
 
@@ -208,7 +217,7 @@ pub fn witness() -> Store {
     // tomberait hors champ. Ces valeurs mettent tout le contenu sous le bandeau et dans la
     // fenêtre, à l'échelle 1, pour une capture de [`WITNESS_SIZE`].
     let board_id = store.project.active_board_id.clone();
-    store.set_viewport(&board_id, Viewport { x: 660.0, y: 390.0, scale: 1.0 });
+    store.set_viewport(&board_id, Viewport { x: 720.0, y: 374.0, scale: 1.0 });
 
     store.end_live_edit();
     store.clear_selection();
@@ -217,11 +226,111 @@ pub fn witness() -> Store {
 }
 
 /// La définition pour laquelle le cadrage de [`witness`] est réglé.
-pub const WITNESS_SIZE: (u32, u32) = (1280, 800);
+pub const WITNESS_SIZE: (u32, u32) = (1400, 900);
 
 /// La boîte englobante du contenu de la scène témoin, en unités monde — ce que le cadrage doit
 /// contenir, et ce qu'un test peut vérifier sans dessiner.
-pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -260.0, 480.0, 310.0);
+pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -260.0, 480.0, 490.0);
+
+/// **La vitrine** : un document soigné, fait pour être montré.
+///
+/// Elle n'a pas le rôle de [`witness`], qui existe pour être comparée à elle-même. Celle-ci
+/// existe pour être **regardée** : c'est elle qui produit les captures du dépôt, et elle doit
+/// donc montrer ce que Glucose sait faire, arrangé comme un vrai tableau de travail plutôt que
+/// comme une liste d'exemples.
+///
+/// Elle est, comme tout le reste de ce module, entièrement déterministe : la capture du dépôt
+/// se refait à l'identique par une commande.
+pub fn showcase() -> Store {
+    let mut store = Store::new("Théorie de l'information");
+    store.begin_live_edit();
+
+    // La colonne de gauche : le fil du raisonnement.
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "s-titre",
+            -880.0,
+            -420.0,
+            "# Entropie de Shannon\n## Ce que mesure l'information\nUne source qui ne surprend \
+             jamais n'apprend rien. L'entropie compte la surprise moyenne.",
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "s-formule",
+            -880.0,
+            -180.0,
+            "$$H(X) = -\\sum_{i=1}^{n} p_i \\log_2 p_i$$",
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "s-cas",
+            -880.0,
+            -20.0,
+            "- une pièce équilibrée : 1 bit\n- une pièce truquée : moins\n- une pièce à deux faces : zéro",
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::sticky("s-note", -880.0, 200.0, "à relier au codage de Huffman"),
+    );
+
+    // La membrane de droite : le domaine voisin.
+    let mut membrane = Annotation::membrane("s-membrane", -180.0, -420.0, 700.0, 460.0);
+    if let Annotation::Membrane { text, color, .. } = &mut membrane {
+        *text = Some("Théorie du codage".to_string());
+        *color = Some("#7c5cff".to_string());
+    }
+    store.add_annotation(BOARD, membrane);
+
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "s-kraft",
+            -140.0,
+            -330.0,
+            "## Inégalité de Kraft\nUn code préfixe existe si et seulement si :",
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text("s-kraft-f", -140.0, -180.0, "$$\\sum_{i=1}^{n} 2^{-\\ell_i} \\le 1$$"),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "s-borne",
+            -140.0,
+            -30.0,
+            "La longueur moyenne d'un code optimal est bornée :\n$$H(X) \\le \\bar{\\ell} < H(X) + 1$$",
+        ),
+    );
+
+    // Les flèches du raisonnement.
+    store.add_annotation(BOARD, Annotation::arrow("s-a1", -560.0, -120.0, -160.0, -140.0));
+    store.add_annotation(BOARD, Annotation::arrow("s-a2", -560.0, 60.0, -160.0, 20.0));
+
+    // Un dossier : le sous-tableau des démonstrations.
+    let mut dossier = CanvasFolder::new("s-preuves", "Démonstrations", String::new());
+    dossier.x = -880.0;
+    dossier.y = 320.0;
+    dossier.width = 300.0;
+    dossier.height = 200.0;
+    dossier.color = "#4ade80".to_string();
+    store.create_folder(BOARD, dossier);
+
+    let board_id = store.project.active_board_id.clone();
+    store.set_viewport(&board_id, Viewport { x: 1_010.0, y: 500.0, scale: 1.0 });
+
+    store.end_live_edit();
+    store.clear_selection();
+    store.journal.clear();
+    store
+}
 
 #[cfg(test)]
 mod tests;

@@ -186,6 +186,87 @@ mesurable**. Une vague ne s'ouvre pas avant que la précédente soit verte.
 
 ---
 
+### Ce que la vague 0 a trouvé, et que rien ne disait
+
+Le banc a existé une journée et a rapporté quatre choses. Aucune n'était dans une fiche, et
+deux vont contre ce que j'avais écrit.
+
+#### 1. Le rendu n'était pas déterministe
+
+Deux images de la même scène différaient d'environ **sept mille pixels**. `UiState::new` posait
+un toast de bienvenue, donc un `Instant`, donc une opacité qui change à chaque image. Rien ne le
+voyait parce que rien ne comparait jamais deux images.
+
+Au-delà de la mesure, c'est une faute de conception : un constructeur d'état ne déclenche pas une
+notification. Le mot d'accueil est désormais posé au démarrage de l'application.
+
+#### 2. Vingt-trois mesures sur vingt-sept hors budget
+
+| Définition | 1 000 nœuds | 10 000 | 100 000 |
+|---|---:|---:|---:|
+| 1080p | 2,45 ms | 17,3 ms | 96 ms |
+| 1440p | 8,15 ms | 37,3 ms | 137 ms |
+| 4K | **20,6 ms** | 27,2 ms | 108 ms |
+
+La 4K dépasse dè **mille** nœuds. Ce chiffre met en difficulté l'argument du § 2 — celui qui dit
+que les tuiles et le GPU peuvent attendre — et il faut le dire avant de l'expliquer.
+
+#### 3. La décomposition déplace la conclusion
+
+Le côt n'est pas là où le total le laissait croire.
+
+| Étape | 1080p / 10 000 | 4K / 1 000 |
+|---|---:|---:|
+| interface (dont **minimap**) | **5,13 ms** | 5,56 ms |
+| halos | 1,98 ms | 1,81 ms |
+| grille de points | 0,73 ms | **4,35 ms** |
+| effacement du fond | 0,74 ms | 3,45 ms |
+| cartes, images, membranes | 0,32 ms | 1,52 ms |
+
+Deux des trois premiers postes sont des **défauts algorithmiques**, pas des coûts de surface :
+
+* **la minimap redessinait un rectangle par nœud, à chaque image**, dans une vignette de
+  180 × 120 pixels où la plupart tombent les uns sur les autres. Corrigé par un cache dont la clé
+  est le document et le cadrage : **5,13 → 0,89 ms** en 1080p, **5,56 → 0,64 ms** en 4K ;
+* **la grille de points** construit un cercle par point — environ huit mille en 4K — puis les
+  rasterise d'un trait. Elle reste à traiter (voir plus bas).
+
+Seul l'effacement du fond est un coût de surface irréductible en CPU. **L'ordre du § 2 tient
+donc, mais il n'était pas gratuit** : il se paie par des corrections précises, chiffrées, que
+personne n'avait vues parce que personne ne mesurait.
+
+Le banc relancé après la correction de la minimap, sur les mêmes documents :
+
+| Une image, à dix mille nœuds, au zoom 1 | Avant | Après | |
+|---|---:|---:|---|
+| 1080p | 17,28 ms | **4,58 ms** | ×3,8 |
+| 1440p | 37,28 ms | **10,89 ms** | ×3,4 |
+| 4K | 27,19 ms | **17,58 ms** | ×1,5 |
+
+Vingt-trois mesures hors budget sont devenues vingt et une, mais le compte brut dit mal ce qui
+s'est passé : les cas de travail réel — un document de quelques milliers de nœuds, lu à l'échelle
+1 — sont **tous** passés dans le budget en 1080p et 1440p. Ce qui reste dehors est le très fort
+dézoom, où le culling ne sert plus puisque tout est visible, et la 4K, où la surface domine.
+
+#### 4. Un test de la suite échouait au hasard
+
+Un test de budget de halos chronomètre dans une suite paralèlle : il mesure la contention, pas le
+code. Il a échoué pendant une suite complète puis passé trois fois de suite lancé seul. Un test
+qui échoue au hasard ne dit plus rien et abîme la valeur des six cent quatre-vingt-dix autres :
+il est marqué ignoré, avec la commande pour le lancer seul, et le banc prend le relais.
+
+#### Ce qui reste à corriger, chiffré
+
+| # | Défaut | Coût mesuré | État |
+|---|---|---:|---|
+| a | La minimap redessine tout, chaque image | 5,1 ms | **corrigé** |
+| b | La grille construit un cercle par point | 4,35 ms en 4K | à faire |
+| c | L'effacement du fond | 3,45 ms en 4K | irréductible en CPU — relève de la vague 4 |
+| d | La touche `F` ne cadre rien (fiche 03 § 1.6) | — | l'API existe (`Store::content_bounds`), le raccourci ne reçoit pas la taille de la fenêtre |
+| e | Le badge d'un dossier affiche toujours zéro | — | à faire |
+
+---
+
 ### Vague 1 — Le geste quotidien
 
 *C'est ce que l'utilisateur touche mille fois par jour, et c'est là que « ça ne ressemble pas à

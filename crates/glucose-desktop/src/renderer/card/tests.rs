@@ -2,6 +2,7 @@
 //! (WRAP-1) et hauteur suivie (TEXT-FIT-1).
 
 use super::*;
+use crate::renderer::math::MathRenderer;
 
 /// Carte d'essai partagée avec les autres suites du renderer.
 pub fn probe_card(id: &str, x: f64, y: f64) -> Annotation {
@@ -70,8 +71,8 @@ const LONG_TEXT: &str = "Une carte de texte redimensionnée en largeur reflue so
 #[test]
 fn test_wrap_1_a_narrower_card_has_more_lines_and_none_overflows() {
     let typo = Typography::new();
-    let wide = layout_lines(&typo, LONG_TEXT, 900.0);
-    let narrow = layout_lines(&typo, LONG_TEXT, 240.0);
+    let wide = layout_lines(&typo, &MathRenderer::new(), LONG_TEXT, 900.0);
+    let narrow = layout_lines(&typo, &MathRenderer::new(), LONG_TEXT, 240.0);
     assert_eq!(wide.len(), 1, "{wide:?}");
     assert!(narrow.len() > 2, "{narrow:?}");
     // Aucune ligne visuelle ne dépasse la largeur utile, mesurée avec la même police.
@@ -89,7 +90,7 @@ fn test_wrap_1_a_narrower_card_has_more_lines_and_none_overflows() {
 fn test_wrap_1_a_bulleted_paragraph_keeps_its_bullet_on_its_first_line_only() {
     let typo = Typography::new();
     let text = "# Titre\n- une puce assez longue pour être coupée en deux lignes au moins\ncorps";
-    let lines = layout_lines(&typo, text, 200.0);
+    let lines = layout_lines(&typo, &MathRenderer::new(), text, 200.0);
     let bullets: Vec<&VisualLine> = lines.iter().filter(|l| l.kind == LineKind::Bullet).collect();
     assert!(bullets.len() >= 2, "{lines:?}");
     assert!(bullets[0].first && bullets[1..].iter().all(|l| !l.first));
@@ -102,12 +103,12 @@ fn test_wrap_1_a_bulleted_paragraph_keeps_its_bullet_on_its_first_line_only() {
 #[test]
 fn test_text_fit_1_the_fitted_height_follows_the_line_count() {
     let typo = Typography::new();
-    let one = text_card_fit_height(&typo, "court", 240.0);
+    let one = text_card_fit_height(&typo, &MathRenderer::new(), "court", 240.0);
     assert!((one - (PAD_Y * 2.0 + BODY_FONT * LINE_FACTOR) as f64).abs() < 1e-4, "{one}");
-    let wide = text_card_fit_height(&typo, LONG_TEXT, 900.0);
-    let narrow = text_card_fit_height(&typo, LONG_TEXT, 240.0);
+    let wide = text_card_fit_height(&typo, &MathRenderer::new(), LONG_TEXT, 900.0);
+    let narrow = text_card_fit_height(&typo, &MathRenderer::new(), LONG_TEXT, 240.0);
     assert!(narrow > wide, "{narrow} <= {wide}");
-    assert_eq!(text_card_fit_height(&typo, "", 240.0), one, "une carte vide garde une ligne");
+    assert_eq!(text_card_fit_height(&typo, &MathRenderer::new(), "", 240.0), one, "une carte vide garde une ligne");
 }
 
 /// Fiche 08 § 2.1 — ce que le moteur de texte reconnaît du Markdown, ni plus ni moins :

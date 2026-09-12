@@ -59,7 +59,7 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
     let mut tints = crate::renderer::domain::DomainTints::new();
     tints.refresh(&store, &theme);
     let mut view = pixmap.as_mut();
-    let kit = PaintKit { typography: typo, tints: &tints, theme: &theme };
+    let kit = PaintKit { typography: typo, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
     draw_annotations(&mut hue, kit, &mut view, &store, None, pass);
     pixmap
 }

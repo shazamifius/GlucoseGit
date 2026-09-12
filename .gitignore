@@ -70,3 +70,8 @@ glucose_telemetry.db*
 STABILITY.md
 PHASE1_TO_PHASE2_TRANSITION.md
 tauri-dev.log
+
+# Les captures de travail (scène témoin) se régénèrent par
+#   cargo run -p glucose-desktop --example capture_temoin -- docs/screenshots
+# Seules les captures de la vitrine, celles du README, sont versionnées.
+docs/screenshots/temoin*.png

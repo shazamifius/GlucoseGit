@@ -103,7 +103,7 @@ impl GlucoseApp {
             x: 0.0,
             y: 0.0,
             width: Some(260.0),
-            height: Some(text_card_fit_height(&renderer.typography, welcome_text, 260.0)),
+            height: Some(text_card_fit_height(&renderer.typography, &renderer.math, welcome_text, 260.0)),
             text: welcome_text.into(),
             font_size: Some(14.0),
             color: None,
