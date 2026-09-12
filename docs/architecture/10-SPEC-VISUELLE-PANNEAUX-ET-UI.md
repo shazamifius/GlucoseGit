@@ -1,20 +1,16 @@
 # 10 — SPÉCIFICATION VISUELLE EXHAUSTIVE DES PANNEAUX ET DE L'INTERFACE (UI GLUCOSE)
 
-Ce document établit la **référence visuelle absolue, au pixel et au code hexadécimal près**, de l'ensemble de l'interface graphique de Glucose (version TypeScript/Tauri de référence). Il est destiné à guider la réécriture en **Rust natif** (moteur de rasterisation logicielle sans dépendance UI tierce) afin de garantir une **parité visuelle à 100 %**.
+Ce document établit la **référence visuelle absolue, au pixel et au code hexadécimal près**, de l'ensemble de l'interface graphique de Glucose (version TypeScript/Tauri de référence). Il est destiné à guider la réécriture en **Rust natif** afin de garantir une **parité visuelle à 100 %**.
+
+> **Méthode (12/09/2026)** : chaque valeur est allée voir le code, puis la référence quand ils divergeaient. Ce qui est tenu par un test est sorti ; ce qui reste est la liste de travail. Six panneaux sur dix existent (Ordonner, Pomodoro, Storyboard, Domaines, Presets, Plugins) ; Storyboard et Plugins sont des façades honnêtes (fiche 09 § 8, § 10) ; Collaboration, Time Machine, Recherche, HUD et les barres flottantes n'existent pas. Là où les fiches 06 et 10 se contredisaient (fond des panneaux `#161616` / `#111111`), la référence a tranché : `#111`.
 
 ---
 
 ## 1. Principes Directeurs & Charte Brutaliste
 
-L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
-- **Chrome 100 % Monochrome** : Aucun bouton, panneau ou onglet de navigation système ne porte de couleur vive arbitraire. Le chrome s'exprime uniquement par des nuances de gris sombres et de blancs cassés.
-- **La couleur n'appartient qu'au contenu** :
-  - *Jaune / Ambre (`#fbbf24`, `#f59e0b`, `#fde68a`)* : Stickies standards, temporalité, jalons Time Machine, opérateur « MAIS ».
-  - *Émeraude / Vert (`#10b981`, `#34d399`)* : Collaboration active, statut connecté, opérateur « ET », validation Pomodoro.
-  - *Rouge (`#ef4444`, `#f87171`)* : Verrous d'images, liens rompus, opérateur « CONTREDIT », alertes d'obstacles.
-  - *Bleu (`#60a5fa`, `#93c5fd`)* : Focus clavier, anneaux de sélection, opérateur « OU », description des flèches.
-  - *Violet (`#a78bfa`, `#8b5cf6`)* : Opérateur « PARCE QUE », relation « hérite ».
-- **Découplage Écran vs Monde** : Les panneaux, la toolbar, les onglets, la minimap et les poignées de saisie conservent une taille physique constante en **pixels écran**, indépendamment du niveau de zoom du canvas.
+> Tenus : chrome 100 % monochrome (`test_every_chrome_token_is_a_neutral_grey`), découplage écran / monde des panneaux, barres, minimap et poignées (`WorldScale::screen`, SCALE-1). La couleur n'appartient qu'au contenu — ce que la liste ci-dessous précise, et que le thème respecte : les seules couleurs de la chrome sont le jaune d'emphase (réservé), le vert de succès (fin d'un Pomodoro) et le rouge d'alerte.
+>
+> *Jaune / Ambre (`#fbbf24`, `#f59e0b`, `#fde68a`)* : stickies, temporalité, jalons Time Machine, opérateur « MAIS ». *Émeraude / Vert (`#10b981`, `#34d399`, `#4ade80`)* : collaboration, opérateur « ET », validation Pomodoro. *Rouge (`#ef4444`, `#f87171`)* : verrous, liens rompus, « CONTREDIT », obstacles. *Bleu (`#60a5fa`, `#93c5fd`)* : focus clavier, opérateur « OU », description des flèches. *Violet (`#a78bfa`, `#8b5cf6`)* : « PARCE QUE », « hérite ».
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -38,506 +34,114 @@ L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
 +---------------------------------------------------------------------------------------------------------+
 ```
 
----
-
 ### 1.1 Galerie des Captures d'Écran Réelles de Référence
 
-> **Toutes les captures ci-dessous sont 100 % authentiques**, issues de sessions réelles sur Glucose (capture utilisateur de production et pipeline Playwright headless sur le build officiel).
-> **Aucune image n'est générée par IA.** Ce sont les pixels exacts issus du code TypeScript/React en production.
+> **Toutes les captures ci-dessous sont 100 % authentiques**, issues de sessions réelles sur Glucose. **Aucune image n'est générée par IA.** Elles sont la cible visuelle ; elles ne se vérifient pas ligne à ligne mais à l'œil, capture contre capture, une fois les panneaux écrits.
 
 | Réf | Fichier Réel | Description & Éléments Observés |
 | :--- | :--- | :--- |
-| **00** | [`00_user_production_board.png`](screens/00_user_production_board.png) | **Étalon d'Or — Session de Production Réelle (Board Utilisateur)** : 132 images, 3 colonnes d'ambiance avec capsules de titre lumineuses (`gestion asset`, `partie ile réaliste`, `ile non réaliste`), note textuelle `idée du projet` avec aura violette, multi-sélection de 11 images (cadres blancs + 8 poignées découpe-papier), barre flottante `11 sélectionnés`, panneau Ordonner complet avec tri couleur et modes Pinterest/compact, minimap. |
-| **01** | [`01_canvas_default.png`](screens/01_canvas_default.png) | **Canvas Initial Épuré** : Fond `#0d0d0d`, grille de points `#222222`, toolbar 44px, onglets 34px, minimap 180×120. |
-| **02** | [`02_toolbar_tabs_crop.png`](screens/02_toolbar_tabs_crop.png) | **Gros plan Chrome Supérieur** : Logo Glucose 14px bold, boutons 30×30px, onglet actif avec liseré blanc 2px. |
-| **03** | [`03_panel_organize_full.png`](screens/03_panel_organize_full.png) | **Panneau Ordonner (250px)** : Dock bas-gauche, pilule de sélection, tri, modes compact / masonry, inputs numériques. |
-| **04** | [`04_dock_organize_pomodoro.png`](screens/04_dock_organize_pomodoro.png) | **Dock Ordonner + Pomodoro** : Anneau SVG 80×80px, temps restant en font tabular-nums, boutons rapides (25/15/5m). |
-| **05** | [`05_dock_three_panels.png`](screens/05_dock_three_panels.png) | **Dock Triple (Ordonner + Pomodoro + Storyboard)** : Alignement horizontal, poignées braille `⠿⠿`, miniature de layout. |
-| **06** | [`06_drawer_domains.png`](screens/06_drawer_domains.png) | **Tiroir Domaines (320px)** : Tiroir haut-gauche, cartes avec liserés de couleur, curseur d'intensité sémantique. |
-| **07** | [`07_drawer_presets.png`](screens/07_drawer_presets.png) | **Tiroir Presets (280px)** : Rendu vectoriel SVG réel des grilles de composition (Cinema, Moodboard, Triptyque). |
-| **08** | [`08_drawer_plugins.png`](screens/08_drawer_plugins.png) | **Tiroir Plugins & IA Locale (340px)** : Détection du modèle de vision, statut d'accélération WebGPU/Wasm. |
-| **09** | [`09_panel_multiplayer.png`](screens/09_panel_multiplayer.png) | **Panneau Collaborer (360px)** : Pastille verte `#10b981`, clé de session chiffrée, palette de couleurs de profil. |
-| **10** | [`10_search_modal.png`](screens/10_search_modal.png) | **Recherche Modale (480px, Ctrl+F)** : Champ centré, badge `Esc`, filtrage instantané multi-types. |
-| **11** | [`11_timemachine_drawer.png`](screens/11_timemachine_drawer.png) | **Time Machine Drawer (324px, Ctrl+H)** : Piste temporelle avec scrubber jaune `#fbbf24`, arbre de commits durables. |
-| **12** | [`12_temporal_ruler.png`](screens/12_temporal_ruler.png) | **Réglette Temporelle (88px, Shift+R)** : Bandeau inférieur panoramique, fenêtre dorée `#fbbf24`, repères historiques. |
-| **13** | [`13_diagnostics_hud.png`](screens/13_diagnostics_hud.png) | **Diagnostics HUD (Ctrl+Shift+D)** : Métriques temps réel (FPS vert `#4ade80`, mémoire, état du renderer). |
-| **14** | [`14_canvas_with_live_elements.png`](screens/14_canvas_with_live_elements.png) | **Canvas Nœuds Réels** : Sticky note jaune `#f5c542`, pilule opérateur `ET` néon vert, carte texte, sélection active. |
+| **00** | [`00_user_production_board.png`](screens/00_user_production_board.png) | **Étalon d'Or — Session de Production Réelle** : 132 images, capsules de titre lumineuses, note `idée du projet` avec aura violette, multi-sélection de 11 images, barre flottante `11 sélectionnés`, panneau Ordonner, minimap. |
+| **01** | [`01_canvas_default.png`](screens/01_canvas_default.png) | **Canvas Initial Épuré** : fond `#0d0d0d`, grille de points, toolbar 44px, onglets 34px, minimap 180×120. |
+| **02** | [`02_toolbar_tabs_crop.png`](screens/02_toolbar_tabs_crop.png) | **Chrome Supérieur** : logo 14px bold, boutons 30×30px, onglet actif liseré blanc 2px. |
+| **03** | [`03_panel_organize_full.png`](screens/03_panel_organize_full.png) | **Panneau Ordonner (250px)** : pilule de sélection, tri, modes, inputs. |
+| **04** | [`04_dock_organize_pomodoro.png`](screens/04_dock_organize_pomodoro.png) | **Dock Ordonner + Pomodoro** : anneau 80×80px, tabular-nums, boutons 25/15/5m. |
+| **05** | [`05_dock_three_panels.png`](screens/05_dock_three_panels.png) | **Dock Triple** : alignement horizontal, poignées `⠿⠿`, miniature de layout. |
+| **06** | [`06_drawer_domains.png`](screens/06_drawer_domains.png) | **Tiroir Domaines (320px)** : cartes à liseré coloré, curseur d'intensité. |
+| **07** | [`07_drawer_presets.png`](screens/07_drawer_presets.png) | **Tiroir Presets (280px)** : miniatures vectorielles des grilles. |
+| **08** | [`08_drawer_plugins.png`](screens/08_drawer_plugins.png) | **Tiroir Plugins & IA Locale (340px)**. |
+| **09** | [`09_panel_multiplayer.png`](screens/09_panel_multiplayer.png) | **Panneau Collaborer (360px)**. |
+| **10** | [`10_search_modal.png`](screens/10_search_modal.png) | **Recherche Modale (480px, Ctrl+F)**. |
+| **11** | [`11_timemachine_drawer.png`](screens/11_timemachine_drawer.png) | **Time Machine (324px, Ctrl+H)**. |
+| **12** | [`12_temporal_ruler.png`](screens/12_temporal_ruler.png) | **Réglette Temporelle (88px, Shift+R)**. |
+| **13** | [`13_diagnostics_hud.png`](screens/13_diagnostics_hud.png) | **Diagnostics HUD (Ctrl+Shift+D)**. |
+| **14** | [`14_canvas_with_live_elements.png`](screens/14_canvas_with_live_elements.png) | **Nœuds réels** : sticky `#f5c542`, pilule `ET` néon vert, carte texte, sélection. |
 
----
-
-### 1.2 Décomposition Visuelle Pixel-Exact de l'Étalon de Production
+### 1.2 Décomposition de l'Étalon de Production
 
 ![Étalon d'Or de Production Réelle](screens/00_user_production_board.png)
 
-Cette capture d'un véritable board de production (132 images de concept art, colonnes thématiques, panneau d'ordonnancement actif) révèle l'équilibre visuel exact recherché pour Glucose Rust :
+> Tenus : capsules et cartes (padding `16px 24px`, coins 32 px — fiche 06 § 5.1) ; cadre de sélection blanc à 0,80 débordant de 3 px en 1,25 px ; poignées 9 × 9 blanches à liseré `#111111` (fiche 06 § 4.2) ; panneau Ordonner de 250 px sur fond `#111111` bordé `#222222`.
 
-#### A. Les Capsules de Titres Lumineuses (`gestion asset`, `partie ile réaliste`, `ile non réaliste`)
-- **Géométrie** : Texte court auto-dimensionné (`width: max-content`), `padding: 16px 24px`, `border-radius: 32px` formant une capsule galet parfaite.
-- **Rendu Chromatique (Symbiose)** :
-  - Fond brumeux : `background: color-mix(in srgb, ${auraColor} 3%, transparent)`.
-  - Halo étendu : `box-shadow: 0 0 60px 30px color-mix(in srgb, ${auraColor} 15%, transparent)`.
-  - Dans la capture, la colonne centrale et droite ont une aura cyan/bleutée (`#60a5fa` / `#22d3ee`) calculée à partir des images environnantes.
-
-#### B. La Grande Fiche Textuelle (`idée du projet`)
-- **Typographie & Structure** : Titre en gras blanc 14-16px, suivi de paragraphes explicatifs en texte `#cccccc` avec interligne 1.4.
-- **Conteneur** : Forme adoucie `border-radius: 32px`, fond noir translucide, entouré d'une aura diffuse pourpre/magenta (`#a78bfa` / `#c084fc`) à 15% d'opacité.
-
-#### C. La Multi-Sélection d'Images (11 images sélectionnées)
-- **Cadre de Sélection** : Tracé hairline de `1.25px` blanc (`rgba(255, 255, 255, 0.8)`), englobant chaque image avec un décalage de 3px (`g.rect(-w/2 - 3, -h/2 - 3, w + 6, h + 6)`).
-- **Poignées Découpe-Papier (8 poignées)** :
-  - Carrés de `9×9px` écran (`const hs = 9 * inv`).
-  - Remplissage blanc pur `#ffffff` avec contour noir de `1.25px` (`#111111`, alpha 0.9).
-  - Principe brutaliste : lisibilité maximale sur image claire (le contour sombre) ET sur fond noir (le carré blanc). Aucun néon sur le cadre de sélection.
-  - Hitbox de préhension invisible élargie à 36px écran (PICK-1).
-
-#### D. La Barre Flottante de Sélection Contextuelle
-- **Position** : Flottante centrée à `bottom: 12px`, `left: 50%`, `transform: translateX(-50%)`.
-- **Boîte** : Fond `#1a1a1a`, bordure `1px solid #333333`, rayon `6px`, ombre `0 2px 12px rgba(0,0,0,0.5)`, hauteur compacte (`padding: 4px 8px`).
-- **Contenu** :
-  1. Compteur : `11 sélectionnés` avec séparateur vertical droit `1px solid #2a2a2a`.
-  2. Action Verrou : Icône cadenas SVG + `Verrouiller` (ou `Verrouillé` sur fond `#2a1a1a` rouge `#f87171`).
-  3. Action Corbeille : Icône poubelle SVG + `Supprimer` (titre `Suppr`).
-
-#### E. Le Panneau Ordonner Réel en Action
-- **Largeur** : `250px`, fond `#111111`, bordure `1px solid #222222`.
-- **Pastille de Cible** : Fond doré sombre `#1a1800`, bordure dorée `#3a3000`, texte doré `#aa9900` indiquant `11 images sélectionnées`.
-- **8 Boutons de Tri** :
-  - Rangée 1 : `Ordre actuel`, `Couleur` (actif sur fond `#2d2d2d`, contour `#444`), `Grand → Petit`
-  - Rangée 2 : `Petit → Grand`, `Portrait`, `Paysage`
-  - Rangée 3 : `Sombre → Clair`, `Clair → Sombre`
-- **5 Modes de Disposition** :
-  - `Rangées compactes` (actif avec description `Respecte les ratios, remplit chaque ligne`)
-  - `Masonry (colonnes)` (`Colonnes indépendantes — Pinterest`)
-  - `Grille alignée` (`Même largeur par colonne, ratios conservés`)
-  - `Même hauteur` (`Hauteur fixe, largeur proportionnelle`)
-  - `Par slot preset` (`Colonnes séparées par catégorie`)
-- **Champs & Bouton** : `LARGEUR CIBLE: 280`, `ESPACEMENT: 16`, bouton plein `Appliquer` (`bg: #222, text: #ccc`).
-
-#### F. Toolbar Réelle & Compteur d'Images
-- Bouton `Ordonner` en surbrillance active dans le chrome.
-- Boutons d'état : `Aimant` (guides magnétiques) et `Trans-domaines` (liens pointillés inter-domaines).
-- À l'extrême droite : Compteur d'images discret `132img` en police 11px couleur `#3a3a3a`.
-
----
-
-## 2. Palette des Tokens de Couleur Système
-
-| Token CSS | Hexadécimal | Alpha | Rôle dans l'UI |
-| :--- | :--- | :--- | :--- |
-| `--bg-app` | `#0d0d0d` | 100% | Fond global de l'application et du canvas infini |
-| `--bg-toolbar` | `#1a1a1a` | 100% | Fond de la barre d'outils supérieure |
-| `--border-toolbar`| `#2a2a2a` | 100% | Filet de séparation sous la toolbar et séparateurs verticaux |
-| `--bg-tabs` | `#111111` | 100% | Fond de la barre d'onglets des boards |
-| `--bg-tab-active` | `#1a1a1a` | 100% | Fond de l'onglet actif |
-| `--border-tab-active`| `#ffffff`| 100% | Soulignement de 2px sous l'onglet actif |
-| `--bg-panel` | `#111111` | 100% | Fond des panneaux standards (`Organize`, `Preset`, etc.) |
-| `--border-panel` | `#222222` | 100% | Contour de 1px des panneaux |
-| `--bg-input` | `#1a1a1a` | 100% | Fond des champs de saisie et selects |
-| `--border-input` | `#2a2a2a` | 100% | Bordure des champs de saisie |
-| `--text-main` | `#cccccc` | 100% | Texte lisible par défaut dans les panneaux |
-| `--text-bright` | `#ffffff` | 100% | Titres, état actif, labels importants |
-| `--text-muted` | `#666666` | 100% | Labels secondaires, raccourcis, compteurs |
-| `--text-faint` | `#444444` | 100% | Placeholders, unités, séparateurs inactifs |
-| `--btn-active-bg`| `#2d2d2d` | 100% | Fond d'un bouton sélectionné / enfoncé |
-| `--btn-active-border`| `#444444`| 100% | Contour d'un bouton actif |
+* **À FAIRE** — **Barre flottante de sélection contextuelle** : centrée à `bottom: 12px`, fond `#1a1a1a`, bordure `#333333`, rayon 6 px, ombre `0 2px 12px rgba(0,0,0,0.5)`, padding `4px 8px` ; compteur `11 sélectionnés` avec séparateur `#2a2a2a` ; action **Verrouiller** (cadenas ; `Verrouillé` sur fond `#2a1a1a`, texte `#f87171`) ; action **Supprimer**.
+* **À FAIRE** — **Pastille de cible dorée** du panneau Ordonner quand la sélection n'est pas vide : fond `#1a1800`, bordure `#3a3000`, texte `#aa9900` — l'usage légitime de l'emphase. Le compteur est aujourd'hui en blanc.
+* **À VÉRIFIER** — Les 8 boutons de tri (`Ordre actuel`, `Couleur`, `Grand → Petit`, `Petit → Grand`, `Portrait`, `Paysage`, `Sombre → Clair`, `Clair → Sombre`) et les 5 modes (`Rangées compactes`, `Masonry`, `Grille alignée`, `Même hauteur`, `Par slot preset`) avec leurs descriptions ; champs `LARGEUR CIBLE` / `ESPACEMENT` ; bouton `Appliquer` (`#222` / `#ccc`). Le panneau existe et applique bien une disposition (`apply_dock_layout`, tests) ; la liste exacte reste à confronter.
+* **À FAIRE** — Compteur d'images `132img` à l'extrême droite de la toolbar, 11 px `#3a3a3a`.
 
 ---
 
 ## 3. Chrome Supérieur : Toolbar & BoardTabs
 
-![Gros plan Toolbar & BoardTabs](screens/02_toolbar_tabs_crop.png)
+> Tenus (`test_the_chrome_metrics_are_those_of_the_spec`, thème) : toolbar 44 px `#1a1a1a` bordure `#2a2a2a` ; boutons d'outil 30 × 30, actif `#2d2d2d` / `#ffffff` / contour `#444444`, inactif `#666666` ; onglets 34 px `#111111`, actif `#1a1a1a` / `#ffffff` souligné de 2 px blanc ; toasts (fiche 06 § 10.3).
 
-### 3.1 La Toolbar (`Toolbar.tsx`)
-
-- **Dimensions** : `height: 44px`, `width: 100%`, `padding: 0 12px`, `flexShrink: 0`.
-- **Fond & Bordure** : `background: #1a1a1a`, `borderBottom: 1px solid #2a2a2a`.
-- **Scroll horizontal fluide** : `overflowX: auto`, scrollbar masquée (`display: none`), aucun bouton ne se compresse (`flexShrink: 0`).
-- **Logo** :
-  - Texte : `Glucose` (ou `GLUCOSE`)
-  - Typographie : `font-size: 14px`, `font-weight: 700`, `letter-spacing: 2px`, `color: #ffffff`, `text-transform: uppercase`, `margin-right: 12px`.
-- **Séparateur vertical (`sep`)** :
-  - `width: 1px`, `height: 20px`, `background: #2a2a2a`, `margin: 0 4px`.
-- **Bouton d'Outil Carré (`ToolBtn`)** :
-  - `width: 30px`, `height: 30px`, `border-radius: 4px`, `border: none`.
-  - Inactif : `background: transparent`, `color: #666666`.
-  - Actif : `background: #2d2d2d`, `color: #ffffff`, `outline: 1px solid #444444`.
-  - Icônes vectorielles : SVG 12×12 ou 13×13, trait de `1.3px` à `1.5px`.
-- **Bouton d'Action Rectangulaire (`ActionBtn`)** :
-  - `padding: 4px 10px`, `gap: 5px`, `border-radius: 4px`, `border: none`, `font-size: 12px`.
-  - Inactif : `background: transparent`, `color: #666666`.
-  - Hover : `background: #1e1e1e`, `color: #cccccc`.
-  - Actif : `background: #2d2d2d`, `color: #cccccc`, `outline: 1px solid #444444`.
-- **Indicateur Collaboratif** :
-  - Pastille verte sur l'icône de globe quand actif : `width: 6px`, `height: 6px`, `border-radius: 50%`, `background: #10b981`, `box-shadow: 0 0 5px #10b981`.
-
-### 3.2 La Barre d'Onglets (`BoardTabs.tsx`)
-
-- **Dimensions** : `height: 34px`, `background: #111111`, `border-bottom: 1px solid #222222`.
-- **Comportement des Onglets** :
-  - `min-width: 100px`, `max-width: 180px`, `padding: 0 12px`, `font-size: 12px`, `gap: 6px`.
-  - Onglet inactif : `background: transparent`, `color: #555555`, `border-bottom: 2px solid transparent`, `border-right: 1px solid #1a1a1a`.
-  - Onglet actif : `background: #1a1a1a`, `color: #ffffff`, `border-bottom: 2px solid #ffffff`.
-  - Onglet survolé / cible de drag : `background: #1e1e1e`, `border-bottom: 2px solid #555555`.
-  - Pastille de Preset dans l'onglet : `font-size: 9px`, `padding: 1px 5px`, `border-radius: 8px`, `background: #2a2a2a`, `color: #666666`.
-  - Bouton Fermer `×` : rond 14×14px, `color: #444444`, hover `#333333` / `#aaaaaa`.
-  - Bouton Nouveau Board `+` : `width: 34px`, `font-size: 16px`, `color: #444444`, hover `#aaaaaa`.
+* **À VÉRIFIER** — Logo `GLUCOSE` 14 px 700 espacé de 2 px, marge droite 12 ; séparateurs 1 × 20 `#2a2a2a` marges 4 ; boutons d'action padding `4px 10px`, 12 px, survol `#1e1e1e` / `#cccccc`, actif `#2d2d2d` / `#cccccc` / `#444444` ; scroll horizontal sans compression.
+* **À VÉRIFIER** — Onglets : `min-width 100`, `max-width 180`, padding 12, 12 px, séparateur droit `#1a1a1a`, inactif `#555555`, survol / cible de drag `#1e1e1e` souligné `#555555` ; pastille de preset 9 px `#2a2a2a` / `#666666` ; fermeture `×` 14 px `#444444` (survol `#aaaaaa`) ; `+` 34 px de large, 16 px, `#444444`.
+* **À FAIRE** — Pastille verte `#10b981` de 6 px sur le globe quand la collaboration est active (fiche 09 § 9 : rien n'existe).
 
 ---
 
 ## 4. Système de Tiroirs & Docks (`PanelDock.tsx`)
 
-![Dock Triple avec trois panneaux ouverts](screens/05_dock_three_panels.png)
+> Tenus (`test_dock_anchors_and_defaults`, `test_dock_drag_swap_and_dismiss`) : deux docks — Domaines 320, Presets 280, Plugins 340 descendent du haut ; Ordonner 250, Storyboard 260, Pomodoro ≥ 160 montent du bas — ; fermeture au-delà de **80 px** de glissement vers la sortie (le Rust avait 60 ; Storyboard 280, Plugins 320, Domaines 336 sont alignés) ; échange de place par glissement horizontal.
 
-Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux docks rétractables situés aux coins gauches de l'écran :
-
-```
-[ANCRAGE TOP-LEFT] (top: 8px, left: 8px)
-  - Domaines (320px)
-  - Presets (280px)
-  - Plugins IA (340px)
-  Geste : Descend du haut comme un tiroir.
-  Poignée '⠿⠿' : Située en BAS du panneau.
-  Fermeture : Glisser vers le haut (dy * -1 > 80px).
-
-[ANCRAGE BOTTOM-LEFT] (bottom: 8px, left: 8px)
-  - Ordonner (250px)
-  - Storyboard (260px)
-  - Pomodoro Timer (min 160px)
-  Geste : Monte du bas.
-  Poignée '⠿⠿' : Située en HAUT du panneau.
-  Fermeture : Glisser vers le bas (dy * 1 > 80px).
-```
-
-### 4.1 Géométrie & Poignée de Préhension
-- **Poignée Braille** :
-  - Hauteur : `14px`, `position: absolute`, largeur 100%.
-  - Texte : `⠿⠿` (points braille U+283F U+283F).
-  - Typographie : `font-size: 9px`, `letter-spacing: 3px`, `color: #333333` (normal) ou `#888888` (glissé).
-  - Curseur : `cursor: grab` (inactif), `cursor: grabbing` (actif).
-- **Ombres & Élévation du Panneau** :
-  - Au repos : `box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5)`.
-  - En cours de drag : `box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), 0 0 0 1px #555555`.
-- **Physique d'Animation** :
-  - Entrée avec ressort : `transform: translateY(0) scale(1)` via `cubic-bezier(0.34, 1.56, 0.64, 1)` sur `220ms`.
-  - Sortie (Dismiss) : `transform: translateY(±48px) scale(0.88)`, `opacity: 0` via `cubic-bezier(0.4, 0, 1, 1)` sur `200ms`.
-  - Réordonnancement FLIP : `transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)`.
+* **À VÉRIFIER** — Ancrage à 8 px des bords ; poignée braille `⠿⠿` de 14 px (9 px, espacement 3, `#333333` / `#888888` glissée), en bas pour le dock du haut, en haut pour celui du bas ; curseurs `grab` / `grabbing`.
+* **À FAIRE** — Ombres : repos `0 4px 20px rgba(0, 0, 0, 0.5)`, glissé `0 16px 48px rgba(0, 0, 0, 0.9), 0 0 0 1px #555555`. Le Rust dessine une ombre décalée de 3 px à 0,63 (0,86 glissé).
+* **À FAIRE** — Animations : entrée `cubic-bezier(0.34, 1.56, 0.64, 1)` sur 220 ms, sortie `translateY(±48px) scale(0.88)` opacité 0 sur 200 ms, FLIP `0.25s cubic-bezier(0.22, 1, 0.36, 1)` (fiche 07 § 2).
 
 ---
 
 ## 5. Spécification Détaillée de Tous les Panneaux
 
 ### 5.1 Panneau Ordonner (`OrganizePanel.tsx`)
-
-![Panneau Ordonner](screens/03_panel_organize_full.png)
-
-```
-+---------------------------------------+
-| ORDONNER                              | <- Header (pad 10x14, border #1e1e1e)
-+---------------------------------------+
-| [ Toutes les images (12)            ] | <- Pill cible (bg #1a1a1a, border #222)
-|                                       |
-| TRIER AVANT DISPOSITION               | <- Label (font 10, uppercase, #555)
-| [Ordre actuel] [Couleur] [Grand->P.]  | <- Boutons pills (pad 3x8, r:3)
-| [Petit->Grand] [Portrait] [Paysage]   |
-|                                       |
-| DISPOSITION                           |
-| .-----------------------------------. |
-| | Rangées compactes                 | | <- Option active (bg #1e1e1e, b: #333)
-| | Respecte les ratios, remplit ...  | |
-| '-----------------------------------' |
-|   Masonry (colonnes)                  |
-|   Grille alignée                      |
-|                                       |
-| LARGEUR CIBLE        ESPACEMENT       |
-| [ 250              ] [ 10           ] | <- Inputs (pad 3x7, bg #1a1a1a, b: #2a2a2a)
-|                                       |
-| [               Appliquer           ] | <- Bouton action (bg #222, b: #333, text #ccc)
-+---------------------------------------+
-```
-- **Largeur** : `250px`.
-- **Fond** : `#111111`, bordure `1px solid #222222`, coins arrondis `6px`.
-- **Target pill** : si sélection > 0 : fond sombre doré `#1a1800`, bordure `#3a3000`, texte `#aa9900`.
-
----
+> Existe, branché, testé (`test_organize_layout_generation`, `test_organize_layout_exact_utf8_hit_test`). Voir § 1.2 pour ce qui reste.
 
 ### 5.2 Panneau Pomodoro (`PomodoroTimer.tsx` & `PomodoroOverlay.tsx`)
+> Existe : anneau, décompte, boutons. L'anneau est **blanc** — la référence le faisait bleu `#60a5fa`, dette que `style.md` avoue ; la loi de la couleur prime — et vert `#4ade80` une fois terminé (jeton `success`).
 
-![Panneau Pomodoro Timer](screens/04_dock_organize_pomodoro.png)
-
-```
-+-----------------------------------+
-| POMODORO                          |
-|                                   |
-|             .---.                 |
-|            /     \                | <- Anneau SVG 80x80px
-|           | 25:00 |               |    Piste: stroke #1e1e1e (w: 5)
-|            \     /                |    Arc:   stroke #60a5fa (w: 5, r: 30)
-|             '---'                 |    Texte: 17px/22px bold tabular-nums
-|                                   |
-|      [ Démarrer ]  [ ↺ ]          | <- Actions (pad 4x14, bg #1e1e1e)
-|                                   |
-|   [ 25 min ] [ 15 min ] [ 5 min ] | <- Presets rapides (pad 2x8, font 10)
-+-----------------------------------+
-```
-- **Dimensions** : `min-width: 160px`, `padding: 18px 18px 14px 18px`.
-- **Couleur de fin** : Vert émeraude `#4ade80` (remplace le bleu `#60a5fa`).
-- **Overlay Flottant (`PomodoroOverlay.tsx`)** :
-  - Visible en haut au centre de l'écran quand le timer tourne : `top: 10px, left: 50%, transform: translateX(-50%)`.
-  - Style : Pilule arrondie `border-radius: 20px`, `padding: 3px 12px`, `background: rgba(13, 13, 13, 0.75)`, `backdrop-filter: blur(6px)`.
-  - Bordure : `1px solid #60a5fa` (en cours) ou `1px solid #4ade80` (terminé).
-
----
+* **À VÉRIFIER** — Anneau 80 × 80, piste `#1e1e1e` de 5 px, rayon 30 ; temps en 17 px / 22 px gras `tabular-nums` ; actions `Démarrer` / `↺` (padding `4px 14px`, `#1e1e1e`) ; presets `25 min` / `15 min` / `5 min` (padding `2px 8px`, 10 px) ; panneau `min-width 160`, padding `18 18 14 18`, coins 8 px.
+* **À FAIRE** — **Overlay flottant** en haut au centre pendant le décompte : pilule `border-radius: 20px`, padding `3px 12px`, `rgba(13, 13, 13, 0.75)`, flou 6 px, bordure blanche (en cours) ou `#4ade80` (terminé).
 
 ### 5.3 Panneau Storyboard (`StoryboardControls.tsx`)
-
-```
-+-----------------------------------------+
-| STORYBOARD                              |
-+-----------------------------------------+
-| FORMAT                                  |
-| [ 16:9 — Cinéma HD                    v ] <- Select native dark
-|                                         |
-| LARGEUR       COLONNES      ESPACEMENT  |
-| [ 280       ] [ 4         ] [ 24      ] | <- Grille 3 colonnes
-|                                         |
-| .-------------------------------------. |
-| | [ 1 ] [ 2 ] [ 3 ] [ 4 ]             | | <- Miniature SVG temps réel
-| | [ 5 ] [ 6 ] [ 7 ] [ 8 ]             | |    (fond #0d0d0d, cadres fins)
-| '-------------------------------------' |
-|                                         |
-| [       Mettre à jour       ]  [ ✕ ]    | <- Bouton activer/maj + désactiver
-|                                         |
-| PANELS (8)                    [+Ajouter]|
-| 1  Plan large d'introduction            | <- Liste avec renumérotation
-| 2  Gros plan visage protagoniste        |
-+-----------------------------------------+
-```
-- **Largeur** : `260px`, `max-height: 80vh`.
-- **Ratios supportés** : `16:9` (1.777), `4:3` (1.333), `2.35:1` (2.35), `1:1` (1.0), `9:16` (0.562).
-
----
+> Façade honnête (fiche 09 § 8). Ratios `16:9` 1,777 · `4:3` 1,333 · `2.35:1` · `1:1` · `9:16` 0,562 ; largeur 260 ; `max-height: 80vh` ; miniature vectorielle temps réel ; bouton `Mettre à jour` / `✕` ; liste `PANELS (n)` avec `+ Ajouter` et renumérotation. Tout est **À FAIRE** avec la fonction.
 
 ### 5.4 Panneau Domaines Sémantiques (`DomainsPanel.tsx`)
+> Existe, branché, testé par la souris (`interactions/domains/tests.rs`, `dock/domains/tests.rs`). Palette des huit couleurs alignée sur la référence (`test_the_domain_palette_is_that_of_the_reference`) : `#60a5fa`, `#34d399`, `#f472b6`, `#fbbf24`, `#a78bfa`, `#f87171`, `#22d3ee`, `#fb923c`.
 
-![Tiroir Domaines Sémantiques](screens/06_drawer_domains.png)
-
-```
-+-----------------------------------------+
-| DOMAINES                                |
-+-----------------------------------------+
-| 3 nœuds sélectionnés — clique pour ...  | <- Ruban info sélection
-|                                         |
-| .-------------------------------------. |
-| | 🔬  Biochimie               [✎] [×] | | <- Carte domaine (border #60a5fa33)
-| | (---O------------------------)  25% | | <- Slider d'accentuation (accentColor)
-| '-------------------------------------' |
-|                                         |
-| .-------------------------------------. |
-| | 🎨  Design Graphique        [✎] [×] | |
-| | [■][■][■][■][■][■][■][■]            | | <- Palette en mode édition
-| '-------------------------------------' |
-|                                         |
-| [          + Nouveau domaine          ] | <- Bouton pointillé (border 1px dashed)
-+-----------------------------------------+
-```
-- **Largeur** : `320px`, tiroir haut-gauche (`max-height: 70vh`).
-- **8 Couleurs Normalisées** :
-  `#60a5fa` (Bleu), `#34d399` (Émeraude), `#f472b6` (Rose), `#fbbf24` (Ambre),
-  `#a78bfa` (Violet), `#f87171` (Rouge), `#22d3ee` (Cyan), `#fb923c` (Orange).
-- **12 Icônes Normalisées** : `🔬`, `🎨`, `🎮`, `📚`, `🌍`, `⚛`, `✦`, `♪`, `△`, `○`, `✿`, `❀`.
-
----
+* **Écart assumé, lié à la typographie** — les 12 icônes de la référence sont des emoji (`🔬`, `🎨`, `🎮`, `📚`, `🌍`, `⚛`, `✦`, `♪`, `△`, `○`, `✿`, `❀`) ; la police embarquée n'a pas ces glyphes, le Rust propose des sigles de trois capitales (`SCI`, `ART`, …). À revoir avec le rendu texte GPU.
+* **À VÉRIFIER** — Ruban d'information de sélection ; carte à liseré `couleur33` ; curseur d'accentuation ; palette en mode édition ; bouton `+ Nouveau domaine` en pointillé ; `max-height: 70vh`.
 
 ### 5.5 Panneau Presets Artistiques (`PresetPanel.tsx`)
+> Existe (280 px, quatre gabarits avec zones colorées).
 
-![Tiroir Presets Artistiques](screens/07_drawer_presets.png)
-
-- **Largeur** : `280px`, tiroir haut-gauche.
-- **Miniature SVG de Layout (`PresetThumb`)** :
-  - Dimensions : `220px × 56px`.
-  - Rendu vectoriel : chaque slot est un rectangle `rx: 2`, `fill: slot.color (18% alpha)`, `stroke: slot.color (45% alpha)`.
-  - Titre au centre du slot en police 9px.
-- **Liste des Slots du Board Actif** :
-  - Pastilles avec indicateur : `✓ Nom` (slot rempli) ou `○ Nom` (slot vacant).
-
----
+* **À VÉRIFIER** — Miniature `PresetThumb` 220 × 56 (slots `rx: 2`, remplissage couleur à 18 %, contour à 45 %, titre 9 px) ; liste des slots du board actif `✓ Nom` / `○ Nom` ; et le **branchement** : le noyau sait poser les zones d'un preset (`Store::apply_preset_to_board`, journalisé), mais aucun clic du panneau ne l'appelle (`PanelClickResult::Handled`).
 
 ### 5.5b Panneau Plugins & Modèles IA (`PluginsPanel.tsx`)
-
-![Tiroir Plugins et IA Locale](screens/08_drawer_plugins.png)
-
-- **Largeur** : `340px`, tiroir haut-gauche.
-- **Gestionnaire d'IA locale** :
-  - Détection automatique de l'accélération matérielle (WebGPU, Wasm SIMD).
-  - Statut de téléchargement des poids de modèles de vision (CLIP, MobileNet, embedder sémantique).
-  - Cartes avec bordure `#222222` et badge de disponibilité.
-
----
+> Façade honnête (fiche 09 § 10) : « Ollama : non détecté », rien de téléchargé. Détection de l'accélération (WebGPU, Wasm SIMD), statut des poids (CLIP, MobileNet, embedder), cartes bordées `#222222` avec badge : **À FAIRE** avec la fonction.
 
 ### 5.6 Panneau Collaboration Multijoueur (`MultiplayerPanel.tsx`)
-
-![Panneau Collaboration Multijoueur](screens/09_panel_multiplayer.png)
-
-```
-+-----------------------------------------+
-| 🌐 COLLABORATION · CONNECTÉ AU SERVEUR  | <- Header avec pastille verte #10b981
-+-----------------------------------------+
-| CODE DE LA CHAÎNE (à envoyer à ton pote)|
-| [ automerge:28f9a...          ] [Copier]| <- Code vert émeraude #10b981
-|                                         |
-| Chaîne active. Vous éditez à deux ...   |
-| [          Quitter la chaîne          ] | <- Bouton danger (bg #ef444414, text #f87171)
-|                                         |
-| MON IDENTITÉ                            |
-| (●) [ Alice                         ]   | <- Pastille couleur perso + pseudo
-| (●) (●) (●) (●) (●) (●) (●) (●)         | <- Swatches ronds 20x20px
-+-----------------------------------------+
-```
-- **Largeur** : `360px`, `top: 60px, right: 16px`, fond `rgba(20, 20, 24, 0.96)`.
-
----
+* **À FAIRE** (fiche 09 § 9) — 360 px, `top: 60px, right: 16px`, `rgba(20, 20, 24, 0.96)` ; en-tête `🌐 COLLABORATION · CONNECTÉ AU SERVEUR` avec pastille `#10b981` ; code de chaîne `automerge:…` en `#10b981` avec `Copier` ; `Quitter la chaîne` (fond `#ef444414`, texte `#f87171`) ; identité : pastille, pseudo, huit swatches ronds de 20 px.
 
 ### 5.7 Panneau Time Machine & Réglette Temporelle (`TimelinePanel.tsx`)
-
-![Tiroir Time Machine](screens/11_timemachine_drawer.png)
-
-```
-+-------------------------------------------------------------+
-| ⏳ Time Machine                        [ APERÇU ]       [✕] | <- Header avec badge ambre
-+-------------------------------------------------------------+
-| 14 GESTES                           14/14 · il y a 2 min    |
-| .---------------------------------------------------------. |
-| | | | | | | | | | | | | | | | | | | | | | | | | | |[|]    | | <- Track de scrub avec ticks
-| '---------------------------------------------------------' |    (curseur ambre ou vert)
-| [ ← Maintenant ]  [ ⏪ Restaurer cet état                 ] |
-+-------------------------------------------------------------+
-| 💾 VERSIONS DURABLES                                        |
-|                                                             |
-|   (●)  Refonte architecturale                   [↩ Restaurer| <- Nœud d'arbre (commit git)
-|    |   [MANUEL]  il y a 12 min                              |
-|    |                                                        |
-|   (●)  Sauvegarde automatique                   [↩ Restaurer|
-|        [AUTO]    il y a 1 h                                 |
-+-------------------------------------------------------------+
-| [                  + Marquer un jalon                     ] | <- Bouton primaire ambre #fbbf24
-| [               🗜️ Compacter l'historique                  ] |
-+-------------------------------------------------------------+
-```
-- **Largeur** : `324px`, positionné à `top: 12, right: 12, bottom: 12`.
-- **Liseré Ambre Plein Écran (Mode Aperçu)** :
-  - `position: fixed, inset: 0, pointer-events: none`.
-  - `border: 3px solid #fbbf24`.
-  - `box-shadow: inset 0 0 60px rgba(251, 191, 36, 0.18)`.
-
-#### Réglette Temporelle Bas d'Écran (`TemporalRuler.tsx`)
-
-![Réglette Temporelle Panoramique](screens/12_temporal_ruler.png)
-
-- **Réglette Temporelle Bas d'Écran** :
-  - `height: 88px, bottom: 16px, left: 16px, right: 16px`.
-  - Fond sombre dégradé avec flou `backdrop-filter: blur(6px)`.
-  - Piste principale avec ticks d'années et étiquettes textuelles.
-  - Fenêtre sélectionnée : fond ambre `rgba(253, 224, 71, 0.16)`.
-  - Poignées de redimensionnement de l'intervalle : dégradé `linear-gradient(180deg, #fde68a, #fbbf24)`, halo `0 0 6px rgba(253,224,71,0.4)`.
-
----
+* **À FAIRE** (fiche 09 § 2.1, § 3.3 : jalons durables) — 324 px, `top/right/bottom: 12` ; en-tête `⏳ Time Machine` avec badge ambre `APERÇU` ; `n GESTES`, `n/n · il y a …` ; piste de scrub à ticks, curseur ambre ou vert ; `← Maintenant`, `⏪ Restaurer cet état` ; `💾 VERSIONS DURABLES` en arbre (`[MANUEL]` / `[AUTO]`, `↩ Restaurer`) ; `+ Marquer un jalon` (primaire ambre `#fbbf24`), `🗜️ Compacter l'historique` ; en mode aperçu, liseré plein écran `3px solid #fbbf24` avec `inset 0 0 60px rgba(251, 191, 36, 0.18)`.
+* **À FAIRE** (fiche 09 § 7.2) — **Réglette temporelle** : `height: 88px`, à 16 px des bords, fond sombre flouté 6 px, ticks d'années et étiquettes, fenêtre sélectionnée `rgba(253, 224, 71, 0.16)`, poignées `linear-gradient(180deg, #fde68a, #fbbf24)` avec halo `0 0 6px rgba(253, 224, 71, 0.4)`.
 
 ### 5.8 Panneau de Recherche Globale (`SearchPanel.tsx`)
-
-![Recherche Modale Centrée](screens/10_search_modal.png)
-
-- **Position & Dimensions** : `position: fixed, top: 80px, left: 50%, transform: translateX(-50%)`, `width: 480px`, `max-width: 90vw`.
-- **Fond & Ombre** : `background: #1a1a1a`, `border: 1px solid #333333`, `box-shadow: 0 8px 32px rgba(0,0,0,0.6)`, `border-radius: 8px`.
-- **Icônes par type** : `☰` Board, `▣` Image, `T` Texte, `N` Note sticky.
-- **Raccourci de fermeture** : Badge `<kbd>Esc</kbd>` (`border: 1px solid #2a2a2a, font-size: 10px`).
-
----
+* **À FAIRE** — `Ctrl+F` : modale à `top: 80px`, centrée, 480 px (`max-width: 90vw`), `#1a1a1a`, bordure `#333333`, ombre `0 8px 32px rgba(0,0,0,0.6)`, rayon 8 ; icônes `☰` Board, `▣` Image, `T` Texte, `N` Note ; badge `Esc` (bordure `#2a2a2a`, 10 px).
 
 ### 5.9 HUD Télémétrique & Diagnostic (`DiagnosticsHUD.tsx`)
-
-![HUD Diagnostics Télémétrie](screens/13_diagnostics_hud.png)
-
-- **Raccourci d'ouverture** : `Ctrl+Shift+D`.
-- **Position & Style** : `fixed, top: 64px, right: 12px, z-index: 2000`, `background: #0d0d0dee`, `border: 1px solid #26262e`, `border-radius: 6px`, `padding: 8px 10px`.
-- **Typographie** : `font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace`.
-- **Indicateur de statut** : Rond 8×8px, vert `#4ade80` (60 FPS fluide) ou rouge `#f87171` (chute de FPS / lag / pilote logiciel).
+* **À FAIRE** — `Ctrl+Shift+D` : `top: 64px, right: 12px`, `#0d0d0dee`, bordure `#26262e`, rayon 6, padding `8px 10px`, `11px/1.55 ui-monospace` ; rond de 8 px vert `#4ade80` (60 fps) ou rouge `#f87171`. `perf.rs` instrumente la console sous `GLUCOSE_PERF=1` ; rien à l'écran.
 
 ---
 
 ## 6. Éléments du Canvas : Barres d'Options Flottantes
 
 ### 6.1 Options de Membrane (`MembraneOptions.tsx`)
-
-- **Position** : `position: absolute, bottom: 48px, left: 50%, transform: translateX(-50%)`.
-- **Style** : `background: #111111`, `border: 1px solid #2a2a2a`, `border-radius: 6px`, `padding: 8px 12px`, `box-shadow: 0 4px 20px rgba(0,0,0,0.7)`.
-- **Boutons de Mode** :
-  - `Classique` | `Minimisée` | `Étirée`
-  - Bouton actif : `background: #2d2d2d, border: 1px solid #555555, color: #cccccc`.
-  - Bouton désactivé (aller sans retour) : `color: #3a3a3a, border: 1px solid #242424, cursor: not-allowed`.
-- **Bouton Rideau** : Crée un espace de travail collaboratif personnel rattaché à la membrane.
+* **À FAIRE** (fiche 08 § 7.1) — `bottom: 48px`, centrée ; `#111111`, bordure `#2a2a2a`, rayon 6, padding `8px 12px`, ombre `0 4px 20px rgba(0,0,0,0.7)` ; `Classique` | `Minimisée` | `Étirée` (actif `#2d2d2d` / `#555555` / `#cccccc` ; désactivé `#3a3a3a` / `#242424`, `not-allowed`) ; bouton **Rideau**.
 
 ### 6.2 Options de Flèche (`ArrowOptions.tsx`)
-
-- **Position** : Identique (`bottom: 48px, left: 50%`).
-- **Options de style** : `Droite` | `Courbe`, `⇄` (bidirectionnel), épaisseurs `1`, `2`, `3`, `5`.
-- **6 Prédicats Sémantiques Normalisés** :
-  - `→ précurseur` : `#f59e0b` (Ambre)
-  - `✗ contredit` : `#ef4444` (Rouge)
-  - `⊂ hérite` : `#8b5cf6` (Violet)
-  - `✦ inspire` : `#10b981` (Émeraude)
-  - `⊕ dépend` : `#3b82f6` (Bleu)
-  - `◎ illustre` : `#f472b6` (Rose)
+* **À FAIRE** — Même position ; `Droite` | `Courbe`, `⇄`, épaisseurs `1` `2` `3` `5` ; les six prédicats avec **leur couleur** : `→ précurseur` `#f59e0b`, `✗ contredit` `#ef4444`, `⊂ hérite` `#8b5cf6`, `✦ inspire` `#10b981`, `⊕ dépend` `#3b82f6`, `◎ illustre` `#f472b6` (les prédicats existent dans le modèle, fiche 08 § 4.3 ; ni barre, ni couleur).
 
 ---
 
 ## 7. Rendu Visuel des Nœuds du Canvas
 
-![Canvas avec Nœuds Réels en Action](screens/14_canvas_with_live_elements.png)
-
-### 7.1 Cartes de Texte & Nuages Markdown
-
-- **Rayon de Courbure** : `border-radius: 32px` (forme de galet doux).
-- **Padding** : `16px 24px`.
-- **Effet de Brume & Aura Lumineuse** :
-  - Couleur calculée via l'algorithme de **symbiose chromatique** (`auraColor`).
-  - Fond brumeux : `background: color-mix(in srgb, ${auraColor} 3%, transparent)`.
-  - Halo diffus : `box-shadow: 0 0 60px 30px color-mix(in srgb, ${auraColor} 15%, transparent)`.
-  - En survol / prévisualisation : `box-shadow: 0 0 80px 40px color-mix(in srgb, ${auraColor} 40%, transparent)`.
-- **Sélection active** : Contour pointillé fin `1px dashed rgba(255, 255, 255, 0.5)` avec `outline-offset: 4px`.
-
-### 7.2 Notes Sticky & Opérateurs Logiques
-
-- **Sticky Standard** :
-  - Dimensions par défaut : `160px × 120px`.
-  - Fond par défaut : Jaune post-it `#f5c542`.
-  - Bande supérieure collante : `height: 16px`, `background: rgba(255, 255, 255, 0.15)`.
-  - Poignées de coin : 4 carrés de `8×8px` blancs avec contour noir `1px solid #333333`.
-- **Pilules d'Opérateurs Logiques (`ann.operator`)** :
-  - `height: 44px`, `border-radius: 22px`.
-  - Largeur : `80px` (`ET`, `OU`, `MAIS`) ou `130px` (`PARCE QUE`).
-  - Fond : `${color}20` (12% opacité).
-  - Bordure : `1.5px solid ${color}`.
-  - Halo lumineux : `box-shadow: 0 0 18px ${color}33` (normal) ou `0 0 0 2px #fff, 0 0 18px ${color}55` (sélectionné).
-  - Typographie : `font-size: 13px, font-weight: 700, letter-spacing: 1px, text-transform: uppercase`.
-
----
-
-## 8. Tableau Synthétique pour le Rendu Rust Natif
-
-Pour implémenter ces composants dans un moteur de rasterisation purement logiciel en Rust (framebuffer pixel RGBA8) :
-
-| Composant | Largeur | Hauteur | Fond (RGBA) | Bordure | Coins (R) | Ombres & Spécificités |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Toolbar** | 100% | 44 px | `(26, 26, 26, 255)` | Bas `1px (42, 42, 42)` | 0 | Logo blanc 14px bold, gap 2px |
-| **ToolBtn** | 30 px | 30 px | Actif `(45, 45, 45, 255)` | Actif `1px (68, 68, 68)` | 4 px | Icônes centrées 12-14px |
-| **BoardTabs** | 100% | 34 px | `(17, 17, 17, 255)` | Bas `1px (34, 34, 34)` | 0 | Onglet actif souligné de 2px blanc |
-| **PanelDock Grip**| 100% | 14 px | Transparent | Aucune | 6 px | Glyphe `⠿⠿` 9px centré |
-| **OrganizePanel**| 250 px | Auto | `(17, 17, 17, 255)` | `1px (34, 34, 34)` | 6 px | `box-shadow 0 4px 20px rgba(0,0,0,0.5)` |
-| **Pomodoro** | 160 px | Auto | `(17, 17, 17, 255)` | `1px (34, 34, 34)` | 8 px | Cercle $R=30$ px, épaisseur 5px |
-| **Storyboard** | 260 px | Max 80vh | `(17, 17, 17, 255)` | `1px (34, 34, 34)` | 6 px | Miniature grille vectorielle |
-| **DomainsPanel** | 320 px | Max 70vh | `(17, 17, 17, 255)` | `1px (34, 34, 34)` | 6 px | Cartes avec liseré couleur à 20% alpha |
-| **TimelinePanel**| 324 px | 100% - 24px | `(20, 20, 24, 247)` | `1px (42, 42, 42)` | 10 px | Scrubber ambre/gris + arbre vertical |
-| **TemporalRuler**| 100% - 32px | 88 px | `(20, 20, 24, 235)` | `1px (42, 42, 42)` | 8 px | Poignées dégradé doré `#fbbf24` |
-| **Text Cloud** | Auto / Max 600| Auto | Teinte symbiotique 3% | Pointillé blanc si sel | 32 px | Halo gaussien étendu 60px à 15% alpha |
-| **Sticky Op** | 80 / 130 px | 44 px | Couleur opérateur 12% | `1.5px` couleur op | 22 px | Halo néon 18px à 20% alpha |
-| **Minimap** | 180 px | 120 px | `(13, 13, 13, 235)` | `1px (42, 42, 42)` | 4 px | Rendu proportionnel réduit + crosshair |
+> Voir la fiche 06 § 5 : cartes (tenu), notes (tenu pour les métriques ; ombre, bande collante `16px` à `rgba(255, 255, 255, 0.15)`, poignées en disques à faire), pilules d'opérateur (à faire).

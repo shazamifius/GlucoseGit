@@ -43,14 +43,16 @@ impl TabId {
         }
     }
 
+    /// Largeurs de la fiche 10 § 4 : Domaines 320, Presets 280, Plugins 340 en haut ;
+    /// Ordonner 250, Storyboard 260, Pomodoro 160 au minimum en bas.
     pub fn default_width(&self) -> f32 {
         match self {
             Self::Organize => 250.0,
             Self::Pomodoro => 170.0,
-            Self::Storyboard => 280.0,
-            Self::Plugins => 320.0,
+            Self::Storyboard => 260.0,
+            Self::Plugins => 340.0,
             Self::Preset => 280.0,
-            Self::Domains => 336.0,
+            Self::Domains => 320.0,
         }
     }
 
@@ -65,6 +67,9 @@ impl TabId {
         }
     }
 }
+
+/// Glissement d'un panneau vers sa sortie au-delà duquel il se ferme (fiche 10 § 4 : 80 px).
+pub const DISMISS_DRAG_PX: f32 = 80.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DockAnchor {
@@ -325,12 +330,14 @@ impl DockManager {
         swapped
     }
 
+    /// Un panneau glissé de plus de [`DISMISS_DRAG_PX`] vers sa sortie — le haut pour le
+    /// dock du haut, le bas pour celui du bas — se ferme (fiche 10 § 4).
     pub fn finish_drag(&mut self) -> Option<TabId> {
         let drag = self.drag.take()?;
         let dy = drag.current_y - drag.start_y;
         let should_dismiss = match drag.tab.anchor() {
-            DockAnchor::TopLeft => dy < -60.0,
-            DockAnchor::BottomLeft => dy > 60.0,
+            DockAnchor::TopLeft => dy < -DISMISS_DRAG_PX,
+            DockAnchor::BottomLeft => dy > DISMISS_DRAG_PX,
         };
 
         if should_dismiss {
@@ -1099,11 +1106,10 @@ fn render_pomodoro_content(
         1.0
     };
 
-    let ring_color = if state.left_seconds == 0 {
-        Color::from_rgba8(74, 222, 128, 255)
-    } else {
-        theme.accent_primary
-    };
+    // La chrome est monochrome : l'anneau est blanc. La référence le faisait bleu — la dette
+    // que style.md avoue — et le port l'avait mis sur l'accent, qui n'est pas pour cela. Le
+    // vert de fin est une couleur de contenu (fiche 10 § 1 : « validation Pomodoro »).
+    let ring_color = if state.left_seconds == 0 { theme.success } else { theme.text_accent };
 
     let mut prog_paint = Paint::default();
     prog_paint.set_color(ring_color);
@@ -1733,6 +1739,9 @@ mod tests {
     use super::*;
 
     #[test]
+    /// Fiche 10 § 4 — deux docks : Domaines, Presets, Plugins descendent du haut ; Ordonner,
+    /// Storyboard, Pomodoro montent du bas. Largeurs 320 / 280 / 340 et 250 / 260 / ≥ 160.
+    /// Fermeture au-delà de 80 px de glissement vers la sortie.
     fn test_dock_anchors_and_defaults() {
         assert_eq!(TabId::Organize.anchor(), DockAnchor::BottomLeft);
         assert_eq!(TabId::Pomodoro.anchor(), DockAnchor::BottomLeft);
@@ -1740,6 +1749,14 @@ mod tests {
         assert_eq!(TabId::Plugins.anchor(), DockAnchor::TopLeft);
         assert_eq!(TabId::Preset.anchor(), DockAnchor::TopLeft);
         assert_eq!(TabId::Domains.anchor(), DockAnchor::TopLeft);
+
+        assert_eq!(TabId::Domains.default_width(), 320.0);
+        assert_eq!(TabId::Preset.default_width(), 280.0);
+        assert_eq!(TabId::Plugins.default_width(), 340.0);
+        assert_eq!(TabId::Organize.default_width(), 250.0);
+        assert_eq!(TabId::Storyboard.default_width(), 260.0);
+        assert!(TabId::Pomodoro.default_width() >= 160.0);
+        assert_eq!(DISMISS_DRAG_PX, 80.0);
     }
 
     #[test]
@@ -1778,7 +1795,12 @@ mod tests {
         assert!(swapped);
         assert_eq!(dock.bottom_tabs, vec![TabId::Pomodoro, TabId::Organize]);
 
-        dock.update_drag(50.0, 580.0);
+        // 79 px vers le bas : le panneau reste ; 81 px : il se ferme (fiche 10 § 4, 80 px).
+        dock.update_drag(50.0, 579.0);
+        assert_eq!(dock.finish_drag(), None, "sous le seuil, le panneau reste");
+        assert!(dock.is_open(TabId::Pomodoro));
+        dock.drag = Some(DragSession { tab: TabId::Pomodoro, start_x: 300.0, start_y: 500.0, current_x: 300.0, current_y: 500.0 });
+        dock.update_drag(300.0, 581.0);
         let dismissed = dock.finish_drag();
         assert_eq!(dismissed, Some(TabId::Pomodoro));
         assert!(!dock.is_open(TabId::Pomodoro));
