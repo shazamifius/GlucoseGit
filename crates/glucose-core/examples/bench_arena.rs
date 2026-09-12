@@ -14,6 +14,7 @@
 //! 3. **Combien coûte retrouver un nœud ?** Balayage de `String` contre accès tableau.
 //! 4. **Combien coûte une requête de viewport ?** C'est le geste dominant, à chaque frame.
 
+use glucose_core::arena::bridge::Bridge;
 use glucose_core::arena::grid::Grid;
 use glucose_core::arena::text::TextArena;
 use glucose_core::arena::{Arena, Box2, Kind, NodeId};
@@ -172,6 +173,24 @@ fn mesurer_ancien(n: usize) -> Mesure {
     }
     let lookup_us = ms(t) * 1000.0 / sondes as f64;
     assert!(trouves > 0, "les sondes doivent trouver quelque chose");
+
+    // Le pont : ce que coute de porter un document existant dans l'arene, et ce qu'il y pese.
+    // C'est la mesure qui dit si la substitution est praticable sur un vrai document.
+    let avant_pont = live();
+    let t = Instant::now();
+    let pont = Bridge::from_board(board);
+    let pont_ms = ms(t);
+    let pont_octets = live().saturating_sub(avant_pont);
+    let t = Instant::now();
+    let retour = pont.to_board_like(board);
+    let retour_ms = ms(t);
+    assert_eq!(retour.images.len(), board.images.len());
+    assert_eq!(retour.annotations.len(), board.annotations.len());
+    println!(
+        "         |           | pont : import {pont_ms:>7.0} ms, export {retour_ms:>7.0} ms, document sur l'arene {:>6.1} Mo (noms compris {:>6.1} Mo)",
+        pont.doc.bytes() as f64 / 1_048_576.0,
+        pont_octets as f64 / 1_048_576.0,
+    );
 
     // Requête de viewport par balayage du modèle — ce que fait le renderer sans index.
     let (vx, vy, vw, vh) = vue(n);

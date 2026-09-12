@@ -66,6 +66,8 @@
 //! - La place n'est rendue qu'au compactage, opération explicite et rare. C'est le prix, et il
 //!   est connu : [`Arena::dead`] le mesure à tout instant.
 
+pub mod bridge;
+pub mod doc;
 pub mod grid;
 pub mod sparse;
 pub mod text;
@@ -111,6 +113,17 @@ impl NodeId {
     }
 }
 
+impl Default for NodeId {
+    /// L'absence de nœud.
+    ///
+    /// Surtout pas le dérivé, qui vaudrait `NodeId(0)` et désignerait le **premier nœud du
+    /// document** : un champ oublié pointerait alors silencieusement sur un vrai nœud, au lieu
+    /// de ne rien désigner.
+    fn default() -> Self {
+        Self::NONE
+    }
+}
+
 /// Le genre d'un nœud. Ce que l'ancien modèle exprimait par une variante d'énumération, et
 /// faisait payer à tous les autres.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -126,6 +139,9 @@ pub enum Kind {
 }
 
 /// Les propriétés booléennes d'un nœud, un bit chacune.
+///
+/// Les huit bits sont pris. Un neuvième coûterait un octet de plus par nœud — dix mégaoctets
+/// sur dix millions — ce qui reste acceptable, mais mérite d'être décidé plutôt que subi.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Flags(u8);
 
@@ -144,6 +160,14 @@ impl Flags {
     pub const ARROW_BIDIRECTIONAL: Self = Self(1 << 4);
     /// Pour une image : le média est une vidéo.
     pub const VIDEO: Self = Self(1 << 5);
+    /// La largeur du nœud est calculée par la mise en page, non imposée par l'utilisateur.
+    ///
+    /// L'ancien modèle disait cela par un `width: None`, et laissait le culling sans taille :
+    /// il fallait deviner ou refaire la mise en page pour savoir ce que le nœud occupe. Ici la
+    /// boîte est **toujours** renseignée — le drapeau dit seulement qui en décide.
+    pub const AUTO_WIDTH: Self = Self(1 << 6);
+    /// La hauteur du nœud est calculée par la mise en page, non imposée par l'utilisateur.
+    pub const AUTO_HEIGHT: Self = Self(1 << 7);
 
     /// Vrai si tous les bits de `other` sont posés.
     pub const fn has(self, other: Self) -> bool {
