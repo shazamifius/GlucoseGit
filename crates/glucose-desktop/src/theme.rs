@@ -16,14 +16,14 @@ pub const MAX_UI_SCALE: f32 = 4.0;
 /// les couleurs de l'application (standard § 4.6) et que ces huit teintes sont choisies pour
 /// rester distinctes les unes des autres sur le fond sombre du canevas.
 pub const DOMAIN_PALETTE: [&str; 8] = [
-    "#38bdf8", // ciel
+    "#60a5fa", // bleu
     "#34d399", // émeraude
     "#f472b6", // rose
     "#fbbf24", // ambre
     "#a78bfa", // violet
-    "#fb7185", // corail
-    "#4ade80", // vert
-    "#f0abfc", // orchidée
+    "#f87171", // rouge
+    "#22d3ee", // cyan
+    "#fb923c", // orange
 ];
 
 /// Sigles proposés aux domaines, dans l'ordre où le panneau les parcourt.
@@ -53,9 +53,9 @@ pub struct Theme {
     pub bg_canvas: Color,
     /// `surface-toolbar` — la barre d'outils.
     pub bg_header: Color,
-    /// `surface-panel` — les panneaux du dock.
+    /// Fond des panneaux du dock : `#111` dans la référence (fiche 10 § 5, `--bg-panel`).
     pub bg_panel: Color,
-    /// `surface-root` — conteneurs sombres, barre d'onglets, cellules.
+    /// Surface interne relevée d'un panneau — en-têtes, cartes, cellules : `#161616`.
     pub bg_card: Color,
     /// `surface-btn-hover`.
     pub bg_hover: Color,
@@ -63,7 +63,7 @@ pub struct Theme {
     pub bg_active: Color,
 
     // ── Filets (§ 2.2) ─────────────────────────────────────────────────────
-    /// `hairline-dark`.
+    /// `hairline-dark` — contour des panneaux et séparateurs d'onglets : `#222222`.
     pub border_subtle: Color,
     /// `hairline-base`.
     pub border_medium: Color,
@@ -129,6 +129,10 @@ pub struct Theme {
     pub badge_bg: Color,
     pub badge_text: Color,
 
+    /// Accent sémantique « succès » : la fin d'un Pomodoro (fiche 10 § 1, `#4ade80` dans la
+    /// référence). Vert, et seulement pour cela.
+    pub success: Color,
+
     /// Accent sémantique « alerte / erreur / destruction » (§ 2.4) : image verrouillée,
     /// lien rompu, bouton de suppression survolé. Rouge, et seulement pour cela.
     pub danger: Color,
@@ -167,12 +171,12 @@ impl Theme {
         Self {
             bg_canvas: hex(0x0d0d0d),
             bg_header: hex(0x1a1a1a),
-            bg_panel: hex(0x161616),
-            bg_card: hex(0x111111),
+            bg_panel: hex(0x111111),
+            bg_card: hex(0x161616),
             bg_hover: hex(0x1e1e1e),
             bg_active: hex(0x2d2d2d),
 
-            border_subtle: hex(0x1c1c1c),
+            border_subtle: hex(0x222222),
             border_medium: hex(0x2a2a2a),
             border_accent: hex(0x444444),
 
@@ -214,6 +218,7 @@ impl Theme {
             badge_bg: hex(0x1e1e1e),
             badge_text: hex(0x888888),
 
+            success: hex(0x4ade80),
             danger: hex(0xef4444),
 
             domain_fallback: hex(0x888888),
@@ -248,14 +253,14 @@ mod tests {
         // § 2.1 surfaces
         assert_eq!(rgba(t.bg_canvas), (0x0d, 0x0d, 0x0d, 255), "canvas-bg");
         assert_eq!(rgba(t.bg_header), (0x1a, 0x1a, 0x1a, 255), "surface-toolbar");
-        assert_eq!(rgba(t.bg_panel), (0x16, 0x16, 0x16, 255), "surface-panel");
-        assert_eq!(rgba(t.bg_card), (0x11, 0x11, 0x11, 255), "surface-root");
+        assert_eq!(rgba(t.bg_panel), (0x11, 0x11, 0x11, 255), "--bg-panel (fiche 10)");
+        assert_eq!(rgba(t.bg_card), (0x16, 0x16, 0x16, 255), "surface interne relevée");
         assert_eq!(rgba(t.bg_hover), (0x1e, 0x1e, 0x1e, 255), "surface-btn-hover");
         assert_eq!(rgba(t.bg_active), (0x2d, 0x2d, 0x2d, 255), "surface-btn-active");
         assert_eq!(rgba(t.toast_bg), (0x1a, 0x1a, 0x1a, 247), "surface-toast 0.97");
         assert_eq!(rgba(t.minimap_bg), (0x0d, 0x0d, 0x0d, 235), "surface-minimap 0.92");
         // § 2.2 filets
-        assert_eq!(rgba(t.border_subtle), (0x1c, 0x1c, 0x1c, 255), "hairline-dark");
+        assert_eq!(rgba(t.border_subtle), (0x22, 0x22, 0x22, 255), "--border-panel (fiche 10)");
         assert_eq!(rgba(t.border_medium), (0x2a, 0x2a, 0x2a, 255), "hairline-base");
         assert_eq!(rgba(t.btn_border), (0x33, 0x33, 0x33, 255), "hairline-muted");
         assert_eq!(rgba(t.border_accent), (0x44, 0x44, 0x44, 255), "hairline-active");
@@ -272,6 +277,7 @@ mod tests {
         // § 2.4 l'unique accent
         assert_eq!(rgba(t.accent_primary), (0xea, 0xb3, 0x08, 255), "le jaune, et rien d'autre");
         assert_eq!(rgba(t.danger), (0xef, 0x44, 0x44, 255), "alerte / erreur / destruction");
+        assert_eq!(rgba(t.success), (0x4a, 0xde, 0x80, 255), "validation Pomodoro");
         // § 4.2 poignées, § 5.2 note, § 9 minimap, § 10.3 toast
         assert_eq!(rgba(t.handle_fill), (255, 255, 255, 255));
         assert_eq!(rgba(t.handle_outline), (0x11, 0x11, 0x11, 230), "liseré noir à 0,90");
@@ -309,6 +315,17 @@ mod tests {
             let (r, g, b, _) = rgba(c);
             assert!(r == g && g == b, "{name} n'est pas un gris neutre : ({r}, {g}, {b})");
         }
+    }
+
+    /// Fiche 10 § 5.4 — les huit couleurs proposées aux domaines sont celles de la référence
+    /// (`PRESET_COLORS` de `DomainsPanel.tsx`), dans le même ordre : le premier domaine créé
+    /// ici a la couleur du premier domaine créé là-bas.
+    #[test]
+    fn test_the_domain_palette_is_that_of_the_reference() {
+        assert_eq!(
+            DOMAIN_PALETTE,
+            ["#60a5fa", "#34d399", "#f472b6", "#fbbf24", "#a78bfa", "#f87171", "#22d3ee", "#fb923c"]
+        );
     }
 
     /// § 4.6 — la palette des domaines vit dans le thème, et chacune de ses entrées est un
