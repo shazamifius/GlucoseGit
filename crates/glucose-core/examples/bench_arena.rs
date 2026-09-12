@@ -15,6 +15,7 @@
 //! 4. **Combien coûte une requête de viewport ?** C'est le geste dominant, à chaque frame.
 
 use glucose_core::arena::bridge::Bridge;
+use glucose_core::quadtree::SpatialHash;
 use glucose_core::arena::grid::Grid;
 use glucose_core::arena::text::TextArena;
 use glucose_core::arena::{Arena, Box2, Kind, NodeId};
@@ -174,6 +175,22 @@ fn mesurer_ancien(n: usize) -> Mesure {
     let lookup_us = ms(t) * 1000.0 / sondes as f64;
     assert!(trouves > 0, "les sondes doivent trouver quelque chose");
 
+    // L'index historique : ce que coute sa PREMIERE construction, puis une synchronisation
+    // ou rien n'a bouge — celle que le renderer paie a chaque changement de version, donc a
+    // chaque evenement de souris pendant un glisser.
+    let t = Instant::now();
+    let mut sh = SpatialHash::new(512.0);
+    sh.index_board(board);
+    let sh_build_ms = ms(t);
+    let t = Instant::now();
+    for _ in 0..5 {
+        sh.index_board(board);
+    }
+    let sh_sync_ms = ms(t) / 5.0;
+    println!(
+        "         |           | SpatialHash : construction {sh_build_ms:>7.0} ms, synchronisation a vide {sh_sync_ms:>7.1} ms"
+    );
+
     // Le pont : ce que coute de porter un document existant dans l'arene, et ce qu'il y pese.
     // C'est la mesure qui dit si la substitution est praticable sur un vrai document.
     let avant_pont = live();
@@ -221,7 +238,7 @@ fn mesurer_ancien(n: usize) -> Mesure {
 fn mesurer_arene(n: usize) -> Mesure {
     let avant = live();
     let t = Instant::now();
-    let (arene, textes) = build_arene(n);
+    let (mut arene, textes) = build_arene(n);
     let build_ms = ms(t);
     let octets = live().saturating_sub(avant);
     let mo = |o: usize| o as f64 / 1_048_576.0;
@@ -274,6 +291,30 @@ fn mesurer_arene(n: usize) -> Mesure {
         g.cell_size(),
         g.large(),
     );
+    // Le geste de tous les jours : saisir une carte et la faire glisser. A chaque pas, le
+    // noeud est signale a l'index, puis l'ecran est requis. C'est CE cout qui doit tenir dans
+    // la frame, pas celui d'une reconstruction.
+    let mut g2 = Grid::build(&arene);
+    let mut pas = 0usize;
+    let mut reconstructions = 0usize;
+    let t = Instant::now();
+    while pas < 1_000 {
+        let id = NodeId::from_index(pas % n);
+        if let Some(avant) = arene.box_of(id) {
+            arene.translate(id, Fx::from_px(3), Fx::from_px(2));
+            if g2.moved(id, Some(avant)) {
+                g2 = Grid::build(&arene);
+                reconstructions += 1;
+            }
+        }
+        g2.query(&arene, v, &mut par_index);
+        pas += 1;
+    }
+    let glisser_us = ms(t) * 1000.0 / pas as f64;
+    println!(
+        "         |           | glisser : {glisser_us:>8.2} us par pas (deplacement + requete), {reconstructions} reconstruction(s) en {pas} pas"
+    );
+
     // Le cout d'une requete doit suivre ce qui est VISIBLE, pas le nombre de noeuds. Trois
     // echelles de vue le disent : un ecran, puis cent fois et dix mille fois sa surface.
     for (nom, facteur) in [("ecran", 1.0), ("x10", 10.0), ("x100", 100.0)] {

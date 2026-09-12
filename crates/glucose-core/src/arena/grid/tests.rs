@@ -261,3 +261,148 @@ fn test_la_verification_attrape_une_incoherence() {
     g.starts.pop(); // plus assez de bornes
     assert!(g.check(&a).unwrap_err().contains("bornes pour"));
 }
+
+// ── La liste de transit ──────────────────────────────────────────────────────
+
+/// **La loi du transit** : après des déplacements signalés, l'index rend toujours exactement ce
+/// que rend le balayage. C'est la même exigence que pour un index fraîchement construit, et
+/// c'est elle qui autorise à ne pas reconstruire.
+#[test]
+fn test_apres_des_deplacements_l_index_rend_toujours_ce_que_rend_le_balayage() {
+    let mut a = peupler("desordre", 1_000);
+    let mut g = Grid::build(&a);
+    let mut r = Lcg(0xdec1);
+
+    // Un glisser : cinquante nœuds traversent le document, un par un.
+    for k in 0..50 {
+        let id = NodeId::from_index(k * 7 % a.slots());
+        let Some(avant) = a.box_of(id) else { continue };
+        a.translate(id, px(r.coord(30_000)), px(r.coord(30_000)));
+        g.moved(id, Some(avant));
+    }
+    g.check(&a).unwrap();
+
+    let (mut par_index, mut par_balayage) = (Vec::new(), Vec::new());
+    for essai in 0..300 {
+        let taille = if essai % 3 == 0 { 50 } else { 5_000 };
+        let vue = boite(r.coord(35_000), r.coord(35_000), taille, taille);
+        g.query(&a, vue, &mut par_index);
+        a.cull(vue, &mut par_balayage);
+        par_index.sort();
+        par_balayage.sort();
+        assert_eq!(par_index, par_balayage, "vue {vue:?}");
+    }
+}
+
+/// Un nœud déplacé est trouvé à sa nouvelle place, n'est plus trouvé à l'ancienne, et n'est
+/// jamais rendu deux fois.
+#[test]
+fn test_un_noeud_deplace_ne_laisse_pas_de_fantome() {
+    let mut a = peupler("grille", 400);
+    let mut g = Grid::build(&a);
+    let id = NodeId::from_index(0);
+    let depart = a.box_of(id).unwrap();
+
+    a.set_box(id, boite(50_000, 50_000, 260, 80));
+    g.moved(id, Some(depart));
+    g.check(&a).unwrap();
+
+    let mut vus = Vec::new();
+    g.query(&a, Box2::new(depart.x, depart.y, px(10), px(10)), &mut vus);
+    assert!(!vus.contains(&id), "plus rien à l'ancienne place");
+
+    g.query(&a, boite(49_900, 49_900, 500, 500), &mut vus);
+    assert_eq!(vus.iter().filter(|&&x| x == id).count(), 1, "une fois et une seule");
+
+    // Le redéplacer ne le duplique pas non plus.
+    let milieu = a.box_of(id).unwrap();
+    a.set_box(id, boite(60_000, 60_000, 260, 80));
+    g.moved(id, Some(milieu));
+    assert_eq!(g.in_transit(), 1, "il n'entre en transit qu'une fois");
+    g.check(&a).unwrap();
+    g.query(&a, boite(59_900, 59_900, 500, 500), &mut vus);
+    assert_eq!(vus.iter().filter(|&&x| x == id).count(), 1);
+}
+
+/// Un nœud qui vient d'apparaître est trouvé sans reconstruire, en le signalant sans boîte
+/// d'origine — il n'était nulle part.
+#[test]
+fn test_un_noeud_nouveau_est_trouve_sans_reconstruire() {
+    let mut a = peupler("grille", 100);
+    let mut g = Grid::build(&a);
+    let neuf = a.spawn(Kind::Sticky, boite(70_000, 70_000, 200, 200), NodeId::NONE);
+    g.moved(neuf, None);
+    g.check(&a).unwrap();
+
+    let mut vus = Vec::new();
+    g.query(&a, boite(70_000, 70_000, 10, 10), &mut vus);
+    assert_eq!(vus, vec![neuf]);
+}
+
+/// Un nœud trop grand pour une cellule se déplace lui aussi sans fantôme : il quitte la liste
+/// des grands pour celle du transit.
+#[test]
+fn test_un_grand_noeud_se_deplace_aussi_sans_fantome() {
+    let mut a = Arena::with_capacity(101);
+    for i in 0..100 {
+        a.spawn(Kind::Text, boite(i % 10 * 300, i / 10 * 300, 260, 80), NodeId::NONE);
+    }
+    let geante = a.spawn(Kind::Membrane, boite(0, 0, 12_000, 9_000), NodeId::NONE);
+    let mut g = Grid::build(&a);
+    assert_eq!(g.large(), 1);
+
+    let depart = a.box_of(geante).unwrap();
+    a.set_box(geante, boite(80_000, 80_000, 12_000, 9_000));
+    g.moved(geante, Some(depart));
+    assert_eq!(g.large(), 0, "elle a quitté la liste des grands");
+    assert_eq!(g.in_transit(), 1);
+    g.check(&a).unwrap();
+
+    let mut vus = Vec::new();
+    g.query(&a, boite(1_000, 1_000, 10, 10), &mut vus);
+    assert!(!vus.contains(&geante), "plus rien à l'ancienne place");
+    g.query(&a, boite(85_000, 85_000, 10, 10), &mut vus);
+    assert_eq!(vus, vec![geante]);
+}
+
+/// **Le moment de reconstruire n'est pas un réglage** : il tombe exactement à √n, là où le
+/// balayage du transit et la reconstruction coûtent la même chose.
+#[test]
+fn test_le_moment_de_reconstruire_tombe_a_la_racine_du_nombre_de_noeuds() {
+    let n = 10_000usize;
+    let mut a = peupler("grille", n);
+    let mut g = Grid::build(&a);
+    assert!(!g.needs_rebuild(), "un index neuf n'a rien à reconstruire");
+
+    let mut compte = 0usize;
+    for k in 0..n {
+        let id = NodeId::from_index(k);
+        let Some(avant) = a.box_of(id) else { continue };
+        a.translate(id, px(1), px(1));
+        compte += 1;
+        if g.moved(id, Some(avant)) {
+            break;
+        }
+    }
+    // √10 000 = 100 : la reconstruction est demandée là, à un déplacement près.
+    assert_eq!(compte, 100, "{compte} déplacements avant la reconstruction");
+    assert!(g.needs_rebuild());
+    assert_eq!(g.in_transit(), 100);
+    g.check(&a).unwrap();
+
+    // Et reconstruire remet tout à plat.
+    let g2 = Grid::build(&a);
+    assert!(!g2.needs_rebuild());
+    assert_eq!(g2.in_transit(), 0);
+    g2.check(&a).unwrap();
+}
+
+/// Signaler l'absence de nœud ne fait rien et ne remplit pas le transit.
+#[test]
+fn test_signaler_l_absence_de_noeud_ne_fait_rien() {
+    let a = peupler("grille", 100);
+    let mut g = Grid::build(&a);
+    assert!(!g.moved(NodeId::NONE, None));
+    assert_eq!(g.in_transit(), 0);
+    g.check(&a).unwrap();
+}
