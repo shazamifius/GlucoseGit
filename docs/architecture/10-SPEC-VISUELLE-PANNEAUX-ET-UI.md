@@ -40,6 +40,30 @@ L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
 
 ---
 
+### 1.1 Galerie des 14 Captures d'Écran Réelles de Référence
+
+> **Toutes les captures ci-dessous sont 100 % authentiques**, générées par notre outil d'automatisation Playwright (`scripts/capture-all-glucose-screens.js`) tournant directement sur le build officiel de Glucose (Vite preview sur Chromium headless 1920×1080).
+> **Aucune image n'est générée par IA.** Ce sont les pixels exacts issus du code TypeScript/React.
+
+| Réf | Fichier Réel | Description & Éléments Observés |
+| :--- | :--- | :--- |
+| **01** | [`01_canvas_default.png`](screens/01_canvas_default.png) | **Canvas Initial Épuré** : Fond `#0d0d0d`, grille de points `#222222`, toolbar 44px, onglets 34px, minimap 180×120. |
+| **02** | [`02_toolbar_tabs_crop.png`](screens/02_toolbar_tabs_crop.png) | **Gros plan Chrome Supérieur** : Logo Glucose 14px bold, boutons 30×30px, onglet actif avec liseré blanc 2px. |
+| **03** | [`03_panel_organize_full.png`](screens/03_panel_organize_full.png) | **Panneau Ordonner (250px)** : Dock bas-gauche, pilule de sélection, tri, modes compact / masonry, inputs numériques. |
+| **04** | [`04_dock_organize_pomodoro.png`](screens/04_dock_organize_pomodoro.png) | **Dock Ordonner + Pomodoro** : Anneau SVG 80×80px, temps restant en font tabular-nums, boutons rapides (25/15/5m). |
+| **05** | [`05_dock_three_panels.png`](screens/05_dock_three_panels.png) | **Dock Triple (Ordonner + Pomodoro + Storyboard)** : Alignement horizontal, poignées braille `⠿⠿`, miniature de layout. |
+| **06** | [`06_drawer_domains.png`](screens/06_drawer_domains.png) | **Tiroir Domaines (320px)** : Tiroir haut-gauche, cartes avec liserés de couleur, curseur d'intensité sémantique. |
+| **07** | [`07_drawer_presets.png`](screens/07_drawer_presets.png) | **Tiroir Presets (280px)** : Rendu vectoriel SVG réel des grilles de composition (Cinema, Moodboard, Triptyque). |
+| **08** | [`08_drawer_plugins.png`](screens/08_drawer_plugins.png) | **Tiroir Plugins & IA Locale (340px)** : Détection du modèle de vision, statut d'accélération WebGPU/Wasm. |
+| **09** | [`09_panel_multiplayer.png`](screens/09_panel_multiplayer.png) | **Panneau Collaborer (360px)** : Pastille verte `#10b981`, clé de session chiffrée, palette de couleurs de profil. |
+| **10** | [`10_search_modal.png`](screens/10_search_modal.png) | **Recherche Modale (480px, Ctrl+F)** : Champ centré, badge `Esc`, filtrage instantané multi-types. |
+| **11** | [`11_timemachine_drawer.png`](screens/11_timemachine_drawer.png) | **Time Machine Drawer (324px, Ctrl+H)** : Piste temporelle avec scrubber jaune `#fbbf24`, arbre de commits durables. |
+| **12** | [`12_temporal_ruler.png`](screens/12_temporal_ruler.png) | **Réglette Temporelle (88px, Shift+R)** : Bandeau inférieur panoramique, fenêtre dorée `#fbbf24`, repères historiques. |
+| **13** | [`13_diagnostics_hud.png`](screens/13_diagnostics_hud.png) | **Diagnostics HUD (Ctrl+Shift+D)** : Métriques temps réel (FPS vert `#4ade80`, mémoire, état du renderer). |
+| **14** | [`14_canvas_with_live_elements.png`](screens/14_canvas_with_live_elements.png) | **Canvas Nœuds Réels** : Sticky note jaune `#f5c542`, pilule opérateur `ET` néon vert, carte texte, sélection active. |
+
+---
+
 ## 2. Palette des Tokens de Couleur Système
 
 | Token CSS | Hexadécimal | Alpha | Rôle dans l'UI |
@@ -64,6 +88,8 @@ L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
 ---
 
 ## 3. Chrome Supérieur : Toolbar & BoardTabs
+
+![Gros plan Toolbar & BoardTabs](screens/02_toolbar_tabs_crop.png)
 
 ### 3.1 La Toolbar (`Toolbar.tsx`)
 
@@ -103,6 +129,8 @@ L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
 ---
 
 ## 4. Système de Tiroirs & Docks (`PanelDock.tsx`)
+
+![Dock Triple avec trois panneaux ouverts](screens/05_dock_three_panels.png)
 
 Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux docks rétractables situés aux coins gauches de l'écran :
 
@@ -144,6 +172,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 
 ### 5.1 Panneau Ordonner (`OrganizePanel.tsx`)
 
+![Panneau Ordonner](screens/03_panel_organize_full.png)
+
 ```
 +---------------------------------------+
 | ORDONNER                              | <- Header (pad 10x14, border #1e1e1e)
@@ -175,6 +205,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 ---
 
 ### 5.2 Panneau Pomodoro (`PomodoroTimer.tsx` & `PomodoroOverlay.tsx`)
+
+![Panneau Pomodoro Timer](screens/04_dock_organize_pomodoro.png)
 
 ```
 +-----------------------------------+
@@ -231,6 +263,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 
 ### 5.4 Panneau Domaines Sémantiques (`DomainsPanel.tsx`)
 
+![Tiroir Domaines Sémantiques](screens/06_drawer_domains.png)
+
 ```
 +-----------------------------------------+
 | DOMAINES                                |
@@ -260,7 +294,9 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 
 ### 5.5 Panneau Presets Artistiques (`PresetPanel.tsx`)
 
-- **Largeur** : `280px`.
+![Tiroir Presets Artistiques](screens/07_drawer_presets.png)
+
+- **Largeur** : `280px`, tiroir haut-gauche.
 - **Miniature SVG de Layout (`PresetThumb`)** :
   - Dimensions : `220px × 56px`.
   - Rendu vectoriel : chaque slot est un rectangle `rx: 2`, `fill: slot.color (18% alpha)`, `stroke: slot.color (45% alpha)`.
@@ -270,7 +306,21 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 
 ---
 
+### 5.5b Panneau Plugins & Modèles IA (`PluginsPanel.tsx`)
+
+![Tiroir Plugins et IA Locale](screens/08_drawer_plugins.png)
+
+- **Largeur** : `340px`, tiroir haut-gauche.
+- **Gestionnaire d'IA locale** :
+  - Détection automatique de l'accélération matérielle (WebGPU, Wasm SIMD).
+  - Statut de téléchargement des poids de modèles de vision (CLIP, MobileNet, embedder sémantique).
+  - Cartes avec bordure `#222222` et badge de disponibilité.
+
+---
+
 ### 5.6 Panneau Collaboration Multijoueur (`MultiplayerPanel.tsx`)
+
+![Panneau Collaboration Multijoueur](screens/09_panel_multiplayer.png)
 
 ```
 +-----------------------------------------+
@@ -292,6 +342,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 ---
 
 ### 5.7 Panneau Time Machine & Réglette Temporelle (`TimelinePanel.tsx`)
+
+![Tiroir Time Machine](screens/11_timemachine_drawer.png)
 
 ```
 +-------------------------------------------------------------+
@@ -320,7 +372,12 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
   - `position: fixed, inset: 0, pointer-events: none`.
   - `border: 3px solid #fbbf24`.
   - `box-shadow: inset 0 0 60px rgba(251, 191, 36, 0.18)`.
-- **Réglette Temporelle Bas d'Écran (`TemporalRuler.tsx`)** :
+
+#### Réglette Temporelle Bas d'Écran (`TemporalRuler.tsx`)
+
+![Réglette Temporelle Panoramique](screens/12_temporal_ruler.png)
+
+- **Réglette Temporelle Bas d'Écran** :
   - `height: 88px, bottom: 16px, left: 16px, right: 16px`.
   - Fond sombre dégradé avec flou `backdrop-filter: blur(6px)`.
   - Piste principale avec ticks d'années et étiquettes textuelles.
@@ -331,6 +388,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 
 ### 5.8 Panneau de Recherche Globale (`SearchPanel.tsx`)
 
+![Recherche Modale Centrée](screens/10_search_modal.png)
+
 - **Position & Dimensions** : `position: fixed, top: 80px, left: 50%, transform: translateX(-50%)`, `width: 480px`, `max-width: 90vw`.
 - **Fond & Ombre** : `background: #1a1a1a`, `border: 1px solid #333333`, `box-shadow: 0 8px 32px rgba(0,0,0,0.6)`, `border-radius: 8px`.
 - **Icônes par type** : `☰` Board, `▣` Image, `T` Texte, `N` Note sticky.
@@ -339,6 +398,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 ---
 
 ### 5.9 HUD Télémétrique & Diagnostic (`DiagnosticsHUD.tsx`)
+
+![HUD Diagnostics Télémétrie](screens/13_diagnostics_hud.png)
 
 - **Raccourci d'ouverture** : `Ctrl+Shift+D`.
 - **Position & Style** : `fixed, top: 64px, right: 12px, z-index: 2000`, `background: #0d0d0dee`, `border: 1px solid #26262e`, `border-radius: 6px`, `padding: 8px 10px`.
@@ -374,6 +435,8 @@ Les panneaux secondaires ne flottent pas au hasard : ils sont ancrés dans deux 
 ---
 
 ## 7. Rendu Visuel des Nœuds du Canvas
+
+![Canvas avec Nœuds Réels en Action](screens/14_canvas_with_live_elements.png)
 
 ### 7.1 Cartes de Texte & Nuages Markdown
 

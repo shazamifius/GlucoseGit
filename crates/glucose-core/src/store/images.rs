@@ -85,60 +85,121 @@ impl Store {
         }
     }
 
-    /// Retire les flèches dont une extrémité pointe vers un nœud supprimé.
-    fn drop_orphan_arrows(annotations: &mut Vec<Annotation>, removed: &HashSet<String>) {
-        annotations.retain(|a| match a {
+    /// Vrai si une extrémité de cette flèche pointe vers un nœud supprimé.
+    fn is_orphan_arrow(ann: &Annotation, removed: &HashSet<String>) -> bool {
+        match ann {
             Annotation::Arrow { source_id, target_id, .. } => {
-                let src_orphan = source_id.as_ref().is_some_and(|s| removed.contains(s));
-                let tgt_orphan = target_id.as_ref().is_some_and(|t| removed.contains(t));
-                !src_orphan && !tgt_orphan
+                source_id.as_ref().is_some_and(|s| removed.contains(s))
+                    || target_id.as_ref().is_some_and(|t| removed.contains(t))
             }
-            _ => true,
-        });
+            _ => false,
+        }
     }
 
+    /// Supprime des images, leurs miroirs en cascade, et les flèches devenues orphelines.
+    ///
+    /// **Site migré vers le journal.** Le geste peut toucher plusieurs boards à la fois : il
+    /// est donc enveloppé dans une transaction, pour qu'un seul Ctrl+Z le défasse en entier.
+    ///
+    /// Les retraits se font **de la fin vers le début** de chaque liste. C'est ce qui rend
+    /// les index enregistrés valides à la réinsertion : combiné à l'inversion d'ordre de
+    /// [`Transaction`], l'undo réinsère par index croissant, chacun retrouvant sa place
+    /// exacte. Retirer dans l'autre sens décalerait les index suivants.
     pub fn remove_images(&mut self, _board_id: &str, ids: &[&str]) {
-        self.push_undo();
         let mut to_remove: HashSet<String> = ids.iter().map(|s| s.to_string()).collect();
         self.close_image_mirror_cascade(&mut to_remove);
 
+        // Le journal n'est pas empruntable pendant qu'on tient `&mut self.project`.
+        let mut edits = Vec::new();
         for b in &mut self.project.boards {
-            b.images.retain(|img| !to_remove.contains(&img.id));
-            Self::drop_orphan_arrows(&mut b.annotations, &to_remove);
+            for i in (0..b.images.len()).rev() {
+                if to_remove.contains(&b.images[i].id) {
+                    let img = b.images.remove(i);
+                    edits.push(Edit::Image { board: b.id.clone(), slot: Slot::removed(i, img) });
+                }
+            }
+            for i in (0..b.annotations.len()).rev() {
+                if Self::is_orphan_arrow(&b.annotations[i], &to_remove) {
+                    let ann = b.annotations.remove(i);
+                    edits.push(Edit::Annotation {
+                        board: b.id.clone(),
+                        slot: Slot::removed(i, ann),
+                    });
+                }
+            }
         }
+
+        self.record_as_one_gesture(edits);
         self.selected_image_ids.clear();
     }
 
+    /// Déplace la sélection, et traîne avec elle les flèches qui y sont attachées.
+    ///
+    /// **Site migré vers le journal.** Le parcours des annotations est unifié : une annotation
+    /// est soit sélectionnée — elle se translate en entier —, soit une flèche attachée à la
+    /// sélection — seules ses extrémités concernées suivent. Les deux cas s'excluent, ce que
+    /// l'ancien `drag_connected_arrows` exprimait déjà par un `continue` ; les fusionner évite
+    /// un second parcours de la liste.
+    ///
+    /// Un élément n'est cloné **qu'une fois su qu'il est touché** : le coût d'allocation suit
+    /// la taille du geste, pas celle du board (JRN-1), même si la recherche des flèches
+    /// attachées reste un balayage tant qu'il n'existe pas d'index inverse nœud → flèches.
     pub fn move_selected(&mut self, board_id: &str, dx: f64, dy: f64) {
         if dx == 0.0 && dy == 0.0 {
             return;
         }
-        self.push_undo();
         let sel = self.selection_sets();
+        let mut edits = Vec::new();
 
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;
         };
-        for img in &mut b.images {
+        let bid = b.id.clone();
+
+        for (i, img) in b.images.iter_mut().enumerate() {
             if sel.images.contains(&img.id) && !img.locked {
+                let before = img.clone();
                 img.x += dx;
                 img.y += dy;
+                edits.push(Edit::Image {
+                    board: bid.clone(),
+                    slot: Slot::changed(i, before, img.clone()),
+                });
             }
         }
-        for ann in &mut b.annotations {
-            if sel.annotations.contains(ann.id()) {
+
+        for (i, ann) in b.annotations.iter_mut().enumerate() {
+            let selected = sel.annotations.contains(ann.id());
+            if !selected && !arrow_follows_selection(ann, &sel) {
+                continue;
+            }
+            let before = ann.clone();
+            if selected {
                 translate_annotation(ann, dx, dy);
+            } else {
+                drag_arrow_ends(ann, &sel, dx, dy);
             }
+            edits.push(Edit::Annotation {
+                board: bid.clone(),
+                slot: Slot::changed(i, before, ann.clone()),
+            });
         }
+
         if let Some(fid) = sel.folder.as_deref() {
-            for f in &mut b.folders {
+            for (i, f) in b.folders.iter_mut().enumerate() {
                 if f.id == fid {
+                    let before = f.clone();
                     f.x += dx;
                     f.y += dy;
+                    edits.push(Edit::Folder {
+                        board: bid.clone(),
+                        slot: Slot::changed(i, before, f.clone()),
+                    });
                 }
             }
         }
-        drag_connected_arrows(&mut b.annotations, &sel, dx, dy);
+
+        self.record_as_one_gesture(edits);
     }
 
     pub fn duplicate_selected(&mut self, board_id: &str) {
@@ -241,24 +302,32 @@ fn set_annotation_id(ann: &mut Annotation, new_id: String) {
 }
 
 /// R-12 — une flèche non sélectionnée suit l'extrémité dont le nœud, lui, bouge.
-fn drag_connected_arrows(annotations: &mut [Annotation], sel: &SelectionSets, dx: f64, dy: f64) {
-    for ann in annotations.iter_mut() {
-        if sel.annotations.contains(ann.id()) {
-            continue;
+/// Vrai si cette extrémité est attachée à un nœud que le geste déplace.
+fn end_follows(id: &Option<String>, sel: &SelectionSets) -> bool {
+    id.as_ref().is_some_and(|s| sel.annotations.contains(s) || sel.images.contains(s))
+}
+
+/// Vrai si cette annotation est une flèche dont au moins une extrémité suit la sélection.
+fn arrow_follows_selection(ann: &Annotation, sel: &SelectionSets) -> bool {
+    match ann {
+        Annotation::Arrow { source_id, target_id, .. } => {
+            end_follows(source_id, sel) || end_follows(target_id, sel)
         }
-        let Annotation::Arrow { source_id, target_id, x, y, x2, y2, .. } = ann else {
-            continue;
-        };
-        let moved = |id: &Option<String>| {
-            id.as_ref().is_some_and(|s| sel.annotations.contains(s) || sel.images.contains(s))
-        };
-        if moved(source_id) {
-            *x += dx;
-            *y += dy;
-        }
-        if moved(target_id) {
-            *x2 += dx;
-            *y2 += dy;
-        }
+        _ => false,
+    }
+}
+
+/// Traîne les extrémités d'une flèche attachées à la sélection. Sans effet sur autre chose.
+fn drag_arrow_ends(ann: &mut Annotation, sel: &SelectionSets, dx: f64, dy: f64) {
+    let Annotation::Arrow { source_id, target_id, x, y, x2, y2, .. } = ann else {
+        return;
+    };
+    if end_follows(source_id, sel) {
+        *x += dx;
+        *y += dy;
+    }
+    if end_follows(target_id, sel) {
+        *x2 += dx;
+        *y2 += dy;
     }
 }

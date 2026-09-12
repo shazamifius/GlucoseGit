@@ -90,6 +90,9 @@ impl Store {
     /// transaction ouverte : un geste continu ne produit qu'une entrée.
     pub fn push_undo(&mut self) {
         if self.journal.is_open() {
+            // Geste en cours : ce site ne sait pas se décrire autrement qu'en entier, il
+            // réclame donc le filet posé à l'ouverture.
+            self.journal.claim_snapshot();
             return;
         }
         self.journal.push_snapshot(&self.project);
@@ -108,8 +111,7 @@ impl Store {
         if self.journal.is_open() {
             return;
         }
-        self.journal.push_snapshot(&self.project);
-        self.journal.begin();
+        self.journal.begin_gesture(&self.project);
     }
 
     pub fn end_live_edit(&mut self) {
@@ -139,6 +141,28 @@ impl Store {
         // 3. Ne laisser aucune trace : ce geste n'a pas eu lieu.
         self.journal.forget_redo();
         true
+    }
+
+    /// Enregistre plusieurs éditions comme **un seul geste** annulable.
+    ///
+    /// Respecte une transaction déjà ouverte : pendant un glisser, tout reste un geste unique.
+    /// Une liste vide ne laisse aucune trace — une suppression qui ne supprime rien n'est pas
+    /// un geste.
+    pub(super) fn record_as_one_gesture(&mut self, edits: Vec<crate::store::journal::Edit>) {
+        if edits.is_empty() {
+            return;
+        }
+        let already_open = self.journal.is_open();
+        if !already_open {
+            self.journal.begin();
+        }
+        for edit in edits {
+            self.journal.record(edit);
+        }
+        if !already_open {
+            self.journal.end();
+        }
+        self.bump_version();
     }
 
     pub fn can_undo(&self) -> bool {
