@@ -1,0 +1,11 @@
+[package]
+name = "glucose-math"
+version = "1.0.0"
+edition = "2021"
+description = "Glucose Math — mise en page des formules LaTeX en géométrie pure, sans pixel ni rastériseur"
+
+[dependencies]
+# La seule dépendance du projet à porter du LaTeX, et elle est assumée (fiche 12 § 7.1) :
+# `katex-rs` est le portage Rust du vrai KaTeX — lexer, expanseur de macros, métriques de
+# fontes, mise en page. Les features `wasm` (et donc tout JavaScript) ne sont pas prises.
+katex-rs = { version = "0.3", default-features = false }

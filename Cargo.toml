@@ -2,6 +2,7 @@
 members = [
     "crates/glucose-core",
     "crates/glucose-desktop",
+    "crates/glucose-math",
 ]
 resolver = "2"
 

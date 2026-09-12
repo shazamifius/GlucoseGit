@@ -73,27 +73,23 @@ fn test_un_etat_d_interface_neuf_n_affiche_aucun_message() {
     assert!(UiState::new().current_toast.is_none());
 }
 
-/// Le cadrage met le contenu à l'écran : après un appel à `frame_document`, le barycentre du
-/// document tombe au centre de la fenêtre.
+/// Le cadrage met le contenu à l'écran : après un appel à `frame_document`, le centre de la
+/// **boîte englobante** du document tombe au centre de la fenêtre.
+///
+/// Ce test a d'abord visé le barycentre des points, et il est devenu faux le jour où le cadrage
+/// est passé par `Store::content_bounds` — les deux ne coïncident que sur une distribution
+/// parfaitement symétrique. C'est la boîte qui est la bonne référence : c'est elle qu'il faut
+/// contenir pour que rien ne sorte de l'écran.
 #[test]
 fn test_le_cadrage_met_le_document_au_centre() {
     let mut store = synth::document(200, 4_000.0, Shape::Uniform, 1);
+    let board_id = store.project.active_board_id.clone();
+    let boite = store.content_bounds(&board_id).expect("du contenu");
     frame_document(&mut store, 0.5, 1920, 1080);
     let vp = store.active_board().expect("un tableau").viewport;
 
-    let board = store.active_board().expect("un tableau");
-    let (mut cx, mut cy, mut n) = (0.0, 0.0, 0.0);
-    for a in &board.annotations {
-        cx += a.x();
-        cy += a.y();
-        n += 1.0;
-    }
-    for img in &board.images {
-        cx += img.x;
-        cy += img.y;
-        n += 1.0;
-    }
-    let (ecran_x, ecran_y) = (cx / n * vp.scale + vp.x, cy / n * vp.scale + vp.y);
+    let (cx, cy) = (boite.left + boite.width / 2.0, boite.top + boite.height / 2.0);
+    let (ecran_x, ecran_y) = (cx * vp.scale + vp.x, cy * vp.scale + vp.y);
     assert!((ecran_x - 960.0).abs() < 1.0, "centre en x : {ecran_x}");
     assert!((ecran_y - 540.0).abs() < 1.0, "centre en y : {ecran_y}");
 }
