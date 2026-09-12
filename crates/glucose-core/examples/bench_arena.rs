@@ -14,6 +14,7 @@
 //! 3. **Combien coûte retrouver un nœud ?** Balayage de `String` contre accès tableau.
 //! 4. **Combien coûte une requête de viewport ?** C'est le geste dominant, à chaque frame.
 
+use glucose_core::arena::grid::Grid;
 use glucose_core::arena::text::TextArena;
 use glucose_core::arena::{Arena, Box2, Kind, NodeId};
 use glucose_core::fixed::Fx;
@@ -225,16 +226,55 @@ fn mesurer_arene(n: usize) -> Mesure {
     assert!(trouves > 0);
 
     let (vx, vy, vw, vh) = vue(n);
-    let v = Box2::new(
-        Fx::from_f64(vx),
-        Fx::from_f64(vy),
-        Fx::from_f64(vw),
-        Fx::from_f64(vh),
-    );
+    let v = Box2::new(Fx::from_f64(vx), Fx::from_f64(vy), Fx::from_f64(vw), Fx::from_f64(vh));
     let mut out = Vec::new();
     let t = Instant::now();
     arene.cull(v, &mut out);
     let query_us = ms(t) * 1000.0;
+
+    // L'index spatial : ce qu'il coute a construire, ce qu'il pese, ce qu'il fait gagner.
+    let t = Instant::now();
+    let g = Grid::build(&arene);
+    let index_ms = ms(t);
+    let mut par_index = Vec::new();
+    // Cent requetes : une seule serait noyee dans la resolution de l'horloge.
+    let t = Instant::now();
+    for _ in 0..100 {
+        g.query(&arene, v, &mut par_index);
+    }
+    let court_us = ms(t) * 1000.0 / 100.0;
+    assert_eq!(par_index.len(), out.len(), "l'index doit voir les memes noeuds");
+    println!(
+        "         |           | requete par l'index : {court_us:>8.3} us contre {query_us:>9.1} us par balayage ({:>7.0}x)",
+        query_us / court_us.max(1e-9),
+    );
+    println!(
+        "         |           | index : {:>6.0} ms a construire, {:>5.1} Mo, cellule {:>6.0} px, {} grands",
+        index_ms,
+        mo(g.bytes()),
+        g.cell_size(),
+        g.large(),
+    );
+    // Le cout d'une requete doit suivre ce qui est VISIBLE, pas le nombre de noeuds. Trois
+    // echelles de vue le disent : un ecran, puis cent fois et dix mille fois sa surface.
+    for (nom, facteur) in [("ecran", 1.0), ("x10", 10.0), ("x100", 100.0)] {
+        let large = Box2::new(
+            Fx::from_f64(vx - vw * (facteur - 1.0) / 2.0),
+            Fx::from_f64(vy - vh * (facteur - 1.0) / 2.0),
+            Fx::from_f64(vw * facteur),
+            Fx::from_f64(vh * facteur),
+        );
+        let t = Instant::now();
+        for _ in 0..20 {
+            g.query(&arene, large, &mut par_index);
+        }
+        let us = ms(t) * 1000.0 / 20.0;
+        println!(
+            "         |           |   vue {nom:<5} : {:>8} noeuds vus en {us:>9.2} us  ({:>6.3} us pour mille noeuds vus)",
+            par_index.len(),
+            us / (par_index.len().max(1) as f64) * 1000.0,
+        );
+    }
 
     Mesure {
         octets,
