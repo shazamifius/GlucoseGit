@@ -384,3 +384,62 @@ fn test_duplicate_offsets_the_clone_by_twenty_pixels_and_selects_it() {
     assert_eq!(store.selected_image_ids, vec![clone.id.clone()], "le clone prend la sélection");
     assert_eq!(store.selected_annotation_ids, vec![text_clone.id().to_string()]);
 }
+
+// ── content_bounds : où est le contenu d'un tableau ─────────────────────────
+
+/// La boîte englobante couvre les trois familles d'objets — images, dossiers, annotations —
+/// et pas seulement celle qu'on a en tête en écrivant le code.
+#[test]
+fn test_les_bornes_du_contenu_couvrent_les_trois_familles() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+
+    store.add_image(&board, BoardImage::new("i", 100.0, 200.0, 50.0, 40.0));
+    let mut dossier = CanvasFolder::new("f", "D", String::new());
+    dossier.x = -300.0;
+    dossier.y = 0.0;
+    dossier.width = 100.0;
+    dossier.height = 100.0;
+    store.create_folder(&board, dossier);
+    store.add_annotation(&board, Annotation::membrane("m", 0.0, 400.0, 200.0, 150.0));
+
+    let b = store.content_bounds(&board).expect("des bornes");
+    assert_eq!(b.left, -300.0, "le dossier tire la borne gauche");
+    assert_eq!(b.top, 0.0, "le dossier tire la borne haute");
+    assert_eq!(b.left + b.width, 200.0, "l'image et la membrane tirent la droite");
+    assert_eq!(b.top + b.height, 550.0, "la membrane tire le bas");
+}
+
+/// **Une flèche compte par ses deux extrémités.** Son point d'ancrage ne dit rien de l'endroit
+/// qu'elle occupe — et une flèche qui remonte vers la gauche a sa pointe avant son origine.
+#[test]
+fn test_une_fleche_compte_par_ses_deux_extremites() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::arrow("a", 500.0, 500.0, -100.0, -200.0));
+
+    let b = store.content_bounds(&board).expect("des bornes");
+    assert_eq!((b.left, b.top), (-100.0, -200.0));
+    assert_eq!((b.left + b.width, b.top + b.height), (500.0, 500.0));
+}
+
+/// Un tableau vide n'a pas de bornes, et un tableau inconnu non plus. Rendre un rectangle nul
+/// serait pire : un appelant cadrerait sur un point.
+#[test]
+fn test_un_tableau_vide_n_a_pas_de_bornes() {
+    let store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    assert!(store.content_bounds(&board).is_none());
+    assert!(store.content_bounds("jamais-vu").is_none());
+}
+
+/// Une carte sans taille explicite compte pour son point, pas pour une taille inventée.
+#[test]
+fn test_une_carte_sans_taille_compte_pour_son_point() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::text("t", 40.0, 60.0, "sans dimension"));
+
+    let b = store.content_bounds(&board).expect("des bornes");
+    assert_eq!((b.left, b.top, b.width, b.height), (40.0, 60.0, 0.0, 0.0));
+}

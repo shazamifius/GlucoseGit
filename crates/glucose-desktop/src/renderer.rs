@@ -26,7 +26,7 @@ pub mod hue;
 pub mod note;
 pub mod scale;
 pub mod scene;
-mod wrap;
+pub mod wrap;
 
 use crate::canvas::screen_to_world;
 use crate::params::{Pointer, SceneOverlay, ViewPass};
@@ -108,6 +108,14 @@ pub struct Renderer {
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
     pub active_board_id: String,
+}
+
+/// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
+/// Le déclarer évite qu'un appelant générique ait à connaître le nom `new`.
+impl Default for Renderer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Renderer {

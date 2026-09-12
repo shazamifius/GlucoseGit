@@ -57,7 +57,7 @@ const TRACK_HEIGHT: f32 = 30.0;
 /// Elle est réglée sur le sigle, pas l'inverse : [`SIGIL_MAX_CHARS`] caractères au corps
 /// [`SIGIL_FONT`] mesurent un peu moins que cette largeur, donc deux sigles voisins ne se
 /// touchent jamais. Rétrécir la colonne sans rétrécir le sigle les ferait se chevaucher.
-const BAR_WIDTH: f32 = 18.0;
+pub const BAR_WIDTH: f32 = 18.0;
 /// Écart entre deux colonnes.
 const BAR_GAP: f32 = 6.0;
 /// Écart entre le bas de la réglette et le bord haut du nœud.
@@ -65,7 +65,7 @@ const NODE_GAP: f32 = 10.0;
 /// Rayon des coins d'une colonne.
 const BAR_RADIUS: f32 = 4.0;
 /// Corps du sigle posé au-dessus d'une colonne.
-const SIGIL_FONT: f32 = 10.0;
+pub const SIGIL_FONT: f32 = 10.0;
 /// Écart entre le haut de la piste et le bas du sigle.
 const SIGIL_GAP: f32 = 4.0;
 
@@ -81,12 +81,12 @@ const SIGIL_ALPHA: u8 = 225;
 /// Le sigle se dessine centré sur une colonne large de [`BAR_WIDTH`] unités monde ; au-delà de
 /// trois caractères il déborde sur sa voisine et les deux deviennent illisibles. La troncature
 /// se fait au remplissage de la table, jamais dans la passe de dessin.
-const SIGIL_MAX_CHARS: usize = 3;
+pub const SIGIL_MAX_CHARS: usize = 3;
 
 /// Mise en page d'une réglette. **En unités monde tant que `scaled` n'a pas été appelée** ;
 /// en pixels écran après, et rien d'autre ne dérive du zoom entre les deux (SCALE-1).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct GaugeLayout {
+pub struct GaugeLayout {
     pub track_height: f32,
     pub bar_width: f32,
     pub bar_gap: f32,
@@ -98,7 +98,7 @@ pub(super) struct GaugeLayout {
 
 impl GaugeLayout {
     /// La réglette telle qu'elle serait dessinée à l'échelle 1.
-    pub(super) fn world() -> Self {
+    pub fn world() -> Self {
         Self {
             track_height: TRACK_HEIGHT,
             bar_width: BAR_WIDTH,
@@ -113,7 +113,7 @@ impl GaugeLayout {
     /// L'UNIQUE transformation d'échelle de la réglette (SCALE-1) : tous les champs, le même
     /// facteur, au même instant. Ajouter un champ ici sans le mettre à l'échelle, ou le borner
     /// au passage, c'est ramener R-45.
-    pub(super) fn scaled(self, s: WorldScale) -> Self {
+    pub fn scaled(self, s: WorldScale) -> Self {
         Self {
             track_height: s.world(self.track_height),
             bar_width: s.world(self.bar_width),

@@ -121,7 +121,7 @@ pub(super) struct Pass<'a> {
 
 /// Le genre d'un paragraphe, lu sur son préfixe Markdown minimal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum LineKind {
+pub enum LineKind {
     Heading1,
     Heading2,
     Bullet,
@@ -179,7 +179,7 @@ impl LineKind {
 
 /// Une ligne visuelle : une tranche `[start, end)` du corps, et le paragraphe dont elle vient.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct VisualLine {
+pub struct VisualLine {
     pub start: usize,
     pub end: usize,
     pub kind: LineKind,
@@ -195,7 +195,7 @@ pub(super) struct VisualLine {
 /// Chaque paragraphe (une ligne du texte source) est reflué à la largeur utile de la carte,
 /// avec la police et l'indentation de son genre. Tout est en unités monde : le résultat ne
 /// dépend pas du zoom.
-pub(super) fn layout_lines(typography: &Typography, body: &str, width: f32) -> Vec<VisualLine> {
+pub fn layout_lines(typography: &Typography, body: &str, width: f32) -> Vec<VisualLine> {
     let base = CardLayout::text_card(width, 0.0, 1);
     let mut lines = Vec::new();
     let mut offset = 0usize;
@@ -222,7 +222,7 @@ pub(super) fn layout_lines(typography: &Typography, body: &str, width: f32) -> V
 /// TEXT-FIT-1 — la hauteur, en unités monde, qu'une carte de `width` doit avoir pour
 /// contenir `text` sans le tronquer. C'est ce que le geste de redimensionnement et la
 /// validation d'une saisie écrivent dans le document.
-pub(crate) fn text_card_fit_height(typography: &Typography, text: &str, width: f64) -> f64 {
+pub fn text_card_fit_height(typography: &Typography, text: &str, width: f64) -> f64 {
     let lines = layout_lines(typography, text, width as f32).len();
     CardLayout::text_card(width as f32, 0.0, lines).height as f64
 }
@@ -232,7 +232,7 @@ pub(crate) fn text_card_fit_height(typography: &Typography, text: &str, width: f
 /// Mise en page d'une carte de texte. **En unités monde tant que `scaled` n'a pas été
 /// appelée** ; en pixels écran après, et rien d'autre ne dérive du zoom entre les deux.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct CardLayout {
+pub struct CardLayout {
     pub width: f32,
     pub height: f32,
     pub font: f32,
@@ -271,7 +271,7 @@ impl CardLayout {
     /// L'UNIQUE transformation d'échelle de la carte (SCALE-1) : tous les champs, le même
     /// facteur, au même instant. Ajouter un champ ici sans le mettre à l'échelle, ou le
     /// borner au passage, c'est ramener R-45.
-    pub(super) fn scaled(self, s: WorldScale) -> Self {
+    pub fn scaled(self, s: WorldScale) -> Self {
         Self {
             width: s.world(self.width),
             height: s.world(self.height),
