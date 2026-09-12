@@ -89,10 +89,10 @@ impl Layout {
 
 /// Dessine tous les dossiers visibles du tableau actif.
 ///
-/// Les dossiers ne passent pas par l'index spatial — il n'indexe que les images et les
-/// annotations — donc la visibilité est décidée ici, par le même test de bord que les cartes.
-/// Un tableau en compte quelques-uns, jamais des milliers : c'est le bon compromis tant que
-/// l'index ne les connaît pas.
+/// La visibilité est décidée ici par un test de bord exact, et non par l'index spatial. Ce
+/// n'est pas un oubli : l'index interroge une zone élargie de 200 px, marge utile au picking
+/// mais superflue pour dessiner, et un tableau compte quelques dossiers, jamais des milliers.
+/// L'index, lui, les connaît désormais — c'est lui qui rend un dossier cliquable.
 pub(super) fn draw_folders(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &Store, pass: ViewPass<'_>) {
     let Some(board) = store.active_board() else {
         return;
@@ -284,7 +284,7 @@ fn draw_badge(
 /// Le compte porte sur les **caractères** et non sur les octets : un titre accentué serait
 /// coupé au milieu d'un caractère par une troncature sur les octets, et la chaîne cesserait
 /// d'être du texte.
-pub(super) fn truncate(s: &str, max: usize) -> String {
+pub(crate) fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         return s.to_string();
     }

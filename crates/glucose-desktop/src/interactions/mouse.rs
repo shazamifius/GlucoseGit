@@ -7,12 +7,19 @@ use crate::params::{Pointer, ScreenFrame};
 use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, pick_consts, PickInput, PickOwner};
-use glucose_core::types::{Annotation, Viewport};
+use glucose_core::types::{Annotation, CanvasFolder, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
 
 /// Ce que disent les boutons dont la fonction n'existe pas encore. Un bouton qui annonce ce
 /// qu'il n'a pas fait est un bouton qui ment ; celui-ci dit ce qu'il en est.
+/// Taille d'un dossier créé à la main, en unités monde.
+///
+/// La même que celle d'une membrane créée au clic : ce sont les deux conteneurs du canevas, et
+/// rien ne justifierait qu'ils naissent de tailles différentes. Le minimum de la fiche 06 § 8.1
+/// est 180 × 120 ; celle-ci laisse de quoi poser quelque chose dedans.
+pub const FOLDER_DEFAULT_SIZE: (f64, f64) = (320.0, 240.0);
+
 pub const NOT_YET_EXPORT: &str = "Export : pas encore disponible";
 pub const NOT_YET_STORYBOARD: &str = "Storyboard : pas encore disponible";
 pub const NOT_YET_AI: &str = "IA locale : pas encore disponible";
@@ -59,6 +66,23 @@ impl GlucoseApp {
             MouseButton::Left => {
                 let mx = self.mouse_pos.0 as f32;
                 let my = self.mouse_pos.1 as f32;
+
+                // 0. Clic sur le fil d'Ariane : il occupe une bande sous les onglets, donc
+                // avant tout le reste. Remonter change le tableau, plus rien de ce clic ne
+                // vaut ensuite.
+                if let Some(depth) = crate::ui::breadcrumb::hit_breadcrumb(
+                    &self.store,
+                    &self.renderer.typography,
+                    self.ui.header_height(),
+                    self.ui.scale_factor,
+                    (mx, my),
+                ) {
+                    if self.store.exit_to_depth(depth) {
+                        self.update_cursor();
+                        self.mark_dirty();
+                    }
+                    return;
+                }
 
                 // 1. Clic sur l'interface (Header / TopBar / Tabs / Minimap)
                 if let Some(action) = handle_ui_click(
@@ -333,9 +357,24 @@ impl GlucoseApp {
                         return;
                     }
                     ActiveTool::Folder => {
-                        self.ui.show_toast("Dossier");
+                        // Le dossier capture ce qui se trouve sous lui : `create_folder` le
+                        // fait, crée le tableau enfant, et enregistre le tout comme UN geste
+                        // annulable. L'outil se contentait d'un toast, ce que la fiche 11 § A.2
+                        // interdit — un bouton qui annonce ce qu'il ne fait pas.
+                        let mut folder = CanvasFolder::new(
+                            self.store.generate_id("folder"),
+                            "Dossier",
+                            String::new(),
+                        );
+                        folder.x = wx;
+                        folder.y = wy;
+                        folder.width = FOLDER_DEFAULT_SIZE.0;
+                        folder.height = FOLDER_DEFAULT_SIZE.1;
+                        self.store.create_folder(&active_bid, folder);
+                        self.ui.show_toast("Dossier créé");
                         self.ui.active_tool = ActiveTool::Select;
                         self.update_cursor();
+                        self.mark_dirty();
                         return;
                     }
                     ActiveTool::Select => {}
@@ -350,7 +389,11 @@ impl GlucoseApp {
                 }
 
                 // 5. Sélection par clic (PICK-1)
+                // L'index doit refléter le document AVANT qu'on l'interroge : sans cela, un
+                // nœud créé au clic précédent serait introuvable jusqu'à la frame suivante.
+                self.renderer.sync_spatial_index(&self.store);
                 let mut selected = false;
+                let mut entrer_dans: Option<String> = None;
                 if let Some(b) = self.store.active_board() {
                     let input = PickInput {
                         wx,
@@ -381,6 +424,11 @@ impl GlucoseApp {
                             id: top.id.clone(),
                         });
 
+                        if is_dbl_click && top.owner == PickOwner::Folder {
+                            // Entrer demande `&mut self.store`, et `b` emprunte ce même store :
+                            // l'intention est notée ici et exécutée une fois l'emprunt rendu.
+                            entrer_dans = Some(top.id.clone());
+                        }
                         if is_dbl_click {
                             if let Some(ann) = b.annotations.iter().find(|a| a.id() == top.id) {
                                 let initial_text = match ann {
@@ -417,6 +465,17 @@ impl GlucoseApp {
                         }
                     } else {
                         self.commit_editing();
+                    }
+                }
+
+                // Entrer dans un dossier remplace le tableau : plus rien de ce clic n'a de
+                // sens ensuite, ni sélection ni début de glisser.
+                if let Some(folder_id) = entrer_dans {
+                    if self.store.try_enter_folder(&folder_id).is_ok() {
+                        self.ui.show_toast("Dossier ouvert");
+                        self.update_cursor();
+                        self.mark_dirty();
+                        return;
                     }
                 }
 

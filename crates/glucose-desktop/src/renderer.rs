@@ -175,6 +175,25 @@ impl Renderer {
     }
 
     /// Rendu complet de la scène Glucose et de son interface
+    /// Met l'index spatial à jour si le document a changé depuis la dernière fois.
+    ///
+    /// Appelée par le rendu **et par le picking**. Le clic en dépendait autrefois par effet de
+    /// bord : l'index n'était synchronisé que dans `render`, si bien qu'un nœud créé puis
+    /// cliqué avant la frame suivante était introuvable. Un geste ne doit pas dépendre de ce
+    /// qu'une autre passe a bien voulu faire avant lui.
+    ///
+    /// Ne coûte rien quand rien n'a changé : la comparaison de version précède le balayage.
+    pub fn sync_spatial_index(&mut self, store: &Store) {
+        let Some(board) = store.active_board() else {
+            return;
+        };
+        if self.spatial_version != store.version || self.active_board_id != board.id {
+            self.spatial_hash.index_board(board);
+            self.spatial_version = store.version;
+            self.active_board_id = board.id.clone();
+        }
+    }
+
     pub fn render(
         &mut self,
         pixmap: &mut PixmapMut,
@@ -190,12 +209,8 @@ impl Renderer {
         self.domain_tints.refresh(store, &self.theme);
         if let Some(board) = store.active_board() {
             self.hue_cache.update_positions_and_invalidate(&board.annotations);
-            if self.spatial_version != store.version || self.active_board_id != board.id {
-                self.spatial_hash.index_board(board);
-                self.spatial_version = store.version;
-                self.active_board_id = board.id.clone();
-            }
         }
+        self.sync_spatial_index(store);
 
         let header_h = ui.header_height();
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);

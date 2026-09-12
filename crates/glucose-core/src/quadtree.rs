@@ -229,6 +229,11 @@ impl SpatialHash {
     // ── Boîtes englobantes du modèle ────────────────────────────────────────
 
     /// Boîte d'une image : ancrage au CENTRE (convention historique du culling).
+    /// Boîte d'un dossier : ancrage HAUT-GAUCHE, comme une membrane.
+    fn folder_bbox(f: &crate::types::CanvasFolder) -> (f64, f64, f64, f64) {
+        (f.x, f.y, f.x + f.width, f.y + f.height)
+    }
+
     fn image_bbox(img: &crate::types::BoardImage) -> (f64, f64, f64, f64) {
         let hw = img.width / 2.0;
         let hh = img.height / 2.0;
@@ -301,6 +306,15 @@ impl SpatialHash {
             let (a, b, c, d) = Self::annotation_bbox(ann);
             let range = self.range_of(a, b, c, d);
             self.sync_at(ann.id(), range, &mut k);
+        }
+        // Les dossiers sont des nœuds du canevas comme les autres. Sans eux ici, un dossier
+        // seul sur un tableau n'était **pas cliquable du tout** : `collect_candidates_indexed`
+        // rend une liste vide quand l'index ne voit rien à proximité, et il ne voyait jamais
+        // un dossier.
+        for f in &board.folders {
+            let (a, b, c, d) = Self::folder_bbox(f);
+            let range = self.range_of(a, b, c, d);
+            self.sync_at(&f.id, range, &mut k);
         }
         self.order.truncate(k);
 
