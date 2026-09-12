@@ -53,7 +53,10 @@
 //! - **JRN-3** — une transaction est atomique : elle se défait entièrement ou pas du tout, et
 //!   ses éditions se défont dans l'ordre inverse de leur enregistrement.
 
-use crate::types::{Annotation, BoardImage, CanvasFolder, Project, StoryboardPanel};
+use crate::types::{
+    Annotation, Board, BoardImage, BoardZone, CanvasFolder, Domain, Preset, Project,
+    StoryboardPanel,
+};
 
 /// Une case de liste, avec son contenu avant et après l'édition.
 ///
@@ -144,38 +147,70 @@ impl<T> Slot<T> {
     }
 }
 
+/// Une valeur remplacée d'un bloc : un champ scalaire, ou une liste entière.
+///
+/// Même forme que [`Slot`] — un avant, un après, et défaire c'est échanger les deux — mais
+/// sans index, parce qu'il n'y a qu'une seule case. Renommer un board ne doit pas coûter le
+/// clone du board ; c'est ce que cette forme évite.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Whole<T> {
+    pub before: T,
+    pub after: T,
+}
+
+impl<T> Whole<T> {
+    pub fn new(before: T, after: T) -> Self {
+        Self { before, after }
+    }
+
+    fn flip(&mut self) {
+        std::mem::swap(&mut self.before, &mut self.after);
+    }
+}
+
 /// Une édition élémentaire, rattachée à la liste qu'elle modifie.
 ///
 /// Chaque variante nomme une liste du modèle. Le tableau visé est retrouvé au moment
 /// d'appliquer, ce qui évite de stocker une référence et garde l'entrée sérialisable.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Edit {
-    Image {
-        board: String,
-        slot: Slot<BoardImage>,
-    },
-    Annotation {
-        board: String,
-        slot: Slot<Annotation>,
-    },
-    Folder {
-        board: String,
-        slot: Slot<CanvasFolder>,
-    },
-    Panel {
-        board: String,
-        slot: Slot<StoryboardPanel>,
-    },
+    // ── Listes portées par un board ──────────────────────────────────────
+    Image { board: String, slot: Slot<BoardImage> },
+    Annotation { board: String, slot: Slot<Annotation> },
+    Folder { board: String, slot: Slot<CanvasFolder> },
+    Panel { board: String, slot: Slot<StoryboardPanel> },
+    /// Les zones sont posées en bloc par un preset : la liste entière est la modification.
+    Zones { board: String, whole: Whole<Vec<BoardZone>> },
+    BoardName { board: String, whole: Whole<String> },
+
+    // ── Listes portées par le projet ─────────────────────────────────────
+    /// Supprimer un board emporte tout son contenu : l'entrée est lourde, et c'est conforme
+    /// à JRN-1 — la modification *est* de cette taille.
+    Board { slot: Slot<Board> },
+    Domain { slot: Slot<Domain> },
+    Preset { slot: Slot<Preset> },
+    ProjectName { whole: Whole<String> },
+    ActiveBoard { whole: Whole<String> },
 }
 
 impl Edit {
-    /// Identifiant du board porteur de la liste éditée.
-    fn board_id(&self) -> &str {
+    /// Identifiant du board porteur de la liste éditée, s'il y en a un.
+    ///
+    /// Les éditions qui portent sur le projet lui-même — ses boards, ses domaines, ses
+    /// presets, son nom — n'en ont pas.
+    fn board_id(&self) -> Option<&str> {
         match self {
             Self::Image { board, .. }
             | Self::Annotation { board, .. }
             | Self::Folder { board, .. }
-            | Self::Panel { board, .. } => board,
+            | Self::Panel { board, .. }
+            | Self::Zones { board, .. }
+            | Self::BoardName { board, .. } => Some(board),
+            Self::Board { .. }
+            | Self::Domain { .. }
+            | Self::Preset { .. }
+            | Self::ProjectName { .. }
+            | Self::ActiveBoard { .. } => None,
         }
     }
 
@@ -185,12 +220,37 @@ impl Edit {
             Self::Annotation { slot, .. } => slot.flip(),
             Self::Folder { slot, .. } => slot.flip(),
             Self::Panel { slot, .. } => slot.flip(),
+            Self::Board { slot } => slot.flip(),
+            Self::Domain { slot } => slot.flip(),
+            Self::Preset { slot } => slot.flip(),
+            Self::Zones { whole, .. } => whole.flip(),
+            Self::BoardName { whole, .. } => whole.flip(),
+            Self::ProjectName { whole } => whole.flip(),
+            Self::ActiveBoard { whole } => whole.flip(),
         }
     }
 
     /// Écrit l'état `after` dans le projet. Rend `false` si la cible est introuvable (JRN-2).
     fn apply(&self, project: &mut Project) -> bool {
-        let board_id = self.board_id();
+        // Ce qui porte sur le projet lui-même n'a pas de board à retrouver.
+        match self {
+            Self::Board { slot } => return slot.apply(&mut project.boards),
+            Self::Domain { slot } => return slot.apply(&mut project.domains),
+            Self::Preset { slot } => return slot.apply(&mut project.presets),
+            Self::ProjectName { whole } => {
+                project.name = whole.after.clone();
+                return true;
+            }
+            Self::ActiveBoard { whole } => {
+                project.active_board_id = whole.after.clone();
+                return true;
+            }
+            _ => {}
+        }
+
+        let Some(board_id) = self.board_id() else {
+            return false;
+        };
         let Some(board) = project.boards.iter_mut().find(|b| b.id == board_id) else {
             return false;
         };
@@ -199,6 +259,16 @@ impl Edit {
             Self::Annotation { slot, .. } => slot.apply(&mut board.annotations),
             Self::Folder { slot, .. } => slot.apply(&mut board.folders),
             Self::Panel { slot, .. } => slot.apply(&mut board.panels),
+            Self::Zones { whole, .. } => {
+                board.zones = whole.after.clone();
+                true
+            }
+            Self::BoardName { whole, .. } => {
+                board.name = whole.after.clone();
+                true
+            }
+            // Traitées plus haut : `board_id()` les a déjà écartées en rendant `None`.
+            _ => false,
         }
     }
 
@@ -214,6 +284,15 @@ impl Edit {
             Self::Annotation { slot, .. } => w(slot),
             Self::Folder { slot, .. } => w(slot),
             Self::Panel { slot, .. } => w(slot),
+            Self::Board { slot } => w(slot),
+            Self::Domain { slot } => w(slot),
+            Self::Preset { slot } => w(slot),
+            Self::Zones { whole, .. } => {
+                (whole.before.len() + whole.after.len()) * std::mem::size_of::<BoardZone>()
+            }
+            Self::BoardName { whole, .. } => whole.before.len() + whole.after.len(),
+            Self::ProjectName { whole } => whole.before.len() + whole.after.len(),
+            Self::ActiveBoard { whole } => whole.before.len() + whole.after.len(),
         }
     }
 }
@@ -401,10 +480,16 @@ impl Journal {
     }
 
     /// Ouvre une transaction. Sans appel explicite, chaque édition forme son propre geste.
+    ///
+    /// **Ouvrir un geste abandonne l'histoire alternative** : la pile de rétablissement est
+    /// vidée, même si le geste finit par ne rien produire. Dès que la main se ferme sur un
+    /// objet, ce qu'on avait annulé auparavant cesse d'être rétablissable — c'est le
+    /// comportement que vérifie `test_demarrer_un_drag_vide_le_redo_en_attente`.
     pub fn begin(&mut self) {
         if self.open.is_none() {
             self.open = Some(Transaction::default());
             self.snapshot_claimed = false;
+            self.undone.clear();
         }
     }
 

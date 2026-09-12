@@ -233,27 +233,34 @@ impl GlucoseApp {
     /// Réorganise automatiquement les éléments en grille ordonnée
     #[allow(dead_code)]
     pub fn organize_layout(&mut self) {
-        if let Some(board) = self.store.active_board_mut() {
-            if board.images.is_empty() && board.annotations.is_empty() {
-                return;
-            }
-            glucose_core::layout::organize_board_grid(board, 40.0);
+        let board_id = self.store.project.active_board_id.clone();
+        let vide = self
+            .store
+            .active_board()
+            .is_some_and(|b| b.images.is_empty() && b.annotations.is_empty());
+        if vide {
+            return;
         }
-        self.store.push_undo();
+        // `push_undo` etait appele APRES la mise en page : le cliche capturait l'etat deja
+        // modifie, et Ctrl+Z ne defaisait rien. La consigne se fait desormais autour du
+        // geste, pas apres lui.
+        self.store.mutate_board_layout(&board_id, |board| {
+            glucose_core::layout::organize_board_grid(board, 40.0);
+        });
         self.ui.show_toast("Canvas ordonné");
         self.mark_dirty();
     }
 
     /// Applique la réorganisation issue du panneau ORDONNER (Masonry, Grille, Même Hauteur, etc.)
     pub fn apply_dock_layout(&mut self, state: &OrganizeState) {
-        if let Some(board) = self.store.active_board_mut() {
-            if board.images.is_empty() {
-                self.ui.show_toast("Aucune image sur le canvas");
-                return;
-            }
-
-            let results = apply_organize_layout(&board.images, state);
-            for res in results {
+        let board_id = self.store.project.active_board_id.clone();
+        if self.store.active_board().is_some_and(|b| b.images.is_empty()) {
+            self.ui.show_toast("Aucune image sur le canvas");
+            return;
+        }
+        // Meme correction que `organize_layout` : le cliche etait pris apres coup.
+        self.store.mutate_board_layout(&board_id, |board| {
+            for res in apply_organize_layout(&board.images, state) {
                 if let Some(img) = board.images.iter_mut().find(|i| i.id == res.id) {
                     img.x = res.x;
                     img.y = res.y;
@@ -261,8 +268,7 @@ impl GlucoseApp {
                     img.height = res.height;
                 }
             }
-        }
-        self.store.push_undo();
+        });
         self.ui.show_toast(format!("Disposition {} appliquée", state.layout.title()));
         self.mark_dirty();
     }

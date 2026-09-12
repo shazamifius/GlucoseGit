@@ -27,6 +27,7 @@
 //! empilait auparavant une entrée d'annulation pour une opération qui n'avait rien fait :
 //! l'utilisateur devait appuyer deux fois sur `Ctrl+Z` pour défaire un seul geste.
 
+use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
 use crate::types::{Board, Domain, DomainAssignment, Project};
@@ -195,8 +196,9 @@ impl Store {
         if self.project.domains.iter().any(|d| d.id == domain.id) {
             return Err(CoreError::DuplicateDomainId(domain.id));
         }
-        self.push_undo();
-        self.project.domains.push(domain);
+        let index = self.project.domains.len();
+        self.project.domains.push(domain.clone());
+        self.record_edit(Edit::Domain { slot: Slot::inserted(index, domain) });
         Ok(())
     }
 
@@ -213,10 +215,13 @@ impl Store {
         if !patch.changes(domain) {
             return Ok(());
         }
-        self.push_undo();
-        if let Some(target) = self.project.domains.iter_mut().find(|d| d.id == id) {
-            patch.apply(target);
-        }
+        let Some(i) = self.project.domains.iter().position(|d| d.id == id) else {
+            return Ok(());
+        };
+        let before = self.project.domains[i].clone();
+        patch.apply(&mut self.project.domains[i]);
+        let after = self.project.domains[i].clone();
+        self.record_edit(Edit::Domain { slot: Slot::changed(i, before, after) });
         Ok(())
     }
 
@@ -230,16 +235,45 @@ impl Store {
         if !self.project.domains.iter().any(|d| d.id == id) {
             return Err(CoreError::DomainNotFound(id.to_string()));
         }
-        self.push_undo();
-        self.project.domains.retain(|d| d.id != id);
+        // Le domaine et toutes ses assignations partent ensemble : un seul geste, donc un
+        // seul Ctrl+Z. Seul un noeud qui portait vraiment ce domaine est clone.
+        let Some(di) = self.project.domains.iter().position(|d| d.id == id) else {
+            return Err(CoreError::DomainNotFound(id.to_string()));
+        };
+        let removed = self.project.domains.remove(di);
+        let mut edits = vec![Edit::Domain { slot: Slot::removed(di, removed) }];
         let mut detached = 0usize;
-        for_each_assignment_list(&mut self.project, |list| {
-            let before = list.len();
-            list.retain(|a| a.domain_id != id);
-            if list.len() != before {
+
+        // Meme ordre de visite que `for_each_assignment_list` : annotations, puis images.
+        for board in &mut self.project.boards {
+            let bid = board.id.clone();
+            for (i, ann) in board.annotations.iter_mut().enumerate() {
+                if !ann.domains_mut().iter().any(|a| a.domain_id == id) {
+                    continue;
+                }
+                let before = ann.clone();
+                ann.domains_mut().retain(|a| a.domain_id != id);
+                edits.push(Edit::Annotation {
+                    board: bid.clone(),
+                    slot: Slot::changed(i, before, ann.clone()),
+                });
                 detached += 1;
             }
-        });
+            for (i, img) in board.images.iter_mut().enumerate() {
+                if !img.domains.iter().any(|a| a.domain_id == id) {
+                    continue;
+                }
+                let before = img.clone();
+                img.domains.retain(|a| a.domain_id != id);
+                edits.push(Edit::Image {
+                    board: bid.clone(),
+                    slot: Slot::changed(i, before, img.clone()),
+                });
+                detached += 1;
+            }
+        }
+
+        self.record_as_one_gesture(edits);
         Ok(detached)
     }
 
@@ -271,14 +305,34 @@ impl Store {
         }
 
         // La validation est terminée : à partir d'ici l'opération aboutit (DOM-3, § 3.3).
-        self.push_undo();
-        if let Some(list) = node_assignments_mut(&mut self.project.boards[at], node_id) {
-            let assignment = DomainAssignment {
-                domain_id: domain_id.to_string(),
-                weight,
-            };
-            insert_ranked(list, assignment, rank, &ranks);
-        }
+        let assignment = DomainAssignment {
+            domain_id: domain_id.to_string(),
+            weight,
+        };
+        let board = &mut self.project.boards[at];
+        let bid = board.id.clone();
+        let Some(place) = locate_node(board, node_id) else {
+            return Ok(());
+        };
+        let edit = match place {
+            NodeSlot::Annotation(i) => {
+                let before = board.annotations[i].clone();
+                insert_ranked(board.annotations[i].domains_mut(), assignment, rank, &ranks);
+                Edit::Annotation {
+                    board: bid,
+                    slot: Slot::changed(i, before, board.annotations[i].clone()),
+                }
+            }
+            NodeSlot::Image(i) => {
+                let before = board.images[i].clone();
+                insert_ranked(&mut board.images[i].domains, assignment, rank, &ranks);
+                Edit::Image {
+                    board: bid,
+                    slot: Slot::changed(i, before, board.images[i].clone()),
+                }
+            }
+        };
+        self.record_edit(edit);
         Ok(())
     }
 
@@ -302,13 +356,34 @@ impl Store {
                 domain_id: domain_id.to_string(),
             });
         }
-        self.push_undo();
         let Some(board) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return Ok(());
         };
-        if let Some(list) = node_assignments_mut(board, node_id) {
-            list.retain(|a| a.domain_id != domain_id);
-        }
+        let bid = board.id.clone();
+        let Some(place) = locate_node(board, node_id) else {
+            return Ok(());
+        };
+        let edit = match place {
+            NodeSlot::Annotation(i) => {
+                let before = board.annotations[i].clone();
+                board.annotations[i]
+                    .domains_mut()
+                    .retain(|a| a.domain_id != domain_id);
+                Edit::Annotation {
+                    board: bid,
+                    slot: Slot::changed(i, before, board.annotations[i].clone()),
+                }
+            }
+            NodeSlot::Image(i) => {
+                let before = board.images[i].clone();
+                board.images[i].domains.retain(|a| a.domain_id != domain_id);
+                Edit::Image {
+                    board: bid,
+                    slot: Slot::changed(i, before, board.images[i].clone()),
+                }
+            }
+        };
+        self.record_edit(edit);
         Ok(())
     }
 
@@ -341,32 +416,31 @@ impl Store {
 }
 
 /// Ce tableau porte-t-il un nœud de cet identifiant, annotation ou image ?
-fn node_exists(board: &Board, node_id: &str) -> bool {
-    board.annotations.iter().any(|a| a.id() == node_id)
-        || board.images.iter().any(|i| i.id == node_id)
+/// Ou vit un noeud dans un board : le genre de liste, et son rang.
+///
+/// Journaliser une assignation demande de savoir non seulement *quelle* liste de
+/// pondérations modifier, mais *quelle case* de *quelle liste de noeuds* elle appartient --
+/// ce que `node_assignments_mut` ne dit pas, puisqu'il ne rend que la liste.
+enum NodeSlot {
+    Image(usize),
+    Annotation(usize),
 }
 
-/// Les assignations du nœud `node_id`, quel que soit son genre (DOM-1).
-///
-/// La question « annotation ou image ? » se tranche par une lecture, **avant** l'emprunt
-/// mutable : c'est ce qui permet aux deux branches de rendre le même type sans que
-/// l'emprunteur ne voie deux emprunts vivants à la fois.
-fn node_assignments_mut<'a>(
-    board: &'a mut Board,
-    node_id: &str,
-) -> Option<&'a mut Vec<DomainAssignment>> {
-    if board.annotations.iter().any(|a| a.id() == node_id) {
-        return board
-            .annotations
-            .iter_mut()
-            .find(|a| a.id() == node_id)
-            .map(|a| a.domains_mut());
+/// Meme ordre de recherche que `node_assignments_mut` : annotations d'abord.
+fn locate_node(board: &Board, node_id: &str) -> Option<NodeSlot> {
+    if let Some(i) = board.annotations.iter().position(|a| a.id() == node_id) {
+        return Some(NodeSlot::Annotation(i));
     }
     board
         .images
-        .iter_mut()
-        .find(|i| i.id == node_id)
-        .map(|i| &mut i.domains)
+        .iter()
+        .position(|img| img.id == node_id)
+        .map(NodeSlot::Image)
+}
+
+fn node_exists(board: &Board, node_id: &str) -> bool {
+    board.annotations.iter().any(|a| a.id() == node_id)
+        || board.images.iter().any(|i| i.id == node_id)
 }
 
 /// Insère (ou remplace) une assignation à la place que lui donne l'ordre du catalogue (DOM-2).
