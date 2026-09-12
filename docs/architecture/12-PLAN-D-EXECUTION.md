@@ -199,9 +199,10 @@ Glucose » se décide.*
 | 1.A.2 | **Blocs** : citations `>`, listes numérotées, blocs de code, séparateurs `---`, et `-# ` (petit texte, syntaxe maison) | la structure `LineKind` est prête à s'étendre |
 | 1.A.3 | **L'éditeur avec prévisualisation** — ce que l'utilisateur a nommé en premier. Trois couches : symboles Markdown grisés, délimiteurs LaTeX **verts si la formule compile, rouges sinon**, et une fenêtre flottante à droite qui rend le résultat en direct | rien |
 | 1.A.4 | **Édition réelle** : sélection au clavier et à la souris, ↑ ↓, Début/Fin, copier-coller **dans** le texte, et **IME** — sans quoi taper `é` est impossible | navigation ← → par octets |
-| 1.A.5 | **LaTeX**. Question ouverte, voir § 7.1 | rien |
-| 1.A.6 | Liens cliquables, tableaux | rien |
-| 1.A.7 | **Ancres de texte** : brancher `text_anchors` (224 l. mortes) — c'est ce qui permet à une flèche de partir d'une **phrase** et non d'une carte | 224 l. + tests |
+| 1.A.5 | **LaTeX** : `katex-rs` derrière une crate `glucose-math`, plus l'interprète de son arbre vers des positions absolues (§ 7.1) | les douze familles de fontes KaTeX sont **déjà dans le dépôt** |
+| 1.A.6 | **Courbes et graphes** à syntaxe PGFPlots, tracés nativement (§ 7.2) | le rastériseur |
+| 1.A.7 | Liens cliquables, tableaux | rien |
+| 1.A.8 | **Ancres de texte** : brancher `text_anchors` (224 l. mortes) — c'est ce qui permet à une flèche de partir d'une **phrase** et non d'une carte | 224 l. + tests |
 
 > **Sortie** : un document de la capture de production s'affiche **à l'identique**, vérifié par
 > capture PNG ; taper un accent fonctionne ; la prévisualisation suit la frappe sans lag mesurable
@@ -249,7 +250,7 @@ Glucose » se décide.*
 | 2.B.4 | Déplacer les extrémités, courbes, waypoints, bidirectionnelle, épaisseur, couleur |
 | 2.B.5 | Étiquette sur la flèche + son éditeur |
 | 2.B.6 | **Prédicats sémantiques** (6 types) — l'autre outil de navigation que la charte réclame |
-| 2.B.7 | Attache à un sous-bloc / à une sélection de texte (dépend de 1.A.7) ; flèche-portail vers un autre board |
+| 2.B.7 | Attache à un sous-bloc / à une sélection de texte (dépend de 1.A.8) ; flèche-portail vers un autre board |
 
 #### Chantier 2.C — Dossiers et miroirs *(commencé en `56737b8` et `acceb0d`)*
 
@@ -320,26 +321,102 @@ Deux choses que la fiche 11 promettait et que je ne compte pas faire telles quel
 
 ## 7. Les questions ouvertes, et comment je compte les fermer
 
-### 7.1 Le LaTeX — la seule vraie inconnue de ce plan
+### 7.1 Le LaTeX — tranché, et mesuré
 
-KaTeX, c'est 70 000 lignes de JavaScript et six fontes. Il n'y a pas d'équivalent mûr en Rust.
-Trois voies :
+**Décision prise : la dépendance est assumée.** Le moteur maison est abandonné — pas par
+paresse, mais parce que la mesure a montré qu'un portage complet de KaTeX existe déjà en Rust,
+et qu'écrire à la main un sous-ensemble moins bon serait de l'orgueil, pas de l'élégance.
 
-1. **Un moteur maison, limité au sous-ensemble réellement utilisé.** La typographie mathématique
-   de TeX est un algorithme publié et exact : des boîtes, de la colle, et des règles de style
-   (`\displaystyle`, `\textstyle`, indices, exposants). Un sous-ensemble couvrant fractions,
-   exposants, indices, racines, sommes, intégrales, matrices, délimiteurs extensibles et symboles
-   grecs tient en ~2 000 lignes, se teste **sans écran**, et ne dépend de rien. C'est cohérent
-   avec l'élégance mathématique que la charte réclame.
-2. Une dépendance Rust existante — à évaluer sur sa maturité et son coût.
-3. Ne pas faire, et afficher la source.
+#### Ce que la mesure a établi
 
-**Ce qui décide** : une mesure, pas un goût. Combien de formules dans les documents réels de
-l'utilisateur, et **lesquelles** ? Si c'est cinquante formules d'algèbre simple, la voie 1 est
-évidente ; si c'est de la théorie des catégories avec des diagrammes commutatifs, elle ne l'est
-pas. **Je ne peux pas répondre seul : il me faut ses documents.**
+Deux candidats ont été essayés pour de vrai, sur les mêmes huit formules.
 
-### 7.2 Ce qui reste ouvert depuis la fiche 11
+**`latex-rust` 1.0.2 — écarté.** Sa fiche promet « TeX-faithful layout on exact rationals, emit
+SVG, PNG, or egui shapes », et sa sortie PNG passe par `tiny-skia`, le rastériseur du projet.
+C'était le candidat idéal sur le papier. À l'image, il est inutilisable :
+
+| Formule | Ce qui sort |
+|---|---|
+| `\begin{pmatrix} a & b \\ c & d \end{pmatrix}` | `(a bc d)` — **le saut de ligne est ignoré, la matrice est aplatie** |
+| `\int_0^\infty` | la borne basse et la borne haute **se superposent** |
+| `\binom{n}{k}` | dessiné **avec une barre de fraction**, qu'un binôme n'a pas |
+| `\sum_{i=1}^{n} i = \frac{n(n+1)}{2}` | boîte englobante trop petite : le `n`, le `i=1` et la fraction sont **coupés** |
+
+Une bibliothèque en version 1.0 peut être immature ; c'est précisément pourquoi on essaie avant
+d'adopter.
+
+**`katex-rs` 0.3.0 — retenu.** C'est le portage du vrai KaTeX, pas une réécriture : le crate
+contient `lexer`, `macro_expander`, `functions`, `font_metrics`, `build_html`, `build_mathml`,
+`dom_tree`. Ses dépendances non optionnelles sont six crates légères et sans JavaScript
+(`bon`, `phf`, `rapidhash`, `strum`, `strum_macros`, `thiserror`) ; celles qui touchent au
+navigateur sont derrière la feature `wasm`, qu'on ne prend pas.
+
+#### Le seul vrai travail : KaTeX rend du HTML, et Glucose n'a pas de navigateur
+
+`render_to_dom_tree` donne un arbre où **toute la typographie est déjà faite** — c'est KaTeX qui
+calcule les hauteurs, les profondeurs et les décalages, le CSS ne fait que les appliquer. Extrait
+réel pour `\int_0^\infty x\,dx` :
+
+```text
+SYM "∫"  h=0.805 d=0.306 w=0.472 it=0.194  classes=["mop","op-symbol","small-op"]
+SPAN vlist                                  style="top:-2.3442em; margin-left:-0.1945em"
+  SYM "0"  h=0.644 w=0.500                  classes=["mord","mtight"]
+SPAN mspace                                 style="margin-right:0.1667em"
+```
+
+Le vocabulaire de positionnement est **fermé** : des boîtes posées horizontalement, des `vlist`
+empilées avec un `top` explicite, des marges, et des symboles avec leurs métriques. Aucun
+flottant, aucune flexbox, aucun retour à la ligne automatique. Écrire l'interprète de cet arbre
+vers des positions absolues est donc un travail borné et **exactement testable** — les nombres
+sont des `em`, on les compare.
+
+Et les douze familles de fontes KaTeX sont **déjà dans le dépôt** en TTF (`dist/assets/`),
+héritées du build de l'ancienne version : Main, Math, AMS, Size1 à 4, Caligraphic, Fraktur,
+SansSerif, Script, Typewriter.
+
+#### Où ça vit
+
+Une crate `glucose-math` dédiée, qui dépend de `katex-rs` et rend de la **géométrie** — des
+glyphes positionnés et des filets, en `em` — sans connaître ni pixel ni rastériseur.
+
+Ce n'est pas la cérémonie que la fiche reproche par ailleurs à `glucose-geom` : celle-là aurait
+isolé du code sans dépendance, donc n'aurait rien isolé. Une crate qui **contient une dépendance
+externe** derrière une frontière, c'est exactement ce à quoi sert une crate — et le jour où l'on
+change de moteur, un seul endroit bouge.
+
+### 7.2 Les courbes et les graphes — la question qui reste ouverte
+
+La demande est explicite : « le système de LaTeX **complet** avec le système de création aussi de
+courbe et de graphe ». En LaTeX, cela s'appelle **TikZ** et **PGFPlots**. KaTeX ne les fait pas,
+et rien en Rust ne les fait.
+
+Il n'existe qu'une seule façon d'avoir le vrai TikZ : embarquer une vraie distribution TeX, ce
+que fait `tectonic` (XeTeX + TeXLive, empaqueté en crate). Mon avis d'ingénieur, et il est
+tranché :
+
+| | TikZ par `tectonic` | Traceur natif à syntaxe PGFPlots |
+|---|---|---|
+| Empreinte | TeXLive, des centaines de Mo, ou téléchargement des paquets **à la demande par le réseau** | quelques milliers de lignes |
+| Coût d'un graphe | une compilation LaTeX → PDF, puis rastériser le PDF (encore une dépendance) | un tracé, comme le reste de la scène |
+| Au zoom | une image figée qu'on agrandit | **retracé net à toute échelle** |
+| **Android** | **inatteignable** — TeXLive n'y est pas packagé, et le réseau au moment du rendu est exclu | fonctionne |
+
+La dernière ligne est décisive, et elle ne vient pas de moi : la charte pose macOS, Android,
+Windows et Linux comme **contrainte de conception, pas comme portage ultérieur**. TikZ complet
+entre en collision frontale avec elle.
+
+Ce que je propose à la place vise le **but** plutôt que le moyen : accepter la syntaxe
+`\begin{axis} \addplot {x^2}; \end{axis}` — donc écrire du LaTeX, comme demandé — et la tracer
+nous-mêmes. Dans un canva, c'est **meilleur** que TikZ, pas seulement plus simple : une courbe
+tracée nativement se redessine à la résolution du zoom, là où un PDF compilé est une image morte.
+
+**Ce qui reste à décider, et que je ne peux pas décider seul :** jusqu'où va « courbe et graphe ».
+Tracer des fonctions, des nuages de points, des barres et des axes gradués est un chantier net.
+Dessiner des diagrammes arbitraires — nœuds, flèches courbes, décorations, le TikZ des articles
+de recherche — en est un autre, et Glucose sait déjà faire des nœuds et des flèches sur son
+canva. La réponse dépend de ce qui doit vraiment se retrouver dans une carte.
+
+### 7.3 Ce qui reste ouvert depuis la fiche 11
 
 Inchangé : zoom entre paliers (tranché par C.5), OpenGL ou Vulkan (mesure sur matériel faible),
 rastériseur maison ou `tiny-skia`, combien d'arêtes Wikipédia matérialiser, coût réel d'un
