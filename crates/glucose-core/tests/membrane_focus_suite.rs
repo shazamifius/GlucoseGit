@@ -469,3 +469,12 @@ fn test_focus_frame_of() {
     assert_eq!(focus_frame_of(&items, None), None);
     assert_eq!(focus_frame_of(&items, Some("FANTOME")), None);
 }
+
+/// Fiche 07 § 5.3 — le cadrage du mode focus garde une marge de 6 % autour de la membrane
+/// (`FOCUS.FIT_PADDING = 0.06` dans la référence ; la fiche disait 10 %), en 320 ms.
+#[test]
+fn test_the_focus_fit_padding_is_six_percent() {
+    use glucose_core::membrane_focus::focus_consts;
+    assert_eq!(focus_consts::FIT_PADDING, 0.06);
+    assert_eq!(focus_consts::FIT_ANIM_MS, 320);
+}

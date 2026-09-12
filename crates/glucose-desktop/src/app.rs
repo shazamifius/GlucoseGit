@@ -6,7 +6,7 @@ use crate::interactions::resize::ResizeSession;
 use crate::params::{Pointer, SceneOverlay, ScreenFrame};
 use crate::renderer::card::text_card_fit_height;
 use crate::renderer::{Renderer, TextEditSession};
-use crate::ui::UiState;
+use crate::ui::{ToastRepaint, UiState};
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
 use glucose_core::store::Store;
 use glucose_core::types::Annotation;
@@ -440,30 +440,23 @@ impl ApplicationHandler for GlucoseApp {
             self.last_blink_phase = true;
         }
 
-        // 2. Toasts actifs (décompte d'affichage et animation de fondu)
+        // 2. Toast actif : c'est lui qui sait s'il faut redessiner (fondu), attendre
+        // (plateau, alpha = 1, aucun rafraîchissement) ou disparaître.
         if let Some(ref toast) = self.ui.current_toast {
-            let elapsed = toast.created_at.elapsed().as_millis() as f32;
-            let total = toast.duration.as_millis() as f32;
-
-            if toast.is_expired() {
-                self.ui.current_toast = None;
-                self.mark_dirty();
-            } else if elapsed < 150.0 {
-                // Fondu entrant actif (150 ms) -> rafraîchissement doux
-                self.mark_dirty();
-                min_timeout_ms = min_timeout_ms.min(self.animation_interval_ms());
-                has_timer = true;
-            } else if elapsed < total - 400.0 {
-                // Plateau statique (alpha = 1.0) : AUCUN rafraîchissement nécessaire !
-                // On attend l'échéance du début de fondu sortant sans redessiner.
-                let wait_ms = ((total - 400.0) - elapsed).ceil().max(1.0) as u64;
-                min_timeout_ms = min_timeout_ms.min(wait_ms);
-                has_timer = true;
-            } else {
-                // Fondu sortant actif (400 ms) -> rafraîchissement doux
-                self.mark_dirty();
-                min_timeout_ms = min_timeout_ms.min(self.animation_interval_ms());
-                has_timer = true;
+            match toast.repaint_need() {
+                ToastRepaint::Gone => {
+                    self.ui.current_toast = None;
+                    self.mark_dirty();
+                }
+                ToastRepaint::Redraw => {
+                    self.mark_dirty();
+                    min_timeout_ms = min_timeout_ms.min(self.animation_interval_ms());
+                    has_timer = true;
+                }
+                ToastRepaint::Sleep(wait_ms) => {
+                    min_timeout_ms = min_timeout_ms.min(wait_ms);
+                    has_timer = true;
+                }
             }
         }
 

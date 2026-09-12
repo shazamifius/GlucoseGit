@@ -595,3 +595,16 @@ fn test_project_arrow_in_membrane() {
         panic!("F must be Arrow");
     }
 }
+
+/// Fiche 07 § 5.1 — la loi d'échelle déduite : `k = min(1, W/étendue_x, H/étendue_y)`,
+/// jamais stockée. Plafond à 1 (agrandir la membrane ramène le contenu à 100 %, puis crée du
+/// vide) et plancher de lisibilité à 0,08.
+#[test]
+fn test_the_deduced_scale_is_capped_at_one_and_floored_at_eight_percent() {
+    assert_eq!(MIN_CONTENT_SCALE, 0.08);
+    let m = glucose_core::geometry::Rect::new(0.0, 0.0, 400.0, 300.0);
+    assert_eq!(content_scale(MembraneMode::Minimized, m, 200.0, 100.0), 1.0, "plafond");
+    assert_eq!(content_scale(MembraneMode::Minimized, m, 800.0, 600.0), 0.5, "min des deux axes");
+    assert_eq!(content_scale(MembraneMode::Minimized, m, 40_000.0, 100.0), 0.08, "plancher");
+    assert_eq!(content_scale(MembraneMode::Classic, m, 800.0, 600.0), 1.0, "le classique ne réduit jamais");
+}

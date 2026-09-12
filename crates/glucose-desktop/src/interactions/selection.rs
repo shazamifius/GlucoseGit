@@ -5,6 +5,10 @@ use crate::canvas::screen_to_world;
 use glucose_core::hit_priority::{collect_candidates_indexed, PickCandidate, PickInput};
 use glucose_core::types::Annotation;
 
+/// Déplacement écran au-delà duquel un clic maintenu sur le vide devient une sélection
+/// élastique (fiche 07 § 7.3) : en deçà, c'est un clic, qui ne sélectionne rien.
+pub const RUBBERBAND_MIN_PX: f64 = 4.0;
+
 impl GlucoseApp {
     /// Démarre le tracé d'un rectangle de sélection élastique.
     pub fn start_selection_box(&mut self, sx: f64, sy: f64) {
@@ -26,7 +30,7 @@ impl GlucoseApp {
             let sy_min = y1.min(y2);
             let sy_max = y1.max(y2);
 
-            if (sx_max - sx_min) > 3.0 || (sy_max - sy_min) > 3.0 {
+            if (sx_max - sx_min) > RUBBERBAND_MIN_PX || (sy_max - sy_min) > RUBBERBAND_MIN_PX {
                 let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
                 let (wx1, wy1) = screen_to_world(sx_min, sy_min, &vp);
                 let (wx2, wy2) = screen_to_world(sx_max, sy_max, &vp);

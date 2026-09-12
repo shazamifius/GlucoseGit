@@ -24,7 +24,12 @@ pub mod pick_consts {
     pub const MEMBRANE_LABEL_BAND: f64 = 30.0;
     pub const CYCLE_RADIUS_PX: f64 = 8.0;
     pub const CYCLE_TTL_MS: i64 = 2500;
-    pub const DBLCLICK_MS: i64 = 400;
+    /// Fenêtre du double-clic (fiche 07 § 1, `DOUBLE_CLICK_WINDOW`). Une seule notion, une
+    /// seule constante : en deçà, deux clics sont un double-clic (édition, dossier) ; au-delà,
+    /// un re-clic qui avance le cycle de profondeur. La référence en avait deux — 350 pour
+    /// l'une, 400 pour l'autre — avec 50 ms entre les deux où un clic n'était ni l'un ni
+    /// l'autre.
+    pub const DBLCLICK_MS: i64 = 350;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

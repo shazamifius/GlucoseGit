@@ -323,3 +323,13 @@ fn test_notes_to_annotations() {
     assert_eq!(anns[0].id(), "n1-b");
     assert_eq!(anns[1].id(), "n2-b");
 }
+
+/// Fiche 07 § 6 — les ratios d'un rideau : replié à 0,1, déployé à 0,9, comme dans la
+/// référence (`CURTAIN.DEFAULT_COLLAPSED` / `DEFAULT_EXPANDED`). La fiche disait ≈ 0,05 et
+/// ≈ 0,60 ; la cible fait foi.
+#[test]
+fn test_the_curtain_default_ratios_are_those_of_the_reference() {
+    use glucose_core::curtain_panel::curtain_consts;
+    assert_eq!(curtain_consts::DEFAULT_COLLAPSED, 0.1);
+    assert_eq!(curtain_consts::DEFAULT_EXPANDED, 0.9);
+}
