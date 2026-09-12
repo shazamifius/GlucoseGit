@@ -228,8 +228,12 @@ Deux des trois premiers postes sont des **défauts algorithmiques**, pas des co�
 * **la minimap redessinait un rectangle par nœud, à chaque image**, dans une vignette de
   180 × 120 pixels où la plupart tombent les uns sur les autres. Corrigé par un cache dont la clé
   est le document et le cadrage : **5,13 → 0,89 ms** en 1080p, **5,56 → 0,64 ms** en 4K ;
-* **la grille de points** construit un cercle par point — environ huit mille en 4K — puis les
-  rasterise d'un trait. Elle reste à traiter (voir plus bas).
+* **la grille de points** construisait un cercle de Bézier par point — environ huit mille en 4K —
+  puis les rastérisait d'un trait. Or tous les points sont identiques ; seule leur phase
+  sous-pixel varie. Seize masques de couverture analytique, calculés une fois par image, puis
+  recopiés : **4,35 → 0,21 ms** en 4K. La couverture surestime l'aire d'un vrai disque de 12 % à
+  un pixel de rayon et de moins de 6 % à deux et demi — mesuré, tenu par un test, et invisible
+  sur la capture.
 
 Seul l'effacement du fond est un coût de surface irréductible en CPU. **L'ordre du § 2 tient
 donc, mais il n'était pas gratuit** : il se paie par des corrections précises, chiffrées, que
@@ -243,10 +247,17 @@ Le banc relancé après la correction de la minimap, sur les mêmes documents :
 | 1440p | 37,28 ms | **10,89 ms** | ×3,4 |
 | 4K | 27,19 ms | **17,58 ms** | ×1,5 |
 
-Vingt-trois mesures hors budget sont devenues vingt et une, mais le compte brut dit mal ce qui
-s'est passé : les cas de travail réel — un document de quelques milliers de nœuds, lu à l'échelle
-1 — sont **tous** passés dans le budget en 1080p et 1440p. Ce qui reste dehors est le très fort
-dézoom, où le culling ne sert plus puisque tout est visible, et la 4K, où la surface domine.
+Puis après la grille, décomposé par étape au zoom 1 :
+
+| | 1080p / 1 000 | 1080p / 10 000 | 1440p / 10 000 | **4K / 1 000** | **4K / 10 000** |
+|---|---:|---:|---:|---:|---:|
+| avant la vague 0 | 3,05 ms | 9,82 ms | 13,50 ms | 12,23 ms | 17,35 ms |
+| après | **0,90 ms** | **3,15 ms** | **5,93 ms** | **7,62 ms** | **7,75 ms** |
+
+**La 4K entre dans le budget** à mille et dix mille nœuds. Ce qui reste dehors est le très fort
+dézoom, où le culling ne sert plus puisque tout est visible, et les documents de cent mille
+nœuds, où les halos dominent. Le premier poste restant en 4K est l'effacement du fond,
+3,1 ms — un coût de surface, celui que seule la présentation GPU de la vague 4 réduira.
 
 #### 4. Un test de la suite échouait au hasard
 
@@ -260,7 +271,7 @@ il est marqué ignoré, avec la commande pour le lancer seul, et le banc prend l
 | # | Défaut | Coût mesuré | État |
 |---|---|---:|---|
 | a | La minimap redessine tout, chaque image | 5,1 ms | **corrigé** |
-| b | La grille construit un cercle par point | 4,35 ms en 4K | à faire |
+| b | La grille construit un cercle par point | 4,35 ms en 4K | **corrigé** : un tampon par phase sous-pixel, **0,21 ms** |
 | c | L'effacement du fond | 3,45 ms en 4K | irréductible en CPU — relève de la vague 4 |
 | d | La touche `F` ne cadre rien (fiche 03 § 1.6) | — | l'API existe (`Store::content_bounds`), le raccourci ne reçoit pas la taille de la fenêtre |
 | e | Le badge d'un dossier affiche toujours zéro | — | à faire |
