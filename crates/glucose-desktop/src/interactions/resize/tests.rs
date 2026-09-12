@@ -193,14 +193,14 @@ fn test_resize_2_an_image_cannot_be_pulled_below_its_minimum_nor_flipped() {
 fn test_undo_1_a_gesture_of_many_moves_is_one_undo_entry() {
     let mut app = app();
     with_image(&mut app, "I1", 0.0, 0.0, 200.0, 100.0);
-    let entries = app.store.undo_stack.len();
+    let entries = app.store.undo_depth();
     let start = image_box(&app, "I1");
 
     press_handle(&mut app, start, Handle::Right);
     drag_by(&mut app, 80.0, 0.0, 40);
     release(&mut app);
     assert!(approx(image_box(&app, "I1").width, 280.0));
-    assert_eq!(app.store.undo_stack.len(), entries + 1, "quarante mouvements, une entrée");
+    assert_eq!(app.store.undo_depth(), entries + 1, "quarante mouvements, une entrée");
 
     app.modifiers = ModifiersState::CONTROL;
     app.handle_shortcut_input(&Key::Character("z".into()), ElementState::Pressed);
@@ -211,12 +211,12 @@ fn test_undo_1_a_gesture_of_many_moves_is_one_undo_entry() {
 fn test_a_click_on_a_handle_without_moving_leaves_no_undo_entry() {
     let mut app = app();
     with_image(&mut app, "I1", 0.0, 0.0, 200.0, 100.0);
-    let entries = app.store.undo_stack.len();
+    let entries = app.store.undo_depth();
     let version = app.store.version;
     let rect = image_box(&app, "I1");
     press_handle(&mut app, rect, Handle::Left);
     release(&mut app);
-    assert_eq!(app.store.undo_stack.len(), entries);
+    assert_eq!(app.store.undo_depth(), entries);
     assert_eq!(app.store.version, version, "rien n'a changé : pas d'entrée d'undo, pas de « modifié »");
 }
 
@@ -224,7 +224,7 @@ fn test_a_click_on_a_handle_without_moving_leaves_no_undo_entry() {
 fn test_escape_during_the_gesture_restores_the_start_size_and_leaves_no_entry() {
     let mut app = app();
     with_image(&mut app, "I1", 0.0, 0.0, 200.0, 100.0);
-    let entries = app.store.undo_stack.len();
+    let entries = app.store.undo_depth();
     let start = image_box(&app, "I1");
 
     press_handle(&mut app, start, Handle::BottomRight);
@@ -234,14 +234,14 @@ fn test_escape_during_the_gesture_restores_the_start_size_and_leaves_no_entry() 
     app.handle_shortcut_input(&Key::Named(NamedKey::Escape), ElementState::Pressed);
     assert_eq!(image_box(&app, "I1"), start, "Échap rend la taille de départ");
     assert!(app.resize_session.is_none());
-    assert_eq!(app.store.undo_stack.len(), entries, "aucune entrée d'undo");
+    assert_eq!(app.store.undo_depth(), entries, "aucune entrée d'undo");
     assert!(app.store.can_undo() || entries == 0);
 
     // Le relâchement qui suit ne rouvre rien et n'écrit rien.
     drag_by(&mut app, 50.0, 50.0, 2);
     release(&mut app);
     assert_eq!(image_box(&app, "I1"), start);
-    assert_eq!(app.store.undo_stack.len(), entries);
+    assert_eq!(app.store.undo_depth(), entries);
 }
 
 // ── Curseur ─────────────────────────────────────────────────────────────────
@@ -345,13 +345,13 @@ fn test_text_fit_1_committing_a_text_edit_writes_the_fitted_height() {
     app.store.add_annotation(&board, text_card("T1", 0.0, 0.0, 240.0, "une ligne"));
     app.fit_text_card_height("T1");
     let one_line = ann_box(&app, "T1").height;
-    let entries = app.store.undo_stack.len();
+    let entries = app.store.undo_depth();
 
     app.start_text_edit("T1".into(), "une ligne\ndeux\ntrois".into());
     app.commit_editing();
     let three_lines = ann_box(&app, "T1").height;
     assert!(three_lines > one_line, "{three_lines} <= {one_line}");
-    assert_eq!(app.store.undo_stack.len(), entries + 1, "une saisie = une entrée d'undo");
+    assert_eq!(app.store.undo_depth(), entries + 1, "une saisie = une entrée d'undo");
     assert!(app.store.undo());
     assert!(approx(ann_box(&app, "T1").height, one_line), "Ctrl+Z rend le texte ET la hauteur d'avant");
 }

@@ -115,11 +115,11 @@ fn mk_folder(id: &str, name: &str) -> CanvasFolder {
 #[test]
 fn test_set_viewport_pan_zoom_ne_cree_aucune_entree_undo() {
     let mut store = Store::new("test");
-    assert_eq!(store.undo_stack.len(), 0);
+    assert_eq!(store.undo_depth(), 0);
 
     store.set_viewport("main", Viewport { x: 50.0, y: 60.0, scale: 2.0 });
     store.set_viewport("main", Viewport { x: 70.0, y: 80.0, scale: 3.0 });
-    assert_eq!(store.undo_stack.len(), 0);
+    assert_eq!(store.undo_depth(), 0);
 }
 
 #[test]
@@ -129,7 +129,7 @@ fn test_regression_20_pans_entre_action_et_ctrl_z_n_enterrent_pas_undo() {
     for i in 0..20 {
         store.set_viewport("main", Viewport { x: i as f64, y: i as f64, scale: 1.0 });
     }
-    assert_eq!(store.undo_stack.len(), 1); // 1 seul pas, pas 21
+    assert_eq!(store.undo_depth(), 1); // 1 seul pas, pas 21
     assert!(store.undo());
     assert_eq!(store.active_board().unwrap().images.len(), 0); // annulée du premier coup
 }
@@ -139,11 +139,11 @@ fn test_naviguer_apres_un_undo_ne_detruit_pas_le_redo() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("img1"));
     store.undo();
-    assert_eq!(store.redo_stack.len(), 1); // redo armé
+    assert_eq!(store.redo_depth(), 1); // redo armé
 
     store.set_viewport("main", Viewport { x: 999.0, y: 999.0, scale: 4.0 });
     store.set_active_board_id("main");
-    assert_eq!(store.redo_stack.len(), 1); // toujours là malgré la nav
+    assert_eq!(store.redo_depth(), 1); // toujours là malgré la nav
     assert!(store.redo());
     assert_eq!(store.active_board().unwrap().images.len(), 1);
 }
@@ -152,31 +152,31 @@ fn test_naviguer_apres_un_undo_ne_detruit_pas_le_redo() {
 fn test_enter_folder_exit_folder_ne_creent_aucune_entree_undo() {
     let mut store = Store::new("test");
     let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), vec![mk_text("t1", "hi")]);
-    let base = store.undo_stack.len(); // 1 = la création du dossier
+    let base = store.undo_depth(); // 1 = la création du dossier
 
     store.try_enter_folder(&fid).expect("le dossier existe");
     store.exit_folder();
     store.try_enter_folder(&fid).expect("le dossier existe");
     store.exit_to_root();
-    assert_eq!(store.undo_stack.len(), base);
+    assert_eq!(store.undo_depth(), base);
 }
 
 #[test]
 fn test_set_active_board_id_ne_cree_aucune_entree_undo() {
     let mut store = Store::new("test");
     let other = store.add_board("Autre");
-    let base = store.undo_stack.len();
+    let base = store.undo_depth();
 
     store.set_active_board_id("main");
     store.set_active_board_id(&other);
-    assert_eq!(store.undo_stack.len(), base);
+    assert_eq!(store.undo_depth(), base);
 }
 
 #[test]
 fn test_expand_folder_ne_cree_aucune_entree_undo() {
     let mut store = Store::new("test");
     let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), Vec::new());
-    let base = store.undo_stack.len();
+    let base = store.undo_depth();
 
     let level = FolderTreeNode {
         folder: mk_folder("f_sub", "Sub"),
@@ -185,7 +185,7 @@ fn test_expand_folder_ne_cree_aucune_entree_undo() {
         children: Vec::new(),
     };
     store.expand_folder("main", &fid, level);
-    assert_eq!(store.undo_stack.len(), base); // navigation/scan, pas édition
+    assert_eq!(store.undo_depth(), base); // navigation/scan, pas édition
 
     let folder = store.active_board().unwrap().folders.iter().find(|f| f.id == fid).unwrap();
     let child = store.project.boards.iter().find(|b| b.id == folder.child_board_id).unwrap();
@@ -568,10 +568,10 @@ fn test_nouvelle_edition_invalide_redo_mais_pas_navigation() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("i1"));
     store.undo();
-    assert_eq!(store.redo_stack.len(), 1);
+    assert_eq!(store.redo_depth(), 1);
 
     store.add_annotation("main", mk_text("t1", "a")); // vraie édition -> vide le redo
-    assert_eq!(store.redo_stack.len(), 0);
+    assert_eq!(store.redo_depth(), 0);
     assert!(!store.redo());
 }
 
@@ -584,7 +584,7 @@ fn test_sequence_longue_mixte_reste_coherente() {
     store.set_active_board_id("main");
     store.add_annotation("main", mk_sticky("s1", "stk")); // E3
 
-    assert_eq!(store.undo_stack.len(), 3);
+    assert_eq!(store.undo_depth(), 3);
     assert!(store.undo()); // défait E3
     assert_eq!(store.active_board().unwrap().annotations.len(), 1);
 
@@ -608,7 +608,7 @@ fn test_30_moves_entre_begin_end_live_edit_egal_1_entree_undo() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("i1"));
     store.set_selected_image_ids(vec!["i1".into()]);
-    let base = store.undo_stack.len();
+    let base = store.undo_depth();
 
     store.begin_live_edit();
     for _ in 0..30 {
@@ -616,7 +616,7 @@ fn test_30_moves_entre_begin_end_live_edit_egal_1_entree_undo() {
     }
     store.end_live_edit();
 
-    assert_eq!(store.undo_stack.len(), base + 1); // +1, pas +30
+    assert_eq!(store.undo_depth(), base + 1); // +1, pas +30
     assert_eq!(store.active_board().unwrap().images[0].x, 30.0);
 
     assert!(store.undo());
@@ -630,7 +630,7 @@ fn test_30_moves_entre_begin_end_live_edit_egal_1_entree_undo() {
 fn test_begin_live_edit_est_idempotent() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("i1"));
-    let base = store.undo_stack.len();
+    let base = store.undo_depth();
 
     store.begin_live_edit();
     store.begin_live_edit(); // idempotent
@@ -642,15 +642,15 @@ fn test_begin_live_edit_est_idempotent() {
     });
     store.end_live_edit();
 
-    assert_eq!(store.undo_stack.len(), base + 1);
+    assert_eq!(store.undo_depth(), base + 1);
 }
 
 #[test]
 fn test_end_live_edit_sans_begin_est_un_no_op() {
     let mut store = Store::new("test");
     store.end_live_edit();
-    assert!(!store.in_live_edit);
-    assert_eq!(store.undo_stack.len(), 0);
+    assert!(!store.in_live_edit());
+    assert_eq!(store.undo_depth(), 0);
 }
 
 #[test]
@@ -658,18 +658,18 @@ fn test_demarrer_un_drag_vide_le_redo_en_attente() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("i1"));
     store.undo();
-    assert_eq!(store.redo_stack.len(), 1);
+    assert_eq!(store.redo_depth(), 1);
 
     store.begin_live_edit();
     store.move_selected("main", 1.0, 1.0);
     store.end_live_edit();
-    assert_eq!(store.redo_stack.len(), 0);
+    assert_eq!(store.redo_depth(), 0);
 }
 
 #[test]
 fn test_regression_bug_texte_creer_frapper_commit_egal_1_entree() {
     let mut store = Store::new("test");
-    let base = store.undo_stack.len();
+    let base = store.undo_depth();
 
     store.begin_live_edit();
     store.add_annotation("main", mk_text("t1", ""));
@@ -687,7 +687,7 @@ fn test_regression_bug_texte_creer_frapper_commit_egal_1_entree() {
     });
     store.end_live_edit();
 
-    assert_eq!(store.undo_stack.len(), base + 1);
+    assert_eq!(store.undo_depth(), base + 1);
     assert!(store.undo()); // UN SEUL Ctrl+Z
     assert_eq!(store.active_board().unwrap().annotations.len(), 0);
 }
@@ -696,12 +696,12 @@ fn test_regression_bug_texte_creer_frapper_commit_egal_1_entree() {
 fn test_sync_annotation_size_ne_cree_aucune_entree_undo() {
     let mut store = Store::new("test");
     store.add_annotation("main", mk_text("t1", ""));
-    let base = store.undo_stack.len();
+    let base = store.undo_depth();
 
     store.sync_annotation_size("main", "t1", 250.0, 180.0);
     store.sync_annotation_size("main", "t1", 260.0, 200.0);
-    assert_eq!(store.undo_stack.len(), base); // 0 entrée ajoutée
-    assert_eq!(store.redo_stack.len(), 0);
+    assert_eq!(store.undo_depth(), base); // 0 entrée ajoutée
+    assert_eq!(store.redo_depth(), 0);
 
     if let Annotation::Text { width, .. } = &store.active_board().unwrap().annotations[0] {
         assert_eq!(*width, Some(260.0));
