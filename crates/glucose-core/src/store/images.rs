@@ -105,7 +105,7 @@ impl Store {
     ///
     /// Les retraits se font **de la fin vers le début** de chaque liste. C'est ce qui rend
     /// les index enregistrés valides à la réinsertion : combiné à l'inversion d'ordre de
-    /// [`Transaction`], l'undo réinsère par index croissant, chacun retrouvant sa place
+    /// [`crate::store::journal::Transaction`], l'undo réinsère par index croissant, chacun retrouvant sa place
     /// exacte. Retirer dans l'autre sens décalerait les index suivants.
     pub fn remove_images(&mut self, _board_id: &str, ids: &[&str]) {
         let mut to_remove: HashSet<String> = ids.iter().map(|s| s.to_string()).collect();

@@ -106,7 +106,10 @@ impl GlucoseApp {
         };
         store.add_annotation(&active_bid, welcome_card);
         // La carte d'accueil n'est pas une modification de l'utilisateur : le document part
-        // propre, sans marqueur dans le titre.
+        // propre, sans marqueur dans le titre — et sans rien à défaire. Tant que seul le
+        // marqueur était traité, Ctrl+Z était actif dès le lancement et retirait une carte
+        // que personne n'avait posée.
+        store.journal.clear();
         let saved_version = store.version;
 
         Self {

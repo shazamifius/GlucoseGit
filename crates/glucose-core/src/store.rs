@@ -1,4 +1,4 @@
-//! State Store, Machine d'État et pile Undo/Redo infinie — 0 dépendance.
+//! State Store, Machine d'État et pile Undo/Redo bornée à [`UNDO_DEPTH`] gestes — 0 dépendance.
 //!
 //! Architecture Pure Rust std avec Invariants UNDO-1 :
 //! - Navigation transparente (pan, zoom, active board, dossier ne polluent jamais l'undo)
@@ -14,17 +14,17 @@
 //!
 //! | Module | Responsabilité |
 //! |---|---|
-//! | [`ids`] | génération d'identifiants (R-22) et chargement de projet |
-//! | [`navigation`] | board actif, viewport, pan/zoom, dossiers (jamais d'undo) |
-//! | [`selection`] | sélection d'images, d'annotations, de dossiers |
-//! | [`undo`] | pile undo/redo, transactions live |
-//! | [`images`] | mutations d'images, déplacement, duplication, suppression |
-//! | [`annotations`] | mutations d'annotations, miroirs, panneaux storyboard |
-//! | [`boards`] | création, renommage et suppression de tableaux |
-//! | [`folders`] | dossiers de canevas et leurs boards enfants |
-//! | [`catalog`] | presets, zones de tableau, métadonnées de projet |
-//! | [`domains`] | catalogue de domaines et pondérations des nœuds (DOM-1..DOM-3) |
-//! | [`resize`] | la boîte d'un nœud, posée par le geste de redimensionnement (RESIZE-1) |
+//! | `ids` | génération d'identifiants (R-22) et chargement de projet |
+//! | `navigation` | board actif, viewport, pan/zoom, dossiers (jamais d'undo) |
+//! | `selection` | sélection d'images, d'annotations, de dossiers |
+//! | `undo` | pile undo/redo, transactions live |
+//! | `images` | mutations d'images, déplacement, duplication, suppression |
+//! | `annotations` | mutations d'annotations, miroirs, panneaux storyboard |
+//! | `boards` | création, renommage et suppression de tableaux |
+//! | `folders` | dossiers de canevas et leurs boards enfants |
+//! | `catalog` | presets, zones de tableau, métadonnées de projet |
+//! | `domains` | catalogue de domaines et pondérations des nœuds (DOM-1..DOM-3) |
+//! | `resize` | la boîte d'un nœud, posée par le geste de redimensionnement (RESIZE-1) |
 //!
 //! # R-35 — Les erreurs ne sont plus silencieuses
 //!
@@ -47,6 +47,7 @@ mod selection;
 mod undo;
 
 pub use domains::DomainPatch;
+pub use journal::UNDO_DEPTH;
 pub use navigation::build_folder_stack;
 
 use crate::types::{AssetStore, Project, TemporalAnchor};
@@ -83,7 +84,7 @@ impl Store {
             selected_folder_id: None,
             folder_stack: Vec::new(),
             temporal_filter: None,
-            journal: journal::Journal::new(200),
+            journal: journal::Journal::new(UNDO_DEPTH),
             next_id: 1,
             version: 1,
         }

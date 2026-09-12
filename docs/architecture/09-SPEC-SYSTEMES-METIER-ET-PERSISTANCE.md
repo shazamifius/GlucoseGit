@@ -37,20 +37,8 @@ Project
 
 ## 2. Moteur d'Undo / Redo & Transactions Atomiques
 
-L'annulation/rétablissement est le garant de la liberté créative de l'utilisateur.
-
 ### 2.1 Pile Bornée d'Historique
-* Profondeur maximale fixée à **200 niveaux d'annulation** (`LIMITS.UNDO_DEPTH = 200`).
-* Au-delà de 200 gestes, les modifications les plus anciennes sortent de la pile, garantissant une consommation mémoire bornée. Pour remonter plus loin dans le passé, l'application utilise les **jalons durables** sur disque.
-
-### 2.2 Sessions d'Édition Continue (`beginLiveEdit` / `endLiveEdit`)
-Certains gestes utilisateurs émettent des centaines d'évènements par seconde (déplacer une image à la souris, étirer un bord, taper un paragraphe de texte).
-* **Le problème** : Enregistrer un snapshot à chaque pixel déplacé saturerait la mémoire et forcerait l'utilisateur à presser Ctrl+Z 300 fois pour annuler un seul glisser-déposer.
-* **La solution Glucose** :
-  1. Au premier pixel bougé ou à la première lettre tapée : ouverture d'une transaction via `beginLiveEdit()`.
-  2. Pendant toute la durée du geste : les modifications s'appliquent en direct sur l'écran sans créer de nouvelle entrée dans la pile d'undo.
-  3. Au relâchement de la souris (`pointerup`) ou à la fermeture de l'éditeur de texte : fermeture via `endLiveEdit()`.
-  * **Résultat** : Un glisser de 5 secondes ou la rédaction d'un long mémo est annulé **en un seul coup de Ctrl+Z**.
+* **À FAIRE** — Pour remonter plus loin dans le passé que les 200 niveaux de la pile, l'application utilise les **jalons durables** sur disque (`.glucose.versions/`, voir § 3.3). Aucune trace dans `crates/` : ni dossier de versions, ni chargeur de jalon.
 
 ---
 

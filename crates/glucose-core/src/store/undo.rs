@@ -57,12 +57,13 @@ impl Store {
 
     /// Abandonne la transaction live en cours (`Échap` pendant un geste).
     ///
-    /// Le document revient à l'état d'avant `begin_live_edit`, et l'entrée posée à
-    /// l'ouverture disparaît avec lui : un geste annulé ne laisse **aucune** trace dans la
-    /// pile, ni à annuler ni à rétablir. La sélection est conservée — les nœuds existent
-    /// toujours — et la caméra aussi (UNDO-1). La version ne bouge pas : le document est
-    /// exactement celui de la version courante, que les index connaissent déjà. Rend `false`
-    /// hors transaction.
+    /// Le document revient à l'état d'avant `begin_live_edit`, et le geste ne laisse
+    /// **aucune** trace dans la pile : rien de nouveau à annuler, et ce qui restait à
+    /// rétablir l'est toujours — le document étant exactement celui d'avant, l'histoire
+    /// alternative reste valide. La sélection est conservée — les nœuds existent toujours —
+    /// et la caméra aussi (UNDO-1). La version ne bouge pas : le document est exactement
+    /// celui de la version courante, que les index connaissent déjà. Rend `false` hors
+    /// transaction.
     pub fn cancel_live_edit(&mut self) -> bool {
         if !self.journal.is_open() {
             return false;
