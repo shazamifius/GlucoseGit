@@ -895,6 +895,15 @@ pub fn layout_minimap(
         max_y = max_y.max(img.y + img.height / 2.0);
     }
 
+    // Un dossier occupe la carte comme n'importe quel nœud. Sans cette boucle, un tableau
+    // qui ne contient QUE des dossiers n'a pas de bornes finies, donc pas de minimap du tout.
+    for f in &board.folders {
+        min_x = min_x.min(f.x);
+        min_y = min_y.min(f.y);
+        max_x = max_x.max(f.x + f.width);
+        max_y = max_y.max(f.y + f.height);
+    }
+
     for ann in &board.annotations {
         match ann {
             Annotation::Text { x, y, width, height, .. } => {
@@ -973,7 +982,7 @@ pub fn layout_minimap(
     })
 }
 
-fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Theme, w: f32, h: f32, scale: f32) {
+pub(crate) fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Theme, w: f32, h: f32, scale: f32) {
     let s = crate::theme::clamp_ui_scale(scale);
     let mb = match layout_minimap(store, w, h, s) {
         Some(m) => m,
@@ -1059,6 +1068,32 @@ fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Theme, w: f32, 
                 }
             }
             _ => {}
+        }
+    }
+
+    // Dossiers — fiche 06 § 9 : en pointillés, à LEUR couleur, et non en gris comme le reste
+    // du contenu. C'est ce qui les distingue d'une membrane à l'œil, sur une carte de 180 px.
+    let folder_stroke = Stroke {
+        width: 1.0 * s,
+        dash: tiny_skia::StrokeDash::new(vec![2.0 * s, 2.0 * s], 0.0),
+        ..Default::default()
+    };
+    for f in &board.folders {
+        let fx = mb.mm_x + pad + ((f.x - mb.min_x) as f32 * mb.scale);
+        let fy = mb.mm_y + pad + ((f.y - mb.min_y) as f32 * mb.scale);
+        let fw = (f.width as f32 * mb.scale).max(4.0 * s);
+        let fh = (f.height as f32 * mb.scale).max(4.0 * s);
+        let (r, g, b) = crate::renderer::parse_hex_color(&f.color, 136, 136, 136);
+        let mut folder_paint = Paint { anti_alias: true, ..Default::default() };
+        folder_paint.set_color(Color::from_rgba8(r, g, b, 179));
+        let mut fpb = PathBuilder::new();
+        fpb.move_to(fx, fy);
+        fpb.line_to(fx + fw, fy);
+        fpb.line_to(fx + fw, fy + fh);
+        fpb.line_to(fx, fy + fh);
+        fpb.close();
+        if let Some(path) = fpb.finish() {
+            pixmap.stroke_path(&path, &folder_paint, &folder_stroke, Transform::identity(), None);
         }
     }
 

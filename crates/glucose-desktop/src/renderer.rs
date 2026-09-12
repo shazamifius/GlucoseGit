@@ -19,6 +19,7 @@
 
 pub mod card;
 pub mod domain;
+pub mod folder;
 pub mod halo;
 pub mod handles;
 pub mod hue;
@@ -204,7 +205,7 @@ impl Renderer {
         let pass = ViewPass { vp, visible_ids: &visible_ids, header_h };
         let kit = PaintKit { typography: &self.typography, tints: &self.domain_tints, theme: &self.theme };
 
-        // 1. Fond sombre sleek PureRef
+        // 1. Le fond du canevas
         pixmap.fill(self.theme.bg_canvas);
         crate::perf::stage("clear");
 
@@ -219,6 +220,11 @@ impl Renderer {
         // 4. Membranes (pointillés, titre protecteur en haut à gauche)
         scene::draw_membranes(kit, pixmap, store, pass);
         crate::perf::stage("membranes");
+
+        // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
+        // conteneurs et sous leur contenu. Ils n'avaient aucun pixel jusqu'ici.
+        folder::draw_folders(kit, pixmap, store, pass);
+        crate::perf::stage("folders");
 
         // 5. Images
         scene::draw_images(&mut self.image_cache, &mut self.failed_images, kit, pixmap, store, pass);
