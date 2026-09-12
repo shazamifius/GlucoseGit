@@ -24,7 +24,8 @@
 | **08** | [Nœuds & Fonctionnalités Canvas](08-SPEC-FONCTIONNALITES-CANVAS-ET-NOEUDS.md) | **Inventaire technique exhaustif** : images (culling hystérésis, LOD progressif), texte GFM + KaTeX + undo unique, stickies + opérateurs (AND/OR/BUT/BECAUSE), flèches (évitement d'obstacles), dossiers miroir OS, miroirs vivants anti-cycle, membranes. | Pour implémenter chaque entité sans rien oublier. |
 | **09** | [Systèmes Métier & Persistance](09-SPEC-SYSTEMES-METIER-ET-PERSISTANCE.md) | **Les moteurs sous le capot** : schéma universel, undo/redo (transactions atomiques), format binaire `.glucose` v2, bundle portable dédupliqué SHA-256, filet anti-corruption, domaines sémantiques, timeline temporelle, collaboration CRDT. | Pour la persistance et la robustesse globale. |
 | **10** | [Spécification Visuelle & UI Panneaux](10-SPEC-VISUELLE-PANNEAUX-ET-UI.md) | **Atlas visuel pixel-perfect et 14 captures réelles** : dimensions exactes, tokens hexadécimaux, tous les panneaux (Ordonner, Pomodoro, Storyboard, Domaines, Presets, Plugins, Collab, Time Machine, Réglette temporelle, Diagnostics HUD) avec captures d'écran authentiques Playwright et atlas HTML interactif. | Pour coder le rendu des panneaux et du chrome en Rust. |
-| **11** | [Plan de marche](11-PLAN-DE-MARCHE.md) | **La charte confrontée aux fiches 02 et 04** : 100 fps (budget 10 ms), netteté à l’arrêt, cible 10^7 nœuds (canva Wikipédia), dépendances minimales mais assumees. Mesures refaites a la main, 6 remises en question chiffrées (modèle 512 o/noeud, blit 4K a 9,6 ms = 96 % du budget, tuiles vs LOD, parité TS invalide comme étalon, les arêtes Wikipédia = le vrai milliard, auto-critique du zéro-dépendance), ordre de marche A→G. | **Avant de choisir quoi faire ensuite.** |
+| **11** | [Plan de marche](11-PLAN-DE-MARCHE.md) | **La charte confrontée aux fiches 02 et 04** : 100 fps (budget 10 ms), netteté à l’arrêt, cible 10^7 nœuds (canva Wikipédia), dépendances minimales mais assumees. Mesures refaites a la main, 6 remises en question chiffrées (modèle 512 o/noeud, blit 4K a 9,6 ms = 96 % du budget, tuiles vs LOD, parité TS invalide comme étalon, les arêtes Wikipédia = le vrai milliard, auto-critique du zéro-dépendance), ordre de marche A→G. | Pour les six remises en question. **Son § 4 est remplacé à partir de l'étape C par la fiche 12.** |
+| **12** | [Plan d'exécution](12-PLAN-D-EXECUTION.md) | **Tout ce qui reste, dans l'ordre.** Pourquoi l'étape C (tuiles, GPU) cède sa place : un cache de tuiles se conçoit quand on sait ce qu'il y a dans une tuile. La règle S qui rend cet ordre possible, l'état mesuré au commit `acceb0d` (2 868 lignes de noyau sans appelant), cinq vagues de chantiers avec leur sortie mesurable, et la seule vraie inconnue : le LaTeX. | **Avant de choisir quoi faire ensuite.** |
 
 ---
 
@@ -37,8 +38,8 @@
 2. **Tu n'es pas à 3 %, tu es à 22 %.** Et si tu ne faisais que **brancher** ce qui existe déjà,
    sans écrire un seul algorithme nouveau, tu passerais à **26 %**.
 
-3. **L'application ne sait pas enregistrer.** Il n'existe aucune écriture de projet sur disque
-   dans tout `glucose-desktop`. Ce n'est pas encore un logiciel.
+3. ~~**L'application ne sait pas enregistrer.**~~ **Corrigé depuis.** Le format `.glucose` v2 est
+   écrit et relu, avec somme de contrôle par section et écriture atomique (`Ctrl+S`, `Ctrl+O`).
 
 4. **La teinte symbiotique est recalculée en O(n) par nœud visible, par frame, deux fois** —
    pour un résultat identique à la frame précédente. *(Les deux autres fautes de performance,
@@ -47,9 +48,8 @@
 
 5. **L'interface calcule sa géométrie deux fois** — une fois pour dessiner, une fois pour
    cliquer, avec les mêmes nombres recopiés. Le commit `81aea31` vient de régler ça **pour la
-   barre d'outils**, avec des tests, et c'est exactement le bon patron. Mais la **barre
-   d'onglets** garde ses deux mesures divergentes (les onglets ne cliquent pas là où ils sont
-   dessinés), et la minimap reste dans du code strictement inatteignable.
+   barre d'outils**, avec des tests, et c'est exactement le bon patron. **La barre d'onglets et
+   la minimap ont suivi depuis** (`layout_tabs`, `layout_minimap`, chacune avec son test de clic).
 
 ---
 

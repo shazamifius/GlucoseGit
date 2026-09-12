@@ -450,6 +450,15 @@ le temps libéré va aux fonctionnalités de navigation, qui sont le vrai blocag
 
 ## 4. L'ordre de marche
 
+> **État au 12/09/2026 — les étapes A et B sont faites, et la suite a changé d'ordre.**
+>
+> L'étape B est sortie sur ses chiffres : 10⁷ nœuds en **423,8 Mo** (< 500 Mo visés), chargés en
+> **141 ms**, requête de viewport en **0,21 µs** (< 1 ms visée). Les étapes **C à G ci-dessous sont
+> remplacées** par [`12-PLAN-D-EXECUTION.md`](12-PLAN-D-EXECUTION.md), qui argumente pourquoi le
+> rendu par tuiles doit venir **après** les fonctionnalités et non avant : un cache de tuiles se
+> conçoit quand on sait ce qu'il y a dans une tuile. Elles restent ici comme référence de ce qui
+> avait été décidé, et leur contenu technique reste valable.
+
 Six étapes. Chacune se termine sur une application qui tourne et sur un **critère mesurable qui
 échoue le build s'il régresse**.
 
