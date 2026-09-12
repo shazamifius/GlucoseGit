@@ -66,6 +66,7 @@
 //! - La place n'est rendue qu'au compactage, opération explicite et rare. C'est le prix, et il
 //!   est connu : [`Arena::dead`] le mesure à tout instant.
 
+pub mod grid;
 pub mod sparse;
 pub mod text;
 
@@ -442,6 +443,16 @@ impl Arena {
             .set(Flags::ARROW_FROM_RIGHT, ax > bx)
             .set(Flags::ARROW_FROM_BOTTOM, ay > by);
         self.set_box(id, Box2::spanning(ax, ay, bx, by))
+    }
+
+    /// Tous les nœuds vivants, dans l'ordre des identifiants.
+    ///
+    /// C'est le parcours de base du document : il ne lit que les drapeaux, un tableau contigu
+    /// d'un octet par nœud, et laisse au-dehors le choix de ce qu'on va chercher ensuite.
+    pub fn iter_alive(&self) -> impl Iterator<Item = NodeId> + '_ {
+        (0..self.slots())
+            .filter(|&i| !self.flags[i].has(Flags::DEAD))
+            .map(NodeId::from_index)
     }
 
     /// Tous les nœuds vivants dont la boîte croise `view`, dans l'ordre des identifiants.
