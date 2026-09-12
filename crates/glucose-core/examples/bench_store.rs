@@ -226,4 +226,51 @@ fn main() {
         "  • « lookup µs »  = retrouver un nœud par identifiant (balayage linéaire du board)."
     );
     println!("  • Loi L3 : une modification doit coûter la taille de la modification, pas celle du document.");
+
+    println!("\nSauvegarde (fiche 09 § 3–4) — 1 000 nœuds, actifs de 1 Mo :\n");
+    println!(
+        "{:>9} | {:>9} | {:>10} | {:>10}",
+        "actifs Mo", "encode ms", "fichier Mo", "alloué Mo"
+    );
+    println!("{}", "-".repeat(49));
+    for mb in [0usize, 16, 64, 256] {
+        run_save(mb);
+    }
+    println!("\nLecture :");
+    println!("  • « encode ms »  = construire les octets du fichier, sans I/O. Une sauvegarde qui ne change");
+    println!("    rien au document devrait coûter la modification (zéro), pas le volume des actifs.");
+    println!("  • « alloué Mo »  = mémoire vivante au sortir de l'encodage, au-delà du modèle et des actifs :");
+    println!("    ce que le fichier en construction a coûté en copies.");
+}
+
+/// Une sauvegarde : `persist::encode` sur un projet de 1 000 nœuds portant `assets_mb`
+/// mégaoctets d'actifs. Fiche 09 § 4.2 : l'empreinte d'un actif devrait se calculer une fois,
+/// à l'import ; elle l'est aujourd'hui à chaque enregistrement, sur chaque octet.
+fn run_save(assets_mb: usize) {
+    use glucose_core::persist::encode;
+    use glucose_core::types::AssetStore;
+
+    let store = build(1_000, 10_000.0);
+    // Des actifs de 1 Mo, au contenu distinct. Les bits **hauts** du générateur : ses bits
+    // bas ont une période de 512 Ko, et une première version de ce banc produisait 256 actifs
+    // identiques — dédupliqués en un seul blob, un fichier de 1 Mo, et une mesure qui mentait.
+    let mut assets = AssetStore::new();
+    let mut rng = Lcg(7);
+    for i in 0..assets_mb {
+        let bytes: Vec<u8> = (0..1_048_576).map(|_| (rng.next() >> 40) as u8).collect();
+        assets.insert(format!("photo-{i}.jpg"), bytes);
+    }
+
+    let before = live_bytes();
+    let t = Instant::now();
+    let file = encode(&store.project, &assets, 0);
+    let encode_ms = ms(t);
+    let peak_extra = live_bytes().saturating_sub(before);
+    let file_mb = file.len() as f64 / 1_048_576.0;
+    drop(file);
+
+    println!(
+        "{assets_mb:>9} | {encode_ms:>9.1} | {file_mb:>10.1} | {:>10.1}",
+        peak_extra as f64 / 1_048_576.0
+    );
 }
