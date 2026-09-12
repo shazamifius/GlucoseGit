@@ -66,6 +66,9 @@
 //! - La place n'est rendue qu'au compactage, opération explicite et rare. C'est le prix, et il
 //!   est connu : [`Arena::dead`] le mesure à tout instant.
 
+pub mod sparse;
+pub mod text;
+
 use crate::fixed::Fx;
 
 /// Un nœud de l'arène : un indice, quatre octets, aucune allocation.

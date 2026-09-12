@@ -14,6 +14,7 @@
 //! 3. **Combien coûte retrouver un nœud ?** Balayage de `String` contre accès tableau.
 //! 4. **Combien coûte une requête de viewport ?** C'est le geste dominant, à chaque frame.
 
+use glucose_core::arena::text::TextArena;
 use glucose_core::arena::{Arena, Box2, Kind, NodeId};
 use glucose_core::fixed::Fx;
 use glucose_core::store::Store;
@@ -58,6 +59,8 @@ fn ms(t: Instant) -> f64 {
 
 const MAILLAGE: i32 = 400;
 const BOARD: &str = "main";
+/// Le texte que porte chaque nœud textuel, des deux côtés du banc.
+const TEXTE: &str = "Un nœud de banc";
 
 fn cote(n: usize) -> i32 {
     (n as f64).sqrt().ceil() as i32
@@ -70,7 +73,7 @@ fn texte(id: &str, x: f64, y: f64) -> Annotation {
         y,
         width: Some(260.0),
         height: Some(80.0),
-        text: "Un nœud de banc".into(),
+        text: TEXTE.into(),
         font_size: None,
         color: None,
         cursor_pos: None,
@@ -106,8 +109,10 @@ fn build_ancien(n: usize) -> Store {
     s
 }
 
-fn build_arene(n: usize) -> Arena {
+fn build_arene(n: usize) -> (Arena, TextArena) {
     let mut a = Arena::with_capacity(n);
+    // Un nœud sur deux est textuel : l'arène de texte est dimensionnée pour eux.
+    let mut t = TextArena::with_capacity(n, n / 2 * TEXTE.len());
     let c = cote(n);
     for i in 0..n {
         let (x, y) = (i as i32 % c * MAILLAGE, i as i32 / c * MAILLAGE);
@@ -122,9 +127,12 @@ fn build_arene(n: usize) -> Arena {
             Fx::from_px(w),
             Fx::from_px(h),
         );
-        a.spawn(kind, b, NodeId::NONE);
+        let id = a.spawn(kind, b, NodeId::NONE);
+        if kind == Kind::Text {
+            t.set(id, TEXTE);
+        }
     }
-    a
+    (a, t)
 }
 
 // ── Les quatre mesures ───────────────────────────────────────────────────────
@@ -193,9 +201,16 @@ fn mesurer_ancien(n: usize) -> Mesure {
 fn mesurer_arene(n: usize) -> Mesure {
     let avant = live();
     let t = Instant::now();
-    let arene = build_arene(n);
+    let (arene, textes) = build_arene(n);
     let build_ms = ms(t);
     let octets = live().saturating_sub(avant);
+    let mo = |o: usize| o as f64 / 1_048_576.0;
+    println!(
+        "         |           | dont tronc {:>5.1} Mo, intervalles {:>5.1} Mo, texte {:>5.1} Mo",
+        mo(n * Arena::BYTES_PER_NODE),
+        mo(textes.slots() * TextArena::BYTES_PER_NODE),
+        mo(textes.bytes_used()),
+    );
 
     let sondes = 100.min(n);
     let t = Instant::now();
@@ -293,9 +308,15 @@ fn main() {
 
     println!("\nLecture :");
     println!(
-        "  • « o/nœud »   = le document entier divisé par le nombre de nœuds. L'arène n'a encore"
+        "  • « o/nœud »   = le document entier divisé par le nombre de nœuds, texte compris des"
     );
-    println!("    ni texte ni couleur : ce chiffre est celui du tronc, pas celui du modèle fini.");
+    println!("    deux côtés. L'arène ne range AUCUN identifiant lisible : le NodeId EST l'identité, et les"
+    );
+    println!(
+        "    noms ne survivent que dans le format de fichier. L'ancien modèle porte une String par"
+    );
+    println!(
+        "    nœud : c'est une part de l'écart, et elle est assumée, pas oubliée.");
     println!(
         "  • « lookup µs » = retrouver un nœud par son identifiant. L'ancien balaie et compare"
     );
