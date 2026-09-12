@@ -68,10 +68,10 @@ fn inserer_puis_defaire_retire_l_element() {
     do_edit(&mut j, &mut p, insert(2, "neuf"));
     assert_eq!(images(&p), ["img-0", "img-1", "neuf"]);
 
-    assert!(j.undo(&mut p).is_some());
+    assert!(j.undo(&mut p));
     assert_eq!(images(&p), ["img-0", "img-1"]);
 
-    assert!(j.redo(&mut p).is_some());
+    assert!(j.redo(&mut p));
     assert_eq!(images(&p), ["img-0", "img-1", "neuf"]);
 }
 
@@ -84,7 +84,7 @@ fn supprimer_puis_defaire_remet_a_la_meme_place() {
     do_edit(&mut j, &mut p, remove(1, "img-1"));
     assert_eq!(images(&p), ["img-0", "img-2"]);
 
-    assert!(j.undo(&mut p).is_some());
+    assert!(j.undo(&mut p));
     assert_eq!(
         images(&p),
         ["img-0", "img-1", "img-2"],
@@ -112,9 +112,9 @@ fn modifier_puis_defaire_restaure_la_valeur_precedente() {
 
     let x = |p: &Project| p.boards[0].images[1].x;
     assert_eq!(x(&p), 999.0);
-    assert!(j.undo(&mut p).is_some());
+    assert!(j.undo(&mut p));
     assert_eq!(x(&p), 1.0);
-    assert!(j.redo(&mut p).is_some());
+    assert!(j.redo(&mut p));
     assert_eq!(x(&p), 999.0);
 }
 
@@ -133,7 +133,7 @@ fn une_transaction_se_defait_en_un_seul_geste_et_dans_l_ordre_inverse() {
     assert_eq!(images(&p), ["img-0", "img-2"]);
     assert_eq!(j.depth(), 1, "un geste, une entrée");
 
-    assert!(j.undo(&mut p).is_some());
+    assert!(j.undo(&mut p));
     assert_eq!(images(&p), ["img-0", "img-1", "img-2", "img-3"]);
     assert!(!j.can_undo(), "un seul Ctrl+Z suffisait");
 }
@@ -177,7 +177,7 @@ fn une_edition_nouvelle_efface_la_pile_de_retablissement() {
     let mut j = Journal::new(200);
 
     do_edit(&mut j, &mut p, insert(1, "a"));
-    assert!(j.undo(&mut p).is_some());
+    assert!(j.undo(&mut p));
     assert!(j.can_redo());
 
     do_edit(&mut j, &mut p, insert(1, "b"));
@@ -211,7 +211,7 @@ fn un_index_devenu_faux_vide_le_journal_plutot_que_de_mentir() {
     // Quelqu'un vide la liste dans le dos du journal (chargement de projet, compaction…).
     p.boards[0].images.clear();
 
-    assert!(j.undo(&mut p).is_none(), "l'undo échoue proprement");
+    assert!(!j.undo(&mut p), "l'undo échoue proprement");
     assert!(
         !j.can_undo() && !j.can_redo(),
         "et la pile est vidée, pas laissée fausse"
@@ -325,69 +325,13 @@ fn les_annotations_suivent_la_meme_mecanique_que_les_images() {
     );
     assert_eq!(p.boards[0].annotations.len(), 1);
 
-    assert!(j.undo(&mut p).is_some());
+    assert!(j.undo(&mut p));
     assert!(p.boards[0].annotations.is_empty());
 }
 
-/// **Le test qui protège la migration.** Tant que les deux formes d'entrée coexistent, le
-/// risque n'est pas qu'une forme soit fausse — les tests ci-dessus le couvrent — mais que
-/// l'**ordre chronologique** soit perdu quand l'utilisateur alterne un geste migré et un
-/// geste qui ne l'est pas. Ctrl+Z doit défaire le dernier geste, pas le dernier geste de son
-/// mécanisme.
+/// Le journal ne pèse que les gestes qu'il contient, jamais le document sous lui.
 #[test]
-fn l_ordre_des_gestes_est_respecte_meme_en_pile_mixte() {
-    let mut p = project_with(1);
-    let mut j = Journal::new(200);
-
-    // Geste 1 — migré : insertion journalisée.
-    do_edit(&mut j, &mut p, insert(1, "a"));
-
-    // Geste 2 — pas encore migré : snapshot pris avant la mutation, comme le fait `push_undo`.
-    j.push_snapshot(&p);
-    p.boards[0]
-        .images
-        .push(BoardImage::new("b", 0.0, 0.0, 10.0, 10.0));
-
-    // Geste 3 — migré à nouveau.
-    do_edit(&mut j, &mut p, insert(3, "c"));
-
-    assert_eq!(images(&p), ["img-0", "a", "b", "c"]);
-    assert_eq!(
-        j.snapshot_count(),
-        1,
-        "un seul geste reste sur l'ancien mécanisme"
-    );
-
-    // On défait dans l'ordre inverse strict : c, puis b, puis a.
-    assert_eq!(j.undo(&mut p), Some(Step::Local));
-    assert_eq!(
-        images(&p),
-        ["img-0", "a", "b"],
-        "le dernier geste, pas le dernier journalisé"
-    );
-
-    assert_eq!(
-        j.undo(&mut p),
-        Some(Step::Replaced),
-        "un snapshot remplace le document"
-    );
-    assert_eq!(images(&p), ["img-0", "a"]);
-
-    assert_eq!(j.undo(&mut p), Some(Step::Local));
-    assert_eq!(images(&p), ["img-0"]);
-    assert!(!j.can_undo());
-
-    // Et tout se refait dans l'ordre, en sens inverse.
-    assert!(j.redo(&mut p).is_some());
-    assert!(j.redo(&mut p).is_some());
-    assert!(j.redo(&mut p).is_some());
-    assert_eq!(images(&p), ["img-0", "a", "b", "c"]);
-}
-
-/// Le compteur de dette de migration. Il ne prouve rien sur le comportement : il rend la
-/// migration **visible**, pour qu'on sache à tout moment combien de sites restent à traiter.
-#[test]
-fn un_journal_sans_snapshot_ne_pese_que_ses_gestes() {
+fn un_geste_ne_pese_que_ce_qu_il_touche() {
     let mut p = project_with(50_000);
     let mut j = Journal::new(200);
 
@@ -397,13 +341,9 @@ fn un_journal_sans_snapshot_ne_pese_que_ses_gestes() {
     do_edit(
         &mut j,
         &mut p,
-        Edit::Image {
-            board: BOARD.to_string(),
-            slot: Slot::changed(0, before, after),
-        },
+        Edit::Image { board: BOARD.to_string(), slot: Slot::changed(0, before, after) },
     );
 
-    assert_eq!(j.snapshot_count(), 0);
     assert!(
         j.weight() < 4 * std::mem::size_of::<BoardImage>(),
         "un geste sur un document de 50 000 nœuds pèse deux images, pas 50 000"
