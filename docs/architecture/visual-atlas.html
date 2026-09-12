@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glucose — Atlas Visuel & Référence Pixel UI (Rust Parity Target)</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background: #080808;
+      color: #ccc;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      padding-bottom: 80px;
+    }
+    header.atlas-header {
+      background: #141414;
+      border-bottom: 1px solid #262626;
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .atlas-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .atlas-subtitle {
+      font-size: 11px;
+      color: #777;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(16,185,129,0.15);
+      color: #34d399;
+      border: 1px solid rgba(16,185,129,0.4);
+    }
+    .section-container {
+      max-width: 1400px;
+      margin: 32px auto;
+      padding: 0 24px;
+    }
+    h2.section-heading {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #fff;
+      border-bottom: 1px solid #222;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .screen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .screen-card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .screen-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-bottom: 1px solid #222;
+    }
+    .screen-card-info {
+      padding: 12px 16px;
+    }
+    .screen-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .screen-card-desc {
+      font-size: 11px;
+      color: #777;
+    }
+
+    /* ─── EXACT GLUCOSE STYLES ─── */
+    .glucose-stage {
+      background: #0d0d0d;
+      border: 1px solid #222;
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+      margin-bottom: 32px;
+    }
+    /* Toolbar replica */
+    .glc-toolbar {
+      height: 44px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+    .glc-logo {
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 2px;
+      margin-right: 12px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .glc-sep {
+      width: 1px;
+      height: 20px;
+      background: #2a2a2a;
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+    .glc-tool-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .glc-tool-btn.active {
+      background: #2d2d2d;
+      color: #fff;
+      outline: 1px solid #444;
+    }
+    .glc-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+      background: transparent;
+      color: #666;
+      white-space: nowrap;
+    }
+    .glc-action-btn:hover {
+      background: #1e1e1e;
+      color: #ccc;
+    }
+    .glc-action-btn.active {
+      background: #2d2d2d;
+      color: #ccc;
+      outline: 1px solid #444;
+    }
+    /* Board Tabs replica */
+    .glc-tabs {
+      height: 34px;
+      background: #111;
+      border-bottom: 1px solid #222;
+      display: flex;
+      align-items: stretch;
+      flex-shrink: 0;
+    }
+    .glc-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      min-width: 100px;
+      max-width: 180px;
+      font-size: 12px;
+      border-right: 1px solid #1a1a1a;
+      border-bottom: 2px solid transparent;
+      color: #555;
+      cursor: pointer;
+    }
+    .glc-tab.active {
+      background: #1a1a1a;
+      color: #fff;
+      border-bottom: 2px solid #fff;
+    }
+    .glc-tab-pill {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      background: #2a2a2a;
+      color: #666;
+    }
+    .glc-tab-close {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: #444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .glc-tab-close:hover {
+      background: #333;
+      color: #aaa;
+    }
+
+    /* Live Canvas Arena with Dot Grid */
+    .glc-canvas-area {
+      height: 600px;
+      background-color: #0d0d0d;
+      background-image: radial-gradient(circle, #2d2d2d 1px, transparent 1px);
+      background-size: 24px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Text Cloud Node */
+    .glc-text-cloud {
+      position: absolute;
+      border-radius: 32px;
+      padding: 16px 24px;
+      font-size: 14px;
+      color: #fff;
+      background: color-mix(in srgb, #60a5fa 4%, transparent);
+      box-shadow: 0 0 60px 30px color-mix(in srgb, #60a5fa 16%, transparent);
+      border: 1px dashed rgba(255,255,255,0.4);
+      outline-offset: 4px;
+      max-width: 320px;
+      cursor: move;
+    }
+    /* Sticky Note */
+    .glc-sticky-note {
+      position: absolute;
+      width: 160px;
+      height: 120px;
+      background: #f5c542;
+      border-radius: 2px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      color: #222;
+      font-size: 13px;
+      padding: 24px 10px 10px 10px;
+      cursor: move;
+    }
+    .glc-sticky-tape {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 16px;
+      background: rgba(255,255,255,0.2);
+    }
+    /* Operator Pill */
+    .glc-op-pill {
+      position: absolute;
+      height: 44px;
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: move;
+    }
+    .glc-op-and {
+      width: 80px;
+      color: #34d399;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1.5px solid #34d399;
+      box-shadow: 0 0 18px rgba(52, 211, 153, 0.25);
+    }
+    .glc-op-or {
+      width: 80px;
+      color: #60a5fa;
+      background: rgba(96, 165, 250, 0.12);
+      border: 1.5px solid #60a5fa;
+      box-shadow: 0 0 18px rgba(96, 165, 250, 0.25);
+    }
+    .glc-op-because {
+      width: 130px;
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.12);
+      border: 1.5px solid #a78bfa;
+      box-shadow: 0 0 18px rgba(167, 139, 250, 0.25);
+    }
+
+    /* Selected Card with Paper-cut Handles */
+    .glc-image-card {
+      position: absolute;
+      border: 1px solid rgba(255,255,255,0.8);
+      cursor: move;
+    }
+    .glc-handle {
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      background: #fff;
+      border: 1.25px solid #111;
+      border-radius: 0;
+    }
+    .glc-handle.tl { top: -5px; left: -5px; }
+    .glc-handle.tr { top: -5px; right: -5px; }
+    .glc-handle.bl { bottom: -5px; left: -5px; }
+    .glc-handle.br { bottom: -5px; right: -5px; }
+
+    /* Minimap replica */
+    .glc-minimap {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      width: 180px;
+      height: 120px;
+      background: rgba(13,13,13,0.92);
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      cursor: crosshair;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    /* DOCK PANELS SHOWCASE */
+    .panels-showcase {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: flex-start;
+      margin-top: 24px;
+    }
+    .panel-box {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 6px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .panel-grip {
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 9px;
+      letter-spacing: 3px;
+      cursor: grab;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid #1e1e1e;
+      color: #ccc;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .panel-body {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .panel-label {
+      font-size: 10px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .panel-input {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      color: #ccc;
+      font-size: 12px;
+      padding: 3px 7px;
+      width: 100%;
+      outline: none;
+    }
+    .panel-btn {
+      width: 100%;
+      padding: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #222;
+      color: #ccc;
+      border: 1px solid #333;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .panel-btn:hover {
+      background: #2a2a2a;
+    }
+    .panel-pill-tag {
+      padding: 3px 8px;
+      font-size: 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      background: #1a1a1a;
+      color: #555;
+      border: 1px solid #2a2a2a;
+    }
+    .panel-pill-tag.active {
+      background: #2d2d2d;
+      color: #ccc;
+      border: 1px solid #444;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="atlas-header">
+    <div>
+      <span class="atlas-title">Glucose Visual Atlas</span>
+      <span style="margin: 0 8px; color: #444;">|</span>
+      <span class="atlas-subtitle">Référence Visuelle & Pixel Exact pour la Réécriture Rust Natif</span>
+    </div>
+    <span class="badge">100% PARITÉ DESIGN</span>
+  </header>
+
+  <div class="section-container">
+
+    <h2 class="section-heading">2. Rendu HTML/CSS Direct (Composants Réels)</h2>
+
+    <!-- Stage Simulation -->
+    <div class="glucose-stage">
+      <!-- Toolbar -->
+      <div class="glc-toolbar">
+        <span class="glc-logo">Glucose</span>
+        <button class="glc-tool-btn active" title="V — Sélectionner">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 2L6.5 12L8 8L12 6.5L2 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="glc-tool-btn" title="Espace — Déplacer la vue">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <div class="glc-sep"></div>
+        <button class="glc-tool-btn" title="T — Texte">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 3h10M7 3v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <button class="glc-tool-btn" title="N — Note sticky">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M4 5h6M4 7.5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <button class="glc-tool-btn" title="A — Flèche">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 12L12 2M12 2H7M12 2V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="glc-sep"></div>
+        <button class="glc-action-btn active" title="Organiser">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="8" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="8" width="6" height="4" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+          Ordonner
+        </button>
+        <button class="glc-action-btn" title="Timer">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="9" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 6v3.5l2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 2h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Timer
+        </button>
+        <button class="glc-action-btn" title="Storyboard">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="6" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="6" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="9" width="6" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="6" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+          Storyboard
+        </button>
+        <div style="flex: 1;"></div>
+        <button class="glc-action-btn" title="Collaborer">
+          <span style="position: relative; display: flex; align-items: center;">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span style="position: absolute; top: -2px; right: -3px; width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 5px #10b981;"></span>
+          </span>
+          Collaborer
+        </button>
+      </div>
+
+      <!-- BoardTabs -->
+      <div class="glc-tabs">
+        <div class="glc-tab active">
+          <span>Concept V2</span>
+          <span class="glc-tab-pill">Cinema</span>
+          <button class="glc-tab-close">×</button>
+        </div>
+        <div class="glc-tab">
+          <span>Recherche Sémantique</span>
+          <button class="glc-tab-close">×</button>
+        </div>
+        <button style="width: 34px; border: none; background: transparent; color: #444; font-size: 16px; cursor: pointer;">+</button>
+      </div>
+
+      <!-- Canvas Area -->
+      <div class="glc-canvas-area">
+        <!-- Text Cloud -->
+        <div class="glc-text-cloud" style="top: 60px; left: 80px;">
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">Modèle Sémantique</div>
+          <div>L'architecture symbiotique diffuse une aura subtile proportionnelle à son impact contextuel.</div>
+        </div>
+
+        <!-- Sticky Note -->
+        <div class="glc-sticky-note" style="top: 60px; left: 450px;">
+          <div class="glc-sticky-tape"></div>
+          <b>Important :</b>
+          <p style="margin-top: 6px;">Toujours dissocier l'espace monde (zoom) de l'espace écran pour les bordures et poignées.</p>
+        </div>
+
+        <!-- Operator Pill -->
+        <div class="glc-op-pill glc-op-and" style="top: 240px; left: 490px;">
+          ET
+        </div>
+
+        <!-- Image Card with paper-cut handles -->
+        <div class="glc-image-card" style="top: 320px; left: 140px; width: 200px; height: 130px; background: #181818;">
+          <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #555;">Image Mockup</div>
+          <div class="glc-handle tl"></div>
+          <div class="glc-handle tr"></div>
+          <div class="glc-handle bl"></div>
+          <div class="glc-handle br"></div>
+        </div>
+
+        <!-- Minimap -->
+        <div class="glc-minimap">
+          <span>MINIMAP · 180×120</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section-heading">3. Catalogue Visuel des Panneaux Détaillés</h2>
+    <div class="panels-showcase">
+
+      <!-- Organize Panel -->
+      <div class="panel-box" style="width: 250px;">
+        <div class="panel-grip">⠿⠿</div>
+        <div class="panel-header">Ordonner</div>
+        <div class="panel-body">
+          <div style="font-size: 11px; padding: 5px 8px; border-radius: 3px; background: #1a1a1a; border: 1px solid #222; color: #555;">
+            Toutes les images (8)
+          </div>
+          <div>
+            <div class="panel-label">Trier avant disposition</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <span class="panel-pill-tag active">Ordre actuel</span>
+              <span class="panel-pill-tag">Couleur</span>
+              <span class="panel-pill-tag">Grand → Petit</span>
+              <span class="panel-pill-tag">Portrait</span>
+            </div>
+          </div>
+          <div>
+            <div class="panel-label">Disposition</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="padding: 5px 8px; border-radius: 4px; background: #1e1e1e; border: 1px solid #333;">
+                <div style="color: #fff; font-size: 11px; font-weight: 600;">Rangées compactes</div>
+                <div style="color: #555; font-size: 9px;">Respecte les ratios, remplit chaque ligne</div>
+              </div>
+              <div style="padding: 5px 8px; border-radius: 4px; border: 1px solid transparent; color: #888; font-size: 11px;">
+                Masonry (colonnes)
+              </div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div>
+              <div class="panel-label">Largeur</div>
+              <input class="panel-input" value="250" readonly>
+            </div>
+            <div>
+              <div class="panel-label">Espacement</div>
+              <input class="panel-input" value="10" readonly>
+            </div>
+          </div>
+          <button class="panel-btn">Appliquer</button>
+        </div>
+      </div>
+
+      <!-- Pomodoro Panel -->
+      <div class="panel-box" style="min-width: 170px; padding: 18px 18px 14px 18px; text-align: center;">
+        <div class="panel-label" style="text-align: left; margin-bottom: 12px;">Pomodoro</div>
+        <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 12px auto;">
+          <svg width="80" height="80" style="transform: rotate(-90deg);">
+            <circle cx="40" cy="40" r="30" fill="none" stroke="#1e1e1e" stroke-width="5" />
+            <circle cx="40" cy="40" r="30" fill="none" stroke="#60a5fa" stroke-width="5" stroke-dasharray="188.5" stroke-dashoffset="60" stroke-linecap="round" />
+          </svg>
+          <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; color: #ccc; font-variant-numeric: tabular-nums;">
+            18:24
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px; justify-content: center; margin-bottom: 10px;">
+          <button style="padding: 4px 14px; font-size: 11px; border-radius: 4px; background: #1e1e1e; border: 1px solid #333; color: #ccc; cursor: pointer;">Pause</button>
+          <button style="padding: 4px 10px; font-size: 11px; border-radius: 4px; background: transparent; border: 1px solid #2a2a2a; color: #555; cursor: pointer;">↺</button>
+        </div>
+        <div style="display: flex; gap: 4px; justify-content: center;">
+          <span style="padding: 2px 6px; font-size: 9px; border-radius: 3px; background: #2a2a2a; border: 1px solid #444; color: #aaa;">25 min</span>
+          <span style="padding: 2px 6px; font-size: 9px; border-radius: 3px; background: transparent; border: 1px solid #1e1e1e; color: #444;">15 min</span>
+          <span style="padding: 2px 6px; font-size: 9px; border-radius: 3px; background: transparent; border: 1px solid #1e1e1e; color: #444;">5 min</span>
+        </div>
+      </div>
+
+      <!-- Domains Panel -->
+      <div class="panel-box" style="width: 300px;">
+        <div class="panel-grip">⠿⠿</div>
+        <div class="panel-header">Domaines</div>
+        <div class="panel-body">
+          <div style="padding: 8px 10px; background: #171717; border: 1px solid rgba(96,165,250,0.25); border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🔬</span>
+              <span style="flex: 1; color: #60a5fa; font-size: 12px; font-weight: 600;">Biochimie</span>
+              <span style="color: #666; font-size: 11px;">✎</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+              <input type="range" min="0" max="100" value="40" style="flex: 1; accent-color: #60a5fa;">
+              <span style="font-size: 10px; color: #888;">40%</span>
+            </div>
+          </div>
+          <div style="padding: 8px 10px; background: #171717; border: 1px solid rgba(52,211,153,0.25); border-radius: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🎨</span>
+              <span style="flex: 1; color: #34d399; font-size: 12px; font-weight: 600;">Graphisme</span>
+              <span style="color: #666; font-size: 11px;">✎</span>
+            </div>
+          </div>
+          <button style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px dashed #333; color: #888; font-size: 11px; border-radius: 6px; cursor: pointer;">+ Nouveau domaine</button>
+        </div>
+      </div>
+
+      <!-- Time Machine Drawer Preview -->
+      <div class="panel-box" style="width: 324px; background: linear-gradient(180deg, rgba(20,20,24,0.97), rgba(13,13,16,0.97)); border: 1px solid #fbbf2466;">
+        <div class="panel-header" style="border-bottom: 1px solid #1f1f23;">
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <span>⏳ Time Machine</span>
+            <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4);">APERÇU</span>
+          </span>
+          <span style="color: #666; cursor: pointer;">✕</span>
+        </div>
+        <div style="padding: 10px 14px; border-bottom: 1px solid #1f1f23;">
+          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #6b7280; margin-bottom: 6px;">
+            <span>12 GESTES</span>
+            <span style="color: #9ca3af;">11/12 · il y a 2 min</span>
+          </div>
+          <div style="position: relative; height: 22px; background: rgba(255,255,255,0.03); border: 1px solid #1f1f23; border-radius: 4px;">
+            <div style="position: absolute; left: 85%; top: -3px; bottom: -3px; width: 3px; background: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,0.6); border-radius: 2px;"></div>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <button style="padding: 4px 8px; font-size: 11px; background: transparent; border: 1px solid #444; color: #cbd5e1; border-radius: 4px;">← Maintenant</button>
+            <button style="flex: 1; padding: 4px 8px; font-size: 11px; background: #fbbf24; color: #0d0d0d; font-weight: 600; border: none; border-radius: 4px;">⏪ Restaurer cet état</button>
+          </div>
+        </div>
+        <div style="padding: 12px 14px;">
+          <div style="font-size: 9px; color: #6b7280; margin-bottom: 8px;">💾 VERSIONS DURABLES</div>
+          <div style="display: flex; gap: 8px; align-items: flex-start;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: #2dd4bf; margin-top: 3px;"></div>
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; color: #fff;">Version Initiale Validée</div>
+              <div style="font-size: 10px; color: #666;">MANUEL · il y a 25 min</div>
+            </div>
+            <button style="font-size: 10px; color: #2dd4bf; background: transparent; border: 1px solid rgba(45,212,191,0.3); border-radius: 4px; padding: 2px 6px;">↩ Restaurer</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
