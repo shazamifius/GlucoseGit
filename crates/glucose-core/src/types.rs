@@ -437,6 +437,57 @@ impl Default for Viewport {
     }
 }
 
+impl Viewport {
+    /// Échelle la plus petite que le **modèle** accepte : ×200 dézoomé (fiche 09 § 1).
+    ///
+    /// C'est la borne anti-crash du document, pas celle du geste : la molette s'arrête bien
+    /// avant (fiche 07 § 7.1), mais un signet, un cadrage calculé ou un fichier venu de
+    /// Glucose Tauri peuvent porter une échelle plus large, et doivent rester valides.
+    pub const MIN_SCALE: f64 = 0.005;
+    /// Échelle la plus grande que le modèle accepte : ×50 zoomé (fiche 09 § 1).
+    pub const MAX_SCALE: f64 = 50.0;
+    /// Les deux bornes du modèle, sous la forme qu'attend [`Viewport::zoom_at`].
+    pub const SCALE_RANGE: (f64, f64) = (Self::MIN_SCALE, Self::MAX_SCALE);
+
+    /// Le viewport ramené dans le domaine du modèle.
+    ///
+    /// Une échelle hors bornes est rabattue ; une échelle qui n'est pas un nombre — `NaN`,
+    /// infini, ce qu'un fichier abîmé peut porter — devient 1, parce que `clamp` laisse
+    /// passer `NaN` et qu'un `NaN` dans la caméra rend chaque pixel du canevas invisible
+    /// sans faire tomber le programme. Un décalage non fini devient 0 pour la même raison.
+    pub fn normalized(self) -> Self {
+        let finite_or = |v: f64, fallback: f64| if v.is_finite() { v } else { fallback };
+        Self {
+            x: finite_or(self.x, 0.0),
+            y: finite_or(self.y, 0.0),
+            scale: finite_or(self.scale, 1.0).clamp(Self::MIN_SCALE, Self::MAX_SCALE),
+        }
+    }
+
+    /// Zoom ancré : le point du monde sous `(cx, cy)` (pixels écran) ne bouge pas à l'écran
+    /// (fiche 07 § 7.1).
+    ///
+    /// ```text
+    ///     s' = clamp(s × facteur, lo, hi)
+    ///     v' = c − (c − v) × s' / s
+    /// ```
+    ///
+    /// `range` est la borne de l'appelant — celle du geste, plus étroite que celle du
+    /// modèle — et le résultat respecte **les deux** : l'échelle finale est dans
+    /// l'intersection de `range` et de [`SCALE_RANGE`](Self::SCALE_RANGE). C'est la seule
+    /// écriture de cette formule dans le programme ; le noyau et l'interface l'appellent.
+    pub fn zoom_at(&mut self, factor: f64, cx: f64, cy: f64, range: (f64, f64)) {
+        let lo = range.0.max(Self::MIN_SCALE);
+        let hi = range.1.min(Self::MAX_SCALE);
+        // Partir d'un viewport valide : la formule divise par l'échelle courante.
+        let base = self.normalized();
+        let new_scale = (base.scale * factor).clamp(lo, hi);
+        self.x = cx - (cx - base.x) * (new_scale / base.scale);
+        self.y = cy - (cy - base.y) * (new_scale / base.scale);
+        self.scale = new_scale;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoryboardPanel {
     pub id: Id,
@@ -611,6 +662,32 @@ impl Project {
             asset_channel_url: None,
             created_at: 0,
             updated_at: 0,
+        }
+    }
+}
+
+#[cfg(test)]
+mod viewport_tests {
+    use super::Viewport;
+
+    fn screen_to_world(sx: f64, sy: f64, vp: &Viewport) -> (f64, f64) {
+        ((sx - vp.x) / vp.scale, (sy - vp.y) / vp.scale)
+    }
+
+    /// Fiche 07 § 7.1 — le point du monde sous le curseur est rigoureusement immobile.
+    /// Ce test vivait dans `glucose-desktop/canvas.rs`, à côté d'une seconde copie de la
+    /// formule ; il suit la formule, désormais unique.
+    #[test]
+    fn test_zoom_at_keeps_the_world_point_under_the_cursor_still() {
+        for factor in [1.5, 0.25, 4.0, 1.0] {
+            let mut vp = Viewport { x: 50.0, y: 50.0, scale: 1.0 };
+            let (cx, cy) = (300.0, 200.0);
+            let before = screen_to_world(cx, cy, &vp);
+            vp.zoom_at(factor, cx, cy, Viewport::SCALE_RANGE);
+            let after = screen_to_world(cx, cy, &vp);
+            assert!((before.0 - after.0).abs() < 1e-9, "facteur {factor}: {before:?} → {after:?}");
+            assert!((before.1 - after.1).abs() < 1e-9, "facteur {factor}: {before:?} → {after:?}");
+            assert_eq!(vp.scale, factor);
         }
     }
 }

@@ -15,6 +15,7 @@
 
 use crate::app::GlucoseApp;
 use crate::ui::ActiveTool;
+use glucose_core::types::Viewport;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowLevel;
@@ -152,11 +153,8 @@ impl GlucoseApp {
 
     /// Recentre la caméra PureRef sur l'origine, à l'échelle 1.
     fn reset_view(&mut self) {
-        if let Some(board) = self.store.active_board_mut() {
-            board.viewport.x = 0.0;
-            board.viewport.y = 0.0;
-            board.viewport.scale = 1.0;
-        }
+        let board = self.store.project.active_board_id.clone();
+        self.store.set_viewport(&board, Viewport::default());
         self.ui.show_toast("Vue recentrée");
         self.mark_dirty();
     }

@@ -7,31 +7,8 @@
 
 ## 1. Schéma de Données Universel
 
-Le projet Glucose est une arborescence sérialisable de tableaux et de nœuds.
-
-```
-Project
- ├── metadata (version, name, createdAt, updatedAt)
- ├── domains: Vec<Domain> (partagés entre tous les boards)
- ├── presets: Vec<Preset> (gabarits de disposition)
- ├── blobs: HashMap<SHA256, Vec<u8>> (assets binaires embarqués)
- └── boards: Vec<Board>
-      ├── viewport (x, y, scale)
-      ├── images: Vec<BoardImage>
-      ├── annotations: Vec<Annotation> (Text, Sticky, Arrow, Membrane)
-      ├── folders: Vec<CanvasFolder> (pointent vers d'autres boards)
-      ├── panels: Vec<StoryboardPanel>
-      └── bookmarks: HashMap<"1".."9", Viewport>
-```
-
 ### Invariants du Modèle
-1. **Identifiants Déterministes (Nanoid / UUID)** :
-   Chaque entité (image, annotation, dossier, tableau, domaine) possède un identifiant textuel unique de 16 à 21 caractères généré en $O(1)$.
-2. **Bornes Numériques Spatiales (Anti-Crash)** :
-   Pour prévenir les débordements de flottants (IEEE 754) et les instabilités dans les moteurs de rastérisation :
-   * Coordonnées $(x, y)$ bornées à $\pm 1\,000\,000\text{ px}$ (`COORD_LIMIT = 1_000_000`).
-   * Dimensions $(w, h)$ bornées entre $1\text{ px}$ et $200\,000\text{ px}$ (`SIZE_LIMIT = 200_000`).
-   * Échelle de zoom bornée entre $0.005$ ($\times 200$ dézoomé) et $50.0$ ($\times 50$ zoomé).
+* **À FAIRE** — **Bornes numériques spatiales (anti-crash)** : coordonnées $(x, y)$ bornées à $\pm 1\,000\,000\text{ px}$, dimensions $(w, h)$ entre $1$ et $200\,000\text{ px}$. Rien ne les borne aujourd'hui. À obtenir par la **représentation** — entiers à virgule fixe, $\pm 8{,}4\text{ M px}$ par construction, plan de marche RQ-1 — et non par un clamp en `f64`, qui serait du travail jeté.
 
 ---
 

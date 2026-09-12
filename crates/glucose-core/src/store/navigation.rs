@@ -63,9 +63,12 @@ impl Store {
         drop(self.try_set_active_board_id(board_id));
     }
 
+    /// Pose la caméra d'un board. Le viewport est ramené dans le domaine du modèle
+    /// ([`Viewport::normalized`]) : c'est ici, et dans [`Store::zoom`], que la borne d'échelle
+    /// de la fiche 09 § 1 devient une propriété du store plutôt qu'une précaution d'appelant.
     pub fn set_viewport(&mut self, board_id: &str, vp: Viewport) {
         if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
-            b.viewport = vp;
+            b.viewport = vp.normalized();
         }
     }
 
@@ -76,13 +79,12 @@ impl Store {
         }
     }
 
-    pub fn zoom(&mut self, factor: f64, cursor_x: f64, cursor_y: f64) {
+    /// Zoom ancré sous `(cursor_x, cursor_y)` sur le board actif — la formule est celle de
+    /// [`Viewport::zoom_at`], et `range` la borne de l'appelant (le geste molette a la
+    /// sienne, fiche 07 § 7.1) ; celle du modèle s'applique toujours.
+    pub fn zoom(&mut self, factor: f64, cursor_x: f64, cursor_y: f64, range: (f64, f64)) {
         if let Some(b) = self.active_board_mut() {
-            let old_scale = b.viewport.scale;
-            let new_scale = (old_scale * factor).clamp(0.01, 50.0);
-            b.viewport.x = cursor_x - (cursor_x - b.viewport.x) * (new_scale / old_scale);
-            b.viewport.y = cursor_y - (cursor_y - b.viewport.y) * (new_scale / old_scale);
-            b.viewport.scale = new_scale;
+            b.viewport.zoom_at(factor, cursor_x, cursor_y, range);
         }
     }
 

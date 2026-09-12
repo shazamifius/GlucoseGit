@@ -16,22 +16,6 @@ pub fn world_to_screen(world_x: f64, world_y: f64, vp: &Viewport) -> (f64, f64) 
     (sx, sy)
 }
 
-/// Calcule le nouveau viewport après un zoom centré sur la position du curseur `(cx, cy)`.
-pub fn zoom_at(vp: &mut Viewport, factor: f64, cx: f64, cy: f64) {
-    let old_scale = vp.scale;
-    let new_scale = (old_scale * factor).clamp(0.01, 50.0);
-    vp.x = cx - (cx - vp.x) * (new_scale / old_scale);
-    vp.y = cy - (cy - vp.y) * (new_scale / old_scale);
-    vp.scale = new_scale;
-}
-
-/// Déplace la caméra de `(dx, dy)` pixels écran.
-#[allow(dead_code)]
-pub fn pan(vp: &mut Viewport, dx: f64, dy: f64) {
-    vp.x += dx;
-    vp.y += dy;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,20 +28,6 @@ mod tests {
         let (rx, ry) = world_to_screen(wx, wy, &vp);
         assert!((sx - rx).abs() < 1e-6);
         assert!((sy - ry).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_zoom_preserves_cursor_world_position() {
-        let mut vp = Viewport { x: 50.0, y: 50.0, scale: 1.0 };
-        let cx = 300.0;
-        let cy = 200.0;
-        let (w_before_x, w_before_y) = screen_to_world(cx, cy, &vp);
-
-        zoom_at(&mut vp, 1.5, cx, cy);
-
-        let (w_after_x, w_after_y) = screen_to_world(cx, cy, &vp);
-        assert!((w_before_x - w_after_x).abs() < 1e-6);
-        assert!((w_before_y - w_after_y).abs() < 1e-6);
     }
 
     #[test]
