@@ -287,3 +287,9 @@ fn test_plan_board_stretch_cycle_does_not_infinite_loop() {
     ];
     let _ = plan_board_stretch(&items);
 }
+
+/// Fiche 08 § 7.1 — le mode étiré englobe son contenu « plus une marge d'air de 32 px ».
+#[test]
+fn test_the_stretch_padding_is_thirty_two_pixels() {
+    assert_eq!(glucose_core::membrane_space::STRETCH_PADDING, 32.0);
+}

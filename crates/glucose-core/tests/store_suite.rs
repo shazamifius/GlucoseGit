@@ -359,3 +359,28 @@ fn test_charger_un_projet_ramene_la_camera_dans_le_modele() {
     vp.zoom_at(2.0, 100.0, 100.0, Viewport::SCALE_RANGE);
     assert!(vp.scale.is_finite() && vp.x.is_finite() && vp.y.is_finite(), "{vp:?}");
 }
+
+// ── Fiche 08 § 1.3 — la duplication ──────────────────────────────────────────
+
+/// « Clone immédiatement les images sélectionnées avec un décalage » — de **20 px** en X et
+/// en Y : c'est ce que fait Glucose Tauri (`OFFSET = 20` dans `duplicateSelected`), et la
+/// fiche disait 24. La cible fait foi. Le clone est sélectionné à la place de l'original.
+#[test]
+fn test_duplicate_offsets_the_clone_by_twenty_pixels_and_selects_it() {
+    let mut store = Store::new("P");
+    store.add_image("main", BoardImage::new("img-1", 100.0, 50.0, 200.0, 150.0));
+    store.add_annotation("main", mk_text("t-1", -30.0, 70.0));
+    store.set_selected_image_ids(vec!["img-1".into()]);
+    store.set_selected_annotation_ids(vec!["t-1".into()]);
+
+    store.duplicate_selected("main");
+
+    let board = store.active_board().expect("main");
+    let clone = board.images.iter().find(|i| i.id != "img-1").expect("le clone de l'image");
+    assert_eq!((clone.x, clone.y), (120.0, 70.0), "+20 px en X et en Y");
+    assert_eq!((clone.width, clone.height), (200.0, 150.0), "même taille");
+    let text_clone = board.annotations.iter().find(|a| a.id() != "t-1").expect("le clone du texte");
+    assert_eq!((text_clone.x(), text_clone.y()), (-10.0, 90.0));
+    assert_eq!(store.selected_image_ids, vec![clone.id.clone()], "le clone prend la sélection");
+    assert_eq!(store.selected_annotation_ids, vec![text_clone.id().to_string()]);
+}
