@@ -235,7 +235,7 @@ impl Renderer {
 
         // 8. Boîte de sélection élastique (Marquee)
         if let Some((x1, y1, x2, y2)) = overlay.selection_box {
-            scene::draw_selection_box(pixmap, (x1, y1), (x2, y2));
+            scene::draw_selection_box(pixmap, &self.theme, (x1, y1), (x2, y2));
         }
 
         // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)

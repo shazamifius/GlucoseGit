@@ -12,10 +12,10 @@ use glucose_core::resize::Handle;
 use glucose_core::smart_align::AlignRect;
 use tiny_skia::{Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
-/// Côté d'une poignée, en pixels écran.
-const HANDLE_SIDE: f32 = 8.0;
-/// Épaisseur du liseré d'une poignée, en pixels écran.
-const HANDLE_OUTLINE: f32 = 1.0;
+/// Côté d'une poignée, en pixels écran (fiche 06 § 4.2 : carré de 9 px).
+pub(super) const HANDLE_SIDE: f32 = 9.0;
+/// Épaisseur du liseré d'une poignée, en pixels écran (fiche 06 § 4.2 : 1,25 px).
+pub(super) const HANDLE_OUTLINE: f32 = 1.25;
 
 /// Dessine `handles` sur la boîte écran `(x, y, w, h)` d'un nœud sélectionné.
 pub(super) fn draw_resize_handles(
@@ -54,6 +54,13 @@ mod tests {
     fn lit(pixmap: &Pixmap, x: u32, y: u32) -> bool {
         let i = ((y * pixmap.width() + x) * 4) as usize;
         pixmap.data()[i] > 200
+    }
+
+    /// Fiche 06 § 4.2 — un carré de 9 px à l'écran, liseré de 1,25 px.
+    #[test]
+    fn test_a_handle_is_a_nine_pixel_square_with_a_hairline_outline() {
+        assert_eq!(HANDLE_SIDE, 9.0);
+        assert_eq!(HANDLE_OUTLINE, 1.25);
     }
 
     #[test]
