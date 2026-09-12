@@ -40,6 +40,7 @@ mod domains;
 mod folders;
 mod ids;
 mod images;
+pub mod journal;
 mod navigation;
 mod resize;
 mod selection;
@@ -50,7 +51,6 @@ pub use navigation::build_folder_stack;
 pub use undo::preserve_view;
 
 use crate::types::{AssetStore, Project, TemporalAnchor};
-use std::collections::VecDeque;
 
 #[derive(Debug, Clone)]
 pub struct Store {
@@ -62,10 +62,8 @@ pub struct Store {
     pub folder_stack: Vec<(String, String)>,
     pub temporal_filter: Option<TemporalAnchor>,
 
-    pub undo_stack: VecDeque<Project>,
-    pub redo_stack: VecDeque<Project>,
-    pub max_undo: usize,
-    pub in_live_edit: bool,
+    /// Pile d'annulation. Voir [`journal`] pour la loi de coût JRN-1.
+    pub journal: journal::Journal,
     /// Compteur monotone d'identifiants.
     ///
     /// INVARIANT ID-1 — il est toujours >= au plus grand suffixe numérique présent dans le
@@ -86,10 +84,7 @@ impl Store {
             selected_folder_id: None,
             folder_stack: Vec::new(),
             temporal_filter: None,
-            undo_stack: VecDeque::new(),
-            redo_stack: VecDeque::new(),
-            max_undo: 200,
-            in_live_edit: false,
+            journal: journal::Journal::new(200),
             next_id: 1,
             version: 1,
         }

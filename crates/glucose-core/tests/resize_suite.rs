@@ -267,7 +267,7 @@ fn test_set_image_rect_writes_the_center_and_one_undo_entry_per_gesture() {
     let mut store = Store::new("resize");
     let board = store.project.active_board_id.clone();
     store.add_image(&board, BoardImage::new("I1", 100.0, 100.0, 200.0, 100.0));
-    let before = store.undo_stack.len();
+    let before = store.undo_depth();
 
     store.begin_live_edit();
     for step in 1..=50 {
@@ -278,7 +278,7 @@ fn test_set_image_rect_writes_the_center_and_one_undo_entry_per_gesture() {
 
     let img = &store.active_board().expect("board").images[0];
     assert_eq!((img.x, img.y, img.width, img.height), (125.0, 100.0, 250.0, 100.0));
-    assert_eq!(store.undo_stack.len(), before + 1, "cinquante pas, une seule entrée");
+    assert_eq!(store.undo_depth(), before + 1, "cinquante pas, une seule entrée");
 
     assert!(store.undo());
     let img = &store.active_board().expect("board").images[0];
@@ -290,7 +290,7 @@ fn test_cancel_live_edit_restores_the_document_and_leaves_no_undo_entry() {
     let mut store = Store::new("resize");
     let board = store.project.active_board_id.clone();
     store.add_image(&board, BoardImage::new("I1", 100.0, 100.0, 200.0, 100.0));
-    let before = store.undo_stack.len();
+    let before = store.undo_depth();
     let version = store.version;
 
     store.begin_live_edit();
@@ -299,8 +299,8 @@ fn test_cancel_live_edit_restores_the_document_and_leaves_no_undo_entry() {
 
     let img = &store.active_board().expect("board").images[0];
     assert_eq!((img.width, img.height), (200.0, 100.0));
-    assert_eq!(store.undo_stack.len(), before, "aucune entrée d'undo ne reste");
-    assert!(!store.in_live_edit);
+    assert_eq!(store.undo_depth(), before, "aucune entrée d'undo ne reste");
+    assert!(!store.in_live_edit());
     assert_eq!(store.version, version, "rien n'a changé : le document n'est pas « modifié »");
     assert_eq!(store.selected_image_ids, vec!["I1".to_string()], "la sélection survit");
     assert!(!store.cancel_live_edit(), "rien à annuler hors geste");

@@ -308,7 +308,7 @@ mod tests {
             reopened.store.version, version_before,
             "la version doit avancer, sinon l'index spatial du renderer reste perime"
         );
-        assert!(reopened.store.undo_stack.is_empty(), "l'undo du projet precedent doit partir");
+        assert!(reopened.store.undo_depth() == 0, "l'undo du projet precedent doit partir");
 
         std::fs::remove_file(&path).expect("nettoyage");
     }

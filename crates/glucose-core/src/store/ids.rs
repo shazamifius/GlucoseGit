@@ -103,11 +103,11 @@ impl Store {
         self.project = project;
         self.resync_next_id();
         let repaired = self.repair_domain_assignments();
-        self.undo_stack.clear();
-        self.redo_stack.clear();
+        // JRN-2 : le document vient d'être remplacé en dehors du journal ; ses index ne
+        // décrivent plus rien. On vide plutôt que de garder une pile qui ment.
+        self.journal.clear();
         self.clear_selection();
         self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
-        self.in_live_edit = false;
         repaired
     }
 }

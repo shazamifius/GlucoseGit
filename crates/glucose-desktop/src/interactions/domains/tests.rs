@@ -232,10 +232,10 @@ fn test_one_assignment_gesture_is_one_undo_entry() {
     let id = create_domain(&mut app);
     app.store.select_annotation("t-1".into(), false);
     app.store.select_image("img-1".into(), true);
-    let depth = app.store.undo_stack.len();
+    let depth = app.store.undo_depth();
 
     app.apply_domain_intent(DomainIntent::Assign { domain_id: id, weight: 0.8 });
-    assert_eq!(app.store.undo_stack.len(), depth + 1, "deux nœuds, une seule entrée");
+    assert_eq!(app.store.undo_depth(), depth + 1, "deux nœuds, une seule entrée");
 
     assert!(app.store.undo());
     for node in ["t-1", "img-1"] {
@@ -253,11 +253,11 @@ fn test_assigning_without_a_selection_changes_nothing_and_stacks_nothing() {
     // `add_annotation` sélectionne le nœud qu'elle ajoute : il faut vider la sélection pour
     // poser la question que ce test pose.
     app.store.clear_selection();
-    let depth = app.store.undo_stack.len();
+    let depth = app.store.undo_depth();
 
     app.apply_domain_intent(DomainIntent::Assign { domain_id: id, weight: 1.0 });
 
-    assert_eq!(app.store.undo_stack.len(), depth, "un geste sans effet ne s'annule pas");
+    assert_eq!(app.store.undo_depth(), depth, "un geste sans effet ne s'annule pas");
     assert!(app.store.node_domains("main", "t-1").expect("le nœud existe").is_empty());
 }
 
@@ -278,11 +278,11 @@ fn test_removing_an_assignment_nobody_carries_says_so_and_stacks_nothing() {
     let mut app = app_with_panel();
     let id = create_domain(&mut app);
     app.store.select_annotation("t-1".into(), false);
-    let depth = app.store.undo_stack.len();
+    let depth = app.store.undo_depth();
 
     app.apply_domain_intent(DomainIntent::Unassign(id));
 
-    assert_eq!(app.store.undo_stack.len(), depth);
+    assert_eq!(app.store.undo_depth(), depth);
     let toast = app.ui.current_toast.as_ref().expect("un toast doit le dire");
     assert!(toast.message.contains("ne porte ce domaine"), "toast : {}", toast.message);
 }

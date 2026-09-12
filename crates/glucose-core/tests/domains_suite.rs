@@ -296,9 +296,9 @@ fn test_an_invalid_weight_never_enters_the_model() {
 fn test_a_refused_weight_leaves_the_undo_stack_untouched() {
     let mut store = populated_store();
     store.try_add_domain(domain("d", "Science")).expect("catalogue vide");
-    let depth = store.undo_stack.len();
+    let depth = store.undo_depth();
     assert!(store.try_assign_domain_to_node("main", "t-1", "d", f64::NAN).is_err());
-    assert_eq!(store.undo_stack.len(), depth);
+    assert_eq!(store.undo_depth(), depth);
 }
 
 // ── 5. Les images sont des nœuds comme les autres ───────────────────────────
@@ -353,27 +353,27 @@ fn test_a_duplicate_domain_id_is_refused() {
 fn test_dom3_a_no_op_leaves_no_undo_entry() {
     let mut store = Store::new("P");
     store.try_add_domain(domain("d", "Science")).expect("catalogue vide");
-    let depth = store.undo_stack.len();
+    let depth = store.undo_depth();
 
     // Suppression d'un domaine inconnu : rien n'a changé, rien ne s'empile.
     assert!(store.try_remove_domain("fantome").is_err());
-    assert_eq!(store.undo_stack.len(), depth, "remove_domain sur un id inconnu");
+    assert_eq!(store.undo_depth(), depth, "remove_domain sur un id inconnu");
 
     // Mise à jour d'un domaine inconnu, puis patch vide, puis patch identique.
     assert!(store.try_update_domain("fantome", DomainPatch::new().with_name("X")).is_err());
     assert!(store.try_update_domain("d", DomainPatch::new()).is_ok());
     assert!(store.try_update_domain("d", DomainPatch::new().with_name("Science")).is_ok());
-    assert_eq!(store.undo_stack.len(), depth, "un patch sans effet ne s'annule pas");
+    assert_eq!(store.undo_depth(), depth, "un patch sans effet ne s'annule pas");
 
     // Identifiant en double : refusé avant tout instantané.
     assert!(store.try_add_domain(domain("d", "Science")).is_err());
-    assert_eq!(store.undo_stack.len(), depth, "un doublon refusé ne s'annule pas");
+    assert_eq!(store.undo_depth(), depth, "un doublon refusé ne s'annule pas");
 
     // Et un vrai changement, lui, s'empile une fois.
     store
         .try_update_domain("d", DomainPatch::new().with_name("Art"))
         .expect("d est au catalogue");
-    assert_eq!(store.undo_stack.len(), depth + 1);
+    assert_eq!(store.undo_depth(), depth + 1);
 }
 
 #[test]
@@ -404,13 +404,13 @@ fn test_dom3_undo_after_a_removal_restores_the_domain_and_all_its_assignments() 
 #[test]
 fn test_one_gesture_is_one_undo_entry() {
     let mut store = populated_store();
-    let depth = store.undo_stack.len();
+    let depth = store.undo_depth();
     store.try_add_domain(domain("d", "Science")).expect("catalogue vide");
-    assert_eq!(store.undo_stack.len(), depth + 1);
+    assert_eq!(store.undo_depth(), depth + 1);
     store.try_assign_domain_to_node("main", "t-1", "d", 0.5).expect("t-1");
-    assert_eq!(store.undo_stack.len(), depth + 2);
+    assert_eq!(store.undo_depth(), depth + 2);
     store.try_unassign_domain_from_node("main", "t-1", "d").expect("t-1 porte d");
-    assert_eq!(store.undo_stack.len(), depth + 3);
+    assert_eq!(store.undo_depth(), depth + 3);
 }
 
 // ── 8. L'ordre des assignations suit le catalogue (DOM-2) ───────────────────

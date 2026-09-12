@@ -1,6 +1,7 @@
 //! Mutations réversibles portant sur les images, et gestes portant sur la sélection entière
 //! (déplacement, duplication, suppression).
 
+use super::journal::{Edit, Slot};
 use super::Store;
 use crate::types::{Annotation, BoardImage};
 use std::collections::HashSet;
@@ -22,22 +23,47 @@ impl Store {
         }
     }
 
+    /// Pose une image sur un board.
+    ///
+    /// **Site migré vers le journal** : l'entrée d'annulation porte l'image insérée et sa
+    /// place, soit quelques centaines d'octets — et non plus une copie du document entier.
     pub fn add_image(&mut self, board_id: &str, img: BoardImage) {
-        self.push_undo();
         let id = img.id.clone();
-        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
-            b.images.push(img);
-        }
+        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
+            return;
+        };
+        let index = b.images.len();
+        b.images.push(img.clone());
+
+        self.journal.record(Edit::Image {
+            board: board_id.to_string(),
+            slot: Slot::inserted(index, img),
+        });
+        self.bump_version();
         self.select_image(id, false);
     }
 
+    /// Modifie une image en place.
+    ///
+    /// **Site migré vers le journal.** C'est le chemin le plus chaud du store : déplacer,
+    /// redimensionner, verrouiller, réassigner un domaine passent tous par ici. L'entrée
+    /// d'annulation porte l'image avant et après, indépendamment de la taille du document.
     pub fn update_image<F: FnOnce(&mut BoardImage)>(&mut self, board_id: &str, id: &str, f: F) {
-        self.push_undo();
-        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
-            if let Some(img) = b.images.iter_mut().find(|i| i.id == id) {
-                f(img);
-            }
-        }
+        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
+            return;
+        };
+        let Some(index) = b.images.iter().position(|i| i.id == id) else {
+            return;
+        };
+        let before = b.images[index].clone();
+        f(&mut b.images[index]);
+        let after = b.images[index].clone();
+
+        self.journal.record(Edit::Image {
+            board: board_id.to_string(),
+            slot: Slot::changed(index, before, after),
+        });
+        self.bump_version();
     }
 
     /// Ferme l'ensemble des identifiants à supprimer par la cascade des miroirs :
