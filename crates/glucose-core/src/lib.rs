@@ -7,7 +7,7 @@
 //! et de **persistance** (le format `.glucose` v2, cf. [`persist`]).
 
 pub mod arrow_anchor;
-pub mod bundle;
+pub mod hash;
 pub mod curtain_model;
 pub mod curtain_panel;
 pub mod error;

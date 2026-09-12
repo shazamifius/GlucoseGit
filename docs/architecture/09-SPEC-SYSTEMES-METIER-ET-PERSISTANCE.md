@@ -21,37 +21,17 @@
 
 ## 3. Persistance & Formats de Sauvegarde sur Disque
 
-Glucose refuse d'enfermer l'utilisateur dans un format opaque ou un cloud propriétaire.
-
 ### 3.1 Format Binaire `.glucose` v2 (Format Principal)
-* Fichier binaire local hautement compressé.
-* Structure interne : En-tête de fichier magique + flux binaire compacté Automerge.
-* **Sauvegarde Incrémentale Instantanée (`append_glucose_binary`)** :
-  Lors des sauvegardes rapides (Ctrl+S ou autosave), le logiciel ne réécrit pas les 50 Mo du fichier complet : il se contente d'ajouter à la fin du fichier les octets du delta incrémental depuis le dernier enregistrement ($< 1\text{ Ko}$, exécuté en $< 1\text{ ms}$).
+* **À DÉCIDER** — « Fichier hautement compressé ». Le conteneur n'est pas compressé. La compression est en tension avec la lecture par `mmap` que la cible 10⁷ appelle (plan de marche RQ-1) : un fichier compressé ne se projette pas en mémoire. À trancher avec la persistance à grande échelle, pas avant.
+* **À DÉCIDER** — « Flux binaire compacté Automerge ». Le conteneur est un format propre : sections typées, `sha256` par section (`persist/container.rs`). Automerge ne se justifie que par la collaboration CRDT (§ 9), entièrement absente ; sans elle, c'est une dépendance lourde pour rien. Ce qui reste vrai : les fichiers de Glucose Tauri **sont** Automerge, et le conteneur prévoit un importeur v1 qu'il nomme dans son message de refus — cet importeur n'existe pas.
+* **À FAIRE** — **Sauvegarde incrémentale instantanée (`append_glucose_binary`)** : ajouter en fin de fichier le delta depuis le dernier enregistrement ($< 1\text{ Ko}$, $< 1\text{ ms}$) au lieu de réécrire le fichier. La nature de section `KIND_JOURNAL` est réservée et sautée à la lecture (testé), rien ne l'écrit.
 
 ### 3.2 Format Bundle Portable (Dossier Autonome)
-Conçu pour archiver ou transférer un projet gigantesque contenant des gigaoctets de photos et vidéos sans saturer le fichier de projet principal :
-```
-MonProjet.glucose_bundle/
- ├── project.glucose       <-- Document structurel (léger, quelques Ko)
- └── objects/              <-- Dossier des assets lourds
-      ├── 4f8a9b...png     <-- Fichier nommé par son hash SHA-256
-      ├── e2c10d...mp4
-      └── 9a3b7c...jpg
-```
-* **Déduplication Native** : Deux images identiques importées sur le canvas partagent le même fichier dans `objects/`. Copier le dossier emporte 100% des médias sans aucune perte de chemin.
+* **À DÉCIDER** — Le dossier `MonProjet.glucose_bundle/` (`project.glucose` + `objects/` nommés par SHA-256) n'existe pas. Sa raison d'être première — déduplication et portabilité des médias — est déjà remplie par le fichier unique : le conteneur v2 embarque les actifs, un seul contenu par `sha256` (testé). Ne lui reste que la séparation document léger / objets lourds pour les projets à gigaoctets, qui rejoint la persistance à grande échelle. Le module `bundle.rs` qui portait des briques sans appelant a été retiré ; `git` le garde.
 
 ### 3.3 Filet de Sauvegarde Automatique & Résilience aux Pannes
-1. **Autosave Débouncé (2000 ms)** :
-   Toute modification déclenche une minuterie de 2 secondes. Si aucune nouvelle action n'intervient, le projet est écrit silencieusement sur le disque.
-2. **Écriture Atomique Sécurisée** :
-   Le fichier est d'abord écrit sous une extension temporaire (`.glucose.tmp`). Une fois l'écriture réussie et vérifiée, il remplace le fichier cible par renommage atomique OS (`std::fs::rename`). Si l'ordinateur s'éteint brutalement au milieu de l'écriture, le fichier original n'est jamais corrompu.
-3. **Restauration depuis un Jalon Sain (`loadLatestHealthyVersion`)** :
-   Si un fichier `.glucose` est altéré (coupure de courant, disque défectueux) :
-   * Le chargeur détecte la corruption à la lecture.
-   * L'application interroge le dossier d'historique durable `.glucose.versions/` associé au document.
-   * Une invite propose immédiatement : *"Ce document est abîmé. Restaurer le dernier jalon sain du 12/09/2026 à 14h20 « Auto-save » ?"*.
-   * L'utilisateur récupère son travail en un clic (`Toast: "Restauré depuis le jalon 🛟"`).
+* **À FAIRE** — **Autosave débouncé (2000 ms)** : toute modification arme une minuterie de 2 s ; sans nouvelle action, le projet est écrit silencieusement. Rien n'existe.
+* **À FAIRE** — **Restauration depuis un jalon sain (`loadLatestHealthyVersion`)** : dossier d'historique durable `.glucose.versions/`, invite *« Ce document est abîmé. Restaurer le dernier jalon sain du … ? »*, toast *« Restauré depuis le jalon 🛟 »*. La détection de corruption à la lecture, elle, existe et est testée (troncature, bit inversé, somme forgée, document courant laissé intact) ; ni le dossier de jalons, ni l'invite.
 
 ---
 

@@ -122,6 +122,39 @@ mod tests {
         std::fs::remove_file(&path).expect("nettoyage");
     }
 
+    /// Fiche 09 § 3.3 — « si l'écriture échoue, le fichier original n'est jamais corrompu ».
+    ///
+    /// On fait échouer le remplacement de façon déterministe : la destination est un
+    /// **dossier** non vide, qu'aucun `rename` ne peut écraser. Le temporaire a été écrit en
+    /// entier ; l'échec survient à la dernière étape, celle qui touche la destination. Elle
+    /// doit ressortir intacte, et le temporaire ne doit pas rester.
+    ///
+    /// Ce test remplace `test_a_failed_write_preserves_the_previous_file`, qui écrivait un
+    /// fichier A, faisait échouer une écriture vers un chemin B *différent*, et constatait
+    /// que A n'avait pas bougé — ce qui ne disait rien de SAVE-1.
+    #[test]
+    fn test_a_failed_replacement_leaves_the_destination_untouched() {
+        let inside = scratch("remplacement-rate/destination", "temoin.txt");
+        std::fs::write(&inside, b"contenu d'hier").expect("temoin");
+        let destination = inside.parent().expect("le dossier destination").to_path_buf();
+
+        let err = write_atomic(&destination, b"nouveau contenu").expect_err("un dossier ne se remplace pas");
+        assert!(matches!(err, DesktopError::SaveFailed { .. }), "{err:?}");
+        assert!(err.to_string().contains("intact"), "le message le dit : {err}");
+
+        assert!(destination.is_dir(), "la destination est toujours le dossier d'hier");
+        assert_eq!(std::fs::read(&inside).expect("relecture"), b"contenu d'hier");
+        let leftovers: Vec<String> = std::fs::read_dir(destination.parent().expect("parent"))
+            .expect("lecture du dossier")
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "temporaires restants : {leftovers:?}");
+
+        std::fs::remove_dir_all(destination.parent().expect("parent")).expect("nettoyage");
+    }
+
     #[test]
     fn test_write_atomic_leaves_no_temporary_behind() {
         let path = scratch("sans-residu", "sans-residu.glucose");
@@ -136,25 +169,6 @@ mod tests {
             .collect();
         assert!(leftovers.is_empty(), "temporaires restants : {leftovers:?}");
 
-        std::fs::remove_file(&path).expect("nettoyage");
-    }
-
-    #[test]
-    fn test_a_failed_write_preserves_the_previous_file() {
-        // INVARIANT SAVE-1 : la destination n'est jamais ouverte, donc une écriture qui ne
-        // peut pas aboutir (ici parce que le dossier n'existe pas) laisse l'existant intact.
-        let path = scratch("preserve", "preserve.glucose");
-        write_atomic(&path, b"la version de reference").expect("ecriture initiale");
-
-        let impossible = scratch("preserve", "dossier-absent/enfant/projet.glucose");
-        let err = write_atomic(&impossible, b"jamais ecrit").expect_err("le dossier n'existe pas");
-        assert!(err.to_string().contains("intact"), "message : {err}");
-
-        assert_eq!(
-            std::fs::read(&path).expect("relecture"),
-            b"la version de reference",
-            "le fichier precedent a ete abime"
-        );
         std::fs::remove_file(&path).expect("nettoyage");
     }
 

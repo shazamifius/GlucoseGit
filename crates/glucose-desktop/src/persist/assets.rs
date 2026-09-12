@@ -16,7 +16,7 @@
 //! Le renderer, lui, ne change pas : il continue de lire un chemin de fichier (R-29 reste
 //! entier, il sera traité quand le chargement d'image quittera la boucle de rendu).
 
-use glucose_core::bundle::{hex_of, sha256};
+use glucose_core::hash::{hex_of, sha256};
 use glucose_core::types::{AssetStore, Project};
 use std::path::{Path, PathBuf};
 

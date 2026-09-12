@@ -32,10 +32,10 @@
 //! Pour un actif, `sha256(contenu)` **est** son adresse de contenu (§ 8, « assets
 //! content-addressed »). Le même champ sert donc de vérification d'intégrité et
 //! d'identité : deux occurrences de la même image donnent la même entrée, donc un seul
-//! contenu écrit. Le sha256 est déjà dans le dépôt — [`crate::bundle::sha256`] — et ne coûte
+//! contenu écrit. Le sha256 est déjà dans le dépôt — [`crate::hash::sha256`] — et ne coûte
 //! aucune dépendance.
 
-use crate::bundle::sha256;
+use crate::hash::sha256;
 use crate::error::{CoreError, CoreResult};
 
 /// Magie du conteneur. `0x1a` final = `Ctrl-Z`, qui stoppe l'affichage d'un `type` sous
