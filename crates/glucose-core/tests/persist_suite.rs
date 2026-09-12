@@ -19,12 +19,19 @@ const SAVED_AT: i64 = 1_770_000_123_456;
 fn test_round_trip_of_a_rich_project_is_the_identity() {
     let project = rich_project();
     let file = persist::encode(&project, &AssetStore::new(), SAVED_AT);
-    let reloaded = persist::decode(&file).expect("un fichier que l'on vient d'écrire doit se relire");
+    let reloaded =
+        persist::decode(&file).expect("un fichier que l'on vient d'écrire doit se relire");
 
-    assert_eq!(reloaded.project, project, "le document relu diffère de l'original");
+    assert_eq!(
+        reloaded.project, project,
+        "le document relu diffère de l'original"
+    );
     assert_eq!(reloaded.manifest.project_name, project.name);
     assert_eq!(reloaded.manifest.saved_at, SAVED_AT);
-    assert_eq!(reloaded.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(
+        reloaded.manifest.document_version,
+        persist::DOCUMENT_VERSION
+    );
 }
 
 #[test]
@@ -68,7 +75,8 @@ fn test_negative_zero_and_extreme_floats_survive_bit_for_bit() {
     project.boards = vec![board];
     project.active_board_id = "b".into();
 
-    let reloaded = persist::decode_document(&persist::encode_document(&project)).expect("relecture");
+    let reloaded =
+        persist::decode_document(&persist::encode_document(&project)).expect("relecture");
     let vp = reloaded.boards[0].viewport;
     assert_eq!(vp.x.to_bits(), (-0.0f64).to_bits(), "-0.0 est devenu +0.0");
     assert_eq!(vp.y, f64::MIN_POSITIVE);
@@ -103,7 +111,8 @@ fn test_every_arrow_predicate_round_trips() {
         ArrowPredicate::Illustre,
     ] {
         let project = project_with(arrow_with_predicate(predicate));
-        let reloaded = persist::decode_document(&persist::encode_document(&project)).expect("relecture");
+        let reloaded =
+            persist::decode_document(&persist::encode_document(&project)).expect("relecture");
         assert_eq!(reloaded, project, "prédicat {}", predicate.as_str());
     }
 }
@@ -117,20 +126,28 @@ fn test_every_sticky_operator_round_trips() {
         StickyOperator::Because,
     ] {
         let project = project_with(sticky_with_operator(operator));
-        let reloaded = persist::decode_document(&persist::encode_document(&project)).expect("relecture");
+        let reloaded =
+            persist::decode_document(&persist::encode_document(&project)).expect("relecture");
         assert_eq!(reloaded, project, "opérateur {operator:?}");
     }
 }
 
 #[test]
 fn test_every_membrane_mode_and_curtain_flag_round_trips() {
-    for mode in [MembraneMode::Classic, MembraneMode::Minimized, MembraneMode::Stretched] {
+    for mode in [
+        MembraneMode::Classic,
+        MembraneMode::Minimized,
+        MembraneMode::Stretched,
+    ] {
         for visibility in [CurtainVisibility::Private, CurtainVisibility::Shared] {
             for editable in [CurtainEditable::Owner, CurtainEditable::Everyone] {
                 let project = project_with(membrane_with(mode, visibility, editable));
-                let reloaded =
-                    persist::decode_document(&persist::encode_document(&project)).expect("relecture");
-                assert_eq!(reloaded, project, "{mode:?} / {visibility:?} / {editable:?}");
+                let reloaded = persist::decode_document(&persist::encode_document(&project))
+                    .expect("relecture");
+                assert_eq!(
+                    reloaded, project,
+                    "{mode:?} / {visibility:?} / {editable:?}"
+                );
             }
         }
     }
@@ -166,7 +183,8 @@ fn test_every_folder_sort_mode_round_trips() {
         project.boards = vec![board];
         project.active_board_id = "b".into();
 
-        let reloaded = persist::decode_document(&persist::encode_document(&project)).expect("relecture");
+        let reloaded =
+            persist::decode_document(&persist::encode_document(&project)).expect("relecture");
         assert_eq!(reloaded, project, "tri {sort_by:?}");
     }
 }

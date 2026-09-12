@@ -140,7 +140,11 @@ impl SpatialHash {
 
     fn alloc_slot(&mut self, id: &str, range: CellRange) -> NodeIdx {
         let name: Rc<str> = Rc::from(id);
-        let slot = Slot { range, stamp: self.stamp, alive: true };
+        let slot = Slot {
+            range,
+            stamp: self.stamp,
+            alive: true,
+        };
         let idx = match self.free.pop() {
             Some(reused) => {
                 self.names[reused as usize] = Rc::clone(&name);
@@ -236,13 +240,37 @@ impl SpatialHash {
     fn annotation_bbox(ann: &crate::types::Annotation) -> (f64, f64, f64, f64) {
         use crate::types::Annotation as A;
         match ann {
-            A::Text { x, y, width, height, .. } => {
-                (*x, *y, *x + width.unwrap_or(240.0), *y + height.unwrap_or(48.0))
-            }
-            A::Sticky { x, y, width, height, .. } => {
-                (*x, *y, *x + width.unwrap_or(160.0), *y + height.unwrap_or(120.0))
-            }
-            A::Membrane { x, y, width, height, .. } => (*x, *y, *x + *width, *y + *height),
+            A::Text {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => (
+                *x,
+                *y,
+                *x + width.unwrap_or(240.0),
+                *y + height.unwrap_or(48.0),
+            ),
+            A::Sticky {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => (
+                *x,
+                *y,
+                *x + width.unwrap_or(160.0),
+                *y + height.unwrap_or(120.0),
+            ),
+            A::Membrane {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => (*x, *y, *x + *width, *y + *height),
             A::Arrow { x, y, x2, y2, .. } => (x.min(*x2), y.min(*y2), x.max(*x2), y.max(*y2)),
         }
     }
@@ -290,9 +318,11 @@ impl SpatialHash {
     /// précédente — le cas de toutes les frames d'un drag — donc l'index est déjà connu et
     /// une comparaison de chaînes suffit à le confirmer. Aucun hachage, aucune allocation.
     fn sync_at(&mut self, id: &str, range: CellRange, k: &mut usize) {
-        let cached = self.order.get(*k).copied().filter(|&idx| {
-            self.slots[idx as usize].alive && &*self.names[idx as usize] == id
-        });
+        let cached = self
+            .order
+            .get(*k)
+            .copied()
+            .filter(|&idx| self.slots[idx as usize].alive && &*self.names[idx as usize] == id);
         let idx = match cached {
             Some(idx) => {
                 self.touch(idx, range);
@@ -348,7 +378,12 @@ impl SpatialHash {
         max_y: f64,
         margin: f64,
     ) -> HashSet<&str> {
-        let range = self.range_of(min_x - margin, min_y - margin, max_x + margin, max_y + margin);
+        let range = self.range_of(
+            min_x - margin,
+            min_y - margin,
+            max_x + margin,
+            max_y + margin,
+        );
         let mut out = HashSet::new();
         for cell in range.cells() {
             if let Some(bucket) = self.grid.get(&cell) {
@@ -399,8 +434,10 @@ mod tests {
     #[test]
     fn test_spatial_hash_query() {
         let mut sh = SpatialHash::new(1000.0);
-        let items =
-            [("img1", 500.0, 500.0, 100.0, 100.0), ("img2", 2500.0, 2500.0, 100.0, 100.0)];
+        let items = [
+            ("img1", 500.0, 500.0, 100.0, 100.0),
+            ("img2", 2500.0, 2500.0, 100.0, 100.0),
+        ];
         sh.build(items);
 
         let visible = sh.query_ids(0.0, 0.0, 1000.0, 1000.0, 0.0);
@@ -417,12 +454,16 @@ mod tests {
 
         assert!(sh.update("a", 5000.0, 5000.0, 5010.0, 5010.0));
         assert!(sh.query_rect_refs(0.0, 0.0, 100.0, 100.0, 0.0).is_empty());
-        assert!(sh.query_rect_refs(4900.0, 4900.0, 5100.0, 5100.0, 0.0).contains("a"));
+        assert!(sh
+            .query_rect_refs(4900.0, 4900.0, 5100.0, 5100.0, 0.0)
+            .contains("a"));
 
         assert!(sh.remove("a"));
         assert!(!sh.remove("a"));
         assert!(sh.is_empty());
-        assert!(sh.query_rect_refs(4900.0, 4900.0, 5100.0, 5100.0, 0.0).is_empty());
+        assert!(sh
+            .query_rect_refs(4900.0, 4900.0, 5100.0, 5100.0, 0.0)
+            .is_empty());
     }
 
     #[test]
@@ -443,7 +484,11 @@ mod tests {
         sh.insert("a", 0.0, 0.0, 10.0, 10.0);
         sh.remove("a");
         sh.insert("b", 0.0, 0.0, 10.0, 10.0);
-        assert_eq!(sh.slots.len(), 1, "l'emplacement libéré doit être réutilisé");
+        assert_eq!(
+            sh.slots.len(),
+            1,
+            "l'emplacement libéré doit être réutilisé"
+        );
         let hit = sh.query_rect_refs(0.0, 0.0, 100.0, 100.0, 0.0);
         assert!(hit.contains("b"));
         assert!(!hit.contains("a"));

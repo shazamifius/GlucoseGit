@@ -132,10 +132,7 @@ fn test_project_to_markdown_met_les_cartes_hors_zone_sous_autres() {
         mirror_of: None,
         temporal_anchor: None,
     };
-    let p = make_project(vec![
-        membrane,
-        card("a", 0.0, 0.0, "### Orphelin\ncorps"),
-    ]);
+    let p = make_project(vec![membrane, card("a", 0.0, 0.0, "### Orphelin\ncorps")]);
 
     let md = project_to_markdown(&p);
     assert!(md.contains("### Orphelin"));
@@ -147,7 +144,12 @@ fn test_project_to_markdown_met_les_cartes_hors_zone_sous_autres() {
 
 #[test]
 fn test_scene_to_svg_genere_un_svg_bien_forme() {
-    let scene = build_scene(&make_project(vec![card("a", 0.0, 0.0, "### Titre\ncontenu visible")]));
+    let scene = build_scene(&make_project(vec![card(
+        "a",
+        0.0,
+        0.0,
+        "### Titre\ncontenu visible",
+    )]));
     let svg = scene_to_svg(&scene, &SvgOptions::default());
 
     assert!(svg.starts_with("<?xml"));

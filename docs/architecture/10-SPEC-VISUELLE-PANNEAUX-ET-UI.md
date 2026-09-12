@@ -40,13 +40,14 @@ L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
 
 ---
 
-### 1.1 Galerie des 14 Captures d'Écran Réelles de Référence
+### 1.1 Galerie des Captures d'Écran Réelles de Référence
 
-> **Toutes les captures ci-dessous sont 100 % authentiques**, générées par notre outil d'automatisation Playwright (`scripts/capture-all-glucose-screens.js`) tournant directement sur le build officiel de Glucose (Vite preview sur Chromium headless 1920×1080).
-> **Aucune image n'est générée par IA.** Ce sont les pixels exacts issus du code TypeScript/React.
+> **Toutes les captures ci-dessous sont 100 % authentiques**, issues de sessions réelles sur Glucose (capture utilisateur de production et pipeline Playwright headless sur le build officiel).
+> **Aucune image n'est générée par IA.** Ce sont les pixels exacts issus du code TypeScript/React en production.
 
 | Réf | Fichier Réel | Description & Éléments Observés |
 | :--- | :--- | :--- |
+| **00** | [`00_user_production_board.png`](screens/00_user_production_board.png) | **Étalon d'Or — Session de Production Réelle (Board Utilisateur)** : 132 images, 3 colonnes d'ambiance avec capsules de titre lumineuses (`gestion asset`, `partie ile réaliste`, `ile non réaliste`), note textuelle `idée du projet` avec aura violette, multi-sélection de 11 images (cadres blancs + 8 poignées découpe-papier), barre flottante `11 sélectionnés`, panneau Ordonner complet avec tri couleur et modes Pinterest/compact, minimap. |
 | **01** | [`01_canvas_default.png`](screens/01_canvas_default.png) | **Canvas Initial Épuré** : Fond `#0d0d0d`, grille de points `#222222`, toolbar 44px, onglets 34px, minimap 180×120. |
 | **02** | [`02_toolbar_tabs_crop.png`](screens/02_toolbar_tabs_crop.png) | **Gros plan Chrome Supérieur** : Logo Glucose 14px bold, boutons 30×30px, onglet actif avec liseré blanc 2px. |
 | **03** | [`03_panel_organize_full.png`](screens/03_panel_organize_full.png) | **Panneau Ordonner (250px)** : Dock bas-gauche, pilule de sélection, tri, modes compact / masonry, inputs numériques. |
@@ -61,6 +62,61 @@ L'esthétique de Glucose repose sur un **Brutalisme Minimaliste Sombre** :
 | **12** | [`12_temporal_ruler.png`](screens/12_temporal_ruler.png) | **Réglette Temporelle (88px, Shift+R)** : Bandeau inférieur panoramique, fenêtre dorée `#fbbf24`, repères historiques. |
 | **13** | [`13_diagnostics_hud.png`](screens/13_diagnostics_hud.png) | **Diagnostics HUD (Ctrl+Shift+D)** : Métriques temps réel (FPS vert `#4ade80`, mémoire, état du renderer). |
 | **14** | [`14_canvas_with_live_elements.png`](screens/14_canvas_with_live_elements.png) | **Canvas Nœuds Réels** : Sticky note jaune `#f5c542`, pilule opérateur `ET` néon vert, carte texte, sélection active. |
+
+---
+
+### 1.2 Décomposition Visuelle Pixel-Exact de l'Étalon de Production
+
+![Étalon d'Or de Production Réelle](screens/00_user_production_board.png)
+
+Cette capture d'un véritable board de production (132 images de concept art, colonnes thématiques, panneau d'ordonnancement actif) révèle l'équilibre visuel exact recherché pour Glucose Rust :
+
+#### A. Les Capsules de Titres Lumineuses (`gestion asset`, `partie ile réaliste`, `ile non réaliste`)
+- **Géométrie** : Texte court auto-dimensionné (`width: max-content`), `padding: 16px 24px`, `border-radius: 32px` formant une capsule galet parfaite.
+- **Rendu Chromatique (Symbiose)** :
+  - Fond brumeux : `background: color-mix(in srgb, ${auraColor} 3%, transparent)`.
+  - Halo étendu : `box-shadow: 0 0 60px 30px color-mix(in srgb, ${auraColor} 15%, transparent)`.
+  - Dans la capture, la colonne centrale et droite ont une aura cyan/bleutée (`#60a5fa` / `#22d3ee`) calculée à partir des images environnantes.
+
+#### B. La Grande Fiche Textuelle (`idée du projet`)
+- **Typographie & Structure** : Titre en gras blanc 14-16px, suivi de paragraphes explicatifs en texte `#cccccc` avec interligne 1.4.
+- **Conteneur** : Forme adoucie `border-radius: 32px`, fond noir translucide, entouré d'une aura diffuse pourpre/magenta (`#a78bfa` / `#c084fc`) à 15% d'opacité.
+
+#### C. La Multi-Sélection d'Images (11 images sélectionnées)
+- **Cadre de Sélection** : Tracé hairline de `1.25px` blanc (`rgba(255, 255, 255, 0.8)`), englobant chaque image avec un décalage de 3px (`g.rect(-w/2 - 3, -h/2 - 3, w + 6, h + 6)`).
+- **Poignées Découpe-Papier (8 poignées)** :
+  - Carrés de `9×9px` écran (`const hs = 9 * inv`).
+  - Remplissage blanc pur `#ffffff` avec contour noir de `1.25px` (`#111111`, alpha 0.9).
+  - Principe brutaliste : lisibilité maximale sur image claire (le contour sombre) ET sur fond noir (le carré blanc). Aucun néon sur le cadre de sélection.
+  - Hitbox de préhension invisible élargie à 36px écran (PICK-1).
+
+#### D. La Barre Flottante de Sélection Contextuelle
+- **Position** : Flottante centrée à `bottom: 12px`, `left: 50%`, `transform: translateX(-50%)`.
+- **Boîte** : Fond `#1a1a1a`, bordure `1px solid #333333`, rayon `6px`, ombre `0 2px 12px rgba(0,0,0,0.5)`, hauteur compacte (`padding: 4px 8px`).
+- **Contenu** :
+  1. Compteur : `11 sélectionnés` avec séparateur vertical droit `1px solid #2a2a2a`.
+  2. Action Verrou : Icône cadenas SVG + `Verrouiller` (ou `Verrouillé` sur fond `#2a1a1a` rouge `#f87171`).
+  3. Action Corbeille : Icône poubelle SVG + `Supprimer` (titre `Suppr`).
+
+#### E. Le Panneau Ordonner Réel en Action
+- **Largeur** : `250px`, fond `#111111`, bordure `1px solid #222222`.
+- **Pastille de Cible** : Fond doré sombre `#1a1800`, bordure dorée `#3a3000`, texte doré `#aa9900` indiquant `11 images sélectionnées`.
+- **8 Boutons de Tri** :
+  - Rangée 1 : `Ordre actuel`, `Couleur` (actif sur fond `#2d2d2d`, contour `#444`), `Grand → Petit`
+  - Rangée 2 : `Petit → Grand`, `Portrait`, `Paysage`
+  - Rangée 3 : `Sombre → Clair`, `Clair → Sombre`
+- **5 Modes de Disposition** :
+  - `Rangées compactes` (actif avec description `Respecte les ratios, remplit chaque ligne`)
+  - `Masonry (colonnes)` (`Colonnes indépendantes — Pinterest`)
+  - `Grille alignée` (`Même largeur par colonne, ratios conservés`)
+  - `Même hauteur` (`Hauteur fixe, largeur proportionnelle`)
+  - `Par slot preset` (`Colonnes séparées par catégorie`)
+- **Champs & Bouton** : `LARGEUR CIBLE: 280`, `ESPACEMENT: 16`, bouton plein `Appliquer` (`bg: #222, text: #ccc`).
+
+#### F. Toolbar Réelle & Compteur d'Images
+- Bouton `Ordonner` en surbrillance active dans le chrome.
+- Boutons d'état : `Aimant` (guides magnétiques) et `Trans-domaines` (liens pointillés inter-domaines).
+- À l'extrême droite : Compteur d'images discret `132img` en police 11px couleur `#3a3a3a`.
 
 ---
 

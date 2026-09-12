@@ -132,7 +132,9 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
 
     // ── Déjà en focus : seule la sortie est évaluée ─────────────────────────
     if let Some(ref mid) = state.membrane_id {
-        let membrane = items.iter().find(|i| i.id == *mid && i.kind == crate::membrane_space::SpaceItemKind::Membrane);
+        let membrane = items
+            .iter()
+            .find(|i| i.id == *mid && i.kind == crate::membrane_space::SpaceItemKind::Membrane);
         let membrane = match membrane {
             Some(m) => m,
             None => {
@@ -220,7 +222,9 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
 
 pub fn focus_frame_of(items: &[SpaceItem], focused_id: Option<&str>) -> Option<Rect> {
     let fid = focused_id?;
-    let m = items.iter().find(|i| i.id == fid && i.kind == crate::membrane_space::SpaceItemKind::Membrane)?;
+    let m = items
+        .iter()
+        .find(|i| i.id == fid && i.kind == crate::membrane_space::SpaceItemKind::Membrane)?;
     let kids = children_of(items, fid);
     Some(focus_box(m, &kids))
 }
@@ -273,7 +277,15 @@ pub fn arrow_visible_under_focus(
         _ => return true,
     };
     let (x, y, x2, y2, source_id, target_id) = match ann {
-        Annotation::Arrow { x, y, x2, y2, source_id, target_id, .. } => (*x, *y, *x2, *y2, source_id, target_id),
+        Annotation::Arrow {
+            x,
+            y,
+            x2,
+            y2,
+            source_id,
+            target_id,
+            ..
+        } => (*x, *y, *x2, *y2, source_id, target_id),
         _ => return true,
     };
 
@@ -312,12 +324,28 @@ pub fn annotation_visible_under_focus(
     }
 
     let (measured, ax, ay) = match ann {
-        Annotation::Text { width, height, x, y, .. } => {
-            (width.unwrap_or(0.0) > 0.0 && height.unwrap_or(0.0) > 0.0, *x, *y)
-        }
-        Annotation::Sticky { width, height, x, y, .. } => {
-            (width.unwrap_or(0.0) > 0.0 && height.unwrap_or(0.0) > 0.0, *x, *y)
-        }
+        Annotation::Text {
+            width,
+            height,
+            x,
+            y,
+            ..
+        } => (
+            width.unwrap_or(0.0) > 0.0 && height.unwrap_or(0.0) > 0.0,
+            *x,
+            *y,
+        ),
+        Annotation::Sticky {
+            width,
+            height,
+            x,
+            y,
+            ..
+        } => (
+            width.unwrap_or(0.0) > 0.0 && height.unwrap_or(0.0) > 0.0,
+            *x,
+            *y,
+        ),
         _ => (true, ann.x(), ann.y()),
     };
 
@@ -369,7 +397,12 @@ pub fn focus_background(color: Option<&str>, base: Option<&str>, amount: Option<
         val.clamp(0.0, 255.0) as u8
     };
 
-    format!("#{:02x}{:02x}{:02x}", mix(c.0, b.0), mix(c.1, b.1), mix(c.2, b.2))
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        mix(c.0, b.0),
+        mix(c.1, b.1),
+        mix(c.2, b.2)
+    )
 }
 
 #[cfg(test)]
@@ -380,11 +413,22 @@ mod tests {
     #[test]
     fn test_coverage() {
         let b = Rect::new(0.0, 0.0, 1000.0, 1000.0);
-        let screen = ScreenSize { width: 1000.0, height: 1000.0 };
-        let vp = Viewport { x: 0.0, y: 0.0, scale: 1.0 };
+        let screen = ScreenSize {
+            width: 1000.0,
+            height: 1000.0,
+        };
+        let vp = Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
         assert!((coverage(b, vp, screen) - 1.0).abs() < 1e-6);
 
-        let vp_half = Viewport { x: 0.0, y: 0.0, scale: 0.5 };
+        let vp_half = Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 0.5,
+        };
         // 500x500 sur 1000x1000 = 0.25
         assert!((coverage(b, vp_half, screen) - 0.25).abs() < 1e-6);
     }
@@ -394,19 +438,33 @@ mod tests {
         let m = SpaceItem {
             id: "M1".into(),
             kind: SpaceItemKind::Membrane,
-            x: 0.0, y: 0.0, width: 1000.0, height: 1000.0,
+            x: 0.0,
+            y: 0.0,
+            width: 1000.0,
+            height: 1000.0,
             mode: None,
             membrane_id: None,
         };
         let items = [m];
         let mut resolved = HashMap::new();
-        resolved.insert("M1".into(), crate::membrane_space::ResolvedItem {
-            id: "M1".into(),
-            x: 0.0, y: 0.0, width: 1000.0, height: 1000.0, scale: 1.0,
-            membrane_id: None, content_scale: None,
-        });
+        resolved.insert(
+            "M1".into(),
+            crate::membrane_space::ResolvedItem {
+                id: "M1".into(),
+                x: 0.0,
+                y: 0.0,
+                width: 1000.0,
+                height: 1000.0,
+                scale: 1.0,
+                membrane_id: None,
+                content_scale: None,
+            },
+        );
 
-        let screen = ScreenSize { width: 1000.0, height: 1000.0 };
+        let screen = ScreenSize {
+            width: 1000.0,
+            height: 1000.0,
+        };
         let state = FocusState {
             membrane_id: Some("M1".into()),
             enter_scale: 1.0,
@@ -417,7 +475,11 @@ mod tests {
         let action = focus_decision(FocusInput {
             items: &items,
             resolved: &resolved,
-            vp: Viewport { x: 0.0, y: 0.0, scale: 0.79 },
+            vp: Viewport {
+                x: 0.0,
+                y: 0.0,
+                scale: 0.79,
+            },
             screen,
             state: state.clone(),
             now: 1000,
@@ -428,7 +490,11 @@ mod tests {
         let action2 = focus_decision(FocusInput {
             items: &items,
             resolved: &resolved,
-            vp: Viewport { x: 0.0, y: 0.0, scale: 0.85 },
+            vp: Viewport {
+                x: 0.0,
+                y: 0.0,
+                scale: 0.85,
+            },
             screen,
             state,
             now: 1000,

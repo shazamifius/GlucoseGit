@@ -162,7 +162,10 @@ impl<'a> Reader<'a> {
     /// Consomme `n` octets. C'est l'UNIQUE point d'accès aux données : tout dépassement est
     /// converti ici en erreur, ce qui rend le décodeur entier insensible à la troncature.
     pub fn take(&mut self, n: usize) -> CoreResult<&'a [u8]> {
-        let end = self.pos.checked_add(n).ok_or_else(|| overflow("une longueur"))?;
+        let end = self
+            .pos
+            .checked_add(n)
+            .ok_or_else(|| overflow("une longueur"))?;
         if end > self.data.len() {
             return Err(CoreError::DeserializationError(format!(
                 "fichier tronqué : {} octets attendus à l'offset {}, il n'en reste que {} — \
@@ -227,7 +230,9 @@ impl<'a> Reader<'a> {
         for shift in (0..64u32).step_by(7) {
             let byte = self.u8()?;
             let payload = u64::from(byte & 0x7f);
-            value |= payload.checked_shl(shift).ok_or_else(|| overflow("un varint"))?;
+            value |= payload
+                .checked_shl(shift)
+                .ok_or_else(|| overflow("un varint"))?;
             if byte & 0x80 == 0 {
                 return Ok(value);
             }
@@ -255,7 +260,10 @@ impl<'a> Reader<'a> {
         })
     }
 
-    pub fn opt<T>(&mut self, decode: impl FnOnce(&mut Self) -> CoreResult<T>) -> CoreResult<Option<T>> {
+    pub fn opt<T>(
+        &mut self,
+        decode: impl FnOnce(&mut Self) -> CoreResult<T>,
+    ) -> CoreResult<Option<T>> {
         match self.u8()? {
             0 => Ok(None),
             1 => decode(self).map(Some),
@@ -363,7 +371,9 @@ mod tests {
         w.blob(&[0xff, 0xfe, 0xfd]);
         let bytes = w.into_bytes();
         let mut r = Reader::new(&bytes);
-        let err = r.text().expect_err("les octets 0xff ne sont pas de l'UTF-8");
+        let err = r
+            .text()
+            .expect_err("les octets 0xff ne sont pas de l'UTF-8");
         assert!(err.to_string().contains("UTF-8"), "message: {err}");
     }
 

@@ -27,7 +27,12 @@ impl Store {
         folder.child_board_id = child_board_id.clone();
 
         let captured = self.capture_content_under(parent_board_id, &folder);
-        if let Some(par) = self.project.boards.iter_mut().find(|b| b.id == parent_board_id) {
+        if let Some(par) = self
+            .project
+            .boards
+            .iter_mut()
+            .find(|b| b.id == parent_board_id)
+        {
             par.folders.push(folder.clone());
         }
 
@@ -49,12 +54,21 @@ impl Store {
         let inside = |cx: f64, cy: f64| cx >= fx0 && cx <= fx1 && cy >= fy0 && cy <= fy1;
 
         let mut out = CapturedContent::default();
-        let Some(par) = self.project.boards.iter_mut().find(|b| b.id == parent_board_id) else {
+        let Some(par) = self
+            .project
+            .boards
+            .iter_mut()
+            .find(|b| b.id == parent_board_id)
+        else {
             return out;
         };
 
-        let img_ids: HashSet<String> =
-            par.images.iter().filter(|i| inside(i.x, i.y)).map(|i| i.id.clone()).collect();
+        let img_ids: HashSet<String> = par
+            .images
+            .iter()
+            .filter(|i| inside(i.x, i.y))
+            .map(|i| i.id.clone())
+            .collect();
         let ann_ids: HashSet<String> = par
             .annotations
             .iter()
@@ -104,7 +118,12 @@ impl Store {
         child_board.annotations = seed_annotations;
         self.project.boards.push(child_board);
 
-        if let Some(par) = self.project.boards.iter_mut().find(|b| b.id == parent_board_id) {
+        if let Some(par) = self
+            .project
+            .boards
+            .iter_mut()
+            .find(|b| b.id == parent_board_id)
+        {
             par.folders.push(folder);
         }
 
@@ -118,7 +137,12 @@ impl Store {
         f: F,
     ) {
         self.push_undo();
-        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == parent_board_id) {
+        if let Some(b) = self
+            .project
+            .boards
+            .iter_mut()
+            .find(|b| b.id == parent_board_id)
+        {
             if let Some(fld) = b.folders.iter_mut().find(|f| f.id == id) {
                 f(fld);
             }
@@ -130,7 +154,12 @@ impl Store {
         let id_set: HashSet<&str> = ids.iter().copied().collect();
         let mut child_board_ids = Vec::new();
 
-        if let Some(par) = self.project.boards.iter_mut().find(|b| b.id == parent_board_id) {
+        if let Some(par) = self
+            .project
+            .boards
+            .iter_mut()
+            .find(|b| b.id == parent_board_id)
+        {
             for f in &par.folders {
                 if id_set.contains(f.id.as_str()) {
                     child_board_ids.push(f.child_board_id.clone());
@@ -139,7 +168,9 @@ impl Store {
             par.folders.retain(|f| !id_set.contains(f.id.as_str()));
         }
 
-        self.project.boards.retain(|b| !child_board_ids.contains(&b.id));
+        self.project
+            .boards
+            .retain(|b| !child_board_ids.contains(&b.id));
         if child_board_ids.contains(&self.project.active_board_id) {
             self.project.active_board_id = parent_board_id.to_string();
         }
@@ -173,7 +204,12 @@ impl Store {
         mirrored.y = y;
         mirrored.mirror_of = Some(folder_id.to_string());
 
-        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == parent_board_id) {
+        if let Some(b) = self
+            .project
+            .boards
+            .iter_mut()
+            .find(|b| b.id == parent_board_id)
+        {
             b.folders.push(mirrored);
         }
         Ok(mid)
@@ -188,6 +224,7 @@ impl Store {
         x: f64,
         y: f64,
     ) -> Option<String> {
-        self.try_mirror_folder(parent_board_id, folder_id, x, y).ok()
+        self.try_mirror_folder(parent_board_id, folder_id, x, y)
+            .ok()
     }
 }

@@ -18,8 +18,8 @@ use super::bytes::{Reader, Writer};
 use super::tags::{sort_mode_from_tag, sort_mode_tag};
 use crate::error::CoreResult;
 use crate::types::{
-    Board, BoardZone, CanvasFolder, Domain, DomainAssignment, FolderMirrorSource, Preset, PresetSlot,
-    Project, StoryboardPanel, TemporalAnchor, Viewport,
+    Board, BoardZone, CanvasFolder, Domain, DomainAssignment, FolderMirrorSource, Preset,
+    PresetSlot, Project, StoryboardPanel, TemporalAnchor, Viewport,
 };
 use std::collections::HashMap;
 

@@ -44,7 +44,9 @@ pub fn create_anchor(plain: &str, start: usize, end: usize) -> Option<TextAnchor
 }
 
 pub fn add_anchor(mut anchors: Vec<TextAnchor>, anchor: TextAnchor) -> Vec<TextAnchor> {
-    let overlaps = anchors.iter().any(|a| a.start < anchor.end && anchor.start < a.end);
+    let overlaps = anchors
+        .iter()
+        .any(|a| a.start < anchor.end && anchor.start < a.end);
     if overlaps {
         return anchors;
     }
@@ -91,11 +93,18 @@ fn indexes_of(hay: &str, needle: &str) -> Vec<usize> {
 }
 
 fn common_suffix_len(a: &str, b: &str) -> usize {
-    a.chars().rev().zip(b.chars().rev()).take_while(|(c1, c2)| c1 == c2).count()
+    a.chars()
+        .rev()
+        .zip(b.chars().rev())
+        .take_while(|(c1, c2)| c1 == c2)
+        .count()
 }
 
 fn common_prefix_len(a: &str, b: &str) -> usize {
-    a.chars().zip(b.chars()).take_while(|(c1, c2)| c1 == c2).count()
+    a.chars()
+        .zip(b.chars())
+        .take_while(|(c1, c2)| c1 == c2)
+        .count()
 }
 
 fn reanchor(plain: &str, anchor: &TextAnchor) -> Option<ResolvedRange> {
@@ -117,7 +126,11 @@ fn reanchor(plain: &str, anchor: &TextAnchor) -> Option<ResolvedRange> {
 
     let prefix = anchor.prefix.as_deref().unwrap_or("");
     let suffix = anchor.suffix.as_deref().unwrap_or("");
-    let origin = if anchor.start >= 0 { anchor.start as usize } else { 0 };
+    let origin = if anchor.start >= 0 {
+        anchor.start as usize
+    } else {
+        0
+    };
 
     let mut best = candidates[0];
     let mut best_score = -1i32;

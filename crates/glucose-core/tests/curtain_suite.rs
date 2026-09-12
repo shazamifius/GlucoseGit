@@ -31,13 +31,34 @@ fn test_curtain_panel_normalize_config_invariants() {
     assert_eq!(cfg.expanded, 0.9);
 
     let cases = [
-        CurtainConfig { collapsed: 0.0, expanded: 0.9 },
-        CurtainConfig { collapsed: -5.0, expanded: 0.9 },
-        CurtainConfig { collapsed: 0.1, expanded: 1.0 },
-        CurtainConfig { collapsed: 0.1, expanded: 42.0 },
-        CurtainConfig { collapsed: 0.9, expanded: 0.1 },
-        CurtainConfig { collapsed: 0.5, expanded: 0.5 },
-        CurtainConfig { collapsed: f64::NAN, expanded: f64::INFINITY },
+        CurtainConfig {
+            collapsed: 0.0,
+            expanded: 0.9,
+        },
+        CurtainConfig {
+            collapsed: -5.0,
+            expanded: 0.9,
+        },
+        CurtainConfig {
+            collapsed: 0.1,
+            expanded: 1.0,
+        },
+        CurtainConfig {
+            collapsed: 0.1,
+            expanded: 42.0,
+        },
+        CurtainConfig {
+            collapsed: 0.9,
+            expanded: 0.1,
+        },
+        CurtainConfig {
+            collapsed: 0.5,
+            expanded: 0.5,
+        },
+        CurtainConfig {
+            collapsed: f64::NAN,
+            expanded: f64::INFINITY,
+        },
     ];
 
     for c in cases {
@@ -47,10 +68,22 @@ fn test_curtain_panel_normalize_config_invariants() {
         assert!(n.expanded > n.collapsed);
     }
 
-    let custom = normalize_config(Some(CurtainConfig { collapsed: 0.15, expanded: 0.5 }));
-    assert_eq!(custom, CurtainConfig { collapsed: 0.15, expanded: 0.5 });
+    let custom = normalize_config(Some(CurtainConfig {
+        collapsed: 0.15,
+        expanded: 0.5,
+    }));
+    assert_eq!(
+        custom,
+        CurtainConfig {
+            collapsed: 0.15,
+            expanded: 0.5
+        }
+    );
 
-    let inverted = normalize_config(Some(CurtainConfig { collapsed: 0.3, expanded: 0.1 }));
+    let inverted = normalize_config(Some(CurtainConfig {
+        collapsed: 0.3,
+        expanded: 0.1,
+    }));
     assert!(inverted.expanded >= inverted.collapsed + curtain_consts::MIN_SPAN);
 }
 
@@ -96,7 +129,12 @@ fn test_curtain_panel_simulation_and_dwell() {
     // Rester assez longtemps -> déploie
     let mut s2 = CurtainState::new(cfg);
     s2 = decide(&s2, Some(at(0.95)), SCREEN_W, 0);
-    s2 = decide(&s2, Some(at(0.95)), SCREEN_W, curtain_consts::EXPAND_DWELL_MS + 1);
+    s2 = decide(
+        &s2,
+        Some(at(0.95)),
+        SCREEN_W,
+        curtain_consts::EXPAND_DWELL_MS + 1,
+    );
     assert_eq!(s2.phase, CurtainPhase::Expanded);
 
     // Repli est plus court que déploiement

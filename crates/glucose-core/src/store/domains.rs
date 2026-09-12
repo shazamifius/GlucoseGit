@@ -92,7 +92,10 @@ impl DomainPatch {
 }
 
 /// Applique `visit` au vecteur d'assignations de **chaque nœud du projet** (DOM-1).
-fn for_each_assignment_list(project: &mut Project, mut visit: impl FnMut(&mut Vec<DomainAssignment>)) {
+fn for_each_assignment_list(
+    project: &mut Project,
+    mut visit: impl FnMut(&mut Vec<DomainAssignment>),
+) {
     for board in &mut project.boards {
         for ann in &mut board.annotations {
             visit(ann.domains_mut());
@@ -172,7 +175,11 @@ impl Store {
         let mut orphans = Vec::new();
         for list in each_assignment_list(&self.project) {
             for assignment in list {
-                let known = self.project.domains.iter().any(|d| d.id == assignment.domain_id);
+                let known = self
+                    .project
+                    .domains
+                    .iter()
+                    .any(|d| d.id == assignment.domain_id);
                 if !known && !orphans.contains(&assignment.domain_id) {
                     orphans.push(assignment.domain_id.clone());
                 }
@@ -266,7 +273,10 @@ impl Store {
         // La validation est terminée : à partir d'ici l'opération aboutit (DOM-3, § 3.3).
         self.push_undo();
         if let Some(list) = node_assignments_mut(&mut self.project.boards[at], node_id) {
-            let assignment = DomainAssignment { domain_id: domain_id.to_string(), weight };
+            let assignment = DomainAssignment {
+                domain_id: domain_id.to_string(),
+                weight,
+            };
             insert_ranked(list, assignment, rank, &ranks);
         }
         Ok(())
@@ -352,7 +362,11 @@ fn node_assignments_mut<'a>(
             .find(|a| a.id() == node_id)
             .map(|a| a.domains_mut());
     }
-    board.images.iter_mut().find(|i| i.id == node_id).map(|i| &mut i.domains)
+    board
+        .images
+        .iter_mut()
+        .find(|i| i.id == node_id)
+        .map(|i| &mut i.domains)
 }
 
 /// Insère (ou remplace) une assignation à la place que lui donne l'ordre du catalogue (DOM-2).
@@ -362,11 +376,19 @@ fn insert_ranked(
     rank: usize,
     ranks: &[String],
 ) {
-    if let Some(existing) = list.iter_mut().find(|a| a.domain_id == assignment.domain_id) {
+    if let Some(existing) = list
+        .iter_mut()
+        .find(|a| a.domain_id == assignment.domain_id)
+    {
         existing.weight = assignment.weight;
         return;
     }
-    let rank_of = |id: &str| ranks.iter().position(|known| known == id).unwrap_or(usize::MAX);
+    let rank_of = |id: &str| {
+        ranks
+            .iter()
+            .position(|known| known == id)
+            .unwrap_or(usize::MAX)
+    };
     let at = list
         .iter()
         .position(|a| rank_of(&a.domain_id) > rank)
@@ -390,7 +412,10 @@ mod tests {
                 panic!("{bad} aurait dû être refusé");
             };
             assert_eq!(refused.is_nan(), bad.is_nan(), "{bad}");
-            assert!(refused.is_nan() || refused == bad, "{bad} refusé comme {refused}");
+            assert!(
+                refused.is_nan() || refused == bad,
+                "{bad} refusé comme {refused}"
+            );
         }
     }
 

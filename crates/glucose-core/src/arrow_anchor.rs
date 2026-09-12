@@ -60,7 +60,14 @@ fn perimeter_exit(anchor: ArrowAnchor, target: Point) -> PerimeterExit {
 
     let b = match anchor.box_rect {
         Some(b) if len > 0.0 => b,
-        _ => return PerimeterExit { x: ax, y: ay, ux: 0.0, uy: 0.0 },
+        _ => {
+            return PerimeterExit {
+                x: ax,
+                y: ay,
+                ux: 0.0,
+                uy: 0.0,
+            }
+        }
     };
 
     let mut t = f64::INFINITY;
@@ -98,15 +105,19 @@ pub fn arrow_endpoints(
     end: ArrowAnchor,
     waypoints: &[Point],
 ) -> ArrowEndpoints {
-    let a_target = waypoints.first().copied().unwrap_or(Point::new(end.x, end.y));
-    let b_target = waypoints.last().copied().unwrap_or(Point::new(start.x, start.y));
+    let a_target = waypoints
+        .first()
+        .copied()
+        .unwrap_or(Point::new(end.x, end.y));
+    let b_target = waypoints
+        .last()
+        .copied()
+        .unwrap_or(Point::new(start.x, start.y));
 
     let a = perimeter_exit(start, a_target);
     let b = perimeter_exit(end, b_target);
 
-    let room = |from: Point, to: Point| -> f64 {
-        0.0f64.max(from.distance_to(to) - MIN_ARROW_LEN)
-    };
+    let room = |from: Point, to: Point| -> f64 { 0.0f64.max(from.distance_to(to) - MIN_ARROW_LEN) };
 
     let (m_start, m_end) = if !waypoints.is_empty() {
         let first_wp = waypoints[0];
@@ -149,7 +160,7 @@ mod tests {
         let b = note(0.0, 500.0, 200.0, 100.0);
         let endpoints = arrow_endpoints(a, b, &[]);
         assert!(endpoints.start.y > 100.0); // sort par le bas de A (y=100)
-        assert!(endpoints.end.y < 500.0);   // au-dessus du haut de B (y=500)
+        assert!(endpoints.end.y < 500.0); // au-dessus du haut de B (y=500)
         assert!((endpoints.start.x - 100.0).abs() < 1e-6);
         assert!((endpoints.end.x - 100.0).abs() < 1e-6);
     }

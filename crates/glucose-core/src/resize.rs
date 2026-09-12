@@ -93,7 +93,10 @@ impl Handle {
     }
 
     pub fn is_corner(self) -> bool {
-        matches!(self, Self::TopLeft | Self::TopRight | Self::BottomLeft | Self::BottomRight)
+        matches!(
+            self,
+            Self::TopLeft | Self::TopRight | Self::BottomLeft | Self::BottomRight
+        )
     }
 
     /// Où la poignée se pose sur `rect` : un coin, ou le milieu d'un côté.
@@ -154,32 +157,57 @@ pub struct ResizeRule {
 impl ResizeRule {
     /// Une image conserve son rapport par défaut : c'est PureRef. `Shift` le libère.
     pub fn image(shift: bool) -> Self {
-        Self { min_width: MIN_IMAGE_SIDE, min_height: MIN_IMAGE_SIDE, keep_aspect: !shift }
+        Self {
+            min_width: MIN_IMAGE_SIDE,
+            min_height: MIN_IMAGE_SIDE,
+            keep_aspect: !shift,
+        }
     }
 
     /// Une carte de texte se tire en largeur ; sa hauteur suit son texte (TEXT-FIT-1), donc
     /// aucun minimum vertical n'a de sens ici.
     pub fn text_card() -> Self {
-        Self { min_width: MIN_TEXT_CARD_WIDTH, min_height: 0.0, keep_aspect: false }
+        Self {
+            min_width: MIN_TEXT_CARD_WIDTH,
+            min_height: 0.0,
+            keep_aspect: false,
+        }
     }
 
     pub fn sticky() -> Self {
-        Self { min_width: MIN_STICKY_SIDE, min_height: MIN_STICKY_SIDE, keep_aspect: false }
+        Self {
+            min_width: MIN_STICKY_SIDE,
+            min_height: MIN_STICKY_SIDE,
+            keep_aspect: false,
+        }
     }
 
     pub fn membrane() -> Self {
-        Self { min_width: MIN_MEMBRANE_SIDE, min_height: MIN_MEMBRANE_SIDE, keep_aspect: false }
+        Self {
+            min_width: MIN_MEMBRANE_SIDE,
+            min_height: MIN_MEMBRANE_SIDE,
+            keep_aspect: false,
+        }
     }
 
     pub fn folder() -> Self {
-        Self { min_width: MIN_FOLDER_WIDTH, min_height: MIN_FOLDER_HEIGHT, keep_aspect: false }
+        Self {
+            min_width: MIN_FOLDER_WIDTH,
+            min_height: MIN_FOLDER_HEIGHT,
+            keep_aspect: false,
+        }
     }
 }
 
 // ── Le calcul ───────────────────────────────────────────────────────────────
 
 /// Le rectangle obtenu en tirant `handle` de `delta` (unités monde) depuis `start`.
-pub fn resize_rect(start: AlignRect, handle: Handle, delta: (f64, f64), rule: ResizeRule) -> AlignRect {
+pub fn resize_rect(
+    start: AlignRect,
+    handle: Handle,
+    delta: (f64, f64),
+    rule: ResizeRule,
+) -> AlignRect {
     if rule.keep_aspect && handle.is_corner() && start.width > 0.0 && start.height > 0.0 {
         resize_corner_proportional(start, handle, delta, rule)
     } else {
@@ -189,7 +217,12 @@ pub fn resize_rect(start: AlignRect, handle: Handle, delta: (f64, f64), rule: Re
 
 /// RESIZE-1 et RESIZE-2 : chaque bord tiré suit le pointeur, l'autre reste, et la dimension
 /// se bloque à son minimum **du côté de l'ancre**.
-fn resize_free(start: AlignRect, handle: Handle, (dx, dy): (f64, f64), rule: ResizeRule) -> AlignRect {
+fn resize_free(
+    start: AlignRect,
+    handle: Handle,
+    (dx, dy): (f64, f64),
+    rule: ResizeRule,
+) -> AlignRect {
     let min_w = rule.min_width.max(0.0);
     let min_h = rule.min_height.max(0.0);
     let (mut left, mut right) = (start.left, start.left + start.width);
@@ -211,7 +244,12 @@ fn resize_free(start: AlignRect, handle: Handle, (dx, dy): (f64, f64), rule: Res
 /// RESIZE-3 : le coin tiré glisse le long de la diagonale qui passe par l'ancre. On projette
 /// le pointeur sur cette diagonale, ce qui est continu — pas de saut quand le pointeur passe
 /// d'un côté à l'autre de la diagonale — et rend un facteur unique appliqué aux deux côtés.
-fn resize_corner_proportional(start: AlignRect, handle: Handle, (dx, dy): (f64, f64), rule: ResizeRule) -> AlignRect {
+fn resize_corner_proportional(
+    start: AlignRect,
+    handle: Handle,
+    (dx, dy): (f64, f64),
+    rule: ResizeRule,
+) -> AlignRect {
     let (ax, ay) = anchor_of(start, handle);
     let sx = if handle.moves_left() { -1.0 } else { 1.0 };
     let sy = if handle.moves_top() { -1.0 } else { 1.0 };
@@ -219,7 +257,9 @@ fn resize_corner_proportional(start: AlignRect, handle: Handle, (dx, dy): (f64, 
     let (diag_x, diag_y) = (start.width * sx, start.height * sy);
     let (px, py) = (ax + diag_x + dx, ay + diag_y + dy);
     let factor = ((px - ax) * diag_x + (py - ay) * diag_y) / (diag_x * diag_x + diag_y * diag_y);
-    let floor = (rule.min_width / start.width).max(rule.min_height / start.height).max(0.0);
+    let floor = (rule.min_width / start.width)
+        .max(rule.min_height / start.height)
+        .max(0.0);
     let factor = factor.max(floor);
     let (width, height) = (start.width * factor, start.height * factor);
     place_from_anchor((ax, ay), handle, (width, height))
@@ -227,13 +267,25 @@ fn resize_corner_proportional(start: AlignRect, handle: Handle, (dx, dy): (f64, 
 
 /// Le point qui ne bouge pas : le coin ou le côté opposé à la poignée.
 fn anchor_of(start: AlignRect, handle: Handle) -> (f64, f64) {
-    let x = if handle.moves_left() { start.left + start.width } else { start.left };
-    let y = if handle.moves_top() { start.top + start.height } else { start.top };
+    let x = if handle.moves_left() {
+        start.left + start.width
+    } else {
+        start.left
+    };
+    let y = if handle.moves_top() {
+        start.top + start.height
+    } else {
+        start.top
+    };
     (x, y)
 }
 
 /// Pose un rectangle de `size` en gardant `anchor` immobile.
-fn place_from_anchor((ax, ay): (f64, f64), handle: Handle, (width, height): (f64, f64)) -> AlignRect {
+fn place_from_anchor(
+    (ax, ay): (f64, f64),
+    handle: Handle,
+    (width, height): (f64, f64),
+) -> AlignRect {
     let left = if handle.moves_left() { ax - width } else { ax };
     let top = if handle.moves_top() { ay - height } else { ay };
     AlignRect::new(left, top, width, height)
@@ -262,9 +314,19 @@ pub fn snap_resized_rect(
     opts: SnapOptions,
     rule: ResizeRule,
 ) -> SnappedResize {
-    let snapped = snap_resize(free, handle.as_str(), targets, opts, rule.min_width, rule.min_height);
+    let snapped = snap_resize(
+        free,
+        handle.as_str(),
+        targets,
+        opts,
+        rule.min_width,
+        rule.min_height,
+    );
     if !(rule.keep_aspect && handle.is_corner()) || start.width <= 0.0 || start.height <= 0.0 {
-        return SnappedResize { rect: snapped.rect, guides: snapped.guides };
+        return SnappedResize {
+            rect: snapped.rect,
+            guides: snapped.guides,
+        };
     }
 
     let ratio = start.height / start.width;
@@ -274,7 +336,13 @@ pub fn snap_resized_rect(
         let height = width * ratio;
         if height >= rule.min_height {
             let rect = place_from_anchor(anchor, handle, (width, height));
-            return SnappedResize { rect, guides: SnapGuides { x: snapped.guides.x, y: None } };
+            return SnappedResize {
+                rect,
+                guides: SnapGuides {
+                    x: snapped.guides.x,
+                    y: None,
+                },
+            };
         }
     }
     if snapped.guides.y.is_some() {
@@ -282,8 +350,17 @@ pub fn snap_resized_rect(
         let width = height / ratio;
         if width >= rule.min_width {
             let rect = place_from_anchor(anchor, handle, (width, height));
-            return SnappedResize { rect, guides: SnapGuides { x: None, y: snapped.guides.y } };
+            return SnappedResize {
+                rect,
+                guides: SnapGuides {
+                    x: None,
+                    y: snapped.guides.y,
+                },
+            };
         }
     }
-    SnappedResize { rect: free, guides: SnapGuides::default() }
+    SnappedResize {
+        rect: free,
+        guides: SnapGuides::default(),
+    }
 }

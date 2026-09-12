@@ -169,7 +169,17 @@ pub fn build_scene(project: &Project) -> ExportScene {
     if let Some(b) = board {
         for ann in &b.annotations {
             match ann {
-                Annotation::Text { id, x, y, width, height, text, font_size, color, .. } => {
+                Annotation::Text {
+                    id,
+                    x,
+                    y,
+                    width,
+                    height,
+                    text,
+                    font_size,
+                    color,
+                    ..
+                } => {
                     let w = width.unwrap_or(340.0);
                     let h = height.unwrap_or(120.0);
                     extend(*x, *y, *x + w, *y + h);
@@ -185,7 +195,18 @@ pub fn build_scene(project: &Project) -> ExportScene {
                         aura_color: "#60a5fa".into(),
                     });
                 }
-                Annotation::Sticky { id, x, y, width, height, text, color, bg_color, operator, .. } => {
+                Annotation::Sticky {
+                    id,
+                    x,
+                    y,
+                    width,
+                    height,
+                    text,
+                    color,
+                    bg_color,
+                    operator,
+                    ..
+                } => {
                     let w = width.unwrap_or(160.0);
                     let h = height.unwrap_or(120.0);
                     extend(*x, *y, *x + w, *y + h);
@@ -201,7 +222,16 @@ pub fn build_scene(project: &Project) -> ExportScene {
                         operator: operator.map(|o| format!("{:?}", o)),
                     });
                 }
-                Annotation::Membrane { id, x, y, width, height, color, text, .. } => {
+                Annotation::Membrane {
+                    id,
+                    x,
+                    y,
+                    width,
+                    height,
+                    color,
+                    text,
+                    ..
+                } => {
                     extend(*x, *y, *x + width, *y + height);
                     membranes.push(SceneMembrane {
                         id: id.clone(),
@@ -213,9 +243,24 @@ pub fn build_scene(project: &Project) -> ExportScene {
                         text: text.clone(),
                     });
                 }
-                Annotation::Arrow { id, x, y, x2, y2, source_id, target_id, text, long_text, predicate, .. } => {
+                Annotation::Arrow {
+                    id,
+                    x,
+                    y,
+                    x2,
+                    y2,
+                    source_id,
+                    target_id,
+                    text,
+                    long_text,
+                    predicate,
+                    ..
+                } => {
                     extend(*x, *y, *x2, *y2);
-                    let mid = Pt { x: (x + x2) / 2.0, y: (y + y2) / 2.0 };
+                    let mid = Pt {
+                        x: (x + x2) / 2.0,
+                        y: (y + y2) / 2.0,
+                    };
                     let pred_str = predicate.map(|p| p.as_str().to_string());
                     arrows.push(SceneArrow {
                         id: id.clone(),
@@ -252,7 +297,9 @@ pub fn build_scene(project: &Project) -> ExportScene {
 
     ExportScene {
         project_name: project.name.clone(),
-        board_name: board.map(|b| b.name.clone()).unwrap_or_else(|| "Board".into()),
+        board_name: board
+            .map(|b| b.name.clone())
+            .unwrap_or_else(|| "Board".into()),
         background: SCENE_BG.into(),
         bbox,
         width: bbox.right - bbox.left,
@@ -328,7 +375,11 @@ pub fn scene_to_markdown(scene: &ExportScene) -> String {
         out.push("## Notes".into());
         out.push("".into());
         for s in &scene.stickies {
-            let op = s.operator.as_deref().map(|o| format!("_({})_ ", o)).unwrap_or_default();
+            let op = s
+                .operator
+                .as_deref()
+                .map(|o| format!("_({})_ ", o))
+                .unwrap_or_default();
             out.push(format!("- {}{}", op, strip_inline_markdown(&s.text)));
         }
         out.push("".into());
@@ -344,8 +395,18 @@ pub fn scene_to_markdown(scene: &ExportScene) -> String {
         out.push("## Liens".into());
         out.push("".into());
         for a in links {
-            let src = a.source_id.as_ref().and_then(|id| title_by_id.get(id)).cloned().unwrap_or_else(|| "?".into());
-            let tgt = a.target_id.as_ref().and_then(|id| title_by_id.get(id)).cloned().unwrap_or_else(|| "?".into());
+            let src = a
+                .source_id
+                .as_ref()
+                .and_then(|id| title_by_id.get(id))
+                .cloned()
+                .unwrap_or_else(|| "?".into());
+            let tgt = a
+                .target_id
+                .as_ref()
+                .and_then(|id| title_by_id.get(id))
+                .cloned()
+                .unwrap_or_else(|| "?".into());
             let rel = a.predicate.as_deref().unwrap_or("→");
             let mut line = format!("- **{}** {} **{}**", src, rel, tgt);
             if let Some(ref lt) = a.long_text {
@@ -375,7 +436,10 @@ pub fn scene_to_svg(scene: &ExportScene, opts: &SvgOptions) -> String {
                 r##"<linearGradient id="{}" gradientUnits="userSpaceOnUse" x1="{}" y1="{}" x2="{}" y2="{}"><stop offset="0" stop-color="{}"/><stop offset="1" stop-color="{}"/></linearGradient>"##,
                 grad_id, a.points[0].x, a.points[0].y, a.points[1].x, a.points[1].y, a.col_start, a.col_end
             ));
-            let d = format!("M {} {} L {} {}", a.points[0].x, a.points[0].y, a.points[1].x, a.points[1].y);
+            let d = format!(
+                "M {} {} L {} {}",
+                a.points[0].x, a.points[0].y, a.points[1].x, a.points[1].y
+            );
             arrow_bodies.push(format!(
                 r##"<path d="{}" fill="none" stroke="url(#{})" stroke-width="{}"/>"##,
                 d, grad_id, a.stroke_width
@@ -410,9 +474,16 @@ pub fn scene_to_svg(scene: &ExportScene, opts: &SvgOptions) -> String {
 {}
 {}
 </svg>"#,
-        scene.width.round(), scene.height.round(),
-        scene.bbox.left, scene.bbox.top, scene.width, scene.height,
-        defs, bg, cards_svg.join("\n"), arrow_bodies.join("\n")
+        scene.width.round(),
+        scene.height.round(),
+        scene.bbox.left,
+        scene.bbox.top,
+        scene.width,
+        scene.height,
+        defs,
+        bg,
+        cards_svg.join("\n"),
+        arrow_bodies.join("\n")
     )
 }
 

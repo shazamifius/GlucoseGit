@@ -82,7 +82,7 @@ impl Rect {
         Rect::new(left, top, right - left, bottom - top)
     }
 
-    pub fn corners(&self) -> [( &'static str, Point); 4] {
+    pub fn corners(&self) -> [(&'static str, Point); 4] {
         [
             ("tl", Point::new(self.left, self.top)),
             ("tr", Point::new(self.right(), self.top)),
@@ -98,15 +98,7 @@ pub fn in_rect(px: f64, py: f64, x: f64, y: f64, w: f64, h: f64) -> bool {
 }
 
 /// Point dans un rectangle ancré au CENTRE et pivoté de `rot` radians.
-pub fn in_rotated_box(
-    px: f64,
-    py: f64,
-    cx: f64,
-    cy: f64,
-    w: f64,
-    h: f64,
-    rot: f64,
-) -> bool {
+pub fn in_rotated_box(px: f64, py: f64, cx: f64, cy: f64, w: f64, h: f64, rot: f64) -> bool {
     let mut dx = px - cx;
     let mut dy = py - cy;
     if rot != 0.0 {
@@ -121,15 +113,7 @@ pub fn in_rotated_box(
 }
 
 /// Point dans la BANDE de bord d'un rectangle (dedans ET dehors de `band` px).
-pub fn on_rect_edge(
-    px: f64,
-    py: f64,
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
-    band: f64,
-) -> bool {
+pub fn on_rect_edge(px: f64, py: f64, x: f64, y: f64, w: f64, h: f64, band: f64) -> bool {
     let outer = px >= x - band && px <= x + w + band && py >= y - band && py <= y + h + band;
     if !outer {
         return false;
@@ -197,9 +181,15 @@ mod tests {
     #[test]
     fn test_rotated_box() {
         // Carré 100x100 centré en (100, 100), rotation 0
-        assert!(in_rotated_box(100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 0.0));
-        assert!(in_rotated_box(140.0, 140.0, 100.0, 100.0, 100.0, 100.0, 0.0));
-        assert!(!in_rotated_box(160.0, 100.0, 100.0, 100.0, 100.0, 100.0, 0.0));
+        assert!(in_rotated_box(
+            100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 0.0
+        ));
+        assert!(in_rotated_box(
+            140.0, 140.0, 100.0, 100.0, 100.0, 100.0, 0.0
+        ));
+        assert!(!in_rotated_box(
+            160.0, 100.0, 100.0, 100.0, 100.0, 100.0, 0.0
+        ));
     }
 
     #[test]

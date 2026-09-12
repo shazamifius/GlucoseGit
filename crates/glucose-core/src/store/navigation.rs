@@ -31,7 +31,10 @@ pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(Strin
 
 impl Store {
     pub fn active_board(&self) -> Option<&Board> {
-        self.project.boards.iter().find(|b| b.id == self.project.active_board_id)
+        self.project
+            .boards
+            .iter()
+            .find(|b| b.id == self.project.active_board_id)
     }
 
     pub fn active_board_mut(&mut self) -> Option<&mut Board> {
@@ -92,7 +95,8 @@ impl Store {
             .map(|f| f.child_board_id.clone())
             .ok_or_else(|| CoreError::FolderNotFound(folder_id.to_string()))?;
 
-        self.folder_stack.push((current_board_id, folder_id.to_string()));
+        self.folder_stack
+            .push((current_board_id, folder_id.to_string()));
         self.project.active_board_id = target;
         self.clear_selection();
         Ok(())
@@ -119,7 +123,12 @@ impl Store {
         }
     }
 
-    pub fn expand_folder(&mut self, _parent_board_id: &str, folder_id: &str, level: FolderTreeNode) {
+    pub fn expand_folder(
+        &mut self,
+        _parent_board_id: &str,
+        folder_id: &str,
+        level: FolderTreeNode,
+    ) {
         let child_board_id = self
             .project
             .boards

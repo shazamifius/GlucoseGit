@@ -25,48 +25,92 @@ fn test_format_year() {
 fn test_parse_anchor_single_year() {
     assert_eq!(
         parse_anchor("1789", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1789, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1789,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("-500", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -500, end: -500, label: None })
+        Some(TemporalAnchor {
+            start: -500,
+            end: -500,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("500 av JC", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -500, end: -500, label: None })
+        Some(TemporalAnchor {
+            start: -500,
+            end: -500,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("500 BC", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -500, end: -500, label: None })
+        Some(TemporalAnchor {
+            start: -500,
+            end: -500,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("500 av. J.-C.", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -500, end: -500, label: None })
+        Some(TemporalAnchor {
+            start: -500,
+            end: -500,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("1789 ap JC", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1789, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1789,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("1789 AD", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1789, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1789,
+            label: None
+        })
     );
 
     assert_eq!(
         parse_anchor("10 ka", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -10_000, end: -10_000, label: None })
+        Some(TemporalAnchor {
+            start: -10_000,
+            end: -10_000,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("12,5 ka", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -12_500, end: -12_500, label: None })
+        Some(TemporalAnchor {
+            start: -12_500,
+            end: -12_500,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("1,5 Ma", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -1_500_000, end: -1_500_000, label: None })
+        Some(TemporalAnchor {
+            start: -1_500_000,
+            end: -1_500_000,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("100 Ma", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: -100_000_000, end: -100_000_000, label: None })
+        Some(TemporalAnchor {
+            start: -100_000_000,
+            end: -100_000_000,
+            label: None
+        })
     );
 }
 
@@ -74,21 +118,37 @@ fn test_parse_anchor_single_year() {
 fn test_parse_anchor_ranges() {
     assert_eq!(
         parse_anchor("1789-1799", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1799, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("1789 – 1799", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1799, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        })
     );
     assert_eq!(
         parse_anchor("1789 - 1799", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1799, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        })
     );
 
     // Ordonne start <= end même si saisie inverse
     assert_eq!(
         parse_anchor("1799-1789", DEFAULT_ERAS),
-        Some(TemporalAnchor { start: 1789, end: 1799, label: None })
+        Some(TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        })
     );
 }
 
@@ -104,8 +164,20 @@ fn test_parse_anchor_named_eras() {
         }
     );
 
-    assert_eq!(parse_anchor("renaissance", DEFAULT_ERAS).unwrap().label.as_deref(), Some("Renaissance"));
-    assert_eq!(parse_anchor("RENAISSANCE", DEFAULT_ERAS).unwrap().label.as_deref(), Some("Renaissance"));
+    assert_eq!(
+        parse_anchor("renaissance", DEFAULT_ERAS)
+            .unwrap()
+            .label
+            .as_deref(),
+        Some("Renaissance")
+    );
+    assert_eq!(
+        parse_anchor("RENAISSANCE", DEFAULT_ERAS)
+            .unwrap()
+            .label
+            .as_deref(),
+        Some("Renaissance")
+    );
 
     assert_eq!(parse_anchor("blabla", DEFAULT_ERAS), None);
     assert_eq!(parse_anchor("", DEFAULT_ERAS), None);
@@ -115,41 +187,134 @@ fn test_parse_anchor_named_eras() {
 #[test]
 fn test_format_anchor() {
     assert_eq!(
-        format_anchor(&TemporalAnchor { start: 1400, end: 1600, label: Some("Renaissance".into()) }),
+        format_anchor(&TemporalAnchor {
+            start: 1400,
+            end: 1600,
+            label: Some("Renaissance".into())
+        }),
         "Renaissance"
     );
     assert_eq!(
-        format_anchor(&TemporalAnchor { start: 1789, end: 1789, label: None }),
+        format_anchor(&TemporalAnchor {
+            start: 1789,
+            end: 1789,
+            label: None
+        }),
         "1789"
     );
     assert_eq!(
-        format_anchor(&TemporalAnchor { start: 1789, end: 1799, label: None }),
+        format_anchor(&TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        }),
         "1789 – 1799"
     );
 }
 
 #[test]
 fn test_node_matches_temporal_filter() {
-    assert!(node_matches_temporal_filter(None, Some(TemporalFilter { start: 1000, end: 2000 })));
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1789, end: 1799, label: None }), None));
+    assert!(node_matches_temporal_filter(
+        None,
+        Some(TemporalFilter {
+            start: 1000,
+            end: 2000
+        })
+    ));
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        }),
+        None
+    ));
 
-    let f = Some(TemporalFilter { start: 1700, end: 1900 });
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1789, end: 1799, label: None }), f));
+    let f = Some(TemporalFilter {
+        start: 1700,
+        end: 1900,
+    });
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1789,
+            end: 1799,
+            label: None
+        }),
+        f
+    ));
 
-    let f2 = Some(TemporalFilter { start: 1800, end: 2000 });
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1789, end: 1900, label: None }), f2));
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1700, end: 1800, label: None }), Some(TemporalFilter { start: 1750, end: 2000 })));
+    let f2 = Some(TemporalFilter {
+        start: 1800,
+        end: 2000,
+    });
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1789,
+            end: 1900,
+            label: None
+        }),
+        f2
+    ));
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1700,
+            end: 1800,
+            label: None
+        }),
+        Some(TemporalFilter {
+            start: 1750,
+            end: 2000
+        })
+    ));
 
-    let f_contained = Some(TemporalFilter { start: 1700, end: 1800 });
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1000, end: 2000, label: None }), f_contained));
+    let f_contained = Some(TemporalFilter {
+        start: 1700,
+        end: 1800,
+    });
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1000,
+            end: 2000,
+            label: None
+        }),
+        f_contained
+    ));
 
     // Disjoints
-    assert!(!node_matches_temporal_filter(Some(&TemporalAnchor { start: 1500, end: 1600, label: None }), f_contained));
-    assert!(!node_matches_temporal_filter(Some(&TemporalAnchor { start: 1900, end: 2000, label: None }), f_contained));
+    assert!(!node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1500,
+            end: 1600,
+            label: None
+        }),
+        f_contained
+    ));
+    assert!(!node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1900,
+            end: 2000,
+            label: None
+        }),
+        f_contained
+    ));
 
     // Bornes inclusives
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1700, end: 1700, label: None }), f_contained));
-    assert!(node_matches_temporal_filter(Some(&TemporalAnchor { start: 1800, end: 1800, label: None }), f_contained));
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1700,
+            end: 1700,
+            label: None
+        }),
+        f_contained
+    ));
+    assert!(node_matches_temporal_filter(
+        Some(&TemporalAnchor {
+            start: 1800,
+            end: 1800,
+            label: None
+        }),
+        f_contained
+    ));
 }
 
 #[test]

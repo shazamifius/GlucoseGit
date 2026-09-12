@@ -8,8 +8,7 @@
 
 use glucose_core::store::{DomainPatch, Store};
 use glucose_core::types::{
-    Annotation, BoardImage, CanvasFolder, Domain, FolderTreeNode,
-    Preset, StoryboardPanel, Viewport,
+    Annotation, BoardImage, CanvasFolder, Domain, FolderTreeNode, Preset, StoryboardPanel, Viewport,
 };
 
 fn mk_text(id: &str, text: &str) -> Annotation {
@@ -117,8 +116,22 @@ fn test_set_viewport_pan_zoom_ne_cree_aucune_entree_undo() {
     let mut store = Store::new("test");
     assert_eq!(store.undo_depth(), 0);
 
-    store.set_viewport("main", Viewport { x: 50.0, y: 60.0, scale: 2.0 });
-    store.set_viewport("main", Viewport { x: 70.0, y: 80.0, scale: 3.0 });
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 50.0,
+            y: 60.0,
+            scale: 2.0,
+        },
+    );
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 70.0,
+            y: 80.0,
+            scale: 3.0,
+        },
+    );
     assert_eq!(store.undo_depth(), 0);
 }
 
@@ -127,7 +140,14 @@ fn test_regression_20_pans_entre_action_et_ctrl_z_n_enterrent_pas_undo() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("img1"));
     for i in 0..20 {
-        store.set_viewport("main", Viewport { x: i as f64, y: i as f64, scale: 1.0 });
+        store.set_viewport(
+            "main",
+            Viewport {
+                x: i as f64,
+                y: i as f64,
+                scale: 1.0,
+            },
+        );
     }
     assert_eq!(store.undo_depth(), 1); // 1 seul pas, pas 21
     assert!(store.undo());
@@ -141,7 +161,14 @@ fn test_naviguer_apres_un_undo_ne_detruit_pas_le_redo() {
     store.undo();
     assert_eq!(store.redo_depth(), 1); // redo armé
 
-    store.set_viewport("main", Viewport { x: 999.0, y: 999.0, scale: 4.0 });
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 999.0,
+            y: 999.0,
+            scale: 4.0,
+        },
+    );
     store.set_active_board_id("main");
     assert_eq!(store.redo_depth(), 1); // toujours là malgré la nav
     assert!(store.redo());
@@ -151,7 +178,11 @@ fn test_naviguer_apres_un_undo_ne_detruit_pas_le_redo() {
 #[test]
 fn test_enter_folder_exit_folder_ne_creent_aucune_entree_undo() {
     let mut store = Store::new("test");
-    let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), vec![mk_text("t1", "hi")]);
+    let fid = store.create_folder_with_content(
+        "main",
+        mk_folder("f1", "Dossier"),
+        vec![mk_text("t1", "hi")],
+    );
     let base = store.undo_depth(); // 1 = la création du dossier
 
     store.try_enter_folder(&fid).expect("le dossier existe");
@@ -187,8 +218,19 @@ fn test_expand_folder_ne_cree_aucune_entree_undo() {
     store.expand_folder("main", &fid, level);
     assert_eq!(store.undo_depth(), base); // navigation/scan, pas édition
 
-    let folder = store.active_board().unwrap().folders.iter().find(|f| f.id == fid).unwrap();
-    let child = store.project.boards.iter().find(|b| b.id == folder.child_board_id).unwrap();
+    let folder = store
+        .active_board()
+        .unwrap()
+        .folders
+        .iter()
+        .find(|f| f.id == fid)
+        .unwrap();
+    let child = store
+        .project
+        .boards
+        .iter()
+        .find(|b| b.id == folder.child_board_id)
+        .unwrap();
     assert_eq!(child.annotations.len(), 2);
 }
 
@@ -354,26 +396,59 @@ fn test_panel_roundtrip() {
     assert_eq!(store.active_board().unwrap().panels.len(), 1);
 
     store.update_panel("main", "p1", "description x");
-    assert_eq!(store.active_board().unwrap().panels[0].description, "description x");
+    assert_eq!(
+        store.active_board().unwrap().panels[0].description,
+        "description x"
+    );
 
     assert!(store.undo());
     assert_eq!(store.active_board().unwrap().panels[0].description, "");
 
     assert!(store.redo());
-    assert_eq!(store.active_board().unwrap().panels[0].description, "description x");
+    assert_eq!(
+        store.active_board().unwrap().panels[0].description,
+        "description x"
+    );
 }
 
 #[test]
 fn test_rename_board_roundtrip() {
     let mut store = Store::new("test");
     store.rename_board("main", "Renommé");
-    assert_eq!(store.project.boards.iter().find(|b| b.id == "main").unwrap().name, "Renommé");
+    assert_eq!(
+        store
+            .project
+            .boards
+            .iter()
+            .find(|b| b.id == "main")
+            .unwrap()
+            .name,
+        "Renommé"
+    );
 
     assert!(store.undo());
-    assert_eq!(store.project.boards.iter().find(|b| b.id == "main").unwrap().name, "Canvas Principal");
+    assert_eq!(
+        store
+            .project
+            .boards
+            .iter()
+            .find(|b| b.id == "main")
+            .unwrap()
+            .name,
+        "Canvas Principal"
+    );
 
     assert!(store.redo());
-    assert_eq!(store.project.boards.iter().find(|b| b.id == "main").unwrap().name, "Renommé");
+    assert_eq!(
+        store
+            .project
+            .boards
+            .iter()
+            .find(|b| b.id == "main")
+            .unwrap()
+            .name,
+        "Renommé"
+    );
 }
 
 #[test]
@@ -389,7 +464,9 @@ fn test_add_and_remove_board_roundtrip() {
     assert_eq!(store.project.boards.len(), 2);
 
     store.set_active_board_id("main");
-    store.try_remove_board(&other).expect("tableau existant, et pas le dernier du projet");
+    store
+        .try_remove_board(&other)
+        .expect("tableau existant, et pas le dernier du projet");
     assert_eq!(store.project.boards.len(), 1);
 
     assert!(store.undo());
@@ -402,7 +479,11 @@ fn test_add_and_remove_board_roundtrip() {
 #[test]
 fn test_folder_with_content_roundtrip() {
     let mut store = Store::new("test");
-    let fid = store.create_folder_with_content("main", mk_folder("f1", "Dossier"), vec![mk_text("t1", "a"), mk_sticky("s1", "b")]);
+    let fid = store.create_folder_with_content(
+        "main",
+        mk_folder("f1", "Dossier"),
+        vec![mk_text("t1", "a"), mk_sticky("s1", "b")],
+    );
     assert_eq!(store.active_board().unwrap().folders.len(), 1);
     assert_eq!(store.project.boards.len(), 2);
 
@@ -496,7 +577,14 @@ fn test_membrane_add_and_delete_roundtrip() {
 fn test_undo_ne_teleporte_pas_la_camera() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("img1"));
-    store.set_viewport("main", Viewport { x: 1234.0, y: 5678.0, scale: 3.0 });
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 1234.0,
+            y: 5678.0,
+            scale: 3.0,
+        },
+    );
 
     assert!(store.undo());
     let vp = store.active_board().unwrap().viewport;
@@ -511,7 +599,14 @@ fn test_redo_ne_teleporte_pas_la_camera() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("img1"));
     store.undo();
-    store.set_viewport("main", Viewport { x: 42.0, y: 42.0, scale: 2.0 });
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 42.0,
+            y: 42.0,
+            scale: 2.0,
+        },
+    );
 
     assert!(store.redo());
     let vp = store.active_board().unwrap().viewport;
@@ -579,7 +674,14 @@ fn test_nouvelle_edition_invalide_redo_mais_pas_navigation() {
 fn test_sequence_longue_mixte_reste_coherente() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("i1")); // E1
-    store.set_viewport("main", Viewport { x: 10.0, y: 10.0, scale: 1.0 });
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 10.0,
+            y: 10.0,
+            scale: 1.0,
+        },
+    );
     store.add_annotation("main", mk_text("t1", "txt")); // E2
     store.set_active_board_id("main");
     store.add_annotation("main", mk_sticky("s1", "stk")); // E3

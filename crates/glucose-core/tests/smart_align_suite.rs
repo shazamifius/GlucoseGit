@@ -72,10 +72,26 @@ fn test_snap_move_independent_axes() {
 #[test]
 fn test_snap_move_scale_constant_on_screen() {
     let t = [r_target()];
-    let p1 = snap_point(20.0, 500.0, &t, SnapOptions { scale: 0.1, ..Default::default() });
+    let p1 = snap_point(
+        20.0,
+        500.0,
+        &t,
+        SnapOptions {
+            scale: 0.1,
+            ..Default::default()
+        },
+    );
     assert!(approx_eq(p1.x, 0.0));
 
-    let p2 = snap_point(20.0, 500.0, &t, SnapOptions { scale: 4.0, ..Default::default() });
+    let p2 = snap_point(
+        20.0,
+        500.0,
+        &t,
+        SnapOptions {
+            scale: 4.0,
+            ..Default::default()
+        },
+    );
     assert_eq!(p2.x, 20.0);
 }
 
@@ -314,13 +330,21 @@ fn test_collect_align_targets() {
     excl_all_but_f.insert("m1".into());
     excl_all_but_f.insert("i1".into());
     let targets_f = collect_align_targets(&board, &excl_all_but_f);
-    let snap_res = snap_move(box_rect(403.0, 900.0, 40.0, 40.0), &targets_f, SnapOptions::default());
+    let snap_res = snap_move(
+        box_rect(403.0, 900.0, 40.0, 40.0),
+        &targets_f,
+        SnapOptions::default(),
+    );
     assert_eq!(snap_res.guides.x, Some(vec![400.0]));
 }
 
 #[test]
 fn test_union_rect_and_rect_of_image() {
-    let u = union_rect(&[box_rect(0.0, 0.0, 10.0, 10.0), box_rect(90.0, 40.0, 10.0, 10.0)]).unwrap();
+    let u = union_rect(&[
+        box_rect(0.0, 0.0, 10.0, 10.0),
+        box_rect(90.0, 40.0, 10.0, 10.0),
+    ])
+    .unwrap();
     assert_eq!(u, box_rect(0.0, 0.0, 100.0, 50.0));
 
     assert_eq!(union_rect(&[]), None);
@@ -333,12 +357,30 @@ fn test_union_rect_and_rect_of_image() {
 fn test_same_guides() {
     assert!(same_guides(None, None));
     assert!(same_guides(None, Some(&SnapGuides::default())));
-    assert!(same_guides(Some(&SnapGuides { x: Some(vec![]), y: None }), None));
+    assert!(same_guides(
+        Some(&SnapGuides {
+            x: Some(vec![]),
+            y: None
+        }),
+        None
+    ));
 
-    let g1 = SnapGuides { x: Some(vec![10.0]), y: None };
-    let g2 = SnapGuides { x: Some(vec![11.0]), y: None };
-    let g3 = SnapGuides { x: Some(vec![10.0]), y: None };
-    let g4 = SnapGuides { x: None, y: Some(vec![10.0]) };
+    let g1 = SnapGuides {
+        x: Some(vec![10.0]),
+        y: None,
+    };
+    let g2 = SnapGuides {
+        x: Some(vec![11.0]),
+        y: None,
+    };
+    let g3 = SnapGuides {
+        x: Some(vec![10.0]),
+        y: None,
+    };
+    let g4 = SnapGuides {
+        x: None,
+        y: Some(vec![10.0]),
+    };
 
     assert!(!same_guides(Some(&g1), Some(&g2)));
     assert!(same_guides(Some(&g1), Some(&g3)));
