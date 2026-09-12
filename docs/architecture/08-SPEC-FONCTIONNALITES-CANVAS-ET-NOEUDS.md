@@ -3,7 +3,7 @@
 > **Rôle de ce document** : fournir la **spécification unitaire et exhaustive** de chaque type d'élément pouvant vivre sur le canvas de Glucose, de ses propriétés, de ses contraintes d'affichage et de ses algorithmes de manipulation.
 > Ce document sert de contrat technique pour le portage de toute la couche logique métier en Rust natif.
 >
-> **Méthode (12/09/2026)** : chaque point est allé voir le code. Ce qui est implémenté **et tenu par un test** est sorti de cette fiche ; ce qui reste est la liste de travail. Le constat d'ensemble : **le noyau est écrit et testé bien au-delà de ce que l'interface branche** — dossiers, miroirs, modes de membrane, opérateurs, prédicats existent dans `glucose-core` et n'ont pas de geste dans `glucose-desktop`.
+> **Méthode (12/09/2026)** : chaque point est allé voir le code. Ce qui est implémenté **et tenu par un test** est sorti de cette fiche ; ce qui reste est la liste de travail. Le constat d'ensemble : **le noyau est écrit et testé bien au-delà de ce que l'interface branche** — miroirs, modes de membrane, opérateurs, prédicats existent dans `glucose-core` et n'ont pas de geste dans `glucose-desktop`. Les dossiers, eux, sont désormais **dessinés** (fiche 06 § 8) ; ce qui leur manque est le geste d'entrée, non les pixels.
 
 ---
 

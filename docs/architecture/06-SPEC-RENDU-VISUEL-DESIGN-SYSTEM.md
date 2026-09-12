@@ -5,7 +5,7 @@
 >
 > **Loi suprême** : **Glucose est BRUTALISTE.** L'interface utilisateur est un papier noir strict et monochrome. La couleur n'appartient **qu'au contenu de l'utilisateur**.
 >
-> **Méthode (12/09/2026)** : chaque valeur est allée voir le code, puis la référence quand ils divergeaient. Ce qui est tenu par un test est sorti ; ce qui reste est la liste de travail. **Deux constats d'ensemble** : le thème du desktop n'était pas celui de la cible — accent bleu ciel sur chaque état actif, canevas bleuté, une « inspiration PureRef » que la référence ne contient pas ; il l'est maintenant (`theme.rs`, un test par jeton, un test pour la loi elle-même : tout jeton de chrome est un gris neutre). Et **les dossiers ne sont pas dessinés** : aucun pixel, ni sur le canevas ni dans la minimap.
+> **Méthode (12/09/2026)** : chaque valeur est allée voir le code, puis la référence quand ils divergeaient. Ce qui est tenu par un test est sorti ; ce qui reste est la liste de travail. **Deux constats d'ensemble** : le thème du desktop n'était pas celui de la cible — accent bleu ciel sur chaque état actif, canevas bleuté, une « inspiration PureRef » que la référence ne contient pas ; il l'est maintenant (`theme.rs`, un test par jeton, un test pour la loi elle-même : tout jeton de chrome est un gris neutre). Et **les dossiers n'étaient dessinés nulle part** : c'est corrigé au § 8, canevas et minimap compris.
 
 ---
 
@@ -98,15 +98,21 @@
 
 ## 8. Spécification des Dossiers (Sub-canvases)
 
-> **Rien n'est dessiné.** Le renderer ne connaît pas `board.folders` : un dossier existe dans le document, répond au clic (`PickOwner::Folder`), et n'a aucun pixel.
+> Le cadre est dessiné (`renderer/folder.rs`), et ses valeurs sont tenues par
+> `test_les_metriques_sont_celles_de_la_fiche` — y compris la conversion des pourcentages
+> d'opacité en canal alpha, vérifiée plutôt que recopiée. Le bandeau partage la constante
+> `pick_consts::FOLDER_HEADER` avec le picking, donc dessin et clic ne peuvent pas diverger
+> (`test_le_bandeau_partage_la_constante_du_picking`). La minimap les dessine en pointillés à
+> leur couleur, et compte leurs bornes — un tableau qui n'aurait que des dossiers n'avait
+> aucune minimap.
 
 ### 8.1 Structure Visuelle du Cadre
-* **À FAIRE** — Minimum 180 × 120 ; coins de 10 px ; bandeau de 38 px (`hit_priority::FOLDER_HEADER` le connaît déjà) ; corps à 2,5 % de la couleur du dossier (5 % sélectionné) ; bordure 1 px pointillée `3 5` à 14 % (continue 1,4 px à 45 % sélectionnée) ; glow de sélection : rectangle agrandi de 3 px, rayon 13 px, 1,5 px à 35 %.
-* **À FAIRE** — Icône d'explorateur à (12, 11), 16 × 14, 45 % (70 % sélectionné) ; titre à (34, 23), 14 px, 600, espacement 0,3 px, tronqué à 28 caractères ; badge compteur en haut à droite ($x = W - 38$, $y = 11$), pilule 30 × 16 arrondie 8, fond couleur à 18 %, contour 0,8 px à 40 %, chiffre 10 px 600.
-* **À FAIRE** — Poignée de redimensionnement bas-droit, visible sélectionné : deux traits gravés à 45°, (4, 14)→(14, 4) à 0,7 / 1,5 px et (9, 14)→(14, 9) à 0,4 / 1 px.
+* **À VÉRIFIER** — L'icône d'explorateur est une silhouette à deux rectangles arrondis, aux proportions de la fiche ; le tracé vectoriel exact de la référence n'a pas été comparé courbe par courbe.
+* **À FAIRE** — Le badge compteur affiche **zéro**. Compter le contenu réel demande d'ouvrir le tableau enfant, ce qu'une frame ne peut pas faire : il faut un compte tenu à jour par le store, et il appartient au noyau.
+* **À FAIRE** — Poignée de redimensionnement bas-droit *gravée* : deux traits à 45°, (4, 14)→(14, 4) à 0,7 / 1,5 px et (9, 14)→(14, 9) à 0,4 / 1 px. Le dossier sélectionné porte aujourd'hui les mêmes poignées carrées que les autres nœuds.
 
 ### 8.2 Mini-Carte Vectorielle Interne (Folder Preview)
-* **À FAIRE** — Marge 12 px ; dégradé radial de fond 0,04 → 0 ; flèches enfants en traits ultra-fins ; images en rectangles pleins ; notes à leur teinte.
+* **À FAIRE** — Marge 12 px ; dégradé radial de fond 0,04 → 0 ; flèches enfants en traits ultra-fins ; images en rectangles pleins ; notes à leur teinte. Rien n'est dessiné du contenu d'un dossier.
 
 ---
 
@@ -115,7 +121,7 @@
 > Tenus (`test_the_chrome_metrics_are_those_of_the_spec`) : 180 × 120, à 12 px du bas et de la droite (le Rust avait 16), fond `rgba(13, 13, 13, 0.92)`, bordure `#2a2a2a`, cadre de caméra blanc à 0,35.
 
 * **À FAIRE** — Glissement à `332px` de la droite en 0,18 s quand un dock droit s'ouvre (fiche 07 § 1, `MINIMAP_SLIDE`).
-* **À VÉRIFIER** — Rayon 4 px, opacité globale 0,85, curseur `crosshair` → `grabbing` ; rendu du contenu : images `#2a2a2a` liseré 0,5 px `#444444`, verrouillées `#3a2a1a` liseré `#f87171`, notes à leur couleur, textes blanc à 0,5, flèches 1,5 px, dossiers pointillés à leur couleur (aucun dossier n'est dessiné) ; remplissage du cadre de caméra blanc à 0,04 ; état vide « Canvas vide » en 10 px `#444444`.
+* **À VÉRIFIER** — Rayon 4 px, opacité globale 0,85, curseur `crosshair` → `grabbing` ; rendu du contenu : images `#2a2a2a` liseré 0,5 px `#444444`, verrouillées `#3a2a1a` liseré `#f87171`, notes à leur couleur, textes blanc à 0,5, flèches 1,5 px ; remplissage du cadre de caméra blanc à 0,04 ; état vide « Canvas vide » en 10 px `#444444`. Les dossiers, eux, y sont désormais en pointillés à leur couleur.
 
 ---
 
