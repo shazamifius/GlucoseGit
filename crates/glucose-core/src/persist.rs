@@ -46,7 +46,7 @@ mod document;
 mod image;
 mod tags;
 
-use crate::bundle::sha256;
+use crate::hash::sha256;
 use crate::error::{CoreError, CoreResult};
 use crate::types::{AssetStore, Project};
 use bytes::{Reader, Writer};
