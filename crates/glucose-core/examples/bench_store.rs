@@ -126,7 +126,9 @@ fn run(n: usize) {
     // ── 1. Le coût d'UNE mutation ordinaire, hors transaction live ──────────
     // C'est le geste de tous les jours : déplacer une carte, changer un texte. Chaque appel
     // passe par `push_undo`, qui clone le document entier.
-    let id = format!("img-{}", (n / 2) * 2 % n.max(1));
+    // Un élément du MILIEU de la liste, pas le premier : chercher `img-0` ferait mentir la
+    // mesure, le balayage le trouvant à la première comparaison.
+    let id = format!("img-{}", (n / 2) & !1);
     let before_undo = live_bytes();
     let t = Instant::now();
     store.update_image(BOARD, &id, |i| i.x += 1.0);
@@ -134,8 +136,20 @@ fn run(n: usize) {
     let undo_bytes = live_bytes().saturating_sub(before_undo);
 
     // Coût projeté d'une pile pleine : 200 clones (LIMITS.UNDO_DEPTH).
-    let full_stack_mb = (undo_bytes as f64 * 200.0) / 1_048_576.0;
     let journal_kb = store.journal.weight() as f64 / 1024.0;
+
+    // ── 1 bis. Le geste réel : saisir une carte et la déplacer ──────────────
+    // Un glisser complet — `begin_live_edit`, trente déplacements, `end_live_edit`. C'est ce
+    // que fait la main de l'utilisateur, et c'est la mesure qui compte vraiment.
+    store.select_image(id.clone(), false);
+    let t = Instant::now();
+    store.begin_live_edit();
+    for _ in 0..30 {
+        store.move_selected(BOARD, 1.0, 0.0);
+    }
+    store.end_live_edit();
+    let drag_ms = ms(t);
+    store.clear_selection();
 
     // ── 2. Retrouver un nœud par identifiant (balayage linéaire) ────────────
     store.begin_live_edit(); // neutralise le clone, on ne mesure que la recherche
@@ -161,7 +175,7 @@ fn run(n: usize) {
     let query_us = ms(t) * 1000.0;
 
     println!(
-        "{n:>9} | {build_ms:>9.1} | {:>8.1} | {:>7.0} | {mutate_ms:>9.2} | {:>10.2} | {full_stack_mb:>11.0} | {journal_kb:>10.1} | {lookup_us:>9.1} | {index_ms:>8.1} | {query_us:>9.1} | {:>6}",
+        "{n:>9} | {build_ms:>9.1} | {:>8.1} | {:>7.0} | {mutate_ms:>9.2} | {drag_ms:>10.1} | {:>10.2} | {journal_kb:>10.1} | {lookup_us:>9.1} | {index_ms:>8.1} | {query_us:>9.1} | {:>6}",
         model_bytes as f64 / 1_048_576.0,
         model_bytes as f64 / n as f64,
         undo_bytes as f64 / 1_048_576.0,
@@ -172,14 +186,14 @@ fn run(n: usize) {
 fn main() {
     println!("Banc du noyau Glucose — mesures réelles, allocateur compteur, 0 dépendance\n");
     println!(
-        "{:>9} | {:>9} | {:>8} | {:>7} | {:>9} | {:>10} | {:>11} | {:>10} | {:>9} | {:>8} | {:>9} | {:>6}",
+        "{:>9} | {:>9} | {:>8} | {:>7} | {:>9} | {:>10} | {:>10} | {:>10} | {:>9} | {:>8} | {:>9} | {:>6}",
         "nœuds",
         "build ms",
         "modèle Mo",
         "o/nœud",
         "1 mutat.ms",
+        "grab+30 ms",
         "alloué Mo",
-        "pile200 Mo",
         "journal Ko",
         "lookup µs",
         "index ms",
@@ -193,8 +207,8 @@ fn main() {
     }
 
     println!("\nLecture :");
-    println!("  • « clone Mo »   = mémoire allouée par UNE seule mutation (push_undo clone tout le projet).");
-    println!("  • « pile200 Mo » = ce que pèserait la pile d'undo pleine (200 niveaux), soit 200 × clone.");
+    println!("  • « alloué Mo »  = mémoire allouée par UNE seule mutation ordinaire.");
+    println!("  • « grab+30 ms » = un glisser complet : begin_live_edit + 30 déplacements + end_live_edit.");
     println!("  • « lookup µs »  = retrouver un nœud par identifiant (balayage linéaire du board).");
     println!("  • Loi L3 : une modification doit coûter la taille de la modification, pas celle du document.");
 }

@@ -291,13 +291,24 @@ pub struct Journal {
     done: Vec<Entry>,
     undone: Vec<Entry>,
     open: Option<Transaction>,
+    /// Rang, dans `done`, du snapshot posé à l'ouverture du geste courant.
+    open_snapshot: Option<usize>,
+    /// Vrai si un site **non migré** a réclamé un snapshot pendant le geste courant.
+    snapshot_claimed: bool,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
 }
 
 impl Journal {
     pub fn new(max_depth: usize) -> Self {
-        Self { done: Vec::new(), undone: Vec::new(), open: None, max_depth }
+        Self {
+            done: Vec::new(),
+            undone: Vec::new(),
+            open: None,
+            open_snapshot: None,
+            snapshot_claimed: false,
+            max_depth,
+        }
     }
 
     pub fn can_undo(&self) -> bool {
@@ -353,12 +364,44 @@ impl Journal {
         self.done.clear();
         self.undone.clear();
         self.open = None;
+        self.open_snapshot = None;
+        self.snapshot_claimed = false;
     }
 
     /// Ouvre une transaction. Sans appel explicite, chaque édition forme son propre geste.
     pub fn begin(&mut self) {
         if self.open.is_none() {
             self.open = Some(Transaction::default());
+            self.snapshot_claimed = false;
+        }
+    }
+
+    /// Ouvre un geste continu : un filet de sécurité, puis la transaction.
+    ///
+    /// # Pourquoi un filet, et pourquoi il disparaîtra
+    ///
+    /// Un geste peut encore toucher des sites non migrés, qui ne savent décrire leur
+    /// modification que par un état complet d'avant. Le snapshot posé ici les couvre.
+    ///
+    /// **Un geste ne doit produire qu'une seule entrée** : à la fermeture, l'une des deux
+    /// formes est éliminée. Si aucun site non migré n'a réclamé le filet, la transaction
+    /// prend sa place ; sinon le filet reste et la transaction est jetée, puisqu'il la
+    /// couvre déjà. Le jour où le dernier site sera migré, `snapshot_claimed` restera faux
+    /// pour toujours et le filet ne survivra plus jamais — sans qu'aucun drapeau n'ait à
+    /// être changé à la main.
+    pub fn begin_gesture(&mut self, project: &Project) {
+        if self.open.is_some() {
+            return;
+        }
+        self.push_snapshot(project);
+        self.open_snapshot = self.done.len().checked_sub(1);
+        self.begin();
+    }
+
+    /// Signale qu'un site non migré a besoin du filet de sécurité du geste courant.
+    pub fn claim_snapshot(&mut self) {
+        if self.open.is_some() {
+            self.snapshot_claimed = true;
         }
     }
 
@@ -378,14 +421,31 @@ impl Journal {
         }
     }
 
-    /// Ferme la transaction ouverte. Une transaction vide — un clic qui n'a rien bougé — ne
-    /// laisse aucune trace : rien à annuler.
+    /// Ferme le geste ouvert, en ne laissant qu'**une seule** entrée.
+    ///
+    /// Une transaction vide — un clic qui n'a rien bougé — n'ajoute rien de son côté.
     pub fn end(&mut self) {
-        if let Some(tx) = self.open.take() {
-            if !tx.is_empty() {
-                self.commit(Entry::Transaction(tx));
+        let Some(tx) = self.open.take() else {
+            return;
+        };
+        let filet = self.open_snapshot.take();
+        let claimed = std::mem::take(&mut self.snapshot_claimed);
+
+        // Rien de journalisé : le geste est décrit par le filet, s'il y en a un.
+        if tx.is_empty() {
+            return;
+        }
+        // Un site non migré s'est exprimé : le filet couvre tout, y compris la transaction.
+        if claimed {
+            return;
+        }
+        // Tous les sites touchés étaient migrés : la transaction remplace le filet.
+        if let Some(i) = filet {
+            if matches!(self.done.get(i), Some(Entry::Snapshot(_))) {
+                self.done.remove(i);
             }
         }
+        self.commit(Entry::Transaction(tx));
     }
 
     /// Abandonne la transaction ouverte en défaisant ce qu'elle a déjà écrit.
@@ -394,6 +454,8 @@ impl Journal {
         let Some(mut tx) = self.open.take() else {
             return false;
         };
+        self.open_snapshot = None;
+        self.snapshot_claimed = false;
         if tx.is_empty() {
             return true;
         }
