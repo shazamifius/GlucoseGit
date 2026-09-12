@@ -126,11 +126,10 @@ impl Renderer {
 
     /// Charge ou récupère une image décodée en Pixmap tiny-skia (supporte WebP, PNG, JPG, GIF, BMP).
     /// Dispose d'un cache négatif pour ne jamais re-décoder un fichier inaccessible ou corrompu (R-29).
-    #[allow(dead_code)]
-    pub fn get_or_load_image(&mut self, src_or_path: &str) -> Option<&Pixmap> {
-        Self::load_image_impl(&mut self.image_cache, &mut self.failed_images, src_or_path)
-    }
-
+    ///
+    /// Le cache est indexé par le chemin `src`, et le décodage a lieu **dans la boucle de
+    /// rendu** : c'est le pont provisoire que la fiche 09 § 4 remplace par un magasin adressé
+    /// par contenu et un décodage hors frame.
     pub fn load_image_impl<'a>(
         image_cache: &'a mut HashMap<String, Pixmap>,
         failed_images: &mut HashSet<String>,

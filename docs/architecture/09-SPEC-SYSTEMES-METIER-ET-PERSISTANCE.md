@@ -37,19 +37,16 @@
 
 ## 4. Pipeline d'Assets Binaires Adressés par le Contenu
 
-Pour manipuler des milliers d'images et vidéos avec une intégrité parfaite :
+> **État mesuré le 12/09/2026.** Ce qui existe : le type `AssetRef` (`Embed { sha256, mime }` / `Link { href }`), sérialisé dans le fichier ; un magasin `AssetStore` ; et, dans le conteneur `.glucose`, un seul blob par `sha256` (testé : `test_a_duplicated_asset_writes_a_single_blob`). Ce qui manque est **un chantier d'architecture, pas un correctif** — il touche l'import, le magasin et le rendu ensemble, et se conçoit avec le rendu GPU (plan de marche RQ-2) :
+>
+> * `AssetRef` n'est **construit par aucun code de production**. L'identité d'une image reste `src`, un chemin de fichier sur la machine d'import ; le magasin en mémoire est indexé par ce chemin ; le cache du renderer aussi, et il décode dans la boucle de rendu.
+> * L'empreinte n'est pas calculée à l'import mais **à chaque enregistrement**, sur chaque octet de chaque actif, après avoir **relu chaque fichier depuis le disque** (`persist/assets.rs::collect`, reconstruit à chaque Ctrl+S). Mesuré au banc (`bench_store`, section « Sauvegarde ») sur 1 000 nœuds : 0 Mo d'actifs → 1 ms ; 16 Mo → 205 ms ; 64 Mo → 1 075 ms ; 256 Mo → **3 928 ms**, hors lecture et écriture disque, avec une copie intégrale des actifs allouée pour construire le fichier. La sauvegarde coûte le volume des actifs, pas la modification : c'est la loi L3 violée, et la sauvegarde incrémentale du § 3.1 est impossible tant que c'est le cas.
 
 ### 4.1 Référence Universelle (`AssetRef`)
-Toute ressource multimédia est typée par une union discriminée stricte :
-* **Mode `embed`** : Les octets bruts vivent directement dans le projet, indexés par leur condensat cryptographique SHA-256 (`project.blobs[sha256]`).
-* **Mode `link`** : Référence externe via un chemin relatif ou une URL web (`href: "images/photo.jpg"` ou `https://...`). Utilisé pour les fichiers vidéo volumineux ou les miroirs de dossiers disques.
+* **À FAIRE** — Toute ressource multimédia est typée par `AssetRef` : **`embed`**, octets dans le magasin, indexés par leur SHA-256 ; **`link`**, chemin relatif ou URL (`href: "images/photo.jpg"`, `https://...`) pour les vidéos volumineuses et les miroirs de dossiers. Le `src` d'origine devient une information de provenance, jamais une identité.
 
 ### 4.2 Déduplication Cryptographique
-À l'import d'une image :
-1. Calcul du hash SHA-256 des octets.
-2. Vérification dans la table des blobs existants :
-   * Si le hash est déjà présent : l'image réutilise le blob existant sans allouer un seul octet supplémentaire sur le disque ni en mémoire.
-   * Si le hash est nouveau : les octets sont stockés dans la table.
+* **À FAIRE** — À l'import : SHA-256 des octets **une fois** ; si l'empreinte est déjà dans le magasin, l'image réutilise le blob sans allouer un octet, ni en mémoire ni sur le disque ; sinon les octets entrent dans le magasin sous leur empreinte. L'enregistrement n'a plus rien à hacher ni à relire : il écrit ce qu'il a, le rendu décode depuis le magasin, hors frame.
 
 ---
 
