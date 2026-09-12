@@ -11,6 +11,12 @@ use glucose_core::types::{Annotation, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
 
+/// Ce que disent les boutons dont la fonction n'existe pas encore. Un bouton qui annonce ce
+/// qu'il n'a pas fait est un bouton qui ment ; celui-ci dit ce qu'il en est.
+pub const NOT_YET_EXPORT: &str = "Export : pas encore disponible";
+pub const NOT_YET_STORYBOARD: &str = "Storyboard : pas encore disponible";
+pub const NOT_YET_AI: &str = "IA locale : pas encore disponible";
+
 impl GlucoseApp {
     /// Mouvement continu de la souris (pan, drag d'élément, drag de dock, ou mise à jour de boîte élastique).
     pub fn handle_cursor_moved(&mut self, position: PhysicalPosition<f64>) {
@@ -90,7 +96,10 @@ impl GlucoseApp {
                         }
                         UiAction::ToggleCollab => {}
                         UiAction::ExportMenu => {
-                            self.ui.show_toast("Exportation du canvas");
+                            // Fiche 09 § 5 : aucun export n'est branché. Le bouton reste,
+                            // parce que la barre d'outils le prévoit (fiche 10) ; il dit la
+                            // vérité plutôt que d'annoncer une exportation qui n'a pas lieu.
+                            self.ui.show_toast(NOT_YET_EXPORT);
                         }
                         UiAction::TogglePlugins => {
                             self.dock_manager.toggle_tab(TabId::Plugins);
@@ -176,6 +185,16 @@ impl GlucoseApp {
                         }
                         PanelClickResult::Domain(intent) => {
                             self.apply_domain_intent(intent);
+                        }
+                        // Fiche 09 § 8 : le storyboard n'a pas d'effet sur le canevas. Le
+                        // panneau ne doit pas laisser croire le contraire.
+                        PanelClickResult::ToggleStoryboard | PanelClickResult::SelectFormat(_) => {
+                            self.dock_manager.storyboard.active = false;
+                            self.ui.show_toast(NOT_YET_STORYBOARD);
+                        }
+                        // Fiche 09 § 10.3 : pas de moteur, pas de téléchargement.
+                        PanelClickResult::DownloadModel => {
+                            self.ui.show_toast(NOT_YET_AI);
                         }
                         _ => {}
                     }
@@ -443,3 +462,6 @@ impl GlucoseApp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

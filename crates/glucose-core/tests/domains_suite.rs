@@ -767,3 +767,49 @@ fn test_the_extreme_weights_survive_bit_for_bit() {
         1.0 / 3.0
     );
 }
+
+// ── Fiche 09 § 6 — la structure d'un domaine, et la signature poly-sémantique ──
+
+/// § 6.1 — `Domain { id, name, color, icon, created_at }`, et § 6.2 — l'exemple même de la
+/// fiche : un nœud appartient à *Science* pour 0,7 et à *Histoire* pour 0,3, les deux à la
+/// fois, chacun avec son poids. `created_at` est un `i64`, comme toutes les dates du modèle
+/// — la fiche disait `u64`, ce qui aurait interdit ce que le reste du modèle permet.
+#[test]
+fn test_a_node_carries_several_domains_each_with_its_own_weight() {
+    let mut store = populated_store();
+    let science = Domain {
+        id: "d-sci".into(),
+        name: "Science".into(),
+        color: "#3b82f6".into(),
+        icon: "🔬".into(),
+        created_at: 1_700_000_000_000,
+    };
+    store.try_add_domain(science.clone()).expect("catalogue vide");
+    store
+        .try_add_domain(domain("d-his", "Histoire"))
+        .expect("identifiant neuf");
+
+    store
+        .try_assign_domain_to_node("main", "t-1", "d-sci", 0.7)
+        .expect("Science");
+    store
+        .try_assign_domain_to_node("main", "t-1", "d-his", 0.3)
+        .expect("Histoire");
+
+    let signature: Vec<(String, f64)> = store
+        .node_domains("main", "t-1")
+        .expect("t-1 existe")
+        .iter()
+        .map(|a| (a.domain_id.clone(), a.weight))
+        .collect();
+    assert_eq!(
+        signature,
+        vec![("d-sci".to_string(), 0.7), ("d-his".to_string(), 0.3)],
+        "domains = [(Science, 0.7), (Histoire, 0.3)]"
+    );
+    assert_eq!(
+        store.project.domains.iter().find(|d| d.id == "d-sci"),
+        Some(&science),
+        "le domaine est rangé tel quel : id, nom, couleur, icône, date"
+    );
+}
