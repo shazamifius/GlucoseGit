@@ -3,7 +3,9 @@
 use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
+use crate::animation::{fly_into_folder, fly_out_to_depth};
 use crate::params::{Pointer, ScreenFrame};
+use glucose_core::membrane_focus::ScreenSize;
 use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, pick_consts, PickInput, PickOwner};
@@ -67,7 +69,16 @@ impl GlucoseApp {
                 let mx = self.mouse_pos.0 as f32;
                 let my = self.mouse_pos.1 as f32;
 
-                // 0. Clic sur le fil d'Ariane : il occupe une bande sous les onglets, donc
+                // 0. Un clic pendant une plongée l'abrège : on arrive tout de suite. Le clic
+                // est consommé — le viser dans le tableau d'arrivée, à une position qui n'a
+                // rien à voir avec celle qu'on visait au départ, serait pire que de l'ignorer.
+                if self.animator.skip(&mut self.store) {
+                    self.update_cursor();
+                    self.mark_dirty();
+                    return;
+                }
+
+                // 0 bis. Clic sur le fil d'Ariane : il occupe une bande sous les onglets, donc
                 // avant tout le reste. Remonter change le tableau, plus rien de ce clic ne
                 // vaut ensuite.
                 if let Some(depth) = crate::ui::breadcrumb::hit_breadcrumb(
@@ -77,7 +88,8 @@ impl GlucoseApp {
                     self.ui.scale_factor,
                     (mx, my),
                 ) {
-                    if self.store.exit_to_depth(depth) {
+                    let ecran = ScreenSize { width: screen_w as f64, height: screen_h as f64 };
+                    if fly_out_to_depth(&mut self.store, &mut self.animator, depth, ecran) {
                         self.update_cursor();
                         self.mark_dirty();
                     }
@@ -471,12 +483,15 @@ impl GlucoseApp {
                 // Entrer dans un dossier remplace le tableau : plus rien de ce clic n'a de
                 // sens ensuite, ni sélection ni début de glisser.
                 if let Some(folder_id) = entrer_dans {
-                    if self.store.try_enter_folder(&folder_id).is_ok() {
-                        self.ui.show_toast("Dossier ouvert");
-                        self.update_cursor();
-                        self.mark_dirty();
-                        return;
+                    let ecran = ScreenSize { width: screen_w as f64, height: screen_h as f64 };
+                    // La caméra plonge, et la bascule attend l'arrivée. Si le dossier a
+                    // disparu entre-temps, on entre sans cérémonie plutôt que de ne rien faire.
+                    if !fly_into_folder(&self.store, &mut self.animator, &folder_id, ecran) {
+                        drop(self.store.try_enter_folder(&folder_id));
                     }
+                    self.update_cursor();
+                    self.mark_dirty();
+                    return;
                 }
 
                 if selected {

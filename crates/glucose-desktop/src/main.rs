@@ -1,5 +1,6 @@
 //! Point d'entrée de Glucose Desktop Native (PureRef en Rust pur).
 
+pub mod animation;
 mod app;
 mod canvas;
 pub mod dock;

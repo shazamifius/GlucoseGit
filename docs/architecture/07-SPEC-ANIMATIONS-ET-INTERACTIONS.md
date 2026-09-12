@@ -3,7 +3,7 @@
 > **Rôle de ce document** : définir avec une précision chronométrique et mathématique absolue l'intégralité des **animations, courbes d'accélération, cinétiques, transitions d'état et règles d'interaction** de Glucose.
 > Il constitue la référence indispensable pour recréer en Rust natif le ressenti fluide, réactif et organique ("feel & polish") de la version originale.
 >
-> **Méthode (12/09/2026)** : chaque chiffre est allé voir le code, puis la référence TypeScript quand les deux divergeaient. Ce qui est implémenté **et tenu par un test** est sorti ; ce qui reste est la liste de travail. Constat d'ensemble : **l'arbitre de clic, l'aimantation, la géométrie des membranes et des rideaux sont exacts dans le noyau ; le desktop n'anime rien** — aucune interpolation, aucune courbe, aucune transition de caméra.
+> **Méthode (12/09/2026)** : chaque chiffre est allé voir le code, puis la référence TypeScript quand les deux divergeaient. Ce qui est implémenté **et tenu par un test** est sorti ; ce qui reste est la liste de travail. Constat d'ensemble : l'arbitre de clic, l'aimantation, la géométrie des membranes et des rideaux sont exacts dans le noyau. **Le mécanisme d'animation existe désormais** (`glucose_core::anim` pour les courbes et les durées, `glucose-desktop/animation.rs` pour l'horloge) et la première transition de caméra — la plongée dans un dossier — est branchée. Les autres attendent leur geste, plus leur mécanisme.
 
 ---
 
@@ -13,9 +13,9 @@
 
 | Constante | Durée (ms) | État | Description & Comportement |
 |---|---:|---|---|
-| `MEMBRANE_TWEEN` | **200 ms** | **À FAIRE** — aucun tween | Passage fluide d'une image/texte entrant ou sortant d'une membrane minimisée |
-| `FOLDER_TRANSITION`| **400 ms** | **À FAIRE** — l'entrée dans un dossier n'existe pas (fiche 08 § 5.2) | Plongée fluide de la caméra lors de l'entrée ou la sortie d'un dossier |
-| `MIRROR_TELEPORT` | **400 ms** | **À FAIRE** — les miroirs n'ont pas de geste (fiche 08 § 6) | Téléportation animée de la caméra vers l'original d'un miroir (`↻`) |
+| `MEMBRANE_TWEEN` | **200 ms** | **À FAIRE** — la constante existe, le geste non | Passage fluide d'une image/texte entrant ou sortant d'une membrane minimisée |
+| `FOLDER_TRANSITION`| **400 ms** | **Fait** — plongée à l'entrée, remontée à la sortie, un clic l'abrège | Plongée fluide de la caméra lors de l'entrée ou la sortie d'un dossier |
+| `MIRROR_TELEPORT` | **400 ms** | **À FAIRE** — les miroirs n'ont pas de geste (fiche 08 § 6) ; le vol de caméra, lui, est prêt | Téléportation animée de la caméra vers l'original d'un miroir (`↻`) |
 | `PANEL_DISMISS` | **200 ms** | **À FAIRE** — le panneau disparaît d'un coup | Glissement d'éviction d'un panneau du dock tiré vers sa sortie |
 | `MINIMAP_SLIDE` | **180 ms** | **À FAIRE** — pas de translation | Translation horizontale de la minimap quand un panneau droit s'ouvre/se ferme |
 | `ARROW_PANEL_IN` | **180 ms** | **À FAIRE** — pas de panneau de flèche | Fondu et déploiement du panneau de description Markdown d'une flèche |
@@ -25,12 +25,12 @@
 
 ## 2. Fonctions d'Amortissement & Courbes d'Accélération (Easing)
 
-> Rien n'existe : le desktop ne connaît aucune courbe. Toute animation ci-dessous attend d'abord un mécanisme de tween (une valeur, une durée, une courbe, une horloge) — à concevoir une fois, avec le rendu GPU (plan de marche RQ-2), et à réutiliser partout.
+> Les courbes existent et sont tenues par test (`glucose_core::anim`) : l'amorti universel $1 - (1-t)^3$, et les Béziers CSS résolues comme un navigateur les résout — l'ordonnée se lit à l'**abscisse** voulue, et non au paramètre, ce qu'un témoin par bissection indépendante vérifie sur six courbes. Le rebond du dock dépasse bien 1 avant de se caler, et un test l'exige : une implémentation qui rabattrait la sortie dans $[0, 1]$ le détruirait en silence.
+>
+> La fiche renvoyait ce mécanisme au rendu GPU. Les deux n'ont rien à voir : une animation est une valeur qui dépend du temps, et qui la dessine ensuite ne change ni la courbe, ni la durée, ni la façon de la tester. Le module ne connaît d'ailleurs pas l'heure — l'appelant lui donne le temps écoulé — ce qui rend **toute courbe de Glucose vérifiable sans attendre une milliseconde**.
 
-* **À FAIRE** — **Cubic ease-out**, l'amorti universel : $f(t) = 1 - (1 - t)^3$ pour $t \in [0, 1]$. Tweening des membranes, cadrage du mode focus, slide de la minimap, apparition des popovers.
-* **À FAIRE** — **Rebond de préhension du dock** : `cubic-bezier(0.34, 1.56, 0.64, 1.0)` — le panneau dépasse légèrement sa position finale avant de se caler.
-* **À FAIRE** — **Transition FLIP de réordonnancement** du dock : `cubic-bezier(0.22, 1.0, 0.36, 1.0)` sur 250 ms.
-* **À FAIRE** — **Entrée du toast** : opacité 0 → 1 et `translateY(8px)` → 0 en 180 ms ease-out. Le fondu d'opacité existe (linéaire) ; la translation et la courbe manquent.
+* **À FAIRE** — Les courbes sont là ; il leur manque leurs gestes : rebond de préhension du dock, transition FLIP de réordonnancement sur 250 ms, slide de la minimap, apparition des popovers.
+* **À FAIRE** — **Entrée du toast** : opacité 0 → 1 et `translateY(8px)` → 0 en 180 ms ease-out. Le fondu d'opacité existe (linéaire) ; la translation et la courbe manquent, alors que la courbe, elle, est maintenant disponible.
 * **À FAIRE** — **Pulsation de fantôme** : opacité 0,55 ↔ 0,35, pour les fantômes de placement et opérations en cours.
 
 ---
