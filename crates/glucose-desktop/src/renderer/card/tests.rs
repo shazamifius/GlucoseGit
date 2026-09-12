@@ -55,10 +55,11 @@ fn test_scale_1_the_layout_is_self_similar_at_every_zoom() {
 fn test_a_card_stretches_to_fit_its_text_in_world_units() {
     // La hauteur necessaire se calcule AVANT la mise a l'echelle : deux zooms doivent
     // donner la meme carte a un facteur pres, sinon la mise en page se reorganise.
-    let short = CardLayout::text_card(260.0, 48.0, 1);
-    let tall = CardLayout::text_card(260.0, 48.0, 8);
-    assert_eq!(short.height, 48.0, "une carte assez haute garde sa hauteur");
-    assert!(tall.height > 48.0, "une carte trop courte s'etire");
+    // Une ligne demande 16 + 14 × 1,4 + 16 = 51,6 px (fiche 06 § 5.1) : 60 est assez haut.
+    let short = CardLayout::text_card(260.0, 60.0, 1);
+    let tall = CardLayout::text_card(260.0, 60.0, 8);
+    assert_eq!(short.height, 60.0, "une carte assez haute garde sa hauteur");
+    assert!(tall.height > 60.0, "une carte trop courte s'etire");
     let ratio_1 = tall.scaled(WorldScale::new(0.3)).height / tall.scaled(WorldScale::new(0.3)).width;
     let ratio_2 = tall.scaled(WorldScale::new(3.0)).height / tall.scaled(WorldScale::new(3.0)).width;
     assert!((ratio_1 - ratio_2).abs() < 1e-6, "{ratio_1} != {ratio_2}");
@@ -124,4 +125,14 @@ fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
         assert_eq!(LineKind::of(not_yet), (LineKind::Body, 0), "{not_yet:?} n'est pas encore compris");
     }
     assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0, "les titres sont plus grands que le corps");
+}
+
+/// Fiche 06 § 5.1 — la carte « nuage / brume » : padding `16px 24px`, coins de 32 px, corps
+/// 14 px, interligne 1,4.
+#[test]
+fn test_the_text_card_metrics_are_those_of_the_spec() {
+    assert_eq!((PAD_X, PAD_Y), (24.0, 16.0));
+    assert_eq!(CORNER_RADIUS, 32.0);
+    assert_eq!(BODY_FONT, 14.0);
+    assert_eq!(LINE_FACTOR, 1.4);
 }

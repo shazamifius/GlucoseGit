@@ -56,18 +56,18 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 /// Corps de texte d'une carte.
 const BODY_FONT: f32 = 14.0;
-/// Interligne, en multiples du corps.
-const LINE_FACTOR: f32 = 1.35;
+/// Interligne, en multiples du corps (fiche 06 § 5.1 : `lineHeight: 1.4`).
+const LINE_FACTOR: f32 = 1.4;
 /// Grossissement d'un titre `# `.
 const H1_FACTOR: f32 = 1.25;
 /// Grossissement d'un sous-titre `## `.
 const H2_FACTOR: f32 = 1.10;
-/// Marge horizontale entre le bord de la carte et son texte.
-const PAD_X: f32 = 18.0;
+/// Marge horizontale entre le bord de la carte et son texte (fiche 06 § 5.1 : `16px 24px`).
+const PAD_X: f32 = 24.0;
 /// Marge verticale entre le bord de la carte et son texte.
-const PAD_Y: f32 = 12.0;
-/// Rayon des coins de la carte.
-const CORNER_RADIUS: f32 = 24.0;
+const PAD_Y: f32 = 16.0;
+/// Rayon des coins de la carte (fiche 06 § 5.1 : 32 px, « nuage / brume »).
+const CORNER_RADIUS: f32 = 32.0;
 /// Décalage du texte d'une puce `- ` par rapport au reste.
 const BULLET_INDENT: f32 = 14.0;
 /// Rayon du disque d'une puce.

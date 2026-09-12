@@ -878,8 +878,9 @@ pub fn layout_minimap(
     let s = crate::theme::clamp_ui_scale(scale);
     let mm_w = 180.0f32 * s;
     let mm_h = 120.0f32 * s;
-    let mm_x = screen_w - mm_w - 16.0 * s;
-    let mm_y = screen_h - mm_h - 16.0 * s;
+    // Fiche 06 § 9 : `bottom: 12px`, `right: 12px`.
+    let mm_x = screen_w - mm_w - 12.0 * s;
+    let mm_y = screen_h - mm_h - 12.0 * s;
     let header_h = TOTAL_HEADER_HEIGHT * s;
 
     let mut min_x = f64::INFINITY;
@@ -1224,6 +1225,23 @@ pub fn handle_ui_click(
 mod tests {
     use super::*;
     use crate::typography::Typography;
+
+    /// Fiche 06 § 9 et § 10 — minimap 180 × 120 à 12 px des bords ; barre d'outils 44 px,
+    /// onglets 34 px, boutons d'outil 30 × 30.
+    #[test]
+    fn test_the_chrome_metrics_are_those_of_the_spec() {
+        assert_eq!(TOPBAR_HEIGHT, 44.0);
+        assert_eq!(TABS_HEIGHT, 34.0);
+        let ui = UiState::new();
+        let typo = Typography::new();
+        let layout = layout_topbar(1440.0, &ui, &typo, 0);
+        let tool = layout.buttons.iter().find(|b| matches!(b.action, UiAction::SelectTool(_))).expect("un outil");
+        assert_eq!((tool.w, tool.h), (30.0, 30.0));
+        let store = Store::new("m");
+        let mm = layout_minimap(&store, 1440.0, 900.0, 1.0).expect("la minimap");
+        assert_eq!((mm.mm_w, mm.mm_h), (180.0, 120.0));
+        assert_eq!((mm.mm_x + mm.mm_w, mm.mm_y + mm.mm_h), (1440.0 - 12.0, 900.0 - 12.0));
+    }
 
     #[test]
     fn test_topbar_no_overlap_across_all_resolutions() {

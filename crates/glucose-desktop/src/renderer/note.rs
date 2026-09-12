@@ -30,13 +30,13 @@ const STICKY_WIDTH: f64 = 160.0;
 /// Hauteur par défaut d'un pense-bête, en unités monde.
 const STICKY_HEIGHT: f64 = 120.0;
 /// Corps de texte d'un pense-bête.
-const STICKY_FONT: f32 = 12.0;
+const STICKY_FONT: f32 = 13.0;
 /// Interligne, en multiples du corps.
 const STICKY_LINE_FACTOR: f32 = 1.3;
 /// Marge intérieure, sur les quatre côtés.
 const STICKY_PAD: f32 = 10.0;
 /// Rayon des coins.
-const STICKY_RADIUS: f32 = 6.0;
+const STICKY_RADIUS: f32 = 2.0;
 /// Corps du badge d'opérateur (`ET`, `OU`, `MAIS`, `PARCE QUE`).
 const STICKY_OPERATOR_FONT: f32 = 11.0;
 /// Hauteur consommée par le badge d'opérateur.
@@ -341,5 +341,19 @@ mod tests {
             }
             previous = Some(ratio);
         }
+    }
+}
+
+#[cfg(test)]
+mod spec_tests {
+    use super::*;
+
+    /// Fiche 06 § 5.2 — 160 × 120 par défaut, coins à 2 px, corps 13 px comme la référence
+    /// (`ann.fontSize || 13`).
+    #[test]
+    fn test_the_sticky_metrics_are_those_of_the_spec() {
+        assert_eq!((STICKY_WIDTH, STICKY_HEIGHT), (160.0, 120.0));
+        assert_eq!(STICKY_RADIUS, 2.0);
+        assert_eq!(STICKY_FONT, 13.0);
     }
 }
