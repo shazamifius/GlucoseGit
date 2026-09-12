@@ -61,6 +61,30 @@
 //! [`Grid::large`] dit combien il y en a, et le banc dit ce qu'ils coûtent. S'ils devenaient
 //! nombreux, c'est une grille hiérarchique qu'il faudrait, et la mesure le dira avant.
 //!
+//! # Bouger sans tout refaire : la liste de transit
+//!
+//! Reconstruire l'index coûte 16 ms sur un million de nœuds — six fois moins que l'index
+//! historique, qui en demandait 1 042 pour se construire et **50,5 ms pour vérifier que rien
+//! n'avait changé**, à chaque événement de souris. Mais 16 ms, c'est encore une frame et demie :
+//! on ne peut pas reconstruire pendant qu'une carte suit le curseur.
+//!
+//! Un nœud qui bouge est donc **retiré de sa cellule et mis en transit** : une petite liste
+//! balayée en entier à chaque requête, en plus des cellules. Déplacer coûte alors le contenu
+//! d'une cellule, et non le document.
+//!
+//! La liste ne peut pas grandir sans fin, et le moment de reconstruire n'est pas un réglage :
+//!
+//! ```text
+//!     chaque requête paie          |transit|
+//!     chaque reconstruction paie   n,  amortie sur |transit| déplacements
+//!
+//!     les deux s'égalisent en      |transit| = √n
+//! ```
+//!
+//! C'est le seul point où ni le balayage du transit ni la reconstruction ne domine l'autre :
+//! au-delà, le transit coûterait plus qu'il n'économise ; en deçà, on reconstruirait trop
+//! souvent. [`Grid::needs_rebuild`] le dit, et rien n'est à choisir.
+//!
 //! # Ce que l'index n'est pas
 //!
 //! Un filtre, pas un oracle : [`Grid::query`] revérifie la boîte exacte de chaque candidat. Le
@@ -86,6 +110,15 @@ pub struct Grid {
     starts: Vec<u32>,
     items: Vec<NodeId>,
     large: Vec<NodeId>,
+    /// Les nœuds retirés de leur cellule parce qu'ils ont bougé, triés. Balayés à chaque
+    /// requête ; voir l'en-tête du module pour le moment où il faut reconstruire.
+    transit: Vec<NodeId>,
+    /// Le nombre de nœuds à la construction — le `n` de la règle √n.
+    ///
+    /// Figé, et non recalculé : un nœud en transit laisse une place vide dans sa cellule, donc
+    /// le recompter reviendrait à le compter deux fois, et le seuil dériverait à mesure que la
+    /// liste grossit. C'est exactement l'erreur que le test de la racine carrée a attrapée.
+    indexed: usize,
 }
 
 impl Default for Grid {
@@ -101,6 +134,8 @@ impl Default for Grid {
             starts: vec![0],
             items: Vec::new(),
             large: Vec::new(),
+            transit: Vec::new(),
+            indexed: 0,
         }
     }
 }
@@ -136,6 +171,8 @@ impl Grid {
             starts: vec![0; cols as usize * rows as usize + 1],
             items: Vec::with_capacity(vivants),
             large: Vec::new(),
+            transit: Vec::new(),
+            indexed: vivants,
         };
 
         // Passe 1 : compter, et mettre de côté ce qui ne tient pas dans une cellule.
@@ -181,7 +218,7 @@ impl Grid {
         self.large.len()
     }
 
-    /// Le nombre de nœuds rangés dans des cellules.
+    /// Le nombre de places en cellules — celles qu'un déplacement a libérées comprises.
     pub fn len(&self) -> usize {
         self.items.len()
     }
@@ -214,7 +251,7 @@ impl Grid {
     /// La boîte exacte de chaque candidat est revérifiée : l'index filtre, il ne décide pas.
     pub fn query(&self, a: &Arena, view: Box2, out: &mut Vec<NodeId>) {
         out.clear();
-        for &id in &self.large {
+        for &id in self.large.iter().chain(&self.transit) {
             if a.box_of(id).is_some_and(|b| b.overlaps(view)) {
                 out.push(id);
             }
@@ -244,6 +281,59 @@ impl Grid {
         }
     }
 
+    /// Le nombre de nœuds en transit, retirés de leur cellule et balayés à chaque requête.
+    pub fn in_transit(&self) -> usize {
+        self.transit.len()
+    }
+
+    /// Vrai quand la liste de transit a atteint √n : au-delà, la balayer coûterait plus cher
+    /// que de reconstruire l'index. Voir l'en-tête du module.
+    pub fn needs_rebuild(&self) -> bool {
+        self.transit.len() * self.transit.len() >= self.indexed.max(1)
+    }
+
+    /// Signale qu'un nœud a changé de place, ou vient d'apparaître.
+    ///
+    /// `depuis` est sa boîte **avant** le déplacement — l'appelant vient de la changer, il la
+    /// connaît — et sert à le retirer de la cellule où il était rangé. `None` pour un nœud
+    /// nouveau, qui n'était nulle part.
+    ///
+    /// Rend la valeur de [`Grid::needs_rebuild`] : l'appelant sait aussitôt s'il doit
+    /// reconstruire, sans avoir à y penser.
+    pub fn moved(&mut self, id: NodeId, depuis: Option<Box2>) -> bool {
+        if !id.is_some() {
+            return self.needs_rebuild();
+        }
+        if let Err(rang) = self.transit.binary_search(&id) {
+            if let Some(b) = depuis {
+                self.unfile(id, b);
+            }
+            self.transit.insert(rang, id);
+        }
+        // Un nœud déjà en transit y reste : il n'est plus dans aucune cellule.
+        self.needs_rebuild()
+    }
+
+    /// Retire un nœud de la cellule où sa boîte `b` le rangeait, ou de la liste des grands.
+    ///
+    /// La place libérée devient [`NodeId::NONE`] plutôt que de décaler la cellule : décaler
+    /// demanderait de corriger toutes les bornes suivantes, soit le document entier pour un
+    /// seul nœud déplacé.
+    fn unfile(&mut self, id: NodeId, b: Box2) {
+        if let Some(rang) = self.large.iter().position(|&x| x == id) {
+            self.large.swap_remove(rang);
+            return;
+        }
+        if self.cells() == 0 {
+            return;
+        }
+        let c = self.cell_index(b.x, b.y);
+        let (debut, fin) = (self.starts[c] as usize, self.starts[c + 1] as usize);
+        if let Some(rang) = self.items[debut..fin].iter().position(|&x| x == id) {
+            self.items[debut + rang] = NodeId::NONE;
+        }
+    }
+
     /// Vérifie l'invariant GRD-1 : les bornes de cellules sont croissantes, couvrent exactement
     /// `items`, et chaque nœud est rangé dans la cellule de son coin.
     pub fn check(&self, a: &Arena) -> Result<(), String> {
@@ -266,8 +356,23 @@ impl Grid {
                 self.items.len()
             ));
         }
+        for pair in self.transit.windows(2) {
+            if pair[0] >= pair[1] {
+                return Err("GRD-1 : la liste de transit n'est pas strictement croissante".into());
+            }
+        }
         for c in 0..self.cells() {
             for &id in &self.items[self.starts[c] as usize..self.starts[c + 1] as usize] {
+                // Une place libérée par un déplacement : le nœud est en transit, pas ici.
+                if !id.is_some() {
+                    continue;
+                }
+                if self.transit.binary_search(&id).is_ok() {
+                    return Err(format!(
+                        "GRD-1 : le nœud {} est à la fois en cellule {c} et en transit",
+                        id.index()
+                    ));
+                }
                 let b = a
                     .box_of(id)
                     .ok_or_else(|| format!("GRD-1 : le nœud {} de la cellule {c} n'est pas vivant", id.index()))?;
