@@ -1,21 +1,33 @@
 //! Création, renommage et suppression de tableaux.
 
+use super::journal::{Edit, Slot, Whole};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
 use crate::types::{Annotation, Board};
 
 impl Store {
+    /// **Site migré vers le journal.** Renommer ne clone pas le board : l'entrée ne porte
+    /// que les deux noms.
     pub fn rename_board(&mut self, board_id: &str, name: impl Into<String>) {
-        self.push_undo();
-        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
-            b.name = name.into();
-        }
+        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
+            return;
+        };
+        let before = b.name.clone();
+        b.name = name.into();
+        let after = b.name.clone();
+        self.record_edit(Edit::BoardName {
+            board: board_id.to_string(),
+            whole: Whole::new(before, after),
+        });
     }
 
+    /// **Site migré vers le journal.**
     pub fn add_board(&mut self, name: impl Into<String>) -> String {
-        self.push_undo();
         let id = self.generate_id("board");
-        self.project.boards.push(Board::new(&id, name));
+        let board = Board::new(&id, name);
+        let index = self.project.boards.len();
+        self.project.boards.push(board.clone());
+        self.record_edit(Edit::Board { slot: Slot::inserted(index, board) });
         id
     }
 
@@ -33,14 +45,25 @@ impl Store {
                 id
             )));
         }
-        self.push_undo();
-        self.project.boards.retain(|b| b.id != id);
+        // Un seul geste : le board part, le board actif bascule, et les flèches portails qui
+        // le visaient sont neutralisées. Un Ctrl+Z remet le tout.
+        let Some(index) = self.project.boards.iter().position(|b| b.id == id) else {
+            return Err(CoreError::BoardNotFound(id.to_string()));
+        };
+        let removed = self.project.boards.remove(index);
+        let mut edits = vec![Edit::Board { slot: Slot::removed(index, removed) }];
+
         if self.project.active_board_id == id {
             if let Some(first) = self.project.boards.first() {
-                self.project.active_board_id = first.id.clone();
+                let before = self.project.active_board_id.clone();
+                let after = first.id.clone();
+                self.project.active_board_id = after.clone();
+                edits.push(Edit::ActiveBoard { whole: Whole::new(before, after) });
             }
         }
-        self.clear_portal_arrows_to(id);
+        edits.extend(self.clear_portal_arrows_to(id));
+
+        self.record_as_one_gesture(edits);
         Ok(())
     }
 
@@ -51,19 +74,33 @@ impl Store {
         self.try_remove_board(id).is_ok()
     }
 
-    /// Neutralise les flèches portails qui pointaient vers un tableau supprimé.
-    fn clear_portal_arrows_to(&mut self, removed_board_id: &str) {
+    /// Neutralise les flèches portails qui pointaient vers un tableau supprimé, et rend les
+    /// éditions correspondantes.
+    ///
+    /// Seule une flèche réellement concernée est clonée : le coût suit le nombre de portails
+    /// cassés, pas le nombre d'annotations du projet.
+    fn clear_portal_arrows_to(&mut self, removed_board_id: &str) -> Vec<Edit> {
+        let mut edits = Vec::new();
         for b in &mut self.project.boards {
-            for a in &mut b.annotations {
-                if let Annotation::Arrow {
-                    target_board_id, ..
-                } = a
-                {
-                    if target_board_id.as_deref() == Some(removed_board_id) {
-                        *target_board_id = None;
-                    }
+            for (i, a) in b.annotations.iter_mut().enumerate() {
+                let concerned = matches!(
+                    a,
+                    Annotation::Arrow { target_board_id, .. }
+                        if target_board_id.as_deref() == Some(removed_board_id)
+                );
+                if !concerned {
+                    continue;
                 }
+                let before = a.clone();
+                if let Annotation::Arrow { target_board_id, .. } = a {
+                    *target_board_id = None;
+                }
+                edits.push(Edit::Annotation {
+                    board: b.id.clone(),
+                    slot: Slot::changed(i, before, a.clone()),
+                });
             }
         }
+        edits
     }
 }

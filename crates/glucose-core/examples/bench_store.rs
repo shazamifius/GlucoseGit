@@ -145,8 +145,16 @@ fn run(n: usize) {
     // Un glisser complet — `begin_live_edit`, trente déplacements, `end_live_edit`. C'est ce
     // que fait la main de l'utilisateur, et c'est la mesure qui compte vraiment.
     store.select_image(id.clone(), false);
+
+    // La SAISIE seule. C'est ici que le filet d'ouverture clonait le document entier.
+    // Mesurée à part, elle prouve la loi par invariance : si elle vaut la même chose à 10³
+    // et à 10⁶ nœuds, alors ∂T/∂n = 0 — et cette conclusion ne dépend pas de la vitesse de
+    // la machine, contrairement à une comparaison avec une exécution antérieure.
     let t = Instant::now();
     store.begin_live_edit();
+    let grab_us = ms(t) * 1000.0;
+
+    let t = Instant::now();
     for _ in 0..30 {
         store.move_selected(BOARD, 1.0, 0.0);
     }
@@ -178,7 +186,7 @@ fn run(n: usize) {
     let query_us = ms(t) * 1000.0;
 
     println!(
-        "{n:>9} | {build_ms:>9.1} | {:>8.1} | {:>7.0} | {mutate_ms:>9.2} | {drag_ms:>10.1} | {:>10.2} | {journal_kb:>10.1} | {lookup_us:>9.1} | {index_ms:>8.1} | {query_us:>9.1} | {:>6}",
+        "{n:>9} | {build_ms:>9.1} | {:>8.1} | {:>7.0} | {mutate_ms:>9.2} | {grab_us:>8.2} | {drag_ms:>9.1} | {:>10.2} | {journal_kb:>10.1} | {lookup_us:>9.1} | {index_ms:>8.1} | {query_us:>9.1} | {:>6}",
         model_bytes as f64 / 1_048_576.0,
         model_bytes as f64 / n as f64,
         undo_bytes as f64 / 1_048_576.0,
@@ -189,13 +197,14 @@ fn run(n: usize) {
 fn main() {
     println!("Banc du noyau Glucose — mesures réelles, allocateur compteur, 0 dépendance\n");
     println!(
-        "{:>9} | {:>9} | {:>8} | {:>7} | {:>9} | {:>10} | {:>10} | {:>10} | {:>9} | {:>8} | {:>9} | {:>6}",
+        "{:>9} | {:>9} | {:>8} | {:>7} | {:>9} | {:>8} | {:>9} | {:>10} | {:>10} | {:>9} | {:>8} | {:>9} | {:>6}",
         "nœuds",
         "build ms",
         "modèle Mo",
         "o/nœud",
         "1 mutat.ms",
-        "grab+30 ms",
+        "saisie µs",
+        "30 pas ms",
         "alloué Mo",
         "journal Ko",
         "lookup µs",
@@ -211,7 +220,8 @@ fn main() {
 
     println!("\nLecture :");
     println!("  • « alloué Mo »  = mémoire allouée par UNE seule mutation ordinaire.");
-    println!("  • « grab+30 ms » = un glisser complet : begin_live_edit + 30 déplacements + end_live_edit.");
+    println!("  • « saisie µs »  = begin_live_edit seul. Doit être constant : c'est la preuve de ∂T/∂n = 0.
+  • « 30 pas ms »  = trente déplacements + end_live_edit, une fois la carte saisie.");
     println!(
         "  • « lookup µs »  = retrouver un nœud par identifiant (balayage linéaire du board)."
     );
