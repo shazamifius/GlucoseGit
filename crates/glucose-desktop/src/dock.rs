@@ -938,7 +938,7 @@ fn render_organize_content(
         &target_str,
         layout.target_count_rect.x + 8.0 * s,
         layout.target_count_rect.y + 6.0 * s,
-        TextStyle { size: 11.0 * s, color: if sel_count > 0 { theme.accent_primary } else { theme.text_secondary }, bold: false },
+        TextStyle { size: 11.0 * s, color: if sel_count > 0 { theme.text_accent } else { theme.text_secondary }, bold: false },
     );
 
     // TRIER AVANT DISPOSITION

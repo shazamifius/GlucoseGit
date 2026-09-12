@@ -1,5 +1,5 @@
-//! Jetons de design unifiés et thème de l'application Glucose (Roadmap 1.24, R-31).
-//! Centralise les littéraux de couleur et les dimensions pour assurer la cohérence visuelle.
+//! Jetons de design et thème de l'application Glucose — la fiche 06 et `style.md` rendus
+//! exécutables : chaque couleur de la chrome vit ici, et nulle part ailleurs.
 
 use tiny_skia::Color;
 
@@ -48,65 +48,88 @@ pub fn clamp_ui_scale(scale: f32) -> f32 {
 
 #[derive(Debug, Clone)]
 pub struct Theme {
-    // Toile & Arrière-plans
+    // ── Surfaces (fiche 06 § 2.1) ──────────────────────────────────────────
+    /// `canvas-bg` — la feuille de papier noire.
     pub bg_canvas: Color,
+    /// `surface-toolbar` — la barre d'outils.
     pub bg_header: Color,
+    /// `surface-panel` — les panneaux du dock.
     pub bg_panel: Color,
+    /// `surface-root` — conteneurs sombres, barre d'onglets, cellules.
     pub bg_card: Color,
+    /// `surface-btn-hover`.
     pub bg_hover: Color,
+    /// `surface-btn-active` — gris, jamais coloré : la chrome est monochrome.
     pub bg_active: Color,
 
-    // Bordures
+    // ── Filets (§ 2.2) ─────────────────────────────────────────────────────
+    /// `hairline-dark`.
     pub border_subtle: Color,
+    /// `hairline-base`.
     pub border_medium: Color,
+    /// `hairline-active` — contour d'un bouton actif.
     pub border_accent: Color,
 
-    // Accent (PureRef cyan / sky)
+    // ── L'unique accent (§ 1.3, § 2.4) ─────────────────────────────────────
+    /// Le jaune d'emphase. **Jamais sur un bouton standard, jamais en fond** : jalons,
+    /// alerte douce, et rien d'autre. Un usage décoratif est une faute.
     pub accent_primary: Color,
     pub accent_muted: Color,
     pub accent_subtle: Color,
 
-    // Typographie
+    // ── Typographie (§ 2.3) ────────────────────────────────────────────────
+    /// `text-main`.
     pub text_primary: Color,
+    /// `text-dim`.
     pub text_secondary: Color,
+    /// `text-muted`.
     pub text_muted: Color,
+    /// `text-bright` — onglet actif, icône active, sélection.
     pub text_accent: Color,
 
-    // Guides magnétiques
+    /// `hairline-smartguide` — guides magnétiques, pointillés blancs.
     pub snap_guide: Color,
 
-    /// Poignées de redimensionnement : le carré et son liseré (RESIZE-1). Elles gardent
-    /// une taille écran constante, et un contraste qui ne dépend pas du nœud dessous.
+    /// Poignées de redimensionnement (§ 4.2) : carré blanc pur, liseré noir à 0,90.
     pub handle_fill: Color,
     pub handle_outline: Color,
 
-    // Post-it / Sticky notes
+    // ── Note adhésive (§ 5.2) ──────────────────────────────────────────────
     pub sticky_yellow_bg: Color,
     pub sticky_yellow_text: Color,
     pub sticky_yellow_border: Color,
 
-    // Minimap
+    // ── Minimap (§ 9) ──────────────────────────────────────────────────────
     pub minimap_bg: Color,
     pub minimap_border: Color,
+    /// Liseré du cadre de caméra : blanc à 0,35.
     pub minimap_viewport: Color,
+    /// Un nœud ordinaire dans la minimap.
     pub minimap_element: Color,
 
-    // Notifications Toasts
+    // ── Toasts (§ 10.3) ────────────────────────────────────────────────────
     pub toast_bg: Color,
     pub toast_border: Color,
     pub toast_text: Color,
 
-    // Docks & Boutons
+    // ── Docks & boutons (§ 10.1) ───────────────────────────────────────────
+    /// `text-deep` — poignée de dock au repos.
     pub dock_grip_inactive: Color,
+    /// `text-muted` — glyphe de poignée `⠿⠿`.
     pub dock_grip_active: Color,
     pub input_bg: Color,
     pub btn_bg: Color,
+    /// `hairline-muted`.
     pub btn_border: Color,
     pub badge_bg: Color,
     pub badge_text: Color,
 
-    /// Teinte de repli d'un domaine dont la couleur du document est illisible.
-    /// Un domaine sans teinte lisible reste visible plutôt que de disparaître.
+    /// Accent sémantique « alerte / erreur / destruction » (§ 2.4) : image verrouillée,
+    /// lien rompu, bouton de suppression survolé. Rouge, et seulement pour cela.
+    pub danger: Color,
+
+    /// Teinte de repli d'un domaine dont la couleur du document est illisible : un gris
+    /// neutre, pour que le domaine reste visible sans que l'application choisisse une couleur.
     pub domain_fallback: Color,
 }
 
@@ -116,110 +139,76 @@ impl Default for Theme {
     }
 }
 
+/// `#rrggbb` en couleur opaque — les jetons de la fiche 06 sont écrits ainsi.
+fn hex(rgb: u32) -> Color {
+    Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, 255)
+}
+
+/// `#rrggbb` avec une opacité en 0..=255.
+fn hexa(rgb: u32, a: u8) -> Color {
+    Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, a)
+}
+
 impl Theme {
-    /// Thème sombre sleek inspiré de PureRef moderne
+    /// Le thème de Glucose — et il n'y en a qu'un (fiche 06, `style.md`) : une feuille de
+    /// papier noire, une chrome monochrome stricte, un seul accent jaune employé avec une
+    /// parcimonie extrême. **La couleur appartient au contenu de l'utilisateur.**
+    ///
+    /// Le thème précédent — « sombre sleek inspiré de PureRef moderne », accent bleu ciel
+    /// `#38bdf8` sur chaque état actif, canevas bleuté — était une invention du port : ce
+    /// bleu n'apparaît qu'une fois dans toute la référence, comme couleur de curseur
+    /// multijoueur.
     pub fn dark() -> Self {
         Self {
-            bg_canvas: Color::from_rgba8(13, 14, 18, 255),
-            bg_header: Color::from_rgba8(20, 21, 26, 250),
-            bg_panel: Color::from_rgba8(24, 24, 28, 240),
-            bg_card: Color::from_rgba8(24, 24, 27, 248),
-            bg_hover: Color::from_rgba8(39, 39, 42, 255),
-            bg_active: Color::from_rgba8(56, 189, 248, 45),
+            bg_canvas: hex(0x0d0d0d),
+            bg_header: hex(0x1a1a1a),
+            bg_panel: hex(0x161616),
+            bg_card: hex(0x111111),
+            bg_hover: hex(0x1e1e1e),
+            bg_active: hex(0x2d2d2d),
 
-            border_subtle: Color::from_rgba8(40, 42, 50, 255),
-            border_medium: Color::from_rgba8(60, 65, 75, 255),
-            border_accent: Color::from_rgba8(56, 189, 248, 200),
+            border_subtle: hex(0x1c1c1c),
+            border_medium: hex(0x2a2a2a),
+            border_accent: hex(0x444444),
 
-            accent_primary: Color::from_rgba8(56, 189, 248, 255),
-            accent_muted: Color::from_rgba8(56, 189, 248, 180),
-            accent_subtle: Color::from_rgba8(56, 189, 248, 40),
+            accent_primary: hex(0xeab308),
+            accent_muted: hexa(0xeab308, 180),
+            accent_subtle: hexa(0xeab308, 40),
 
-            text_primary: Color::from_rgba8(245, 245, 245, 255),
-            text_secondary: Color::from_rgba8(161, 161, 170, 255),
-            text_muted: Color::from_rgba8(113, 113, 122, 255),
-            text_accent: Color::from_rgba8(56, 189, 248, 255),
+            text_primary: hex(0xe6e6e6),
+            text_secondary: hex(0xcccccc),
+            text_muted: hex(0x888888),
+            text_accent: hex(0xffffff),
 
-            snap_guide: Color::from_rgba8(236, 72, 153, 200),
+            snap_guide: hexa(0xffffff, 77),
 
-            handle_fill: Color::from_rgba8(255, 255, 255, 255),
-            handle_outline: Color::from_rgba8(13, 14, 18, 255),
+            handle_fill: hex(0xffffff),
+            handle_outline: hexa(0x111111, 230),
 
-            sticky_yellow_bg: Color::from_rgba8(254, 240, 138, 245),
-            sticky_yellow_text: Color::from_rgba8(28, 25, 23, 255),
-            sticky_yellow_border: Color::from_rgba8(202, 138, 4, 180),
+            sticky_yellow_bg: hex(0xf5c542),
+            sticky_yellow_text: hex(0x1c1917),
+            sticky_yellow_border: hex(0xf5c542),
 
-            minimap_bg: Color::from_rgba8(15, 16, 20, 220),
-            minimap_border: Color::from_rgba8(45, 48, 58, 200),
-            minimap_viewport: Color::from_rgba8(56, 189, 248, 200),
-            minimap_element: Color::from_rgba8(100, 110, 130, 200),
+            minimap_bg: hexa(0x0d0d0d, 235),
+            minimap_border: hex(0x2a2a2a),
+            minimap_viewport: hexa(0xffffff, 89),
+            minimap_element: hex(0x2a2a2a),
 
-            toast_bg: Color::from_rgba8(24, 24, 27, 245),
-            toast_border: Color::from_rgba8(56, 189, 248, 120),
-            toast_text: Color::from_rgba8(245, 245, 245, 255),
+            toast_bg: hexa(0x1a1a1a, 247),
+            toast_border: hex(0x2a2a2a),
+            toast_text: hex(0xcccccc),
 
-            dock_grip_inactive: Color::from_rgba8(75, 75, 80, 255),
-            dock_grip_active: Color::from_rgba8(160, 160, 160, 255),
-            input_bg: Color::from_rgba8(26, 26, 30, 255),
-            btn_bg: Color::from_rgba8(30, 30, 34, 255),
-            btn_border: Color::from_rgba8(50, 52, 60, 255),
-            badge_bg: Color::from_rgba8(30, 30, 34, 255),
-            badge_text: Color::from_rgba8(160, 160, 170, 255),
+            dock_grip_inactive: hex(0x333333),
+            dock_grip_active: hex(0x888888),
+            input_bg: hex(0x111111),
+            btn_bg: hex(0x1a1a1a),
+            btn_border: hex(0x333333),
+            badge_bg: hex(0x1e1e1e),
+            badge_text: hex(0x888888),
 
-            domain_fallback: Color::from_rgba8(148, 163, 184, 255),
-        }
-    }
+            danger: hex(0xef4444),
 
-    /// Thème clair optionnel pour la future personnalisation
-    pub fn light() -> Self {
-        Self {
-            bg_canvas: Color::from_rgba8(245, 245, 248, 255),
-            bg_header: Color::from_rgba8(255, 255, 255, 250),
-            bg_panel: Color::from_rgba8(250, 250, 252, 245),
-            bg_card: Color::from_rgba8(255, 255, 255, 250),
-            bg_hover: Color::from_rgba8(235, 235, 240, 255),
-            bg_active: Color::from_rgba8(14, 165, 233, 40),
-
-            border_subtle: Color::from_rgba8(220, 222, 230, 255),
-            border_medium: Color::from_rgba8(195, 200, 210, 255),
-            border_accent: Color::from_rgba8(14, 165, 233, 220),
-
-            accent_primary: Color::from_rgba8(14, 165, 233, 255),
-            accent_muted: Color::from_rgba8(14, 165, 233, 180),
-            accent_subtle: Color::from_rgba8(14, 165, 233, 35),
-
-            text_primary: Color::from_rgba8(24, 24, 27, 255),
-            text_secondary: Color::from_rgba8(82, 82, 91, 255),
-            text_muted: Color::from_rgba8(140, 140, 150, 255),
-            text_accent: Color::from_rgba8(14, 165, 233, 255),
-
-            snap_guide: Color::from_rgba8(219, 39, 119, 200),
-
-            handle_fill: Color::from_rgba8(255, 255, 255, 255),
-            handle_outline: Color::from_rgba8(24, 24, 27, 255),
-
-            sticky_yellow_bg: Color::from_rgba8(254, 240, 138, 245),
-            sticky_yellow_text: Color::from_rgba8(28, 25, 23, 255),
-            sticky_yellow_border: Color::from_rgba8(202, 138, 4, 180),
-
-            minimap_bg: Color::from_rgba8(240, 242, 248, 220),
-            minimap_border: Color::from_rgba8(200, 205, 215, 200),
-            minimap_viewport: Color::from_rgba8(14, 165, 233, 200),
-            minimap_element: Color::from_rgba8(160, 170, 185, 200),
-
-            toast_bg: Color::from_rgba8(255, 255, 255, 245),
-            toast_border: Color::from_rgba8(14, 165, 233, 140),
-            toast_text: Color::from_rgba8(24, 24, 27, 255),
-
-            dock_grip_inactive: Color::from_rgba8(180, 180, 185, 255),
-            dock_grip_active: Color::from_rgba8(100, 100, 105, 255),
-            input_bg: Color::from_rgba8(240, 240, 245, 255),
-            btn_bg: Color::from_rgba8(235, 235, 240, 255),
-            btn_border: Color::from_rgba8(210, 212, 220, 255),
-            badge_bg: Color::from_rgba8(230, 230, 235, 255),
-            badge_text: Color::from_rgba8(80, 80, 90, 255),
-
-            domain_fallback: Color::from_rgba8(100, 116, 139, 255),
+            domain_fallback: hex(0x888888),
         }
     }
 }
@@ -238,14 +227,75 @@ mod tests {
         assert_eq!(clamp_ui_scale(f32::INFINITY), MAX_UI_SCALE);
     }
 
-    #[test]
-    fn test_theme_tokens_valid() {
-        let theme = Theme::dark();
-        assert_eq!(theme.accent_primary, Color::from_rgba8(56, 189, 248, 255));
-        assert_eq!(theme.bg_canvas, Color::from_rgba8(13, 14, 18, 255));
+    fn rgba(c: Color) -> (u8, u8, u8, u8) {
+        let c = c.to_color_u8();
+        (c.red(), c.green(), c.blue(), c.alpha())
+    }
 
-        let light = Theme::light();
-        assert_eq!(light.bg_canvas, Color::from_rgba8(245, 245, 248, 255));
+    /// Fiche 06 § 2 — chaque jeton à sa valeur exacte. Ce test remplace celui qui
+    /// verrouillait l'accent bleu `#38bdf8` et le canevas bleuté `(13, 14, 18)`.
+    #[test]
+    fn test_the_theme_is_the_brutalist_palette_of_the_spec() {
+        let t = Theme::dark();
+        // § 2.1 surfaces
+        assert_eq!(rgba(t.bg_canvas), (0x0d, 0x0d, 0x0d, 255), "canvas-bg");
+        assert_eq!(rgba(t.bg_header), (0x1a, 0x1a, 0x1a, 255), "surface-toolbar");
+        assert_eq!(rgba(t.bg_panel), (0x16, 0x16, 0x16, 255), "surface-panel");
+        assert_eq!(rgba(t.bg_card), (0x11, 0x11, 0x11, 255), "surface-root");
+        assert_eq!(rgba(t.bg_hover), (0x1e, 0x1e, 0x1e, 255), "surface-btn-hover");
+        assert_eq!(rgba(t.bg_active), (0x2d, 0x2d, 0x2d, 255), "surface-btn-active");
+        assert_eq!(rgba(t.toast_bg), (0x1a, 0x1a, 0x1a, 247), "surface-toast 0.97");
+        assert_eq!(rgba(t.minimap_bg), (0x0d, 0x0d, 0x0d, 235), "surface-minimap 0.92");
+        // § 2.2 filets
+        assert_eq!(rgba(t.border_subtle), (0x1c, 0x1c, 0x1c, 255), "hairline-dark");
+        assert_eq!(rgba(t.border_medium), (0x2a, 0x2a, 0x2a, 255), "hairline-base");
+        assert_eq!(rgba(t.btn_border), (0x33, 0x33, 0x33, 255), "hairline-muted");
+        assert_eq!(rgba(t.border_accent), (0x44, 0x44, 0x44, 255), "hairline-active");
+        assert_eq!(rgba(t.snap_guide), (255, 255, 255, 77), "hairline-smartguide 0.30");
+        // § 2.3 typographie
+        assert_eq!(rgba(t.text_accent), (255, 255, 255, 255), "text-bright");
+        assert_eq!(rgba(t.text_primary), (0xe6, 0xe6, 0xe6, 255), "text-main");
+        assert_eq!(rgba(t.text_secondary), (0xcc, 0xcc, 0xcc, 255), "text-dim");
+        assert_eq!(rgba(t.text_muted), (0x88, 0x88, 0x88, 255), "text-muted");
+        assert_eq!(rgba(t.dock_grip_inactive), (0x33, 0x33, 0x33, 255), "text-deep");
+        // § 2.4 l'unique accent
+        assert_eq!(rgba(t.accent_primary), (0xea, 0xb3, 0x08, 255), "le jaune, et rien d'autre");
+        assert_eq!(rgba(t.danger), (0xef, 0x44, 0x44, 255), "alerte / erreur / destruction");
+        // § 4.2 poignées, § 5.2 note, § 9 minimap, § 10.3 toast
+        assert_eq!(rgba(t.handle_fill), (255, 255, 255, 255));
+        assert_eq!(rgba(t.handle_outline), (0x11, 0x11, 0x11, 230), "liseré noir à 0,90");
+        assert_eq!(rgba(t.sticky_yellow_bg), (0xf5, 0xc5, 0x42, 255), "jaune pastel");
+        assert_eq!(rgba(t.minimap_border), (0x2a, 0x2a, 0x2a, 255));
+        assert_eq!(rgba(t.minimap_viewport), (255, 255, 255, 89), "cadre de caméra à 0,35");
+        assert_eq!(rgba(t.minimap_element), (0x2a, 0x2a, 0x2a, 255), "image ordinaire");
+        assert_eq!(rgba(t.toast_border), (0x2a, 0x2a, 0x2a, 255));
+        assert_eq!(rgba(t.toast_text), (0xcc, 0xcc, 0xcc, 255));
+    }
+
+    /// La loi de la couleur : la chrome est monochrome. Tout jeton de surface, de filet, de
+    /// texte ou de bouton a ses trois composantes égales — hors le seul accent.
+    #[test]
+    fn test_every_chrome_token_is_a_neutral_grey() {
+        let t = Theme::dark();
+        let chrome = [
+            ("bg_canvas", t.bg_canvas), ("bg_header", t.bg_header), ("bg_panel", t.bg_panel),
+            ("bg_card", t.bg_card), ("bg_hover", t.bg_hover), ("bg_active", t.bg_active),
+            ("border_subtle", t.border_subtle), ("border_medium", t.border_medium),
+            ("border_accent", t.border_accent), ("text_primary", t.text_primary),
+            ("text_secondary", t.text_secondary), ("text_muted", t.text_muted),
+            ("text_accent", t.text_accent), ("snap_guide", t.snap_guide),
+            ("handle_fill", t.handle_fill), ("handle_outline", t.handle_outline),
+            ("minimap_bg", t.minimap_bg), ("minimap_border", t.minimap_border),
+            ("minimap_viewport", t.minimap_viewport), ("minimap_element", t.minimap_element),
+            ("toast_bg", t.toast_bg), ("toast_border", t.toast_border), ("toast_text", t.toast_text),
+            ("dock_grip_inactive", t.dock_grip_inactive), ("dock_grip_active", t.dock_grip_active),
+            ("input_bg", t.input_bg), ("btn_bg", t.btn_bg), ("btn_border", t.btn_border),
+            ("badge_bg", t.badge_bg), ("badge_text", t.badge_text), ("domain_fallback", t.domain_fallback),
+        ];
+        for (name, c) in chrome {
+            let (r, g, b, _) = rgba(c);
+            assert!(r == g && g == b, "{name} n'est pas un gris neutre : ({r}, {g}, {b})");
+        }
     }
 
     /// § 4.6 — la palette des domaines vit dans le thème, et chacune de ses entrées est un

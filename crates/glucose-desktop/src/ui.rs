@@ -685,10 +685,11 @@ fn render_board_tabs(
                 TextStyle { size: 12.0 * s, color: text_color, bold: tab.is_active },
             );
 
-            // Ligne d'accentuation inférieure pour l'onglet actif
+            // Fiche 06 § 10.2 : l'onglet actif porte une bordure inférieure de 2 px, blanc
+            // pur — pas l'accent, qui n'est jamais décoratif.
             if tab.is_active {
                 let mut line_paint = Paint::default();
-                line_paint.set_color(theme.accent_primary);
+                line_paint.set_color(theme.text_accent);
                 if let Some(rect) = Rect::from_xywh(tab.x, y_start + tabs_h - 2.0 * s, tab.width, 2.0 * s) {
                     pixmap.fill_rect(rect, &line_paint, Transform::identity(), None);
                 }
@@ -1022,8 +1023,10 @@ fn render_minimap(pixmap: &mut PixmapMut, store: &Store, theme: &Theme, w: f32, 
     // Dessine miniatures annotations & stickies & membranes
     let mut ann_paint = Paint::default();
     ann_paint.set_color(theme.text_muted);
+    // Une membrane est du contenu, mais sa couleur propre n'est pas lue ici : dans la
+    // minimap elle se dessine comme les autres nœuds, en gris.
     let mut membrane_paint = Paint::default();
-    membrane_paint.set_color(theme.accent_subtle);
+    membrane_paint.set_color(theme.minimap_element);
 
     for ann in &board.annotations {
         match ann {
