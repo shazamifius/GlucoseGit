@@ -89,6 +89,11 @@ pub struct Theme {
 
     /// `hairline-smartguide` — guides magnétiques, pointillés blancs.
     pub snap_guide: Color,
+    /// `hairline-selection` — cadre de l'élément sélectionné, blanc pur à 0,80 (§ 2.2, § 4.2).
+    pub selection_frame: Color,
+    /// Sélection élastique (fiche 07 § 7.3) : contour blanc à 0,50, intérieur blanc à 0,03.
+    pub rubberband_stroke: Color,
+    pub rubberband_fill: Color,
 
     /// Poignées de redimensionnement (§ 4.2) : carré blanc pur, liseré noir à 0,90.
     pub handle_fill: Color,
@@ -181,6 +186,9 @@ impl Theme {
             text_accent: hex(0xffffff),
 
             snap_guide: hexa(0xffffff, 77),
+            selection_frame: hexa(0xffffff, 204),
+            rubberband_stroke: hexa(0xffffff, 128),
+            rubberband_fill: hexa(0xffffff, 8),
 
             handle_fill: hex(0xffffff),
             handle_outline: hexa(0x111111, 230),
@@ -252,6 +260,9 @@ mod tests {
         assert_eq!(rgba(t.btn_border), (0x33, 0x33, 0x33, 255), "hairline-muted");
         assert_eq!(rgba(t.border_accent), (0x44, 0x44, 0x44, 255), "hairline-active");
         assert_eq!(rgba(t.snap_guide), (255, 255, 255, 77), "hairline-smartguide 0.30");
+        assert_eq!(rgba(t.selection_frame), (255, 255, 255, 204), "hairline-selection 0.80");
+        assert_eq!(rgba(t.rubberband_stroke), (255, 255, 255, 128), "lasso 0.50");
+        assert_eq!(rgba(t.rubberband_fill), (255, 255, 255, 8), "lasso 0.03");
         // § 2.3 typographie
         assert_eq!(rgba(t.text_accent), (255, 255, 255, 255), "text-bright");
         assert_eq!(rgba(t.text_primary), (0xe6, 0xe6, 0xe6, 255), "text-main");
@@ -284,6 +295,8 @@ mod tests {
             ("border_accent", t.border_accent), ("text_primary", t.text_primary),
             ("text_secondary", t.text_secondary), ("text_muted", t.text_muted),
             ("text_accent", t.text_accent), ("snap_guide", t.snap_guide),
+            ("selection_frame", t.selection_frame), ("rubberband_stroke", t.rubberband_stroke),
+            ("rubberband_fill", t.rubberband_fill),
             ("handle_fill", t.handle_fill), ("handle_outline", t.handle_outline),
             ("minimap_bg", t.minimap_bg), ("minimap_border", t.minimap_border),
             ("minimap_viewport", t.minimap_viewport), ("minimap_element", t.minimap_element),

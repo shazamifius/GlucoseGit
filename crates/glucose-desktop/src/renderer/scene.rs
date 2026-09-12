@@ -34,12 +34,35 @@ use tiny_skia::{
 const MIN_GRID_SCALE: f64 = 1e-6;
 /// Nombre maximal de doublements du pas de grille (borne la boucle d'adaptation).
 const MAX_GRID_DOUBLINGS: u32 = 64;
-/// Pas nominal de la grille, en unités monde.
+/// Pas nominal de la grille, en unités monde (fiche 06 § 3 : 60 px monde).
 const GRID_STEP: f64 = 60.0;
 /// Espacement minimal des points à l'écran, en pixels : en deçà, le pas double.
+///
+/// **Écart assumé avec la fiche 06, lié au rastériseur.** La référence dessine le pas
+/// nominal jusqu'à l'extinction, soit jusqu'à 73 000 points par frame en 1440 × 900 à
+/// l'échelle 0,07 — sur GPU. En CPU, ce doublement borne le nombre de points ; il disparaît
+/// avec le rendu GPU (plan de marche RQ-2).
 const GRID_MIN_SCREEN_STEP: f64 = 32.0;
-/// Rayon d'un point de grille, en pixels écran (exception SCALE-1 : repère, pas contenu).
-const GRID_DOT_RADIUS: f32 = 1.2;
+/// Échelle en dessous de laquelle la grille s'éteint (fiche 06 § 3.5).
+const GRID_FADE_OUT_SCALE: f64 = 0.07;
+/// Gris des points de grille, `rgb(136, 136, 136)` (fiche 06 § 3.6).
+const GRID_DOT_GREY: u8 = 136;
+
+/// Rayon et opacité d'un point de grille à l'échelle `scale` (fiche 06 § 3.2, § 3.3, § 3.5) :
+///
+/// ```text
+///     R = clamp(1.2 × scale, 0.5, 2.5)        α = clamp(0.3 × scale, 0.08, 0.45)
+/// ```
+///
+/// `None` sous l'échelle d'extinction. Pure : c'est ce que les tests tiennent.
+pub(super) fn grid_dot(scale: f64) -> Option<(f32, f32)> {
+    if !scale.is_finite() || scale < GRID_FADE_OUT_SCALE {
+        return None;
+    }
+    let radius = (1.2 * scale).clamp(0.5, 2.5) as f32;
+    let alpha = (0.3 * scale).clamp(0.08, 0.45) as f32;
+    Some((radius, alpha))
+}
 
 /// Rayon des coins d'une membrane, en unités monde.
 const MEMBRANE_RADIUS: f32 = 60.0;
@@ -60,10 +83,14 @@ const MEMBRANE_DASH: f32 = 10.0;
 
 pub(super) fn draw_grid(pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, header_h: f32) {
     // Une échelle nulle, négative ou NaN rendait la boucle d'adaptation du pas
-    // infinie : on la borne inconditionnellement.
+    // infinie : on la borne inconditionnellement. Et sous l'échelle d'extinction, il n'y a
+    // rien à dessiner.
     if !vp.scale.is_finite() || vp.scale <= MIN_GRID_SCALE {
         return;
     }
+    let Some((dot_radius, dot_alpha)) = grid_dot(vp.scale) else {
+        return;
+    };
 
     let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, vp);
     let (max_wx, max_wy) = screen_to_world(w as f64, h as f64, vp);
@@ -86,7 +113,7 @@ pub(super) fn draw_grid(pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, h
     let end_y = (max_wy / step).ceil() * step;
 
     let mut dot_paint = Paint { anti_alias: true, ..Default::default() };
-    dot_paint.set_color(Color::from_rgba8(255, 255, 255, 22));
+    dot_paint.set_color(Color::from_rgba8(GRID_DOT_GREY, GRID_DOT_GREY, GRID_DOT_GREY, (dot_alpha * 255.0).round() as u8));
 
     let mut pb = PathBuilder::new();
     let mut gx = start_x;
@@ -95,7 +122,7 @@ pub(super) fn draw_grid(pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, h
         while gy <= end_y {
             let (sx, sy) = world_to_screen(gx, gy, vp);
             if sy >= header_h as f64 && sx >= 0.0 && sx <= w as f64 && sy <= h as f64 {
-                pb.push_circle(sx as f32, sy as f32, GRID_DOT_RADIUS);
+                pb.push_circle(sx as f32, sy as f32, dot_radius);
             }
             gy += step;
         }
@@ -191,7 +218,7 @@ pub(super) fn draw_membranes(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &
                     sx + layout.label_dx,
                     sy - layout.label_dy,
                     TextStyle { size: layout.label_font, color: Color::from_rgba8(tint.0, tint.1, tint.2, 255), bold: true },
-                    Color::from_rgba8(11, 11, 18, 255),
+                    theme.bg_canvas,
                 );
             }
         }
@@ -310,18 +337,21 @@ pub(super) fn draw_images(
             })
         });
         if drawn.is_none() {
-            draw_missing_image(typography, pixmap, (sx, sy), (sw, sh), &img.id);
+            draw_missing_image(typography, theme, pixmap, (sx, sy), (sw, sh), &img.id);
         }
         if store.selected_image_ids.contains(&img.id) {
-            draw_image_selection(pixmap, (sx, sy), (sw, sh));
+            draw_image_selection(pixmap, theme, (sx, sy), (sw, sh));
             draw_resize_handles(pixmap, theme, scale, (sx, sy, sw, sh), &Handle::ALL);
         }
         draw_domain_gauge(typography, tints, pixmap, scale, (sx, sy), &img.domains);
     }
 }
 
+/// Une image dont les octets ne sont pas (encore) là : un cadre gris de la chrome, son
+/// identifiant dedans. Monochrome — ce n'est pas du contenu, c'est son absence.
 fn draw_missing_image(
     typography: &Typography,
+    theme: &Theme,
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     size: (f32, f32),
@@ -331,11 +361,11 @@ fn draw_missing_image(
         return;
     };
     let mut fill = Paint::default();
-    fill.set_color(Color::from_rgba8(30, 35, 45, 255));
+    fill.set_color(theme.bg_hover);
     pixmap.fill_rect(rect, &fill, Transform::identity(), None);
 
     let mut border = Paint::default();
-    border.set_color(Color::from_rgba8(60, 70, 85, 255));
+    border.set_color(theme.border_accent);
     let stroke = Stroke { width: 1.0, ..Default::default() };
     pixmap.stroke_path(&PathBuilder::from_rect(rect), &border, &stroke, Transform::identity(), None);
 
@@ -344,17 +374,26 @@ fn draw_missing_image(
         &format!("Image [{id}]"),
         at.0 + 10.0,
         at.1 + size.1 / 2.0 - 6.0,
-        TextStyle { size: 12.0, color: Color::from_rgba8(140, 150, 165, 200), bold: false },
+        TextStyle { size: 12.0, color: theme.text_muted, bold: false },
     );
 }
 
-fn draw_image_selection(pixmap: &mut PixmapMut, at: (f32, f32), size: (f32, f32)) {
-    let Some(rect) = Rect::from_xywh(at.0 - 1.0, at.1 - 1.0, size.0 + 2.0, size.1 + 2.0) else {
+/// Débord du cadre de sélection autour de la texture, en pixels écran (fiche 06 § 4.2).
+pub(super) const IMAGE_SELECTION_INSET: f32 = 3.0;
+/// Épaisseur du cadre de sélection, en pixels écran (fiche 06 § 4.2).
+pub(super) const IMAGE_SELECTION_STROKE: f32 = 1.25;
+
+/// Fiche 06 § 4.2 — cadre hairline blanc pur à 0,80, débordant de 3 px, épais de 1,25 px à
+/// l'écran quel que soit le zoom. Aucun néon : le contour se lit sur une image claire par le
+/// liseré des poignées, sur le fond noir par le blanc.
+fn draw_image_selection(pixmap: &mut PixmapMut, theme: &Theme, at: (f32, f32), size: (f32, f32)) {
+    let d = IMAGE_SELECTION_INSET;
+    let Some(rect) = Rect::from_xywh(at.0 - d, at.1 - d, size.0 + 2.0 * d, size.1 + 2.0 * d) else {
         return;
     };
-    let mut paint = Paint::default();
-    paint.set_color(Color::from_rgba8(56, 189, 248, 255));
-    let stroke = Stroke { width: SELECTION_RING, ..Default::default() };
+    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    paint.set_color(theme.selection_frame);
+    let stroke = Stroke { width: IMAGE_SELECTION_STROKE, ..Default::default() };
     pixmap.stroke_path(&PathBuilder::from_rect(rect), &paint, &stroke, Transform::identity(), None);
 }
 
@@ -397,7 +436,9 @@ pub(super) fn draw_guides(
     }
 }
 
-pub(super) fn draw_selection_box(pixmap: &mut PixmapMut, a: (f64, f64), b: (f64, f64)) {
+/// Fiche 07 § 7.3 — la sélection élastique : contour blanc à 0,50 de 1 px, intérieur blanc
+/// à 0,03. Monochrome, comme toute la chrome.
+pub(super) fn draw_selection_box(pixmap: &mut PixmapMut, theme: &Theme, a: (f64, f64), b: (f64, f64)) {
     let rect = Rect::from_xywh(
         a.0.min(b.0) as f32,
         a.1.min(b.1) as f32,
@@ -408,16 +449,12 @@ pub(super) fn draw_selection_box(pixmap: &mut PixmapMut, a: (f64, f64), b: (f64,
         return;
     };
     let mut fill = Paint::default();
-    fill.set_color(Color::from_rgba8(56, 189, 248, 30));
+    fill.set_color(theme.rubberband_fill);
     pixmap.fill_rect(rect, &fill, Transform::identity(), None);
 
     let mut border = Paint::default();
-    border.set_color(Color::from_rgba8(56, 189, 248, 180));
-    let stroke = Stroke {
-        width: 1.0,
-        dash: tiny_skia::StrokeDash::new(vec![4.0, 3.0], 0.0),
-        ..Default::default()
-    };
+    border.set_color(theme.rubberband_stroke);
+    let stroke = Stroke { width: 1.0, ..Default::default() };
     pixmap.stroke_path(&PathBuilder::from_rect(rect), &border, &stroke, Transform::identity(), None);
 }
 
@@ -462,5 +499,23 @@ mod tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod grid_tests {
+    use super::grid_dot;
+
+    /// Fiche 06 § 3 — rayon `clamp(1.2 × s, 0.5, 2.5)`, opacité `clamp(0.3 × s, 0.08, 0.45)`,
+    /// extinction sous 0,07. Pure, donc tenue sans un seul pixel.
+    #[test]
+    fn test_the_grid_dot_follows_the_formula_of_the_spec() {
+        assert_eq!(grid_dot(1.0), Some((1.2, 0.3)));
+        assert_eq!(grid_dot(2.0), Some((2.4, 0.45)), "l'opacité plafonne à 0,45");
+        assert_eq!(grid_dot(4.0), Some((2.5, 0.45)), "le rayon plafonne à 2,5");
+        assert_eq!(grid_dot(0.2), Some((0.5, 0.08)), "planchers : 0,5 px et 0,08");
+        assert_eq!(grid_dot(0.07), Some((0.5, 0.08)), "à 0,07 la grille est encore là");
+        assert_eq!(grid_dot(0.069), None, "en dessous, elle s'éteint");
+        assert_eq!(grid_dot(f64::NAN), None);
     }
 }
