@@ -349,3 +349,82 @@ fn un_geste_ne_pese_que_ce_qu_il_touche() {
         "un geste sur un document de 50 000 nœuds pèse deux images, pas 50 000"
     );
 }
+
+// ── Fiche 09 § 2.1 — « consommation mémoire bornée » ─────────────────────────────────
+
+/// La borne de la spécification est en **gestes** (`UNDO_DEPTH`), pas en octets. Ce que le
+/// mécanisme garantit vraiment — et ce que les clichés ne pouvaient pas tenir — c'est que le
+/// poids d'une pile pleine ne dépend pas du document : 200 déplacements pèsent pareil dans
+/// un canevas de 10 cartes et dans un de 100 000. Avec 200 clichés, le rapport était 10 000.
+#[test]
+fn test_une_pile_pleine_ne_pese_pas_la_taille_du_document() {
+    fn weight_of_a_full_stack(n: usize) -> usize {
+        let mut p = project_with(n);
+        let mut j = Journal::new(UNDO_DEPTH);
+        // Deux fois la profondeur : la moitié des gestes sort par le fond.
+        for step in 0..(2 * UNDO_DEPTH) {
+            let i = step % n;
+            let before = p.boards[0].images[i].clone();
+            let mut after = before.clone();
+            after.x += 1.0;
+            do_edit(
+                &mut j,
+                &mut p,
+                Edit::Image {
+                    board: BOARD.to_string(),
+                    slot: Slot::changed(i, before, after),
+                },
+            );
+        }
+        assert_eq!(j.depth(), UNDO_DEPTH, "pleine, et pas plus");
+        j.weight()
+    }
+
+    let petit = weight_of_a_full_stack(10);
+    let grand = weight_of_a_full_stack(100_000);
+    assert_eq!(petit, grand, "∂(poids de la pile)/∂n = 0");
+    assert_eq!(
+        petit,
+        UNDO_DEPTH * 2 * std::mem::size_of::<BoardImage>(),
+        "et c'est exactement 200 gestes de deux images chacun — rien d'autre"
+    );
+}
+
+// ── Une édition qui ne change rien n'est pas une édition ─────────────────────────────
+
+/// Valider un texte sans l'avoir modifié, ou un geste revenu à son point de départ, ne doit
+/// ni consommer un niveau d'annulation, ni détruire ce qui restait à rétablir.
+#[test]
+fn test_une_edition_sans_effet_ne_laisse_aucune_trace() {
+    let mut p = project_with(3);
+    let mut j = Journal::new(UNDO_DEPTH);
+
+    do_edit(&mut j, &mut p, remove(2, "img-2"));
+    assert!(j.undo(&mut p));
+    assert!(j.can_redo());
+
+    // Une « modification » hors transaction, identique avant et après.
+    let same = p.boards[0].images[0].clone();
+    j.record(Edit::Image {
+        board: BOARD.to_string(),
+        slot: Slot::changed(0, same.clone(), same.clone()),
+    });
+    assert_eq!(j.depth(), 0, "rien à annuler");
+    assert!(j.can_redo(), "et rien de perdu");
+
+    // La même, dans un geste ouvert : la transaction reste vide et se referme sans trace.
+    j.begin();
+    j.record(Edit::Image {
+        board: BOARD.to_string(),
+        slot: Slot::changed(0, same.clone(), same),
+    });
+    j.record(Edit::BoardName {
+        board: BOARD.to_string(),
+        whole: Whole::new("main".to_string(), "main".to_string()),
+    });
+    j.end();
+    assert_eq!(j.depth(), 0);
+    assert!(j.can_redo());
+    assert!(j.redo(&mut p), "le rétablissement marche toujours");
+    assert_eq!(images(&p).len(), 2);
+}

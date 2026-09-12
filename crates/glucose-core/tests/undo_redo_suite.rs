@@ -1,10 +1,11 @@
-//! Suite de tests UNDO-1 : Invariants Undo/Redo infinis pour TOUT.
+//! Suite de tests UNDO-1 : Invariants Undo/Redo pour TOUT, sur une pile bornée à `UNDO_DEPTH`.
 //! Port complet de src/store/undo-redo.test.ts
 //!
 //! A. NAVIGATION TRANSPARENTE — zoomer, paner, changer de board, dossiers ne créent jamais d'undo ni ne détruisent le redo
 //! B. ÉDITIONS RÉVERSIBLES — chaque mutation de contenu s'annule et se refait à l'identique (mutate -> undo -> redo)
 //! C. ROBUSTESSE INTER-NAVIGATION — la caméra n'est jamais téléportée, on reste dans le dossier courant, le redo survit à la nav
 //! D. TRANSACTIONS D'INTERACTION — drag, resize, tracé = 1 seule entrée undo (begin_live_edit / end_live_edit)
+//! E. FICHE 09 § 2 — la profondeur, et « sélectionner n'est pas éditer »
 
 use glucose_core::store::{DomainPatch, Store};
 use glucose_core::types::{
@@ -755,17 +756,28 @@ fn test_end_live_edit_sans_begin_est_un_no_op() {
     assert_eq!(store.undo_depth(), 0);
 }
 
+/// Un glisser qui déplace réellement quelque chose abandonne l'histoire alternative.
+///
+/// **Ce test passait pour une mauvaise raison.** Dans sa version d'origine — portée telle
+/// quelle du TypeScript — rien n'était sélectionné avant le `move_selected` : le geste ne
+/// déplaçait aucun élément, la transaction se fermait vide, et le redo ne disparaissait que
+/// parce que `begin` le vidait à l'ouverture. Il attestait donc exactement le bug qu'il
+/// aurait dû interdire. Il lui fallait une sélection pour dire quelque chose.
 #[test]
-fn test_demarrer_un_drag_vide_le_redo_en_attente() {
+fn test_un_drag_qui_deplace_vraiment_vide_le_redo_en_attente() {
     let mut store = Store::new("test");
     store.add_image("main", mk_image("i1"));
-    store.undo();
+    store.add_image("main", mk_image("i2"));
+    assert!(store.undo()); // i2 disparaît
     assert_eq!(store.redo_depth(), 1);
+    store.set_selected_image_ids(vec!["i1".into()]);
 
     store.begin_live_edit();
     store.move_selected("main", 1.0, 1.0);
     store.end_live_edit();
-    assert_eq!(store.redo_depth(), 0);
+
+    assert_eq!(store.active_board().unwrap().images[0].x, 1.0, "le geste a bien écrit");
+    assert_eq!(store.redo_depth(), 0, "et l'histoire repart d'ici");
 }
 
 #[test]
@@ -808,4 +820,106 @@ fn test_sync_annotation_size_ne_cree_aucune_entree_undo() {
     if let Annotation::Text { width, .. } = &store.active_board().unwrap().annotations[0] {
         assert_eq!(*width, Some(260.0));
     }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// E. FICHE 09 § 2 — ce que la spécification exige, verrouillé chiffre par chiffre.
+// ════════════════════════════════════════════════════════════════════
+
+/// § 2.1 — « Profondeur maximale fixée à 200 niveaux (`LIMITS.UNDO_DEPTH = 200`). »
+///
+/// Le mécanisme de bornage était déjà testé, mais avec une profondeur de 3 : **le chiffre
+/// de la spécification n'était verrouillé nulle part**. Ce test le tient, et il tient aussi
+/// le fait que le `Store` l'emploie — une constante que personne ne lit ne prouve rien.
+#[test]
+fn test_la_pile_du_store_est_bornee_a_deux_cents_niveaux() {
+    assert_eq!(
+        glucose_core::store::UNDO_DEPTH,
+        200,
+        "la fiche 09 § 2.1 fixe la profondeur à 200 niveaux"
+    );
+
+    let mut store = Store::new("test");
+    for i in 0..(glucose_core::store::UNDO_DEPTH + 50) {
+        store.add_image("main", mk_image(&format!("i{i}")));
+    }
+    assert_eq!(
+        store.undo_depth(),
+        glucose_core::store::UNDO_DEPTH,
+        "au-delà, les gestes les plus anciens sortent de la pile"
+    );
+
+    // Et le document, lui, a bien gardé les 250 images : borner l'histoire ne borne pas
+    // le présent.
+    assert_eq!(store.active_board().unwrap().images.len(), 250);
+}
+
+/// § 2.2 — « Au premier pixel bougé […] : ouverture d'une transaction. »
+///
+/// La contrepartie visible de cette paresse, dans la version de référence : un clic qui ne
+/// bouge rien n'ouvre aucun geste, donc ne réécrit pas l'histoire. Ici l'ouverture est à
+/// l'appui — elle ne coûte plus rien depuis le journal — et c'est **l'écriture**, non
+/// l'intention, qui invalide la pile de rétablissement. Le résultat observable est le même,
+/// sans seuil en pixels à régler.
+#[test]
+fn test_un_geste_sans_effet_ne_detruit_pas_le_redo_en_attente() {
+    let mut store = Store::new("test");
+    store.add_image("main", mk_image("i1"));
+    assert!(store.undo());
+    assert_eq!(store.redo_depth(), 1);
+
+    // La main se ferme sur l'objet, puis se rouvre sans l'avoir déplacé.
+    store.begin_live_edit();
+    store.end_live_edit();
+
+    assert_eq!(store.redo_depth(), 1, "sélectionner n'est pas éditer");
+    assert!(store.redo(), "Ctrl+Y marche encore");
+    assert_eq!(store.active_board().unwrap().images.len(), 1);
+}
+
+/// Même loi pour un geste abandonné en route (Échap pendant un glisser) : le document
+/// revient exactement où il était, donc l'histoire alternative reste valide.
+#[test]
+fn test_un_geste_abandonne_ne_detruit_pas_le_redo_en_attente() {
+    let mut store = Store::new("test");
+    store.add_image("main", mk_image("i1"));
+    store.add_image("main", mk_image("i2"));
+    assert!(store.undo()); // i2 disparaît
+    assert_eq!(store.redo_depth(), 1);
+    // Après coup : `add_image` sélectionne ce qu'il ajoute, et l'undo laisse cette
+    // sélection derrière lui.
+    store.set_selected_image_ids(vec!["i1".into()]);
+
+    store.begin_live_edit();
+    store.move_selected("main", 50.0, 20.0);
+    assert_eq!(store.active_board().unwrap().images[0].x, 50.0, "le geste a bien écrit");
+    assert!(store.cancel_live_edit());
+
+    assert_eq!(store.active_board().unwrap().images[0].x, 0.0, "le geste est défait");
+    assert_eq!(store.redo_depth(), 1, "et l'histoire alternative a survécu");
+    assert!(store.redo());
+    assert_eq!(store.active_board().unwrap().images.len(), 2);
+}
+
+/// § 2.2 — une transaction est atomique : tant qu'elle est ouverte, la pile ne décrit pas
+/// le document (le geste en cours a déjà écrit sans être empilé). Y toucher au clavier
+/// romprait JRN-2 ; les deux sens sont donc refusés jusqu'au relâchement.
+#[test]
+fn test_on_ne_defait_ni_ne_refait_pendant_un_geste_ouvert() {
+    let mut store = Store::new("test");
+    store.add_image("main", mk_image("i1"));
+    assert!(store.undo());
+    assert!(store.redo());
+    store.set_selected_image_ids(vec!["i1".into()]);
+
+    store.begin_live_edit();
+    store.move_selected("main", 10.0, 0.0);
+    assert!(!store.undo(), "Ctrl+Z pendant un glisser ne défait pas le geste précédent");
+    assert!(!store.redo(), "Ctrl+Y non plus");
+    assert_eq!(store.active_board().unwrap().images[0].x, 10.0, "le geste en cours continue");
+    store.end_live_edit();
+
+    // Une fois le geste fermé, tout redevient normal.
+    assert!(store.undo());
+    assert_eq!(store.active_board().unwrap().images[0].x, 0.0);
 }

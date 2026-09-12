@@ -2,9 +2,9 @@
 //!
 //! # Pourquoi ce module existe
 //!
-//! Le mécanisme historique ([`Store::push_undo`]) empile un clone complet du [`Project`] avant
-//! chaque mutation, depuis 34 points d'appel. Mesuré au banc `bench_store`, allocateur
-//! compteur à l'appui :
+//! Le mécanisme d'origine (`push_undo`, aujourd'hui disparu) empilait un clone complet du
+//! [`Project`] avant chaque mutation, depuis 34 points d'appel. Mesuré au banc `bench_store`,
+//! allocateur compteur à l'appui :
 //!
 //! | nœuds | une mutation | pile pleine (200 niveaux) |
 //! |------:|-------------:|--------------------------:|
@@ -58,6 +58,19 @@ use crate::types::{
     StoryboardPanel,
 };
 
+/// Profondeur maximale de la pile d'annulation, en **nombre de gestes** (fiche 09 § 2.1).
+///
+/// Ce chiffre borne l'histoire, pas les octets : un geste pèse ce qu'il touche (JRN-1), donc
+/// une pile pleine pèse la somme des gestes et **jamais la taille du document**. C'est la
+/// garantie que le mécanisme par clichés ne pouvait pas tenir — 200 clichés d'un document de
+/// 10⁶ nœuds réclamaient 95 Go — et c'est elle que vérifie
+/// `test_une_pile_pleine_ne_pese_pas_la_taille_du_document`.
+///
+/// Y ajouter un second plafond, en octets celui-là, serait une constante arbitraire de plus,
+/// et ferait mentir la première : la profondeur annoncée à l'utilisateur cesserait d'être
+/// 200. Pour remonter au-delà, la fiche prévoit les jalons durables sur disque.
+pub const UNDO_DEPTH: usize = 200;
+
 /// Une case de liste, avec son contenu avant et après l'édition.
 ///
 /// `Box` maintient la taille de [`Edit`] petite quelle que soit l'entité : sans lui, l'enum
@@ -104,6 +117,14 @@ impl<T> Slot<T> {
     /// Échange les deux états. Défaire et refaire sont la même opération.
     fn flip(&mut self) {
         std::mem::swap(&mut self.before, &mut self.after);
+    }
+
+    /// Vrai si l'avant et l'après sont identiques : la case n'a pas changé.
+    fn is_noop(&self) -> bool
+    where
+        T: PartialEq,
+    {
+        self.before == self.after
     }
 
     /// Applique l'état `after` à la liste.
@@ -165,6 +186,13 @@ impl<T> Whole<T> {
 
     fn flip(&mut self) {
         std::mem::swap(&mut self.before, &mut self.after);
+    }
+
+    fn is_noop(&self) -> bool
+    where
+        T: PartialEq,
+    {
+        self.before == self.after
     }
 }
 
@@ -272,8 +300,28 @@ impl Edit {
         }
     }
 
+    /// Vrai si l'édition ne change rien : même contenu avant et après.
+    ///
+    /// Un site qui clone, laisse une fermeture travailler et compare n'a pas à savoir si
+    /// elle a travaillé pour rien — c'est le journal qui tranche, une fois pour tous.
+    fn is_noop(&self) -> bool {
+        match self {
+            Self::Image { slot, .. } => slot.is_noop(),
+            Self::Annotation { slot, .. } => slot.is_noop(),
+            Self::Folder { slot, .. } => slot.is_noop(),
+            Self::Panel { slot, .. } => slot.is_noop(),
+            Self::Board { slot } => slot.is_noop(),
+            Self::Domain { slot } => slot.is_noop(),
+            Self::Preset { slot } => slot.is_noop(),
+            Self::Zones { whole, .. } => whole.is_noop(),
+            Self::BoardName { whole, .. } => whole.is_noop(),
+            Self::ProjectName { whole } => whole.is_noop(),
+            Self::ActiveBoard { whole } => whole.is_noop(),
+        }
+    }
+
     /// Nombre d'octets de modèle portés par cette entrée — la grandeur `k` de la loi JRN-1.
-    /// Sert au plafonnement du journal en mémoire, et aux tests de coût.
+    /// C'est ce que mesurent le banc et les tests de coût.
     pub fn weight(&self) -> usize {
         fn w<T>(slot: &Slot<T>) -> usize {
             let unit = std::mem::size_of::<T>();
@@ -398,14 +446,18 @@ impl Journal {
 
     /// Ouvre une transaction. Sans appel explicite, chaque édition forme son propre geste.
     ///
-    /// **Ouvrir un geste abandonne l'histoire alternative** : la pile de rétablissement est
-    /// vidée, même si le geste finit par ne rien produire. Dès que la main se ferme sur un
-    /// objet, ce qu'on avait annulé auparavant cesse d'être rétablissable — c'est le
-    /// comportement que vérifie `test_demarrer_un_drag_vide_le_redo_en_attente`.
+    /// **Ouvrir ne réécrit rien.** C'est l'écriture qui abandonne l'histoire alternative — au
+    /// `commit`, jamais ici. Un geste qui s'ouvre et se referme sans avoir rien produit (un
+    /// clic qui sélectionne sans déplacer, un glisser abandonné par Échap) laisse donc le
+    /// document et la pile de rétablissement exactement comme il les a trouvés.
+    ///
+    /// Ce n'était pas le cas tant qu'ouvrir coûtait un cliché du document : il fallait alors
+    /// que l'interface n'ouvre qu'au premier pixel réellement parcouru, seuil compris, et
+    /// l'ouverture valait édition. L'ouverture ne coûtant plus rien, le seuil n'a plus
+    /// d'objet et la règle se simplifie : *sélectionner n'est pas éditer*.
     pub fn begin(&mut self) {
         if self.open.is_none() {
             self.open = Some(Transaction::default());
-            self.undone.clear();
         }
     }
 
@@ -414,7 +466,14 @@ impl Journal {
     }
 
     /// Enregistre une édition : dans la transaction ouverte, ou seule dans la sienne.
+    ///
+    /// **Une édition qui ne change rien n'est pas une édition.** Elle n'entre pas au journal,
+    /// donc ne consomme ni niveau d'annulation ni histoire alternative : valider un texte
+    /// sans l'avoir modifié, ou un geste revenu à son point de départ, ne laisse rien.
     pub fn record(&mut self, edit: Edit) {
+        if edit.is_noop() {
+            return;
+        }
         match &mut self.open {
             Some(tx) => tx.push(edit),
             None => {
@@ -475,6 +534,13 @@ impl Journal {
     /// éditions ([`Slot::flip`]) : l'opération est **sa propre inverse**, ce qui est la
     /// raison pour laquelle `undo` et `redo` n'ont pas besoin de code distinct.
     fn step(&mut self, project: &mut Project, backward: bool) -> bool {
+        // Pendant un geste ouvert, la pile ne décrit plus le document : ce que le geste a
+        // déjà écrit n'y figure pas encore. Défaire ou refaire appliquerait des index
+        // calculés sur un autre état — JRN-2 rompu, et le journal vidé pour rien. Le clavier
+        // attend donc le relâchement.
+        if self.open.is_some() {
+            return false;
+        }
         let (from, to) = if backward {
             (&mut self.done, &mut self.undone)
         } else {

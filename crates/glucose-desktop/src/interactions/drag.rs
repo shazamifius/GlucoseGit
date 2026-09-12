@@ -102,3 +102,6 @@ impl GlucoseApp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

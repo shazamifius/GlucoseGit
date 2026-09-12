@@ -34,45 +34,41 @@ impl GlucoseApp {
 
     /// Valide et persiste le texte édité dans le store.
     ///
-    /// La saisie entière est **une** entrée d'undo (§ 3.6), posée AVANT l'écriture : c'est
-    /// `begin_live_edit` qui la pose, et `end_live_edit` qui la referme une fois le texte et
-    /// la hauteur de la carte (TEXT-FIT-1) écrits.
+    /// La saisie entière est **une** entrée d'undo (fiche 09 § 2.2) : `begin_live_edit`
+    /// ouvre le geste, le texte puis la hauteur de la carte (TEXT-FIT-1) s'y écrivent, et
+    /// `end_live_edit` le referme. Chaque écriture passe par le store, jamais par le board
+    /// directement : tant que l'ouverture prenait un cliché du document, une écriture
+    /// directe était couverte ; avec le journal d'éditions, elle est invisible — et c'est
+    /// ainsi que la saisie de texte a cessé d'être annulable sans qu'aucun test ne le voie.
     pub fn commit_editing(&mut self) {
-        if let Some(session) = self.editing_session.take() {
-            let is_empty = session.buffer.trim().is_empty();
-            let mut should_delete = false;
-            self.store.begin_live_edit();
+        let Some(session) = self.editing_session.take() else {
+            return;
+        };
+        let board = self.store.project.active_board_id.clone();
+        let is_empty = session.buffer.trim().is_empty();
+        let is_text_card = self
+            .store
+            .active_board()
+            .and_then(|b| b.annotations.iter().find(|a| a.id() == session.ann_id))
+            .is_some_and(|a| matches!(a, Annotation::Text { .. }));
 
-            if let Some(b) = self.store.active_board_mut() {
-                if let Some(ann) = b.annotations.iter_mut().find(|a| a.id() == session.ann_id) {
-                    match ann {
-                        Annotation::Text { text, .. } => {
-                            if is_empty {
-                                should_delete = true;
-                            } else {
-                                *text = session.buffer.clone();
-                            }
-                        }
-                        Annotation::Sticky { text, .. } => {
-                            *text = session.buffer.clone();
-                        }
-                        Annotation::Membrane { text, .. } => {
-                            *text = if is_empty { None } else { Some(session.buffer.clone()) };
-                        }
-                        _ => {}
-                    }
+        self.store.begin_live_edit();
+        if is_empty && is_text_card {
+            // Une carte de texte vidée disparaît — une suppression comme une autre.
+            self.store.remove_annotations(&board, &[&session.ann_id]);
+        } else {
+            self.store.update_annotation(&board, &session.ann_id, |ann| match ann {
+                Annotation::Text { text, .. } | Annotation::Sticky { text, .. } => {
+                    *text = session.buffer.clone();
                 }
-            }
-
-            if should_delete {
-                if let Some(b) = self.store.active_board_mut() {
-                    b.annotations.retain(|a| a.id() != session.ann_id);
+                Annotation::Membrane { text, .. } => {
+                    *text = if is_empty { None } else { Some(session.buffer.clone()) };
                 }
-            } else {
-                self.fit_text_card_height(&session.ann_id);
-            }
-            self.store.end_live_edit();
+                _ => {}
+            });
+            self.fit_text_card_height(&session.ann_id);
         }
+        self.store.end_live_edit();
     }
 
     /// Traite les touches clavier lors d'une session d'édition active.
