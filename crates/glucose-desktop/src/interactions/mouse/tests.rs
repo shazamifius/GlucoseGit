@@ -10,7 +10,7 @@
 use super::*;
 use crate::dock::{compute_panel_layouts, layout_plugins_panel, layout_storyboard_panel, TabId};
 use crate::interactions::tools::NEW_CONTAINER_SIZE;
-use crate::ui::layout_topbar;
+use crate::ui::{layout_topbar, ActiveTool, UiAction};
 use winit::event::MouseButton;
 
 const SCREEN: (f32, f32) = (1440.0, 900.0);

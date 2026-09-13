@@ -466,9 +466,10 @@ const FICHIER_MAX: usize = 600;
 /// au commit qui a introduit ce cliquet, avec leur longueur d'alors. Chacune ne peut que
 /// raccourcir ; aucune autre ne doit les rejoindre.
 ///
-/// C'est la dette de structure de ce dépôt, nommée fonction par fonction. La plus lourde est
-/// `handle_mouse_down` : l'ancien `window_event`, éclaté par catégorie d'événement et non par
-/// niveau d'abstraction (fiche 01, R-41).
+/// C'est la dette de structure de ce dépôt, nommée fonction par fonction. La plus lourde
+/// était `handle_mouse_down`, 471 lignes — l'ancien `window_event` (fiche 01, R-19) qui avait
+/// changé d'adresse ; elle est devenue une chaîne de preneurs et n'est plus dans cette liste.
+/// Les suivantes sont les fonctions de rendu de `dock.rs`, que la fiche 11 nomme en premier.
 const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     // (fichier, fonction, longueur admise) — mesurées après le passage sous rustfmt.
     (
@@ -575,11 +576,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "crates/glucose-desktop/src/interactions/clipboard.rs",
         "paste_from_clipboard",
         102,
-    ),
-    (
-        "crates/glucose-desktop/src/interactions/mouse.rs",
-        "handle_mouse_down",
-        329,
     ),
     (
         "crates/glucose-desktop/src/interactions/text_edit.rs",

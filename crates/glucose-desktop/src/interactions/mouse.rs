@@ -1,14 +1,23 @@
-//! Traitement des événements de souris (clics, survol, menus, outils, sélection).
+//! La souris : chaque événement est traduit en une question posée à une couche, du haut vers
+//! le bas — jamais en logique.
+//!
+//! # Les preneurs
+//!
+//! Un clic gauche traverse les couches de l'écran dans l'ordre où elles se superposent : la
+//! plongée en cours, le fil d'Ariane, la chrome (barre d'outils, onglets, minimap), les
+//! panneaux du dock, et enfin le canevas. Chaque couche est un **preneur** — une fonction qui
+//! rend `true` si le clic était pour elle — et le premier qui le prend arrête la descente.
+//!
+//! C'est la règle 1.7 de la fiche 05 : le gestionnaire d'événement ne contient aucune logique.
+//! Il connaît l'ordre des couches, et c'est tout. Ce que chaque couche fait du clic est dans
+//! son module : [`chrome`](super::chrome), [`panels`](super::panels), [`pick`](super::pick).
+//!
+//! Le gestionnaire précédent faisait 471 lignes sur sept niveaux : c'était `window_event`
+//! (fiche 01, R-19) qui avait changé d'adresse, et chaque geste nouveau s'y entassait faute
+//! d'un endroit où aller.
 
-use crate::animation::{fly_into_folder, fly_out_to_depth};
-use crate::app::{GlucoseApp, LastClickInfo};
-use crate::canvas::screen_to_world;
-use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
+use crate::app::GlucoseApp;
 use crate::params::{Pointer, ScreenFrame};
-use crate::ui::{handle_ui_click, ActiveTool, UiAction};
-use glucose_core::hit_priority::{collect_candidates_indexed, pick_consts, PickInput, PickOwner};
-use glucose_core::membrane_focus::ScreenSize;
-use glucose_core::types::{Annotation, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
 
@@ -19,7 +28,25 @@ pub const NOT_YET_STORYBOARD: &str = "Storyboard : pas encore disponible";
 pub const NOT_YET_AI: &str = "IA locale : pas encore disponible";
 
 impl GlucoseApp {
-    /// Mouvement continu de la souris (pan, drag d'élément, drag de dock, ou mise à jour de boîte élastique).
+    /// La position du curseur, en unités logiques d'écran.
+    pub fn pointer(&self) -> Pointer {
+        Pointer {
+            x: self.mouse_pos.0 as f32,
+            y: self.mouse_pos.1 as f32,
+        }
+    }
+
+    /// Le cadre de la fenêtre tel que les couches le lisent.
+    pub fn screen_frame(&self, screen_w: f32, screen_h: f32) -> ScreenFrame {
+        ScreenFrame {
+            width: screen_w,
+            height: screen_h,
+            header_h: self.ui.header_height(),
+            scale: self.ui.scale_factor,
+        }
+    }
+
+    /// Mouvement continu de la souris : il nourrit le geste en cours, s'il y en a un.
     pub fn handle_cursor_moved(&mut self, position: PhysicalPosition<f64>) {
         let prev_pos = self.mouse_pos;
         self.mouse_pos = (position.x, position.y);
@@ -49,345 +76,45 @@ impl GlucoseApp {
         self.update_cursor();
     }
 
-    /// Enfoncement d'un bouton de la souris (gauche, droit, milieu).
+    /// Enfoncement d'un bouton de la souris.
     pub fn handle_mouse_down(&mut self, button: MouseButton, screen_w: f32, screen_h: f32) {
         match button {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = true;
                 self.is_panning = true;
-                self.update_cursor();
-                self.mark_dirty();
             }
-            MouseButton::Left => {
-                let mx = self.mouse_pos.0 as f32;
-                let my = self.mouse_pos.1 as f32;
+            MouseButton::Left => self.handle_left_down(self.screen_frame(screen_w, screen_h)),
+            _ => return,
+        }
+        self.update_cursor();
+        self.mark_dirty();
+    }
 
-                // 0. Un clic pendant une plongée l'abrège : on arrive tout de suite. Le clic
-                // est consommé — le viser dans le tableau d'arrivée, à une position qui n'a
-                // rien à voir avec celle qu'on visait au départ, serait pire que de l'ignorer.
-                if self.animator.skip(&mut self.store) {
-                    self.update_cursor();
-                    self.mark_dirty();
-                    return;
-                }
-
-                // 0 bis. Clic sur le fil d'Ariane : il occupe une bande sous les onglets, donc
-                // avant tout le reste. Remonter change le tableau, plus rien de ce clic ne
-                // vaut ensuite.
-                if let Some(depth) = crate::ui::breadcrumb::hit_breadcrumb(
-                    &self.store,
-                    &self.renderer.typography,
-                    self.ui.header_height(),
-                    self.ui.scale_factor,
-                    (mx, my),
-                ) {
-                    let ecran = ScreenSize {
-                        width: screen_w as f64,
-                        height: screen_h as f64,
-                    };
-                    if fly_out_to_depth(&mut self.store, &mut self.animator, depth, ecran) {
-                        self.update_cursor();
-                        self.mark_dirty();
-                    }
-                    return;
-                }
-
-                // 1. Clic sur l'interface (Header / TopBar / Tabs / Minimap)
-                if let Some(action) = handle_ui_click(
-                    mx,
-                    my,
-                    screen_w,
-                    screen_h,
-                    &self.store,
-                    &mut self.ui,
-                    &self.renderer.typography,
-                ) {
-                    match action {
-                        UiAction::SelectTool(tool) => {
-                            self.ui.active_tool = tool;
-                        }
-                        UiAction::AddImages => {
-                            self.pick_and_import_images();
-                        }
-                        UiAction::Organize => {
-                            self.dock_manager.toggle_tab(TabId::Organize);
-                        }
-                        UiAction::ToggleTimer => {
-                            self.dock_manager.toggle_tab(TabId::Pomodoro);
-                        }
-                        UiAction::ToggleStoryboard => {
-                            self.dock_manager.toggle_tab(TabId::Storyboard);
-                        }
-                        UiAction::ToggleMagnet => {}
-                        UiAction::ToggleTransDomain => {
-                            self.ui.show_toast(if self.ui.trans_domain {
-                                "Trans-domaines activé"
-                            } else {
-                                "Trans-domaines désactivé"
-                            });
-                        }
-                        UiAction::ToggleCollab => {}
-                        UiAction::ExportMenu => {
-                            // Fiche 09 § 5 : aucun export n'est branché. Le bouton reste,
-                            // parce que la barre d'outils le prévoit (fiche 10) ; il dit la
-                            // vérité plutôt que d'annoncer une exportation qui n'a pas lieu.
-                            self.ui.show_toast(NOT_YET_EXPORT);
-                        }
-                        UiAction::TogglePlugins => {
-                            self.dock_manager.toggle_tab(TabId::Plugins);
-                        }
-                        UiAction::TogglePreset => {
-                            self.dock_manager.toggle_tab(TabId::Preset);
-                        }
-                        UiAction::ToggleDomains => {
-                            self.dock_manager.toggle_tab(TabId::Domains);
-                        }
-                        UiAction::SelectBoard(id) => {
-                            self.store.set_active_board_id(&id);
-                        }
-                        UiAction::AddBoard => {
-                            let new_name = format!("Board {}", self.store.project.boards.len() + 1);
-                            let new_id = self.store.add_board(new_name);
-                            self.store.set_active_board_id(new_id);
-                            self.ui.show_toast("Nouveau board créé");
-                        }
-                        UiAction::MinimapPan(wx, wy) => {
-                            if let Some(b) = self.store.active_board() {
-                                let (bid, scale) = (b.id.clone(), b.viewport.scale);
-                                self.store.set_viewport(
-                                    &bid,
-                                    Viewport {
-                                        x: screen_w as f64 / 2.0 - wx * scale,
-                                        y: screen_h as f64 / 2.0 - wy * scale,
-                                        scale,
-                                    },
-                                );
-                            }
-                        }
-                    }
-                    self.update_cursor();
-                    self.mark_dirty();
-                    return;
-                }
-
-                // 2. Clic sur les panneaux déroulants & poignées (Dock)
-                let dock_layouts = compute_panel_layouts(
-                    &self.dock_manager,
-                    screen_w,
-                    screen_h,
-                    self.ui.header_height(),
-                    self.ui.scale_factor,
-                );
-
-                let mut grip_hit = None;
-                for layout in dock_layouts.iter().rev() {
-                    if layout.grip_contains_point(mx, my) {
-                        grip_hit = Some(layout.tab);
-                        break;
-                    }
-                }
-                if let Some(tab) = grip_hit {
-                    self.dock_manager.drag = Some(DragSession {
-                        tab,
-                        start_x: mx,
-                        start_y: my,
-                        current_x: mx,
-                        current_y: my,
-                    });
-                    self.mark_dirty();
-                    return;
-                }
-
-                let screen = ScreenFrame {
-                    width: screen_w,
-                    height: screen_h,
-                    header_h: self.ui.header_height(),
-                    scale: self.ui.scale_factor,
-                };
-                if let Some(action) = handle_dock_click(
-                    &mut self.dock_manager,
-                    &self.store,
-                    &self.renderer.typography,
-                    screen,
-                    Pointer { x: mx, y: my },
-                ) {
-                    match action {
-                        PanelClickResult::ApplyLayout(state) => {
-                            self.apply_dock_layout(&state);
-                        }
-                        PanelClickResult::Domain(intent) => {
-                            self.apply_domain_intent(intent);
-                        }
-                        // Fiche 09 § 8 : le storyboard n'a pas d'effet sur le canevas. Le
-                        // panneau ne doit pas laisser croire le contraire.
-                        PanelClickResult::ToggleStoryboard | PanelClickResult::SelectFormat(_) => {
-                            self.dock_manager.storyboard.active = false;
-                            self.ui.show_toast(NOT_YET_STORYBOARD);
-                        }
-                        // Fiche 09 § 10.3 : pas de moteur, pas de téléchargement.
-                        PanelClickResult::DownloadModel => {
-                            self.ui.show_toast(NOT_YET_AI);
-                        }
-                        _ => {}
-                    }
-                    self.mark_dirty();
-                    return;
-                }
-
-                // 3. Clic sur le canvas
-                if self.space_pressed || self.ui.active_tool == ActiveTool::Pan {
-                    self.is_panning = true;
-                    self.update_cursor();
-                    return;
-                }
-
-                let vp = self
-                    .store
-                    .active_board()
-                    .map(|b| b.viewport)
-                    .unwrap_or_default();
-                let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
-
-                // Outils de création : le clic pose un nœud, et l'outil rend la main.
-                if self.place_with_tool(wx, wy) {
-                    self.update_cursor();
-                    self.mark_dirty();
-                    return;
-                }
-
-                // 4. Une poignée sous le clic : le geste de redimensionnement (RESIZE-1).
-                // La priorité poignée > nœud > canevas est celle de `hit_priority`.
-                if self.begin_resize_at(wx, wy) {
-                    self.update_cursor();
-                    self.mark_dirty();
-                    return;
-                }
-
-                // 5. Sélection par clic (PICK-1)
-                // L'index doit refléter le document AVANT qu'on l'interroge : sans cela, un
-                // nœud créé au clic précédent serait introuvable jusqu'à la frame suivante.
-                self.renderer.sync_spatial_index(&self.store);
-                let mut selected = false;
-                let mut entrer_dans: Option<String> = None;
-                if let Some(b) = self.store.active_board() {
-                    let input = PickInput {
-                        wx,
-                        wy,
-                        scale: vp.scale,
-                        images: &b.images,
-                        annotations: &b.annotations,
-                        folders: &b.folders,
-                        selected_image_ids: &self.store.selected_image_ids,
-                        selected_annotation_ids: &self.store.selected_annotation_ids,
-                        selected_folder_id: self.store.selected_folder_id.as_deref(),
-                        arrow_id: None,
-                        dom_hint: None,
-                    };
-                    let candidates =
-                        collect_candidates_indexed(&input, &self.renderer.spatial_hash);
-                    if let Some(top) = candidates.first() {
-                        let is_dbl_click = if let Some(ref lc) = self.last_click {
-                            lc.id == top.id
-                                && (lc.time.elapsed().as_millis() as i64) < pick_consts::DBLCLICK_MS
-                                && (lc.pos.0 - self.mouse_pos.0).hypot(lc.pos.1 - self.mouse_pos.1)
-                                    < 8.0
-                        } else {
-                            false
-                        };
-
-                        self.last_click = Some(LastClickInfo {
-                            time: std::time::Instant::now(),
-                            pos: self.mouse_pos,
-                            id: top.id.clone(),
-                        });
-
-                        if is_dbl_click && top.owner == PickOwner::Folder {
-                            // Entrer demande `&mut self.store`, et `b` emprunte ce même store :
-                            // l'intention est notée ici et exécutée une fois l'emprunt rendu.
-                            entrer_dans = Some(top.id.clone());
-                        }
-                        if is_dbl_click {
-                            if let Some(ann) = b.annotations.iter().find(|a| a.id() == top.id) {
-                                let initial_text = match ann {
-                                    Annotation::Text { text, .. } => text.clone(),
-                                    Annotation::Sticky { text, .. } => text.clone(),
-                                    Annotation::Membrane { text, .. } => {
-                                        text.clone().unwrap_or_default()
-                                    }
-                                    _ => String::new(),
-                                };
-                                self.start_text_edit(top.id.clone(), initial_text);
-                                self.mark_dirty();
-                                return;
-                            }
-                        }
-
-                        if let Some(ref session) = self.editing_session {
-                            if session.ann_id != top.id {
-                                self.commit_editing();
-                            }
-                        }
-
-                        match top.owner {
-                            PickOwner::Image => {
-                                self.store
-                                    .select_image(top.id.clone(), self.modifiers.shift_key());
-                                selected = true;
-                            }
-                            PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {
-                                self.store
-                                    .select_annotation(top.id.clone(), self.modifiers.shift_key());
-                                selected = true;
-                            }
-                            PickOwner::Folder => {
-                                self.store.select_folder(top.id.clone());
-                                selected = true;
-                            }
-                        }
-                    } else {
-                        self.commit_editing();
-                    }
-                }
-
-                // Entrer dans un dossier remplace le tableau : plus rien de ce clic n'a de
-                // sens ensuite, ni sélection ni début de glisser.
-                if let Some(folder_id) = entrer_dans {
-                    let ecran = ScreenSize {
-                        width: screen_w as f64,
-                        height: screen_h as f64,
-                    };
-                    // La caméra plonge, et la bascule attend l'arrivée. Si le dossier a
-                    // disparu entre-temps, on entre sans cérémonie plutôt que de ne rien faire.
-                    if !fly_into_folder(&self.store, &mut self.animator, &folder_id, ecran) {
-                        drop(self.store.try_enter_folder(&folder_id));
-                    }
-                    self.update_cursor();
-                    self.mark_dirty();
-                    return;
-                }
-
-                if selected {
-                    self.init_item_drag(wx, wy);
-                } else {
-                    self.store.clear_selection();
-                    self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
-                }
-
-                self.update_cursor();
-                self.mark_dirty();
-            }
-            _ => {}
+    /// Le clic gauche descend les couches ; la première qui le prend l'arrête.
+    fn handle_left_down(&mut self, screen: ScreenFrame) {
+        let pointer = self.pointer();
+        let taken = self.click_skips_flight()
+            || self.click_breadcrumb(pointer, screen)
+            || self.click_chrome(pointer, screen)
+            || self.click_dock(pointer, screen);
+        if !taken {
+            self.click_canvas(screen);
         }
     }
 
-    /// Relâchement d'un bouton de souris.
+    /// Un clic pendant une plongée l'abrège : on arrive tout de suite. Le clic est consommé —
+    /// le viser dans le tableau d'arrivée, à une position qui n'a rien à voir avec celle
+    /// qu'on visait au départ, serait pire que de l'ignorer.
+    fn click_skips_flight(&mut self) -> bool {
+        self.animator.skip(&mut self.store)
+    }
+
+    /// Relâchement d'un bouton de souris : le geste en cours se termine.
     pub fn handle_mouse_up(&mut self, button: MouseButton) {
         match button {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = false;
                 self.is_panning = false;
-                self.update_cursor();
-                self.mark_dirty();
             }
             MouseButton::Left => {
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
@@ -402,11 +129,11 @@ impl GlucoseApp {
                 self.finish_resize();
                 self.finish_item_drag();
                 self.finish_selection_box();
-                self.update_cursor();
-                self.mark_dirty();
             }
-            _ => {}
+            _ => return,
         }
+        self.update_cursor();
+        self.mark_dirty();
     }
 }
 
