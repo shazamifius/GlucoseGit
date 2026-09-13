@@ -620,11 +620,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "paste_from_clipboard",
         102,
     ),
-    (
-        "crates/glucose-desktop/src/interactions/text_edit.rs",
-        "handle_text_key",
-        93,
-    ),
     ("crates/glucose-desktop/src/renderer.rs", "render", 102),
     (
         "crates/glucose-desktop/src/renderer/folder.rs",

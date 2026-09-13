@@ -52,13 +52,27 @@ impl GlucoseApp {
             return;
         };
 
-        let double = self.is_double_click_on(&top);
+        let count = self.click_count_on(&top);
         self.last_click = Some(LastClickInfo {
             time: std::time::Instant::now(),
             pos: self.mouse_pos,
             id: top.id.clone(),
+            count,
         });
-        if double && self.open_node(&top, screen) {
+
+        // Une carte déjà ouverte à la saisie reçoit le clic **dans son texte** : c'est là que
+        // le curseur se pose, qu'un mot se prend et qu'une sélection s'étend au `Maj`. Le nœud,
+        // lui, ne se resélectionne pas et ne se met pas à glisser — on écrit dedans.
+        if self
+            .editing_session
+            .as_ref()
+            .is_some_and(|s| s.ann_id == top.id)
+            && self.click_text_at(self.mouse_pos, count, self.modifiers.shift_key())
+        {
+            return;
+        }
+
+        if count > 1 && self.open_node(&top, screen) {
             return;
         }
 
@@ -74,14 +88,23 @@ impl GlucoseApp {
         self.init_item_drag(wx, wy);
     }
 
-    /// Même nœud, moins de `DBLCLICK_MS`, et le curseur n'a presque pas bougé.
-    fn is_double_click_on(&self, top: &PickCandidate) -> bool {
+    /// Le rang de ce clic dans une série rapprochée : 1 s'il ouvre la série, 2 pour un
+    /// double-clic, 3 pour un triple.
+    ///
+    /// Même nœud, moins de `DBLCLICK_MS` depuis le précédent, et le curseur n'a presque pas
+    /// bougé — les trois mêmes conditions qu'avant, mais **comptées** au lieu d'être réduites
+    /// à un booléen : c'est ce qui permet au triple-clic d'exister.
+    fn click_count_on(&self, top: &PickCandidate) -> u32 {
         let Some(last) = &self.last_click else {
-            return false;
+            return 1;
         };
         let elapsed = i64::try_from(last.time.elapsed().as_millis()).unwrap_or(i64::MAX);
         let moved = (last.pos.0 - self.mouse_pos.0).hypot(last.pos.1 - self.mouse_pos.1);
-        last.id == top.id && elapsed < pick_consts::DBLCLICK_MS && moved < DOUBLE_CLICK_SLOP_PX
+        if last.id == top.id && elapsed < pick_consts::DBLCLICK_MS && moved < DOUBLE_CLICK_SLOP_PX {
+            last.count + 1
+        } else {
+            1
+        }
     }
 
     /// Ce qu'un double-clic ouvre : un dossier, en y plongeant ; une annotation à texte, en
@@ -104,7 +127,10 @@ impl GlucoseApp {
         let Some(text) = self.editable_text_of(&top.id) else {
             return false;
         };
-        self.start_text_edit(top.id.clone(), text);
+        // Ouvrir une carte au double-clic sélectionne le mot visé : c'est ce que fait un
+        // traitement de texte, et c'est ce qui permet de remplacer un mot d'un seul geste.
+        let selection = self.selection_opening_at(&top.id, &text, self.mouse_pos);
+        self.start_text_edit_at(top.id.clone(), text, selection);
         true
     }
 

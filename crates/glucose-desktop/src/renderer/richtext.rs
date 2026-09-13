@@ -38,6 +38,7 @@
 //! voyant `Titre` — et qu'écrire au tout début du texte insérait avant un `#` invisible.
 
 pub mod draw;
+pub mod hit;
 
 use super::math::MathRenderer;
 use super::wrap::wrap_paragraph;

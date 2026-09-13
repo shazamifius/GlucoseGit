@@ -60,6 +60,13 @@ impl GlucoseApp {
             return;
         }
 
+        // Un glisser de sélection de texte passe avant tous les autres : tant qu'il dure, la
+        // souris écrit dans une carte et ne déplace ni nœud ni caméra.
+        if self.drag_text_to(self.mouse_pos) {
+            self.update_cursor();
+            return;
+        }
+
         if self.is_panning {
             self.handle_pan_move(dx, dy);
         } else if self.resize_session.is_some() {
@@ -126,6 +133,7 @@ impl GlucoseApp {
                 if !self.right_or_middle_down {
                     self.is_panning = false;
                 }
+                self.end_text_drag();
                 self.finish_resize();
                 self.finish_item_drag();
                 self.finish_selection_box();

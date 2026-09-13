@@ -31,6 +31,11 @@ pub struct LastClickInfo {
     pub time: std::time::Instant,
     pub pos: (f64, f64),
     pub id: String,
+    /// Le nombre de clics rapprochés sur ce même nœud : 1, puis 2, puis 3. C'est lui qui
+    /// décide de la maille d'une sélection de texte (MOUSE-1), et le compter ici plutôt que
+    /// dans le texte évite qu'un double-clic sur une carte et un double-clic sur un dossier
+    /// aient deux définitions de « rapproché ».
+    pub count: u32,
 }
 
 pub struct GlucoseApp {
@@ -65,6 +70,8 @@ pub struct GlucoseApp {
 
     // Session d'édition de texte in-place (double-clic)
     pub editing_session: Option<TextEditSession>,
+    /// Le glisser de sélection de texte en cours, s'il y en a un (MOUSE-1).
+    pub text_drag: Option<crate::interactions::text_mouse::TextDrag>,
     pub last_click: Option<LastClickInfo>,
     pub last_blink_phase: bool,
     /// Durée de la dernière frame présentée, en millisecondes.
@@ -148,6 +155,7 @@ impl GlucoseApp {
             selection_box: None,
             always_on_top: false,
             editing_session: None,
+            text_drag: None,
             last_click: None,
             last_blink_phase: true,
             last_frame_ms: 0,

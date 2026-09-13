@@ -30,8 +30,10 @@
 //! découpage, deux vues, et les octets restent à leur place dans les deux.
 
 pub mod inline;
+pub mod selection;
 
 pub use inline::inline_spans;
+pub use selection::{Direction, Motion, Selection};
 
 /// Les emphases d'un fragment de texte, cumulables.
 ///

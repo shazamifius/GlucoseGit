@@ -18,4 +18,5 @@ pub mod selection;
 pub mod shortcuts;
 pub mod text_edit;
 pub mod text_entry;
+pub mod text_mouse;
 pub mod tools;

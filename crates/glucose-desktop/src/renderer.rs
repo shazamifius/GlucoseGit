@@ -40,6 +40,7 @@ use crate::ui::{render_ui, UiState};
 use domain::DomainTints;
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
+use glucose_core::text::Selection;
 use hue::SymbioticHueCache;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -49,7 +50,21 @@ use tiny_skia::{PathBuilder, Pixmap, PixmapMut};
 pub struct TextEditSession {
     pub ann_id: String,
     pub buffer: String,
-    pub cursor_idx: usize,
+    /// Ce qui est sélectionné, et où le curseur clignote : sa tête (SEL-1). Une sélection
+    /// vide **est** un curseur — il n'y a donc qu'un état à tenir, pas deux.
+    pub selection: Selection,
+    /// L'abscisse que `↑` et `↓` cherchent à retrouver, en unités monde.
+    ///
+    /// # COLUMN-1 — la colonne se mémorise, elle ne se recalcule pas
+    ///
+    /// Descendre d'une ligne pose le curseur sur la frontière de caractère la plus proche de
+    /// l'abscisse visée, jamais exactement dessus. Recalculer l'abscisse depuis cette nouvelle
+    /// position à chaque pas fait **dériver** le curseur vers la gauche, un peu à chaque ligne
+    /// — le défaut le plus connu des éditeurs qui ne gardent pas cette valeur.
+    ///
+    /// Elle est posée au premier mouvement vertical et oubliée dès qu'autre chose bouge le
+    /// curseur, pour que la colonne suive alors la nouvelle position.
+    pub goal_x: Option<f32>,
     pub blink_timer: std::time::Instant,
 }
 

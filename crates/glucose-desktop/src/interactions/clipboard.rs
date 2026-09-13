@@ -186,3 +186,53 @@ impl GlucoseApp {
         }
     }
 }
+
+// ── Le presse-papiers **dans** un texte ─────────────────────────────────────
+//
+// `paste_from_clipboard` colle dans le *canevas* : une image devient une image, un texte
+// devient une carte. Pendant une saisie, `Ctrl+V` veut dire tout autre chose — coller **dans**
+// le texte, à la place de la sélection — et c'est ce que ces deux méthodes servent.
+
+impl GlucoseApp {
+    /// Le texte du presse-papiers, s'il y en a un.
+    ///
+    /// Les fins de ligne Windows sont ramenées à `\n` : le modèle ne connaît qu'un saut de
+    /// ligne, et laisser passer un `\r` ferait apparaître un caractère de contrôle au milieu
+    /// d'une carte — invisible à l'écran, bien présent dans le document et dans l'export.
+    pub(crate) fn clipboard_text(&mut self) -> Option<String> {
+        match Clipboard::new().and_then(|mut c| c.get_text()) {
+            Ok(texte) => Some(texte.replace("\r\n", "\n").replace('\r', "\n")),
+            Err(err) => {
+                self.ui.show_toast(format!("Presse-papiers : {err}"));
+                None
+            }
+        }
+    }
+
+    /// Copie le texte sélectionné ; `couper` l'efface ensuite.
+    ///
+    /// Une sélection vide ne copie rien et ne vide pas le presse-papiers : `Ctrl+C` sans
+    /// sélection est un geste sans effet, pas un geste destructeur.
+    pub(crate) fn copy_selected_text(&mut self, couper: bool) {
+        let Some(session) = self.editing_session.as_ref() else {
+            return;
+        };
+        let texte = session.selection.slice(&session.buffer).to_string();
+        if texte.is_empty() {
+            return;
+        }
+        if let Err(err) = Clipboard::new().and_then(|mut c| c.set_text(texte)) {
+            self.ui.show_toast(format!("Presse-papiers : {err}"));
+            return;
+        }
+        if couper {
+            if let Some(session) = self.editing_session.as_mut() {
+                session.selection = glucose_core::text::selection::replace(
+                    &mut session.buffer,
+                    session.selection,
+                    "",
+                );
+            }
+        }
+    }
+}

@@ -131,7 +131,7 @@ pub(super) fn draw_sticky(
                 world_width: w as f32,
                 cursor: editing
                     .filter(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
-                    .map(|s| s.cursor_idx),
+                    .map(|s| s.selection.head),
             };
             draw_paper(ctx, pixmap, at, &layout, &paper, highlighted);
         }
