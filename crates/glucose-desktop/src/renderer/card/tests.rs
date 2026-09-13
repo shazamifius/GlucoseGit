@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::renderer::math::MathRenderer;
+use glucose_core::types::Annotation;
 
 /// Carte d'essai partagée avec les autres suites du renderer.
 pub fn probe_card(id: &str, x: f64, y: f64) -> Annotation {

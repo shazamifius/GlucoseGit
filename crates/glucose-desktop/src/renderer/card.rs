@@ -35,22 +35,17 @@
 //! voient la même boîte que l'écran. `text_card` garde un `max` de sécurité pour les
 //! documents antérieurs à cette règle.
 
-use super::arrow::draw_arrow;
-use super::domain::{draw_domain_gauge, DomainTints};
 use super::handles::draw_resize_handles;
-use super::hue::SymbioticHueCache;
-use super::note::draw_sticky;
+use super::pass::{Pass, SELECTION_RING};
 use super::scale::WorldScale;
 use super::wrap::wrap_paragraph;
-use super::{parse_hex_color, push_rounded_rect, PaintKit, TextEditSession};
+use super::{push_rounded_rect, TextEditSession};
 use crate::canvas::world_to_screen;
-use crate::params::{Pen, ViewPass};
+use crate::params::Pen;
 use crate::renderer::math::MathRenderer;
 use crate::theme::Theme;
 use crate::typography::{TextStyle, Typography};
 use glucose_core::resize::Handle;
-use glucose_core::store::Store;
-use glucose_core::types::{Annotation, DomainAssignment, Viewport};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────
@@ -87,45 +82,6 @@ const CURSOR_WIDTH: f32 = 2.0;
 /// Hauteur du curseur d'édition, en multiples du corps.
 const CURSOR_HEIGHT: f32 = 1.2;
 
-/// Épaisseur de l'anneau de sélection, **en pixels écran**.
-///
-/// Exception SCALE-1 : c'est une affordance, pas du contenu. Mis à l'échelle, il
-/// disparaîtrait en dézoomant au moment précis où l'on cherche ce qu'on a sélectionné.
-pub(super) const SELECTION_RING: f32 = 2.0;
-
-// ── Ce qu'une passe d'annotations garde constant ────────────────────────────
-
-/// Le bord de l'écran utile. Tout ce qui en sort est écarté avant d'être dessiné (loi L1).
-#[derive(Clone, Copy)]
-pub(super) struct Clip {
-    pub width: f32,
-    pub height: f32,
-    pub top: f32,
-}
-
-impl Clip {
-    /// La boîte écran `(x, y, w, h)` est-elle entièrement hors champ ou trop petite ?
-    pub(super) fn rejects(self, x: f32, y: f32, w: f32, h: f32) -> bool {
-        x + w < 0.0 || x > self.width || y + h < self.top || y > self.height || (w < 3.0 && h < 3.0)
-    }
-}
-
-/// Ce qui ne change pas d'une annotation à l'autre pendant une frame.
-pub(super) struct Pass<'a> {
-    pub typography: &'a Typography,
-    /// Le moteur de formules — il ne mute rien de visible, son cache est interne.
-    pub math: &'a MathRenderer,
-    /// `domain_id → teinte`, déjà résolue pour cette version du document (DOMAIN-TINT-1).
-    pub tints: &'a DomainTints,
-    pub theme: &'a Theme,
-    pub vp: Viewport,
-    pub scale: WorldScale,
-    pub clip: Clip,
-}
-
-// ── Les lignes d'une carte (WRAP-1) ─────────────────────────────────────────
-
-/// Le genre d'un paragraphe, lu sur son préfixe Markdown minimal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LineKind {
     Heading1,
@@ -371,109 +327,16 @@ impl CardLayout {
     }
 }
 
-// ── Dessin ──────────────────────────────────────────────────────────────────
-
-/// Dessine les annotations visibles du tableau actif.
-pub(super) fn draw_annotations(
-    hue_cache: &mut SymbioticHueCache,
-    kit: PaintKit<'_>,
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    editing_session: Option<&TextEditSession>,
-    pass: ViewPass<'_>,
-) {
-    let Some(board) = store.active_board() else {
-        return;
-    };
-    let ctx = Pass {
-        typography: kit.typography,
-        math: kit.math,
-        tints: kit.tints,
-        theme: kit.theme,
-        vp: pass.vp,
-        scale: WorldScale::new(pass.vp.scale),
-        clip: Clip {
-            width: pixmap.width() as f32,
-            height: pixmap.height() as f32,
-            top: pass.header_h,
-        },
-    };
-
-    for ann in &board.annotations {
-        if !pass.visible_ids.contains(ann.id()) {
-            continue;
-        }
-        let selected = store.selected_annotation_ids.iter().any(|s| s == ann.id());
-        let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
-        match ann {
-            Annotation::Text {
-                x, y, text, color, ..
-            } => {
-                let (_, tint) = hue_cache.get_or_compute(ann, &board.annotations);
-                let tint = color
-                    .as_deref()
-                    .map(|c| parse_hex_color(c, tint.0, tint.1, tint.2))
-                    .unwrap_or(tint);
-                let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
-                let (w, h) = ann
-                    .size()
-                    .expect("Annotation::size ne rend None que pour une flèche");
-                let size = (w as f32, h as f32);
-                draw_text_card(
-                    &ctx,
-                    pixmap,
-                    TextCard {
-                        origin: (*x, *y),
-                        size,
-                        body,
-                        tint,
-                        selected,
-                        editing,
-                    },
-                );
-                draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
-            }
-            Annotation::Sticky { x, y, .. } => {
-                draw_sticky(&ctx, pixmap, ann, selected, editing);
-                draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
-            }
-            Annotation::Arrow { x, y, x2, y2, .. } => {
-                draw_arrow(&ctx, pixmap, (*x, *y), (*x2, *y2), selected);
-            }
-            _ => {}
-        }
-    }
+pub(super) struct TextCard<'a> {
+    pub origin: (f64, f64),
+    pub size: (f32, f32),
+    pub body: &'a str,
+    pub tint: (u8, u8, u8),
+    pub selected: bool,
+    pub editing: Option<&'a TextEditSession>,
 }
 
-/// Pose la réglette de domaines d'une annotation au-dessus de son bord haut.
-fn draw_node_gauge(
-    ctx: &Pass,
-    pixmap: &mut PixmapMut,
-    origin: (f64, f64),
-    domains: &[DomainAssignment],
-) {
-    let (wx, wy) = world_to_screen(origin.0, origin.1, &ctx.vp);
-    draw_domain_gauge(
-        ctx.typography,
-        ctx.tints,
-        pixmap,
-        ctx.scale,
-        (wx as f32, wy as f32),
-        domains,
-    );
-}
-
-/// Une carte de texte prête à dessiner : sa géométrie **monde** et son contenu.
-struct TextCard<'a> {
-    origin: (f64, f64),
-    size: (f32, f32),
-    body: &'a str,
-    tint: (u8, u8, u8),
-    selected: bool,
-    editing: Option<&'a TextEditSession>,
-}
-
-fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
+pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     // Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
     // l'unique mise à l'échelle (CARD-1, WRAP-1).
     let lines = layout_lines(ctx.typography, ctx.math, card.body, card.size.0);

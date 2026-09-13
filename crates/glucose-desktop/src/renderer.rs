@@ -26,6 +26,7 @@ pub mod handles;
 pub mod hue;
 pub mod math;
 pub mod note;
+pub mod pass;
 pub mod scale;
 pub mod scene;
 pub mod wrap;
@@ -287,7 +288,7 @@ impl Renderer {
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
-        card::draw_annotations(
+        pass::draw_annotations(
             &mut self.hue_cache,
             kit,
             pixmap,
