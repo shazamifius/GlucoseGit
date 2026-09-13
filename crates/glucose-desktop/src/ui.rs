@@ -129,7 +129,6 @@ pub struct UiState {
     pub active_tool: ActiveTool,
     pub smart_align: bool,
     pub trans_domain: bool,
-    pub collab_active: bool,
     #[allow(dead_code)]
     pub hovered_btn: Option<String>,
     pub current_toast: Option<Toast>,
@@ -218,7 +217,6 @@ impl UiState {
             active_tool: ActiveTool::Select,
             smart_align: true,
             trans_domain: true,
-            collab_active: false,
             hovered_btn: None,
             current_toast: None,
             scale_factor: 1.0,
@@ -323,7 +321,6 @@ pub struct TopbarButtonDef {
     pub label: &'static str,
     pub active: bool,
     pub is_tool: bool,
-    pub is_collab: bool,
 }
 
 pub struct TopbarLayout {
@@ -367,7 +364,6 @@ pub fn layout_topbar(
         label: "",
         active: ui.active_tool == ActiveTool::Select,
         is_tool: true,
-        is_collab: false,
     });
     cur_x += tool_size + 2.0 * s;
 
@@ -381,7 +377,6 @@ pub fn layout_topbar(
         label: "",
         active: ui.active_tool == ActiveTool::Pan,
         is_tool: true,
-        is_collab: false,
     });
     cur_x += tool_size + 2.0 * s;
 
@@ -408,7 +403,6 @@ pub fn layout_topbar(
             label: "",
             active: ui.active_tool == t,
             is_tool: true,
-            is_collab: false,
         });
         cur_x += tool_size + 2.0 * s;
     }
@@ -436,7 +430,6 @@ pub fn layout_topbar(
         label: img_label,
         active: false,
         is_tool: false,
-        is_collab: false,
     });
     cur_x += img_w + 6.0 * s;
 
@@ -471,7 +464,6 @@ pub fn layout_topbar(
             label: btn_lbl,
             active,
             is_tool: false,
-            is_collab: false,
         });
         cur_x += btn_w + 4.0 * s;
     }
@@ -511,7 +503,6 @@ pub fn layout_topbar(
             label: btn_lbl,
             active,
             is_tool: false,
-            is_collab: false,
         });
         cur_x += btn_w + 4.0 * s;
     }
@@ -570,9 +561,8 @@ pub fn layout_topbar(
         h: act_h,
         icon: IconType::Collab,
         label: col_lbl,
-        active: ui.collab_active,
+        active: false,
         is_tool: false,
-        is_collab: true,
     });
     rx += col_w + 5.0 * s;
 
@@ -591,7 +581,6 @@ pub fn layout_topbar(
         label: exp_lbl,
         active: false,
         is_tool: false,
-        is_collab: false,
     });
     rx += exp_w + 5.0 * s;
 
@@ -616,7 +605,6 @@ pub fn layout_topbar(
             label: lbl,
             active: false,
             is_tool: false,
-            is_collab: false,
         });
         rx += bw + 4.0 * s;
     }
@@ -707,23 +695,6 @@ fn render_topbar(
                 btn.label,
                 state,
             );
-            if btn.is_collab && ui.collab_active {
-                // Pastille verte #10b981
-                let mut dot_paint = Paint::default();
-                dot_paint.set_color(Color::from_rgba8(16, 185, 129, 255));
-                dot_paint.anti_alias = true;
-                let mut dot_pb = PathBuilder::new();
-                dot_pb.push_circle(btn.x + 18.0 * s, btn.y + 7.0 * s, 3.0 * s);
-                if let Some(p) = dot_pb.finish() {
-                    pixmap.fill_path(
-                        &p,
-                        &dot_paint,
-                        tiny_skia::FillRule::Winding,
-                        Transform::identity(),
-                        None,
-                    );
-                }
-            }
         }
     }
 
@@ -1521,7 +1492,6 @@ pub fn handle_ui_click(
                     UiAction::ToggleCollab => {
                         // Fiche 09 § 9 : aucun réseau n'existe. Le bouton ne « connecte »
                         // rien, et ne doit pas le prétendre.
-                        ui.collab_active = false;
                         ui.show_toast(NOT_YET_COLLAB);
                     }
                     _ => {}

@@ -48,9 +48,10 @@ fn test_the_collab_button_does_not_claim_to_be_connected() {
     let mut app = GlucoseApp::new();
     click_topbar(&mut app, UiAction::ToggleCollab);
     assert_eq!(app.ui.toast_message(), Some(crate::ui::NOT_YET_COLLAB));
-    assert!(!app.ui.collab_active, "le bouton ne s'allume pas");
+    // Le bouton n'a plus d'état à allumer : il n'y a rien à connecter. Un second clic dit
+    // la même chose.
     click_topbar(&mut app, UiAction::ToggleCollab);
-    assert!(!app.ui.collab_active, "même au second clic");
+    assert_eq!(app.ui.toast_message(), Some(crate::ui::NOT_YET_COLLAB));
 }
 
 #[test]

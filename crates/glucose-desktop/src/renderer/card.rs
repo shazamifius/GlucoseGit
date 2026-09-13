@@ -196,18 +196,18 @@ impl LineKind {
         }
     }
 
-    fn color(self) -> Color {
+    fn color(self, theme: &Theme) -> Color {
         match self {
-            Self::Heading1 => Color::from_rgba8(255, 255, 255, 255),
-            Self::Heading2 => Color::from_rgba8(240, 240, 245, 255),
-            Self::Bullet | Self::Body | Self::Math => Color::from_rgba8(220, 225, 235, 255),
+            Self::Heading1 => theme.card_heading,
+            Self::Heading2 => theme.card_subheading,
+            Self::Bullet | Self::Body | Self::Math => theme.card_body,
         }
     }
 
-    fn style(self, layout: &CardLayout) -> TextStyle {
+    fn style(self, layout: &CardLayout, theme: &Theme) -> TextStyle {
         TextStyle {
             size: self.font(layout.font),
-            color: self.color(),
+            color: self.color(theme),
             bold: self.bold(),
         }
     }
@@ -549,10 +549,10 @@ fn draw_card_frame(
         anti_alias: true,
         ..Default::default()
     };
-    stroke_paint.set_color(match (card.editing.is_some(), card.selected) {
-        (true, _) => Color::from_rgba8(56, 189, 248, 255),
-        (false, true) => Color::from_rgba8(56, 189, 248, 220),
-        (false, false) => Color::from_rgba8(r, g, b, 60),
+    stroke_paint.set_color(if highlighted {
+        ctx.theme.selection_frame
+    } else {
+        Color::from_rgba8(r, g, b, 60)
     });
     let stroke = Stroke {
         // Le cadre au repos appartient à la carte et suit son échelle ; l'anneau de
@@ -586,7 +586,7 @@ fn draw_card_body(
     let mut cursor_drawn = false;
 
     for (num, line) in lines.iter().enumerate() {
-        let style = line.kind.style(layout);
+        let style = line.kind.style(layout, ctx.theme);
         if line.first && line.kind == LineKind::Bullet {
             draw_bullet(pixmap, (at.0 + layout.pad_x, cur_y), layout, card.tint);
         }
@@ -613,13 +613,7 @@ fn draw_card_body(
                         y: cur_y + au_dessus,
                         font_size: style.size,
                     };
-                    let dessinee = ctx.math.draw(
-                        pixmap,
-                        corps,
-                        mode,
-                        plume,
-                        Color::from_rgba8(230, 234, 245, 255),
-                    );
+                    let dessinee = ctx.math.draw(pixmap, corps, mode, plume, style.color);
                     if !dessinee {
                         // Une formule fausse montre sa source, en rouge : l'erreur se voit là
                         // où elle est, pas dans une console.
@@ -629,7 +623,7 @@ fn draw_card_body(
                             start_x,
                             cur_y,
                             TextStyle {
-                                color: Color::from_rgba8(248, 113, 113, 255),
+                                color: ctx.theme.danger,
                                 ..style
                             },
                         );
@@ -655,7 +649,13 @@ fn draw_card_body(
         if show_cursor && !cursor_drawn && in_line {
             let prefix = &card.body[line.start..cursor_idx.clamp(line.start, line.end)];
             let (prefix_w, _) = ctx.typography.measure_text(prefix, style.size, style.bold);
-            draw_cursor(pixmap, (start_x + prefix_w, cur_y), layout, ctx.scale);
+            draw_cursor(
+                pixmap,
+                (start_x + prefix_w, cur_y),
+                layout,
+                ctx.scale,
+                style.color,
+            );
             cursor_drawn = true;
         }
         cur_y += layout.line_height;
@@ -685,9 +685,16 @@ fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint
     }
 }
 
-fn draw_cursor(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, scale: WorldScale) {
+/// Le curseur d'édition, à l'encre de la ligne qu'il édite.
+fn draw_cursor(
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &CardLayout,
+    scale: WorldScale,
+    ink: Color,
+) {
     let mut paint = Paint::default();
-    paint.set_color(Color::from_rgba8(56, 189, 248, 255));
+    paint.set_color(ink);
     // Le curseur mesure le texte qu'il édite — sa hauteur suit la police — mais son trait
     // est une affordance : il garde sa largeur écran (exception SCALE-1), comme le curseur
     // de n'importe quel éditeur. Mis à l'échelle, il s'effacerait au dézoom.
