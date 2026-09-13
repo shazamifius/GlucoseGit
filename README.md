@@ -2,18 +2,16 @@
 
 # 🧬 Glucose
 
-### Le canvas de référence infini natif en Rust — style PureRef, 0 boîte noire, 0 dépendance dans le core
+### Le canvas infini de pensée visuelle, réécrit en Rust natif — 0 dépendance dans le noyau, huit assumées autour
 
 *Pose. Relie. Zoome. Explore.*
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Rust](https://img.shields.io/badge/Rust-100%25%20pure%20std%20core-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
-[![Dependencies](https://img.shields.io/badge/core%20dependencies-0%20(zero)-brightgreen.svg?style=flat-square)](#)
-[![Tests](https://img.shields.io/badge/tests-697%20passing%20(100%25)-brightgreen.svg?style=flat-square)](#)
+[![Rust](https://img.shields.io/badge/Rust-noyau%20100%25%20std-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![Dependencies](https://img.shields.io/badge/d%C3%A9pendances%20du%20noyau-0-brightgreen.svg?style=flat-square)](#-ce-qui-est-mesuré-pas-affirmé)
 [![LaTeX](https://img.shields.io/badge/LaTeX-KaTeX%20natif-8b5cf6.svg?style=flat-square)](#-les-formules-sont-natives)
-[![Compatibility](https://img.shields.io/badge/OS%20compatibility-100%25%20kernels-blueviolet.svg?style=flat-square)](#)
 
-[**📖 Guide**](GUIDE.md) · [**🗺️ Architecture & Handoff**](HANDOFF.md) · [**🐛 Issues**](../../issues)
+[**📖 Guide**](GUIDE.md) · [**🗺️ Dossier d'architecture**](docs/architecture/00-INDEX.md) · [**🐛 Issues**](../../issues)
 
 </div>
 
@@ -21,17 +19,27 @@
 
 ## ✨ Qu'est-ce que c'est ?
 
-**Glucose** est une plateforme visuelle desktop native ultra-rapide, inspirée de **PureRef**, réécrite **intégralement en Rust from scratch** :
+**Glucose** est un canvas infini pour penser en images et en texte — moodboard, cartes Markdown,
+formules, membranes, dossiers-sous-canvas, flèches sémantiques. La version d'origine tournait
+sur Tauri et TypeScript ; **ce dépôt la recrée en Rust natif**, avec le même rendu et les mêmes
+fonctionnalités pour cible, et un code qui, lui, ne doit rien à l'ancien.
 
-- 🎨 **PureRef & Moodboards** — référence visuelle infinie, drag & drop d'images instantané (WebP, PNG, JPEG, GIF, BMP), collage depuis le presse-papiers (`Ctrl+V` depuis Pinterest ou le web), fenêtre always-on-top (`Alt+T`), zoom au curseur, pan fluide.
-- 📐 **Interface Glucose complète** — TopBar (44px) avec tous les outils vectoriels (`Select V`, `Pan Espace`, `Text T`, `Sticky N`, `Arrow A`, `Folder F`, `Membrane M`), bouton `+ Images`, `Ordonner`, `Timer`, `Storyboard`, `Aimant` (SNAP-1), `Trans-domaines`, `Collaborer`, `Exporter`, `Plugins`, `Preset`, `Domaines`.
-- 📑 **Onglets de Boards (34px)** — gestion multi-boards dynamique, création instantanée (`+`), bascule fluide et minimap interactive (180x120px) en temps réel.
-- 🍞 **Toasts d'action animés** — feedback visuel immédiat en fondu alpha (`📥 Image collée`, `📐 Canvas ordonné`, etc.).
-- 🧬 **Membranes adaptatives** — regroupements intelligents d'images et de notes avec facteur d'échelle dynamique $k = \min(1, \dots)$, mode focus plein écran et étirement anti-collision.
-- 🗂️ **Dossiers zoomables & Miroirs** — sous-canvas imbriqués avec détection de cycles acycliques (anti-Inception) pour dupliquer des vues vivantes.
-- 🔗 **Relations sémantiques** — flèches orientées avec prédicats typés (`inspire`, `contredit`, `dépend_de`), sub-block text anchoring et calcul de contour géométrique.
-- 🛡️ **0 boîte noire, 0 dépendance dans le moteur** — `glucose-core` fonctionne à 100% avec la bibliothèque standard Rust (`std`), sans aucune crate externe (`[dependencies]` strictement vide).
-- 🖥️ **Compatibilité 100% OS & Kernels** — Rendu logiciel universel vectoriel (`tiny-skia` + `softbuffer` + `winit`) sans aucune exigence de pilote GPU propriétaire. Tourne partout : Windows, Linux (Wayland/X11), macOS, BSD.
+Deux partis pris, tenus par des tests plutôt que par des promesses :
+
+- 🛡️ **Le noyau (`glucose-core`) n'a aucune dépendance.** Modèle, géométrie, index spatial,
+  alignement, undo par journal, format de fichier, SHA-256 : tout est écrit sur `std`, et
+  `cargo tree -p glucose-core` le prouve.
+- 🎯 **Ce qui est affiché est fidèle.** Le thème, la grille, les cartes, les poignées, la teinte
+  symbiotique sont comparés aux valeurs de la référence par des tests — la teinte l'est au bit
+  près, sur des vecteurs produits par le code TypeScript d'origine.
+
+Autour du noyau, huit dépendances assumées, chacune derrière une frontière : `winit` et
+`softbuffer` (fenêtre et présentation), `tiny-skia` (rastérisation), `fontdue` (glyphes),
+`image` (décodage), `rfd` (dialogues), `arboard` (presse-papiers) et `katex-rs` (mise en page des
+formules, isolée dans sa propre crate).
+
+Développé et mesuré sous **Windows**. La pile est portable, mais aucune autre plateforme n'a
+encore été vérifiée : le dire est plus utile que le promettre.
 
 ---
 
@@ -71,11 +79,11 @@ source**, là où elle est.
 ## 📊 Ce qui est mesuré, pas affirmé
 
 Chaque chiffre de ce tableau se reproduit par une commande, sur des documents synthétiques
-déterministes (`glucose_core::synth`).
+déterministes (`glucose_core::synth`). *Mesures au commit `0ff9fc6`.*
 
 | | Mesure | Comment la refaire |
 |---|---|---|
-| **Tests** | **697**, zéro échec, zéro avertissement de compilation | `cargo test --workspace` |
+| **Tests** | **698**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
@@ -100,165 +108,128 @@ est chiffré poste par poste dans la [fiche 12](docs/architecture/12-PLAN-D-EXEC
 premier poste en 4K est désormais l'effacement du fond, un coût de surface que seule une couche
 de présentation GPU réduira.
 
-> **Où en est vraiment le portage.** Le dossier [`docs/architecture/`](docs/architecture/) tient
-> l'inventaire honnête, fonctionnalité par fonctionnalité, de ce qui est branché et de ce qui ne
-> l'est pas encore. Certaines briques listées plus bas existent dans le noyau, testées, sans
-> geste qui les atteigne — c'est écrit noir sur blanc dans la
-> [fiche 12](docs/architecture/12-PLAN-D-EXECUTION.md), avec l'ordre dans lequel elles arrivent.
+---
+
+## 🧭 Où en est le portage, honnêtement
+
+La cible est **exactement** Glucose Tauri, visuellement et fonctionnellement. Ce tableau dit ce
+qui est **branché** — utilisable, annulable, enregistré —, ce qui **existe dans le noyau sans
+geste** pour l'atteindre, et ce qui **n'existe pas encore**. Il est tenu à jour à chaque
+chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dans le
+[dossier d'architecture](docs/architecture/00-INDEX.md).
+
+| Domaine | ✅ Branché | 🧩 Noyau écrit et testé, sans geste | ❌ Pas encore |
+|---|---|---|---|
+| **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
+| **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, déplacement, magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, dupliquer, supprimer | cycle de profondeur au clic (PICK-1) | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
+| **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
+| **Cartes texte** | création, édition en place, `#`, `##`, puces, retour à la ligne, hauteur qui suit le contenu, **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | gras / italique / code / citations / listes numérotées / tableaux / liens, sélection à la souris, copier-coller dans le texte, IME (accents composés) |
+| **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |
+| **Flèches** | création (taille fixe), rendu droit | ancrage au bord des nœuds | dessin par glisser, sélection, courbes, waypoints, étiquette, prédicats sémantiques, portails |
+| **Membranes** | création (taille fixe), rendu, titre éditable | adoption au dépôt, modes minimisé et étiré, mode focus, tween | dessin par glisser, panneau d'options, couleur dérivée des domaines |
+| **Dossiers & miroirs** | outil Dossier, rendu, entrée au double-clic avec plongée animée, fil d'Ariane | miroirs avec détection de cycle | badge compteur (affiche zéro), mini-carte de contenu, miroir d'un dossier du disque |
+| **Domaines** | créer / renommer / colorer / supprimer avec cascade, assignation pondérée, jauges sur les nœuds | | filtrage, couleur de membrane dérivée |
+| **Undo / redo** | `Ctrl+Z` / `Ctrl+Y`, journal d'éditions (le coût ne dépend pas du document), un geste = une entrée, la navigation hors historique | | coalescence de la frappe, libellés d'action, Time Machine |
+| **Persistance** | `Ctrl+S` / `Ctrl+Maj+S` / `Ctrl+O`, format `.glucose` v2 binaire avec somme de contrôle par section, écriture atomique, actifs dédupliqués par SHA-256, alerte à la fermeture | | autosave, versions durables, récupération après crash, import des fichiers Tauri (v1) |
+| **Panneaux** | Ordonner (applique une disposition), Pomodoro (décompte réel), Domaines | | Storyboard, Presets et Plugins sont des **façades honnêtes** — ils disent ce qu'ils ne font pas ; Collaborer, Exporter, Recherche, Time Machine, réglette temporelle, HUD |
+| **Export** | | SVG et Markdown, sans écriture disque | HTML, PNG, le menu, l'écriture sur le disque |
+| **Temporalité, rideaux** | | calculs de timeline, modèle et panneau de rideau | tout le reste |
+| **Collaboration, plugins** | | | rien |
+
+Le rendu de ce qui est branché suit une règle unique : une carte se dessine en unités monde
+puis subit **une seule** transformation — jamais une borne par valeur — et le texte est posé au
+quart de pixel. La preuve est un test permanent qui compare l'encre d'une carte à cinq zooms.
 
 ---
 
-## 🏗️ Architecture du Workspace
-
-Le projet est structuré en un workspace Rust propre et modulaire :
+## 🏗️ Architecture du workspace
 
 ```
-GlucoseGit/
-├── crates/
-│   ├── glucose-core/       # 100% PURE RUST STD (0 DÉPENDANCE EXTERNE)
-│   │   ├── src/
-│   │   │   ├── types.rs           # Modèles de données purs (Board, Image, Annotation, etc.)
-│   │   │   ├── geometry.rs        # Primitives géométriques, boîtes orientées, bandes de bordure
-│   │   │   ├── quadtree.rs        # SpatialHash déterministe pour culling de viewport ultra-rapide
-│   │   │   ├── hit_priority.rs    # Arbitre PICK-1 (7 rangs de priorité, cycle de clic, terminus texte)
-│   │   │   ├── smart_align.rs     # Magnétisme intelligent SNAP-1 (guides d'alignement, seuil écran)
-│   │   │   ├── membrane_space.rs  # Repère local, échelle déduite k = min(1, ...), appartenance stockée
-│   │   │   ├── membrane_stretch.rs# Planification d'étirement avec contournement d'obstacles
-│   │   │   ├── membrane_focus.rs  # Focus asymétrique (entrée >= 92%, sortie <= 0.8)
-│   │   │   ├── curtain_model.rs   # Permissions (carnet/vitrine/atelier), sanitisation de notes
-│   │   │   ├── curtain_panel.rs   # Timers de dwell, détection de hover sans battement
-│   │   │   ├── arrow_anchor.rs    # Mathématiques de sortie de périmètre, invariant anti-inversion
-│   │   │   ├── text_anchors.rs    # Ancrage sub-block W3C robuste aux éditions textuelles
-│   │   │   ├── timeline.rs        # Calendrier astronomique BC/AD (-100Ma à 3000)
-│   │   │   ├── mirror_graph.rs    # Détecteur BFS de cycles pour miroirs et dossiers
-│   │   │   ├── bundle.rs          # SHA-256 natif en pur Rust std, déduplication et vérification
-│   │   │   ├── store.rs           # Store central avec annulation/rétablissement et préservation de caméra
-│   │   │   └── export.rs          # Exportateurs SVG vectoriel et Markdown en pur Rust std
-│   │   └── tests/                 # 14 suites de tests d'intégration (165 tests + 37 unitaires = 202)
-│   │
-│   └── glucose-desktop/    # CLIENT DESKTOP NATIF PUREREF
-│       ├── assets/                # Polices vectorielles KaTeX intégrées au binaire
-│       ├── src/
-│       │   ├── canvas.rs          # Mappings coordonnées Écran <-> Monde et zoom centré curseur
-│       │   ├── typography.rs      # Typographie vectorielle anti-aliasée TrueType (fontdue)
-│       │   ├── icons.rs           # Tracé vectoriel de toutes les icônes de Glucose (tiny-skia)
-│       │   ├── ui.rs              # TopBar (44px), BoardTabs (34px), Minimap (180x120), Toasts animés
-│       │   ├── renderer.rs        # Rendu 2D haute fidélité (fond #0D0E12, grille, halos, pilules #18181B)
-│       │   ├── app.rs             # Contrôleur Winit 0.30 + Softbuffer 0.4 + Presse-papiers (Ctrl+V)
-│       │   └── main.rs            # Point d'entrée de l'application
+crates/
+├── glucose-core/        0 dépendance — le noyau, testé sans écran
+│   ├── src/types.rs           modèle de données (boards, images, annotations, dossiers, domaines)
+│   ├── src/store/             la seule porte d'écriture : mutations, journal d'undo, ids, navigation
+│   ├── src/persist/           format .glucose v2 : conteneur, sections, sommes de contrôle
+│   ├── src/arena/, fixed.rs   la fondation 10⁷ : arène SoA, coordonnées entières, index CSR
+│   ├── src/quadtree.rs        index spatial du modèle actuel (culling, clic, alignement)
+│   ├── src/hit_priority/      l'arbitre de clic PICK-1
+│   ├── src/smart_align.rs     magnétisme SNAP-1
+│   ├── src/resize.rs          géométrie du redimensionnement
+│   ├── src/symbiotic_hue.rs   teinte symbiotique, au bit près de la référence
+│   ├── src/layout.rs          dispositions du panneau Ordonner
+│   ├── src/anim.rs            courbes et durées d'animation, testées sans horloge
+│   ├── src/synth.rs           documents synthétiques déterministes pour les bancs
+│   ├── src/membrane_*.rs, curtain_*.rs, arrow_anchor.rs, text_anchors.rs, timeline.rs,
+│   │   mirror_graph.rs, export.rs — écrits et testés, en attente de leur geste
+│   ├── examples/              bench_arena, bench_store
+│   └── tests/                 21 suites d'intégration
+│
+├── glucose-math/        1 dépendance (katex-rs) — les formules en géométrie pure, sans pixel
+│
+└── glucose-desktop/     l'application : winit, softbuffer, tiny-skia, fontdue, image, rfd, arboard
+    ├── src/app.rs             la boucle d'événements et la présentation
+    ├── src/interactions/      souris, clavier, glisser, redimensionner, presse-papiers, domaines
+    ├── src/renderer/          scène, cartes, notes, dossiers, halos, formules, échelle unique
+    ├── src/ui.rs, dock.rs     barre d'outils, onglets, minimap, toasts, panneaux
+    ├── src/theme.rs           tous les jetons de couleur, tenus par test contre la référence
+    ├── src/typography/        glyphes au quart de pixel, couverture de la police vérifiée
+    ├── src/persist/           enregistrer, ouvrir, écriture atomique, alerte de fermeture
+    ├── src/animation.rs       l'horloge des animations (le vol de la caméra)
+    ├── src/bench.rs           le banc de frame et la capture témoin
+    └── examples/              bench_frame, bench_etapes, capture_temoin
 ```
 
 ---
 
-## 🌟 Fonctionnalités
+## ⚡ Raccourcis clavier & contrôles
 
-<table>
-<tr>
-<td width="50%">
+*Ceux qui sont branchés aujourd'hui, relevés dans le code. Les raccourcis de la référence qui
+manquent encore (`F` dossier, `G` aimant, `L` verrouiller, `Ctrl+F` recherche…) sont dans le
+tableau ci-dessus, colonne « pas encore ».*
 
-### 🎨 Expérience PureRef native
-- Pan fluide (clic du milieu, clic droit ou Espace)
-- Zoom continu centré précisément sous le curseur de la souris
-- Drag-and-drop instantané d'images depuis l'explorateur de fichiers OS
-- Mode Always-on-Top commutable (`T`) pour survoler Blender/Photoshop/Krita
-- Cadrage automatique (`Espace` ou `F`)
-
-</td>
-<td width="50%">
-
-### 🧬 Membranes & Repères locaux
-- 3 modes : `Classic`, `Minimized`, `Stretched`
-- Échelle déduite automatique $k = \min(1, \dots)$
-- Mode Focus plein écran avec fond teinté dynamique
-- Planification d'étirement qui s'arrête strictement sur les obstacles
-- Détection d'appartenance événementielle (`membrane_id`)
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🎯 Sélection & Magnétisme (PICK-1 & SNAP-1)
-- Arbitre de hit à 7 rangs (poignée > bord > flèche > image > sticky > texte > fond)
-- Cyclage intelligent de sélection par clics consécutifs
-- Guides d'alignement automatiques à l'écran
-- Seuil de capture constant en pixels écran quel que soit le niveau de zoom
-
-</td>
-<td width="50%">
-
-### 🪞 Miroirs & Dossiers imbriqués
-- Copies vivantes et synchronisées d'éléments et de dossiers
-- Détection de cycle BFS anti-Inception
-- Téléportation instantanée vers la source originale
-- Capture spatiale automatique à la création de dossier
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### ⏳ Undo / Redo & Transparence caméra
-- Annulation / rétablissement infini
-- **Navigation transparente** : naviguer (pan, zoom) n'est jamais enregistré dans la pile undo
-- Préservation rigoureuse de la caméra lors d'un `Ctrl+Z` ou `Ctrl+Y`
-- Sessions de drag atomiques (`begin_live_edit` / `end_live_edit`)
-
-</td>
-<td width="50%">
-
-### 📦 Bundles & Export natif
-- Hachage cryptographique **SHA-256 implémenté en pur Rust `std`**
-- Déduplication de contenu sans perte
-- Export SVG autonome sans dépendance
-- Export Markdown structuré hiérarchique
-
-</td>
-</tr>
-</table>
-
----
-
-## ⚡ Raccourcis clavier & Contrôles
-
-| Action | Raccourci / Geste |
+| Action | Raccourci / geste |
 |---|---|
-| **Pan (déplacer la vue)** | Clic milieu glissé, ou Clic droit glissé, ou `Espace` + Clic gauche |
-| **Zoom au curseur** | Molette de la souris |
-| **Sélectionner** | Clic gauche (cyclage multi-niveaux si empilé) |
-| **Multi-sélection** | `Ctrl` + Clic gauche |
-| **Déplacer la sélection** | Clic gauche glissé sur un élément |
-| **Ajouter des images** | Glisser-déposer des fichiers image directement dans la fenêtre |
-| **Recentrer / Cadrer tout** | `Espace` (sans drag) ou `F` |
-| **Always on Top** | `T` (épingle la fenêtre au-dessus des autres applications) |
-| **Supprimer** | `Suppr` ou `Backspace` |
-| **Dupliquer** | `Ctrl+D` |
-| **Annuler / Rétablir** | `Ctrl+Z` / `Ctrl+Y` |
-| **Quitter** | `Échap` ou fermer la fenêtre |
+| **Pan** | clic du milieu ou clic droit glissé, ou `Espace` + clic gauche, ou outil `H` |
+| **Zoom au curseur** | molette |
+| **Outils** | `V` sélection · `T` texte · `N` note · `A` flèche · `M` membrane · Dossier par la barre d'outils |
+| **Sélectionner** | clic · `Maj`+clic pour ajouter · glisser dans le vide pour une sélection élastique · `Ctrl+A` |
+| **Déplacer / redimensionner** | glisser l'élément · glisser une poignée (`Maj` libère le ratio) · `Échap` annule un redimensionnement |
+| **Éditer un texte** | double-clic · `Entrée` valide · `Maj+Entrée` saute une ligne · `Échap` sort |
+| **Entrer dans un dossier** | double-clic · fil d'Ariane pour remonter |
+| **Ajouter des images** | `Ctrl+I`, bouton `+ Images`, dépôt d'un fichier, `Ctrl+V` |
+| **Dupliquer / supprimer** | `Ctrl+D` · `Suppr` ou `Retour` |
+| **Annuler / rétablir** | `Ctrl+Z` · `Ctrl+Y` ou `Ctrl+Maj+Z` |
+| **Enregistrer / ouvrir** | `Ctrl+S` · `Ctrl+Maj+S` (enregistrer sous) · `Ctrl+O` |
+| **Recentrer la vue** | `F` (origine, échelle 1 — ne cadre pas encore le contenu) |
+| **Toujours au premier plan** | `Alt+T` |
 
 ---
 
-## 🛠️ Compilation & Tests
+## 🛠️ Compilation & tests
 
 ### Prérequis
-- [Rust toolchain](https://rustup.rs/) (édition 2021 stable ou plus récente).
+- [Rust toolchain](https://rustup.rs/) stable (le projet est vérifié avec la 1.95).
 - Aucun outil tiers, aucun Node.js, aucun GPU requis.
 
-### Lancer tous les tests (202 tests verts)
+### Vérifier
 ```bash
 cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-### Lancer l'application PureRef native
+### Lancer l'application
 ```bash
 cargo run -p glucose-desktop --release
 ```
 
-### Compiler les binaires de production
+### Mesurer
 ```bash
-cargo build --release -p glucose-desktop
+cargo run --release -p glucose-desktop --example bench_frame      # le budget de frame
+cargo run --release -p glucose-core    --example bench_arena      # 10⁷ nœuds
+cargo run --release -p glucose-desktop --example capture_temoin   # la scène de référence en PNG
 ```
-L'exécutable portable et autonome se trouve dans `target/release/glucose-desktop.exe` (ou `glucose-desktop` sous Linux/macOS).
+
+L'exécutable autonome se trouve dans `target/release/glucose-desktop.exe`.
 
 ---
 
@@ -273,4 +244,3 @@ L'exécutable portable et autonome se trouve dans `target/release/glucose-deskto
 **Glucose, c'est juste poser, relier, zoomer, explorer.**
 
 </div>
-

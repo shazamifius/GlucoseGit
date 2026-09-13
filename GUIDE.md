@@ -1,160 +1,99 @@
-# 📖 Guide d'utilisation Glucose (Natif Rust)
+# 📖 Guide d'utilisation de Glucose
 
-> **Glucose** est un canvas de référence infini natif en Rust, inspiré de **PureRef**. 
-> Une seule interface ultra-fluide, zéro boîte noire, zéro latence : pose, relie, zoome, explore.
-
----
-
-## 1. Démarrage rapide & Contrôles PureRef
-
-À l'ouverture, Glucose s'ouvre sur un canvas sombre infini quadrillé de points discrets.
-
-### 🖱️ Gestes fondamentaux (PureRef style)
-1. **Glisser-déposer des images** depuis l'explorateur de fichiers OS directement dans la fenêtre (WebP, PNG, JPEG, GIF, BMP) → elles s'insèrent immédiatement.
-2. **Coller depuis le presse-papiers (`Ctrl + V`)** :
-   - Copie n'importe quelle image depuis un navigateur (Pinterest, ArtStation, Google Images) ou capture d'écran, puis fais `Ctrl + V` dans Glucose : elle apparaît instantanément avec un toast de confirmation.
-3. **Bouton `+ Images` (`Ctrl + O`)** :
-   - Ouvre le sélecteur de fichiers natif de l'OS pour charger des lots complets d'images.
-4. **Pan (déplacer la vue)** :
-   - Maintiens le **Clic milieu** et glisse la souris, OU
-   - Maintiens le **Clic droit** et glisse la souris, OU
-   - Maintiens la barre **`Espace`** et glisse avec le clic gauche.
-5. **Zoom au curseur** :
-   - Fais tourner la **molette de la souris** : le zoom s'effectue exactement centré sur le point du monde sous ton curseur.
-6. **Cadrer tout (Fit)** :
-   - Appuie sur **`F`** pour recentrer la caméra sur l'origine du canvas.
-7. **Always on Top (Épingler au-dessus)** :
-   - Raccourci **`Alt + T`** : Glucose reste au premier plan au-dessus de Blender, Photoshop, ZBrush ou Krita pendant que tu crées.
-8. **Création rapide d'annotations** :
-   - **`T`** : Outil Carte Texte
-   - **`N`** : Outil Sticky Note
-   - **`A`** : Outil Flèche relationnelle
-   - **`M`** : Outil Membrane de regroupement
-   - **`V`** : Outil Sélection
-9. **Historique complet & Duplication** :
-   - **`Ctrl + Z`** : Annuler
-   - **`Ctrl + Y`** ou **`Ctrl + Shift + Z`** : Rétablir
-   - **`Ctrl + D`** : Dupliquer les éléments sélectionnés
-   - **`Suppr`** ou **`Retour arrière`** : Supprimer la sélection
-   - Bouton **`Ordonner`** : Réorganise instantanément les images et notes en grille propre.
+> Ce guide décrit **ce que le logiciel fait aujourd'hui** — pas ce qu'il fera. Chaque geste
+> ci-dessous est branché, annulable et enregistré. Ce qui manque encore est listé dans le
+> [README](README.md#-où-en-est-le-portage-honnêtement), et détaillé dans le
+> [dossier d'architecture](docs/architecture/00-INDEX.md).
 
 ---
 
-## 2. Vocabulaire du Système
+## 1. Le canvas
 
-| Terme | Définition |
+À l'ouverture, Glucose montre une feuille noire infinie, quadrillée de points, avec une carte
+d'accueil. Tout se pose dessus.
+
+| Geste | Comment |
 |---|---|
-| **Board** | Un espace de travail infini indépendant doté de ses propres images, annotations, membranes, dossiers et caméra. |
-| **Image** | Une référence visuelle native positionnée, redimensionnable, sélectionnable et déplaçable sur le canvas. |
-| **Annotation** | Éléments textuels ou vectoriels : notes stickies, blocs de texte Markdown, flèches relationnelles, membranes. |
-| **Sticky** | Note pense-bête colorée dotée d'opérateurs logiques optionnels (`AND`, `OR`, `BUT`, `BECAUSE`). |
-| **Texte** | Bloc typographique pour la prose structurée, avec ancrage sub-block de précision W3C. |
-| **Flèche** | Lien orienté entre deux éléments portant un **prédicat sémantique** (`inspire`, `contredit`, `dépend_de`…). |
-| **Membrane** | Conteneur élastique regroupant un ensemble d'éléments. Dispose de 3 modes : `Classic`, `Minimized`, `Stretched`. |
-| **Dossier** | Sous-canvas imbriqué capturant l'espace géométrique intérieur lors de sa création. |
-| **Miroir ↻** | Alias vivant d'un nœud ou dossier : toute modification de l'original se répercute instantanément, protégé contre les cycles infinis. |
-| **Domaine** | Catégorie sémantique (Science, Art, etc.) influençant la signature chromatique des membranes. |
+| **Se déplacer (pan)** | clic du milieu ou clic droit glissé · `Espace` + clic gauche glissé · outil main (`H`) |
+| **Zoomer** | molette — le point du monde sous le curseur ne bouge pas |
+| **Recentrer** | `F` ramène la caméra à l'origine, à l'échelle 1 (le cadrage sur le contenu n'est pas encore branché) |
+| **Minimap** | en bas à droite ; un clic dedans recentre la vue à cet endroit |
+| **Tableaux** | la barre d'onglets sous la barre d'outils ; `+` crée un tableau |
 
 ---
 
-## 3. Priorité de Hit & Sélection (Règles PICK-1)
+## 2. Poser
 
-Quand plusieurs éléments se superposent (par exemple du texte posé sur une image elle-même contenue dans une membrane), Glucose applique un arbitre déterministe en **7 rangs stricts** :
+| Outil | Touche | Ce qui se passe |
+|---|---|---|
+| **Images** | `Ctrl+I` ou bouton `+ Images` | un dialogue natif ; PNG, JPEG, WebP, GIF, BMP |
+| | dépôt depuis l'explorateur | un fichier à la fois, posé sous le curseur |
+| | `Ctrl+V` | colle une image du presse-papiers (capture, navigateur) |
+| **Carte texte** | `T` puis clic | une carte en édition, avec Markdown : `# titre`, `## sous-titre`, `- puce`, et des formules LaTeX (`$…$`, `$$…$$`) |
+| **Note adhésive** | `N` puis clic | une note jaune ; les opérateurs ET / OU / MAIS / PARCE QUE sont affichés quand une note en porte un |
+| **Flèche** | `A` puis clic | une flèche droite, à taille fixe pour l'instant |
+| **Membrane** | `M` puis clic | un cadre pointillé nommé, à taille fixe pour l'instant |
+| **Dossier** | bouton de la barre d'outils, puis clic | un sous-canvas ; double-clic pour y entrer, fil d'Ariane pour remonter |
 
-```
-[Rang 1] Poignées de redimensionnement (priorité absolue, taille généreuse constante à l'écran)
-   ↓
-[Rang 2] Bordure active du conteneur (bande périphérique et poignée de membrane / dossier)
-   ↓
-[Rang 3] Flèches vectorielles (tracé fin)
-   ↓
-[Rang 4] Images
-   ↓
-[Rang 5] Stickies
-   ↓
-[Rang 6] Textes (Terminus pour permettre le double-clic d'édition)
-   ↓
-[Rang 7] Intérieur du conteneur (un conteneur ne vole jamais un clic à son contenu)
-```
-
-### 🔄 Cyclage de sélection au clic
-- **Cliquer plusieurs fois sans bouger la souris** descend d'un cran dans la hiérarchie : 1er clic sur le bord d'une membrane → la membrane ; 2e clic → l'image sous-jacente ; 3e clic → la note.
-- L'avancement dans le cycle s'effectue **au relâchement du clic** (mouse up), afin de ne jamais perturber un glisser-déplacer d'élément.
-- Le cycle **s'arrête automatiquement sur les éléments éditables (texte, sticky)** pour préserver le geste naturel du double-clic d'édition.
+Une carte texte ou une note s'édite au **double-clic** : `Entrée` valide, `Maj+Entrée` saute
+une ligne, `Échap` sort. La hauteur d'une carte suit son texte. Une formule s'affiche rendue
+au repos et montre sa source pendant l'édition ; une formule fausse s'affiche en rouge, avec
+sa source.
 
 ---
 
-## 4. Magnétisme Intelligent (SNAP-1)
+## 3. Sélectionner et manipuler
 
-Lors du déplacement ou du redimensionnement d'un élément sélectionné :
-- Glucose calcule dynamiquement les alignements sur les bords gauche, droit, haut, bas et les centres des autres éléments visibles.
-- **Seuil de capture constant en pixels écran** : l'aimantation reste aussi précise et naturelle à fort dézoom qu'en très gros plan.
-- Des **guides d'alignement cyan et magenta** s'affichent instantanément à l'écran pour visualiser les correspondances géométriques.
-
----
-
-## 5. Membranes & Repères Locaux
-
-Les membranes réinventent le regroupement visuel :
-
-1. **Facteur d'échelle déduit $k$** :
-   $$k = \min\left(1, \frac{\text{largeur}}{\text{étendue}_X}, \frac{\text{hauteur}}{\text{étendue}_Y}\right)$$
-   L'échelle n'est jamais stockée sous forme de variable mutable : elle découle purement des dimensions de la membrane par rapport à l'étendue naturelle de son contenu.
-2. **Appartenance événementielle (`membrane_id`)** :
-   L'appartenance d'un élément à une membrane est persistée dès son dépôt géométrique. Une membrane minimisée ne « perd » jamais son contenu même si ses dimensions physiques deviennent inférieures aux éléments qu'elle abrite.
-3. **Mode Stretched (Étiré avec arrêt sur obstacles)** :
-   Une membrane configurée en mode étiré s'adapte automatiquement à l'ajout de nouveau contenu, mais stoppe sa course sans jamais écraser ou englober les éléments tiers extérieurs.
-4. **Mode Focus Asymétrique** :
-   - Entrée automatique lorsque la membrane couvre **$\ge 92\%$** de l'écran.
-   - Sortie lorsque le dézoom franchit **$\le 80\%$** de l'échelle de cadrage initial.
-   - Cette asymétrie garantit l'absence totale d'oscillations visuelles.
-
----
-
-## 6. Miroirs Vivants & Graphe Acyclique
-
-Les miroirs permettent de créer des alias interactifs d'images, de notes ou de dossiers entiers.
-- **Protection Anti-Inception (BFS Acyclique)** : Glucose vérifie par parcours en largeur que l'insertion d'un miroir ne génère aucun cycle de dépendance directe ou indirecte. Toute tentative de boucle infinie est rejetée de manière sécurisée.
-- **Téléportation source** : Cliquer sur le badge miroir ↻ recentre instantanément la caméra sur l'élément original, y compris s'il se trouve dans un autre board.
-
----
-
-## 7. Moteur d'Annulation / Rétablissement (Undo/Redo)
-
-Le store Glucose garantit un historique indestructible :
-- **Transparence de navigation** : Les manipulations de caméra (panoramique, zoom) ne polluent jamais la pile undo. Revenir en arrière annule l'action géométrique sans téléporter la caméra de l'utilisateur.
-- **Sessions atomiques (`begin_live_edit` / `end_live_edit`)** : Un glisser-déplacer d'un groupe d'éléments ou un redimensionnement continu ne génère qu'une seule et unique entrée dans l'historique lors du relâchement.
-- **Cascade d'intégrité** : La suppression d'un élément entraîne la suppression propre et réversible des miroirs associés et des flèches orphelines.
-
----
-
-## 8. Exportations Natives (0 Dépendance)
-
-Glucose intègre directement dans son moteur `glucose-core` :
-- **Export SVG vectoriel** : Génération d'un document SVG autonome complet représentant fidèlement la scène, les cadres, les textes échappés en toute sécurité, les flèches courbes et les têtes de flèches orientées.
-- **Export Markdown structuré** : Conversion hiérarchique du canvas en document Markdown clair, organisant les cartes, zones, liens sémantiques et textes sous forme de fiches lisibles.
-
----
-
-## 9. Tableau Récapitulatif des Raccourcis
-
-| Raccourci | Fonction |
+| Geste | Comment |
 |---|---|
-| **Clic milieu glissé** | Panoramique de la vue (PureRef style) |
-| **Clic droit glissé** | Panoramique de la vue (PureRef alternatif) |
-| **`Espace` + Clic gauche** | Panoramique de la vue classique |
-| **Molette souris** | Zoom avant / arrière centré sur le curseur |
-| **`Espace` (clic sec)** | Cadrer l'intégralité du contenu (Zoom to fit) |
-| **`F`** | Cadrer l'intégralité du contenu |
-| **`T`** | Basculer la fenêtre en **Always on Top** (toujours au premier plan) |
-| **Glisser-déposer de fichiers** | Importation instantanée d'images dans le canvas |
-| **Clic gauche** | Sélection / Cyclage de cible empilée |
-| **`Ctrl` + Clic gauche** | Multi-sélection additive |
-| **`Ctrl+D`** | Dupliquer les éléments sélectionnés |
-| **`Suppr` / `Backspace`** | Supprimer la sélection |
-| **`Ctrl+Z`** | Annuler la dernière action (sans perturber la vue) |
-| **`Ctrl+Y`** | Rétablir la dernière action |
-| **`Échap`** | Désélectionner / Quitter |
+| **Sélectionner** | clic · `Maj`+clic ajoute · glisser dans le vide dessine une sélection élastique · `Ctrl+A` |
+| **Déplacer** | glisser la sélection ; l'aimant aligne sur les bords et les centres des voisins et dessine des guides |
+| **Redimensionner** | huit poignées ; les coins gardent le rapport, `Maj` le libère ; `Échap` annule le geste |
+| **Dupliquer** | `Ctrl+D` — la copie est décalée de 20 px et sélectionnée |
+| **Supprimer** | `Suppr` ou `Retour` |
+| **Annuler / rétablir** | `Ctrl+Z` · `Ctrl+Y` ou `Ctrl+Maj+Z` — un geste entier (un glisser, une saisie) est une seule entrée, et la caméra ne bouge pas |
+
+Quand plusieurs éléments se superposent, le clic va au plus précis : une poignée avant un
+bord, un bord avant une flèche, puis l'image, la note, le texte, et enfin l'intérieur d'un
+conteneur — une membrane ne vole jamais un clic à son contenu.
+
+---
+
+## 4. Les panneaux
+
+| Bouton | Ce qu'il fait |
+|---|---|
+| **Ordonner** | huit tris et cinq dispositions ; `Appliquer` réarrange les images du tableau, en un geste annulable |
+| **Timer** | un Pomodoro qui décompte pour de bon |
+| **Domaines** | créer, renommer, colorer, supprimer des domaines ; les assigner à la sélection avec un poids ; chaque nœud porte une jauge par domaine |
+| **Storyboard, Preset, Plugins** | les panneaux existent et **disent qu'ils ne font pas encore leur travail** — aucun bouton ne simule une action |
+| **Collaborer, Exporter** | pas encore disponibles ; le bouton le dit |
+
+Les panneaux se glissent par leur poignée `⠿⠿` ; les tirer au-delà du bord les ferme.
+
+---
+
+## 5. Enregistrer
+
+| Geste | Comment |
+|---|---|
+| **Enregistrer** | `Ctrl+S` — la première fois, un dialogue ; ensuite, en silence |
+| **Enregistrer sous** | `Ctrl+Maj+S` |
+| **Ouvrir** | `Ctrl+O` |
+| **Fermer** | la croix pose la question si le document est modifié ; un enregistrement raté ne ferme pas |
+
+Le fichier `.glucose` est binaire, écrit de façon atomique (le fichier précédent survit à un
+crash pendant l'écriture), avec une somme de contrôle par section et une seule copie de chaque
+image, quel que soit le nombre de fois où elle est posée. Les fichiers de la version Tauri ne
+s'ouvrent pas encore.
+
+---
+
+## 6. La fenêtre
+
+| Geste | Comment |
+|---|---|
+| **Toujours au premier plan** | `Alt+T` — pour garder Glucose au-dessus de Blender, Krita ou Photoshop |
 
 ---
 
@@ -162,7 +101,6 @@ Glucose intègre directement dans son moteur `glucose-core` :
 
 **Glucose, c'est juste poser, relier, zoomer, explorer.**
 
-[← Retour au README](README.md) · [Handoff Technique](HANDOFF.md)
+[← Retour au README](README.md)
 
 </div>
-

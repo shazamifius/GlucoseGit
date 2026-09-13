@@ -1,29 +1,31 @@
 <!--
-Merci pour ta contribution ! Voici quelques infos pour faciliter la review.
+Merci pour ta contribution ! Voici quelques infos pour faciliter la relecture.
 -->
 
 ## Description
 
-<!-- Que fait cette PR ? Quel problème elle résout ? -->
+<!-- Que fait cette PR ? Quel problème elle résout ? Le *pourquoi* avant le *quoi*. -->
 
 ## Type de changement
 
-- [ ] 🐛 Bug fix
-- [ ] ✨ Nouvelle fonctionnalité
-- [ ] ♻️ Refactor (pas de changement de comportement)
+- [ ] 🐛 Correction
+- [ ] ✨ Fonctionnalité — branchée, visible, annulable, enregistrée (les quatre)
+- [ ] ♻️ Refonte (pas de changement de comportement)
 - [ ] 📚 Documentation
 - [ ] 🔒 Sécurité
-- [ ] ⚡ Performance
+- [ ] ⚡ Performance — avec la mesure avant / après
 - [ ] 🧪 Tests
 
-## Phase ROADMAP
+## Chantier
 
-<!-- Si applicable, à quelle phase de la ROADMAP ce changement contribue ? -->
+<!-- À quel chantier de docs/architecture/12-PLAN-D-EXECUTION.md ce changement contribue ? -->
 
 ## Checklist
 
-- [ ] `bun run typecheck` passe
-- [ ] `bun run test` passe
-- [ ] `bun run lint` n'a pas d'erreurs (warnings tolérés)
-- [ ] Testé runtime sur mon OS
-- [ ] Documentation mise à jour si nécessaire (GUIDE / ROADMAP)
+- [ ] `cargo fmt --all -- --check` passe
+- [ ] `cargo clippy --workspace --all-targets -- -D warnings` passe, sans `#[allow]` ajouté
+- [ ] `cargo test --workspace` passe
+- [ ] `glucose-core` n'a toujours aucune dépendance
+- [ ] Aucun bouton n'annonce une action qui n'a pas lieu
+- [ ] Le message de commit décrit ce que fait le code (vérifiable par `grep`)
+- [ ] Documentation mise à jour si nécessaire (README, GUIDE, dossier d'architecture)

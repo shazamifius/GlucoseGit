@@ -27,6 +27,10 @@
 | **11** | [Plan de marche](11-PLAN-DE-MARCHE.md) | **La charte confrontée aux fiches 02 et 04** : 100 fps (budget 10 ms), netteté à l’arrêt, cible 10^7 nœuds (canva Wikipédia), dépendances minimales mais assumees. Mesures refaites a la main, 6 remises en question chiffrées (modèle 512 o/noeud, blit 4K a 9,6 ms = 96 % du budget, tuiles vs LOD, parité TS invalide comme étalon, les arêtes Wikipédia = le vrai milliard, auto-critique du zéro-dépendance), ordre de marche A→G. | Pour les six remises en question. **Son § 4 est remplacé à partir de l'étape C par la fiche 12.** |
 | **12** | [Plan d'exécution](12-PLAN-D-EXECUTION.md) | **Tout ce qui reste, dans l'ordre.** Pourquoi l'étape C (tuiles, GPU) cède sa place : un cache de tuiles se conçoit quand on sait ce qu'il y a dans une tuile. La règle S qui rend cet ordre possible, l'état mesuré au commit `acceb0d` (2 868 lignes de noyau sans appelant), cinq vagues de chantiers avec leur sortie mesurable, et la seule vraie inconnue : le LaTeX. | **Avant de choisir quoi faire ensuite.** |
 
+À côté, [`docs/heritage/`](../heritage/README.md) garde la roadmap et la spécification de
+**Glucose Tauri** — l'inventaire du *quoi* et la vision, jamais un modèle du *comment*. Ce
+qu'elles déclarent « fait » l'est dans `src/`, pas dans les crates.
+
 ---
 
 ## Le diagnostic en cinq phrases

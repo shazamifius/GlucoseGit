@@ -8,7 +8,7 @@
 
 **Statut :** document de vision (le code d'aujourd'hui ne l'implémente pas encore — voir
 [§9 Écart avec le code actuel](#9-écart-avec-le-code-actuel)).
-Il répond à l'item « Spécifier le contrat plugin » de [ROADMAP.md](ROADMAP.md).
+Il répond à l'item « Spécifier le contrat plugin » de la [roadmap héritée de Glucose Tauri](docs/heritage/ROADMAP-TAURI.md).
 
 ---
 
@@ -241,7 +241,7 @@ Ce qui ne doit pas être négocié, même sous la pression d'un cas particulier 
 5. **Un service est anonyme.** Un consommateur ne nomme jamais son fournisseur.
 6. **La donnée de l'utilisateur passe avant tout.** Un plugin ajoute, il n'écrase pas.
 7. **L'IA décide le sens, le code décide la géométrie** (règle d'or héritée du moteur
-   `glucose-notes`, cf. ROADMAP.md) : un modèle ne renvoie jamais de coordonnées.
+   `glucose-notes`, cf. `docs/heritage/ROADMAP-TAURI.md`) : un modèle ne renvoie jamais de coordonnées.
 
 ---
 
