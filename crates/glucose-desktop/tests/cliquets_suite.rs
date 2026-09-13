@@ -1,0 +1,790 @@
+//! **Les cliquets** : des nombres que le dépôt ne peut que faire descendre.
+//!
+//! # Pourquoi ce test existe
+//!
+//! Chaque dérive de ce dépôt a été constatée, écrite dans une fiche, et s'est reproduite :
+//! les toasts sont passés de 24 à 46 pendant qu'un audit demandait de les réduire ;
+//! `window_event` a atteint 728 lignes, a été éclaté, et sa masse s'est reposée dans
+//! `handle_mouse_down` ; des modules du noyau ont été écrits, testés, et jamais appelés,
+//! pendant que d'autres naissaient. La fiche 11 (§ 4, étape A) en a tiré la seule conclusion
+//! qui tienne : **une règle qu'on ne mesure pas est une règle qu'on perd.**
+//!
+//! # La mécanique
+//!
+//! Chaque cliquet mesure un nombre et le compare à un plafond écrit ici. Monter fait échouer
+//! le build. Descendre nettement fait échouer le build *aussi* — pour que le plafond soit
+//! abaissé et que le terrain gagné ne se reperde pas. Le correctif d'un échec n'est jamais de
+//! relever un plafond : c'est de faire ce que le message demande.
+//!
+//! # Ce qui n'est pas compté
+//!
+//! Les tests et les preuves. Ils ont le droit de regarder le modèle de près, d'être longs,
+//! et d'appeler ce qu'ils veulent : c'est leur travail. Seul le code qui **tourne chez
+//! l'utilisateur** est soumis aux cliquets.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+// ── Le balayage ─────────────────────────────────────────────────────────────
+
+/// Un fichier de production : son chemin, et son texte **sans** son bloc de tests en ligne.
+struct Source {
+    chemin: PathBuf,
+    texte: String,
+}
+
+/// Tous les `.rs` de production sous une racine : ni les fichiers de tests ou de preuves, ni
+/// ce qui suit un `#[cfg(test)]` dans un fichier de production.
+fn sources(racine: &Path) -> Vec<Source> {
+    let mut out = Vec::new();
+    let Ok(entrees) = fs::read_dir(racine) else {
+        return out;
+    };
+    let mut chemins: Vec<PathBuf> = entrees.flatten().map(|e| e.path()).collect();
+    chemins.sort();
+    for chemin in chemins {
+        let nom = chemin.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if chemin.is_dir() {
+            if nom != "tests" {
+                out.extend(sources(&chemin));
+            }
+        } else if nom.ends_with(".rs") && !nom.contains("tests") && !nom.contains("proof") {
+            let Ok(texte) = fs::read_to_string(&chemin) else {
+                continue;
+            };
+            let production = match texte.find("#[cfg(test)]") {
+                Some(i) => texte[..i].to_string(),
+                None => texte,
+            };
+            out.push(Source {
+                chemin,
+                texte: production,
+            });
+        }
+    }
+    out
+}
+
+fn racine_du_workspace() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .canonicalize()
+        .expect("le workspace est deux niveaux au-dessus du crate")
+}
+
+fn src_desktop() -> PathBuf {
+    racine_du_workspace()
+        .join("crates")
+        .join("glucose-desktop")
+        .join("src")
+}
+
+fn src_core() -> PathBuf {
+    racine_du_workspace()
+        .join("crates")
+        .join("glucose-core")
+        .join("src")
+}
+
+/// Le chemin d'une source, court et lisible dans un message d'échec.
+fn court(chemin: &Path) -> String {
+    let racine = racine_du_workspace();
+    chemin
+        .strip_prefix(&racine)
+        .unwrap_or(chemin)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+/// Une ligne de code sans ses chaînes ni son commentaire de fin : ce qu'il reste compte des
+/// accolades et des appels, rien d'autre.
+fn nue(ligne: &str) -> String {
+    let mut out = String::with_capacity(ligne.len());
+    let chars: Vec<char> = ligne.chars().collect();
+    let mut i = 0;
+    let mut dans_chaine = false;
+    while i < chars.len() {
+        let c = chars[i];
+        if dans_chaine {
+            if c == '\\' {
+                i += 2;
+                continue;
+            }
+            if c == '"' {
+                dans_chaine = false;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            '"' => dans_chaine = true,
+            '/' if chars.get(i + 1) == Some(&'/') => break,
+            // Un caractère littéral — `'{'`, `'\n'` — n'est pas une accolade ni une durée de vie.
+            '\'' if chars.get(i + 2) == Some(&'\'') => {
+                i += 3;
+                continue;
+            }
+            '\'' if chars.get(i + 1) == Some(&'\\') && chars.get(i + 3) == Some(&'\'') => {
+                i += 4;
+                continue;
+            }
+            _ => out.push(c),
+        }
+        i += 1;
+    }
+    out
+}
+
+fn est_debut_de_fonction(ligne: &str) -> Option<String> {
+    let l = ligne.trim_start();
+    let l = l.strip_prefix("pub ").unwrap_or(l);
+    let l = l.strip_prefix("pub(crate) ").unwrap_or(l);
+    let l = l.strip_prefix("pub(super) ").unwrap_or(l);
+    let mut l = l;
+    for prefixe in ["const ", "async ", "unsafe ", "extern \"C\" "] {
+        l = l.strip_prefix(prefixe).unwrap_or(l);
+    }
+    let reste = l.strip_prefix("fn ")?;
+    let nom: String = reste
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    (!nom.is_empty()).then_some(nom)
+}
+
+/// Les fonctions d'un fichier avec leur longueur en lignes, signature et accolade fermante
+/// comprises.
+fn fonctions(texte: &str) -> Vec<(String, usize)> {
+    let lignes: Vec<&str> = texte.lines().collect();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < lignes.len() {
+        let Some(nom) = est_debut_de_fonction(lignes[i]) else {
+            i += 1;
+            continue;
+        };
+        let debut = i;
+        let mut profondeur = 0i32;
+        let mut ouverte = false;
+        let mut fin = None;
+        for (j, ligne) in lignes.iter().enumerate().skip(debut) {
+            let propre = nue(ligne);
+            if !ouverte && propre.contains(';') && !propre.contains('{') {
+                // Une déclaration de trait sans corps.
+                break;
+            }
+            for c in propre.chars() {
+                match c {
+                    '{' => {
+                        profondeur += 1;
+                        ouverte = true;
+                    }
+                    '}' => profondeur -= 1,
+                    _ => {}
+                }
+            }
+            if ouverte && profondeur <= 0 {
+                fin = Some(j);
+                break;
+            }
+        }
+        match fin {
+            Some(f) => {
+                out.push((nom, f - debut + 1));
+                i = f + 1;
+            }
+            None => i += 1,
+        }
+    }
+    out
+}
+
+// ── Cliquet 1 : le couplage du desktop au modèle (règle S) ──────────────────
+
+/// Les champs de collection du modèle. Les toucher directement, c'est connaître la
+/// représentation.
+const CHAMPS: &[&str] = &[".annotations", ".images", ".folders", ".boards"];
+
+/// Le plafond, relevé au commit qui a introduit ce cliquet. Il ne doit que **descendre**.
+///
+/// Ce n'est pas un objectif de qualité mais un cliquet : chaque fonctionnalité neuve qui passe
+/// par l'API du `Store` laisse ce nombre où il est, et chaque conversion d'un site existant le
+/// fait baisser. Le jour où il atteint zéro, la substitution de l'arène ne touche plus que le
+/// `store` (fiche 12 § 3).
+///
+/// Il valait 66 quand il comptait aussi les tests en ligne des fichiers de production ; il n'en
+/// compte plus que le code, et trente accès directs vivaient dans ces tests.
+const PLAFOND_COUPLAGE: usize = 36;
+
+fn compte_couplage() -> usize {
+    sources(&src_desktop())
+        .iter()
+        .flat_map(|s| s.texte.lines())
+        .filter(|ligne| !ligne.trim_start().starts_with("//"))
+        .filter(|ligne| CHAMPS.iter().any(|c| ligne.contains(c)))
+        .count()
+}
+
+/// **Le couplage du desktop au modèle ne grandit pas.**
+///
+/// Si ce test échoue en disant que le compte a monté, c'est qu'un module neuf lit ou écrit les
+/// collections du modèle en direct. Le correctif n'est jamais de relever le plafond : c'est de
+/// passer par l'API du `Store`, en l'étendant si elle ne sait pas encore faire ce qu'il faut.
+#[test]
+fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
+    let compte = compte_couplage();
+    assert!(
+        compte <= PLAFOND_COUPLAGE,
+        "le couplage au modèle a monté : {compte} accès directs contre {PLAFOND_COUPLAGE} \
+         autorisés. Passer par l'API du Store (règle S, fiche 12 § 3) plutôt que par les \
+         champs du modèle."
+    );
+    assert!(
+        compte >= PLAFOND_COUPLAGE.saturating_sub(4),
+        "le couplage est descendu à {compte} : abaisser PLAFOND_COUPLAGE à cette valeur pour \
+         que le terrain gagné ne se reperde pas"
+    );
+}
+
+// ── Cliquet 2 : les toasts ──────────────────────────────────────────────────
+
+/// Le nombre de sites qui émettent un toast, relevé au commit qui a introduit ce cliquet.
+///
+/// Un toast n'a le droit de dire qu'une chose : ce qui **vient d'avoir lieu**. L'audit en
+/// comptait 24, dont dix décrivaient une action qui n'avait pas lieu ; ils sont 46 aujourd'hui.
+/// Le nombre ne prouve pas la vérité de chaque message, mais il interdit la prolifération, et
+/// chaque site retiré est un site de moins à relire.
+const PLAFOND_TOASTS: usize = 46;
+
+fn compte_toasts() -> usize {
+    sources(&src_desktop())
+        .iter()
+        .flat_map(|s| s.texte.lines())
+        .map(nue)
+        .filter(|ligne| ligne.contains("show_toast(") && !ligne.contains("fn show_toast"))
+        .count()
+}
+
+/// **Le nombre de toasts ne grandit pas.**
+///
+/// Un échec à la hausse veut dire qu'un nouveau message a été ajouté. Avant de relever quoi
+/// que ce soit : ce message décrit-il une action qui vient d'avoir lieu ? Si oui, un autre
+/// toast peut sans doute disparaître à la place ; si non, c'est un bouton qui ment (fiche 05
+/// § 5.4), et il ne passe pas.
+#[test]
+fn test_cliquet_2_le_nombre_de_toasts_ne_grandit_pas() {
+    let compte = compte_toasts();
+    assert!(
+        compte <= PLAFOND_TOASTS,
+        "un toast de plus : {compte} sites contre {PLAFOND_TOASTS} autorisés. Un toast ne dit \
+         que ce qui vient d'avoir lieu — et un de plus, c'est un de trop à relire."
+    );
+    assert!(
+        compte >= PLAFOND_TOASTS.saturating_sub(4),
+        "les toasts sont descendus à {compte} : abaisser PLAFOND_TOASTS à cette valeur"
+    );
+}
+
+// ── Cliquet 3 : les modules du noyau sans appelant ──────────────────────────
+
+/// Les modules de `glucose-core` qu'aucun chemin de production n'atteint, **admis** tels quels
+/// au commit qui a introduit ce cliquet. Chacun a son chantier dans la fiche 12 ; aucun autre
+/// ne doit les rejoindre, et chacun doit être retiré d'ici le jour où il est branché.
+///
+/// « Atteint » se calcule, il ne s'affirme pas : un module est atteint s'il est nommé par le
+/// desktop en production, ou par un module du noyau lui-même atteint — la fermeture
+/// transitive depuis l'application. Un module atteint n'est pas pour autant *branché* au sens
+/// de la règle R1 (visible, annulable, enregistré) : ce cliquet mesure le graphe d'appel,
+/// pas l'expérience de l'utilisateur.
+const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
+    // La fondation 10⁷ (fiche 11, étape B), en attente de sa substitution (fiche 12, vague 4).
+    "arena",
+    "fixed",
+    // Écrits et testés, en attente de leur geste (fiche 12 § 4).
+    "arrow_anchor",
+    "curtain_model",
+    "curtain_panel",
+    "export",
+    "membrane_stretch",
+    "mirror_graph",
+    "text_anchors",
+    "timeline",
+    // Outillage de mesure : les documents synthétiques des bancs et de la capture témoin. Il
+    // vit dans le noyau pour rester sans dépendance et se tester sans écran ; il n'a pas
+    // vocation à être atteint par l'application, seulement par les exemples et les tests.
+    "synth",
+];
+
+/// Les modules déclarés par `lib.rs`.
+fn modules_du_noyau() -> BTreeSet<String> {
+    let lib = fs::read_to_string(src_core().join("lib.rs")).expect("lib.rs du noyau");
+    lib.lines()
+        .filter_map(|l| l.trim().strip_prefix("pub mod "))
+        .filter_map(|l| l.strip_suffix(';'))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Les identifiants de tête qui suivent un `prefixe::` dans un texte : `prefixe::a::b` donne
+/// `a`, et `prefixe::{a, b::c, d}` donne `a`, `b` et `d` — y compris sur plusieurs lignes,
+/// puisque rustfmt éclate les imports longs.
+fn references(texte: &str, prefixe: &str) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let motif = format!("{prefixe}::");
+    let mut reste = texte;
+    while let Some(i) = reste.find(&motif) {
+        let apres = &reste[i + motif.len()..];
+        if let Some(groupe) = apres.strip_prefix('{') {
+            let mut profondeur = 1;
+            let mut fin = 0;
+            for (j, c) in groupe.char_indices() {
+                match c {
+                    '{' => profondeur += 1,
+                    '}' => {
+                        profondeur -= 1;
+                        if profondeur == 0 {
+                            fin = j;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            for item in groupe[..fin].split(',') {
+                let ident: String = item
+                    .trim()
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if !ident.is_empty() {
+                    out.insert(ident);
+                }
+            }
+            reste = &groupe[fin..];
+        } else {
+            let ident: String = apres
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if !ident.is_empty() {
+                out.insert(ident);
+            }
+            reste = apres;
+        }
+    }
+    out
+}
+
+/// Le module du noyau auquel appartient un fichier : le premier segment de son chemin sous
+/// `src/`, sans son extension. `lib.rs` n'appartient à aucun.
+fn module_de(chemin: &Path) -> Option<String> {
+    let relatif = chemin.strip_prefix(src_core()).ok()?;
+    let premier = relatif.components().next()?.as_os_str().to_str()?;
+    let nom = premier.strip_suffix(".rs").unwrap_or(premier);
+    (nom != "lib").then(|| nom.to_string())
+}
+
+/// Les modules du noyau qu'aucun chemin de production n'atteint.
+fn modules_sans_appelant() -> BTreeSet<String> {
+    let modules = modules_du_noyau();
+
+    // Les racines : ce que le desktop nomme en production.
+    let mut atteints: BTreeSet<String> = sources(&src_desktop())
+        .iter()
+        .flat_map(|s| references(&s.texte, "glucose_core"))
+        .filter(|m| modules.contains(m))
+        .collect();
+
+    // Les arêtes internes : ce que chaque module du noyau nomme par `crate::`.
+    let mut aretes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for source in sources(&src_core()) {
+        let Some(de) = module_de(&source.chemin) else {
+            continue;
+        };
+        let vers: Vec<String> = references(&source.texte, "crate")
+            .into_iter()
+            .filter(|m| modules.contains(m) && *m != de)
+            .collect();
+        aretes.entry(de).or_default().extend(vers);
+    }
+
+    // La fermeture transitive.
+    let mut frontiere: Vec<String> = atteints.iter().cloned().collect();
+    while let Some(m) = frontiere.pop() {
+        for suivant in aretes.get(&m).into_iter().flatten() {
+            if atteints.insert(suivant.clone()) {
+                frontiere.push(suivant.clone());
+            }
+        }
+    }
+
+    modules.difference(&atteints).cloned().collect()
+}
+
+/// **Aucun module du noyau ne rejoint les modules sans appelant, et chacun en sort un jour.**
+///
+/// À la hausse : un module vient d'être écrit sans son appelant. C'est R-18, la maladie
+/// chronique de ce dépôt (fiche 05 § 7.6 : *aucun module n'est mergé sans son appelant*). Le
+/// correctif est de brancher le module, pas de l'ajouter à la liste.
+///
+/// À la baisse : un module admis vient d'être atteint — le retirer de la liste, pour qu'il ne
+/// puisse plus redevenir orphelin sans bruit.
+#[test]
+fn test_cliquet_3_aucun_module_du_noyau_ne_rejoint_les_sans_appelant() {
+    let mesures = modules_sans_appelant();
+    let admis: BTreeSet<String> = MODULES_SANS_APPELANT_ADMIS
+        .iter()
+        .map(|m| m.to_string())
+        .collect();
+
+    let nouveaux: Vec<&String> = mesures.difference(&admis).collect();
+    assert!(
+        nouveaux.is_empty(),
+        "module(s) du noyau sans appelant depuis l'application : {nouveaux:?}. Un module \
+         arrive avec son appelant (fiche 05 § 7.6) — le brancher, pas l'admettre."
+    );
+
+    let branches: Vec<&String> = admis.difference(&mesures).collect();
+    assert!(
+        branches.is_empty(),
+        "module(s) désormais atteint(s) : {branches:?}. Les retirer de \
+         MODULES_SANS_APPELANT_ADMIS pour que le terrain gagné ne se reperde pas."
+    );
+}
+
+// ── Cliquet 4 : les tailles ─────────────────────────────────────────────────
+
+/// Au-delà de cette longueur, une fonction est une dette nommée (fiche 11, A.4 : 80 lignes ;
+/// la fiche 05 en demande 60 — le cliquet part de la limite la plus indulgente et descendra).
+const FONCTION_MAX: usize = 80;
+/// Au-delà de cette taille, un fichier est une dette nommée (fiche 11, A.4 : 600 lignes).
+const FICHIER_MAX: usize = 600;
+
+/// Les fonctions de production plus longues que [`FONCTION_MAX`], **admises** telles quelles
+/// au commit qui a introduit ce cliquet, avec leur longueur d'alors. Chacune ne peut que
+/// raccourcir ; aucune autre ne doit les rejoindre.
+///
+/// C'est la dette de structure de ce dépôt, nommée fonction par fonction. La plus lourde est
+/// `handle_mouse_down` : l'ancien `window_event`, éclaté par catégorie d'événement et non par
+/// niveau d'abstraction (fiche 01, R-41).
+const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
+    // (fichier, fonction, longueur admise) — mesurées après le passage sous rustfmt.
+    (
+        "crates/glucose-core/src/arena/bridge/export.rs",
+        "annotation",
+        82,
+    ),
+    (
+        "crates/glucose-core/src/arena/bridge/import.rs",
+        "fill_annotation",
+        111,
+    ),
+    ("crates/glucose-core/src/arena/doc.rs", "check", 100),
+    ("crates/glucose-core/src/export.rs", "build_scene", 169),
+    (
+        "crates/glucose-core/src/export.rs",
+        "scene_to_markdown",
+        108,
+    ),
+    (
+        "crates/glucose-core/src/hit_priority/candidates.rs",
+        "collect_candidates",
+        198,
+    ),
+    (
+        "crates/glucose-core/src/hit_priority/candidates.rs",
+        "ensure_dom_hint",
+        112,
+    ),
+    (
+        "crates/glucose-core/src/layout.rs",
+        "calculate_image_layout",
+        212,
+    ),
+    (
+        "crates/glucose-core/src/layout.rs",
+        "organize_board_grid",
+        96,
+    ),
+    (
+        "crates/glucose-core/src/membrane_focus.rs",
+        "focus_decision",
+        103,
+    ),
+    (
+        "crates/glucose-core/src/membrane_space.rs",
+        "items_of_board",
+        90,
+    ),
+    (
+        "crates/glucose-core/src/membrane_space.rs",
+        "project_board",
+        228,
+    ),
+    (
+        "crates/glucose-core/src/membrane_space.rs",
+        "resolve_items",
+        86,
+    ),
+    ("crates/glucose-core/src/smart_align.rs", "snap_resize", 94),
+    ("crates/glucose-core/src/synth.rs", "showcase", 105),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "compute_panel_layouts",
+        83,
+    ),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "handle_dock_click",
+        118,
+    ),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "layout_organize_panel",
+        101,
+    ),
+    ("crates/glucose-desktop/src/dock.rs", "render_docks", 128),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "render_organize_content",
+        365,
+    ),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "render_plugins_content",
+        329,
+    ),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "render_pomodoro_content",
+        260,
+    ),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "render_preset_content",
+        226,
+    ),
+    (
+        "crates/glucose-desktop/src/dock.rs",
+        "render_storyboard_content",
+        296,
+    ),
+    (
+        "crates/glucose-desktop/src/dock/domains/paint.rs",
+        "draw_row",
+        81,
+    ),
+    (
+        "crates/glucose-desktop/src/icons.rs",
+        "draw_icon_scaled",
+        316,
+    ),
+    (
+        "crates/glucose-desktop/src/interactions/clipboard.rs",
+        "paste_from_clipboard",
+        102,
+    ),
+    (
+        "crates/glucose-desktop/src/interactions/mouse.rs",
+        "handle_mouse_down",
+        471,
+    ),
+    (
+        "crates/glucose-desktop/src/interactions/selection.rs",
+        "finish_selection_box",
+        86,
+    ),
+    (
+        "crates/glucose-desktop/src/interactions/text_edit.rs",
+        "handle_text_key",
+        93,
+    ),
+    ("crates/glucose-desktop/src/renderer.rs", "render", 102),
+    (
+        "crates/glucose-desktop/src/renderer/card.rs",
+        "draw_card_body",
+        93,
+    ),
+    (
+        "crates/glucose-desktop/src/renderer/folder.rs",
+        "draw_frame",
+        98,
+    ),
+    (
+        "crates/glucose-desktop/src/renderer/note.rs",
+        "draw_sticky",
+        119,
+    ),
+    (
+        "crates/glucose-desktop/src/renderer/scene.rs",
+        "draw_membrane_shape",
+        93,
+    ),
+    (
+        "crates/glucose-desktop/src/renderer/scene.rs",
+        "draw_membranes",
+        86,
+    ),
+];
+
+/// Les fichiers de production plus longs que [`FICHIER_MAX`], admis tels quels. `dock.rs`
+/// tombe le premier : la fiche 11 le nomme.
+const FICHIERS_LONGS_ADMIS: &[(&str, usize)] = &[
+    // (fichier, lignes de production admises) — mesurées après le passage sous rustfmt.
+    ("crates/glucose-core/src/membrane_space.rs", 721),
+    ("crates/glucose-core/src/types.rs", 771),
+    ("crates/glucose-desktop/src/dock.rs", 2703),
+    ("crates/glucose-desktop/src/renderer/card.rs", 705),
+    ("crates/glucose-desktop/src/renderer/scene.rs", 683),
+];
+
+fn mesure_fonctions_longues() -> BTreeMap<(String, String), usize> {
+    let mut out = BTreeMap::new();
+    for source in sources(&src_core())
+        .into_iter()
+        .chain(sources(&src_desktop()))
+    {
+        for (nom, longueur) in fonctions(&source.texte) {
+            if longueur > FONCTION_MAX {
+                out.insert((court(&source.chemin), nom), longueur);
+            }
+        }
+    }
+    out
+}
+
+fn mesure_fichiers_longs() -> BTreeMap<String, usize> {
+    sources(&src_core())
+        .into_iter()
+        .chain(sources(&src_desktop()))
+        .map(|s| (court(&s.chemin), s.texte.lines().count()))
+        .filter(|(_, n)| *n > FICHIER_MAX)
+        .collect()
+}
+
+/// **Aucune fonction ne dépasse 80 lignes, hormis celles nommées ici — et celles-ci ne
+/// grandissent pas.**
+///
+/// À la hausse : soit une fonction neuve dépasse la limite, soit une fonction admise a
+/// grossi. Dans les deux cas, la réponse est la règle 1.7 de la fiche 05 — extraire, traduire
+/// l'événement en intention, faire une fonction courte de plus — jamais d'allonger la liste.
+///
+/// À la baisse : une fonction admise est repassée sous la limite, ou a nettement raccourci.
+/// Mettre la liste à jour, pour que le terrain gagné ne se reperde pas.
+#[test]
+fn test_cliquet_4a_aucune_fonction_ne_depasse_sa_longueur_admise() {
+    let mesures = mesure_fonctions_longues();
+    let admises: BTreeMap<(String, String), usize> = FONCTIONS_LONGUES_ADMISES
+        .iter()
+        .map(|(f, n, l)| ((f.to_string(), n.to_string()), *l))
+        .collect();
+
+    let mut fautes = Vec::new();
+    for ((fichier, nom), longueur) in &mesures {
+        match admises.get(&(fichier.clone(), nom.clone())) {
+            None => fautes.push(format!(
+                "{fichier}::{nom} fait {longueur} lignes (> {FONCTION_MAX}) et n'est pas admise"
+            )),
+            Some(admise) if longueur > admise => fautes.push(format!(
+                "{fichier}::{nom} a grossi : {longueur} lignes contre {admise} admises"
+            )),
+            _ => {}
+        }
+    }
+    assert!(
+        fautes.is_empty(),
+        "la structure a dérivé :\n  {}\nExtraire (fiche 05 § 1.1, § 1.7), ne pas admettre.",
+        fautes.join("\n  ")
+    );
+
+    let mut a_mettre_a_jour = Vec::new();
+    for ((fichier, nom), admise) in &admises {
+        match mesures.get(&(fichier.clone(), nom.clone())) {
+            None => a_mettre_a_jour.push(format!(
+                "{fichier}::{nom} est repassée sous {FONCTION_MAX} lignes : la retirer de la \
+                 liste"
+            )),
+            Some(longueur) if *longueur + 8 <= *admise => a_mettre_a_jour.push(format!(
+                "{fichier}::{nom} a raccourci : {longueur} lignes contre {admise} admises — \
+                 abaisser"
+            )),
+            _ => {}
+        }
+    }
+    assert!(
+        a_mettre_a_jour.is_empty(),
+        "du terrain gagné à consolider :\n  {}",
+        a_mettre_a_jour.join("\n  ")
+    );
+}
+
+/// **Aucun fichier ne dépasse 600 lignes, hormis ceux nommés ici — et ceux-ci ne grandissent
+/// pas.**
+#[test]
+fn test_cliquet_4b_aucun_fichier_ne_depasse_sa_taille_admise() {
+    let mesures = mesure_fichiers_longs();
+    let admis: BTreeMap<String, usize> = FICHIERS_LONGS_ADMIS
+        .iter()
+        .map(|(f, l)| (f.to_string(), *l))
+        .collect();
+
+    let mut fautes = Vec::new();
+    for (fichier, lignes) in &mesures {
+        match admis.get(fichier) {
+            None => fautes.push(format!(
+                "{fichier} fait {lignes} lignes (> {FICHIER_MAX}) et n'est pas admis"
+            )),
+            Some(a) if lignes > a => fautes.push(format!(
+                "{fichier} a grossi : {lignes} lignes contre {a} admises"
+            )),
+            _ => {}
+        }
+    }
+    assert!(
+        fautes.is_empty(),
+        "un fichier a dérivé :\n  {}\nÉclater (fiche 05 § 1.2), ne pas admettre.",
+        fautes.join("\n  ")
+    );
+
+    let mut a_mettre_a_jour = Vec::new();
+    for (fichier, a) in &admis {
+        match mesures.get(fichier) {
+            None => a_mettre_a_jour.push(format!(
+                "{fichier} est repassé sous {FICHIER_MAX} lignes : le retirer de la liste"
+            )),
+            Some(lignes) if *lignes + 30 <= *a => a_mettre_a_jour.push(format!(
+                "{fichier} a fondu : {lignes} lignes contre {a} admises — abaisser"
+            )),
+            _ => {}
+        }
+    }
+    assert!(
+        a_mettre_a_jour.is_empty(),
+        "du terrain gagné à consolider :\n  {}",
+        a_mettre_a_jour.join("\n  ")
+    );
+}
+
+// ── Le compteur de fonctions se vérifie lui-même ────────────────────────────
+
+#[test]
+fn test_le_compteur_de_fonctions_lit_une_fonction_a_travers_ses_chaines_et_commentaires() {
+    let texte = "\
+pub fn a() {
+    let s = \"{\"; // }
+    let c = '{';
+    if s.is_empty() {
+    }
+}
+
+fn b(x: i32) -> i32 { x }
+
+trait T {
+    fn sans_corps(&self);
+}
+";
+    let f = fonctions(texte);
+    assert_eq!(f, vec![("a".to_string(), 6), ("b".to_string(), 1)]);
+}
