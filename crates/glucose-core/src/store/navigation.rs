@@ -5,7 +5,7 @@
 
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, Board, FolderTreeNode, TemporalAnchor, Viewport};
+use crate::types::{Board, FolderTreeNode, TemporalAnchor, Viewport};
 
 /// Reconstruit la pile de dossiers UI menant au board actif.
 pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(String, String)> {
@@ -197,59 +197,17 @@ impl Store {
     /// de remettre la caméra à l'origine sans rien cadrer (fiche 03 § 1.6). Savoir où est le
     /// contenu est une question qu'on pose au document, pas une géométrie qu'on refait.
     ///
-    /// Une flèche compte par ses **deux** extrémités : son point d'ancrage ne dit rien de
-    /// l'endroit qu'elle occupe.
+    /// Chaque nœud compte par sa boîte telle que le modèle la définit — une image par son
+    /// rectangle centré, une carte par sa taille de naissance si le document n'en fixe pas,
+    /// une flèche par l'enveloppe de son tracé. Ce qui est dessiné est dedans, rien de plus.
     pub fn content_bounds(&self, board_id: &str) -> Option<crate::geometry::Rect> {
         let board = self.project.boards.iter().find(|b| b.id == board_id)?;
-        let mut bounds: Option<(f64, f64, f64, f64)> = None;
-        let mut etendre = |x0: f64, y0: f64, x1: f64, y1: f64| {
-            bounds = Some(match bounds {
-                None => (x0, y0, x1, y1),
-                Some((ax, ay, bx, by)) => (ax.min(x0), ay.min(y0), bx.max(x1), by.max(y1)),
-            });
-        };
-
-        for img in &board.images {
-            etendre(img.x, img.y, img.x + img.width, img.y + img.height);
-        }
-        for f in &board.folders {
-            etendre(f.x, f.y, f.x + f.width, f.y + f.height);
-        }
-        for a in &board.annotations {
-            match a {
-                Annotation::Arrow { x, y, x2, y2, .. } => {
-                    etendre(x.min(*x2), y.min(*y2), x.max(*x2), y.max(*y2));
-                }
-                Annotation::Membrane {
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..
-                } => {
-                    etendre(*x, *y, x + width, y + height);
-                }
-                Annotation::Text {
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..
-                }
-                | Annotation::Sticky {
-                    x,
-                    y,
-                    width,
-                    height,
-                    ..
-                } => {
-                    // Une carte sans taille explicite occupe au moins son point : mieux vaut
-                    // une boîte un peu petite qu'un cadrage qui invente des dimensions.
-                    etendre(*x, *y, x + width.unwrap_or(0.0), y + height.unwrap_or(0.0));
-                }
-            }
-        }
-
-        bounds.map(|(x0, y0, x1, y1)| crate::geometry::Rect::new(x0, y0, x1 - x0, y1 - y0))
+        board
+            .images
+            .iter()
+            .map(|img| img.rect())
+            .chain(board.folders.iter().map(|f| f.rect()))
+            .chain(board.annotations.iter().map(|a| a.bounds()))
+            .reduce(|acc, r| acc.union(r))
     }
 }

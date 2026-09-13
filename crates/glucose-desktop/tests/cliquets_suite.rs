@@ -491,7 +491,7 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     (
         "crates/glucose-core/src/hit_priority/candidates.rs",
         "collect_candidates",
-        198,
+        176,
     ),
     (
         "crates/glucose-core/src/hit_priority/candidates.rs",
@@ -504,19 +504,9 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         212,
     ),
     (
-        "crates/glucose-core/src/layout.rs",
-        "organize_board_grid",
-        96,
-    ),
-    (
         "crates/glucose-core/src/membrane_focus.rs",
         "focus_decision",
         103,
-    ),
-    (
-        "crates/glucose-core/src/membrane_space.rs",
-        "items_of_board",
-        90,
     ),
     (
         "crates/glucose-core/src/membrane_space.rs",
@@ -592,11 +582,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         471,
     ),
     (
-        "crates/glucose-desktop/src/interactions/selection.rs",
-        "finish_selection_box",
-        86,
-    ),
-    (
         "crates/glucose-desktop/src/interactions/text_edit.rs",
         "handle_text_key",
         93,
@@ -633,8 +618,7 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
 /// tombe le premier : la fiche 11 le nomme.
 const FICHIERS_LONGS_ADMIS: &[(&str, usize)] = &[
     // (fichier, lignes de production admises) — mesurées après le passage sous rustfmt.
-    ("crates/glucose-core/src/membrane_space.rs", 721),
-    ("crates/glucose-core/src/types.rs", 771),
+    ("crates/glucose-core/src/membrane_space.rs", 661),
     ("crates/glucose-desktop/src/dock.rs", 2703),
     ("crates/glucose-desktop/src/renderer/card.rs", 705),
     ("crates/glucose-desktop/src/renderer/scene.rs", 683),

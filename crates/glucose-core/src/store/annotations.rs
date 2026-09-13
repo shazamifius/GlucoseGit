@@ -1,6 +1,5 @@
 //! Mutations réversibles portant sur les annotations, leurs miroirs et les panneaux storyboard.
 
-use super::images::translate_annotation;
 use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
@@ -314,7 +313,7 @@ fn build_mirror(
         }
     }
     if let Some((dx, dy)) = arrow_delta {
-        translate_annotation(&mut m, dx, dy);
+        m.translate(dx, dy);
     }
     m
 }

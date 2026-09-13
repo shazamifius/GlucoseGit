@@ -1,7 +1,7 @@
 //! MEMB-1 — Repère local des membranes (géométrie PURE, 0 dépendance).
 
 use crate::geometry::Rect;
-use crate::types::{Annotation, Board, BoardImage, MembraneMode};
+use crate::types::{Annotation, Board, MembraneMode};
 use std::collections::{HashMap, HashSet};
 
 pub const MIN_CONTENT_SCALE: f64 = 0.08;
@@ -345,90 +345,39 @@ pub fn can_switch_mode(from: MembraneMode, to: MembraneMode) -> bool {
 pub fn items_of_board(board: &Board) -> Vec<SpaceItem> {
     let mut out = Vec::new();
     for img in &board.images {
+        let rect = img.rect();
         out.push(SpaceItem {
             id: img.id.clone(),
             kind: SpaceItemKind::Image,
-            x: img.x - img.width / 2.0,
-            y: img.y - img.height / 2.0,
-            width: img.width,
-            height: img.height,
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
             mode: None,
             membrane_id: img.membrane_id.clone(),
         });
     }
     for ann in &board.annotations {
-        match ann {
-            Annotation::Arrow { .. } => {}
-            Annotation::Membrane {
-                id,
-                x,
-                y,
-                width,
-                height,
-                mode,
-                membrane_id,
-                ..
-            } => {
-                out.push(SpaceItem {
-                    id: id.clone(),
-                    kind: SpaceItemKind::Membrane,
-                    x: *x,
-                    y: *y,
-                    width: *width,
-                    height: *height,
-                    mode: Some(*mode),
-                    membrane_id: membrane_id.clone(),
-                });
-            }
-            Annotation::Text {
-                id,
-                x,
-                y,
-                width,
-                height,
-                membrane_id,
-                ..
-            } => {
-                let w = width.unwrap_or(0.0);
-                let h = height.unwrap_or(0.0);
-                if w > 0.0 && h > 0.0 {
-                    out.push(SpaceItem {
-                        id: id.clone(),
-                        kind: SpaceItemKind::Text,
-                        x: *x,
-                        y: *y,
-                        width: w,
-                        height: h,
-                        mode: None,
-                        membrane_id: membrane_id.clone(),
-                    });
-                }
-            }
-            Annotation::Sticky {
-                id,
-                x,
-                y,
-                width,
-                height,
-                membrane_id,
-                ..
-            } => {
-                let w = width.unwrap_or(160.0);
-                let h = height.unwrap_or(120.0);
-                if w > 0.0 && h > 0.0 {
-                    out.push(SpaceItem {
-                        id: id.clone(),
-                        kind: SpaceItemKind::Sticky,
-                        x: *x,
-                        y: *y,
-                        width: w,
-                        height: h,
-                        mode: None,
-                        membrane_id: membrane_id.clone(),
-                    });
-                }
-            }
-        }
+        // La boîte vient du modèle ; une flèche n'en a pas et n'occupe aucun espace.
+        let Some(rect) = ann.rect() else {
+            continue;
+        };
+        let (kind, mode) = match ann {
+            Annotation::Membrane { mode, .. } => (SpaceItemKind::Membrane, Some(*mode)),
+            Annotation::Text { .. } => (SpaceItemKind::Text, None),
+            Annotation::Sticky { .. } => (SpaceItemKind::Sticky, None),
+            Annotation::Arrow { .. } => continue,
+        };
+        out.push(SpaceItem {
+            id: ann.id().to_string(),
+            kind,
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+            mode,
+            membrane_id: ann.membrane_id().map(str::to_string),
+        });
     }
     out
 }
@@ -460,15 +409,6 @@ pub fn origin_of(
         y: r.y,
         scale: r.scale,
     })
-}
-
-pub fn image_box(img: &BoardImage) -> Rect {
-    Rect::new(
-        img.x - img.width / 2.0,
-        img.y - img.height / 2.0,
-        img.width,
-        img.height,
-    )
 }
 
 pub fn image_center_of(r: &ResolvedItem) -> (f64, f64) {

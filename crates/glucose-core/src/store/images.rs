@@ -180,7 +180,7 @@ impl Store {
             }
             let before = ann.clone();
             if selected {
-                translate_annotation(ann, dx, dy);
+                ann.translate(dx, dy);
             } else {
                 drag_arrow_ends(ann, &sel, dx, dy);
             }
@@ -227,7 +227,7 @@ impl Store {
             };
             let fresh = self.generate_id(prefix);
             set_annotation_id(ann, fresh);
-            translate_annotation(ann, OFFSET, OFFSET);
+            ann.translate(OFFSET, OFFSET);
         }
 
         self.selected_image_ids = new_imgs.iter().map(|i| i.id.clone()).collect();
@@ -289,35 +289,6 @@ impl Store {
         }
         if let Some(ref fid) = f_opt {
             self.remove_folders(board_id, &[fid]);
-        }
-    }
-}
-
-/// Translation d'une annotation, extrémités et waypoints compris.
-pub(super) fn translate_annotation(ann: &mut Annotation, dx: f64, dy: f64) {
-    match ann {
-        Annotation::Text { x, y, .. }
-        | Annotation::Sticky { x, y, .. }
-        | Annotation::Membrane { x, y, .. } => {
-            *x += dx;
-            *y += dy;
-        }
-        Annotation::Arrow {
-            x,
-            y,
-            x2,
-            y2,
-            waypoints,
-            ..
-        } => {
-            *x += dx;
-            *y += dy;
-            *x2 += dx;
-            *y2 += dy;
-            for wp in waypoints {
-                wp.x += dx;
-                wp.y += dy;
-            }
         }
     }
 }

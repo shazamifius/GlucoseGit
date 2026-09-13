@@ -50,11 +50,6 @@ use tiny_skia::{PixmapMut, PremultipliedColorU8};
 /// Opacité du halo en son centre, sur 255. Elle décroît linéairement jusqu'au bord.
 pub const HALO_CENTER_ALPHA: u8 = 35;
 
-/// Largeur par défaut d'une carte de texte, reprise du modèle.
-pub(crate) const DEFAULT_TEXT_CARD_WIDTH: f64 = 240.0;
-/// Hauteur par défaut d'une carte de texte, reprise du modèle.
-pub(super) const DEFAULT_TEXT_CARD_HEIGHT: f64 = 48.0;
-
 /// Facteur appliqué à la plus grande dimension de la carte pour obtenir le rayon.
 const HALO_RADIUS_FACTOR: f32 = 1.5;
 /// Marge constante, en unités monde, ajoutée au rayon du halo.
@@ -231,21 +226,15 @@ pub(super) fn halo_geometry(
     screen_h: f32,
     header_h: f32,
 ) -> Option<(f32, f32, f32)> {
-    let Annotation::Text {
-        x,
-        y,
-        width,
-        height,
-        ..
-    } = ann
-    else {
+    if !matches!(ann, Annotation::Text { .. }) {
         return None;
-    };
+    }
+    let rect = ann.rect()?;
 
     let scale = WorldScale::new(vp.scale);
-    let (sx, sy) = world_to_screen(*x, *y, vp);
-    let w = scale.world(width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH) as f32);
-    let h = scale.world(height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) as f32);
+    let (sx, sy) = world_to_screen(rect.left, rect.top, vp);
+    let w = scale.world(rect.width as f32);
+    let h = scale.world(rect.height as f32);
 
     let cx = sx as f32 + w / 2.0;
     let cy = sy as f32 + h / 2.0;

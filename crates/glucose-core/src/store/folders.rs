@@ -4,7 +4,6 @@
 //! création y sont stockés en coordonnées RELATIVES au coin haut-gauche du dossier. C'est ce
 //! qui permet de déplacer un dossier sans toucher à son contenu.
 
-use super::images::translate_annotation;
 use super::journal::{Edit, Slot, Whole};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
@@ -123,7 +122,7 @@ impl Store {
                 slot: Slot::removed(i, original.clone()),
             });
             let mut moved = original;
-            translate_annotation(&mut moved, -fx0, -fy0);
+            moved.translate(-fx0, -fy0);
             out.annotations.push(moved);
         }
         out.images.reverse();

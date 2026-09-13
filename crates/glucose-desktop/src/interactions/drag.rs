@@ -3,8 +3,7 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use glucose_core::smart_align::{
-    collect_align_targets, rect_of_annotation, rect_of_folder, rect_of_image, snap_move,
-    union_rect, AlignRect, SnapGuides, SnapOptions,
+    collect_align_targets, snap_move, union_rect, AlignRect, SnapGuides, SnapOptions,
 };
 use std::collections::HashSet;
 
@@ -23,13 +22,13 @@ impl GlucoseApp {
             for id in &self.store.selected_image_ids {
                 exclude.insert(id.clone());
                 if let Some(img) = board.images.iter().find(|i| &i.id == id) {
-                    rects.push(rect_of_image(img));
+                    rects.push(img.rect());
                 }
             }
             for id in &self.store.selected_annotation_ids {
                 exclude.insert(id.clone());
                 if let Some(ann) = board.annotations.iter().find(|a| a.id() == id) {
-                    if let Some(r) = rect_of_annotation(ann) {
+                    if let Some(r) = ann.rect() {
                         rects.push(r);
                     }
                 }
@@ -37,7 +36,7 @@ impl GlucoseApp {
             if let Some(fid) = &self.store.selected_folder_id {
                 exclude.insert(fid.clone());
                 if let Some(f) = board.folders.iter().find(|f| &f.id == fid) {
-                    rects.push(rect_of_folder(f));
+                    rects.push(f.rect());
                 }
             }
             self.drag_selection_base = union_rect(&rects);

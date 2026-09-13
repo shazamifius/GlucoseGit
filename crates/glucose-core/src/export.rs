@@ -173,15 +173,14 @@ pub fn build_scene(project: &Project) -> ExportScene {
                     id,
                     x,
                     y,
-                    width,
-                    height,
                     text,
                     font_size,
                     color,
                     ..
                 } => {
-                    let w = width.unwrap_or(340.0);
-                    let h = height.unwrap_or(120.0);
+                    let (w, h) = ann
+                        .size()
+                        .expect("Annotation::size ne rend None que pour une flèche");
                     extend(*x, *y, *x + w, *y + h);
                     cards.push(SceneCard {
                         id: id.clone(),
@@ -199,16 +198,15 @@ pub fn build_scene(project: &Project) -> ExportScene {
                     id,
                     x,
                     y,
-                    width,
-                    height,
                     text,
                     color,
                     bg_color,
                     operator,
                     ..
                 } => {
-                    let w = width.unwrap_or(160.0);
-                    let h = height.unwrap_or(120.0);
+                    let (w, h) = ann
+                        .size()
+                        .expect("Annotation::size ne rend None que pour une flèche");
                     extend(*x, *y, *x + w, *y + h);
                     stickies.push(SceneSticky {
                         id: id.clone(),

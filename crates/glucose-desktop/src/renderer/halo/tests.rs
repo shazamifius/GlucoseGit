@@ -296,7 +296,10 @@ fn test_halo_3_the_radius_is_capped_in_screen_pixels() {
             .2
     };
     let default_card = sized_card(None, None);
-    let default_size = (DEFAULT_TEXT_CARD_WIDTH, DEFAULT_TEXT_CARD_HEIGHT);
+    let default_size = (
+        glucose_core::types::DEFAULT_TEXT_CARD_WIDTH,
+        glucose_core::types::DEFAULT_TEXT_CARD_HEIGHT,
+    );
     // Sous le plafond, le rayon est une longueur monde : 240 × 1,5 + 50 = 410 à ×1.
     assert_eq!(radius_at(1.0, &default_card, default_size), 410.0);
     assert_eq!(radius_at(0.5, &default_card, default_size), 205.0);

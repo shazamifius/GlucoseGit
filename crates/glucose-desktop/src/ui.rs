@@ -1142,77 +1142,19 @@ pub fn layout_minimap(
     let mm_y = screen_h - mm_h - 12.0 * s;
     let header_h = TOTAL_HEADER_HEIGHT * s;
 
-    let mut min_x = f64::INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
-
-    for img in &board.images {
-        min_x = min_x.min(img.x - img.width / 2.0);
-        min_y = min_y.min(img.y - img.height / 2.0);
-        max_x = max_x.max(img.x + img.width / 2.0);
-        max_y = max_y.max(img.y + img.height / 2.0);
-    }
-
-    // Un dossier occupe la carte comme n'importe quel nœud. Sans cette boucle, un tableau
-    // qui ne contient QUE des dossiers n'a pas de bornes finies, donc pas de minimap du tout.
-    for f in &board.folders {
-        min_x = min_x.min(f.x);
-        min_y = min_y.min(f.y);
-        max_x = max_x.max(f.x + f.width);
-        max_y = max_y.max(f.y + f.height);
-    }
-
-    for ann in &board.annotations {
-        match ann {
-            Annotation::Text {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let w = width.unwrap_or(200.0);
-                let h = height.unwrap_or(48.0);
-                min_x = min_x.min(*x);
-                min_y = min_y.min(*y);
-                max_x = max_x.max(*x + w);
-                max_y = max_y.max(*y + h);
-            }
-            Annotation::Sticky {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let w = width.unwrap_or(160.0);
-                let h = height.unwrap_or(120.0);
-                min_x = min_x.min(*x);
-                min_y = min_y.min(*y);
-                max_x = max_x.max(*x + w);
-                max_y = max_y.max(*y + h);
-            }
-            Annotation::Membrane {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                min_x = min_x.min(*x);
-                min_y = min_y.min(*y);
-                max_x = max_x.max(*x + *width);
-                max_y = max_y.max(*y + *height);
-            }
-            Annotation::Arrow { x, y, x2, y2, .. } => {
-                min_x = min_x.min(*x).min(*x2);
-                min_y = min_y.min(*y).min(*y2);
-                max_x = max_x.max(*x).max(*x2);
-                max_y = max_y.max(*y).max(*y2);
-            }
-        }
-    }
+    // Les bornes du contenu sont une question qu'on pose au document ; la minimap n'a pas à
+    // les recalculer avec ses propres tailles. Un tableau vide n'en a pas : la caméra seule
+    // fait alors la carte.
+    let contenu = store.content_bounds(&board.id);
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = match contenu {
+        Some(r) => (r.left, r.top, r.right(), r.bottom()),
+        None => (
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ),
+    };
 
     let vp = &board.viewport;
     let vp_w = screen_w as f64 / vp.scale;
@@ -1354,10 +1296,11 @@ fn dessine_fond(
     let mut item_paint = Paint::default();
     item_paint.set_color(theme.minimap_element);
     for img in &board.images {
-        let ix = mb.mm_x + pad + ((img.x - img.width / 2.0 - mb.min_x) as f32 * mb.scale);
-        let iy = mb.mm_y + pad + ((img.y - img.height / 2.0 - mb.min_y) as f32 * mb.scale);
-        let iw = (img.width as f32 * mb.scale).max(2.0 * s);
-        let ih = (img.height as f32 * mb.scale).max(2.0 * s);
+        let r = img.rect();
+        let ix = mb.mm_x + pad + ((r.left - mb.min_x) as f32 * mb.scale);
+        let iy = mb.mm_y + pad + ((r.top - mb.min_y) as f32 * mb.scale);
+        let iw = (r.width as f32 * mb.scale).max(2.0 * s);
+        let ih = (r.height as f32 * mb.scale).max(2.0 * s);
         if let Some(r) = Rect::from_xywh(ix, iy, iw, ih) {
             pixmap.fill_rect(r, &item_paint, Transform::identity(), None);
         }
@@ -1371,54 +1314,22 @@ fn dessine_fond(
     let mut membrane_paint = Paint::default();
     membrane_paint.set_color(theme.minimap_element);
 
+    // Une flèche n'a pas de boîte et ne se dessine pas ici ; les autres nœuds ont la leur,
+    // taille de naissance comprise, et un plancher de quelques pixels pour rester visibles.
     for ann in &board.annotations {
-        match ann {
-            Annotation::Text {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let aw = width.unwrap_or(200.0) as f32 * mb.scale;
-                let ah = height.unwrap_or(48.0) as f32 * mb.scale;
-                let ax = mb.mm_x + pad + ((*x - mb.min_x) as f32 * mb.scale);
-                let ay = mb.mm_y + pad + ((*y - mb.min_y) as f32 * mb.scale);
-                if let Some(r) = Rect::from_xywh(ax, ay, aw.max(2.0 * s), ah.max(2.0 * s)) {
-                    pixmap.fill_rect(r, &ann_paint, Transform::identity(), None);
-                }
-            }
-            Annotation::Sticky {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let aw = width.unwrap_or(160.0) as f32 * mb.scale;
-                let ah = height.unwrap_or(120.0) as f32 * mb.scale;
-                let ax = mb.mm_x + pad + ((*x - mb.min_x) as f32 * mb.scale);
-                let ay = mb.mm_y + pad + ((*y - mb.min_y) as f32 * mb.scale);
-                if let Some(r) = Rect::from_xywh(ax, ay, aw.max(2.0 * s), ah.max(2.0 * s)) {
-                    pixmap.fill_rect(r, &ann_paint, Transform::identity(), None);
-                }
-            }
-            Annotation::Membrane {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let aw = *width as f32 * mb.scale;
-                let ah = *height as f32 * mb.scale;
-                let ax = mb.mm_x + pad + ((*x - mb.min_x) as f32 * mb.scale);
-                let ay = mb.mm_y + pad + ((*y - mb.min_y) as f32 * mb.scale);
-                if let Some(r) = Rect::from_xywh(ax, ay, aw.max(4.0 * s), ah.max(4.0 * s)) {
-                    pixmap.fill_rect(r, &membrane_paint, Transform::identity(), None);
-                }
-            }
-            _ => {}
+        let Some(boite) = ann.rect() else {
+            continue;
+        };
+        let (paint, plancher) = match ann {
+            Annotation::Membrane { .. } => (&membrane_paint, 4.0 * s),
+            _ => (&ann_paint, 2.0 * s),
+        };
+        let aw = (boite.width as f32 * mb.scale).max(plancher);
+        let ah = (boite.height as f32 * mb.scale).max(plancher);
+        let ax = mb.mm_x + pad + ((boite.left - mb.min_x) as f32 * mb.scale);
+        let ay = mb.mm_y + pad + ((boite.top - mb.min_y) as f32 * mb.scale);
+        if let Some(r) = Rect::from_xywh(ax, ay, aw, ah) {
+            pixmap.fill_rect(r, paint, Transform::identity(), None);
         }
     }
 

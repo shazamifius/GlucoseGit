@@ -1,8 +1,8 @@
 //! Tests portés fidèlement de src/canvas/smartAlign.test.ts
 
 use glucose_core::smart_align::{
-    collect_align_targets, rect_of_image, same_guides, snap_move, snap_point, snap_resize,
-    union_rect, AlignKind, AlignRect, AlignTarget, SnapGuides, SnapOptions,
+    collect_align_targets, same_guides, snap_move, snap_point, snap_resize, union_rect, AlignKind,
+    AlignRect, AlignTarget, SnapGuides, SnapOptions,
 };
 use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, MembraneMode};
 use std::collections::HashSet;
@@ -339,7 +339,7 @@ fn test_collect_align_targets() {
 }
 
 #[test]
-fn test_union_rect_and_rect_of_image() {
+fn test_union_rect_and_the_image_rect_is_centred() {
     let u = union_rect(&[
         box_rect(0.0, 0.0, 10.0, 10.0),
         box_rect(90.0, 40.0, 10.0, 10.0),
@@ -350,7 +350,7 @@ fn test_union_rect_and_rect_of_image() {
     assert_eq!(union_rect(&[]), None);
 
     let img = BoardImage::new("x", 0.0, 0.0, 10.0, 4.0);
-    assert_eq!(rect_of_image(&img), box_rect(-5.0, -2.0, 10.0, 4.0));
+    assert_eq!(img.rect(), box_rect(-5.0, -2.0, 10.0, 4.0));
 }
 
 #[test]
