@@ -59,20 +59,12 @@ impl GlucoseApp {
             PanelClickResult::Domain(intent) => self.apply_domain_intent(intent),
             // Fiche 09 § 8 : le storyboard n'a pas d'effet sur le canevas. Le panneau ne doit
             // pas laisser croire le contraire.
-            PanelClickResult::ToggleStoryboard | PanelClickResult::SelectFormat(_) => {
-                self.dock_manager.storyboard.active = false;
-                self.ui.show_toast(NOT_YET_STORYBOARD);
-            }
+            PanelClickResult::StoryboardNotReady => self.ui.show_toast(NOT_YET_STORYBOARD),
             // Fiche 09 § 10.3 : pas de moteur, pas de téléchargement.
             PanelClickResult::DownloadModel => self.ui.show_toast(NOT_YET_AI),
-            // Le panneau a déjà changé son propre état — le minuteur, une densité, une
-            // disposition — ; rien à faire au-dessus.
-            PanelClickResult::Handled
-            | PanelClickResult::TogglePomodoro
-            | PanelClickResult::ResetPomodoro
-            | PanelClickResult::SetPomodoroTime(_)
-            | PanelClickResult::SelectDensity(_)
-            | PanelClickResult::SelectDisposition(_) => {}
+            // Le panneau a déjà changé son propre état — un tri, une densité, le minuteur ;
+            // rien à faire au-dessus.
+            PanelClickResult::Handled => {}
         }
     }
 }
