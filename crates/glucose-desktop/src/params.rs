@@ -52,6 +52,17 @@ pub struct ScaledRect {
     pub scale: f32,
 }
 
+/// Où l'on pose du texte : sa **ligne de base** à l'écran, et son corps en pixels.
+///
+/// Trois `f32` de plus qui se ressemblent — une abscisse, une ordonnée, une taille — et que
+/// rien ne distinguerait dans une liste de paramètres. Nommés, les intervertir ne compile plus.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Pen {
+    pub x: f32,
+    pub y: f32,
+    pub font_size: f32,
+}
+
 /// État visuel d'un bouton. Deux `bool` consécutifs ne se distinguent pas
 /// davantage que deux `f32` : ils sont nommés eux aussi.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

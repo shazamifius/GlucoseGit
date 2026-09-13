@@ -90,8 +90,7 @@ fn test_le_vol_arrive_sur_son_cadrage_et_entre() {
     a.fly_to(&store, &board, cible, 100, Pending::EnterFolder("fold-1".into()));
 
     let mut images = 0;
-    loop {
-        let Some(reste) = a.tick(&mut store) else { break };
+    while let Some(reste) = a.tick(&mut store) {
         images += 1;
         if reste == 0 {
             break;

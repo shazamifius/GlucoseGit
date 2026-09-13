@@ -21,6 +21,16 @@ use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowLevel;
 
 impl GlucoseApp {
+    /// Une touche arrive de la fenêtre. Trois preneurs, dans l'ordre : la saisie d'un nom de
+    /// domaine, l'édition d'une annotation, puis les raccourcis globaux. Chacun rend `false`
+    /// quand la touche ne le concerne pas ; aucun ne contient de logique (§ 1.7).
+    pub fn handle_key(&mut self, event: &KeyEvent) {
+        if self.handle_domain_rename_key(event) || self.handle_text_key(event) {
+            return;
+        }
+        self.handle_keyboard_shortcut(event);
+    }
+
     /// Traite les raccourcis clavier hors session d'édition de texte.
     pub fn handle_keyboard_shortcut(&mut self, event: &KeyEvent) {
         self.handle_shortcut_input(&event.logical_key, event.state);
@@ -40,12 +50,7 @@ impl GlucoseApp {
         }
 
         match logical_key {
-            Key::Named(NamedKey::Escape) => {
-                // Un geste de redimensionnement en cours reprend sa taille de départ.
-                if self.cancel_resize() {
-                    self.ui.show_toast("Redimensionnement annulé");
-                }
-            }
+            Key::Named(NamedKey::Escape) => self.escape_gesture(),
             Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
                 let active_bid = self.store.project.active_board_id.clone();
                 self.store.delete_selected(&active_bid);
@@ -63,6 +68,15 @@ impl GlucoseApp {
                 self.handle_tool_shortcut(key);
             }
             _ => {}
+        }
+    }
+
+    /// `Échap` annule le geste en cours. Aujourd'hui, le seul geste annulable hors édition est
+    /// un redimensionnement, qui reprend sa taille de départ ; la fiche 03 § 19.6 en attend
+    /// davantage (tout geste courant), et c'est ici que les autres viendront.
+    fn escape_gesture(&mut self) {
+        if self.cancel_resize() {
+            self.ui.show_toast("Redimensionnement annulé");
         }
     }
 

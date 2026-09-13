@@ -174,8 +174,7 @@ impl MathLayout {
 /// montré : c'est lui qui colore une formule en rouge pendant la frappe.
 pub fn layout(latex: &str, mode: Mode) -> Result<MathLayout, MathError> {
     let ctx = katex::KatexContext::default();
-    let mut options = katex::Settings::default();
-    options.display_mode = mode == Mode::Display;
+    let options = katex::Settings { display_mode: mode == Mode::Display, ..Default::default() };
 
     let tree = katex::render_to_dom_tree(&ctx, latex, &options)
         .map_err(|e| MathError::Parse(e.to_string()))?;

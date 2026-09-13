@@ -425,12 +425,7 @@ impl ApplicationHandler for GlucoseApp {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                // Trois preneurs, dans l'ordre : la saisie d'un nom de domaine, l'édition
-                // d'une annotation, puis les raccourcis globaux. Chacun rend `false` quand la
-                // touche ne le concerne pas ; aucun ne contient de logique (§ 1.7).
-                if !self.handle_domain_rename_key(&event) && !self.handle_text_key(&event) {
-                    self.handle_keyboard_shortcut(&event);
-                }
+                self.handle_key(&event);
             }
             WindowEvent::DroppedFile(path_buf) => {
                 self.import_image_files(&[path_buf]);

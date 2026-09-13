@@ -43,7 +43,7 @@ use super::scale::WorldScale;
 use super::wrap::wrap_paragraph;
 use super::{parse_hex_color, push_rounded_rect, PaintKit, TextEditSession};
 use crate::canvas::world_to_screen;
-use crate::params::ViewPass;
+use crate::params::{Pen, ViewPass};
 use crate::renderer::halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
 use crate::theme::Theme;
 use crate::renderer::math::MathRenderer;
@@ -63,6 +63,9 @@ const LINE_FACTOR: f32 = 1.4;
 const H1_FACTOR: f32 = 1.25;
 /// Grossissement d'un sous-titre `## `.
 const H2_FACTOR: f32 = 1.10;
+// Les titres sont plus grands que le corps, et un titre plus qu'un sous-titre : vérifié à la
+// compilation, pas dans un test qu'on pourrait oublier de lancer.
+const _: () = assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0);
 /// Marge horizontale entre le bord de la carte et son texte (fiche 06 § 5.1 : `16px 24px`).
 const PAD_X: f32 = 24.0;
 /// Marge verticale entre le bord de la carte et son texte.
@@ -526,16 +529,9 @@ fn draw_card_body(
                         .measure(corps, mode, style.size)
                         .map(|(_, h, _)| h)
                         .unwrap_or(style.size);
-                    let dessinee = ctx.math.draw(
-                        pixmap,
-                        ctx.typography,
-                        corps,
-                        mode,
-                        start_x,
-                        cur_y + au_dessus,
-                        style.size,
-                        Color::from_rgba8(230, 234, 245, 255),
-                    );
+                    let plume = Pen { x: start_x, y: cur_y + au_dessus, font_size: style.size };
+                    let dessinee =
+                        ctx.math.draw(pixmap, corps, mode, plume, Color::from_rgba8(230, 234, 245, 255));
                     if !dessinee {
                         // Une formule fausse montre sa source, en rouge : l'erreur se voit là
                         // où elle est, pas dans une console.
