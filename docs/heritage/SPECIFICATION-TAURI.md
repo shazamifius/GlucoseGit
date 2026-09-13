@@ -1,5 +1,9 @@
 # 🧬 Spécification Technique & Fonctionnelle Exhaustive de Glucose (100% Code Source)
 
+> **Document hérité — lire [`README.md`](README.md) de ce dossier d'abord.** Il décrit le code
+> de **Glucose Tauri** (`src/`, `src-tauri/`). C'est un inventaire du *quoi* ; la fiche
+> [05](../architecture/05-STANDARDS-DE-CODE.md) (R2) interdit d'en faire un modèle du *comment*.
+
 > **Document de référence absolue issu de l'analyse intégrale de chaque script `.ts`, `.tsx` et `.rs` du projet Glucose.**  
 > *Ce document ne se base pas sur les anciens fichiers `.md` mais exclusivement sur le code source réel.*  
 > *Il détaille avec précision mathématique et algorithmique le rôle, les mécanismes, les règles métier et les invariants de chaque script afin de guider la réécriture architecturale en Rust pur.*

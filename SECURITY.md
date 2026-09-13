@@ -20,8 +20,8 @@ correction.
 ## Périmètre
 
 Glucose est une application **desktop offline**. Les points d'attention principaux :
-- l'accès au système de fichiers via le backend Rust/Tauri (scan de dossiers,
-  lancement de fichiers) ;
+- l'accès au système de fichiers via l'application native (import de fichiers,
+  dialogues, presse-papiers) ;
 - le traitement de contenus importés (fichiers, images, vidéos).
 
 ## Versions supportées

@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 📖 Documentation
+  - name: 📖 Guide d'utilisation
     url: https://github.com/shazamifius/GlucoseGit/blob/main/GUIDE.md
-    about: Manuel utilisateur complet — vocabulaire, raccourcis, workflows
-  - name: 🗺️ Roadmap
-    url: https://github.com/shazamifius/GlucoseGit/blob/main/ROADMAP.md
-    about: Voir ce qui est prévu / déjà fait
+    about: Ce que le logiciel fait aujourd'hui — gestes, raccourcis, panneaux
+  - name: 🧭 État du portage et plan
+    url: https://github.com/shazamifius/GlucoseGit/blob/main/docs/architecture/00-INDEX.md
+    about: Ce qui est branché, ce qui ne l'est pas encore, et dans quel ordre ça arrive

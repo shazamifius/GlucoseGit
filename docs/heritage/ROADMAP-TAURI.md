@@ -6,9 +6,13 @@
 >
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
 
-**Dernière mise à jour :** 2026-09-10 (réécriture intégrale Rust from scratch)
-**Version :** 2.0.0-pure-rust · **Tests :** 202 tests Rust (37 unitaires + 165 d'intégration) verts à 100%
-**Architecture :** `glucose-core` (100% Rust std, 0 dépendance) + `glucose-desktop` (PureRef software renderer cross-platform : winit, softbuffer, tiny-skia)
+> **Document hérité — lire [`README.md`](README.md) de ce dossier d'abord.** Cette roadmap est
+> celle de **Glucose Tauri** (TypeScript, PixiJS, Automerge), figée au 2026-06-10. Tout ce
+> qu'elle marque ✅ est acquis dans le code `src/`, **pas dans la version Rust**. Le plan de la
+> version Rust est la [fiche 12](../architecture/12-PLAN-D-EXECUTION.md).
+
+**Dernière mise à jour du contenu :** 2026-06-10
+**Pile décrite :** React + PixiJS + Zustand + Automerge, backend Tauri (`src-tauri/`)
 
 ---
 
