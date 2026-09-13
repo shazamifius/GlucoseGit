@@ -42,8 +42,8 @@ pub struct GlyphEntry {
     pub height: usize,
 }
 
-/// Clé de cache d'un glyphe : graisse, caractère, taille en dixièmes de point, phase.
-pub(crate) type GlyphKey = (bool, char, u16, u8);
+/// Clé de cache d'un glyphe : visage, caractère, taille en dixièmes de point, phase.
+pub(crate) type GlyphKey = (super::Face, char, u16, u8);
 
 /// Valeur de cache : le glyphe partagé et l'horodatage de son dernier accès (LRU, R-40).
 pub(super) type CachedGlyph = (Rc<GlyphEntry>, u64);

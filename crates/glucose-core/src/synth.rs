@@ -180,61 +180,9 @@ pub fn witness() -> Store {
     let mut store = Store::new("temoin");
     store.begin_live_edit();
 
-    store.add_annotation(
-        BOARD,
-        Annotation::text(
-            "t-markdown",
-            -520.0,
-            -260.0,
-            "# Titre de premier rang\n## Sous-titre\nUn corps de texte assez long pour que le \
-             retour à la ligne ait lieu et se voie.\n- une puce\n- une autre puce",
-        ),
-    );
-    store.add_annotation(
-        BOARD,
-        Annotation::text(
-            "t-accents",
-            -520.0,
-            40.0,
-            "Accents : éàçùôêîï — « guillemets »",
-        ),
-    );
-    store.add_annotation(
-        BOARD,
-        Annotation::text(
-            "t-maths",
-            60.0,
-            340.0,
-            "Une formule, seule sur sa ligne :\n$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$\nEt une qui ne compile pas :\n$$\\frac{a}{$$",
-        ),
-    );
-    store.add_annotation(
-        BOARD,
-        Annotation::sticky("s-simple", -520.0, 180.0, "un pense-bête"),
-    );
-    // Un opérateur logique se dessine en pilule, pas en papier : il faut le voir aussi.
-    let mut operateur = Annotation::sticky("s-parce-que", -520.0, 330.0, "");
-    if let Annotation::Sticky { operator, .. } = &mut operateur {
-        *operator = Some(StickyOperator::Because);
-    }
-    store.add_annotation(BOARD, operateur);
-    store.add_annotation(
-        BOARD,
-        Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0),
-    );
-
-    let mut membrane = Annotation::membrane("m-titree", 60.0, -260.0, 420.0, 300.0);
-    if let Annotation::Membrane { text, .. } = &mut membrane {
-        *text = Some("Membrane témoin".to_string());
-    }
-    store.add_annotation(BOARD, membrane);
-
-    let mut folder = CanvasFolder::new("f-temoin", "Dossier témoin", String::new());
-    folder.x = 60.0;
-    folder.y = 120.0;
-    folder.width = 260.0;
-    folder.height = 190.0;
-    store.create_folder(BOARD, folder);
+    witness_texts(&mut store);
+    witness_notes(&mut store);
+    witness_containers(&mut store);
 
     // Le cadrage fait partie de la scène : sans lui, la capture dépendrait du viewport par
     // défaut, qui pose l'origine du monde dans le coin de la fenêtre — et la moitié du témoin
@@ -256,7 +204,77 @@ pub fn witness() -> Store {
     store
 }
 
-/// La définition pour laquelle le cadrage de [`witness`] est réglé.
+/// Les cartes de texte du témoin : le Markdown, les accents, les formules.
+fn witness_texts(store: &mut Store) {
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "t-markdown",
+            -520.0,
+            -260.0,
+            // Les cinq visages et les quatre emphases sont ici pour que l'empreinte de la
+            // scène les tienne : un rendu du Markdown qui change sans qu'on le veuille fait
+            // échouer le test, au lieu de se découvrir sur un écran, un jour, par hasard.
+            "# Titre de premier rang\n## Sous-titre *nuancé*\nUn corps de texte assez long \
+             pour que le retour à la ligne ait lieu et se voie.\n- une puce **appuyée**\n\
+             - une autre, en `code` et ~~biffée~~\nEt ***les deux à la fois***.",
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "t-accents",
+            -520.0,
+            40.0,
+            "Accents : éàçùôêîï — « guillemets »",
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "t-maths",
+            60.0,
+            340.0,
+            "Une formule, seule sur sa ligne :\n\
+             $$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$\n\
+             Et une qui ne compile pas :\n$$\\frac{a}{$$",
+        ),
+    );
+}
+
+/// Les pense-bêtes du témoin — un papier, une pilule d'opérateur — et la flèche.
+fn witness_notes(store: &mut Store) {
+    store.add_annotation(
+        BOARD,
+        Annotation::sticky("s-simple", -520.0, 180.0, "un pense-bête"),
+    );
+    // Un opérateur logique se dessine en pilule, pas en papier : il faut le voir aussi.
+    let mut operateur = Annotation::sticky("s-parce-que", -520.0, 330.0, "");
+    if let Annotation::Sticky { operator, .. } = &mut operateur {
+        *operator = Some(StickyOperator::Because);
+    }
+    store.add_annotation(BOARD, operateur);
+    store.add_annotation(
+        BOARD,
+        Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0),
+    );
+}
+
+/// Ce qui contient : une membrane titrée et un dossier.
+fn witness_containers(store: &mut Store) {
+    let mut membrane = Annotation::membrane("m-titree", 60.0, -260.0, 420.0, 300.0);
+    if let Annotation::Membrane { text, .. } = &mut membrane {
+        *text = Some("Membrane témoin".to_string());
+    }
+    store.add_annotation(BOARD, membrane);
+
+    let mut folder = CanvasFolder::new("f-temoin", "Dossier témoin", String::new());
+    folder.x = 60.0;
+    folder.y = 120.0;
+    folder.width = 260.0;
+    folder.height = 190.0;
+    store.create_folder(BOARD, folder);
+}
 pub const WITNESS_SIZE: (u32, u32) = (1400, 900);
 
 /// La boîte englobante du contenu de la scène témoin, en unités monde — ce que le cadrage doit
@@ -276,15 +294,36 @@ pub fn showcase() -> Store {
     let mut store = Store::new("Théorie de l'information");
     store.begin_live_edit();
 
-    // La colonne de gauche : le fil du raisonnement.
+    showcase_left_column(&mut store);
+    showcase_membrane(&mut store);
+    showcase_links(&mut store);
+
+    let board_id = store.project.active_board_id.clone();
+    store.set_viewport(
+        &board_id,
+        Viewport {
+            x: 1_010.0,
+            y: 500.0,
+            scale: 1.0,
+        },
+    );
+
+    store.end_live_edit();
+    store.clear_selection();
+    store.journal.clear();
+    store
+}
+
+/// La colonne de gauche : le fil du raisonnement, et la note qui le prolonge.
+fn showcase_left_column(store: &mut Store) {
     store.add_annotation(
         BOARD,
         Annotation::text(
             "s-titre",
             -880.0,
             -420.0,
-            "# Entropie de Shannon\n## Ce que mesure l'information\nUne source qui ne surprend \
-             jamais n'apprend rien. L'entropie compte la surprise moyenne.",
+            "# Entropie de Shannon\n## Ce que mesure l'information\nUne source qui ne **surprend \
+             jamais** n'apprend rien : l'entropie compte la *surprise moyenne*.",
         ),
     );
     store.add_annotation(
@@ -302,15 +341,18 @@ pub fn showcase() -> Store {
             "s-cas",
             -880.0,
             -20.0,
-            "- une pièce équilibrée : 1 bit\n- une pièce truquée : moins\n- une pièce à deux faces : zéro",
+            "- une pièce **équilibrée** : 1 bit\n- une pièce *truquée* : moins\n- une pièce \
+             à deux faces : ~~un peu~~ zéro",
         ),
     );
     store.add_annotation(
         BOARD,
         Annotation::sticky("s-note", -880.0, 200.0, "à relier au codage de Huffman"),
     );
+}
 
-    // La membrane de droite : le domaine voisin.
+/// La membrane de droite : le domaine voisin, et ce qu'elle contient.
+fn showcase_membrane(store: &mut Store) {
     let mut membrane = Annotation::membrane("s-membrane", -180.0, -420.0, 700.0, 460.0);
     if let Annotation::Membrane { text, color, .. } = &mut membrane {
         *text = Some("Théorie du codage".to_string());
@@ -342,11 +384,14 @@ pub fn showcase() -> Store {
             "s-borne",
             -140.0,
             -30.0,
-            "La longueur moyenne d'un code optimal est bornée :\n$$H(X) \\le \\bar{\\ell} < H(X) + 1$$",
+            "La longueur moyenne `\\bar{l}` d'un code optimal est bornée :\n\
+             $$H(X) \\le \\bar{\\ell} < H(X) + 1$$",
         ),
     );
+}
 
-    // Les flèches du raisonnement.
+/// Ce qui relie : les flèches du raisonnement, et le dossier des démonstrations.
+fn showcase_links(store: &mut Store) {
     store.add_annotation(
         BOARD,
         Annotation::arrow("s-a1", -560.0, -120.0, -160.0, -140.0),
@@ -361,21 +406,6 @@ pub fn showcase() -> Store {
     dossier.height = 200.0;
     dossier.color = "#4ade80".to_string();
     store.create_folder(BOARD, dossier);
-
-    let board_id = store.project.active_board_id.clone();
-    store.set_viewport(
-        &board_id,
-        Viewport {
-            x: 1_010.0,
-            y: 500.0,
-            scale: 1.0,
-        },
-    );
-
-    store.end_live_edit();
-    store.clear_selection();
-    store.journal.clear();
-    store
 }
 
 #[cfg(test)]

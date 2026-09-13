@@ -4,6 +4,7 @@
 use super::{layout_organize_panel, OrganizePanelLayout, OrganizeState};
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::params::ScaledRect;
+use crate::typography::Face;
 use glucose_core::store::Store;
 use tiny_skia::PixmapMut;
 
@@ -68,7 +69,7 @@ fn draw_target(pixmap: &mut PixmapMut, brush: &Brush, layout: &OrganizePanelLayo
         brush.theme.text_secondary
     };
     let at = (rect.x + brush.px(8.0), rect.y + brush.px(6.0));
-    brush.text(pixmap, &text, at, 11.0, ink, false);
+    brush.text(pixmap, &text, at, 11.0, ink, Face::Regular);
 }
 
 /// Une disposition : son titre et sa description, sur fond quand elle est retenue ou survolée.
@@ -111,7 +112,7 @@ fn draw_layout_mode(
         (x, rect.y + brush.px(4.0)),
         11.0,
         ink,
-        active,
+        if active { Face::Bold } else { Face::Regular },
     );
     brush.text(
         pixmap,
@@ -119,7 +120,7 @@ fn draw_layout_mode(
         (x, rect.y + brush.px(17.0)),
         9.0,
         theme.text_muted,
-        false,
+        Face::Regular,
     );
 }
 
@@ -136,7 +137,7 @@ fn draw_fields(
         above(layout.target_size_rect),
         9.0,
         brush.theme.text_muted,
-        true,
+        Face::Bold,
     );
     brush.text(
         pixmap,
@@ -144,7 +145,7 @@ fn draw_fields(
         above(layout.gap_rect),
         9.0,
         brush.theme.text_muted,
-        true,
+        Face::Bold,
     );
     brush.field(
         pixmap,

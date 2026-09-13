@@ -3,6 +3,7 @@
 use super::{layout_presets_panel, PresetRowLayout, PresetSpec, CREATE_LABEL, PRESETS};
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::params::ScaledRect;
+use crate::typography::Face;
 use tiny_skia::{Color, PixmapMut};
 
 /// L'opacité du fond d'une zone, sur 255 — son contour, lui, est à la couleur pleine.
@@ -17,7 +18,7 @@ pub fn render_presets_panel(pixmap: &mut PixmapMut, brush: &Brush, frame: Scaled
         layout.caption_at,
         9.0,
         brush.theme.text_muted,
-        true,
+        Face::Bold,
     );
     for row in &layout.rows {
         draw_preset(pixmap, brush, row, &PRESETS[row.index]);
@@ -39,7 +40,7 @@ fn draw_preset(pixmap: &mut PixmapMut, brush: &Brush, row: &PresetRowLayout, pre
         row.title_at,
         11.5,
         theme.text_primary,
-        true,
+        Face::Bold,
     );
     for (rect, slot) in row.slots.iter().zip(preset.slots) {
         let color = slot.color();
@@ -47,7 +48,7 @@ fn draw_preset(pixmap: &mut PixmapMut, brush: &Brush, row: &PresetRowLayout, pre
         let fill = Color::from_rgba8(c.red(), c.green(), c.blue(), SLOT_FILL_ALPHA);
         brush.fill(pixmap, *rect, brush.px(2.0), fill);
         brush.stroke(pixmap, *rect, brush.px(2.0), color, brush.px(0.8));
-        brush.text_centered(pixmap, *rect, slot.label, 7.5, color, false);
+        brush.text_centered(pixmap, *rect, slot.label, 7.5, color, Face::Regular);
     }
     brush.text(
         pixmap,
@@ -55,6 +56,6 @@ fn draw_preset(pixmap: &mut PixmapMut, brush: &Brush, row: &PresetRowLayout, pre
         row.summary_at,
         9.0,
         theme.text_muted,
-        false,
+        Face::Regular,
     );
 }

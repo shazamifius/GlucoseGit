@@ -27,6 +27,7 @@ pub mod hue;
 pub mod math;
 pub mod note;
 pub mod pass;
+pub mod richtext;
 pub mod scale;
 pub mod scene;
 pub mod wrap;

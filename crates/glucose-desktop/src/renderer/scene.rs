@@ -19,7 +19,7 @@ use super::{parse_hex_color, push_rounded_rect, PaintKit};
 use crate::canvas::{screen_to_world, world_to_screen};
 use crate::params::ViewPass;
 use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::resize::Handle;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
@@ -344,7 +344,7 @@ pub(super) fn draw_membranes(
                     TextStyle {
                         size: layout.label_font,
                         color: Color::from_rgba8(tint.0, tint.1, tint.2, 255),
-                        bold: true,
+                        face: Face::Bold,
                     },
                     theme.bg_canvas,
                 );
@@ -567,7 +567,7 @@ fn draw_missing_image(
         TextStyle {
             size: 12.0,
             color: theme.text_muted,
-            bold: false,
+            face: Face::Regular,
         },
     );
 }

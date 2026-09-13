@@ -29,6 +29,7 @@ pub mod smart_align;
 pub mod store;
 pub mod symbiotic_hue;
 pub mod synth;
+pub mod text;
 pub mod text_anchors;
 pub mod timeline;
 pub mod types;

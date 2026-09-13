@@ -62,6 +62,18 @@ dessin est fait par le rastériseur du projet, avec les vingt fontes de KaTeX em
 Conséquence directe : une formule est **vectorielle**, donc nette à n'importe quel zoom — ce
 n'est pas une image que l'on agrandit.
 
+### ✍️ Le Markdown en ligne est du vrai texte stylé
+
+`**gras**`, `*italique*`, `~~barré~~` et `` `code` `` se composent avec **cinq polices
+embarquées** : quatre Inter — droit, gras, italique, gras italique — et JetBrains Mono pour le
+code. Pas d'oblique synthétique, pas de fausse graisse : chaque style est un fichier de fonte,
+et la mesure d'une ligne tient compte du visage de chaque fragment, donc le retour à la ligne
+tombe où le texte se dessine vraiment.
+
+Au repos les signes disparaissent ; pendant l'édition ils réapparaissent en gris, `# ` compris —
+c'est **la même mise en page**, à une largeur nulle près pour les signes effacés, ce qui garantit
+que le curseur vise le bon octet dans les deux vues.
+
 <div align="center">
 
 ![Un gros plan sur des formules LaTeX rendues au zoom x1,9](docs/screenshots/vitrine-zoom.png)
@@ -123,7 +135,7 @@ chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dan
 | **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
 | **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, déplacement, magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, dupliquer, supprimer | cycle de profondeur au clic (PICK-1) | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
 | **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
-| **Cartes texte** | création, édition en place, `#`, `##`, puces, retour à la ligne, hauteur qui suit le contenu, **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | gras / italique / code / citations / listes numérotées / tableaux / liens, sélection à la souris, copier-coller dans le texte, IME (accents composés) |
+| **Cartes texte** | création, édition en place, `#`, `##`, puces, retour à la ligne, hauteur qui suit le contenu, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | citations / listes numérotées / blocs de code / tableaux / liens, sélection à la souris, copier-coller dans le texte, IME (accents composés) |
 | **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |
 | **Flèches** | création (taille fixe), rendu droit | ancrage au bord des nœuds | dessin par glisser, sélection, courbes, waypoints, étiquette, prédicats sémantiques, portails |
 | **Membranes** | création (taille fixe), rendu, titre éditable | adoption au dépôt, modes minimisé et étiré, mode focus, tween | dessin par glisser, panneau d'options, couleur dérivée des domaines |
@@ -158,6 +170,7 @@ crates/
 │   ├── src/symbiotic_hue.rs   teinte symbiotique, au bit près de la référence
 │   ├── src/layout.rs          dispositions du panneau Ordonner
 │   ├── src/anim.rs            courbes et durées d'animation, testées sans horloge
+│   ├── src/text/              le Markdown en ligne : des tranches stylées, en fonctions pures
 │   ├── src/synth.rs           documents synthétiques déterministes pour les bancs
 │   ├── src/membrane_*.rs, curtain_*.rs, arrow_anchor.rs, text_anchors.rs, timeline.rs,
 │   │   mirror_graph.rs, export.rs — écrits et testés, en attente de leur geste
@@ -170,9 +183,10 @@ crates/
     ├── src/app.rs             la boucle d'événements et la présentation
     ├── src/interactions/      souris, clavier, glisser, redimensionner, presse-papiers, domaines
     ├── src/renderer/          scène, cartes, notes, dossiers, halos, formules, échelle unique
+    ├── src/renderer/richtext/  le texte riche : fragments, reflux par visage, tracé
     ├── src/ui.rs, dock.rs     barre d'outils, onglets, minimap, toasts, panneaux
     ├── src/theme.rs           tous les jetons de couleur, tenus par test contre la référence
-    ├── src/typography/        glyphes au quart de pixel, couverture de la police vérifiée
+    ├── src/typography/        cinq visages, glyphes au quart de pixel, couverture vérifiée
     ├── src/persist/           enregistrer, ouvrir, écriture atomique, alerte de fermeture
     ├── src/animation.rs       l'horloge des animations (le vol de la caméra)
     ├── src/bench.rs           le banc de frame et la capture témoin

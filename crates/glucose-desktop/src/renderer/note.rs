@@ -29,7 +29,7 @@ use super::wrap::wrap_paragraph;
 use super::{parse_hex_rgb, push_rounded_rect, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::theme::operator_color;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::resize::Handle;
 use glucose_core::types::{Annotation, StickyOperator};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
@@ -225,11 +225,11 @@ fn draw_pill(
 
     let font = ctx.scale.world(PILL_FONT);
     let label = op.label();
-    let (text_w, line_h) = ctx.typography.measure_text(label, font, true);
+    let (text_w, line_h) = ctx.typography.measure_text(label, font, Face::Bold);
     let style = TextStyle {
         size: font,
         color,
-        bold: true,
+        face: Face::Bold,
     };
     ctx.typography.draw_text(
         pixmap,
@@ -295,12 +295,7 @@ fn ring(ctx: &Pass, pixmap: &mut PixmapMut, path: &tiny_skia::Path) {
 /// paragraphe tel quel.
 fn sticky_lines(typography: &Typography, content: &str, width: f32) -> Vec<(usize, usize)> {
     let usable = (width - STICKY_PAD * 2.0).max(STICKY_FONT);
-    let advance = |ch: char| {
-        typography
-            .get_glyph(ch, STICKY_FONT, false)
-            .metrics
-            .advance_width
-    };
+    let advance = |_: usize, ch: char| typography.advance(ch, STICKY_FONT, Face::Regular);
     let mut lines = Vec::new();
     let mut offset = 0usize;
     for paragraph in content.split('\n') {
@@ -324,7 +319,7 @@ fn draw_paper_text(
     let style = TextStyle {
         size: layout.font,
         color: paper.ink,
-        bold: false,
+        face: Face::Regular,
     };
     // STICKY-FIT-1 : le papier est fixe, une ligne qui ne tient plus n'est pas dessinée.
     let floor = at.1 + layout.height - layout.pad;
@@ -349,7 +344,7 @@ fn draw_paper_text(
             let (prefix_w, _) = typography.measure_text(
                 &paper.text[start..idx.clamp(start, end)],
                 layout.font,
-                false,
+                Face::Regular,
             );
             draw_cursor(
                 ctx,

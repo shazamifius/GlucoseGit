@@ -8,6 +8,7 @@ use super::{
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::dock::WidgetRect;
 use crate::params::ScaledRect;
+use crate::typography::Face;
 use tiny_skia::PixmapMut;
 
 pub fn render_plugins_panel(
@@ -66,7 +67,7 @@ fn draw_local_ai(
         (x + brush.px(12.0), frame.y + brush.px(52.0)),
         11.0,
         theme.text_primary,
-        true,
+        Face::Bold,
     );
     brush.text(
         pixmap,
@@ -74,7 +75,7 @@ fn draw_local_ai(
         (x, frame.y + brush.px(68.0)),
         10.0,
         theme.text_muted,
-        false,
+        Face::Regular,
     );
     brush.text(
         pixmap,
@@ -82,7 +83,7 @@ fn draw_local_ai(
         (x, frame.y + brush.px(82.0)),
         10.5,
         theme.text_secondary,
-        false,
+        Face::Regular,
     );
     brush.button(
         pixmap,
@@ -111,7 +112,7 @@ fn draw_engine_card(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect) {
         (x, rect.y + brush.px(8.0)),
         11.5,
         theme.text_primary,
-        true,
+        Face::Bold,
     );
     brush.text(
         pixmap,
@@ -119,7 +120,7 @@ fn draw_engine_card(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect) {
         (x, rect.y + brush.px(23.0)),
         9.5,
         theme.text_secondary,
-        false,
+        Face::Regular,
     );
     brush.text(
         pixmap,
@@ -127,7 +128,7 @@ fn draw_engine_card(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect) {
         (x, rect.y + brush.px(35.0)),
         9.5,
         theme.text_muted,
-        false,
+        Face::Regular,
     );
 }
 
@@ -150,7 +151,7 @@ fn draw_choice(
         (first.x, first.y - brush.px(14.0)),
         10.5,
         theme.text_secondary,
-        true,
+        Face::Bold,
     );
     for (i, (row, label)) in rows.iter().zip(labels).enumerate() {
         let is_checked = i == checked;
@@ -170,7 +171,11 @@ fn draw_choice(
             (row.x + brush.px(16.0), row.y),
             10.0,
             ink,
-            is_checked,
+            if is_checked {
+                Face::Bold
+            } else {
+                Face::Regular
+            },
         );
     }
 }

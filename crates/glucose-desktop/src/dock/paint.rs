@@ -11,7 +11,7 @@
 use super::WidgetRect;
 use crate::params::{Pointer, ScaledRect};
 use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
 /// Ajoute un rectangle à coins arrondis dans un `PathBuilder`.
@@ -150,12 +150,12 @@ impl Brush<'_> {
         at: (f32, f32),
         size: f32,
         color: Color,
-        bold: bool,
+        face: Face,
     ) -> f32 {
         let style = TextStyle {
             size: self.px(size),
             color,
-            bold,
+            face,
         };
         self.typo.draw_text(pixmap, text, at.0, at.1, style)
     }
@@ -168,22 +168,22 @@ impl Brush<'_> {
         text: &str,
         size: f32,
         color: Color,
-        bold: bool,
+        face: Face,
     ) {
-        let (w, line) = self.typo.measure_text(text, self.px(size), bold);
+        let (w, line) = self.typo.measure_text(text, self.px(size), face);
         let at = (rect.x + (rect.w - w) / 2.0, rect.y + (rect.h - line) / 2.0);
-        self.text(pixmap, text, at, size, color, bold);
+        self.text(pixmap, text, at, size, color, face);
     }
 
     /// Le titre d'un panneau, en haut à gauche de son cadre.
     pub fn title(&self, pixmap: &mut PixmapMut, frame: ScaledRect, text: &str) {
         let at = (frame.x + self.px(14.0), frame.y + self.px(18.0));
-        self.text(pixmap, text, at, 12.0, self.theme.text_primary, true);
+        self.text(pixmap, text, at, 12.0, self.theme.text_primary, Face::Bold);
     }
 
     /// Un libellé de section, en capitales grises.
     pub fn caption(&self, pixmap: &mut PixmapMut, at: (f32, f32), text: &str) {
-        self.text(pixmap, text, at, 9.5, self.theme.text_muted, true);
+        self.text(pixmap, text, at, 9.5, self.theme.text_muted, Face::Bold);
     }
 
     /// Un bouton standard : fond, contour et libellé centré, selon son aspect et le survol.
@@ -217,7 +217,18 @@ impl Brush<'_> {
             (false, true) => theme.text_primary,
             (false, false) => theme.text_secondary,
         };
-        self.text_centered(pixmap, rect, label, size, ink, look.active);
+        self.text_centered(
+            pixmap,
+            rect,
+            label,
+            size,
+            ink,
+            if look.active {
+                Face::Bold
+            } else {
+                Face::Regular
+            },
+        );
     }
 
     /// Un champ de valeur : un fond de saisie et sa valeur, alignée à gauche.
@@ -227,7 +238,14 @@ impl Brush<'_> {
             rect.x + self.px(8.0),
             rect.y + (rect.h - self.px(11.0) * 1.2) / 2.0,
         );
-        self.text(pixmap, value, at, 11.0, self.theme.text_primary, false);
+        self.text(
+            pixmap,
+            value,
+            at,
+            11.0,
+            self.theme.text_primary,
+            Face::Regular,
+        );
     }
 
     /// Un bouton radio : un anneau, plein quand il est coché.

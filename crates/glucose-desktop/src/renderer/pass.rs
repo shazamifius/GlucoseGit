@@ -27,7 +27,7 @@ pub(super) const SELECTION_RING: f32 = 2.0;
 
 /// Le bord de l'écran utile. Tout ce qui en sort est écarté avant d'être dessiné (loi L1).
 #[derive(Clone, Copy)]
-pub(super) struct Clip {
+pub(crate) struct Clip {
     pub width: f32,
     pub height: f32,
     pub top: f32,
@@ -41,7 +41,7 @@ impl Clip {
 }
 
 /// Ce qui ne change pas d'une annotation à l'autre pendant une frame.
-pub(super) struct Pass<'a> {
+pub(crate) struct Pass<'a> {
     pub typography: &'a Typography,
     /// Le moteur de formules — il ne mute rien de visible, son cache est interne.
     pub math: &'a MathRenderer,
