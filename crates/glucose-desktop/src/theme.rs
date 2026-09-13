@@ -122,6 +122,10 @@ pub struct Theme {
     pub card_subheading: Color,
     /// Le corps, les puces et les formules.
     pub card_body: Color,
+    /// Le fond d'un texte sélectionné pendant une saisie. Bleu, et non blanc : la chrome est
+    /// monochrome (fiche 06 § 1.3) mais une sélection de texte est du **contenu**, et le blanc
+    /// translucide se confondrait avec l'encre du texte qu'elle doit laisser lisible.
+    pub text_selection: Color,
     /// Un signe de Markdown pendant l'édition : `**`, `` ` ``, `# `. Il doit se lire sans se
     /// confondre avec le texte qu'il commande — assez pâle pour s'effacer du regard, assez
     /// présent pour qu'on vise le bon octet en le corrigeant (MODE-1).
@@ -253,6 +257,7 @@ impl Theme {
             card_subheading: hex(0xf0f0f5),
             card_body: hex(0xdce1eb),
             card_marker: hex(0x7a8296),
+            text_selection: Color::from_rgba8(74, 127, 181, 115),
             code_bg: Color::from_rgba8(255, 255, 255, 20),
 
             arrow_default: hexa(0x94a3b8, 220),

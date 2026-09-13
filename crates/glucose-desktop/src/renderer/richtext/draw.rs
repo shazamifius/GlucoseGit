@@ -9,10 +9,12 @@
 //! zoom (SCALE-1), donc ils le suivent sans transformation propre : une longueur qui se dit
 //! en multiples d'une autre n'a pas à exister séparément.
 
+use super::hit::offset_to_x;
 use super::{fragment_style, Fragment, TextLayout, VisualLine};
 use crate::renderer::pass::Pass;
 use crate::renderer::push_rounded_rect;
 use crate::typography::Face;
+use glucose_core::text::Selection;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
 /// Marge horizontale du fond d'un `` `code` `` : `4px` sur les `14px` de la référence.
@@ -69,33 +71,53 @@ fn draw_fragment(
     end_x
 }
 
-/// L'abscisse du curseur dans sa ligne : la somme des avances des fragments qui le précèdent.
+/// Le surlignage d'une sélection sur **une** ligne, posé avant le texte qu'il souligne.
 ///
-/// Elle ne peut pas se mesurer d'un seul `measure_text` : les fragments d'une ligne n'ont pas
-/// tous le même visage, et une italique suivie de code n'avance pas comme du corps (RICH-1).
-pub(crate) fn cursor_offset(
+/// La ligne qui ne porte rien de la sélection ne dessine rien ; celles du milieu d'une
+/// sélection multi-lignes sont couvertes de bout en bout, sans que l'appelant ait à distinguer
+/// les cas — [`offset_to_x`] borne d'elle-même un offset hors de la ligne.
+///
+/// Une ligne dont le saut de ligne est pris dans la sélection se prolonge d'une espace :
+/// c'est ce qui montre qu'on a bien sélectionné la fin du paragraphe et pas seulement son
+/// dernier mot, et c'est ce que fait tout éditeur.
+pub(crate) fn draw_line_selection(
     ctx: &Pass,
-    layout: &TextLayout,
-    line: &VisualLine,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    (layout, line): (&TextLayout, &VisualLine),
+    (font, line_height): (f32, f32),
     source: &str,
-    cursor_idx: usize,
-    font: f32,
-) -> f32 {
-    let mut dx = 0.0;
-    for fragment in layout.fragments_of(line) {
-        if cursor_idx <= fragment.start {
-            break;
-        }
-        let end = cursor_idx.min(fragment.end);
-        let (w, _) =
-            ctx.typography
-                .measure_text(&source[fragment.start..end], font, fragment.face());
-        dx += w;
-        if cursor_idx <= fragment.end {
-            break;
-        }
+    selection: Selection,
+) {
+    let (start, end) = selection.range();
+    if selection.is_empty() || end <= line.start || start > line.end {
+        return;
     }
-    dx
+    let from = offset_to_x(
+        ctx.typography,
+        layout,
+        line,
+        source,
+        start.max(line.start),
+        font,
+    );
+    let mut to = offset_to_x(
+        ctx.typography,
+        layout,
+        line,
+        source,
+        end.min(line.end),
+        font,
+    );
+    if end > line.end {
+        to += ctx.typography.advance(' ', font, Face::Regular);
+    }
+    let Some(rect) = Rect::from_xywh(at.0 + from, at.1, (to - from).max(0.0), line_height) else {
+        return;
+    };
+    let mut paint = Paint::default();
+    paint.set_color(ctx.theme.text_selection);
+    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
 }
 
 /// Le fond d'un `` `code` `` : la valeur de la référence, dite en multiples du corps.

@@ -52,7 +52,8 @@
 
 use super::handles::draw_resize_handles;
 use super::pass::{Pass, SELECTION_RING};
-use super::richtext::draw::{cursor_offset, draw_line};
+use super::richtext::draw::{draw_line, draw_line_selection};
+use super::richtext::hit::offset_to_x;
 use super::richtext::{
     layout_rich_text, LineKind, TextBox, TextLayout, TextMode, VisualLine, LINE_FACTOR,
 };
@@ -102,7 +103,7 @@ pub fn card_text_layout(
 }
 
 /// La boîte offerte au texte dans une carte de `width` unités monde.
-fn text_box(width: f32) -> TextBox {
+pub fn text_box(width: f32) -> TextBox {
     TextBox {
         usable: (width - PAD_X * 2.0).max(BODY_FONT),
         body: BODY_FONT,
@@ -124,6 +125,13 @@ pub fn text_card_fit_height(
         card_text_layout(typography, math, text, width as f32, TextMode::Rendered).line_count();
     CardLayout::text_card(width as f32, 0.0, lines).height as f64
 }
+
+/// Le décalage du texte depuis le coin haut-gauche de la carte, en unités monde.
+///
+/// La souris et le clavier en ont besoin pour rapporter un point à la mise en page ; il est
+/// donné ici plutôt que recopié là-bas, sans quoi un changement de marge décalerait le clic
+/// sans décaler le texte.
+pub const TEXT_ORIGIN: (f32, f32) = (PAD_X, PAD_Y);
 
 // ── Mise en page d'une carte ────────────────────────────────────────────────
 
@@ -326,11 +334,14 @@ fn draw_card_body(
     text: &TextLayout,
     card: &TextCard,
 ) {
+    // Le curseur clignote, la sélection non : un fond qui s'allume et s'éteint rendrait la
+    // lecture du texte sélectionné impossible.
     let show_cursor = card
         .editing
         .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
         .unwrap_or(false);
-    let cursor_idx = card.editing.map(|s| s.cursor_idx).unwrap_or(0);
+    let selection = card.editing.map(|s| s.selection).unwrap_or_default();
+    let cursor_idx = selection.head;
 
     let mut cur_y = at.1 + layout.pad_y;
     let mut cursor_drawn = false;
@@ -357,6 +368,16 @@ fn draw_card_body(
 
         let font = line.kind.font(layout.font);
         let ink = line.kind.color(ctx.theme);
+        // Le surlignage passe sous le texte : dessiné après, il le recouvrirait.
+        draw_line_selection(
+            ctx,
+            pixmap,
+            (start_x, cur_y),
+            (text, line),
+            (font, layout.line_height),
+            card.body,
+            selection,
+        );
         draw_line(
             ctx,
             pixmap,
@@ -376,7 +397,7 @@ fn draw_card_body(
         };
         let in_line = cursor_idx >= from && (cursor_idx <= line.end || last);
         if show_cursor && !cursor_drawn && in_line {
-            let dx = cursor_offset(ctx, text, line, card.body, cursor_idx, font);
+            let dx = offset_to_x(ctx.typography, text, line, card.body, cursor_idx, font);
             draw_cursor(pixmap, (start_x + dx, cur_y), layout, ctx.scale, ink);
             cursor_drawn = true;
         }

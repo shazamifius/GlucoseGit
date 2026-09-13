@@ -74,6 +74,18 @@ Au repos les signes disparaissent ; pendant l'édition ils réapparaissent en gr
 c'est **la même mise en page**, à une largeur nulle près pour les signes effacés, ce qui garantit
 que le curseur vise le bon octet dans les deux vues.
 
+### 🖱️ La sélection de texte est celle qu'on connaît
+
+Glisser sélectionne, un double-clic prend un mot, un triple un paragraphe, et `Maj`+clic **étend
+depuis l'ancre** — de quoi relier deux points sans avoir à glisser d'un trait entre eux. Un
+glisser entamé par un double-clic continue de prendre des mots entiers, dans les deux sens.
+
+Au clavier : `Ctrl`+flèches par mot, `↑ ↓` à **colonne gardée** (elle est mémorisée, donc le
+curseur ne dérive pas vers la gauche à force de monter et descendre), `Début`/`Fin` sur la ligne
+**visible** — pas le paragraphe —, `Ctrl+A`, et copier-couper-coller **dans** le texte. Les
+accents composés passent par la couche de composition du système, donc taper `é` fonctionne sur
+n'importe quelle disposition.
+
 <div align="center">
 
 ![Un gros plan sur des formules LaTeX rendues au zoom x1,9](docs/screenshots/vitrine-zoom.png)
@@ -95,7 +107,7 @@ déterministes (`glucose_core::synth`). *Mesures au commit `0ff9fc6`.*
 
 | | Mesure | Comment la refaire |
 |---|---|---|
-| **Tests** | **698**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
+| **Tests** | **804**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
@@ -135,7 +147,7 @@ chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dan
 | **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
 | **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, déplacement, magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, dupliquer, supprimer | cycle de profondeur au clic (PICK-1) | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
 | **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
-| **Cartes texte** | création, édition en place, `#`, `##`, puces, retour à la ligne, hauteur qui suit le contenu, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | citations / listes numérotées / blocs de code / tableaux / liens, sélection à la souris, copier-coller dans le texte, IME (accents composés) |
+| **Cartes texte** | création, édition en place, `#`, `##`, puces, retour à la ligne, hauteur qui suit le contenu, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **sélection complète** (souris, double et triple-clic, `Maj`, mots, `↑↓` à colonne gardée, copier-couper-coller, IME), **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | citations / listes numérotées / blocs de code / tableaux / liens, sélection à la souris dans un pense-bête, annuler pendant la saisie |
 | **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |
 | **Flèches** | création (taille fixe), rendu droit | ancrage au bord des nœuds | dessin par glisser, sélection, courbes, waypoints, étiquette, prédicats sémantiques, portails |
 | **Membranes** | création (taille fixe), rendu, titre éditable | adoption au dépôt, modes minimisé et étiré, mode focus, tween | dessin par glisser, panneau d'options, couleur dérivée des domaines |
@@ -170,7 +182,7 @@ crates/
 │   ├── src/symbiotic_hue.rs   teinte symbiotique, au bit près de la référence
 │   ├── src/layout.rs          dispositions du panneau Ordonner
 │   ├── src/anim.rs            courbes et durées d'animation, testées sans horloge
-│   ├── src/text/              le Markdown en ligne : des tranches stylées, en fonctions pures
+│   ├── src/text/              Markdown en ligne et sélection : des fonctions pures, sans écran
 │   ├── src/synth.rs           documents synthétiques déterministes pour les bancs
 │   ├── src/membrane_*.rs, curtain_*.rs, arrow_anchor.rs, text_anchors.rs, timeline.rs,
 │   │   mirror_graph.rs, export.rs — écrits et testés, en attente de leur geste
@@ -182,6 +194,7 @@ crates/
 └── glucose-desktop/     l'application : winit, softbuffer, tiny-skia, fontdue, image, rfd, arboard
     ├── src/app.rs             la boucle d'événements et la présentation
     ├── src/interactions/      souris, clavier, glisser, redimensionner, presse-papiers, domaines
+    ├── src/interactions/text_* la saisie : intentions du clavier, gestes de la souris, géométrie
     ├── src/renderer/          scène, cartes, notes, dossiers, halos, formules, échelle unique
     ├── src/renderer/richtext/  le texte riche : fragments, reflux par visage, tracé
     ├── src/ui.rs, dock.rs     barre d'outils, onglets, minimap, toasts, panneaux
@@ -208,7 +221,10 @@ tableau ci-dessus, colonne « pas encore ».*
 | **Outils** | `V` sélection · `T` texte · `N` note · `A` flèche · `M` membrane · Dossier par la barre d'outils |
 | **Sélectionner** | clic · `Maj`+clic pour ajouter · glisser dans le vide pour une sélection élastique · `Ctrl+A` |
 | **Déplacer / redimensionner** | glisser l'élément · glisser une poignée (`Maj` libère le ratio) · `Échap` annule un redimensionnement |
-| **Éditer un texte** | double-clic · `Entrée` valide · `Maj+Entrée` saute une ligne · `Échap` sort |
+| **Éditer un texte** | double-clic (le mot visé est pris) · `Entrée` valide · `Maj+Entrée` saute une ligne · `Échap` sort |
+| **Sélectionner du texte** | glisser · double-clic un mot · triple-clic un paragraphe · `Maj`+clic étend depuis l'ancre |
+| **Déplacer le curseur** | `← →` · `Ctrl` par mot · `↑ ↓` colonne gardée · `Début`/`Fin` la ligne visible · `Ctrl+Début`/`Fin` le texte entier · `Maj` avec chacun pour étendre |
+| **Écrire** | `Ctrl+A` tout · `Ctrl+C`/`X`/`V` dans le texte · `Retour arrière`/`Suppr` (+`Ctrl` par mot) · accents composés (IME) |
 | **Entrer dans un dossier** | double-clic · fil d'Ariane pour remonter |
 | **Ajouter des images** | `Ctrl+I`, bouton `+ Images`, dépôt d'un fichier, `Ctrl+V` |
 | **Dupliquer / supprimer** | `Ctrl+D` · `Suppr` ou `Retour` |

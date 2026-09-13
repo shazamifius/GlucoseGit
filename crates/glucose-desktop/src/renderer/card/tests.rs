@@ -190,10 +190,34 @@ const MODE_TEXT: &str = "# Titre **net**\nUn `code` et du ~~barré~~.";
 /// — une capture de scène ne connaît pas de session d'édition — donc c'est ici qu'on peut
 /// les regarder après un changement du rendu.
 fn deux_modes(texte: &str) -> (tiny_skia::Pixmap, tiny_skia::Pixmap) {
+    (
+        rendu_de(texte, None),
+        rendu_de(texte, Some(&session(texte))),
+    )
+}
+
+/// Une session d'édition d'essai, **curseur éteint**.
+///
+/// Le curseur clignote une demi-seconde sur deux : posé ici dans sa phase éteinte, il n'ajoute
+/// pas sa barre aux différences que ces tests mesurent.
+fn session(texte: &str) -> crate::renderer::TextEditSession {
+    crate::renderer::TextEditSession {
+        ann_id: "mode".into(),
+        buffer: texte.to_string(),
+        selection: glucose_core::text::Selection::at(texte.len()),
+        goal_x: None,
+        blink_timer: std::time::Instant::now()
+            .checked_sub(std::time::Duration::from_millis(500))
+            .expect("une demi-seconde avant maintenant"),
+    }
+}
+
+/// La carte d'essai portant `texte`, rendue avec ou sans session d'édition.
+fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> tiny_skia::Pixmap {
     use crate::params::ViewPass;
     use crate::renderer::hue::SymbioticHueCache;
     use crate::renderer::pass::draw_annotations;
-    use crate::renderer::{PaintKit, TextEditSession};
+    use crate::renderer::PaintKit;
     use glucose_core::store::Store;
     use glucose_core::types::Viewport;
     use std::collections::HashSet;
@@ -207,16 +231,6 @@ fn deux_modes(texte: &str) -> (tiny_skia::Pixmap, tiny_skia::Pixmap) {
     }
     store.add_annotation(&board, carte);
 
-    let session = TextEditSession {
-        ann_id: "mode".into(),
-        buffer: texte.to_string(),
-        cursor_idx: texte.len(),
-        // Le curseur clignote une demi-seconde sur deux : posé ici dans sa phase éteinte, il
-        // ne vient pas ajouter sa barre à la différence que ce test mesure.
-        blink_timer: std::time::Instant::now()
-            .checked_sub(std::time::Duration::from_millis(500))
-            .expect("une demi-seconde avant maintenant"),
-    };
     let ids: HashSet<&str> = std::iter::once("mode").collect();
     let theme = crate::theme::Theme::dark();
     let typo = Typography::new();
@@ -224,35 +238,32 @@ fn deux_modes(texte: &str) -> (tiny_skia::Pixmap, tiny_skia::Pixmap) {
     let mut tints = crate::renderer::domain::DomainTints::new();
     tints.refresh(&store, &theme);
 
-    let rendu = |edition: Option<&TextEditSession>| {
-        let mut pixmap = tiny_skia::Pixmap::new(420, 200).expect("pixmap");
-        pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
-        let mut hue = SymbioticHueCache::new();
-        let mut view = pixmap.as_mut();
-        draw_annotations(
-            &mut hue,
-            PaintKit {
-                typography: &typo,
-                math: &math,
-                tints: &tints,
-                theme: &theme,
+    let mut pixmap = tiny_skia::Pixmap::new(420, 200).expect("pixmap");
+    pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
+    let mut hue = SymbioticHueCache::new();
+    let mut view = pixmap.as_mut();
+    draw_annotations(
+        &mut hue,
+        PaintKit {
+            typography: &typo,
+            math: &math,
+            tints: &tints,
+            theme: &theme,
+        },
+        &mut view,
+        &store,
+        edition,
+        ViewPass {
+            vp: Viewport {
+                x: 30.0,
+                y: 30.0,
+                scale: 1.4,
             },
-            &mut view,
-            &store,
-            edition,
-            ViewPass {
-                vp: Viewport {
-                    x: 30.0,
-                    y: 30.0,
-                    scale: 1.4,
-                },
-                visible_ids: &ids,
-                header_h: 0.0,
-            },
-        );
-        pixmap
-    };
-    (rendu(None), rendu(Some(&session)))
+            visible_ids: &ids,
+            header_h: 0.0,
+        },
+    );
+    pixmap
 }
 
 /// **MODE-1, à l'écran.** Au repos, la carte ne montre aucun signe ; en édition, elle les
@@ -284,5 +295,58 @@ fn test_mode_1_editing_shows_the_markdown_signs_on_screen() {
         repos_nu.data(),
         edition_nu.data(),
         "sans signe à montrer, éditer ne doit rien changer au dessin"
+    );
+}
+
+/// **La sélection se voit.** Un texte sélectionné se détache d'un fond, et ce fond passe
+/// **sous** l'encre — dessiné après, il recouvrirait le texte qu'il doit mettre en valeur.
+///
+/// La capture est écrite dans `target/mode-1/selection.png` : c'est l'une des vues que la
+/// scène témoin ne peut pas porter, faute de session d'édition.
+#[test]
+fn test_a_selection_is_visible_behind_the_text_it_marks() {
+    let avec_selection = |selection| crate::renderer::TextEditSession {
+        selection,
+        ..session(MODE_TEXT)
+    };
+    let sans = rendu_de(
+        MODE_TEXT,
+        Some(&avec_selection(glucose_core::text::Selection::at(0))),
+    );
+    let avec = rendu_de(
+        MODE_TEXT,
+        Some(&avec_selection(glucose_core::text::Selection::all(
+            MODE_TEXT,
+        ))),
+    );
+    let dir = std::path::Path::new("target/mode-1");
+    std::fs::create_dir_all(dir).expect("dossier de capture");
+    avec.save_png(dir.join("selection.png"))
+        .expect("écrire selection");
+
+    // Le fond bleu s'ajoute là où il n'y avait que la carte : beaucoup de pixels changent.
+    let differents = sans
+        .pixels()
+        .iter()
+        .zip(avec.pixels())
+        .filter(|(a, b)| a != b)
+        .count();
+    assert!(
+        differents > 500,
+        "une sélection de tout le texte doit se voir largement : {differents} pixels"
+    );
+
+    // Et l'encre du texte survit : les pixels les plus clairs de la vue sélectionnée sont au
+    // moins aussi clairs que ceux de l'autre. Un fond posé par-dessus les aurait effacés.
+    let plus_clair = |p: &tiny_skia::Pixmap| {
+        p.pixels()
+            .iter()
+            .map(|px| px.red() as u32 + px.green() as u32 + px.blue() as u32)
+            .max()
+            .unwrap_or(0)
+    };
+    assert!(
+        plus_clair(&avec) >= plus_clair(&sans),
+        "le surlignage a recouvert le texte"
     );
 }

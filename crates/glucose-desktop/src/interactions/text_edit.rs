@@ -1,55 +1,43 @@
-//! Session d'édition de texte in-place avec support UTF-8 (PureRef-style).
+//! La session d'édition d'une annotation : ouvrir, écrire, valider.
+//!
+//! Le **clavier** vit dans [`keys`], la **souris** dans [`super::text_mouse`], et le modèle de
+//! sélection — mouvements, frontières de mots, écriture — dans [`glucose_core::text::selection`],
+//! où il se teste sans écran.
+//!
+//! # EDIT-1 — une session ne connaît que sa sélection
+//!
+//! Il n'y a pas un curseur *et* une sélection : une sélection vide **est** le curseur (SEL-1).
+//! Tant que les deux existaient séparément, chaque geste devait penser à mettre les deux à
+//! jour, et le premier oubli laissait un surlignage fantôme derrière le curseur.
+
+pub mod geometry;
+pub mod keys;
 
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;
+use glucose_core::text::Selection;
 use glucose_core::types::Annotation;
-use winit::event::{ElementState, KeyEvent};
-use winit::keyboard::{Key, ModifiersState, NamedKey};
-
-/// La frappe est-elle une commande de fichier (`Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`) ?
-///
-/// Une session d'édition avale TOUTES les touches — c'est ce qui permet de taper `s` dans une
-/// carte sans déclencher un raccourci. Mais `Ctrl+S` au milieu d'une phrase veut dire
-/// « enregistre », pas « ignore-moi » : sans cette exception, enregistrer serait impossible
-/// tant qu'un curseur clignote quelque part.
-fn is_file_command(modifiers: &ModifiersState, key: &Key) -> bool {
-    if !modifiers.control_key() {
-        return false;
-    }
-    matches!(key, Key::Character(c) if matches!(c.as_str(), "s" | "S" | "o" | "O"))
-}
-
-/// La frontière de caractère qui précède `idx` (`idx > 0`, en octets) : un pas en arrière
-/// dans une chaîne UTF-8 sans jamais couper un caractère.
-///
-/// Un pas de **caractère**, pas de grappe de graphèmes : un accent combinant ou un emoji
-/// composé se traverse morceau par morceau (R-17). C'est le chantier 1.A.4, pas celui-ci.
-fn prev_char_boundary(s: &str, idx: usize) -> usize {
-    let mut prev = idx - 1;
-    while prev > 0 && !s.is_char_boundary(prev) {
-        prev -= 1;
-    }
-    prev
-}
-
-/// La frontière de caractère qui suit `idx` (`idx < s.len()`, en octets). Même réserve que
-/// [`prev_char_boundary`].
-fn next_char_boundary(s: &str, idx: usize) -> usize {
-    let mut next = idx + 1;
-    while next < s.len() && !s.is_char_boundary(next) {
-        next += 1;
-    }
-    next
-}
 
 impl GlucoseApp {
-    /// Initialise une session d'édition in-place pour une annotation.
+    /// Initialise une session d'édition in-place pour une annotation, curseur à la fin.
     pub fn start_text_edit(&mut self, ann_id: String, initial_text: String) {
-        let cur_idx = initial_text.len();
+        let fin = initial_text.len();
+        self.start_text_edit_at(ann_id, initial_text, Selection::at(fin));
+    }
+
+    /// La même, avec une sélection choisie — ce qu'un clic ou un double-clic vient de désigner.
+    pub fn start_text_edit_at(
+        &mut self,
+        ann_id: String,
+        initial_text: String,
+        selection: Selection,
+    ) {
+        let selection = selection.clamped(&initial_text);
         self.editing_session = Some(TextEditSession {
             ann_id,
             buffer: initial_text,
-            cursor_idx: cur_idx,
+            selection,
+            goal_x: None,
             blink_timer: std::time::Instant::now(),
         });
         self.mark_dirty();
@@ -64,6 +52,7 @@ impl GlucoseApp {
     /// directe était couverte ; avec le journal d'éditions, elle est invisible — et c'est
     /// ainsi que la saisie de texte a cessé d'être annulable sans qu'aucun test ne le voie.
     pub fn commit_editing(&mut self) {
+        self.text_drag = None;
         let Some(session) = self.editing_session.take() else {
             return;
         };
@@ -97,143 +86,5 @@ impl GlucoseApp {
             self.fit_text_card_height(&session.ann_id);
         }
         self.store.end_live_edit();
-    }
-
-    /// Traite les touches clavier lors d'une session d'édition active.
-    pub fn handle_text_key(&mut self, event: &KeyEvent) -> bool {
-        // Enregistrer ou ouvrir pendant une saisie : on valide d'abord le texte en cours,
-        // puis on laisse la touche descendre aux raccourcis globaux.
-        if event.state == ElementState::Pressed
-            && self.editing_session.is_some()
-            && is_file_command(&self.modifiers, &event.logical_key)
-        {
-            self.commit_editing();
-            self.mark_dirty();
-            return false;
-        }
-
-        // Le garde de l'arme `Key::Character` est évalué alors que `session`
-        // emprunte déjà `self` : la question « la frappe produit-elle du texte ? »
-        // se résout donc AVANT l'emprunt, pas dans le garde.
-        let produces_text = !self.modifiers.control_key() && !self.modifiers.alt_key();
-        let Some(session) = &mut self.editing_session else {
-            return false;
-        };
-
-        if event.state != ElementState::Pressed {
-            return true;
-        }
-
-        match event.logical_key {
-            Key::Named(NamedKey::Escape) => {
-                self.commit_editing();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Named(NamedKey::Enter) => {
-                if !self.modifiers.shift_key() {
-                    self.commit_editing();
-                    self.mark_dirty();
-                    return true;
-                } else {
-                    session.buffer.insert(session.cursor_idx, '\n');
-                    session.cursor_idx += 1;
-                    session.blink_timer = std::time::Instant::now();
-                    self.mark_dirty();
-                    return true;
-                }
-            }
-            Key::Named(NamedKey::Backspace) if session.cursor_idx > 0 => {
-                let prev = prev_char_boundary(&session.buffer, session.cursor_idx);
-                session.buffer.drain(prev..session.cursor_idx);
-                session.cursor_idx = prev;
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Named(NamedKey::Delete) if session.cursor_idx < session.buffer.len() => {
-                let next = next_char_boundary(&session.buffer, session.cursor_idx);
-                session.buffer.drain(session.cursor_idx..next);
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Named(NamedKey::ArrowLeft) if session.cursor_idx > 0 => {
-                session.cursor_idx = prev_char_boundary(&session.buffer, session.cursor_idx);
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Named(NamedKey::ArrowRight) if session.cursor_idx < session.buffer.len() => {
-                session.cursor_idx = next_char_boundary(&session.buffer, session.cursor_idx);
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Named(NamedKey::Home) => {
-                session.cursor_idx = 0;
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Named(NamedKey::End) => {
-                session.cursor_idx = session.buffer.len();
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            Key::Character(ref c) if produces_text => {
-                session.buffer.insert_str(session.cursor_idx, c.as_str());
-                session.cursor_idx += c.len();
-                session.blink_timer = std::time::Instant::now();
-                self.mark_dirty();
-                return true;
-            }
-            _ => {}
-        }
-        true
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use winit::keyboard::SmolStr;
-
-    fn character(c: &str) -> Key {
-        Key::Character(SmolStr::new(c))
-    }
-
-    #[test]
-    fn test_ctrl_s_and_ctrl_o_escape_a_text_edit_session() {
-        let ctrl = ModifiersState::CONTROL;
-        assert!(is_file_command(&ctrl, &character("s")));
-        assert!(is_file_command(&ctrl, &character("S")));
-        assert!(is_file_command(&ctrl, &character("o")));
-    }
-
-    #[test]
-    fn test_plain_letters_still_belong_to_the_text_being_typed() {
-        let none = ModifiersState::empty();
-        assert!(!is_file_command(&none, &character("s")));
-        assert!(!is_file_command(&none, &character("o")));
-        // Ctrl+A reste une sélection de texte, pas une commande de fichier.
-        assert!(!is_file_command(&ModifiersState::CONTROL, &character("a")));
-        assert!(!is_file_command(
-            &ModifiersState::CONTROL,
-            &Key::Named(NamedKey::Enter)
-        ));
-    }
-
-    /// Un pas du curseur enjambe un caractère entier, jamais un octet : « é » en fait deux.
-    #[test]
-    fn test_a_cursor_step_never_lands_inside_a_character() {
-        let s = "aé€"; // 1 + 2 + 3 octets
-        assert_eq!(next_char_boundary(s, 0), 1);
-        assert_eq!(next_char_boundary(s, 1), 3);
-        assert_eq!(next_char_boundary(s, 3), 6);
-        assert_eq!(prev_char_boundary(s, 6), 3);
-        assert_eq!(prev_char_boundary(s, 3), 1);
-        assert_eq!(prev_char_boundary(s, 1), 0);
     }
 }
