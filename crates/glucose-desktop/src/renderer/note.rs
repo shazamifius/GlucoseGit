@@ -22,8 +22,8 @@
 //! (WRAP-1) et **se coupe** en bas quand il ne tient plus — jamais de débordement, jamais
 //! de hauteur qui bouge toute seule. Le choix est nommé pour ne pas être un mélange silencieux.
 
-use super::card::{Pass, SELECTION_RING};
 use super::handles::draw_resize_handles;
+use super::pass::{Pass, SELECTION_RING};
 use super::scale::WorldScale;
 use super::wrap::wrap_paragraph;
 use super::{parse_hex_rgb, push_rounded_rect, TextEditSession};

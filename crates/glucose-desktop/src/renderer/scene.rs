@@ -11,9 +11,9 @@
 //! constante** : c'est l'exception de SCALE-1. Les poignées elles-mêmes sont dessinées par
 //! [`super::handles`], aux positions que le test de clic utilise (RESIZE-1).
 
-use super::card::{Clip, SELECTION_RING};
 use super::domain::{draw_domain_gauge, gauge_width};
 use super::handles::draw_resize_handles;
+use super::pass::{Clip, SELECTION_RING};
 use super::scale::WorldScale;
 use super::{parse_hex_color, push_rounded_rect, PaintKit};
 use crate::canvas::{screen_to_world, world_to_screen};

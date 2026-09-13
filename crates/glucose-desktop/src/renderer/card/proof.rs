@@ -8,6 +8,11 @@
 
 use super::*;
 use crate::params::ViewPass;
+use crate::renderer::hue::SymbioticHueCache;
+use crate::renderer::pass::draw_annotations;
+use crate::renderer::PaintKit;
+use glucose_core::store::Store;
+use glucose_core::types::{Annotation, Viewport};
 use std::collections::HashSet;
 use tiny_skia::Pixmap;
 

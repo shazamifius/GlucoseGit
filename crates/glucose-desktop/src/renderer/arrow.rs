@@ -6,7 +6,7 @@
 //! elle grandit avec la flèche sans borne (SCALE-1) ; la sélection est une affordance et
 //! garde son épaisseur écran.
 
-use super::card::{Clip, Pass, SELECTION_RING};
+use super::pass::{Clip, Pass, SELECTION_RING};
 use crate::canvas::world_to_screen;
 use tiny_skia::{LineCap, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 

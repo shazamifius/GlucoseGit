@@ -20,8 +20,8 @@
 
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
-use crate::renderer::card::Clip;
 use crate::renderer::handles::draw_resize_handles;
+use crate::renderer::pass::Clip;
 use crate::renderer::scale::WorldScale;
 use crate::renderer::{parse_hex_color, push_rounded_rect, PaintKit};
 use crate::typography::TextStyle;

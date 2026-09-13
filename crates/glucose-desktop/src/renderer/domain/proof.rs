@@ -10,8 +10,8 @@
 
 use super::*;
 use crate::params::ViewPass;
-use crate::renderer::card::draw_annotations;
 use crate::renderer::hue::SymbioticHueCache;
+use crate::renderer::pass::draw_annotations;
 use crate::renderer::PaintKit;
 use glucose_core::store::DomainPatch;
 use glucose_core::types::{Annotation, BoardImage, Domain, Viewport};

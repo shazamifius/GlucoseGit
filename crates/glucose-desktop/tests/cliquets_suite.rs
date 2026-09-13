@@ -611,7 +611,6 @@ const FICHIERS_LONGS_ADMIS: &[(&str, usize)] = &[
     // (fichier, lignes de production admises) — mesurées après le passage sous rustfmt.
     ("crates/glucose-core/src/membrane_space.rs", 661),
     ("crates/glucose-desktop/src/dock.rs", 2703),
-    ("crates/glucose-desktop/src/renderer/card.rs", 705),
     ("crates/glucose-desktop/src/renderer/scene.rs", 683),
 ];
 
