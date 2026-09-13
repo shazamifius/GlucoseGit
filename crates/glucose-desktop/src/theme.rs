@@ -122,6 +122,14 @@ pub struct Theme {
     pub card_subheading: Color,
     /// Le corps, les puces et les formules.
     pub card_body: Color,
+    /// Un signe de Markdown pendant l'édition : `**`, `` ` ``, `# `. Il doit se lire sans se
+    /// confondre avec le texte qu'il commande — assez pâle pour s'effacer du regard, assez
+    /// présent pour qu'on vise le bon octet en le corrigeant (MODE-1).
+    pub card_marker: Color,
+    /// Le fond d'un `` `code` `` : `rgba(255, 255, 255, 0.08)`, la valeur de la référence.
+    /// Le code n'a pas d'encre à lui — il hérite de celle de sa ligne, comme dans la
+    /// référence, et sa chasse fixe suffit à le distinguer.
+    pub code_bg: Color,
 
     // ── Flèches (§ 7) ──────────────────────────────────────────────────────
     /// La couleur d'une flèche que le document ne colore pas — **provisoire** : la référence
@@ -244,6 +252,8 @@ impl Theme {
             card_heading: hex(0xffffff),
             card_subheading: hex(0xf0f0f5),
             card_body: hex(0xdce1eb),
+            card_marker: hex(0x7a8296),
+            code_bg: Color::from_rgba8(255, 255, 255, 20),
 
             arrow_default: hexa(0x94a3b8, 220),
 

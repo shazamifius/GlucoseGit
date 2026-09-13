@@ -24,7 +24,7 @@ use crate::renderer::handles::draw_resize_handles;
 use crate::renderer::pass::Clip;
 use crate::renderer::scale::WorldScale;
 use crate::renderer::{parse_hex_color, push_rounded_rect, PaintKit};
-use crate::typography::TextStyle;
+use crate::typography::{Face, TextStyle};
 use glucose_core::hit_priority::pick_consts;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
@@ -294,7 +294,7 @@ fn draw_header(
         TextStyle {
             size: scale.world(TITLE.2),
             color: Color::from_rgba8(r, g, b, if selected { 255 } else { 204 }),
-            bold: true,
+            face: Face::Bold,
         },
     );
 
@@ -358,7 +358,7 @@ fn draw_badge(
         TextStyle {
             size: scale.world(BADGE_FONT),
             color: Color::from_rgba8(r, g, b, 204),
-            bold: true,
+            face: Face::Bold,
         },
     );
 }

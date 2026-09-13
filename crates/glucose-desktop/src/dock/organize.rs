@@ -18,7 +18,7 @@
 
 use super::WidgetRect;
 use crate::params::{Pointer, ScaledRect};
-use crate::typography::Typography;
+use crate::typography::{Face, Typography};
 use glucose_core::layout::{OrganizeMode, OrganizeSort};
 use glucose_core::types::BoardImage;
 
@@ -192,7 +192,7 @@ pub fn layout_organize_panel(frame: ScaledRect, typo: &Typography) -> OrganizePa
     let mut sort_buttons = Vec::with_capacity(SortType::ALL.len());
     let mut sx = px + pad_x;
     for sort_type in SortType::ALL {
-        let (tw, _) = typo.measure_text(sort_type.label(), 10.0 * s, false);
+        let (tw, _) = typo.measure_text(sort_type.label(), 10.0 * s, Face::Regular);
         let bw = tw + 14.0 * s;
         if sx + bw > px + pw - pad_x {
             sx = px + pad_x;

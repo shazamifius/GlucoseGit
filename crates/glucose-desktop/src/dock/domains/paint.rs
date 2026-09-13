@@ -10,7 +10,7 @@ use super::{
 };
 use crate::params::{Pointer, ScaledRect};
 use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
 use glucose_core::types::Domain;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
@@ -74,7 +74,7 @@ fn draw_header(
         TextStyle {
             size: m.title_size,
             color: p.theme.text_primary,
-            bold: true,
+            face: Face::Bold,
         },
     );
     let summary = format!("{domains} domaine(s) · {selected} nœud(s) sélectionné(s)");
@@ -86,7 +86,7 @@ fn draw_header(
         TextStyle {
             size: m.hint_size,
             color: p.theme.text_muted,
-            bold: false,
+            face: Face::Regular,
         },
     );
 }
@@ -101,7 +101,7 @@ fn draw_empty_state(p: &Painter, pixmap: &mut PixmapMut, frame: ScaledRect) {
     let mut y = frame.y + m.rows_top + m.row_gap;
     for (index, line) in lines.iter().enumerate() {
         let size = if index == 0 { m.name_size } else { m.hint_size };
-        let (width, _) = p.typo.measure_text(line, size, false);
+        let (width, _) = p.typo.measure_text(line, size, Face::Regular);
         p.typo.draw_text(
             pixmap,
             line,
@@ -110,7 +110,7 @@ fn draw_empty_state(p: &Painter, pixmap: &mut PixmapMut, frame: ScaledRect) {
             TextStyle {
                 size,
                 color: p.theme.text_muted,
-                bold: false,
+                face: Face::Regular,
             },
         );
         y += m.line_gap * 0.8;
@@ -159,7 +159,7 @@ fn draw_row(
         Color::from_rgba8(r, g, b, 130),
         m.pad / 12.0,
     );
-    let (sigil_w, _) = p.typo.measure_text(&domain.icon, m.sigil_size, true);
+    let (sigil_w, _) = p.typo.measure_text(&domain.icon, m.sigil_size, Face::Bold);
     p.typo.draw_text(
         pixmap,
         &domain.icon,
@@ -168,7 +168,7 @@ fn draw_row(
         TextStyle {
             size: m.sigil_size,
             color: tint,
-            bold: true,
+            face: Face::Bold,
         },
     );
 
@@ -189,7 +189,7 @@ fn draw_row(
         TextStyle {
             size: m.name_size,
             color: cross,
-            bold: true,
+            face: Face::Bold,
         },
     );
 
@@ -230,7 +230,7 @@ fn draw_name(
         TextStyle {
             size: m.name_size,
             color: p.theme.text_primary,
-            bold: false,
+            face: Face::Regular,
         },
     );
     let Some(rename) = editing else {
@@ -240,7 +240,7 @@ fn draw_name(
     // boucle d'événements, et un caret fixe dit exactement la même chose.
     let (prefix, _) = p
         .typo
-        .measure_text(rename.entry.before_cursor(), m.name_size, false);
+        .measure_text(rename.entry.before_cursor(), m.name_size, Face::Regular);
     let caret = WidgetRect::new(
         row.name.x + m.pad / 3.0 + prefix,
         baseline,
@@ -274,7 +274,7 @@ fn draw_steps(
             Color::from_rgba8(r, g, b, if hovered { 150 } else { alpha }),
         );
         let label = format!("{}", (WEIGHT_STEPS[index] * 100.0).round() as i32);
-        let (width, _) = p.typo.measure_text(&label, m.step_size, false);
+        let (width, _) = p.typo.measure_text(&label, m.step_size, Face::Regular);
         let color = if enabled {
             p.theme.text_secondary
         } else {
@@ -288,7 +288,7 @@ fn draw_steps(
             TextStyle {
                 size: m.step_size,
                 color,
-                bold: false,
+                face: Face::Regular,
             },
         );
     }
@@ -311,7 +311,7 @@ fn draw_steps(
         p.theme.btn_border,
         m.pad / 12.0,
     );
-    let (width, _) = p.typo.measure_text("-", m.step_size, true);
+    let (width, _) = p.typo.measure_text("-", m.step_size, Face::Bold);
     let color = if enabled {
         p.theme.text_secondary
     } else {
@@ -325,7 +325,7 @@ fn draw_steps(
         TextStyle {
             size: m.step_size,
             color,
-            bold: true,
+            face: Face::Bold,
         },
     );
 }
@@ -347,7 +347,7 @@ fn draw_confirm(
         TextStyle {
             size: m.step_size,
             color: p.theme.text_secondary,
-            bold: false,
+            face: Face::Regular,
         },
     );
     for (rect, label, danger) in [(yes, "Oui", true), (no, "Non", false)] {
@@ -360,7 +360,7 @@ fn draw_confirm(
         };
         fill_rect(pixmap, rect, m.pad / 4.0, background);
         stroke_rect(pixmap, rect, m.pad / 4.0, p.theme.btn_border, m.pad / 12.0);
-        let (width, _) = p.typo.measure_text(label, m.step_size, true);
+        let (width, _) = p.typo.measure_text(label, m.step_size, Face::Bold);
         p.typo.draw_text(
             pixmap,
             label,
@@ -369,7 +369,7 @@ fn draw_confirm(
             TextStyle {
                 size: m.step_size,
                 color: p.theme.text_primary,
-                bold: true,
+                face: Face::Bold,
             },
         );
     }
@@ -396,7 +396,7 @@ fn draw_footer(
         TextStyle {
             size: m.hint_size,
             color: p.theme.text_muted,
-            bold: false,
+            face: Face::Regular,
         },
     );
 
@@ -419,7 +419,7 @@ fn draw_footer(
         m.pad / 12.0,
     );
     let label = "+ Nouveau domaine";
-    let (width, _) = p.typo.measure_text(label, m.name_size, false);
+    let (width, _) = p.typo.measure_text(label, m.name_size, Face::Regular);
     p.typo.draw_text(
         pixmap,
         label,
@@ -428,7 +428,7 @@ fn draw_footer(
         TextStyle {
             size: m.name_size,
             color: p.theme.text_secondary,
-            bold: false,
+            face: Face::Regular,
         },
     );
 }

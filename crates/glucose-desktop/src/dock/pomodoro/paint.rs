@@ -3,6 +3,7 @@
 use super::{layout_pomodoro_panel, PomodoroPanelLayout, PomodoroState};
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::params::ScaledRect;
+use crate::typography::Face;
 use tiny_skia::{LineCap, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
 /// Épaisseur de l'anneau, en unités de la fiche.
@@ -18,7 +19,14 @@ pub fn render_pomodoro_panel(
 ) {
     let layout = layout_pomodoro_panel(frame, brush.typo);
     let at = (frame.x + brush.px(14.0), frame.y + brush.px(18.0));
-    brush.text(pixmap, "POMODORO", at, 10.0, brush.theme.text_muted, true);
+    brush.text(
+        pixmap,
+        "POMODORO",
+        at,
+        10.0,
+        brush.theme.text_muted,
+        Face::Bold,
+    );
 
     draw_ring(pixmap, brush, &layout, state);
     draw_time(pixmap, brush, &layout, state);
@@ -110,10 +118,17 @@ fn draw_time(
         state.left_seconds / 60,
         state.left_seconds % 60
     );
-    let (w, _) = brush.typo.measure_text(&text, brush.px(16.0), true);
+    let (w, _) = brush.typo.measure_text(&text, brush.px(16.0), Face::Bold);
     let (cx, cy) = layout.ring_center;
     let at = (cx - w / 2.0, cy - brush.px(8.0));
-    brush.text(pixmap, &text, at, 16.0, brush.theme.text_primary, true);
+    brush.text(
+        pixmap,
+        &text,
+        at,
+        16.0,
+        brush.theme.text_primary,
+        Face::Bold,
+    );
 }
 
 #[cfg(test)]

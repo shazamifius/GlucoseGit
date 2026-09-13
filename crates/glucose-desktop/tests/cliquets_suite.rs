@@ -330,10 +330,94 @@ fn modules_du_noyau() -> BTreeSet<String> {
 /// Les identifiants de tête qui suivent un `prefixe::` dans un texte : `prefixe::a::b` donne
 /// `a`, et `prefixe::{a, b::c, d}` donne `a`, `b` et `d` — y compris sur plusieurs lignes,
 /// puisque rustfmt éclate les imports longs.
+/// Le texte privé de ses commentaires et de ses chaînes.
+///
+/// Sans cela, un lien de documentation — ``[`crate::text_anchors`]`` — compte comme un appel,
+/// et le cliquet 3 annonce qu'un module mort vient d'être branché. **Un cliquet qui se trompe
+/// dans ce sens est pire que pas de cliquet** : il efface une dette au lieu de la montrer, et
+/// il le fait au moment précis où quelqu'un documente le module concerné.
+///
+/// Les commentaires de bloc s'imbriquent, comme en Rust. Les chaînes disparaissent aussi :
+/// un chemin cité dans un message d'erreur n'est pas davantage un appel.
+fn code_seul(texte: &str) -> String {
+    let mut out = String::with_capacity(texte.len());
+    let bytes = texte.as_bytes();
+    let mut i = 0;
+    let mut profondeur = 0usize;
+    while i < bytes.len() {
+        if profondeur > 0 {
+            match (bytes[i], bytes.get(i + 1)) {
+                (b'/', Some(b'*')) => {
+                    profondeur += 1;
+                    i += 2;
+                }
+                (b'*', Some(b'/')) => {
+                    profondeur -= 1;
+                    i += 2;
+                }
+                _ => i += 1,
+            }
+            continue;
+        }
+        match (bytes[i], bytes.get(i + 1)) {
+            (b'/', Some(b'/')) => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            (b'/', Some(b'*')) => {
+                profondeur = 1;
+                i += 2;
+            }
+            (b'"', _) => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+            }
+            (c, _) => {
+                // Un chemin `crate::…` est en ASCII ; tout octet qui n'en est pas devient une
+                // espace, ce qui garde le résultat en UTF-8 valide sans rien rapprocher.
+                out.push(if c.is_ascii() { c as char } else { ' ' });
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+/// **Le lecteur de références ne lit que du code.** Il décide du cliquet 3 ; s'il se trompe,
+/// c'est le cliquet qui ment, donc il se prouve lui aussi.
+#[test]
+fn test_le_lecteur_de_references_ignore_les_commentaires_et_les_chaines() {
+    let texte = r#"
+//! Voir [`crate::documente`] pour le détail.
+/// Ce lien vers [`crate::commente`] n'est pas un appel.
+/* un bloc /* imbriqué */ qui parle de crate::bloc */
+fn f() {
+    let message = "crate::cite dans un message";
+    crate::appele::vraiment();
+}
+"#;
+    let vues = references(texte, "crate");
+    assert!(
+        vues.contains("appele"),
+        "le seul vrai appel doit être vu : {vues:?}"
+    );
+    for fantome in ["documente", "commente", "bloc", "cite"] {
+        assert!(
+            !vues.contains(fantome),
+            "« {fantome} » n'est pas un appel, mais il a été compté : {vues:?}"
+        );
+    }
+}
+
 fn references(texte: &str, prefixe: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let motif = format!("{prefixe}::");
-    let mut reste = texte;
+    let code = code_seul(texte);
+    let mut reste = code.as_str();
     while let Some(i) = reste.find(&motif) {
         let apres = &reste[i + motif.len()..];
         if let Some(groupe) = apres.strip_prefix('{') {
@@ -521,7 +605,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         86,
     ),
     ("crates/glucose-core/src/smart_align.rs", "snap_resize", 94),
-    ("crates/glucose-core/src/synth.rs", "showcase", 105),
     (
         "crates/glucose-desktop/src/dock/domains/paint.rs",
         "draw_row",
@@ -543,11 +626,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         93,
     ),
     ("crates/glucose-desktop/src/renderer.rs", "render", 102),
-    (
-        "crates/glucose-desktop/src/renderer/card.rs",
-        "draw_card_body",
-        93,
-    ),
     (
         "crates/glucose-desktop/src/renderer/folder.rs",
         "draw_frame",

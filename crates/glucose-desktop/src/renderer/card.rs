@@ -1,5 +1,9 @@
 //! Rendu des annotations : la carte de texte, et l'aiguillage vers les autres formes.
 //!
+//! La **mise en page** du texte n'est plus ici : elle vit dans [`super::richtext`], qui la
+//! calcule en fragments stylés. Ce module dessine la boîte — fond, cadre, puce, curseur,
+//! poignées — et pose les fragments que la mise en page lui donne.
+//!
 //! # CARD-1 — la carte est décrite en unités monde, puis mise à l'échelle une seule fois
 //!
 //! [`CardLayout`] ne connaît pas le zoom : elle décrit une carte comme si elle était
@@ -21,9 +25,15 @@
 //! | 4 | texte toujours figé : 0,25 de la largeur |
 //!
 //! Corollaire important : **la mise en page se calcule avant la mise à l'échelle**. Le
-//! découpage en lignes ([`layout_lines`], WRAP-1) et la hauteur nécessaire au contenu
-//! (`CardLayout::text_card`) sont dérivés d'une police en unités monde ; calculés après, ils
-//! dépendraient d'une police écran et la carte se réorganiserait à chaque palier de zoom.
+//! découpage en lignes ([`super::richtext::layout_rich_text`], WRAP-1) et la hauteur nécessaire
+//! au contenu (`CardLayout::text_card`) sont dérivés d'une police en unités monde ; calculés
+//! après, ils dépendraient d'une police écran et la carte se réorganiserait à chaque palier
+//! de zoom.
+//!
+//! Les ornements du Markdown — le fond d'un `` `code` ``, la barre d'un `~~barré~~` — ne
+//! sont pas des champs de [`CardLayout`] : ce sont des **fractions du corps**, et le corps
+//! est déjà à l'échelle. Une longueur qui peut se dire en multiples d'une autre n'a pas à
+//! être mise à l'échelle séparément, donc elle n'a pas à exister séparément.
 //!
 //! # TEXT-FIT-1 — la hauteur d'une carte de texte suit son texte
 //!
@@ -34,17 +44,24 @@
 //! ([`text_card_fit_height`]), pour que le test de clic, l'index spatial et les poignées
 //! voient la même boîte que l'écran. `text_card` garde un `max` de sécurité pour les
 //! documents antérieurs à cette règle.
+//!
+//! La hauteur se mesure **sur le texte rendu**, jamais sur sa source : une carte ne doit pas
+//! changer de taille au moment où on la sélectionne pour l'éditer. Pendant l'édition, les
+//! signes réapparaissent et le texte peut demander une ligne de plus — la carte l'affiche,
+//! puisque `text_card` prend le maximum entre la hauteur écrite et celle qu'il faut.
 
 use super::handles::draw_resize_handles;
 use super::pass::{Pass, SELECTION_RING};
+use super::richtext::draw::{cursor_offset, draw_line};
+use super::richtext::{
+    layout_rich_text, LineKind, TextBox, TextLayout, TextMode, VisualLine, LINE_FACTOR,
+};
 use super::scale::WorldScale;
-use super::wrap::wrap_paragraph;
 use super::{push_rounded_rect, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::params::Pen;
 use crate::renderer::math::MathRenderer;
-use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, Typography};
 use glucose_core::resize::Handle;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
@@ -52,15 +69,6 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 /// Corps de texte d'une carte.
 const BODY_FONT: f32 = 14.0;
-/// Interligne, en multiples du corps (fiche 06 § 5.1 : `lineHeight: 1.4`).
-const LINE_FACTOR: f32 = 1.4;
-/// Grossissement d'un titre `# `.
-const H1_FACTOR: f32 = 1.25;
-/// Grossissement d'un sous-titre `## `.
-const H2_FACTOR: f32 = 1.10;
-// Les titres sont plus grands que le corps, et un titre plus qu'un sous-titre : vérifié à la
-// compilation, pas dans un test qu'on pourrait oublier de lancer.
-const _: () = assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0);
 /// Marge horizontale entre le bord de la carte et son texte (fiche 06 § 5.1 : `16px 24px`).
 const PAD_X: f32 = 24.0;
 /// Marge verticale entre le bord de la carte et son texte.
@@ -82,175 +90,25 @@ const CURSOR_WIDTH: f32 = 2.0;
 /// Hauteur du curseur d'édition, en multiples du corps.
 const CURSOR_HEIGHT: f32 = 1.2;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LineKind {
-    Heading1,
-    Heading2,
-    Bullet,
-    Body,
-    /// Un paragraphe qui est **entièrement** une formule : `$...$` ou `$$...$$`, seuls sur leur
-    /// ligne. Il ne se reflue pas — une formule ne se coupe pas en deux — et se dessine par le
-    /// moteur mathématique au lieu du moteur de texte.
-    Math,
-}
-
-/// Les délimiteurs d'une formule qui occupe tout un paragraphe, et le mode qu'ils demandent.
-///
-/// Le LaTeX **au milieu** d'une phrase n'est pas traité ici : il demande de découper une ligne
-/// en segments de nature différente, et de mesurer chacun. C'est un chantier à part, et le cas
-/// fréquent dans un canva est la formule posée seule.
-fn formule_entiere(paragraph: &str) -> Option<(&str, glucose_math::Mode)> {
-    let t = paragraph.trim();
-    if let Some(corps) = t.strip_prefix("$$").and_then(|r| r.strip_suffix("$$")) {
-        if !corps.trim().is_empty() {
-            return Some((corps, glucose_math::Mode::Display));
-        }
-    }
-    if let Some(corps) = t.strip_prefix('$').and_then(|r| r.strip_suffix('$')) {
-        if !corps.trim().is_empty() && !corps.contains('$') {
-            return Some((corps, glucose_math::Mode::Inline));
-        }
-    }
-    None
-}
-
-impl LineKind {
-    /// Le genre du paragraphe et la longueur en octets de son préfixe.
-    fn of(paragraph: &str) -> (Self, usize) {
-        if formule_entiere(paragraph).is_some() {
-            (Self::Math, 0)
-        } else if paragraph.starts_with("# ") {
-            (Self::Heading1, 2)
-        } else if paragraph.starts_with("## ") {
-            (Self::Heading2, 3)
-        } else if paragraph.starts_with("- ") || paragraph.starts_with("* ") {
-            (Self::Bullet, 2)
-        } else {
-            (Self::Body, 0)
-        }
-    }
-
-    /// Les grossissements de titre sont des multiples du corps : ils héritent de l'unique
-    /// transformation au lieu de redériver du zoom.
-    fn font(self, body: f32) -> f32 {
-        match self {
-            Self::Heading1 => body * H1_FACTOR,
-            Self::Heading2 => body * H2_FACTOR,
-            Self::Bullet | Self::Body | Self::Math => body,
-        }
-    }
-
-    fn bold(self) -> bool {
-        matches!(self, Self::Heading1 | Self::Heading2)
-    }
-
-    fn indent(self, layout: &CardLayout) -> f32 {
-        if self == Self::Bullet {
-            layout.indent
-        } else {
-            0.0
-        }
-    }
-
-    fn color(self, theme: &Theme) -> Color {
-        match self {
-            Self::Heading1 => theme.card_heading,
-            Self::Heading2 => theme.card_subheading,
-            Self::Bullet | Self::Body | Self::Math => theme.card_body,
-        }
-    }
-
-    fn style(self, layout: &CardLayout, theme: &Theme) -> TextStyle {
-        TextStyle {
-            size: self.font(layout.font),
-            color: self.color(theme),
-            bold: self.bold(),
-        }
-    }
-}
-
-/// Une ligne visuelle : une tranche `[start, end)` du corps, et le paragraphe dont elle vient.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct VisualLine {
-    pub start: usize,
-    pub end: usize,
-    pub kind: LineKind,
-    /// Première ligne de son paragraphe : la seule qui porte la puce.
-    pub first: bool,
-    /// Début du paragraphe brut, préfixe compris — là où un curseur posé dans le préfixe
-    /// se rattache.
-    pub paragraph_start: usize,
-}
-
-/// WRAP-1 — les lignes visuelles de `body` dans une carte de `width` unités monde.
-///
-/// Chaque paragraphe (une ligne du texte source) est reflué à la largeur utile de la carte,
-/// avec la police et l'indentation de son genre. Tout est en unités monde : le résultat ne
-/// dépend pas du zoom.
-pub fn layout_lines(
+/// La mise en page du texte d'une carte de `width` unités monde, dans le mode demandé.
+pub fn card_text_layout(
     typography: &Typography,
     math: &MathRenderer,
     body: &str,
     width: f32,
-) -> Vec<VisualLine> {
-    let base = CardLayout::text_card(width, 0.0, 1);
-    let mut lines = Vec::new();
-    let mut offset = 0usize;
-    for paragraph in body.split('\n') {
-        let (kind, prefix) = LineKind::of(paragraph);
+    mode: TextMode,
+) -> TextLayout {
+    layout_rich_text(typography, math, body, text_box(width), mode)
+}
 
-        // Une formule occupe **plusieurs hauteurs de ligne**, mais une seule d'entre elles
-        // porte sa source : les autres ne sont là que pour réserver la place. C'est ce qui
-        // permet à la hauteur d'une carte de rester « le nombre de lignes × la hauteur d'une
-        // ligne », sans cas particulier ailleurs.
-        if kind == LineKind::Math {
-            let (corps, mode) = formule_entiere(paragraph).expect("le genre vient d'être reconnu");
-            let hauteur = math
-                .measure(corps, mode, BODY_FONT)
-                .map(|(_, h, d)| h + d)
-                .unwrap_or(base.line_height);
-            let rangs = (hauteur / base.line_height).ceil().max(1.0) as usize;
-            for i in 0..rangs {
-                lines.push(VisualLine {
-                    start: if i == 0 {
-                        offset
-                    } else {
-                        offset + paragraph.len()
-                    },
-                    end: offset + paragraph.len(),
-                    kind,
-                    first: i == 0,
-                    paragraph_start: offset,
-                });
-            }
-            offset += paragraph.len() + 1;
-            continue;
-        }
-
-        let text = &paragraph[prefix..];
-        let usable = (width - PAD_X * 2.0 - kind.indent(&base)).max(BODY_FONT);
-        let font = kind.font(BODY_FONT);
-        let advance = |ch: char| {
-            typography
-                .get_glyph(ch, font, kind.bold())
-                .metrics
-                .advance_width
-        };
-        for (i, (s, e)) in wrap_paragraph(text, usable, advance)
-            .into_iter()
-            .enumerate()
-        {
-            lines.push(VisualLine {
-                start: offset + prefix + s,
-                end: offset + prefix + e,
-                kind,
-                first: i == 0,
-                paragraph_start: offset,
-            });
-        }
-        offset += paragraph.len() + 1;
+/// La boîte offerte au texte dans une carte de `width` unités monde.
+fn text_box(width: f32) -> TextBox {
+    TextBox {
+        usable: (width - PAD_X * 2.0).max(BODY_FONT),
+        body: BODY_FONT,
+        bullet_indent: BULLET_INDENT,
+        line_height: BODY_FONT * LINE_FACTOR,
     }
-    lines
 }
 
 /// TEXT-FIT-1 — la hauteur, en unités monde, qu'une carte de `width` doit avoir pour
@@ -262,7 +120,8 @@ pub fn text_card_fit_height(
     text: &str,
     width: f64,
 ) -> f64 {
-    let lines = layout_lines(typography, math, text, width as f32).len();
+    let lines =
+        card_text_layout(typography, math, text, width as f32, TextMode::Rendered).line_count();
     CardLayout::text_card(width as f32, 0.0, lines).height as f64
 }
 
@@ -325,6 +184,15 @@ impl CardLayout {
             border: s.world(self.border),
         }
     }
+
+    /// Le décalage horizontal du texte d'une ligne, selon son genre.
+    fn indent_of(&self, kind: LineKind) -> f32 {
+        if kind == LineKind::Bullet {
+            self.indent
+        } else {
+            0.0
+        }
+    }
 }
 
 pub(super) struct TextCard<'a> {
@@ -336,11 +204,30 @@ pub(super) struct TextCard<'a> {
     pub editing: Option<&'a TextEditSession>,
 }
 
+impl TextCard<'_> {
+    /// MODE-1 — une carte qu'on corrige montre ses signes ; une carte qu'on lit ne les
+    /// montre pas.
+    fn mode(&self) -> TextMode {
+        if self.editing.is_some() {
+            TextMode::Source
+        } else {
+            TextMode::Rendered
+        }
+    }
+}
+
 pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     // Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
     // l'unique mise à l'échelle (CARD-1, WRAP-1).
-    let lines = layout_lines(ctx.typography, ctx.math, card.body, card.size.0);
-    let layout = CardLayout::text_card(card.size.0, card.size.1, lines.len()).scaled(ctx.scale);
+    let text = card_text_layout(
+        ctx.typography,
+        ctx.math,
+        card.body,
+        card.size.0,
+        card.mode(),
+    );
+    let layout =
+        CardLayout::text_card(card.size.0, card.size.1, text.line_count()).scaled(ctx.scale);
 
     let (wx, wy) = world_to_screen(card.origin.0, card.origin.1, &ctx.vp);
     let (sx, sy) = (wx as f32, wy as f32);
@@ -352,7 +239,7 @@ pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard)
 
     // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
     if ctx.scale.draws_detail() {
-        draw_card_body(ctx, pixmap, (sx, sy), &layout, &lines, &card);
+        draw_card_body(ctx, pixmap, (sx, sy), &layout, &text, &card);
     }
     if card.selected {
         let screen_box = (sx, sy, layout.width, layout.height);
@@ -436,7 +323,7 @@ fn draw_card_body(
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     layout: &CardLayout,
-    lines: &[VisualLine],
+    text: &TextLayout,
     card: &TextCard,
 ) {
     let show_cursor = card
@@ -448,61 +335,40 @@ fn draw_card_body(
     let mut cur_y = at.1 + layout.pad_y;
     let mut cursor_drawn = false;
 
-    for (num, line) in lines.iter().enumerate() {
-        let style = line.kind.style(layout, ctx.theme);
-        if line.first && line.kind == LineKind::Bullet {
-            draw_bullet(pixmap, (at.0 + layout.pad_x, cur_y), layout, card.tint);
-        }
-        let start_x = at.0 + layout.pad_x + line.kind.indent(layout);
-        let text = &card.body[line.start..line.end];
+    for (num, line) in text.lines.iter().enumerate() {
+        let start_x = at.0 + layout.pad_x + layout.indent_of(line.kind);
 
         // Une formule se dessine **au repos** ; pendant l'édition, c'est sa source qu'on
         // montre. C'est ce que fait la référence, et c'est la seule façon d'y poser un curseur
         // qui ait un sens — on n'édite pas une fraction, on édite le texte qui la décrit.
-        if line.kind == LineKind::Math && card.editing.is_none() {
-            if line.first {
-                if let Some((corps, mode)) = formule_entiere(text) {
-                    // La ligne de base se pose **sous ce que la formule monte**. La poser à une
-                    // hauteur fixe ferait déborder par le haut tout ce qui monte plus qu'un
-                    // corps de texte — une intégrale, une somme, un exposant d'exposant — et la
-                    // formule mordrait sur la ligne précédente.
-                    let au_dessus = ctx
-                        .math
-                        .measure(corps, mode, style.size)
-                        .map(|(_, h, _)| h)
-                        .unwrap_or(style.size);
-                    let plume = Pen {
-                        x: start_x,
-                        y: cur_y + au_dessus,
-                        font_size: style.size,
-                    };
-                    let dessinee = ctx.math.draw(pixmap, corps, mode, plume, style.color);
-                    if !dessinee {
-                        // Une formule fausse montre sa source, en rouge : l'erreur se voit là
-                        // où elle est, pas dans une console.
-                        ctx.typography.draw_text(
-                            pixmap,
-                            text,
-                            start_x,
-                            cur_y,
-                            TextStyle {
-                                color: ctx.theme.danger,
-                                ..style
-                            },
-                        );
-                    }
-                }
+        // La puce d'un `- ` obéit à la même règle : en édition, c'est le `- ` qu'on voit.
+        if card.editing.is_none() {
+            if line.first && line.kind == LineKind::Bullet {
+                draw_bullet(pixmap, (at.0 + layout.pad_x, cur_y), layout, card.tint);
             }
-            cur_y += layout.line_height;
-            continue;
+            if line.kind == LineKind::Math {
+                if line.first {
+                    draw_formula(ctx, pixmap, (start_x, cur_y), layout, line, card);
+                }
+                cur_y += layout.line_height;
+                continue;
+            }
         }
 
-        ctx.typography
-            .draw_text(pixmap, text, start_x, cur_y, style);
+        let font = line.kind.font(layout.font);
+        let ink = line.kind.color(ctx.theme);
+        draw_line(
+            ctx,
+            pixmap,
+            (start_x, cur_y),
+            (text, line),
+            (font, ink),
+            card.body,
+        );
 
         // Un curseur posé dans le préfixe (`# `) se rattache au début de sa première ligne ;
         // la dernière ligne recueille tout ce qui dépasse.
-        let last = num + 1 == lines.len();
+        let last = num + 1 == text.lines.len();
         let from = if line.first {
             line.paragraph_start
         } else {
@@ -510,19 +376,58 @@ fn draw_card_body(
         };
         let in_line = cursor_idx >= from && (cursor_idx <= line.end || last);
         if show_cursor && !cursor_drawn && in_line {
-            let prefix = &card.body[line.start..cursor_idx.clamp(line.start, line.end)];
-            let (prefix_w, _) = ctx.typography.measure_text(prefix, style.size, style.bold);
-            draw_cursor(
-                pixmap,
-                (start_x + prefix_w, cur_y),
-                layout,
-                ctx.scale,
-                style.color,
-            );
+            let dx = cursor_offset(ctx, text, line, card.body, cursor_idx, font);
+            draw_cursor(pixmap, (start_x + dx, cur_y), layout, ctx.scale, ink);
             cursor_drawn = true;
         }
         cur_y += layout.line_height;
     }
+}
+
+/// Une formule qui occupe tout un paragraphe, posée sous ce qu'elle monte.
+fn draw_formula(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &CardLayout,
+    line: &VisualLine,
+    card: &TextCard,
+) {
+    let text = &card.body[line.start..line.end];
+    let Some((corps, mode)) = super::richtext::formule_entiere(text) else {
+        return;
+    };
+    let ink = line.kind.color(ctx.theme);
+    // La ligne de base se pose **sous ce que la formule monte**. La poser à une hauteur fixe
+    // ferait déborder par le haut tout ce qui monte plus qu'un corps de texte — une
+    // intégrale, une somme, un exposant d'exposant — et la formule mordrait sur la ligne
+    // précédente.
+    let au_dessus = ctx
+        .math
+        .measure(corps, mode, layout.font)
+        .map(|(_, h, _)| h)
+        .unwrap_or(layout.font);
+    let plume = Pen {
+        x: at.0,
+        y: at.1 + au_dessus,
+        font_size: layout.font,
+    };
+    if ctx.math.draw(pixmap, corps, mode, plume, ink) {
+        return;
+    }
+    // Une formule fausse montre sa source, en rouge : l'erreur se voit là où elle est, pas
+    // dans une console.
+    ctx.typography.draw_text(
+        pixmap,
+        text,
+        at.0,
+        at.1,
+        crate::typography::TextStyle {
+            size: layout.font,
+            color: ctx.theme.danger,
+            face: Face::Regular,
+        },
+    );
 }
 
 fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {

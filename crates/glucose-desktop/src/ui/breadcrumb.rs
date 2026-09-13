@@ -19,7 +19,7 @@
 //! discipline que `layout_minimap` et `compute_panel_layouts`.
 
 use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
 use tiny_skia::{Color, PixmapMut, Rect, Transform};
 
@@ -69,7 +69,15 @@ pub fn layout_breadcrumb(
 
     for (depth, nom) in chemin.iter().enumerate() {
         let label = crate::renderer::folder::truncate(nom, SEGMENT_MAX_CHARS);
-        let (w, _) = typography.measure_text(&label, font, depth == dernier);
+        let (w, _) = typography.measure_text(
+            &label,
+            font,
+            if depth == dernier {
+                Face::Bold
+            } else {
+                Face::Regular
+            },
+        );
         segments.push(Segment {
             label,
             depth,
@@ -78,7 +86,7 @@ pub fn layout_breadcrumb(
         });
         x += w;
         if depth != dernier {
-            x += typography.measure_text(SEPARATOR, font, false).0;
+            x += typography.measure_text(SEPARATOR, font, Face::Regular).0;
         }
     }
     segments
@@ -126,7 +134,11 @@ pub fn draw_breadcrumb(
             TextStyle {
                 size: font,
                 color: couleur,
-                bold: seg.current,
+                face: if seg.current {
+                    Face::Bold
+                } else {
+                    Face::Regular
+                },
             },
         );
         if !seg.current {
@@ -138,7 +150,7 @@ pub fn draw_breadcrumb(
                 TextStyle {
                     size: font,
                     color: separator_color(theme),
-                    bold: false,
+                    face: Face::Regular,
                 },
             );
         }

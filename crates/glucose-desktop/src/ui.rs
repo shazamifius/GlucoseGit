@@ -3,7 +3,7 @@
 use crate::icons::{draw_icon_scaled, IconType};
 use crate::params::{ButtonState, Pointer, ScaledRect};
 use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
 use glucose_core::types::Annotation;
 use std::time::{Duration, Instant};
@@ -29,7 +29,7 @@ const ACTION_LABEL_PAD_RIGHT: f32 = 10.0;
 /// « Trans-domaines » de son cadre. Il est mesuré en gras — la graisse du bouton actif, la
 /// plus large — pour qu'un bouton ne change pas de taille quand on le bascule.
 fn action_button_width(typo: &Typography, label: &str, s: f32) -> f32 {
-    let (text_w, _) = typo.measure_text(label, ACTION_LABEL_FONT * s, true);
+    let (text_w, _) = typo.measure_text(label, ACTION_LABEL_FONT * s, Face::Bold);
     (ACTION_LABEL_X + ACTION_LABEL_PAD_RIGHT) * s + text_w
 }
 
@@ -658,7 +658,7 @@ fn render_topbar(
         TextStyle {
             size: 14.0 * s,
             color: theme.text_primary,
-            bold: true,
+            face: Face::Bold,
         },
     );
 
@@ -708,7 +708,7 @@ fn render_topbar(
             TextStyle {
                 size: 11.0 * s,
                 color: theme.badge_text,
-                bold: false,
+                face: Face::Regular,
             },
         );
     }
@@ -740,7 +740,11 @@ pub fn layout_tabs(
 
     for board in &store.project.boards {
         let is_active = &board.id == active_id;
-        let (tw, _) = typo.measure_text(&board.name, 12.0 * s, is_active);
+        let (tw, _) = typo.measure_text(
+            &board.name,
+            12.0 * s,
+            if is_active { Face::Bold } else { Face::Regular },
+        );
         let tab_w = tw + 28.0 * s;
         layouts.push(TabButtonLayout {
             board_id: board.id.clone(),
@@ -845,7 +849,11 @@ fn render_board_tabs(
                 TextStyle {
                     size: 12.0 * s,
                     color: text_color,
-                    bold: tab.is_active,
+                    face: if tab.is_active {
+                        Face::Bold
+                    } else {
+                        Face::Regular
+                    },
                 },
             );
 
@@ -1072,7 +1080,7 @@ fn draw_action_button(
             TextStyle {
                 size: font,
                 color,
-                bold: active,
+                face: if active { Face::Bold } else { Face::Regular },
             },
         );
     }
@@ -1383,7 +1391,7 @@ fn render_toast(
     }
 
     let s = crate::theme::clamp_ui_scale(scale);
-    let (tw, _) = typo.measure_text(&toast.message, 13.0 * s, false);
+    let (tw, _) = typo.measure_text(&toast.message, 13.0 * s, Face::Regular);
     let toast_w = tw + 40.0 * s;
     let toast_h = 36.0 * s;
     let toast_x = (w - toast_w) / 2.0;
@@ -1456,7 +1464,7 @@ fn render_toast(
         TextStyle {
             size: 13.0 * s,
             color: text_color,
-            bold: false,
+            face: Face::Regular,
         },
     );
 }
@@ -1612,13 +1620,15 @@ mod tests {
         for width in [1440.0, 1920.0] {
             let layout = layout_topbar(width, &ui, &typo, 0);
             for btn in layout.buttons.iter().filter(|b| !b.label.is_empty()) {
-                for bold in [false, true] {
+                // La topbar n'écrit qu'en maigre et en gras : l'italique et la chasse fixe
+                // appartiennent au contenu, pas à la chrome.
+                for face in [Face::Regular, Face::Bold] {
                     let (text_w, _) =
-                        typo.measure_text(btn.label, ACTION_LABEL_FONT * ui.scale(), bold);
+                        typo.measure_text(btn.label, ACTION_LABEL_FONT * ui.scale(), face);
                     let right_edge = ACTION_LABEL_X * ui.scale() + text_w;
                     assert!(
                         right_edge <= btn.w - ACTION_LABEL_PAD_RIGHT * ui.scale() + 0.01,
-                        "« {} » (gras : {bold}) finit a {right_edge:.1} px dans un bouton de {:.1} px",
+                        "« {} » ({face:?}) finit a {right_edge:.1} px dans un bouton de {:.1} px",
                         btn.label,
                         btn.w
                     );

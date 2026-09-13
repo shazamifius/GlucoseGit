@@ -4,6 +4,7 @@ use super::{layout_storyboard_panel, StoryboardPanelLayout, StoryboardState};
 use crate::dock::paint::{Brush, ButtonLook};
 use crate::dock::WidgetRect;
 use crate::params::ScaledRect;
+use crate::typography::Face;
 use tiny_skia::PixmapMut;
 
 pub fn render_storyboard_panel(
@@ -58,10 +59,10 @@ fn draw_format(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect, state: &
         at,
         11.0,
         theme.text_primary,
-        false,
+        Face::Regular,
     );
     let chevron = (rect.x + rect.w - brush.px(16.0), rect.y + brush.px(4.0));
-    brush.text(pixmap, "˅", chevron, 12.0, theme.text_muted, false);
+    brush.text(pixmap, "˅", chevron, 12.0, theme.text_muted, Face::Regular);
 }
 
 fn draw_fields(
@@ -85,7 +86,14 @@ fn draw_fields(
     ];
     for (rect, caption, value) in fields {
         let above = (rect.x, rect.y - brush.px(12.0));
-        brush.text(pixmap, caption, above, 9.0, brush.theme.text_muted, true);
+        brush.text(
+            pixmap,
+            caption,
+            above,
+            9.0,
+            brush.theme.text_muted,
+            Face::Bold,
+        );
         brush.field(pixmap, rect, &value);
     }
 }
@@ -107,6 +115,6 @@ fn draw_cell(pixmap: &mut PixmapMut, brush: &Brush, rect: WidgetRect, number: us
         &number.to_string(),
         9.0,
         theme.text_muted,
-        false,
+        Face::Regular,
     );
 }

@@ -99,10 +99,6 @@ pub fn html_escape(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
-pub fn strip_inline_markdown(s: &str) -> String {
-    s.replace("**", "").replace(['*', '_', '`'], "")
-}
-
 /// Titre d'affichage d'une carte : 1er titre `#`/`##`/`###`, sinon 1re ligne.
 pub fn card_title(text: &str) -> String {
     for line in text.lines() {
@@ -113,10 +109,10 @@ pub fn card_title(text: &str) -> String {
         if let Some(stripped) = t.strip_prefix('#') {
             let title = stripped.trim_start_matches('#').trim();
             if !title.is_empty() {
-                return strip_inline_markdown(title);
+                return crate::text::plain_text(title);
             }
         }
-        return strip_inline_markdown(t);
+        return crate::text::plain_text(t);
     }
     "(sans titre)".to_string()
 }
@@ -332,7 +328,7 @@ pub fn scene_to_markdown(scene: &ExportScene) -> String {
             continue;
         }
         let zone_title = m.text.as_deref().unwrap_or("Zone");
-        out.push(format!("## {}", strip_inline_markdown(zone_title)));
+        out.push(format!("## {}", crate::text::plain_text(zone_title)));
         out.push("".into());
         for c in inside {
             used.insert(c.id.clone());
@@ -378,7 +374,7 @@ pub fn scene_to_markdown(scene: &ExportScene) -> String {
                 .as_deref()
                 .map(|o| format!("_({})_ ", o))
                 .unwrap_or_default();
-            out.push(format!("- {}{}", op, strip_inline_markdown(&s.text)));
+            out.push(format!("- {}{}", op, crate::text::plain_text(&s.text)));
         }
         out.push("".into());
     }
@@ -408,7 +404,7 @@ pub fn scene_to_markdown(scene: &ExportScene) -> String {
             let rel = a.predicate.as_deref().unwrap_or("→");
             let mut line = format!("- **{}** {} **{}**", src, rel, tgt);
             if let Some(ref lt) = a.long_text {
-                line.push_str(&format!(" — {}", strip_inline_markdown(lt)));
+                line.push_str(&format!(" — {}", crate::text::plain_text(lt)));
             }
             out.push(line);
         }

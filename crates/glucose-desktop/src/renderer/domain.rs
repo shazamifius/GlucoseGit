@@ -42,7 +42,7 @@
 use super::scale::WorldScale;
 use super::{parse_hex_color, push_rounded_rect};
 use crate::theme::Theme;
-use crate::typography::{TextStyle, Typography};
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
 use glucose_core::types::DomainAssignment;
 use std::collections::HashMap;
@@ -301,7 +301,7 @@ fn draw_sigil(
     }
     let (width, _) = pass
         .typography
-        .measure_text(&tint.sigil, layout.sigil_font, true);
+        .measure_text(&tint.sigil, layout.sigil_font, Face::Bold);
     let (r, g, b) = tint.rgb;
     pass.typography.draw_text(
         pixmap,
@@ -311,7 +311,7 @@ fn draw_sigil(
         TextStyle {
             size: layout.sigil_font,
             color: Color::from_rgba8(r, g, b, SIGIL_ALPHA),
-            bold: true,
+            face: Face::Bold,
         },
     );
 }
@@ -407,7 +407,7 @@ mod tests {
         let typo = Typography::new();
         let pitch = BAR_WIDTH + BAR_GAP;
         for sigil in crate::theme::DOMAIN_SIGILS {
-            let (width, _) = typo.measure_text(sigil, SIGIL_FONT, true);
+            let (width, _) = typo.measure_text(sigil, SIGIL_FONT, Face::Bold);
             assert!(
                 width <= pitch,
                 "« {sigil} » mesure {width:.1} pour un pas de {pitch}"

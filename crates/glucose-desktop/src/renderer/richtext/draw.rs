@@ -1,0 +1,167 @@
+//! Le tracé d'un texte riche : les fragments d'une ligne, leurs ornements, et le curseur.
+//!
+//! [`super`] dit **où** chaque fragment tombe ; ce module le pose. La séparation compte : la
+//! mise en page se teste sans pixmap, le tracé se vérifie par capture, et l'un peut changer
+//! sans l'autre.
+//!
+//! Les ornements du Markdown — le fond d'un `` `code` ``, la barre d'un `~~barré~~` — sont
+//! des **fractions du corps**, jamais des longueurs à eux. Le corps est déjà à l'échelle du
+//! zoom (SCALE-1), donc ils le suivent sans transformation propre : une longueur qui se dit
+//! en multiples d'une autre n'a pas à exister séparément.
+
+use super::{fragment_style, Fragment, TextLayout, VisualLine};
+use crate::renderer::pass::Pass;
+use crate::renderer::push_rounded_rect;
+use crate::typography::Face;
+use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
+
+/// Marge horizontale du fond d'un `` `code` `` : `4px` sur les `14px` de la référence.
+const CODE_PAD_X: f32 = 4.0 / 14.0;
+/// Marge verticale du même fond : `1px` sur `14px`.
+const CODE_PAD_Y: f32 = 1.0 / 14.0;
+/// Rayon de ses coins : `4px` sur `14px`.
+const CODE_RADIUS: f32 = 4.0 / 14.0;
+/// Épaisseur de la barre d'un `~~barré~~`, en multiples du corps.
+const STRIKE_WIDTH: f32 = 1.0 / 14.0;
+
+/// Pose les fragments d'une ligne depuis `at`, et rend l'abscisse où la plume s'arrête.
+pub(crate) fn draw_line(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    (layout, line): (&TextLayout, &VisualLine),
+    (font, ink): (f32, Color),
+    source: &str,
+) -> f32 {
+    let mut x = at.0;
+    for fragment in layout.fragments_of(line) {
+        x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source);
+    }
+    x
+}
+
+/// Un fragment : son fond s'il est du code, son texte, sa barre s'il est barré.
+fn draw_fragment(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    fragment: &Fragment,
+    (font, ink): (f32, Color),
+    source: &str,
+) -> f32 {
+    let slice = &source[fragment.start..fragment.end];
+    let style = fragment_style(fragment, font, ctx.theme, ink);
+    if fragment.emphasis.code() {
+        let (w, _) = ctx.typography.measure_text(slice, font, style.face);
+        draw_code_background(ctx, pixmap, at, w, (font, style.face));
+    }
+    let end_x = ctx.typography.draw_text(pixmap, slice, at.0, at.1, style);
+    if fragment.emphasis.strike() {
+        draw_strikethrough(
+            ctx,
+            pixmap,
+            (at.0, end_x),
+            at.1,
+            (font, style.face),
+            style.color,
+        );
+    }
+    end_x
+}
+
+/// L'abscisse du curseur dans sa ligne : la somme des avances des fragments qui le précèdent.
+///
+/// Elle ne peut pas se mesurer d'un seul `measure_text` : les fragments d'une ligne n'ont pas
+/// tous le même visage, et une italique suivie de code n'avance pas comme du corps (RICH-1).
+pub(crate) fn cursor_offset(
+    ctx: &Pass,
+    layout: &TextLayout,
+    line: &VisualLine,
+    source: &str,
+    cursor_idx: usize,
+    font: f32,
+) -> f32 {
+    let mut dx = 0.0;
+    for fragment in layout.fragments_of(line) {
+        if cursor_idx <= fragment.start {
+            break;
+        }
+        let end = cursor_idx.min(fragment.end);
+        let (w, _) =
+            ctx.typography
+                .measure_text(&source[fragment.start..end], font, fragment.face());
+        dx += w;
+        if cursor_idx <= fragment.end {
+            break;
+        }
+    }
+    dx
+}
+
+/// Le fond d'un `` `code` `` : la valeur de la référence, dite en multiples du corps.
+///
+/// Il épouse **la boîte de la police**, montante et descendante comprises, et non la hauteur
+/// de la ligne : c'est ce que fait un navigateur pour un élément en ligne, et c'est la seule
+/// hauteur qui ne dépende pas de l'interligne choisi autour. Prise sur la ligne, la plaque
+/// dépassait le texte par le bas d'un tiers de corps.
+fn draw_code_background(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    width: f32,
+    (font, face): (f32, Face),
+) {
+    let (pad_x, pad_y) = (font * CODE_PAD_X, font * CODE_PAD_Y);
+    let Some(lm) = ctx.typography.font(face).horizontal_line_metrics(font) else {
+        return;
+    };
+    let baseline = at.1 + font;
+    let mut pb = PathBuilder::new();
+    push_rounded_rect(
+        &mut pb,
+        at.0 - pad_x,
+        baseline - lm.ascent - pad_y,
+        width + pad_x * 2.0,
+        lm.ascent - lm.descent + pad_y * 2.0,
+        font * CODE_RADIUS,
+    );
+    let Some(path) = pb.finish() else {
+        return;
+    };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
+    paint.set_color(ctx.theme.code_bg);
+    pixmap.fill_path(
+        &path,
+        &paint,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+}
+
+/// La barre d'un `~~barré~~`, à mi-hauteur d'œil.
+///
+/// La hauteur d'œil est **lue dans la police**, jamais devinée : elle diffère d'un visage à
+/// l'autre, et une fraction arbitraire du corps ferait passer la barre au-dessus des
+/// minuscules dans l'un et en travers des jambages dans l'autre.
+fn draw_strikethrough(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    (from, to): (f32, f32),
+    top: f32,
+    (font, face): (f32, Face),
+    color: Color,
+) {
+    let x_height = ctx.typography.font(face).metrics('x', font).height as f32;
+    let baseline = top + font;
+    let thickness = (font * STRIKE_WIDTH).max(1.0);
+    let Some(rect) = Rect::from_xywh(from, baseline - x_height / 2.0, to - from, thickness) else {
+        return;
+    };
+    let mut paint = Paint::default();
+    paint.set_color(color);
+    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+}

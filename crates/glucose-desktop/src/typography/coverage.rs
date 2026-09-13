@@ -1,48 +1,78 @@
-//! FONT-1 — la preuve que la police embarquée couvre ce que l'interface écrit (R-51).
+//! FONT-1 — la preuve que les polices embarquées couvrent ce que Glucose écrit (R-51).
 //!
 //! Ce test est le vrai livrable du changement de police : sans lui, la prochaine personne
-//! qui remplace le fichier `.ttf` recrée le défaut sans que rien ne casse. Il lit la table
+//! qui remplace un fichier de fonte recrée le défaut sans que rien ne casse. Il lit la table
 //! `cmap` de chaque police embarquée **avec son propre lecteur**, sur `std` seulement, pour
 //! ne pas prouver la couverture avec le moteur qu'on cherche à contrôler ; puis il demande
 //! la même chose à `fontdue`, qui est ce qui rastérise vraiment. Les deux doivent s'accorder.
 //!
-//! L'ensemble affirmé a deux moitiés :
+//! # Ce qu'on exige dépend de ce qu'un visage dessine
 //!
-//! 1. un **ensemble nommé**, écrit ici ([`NAMED_SET`]) : lettres, chiffres, ponctuation,
-//!    tous les accents du français, ligatures, guillemets, tirets, puces, flèches ;
-//! 2. **tous les caractères non-ASCII des chaînes et caractères littéraux du crate**,
-//!    extraits des sources au moment du test — jamais devinés. Une chaîne ajoutée demain
-//!    avec un caractère que la police ignore fait échouer ce test, pas l'écran.
+//! Les quatre Inter portent **l'interface** : ses libellés, ses chevrons, ses flèches, ses
+//! poignées. JetBrains Mono ne porte que du **contenu** — ce que l'utilisateur écrit entre
+//! deux accents graves. Lui demander le `⠿` d'une poignée de dock serait exiger qu'une police
+//! de code sache dessiner un widget, et cette exigence-là finirait par être contournée.
+//!
+//! D'où deux ensembles, et trois affirmations :
+//!
+//! 1. [`TEXT_SET`] — lettres, chiffres, ponctuation, tous les accents du français, ligatures,
+//!    guillemets, tirets : **tout visage** doit le couvrir, y compris la chasse fixe, parce
+//!    qu'un commentaire accentué dans un bloc de code est du texte comme un autre ;
+//! 2. [`UI_SET`] — puces et flèches : les **visages d'interface** seulement ;
+//! 3. **tous les caractères non-ASCII des chaînes et caractères littéraux du crate**,
+//!    extraits des sources au moment du test — jamais devinés — pour les visages d'interface,
+//!    puisque c'est en Inter que ces littéraux se dessinent. Une chaîne ajoutée demain avec un
+//!    caractère que la police ignore fait échouer ce test, pas l'écran.
 //!
 //! Corollaire pour les tests : un caractère que l'on veut délibérément absent de la police
 //! (pour éprouver le `.notdef`, par exemple) s'écrit `'\u{1F600}'`, pas en clair.
 
-use super::{Typography, BOLD_FONT_BYTES, REGULAR_FONT_BYTES};
+use super::{Face, Typography, FACE_BYTES};
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// Ce que la police d'interface doit couvrir, par famille nommée.
-const NAMED_SET: &[(&str, &str)] = &[
+/// Ce que **tout** visage doit couvrir : le texte lui-même.
+const TEXT_SET: &[(&str, &str)] = &[
     (
         "lettres latines et chiffres",
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
     ),
-    ("ponctuation ASCII", " !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"),
+    (
+        "ponctuation ASCII",
+        r##" !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"##,
+    ),
     ("accents français, minuscules", "àâäéèêëîïôöùûüÿç"),
     ("accents français, majuscules", "ÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇ"),
     ("ligatures", "œŒæÆ"),
     ("guillemets et apostrophes", "«»‹›‘’“”"),
     ("tirets et points de suspension", "–—…"),
-    ("puces", "•●"),
-    ("flèches", "←→↑↓"),
     ("espace insécable, degré, euro", "\u{A0}°€"),
 ];
 
-/// Les deux polices embarquées, telles que `Typography::new` les charge.
-const EMBEDDED_FONTS: &[(&str, &[u8])] = &[
-    ("Inter-Regular.ttf", REGULAR_FONT_BYTES),
-    ("Inter-SemiBold.ttf", BOLD_FONT_BYTES),
+/// Ce que les visages d'**interface** doivent couvrir en plus : les ornements de la chrome.
+const UI_SET: &[(&str, &str)] = &[("puces", "•●"), ("flèches", "←→↑↓")];
+
+/// Le nom de fichier de chaque visage, pour que l'échec nomme le fichier à remplacer.
+const FACE_FILES: [&str; 5] = [
+    "Inter-Regular.ttf",
+    "Inter-SemiBold.ttf",
+    "Inter-Italic.otf",
+    "Inter-SemiBoldItalic.otf",
+    "JetBrainsMonoNL-Regular.ttf",
 ];
+
+/// Les visages qui dessinent l'interface — tous sauf la chasse fixe, qui ne rend que du
+/// contenu.
+fn interface_faces() -> impl Iterator<Item = (Face, &'static str, &'static [u8])> {
+    faces().filter(|(face, _, _)| *face != Face::Mono)
+}
+
+fn faces() -> impl Iterator<Item = (Face, &'static str, &'static [u8])> {
+    Face::ALL
+        .into_iter()
+        .enumerate()
+        .map(|(i, face)| (face, FACE_FILES[i], FACE_BYTES[i]))
+}
 
 // ── Lecteur de `cmap`, sur std ──────────────────────────────────────────────
 
@@ -258,9 +288,23 @@ fn missing_from(font: &[u8], chars: impl IntoIterator<Item = char>) -> Vec<char>
 }
 
 #[test]
-fn test_font_1_every_named_character_has_a_glyph_in_both_fonts() {
-    for (file, font) in EMBEDDED_FONTS {
-        for (family, chars) in NAMED_SET {
+fn test_font_1_every_face_covers_the_text_it_may_have_to_draw() {
+    for (_, file, font) in faces() {
+        for (family, chars) in TEXT_SET {
+            let missing = missing_from(font, chars.chars());
+            assert!(
+                missing.is_empty(),
+                "{file} : {family} — absents : {missing:?}"
+            );
+        }
+    }
+}
+
+/// Les ornements de la chrome ne sont exigés que des visages qui la dessinent.
+#[test]
+fn test_font_1_interface_faces_cover_the_chrome_ornaments() {
+    for (_, file, font) in interface_faces() {
+        for (family, chars) in UI_SET {
             let missing = missing_from(font, chars.chars());
             assert!(
                 missing.is_empty(),
@@ -287,7 +331,7 @@ fn test_font_1_every_non_ascii_literal_of_the_crate_has_a_glyph() {
         found.len(),
         found.iter().collect::<String>()
     );
-    for (file, font) in EMBEDDED_FONTS {
+    for (_, file, font) in interface_faces() {
         let missing = missing_from(font, found.iter().copied());
         assert!(
             missing.is_empty(),
@@ -299,14 +343,11 @@ fn test_font_1_every_non_ascii_literal_of_the_crate_has_a_glyph() {
 #[test]
 fn test_font_1_the_cmap_reader_agrees_with_fontdue_and_rejects_the_absent() {
     // Un lecteur qui répondrait « présent » à tout passerait les deux tests précédents.
-    let loaded = fontdue::Font::from_bytes(REGULAR_FONT_BYTES, fontdue::FontSettings::default())
+    let regular = FACE_BYTES[0];
+    let loaded = fontdue::Font::from_bytes(regular, fontdue::FontSettings::default())
         .expect("police valide");
     for ch in ['\u{1F600}', '\u{4E2D}', '\u{FE0F}', '\u{2304}'] {
-        assert_eq!(
-            glyph_index(REGULAR_FONT_BYTES, ch),
-            0,
-            "{ch:?} devrait manquer"
-        );
+        assert_eq!(glyph_index(regular, ch), 0, "{ch:?} devrait manquer");
         assert_eq!(
             loaded.lookup_glyph_index(ch),
             0,
@@ -314,7 +355,7 @@ fn test_font_1_the_cmap_reader_agrees_with_fontdue_and_rejects_the_absent() {
         );
     }
     for ch in ['A', 'é', '→', '\u{A0}'] {
-        let ours = glyph_index(REGULAR_FONT_BYTES, ch);
+        let ours = glyph_index(regular, ch);
         assert_eq!(
             ours,
             u32::from(loaded.lookup_glyph_index(ch)),
@@ -328,7 +369,7 @@ fn test_font_1_the_cmap_reader_agrees_with_fontdue_and_rejects_the_absent() {
 fn test_font_1_accents_are_drawn_not_stripped() {
     // Avant : « é » devenait « e » par une table de repli, et « É » un `.notdef`.
     let typo = Typography::new();
-    let glyph = |ch: char| typo.get_glyph(ch, 32.0, false);
+    let glyph = |ch: char| typo.get_glyph(ch, 32.0, Face::Regular);
     assert_ne!(
         glyph('é').bitmap,
         glyph('e').bitmap,
@@ -346,8 +387,9 @@ fn test_font_1_accents_are_drawn_not_stripped() {
         glyph('œ').metrics.advance_width > glyph('o').metrics.advance_width,
         "la ligature est large"
     );
-    let (with, _) = typo.measure_text("Éditer — déjà prêt, à bientôt, cœur", 14.0, false);
-    let (without, _) = typo.measure_text("Editer - deja pret, a bientot, coeur", 14.0, false);
+    let (with, _) = typo.measure_text("Éditer — déjà prêt, à bientôt, cœur", 14.0, Face::Regular);
+    let (without, _) =
+        typo.measure_text("Editer - deja pret, a bientot, coeur", 14.0, Face::Regular);
     assert!(
         with > without,
         "le texte accentué ne se mesure plus comme sa version amputée"
@@ -365,4 +407,83 @@ fn test_font_1_the_scanner_reads_literals_and_skips_comments() {
     scan_source(snippet, &mut found);
     let expected: BTreeSet<char> = "à«»çô".chars().collect();
     assert_eq!(found, expected);
+}
+
+/// **FONT-2** — les cinq visages s'accordent, et c'est mesuré.
+///
+/// Deux exigences, pour deux raisons différentes :
+///
+/// * les quatre Inter partagent **montante, descente et interligne**, parce qu'un mot en
+///   italique au milieu d'une phrase doit s'asseoir sur la même ligne de base que ses
+///   voisins ; deux versions d'Inter mélangées (3.19 et 4.x n'ont pas les mêmes métriques
+///   verticales) le feraient sauter d'un pixel, et rien ne le dirait ;
+/// * la chasse fixe partage **hauteur d'œil et hauteur de capitale** avec elles à taille
+///   égale. C'est ce qui permet à un `` `code` `` de garder le corps du texte au lieu du
+///   `0.875em` que les feuilles de style du Web appliquent pour rattraper une monospace
+///   système trop grande : le facteur n'a pas été réglé, il a disparu.
+#[test]
+fn test_every_face_shares_the_metrics_of_its_family() {
+    let typo = Typography::new();
+    const SIZE: f32 = 14.0;
+    let ligne = |face| {
+        typo.font(face)
+            .horizontal_line_metrics(SIZE)
+            .expect("métriques de ligne")
+    };
+    let reference = ligne(Face::Regular);
+    for (face, file, _) in interface_faces() {
+        let m = ligne(face);
+        assert_eq!(
+            (m.ascent, m.descent, m.new_line_size),
+            (reference.ascent, reference.descent, reference.new_line_size),
+            "{file} ne partage pas les métriques verticales d'Inter-Regular"
+        );
+    }
+
+    let oeil = |face| typo.font(face).metrics('x', SIZE).height;
+    let capitale = |face| typo.font(face).metrics('H', SIZE).height;
+    assert_eq!(
+        (oeil(Face::Mono), capitale(Face::Mono)),
+        (oeil(Face::Regular), capitale(Face::Regular)),
+        "la chasse fixe ne s'accorde plus à Inter : le code en ligne aurait besoin d'un facteur"
+    );
+
+    // Et elle est bien à chasse fixe — sans quoi un bloc de code n'alignerait rien.
+    let avance = |ch| typo.get_glyph(ch, SIZE, Face::Mono).metrics.advance_width;
+    for ch in ['i', 'm', 'W', '.', 'é'] {
+        assert_eq!(avance(ch), avance('x'), "{ch:?} n'a pas la chasse commune");
+    }
+}
+
+/// **MEASURE-1** — le chemin rapide de la mesure donne exactement ce que le tracé avance.
+///
+/// [`Typography::advance`] lit les tables de la police ; le tracé, lui, avance de ce que le
+/// glyphe rastérisé porte dans ses métriques. Les deux viennent de la même source, mais rien
+/// ne l'impose : le jour où ils divergeraient, le curseur se poserait à côté du texte et la
+/// coupe des lignes mentirait — sans qu'aucun autre test ne le voie.
+#[test]
+fn test_measuring_agrees_with_drawing() {
+    let typo = Typography::new();
+    for face in Face::ALL {
+        for size in [8.0, 14.0, 14.3, 32.0] {
+            for ch in "aMé€ i.W~`*_".chars() {
+                assert_eq!(
+                    typo.advance(ch, size, face),
+                    typo.get_glyph(ch, size, face).metrics.advance_width,
+                    "{ch:?} à {size} en {face:?}"
+                );
+            }
+        }
+    }
+    // La borne de taille s'applique des deux côtés, sans quoi une taille aberrante mesurerait
+    // autrement qu'elle ne se dessine.
+    for size in [f32::NAN, 0.0, 1e9] {
+        assert_eq!(
+            typo.advance('a', size, Face::Regular),
+            typo.get_glyph('a', size, Face::Regular)
+                .metrics
+                .advance_width,
+            "taille aberrante : {size}"
+        );
+    }
 }

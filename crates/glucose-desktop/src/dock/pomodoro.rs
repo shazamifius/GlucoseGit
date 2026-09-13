@@ -3,7 +3,7 @@
 
 use super::WidgetRect;
 use crate::params::{Pointer, ScaledRect};
-use crate::typography::Typography;
+use crate::typography::{Face, Typography};
 use std::time::Instant;
 
 pub mod paint;
@@ -123,7 +123,7 @@ pub fn layout_pomodoro_panel(frame: ScaledRect, typo: &Typography) -> PomodoroPa
     let by = py + 124.0 * s;
     let widest = PomodoroState::START_LABELS
         .iter()
-        .map(|l| typo.measure_text(l, 11.0 * s, false).0)
+        .map(|l| typo.measure_text(l, 11.0 * s, Face::Regular).0)
         .fold(0.0_f32, f32::max);
     let bw = widest + 22.0 * s;
     let start_button = WidgetRect::new(px + 22.0 * s, by, bw, 22.0 * s);

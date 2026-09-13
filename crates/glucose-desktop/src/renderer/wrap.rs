@@ -11,14 +11,16 @@
 
 /// Découpe `body` en lignes d'au plus `max_width`, coupées de préférence aux espaces.
 ///
-/// Rend des tranches `[start, end)` d'octets de `body`. L'espace où l'on coupe n'appartient
+/// `advance` reçoit **la position de l'octet** en plus du caractère : depuis le Markdown en
+/// ligne, la largeur d'un caractère dépend du visage de la tranche où il tombe, et un signe
+/// effacé au repos y répond zéro (MODE-1). Rend des tranches `[start, end)` d'octets de `body`. L'espace où l'on coupe n'appartient
 /// à aucune ligne. Un mot plus large que la ligne est coupé entre deux caractères plutôt que
 /// de déborder. Un corps vide donne une ligne vide : une carte sans texte a quand même une
 /// hauteur.
 pub(super) fn wrap_paragraph(
     body: &str,
     max_width: f32,
-    advance: impl Fn(char) -> f32,
+    advance: impl Fn(usize, char) -> f32,
 ) -> Vec<(usize, usize)> {
     let mut lines = Vec::new();
     let mut line_start = 0usize;
@@ -27,7 +29,7 @@ pub(super) fn wrap_paragraph(
     let mut last_space: Option<usize> = None;
 
     for (i, ch) in body.char_indices() {
-        let w = advance(ch);
+        let w = advance(i, ch);
         let overflows = width + w > max_width && i > line_start;
         if !overflows {
             if ch == ' ' {
@@ -51,7 +53,11 @@ pub(super) fn wrap_paragraph(
                 lines.push((line_start, sp));
                 line_start = sp + 1;
                 last_space = None;
-                width = body[line_start..i].chars().map(&advance).sum::<f32>() + w;
+                width = body[line_start..i]
+                    .char_indices()
+                    .map(|(at, c)| advance(line_start + at, c))
+                    .sum::<f32>()
+                    + w;
             }
             None => {
                 // Un mot plus large que la ligne : on coupe entre deux caractères.
@@ -69,8 +75,8 @@ pub(super) fn wrap_paragraph(
 mod tests {
     use super::*;
 
-    /// Une police de test : chaque caractère avance de 10, quel qu'il soit.
-    fn mono(_: char) -> f32 {
+    /// Une police de test : chaque caractère avance de 10, quel qu'il soit et où qu'il tombe.
+    fn mono(_: usize, _: char) -> f32 {
         10.0
     }
 
