@@ -28,8 +28,8 @@ use super::text::TextArena;
 use super::{Arena, Box2, Kind, NodeId};
 use crate::fixed::Fx;
 use crate::types::{
-    ArrowPredicate, AssetRef, DomainAssignment, FolderMirrorSource, MembraneCurtain,
-    MembraneMode, StickyOperator, TemporalAnchor, TextSelection,
+    ArrowPredicate, AssetRef, DomainAssignment, FolderMirrorSource, MembraneCurtain, MembraneMode,
+    StickyOperator, TemporalAnchor, TextSelection,
 };
 
 /// Une couleur, quatre octets, canal alpha compris.
@@ -311,8 +311,14 @@ impl Doc {
             }
         };
         verifier("color", self.color.iter().map(|(i, _)| i).collect());
-        verifier("background", self.background.iter().map(|(i, _)| i).collect());
-        verifier("color_literal", self.color_literal.iter().map(|(i, _)| i).collect());
+        verifier(
+            "background",
+            self.background.iter().map(|(i, _)| i).collect(),
+        );
+        verifier(
+            "color_literal",
+            self.color_literal.iter().map(|(i, _)| i).collect(),
+        );
         verifier(
             "background_literal",
             self.background_literal.iter().map(|(i, _)| i).collect(),
@@ -320,11 +326,17 @@ impl Doc {
         verifier("font_size", self.font_size.iter().map(|(i, _)| i).collect());
         verifier("rotation", self.rotation.iter().map(|(i, _)| i).collect());
         verifier("cursor", self.cursor.iter().map(|(i, _)| i).collect());
-        verifier("source_file", self.source_file.iter().map(|(i, _)| i).collect());
+        verifier(
+            "source_file",
+            self.source_file.iter().map(|(i, _)| i).collect(),
+        );
         verifier("temporal", self.temporal.iter().map(|(i, _)| i).collect());
         verifier("domains", self.domains.iter().map(|(i, _)| i).collect());
         verifier("operator", self.operator.iter().map(|(i, _)| i).collect());
-        verifier("membrane_mode", self.membrane_mode.iter().map(|(i, _)| i).collect());
+        verifier(
+            "membrane_mode",
+            self.membrane_mode.iter().map(|(i, _)| i).collect(),
+        );
         verifier("arrow", self.arrow.iter().map(|(i, _)| i).collect());
         verifier("image", self.image.iter().map(|(i, _)| i).collect());
         verifier("original", self.original.iter().map(|(i, _)| i).collect());
@@ -332,7 +344,10 @@ impl Doc {
         verifier("order", self.order.iter().map(|(i, _)| i).collect());
         verifier("asset", self.asset.iter().map(|(i, _)| i).collect());
         verifier("curtains", self.curtains.iter().map(|(i, _)| i).collect());
-        verifier("folder_mirror", self.folder_mirror.iter().map(|(i, _)| i).collect());
+        verifier(
+            "folder_mirror",
+            self.folder_mirror.iter().map(|(i, _)| i).collect(),
+        );
         if let Some(e) = erreur {
             return Err(e);
         }

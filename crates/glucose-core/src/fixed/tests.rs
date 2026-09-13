@@ -117,7 +117,10 @@ fn test_un_glisser_long_est_exact_et_la_derive_du_f64_reste_invisible() {
     for _ in 0..PAS {
         p -= delta;
     }
-    assert_eq!(p, depart, "l'aller-retour entier revient au point de départ");
+    assert_eq!(
+        p, depart,
+        "l'aller-retour entier revient au point de départ"
+    );
 
     // Le même geste en f64 : la dérive est réelle, et sans conséquence observable.
     let mut q = 1_000_000.0_f64;
@@ -234,7 +237,10 @@ fn test_la_distance_au_carre_est_exacte_aux_bornes_du_document() {
     let d = dist2(Fx::MIN, Fx::MIN, Fx::MAX, Fx::MAX);
     let ecart = i32::MAX as i128 - i32::MIN as i128;
     assert_eq!(d, 2 * ecart * ecart);
-    assert!(d > i64::MAX as i128, "c'est bien un cas qu'un i64 n'aurait pas tenu");
+    assert!(
+        d > i64::MAX as i128,
+        "c'est bien un cas qu'un i64 n'aurait pas tenu"
+    );
 
     // Un triplet pythagoricien, en pixels entiers : le résultat est exact, pas approché.
     let (a, b) = (Fx::from_px(3), Fx::from_px(4));

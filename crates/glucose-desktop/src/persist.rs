@@ -143,7 +143,10 @@ mod tests {
         assert!(written > 0);
 
         let reloaded = read_project_file(&path).expect("la relecture doit reussir");
-        assert_eq!(reloaded.project, project, "le document relu differe de l'original");
+        assert_eq!(
+            reloaded.project, project,
+            "le document relu differe de l'original"
+        );
         assert_eq!(reloaded.assets, assets, "les actifs relus different");
         assert_eq!(reloaded.manifest.saved_at, 1_770_000_000_000);
 
@@ -180,7 +183,10 @@ mod tests {
     fn test_opening_a_missing_file_says_what_to_check() {
         let err = read_project_file(Path::new("C:/nulle-part/absent.glucose"))
             .expect_err("le fichier n'existe pas");
-        assert!(err.to_string().contains("Ouverture impossible"), "message : {err}");
+        assert!(
+            err.to_string().contains("Ouverture impossible"),
+            "message : {err}"
+        );
     }
 
     #[test]
@@ -207,5 +213,4 @@ mod tests {
         assert_eq!(human_size(2048), "2.0 Kio");
         assert_eq!(human_size(3 * 1024 * 1024), "3.0 Mio");
     }
-
 }

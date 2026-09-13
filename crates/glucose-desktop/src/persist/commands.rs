@@ -136,7 +136,8 @@ impl GlucoseApp {
             Ok(report) => {
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
-                self.ui.show_toast(save_message(&report, &self.document_label()));
+                self.ui
+                    .show_toast(save_message(&report, &self.document_label()));
             }
             Err(err) => self.ui.show_toast(err.to_string()),
         }
@@ -163,7 +164,8 @@ impl GlucoseApp {
             Ok(report) => {
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
-                self.ui.show_toast(open_message(&self.store.project, &report));
+                self.ui
+                    .show_toast(open_message(&self.store.project, &report));
             }
             Err(err) => self.ui.show_toast(err.to_string()),
         }
@@ -239,7 +241,6 @@ mod tests {
         dir.join(name)
     }
 
-
     #[test]
     fn test_a_fresh_app_is_clean_and_wears_no_marker() {
         let app = GlucoseApp::new();
@@ -283,12 +284,23 @@ mod tests {
                 temporal_anchor: None,
             },
         );
-        assert!(app.is_dirty(), "une annotation ajoutee doit salir le document");
-        assert!(app.window_title().starts_with(DIRTY_MARK), "titre : {}", app.window_title());
+        assert!(
+            app.is_dirty(),
+            "une annotation ajoutee doit salir le document"
+        );
+        assert!(
+            app.window_title().starts_with(DIRTY_MARK),
+            "titre : {}",
+            app.window_title()
+        );
 
         app.save_to(path.clone());
         assert!(!app.is_dirty(), "l'enregistrement doit effacer le marqueur");
-        assert!(!app.window_title().starts_with(DIRTY_MARK), "titre : {}", app.window_title());
+        assert!(
+            !app.window_title().starts_with(DIRTY_MARK),
+            "titre : {}",
+            app.window_title()
+        );
         assert_eq!(app.project_path.as_deref(), Some(path.as_path()));
         assert!(
             app.window_title().contains("app-aller-retour"),
@@ -303,12 +315,18 @@ mod tests {
             reopened.store.project, app.store.project,
             "le document rouvert differe de celui qui a ete enregistre"
         );
-        assert!(!reopened.is_dirty(), "un document qu'on vient d'ouvrir est propre");
+        assert!(
+            !reopened.is_dirty(),
+            "un document qu'on vient d'ouvrir est propre"
+        );
         assert_ne!(
             reopened.store.version, version_before,
             "la version doit avancer, sinon l'index spatial du renderer reste perime"
         );
-        assert!(reopened.store.undo_depth() == 0, "l'undo du projet precedent doit partir");
+        assert!(
+            reopened.store.undo_depth() == 0,
+            "l'undo du projet precedent doit partir"
+        );
 
         std::fs::remove_file(&path).expect("nettoyage");
     }
@@ -322,10 +340,24 @@ mod tests {
         let before = app.store.project.clone();
         app.open_from(path.clone());
 
-        assert_eq!(app.store.project, before, "un fichier illisible ne doit rien remplacer");
-        assert!(app.project_path.is_none(), "le chemin ne doit pas etre adopte");
-        let toast = app.ui.current_toast.as_ref().expect("un toast doit expliquer l'echec");
-        assert!(toast.message.contains("signature"), "toast : {}", toast.message);
+        assert_eq!(
+            app.store.project, before,
+            "un fichier illisible ne doit rien remplacer"
+        );
+        assert!(
+            app.project_path.is_none(),
+            "le chemin ne doit pas etre adopte"
+        );
+        let toast = app
+            .ui
+            .current_toast
+            .as_ref()
+            .expect("un toast doit expliquer l'echec");
+        assert!(
+            toast.message.contains("signature"),
+            "toast : {}",
+            toast.message
+        );
 
         std::fs::remove_file(&path).expect("nettoyage");
     }
@@ -350,7 +382,6 @@ mod tests {
         assert_eq!(app.document_label(), UNTITLED);
     }
 
-
     #[test]
     fn test_save_and_open_messages_stay_honest() {
         let report = SaveReport {
@@ -365,13 +396,30 @@ mod tests {
         assert!(msg.contains("1 introuvable(s)"));
 
         let mut project = Project::new("deux tableaux");
-        project.boards.push(glucose_core::types::Board::new("b2", "Annexe"));
-        let opened = open_message(&project, &OpenReport { restored: 3, repaired: 0 });
+        project
+            .boards
+            .push(glucose_core::types::Board::new("b2", "Annexe"));
+        let opened = open_message(
+            &project,
+            &OpenReport {
+                restored: 3,
+                repaired: 0,
+            },
+        );
         assert!(opened.contains("2 tableau(x)"));
         assert!(opened.contains("3 image(s) restituée(s)"));
-        assert!(!opened.contains("réparé"), "un document sain ne parle pas de réparation");
+        assert!(
+            !opened.contains("réparé"),
+            "un document sain ne parle pas de réparation"
+        );
 
-        let repaired = open_message(&project, &OpenReport { restored: 0, repaired: 4 });
+        let repaired = open_message(
+            &project,
+            &OpenReport {
+                restored: 0,
+                repaired: 4,
+            },
+        );
         assert!(repaired.contains("4 nœud(s) réparé(s)"), "{repaired}");
     }
 }

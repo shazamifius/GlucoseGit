@@ -107,7 +107,10 @@ fn test_cliquer_la_ou_on_est_ne_fait_rien() {
     assert_eq!(hit_breadcrumb(&store, &typo(), 78.0, 1.0, au_milieu), None);
 
     let avant = store.project.active_board_id.clone();
-    assert!(!store.exit_to_depth(2), "remonter là où l'on est ne bouge rien");
+    assert!(
+        !store.exit_to_depth(2),
+        "remonter là où l'on est ne bouge rien"
+    );
     assert_eq!(store.project.active_board_id, avant);
 }
 
@@ -116,7 +119,11 @@ fn test_cliquer_la_ou_on_est_ne_fait_rien() {
 fn test_un_clic_hors_de_la_bande_ne_remonte_pas() {
     let store = descendu(2);
     for point in [(5.0, 40.0), (5.0, 200.0), (2_000.0, 85.0), (-10.0, 85.0)] {
-        assert_eq!(hit_breadcrumb(&store, &typo(), 78.0, 1.0, point), None, "{point:?}");
+        assert_eq!(
+            hit_breadcrumb(&store, &typo(), 78.0, 1.0, point),
+            None,
+            "{point:?}"
+        );
     }
 }
 

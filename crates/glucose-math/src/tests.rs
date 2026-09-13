@@ -6,13 +6,22 @@ use crate::{layout, Family, MathError, Mode, Style};
 
 /// Le premier glyphe dont le texte est `quoi`, s'il existe.
 fn glyphe<'a>(items: &'a [MathItem], quoi: &str) -> Option<&'a MathItem> {
-    items.iter().find(|i| matches!(i, MathItem::Glyph { text, .. } if text == quoi))
+    items
+        .iter()
+        .find(|i| matches!(i, MathItem::Glyph { text, .. } if text == quoi))
 }
 
 /// Les coordonnées, la taille et la fonte d'un glyphe nommé.
 fn place(items: &[MathItem], quoi: &str) -> (f64, f64, f64, Family, Style) {
     match glyphe(items, quoi).unwrap_or_else(|| panic!("le glyphe {quoi:?} est absent")) {
-        MathItem::Glyph { x, y, size, family, style, .. } => (*x, *y, *size, *family, *style),
+        MathItem::Glyph {
+            x,
+            y,
+            size,
+            family,
+            style,
+            ..
+        } => (*x, *y, *size, *family, *style),
         autre => unreachable!("{autre:?} n'est pas un glyphe"),
     }
 }
@@ -34,11 +43,20 @@ fn test_une_fraction_empile_numerateur_filet_denominateur() {
         .items
         .iter()
         .find_map(|i| match i {
-            MathItem::Rule { x, y, width, height } => Some((*x, *y, *width, *height)),
+            MathItem::Rule {
+                x,
+                y,
+                width,
+                height,
+            } => Some((*x, *y, *width, *height)),
             _ => None,
         })
         .expect("une barre de fraction");
-    assert!(filet.1 < ya && filet.1 > yb, "le filet est entre les deux : {}", filet.1);
+    assert!(
+        filet.1 < ya && filet.1 > yb,
+        "le filet est entre les deux : {}",
+        filet.1
+    );
     assert!(filet.2 > 0.0, "le filet a une longueur : {}", filet.2);
     assert!(filet.3 > 0.0, "et une épaisseur : {}", filet.3);
     assert!(
@@ -62,7 +80,10 @@ fn test_l_exposant_monte_et_l_indice_descend() {
     assert!(y2 > 0.0, "l'exposant monte : {y2}");
     assert!(y1 < 0.0, "l'indice descend : {y1}");
     assert!(t2 < tx && t1 < tx, "les deux rapetissent");
-    assert!((t2 - t1).abs() < 1e-9, "et de la même façon : {t2} contre {t1}");
+    assert!(
+        (t2 - t1).abs() < 1e-9,
+        "et de la même façon : {t2} contre {t1}"
+    );
 }
 
 /// **Les bornes d'une somme sont centrées sur elle.**
@@ -78,7 +99,11 @@ fn test_les_bornes_d_une_somme_sont_centrees_sur_elle() {
     let (x_n, y_n, _, _, _) = place(&f.items, "n");
     let (x_i, y_i, _, _, _) = place(&f.items, "i");
 
-    assert_eq!(famille, Family::Size2, "un grand opérateur en display vient de Size2");
+    assert_eq!(
+        famille,
+        Family::Size2,
+        "un grand opérateur en display vient de Size2"
+    );
     assert!(y_n > 0.0, "la borne haute est au-dessus : {y_n}");
     assert!(y_i < 0.0, "la borne basse est en dessous : {y_i}");
     assert!(
@@ -114,7 +139,11 @@ fn test_display_et_inline_ne_donnent_pas_la_meme_chose() {
     );
     let (_, _, _, fam_inline, _) = place(&inline.items, "∑");
     let (_, _, _, fam_display, _) = place(&display.items, "∑");
-    assert_eq!(fam_inline, Family::Size1, "en ligne, l'opérateur reste petit");
+    assert_eq!(
+        fam_inline,
+        Family::Size1,
+        "en ligne, l'opérateur reste petit"
+    );
     assert_eq!(fam_display, Family::Size2, "isolé, il grandit");
 }
 
@@ -126,15 +155,32 @@ fn test_une_racine_a_son_trait() {
         .items
         .iter()
         .find_map(|i| match i {
-            MathItem::Path { name, width, height, .. } => Some((name.clone(), *width, *height)),
+            MathItem::Path {
+                name,
+                width,
+                height,
+                ..
+            } => Some((name.clone(), *width, *height)),
             _ => None,
         })
         .expect("le radical de la racine");
-    assert!(radical.0.starts_with("sqrt"), "un chemin de radical : {}", radical.0);
-    assert!(radical.1 > 0.0 && radical.2 > 0.0, "et une boîte : {} × {}", radical.1, radical.2);
+    assert!(
+        radical.0.starts_with("sqrt"),
+        "un chemin de radical : {}",
+        radical.0
+    );
+    assert!(
+        radical.1 > 0.0 && radical.2 > 0.0,
+        "et une boîte : {} × {}",
+        radical.1,
+        radical.2
+    );
     let (_, y3, t3, _, _) = place(&f.items, "3");
     let (_, _, tx, _, _) = place(&f.items, "x");
-    assert!(t3 < tx, "l'indice de racine est plus petit : {t3} contre {tx}");
+    assert!(
+        t3 < tx,
+        "l'indice de racine est plus petit : {t3} contre {tx}"
+    );
     assert!(y3 > 0.0, "et il est en haut à gauche : {y3}");
 }
 
@@ -142,8 +188,11 @@ fn test_une_racine_a_son_trait() {
 /// qui rendait `(a bc d)` sur une seule ligne.
 #[test]
 fn test_une_matrice_a_vraiment_deux_lignes() {
-    let f = layout(r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}", Mode::Display)
-        .expect("une matrice valide");
+    let f = layout(
+        r"\begin{pmatrix} a & b \\ c & d \end{pmatrix}",
+        Mode::Display,
+    )
+    .expect("une matrice valide");
 
     let (_, ya, _, _, _) = place(&f.items, "a");
     let (_, yc, _, _, _) = place(&f.items, "c");
@@ -156,8 +205,14 @@ fn test_une_matrice_a_vraiment_deux_lignes() {
     // Et les deux lignes sont vraiment alignées en colonnes.
     let (xc, _, _, _, _) = place(&f.items, "c");
     let (xd, _, _, _, _) = place(&f.items, "d");
-    assert!((xa - xc).abs() < 0.05, "colonne gauche alignée : {xa} contre {xc}");
-    assert!((xb - xd).abs() < 0.05, "colonne droite alignée : {xb} contre {xd}");
+    assert!(
+        (xa - xc).abs() < 0.05,
+        "colonne gauche alignée : {xa} contre {xc}"
+    );
+    assert!(
+        (xb - xd).abs() < 0.05,
+        "colonne droite alignée : {xb} contre {xd}"
+    );
 }
 
 /// Les lettres grecques et les symboles viennent de leurs fontes, sans repli silencieux.
@@ -165,7 +220,11 @@ fn test_une_matrice_a_vraiment_deux_lignes() {
 fn test_les_symboles_viennent_de_leurs_fontes() {
     let f = layout(r"\alpha + \infty", Mode::Inline).expect("valide");
     let (_, _, _, fam_alpha, style_alpha) = place(&f.items, "α");
-    assert_eq!(fam_alpha, Family::Math, "une lettre grecque minuscule est une variable");
+    assert_eq!(
+        fam_alpha,
+        Family::Math,
+        "une lettre grecque minuscule est une variable"
+    );
     assert!(style_alpha.italic);
     let (_, _, _, fam_infini, _) = place(&f.items, "∞");
     assert_eq!(fam_infini, Family::Main);
@@ -175,7 +234,11 @@ fn test_les_symboles_viennent_de_leurs_fontes() {
 /// message qui colorera une formule en rouge pendant la frappe.
 #[test]
 fn test_une_formule_fausse_rend_un_message_et_ne_panique_pas() {
-    for mauvaise in [r"\frac{", r"\begin{pmatrix} a", r"\unecommandequinexistepas{x}"] {
+    for mauvaise in [
+        r"\frac{",
+        r"\begin{pmatrix} a",
+        r"\unecommandequinexistepas{x}",
+    ] {
         match layout(mauvaise, Mode::Inline) {
             Err(MathError::Parse(m)) => assert!(!m.is_empty(), "un message vide pour {mauvaise:?}"),
             Ok(_) => panic!("{mauvaise:?} aurait dû échouer"),
@@ -221,8 +284,16 @@ fn test_la_hauteur_annoncee_contient_ce_qui_est_pose() {
     for source in [r"\frac{a}{b}", r"\sum_{i=1}^{n} k", r"\int_0^\infty x\,dx"] {
         let f = layout(source, Mode::Display).expect(source);
         let (_, y0, _, y1) = f.ink_bounds().expect("des éléments");
-        assert!(y1 <= f.height + 1e-6, "{source} : ça dépasse en haut ({y1} > {})", f.height);
-        assert!(y0 >= -f.depth - 1e-6, "{source} : ça dépasse en bas ({y0} < {})", -f.depth);
+        assert!(
+            y1 <= f.height + 1e-6,
+            "{source} : ça dépasse en haut ({y1} > {})",
+            f.height
+        );
+        assert!(
+            y0 >= -f.depth - 1e-6,
+            "{source} : ça dépasse en bas ({y0} < {})",
+            -f.depth
+        );
     }
 }
 
@@ -230,8 +301,16 @@ fn test_la_hauteur_annoncee_contient_ce_qui_est_pose() {
 /// cache par sa source, ce qui n'aurait aucun sens autrement.
 #[test]
 fn test_la_mise_en_page_est_reproductible() {
-    let a = layout(r"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}", Mode::Display).expect("valide");
-    let b = layout(r"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}", Mode::Display).expect("valide");
+    let a = layout(
+        r"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}",
+        Mode::Display,
+    )
+    .expect("valide");
+    let b = layout(
+        r"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}",
+        Mode::Display,
+    )
+    .expect("valide");
     assert_eq!(a, b);
 }
 
@@ -245,7 +324,10 @@ fn test_aucune_coordonnee_n_est_un_non_nombre() {
         r"\begin{pmatrix} \alpha & \beta \\ \gamma & \delta \end{pmatrix}",
     ] {
         let f = layout(source, Mode::Display).expect(source);
-        assert!(f.width.is_finite() && f.height.is_finite() && f.depth.is_finite(), "{source}");
+        assert!(
+            f.width.is_finite() && f.height.is_finite() && f.depth.is_finite(),
+            "{source}"
+        );
         for item in &f.items {
             assert!(item.x().is_finite(), "{source} : abscisse non finie");
             assert!(item.y().is_finite(), "{source} : ordonnée non finie");
@@ -275,10 +357,21 @@ fn test_chaque_famille_nomme_une_fonte_distincte() {
         Family::Size4,
     ];
     let noms: std::collections::HashSet<_> = familles.iter().map(|f| f.font_name()).collect();
-    assert_eq!(noms.len(), familles.len(), "deux familles partagent un nom de fonte");
+    assert_eq!(
+        noms.len(),
+        familles.len(),
+        "deux familles partagent un nom de fonte"
+    );
     for f in familles {
         assert!(f.font_name().starts_with("KaTeX_"), "{:?}", f.font_name());
     }
     assert_eq!(Style::ROMAN.suffix(), "Regular");
-    assert_eq!(Style { bold: true, italic: true }.suffix(), "BoldItalic");
+    assert_eq!(
+        Style {
+            bold: true,
+            italic: true
+        }
+        .suffix(),
+        "BoldItalic"
+    );
 }

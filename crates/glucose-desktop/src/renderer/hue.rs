@@ -104,7 +104,11 @@ impl SymbioticHueCache {
         }
     }
 
-    pub fn get_or_compute(&mut self, ann: &Annotation, all_annotations: &[Annotation]) -> (f64, (u8, u8, u8)) {
+    pub fn get_or_compute(
+        &mut self,
+        ann: &Annotation,
+        all_annotations: &[Annotation],
+    ) -> (f64, (u8, u8, u8)) {
         let id = ann.id();
         let ax = ann.x();
         let ay = ann.y();
@@ -115,7 +119,15 @@ impl SymbioticHueCache {
 
         let hue = glucose_core::symbiotic_hue::get_symbiotic_hue(ann, all_annotations);
         let rgb = glucose_core::symbiotic_hue::hsl_to_rgb(hue, 0.75, 0.65);
-        self.entries.insert(id.to_string(), CachedHue { x: ax, y: ay, hue, rgb });
+        self.entries.insert(
+            id.to_string(),
+            CachedHue {
+                x: ax,
+                y: ay,
+                hue,
+                rgb,
+            },
+        );
         (hue, rgb)
     }
 }

@@ -19,8 +19,8 @@ use crate::renderer::halo::DEFAULT_TEXT_CARD_WIDTH;
 use glucose_core::hit_priority::{handle_cursor, PickCandidate, PickKind, PickOwner};
 use glucose_core::resize::{resize_rect, snap_resized_rect, Handle, ResizeRule};
 use glucose_core::smart_align::{
-    collect_align_targets, rect_of_annotation, rect_of_folder, rect_of_image, AlignRect, AlignTarget, SnapGuides,
-    SnapOptions,
+    collect_align_targets, rect_of_annotation, rect_of_folder, rect_of_image, AlignRect,
+    AlignTarget, SnapGuides, SnapOptions,
 };
 use glucose_core::types::Annotation;
 use std::collections::HashSet;
@@ -43,7 +43,10 @@ pub enum ResizeTarget {
 impl ResizeTarget {
     pub fn id(&self) -> &str {
         match self {
-            Self::Image { id, .. } | Self::TextCard { id } | Self::Annotation { id, .. } | Self::Folder { id } => id,
+            Self::Image { id, .. }
+            | Self::TextCard { id }
+            | Self::Annotation { id, .. }
+            | Self::Folder { id } => id,
         }
     }
 }
@@ -69,13 +72,18 @@ pub struct ResizeSession {
 
 /// Le curseur winit d'une poignée, via le nom CSS que le noyau connaît.
 pub fn cursor_for(handle: Handle) -> CursorIcon {
-    handle_cursor(handle.as_str()).parse().unwrap_or(CursorIcon::Default)
+    handle_cursor(handle.as_str())
+        .parse()
+        .unwrap_or(CursorIcon::Default)
 }
 
 impl GlucoseApp {
     /// S'il y a une poignée sous `(wx, wy)`, ouvre le geste et rend `true`.
     pub fn begin_resize_at(&mut self, wx: f64, wy: f64) -> bool {
-        let Some(candidate) = self.pick_candidate_at(wx, wy).filter(|c| c.kind == PickKind::Handle) else {
+        let Some(candidate) = self
+            .pick_candidate_at(wx, wy)
+            .filter(|c| c.kind == PickKind::Handle)
+        else {
             return false;
         };
         let Some(handle) = candidate.corner.as_deref().and_then(Handle::parse) else {
@@ -84,13 +92,21 @@ impl GlucoseApp {
         let Some((target, start)) = self.resize_target_of(&candidate) else {
             return false;
         };
-        if self.editing_session.as_ref().is_some_and(|s| s.ann_id != target.id()) {
+        if self
+            .editing_session
+            .as_ref()
+            .is_some_and(|s| s.ann_id != target.id())
+        {
             self.commit_editing();
         }
 
         let mut exclude = HashSet::new();
         exclude.insert(target.id().to_string());
-        let snap_targets = self.store.active_board().map(|b| collect_align_targets(b, &exclude)).unwrap_or_default();
+        let snap_targets = self
+            .store
+            .active_board()
+            .map(|b| collect_align_targets(b, &exclude))
+            .unwrap_or_default();
 
         self.store.begin_live_edit();
         self.resize_session = Some(ResizeSession {
@@ -111,15 +127,27 @@ impl GlucoseApp {
         match candidate.owner {
             PickOwner::Image => {
                 let img = board.images.iter().find(|i| i.id == id)?;
-                Some((ResizeTarget::Image { id, rotation: img.rotation }, rect_of_image(img)))
+                Some((
+                    ResizeTarget::Image {
+                        id,
+                        rotation: img.rotation,
+                    },
+                    rect_of_image(img),
+                ))
             }
             PickOwner::Annotation | PickOwner::Membrane => {
                 let ann = board.annotations.iter().find(|a| a.id() == id)?;
                 let rect = rect_of_annotation(ann)?;
                 let target = match ann {
                     Annotation::Text { .. } => ResizeTarget::TextCard { id },
-                    Annotation::Sticky { .. } => ResizeTarget::Annotation { id, rule: ResizeRule::sticky() },
-                    Annotation::Membrane { .. } => ResizeTarget::Annotation { id, rule: ResizeRule::membrane() },
+                    Annotation::Sticky { .. } => ResizeTarget::Annotation {
+                        id,
+                        rule: ResizeRule::sticky(),
+                    },
+                    Annotation::Membrane { .. } => ResizeTarget::Annotation {
+                        id,
+                        rule: ResizeRule::membrane(),
+                    },
                     Annotation::Arrow { .. } => return None,
                 };
                 Some((target, rect))
@@ -137,7 +165,11 @@ impl GlucoseApp {
         let Some(session) = self.resize_session.as_mut() else {
             return;
         };
-        let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
+        let vp = self
+            .store
+            .active_board()
+            .map(|b| b.viewport)
+            .unwrap_or_default();
         let (wx, wy) = screen_to_world(screen_x, screen_y, &vp);
         let delta = (wx - session.pointer_start.0, wy - session.pointer_start.1);
         if delta.0 == 0.0 && delta.1 == 0.0 {
@@ -163,7 +195,13 @@ impl GlucoseApp {
     }
 
     /// La boîte que le pointeur demande, ancrée, bornée, aimantée, puis adaptée au nœud.
-    fn resized_box(&self, session: &ResizeSession, rule: ResizeRule, delta: (f64, f64), scale: f64) -> (AlignRect, SnapGuides) {
+    fn resized_box(
+        &self,
+        session: &ResizeSession,
+        rule: ResizeRule,
+        delta: (f64, f64),
+        scale: f64,
+    ) -> (AlignRect, SnapGuides) {
         let rotation = match session.target {
             ResizeTarget::Image { rotation, .. } => rotation,
             _ => 0.0,
@@ -171,12 +209,26 @@ impl GlucoseApp {
         // Une image tournée se redimensionne dans son propre repère : le pointeur y est ramené.
         let delta = rotate(delta, -rotation);
         // Une carte de texte ne se tire qu'en largeur (TEXT-FIT-1).
-        let delta = if matches!(session.target, ResizeTarget::TextCard { .. }) { (delta.0, 0.0) } else { delta };
+        let delta = if matches!(session.target, ResizeTarget::TextCard { .. }) {
+            (delta.0, 0.0)
+        } else {
+            delta
+        };
 
         let free = resize_rect(session.start, session.handle, delta, rule);
         let (mut rect, guides) = if self.ui.smart_align && rotation == 0.0 {
-            let opts = SnapOptions { scale, ..Default::default() };
-            let snapped = snap_resized_rect(session.start, session.handle, free, &session.snap_targets, opts, rule);
+            let opts = SnapOptions {
+                scale,
+                ..Default::default()
+            };
+            let snapped = snap_resized_rect(
+                session.start,
+                session.handle,
+                free,
+                &session.snap_targets,
+                opts,
+                rule,
+            );
             (snapped.rect, snapped.guides)
         } else {
             (free, SnapGuides::default())
@@ -248,12 +300,21 @@ impl GlucoseApp {
 
     /// La poignée sous le pointeur hors de tout geste — pour annoncer le geste par le curseur.
     pub fn hovered_handle(&self) -> Option<Handle> {
-        if self.mouse_pos.1 < self.ui.header_height() as f64 || self.selection_box.is_some() || self.is_dragging_item {
+        if self.mouse_pos.1 < self.ui.header_height() as f64
+            || self.selection_box.is_some()
+            || self.is_dragging_item
+        {
             return None;
         }
-        let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
+        let vp = self
+            .store
+            .active_board()
+            .map(|b| b.viewport)
+            .unwrap_or_default();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
-        let candidate = self.pick_candidate_at(wx, wy).filter(|c| c.kind == PickKind::Handle)?;
+        let candidate = self
+            .pick_candidate_at(wx, wy)
+            .filter(|c| c.kind == PickKind::Handle)?;
         candidate.corner.as_deref().and_then(Handle::parse)
     }
 
@@ -262,16 +323,27 @@ impl GlucoseApp {
     pub fn fit_text_card_height(&mut self, ann_id: &str) {
         let board = self.store.project.active_board_id.clone();
         let Some((rect, text)) = self.store.active_board().and_then(|b| {
-            b.annotations.iter().find(|a| a.id() == ann_id).and_then(|a| match a {
-                Annotation::Text { text, .. } => rect_of_annotation(a).map(|r| (r, text.clone())),
-                _ => None,
-            })
+            b.annotations
+                .iter()
+                .find(|a| a.id() == ann_id)
+                .and_then(|a| match a {
+                    Annotation::Text { text, .. } => {
+                        rect_of_annotation(a).map(|r| (r, text.clone()))
+                    }
+                    _ => None,
+                })
         }) else {
             return;
         };
-        let height = text_card_fit_height(&self.renderer.typography, &self.renderer.math, &text, rect.width);
+        let height = text_card_fit_height(
+            &self.renderer.typography,
+            &self.renderer.math,
+            &text,
+            rect.width,
+        );
         if (height - rect.height).abs() > 1e-6 {
-            self.store.set_annotation_rect(&board, ann_id, AlignRect { height, ..rect });
+            self.store
+                .set_annotation_rect(&board, ann_id, AlignRect { height, ..rect });
         }
     }
 }
@@ -285,7 +357,13 @@ impl GlucoseApp {
         let math = &self.renderer.math;
         for board in &mut self.store.project.boards {
             for ann in &mut board.annotations {
-                let Annotation::Text { width, height, text, .. } = ann else {
+                let Annotation::Text {
+                    width,
+                    height,
+                    text,
+                    ..
+                } = ann
+                else {
                     continue;
                 };
                 let w = width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH);
@@ -307,8 +385,19 @@ fn rotate((x, y): (f64, f64), angle: f64) -> (f64, f64) {
 /// Une image tournée : la boîte calculée dans le repère de l'image est reposée dans le
 /// monde en faisant tourner le déplacement de son centre.
 fn recenter_rotated(start: AlignRect, local: AlignRect, rotation: f64) -> AlignRect {
-    let (cx0, cy0) = (start.left + start.width / 2.0, start.top + start.height / 2.0);
-    let (cx, cy) = (local.left + local.width / 2.0, local.top + local.height / 2.0);
+    let (cx0, cy0) = (
+        start.left + start.width / 2.0,
+        start.top + start.height / 2.0,
+    );
+    let (cx, cy) = (
+        local.left + local.width / 2.0,
+        local.top + local.height / 2.0,
+    );
     let (dx, dy) = rotate((cx - cx0, cy - cy0), rotation);
-    AlignRect::new(cx0 + dx - local.width / 2.0, cy0 + dy - local.height / 2.0, local.width, local.height)
+    AlignRect::new(
+        cx0 + dx - local.width / 2.0,
+        cy0 + dy - local.height / 2.0,
+        local.width,
+        local.height,
+    )
 }

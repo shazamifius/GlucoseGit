@@ -135,7 +135,11 @@ fn blend_span(row: &mut [PremultipliedColorU8], source: RingSource) {
 /// Première rangée (ou colonne) dont le centre de pixel atteint `position`, bornée à l'écran.
 fn first_pixel_at_or_after(position: f32, limit: i32) -> i32 {
     if !position.is_finite() {
-        return if position.is_sign_negative() { 0 } else { limit };
+        return if position.is_sign_negative() {
+            0
+        } else {
+            limit
+        };
     }
     let index = (position - 0.5).ceil();
     if index <= 0.0 {
@@ -272,7 +276,11 @@ pub fn draw_halos(
     store: &Store,
     pass: ViewPass<'_>,
 ) {
-    let ViewPass { visible_ids, header_h, .. } = pass;
+    let ViewPass {
+        visible_ids,
+        header_h,
+        ..
+    } = pass;
     let vp = &pass.vp;
     let Some(board) = store.active_board() else {
         return;

@@ -114,6 +114,9 @@ mod tests {
     fn test_scale_2_the_level_of_detail_is_one_named_threshold() {
         assert!(!WorldScale::new(0.19).draws_detail());
         assert!(WorldScale::new(0.2).draws_detail());
-        assert!(WorldScale::new(0.25).draws_detail(), "le zoom 0,25 garde son texte");
+        assert!(
+            WorldScale::new(0.25).draws_detail(),
+            "le zoom 0,25 garde son texte"
+        );
     }
 }

@@ -35,8 +35,8 @@
 //! contenu écrit. Le sha256 est déjà dans le dépôt — [`crate::hash::sha256`] — et ne coûte
 //! aucune dépendance.
 
-use crate::hash::sha256;
 use crate::error::{CoreError, CoreResult};
+use crate::hash::sha256;
 
 /// Magie du conteneur. `0x1a` final = `Ctrl-Z`, qui stoppe l'affichage d'un `type` sous
 /// Windows : un `.glucose` ouvert par erreur dans un terminal ne le remplit pas de binaire.

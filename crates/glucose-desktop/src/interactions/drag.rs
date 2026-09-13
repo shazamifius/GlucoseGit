@@ -48,7 +48,11 @@ impl GlucoseApp {
     /// Déplace les éléments sélectionnés avec magnétisme en évitant toute dérive de curseur.
     pub fn handle_item_drag_move(&mut self, screen_x: f64, screen_y: f64) {
         let active_bid = self.store.project.active_board_id.clone();
-        let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
+        let vp = self
+            .store
+            .active_board()
+            .map(|b| b.viewport)
+            .unwrap_or_default();
         let (wx, wy) = screen_to_world(screen_x, screen_y, &vp);
         let raw_dx = wx - self.drag_start_world.0;
         let raw_dy = wy - self.drag_start_world.1;

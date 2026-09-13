@@ -28,14 +28,24 @@ fn main() {
     let definitions: Vec<_> = if args.is_empty() {
         DEFINITIONS.to_vec()
     } else {
-        DEFINITIONS.iter().filter(|(nom, _, _)| args.iter().any(|a| a == nom)).copied().collect()
+        DEFINITIONS
+            .iter()
+            .filter(|(nom, _, _)| args.iter().any(|a| a == nom))
+            .copied()
+            .collect()
     };
     if definitions.is_empty() {
-        eprintln!("definitions connues : {:?}", DEFINITIONS.iter().map(|d| d.0).collect::<Vec<_>>());
+        eprintln!(
+            "definitions connues : {:?}",
+            DEFINITIONS.iter().map(|d| d.0).collect::<Vec<_>>()
+        );
         return;
     }
 
-    println!("Banc de frame — budget {BUDGET_MS} ms ({} fps)", (1000.0 / BUDGET_MS) as u32);
+    println!(
+        "Banc de frame — budget {BUDGET_MS} ms ({} fps)",
+        (1000.0 / BUDGET_MS) as u32
+    );
     println!(
         "{:>8}  {:>8}  {:>6}  {:>9}  {:>9}  {:>9}  {:>7}  budget",
         "def", "noeuds", "zoom", "min", "mediane", "max", "fps"

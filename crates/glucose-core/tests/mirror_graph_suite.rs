@@ -112,7 +112,10 @@ fn test_a_cycle_is_detected_at_any_depth_without_a_limit() {
     for i in 0..depth {
         let folder = format!("f{i}");
         let child = format!("b{}", i + 1);
-        boards.push(make_board(&format!("b{i}"), &[(folder.as_str(), child.as_str())]));
+        boards.push(make_board(
+            &format!("b{i}"),
+            &[(folder.as_str(), child.as_str())],
+        ));
     }
     boards.push(make_board(&format!("b{depth}"), &[]));
 

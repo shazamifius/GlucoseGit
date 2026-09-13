@@ -160,7 +160,11 @@ impl GlucoseApp {
             return;
         };
         let img_ids = board.images.iter().map(|i| i.id.clone()).collect();
-        let ann_ids = board.annotations.iter().map(|a| a.id().to_string()).collect();
+        let ann_ids = board
+            .annotations
+            .iter()
+            .map(|a| a.id().to_string())
+            .collect();
         self.store.set_selected_image_ids(img_ids);
         self.store.set_selected_annotation_ids(ann_ids);
     }

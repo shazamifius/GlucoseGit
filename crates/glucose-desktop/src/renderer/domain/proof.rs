@@ -26,8 +26,11 @@ const ORIGIN: (f64, f64) = (90.0, 190.0);
 const NODE: (f64, f64) = (300.0, 140.0);
 
 /// Les trois domaines de la preuve : identifiant, couleur, sigle.
-const PROOF_DOMAINS: [(&str, &str, &str); 3] =
-    [("d-sci", "#38bdf8", "SCI"), ("d-art", "#f472b6", "ART"), ("d-jv", "#fbbf24", "JV")];
+const PROOF_DOMAINS: [(&str, &str, &str); 3] = [
+    ("d-sci", "#38bdf8", "SCI"),
+    ("d-art", "#f472b6", "ART"),
+    ("d-jv", "#fbbf24", "JV"),
+];
 
 /// Un document portant un nœud texte muni des poids donnés, un par domaine.
 fn proof_store(weights: &[f64]) -> Store {
@@ -81,13 +84,22 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
     pixmap.fill(theme.bg_canvas);
     let ids: HashSet<&str> = std::iter::once("porteur").collect();
     let pass = ViewPass {
-        vp: Viewport { x: ORIGIN.0, y: ORIGIN.1, scale: zoom },
+        vp: Viewport {
+            x: ORIGIN.0,
+            y: ORIGIN.1,
+            scale: zoom,
+        },
         visible_ids: &ids,
         header_h: 0.0,
     };
     let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
-    let kit = PaintKit { typography: typo, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
+    let kit = PaintKit {
+        typography: typo,
+        math: &crate::renderer::math::MathRenderer::new(),
+        tints: &tints,
+        theme: &theme,
+    };
     draw_annotations(&mut hue, kit, &mut view, store, None, pass);
     pixmap
 }
@@ -175,7 +187,11 @@ fn test_scale_1_the_gauge_keeps_its_share_of_the_node_at_every_zoom() {
         let empty = render(&typo, &proof_store(&[0.0]), zoom);
         let (x0, y0, x1, y1) = ink_bbox(&inked, &empty).expect("le remplissage doit marquer");
         let node_width = NODE.0 * zoom;
-        shares.push((zoom, (y1 - y0) as f64 / node_width, (x1 - x0) as f64 / node_width));
+        shares.push((
+            zoom,
+            (y1 - y0) as f64 / node_width,
+            (x1 - x0) as f64 / node_width,
+        ));
     }
     let (_, ref_h, ref_w) = shares[1];
     for &(zoom, h, w) in &shares {
@@ -272,7 +288,9 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     let board_id = store.project.active_board_id.clone();
     if let Some(board) = store.active_board_mut() {
         board.annotations.clear();
-        board.images.push(BoardImage::new("img", 260.0, 200.0, 320.0, 200.0));
+        board
+            .images
+            .push(BoardImage::new("img", 260.0, 200.0, 320.0, 200.0));
         board.annotations.push(Annotation::Membrane {
             id: "memb".into(),
             x: 520.0,
@@ -304,15 +322,26 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     pixmap.fill(theme.bg_canvas);
     let ids: HashSet<&str> = ["img", "memb"].into_iter().collect();
     let pass = ViewPass {
-        vp: Viewport { x: 40.0, y: 120.0, scale: 1.0 },
+        vp: Viewport {
+            x: 40.0,
+            y: 120.0,
+            scale: 1.0,
+        },
         visible_ids: &ids,
         header_h: 0.0,
     };
     let mut view = pixmap.as_mut();
     let mut cache = std::collections::HashMap::new();
     let mut failed = HashSet::new();
-    let kit = PaintKit { typography: typo, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
+    let kit = PaintKit {
+        typography: typo,
+        math: &crate::renderer::math::MathRenderer::new(),
+        tints: &tints,
+        theme: &theme,
+    };
     crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
     crate::renderer::scene::draw_images(&mut cache, &mut failed, kit, &mut view, &store, pass);
-    pixmap.save_png(dir.join("scene-image-et-membrane.png")).expect("écriture du png");
+    pixmap
+        .save_png(dir.join("scene-image-et-membrane.png"))
+        .expect("écriture du png");
 }

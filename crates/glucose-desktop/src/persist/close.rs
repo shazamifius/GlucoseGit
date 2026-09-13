@@ -141,20 +141,29 @@ mod tests {
         // ouvrir AUCUN dialogue, sinon ce test bloquerait la suite.
         let mut app = GlucoseApp::new();
         assert!(!app.is_dirty());
-        assert!(app.request_close(), "un document propre se ferme sans un mot");
+        assert!(
+            app.request_close(),
+            "un document propre se ferme sans un mot"
+        );
     }
 
     #[test]
     fn test_save_3_cancel_keeps_the_window_open_and_the_work_intact() {
         let mut app = dirty_app();
-        assert!(!app.close_with(CloseChoice::Cancel), "Annuler ne doit pas fermer");
+        assert!(
+            !app.close_with(CloseChoice::Cancel),
+            "Annuler ne doit pas fermer"
+        );
         assert!(app.is_dirty(), "Annuler ne touche pas au document");
     }
 
     #[test]
     fn test_save_3_discard_closes_and_writes_nothing() {
         let mut app = dirty_app();
-        assert!(app.close_with(CloseChoice::Discard), "Ne pas enregistrer doit fermer");
+        assert!(
+            app.close_with(CloseChoice::Discard),
+            "Ne pas enregistrer doit fermer"
+        );
         assert!(
             app.project_path.is_none(),
             "abandonner ne doit creer aucun fichier"
@@ -168,12 +177,24 @@ mod tests {
         let mut app = dirty_app();
         app.project_path = Some(path.clone());
 
-        assert!(app.close_with(CloseChoice::Save), "un enregistrement reussi autorise la fermeture");
-        assert!(!app.is_dirty(), "le document doit etre propre apres l'enregistrement");
-        assert!(path.exists(), "le fichier doit exister avant que la fenetre ne parte");
+        assert!(
+            app.close_with(CloseChoice::Save),
+            "un enregistrement reussi autorise la fermeture"
+        );
+        assert!(
+            !app.is_dirty(),
+            "le document doit etre propre apres l'enregistrement"
+        );
+        assert!(
+            path.exists(),
+            "le fichier doit exister avant que la fenetre ne parte"
+        );
 
         let reloaded = read_project_file(&path).expect("relecture");
-        assert_eq!(reloaded.project, app.store.project, "le document ecrit differe");
+        assert_eq!(
+            reloaded.project, app.store.project,
+            "le document ecrit differe"
+        );
         std::fs::remove_file(&path).expect("nettoyage");
     }
 
@@ -187,9 +208,20 @@ mod tests {
             !app.close_with(CloseChoice::Save),
             "un enregistrement rate doit garder la fenetre ouverte"
         );
-        assert!(app.is_dirty(), "rien n'a ete ecrit : le document reste modifie");
-        let toast = app.ui.current_toast.as_ref().expect("l'echec doit etre explique");
-        assert!(toast.message.contains("Enregistrement impossible"), "toast : {}", toast.message);
+        assert!(
+            app.is_dirty(),
+            "rien n'a ete ecrit : le document reste modifie"
+        );
+        let toast = app
+            .ui
+            .current_toast
+            .as_ref()
+            .expect("l'echec doit etre explique");
+        assert!(
+            toast.message.contains("Enregistrement impossible"),
+            "toast : {}",
+            toast.message
+        );
     }
 
     #[test]

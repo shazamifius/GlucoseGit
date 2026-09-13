@@ -50,7 +50,10 @@ fn test_l_amorti_universel_ralentit_du_debut_a_la_fin() {
     for i in 0..10 {
         let (a, b) = (i as f64 / 10.0, (i + 1) as f64 / 10.0);
         let avance = c.at(b) - c.at(a);
-        assert!(avance < precedent, "le dixième {i} avance plus que le précédent");
+        assert!(
+            avance < precedent,
+            "le dixième {i} avance plus que le précédent"
+        );
         assert!(avance > 0.0, "et il avance quand même");
         precedent = avance;
     }
@@ -92,12 +95,12 @@ fn test_la_bezier_donne_ce_qu_un_navigateur_donne() {
     }
 
     for (x1, y1, x2, y2) in [
-        (0.34, 1.56, 0.64, 1.0),   // le rebond du dock
-        (0.22, 1.0, 0.36, 1.0),    // le réordonnancement
-        (0.25, 0.1, 0.25, 1.0),    // « ease » de CSS
-        (0.42, 0.0, 1.0, 1.0),     // « ease-in »
-        (0.0, 0.0, 0.58, 1.0),     // « ease-out »
-        (0.0, 0.0, 1.0, 1.0),      // la diagonale : doit redonner l'identité
+        (0.34, 1.56, 0.64, 1.0), // le rebond du dock
+        (0.22, 1.0, 0.36, 1.0),  // le réordonnancement
+        (0.25, 0.1, 0.25, 1.0),  // « ease » de CSS
+        (0.42, 0.0, 1.0, 1.0),   // « ease-in »
+        (0.0, 0.0, 0.58, 1.0),   // « ease-out »
+        (0.0, 0.0, 1.0, 1.0),    // la diagonale : doit redonner l'identité
     ] {
         for i in 0..=50 {
             let x = i as f64 / 50.0;
@@ -180,7 +183,10 @@ fn test_la_table_chronometrique_est_celle_de_la_fiche() {
     assert_eq!(DOCK_REORDER_MS, 250);
 
     // Réexportées : la valeur vient d'ailleurs, et le test le dit en la comparant à sa source.
-    assert_eq!(DOUBLE_CLICK_MS, crate::hit_priority::pick_consts::DBLCLICK_MS);
+    assert_eq!(
+        DOUBLE_CLICK_MS,
+        crate::hit_priority::pick_consts::DBLCLICK_MS
+    );
     assert_eq!(DOUBLE_CLICK_MS, 350);
     assert_eq!(CYCLE_TTL_MS, 2_500);
     assert_eq!(MEMBRANE_FOCUS_MS, 320);
@@ -191,5 +197,8 @@ fn test_la_table_chronometrique_est_celle_de_la_fiche() {
 #[test]
 fn test_les_deux_beziers_nommees_sont_celles_de_la_fiche() {
     assert_eq!(Curve::DOCK_GRAB, Curve::CubicBezier(0.34, 1.56, 0.64, 1.0));
-    assert_eq!(Curve::DOCK_REORDER, Curve::CubicBezier(0.22, 1.0, 0.36, 1.0));
+    assert_eq!(
+        Curve::DOCK_REORDER,
+        Curve::CubicBezier(0.22, 1.0, 0.36, 1.0)
+    );
 }

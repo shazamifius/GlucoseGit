@@ -391,5 +391,9 @@ fn test_the_pick_tolerances_are_those_of_the_spec() {
     assert_eq!(pick_consts::HANDLE_SLOP_MIN_PX, 6.0);
     assert_eq!(pick_consts::CYCLE_RADIUS_PX, 8.0);
     assert_eq!(pick_consts::CYCLE_TTL_MS, 2500);
-    assert_eq!(pick_consts::DBLCLICK_MS, 350, "une seule fenêtre de double-clic");
+    assert_eq!(
+        pick_consts::DBLCLICK_MS,
+        350,
+        "une seule fenêtre de double-clic"
+    );
 }

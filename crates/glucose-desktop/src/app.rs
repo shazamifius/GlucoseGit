@@ -103,7 +103,12 @@ impl GlucoseApp {
             x: 0.0,
             y: 0.0,
             width: Some(260.0),
-            height: Some(text_card_fit_height(&renderer.typography, &renderer.math, welcome_text, 260.0)),
+            height: Some(text_card_fit_height(
+                &renderer.typography,
+                &renderer.math,
+                welcome_text,
+                260.0,
+            )),
             text: welcome_text.into(),
             font_size: Some(14.0),
             color: None,
@@ -192,7 +197,10 @@ impl GlucoseApp {
 
             if let Some(pixmap) = &mut self.pixmap {
                 let mut pixmap_mut = pixmap.as_mut();
-                let pointer = Pointer { x: self.mouse_pos.0 as f32, y: self.mouse_pos.1 as f32 };
+                let pointer = Pointer {
+                    x: self.mouse_pos.0 as f32,
+                    y: self.mouse_pos.1 as f32,
+                };
                 self.renderer.render(
                     &mut pixmap_mut,
                     &self.store,
@@ -228,7 +236,10 @@ impl GlucoseApp {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
-            self.last_frame_ms = frame_started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+            self.last_frame_ms = frame_started
+                .elapsed()
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64;
             crate::perf::frame_end();
         }
     }
@@ -275,7 +286,11 @@ impl GlucoseApp {
     /// Applique la réorganisation issue du panneau ORDONNER (Masonry, Grille, Même Hauteur, etc.)
     pub fn apply_dock_layout(&mut self, state: &OrganizeState) {
         let board_id = self.store.project.active_board_id.clone();
-        if self.store.active_board().is_some_and(|b| b.images.is_empty()) {
+        if self
+            .store
+            .active_board()
+            .is_some_and(|b| b.images.is_empty())
+        {
             self.ui.show_toast("Aucune image sur le canvas");
             return;
         }
@@ -290,7 +305,8 @@ impl GlucoseApp {
                 }
             }
         });
-        self.ui.show_toast(format!("Disposition {} appliquée", state.layout.title()));
+        self.ui
+            .show_toast(format!("Disposition {} appliquée", state.layout.title()));
         self.mark_dirty();
     }
 
@@ -371,7 +387,12 @@ impl ApplicationHandler for GlucoseApp {
         crate::perf::event("resumed", started);
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
         match event {
             WindowEvent::CloseRequested => {
                 // R-48 — la croix ne jette plus le travail : un document modifié pose la
@@ -493,7 +514,8 @@ impl ApplicationHandler for GlucoseApp {
         }
 
         if has_timer {
-            let next_deadline = std::time::Instant::now() + std::time::Duration::from_millis(min_timeout_ms);
+            let next_deadline =
+                std::time::Instant::now() + std::time::Duration::from_millis(min_timeout_ms);
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);

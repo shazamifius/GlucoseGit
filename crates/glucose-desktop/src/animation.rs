@@ -21,8 +21,8 @@
 //! qui lit la position de la caméra lit la même.
 
 use glucose_core::anim::{timing, Curve, Tween};
-use glucose_core::membrane_focus::{fit_viewport, focus_consts, ScreenSize};
 use glucose_core::geometry::Rect;
+use glucose_core::membrane_focus::{fit_viewport, focus_consts, ScreenSize};
 use glucose_core::store::Store;
 use glucose_core::types::Viewport;
 use std::time::Instant;
@@ -132,9 +132,8 @@ impl Animator {
         }
 
         let elapsed = flight.start.elapsed().as_secs_f64() * 1000.0;
-        let interpoler = |de: f64, vers: f64| {
-            Tween::new(de, vers, flight.duration_ms, flight.curve).at(elapsed)
-        };
+        let interpoler =
+            |de: f64, vers: f64| Tween::new(de, vers, flight.duration_ms, flight.curve).at(elapsed);
         let vp = Viewport {
             x: interpoler(flight.from.x, flight.to.x),
             y: interpoler(flight.from.y, flight.to.y),

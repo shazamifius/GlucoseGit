@@ -783,13 +783,23 @@ mod viewport_tests {
     #[test]
     fn test_zoom_at_keeps_the_world_point_under_the_cursor_still() {
         for factor in [1.5, 0.25, 4.0, 1.0] {
-            let mut vp = Viewport { x: 50.0, y: 50.0, scale: 1.0 };
+            let mut vp = Viewport {
+                x: 50.0,
+                y: 50.0,
+                scale: 1.0,
+            };
             let (cx, cy) = (300.0, 200.0);
             let before = screen_to_world(cx, cy, &vp);
             vp.zoom_at(factor, cx, cy, Viewport::SCALE_RANGE);
             let after = screen_to_world(cx, cy, &vp);
-            assert!((before.0 - after.0).abs() < 1e-9, "facteur {factor}: {before:?} → {after:?}");
-            assert!((before.1 - after.1).abs() < 1e-9, "facteur {factor}: {before:?} → {after:?}");
+            assert!(
+                (before.0 - after.0).abs() < 1e-9,
+                "facteur {factor}: {before:?} → {after:?}"
+            );
+            assert!(
+                (before.1 - after.1).abs() < 1e-9,
+                "facteur {factor}: {before:?} → {after:?}"
+            );
             assert_eq!(vp.scale, factor);
         }
     }

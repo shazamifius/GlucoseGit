@@ -22,7 +22,11 @@ mod tests {
 
     #[test]
     fn test_screen_world_roundtrip() {
-        let vp = Viewport { x: 100.0, y: 50.0, scale: 2.0 };
+        let vp = Viewport {
+            x: 100.0,
+            y: 50.0,
+            scale: 2.0,
+        };
         let (sx, sy) = (250.0, 150.0);
         let (wx, wy) = screen_to_world(sx, sy, &vp);
         let (rx, ry) = world_to_screen(wx, wy, &vp);
@@ -32,7 +36,9 @@ mod tests {
 
     #[test]
     fn test_smart_align_drag_snapping_simulation() {
-        use glucose_core::smart_align::{snap_move, AlignKind, AlignRect, AlignTarget, SnapOptions};
+        use glucose_core::smart_align::{
+            snap_move, AlignKind, AlignRect, AlignTarget, SnapOptions,
+        };
 
         let target = AlignTarget {
             id: "card-target".into(),

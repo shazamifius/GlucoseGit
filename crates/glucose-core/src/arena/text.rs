@@ -116,7 +116,10 @@ impl TextArena {
         self.waste += self.spans[id.index()].len as usize;
         let start = self.bytes.len() as u32;
         self.bytes.extend_from_slice(text.as_bytes());
-        self.spans[id.index()] = Span { start, len: text.len() as u32 };
+        self.spans[id.index()] = Span {
+            start,
+            len: text.len() as u32,
+        };
         true
     }
 
@@ -177,10 +180,15 @@ impl TextArena {
         for (i, s) in self.spans.iter().enumerate() {
             let (a, b) = (s.start as usize, s.start as usize + s.len as usize);
             if b > self.bytes.len() {
-                return Err(format!("TXT-1 : le nœud {i} pointe sur {a}..{b} hors des {} octets", self.bytes.len()));
+                return Err(format!(
+                    "TXT-1 : le nœud {i} pointe sur {a}..{b} hors des {} octets",
+                    self.bytes.len()
+                ));
             }
             if std::str::from_utf8(&self.bytes[a..b]).is_err() {
-                return Err(format!("TXT-1 : le nœud {i} ne tombe pas sur des frontières de caractères"));
+                return Err(format!(
+                    "TXT-1 : le nœud {i} ne tombe pas sur des frontières de caractères"
+                ));
             }
             vus += s.len as usize;
         }

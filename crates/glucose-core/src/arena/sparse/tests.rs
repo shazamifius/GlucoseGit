@@ -15,14 +15,23 @@ fn test_la_formule_decide_sans_aucun_seuil_a_regler() {
         let n = 1_000_000usize;
         let k_sous = (n as f64 * seuil).floor() as usize - 1;
         let k_sur = (n as f64 * seuil).ceil() as usize + 1;
-        assert!(prefer_sparse(k_sous, n, taille), "s={taille}, k/n juste sous {seuil}");
-        assert!(!prefer_sparse(k_sur, n, taille), "s={taille}, k/n juste au-dessus de {seuil}");
+        assert!(
+            prefer_sparse(k_sous, n, taille),
+            "s={taille}, k/n juste sous {seuil}"
+        );
+        assert!(
+            !prefer_sparse(k_sur, n, taille),
+            "s={taille}, k/n juste au-dessus de {seuil}"
+        );
     }
 
     // Les cas dégénérés : aucun porteur gagne toujours, tous les porteurs perdent toujours.
     assert!(prefer_sparse(0, 1_000_000, 8));
     assert!(!prefer_sparse(1_000_000, 1_000_000, 8));
-    assert!(!prefer_sparse(5, 0, 8), "sur un document vide, rien ne vaut mieux que rien");
+    assert!(
+        !prefer_sparse(5, 0, 8),
+        "sur un document vide, rien ne vaut mieux que rien"
+    );
 }
 
 /// Une table qui a trop grossi le dit elle-même : c'est la même formule, posée sur son propre
@@ -45,13 +54,25 @@ fn test_une_table_trop_grosse_le_dit_elle_meme() {
 #[test]
 fn test_la_table_reste_triee_quel_que_soit_l_ordre_d_ecriture() {
     let mut t: Sparse<&str> = Sparse::new();
-    for (i, v) in [(9usize, "neuf"), (0, "zéro"), (4, "quatre"), (1, "un"), (7, "sept")] {
+    for (i, v) in [
+        (9usize, "neuf"),
+        (0, "zéro"),
+        (4, "quatre"),
+        (1, "un"),
+        (7, "sept"),
+    ] {
         assert_eq!(t.set(id(i), v), None, "premier passage sur {i}");
     }
     t.check().unwrap();
     assert_eq!(t.len(), 5);
 
-    for (i, v) in [(0usize, "zéro"), (1, "un"), (4, "quatre"), (7, "sept"), (9, "neuf")] {
+    for (i, v) in [
+        (0usize, "zéro"),
+        (1, "un"),
+        (4, "quatre"),
+        (7, "sept"),
+        (9, "neuf"),
+    ] {
         assert_eq!(t.get(id(i)), Some(&v));
         assert!(t.has(id(i)));
     }
@@ -61,7 +82,13 @@ fn test_la_table_reste_triee_quel_que_soit_l_ordre_d_ecriture() {
     }
     assert_eq!(
         t.iter().map(|(i, v)| (i.index(), *v)).collect::<Vec<_>>(),
-        vec![(0, "zéro"), (1, "un"), (4, "quatre"), (7, "sept"), (9, "neuf")]
+        vec![
+            (0, "zéro"),
+            (1, "un"),
+            (4, "quatre"),
+            (7, "sept"),
+            (9, "neuf")
+        ]
     );
 }
 

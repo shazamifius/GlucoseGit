@@ -15,7 +15,11 @@
 /// à aucune ligne. Un mot plus large que la ligne est coupé entre deux caractères plutôt que
 /// de déborder. Un corps vide donne une ligne vide : une carte sans texte a quand même une
 /// hauteur.
-pub(super) fn wrap_paragraph(body: &str, max_width: f32, advance: impl Fn(char) -> f32) -> Vec<(usize, usize)> {
+pub(super) fn wrap_paragraph(
+    body: &str,
+    max_width: f32,
+    advance: impl Fn(char) -> f32,
+) -> Vec<(usize, usize)> {
     let mut lines = Vec::new();
     let mut line_start = 0usize;
     let mut width = 0.0f32;
@@ -71,7 +75,10 @@ mod tests {
     }
 
     fn pieces(body: &str, max_width: f32) -> Vec<&str> {
-        wrap_paragraph(body, max_width, mono).into_iter().map(|(s, e)| &body[s..e]).collect()
+        wrap_paragraph(body, max_width, mono)
+            .into_iter()
+            .map(|(s, e)| &body[s..e])
+            .collect()
     }
 
     #[test]
@@ -83,7 +90,10 @@ mod tests {
     #[test]
     fn test_wrap_1_lines_break_at_spaces_and_the_space_vanishes() {
         // 12 caractères par ligne : « hello world » (11) tient, « hello world again » non.
-        assert_eq!(pieces("hello world again", 120.0), vec!["hello world", "again"]);
+        assert_eq!(
+            pieces("hello world again", 120.0),
+            vec!["hello world", "again"]
+        );
         assert_eq!(pieces("aaa bbb ccc ddd", 70.0), vec!["aaa bbb", "ccc ddd"]);
     }
 

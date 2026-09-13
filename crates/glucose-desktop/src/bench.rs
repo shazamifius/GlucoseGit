@@ -29,8 +29,11 @@ use tiny_skia::Pixmap;
 
 /// Définitions de référence du banc. La 4K est dans la liste parce que la charte l'exige
 /// explicitement — « aucun problème sur n'importe quel écran du monde ».
-pub const DEFINITIONS: &[(&str, u32, u32)] =
-    &[("1080p", 1920, 1080), ("1440p", 2560, 1440), ("4K", 3840, 2160)];
+pub const DEFINITIONS: &[(&str, u32, u32)] = &[
+    ("1080p", 1920, 1080),
+    ("1440p", 2560, 1440),
+    ("4K", 3840, 2160),
+];
 
 /// Le budget d'une frame, en millisecondes : cent images par seconde.
 pub const BUDGET_MS: f64 = 10.0;
@@ -42,8 +45,13 @@ pub const BUDGET_MS: f64 = 10.0;
 /// part que le zoom demandé permet d'y mettre.
 pub fn frame_document(store: &mut Store, scale: f64, width: u32, height: u32) {
     let board_id = store.project.active_board_id.clone();
-    let Some(boite) = store.content_bounds(&board_id) else { return };
-    let (cx, cy) = (boite.left + boite.width / 2.0, boite.top + boite.height / 2.0);
+    let Some(boite) = store.content_bounds(&board_id) else {
+        return;
+    };
+    let (cx, cy) = (
+        boite.left + boite.width / 2.0,
+        boite.top + boite.height / 2.0,
+    );
 
     store.set_viewport(
         &board_id,
@@ -59,7 +67,13 @@ pub fn frame_document(store: &mut Store, scale: f64, width: u32, height: u32) {
 ///
 /// Le rendu est celui de l'application, interface comprise : mesurer la scène seule flatterait
 /// le chiffre d'une part que l'utilisateur paie quand même.
-pub fn render_frame(renderer: &mut Renderer, ui: &mut UiState, store: &Store, width: u32, height: u32) -> Pixmap {
+pub fn render_frame(
+    renderer: &mut Renderer,
+    ui: &mut UiState,
+    store: &Store,
+    width: u32,
+    height: u32,
+) -> Pixmap {
     let mut pixmap = Pixmap::new(width, height).expect("un pixmap de cette taille");
     render_into(renderer, ui, store, &mut pixmap);
     pixmap
@@ -69,7 +83,11 @@ pub fn render_frame(renderer: &mut Renderer, ui: &mut UiState, store: &Store, wi
 /// l'allocation de huit mégaoctets à chaque tour.
 pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pixmap: &mut Pixmap) {
     let guides = SnapGuides::default();
-    let overlay = SceneOverlay { guides: &guides, selection_box: None, editing: None };
+    let overlay = SceneOverlay {
+        guides: &guides,
+        selection_box: None,
+        editing: None,
+    };
     // Le pointeur est posé hors de la fenêtre : aucun survol, donc aucun état de l'interface
     // qui dépendrait de la position de la souris. Une capture doit être la même partout.
     let pointer = Pointer { x: -1.0, y: -1.0 };

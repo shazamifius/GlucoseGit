@@ -6,7 +6,10 @@ use glucose_core::types::CanvasFolder;
 use std::thread::sleep;
 use std::time::Duration;
 
-const ECRAN: ScreenSize = ScreenSize { width: 1440.0, height: 900.0 };
+const ECRAN: ScreenSize = ScreenSize {
+    width: 1440.0,
+    height: 900.0,
+};
 
 /// Un store avec un dossier posé loin de l'origine, pour que le cadrage ait un vrai chemin à
 /// parcourir.
@@ -42,15 +45,30 @@ fn test_un_vol_instantane_execute_quand_meme_sa_suite() {
     a.fly_to(
         &store,
         &board,
-        Viewport { x: 10.0, y: 20.0, scale: 2.0 },
+        Viewport {
+            x: 10.0,
+            y: 20.0,
+            scale: 2.0,
+        },
         0,
         Pending::EnterFolder("fold-1".into()),
     );
     assert!(a.is_running());
 
-    assert_eq!(a.tick(&mut store), Some(0), "la première image est la dernière");
+    assert_eq!(
+        a.tick(&mut store),
+        Some(0),
+        "la première image est la dernière"
+    );
     assert!(!a.is_running());
-    assert_eq!(viewport(&store, &board), Viewport { x: 10.0, y: 20.0, scale: 2.0 });
+    assert_eq!(
+        viewport(&store, &board),
+        Viewport {
+            x: 10.0,
+            y: 20.0,
+            scale: 2.0
+        }
+    );
     assert_eq!(store.folder_path().len(), 2, "et l'on est bien entré");
 }
 
@@ -66,7 +84,10 @@ fn test_pendant_le_vol_on_est_encore_dans_le_tableau_parent() {
     // Une image au tout début du vol.
     let reste = a.tick(&mut store).expect("le vol court");
     assert!(reste > 0, "il reste du chemin");
-    assert_eq!(store.project.active_board_id, board, "toujours dans le parent");
+    assert_eq!(
+        store.project.active_board_id, board,
+        "toujours dans le parent"
+    );
     assert_eq!(store.folder_path().len(), 1);
     assert!(a.is_running());
 
@@ -87,7 +108,13 @@ fn test_le_vol_arrive_sur_son_cadrage_et_entre() {
         focus_consts::FIT_PADDING,
     );
     let mut a = Animator::new();
-    a.fly_to(&store, &board, cible, 100, Pending::EnterFolder("fold-1".into()));
+    a.fly_to(
+        &store,
+        &board,
+        cible,
+        100,
+        Pending::EnterFolder("fold-1".into()),
+    );
 
     let mut images = 0;
     while let Some(reste) = a.tick(&mut store) {
@@ -99,7 +126,11 @@ fn test_le_vol_arrive_sur_son_cadrage_et_entre() {
         assert!(images < 200, "le vol doit finir");
     }
     assert!(images > 1, "un vol de 100 ms dure plus d'une image");
-    assert_eq!(viewport(&store, &board), cible.normalized(), "arrivée exacte");
+    assert_eq!(
+        viewport(&store, &board),
+        cible.normalized(),
+        "arrivée exacte"
+    );
     assert_eq!(store.folder_path().len(), 2, "et l'on est entré");
     assert!(!a.is_running());
 }
@@ -111,13 +142,28 @@ fn test_le_vol_arrive_sur_son_cadrage_et_entre() {
 fn test_l_echelle_s_interpole_geometriquement() {
     let mut store = Store::new("Projet");
     let board = store.project.active_board_id.clone();
-    store.set_viewport(&board, Viewport { x: 0.0, y: 0.0, scale: 1.0 });
+    store.set_viewport(
+        &board,
+        Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+    );
     let mut a = Animator::new();
     // Une courbe linéaire isole l'effet de l'échelle : avec l'amorti, le temps ne serait pas
     // à mi-course au milieu.
     a.flight = Some(Flight {
-        from: Viewport { x: 0.0, y: 0.0, scale: 1.0 },
-        to: Viewport { x: 0.0, y: 0.0, scale: 100.0 },
+        from: Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+        to: Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 100.0,
+        },
         start: Instant::now() - Duration::from_millis(50),
         duration_ms: 100,
         curve: Curve::Linear,
@@ -127,7 +173,10 @@ fn test_l_echelle_s_interpole_geometriquement() {
     a.tick(&mut store);
     let vu = viewport(&store, &board).scale;
     assert!((vu - 10.0).abs() < 0.5, "à mi-course : {vu} au lieu de 10");
-    assert!(vu < 50.0, "et surtout pas 50, qui serait l'interpolation linéaire");
+    assert!(
+        vu < 50.0,
+        "et surtout pas 50, qui serait l'interpolation linéaire"
+    );
 }
 
 /// Un second vol part de **là où la caméra est**, pas de là où le premier avait commencé :
@@ -137,13 +186,33 @@ fn test_un_second_vol_part_de_la_ou_la_camera_est() {
     let mut store = store_avec_dossier();
     let board = store.project.active_board_id.clone();
     let mut a = Animator::new();
-    a.fly_to(&store, &board, Viewport { x: 1_000.0, y: 0.0, scale: 1.0 }, 400, Pending::Nothing);
+    a.fly_to(
+        &store,
+        &board,
+        Viewport {
+            x: 1_000.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+        400,
+        Pending::Nothing,
+    );
     sleep(Duration::from_millis(30));
     a.tick(&mut store);
     let en_route = viewport(&store, &board);
     assert_ne!(en_route.x, 0.0, "la caméra a bougé");
 
-    a.fly_to(&store, &board, Viewport { x: 0.0, y: 0.0, scale: 1.0 }, 400, Pending::Nothing);
+    a.fly_to(
+        &store,
+        &board,
+        Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+        400,
+        Pending::Nothing,
+    );
     a.tick(&mut store);
     let apres = viewport(&store, &board);
     // Le nouveau vol repart d'où l'on est : au premier instant, la caméra n'a pas sauté.
@@ -168,7 +237,11 @@ fn test_abandonner_un_vol_n_ouvre_rien() {
     assert!(!a.cancel(), "abandonner deux fois ne fait rien");
     assert!(!a.is_running());
     assert_eq!(a.tick(&mut store), None);
-    assert_eq!(store.folder_path().len(), 1, "le dossier n'a pas été ouvert");
+    assert_eq!(
+        store.folder_path().len(),
+        1,
+        "le dossier n'a pas été ouvert"
+    );
 }
 
 /// Un vol dont le tableau change en route s'arrête : il n'a plus de sujet.
@@ -200,20 +273,30 @@ fn test_voler_vers_un_dossier_inexistant_echoue_sans_animer() {
 fn test_la_remontee_repart_du_dossier_quitte() {
     let mut store = store_avec_dossier();
     let parent = store.project.active_board_id.clone();
-    let cadrage_parent = Viewport { x: -120.0, y: 45.0, scale: 0.75 };
+    let cadrage_parent = Viewport {
+        x: -120.0,
+        y: 45.0,
+        scale: 0.75,
+    };
     store.set_viewport(&parent, cadrage_parent);
     store.try_enter_folder("fold-1").expect("entrer");
     assert_eq!(store.folder_path().len(), 2);
 
     let mut a = Animator::new();
     assert!(fly_out_to_depth(&mut store, &mut a, 0, ECRAN));
-    assert_eq!(store.project.active_board_id, parent, "on est remonté tout de suite");
+    assert_eq!(
+        store.project.active_board_id, parent,
+        "on est remonté tout de suite"
+    );
     assert!(a.is_running(), "et la caméra, elle, a du chemin à faire");
 
     // Au départ du vol, la caméra est serrée sur le dossier, pas au cadrage du parent.
     let depart = viewport(&store, &parent);
     assert_ne!(depart, cadrage_parent);
-    assert!(depart.scale > cadrage_parent.scale, "serrée, donc plus zoomée");
+    assert!(
+        depart.scale > cadrage_parent.scale,
+        "serrée, donc plus zoomée"
+    );
 
     // Et elle y revient.
     a.flight.as_mut().expect("le vol").duration_ms = 0;

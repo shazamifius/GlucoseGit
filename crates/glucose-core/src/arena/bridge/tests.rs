@@ -16,16 +16,37 @@ use crate::types::{
 /// [`Fx`], qui a ses propres tests.
 fn tableau_complet() -> Board {
     let mut b = Board::new("board-1", "Tableau complet");
-    b.viewport = Viewport { x: 12.0, y: -34.0, scale: 2.0 };
-    b.bookmarks.insert("repère".into(), Viewport { x: 1.0, y: 2.0, scale: 0.5 });
+    b.viewport = Viewport {
+        x: 12.0,
+        y: -34.0,
+        scale: 2.0,
+    };
+    b.bookmarks.insert(
+        "repère".into(),
+        Viewport {
+            x: 1.0,
+            y: 2.0,
+            scale: 0.5,
+        },
+    );
     b.created_at = 1_700_000_000;
     b.updated_at = 1_700_000_001;
 
     let domaines = vec![
-        DomainAssignment { domain_id: "science".into(), weight: 0.75 },
-        DomainAssignment { domain_id: "histoire".into(), weight: 0.25 },
+        DomainAssignment {
+            domain_id: "science".into(),
+            weight: 0.75,
+        },
+        DomainAssignment {
+            domain_id: "histoire".into(),
+            weight: 0.25,
+        },
     ];
-    let ancre = TemporalAnchor { start: -3000, end: 1789, label: Some("longue durée".into()) };
+    let ancre = TemporalAnchor {
+        start: -3000,
+        end: 1789,
+        label: Some("longue durée".into()),
+    };
 
     b.images.push(BoardImage {
         id: "img-1".into(),
@@ -53,7 +74,8 @@ fn tableau_complet() -> Board {
         mirror_of: Some("img-2".into()),
         temporal_anchor: Some(ancre.clone()),
     });
-    b.images.push(BoardImage::new("img-2", -50.0, -60.0, 10.0, 20.0));
+    b.images
+        .push(BoardImage::new("img-2", -50.0, -60.0, 10.0, 20.0));
 
     b.annotations.push(Annotation::Text {
         id: "txt-1".into(),
@@ -119,7 +141,10 @@ fn tableau_complet() -> Board {
         arrow_bidirectional: true,
         predicate: Some(ArrowPredicate::Contredit),
         stroke_width: Some(2.5),
-        waypoints: vec![Point2D { x: 700.0, y: 300.0 }, Point2D { x: 400.0, y: 500.0 }],
+        waypoints: vec![
+            Point2D { x: 700.0, y: 300.0 },
+            Point2D { x: 400.0, y: 500.0 },
+        ],
         source_id: Some("txt-1".into()),
         target_id: Some("img-1".into()),
         source_block_id: Some("bloc-a".into()),
@@ -187,7 +212,8 @@ fn tableau_complet() -> Board {
             pending_scan: true,
         }),
     });
-    b.folders.push(CanvasFolder::new("fold-2", "Second", "board-enfant-2"));
+    b.folders
+        .push(CanvasFolder::new("fold-2", "Second", "board-enfant-2"));
 
     b.panels.push(StoryboardPanel {
         id: "pan-1".into(),
@@ -247,7 +273,11 @@ fn test_les_normalisations_sont_celles_qui_sont_annoncees() {
     let Annotation::Membrane { color, text, .. } = &apres.annotations[0] else {
         panic!("membrane attendue");
     };
-    assert_eq!(color.as_deref(), Some("#aabbcc"), "la forme courte est développée");
+    assert_eq!(
+        color.as_deref(),
+        Some("#aabbcc"),
+        "la forme courte est développée"
+    );
     assert_eq!(*text, None, "un libellé vide ressort absent");
 }
 
@@ -276,7 +306,10 @@ fn test_une_couleur_illisible_est_conservee_telle_quelle() {
     let pont = Bridge::from_board(&b);
     pont.check().unwrap();
     let apres = pont.to_board_like(&b);
-    assert_eq!(apres, b, "ni la couleur de trait ni celle de fond ne se perdent");
+    assert_eq!(
+        apres, b,
+        "ni la couleur de trait ni celle de fond ne se perdent"
+    );
 }
 
 /// Une référence vers un nœud absent — ce qu'un fichier incomplet porte — ouvre le document
@@ -292,8 +325,14 @@ fn test_une_reference_rompue_ouvre_le_document_quand_meme() {
     let pont = Bridge::from_board(&b);
     pont.check().unwrap();
     let apres = pont.to_board_like(&b);
-    assert_eq!(apres.images[0].membrane_id, None, "le parent introuvable disparaît");
-    assert_eq!(apres.images[0].mirror_of, None, "le miroir introuvable aussi");
+    assert_eq!(
+        apres.images[0].membrane_id, None,
+        "le parent introuvable disparaît"
+    );
+    assert_eq!(
+        apres.images[0].mirror_of, None,
+        "le miroir introuvable aussi"
+    );
 }
 
 /// Les quatre orientations d'une flèche traversent le pont, y compris la dégénérée : c'est le

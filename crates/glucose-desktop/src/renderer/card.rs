@@ -45,8 +45,8 @@ use super::{parse_hex_color, push_rounded_rect, PaintKit, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::params::{Pen, ViewPass};
 use crate::renderer::halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
-use crate::theme::Theme;
 use crate::renderer::math::MathRenderer;
+use crate::theme::Theme;
 use crate::typography::{TextStyle, Typography};
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
@@ -205,7 +205,11 @@ impl LineKind {
     }
 
     fn style(self, layout: &CardLayout) -> TextStyle {
-        TextStyle { size: self.font(layout.font), color: self.color(), bold: self.bold() }
+        TextStyle {
+            size: self.font(layout.font),
+            color: self.color(),
+            bold: self.bold(),
+        }
     }
 }
 
@@ -252,7 +256,11 @@ pub fn layout_lines(
             let rangs = (hauteur / base.line_height).ceil().max(1.0) as usize;
             for i in 0..rangs {
                 lines.push(VisualLine {
-                    start: if i == 0 { offset } else { offset + paragraph.len() },
+                    start: if i == 0 {
+                        offset
+                    } else {
+                        offset + paragraph.len()
+                    },
                     end: offset + paragraph.len(),
                     kind,
                     first: i == 0,
@@ -266,8 +274,16 @@ pub fn layout_lines(
         let text = &paragraph[prefix..];
         let usable = (width - PAD_X * 2.0 - kind.indent(&base)).max(BODY_FONT);
         let font = kind.font(BODY_FONT);
-        let advance = |ch: char| typography.get_glyph(ch, font, kind.bold()).metrics.advance_width;
-        for (i, (s, e)) in wrap_paragraph(text, usable, advance).into_iter().enumerate() {
+        let advance = |ch: char| {
+            typography
+                .get_glyph(ch, font, kind.bold())
+                .metrics
+                .advance_width
+        };
+        for (i, (s, e)) in wrap_paragraph(text, usable, advance)
+            .into_iter()
+            .enumerate()
+        {
             lines.push(VisualLine {
                 start: offset + prefix + s,
                 end: offset + prefix + e,
@@ -390,15 +406,37 @@ pub(super) fn draw_annotations(
         let selected = store.selected_annotation_ids.iter().any(|s| s == ann.id());
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
-            Annotation::Text { x, y, width, height, text, color, .. } => {
+            Annotation::Text {
+                x,
+                y,
+                width,
+                height,
+                text,
+                color,
+                ..
+            } => {
                 let (_, tint) = hue_cache.get_or_compute(ann, &board.annotations);
-                let tint = color.as_deref().map(|c| parse_hex_color(c, tint.0, tint.1, tint.2)).unwrap_or(tint);
+                let tint = color
+                    .as_deref()
+                    .map(|c| parse_hex_color(c, tint.0, tint.1, tint.2))
+                    .unwrap_or(tint);
                 let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
                 let size = (
                     width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH) as f32,
                     height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) as f32,
                 );
-                draw_text_card(&ctx, pixmap, TextCard { origin: (*x, *y), size, body, tint, selected, editing });
+                draw_text_card(
+                    &ctx,
+                    pixmap,
+                    TextCard {
+                        origin: (*x, *y),
+                        size,
+                        body,
+                        tint,
+                        selected,
+                        editing,
+                    },
+                );
                 draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
             }
             Annotation::Sticky { x, y, .. } => {
@@ -414,9 +452,21 @@ pub(super) fn draw_annotations(
 }
 
 /// Pose la réglette de domaines d'une annotation au-dessus de son bord haut.
-fn draw_node_gauge(ctx: &Pass, pixmap: &mut PixmapMut, origin: (f64, f64), domains: &[DomainAssignment]) {
+fn draw_node_gauge(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    origin: (f64, f64),
+    domains: &[DomainAssignment],
+) {
     let (wx, wy) = world_to_screen(origin.0, origin.1, &ctx.vp);
-    draw_domain_gauge(ctx.typography, ctx.tints, pixmap, ctx.scale, (wx as f32, wy as f32), domains);
+    draw_domain_gauge(
+        ctx.typography,
+        ctx.tints,
+        pixmap,
+        ctx.scale,
+        (wx as f32, wy as f32),
+        domains,
+    );
 }
 
 /// Une carte de texte prête à dessiner : sa géométrie **monde** et son contenu.
@@ -449,31 +499,62 @@ fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     }
     if card.selected {
         let screen_box = (sx, sy, layout.width, layout.height);
-        draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::HORIZONTAL);
+        draw_resize_handles(
+            pixmap,
+            ctx.theme,
+            ctx.scale,
+            screen_box,
+            &Handle::HORIZONTAL,
+        );
     }
 }
 
 /// Le fond teinté de la carte et son cadre.
-fn draw_card_frame(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, card: &TextCard) {
+fn draw_card_frame(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &CardLayout,
+    card: &TextCard,
+) {
     let mut pb = PathBuilder::new();
-    push_rounded_rect(&mut pb, at.0, at.1, layout.width, layout.height, layout.radius);
+    push_rounded_rect(
+        &mut pb,
+        at.0,
+        at.1,
+        layout.width,
+        layout.height,
+        layout.radius,
+    );
     let Some(path) = pb.finish() else {
         return;
     };
     let (r, g, b) = card.tint;
 
     // Aura douce d'ambiance : #18181B teinté de 12 % de la teinte symbiotique.
-    let mut fill = Paint { anti_alias: true, ..Default::default() };
+    let mut fill = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     fill.set_color(Color::from_rgba8(
         ((r as u16 * 12 + 24 * 88) / 100) as u8,
         ((g as u16 * 12 + 24 * 88) / 100) as u8,
         ((b as u16 * 12 + 27 * 88) / 100) as u8,
         248,
     ));
-    pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
+    pixmap.fill_path(
+        &path,
+        &fill,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 
     let highlighted = card.selected || card.editing.is_some();
-    let mut stroke_paint = Paint { anti_alias: true, ..Default::default() };
+    let mut stroke_paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     stroke_paint.set_color(match (card.editing.is_some(), card.selected) {
         (true, _) => Color::from_rgba8(56, 189, 248, 255),
         (false, true) => Color::from_rgba8(56, 189, 248, 220),
@@ -482,7 +563,11 @@ fn draw_card_frame(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &
     let stroke = Stroke {
         // Le cadre au repos appartient à la carte et suit son échelle ; l'anneau de
         // sélection est une affordance et garde sa taille écran (exception SCALE-1).
-        width: if highlighted { ctx.scale.screen(SELECTION_RING) } else { layout.border },
+        width: if highlighted {
+            ctx.scale.screen(SELECTION_RING)
+        } else {
+            layout.border
+        },
         ..Default::default()
     };
     pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
@@ -529,9 +614,18 @@ fn draw_card_body(
                         .measure(corps, mode, style.size)
                         .map(|(_, h, _)| h)
                         .unwrap_or(style.size);
-                    let plume = Pen { x: start_x, y: cur_y + au_dessus, font_size: style.size };
-                    let dessinee =
-                        ctx.math.draw(pixmap, corps, mode, plume, Color::from_rgba8(230, 234, 245, 255));
+                    let plume = Pen {
+                        x: start_x,
+                        y: cur_y + au_dessus,
+                        font_size: style.size,
+                    };
+                    let dessinee = ctx.math.draw(
+                        pixmap,
+                        corps,
+                        mode,
+                        plume,
+                        Color::from_rgba8(230, 234, 245, 255),
+                    );
                     if !dessinee {
                         // Une formule fausse montre sa source, en rouge : l'erreur se voit là
                         // où elle est, pas dans une console.
@@ -540,7 +634,10 @@ fn draw_card_body(
                             text,
                             start_x,
                             cur_y,
-                            TextStyle { color: Color::from_rgba8(248, 113, 113, 255), ..style },
+                            TextStyle {
+                                color: Color::from_rgba8(248, 113, 113, 255),
+                                ..style
+                            },
                         );
                     }
                 }
@@ -549,12 +646,17 @@ fn draw_card_body(
             continue;
         }
 
-        ctx.typography.draw_text(pixmap, text, start_x, cur_y, style);
+        ctx.typography
+            .draw_text(pixmap, text, start_x, cur_y, style);
 
         // Un curseur posé dans le préfixe (`# `) se rattache au début de sa première ligne ;
         // la dernière ligne recueille tout ce qui dépasse.
         let last = num + 1 == lines.len();
-        let from = if line.first { line.paragraph_start } else { line.start };
+        let from = if line.first {
+            line.paragraph_start
+        } else {
+            line.start
+        };
         let in_line = cursor_idx >= from && (cursor_idx <= line.end || last);
         if show_cursor && !cursor_drawn && in_line {
             let prefix = &card.body[line.start..cursor_idx.clamp(line.start, line.end)];
@@ -567,12 +669,25 @@ fn draw_card_body(
 }
 
 fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {
-    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     paint.set_color(Color::from_rgba8(tint.0, tint.1, tint.2, 200));
     let mut pb = PathBuilder::new();
-    pb.push_circle(at.0 + layout.bullet_offset, at.1 + layout.font * BULLET_BASELINE, layout.bullet);
+    pb.push_circle(
+        at.0 + layout.bullet_offset,
+        at.1 + layout.font * BULLET_BASELINE,
+        layout.bullet,
+    );
     if let Some(path) = pb.finish() {
-        pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+        pixmap.fill_path(
+            &path,
+            &paint,
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
     }
 }
 

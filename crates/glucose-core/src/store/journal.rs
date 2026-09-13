@@ -203,22 +203,50 @@ impl<T> Whole<T> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Edit {
     // ── Listes portées par un board ──────────────────────────────────────
-    Image { board: String, slot: Slot<BoardImage> },
-    Annotation { board: String, slot: Slot<Annotation> },
-    Folder { board: String, slot: Slot<CanvasFolder> },
-    Panel { board: String, slot: Slot<StoryboardPanel> },
+    Image {
+        board: String,
+        slot: Slot<BoardImage>,
+    },
+    Annotation {
+        board: String,
+        slot: Slot<Annotation>,
+    },
+    Folder {
+        board: String,
+        slot: Slot<CanvasFolder>,
+    },
+    Panel {
+        board: String,
+        slot: Slot<StoryboardPanel>,
+    },
     /// Les zones sont posées en bloc par un preset : la liste entière est la modification.
-    Zones { board: String, whole: Whole<Vec<BoardZone>> },
-    BoardName { board: String, whole: Whole<String> },
+    Zones {
+        board: String,
+        whole: Whole<Vec<BoardZone>>,
+    },
+    BoardName {
+        board: String,
+        whole: Whole<String>,
+    },
 
     // ── Listes portées par le projet ─────────────────────────────────────
     /// Supprimer un board emporte tout son contenu : l'entrée est lourde, et c'est conforme
     /// à JRN-1 — la modification *est* de cette taille.
-    Board { slot: Slot<Board> },
-    Domain { slot: Slot<Domain> },
-    Preset { slot: Slot<Preset> },
-    ProjectName { whole: Whole<String> },
-    ActiveBoard { whole: Whole<String> },
+    Board {
+        slot: Slot<Board>,
+    },
+    Domain {
+        slot: Slot<Domain>,
+    },
+    Preset {
+        slot: Slot<Preset>,
+    },
+    ProjectName {
+        whole: Whole<String>,
+    },
+    ActiveBoard {
+        whole: Whole<String>,
+    },
 }
 
 impl Edit {

@@ -33,14 +33,18 @@ const PLAFOND_DESKTOP: usize = 66;
 
 fn compte_dans(racine: &Path) -> usize {
     let mut total = 0;
-    let Ok(entrees) = fs::read_dir(racine) else { return 0 };
+    let Ok(entrees) = fs::read_dir(racine) else {
+        return 0;
+    };
     for entree in entrees.flatten() {
         let chemin = entree.path();
         let nom = chemin.file_name().and_then(|n| n.to_str()).unwrap_or("");
         if chemin.is_dir() {
             total += compte_dans(&chemin);
         } else if nom.ends_with(".rs") && !nom.contains("tests") && !nom.contains("proof") {
-            let Ok(source) = fs::read_to_string(&chemin) else { continue };
+            let Ok(source) = fs::read_to_string(&chemin) else {
+                continue;
+            };
             for ligne in source.lines() {
                 let nue = ligne.trim_start();
                 // Les commentaires parlent du modèle sans y toucher.

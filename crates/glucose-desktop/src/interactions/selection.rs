@@ -31,7 +31,11 @@ impl GlucoseApp {
             let sy_max = y1.max(y2);
 
             if (sx_max - sx_min) > RUBBERBAND_MIN_PX || (sy_max - sy_min) > RUBBERBAND_MIN_PX {
-                let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
+                let vp = self
+                    .store
+                    .active_board()
+                    .map(|b| b.viewport)
+                    .unwrap_or_default();
                 let (wx1, wy1) = screen_to_world(sx_min, sy_min, &vp);
                 let (wx2, wy2) = screen_to_world(sx_max, sy_max, &vp);
                 let box_left = wx1.min(wx2);
@@ -57,19 +61,35 @@ impl GlucoseApp {
                             Annotation::Arrow { x, y, x2, y2, .. } => {
                                 (x.min(*x2), x.max(*x2), y.min(*y2), y.max(*y2))
                             }
-                            Annotation::Text { x, y, width, height, .. } => {
+                            Annotation::Text {
+                                x,
+                                y,
+                                width,
+                                height,
+                                ..
+                            } => {
                                 let w = width.unwrap_or(240.0);
                                 let h = height.unwrap_or(48.0);
                                 (*x, *x + w, *y, *y + h)
                             }
-                            Annotation::Sticky { x, y, width, height, .. } => {
+                            Annotation::Sticky {
+                                x,
+                                y,
+                                width,
+                                height,
+                                ..
+                            } => {
                                 let w = width.unwrap_or(180.0);
                                 let h = height.unwrap_or(130.0);
                                 (*x, *x + w, *y, *y + h)
                             }
-                            Annotation::Membrane { x, y, width, height, .. } => {
-                                (*x, *x + *width, *y, *y + *height)
-                            }
+                            Annotation::Membrane {
+                                x,
+                                y,
+                                width,
+                                height,
+                                ..
+                            } => (*x, *x + *width, *y, *y + *height),
                         };
                         if ar >= box_left && al <= box_right && ab >= box_top && at <= box_bottom {
                             hits_anns.push(ann.id().to_string());

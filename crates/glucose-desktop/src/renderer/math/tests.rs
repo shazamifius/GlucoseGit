@@ -50,7 +50,10 @@ fn test_toute_famille_demandee_trouve_sa_fonte() {
             Style::ROMAN,
             Style::BOLD,
             Style::ITALIC,
-            Style { bold: true, italic: true },
+            Style {
+                bold: true,
+                italic: true,
+            },
         ] {
             let nom = nom_de_fonte(f, style);
             assert!(
@@ -70,7 +73,13 @@ fn test_une_formule_met_vraiment_de_l_encre() {
 
     assert_eq!(encre(&p), 0, "le pixmap part vide");
     let source = r"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}";
-    let ok = r.draw(&mut p.as_mut(), source, Mode::Display, plume(20.0, 120.0, 28.0), BLANC);
+    let ok = r.draw(
+        &mut p.as_mut(),
+        source,
+        Mode::Display,
+        plume(20.0, 120.0, 28.0),
+        BLANC,
+    );
     assert!(ok, "la formule est valide");
     assert!(encre(&p) > 200, "seulement {} pixels encrés", encre(&p));
 }
@@ -84,7 +93,13 @@ fn test_une_fraction_encre_au_dessus_et_en_dessous_de_sa_ligne() {
     let mut p = Pixmap::new(200, 200).expect("pixmap");
     let ligne = 100.0_f32;
 
-    r.draw(&mut p.as_mut(), r"\frac{a}{b}", Mode::Display, plume(40.0, ligne, 40.0), BLANC);
+    r.draw(
+        &mut p.as_mut(),
+        r"\frac{a}{b}",
+        Mode::Display,
+        plume(40.0, ligne, 40.0),
+        BLANC,
+    );
 
     let mut au_dessus = 0;
     let mut en_dessous = 0;
@@ -109,7 +124,13 @@ fn test_une_formule_fausse_ne_dessine_rien_et_le_dit() {
     let r = MathRenderer::new();
     let mut p = Pixmap::new(200, 100).expect("pixmap");
 
-    let ok = r.draw(&mut p.as_mut(), r"\frac{", Mode::Inline, plume(10.0, 50.0, 20.0), BLANC);
+    let ok = r.draw(
+        &mut p.as_mut(),
+        r"\frac{",
+        Mode::Inline,
+        plume(10.0, 50.0, 20.0),
+        BLANC,
+    );
     assert!(!ok, "la source est fausse");
     assert_eq!(encre(&p), 0, "et rien n'a été dessiné");
 }
@@ -123,13 +144,23 @@ fn test_le_cache_ne_change_pas_le_resultat() {
 
     let dessiner = |r: &MathRenderer| {
         let mut p = Pixmap::new(300, 200).expect("pixmap");
-        r.draw(&mut p.as_mut(), source, Mode::Display, plume(20.0, 120.0, 24.0), BLANC);
+        r.draw(
+            &mut p.as_mut(),
+            source,
+            Mode::Display,
+            plume(20.0, 120.0, 24.0),
+            BLANC,
+        );
         p
     };
 
     let premiere = dessiner(&r);
     let seconde = dessiner(&r);
-    assert_eq!(premiere.data(), seconde.data(), "le cache a changé le rendu");
+    assert_eq!(
+        premiere.data(),
+        seconde.data(),
+        "le cache a changé le rendu"
+    );
 }
 
 /// La mesure d'une formule est proportionnelle à la taille de police : doubler le corps double
@@ -162,7 +193,13 @@ fn test_une_taille_minuscule_ne_panique_pas() {
     let r = MathRenderer::new();
     let mut p = Pixmap::new(50, 50).expect("pixmap");
     for taille in [0.0_f32, 0.01, 0.3, -4.0] {
-        r.draw(&mut p.as_mut(), r"\frac{a}{b}", Mode::Inline, plume(10.0, 25.0, taille), BLANC);
+        r.draw(
+            &mut p.as_mut(),
+            r"\frac{a}{b}",
+            Mode::Inline,
+            plume(10.0, 25.0, taille),
+            BLANC,
+        );
     }
 }
 
@@ -173,6 +210,12 @@ fn test_dessiner_hors_du_pixmap_ne_deborde_pas() {
     let r = MathRenderer::new();
     let mut p = Pixmap::new(60, 60).expect("pixmap");
     for (x, y) in [(-200.0, 30.0), (300.0, 30.0), (30.0, -200.0), (30.0, 300.0)] {
-        r.draw(&mut p.as_mut(), r"\sum_{i=1}^{n} i", Mode::Display, plume(x, y, 24.0), BLANC);
+        r.draw(
+            &mut p.as_mut(),
+            r"\sum_{i=1}^{n} i",
+            Mode::Display,
+            plume(x, y, 24.0),
+            BLANC,
+        );
     }
 }

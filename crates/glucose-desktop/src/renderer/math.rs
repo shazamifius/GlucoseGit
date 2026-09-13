@@ -37,26 +37,86 @@ use tiny_skia::{Color, Paint, PixmapMut, Rect, Transform};
 /// Dessiner sa mise en page avec d'autres fontes produirait des positions justes et des glyphes
 /// de la mauvaise largeur — c'est-à-dire un résultat faux qui aurait l'air presque bon.
 const FONTS: &[(&str, &[u8])] = &[
-    ("KaTeX_AMS-Regular", include_bytes!("../../assets/katex/KaTeX_AMS-Regular.ttf")),
-    ("KaTeX_Caligraphic-Bold", include_bytes!("../../assets/katex/KaTeX_Caligraphic-Bold.ttf")),
-    ("KaTeX_Caligraphic-Regular", include_bytes!("../../assets/katex/KaTeX_Caligraphic-Regular.ttf")),
-    ("KaTeX_Fraktur-Bold", include_bytes!("../../assets/katex/KaTeX_Fraktur-Bold.ttf")),
-    ("KaTeX_Fraktur-Regular", include_bytes!("../../assets/katex/KaTeX_Fraktur-Regular.ttf")),
-    ("KaTeX_Main-Bold", include_bytes!("../../assets/katex/KaTeX_Main-Bold.ttf")),
-    ("KaTeX_Main-BoldItalic", include_bytes!("../../assets/katex/KaTeX_Main-BoldItalic.ttf")),
-    ("KaTeX_Main-Italic", include_bytes!("../../assets/katex/KaTeX_Main-Italic.ttf")),
-    ("KaTeX_Main-Regular", include_bytes!("../../assets/katex/KaTeX_Main-Regular.ttf")),
-    ("KaTeX_Math-BoldItalic", include_bytes!("../../assets/katex/KaTeX_Math-BoldItalic.ttf")),
-    ("KaTeX_Math-Italic", include_bytes!("../../assets/katex/KaTeX_Math-Italic.ttf")),
-    ("KaTeX_SansSerif-Bold", include_bytes!("../../assets/katex/KaTeX_SansSerif-Bold.ttf")),
-    ("KaTeX_SansSerif-Italic", include_bytes!("../../assets/katex/KaTeX_SansSerif-Italic.ttf")),
-    ("KaTeX_SansSerif-Regular", include_bytes!("../../assets/katex/KaTeX_SansSerif-Regular.ttf")),
-    ("KaTeX_Script-Regular", include_bytes!("../../assets/katex/KaTeX_Script-Regular.ttf")),
-    ("KaTeX_Size1-Regular", include_bytes!("../../assets/katex/KaTeX_Size1-Regular.ttf")),
-    ("KaTeX_Size2-Regular", include_bytes!("../../assets/katex/KaTeX_Size2-Regular.ttf")),
-    ("KaTeX_Size3-Regular", include_bytes!("../../assets/katex/KaTeX_Size3-Regular.ttf")),
-    ("KaTeX_Size4-Regular", include_bytes!("../../assets/katex/KaTeX_Size4-Regular.ttf")),
-    ("KaTeX_Typewriter-Regular", include_bytes!("../../assets/katex/KaTeX_Typewriter-Regular.ttf")),
+    (
+        "KaTeX_AMS-Regular",
+        include_bytes!("../../assets/katex/KaTeX_AMS-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Caligraphic-Bold",
+        include_bytes!("../../assets/katex/KaTeX_Caligraphic-Bold.ttf"),
+    ),
+    (
+        "KaTeX_Caligraphic-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Caligraphic-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Fraktur-Bold",
+        include_bytes!("../../assets/katex/KaTeX_Fraktur-Bold.ttf"),
+    ),
+    (
+        "KaTeX_Fraktur-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Fraktur-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Main-Bold",
+        include_bytes!("../../assets/katex/KaTeX_Main-Bold.ttf"),
+    ),
+    (
+        "KaTeX_Main-BoldItalic",
+        include_bytes!("../../assets/katex/KaTeX_Main-BoldItalic.ttf"),
+    ),
+    (
+        "KaTeX_Main-Italic",
+        include_bytes!("../../assets/katex/KaTeX_Main-Italic.ttf"),
+    ),
+    (
+        "KaTeX_Main-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Main-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Math-BoldItalic",
+        include_bytes!("../../assets/katex/KaTeX_Math-BoldItalic.ttf"),
+    ),
+    (
+        "KaTeX_Math-Italic",
+        include_bytes!("../../assets/katex/KaTeX_Math-Italic.ttf"),
+    ),
+    (
+        "KaTeX_SansSerif-Bold",
+        include_bytes!("../../assets/katex/KaTeX_SansSerif-Bold.ttf"),
+    ),
+    (
+        "KaTeX_SansSerif-Italic",
+        include_bytes!("../../assets/katex/KaTeX_SansSerif-Italic.ttf"),
+    ),
+    (
+        "KaTeX_SansSerif-Regular",
+        include_bytes!("../../assets/katex/KaTeX_SansSerif-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Script-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Script-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Size1-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Size1-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Size2-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Size2-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Size3-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Size3-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Size4-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Size4-Regular.ttf"),
+    ),
+    (
+        "KaTeX_Typewriter-Regular",
+        include_bytes!("../../assets/katex/KaTeX_Typewriter-Regular.ttf"),
+    ),
 ];
 
 /// Le nom de fichier d'une famille et d'un style, tel qu'il est embarqué.
@@ -126,7 +186,10 @@ impl MathRenderer {
                     .map(|f| (*nom, f))
             })
             .collect();
-        Self { fonts, cache: RefCell::new(HashMap::new()) }
+        Self {
+            fonts,
+            cache: RefCell::new(HashMap::new()),
+        }
     }
 
     /// Le nombre de fontes effectivement chargées — vingt si tout va bien.
@@ -144,7 +207,9 @@ impl MathRenderer {
             return connu.clone();
         }
         let calcule = glucose_math::layout(source, mode);
-        self.cache.borrow_mut().insert((source.to_string(), mode), calcule.clone());
+        self.cache
+            .borrow_mut()
+            .insert((source.to_string(), mode), calcule.clone());
         calcule
     }
 
@@ -161,14 +226,25 @@ impl MathRenderer {
     pub fn measure(&self, source: &str, mode: Mode, font_size: f32) -> Option<(f32, f32, f32)> {
         let l = self.layout(source, mode).ok()?;
         let em = font_size;
-        Some((l.width as f32 * em, l.height as f32 * em, l.depth as f32 * em))
+        Some((
+            l.width as f32 * em,
+            l.height as f32 * em,
+            l.depth as f32 * em,
+        ))
     }
 
     /// Dessine une formule dont la **ligne de base** commence à la plume, à son corps.
     ///
     /// Rend `false` si la source est fausse : l'appelant décide alors quoi montrer — dans une
     /// carte, la source elle-même, en rouge.
-    pub fn draw(&self, pixmap: &mut PixmapMut, source: &str, mode: Mode, pen: Pen, color: Color) -> bool {
+    pub fn draw(
+        &self,
+        pixmap: &mut PixmapMut,
+        source: &str,
+        mode: Mode,
+        pen: Pen,
+        color: Color,
+    ) -> bool {
         let Ok(layout) = self.layout(source, mode) else {
             return false;
         };
@@ -176,9 +252,18 @@ impl MathRenderer {
 
         for item in &layout.items {
             match item {
-                MathItem::Glyph { text, x: gx, y: gy, size, family, style } => {
+                MathItem::Glyph {
+                    text,
+                    x: gx,
+                    y: gy,
+                    size,
+                    family,
+                    style,
+                } => {
                     let nom = nom_de_fonte(*family, *style);
-                    let Some(font) = self.fonts.get(nom.as_str()) else { continue };
+                    let Some(font) = self.fonts.get(nom.as_str()) else {
+                        continue;
+                    };
                     let plume = Pen {
                         x: x + *gx as f32 * font_size,
                         // `y` croît vers le haut côté mathématiques, vers le bas à l'écran.
@@ -187,8 +272,16 @@ impl MathRenderer {
                     };
                     dessine_glyphe(pixmap, font, text, plume, color);
                 }
-                MathItem::Rule { x: rx, y: ry, width, height } => {
-                    let mut paint = Paint { anti_alias: true, ..Default::default() };
+                MathItem::Rule {
+                    x: rx,
+                    y: ry,
+                    width,
+                    height,
+                } => {
+                    let mut paint = Paint {
+                        anti_alias: true,
+                        ..Default::default()
+                    };
                     paint.set_color(color);
                     // Un filet d'épaisseur inférieure au pixel disparaîtrait ; on lui en donne
                     // un, sans quoi une barre de fraction s'évanouit au dézoom.
@@ -202,12 +295,19 @@ impl MathRenderer {
                         pixmap.fill_rect(r, &paint, Transform::identity(), None);
                     }
                 }
-                MathItem::Path { name, x: px, y: py, width, height } => {
+                MathItem::Path {
+                    name,
+                    x: px,
+                    y: py,
+                    width,
+                    height,
+                } => {
                     // La boîte de la forme : sa ligne de base en bas, sa hauteur au-dessus.
                     // Une boîte sans surface ne se construit pas, donc ne se dessine pas.
                     let (w, h) = (*width as f32 * font_size, *height as f32 * font_size);
                     let bas = y - *py as f32 * font_size;
-                    if let Some(boite) = Rect::from_xywh(x + *px as f32 * font_size, bas - h, w, h) {
+                    if let Some(boite) = Rect::from_xywh(x + *px as f32 * font_size, bas - h, w, h)
+                    {
                         dessine_forme(pixmap, name, boite, color);
                     }
                 }
@@ -222,8 +322,18 @@ impl MathRenderer {
 /// `fontdue` rastérise le glyphe puis on le compose en alpha prémultiplié, comme le fait déjà
 /// [`Typography`] pour le texte ordinaire. La différence est qu'ici la fonte change d'un glyphe
 /// à l'autre, ce qui interdit de réutiliser son cache tel quel.
-fn dessine_glyphe(pixmap: &mut PixmapMut, font: &fontdue::Font, texte: &str, pen: Pen, couleur: Color) {
-    let Pen { x, y, font_size: taille } = pen;
+fn dessine_glyphe(
+    pixmap: &mut PixmapMut,
+    font: &fontdue::Font,
+    texte: &str,
+    pen: Pen,
+    couleur: Color,
+) {
+    let Pen {
+        x,
+        y,
+        font_size: taille,
+    } = pen;
     if taille < 0.5 {
         return;
     }
@@ -233,7 +343,15 @@ fn dessine_glyphe(pixmap: &mut PixmapMut, font: &fontdue::Font, texte: &str, pen
         if metrics.width > 0 && metrics.height > 0 {
             let gx = (plume + metrics.xmin as f32).round() as i32;
             let gy = (y - metrics.height as f32 - metrics.ymin as f32).round() as i32;
-            compose(pixmap, &bitmap, metrics.width, metrics.height, gx, gy, couleur);
+            compose(
+                pixmap,
+                &bitmap,
+                metrics.width,
+                metrics.height,
+                gx,
+                gy,
+                couleur,
+            );
         }
         plume += metrics.advance_width;
     }
@@ -257,9 +375,15 @@ fn dessine_forme(pixmap: &mut PixmapMut, nom: &str, boite: Rect, couleur: Color)
     }
     let (x, bas, largeur, hauteur) = (boite.left(), boite.bottom(), boite.width(), boite.height());
     let epaisseur = (hauteur * 0.045).max(1.0);
-    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     paint.set_color(couleur);
-    let stroke = tiny_skia::Stroke { width: epaisseur, ..Default::default() };
+    let stroke = tiny_skia::Stroke {
+        width: epaisseur,
+        ..Default::default()
+    };
 
     let mut pb = tiny_skia::PathBuilder::new();
     // La jambe du radical : du creux en bas à gauche jusqu'au sommet, puis le trait qui

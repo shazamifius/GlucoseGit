@@ -81,7 +81,12 @@ pub(super) fn shifted_glyph(origin: &GlyphEntry, phase: u8) -> GlyphEntry {
         return origin.clone();
     }
     let (dx, dy) = phase_offset(phase);
-    let weights = [(1.0 - dx) * (1.0 - dy), dx * (1.0 - dy), (1.0 - dx) * dy, dx * dy];
+    let weights = [
+        (1.0 - dx) * (1.0 - dy),
+        dx * (1.0 - dy),
+        (1.0 - dx) * dy,
+        dx * dy,
+    ];
     let (out_w, out_h) = (w + 1, h + 1);
     let mut bitmap = vec![0u8; out_w * out_h];
 
@@ -103,7 +108,12 @@ pub(super) fn shifted_glyph(origin: &GlyphEntry, phase: u8) -> GlyphEntry {
             bitmap[row * out_w + col] = coverage.round().min(255.0) as u8;
         }
     }
-    GlyphEntry { metrics: origin.metrics, bitmap, width: out_w, height: out_h }
+    GlyphEntry {
+        metrics: origin.metrics,
+        bitmap,
+        width: out_w,
+        height: out_h,
+    }
 }
 
 /// Évince les 25 % les plus anciens quand le cache est plein (LRU, R-40).

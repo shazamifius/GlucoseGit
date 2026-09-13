@@ -31,7 +31,10 @@ fn failed(path: &Path, reason: impl std::fmt::Display) -> DesktopError {
 /// Nom du fichier temporaire : voisin de la destination, caché, et unique par processus et par
 /// instant, pour que deux enregistrements concurrents ne se marchent pas dessus.
 fn temp_sibling(path: &Path) -> PathBuf {
-    let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     let stem = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
@@ -48,7 +51,10 @@ fn temp_sibling(path: &Path) -> PathBuf {
 /// publie déjà l'entrée de répertoire de façon durable.
 #[cfg(unix)]
 fn sync_parent(path: &Path) -> DesktopResult<()> {
-    let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     File::open(parent)
         .and_then(|dir| dir.sync_all())
         .map_err(|e| failed(path, e))
@@ -114,7 +120,10 @@ mod tests {
     fn test_write_atomic_creates_then_replaces() {
         let path = scratch("remplacement", "remplacement.glucose");
         write_atomic(&path, b"premiere version").expect("premiere ecriture");
-        assert_eq!(std::fs::read(&path).expect("relecture"), b"premiere version");
+        assert_eq!(
+            std::fs::read(&path).expect("relecture"),
+            b"premiere version"
+        );
 
         write_atomic(&path, b"seconde").expect("seconde ecriture");
         assert_eq!(std::fs::read(&path).expect("relecture"), b"seconde");
@@ -136,14 +145,27 @@ mod tests {
     fn test_a_failed_replacement_leaves_the_destination_untouched() {
         let inside = scratch("remplacement-rate/destination", "temoin.txt");
         std::fs::write(&inside, b"contenu d'hier").expect("temoin");
-        let destination = inside.parent().expect("le dossier destination").to_path_buf();
+        let destination = inside
+            .parent()
+            .expect("le dossier destination")
+            .to_path_buf();
 
-        let err = write_atomic(&destination, b"nouveau contenu").expect_err("un dossier ne se remplace pas");
+        let err = write_atomic(&destination, b"nouveau contenu")
+            .expect_err("un dossier ne se remplace pas");
         assert!(matches!(err, DesktopError::SaveFailed { .. }), "{err:?}");
-        assert!(err.to_string().contains("intact"), "le message le dit : {err}");
+        assert!(
+            err.to_string().contains("intact"),
+            "le message le dit : {err}"
+        );
 
-        assert!(destination.is_dir(), "la destination est toujours le dossier d'hier");
-        assert_eq!(std::fs::read(&inside).expect("relecture"), b"contenu d'hier");
+        assert!(
+            destination.is_dir(),
+            "la destination est toujours le dossier d'hier"
+        );
+        assert_eq!(
+            std::fs::read(&inside).expect("relecture"),
+            b"contenu d'hier"
+        );
         let leftovers: Vec<String> = std::fs::read_dir(destination.parent().expect("parent"))
             .expect("lecture du dossier")
             .filter_map(|e| e.ok())
@@ -176,7 +198,11 @@ mod tests {
     fn test_temp_sibling_stays_in_the_destination_directory() {
         let path = scratch("voisin", "voisin.glucose");
         let temp = temp_sibling(&path);
-        assert_eq!(temp.parent(), path.parent(), "le temporaire a change de volume");
+        assert_eq!(
+            temp.parent(),
+            path.parent(),
+            "le temporaire a change de volume"
+        );
         assert!(
             temp.to_string_lossy().ends_with(".tmp"),
             "le temporaire doit etre reconnaissable : {}",

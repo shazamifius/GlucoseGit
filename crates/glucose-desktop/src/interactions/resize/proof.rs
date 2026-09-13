@@ -25,7 +25,13 @@ fn probe_image(dir: &std::path::Path) -> String {
     let mut paint = Paint::default();
     paint.set_color(Color::from_rgba8(20, 20, 40, 255));
     if let Some(path) = pb.finish() {
-        pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+        pixmap.fill_path(
+            &path,
+            &paint,
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
     }
     let path = dir.join("probe.png");
     pixmap.save_png(&path).expect("écriture de l'image d'essai");
@@ -60,7 +66,11 @@ fn ink_bbox(frame: &Pixmap) -> Option<(u32, u32, u32, u32)> {
 /// On mesure donc l'encre **dans la carte**, qui est précisément ce que la preuve affirme :
 /// le texte a reflué à l'intérieur de sa boîte. Qu'un mot trop long soit coupé plutôt que de
 /// déborder est vérifié à part, par `wrap::tests`.
-fn diff_bbox_within(a: &Pixmap, b: &Pixmap, clip: (f64, f64, f64, f64)) -> Option<(u32, u32, u32, u32)> {
+fn diff_bbox_within(
+    a: &Pixmap,
+    b: &Pixmap,
+    clip: (f64, f64, f64, f64),
+) -> Option<(u32, u32, u32, u32)> {
     let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0u32, 0u32);
     let w = a.width();
     let (cx0, cy0, cx1, cy1) = clip;
@@ -82,9 +92,12 @@ fn diff_bbox_within(a: &Pixmap, b: &Pixmap, clip: (f64, f64, f64, f64)) -> Optio
     (x0 != u32::MAX).then_some((x0, y0, x1, y1))
 }
 
-
 fn screen_box(app: &GlucoseApp, rect: AlignRect) -> (f64, f64, f64, f64) {
-    let vp = app.store.active_board().map(|b| b.viewport).unwrap_or_default();
+    let vp = app
+        .store
+        .active_board()
+        .map(|b| b.viewport)
+        .unwrap_or_default();
     let (x0, y0) = world_to_screen(rect.left, rect.top, &vp);
     let (x1, y1) = world_to_screen(rect.left + rect.width, rect.top + rect.height, &vp);
     (x0, y0, x1, y1)
@@ -98,7 +111,10 @@ fn assert_box_matches(observed: (u32, u32, u32, u32), expected: (f64, f64, f64, 
         (observed.3 as f64, expected.3),
     ];
     for (o, e) in pairs {
-        assert!((o - e).abs() <= 2.0, "{what} : bord à {o} px, le document dit {e} px ({observed:?} vs {expected:?})");
+        assert!(
+            (o - e).abs() <= 2.0,
+            "{what} : bord à {o} px, le document dit {e} px ({observed:?} vs {expected:?})"
+        );
     }
 }
 
@@ -131,15 +147,27 @@ fn test_resize_proof_an_image_pulled_by_a_corner_keeps_its_ratio_on_screen() {
 
     let after = render_frame(&mut app);
     let resized = rect_of_image(&app.store.active_board().expect("board").images[0]);
-    assert!((resized.width / resized.height - 2.0).abs() < 1e-9, "rapport conservé : {resized:?}");
+    assert!(
+        (resized.width / resized.height - 2.0).abs() < 1e-9,
+        "rapport conservé : {resized:?}"
+    );
     assert!(resized.width > 300.0, "{resized:?}");
-    assert!((resized.left - start.left).abs() < 1e-9 && (resized.top - start.top).abs() < 1e-9, "ancre");
+    assert!(
+        (resized.left - start.left).abs() < 1e-9 && (resized.top - start.top).abs() < 1e-9,
+        "ancre"
+    );
     let ink_after = ink_bbox(&after).expect("l'image redimensionnée est visible");
     assert_box_matches(ink_after, screen_box(&app, resized), "après");
     let drawn_ratio = (ink_after.2 - ink_after.0) as f64 / (ink_after.3 - ink_after.1) as f64;
-    assert!((drawn_ratio - 2.0).abs() < 0.05, "à l'écran aussi : {drawn_ratio}");
+    assert!(
+        (drawn_ratio - 2.0).abs() < 0.05,
+        "à l'écran aussi : {drawn_ratio}"
+    );
     after.save_png(dir.join("image-apres.png")).expect("png");
-    println!("[proof] image : {ink_before:?} -> {ink_after:?} ({})", dir.display());
+    println!(
+        "[proof] image : {ink_before:?} -> {ink_after:?} ({})",
+        dir.display()
+    );
 }
 
 #[test]
@@ -163,7 +191,8 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
             b.viewport.x = 300.0;
             b.viewport.y = 300.0;
         }
-        app.store.add_annotation(&board, text_card("carte", 0.0, 0.0, width, text));
+        app.store
+            .add_annotation(&board, text_card("carte", 0.0, 0.0, width, text));
         match height {
             Some(h) => {
                 if let Some(Annotation::Text { height: card, .. }) = app
@@ -182,11 +211,12 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     // Avant : la carte large, et son encre de texte (frame pleine moins frame vide).
     let mut app = frame_with(text, 640.0, None);
     let before = render_frame(&mut app);
-    let start = rect_of_annotation(&app.store.active_board().expect("board").annotations[0]).expect("boîte");
+    let start = rect_of_annotation(&app.store.active_board().expect("board").annotations[0])
+        .expect("boîte");
     let mut blank = frame_with("", 640.0, Some(start.height));
     let before_blank = render_frame(&mut blank);
-    let ink_before =
-        diff_bbox_within(&before, &before_blank, screen_box(&app, start)).expect("la carte porte du texte");
+    let ink_before = diff_bbox_within(&before, &before_blank, screen_box(&app, start))
+        .expect("la carte porte du texte");
     before.save_png(dir.join("carte-avant.png")).expect("png");
 
     // Le geste : la poignée droite, tirée vers la gauche.
@@ -194,9 +224,13 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     drag_by(&mut app, -400.0, 0.0, 8);
     release(&mut app);
     let after = render_frame(&mut app);
-    let narrowed = rect_of_annotation(&app.store.active_board().expect("board").annotations[0]).expect("boîte");
+    let narrowed = rect_of_annotation(&app.store.active_board().expect("board").annotations[0])
+        .expect("boîte");
     assert!((narrowed.width - 240.0).abs() < 1e-9, "{narrowed:?}");
-    assert!(narrowed.height > start.height, "la hauteur suit le texte : {narrowed:?} vs {start:?}");
+    assert!(
+        narrowed.height > start.height,
+        "la hauteur suit le texte : {narrowed:?} vs {start:?}"
+    );
 
     let mut blank = frame_with("", 240.0, Some(narrowed.height));
     let after_blank = render_frame(&mut blank);
@@ -206,9 +240,15 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
 
     let (w_before, h_before) = (ink_before.2 - ink_before.0, ink_before.3 - ink_before.1);
     let (w_after, h_after) = (ink_after.2 - ink_after.0, ink_after.3 - ink_after.1);
-    println!("[proof] carte : encre {w_before}x{h_before} -> {w_after}x{h_after} ({})", dir.display());
+    println!(
+        "[proof] carte : encre {w_before}x{h_before} -> {w_after}x{h_after} ({})",
+        dir.display()
+    );
     assert!(w_after < w_before, "le texte est plus étroit");
-    assert!(h_after > h_before * 2, "et bien plus haut : il a reflué sur plusieurs lignes");
+    assert!(
+        h_after > h_before * 2,
+        "et bien plus haut : il a reflué sur plusieurs lignes"
+    );
     // L'encre tient dans la largeur utile : la carte moins ses deux marges.
     let (x0, _, x1, _) = screen_box(&app, narrowed);
     assert!(

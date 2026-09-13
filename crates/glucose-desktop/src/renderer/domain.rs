@@ -176,7 +176,10 @@ impl DomainTints {
             let rgb = parse_hex_color(&domain.color, fallback.0, fallback.1, fallback.2);
             self.entries.insert(
                 domain.id.clone(),
-                DomainTint { rgb, sigil: shorten_sigil(&domain.icon) },
+                DomainTint {
+                    rgb,
+                    sigil: shorten_sigil(&domain.icon),
+                },
             );
         }
     }
@@ -228,7 +231,11 @@ pub(super) fn draw_domain_gauge(
     if assignments.is_empty() {
         return;
     }
-    let pass = &GaugePass { typography, tints, scale };
+    let pass = &GaugePass {
+        typography,
+        tints,
+        scale,
+    };
     let layout = GaugeLayout::world().scaled(pass.scale);
     let track_bottom = node_top_left.1 - layout.node_gap;
     let track_top = track_bottom - layout.track_height;
@@ -254,7 +261,13 @@ fn draw_column(
     weight: f64,
 ) {
     let (r, g, b) = tint.rgb;
-    fill_rounded(pixmap, at, (layout.bar_width, layout.track_height), layout.bar_radius, Color::from_rgba8(r, g, b, TRACK_ALPHA));
+    fill_rounded(
+        pixmap,
+        at,
+        (layout.bar_width, layout.track_height),
+        layout.bar_radius,
+        Color::from_rgba8(r, g, b, TRACK_ALPHA),
+    );
 
     // Le poids vient du document, pas du zoom : ce test n'est pas une borne sur une longueur
     // mise à l'échelle (§ 4.4), c'est le refus de dériver une hauteur d'un nombre qui n'en est
@@ -264,7 +277,13 @@ fn draw_column(
     }
     let fill_height = layout.track_height * weight as f32;
     let top = at.1 + layout.track_height - fill_height;
-    fill_rounded(pixmap, (at.0, top), (layout.bar_width, fill_height), layout.bar_radius, Color::from_rgba8(r, g, b, FILL_ALPHA));
+    fill_rounded(
+        pixmap,
+        (at.0, top),
+        (layout.bar_width, fill_height),
+        layout.bar_radius,
+        Color::from_rgba8(r, g, b, FILL_ALPHA),
+    );
 }
 
 /// Le sigle du domaine, centré au-dessus de sa colonne.
@@ -280,7 +299,9 @@ fn draw_sigil(
     if !pass.scale.draws_detail() || tint.sigil.is_empty() {
         return;
     }
-    let (width, _) = pass.typography.measure_text(&tint.sigil, layout.sigil_font, true);
+    let (width, _) = pass
+        .typography
+        .measure_text(&tint.sigil, layout.sigil_font, true);
     let (r, g, b) = tint.rgb;
     pass.typography.draw_text(
         pixmap,
@@ -295,7 +316,13 @@ fn draw_sigil(
     );
 }
 
-fn fill_rounded(pixmap: &mut PixmapMut, at: (f32, f32), size: (f32, f32), radius: f32, color: Color) {
+fn fill_rounded(
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    size: (f32, f32),
+    radius: f32,
+    color: Color,
+) {
     if !(at.0.is_finite() && at.1.is_finite() && size.0 > 0.0 && size.1 > 0.0) {
         return;
     }
@@ -304,9 +331,18 @@ fn fill_rounded(pixmap: &mut PixmapMut, at: (f32, f32), size: (f32, f32), radius
     let Some(path) = pb.finish() else {
         return;
     };
-    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     paint.set_color(color);
-    pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+    pixmap.fill_path(
+        &path,
+        &paint,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 }
 
 #[cfg(test)]
@@ -372,7 +408,10 @@ mod tests {
         let pitch = BAR_WIDTH + BAR_GAP;
         for sigil in crate::theme::DOMAIN_SIGILS {
             let (width, _) = typo.measure_text(sigil, SIGIL_FONT, true);
-            assert!(width <= pitch, "« {sigil} » mesure {width:.1} pour un pas de {pitch}");
+            assert!(
+                width <= pitch,
+                "« {sigil} » mesure {width:.1} pour un pas de {pitch}"
+            );
         }
     }
 
@@ -390,7 +429,9 @@ mod tests {
     fn test_the_tint_table_follows_the_document_version_and_nothing_else() {
         let theme = Theme::dark();
         let mut store = Store::new("Teintes");
-        store.try_add_domain(domain("d-1", "#38bdf8", "SCI")).expect("catalogue vide");
+        store
+            .try_add_domain(domain("d-1", "#38bdf8", "SCI"))
+            .expect("catalogue vide");
         let mut tints = DomainTints::new();
 
         tints.refresh(&store, &theme);
@@ -402,11 +443,17 @@ mod tests {
         store.pan(120.0, 40.0);
         store.zoom(2.0, 0.0, 0.0, glucose_core::types::Viewport::SCALE_RANGE);
         tints.refresh(&store, &theme);
-        assert_eq!(tints.built_for, built, "le pan ne doit pas relancer la construction");
+        assert_eq!(
+            tints.built_for, built,
+            "le pan ne doit pas relancer la construction"
+        );
 
         // Une vraie mutation, elle, est vue à la frame suivante.
         store
-            .try_update_domain("d-1", DomainPatch::new().with_color("#f472b6").with_icon("ART"))
+            .try_update_domain(
+                "d-1",
+                DomainPatch::new().with_color("#f472b6").with_icon("ART"),
+            )
             .expect("d-1 est au catalogue");
         tints.refresh(&store, &theme);
         assert_eq!(tints.get("d-1").expect("d-1").rgb, (0xf4, 0x72, 0xb6));
@@ -419,7 +466,9 @@ mod tests {
     fn test_an_unreadable_colour_falls_back_to_the_theme() {
         let theme = Theme::dark();
         let mut store = Store::new("Repli");
-        store.try_add_domain(domain("d", "pas une couleur", "X")).expect("catalogue vide");
+        store
+            .try_add_domain(domain("d", "pas une couleur", "X"))
+            .expect("catalogue vide");
         let mut tints = DomainTints::new();
         tints.refresh(&store, &theme);
 
@@ -437,13 +486,18 @@ mod tests {
     fn test_a_removed_domain_leaves_the_tint_table_too() {
         let theme = Theme::dark();
         let mut store = Store::new("Cascade");
-        store.try_add_domain(domain("d", "#38bdf8", "SCI")).expect("catalogue vide");
+        store
+            .try_add_domain(domain("d", "#38bdf8", "SCI"))
+            .expect("catalogue vide");
         let mut tints = DomainTints::new();
         tints.refresh(&store, &theme);
         assert!(tints.get("d").is_some());
 
         store.try_remove_domain("d").expect("d est au catalogue");
         tints.refresh(&store, &theme);
-        assert!(tints.get("d").is_none(), "la table doit suivre la cascade du noyau");
+        assert!(
+            tints.get("d").is_none(),
+            "la table doit suivre la cascade du noyau"
+        );
     }
 }

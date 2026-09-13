@@ -19,7 +19,11 @@ fn store_avec_dossier(x: f64, y: f64, w: f64, h: f64) -> Store {
     f.color = "#60a5fa".into();
     if let Some(board) = store.project.boards.first_mut() {
         board.folders.push(f);
-        board.viewport = Viewport { x: 0.0, y: 0.0, scale: 1.0 };
+        board.viewport = Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
     }
     store
 }
@@ -31,10 +35,19 @@ fn encre(store: &Store) -> (Pixmap, usize) {
     let typography = Typography::new();
     let theme = Theme::dark();
     let tints = DomainTints::default();
-    let kit = PaintKit { typography: &typography, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
+    let kit = PaintKit {
+        typography: &typography,
+        math: &crate::renderer::math::MathRenderer::new(),
+        tints: &tints,
+        theme: &theme,
+    };
     let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
     let vus: std::collections::HashSet<&str> = std::collections::HashSet::new();
-    let pass = ViewPass { vp, visible_ids: &vus, header_h: 0.0 };
+    let pass = ViewPass {
+        vp,
+        visible_ids: &vus,
+        header_h: 0.0,
+    };
     draw_folders(kit, &mut pixmap.as_mut(), store, pass);
     let n = pixmap
         .pixels()
@@ -50,7 +63,10 @@ fn encre(store: &Store) -> (Pixmap, usize) {
 fn test_un_dossier_laisse_des_pixels() {
     let store = store_avec_dossier(100.0, 100.0, 300.0, 200.0);
     let (_, encres) = encre(&store);
-    assert!(encres > 500, "{encres} pixels encrés : le dossier doit se voir");
+    assert!(
+        encres > 500,
+        "{encres} pixels encrés : le dossier doit se voir"
+    );
 
     // Et un tableau sans dossier n'en laisse aucun : c'est bien le dossier qu'on voit.
     let vide = Store::new("vide");
@@ -140,7 +156,10 @@ fn test_un_dossier_trop_petit_est_dessine_au_minimum() {
     f.height = 5.0;
     let layout = Layout::new(&f, WorldScale::new(1.0));
     assert_eq!((layout.width, layout.height), (MIN_WIDTH, MIN_HEIGHT));
-    assert!(layout.header < layout.height, "le bandeau laisse de la place au corps");
+    assert!(
+        layout.header < layout.height,
+        "le bandeau laisse de la place au corps"
+    );
 }
 
 /// Un titre trop long est tronqué sur les **caractères**, pas sur les octets : couper au milieu
@@ -190,9 +209,16 @@ fn test_un_dossier_selectionne_se_distingue() {
 fn test_tres_dezoome_le_cadre_reste_et_le_texte_disparait() {
     let mut store = store_avec_dossier(10.0, 10.0, 3_000.0, 2_000.0);
     if let Some(board) = store.project.boards.first_mut() {
-        board.viewport = Viewport { x: 0.0, y: 0.0, scale: 0.1 };
+        board.viewport = Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 0.1,
+        };
     }
-    assert!(!WorldScale::new(0.1).draws_detail(), "0,1 est sous le seuil de détail");
+    assert!(
+        !WorldScale::new(0.1).draws_detail(),
+        "0,1 est sous le seuil de détail"
+    );
     let (_, encres) = encre(&store);
     assert!(encres > 100, "{encres} : le cadre se dessine encore");
 }
@@ -207,8 +233,16 @@ fn test_un_tableau_de_dossiers_seuls_a_une_minimap() {
     let mm = crate::ui::layout_minimap(&store, 1440.0, 900.0, 1.0)
         .expect("un tableau de dossiers doit avoir une minimap");
     // Les bornes englobent le dossier, marge de 200 px comprise.
-    assert!(mm.min_x <= 1_000.0 && mm.max_x >= 1_300.0, "{:?}", (mm.min_x, mm.max_x));
-    assert!(mm.min_y <= 800.0 && mm.max_y >= 1_000.0, "{:?}", (mm.min_y, mm.max_y));
+    assert!(
+        mm.min_x <= 1_000.0 && mm.max_x >= 1_300.0,
+        "{:?}",
+        (mm.min_x, mm.max_x)
+    );
+    assert!(
+        mm.min_y <= 800.0 && mm.max_y >= 1_000.0,
+        "{:?}",
+        (mm.min_y, mm.max_y)
+    );
 }
 
 /// Le dossier laisse une trace dans la minimap, à sa couleur — c'est ce qui le distingue d'une
@@ -221,7 +255,15 @@ fn test_un_dossier_laisse_une_trace_coloree_dans_la_minimap() {
     let trace = |store: &Store| {
         let mut pixmap = Pixmap::new(1_440, 900).expect("pixmap");
         pixmap.fill(Color::from_rgba8(0, 0, 0, 255));
-        crate::ui::render_minimap(&mut pixmap.as_mut(), store, &theme, 1_440.0, 900.0, 1.0, &mut None);
+        crate::ui::render_minimap(
+            &mut pixmap.as_mut(),
+            store,
+            &theme,
+            1_440.0,
+            900.0,
+            1.0,
+            &mut None,
+        );
         // La minimap occupe le coin bas-droit : on n'y regarde que là.
         let mut bleus = 0usize;
         for y in 760..890 {
@@ -238,6 +280,9 @@ fn test_un_dossier_laisse_une_trace_coloree_dans_la_minimap() {
 
     let avec = trace(&store);
     let sans = trace(&Store::new("vide"));
-    assert!(avec > sans, "{avec} pixels bleus avec le dossier, {sans} sans");
+    assert!(
+        avec > sans,
+        "{avec} pixels bleus avec le dossier, {sans} sans"
+    );
     assert!(avec > 20, "{avec} : le contour du dossier doit se voir");
 }

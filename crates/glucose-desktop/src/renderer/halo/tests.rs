@@ -3,8 +3,8 @@
 use super::*;
 use std::collections::HashSet;
 use tiny_skia::{
-    Color, FillRule, GradientStop, Paint, PathBuilder, Pixmap, Point, RadialGradient,
-    SpreadMode, Transform,
+    Color, FillRule, GradientStop, Paint, PathBuilder, Pixmap, Point, RadialGradient, SpreadMode,
+    Transform,
 };
 
 /// Fond de référence des tests : la couleur de toile du thème sombre.
@@ -32,14 +32,24 @@ fn draw_reference_halo(
         Transform::identity(),
     )
     .expect("rayon strictement positif : le dégradé ne peut pas être dégénéré");
-    let paint = Paint { shader, anti_alias: true, ..Default::default() };
+    let paint = Paint {
+        shader,
+        anti_alias: true,
+        ..Default::default()
+    };
 
     let mut pb = PathBuilder::new();
     pb.push_circle(cx, cy, radius);
     let path = pb
         .finish()
         .expect("un cercle de rayon > 0 est toujours un chemin valide");
-    dst.fill_path(&path, &paint, FillRule::Winding, Transform::identity(), None);
+    dst.fill_path(
+        &path,
+        &paint,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 }
 
 fn render(radius: f32, rgb: (u8, u8, u8), reference: bool) -> Pixmap {
@@ -79,8 +89,7 @@ const MAX_TOLERATED_DELTA: u8 = 2;
 fn test_ring_composition_matches_reference_gradient() {
     for rgb in [(96, 165, 250), (250, 204, 21), (255, 255, 255)] {
         for radius in [12.0_f32, 60.0, 180.0, 440.0] {
-            let delta =
-                max_channel_delta(&render(radius, rgb, true), &render(radius, rgb, false));
+            let delta = max_channel_delta(&render(radius, rgb, true), &render(radius, rgb, false));
             assert!(
                 delta <= MAX_TOLERATED_DELTA,
                 "halo {rgb:?} de rayon {radius} : écart max {delta} niveaux                      (toléré : {MAX_TOLERATED_DELTA})"
@@ -223,13 +232,31 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
     // Frame de chauffe : remplit le cache de teintes symbiotiques.
     {
         let mut view = pixmap.as_mut();
-        draw_halos(&mut hue_cache, &mut view, &store, ViewPass { vp, visible_ids: &visible, header_h: 40.0 });
+        draw_halos(
+            &mut hue_cache,
+            &mut view,
+            &store,
+            ViewPass {
+                vp,
+                visible_ids: &visible,
+                header_h: 40.0,
+            },
+        );
     }
 
     let started = std::time::Instant::now();
     {
         let mut view = pixmap.as_mut();
-        draw_halos(&mut hue_cache, &mut view, &store, ViewPass { vp, visible_ids: &visible, header_h: 40.0 });
+        draw_halos(
+            &mut hue_cache,
+            &mut view,
+            &store,
+            ViewPass {
+                vp,
+                visible_ids: &visible,
+                header_h: 40.0,
+            },
+        );
     }
     let elapsed = started.elapsed().as_millis();
 
@@ -242,7 +269,12 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
 /// Une carte de texte à l'origine du monde ; `None` prend la dimension par défaut du modèle.
 fn sized_card(width: Option<f64>, height: Option<f64>) -> Annotation {
     let mut card = bench_card("halo-3", 0.0, 0.0);
-    if let Annotation::Text { width: w, height: h, .. } = &mut card {
+    if let Annotation::Text {
+        width: w,
+        height: h,
+        ..
+    } = &mut card
+    {
         *w = width;
         *h = height;
     }
@@ -254,8 +286,14 @@ fn sized_card(width: Option<f64>, height: Option<f64>) -> Annotation {
 fn test_halo_3_the_radius_is_capped_in_screen_pixels() {
     // La carte est centrée à l'écran à chaque zoom, pour que rien ne soit écarté par le cadre.
     let radius_at = |zoom: f64, card: &Annotation, (w, h): (f64, f64)| {
-        let vp = Viewport { x: 720.0 - w * zoom / 2.0, y: 450.0 - h * zoom / 2.0, scale: zoom };
-        halo_geometry(card, &vp, 1440.0, 900.0, 0.0).expect("la carte est à l'écran").2
+        let vp = Viewport {
+            x: 720.0 - w * zoom / 2.0,
+            y: 450.0 - h * zoom / 2.0,
+            scale: zoom,
+        };
+        halo_geometry(card, &vp, 1440.0, 900.0, 0.0)
+            .expect("la carte est à l'écran")
+            .2
     };
     let default_card = sized_card(None, None);
     let default_size = (DEFAULT_TEXT_CARD_WIDTH, DEFAULT_TEXT_CARD_HEIGHT);
@@ -263,13 +301,26 @@ fn test_halo_3_the_radius_is_capped_in_screen_pixels() {
     assert_eq!(radius_at(1.0, &default_card, default_size), 410.0);
     assert_eq!(radius_at(0.5, &default_card, default_size), 205.0);
     // Au-dessus, il s'arrête au plafond, quel que soit le zoom…
-    assert_eq!(radius_at(3.0, &default_card, default_size), HALO_MAX_SCREEN_RADIUS);
-    assert_eq!(radius_at(20.0, &default_card, default_size), HALO_MAX_SCREEN_RADIUS);
+    assert_eq!(
+        radius_at(3.0, &default_card, default_size),
+        HALO_MAX_SCREEN_RADIUS
+    );
+    assert_eq!(
+        radius_at(20.0, &default_card, default_size),
+        HALO_MAX_SCREEN_RADIUS
+    );
     // … ou la taille de la carte.
     let large_card = sized_card(Some(1000.0), Some(800.0));
-    assert_eq!(radius_at(1.0, &large_card, (1000.0, 800.0)), HALO_MAX_SCREEN_RADIUS);
+    assert_eq!(
+        radius_at(1.0, &large_card, (1000.0, 800.0)),
+        HALO_MAX_SCREEN_RADIUS
+    );
     // Un zoom dégénéré ne dessine rien plutôt qu'un NaN.
-    let broken = Viewport { x: 0.0, y: 0.0, scale: f64::NAN };
+    let broken = Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: f64::NAN,
+    };
     assert!(halo_geometry(&default_card, &broken, 1440.0, 900.0, 0.0).is_none());
 }
 
@@ -293,8 +344,16 @@ fn test_halo_3_a_zoomed_card_no_longer_floods_the_screen() {
         let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
         pixmap.fill(background());
         // La carte par défaut (240 × 48) est centrée à l'écran quel que soit le zoom.
-        let vp = Viewport { x: 720.0 - 120.0 * zoom, y: 450.0 - 24.0 * zoom, scale: zoom };
-        let pass = ViewPass { vp, visible_ids: &visible, header_h: 0.0 };
+        let vp = Viewport {
+            x: 720.0 - 120.0 * zoom,
+            y: 450.0 - 24.0 * zoom,
+            scale: zoom,
+        };
+        let pass = ViewPass {
+            vp,
+            visible_ids: &visible,
+            header_h: 0.0,
+        };
         // Frame de chauffe : la teinte symbiotique se calcule une fois, pas dans la mesure.
         draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, pass);
         pixmap.fill(background());
@@ -310,7 +369,8 @@ fn test_halo_3_a_zoomed_card_no_longer_floods_the_screen() {
         touched.push(count);
     }
 
-    let cap_area = (std::f32::consts::PI * HALO_MAX_SCREEN_RADIUS * HALO_MAX_SCREEN_RADIUS) as usize;
+    let cap_area =
+        (std::f32::consts::PI * HALO_MAX_SCREEN_RADIUS * HALO_MAX_SCREEN_RADIUS) as usize;
     assert!(
         touched[1] <= cap_area,
         "a x3 le halo touche {} px, plus que le disque plafonne ({cap_area} px)",

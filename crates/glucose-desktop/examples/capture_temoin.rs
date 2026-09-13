@@ -40,7 +40,11 @@ fn main() {
         let board = vitrine_zoom.project.active_board_id.clone();
         vitrine_zoom.set_viewport(
             &board,
-            glucose_core::types::Viewport { x: 1_150.0, y: 640.0, scale: 1.9 },
+            glucose_core::types::Viewport {
+                x: 1_150.0,
+                y: 640.0,
+                scale: 1.9,
+            },
         );
     }
 

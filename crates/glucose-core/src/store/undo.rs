@@ -219,7 +219,6 @@ impl Store {
                 self.project.active_board_id = first.id.clone();
             }
         }
-        self.folder_stack =
-            build_folder_stack(&self.project.boards, &self.project.active_board_id);
+        self.folder_stack = build_folder_stack(&self.project.boards, &self.project.active_board_id);
     }
 }

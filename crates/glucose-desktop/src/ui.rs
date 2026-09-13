@@ -296,7 +296,15 @@ pub fn render_ui(
 
     // 3. Minimap (en bas à droite)
     let echelle_ui = ui.scale_factor;
-    render_minimap(pixmap, store, theme, w, h, echelle_ui, &mut ui.minimap_cache);
+    render_minimap(
+        pixmap,
+        store,
+        theme,
+        w,
+        h,
+        echelle_ui,
+        &mut ui.minimap_cache,
+    );
 
     // 4. Toast notification (au centre en bas)
     if let Some(ref toast) = ui.current_toast {
@@ -413,7 +421,11 @@ pub fn layout_topbar(
     let act_h = 28.0 * s;
     let act_y = (topbar_h - act_h) / 2.0;
 
-    let (img_w, img_label) = if is_ultra { (tool_size, "") } else { (label_w("Images"), "Images") };
+    let (img_w, img_label) = if is_ultra {
+        (tool_size, "")
+    } else {
+        (label_w("Images"), "Images")
+    };
     buttons.push(TopbarButtonDef {
         action: UiAction::AddImages,
         x: cur_x,
@@ -436,10 +448,19 @@ pub fn layout_topbar(
     let panels = [
         (UiAction::Organize, IconType::Organize, "Ordonner", false),
         (UiAction::ToggleTimer, IconType::Timer, "Timer", false),
-        (UiAction::ToggleStoryboard, IconType::Storyboard, "Storyboard", false),
+        (
+            UiAction::ToggleStoryboard,
+            IconType::Storyboard,
+            "Storyboard",
+            false,
+        ),
     ];
     for (act, icon, lbl, active) in panels {
-        let (btn_w, btn_lbl) = if is_ultra { (tool_size, "") } else { (label_w(lbl), lbl) };
+        let (btn_w, btn_lbl) = if is_ultra {
+            (tool_size, "")
+        } else {
+            (label_w(lbl), lbl)
+        };
         buttons.push(TopbarButtonDef {
             action: act,
             x: cur_x,
@@ -461,11 +482,25 @@ pub fn layout_topbar(
 
     // 5. Aimant, Trans-domaines
     let toggles = [
-        (UiAction::ToggleMagnet, IconType::Magnet, "Aimant", ui.smart_align),
-        (UiAction::ToggleTransDomain, IconType::TransDomain, "Trans-domaines", ui.trans_domain),
+        (
+            UiAction::ToggleMagnet,
+            IconType::Magnet,
+            "Aimant",
+            ui.smart_align,
+        ),
+        (
+            UiAction::ToggleTransDomain,
+            IconType::TransDomain,
+            "Trans-domaines",
+            ui.trans_domain,
+        ),
     ];
     for (act, icon, lbl, active) in toggles {
-        let (btn_w, btn_lbl) = if is_ultra { (tool_size, "") } else { (label_w(lbl), lbl) };
+        let (btn_w, btn_lbl) = if is_ultra {
+            (tool_size, "")
+        } else {
+            (label_w(lbl), lbl)
+        };
         buttons.push(TopbarButtonDef {
             action: act,
             x: cur_x,
@@ -484,14 +519,44 @@ pub fn layout_topbar(
     let left_end = cur_x;
 
     // 6. Groupe de Droite
-    let (col_w, col_lbl) = if is_ultra { (tool_size, "") } else { (label_w("Collaborer"), "Collaborer") };
-    let (exp_w, exp_lbl) = if is_ultra { (tool_size, "") } else { (label_w("Exporter"), "Exporter") };
-    let (plu_w, plu_lbl) = if is_compact { (tool_size, "") } else { (label_w("Plugins"), "Plugins") };
-    let (pre_w, pre_lbl) = if is_compact { (tool_size, "") } else { (label_w("Preset"), "Preset") };
-    let (dom_w, dom_lbl) = if is_compact { (tool_size, "") } else { (label_w("Domaines"), "Domaines") };
+    let (col_w, col_lbl) = if is_ultra {
+        (tool_size, "")
+    } else {
+        (label_w("Collaborer"), "Collaborer")
+    };
+    let (exp_w, exp_lbl) = if is_ultra {
+        (tool_size, "")
+    } else {
+        (label_w("Exporter"), "Exporter")
+    };
+    let (plu_w, plu_lbl) = if is_compact {
+        (tool_size, "")
+    } else {
+        (label_w("Plugins"), "Plugins")
+    };
+    let (pre_w, pre_lbl) = if is_compact {
+        (tool_size, "")
+    } else {
+        (label_w("Preset"), "Preset")
+    };
+    let (dom_w, dom_lbl) = if is_compact {
+        (tool_size, "")
+    } else {
+        (label_w("Domaines"), "Domaines")
+    };
 
     let badge_w = if board_img_count > 0 { 42.0 * s } else { 0.0 };
-    let right_total_w = col_w + 8.0 * s + exp_w + 8.0 * s + plu_w + 4.0 * s + pre_w + 4.0 * s + dom_w + badge_w + 16.0 * s;
+    let right_total_w = col_w
+        + 8.0 * s
+        + exp_w
+        + 8.0 * s
+        + plu_w
+        + 4.0 * s
+        + pre_w
+        + 4.0 * s
+        + dom_w
+        + badge_w
+        + 16.0 * s;
 
     let right_start = (width - right_total_w - 12.0 * s).max(left_end + 16.0 * s);
     let mut rx = right_start;
@@ -602,7 +667,11 @@ fn render_topbar(
         "GLUCOSE",
         12.0 * s,
         (topbar_h - 14.0 * s) / 2.0,
-        TextStyle { size: 14.0 * s, color: theme.text_primary, bold: true },
+        TextStyle {
+            size: 14.0 * s,
+            color: theme.text_primary,
+            bold: true,
+        },
     );
 
     let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
@@ -610,17 +679,34 @@ fn render_topbar(
 
     // Séparateurs
     for sep_x in layout.separators {
-        draw_separator(pixmap, sep_x, (topbar_h - 20.0 * s) / 2.0, 20.0 * s, theme.border_subtle);
+        draw_separator(
+            pixmap,
+            sep_x,
+            (topbar_h - 20.0 * s) / 2.0,
+            20.0 * s,
+            theme.border_subtle,
+        );
     }
 
     // Boutons
     for btn in &layout.buttons {
         let is_hover = mx >= btn.x && mx < btn.x + btn.w && my >= btn.y && my < btn.y + btn.h;
-        let state = ButtonState { active: btn.active, hover: is_hover };
+        let state = ButtonState {
+            active: btn.active,
+            hover: is_hover,
+        };
         if btn.is_tool {
             draw_tool_button(pixmap, theme, box_of(btn, s), btn.icon, state);
         } else {
-            draw_action_button(pixmap, typo, theme, box_of(btn, s), btn.icon, btn.label, state);
+            draw_action_button(
+                pixmap,
+                typo,
+                theme,
+                box_of(btn, s),
+                btn.icon,
+                btn.label,
+                state,
+            );
             if btn.is_collab && ui.collab_active {
                 // Pastille verte #10b981
                 let mut dot_paint = Paint::default();
@@ -629,7 +715,13 @@ fn render_topbar(
                 let mut dot_pb = PathBuilder::new();
                 dot_pb.push_circle(btn.x + 18.0 * s, btn.y + 7.0 * s, 3.0 * s);
                 if let Some(p) = dot_pb.finish() {
-                    pixmap.fill_path(&p, &dot_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                    pixmap.fill_path(
+                        &p,
+                        &dot_paint,
+                        tiny_skia::FillRule::Winding,
+                        Transform::identity(),
+                        None,
+                    );
                 }
             }
         }
@@ -642,7 +734,11 @@ fn render_topbar(
             badge_txt,
             badge_x,
             (topbar_h - 11.0 * s) / 2.0,
-            TextStyle { size: 11.0 * s, color: theme.badge_text, bold: false },
+            TextStyle {
+                size: 11.0 * s,
+                color: theme.badge_text,
+                bold: false,
+            },
         );
     }
 }
@@ -733,7 +829,8 @@ fn render_board_tabs(
 
     let tabs = layout_tabs(store, typo, y_start, s);
     for tab in tabs {
-        let is_hover = mx >= tab.x && mx < tab.x + tab.width && my >= tab.y && my < tab.y + tab.height;
+        let is_hover =
+            mx >= tab.x && mx < tab.x + tab.width && my >= tab.y && my < tab.y + tab.height;
 
         if tab.is_plus {
             if is_hover {
@@ -756,7 +853,9 @@ fn render_board_tabs(
             if is_hover && !tab.is_active {
                 let mut h_paint = Paint::default();
                 h_paint.set_color(theme.bg_hover);
-                if let Some(rect) = Rect::from_xywh(tab.x, y_start + 4.0 * s, tab.width, tabs_h - 6.0 * s) {
+                if let Some(rect) =
+                    Rect::from_xywh(tab.x, y_start + 4.0 * s, tab.width, tabs_h - 6.0 * s)
+                {
                     pixmap.fill_rect(rect, &h_paint, Transform::identity(), None);
                 }
             }
@@ -772,7 +871,11 @@ fn render_board_tabs(
                 &tab.name,
                 tab.x + 14.0 * s,
                 y_start + 10.0 * s,
-                TextStyle { size: 12.0 * s, color: text_color, bold: tab.is_active },
+                TextStyle {
+                    size: 12.0 * s,
+                    color: text_color,
+                    bold: tab.is_active,
+                },
             );
 
             // Fiche 06 § 10.2 : l'onglet actif porte une bordure inférieure de 2 px, blanc
@@ -780,7 +883,9 @@ fn render_board_tabs(
             if tab.is_active {
                 let mut line_paint = Paint::default();
                 line_paint.set_color(theme.text_accent);
-                if let Some(rect) = Rect::from_xywh(tab.x, y_start + tabs_h - 2.0 * s, tab.width, 2.0 * s) {
+                if let Some(rect) =
+                    Rect::from_xywh(tab.x, y_start + tabs_h - 2.0 * s, tab.width, 2.0 * s)
+                {
                     pixmap.fill_rect(rect, &line_paint, Transform::identity(), None);
                 }
             }
@@ -818,7 +923,13 @@ fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r:
 
 /// Rectangle d'un bouton de barre d'outils, échelle UI comprise.
 fn box_of(btn: &TopbarButtonDef, scale: f32) -> ScaledRect {
-    ScaledRect { x: btn.x, y: btn.y, w: btn.w, h: btn.h, scale }
+    ScaledRect {
+        x: btn.x,
+        y: btn.y,
+        w: btn.w,
+        h: btn.h,
+        scale,
+    }
 }
 
 fn draw_tool_button(
@@ -845,7 +956,13 @@ fn draw_tool_button(
         let mut pb = PathBuilder::new();
         push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0 * scale);
         if let Some(path) = pb.finish() {
-            pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            pixmap.fill_path(
+                &path,
+                &p,
+                tiny_skia::FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
         }
     }
 
@@ -853,9 +970,19 @@ fn draw_tool_button(
         let mut sp = Paint::default();
         sp.set_color(theme.border_accent);
         sp.anti_alias = true;
-        let stroke = Stroke { width: 1.0 * scale, ..Default::default() };
+        let stroke = Stroke {
+            width: 1.0 * scale,
+            ..Default::default()
+        };
         let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(&mut pb, x + 0.5 * scale, y + 0.5 * scale, w - 1.0 * scale, h - 1.0 * scale, 4.0 * scale);
+        push_ui_rounded_rect(
+            &mut pb,
+            x + 0.5 * scale,
+            y + 0.5 * scale,
+            w - 1.0 * scale,
+            h - 1.0 * scale,
+            4.0 * scale,
+        );
         if let Some(path) = pb.finish() {
             pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
         }
@@ -872,7 +999,15 @@ fn draw_tool_button(
     let icon_size = 14.0 * scale;
     let icon_x = x + (w - icon_size) / 2.0;
     let icon_y = y + (h - icon_size) / 2.0;
-    draw_icon_scaled(pixmap, icon, icon_x, icon_y, icon_size, icon_color, 1.4 * scale);
+    draw_icon_scaled(
+        pixmap,
+        icon,
+        icon_x,
+        icon_y,
+        icon_size,
+        icon_color,
+        1.4 * scale,
+    );
 }
 
 fn draw_action_button(
@@ -901,7 +1036,13 @@ fn draw_action_button(
         let mut pb = PathBuilder::new();
         push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0 * scale);
         if let Some(path) = pb.finish() {
-            pixmap.fill_path(&path, &p, tiny_skia::FillRule::Winding, Transform::identity(), None);
+            pixmap.fill_path(
+                &path,
+                &p,
+                tiny_skia::FillRule::Winding,
+                Transform::identity(),
+                None,
+            );
         }
     }
 
@@ -909,9 +1050,19 @@ fn draw_action_button(
         let mut sp = Paint::default();
         sp.set_color(theme.border_accent);
         sp.anti_alias = true;
-        let stroke = Stroke { width: 1.0 * scale, ..Default::default() };
+        let stroke = Stroke {
+            width: 1.0 * scale,
+            ..Default::default()
+        };
         let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(&mut pb, x + 0.5 * scale, y + 0.5 * scale, w - 1.0 * scale, h - 1.0 * scale, 4.0 * scale);
+        push_ui_rounded_rect(
+            &mut pb,
+            x + 0.5 * scale,
+            y + 0.5 * scale,
+            w - 1.0 * scale,
+            h - 1.0 * scale,
+            4.0 * scale,
+        );
         if let Some(path) = pb.finish() {
             pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
         }
@@ -932,9 +1083,27 @@ fn draw_action_button(
         draw_icon_scaled(pixmap, icon, icon_x, icon_y, icon_size, color, 1.3 * scale);
     } else {
         let icon_y = y + (h - icon_size) / 2.0;
-        draw_icon_scaled(pixmap, icon, x + 8.0 * scale, icon_y, icon_size, color, 1.3 * scale);
+        draw_icon_scaled(
+            pixmap,
+            icon,
+            x + 8.0 * scale,
+            icon_y,
+            icon_size,
+            color,
+            1.3 * scale,
+        );
         let font = ACTION_LABEL_FONT * scale;
-        typo.draw_text(pixmap, label, x + ACTION_LABEL_X * scale, y + (h - font) / 2.0, TextStyle { size: font, color, bold: active });
+        typo.draw_text(
+            pixmap,
+            label,
+            x + ACTION_LABEL_X * scale,
+            y + (h - font) / 2.0,
+            TextStyle {
+                size: font,
+                color,
+                bold: active,
+            },
+        );
     }
 }
 
@@ -996,7 +1165,13 @@ pub fn layout_minimap(
 
     for ann in &board.annotations {
         match ann {
-            Annotation::Text { x, y, width, height, .. } => {
+            Annotation::Text {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let w = width.unwrap_or(200.0);
                 let h = height.unwrap_or(48.0);
                 min_x = min_x.min(*x);
@@ -1004,7 +1179,13 @@ pub fn layout_minimap(
                 max_x = max_x.max(*x + w);
                 max_y = max_y.max(*y + h);
             }
-            Annotation::Sticky { x, y, width, height, .. } => {
+            Annotation::Sticky {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let w = width.unwrap_or(160.0);
                 let h = height.unwrap_or(120.0);
                 min_x = min_x.min(*x);
@@ -1012,7 +1193,13 @@ pub fn layout_minimap(
                 max_x = max_x.max(*x + w);
                 max_y = max_y.max(*y + h);
             }
-            Annotation::Membrane { x, y, width, height, .. } => {
+            Annotation::Membrane {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 min_x = min_x.min(*x);
                 min_y = min_y.min(*y);
                 max_x = max_x.max(*x + *width);
@@ -1093,7 +1280,12 @@ pub(crate) fn render_minimap(
     let cle = MinimapKey {
         version: store.version,
         size: (mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32),
-        bounds: [mb.min_x.to_bits(), mb.min_y.to_bits(), mb.max_x.to_bits(), mb.max_y.to_bits()],
+        bounds: [
+            mb.min_x.to_bits(),
+            mb.min_y.to_bits(),
+            mb.max_x.to_bits(),
+            mb.max_y.to_bits(),
+        ],
     };
     if cache.as_ref().map(|c| c.key) != Some(cle) {
         *cache = dessine_fond(store, theme, &mb, s).map(|pixmap| MinimapCache { pixmap, key: cle });
@@ -1126,7 +1318,11 @@ fn dessine_fond(
     let mut vignette = tiny_skia::Pixmap::new(mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32)?;
     let pixmap = &mut vignette.as_mut();
     // Le fond se dessine à l'origine de sa propre vignette.
-    let mb = &MinimapBounds { mm_x: 0.0, mm_y: 0.0, ..mb.clone() };
+    let mb = &MinimapBounds {
+        mm_x: 0.0,
+        mm_y: 0.0,
+        ..mb.clone()
+    };
 
     // Fond minimap
     let mut bg_paint = Paint::default();
@@ -1138,7 +1334,10 @@ fn dessine_fond(
     // Bordure minimap
     let mut border_paint = Paint::default();
     border_paint.set_color(theme.minimap_border);
-    let stroke = Stroke { width: 1.0 * s, ..Default::default() };
+    let stroke = Stroke {
+        width: 1.0 * s,
+        ..Default::default()
+    };
     let mut pb = PathBuilder::new();
     pb.move_to(mb.mm_x, mb.mm_y);
     pb.line_to(mb.mm_x + mb.mm_w, mb.mm_y);
@@ -1174,7 +1373,13 @@ fn dessine_fond(
 
     for ann in &board.annotations {
         match ann {
-            Annotation::Text { x, y, width, height, .. } => {
+            Annotation::Text {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let aw = width.unwrap_or(200.0) as f32 * mb.scale;
                 let ah = height.unwrap_or(48.0) as f32 * mb.scale;
                 let ax = mb.mm_x + pad + ((*x - mb.min_x) as f32 * mb.scale);
@@ -1183,7 +1388,13 @@ fn dessine_fond(
                     pixmap.fill_rect(r, &ann_paint, Transform::identity(), None);
                 }
             }
-            Annotation::Sticky { x, y, width, height, .. } => {
+            Annotation::Sticky {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let aw = width.unwrap_or(160.0) as f32 * mb.scale;
                 let ah = height.unwrap_or(120.0) as f32 * mb.scale;
                 let ax = mb.mm_x + pad + ((*x - mb.min_x) as f32 * mb.scale);
@@ -1192,7 +1403,13 @@ fn dessine_fond(
                     pixmap.fill_rect(r, &ann_paint, Transform::identity(), None);
                 }
             }
-            Annotation::Membrane { x, y, width, height, .. } => {
+            Annotation::Membrane {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let aw = *width as f32 * mb.scale;
                 let ah = *height as f32 * mb.scale;
                 let ax = mb.mm_x + pad + ((*x - mb.min_x) as f32 * mb.scale);
@@ -1218,7 +1435,10 @@ fn dessine_fond(
         let fw = (f.width as f32 * mb.scale).max(4.0 * s);
         let fh = (f.height as f32 * mb.scale).max(4.0 * s);
         let (r, g, b) = crate::renderer::parse_hex_color(&f.color, 136, 136, 136);
-        let mut folder_paint = Paint { anti_alias: true, ..Default::default() };
+        let mut folder_paint = Paint {
+            anti_alias: true,
+            ..Default::default()
+        };
         folder_paint.set_color(Color::from_rgba8(r, g, b, 179));
         let mut fpb = PathBuilder::new();
         fpb.move_to(fx, fy);
@@ -1227,7 +1447,13 @@ fn dessine_fond(
         fpb.line_to(fx, fy + fh);
         fpb.close();
         if let Some(path) = fpb.finish() {
-            pixmap.stroke_path(&path, &folder_paint, &folder_stroke, Transform::identity(), None);
+            pixmap.stroke_path(
+                &path,
+                &folder_paint,
+                &folder_stroke,
+                Transform::identity(),
+                None,
+            );
         }
     }
 
@@ -1245,7 +1471,10 @@ fn dessine_camera(pixmap: &mut PixmapMut, theme: &Theme, mb: &MinimapBounds, s: 
 
     let mut cam_paint = Paint::default();
     cam_paint.set_color(theme.minimap_viewport);
-    let cam_stroke = Stroke { width: 1.5 * s, ..Default::default() };
+    let cam_stroke = Stroke {
+        width: 1.5 * s,
+        ..Default::default()
+    };
     let mut cam_pb = PathBuilder::new();
     cam_pb.move_to(cx, cy);
     cam_pb.line_to(cx + cw, cy);
@@ -1294,7 +1523,12 @@ fn render_toast(
     pb.line_to(toast_x + toast_w - r, toast_y);
     pb.quad_to(toast_x + toast_w, toast_y, toast_x + toast_w, toast_y + r);
     pb.line_to(toast_x + toast_w, toast_y + toast_h - r);
-    pb.quad_to(toast_x + toast_w, toast_y + toast_h, toast_x + toast_w - r, toast_y + toast_h);
+    pb.quad_to(
+        toast_x + toast_w,
+        toast_y + toast_h,
+        toast_x + toast_w - r,
+        toast_y + toast_h,
+    );
     pb.line_to(toast_x + r, toast_y + toast_h);
     pb.quad_to(toast_x, toast_y + toast_h, toast_x, toast_y + toast_h - r);
     pb.line_to(toast_x, toast_y + r);
@@ -1308,10 +1542,19 @@ fn render_toast(
         (theme.toast_border.blue() * 255.0) as u8,
         b_byte,
     ));
-    let stroke = Stroke { width: 1.0 * s, ..Default::default() };
+    let stroke = Stroke {
+        width: 1.0 * s,
+        ..Default::default()
+    };
 
     if let Some(path) = pb.finish() {
-        pixmap.fill_path(&path, &bg_paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+        pixmap.fill_path(
+            &path,
+            &bg_paint,
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
         pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
     }
 
@@ -1328,7 +1571,11 @@ fn render_toast(
         &toast.message,
         toast_x + 20.0 * s,
         toast_y + (toast_h - 13.0 * s) / 2.0,
-        TextStyle { size: 13.0 * s, color: text_color, bold: false },
+        TextStyle {
+            size: 13.0 * s,
+            color: text_color,
+            bold: false,
+        },
     );
 }
 
@@ -1354,7 +1601,11 @@ pub fn handle_ui_click(
                 match btn.action {
                     UiAction::ToggleMagnet => {
                         ui.smart_align = !ui.smart_align;
-                        ui.show_toast(if ui.smart_align { "Aimant activé" } else { "Aimant désactivé" });
+                        ui.show_toast(if ui.smart_align {
+                            "Aimant activé"
+                        } else {
+                            "Aimant désactivé"
+                        });
                     }
                     UiAction::ToggleCollab => {
                         // Fiche 09 § 9 : aucun réseau n'existe. Le bouton ne « connecte »
@@ -1384,8 +1635,10 @@ pub fn handle_ui_click(
         if let Some(mb) = layout_minimap(store, screen_w, screen_h, s) {
             let pad = 6.0 * s;
             if x >= mb.mm_x && x <= mb.mm_x + mb.mm_w && y >= mb.mm_y && y <= mb.mm_y + mb.mm_h {
-                let rel_x = ((x - mb.mm_x - pad) / (mb.mm_w - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
-                let rel_y = ((y - mb.mm_y - pad) / (mb.mm_h - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
+                let rel_x =
+                    ((x - mb.mm_x - pad) / (mb.mm_w - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
+                let rel_y =
+                    ((y - mb.mm_y - pad) / (mb.mm_h - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
                 let target_wx = mb.min_x + rel_x * mb.span_x;
                 let target_wy = mb.min_y + rel_y * mb.span_y;
                 return Some(UiAction::MinimapPan(target_wx, target_wy));
@@ -1410,12 +1663,19 @@ mod tests {
         let ui = UiState::new();
         let typo = Typography::new();
         let layout = layout_topbar(1440.0, &ui, &typo, 0);
-        let tool = layout.buttons.iter().find(|b| matches!(b.action, UiAction::SelectTool(_))).expect("un outil");
+        let tool = layout
+            .buttons
+            .iter()
+            .find(|b| matches!(b.action, UiAction::SelectTool(_)))
+            .expect("un outil");
         assert_eq!((tool.w, tool.h), (30.0, 30.0));
         let store = Store::new("m");
         let mm = layout_minimap(&store, 1440.0, 900.0, 1.0).expect("la minimap");
         assert_eq!((mm.mm_w, mm.mm_h), (180.0, 120.0));
-        assert_eq!((mm.mm_x + mm.mm_w, mm.mm_y + mm.mm_h), (1440.0 - 12.0, 900.0 - 12.0));
+        assert_eq!(
+            (mm.mm_x + mm.mm_w, mm.mm_y + mm.mm_h),
+            (1440.0 - 12.0, 900.0 - 12.0)
+        );
     }
 
     #[test]
@@ -1426,12 +1686,24 @@ mod tests {
 
         for width in test_widths {
             let layout = layout_topbar(width, &ui, &typo, 5);
-            assert!(!layout.buttons.is_empty(), "Buttons should not be empty for width {}", width);
+            assert!(
+                !layout.buttons.is_empty(),
+                "Buttons should not be empty for width {}",
+                width
+            );
 
             // Vérifier que chaque bouton a une largeur et hauteur positive
             for btn in &layout.buttons {
-                assert!(btn.w > 0.0, "Button width must be positive for width {}", width);
-                assert!(btn.h > 0.0, "Button height must be positive for width {}", width);
+                assert!(
+                    btn.w > 0.0,
+                    "Button width must be positive for width {}",
+                    width
+                );
+                assert!(
+                    btn.h > 0.0,
+                    "Button height must be positive for width {}",
+                    width
+                );
             }
 
             // Vérifier qu'aucun bouton ne se chevauche
@@ -1460,7 +1732,8 @@ mod tests {
             let layout = layout_topbar(width, &ui, &typo, 0);
             for btn in layout.buttons.iter().filter(|b| !b.label.is_empty()) {
                 for bold in [false, true] {
-                    let (text_w, _) = typo.measure_text(btn.label, ACTION_LABEL_FONT * ui.scale(), bold);
+                    let (text_w, _) =
+                        typo.measure_text(btn.label, ACTION_LABEL_FONT * ui.scale(), bold);
                     let right_edge = ACTION_LABEL_X * ui.scale() + text_w;
                     assert!(
                         right_edge <= btn.w - ACTION_LABEL_PAD_RIGHT * ui.scale() + 0.01,
@@ -1488,7 +1761,11 @@ mod tests {
 
         // Mode complet (> 1320px) : les boutons secondaires ont leurs labels
         let layout_full = layout_topbar(1600.0, &ui, &typo, 2);
-        let plugins_btn = layout_full.buttons.iter().find(|b| b.action == UiAction::TogglePlugins).unwrap();
+        let plugins_btn = layout_full
+            .buttons
+            .iter()
+            .find(|b| b.action == UiAction::TogglePlugins)
+            .unwrap();
         assert_eq!(plugins_btn.label, "Plugins");
         assert!(plugins_btn.w > 30.0);
     }
@@ -1515,7 +1792,8 @@ mod tests {
                 let click_x = tab.x + tab.width / 2.0;
                 let click_y = tab.y + tab.height / 2.0;
 
-                let action = handle_ui_click(click_x, click_y, 1440.0, 900.0, &store, &mut ui, &typo);
+                let action =
+                    handle_ui_click(click_x, click_y, 1440.0, 900.0, &store, &mut ui, &typo);
                 if tab.is_plus {
                     assert_eq!(action, Some(UiAction::AddBoard));
                 } else {
@@ -1535,14 +1813,18 @@ mod tests {
         let mut ui = UiState::new();
         let typo = Typography::new();
 
-        let mb = layout_minimap(&store, 1440.0, 900.0, ui.scale()).expect("Minimap should have valid layout");
+        let mb = layout_minimap(&store, 1440.0, 900.0, ui.scale())
+            .expect("Minimap should have valid layout");
 
         // Clic au centre de la minimap
         let click_x = mb.mm_x + mb.mm_w / 2.0;
         let click_y = mb.mm_y + mb.mm_h / 2.0;
 
         let action = handle_ui_click(click_x, click_y, 1440.0, 900.0, &store, &mut ui, &typo);
-        assert!(matches!(action, Some(UiAction::MinimapPan(..))), "Minimap click must produce MinimapPan action");
+        assert!(
+            matches!(action, Some(UiAction::MinimapPan(..))),
+            "Minimap click must produce MinimapPan action"
+        );
     }
 
     #[test]
@@ -1570,7 +1852,15 @@ mod tests {
         let pan_btn = &layout.buttons[1];
         let click_pan_x = pan_btn.x + pan_btn.w / 2.0;
         let click_pan_y = pan_btn.y + pan_btn.h / 2.0;
-        let act = handle_ui_click(click_pan_x, click_pan_y, 1920.0, 1080.0, &store, &mut ui, &typo);
+        let act = handle_ui_click(
+            click_pan_x,
+            click_pan_y,
+            1920.0,
+            1080.0,
+            &store,
+            &mut ui,
+            &typo,
+        );
         assert_eq!(act, Some(UiAction::SelectTool(ActiveTool::Pan)));
 
         // 2. Tabs à 150 %
@@ -1583,7 +1873,15 @@ mod tests {
         // Clic sur le premier onglet (b1)
         let click_tab_x = first_tab.x + first_tab.width / 2.0;
         let click_tab_y = first_tab.y + first_tab.height / 2.0;
-        let tab_act = handle_ui_click(click_tab_x, click_tab_y, 1920.0, 1080.0, &store, &mut ui, &typo);
+        let tab_act = handle_ui_click(
+            click_tab_x,
+            click_tab_y,
+            1920.0,
+            1080.0,
+            &store,
+            &mut ui,
+            &typo,
+        );
         assert_eq!(tab_act, Some(UiAction::SelectBoard(b1)));
 
         // 3. Minimap à 150 %
@@ -1593,7 +1891,9 @@ mod tests {
 
         let mm_click_x = mb.mm_x + mb.mm_w / 2.0;
         let mm_click_y = mb.mm_y + mb.mm_h / 2.0;
-        let mm_act = handle_ui_click(mm_click_x, mm_click_y, 1920.0, 1080.0, &store, &mut ui, &typo);
+        let mm_act = handle_ui_click(
+            mm_click_x, mm_click_y, 1920.0, 1080.0, &store, &mut ui, &typo,
+        );
         assert!(matches!(mm_act, Some(UiAction::MinimapPan(..))));
     }
 
@@ -1624,9 +1924,17 @@ mod tests {
         assert_eq!(toast.alpha(), 1.0);
         assert_eq!(toast.repaint_need(), ToastRepaint::Sleep(1000));
         toast.created_at = base_instant - Duration::from_millis(90);
-        assert_eq!(toast.repaint_need(), ToastRepaint::Redraw, "en plein fondu entrant");
+        assert_eq!(
+            toast.repaint_need(),
+            ToastRepaint::Redraw,
+            "en plein fondu entrant"
+        );
         toast.created_at = base_instant - Duration::from_millis(2200);
-        assert_eq!(toast.repaint_need(), ToastRepaint::Redraw, "en plein fondu sortant");
+        assert_eq!(
+            toast.repaint_need(),
+            ToastRepaint::Redraw,
+            "en plein fondu sortant"
+        );
         toast.created_at = base_instant - Duration::from_millis(2400);
         assert_eq!(toast.repaint_need(), ToastRepaint::Gone);
 

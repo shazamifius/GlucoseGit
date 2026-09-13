@@ -150,8 +150,19 @@ impl MathLayout {
                 // d'ancrage : la boîte d'encre exacte demanderait de lire la fonte, ce que ce
                 // crate ne fait pas.
                 MathItem::Glyph { x, y, .. } => (*x, *y, *x, *y),
-                MathItem::Rule { x, y, width, height }
-                | MathItem::Path { x, y, width, height, .. } => (*x, *y, x + width, y + height),
+                MathItem::Rule {
+                    x,
+                    y,
+                    width,
+                    height,
+                }
+                | MathItem::Path {
+                    x,
+                    y,
+                    width,
+                    height,
+                    ..
+                } => (*x, *y, x + width, y + height),
             };
             b = Some(match b {
                 None => (x0, y0, x1, y1),
@@ -174,13 +185,21 @@ impl MathLayout {
 /// montré : c'est lui qui colore une formule en rouge pendant la frappe.
 pub fn layout(latex: &str, mode: Mode) -> Result<MathLayout, MathError> {
     let ctx = katex::KatexContext::default();
-    let options = katex::Settings { display_mode: mode == Mode::Display, ..Default::default() };
+    let options = katex::Settings {
+        display_mode: mode == Mode::Display,
+        ..Default::default()
+    };
 
     let tree = katex::render_to_dom_tree(&ctx, latex, &options)
         .map_err(|e| MathError::Parse(e.to_string()))?;
 
     let mut sortie = Vec::new();
-    let etat = Etat { size: 1.0, family: Family::Main, style: Style::ROMAN, align: Align::Left };
+    let etat = Etat {
+        size: 1.0,
+        family: Family::Main,
+        style: Style::ROMAN,
+        align: Align::Left,
+    };
     // L'arbre rendu porte deux enfants : la version MathML, destinée aux lecteurs d'écran, et
     // la version HTML. Seule la seconde porte des positions.
     let mut largeur = 0.0_f64;
@@ -193,7 +212,12 @@ pub fn layout(latex: &str, mode: Mode) -> Result<MathLayout, MathError> {
         largeur = largeur.max(pose(enfant, etat, 0.0, 0.0, &mut sortie));
     }
 
-    Ok(MathLayout { items: sortie, width: largeur, height: tree.height, depth: tree.depth })
+    Ok(MathLayout {
+        items: sortie,
+        width: largeur,
+        height: tree.height,
+        depth: tree.depth,
+    })
 }
 
 /// Ce qui se transmet de parent à enfant pendant le parcours.
@@ -211,8 +235,9 @@ struct Etat {
 ///
 /// La table est celle de sa feuille de style : `.sizing.reset-size6.size3` vaut `0.7em`, et
 /// `SIZE_MULTIPLIERS[3] / SIZE_MULTIPLIERS[6] = 0.7 / 1.0`. La taille 6 est la taille normale.
-const SIZE_MULTIPLIERS: [f64; 12] =
-    [1.0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.44, 1.728, 2.074, 2.488];
+const SIZE_MULTIPLIERS: [f64; 12] = [
+    1.0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.44, 1.728, 2.074, 2.488,
+];
 
 /// Lit une longueur CSS en `em`. Rend `0` pour tout ce qui n'est pas un nombre suivi de `em` —
 /// KaTeX n'écrit que des `em` dans les propriétés qui nous intéressent.
@@ -243,7 +268,10 @@ fn applique_classes(classes: &katex::types::ClassList, mut etat: Etat) -> Etat {
             }
             "boldsymbol" => {
                 etat.family = Family::Math;
-                etat.style = Style { bold: true, italic: true };
+                etat.style = Style {
+                    bold: true,
+                    italic: true,
+                };
             }
             "mainrm" | "textrm" => {
                 etat.family = Family::Main;
@@ -275,7 +303,10 @@ fn applique_classes(classes: &katex::types::ClassList, mut etat: Etat) -> Etat {
             "small-op" | "delim-size1" => etat.family = Family::Size1,
             "large-op" => etat.family = Family::Size2,
             _ => {
-                if let Some(n) = classe.strip_prefix("reset-size").and_then(|n| n.parse().ok()) {
+                if let Some(n) = classe
+                    .strip_prefix("reset-size")
+                    .and_then(|n| n.parse().ok())
+                {
                     reset = Some(n);
                 } else if let Some(n) = classe.strip_prefix("size").and_then(|n| n.parse().ok()) {
                     taille = Some(n);
@@ -342,7 +373,12 @@ fn pose(node: &HtmlDomNode, etat: Etat, x: f64, y: f64, out: &mut Vec<MathItem>)
             // ici on note son épaisseur et sa place.
             if span.classes.contains("frac-line") {
                 let epaisseur = em(span.style.get(CssProperty::BorderBottomWidth)) * etat.size;
-                out.push(MathItem::Rule { x, y, width: 0.0, height: epaisseur.max(f64::MIN_POSITIVE) });
+                out.push(MathItem::Rule {
+                    x,
+                    y,
+                    width: 0.0,
+                    height: epaisseur.max(f64::MIN_POSITIVE),
+                });
                 return gauche + droite;
             }
 
@@ -355,7 +391,8 @@ fn pose(node: &HtmlDomNode, etat: Etat, x: f64, y: f64, out: &mut Vec<MathItem>)
             // chemin. Le SVG lui-même est large de 400 em et volontairement rogné par son
             // parent : c'est le `min-width` du parent qui dit la largeur vraie, pas le SVG.
             if span.classes.contains("hide-tail") || span.classes.contains("stretchy") {
-                let largeur = em(span.style.get(CssProperty::MinWidth)).max(em(span.style.get(CssProperty::Width)));
+                let largeur = em(span.style.get(CssProperty::MinWidth))
+                    .max(em(span.style.get(CssProperty::Width)));
                 let hauteur = em(span.style.get(CssProperty::Height));
                 if let Some(nom) = nom_du_chemin(span) {
                     out.push(MathItem::Path {
@@ -424,7 +461,13 @@ fn nom_du_chemin(span: &katex::dom_tree::Span<HtmlDomNode>) -> Option<String> {
 ///
 /// Les filets qu'un empilement contient reçoivent ici leur largeur : c'est lui qui la connaît,
 /// puisqu'elle vaut celle du plus large de ses enfants.
-fn empile(span: &katex::dom_tree::Span<HtmlDomNode>, etat: Etat, x: f64, y: f64, out: &mut Vec<MathItem>) -> f64 {
+fn empile(
+    span: &katex::dom_tree::Span<HtmlDomNode>,
+    etat: Etat,
+    x: f64,
+    y: f64,
+    out: &mut Vec<MathItem>,
+) -> f64 {
     // Ce que chaque étage a produit : sa tranche d'éléments, et la largeur qu'il occupe. La
     // largeur de l'empilement n'est connue qu'après le dernier, et deux choses en dépendent —
     // l'alignement des étages, et la longueur des filets. D'où les deux passes.

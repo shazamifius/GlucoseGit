@@ -94,7 +94,9 @@ type ByName<'a> = HashMap<&'a str, NodeId>;
 /// [`NodeId::NONE`] plutôt qu'une erreur : le document s'ouvre, le lien est simplement rompu,
 /// et [`Doc::check`] ne signalera rien puisqu'il n'y a plus de lien.
 fn resolve(by_name: &ByName<'_>, name: Option<&str>) -> NodeId {
-    name.and_then(|n| by_name.get(n)).copied().unwrap_or(NodeId::NONE)
+    name.and_then(|n| by_name.get(n))
+        .copied()
+        .unwrap_or(NodeId::NONE)
 }
 
 #[cfg(test)]

@@ -18,12 +18,12 @@
 //! opacité, remplace le pointillé par un trait plein et ajoute un halo — la même grammaire
 //! que les membranes, qui sont l'autre conteneur du canevas.
 
+use crate::canvas::world_to_screen;
+use crate::params::ViewPass;
 use crate::renderer::card::Clip;
 use crate::renderer::handles::draw_resize_handles;
 use crate::renderer::scale::WorldScale;
 use crate::renderer::{parse_hex_color, push_rounded_rect, PaintKit};
-use crate::canvas::world_to_screen;
-use crate::params::ViewPass;
 use crate::typography::TextStyle;
 use glucose_core::hit_priority::pick_consts;
 use glucose_core::resize::Handle;
@@ -93,14 +93,21 @@ impl Layout {
 /// n'est pas un oubli : l'index interroge une zone élargie de 200 px, marge utile au picking
 /// mais superflue pour dessiner, et un tableau compte quelques dossiers, jamais des milliers.
 /// L'index, lui, les connaît désormais — c'est lui qui rend un dossier cliquable.
-pub(super) fn draw_folders(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &Store, pass: ViewPass<'_>) {
+pub(super) fn draw_folders(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    pass: ViewPass<'_>,
+) {
     let Some(board) = store.active_board() else {
         return;
     };
     if board.folders.is_empty() {
         return;
     }
-    let PaintKit { typography, theme, .. } = kit;
+    let PaintKit {
+        typography, theme, ..
+    } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -120,11 +127,24 @@ pub(super) fn draw_folders(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &St
 
         draw_frame(pixmap, (sx, sy), &layout, tint, (selected, scale));
         if scale.draws_detail() {
-            draw_header(typography, pixmap, (sx, sy), &layout, f, (tint, selected, scale));
+            draw_header(
+                typography,
+                pixmap,
+                (sx, sy),
+                &layout,
+                f,
+                (tint, selected, scale),
+            );
             let _ = theme;
         }
         if selected {
-            draw_resize_handles(pixmap, theme, scale, (sx, sy, layout.width, layout.height), &Handle::ALL);
+            draw_resize_handles(
+                pixmap,
+                theme,
+                scale,
+                (sx, sy, layout.width, layout.height),
+                &Handle::ALL,
+            );
         }
     }
 }
@@ -153,27 +173,56 @@ fn draw_frame(
             scale.world(GLOW.1),
         );
         if let Some(path) = pb.finish() {
-            let mut paint = Paint { anti_alias: true, ..Default::default() };
+            let mut paint = Paint {
+                anti_alias: true,
+                ..Default::default()
+            };
             paint.set_color(Color::from_rgba8(r, g, b, GLOW.3));
-            let stroke = Stroke { width: scale.world(GLOW.2), ..Default::default() };
+            let stroke = Stroke {
+                width: scale.world(GLOW.2),
+                ..Default::default()
+            };
             pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
         }
     }
 
     let mut pb = PathBuilder::new();
-    push_rounded_rect(&mut pb, at.0, at.1, layout.width, layout.height, layout.radius);
+    push_rounded_rect(
+        &mut pb,
+        at.0,
+        at.1,
+        layout.width,
+        layout.height,
+        layout.radius,
+    );
     let Some(path) = pb.finish() else {
         return;
     };
 
-    let mut fill = Paint { anti_alias: true, ..Default::default() };
+    let mut fill = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     fill.set_color(Color::from_rgba8(r, g, b, pick(BODY_ALPHA)));
-    pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
+    pixmap.fill_path(
+        &path,
+        &fill,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 
-    let mut border = Paint { anti_alias: true, ..Default::default() };
+    let mut border = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     border.set_color(Color::from_rgba8(r, g, b, pick(BORDER_ALPHA)));
     let stroke = Stroke {
-        width: scale.world(if selected { BORDER_WIDTH.1 } else { BORDER_WIDTH.0 }),
+        width: scale.world(if selected {
+            BORDER_WIDTH.1
+        } else {
+            BORDER_WIDTH.0
+        }),
         dash: if selected {
             None
         } else {
@@ -189,8 +238,12 @@ fn draw_frame(
 
     // Le trait qui sépare le bandeau du corps : c'est lui qui rend le portail lisible comme
     // une fenêtre plutôt que comme un simple rectangle.
-    if let Some(line) = Rect::from_xywh(at.0, at.1 + layout.header, layout.width, scale.world(1.0)) {
-        let mut sep = Paint { anti_alias: true, ..Default::default() };
+    if let Some(line) = Rect::from_xywh(at.0, at.1 + layout.header, layout.width, scale.world(1.0))
+    {
+        let mut sep = Paint {
+            anti_alias: true,
+            ..Default::default()
+        };
         sep.set_color(Color::from_rgba8(r, g, b, pick(BORDER_ALPHA)));
         pixmap.fill_rect(line, &sep, Transform::identity(), None);
     }
@@ -218,9 +271,18 @@ fn draw_header(
     push_rounded_rect(&mut pb, ix, iy + ih * 0.25, iw, ih * 0.75, scale.world(2.0));
     push_rounded_rect(&mut pb, ix, iy, iw * 0.45, ih * 0.35, scale.world(1.0));
     if let Some(path) = pb.finish() {
-        let mut paint = Paint { anti_alias: true, ..Default::default() };
+        let mut paint = Paint {
+            anti_alias: true,
+            ..Default::default()
+        };
         paint.set_color(Color::from_rgba8(r, g, b, alpha));
-        pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+        pixmap.fill_path(
+            &path,
+            &paint,
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
     }
 
     let titre = truncate(&f.name, TITLE_MAX_CHARS);
@@ -254,20 +316,38 @@ fn draw_badge(
     scale: WorldScale,
 ) {
     let (r, g, b) = tint;
-    let (bx, by) = (at.0 + layout.width - scale.world(BADGE.0), at.1 + scale.world(BADGE.1));
+    let (bx, by) = (
+        at.0 + layout.width - scale.world(BADGE.0),
+        at.1 + scale.world(BADGE.1),
+    );
     let (bw, bh) = (scale.world(BADGE.2), scale.world(BADGE.3));
     let mut pb = PathBuilder::new();
     push_rounded_rect(&mut pb, bx, by, bw, bh, scale.world(BADGE.4));
     let Some(path) = pb.finish() else {
         return;
     };
-    let mut fill = Paint { anti_alias: true, ..Default::default() };
+    let mut fill = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     fill.set_color(Color::from_rgba8(r, g, b, BADGE_ALPHA.0));
-    pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
+    pixmap.fill_path(
+        &path,
+        &fill,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 
-    let mut border = Paint { anti_alias: true, ..Default::default() };
+    let mut border = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     border.set_color(Color::from_rgba8(r, g, b, BADGE_ALPHA.1));
-    let stroke = Stroke { width: scale.world(BADGE_STROKE), ..Default::default() };
+    let stroke = Stroke {
+        width: scale.world(BADGE_STROKE),
+        ..Default::default()
+    };
     pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
 
     typography.draw_text(
@@ -275,7 +355,11 @@ fn draw_badge(
         "0",
         bx + bw * 0.4,
         by + bh * 0.75,
-        TextStyle { size: scale.world(BADGE_FONT), color: Color::from_rgba8(r, g, b, 204), bold: true },
+        TextStyle {
+            size: scale.world(BADGE_FONT),
+            color: Color::from_rgba8(r, g, b, 204),
+            bold: true,
+        },
     );
 }
 

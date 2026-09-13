@@ -20,10 +20,10 @@
 pub mod card;
 pub mod domain;
 pub mod folder;
-pub mod math;
 pub mod halo;
 pub mod handles;
 pub mod hue;
+pub mod math;
 pub mod note;
 pub mod scale;
 pub mod scene;
@@ -34,9 +34,9 @@ use crate::params::{Pointer, SceneOverlay, ViewPass};
 use crate::theme::Theme;
 use crate::typography::Typography;
 use crate::ui::{render_ui, UiState};
+use domain::DomainTints;
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
-use domain::DomainTints;
 use hue::SymbioticHueCache;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -51,7 +51,12 @@ pub struct TextEditSession {
 }
 
 /// Décode une couleur hexadécimale #RRGGBB ou #RGB
-pub(crate) fn parse_hex_color(hex: &str, default_r: u8, default_g: u8, default_b: u8) -> (u8, u8, u8) {
+pub(crate) fn parse_hex_color(
+    hex: &str,
+    default_r: u8,
+    default_g: u8,
+    default_b: u8,
+) -> (u8, u8, u8) {
     let s = hex.trim_start_matches('#');
     if s.len() == 6 {
         if let (Ok(r), Ok(g), Ok(b)) = (
@@ -62,9 +67,15 @@ pub(crate) fn parse_hex_color(hex: &str, default_r: u8, default_g: u8, default_b
             return (r, g, b);
         }
     } else if s.len() == 3 {
-        let r = u8::from_str_radix(&s[0..1], 16).map(|v| v * 17).unwrap_or(default_r);
-        let g = u8::from_str_radix(&s[1..2], 16).map(|v| v * 17).unwrap_or(default_g);
-        let b = u8::from_str_radix(&s[2..3], 16).map(|v| v * 17).unwrap_or(default_b);
+        let r = u8::from_str_radix(&s[0..1], 16)
+            .map(|v| v * 17)
+            .unwrap_or(default_r);
+        let g = u8::from_str_radix(&s[1..2], 16)
+            .map(|v| v * 17)
+            .unwrap_or(default_g);
+        let b = u8::from_str_radix(&s[2..3], 16)
+            .map(|v| v * 17)
+            .unwrap_or(default_b);
         return (r, g, b);
     }
     (default_r, default_g, default_b)
@@ -220,17 +231,29 @@ impl Renderer {
 
         self.domain_tints.refresh(store, &self.theme);
         if let Some(board) = store.active_board() {
-            self.hue_cache.update_positions_and_invalidate(&board.annotations);
+            self.hue_cache
+                .update_positions_and_invalidate(&board.annotations);
         }
         self.sync_spatial_index(store);
 
         let header_h = ui.header_height();
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let visible_ids = self.spatial_hash.query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
+        let visible_ids = self
+            .spatial_hash
+            .query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
         crate::perf::stage("cull");
-        let pass = ViewPass { vp, visible_ids: &visible_ids, header_h };
-        let kit = PaintKit { typography: &self.typography, math: &self.math, tints: &self.domain_tints, theme: &self.theme };
+        let pass = ViewPass {
+            vp,
+            visible_ids: &visible_ids,
+            header_h,
+        };
+        let kit = PaintKit {
+            typography: &self.typography,
+            math: &self.math,
+            tints: &self.domain_tints,
+            theme: &self.theme,
+        };
 
         // 1. Le fond du canevas
         pixmap.fill(self.theme.bg_canvas);
@@ -254,16 +277,37 @@ impl Renderer {
         crate::perf::stage("folders");
 
         // 5. Images
-        scene::draw_images(&mut self.image_cache, &mut self.failed_images, kit, pixmap, store, pass);
+        scene::draw_images(
+            &mut self.image_cache,
+            &mut self.failed_images,
+            kit,
+            pixmap,
+            store,
+            pass,
+        );
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
-        card::draw_annotations(&mut self.hue_cache, kit, pixmap, store, overlay.editing, pass);
+        card::draw_annotations(
+            &mut self.hue_cache,
+            kit,
+            pixmap,
+            store,
+            overlay.editing,
+            pass,
+        );
         crate::perf::stage("annotations");
 
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
-            scene::draw_guides(&self.theme, pixmap, overlay.guides, &vp, (width, height), header_h);
+            scene::draw_guides(
+                &self.theme,
+                pixmap,
+                overlay.guides,
+                &vp,
+                (width, height),
+                header_h,
+            );
         }
 
         // 8. Boîte de sélection élastique (Marquee)
@@ -298,7 +342,11 @@ mod tests {
     ) {
         let guides = SnapGuides::default();
         let mut view = pixmap.as_mut();
-        let overlay = SceneOverlay { guides: &guides, selection_box: None, editing: None };
+        let overlay = SceneOverlay {
+            guides: &guides,
+            selection_box: None,
+            editing: None,
+        };
         let origin = Pointer { x: 0.0, y: 0.0 };
         renderer.render(&mut view, store, ui, overlay, origin);
         crate::dock::render_docks(

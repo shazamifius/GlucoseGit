@@ -51,7 +51,11 @@ fn peupler(disposition: &str, n: usize) -> Arena {
                 (r.coord(20_000), r.coord(20_000), w, h)
             }
         };
-        a.spawn(if i % 3 == 0 { Kind::Image } else { Kind::Text }, boite(x, y, w, h), NodeId::NONE);
+        a.spawn(
+            if i % 3 == 0 { Kind::Image } else { Kind::Text },
+            boite(x, y, w, h),
+            NodeId::NONE,
+        );
     }
     a
 }
@@ -91,7 +95,8 @@ fn test_la_grille_rend_exactement_ce_que_rend_le_balayage() {
             par_index.sort();
             par_balayage.sort();
             assert_eq!(
-                par_index, par_balayage,
+                par_index,
+                par_balayage,
                 "{disposition}, vue {vue:?} : {} par l'index contre {} par le balayage",
                 par_index.len(),
                 par_balayage.len()
@@ -122,12 +127,24 @@ fn test_la_cellule_deduite_donne_environ_un_noeud_par_cellule() {
 #[test]
 fn test_deux_noeuds_aux_antipodes_ne_font_pas_exploser_l_index() {
     let mut a = Arena::new();
-    a.spawn(Kind::Text, Box2::new(Fx::MIN, Fx::MIN, px(10), px(10)), NodeId::NONE);
-    a.spawn(Kind::Text, Box2::new(px(8_000_000), px(8_000_000), px(10), px(10)), NodeId::NONE);
+    a.spawn(
+        Kind::Text,
+        Box2::new(Fx::MIN, Fx::MIN, px(10), px(10)),
+        NodeId::NONE,
+    );
+    a.spawn(
+        Kind::Text,
+        Box2::new(px(8_000_000), px(8_000_000), px(10), px(10)),
+        NodeId::NONE,
+    );
 
     let g = Grid::build(&a);
     assert!(g.cells() <= 16, "{} cellules pour deux nœuds", g.cells());
-    assert!(g.bytes() < 1_000, "{} octets d'index pour deux nœuds", g.bytes());
+    assert!(
+        g.bytes() < 1_000,
+        "{} octets d'index pour deux nœuds",
+        g.bytes()
+    );
     g.check(&a).unwrap();
 
     // Et ils restent trouvables, chacun de son côté du document.
@@ -144,10 +161,18 @@ fn test_deux_noeuds_aux_antipodes_ne_font_pas_exploser_l_index() {
 fn test_les_grands_noeuds_vont_a_part_et_restent_trouvables() {
     let mut a = Arena::with_capacity(1_001);
     for i in 0..1_000 {
-        a.spawn(Kind::Text, boite(i % 40 * 300, i / 40 * 300, 260, 80), NodeId::NONE);
+        a.spawn(
+            Kind::Text,
+            boite(i % 40 * 300, i / 40 * 300, 260, 80),
+            NodeId::NONE,
+        );
     }
     // Une membrane qui couvre tout le document.
-    let geante = a.spawn(Kind::Membrane, boite(-500, -500, 14_000, 9_000), NodeId::NONE);
+    let geante = a.spawn(
+        Kind::Membrane,
+        boite(-500, -500, 14_000, 9_000),
+        NodeId::NONE,
+    );
 
     let g = Grid::build(&a);
     assert_eq!(g.large(), 1, "la géante et elle seule est hors grille");
@@ -234,7 +259,11 @@ fn test_tous_les_noeuds_au_meme_point_donnent_une_seule_cellule() {
 fn test_l_index_pese_quatre_octets_par_noeud_sans_duplication() {
     let a = peupler("grille", 10_000);
     let g = Grid::build(&a);
-    assert_eq!(g.len() + g.large(), 10_000, "chaque nœud est inscrit une fois, et une seule");
+    assert_eq!(
+        g.len() + g.large(),
+        10_000,
+        "chaque nœud est inscrit une fois, et une seule"
+    );
     let par_noeud = g.bytes() as f64 / 10_000.0;
     assert!(par_noeud < 12.0, "{par_noeud:.1} octets par nœud");
 }
@@ -312,7 +341,11 @@ fn test_un_noeud_deplace_ne_laisse_pas_de_fantome() {
     assert!(!vus.contains(&id), "plus rien à l'ancienne place");
 
     g.query(&a, boite(49_900, 49_900, 500, 500), &mut vus);
-    assert_eq!(vus.iter().filter(|&&x| x == id).count(), 1, "une fois et une seule");
+    assert_eq!(
+        vus.iter().filter(|&&x| x == id).count(),
+        1,
+        "une fois et une seule"
+    );
 
     // Le redéplacer ne le duplique pas non plus.
     let milieu = a.box_of(id).unwrap();
@@ -345,7 +378,11 @@ fn test_un_noeud_nouveau_est_trouve_sans_reconstruire() {
 fn test_un_grand_noeud_se_deplace_aussi_sans_fantome() {
     let mut a = Arena::with_capacity(101);
     for i in 0..100 {
-        a.spawn(Kind::Text, boite(i % 10 * 300, i / 10 * 300, 260, 80), NodeId::NONE);
+        a.spawn(
+            Kind::Text,
+            boite(i % 10 * 300, i / 10 * 300, 260, 80),
+            NodeId::NONE,
+        );
     }
     let geante = a.spawn(Kind::Membrane, boite(0, 0, 12_000, 9_000), NodeId::NONE);
     let mut g = Grid::build(&a);

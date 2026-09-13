@@ -189,7 +189,8 @@ impl Grid {
         for c in 1..g.starts.len() {
             g.starts[c] += g.starts[c - 1];
         }
-        g.items.resize(*g.starts.last().unwrap_or(&0) as usize, NodeId::NONE);
+        g.items
+            .resize(*g.starts.last().unwrap_or(&0) as usize, NodeId::NONE);
         let mut curseur = g.starts.clone();
         for id in a.iter_alive() {
             let b = a.box_of(id).expect("iter_alive ne rend que des vivants");
@@ -262,10 +263,14 @@ impl Grid {
         // Un nœud inscrit en (i, j) tient dans une cellule : il ne peut déborder que vers la
         // droite et vers le bas. Élargir la recherche d'une cellule vers la gauche et vers le
         // haut suffit donc, et c'est exact — aucune marge choisie.
-        let i0 = (Self::cell_of(view.x, self.shift) - self.min_i - 1).clamp(0, self.cols as i32 - 1);
-        let j0 = (Self::cell_of(view.y, self.shift) - self.min_j - 1).clamp(0, self.rows as i32 - 1);
-        let i1 = (Self::cell_of(view.right(), self.shift) - self.min_i).clamp(0, self.cols as i32 - 1);
-        let j1 = (Self::cell_of(view.bottom(), self.shift) - self.min_j).clamp(0, self.rows as i32 - 1);
+        let i0 =
+            (Self::cell_of(view.x, self.shift) - self.min_i - 1).clamp(0, self.cols as i32 - 1);
+        let j0 =
+            (Self::cell_of(view.y, self.shift) - self.min_j - 1).clamp(0, self.rows as i32 - 1);
+        let i1 =
+            (Self::cell_of(view.right(), self.shift) - self.min_i).clamp(0, self.cols as i32 - 1);
+        let j1 =
+            (Self::cell_of(view.bottom(), self.shift) - self.min_j).clamp(0, self.rows as i32 - 1);
 
         for j in j0..=j1 {
             let base = j as usize * self.cols as usize;
@@ -373,9 +378,12 @@ impl Grid {
                         id.index()
                     ));
                 }
-                let b = a
-                    .box_of(id)
-                    .ok_or_else(|| format!("GRD-1 : le nœud {} de la cellule {c} n'est pas vivant", id.index()))?;
+                let b = a.box_of(id).ok_or_else(|| {
+                    format!(
+                        "GRD-1 : le nœud {} de la cellule {c} n'est pas vivant",
+                        id.index()
+                    )
+                })?;
                 if self.cell_index(b.x, b.y) != c {
                     return Err(format!(
                         "GRD-1 : le nœud {} est rangé en {c} et appartient à {}",
