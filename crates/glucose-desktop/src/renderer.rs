@@ -17,6 +17,7 @@
 //! | [`handles`] | les poignées de redimensionnement, là où le test de clic les cherche |
 //! | [`wrap`] | le découpage d'un paragraphe en lignes (WRAP-1) |
 
+pub mod arrow;
 pub mod card;
 pub mod domain;
 pub mod folder;
@@ -50,35 +51,33 @@ pub struct TextEditSession {
     pub blink_timer: std::time::Instant,
 }
 
-/// Décode une couleur hexadécimale #RRGGBB ou #RGB
+/// Décode une couleur hexadécimale `#rrggbb` ou `#rgb` ; `None` si ce n'en est pas une.
+///
+/// Le document range ses couleurs en texte, et un texte peut être faux : l'appelant décide
+/// alors de la couleur de repli — en général un jeton du thème — plutôt que d'en recevoir une
+/// choisie ici.
+pub(crate) fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
+    let s = hex.trim_start_matches('#');
+    let channel = |from: usize, to: usize| u8::from_str_radix(s.get(from..to)?, 16).ok();
+    match s.len() {
+        6 => Some((channel(0, 2)?, channel(2, 4)?, channel(4, 6)?)),
+        3 => Some((
+            channel(0, 1)? * 17,
+            channel(1, 2)? * 17,
+            channel(2, 3)? * 17,
+        )),
+        _ => None,
+    }
+}
+
+/// [`parse_hex_rgb`], avec une couleur de repli.
 pub(crate) fn parse_hex_color(
     hex: &str,
     default_r: u8,
     default_g: u8,
     default_b: u8,
 ) -> (u8, u8, u8) {
-    let s = hex.trim_start_matches('#');
-    if s.len() == 6 {
-        if let (Ok(r), Ok(g), Ok(b)) = (
-            u8::from_str_radix(&s[0..2], 16),
-            u8::from_str_radix(&s[2..4], 16),
-            u8::from_str_radix(&s[4..6], 16),
-        ) {
-            return (r, g, b);
-        }
-    } else if s.len() == 3 {
-        let r = u8::from_str_radix(&s[0..1], 16)
-            .map(|v| v * 17)
-            .unwrap_or(default_r);
-        let g = u8::from_str_radix(&s[1..2], 16)
-            .map(|v| v * 17)
-            .unwrap_or(default_g);
-        let b = u8::from_str_radix(&s[2..3], 16)
-            .map(|v| v * 17)
-            .unwrap_or(default_b);
-        return (r, g, b);
-    }
-    (default_r, default_g, default_b)
+    parse_hex_rgb(hex).unwrap_or((default_r, default_g, default_b))
 }
 
 /// Ajoute un rectangle à coins arrondis dans un PathBuilder.

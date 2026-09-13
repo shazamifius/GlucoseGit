@@ -223,3 +223,19 @@ fn test_la_suite_ne_trahit_pas_ses_bits_de_poids_faible() {
         "alternances : {alternances}"
     );
 }
+
+/// `WITNESS_CONTENT` est écrit à la main, et une constante écrite à la main dérive : ce test
+/// la confronte aux bornes réelles du témoin. Elle peut être plus large — c'est une marge —,
+/// jamais plus étroite, sinon le cadrage de la capture coupe ce qui vient d'être ajouté.
+#[test]
+fn test_l_etendue_declaree_du_temoin_contient_ses_bornes_reelles() {
+    let store = witness();
+    let bounds = store
+        .content_bounds(&store.project.active_board_id)
+        .expect("le témoin a du contenu");
+    let (x0, y0, x1, y1) = WITNESS_CONTENT;
+    assert!(bounds.left >= x0, "gauche : {} < {x0}", bounds.left);
+    assert!(bounds.top >= y0, "haut : {} < {y0}", bounds.top);
+    assert!(bounds.right() <= x1, "droite : {} > {x1}", bounds.right());
+    assert!(bounds.bottom() <= y1, "bas : {} > {y1}", bounds.bottom());
+}

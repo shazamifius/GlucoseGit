@@ -1,6 +1,7 @@
 //! Jetons de design et thème de l'application Glucose — la fiche 06 et `style.md` rendus
 //! exécutables : chaque couleur de la chrome vit ici, et nulle part ailleurs.
 
+use glucose_core::types::StickyOperator;
 use tiny_skia::Color;
 
 /// Échelle d'interface minimale acceptée.
@@ -100,9 +101,19 @@ pub struct Theme {
     pub handle_outline: Color,
 
     // ── Note adhésive (§ 5.2) ──────────────────────────────────────────────
+    /// Le papier d'un pense-bête que le document ne colore pas : `#f5c542`.
     pub sticky_yellow_bg: Color,
+    /// L'encre d'un pense-bête que le document ne colore pas : `#222` dans la référence.
     pub sticky_yellow_text: Color,
-    pub sticky_yellow_border: Color,
+    /// L'ombre portée du papier : `0 4px 6px rgba(0, 0, 0, 0.3)` dans la référence — le noir
+    /// à 0,30 ; le décalage est une longueur, il vit dans le rendu.
+    pub sticky_shadow: Color,
+
+    // ── Flèches (§ 7) ──────────────────────────────────────────────────────
+    /// La couleur d'une flèche que le document ne colore pas — **provisoire** : la référence
+    /// la teinte du dégradé symbiotique de ses deux extrémités (§ 7.1), qui arrive avec le
+    /// chantier des flèches (fiche 12, 2.B).
+    pub arrow_default: Color,
 
     // ── Minimap (§ 9) ──────────────────────────────────────────────────────
     pub minimap_bg: Color,
@@ -158,6 +169,18 @@ fn hexa(rgb: u32, a: u8) -> Color {
     Color::from_rgba8((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, a)
 }
 
+/// La couleur d'un opérateur logique (fiche 06 § 2.5) : le vert de la conjonction, le bleu de
+/// l'alternative, l'ambre de la nuance, le lilas de la causalité. Une couleur de **contenu**,
+/// pas de chrome — c'est le sens du mot qui la porte.
+pub fn operator_color(op: StickyOperator) -> Color {
+    match op {
+        StickyOperator::And => hex(0x34d399),
+        StickyOperator::Or => hex(0x60a5fa),
+        StickyOperator::But => hex(0xf59e0b),
+        StickyOperator::Because => hex(0xa78bfa),
+    }
+}
+
 impl Theme {
     /// Le thème de Glucose — et il n'y en a qu'un (fiche 06, `style.md`) : une feuille de
     /// papier noire, une chrome monochrome stricte, un seul accent jaune employé avec une
@@ -198,8 +221,10 @@ impl Theme {
             handle_outline: hexa(0x111111, 230),
 
             sticky_yellow_bg: hex(0xf5c542),
-            sticky_yellow_text: hex(0x1c1917),
-            sticky_yellow_border: hex(0xf5c542),
+            sticky_yellow_text: hex(0x222222),
+            sticky_shadow: hexa(0x000000, 77),
+
+            arrow_default: hexa(0x94a3b8, 220),
 
             minimap_bg: hexa(0x0d0d0d, 235),
             minimap_border: hex(0x2a2a2a),
@@ -360,7 +385,17 @@ mod tests {
         assert_eq!(
             rgba(t.sticky_yellow_bg),
             (0xf5, 0xc5, 0x42, 255),
-            "jaune pastel"
+            "le papier du pense-bête"
+        );
+        assert_eq!(
+            rgba(t.sticky_yellow_text),
+            (0x22, 0x22, 0x22, 255),
+            "l'encre du pense-bête, celle de la référence"
+        );
+        assert_eq!(
+            rgba(t.sticky_shadow),
+            (0, 0, 0, 77),
+            "l'ombre du papier à 0,30"
         );
         assert_eq!(rgba(t.minimap_border), (0x2a, 0x2a, 0x2a, 255));
         assert_eq!(
@@ -456,5 +491,27 @@ mod tests {
             );
             seen.push(hex);
         }
+    }
+}
+
+#[cfg(test)]
+mod operator_tests {
+    use super::*;
+
+    fn rgb(c: Color) -> (u8, u8, u8) {
+        let c = c.to_color_u8();
+        (c.red(), c.green(), c.blue())
+    }
+
+    /// Fiche 06 § 2.5 — chaque opérateur a sa couleur, et elles sont distinctes.
+    #[test]
+    fn test_operator_colors_are_those_of_the_spec_and_distinct() {
+        assert_eq!(rgb(operator_color(StickyOperator::And)), (0x34, 0xd3, 0x99));
+        assert_eq!(rgb(operator_color(StickyOperator::Or)), (0x60, 0xa5, 0xfa));
+        assert_eq!(rgb(operator_color(StickyOperator::But)), (0xf5, 0x9e, 0x0b));
+        assert_eq!(
+            rgb(operator_color(StickyOperator::Because)),
+            (0xa7, 0x8b, 0xfa)
+        );
     }
 }

@@ -35,10 +35,11 @@
 //! voient la même boîte que l'écran. `text_card` garde un `max` de sécurité pour les
 //! documents antérieurs à cette règle.
 
+use super::arrow::draw_arrow;
 use super::domain::{draw_domain_gauge, DomainTints};
 use super::handles::draw_resize_handles;
 use super::hue::SymbioticHueCache;
-use super::note::{draw_arrow, draw_sticky};
+use super::note::draw_sticky;
 use super::scale::WorldScale;
 use super::wrap::wrap_paragraph;
 use super::{parse_hex_color, push_rounded_rect, PaintKit, TextEditSession};
