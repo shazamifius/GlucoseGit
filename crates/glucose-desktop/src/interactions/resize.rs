@@ -15,12 +15,10 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use crate::renderer::card::text_card_fit_height;
-use crate::renderer::halo::DEFAULT_TEXT_CARD_WIDTH;
 use glucose_core::hit_priority::{handle_cursor, PickCandidate, PickKind, PickOwner};
 use glucose_core::resize::{resize_rect, snap_resized_rect, Handle, ResizeRule};
 use glucose_core::smart_align::{
-    collect_align_targets, rect_of_annotation, rect_of_folder, rect_of_image, AlignRect,
-    AlignTarget, SnapGuides, SnapOptions,
+    collect_align_targets, AlignRect, AlignTarget, SnapGuides, SnapOptions,
 };
 use glucose_core::types::Annotation;
 use std::collections::HashSet;
@@ -132,12 +130,12 @@ impl GlucoseApp {
                         id,
                         rotation: img.rotation,
                     },
-                    rect_of_image(img),
+                    img.rect(),
                 ))
             }
             PickOwner::Annotation | PickOwner::Membrane => {
                 let ann = board.annotations.iter().find(|a| a.id() == id)?;
-                let rect = rect_of_annotation(ann)?;
+                let rect = ann.rect()?;
                 let target = match ann {
                     Annotation::Text { .. } => ResizeTarget::TextCard { id },
                     Annotation::Sticky { .. } => ResizeTarget::Annotation {
@@ -154,7 +152,7 @@ impl GlucoseApp {
             }
             PickOwner::Folder => {
                 let folder = board.folders.iter().find(|f| f.id == id)?;
-                Some((ResizeTarget::Folder { id }, rect_of_folder(folder)))
+                Some((ResizeTarget::Folder { id }, folder.rect()))
             }
             PickOwner::Arrow => None,
         }
@@ -327,9 +325,7 @@ impl GlucoseApp {
                 .iter()
                 .find(|a| a.id() == ann_id)
                 .and_then(|a| match a {
-                    Annotation::Text { text, .. } => {
-                        rect_of_annotation(a).map(|r| (r, text.clone()))
-                    }
+                    Annotation::Text { text, .. } => a.rect().map(|r| (r, text.clone())),
                     _ => None,
                 })
         }) else {
@@ -366,7 +362,7 @@ impl GlucoseApp {
                 else {
                     continue;
                 };
-                let w = width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH);
+                let w = width.unwrap_or(glucose_core::types::DEFAULT_TEXT_CARD_WIDTH);
                 *width = Some(w);
                 *height = Some(text_card_fit_height(typography, math, text, w));
             }

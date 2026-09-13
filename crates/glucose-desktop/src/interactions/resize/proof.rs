@@ -136,7 +136,7 @@ fn test_resize_proof_an_image_pulled_by_a_corner_keeps_its_ratio_on_screen() {
     app.store.add_image(&board, img);
 
     let before = render_frame(&mut app);
-    let start = rect_of_image(&app.store.active_board().expect("board").images[0]);
+    let start = app.store.active_board().expect("board").images[0].rect();
     let ink_before = ink_bbox(&before).expect("l'image d'essai est visible");
     assert_box_matches(ink_before, screen_box(&app, start), "avant");
     before.save_png(dir.join("image-avant.png")).expect("png");
@@ -146,7 +146,7 @@ fn test_resize_proof_an_image_pulled_by_a_corner_keeps_its_ratio_on_screen() {
     release(&mut app);
 
     let after = render_frame(&mut app);
-    let resized = rect_of_image(&app.store.active_board().expect("board").images[0]);
+    let resized = app.store.active_board().expect("board").images[0].rect();
     assert!(
         (resized.width / resized.height - 2.0).abs() < 1e-9,
         "rapport conservé : {resized:?}"
@@ -211,7 +211,8 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     // Avant : la carte large, et son encre de texte (frame pleine moins frame vide).
     let mut app = frame_with(text, 640.0, None);
     let before = render_frame(&mut app);
-    let start = rect_of_annotation(&app.store.active_board().expect("board").annotations[0])
+    let start = app.store.active_board().expect("board").annotations[0]
+        .rect()
         .expect("boîte");
     let mut blank = frame_with("", 640.0, Some(start.height));
     let before_blank = render_frame(&mut blank);
@@ -224,7 +225,8 @@ fn test_resize_proof_a_text_card_narrowed_by_its_side_reflows_its_text() {
     drag_by(&mut app, -400.0, 0.0, 8);
     release(&mut app);
     let after = render_frame(&mut app);
-    let narrowed = rect_of_annotation(&app.store.active_board().expect("board").annotations[0])
+    let narrowed = app.store.active_board().expect("board").annotations[0]
+        .rect()
         .expect("boîte");
     assert!((narrowed.width - 240.0).abs() < 1e-9, "{narrowed:?}");
     assert!(

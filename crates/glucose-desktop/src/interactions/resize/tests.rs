@@ -63,7 +63,7 @@ fn image_box(app: &GlucoseApp, id: &str) -> AlignRect {
         .active_board()
         .and_then(|b| b.images.iter().find(|i| i.id == id))
         .expect("image");
-    rect_of_image(img)
+    img.rect()
 }
 
 pub(super) fn text_card(id: &str, x: f64, y: f64, width: f64, text: &str) -> Annotation {
@@ -91,7 +91,7 @@ fn ann_box(app: &GlucoseApp, id: &str) -> AlignRect {
         .active_board()
         .and_then(|b| b.annotations.iter().find(|a| a.id() == id))
         .expect("annotation");
-    rect_of_annotation(ann).expect("boîte")
+    ann.rect().expect("boîte")
 }
 
 /// Appuie exactement sur `handle` du rectangle monde `rect`.

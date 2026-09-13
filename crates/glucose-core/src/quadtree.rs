@@ -235,49 +235,15 @@ impl SpatialHash {
     }
 
     fn image_bbox(img: &crate::types::BoardImage) -> (f64, f64, f64, f64) {
-        let hw = img.width / 2.0;
-        let hh = img.height / 2.0;
-        (img.x - hw, img.y - hh, img.x + hw, img.y + hh)
+        let r = img.rect();
+        (r.left, r.top, r.right(), r.bottom())
     }
 
-    /// Boîte d'une annotation : ancrage HAUT-GAUCHE (loi L7), sauf flèche (enveloppe des deux
-    /// extrémités).
+    /// Boîte englobante d'une annotation : celle du modèle, points de passage d'une flèche
+    /// compris.
     fn annotation_bbox(ann: &crate::types::Annotation) -> (f64, f64, f64, f64) {
-        use crate::types::Annotation as A;
-        match ann {
-            A::Text {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => (
-                *x,
-                *y,
-                *x + width.unwrap_or(240.0),
-                *y + height.unwrap_or(48.0),
-            ),
-            A::Sticky {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => (
-                *x,
-                *y,
-                *x + width.unwrap_or(160.0),
-                *y + height.unwrap_or(120.0),
-            ),
-            A::Membrane {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => (*x, *y, *x + *width, *y + *height),
-            A::Arrow { x, y, x2, y2, .. } => (x.min(*x2), y.min(*y2), x.max(*x2), y.max(*y2)),
-        }
+        let r = ann.bounds();
+        (r.left, r.top, r.right(), r.bottom())
     }
 
     pub fn insert_image(&mut self, img: &crate::types::BoardImage) {

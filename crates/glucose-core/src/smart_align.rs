@@ -1,26 +1,11 @@
 //! SNAP-1 — Alignement intelligent : MOTEUR PUR (0 dépendance).
 
-use crate::types::{Annotation, Board, BoardImage, CanvasFolder};
+use crate::types::{Annotation, Board};
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct AlignRect {
-    pub left: f64,
-    pub top: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl AlignRect {
-    pub fn new(left: f64, top: f64, width: f64, height: f64) -> Self {
-        Self {
-            left,
-            top,
-            width,
-            height,
-        }
-    }
-}
+/// La boîte que le magnétisme aligne : celle du modèle, et aucune autre. Le nom survit parce
+/// que les appelants et les tests le connaissent ; le type est [`crate::geometry::Rect`].
+pub type AlignRect = crate::geometry::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlignKind {
@@ -45,9 +30,6 @@ pub struct SnapGuides {
 }
 
 pub const SNAP_SCREEN_PX: f64 = 8.0;
-pub const DEFAULT_ANN_W: f64 = 200.0;
-pub const DEFAULT_ANN_H: f64 = 100.0;
-
 #[derive(Debug, Clone, Copy)]
 pub struct SnapOptions {
     pub scale: f64,
@@ -87,66 +69,6 @@ pub struct PointSnap {
     pub guides: SnapGuides,
 }
 
-pub fn rect_of_image(img: &BoardImage) -> AlignRect {
-    AlignRect {
-        left: img.x - img.width / 2.0,
-        top: img.y - img.height / 2.0,
-        width: img.width,
-        height: img.height,
-    }
-}
-
-pub fn rect_of_annotation(ann: &Annotation) -> Option<AlignRect> {
-    match ann {
-        Annotation::Arrow { .. } => None,
-        Annotation::Membrane {
-            x,
-            y,
-            width,
-            height,
-            ..
-        } => Some(AlignRect {
-            left: *x,
-            top: *y,
-            width: *width,
-            height: *height,
-        }),
-        Annotation::Text {
-            x,
-            y,
-            width,
-            height,
-            ..
-        } => Some(AlignRect {
-            left: *x,
-            top: *y,
-            width: width.unwrap_or(DEFAULT_ANN_W),
-            height: height.unwrap_or(DEFAULT_ANN_H),
-        }),
-        Annotation::Sticky {
-            x,
-            y,
-            width,
-            height,
-            ..
-        } => Some(AlignRect {
-            left: *x,
-            top: *y,
-            width: width.unwrap_or(160.0),
-            height: height.unwrap_or(120.0),
-        }),
-    }
-}
-
-pub fn rect_of_folder(f: &CanvasFolder) -> AlignRect {
-    AlignRect {
-        left: f.x,
-        top: f.y,
-        width: f.width,
-        height: f.height,
-    }
-}
-
 pub fn union_rect(rects: &[AlignRect]) -> Option<AlignRect> {
     if rects.is_empty() {
         return None;
@@ -179,7 +101,7 @@ pub fn collect_align_targets(board: &Board, exclude: &HashSet<String>) -> Vec<Al
         out.push(AlignTarget {
             id: img.id.clone(),
             kind: AlignKind::Image,
-            rect: rect_of_image(img),
+            rect: img.rect(),
         });
     }
 
@@ -187,7 +109,7 @@ pub fn collect_align_targets(board: &Board, exclude: &HashSet<String>) -> Vec<Al
         if exclude.contains(ann.id()) {
             continue;
         }
-        if let Some(rect) = rect_of_annotation(ann) {
+        if let Some(rect) = ann.rect() {
             let kind = match ann {
                 Annotation::Membrane { .. } => AlignKind::Membrane,
                 Annotation::Sticky { .. } => AlignKind::Sticky,
@@ -209,7 +131,7 @@ pub fn collect_align_targets(board: &Board, exclude: &HashSet<String>) -> Vec<Al
         out.push(AlignTarget {
             id: f.id.clone(),
             kind: AlignKind::Folder,
-            rect: rect_of_folder(f),
+            rect: f.rect(),
         });
     }
 

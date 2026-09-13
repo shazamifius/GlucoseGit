@@ -3,7 +3,10 @@
 
 use glucose_core::error::CoreError;
 use glucose_core::store::Store;
-use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, Domain, Project, Viewport};
+use glucose_core::types::{
+    Annotation, Board, BoardImage, CanvasFolder, Domain, Project, Viewport,
+    DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH,
+};
 
 fn mk_text(id: &str, x: f64, y: f64) -> Annotation {
     Annotation::Text {
@@ -505,13 +508,37 @@ fn test_un_tableau_vide_n_a_pas_de_bornes() {
     assert!(store.content_bounds("jamais-vu").is_none());
 }
 
-/// Une carte sans taille explicite compte pour son point, pas pour une taille inventée.
+/// Une carte sans taille explicite compte pour sa **taille de naissance** — celle que le rendu
+/// lui donne. Elle comptait pour son point : un cadrage sur un tableau de cartes fraîches
+/// coupait tout ce qui était dessiné à droite et en dessous de leurs origines.
 #[test]
-fn test_une_carte_sans_taille_compte_pour_son_point() {
+fn test_une_carte_sans_taille_compte_pour_sa_taille_de_naissance() {
     let mut store = Store::new("P");
     let board = store.project.active_board_id.clone();
     store.add_annotation(&board, Annotation::text("t", 40.0, 60.0, "sans dimension"));
 
     let b = store.content_bounds(&board).expect("des bornes");
-    assert_eq!((b.left, b.top, b.width, b.height), (40.0, 60.0, 0.0, 0.0));
+    assert_eq!(
+        (b.left, b.top, b.width, b.height),
+        (
+            40.0,
+            60.0,
+            DEFAULT_TEXT_CARD_WIDTH,
+            DEFAULT_TEXT_CARD_HEIGHT
+        )
+    );
+}
+
+/// Une image compte par son rectangle **centré** sur `(x, y)`. Elle comptait comme si elle
+/// était ancrée en haut à gauche : ses bornes étaient décalées d'une demi-image, et le test
+/// voisin ne le voyait pas parce qu'une membrane dominait toutes les bornes.
+#[test]
+fn test_une_image_compte_par_son_rectangle_centre() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    store.add_image(&board, BoardImage::new("i", 100.0, 200.0, 50.0, 40.0));
+
+    let b = store.content_bounds(&board).expect("des bornes");
+    assert_eq!((b.left, b.top), (75.0, 180.0));
+    assert_eq!((b.left + b.width, b.top + b.height), (125.0, 220.0));
 }

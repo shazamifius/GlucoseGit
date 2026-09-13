@@ -75,54 +75,18 @@ fn push_image_handles(out: &mut Vec<PickCandidate>, img: &BoardImage, z: usize, 
     );
 }
 
-/// Boite et poignees d'une annotation selectionnee ; `None` pour une fleche.
+/// Boîte et poignées d'une annotation sélectionnée ; `None` pour une flèche, qui n'a pas de
+/// boîte. Une carte de texte n'a que des poignées horizontales : sa hauteur suit son texte
+/// (TEXT-FIT-1).
 fn annotation_handles(ann: &Annotation) -> Option<(PickOwner, AlignRect, &'static [Handle])> {
-    match ann {
-        Annotation::Arrow { .. } => None,
-        Annotation::Membrane {
-            x,
-            y,
-            width,
-            height,
-            ..
-        } => Some((
-            PickOwner::Membrane,
-            AlignRect::new(*x, *y, *width, *height),
-            &Handle::ALL,
-        )),
-        Annotation::Text {
-            x,
-            y,
-            width,
-            height,
-            ..
-        } => {
-            let (w, h) = (width.unwrap_or(0.0), height.unwrap_or(0.0));
-            (w > 0.0 && h > 0.0).then(|| {
-                (
-                    PickOwner::Annotation,
-                    AlignRect::new(*x, *y, w, h),
-                    &Handle::HORIZONTAL[..],
-                )
-            })
-        }
-        Annotation::Sticky {
-            x,
-            y,
-            width,
-            height,
-            ..
-        } => {
-            let (w, h) = (width.unwrap_or(160.0), height.unwrap_or(120.0));
-            (w > 0.0 && h > 0.0).then(|| {
-                (
-                    PickOwner::Annotation,
-                    AlignRect::new(*x, *y, w, h),
-                    &Handle::ALL[..],
-                )
-            })
-        }
-    }
+    let rect = ann.rect()?;
+    let (owner, handles) = match ann {
+        Annotation::Membrane { .. } => (PickOwner::Membrane, &Handle::ALL[..]),
+        Annotation::Text { .. } => (PickOwner::Annotation, &Handle::HORIZONTAL[..]),
+        Annotation::Sticky { .. } => (PickOwner::Annotation, &Handle::ALL[..]),
+        Annotation::Arrow { .. } => return None,
+    };
+    Some((owner, rect, handles))
 }
 
 /// Collecte les poignees sous le curseur. Utilisee aussi par `candidates`.

@@ -25,10 +25,6 @@ use glucose_core::resize::Handle;
 use glucose_core::types::{Annotation, StickyOperator};
 use tiny_skia::{Color, LineCap, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
-/// Largeur par défaut d'un pense-bête, en unités monde.
-const STICKY_WIDTH: f64 = 160.0;
-/// Hauteur par défaut d'un pense-bête, en unités monde.
-const STICKY_HEIGHT: f64 = 120.0;
 /// Corps de texte d'un pense-bête.
 const STICKY_FONT: f32 = 13.0;
 /// Interligne, en multiples du corps.
@@ -108,8 +104,6 @@ pub(super) fn draw_sticky(
     let Annotation::Sticky {
         x,
         y,
-        width,
-        height,
         text,
         color,
         bg_color,
@@ -119,11 +113,10 @@ pub(super) fn draw_sticky(
     else {
         return;
     };
-    let layout = StickyLayout::new(
-        width.unwrap_or(STICKY_WIDTH) as f32,
-        height.unwrap_or(STICKY_HEIGHT) as f32,
-    )
-    .scaled(ctx.scale);
+    let (w, h) = ann
+        .size()
+        .expect("Annotation::size ne rend None que pour une flèche");
+    let layout = StickyLayout::new(w as f32, h as f32).scaled(ctx.scale);
 
     let (wx, wy) = world_to_screen(*x, *y, &ctx.vp);
     let (sx, sy) = (wx as f32, wy as f32);
@@ -184,11 +177,7 @@ pub(super) fn draw_sticky(
             .map(|c| parse_hex_color(c, 28, 25, 23))
             .unwrap_or((28, 25, 23));
         // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
-        let lines = sticky_lines(
-            ctx.typography,
-            content,
-            width.unwrap_or(STICKY_WIDTH) as f32,
-        );
+        let lines = sticky_lines(ctx.typography, content, w as f32);
         let blink = editing
             .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
             .unwrap_or(false);
@@ -441,7 +430,13 @@ mod spec_tests {
     /// (`ann.fontSize || 13`).
     #[test]
     fn test_the_sticky_metrics_are_those_of_the_spec() {
-        assert_eq!((STICKY_WIDTH, STICKY_HEIGHT), (160.0, 120.0));
+        assert_eq!(
+            (
+                glucose_core::types::DEFAULT_STICKY_WIDTH,
+                glucose_core::types::DEFAULT_STICKY_HEIGHT
+            ),
+            (160.0, 120.0)
+        );
         assert_eq!(STICKY_RADIUS, 2.0);
         assert_eq!(STICKY_FONT, 13.0);
     }

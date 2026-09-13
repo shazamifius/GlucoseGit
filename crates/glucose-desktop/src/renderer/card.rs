@@ -44,7 +44,6 @@ use super::wrap::wrap_paragraph;
 use super::{parse_hex_color, push_rounded_rect, PaintKit, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::params::{Pen, ViewPass};
-use crate::renderer::halo::{DEFAULT_TEXT_CARD_HEIGHT, DEFAULT_TEXT_CARD_WIDTH};
 use crate::renderer::math::MathRenderer;
 use crate::theme::Theme;
 use crate::typography::{TextStyle, Typography};
@@ -407,13 +406,7 @@ pub(super) fn draw_annotations(
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
             Annotation::Text {
-                x,
-                y,
-                width,
-                height,
-                text,
-                color,
-                ..
+                x, y, text, color, ..
             } => {
                 let (_, tint) = hue_cache.get_or_compute(ann, &board.annotations);
                 let tint = color
@@ -421,10 +414,10 @@ pub(super) fn draw_annotations(
                     .map(|c| parse_hex_color(c, tint.0, tint.1, tint.2))
                     .unwrap_or(tint);
                 let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
-                let size = (
-                    width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH) as f32,
-                    height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT) as f32,
-                );
+                let (w, h) = ann
+                    .size()
+                    .expect("Annotation::size ne rend None que pour une flèche");
+                let size = (w as f32, h as f32);
                 draw_text_card(
                     &ctx,
                     pixmap,

@@ -193,46 +193,24 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
                     });
                 }
             }
-            Annotation::Text {
-                id,
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let w = width.unwrap_or(0.0);
-                let h = height.unwrap_or(0.0);
-                if w > 0.0 && h > 0.0 && in_rect(wx, wy, *x, *y, w, h) {
+            // Une carte et un pense-bête sont terminaux : le cycle de profondeur s'arrête sur
+            // eux, pour laisser le double-clic d'édition intact. Leur boîte est celle du
+            // modèle, taille de naissance comprise.
+            Annotation::Text { id, .. } | Annotation::Sticky { id, .. } => {
+                let (kind, rank) = if matches!(ann, Annotation::Text { .. }) {
+                    (PickKind::Text, PICK_RANK_TEXT)
+                } else {
+                    (PickKind::Sticky, PICK_RANK_STICKY)
+                };
+                let inside = ann
+                    .rect()
+                    .is_some_and(|r| in_rect(wx, wy, r.left, r.top, r.width, r.height));
+                if inside {
                     out.push(PickCandidate {
                         owner: PickOwner::Annotation,
                         id: id.clone(),
-                        kind: PickKind::Text,
-                        rank: PICK_RANK_TEXT,
-                        z,
-                        corner: None,
-                        dist: 0.0,
-                        area: 0.0,
-                        terminal: true,
-                    });
-                }
-            }
-            Annotation::Sticky {
-                id,
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let w = width.unwrap_or(160.0);
-                let h = height.unwrap_or(120.0);
-                if w > 0.0 && h > 0.0 && in_rect(wx, wy, *x, *y, w, h) {
-                    out.push(PickCandidate {
-                        owner: PickOwner::Annotation,
-                        id: id.clone(),
-                        kind: PickKind::Sticky,
-                        rank: PICK_RANK_STICKY,
+                        kind,
+                        rank,
                         z,
                         corner: None,
                         dist: 0.0,

@@ -72,65 +72,14 @@ pub fn organize_board_grid(board: &mut Board, padding: f64) {
         }
     }
 
-    // 2. Placement des annotations (ancrage HAUT-GAUCHE)
+    // 2. Placement des annotations (ancrage HAUT-GAUCHE). La boîte vient du modèle ; une
+    //    flèche, qui n'en a pas, occupe l'enveloppe de son vecteur.
     for ann in &mut board.annotations {
-        match ann {
-            Annotation::Text {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let w = width.unwrap_or(240.0);
-                let h = height.unwrap_or(48.0);
-                *x = cur_x;
-                *y = cur_y;
-                row_max_h = row_max_h.max(h);
-                cur_x += w + padding;
-                idx += 1;
-            }
-            Annotation::Sticky {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                let w = width.unwrap_or(160.0);
-                let h = height.unwrap_or(120.0);
-                *x = cur_x;
-                *y = cur_y;
-                row_max_h = row_max_h.max(h);
-                cur_x += w + padding;
-                idx += 1;
-            }
-            Annotation::Membrane {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } => {
-                *x = cur_x;
-                *y = cur_y;
-                row_max_h = row_max_h.max(*height);
-                cur_x += *width + padding;
-                idx += 1;
-            }
-            Annotation::Arrow { x, y, x2, y2, .. } => {
-                let dx = *x2 - *x;
-                let dy = *y2 - *y;
-                *x = cur_x;
-                *y = cur_y;
-                *x2 = cur_x + dx;
-                *y2 = cur_y + dy;
-                let h = dy.abs().max(30.0);
-                row_max_h = row_max_h.max(h);
-                cur_x += dx.abs().max(80.0) + padding;
-                idx += 1;
-            }
-        }
+        let (w, h) = ann.size().unwrap_or_else(|| arrow_extent(ann));
+        ann.move_to(cur_x, cur_y);
+        row_max_h = row_max_h.max(h);
+        cur_x += w + padding;
+        idx += 1;
 
         if idx % cols == 0 {
             cur_x = 0.0;
@@ -138,6 +87,19 @@ pub fn organize_board_grid(board: &mut Board, padding: f64) {
             row_max_h = 0.0;
         }
     }
+}
+
+/// La place qu'une flèche occupe dans une grille : l'enveloppe de son vecteur, avec un
+/// plancher pour qu'une flèche très courte reste saisissable.
+fn arrow_extent(ann: &Annotation) -> (f64, f64) {
+    const MIN_ARROW_CELL: (f64, f64) = (80.0, 30.0);
+    let Annotation::Arrow { x, y, x2, y2, .. } = ann else {
+        return MIN_ARROW_CELL;
+    };
+    (
+        (x2 - x).abs().max(MIN_ARROW_CELL.0),
+        (y2 - y).abs().max(MIN_ARROW_CELL.1),
+    )
 }
 
 /// Calcule la réorganisation géométrique des images selon le mode sélectionné.
