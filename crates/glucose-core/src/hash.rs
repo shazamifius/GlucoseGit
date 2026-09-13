@@ -31,8 +31,9 @@ const H0: [u32; 8] = [
 /// Une ronde de compression sur un bloc de 64 octets.
 fn compress(state: &mut [u32; 8], block: &[u8; 64]) {
     let mut w = [0u32; 64];
-    for (i, word) in block.chunks_exact(4).enumerate() {
-        w[i] = u32::from_be_bytes([word[0], word[1], word[2], word[3]]);
+    let (words, _) = block.as_chunks::<4>();
+    for (slot, word) in w.iter_mut().zip(words) {
+        *slot = u32::from_be_bytes(*word);
     }
     for i in 16..64 {
         let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
@@ -95,8 +96,9 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
     }
 
     let mut out = [0u8; 32];
-    for (chunk, word) in out.chunks_exact_mut(4).zip(state) {
-        chunk.copy_from_slice(&word.to_be_bytes());
+    let (chunks, _) = out.as_chunks_mut::<4>();
+    for (chunk, word) in chunks.iter_mut().zip(state) {
+        *chunk = word.to_be_bytes();
     }
     out
 }
@@ -176,8 +178,9 @@ mod tests {
                 compress(&mut state, block);
             }
             let mut out = [0u8; 32];
-            for (chunk, word) in out.chunks_exact_mut(4).zip(state) {
-                chunk.copy_from_slice(&word.to_be_bytes());
+            let (chunks, _) = out.as_chunks_mut::<4>();
+            for (chunk, word) in chunks.iter_mut().zip(state) {
+                *chunk = word.to_be_bytes();
             }
             out
         }
