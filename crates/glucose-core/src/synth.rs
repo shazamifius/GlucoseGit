@@ -20,7 +20,7 @@
 //! pas la pluie uniforme, et c'est donc elle qu'il faut savoir fabriquer.
 
 use crate::store::Store;
-use crate::types::{Annotation, BoardImage, CanvasFolder, Viewport};
+use crate::types::{Annotation, BoardImage, CanvasFolder, StickyOperator, Viewport};
 
 /// Suite congruentielle linéaire — le hasard reproductible du projet.
 ///
@@ -212,6 +212,12 @@ pub fn witness() -> Store {
         BOARD,
         Annotation::sticky("s-simple", -520.0, 180.0, "un pense-bête"),
     );
+    // Un opérateur logique se dessine en pilule, pas en papier : il faut le voir aussi.
+    let mut operateur = Annotation::sticky("s-parce-que", -520.0, 330.0, "");
+    if let Annotation::Sticky { operator, .. } = &mut operateur {
+        *operator = Some(StickyOperator::Because);
+    }
+    store.add_annotation(BOARD, operateur);
     store.add_annotation(
         BOARD,
         Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0),

@@ -38,6 +38,29 @@ pub enum StickyOperator {
     Because,
 }
 
+/// Hauteur de naissance d'un pense-bête opérateur : une pilule (fiche 06 § 5.3).
+pub const DEFAULT_OPERATOR_HEIGHT: f64 = 44.0;
+
+impl StickyOperator {
+    /// Le mot que la pilule affiche, tel que la référence l'écrit.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::And => "ET",
+            Self::Or => "OU",
+            Self::But => "MAIS",
+            Self::Because => "PARCE QUE",
+        }
+    }
+
+    /// Largeur de naissance de la pilule : « PARCE QUE » est plus long que les trois autres.
+    pub fn default_width(self) -> f64 {
+        match self {
+            Self::Because => 130.0,
+            Self::And | Self::Or | Self::But => 80.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum MembraneMode {
     #[default]
@@ -304,6 +327,17 @@ impl Annotation {
             Self::Text { width, height, .. } => Some((
                 width.unwrap_or(DEFAULT_TEXT_CARD_WIDTH),
                 height.unwrap_or(DEFAULT_TEXT_CARD_HEIGHT),
+            )),
+            // Un pense-bête qui porte un opérateur est une pilule, pas un papier : il naît
+            // à la taille de son mot.
+            Self::Sticky {
+                width,
+                height,
+                operator: Some(op),
+                ..
+            } => Some((
+                width.unwrap_or(op.default_width()),
+                height.unwrap_or(DEFAULT_OPERATOR_HEIGHT),
             )),
             Self::Sticky { width, height, .. } => Some((
                 width.unwrap_or(DEFAULT_STICKY_WIDTH),

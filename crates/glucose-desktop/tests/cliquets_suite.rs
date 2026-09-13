@@ -594,11 +594,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         98,
     ),
     (
-        "crates/glucose-desktop/src/renderer/note.rs",
-        "draw_sticky",
-        119,
-    ),
-    (
         "crates/glucose-desktop/src/renderer/scene.rs",
         "draw_membrane_shape",
         93,

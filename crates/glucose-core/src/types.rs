@@ -58,7 +58,7 @@ mod project;
 
 pub use annotation::{
     Annotation, ArrowPredicate, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
-    MembraneMode, Point2D, StickyOperator, TextAnchor, TextSelection,
+    MembraneMode, Point2D, StickyOperator, TextAnchor, TextSelection, DEFAULT_OPERATOR_HEIGHT,
 };
 pub use board::{Board, FolderTreeNode, StoryboardPanel, Viewport};
 pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode};
