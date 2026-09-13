@@ -30,19 +30,36 @@ pub(super) fn draw_resize_handles(
     let side = scale.screen(HANDLE_SIDE);
     let outline = scale.screen(HANDLE_OUTLINE);
 
-    let mut fill = Paint { anti_alias: true, ..Default::default() };
+    let mut fill = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     fill.set_color(theme.handle_fill);
-    let mut border = Paint { anti_alias: true, ..Default::default() };
+    let mut border = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     border.set_color(theme.handle_outline);
-    let stroke = Stroke { width: outline, ..Default::default() };
+    let stroke = Stroke {
+        width: outline,
+        ..Default::default()
+    };
 
     for handle in handles {
         let (cx, cy) = handle.position_on(rect);
-        let Some(square) = Rect::from_xywh(cx as f32 - side / 2.0, cy as f32 - side / 2.0, side, side) else {
+        let Some(square) =
+            Rect::from_xywh(cx as f32 - side / 2.0, cy as f32 - side / 2.0, side, side)
+        else {
             continue;
         };
         pixmap.fill_rect(square, &fill, Transform::identity(), None);
-        pixmap.stroke_path(&PathBuilder::from_rect(square), &border, &stroke, Transform::identity(), None);
+        pixmap.stroke_path(
+            &PathBuilder::from_rect(square),
+            &border,
+            &stroke,
+            Transform::identity(),
+            None,
+        );
     }
 }
 
@@ -69,12 +86,22 @@ mod tests {
         pixmap.fill(Color::from_rgba8(0, 0, 0, 255));
         let theme = Theme::dark();
         let screen_box = (50.0, 40.0, 200.0, 100.0);
-        draw_resize_handles(&mut pixmap.as_mut(), &theme, WorldScale::new(1.0), screen_box, &Handle::ALL);
+        draw_resize_handles(
+            &mut pixmap.as_mut(),
+            &theme,
+            WorldScale::new(1.0),
+            screen_box,
+            &Handle::ALL,
+        );
 
         let rect = AlignRect::new(50.0, 40.0, 200.0, 100.0);
         for handle in Handle::ALL {
             let (cx, cy) = handle.position_on(rect);
-            assert!(lit(&pixmap, cx as u32, cy as u32), "{} sans encre en ({cx}, {cy})", handle.as_str());
+            assert!(
+                lit(&pixmap, cx as u32, cy as u32),
+                "{} sans encre en ({cx}, {cy})",
+                handle.as_str()
+            );
         }
         // Le centre du nœud, lui, reste vierge : les poignées sont sur le bord.
         assert!(!lit(&pixmap, 150, 90));
@@ -87,7 +114,13 @@ mod tests {
         for zoom in [0.25_f64, 1.0, 4.0] {
             let mut pixmap = Pixmap::new(120, 120).expect("pixmap");
             pixmap.fill(Color::from_rgba8(0, 0, 0, 255));
-            draw_resize_handles(&mut pixmap.as_mut(), &theme, WorldScale::new(zoom), (60.0, 60.0, 40.0, 40.0), &[Handle::TopLeft]);
+            draw_resize_handles(
+                &mut pixmap.as_mut(),
+                &theme,
+                WorldScale::new(zoom),
+                (60.0, 60.0, 40.0, 40.0),
+                &[Handle::TopLeft],
+            );
             let lit_on_row = (0..120).filter(|&x| lit(&pixmap, x, 60)).count();
             widths.push(lit_on_row);
         }

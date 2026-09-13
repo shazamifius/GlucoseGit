@@ -24,7 +24,10 @@ fn test_le_texte_relu_est_celui_qui_a_ete_ecrit() {
         (1, ""),
         (2, "日本語とémojis 🌱🜂"),
         (3, "a"),
-        (7, "un trou avant moi : les nœuds 4, 5 et 6 n'ont pas de texte"),
+        (
+            7,
+            "un trou avant moi : les nœuds 4, 5 et 6 n'ont pas de texte",
+        ),
     ];
     for (i, texte) in cas {
         assert!(t.set(id(i), texte));
@@ -81,7 +84,10 @@ fn test_le_compactage_rend_exactement_ce_qui_etait_perdu() {
     // Une session d'édition : dix nœuds, chacun réécrit plusieurs fois.
     for tour in 0..5 {
         for i in 0..10 {
-            t.set(id(i), &format!("nœud {i}, version {tour} — du texte pour occuper la place"));
+            t.set(
+                id(i),
+                &format!("nœud {i}, version {tour} — du texte pour occuper la place"),
+            );
         }
     }
     let attendus: Vec<String> = (0..10).map(|i| t.get(id(i)).to_string()).collect();
@@ -130,7 +136,10 @@ fn test_la_regle_de_saturation_borne_l_arene_a_quatre_giga_octets() {
     assert!(!deborde(plein - 10, 10));
     assert!(deborde(plein - 10, 11));
     assert!(deborde(plein, 1));
-    assert!(deborde(usize::MAX, 1), "aucun débordement d'entier en chemin");
+    assert!(
+        deborde(usize::MAX, 1),
+        "aucun débordement d'entier en chemin"
+    );
 }
 
 /// Un identifiant qui ne désigne aucun nœud ne se voit pas attribuer de texte.

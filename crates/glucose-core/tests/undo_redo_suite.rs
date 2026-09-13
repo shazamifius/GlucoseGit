@@ -776,7 +776,11 @@ fn test_un_drag_qui_deplace_vraiment_vide_le_redo_en_attente() {
     store.move_selected("main", 1.0, 1.0);
     store.end_live_edit();
 
-    assert_eq!(store.active_board().unwrap().images[0].x, 1.0, "le geste a bien écrit");
+    assert_eq!(
+        store.active_board().unwrap().images[0].x,
+        1.0,
+        "le geste a bien écrit"
+    );
     assert_eq!(store.redo_depth(), 0, "et l'histoire repart d'ici");
 }
 
@@ -892,10 +896,18 @@ fn test_un_geste_abandonne_ne_detruit_pas_le_redo_en_attente() {
 
     store.begin_live_edit();
     store.move_selected("main", 50.0, 20.0);
-    assert_eq!(store.active_board().unwrap().images[0].x, 50.0, "le geste a bien écrit");
+    assert_eq!(
+        store.active_board().unwrap().images[0].x,
+        50.0,
+        "le geste a bien écrit"
+    );
     assert!(store.cancel_live_edit());
 
-    assert_eq!(store.active_board().unwrap().images[0].x, 0.0, "le geste est défait");
+    assert_eq!(
+        store.active_board().unwrap().images[0].x,
+        0.0,
+        "le geste est défait"
+    );
     assert_eq!(store.redo_depth(), 1, "et l'histoire alternative a survécu");
     assert!(store.redo());
     assert_eq!(store.active_board().unwrap().images.len(), 2);
@@ -914,9 +926,16 @@ fn test_on_ne_defait_ni_ne_refait_pendant_un_geste_ouvert() {
 
     store.begin_live_edit();
     store.move_selected("main", 10.0, 0.0);
-    assert!(!store.undo(), "Ctrl+Z pendant un glisser ne défait pas le geste précédent");
+    assert!(
+        !store.undo(),
+        "Ctrl+Z pendant un glisser ne défait pas le geste précédent"
+    );
     assert!(!store.redo(), "Ctrl+Y non plus");
-    assert_eq!(store.active_board().unwrap().images[0].x, 10.0, "le geste en cours continue");
+    assert_eq!(
+        store.active_board().unwrap().images[0].x,
+        10.0,
+        "le geste en cours continue"
+    );
     store.end_live_edit();
 
     // Une fois le geste fermé, tout redevient normal.

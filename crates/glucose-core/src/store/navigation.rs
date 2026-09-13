@@ -220,11 +220,29 @@ impl Store {
                 Annotation::Arrow { x, y, x2, y2, .. } => {
                     etendre(x.min(*x2), y.min(*y2), x.max(*x2), y.max(*y2));
                 }
-                Annotation::Membrane { x, y, width, height, .. } => {
+                Annotation::Membrane {
+                    x,
+                    y,
+                    width,
+                    height,
+                    ..
+                } => {
                     etendre(*x, *y, x + width, y + height);
                 }
-                Annotation::Text { x, y, width, height, .. }
-                | Annotation::Sticky { x, y, width, height, .. } => {
+                Annotation::Text {
+                    x,
+                    y,
+                    width,
+                    height,
+                    ..
+                }
+                | Annotation::Sticky {
+                    x,
+                    y,
+                    width,
+                    height,
+                    ..
+                } => {
                     // Une carte sans taille explicite occupe au moins son point : mieux vaut
                     // une boîte un peu petite qu'un cadrage qui invente des dimensions.
                     etendre(*x, *y, x + width.unwrap_or(0.0), y + height.unwrap_or(0.0));

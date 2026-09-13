@@ -113,13 +113,21 @@ pub fn draw_breadcrumb(
     for seg in &segments {
         // Le segment courant est celui où l'on est : plus clair et gras, les autres en retrait
         // — ce sont eux qu'on clique, et la hiérarchie doit se lire sans réfléchir.
-        let couleur = if seg.current { theme.text_primary } else { theme.text_muted };
+        let couleur = if seg.current {
+            theme.text_primary
+        } else {
+            theme.text_muted
+        };
         typography.draw_text(
             pixmap,
             &seg.label,
             seg.rect.0,
             base,
-            TextStyle { size: font, color: couleur, bold: seg.current },
+            TextStyle {
+                size: font,
+                color: couleur,
+                bold: seg.current,
+            },
         );
         if !seg.current {
             typography.draw_text(
@@ -127,7 +135,11 @@ pub fn draw_breadcrumb(
                 SEPARATOR,
                 seg.rect.0 + seg.rect.2,
                 base,
-                TextStyle { size: font, color: separator_color(theme), bold: false },
+                TextStyle {
+                    size: font,
+                    color: separator_color(theme),
+                    bold: false,
+                },
             );
         }
     }

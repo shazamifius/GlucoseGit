@@ -9,13 +9,23 @@ use crate::typography::Typography;
 use glucose_core::types::{Annotation, BoardImage, Domain};
 use tiny_skia::Pixmap;
 
-const SCREEN: ScreenFrame =
-    ScreenFrame { width: 1440.0, height: 900.0, header_h: 78.0, scale: 1.0 };
+const SCREEN: ScreenFrame = ScreenFrame {
+    width: 1440.0,
+    height: 900.0,
+    header_h: 78.0,
+    scale: 1.0,
+};
 
 /// Un domaine tel que l'application en crée : chaque rang a sa couleur et son sigle.
 fn domain_at(rank: usize, id: &str, name: &str) -> Domain {
     let (color, icon) = fresh_look(rank);
-    Domain { id: id.into(), name: name.into(), color: color.into(), icon: icon.into(), created_at: 0 }
+    Domain {
+        id: id.into(),
+        name: name.into(),
+        color: color.into(),
+        icon: icon.into(),
+        created_at: 0,
+    }
 }
 
 fn domain(id: &str, name: &str) -> Domain {
@@ -48,23 +58,39 @@ fn populated() -> Store {
         .into_iter()
         .enumerate()
     {
-        store.try_add_domain(domain_at(rank, id, name)).expect("identifiants distincts");
+        store
+            .try_add_domain(domain_at(rank, id, name))
+            .expect("identifiants distincts");
     }
     store.add_annotation("main", text("t-1"));
     if let Some(board) = store.active_board_mut() {
-        board.images.push(BoardImage::new("img-1", 0.0, 0.0, 200.0, 150.0));
+        board
+            .images
+            .push(BoardImage::new("img-1", 0.0, 0.0, 200.0, 150.0));
     }
     store
 }
 
 /// Le cadre du panneau DOMAINES tel que le dock le place réellement.
 fn domains_frame(dock: &DockManager) -> ScaledRect {
-    let boxes = compute_panel_layouts(dock, SCREEN.width, SCREEN.height, SCREEN.header_h, SCREEN.scale);
+    let boxes = compute_panel_layouts(
+        dock,
+        SCREEN.width,
+        SCREEN.height,
+        SCREEN.header_h,
+        SCREEN.scale,
+    );
     let b = boxes
         .iter()
         .find(|b| b.tab == TabId::Domains)
         .expect("l'onglet DOMAINES doit être ouvert");
-    ScaledRect { x: b.x, y: b.y, w: b.width, h: b.height, scale: SCREEN.scale }
+    ScaledRect {
+        x: b.x,
+        y: b.y,
+        w: b.width,
+        h: b.height,
+        scale: SCREEN.scale,
+    }
 }
 
 fn dock_with_domains() -> DockManager {
@@ -74,7 +100,10 @@ fn dock_with_domains() -> DockManager {
 }
 
 fn center(rect: WidgetRect) -> Pointer {
-    Pointer { x: rect.x + rect.w / 2.0, y: rect.y + rect.h / 2.0 }
+    Pointer {
+        x: rect.x + rect.w / 2.0,
+        y: rect.y + rect.h / 2.0,
+    }
 }
 
 // ── DOM-UI-1 — le panneau n'a aucune liste à lui ────────────────────────────
@@ -88,13 +117,26 @@ fn test_dom_ui_1_the_panel_shows_the_document_and_only_the_document() {
     let dock = dock_with_domains();
     let frame = domains_frame(&dock);
 
-    assert!(layout_domains_panel(frame, &store, &dock.domains).rows.is_empty());
+    assert!(layout_domains_panel(frame, &store, &dock.domains)
+        .rows
+        .is_empty());
 
-    store.try_add_domain(domain("d-1", "Science")).expect("catalogue vide");
-    store.try_add_domain(domain("d-2", "Art")).expect("identifiant neuf");
-    assert_eq!(layout_domains_panel(frame, &store, &dock.domains).rows.len(), 2);
+    store
+        .try_add_domain(domain("d-1", "Science"))
+        .expect("catalogue vide");
+    store
+        .try_add_domain(domain("d-2", "Art"))
+        .expect("identifiant neuf");
+    assert_eq!(
+        layout_domains_panel(frame, &store, &dock.domains)
+            .rows
+            .len(),
+        2
+    );
 
-    store.try_remove_domain("d-1").expect("d-1 est au catalogue");
+    store
+        .try_remove_domain("d-1")
+        .expect("d-1 est au catalogue");
     let rows = layout_domains_panel(frame, &store, &dock.domains).rows;
     assert_eq!(rows.len(), 1);
     assert_eq!(store.project.domains[rows[0].index].id, "d-2");
@@ -116,7 +158,11 @@ fn test_dom_ui_1_the_interface_state_holds_gestures_not_data() {
         }),
     };
     ui.reset();
-    assert_eq!(ui, DomainsUi::default(), "un changement de document efface tout geste");
+    assert_eq!(
+        ui,
+        DomainsUi::default(),
+        "un changement de document efface tout geste"
+    );
 }
 
 // ── DOM-UI-2 — dessin et clic lisent la même liste ──────────────────────────
@@ -159,7 +205,10 @@ fn test_each_weight_step_assigns_its_own_weight() {
     for (step, rect) in row.steps.iter().enumerate() {
         assert_eq!(
             hit_domains_panel(&layout, &store, center(*rect), true),
-            Some(DomainIntent::Assign { domain_id: id.clone(), weight: WEIGHT_STEPS[step] }),
+            Some(DomainIntent::Assign {
+                domain_id: id.clone(),
+                weight: WEIGHT_STEPS[step]
+            }),
             "palier {step}"
         );
     }
@@ -176,10 +225,8 @@ fn test_no_two_widgets_of_a_row_overlap() {
         rects.extend(row.steps.iter().copied());
         for (i, a) in rects.iter().enumerate() {
             for b in rects.iter().skip(i + 1) {
-                let separated = a.x + a.w <= b.x
-                    || b.x + b.w <= a.x
-                    || a.y + a.h <= b.y
-                    || b.y + b.h <= a.y;
+                let separated =
+                    a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
                 assert!(separated, "{a:?} recouvre {b:?}");
             }
         }
@@ -194,8 +241,14 @@ fn test_without_a_selection_the_weight_buttons_do_nothing() {
     let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
     let row = &layout.rows[0];
 
-    assert_eq!(hit_domains_panel(&layout, &store, center(row.steps[2]), false), None);
-    assert_eq!(hit_domains_panel(&layout, &store, center(row.unassign), false), None);
+    assert_eq!(
+        hit_domains_panel(&layout, &store, center(row.steps[2]), false),
+        None
+    );
+    assert_eq!(
+        hit_domains_panel(&layout, &store, center(row.unassign), false),
+        None
+    );
     // Le reste de la ligne, lui, reste utilisable : renommer ne demande pas de sélection.
     assert!(hit_domains_panel(&layout, &store, center(row.name), false).is_some());
 }
@@ -213,8 +266,13 @@ fn test_a_deletion_asks_before_it_acts() {
 
     dock.domains.pending_delete = Some("d-2".into());
     let asking = layout_domains_panel(frame, &store, &dock.domains);
-    assert!(asking.rows[0].confirm.is_none(), "seule la ligne visée pose la question");
-    let (yes, no) = asking.rows[1].confirm.expect("d-2 doit demander confirmation");
+    assert!(
+        asking.rows[0].confirm.is_none(),
+        "seule la ligne visée pose la question"
+    );
+    let (yes, no) = asking.rows[1]
+        .confirm
+        .expect("d-2 doit demander confirmation");
 
     assert_eq!(
         hit_domains_panel(&asking, &store, center(yes), true),
@@ -244,9 +302,16 @@ fn test_a_panel_too_short_shows_what_fits_and_says_how_many_are_missing() {
     let dock = dock_with_domains();
     let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
 
-    assert!(!layout.rows.is_empty(), "le panneau doit montrer ce qu'il peut");
+    assert!(
+        !layout.rows.is_empty(),
+        "le panneau doit montrer ce qu'il peut"
+    );
     assert!(layout.rows.len() < 40, "il ne peut pas tout montrer");
-    assert_eq!(layout.rows.len() + layout.hidden, 40, "aucun domaine n'est perdu du compte");
+    assert_eq!(
+        layout.rows.len() + layout.hidden,
+        40,
+        "aucun domaine n'est perdu du compte"
+    );
     let last = layout.rows.last().expect("au moins une ligne");
     assert!(
         last.unassign.y + last.unassign.h <= layout.add_button.y,
@@ -265,7 +330,11 @@ fn test_cycling_a_colour_walks_the_palette_and_comes_back() {
         assert!(!seen.contains(&colour), "{colour} revient trop tôt");
         seen.push(colour.clone());
     }
-    assert_eq!(next_color(&colour), DOMAIN_PALETTE[0], "le tour doit se refermer");
+    assert_eq!(
+        next_color(&colour),
+        DOMAIN_PALETTE[0],
+        "le tour doit se refermer"
+    );
     // Une couleur venue d'ailleurs repart du début plutôt que de bloquer le bouton.
     assert_eq!(next_color("#123456"), DOMAIN_PALETTE[0]);
     assert_eq!(next_color(""), DOMAIN_PALETTE[0]);
@@ -286,7 +355,12 @@ fn test_cycling_a_sigil_walks_the_palette_and_comes_back() {
 #[test]
 fn test_two_domains_created_in_a_row_do_not_look_alike() {
     for rank in 0..DOMAIN_PALETTE.len() - 1 {
-        assert_ne!(fresh_look(rank), fresh_look(rank + 1), "rangs {rank} et {}", rank + 1);
+        assert_ne!(
+            fresh_look(rank),
+            fresh_look(rank + 1),
+            "rangs {rank} et {}",
+            rank + 1
+        );
     }
 }
 
@@ -302,7 +376,10 @@ fn test_a_click_on_the_panel_reaches_the_intent_through_the_dock() {
     let layout = layout_domains_panel(domains_frame(&dock), &store, &dock.domains);
 
     let clicked = handle_dock_click(&mut dock, &store, &typo, SCREEN, center(layout.add_button));
-    assert_eq!(clicked, Some(PanelClickResult::Domain(DomainIntent::Create)));
+    assert_eq!(
+        clicked,
+        Some(PanelClickResult::Domain(DomainIntent::Create))
+    );
 
     let row = &layout.rows[0];
     let id = store.project.domains[row.index].id.clone();
@@ -317,7 +394,10 @@ fn test_a_click_on_the_panel_reaches_the_intent_through_the_dock() {
     );
     assert_eq!(
         clicked,
-        Some(PanelClickResult::Domain(DomainIntent::Assign { domain_id: id, weight: 1.0 }))
+        Some(PanelClickResult::Domain(DomainIntent::Assign {
+            domain_id: id,
+            weight: 1.0
+        }))
     );
 }
 
@@ -329,7 +409,10 @@ fn test_a_click_inside_the_panel_never_falls_through_to_the_canvas() {
     let mut dock = dock_with_domains();
     let typo = Typography::new();
     let frame = domains_frame(&dock);
-    let empty_spot = Pointer { x: frame.x + frame.w / 2.0, y: frame.y + 2.0 };
+    let empty_spot = Pointer {
+        x: frame.x + frame.w / 2.0,
+        y: frame.y + 2.0,
+    };
 
     assert_eq!(
         handle_dock_click(&mut dock, &store, &typo, SCREEN, empty_spot),
@@ -351,7 +434,10 @@ fn test_the_panel_draws_in_every_state_within_its_own_frame() {
 
     let states = [
         DomainsUi::default(),
-        DomainsUi { pending_delete: Some("d-2".into()), rename: None },
+        DomainsUi {
+            pending_delete: Some("d-2".into()),
+            rename: None,
+        },
         DomainsUi {
             pending_delete: None,
             rename: Some(DomainRename {
@@ -373,9 +459,16 @@ fn test_the_panel_draws_in_every_state_within_its_own_frame() {
             &typo,
             &theme,
             frame,
-            Pointer { x: frame.x + 20.0, y: frame.y + 60.0 },
+            Pointer {
+                x: frame.x + 20.0,
+                y: frame.y + 60.0,
+            },
         );
-        assert_ne!(pixmap.data(), before.as_slice(), "état {index} : rien n'a été dessiné");
+        assert_ne!(
+            pixmap.data(),
+            before.as_slice(),
+            "état {index} : rien n'a été dessiné"
+        );
     }
 }
 
@@ -395,7 +488,13 @@ fn test_domains_panel_png_capture() {
 
     for (name, ui) in [
         ("liste", DomainsUi::default()),
-        ("confirmation", DomainsUi { pending_delete: Some("d-2".into()), rename: None }),
+        (
+            "confirmation",
+            DomainsUi {
+                pending_delete: Some("d-2".into()),
+                rename: None,
+            },
+        ),
         (
             "renommage",
             DomainsUi {
@@ -411,7 +510,11 @@ fn test_domains_panel_png_capture() {
         let frame = domains_frame(&dock);
         let mut pixmap = Pixmap::new(520, 620).expect("pixmap du panneau");
         pixmap.fill(theme.bg_panel);
-        let shifted = ScaledRect { x: 24.0, y: 24.0, ..frame };
+        let shifted = ScaledRect {
+            x: 24.0,
+            y: 24.0,
+            ..frame
+        };
         render_domains_panel(
             &mut pixmap.as_mut(),
             &store,
@@ -421,6 +524,8 @@ fn test_domains_panel_png_capture() {
             shifted,
             Pointer { x: -1.0, y: -1.0 },
         );
-        pixmap.save_png(dir.join(format!("panneau-{name}.png"))).expect("écriture du png");
+        pixmap
+            .save_png(dir.join(format!("panneau-{name}.png")))
+            .expect("écriture du png");
     }
 }

@@ -238,7 +238,9 @@ fn main() {
     }
     println!("\nLecture :");
     println!("  • « encode ms »  = construire les octets du fichier, sans I/O. Une sauvegarde qui ne change");
-    println!("    rien au document devrait coûter la modification (zéro), pas le volume des actifs.");
+    println!(
+        "    rien au document devrait coûter la modification (zéro), pas le volume des actifs."
+    );
     println!("  • « alloué Mo »  = mémoire vivante au sortir de l'encodage, au-delà du modèle et des actifs :");
     println!("    ce que le fichier en construction a coûté en copies.");
 }

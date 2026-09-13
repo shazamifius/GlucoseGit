@@ -42,7 +42,10 @@ impl Lcg {
     /// iterateur se confond avec celle d'`Iterator`, et le lecteur s'attend alors a pouvoir
     /// ecrire une boucle `for`.
     pub fn next_u64(&mut self) -> u64 {
-        self.0 = self.0.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
         self.0 >> 11
     }
 
@@ -110,8 +113,9 @@ pub fn document(n: usize, span: f64, shape: Shape, seed: u64) -> Store {
         Shape::Uniform => 0,
         Shape::Clustered | Shape::Wikipedia => ((n as f64).sqrt() / 8.0).ceil().max(1.0) as usize,
     };
-    let centers: Vec<(f64, f64)> =
-        (0..clusters).map(|_| (rng.upto(span), rng.upto(span))).collect();
+    let centers: Vec<(f64, f64)> = (0..clusters)
+        .map(|_| (rng.upto(span), rng.upto(span)))
+        .collect();
     // Un amas occupe une fraction du carré telle que les amas se touchent à peine.
     let radius = span / (clusters.max(1) as f64).sqrt() / 3.0;
 
@@ -136,7 +140,10 @@ pub fn document(n: usize, span: f64, shape: Shape, seed: u64) -> Store {
                 BOARD,
                 Annotation::sticky(format!("sti-{i}"), x, y, "une note brève"),
             ),
-            _ => store.add_annotation(BOARD, Annotation::membrane(format!("mem-{i}"), x, y, 420.0, 320.0)),
+            _ => store.add_annotation(
+                BOARD,
+                Annotation::membrane(format!("mem-{i}"), x, y, 420.0, 320.0),
+            ),
         }
     }
 
@@ -185,7 +192,12 @@ pub fn witness() -> Store {
     );
     store.add_annotation(
         BOARD,
-        Annotation::text("t-accents", -520.0, 40.0, "Accents : éàçùôêîï — « guillemets »"),
+        Annotation::text(
+            "t-accents",
+            -520.0,
+            40.0,
+            "Accents : éàçùôêîï — « guillemets »",
+        ),
     );
     store.add_annotation(
         BOARD,
@@ -196,8 +208,14 @@ pub fn witness() -> Store {
             "Une formule, seule sur sa ligne :\n$$\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$$\nEt une qui ne compile pas :\n$$\\frac{a}{$$",
         ),
     );
-    store.add_annotation(BOARD, Annotation::sticky("s-simple", -520.0, 180.0, "un pense-bête"));
-    store.add_annotation(BOARD, Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0));
+    store.add_annotation(
+        BOARD,
+        Annotation::sticky("s-simple", -520.0, 180.0, "un pense-bête"),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0),
+    );
 
     let mut membrane = Annotation::membrane("m-titree", 60.0, -260.0, 420.0, 300.0);
     if let Annotation::Membrane { text, .. } = &mut membrane {
@@ -217,7 +235,14 @@ pub fn witness() -> Store {
     // tomberait hors champ. Ces valeurs mettent tout le contenu sous le bandeau et dans la
     // fenêtre, à l'échelle 1, pour une capture de [`WITNESS_SIZE`].
     let board_id = store.project.active_board_id.clone();
-    store.set_viewport(&board_id, Viewport { x: 720.0, y: 374.0, scale: 1.0 });
+    store.set_viewport(
+        &board_id,
+        Viewport {
+            x: 720.0,
+            y: 374.0,
+            scale: 1.0,
+        },
+    );
 
     store.end_live_edit();
     store.clear_selection();
@@ -298,7 +323,12 @@ pub fn showcase() -> Store {
     );
     store.add_annotation(
         BOARD,
-        Annotation::text("s-kraft-f", -140.0, -180.0, "$$\\sum_{i=1}^{n} 2^{-\\ell_i} \\le 1$$"),
+        Annotation::text(
+            "s-kraft-f",
+            -140.0,
+            -180.0,
+            "$$\\sum_{i=1}^{n} 2^{-\\ell_i} \\le 1$$",
+        ),
     );
     store.add_annotation(
         BOARD,
@@ -311,7 +341,10 @@ pub fn showcase() -> Store {
     );
 
     // Les flèches du raisonnement.
-    store.add_annotation(BOARD, Annotation::arrow("s-a1", -560.0, -120.0, -160.0, -140.0));
+    store.add_annotation(
+        BOARD,
+        Annotation::arrow("s-a1", -560.0, -120.0, -160.0, -140.0),
+    );
     store.add_annotation(BOARD, Annotation::arrow("s-a2", -560.0, 60.0, -160.0, 20.0));
 
     // Un dossier : le sous-tableau des démonstrations.
@@ -324,7 +357,14 @@ pub fn showcase() -> Store {
     store.create_folder(BOARD, dossier);
 
     let board_id = store.project.active_board_id.clone();
-    store.set_viewport(&board_id, Viewport { x: 1_010.0, y: 500.0, scale: 1.0 });
+    store.set_viewport(
+        &board_id,
+        Viewport {
+            x: 1_010.0,
+            y: 500.0,
+            scale: 1.0,
+        },
+    );
 
     store.end_live_edit();
     store.clear_selection();

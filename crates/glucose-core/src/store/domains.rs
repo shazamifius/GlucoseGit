@@ -198,7 +198,9 @@ impl Store {
         }
         let index = self.project.domains.len();
         self.project.domains.push(domain.clone());
-        self.record_edit(Edit::Domain { slot: Slot::inserted(index, domain) });
+        self.record_edit(Edit::Domain {
+            slot: Slot::inserted(index, domain),
+        });
         Ok(())
     }
 
@@ -221,7 +223,9 @@ impl Store {
         let before = self.project.domains[i].clone();
         patch.apply(&mut self.project.domains[i]);
         let after = self.project.domains[i].clone();
-        self.record_edit(Edit::Domain { slot: Slot::changed(i, before, after) });
+        self.record_edit(Edit::Domain {
+            slot: Slot::changed(i, before, after),
+        });
         Ok(())
     }
 
@@ -241,7 +245,9 @@ impl Store {
             return Err(CoreError::DomainNotFound(id.to_string()));
         };
         let removed = self.project.domains.remove(di);
-        let mut edits = vec![Edit::Domain { slot: Slot::removed(di, removed) }];
+        let mut edits = vec![Edit::Domain {
+            slot: Slot::removed(di, removed),
+        }];
         let mut detached = 0usize;
 
         // Meme ordre de visite que `for_each_assignment_list` : annotations, puis images.

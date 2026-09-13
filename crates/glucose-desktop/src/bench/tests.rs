@@ -16,9 +16,16 @@ fn test_une_frame_hors_ecran_dessine_vraiment() {
     let mut renderer = Renderer::new();
     let mut ui = UiState::new();
     let pixmap = render_frame(&mut renderer, &mut ui, &store, 800, 600);
-    let couleurs: std::collections::HashSet<_> =
-        pixmap.pixels().iter().map(|p| (p.red(), p.green(), p.blue())).collect();
-    assert!(couleurs.len() > 8, "seulement {} couleurs distinctes", couleurs.len());
+    let couleurs: std::collections::HashSet<_> = pixmap
+        .pixels()
+        .iter()
+        .map(|p| (p.red(), p.green(), p.blue()))
+        .collect();
+    assert!(
+        couleurs.len() > 8,
+        "seulement {} couleurs distinctes",
+        couleurs.len()
+    );
 }
 
 /// Combien de pixels diffèrent entre deux images de même taille.
@@ -27,7 +34,10 @@ fn test_une_frame_hors_ecran_dessine_vraiment() {
 /// côtés au moindre échec — illisible, et assez volumineux pour noyer la sortie de test.
 fn pixels_differents(a: &[u8], b: &[u8]) -> usize {
     assert_eq!(a.len(), b.len(), "deux images de tailles différentes");
-    (0..a.len()).step_by(4).filter(|&i| a[i..i + 4] != b[i..i + 4]).count()
+    (0..a.len())
+        .step_by(4)
+        .filter(|&i| a[i..i + 4] != b[i..i + 4])
+        .count()
 }
 
 /// **La même scène rend le même pixmap, au bit près.** Sans cette propriété, une capture de
@@ -88,7 +98,10 @@ fn test_le_cadrage_met_le_document_au_centre() {
     frame_document(&mut store, 0.5, 1920, 1080);
     let vp = store.active_board().expect("un tableau").viewport;
 
-    let (cx, cy) = (boite.left + boite.width / 2.0, boite.top + boite.height / 2.0);
+    let (cx, cy) = (
+        boite.left + boite.width / 2.0,
+        boite.top + boite.height / 2.0,
+    );
     let (ecran_x, ecran_y) = (cx * vp.scale + vp.x, cy * vp.scale + vp.y);
     assert!((ecran_x - 960.0).abs() < 1.0, "centre en x : {ecran_x}");
     assert!((ecran_y - 540.0).abs() < 1.0, "centre en y : {ecran_y}");
@@ -100,8 +113,18 @@ fn test_la_mesure_rend_des_statistiques_coherentes() {
     let store = synth::witness();
     let s = measure(&store, 400, 300, 5);
     assert_eq!(s.frames, 5, "la chauffe n'est pas comptée");
-    assert!(s.min_ms <= s.median_ms, "min {} > médiane {}", s.min_ms, s.median_ms);
-    assert!(s.median_ms <= s.max_ms, "médiane {} > max {}", s.median_ms, s.max_ms);
+    assert!(
+        s.min_ms <= s.median_ms,
+        "min {} > médiane {}",
+        s.min_ms,
+        s.median_ms
+    );
+    assert!(
+        s.median_ms <= s.max_ms,
+        "médiane {} > max {}",
+        s.median_ms,
+        s.max_ms
+    );
     assert!(s.min_ms >= 0.0 && s.max_ms.is_finite());
     assert!(s.fps() > 0.0);
 }
@@ -110,15 +133,30 @@ fn test_la_mesure_rend_des_statistiques_coherentes() {
 /// sens.
 #[test]
 fn test_le_budget_se_lit_dans_les_deux_sens() {
-    let rapide = Stats { frames: 1, min_ms: 1.0, median_ms: 4.0, max_ms: 9.0 };
+    let rapide = Stats {
+        frames: 1,
+        min_ms: 1.0,
+        median_ms: 4.0,
+        max_ms: 9.0,
+    };
     assert!(rapide.within_budget());
     assert!((rapide.fps() - 250.0).abs() < 1e-9);
 
-    let lent = Stats { frames: 1, min_ms: 10.0, median_ms: 40.0, max_ms: 90.0 };
+    let lent = Stats {
+        frames: 1,
+        min_ms: 10.0,
+        median_ms: 40.0,
+        max_ms: 90.0,
+    };
     assert!(!lent.within_budget());
     assert!((lent.fps() - 25.0).abs() < 1e-9);
 
-    let nul = Stats { frames: 1, min_ms: 0.0, median_ms: 0.0, max_ms: 0.0 };
+    let nul = Stats {
+        frames: 1,
+        min_ms: 0.0,
+        median_ms: 0.0,
+        max_ms: 0.0,
+    };
     assert!(nul.fps().is_infinite(), "pas de division par zéro");
 }
 
@@ -126,7 +164,9 @@ fn test_le_budget_se_lit_dans_les_deux_sens() {
 /// de la charte, pas un détail de configuration.
 #[test]
 fn test_les_definitions_de_reference_incluent_la_4k() {
-    assert!(DEFINITIONS.iter().any(|(nom, w, h)| *nom == "4K" && *w == 3840 && *h == 2160));
+    assert!(DEFINITIONS
+        .iter()
+        .any(|(nom, w, h)| *nom == "4K" && *w == 3840 && *h == 2160));
     assert_eq!(BUDGET_MS, 10.0, "cent images par seconde");
 }
 
@@ -175,7 +215,10 @@ fn test_le_cadrage_du_temoin_montre_tout_son_contenu() {
 
     for (wx, wy) in [(x0, y0), (x1, y1)] {
         let (sx, sy) = (wx * vp.scale + vp.x, wy * vp.scale + vp.y);
-        assert!(sx >= 0.0 && sx <= w as f64, "x du contenu hors fenêtre : {sx}");
+        assert!(
+            sx >= 0.0 && sx <= w as f64,
+            "x du contenu hors fenêtre : {sx}"
+        );
         assert!(
             sy >= ui.header_height() as f64 && sy <= h as f64,
             "y du contenu hors zone de canevas : {sy}"

@@ -50,7 +50,11 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
     pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
     let ids: HashSet<&str> = std::iter::once("fidelite").collect();
     let pass = ViewPass {
-        vp: Viewport { x: PROOF_ORIGIN, y: PROOF_ORIGIN, scale },
+        vp: Viewport {
+            x: PROOF_ORIGIN,
+            y: PROOF_ORIGIN,
+            scale,
+        },
         visible_ids: &ids,
         header_h: 0.0,
     };
@@ -59,7 +63,12 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
     let mut tints = crate::renderer::domain::DomainTints::new();
     tints.refresh(&store, &theme);
     let mut view = pixmap.as_mut();
-    let kit = PaintKit { typography: typo, math: &crate::renderer::math::MathRenderer::new(), tints: &tints, theme: &theme };
+    let kit = PaintKit {
+        typography: typo,
+        math: &crate::renderer::math::MathRenderer::new(),
+        tints: &tints,
+        theme: &theme,
+    };
     draw_annotations(&mut hue, kit, &mut view, &store, None, pass);
     pixmap
 }
@@ -106,8 +115,17 @@ fn test_r45_the_drawn_text_keeps_the_same_share_of_the_card() {
             "scale={zoom:.2} boite={box_w:.1}x{box_h:.1} encre={w:.1}x{h:.1} \
              ratio_l={rw:.4} ratio_h={rh:.4} marge_g={left:.4}\n"
         ));
-        measured.push(Measured { zoom, box_w, box_h, rw, rh, left });
-        inked.save_png(dir.join(format!("card-x{zoom:.2}.png"))).expect("ecriture png");
+        measured.push(Measured {
+            zoom,
+            box_w,
+            box_h,
+            rw,
+            rh,
+            left,
+        });
+        inked
+            .save_png(dir.join(format!("card-x{zoom:.2}.png")))
+            .expect("ecriture png");
     }
     std::fs::write(dir.join("ratios.txt"), &report).expect("rapport");
     println!("{report}");
@@ -143,7 +161,11 @@ impl Measured {
         for (name, observed, expected) in [
             ("largeur", self.rw * self.box_w, reference.rw * self.box_w),
             ("hauteur", self.rh * self.box_h, reference.rh * self.box_h),
-            ("marge gauche", self.left * self.box_w, reference.left * self.box_w),
+            (
+                "marge gauche",
+                self.left * self.box_w,
+                reference.left * self.box_w,
+            ),
         ] {
             let allowance = 2.0 + 0.03 * expected;
             assert!(
@@ -176,12 +198,18 @@ fn test_r51_accented_text_is_drawn_on_the_card() {
         let empty = render_proof(&typo, "", zoom);
         let (_, top_accented, _, _) = ink_bbox(&accented, &empty).expect("la carte porte du texte");
         let (_, top_stripped, _, _) = ink_bbox(&stripped, &empty).expect("la carte porte du texte");
-        assert_ne!(accented.data(), stripped.data(), "zoom {zoom} : les accents ne laissent aucune encre");
+        assert_ne!(
+            accented.data(),
+            stripped.data(),
+            "zoom {zoom} : les accents ne laissent aucune encre"
+        );
         assert!(
             top_accented < top_stripped,
             "zoom {zoom} : l'accent de « É » devrait dépasser la capitale ({top_accented} >= {top_stripped})"
         );
-        accented.save_png(dir.join(format!("card-x{zoom:.2}.png"))).expect("ecriture png");
+        accented
+            .save_png(dir.join(format!("card-x{zoom:.2}.png")))
+            .expect("ecriture png");
     }
 }
 
@@ -198,5 +226,9 @@ fn test_scale_2_below_the_threshold_the_card_keeps_its_frame_and_drops_its_text(
     // Le cadre, lui, reste : la carte est simplifiée, pas absente.
     let mut background = Pixmap::new(1200, 800).expect("pixmap");
     background.fill(Color::from_rgba8(13, 14, 18, 255));
-    assert_ne!(inked.data(), background.data(), "la carte simplifiee doit rester visible");
+    assert_ne!(
+        inked.data(),
+        background.data(),
+        "la carte simplifiee doit rester visible"
+    );
 }

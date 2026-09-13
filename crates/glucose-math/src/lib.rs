@@ -109,9 +109,18 @@ pub struct Style {
 }
 
 impl Style {
-    pub const ROMAN: Self = Self { bold: false, italic: false };
-    pub const ITALIC: Self = Self { bold: false, italic: true };
-    pub const BOLD: Self = Self { bold: true, italic: false };
+    pub const ROMAN: Self = Self {
+        bold: false,
+        italic: false,
+    };
+    pub const ITALIC: Self = Self {
+        bold: false,
+        italic: true,
+    };
+    pub const BOLD: Self = Self {
+        bold: true,
+        italic: false,
+    };
 
     /// Le suffixe du fichier de fonte : `KaTeX_Main` + `-Regular`, `-Bold`, `-Italic`,
     /// `-BoldItalic`.

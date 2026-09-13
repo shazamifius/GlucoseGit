@@ -29,7 +29,8 @@ fn main() {
 
     for (nom, w, h) in bench::DEFINITIONS {
         for n in [1_000usize, 10_000] {
-            let mut store = synth::document(n, 2_000.0 * (n as f64).sqrt(), Shape::Clustered, 0x91ac05e);
+            let mut store =
+                synth::document(n, 2_000.0 * (n as f64).sqrt(), Shape::Clustered, 0x91ac05e);
             bench::frame_document(&mut store, 1.0, *w, *h);
 
             let mut renderer = Renderer::new();

@@ -101,8 +101,18 @@ impl Bridge {
                 .unwrap_or_default(),
             slot_id: t.and_then(|t| t.slot_id.as_deref()).map(str::to_string),
             source_url: t.and_then(|t| t.source_url.as_deref()).map(str::to_string),
-            original_width: self.doc.original.get(id).map(|o| o.0 as f64).unwrap_or_default(),
-            original_height: self.doc.original.get(id).map(|o| o.1 as f64).unwrap_or_default(),
+            original_width: self
+                .doc
+                .original
+                .get(id)
+                .map(|o| o.0 as f64)
+                .unwrap_or_default(),
+            original_height: self
+                .doc
+                .original
+                .get(id)
+                .map(|o| o.1 as f64)
+                .unwrap_or_default(),
             is_video: f.has(Flags::VIDEO),
             fit: t.and_then(|t| t.fit.as_deref()).map(str::to_string),
             domains: self.doc.domains.get(id).cloned().unwrap_or_default(),
@@ -164,7 +174,11 @@ impl Bridge {
                 height: bx.h.to_f64(),
                 color: commun.color,
                 text: some_if_filled(d.text.get(id)),
-                mode: d.membrane_mode.get(id).copied().unwrap_or(MembraneMode::Classic),
+                mode: d
+                    .membrane_mode
+                    .get(id)
+                    .copied()
+                    .unwrap_or(MembraneMode::Classic),
                 curtains: d.curtains.get(id).cloned().unwrap_or_default(),
                 membrane_id: commun.membrane_id,
                 domains: commun.domains,
@@ -192,10 +206,10 @@ impl Bridge {
 
     fn arrow(&self, id: NodeId, commun: Commun) -> Annotation {
         let d = &self.doc;
-        let (x, y, x2, y2) = d
-            .nodes
-            .arrow_endpoints(id)
-            .unwrap_or((Fx::ZERO, Fx::ZERO, Fx::ZERO, Fx::ZERO));
+        let (x, y, x2, y2) =
+            d.nodes
+                .arrow_endpoints(id)
+                .unwrap_or((Fx::ZERO, Fx::ZERO, Fx::ZERO, Fx::ZERO));
         let f = d.nodes.flags_of(id).unwrap_or_default();
         let t = d.arrow.get(id);
         Annotation::Arrow {
@@ -215,18 +229,27 @@ impl Bridge {
                 .map(|t| {
                     t.waypoints
                         .iter()
-                        .map(|&(px, py)| Point2D { x: px.to_f64(), y: py.to_f64() })
+                        .map(|&(px, py)| Point2D {
+                            x: px.to_f64(),
+                            y: py.to_f64(),
+                        })
                         .collect()
                 })
                 .unwrap_or_default(),
             source_id: t.and_then(|t| self.name_ref(t.source)),
             target_id: t.and_then(|t| self.name_ref(t.target)),
-            source_block_id: t.and_then(|t| t.source_block.as_deref()).map(str::to_string),
-            target_block_id: t.and_then(|t| t.target_block.as_deref()).map(str::to_string),
+            source_block_id: t
+                .and_then(|t| t.source_block.as_deref())
+                .map(str::to_string),
+            target_block_id: t
+                .and_then(|t| t.target_block.as_deref())
+                .map(str::to_string),
             source_text_sel: t.and_then(|t| t.source_sel.clone()),
             target_text_sel: t.and_then(|t| t.target_sel.clone()),
             long_text: t.and_then(|t| t.long_text.as_deref()).map(str::to_string),
-            target_board_id: t.and_then(|t| t.target_board.as_deref()).map(str::to_string),
+            target_board_id: t
+                .and_then(|t| t.target_board.as_deref())
+                .map(str::to_string),
             membrane_id: commun.membrane_id,
             domains: commun.domains,
             mirror_of: commun.mirror_of,

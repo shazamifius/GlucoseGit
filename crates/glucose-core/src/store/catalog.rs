@@ -13,7 +13,9 @@ impl Store {
     pub fn add_preset(&mut self, preset: Preset) {
         let index = self.project.presets.len();
         self.project.presets.push(preset.clone());
-        self.record_edit(Edit::Preset { slot: Slot::inserted(index, preset) });
+        self.record_edit(Edit::Preset {
+            slot: Slot::inserted(index, preset),
+        });
     }
 
     /// **Site migré vers le journal.**
@@ -24,7 +26,9 @@ impl Store {
         let before = self.project.presets[i].clone();
         self.project.presets[i].name = name.into();
         let after = self.project.presets[i].clone();
-        self.record_edit(Edit::Preset { slot: Slot::changed(i, before, after) });
+        self.record_edit(Edit::Preset {
+            slot: Slot::changed(i, before, after),
+        });
     }
 
     /// **Site migré vers le journal.**
@@ -33,7 +37,9 @@ impl Store {
             return;
         };
         let removed = self.project.presets.remove(i);
-        self.record_edit(Edit::Preset { slot: Slot::removed(i, removed) });
+        self.record_edit(Edit::Preset {
+            slot: Slot::removed(i, removed),
+        });
     }
 
     /// Pose les zones d'un board d'après un preset. Sans preset, les zones sont effacées.
@@ -69,7 +75,9 @@ impl Store {
         let before = self.project.name.clone();
         self.project.name = name.into();
         let after = self.project.name.clone();
-        self.record_edit(Edit::ProjectName { whole: Whole::new(before, after) });
+        self.record_edit(Edit::ProjectName {
+            whole: Whole::new(before, after),
+        });
     }
 
     /// **Site migré vers le journal.**

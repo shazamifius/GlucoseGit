@@ -310,21 +310,47 @@ fn test_l_echelle_du_modele_est_bornee_a_0_005_et_50() {
     let mut store = Store::new("P");
     let scale = |store: &Store| store.active_board().expect("main").viewport.scale;
 
-    store.set_viewport("main", Viewport { x: 0.0, y: 0.0, scale: 0.0001 });
-    assert_eq!(scale(&store), 0.005, "en dessous, rabattu sur la borne basse");
-    store.set_viewport("main", Viewport { x: 0.0, y: 0.0, scale: 1_000.0 });
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 0.0001,
+        },
+    );
+    assert_eq!(
+        scale(&store),
+        0.005,
+        "en dessous, rabattu sur la borne basse"
+    );
+    store.set_viewport(
+        "main",
+        Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1_000.0,
+        },
+    );
     assert_eq!(scale(&store), 50.0, "au-dessus, rabattu sur la borne haute");
 
     store.set_viewport("main", Viewport::default());
     store.zoom(1e9, 0.0, 0.0, Viewport::SCALE_RANGE);
-    assert_eq!(scale(&store), 50.0, "un zoom ne franchit pas la borne haute");
+    assert_eq!(
+        scale(&store),
+        50.0,
+        "un zoom ne franchit pas la borne haute"
+    );
     store.zoom(1e-9, 0.0, 0.0, Viewport::SCALE_RANGE);
     assert_eq!(scale(&store), 0.005, "ni la basse");
 
     // L'appelant peut demander plus étroit — jamais plus large.
     store.set_viewport("main", Viewport::default());
     store.zoom(1e9, 0.0, 0.0, (0.02, 20.0));
-    assert_eq!(scale(&store), 20.0, "la borne du geste s'ajoute à celle du modèle");
+    assert_eq!(
+        scale(&store),
+        20.0,
+        "la borne du geste s'ajoute à celle du modèle"
+    );
     store.zoom(1e9, 0.0, 0.0, (0.0, 1e9));
     assert_eq!(scale(&store), 50.0, "et ne peut pas l'élargir");
 }
@@ -335,29 +361,56 @@ fn test_l_echelle_du_modele_est_bornee_a_0_005_et_50() {
 #[test]
 fn test_charger_un_projet_ramene_la_camera_dans_le_modele() {
     let mut project = Project::new("Abîmé");
-    project.boards[0].viewport = Viewport { x: f64::NAN, y: f64::INFINITY, scale: f64::NAN };
+    project.boards[0].viewport = Viewport {
+        x: f64::NAN,
+        y: f64::INFINITY,
+        scale: f64::NAN,
+    };
     let mut extra = Board::new("b2", "Trop zoomé");
-    extra.viewport = Viewport { x: 10.0, y: 20.0, scale: 999.0 };
+    extra.viewport = Viewport {
+        x: 10.0,
+        y: 20.0,
+        scale: 999.0,
+    };
     project.boards.push(extra);
     let mut zero = Board::new("b3", "Échelle nulle");
-    zero.viewport = Viewport { x: 0.0, y: 0.0, scale: 0.0 };
+    zero.viewport = Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: 0.0,
+    };
     project.boards.push(zero);
 
     let mut store = Store::new("P");
     store.load_project(project);
 
     let main = store.project.boards[0].viewport;
-    assert_eq!((main.x, main.y, main.scale), (0.0, 0.0, 1.0), "non-nombres → caméra neutre");
+    assert_eq!(
+        (main.x, main.y, main.scale),
+        (0.0, 0.0, 1.0),
+        "non-nombres → caméra neutre"
+    );
     let b2 = store.project.boards[1].viewport;
-    assert_eq!((b2.x, b2.y, b2.scale), (10.0, 20.0, 50.0), "hors borne → rabattu, le reste intact");
+    assert_eq!(
+        (b2.x, b2.y, b2.scale),
+        (10.0, 20.0, 50.0),
+        "hors borne → rabattu, le reste intact"
+    );
     // Zéro est un nombre : il est rabattu sur la borne basse, comme dans la version de
     // référence — c'est `NaN`, et lui seul, qui redevient 1.
     assert_eq!(store.project.boards[2].viewport.scale, 0.005);
 
     // Et un zoom sur une caméra qui aurait échappé à la normalisation ne produit pas de NaN.
-    let mut vp = Viewport { x: 0.0, y: 0.0, scale: 0.0 };
+    let mut vp = Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: 0.0,
+    };
     vp.zoom_at(2.0, 100.0, 100.0, Viewport::SCALE_RANGE);
-    assert!(vp.scale.is_finite() && vp.x.is_finite() && vp.y.is_finite(), "{vp:?}");
+    assert!(
+        vp.scale.is_finite() && vp.x.is_finite() && vp.y.is_finite(),
+        "{vp:?}"
+    );
 }
 
 // ── Fiche 08 § 1.3 — la duplication ──────────────────────────────────────────
@@ -376,13 +429,28 @@ fn test_duplicate_offsets_the_clone_by_twenty_pixels_and_selects_it() {
     store.duplicate_selected("main");
 
     let board = store.active_board().expect("main");
-    let clone = board.images.iter().find(|i| i.id != "img-1").expect("le clone de l'image");
+    let clone = board
+        .images
+        .iter()
+        .find(|i| i.id != "img-1")
+        .expect("le clone de l'image");
     assert_eq!((clone.x, clone.y), (120.0, 70.0), "+20 px en X et en Y");
     assert_eq!((clone.width, clone.height), (200.0, 150.0), "même taille");
-    let text_clone = board.annotations.iter().find(|a| a.id() != "t-1").expect("le clone du texte");
+    let text_clone = board
+        .annotations
+        .iter()
+        .find(|a| a.id() != "t-1")
+        .expect("le clone du texte");
     assert_eq!((text_clone.x(), text_clone.y()), (-10.0, 90.0));
-    assert_eq!(store.selected_image_ids, vec![clone.id.clone()], "le clone prend la sélection");
-    assert_eq!(store.selected_annotation_ids, vec![text_clone.id().to_string()]);
+    assert_eq!(
+        store.selected_image_ids,
+        vec![clone.id.clone()],
+        "le clone prend la sélection"
+    );
+    assert_eq!(
+        store.selected_annotation_ids,
+        vec![text_clone.id().to_string()]
+    );
 }
 
 // ── content_bounds : où est le contenu d'un tableau ─────────────────────────
@@ -406,7 +474,11 @@ fn test_les_bornes_du_contenu_couvrent_les_trois_familles() {
     let b = store.content_bounds(&board).expect("des bornes");
     assert_eq!(b.left, -300.0, "le dossier tire la borne gauche");
     assert_eq!(b.top, 0.0, "le dossier tire la borne haute");
-    assert_eq!(b.left + b.width, 200.0, "l'image et la membrane tirent la droite");
+    assert_eq!(
+        b.left + b.width,
+        200.0,
+        "l'image et la membrane tirent la droite"
+    );
     assert_eq!(b.top + b.height, 550.0, "la membrane tire le bas");
 }
 

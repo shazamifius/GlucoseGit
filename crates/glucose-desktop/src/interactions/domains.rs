@@ -70,7 +70,8 @@ impl GlucoseApp {
             Ok(()) => {
                 self.dock_manager.domains.pending_delete = None;
                 self.start_domain_rename(&id);
-                self.ui.show_toast("Domaine créé — tape son nom, Entrée pour valider");
+                self.ui
+                    .show_toast("Domaine créé — tape son nom, Entrée pour valider");
             }
             Err(err) => self.ui.show_toast(err.to_string()),
         }
@@ -78,7 +79,8 @@ impl GlucoseApp {
 
     fn start_domain_rename(&mut self, id: &str) {
         let Some(domain) = self.store.domain(id) else {
-            self.ui.show_toast("Ce domaine n'existe plus — le panneau vient d'être rafraîchi");
+            self.ui
+                .show_toast("Ce domaine n'existe plus — le panneau vient d'être rafraîchi");
             self.dock_manager.domains.reset();
             return;
         };
@@ -113,7 +115,10 @@ impl GlucoseApp {
     }
 
     fn delete_domain(&mut self, id: &str) {
-        let label = self.store.domain(id).map_or_else(|| id.to_string(), |d| d.name.clone());
+        let label = self
+            .store
+            .domain(id)
+            .map_or_else(|| id.to_string(), |d| d.name.clone());
         match self.store.try_remove_domain(id) {
             Ok(0) => self.ui.show_toast(format!("Domaine « {label} » supprimé")),
             Ok(detached) => self.ui.show_toast(format!(
@@ -122,7 +127,13 @@ impl GlucoseApp {
             Err(err) => self.ui.show_toast(err.to_string()),
         }
         self.dock_manager.domains.pending_delete = None;
-        if self.dock_manager.domains.rename.as_ref().is_some_and(|r| r.domain_id == id) {
+        if self
+            .dock_manager
+            .domains
+            .rename
+            .as_ref()
+            .is_some_and(|r| r.domain_id == id)
+        {
             self.dock_manager.domains.rename = None;
         }
     }
@@ -146,7 +157,10 @@ impl GlucoseApp {
         let mut done = 0usize;
         let mut failure = None;
         for node in &nodes {
-            match self.store.try_assign_domain_to_node(&board, node, domain_id, weight) {
+            match self
+                .store
+                .try_assign_domain_to_node(&board, node, domain_id, weight)
+            {
                 Ok(()) => done += 1,
                 Err(err) => failure = Some(err),
             }
@@ -157,7 +171,9 @@ impl GlucoseApp {
         match (done, failure) {
             (0, Some(err)) => self.ui.show_toast(err.to_string()),
             (0, None) => {}
-            (n, _) => self.ui.show_toast(format!("Domaine assigné à {n} nœud(s) — {percent} %")),
+            (n, _) => self
+                .ui
+                .show_toast(format!("Domaine assigné à {n} nœud(s) — {percent} %")),
         }
     }
 
@@ -173,19 +189,25 @@ impl GlucoseApp {
             })
             .collect();
         if carriers.is_empty() {
-            self.ui.show_toast("Aucun nœud sélectionné ne porte ce domaine");
+            self.ui
+                .show_toast("Aucun nœud sélectionné ne porte ce domaine");
             return;
         }
 
         self.store.begin_live_edit();
         let mut done = 0usize;
         for node in &carriers {
-            if self.store.try_unassign_domain_from_node(&board, node, domain_id).is_ok() {
+            if self
+                .store
+                .try_unassign_domain_from_node(&board, node, domain_id)
+                .is_ok()
+            {
                 done += 1;
             }
         }
         self.store.end_live_edit();
-        self.ui.show_toast(format!("Domaine retiré de {done} nœud(s)"));
+        self.ui
+            .show_toast(format!("Domaine retiré de {done} nœud(s)"));
     }
 
     // ── Saisie du nom ───────────────────────────────────────────────────────
@@ -278,7 +300,8 @@ impl GlucoseApp {
         };
         let name = rename.entry.into_text().trim().to_string();
         if name.is_empty() {
-            self.ui.show_toast("Un domaine a besoin d'un nom — renommage abandonné");
+            self.ui
+                .show_toast("Un domaine a besoin d'un nom — renommage abandonné");
             return;
         }
         self.patch_domain(&rename.domain_id, DomainPatch::new().with_name(name));

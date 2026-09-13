@@ -341,7 +341,10 @@ fn un_geste_ne_pese_que_ce_qu_il_touche() {
     do_edit(
         &mut j,
         &mut p,
-        Edit::Image { board: BOARD.to_string(), slot: Slot::changed(0, before, after) },
+        Edit::Image {
+            board: BOARD.to_string(),
+            slot: Slot::changed(0, before, after),
+        },
     );
 
     assert!(

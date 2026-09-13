@@ -27,7 +27,9 @@ impl Store {
         let board = Board::new(&id, name);
         let index = self.project.boards.len();
         self.project.boards.push(board.clone());
-        self.record_edit(Edit::Board { slot: Slot::inserted(index, board) });
+        self.record_edit(Edit::Board {
+            slot: Slot::inserted(index, board),
+        });
         id
     }
 
@@ -51,14 +53,18 @@ impl Store {
             return Err(CoreError::BoardNotFound(id.to_string()));
         };
         let removed = self.project.boards.remove(index);
-        let mut edits = vec![Edit::Board { slot: Slot::removed(index, removed) }];
+        let mut edits = vec![Edit::Board {
+            slot: Slot::removed(index, removed),
+        }];
 
         if self.project.active_board_id == id {
             if let Some(first) = self.project.boards.first() {
                 let before = self.project.active_board_id.clone();
                 let after = first.id.clone();
                 self.project.active_board_id = after.clone();
-                edits.push(Edit::ActiveBoard { whole: Whole::new(before, after) });
+                edits.push(Edit::ActiveBoard {
+                    whole: Whole::new(before, after),
+                });
             }
         }
         edits.extend(self.clear_portal_arrows_to(id));
@@ -92,7 +98,10 @@ impl Store {
                     continue;
                 }
                 let before = a.clone();
-                if let Annotation::Arrow { target_board_id, .. } = a {
+                if let Annotation::Arrow {
+                    target_board_id, ..
+                } = a
+                {
                     *target_board_id = None;
                 }
                 edits.push(Edit::Annotation {

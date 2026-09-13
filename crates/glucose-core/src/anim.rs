@@ -85,7 +85,11 @@ impl Curve {
     /// que de continuer sa course, et une valeur négative — ce qu'une horloge qui recule peut
     /// produire — rend le départ.
     pub fn at(self, t: f64) -> f64 {
-        let t = if t.is_finite() { t.clamp(0.0, 1.0) } else { 0.0 };
+        let t = if t.is_finite() {
+            t.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         match self {
             Self::Linear => t,
             Self::EaseOutCubic => {
@@ -170,7 +174,12 @@ pub struct Tween {
 impl Tween {
     /// Un tween de `from` à `to`, en `duration_ms`, amorti par `curve`.
     pub const fn new(from: f64, to: f64, duration_ms: u32, curve: Curve) -> Self {
-        Self { from, to, duration_ms, curve }
+        Self {
+            from,
+            to,
+            duration_ms,
+            curve,
+        }
     }
 
     /// La valeur après `elapsed_ms` millisecondes.

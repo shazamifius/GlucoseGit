@@ -6,15 +6,27 @@ use std::fmt;
 #[derive(Debug)]
 pub enum DesktopError {
     Core(CoreError),
-    ImageDecodeFailed { path: String, reason: String },
-    ImageDimensionsFailed { path: String, reason: String },
+    ImageDecodeFailed {
+        path: String,
+        reason: String,
+    },
+    ImageDimensionsFailed {
+        path: String,
+        reason: String,
+    },
     ClipboardError(String),
     WindowError(String),
     /// Échec d'écriture d'un projet. Le fichier précédent est intact : l'écriture atomique
     /// n'a jamais touché la destination (voir `persist::atomic`).
-    SaveFailed { path: String, reason: String },
+    SaveFailed {
+        path: String,
+        reason: String,
+    },
     /// Échec de lecture d'un projet, avant même le décodage (fichier absent, droits refusés).
-    OpenFailed { path: String, reason: String },
+    OpenFailed {
+        path: String,
+        reason: String,
+    },
     Io(std::io::Error),
 }
 

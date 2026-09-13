@@ -54,7 +54,9 @@ impl Store {
         child_board.annotations = captured.annotations;
         let at = self.project.boards.len();
         self.project.boards.push(child_board.clone());
-        edits.push(Edit::Board { slot: Slot::inserted(at, child_board) });
+        edits.push(Edit::Board {
+            slot: Slot::inserted(at, child_board),
+        });
 
         self.record_as_one_gesture(edits);
     }
@@ -148,7 +150,9 @@ impl Store {
         child_board.annotations = seed_annotations;
         let at = self.project.boards.len();
         self.project.boards.push(child_board.clone());
-        let mut edits = vec![Edit::Board { slot: Slot::inserted(at, child_board) }];
+        let mut edits = vec![Edit::Board {
+            slot: Slot::inserted(at, child_board),
+        }];
 
         if let Some(par) = self
             .project
@@ -225,7 +229,9 @@ impl Store {
                 continue;
             }
             let removed = self.project.boards.remove(i);
-            edits.push(Edit::Board { slot: Slot::removed(i, removed) });
+            edits.push(Edit::Board {
+                slot: Slot::removed(i, removed),
+            });
         }
 
         if child_board_ids.contains(&self.project.active_board_id) {

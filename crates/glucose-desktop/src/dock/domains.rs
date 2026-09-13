@@ -223,7 +223,11 @@ pub fn layout_domains_panel(
         rows.push(layout_row(index, (px, top, pw), &m, pending));
     }
 
-    DomainsPanelLayout { rows, add_button, hidden: store.project.domains.len() - shown }
+    DomainsPanelLayout {
+        rows,
+        add_button,
+        hidden: store.project.domains.len() - shown,
+    }
 }
 
 /// Les deux lignes d'un domaine : identité en haut, pondérations en bas.
@@ -231,18 +235,34 @@ fn layout_row(index: usize, at: (f32, f32, f32), m: &Metrics, pending: bool) -> 
     let (px, top, pw) = at;
     let right = px + pw - m.pad;
     let swatch = WidgetRect::new(px + m.pad, top, m.swatch, m.swatch);
-    let sigil = WidgetRect::new(swatch.x + swatch.w + m.pad / 3.0, top, m.sigil_width, m.swatch);
+    let sigil = WidgetRect::new(
+        swatch.x + swatch.w + m.pad / 3.0,
+        top,
+        m.sigil_width,
+        m.swatch,
+    );
     let delete = WidgetRect::new(right - m.icon_button, top, m.icon_button, m.icon_button);
     // Le nom part de la fin du sigle plutôt que d'une abscisse recopiée : deux constantes de
     // mise en page qui doivent s'accorder finissent toujours par diverger (§ 5.2).
     let name_left = sigil.x + sigil.w + m.pad / 3.0;
-    let name = WidgetRect::new(name_left, top, (delete.x - name_left - m.pad / 2.0).max(0.0), m.swatch);
+    let name = WidgetRect::new(
+        name_left,
+        top,
+        (delete.x - name_left - m.pad / 2.0).max(0.0),
+        m.swatch,
+    );
 
     let second = top + m.line_gap;
-    let unassign = WidgetRect::new(right - m.unassign_width, second, m.unassign_width, m.segment_height);
+    let unassign = WidgetRect::new(
+        right - m.unassign_width,
+        second,
+        m.unassign_width,
+        m.segment_height,
+    );
     let steps_width = unassign.x - m.segment_gap - (px + m.pad);
-    let step_width =
-        ((steps_width - (WEIGHT_STEPS.len() - 1) as f32 * m.segment_gap) / WEIGHT_STEPS.len() as f32).max(0.0);
+    let step_width = ((steps_width - (WEIGHT_STEPS.len() - 1) as f32 * m.segment_gap)
+        / WEIGHT_STEPS.len() as f32)
+        .max(0.0);
     let steps = (0..WEIGHT_STEPS.len())
         .map(|i| {
             WidgetRect::new(
@@ -258,12 +278,26 @@ fn layout_row(index: usize, at: (f32, f32, f32), m: &Metrics, pending: bool) -> 
     // à gauche, et les deux réponses ne se confondent pas avec un palier.
     let confirm = pending.then(|| {
         let half = (m.unassign_width * 2.0).max(step_width);
-        let yes = WidgetRect::new(right - 2.0 * half - m.segment_gap, second, half, m.segment_height);
+        let yes = WidgetRect::new(
+            right - 2.0 * half - m.segment_gap,
+            second,
+            half,
+            m.segment_height,
+        );
         let no = WidgetRect::new(right - half, second, half, m.segment_height);
         (yes, no)
     });
 
-    DomainRowLayout { index, swatch, sigil, name, delete, steps, unassign, confirm }
+    DomainRowLayout {
+        index,
+        swatch,
+        sigil,
+        name,
+        delete,
+        steps,
+        unassign,
+        confirm,
+    }
 }
 
 // ── Test de clic ────────────────────────────────────────────────────────────
@@ -326,7 +360,10 @@ fn hit_row(
     }
     for (step, rect) in row.steps.iter().enumerate() {
         if rect.contains(mx, my) {
-            return Some(DomainIntent::Assign { domain_id: id.to_string(), weight: WEIGHT_STEPS[step] });
+            return Some(DomainIntent::Assign {
+                domain_id: id.to_string(),
+                weight: WEIGHT_STEPS[step],
+            });
         }
     }
     None
@@ -341,13 +378,17 @@ fn hit_row(
 /// rester distinctes sur le fond du canevas. Une couleur absente de la palette (document venu
 /// d'ailleurs) repart de la première.
 pub fn next_color(current: &str) -> &'static str {
-    let at = DOMAIN_PALETTE.iter().position(|c| c.eq_ignore_ascii_case(current));
+    let at = DOMAIN_PALETTE
+        .iter()
+        .position(|c| c.eq_ignore_ascii_case(current));
     DOMAIN_PALETTE[at.map_or(0, |i| (i + 1) % DOMAIN_PALETTE.len())]
 }
 
 /// Le sigle qui suit `current` dans la palette du thème.
 pub fn next_sigil(current: &str) -> &'static str {
-    let at = DOMAIN_SIGILS.iter().position(|c| c.eq_ignore_ascii_case(current));
+    let at = DOMAIN_SIGILS
+        .iter()
+        .position(|c| c.eq_ignore_ascii_case(current));
     DOMAIN_SIGILS[at.map_or(0, |i| (i + 1) % DOMAIN_SIGILS.len())]
 }
 

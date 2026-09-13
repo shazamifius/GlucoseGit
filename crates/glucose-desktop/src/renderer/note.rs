@@ -105,7 +105,18 @@ pub(super) fn draw_sticky(
     selected: bool,
     editing: Option<&TextEditSession>,
 ) {
-    let Annotation::Sticky { x, y, width, height, text, color, bg_color, operator, .. } = ann else {
+    let Annotation::Sticky {
+        x,
+        y,
+        width,
+        height,
+        text,
+        color,
+        bg_color,
+        operator,
+        ..
+    } = ann
+    else {
         return;
     };
     let layout = StickyLayout::new(
@@ -130,12 +141,24 @@ pub(super) fn draw_sticky(
         .as_deref()
         .map(|c| parse_hex_color(c, 254, 240, 138))
         .unwrap_or((254, 240, 138));
-    let mut fill = Paint { anti_alias: true, ..Default::default() };
+    let mut fill = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     fill.set_color(Color::from_rgba8(bg_r, bg_g, bg_b, 245));
-    pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
+    pixmap.fill_path(
+        &path,
+        &fill,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 
     let highlighted = selected || editing.is_some();
-    let mut border = Paint { anti_alias: true, ..Default::default() };
+    let mut border = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     border.set_color(if highlighted {
         Color::from_rgba8(56, 189, 248, 255)
     } else {
@@ -144,7 +167,11 @@ pub(super) fn draw_sticky(
     let stroke = Stroke {
         // Même partage que la carte : le cadre appartient au monde, l'anneau de sélection
         // est une affordance et garde sa taille écran (exception SCALE-1).
-        width: if highlighted { ctx.scale.screen(SELECTION_RING) } else { layout.border },
+        width: if highlighted {
+            ctx.scale.screen(SELECTION_RING)
+        } else {
+            layout.border
+        },
         ..Default::default()
     };
     pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
@@ -152,15 +179,42 @@ pub(super) fn draw_sticky(
     // SCALE-2 — l'unique niveau de détail : sous le seuil, le pense-bête s'arrête là.
     if ctx.scale.draws_detail() {
         let content = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
-        let ink = color.as_deref().map(|c| parse_hex_color(c, 28, 25, 23)).unwrap_or((28, 25, 23));
+        let ink = color
+            .as_deref()
+            .map(|c| parse_hex_color(c, 28, 25, 23))
+            .unwrap_or((28, 25, 23));
         // Le reflux se calcule en unités monde, avant la mise à l'échelle (WRAP-1).
-        let lines = sticky_lines(ctx.typography, content, width.unwrap_or(STICKY_WIDTH) as f32);
-        let blink = editing.map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0).unwrap_or(false);
+        let lines = sticky_lines(
+            ctx.typography,
+            content,
+            width.unwrap_or(STICKY_WIDTH) as f32,
+        );
+        let blink = editing
+            .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
+            .unwrap_or(false);
         let cursor = editing.filter(|_| blink).map(|s| s.cursor_idx);
-        draw_sticky_text(ctx, pixmap, (sx, sy), &layout, StickyText { content, lines: &lines, ink, operator, cursor });
+        draw_sticky_text(
+            ctx,
+            pixmap,
+            (sx, sy),
+            &layout,
+            StickyText {
+                content,
+                lines: &lines,
+                ink,
+                operator,
+                cursor,
+            },
+        );
     }
     if selected {
-        draw_resize_handles(pixmap, ctx.theme, ctx.scale, (sx, sy, layout.width, layout.height), &Handle::ALL);
+        draw_resize_handles(
+            pixmap,
+            ctx.theme,
+            ctx.scale,
+            (sx, sy, layout.width, layout.height),
+            &Handle::ALL,
+        );
     }
 }
 
@@ -169,7 +223,12 @@ pub(super) fn draw_sticky(
 /// paragraphe tel quel.
 fn sticky_lines(typography: &Typography, content: &str, width: f32) -> Vec<(usize, usize)> {
     let usable = (width - STICKY_PAD * 2.0).max(STICKY_FONT);
-    let advance = |ch: char| typography.get_glyph(ch, STICKY_FONT, false).metrics.advance_width;
+    let advance = |ch: char| {
+        typography
+            .get_glyph(ch, STICKY_FONT, false)
+            .metrics
+            .advance_width
+    };
     let mut lines = Vec::new();
     let mut offset = 0usize;
     for paragraph in content.split('\n') {
@@ -192,7 +251,13 @@ struct StickyText<'a> {
     cursor: Option<usize>,
 }
 
-fn draw_sticky_text(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &StickyLayout, body: StickyText<'_>) {
+fn draw_sticky_text(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &StickyLayout,
+    body: StickyText<'_>,
+) {
     let typography = ctx.typography;
     let mut cur_y = at.1 + layout.pad;
     if let Some(op) = body.operator {
@@ -223,10 +288,23 @@ fn draw_sticky_text(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: 
         if cur_y + layout.line_height > floor + 1e-3 {
             break;
         }
-        typography.draw_text(pixmap, &body.content[start..end], at.0 + layout.pad, cur_y, style);
+        typography.draw_text(
+            pixmap,
+            &body.content[start..end],
+            at.0 + layout.pad,
+            cur_y,
+            style,
+        );
         let last = num + 1 == body.lines.len();
-        if let Some(idx) = body.cursor.filter(|&i| !cursor_drawn && i >= start && (i <= end || last)) {
-            let (prefix_w, _) = typography.measure_text(&body.content[start..idx.clamp(start, end)], layout.font, false);
+        if let Some(idx) = body
+            .cursor
+            .filter(|&i| !cursor_drawn && i >= start && (i <= end || last))
+        {
+            let (prefix_w, _) = typography.measure_text(
+                &body.content[start..idx.clamp(start, end)],
+                layout.font,
+                false,
+            );
             draw_sticky_cursor(ctx, pixmap, (at.0 + layout.pad + prefix_w, cur_y), layout);
             cursor_drawn = true;
         }
@@ -237,7 +315,12 @@ fn draw_sticky_text(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: 
 fn draw_sticky_cursor(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &StickyLayout) {
     let mut paint = Paint::default();
     paint.set_color(Color::from_rgba8(28, 25, 23, 255));
-    if let Some(rect) = Rect::from_xywh(at.0, at.1, ctx.scale.screen(SELECTION_RING), layout.font * 1.2) {
+    if let Some(rect) = Rect::from_xywh(
+        at.0,
+        at.1,
+        ctx.scale.screen(SELECTION_RING),
+        layout.font * 1.2,
+    ) {
         pixmap.fill_rect(rect, &paint, Transform::identity(), None);
     }
 }
@@ -270,13 +353,19 @@ pub(super) fn draw_arrow(
     let angle = (y2 - y1).atan2(x2 - x1);
     for side in [-ARROW_ANGLE, ARROW_ANGLE] {
         pb.move_to(x2, y2);
-        pb.line_to(x2 - head * (angle + side).cos(), y2 - head * (angle + side).sin());
+        pb.line_to(
+            x2 - head * (angle + side).cos(),
+            y2 - head * (angle + side).sin(),
+        );
     }
 
     let Some(path) = pb.finish() else {
         return;
     };
-    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     paint.set_color(if selected {
         Color::from_rgba8(56, 189, 248, 255)
     } else {

@@ -1,14 +1,14 @@
 //! Traitement des événements de souris (clics, survol, menus, outils, sélection).
 
+use crate::animation::{fly_into_folder, fly_out_to_depth};
 use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
-use crate::animation::{fly_into_folder, fly_out_to_depth};
 use crate::params::{Pointer, ScreenFrame};
-use glucose_core::membrane_focus::ScreenSize;
 use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, pick_consts, PickInput, PickOwner};
+use glucose_core::membrane_focus::ScreenSize;
 use glucose_core::types::{Annotation, CanvasFolder, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
@@ -35,7 +35,8 @@ impl GlucoseApp {
         let dy = position.y - prev_pos.1;
 
         if self.dock_manager.drag.is_some() {
-            self.dock_manager.update_drag(position.x as f32, position.y as f32);
+            self.dock_manager
+                .update_drag(position.x as f32, position.y as f32);
             self.mark_dirty();
             return;
         }
@@ -88,7 +89,10 @@ impl GlucoseApp {
                     self.ui.scale_factor,
                     (mx, my),
                 ) {
-                    let ecran = ScreenSize { width: screen_w as f64, height: screen_h as f64 };
+                    let ecran = ScreenSize {
+                        width: screen_w as f64,
+                        height: screen_h as f64,
+                    };
                     if fly_out_to_depth(&mut self.store, &mut self.animator, depth, ecran) {
                         self.update_cursor();
                         self.mark_dirty();
@@ -246,7 +250,11 @@ impl GlucoseApp {
                 }
 
                 let active_bid = self.store.project.active_board_id.clone();
-                let vp = self.store.active_board().map(|b| b.viewport).unwrap_or_default();
+                let vp = self
+                    .store
+                    .active_board()
+                    .map(|b| b.viewport)
+                    .unwrap_or_default();
                 let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
                 // Outils interactifs de création
@@ -256,7 +264,12 @@ impl GlucoseApp {
                         let aid = self.store.generate_id("text");
                         let initial_str = "Nouveau texte".to_string();
                         // TEXT-FIT-1 : la hauteur d'une carte est celle de son texte.
-                        let height = text_card_fit_height(&self.renderer.typography, &self.renderer.math, &initial_str, 240.0);
+                        let height = text_card_fit_height(
+                            &self.renderer.typography,
+                            &self.renderer.math,
+                            &initial_str,
+                            240.0,
+                        );
                         let ann = Annotation::Text {
                             id: aid.clone(),
                             x: wx,
@@ -420,12 +433,14 @@ impl GlucoseApp {
                         arrow_id: None,
                         dom_hint: None,
                     };
-                    let candidates = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
+                    let candidates =
+                        collect_candidates_indexed(&input, &self.renderer.spatial_hash);
                     if let Some(top) = candidates.first() {
                         let is_dbl_click = if let Some(ref lc) = self.last_click {
                             lc.id == top.id
                                 && (lc.time.elapsed().as_millis() as i64) < pick_consts::DBLCLICK_MS
-                                && (lc.pos.0 - self.mouse_pos.0).hypot(lc.pos.1 - self.mouse_pos.1) < 8.0
+                                && (lc.pos.0 - self.mouse_pos.0).hypot(lc.pos.1 - self.mouse_pos.1)
+                                    < 8.0
                         } else {
                             false
                         };
@@ -446,7 +461,9 @@ impl GlucoseApp {
                                 let initial_text = match ann {
                                     Annotation::Text { text, .. } => text.clone(),
                                     Annotation::Sticky { text, .. } => text.clone(),
-                                    Annotation::Membrane { text, .. } => text.clone().unwrap_or_default(),
+                                    Annotation::Membrane { text, .. } => {
+                                        text.clone().unwrap_or_default()
+                                    }
                                     _ => String::new(),
                                 };
                                 self.start_text_edit(top.id.clone(), initial_text);
@@ -463,11 +480,13 @@ impl GlucoseApp {
 
                         match top.owner {
                             PickOwner::Image => {
-                                self.store.select_image(top.id.clone(), self.modifiers.shift_key());
+                                self.store
+                                    .select_image(top.id.clone(), self.modifiers.shift_key());
                                 selected = true;
                             }
                             PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {
-                                self.store.select_annotation(top.id.clone(), self.modifiers.shift_key());
+                                self.store
+                                    .select_annotation(top.id.clone(), self.modifiers.shift_key());
                                 selected = true;
                             }
                             PickOwner::Folder => {
@@ -483,7 +502,10 @@ impl GlucoseApp {
                 // Entrer dans un dossier remplace le tableau : plus rien de ce clic n'a de
                 // sens ensuite, ni sélection ni début de glisser.
                 if let Some(folder_id) = entrer_dans {
-                    let ecran = ScreenSize { width: screen_w as f64, height: screen_h as f64 };
+                    let ecran = ScreenSize {
+                        width: screen_w as f64,
+                        height: screen_h as f64,
+                    };
                     // La caméra plonge, et la bascule attend l'arrivée. Si le dossier a
                     // disparu entre-temps, on entre sans cérémonie plutôt que de ne rien faire.
                     if !fly_into_folder(&self.store, &mut self.animator, &folder_id, ecran) {
@@ -519,7 +541,8 @@ impl GlucoseApp {
             }
             MouseButton::Left => {
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
-                    self.ui.show_toast(format!("Panneau {} fermé", dismissed.title()));
+                    self.ui
+                        .show_toast(format!("Panneau {} fermé", dismissed.title()));
                     self.mark_dirty();
                     return;
                 }

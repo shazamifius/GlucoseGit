@@ -16,7 +16,11 @@ const SCREEN: (f32, f32) = (1440.0, 900.0);
 
 /// Clique au centre du bouton de la barre d'outils qui porte `action`.
 fn click_topbar(app: &mut GlucoseApp, action: UiAction) {
-    let img_count = app.store.active_board().map(|b| b.images.len()).unwrap_or(0);
+    let img_count = app
+        .store
+        .active_board()
+        .map(|b| b.images.len())
+        .unwrap_or(0);
     let layout = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, img_count);
     let btn = layout
         .buttons
@@ -52,14 +56,23 @@ fn test_the_collab_button_does_not_claim_to_be_connected() {
 fn test_the_storyboard_activate_button_does_not_stay_lit() {
     let mut app = GlucoseApp::new();
     click_topbar(&mut app, UiAction::ToggleStoryboard);
-    assert!(app.dock_manager.is_open(TabId::Storyboard), "le panneau s'ouvre");
+    assert!(
+        app.dock_manager.is_open(TabId::Storyboard),
+        "le panneau s'ouvre"
+    );
 
     // Le bouton « Activer » du panneau, là où il est dessiné.
     let s = crate::theme::clamp_ui_scale(app.ui.scale());
-    let frame = compute_panel_layouts(&app.dock_manager, SCREEN.0, SCREEN.1, app.ui.header_height(), s)
-        .into_iter()
-        .find(|b| b.tab == TabId::Storyboard)
-        .expect("le panneau ouvert a un cadre");
+    let frame = compute_panel_layouts(
+        &app.dock_manager,
+        SCREEN.0,
+        SCREEN.1,
+        app.ui.header_height(),
+        s,
+    )
+    .into_iter()
+    .find(|b| b.tab == TabId::Storyboard)
+    .expect("le panneau ouvert a un cadre");
     let layout = layout_storyboard_panel(frame.x, frame.y, frame.width, frame.height, s);
     let (cx, cy) = (
         (layout.activate_button.x + layout.activate_button.w / 2.0) as f64,
@@ -71,20 +84,32 @@ fn test_the_storyboard_activate_button_does_not_stay_lit() {
 
     assert_eq!(app.ui.toast_message(), Some(NOT_YET_STORYBOARD));
     assert!(!app.dock_manager.storyboard.active, "rien n'est « activé »");
-    assert!(app.store.active_board().unwrap().panels.is_empty(), "et aucun panneau n'est né");
+    assert!(
+        app.store.active_board().unwrap().panels.is_empty(),
+        "et aucun panneau n'est né"
+    );
 }
 
 #[test]
 fn test_the_download_model_button_does_not_pretend_to_download() {
     let mut app = GlucoseApp::new();
     click_topbar(&mut app, UiAction::TogglePlugins);
-    assert!(app.dock_manager.is_open(TabId::Plugins), "le panneau s'ouvre");
+    assert!(
+        app.dock_manager.is_open(TabId::Plugins),
+        "le panneau s'ouvre"
+    );
 
     let s = crate::theme::clamp_ui_scale(app.ui.scale());
-    let frame = compute_panel_layouts(&app.dock_manager, SCREEN.0, SCREEN.1, app.ui.header_height(), s)
-        .into_iter()
-        .find(|b| b.tab == TabId::Plugins)
-        .expect("le panneau ouvert a un cadre");
+    let frame = compute_panel_layouts(
+        &app.dock_manager,
+        SCREEN.0,
+        SCREEN.1,
+        app.ui.header_height(),
+        s,
+    )
+    .into_iter()
+    .find(|b| b.tab == TabId::Plugins)
+    .expect("le panneau ouvert a un cadre");
     let layout = layout_plugins_panel(frame.x, frame.y, frame.width, frame.height, s);
     let (cx, cy) = (
         (layout.download_button.x + layout.download_button.w / 2.0) as f64,
@@ -95,7 +120,11 @@ fn test_the_download_model_button_does_not_pretend_to_download() {
     app.handle_mouse_up(MouseButton::Left);
 
     assert_eq!(app.ui.toast_message(), Some(NOT_YET_AI));
-    assert_eq!(crate::dock::OLLAMA_STATUS, "Ollama : non détecté", "et le panneau ne dit pas « actif »");
+    assert_eq!(
+        crate::dock::OLLAMA_STATUS,
+        "Ollama : non détecté",
+        "et le panneau ne dit pas « actif »"
+    );
 }
 
 // ── Fiche 07 — la gestuelle, chiffre par chiffre, sur le vrai GlucoseApp ────────────
@@ -107,8 +136,18 @@ use glucose_core::types::BoardImage;
 fn render(app: &mut GlucoseApp) {
     let mut pixmap = tiny_skia::Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
     let mut view = pixmap.as_mut();
-    let overlay = crate::params::SceneOverlay { guides: &app.active_guides, selection_box: None, editing: None };
-    app.renderer.render(&mut view, &app.store, &mut app.ui, overlay, crate::params::Pointer { x: 0.0, y: 0.0 });
+    let overlay = crate::params::SceneOverlay {
+        guides: &app.active_guides,
+        selection_box: None,
+        editing: None,
+    };
+    app.renderer.render(
+        &mut view,
+        &app.store,
+        &mut app.ui,
+        overlay,
+        crate::params::Pointer { x: 0.0, y: 0.0 },
+    );
 }
 
 fn canvas_app() -> GlucoseApp {
@@ -122,7 +161,11 @@ fn canvas_app() -> GlucoseApp {
 }
 
 fn screen_of(app: &GlucoseApp, wx: f64, wy: f64) -> (f64, f64) {
-    let vp = app.store.active_board().map(|b| b.viewport).unwrap_or_default();
+    let vp = app
+        .store
+        .active_board()
+        .map(|b| b.viewport)
+        .unwrap_or_default();
     world_to_screen(wx, wy, &vp)
 }
 
@@ -162,7 +205,10 @@ fn test_a_double_click_opens_the_editor_inside_350_ms_and_not_beyond() {
     // posée à l'origine est en (120, 24). Sur le coin, une poignée gagnerait — à bon droit.
     let (sx, sy) = screen_of(&app, 120.0, 24.0);
 
-    for (elapsed_ms, opens) in [(pick_consts::DBLCLICK_MS as u64 - 1, true), (pick_consts::DBLCLICK_MS as u64 + 1, false)] {
+    for (elapsed_ms, opens) in [
+        (pick_consts::DBLCLICK_MS as u64 - 1, true),
+        (pick_consts::DBLCLICK_MS as u64 + 1, false),
+    ] {
         app.editing_session = None;
         app.last_click = None;
         click_at(&mut app, sx, sy);
@@ -171,7 +217,11 @@ fn test_a_double_click_opens_the_editor_inside_350_ms_and_not_beyond() {
             lc.time = std::time::Instant::now() - std::time::Duration::from_millis(elapsed_ms);
         }
         click_at(&mut app, sx, sy);
-        assert_eq!(app.editing_session.is_some(), opens, "second clic à {elapsed_ms} ms");
+        assert_eq!(
+            app.editing_session.is_some(),
+            opens,
+            "second clic à {elapsed_ms} ms"
+        );
     }
 }
 
@@ -182,7 +232,8 @@ fn test_a_double_click_opens_the_editor_inside_350_ms_and_not_beyond() {
 fn test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box() {
     let mut app = canvas_app();
     let board = app.store.project.active_board_id.clone();
-    app.store.add_image(&board, BoardImage::new("I1", 300.0, 0.0, 100.0, 100.0));
+    app.store
+        .add_image(&board, BoardImage::new("I1", 300.0, 0.0, 100.0, 100.0));
     app.store.clear_selection();
     render(&mut app);
     let (ex, ey) = screen_of(&app, -400.0, -250.0); // du vide, loin de l'image
@@ -192,7 +243,10 @@ fn test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box()
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
     app.handle_cursor_moved(PhysicalPosition::new(ex + 4.0, ey + 4.0));
     app.handle_mouse_up(MouseButton::Left);
-    assert!(app.store.selected_image_ids.is_empty(), "4 px : un clic, pas un lasso");
+    assert!(
+        app.store.selected_image_ids.is_empty(),
+        "4 px : un clic, pas un lasso"
+    );
 
     // Un rectangle qui effleure le coin de l'image la prend.
     let (cx, cy) = screen_of(&app, 251.0, -49.0); // juste dans le coin haut-gauche de I1
@@ -200,7 +254,11 @@ fn test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box()
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
     app.handle_cursor_moved(PhysicalPosition::new(cx, cy));
     app.handle_mouse_up(MouseButton::Left);
-    assert_eq!(app.store.selected_image_ids, vec!["I1".to_string()], "sélection par boîte englobante");
+    assert_eq!(
+        app.store.selected_image_ids,
+        vec!["I1".to_string()],
+        "sélection par boîte englobante"
+    );
 }
 
 /// § 7.1 — la molette ne dépasse ni ×20 ni ×50 dézoomé (0,02), bornes du geste, plus
@@ -209,7 +267,10 @@ fn test_the_rubberband_needs_more_than_four_pixels_and_selects_by_bounding_box()
 fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
     use winit::event::MouseScrollDelta;
     let mut app = canvas_app();
-    assert_eq!(crate::interactions::pan_zoom::WHEEL_SCALE_RANGE, (0.02, 20.0));
+    assert_eq!(
+        crate::interactions::pan_zoom::WHEEL_SCALE_RANGE,
+        (0.02, 20.0)
+    );
     let scale = |app: &GlucoseApp| app.store.active_board().unwrap().viewport.scale;
 
     for _ in 0..200 {
@@ -235,7 +296,11 @@ fn finish_flight(app: &mut GlucoseApp) {
 
 /// Pose le curseur au point monde `(wx, wy)` et clique.
 fn click_world(app: &mut GlucoseApp, wx: f64, wy: f64) {
-    let vp = app.store.active_board().map(|b| b.viewport).unwrap_or_default();
+    let vp = app
+        .store
+        .active_board()
+        .map(|b| b.viewport)
+        .unwrap_or_default();
     let (sx, sy) = crate::canvas::world_to_screen(wx, wy, &vp);
     app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
@@ -247,7 +312,11 @@ fn click_world(app: &mut GlucoseApp, wx: f64, wy: f64) {
 #[test]
 fn test_the_folder_tool_actually_creates_a_folder() {
     let mut app = GlucoseApp::new();
-    let avant = app.store.active_board().map(|b| b.folders.len()).unwrap_or(0);
+    let avant = app
+        .store
+        .active_board()
+        .map(|b| b.folders.len())
+        .unwrap_or(0);
     let boards_avant = app.store.project.boards.len();
 
     app.ui.active_tool = ActiveTool::Folder;
@@ -258,12 +327,18 @@ fn test_the_folder_tool_actually_creates_a_folder() {
     let f = board.folders.last().expect("le dossier");
     assert_eq!((f.x, f.y), (600.0, 400.0), "posé sous le curseur");
     assert_eq!((f.width, f.height), FOLDER_DEFAULT_SIZE);
-    assert!(!f.child_board_id.is_empty(), "et son tableau enfant est créé");
+    assert!(
+        !f.child_board_id.is_empty(),
+        "et son tableau enfant est créé"
+    );
     assert_eq!(app.store.project.boards.len(), boards_avant + 1);
 
     // R1 — le geste est annulable, et il ne laisse rien derrière lui.
     assert!(app.store.undo(), "la création s'annule");
-    assert_eq!(app.store.active_board().map(|b| b.folders.len()), Some(avant));
+    assert_eq!(
+        app.store.active_board().map(|b| b.folders.len()),
+        Some(avant)
+    );
 }
 
 /// **Un double-clic sur un dossier y entre.** Le store savait le faire — `try_enter_folder`,
@@ -274,23 +349,46 @@ fn test_double_clicking_a_folder_enters_it() {
     app.ui.active_tool = ActiveTool::Folder;
     click_world(&mut app, 600.0, 400.0);
     let (folder_id, child) = {
-        let f = app.store.active_board().and_then(|b| b.folders.last()).expect("le dossier");
+        let f = app
+            .store
+            .active_board()
+            .and_then(|b| b.folders.last())
+            .expect("le dossier");
         (f.id.clone(), f.child_board_id.clone())
     };
     let racine = app.store.project.active_board_id.clone();
 
     // Un premier clic au milieu du dossier sélectionne, il n'entre pas.
     click_world(&mut app, 700.0, 500.0);
-    assert_eq!(app.store.selected_folder_id.as_deref(), Some(folder_id.as_str()));
-    assert_eq!(app.store.project.active_board_id, racine, "un seul clic n'ouvre rien");
+    assert_eq!(
+        app.store.selected_folder_id.as_deref(),
+        Some(folder_id.as_str())
+    );
+    assert_eq!(
+        app.store.project.active_board_id, racine,
+        "un seul clic n'ouvre rien"
+    );
 
     // Le second, au même endroit et dans les temps, lance la plongée.
     click_world(&mut app, 700.0, 500.0);
-    assert!(app.animator.is_running(), "la caméra plonge avant de basculer");
-    assert_eq!(app.store.project.active_board_id, racine, "on est encore dans le parent");
+    assert!(
+        app.animator.is_running(),
+        "la caméra plonge avant de basculer"
+    );
+    assert_eq!(
+        app.store.project.active_board_id, racine,
+        "on est encore dans le parent"
+    );
     finish_flight(&mut app);
-    assert_eq!(app.store.project.active_board_id, child, "le tableau enfant est actif");
-    assert_eq!(app.store.folder_path().len(), 2, "on est descendu d'un cran");
+    assert_eq!(
+        app.store.project.active_board_id, child,
+        "le tableau enfant est actif"
+    );
+    assert_eq!(
+        app.store.folder_path().len(),
+        2,
+        "on est descendu d'un cran"
+    );
 }
 
 /// Entrer dans un dossier n'est pas une modification du document : la navigation ne touche
@@ -342,7 +440,10 @@ fn test_clicking_the_breadcrumb_goes_back_up() {
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
     app.handle_mouse_up(MouseButton::Left);
 
-    assert_eq!(app.store.project.active_board_id, racine, "on est remonté à la racine");
+    assert_eq!(
+        app.store.project.active_board_id, racine,
+        "on est remonté à la racine"
+    );
     assert_eq!(app.store.folder_path().len(), 1);
 }
 
@@ -370,7 +471,10 @@ fn test_a_click_during_the_dive_cuts_it_short() {
     app.handle_mouse_up(MouseButton::Left);
 
     assert!(!app.animator.is_running(), "elle est finie");
-    assert_eq!(app.store.project.active_board_id, child, "et l'on est arrivé");
+    assert_eq!(
+        app.store.project.active_board_id, child,
+        "et l'on est arrivé"
+    );
     assert!(
         app.store.selected_image_ids.is_empty() && app.store.selected_annotation_ids.is_empty(),
         "le clic n'a rien sélectionné dans le tableau d'arrivée"

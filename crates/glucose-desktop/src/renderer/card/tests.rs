@@ -61,12 +61,15 @@ fn test_a_card_stretches_to_fit_its_text_in_world_units() {
     let tall = CardLayout::text_card(260.0, 60.0, 8);
     assert_eq!(short.height, 60.0, "une carte assez haute garde sa hauteur");
     assert!(tall.height > 60.0, "une carte trop courte s'etire");
-    let ratio_1 = tall.scaled(WorldScale::new(0.3)).height / tall.scaled(WorldScale::new(0.3)).width;
-    let ratio_2 = tall.scaled(WorldScale::new(3.0)).height / tall.scaled(WorldScale::new(3.0)).width;
+    let ratio_1 =
+        tall.scaled(WorldScale::new(0.3)).height / tall.scaled(WorldScale::new(0.3)).width;
+    let ratio_2 =
+        tall.scaled(WorldScale::new(3.0)).height / tall.scaled(WorldScale::new(3.0)).width;
     assert!((ratio_1 - ratio_2).abs() < 1e-6, "{ratio_1} != {ratio_2}");
 }
 
-const LONG_TEXT: &str = "Une carte de texte redimensionnée en largeur reflue son texte, et sa hauteur suit.";
+const LONG_TEXT: &str =
+    "Une carte de texte redimensionnée en largeur reflue son texte, et sa hauteur suit.";
 
 #[test]
 fn test_wrap_1_a_narrower_card_has_more_lines_and_none_overflows() {
@@ -79,7 +82,11 @@ fn test_wrap_1_a_narrower_card_has_more_lines_and_none_overflows() {
     let usable = 240.0 - PAD_X * 2.0;
     for line in &narrow {
         let (w, _) = typo.measure_text(&LONG_TEXT[line.start..line.end], BODY_FONT, false);
-        assert!(w <= usable + 1e-3, "« {} » mesure {w} > {usable}", &LONG_TEXT[line.start..line.end]);
+        assert!(
+            w <= usable + 1e-3,
+            "« {} » mesure {w} > {usable}",
+            &LONG_TEXT[line.start..line.end]
+        );
     }
     // Recollées, les lignes redonnent le texte, aux espaces de coupe près.
     let joined: Vec<&str> = narrow.iter().map(|l| &LONG_TEXT[l.start..l.end]).collect();
@@ -91,10 +98,17 @@ fn test_wrap_1_a_bulleted_paragraph_keeps_its_bullet_on_its_first_line_only() {
     let typo = Typography::new();
     let text = "# Titre\n- une puce assez longue pour être coupée en deux lignes au moins\ncorps";
     let lines = layout_lines(&typo, &MathRenderer::new(), text, 200.0);
-    let bullets: Vec<&VisualLine> = lines.iter().filter(|l| l.kind == LineKind::Bullet).collect();
+    let bullets: Vec<&VisualLine> = lines
+        .iter()
+        .filter(|l| l.kind == LineKind::Bullet)
+        .collect();
     assert!(bullets.len() >= 2, "{lines:?}");
     assert!(bullets[0].first && bullets[1..].iter().all(|l| !l.first));
-    assert_eq!(&text[bullets[0].start..bullets[0].start + 3], "une", "le préfixe « - » n'est pas dessiné");
+    assert_eq!(
+        &text[bullets[0].start..bullets[0].start + 3],
+        "une",
+        "le préfixe « - » n'est pas dessiné"
+    );
     assert_eq!(lines[0].kind, LineKind::Heading1);
     assert_eq!(&text[lines[0].start..lines[0].end], "Titre");
     assert_eq!(lines.last().map(|l| l.kind), Some(LineKind::Body));
@@ -104,11 +118,18 @@ fn test_wrap_1_a_bulleted_paragraph_keeps_its_bullet_on_its_first_line_only() {
 fn test_text_fit_1_the_fitted_height_follows_the_line_count() {
     let typo = Typography::new();
     let one = text_card_fit_height(&typo, &MathRenderer::new(), "court", 240.0);
-    assert!((one - (PAD_Y * 2.0 + BODY_FONT * LINE_FACTOR) as f64).abs() < 1e-4, "{one}");
+    assert!(
+        (one - (PAD_Y * 2.0 + BODY_FONT * LINE_FACTOR) as f64).abs() < 1e-4,
+        "{one}"
+    );
     let wide = text_card_fit_height(&typo, &MathRenderer::new(), LONG_TEXT, 900.0);
     let narrow = text_card_fit_height(&typo, &MathRenderer::new(), LONG_TEXT, 240.0);
     assert!(narrow > wide, "{narrow} <= {wide}");
-    assert_eq!(text_card_fit_height(&typo, &MathRenderer::new(), "", 240.0), one, "une carte vide garde une ligne");
+    assert_eq!(
+        text_card_fit_height(&typo, &MathRenderer::new(), "", 240.0),
+        one,
+        "une carte vide garde une ligne"
+    );
 }
 
 /// Fiche 08 § 2.1 — ce que le moteur de texte reconnaît du Markdown, ni plus ni moins :
@@ -122,8 +143,20 @@ fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
     assert_eq!(LineKind::of("- une puce"), (LineKind::Bullet, 2));
     assert_eq!(LineKind::of("* une autre"), (LineKind::Bullet, 2));
 
-    for not_yet in ["### H3", "###### H6", "> citation", "| a | b |", "```rust", "**gras**", "*italique*"] {
-        assert_eq!(LineKind::of(not_yet), (LineKind::Body, 0), "{not_yet:?} n'est pas encore compris");
+    for not_yet in [
+        "### H3",
+        "###### H6",
+        "> citation",
+        "| a | b |",
+        "```rust",
+        "**gras**",
+        "*italique*",
+    ] {
+        assert_eq!(
+            LineKind::of(not_yet),
+            (LineKind::Body, 0),
+            "{not_yet:?} n'est pas encore compris"
+        );
     }
 }
 

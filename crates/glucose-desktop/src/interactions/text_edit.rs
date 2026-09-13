@@ -80,15 +80,20 @@ impl GlucoseApp {
             // Une carte de texte vidée disparaît — une suppression comme une autre.
             self.store.remove_annotations(&board, &[&session.ann_id]);
         } else {
-            self.store.update_annotation(&board, &session.ann_id, |ann| match ann {
-                Annotation::Text { text, .. } | Annotation::Sticky { text, .. } => {
-                    *text = session.buffer.clone();
-                }
-                Annotation::Membrane { text, .. } => {
-                    *text = if is_empty { None } else { Some(session.buffer.clone()) };
-                }
-                _ => {}
-            });
+            self.store
+                .update_annotation(&board, &session.ann_id, |ann| match ann {
+                    Annotation::Text { text, .. } | Annotation::Sticky { text, .. } => {
+                        *text = session.buffer.clone();
+                    }
+                    Annotation::Membrane { text, .. } => {
+                        *text = if is_empty {
+                            None
+                        } else {
+                            Some(session.buffer.clone())
+                        };
+                    }
+                    _ => {}
+                });
             self.fit_text_card_height(&session.ann_id);
         }
         self.store.end_live_edit();
@@ -214,7 +219,10 @@ mod tests {
         assert!(!is_file_command(&none, &character("o")));
         // Ctrl+A reste une sélection de texte, pas une commande de fichier.
         assert!(!is_file_command(&ModifiersState::CONTROL, &character("a")));
-        assert!(!is_file_command(&ModifiersState::CONTROL, &Key::Named(NamedKey::Enter)));
+        assert!(!is_file_command(
+            &ModifiersState::CONTROL,
+            &Key::Named(NamedKey::Enter)
+        ));
     }
 
     /// Un pas du curseur enjambe un caractère entier, jamais un octet : « é » en fait deux.

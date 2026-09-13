@@ -38,7 +38,8 @@ fn kind_of(a: &Annotation) -> Kind {
 impl Bridge {
     /// Porte un tableau du modèle historique dans l'arène.
     pub fn from_board(board: &Board) -> Self {
-        let n = board.images.len() + board.annotations.len() + board.folders.len() + board.panels.len();
+        let n =
+            board.images.len() + board.annotations.len() + board.folders.len() + board.panels.len();
         let mut b = Self {
             doc: Doc::with_capacity(n),
             names: Vec::with_capacity(n),
@@ -70,7 +71,13 @@ impl Bridge {
             by_name.insert(&p.id, id);
         }
 
-        b.resolve_references(board, &by_name, &des_images, &des_annotations, &des_dossiers);
+        b.resolve_references(
+            board,
+            &by_name,
+            &des_images,
+            &des_annotations,
+            &des_dossiers,
+        );
         b
     }
 
@@ -125,12 +132,32 @@ impl Bridge {
 
     fn spawn_annotation(&mut self, ann: &Annotation) -> NodeId {
         let id = match ann {
-            Annotation::Text { x, y, width, height, .. }
-            | Annotation::Sticky { x, y, width, height, .. } => {
+            Annotation::Text {
+                x,
+                y,
+                width,
+                height,
+                ..
+            }
+            | Annotation::Sticky {
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let (bx, flags) = box_with_auto(*x, *y, *width, *height);
                 self.intern(ann.id(), kind_of(ann), bx, flags)
             }
-            Annotation::Arrow { id, x, y, x2, y2, arrow_bidirectional, .. } => {
+            Annotation::Arrow {
+                id,
+                x,
+                y,
+                x2,
+                y2,
+                arrow_bidirectional,
+                ..
+            } => {
                 let bx = Box2::spanning(
                     Fx::from_f64(*x),
                     Fx::from_f64(*y),
@@ -147,12 +174,20 @@ impl Bridge {
                 );
                 // `set_arrow` réécrit les drapeaux de coin : le sens double se pose après.
                 let f = self.doc.nodes.flags_of(node).unwrap_or_default();
-                self.doc
-                    .nodes
-                    .set_flags(node, f.set(Flags::ARROW_BIDIRECTIONAL, *arrow_bidirectional));
+                self.doc.nodes.set_flags(
+                    node,
+                    f.set(Flags::ARROW_BIDIRECTIONAL, *arrow_bidirectional),
+                );
                 node
             }
-            Annotation::Membrane { id, x, y, width, height, .. } => {
+            Annotation::Membrane {
+                id,
+                x,
+                y,
+                width,
+                height,
+                ..
+            } => {
                 let bx = Box2::new(
                     Fx::from_f64(*x),
                     Fx::from_f64(*y),
@@ -169,15 +204,41 @@ impl Bridge {
     /// Les attributs communs et propres d'une annotation, une fois son nœud créé.
     fn fill_annotation(&mut self, id: NodeId, ann: &Annotation) {
         match ann {
-            Annotation::Text { text, font_size, color, cursor_pos, source_file, .. } => {
-                self.doc.text.set(id, text);
-                self.set_common(id, *font_size, color.as_deref(), *cursor_pos, source_file.as_deref());
-            }
-            Annotation::Sticky {
-                text, font_size, color, bg_color, cursor_pos, operator, source_file, ..
+            Annotation::Text {
+                text,
+                font_size,
+                color,
+                cursor_pos,
+                source_file,
+                ..
             } => {
                 self.doc.text.set(id, text);
-                self.set_common(id, *font_size, color.as_deref(), *cursor_pos, source_file.as_deref());
+                self.set_common(
+                    id,
+                    *font_size,
+                    color.as_deref(),
+                    *cursor_pos,
+                    source_file.as_deref(),
+                );
+            }
+            Annotation::Sticky {
+                text,
+                font_size,
+                color,
+                bg_color,
+                cursor_pos,
+                operator,
+                source_file,
+                ..
+            } => {
+                self.doc.text.set(id, text);
+                self.set_common(
+                    id,
+                    *font_size,
+                    color.as_deref(),
+                    *cursor_pos,
+                    source_file.as_deref(),
+                );
                 if let Some(bg) = bg_color {
                     self.doc.set_background(id, bg);
                 }
@@ -186,9 +247,20 @@ impl Bridge {
                 }
             }
             Annotation::Arrow {
-                text, font_size, color, arrow_type, predicate, stroke_width, waypoints,
-                source_block_id, target_block_id, source_text_sel, target_text_sel, long_text,
-                target_board_id, ..
+                text,
+                font_size,
+                color,
+                arrow_type,
+                predicate,
+                stroke_width,
+                waypoints,
+                source_block_id,
+                target_block_id,
+                source_text_sel,
+                target_text_sel,
+                long_text,
+                target_board_id,
+                ..
             } => {
                 if let Some(t) = text {
                     self.doc.text.set(id, t);
@@ -215,7 +287,13 @@ impl Bridge {
                     },
                 );
             }
-            Annotation::Membrane { color, text, mode, curtains, .. } => {
+            Annotation::Membrane {
+                color,
+                text,
+                mode,
+                curtains,
+                ..
+            } => {
                 if let Some(t) = text {
                     self.doc.text.set(id, t);
                 }
@@ -268,9 +346,10 @@ impl Bridge {
         );
         let id = self.intern(&f.id, Kind::Folder, bx, Flags::default());
         self.doc.set_color(id, &f.color);
-        self.doc
-            .folder
-            .set(id, (f.name.as_str().into(), f.child_board_id.as_str().into()));
+        self.doc.folder.set(
+            id,
+            (f.name.as_str().into(), f.child_board_id.as_str().into()),
+        );
         if let Some(m) = &f.mirror_source {
             self.doc.folder_mirror.set(id, m.clone());
         }
@@ -300,11 +379,21 @@ impl Bridge {
         des_dossiers: &[NodeId],
     ) {
         for (img, &id) in board.images.iter().zip(des_images) {
-            self.link(id, img.membrane_id.as_deref(), img.mirror_of.as_deref(), by_name);
+            self.link(
+                id,
+                img.membrane_id.as_deref(),
+                img.mirror_of.as_deref(),
+                by_name,
+            );
         }
         for (ann, &id) in board.annotations.iter().zip(des_annotations) {
             self.link(id, ann.membrane_id(), mirror_of(ann), by_name);
-            if let Annotation::Arrow { source_id, target_id, .. } = ann {
+            if let Annotation::Arrow {
+                source_id,
+                target_id,
+                ..
+            } = ann
+            {
                 if let Some(a) = self.doc.arrow.get_mut(id) {
                     a.source = super::resolve(by_name, source_id.as_deref());
                     a.target = super::resolve(by_name, target_id.as_deref());
@@ -317,7 +406,13 @@ impl Bridge {
     }
 
     /// Pose le parent et le miroir d'un nœud.
-    fn link(&mut self, id: NodeId, parent: Option<&str>, mirror: Option<&str>, by_name: &ByName<'_>) {
+    fn link(
+        &mut self,
+        id: NodeId,
+        parent: Option<&str>,
+        mirror: Option<&str>,
+        by_name: &ByName<'_>,
+    ) {
         let p = super::resolve(by_name, parent);
         if p.is_some() {
             self.doc.nodes.set_parent(id, p);
@@ -332,10 +427,18 @@ impl Bridge {
 /// L'ancre temporelle d'une annotation, quelle que soit sa variante.
 fn temporal_of(a: &Annotation) -> Option<&crate::types::TemporalAnchor> {
     match a {
-        Annotation::Text { temporal_anchor, .. }
-        | Annotation::Sticky { temporal_anchor, .. }
-        | Annotation::Arrow { temporal_anchor, .. }
-        | Annotation::Membrane { temporal_anchor, .. } => temporal_anchor.as_ref(),
+        Annotation::Text {
+            temporal_anchor, ..
+        }
+        | Annotation::Sticky {
+            temporal_anchor, ..
+        }
+        | Annotation::Arrow {
+            temporal_anchor, ..
+        }
+        | Annotation::Membrane {
+            temporal_anchor, ..
+        } => temporal_anchor.as_ref(),
     }
 }
 

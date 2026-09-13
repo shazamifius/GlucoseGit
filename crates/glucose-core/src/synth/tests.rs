@@ -12,7 +12,10 @@ fn test_la_meme_graine_rend_le_meme_document() {
     let board_a = a.active_board().expect("un tableau");
     let board_b = b.active_board().expect("un tableau");
 
-    assert_eq!(board_a.annotations, board_b.annotations, "les annotations diffèrent");
+    assert_eq!(
+        board_a.annotations, board_b.annotations,
+        "les annotations diffèrent"
+    );
     assert_eq!(board_a.images.len(), board_b.images.len());
     for (x, y) in board_a.images.iter().zip(&board_b.images) {
         assert_eq!((x.id.as_str(), x.x, x.y), (y.id.as_str(), y.x, y.y));
@@ -43,7 +46,10 @@ fn test_le_compte_de_noeuds_est_celui_demande() {
     let w = document(100, 4_000.0, Shape::Wikipedia, 7);
     let b = w.active_board().expect("un tableau");
     let total = b.images.len() + b.annotations.len();
-    assert!(total > 100, "la forme Wikipédia ajoute ses arêtes : {total}");
+    assert!(
+        total > 100,
+        "la forme Wikipédia ajoute ses arêtes : {total}"
+    );
 }
 
 /// **Les amas laissent du vide, la pluie uniforme n'en laisse pas.**
@@ -76,8 +82,14 @@ fn test_les_amas_laissent_du_vide_la_pluie_n_en_laisse_pas() {
     let uniforme = cellules_vides(&document(2_000, SPAN, Shape::Uniform, 3));
     let amas = cellules_vides(&document(2_000, SPAN, Shape::Clustered, 3));
 
-    assert!(uniforme < 40, "la pluie uniforme doit couvrir presque tout : {uniforme} vides");
-    assert!(amas > uniforme * 3, "les amas doivent laisser bien plus de vide : {amas} contre {uniforme}");
+    assert!(
+        uniforme < 40,
+        "la pluie uniforme doit couvrir presque tout : {uniforme} vides"
+    );
+    assert!(
+        amas > uniforme * 3,
+        "les amas doivent laisser bien plus de vide : {amas} contre {uniforme}"
+    );
 }
 
 /// Les longues arêtes de la forme Wikipédia traversent vraiment le document : elles relient
@@ -92,14 +104,19 @@ fn test_la_forme_wikipedia_a_de_vraies_longues_aretes() {
         .annotations
         .iter()
         .filter_map(|a| match a {
-            Annotation::Arrow { x, y, x2, y2, .. } => Some(((x2 - x).powi(2) + (y2 - y).powi(2)).sqrt()),
+            Annotation::Arrow { x, y, x2, y2, .. } => {
+                Some(((x2 - x).powi(2) + (y2 - y).powi(2)).sqrt())
+            }
             _ => None,
         })
         .collect();
 
     assert!(!longueurs.is_empty(), "il doit y avoir des arêtes");
     let plus_longue = longueurs.iter().cloned().fold(0.0_f64, f64::max);
-    assert!(plus_longue > SPAN / 4.0, "l'arête la plus longue traverse : {plus_longue}");
+    assert!(
+        plus_longue > SPAN / 4.0,
+        "l'arête la plus longue traverse : {plus_longue}"
+    );
 }
 
 /// La forme uniforme n'a aucune flèche : ses nœuds ne sont reliés à rien, et c'est voulu.
@@ -124,7 +141,10 @@ fn test_les_formes_sans_aretes_n_en_ont_aucune() {
 fn test_un_document_synthetique_n_a_pas_d_historique() {
     let s = document(50, 1_000.0, Shape::Uniform, 1);
     assert!(!s.can_undo(), "rien à annuler");
-    assert!(s.selected_annotation_ids.is_empty(), "aucune annotation sélectionnée");
+    assert!(
+        s.selected_annotation_ids.is_empty(),
+        "aucune annotation sélectionnée"
+    );
     assert!(s.selected_image_ids.is_empty(), "aucune image sélectionnée");
 }
 
@@ -137,10 +157,22 @@ fn test_la_scene_temoin_contient_un_de_chaque() {
     let b = s.active_board().expect("un tableau");
 
     let a_du = |f: fn(&Annotation) -> bool| b.annotations.iter().any(f);
-    assert!(a_du(|a| matches!(a, Annotation::Text { .. })), "une carte de texte");
-    assert!(a_du(|a| matches!(a, Annotation::Sticky { .. })), "un pense-bête");
-    assert!(a_du(|a| matches!(a, Annotation::Arrow { .. })), "une flèche");
-    assert!(a_du(|a| matches!(a, Annotation::Membrane { .. })), "une membrane");
+    assert!(
+        a_du(|a| matches!(a, Annotation::Text { .. })),
+        "une carte de texte"
+    );
+    assert!(
+        a_du(|a| matches!(a, Annotation::Sticky { .. })),
+        "un pense-bête"
+    );
+    assert!(
+        a_du(|a| matches!(a, Annotation::Arrow { .. })),
+        "une flèche"
+    );
+    assert!(
+        a_du(|a| matches!(a, Annotation::Membrane { .. })),
+        "une membrane"
+    );
     assert!(!b.folders.is_empty(), "un dossier");
 
     // Et le texte y couvre ce que le moteur doit savoir rendre.
@@ -186,5 +218,8 @@ fn test_la_suite_ne_trahit_pas_ses_bits_de_poids_faible() {
     }
     // Une suite sans structure alterne une fois sur deux, soit ~500 sur 1 000. Un LCG qui
     // rendrait son bit de poids faible alternerait 1 000 fois sur 1 000.
-    assert!((400..600).contains(&alternances), "alternances : {alternances}");
+    assert!(
+        (400..600).contains(&alternances),
+        "alternances : {alternances}"
+    );
 }

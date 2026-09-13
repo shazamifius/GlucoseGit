@@ -46,8 +46,8 @@ mod document;
 mod image;
 mod tags;
 
-use crate::hash::sha256;
 use crate::error::{CoreError, CoreResult};
+use crate::hash::sha256;
 use crate::types::{AssetStore, Project};
 use bytes::{Reader, Writer};
 use container::{ParsedSection, Section};

@@ -71,7 +71,11 @@ fn test_les_deux_formes_de_couleur_s_excluent() {
     assert!(d.color.has(id) && !d.color_literal.has(id));
     d.check().unwrap();
 
-    assert_eq!(std::mem::size_of::<Rgba>(), 4, "contre 24 pour un String, plus son tas");
+    assert_eq!(
+        std::mem::size_of::<Rgba>(),
+        4,
+        "contre 24 pour un String, plus son tas"
+    );
 }
 
 /// La couleur de fond a sa propre paire de tables : sans cela, un fond illisible écraserait la
@@ -82,8 +86,14 @@ fn test_le_fond_et_le_trait_ne_se_marchent_pas_dessus() {
     let id = d.spawn(Kind::Sticky, boite(0, 0, 10, 10), NodeId::NONE);
     d.set_color(id, "une couleur qui n'en est pas une");
     d.set_background(id, "un fond qui n'en est pas un");
-    assert_eq!(d.color_of(id).as_deref(), Some("une couleur qui n'en est pas une"));
-    assert_eq!(d.background_of(id).as_deref(), Some("un fond qui n'en est pas un"));
+    assert_eq!(
+        d.color_of(id).as_deref(),
+        Some("une couleur qui n'en est pas une")
+    );
+    assert_eq!(
+        d.background_of(id).as_deref(),
+        Some("un fond qui n'en est pas un")
+    );
     d.check().unwrap();
 }
 
@@ -131,11 +141,31 @@ fn test_la_verification_attrape_une_table_qui_pointe_dans_le_vide() {
     d.check().unwrap();
 
     let f = d.spawn(Kind::Arrow, boite(0, 0, 10, 10), NodeId::NONE);
-    d.arrow.set(f, ArrowTrait { source: fantome, ..Default::default() });
+    d.arrow.set(
+        f,
+        ArrowTrait {
+            source: fantome,
+            ..Default::default()
+        },
+    );
     assert!(d.check().unwrap_err().contains("source"));
-    d.arrow.set(f, ArrowTrait { source: a, target: fantome, ..Default::default() });
+    d.arrow.set(
+        f,
+        ArrowTrait {
+            source: a,
+            target: fantome,
+            ..Default::default()
+        },
+    );
     assert!(d.check().unwrap_err().contains("cible"));
-    d.arrow.set(f, ArrowTrait { source: a, target: b, ..Default::default() });
+    d.arrow.set(
+        f,
+        ArrowTrait {
+            source: a,
+            target: b,
+            ..Default::default()
+        },
+    );
     d.check().unwrap();
 }
 

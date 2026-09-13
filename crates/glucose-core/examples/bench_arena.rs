@@ -15,11 +15,11 @@
 //! 4. **Combien coûte une requête de viewport ?** C'est le geste dominant, à chaque frame.
 
 use glucose_core::arena::bridge::Bridge;
-use glucose_core::quadtree::SpatialHash;
 use glucose_core::arena::grid::Grid;
 use glucose_core::arena::text::TextArena;
 use glucose_core::arena::{Arena, Box2, Kind, NodeId};
 use glucose_core::fixed::Fx;
+use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, BoardImage};
 use std::alloc::{GlobalAlloc, Layout, System};
@@ -262,7 +262,12 @@ fn mesurer_arene(n: usize) -> Mesure {
     assert!(trouves > 0);
 
     let (vx, vy, vw, vh) = vue(n);
-    let v = Box2::new(Fx::from_f64(vx), Fx::from_f64(vy), Fx::from_f64(vw), Fx::from_f64(vh));
+    let v = Box2::new(
+        Fx::from_f64(vx),
+        Fx::from_f64(vy),
+        Fx::from_f64(vw),
+        Fx::from_f64(vh),
+    );
     let mut out = Vec::new();
     let t = Instant::now();
     arene.cull(v, &mut out);
@@ -279,7 +284,11 @@ fn mesurer_arene(n: usize) -> Mesure {
         g.query(&arene, v, &mut par_index);
     }
     let court_us = ms(t) * 1000.0 / 100.0;
-    assert_eq!(par_index.len(), out.len(), "l'index doit voir les memes noeuds");
+    assert_eq!(
+        par_index.len(),
+        out.len(),
+        "l'index doit voir les memes noeuds"
+    );
     println!(
         "         |           | requete par l'index : {court_us:>8.3} us contre {query_us:>9.1} us par balayage ({:>7.0}x)",
         query_us / court_us.max(1e-9),
@@ -415,8 +424,7 @@ fn main() {
     println!(
         "    noms ne survivent que dans le format de fichier. L'ancien modèle porte une String par"
     );
-    println!(
-        "    nœud : c'est une part de l'écart, et elle est assumée, pas oubliée.");
+    println!("    nœud : c'est une part de l'écart, et elle est assumée, pas oubliée.");
     println!(
         "  • « lookup µs » = retrouver un nœud par son identifiant. L'ancien balaie et compare"
     );

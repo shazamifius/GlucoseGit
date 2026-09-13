@@ -784,7 +784,9 @@ fn test_a_node_carries_several_domains_each_with_its_own_weight() {
         icon: "🔬".into(),
         created_at: 1_700_000_000_000,
     };
-    store.try_add_domain(science.clone()).expect("catalogue vide");
+    store
+        .try_add_domain(science.clone())
+        .expect("catalogue vide");
     store
         .try_add_domain(domain("d-his", "Histoire"))
         .expect("identifiant neuf");

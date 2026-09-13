@@ -46,8 +46,8 @@ pub mod glyph;
 
 use fontdue::{Font, FontSettings};
 use glyph::{
-    blend_glyph, evict_if_full, shifted_glyph, split_position, CachedGlyph, GlyphKey,
-    PHASE_ORIGIN, SUBPIXEL_PHASES,
+    blend_glyph, evict_if_full, shifted_glyph, split_position, CachedGlyph, GlyphKey, PHASE_ORIGIN,
+    SUBPIXEL_PHASES,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -133,7 +133,12 @@ impl Typography {
                 let font = if bold { &self.bold } else { &self.regular };
                 let (metrics, bitmap) = font.rasterize(ch, size);
                 let (width, height) = (metrics.width, metrics.height);
-                let entry = Rc::new(GlyphEntry { metrics, bitmap, width, height });
+                let entry = Rc::new(GlyphEntry {
+                    metrics,
+                    bitmap,
+                    width,
+                    height,
+                });
                 evict_if_full(&mut cache);
                 cache.insert((bold, ch, size_key, PHASE_ORIGIN), (entry.clone(), access));
                 entry
@@ -207,8 +212,14 @@ impl Typography {
         let TextStyle { color, bold, .. } = style;
         let size = clamp_font_size(style.size);
         let shadow_offsets: [(f32, f32); 8] = [
-            (-1.5, 0.0), (1.5, 0.0), (0.0, -1.5), (0.0, 1.5),
-            (-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0),
+            (-1.5, 0.0),
+            (1.5, 0.0),
+            (0.0, -1.5),
+            (0.0, 1.5),
+            (-1.0, -1.0),
+            (1.0, -1.0),
+            (-1.0, 1.0),
+            (1.0, 1.0),
         ];
 
         let out_r = outline_color.red() * 255.0;
@@ -242,13 +253,7 @@ impl Typography {
                     );
                 }
                 // 2. Passe principale
-                self.blend_positioned(
-                    data,
-                    (w, h),
-                    (ch, size, bold),
-                    (x, y + size),
-                    (r, g, b, a),
-                )
+                self.blend_positioned(data, (w, h), (ch, size, bold), (x, y + size), (r, g, b, a))
             };
             x += advance;
         }
@@ -278,7 +283,10 @@ impl Typography {
     pub fn measure_text(&self, text: &str, size: f32, bold: bool) -> (f32, f32) {
         let size = clamp_font_size(size);
         let font = if bold { &self.bold } else { &self.regular };
-        let height = font.horizontal_line_metrics(size).map(|m| m.new_line_size).unwrap_or(size * 1.2);
+        let height = font
+            .horizontal_line_metrics(size)
+            .map(|m| m.new_line_size)
+            .unwrap_or(size * 1.2);
         let mut width = 0.0;
         for ch in text.chars() {
             if ch == '\n' {
@@ -321,12 +329,32 @@ mod tests {
 
         let mut pixmap = Pixmap::new(200, 100).unwrap();
         let color = Color::from_rgba8(255, 255, 255, 255);
-        typo.draw_text(&mut pixmap.as_mut(), "Hello", 10.0, 20.0, TextStyle { size: 14.0, color, bold: false });
+        typo.draw_text(
+            &mut pixmap.as_mut(),
+            "Hello",
+            10.0,
+            20.0,
+            TextStyle {
+                size: 14.0,
+                color,
+                bold: false,
+            },
+        );
         let count_after_first = typo.cached_glyph_count();
         assert!(count_after_first > 0);
 
         // Réutiliser le texte ne doit pas augmenter le nombre de glyphes rastérisés
-        typo.draw_text(&mut pixmap.as_mut(), "Hello", 10.0, 50.0, TextStyle { size: 14.0, color, bold: false });
+        typo.draw_text(
+            &mut pixmap.as_mut(),
+            "Hello",
+            10.0,
+            50.0,
+            TextStyle {
+                size: 14.0,
+                color,
+                bold: false,
+            },
+        );
         assert_eq!(typo.cached_glyph_count(), count_after_first);
     }
 
@@ -335,7 +363,17 @@ mod tests {
         let typo = Typography::new();
         let mut pixmap = Pixmap::new(100, 50).unwrap();
         let color = Color::from_rgba8(255, 255, 255, 128);
-        typo.draw_text(&mut pixmap.as_mut(), "A", 10.0, 10.0, TextStyle { size: 16.0, color, bold: false });
+        typo.draw_text(
+            &mut pixmap.as_mut(),
+            "A",
+            10.0,
+            10.0,
+            TextStyle {
+                size: 16.0,
+                color,
+                bold: false,
+            },
+        );
 
         // Les pixels hors de la lettre doivent conserver un alpha transparent (0)
         let data = pixmap.data();
@@ -353,7 +391,11 @@ mod tests {
             "Membrane 1",
             10.0,
             20.0,
-            TextStyle { size: 16.0, color: text_color, bold: true },
+            TextStyle {
+                size: 16.0,
+                color: text_color,
+                bold: true,
+            },
             outline_color,
         );
         assert!(next_x > 10.0);
@@ -379,7 +421,17 @@ mod tests {
     fn draw_probe(typo: &Typography, x: f32) -> Pixmap {
         let mut pixmap = Pixmap::new(120, 60).expect("pixmap");
         let color = Color::from_rgba8(255, 255, 255, 255);
-        typo.draw_text(&mut pixmap.as_mut(), "H", x, 10.0, TextStyle { size: 20.0, color, bold: false });
+        typo.draw_text(
+            &mut pixmap.as_mut(),
+            "H",
+            x,
+            10.0,
+            TextStyle {
+                size: 20.0,
+                color,
+                bold: false,
+            },
+        );
         pixmap
     }
 
@@ -407,14 +459,24 @@ mod tests {
         // par glyphe avait accumule jusqu'a un pixel d'ecart entre deux paires voisines.
         let typo = Typography::new();
         let color = Color::from_rgba8(255, 255, 255, 255);
-        let style = TextStyle { size: 18.0, color, bold: false };
+        let style = TextStyle {
+            size: 18.0,
+            color,
+            bold: false,
+        };
         let advance = typo.measure_text("i", 18.0, false).0;
 
         let mut centres = Vec::new();
         for n in 0..10 {
             let mut pixmap = Pixmap::new(400, 60).expect("pixmap");
             // Une seule lettre par image, posee la ou la plume l'aurait laissee.
-            typo.draw_text(&mut pixmap.as_mut(), "i", 20.0 + advance * n as f32, 10.0, style);
+            typo.draw_text(
+                &mut pixmap.as_mut(),
+                "i",
+                20.0 + advance * n as f32,
+                10.0,
+                style,
+            );
             centres.push(ink_centroid_x(&pixmap));
         }
         // Chaque lettre est mesuree par rapport a la premiere, pas a sa voisine : l'erreur
@@ -438,8 +500,15 @@ mod tests {
         let typo = Typography::new();
         let origin = typo.get_glyph('A', 16.0, false);
         let shifted = typo.glyph_variant('A', 16.0, false, 2);
-        assert_ne!(origin.bitmap, shifted.bitmap, "deux phases doivent differer");
-        assert_eq!(typo.cached_glyph_count(), 2, "les deux variantes coexistent en cache");
+        assert_ne!(
+            origin.bitmap, shifted.bitmap,
+            "deux phases doivent differer"
+        );
+        assert_eq!(
+            typo.cached_glyph_count(),
+            2,
+            "les deux variantes coexistent en cache"
+        );
         // Redemander la meme phase ne rastérise rien de neuf.
         let again = typo.glyph_variant('A', 16.0, false, 2);
         assert_eq!(again.bitmap, shifted.bitmap);
@@ -461,7 +530,11 @@ mod tests {
                     "Glucose 0123 — fidelite",
                     10.0 + offset,
                     5.0 + offset,
-                    TextStyle { size, color, bold: false },
+                    TextStyle {
+                        size,
+                        color,
+                        bold: false,
+                    },
                 );
             }
         }

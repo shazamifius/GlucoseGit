@@ -23,7 +23,10 @@ use std::path::Path;
 
 /// Ce que la police d'interface doit couvrir, par famille nommée.
 const NAMED_SET: &[(&str, &str)] = &[
-    ("lettres latines et chiffres", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"),
+    (
+        "lettres latines et chiffres",
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    ),
     ("ponctuation ASCII", " !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"),
     ("accents français, minuscules", "àâäéèêëîïôöùûüÿç"),
     ("accents français, majuscules", "ÀÂÄÉÈÊËÎÏÔÖÙÛÜŸÇ"),
@@ -44,11 +47,13 @@ const EMBEDDED_FONTS: &[(&str, &[u8])] = &[
 // ── Lecteur de `cmap`, sur std ──────────────────────────────────────────────
 
 fn u16_at(data: &[u8], at: usize) -> Option<u16> {
-    data.get(at..at + 2).map(|b| u16::from_be_bytes([b[0], b[1]]))
+    data.get(at..at + 2)
+        .map(|b| u16::from_be_bytes([b[0], b[1]]))
 }
 
 fn u32_at(data: &[u8], at: usize) -> Option<u32> {
-    data.get(at..at + 4).map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+    data.get(at..at + 4)
+        .map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
 }
 
 /// Une table du répertoire TrueType/OpenType, par étiquette.
@@ -85,7 +90,11 @@ fn glyph_in_format4(sub: &[u8], code: u32) -> Option<u16> {
         }
         let at = range_offsets + 2 * i + range_offset + 2 * (code - start) as usize;
         let glyph = u16_at(sub, at)?;
-        return Some(if glyph == 0 { 0 } else { glyph.wrapping_add(delta) });
+        return Some(if glyph == 0 {
+            0
+        } else {
+            glyph.wrapping_add(delta)
+        });
     }
     Some(0)
 }
@@ -139,7 +148,14 @@ fn skip_raw_string(c: &[char], i: usize, found: &mut BTreeSet<char>) -> Option<u
     }
     j += 1;
     while j < c.len() {
-        if c[j] == '"' && c[j + 1..].iter().take(hashes).filter(|&&h| h == '#').count() == hashes {
+        if c[j] == '"'
+            && c[j + 1..]
+                .iter()
+                .take(hashes)
+                .filter(|&&h| h == '#')
+                .count()
+                == hashes
+        {
             return Some(j + 1 + hashes);
         }
         if !c[j].is_ascii() {
@@ -157,7 +173,9 @@ fn skip_raw_string(c: &[char], i: usize, found: &mut BTreeSet<char>) -> Option<u
 fn char_literal_len(c: &[char], i: usize, found: &mut BTreeSet<char>) -> usize {
     match (c.get(i + 1), c.get(i + 2)) {
         (Some('\\'), _) => {
-            let close = c.get(i + 3..).and_then(|rest| rest.iter().position(|&x| x == '\''));
+            let close = c
+                .get(i + 3..)
+                .and_then(|rest| rest.iter().position(|&x| x == '\''));
             close.map_or(c.len() - i, |p| p + 4)
         }
         (Some(&ch), Some('\'')) => {
@@ -231,7 +249,8 @@ fn scan_directory(dir: &Path, found: &mut BTreeSet<char>) {
 
 /// Les caractères de `chars` qu'une police ignore, selon le lecteur maison **et** fontdue.
 fn missing_from(font: &[u8], chars: impl IntoIterator<Item = char>) -> Vec<char> {
-    let loaded = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).expect("police valide");
+    let loaded =
+        fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).expect("police valide");
     chars
         .into_iter()
         .filter(|&ch| glyph_index(font, ch) == 0 || loaded.lookup_glyph_index(ch) == 0)
@@ -243,7 +262,10 @@ fn test_font_1_every_named_character_has_a_glyph_in_both_fonts() {
     for (file, font) in EMBEDDED_FONTS {
         for (family, chars) in NAMED_SET {
             let missing = missing_from(font, chars.chars());
-            assert!(missing.is_empty(), "{file} : {family} — absents : {missing:?}");
+            assert!(
+                missing.is_empty(),
+                "{file} : {family} — absents : {missing:?}"
+            );
         }
     }
 }
@@ -251,9 +273,15 @@ fn test_font_1_every_named_character_has_a_glyph_in_both_fonts() {
 #[test]
 fn test_font_1_every_non_ascii_literal_of_the_crate_has_a_glyph() {
     let mut found = BTreeSet::new();
-    scan_directory(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut found);
+    scan_directory(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut found,
+    );
     // Un scanner qui ne trouverait rien prouverait qu'il est cassé, pas que tout va bien.
-    assert!(found.contains(&'é'), "le scanner n'a pas vu la carte d'accueil de app.rs");
+    assert!(
+        found.contains(&'é'),
+        "le scanner n'a pas vu la carte d'accueil de app.rs"
+    );
     println!(
         "[FONT-1] {} caractères non-ASCII dans les littéraux du crate : {}",
         found.len(),
@@ -274,12 +302,24 @@ fn test_font_1_the_cmap_reader_agrees_with_fontdue_and_rejects_the_absent() {
     let loaded = fontdue::Font::from_bytes(REGULAR_FONT_BYTES, fontdue::FontSettings::default())
         .expect("police valide");
     for ch in ['\u{1F600}', '\u{4E2D}', '\u{FE0F}', '\u{2304}'] {
-        assert_eq!(glyph_index(REGULAR_FONT_BYTES, ch), 0, "{ch:?} devrait manquer");
-        assert_eq!(loaded.lookup_glyph_index(ch), 0, "{ch:?} devrait manquer pour fontdue");
+        assert_eq!(
+            glyph_index(REGULAR_FONT_BYTES, ch),
+            0,
+            "{ch:?} devrait manquer"
+        );
+        assert_eq!(
+            loaded.lookup_glyph_index(ch),
+            0,
+            "{ch:?} devrait manquer pour fontdue"
+        );
     }
     for ch in ['A', 'é', '→', '\u{A0}'] {
         let ours = glyph_index(REGULAR_FONT_BYTES, ch);
-        assert_eq!(ours, u32::from(loaded.lookup_glyph_index(ch)), "indice de {ch:?}");
+        assert_eq!(
+            ours,
+            u32::from(loaded.lookup_glyph_index(ch)),
+            "indice de {ch:?}"
+        );
         assert_ne!(ours, 0);
     }
 }
@@ -289,13 +329,29 @@ fn test_font_1_accents_are_drawn_not_stripped() {
     // Avant : « é » devenait « e » par une table de repli, et « É » un `.notdef`.
     let typo = Typography::new();
     let glyph = |ch: char| typo.get_glyph(ch, 32.0, false);
-    assert_ne!(glyph('é').bitmap, glyph('e').bitmap, "l'accent aigu doit changer le glyphe");
-    assert!(glyph('É').metrics.height > glyph('E').metrics.height, "l'accent dépasse la capitale");
-    assert!(glyph('ç').metrics.height > glyph('c').metrics.height, "la cédille descend sous la ligne");
-    assert!(glyph('œ').metrics.advance_width > glyph('o').metrics.advance_width, "la ligature est large");
+    assert_ne!(
+        glyph('é').bitmap,
+        glyph('e').bitmap,
+        "l'accent aigu doit changer le glyphe"
+    );
+    assert!(
+        glyph('É').metrics.height > glyph('E').metrics.height,
+        "l'accent dépasse la capitale"
+    );
+    assert!(
+        glyph('ç').metrics.height > glyph('c').metrics.height,
+        "la cédille descend sous la ligne"
+    );
+    assert!(
+        glyph('œ').metrics.advance_width > glyph('o').metrics.advance_width,
+        "la ligature est large"
+    );
     let (with, _) = typo.measure_text("Éditer — déjà prêt, à bientôt, cœur", 14.0, false);
     let (without, _) = typo.measure_text("Editer - deja pret, a bientot, coeur", 14.0, false);
-    assert!(with > without, "le texte accentué ne se mesure plus comme sa version amputée");
+    assert!(
+        with > without,
+        "le texte accentué ne se mesure plus comme sa version amputée"
+    );
 }
 
 #[test]

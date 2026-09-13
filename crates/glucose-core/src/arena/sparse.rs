@@ -60,7 +60,10 @@ pub struct Sparse<V> {
 
 impl<V> Default for Sparse<V> {
     fn default() -> Self {
-        Self { ids: Vec::new(), vals: Vec::new() }
+        Self {
+            ids: Vec::new(),
+            vals: Vec::new(),
+        }
     }
 }
 
@@ -72,7 +75,10 @@ impl<V> Sparse<V> {
 
     /// Une table vide, dimensionnée pour `k` porteurs.
     pub fn with_capacity(k: usize) -> Self {
-        Self { ids: Vec::with_capacity(k), vals: Vec::with_capacity(k) }
+        Self {
+            ids: Vec::with_capacity(k),
+            vals: Vec::with_capacity(k),
+        }
     }
 
     /// Le nombre de porteurs.

@@ -94,7 +94,10 @@ pub(super) fn draw_grid(pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, h
 
     let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, vp);
     let (max_wx, max_wy) = screen_to_world(w as f64, h as f64, vp);
-    if ![min_wx, min_wy, max_wx, max_wy].iter().all(|v| v.is_finite()) {
+    if ![min_wx, min_wy, max_wx, max_wy]
+        .iter()
+        .all(|v| v.is_finite())
+    {
         return;
     }
 
@@ -183,7 +186,12 @@ impl DotStamps {
                 }
             }
         }
-        Self { masks, side, offset, alpha }
+        Self {
+            masks,
+            side,
+            offset,
+            alpha,
+        }
     }
 
     /// Pose un point centré en `(x, y)`, à la phase la plus proche.
@@ -272,11 +280,21 @@ impl MembraneLayout {
     }
 }
 
-pub(super) fn draw_membranes(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &Store, pass: ViewPass<'_>) {
+pub(super) fn draw_membranes(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    pass: ViewPass<'_>,
+) {
     let Some(board) = store.active_board() else {
         return;
     };
-    let PaintKit { typography, tints, theme, .. } = kit;
+    let PaintKit {
+        typography,
+        tints,
+        theme,
+        ..
+    } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -288,7 +306,18 @@ pub(super) fn draw_membranes(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &
         if !pass.visible_ids.contains(ann.id()) {
             continue;
         }
-        let Annotation::Membrane { id, x, y, width, height, text, color, domains, .. } = ann else {
+        let Annotation::Membrane {
+            id,
+            x,
+            y,
+            width,
+            height,
+            text,
+            color,
+            domains,
+            ..
+        } = ann
+        else {
             continue;
         };
         let layout = MembraneLayout::new(*width as f32, *height as f32).scaled(scale);
@@ -312,13 +341,23 @@ pub(super) fn draw_membranes(kit: PaintKit<'_>, pixmap: &mut PixmapMut, store: &
                     label,
                     sx + layout.label_dx,
                     sy - layout.label_dy,
-                    TextStyle { size: layout.label_font, color: Color::from_rgba8(tint.0, tint.1, tint.2, 255), bold: true },
+                    TextStyle {
+                        size: layout.label_font,
+                        color: Color::from_rgba8(tint.0, tint.1, tint.2, 255),
+                        bold: true,
+                    },
                     theme.bg_canvas,
                 );
             }
         }
         if selected {
-            draw_resize_handles(pixmap, theme, scale, (sx, sy, layout.width, layout.height), &Handle::ALL);
+            draw_resize_handles(
+                pixmap,
+                theme,
+                scale,
+                (sx, sy, layout.width, layout.height),
+                &Handle::ALL,
+            );
         }
         // La réglette d'une membrane s'aligne à DROITE de son bord haut : le coin haut-gauche
         // est déjà occupé par le titre protecteur, et deux textes superposés ne se lisent ni
@@ -352,33 +391,65 @@ fn draw_membrane_shape(
                 layout.radius + pad * 0.5,
             );
             if let Some(path) = pb.finish() {
-                let mut paint = Paint { anti_alias: true, ..Default::default() };
+                let mut paint = Paint {
+                    anti_alias: true,
+                    ..Default::default()
+                };
                 paint.set_color(Color::from_rgba8(r, g, b, alpha));
-                pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, Transform::identity(), None);
+                pixmap.fill_path(
+                    &path,
+                    &paint,
+                    tiny_skia::FillRule::Winding,
+                    Transform::identity(),
+                    None,
+                );
             }
         }
     }
 
     let mut pb = PathBuilder::new();
-    push_rounded_rect(&mut pb, at.0, at.1, layout.width, layout.height, layout.radius);
+    push_rounded_rect(
+        &mut pb,
+        at.0,
+        at.1,
+        layout.width,
+        layout.height,
+        layout.radius,
+    );
     let Some(path) = pb.finish() else {
         return;
     };
 
     // 2. Remplissage translucide.
-    let mut fill = Paint { anti_alias: true, ..Default::default() };
+    let mut fill = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     fill.set_color(Color::from_rgba8(r, g, b, 8));
-    pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, Transform::identity(), None);
+    pixmap.fill_path(
+        &path,
+        &fill,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
 
     // 3. Bordure pointillée, ou pleine si la membrane est sélectionnée.
-    let mut border = Paint { anti_alias: true, ..Default::default() };
+    let mut border = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     border.set_color(if selected {
         Color::from_rgba8(r, g, b, 235)
     } else {
         Color::from_rgba8(r, g, b, 115)
     });
     let stroke = Stroke {
-        width: if selected { scale.screen(SELECTION_RING) } else { layout.border },
+        width: if selected {
+            scale.screen(SELECTION_RING)
+        } else {
+            layout.border
+        },
         dash: if selected {
             None
         } else {
@@ -403,7 +474,12 @@ pub(super) fn draw_images(
     let Some(board) = store.active_board() else {
         return;
     };
-    let PaintKit { typography, tints, theme, .. } = kit;
+    let PaintKit {
+        typography,
+        tints,
+        theme,
+        ..
+    } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -423,14 +499,24 @@ pub(super) fn draw_images(
             continue;
         }
 
-        let drawn = img.src.as_deref().filter(|s| !s.is_empty()).and_then(|src| {
-            super::Renderer::load_image_impl(image_cache, failed_images, src).map(|loaded| {
-                let ts = Transform::from_scale(sw / loaded.width() as f32, sh / loaded.height() as f32)
+        let drawn = img
+            .src
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .and_then(|src| {
+                super::Renderer::load_image_impl(image_cache, failed_images, src).map(|loaded| {
+                    let ts = Transform::from_scale(
+                        sw / loaded.width() as f32,
+                        sh / loaded.height() as f32,
+                    )
                     .post_translate(sx, sy);
-                let paint = PixmapPaint { quality: FilterQuality::Bilinear, ..Default::default() };
-                pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
-            })
-        });
+                    let paint = PixmapPaint {
+                        quality: FilterQuality::Bilinear,
+                        ..Default::default()
+                    };
+                    pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
+                })
+            });
         if drawn.is_none() {
             draw_missing_image(typography, theme, pixmap, (sx, sy), (sw, sh), &img.id);
         }
@@ -461,15 +547,28 @@ fn draw_missing_image(
 
     let mut border = Paint::default();
     border.set_color(theme.border_accent);
-    let stroke = Stroke { width: 1.0, ..Default::default() };
-    pixmap.stroke_path(&PathBuilder::from_rect(rect), &border, &stroke, Transform::identity(), None);
+    let stroke = Stroke {
+        width: 1.0,
+        ..Default::default()
+    };
+    pixmap.stroke_path(
+        &PathBuilder::from_rect(rect),
+        &border,
+        &stroke,
+        Transform::identity(),
+        None,
+    );
 
     typography.draw_text(
         pixmap,
         &format!("Image [{id}]"),
         at.0 + 10.0,
         at.1 + size.1 / 2.0 - 6.0,
-        TextStyle { size: 12.0, color: theme.text_muted, bold: false },
+        TextStyle {
+            size: 12.0,
+            color: theme.text_muted,
+            bold: false,
+        },
     );
 }
 
@@ -486,10 +585,22 @@ fn draw_image_selection(pixmap: &mut PixmapMut, theme: &Theme, at: (f32, f32), s
     let Some(rect) = Rect::from_xywh(at.0 - d, at.1 - d, size.0 + 2.0 * d, size.1 + 2.0 * d) else {
         return;
     };
-    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
     paint.set_color(theme.selection_frame);
-    let stroke = Stroke { width: IMAGE_SELECTION_STROKE, ..Default::default() };
-    pixmap.stroke_path(&PathBuilder::from_rect(rect), &paint, &stroke, Transform::identity(), None);
+    let stroke = Stroke {
+        width: IMAGE_SELECTION_STROKE,
+        ..Default::default()
+    };
+    pixmap.stroke_path(
+        &PathBuilder::from_rect(rect),
+        &paint,
+        &stroke,
+        Transform::identity(),
+        None,
+    );
 }
 
 // ── Guides et boîte de sélection — taille écran constante ───────────────────
@@ -504,7 +615,10 @@ pub(super) fn draw_guides(
 ) {
     let mut paint = Paint::default();
     paint.set_color(theme.snap_guide);
-    let stroke = Stroke { width: 1.0, ..Default::default() };
+    let stroke = Stroke {
+        width: 1.0,
+        ..Default::default()
+    };
     let (w, h) = size;
 
     for &gx in guides.x.iter().flatten() {
@@ -533,7 +647,12 @@ pub(super) fn draw_guides(
 
 /// Fiche 07 § 7.3 — la sélection élastique : contour blanc à 0,50 de 1 px, intérieur blanc
 /// à 0,03. Monochrome, comme toute la chrome.
-pub(super) fn draw_selection_box(pixmap: &mut PixmapMut, theme: &Theme, a: (f64, f64), b: (f64, f64)) {
+pub(super) fn draw_selection_box(
+    pixmap: &mut PixmapMut,
+    theme: &Theme,
+    a: (f64, f64),
+    b: (f64, f64),
+) {
     let rect = Rect::from_xywh(
         a.0.min(b.0) as f32,
         a.1.min(b.1) as f32,
@@ -549,8 +668,17 @@ pub(super) fn draw_selection_box(pixmap: &mut PixmapMut, theme: &Theme, a: (f64,
 
     let mut border = Paint::default();
     border.set_color(theme.rubberband_stroke);
-    let stroke = Stroke { width: 1.0, ..Default::default() };
-    pixmap.stroke_path(&PathBuilder::from_rect(rect), &border, &stroke, Transform::identity(), None);
+    let stroke = Stroke {
+        width: 1.0,
+        ..Default::default()
+    };
+    pixmap.stroke_path(
+        &PathBuilder::from_rect(rect),
+        &border,
+        &stroke,
+        Transform::identity(),
+        None,
+    );
 }
 
 #[cfg(test)]
@@ -562,7 +690,10 @@ mod tests {
         let mut pixmap = Pixmap::new(320, 240).expect("pixmap 320x240");
 
         for bad_scale in [0.0_f64, -1.0, f64::NAN, f64::INFINITY, 1e-12] {
-            let vp = Viewport { scale: bad_scale, ..Default::default() };
+            let vp = Viewport {
+                scale: bad_scale,
+                ..Default::default()
+            };
             let started = std::time::Instant::now();
             let mut view = pixmap.as_mut();
             draw_grid(&mut view, &vp, 320, 240, 40.0);
@@ -606,10 +737,22 @@ mod grid_tests {
     #[test]
     fn test_the_grid_dot_follows_the_formula_of_the_spec() {
         assert_eq!(grid_dot(1.0), Some((1.2, 0.3)));
-        assert_eq!(grid_dot(2.0), Some((2.4, 0.45)), "l'opacité plafonne à 0,45");
+        assert_eq!(
+            grid_dot(2.0),
+            Some((2.4, 0.45)),
+            "l'opacité plafonne à 0,45"
+        );
         assert_eq!(grid_dot(4.0), Some((2.5, 0.45)), "le rayon plafonne à 2,5");
-        assert_eq!(grid_dot(0.2), Some((0.5, 0.08)), "planchers : 0,5 px et 0,08");
-        assert_eq!(grid_dot(0.07), Some((0.5, 0.08)), "à 0,07 la grille est encore là");
+        assert_eq!(
+            grid_dot(0.2),
+            Some((0.5, 0.08)),
+            "planchers : 0,5 px et 0,08"
+        );
+        assert_eq!(
+            grid_dot(0.07),
+            Some((0.5, 0.08)),
+            "à 0,07 la grille est encore là"
+        );
         assert_eq!(grid_dot(0.069), None, "en dessous, elle s'éteint");
         assert_eq!(grid_dot(f64::NAN), None);
     }
@@ -643,17 +786,27 @@ mod dot_stamp_tests {
                     .iter()
                     .map(|&c| c as f32 / 255.0)
                     .sum();
-                assert!(somme >= disque * 0.99, "rayon {radius}, phase {phase} : sous-estimé ({somme} < {disque})");
+                assert!(
+                    somme >= disque * 0.99,
+                    "rayon {radius}, phase {phase} : sous-estimé ({somme} < {disque})"
+                );
                 total += (somme - disque) / disque;
             }
             total / (DOT_PHASES * DOT_PHASES) as f32
         };
 
-        let (e1, e12, e25) = (erreur_moyenne(1.0), erreur_moyenne(1.2), erreur_moyenne(2.5));
+        let (e1, e12, e25) = (
+            erreur_moyenne(1.0),
+            erreur_moyenne(1.2),
+            erreur_moyenne(2.5),
+        );
         assert!(e1 < 0.13, "à 1 px : {e1}");
         assert!(e12 < 0.11, "à 1,2 px : {e12}");
         assert!(e25 < 0.06, "à 2,5 px : {e25}");
-        assert!(e1 > e12 && e12 > e25, "l'erreur décroît avec le rayon : {e1} > {e12} > {e25}");
+        assert!(
+            e1 > e12 && e12 > e25,
+            "l'erreur décroît avec le rayon : {e1} > {e12} > {e25}"
+        );
     }
 
     /// Sous un pixel de rayon, le tampon couvre un peu plus qu'un disque, et pas plus d'un pixel
@@ -663,8 +816,14 @@ mod dot_stamp_tests {
         let t = DotStamps::new(0.5, 1.0);
         let par_phase = t.side * t.side;
         let somme: f32 = t.masks[..par_phase].iter().map(|&c| c as f32 / 255.0).sum();
-        assert!(somme > 0.785, "un point de 0,5 px ne doit pas disparaître : {somme}");
-        assert!(somme < 1.5, "et ne doit pas baver sur ses voisins : {somme}");
+        assert!(
+            somme > 0.785,
+            "un point de 0,5 px ne doit pas disparaître : {somme}"
+        );
+        assert!(
+            somme < 1.5,
+            "et ne doit pas baver sur ses voisins : {somme}"
+        );
     }
 
     /// Les seize phases ne sont pas la même image : sinon la quantification sous-pixel ne
@@ -673,9 +832,14 @@ mod dot_stamp_tests {
     fn test_les_phases_different_vraiment() {
         let t = DotStamps::new(1.2, 1.0);
         let par_phase = t.side * t.side;
-        let distinctes: std::collections::HashSet<&[u8]> =
-            (0..DOT_PHASES * DOT_PHASES).map(|p| &t.masks[p * par_phase..(p + 1) * par_phase]).collect();
-        assert_eq!(distinctes.len(), DOT_PHASES * DOT_PHASES, "des phases sont confondues");
+        let distinctes: std::collections::HashSet<&[u8]> = (0..DOT_PHASES * DOT_PHASES)
+            .map(|p| &t.masks[p * par_phase..(p + 1) * par_phase])
+            .collect();
+        assert_eq!(
+            distinctes.len(),
+            DOT_PHASES * DOT_PHASES,
+            "des phases sont confondues"
+        );
     }
 
     /// Le centre d'un tampon est couvert en plein, et ses coins ne le sont pas du tout.
@@ -696,11 +860,18 @@ mod dot_stamp_tests {
         for (x, y) in [(-5.0, 10.0), (25.0, 10.0), (10.0, -5.0), (10.0, 25.0)] {
             t.stamp(&mut p.as_mut(), x, y);
         }
-        assert_eq!(p.pixels().iter().filter(|px| px.alpha() > 0).count(), 0, "rien dehors");
+        assert_eq!(
+            p.pixels().iter().filter(|px| px.alpha() > 0).count(),
+            0,
+            "rien dehors"
+        );
 
         t.stamp(&mut p.as_mut(), 10.3, 9.7);
         let encre = p.pixels().iter().filter(|px| px.alpha() > 0).count();
-        assert!((4..=16).contains(&encre), "un point de rayon 1,2 touche quelques pixels : {encre}");
+        assert!(
+            (4..=16).contains(&encre),
+            "un point de rayon 1,2 touche quelques pixels : {encre}"
+        );
     }
 
     /// Deux points à la même phase donnent exactement les mêmes pixels — c'est ce qui rend la

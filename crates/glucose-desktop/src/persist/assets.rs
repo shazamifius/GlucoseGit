@@ -123,7 +123,10 @@ fn place_in_cache(dir: &Path, src: &str, bytes: &[u8]) -> Option<PathBuf> {
     match std::fs::write(&target, bytes) {
         Ok(()) => Some(target),
         Err(err) => {
-            eprintln!("[Glucose] actif non restitué ({}) : {err}", target.display());
+            eprintln!(
+                "[Glucose] actif non restitué ({}) : {err}",
+                target.display()
+            );
             None
         }
     }
@@ -160,7 +163,11 @@ mod tests {
         let src = path.to_string_lossy().to_string();
 
         let collected = collect(&project_with_srcs(&[&src, &src]));
-        assert_eq!(collected.store.len(), 1, "deux images du meme fichier = une entree");
+        assert_eq!(
+            collected.store.len(),
+            1,
+            "deux images du meme fichier = une entree"
+        );
         assert_eq!(collected.store.get(&src), Some(&b"des octets d'image"[..]));
         assert!(collected.unreadable.is_empty());
 
@@ -171,7 +178,10 @@ mod tests {
     fn test_collect_reports_a_missing_file_instead_of_failing() {
         let collected = collect(&project_with_srcs(&["C:/nulle-part/absente.png"]));
         assert!(collected.store.is_empty());
-        assert_eq!(collected.unreadable, vec!["C:/nulle-part/absente.png".to_string()]);
+        assert_eq!(
+            collected.unreadable,
+            vec!["C:/nulle-part/absente.png".to_string()]
+        );
     }
 
     #[test]
@@ -183,7 +193,10 @@ mod tests {
             "",
         ]));
         assert!(collected.store.is_empty());
-        assert!(collected.unreadable.is_empty(), "aucune n'est un chemin local");
+        assert!(
+            collected.unreadable.is_empty(),
+            "aucune n'est un chemin local"
+        );
     }
 
     #[test]
@@ -213,10 +226,20 @@ mod tests {
         assets.insert(present_src.clone(), b"inchange".to_vec());
 
         let mut project = project_with_srcs(&["C:/machine-absente/photo.png", &present_src]);
-        assert_eq!(restore(&mut project, &assets), 1, "une seule image a restituer");
+        assert_eq!(
+            restore(&mut project, &assets),
+            1,
+            "une seule image a restituer"
+        );
 
-        let restored_src = project.boards[0].images[0].src.clone().expect("src restitue");
-        assert!(Path::new(&restored_src).is_file(), "le fichier restitue doit exister");
+        let restored_src = project.boards[0].images[0]
+            .src
+            .clone()
+            .expect("src restitue");
+        assert!(
+            Path::new(&restored_src).is_file(),
+            "le fichier restitue doit exister"
+        );
         assert_eq!(
             std::fs::read(&restored_src).expect("relecture"),
             b"octets restitues"
