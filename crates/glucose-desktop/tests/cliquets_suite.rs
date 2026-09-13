@@ -469,7 +469,8 @@ const FICHIER_MAX: usize = 600;
 /// C'est la dette de structure de ce dépôt, nommée fonction par fonction. La plus lourde
 /// était `handle_mouse_down`, 471 lignes — l'ancien `window_event` (fiche 01, R-19) qui avait
 /// changé d'adresse ; elle est devenue une chaîne de preneurs et n'est plus dans cette liste.
-/// Les suivantes sont les fonctions de rendu de `dock.rs`, que la fiche 11 nomme en premier.
+/// Les suivantes sont dans le noyau : les mises en page, les encodages, et le projeteur des
+/// membranes.
 const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     // (fichier, fonction, longueur admise) — mesurées après le passage sous rustfmt.
     (
@@ -522,47 +523,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     ("crates/glucose-core/src/smart_align.rs", "snap_resize", 94),
     ("crates/glucose-core/src/synth.rs", "showcase", 105),
     (
-        "crates/glucose-desktop/src/dock.rs",
-        "compute_panel_layouts",
-        83,
-    ),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "handle_dock_click",
-        118,
-    ),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "layout_organize_panel",
-        101,
-    ),
-    ("crates/glucose-desktop/src/dock.rs", "render_docks", 128),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "render_organize_content",
-        365,
-    ),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "render_plugins_content",
-        329,
-    ),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "render_pomodoro_content",
-        260,
-    ),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "render_preset_content",
-        226,
-    ),
-    (
-        "crates/glucose-desktop/src/dock.rs",
-        "render_storyboard_content",
-        296,
-    ),
-    (
         "crates/glucose-desktop/src/dock/domains/paint.rs",
         "draw_row",
         81,
@@ -605,12 +565,10 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     ),
 ];
 
-/// Les fichiers de production plus longs que [`FICHIER_MAX`], admis tels quels. `dock.rs`
-/// tombe le premier : la fiche 11 le nomme.
+/// Les fichiers de production plus longs que [`FICHIER_MAX`], admis tels quels.
 const FICHIERS_LONGS_ADMIS: &[(&str, usize)] = &[
     // (fichier, lignes de production admises) — mesurées après le passage sous rustfmt.
     ("crates/glucose-core/src/membrane_space.rs", 661),
-    ("crates/glucose-desktop/src/dock.rs", 2703),
     ("crates/glucose-desktop/src/renderer/scene.rs", 683),
 ];
 

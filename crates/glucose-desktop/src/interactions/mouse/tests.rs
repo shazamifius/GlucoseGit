@@ -8,8 +8,9 @@
 //! qui est le but : ils sont la liste de ce qui manque, exécutable.
 
 use super::*;
-use crate::dock::{compute_panel_layouts, layout_plugins_panel, layout_storyboard_panel, TabId};
+use crate::dock::{compute_panel_layouts, plugins, storyboard, TabId};
 use crate::interactions::tools::NEW_CONTAINER_SIZE;
+use crate::params::ScaledRect;
 use crate::ui::{layout_topbar, ActiveTool, UiAction};
 use winit::event::MouseButton;
 
@@ -75,7 +76,7 @@ fn test_the_storyboard_activate_button_does_not_stay_lit() {
     .into_iter()
     .find(|b| b.tab == TabId::Storyboard)
     .expect("le panneau ouvert a un cadre");
-    let layout = layout_storyboard_panel(frame.x, frame.y, frame.width, frame.height, s);
+    let layout = storyboard::layout_storyboard_panel(cadre_de(&frame, s));
     let (cx, cy) = (
         (layout.activate_button.x + layout.activate_button.w / 2.0) as f64,
         (layout.activate_button.y + layout.activate_button.h / 2.0) as f64,
@@ -112,7 +113,7 @@ fn test_the_download_model_button_does_not_pretend_to_download() {
     .into_iter()
     .find(|b| b.tab == TabId::Plugins)
     .expect("le panneau ouvert a un cadre");
-    let layout = layout_plugins_panel(frame.x, frame.y, frame.width, frame.height, s);
+    let layout = plugins::layout_plugins_panel(cadre_de(&frame, s));
     let (cx, cy) = (
         (layout.download_button.x + layout.download_button.w / 2.0) as f64,
         (layout.download_button.y + layout.download_button.h / 2.0) as f64,
@@ -481,4 +482,15 @@ fn test_a_click_during_the_dive_cuts_it_short() {
         app.store.selected_image_ids.is_empty() && app.store.selected_annotation_ids.is_empty(),
         "le clic n'a rien sélectionné dans le tableau d'arrivée"
     );
+}
+
+/// Le cadre d'un panneau ouvert, tel que son module de mise en page l'attend.
+fn cadre_de(panel: &crate::dock::PanelLayoutBox, scale: f32) -> ScaledRect {
+    ScaledRect {
+        x: panel.x,
+        y: panel.y,
+        w: panel.width,
+        h: panel.height,
+        scale,
+    }
 }

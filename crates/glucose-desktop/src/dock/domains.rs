@@ -403,7 +403,7 @@ pub fn fresh_look(rank: usize) -> (&'static str, &'static str) {
     )
 }
 
-mod paint;
+pub mod paint;
 
 pub use paint::render_domains_panel;
 

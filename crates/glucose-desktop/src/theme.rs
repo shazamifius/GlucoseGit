@@ -109,6 +109,12 @@ pub struct Theme {
     /// à 0,30 ; le décalage est une longueur, il vit dans le rendu.
     pub sticky_shadow: Color,
 
+    // ── Dock (fiche 10 § 4) ────────────────────────────────────────────────
+    /// L'ombre portée d'un panneau au repos : `0 4px 20px rgba(0, 0, 0, 0.5)`.
+    pub panel_shadow: Color,
+    /// Celle d'un panneau tiré, plus dense : `0 16px 48px rgba(0, 0, 0, 0.9)`.
+    pub panel_shadow_dragged: Color,
+
     // ── Carte de texte (§ 5.1) ────────────────────────────────────────────
     /// Un titre `#` : blanc pur, comme le texte de la référence (`color: #ffffff`).
     pub card_heading: Color,
@@ -231,6 +237,9 @@ impl Theme {
             sticky_yellow_bg: hex(0xf5c542),
             sticky_yellow_text: hex(0x222222),
             sticky_shadow: hexa(0x000000, 77),
+
+            panel_shadow: hexa(0x000000, 128),
+            panel_shadow_dragged: hexa(0x000000, 230),
 
             card_heading: hex(0xffffff),
             card_subheading: hex(0xf0f0f5),
