@@ -109,6 +109,14 @@ pub struct Theme {
     /// à 0,30 ; le décalage est une longueur, il vit dans le rendu.
     pub sticky_shadow: Color,
 
+    // ── Carte de texte (§ 5.1) ────────────────────────────────────────────
+    /// Un titre `#` : blanc pur, comme le texte de la référence (`color: #ffffff`).
+    pub card_heading: Color,
+    /// Un sous-titre `##`.
+    pub card_subheading: Color,
+    /// Le corps, les puces et les formules.
+    pub card_body: Color,
+
     // ── Flèches (§ 7) ──────────────────────────────────────────────────────
     /// La couleur d'une flèche que le document ne colore pas — **provisoire** : la référence
     /// la teinte du dégradé symbiotique de ses deux extrémités (§ 7.1), qui arrive avec le
@@ -223,6 +231,10 @@ impl Theme {
             sticky_yellow_bg: hex(0xf5c542),
             sticky_yellow_text: hex(0x222222),
             sticky_shadow: hexa(0x000000, 77),
+
+            card_heading: hex(0xffffff),
+            card_subheading: hex(0xf0f0f5),
+            card_body: hex(0xdce1eb),
 
             arrow_default: hexa(0x94a3b8, 220),
 
