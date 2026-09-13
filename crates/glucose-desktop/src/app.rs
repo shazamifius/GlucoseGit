@@ -3,13 +3,12 @@
 use crate::dock::{apply_organize_layout, render_docks, DockManager, OrganizeState};
 use crate::error::{DesktopError, DesktopResult};
 use crate::interactions::resize::ResizeSession;
+use crate::interactions::tools::text_card;
 use crate::params::{Pointer, SceneOverlay, ScreenFrame};
-use crate::renderer::card::text_card_fit_height;
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::{ToastRepaint, UiState};
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
 use glucose_core::store::Store;
-use glucose_core::types::Annotation;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use tiny_skia::Pixmap;
@@ -19,6 +18,9 @@ use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::ModifiersState;
 use winit::window::{Window, WindowAttributes, WindowId};
+
+/// Ce que dit la carte d'accueil d'un document neuf.
+const WELCOME_TEXT: &str = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
 
 /// Cadence minimale d'une animation d'interface (~60 Hz).
 const ANIMATION_MIN_INTERVAL_MS: u64 = 16;
@@ -95,31 +97,17 @@ impl GlucoseApp {
         let active_bid = store.project.active_board_id.clone();
         let renderer = Renderer::new();
 
-        // Carte d'accueil par défaut au look Glucose moderne. Sa hauteur est celle de son
-        // texte à sa largeur (TEXT-FIT-1) : la boîte du document est celle de l'écran.
-        let welcome_text = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
-        let welcome_card = Annotation::Text {
-            id: "welcome-card".into(),
-            x: 0.0,
-            y: 0.0,
-            width: Some(260.0),
-            height: Some(text_card_fit_height(
-                &renderer.typography,
-                &renderer.math,
-                welcome_text,
-                260.0,
-            )),
-            text: welcome_text.into(),
-            font_size: Some(14.0),
-            color: None,
-            cursor_pos: None,
-            source_file: None,
-            membrane_id: None,
-            domains: Vec::new(),
-            mirror_of: None,
-            temporal_anchor: None,
-        };
-        store.add_annotation(&active_bid, welcome_card);
+        // La carte d'accueil naît par la même fabrique qu'une carte posée d'un clic : même
+        // largeur de naissance, même hauteur suivie (TEXT-FIT-1).
+        let welcome = text_card(
+            &renderer.typography,
+            &renderer.math,
+            "welcome-card",
+            0.0,
+            0.0,
+            WELCOME_TEXT,
+        );
+        store.add_annotation(&active_bid, welcome);
         // La carte d'accueil n'est pas une modification de l'utilisateur : le document part
         // propre, sans marqueur dans le titre — et sans rien à défaire. Tant que seul le
         // marqueur était traité, Ctrl+Z était actif dès le lancement et retirait une carte

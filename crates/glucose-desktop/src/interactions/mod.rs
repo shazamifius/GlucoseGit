@@ -15,3 +15,4 @@ pub mod selection;
 pub mod shortcuts;
 pub mod text_edit;
 pub mod text_entry;
+pub mod tools;

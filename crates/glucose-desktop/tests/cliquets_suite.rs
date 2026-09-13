@@ -579,7 +579,7 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     (
         "crates/glucose-desktop/src/interactions/mouse.rs",
         "handle_mouse_down",
-        471,
+        329,
     ),
     (
         "crates/glucose-desktop/src/interactions/text_edit.rs",
