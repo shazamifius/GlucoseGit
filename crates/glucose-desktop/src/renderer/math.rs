@@ -23,7 +23,7 @@
 //! `glucose_math` compte `y` vers le **haut**, comme TeX ; l'écran compte vers le bas. La
 //! conversion est une soustraction, faite une fois ici.
 
-use crate::typography::Typography;
+use crate::params::Pen;
 use glucose_math::layout::{MathItem, MathLayout};
 use glucose_math::{Family, MathError, Mode, Style};
 use std::cell::RefCell;
@@ -164,40 +164,28 @@ impl MathRenderer {
         Some((l.width as f32 * em, l.height as f32 * em, l.depth as f32 * em))
     }
 
-    /// Dessine une formule dont la **ligne de base** commence en `(x, y)` à l'écran.
+    /// Dessine une formule dont la **ligne de base** commence à la plume, à son corps.
     ///
     /// Rend `false` si la source est fausse : l'appelant décide alors quoi montrer — dans une
     /// carte, la source elle-même, en rouge.
-    pub fn draw(
-        &self,
-        pixmap: &mut PixmapMut,
-        typography: &Typography,
-        source: &str,
-        mode: Mode,
-        x: f32,
-        y: f32,
-        font_size: f32,
-        color: Color,
-    ) -> bool {
+    pub fn draw(&self, pixmap: &mut PixmapMut, source: &str, mode: Mode, pen: Pen, color: Color) -> bool {
         let Ok(layout) = self.layout(source, mode) else {
             return false;
         };
+        let Pen { x, y, font_size } = pen;
 
         for item in &layout.items {
             match item {
                 MathItem::Glyph { text, x: gx, y: gy, size, family, style } => {
                     let nom = nom_de_fonte(*family, *style);
                     let Some(font) = self.fonts.get(nom.as_str()) else { continue };
-                    dessine_glyphe(
-                        pixmap,
-                        font,
-                        text,
-                        x + *gx as f32 * font_size,
+                    let plume = Pen {
+                        x: x + *gx as f32 * font_size,
                         // `y` croît vers le haut côté mathématiques, vers le bas à l'écran.
-                        y - *gy as f32 * font_size,
-                        *size as f32 * font_size,
-                        color,
-                    );
+                        y: y - *gy as f32 * font_size,
+                        font_size: *size as f32 * font_size,
+                    };
+                    dessine_glyphe(pixmap, font, text, plume, color);
                 }
                 MathItem::Rule { x: rx, y: ry, width, height } => {
                     let mut paint = Paint { anti_alias: true, ..Default::default() };
@@ -215,16 +203,13 @@ impl MathRenderer {
                     }
                 }
                 MathItem::Path { name, x: px, y: py, width, height } => {
-                    dessine_forme(
-                        pixmap,
-                        typography,
-                        name,
-                        x + *px as f32 * font_size,
-                        y - *py as f32 * font_size,
-                        *width as f32 * font_size,
-                        *height as f32 * font_size,
-                        color,
-                    );
+                    // La boîte de la forme : sa ligne de base en bas, sa hauteur au-dessus.
+                    // Une boîte sans surface ne se construit pas, donc ne se dessine pas.
+                    let (w, h) = (*width as f32 * font_size, *height as f32 * font_size);
+                    let bas = y - *py as f32 * font_size;
+                    if let Some(boite) = Rect::from_xywh(x + *px as f32 * font_size, bas - h, w, h) {
+                        dessine_forme(pixmap, name, boite, color);
+                    }
                 }
             }
         }
@@ -237,15 +222,8 @@ impl MathRenderer {
 /// `fontdue` rastérise le glyphe puis on le compose en alpha prémultiplié, comme le fait déjà
 /// [`Typography`] pour le texte ordinaire. La différence est qu'ici la fonte change d'un glyphe
 /// à l'autre, ce qui interdit de réutiliser son cache tel quel.
-fn dessine_glyphe(
-    pixmap: &mut PixmapMut,
-    font: &fontdue::Font,
-    texte: &str,
-    x: f32,
-    y: f32,
-    taille: f32,
-    couleur: Color,
-) {
+fn dessine_glyphe(pixmap: &mut PixmapMut, font: &fontdue::Font, texte: &str, pen: Pen, couleur: Color) {
+    let Pen { x, y, font_size: taille } = pen;
     if taille < 0.5 {
         return;
     }
@@ -261,7 +239,7 @@ fn dessine_glyphe(
     }
 }
 
-/// Dessine une forme étirable de KaTeX dans sa boîte.
+/// Dessine une forme étirable de KaTeX dans sa boîte — la ligne de base en est le bas.
 ///
 /// # Ce que ceci fait, et ce qu'il reste à faire
 ///
@@ -273,19 +251,11 @@ fn dessine_glyphe(
 ///
 /// Les autres formes ne sont pas dessinées plutôt que mal dessinées. Le nom est là, la boîte
 /// est là : ce qui manque est le tracé, pas l'information.
-fn dessine_forme(
-    pixmap: &mut PixmapMut,
-    _typography: &Typography,
-    nom: &str,
-    x: f32,
-    y: f32,
-    largeur: f32,
-    hauteur: f32,
-    couleur: Color,
-) {
-    if !nom.starts_with("sqrt") || largeur <= 0.0 || hauteur <= 0.0 {
+fn dessine_forme(pixmap: &mut PixmapMut, nom: &str, boite: Rect, couleur: Color) {
+    if !nom.starts_with("sqrt") {
         return;
     }
+    let (x, bas, largeur, hauteur) = (boite.left(), boite.bottom(), boite.width(), boite.height());
     let epaisseur = (hauteur * 0.045).max(1.0);
     let mut paint = Paint { anti_alias: true, ..Default::default() };
     paint.set_color(couleur);
@@ -294,10 +264,10 @@ fn dessine_forme(
     let mut pb = tiny_skia::PathBuilder::new();
     // La jambe du radical : du creux en bas à gauche jusqu'au sommet, puis le trait qui
     // surplombe le contenu.
-    pb.move_to(x, y - hauteur * 0.45);
-    pb.line_to(x + largeur * 0.28, y - hauteur * 0.06);
-    pb.line_to(x + largeur * 0.62, y - hauteur * 0.96);
-    pb.line_to(x + largeur, y - hauteur * 0.96);
+    pb.move_to(x, bas - hauteur * 0.45);
+    pb.line_to(x + largeur * 0.28, bas - hauteur * 0.06);
+    pb.line_to(x + largeur * 0.62, bas - hauteur * 0.96);
+    pb.line_to(x + largeur, bas - hauteur * 0.96);
     if let Some(path) = pb.finish() {
         pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
     }

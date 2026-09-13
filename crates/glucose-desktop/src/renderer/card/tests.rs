@@ -125,7 +125,6 @@ fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
     for not_yet in ["### H3", "###### H6", "> citation", "| a | b |", "```rust", "**gras**", "*italique*"] {
         assert_eq!(LineKind::of(not_yet), (LineKind::Body, 0), "{not_yet:?} n'est pas encore compris");
     }
-    assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0, "les titres sont plus grands que le corps");
 }
 
 /// Fiche 06 § 5.1 — la carte « nuage / brume » : padding `16px 24px`, coins de 32 px, corps

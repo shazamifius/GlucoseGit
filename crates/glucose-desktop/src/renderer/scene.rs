@@ -700,7 +700,7 @@ mod dot_stamp_tests {
 
         t.stamp(&mut p.as_mut(), 10.3, 9.7);
         let encre = p.pixels().iter().filter(|px| px.alpha() > 0).count();
-        assert!(encre >= 4 && encre <= 16, "un point de rayon 1,2 touche quelques pixels : {encre}");
+        assert!((4..=16).contains(&encre), "un point de rayon 1,2 touche quelques pixels : {encre}");
     }
 
     /// Deux points à la même phase donnent exactement les mêmes pixels — c'est ce qui rend la

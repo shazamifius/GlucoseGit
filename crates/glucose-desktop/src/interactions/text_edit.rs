@@ -19,6 +19,29 @@ fn is_file_command(modifiers: &ModifiersState, key: &Key) -> bool {
     matches!(key, Key::Character(c) if matches!(c.as_str(), "s" | "S" | "o" | "O"))
 }
 
+/// La frontière de caractère qui précède `idx` (`idx > 0`, en octets) : un pas en arrière
+/// dans une chaîne UTF-8 sans jamais couper un caractère.
+///
+/// Un pas de **caractère**, pas de grappe de graphèmes : un accent combinant ou un emoji
+/// composé se traverse morceau par morceau (R-17). C'est le chantier 1.A.4, pas celui-ci.
+fn prev_char_boundary(s: &str, idx: usize) -> usize {
+    let mut prev = idx - 1;
+    while prev > 0 && !s.is_char_boundary(prev) {
+        prev -= 1;
+    }
+    prev
+}
+
+/// La frontière de caractère qui suit `idx` (`idx < s.len()`, en octets). Même réserve que
+/// [`prev_char_boundary`].
+fn next_char_boundary(s: &str, idx: usize) -> usize {
+    let mut next = idx + 1;
+    while next < s.len() && !s.is_char_boundary(next) {
+        next += 1;
+    }
+    next
+}
+
 impl GlucoseApp {
     /// Initialise une session d'édition in-place pour une annotation.
     pub fn start_text_edit(&mut self, ann_id: String, initial_text: String) {
@@ -115,54 +138,32 @@ impl GlucoseApp {
                     return true;
                 }
             }
-            Key::Named(NamedKey::Backspace) => {
-                if session.cursor_idx > 0 {
-                    let mut prev = session.cursor_idx - 1;
-                    while prev > 0 && !session.buffer.is_char_boundary(prev) {
-                        prev -= 1;
-                    }
-                    session.buffer.drain(prev..session.cursor_idx);
-                    session.cursor_idx = prev;
-                    session.blink_timer = std::time::Instant::now();
-                    self.mark_dirty();
-                    return true;
-                }
+            Key::Named(NamedKey::Backspace) if session.cursor_idx > 0 => {
+                let prev = prev_char_boundary(&session.buffer, session.cursor_idx);
+                session.buffer.drain(prev..session.cursor_idx);
+                session.cursor_idx = prev;
+                session.blink_timer = std::time::Instant::now();
+                self.mark_dirty();
+                return true;
             }
-            Key::Named(NamedKey::Delete) => {
-                if session.cursor_idx < session.buffer.len() {
-                    let mut next = session.cursor_idx + 1;
-                    while next < session.buffer.len() && !session.buffer.is_char_boundary(next) {
-                        next += 1;
-                    }
-                    session.buffer.drain(session.cursor_idx..next);
-                    session.blink_timer = std::time::Instant::now();
-                    self.mark_dirty();
-                    return true;
-                }
+            Key::Named(NamedKey::Delete) if session.cursor_idx < session.buffer.len() => {
+                let next = next_char_boundary(&session.buffer, session.cursor_idx);
+                session.buffer.drain(session.cursor_idx..next);
+                session.blink_timer = std::time::Instant::now();
+                self.mark_dirty();
+                return true;
             }
-            Key::Named(NamedKey::ArrowLeft) => {
-                if session.cursor_idx > 0 {
-                    let mut prev = session.cursor_idx - 1;
-                    while prev > 0 && !session.buffer.is_char_boundary(prev) {
-                        prev -= 1;
-                    }
-                    session.cursor_idx = prev;
-                    session.blink_timer = std::time::Instant::now();
-                    self.mark_dirty();
-                    return true;
-                }
+            Key::Named(NamedKey::ArrowLeft) if session.cursor_idx > 0 => {
+                session.cursor_idx = prev_char_boundary(&session.buffer, session.cursor_idx);
+                session.blink_timer = std::time::Instant::now();
+                self.mark_dirty();
+                return true;
             }
-            Key::Named(NamedKey::ArrowRight) => {
-                if session.cursor_idx < session.buffer.len() {
-                    let mut next = session.cursor_idx + 1;
-                    while next < session.buffer.len() && !session.buffer.is_char_boundary(next) {
-                        next += 1;
-                    }
-                    session.cursor_idx = next;
-                    session.blink_timer = std::time::Instant::now();
-                    self.mark_dirty();
-                    return true;
-                }
+            Key::Named(NamedKey::ArrowRight) if session.cursor_idx < session.buffer.len() => {
+                session.cursor_idx = next_char_boundary(&session.buffer, session.cursor_idx);
+                session.blink_timer = std::time::Instant::now();
+                self.mark_dirty();
+                return true;
             }
             Key::Named(NamedKey::Home) => {
                 session.cursor_idx = 0;
@@ -214,5 +215,17 @@ mod tests {
         // Ctrl+A reste une sélection de texte, pas une commande de fichier.
         assert!(!is_file_command(&ModifiersState::CONTROL, &character("a")));
         assert!(!is_file_command(&ModifiersState::CONTROL, &Key::Named(NamedKey::Enter)));
+    }
+
+    /// Un pas du curseur enjambe un caractère entier, jamais un octet : « é » en fait deux.
+    #[test]
+    fn test_a_cursor_step_never_lands_inside_a_character() {
+        let s = "aé€"; // 1 + 2 + 3 octets
+        assert_eq!(next_char_boundary(s, 0), 1);
+        assert_eq!(next_char_boundary(s, 1), 3);
+        assert_eq!(next_char_boundary(s, 3), 6);
+        assert_eq!(prev_char_boundary(s, 6), 3);
+        assert_eq!(prev_char_boundary(s, 3), 1);
+        assert_eq!(prev_char_boundary(s, 1), 0);
     }
 }
