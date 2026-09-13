@@ -5,23 +5,15 @@ use crate::app::{GlucoseApp, LastClickInfo};
 use crate::canvas::screen_to_world;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DragSession, PanelClickResult, TabId};
 use crate::params::{Pointer, ScreenFrame};
-use crate::renderer::card::text_card_fit_height;
 use crate::ui::{handle_ui_click, ActiveTool, UiAction};
 use glucose_core::hit_priority::{collect_candidates_indexed, pick_consts, PickInput, PickOwner};
 use glucose_core::membrane_focus::ScreenSize;
-use glucose_core::types::{Annotation, CanvasFolder, Viewport};
+use glucose_core::types::{Annotation, Viewport};
 use winit::dpi::PhysicalPosition;
 use winit::event::MouseButton;
 
 /// Ce que disent les boutons dont la fonction n'existe pas encore. Un bouton qui annonce ce
 /// qu'il n'a pas fait est un bouton qui ment ; celui-ci dit ce qu'il en est.
-/// Taille d'un dossier créé à la main, en unités monde.
-///
-/// La même que celle d'une membrane créée au clic : ce sont les deux conteneurs du canevas, et
-/// rien ne justifierait qu'ils naissent de tailles différentes. Le minimum de la fiche 06 § 8.1
-/// est 180 × 120 ; celle-ci laisse de quoi poser quelque chose dedans.
-pub const FOLDER_DEFAULT_SIZE: (f64, f64) = (320.0, 240.0);
-
 pub const NOT_YET_EXPORT: &str = "Export : pas encore disponible";
 pub const NOT_YET_STORYBOARD: &str = "Storyboard : pas encore disponible";
 pub const NOT_YET_AI: &str = "IA locale : pas encore disponible";
@@ -249,7 +241,6 @@ impl GlucoseApp {
                     return;
                 }
 
-                let active_bid = self.store.project.active_board_id.clone();
                 let vp = self
                     .store
                     .active_board()
@@ -257,152 +248,11 @@ impl GlucoseApp {
                     .unwrap_or_default();
                 let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
-                // Outils interactifs de création
-                match self.ui.active_tool {
-                    ActiveTool::Pan => unreachable!(),
-                    ActiveTool::Text => {
-                        let aid = self.store.generate_id("text");
-                        let initial_str = "Nouveau texte".to_string();
-                        // TEXT-FIT-1 : la hauteur d'une carte est celle de son texte.
-                        let height = text_card_fit_height(
-                            &self.renderer.typography,
-                            &self.renderer.math,
-                            &initial_str,
-                            240.0,
-                        );
-                        let ann = Annotation::Text {
-                            id: aid.clone(),
-                            x: wx,
-                            y: wy,
-                            width: Some(240.0),
-                            height: Some(height),
-                            text: initial_str.clone(),
-                            font_size: Some(14.0),
-                            color: None,
-                            cursor_pos: None,
-                            source_file: None,
-                            membrane_id: None,
-                            domains: Vec::new(),
-                            mirror_of: None,
-                            temporal_anchor: None,
-                        };
-                        self.store.add_annotation(&active_bid, ann);
-                        self.start_text_edit(aid, initial_str);
-                        self.ui.show_toast("Édition du texte");
-                        self.ui.active_tool = ActiveTool::Select;
-                        self.update_cursor();
-                        return;
-                    }
-                    ActiveTool::Sticky => {
-                        let aid = self.store.generate_id("sticky");
-                        let initial_str = "Nouvelle note".to_string();
-                        let ann = Annotation::Sticky {
-                            id: aid.clone(),
-                            x: wx,
-                            y: wy,
-                            width: Some(180.0),
-                            height: Some(130.0),
-                            text: initial_str.clone(),
-                            font_size: Some(12.0),
-                            color: Some("#1c1917".into()),
-                            bg_color: Some("#fef08a".into()),
-                            cursor_pos: None,
-                            operator: None,
-                            source_file: None,
-                            membrane_id: None,
-                            domains: Vec::new(),
-                            mirror_of: None,
-                            temporal_anchor: None,
-                        };
-                        self.store.add_annotation(&active_bid, ann);
-                        self.start_text_edit(aid, initial_str);
-                        self.ui.show_toast("Édition du sticky");
-                        self.ui.active_tool = ActiveTool::Select;
-                        self.update_cursor();
-                        return;
-                    }
-                    ActiveTool::Arrow => {
-                        let aid = self.store.generate_id("arrow");
-                        let ann = Annotation::Arrow {
-                            id: aid,
-                            x: wx,
-                            y: wy,
-                            x2: wx + 120.0,
-                            y2: wy + 80.0,
-                            text: None,
-                            font_size: None,
-                            color: Some("#94a3b8".into()),
-                            arrow_type: None,
-                            arrow_bidirectional: false,
-                            predicate: None,
-                            stroke_width: Some(2.0),
-                            waypoints: Vec::new(),
-                            source_id: None,
-                            target_id: None,
-                            source_block_id: None,
-                            target_block_id: None,
-                            source_text_sel: None,
-                            target_text_sel: None,
-                            long_text: None,
-                            target_board_id: None,
-                            membrane_id: None,
-                            domains: Vec::new(),
-                            mirror_of: None,
-                            temporal_anchor: None,
-                        };
-                        self.store.add_annotation(&active_bid, ann);
-                        self.ui.show_toast("Flèche ajoutée");
-                        self.ui.active_tool = ActiveTool::Select;
-                        self.update_cursor();
-                        self.mark_dirty();
-                        return;
-                    }
-                    ActiveTool::Membrane => {
-                        let aid = self.store.generate_id("membrane");
-                        let ann = Annotation::Membrane {
-                            id: aid,
-                            x: wx,
-                            y: wy,
-                            width: 320.0,
-                            height: 240.0,
-                            color: Some("#60a5fa".into()),
-                            text: Some("Groupe".into()),
-                            mode: glucose_core::types::MembraneMode::Classic,
-                            curtains: Vec::new(),
-                            membrane_id: None,
-                            domains: Vec::new(),
-                            mirror_of: None,
-                            temporal_anchor: None,
-                        };
-                        self.store.add_annotation(&active_bid, ann);
-                        self.ui.show_toast("Membrane créée (rx=60)");
-                        self.ui.active_tool = ActiveTool::Select;
-                        self.update_cursor();
-                        self.mark_dirty();
-                        return;
-                    }
-                    ActiveTool::Folder => {
-                        // Le dossier capture ce qui se trouve sous lui : `create_folder` le
-                        // fait, crée le tableau enfant, et enregistre le tout comme UN geste
-                        // annulable. L'outil se contentait d'un toast, ce que la fiche 11 § A.2
-                        // interdit — un bouton qui annonce ce qu'il ne fait pas.
-                        let mut folder = CanvasFolder::new(
-                            self.store.generate_id("folder"),
-                            "Dossier",
-                            String::new(),
-                        );
-                        folder.x = wx;
-                        folder.y = wy;
-                        folder.width = FOLDER_DEFAULT_SIZE.0;
-                        folder.height = FOLDER_DEFAULT_SIZE.1;
-                        self.store.create_folder(&active_bid, folder);
-                        self.ui.show_toast("Dossier créé");
-                        self.ui.active_tool = ActiveTool::Select;
-                        self.update_cursor();
-                        self.mark_dirty();
-                        return;
-                    }
-                    ActiveTool::Select => {}
+                // Outils de création : le clic pose un nœud, et l'outil rend la main.
+                if self.place_with_tool(wx, wy) {
+                    self.update_cursor();
+                    self.mark_dirty();
+                    return;
                 }
 
                 // 4. Une poignée sous le clic : le geste de redimensionnement (RESIZE-1).

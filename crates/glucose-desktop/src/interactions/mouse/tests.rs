@@ -9,6 +9,7 @@
 
 use super::*;
 use crate::dock::{compute_panel_layouts, layout_plugins_panel, layout_storyboard_panel, TabId};
+use crate::interactions::tools::NEW_CONTAINER_SIZE;
 use crate::ui::layout_topbar;
 use winit::event::MouseButton;
 
@@ -326,7 +327,7 @@ fn test_the_folder_tool_actually_creates_a_folder() {
     assert_eq!(board.folders.len(), avant + 1, "le dossier existe");
     let f = board.folders.last().expect("le dossier");
     assert_eq!((f.x, f.y), (600.0, 400.0), "posé sous le curseur");
-    assert_eq!((f.width, f.height), FOLDER_DEFAULT_SIZE);
+    assert_eq!((f.width, f.height), NEW_CONTAINER_SIZE);
     assert!(
         !f.child_board_id.is_empty(),
         "et son tableau enfant est créé"
