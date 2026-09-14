@@ -237,7 +237,17 @@ fn witness_texts(store: &mut Store) {
                 "```rust\n",
                 "fn main() {}\n",
                 "```\n",
-                "-# et une note en petit",
+                "-# et une note en petit
+",
+                "
+",
+                "| bloc | tenu |
+",
+                "|---|---|
+",
+                "| citation | oui |
+",
+                "| **tableau** | oui |",
             ),
         ),
     );

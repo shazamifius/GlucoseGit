@@ -180,9 +180,18 @@ fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
         "au repos, seules les lignes de code occupent un rang"
     );
 
+    assert_eq!(genre("| a | b |"), BlockKind::TableRow);
+    assert_eq!(genre("|---|---|"), BlockKind::TableRule);
+    // Un lien n'est pas un genre de bloc : c'est une emphase dans une ligne de corps.
+    assert_eq!(genre("[lien](https://a.b)"), BlockKind::Body);
+
     // Ce qui n'est toujours pas compris, et le restera jusqu'à ce que quelqu'un l'écrive :
     // ce test tombera ce jour-là, c'est son but.
-    for not_yet in ["| a | b |", "[lien](url)", "  indenté de deux espaces"] {
+    for not_yet in [
+        "  indenté de deux espaces",
+        "Terme
+: sa définition",
+    ] {
         assert_eq!(
             genre(not_yet),
             BlockKind::Body,
