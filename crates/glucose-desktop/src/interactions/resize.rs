@@ -66,6 +66,13 @@ pub struct ResizeSession {
     /// Le pointeur a-t-il bougé ? Un simple clic sur une poignée n'est pas un geste et ne
     /// laisse pas d'entrée d'undo.
     pub moved: bool,
+    /// Le geste fait **tourner** au lieu de redimensionner : `Alt` tenu sur une poignée de
+    /// coin d'une image.
+    ///
+    /// Décidé à l'appui et non relu à chaque mouvement : relâcher `Alt` en cours de route
+    /// changerait de geste au milieu, et l'utilisateur verrait sa rotation devenir un
+    /// redimensionnement sans avoir rien lâché.
+    pub rotating: bool,
 }
 
 /// Le curseur winit d'une poignée, via le nom CSS que le noyau connaît.
@@ -107,6 +114,13 @@ impl GlucoseApp {
             .unwrap_or_default();
 
         self.store.begin_live_edit();
+        // `Alt` sur un coin d'image fait tourner. Un coin, parce qu'un côté n'a pas d'azimut
+        // propre — il en partagerait un avec son opposé ; et une image, parce qu'elle est le
+        // seul nœud dont le modèle porte un angle.
+        let rotating = self.modifiers.alt_key()
+            && handle.is_corner()
+            && matches!(target, ResizeTarget::Image { .. });
+
         self.resize_session = Some(ResizeSession {
             target,
             handle,
@@ -114,6 +128,7 @@ impl GlucoseApp {
             pointer_start: (wx, wy),
             snap_targets,
             moved: false,
+            rotating,
         });
         true
     }
@@ -175,11 +190,40 @@ impl GlucoseApp {
         }
         session.moved = true;
         let session = session.clone();
-        let rule = self.rule_of(&session.target);
-        let (rect, guides) = self.resized_box(&session, rule, delta, vp.scale);
-        self.write_resized_box(&session.target, rect);
-        self.active_guides = guides;
+        if session.rotating {
+            self.write_rotation(&session, (wx, wy));
+        } else {
+            let rule = self.rule_of(&session.target);
+            let (rect, guides) = self.resized_box(&session, rule, delta, vp.scale);
+            self.write_resized_box(&session.target, rect);
+            self.active_guides = guides;
+        }
         self.mark_dirty();
+    }
+
+    /// L'angle que le pointeur demande, écrit sur le nœud.
+    ///
+    /// Le geste repart toujours de l'angle **du début** : deux mouvements du même endroit au
+    /// même endroit donnent le même résultat, quel que soit le nombre d'événements reçus
+    /// entre les deux (ROT-1). `Maj` verrouille sur les huit directions des poignées.
+    fn write_rotation(&mut self, session: &ResizeSession, pointer: (f64, f64)) {
+        let ResizeTarget::Image { id, rotation } = &session.target else {
+            return;
+        };
+        let centre = (
+            session.start.left + session.start.width / 2.0,
+            session.start.top + session.start.height / 2.0,
+        );
+        let angle = glucose_core::rotate::normalize(glucose_core::rotate::rotation_from_drag(
+            centre,
+            session.pointer_start,
+            pointer,
+            *rotation,
+            self.modifiers.shift_key(),
+        ));
+        let board = self.store.project.active_board_id.clone();
+        self.store
+            .update_image(&board, id, |img| img.rotation = angle);
     }
 
     /// La règle du geste à cet instant : `Shift` libère le rapport d'une image.

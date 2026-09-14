@@ -325,8 +325,20 @@ pub fn witness_selected() -> Store {
     fermee.locked = true;
     store.add_image(&board, fermee);
 
+    // Une troisième, tournée : c'est la seule façon de tenir par capture que l'image, son
+    // cadre et ses poignées tournent **ensemble** — le rendu les ignorait, alors que le clic
+    // en tenait compte.
+    let mut penchee = BoardImage::new("img-tournee", 220.0, 400.0, 220.0, 150.0);
+    penchee.id = "img-tournee".to_string();
+    penchee.rotation = std::f64::consts::FRAC_PI_8;
+    store.add_image(&board, penchee);
+
     store.end_live_edit();
-    store.set_selected_image_ids(vec!["img-libre".into(), "img-verrouillee".into()]);
+    store.set_selected_image_ids(vec![
+        "img-libre".into(),
+        "img-verrouillee".into(),
+        "img-tournee".into(),
+    ]);
     store.set_selected_annotation_ids(vec!["t-accents".into()]);
     store.journal.clear();
     store

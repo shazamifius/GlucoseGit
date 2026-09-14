@@ -190,7 +190,7 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 | 2.8 | Guides d'alignement visuels | `GlucoseCanvas` | 🟡 dessine une liste toujours vide | 1 |
 | 2.9 | Poignées de redimensionnement | `imageResize` | 🎨 dessinées, non interactives | 3 |
 | 2.10 | Curseurs contextuels sur poignées | `hitPriority.handleCursor` | 💀 fonction écrite, jamais appelée | 3 |
-| 2.11 | Rotation | `BoardImage.rotation` | 🟡 respectée au clic et aux poignées, aucun geste pour la changer | 3 |
+| 2.11 | Rotation | `BoardImage.rotation` | ✅ rendue **et** modifiable (`Alt` + coin) — extension : la référence porte le champ sans jamais l'éditer |  |
 | 2.12 | Verrouillage d'élément | `BoardImage.locked` | ✅ `L`, cadre rouge, poignées retirées, annulable |  |
 | 2.13 | Dupliquer `Ctrl+D` | `store.duplicateSelected` | 🟡 collision d'ids (R-13) | 1 |
 | 2.14 | Supprimer `Suppr` / `Retour` | `store.deleteSelected` | ✅ | — |
