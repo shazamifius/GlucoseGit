@@ -190,14 +190,14 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 | 2.8 | Guides d'alignement visuels | `GlucoseCanvas` | 🟡 dessine une liste toujours vide | 1 |
 | 2.9 | Poignées de redimensionnement | `imageResize` | 🎨 dessinées, non interactives | 3 |
 | 2.10 | Curseurs contextuels sur poignées | `hitPriority.handleCursor` | 💀 fonction écrite, jamais appelée | 3 |
-| 2.11 | Rotation | `BoardImage.rotation` | ❌ champ ignoré (R-24) | 3 |
-| 2.12 | Verrouillage d'élément | `BoardImage.locked` | 🟡 respecté au déplacement, invisible | 3 |
+| 2.11 | Rotation | `BoardImage.rotation` | 🟡 respectée au clic et aux poignées, aucun geste pour la changer | 3 |
+| 2.12 | Verrouillage d'élément | `BoardImage.locked` | ✅ `L`, cadre rouge, poignées retirées, annulable |  |
 | 2.13 | Dupliquer `Ctrl+D` | `store.duplicateSelected` | 🟡 collision d'ids (R-13) | 1 |
 | 2.14 | Supprimer `Suppr` / `Retour` | `store.deleteSelected` | ✅ | — |
 | 2.15 | Copier / Couper / Coller entre éléments | `App.tsx:254-262` | ❌ | 4 |
 | 2.16 | Menu contextuel (clic droit) | `ContextMenu.tsx` | ❌ le clic droit sert au pan | 3 |
-| 2.17 | Ordre d'empilement (z-order) | — | ❌ ordre du `Vec` uniquement | 3 |
-| 2.18 | Déplacement au clavier (flèches) | `GlucoseCanvas` | ❌ | 4 |
+| 2.17 | Ordre d'empilement (z-order) | — | ✅ `Ctrl+]` / `Ctrl+[`, **au sein d'une couche** |  |
+| 2.18 | Déplacement au clavier (flèches) | `GlucoseCanvas` | ✅ une unité, dix sous `Maj` |  |
 
 ---
 

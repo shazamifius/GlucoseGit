@@ -15,6 +15,13 @@
 
 use crate::app::GlucoseApp;
 use crate::ui::ActiveTool;
+
+/// Ce que `Maj` fait à un déplacement au clavier : dix pas d'un coup.
+///
+/// La base décimale, pas une longueur choisie — l'unité fine est celle du monde, et ceci en
+/// est la dizaine.
+const NUDGE_DECADE: f64 = 10.0;
+use glucose_core::store::StackMove;
 use glucose_core::types::Viewport;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, NamedKey};
@@ -51,6 +58,10 @@ impl GlucoseApp {
 
         match logical_key {
             Key::Named(NamedKey::Escape) => self.escape_gesture(),
+            Key::Named(NamedKey::ArrowLeft) => self.nudge(-1.0, 0.0),
+            Key::Named(NamedKey::ArrowRight) => self.nudge(1.0, 0.0),
+            Key::Named(NamedKey::ArrowUp) => self.nudge(0.0, -1.0),
+            Key::Named(NamedKey::ArrowDown) => self.nudge(0.0, 1.0),
             Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
                 let active_bid = self.store.project.active_board_id.clone();
                 self.store.delete_selected(&active_bid);
@@ -116,6 +127,8 @@ impl GlucoseApp {
                 self.ui.show_toast("Dupliqué");
             }
             "a" | "A" => self.select_all(),
+            "]" => self.restack(StackMove::Front),
+            "[" => self.restack(StackMove::Back),
             _ => return false,
         }
         self.mark_dirty();
@@ -142,6 +155,10 @@ impl GlucoseApp {
                 self.reset_view();
                 return;
             }
+            "l" | "L" => {
+                self.toggle_lock();
+                return;
+            }
             _ => return,
         };
         self.ui.active_tool = tool;
@@ -153,6 +170,52 @@ impl GlucoseApp {
         if happened {
             self.ui.show_toast(message);
         }
+    }
+
+    /// Déplace la sélection d'un cran au clavier, pour l'ajustement que la souris ne sait pas
+    /// faire.
+    ///
+    /// Le pas est **l'unité du monde**, et `Maj` le multiplie par dix : deux gestes, aucune
+    /// longueur à choisir. Une image verrouillée ne bouge pas — c'est `move_selected` qui le
+    /// tient, et le clavier n'a pas à le savoir.
+    fn nudge(&mut self, dx: f64, dy: f64) {
+        let pas = if self.modifiers.shift_key() {
+            NUDGE_DECADE
+        } else {
+            1.0
+        };
+        let board = self.store.project.active_board_id.clone();
+        self.store.move_selected(&board, dx * pas, dy * pas);
+        self.mark_dirty();
+    }
+
+    /// Porte la sélection au premier ou au dernier plan de sa couche.
+    ///
+    /// Sans toast : le nœud passe devant, ou derrière, et cela **se voit**. Un message qui
+    /// décrit ce que l'œil vient d'enregistrer est du bruit, pas une confirmation.
+    fn restack(&mut self, mv: StackMove) {
+        let board = self.store.project.active_board_id.clone();
+        if self.store.move_selection_in_stack(&board, mv) > 0 {
+            self.mark_dirty();
+        }
+    }
+
+    /// Bascule le verrou des images sélectionnées (fiche 08 § 1.3).
+    fn toggle_lock(&mut self) {
+        let board = self.store.project.active_board_id.clone();
+        let Some(locked) = self.store.toggle_lock_selection(&board) else {
+            return;
+        };
+        // La fiche 08 § 1.3 cite le libellé de la référence, cadenas compris. Il tourne dans
+        // un navigateur, qui a une police d'emoji ; le natif n'en embarque pas, et le test
+        // FONT-1 refuse tout caractère qu'aucun visage ne sait dessiner. Le mot suffit — et
+        // c'est le cadre rouge qui dit la chose à l'œil, pas le toast.
+        self.ui.show_toast(if locked {
+            "Images verrouillées"
+        } else {
+            "Images déverrouillées"
+        });
+        self.mark_dirty();
     }
 
     fn select_all(&mut self) {
@@ -194,3 +257,6 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 }
+
+#[cfg(test)]
+mod tests;

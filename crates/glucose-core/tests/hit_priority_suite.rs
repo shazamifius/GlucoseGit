@@ -397,3 +397,44 @@ fn test_the_pick_tolerances_are_those_of_the_spec() {
         "une seule fenêtre de double-clic"
     );
 }
+
+/// Fiche 08 § 1.3 — le verrou retire le **geste**, pas l'existence.
+///
+/// Une image verrouillée reste désignable : sans cela, la sélectionner devient impossible, et
+/// donc la déverrouiller aussi — un aller sans retour que rien dans la fiche ne demande. Ce
+/// qu'elle perd, ce sont ses poignées, et le droit de bouger.
+#[test]
+fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
+    let images = vec![img("L1", 400.0, 300.0, 200.0, 200.0, true)];
+    let annotations: Vec<Annotation> = Vec::new();
+    let folders: Vec<CanvasFolder> = Vec::new();
+    let empty: Vec<String> = Vec::new();
+    let selected = vec!["L1".to_string()];
+
+    let input = PickInput {
+        wx: 400.0,
+        wy: 300.0,
+        scale: 1.0,
+        images: &images,
+        annotations: &annotations,
+        folders: &folders,
+        // Sélectionnée : c'est la seule situation où des poignées pourraient naître.
+        selected_image_ids: &selected,
+        selected_annotation_ids: &empty,
+        selected_folder_id: None,
+        arrow_id: None,
+        dom_hint: None,
+    };
+    let cands = collect_candidates(&input);
+
+    assert!(
+        cands
+            .iter()
+            .any(|c| c.id == "L1" && c.kind == PickKind::Image),
+        "une image verrouillée doit rester désignable : {cands:?}"
+    );
+    assert!(
+        cands.iter().all(|c| c.corner.is_none()),
+        "et n'offrir aucune poignée : {cands:?}"
+    );
+}

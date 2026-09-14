@@ -274,6 +274,55 @@ impl Store {
         (imgs, anns)
     }
 
+    /// Bascule le verrou des images sélectionnées, et rend l'état appliqué.
+    ///
+    /// Une bascule **de groupe** : tant qu'il reste une image déverrouillée, tout se
+    /// verrouille ; ce n'est qu'une fois tout verrouillé qu'un second geste libère. Basculer
+    /// chaque image séparément scinderait une sélection mixte en deux moitiés qui s'inversent
+    /// à chaque appui, et le raccourci cesserait de vouloir dire quelque chose.
+    ///
+    /// Rend `None` si aucune image n'est sélectionnée — un dossier ou une carte ne porte pas
+    /// de verrou, la référence n'en donne qu'aux images.
+    pub fn toggle_lock_selection(&mut self, board_id: &str) -> Option<bool> {
+        let sel = self.selection_sets();
+        if sel.images.is_empty() {
+            return None;
+        }
+        let b = self.project.boards.iter_mut().find(|b| b.id == board_id)?;
+        let bid = b.id.clone();
+
+        let mut visees: Vec<usize> = Vec::new();
+        let mut toutes_verrouillees = true;
+        for (i, img) in b.images.iter().enumerate() {
+            if sel.images.contains(&img.id) {
+                toutes_verrouillees &= img.locked;
+                visees.push(i);
+            }
+        }
+        if visees.is_empty() {
+            return None;
+        }
+        let locked = !toutes_verrouillees;
+
+        let mut edits = Vec::new();
+        for i in visees {
+            let img = &mut b.images[i];
+            if img.locked == locked {
+                continue;
+            }
+            let before = img.clone();
+            img.locked = locked;
+            edits.push(Edit::Image {
+                board: bid.clone(),
+                slot: Slot::changed(i, before, img.clone()),
+            });
+        }
+        if !edits.is_empty() {
+            self.record_as_one_gesture(edits);
+        }
+        Some(locked)
+    }
+
     pub fn delete_selected(&mut self, board_id: &str) {
         let imgs = self.selected_image_ids.clone();
         let anns = self.selected_annotation_ids.clone();

@@ -117,144 +117,19 @@ fn ensure_dom_hint(input: &PickInput, out: &mut Vec<PickCandidate>) {
 }
 
 pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
-    let wx = input.wx;
-    let wy = input.wy;
-    let scale = input.scale;
-    let band = pick_consts::EDGE_BAND_PX / scale.max(1e-6);
+    let band = pick_consts::EDGE_BAND_PX / input.scale.max(1e-6);
     let mut out = Vec::new();
 
     collect_handles(input, &mut out);
-
-    // Images
     for (z, img) in input.images.iter().enumerate() {
-        if img.locked {
-            continue;
-        }
-        if in_rotated_box(wx, wy, img.x, img.y, img.width, img.height, img.rotation) {
-            out.push(PickCandidate {
-                owner: PickOwner::Image,
-                id: img.id.clone(),
-                kind: PickKind::Image,
-                rank: PICK_RANK_IMAGE,
-                z,
-                corner: None,
-                dist: 0.0,
-                area: 0.0,
-                terminal: false,
-            });
-        }
+        push_image(input, z, img, &mut out);
     }
-
-    // Annotations
     for (z, ann) in input.annotations.iter().enumerate() {
-        match ann {
-            Annotation::Arrow { .. } => {}
-            Annotation::Membrane {
-                id,
-                x,
-                y,
-                width,
-                height,
-                text,
-                ..
-            } => {
-                let w = *width;
-                let h = *height;
-                let area = (w * h).abs();
-                let on_label = text.is_some()
-                    && wx >= *x
-                    && wx <= *x + w
-                    && wy >= *y - pick_consts::MEMBRANE_LABEL_BAND
-                    && wy <= *y;
-
-                if on_label || on_rect_edge(wx, wy, *x, *y, w, h, band) {
-                    out.push(PickCandidate {
-                        owner: PickOwner::Membrane,
-                        id: id.clone(),
-                        kind: PickKind::MembraneEdge,
-                        rank: PICK_RANK_MEMBRANE_EDGE,
-                        z,
-                        corner: None,
-                        dist: 0.0,
-                        area,
-                        terminal: false,
-                    });
-                } else if in_rect(wx, wy, *x, *y, w, h) {
-                    out.push(PickCandidate {
-                        owner: PickOwner::Membrane,
-                        id: id.clone(),
-                        kind: PickKind::MembraneBody,
-                        rank: PICK_RANK_MEMBRANE_BODY,
-                        z,
-                        corner: None,
-                        dist: 0.0,
-                        area,
-                        terminal: false,
-                    });
-                }
-            }
-            // Une carte et un pense-bête sont terminaux : le cycle de profondeur s'arrête sur
-            // eux, pour laisser le double-clic d'édition intact. Leur boîte est celle du
-            // modèle, taille de naissance comprise.
-            Annotation::Text { id, .. } | Annotation::Sticky { id, .. } => {
-                let (kind, rank) = if matches!(ann, Annotation::Text { .. }) {
-                    (PickKind::Text, PICK_RANK_TEXT)
-                } else {
-                    (PickKind::Sticky, PICK_RANK_STICKY)
-                };
-                let inside = ann
-                    .rect()
-                    .is_some_and(|r| in_rect(wx, wy, r.left, r.top, r.width, r.height));
-                if inside {
-                    out.push(PickCandidate {
-                        owner: PickOwner::Annotation,
-                        id: id.clone(),
-                        kind,
-                        rank,
-                        z,
-                        corner: None,
-                        dist: 0.0,
-                        area: 0.0,
-                        terminal: true,
-                    });
-                }
-            }
-        }
+        push_annotation(input, band, z, ann, &mut out);
     }
-
-    // Folders
     for (z, f) in input.folders.iter().enumerate() {
-        let area = (f.width * f.height).abs();
-        let on_header =
-            wx >= f.x && wx <= f.x + f.width && wy >= f.y && wy <= f.y + pick_consts::FOLDER_HEADER;
-        if on_header || on_rect_edge(wx, wy, f.x, f.y, f.width, f.height, band) {
-            out.push(PickCandidate {
-                owner: PickOwner::Folder,
-                id: f.id.clone(),
-                kind: PickKind::FolderEdge,
-                rank: PICK_RANK_FOLDER_EDGE,
-                z,
-                corner: None,
-                dist: 0.0,
-                area,
-                terminal: false,
-            });
-        } else if in_rect(wx, wy, f.x, f.y, f.width, f.height) {
-            out.push(PickCandidate {
-                owner: PickOwner::Folder,
-                id: f.id.clone(),
-                kind: PickKind::FolderBody,
-                rank: PICK_RANK_FOLDER_BODY,
-                z,
-                corner: None,
-                dist: 0.0,
-                area,
-                terminal: false,
-            });
-        }
+        push_folder(input, band, z, f, &mut out);
     }
-
-    // Arrow
     if let Some(arrow_id) = input.arrow_id {
         out.push(PickCandidate {
             owner: PickOwner::Arrow,
@@ -270,8 +145,153 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     }
 
     ensure_dom_hint(input, &mut out);
+    sort_candidates(&mut out);
+    out
+}
 
-    // Tri total et stable
+/// Une image sous le curseur.
+///
+/// Une image **verrouillée reste désignable**. Ce que le verrou retire, c'est le geste : pas
+/// de poignées ([`super::handles`]), pas de déplacement (`Store::move_selected`). La retirer
+/// aussi de la pile des candidats la rendait inatteignable — donc impossible à déverrouiller
+/// autrement que par `Ctrl+Z`, ce que la fiche 08 § 1.3 ne demande nulle part.
+fn push_image(input: &PickInput, z: usize, img: &BoardImage, out: &mut Vec<PickCandidate>) {
+    if !in_rotated_box(
+        input.wx,
+        input.wy,
+        img.x,
+        img.y,
+        img.width,
+        img.height,
+        img.rotation,
+    ) {
+        return;
+    }
+    out.push(PickCandidate {
+        owner: PickOwner::Image,
+        id: img.id.clone(),
+        kind: PickKind::Image,
+        rank: PICK_RANK_IMAGE,
+        z,
+        corner: None,
+        dist: 0.0,
+        area: 0.0,
+        terminal: false,
+    });
+}
+
+/// Une annotation sous le curseur : le bord ou le corps d'une membrane, une carte, une note.
+///
+/// Une carte et un pense-bête sont **terminaux** : le cycle de profondeur s'arrête sur eux,
+/// pour laisser le double-clic d'édition intact. Leur boîte est celle du modèle, taille de
+/// naissance comprise. Une flèche n'est pas désignable ici — elle vient par `arrow_id`.
+fn push_annotation(
+    input: &PickInput,
+    band: f64,
+    z: usize,
+    ann: &Annotation,
+    out: &mut Vec<PickCandidate>,
+) {
+    let (wx, wy) = (input.wx, input.wy);
+    match ann {
+        Annotation::Arrow { .. } => {}
+        Annotation::Membrane {
+            id,
+            x,
+            y,
+            width,
+            height,
+            text,
+            ..
+        } => {
+            let (w, h) = (*width, *height);
+            let area = (w * h).abs();
+            let on_label = text.is_some()
+                && wx >= *x
+                && wx <= *x + w
+                && wy >= *y - pick_consts::MEMBRANE_LABEL_BAND
+                && wy <= *y;
+
+            let (kind, rank) = if on_label || on_rect_edge(wx, wy, *x, *y, w, h, band) {
+                (PickKind::MembraneEdge, PICK_RANK_MEMBRANE_EDGE)
+            } else if in_rect(wx, wy, *x, *y, w, h) {
+                (PickKind::MembraneBody, PICK_RANK_MEMBRANE_BODY)
+            } else {
+                return;
+            };
+            out.push(PickCandidate {
+                owner: PickOwner::Membrane,
+                id: id.clone(),
+                kind,
+                rank,
+                z,
+                corner: None,
+                dist: 0.0,
+                area,
+                terminal: false,
+            });
+        }
+        Annotation::Text { id, .. } | Annotation::Sticky { id, .. } => {
+            let (kind, rank) = if matches!(ann, Annotation::Text { .. }) {
+                (PickKind::Text, PICK_RANK_TEXT)
+            } else {
+                (PickKind::Sticky, PICK_RANK_STICKY)
+            };
+            let inside = ann
+                .rect()
+                .is_some_and(|r| in_rect(wx, wy, r.left, r.top, r.width, r.height));
+            if inside {
+                out.push(PickCandidate {
+                    owner: PickOwner::Annotation,
+                    id: id.clone(),
+                    kind,
+                    rank,
+                    z,
+                    corner: None,
+                    dist: 0.0,
+                    area: 0.0,
+                    terminal: true,
+                });
+            }
+        }
+    }
+}
+
+/// Un dossier sous le curseur : son en-tête et son bord prennent le pas sur son corps.
+fn push_folder(
+    input: &PickInput,
+    band: f64,
+    z: usize,
+    f: &CanvasFolder,
+    out: &mut Vec<PickCandidate>,
+) {
+    let (wx, wy) = (input.wx, input.wy);
+    let on_header =
+        wx >= f.x && wx <= f.x + f.width && wy >= f.y && wy <= f.y + pick_consts::FOLDER_HEADER;
+
+    let (kind, rank) = if on_header || on_rect_edge(wx, wy, f.x, f.y, f.width, f.height, band) {
+        (PickKind::FolderEdge, PICK_RANK_FOLDER_EDGE)
+    } else if in_rect(wx, wy, f.x, f.y, f.width, f.height) {
+        (PickKind::FolderBody, PICK_RANK_FOLDER_BODY)
+    } else {
+        return;
+    };
+    out.push(PickCandidate {
+        owner: PickOwner::Folder,
+        id: f.id.clone(),
+        kind,
+        rank,
+        z,
+        corner: None,
+        dist: 0.0,
+        area: (f.width * f.height).abs(),
+        terminal: false,
+    });
+}
+
+/// Le tri total et stable de l'arbitre : rang, puis distance, puis aire, puis profondeur,
+/// puis identité. Aucun ex æquo ne subsiste, donc deux appels rendent le même ordre.
+fn sort_candidates(out: &mut [PickCandidate]) {
     out.sort_by(|a, b| {
         a.rank
             .cmp(&b.rank)
@@ -289,8 +309,6 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
             .then_with(|| a.id.cmp(&b.id))
             .then_with(|| a.corner.cmp(&b.corner))
     });
-
-    out
 }
 
 /// Version accélérée par index spatial de collect_candidates (Roadmap 1.17).

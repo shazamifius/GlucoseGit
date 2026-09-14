@@ -276,7 +276,7 @@ impl Renderer {
         crate::perf::stage("clear");
 
         // 2. Grille de points infinie
-        scene::draw_grid(pixmap, &vp, width, height, header_h);
+        scene::grid::draw_grid(pixmap, &vp, width, height, header_h);
         crate::perf::stage("grid");
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
