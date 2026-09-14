@@ -7,6 +7,7 @@ use crate::interactions::tools::text_card;
 use crate::params::{Pointer, SceneOverlay, ScreenFrame};
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::{ToastRepaint, UiState};
+use glucose_core::hit_priority::CycleState;
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
 use glucose_core::store::Store;
 use std::num::NonZeroU32;
@@ -28,7 +29,13 @@ const ANIMATION_MIN_INTERVAL_MS: u64 = 16;
 const ANIMATION_MAX_INTERVAL_MS: u64 = 250;
 
 pub struct LastClickInfo {
-    pub time: std::time::Instant,
+    /// L'instant du clic, en millisecondes depuis [`GlucoseApp::click_epoch`].
+    ///
+    /// Une date entière et non un `Instant` : le compte des clics rapprochés et le cycle de
+    /// profondeur posent la **même** question — « ces deux clics se suivent-ils ? » — et la
+    /// posaient à deux horloges différentes, l'une réelle, l'autre en millisecondes. Deux
+    /// horloges pour une question, c'est une divergence qui attend son bug.
+    pub at_ms: i64,
     pub pos: (f64, f64),
     pub id: String,
     /// Le nombre de clics rapprochés sur ce même nœud : 1, puis 2, puis 3. C'est lui qui
@@ -73,6 +80,17 @@ pub struct GlucoseApp {
     /// Le glisser de sélection de texte en cours, s'il y en a un (MOUSE-1).
     pub text_drag: Option<crate::interactions::text_mouse::TextDrag>,
     pub last_click: Option<LastClickInfo>,
+    /// Où en est le cycle de profondeur (PICK-1) : la pile visée au dernier clic, et le rang
+    /// qu'on y a atteint. `None` quand le dernier clic n'a désigné aucun nœud, ou qu'il a
+    /// fait autre chose que sélectionner — ouvrir, éditer, glisser.
+    pub pick_cycle: Option<CycleState>,
+    /// L'origine du temps des clics — celle que [`GlucoseApp::now_ms`] mesure.
+    ///
+    /// Un `Instant` ne se soustrait pas à un entier, et l'arbitre de clic raisonne en
+    /// millisecondes. C'est aussi ce qui rend les gestes testables **sans dormir** : un test
+    /// qui veut jouer un re-clic « une seconde plus tard » recule cette origine, au lieu
+    /// d'attendre vraiment.
+    pub click_epoch: std::time::Instant,
     pub last_blink_phase: bool,
     /// Durée de la dernière frame présentée, en millisecondes.
     pub last_frame_ms: u64,
@@ -157,6 +175,8 @@ impl GlucoseApp {
             editing_session: None,
             text_drag: None,
             last_click: None,
+            pick_cycle: None,
+            click_epoch: std::time::Instant::now(),
             last_blink_phase: true,
             last_frame_ms: 0,
             project_path: None,

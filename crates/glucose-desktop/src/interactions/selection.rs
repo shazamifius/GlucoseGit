@@ -70,7 +70,17 @@ impl GlucoseApp {
 
     /// Résout l'élément sous le clic à l'aide de hit_priority.
     pub fn pick_candidate_at(&self, wx: f64, wy: f64) -> Option<PickCandidate> {
-        let board = self.store.active_board()?;
+        self.pick_candidates_at(wx, wy).into_iter().next()
+    }
+
+    /// **Toute** la pile sous `(wx, wy)`, dans l'ordre de l'arbitre.
+    ///
+    /// [`Self::pick_candidate_at`] n'en garde que le sommet, ce qui suffit à la plupart des
+    /// gestes ; le cycle de profondeur, lui, a besoin de ce qu'il y a dessous (PICK-1).
+    pub fn pick_candidates_at(&self, wx: f64, wy: f64) -> Vec<PickCandidate> {
+        let Some(board) = self.store.active_board() else {
+            return Vec::new();
+        };
         let vp = board.viewport;
         let input = PickInput {
             wx,
@@ -85,8 +95,6 @@ impl GlucoseApp {
             arrow_id: None,
             dom_hint: None,
         };
-        let candidates = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
-
-        candidates.into_iter().next()
+        collect_candidates_indexed(&input, &self.renderer.spatial_hash)
     }
 }

@@ -134,6 +134,12 @@ impl GlucoseApp {
                     self.is_panning = false;
                 }
                 self.end_text_drag();
+                // Le cycle descend avant que le glisser ne s'efface : c'est ce qui a bougé,
+                // pas la distance parcourue par le curseur, qui dit si on déplaçait un nœud
+                // ou si on cherchait celui du dessous.
+                if self.drag_applied_delta == (0.0, 0.0) {
+                    self.advance_pick_cycle();
+                }
                 self.finish_resize();
                 self.finish_item_drag();
                 self.finish_selection_box();

@@ -44,7 +44,9 @@
 * **Dette** — `collect_candidates_indexed` clone les nœuds proches du curseur à chaque clic pour les présenter en tranches contiguës. En O(local), mais des clones tout de même ; à faire travailler sur des références.
 
 ### 3.3 Mécanique du Cycle de Profondeur (« Switch Priority »)
-* **À FAIRE** — **Le cycle est écrit dans le noyau et n'est pas branché** (`pick_at_down`, `advance_on_release` : aucun appelant). Le desktop prend toujours le premier candidat. À brancher : premier clic → rang le plus prioritaire ; re-clic au même endroit ($< 8\text{ px}$, $< 2{,}5\text{ s}$, au **relâchement** pour ne jamais gêner un glisser) → l'élément derrière ; arrêt sur un texte ou une note éditable (`terminal`) ; réinitialisation au-delà de 8 px, de 2,5 s, ou sur double-clic.
+> Tenu, et branché : premier clic → rang le plus prioritaire ; re-clic au même endroit ($< 8	ext{ px}$, $< 2{,}5	ext{ s}$, au **relâchement** pour ne jamais gêner un glisser) → l'élément derrière ; arrêt sur un texte ou une note éditable (`terminal`) ; réinitialisation au-delà de 8 px, de 2,5 s, ou sur double-clic. Les cinq cas sont joués sur le vrai `GlucoseApp` par le chemin de la souris (`interactions/pick/tests.rs`), sans horloge réelle : l'origine du temps des clics est un champ de l'application, que le test recule au lieu d'attendre.
+>
+> Au passage, une horloge de moins : le compte des clics rapprochés et le cycle posaient la **même** question — « ces deux clics se suivent-ils ? » — à deux horloges différentes, un `Instant` réel pour l'un, des millisecondes pour l'autre. `LastClickInfo` porte désormais une date entière, comme le cycle.
 
 ---
 
