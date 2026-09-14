@@ -107,7 +107,7 @@ déterministes (`glucose_core::synth`). *Mesures refaites le 2026-09-14.*
 
 | | Mesure | Comment la refaire |
 |---|---|---|
-| **Tests** | **819**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
+| **Tests** | **824**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
@@ -145,7 +145,7 @@ chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dan
 | Domaine | ✅ Branché | 🧩 Noyau écrit et testé, sans geste | ❌ Pas encore |
 |---|---|---|---|
 | **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
-| **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, déplacement, magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, dupliquer, supprimer | cycle de profondeur au clic (PICK-1) | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
+| **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, **cycle de profondeur au clic** (PICK-1 : re-cliquer atteint le nœud du dessous), déplacement, magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, dupliquer, supprimer | | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
 | **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
 | **Cartes texte** | création, édition en place, retour à la ligne, hauteur qui suit le contenu, **les genres de bloc** — titres `#` à `######`, puces, listes numérotées, citations, blocs de code clôturés, séparateurs `---`, petit texte `-# ` —, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **sélection complète** (souris, double et triple-clic, `Maj`, mots, `↑↓` à colonne gardée, copier-couper-coller, IME), **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | tableaux, liens, sélection à la souris dans un pense-bête, annuler pendant la saisie |
 | **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |

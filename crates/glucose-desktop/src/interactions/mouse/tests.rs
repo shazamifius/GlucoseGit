@@ -215,10 +215,9 @@ fn test_a_double_click_opens_the_editor_inside_350_ms_and_not_beyond() {
         app.editing_session = None;
         app.last_click = None;
         click_at(&mut app, sx, sy);
-        // Le second clic arrive `elapsed_ms` plus tard : on recule l'horloge du premier.
-        if let Some(lc) = app.last_click.as_mut() {
-            lc.time = std::time::Instant::now() - std::time::Duration::from_millis(elapsed_ms);
-        }
+        // Le second clic arrive `elapsed_ms` plus tard : on recule l'origine du temps, ce
+        // qui vieillit le premier clic sans faire attendre le test.
+        app.click_epoch -= std::time::Duration::from_millis(elapsed_ms);
         click_at(&mut app, sx, sy);
         assert_eq!(
             app.editing_session.is_some(),
