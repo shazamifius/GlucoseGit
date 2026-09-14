@@ -55,7 +55,7 @@ use super::pass::{Pass, SELECTION_RING};
 use super::richtext::draw::{draw_line, draw_line_selection};
 use super::richtext::hit::offset_to_x;
 use super::richtext::{
-    font_of, indent_of, ink_of, layout_rich_text, TextBox, TextLayout, TextMode, VisualLine,
+    font_of, indent_of, ink_of, layout_rich_text, Ink, TextBox, TextLayout, TextMode, VisualLine,
     LINE_FACTOR,
 };
 use super::scale::WorldScale;
@@ -65,6 +65,7 @@ use crate::renderer::math::MathRenderer;
 use crate::typography::Typography;
 
 mod ornament;
+use crate::theme::Theme;
 use glucose_core::resize::Handle;
 use glucose_core::text::{BlockKind, Selection};
 use ornament::{draw_code_plate, draw_ornament};
@@ -73,7 +74,7 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────
 
 /// Corps de texte d'une carte.
-const BODY_FONT: f32 = 14.0;
+pub(super) const BODY_FONT: f32 = 14.0;
 /// Marge horizontale entre le bord de la carte et son texte (fiche 06 § 5.1 : `16px 24px`).
 const PAD_X: f32 = 24.0;
 /// Marge verticale entre le bord de la carte et son texte.
@@ -243,6 +244,7 @@ pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard)
     // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
     if ctx.scale.draws_detail() {
         draw_card_body(ctx, pixmap, (sx, sy), &layout, &text, &card);
+        ornament::draw_formula_preview(ctx, pixmap, (sx, sy), &layout, &text, &card);
     }
     if card.selected {
         let screen_box = (sx, sy, layout.width, layout.height);
@@ -394,7 +396,10 @@ fn draw_text_line(
         return;
     }
 
-    let ink = ink_of(line.kind, ctx.theme);
+    let ink = Ink {
+        text: ink_of(line.kind, ctx.theme),
+        marker: marker_ink(ctx.math, ctx.theme, line, card.body, card.editing.is_some()),
+    };
     // Le surlignage passe sous le texte : dessiné après, il le recouvrirait.
     draw_line_selection(
         ctx,
@@ -421,10 +426,61 @@ fn draw_text_line(
             pixmap,
             (start_x, y),
             (text, line, last),
-            (font, ink),
+            (font, ink.text),
             cursor,
             layout,
         );
+    }
+}
+
+/// Le paragraphe entier auquel appartient une ligne visuelle.
+///
+/// Une ligne refluée n'est qu'un morceau : les `$` d'ouverture sont sur la première, ceux de
+/// fermeture sur la dernière. Tout ce qui interroge la **nature** d'un paragraphe — sa
+/// formule, sa validité — doit donc le lire en entier, pas la tranche qu'il a sous la main.
+pub(super) fn paragraph_of<'a>(source: &'a str, line: &VisualLine) -> &'a str {
+    // Le separateur de paragraphes du modele.
+    const LF: char = '\u{000A}';
+    let debut = line.paragraph_start.min(source.len());
+    let fin = source[debut..].find(LF).map_or(source.len(), |i| debut + i);
+    &source[debut..fin]
+}
+
+/// L'encre des **signes** d'une ligne.
+///
+/// Grise pour tout le monde — sauf les `$` d'une formule pendant l'édition, qui disent si
+/// elle compile : verte quand oui, rouge quand non. C'est le seul retour immédiat qu'on
+/// puisse donner à quelqu'un qui écrit du LaTeX, et il ne coûte rien de plus qu'une mise en
+/// page déjà faite : le résultat de la composition est mis en cache, et le repos n'y passe
+/// même pas, puisqu'au repos les signes n'existent plus.
+///
+/// Le vert et le rouge sont ceux du **contenu** (`success`, `danger`), pas ceux de
+/// l'interface : une formule qui compile ou non est quelque chose que l'auteur a écrit, pas
+/// l'état d'un bouton.
+fn marker_ink(
+    math: &super::math::MathRenderer,
+    theme: &Theme,
+    line: &VisualLine,
+    source: &str,
+    editing: bool,
+) -> Color {
+    let BlockKind::Math { display } = line.kind else {
+        return theme.card_marker;
+    };
+    if !editing {
+        return theme.card_marker;
+    }
+    let texte = paragraph_of(source, line);
+    let Some((corps, _)) = glucose_core::text::block::formula(texte) else {
+        return theme.card_marker;
+    };
+    if math
+        .layout(&texte[corps], super::richtext::mode_of(display))
+        .is_ok()
+    {
+        theme.success
+    } else {
+        theme.danger
     }
 }
 

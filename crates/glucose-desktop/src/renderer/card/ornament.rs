@@ -14,6 +14,7 @@ use super::{CardLayout, TextCard, BULLET_BASELINE};
 use crate::params::Pen;
 use crate::renderer::pass::Pass;
 use crate::renderer::richtext::{ink_of, mode_of, VisualLine};
+use crate::theme::Theme;
 use crate::typography::{Face, TextStyle};
 use glucose_core::text::BlockKind;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
@@ -237,4 +238,107 @@ fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint
             None,
         );
     }
+}
+
+// ── La prévisualisation d'une formule (fiche 12 § 1.A.3) ──────────────────────
+
+/// Écart entre la carte éditée et sa pastille de prévisualisation.
+const PREVIEW_GAP: f32 = 12.0;
+/// Marges intérieures de la pastille.
+const PREVIEW_PAD: f32 = 10.0;
+/// Rayon de ses coins, celui des autres surfaces flottantes.
+const PREVIEW_RADIUS: f32 = 6.0;
+
+/// La formule que le curseur est en train d'écrire, rendue **en direct** à côté de la carte.
+///
+/// Pendant l'édition, une ligne de formule montre sa source — c'est elle qu'on corrige, et on
+/// n'édite pas une fraction. Le résultat n'apparaîtrait donc qu'en sortant de la carte. Cette
+/// pastille le montre pendant la frappe, à hauteur de la ligne éditée : les délimiteurs
+/// colorés disent **si** ça compile, celle-ci dit **quoi**.
+///
+/// Elle ne s'affiche que là où elle a quelque chose à dire : une ligne de formule, en
+/// édition, qui compile. Une formule fausse n'a pas de résultat à montrer, et ses `$` sont
+/// déjà rouges — une pastille vide en plus n'apprendrait rien.
+///
+/// Elle se pose à droite, et bascule à gauche si elle sortirait de l'écran : le même réflexe
+/// que le menu contextuel, pour la même raison.
+pub(super) fn draw_formula_preview(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &CardLayout,
+    text: &crate::renderer::richtext::TextLayout,
+    card: &TextCard,
+) {
+    let Some(session) = card.editing else {
+        return;
+    };
+    let rang = crate::renderer::richtext::hit::line_of_offset(text, session.selection.head);
+    let Some(line) = text.lines.get(rang) else {
+        return;
+    };
+    let BlockKind::Math { display } = line.kind else {
+        return;
+    };
+    let source = super::paragraph_of(card.body, line);
+    let Some((corps, _)) = glucose_core::text::block::formula(source) else {
+        return;
+    };
+    let corps = &source[corps];
+    let mode = mode_of(display);
+    let Some((w, h, d)) = ctx.math.measure(corps, mode, layout.font) else {
+        return;
+    };
+
+    let pad = PREVIEW_PAD * layout.font / crate::renderer::card::BODY_FONT;
+    let (bw, bh) = (w + pad * 2.0, h + d + pad * 2.0);
+    let droite = at.0 + layout.width + PREVIEW_GAP * layout.font / crate::renderer::card::BODY_FONT;
+    let x = if droite + bw <= ctx.clip.width {
+        droite
+    } else {
+        (at.0 - bw - PREVIEW_GAP).max(0.0)
+    };
+    // À hauteur de la ligne qu'on écrit : l'œil n'a pas à chercher le lien entre les deux.
+    let y = at.1 + layout.pad_y + rang as f32 * layout.line_height;
+
+    plaque(pixmap, (x, y, bw, bh), PREVIEW_RADIUS, ctx.theme);
+    let plume = Pen {
+        x: x + pad,
+        y: y + pad + h,
+        font_size: layout.font,
+    };
+    ctx.math
+        .draw(pixmap, corps, mode, plume, ctx.theme.card_body);
+}
+
+/// Le fond d'une surface flottante : sa matière et son filet.
+fn plaque(pixmap: &mut PixmapMut, (x, y, w, h): (f32, f32, f32, f32), r: f32, theme: &Theme) {
+    let mut pb = PathBuilder::new();
+    crate::renderer::push_rounded_rect(&mut pb, x, y, w, h, r);
+    let Some(path) = pb.finish() else {
+        return;
+    };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
+    paint.set_color(theme.btn_bg);
+    pixmap.fill_path(
+        &path,
+        &paint,
+        tiny_skia::FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+    paint.set_color(theme.btn_border);
+    pixmap.stroke_path(
+        &path,
+        &paint,
+        &tiny_skia::Stroke {
+            width: 1.0,
+            ..Default::default()
+        },
+        Transform::identity(),
+        None,
+    );
 }

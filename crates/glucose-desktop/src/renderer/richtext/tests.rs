@@ -208,3 +208,48 @@ fn test_a_bullet_keeps_its_indent_and_can_be_styled() {
         [[("une ", Face::Regular), ("puce", Face::Bold)]]
     );
 }
+
+/// Une formule est une **formule au repos, et du texte pendant qu'on l'écrit**.
+///
+/// Au repos elle réserve la hauteur de son résultat et ne se coupe pas. En édition elle
+/// redevient un paragraphe ordinaire : elle reflue si elle est trop large, et ses `$` sont des
+/// signes — sans quoi rien ne pourrait les colorer selon qu'elle compile.
+#[test]
+fn test_une_formule_est_du_texte_pendant_quon_lecrit() {
+    let typo = Typography::new();
+    let math = MathRenderer::new();
+    let source = "$$a^2 + b^2 + c^2 + d^2 + e^2 + f^2 = g^2 + h^2$$";
+    let bx = TextBox {
+        usable: 160.0,
+        body: 14.0,
+        bullet_indent: 14.0,
+        line_height: 19.6,
+    };
+
+    let repos = layout_rich_text(&typo, &math, source, bx, TextMode::Rendered);
+    let signes_au_repos = repos
+        .fragments
+        .iter()
+        .filter(|f| f.role == SpanRole::Marker)
+        .count();
+    assert_eq!(signes_au_repos, 0, "au repos, les signes n'existent plus");
+
+    let edition = layout_rich_text(&typo, &math, source, bx, TextMode::Source);
+    let signes = edition
+        .fragments
+        .iter()
+        .filter(|f| f.role == SpanRole::Marker)
+        .count();
+    assert_eq!(
+        signes, 2,
+        "en édition : les `$$` d'ouverture et de fermeture"
+    );
+    assert!(
+        edition.lines.len() > 1,
+        "et une source plus large que la carte se coupe au lieu de déborder"
+    );
+    assert!(
+        edition.lines.iter().all(|l| l.kind == repos.lines[0].kind),
+        "elle reste une formule pour qui l'interroge"
+    );
+}
