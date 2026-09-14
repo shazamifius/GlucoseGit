@@ -102,6 +102,7 @@ impl GlucoseApp {
         let pointer = self.pointer();
         let taken = self.click_skips_flight()
             || self.click_breadcrumb(pointer, screen)
+            || self.click_action_bar(pointer, screen)
             || self.click_chrome(pointer, screen)
             || self.click_dock(pointer, screen);
         if !taken {

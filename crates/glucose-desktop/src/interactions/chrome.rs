@@ -9,6 +9,7 @@ use crate::app::GlucoseApp;
 use crate::dock::TabId;
 use crate::interactions::mouse::NOT_YET_EXPORT;
 use crate::params::{Pointer, ScreenFrame};
+use crate::ui::action_bar::ActionBarClick;
 use crate::ui::{handle_ui_click, UiAction};
 use glucose_core::membrane_focus::ScreenSize;
 use glucose_core::types::Viewport;
@@ -33,6 +34,31 @@ impl GlucoseApp {
             depth,
             screen_size(screen),
         );
+        true
+    }
+
+    /// La barre d'action contextuelle, en bas de l'écran (fiche 10 § 3).
+    ///
+    /// Elle passe avant la chrome et avant le canevas, et elle prend **tout** ce qui tombe
+    /// sur elle, boutons ou pas : un clic entre deux boutons qui filerait jusqu'au canevas
+    /// désélectionnerait — donc ferait disparaître la barre sous le doigt.
+    pub fn click_action_bar(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
+        let Some(bar) = crate::ui::action_bar::layout_action_bar(
+            &self.store,
+            &self.renderer.typography,
+            (screen.width, screen.height),
+            screen.scale,
+        ) else {
+            return false;
+        };
+        if !crate::ui::action_bar::covers(&bar, pointer.x, pointer.y) {
+            return false;
+        }
+        match crate::ui::action_bar::hit_action_bar(&bar, pointer.x, pointer.y) {
+            Some(ActionBarClick::ToggleLock) => self.toggle_lock(),
+            Some(ActionBarClick::Delete) => self.delete_selection(),
+            None => {}
+        }
         true
     }
 

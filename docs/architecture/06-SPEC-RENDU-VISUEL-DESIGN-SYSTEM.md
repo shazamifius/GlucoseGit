@@ -47,7 +47,7 @@
 * **À VÉRIFIER** — Curseurs `nwse-resize` / `nesw-resize` selon le coin (le curseur est annoncé au survol : `test_the_cursor_announces_the_gesture_over_a_handle_before_any_click` ; les deux orientations restent à distinguer).
 
 ### 4.3 Images Verrouillées
-> Tenu sur le canevas — `locked` : les poignées disparaissent, le cadre de sélection passe au rouge `#f87171` (jeton `selection_locked`, tenu par test contre cette valeur). Le geste est `L` (fiche 08 § 1.3).
+> Tenu sur le canevas — `locked` : les poignées disparaissent, le cadre de sélection passe au rouge `#f87171` (jeton `alert`, tenu par test contre cette valeur — distinct de `danger` `#ef4444`, qui est le rouge du contenu). Le geste est `L` (fiche 08 § 1.3).
 
 * **À FAIRE** — le même rouge dans la **minimap**, qui dessine encore toutes les images du même gris.
 

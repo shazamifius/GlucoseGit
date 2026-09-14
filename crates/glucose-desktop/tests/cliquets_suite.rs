@@ -606,11 +606,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         81,
     ),
     (
-        "crates/glucose-desktop/src/icons.rs",
-        "draw_icon_scaled",
-        316,
-    ),
-    (
         "crates/glucose-desktop/src/interactions/clipboard.rs",
         "paste_from_clipboard",
         102,
