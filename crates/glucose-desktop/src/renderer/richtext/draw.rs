@@ -14,7 +14,7 @@ use super::{fragment_style, Fragment, TextLayout, VisualLine};
 use crate::renderer::pass::Pass;
 use crate::renderer::push_rounded_rect;
 use crate::typography::Face;
-use glucose_core::text::Selection;
+use glucose_core::text::{BlockKind, Selection};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
 /// Marge horizontale du fond d'un `` `code` `` : `4px` sur les `14px` de la référence.
@@ -36,8 +36,11 @@ pub(crate) fn draw_line(
     source: &str,
 ) -> f32 {
     let mut x = at.0;
+    // Dans un bloc de code, le fond est déjà posé sous la ligne entière : le redessiner
+    // fragment par fragment l'assombrirait par endroits, là où il doit être d'un seul ton.
+    let plate = line.kind == BlockKind::Code;
     for fragment in layout.fragments_of(line) {
-        x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source);
+        x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source, plate);
     }
     x
 }
@@ -50,10 +53,11 @@ fn draw_fragment(
     fragment: &Fragment,
     (font, ink): (f32, Color),
     source: &str,
+    plate: bool,
 ) -> f32 {
     let slice = &source[fragment.start..fragment.end];
     let style = fragment_style(fragment, font, ctx.theme, ink);
-    if fragment.emphasis.code() {
+    if fragment.emphasis.code() && !plate {
         let (w, _) = ctx.typography.measure_text(slice, font, style.face);
         draw_code_background(ctx, pixmap, at, w, (font, style.face));
     }

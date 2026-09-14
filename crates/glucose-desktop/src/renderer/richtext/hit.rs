@@ -118,18 +118,14 @@ pub fn offset_at(
     }
     let index = line_at(layout, at.1, bx.line_height);
     let line = &layout.lines[index];
-    let indent = if line.kind == super::LineKind::Bullet {
-        bx.bullet_indent
-    } else {
-        0.0
-    };
+    let indent = super::indent_of(line.kind, bx.bullet_indent);
     x_to_offset(
         typography,
         layout,
         line,
         source,
         at.0 - indent,
-        line.kind.font(bx.body),
+        super::font_of(line.kind, bx.body),
     )
 }
 

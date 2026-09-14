@@ -223,6 +223,27 @@ fn witness_texts(store: &mut Store) {
     store.add_annotation(
         BOARD,
         Annotation::text(
+            "t-blocs",
+            540.0,
+            -260.0,
+            // Les genres de bloc, tous sur une carte : chacun pose un ornement que le moteur
+            // de texte ne saurait dessiner, et c'est l'empreinte qui les tient.
+            concat!(
+                "## Les blocs\n",
+                "> Une citation assez longue pour revenir à la ligne sous sa barre.\n",
+                "1. premier\n",
+                "2. deuxième\n",
+                "---\n",
+                "```rust\n",
+                "fn main() {}\n",
+                "```\n",
+                "-# et une note en petit",
+            ),
+        ),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
             "t-accents",
             -520.0,
             40.0,
@@ -275,11 +296,11 @@ fn witness_containers(store: &mut Store) {
     folder.height = 190.0;
     store.create_folder(BOARD, folder);
 }
-pub const WITNESS_SIZE: (u32, u32) = (1400, 900);
+pub const WITNESS_SIZE: (u32, u32) = (1800, 900);
 
 /// La boîte englobante du contenu de la scène témoin, en unités monde — ce que le cadrage doit
 /// contenir, et ce qu'un test peut vérifier sans dessiner.
-pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -260.0, 480.0, 490.0);
+pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -260.0, 780.0, 490.0);
 
 /// **La vitrine** : un document soigné, fait pour être montré.
 ///

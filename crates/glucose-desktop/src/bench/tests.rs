@@ -187,7 +187,7 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// L'empreinte est gardée ici plutôt qu'une image de référence dans le dépôt : le rendu va
 /// changer souvent, et une image versionnée à chaque fois ferait grossir l'historique sans
 /// rien apprendre de plus.
-const EMPREINTE_TEMOIN: &str = "0cf1c5df74c07e68";
+const EMPREINTE_TEMOIN: &str = "7c0518f41c248b57";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {

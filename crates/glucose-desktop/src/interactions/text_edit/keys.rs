@@ -19,6 +19,7 @@
 //! `↑`, `Début` et `Ctrl+Fin`.
 
 use crate::app::GlucoseApp;
+use crate::renderer::richtext;
 use crate::renderer::richtext::hit::{line_of_offset, offset_to_x, x_to_offset};
 use glucose_core::text::selection::{
     delete, line_end, line_start, move_offset, replace, Direction, Motion, Selection,
@@ -215,7 +216,7 @@ impl GlucoseApp {
             line,
             &session.buffer,
             session.selection.head,
-            line.kind.font(bx.body),
+            richtext::font_of(line.kind, bx.body),
         );
         if let Some(session) = self.editing_session.as_mut() {
             session.goal_x = Some(x);
@@ -270,7 +271,7 @@ impl GlucoseApp {
                 depart,
                 source,
                 selection.head,
-                depart.kind.font(bx.body),
+                richtext::font_of(depart.kind, bx.body),
             )
         });
         let arrivee = &layout.lines[cible];
@@ -280,7 +281,7 @@ impl GlucoseApp {
             arrivee,
             source,
             x,
-            arrivee.kind.font(bx.body),
+            richtext::font_of(arrivee.kind, bx.body),
         )
     }
 

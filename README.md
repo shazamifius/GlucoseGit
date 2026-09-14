@@ -103,16 +103,16 @@ source**, là où elle est.
 ## 📊 Ce qui est mesuré, pas affirmé
 
 Chaque chiffre de ce tableau se reproduit par une commande, sur des documents synthétiques
-déterministes (`glucose_core::synth`). *Mesures au commit `0ff9fc6`.*
+déterministes (`glucose_core::synth`). *Mesures refaites le 2026-09-14.*
 
 | | Mesure | Comment la refaire |
 |---|---|---|
-| **Tests** | **804**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
+| **Tests** | **819**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
 | **Requête de viewport** | **0,21 µs** | idem |
-| **Une image de rendu** | **1,2 ms** à mille nœuds, **4,1 ms** à dix mille (1080p) ; **9,1 ms** à mille nœuds en **4K** | `cargo run --release -p glucose-desktop --example bench_frame` |
+| **Une image de rendu** | **1,2 ms** à mille nœuds, **3,9 ms** à dix mille (1080p) ; **7,6 ms** à mille nœuds en **4K** | `cargo run --release -p glucose-desktop --example bench_frame` |
 | **Le rendu est reproductible** | deux images de la même scène sont **identiques au bit près** | `cargo test -p glucose-desktop --lib bench` |
 
 Le banc n'est pas décoratif. En une journée d'existence, il a trouvé que le rendu **n'était
@@ -147,7 +147,7 @@ chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dan
 | **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
 | **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, déplacement, magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, dupliquer, supprimer | cycle de profondeur au clic (PICK-1) | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
 | **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
-| **Cartes texte** | création, édition en place, `#`, `##`, puces, retour à la ligne, hauteur qui suit le contenu, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **sélection complète** (souris, double et triple-clic, `Maj`, mots, `↑↓` à colonne gardée, copier-couper-coller, IME), **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | citations / listes numérotées / blocs de code / tableaux / liens, sélection à la souris dans un pense-bête, annuler pendant la saisie |
+| **Cartes texte** | création, édition en place, retour à la ligne, hauteur qui suit le contenu, **les genres de bloc** — titres `#` à `######`, puces, listes numérotées, citations, blocs de code clôturés, séparateurs `---`, petit texte `-# ` —, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **sélection complète** (souris, double et triple-clic, `Maj`, mots, `↑↓` à colonne gardée, copier-couper-coller, IME), **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | tableaux, liens, sélection à la souris dans un pense-bête, annuler pendant la saisie |
 | **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |
 | **Flèches** | création (taille fixe), rendu droit | ancrage au bord des nœuds | dessin par glisser, sélection, courbes, waypoints, étiquette, prédicats sémantiques, portails |
 | **Membranes** | création (taille fixe), rendu, titre éditable | adoption au dépôt, modes minimisé et étiré, mode focus, tween | dessin par glisser, panneau d'options, couleur dérivée des domaines |

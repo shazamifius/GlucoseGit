@@ -55,15 +55,19 @@ use super::pass::{Pass, SELECTION_RING};
 use super::richtext::draw::{draw_line, draw_line_selection};
 use super::richtext::hit::offset_to_x;
 use super::richtext::{
-    layout_rich_text, LineKind, TextBox, TextLayout, TextMode, VisualLine, LINE_FACTOR,
+    font_of, indent_of, ink_of, layout_rich_text, TextBox, TextLayout, TextMode, VisualLine,
+    LINE_FACTOR,
 };
 use super::scale::WorldScale;
 use super::{push_rounded_rect, TextEditSession};
 use crate::canvas::world_to_screen;
-use crate::params::Pen;
 use crate::renderer::math::MathRenderer;
-use crate::typography::{Face, Typography};
+use crate::typography::Typography;
+
+mod ornament;
 use glucose_core::resize::Handle;
+use glucose_core::text::{BlockKind, Selection};
+use ornament::{draw_code_plate, draw_ornament};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────
@@ -190,15 +194,6 @@ impl CardLayout {
             bullet: s.world(self.bullet),
             bullet_offset: s.world(self.bullet_offset),
             border: s.world(self.border),
-        }
-    }
-
-    /// Le décalage horizontal du texte d'une ligne, selon son genre.
-    fn indent_of(&self, kind: LineKind) -> f32 {
-        if kind == LineKind::Bullet {
-            self.indent
-        } else {
-            0.0
         }
     }
 }
@@ -334,144 +329,130 @@ fn draw_card_body(
     text: &TextLayout,
     card: &TextCard,
 ) {
-    // Le curseur clignote, la sélection non : un fond qui s'allume et s'éteint rendrait la
-    // lecture du texte sélectionné impossible.
-    let show_cursor = card
-        .editing
-        .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
-        .unwrap_or(false);
-    let selection = card.editing.map(|s| s.selection).unwrap_or_default();
-    let cursor_idx = selection.head;
-
+    let mut caret = Caret::of(card);
     let mut cur_y = at.1 + layout.pad_y;
-    let mut cursor_drawn = false;
-
     for (num, line) in text.lines.iter().enumerate() {
-        let start_x = at.0 + layout.pad_x + layout.indent_of(line.kind);
-
-        // Une formule se dessine **au repos** ; pendant l'édition, c'est sa source qu'on
-        // montre. C'est ce que fait la référence, et c'est la seule façon d'y poser un curseur
-        // qui ait un sens — on n'édite pas une fraction, on édite le texte qui la décrit.
-        // La puce d'un `- ` obéit à la même règle : en édition, c'est le `- ` qu'on voit.
-        if card.editing.is_none() {
-            if line.first && line.kind == LineKind::Bullet {
-                draw_bullet(pixmap, (at.0 + layout.pad_x, cur_y), layout, card.tint);
-            }
-            if line.kind == LineKind::Math {
-                if line.first {
-                    draw_formula(ctx, pixmap, (start_x, cur_y), layout, line, card);
-                }
-                cur_y += layout.line_height;
-                continue;
-            }
-        }
-
-        let font = line.kind.font(layout.font);
-        let ink = line.kind.color(ctx.theme);
-        // Le surlignage passe sous le texte : dessiné après, il le recouvrirait.
-        draw_line_selection(
-            ctx,
-            pixmap,
-            (start_x, cur_y),
-            (text, line),
-            (font, layout.line_height),
-            card.body,
-            selection,
-        );
-        draw_line(
-            ctx,
-            pixmap,
-            (start_x, cur_y),
-            (text, line),
-            (font, ink),
-            card.body,
-        );
-
-        // Un curseur posé dans le préfixe (`# `) se rattache au début de sa première ligne ;
-        // la dernière ligne recueille tout ce qui dépasse.
         let last = num + 1 == text.lines.len();
-        let from = if line.first {
-            line.paragraph_start
-        } else {
-            line.start
-        };
-        let in_line = cursor_idx >= from && (cursor_idx <= line.end || last);
-        if show_cursor && !cursor_drawn && in_line {
-            let dx = offset_to_x(ctx.typography, text, line, card.body, cursor_idx, font);
-            draw_cursor(pixmap, (start_x + dx, cur_y), layout, ctx.scale, ink);
-            cursor_drawn = true;
-        }
+        let rang = (text, line, last);
+        draw_text_line(ctx, pixmap, (at.0, cur_y), layout, rang, card, &mut caret);
         cur_y += layout.line_height;
     }
 }
 
-/// Une formule qui occupe tout un paragraphe, posée sous ce qu'elle monte.
-fn draw_formula(
+/// Ce que la saisie en cours dit au tracé : ce qui est sélectionné, où est le curseur, s'il
+/// doit se voir à cet instant — et s'il a déjà été posé, puisqu'une seule ligne le porte.
+struct Caret {
+    selection: Selection,
+    visible: bool,
+    drawn: bool,
+}
+
+impl Caret {
+    fn of(card: &TextCard) -> Self {
+        Self {
+            selection: card.editing.map(|s| s.selection).unwrap_or_default(),
+            // Le curseur clignote, la sélection non : un fond qui s'allume et s'éteint
+            // rendrait la lecture du texte sélectionné impossible.
+            visible: card
+                .editing
+                .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
+                .unwrap_or(false),
+            drawn: false,
+        }
+    }
+}
+
+/// Une ligne de carte : son ornement, son surlignage, son texte, et le curseur s'il y tombe.
+///
+/// `left` est le bord gauche de la carte ; tout le reste s'en déduit — la marge, puis le
+/// retrait que le genre du bloc demande.
+fn draw_text_line(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    (left, y): (f32, f32),
+    layout: &CardLayout,
+    (text, line, last): (&TextLayout, &VisualLine, bool),
+    card: &TextCard,
+    caret: &mut Caret,
+) {
+    let text_left = left + layout.pad_x;
+    let start_x = text_left + indent_of(line.kind, layout.indent);
+    let font = font_of(line.kind, layout.font);
+
+    // Le fond d'un bloc de code n'est pas un signe mais une matière : il reste pendant qu'on
+    // écrit dedans, là où puce, numéro et barre s'effacent au profit de leur signe.
+    if line.kind == BlockKind::Code {
+        draw_code_plate(ctx, pixmap, (text_left, y), layout);
+    }
+
+    // Les ornements **remplacent** un signe que le repos efface ; pendant l'édition, c'est le
+    // signe qu'on voit et qu'on corrige (MODE-1). Une formule obéit à la même règle : on
+    // n'édite pas une fraction, on édite le texte qui la décrit.
+    if card.editing.is_none()
+        && draw_ornament(ctx, pixmap, (text_left, start_x, y), layout, line, card)
+    {
+        return;
+    }
+
+    let ink = ink_of(line.kind, ctx.theme);
+    // Le surlignage passe sous le texte : dessiné après, il le recouvrirait.
+    draw_line_selection(
+        ctx,
+        pixmap,
+        (start_x, y),
+        (text, line),
+        (font, layout.line_height),
+        card.body,
+        caret.selection,
+    );
+    draw_line(
+        ctx,
+        pixmap,
+        (start_x, y),
+        (text, line),
+        (font, ink),
+        card.body,
+    );
+
+    if caret.visible && !caret.drawn {
+        let cursor = (card.body, caret.selection.head);
+        caret.drawn = draw_line_cursor(
+            ctx,
+            pixmap,
+            (start_x, y),
+            (text, line, last),
+            (font, ink),
+            cursor,
+            layout,
+        );
+    }
+}
+
+/// Le curseur, s'il tombe sur cette ligne — et `true` quand il y a été posé.
+///
+/// Un curseur posé dans le préfixe d'un bloc (`# `, `> `) se rattache au début de sa première
+/// ligne ; la dernière ligne du texte recueille tout ce qui dépasse sa fin.
+#[allow(clippy::too_many_arguments)]
+fn draw_line_cursor(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
     at: (f32, f32),
+    (text, line, last): (&TextLayout, &VisualLine, bool),
+    (font, ink): (f32, Color),
+    (source, cursor): (&str, usize),
     layout: &CardLayout,
-    line: &VisualLine,
-    card: &TextCard,
-) {
-    let text = &card.body[line.start..line.end];
-    let Some((corps, mode)) = super::richtext::formule_entiere(text) else {
-        return;
+) -> bool {
+    let from = if line.first {
+        line.paragraph_start
+    } else {
+        line.start
     };
-    let ink = line.kind.color(ctx.theme);
-    // La ligne de base se pose **sous ce que la formule monte**. La poser à une hauteur fixe
-    // ferait déborder par le haut tout ce qui monte plus qu'un corps de texte — une
-    // intégrale, une somme, un exposant d'exposant — et la formule mordrait sur la ligne
-    // précédente.
-    let au_dessus = ctx
-        .math
-        .measure(corps, mode, layout.font)
-        .map(|(_, h, _)| h)
-        .unwrap_or(layout.font);
-    let plume = Pen {
-        x: at.0,
-        y: at.1 + au_dessus,
-        font_size: layout.font,
-    };
-    if ctx.math.draw(pixmap, corps, mode, plume, ink) {
-        return;
+    if cursor < from || (cursor > line.end && !last) {
+        return false;
     }
-    // Une formule fausse montre sa source, en rouge : l'erreur se voit là où elle est, pas
-    // dans une console.
-    ctx.typography.draw_text(
-        pixmap,
-        text,
-        at.0,
-        at.1,
-        crate::typography::TextStyle {
-            size: layout.font,
-            color: ctx.theme.danger,
-            face: Face::Regular,
-        },
-    );
-}
-
-fn draw_bullet(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    paint.set_color(Color::from_rgba8(tint.0, tint.1, tint.2, 200));
-    let mut pb = PathBuilder::new();
-    pb.push_circle(
-        at.0 + layout.bullet_offset,
-        at.1 + layout.font * BULLET_BASELINE,
-        layout.bullet,
-    );
-    if let Some(path) = pb.finish() {
-        pixmap.fill_path(
-            &path,
-            &paint,
-            tiny_skia::FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
-    }
+    let dx = offset_to_x(ctx.typography, text, line, source, cursor, font);
+    draw_cursor(pixmap, (at.0 + dx, at.1), layout, ctx.scale, ink);
+    true
 }
 
 /// Le curseur d'édition, à l'encre de la ligne qu'il édite.

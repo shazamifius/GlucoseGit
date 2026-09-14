@@ -38,7 +38,7 @@ fn test_hit_1_while_editing_the_round_trip_is_exact() {
     for source in CORPUS {
         let (typo, layout) = pose(source, TextMode::Source);
         for line in &layout.lines {
-            let font = line.kind.font(BODY);
+            let font = super::super::font_of(line.kind, BODY);
             for fragment in layout.fragments_of(line) {
                 for (i, _) in source[fragment.start..fragment.end].char_indices() {
                     let offset = fragment.start + i;
@@ -67,7 +67,7 @@ fn test_hit_1_at_rest_the_round_trip_lands_at_the_same_place() {
     for source in CORPUS {
         let (typo, layout) = pose(source, TextMode::Rendered);
         for line in &layout.lines {
-            let font = line.kind.font(BODY);
+            let font = super::super::font_of(line.kind, BODY);
             for fragment in layout.fragments_of(line) {
                 for (i, _) in source[fragment.start..fragment.end].char_indices() {
                     let offset = fragment.start + i;
@@ -93,7 +93,7 @@ fn test_a_click_is_idempotent() {
         for mode in [TextMode::Rendered, TextMode::Source] {
             let (typo, layout) = pose(source, mode);
             for line in &layout.lines {
-                let font = line.kind.font(BODY);
+                let font = super::super::font_of(line.kind, BODY);
                 for pas in 0..60 {
                     let x = pas as f32 * 4.0;
                     let une = x_to_offset(&typo, &layout, line, source, x, font);
@@ -119,7 +119,7 @@ fn test_clicking_at_the_left_edge_lands_on_what_is_drawn_there() {
     let source = "# Titre";
     let (typo, layout) = pose(source, TextMode::Rendered);
     let line = &layout.lines[0];
-    let font = line.kind.font(BODY);
+    let font = super::super::font_of(line.kind, BODY);
     assert_eq!(
         x_to_offset(&typo, &layout, line, source, 0.0, font),
         2,

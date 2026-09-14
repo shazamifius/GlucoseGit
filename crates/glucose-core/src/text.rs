@@ -29,9 +29,11 @@
 //! à l'appelant : au repos ils disparaissent, en édition ils se montrent en gris. Un seul
 //! découpage, deux vues, et les octets restent à leur place dans les deux.
 
+pub mod block;
 pub mod inline;
 pub mod selection;
 
+pub use block::{blocks, Block, BlockKind};
 pub use inline::inline_spans;
 pub use selection::{Direction, Motion, Selection};
 
