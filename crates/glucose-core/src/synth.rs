@@ -247,7 +247,8 @@ fn witness_texts(store: &mut Store) {
             "t-accents",
             -520.0,
             40.0,
-            "Accents : éàçùôêîï — « guillemets »",
+            "Accents : éàçùôêîï — « guillemets »
+Et un [lien](https://exemple.fr).",
         ),
     );
     store.add_annotation(

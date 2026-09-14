@@ -89,9 +89,10 @@ impl GlucoseApp {
             self.mark_dirty();
             return;
         }
-        if self.cancel_resize() {
-            self.ui.show_toast("Redimensionnement annulé");
-        }
+        // Sans toast : la boîte reprend sa taille de départ sous les yeux de celui qui
+        // vient d'appuyer. Un message qui décrit ce que l'œil enregistre est du bruit — la
+        // même règle que pour l'ordre d'empilement.
+        self.cancel_resize();
     }
 
     /// Barre d'espace maintenue : pan temporaire, quel que soit l'outil actif.

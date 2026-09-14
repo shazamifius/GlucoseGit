@@ -446,6 +446,7 @@ pub fn mode_of(display: bool) -> glucose_math::Mode {
 pub struct Ink {
     pub text: tiny_skia::Color,
     pub marker: tiny_skia::Color,
+    pub link: tiny_skia::Color,
 }
 
 impl Ink {
@@ -454,6 +455,7 @@ impl Ink {
         Self {
             text: ink_of(kind, theme),
             marker: theme.card_marker,
+            link: theme.link,
         }
     }
 }
@@ -467,6 +469,9 @@ pub fn fragment_style(fragment: &Fragment, font: f32, ink: Ink) -> TextStyle {
         size: font,
         color: match fragment.role {
             SpanRole::Marker => ink.marker,
+            // Un lien porte sa propre couleur : c'est ce qui dit qu'il mène ailleurs, et le
+            // trait sous lui n'en est que la confirmation.
+            SpanRole::Text if fragment.emphasis.link() => ink.link,
             SpanRole::Text => ink.text,
         },
         face: fragment.face(),

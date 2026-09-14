@@ -214,3 +214,68 @@ fn test_plain_text_yields_a_single_span() {
     assert_eq!(inline_spans("une phrase ordinaire").len(), 1);
     assert!(inline_spans("").is_empty());
 }
+
+// ── Les liens (fiche 12 § 1.A.7) ─────────────────────────────────────────────
+
+#[test]
+fn test_un_lien_ne_laisse_lire_que_son_texte() {
+    assert_eq!(
+        lu("[Glucose](https://exemple.fr)"),
+        vec![("Glucose", Emphasis::LINK)],
+        "l'adresse est un signe : elle disparaît au repos comme un `**`"
+    );
+    assert_eq!(
+        plain_text("va voir [là](https://a.b) demain"),
+        "va voir là demain"
+    );
+}
+
+#[test]
+fn test_un_lien_peut_porter_du_style() {
+    assert_eq!(
+        lu("[**gras**](u)"),
+        vec![("gras", Emphasis::LINK.union(Emphasis::BOLD))],
+        "l'intérieur d'un lien reste analysé"
+    );
+}
+
+/// L'adresse n'est pas du Markdown : un `*` dedans n'ouvre rien.
+#[test]
+fn test_ladresse_dun_lien_nest_pas_analysee() {
+    assert_eq!(lu("[t](a*b*c)"), vec![("t", Emphasis::LINK)]);
+    assert_eq!(lu("[t](a_b_c)"), vec![("t", Emphasis::LINK)]);
+}
+
+/// Crochets et parenthèses s'imbriquent : on compte, on ne s'arrête pas au premier fermant.
+#[test]
+fn test_les_crochets_et_parentheses_simbriquent() {
+    assert_eq!(lu("[a [b] c](u)"), vec![("a [b] c", Emphasis::LINK)]);
+    assert_eq!(lu("[t](a(b)c)"), vec![("t", Emphasis::LINK)]);
+}
+
+/// Ce qui n'est pas un lien reste du texte, sans rien perdre.
+#[test]
+fn test_ce_qui_ressemble_a_un_lien_sans_en_etre_un_reste_intact() {
+    for source in [
+        "[pas de parenthèse]",
+        "[a] (espace avant)",
+        "[jamais fermé](u",
+        "[",
+        "]",
+        "()",
+        "un [tableau] de valeurs",
+    ] {
+        let texte: String = lu(source).iter().map(|(t, _)| *t).collect();
+        assert_eq!(texte, source, "{source:?} a perdu quelque chose");
+        assert!(
+            lu(source).iter().all(|(_, e)| !e.link()),
+            "{source:?} ne doit pas devenir un lien"
+        );
+    }
+}
+
+/// Un crochet échappé n'ouvre pas de lien.
+#[test]
+fn test_un_crochet_echappe_nouvre_rien() {
+    assert!(lu("\\[a](u)").iter().all(|(_, e)| !e.link()));
+}

@@ -47,6 +47,12 @@ impl GlucoseApp {
         // au clic précédent serait introuvable jusqu'à la frame suivante.
         self.renderer.sync_spatial_index(&self.store);
 
+        // `Ctrl`+clic sur un lien l'ouvre, avant tout le reste : c'est le seul geste qui
+        // vise le **contenu** d'une carte sans vouloir la prendre.
+        if self.click_link_at(self.mouse_pos) {
+            return;
+        }
+
         let Some(top) = self.pick_for_click(wx, wy) else {
             self.commit_editing();
             self.store.clear_selection();
@@ -196,7 +202,7 @@ impl GlucoseApp {
     }
 
     /// Le texte qu'une annotation offre à l'édition — `None` si elle n'en a pas (une flèche).
-    fn editable_text_of(&self, id: &str) -> Option<String> {
+    pub(crate) fn editable_text_of(&self, id: &str) -> Option<String> {
         let board = self.store.active_board()?;
         let ann = board.annotations.iter().find(|a| a.id() == id)?;
         match ann {

@@ -145,6 +145,11 @@ pub struct Theme {
     /// confondre avec le texte qu'il commande — assez pâle pour s'effacer du regard, assez
     /// présent pour qu'on vise le bon octet en le corrigeant (MODE-1).
     pub card_marker: Color,
+    /// Le texte d'un `[lien](url)` : `#60a5fa`, le bleu de la référence.
+    ///
+    /// Un état du **contenu**, comme `text_selection` et la famille `alert*` : la chrome est
+    /// monochrome, ce qui l'est ici ne l'est pas.
+    pub link: Color,
     /// Le fond d'un `` `code` `` : `rgba(255, 255, 255, 0.08)`, la valeur de la référence.
     /// Le code n'a pas d'encre à lui — il hérite de celle de sa ligne, comme dans la
     /// référence, et sa chasse fixe suffit à le distinguer.
@@ -276,6 +281,7 @@ impl Theme {
             card_body: hex(0xdce1eb),
             card_marker: hex(0x7a8296),
             text_selection: Color::from_rgba8(74, 127, 181, 115),
+            link: hex(0x60a5fa),
             code_bg: Color::from_rgba8(255, 255, 255, 20),
 
             arrow_default: hexa(0x94a3b8, 220),
@@ -399,6 +405,7 @@ mod tests {
         );
         // Fiche 06 § 4.3 — le cadre d'un nœud verrouillé, et le même rouge que l'état
         // « Verrouillé » de la barre d'action (fiche 10).
+        assert_eq!(rgba(t.link), (0x60, 0xa5, 0xfa, 255), "link #60a5fa");
         assert_eq!(rgba(t.alert), (0xf8, 0x71, 0x71, 255), "alert #f87171");
         assert_eq!(
             rgba(t.alert_bg),
@@ -488,7 +495,7 @@ mod tests {
     /// texte ou de bouton a ses trois composantes égales — hors le seul accent.
     ///
     /// N'y figurent pas les jetons qui colorent un **état** plutôt qu'une surface :
-    /// `text_selection` (bleu) et la famille `alert*` (rouge). Ce ne sont pas des exceptions
+    /// `text_selection` et `link` (bleus), et la famille `alert*` (rouge). Ce ne sont pas des exceptions
     /// arbitraires : les fiches 06 et 10 leur donnent leur valeur explicitement, parce qu'un
     /// état qui doit se lire d'un coup d'œil ne peut pas le faire en gris parmi des gris.
     #[test]

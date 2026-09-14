@@ -56,6 +56,9 @@ impl Emphasis {
     pub const STRIKE: Self = Self(1 << 2);
     /// `` `code` `` — chasse fixe, fond propre, et **aucun autre signe n'y est interprété**.
     pub const CODE: Self = Self(1 << 3);
+    /// Le texte d'un `[lien](url)`. Il garde son visage : c'est sa couleur et son trait qui
+    /// le désignent, pas une police de plus.
+    pub const LINK: Self = Self(1 << 4);
 
     pub const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
@@ -83,6 +86,10 @@ impl Emphasis {
 
     pub const fn code(self) -> bool {
         self.contains(Self::CODE)
+    }
+
+    pub const fn link(self) -> bool {
+        self.contains(Self::LINK)
     }
 }
 
@@ -112,6 +119,7 @@ impl std::fmt::Debug for Emphasis {
             (Self::ITALIC, "ITALIC"),
             (Self::STRIKE, "STRIKE"),
             (Self::CODE, "CODE"),
+            (Self::LINK, "LINK"),
         ] {
             if self.contains(flag) {
                 if !first {

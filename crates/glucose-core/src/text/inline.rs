@@ -119,15 +119,71 @@ fn closing_backticks(bytes: &[u8], from: usize, n: usize) -> Option<usize> {
     None
 }
 
+/// Les bornes d'un `[texte](url)` qui commence au `[` en `at`.
+///
+/// Rend la tranche du `]`…`)` de fermeture. Un lien est une **paire** comme une autre : son
+/// ouverture est le `[`, sa fermeture est tout le reste — crochet, parenthèses et adresse.
+/// L'adresse est donc un signe, et disparaît au repos exactement comme les `**` d'un gras,
+/// sans une seule ligne de traitement particulier.
+///
+/// Les crochets s'imbriquent (`[a [b] c](url)`), les parenthèses aussi (`[a](b(c)d)` — une
+/// adresse en porte parfois) : les deux se comptent plutôt que de s'arrêter au premier
+/// fermant venu.
+fn link_close(bytes: &[u8], at: usize) -> Option<(usize, usize)> {
+    let mut profondeur = 1usize;
+    let mut i = at + 1;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => i += 1,
+            b'[' => profondeur += 1,
+            b']' => {
+                profondeur -= 1;
+                if profondeur == 0 {
+                    break;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if profondeur != 0 || bytes.get(i + 1) != Some(&b'(') {
+        return None;
+    }
+    let crochet = i;
+    let mut parens = 1usize;
+    i += 2;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => i += 1,
+            b'(' => parens += 1,
+            b')' => {
+                parens -= 1;
+                if parens == 0 {
+                    return Some((crochet, i + 1));
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Passe 1 — les paires de délimiteurs, et les `\` qui en désamorcent un.
 fn pair_up(source: &str) -> (Vec<Pair>, Vec<usize>) {
     let bytes = source.as_bytes();
     let mut pairs = Vec::new();
     let mut escapes = Vec::new();
     let mut open: Vec<Open> = Vec::new();
+    // Les tranches à ne pas lire : l'adresse d'un lien, où un `*` n'ouvre rien.
+    let mut sautees: Vec<(usize, usize)> = Vec::new();
     let mut i = 0;
 
     while i < bytes.len() {
+        if let Some(&(_, fin)) = sautees.iter().find(|(d, _)| *d == i) {
+            i = fin;
+            continue;
+        }
         match bytes[i] {
             b'\\' if bytes.get(i + 1).is_some_and(|c| ESCAPABLE.contains(c)) => {
                 escapes.push(i);
@@ -150,40 +206,67 @@ fn pair_up(source: &str) -> (Vec<Pair>, Vec<usize>) {
                     None => i += n,
                 }
             }
-            ch @ (b'*' | b'_' | b'~') => {
-                let n = run_len(bytes, i, ch);
-                let Some(emphasis) = emphasis_of(ch, n) else {
-                    i += n;
-                    continue;
-                };
-                let (opens, closes) = flanking(source, i, n, ch);
-                // Une fermeture d'abord : `*a*` referme avant d'ouvrir quoi que ce soit.
-                let matched = closes
-                    .then(|| open.iter().rposition(|d| d.ch == ch && d.len == n))
-                    .flatten();
-                if let Some(at) = matched {
-                    let d = open[at];
-                    // Ce qui s'est ouvert à l'intérieur et n'a pas fermé est abandonné :
-                    // dans `**a *b**`, l'étoile solitaire redevient une étoile.
-                    open.truncate(at);
-                    pairs.push(Pair {
-                        open: (d.start, d.start + d.len),
-                        close: (i, i + n),
-                        emphasis,
-                    });
-                } else if opens {
-                    open.push(Open {
-                        start: i,
-                        len: n,
-                        ch,
-                    });
+            b'[' => {
+                match link_close(bytes, i) {
+                    Some((crochet, fin)) => {
+                        pairs.push(Pair {
+                            open: (i, i + 1),
+                            close: (crochet, fin),
+                            emphasis: Emphasis::LINK,
+                        });
+                        // L'intérieur reste analysé — un lien peut porter du gras — mais son
+                        // adresse, non : `[a](b*c*d)` n'a pas d'italique dans son URL.
+                        sautees.push((crochet, fin));
+                        i += 1;
+                    }
+                    None => i += 1,
                 }
-                i += n;
+            }
+            ch @ (b'*' | b'_' | b'~') => {
+                i += emphasis_run(source, i, ch, &mut open, &mut pairs);
             }
             _ => i += 1,
         }
     }
     (pairs, escapes)
+}
+
+/// Une suite de `*`, `_` ou `~` : elle ferme une paire ouverte, en ouvre une, ou n'est que
+/// ce qu'elle paraît. Rend le nombre d'octets consommés.
+fn emphasis_run(
+    source: &str,
+    at: usize,
+    ch: u8,
+    open: &mut Vec<Open>,
+    pairs: &mut Vec<Pair>,
+) -> usize {
+    let n = run_len(source.as_bytes(), at, ch);
+    let Some(emphasis) = emphasis_of(ch, n) else {
+        return n;
+    };
+    let (opens, closes) = flanking(source, at, n, ch);
+    // Une fermeture d'abord : `*a*` referme avant d'ouvrir quoi que ce soit.
+    let matched = closes
+        .then(|| open.iter().rposition(|d| d.ch == ch && d.len == n))
+        .flatten();
+    if let Some(index) = matched {
+        let d = open[index];
+        // Ce qui s'est ouvert à l'intérieur et n'a pas fermé est abandonné : dans
+        // `**a *b**`, l'étoile solitaire redevient une étoile.
+        open.truncate(index);
+        pairs.push(Pair {
+            open: (d.start, d.start + d.len),
+            close: (at, at + n),
+            emphasis,
+        });
+    } else if opens {
+        open.push(Open {
+            start: at,
+            len: n,
+            ch,
+        });
+    }
+    n
 }
 
 /// Le découpage inline de `source` : une partition exacte, chaque tranche avec son emphase
