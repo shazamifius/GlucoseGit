@@ -92,6 +92,10 @@ pub struct Theme {
     pub snap_guide: Color,
     /// `hairline-selection` — cadre de l'élément sélectionné, blanc pur à 0,80 (§ 2.2, § 4.2).
     pub selection_frame: Color,
+    /// Le cadre d'un nœud **verrouillé** : rouge `#f87171` (fiche 06 § 4.3), canevas et
+    /// minimap. Le même rouge que l'état « Verrouillé » de la barre d'action (fiche 10),
+    /// parce que c'est le même fait dit à deux endroits.
+    pub selection_locked: Color,
     /// Sélection élastique (fiche 07 § 7.3) : contour blanc à 0,50, intérieur blanc à 0,03.
     pub rubberband_stroke: Color,
     pub rubberband_fill: Color,
@@ -240,6 +244,7 @@ impl Theme {
 
             snap_guide: hexa(0xffffff, 77),
             selection_frame: hexa(0xffffff, 204),
+            selection_locked: hex(0xf87171),
             rubberband_stroke: hexa(0xffffff, 128),
             rubberband_fill: hexa(0xffffff, 8),
 
@@ -379,6 +384,13 @@ mod tests {
             (255, 255, 255, 204),
             "hairline-selection 0.80"
         );
+        // Fiche 06 § 4.3 — le cadre d'un nœud verrouillé, et le même rouge que l'état
+        // « Verrouillé » de la barre d'action (fiche 10).
+        assert_eq!(
+            rgba(t.selection_locked),
+            (0xf8, 0x71, 0x71, 255),
+            "selection-locked #f87171"
+        );
         assert_eq!(
             rgba(t.rubberband_stroke),
             (255, 255, 255, 128),
@@ -450,6 +462,11 @@ mod tests {
 
     /// La loi de la couleur : la chrome est monochrome. Tout jeton de surface, de filet, de
     /// texte ou de bouton a ses trois composantes égales — hors le seul accent.
+    ///
+    /// N'y figurent pas les jetons qui colorent un **état du contenu** plutôt que la chrome :
+    /// `text_selection` (bleu) et `selection_locked` (rouge). Ce ne sont pas des exceptions
+    /// arbitraires : la fiche 06 leur donne leur valeur explicitement, parce qu'un état qui
+    /// doit se lire d'un coup d'œil ne peut pas le faire en gris parmi des gris.
     #[test]
     fn test_every_chrome_token_is_a_neutral_grey() {
         let t = Theme::dark();

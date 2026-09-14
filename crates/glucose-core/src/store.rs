@@ -42,6 +42,7 @@ mod ids;
 mod images;
 pub mod journal;
 mod navigation;
+mod order;
 mod resize;
 mod selection;
 mod undo;
@@ -49,6 +50,7 @@ mod undo;
 pub use domains::DomainPatch;
 pub use journal::UNDO_DEPTH;
 pub use navigation::build_folder_stack;
+pub use order::StackMove;
 
 use crate::types::{AssetStore, Project, TemporalAnchor};
 

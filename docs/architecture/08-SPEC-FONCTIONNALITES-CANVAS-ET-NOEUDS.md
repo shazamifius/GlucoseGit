@@ -23,7 +23,9 @@
 > Déplacement, ancrage au côté opposé, taille minimale, rapport d'aspect conservé sur les coins : tenus par `resize_suite` et `interactions/resize/tests.rs`, par le chemin de la souris. **Extension assumée** par rapport à la cible : huit poignées (les côtés changent une seule dimension) et `Shift` libère le rapport — le comportement par défaut reste celui de la cible. Duplication : décalage de **20 px**, comme Glucose Tauri (`OFFSET = 20`) — la fiche disait 24 ; tenu par `test_duplicate_offsets_the_clone_by_twenty_pixels_and_selects_it`.
 
 * **À FAIRE** — **Ancrage centré (touche Ctrl)** pendant le redimensionnement : le centre $(x, y)$ reste immobile, la boîte grandit symétriquement. `ResizeRule` n'a pas de notion d'ancre au centre.
-* **À FAIRE** — **Verrouillage (touche `L`)** : bascule `locked` ; les poignées disparaissent, la carte devient inerte au glisser. Toast `"Images verrouillées 🔒"` / `"déverrouillées 🔓"`. Le modèle porte `locked` et `move_selected` le respecte ; aucun raccourci ne le bascule.
+> Tenu — **Verrouillage (touche `L`)** : bascule de groupe (tant qu'il reste une image libre, tout se ferme), poignées retirées, cadre rouge `#f87171` (fiche 06 § 4.3), inerte au glisser **et aux flèches**, annulable en un geste. Tenu par `lock_suite` et `interactions/shortcuts/tests.rs`.
+>
+> **Deux écarts, tous deux assumés.** Le libellé du toast perd ses cadenas : la référence tourne dans un navigateur qui a une police d'emoji, le natif n'en embarque pas, et le test FONT-1 refuse tout caractère qu'aucun visage ne sait dessiner. Et une image verrouillée reste **désignable** : la retirer de la pile des candidats — ce que faisait le noyau — la rendait impossible à déverrouiller autrement que par `Ctrl+Z`, ce que cette fiche ne demande nulle part.
 
 ---
 

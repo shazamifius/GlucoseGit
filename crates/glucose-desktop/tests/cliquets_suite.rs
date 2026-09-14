@@ -576,11 +576,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     ),
     (
         "crates/glucose-core/src/hit_priority/candidates.rs",
-        "collect_candidates",
-        176,
-    ),
-    (
-        "crates/glucose-core/src/hit_priority/candidates.rs",
         "ensure_dom_hint",
         112,
     ),
@@ -642,7 +637,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
 const FICHIERS_LONGS_ADMIS: &[(&str, usize)] = &[
     // (fichier, lignes de production admises) — mesurées après le passage sous rustfmt.
     ("crates/glucose-core/src/membrane_space.rs", 661),
-    ("crates/glucose-desktop/src/renderer/scene.rs", 683),
 ];
 
 fn mesure_fonctions_longues() -> BTreeMap<(String, String), usize> {
