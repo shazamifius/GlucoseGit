@@ -289,7 +289,7 @@ Glucose » se décide.*
 |---|---|---|
 | 1.A.1 | **Markdown inline** : gras, italique, barré, code. Le moteur ne lit aujourd'hui que les préfixes de ligne ; il lui faut une passe d'inline qui produise des **runs stylés**, et une mesure qui en tienne compte. | `export::strip_inline_markdown` sait déjà les reconnaître |
 | 1.A.2 | **Blocs** : citations `>`, listes numérotées, blocs de code, séparateurs `---`, et `-# ` (petit texte, syntaxe maison) | la structure `LineKind` est prête à s'étendre |
-| 1.A.3 | **L'éditeur avec prévisualisation** — ce que l'utilisateur a nommé en premier. Trois couches : symboles Markdown grisés, délimiteurs LaTeX **verts si la formule compile, rouges sinon**, et une fenêtre flottante à droite qui rend le résultat en direct | rien |
+| 1.A.3 | ✅ **Fait.** Symboles Markdown grisés, délimiteurs LaTeX verts si la formule compile et rouges sinon, pastille de prévisualisation à droite de la carte, à hauteur de la ligne éditée. Au passage : une formule est désormais **une formule au repos et du texte pendant qu'on l'écrit**, donc sa source reflue au lieu de déborder. | |
 | 1.A.4 | **Édition réelle** : sélection au clavier et à la souris, ↑ ↓, Début/Fin, copier-coller **dans** le texte, et **IME** — sans quoi taper `é` est impossible | navigation ← → par octets |
 | 1.A.5 | **LaTeX** : `katex-rs` derrière une crate `glucose-math`, plus l'interprète de son arbre vers des positions absolues (§ 7.1) | les douze familles de fontes KaTeX sont **déjà dans le dépôt** |
 | 1.A.6 | **Courbes et graphes** à syntaxe PGFPlots, tracés nativement (§ 7.2) | le rastériseur |

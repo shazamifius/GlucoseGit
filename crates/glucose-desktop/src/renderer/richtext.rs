@@ -293,7 +293,13 @@ pub fn layout_rich_text(
     let mut out = TextLayout::default();
     for block in blocks(source) {
         match block.kind {
-            BlockKind::Math { display } => {
+            // Une formule est une **formule au repos, et du texte pendant qu'on l'écrit**.
+            // C'est ce que le tracé faisait déjà — il montre la source en édition, parce
+            // qu'on n'édite pas une fraction — mais la mise en page, elle, réservait dans les
+            // deux cas la hauteur du résultat et posait la source en un seul fragment. Deux
+            // conséquences : une source plus large que la carte débordait sans se couper, et
+            // ses `$` n'étaient pas des signes, donc rien ne pouvait les colorer.
+            BlockKind::Math { display } if mode == TextMode::Rendered => {
                 layout_formula(&mut out, math, source, block, display, bx)
             }
             // Un trait, une clôture : rien à mesurer. Au repos la clôture ne prend même pas
@@ -431,25 +437,38 @@ pub fn mode_of(display: bool) -> glucose_math::Mode {
     }
 }
 
+/// Les deux encres d'une ligne : celle de son texte, celle de ses signes.
+///
+/// Deux plutôt qu'une, parce qu'une ligne de formule colore ses `$` pendant l'édition selon
+/// que la formule compile. Le gris des signes ordinaires ne dit rien ; le vert et le rouge
+/// disent quelque chose, et ils le disent à l'endroit exact où l'auteur corrige.
+#[derive(Clone, Copy, Debug)]
+pub struct Ink {
+    pub text: tiny_skia::Color,
+    pub marker: tiny_skia::Color,
+}
+
+impl Ink {
+    /// Les encres ordinaires d'un genre de bloc : son encre de texte, et le gris des signes.
+    pub fn of(kind: BlockKind, theme: &Theme) -> Self {
+        Self {
+            text: ink_of(kind, theme),
+            marker: theme.card_marker,
+        }
+    }
+}
+
 /// Le style d'un fragment : son visage, son corps, son encre.
 ///
-/// L'encre est celle que l'appelant donne à la ligne, sauf pour un signe de Markdown, qui
-/// s'écrit en gris afin de se distinguer du texte qu'il commande. Le code, lui, garde
-/// l'encre de sa ligne : c'est son fond et sa chasse fixe qui le détachent (comme dans la
-/// référence), pas une couleur de plus.
-pub fn fragment_style(
-    fragment: &Fragment,
-    font: f32,
-    theme: &Theme,
-    ink: tiny_skia::Color,
-) -> TextStyle {
-    let color = match fragment.role {
-        SpanRole::Marker => theme.card_marker,
-        SpanRole::Text => ink,
-    };
+/// Le code garde l'encre de sa ligne : c'est son fond et sa chasse fixe qui le détachent
+/// (comme dans la référence), pas une couleur de plus.
+pub fn fragment_style(fragment: &Fragment, font: f32, ink: Ink) -> TextStyle {
     TextStyle {
         size: font,
-        color,
+        color: match fragment.role {
+            SpanRole::Marker => ink.marker,
+            SpanRole::Text => ink.text,
+        },
         face: fragment.face(),
     }
 }

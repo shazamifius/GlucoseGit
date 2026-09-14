@@ -10,7 +10,7 @@
 //! en multiples d'une autre n'a pas à exister séparément.
 
 use super::hit::offset_to_x;
-use super::{fragment_style, Fragment, TextLayout, VisualLine};
+use super::{fragment_style, Fragment, Ink, TextLayout, VisualLine};
 use crate::renderer::pass::Pass;
 use crate::renderer::push_rounded_rect;
 use crate::typography::Face;
@@ -32,7 +32,7 @@ pub(crate) fn draw_line(
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     (layout, line): (&TextLayout, &VisualLine),
-    (font, ink): (f32, Color),
+    (font, ink): (f32, Ink),
     source: &str,
 ) -> f32 {
     let mut x = at.0;
@@ -51,12 +51,12 @@ fn draw_fragment(
     pixmap: &mut PixmapMut,
     at: (f32, f32),
     fragment: &Fragment,
-    (font, ink): (f32, Color),
+    (font, ink): (f32, Ink),
     source: &str,
     plate: bool,
 ) -> f32 {
     let slice = &source[fragment.start..fragment.end];
-    let style = fragment_style(fragment, font, ctx.theme, ink);
+    let style = fragment_style(fragment, font, ink);
     if fragment.emphasis.code() && !plate {
         let (w, _) = ctx.typography.measure_text(slice, font, style.face);
         draw_code_background(ctx, pixmap, at, w, (font, style.face));

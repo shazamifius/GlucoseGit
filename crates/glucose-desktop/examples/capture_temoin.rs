@@ -15,7 +15,11 @@
 
 use glucose_core::hash::{hex_of, sha256};
 use glucose_core::synth;
+use glucose_core::text::Selection;
 use glucose_desktop::bench;
+use glucose_desktop::params::{Pointer, SceneOverlay};
+use glucose_desktop::renderer::{Renderer, TextEditSession};
+use glucose_desktop::ui::UiState;
 
 fn main() {
     let dossier = std::env::args().nth(1).unwrap_or_else(|| ".".to_string());
@@ -46,6 +50,58 @@ fn main() {
                 scale: 1.9,
             },
         );
+    }
+
+    // Une carte **en cours d'édition**, le curseur posé dans une formule : c'est la seule
+    // façon de regarder les délimiteurs colorés et la pastille de prévisualisation.
+    //
+    // Sans empreinte, volontairement : le curseur clignote sur une horloge réelle, et figer
+    // cette image reviendrait à parier que la capture tient toujours dans la demi-seconde où
+    // il est allumé. Ce qui se teste ici se teste par la logique (`renderer::card::tests`),
+    // pas par les pixels.
+    {
+        let store = synth::witness();
+        let texte = store
+            .active_board()
+            .and_then(|b| b.annotations.iter().find(|a| a.id() == "t-maths"))
+            .and_then(|a| match a {
+                glucose_core::types::Annotation::Text { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .expect("la carte des formules du témoin");
+        // Le curseur dans la formule valide, en deuxième ligne.
+        let tete = texte.find("$$").map(|i| i + 8).unwrap_or(0);
+        let session = TextEditSession {
+            ann_id: "t-maths".to_string(),
+            buffer: texte.clone(),
+            selection: Selection::at(tete),
+            goal_x: None,
+            blink_timer: std::time::Instant::now(),
+        };
+        let mut renderer = Renderer::new();
+        let mut ui = UiState::new();
+        let mut pixmap = tiny_skia::Pixmap::new(w0, h0).expect("un pixmap");
+        let guides = glucose_core::smart_align::SnapGuides::default();
+        renderer.render(
+            &mut pixmap.as_mut(),
+            &store,
+            &mut ui,
+            SceneOverlay {
+                guides: &guides,
+                selection_box: None,
+                editing: Some(&session),
+            },
+            Pointer { x: 0.0, y: 0.0 },
+        );
+        let png = pixmap.encode_png().expect("encoder un PNG");
+        let chemin = format!("{dossier}/temoin-edition.png");
+        match std::fs::write(&chemin, &png) {
+            Ok(()) => println!(
+                "{chemin} — {w0}x{h0}, {} octets (sans empreinte)",
+                png.len()
+            ),
+            Err(e) => eprintln!("{chemin} : {e}"),
+        }
     }
 
     // Le menu contextuel n'est pas dans le document : il se capture par l'état d'interface.

@@ -372,3 +372,60 @@ fn test_a_selection_is_visible_behind_the_text_it_marks() {
         "le surlignage a recouvert le texte"
     );
 }
+
+// ── Les délimiteurs d'une formule, pendant l'édition (fiche 12 § 1.A.3) ───────
+
+/// L'encre des `$` d'une ligne, telle que le tracé la choisirait.
+fn encre_des_signes(source: &str, editing: bool) -> tiny_skia::Color {
+    let typo = Typography::new();
+    let math = MathRenderer::new();
+    let theme = Theme::dark();
+    let lignes = lignes(&typo, source, 400.0);
+    let ligne = lignes.first().expect("au moins une ligne");
+    marker_ink(&math, &theme, ligne, source, editing)
+}
+
+/// Écrire du LaTeX sans savoir s'il compile, c'est écrire à l'aveugle. Les délimiteurs le
+/// disent, là où l'auteur corrige.
+#[test]
+fn test_les_delimiteurs_disent_si_la_formule_compile() {
+    let theme = Theme::dark();
+    assert_eq!(
+        encre_des_signes("$$a^2 + b^2$$", true),
+        theme.success,
+        "une formule valide : ses signes passent au vert"
+    );
+    assert_eq!(
+        encre_des_signes("$$a^{2$$", true),
+        theme.danger,
+        "une formule fausse : ses signes passent au rouge"
+    );
+}
+
+/// Au repos, les signes n'existent plus : les colorer n'aurait personne à qui parler.
+#[test]
+fn test_au_repos_les_delimiteurs_restent_gris() {
+    let theme = Theme::dark();
+    assert_eq!(encre_des_signes("$$a^2 + b^2$$", false), theme.card_marker);
+    assert_eq!(encre_des_signes("$$a^{2$$", false), theme.card_marker);
+}
+
+/// Le vert et le rouge sont réservés aux formules : les autres signes du Markdown restent
+/// gris, même en édition. Un `**` n'a rien à dire de sa propre validité.
+#[test]
+fn test_les_autres_signes_ne_prennent_jamais_ces_couleurs() {
+    let theme = Theme::dark();
+    for source in [
+        "# Un titre",
+        "**gras**",
+        "- une puce",
+        "> une citation",
+        "du corps",
+    ] {
+        assert_eq!(
+            encre_des_signes(source, true),
+            theme.card_marker,
+            "{source:?} ne doit pas se colorer"
+        );
+    }
+}
