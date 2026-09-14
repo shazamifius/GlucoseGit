@@ -195,8 +195,10 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 | 2.13 | Dupliquer `Ctrl+D` | `store.duplicateSelected` | 🟡 collision d'ids (R-13) | 1 |
 | 2.14 | Supprimer `Suppr` / `Retour` | `store.deleteSelected` | ✅ | — |
 | 2.15 | Copier / Couper / Coller entre éléments | `App.tsx:254-262` | ❌ | 4 |
-| 2.16 | Menu contextuel (clic droit) | `ContextMenu.tsx` | ❌ le clic droit sert au pan | 3 |
+| 2.16 | Menu contextuel (clic droit) | *(aucune — voir note)* | ✅ clic droit **sur place** ; le pan garde le clic droit glissé |  |
 | 2.17 | Ordre d'empilement (z-order) | — | ✅ `Ctrl+]` / `Ctrl+[`, **au sein d'une couche** |  |
+
+> **Note sur 2.16.** La colonne de source disait `ContextMenu.tsx`, repris de la spécification d'origine (`docs/heritage`, § *Composants*), qui décrit ce composant et son contenu. **Ce fichier n'existe dans aucun commit du dépôt** : la référence n'a jamais eu de menu contextuel, et son clic droit sert au pan. La ligne n'était donc pas une parité mais une fonctionnalité décrite sans avoir été écrite. Elle est faite en Rust, avec seulement les gestes qui existent — « Couper », « Copier », « Grouper dans une membrane » et « Créer un sous-dossier », que la spécification annonce aussi, n'y sont pas.
 | 2.18 | Déplacement au clavier (flèches) | `GlucoseCanvas` | ✅ une unité, dix sous `Maj` |  |
 
 ---

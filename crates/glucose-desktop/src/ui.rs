@@ -12,6 +12,7 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 pub const TOPBAR_HEIGHT: f32 = 44.0;
 pub mod action_bar;
 pub mod breadcrumb;
+pub mod context_menu;
 
 pub const TABS_HEIGHT: f32 = 34.0;
 pub const TOTAL_HEADER_HEIGHT: f32 = TOPBAR_HEIGHT + TABS_HEIGHT;
@@ -133,6 +134,11 @@ pub struct UiState {
     #[allow(dead_code)]
     pub hovered_btn: Option<String>,
     pub current_toast: Option<Toast>,
+    /// Le menu contextuel ouvert, et le point où il l'a été. `None` quand il est fermé.
+    ///
+    /// Dans l'état d'interface et non dans l'application : un menu ouvert n'est pas un geste
+    /// en cours, c'est quelque chose qui est **affiché**, au même titre qu'un toast.
+    pub context_menu_at: Option<(f32, f32)>,
     pub scale_factor: f32,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
@@ -220,6 +226,7 @@ impl UiState {
             trans_domain: true,
             hovered_btn: None,
             current_toast: None,
+            context_menu_at: None,
             scale_factor: 1.0,
             minimap_cache: None,
         }
@@ -311,6 +318,22 @@ pub fn render_ui(
     // 5. Toast notification (au centre en bas)
     if let Some(ref toast) = ui.current_toast {
         render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
+    }
+
+    // 6. Menu contextuel — par-dessus tout, y compris le toast : il attend une décision.
+    if let Some(at) = ui.context_menu_at {
+        if let Some(menu) =
+            context_menu::layout_context_menu(store, typo, at, (w, h), ui.scale_factor)
+        {
+            context_menu::draw_context_menu(
+                pixmap,
+                &menu,
+                typo,
+                theme,
+                (pointer.x, pointer.y),
+                ui.scale_factor,
+            );
+        }
     }
 }
 

@@ -48,6 +48,23 @@ fn main() {
         );
     }
 
+    // Le menu contextuel n'est pas dans le document : il se capture par l'état d'interface.
+    {
+        let store = synth::witness_selected();
+        let png = bench::capture_with(&store, w0, h0, |ui| {
+            ui.context_menu_at = Some((640.0, 320.0));
+        });
+        let chemin = format!("{dossier}/temoin-menu.png");
+        let empreinte = &hex_of(&sha256(&png))[..16];
+        match std::fs::write(&chemin, &png) {
+            Ok(()) => println!(
+                "{chemin} — {w0}x{h0}, {} octets, empreinte {empreinte}",
+                png.len()
+            ),
+            Err(e) => eprintln!("{chemin} : {e}"),
+        }
+    }
+
     for (nom, store, w, h) in [
         ("temoin", &temoin, w0, h0),
         ("temoin-dezoome", &dezoome, w0, h0),

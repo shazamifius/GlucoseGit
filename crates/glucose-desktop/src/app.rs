@@ -63,6 +63,12 @@ pub struct GlucoseApp {
     pub modifiers: ModifiersState,
     pub space_pressed: bool,
     pub right_or_middle_down: bool,
+    /// Où le clic droit s'est enfoncé, tant qu'il l'est.
+    ///
+    /// C'est ce qui permet de savoir, **au relâchement**, si le geste était un déplacement de
+    /// la vue ou une demande de menu contextuel : la seule différence est que le curseur a
+    /// bougé, ou non.
+    pub right_down_at: Option<(f64, f64)>,
     pub is_panning: bool,
     pub is_dragging_item: bool,
     pub drag_start_world: (f64, f64),
@@ -162,6 +168,7 @@ impl GlucoseApp {
             modifiers: ModifiersState::empty(),
             space_pressed: false,
             right_or_middle_down: false,
+            right_down_at: None,
             is_panning: false,
             is_dragging_item: false,
             drag_start_world: (0.0, 0.0),

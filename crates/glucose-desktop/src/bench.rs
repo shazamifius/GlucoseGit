@@ -153,8 +153,23 @@ pub fn measure(store: &Store, width: u32, height: u32, repeats: usize) -> Stats 
 
 /// Rend un document et écrit le PNG.
 pub fn capture(store: &Store, width: u32, height: u32) -> Vec<u8> {
+    capture_with(store, width, height, |_| {})
+}
+
+/// La même capture, après avoir réglé l'état d'interface.
+///
+/// Ce qui n'est pas dans le document ne peut pas se capturer autrement : un menu contextuel
+/// ouvert, un panneau tiré, un toast en cours. Sans cette porte, ces rendus-là n'auraient
+/// aucun filet.
+pub fn capture_with(
+    store: &Store,
+    width: u32,
+    height: u32,
+    regler: impl FnOnce(&mut UiState),
+) -> Vec<u8> {
     let mut renderer = Renderer::new();
     let mut ui = UiState::new();
+    regler(&mut ui);
     let pixmap = render_frame(&mut renderer, &mut ui, store, width, height);
     pixmap.encode_png().expect("encoder un PNG")
 }
