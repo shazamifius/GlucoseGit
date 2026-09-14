@@ -398,6 +398,7 @@ fn draw_text_line(
 
     let ink = Ink {
         text: ink_of(line.kind, ctx.theme),
+        link: ctx.theme.link,
         marker: marker_ink(ctx.math, ctx.theme, line, card.body, card.editing.is_some()),
     };
     // Le surlignage passe sous le texte : dessiné après, il le recouvrirait.

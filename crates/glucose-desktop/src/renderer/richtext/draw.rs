@@ -62,6 +62,16 @@ fn draw_fragment(
         draw_code_background(ctx, pixmap, at, w, (font, style.face));
     }
     let end_x = ctx.typography.draw_text(pixmap, slice, at.0, at.1, style);
+    if fragment.emphasis.link() {
+        draw_underline(
+            ctx,
+            pixmap,
+            (at.0, end_x),
+            at.1,
+            (font, style.face),
+            style.color,
+        );
+    }
     if fragment.emphasis.strike() {
         draw_strikethrough(
             ctx,
@@ -166,6 +176,30 @@ fn draw_code_background(
         Transform::identity(),
         None,
     );
+}
+
+/// Le trait d'un lien, posé **sous la ligne de base**, à la profondeur que la police
+/// indique pour un soulignement.
+///
+/// Lue dans la fonte et non devinée : chaque visage a la sienne, et une fraction du corps
+/// ferait passer le trait à travers les jambages d'un `p` dans l'un et trop bas dans l'autre.
+fn draw_underline(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    (from, to): (f32, f32),
+    top: f32,
+    (font, face): (f32, Face),
+    color: Color,
+) {
+    let metrics = ctx.typography.font(face).horizontal_line_metrics(font);
+    let creux = metrics.map_or(font * STRIKE_WIDTH * 2.0, |m| -m.descent / 2.0);
+    let thickness = (font * STRIKE_WIDTH).max(1.0);
+    let Some(rect) = Rect::from_xywh(from, top + font + creux, to - from, thickness) else {
+        return;
+    };
+    let mut paint = Paint::default();
+    paint.set_color(color);
+    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
 }
 
 /// La barre d'un `~~barré~~`, à mi-hauteur d'œil.
