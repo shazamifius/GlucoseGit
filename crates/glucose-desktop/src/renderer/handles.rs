@@ -25,8 +25,26 @@ pub(super) fn draw_resize_handles(
     screen_box: (f32, f32, f32, f32),
     handles: &[Handle],
 ) {
+    draw_rotated_handles(pixmap, theme, scale, screen_box, handles, 0.0);
+}
+
+/// Les mêmes, sur un nœud tourné de `rotation` radians.
+///
+/// Les poignées **suivent** le nœud : elles tournent avec lui, aux positions exactes que
+/// l'arbitre de clic interroge ([`glucose_core::rotate::place`], la même formule des deux
+/// côtés). Les carrés, eux, restent droits — une poignée est une prise, pas un ornement, et
+/// un carré incliné se vise moins bien.
+pub(super) fn draw_rotated_handles(
+    pixmap: &mut PixmapMut,
+    theme: &Theme,
+    scale: WorldScale,
+    screen_box: (f32, f32, f32, f32),
+    handles: &[Handle],
+    rotation: f64,
+) {
     let (x, y, w, h) = screen_box;
-    let rect = AlignRect::new(x as f64, y as f64, w as f64, h as f64);
+    let centre = ((x + w / 2.0) as f64, (y + h / 2.0) as f64);
+    let local = AlignRect::new(-(w as f64) / 2.0, -(h as f64) / 2.0, w as f64, h as f64);
     let side = scale.screen(HANDLE_SIDE);
     let outline = scale.screen(HANDLE_OUTLINE);
 
@@ -46,7 +64,7 @@ pub(super) fn draw_resize_handles(
     };
 
     for handle in handles {
-        let (cx, cy) = handle.position_on(rect);
+        let (cx, cy) = glucose_core::rotate::place(centre, handle.position_on(local), rotation);
         let Some(square) =
             Rect::from_xywh(cx as f32 - side / 2.0, cy as f32 - side / 2.0, side, side)
         else {

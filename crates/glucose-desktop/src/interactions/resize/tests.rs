@@ -653,3 +653,102 @@ fn test_text_fit_1_an_older_document_gets_its_card_heights_fitted_on_open() {
     );
     std::fs::remove_dir_all(&dir).expect("nettoyage");
 }
+
+// ── La rotation (fiche 03 § 2.11) ─────────────────────────────────────────────
+
+/// Une image de 200 × 100 centrée à l'origine, seule et sélectionnée.
+fn app_avec_image() -> (GlucoseApp, AlignRect) {
+    let mut app = app();
+    with_image(&mut app, "img", 0.0, 0.0, 200.0, 100.0);
+    let rect = image_box(&app, "img");
+    (app, rect)
+}
+
+fn angle(app: &GlucoseApp) -> f64 {
+    app.store
+        .active_board()
+        .and_then(|b| b.images.iter().find(|i| i.id == "img"))
+        .map(|i| i.rotation)
+        .expect("image")
+}
+
+fn taille(app: &GlucoseApp) -> (f64, f64) {
+    let r = image_box(app, "img");
+    (r.width, r.height)
+}
+
+/// `Alt` sur un coin fait tourner ; la taille, elle, ne bouge pas.
+#[test]
+fn test_alt_sur_un_coin_fait_tourner_au_lieu_de_redimensionner() {
+    let (mut app, rect) = app_avec_image();
+    let avant = taille(&app);
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::BottomRight);
+    // Le coin bas-droit emmené vers le bas-gauche : un demi-tour d'azimut.
+    drag_by(&mut app, -rect.width, 0.0, 4);
+    release(&mut app);
+
+    assert!(angle(&app).abs() > 0.1, "l'image n'a pas tourné");
+    assert_eq!(taille(&app), avant, "et sa taille n'a pas bougé");
+}
+
+/// Relâcher `Alt` en cours de geste ne le transforme pas en redimensionnement : le mode est
+/// décidé à l'appui.
+#[test]
+fn test_le_mode_de_rotation_est_decide_a_lappui() {
+    let (mut app, rect) = app_avec_image();
+    let avant = taille(&app);
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::BottomRight);
+    app.modifiers = ModifiersState::empty();
+    drag_by(&mut app, -rect.width, 0.0, 4);
+    release(&mut app);
+
+    assert!(angle(&app).abs() > 0.1, "le geste est resté une rotation");
+    assert_eq!(taille(&app), avant);
+}
+
+/// Une rotation est **un** geste annulable, comme un redimensionnement.
+#[test]
+fn test_une_rotation_est_un_seul_geste_annulable() {
+    let (mut app, rect) = app_avec_image();
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::TopRight);
+    drag_by(&mut app, -40.0, 60.0, 6);
+    release(&mut app);
+    assert!(angle(&app).abs() > 1e-6);
+
+    assert!(app.store.undo());
+    assert_eq!(angle(&app), 0.0, "un seul Ctrl+Z ramène l'angle de départ");
+}
+
+/// `Alt` sur un **côté** ne tourne pas : un côté n'a pas d'azimut propre.
+#[test]
+fn test_alt_sur_un_cote_redimensionne_toujours() {
+    let (mut app, rect) = app_avec_image();
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::Right);
+    drag_by(&mut app, 60.0, 0.0, 3);
+    release(&mut app);
+
+    assert_eq!(angle(&app), 0.0, "aucune rotation");
+    assert!(taille(&app).0 > rect.width, "mais un élargissement");
+}
+
+/// Le résultat ne dépend pas du nombre d'événements reçus (ROT-1).
+#[test]
+fn test_la_rotation_ne_depend_pas_de_la_frequence_de_la_souris() {
+    let mut angles = Vec::new();
+    for steps in [1usize, 3, 17] {
+        let (mut app, rect) = app_avec_image();
+        app.modifiers = ModifiersState::ALT;
+        press_handle(&mut app, rect, Handle::BottomRight);
+        drag_by(&mut app, -70.0, 30.0, steps);
+        release(&mut app);
+        angles.push(angle(&app));
+    }
+    assert!(
+        angles.windows(2).all(|w| (w[0] - w[1]).abs() < 1e-9),
+        "trois cadences, trois angles : {angles:?}"
+    );
+}

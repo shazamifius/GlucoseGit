@@ -25,6 +25,7 @@ pub mod mirror_graph;
 pub mod persist;
 pub mod quadtree;
 pub mod resize;
+pub mod rotate;
 pub mod smart_align;
 pub mod store;
 pub mod symbiotic_hue;

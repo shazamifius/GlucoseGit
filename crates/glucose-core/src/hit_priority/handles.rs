@@ -58,10 +58,12 @@ fn push_handles(
 /// puis ramenees dans le monde par sa rotation.
 fn push_image_handles(out: &mut Vec<PickCandidate>, img: &BoardImage, z: usize, input: &PickInput) {
     let local = AlignRect::new(-img.width / 2.0, -img.height / 2.0, img.width, img.height);
-    let (c, s) = (img.rotation.cos(), img.rotation.sin());
     let positions = Handle::ALL.iter().map(|h| {
-        let (ox, oy) = h.position_on(local);
-        (*h, (img.x + ox * c - oy * s, img.y + ox * s + oy * c))
+        let offset = h.position_on(local);
+        (
+            *h,
+            crate::rotate::place((img.x, img.y), offset, img.rotation),
+        )
     });
     let slop = handle_slop_world(input.scale, img.width, img.height);
     push_handles(

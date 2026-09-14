@@ -107,7 +107,7 @@ déterministes (`glucose_core::synth`). *Mesures refaites le 2026-09-14.*
 
 | | Mesure | Comment la refaire |
 |---|---|---|
-| **Tests** | **869**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
+| **Tests** | **882**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
@@ -145,7 +145,7 @@ chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dan
 | Domaine | ✅ Branché | 🧩 Noyau écrit et testé, sans geste | ❌ Pas encore |
 |---|---|---|---|
 | **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
-| **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, **cycle de profondeur au clic** (PICK-1 : re-cliquer atteint le nœud du dessous), déplacement à la souris **et au clavier** (`←↑→↓`, `Maj` par dix), magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, **verrouillage** `L` (cadre rouge, poignées retirées), **ordre d'empilement** `Ctrl+]` / `Ctrl+[`, dupliquer, supprimer, **barre d'action flottante** (compte, verrouiller, supprimer), **menu contextuel** au clic droit sur place | | rotation | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
+| **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, **cycle de profondeur au clic** (PICK-1 : re-cliquer atteint le nœud du dessous), déplacement à la souris **et au clavier** (`←↑→↓`, `Maj` par dix), magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, **verrouillage** `L` (cadre rouge, poignées retirées), **ordre d'empilement** `Ctrl+]` / `Ctrl+[`, dupliquer, supprimer, **barre d'action flottante** (compte, verrouiller, supprimer), **menu contextuel** au clic droit sur place, **rotation** (`Alt` + coin, `Maj` par huitièmes de tour) | | | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
 | **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
 | **Cartes texte** | création, édition en place, retour à la ligne, hauteur qui suit le contenu, **les genres de bloc** — titres `#` à `######`, puces, listes numérotées, citations, blocs de code clôturés, séparateurs `---`, petit texte `-# ` —, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **sélection complète** (souris, double et triple-clic, `Maj`, mots, `↑↓` à colonne gardée, copier-couper-coller, IME), **LaTeX** `$…$` et `$$…$$` | ancres de texte robustes | tableaux, liens, sélection à la souris dans un pense-bête, annuler pendant la saisie |
 | **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |
@@ -222,6 +222,7 @@ tableau ci-dessus, colonne « pas encore ».*
 | **Outils** | `V` sélection · `T` texte · `N` note · `A` flèche · `M` membrane · Dossier par la barre d'outils |
 | **Sélectionner** | clic · `Maj`+clic pour ajouter · glisser dans le vide pour une sélection élastique · `Ctrl+A` |
 | **Déplacer / redimensionner** | glisser l'élément · glisser une poignée (`Maj` libère le ratio) · `Échap` annule un redimensionnement |
+| **Faire tourner** | `Alt` + glisser un **coin** d'image · `Maj` verrouille sur les huit directions des poignées |
 | **Éditer un texte** | double-clic (le mot visé est pris) · `Entrée` valide · `Maj+Entrée` saute une ligne · `Échap` sort |
 | **Sélectionner du texte** | glisser · double-clic un mot · triple-clic un paragraphe · `Maj`+clic étend depuis l'ancre |
 | **Déplacer le curseur** | `← →` · `Ctrl` par mot · `↑ ↓` colonne gardée · `Début`/`Fin` la ligne visible · `Ctrl+Début`/`Fin` le texte entier · `Maj` avec chacun pour étendre |

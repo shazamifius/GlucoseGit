@@ -206,9 +206,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 ///
 /// Elle couvre ce que la première ne peut pas montrer, puisqu'elle se termine par
 /// `clear_selection` : les huit poignées d'un nœud pris, le cadre rouge d'une image
-/// verrouillée et l'absence de ses poignées, et la barre d'action qui n'existe qu'avec une
-/// sélection.
-const EMPREINTE_TEMOIN_SELECTION: &str = "bd4d3b92012a2dbb";
+/// verrouillée et l'absence de ses poignées, la barre d'action qui n'existe qu'avec une
+/// sélection — et une image **tournée**, dont le carré, le cadre et les poignées doivent
+/// pencher ensemble.
+const EMPREINTE_TEMOIN_SELECTION: &str = "d31a4e8a922efe56";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -225,7 +226,7 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 ///
 /// Il n'est pas dans le document : sans [`capture_with`], rien ne tiendrait son rendu — ni
 /// ses entrées, ni ses filets, ni l'alignement à droite de ses raccourcis.
-const EMPREINTE_TEMOIN_MENU: &str = "248c7dea96d2c816";
+const EMPREINTE_TEMOIN_MENU: &str = "9c0ea05cb2b64894";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {
