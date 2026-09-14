@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::renderer::math::MathRenderer;
+use crate::renderer::richtext::VisualLine;
 use crate::typography::Face;
 use glucose_core::types::Annotation;
 
@@ -114,16 +115,16 @@ fn test_wrap_1_a_bulleted_paragraph_keeps_its_bullet_on_its_first_line_only() {
     let lines = lignes(&typo, text, 200.0);
     let bullets: Vec<&VisualLine> = lines
         .iter()
-        .filter(|l| l.kind == LineKind::Bullet)
+        .filter(|l| l.kind == BlockKind::Bullet)
         .collect();
     assert!(bullets.len() >= 2, "{lines:?}");
     assert!(bullets[0].first && bullets[1..].iter().all(|l| !l.first));
     // La ligne couvre la source, préfixe compris — c'est ce dont le curseur a besoin — mais
     // le préfixe est un fragment marqué, que le rendu saute (MODE-1).
     assert_eq!(&text[bullets[0].start..bullets[0].start + 5], "- une");
-    assert_eq!(lines[0].kind, LineKind::Heading1);
+    assert_eq!(lines[0].kind, BlockKind::Heading(1));
     assert_eq!(&text[lines[0].start..lines[0].end], "# Titre");
-    assert_eq!(lines.last().map(|l| l.kind), Some(LineKind::Body));
+    assert_eq!(lines.last().map(|l| l.kind), Some(BlockKind::Body));
 }
 
 #[test]
@@ -144,26 +145,47 @@ fn test_text_fit_1_the_fitted_height_follows_the_line_count() {
     );
 }
 
-/// Fiche 08 § 2.1 — ce que le moteur reconnaît comme **genre de bloc**, ni plus ni moins :
-/// `#` et `##` comme titres, `-` et `*` comme puces. `###` à `######`, les citations, les
-/// tableaux et les blocs de code sont encore lus comme du corps de texte, et ce test tombera
-/// quand ils seront écrits — c'est son but.
+/// Fiche 08 § 2.1 — ce que le moteur reconnaît comme **genre de bloc**, ni plus ni moins.
 ///
-/// Le gras, l'italique, le barré et le code **en ligne** sont, eux, compris : ils ne sont pas
-/// des genres de bloc mais des emphases à l'intérieur d'une ligne, et c'est
-/// [`glucose_core::text`] qui les analyse. Une ligne qui commence par `**` reste donc du
+/// Les genres eux-mêmes sont analysés et testés dans [`glucose_core::text::block`] ; ce test
+/// vérifie l'autre moitié du contrat — que la mise en page de la carte les reçoit bien, et
+/// qu'aucun ne se perd entre le noyau et l'écran.
+///
+/// Le gras, l'italique, le barré et le code **en ligne** ne sont pas des genres de bloc mais
+/// des emphases à l'intérieur d'une ligne. Une ligne qui commence par `**` reste donc du
 /// corps — avec du gras dedans.
 #[test]
 fn test_the_markdown_the_card_understands_and_the_markdown_it_does_not() {
-    assert_eq!(LineKind::of("# Titre"), (LineKind::Heading1, 2));
-    assert_eq!(LineKind::of("## Sous-titre"), (LineKind::Heading2, 3));
-    assert_eq!(LineKind::of("- une puce"), (LineKind::Bullet, 2));
-    assert_eq!(LineKind::of("* une autre"), (LineKind::Bullet, 2));
+    let typo = Typography::new();
+    let genre = |source: &str| lignes(&typo, source, 400.0)[0].kind;
 
-    for not_yet in ["### H3", "###### H6", "> citation", "| a | b |", "```rust"] {
+    assert_eq!(genre("# Titre"), BlockKind::Heading(1));
+    assert_eq!(genre("## Sous-titre"), BlockKind::Heading(2));
+    assert_eq!(genre("###### Six"), BlockKind::Heading(6));
+    assert_eq!(genre("- une puce"), BlockKind::Bullet);
+    assert_eq!(genre("* une autre"), BlockKind::Bullet);
+    assert_eq!(genre("1. un élément"), BlockKind::Ordered(1));
+    assert_eq!(genre("> une citation"), BlockKind::Quote);
+    assert_eq!(genre("-# du petit texte"), BlockKind::Small);
+    assert_eq!(genre("---"), BlockKind::Rule);
+    assert_eq!(genre("$$x$$"), BlockKind::Math { display: true });
+    assert_eq!(genre("**gras** en tête"), BlockKind::Body);
+
+    // Un bloc de code : sa clôture ne prend aucune place au repos, et ce qu'elle enferme
+    // n'est plus du Markdown.
+    let code = lignes(&typo, "```rust\n# pas un titre\n```", 400.0);
+    assert_eq!(
+        code.iter().map(|l| l.kind).collect::<Vec<_>>(),
+        vec![BlockKind::Code],
+        "au repos, seules les lignes de code occupent un rang"
+    );
+
+    // Ce qui n'est toujours pas compris, et le restera jusqu'à ce que quelqu'un l'écrive :
+    // ce test tombera ce jour-là, c'est son but.
+    for not_yet in ["| a | b |", "[lien](url)", "  indenté de deux espaces"] {
         assert_eq!(
-            LineKind::of(not_yet),
-            (LineKind::Body, 0),
+            genre(not_yet),
+            BlockKind::Body,
             "{not_yet:?} n'est pas encore compris"
         );
     }

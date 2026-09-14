@@ -202,7 +202,7 @@ fn test_plain_paragraphs_cost_one_fragment_per_line() {
 fn test_a_bullet_keeps_its_indent_and_can_be_styled() {
     let source = "- une **puce**";
     let layout = pose(source, LARGE, TextMode::Rendered);
-    assert_eq!(layout.lines[0].kind, LineKind::Bullet);
+    assert_eq!(layout.lines[0].kind, BlockKind::Bullet);
     assert_eq!(
         dessine(&layout, source),
         [[("une ", Face::Regular), ("puce", Face::Bold)]]

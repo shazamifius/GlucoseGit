@@ -50,7 +50,7 @@ fn point_de(app: &GlucoseApp, offset: usize) -> (f64, f64) {
         line,
         TEXTE,
         offset,
-        line.kind.font(CORPS),
+        crate::renderer::richtext::font_of(line.kind, CORPS),
     );
     let vp = app
         .store
@@ -225,7 +225,7 @@ fn test_opening_a_card_aims_in_the_view_the_user_was_looking_at() {
         line,
         MARKDOWN,
         cible,
-        line.kind.font(CORPS),
+        crate::renderer::richtext::font_of(line.kind, CORPS),
     );
     let vp = app
         .store

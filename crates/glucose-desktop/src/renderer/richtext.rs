@@ -44,7 +44,7 @@ use super::math::MathRenderer;
 use super::wrap::wrap_paragraph;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
-use glucose_core::text::{inline_spans, Emphasis, Span, SpanRole};
+use glucose_core::text::{blocks, inline_spans, Block, BlockKind, Emphasis, Span, SpanRole};
 
 /// Interligne, en multiples du corps (fiche 06 § 5.1 : `lineHeight: 1.4`).
 pub const LINE_FACTOR: f32 = 1.4;
@@ -52,6 +52,12 @@ pub const LINE_FACTOR: f32 = 1.4;
 const H1_FACTOR: f32 = 1.25;
 /// Grossissement d'un sous-titre `## `.
 const H2_FACTOR: f32 = 1.10;
+/// Rapetissement d'un `-# `.
+///
+/// Il n'a pas de valeur à lui : le petit texte est au titre ce que le corps est au titre,
+/// donc l'inverse du grossissement d'un `# `. Une constante de moins à choisir, et la
+/// symétrie tient toute seule si le facteur des titres change un jour.
+const SMALL_FACTOR: f32 = 1.0 / H1_FACTOR;
 // Les titres sont plus grands que le corps, et un titre plus qu'un sous-titre : vérifié à la
 // compilation, pas dans un test qu'on pourrait oublier de lancer.
 const _: () = assert!(H1_FACTOR > H2_FACTOR && H2_FACTOR > 1.0);
@@ -82,87 +88,62 @@ impl From<Emphasis> for Face {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LineKind {
-    Heading1,
-    Heading2,
-    Bullet,
-    Body,
-    /// Un paragraphe qui est **entièrement** une formule : `$...$` ou `$$...$$`, seuls sur leur
-    /// ligne. Il ne se reflue pas — une formule ne se coupe pas en deux — et se dessine par le
-    /// moteur mathématique au lieu du moteur de texte.
-    Math,
-}
+// ── Du genre d'un bloc aux pixels ─────────────────────────────────────────────
+// Le genre est décidé par `glucose_core::text::block`, qui ne connaît ni police ni couleur.
+// Les quatre fonctions qui suivent sont la seule frontière entre ce qu'un bloc *est* et ce
+// qu'il *devient* à l'écran — taille, graisse, encre, retrait. Rien d'autre n'a le droit de
+// regarder un `BlockKind` pour en tirer une valeur.
 
-/// Les délimiteurs d'une formule qui occupe tout un paragraphe, et le mode qu'ils demandent.
+/// Le corps d'un bloc. Les grossissements sont des **multiples du corps courant** : ils
+/// héritent de l'unique transformation au lieu de redériver du zoom (CARD-1).
 ///
-/// Le LaTeX **au milieu** d'une phrase n'est pas traité ici : il demande de découper une ligne
-/// en segments de nature différente, et de mesurer chacun. C'est un chantier à part, et le cas
-/// fréquent dans un canva est la formule posée seule.
-pub fn formule_entiere(paragraph: &str) -> Option<(&str, glucose_math::Mode)> {
-    let t = paragraph.trim();
-    if let Some(corps) = t.strip_prefix("$$").and_then(|r| r.strip_suffix("$$")) {
-        if !corps.trim().is_empty() {
-            return Some((corps, glucose_math::Mode::Display));
-        }
+/// Au-delà du sous-titre, les niveaux gardent le corps et se distinguent par la graisse. La
+/// référence ne donne de valeur que pour `#` et `##` ; en inventer quatre autres serait
+/// affirmer des chiffres que personne n'a mesurés.
+pub fn font_of(kind: BlockKind, body: f32) -> f32 {
+    match kind {
+        BlockKind::Heading(1) => body * H1_FACTOR,
+        BlockKind::Heading(2) => body * H2_FACTOR,
+        BlockKind::Small => body * SMALL_FACTOR,
+        _ => body,
     }
-    if let Some(corps) = t.strip_prefix('$').and_then(|r| r.strip_suffix('$')) {
-        if !corps.trim().is_empty() && !corps.contains('$') {
-            return Some((corps, glucose_math::Mode::Inline));
-        }
-    }
-    None
 }
 
-impl LineKind {
-    /// Le genre du paragraphe et la longueur en octets de son préfixe.
-    pub fn of(paragraph: &str) -> (Self, usize) {
-        if formule_entiere(paragraph).is_some() {
-            (Self::Math, 0)
-        } else if paragraph.starts_with("# ") {
-            (Self::Heading1, 2)
-        } else if paragraph.starts_with("## ") {
-            (Self::Heading2, 3)
-        } else if paragraph.starts_with("- ") || paragraph.starts_with("* ") {
-            (Self::Bullet, 2)
-        } else {
-            (Self::Body, 0)
-        }
+/// L'emphase que le genre impose à toute la ligne.
+///
+/// Elle s'**unit** à celle des fragments, ce qui fait qu'un `*mot*` dans un titre est en gras
+/// italique sans cas particulier — et qu'une ligne de bloc de code passe en chasse fixe par
+/// le même chemin qu'un `` `code` `` en ligne, avec son fond et tout le reste.
+pub fn emphasis_of(kind: BlockKind) -> Emphasis {
+    match kind {
+        BlockKind::Heading(_) => Emphasis::BOLD,
+        BlockKind::Code => Emphasis::CODE,
+        _ => Emphasis::NONE,
     }
+}
 
-    /// Les grossissements de titre sont des multiples du corps : ils héritent de l'unique
-    /// transformation au lieu de redériver du zoom.
-    pub fn font(self, body: f32) -> f32 {
-        match self {
-            Self::Heading1 => body * H1_FACTOR,
-            Self::Heading2 => body * H2_FACTOR,
-            Self::Bullet | Self::Body | Self::Math => body,
-        }
+/// L'encre d'une ligne.
+///
+/// Une citation garde celle du corps : ce qui la distingue est sa barre et son retrait, pas
+/// une couleur de plus. La barre, elle, est grise — elle **est** le `>` que le repos efface,
+/// donc elle prend l'encre des signes.
+pub fn ink_of(kind: BlockKind, theme: &Theme) -> tiny_skia::Color {
+    match kind {
+        BlockKind::Heading(1) => theme.card_heading,
+        BlockKind::Heading(_) => theme.card_subheading,
+        _ => theme.card_body,
     }
+}
 
-    /// L'emphase que le genre impose à toute la ligne. Elle s'**unit** à celle des fragments,
-    /// ce qui fait qu'un `*mot*` dans un titre est en gras italique sans cas particulier.
-    pub fn emphasis(self) -> Emphasis {
-        match self {
-            Self::Heading1 | Self::Heading2 => Emphasis::BOLD,
-            Self::Bullet | Self::Body | Self::Math => Emphasis::NONE,
-        }
-    }
-
-    fn indent(self, bullet_indent: f32) -> f32 {
-        if self == Self::Bullet {
-            bullet_indent
-        } else {
-            0.0
-        }
-    }
-
-    pub fn color(self, theme: &Theme) -> tiny_skia::Color {
-        match self {
-            Self::Heading1 => theme.card_heading,
-            Self::Heading2 => theme.card_subheading,
-            Self::Bullet | Self::Body | Self::Math => theme.card_body,
-        }
+/// Le retrait d'une ligne, en multiples de `unit`.
+///
+/// Une seule règle, un seul endroit : la mise en page l'applique pour savoir où couper, le
+/// tracé pour savoir où poser la plume, le clic pour savoir où viser. Elle vivait en deux
+/// exemplaires, et les deux devaient rester d'accord à la main.
+pub fn indent_of(kind: BlockKind, unit: f32) -> f32 {
+    match kind {
+        BlockKind::Bullet | BlockKind::Ordered(_) | BlockKind::Quote => unit,
+        _ => 0.0,
     }
 }
 
@@ -187,7 +168,7 @@ impl Fragment {
 pub struct VisualLine {
     pub start: usize,
     pub end: usize,
-    pub kind: LineKind,
+    pub kind: BlockKind,
     /// Première ligne de son paragraphe : la seule qui porte la puce.
     pub first: bool,
     /// Début du paragraphe brut, préfixe compris — là où un curseur posé dans le préfixe
@@ -248,28 +229,56 @@ fn span_at(spans: &[Span], at: usize) -> Option<&Span> {
     found.ok().map(|i| &spans[i])
 }
 
-/// Les tranches d'un paragraphe, préfixe de bloc compris.
+/// Les tranches d'un paragraphe, signes de bloc compris, **relatives au paragraphe**.
 ///
-/// Le préfixe (`# `, `- `) est un signe au même titre que `**` : c'est ce qui le fait
-/// disparaître au repos et revenir à l'édition, sans code particulier nulle part (MODE-1).
-fn paragraph_spans(paragraph: &str, prefix: usize) -> Vec<Span> {
-    // Le cas courant — un paragraphe sans préfixe de bloc — n'a rien à décaler ni à recopier.
-    if prefix == 0 {
+/// Le préfixe (`# `, `> `, `1. `) et le suffixe (le `$$` de fermeture) sont des signes au
+/// même titre que `**` : c'est ce qui les fait disparaître au repos et revenir à l'édition,
+/// sans code particulier nulle part (MODE-1).
+///
+/// Un bloc littéral — du code, une formule — n'est pas analysé : ses octets se lisent tels
+/// quels, et son corps ne fait qu'une tranche.
+fn paragraph_spans(paragraph: &str, block: Block) -> Vec<Span> {
+    let (prefix, suffix) = (block.prefix, block.suffix);
+    let body = prefix..paragraph.len() - suffix;
+
+    // Le cas courant — un paragraphe sans signe de bloc à analyser — n'a rien à décaler ni à
+    // recopier.
+    if prefix == 0 && suffix == 0 && !block.kind.literal() {
         return inline_spans(paragraph);
     }
-    let inner = inline_spans(&paragraph[prefix..]);
-    let mut spans = Vec::with_capacity(inner.len() + 1);
-    spans.push(Span {
-        start: 0,
-        end: prefix,
+
+    let inner = if block.kind.literal() {
+        (!body.is_empty())
+            .then(|| Span {
+                start: 0,
+                end: body.len(),
+                emphasis: Emphasis::NONE,
+                role: SpanRole::Text,
+            })
+            .into_iter()
+            .collect()
+    } else {
+        inline_spans(&paragraph[body.clone()])
+    };
+
+    let mut spans = Vec::with_capacity(inner.len() + 2);
+    let mark = |start, end| Span {
+        start,
+        end,
         emphasis: Emphasis::NONE,
         role: SpanRole::Marker,
-    });
+    };
+    if prefix > 0 {
+        spans.push(mark(0, prefix));
+    }
     spans.extend(inner.into_iter().map(|s| Span {
         start: s.start + prefix,
         end: s.end + prefix,
         ..s
     }));
+    if suffix > 0 {
+        spans.push(mark(paragraph.len() - suffix, paragraph.len()));
+    }
     spans
 }
 
@@ -282,69 +291,94 @@ pub fn layout_rich_text(
     mode: TextMode,
 ) -> TextLayout {
     let mut out = TextLayout::default();
-    let mut offset = 0usize;
-
-    for paragraph in source.split('\n') {
-        let (kind, prefix) = LineKind::of(paragraph);
-
-        if kind == LineKind::Math {
-            layout_formula(&mut out, math, paragraph, offset, bx);
-            offset += paragraph.len() + 1;
-            continue;
-        }
-
-        let spans = paragraph_spans(paragraph, prefix);
-        let base = kind.emphasis();
-        let font = kind.font(bx.body);
-        let usable = (bx.usable - kind.indent(bx.bullet_indent)).max(bx.body);
-
-        let advance = |at: usize, ch: char| {
-            let span = span_at(&spans, at);
-            // MODE-1 : au repos, un signe n'occupe aucune place — c'est tout ce qui distingue
-            // les deux vues, et la coupe des lignes en découle sans autre traitement.
-            if mode == TextMode::Rendered && span.is_some_and(|s| s.role == SpanRole::Marker) {
-                return 0.0;
+    for block in blocks(source) {
+        match block.kind {
+            BlockKind::Math { display } => {
+                layout_formula(&mut out, math, source, block, display, bx)
             }
-            let emphasis = span.map_or(Emphasis::NONE, |s| s.emphasis);
-            let face = Face::from(base.union(emphasis));
-            typography.advance(ch, font, face)
-        };
-
-        for (i, (s, e)) in wrap_paragraph(paragraph, usable, advance)
-            .into_iter()
-            .enumerate()
-        {
-            let from = out.fragments.len();
-            for span in spans.iter().filter(|sp| sp.start < e && sp.end > s) {
-                if mode == TextMode::Rendered && span.role == SpanRole::Marker {
-                    continue;
-                }
-                out.fragments.push(Fragment {
-                    start: offset + span.start.max(s),
-                    end: offset + span.end.min(e),
-                    // Un signe ne porte jamais l'emphase qu'il commande — et le `# ` d'un
-                    // titre commande le gras de sa ligne au même titre que `**` commande
-                    // celui d'un mot. Il garde donc le **corps** du titre, qui est sa taille,
-                    // sans en prendre la graisse : c'est ce qui le distingue du texte à côté.
-                    emphasis: match span.role {
-                        SpanRole::Marker => span.emphasis,
-                        SpanRole::Text => base.union(span.emphasis),
-                    },
-                    role: span.role,
-                });
-            }
-            out.lines.push(VisualLine {
-                start: offset + s,
-                end: offset + e,
-                kind,
-                first: i == 0,
-                paragraph_start: offset,
-                fragments: from..out.fragments.len(),
-            });
+            // Un trait, une clôture : rien à mesurer. Au repos la clôture ne prend même pas
+            // de place — on n'a pas à voir un blanc là où un signe s'est effacé. En édition
+            // elle redevient une ligne comme une autre, parce qu'on doit pouvoir la corriger.
+            BlockKind::Fence if mode == TextMode::Rendered => {}
+            BlockKind::Rule => out.lines.push(bare_line(block, block.kind)),
+            _ => layout_paragraph(&mut out, typography, source, block, bx, mode),
         }
-        offset += paragraph.len() + 1;
     }
     out
+}
+
+/// Une ligne sans texte : elle occupe son rang et ne porte aucun fragment.
+fn bare_line(block: Block, kind: BlockKind) -> VisualLine {
+    VisualLine {
+        start: block.start,
+        end: block.end,
+        kind,
+        first: true,
+        paragraph_start: block.start,
+        fragments: 0..0,
+    }
+}
+
+/// Un paragraphe de texte : sa largeur utile, ses tranches, ses lignes refluées.
+fn layout_paragraph(
+    out: &mut TextLayout,
+    typography: &Typography,
+    source: &str,
+    block: Block,
+    bx: TextBox,
+    mode: TextMode,
+) {
+    let paragraph = block.slice(source);
+    let offset = block.start;
+    let spans = paragraph_spans(paragraph, block);
+    let base = emphasis_of(block.kind);
+    let font = font_of(block.kind, bx.body);
+    let usable = (bx.usable - indent_of(block.kind, bx.bullet_indent)).max(bx.body);
+
+    let advance = |at: usize, ch: char| {
+        let span = span_at(&spans, at);
+        // MODE-1 : au repos, un signe n'occupe aucune place — c'est tout ce qui distingue
+        // les deux vues, et la coupe des lignes en découle sans autre traitement.
+        if mode == TextMode::Rendered && span.is_some_and(|s| s.role == SpanRole::Marker) {
+            return 0.0;
+        }
+        let emphasis = span.map_or(Emphasis::NONE, |s| s.emphasis);
+        let face = Face::from(base.union(emphasis));
+        typography.advance(ch, font, face)
+    };
+
+    for (i, (s, e)) in wrap_paragraph(paragraph, usable, advance)
+        .into_iter()
+        .enumerate()
+    {
+        let from = out.fragments.len();
+        for span in spans.iter().filter(|sp| sp.start < e && sp.end > s) {
+            if mode == TextMode::Rendered && span.role == SpanRole::Marker {
+                continue;
+            }
+            out.fragments.push(Fragment {
+                start: offset + span.start.max(s),
+                end: offset + span.end.min(e),
+                // Un signe ne porte jamais l'emphase qu'il commande — et le `# ` d'un
+                // titre commande le gras de sa ligne au même titre que `**` commande
+                // celui d'un mot. Il garde donc le **corps** du titre, qui est sa taille,
+                // sans en prendre la graisse : c'est ce qui le distingue du texte à côté.
+                emphasis: match span.role {
+                    SpanRole::Marker => span.emphasis,
+                    SpanRole::Text => base.union(span.emphasis),
+                },
+                role: span.role,
+            });
+        }
+        out.lines.push(VisualLine {
+            start: offset + s,
+            end: offset + e,
+            kind: block.kind,
+            first: i == 0,
+            paragraph_start: offset,
+            fragments: from..out.fragments.len(),
+        });
+    }
 }
 
 /// Une formule occupe **plusieurs hauteurs de ligne**, mais une seule d'entre elles porte sa
@@ -354,13 +388,13 @@ pub fn layout_rich_text(
 fn layout_formula(
     out: &mut TextLayout,
     math: &MathRenderer,
-    paragraph: &str,
-    offset: usize,
+    source: &str,
+    block: Block,
+    display: bool,
     bx: TextBox,
 ) {
-    let (corps, mode) = formule_entiere(paragraph).expect("le genre vient d'être reconnu");
     let hauteur = math
-        .measure(corps, mode, bx.body)
+        .measure(block.body_slice(source), mode_of(display), bx.body)
         .map(|(_, h, d)| h + d)
         .unwrap_or(bx.line_height);
     let rangs = (hauteur / bx.line_height).ceil().max(1.0) as usize;
@@ -368,24 +402,32 @@ fn layout_formula(
         let from = out.fragments.len();
         if i == 0 {
             out.fragments.push(Fragment {
-                start: offset,
-                end: offset + paragraph.len(),
+                start: block.start,
+                end: block.end,
                 emphasis: Emphasis::NONE,
                 role: SpanRole::Text,
             });
         }
         out.lines.push(VisualLine {
-            start: if i == 0 {
-                offset
-            } else {
-                offset + paragraph.len()
-            },
-            end: offset + paragraph.len(),
-            kind: LineKind::Math,
+            start: if i == 0 { block.start } else { block.end },
+            end: block.end,
+            kind: block.kind,
             first: i == 0,
-            paragraph_start: offset,
+            paragraph_start: block.start,
             fragments: from..out.fragments.len(),
         });
+    }
+}
+
+/// Le booléen du noyau, traduit dans le vocabulaire de la crate des formules.
+///
+/// C'est la seule ligne où les deux se rencontrent : `glucose-core` n'a aucune dépendance, et
+/// ne peut donc pas nommer `glucose_math::Mode` lui-même.
+pub fn mode_of(display: bool) -> glucose_math::Mode {
+    if display {
+        glucose_math::Mode::Display
+    } else {
+        glucose_math::Mode::Inline
     }
 }
 
