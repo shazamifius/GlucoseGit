@@ -92,10 +92,21 @@ pub struct Theme {
     pub snap_guide: Color,
     /// `hairline-selection` — cadre de l'élément sélectionné, blanc pur à 0,80 (§ 2.2, § 4.2).
     pub selection_frame: Color,
-    /// Le cadre d'un nœud **verrouillé** : rouge `#f87171` (fiche 06 § 4.3), canevas et
-    /// minimap. Le même rouge que l'état « Verrouillé » de la barre d'action (fiche 10),
-    /// parce que c'est le même fait dit à deux endroits.
-    pub selection_locked: Color,
+    /// **Le rouge de l'interface** : ce qui est verrouillé, et ce qui détruit.
+    ///
+    /// `#f87171`, une seule valeur pour trois usages — le cadre d'un nœud verrouillé
+    /// (fiche 06 § 4.3), le libellé du bouton « Verrouillé » et le survol de « Supprimer »
+    /// (fiche 10). La référence n'en a qu'une pour les trois.
+    ///
+    /// À ne pas confondre avec [`Theme::danger`] (`#ef4444`), qui est le rouge du
+    /// **contenu** : un prédicat de flèche « contredit », un fichier rompu, une couleur de
+    /// preset. Deux rouges parce que la référence en a deux, et qu'ils ne parlent pas de la
+    /// même chose — l'un qualifie ce que l'utilisateur a écrit, l'autre l'état d'un bouton.
+    pub alert: Color,
+    /// Le fond d'une action en état d'alerte : `#2a1a1a`.
+    pub alert_bg: Color,
+    /// Son filet : `#553333`.
+    pub alert_border: Color,
     /// Sélection élastique (fiche 07 § 7.3) : contour blanc à 0,50, intérieur blanc à 0,03.
     pub rubberband_stroke: Color,
     pub rubberband_fill: Color,
@@ -244,7 +255,9 @@ impl Theme {
 
             snap_guide: hexa(0xffffff, 77),
             selection_frame: hexa(0xffffff, 204),
-            selection_locked: hex(0xf87171),
+            alert: hex(0xf87171),
+            alert_bg: hex(0x2a1a1a),
+            alert_border: hex(0x553333),
             rubberband_stroke: hexa(0xffffff, 128),
             rubberband_fill: hexa(0xffffff, 8),
 
@@ -386,10 +399,21 @@ mod tests {
         );
         // Fiche 06 § 4.3 — le cadre d'un nœud verrouillé, et le même rouge que l'état
         // « Verrouillé » de la barre d'action (fiche 10).
+        assert_eq!(rgba(t.alert), (0xf8, 0x71, 0x71, 255), "alert #f87171");
         assert_eq!(
-            rgba(t.selection_locked),
-            (0xf8, 0x71, 0x71, 255),
-            "selection-locked #f87171"
+            rgba(t.alert_bg),
+            (0x2a, 0x1a, 0x1a, 255),
+            "alert-bg #2a1a1a"
+        );
+        assert_eq!(
+            rgba(t.alert_border),
+            (0x55, 0x33, 0x33, 255),
+            "alert-border #553333"
+        );
+        assert_ne!(
+            rgba(t.alert),
+            rgba(t.danger),
+            "deux rouges, deux rôles : l'interface et le contenu"
         );
         assert_eq!(
             rgba(t.rubberband_stroke),
@@ -463,10 +487,10 @@ mod tests {
     /// La loi de la couleur : la chrome est monochrome. Tout jeton de surface, de filet, de
     /// texte ou de bouton a ses trois composantes égales — hors le seul accent.
     ///
-    /// N'y figurent pas les jetons qui colorent un **état du contenu** plutôt que la chrome :
-    /// `text_selection` (bleu) et `selection_locked` (rouge). Ce ne sont pas des exceptions
-    /// arbitraires : la fiche 06 leur donne leur valeur explicitement, parce qu'un état qui
-    /// doit se lire d'un coup d'œil ne peut pas le faire en gris parmi des gris.
+    /// N'y figurent pas les jetons qui colorent un **état** plutôt qu'une surface :
+    /// `text_selection` (bleu) et la famille `alert*` (rouge). Ce ne sont pas des exceptions
+    /// arbitraires : les fiches 06 et 10 leur donnent leur valeur explicitement, parce qu'un
+    /// état qui doit se lire d'un coup d'œil ne peut pas le faire en gris parmi des gris.
     #[test]
     fn test_every_chrome_token_is_a_neutral_grey() {
         let t = Theme::dark();

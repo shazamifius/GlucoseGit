@@ -302,6 +302,36 @@ pub const WITNESS_SIZE: (u32, u32) = (1800, 900);
 /// contenir, et ce qu'un test peut vérifier sans dessiner.
 pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -260.0, 780.0, 490.0);
 
+/// **Le témoin, avec quelque chose de sélectionné.**
+///
+/// Ce que [`witness`] ne peut pas montrer : les poignées d'un nœud pris, le cadre rouge d'une
+/// image verrouillée, et la barre d'action qui n'apparaît qu'avec une sélection. Trois choses
+/// que rien ne tenait, parce que la scène témoin se termine par `clear_selection`.
+///
+/// Deux images : l'une verrouillée, l'autre non, pour que la même capture montre le cadre
+/// rouge sans poignées **et** le cadre blanc avec les siennes. Elles n'ont pas de fichier —
+/// c'est volontaire, cela couvre au passage le rendu d'une image introuvable.
+pub fn witness_selected() -> Store {
+    let mut store = witness();
+    let board = store.project.active_board_id.clone();
+    store.begin_live_edit();
+
+    let mut libre = BoardImage::new("img-libre", -300.0, 400.0, 220.0, 150.0);
+    libre.id = "img-libre".to_string();
+    store.add_image(&board, libre);
+
+    let mut fermee = BoardImage::new("img-verrouillee", -40.0, 400.0, 220.0, 150.0);
+    fermee.id = "img-verrouillee".to_string();
+    fermee.locked = true;
+    store.add_image(&board, fermee);
+
+    store.end_live_edit();
+    store.set_selected_image_ids(vec!["img-libre".into(), "img-verrouillee".into()]);
+    store.set_selected_annotation_ids(vec!["t-accents".into()]);
+    store.journal.clear();
+    store
+}
+
 /// **La vitrine** : un document soigné, fait pour être montré.
 ///
 /// Elle n'a pas le rôle de [`witness`], qui existe pour être comparée à elle-même. Celle-ci

@@ -51,6 +51,7 @@ fn main() {
     for (nom, store, w, h) in [
         ("temoin", &temoin, w0, h0),
         ("temoin-dezoome", &dezoome, w0, h0),
+        ("temoin-selection", &synth::witness_selected(), w0, h0),
         ("vitrine", &vitrine, 1920u32, 1080u32),
         ("vitrine-large", &vitrine_large, 1920, 1080),
         ("vitrine-zoom", &vitrine_zoom, 1600, 900),

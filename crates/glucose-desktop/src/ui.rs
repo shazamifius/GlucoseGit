@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 pub const TOPBAR_HEIGHT: f32 = 44.0;
+pub mod action_bar;
 pub mod breadcrumb;
 
 pub const TABS_HEIGHT: f32 = 34.0;
@@ -304,7 +305,10 @@ pub fn render_ui(
         &mut ui.minimap_cache,
     );
 
-    // 4. Toast notification (au centre en bas)
+    // 4. Barre d'action contextuelle — sous le toast, qui doit rester lisible par-dessus.
+    action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
+
+    // 5. Toast notification (au centre en bas)
     if let Some(ref toast) = ui.current_toast {
         render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
     }

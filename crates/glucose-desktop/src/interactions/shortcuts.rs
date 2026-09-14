@@ -63,10 +63,7 @@ impl GlucoseApp {
             Key::Named(NamedKey::ArrowUp) => self.nudge(0.0, -1.0),
             Key::Named(NamedKey::ArrowDown) => self.nudge(0.0, 1.0),
             Key::Named(NamedKey::Delete) | Key::Named(NamedKey::Backspace) => {
-                let active_bid = self.store.project.active_board_id.clone();
-                self.store.delete_selected(&active_bid);
-                self.ui.show_toast("Supprimé");
-                self.mark_dirty();
+                self.delete_selection();
             }
             Key::Character(ref c) => {
                 let key = c.as_str();
@@ -200,8 +197,20 @@ impl GlucoseApp {
         }
     }
 
+    /// Supprime la sélection entière.
+    ///
+    /// Un geste, un endroit : la touche `Suppr` et le bouton de la barre d'action appellent
+    /// la même fonction. Deux chemins vers un même geste finissent toujours par diverger —
+    /// l'un oublie le toast, l'autre le `mark_dirty`.
+    pub(crate) fn delete_selection(&mut self) {
+        let board = self.store.project.active_board_id.clone();
+        self.store.delete_selected(&board);
+        self.ui.show_toast("Supprimé");
+        self.mark_dirty();
+    }
+
     /// Bascule le verrou des images sélectionnées (fiche 08 § 1.3).
-    fn toggle_lock(&mut self) {
+    pub(crate) fn toggle_lock(&mut self) {
         let board = self.store.project.active_board_id.clone();
         let Some(locked) = self.store.toggle_lock_selection(&board) else {
             return;

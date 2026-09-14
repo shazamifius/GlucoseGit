@@ -202,6 +202,25 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
     );
 }
 
+/// L'empreinte de la scène témoin **avec une sélection**.
+///
+/// Elle couvre ce que la première ne peut pas montrer, puisqu'elle se termine par
+/// `clear_selection` : les huit poignées d'un nœud pris, le cadre rouge d'une image
+/// verrouillée et l'absence de ses poignées, et la barre d'action qui n'existe qu'avec une
+/// sélection.
+const EMPREINTE_TEMOIN_SELECTION: &str = "bd4d3b92012a2dbb";
+
+#[test]
+fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
+    let (w, h) = synth::WITNESS_SIZE;
+    let png = capture(&synth::witness_selected(), w, h);
+    let obtenue = &glucose_core::hash::hex_of(&glucose_core::hash::sha256(&png))[..16];
+    assert_eq!(
+        obtenue, EMPREINTE_TEMOIN_SELECTION,
+        "le rendu d'une sélection a changé — lancer `cargo run -p glucose-desktop          --example capture_temoin`, regarder `temoin-selection.png`, puis mettre          EMPREINTE_TEMOIN_SELECTION à jour si le changement est voulu"
+    );
+}
+
 /// Le cadrage de la scène témoin met vraiment tout son contenu dans la fenêtre, sous le
 /// bandeau. C'est ce qui rend la capture utile : une scène mal cadrée ne prouverait que le
 /// fond du canevas.

@@ -336,7 +336,7 @@ pub(super) fn draw_images(
             // de ses poignées (fiche 06 § 4.3) : les deux disent le même fait, l'un de loin,
             // l'autre au moment où la main cherche une prise.
             let ink = if img.locked {
-                theme.selection_locked
+                theme.alert
             } else {
                 theme.selection_frame
             };
