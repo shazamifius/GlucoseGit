@@ -83,6 +83,12 @@ impl GlucoseApp {
     /// un redimensionnement, qui reprend sa taille de départ ; la fiche 03 § 19.6 en attend
     /// davantage (tout geste courant), et c'est ici que les autres viendront.
     fn escape_gesture(&mut self) {
+        // Un menu ouvert est ce qu'on annule en premier : c'est le geste le plus récent, et
+        // celui qui attend une décision.
+        if self.ui.context_menu_at.take().is_some() {
+            self.mark_dirty();
+            return;
+        }
         if self.cancel_resize() {
             self.ui.show_toast("Redimensionnement annulé");
         }
@@ -103,7 +109,6 @@ impl GlucoseApp {
         if !self.modifiers.control_key() {
             return false;
         }
-        let active_bid = self.store.project.active_board_id.clone();
         match key {
             "v" | "V" => self.paste_from_clipboard(),
             "z" | "Z" => {
@@ -119,10 +124,7 @@ impl GlucoseApp {
                 let done = self.store.redo();
                 self.toast_if(done, "Rétablir");
             }
-            "d" | "D" => {
-                self.store.duplicate_selected(&active_bid);
-                self.ui.show_toast("Dupliqué");
-            }
+            "d" | "D" => self.duplicate_selection(),
             "a" | "A" => self.select_all(),
             "]" => self.restack(StackMove::Front),
             "[" => self.restack(StackMove::Back),
@@ -197,6 +199,14 @@ impl GlucoseApp {
         }
     }
 
+    /// Duplique la sélection entière.
+    pub(crate) fn duplicate_selection(&mut self) {
+        let board = self.store.project.active_board_id.clone();
+        self.store.duplicate_selected(&board);
+        self.ui.show_toast("Dupliqué");
+        self.mark_dirty();
+    }
+
     /// Supprime la sélection entière.
     ///
     /// Un geste, un endroit : la touche `Suppr` et le bouton de la barre d'action appellent
@@ -227,7 +237,7 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    fn select_all(&mut self) {
+    pub(crate) fn select_all(&mut self) {
         let Some(board) = self.store.active_board() else {
             return;
         };

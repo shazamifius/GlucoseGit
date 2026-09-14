@@ -221,6 +221,25 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
     );
 }
 
+/// L'empreinte du menu contextuel ouvert.
+///
+/// Il n'est pas dans le document : sans [`capture_with`], rien ne tiendrait son rendu — ni
+/// ses entrées, ni ses filets, ni l'alignement à droite de ses raccourcis.
+const EMPREINTE_TEMOIN_MENU: &str = "248c7dea96d2c816";
+
+#[test]
+fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {
+    let (w, h) = synth::WITNESS_SIZE;
+    let png = capture_with(&synth::witness_selected(), w, h, |ui| {
+        ui.context_menu_at = Some((640.0, 320.0));
+    });
+    let obtenue = &glucose_core::hash::hex_of(&glucose_core::hash::sha256(&png))[..16];
+    assert_eq!(
+        obtenue, EMPREINTE_TEMOIN_MENU,
+        "le rendu du menu contextuel a changé — lancer `cargo run -p glucose-desktop          --example capture_temoin`, regarder `temoin-menu.png`, puis mettre          EMPREINTE_TEMOIN_MENU à jour si le changement est voulu"
+    );
+}
+
 /// Le cadrage de la scène témoin met vraiment tout son contenu dans la fenêtre, sous le
 /// bandeau. C'est ce qui rend la capture utile : une scène mal cadrée ne prouverait que le
 /// fond du canevas.

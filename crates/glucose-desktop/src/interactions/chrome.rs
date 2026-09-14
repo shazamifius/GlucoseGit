@@ -10,8 +10,10 @@ use crate::dock::TabId;
 use crate::interactions::mouse::NOT_YET_EXPORT;
 use crate::params::{Pointer, ScreenFrame};
 use crate::ui::action_bar::ActionBarClick;
+use crate::ui::context_menu::MenuAction;
 use crate::ui::{handle_ui_click, UiAction};
 use glucose_core::membrane_focus::ScreenSize;
+use glucose_core::store::StackMove;
 use glucose_core::types::Viewport;
 
 impl GlucoseApp {
@@ -35,6 +37,73 @@ impl GlucoseApp {
             screen_size(screen),
         );
         true
+    }
+
+    /// Un clic droit relâché **sur place** ouvre le menu contextuel ; un clic droit qui a
+    /// déplacé le curseur était un pan, et n'ouvre rien.
+    ///
+    /// Le seuil est celui du double-clic (`DOUBLE_CLICK_SLOP_PX`) : la même tolérance de main
+    /// tremblante, et une constante de moins.
+    pub fn open_context_menu_if_still(&mut self) {
+        let Some((dx, dy)) = self.right_down_at.take() else {
+            return;
+        };
+        let bouge = (dx - self.mouse_pos.0).hypot(dy - self.mouse_pos.1);
+        if bouge > super::pick::DOUBLE_CLICK_SLOP_PX {
+            return;
+        }
+        self.ui.context_menu_at = Some((self.mouse_pos.0 as f32, self.mouse_pos.1 as f32));
+        self.mark_dirty();
+    }
+
+    /// Le menu contextuel prend le clic gauche avant toute autre couche : tant qu'il est
+    /// ouvert, c'est lui qui attend une décision.
+    ///
+    /// Il prend **tout** ce qui tombe sur lui, entrée ou pas, et se referme dans les deux cas
+    /// — cliquer à côté ferme, comme dans n'importe quel menu.
+    pub fn click_context_menu(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
+        let Some(at) = self.ui.context_menu_at else {
+            return false;
+        };
+        let menu = crate::ui::context_menu::layout_context_menu(
+            &self.store,
+            &self.renderer.typography,
+            at,
+            (screen.width, screen.height),
+            self.ui.scale_factor,
+        );
+        self.ui.context_menu_at = None;
+        self.mark_dirty();
+        let Some(menu) = menu else {
+            return false;
+        };
+        if !crate::ui::context_menu::covers(&menu, pointer.x, pointer.y) {
+            // Le clic n'était pas pour le menu : il le referme et continue sa descente.
+            return false;
+        }
+        if let Some(action) = crate::ui::context_menu::hit_context_menu(&menu, pointer.x, pointer.y)
+        {
+            self.apply_menu_action(action);
+        }
+        true
+    }
+
+    fn apply_menu_action(&mut self, action: MenuAction) {
+        let board = self.store.project.active_board_id.clone();
+        match action {
+            MenuAction::Duplicate => self.duplicate_selection(),
+            MenuAction::ToggleLock => self.toggle_lock(),
+            MenuAction::ToFront => {
+                self.store.move_selection_in_stack(&board, StackMove::Front);
+            }
+            MenuAction::ToBack => {
+                self.store.move_selection_in_stack(&board, StackMove::Back);
+            }
+            MenuAction::Delete => self.delete_selection(),
+            MenuAction::Paste => self.paste_from_clipboard(),
+            MenuAction::SelectAll => self.select_all(),
+        }
+        self.mark_dirty();
     }
 
     /// La barre d'action contextuelle, en bas de l'écran (fiche 10 § 3).

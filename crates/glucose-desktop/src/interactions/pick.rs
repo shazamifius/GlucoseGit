@@ -17,7 +17,7 @@ use glucose_core::hit_priority::{
 use glucose_core::types::Annotation;
 
 /// Au-delà de ce déplacement écran entre deux clics, ce n'est plus un double-clic.
-const DOUBLE_CLICK_SLOP_PX: f64 = 8.0;
+pub(crate) const DOUBLE_CLICK_SLOP_PX: f64 = 8.0;
 
 impl GlucoseApp {
     /// Le clic a traversé toutes les couches de l'interface : il est pour le canevas.

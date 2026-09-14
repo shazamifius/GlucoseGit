@@ -89,6 +89,11 @@ impl GlucoseApp {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = true;
                 self.is_panning = true;
+                // Un menu ouvert se referme au premier clic, où qu'il soit.
+                self.ui.context_menu_at = None;
+                if button == MouseButton::Right {
+                    self.right_down_at = Some(self.mouse_pos);
+                }
             }
             MouseButton::Left => self.handle_left_down(self.screen_frame(screen_w, screen_h)),
             _ => return,
@@ -100,7 +105,8 @@ impl GlucoseApp {
     /// Le clic gauche descend les couches ; la première qui le prend l'arrête.
     fn handle_left_down(&mut self, screen: ScreenFrame) {
         let pointer = self.pointer();
-        let taken = self.click_skips_flight()
+        let taken = self.click_context_menu(pointer, screen)
+            || self.click_skips_flight()
             || self.click_breadcrumb(pointer, screen)
             || self.click_action_bar(pointer, screen)
             || self.click_chrome(pointer, screen)
@@ -123,6 +129,9 @@ impl GlucoseApp {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = false;
                 self.is_panning = false;
+                if button == MouseButton::Right {
+                    self.open_context_menu_if_still();
+                }
             }
             MouseButton::Left => {
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
