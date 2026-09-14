@@ -39,6 +39,7 @@
 
 pub mod draw;
 pub mod hit;
+pub mod table;
 
 use super::math::MathRenderer;
 use super::wrap::wrap_paragraph;
@@ -147,14 +148,29 @@ pub fn indent_of(kind: BlockKind, unit: f32) -> f32 {
     }
 }
 
+/// Valeur de [`Fragment::tab`] qui veut dire « à la suite du fragment précédent ».
+///
+/// Une sentinelle plutôt qu'un `Option<f32>` : ce champ n'existe que pour les cellules d'un
+/// tableau, qui sont rares, et un `Option` ferait grossir d'un tiers une structure allouée
+/// par milliers à chaque image. Un taquet est toujours positif ou nul, donc une abscisse
+/// négative ne peut désigner aucune colonne.
+pub const NO_TAB: f32 = -1.0;
+
 /// Un morceau de ligne dessiné d'un seul trait : même visage, même emphase, même rôle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Fragment {
     /// Tranche `[start, end)` de la **source**, jamais d'un texte reconstruit.
     pub start: usize,
     pub end: usize,
     pub emphasis: Emphasis,
     pub role: SpanRole,
+    /// L'abscisse où ce fragment commence, depuis le début de sa ligne — ou [`NO_TAB`] pour
+    /// « là où le précédent s'est arrêté », qui est le cas de tout ce qui n'est pas un
+    /// tableau.
+    ///
+    /// C'est ce qui permet à des colonnes de s'aligner : sans taquet, un fragment ne peut
+    /// que suivre, et deux lignes de longueurs différentes ne tomberaient jamais en face.
+    pub tab: f32,
 }
 
 impl Fragment {
@@ -164,7 +180,7 @@ impl Fragment {
 }
 
 /// Une ligne visuelle : sa tranche de source, son genre, et ses fragments.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VisualLine {
     pub start: usize,
     pub end: usize,
@@ -183,7 +199,7 @@ pub struct VisualLine {
 /// Les fragments de toutes les lignes vivent dans un seul tableau, chaque ligne n'en
 /// désignant qu'une plage : une mise en page, une allocation, quel que soit le nombre de
 /// styles — ce qui compte puisqu'elle est recalculée à chaque frame pour chaque carte visible.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct TextLayout {
     pub lines: Vec<VisualLine>,
     pub fragments: Vec<Fragment>,
@@ -291,7 +307,21 @@ pub fn layout_rich_text(
     mode: TextMode,
 ) -> TextLayout {
     let mut out = TextLayout::default();
-    for block in blocks(source) {
+    // Les blocs sont collectés plutôt que parcourus au fil de l'eau : un tableau ne se met en
+    // page qu'en voyant **toutes** ses lignes d'un coup, puisque la largeur d'une colonne est
+    // la plus large de ses cellules. Une allocation par carte visible, contre des colonnes
+    // qui ne s'alignent pas.
+    let liste: Vec<Block> = blocks(source).collect();
+    let mut i = 0usize;
+    while i < liste.len() {
+        let block = liste[i];
+        if block.kind.in_table() {
+            let fin = liste[i..].iter().take_while(|b| b.kind.in_table()).count() + i;
+            table::layout_table(&mut out, typography, source, &liste[i..fin], bx, mode);
+            i = fin;
+            continue;
+        }
+        i += 1;
         match block.kind {
             // Une formule est une **formule au repos, et du texte pendant qu'on l'écrit**.
             // C'est ce que le tracé faisait déjà — il montre la source en édition, parce
@@ -363,6 +393,7 @@ fn layout_paragraph(
                 continue;
             }
             out.fragments.push(Fragment {
+                tab: NO_TAB,
                 start: offset + span.start.max(s),
                 end: offset + span.end.min(e),
                 // Un signe ne porte jamais l'emphase qu'il commande — et le `# ` d'un
@@ -408,6 +439,7 @@ fn layout_formula(
         let from = out.fragments.len();
         if i == 0 {
             out.fragments.push(Fragment {
+                tab: NO_TAB,
                 start: block.start,
                 end: block.end,
                 emphasis: Emphasis::NONE,

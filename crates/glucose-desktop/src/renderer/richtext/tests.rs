@@ -253,3 +253,105 @@ fn test_une_formule_est_du_texte_pendant_quon_lecrit() {
         "elle reste une formule pour qui l'interroge"
     );
 }
+
+// ── Les tableaux (fiche 08 § 2.1) ────────────────────────────────────────────
+
+fn table_layout(source: &str) -> TextLayout {
+    let typo = Typography::new();
+    let math = MathRenderer::new();
+    layout_rich_text(
+        &typo,
+        &math,
+        source,
+        TextBox {
+            usable: 400.0,
+            body: 14.0,
+            bullet_indent: 14.0,
+            line_height: 19.6,
+        },
+        TextMode::Rendered,
+    )
+}
+
+/// TABLE-1 — deux lignes de longueurs différentes mettent quand même leurs colonnes en face.
+#[test]
+fn test_table_1_les_colonnes_salignent_dune_ligne_a_lautre() {
+    let source = "| a | court |\n|---|---|\n| beaucoup plus long | x |";
+    let layout = table_layout(source);
+
+    // Le taquet de la deuxième colonne, sur chaque ligne qui en a une.
+    let taquets: Vec<f32> = layout
+        .lines
+        .iter()
+        .filter(|l| !l.kind.silent())
+        .filter_map(|l| {
+            let frags = layout.fragments_of(l);
+            frags.iter().filter(|f| f.tab >= 0.0).nth(1).map(|f| f.tab)
+        })
+        .collect();
+
+    assert_eq!(taquets.len(), 2, "deux lignes de contenu");
+    assert!(
+        (taquets[0] - taquets[1]).abs() < 1e-6,
+        "les deuxièmes colonnes ne sont pas en face : {taquets:?}"
+    );
+    assert!(taquets[0] > 0.0, "et la colonne est bien décalée");
+}
+
+/// La ligne de séparation ne porte aucun texte : c'est un filet, pas des tirets à lire.
+#[test]
+fn test_la_ligne_de_separation_ne_porte_aucun_texte() {
+    let layout = table_layout("| a | b |\n|---|---|\n| c | d |");
+    let regle = layout
+        .lines
+        .iter()
+        .find(|l| l.kind == BlockKind::TableRule)
+        .expect("une ligne de séparation");
+    assert_eq!(layout.fragments_of(regle).len(), 0);
+}
+
+/// L'en-tête est la ligne qui précède la séparation, et elle seule.
+#[test]
+fn test_len_tete_est_la_ligne_avant_la_separation() {
+    let layout = table_layout("| a | b |\n|---|---|\n| c | d |");
+    let gras: Vec<bool> = layout
+        .lines
+        .iter()
+        .filter(|l| !l.kind.silent())
+        .map(|l| layout.fragments_of(l).iter().all(|f| f.emphasis.bold()))
+        .collect();
+    assert_eq!(gras, vec![true, false], "la première seulement");
+
+    // Sans séparation, aucune ligne n'est un en-tête : c'est une grille, pas un tableau.
+    let sans = table_layout("| a | b |\n| c | d |");
+    assert!(sans.fragments.iter().all(|f| !f.emphasis.bold()));
+}
+
+/// Un taquet ne sert qu'aux tableaux : partout ailleurs, un fragment suit le précédent.
+#[test]
+fn test_hors_tableau_aucun_fragment_ne_porte_de_taquet() {
+    for source in ["du corps", "# Titre", "- une puce", "**gras** et `code`"] {
+        let layout = table_layout(source);
+        assert!(
+            layout.fragments.iter().all(|f| f.tab == NO_TAB),
+            "{source:?} pose un taquet"
+        );
+    }
+}
+
+/// Les cellules gardent leur style : une cellule en gras le reste.
+#[test]
+fn test_une_cellule_garde_son_markdown() {
+    let source = "| a | b |\n|---|---|\n| **fort** | `code` |";
+    let layout = table_layout(source);
+    let derniere = layout.lines.last().expect("une dernière ligne");
+    let frags = layout.fragments_of(derniere);
+    assert!(
+        frags.iter().any(|f| f.emphasis.bold()),
+        "le gras d'une cellule"
+    );
+    assert!(
+        frags.iter().any(|f| f.emphasis.code()),
+        "et le code d'une autre"
+    );
+}

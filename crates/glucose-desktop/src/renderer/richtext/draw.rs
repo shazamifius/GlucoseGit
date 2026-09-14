@@ -40,6 +40,10 @@ pub(crate) fn draw_line(
     // fragment par fragment l'assombrirait par endroits, là où il doit être d'un seul ton.
     let plate = line.kind == BlockKind::Code;
     for fragment in layout.fragments_of(line) {
+        // Un taquet replace la plume : c'est ce qui aligne les colonnes d'un tableau.
+        if fragment.tab >= 0.0 {
+            x = at.0 + fragment.tab;
+        }
         x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source, plate);
     }
     x

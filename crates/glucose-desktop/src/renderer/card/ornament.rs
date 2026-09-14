@@ -42,7 +42,7 @@ pub(super) fn draw_ornament(
             draw_ordinal(ctx, pixmap, (left, y), layout, n, card.tint);
         }
         BlockKind::Quote => draw_quote_bar(pixmap, (left, y), layout, card.tint),
-        BlockKind::Rule => {
+        BlockKind::Rule | BlockKind::TableRule => {
             draw_rule(pixmap, (left, y), layout, card.tint);
             return true;
         }

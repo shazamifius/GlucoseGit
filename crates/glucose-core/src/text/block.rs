@@ -54,6 +54,16 @@ pub enum BlockKind {
     Ordered(u32),
     /// `> ` — une citation.
     Quote,
+    /// `| a | b |` — une ligne de tableau. Ses cellules se lisent par [`cells`].
+    ///
+    /// Rien ici ne dit si elle est un en-tête : cela dépend de la ligne **suivante**, et un
+    /// bloc ne regarde pas ses voisins. C'est la mise en page qui rassemble les lignes d'un
+    /// même tableau, parce que c'est elle qui a besoin de les voir ensemble pour aligner
+    /// leurs colonnes.
+    TableRow,
+    /// `|---|:--:|` — la ligne qui sépare l'en-tête du corps, et donne l'alignement des
+    /// colonnes. Elle ne se lit pas : elle se dessine en filet.
+    TableRule,
     /// `-# ` — du petit texte. Syntaxe maison : le Markdown n'a rien pour ça, et une note de
     /// bas de carte est un besoin courant sur un canva.
     Small,
@@ -81,7 +91,12 @@ impl BlockKind {
     /// Un bloc muet n'a aucun texte à donner au moteur de texte : sa ligne se dessine
     /// autrement, ou pas du tout.
     pub const fn silent(self) -> bool {
-        matches!(self, Self::Rule | Self::Fence)
+        matches!(self, Self::Rule | Self::Fence | Self::TableRule)
+    }
+
+    /// Ce bloc fait-il partie d'un tableau ?
+    pub const fn in_table(self) -> bool {
+        matches!(self, Self::TableRow | Self::TableRule)
     }
 }
 
@@ -196,6 +211,9 @@ fn classify(line: &str, fenced: bool) -> (BlockKind, usize, usize) {
     if bare.len() >= RULE_MIN && bare.bytes().all(|b| b == b'-') {
         return (BlockKind::Rule, bare.len(), line.len() - bare.len());
     }
+    if let Some(kind) = table_kind(line) {
+        return (kind, 0, 0);
+    }
     let hashes = line.bytes().take_while(|b| *b == b'#').count();
     if (1..=HEADING_MAX).contains(&hashes) && line[hashes..].starts_with(' ') {
         return (BlockKind::Heading(hashes as u8), hashes + 1, 0);
@@ -219,6 +237,66 @@ fn classify(line: &str, fenced: bool) -> (BlockKind, usize, usize) {
         return (BlockKind::Ordered(n), prefix, 0);
     }
     (BlockKind::Body, 0, 0)
+}
+
+/// Le genre d'une ligne de tableau, si c'en est une.
+///
+/// Il en faut deux : une barre en tête, et une autre quelque part après. Une seule ferait
+/// d'un `|` isolé en début de phrase un tableau à une cellule, ce que personne n'écrit en
+/// pensant à un tableau.
+fn table_kind(line: &str) -> Option<BlockKind> {
+    let bare = line.trim_end();
+    if !bare.starts_with('|') || bare.len() < 2 || !bare[1..].contains('|') {
+        return None;
+    }
+    // Une ligne de séparation ne contient, entre ses barres, que des tirets, des deux-points
+    // et des espaces — et au moins un tiret, sans quoi `| : |` en serait une.
+    let interieur = &bare[1..];
+    let separation = interieur.contains('-')
+        && interieur
+            .bytes()
+            .all(|b| matches!(b, b'-' | b':' | b' ' | b'|'));
+    Some(if separation {
+        BlockKind::TableRule
+    } else {
+        BlockKind::TableRow
+    })
+}
+
+/// Les cellules d'une ligne de tableau, comme tranches de `line`.
+///
+/// Les barres sont les séparateurs, pas des signes de tête : elles ne peuvent donc pas se
+/// dire par le préfixe et le suffixe d'un bloc, et c'est pour cela que cette fonction existe
+/// à côté. Une barre finale est facultative — `| a | b` et `| a | b |` donnent les deux mêmes
+/// cellules, parce que c'est ce que tout le monde écrit indifféremment.
+///
+/// Chaque tranche est **rognée de ses espaces** : ce qui sépare visuellement les colonnes
+/// dans la source ne doit pas décaler leur contenu à l'écran.
+pub fn cells(line: &str) -> Vec<Range<usize>> {
+    let bare = line.trim_end();
+    let Some(reste) = bare.strip_prefix('|') else {
+        return Vec::new();
+    };
+    let reste = reste.strip_suffix('|').unwrap_or(reste);
+    let depart = 1;
+    let mut out = Vec::new();
+    let mut debut = depart;
+    for (i, b) in reste.bytes().enumerate() {
+        if b == b'|' {
+            out.push(rogne(line, debut, depart + i));
+            debut = depart + i + 1;
+        }
+    }
+    out.push(rogne(line, debut, depart + reste.len()));
+    out
+}
+
+/// La tranche `[from, to)` sans les espaces qui la bordent.
+fn rogne(line: &str, from: usize, to: usize) -> Range<usize> {
+    let tranche = &line[from..to];
+    let gauche = tranche.len() - tranche.trim_start().len();
+    let droite = tranche.len() - tranche.trim_end().len();
+    from + gauche..(to - droite).max(from + gauche)
 }
 
 /// Le numéro d'un `12. `, et la longueur du signe qui le porte.

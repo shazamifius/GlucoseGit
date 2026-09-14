@@ -293,7 +293,7 @@ Glucose » se décide.*
 | 1.A.4 | **Édition réelle** : sélection au clavier et à la souris, ↑ ↓, Début/Fin, copier-coller **dans** le texte, et **IME** — sans quoi taper `é` est impossible | navigation ← → par octets |
 | 1.A.5 | **LaTeX** : `katex-rs` derrière une crate `glucose-math`, plus l'interprète de son arbre vers des positions absolues (§ 7.1) | les douze familles de fontes KaTeX sont **déjà dans le dépôt** |
 | 1.A.6 | **Courbes et graphes** à syntaxe PGFPlots, tracés nativement (§ 7.2) | le rastériseur |
-| 1.A.7 | Liens cliquables, tableaux | rien |
+| 1.A.7 | ✅ **Fait.** Liens `[texte](url)` bleus et soulignés, ouverts au `Ctrl`+clic (`http`/`https` seulement) ; tableaux GFM aux colonnes alignées, en-tête en gras, filet de séparation. | |
 | 1.A.8 | **Ancres de texte** : brancher `text_anchors` (224 l. mortes) — c'est ce qui permet à une flèche de partir d'une **phrase** et non d'une carte | 224 l. + tests |
 
 > **Sortie** : un document de la capture de production s'affiche **à l'identique**, vérifié par

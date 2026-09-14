@@ -275,3 +275,63 @@ fn test_blocks_index_the_real_bytes_even_with_accents() {
     assert_eq!(&source[found[0].body()], "Été");
     assert_eq!(&source[found[1].body()], "déjà");
 }
+
+// ── Les tableaux (fiche 08 § 2.1) ────────────────────────────────────────────
+
+/// Les cellules d'une ligne, telles qu'on les lit.
+fn cellules(line: &str) -> Vec<&str> {
+    cells(line).into_iter().map(|r| &line[r]).collect()
+}
+
+#[test]
+fn test_une_ligne_de_tableau_se_reconnait_a_ses_deux_barres() {
+    assert_eq!(read("| a | b |")[0].0, BlockKind::TableRow);
+    assert_eq!(read("| a | b")[0].0, BlockKind::TableRow);
+    // Une seule barre n'est pas un tableau : personne n'écrit ça en y pensant.
+    assert_eq!(read("| seul")[0].0, BlockKind::Body);
+    assert_eq!(read("pas | au début")[0].0, BlockKind::Body);
+    assert_eq!(read("|")[0].0, BlockKind::Body);
+}
+
+#[test]
+fn test_la_ligne_de_separation_se_distingue_du_contenu() {
+    assert_eq!(read("|---|---|")[0].0, BlockKind::TableRule);
+    assert_eq!(read("|:--|--:|")[0].0, BlockKind::TableRule);
+    assert_eq!(read("| --- | :---: |")[0].0, BlockKind::TableRule);
+    // Sans tiret, ce n'est pas une séparation.
+    assert_eq!(read("| : | : |")[0].0, BlockKind::TableRow);
+    assert_eq!(read("| a | b |")[0].0, BlockKind::TableRow);
+}
+
+#[test]
+fn test_les_cellules_sont_rognees_de_leurs_espaces() {
+    assert_eq!(cellules("| a | b |"), vec!["a", "b"]);
+    assert_eq!(cellules("|a|b|"), vec!["a", "b"]);
+    assert_eq!(cellules("|   a   |   b   |"), vec!["a", "b"]);
+    // La barre finale est facultative : les deux formes donnent les mêmes cellules.
+    assert_eq!(cellules("| a | b"), cellules("| a | b |"));
+}
+
+#[test]
+fn test_une_cellule_vide_reste_une_cellule() {
+    assert_eq!(cellules("| a |  | c |"), vec!["a", "", "c"]);
+    assert_eq!(cellules("|||"), vec!["", ""]);
+}
+
+/// Les tranches indexent bien la ligne : c'est ce dont le rendu et le curseur dépendent.
+#[test]
+fn test_les_cellules_indexent_les_vrais_octets() {
+    let line = "| été | déjà |";
+    let plages = cells(line);
+    assert_eq!(&line[plages[0].clone()], "été");
+    assert_eq!(&line[plages[1].clone()], "déjà");
+    for p in &plages {
+        assert!(line.is_char_boundary(p.start) && line.is_char_boundary(p.end));
+    }
+}
+
+#[test]
+fn test_un_tableau_dans_un_bloc_de_code_reste_du_code() {
+    let source = "```\n| a | b |\n```";
+    assert!(blocks(source).all(|b| !b.kind.in_table()));
+}

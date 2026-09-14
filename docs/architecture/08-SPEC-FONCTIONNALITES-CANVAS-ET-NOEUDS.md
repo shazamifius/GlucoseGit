@@ -34,7 +34,7 @@
 ### 2.1 Moteur de Rendu Texte
 > Le moteur comprend `#`, `##` et les puces `-`/`*` ; tout le reste est lu comme du corps (tenu par `test_the_markdown_the_card_understands_and_the_markdown_it_does_not`, qui tombera quand la suite sera écrite). L'édition se fait **dans la carte elle-même** — pas d'éditeur superposé à aligner « au millimètre » : la carte est l'éditeur. La saisie entière est une entrée d'annulation (fiche 09 § 2, `test_live_3`).
 
-* **À FAIRE** — **Markdown GFM** : titres H3 à H6, citations `>`, tableaux, blocs de code, gras `**concept**` et italique `*terme*`.
+> Tenu — **Markdown GFM** : titres `#` à `######`, citations `>`, listes à puces et numérotées, blocs de code clôturés, séparateurs, **tableaux** aux colonnes alignées, liens, gras, italique, barré, code en ligne, et le petit texte `-# ` de la maison. Les genres de bloc sont analysés dans `glucose_core::text::block`, les emphases dans `text::inline` ; le rendu ne garde que ce qui dépend d'une fonte.
 * **À DÉCIDER** — **Formules mathématiques** (`$E = mc^2$` en ligne, `$$…$$` en bloc). KaTeX est une bibliothèque JavaScript ; en Rust, c'est soit un moteur de composition mathématique à écrire, soit une dépendance lourde. À peser contre l'exigence 1 de la charte quand le rendu texte GPU sera posé.
 
 ### 2.2 Ancrage Fin de Flèches sur le Texte (`TextSelection`)
