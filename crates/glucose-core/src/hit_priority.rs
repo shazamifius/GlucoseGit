@@ -125,7 +125,6 @@ pub struct PickInput<'a> {
     pub selected_image_ids: &'a [String],
     pub selected_annotation_ids: &'a [String],
     pub selected_folder_id: Option<&'a str>,
-    pub arrow_id: Option<&'a str>,
     pub dom_hint: Option<DomHint<'a>>,
 }
 

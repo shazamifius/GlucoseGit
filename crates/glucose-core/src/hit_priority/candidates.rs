@@ -130,15 +130,23 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     for (z, f) in input.folders.iter().enumerate() {
         push_folder(input, band, z, f, &mut out);
     }
-    if let Some(arrow_id) = input.arrow_id {
+    // Une flèche se désigne par sa **géométrie** (ARROW-1) et non par un nom reçu tout
+    // fait. Tauri le tenait du DOM — une bande invisible que le navigateur savait toucher —
+    // et le portage avait gardé le champ sans le navigateur : personne ne le remplissait,
+    // donc aucune flèche n'était jamais sélectionnable.
+    if let Some((fleche, dist)) =
+        crate::arrow::at(input.annotations, (input.wx, input.wy), input.scale)
+    {
         out.push(PickCandidate {
             owner: PickOwner::Arrow,
-            id: arrow_id.to_string(),
+            id: fleche.id().to_string(),
             kind: PickKind::Arrow,
             rank: PICK_RANK_ARROW,
             z: 0,
             corner: None,
-            dist: 0.0,
+            // La distance au trait départage deux flèches qui se croisent, comme elle
+            // départage deux poignées voisines.
+            dist,
             area: 0.0,
             terminal: false,
         });
@@ -184,7 +192,7 @@ fn push_image(input: &PickInput, z: usize, img: &BoardImage, out: &mut Vec<PickC
 ///
 /// Une carte et un pense-bête sont **terminaux** : le cycle de profondeur s'arrête sur eux,
 /// pour laisser le double-clic d'édition intact. Leur boîte est celle du modèle, taille de
-/// naissance comprise. Une flèche n'est pas désignable ici — elle vient par `arrow_id`.
+/// naissance comprise. Une flèche ne passe pas par ici : sa géométrie la désigne (ARROW-1).
 fn push_annotation(
     input: &PickInput,
     band: f64,
@@ -324,7 +332,7 @@ pub fn collect_candidates_indexed(
     // tout de même : `collect_candidates` veut des tranches contiguës. À faire disparaître
     // en le faisant travailler sur des références (fiche 07 § 3).
     let nearby_ids = spatial_index.query_rect_refs(input.wx, input.wy, input.wx, input.wy, slop);
-    if nearby_ids.is_empty() && input.arrow_id.is_none() && input.dom_hint.is_none() {
+    if nearby_ids.is_empty() && input.dom_hint.is_none() {
         return Vec::new();
     }
 
@@ -352,7 +360,6 @@ pub fn collect_candidates_indexed(
         selected_image_ids: input.selected_image_ids,
         selected_annotation_ids: input.selected_annotation_ids,
         selected_folder_id: input.selected_folder_id,
-        arrow_id: input.arrow_id,
         dom_hint: input.dom_hint,
     };
 

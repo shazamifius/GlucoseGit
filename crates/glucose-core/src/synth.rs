@@ -375,7 +375,9 @@ pub fn witness_selected() -> Store {
         "img-verrouillee".into(),
         "img-tournee".into(),
     ]);
-    store.set_selected_annotation_ids(vec!["t-accents".into()]);
+    // La flèche aussi : elle n'était sélectionnable par aucun geste, donc rien ne
+    // tenait à quoi sa sélection ressemble (ARROW-1).
+    store.set_selected_annotation_ids(vec!["t-accents".into(), "a-droite".into()]);
     store.journal.clear();
     store
 }

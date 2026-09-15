@@ -111,7 +111,6 @@ fn test_hit_priority_rules() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
     let cands = collect_candidates(&input);
@@ -189,7 +188,6 @@ fn test_nested_containers_smallest_wins() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
     assert_eq!(order(&input1)[0], "membrane-body:PETITE");
@@ -229,7 +227,6 @@ fn test_text_is_last_among_contents() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -238,10 +235,12 @@ fn test_text_is_last_among_contents() {
     assert_eq!(cands[1].kind, PickKind::Sticky);
     assert_eq!(cands[2].kind, PickKind::Text);
 
-    // Flèche passe devant image
+    // Une flèche passe devant une image. Elle est désormais désignée par sa géométrie
+    // (ARROW-1) et non par un nom reçu du DOM : il en faut donc une vraie, qui passe sous
+    // le curseur.
+    let fleche = Annotation::arrow("A1", 0.0, 50.0, 200.0, 50.0);
     let input_arr = PickInput {
-        arrow_id: Some("A1"),
-        annotations: &[],
+        annotations: std::slice::from_ref(&fleche),
         ..input
     };
     let cands_arr = collect_candidates(&input_arr);
@@ -266,7 +265,6 @@ fn test_handles_absolute_priority() {
         selected_image_ids: &empty,
         selected_annotation_ids: &sel_m,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -316,7 +314,6 @@ fn test_click_cycle_chain() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -422,7 +419,6 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         selected_image_ids: &selected,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
     let cands = collect_candidates(&input);
