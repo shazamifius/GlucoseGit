@@ -35,15 +35,20 @@
 //! est déjà à l'échelle. Une longueur qui peut se dire en multiples d'une autre n'a pas à
 //! être mise à l'échelle séparément, donc elle n'a pas à exister séparément.
 //!
-//! # TEXT-FIT-1 — la hauteur d'une carte de texte suit son texte
+//! # TEXT-FIT-1 — le texte est le **plancher** de la carte, pas sa mesure
 //!
-//! L'utilisateur choisit la **largeur** d'une carte ; sa hauteur est celle de son texte
-//! reflué à cette largeur, ni plus ni moins. Une carte ne tronque jamais son contenu, et
-//! n'offre donc pas de poignée verticale ([`Handle::HORIZONTAL`]). Le geste de
-//! redimensionnement et la validation d'une saisie écrivent cette hauteur dans le document
-//! ([`text_card_fit_height`]), pour que le test de clic, l'index spatial et les poignées
-//! voient la même boîte que l'écran. `text_card` garde un `max` de sécurité pour les
-//! documents antérieurs à cette règle.
+//! Une carte ne tronque jamais son contenu : sa hauteur ne descend pas sous celle de son
+//! texte reflué à sa largeur. Au-dessus, elle est libre — on la tire où l'on veut, et le
+//! texte qui grandit la pousse sans jamais la fixer. **La liberté n'empêche pas la
+//! contrainte.**
+//!
+//! La règle antérieure faisait de la hauteur une conséquence exacte du texte, et retirait
+//! donc les poignées haute et basse. Viser le milieu du bord haut ne trouvait rien — ce qui
+//! se lit comme une zone de clic trop petite, pas comme une poignée absente.
+//!
+//! Le geste de redimensionnement et la validation d'une saisie écrivent la hauteur effective
+//! dans le document ([`text_card_fit_height`]), pour que le test de clic, l'index spatial et
+//! les poignées voient la même boîte que l'écran : c'est **une** hauteur, jamais deux.
 //!
 //! La hauteur se mesure **sur le texte rendu**, jamais sur sa source : une carte ne doit pas
 //! changer de taille au moment où on la sélectionne pour l'éditer. Pendant l'édition, les
@@ -248,13 +253,7 @@ pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard)
     }
     if card.selected {
         let screen_box = (sx, sy, layout.width, layout.height);
-        draw_resize_handles(
-            pixmap,
-            ctx.theme,
-            ctx.scale,
-            screen_box,
-            &Handle::HORIZONTAL,
-        );
+        draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
     }
 }
 

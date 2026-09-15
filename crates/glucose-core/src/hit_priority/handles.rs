@@ -4,9 +4,10 @@
 //! petite a l'ecran, donc la plus couteuse a rater.
 //!
 //! Chaque noeud selectionne expose les huit poignees de [`Handle::ALL`] — quatre coins,
-//! quatre milieux de cote — sauf la carte de texte, dont la hauteur suit son texte
-//! (TEXT-FIT-1) et qui n'offre donc que celles de [`Handle::HORIZONTAL`]. Le nom range dans
-//! `PickCandidate::corner` est celui de [`Handle::as_str`].
+//! quatre milieux de cote. La carte de texte n'en offrait que six : sa hauteur suivait
+//! son texte, donc ses bords haut et bas ne se tiraient pas. Ils se tirent desormais, et
+//! le texte en est le plancher. Le nom range dans `PickCandidate::corner` est celui de
+//! [`Handle::as_str`].
 
 use super::*;
 use crate::resize::Handle;
@@ -84,7 +85,7 @@ fn annotation_handles(ann: &Annotation) -> Option<(PickOwner, AlignRect, &'stati
     let rect = ann.rect()?;
     let (owner, handles) = match ann {
         Annotation::Membrane { .. } => (PickOwner::Membrane, &Handle::ALL[..]),
-        Annotation::Text { .. } => (PickOwner::Annotation, &Handle::HORIZONTAL[..]),
+        Annotation::Text { .. } => (PickOwner::Annotation, &Handle::ALL[..]),
         Annotation::Sticky { .. } => (PickOwner::Annotation, &Handle::ALL[..]),
         Annotation::Arrow { .. } => return None,
     };

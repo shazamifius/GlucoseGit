@@ -431,8 +431,16 @@ fn test_text_fit_1_narrowing_a_card_reflows_its_text_and_its_height_follows() {
     );
 }
 
+/// La hauteur d'une carte se tire — et son texte en est le **plancher**.
+///
+/// La règle inverse tenait ici : ni poignée haute ni poignée basse, la hauteur suivant le
+/// texte et rien d'autre. Viser le milieu du bord haut ne trouvait donc rien — ce qui se lit
+/// comme une zone de clic trop petite, pas comme une poignée absente.
+///
+/// Tirer vers le haut agrandit ; tirer vers le bas s'arrête sur le texte, sans jamais le
+/// couper. La liberté n'empêche pas la contrainte.
 #[test]
-fn test_text_fit_1_a_text_card_has_no_top_or_bottom_handle() {
+fn test_text_fit_1_the_height_is_free_above_the_text_and_blocked_below() {
     let mut app = app();
     let board = app.store.project.active_board_id.clone();
     app.store
@@ -440,15 +448,30 @@ fn test_text_fit_1_a_text_card_has_no_top_or_bottom_handle() {
     app.fit_text_card_height("T1");
     render(&mut app);
     let rect = ann_box(&app, "T1");
+    let plancher = rect.height;
+
+    // Tirer le bord bas vers le bas : la carte grandit.
     press_handle(&mut app, rect, Handle::Bottom);
+    assert!(app.resize_session.is_some(), "la poignée basse existe");
+    drag_by(&mut app, 0.0, 120.0, 4);
+    release(&mut app);
+    let grande = ann_box(&app, "T1");
     assert!(
-        app.resize_session.is_none(),
-        "pas de poignée basse sur une carte"
+        grande.height > plancher + 100.0,
+        "tirée à {} alors que le plancher vaut {plancher}",
+        grande.height
     );
+
+    // La rendre plus petite que son texte : le geste s'arrête sur le plancher.
+    press_handle(&mut app, grande, Handle::Bottom);
+    drag_by(&mut app, 0.0, -400.0, 4);
     release(&mut app);
-    press_handle(&mut app, rect, Handle::Left);
-    assert!(app.resize_session.is_some(), "mais une poignée gauche");
-    release(&mut app);
+    let serree = ann_box(&app, "T1");
+    assert!(
+        approx(serree.height, plancher),
+        "le texte est un plancher : {} contre {plancher}",
+        serree.height
+    );
 }
 
 #[test]

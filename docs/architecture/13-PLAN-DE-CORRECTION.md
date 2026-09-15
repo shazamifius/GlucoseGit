@@ -42,17 +42,17 @@ d'`Entrée`. Le test ne vérifiait pas la règle : il la fabriquait.
 | 1 | `Entrée` va à la ligne **une fois sur deux** | `Maj+Entrée` sautait la ligne ; une majuscule de début de phrase tient `Maj` enfoncé | **corrigé** `bad603f` |
 | 2 | Il faut **maintenir** Espace pour naviguer | Tauri **bascule** l'outil Pan et l'y laisse | **corrigé** `bad603f` |
 | 3 | Le pavé tactile est « infiniment moins bon » | le pan vertical à deux doigts était **inatteignable** : Windows livre tout en `LineDelta`, que le code prenait pour une molette | **corrigé** `bad603f` |
-| 4 | **Ça saccade énormément** | le banc dit 0,9 ms pour dessiner : le coût n'est pas là où on le cherchait | à mesurer |
+| 4 | **Ça saccade énormément** | mesuré : le pointillé des membranes et la conversion du tampon | **corrigé, à confirmer à l'écran** |
 | 5 | Zoomer/dézoomer vite « bugue » | le cran valait +12 % contre +4 % dans Tauri (corrigé) ; reste le cache de la minimap, dont la clé contient le cadrage | partiellement corrigé |
-| 6 | `Ctrl+C` ne sort pas de l'application | en édition le chemin est correct ; **sur une carte sélectionnée, rien n'est écrit dans le presse-papiers système** | à corriger |
-| 7 | Le collé venu d'ailleurs ne marche pas | même racine que 6, côté lecture | à corriger |
-| 8 | `Ctrl`+clic n'ouvre pas un lien | la chaîne est branchée (`pick.rs:52`) : le défaut est dans la géométrie du clic ou dans l'ouverture système | à instruire |
-| 9 | Les poignées sont trop dures à attraper | tolérance de 24 px, **plafonnée par un ratio de la taille du nœud qui ignore le zoom** : la cible rétrécit au dézoom, le dessin non | à mesurer |
+| 6 | `Ctrl+C` ne sort pas de l'application | la table des raccourcis n'avait ni `c` ni `x` | **corrigé** `5358fd7` |
+| 7 | Le collé venu d'ailleurs ne marche pas | même racine que 6 | **corrigé** `5358fd7` |
+| 8 | `Ctrl`+clic n'ouvre pas un lien | un test innocente la géométrie ; deux fautes corrigées dans l'ouverture système | **corrigé, à confirmer à l'écran** |
+| 9 | Les poignées sont trop dures à attraper | **mesuré** : 24 px sur une image, mais une carte de texte n'avait que six poignées — même défaut que le 12 | **corrigé par le 12** |
 | 10 | Un texte long devient insélectionnable | non instruit | à instruire |
 | 11 | Le LaTeX n'est capté qu'entre `$` | demande explicite : une commande doit être reconnue sans délimiteur | à concevoir |
-| 12 | On ne peut pas tirer la **hauteur** d'une carte | choix assumé (TEXT-FIT-1) qui diverge de Tauri | à reprendre |
+| 12 | On ne peut pas tirer la **hauteur** d'une carte | choix assumé (TEXT-FIT-1) qui divergeait de Tauri ; c'est aussi lui qui faisait passer le 9 pour un défaut de zone de clic | **corrigé** |
 | 13 | Une carte naît à 240 px | la fiche 06 § 5.1 dit « libre jusqu'à 600 » | à corriger |
-| 14 | Le badge d'un dossier affiche zéro | le compte réel appartient au noyau, il n'y est pas | à corriger |
+| 14 | Le badge d'un dossier affiche zéro | `"0"` était écrit en dur dans le rendu | **corrigé** `13708ad` |
 
 ### Ce que le témoin a révélé en cessant de planter
 
@@ -293,6 +293,18 @@ rattrapage ni aller-retour.
 
 Les deux poignées manquantes — `Top` et `Bottom` — reviennent, et la largeur de naissance passe à
 ce que dit la fiche 06 *(défaut 13)*.
+
+**Ce que la mesure des poignées a dit, et pourquoi elle a changé l'ordre.** La tolérance,
+tracée en pixels écran sur toute la gamme de zooms, innocente les images : **24 px à toutes
+les échelles utiles**, deux fois la zone de Tauri. Sur une carte de texte elle vaut 16,8 px à
+l'échelle 1, puis 8,4 et 6 px en dessous — la moitié de Tauri, parce que le plafond
+`min(l,h) × 0,35` est en unités monde et ne suit pas le zoom.
+
+Mais le défaut réel était ailleurs, et la mesure l'a désigné en éliminant l'autre : une carte
+de texte n'avait que **six** poignées. Viser le milieu du bord haut ne trouvait rien. Les deux
+remarques rapportées — « la zone de clic est trop petite » et « on ne peut pas
+redimensionner, c'est particulier » — étaient **le même défaut**, et c'est le 12 qui les
+portait. Corrigé ci-dessus ; le plafond `0,35` reste à revoir, mais il ne gêne plus personne.
 
 ### C.2 — Le LaTeX sans délimiteurs *(défaut 11)*
 
