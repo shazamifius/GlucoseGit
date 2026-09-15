@@ -142,30 +142,57 @@ impl GlucoseApp {
         self.start_text_edit(id, text.to_string());
     }
 
-    /// Pose une flèche et ouvre le geste qui l'étire (DRAW-1).
+    /// Pose une flèche et ouvre le geste qui l'étire (DRAW-1), **accrochée** à ce qu'elle
+    /// touche (ARROW-2).
     fn place_arrow(&mut self, wx: f64, wy: f64) {
         let board = self.store.project.active_board_id.clone();
         let id = self.store.generate_id("arrow");
         let (dx, dy) = NEW_ARROW_VECTOR;
+        let depart = self.snap_for_arrow((wx, wy), &[]);
+        let (sx, sy) = depart.point;
+
         self.store.begin_live_edit();
-        self.store
-            .add_annotation(&board, Annotation::arrow(&id, wx, wy, wx + dx, wy + dy));
+        let mut fleche = Annotation::arrow(&id, sx, sy, sx + dx, sy + dy);
+        if let Annotation::Arrow { source_id, .. } = &mut fleche {
+            *source_id = depart.node.clone();
+        }
+        self.store.add_annotation(&board, fleche);
         self.draw_session = Some(DrawSession {
             id,
-            start: (wx, wy),
+            start: (sx, sy),
         });
     }
 
-    /// Le glisser en cours amène la pointe de la flèche sous le curseur.
+    /// Où un bout de flèche se pose ici, et à quoi il s'accroche (ARROW-2).
+    fn snap_for_arrow(&self, point: (f64, f64), exclude: &[&str]) -> glucose_core::arrow::Snap {
+        self.store.active_board().map_or_else(
+            || glucose_core::arrow::Snap::free(point),
+            |board| glucose_core::arrow::snap_to_nearest(board, point, exclude),
+        )
+    }
+
+    /// Le glisser en cours amène la pointe de la flèche sous le curseur — ou sur le nœud
+    /// qu'elle vise, s'il est assez près (ARROW-2).
     pub fn update_draw(&mut self, wx: f64, wy: f64) {
         let Some(session) = self.draw_session.clone() else {
             return;
         };
         let board = self.store.project.active_board_id.clone();
+        // La flèche elle-même et le nœud dont elle part sont écartés par `snap_for_tip` :
+        // sans quoi elle se refermerait sur son origine dès le premier pixel de glisser.
+        let cible = self.store.active_board().map_or_else(
+            || glucose_core::arrow::Snap::free((wx, wy)),
+            |b| glucose_core::arrow::snap_for_tip(b, &session.id, (wx, wy)),
+        );
+
         self.store.update_annotation(&board, &session.id, |ann| {
-            if let Annotation::Arrow { x2, y2, .. } = ann {
-                *x2 = wx;
-                *y2 = wy;
+            if let Annotation::Arrow {
+                x2, y2, target_id, ..
+            } = ann
+            {
+                *x2 = cible.point.0;
+                *y2 = cible.point.1;
+                *target_id = cible.node.clone();
             }
         });
         self.mark_dirty();

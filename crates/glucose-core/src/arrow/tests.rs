@@ -179,3 +179,130 @@ fn test_arrow_1_the_click_follows_the_anchor() {
     // Alors qu'avant le bord, il est toujours là.
     assert!(at(&fleches, resolve, (200.0, 0.0), 1.0).is_some());
 }
+
+// ── ARROW-2 : une flèche s'accroche au dessin ─────────────────────────────
+
+use crate::types::{Board, BoardImage};
+
+fn plateau(cartes: &[(&str, f64, f64, f64, f64)]) -> Board {
+    let mut board = Board::new("b", "plateau");
+    for (id, x, y, w, h) in cartes {
+        let mut carte = Annotation::text(*id, *x, *y, "x");
+        if let Annotation::Text { width, height, .. } = &mut carte {
+            *width = Some(*w);
+            *height = Some(*h);
+        }
+        board.annotations.push(carte);
+    }
+    board
+}
+
+/// Rien à portée : le bout se pose là où on l'a mis, sans s'accrocher.
+#[test]
+fn test_arrow_2_nothing_within_reach_stays_free() {
+    let board = plateau(&[("carte", 0.0, 0.0, 100.0, 60.0)]);
+    let snap = snap_to_nearest(&board, (900.0, 900.0), &[]);
+    assert_eq!(snap, Snap::free((900.0, 900.0)));
+}
+
+/// Assez près d'une carte : le bout se pose sur son **bord**, et retient son identifiant.
+#[test]
+fn test_arrow_2_a_nearby_node_captures_the_end_on_its_border() {
+    let board = plateau(&[("carte", 0.0, 0.0, 100.0, 60.0)]);
+    // Cinquante unités à droite du bord droit : dans la portée de 120.
+    let snap = snap_to_nearest(&board, (150.0, 30.0), &[]);
+    assert_eq!(snap.node.as_deref(), Some("carte"));
+    assert_eq!(snap.point, (100.0, 30.0), "le point du bord le plus proche");
+}
+
+/// La portée est exactement celle de Glucose Tauri, et elle se mesure au **bord**.
+#[test]
+fn test_arrow_2_the_reach_is_measured_from_the_border() {
+    let board = plateau(&[("carte", 0.0, 0.0, 100.0, 60.0)]);
+    let juste_dedans = snap_to_nearest(&board, (100.0 + SNAP_DIST - 1.0, 30.0), &[]);
+    assert_eq!(juste_dedans.node.as_deref(), Some("carte"));
+    let juste_dehors = snap_to_nearest(&board, (100.0 + SNAP_DIST + 1.0, 30.0), &[]);
+    assert_eq!(juste_dehors.node, None);
+}
+
+/// À l'intérieur d'une carte, le point retenu est le curseur : on pointe où l'on veut.
+#[test]
+fn test_arrow_2_inside_a_node_the_cursor_itself_is_kept() {
+    let board = plateau(&[("carte", 0.0, 0.0, 200.0, 100.0)]);
+    let snap = snap_to_nearest(&board, (37.0, 61.0), &[]);
+    assert_eq!(snap.node.as_deref(), Some("carte"));
+    assert_eq!(snap.point, (37.0, 61.0));
+}
+
+/// Une **grande** carte visée au bord gagne contre une petite plus loin.
+///
+/// C'est ce que la distance au bord donne et qu'une distance au centre raterait : le centre
+/// d'une carte de mille unités de large est à cinq cents unités de son propre bord.
+#[test]
+fn test_arrow_2_a_large_node_grabbed_by_its_edge_beats_a_distant_small_one() {
+    let mut board = plateau(&[("grande", 0.0, 0.0, 1000.0, 400.0)]);
+    board
+        .annotations
+        .push(Annotation::text("petite", 1020.0, 0.0, "x"));
+    if let Some(Annotation::Text { width, height, .. }) = board.annotations.last_mut() {
+        *width = Some(20.0);
+        *height = Some(20.0);
+    }
+    // Dix unités à droite du bord de la grande, dix à gauche de la petite.
+    let snap = snap_to_nearest(&board, (1010.0, 10.0), &[]);
+    assert_eq!(
+        snap.node.as_deref(),
+        Some("grande"),
+        "le bord le plus proche gagne, quelle que soit la taille"
+    );
+}
+
+/// Les images et les dossiers s'aimantent au même titre que les cartes.
+#[test]
+fn test_arrow_2_images_are_snap_targets_too() {
+    let mut board = Board::new("b", "plateau");
+    board
+        .images
+        .push(BoardImage::new("img", 0.0, 0.0, 80.0, 80.0));
+    let snap = snap_to_nearest(&board, (120.0, 40.0), &[]);
+    assert_eq!(snap.node.as_deref(), Some("img"));
+}
+
+/// Ce qui est exclu n'est jamais visé, même collé au curseur.
+#[test]
+fn test_arrow_2_an_excluded_node_is_never_targeted() {
+    let board = plateau(&[("carte", 0.0, 0.0, 100.0, 60.0)]);
+    let snap = snap_to_nearest(&board, (110.0, 30.0), &["carte"]);
+    assert_eq!(snap.node, None);
+    assert_eq!(snap.point, (110.0, 30.0));
+}
+
+/// Pendant un tracé, la pointe n'attrape ni la flèche elle-même ni son origine.
+///
+/// Sans cette exclusion, une flèche partie d'une carte se refermerait sur cette carte dès
+/// le premier pixel de glisser : son origine est le nœud le plus proche qui soit.
+#[test]
+fn test_arrow_2_a_tip_never_grabs_its_own_source() {
+    let mut board = plateau(&[("origine", 0.0, 0.0, 100.0, 60.0)]);
+    let mut fleche = Annotation::arrow("a", 100.0, 30.0, 110.0, 30.0);
+    if let Annotation::Arrow { source_id, .. } = &mut fleche {
+        *source_id = Some("origine".to_string());
+    }
+    board.annotations.push(fleche);
+
+    // Juste à côté de l'origine : sans exclusion, elle gagnerait.
+    let snap = snap_for_tip(&board, "a", (110.0, 30.0));
+    assert_eq!(snap.node, None, "ni l'origine, ni la flèche elle-même");
+
+    // Et une autre carte, elle, reste visable.
+    board.annotations.push({
+        let mut c = Annotation::text("autre", 200.0, 0.0, "x");
+        if let Annotation::Text { width, height, .. } = &mut c {
+            *width = Some(50.0);
+            *height = Some(50.0);
+        }
+        c
+    });
+    let snap = snap_for_tip(&board, "a", (190.0, 25.0));
+    assert_eq!(snap.node.as_deref(), Some("autre"));
+}

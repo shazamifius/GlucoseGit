@@ -18,6 +18,17 @@
 //! Le portage a gardé le champ mais pas le navigateur : personne ne le remplissait, et
 //! **aucune flèche n'était donc jamais sélectionnable**. Elle se voyait, elle ne se prenait
 //! pas. Ici, c'est la géométrie qui répond, et le champ disparaît avec le trou.
+//!
+//! # ARROW-2 — une flèche s'accroche **au dessin**, pas après coup
+//!
+//! Glucose Tauri ne donne aucune poignée pour déplacer le bout d'une flèche : les deux
+//! disques qu'il pose aux extrémités d'une flèche sélectionnée sont décoratifs, sans
+//! aucun gestionnaire. Ce qui relie une flèche à un nœud, c'est **l'aimantation pendant
+//! le tracé** (`snapToNearest`, `GlucoseCanvas.tsx`) : à l'appui pour l'origine, en continu
+//! pendant le glisser pour la cible.
+//!
+//! C'est la différence entre une flèche qui **relie** et une flèche qui **flotte**, et
+//! c'est ce qui manquait : DRAW-1 posait une flèche, mais elle ne s'accrochait à rien.
 
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
@@ -187,6 +198,96 @@ pub fn at(
                 meilleur
             }
         })
+}
+
+/// La distance, en unités **monde**, à laquelle un bout de flèche s'aimante à un nœud.
+///
+/// C'est le `HIT_DIST` de Glucose Tauri, et c'est bien une longueur monde et non écran :
+/// l'aimantation décrit un voisinage **du document** — « assez près de cette carte pour
+/// vouloir la relier » — et non une tolérance de main comme la bande de sélection.
+pub const SNAP_DIST: f64 = 120.0;
+
+/// Où un bout de flèche se pose, et à quoi il s'accroche.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Snap {
+    /// Le point retenu : le curseur lui-même, ou le point du bord le plus proche.
+    pub point: (f64, f64),
+    /// Le nœud auquel ce bout s'accroche, s'il y en a un assez près.
+    pub node: Option<String>,
+}
+
+impl Snap {
+    /// Un bout qui ne s'accroche à rien : le curseur, tel quel.
+    pub fn free(point: (f64, f64)) -> Self {
+        Self { point, node: None }
+    }
+}
+
+/// Le point d'une boîte le plus proche de `point` — le point lui-même s'il est dedans.
+fn closest_on(rect: Rect, (x, y): (f64, f64)) -> (f64, f64) {
+    (
+        x.clamp(rect.left, rect.right()),
+        y.clamp(rect.top, rect.bottom()),
+    )
+}
+
+/// Le nœud auquel un bout de flèche s'aimante à cet endroit, et où il s'y pose (ARROW-2).
+///
+/// Chaque nœud est jugé sur la distance au **point de sa boîte le plus proche**, pas à son
+/// centre : viser le bord d'une grande carte l'accroche, alors qu'une distance au centre
+/// ferait préférer une petite carte lointaine. À l'intérieur d'une boîte, la distance est
+/// nulle et le point retenu est le curseur — on pointe où l'on veut dans la carte visée.
+///
+/// `exclude` écarte les identifiants qui ne doivent pas être visés : la flèche en cours de
+/// tracé, et le nœud dont elle part — sans quoi elle se refermerait sur son origine dès le
+/// premier pixel de glisser.
+pub fn snap_to_nearest(board: &Board, point: (f64, f64), exclude: &[&str]) -> Snap {
+    let mut best = Snap::free(point);
+    let mut best_dist = SNAP_DIST;
+
+    let boxes = board
+        .images
+        .iter()
+        .map(|img| (img.id.as_str(), img.rect()))
+        .chain(
+            board
+                .annotations
+                .iter()
+                .filter_map(|a| Some((a.id(), a.rect()?))),
+        )
+        .chain(board.folders.iter().map(|f| (f.id.as_str(), f.rect())));
+
+    for (id, rect) in boxes {
+        if exclude.contains(&id) {
+            continue;
+        }
+        let edge = closest_on(rect, point);
+        let distance = (edge.0 - point.0).hypot(edge.1 - point.1);
+        if distance < best_dist {
+            best_dist = distance;
+            best = Snap {
+                point: edge,
+                node: Some(id.to_string()),
+            };
+        }
+    }
+    best
+}
+
+/// Où la **pointe** d'une flèche en cours de tracé se pose, et à quoi elle s'accroche.
+///
+/// C'est [`snap_to_nearest`] avec les seules exclusions qui aient un sens pendant un tracé :
+/// la flèche elle-même, et le nœud dont elle part. Les déduire ici plutôt que de les faire
+/// assembler par l'appelant lui évite de lire le modèle pour savoir ce qu'il doit écarter —
+/// et surtout évite que deux appelants n'en écartent pas les mêmes.
+pub fn snap_for_tip(board: &Board, arrow_id: &str, point: (f64, f64)) -> Snap {
+    let source = board.annotations.iter().find_map(|a| match a {
+        Annotation::Arrow { id, source_id, .. } if id == arrow_id => source_id.as_deref(),
+        _ => None,
+    });
+    let mut exclude = vec![arrow_id];
+    exclude.extend(source);
+    snap_to_nearest(board, point, &exclude)
 }
 
 /// Le chemin d'une flèche ancrée dans son tableau — le raccourci courant de [`path_with`].
