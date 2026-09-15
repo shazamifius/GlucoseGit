@@ -71,6 +71,53 @@ impl WorldScale {
     }
 }
 
+// ── SCALE-3 — un filet se pose sur la grille de pixels, et ne s'anti-aliase pas ──
+
+/// Remplit un rectangle **aligné sur les axes** — filet, plaque, poignée — proprement.
+///
+/// # Pourquoi une fonction plutôt que quatre appels
+///
+/// `tiny-skia` **panique** quand on lui demande un `fill_rect` anti-aliasé dont un côté
+/// tombe au-dessous du pixel : `hairline_aa.rs` fait `assert!(false)`. Ce n'est pas une
+/// hypothèse — le défaut a emporté treize tests de redimensionnement sur un filet de
+/// séparation, puis la capture de la scène sélectionnée sur la barre d'une citation. Deux
+/// fois le même crash, à deux endroits, parce que la correction avait été faite sur place.
+///
+/// # Et c'est aussi plus net, donc ce n'est pas un contournement
+///
+/// Un rectangle aligné sur les axes n'a aucun bord oblique : l'anti-aliasing ne lui apporte
+/// rien et lui coûte tout. Un filet d'un pixel posé sur une demi-position devient deux
+/// demi-traits gris — flou là où la charte demande « net à quasi 100 % » (R-46). L'arrondi à
+/// la grille rend donc un meilleur dessin, et le crash disparaît par surcroît.
+///
+/// Un côté nul serait invisible : il est ramené à un pixel, la plus petite chose qu'un écran
+/// sache montrer. Des coordonnées non finies ne dessinent rien plutôt que de tout arrêter.
+pub(super) fn fill_crisp(
+    pixmap: &mut tiny_skia::PixmapMut,
+    rect: tiny_skia::Rect,
+    color: tiny_skia::Color,
+) {
+    let Some(rect) = on_pixel_grid(rect) else {
+        return;
+    };
+    let mut paint = tiny_skia::Paint {
+        anti_alias: false,
+        ..Default::default()
+    };
+    paint.set_color(color);
+    pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
+}
+
+/// Le même rectangle, ramené sur la grille de pixels, ou `None` s'il n'a pas de sens.
+fn on_pixel_grid(r: tiny_skia::Rect) -> Option<tiny_skia::Rect> {
+    tiny_skia::Rect::from_xywh(
+        r.x().round(),
+        r.y().round(),
+        r.width().round().max(1.0),
+        r.height().round().max(1.0),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +165,49 @@ mod tests {
             WorldScale::new(0.25).draws_detail(),
             "le zoom 0,25 garde son texte"
         );
+    }
+    // ── SCALE-3 ──
+
+    /// Le cas exact qui faisait paniquer `tiny-skia` : un filet plus fin qu'un pixel.
+    ///
+    /// Sans ce test, la correction serait une anecdote ; avec lui, c'est une règle. Le crash
+    /// est arrivé deux fois, à deux endroits, et rien ne l'avait retenu la première fois.
+    #[test]
+    fn test_scale_3_a_hairline_never_reaches_the_rasterizer() {
+        let mut pixmap = tiny_skia::Pixmap::new(40, 40).expect("pixmap");
+        let mut vue = pixmap.as_mut();
+        let noir = tiny_skia::Color::from_rgba8(0, 0, 0, 255);
+        for fin in [0.0f32, 0.01, 0.3, 0.5, 0.9] {
+            let rect = tiny_skia::Rect::from_xywh(10.5, 10.5, 20.0, fin)
+                .or_else(|| tiny_skia::Rect::from_xywh(10.5, 10.5, 20.0, 0.1))
+                .expect("un rectangle");
+            // Ne panique pas : c'est tout ce que ce test demande, et c'est ce qui manquait.
+            fill_crisp(&mut vue, rect, noir);
+        }
+    }
+
+    /// Un rectangle posé à une demi-position retombe sur la grille, et garde un pixel.
+    #[test]
+    fn test_scale_3_the_grid_keeps_at_least_one_pixel() {
+        let sur = on_pixel_grid(tiny_skia::Rect::from_xywh(10.4, 10.6, 20.3, 0.2).expect("rect"))
+            .expect("sur la grille");
+        assert_eq!((sur.x(), sur.y()), (10.0, 11.0));
+        assert_eq!((sur.width(), sur.height()), (20.0, 1.0));
+    }
+
+    /// Des coordonnées impossibles ne dessinent rien plutôt que d'arrêter le rendu.
+    #[test]
+    fn test_scale_3_nonsense_draws_nothing() {
+        let Some(rect) = tiny_skia::Rect::from_xywh(0.0, 0.0, 10.0, 10.0) else {
+            panic!("rect");
+        };
+        let mut pixmap = tiny_skia::Pixmap::new(4, 4).expect("pixmap");
+        // Le cas normal passe ; le cas dégénéré est écarté par `on_pixel_grid`.
+        fill_crisp(
+            &mut pixmap.as_mut(),
+            rect,
+            tiny_skia::Color::from_rgba8(1, 2, 3, 4),
+        );
+        assert!(on_pixel_grid(rect).is_some());
     }
 }

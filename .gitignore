@@ -75,3 +75,7 @@ tauri-dev.log
 #   cargo run -p glucose-desktop --example capture_temoin -- docs/screenshots
 # Seules les captures de la vitrine, celles du README, sont versionnées.
 docs/screenshots/temoin*.png
+
+# Captures produites par `cargo run --example capture_temoin` : des sorties, pas des sources.
+/temoin*.png
+/vitrine*.png

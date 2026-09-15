@@ -520,14 +520,14 @@ fn draw_cursor(
     scale: WorldScale,
     ink: Color,
 ) {
-    let mut paint = Paint::default();
-    paint.set_color(ink);
     // Le curseur mesure le texte qu'il édite — sa hauteur suit la police — mais son trait
     // est une affordance : il garde sa largeur écran (exception SCALE-1), comme le curseur
     // de n'importe quel éditeur. Mis à l'échelle, il s'effacerait au dézoom.
     let width = scale.screen(CURSOR_WIDTH);
     if let Some(rect) = Rect::from_xywh(at.0, at.1, width, layout.font * CURSOR_HEIGHT) {
-        pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+        // Sur la grille (SCALE-3) : un curseur d'un pixel posé à une demi-position devient
+        // deux demi-traits gris, et il clignote — donc il attire l'œil sur son propre flou.
+        super::scale::fill_crisp(pixmap, rect, ink);
     }
 }
 

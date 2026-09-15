@@ -300,3 +300,26 @@ impl Store {
             .ok()
     }
 }
+
+impl Store {
+    /// Combien d'éléments le tableau enfant d'un dossier contient.
+    ///
+    /// Le badge d'un dossier affichait `"0"`, **écrit en dur dans le rendu** : un bouton qui
+    /// ment au sens le plus littéral. Le compte n'était pas difficile, il n'était réclamé
+    /// nulle part — et le commentaire qui l'excusait affirmait qu'une frame ne pouvait pas le
+    /// connaître, alors que la passe de dessin tient le `Store` entier.
+    ///
+    /// Le compte est celui de Glucose Tauri : les images, les notes — textes et pense-bêtes —
+    /// et les sous-dossiers. Une flèche relie, elle ne se range pas : elle ne compte pas.
+    pub fn folder_child_count(&self, child_board_id: &str) -> usize {
+        let Some(board) = self.project.boards.iter().find(|b| b.id == child_board_id) else {
+            return 0;
+        };
+        let notes = board
+            .annotations
+            .iter()
+            .filter(|a| matches!(a, Annotation::Text { .. } | Annotation::Sticky { .. }))
+            .count();
+        board.images.len() + notes + board.folders.len()
+    }
+}

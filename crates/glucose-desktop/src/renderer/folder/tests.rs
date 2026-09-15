@@ -286,3 +286,41 @@ fn test_un_dossier_laisse_une_trace_coloree_dans_la_minimap() {
     );
     assert!(avec > 20, "{avec} : le contour du dossier doit se voir");
 }
+
+// ── Le badge dit ce que le dossier contient ────────────────────────────────
+
+/// L'étiquette du badge, pour toute la gamme que sa largeur permet.
+#[test]
+fn test_the_badge_label_covers_its_whole_range() {
+    let mut buf = [0u8; BADGE_CHIFFRES];
+    assert_eq!(badge_label(0, &mut buf), "0");
+    assert_eq!(badge_label(7, &mut buf), "7");
+    assert_eq!(badge_label(42, &mut buf), "42");
+    assert_eq!(badge_label(999, &mut buf), "999");
+    assert_eq!(badge_label(1000, &mut buf), "999+");
+    assert_eq!(badge_label(usize::MAX, &mut buf), "999+");
+}
+
+/// Le compte est celui du tableau enfant, et il ne compte pas les flèches.
+#[test]
+fn test_the_count_is_the_child_board_content() {
+    use glucose_core::types::{Annotation, Board, BoardImage};
+
+    let mut store = Store::new("compte");
+    let mut enfant = Board::new("enfant", "Enfant");
+    enfant
+        .images
+        .push(BoardImage::new("i", 0.0, 0.0, 10.0, 10.0));
+    enfant
+        .annotations
+        .push(Annotation::text("t", 0.0, 0.0, "une note"));
+    enfant
+        .annotations
+        .push(Annotation::arrow("f", 0.0, 0.0, 10.0, 10.0));
+    store.project.boards.push(enfant);
+
+    // Une image et une note : la flèche relie, elle ne se range pas.
+    assert_eq!(store.folder_child_count("enfant"), 2);
+    // Un dossier dont le tableau n'existe pas encore ne compte rien, et ne panique pas.
+    assert_eq!(store.folder_child_count("fantome"), 0);
+}

@@ -614,7 +614,7 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     (
         "crates/glucose-desktop/src/renderer/folder.rs",
         "draw_frame",
-        98,
+        94,
     ),
     (
         "crates/glucose-desktop/src/renderer/scene.rs",

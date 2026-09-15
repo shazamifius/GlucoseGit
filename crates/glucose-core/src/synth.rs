@@ -300,6 +300,19 @@ fn witness_containers(store: &mut Store) {
     }
     store.add_annotation(BOARD, membrane);
 
+    // Deux notes posées **là où le dossier va naître** : il les aspire en se créant, et son
+    // badge annonce alors un vrai compte. Sans elles le badge affichait zéro, ce qui était
+    // aussi la valeur écrite en dur qu'il montrait avant d'être corrigé — le témoin n'aurait
+    // donc jamais vu la faute, ni sa réapparition.
+    store.add_annotation(
+        BOARD,
+        Annotation::text("f-rangee", 100.0, 150.0, "une note rangée"),
+    );
+    store.add_annotation(
+        BOARD,
+        Annotation::text("f-rangee-2", 100.0, 230.0, "et une autre"),
+    );
+
     let mut folder = CanvasFolder::new("f-temoin", "Dossier témoin", String::new());
     folder.x = 60.0;
     folder.y = 120.0;

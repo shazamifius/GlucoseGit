@@ -134,6 +134,7 @@ pub(super) fn draw_folders(
                 &layout,
                 f,
                 (tint, selected, scale),
+                store.folder_child_count(&f.child_board_id),
             );
             let _ = theme;
         }
@@ -236,17 +237,33 @@ fn draw_frame(
     };
     pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
 
-    // Le trait qui sépare le bandeau du corps : c'est lui qui rend le portail lisible comme
-    // une fenêtre plutôt que comme un simple rectangle.
-    if let Some(line) = Rect::from_xywh(at.0, at.1 + layout.header, layout.width, scale.world(1.0))
-    {
-        let mut sep = Paint {
-            anti_alias: true,
-            ..Default::default()
-        };
-        sep.set_color(Color::from_rgba8(r, g, b, pick(BORDER_ALPHA)));
-        pixmap.fill_rect(line, &sep, Transform::identity(), None);
-    }
+    draw_header_rule(
+        pixmap,
+        at,
+        layout,
+        scale,
+        Color::from_rgba8(r, g, b, pick(BORDER_ALPHA)),
+    );
+}
+
+/// Le trait qui sépare le bandeau du corps d'un dossier.
+///
+/// C'est lui qui rend le portail lisible comme une fenêtre plutôt que comme un simple
+/// rectangle — et c'est lui qui avait fait paniquer le rastériseur, quand il était
+/// anti-aliasé. Il passe désormais par [`fill_crisp`] (SCALE-3), où l'anti-aliasing ne sert
+/// de toute façon à rien : un trait horizontal n'a pas de bord oblique.
+fn draw_header_rule(
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &Layout,
+    scale: WorldScale,
+    color: Color,
+) {
+    let Some(line) = Rect::from_xywh(at.0, at.1 + layout.header, layout.width, scale.world(1.0))
+    else {
+        return;
+    };
+    crate::renderer::scale::fill_crisp(pixmap, line, color);
 }
 
 /// Le bandeau : icône, titre tronqué, badge compteur.
@@ -257,6 +274,7 @@ fn draw_header(
     layout: &Layout,
     f: &CanvasFolder,
     state: ((u8, u8, u8), bool, WorldScale),
+    compte: usize,
 ) {
     let (tint, selected, scale) = state;
     let (r, g, b) = tint;
@@ -298,7 +316,7 @@ fn draw_header(
         },
     );
 
-    draw_badge(typography, pixmap, at, layout, tint, scale);
+    draw_badge(typography, pixmap, at, layout, tint, scale, compte);
 }
 
 /// Le badge compteur, en haut à droite du bandeau.
@@ -307,6 +325,37 @@ fn draw_header(
 /// ce que le rendu d'une frame ne peut pas faire : le badge montre donc le nombre de nœuds
 /// **connus** du dossier, qui est zéro tant que le tableau enfant n'a pas été ouvert. Un
 /// compte tenu à jour par le store est le pas suivant, et il appartient au noyau.
+/// Combien de chiffres le badge sait montrer, borné par sa largeur : au-delà, `999+`.
+const BADGE_CHIFFRES: usize = 4;
+
+/// Largeur moyenne d'un chiffre, en fraction de la taille de police.
+///
+/// Les chiffres d'Inter sont à chasse fixe — c'est une garantie de la fonte, pas une
+/// approximation : un nombre ne danse donc pas d'un dossier à l'autre.
+const BADGE_CHASSE: f32 = 0.55;
+
+/// Le compte tel que le badge l'écrit, dans un tampon de pile.
+///
+/// Rien n'est alloué : un badge se dessine par dossier visible et à chaque image.
+fn badge_label(n: usize, buf: &mut [u8; BADGE_CHIFFRES]) -> &str {
+    if n > 999 {
+        buf.copy_from_slice(b"999+");
+        return "999+";
+    }
+    let mut fin = BADGE_CHIFFRES;
+    let mut reste = n;
+    loop {
+        fin -= 1;
+        buf[fin] = b'0' + (reste % 10) as u8;
+        reste /= 10;
+        if reste == 0 {
+            break;
+        }
+    }
+    // Les octets écrits sont des chiffres ASCII : la tranche est de l'UTF-8 valide.
+    std::str::from_utf8(&buf[fin..]).unwrap_or("0")
+}
+
 fn draw_badge(
     typography: &crate::typography::Typography,
     pixmap: &mut PixmapMut,
@@ -314,6 +363,7 @@ fn draw_badge(
     layout: &Layout,
     tint: (u8, u8, u8),
     scale: WorldScale,
+    compte: usize,
 ) {
     let (r, g, b) = tint;
     let (bx, by) = (
@@ -350,10 +400,15 @@ fn draw_badge(
     };
     pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
 
+    let mut chiffres = [0u8; BADGE_CHIFFRES];
+    let texte = badge_label(compte, &mut chiffres);
+    // Centré sur le badge : à un chiffre le texte tombait déjà juste par hasard, à trois il
+    // débordait. La demi-largeur du texte est la seule mesure qui vaille pour les deux.
+    let large = texte.len() as f32 * scale.world(BADGE_FONT) * BADGE_CHASSE;
     typography.draw_text(
         pixmap,
-        "0",
-        bx + bw * 0.4,
+        texte,
+        bx + (bw - large) * 0.5,
         by + bh * 0.75,
         TextStyle {
             size: scale.world(BADGE_FONT),
