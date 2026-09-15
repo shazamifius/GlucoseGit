@@ -203,7 +203,7 @@ impl GlucoseApp {
         match Clipboard::new().and_then(|mut c| c.get_text()) {
             Ok(texte) => Some(texte.replace("\r\n", "\n").replace('\r', "\n")),
             Err(err) => {
-                self.ui.show_toast(format!("Presse-papiers : {err}"));
+                self.echec_presse_papiers(err);
                 None
             }
         }
@@ -221,8 +221,7 @@ impl GlucoseApp {
         if texte.is_empty() {
             return;
         }
-        if let Err(err) = Clipboard::new().and_then(|mut c| c.set_text(texte)) {
-            self.ui.show_toast(format!("Presse-papiers : {err}"));
+        if !self.ecrire_presse_papiers(texte) {
             return;
         }
         if couper {
@@ -236,3 +235,60 @@ impl GlucoseApp {
         }
     }
 }
+
+// ── Copier ce qui est **sélectionné** ───────────────────────────────────────
+//
+// `Ctrl+C` n'existait que pendant une saisie. Hors saisie, la table des raccourcis tenait
+// `v`, `z`, `y`, `d`, `a`, `]` et `[` — mais ni `c` ni `x`. Sélectionner une carte et la
+// copier ne faisait donc rien du tout, et rien ne le disait : pas de toast, pas d'erreur,
+// pas de test. Le geste le plus banal d'un ordinateur tombait dans le vide.
+
+impl GlucoseApp {
+    /// `Ctrl+C` et `Ctrl+X` hors saisie : la sélection part vers le presse-papiers du système.
+    pub(crate) fn copy_selection(&mut self, couper: bool) {
+        let compte = self.store.selected_annotation_ids.len() + self.store.selected_image_ids.len();
+        let Some(texte) = self.store.selection_as_text() else {
+            return;
+        };
+        if !self.ecrire_presse_papiers(texte) {
+            return;
+        }
+        let verbe = if couper { "coupé" } else { "copié" };
+        let pluriel = if compte > 1 { "s" } else { "" };
+        self.ui
+            .show_toast(format!("{compte} élément{pluriel} {verbe}{pluriel}"));
+        if couper {
+            self.delete_selection();
+        }
+        self.mark_dirty();
+    }
+}
+
+impl GlucoseApp {
+    /// Le seul endroit qui dise qu'un échange avec le presse-papiers a échoué.
+    ///
+    /// Lire et écrire disaient la même phrase chacun de son côté : deux endroits à relire le
+    /// jour où elle change, pour une seule chose à dire. Un échec du presse-papiers ne se voit
+    /// nulle part — c'est justement le cas où un toast a quelque chose à apprendre.
+    fn echec_presse_papiers(&mut self, err: impl std::fmt::Display) {
+        self.ui.show_toast(format!("Presse-papiers : {err}"));
+    }
+
+    /// Écrit `texte` dans le presse-papiers du système. Rend `false` si l'écriture a échoué.
+    ///
+    /// Un seul site pour un seul message : trois endroits disaient la même phrase d'échec,
+    /// donc trois endroits à relire le jour où elle change. Un échec du presse-papiers ne se
+    /// voit nulle part — c'est le cas où un toast a vraiment quelque chose à apprendre.
+    fn ecrire_presse_papiers(&mut self, texte: String) -> bool {
+        match Clipboard::new().and_then(|mut c| c.set_text(texte)) {
+            Ok(()) => true,
+            Err(err) => {
+                self.echec_presse_papiers(err);
+                false
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;

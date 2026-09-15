@@ -322,6 +322,20 @@ impl Annotation {
 
     /// La taille d'une annotation, tailles de naissance comprises. `None` pour une flèche :
     /// elle a deux extrémités, pas une boîte.
+    /// Le texte que ce nœud porte en propre, s'il en porte un.
+    ///
+    /// Une flèche n'en a pas ; une membrane en a un facultatif, qui est son nom. C'est la
+    /// seule réponse à « qu'y a-t-il d'écrit ici », et elle vit sur le type plutôt que dans
+    /// chaque appelant — le dessin, la copie et l'export posaient tous la même question, et
+    /// chacun y répondait dans son coin.
+    pub fn own_text(&self) -> Option<String> {
+        match self {
+            Self::Text { text, .. } | Self::Sticky { text, .. } => Some(text.clone()),
+            Self::Membrane { text, .. } => text.clone(),
+            Self::Arrow { .. } => None,
+        }
+    }
+
     pub fn size(&self) -> Option<(f64, f64)> {
         match self {
             Self::Text { width, height, .. } => Some((
