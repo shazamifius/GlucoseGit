@@ -336,13 +336,24 @@ Glucose » se décide.*
 
 | # | Travail |
 |---|---|
-| 2.B.1 | **Dessiner par glisser** (aujourd'hui : 120 × 80 fixe, non dessinable) |
-| 2.B.2 | **Les rendre cliquables** — `arrow_id: None` aux deux seuls endroits qui picorent : une flèche n'est aujourd'hui **jamais** sélectionnable |
-| 2.B.3 | Brancher `arrow_anchor` : la flèche s'accroche au **bord** du nœud et le suit |
-| 2.B.4 | Déplacer les extrémités, courbes, waypoints, bidirectionnelle, épaisseur, couleur |
+| 2.B.1 | ✅ **Dessiner par glisser** — DRAW-1, `7ff36c8` |
+| 2.B.2 | ✅ **Les rendre cliquables** — ARROW-1, `04c9b68` : le champ `arrow_id` disparaît avec le trou |
+| 2.B.3 | ✅ Brancher `arrow_anchor` — `9b4a2f2` : la flèche s'arrête sur le **bord** du nœud |
+| 2.B.4 | ✅ **L'aimantation au tracé** — ARROW-2, `df0aef1` ; ✅ **les coudes** — ARROW-3, `5831c7f` |
 | 2.B.5 | Étiquette sur la flèche + son éditeur |
 | 2.B.6 | **Prédicats sémantiques** (6 types) — l'autre outil de navigation que la charte réclame |
 | 2.B.7 | Attache à un sous-bloc / à une sélection de texte (dépend de 1.A.8) ; flèche-portail vers un autre board |
+| 2.B.8 | Épaisseur, couleur, bidirectionnelle, courbes — les options de tracé |
+
+> **Ce que la lecture de Glucose Tauri a démenti dans ce plan.** La ligne 2.B.4 disait
+> « déplacer les extrémités ». **Glucose Tauri ne le fait pas** : les deux disques qu'il pose
+> aux bouts d'une flèche sélectionnée (`ArrowSvgLayer.tsx`) sont décoratifs, sans aucun
+> gestionnaire. C'était une supposition, pas une lecture.
+>
+> Ce qui relie une flèche à un nœud chez lui, c'est `snapToNearest` : l'origine s'aimante à
+> l'appui, la cible en continu pendant le glisser (ARROW-2). Et ce qu'on manipule ensuite, ce
+> sont ses **coudes** (ARROW-3), pas ses bouts. La ligne est corrigée ici plutôt que
+> silencieusement abandonnée : une roadmap qui se trompe sans le dire fait perdre deux fois.
 
 #### Chantier 2.C — Dossiers et miroirs *(commencé en `56737b8` et `acceb0d`)*
 
@@ -366,13 +377,38 @@ Glucose » se décide.*
 | 3.A | **Rideaux** — la fonctionnalité la plus originale de Glucose, 0 % : créer, languette nommée et colorée, rideau = board complet, visibilité privé/partagé, droits, ratios | 426 l. + 511 l. de tests |
 | 3.B | **Export** — SVG, Markdown, HTML, PNG, **et l'écriture sur le disque** qui manque même aux deux moteurs prêts | 501 l. |
 | 3.C | **Temporalité** — ancrage, invite de saisie, règle, filtre, plages, années négatives | 406 l. |
-| 3.D | **Images** — glisser-déposer multi-fichiers **et depuis un navigateur** (le besoin n° 1), mipmaps, cache borné, décodage asynchrone, chargement progressif, lecture d'en-tête, vidéos, dédup, tags | `sha256` branché |
+| 3.D | **Images et fichiers** — ✅ le **routage** d'un fichier déposé (`f6a475f`) : lisible → carte, image → image, le reste → lanceur. Reste le glisser **depuis un navigateur** et la position exacte du dépôt, même cause et même correction (voir ci-dessous) ; puis mipmaps, cache borné, décodage asynchrone, chargement progressif, vidéos, dédup, tags | `sha256` branché |
 | 3.E | **Interface** — dock animé (rebond + FLIP, courbes prêtes), sélecteur de couleur, panneau Ordonner complet, infobulles, renommer/fermer/réordonner les boards, thème centralisé (~130 littéraux), barre de statut, HUD | courbes prêtes |
 | 3.F | **Recherche** `Ctrl+F` plein texte + navigation vers un résultat | rien |
 | 3.G | Storyboard, presets, zones | rien |
 | 3.H | **Persistance** — autosave, versions automatiques, compaction, récupération après crash, migration du v1 TypeScript | format v2 complet |
 
 ---
+
+### Ce que winit jette, et ce qu'il faudra écrire pour le récupérer
+
+Deux manques du glisser-déposer ont **la même** cause, donc la même correction :
+
+* **la position du dépôt** — `IDropTarget::Drop` reçoit le point du curseur, et winit le jette :
+  le paramètre s'appelle `_pt`, dans les trois méthodes. Pendant un glisser, Windows ne remonte
+  aucun mouvement de souris à la fenêtre, donc la dernière position connue date d'avant le
+  geste. Glucose pose au centre de ce qu'on regarde — prévisible, à défaut d'être juste ;
+* **le glisser depuis un navigateur** — `DragEnter` de winit n'interroge que `CF_HDROP`. Une
+  image glissée depuis Chrome arrive en formats OLE virtuels et en `CF_UNICODETEXT` : rien n'en
+  parvient à l'application.
+
+La correction est un `IDropTarget` à nous : `RevokeDragDrop` puis `RegisterDragDrop`, une vtable
+COM écrite à la main (winit le fait en ≈ 250 lignes, c'est l'ordre de grandeur), et la lecture
+de `CF_HDROP`, `CF_UNICODETEXT`, `CF_HTML` et `FileGroupDescriptorW`/`FileContents`. C'est du
+code de plateforme, non testable sans fenêtre, et qui n'existe que pour Windows.
+
+Il attend donc d'être écrit **avec** les autres couches d'entrée que la charte réclame — le
+multi-touch Android, le cycle de vie d'activité — plutôt qu'en isolé. Le bricoler avant
+reviendrait à écrire du code à jeter, puisque c'est la **même** interface qui porte les deux
+manques.
+
+---
+
 
 ### Vague 4 — La fondation et la performance
 
