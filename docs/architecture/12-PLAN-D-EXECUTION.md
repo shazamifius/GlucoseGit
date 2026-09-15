@@ -340,8 +340,8 @@ Glucose » se décide.*
 | 2.B.2 | ✅ **Les rendre cliquables** — ARROW-1, `04c9b68` : le champ `arrow_id` disparaît avec le trou |
 | 2.B.3 | ✅ Brancher `arrow_anchor` — `9b4a2f2` : la flèche s'arrête sur le **bord** du nœud |
 | 2.B.4 | ✅ **L'aimantation au tracé** — ARROW-2, `df0aef1` ; ✅ **les coudes** — ARROW-3, `5831c7f` |
-| 2.B.5 | Étiquette sur la flèche + son éditeur |
-| 2.B.6 | **Prédicats sémantiques** (6 types) — l'autre outil de navigation que la charte réclame |
+| 2.B.5 | ✅ **Étiquette** et sa saisie — LABEL-1, `9c22a27` : la pastille est mesurée, pas estimée |
+| 2.B.6 | ✅ **Prédicats sémantiques** — PRED-1, `4ab28b3` : six sigles **tracés**, puisque quatre des six caractères de Glucose Tauri sont absents des polices embarquées. Reste leur découvrabilité — le menu contextuel doit les proposer |
 | 2.B.7 | Attache à un sous-bloc / à une sélection de texte (dépend de 1.A.8) ; flèche-portail vers un autre board |
 | 2.B.8 | Épaisseur, couleur, bidirectionnelle, courbes — les options de tracé |
 
