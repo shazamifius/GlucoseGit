@@ -176,3 +176,51 @@ pub fn capture_with(
 
 #[cfg(test)]
 mod tests;
+
+/// Mesure `repeats` frames pendant que la caméra **bouge**, comme pendant un geste réel.
+///
+/// # Pourquoi cette mesure manquait, et ce qu'elle seule peut dire
+///
+/// [`measure`] rend toujours la même image. Elle mesure donc un régime permanent — précieux,
+/// mais aveugle à tout ce qui dépend du **changement** : un cache dont la clé contient le
+/// cadrage rate à chaque image dès que le cadrage bouge, et le banc, lui, ne le verra jamais.
+///
+/// L'essai à la main rapporte « ça saccade énormément » là où le banc annonce moins d'une
+/// milliseconde. Un tel écart ne se comble pas en optimisant : il se comble en mesurant ce
+/// que le banc ne mesurait pas.
+///
+/// L'échelle va de `depart` à `arrivee` en progression **géométrique** — c'est ainsi qu'un
+/// zoom se vit : chaque cran multiplie, il n'ajoute pas. Une rampe linéaire passerait
+/// l'essentiel du temps dans les grandes échelles et n'explorerait presque pas le dézoom.
+pub fn measure_sweep(
+    store: &mut Store,
+    width: u32,
+    height: u32,
+    repeats: usize,
+    (depart, arrivee): (f64, f64),
+) -> Stats {
+    let mut renderer = Renderer::new();
+    let mut ui = UiState::new();
+    let mut pixmap = Pixmap::new(width, height).expect("un pixmap de cette taille");
+
+    frame_document(store, depart, width, height);
+    render_into(&mut renderer, &mut ui, store, &mut pixmap);
+
+    let mut temps = Vec::with_capacity(repeats);
+    for i in 0..repeats {
+        let t = i as f64 / (repeats.max(2) - 1) as f64;
+        let echelle = depart * (arrivee / depart).powf(t);
+        frame_document(store, echelle, width, height);
+        let t0 = Instant::now();
+        render_into(&mut renderer, &mut ui, store, &mut pixmap);
+        temps.push(t0.elapsed().as_secs_f64() * 1000.0);
+    }
+    temps.sort_by(f64::total_cmp);
+
+    Stats {
+        frames: temps.len(),
+        min_ms: temps.first().copied().unwrap_or(0.0),
+        median_ms: temps.get(temps.len() / 2).copied().unwrap_or(0.0),
+        max_ms: temps.last().copied().unwrap_or(0.0),
+    }
+}
