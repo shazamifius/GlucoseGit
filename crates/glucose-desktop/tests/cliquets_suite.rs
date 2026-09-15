@@ -303,7 +303,6 @@ const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
     "arena",
     "fixed",
     // Écrits et testés, en attente de leur geste (fiche 12 § 4).
-    "arrow_anchor",
     "curtain_model",
     "curtain_panel",
     "export",

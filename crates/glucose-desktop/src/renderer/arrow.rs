@@ -25,6 +25,8 @@ pub(super) fn draw_arrow(
     from: (f64, f64),
     to: (f64, f64),
     selected: bool,
+    // Ce tronçon porte-t-il la pointe ? Une polyligne n'en a qu'une, à son dernier segment.
+    tip: bool,
 ) {
     let (ax, ay) = world_to_screen(from.0, from.1, &ctx.vp);
     let (bx, by) = world_to_screen(to.0, to.1, &ctx.vp);
@@ -43,14 +45,18 @@ pub(super) fn draw_arrow(
     pb.line_to(x2, y2);
 
     // La pointe est de la géométrie du monde : elle grandit avec la flèche, sans borne.
-    let head = ctx.scale.world(ARROW_HEAD);
-    let angle = (y2 - y1).atan2(x2 - x1);
-    for side in [-ARROW_ANGLE, ARROW_ANGLE] {
-        pb.move_to(x2, y2);
-        pb.line_to(
-            x2 - head * (angle + side).cos(),
-            y2 - head * (angle + side).sin(),
-        );
+    // Une polyligne n'en porte qu'une, à son dernier tronçon : les coudes sont des passages,
+    // pas des arrivées.
+    if tip {
+        let head = ctx.scale.world(ARROW_HEAD);
+        let angle = (y2 - y1).atan2(x2 - x1);
+        for side in [-ARROW_ANGLE, ARROW_ANGLE] {
+            pb.move_to(x2, y2);
+            pb.line_to(
+                x2 - head * (angle + side).cos(),
+                y2 - head * (angle + side).sin(),
+            );
+        }
     }
 
     let Some(path) = pb.finish() else {

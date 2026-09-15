@@ -134,9 +134,15 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     // fait. Tauri le tenait du DOM — une bande invisible que le navigateur savait toucher —
     // et le portage avait gardé le champ sans le navigateur : personne ne le remplissait,
     // donc aucune flèche n'était jamais sélectionnable.
-    if let Some((fleche, dist)) =
-        crate::arrow::at(input.annotations, (input.wx, input.wy), input.scale)
-    {
+    if let Some((fleche, dist)) = crate::arrow::at(
+        input.annotations,
+        // Une flèche ancrée se vise **là où elle se dessine**, sur le bord du nœud
+        // qu'elle touche et non sur son centre. Le résolveur donne la boîte d'un nœud ;
+        // l'arbitre n'a pas à savoir comment une ancre se calcule.
+        |id| node_rect_of(input, id),
+        (input.wx, input.wy),
+        input.scale,
+    ) {
         out.push(PickCandidate {
             owner: PickOwner::Arrow,
             id: fleche.id().to_string(),
@@ -364,4 +370,22 @@ pub fn collect_candidates_indexed(
     };
 
     collect_candidates(&filtered_input)
+}
+
+/// La boîte d'un nœud désigné par son identifiant, dans ce qu'on donne à l'arbitre.
+///
+/// L'arbitre reçoit des tranches et non un tableau : c'est ce qui lui permet de ne voir que
+/// le voisinage du curseur. Le résolveur travaille donc sur ces mêmes tranches.
+fn node_rect_of(input: &PickInput<'_>, id: &str) -> Option<crate::geometry::Rect> {
+    if let Some(img) = input.images.iter().find(|i| i.id == id) {
+        return Some(img.rect());
+    }
+    if let Some(ann) = input.annotations.iter().find(|a| a.id() == id) {
+        return ann.rect();
+    }
+    input
+        .folders
+        .iter()
+        .find(|f| f.id == id)
+        .map(crate::types::CanvasFolder::rect)
 }

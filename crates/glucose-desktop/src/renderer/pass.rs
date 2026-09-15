@@ -117,9 +117,7 @@ pub(super) fn draw_annotations(
                 draw_sticky(&ctx, pixmap, ann, selected, editing);
                 draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
             }
-            Annotation::Arrow { x, y, x2, y2, .. } => {
-                draw_arrow(&ctx, pixmap, (*x, *y), (*x2, *y2), selected);
-            }
+            Annotation::Arrow { .. } => draw_arrow_path(&ctx, pixmap, ann, board, selected),
             _ => {}
         }
     }
@@ -141,4 +139,28 @@ fn draw_node_gauge(
         (wx as f32, wy as f32),
         domains,
     );
+}
+
+/// Trace une flèche, tronçon par tronçon.
+///
+/// Le tracé vient de [`glucose_core::arrow::path_in`], celui-là même que l'arbitre de clic
+/// interroge : une flèche ancrée s'arrête sur le bord du nœud qu'elle vise, et elle se
+/// **vise** là où elle se dessine. Deux endroits qui recalculeraient cette forme finiraient
+/// par en dessiner deux différentes — c'est ce que la rotation a coûté (ARROW-1).
+fn draw_arrow_path(
+    ctx: &Pass<'_>,
+    pixmap: &mut PixmapMut,
+    ann: &Annotation,
+    board: &glucose_core::types::Board,
+    selected: bool,
+) {
+    let Some(points) = glucose_core::arrow::path_in(ann, board) else {
+        return;
+    };
+    let dernier = points.len().saturating_sub(2);
+    for (i, segment) in points.windows(2).enumerate() {
+        // Une polyligne ne porte qu'une pointe, à son dernier tronçon : les coudes sont des
+        // passages, pas des arrivées.
+        draw_arrow(ctx, pixmap, segment[0], segment[1], selected, i == dernier);
+    }
 }

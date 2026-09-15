@@ -302,6 +302,14 @@ fn witness_notes(store: &mut Store) {
         BOARD,
         Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0),
     );
+    // Une flèche **ancrée** : elle vise la membrane et s'arrête sur son bord, pas sur son
+    // centre. Rien ne tenait à quoi cela ressemble, puisque `arrow_anchor` n'avait aucun
+    // appelant — cent soixante-dix-sept lignes écrites et jamais vues (ARROW-1).
+    let mut accrochee = Annotation::arrow("a-accrochee", -220.0, -270.0, 0.0, 0.0);
+    if let Annotation::Arrow { target_id, .. } = &mut accrochee {
+        *target_id = Some("m-titree".to_string());
+    }
+    store.add_annotation(BOARD, accrochee);
 }
 
 /// Ce qui contient : une membrane titrée et un dossier.
@@ -336,7 +344,7 @@ pub const WITNESS_SIZE: (u32, u32) = (1800, 900);
 
 /// La boîte englobante du contenu de la scène témoin, en unités monde — ce que le cadrage doit
 /// contenir, et ce qu'un test peut vérifier sans dessiner.
-pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -260.0, 780.0, 490.0);
+pub const WITNESS_CONTENT: (f64, f64, f64, f64) = (-520.0, -270.0, 780.0, 500.0);
 
 /// **Le témoin, avec quelque chose de sélectionné.**
 ///
