@@ -76,6 +76,8 @@ pub struct GlucoseApp {
     pub drag_applied_delta: (f64, f64),
     /// Le redimensionnement en cours, s'il y en a un (RESIZE-1).
     pub resize_session: Option<ResizeSession>,
+    /// L'objet en train de naître sous la main, s'il y en a un (DRAW-1).
+    pub draw_session: Option<crate::interactions::tools::DrawSession>,
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
     pub always_on_top: bool,
@@ -174,6 +176,7 @@ impl GlucoseApp {
             drag_snap_targets: Vec::new(),
             drag_applied_delta: (0.0, 0.0),
             resize_session: None,
+            draw_session: None,
             active_guides: SnapGuides::default(),
             selection_box: None,
             always_on_top: false,

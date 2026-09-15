@@ -912,3 +912,85 @@ fn test_arrow_1_a_click_beside_the_arrow_takes_nothing() {
         "deux cents unités plus bas, il n'y a rien à prendre"
     );
 }
+
+// ── DRAW-1 — dessiner par glisser ──────────────────────────────────────────
+
+/// Un glisser avec l'outil Flèche trace la flèche de l'appui au relâchement.
+#[test]
+fn test_draw_1_dragging_the_arrow_tool_draws_the_arrow() {
+    use glucose_core::types::Annotation;
+
+    let mut app = app();
+    app.ui.active_tool = crate::ui::ActiveTool::Arrow;
+    let vp = app.store.active_board().expect("un tableau").viewport;
+    let (sx, sy) = world_to_screen(0.0, 0.0, &vp);
+
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    drag_by(&mut app, 300.0, 120.0, 6);
+    release(&mut app);
+
+    let board = app.store.active_board().expect("un tableau");
+    let Some(Annotation::Arrow { x, y, x2, y2, .. }) = board
+        .annotations
+        .iter()
+        .find(|a| matches!(a, Annotation::Arrow { .. }))
+    else {
+        panic!("une flèche doit exister");
+    };
+    assert!(
+        (*x).abs() < 1.0 && (*y).abs() < 1.0,
+        "la queue est à l'appui"
+    );
+    assert!(
+        (*x2 - 300.0).abs() < 1.0 && (*y2 - 120.0).abs() < 1.0,
+        "la pointe suit la main : ({x2}, {y2})"
+    );
+}
+
+/// Un **clic** sans glisser garde le vecteur de naissance : une flèche de longueur nulle ne
+/// se voit pas, ne se clique pas, et ne s'annule donc plus qu'à l'aveugle.
+#[test]
+fn test_draw_1_a_click_without_dragging_keeps_the_birth_vector() {
+    use crate::interactions::tools::NEW_ARROW_VECTOR;
+    use glucose_core::types::Annotation;
+
+    let mut app = app();
+    app.ui.active_tool = crate::ui::ActiveTool::Arrow;
+    let vp = app.store.active_board().expect("un tableau").viewport;
+    let (sx, sy) = world_to_screen(0.0, 0.0, &vp);
+    click_at(&mut app, sx, sy);
+
+    let board = app.store.active_board().expect("un tableau");
+    let Some(Annotation::Arrow { x2, y2, .. }) = board
+        .annotations
+        .iter()
+        .find(|a| matches!(a, Annotation::Arrow { .. }))
+    else {
+        panic!("une flèche doit exister");
+    };
+    assert!((*x2 - NEW_ARROW_VECTOR.0).abs() < 1.0);
+    assert!((*y2 - NEW_ARROW_VECTOR.1).abs() < 1.0);
+}
+
+/// Le tracé entier ne coûte **qu'une** entrée d'annulation.
+#[test]
+fn test_draw_1_the_whole_stroke_is_one_undo_entry() {
+    let mut app = app();
+    app.ui.active_tool = crate::ui::ActiveTool::Arrow;
+    let vp = app.store.active_board().expect("un tableau").viewport;
+    let (sx, sy) = world_to_screen(0.0, 0.0, &vp);
+
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    drag_by(&mut app, 300.0, 120.0, 10);
+    release(&mut app);
+
+    assert!(app.store.undo(), "le tracé doit s'annuler");
+    let reste = app
+        .store
+        .active_board()
+        .map(|b| b.annotations.len())
+        .unwrap_or(9);
+    assert_eq!(reste, 0, "une seule annulation efface toute la flèche");
+}

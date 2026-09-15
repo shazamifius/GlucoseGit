@@ -41,6 +41,14 @@ pub const NEW_ARROW_VECTOR: (f64, f64) = (120.0, 80.0);
 /// celle-ci laisse de quoi poser quelque chose dedans — en attendant le dessin par glisser.
 pub const NEW_CONTAINER_SIZE: (f64, f64) = (320.0, 240.0);
 
+/// En deçà de cette longueur, en unités monde, une flèche tracée est tenue pour un simple
+/// clic et reprend son vecteur de naissance.
+///
+/// La valeur n'est pas choisie : c'est la demi-bande qui la désigne au curseur
+/// ([`glucose_core::arrow::BAND_PX`]). Plus courte qu'elle, une flèche tient entièrement
+/// sous le point qui sert à l'attraper — elle ne serait qu'une cible sans trait.
+pub const MIN_ARROW_LENGTH: f64 = glucose_core::arrow::BAND_PX / 2.0;
+
 /// Une carte de texte à sa largeur de naissance, haute comme son texte (TEXT-FIT-1).
 pub fn text_card(
     typography: &Typography,
@@ -63,6 +71,25 @@ pub fn text_card(
         *h = Some(height);
     }
     card
+}
+
+/// Un objet en train de naître sous la main.
+///
+/// # DRAW-1 — le geste se décide au relâchement
+///
+/// Un outil de création pose son objet dès l'appui, à sa taille de naissance, puis le suit
+/// tant que la main glisse. Un **clic** garde donc la naissance, un **glisser** dessine —
+/// et c'est la même différence, au même endroit, que celle qui sépare un pan d'un menu
+/// contextuel au clic droit. Aucun mode, aucun modificateur : le curseur a bougé, ou non.
+///
+/// L'objet est créé tout de suite plutôt qu'au relâchement, pour qu'on le voie naître. Les
+/// écritures qui suivent tiennent dans une seule entrée d'annulation.
+#[derive(Debug, Clone)]
+pub struct DrawSession {
+    /// Le nœud posé à l'appui, celui que le glisser étire.
+    pub id: String,
+    /// Le point du monde où la main s'est posée.
+    pub start: (f64, f64),
 }
 
 impl GlucoseApp {
@@ -111,13 +138,57 @@ impl GlucoseApp {
         self.ui.show_toast(toast);
     }
 
+    /// Pose une flèche et ouvre le geste qui l'étire (DRAW-1).
     fn place_arrow(&mut self, wx: f64, wy: f64) {
         let board = self.store.project.active_board_id.clone();
         let id = self.store.generate_id("arrow");
         let (dx, dy) = NEW_ARROW_VECTOR;
+        self.store.begin_live_edit();
         self.store
-            .add_annotation(&board, Annotation::arrow(id, wx, wy, wx + dx, wy + dy));
+            .add_annotation(&board, Annotation::arrow(&id, wx, wy, wx + dx, wy + dy));
+        self.draw_session = Some(DrawSession {
+            id,
+            start: (wx, wy),
+        });
         self.ui.show_toast("Flèche ajoutée");
+    }
+
+    /// Le glisser en cours amène la pointe de la flèche sous le curseur.
+    pub fn update_draw(&mut self, wx: f64, wy: f64) {
+        let Some(session) = self.draw_session.clone() else {
+            return;
+        };
+        let board = self.store.project.active_board_id.clone();
+        self.store.update_annotation(&board, &session.id, |ann| {
+            if let Annotation::Arrow { x2, y2, .. } = ann {
+                *x2 = wx;
+                *y2 = wy;
+            }
+        });
+        self.mark_dirty();
+    }
+
+    /// Ferme le geste de création : une seule entrée d'annulation pour tout le tracé.
+    ///
+    /// Une flèche **dégénérée** — celle d'un clic dont la main n'a pas bougé, ou d'un glisser
+    /// revenu à son point de départ — reprend son vecteur de naissance : un trait de longueur
+    /// nulle ne se voit pas, ne se clique pas, et ne s'annule donc plus qu'à l'aveugle.
+    pub fn finish_draw(&mut self) {
+        let Some(session) = self.draw_session.take() else {
+            return;
+        };
+        let board = self.store.project.active_board_id.clone();
+        let (dx, dy) = NEW_ARROW_VECTOR;
+        self.store.update_annotation(&board, &session.id, |ann| {
+            if let Annotation::Arrow { x, y, x2, y2, .. } = ann {
+                if (*x2 - *x).hypot(*y2 - *y) < MIN_ARROW_LENGTH {
+                    *x2 = *x + dx;
+                    *y2 = *y + dy;
+                }
+            }
+        });
+        self.store.end_live_edit();
+        self.mark_dirty();
     }
 
     fn place_membrane(&mut self, wx: f64, wy: f64) {
