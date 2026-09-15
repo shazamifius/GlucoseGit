@@ -154,6 +154,21 @@ pub fn line_intersects_rect(p1: Point, p2: Point, r: Rect) -> bool {
     r.contains_point(p1) || r.contains_point(p2)
 }
 
+/// La distance d'un point au segment `[a, b]`.
+///
+/// Le point est projeté sur la droite portée par le segment, puis la projection est ramenée
+/// **entre** `a` et `b` : au-delà, c'est l'extrémité qui est le point le plus proche. Un
+/// segment de longueur nulle se réduit à son point, sans division par zéro.
+pub fn distance_to_segment(p: (f64, f64), a: (f64, f64), b: (f64, f64)) -> f64 {
+    let (abx, aby) = (b.0 - a.0, b.1 - a.1);
+    let long2 = abx * abx + aby * aby;
+    if long2 <= f64::EPSILON {
+        return f64::hypot(p.0 - a.0, p.1 - a.1);
+    }
+    let t = (((p.0 - a.0) * abx + (p.1 - a.1) * aby) / long2).clamp(0.0, 1.0);
+    f64::hypot(p.0 - (a.0 + t * abx), p.1 - (a.1 + t * aby))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -122,6 +122,13 @@ pub(super) fn drag_by(app: &mut GlucoseApp, dx: f64, dy: f64, steps: usize) {
     }
 }
 
+/// Un clic complet à une position **écran** : appui puis relâchement.
+pub(super) fn click_at(app: &mut GlucoseApp, sx: f64, sy: f64) {
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    app.handle_mouse_up(MouseButton::Left);
+}
+
 pub(super) fn release(app: &mut GlucoseApp) {
     app.handle_mouse_up(MouseButton::Left);
 }
@@ -856,4 +863,52 @@ fn test_no_card_declares_a_box_smaller_than_it_draws() {
             ann.id()
         );
     }
+}
+
+/// ARROW-1 — un clic sur une flèche la sélectionne.
+///
+/// Elle ne l'était **jamais** : Tauri désigne la flèche sous le curseur par le DOM, et le
+/// portage avait gardé le champ `arrow_id` sans le navigateur qui le remplissait. Le noyau a
+/// beau savoir trier, cela ne vaut rien tant qu'aucun test ne prouve qu'un clic y arrive.
+#[test]
+fn test_arrow_1_a_click_on_an_arrow_selects_it() {
+    use glucose_core::types::Annotation;
+
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::arrow("A1", -200.0, 0.0, 200.0, 0.0));
+    render(&mut app);
+
+    // Un point du monde **sur** le trait, converti en écran comme le ferait la souris.
+    let vp = app.store.active_board().expect("un tableau").viewport;
+    let (sx, sy) = world_to_screen(0.0, 0.0, &vp);
+    click_at(&mut app, sx, sy);
+
+    assert_eq!(
+        app.store.selected_annotation_ids,
+        vec!["A1".to_string()],
+        "un clic sur le trait doit prendre la flèche"
+    );
+}
+
+/// Et un clic à côté ne la prend pas : la bande a des bords.
+#[test]
+fn test_arrow_1_a_click_beside_the_arrow_takes_nothing() {
+    use glucose_core::types::Annotation;
+
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::arrow("A1", -200.0, 0.0, 200.0, 0.0));
+    render(&mut app);
+
+    let vp = app.store.active_board().expect("un tableau").viewport;
+    let (sx, sy) = world_to_screen(0.0, 200.0, &vp);
+    click_at(&mut app, sx, sy);
+
+    assert!(
+        app.store.selected_annotation_ids.is_empty(),
+        "deux cents unités plus bas, il n'y a rien à prendre"
+    );
 }

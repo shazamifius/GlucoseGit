@@ -64,7 +64,6 @@ fn test_pick_priority_image_in_membrane() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -93,7 +92,6 @@ fn test_pick_membrane_edge() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -121,7 +119,6 @@ fn test_nested_membranes_smallest_wins() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -148,7 +145,6 @@ fn test_text_terminal_cycle() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -189,7 +185,6 @@ fn test_collect_candidates_indexed_matches_naive() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
 
@@ -211,7 +206,6 @@ fn test_collect_candidates_indexed_matches_naive() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        arrow_id: None,
         dom_hint: None,
     };
     let empty_indexed = collect_candidates_indexed(&empty_input, &hash);
