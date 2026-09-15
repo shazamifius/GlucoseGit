@@ -7,7 +7,7 @@
 //! l'édition.
 
 use super::*;
-use glucose_core::types::BoardImage;
+use glucose_core::types::{Annotation, ArrowPredicate, BoardImage};
 use winit::event::{ElementState, MouseButton};
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
@@ -223,4 +223,147 @@ fn test_une_entree_du_menu_agit_vraiment() {
 
     assert_eq!(ordre(&app), ["i1", "i2", "i0"]);
     assert_eq!(app.ui.context_menu_at, None, "et le menu se referme");
+}
+
+// ── PRED-1 : les chiffres posent un prédicat sémantique ───────────────────
+
+/// Un tableau d'une flèche et d'une carte, la flèche sélectionnée.
+fn app_avec_fleche() -> GlucoseApp {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.images.clear();
+        b.annotations.clear();
+    }
+    app.store
+        .add_annotation(&board, Annotation::arrow("a", 0.0, 0.0, 200.0, 0.0));
+    app.store
+        .add_annotation(&board, Annotation::text("t", 300.0, 0.0, "une carte"));
+    app.store.set_selected_annotation_ids(vec!["a".into()]);
+    app.store.journal.clear();
+    app
+}
+
+fn tape(app: &mut GlucoseApp, key: &str) {
+    app.handle_shortcut_input(&Key::Character(SmolStr::new(key)), ElementState::Pressed);
+}
+
+fn predicat(app: &GlucoseApp, id: &str) -> Option<ArrowPredicate> {
+    app.store
+        .active_board()?
+        .annotations
+        .iter()
+        .find(|a| a.id() == id)
+        .and_then(|a| match a {
+            Annotation::Arrow { predicate, .. } => *predicate,
+            _ => None,
+        })
+}
+
+/// Les six chiffres posent les six prédicats, dans l'ordre du modèle.
+#[test]
+fn test_pred_1_each_digit_sets_its_predicate() {
+    let mut app = app_avec_fleche();
+    for (rang, attendu) in ArrowPredicate::ALL.iter().enumerate() {
+        tape(&mut app, &(rang + 1).to_string());
+        assert_eq!(
+            predicat(&app, "a"),
+            Some(*attendu),
+            "la touche {} devrait poser {}",
+            rang + 1,
+            attendu.as_str()
+        );
+    }
+}
+
+/// `0` retire le prédicat : la relation redevient un simple lien.
+#[test]
+fn test_pred_1_zero_clears_the_predicate() {
+    let mut app = app_avec_fleche();
+    tape(&mut app, "3");
+    assert!(predicat(&app, "a").is_some());
+    tape(&mut app, "0");
+    assert_eq!(predicat(&app, "a"), None);
+}
+
+/// Le geste porte sur **toute** la sélection : c'est ce qui permet d'annoter un graphe.
+#[test]
+fn test_pred_1_the_whole_selection_is_qualified_at_once() {
+    let mut app = app_avec_fleche();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::arrow("b", 0.0, 90.0, 200.0, 90.0));
+    app.store
+        .set_selected_annotation_ids(vec!["a".into(), "b".into()]);
+
+    tape(&mut app, "2");
+    assert_eq!(predicat(&app, "a"), Some(ArrowPredicate::Contredit));
+    assert_eq!(predicat(&app, "b"), Some(ArrowPredicate::Contredit));
+}
+
+/// Une sélection mêlée sert à ce qu'elle peut servir : les flèches sont qualifiées, et ce
+/// qui n'en est pas est laissé intact.
+#[test]
+fn test_pred_1_a_mixed_selection_qualifies_only_its_arrows() {
+    let mut app = app_avec_fleche();
+    app.store
+        .set_selected_annotation_ids(vec!["a".into(), "t".into()]);
+    let carte_avant = app
+        .store
+        .active_board()
+        .and_then(|b| b.annotations.iter().find(|a| a.id() == "t").cloned());
+    tape(&mut app, "4");
+
+    assert_eq!(predicat(&app, "a"), Some(ArrowPredicate::Inspire));
+    let carte_apres = app
+        .store
+        .active_board()
+        .and_then(|b| b.annotations.iter().find(|a| a.id() == "t").cloned());
+    assert_eq!(carte_avant, carte_apres, "la carte n'a pas été touchée");
+}
+
+/// Sans flèche dans la sélection, le chiffre n'est pas consommé — et ne dit rien.
+///
+/// Un raccourci qui avale une touche pour ne rien faire est pire qu'un raccourci absent :
+/// il empêche la suivante de servir, et il le fait en silence.
+#[test]
+fn test_pred_1_a_digit_without_an_arrow_is_not_swallowed() {
+    let mut app = app_avec_fleche();
+    app.store.set_selected_annotation_ids(vec!["t".into()]);
+    let version = app.store.version;
+    // Le mot d'accueil est déjà là : ce qui se mesure est le **changement**, pas l'absence.
+    let dit = app.ui.current_toast.as_ref().map(|t| t.message.clone());
+    tape(&mut app, "5");
+    assert_eq!(app.store.version, version, "rien n'a été écrit");
+    assert_eq!(
+        app.ui.current_toast.as_ref().map(|t| t.message.clone()),
+        dit,
+        "et rien de neuf n'a été dit"
+    );
+}
+
+/// Tout le geste tient dans une entrée d'annulation, même sur plusieurs flèches.
+#[test]
+fn test_pred_1_qualifying_a_selection_undoes_in_one_step() {
+    let mut app = app_avec_fleche();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::arrow("b", 0.0, 90.0, 200.0, 90.0));
+    app.store
+        .set_selected_annotation_ids(vec!["a".into(), "b".into()]);
+    app.store.journal.clear();
+
+    tape(&mut app, "6");
+    app.store.undo();
+    assert_eq!(predicat(&app, "a"), None);
+    assert_eq!(predicat(&app, "b"), None);
+}
+
+/// `Ctrl`+un chiffre n'est pas un prédicat : les modificateurs restent libres.
+#[test]
+fn test_pred_1_a_modified_digit_is_left_alone() {
+    let mut app = app_avec_fleche();
+    app.modifiers = ModifiersState::CONTROL;
+    tape(&mut app, "1");
+    assert_eq!(predicat(&app, "a"), None);
 }

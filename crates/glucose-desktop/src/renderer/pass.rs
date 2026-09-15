@@ -156,7 +156,18 @@ fn draw_arrow_node(
     editing: Option<&TextEditSession>,
 ) {
     draw_arrow_path(ctx, pixmap, ann, board, selected);
-    super::arrow_label::draw_arrow_label(ctx, pixmap, board, ann, editing, false);
+    // L'étiquette et le prédicat visent **le même** point du tracé. Quand les deux sont là,
+    // l'une monte et l'autre descend : sinon ils se recouvriraient exactement.
+    let porte_les_deux = matches!(
+        ann,
+        Annotation::Arrow {
+            text: Some(_),
+            predicate: Some(_),
+            ..
+        }
+    );
+    super::arrow_label::draw_arrow_label(ctx, pixmap, board, ann, editing, porte_les_deux);
+    super::predicate::draw_arrow_predicate(ctx, pixmap, board, ann, porte_les_deux);
 }
 
 /// Trace une flèche, tronçon par tronçon.

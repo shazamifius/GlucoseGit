@@ -18,6 +18,45 @@ pub enum ArrowPredicate {
 }
 
 impl ArrowPredicate {
+    /// Les six prédicats, dans l'ordre où tout ce qui les propose les parcourt.
+    pub const ALL: [Self; 6] = [
+        Self::EstPrecurseur,
+        Self::Contredit,
+        Self::HeriteDe,
+        Self::Inspire,
+        Self::DependDe,
+        Self::Illustre,
+    ];
+
+    /// Le rang d'un prédicat dans [`Self::ALL`] — ce par quoi une couleur, un sigle ou un
+    /// raccourci le désignent.
+    ///
+    /// Il vit ici, dans le modèle, plutôt que d'être recompté par chaque table : trois
+    /// tables qui numérotent les mêmes six valeurs finissent par les numéroter
+    /// différemment, et c'est alors le sigle d'une relation qui s'affiche sur une autre.
+    pub fn rank(self) -> usize {
+        match self {
+            Self::EstPrecurseur => 0,
+            Self::Contredit => 1,
+            Self::HeriteDe => 2,
+            Self::Inspire => 3,
+            Self::DependDe => 4,
+            Self::Illustre => 5,
+        }
+    }
+
+    /// Ce qu'un prédicat dit, en français, pour qui le lit dans un menu.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::EstPrecurseur => "est précurseur de",
+            Self::Contredit => "contredit",
+            Self::HeriteDe => "hérite de",
+            Self::Inspire => "inspire",
+            Self::DependDe => "dépend de",
+            Self::Illustre => "illustre",
+        }
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::EstPrecurseur => "est_precurseur",

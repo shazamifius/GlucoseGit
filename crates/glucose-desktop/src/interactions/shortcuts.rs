@@ -15,6 +15,7 @@
 
 use crate::app::GlucoseApp;
 use crate::ui::ActiveTool;
+use glucose_core::types::ArrowPredicate;
 
 /// Ce que `Maj` fait à un déplacement au clavier : dix pas d'un coup.
 ///
@@ -63,6 +64,9 @@ impl GlucoseApp {
             }
             Key::Character(ref c) => {
                 let key = c.as_str();
+                if self.handle_predicate_shortcut(key) {
+                    return;
+                }
                 if self.handle_file_shortcut(key) {
                     return;
                 }
@@ -118,6 +122,54 @@ impl GlucoseApp {
         self.store.clear_selection();
         self.update_cursor();
         self.mark_dirty();
+    }
+    /// Les chiffres posent le **prédicat sémantique** des flèches sélectionnées (PRED-1).
+    ///
+    /// `1` à `6` dans l'ordre de [`ArrowPredicate::ALL`], `0` retire. Sans modificateur, et
+    /// sur toute la sélection d'un coup : c'est le geste qu'il faut pour annoter un graphe,
+    /// où l'on qualifie des dizaines de liens à la suite. Un menu à six entrées, ouvert et
+    /// refermé à chaque flèche, coûterait trois gestes là où celui-ci en demande un.
+    ///
+    /// Rend `false` quand la touche n'est pas un chiffre, ou qu'aucune flèche n'est
+    /// sélectionnée — le raccourci rend alors la main à ce qui suit, au lieu d'avaler la
+    /// touche pour rien.
+    fn handle_predicate_shortcut(&mut self, key: &str) -> bool {
+        if self.modifiers.control_key() || self.modifiers.alt_key() {
+            return false;
+        }
+        // Le rang d'un chiffre **est** le rang du prédicat (`ArrowPredicate::rank`) : la
+        // touche, la couleur et le sigle désignent donc tous le même par le même nombre.
+        let rang = match key.chars().next() {
+            Some('0') => None,
+            Some(c @ '1'..='6') => Some(ArrowPredicate::ALL[c as usize - '1' as usize]),
+            _ => return false,
+        };
+        // Un chiffre suivi d'autre chose n'est pas un chiffre.
+        if key.chars().count() != 1 {
+            return false;
+        }
+        // Les **flèches** de la sélection, demandées au modèle, et non toute la sélection :
+        // sans quoi la transaction s'ouvrirait avant de savoir s'il y a quelque chose à
+        // écrire, et un chiffre tapé sur une carte marquerait le document comme modifié
+        // alors que rien ne l'est.
+        let fleches: Vec<String> = self
+            .store
+            .selected_arrows()
+            .iter()
+            .map(|a| a.id().to_string())
+            .collect();
+        if fleches.is_empty() {
+            return false;
+        }
+        let board = self.store.project.active_board_id.clone();
+        self.store.begin_live_edit();
+        self.store.set_arrow_predicate(&board, &fleches, rang);
+        self.store.end_live_edit();
+        // **Sans toast** : le sigle apparaît, change de couleur ou disparaît sous les yeux de
+        // celui qui vient d'appuyer. Un message qui décrit ce que l'œil enregistre est du
+        // bruit — la même règle que pour `Échap` et pour l'ordre d'empilement.
+        self.mark_dirty();
+        true
     }
 
     /// Raccourcis d'édition du document. Rend `true` si la touche a été consommée.

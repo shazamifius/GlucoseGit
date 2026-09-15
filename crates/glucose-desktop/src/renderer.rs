@@ -28,6 +28,7 @@ pub mod hue;
 pub mod math;
 pub mod note;
 pub mod pass;
+pub mod predicate;
 pub mod richtext;
 pub mod scale;
 pub mod scene;

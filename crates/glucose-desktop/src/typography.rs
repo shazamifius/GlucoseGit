@@ -45,7 +45,7 @@
 //! [`SUBPIXEL_PHASES`] positions par axe bornent l'erreur résiduelle à un huitième de pixel.
 
 #[cfg(test)]
-mod coverage;
+pub(crate) mod coverage;
 pub mod glyph;
 
 use fontdue::{Font, FontSettings};
