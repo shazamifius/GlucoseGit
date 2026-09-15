@@ -250,11 +250,23 @@ impl GlucoseApp {
         };
         // Une image tournée se redimensionne dans son propre repère : le pointeur y est ramené.
         let delta = rotate(delta, -rotation);
-        // Une carte de texte ne se tire qu'en largeur (TEXT-FIT-1).
-        let delta = if matches!(session.target, ResizeTarget::TextCard { .. }) {
-            (delta.0, 0.0)
-        } else {
-            delta
+        // Une carte de texte se tire dans les deux sens — mais sa hauteur ne descend jamais
+        // sous celle de son texte : **la liberté n'empêche pas la contrainte**. Le plancher
+        // s'exprime comme la hauteur minimale de la règle, et non par une correction du
+        // rectangle après coup : c'est [`resize_rect`] qui sait quel bord est tenu, et lui
+        // seul peut faire céder l'autre sans déplacer la main.
+        //
+        // Le plancher dépend de la largeur atteinte, puisqu'un texte reflue : il se calcule
+        // donc sur une première passe, celle qui dit où la largeur arrive.
+        let rule = match &session.target {
+            ResizeTarget::TextCard { id } => {
+                let essai = resize_rect(session.start, session.handle, delta, rule);
+                ResizeRule {
+                    min_height: self.fitted_height_of(id, essai.width),
+                    ..rule
+                }
+            }
+            _ => rule,
         };
 
         let free = resize_rect(session.start, session.handle, delta, rule);
@@ -276,9 +288,14 @@ impl GlucoseApp {
             (free, SnapGuides::default())
         };
 
+        // Une poignée latérale ne touche pas la hauteur — mais rétrécir la largeur fait
+        // refluer le texte, donc monter le plancher. Le bord haut est celui qu'on tient,
+        // c'est donc le bas qui cède. Les poignées verticales, elles, sont déjà servies par
+        // `min_height` ci-dessus, qui sait laquelle des deux arêtes est ancrée.
         if let ResizeTarget::TextCard { id } = &session.target {
-            rect.top = session.start.top;
-            rect.height = self.fitted_height_of(id, rect.width);
+            if matches!(session.handle, Handle::Left | Handle::Right) {
+                rect.height = rect.height.max(self.fitted_height_of(id, rect.width));
+            }
         }
         if rotation != 0.0 {
             rect = recenter_rotated(session.start, rect, rotation);
@@ -375,12 +392,16 @@ impl GlucoseApp {
         }) else {
             return;
         };
+        // Le texte **pousse** la carte, il ne la fixe pas : une hauteur tirée à la main est un
+        // plancher qu'une saisie ne reprend pas. Pour la faire redescendre, on tire — et le
+        // geste s'arrêtera lui-même au texte.
         let height = text_card_fit_height(
             &self.renderer.typography,
             &self.renderer.math,
             &text,
             rect.width,
-        );
+        )
+        .max(rect.height);
         if (height - rect.height).abs() > 1e-6 {
             self.store
                 .set_annotation_rect(&board, ann_id, AlignRect { height, ..rect });
@@ -408,7 +429,10 @@ impl GlucoseApp {
                 };
                 let w = width.unwrap_or(glucose_core::types::DEFAULT_TEXT_CARD_WIDTH);
                 *width = Some(w);
-                *height = Some(text_card_fit_height(typography, math, text, w));
+                // Au chargement aussi, la hauteur écrite dans le fichier est un plancher :
+                // écraser détruirait à l'ouverture ce que l'utilisateur avait tiré en fermant.
+                let fit = text_card_fit_height(typography, math, text, w);
+                *height = Some(height.unwrap_or(0.0).max(fit));
             }
         }
     }

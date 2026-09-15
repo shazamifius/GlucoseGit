@@ -46,17 +46,6 @@ impl Handle {
         Handle::Left,
     ];
 
-    /// Les poignées qui changent la largeur : celles d'un nœud dont la hauteur ne se tire
-    /// pas (une carte de texte, dont la hauteur suit le texte — TEXT-FIT-1).
-    pub const HORIZONTAL: [Handle; 6] = [
-        Handle::TopLeft,
-        Handle::TopRight,
-        Handle::Right,
-        Handle::BottomRight,
-        Handle::BottomLeft,
-        Handle::Left,
-    ];
-
     /// Nom court, celui que `hit_priority` range dans `PickCandidate::corner` et que
     /// `smart_align::snap_resize` lit lettre à lettre.
     pub fn as_str(self) -> &'static str {

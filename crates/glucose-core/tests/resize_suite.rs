@@ -322,8 +322,16 @@ fn test_pick_1_a_selected_node_exposes_its_eight_handles() {
     }
 }
 
+/// Une carte de texte offre ses **huit** poignées, comme tout le reste.
+///
+/// Elle n'en offrait que six : ni haut, ni bas, parce que sa hauteur était censée suivre
+/// son texte et rien d'autre. Viser le milieu du bord haut ne trouvait donc rien, et se
+/// lisait comme une zone de clic trop petite plutôt que comme une poignée absente.
+///
+/// La hauteur se tire désormais, et le texte en est le **plancher** : la liberté
+/// n'empêche pas la contrainte.
 #[test]
-fn test_pick_1_a_text_card_offers_no_vertical_handle() {
+fn test_pick_1_a_text_card_offers_all_eight_handles() {
     let card = Annotation::Text {
         id: "T1".into(),
         x: 0.0,
@@ -366,14 +374,14 @@ fn test_pick_1_a_text_card_offers_no_vertical_handle() {
         Some((PickKind::Handle, Some("r".into())))
     );
     assert_eq!(
-        probe(120.0, 0.0).map(|c| c.0),
-        Some(PickKind::Text),
-        "pas de poignée haute"
+        probe(120.0, 0.0),
+        Some((PickKind::Handle, Some("t".into()))),
+        "le milieu du bord haut doit tenir une poignée"
     );
     assert_eq!(
-        probe(120.0, 48.0).map(|c| c.0),
-        Some(PickKind::Text),
-        "pas de poignée basse"
+        probe(120.0, 48.0),
+        Some((PickKind::Handle, Some("b".into()))),
+        "le milieu du bord bas doit tenir une poignée"
     );
 }
 

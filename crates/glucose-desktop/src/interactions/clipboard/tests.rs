@@ -82,10 +82,15 @@ fn test_a_blank_card_contributes_nothing() {
     assert_eq!(app.store.selection_as_text().as_deref(), Some("vrai texte"));
 }
 
-/// `Ctrl+C` hors saisie atteint bien la copie : c'est la ligne qui manquait à la table des
-/// raccourcis, et sans ce test rien ne dirait qu'elle y est revenue.
+/// `Ctrl+C` et `Ctrl+X` hors saisie atteignent la copie — en un seul test, et c'est voulu.
+///
+/// Le presse-papiers est une ressource **unique du système** : deux tests qui l'écrivent en
+/// parallèle se la disputent, l'un échoue, et `Ctrl+X` ne supprime alors rien puisqu'il ne
+/// coupe que ce qu'il a réussi à copier. Écrits séparément, ils passaient seuls et tombaient
+/// en suite complète — un test qui échoue au hasard ne dit plus rien et abîme la valeur des
+/// autres. Un seul test séquentiel supprime la course.
 #[test]
-fn test_ctrl_c_reaches_the_copy_outside_a_text_session() {
+fn test_ctrl_c_and_ctrl_x_reach_the_copy_outside_a_text_session() {
     use winit::event::ElementState;
     use winit::keyboard::{Key, ModifiersState};
 
@@ -107,18 +112,14 @@ fn test_ctrl_c_reaches_the_copy_outside_a_text_session() {
         message.contains("copié"),
         "Ctrl+C doit dire ce qu'il a copié, pas \"{message}\""
     );
-}
+    let reste = app
+        .store
+        .active_board()
+        .map(|b| b.annotations.len())
+        .unwrap_or(0);
+    assert_eq!(reste, 1, "copier ne retire rien");
 
-/// `Ctrl+X` emporte la sélection **et** la retire du document.
-#[test]
-fn test_ctrl_x_also_removes_what_it_took() {
-    use winit::event::ElementState;
-    use winit::keyboard::{Key, ModifiersState};
-
-    let mut app = app();
-    pose_carte(&mut app, "a", "bonjour");
-    app.store.set_selected_annotation_ids(vec!["a".into()]);
-    app.modifiers = ModifiersState::CONTROL;
+    // Et couper emporte **et** retire.
     app.handle_shortcut_input(&Key::Character("x".into()), ElementState::Pressed);
     let reste = app
         .store
