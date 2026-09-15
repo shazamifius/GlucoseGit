@@ -242,6 +242,23 @@ maintenant le reste à parts égales, autour de 7 ms chacun à l'échelle 0,02. 
 plus : la suite n'est plus une correction ponctuelle mais la question du niveau de détail
 (`WorldScale::draws_detail`), qui se pose pour l'élément entier.
 
+**Le coût de surface, réduit d'un tiers sans rien céder.** La conversion lisait trois octets
+et les recomposait à coups de décalages et de « ou ». Elle se dit en une seule opération : un
+pixel vaut `r,g,b,a` en mémoire, donc `a<<24 | b<<16 | g<<8 | r` lu comme un mot ; l'échanger
+bout à bout donne `r<<24 | g<<16 | b<<8 | a`, et un décalage de huit bits laisse exactement ce
+que la fenêtre attend. Le processeur a une instruction pour ça, et le compilateur peut la
+vectoriser — ce qu'une recomposition octet par octet lui interdit.
+
+| définition | octet à octet | échange de mot | |
+|---|---:|---:|---|
+| 1080p | 1,58 ms | **1,06 ms** | −33 % |
+| 1440p | 3,42 ms | **2,29 ms** | −33 % |
+| 4K | 7,83 ms | **5,47 ms** | −30 % |
+
+Un test parcourt **chaque valeur possible de chaque canal** et vérifie que le pixel rendu est
+identique à l'octet près, alpha compris : une optimisation qui change une couleur n'est pas une
+optimisation, c'est un défaut plus rapide.
+
 **Ce qui reste hors de ma portée.** `present()` lui-même — la remise du tampon au système — ne
 se mesure qu'avec une fenêtre. Il s'ajoute aux totaux ci-dessus, il ne s'en retranche pas.
 
