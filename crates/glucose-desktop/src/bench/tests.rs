@@ -264,3 +264,45 @@ fn test_le_cadrage_du_temoin_montre_tout_son_contenu() {
         );
     }
 }
+
+/// L'image **tournée** du témoin se dessine, comme les deux autres.
+///
+/// La capture donne l'impression qu'elle n'a pas de cadre : ses poignées suivent l'angle, et
+/// entre elles il n'y a rien de visible à l'œil sur une image réduite. Or l'œil sur une image
+/// réduite n'est pas une preuve — la même erreur de lecture qu'un test vert qui ne vérifie
+/// rien. Ce test mesure : il y a de l'encre au centre des trois images, ou il n'y en a pas.
+#[test]
+fn test_the_rotated_image_is_drawn_like_the_others() {
+    use glucose_core::synth;
+
+    let store = synth::witness_selected();
+    let (w, h) = synth::WITNESS_SIZE;
+    let png = crate::bench::capture(&store, w, h);
+    let image = image::load_from_memory(&png).expect("un PNG").to_rgba8();
+
+    let vp = store.active_board().expect("un tableau").viewport;
+    let encre_au_centre = |id: &str| {
+        let img = store
+            .active_board()
+            .expect("un tableau")
+            .images
+            .iter()
+            .find(|i| i.id == id)
+            .expect("l'image");
+        let (sx, sy) = crate::canvas::world_to_screen(img.x, img.y, &vp);
+        let px = image.get_pixel(sx as u32, sy as u32);
+        // Le fond du canevas est noir ; toute plaque de remplacement l'éclaircit.
+        u32::from(px[0]) + u32::from(px[1]) + u32::from(px[2])
+    };
+
+    let droite = encre_au_centre("img-libre");
+    let tournee = encre_au_centre("img-tournee");
+    assert!(
+        droite > 0,
+        "l'image droite doit poser de l'encre en son centre"
+    );
+    assert!(
+        tournee > 0,
+        "l'image tournée n'en pose aucune : {tournee} contre {droite} pour la droite"
+    );
+}
