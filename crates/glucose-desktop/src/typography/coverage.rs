@@ -487,3 +487,16 @@ fn test_measuring_agrees_with_drawing() {
         );
     }
 }
+
+/// Les caractères qu'au moins un visage d'**interface** ne sait pas dessiner.
+///
+/// Exposée pour que d'autres modules puissent fonder une décision de rendu sur ce que les
+/// polices couvrent réellement, plutôt que sur une supposition : c'est ainsi que les sigles
+/// de prédicat ont été tracés au lieu d'être écrits (PRED-1).
+pub(crate) fn missing_from_interface(chars: &str) -> Vec<char> {
+    let mut manquants: BTreeSet<char> = BTreeSet::new();
+    for (_, _, bytes) in interface_faces() {
+        manquants.extend(missing_from(bytes, chars.chars()));
+    }
+    manquants.into_iter().collect()
+}

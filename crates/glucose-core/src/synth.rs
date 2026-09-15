@@ -302,9 +302,15 @@ fn witness_notes(store: &mut Store) {
     // tenait à quoi ressemble une polyligne — ni son tracé, ni ses poignées (ARROW-3).
     let mut coudee = Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0);
     if let Annotation::Arrow {
-        waypoints, text, ..
+        waypoints,
+        text,
+        predicate,
+        ..
     } = &mut coudee
     {
+        // Étiquette **et** prédicat : les deux visent le même point, l'une monte et l'autre
+        // descend.
+        *predicate = Some(crate::types::ArrowPredicate::Contredit);
         *waypoints = vec![crate::types::Point2D { x: 20.0, y: 210.0 }];
         // Ce qu'une flèche **dit** : sa pastille est mesurée, pas estimée (LABEL-1).
         *text = Some("d'après Gauss".to_string());
@@ -314,8 +320,16 @@ fn witness_notes(store: &mut Store) {
     // centre. Rien ne tenait à quoi cela ressemble, puisque `arrow_anchor` n'avait aucun
     // appelant — cent soixante-dix-sept lignes écrites et jamais vues (ARROW-1).
     let mut accrochee = Annotation::arrow("a-accrochee", -220.0, -270.0, 0.0, 0.0);
-    if let Annotation::Arrow { target_id, .. } = &mut accrochee {
+    if let Annotation::Arrow {
+        target_id,
+        predicate,
+        ..
+    } = &mut accrochee
+    {
         *target_id = Some("m-titree".to_string());
+        // Un prédicat **seul** : son sigle est tracé, pas écrit — quatre des six caractères
+        // de Glucose Tauri sont absents des polices embarquées (PRED-1).
+        *predicate = Some(crate::types::ArrowPredicate::HeriteDe);
     }
     store.add_annotation(BOARD, accrochee);
 }

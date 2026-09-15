@@ -3,7 +3,7 @@
 use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, Point2D, StoryboardPanel};
+use crate::types::{Annotation, ArrowPredicate, Point2D, StoryboardPanel};
 use std::collections::HashSet;
 
 impl Store {
@@ -102,6 +102,31 @@ impl Store {
                 }
             }
         });
+    }
+
+    /// Pose — ou retire — le prédicat sémantique de chaque flèche nommée.
+    ///
+    /// Rend le nombre de flèches touchées : ce qui n'est pas une flèche est **ignoré** et
+    /// non refusé, pour qu'un geste posé sur une sélection mêlée serve quand même à ce
+    /// qu'il peut servir. L'appelant sait alors quoi dire.
+    pub fn set_arrow_predicate(
+        &mut self,
+        board_id: &str,
+        ids: &[String],
+        predicate: Option<ArrowPredicate>,
+    ) -> usize {
+        let mut touchees = 0;
+        for id in ids {
+            let mut est_une_fleche = false;
+            self.update_annotation(board_id, id, |ann| {
+                if let Annotation::Arrow { predicate: p, .. } = ann {
+                    *p = predicate;
+                    est_une_fleche = true;
+                }
+            });
+            touchees += usize::from(est_une_fleche);
+        }
+        touchees
     }
 
     pub fn add_annotation(&mut self, board_id: &str, ann: Annotation) {

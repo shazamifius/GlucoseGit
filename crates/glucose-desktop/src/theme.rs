@@ -35,6 +35,15 @@ pub const DOMAIN_PALETTE: [&str; 8] = [
 /// rastérise en glyphe vide — un « icône » invisible est pire qu'une absence d'icône.
 pub const DOMAIN_SIGILS: [&str; 8] = ["SCI", "ART", "JV", "LNG", "HIS", "TEC", "PHI", "MUS"];
 
+/// Les six teintes des prédicats de flèche, dans l'ordre de `ArrowPredicate::ALL` (PRED-1).
+///
+/// Reprises de Glucose Tauri (`ArrowSvgLayer.tsx`, `PREDICATE_COLORS`) : ambre pour le
+/// précurseur, rouge pour la contradiction, violet pour l'héritage, émeraude pour
+/// l'inspiration, bleu pour la dépendance, rose pour l'illustration.
+const PREDICATE_HEX: [u32; 6] = [
+    0xf5_9e0b, 0xef_4444, 0x8b_5cf6, 0x10_b981, 0x3b_82f6, 0xf4_72b6,
+];
+
 /// Normalise un facteur d'échelle d'interface.
 ///
 /// Toute valeur non finie ou hors plage (facteur corrompu, argument inversé)
@@ -120,11 +129,25 @@ pub struct Theme {
     /// L'encre d'une étiquette de flèche.
     pub arrow_label_text: Color,
 
+    /// Le fond de la pastille d'un prédicat : `#111111` à 0,90 dans la référence.
+    ///
+    /// Plus opaque que celui d'une étiquette, et pour une raison : le badge se pose **sur**
+    /// le trait de la flèche, alors que l'étiquette se décale au-dessus. À 0,75, le trait
+    /// traverse le sigle qui devrait se lire sur un aplat.
+    pub arrow_badge_bg: Color,
+
     /// Le coude d'une flèche (ARROW-3) : l'orange de Glucose Tauri, `#ff8c00`.
     ///
     /// Une couleur à lui, et non l'accent du thème : un coude se manipule au milieu d'un
     /// trait, et il doit se distinguer et de la flèche, et de tout ce qu'elle traverse.
     pub arrow_bend: Color,
+
+    /// Les six prédicats d'une flèche, dans l'ordre de [`ArrowPredicate`] (PRED-1).
+    ///
+    /// Un tableau et non six champs : ils forment **une** famille, et les parcourir dans
+    /// l'ordre est ce que fait tout ce qui les propose. Les valeurs sont celles de Glucose
+    /// Tauri (`ArrowSvgLayer.tsx`, `PREDICATE_COLORS`).
+    pub predicates: [Color; 6],
 
     // ── Note adhésive (§ 5.2) ──────────────────────────────────────────────
     /// Le papier d'un pense-bête que le document ne colore pas : `#f5c542`.
@@ -239,6 +262,15 @@ pub fn operator_color(op: StickyOperator) -> Color {
 }
 
 impl Theme {
+    /// La couleur d'un prédicat de flèche (PRED-1).
+    ///
+    /// Le rang vient du modèle ([`ArrowPredicate::rank`]) : la couleur, le sigle et le
+    /// raccourci désignent ainsi tous le même prédicat par le même nombre, et aucun des
+    /// trois ne peut dériver tout seul.
+    pub fn predicate_color(&self, predicate: glucose_core::types::ArrowPredicate) -> Color {
+        self.predicates[predicate.rank()]
+    }
+
     /// Le thème de Glucose — et il n'y en a qu'un (fiche 06, `style.md`) : une feuille de
     /// papier noire, une chrome monochrome stricte, un seul accent jaune employé avec une
     /// parcimonie extrême. **La couleur appartient au contenu de l'utilisateur.**
@@ -279,7 +311,9 @@ impl Theme {
 
             arrow_label_bg: Color::from_rgba8(0x11, 0x11, 0x11, 191),
             arrow_label_text: hex(0xe8e8ea),
+            arrow_badge_bg: Color::from_rgba8(0x11, 0x11, 0x11, 230),
             arrow_bend: hex(0xff_8c00),
+            predicates: PREDICATE_HEX.map(hex),
             handle_fill: hex(0xffffff),
             handle_outline: hexa(0x111111, 230),
 
