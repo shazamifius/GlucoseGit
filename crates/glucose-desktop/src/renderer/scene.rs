@@ -245,31 +245,62 @@ fn draw_membrane_shape(
         None,
     );
 
-    // 3. Bordure pointillée, ou pleine si la membrane est sélectionnée.
+    draw_membrane_border(
+        pixmap,
+        &path,
+        tint,
+        (selected, scale, layout.border, layout.dash),
+    );
+}
+
+/// Le contour d'une membrane : pointillé au repos, plein quand elle est prise.
+///
+/// # Le pointillé s'arrête où le pixel s'arrête
+///
+/// Un tiret plus fin qu'un pixel ne se voit pas comme un tiret : l'œil n'y lit qu'un trait
+/// continu, à moitié moins dense puisque la moitié du parcours est vide. On dessine donc
+/// exactement cela — un trait plein, d'opacité moitié. Le seuil n'est pas choisi : c'est le
+/// pixel, la plus petite chose qu'un écran sache montrer.
+///
+/// Ce n'est pas qu'une question d'aspect. Le tiret est mis à l'échelle (SCALE-1), donc leur
+/// **nombre** ne dépend pas du zoom : une membrane de cinq mille unités de périmètre en porte
+/// deux cent cinquante à toute échelle, chacun avec deux bouts arrondis. Au fort dézoom on
+/// rastérisait donc cinq cents arcs sous le pixel, par membrane et par image — la moitié du
+/// coût d'une image à l'échelle 0,02. La pire image y est divisée par deux (fiche 13, vague B).
+fn draw_membrane_border(
+    pixmap: &mut PixmapMut,
+    path: &tiny_skia::Path,
+    tint: (u8, u8, u8),
+    state: (bool, WorldScale, f32, f32),
+) {
+    let (r, g, b) = tint;
+    let (selected, scale, border_width, dash) = state;
+    let pointille = !selected && dash >= 1.0;
+    let opacite = if selected {
+        235
+    } else if pointille {
+        115
+    } else {
+        115 / 2
+    };
     let mut border = Paint {
         anti_alias: true,
         ..Default::default()
     };
-    border.set_color(if selected {
-        Color::from_rgba8(r, g, b, 235)
-    } else {
-        Color::from_rgba8(r, g, b, 115)
-    });
+    border.set_color(Color::from_rgba8(r, g, b, opacite));
     let stroke = Stroke {
         width: if selected {
             scale.screen(SELECTION_RING)
         } else {
-            layout.border
+            border_width
         },
-        dash: if selected {
-            None
-        } else {
-            tiny_skia::StrokeDash::new(vec![layout.dash, layout.dash], 0.0)
-        },
+        dash: pointille
+            .then(|| tiny_skia::StrokeDash::new(vec![dash, dash], 0.0))
+            .flatten(),
         line_cap: LineCap::Round,
         ..Default::default()
     };
-    pixmap.stroke_path(&path, &border, &stroke, Transform::identity(), None);
+    pixmap.stroke_path(path, &border, &stroke, Transform::identity(), None);
 }
 
 // ── Images ──────────────────────────────────────────────────────────────────

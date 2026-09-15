@@ -29,21 +29,27 @@ fn main() {
 
     for (nom, w, h) in bench::DEFINITIONS {
         for n in [1_000usize, 10_000] {
-            let mut store =
-                synth::document(n, 2_000.0 * (n as f64).sqrt(), Shape::Clustered, 0x91ac05e);
-            bench::frame_document(&mut store, 1.0, *w, *h);
+            // Deux échelles : la lecture, et le survol du document entier. C'est à la seconde
+            // que le budget explose — 81 ms mesurées au banc du geste — et aucun banc ne disait
+            // **où**. Une étape qui grossit d'un facteur dix entre les deux colonnes est la
+            // réponse ; une étape qui grossit comme les autres n'est qu'un passager.
+            for echelle in [1.0f64, 0.02] {
+                let mut store =
+                    synth::document(n, 2_000.0 * (n as f64).sqrt(), Shape::Clustered, 0x91ac05e);
+                bench::frame_document(&mut store, echelle, *w, *h);
 
-            let mut renderer = Renderer::new();
-            let mut ui = UiState::new();
-            let mut pixmap = Pixmap::new(*w, *h).expect("un pixmap");
-            // Une frame de chauffe, hors mesure : elle remplit les caches.
-            bench::render_into(&mut renderer, &mut ui, &store, &mut pixmap);
-
-            eprintln!("=== {nom} {n} noeuds ===");
-            for _ in 0..3 {
-                perf::frame_begin();
+                let mut renderer = Renderer::new();
+                let mut ui = UiState::new();
+                let mut pixmap = Pixmap::new(*w, *h).expect("un pixmap");
+                // Une frame de chauffe, hors mesure : elle remplit les caches.
                 bench::render_into(&mut renderer, &mut ui, &store, &mut pixmap);
-                perf::frame_end();
+
+                eprintln!("=== {nom} {n} noeuds, echelle {echelle} ===");
+                for _ in 0..3 {
+                    perf::frame_begin();
+                    bench::render_into(&mut renderer, &mut ui, &store, &mut pixmap);
+                    perf::frame_end();
+                }
             }
         }
     }
