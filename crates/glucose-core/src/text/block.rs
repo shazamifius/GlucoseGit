@@ -317,6 +317,17 @@ fn ordered(line: &str) -> Option<(u32, usize)> {
 /// Le LaTeX **au milieu** d'une phrase n'est pas traité ici : il demande de mesurer des
 /// segments de nature différente sur une même ligne. Le cas fréquent sur un canva est la
 /// formule posée seule.
+///
+/// # Une commande seule sur sa ligne est une formule, sans dollars
+///
+/// Les `$` viennent du traitement de texte, où une formule doit se distinguer d'une phrase
+/// qui l'entoure. Sur un canva, une carte qui ne contient que `\\frac{a}{b}` ne peut être
+/// qu'une formule : aucun texte français ne commence par une barre oblique inverse suivie de
+/// lettres. La règle ne coûte donc aucune ambiguïté — elle ne se prononce que sur un
+/// paragraphe **entier**, et seulement s'il commence par une commande.
+///
+/// Elle rend le mode **en ligne** et non le mode affiché : sans délimiteur, rien ne dit que
+/// l'auteur voulait une formule centrée. `$$` reste là pour le demander.
 pub fn formula(paragraph: &str) -> Option<(Range<usize>, bool)> {
     let start = paragraph.len() - paragraph.trim_start().len();
     let t = paragraph.trim();
@@ -333,7 +344,22 @@ pub fn formula(paragraph: &str) -> Option<(Range<usize>, bool)> {
             return Some((inner("$".len()), false));
         }
     }
+    if commence_par_une_commande(t) {
+        return Some((inner(0), false));
+    }
     None
+}
+
+/// Le texte commence-t-il par une commande LaTeX — une barre oblique inverse suivie d'au
+/// moins une lettre ?
+///
+/// La lettre compte : `\\\\` est un retour à la ligne, `\\{` une accolade échappée, `\\ ` une
+/// espace insécable. Aucun des trois n'ouvre une formule à lui seul, et les prendre pour
+/// telles ferait basculer en maths un texte qui n'en demandait pas.
+fn commence_par_une_commande(texte: &str) -> bool {
+    texte
+        .strip_prefix('\\')
+        .is_some_and(|reste| reste.starts_with(|c: char| c.is_ascii_alphabetic()))
 }
 
 #[cfg(test)]

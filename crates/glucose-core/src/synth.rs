@@ -272,6 +272,18 @@ Et un [lien](https://exemple.fr).",
              Et une qui ne compile pas :\n$$\\frac{a}{$$",
         ),
     );
+    // Sans le moindre dollar : une commande seule sur sa ligne **est** une formule.
+    // Les `$` viennent du traitement de texte ; sur un canva, une carte qui ne contient
+    // qu'une commande ne peut être qu'une formule.
+    store.add_annotation(
+        BOARD,
+        Annotation::text(
+            "t-maths-nues",
+            340.0,
+            340.0,
+            "Sans dollars :\n\\frac{\\pi}{2}",
+        ),
+    );
 }
 
 /// Les pense-bêtes du témoin — un papier, une pilule d'opérateur — et la flèche.
