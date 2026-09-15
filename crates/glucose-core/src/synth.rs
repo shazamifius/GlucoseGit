@@ -301,8 +301,13 @@ fn witness_notes(store: &mut Store) {
     // Une flèche **coudée** : elle passe par une étape avant d'arriver. Sans elle, rien ne
     // tenait à quoi ressemble une polyligne — ni son tracé, ni ses poignées (ARROW-3).
     let mut coudee = Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0);
-    if let Annotation::Arrow { waypoints, .. } = &mut coudee {
+    if let Annotation::Arrow {
+        waypoints, text, ..
+    } = &mut coudee
+    {
         *waypoints = vec![crate::types::Point2D { x: 20.0, y: 210.0 }];
+        // Ce qu'une flèche **dit** : sa pastille est mesurée, pas estimée (LABEL-1).
+        *text = Some("d'après Gauss".to_string());
     }
     store.add_annotation(BOARD, coudee);
     // Une flèche **ancrée** : elle vise la membrane et s'arrête sur son bord, pas sur son

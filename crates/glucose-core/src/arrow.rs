@@ -386,6 +386,29 @@ pub fn handle_at(
         .map(|(h, _)| h)
 }
 
+/// Le point du chemin où une flèche porte ce qu'elle dit — étiquette et prédicat.
+///
+/// Le **milieu du tronçon médian**, et non le milieu de la corde : sur une flèche coudée,
+/// le milieu de la corde tombe souvent à côté du trait, parfois très loin, et l'étiquette
+/// s'y détacherait de ce qu'elle nomme. Glucose Tauri place le sien exactement là
+/// (`ArrowSvgLayer.tsx`, `midSeg = Math.floor(n / 2)`).
+pub fn label_anchor(
+    arrow: &Annotation,
+    resolve: impl Fn(&str) -> Option<Rect>,
+) -> Option<(f64, f64)> {
+    let points = path_with(arrow, resolve)?;
+    // `points` vient de `path_with`, qui pousse toujours au moins l'origine et la pointe.
+    let milieu = points.len() / 2;
+    let (ax, ay) = *points.get(milieu.saturating_sub(1))?;
+    let (bx, by) = *points.get(milieu)?;
+    Some(((ax + bx) / 2.0, (ay + by) / 2.0))
+}
+
+/// Le même point, pour une flèche de ce tableau.
+pub fn label_anchor_in(arrow: &Annotation, board: &Board) -> Option<(f64, f64)> {
+    label_anchor(arrow, |id| node_rect(board, id))
+}
+
 /// Le chemin d'une flèche ancrée dans son tableau — le raccourci courant de [`path_with`].
 pub fn path_in(arrow: &Annotation, board: &Board) -> Option<Vec<(f64, f64)>> {
     path_with(arrow, |id| node_rect(board, id))

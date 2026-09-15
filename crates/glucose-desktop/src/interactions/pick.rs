@@ -195,6 +195,14 @@ impl GlucoseApp {
         let Some(text) = self.editable_text_of(&top.id) else {
             return false;
         };
+        // Une **étiquette de flèche** s'ouvre le curseur à la fin, et non sur le mot visé :
+        // viser un mot demande la mise en page d'une carte, et une flèche n'a pas de boîte.
+        // Le geste reste juste : on double-clique une flèche pour écrire ce qu'elle dit,
+        // presque toujours sur une étiquette encore vide.
+        if top.owner == PickOwner::Arrow {
+            self.start_text_edit(top.id.clone(), text);
+            return true;
+        }
         // Ouvrir une carte au double-clic sélectionne le mot visé : c'est ce que fait un
         // traitement de texte, et c'est ce qui permet de remplacer un mot d'un seul geste.
         let selection = self.selection_opening_at(&top.id, &text, self.mouse_pos);
@@ -202,14 +210,15 @@ impl GlucoseApp {
         true
     }
 
-    /// Le texte qu'une annotation offre à l'édition — `None` si elle n'en a pas (une flèche).
+    /// Le texte qu'une annotation offre à l'édition — `None` si l'identifiant est inconnu.
     pub(crate) fn editable_text_of(&self, id: &str) -> Option<String> {
         let board = self.store.active_board()?;
         let ann = board.annotations.iter().find(|a| a.id() == id)?;
         match ann {
             Annotation::Text { text, .. } | Annotation::Sticky { text, .. } => Some(text.clone()),
-            Annotation::Membrane { text, .. } => Some(text.clone().unwrap_or_default()),
-            Annotation::Arrow { .. } => None,
+            Annotation::Membrane { text, .. } | Annotation::Arrow { text, .. } => {
+                Some(text.clone().unwrap_or_default())
+            }
         }
     }
 

@@ -753,6 +753,58 @@ fn test_cliquet_4b_aucun_fichier_ne_depasse_sa_taille_admise() {
     );
 }
 
+// ── Cliquet 5 : les rectangles remplis sans passer par la grille ────────────
+
+/// Les appels bruts à `fill_rect` du code de production, relevés au commit qui a
+/// introduit ce cliquet — hors `scale.rs`, qui est justement là où ils ont leur place.
+///
+/// **tiny-skia panique** sur un `fill_rect` anti-aliasé dont un côté tombe sous le pixel :
+/// `hairline_aa.rs` fait `assert!(false)`. Le crash est apparu **trois fois** dans ce
+/// projet — sur un filet de séparation, sur la barre d'une citation, puis sur la barre de
+/// saisie d'une étiquette de flèche — et les deux premières fois il a été corrigé *sur
+/// place*. C'est exactement pour cela qu'il est revenu.
+///
+/// [`scale::fill_crisp`] est la réponse, et elle est meilleure que le contournement : un
+/// rectangle aligné sur les axes n'a aucun bord oblique, donc l'anti-aliasing ne lui apporte
+/// rien et lui coûte tout — un filet posé sur une demi-position devient deux demi-traits
+/// gris, flou là où la charte demande « net à quasi 100 % » (R-46).
+///
+/// Ce cliquet ne réécrit pas les appels existants d'un coup : il **arrête l'hémorragie**.
+/// Chaque nouveau rectangle rempli doit se demander s'il peut être fin, et la réponse est
+/// presque toujours `fill_crisp`.
+const PLAFOND_FILL_RECT: usize = 18;
+
+fn compte_fill_rect() -> usize {
+    sources(&src_desktop())
+        .iter()
+        .filter(|s| !s.chemin.ends_with("scale.rs"))
+        .flat_map(|s| s.texte.lines())
+        .map(nue)
+        .filter(|ligne| ligne.contains("fill_rect("))
+        .count()
+}
+
+/// **Le nombre de rectangles remplis sans passer par la grille ne grandit pas.**
+///
+/// Un échec à la hausse veut dire qu'un `fill_rect` de plus a été écrit. Avant de relever
+/// quoi que ce soit : ce rectangle peut-il être fin ? S'il le peut, il fait planter
+/// l'application, et `fill_crisp` est sa place.
+#[test]
+fn test_cliquet_5_aucun_rectangle_ne_contourne_la_grille_de_pixels() {
+    let compte = compte_fill_rect();
+    assert!(
+        compte <= PLAFOND_FILL_RECT,
+        "un `fill_rect` de plus : {compte} contre {PLAFOND_FILL_RECT} autorisés. tiny-skia \
+         panique sur un rectangle plus fin qu'un pixel — utiliser `scale::fill_crisp`, qui \
+         l'aligne sur la grille et rend un dessin plus net (SCALE-3, R-46)."
+    );
+    assert!(
+        compte >= PLAFOND_FILL_RECT.saturating_sub(4),
+        "les appels bruts sont descendus à {compte} : abaisser PLAFOND_FILL_RECT à cette \
+         valeur pour que le terrain gagné ne se reperde pas"
+    );
+}
+
 // ── Le compteur de fonctions se vérifie lui-même ────────────────────────────
 
 #[test]

@@ -512,6 +512,34 @@ isolé du code sans dépendance, donc n'aurait rien isolé. Une crate qui **cont
 externe** derrière une frontière, c'est exactement ce à quoi sert une crate — et le jour où l'on
 change de moteur, un seul endroit bouge.
 
+#### Dette nommée : PGFPlots
+
+Redemandé explicitement, et **mis de côté en connaissance de cause** — inscrit ici pour ne pas
+être redécouvert plus tard comme une surprise.
+
+Le *comment* est déjà tranché au § 7.2 : un traceur natif à syntaxe PGFPlots, pas une
+distribution TeX embarquée. Ce qui suit ne rouvre pas ce débat, il dit ce que la dette **coûte**.
+
+**PGFPlots n'est pas du LaTeX de plus, c'est un moteur de tracé.** Il se construit sur TikZ,
+qui se construit sur PGF : chemins, transformations, boucles, lecture de tables de données,
+axes, légendes, échelles logarithmiques, surfaces. `katex-rs` n'en couvre **rien** et ne le
+couvrira pas — il rend des formules, pas des figures. Aucune part du travail déjà fait sur le
+LaTeX n'avance donc celui-ci : ce sont deux chantiers qui ne se touchent qu'au point d'entrée.
+
+Ce qui reste à décider le jour venu, et qui ne se décide pas sur le papier :
+
+* **quel sous-ensemble**. `\addplot` de coordonnées, de fonction et de table, plus `axis` et ses
+  options courantes, couvrent l'essentiel d'une carte de connaissances. Les surfaces 3D, les
+  boucles `\foreach` et le dessin TikZ libre sont un autre ordre de grandeur ;
+* **ce qu'on met réellement dans un canevas** — trois courbes annotées par carte, ou des figures
+  d'article complètes. Les deux réponses ne mènent pas au même chantier, et c'est cette
+  question-là qu'il faut poser en premier.
+
+La frontière, elle, est déjà connue : `glucose-math` rend de la **géométrie** en `em`, sans
+connaître ni pixel ni rastériseur. Un traceur suivrait le même patron, et c'est ce qui rend la
+dette tenable — elle s'ajoute, elle ne demande pas de défaire.
+
+
 ### 7.2 Les courbes et les graphes — la question qui reste ouverte
 
 La demande est explicite : « le système de LaTeX **complet** avec le système de création aussi de
