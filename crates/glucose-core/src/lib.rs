@@ -14,6 +14,7 @@ pub mod curtain_model;
 pub mod curtain_panel;
 pub mod error;
 pub mod export;
+pub mod file_kind;
 pub mod fixed;
 pub mod geometry;
 pub mod hash;

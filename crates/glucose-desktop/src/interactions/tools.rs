@@ -106,6 +106,11 @@ impl GlucoseApp {
             ActiveTool::Membrane => self.place_membrane(wx, wy),
             ActiveTool::Folder => self.place_folder(wx, wy),
         }
+        // L'outil annonce ce qu'il vient de poser, et il l'annonce **ici**. Chaque fabrique
+        // portait son propre message : quatre sites pour un seul événement.
+        if let Some(pose) = self.ui.active_tool.creation_label() {
+            self.ui.show_toast(pose);
+        }
         self.ui.active_tool = ActiveTool::Select;
         true
     }
@@ -120,22 +125,21 @@ impl GlucoseApp {
             wy,
             NEW_TEXT,
         );
-        self.add_and_edit(card, id, NEW_TEXT, "Édition du texte");
+        self.add_and_edit(card, id, NEW_TEXT);
     }
 
     fn place_sticky(&mut self, wx: f64, wy: f64) {
         let id = self.store.generate_id("sticky");
         let sticky = Annotation::sticky(&id, wx, wy, NEW_STICKY);
-        self.add_and_edit(sticky, id, NEW_STICKY, "Édition du sticky");
+        self.add_and_edit(sticky, id, NEW_STICKY);
     }
 
     /// Une carte ou un pense-bête naît en édition : le texte de départ est là pour être
     /// remplacé.
-    fn add_and_edit(&mut self, ann: Annotation, id: String, text: &str, toast: &str) {
+    fn add_and_edit(&mut self, ann: Annotation, id: String, text: &str) {
         let board = self.store.project.active_board_id.clone();
         self.store.add_annotation(&board, ann);
         self.start_text_edit(id, text.to_string());
-        self.ui.show_toast(toast);
     }
 
     /// Pose une flèche et ouvre le geste qui l'étire (DRAW-1).
@@ -150,7 +154,6 @@ impl GlucoseApp {
             id,
             start: (wx, wy),
         });
-        self.ui.show_toast("Flèche ajoutée");
     }
 
     /// Le glisser en cours amène la pointe de la flèche sous le curseur.
@@ -200,7 +203,6 @@ impl GlucoseApp {
             *text = Some(NEW_MEMBRANE.to_string());
         }
         self.store.add_annotation(&board, membrane);
-        self.ui.show_toast("Membrane créée");
     }
 
     /// Le dossier capture ce qui se trouve sous lui : `create_folder` le fait, crée le tableau
@@ -212,7 +214,6 @@ impl GlucoseApp {
         folder.y = wy;
         (folder.width, folder.height) = NEW_CONTAINER_SIZE;
         self.store.create_folder(&board, folder);
-        self.ui.show_toast("Dossier créé");
     }
 }
 

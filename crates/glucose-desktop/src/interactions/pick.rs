@@ -191,6 +191,11 @@ impl GlucoseApp {
             }
             return true;
         }
+        // Un nœud né d'un fichier mène à ce fichier — c'est ce que son lanceur promet, et
+        // c'est plus utile que d'éditer un nom de fichier sur place.
+        if self.reveal_launcher_target(&top.id) {
+            return true;
+        }
         let Some(text) = self.editable_text_of(&top.id) else {
             return false;
         };

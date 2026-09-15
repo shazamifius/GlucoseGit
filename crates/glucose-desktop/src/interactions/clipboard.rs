@@ -38,41 +38,14 @@ impl GlucoseApp {
 
         let mut count = 0;
         for path_buf in paths {
-            if let Some(path_str) = path_buf.to_str() {
-                let (w, h) = match image::image_dimensions(path_buf) {
-                    Ok((w, h)) => (w as f64, h as f64),
-                    Err(err) => {
-                        let filename = path_buf
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("image");
-                        let desktop_err = DesktopError::ImageDimensionsFailed {
-                            path: filename.to_string(),
-                            reason: err.to_string(),
-                        };
-                        self.ui.show_toast(desktop_err.to_string());
-                        continue;
-                    }
-                };
-
-                let max_dim = 600.0f64;
-                let scale = if w > max_dim || h > max_dim {
-                    (max_dim / w).min(max_dim / h)
-                } else {
-                    1.0
-                };
-                let final_w = (w * scale).max(50.0);
-                let final_h = (h * scale).max(50.0);
-
-                let id = self.store.generate_id("img");
-                let mut img = BoardImage::new(id, cur_wx, cur_wy, final_w, final_h);
-                img.src = Some(path_str.to_string());
-                img.original_width = w;
-                img.original_height = h;
-
-                self.store.add_image(&active_bid, img);
-                cur_wx += final_w + 30.0;
-                count += 1;
+            // Ici, on a promis des images : le dialogue est filtré, le collage a vérifié le
+            // chemin. Un échec est donc une faute, et elle se dit.
+            match self.place_image_file(&active_bid, path_buf, (cur_wx, cur_wy)) {
+                Ok(posee) => {
+                    cur_wx += posee + 30.0;
+                    count += 1;
+                }
+                Err(err) => self.ui.show_toast(err.to_string()),
             }
         }
 
@@ -80,6 +53,66 @@ impl GlucoseApp {
             self.ui.show_toast(format!("{} image(s) ajoutée(s)", count));
             self.mark_dirty();
         }
+    }
+
+    /// Pose une image à un point du monde, et rend la **largeur** qu'elle occupe.
+    ///
+    /// La largeur sert à ce qui pose une suite d'images côte à côte. C'est le seul endroit
+    /// qui sait fabriquer une image depuis un chemin — l'import par dialogue, le collage et
+    /// le glisser-déposer passent tous par ici plutôt que d'en avoir chacun sa version.
+    ///
+    /// **Elle ne parle pas.** L'échec est une erreur rendue, jamais un toast : pour
+    /// l'import par dialogue un fichier illisible est une faute à signaler, alors que pour
+    /// le glisser-déposer c'est simplement la preuve que ce n'était pas une image, et que
+    /// le fichier mérite un lanceur. Un toast posé ici mentirait dans le second cas.
+    pub(crate) fn place_image_file(
+        &mut self,
+        board: &str,
+        path: &Path,
+        (x, y): (f64, f64),
+    ) -> Result<f64, DesktopError> {
+        let path_str = path
+            .to_str()
+            .ok_or_else(|| DesktopError::ImageDimensionsFailed {
+                path: path.to_string_lossy().into_owned(),
+                reason: "chemin illisible".to_string(),
+            })?;
+        // La **signature** du fichier décide, pas son extension. `image_dimensions` choisit
+        // son décodeur d'après l'extension seule : un PNG nommé `.bin` — ou renommé `.jpg`,
+        // ce qui est courant sur ce qui vient du web — lui est illisible. `with_guessed_format`
+        // lit l'en-tête et tranche pour de bon, ce qui est la seule façon de tenir la
+        // promesse du glisser-déposer : c'est le décodeur qui dit ce qui est une image.
+        let dimensions = image::ImageReader::open(path)
+            .and_then(image::ImageReader::with_guessed_format)
+            .map_err(image::ImageError::IoError)
+            .and_then(image::ImageReader::into_dimensions);
+        let (w, h) = match dimensions {
+            Ok((w, h)) => (f64::from(w), f64::from(h)),
+            Err(err) => {
+                let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("image");
+                return Err(DesktopError::ImageDimensionsFailed {
+                    path: filename.to_string(),
+                    reason: err.to_string(),
+                });
+            }
+        };
+
+        let max_dim = 600.0f64;
+        let scale = if w > max_dim || h > max_dim {
+            (max_dim / w).min(max_dim / h)
+        } else {
+            1.0
+        };
+        let final_w = (w * scale).max(50.0);
+        let final_h = (h * scale).max(50.0);
+
+        let id = self.store.generate_id("img");
+        let mut img = BoardImage::new(id, x, y, final_w, final_h);
+        img.src = Some(path_str.to_string());
+        img.original_width = w;
+        img.original_height = h;
+        self.store.add_image(board, img);
+        Ok(final_w)
     }
 
     /// Coller depuis le presse-papiers (Image ou Texte).
