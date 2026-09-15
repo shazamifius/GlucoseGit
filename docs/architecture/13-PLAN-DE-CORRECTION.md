@@ -49,7 +49,7 @@ d'`Entrée`. Le test ne vérifiait pas la règle : il la fabriquait.
 | 8 | `Ctrl`+clic n'ouvre pas un lien | un test innocente la géométrie ; deux fautes corrigées dans l'ouverture système | **corrigé, à confirmer à l'écran** |
 | 9 | Les poignées sont trop dures à attraper | **mesuré** : 24 px sur une image, mais une carte de texte n'avait que six poignées — même défaut que le 12 | **corrigé par le 12** |
 | 10 | Un texte long devient insélectionnable | non instruit | à instruire |
-| 11 | Le LaTeX n'est capté qu'entre `$` | demande explicite : une commande doit être reconnue sans délimiteur | à concevoir |
+| 11 | Le LaTeX n'est capté qu'entre `$` | une commande seule sur sa ligne est désormais une formule ; les `$` gardent le mode affiché | **corrigé** |
 | 12 | On ne peut pas tirer la **hauteur** d'une carte | choix assumé (TEXT-FIT-1) qui divergeait de Tauri ; c'est aussi lui qui faisait passer le 9 pour un défaut de zone de clic | **corrigé** |
 | 13 | Une carte naît à 240 px | la fiche 06 § 5.1 dit « libre jusqu'à 600 » | à corriger |
 | 14 | Le badge d'un dossier affiche zéro | `"0"` était écrit en dur dans le rendu | **corrigé** `13708ad` |

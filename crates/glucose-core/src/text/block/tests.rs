@@ -335,3 +335,48 @@ fn test_un_tableau_dans_un_bloc_de_code_reste_du_code() {
     let source = "```\n| a | b |\n```";
     assert!(blocks(source).all(|b| !b.kind.in_table()));
 }
+
+// ── Une commande seule est une formule, sans dollars ──
+
+/// Une carte qui ne contient qu'une commande est une formule : aucun texte français ne
+/// commence par une barre oblique inverse suivie de lettres.
+#[test]
+fn test_a_bare_command_is_a_formula() {
+    for source in [
+        r"\frac{a}{b}",
+        r"\sqrt{2}",
+        r"\int_0^\infty e^{-x} dx",
+        r"   \frac 2 2   ",
+    ] {
+        let Some((corps, display)) = formula(source) else {
+            panic!("{source} doit être lue comme une formule");
+        };
+        assert!(!display, "sans délimiteur, le mode est en ligne");
+        assert_eq!(source[corps].trim(), source.trim());
+    }
+}
+
+/// Ce qui **ne** doit pas basculer en maths : une barre oblique inverse qui n'ouvre aucune
+/// commande, et tout texte ordinaire.
+#[test]
+fn test_what_a_bare_backslash_must_not_turn_into() {
+    for source in [
+        r"\\",
+        r"\{a}",
+        r"\ un texte",
+        "un texte ordinaire",
+        "C:\\\\chemin\\\\fichier",
+        "",
+    ] {
+        assert_eq!(formula(source), None, "{source} n'est pas une formule");
+    }
+}
+
+/// Les délimiteurs gardent leur rôle : eux seuls demandent le mode **affiché**.
+#[test]
+fn test_dollars_still_choose_the_display_mode() {
+    let (_, display) = formula(r"$$\frac{a}{b}$$").expect("une formule");
+    assert!(display, "$$ demande le mode affiché");
+    let (_, display) = formula(r"$\frac{a}{b}$").expect("une formule");
+    assert!(!display);
+}
