@@ -159,10 +159,51 @@ rejoue une rafale d'événements de molette — ce qu'est un zoom continu — et
 décomposition. **Aucune optimisation n'est écrite avant ce tableau.** C'est la règle que la
 vague 0 a établie et qui a déjà rapporté quatre fois.
 
-**Ce que je soupçonne sans l'affirmer.** Le cache de la minimap a pour clé le document **et le
-cadrage** : pendant un zoom, le cadrage change à chaque image, donc le cache rate à chaque image,
-donc on retombe sur les 5,1 ms que la vague 0 avait éliminés. Cela expliquerait précisément
-pourquoi c'est *le zoom rapide* qui « bugue ». À confirmer par la mesure.
+**Ce que la mesure a dit, et pourquoi mon soupçon était faux.**
+
+Je soupçonnais le cache de la minimap : sa clé contient le cadrage, donc elle ratait à chaque
+image pendant un zoom. C'était plausible et c'était **faux**. Le banc du geste
+(`examples/bench_geste.rs`, neuf) mesure une image pendant que la caméra bouge — ce qu'aucun
+banc ne faisait, tous rendant toujours la même image :
+
+| déf. | nœuds | arrêt ×1 | **arrêt ×0,02** | en zoomant | en dézoomant | pire image |
+|---|---:|---:|---:|---:|---:|---:|
+| 1080p | 1 000 | 0,66 ms | **11,21 ms** | 0,61 ms | 2,38 ms | 16,29 ms |
+| 1080p | 10 000 | 2,50 ms | **27,96 ms** | 2,34 ms | 4,14 ms | 29,32 ms |
+| 4K | 1 000 | 6,65 ms | **15,63 ms** | 4,05 ms | 12,76 ms | 26,68 ms |
+| 4K | 10 000 | 6,45 ms | **81,45 ms** | 6,71 ms | 11,21 ms | 83,41 ms |
+
+La colonne « arrêt ×0,02 » est celle qui tranche, et elle n'existait que parce que j'ai failli
+conclure sans elle : **au fort dézoom, une image coûte plus cher à l'arrêt qu'en mouvement.**
+Le mouvement n'ajoute donc rien — le cache n'est pas en cause. Ce qui coûte, c'est le dézoom
+lui-même, où le culling ne retient plus rien et où tout le document se dessine.
+
+**Et un poste que le banc n'avait jamais compté.** `blit_and_present` traduit chaque pixel du
+format de `tiny-skia` vers celui de la fenêtre, un par un, à chaque image :
+
+| définition | conversion | pixels |
+|---|---:|---:|
+| 1080p | 1,07 ms | 2,1 M |
+| 1440p | 2,11 ms | 3,7 M |
+| **4K** | **4,28 ms** | 8,3 M |
+
+Ce qui donne le vrai total d'une image, budget de 10 ms en regard :
+
+| | rendu | conversion | **total** | |
+|---|---:|---:|---:|---|
+| 1080p, 10 000 nœuds, ×1 | 2,50 | 1,07 | **3,57 ms** | tenu |
+| **4K, 10 000 nœuds, ×1** | 6,45 | 4,28 | **10,73 ms** | **dépassé, sans rien faire** |
+| 1080p, 10 000 nœuds, ×0,02 | 27,96 | 1,07 | **29,03 ms** | dépassé |
+| 4K, 10 000 nœuds, ×0,02 | 81,45 | 4,28 | **85,73 ms** | dépassé huit fois |
+
+**Deux coûts distincts, deux natures.** Le dézoom est un coût de **contenu** : il est
+algorithmique, donc réductible — `WorldScale::draws_detail` existe déjà et décide du niveau de
+détail, reste à savoir ce qu'il laisse passer à 0,02. La conversion est un coût de **surface** :
+aucun culling, aucun cache ne la réduira jamais, et c'est l'argument chiffré de la présentation
+GPU que la fiche 12 range en vague 4.
+
+**Ce qui reste hors de ma portée.** `present()` lui-même — la remise du tampon au système — ne
+se mesure qu'avec une fenêtre. Il s'ajoute aux totaux ci-dessus, il ne s'en retranche pas.
 
 ### B.2 — Les poignées *(défaut 9)*
 
