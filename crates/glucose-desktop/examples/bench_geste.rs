@@ -115,7 +115,8 @@ La conversion du tampon, payée à chaque image :"
     ] {
         let pixmap = Pixmap::new(w, h).expect("un pixmap");
         let mut sortie = vec![0u32; (w * h) as usize];
-        let mut temps = Vec::with_capacity(30);
+        let mut par_octets = Vec::with_capacity(30);
+        let mut par_mots = Vec::with_capacity(30);
         for _ in 0..30 {
             let t = std::time::Instant::now();
             let (src, _) = pixmap.data().as_chunks::<4>();
@@ -123,11 +124,26 @@ La conversion du tampon, payée à chaque image :"
                 *dst =
                     (u32::from(chunk[0]) << 16) | (u32::from(chunk[1]) << 8) | u32::from(chunk[2]);
             }
-            temps.push(t.elapsed().as_secs_f64() * 1000.0);
+            par_octets.push(t.elapsed().as_secs_f64() * 1000.0);
+
+            // La même conversion, dite en une seule opération par pixel. Un pixel de
+            // `tiny-skia` vaut r,g,b,a en mémoire, donc `a<<24 | b<<16 | g<<8 | r` en mot ;
+            // l'échanger bout à bout donne `r<<24 | g<<16 | b<<8 | a`, et un décalage de huit
+            // bits laisse exactement `r<<16 | g<<8 | b`, ce que la fenêtre attend.
+            let t = std::time::Instant::now();
+            let (mots, _) = pixmap.data().as_chunks::<4>();
+            for (dst, px) in sortie.iter_mut().zip(mots) {
+                *dst = u32::from_le_bytes(*px).swap_bytes() >> 8;
+            }
+            par_mots.push(t.elapsed().as_secs_f64() * 1000.0);
         }
-        temps.sort_by(f64::total_cmp);
-        let mediane = temps[temps.len() / 2];
+        par_octets.sort_by(f64::total_cmp);
+        par_mots.sort_by(f64::total_cmp);
         let millions = f64::from(w) * f64::from(h) / 1e6;
-        println!("  {nom:<8} {mediane:>6.2} ms   ({millions:.1} millions de pixels)");
+        println!(
+            "  {nom:<8} octet à octet {:>6.2} ms   échange de mot {:>6.2} ms   ({millions:.1} M pixels)",
+            par_octets[par_octets.len() / 2],
+            par_mots[par_mots.len() / 2]
+        );
     }
 }
