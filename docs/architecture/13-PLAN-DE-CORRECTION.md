@@ -48,10 +48,10 @@ d'`Entrée`. Le test ne vérifiait pas la règle : il la fabriquait.
 | 7 | Le collé venu d'ailleurs ne marche pas | même racine que 6 | **corrigé** `5358fd7` |
 | 8 | `Ctrl`+clic n'ouvre pas un lien | un test innocente la géométrie ; deux fautes corrigées dans l'ouverture système | **corrigé, à confirmer à l'écran** |
 | 9 | Les poignées sont trop dures à attraper | **mesuré** : 24 px sur une image, mais une carte de texte n'avait que six poignées — même défaut que le 12 | **corrigé par le 12** |
-| 10 | Un texte long devient insélectionnable | non instruit | à instruire |
+| 10 | Un texte long devient insélectionnable | le collage écrivait 44 unités de haut **en dur** : vingt lignes se dessinaient sur huit cents et ne se cliquaient que sur quarante-quatre | **corrigé** |
 | 11 | Le LaTeX n'est capté qu'entre `$` | une commande seule sur sa ligne est désormais une formule ; les `$` gardent le mode affiché | **corrigé** |
 | 12 | On ne peut pas tirer la **hauteur** d'une carte | choix assumé (TEXT-FIT-1) qui divergeait de Tauri ; c'est aussi lui qui faisait passer le 9 pour un défaut de zone de clic | **corrigé** |
-| 13 | Une carte naît à 240 px | la fiche 06 § 5.1 dit « libre jusqu'à 600 » | à corriger |
+| 13 | Une carte naît à 240 px | la fiche demande une largeur **libre** jusqu'à 600, donc un second bit dans le modèle — voir ci-dessous | **reporté, avec sa raison** |
 | 14 | Le badge d'un dossier affiche zéro | `"0"` était écrit en dur dans le rendu | **corrigé** `13708ad` |
 
 ### Ce que le témoin a révélé en cessant de planter
@@ -325,9 +325,41 @@ transpose tel quel.
 
 ### C.3 — Les textes longs insélectionnables *(défaut 10)*
 
-Non instruit. Je commence par le reproduire par un test — une carte de plusieurs milliers de
-caractères, un clic à la fin — avant d'énoncer quoi que ce soit. Si la cause est un coût qui
-croît avec la longueur, elle relève de la vague B et elle y retourne.
+**Reproduit avant d'être expliqué**, et le chiffre est net : une carte collée de vingt lignes
+déclare **48 unités** de haut et en dessine **836**. Elle se voit entièrement et ne se clique
+que sur son premier vingtième.
+
+La cause est une divergence, la même que la session passe son temps à rembourser : la mise en
+page prend le maximum de la hauteur déclarée et de celle du texte — donc l'écran est juste —
+tandis que l'arbitre de clic interroge la boîte du document. Tant qu'elles peuvent différer,
+rien ne le signale, puisque ce qu'on voit est correct.
+
+Une fabrique qui mesure existait déjà (`tools::text_card`). **Le collage ne l'empruntait
+pas** : il construisait la carte à la main avec `height: Some(44.0)`. C'était le seul site de
+production dans ce cas ; il l'emprunte désormais, et au passage la carte collée reçoit le
+corps de 14 px de la fiche 06 au lieu des 13 qu'elle s'inventait.
+
+Un test tient maintenant la **propriété**, pas le cas : sur toute la scène témoin, aucune carte
+ne déclare une boîte plus petite que ce qu'elle dessine. L'égalité n'est pas exigée — la
+hauteur se tire au-dessus du texte ; c'est **en dessous** qu'il n'y a jamais rien à gagner.
+
+### C.4 — La largeur libre jusqu'à 600 *(défaut 13)* — reportée, et pourquoi
+
+La fiche 06 § 5.1 demande une largeur **libre jusqu'à 600 px, ou fixée si redimensionnée**.
+C'est la symétrique exacte de la hauteur qu'on vient de rendre élastique, et Tauri la tient de
+la façon la plus simple : `width` absent veut dire libre, présent veut dire fixé.
+
+Ici, ce même champ `Option<f64>` porte déjà **la largeur effective** — c'est lui que le noyau
+lit pour donner une boîte au clic et à l'index spatial, avec un repli à 240 quand il est
+absent. Lui faire porter en plus le fait d'avoir été tiré le rendrait ambigu : soit le noyau
+perd la largeur, soit on perd le marqueur.
+
+Séparer les deux demande un champ de plus — donc le format de persistance, l'arène, l'export
+et une migration. Ce n'est pas hors de portée, c'est **mal placé maintenant** : c'est un
+confort que personne n'a signalé, au prix d'une modification du document, alors que la vague D
+fera bouger ce format de toute façon. Un demi-pas — mesurer seulement à la naissance — a été
+écarté aussi : deux cartes au même texte n'auraient pas la même largeur selon qu'elles
+viennent de l'outil ou d'un collage, et une incohérence coûte plus cher qu'une absence.
 
 ---
 

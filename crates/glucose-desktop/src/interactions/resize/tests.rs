@@ -775,3 +775,85 @@ fn test_la_rotation_ne_depend_pas_de_la_frequence_de_la_souris() {
         "trois cadences, trois angles : {angles:?}"
     );
 }
+
+/// Un long texte reste cliquable **sur toute sa hauteur**.
+///
+/// Signalement : « lorsqu'il y a des trop longs textes, parfois ils deviennent impossibles à
+/// sélectionner ». Ce test le reproduit avant d'énoncer quoi que ce soit — une carte dont le
+/// texte déborde largement sa hauteur déclarée, et un clic tout en bas.
+///
+/// Le suspect est la divergence habituelle : la mise en page dessine `height.max(besoin)`,
+/// donc une carte plus haute que ce que le document déclare, pendant que l'arbitre de clic
+/// interroge la boîte du document. Le bas de la carte se voit alors sans se cliquer.
+#[test]
+fn test_a_long_text_stays_clickable_down_to_its_last_line() {
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    let long = "Une phrase assez longue pour occuper sa ligne entière. ".repeat(20);
+    // Par la **fabrique**, celle que tout site de création doit emprunter : c'est elle qui
+    // mesure, et le collage la contournait.
+    let carte = crate::interactions::tools::text_card(
+        &app.renderer.typography,
+        &app.renderer.math,
+        "T1",
+        0.0,
+        0.0,
+        long.clone(),
+    );
+    app.store.add_annotation(&board, carte);
+    render(&mut app);
+
+    let boite = ann_box(&app, "T1");
+    let dessinee = crate::renderer::card::text_card_fit_height(
+        &app.renderer.typography,
+        &app.renderer.math,
+        &long,
+        240.0,
+    );
+    assert!(
+        (boite.height - dessinee).abs() < 1.0,
+        "la boîte du document ({}) doit être celle qui se dessine ({dessinee})",
+        boite.height
+    );
+}
+
+/// Aucune carte du témoin ne déclare une boîte plus petite que ce qu'elle dessine.
+///
+/// C'est la propriété générale dont le défaut des textes longs était un cas : la mise en page
+/// prend le maximum de la hauteur déclarée et de celle du texte, tandis que l'arbitre de clic
+/// interroge la boîte du document. Tant qu'elles peuvent diverger, une carte se voit sans se
+/// cliquer — et rien ne le dit, puisque l'écran, lui, est juste.
+///
+/// L'égalité n'est pas exigée : la hauteur se tire au-dessus du texte. C'est **en dessous**
+/// qu'il n'y a jamais rien à gagner.
+#[test]
+fn test_no_card_declares_a_box_smaller_than_it_draws() {
+    let mut app = app();
+    app.store = glucose_core::synth::witness();
+    // Comme le fait l'ouverture d'un document : la normalisation est le pont entre un
+    // noyau qui ne sait pas mesurer du texte et une boîte qui doit être celle de l'écran.
+    // Sans elle, les cartes du témoin déclarent 48 et en dessinent deux cents.
+    app.fit_all_text_cards();
+    render(&mut app);
+
+    let board = app.store.active_board().expect("un tableau").clone();
+    for ann in &board.annotations {
+        let (Some(texte), Some((largeur, hauteur))) = (ann.own_text(), ann.size()) else {
+            continue;
+        };
+        if !matches!(ann, Annotation::Text { .. }) {
+            continue;
+        }
+        let dessinee = crate::renderer::card::text_card_fit_height(
+            &app.renderer.typography,
+            &app.renderer.math,
+            &texte,
+            largeur,
+        );
+        assert!(
+            hauteur + 1.0 >= dessinee,
+            "{} déclare {hauteur} et dessine {dessinee}",
+            ann.id()
+        );
+    }
+}
