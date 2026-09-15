@@ -49,7 +49,7 @@ impl GlucoseApp {
     ///
     /// La carte est lue **au repos** : c'est la vue où l'adresse est effacée, donc celle que
     /// l'utilisateur a sous les yeux quand il vise le texte du lien.
-    fn link_under(&self, screen: (f64, f64)) -> Option<String> {
+    pub(crate) fn link_under(&self, screen: (f64, f64)) -> Option<String> {
         let (wx, wy) = crate::canvas::screen_to_world(
             screen.0,
             screen.1,
@@ -83,19 +83,50 @@ pub fn url_at(source: &str, at: usize) -> Option<String> {
 }
 
 /// Confie l'adresse au système. Rend `false` si la commande n'a pas pu partir.
+/// Ouvre `url` avec le navigateur du système. Rend `false` si rien n'a pu être lancé.
+///
+/// # Deux fautes que la version précédente faisait
+///
+/// Elle rendait `spawn().is_ok()`, c'est-à-dire **« cmd a démarré »** — jamais « le lien
+/// s'est ouvert ». Un échec de `start` à l'intérieur de `cmd` passait donc pour un succès, et
+/// le seul message prévu pour l'utilisateur ne s'affichait pas. Un bouton qui ment, et qui
+/// ment même à celui qui l'a écrit.
+///
+/// Et elle faisait clignoter une console : `cmd` ouvre une fenêtre que personne n'a demandée.
+#[cfg(target_os = "windows")]
 fn open_url(url: &str) -> bool {
-    let (programme, args): (&str, &[&str]) = if cfg!(target_os = "windows") {
-        // `start` est une commande interne de `cmd`, d'où le détour ; le `""` est le titre de
-        // fenêtre que `start` attend en premier argument et qu'il confondrait sinon avec
-        // l'adresse.
-        ("cmd", &["/C", "start", ""])
-    } else if cfg!(target_os = "macos") {
-        ("open", &[])
+    use std::os::windows::process::CommandExt;
+    /// Lancer sans ouvrir de console (`CREATE_NO_WINDOW`).
+    const SANS_CONSOLE: u32 = 0x0800_0000;
+
+    // `start` est une commande interne de `cmd`, d'où le détour ; le `""` est le titre de
+    // fenêtre que `start` attend en premier et qu'il confondrait sinon avec l'adresse.
+    let par_cmd = std::process::Command::new("cmd")
+        .args(["/C", "start", "", url])
+        .creation_flags(SANS_CONSOLE)
+        .status()
+        .is_ok_and(|code| code.success());
+    if par_cmd {
+        return true;
+    }
+    // Repli sans interprète de commandes : l'adresse n'est plus une ligne de commande, donc
+    // plus rien à échapper. C'est la voie qu'emprunte Windows lui-même pour un raccourci.
+    std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .creation_flags(SANS_CONSOLE)
+        .spawn()
+        .is_ok()
+}
+
+/// Ouvre `url` avec le navigateur du système. Rend `false` si rien n'a pu être lancé.
+#[cfg(not(target_os = "windows"))]
+fn open_url(url: &str) -> bool {
+    let programme = if cfg!(target_os = "macos") {
+        "open"
     } else {
-        ("xdg-open", &[])
+        "xdg-open"
     };
     std::process::Command::new(programme)
-        .args(args)
         .arg(url)
         .spawn()
         .is_ok()

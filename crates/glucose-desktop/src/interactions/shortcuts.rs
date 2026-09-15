@@ -126,6 +126,8 @@ impl GlucoseApp {
             return false;
         }
         match key {
+            "c" | "C" => self.copy_selection(false),
+            "x" | "X" => self.copy_selection(true),
             "v" | "V" => self.paste_from_clipboard(),
             "z" | "Z" => {
                 if self.modifiers.shift_key() {

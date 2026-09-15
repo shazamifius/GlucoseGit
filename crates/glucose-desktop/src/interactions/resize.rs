@@ -27,7 +27,7 @@ use winit::window::CursorIcon;
 #[cfg(test)]
 mod proof;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 /// Le nœud que le geste redimensionne.
 #[derive(Debug, Clone, PartialEq)]

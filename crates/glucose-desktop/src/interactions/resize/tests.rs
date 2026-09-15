@@ -17,7 +17,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 const SCREEN: (f32, f32) = (1440.0, 900.0);
 
 /// Rend une frame : c'est ce qui remplit l'index spatial dont le test de clic dépend.
-pub(super) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
+pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
     let mut pixmap = Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
     let mut view = pixmap.as_mut();
     let overlay = SceneOverlay {
@@ -66,7 +66,7 @@ fn image_box(app: &GlucoseApp, id: &str) -> AlignRect {
     img.rect()
 }
 
-pub(super) fn text_card(id: &str, x: f64, y: f64, width: f64, text: &str) -> Annotation {
+pub(crate) fn text_card(id: &str, x: f64, y: f64, width: f64, text: &str) -> Annotation {
     Annotation::Text {
         id: id.into(),
         x,
