@@ -202,6 +202,46 @@ détail, reste à savoir ce qu'il laisse passer à 0,02. La conversion est un co
 aucun culling, aucun cache ne la réduira jamais, et c'est l'argument chiffré de la présentation
 GPU que la fiche 12 range en vague 4.
 
+**Ce que la décomposition a désigné, et qui n'était dans aucune hypothèse.** Le banc par
+étapes, étendu au dézoom, nomme le poste dominant en une ligne :
+
+```
+1080p, 10 000 nœuds, échelle 0,02
+total=47,54 ms   halos=7,02   membranes=20,58   images=8,06   annotations=8,07
+```
+
+Les **membranes** consomment la moitié d'une image. Et même à l'échelle 1 sur mille nœuds :
+`membranes=1,12 ms` contre `annotations=0,02 ms` — cinquante fois plus cher par élément.
+
+La cause est un travail invisible. Le tiret du pointillé est mis à l'échelle (SCALE-1), donc
+leur **nombre ne dépend pas du zoom** : une membrane de cinq mille unités de périmètre en porte
+deux cent cinquante à toute échelle, chacun avec deux bouts arrondis. Au fort dézoom, on
+rastérisait cinq cents arcs **plus fins qu'un pixel**, par membrane et par image.
+
+La correction ne choisit aucun seuil : *un tiret sous le pixel ne peut pas être vu comme un
+tiret*. L'œil n'y lit qu'un trait continu, à moitié moins dense puisque la moitié du parcours
+est vide — alors on dessine exactement cela, un trait plein d'opacité moitié. C'est le même
+résultat à l'œil, et c'est tout ce que l'écran sait montrer.
+
+Mesuré dos à dos, même machine, même charge — la première comparaison ne valait rien, la
+machine s'étant chargée entre les deux exécutions, ce que la colonne de conversion a
+immédiatement trahi :
+
+| au fort dézoom | avant | après | |
+|---|---:|---:|---|
+| 1080p, 10 000 nœuds | 59,13 ms | **37,41 ms** | −37 % |
+| 4K, 10 000 nœuds | 163,74 ms | **104,20 ms** | −36 % |
+| **pire image**, 1080p | 70,28 ms | **38,10 ms** | −46 % |
+| **pire image**, 4K | 209,43 ms | **121,07 ms** | −42 % |
+
+À l'échelle 1, où le pointillé reste visible, rien ne bouge (12,66 → 12,19 ms, du bruit) et
+l'empreinte de la scène témoin est inchangée : le gain ne se paie d'aucune régression.
+
+**Ce qui reste à faire sur ce poste.** Les halos, les images et les annotations se partagent
+maintenant le reste à parts égales, autour de 7 ms chacun à l'échelle 0,02. Aucun ne domine
+plus : la suite n'est plus une correction ponctuelle mais la question du niveau de détail
+(`WorldScale::draws_detail`), qui se pose pour l'élément entier.
+
 **Ce qui reste hors de ma portée.** `present()` lui-même — la remise du tampon au système — ne
 se mesure qu'avec une fenêtre. Il s'ajoute aux totaux ci-dessus, il ne s'en retranche pas.
 

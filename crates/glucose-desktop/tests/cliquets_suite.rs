@@ -618,11 +618,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
     ),
     (
         "crates/glucose-desktop/src/renderer/scene.rs",
-        "draw_membrane_shape",
-        93,
-    ),
-    (
-        "crates/glucose-desktop/src/renderer/scene.rs",
         "draw_membranes",
         86,
     ),
