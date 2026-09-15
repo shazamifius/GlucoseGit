@@ -29,6 +29,17 @@
 //!
 //! C'est la différence entre une flèche qui **relie** et une flèche qui **flotte**, et
 //! c'est ce qui manquait : DRAW-1 posait une flèche, mais elle ne s'accrochait à rien.
+//!
+//! # ARROW-3 — le coude se pose, se déplace et se retire au même endroit
+//!
+//! Une flèche sélectionnée montre deux sortes de poignées (`ArrowSvgLayer.tsx`) : un
+//! disque sur chaque **coude** existant, qu'on glisse pour le déplacer et qu'un double-clic
+//! retire, et un losange au **milieu de chaque tronçon**, dont l'appui insère un coude à
+//! cet endroit. Poser, déplacer et retirer sont donc trois gestes sur un même objet.
+//!
+//! Les deux sortes vivent dans la même liste et se désignent par la même fonction, pour la
+//! raison d'ARROW-1 : deux fonctions qui placent des poignées finiraient par les placer
+//! ailleurs l'une que l'autre, et le clic manquerait ce que l'œil voit.
 
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
@@ -288,6 +299,91 @@ pub fn snap_for_tip(board: &Board, arrow_id: &str, point: (f64, f64)) -> Snap {
     let mut exclude = vec![arrow_id];
     exclude.extend(source);
     snap_to_nearest(board, point, &exclude)
+}
+
+/// Rayon d'une poignée de flèche, en pixels **écran** (Glucose Tauri : `6 / vpScale`).
+pub const HANDLE_RADIUS_PX: f64 = 6.0;
+
+/// Rayon de **saisie** d'une poignée, en pixels écran (Glucose Tauri : `16 / vpScale`).
+///
+/// Plus large que ce qu'on voit, comme toute affordance : on vise un disque de six pixels,
+/// on l'attrape à seize. C'est la même exception à SCALE-1 que la bande d'ARROW-1.
+pub const HANDLE_GRAB_PX: f64 = 16.0;
+
+/// Ce qu'une poignée de flèche désigne.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandleKind {
+    /// Le coude d'index donné : on le glisse pour le déplacer, un double-clic le retire.
+    Bend(usize),
+    /// Le milieu du tronçon d'index donné : un appui y **insère** un coude.
+    Midpoint(usize),
+}
+
+/// Une poignée de flèche : ce qu'elle désigne, et où elle se trouve dans le monde.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ArrowHandle {
+    pub kind: HandleKind,
+    pub at: (f64, f64),
+}
+
+/// Les poignées d'une flèche, dans l'ordre où elles se dessinent.
+///
+/// Les milieux d'abord, les coudes ensuite : un coude se dessine **par-dessus** le milieu
+/// du tronçon qu'il vient de couper, et c'est aussi l'ordre dans lequel on veut les
+/// attraper — voir [`handle_at`].
+pub fn handles(arrow: &Annotation, resolve: impl Fn(&str) -> Option<Rect>) -> Vec<ArrowHandle> {
+    let Some(points) = path_with(arrow, resolve) else {
+        return Vec::new();
+    };
+    let milieux = points
+        .windows(2)
+        .enumerate()
+        .map(|(index, seg)| ArrowHandle {
+            kind: HandleKind::Midpoint(index),
+            at: ((seg[0].0 + seg[1].0) / 2.0, (seg[0].1 + seg[1].1) / 2.0),
+        });
+    // Les coudes sont les points **intérieurs** du chemin : les deux bouts n'en sont pas,
+    // et Glucose Tauri ne leur donne aucune poignée non plus.
+    let coudes = points
+        .iter()
+        .enumerate()
+        .skip(1)
+        .take(points.len().saturating_sub(2))
+        .map(|(index, at)| ArrowHandle {
+            kind: HandleKind::Bend(index - 1),
+            at: *at,
+        });
+    milieux.chain(coudes).collect()
+}
+
+/// La poignée sous ce point, si l'une d'elles est à portée de saisie (ARROW-3).
+///
+/// Un **coude** l'emporte sur un milieu à égalité de distance, et il l'emporte même de
+/// justesse : c'est celui qui se dessine au-dessus, et surtout c'est le geste qu'on refait
+/// le plus. Sans cette préférence, redéplacer un coude qu'on vient de poser au milieu d'un
+/// tronçon insérerait un second coude par-dessus le premier.
+pub fn handle_at(
+    arrow: &Annotation,
+    resolve: impl Fn(&str) -> Option<Rect>,
+    point: (f64, f64),
+    scale: f64,
+) -> Option<ArrowHandle> {
+    let portee = HANDLE_GRAB_PX / scale.max(1e-6);
+    handles(arrow, resolve)
+        .into_iter()
+        .map(|h| {
+            let distance = (h.at.0 - point.0).hypot(h.at.1 - point.1);
+            (h, distance)
+        })
+        .filter(|(_, d)| *d <= portee)
+        // Un rang explicite plutôt qu'une condition composée : « le coude gagne, puis le
+        // plus proche » se lit, alors qu'un `si préféré ou plus proche` laissait un milieu
+        // très proche battre un coude — ce qui aurait inséré un coude par-dessus un coude.
+        .min_by(|(a, da), (b, db)| {
+            let rang = |h: &ArrowHandle| u8::from(matches!(h.kind, HandleKind::Midpoint(_)));
+            rang(a).cmp(&rang(b)).then(da.total_cmp(db))
+        })
+        .map(|(h, _)| h)
 }
 
 /// Le chemin d'une flèche ancrée dans son tableau — le raccourci courant de [`path_with`].

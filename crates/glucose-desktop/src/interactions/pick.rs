@@ -12,7 +12,7 @@ use crate::interactions::chrome::screen_size;
 use crate::params::ScreenFrame;
 use crate::ui::ActiveTool;
 use glucose_core::hit_priority::{
-    advance_on_release, pick_at_down, pick_consts, PickCandidate, PickOptions, PickOwner,
+    advance_on_release, pick_at_down, PickCandidate, PickOptions, PickOwner,
 };
 use glucose_core::types::Annotation;
 
@@ -34,7 +34,12 @@ impl GlucoseApp {
             .unwrap_or_default();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
-        if self.place_with_tool(wx, wy) || self.begin_resize_at(wx, wy) {
+        // Les poignées de coude passent avant le redimensionnement : elles appartiennent à
+        // un objet déjà sélectionné, comme lui, et une flèche n'a pas de poignée de taille.
+        if self.place_with_tool(wx, wy)
+            || self.begin_arrow_bend(wx, wy)
+            || self.begin_resize_at(wx, wy)
+        {
             return;
         }
         self.click_node_at(wx, wy, screen);
@@ -162,16 +167,7 @@ impl GlucoseApp {
     /// bougé — les trois mêmes conditions qu'avant, mais **comptées** au lieu d'être réduites
     /// à un booléen : c'est ce qui permet au triple-clic d'exister.
     fn click_count_on(&self, top: &PickCandidate) -> u32 {
-        let Some(last) = &self.last_click else {
-            return 1;
-        };
-        let elapsed = self.now_ms() - last.at_ms;
-        let moved = (last.pos.0 - self.mouse_pos.0).hypot(last.pos.1 - self.mouse_pos.1);
-        if last.id == top.id && elapsed < pick_consts::DBLCLICK_MS && moved < DOUBLE_CLICK_SLOP_PX {
-            last.count + 1
-        } else {
-            1
-        }
+        self.click_count_at(&top.id)
     }
 
     /// Ce qu'un double-clic ouvre : un dossier, en y plongeant ; une annotation à texte, en

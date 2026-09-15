@@ -4,6 +4,7 @@
 //! Chaque module est une responsabilité d'interaction, courte et lisible — et, autant que
 //! possible, testable sans fenêtre (fiche 05 § 7.1).
 
+pub mod arrow_edit;
 pub mod chrome;
 pub mod clipboard;
 pub mod cursor;

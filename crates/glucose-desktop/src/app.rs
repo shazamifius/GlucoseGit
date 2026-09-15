@@ -78,6 +78,8 @@ pub struct GlucoseApp {
     pub resize_session: Option<ResizeSession>,
     /// L'objet en train de naître sous la main, s'il y en a un (DRAW-1).
     pub draw_session: Option<crate::interactions::tools::DrawSession>,
+    /// Le coude de flèche tenu sous la main, s'il y en a un (ARROW-3).
+    pub bend_session: Option<crate::interactions::arrow_edit::BendSession>,
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
     pub always_on_top: bool,
@@ -185,6 +187,7 @@ impl GlucoseApp {
             drag_applied_delta: (0.0, 0.0),
             resize_session: None,
             draw_session: None,
+            bend_session: None,
             active_guides: SnapGuides::default(),
             selection_box: None,
             always_on_top: false,

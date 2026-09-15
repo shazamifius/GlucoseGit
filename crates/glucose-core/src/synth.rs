@@ -298,10 +298,13 @@ fn witness_notes(store: &mut Store) {
         *operator = Some(StickyOperator::Because);
     }
     store.add_annotation(BOARD, operateur);
-    store.add_annotation(
-        BOARD,
-        Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0),
-    );
+    // Une flèche **coudée** : elle passe par une étape avant d'arriver. Sans elle, rien ne
+    // tenait à quoi ressemble une polyligne — ni son tracé, ni ses poignées (ARROW-3).
+    let mut coudee = Annotation::arrow("a-droite", -120.0, 200.0, 200.0, 60.0);
+    if let Annotation::Arrow { waypoints, .. } = &mut coudee {
+        *waypoints = vec![crate::types::Point2D { x: 20.0, y: 210.0 }];
+    }
+    store.add_annotation(BOARD, coudee);
     // Une flèche **ancrée** : elle vise la membrane et s'arrête sur son bord, pas sur son
     // centre. Rien ne tenait à quoi cela ressemble, puisque `arrow_anchor` n'avait aucun
     // appelant — cent soixante-dix-sept lignes écrites et jamais vues (ARROW-1).

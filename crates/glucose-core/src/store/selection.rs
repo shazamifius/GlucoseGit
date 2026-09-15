@@ -75,3 +75,22 @@ impl Store {
         Some(textes.join("\n\n"))
     }
 }
+
+impl Store {
+    /// Les flèches que la sélection retient, dans l'ordre du document.
+    ///
+    /// Une flèche sélectionnée est la seule à montrer ses poignées de coude (ARROW-3) : la
+    /// question appartient donc à la sélection, et l'interface n'a pas à parcourir les
+    /// annotations pour la poser (règle S).
+    pub fn selected_arrows(&self) -> Vec<&crate::types::Annotation> {
+        let Some(board) = self.active_board() else {
+            return Vec::new();
+        };
+        board
+            .annotations
+            .iter()
+            .filter(|a| matches!(a, crate::types::Annotation::Arrow { .. }))
+            .filter(|a| self.selected_annotation_ids.iter().any(|s| s == a.id()))
+            .collect()
+    }
+}

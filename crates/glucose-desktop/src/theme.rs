@@ -115,6 +115,12 @@ pub struct Theme {
     pub handle_fill: Color,
     pub handle_outline: Color,
 
+    /// Le coude d'une flèche (ARROW-3) : l'orange de Glucose Tauri, `#ff8c00`.
+    ///
+    /// Une couleur à lui, et non l'accent du thème : un coude se manipule au milieu d'un
+    /// trait, et il doit se distinguer et de la flèche, et de tout ce qu'elle traverse.
+    pub arrow_bend: Color,
+
     // ── Note adhésive (§ 5.2) ──────────────────────────────────────────────
     /// Le papier d'un pense-bête que le document ne colore pas : `#f5c542`.
     pub sticky_yellow_bg: Color,
@@ -266,6 +272,7 @@ impl Theme {
             rubberband_stroke: hexa(0xffffff, 128),
             rubberband_fill: hexa(0xffffff, 8),
 
+            arrow_bend: hex(0xff_8c00),
             handle_fill: hex(0xffffff),
             handle_outline: hexa(0x111111, 230),
 

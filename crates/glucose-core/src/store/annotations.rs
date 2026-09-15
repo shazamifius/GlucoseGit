@@ -3,7 +3,7 @@
 use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
-use crate::types::{Annotation, StoryboardPanel};
+use crate::types::{Annotation, Point2D, StoryboardPanel};
 use std::collections::HashSet;
 
 impl Store {
@@ -60,6 +60,48 @@ impl Store {
                 } if id == ann_id => Some(path.as_str()),
                 _ => None,
             })
+    }
+
+    /// Insère un coude dans une flèche, sur le tronçon d'index `segment` (ARROW-3).
+    ///
+    /// Un index hors bornes est ramené à la fin plutôt que refusé : la seule façon qu'il
+    /// soit hors bornes est qu'un coude ait été retiré entre le dessin de la poignée et
+    /// l'appui dessus, et perdre le geste serait pire que le poser au bout.
+    pub fn insert_arrow_bend(
+        &mut self,
+        board_id: &str,
+        arrow_id: &str,
+        segment: usize,
+        at: (f64, f64),
+    ) {
+        self.update_annotation(board_id, arrow_id, |ann| {
+            if let Annotation::Arrow { waypoints, .. } = ann {
+                let index = segment.min(waypoints.len());
+                waypoints.insert(index, Point2D { x: at.0, y: at.1 });
+            }
+        });
+    }
+
+    /// Déplace un coude de flèche. Un index inconnu ne fait rien.
+    pub fn move_arrow_bend(&mut self, board_id: &str, arrow_id: &str, bend: usize, to: (f64, f64)) {
+        self.update_annotation(board_id, arrow_id, |ann| {
+            if let Annotation::Arrow { waypoints, .. } = ann {
+                if let Some(point) = waypoints.get_mut(bend) {
+                    *point = Point2D { x: to.0, y: to.1 };
+                }
+            }
+        });
+    }
+
+    /// Retire un coude de flèche. Un index inconnu ne fait rien.
+    pub fn remove_arrow_bend(&mut self, board_id: &str, arrow_id: &str, bend: usize) {
+        self.update_annotation(board_id, arrow_id, |ann| {
+            if let Annotation::Arrow { waypoints, .. } = ann {
+                if bend < waypoints.len() {
+                    waypoints.remove(bend);
+                }
+            }
+        });
     }
 
     pub fn add_annotation(&mut self, board_id: &str, ann: Annotation) {

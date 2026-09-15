@@ -163,4 +163,10 @@ fn draw_arrow_path(
         // passages, pas des arrivées.
         draw_arrow(ctx, pixmap, segment[0], segment[1], selected, i == dernier);
     }
+    // Les poignées de coude n'apparaissent que sur une flèche sélectionnée (ARROW-3) : une
+    // affordance appartient à ce qu'on manipule, et les montrer toutes couvrirait le
+    // canevas de disques.
+    if selected {
+        super::handles::draw_arrow_handles(pixmap, ctx.theme, ann, board, &ctx.vp);
+    }
 }

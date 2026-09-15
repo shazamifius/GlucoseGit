@@ -81,6 +81,71 @@ pub(super) fn draw_rotated_handles(
     }
 }
 
+/// Rayon d'une poignée de coude, en pixels écran (`glucose_core::arrow::HANDLE_RADIUS_PX`).
+///
+/// Sa valeur vient du noyau, celui-là même que l'arbitre de clic interroge : une poignée
+/// dessinée est une poignée cliquable, par construction (loi L4).
+pub(super) fn draw_arrow_handles(
+    pixmap: &mut PixmapMut,
+    theme: &Theme,
+    ann: &glucose_core::types::Annotation,
+    board: &glucose_core::types::Board,
+    vp: &glucose_core::types::Viewport,
+) {
+    use glucose_core::arrow::{self, HandleKind, HANDLE_RADIUS_PX};
+
+    let rayon = HANDLE_RADIUS_PX as f32;
+    // La **même** liste que `begin_arrow_bend` interroge : impossible de dessiner une
+    // poignée là où le clic n'en trouvera pas.
+    for handle in arrow::handles(ann, |node| arrow::node_rect(board, node)) {
+        let (sx, sy) = crate::canvas::world_to_screen(handle.at.0, handle.at.1, vp);
+        let (cx, cy) = (sx as f32, sy as f32);
+        let (chemin, fond) = match handle.kind {
+            // Un coude : un disque plein, de la couleur qui le désigne.
+            HandleKind::Bend(_) => {
+                let mut b = PathBuilder::new();
+                b.push_circle(cx, cy, rayon);
+                (b.finish(), theme.arrow_bend)
+            }
+            // Un milieu : un losange, plus discret — il n'existe pas encore, il s'offre.
+            HandleKind::Midpoint(_) => {
+                let mut b = PathBuilder::new();
+                b.move_to(cx, cy - rayon);
+                b.line_to(cx + rayon, cy);
+                b.line_to(cx, cy + rayon);
+                b.line_to(cx - rayon, cy);
+                b.close();
+                (b.finish(), theme.handle_fill)
+            }
+        };
+        let Some(chemin) = chemin else { continue };
+
+        let mut paint = Paint {
+            anti_alias: true,
+            ..Paint::default()
+        };
+        paint.set_color(fond);
+        pixmap.fill_path(
+            &chemin,
+            &paint,
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+        paint.set_color(theme.handle_outline);
+        pixmap.stroke_path(
+            &chemin,
+            &paint,
+            &Stroke {
+                width: HANDLE_OUTLINE,
+                ..Stroke::default()
+            },
+            Transform::identity(),
+            None,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
