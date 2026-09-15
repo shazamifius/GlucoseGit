@@ -69,6 +69,17 @@ impl GlucoseApp {
 
         if self.is_panning {
             self.handle_pan_move(dx, dy);
+        } else if self.draw_session.is_some() {
+            // Un objet qui naît sous la main suit le curseur (DRAW-1). Il passe avant le
+            // redimensionnement et le glisser : ces deux-là agissent sur ce qui existait
+            // déjà, celui-ci sur ce qui vient d'apparaître sous le doigt.
+            let vp = self
+                .store
+                .active_board()
+                .map(|b| b.viewport)
+                .unwrap_or_default();
+            let (wx, wy) = crate::canvas::screen_to_world(position.x, position.y, &vp);
+            self.update_draw(wx, wy);
         } else if self.resize_session.is_some() {
             self.handle_resize_move(position.x, position.y);
         } else if self.is_dragging_item {
@@ -143,6 +154,9 @@ impl GlucoseApp {
                 if !self.right_or_middle_down {
                     self.is_panning = false;
                 }
+                // Le tracé se referme ici, et nulle part ailleurs : c'est le relâchement qui
+                // dit si le geste était un clic ou un glisser (DRAW-1).
+                self.finish_draw();
                 self.end_text_drag();
                 // Le cycle descend avant que le glisser ne s'efface : c'est ce qui a bougé,
                 // pas la distance parcourue par le curseur, qui dit si on déplaçait un nœud
