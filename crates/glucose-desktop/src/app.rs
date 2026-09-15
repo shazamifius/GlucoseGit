@@ -61,7 +61,6 @@ pub struct GlucoseApp {
     // États d'interaction
     pub mouse_pos: (f64, f64),
     pub modifiers: ModifiersState,
-    pub space_pressed: bool,
     pub right_or_middle_down: bool,
     /// Où le clic droit s'est enfoncé, tant qu'il l'est.
     ///
@@ -166,7 +165,6 @@ impl GlucoseApp {
             scale_factor: 1.0,
             mouse_pos: (0.0, 0.0),
             modifiers: ModifiersState::empty(),
-            space_pressed: false,
             right_or_middle_down: false,
             right_down_at: None,
             is_panning: false,

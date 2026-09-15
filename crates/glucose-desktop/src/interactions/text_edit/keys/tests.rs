@@ -93,16 +93,25 @@ fn test_key_1_composed_text_is_inserted_as_it_comes() {
     );
 }
 
-/// `Entrée` valide, `Maj+Entrée` saute une ligne — la règle de la fiche 08 § 2.1.
+/// `Entrée` va à la ligne — avec ou sans `Maj` ; `Ctrl+Entrée` et `Échap` valident.
+///
+/// Le `Maj` compte dans ce test, parce que c'est lui qui masquait la faute : une
+/// majuscule de début de phrase le tient enfoncé, et le saut de ligne marchait alors
+/// une fois sur deux — assez souvent pour qu'on croie à un aléa, jamais assez pour
+/// qu'un test le voie.
 #[test]
-fn test_key_1_enter_commits_unless_shifted() {
+fn test_key_1_enter_breaks_the_line_whatever_shift_does() {
     assert_eq!(
         lit(nommee(NamedKey::Enter), AUCUN),
-        Some((Command::Commit, false))
+        Some((Command::Insert("\n".into()), false))
     );
     assert_eq!(
         lit(nommee(NamedKey::Enter), ModifiersState::SHIFT),
         Some((Command::Insert("\n".into()), true))
+    );
+    assert_eq!(
+        lit(nommee(NamedKey::Enter), ModifiersState::CONTROL),
+        Some((Command::Commit, false))
     );
     assert_eq!(
         lit(nommee(NamedKey::Escape), AUCUN),

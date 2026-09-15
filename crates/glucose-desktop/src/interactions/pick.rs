@@ -22,7 +22,7 @@ pub(crate) const DOUBLE_CLICK_SLOP_PX: f64 = 8.0;
 impl GlucoseApp {
     /// Le clic a traversé toutes les couches de l'interface : il est pour le canevas.
     pub fn click_canvas(&mut self, screen: ScreenFrame) {
-        if self.space_pressed || self.ui.active_tool == ActiveTool::Pan {
+        if self.ui.active_tool == ActiveTool::Pan {
             self.is_panning = true;
             return;
         }
