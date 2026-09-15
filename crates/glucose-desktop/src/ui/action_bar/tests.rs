@@ -182,3 +182,29 @@ fn test_les_boutons_tiennent_dans_la_pastille_et_ne_se_marchent_pas_dessus() {
         }
     }
 }
+
+/// La barre garde sa marge sous elle, à toutes les échelles d'interface.
+///
+/// Sur la capture témoin, elle **paraît** toucher le bord. L'œil sur une image réduite n'est
+/// pas une preuve — celui-ci mesure. Si la marge est là, le reproche porte sur sa valeur et
+/// non sur un défaut de calcul, et c'est une question de goût qui se tranche en la comparant
+/// à la référence.
+#[test]
+fn test_the_action_bar_keeps_its_margin_below() {
+    let typo = crate::typography::Typography::new();
+    let store = store_with(2, 2);
+    for s in [1.0f32, 1.25, 1.5, 2.0] {
+        for (w, h) in [(1280.0f32, 720.0f32), (1800.0, 900.0), (3840.0, 2160.0)] {
+            let Some(bar) = layout_action_bar(&store, &typo, (w, h), s) else {
+                panic!("une barre pour 4 éléments");
+            };
+            let bas = bar.rect.1 + bar.rect.3;
+            let marge = h - bas;
+            assert!(
+                marge >= BOTTOM * s - 0.5,
+                "échelle {s}, écran {w}×{h} : {marge} px sous la barre, attendu {}",
+                BOTTOM * s
+            );
+        }
+    }
+}

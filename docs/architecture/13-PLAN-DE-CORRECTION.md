@@ -62,14 +62,17 @@ et la vitrine — ne se produisaient donc jamais non plus. Le filet de sécurit�
 trois quarts sans que rien ne le dise. Réparé ; et dès la première image rendue, deux défauts
 neufs se voyaient :
 
-| # | Ce qui se voit | État |
-|---|---|---|
-| 15 | La **barre d'action** flottante touche le bord bas de la fenêtre au lieu d'en garder la marge | à corriger |
-| 16 | Une **image tournée** n'a aucun cadre dessiné : seules ses poignées suivent l'angle | à instruire |
+| # | Ce que j'ai cru voir | Ce que la mesure a dit | État |
+|---|---|---|---|
+| 15 | La barre d'action touche le bord bas | elle garde sa marge à toutes les échelles et définitions ; la référence la pose à ~20 px, le Rust à 12 | **pas un défaut** (écart de 8 px à confirmer) |
+| 16 | Une image tournée n'a aucun cadre | elle pose bien son encre : le centre des trois images est éclairci de la même façon | **pas un défaut** |
 
-Le second est instructif : la rotation a déjà été corrigée une fois cette semaine, parce que le
-rendu l'ignorait quand le clic la respectait. La même divergence subsiste donc ailleurs — les
-poignées tournent, la boîte non.
+> **Et c'est la leçon de cette paire.** J'ai passé la session à répéter qu'il faut *regarder le
+> PNG* — c'est ainsi qu'on a trouvé le test LaTeX vert sur un écran faux. Mais **regarder une
+> capture réduite n'est pas mesurer** : deux défauts sur deux étaient des erreurs de lecture,
+> et j'allais corriger du code qui marchait. Les deux méthodes se complètent et ne se
+> remplacent pas : l'œil trouve ce qu'aucun test ne regarde, la mesure dit si l'œil a raison.
+> Les deux tests écrits pour trancher restent — ils tiennent désormais ces deux questions.
 
 À quoi s'ajoutent deux écarts trouvés en lisant Tauri, que personne n'avait signalés :
 
