@@ -78,9 +78,18 @@ impl Command {
             Key::Named(NamedKey::Backspace) => Self::Delete(motion(word), Direction::Backward),
             Key::Named(NamedKey::Delete) => Self::Delete(motion(word), Direction::Forward),
             Key::Named(NamedKey::Escape) => Self::Commit,
-            // `Entrée` valide la saisie, `Maj+Entrée` saute une ligne (fiche 08 § 2.1).
-            Key::Named(NamedKey::Enter) if extend => Self::Insert("\n".into()),
-            Key::Named(NamedKey::Enter) => Self::Commit,
+            // `Entrée` va à la ligne ; `Ctrl+Entrée` et `Échap` valident.
+            //
+            // C'est ce que fait Glucose Tauri (`GlucoseCanvas.tsx` n'intercepte que
+            // `Ctrl+Entrée` ; le reste tombe dans un `textarea`), et c'est ce que fait toute
+            // zone de texte multiligne. La règle inverse rendait la saisie intenable pour
+            // une raison qu'aucun test ne pouvait voir : une phrase sur deux commence par
+            // une majuscule, donc `Maj` était déjà enfoncé au moment du retour à la ligne,
+            // donc le saut de ligne marchait **une fois sur deux**. Un comportement qui
+            // dépend d'un modificateur tenu pour une autre raison n'est pas une règle,
+            // c'est un piège.
+            Key::Named(NamedKey::Enter) if word => Self::Commit,
+            Key::Named(NamedKey::Enter) => Self::Insert("\n".into()),
             Key::Named(NamedKey::Space) if !word && !mods.alt_key() => Self::Insert(" ".into()),
             Key::Character(c) if word => match c.as_str() {
                 "a" | "A" => Self::SelectAll,

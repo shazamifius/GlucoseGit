@@ -47,16 +47,12 @@ impl GlucoseApp {
     /// qui ne se construit pas hors de la boucle d'événements : tout ce qui décide se teste
     /// ici, sans fenêtre (§ 7.1).
     pub fn handle_shortcut_input(&mut self, logical_key: &Key, state: ElementState) {
-        if *logical_key == Key::Named(NamedKey::Space) {
-            self.handle_space_pan(state == ElementState::Pressed);
-            return;
-        }
-
         if state != ElementState::Pressed {
             return;
         }
 
         match logical_key {
+            Key::Named(NamedKey::Space) => self.enter_pan_mode(),
             Key::Named(NamedKey::Escape) => self.escape_gesture(),
             Key::Named(NamedKey::ArrowLeft) => self.nudge(-1.0, 0.0),
             Key::Named(NamedKey::ArrowRight) => self.nudge(1.0, 0.0),
@@ -89,18 +85,37 @@ impl GlucoseApp {
             self.mark_dirty();
             return;
         }
+        // Échap rend toujours l'outil Sélection, comme dans Glucose Tauri : c'est la
+        // sortie du mode Pan où la barre d'espace fait entrer, et le seul geste qui ramène
+        // à un état connu quel que soit l'outil courant.
+        if self.ui.active_tool != ActiveTool::Select {
+            self.ui.active_tool = ActiveTool::Select;
+            self.update_cursor();
+            self.mark_dirty();
+            return;
+        }
         // Sans toast : la boîte reprend sa taille de départ sous les yeux de celui qui
         // vient d'appuyer. Un message qui décrit ce que l'œil enregistre est du bruit — la
         // même règle que pour l'ordre d'empilement.
         self.cancel_resize();
     }
 
-    /// Barre d'espace maintenue : pan temporaire, quel que soit l'outil actif.
-    fn handle_space_pan(&mut self, pressed: bool) {
-        self.space_pressed = pressed;
-        if !pressed && !self.right_or_middle_down && self.ui.active_tool != ActiveTool::Pan {
-            self.is_panning = false;
-        }
+    /// `Espace` bascule sur l'outil Pan — et y reste.
+    ///
+    /// C'est le geste de Glucose Tauri (`App.tsx` : `setActiveTool("pan")` sur la touche,
+    /// aucun `keyup` pour le défaire), et c'est un mode, pas un maintien : on en sort par
+    /// `V` ou `Échap`. Tenir la barre pendant qu'on déplace une carte de l'autre main est
+    /// intenable sur un pavé tactile, où le pan est justement le geste le plus fréquent.
+    ///
+    /// Le bascule fait disparaître l'état `space_pressed` : le mode Pan était dit deux
+    /// fois, par une touche tenue **et** par un outil, et deux vérités pour un seul fait
+    /// finissent toujours par diverger.
+    fn enter_pan_mode(&mut self) {
+        self.ui.active_tool = ActiveTool::Pan;
+        // Comme Tauri : entrer en navigation lâche ce qu'on tenait. Un pan n'agit sur
+        // rien, garder une sélection sous le curseur n'inviterait qu'à la déplacer par
+        // mégarde au retour.
+        self.store.clear_selection();
         self.update_cursor();
         self.mark_dirty();
     }

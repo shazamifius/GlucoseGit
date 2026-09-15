@@ -13,7 +13,7 @@ impl GlucoseApp {
     pub fn current_cursor(&self) -> CursorIcon {
         if self.is_panning {
             CursorIcon::Grabbing
-        } else if self.space_pressed || self.ui.active_tool == ActiveTool::Pan {
+        } else if self.ui.active_tool == ActiveTool::Pan {
             CursorIcon::Grab
         } else if let Some(session) = &self.resize_session {
             cursor_for(session.handle)
