@@ -41,6 +41,27 @@ impl Store {
     }
 
     /// **Site migre vers le journal.**
+    /// Le fichier vers lequel une **tuile** mène, s'il y en a une sous cet identifiant.
+    ///
+    /// Une carte de texte garde elle aussi le chemin dont elle vient — c'est vrai, et c'est
+    /// utile — mais elle **s'édite** : seule une tuile, qui ne contient qu'un nom de
+    /// fichier, a mieux à offrir qu'un double-clic sur ce nom. La distinction vit ici, dans
+    /// le modèle qui sait ce qu'est un lanceur, plutôt que dans le geste qui l'interrogeait
+    /// en deux temps (règle S, fiche 12 § 3).
+    pub fn launcher_target(&self, ann_id: &str) -> Option<&str> {
+        self.active_board()?
+            .annotations
+            .iter()
+            .find_map(|a| match a {
+                Annotation::Sticky {
+                    id,
+                    source_file: Some(path),
+                    ..
+                } if id == ann_id => Some(path.as_str()),
+                _ => None,
+            })
+    }
+
     pub fn add_annotation(&mut self, board_id: &str, ann: Annotation) {
         let id = ann.id().to_string();
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {

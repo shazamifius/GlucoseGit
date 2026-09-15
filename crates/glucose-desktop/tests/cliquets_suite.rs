@@ -253,10 +253,13 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 /// Le nombre de sites qui émettent un toast, relevé au commit qui a introduit ce cliquet.
 ///
 /// Un toast n'a le droit de dire qu'une chose : ce qui **vient d'avoir lieu**. L'audit en
-/// comptait 24, dont dix décrivaient une action qui n'avait pas lieu ; ils sont 46 aujourd'hui.
+/// comptait 24, dont dix décrivaient une action qui n'avait pas lieu ; ils sont 45 aujourd'hui.
+/// Le glisser-dépose en a ajouté deux et fait disparaître trois : chaque outil de création
+/// portait son propre message, alors que c'est le même événement, et un lot déposé rend un
+/// seul compte au lieu d'un par fichier.
 /// Le nombre ne prouve pas la vérité de chaque message, mais il interdit la prolifération, et
 /// chaque site retiré est un site de moins à relire.
-const PLAFOND_TOASTS: usize = 46;
+const PLAFOND_TOASTS: usize = 45;
 
 fn compte_toasts() -> usize {
     sources(&src_desktop())

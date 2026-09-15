@@ -46,6 +46,25 @@ pub enum ActiveTool {
     Membrane,
 }
 
+impl ActiveTool {
+    /// Ce que cet outil vient de poser, dit à l'utilisateur — ou `None` pour ceux qui ne
+    /// posent rien.
+    ///
+    /// C'est l'outil qui le sait, donc c'est lui qui le dit. Chaque fabrique portait son
+    /// propre message : quatre sites pour un seul événement, donc quatre formulations à
+    /// tenir d'accord, et une de plus à chaque outil ajouté.
+    pub fn creation_label(self) -> Option<&'static str> {
+        match self {
+            Self::Select | Self::Pan => None,
+            Self::Text => Some("Édition du texte"),
+            Self::Sticky => Some("Édition du sticky"),
+            Self::Arrow => Some("Flèche ajoutée"),
+            Self::Folder => Some("Dossier créé"),
+            Self::Membrane => Some("Membrane créée"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiAction {
     SelectTool(ActiveTool),

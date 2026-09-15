@@ -87,6 +87,14 @@ pub struct GlucoseApp {
     /// Le glisser de sélection de texte en cours, s'il y en a un (MOUSE-1).
     pub text_drag: Option<crate::interactions::text_mouse::TextDrag>,
     pub last_click: Option<LastClickInfo>,
+    /// Les fichiers déposés sur la fenêtre, en attente d'être posés **ensemble**.
+    ///
+    /// winit émet un `DroppedFile` **par fichier** : un lot de huit donne huit événements,
+    /// tous poussés par le même appel système et donc tous présents avant le prochain
+    /// `about_to_wait`. Les accumuler jusque-là reconstitue le lot — sans quoi chaque
+    /// fichier se poserait comme s'il était seul, tous au même point, et le geste entier
+    /// laisserait huit entrées d'annulation au lieu d'une.
+    pub dropped_files: Vec<std::path::PathBuf>,
     /// Où en est le cycle de profondeur (PICK-1) : la pile visée au dernier clic, et le rang
     /// qu'on y a atteint. `None` quand le dernier clic n'a désigné aucun nœud, ou qu'il a
     /// fait autre chose que sélectionner — ouvrir, éditer, glisser.
@@ -183,6 +191,7 @@ impl GlucoseApp {
             editing_session: None,
             text_drag: None,
             last_click: None,
+            dropped_files: Vec::new(),
             pick_cycle: None,
             click_epoch: std::time::Instant::now(),
             last_blink_phase: true,
@@ -491,13 +500,21 @@ impl ApplicationHandler for GlucoseApp {
                 self.handle_key(&event);
             }
             WindowEvent::DroppedFile(path_buf) => {
-                self.import_image_files(&[path_buf]);
+                // Un evenement par fichier : on accumule, et `about_to_wait` pose le lot.
+                self.dropped_files.push(path_buf);
             }
             _ => {}
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        // Le lot de fichiers deposes est complet : tous les `DroppedFile` d'un meme geste
+        // sont pousses par le meme appel systeme, donc ils sont tous arrives.
+        if !self.dropped_files.is_empty() {
+            let lot = std::mem::take(&mut self.dropped_files);
+            self.drop_files(&lot);
+        }
+
         let mut has_timer = false;
         let mut min_timeout_ms = 1000u64;
 

@@ -9,6 +9,7 @@ pub mod clipboard;
 pub mod cursor;
 pub mod domains;
 pub mod drag;
+pub mod drop;
 pub mod links;
 pub mod mouse;
 pub mod pan_zoom;
