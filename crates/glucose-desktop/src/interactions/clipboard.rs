@@ -4,7 +4,7 @@ use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use crate::error::DesktopError;
 use arboard::Clipboard;
-use glucose_core::types::{Annotation, BoardImage};
+use glucose_core::types::BoardImage;
 use std::path::{Path, PathBuf};
 
 /// Extensions proposees par le dialogue d'import d'images.
@@ -94,57 +94,10 @@ impl GlucoseApp {
 
         match Clipboard::new() {
             Ok(mut clipboard) => {
-                // 1. Tenter de coller une image bitmap (Pinterest, navigateur, capture d'écran)
+                // 1. Une image bitmap — navigateur, capture d'écran.
                 if let Ok(img_data) = clipboard.get_image() {
-                    let w = img_data.width;
-                    let h = img_data.height;
-                    let temp_dir = std::env::temp_dir().join("glucose_pasted");
-                    if let Err(e) = std::fs::create_dir_all(&temp_dir) {
-                        let err = DesktopError::Io(e);
-                        self.ui.show_toast(err.to_string());
-                        return;
-                    }
-                    let nanos = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_nanos();
-                    let filename = format!("paste_{}.png", nanos);
-                    let file_path = temp_dir.join(&filename);
-
-                    match image::save_buffer(
-                        &file_path,
-                        &img_data.bytes,
-                        w as u32,
-                        h as u32,
-                        image::ExtendedColorType::Rgba8,
-                    ) {
-                        Ok(_) => {
-                            let id = self.store.generate_id("img-paste");
-                            let mut img = BoardImage::new(
-                                id,
-                                wx,
-                                wy,
-                                (w as f64).min(600.0),
-                                (h as f64) * ((w as f64).min(600.0) / (w as f64).max(1.0)),
-                            );
-                            img.src = Some(file_path.to_string_lossy().to_string());
-                            img.original_width = w as f64;
-                            img.original_height = h as f64;
-
-                            self.store.add_image(&active_bid, img);
-                            self.ui.show_toast("Image collée");
-                            self.mark_dirty();
-                            return;
-                        }
-                        Err(e) => {
-                            let err = DesktopError::ImageDecodeFailed {
-                                path: filename,
-                                reason: e.to_string(),
-                            };
-                            self.ui.show_toast(err.to_string());
-                            return;
-                        }
-                    }
+                    self.coller_image(&active_bid, &img_data, (wx, wy));
+                    return;
                 }
 
                 // 2. Tenter de coller du texte ou un chemin de fichier
@@ -156,24 +109,26 @@ impl GlucoseApp {
                         return;
                     }
 
-                    // Coller en tant que carte texte
+                    // Coller en tant que carte texte, **par la fabrique**.
+                    //
+                    // Elle construisait la carte à la main, avec 44 unités de haut écrites en
+                    // dur. Un texte collé de vingt lignes se dessinait donc sur huit cents
+                    // unités et ne se cliquait que sur quarante-quatre : la mise en page
+                    // prend le maximum de la hauteur déclarée et de celle du texte, l'arbitre
+                    // de clic interroge la boîte du document, et les deux divergeaient d'un
+                    // facteur vingt. C'est ce que « les textes trop longs deviennent
+                    // impossibles à sélectionner » décrivait.
+                    //
+                    // La fabrique mesure ; personne d'autre n'a à savoir comment.
                     let aid = self.store.generate_id("text");
-                    let ann = Annotation::Text {
-                        id: aid,
-                        x: wx,
-                        y: wy,
-                        width: Some(220.0),
-                        height: Some(44.0),
-                        text: trimmed.to_string(),
-                        font_size: Some(13.0),
-                        color: None,
-                        cursor_pos: None,
-                        source_file: None,
-                        membrane_id: None,
-                        domains: Vec::new(),
-                        mirror_of: None,
-                        temporal_anchor: None,
-                    };
+                    let ann = crate::interactions::tools::text_card(
+                        &self.renderer.typography,
+                        &self.renderer.math,
+                        aid,
+                        wx,
+                        wy,
+                        trimmed,
+                    );
                     self.store.add_annotation(&active_bid, ann);
                     self.ui.show_toast("Texte collé");
                     self.mark_dirty();
@@ -184,6 +139,59 @@ impl GlucoseApp {
                 self.ui.show_toast(err.to_string());
             }
         }
+    }
+}
+
+impl GlucoseApp {
+    /// Pose sur le tableau une image venue du presse-papiers.
+    ///
+    /// Le tampon n'est pas un fichier : il faut l'écrire pour que le cache d'images sache le
+    /// relire, et c'est le répertoire temporaire du système qui l'accueille.
+    fn coller_image(
+        &mut self,
+        board: &str,
+        img_data: &arboard::ImageData<'_>,
+        (wx, wy): (f64, f64),
+    ) {
+        let (w, h) = (img_data.width, img_data.height);
+        let temp_dir = std::env::temp_dir().join("glucose_pasted");
+        if let Err(e) = std::fs::create_dir_all(&temp_dir) {
+            self.ui.show_toast(DesktopError::Io(e).to_string());
+            return;
+        }
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let filename = format!("paste_{nanos}.png");
+        let file_path = temp_dir.join(&filename);
+        if let Err(e) = image::save_buffer(
+            &file_path,
+            &img_data.bytes,
+            w as u32,
+            h as u32,
+            image::ExtendedColorType::Rgba8,
+        ) {
+            let err = DesktopError::ImageDecodeFailed {
+                path: filename,
+                reason: e.to_string(),
+            };
+            self.ui.show_toast(err.to_string());
+            return;
+        }
+        // Une image collée naît bornée en largeur, son rapport préservé : un rendu de
+        // navigateur peut faire plusieurs milliers de pixels, et naître plus large que le
+        // tableau n'aide personne.
+        let large = (w as f64).min(600.0);
+        let haute = (h as f64) * (large / (w as f64).max(1.0));
+        let id = self.store.generate_id("img-paste");
+        let mut img = BoardImage::new(id, wx, wy, large, haute);
+        img.src = Some(file_path.to_string_lossy().to_string());
+        img.original_width = w as f64;
+        img.original_height = h as f64;
+        self.store.add_image(board, img);
+        self.ui.show_toast("Image collée");
+        self.mark_dirty();
     }
 }
 

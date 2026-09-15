@@ -605,11 +605,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "draw_row",
         81,
     ),
-    (
-        "crates/glucose-desktop/src/interactions/clipboard.rs",
-        "paste_from_clipboard",
-        102,
-    ),
     ("crates/glucose-desktop/src/renderer.rs", "render", 102),
     (
         "crates/glucose-desktop/src/renderer/folder.rs",
