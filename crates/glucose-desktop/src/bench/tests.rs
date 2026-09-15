@@ -187,7 +187,7 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// L'empreinte est gardée ici plutôt qu'une image de référence dans le dépôt : le rendu va
 /// changer souvent, et une image versionnée à chaque fois ferait grossir l'historique sans
 /// rien apprendre de plus.
-const EMPREINTE_TEMOIN: &str = "13aec28b2470aa68";
+const EMPREINTE_TEMOIN: &str = "e8529a65fa98f3ca";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -209,7 +209,7 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// verrouillée et l'absence de ses poignées, la barre d'action qui n'existe qu'avec une
 /// sélection — et une image **tournée**, dont le carré, le cadre et les poignées doivent
 /// pencher ensemble.
-const EMPREINTE_TEMOIN_SELECTION: &str = "947f3ec244f34fd1";
+const EMPREINTE_TEMOIN_SELECTION: &str = "6992fb3886280abb";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -226,7 +226,7 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 ///
 /// Il n'est pas dans le document : sans [`capture_with`], rien ne tiendrait son rendu — ni
 /// ses entrées, ni ses filets, ni l'alignement à droite de ses raccourcis.
-const EMPREINTE_TEMOIN_MENU: &str = "3bd3944157c8e413";
+const EMPREINTE_TEMOIN_MENU: &str = "803860d4689fe666";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

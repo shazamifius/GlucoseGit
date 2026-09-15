@@ -54,6 +54,23 @@ d'`Entrée`. Le test ne vérifiait pas la règle : il la fabriquait.
 | 13 | Une carte naît à 240 px | la fiche 06 § 5.1 dit « libre jusqu'à 600 » | à corriger |
 | 14 | Le badge d'un dossier affiche zéro | le compte réel appartient au noyau, il n'y est pas | à corriger |
 
+### Ce que le témoin a révélé en cessant de planter
+
+La capture de la scène **sélectionnée** ne se faisait plus du tout : `tiny-skia` paniquait sur
+la barre d'une citation, et l'exemple s'arrêtait là. Deux captures de plus — la scène dézoomée
+et la vitrine — ne se produisaient donc jamais non plus. Le filet de sécurité était coupé aux
+trois quarts sans que rien ne le dise. Réparé ; et dès la première image rendue, deux défauts
+neufs se voyaient :
+
+| # | Ce qui se voit | État |
+|---|---|---|
+| 15 | La **barre d'action** flottante touche le bord bas de la fenêtre au lieu d'en garder la marge | à corriger |
+| 16 | Une **image tournée** n'a aucun cadre dessiné : seules ses poignées suivent l'angle | à instruire |
+
+Le second est instructif : la rotation a déjà été corrigée une fois cette semaine, parce que le
+rendu l'ignorait quand le clic la respectait. La même divergence subsiste donc ailleurs — les
+poignées tournent, la boîte non.
+
 À quoi s'ajoutent deux écarts trouvés en lisant Tauri, que personne n'avait signalés :
 
 * **`F`** recentre la vue en Rust ; dans Tauri c'est l'outil **dossier**, et le recentrage est

@@ -156,13 +156,15 @@ pub(super) fn draw_code_plate(
 }
 
 /// Un rectangle plein, quand il y en a un à remplir.
+///
+/// Filets, barres de citation et plaques de code sont tous alignés sur les axes : ils
+/// passent donc par [`fill_crisp`] (SCALE-3), qui les pose sur la grille de pixels. C'est
+/// là que la barre d'une citation faisait paniquer le rastériseur.
 fn fill(pixmap: &mut PixmapMut, rect: Option<Rect>, color: Color) {
     let Some(rect) = rect else {
         return;
     };
-    let mut paint = Paint::default();
-    paint.set_color(color);
-    pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+    crate::renderer::scale::fill_crisp(pixmap, rect, color);
 }
 
 /// Une formule qui occupe tout un paragraphe, posée sous ce qu'elle monte.
