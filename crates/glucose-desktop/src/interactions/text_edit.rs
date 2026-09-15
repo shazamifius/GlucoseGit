@@ -74,14 +74,20 @@ impl GlucoseApp {
                     Annotation::Text { text, .. } | Annotation::Sticky { text, .. } => {
                         *text = session.buffer.clone();
                     }
-                    Annotation::Membrane { text, .. } => {
+                    // Une membrane et une flèche portent un texte **optionnel** : le vider,
+                    // c'est le retirer, pas y ranger une chaîne vide qui se dessinerait en
+                    // pastille creuse.
+                    //
+                    // Les quatre variantes sont couvertes, et il n'y a donc plus de bras
+                    // fourre-tout : une annotation d'un nouveau genre fera échouer la
+                    // compilation ici, au lieu de perdre silencieusement ce qu'on y écrit.
+                    Annotation::Membrane { text, .. } | Annotation::Arrow { text, .. } => {
                         *text = if is_empty {
                             None
                         } else {
                             Some(session.buffer.clone())
                         };
                     }
-                    _ => {}
                 });
             self.fit_text_card_height(&session.ann_id);
         }

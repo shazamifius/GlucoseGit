@@ -117,7 +117,9 @@ pub(super) fn draw_annotations(
                 draw_sticky(&ctx, pixmap, ann, selected, editing);
                 draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
             }
-            Annotation::Arrow { .. } => draw_arrow_path(&ctx, pixmap, ann, board, selected),
+            Annotation::Arrow { .. } => {
+                draw_arrow_node(&ctx, pixmap, ann, board, selected, editing);
+            }
             _ => {}
         }
     }
@@ -139,6 +141,22 @@ fn draw_node_gauge(
         (wx as f32, wy as f32),
         domains,
     );
+}
+
+/// Une flèche entière : son tracé, puis ce qu'elle dit.
+///
+/// L'étiquette se pose **après** le tracé : elle doit se lire par-dessus, pas être barrée
+/// par lui.
+fn draw_arrow_node(
+    ctx: &Pass<'_>,
+    pixmap: &mut PixmapMut,
+    ann: &Annotation,
+    board: &glucose_core::types::Board,
+    selected: bool,
+    editing: Option<&TextEditSession>,
+) {
+    draw_arrow_path(ctx, pixmap, ann, board, selected);
+    super::arrow_label::draw_arrow_label(ctx, pixmap, board, ann, editing, false);
 }
 
 /// Trace une flèche, tronçon par tronçon.

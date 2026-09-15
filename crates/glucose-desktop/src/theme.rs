@@ -115,6 +115,11 @@ pub struct Theme {
     pub handle_fill: Color,
     pub handle_outline: Color,
 
+    /// Le fond de l'étiquette d'une flèche : `#111111` à 0,75 dans la référence.
+    pub arrow_label_bg: Color,
+    /// L'encre d'une étiquette de flèche.
+    pub arrow_label_text: Color,
+
     /// Le coude d'une flèche (ARROW-3) : l'orange de Glucose Tauri, `#ff8c00`.
     ///
     /// Une couleur à lui, et non l'accent du thème : un coude se manipule au milieu d'un
@@ -272,6 +277,8 @@ impl Theme {
             rubberband_stroke: hexa(0xffffff, 128),
             rubberband_fill: hexa(0xffffff, 8),
 
+            arrow_label_bg: Color::from_rgba8(0x11, 0x11, 0x11, 191),
+            arrow_label_text: hex(0xe8e8ea),
             arrow_bend: hex(0xff_8c00),
             handle_fill: hex(0xffffff),
             handle_outline: hexa(0x111111, 230),

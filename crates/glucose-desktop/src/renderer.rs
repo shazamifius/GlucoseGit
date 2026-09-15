@@ -18,6 +18,7 @@
 //! | [`wrap`] | le découpage d'un paragraphe en lignes (WRAP-1) |
 
 pub mod arrow;
+pub mod arrow_label;
 pub mod card;
 pub mod domain;
 pub mod folder;

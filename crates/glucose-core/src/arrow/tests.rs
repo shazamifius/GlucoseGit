@@ -306,3 +306,72 @@ fn test_arrow_2_a_tip_never_grabs_its_own_source() {
     let snap = snap_for_tip(&board, "a", (190.0, 25.0));
     assert_eq!(snap.node.as_deref(), Some("autre"));
 }
+
+// ── Le point d'ancrage de ce qu'une flèche dit ────────────────────────────
+
+/// Sur une flèche droite, l'étiquette se pose au milieu.
+#[test]
+fn test_the_label_sits_at_the_middle_of_a_straight_arrow() {
+    let f = fleche("a", (0.0, 0.0), (100.0, 40.0));
+    assert_eq!(label_anchor(&f, libre), Some((50.0, 20.0)));
+}
+
+/// Sur une flèche coudée, elle se pose sur le **tronçon médian**, pas sur la corde.
+///
+/// C'est tout l'intérêt : le milieu de la corde d'un coude en « V » tombe dans le vide,
+/// parfois très loin du trait, et l'étiquette s'y détacherait de ce qu'elle nomme.
+#[test]
+fn test_the_label_follows_the_bend_rather_than_the_chord() {
+    // Un « V » profond : la corde passe à cent unités au-dessus du sommet.
+    let f = coudee("a", (0.0, 0.0), &[(50.0, 100.0)], (100.0, 0.0));
+    let ancre = label_anchor(&f, libre).expect("une ancre");
+
+    let corde = (50.0, 0.0);
+    assert!(
+        (ancre.1 - corde.1).abs() > 40.0,
+        "l'ancre {ancre:?} est retombée sur la corde"
+    );
+    // Elle est bien sur l'un des deux tronçons : ici le second, de (50,100) à (100,0).
+    assert!(distance_to(&f, ancre).expect("d") < 1e-9, "{ancre:?}");
+}
+
+/// Sur une flèche à plusieurs coudes, l'ancre reste sur un tronçon du tracé.
+#[test]
+fn test_the_label_stays_on_the_path_whatever_the_number_of_bends() {
+    for etapes in [
+        vec![(30.0, 60.0)],
+        vec![(30.0, 60.0), (70.0, -40.0)],
+        vec![(20.0, 50.0), (50.0, -50.0), (80.0, 30.0)],
+    ] {
+        let f = coudee("a", (0.0, 0.0), &etapes, (100.0, 0.0));
+        let ancre = label_anchor(&f, libre).expect("une ancre");
+        assert!(
+            distance_to(&f, ancre).expect("d") < 1e-9,
+            "{} coudes : l'ancre {ancre:?} n'est pas sur le tracé",
+            etapes.len()
+        );
+    }
+}
+
+/// L'ancre suit l'**ancrage** : une flèche qui s'arrête au bord d'un nœud porte son
+/// étiquette sur le tracé raccourci, pas sur le tracé brut.
+#[test]
+fn test_the_label_follows_the_anchored_path() {
+    let resolve = |id: &str| (id == "cible").then(|| Rect::new(300.0, -50.0, 200.0, 100.0));
+    let f = ancree("a", None, Some("cible"));
+    let ancree_pt = label_anchor(&f, resolve).expect("une ancre");
+    let brute = label_anchor(&f, libre).expect("une ancre");
+    assert!(
+        ancree_pt.0 < brute.0,
+        "l'ancre ancrée ({ancree_pt:?}) devrait précéder la brute ({brute:?})"
+    );
+}
+
+/// Ce qui n'est pas une flèche n'a pas d'ancre d'étiquette.
+#[test]
+fn test_what_is_not_an_arrow_has_no_label_anchor() {
+    assert_eq!(
+        label_anchor(&Annotation::text("t", 0.0, 0.0, "x"), libre),
+        None
+    );
+}
