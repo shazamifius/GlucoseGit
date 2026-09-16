@@ -354,7 +354,16 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
         theme: &theme,
     };
     crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
-    crate::renderer::scene::draw_images(&mut cache, &mut failed, kit, &mut view, &store, pass);
+    let mut vignettes = crate::renderer::vignette::Vignettes::new();
+    crate::renderer::scene::draw_images(
+        &mut cache,
+        &mut vignettes,
+        &mut failed,
+        kit,
+        &mut view,
+        &store,
+        pass,
+    );
     pixmap
         .save_png(dir.join("scene-image-et-membrane.png"))
         .expect("écriture du png");
