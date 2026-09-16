@@ -48,6 +48,13 @@ pub(in crate::renderer) fn draw_images(
         top: pass.header_h,
     };
 
+    // Combien d'images sont réellement posées, et quelle surface d'écran elles couvrent au
+    // total. Le rapport des deux à la surface de la fenêtre dit tout de suite si le coût vient
+    // du nombre ou de la SURCOUVERTURE — trente-six images empilées repeignent trente-six fois
+    // le même écran, et une durée seule ne le distingue pas de trente-six images chères.
+    let mut posees = 0.0f64;
+    let mut pixels = 0.0f64;
+
     for img in Visibles::nouvelles(pass.visibles, board).images() {
         let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
         let (sx, sy) = (wx as f32, wy as f32);
@@ -57,6 +64,8 @@ pub(in crate::renderer) fn draw_images(
             continue;
         }
 
+        posees += 1.0;
+        pixels += (sw as f64) * (sh as f64);
         let drawn = img
             .src
             .as_deref()
@@ -81,6 +90,15 @@ pub(in crate::renderer) fn draw_images(
         }
         draw_domain_gauge(typography, tints, pixmap, scale, (sx, sy), &img.domains);
     }
+
+    let fenetre = (pixmap.width() as f64) * (pixmap.height() as f64);
+    crate::perf::compteur("img_n", posees);
+    crate::perf::compteur("img_ecrans", pixels / fenetre.max(1.0));
+    crate::perf::compteur(
+        "img_mo",
+        image_cache.values().map(|p| p.octets()).sum::<usize>() as f64 / 1_048_576.0,
+    );
+    crate::perf::compteur("vign_mo", vignettes.octets() as f64 / 1_048_576.0);
 }
 
 /// Pose une image sur le canevas, par le chemin le plus économique qu'elle autorise.

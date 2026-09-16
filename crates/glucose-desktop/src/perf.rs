@@ -36,6 +36,7 @@ thread_local! {
     static FRAME_START: Cell<Option<Instant>> = const { Cell::new(None) };
     static LAST_MARK: Cell<Option<Instant>> = const { Cell::new(None) };
     static STAGES: RefCell<Vec<(&'static str, f64)>> = const { RefCell::new(Vec::new()) };
+    static COMPTEURS: RefCell<Vec<(&'static str, f64)>> = const { RefCell::new(Vec::new()) };
     static FRAME_INDEX: Cell<u64> = const { Cell::new(0) };
 }
 
@@ -51,6 +52,20 @@ pub fn frame_begin() {
     FRAME_START.with(|c| c.set(Some(now)));
     LAST_MARK.with(|c| c.set(Some(now)));
     STAGES.with(|s| s.borrow_mut().clear());
+    COMPTEURS.with(|c| c.borrow_mut().clear());
+}
+
+/// Note une **quantité** de la frame, à côté de ses durées.
+///
+/// Une durée seule ne dit pas d'où elle vient : « le dessin des images coûte 429 ms » ne
+/// distingue pas trente-six images chères d'une seule redessinée trente-six fois. Un compteur
+/// tranche ce que le chronomètre laisse ambigu — combien de nœuds, combien de pixels, combien
+/// de mégaoctets — et c'est la seule façon de ne pas avoir à deviner.
+pub fn compteur(label: &'static str, valeur: f64) {
+    if !enabled() {
+        return;
+    }
+    COMPTEURS.with(|c| c.borrow_mut().push((label, valeur)));
 }
 
 /// Enregistre la durée écoulée depuis le repère précédent sous le nom `label`.
@@ -91,7 +106,13 @@ pub fn frame_end() {
             .collect::<Vec<_>>()
             .join(" ")
     });
-    eprintln!("[perf] frame #{index} total={total_ms:.2}ms {detail}");
+    let compteurs = COMPTEURS.with(|c| {
+        c.borrow()
+            .iter()
+            .map(|(label, valeur)| format!(" {label}={valeur:.1}"))
+            .collect::<String>()
+    });
+    eprintln!("[perf] frame #{index} total={total_ms:.2}ms {detail}{compteurs}");
 }
 
 /// Écrit une mesure ponctuelle hors frame (démarrage, chargement, etc.).

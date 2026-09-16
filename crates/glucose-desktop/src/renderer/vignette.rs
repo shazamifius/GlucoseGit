@@ -69,6 +69,15 @@ impl Vignettes {
         self.par_noeud.len()
     }
 
+    /// Les octets que les vignettes gardées occupent.
+    pub fn octets(&self) -> usize {
+        self.par_noeud
+            .values()
+            .filter_map(|e| e.prete.as_ref())
+            .map(|(_, p)| p.width() as usize * p.height() as usize * 4)
+            .sum()
+    }
+
     /// La vignette prête pour ce nœud à cette forme, si elle existe ou mérite d'être faite.
     ///
     /// Rend `None` la première fois qu'une forme est demandée pour ce nœud : l'appelant dessine
