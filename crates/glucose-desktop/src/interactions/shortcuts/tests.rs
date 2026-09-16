@@ -367,3 +367,50 @@ fn test_pred_1_a_modified_digit_is_left_alone() {
     tape(&mut app, "1");
     assert_eq!(predicat(&app, "a"), None);
 }
+
+// ── KEY-2 : une touche maintenue ne crée pas cinquante objets ───────────────
+
+fn lettre(c: &str) -> Key {
+    Key::Character(SmolStr::new(c))
+}
+
+/// **Les actions qui créent quelque chose ne se répètent pas.**
+///
+/// Mesuré avant ce filtre : maintenir `Ctrl+V` collait cinquante images par seconde, chacune
+/// écrivant un PNG sur le disque. Trois cent cinquante-huit images pour un seul geste, six
+/// cent cinquante mégaoctets décodés, une frame à 1,7 seconde — et le symptôme observé était
+/// « l'application lague à l'import », à mille lieues de la cause.
+#[test]
+fn test_les_actions_ponctuelles_ne_se_repetent_pas() {
+    for touche in ["v", "V", "s", "S", "o", "O", "i", "I", "d", "D", "a", "A"] {
+        assert!(
+            !super::repetition_utile(&lettre(touche)),
+            "« {touche} » a un effet ponctuel : sa répétition automatique ne doit pas passer"
+        );
+    }
+    assert!(!super::repetition_utile(&Key::Named(NamedKey::Delete)));
+    assert!(!super::repetition_utile(&Key::Named(NamedKey::Space)));
+}
+
+/// Les flèches, elles, doivent se répéter : chaque répétition avance d'un pas de plus, et
+/// c'est le geste même du déplacement fin au clavier.
+#[test]
+fn test_les_fleches_se_repetent() {
+    for touche in [
+        NamedKey::ArrowLeft,
+        NamedKey::ArrowRight,
+        NamedKey::ArrowUp,
+        NamedKey::ArrowDown,
+    ] {
+        assert!(super::repetition_utile(&Key::Named(touche)));
+    }
+}
+
+/// L'annulation et le rétablissement se répètent : remonter dix crans d'un coup est une
+/// intention courante, et rien n'est créé.
+#[test]
+fn test_annuler_et_retablir_se_repetent() {
+    for touche in ["z", "Z", "y", "Y"] {
+        assert!(super::repetition_utile(&lettre(touche)));
+    }
+}

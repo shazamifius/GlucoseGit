@@ -40,7 +40,26 @@ impl GlucoseApp {
     }
 
     /// Traite les raccourcis clavier hors session d'édition de texte.
+    ///
+    /// # Invariant KEY-2 — une touche maintenue ne crée pas cinquante objets
+    ///
+    /// Le système répète une touche maintenue une trentaine de fois par seconde, et le dit :
+    /// `KeyEvent::repeat` distingue une vraie frappe d'une répétition. Ce code l'ignorait
+    /// entièrement, si bien que maintenir `Ctrl+V` collait en boucle — chaque répétition
+    /// écrivant un PNG sur le disque et posant une image de plus sur le canevas.
+    ///
+    /// Mesuré en conditions réelles : **cinquante images créées par seconde**, trois cent
+    /// cinquante-huit au total pour un seul geste, six cent cinquante mégaoctets d'images
+    /// décodées, et une frame montée à 1,7 seconde. Vu de l'utilisateur, « l'application
+    /// lague à l'import » ; en vérité elle dessinait fidèlement trois cent cinquante-huit
+    /// images empilées sur cinquante-huit fois la surface de l'écran.
+    ///
+    /// C'est ce que les compteurs de la trace ont permis de voir : une durée seule disait
+    /// « le rendu est lent », et aucune optimisation de rendu n'aurait touché la cause.
     pub fn handle_keyboard_shortcut(&mut self, event: &KeyEvent) {
+        if event.repeat && !repetition_utile(&event.logical_key) {
+            return;
+        }
         self.handle_shortcut_input(&event.logical_key, event.state);
     }
 
@@ -344,6 +363,32 @@ impl GlucoseApp {
             "Fenêtre normale"
         });
         self.mark_dirty();
+    }
+}
+
+/// Les touches dont la **répétition automatique** rend un service, et elles seules (KEY-2).
+///
+/// La question n'est pas « quelle touche est dangereuse » mais « quelle action a un effet
+/// cumulatif que l'utilisateur demande en maintenant la touche ». Deux familles répondent oui :
+///
+/// * les **flèches**, où chaque répétition avance d'un pas de plus — c'est le geste même du
+///   déplacement fin au clavier, et l'interrompre le rendrait inutilisable ;
+/// * l'**annulation** et le **rétablissement**, où chaque répétition remonte d'un cran dans
+///   une pile — remonter dix fois est une intention courante, et rien n'est créé.
+///
+/// Tout le reste a un effet **ponctuel** : coller crée un objet, dupliquer aussi, enregistrer
+/// écrit un fichier, ouvrir montre un dialogue, un outil se choisit une fois. Les répéter n'est
+/// jamais ce qu'on demande en gardant le doigt appuyé.
+///
+/// La saisie de texte n'a pas à figurer ici : elle est prise plus tôt, par `handle_text_key`,
+/// et c'est justement le lieu où la répétition est la raison d'être du mécanisme.
+fn repetition_utile(logical_key: &Key) -> bool {
+    match logical_key {
+        Key::Named(
+            NamedKey::ArrowLeft | NamedKey::ArrowRight | NamedKey::ArrowUp | NamedKey::ArrowDown,
+        ) => true,
+        Key::Character(c) => matches!(c.as_str(), "z" | "Z" | "y" | "Y"),
+        _ => false,
     }
 }
 
