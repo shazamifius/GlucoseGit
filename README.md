@@ -266,6 +266,39 @@ cargo run --release -p glucose-desktop --example capture_temoin   # la scène de
 ```
 
 L'exécutable autonome se trouve dans `target/release/glucose-desktop.exe`.
+## 🌿 Les deux branches
+
+Ce dépôt porte **deux logiciels**, et une seule branche les mélangeait.
+
+| Branche | Ce qu'elle contient | Son état |
+|---|---|---|
+| **`main`** | **Glucose Rust** seul — `crates/`, `docs/`, rien d'autre | vivante, c'est ici qu'on travaille |
+| **`tauri-v1.0.1`** | **Glucose Tauri** — `src/` en React/TypeScript, `src-tauri/`, Vite, Node | figée, c'est la référence |
+
+`main` n'a plus une ligne de TypeScript ni un fichier `package.json` : `cargo` suffit à tout
+faire, et une recherche dans le code ne ramène plus deux réponses pour la même question.
+
+### Pourquoi la référence reste lisible sans changer de branche
+
+Glucose Tauri n'est pas un vestige : c'est **la spécification exécutable** de ce que Glucose
+Rust doit faire. Il faut pouvoir la lire à tout moment — un `git checkout` à chaque question
+serait le prix caché de ce découpage.
+
+Un **arbre de travail lié** (`git worktree`) l'évite. Glucose Tauri est déposé une fois pour
+toutes dans un répertoire voisin, sur sa branche, en partageant les objets Git de ce dépôt :
+
+```bash
+git worktree add ../GlucoseTauri tauri-v1.0.1
+```
+
+Il s'y lance comme avant (`npm run dev`), et se lit depuis `main` par son chemin. Aucun
+changement de branche, aucun second clone, aucun octet dupliqué dans `.git`.
+
+```text
+Documents/
+├── GlucoseGit-main/     ← main : Glucose Rust           (cargo)
+└── GlucoseTauri/        ← tauri-v1.0.1 : Glucose Tauri  (npm)
+```
 
 ---
 

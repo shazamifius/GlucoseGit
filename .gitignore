@@ -1,31 +1,14 @@
-# Dépendances
-node_modules/
-.pnp
-.pnp.js
+# Cette branche ne contient que Glucose Rust. Tout ce qui relevait de Node, de Vite et de la
+# coquille Tauri vit désormais sur la branche `tauri-v1.0.1`, avec son propre `.gitignore`.
 
-# Builds générés automatiquement
-dist/
-build/
-out/
+# Compilation
+target/
 
 # Graphe de connaissance graphify (artefact généré, régénérable via /graphify)
 graphify-out/
 
-# Tauri / Rust
-target/
-src-tauri/target/
-src-tauri/gen/
-src-tauri/target-temp/
-src-tauri/target-serial/
-tauri.build.temp.json
-
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
 # OS
 .DS_Store
@@ -47,8 +30,6 @@ desktop.ini
 
 # Cache divers
 .cache/
-.parcel-cache/
-.turbo/
 
 # Tests
 coverage/
@@ -57,19 +38,9 @@ coverage/
 .claude/scheduled_tasks.lock
 .claude/projects/
 
-# Nix
-result
-result-*
-
-# Serveur télémétrie (artefacts locaux)
-server/__pycache__/
-*.pyc
-glucose_telemetry.db*
-
 # Docs de travail internes (gardées en local, pas publiées)
 STABILITY.md
 PHASE1_TO_PHASE2_TRANSITION.md
-tauri-dev.log
 
 # Les captures de travail (scène témoin) se régénèrent par
 #   cargo run -p glucose-desktop --example capture_temoin -- docs/screenshots
@@ -79,3 +50,6 @@ docs/screenshots/temoin*.png
 # Captures produites par `cargo run --example capture_temoin` : des sorties, pas des sources.
 /temoin*.png
 /vitrine*.png
+
+# Mesures de performance écrites par `GLUCOSE_PERF=1`.
+/perf_*.txt
