@@ -221,7 +221,7 @@ impl Store {
             }
         }
 
-        if let Some(fid) = sel.folder.as_deref() {
+        if let Some(fid) = sel.folder {
             for (i, f) in b.folders.iter_mut().enumerate() {
                 if f.id == fid {
                     f.x += dx;
