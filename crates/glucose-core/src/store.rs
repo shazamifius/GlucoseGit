@@ -74,6 +74,12 @@ pub struct Store {
     /// projet venu du disque : [`Store::load_project`] le rétablit par un unique scan.
     pub next_id: u64,
     pub version: u64,
+
+    /// Les bornes du contenu, gardées d'une image à l'autre (invariant BORNES-1, documenté
+    /// sur [`Store::content_bounds`]). Mutabilité intérieure : répondre vite à une question
+    /// de lecture ne doit pas obliger l'appelant à tenir le document en écriture. Le moteur
+    /// est strictement mono-thread (R-40), donc le `RefCell` ne coûte qu'un drapeau.
+    bornes: std::cell::RefCell<navigation::BornesDuContenu>,
 }
 
 impl Store {
@@ -89,6 +95,7 @@ impl Store {
             journal: journal::Journal::new(UNDO_DEPTH),
             next_id: 1,
             version: 1,
+            bornes: std::cell::RefCell::default(),
         }
     }
 

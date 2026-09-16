@@ -200,7 +200,44 @@ impl Store {
     /// Chaque nœud compte par sa boîte telle que le modèle la définit — une image par son
     /// rectangle centré, une carte par sa taille de naissance si le document n'en fixe pas,
     /// une flèche par l'enveloppe de son tracé. Ce qui est dessiné est dedans, rien de plus.
+    ///
+    /// # Invariant BORNES-1 — la réponse est gardée tant que le document ne bouge pas
+    ///
+    /// La minimap la demande **à chaque image** pour cadrer une vignette de 180 × 120 pixels,
+    /// et la réponse ne dépend que du document. Mesuré à un million de nœuds : 16,9 ms sur les
+    /// 18,3 d'une image de navigation, pendant que le culling et les quatre passes de scène
+    /// réunis tenaient dans 0,01 ms. Autrement dit, tout le coût de se déplacer dans Glucose
+    /// était ici, et nulle part ailleurs.
+    ///
+    /// Le repère est `(version, tableau)` : toute mutation fait avancer `version` (R-39), donc
+    /// aucune réponse périmée ne peut être rendue. Le parcours reste O(n) — il a simplement
+    /// cessé d'être par image pour redevenir par mutation.
+    ///
+    /// Pourquoi pas un maintien incrémental : une union de rectangles s'étend en O(1) mais ne
+    /// se rétracte pas, faute d'inverse. Après avoir tout supprimé sauf un nœud, la minimap
+    /// resterait cadrée sur un document disparu. Maintenir les quatre extrema sous suppression
+    /// demanderait un multiset ordonné — un O(log n) par mutation pour économiser un O(n) par
+    /// mutation, ce qui n'est pas un gain. Le calcul paresseux est exact et n'invente rien.
     pub fn content_bounds(&self, board_id: &str) -> Option<crate::geometry::Rect> {
+        let mut cache = self.bornes.borrow_mut();
+        if !cache.repond_pour(self.version, board_id) {
+            cache.parcours += 1;
+            cache.repere = Some((self.version, board_id.to_string()));
+            cache.valeur = self.calculer_les_bornes(board_id);
+        }
+        cache.valeur
+    }
+
+    /// Le nombre de parcours réels du document faits par [`Self::content_bounds`].
+    ///
+    /// Sans ce compteur, la garde de BORNES-1 ne se prouverait qu'en chronométrant — donc pas
+    /// de façon déterministe. Avec lui, « se déplacer ne reparcourt pas le document » est une
+    /// égalité.
+    pub fn parcours_des_bornes(&self) -> usize {
+        self.bornes.borrow().parcours
+    }
+
+    fn calculer_les_bornes(&self, board_id: &str) -> Option<crate::geometry::Rect> {
         let board = self.project.boards.iter().find(|b| b.id == board_id)?;
         board
             .images
@@ -209,5 +246,23 @@ impl Store {
             .chain(board.folders.iter().map(|f| f.rect()))
             .chain(board.annotations.iter().map(|a| a.bounds()))
             .reduce(|acc, r| acc.union(r))
+    }
+}
+
+/// La dernière réponse de [`Store::content_bounds`], et le repère qui la rend valable.
+///
+/// Voir l'invariant BORNES-1 sur [`Store::content_bounds`].
+#[derive(Debug, Clone, Default)]
+pub(super) struct BornesDuContenu {
+    /// `(version du document, tableau interrogé)`. `None` tant que rien n'a été demandé.
+    repere: Option<(u64, String)>,
+    valeur: Option<crate::geometry::Rect>,
+    /// Compte les parcours réels : ce qui rend la garde testable au lieu de supposée.
+    parcours: usize,
+}
+
+impl BornesDuContenu {
+    fn repond_pour(&self, version: u64, board_id: &str) -> bool {
+        matches!(&self.repere, Some((v, id)) if *v == version && id == board_id)
     }
 }

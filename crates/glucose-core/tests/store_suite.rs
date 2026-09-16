@@ -542,3 +542,60 @@ fn test_une_image_compte_par_son_rectangle_centre() {
     assert_eq!((b.left, b.top), (75.0, 180.0));
     assert_eq!((b.left + b.width, b.top + b.height), (125.0, 220.0));
 }
+
+// ── BORNES-1 : se déplacer ne reparcourt pas le document ────────────────────
+
+/// **La garde de BORNES-1, prouvée par un compte et non par un chronomètre.**
+///
+/// La minimap demande les bornes à chaque image. Sur un million de nœuds, ce parcours pesait
+/// 16,9 ms des 18,3 d'une frame de navigation : tout le coût de se déplacer dans Glucose.
+#[test]
+fn test_les_bornes_ne_se_recalculent_pas_sans_mutation() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    store.add_image(&board, BoardImage::new("i", 0.0, 0.0, 50.0, 40.0));
+
+    let attendues = store.content_bounds(&board);
+    let apres_le_premier = store.parcours_des_bornes();
+    for _ in 0..1_000 {
+        assert_eq!(store.content_bounds(&board), attendues);
+    }
+    assert_eq!(
+        store.parcours_des_bornes(),
+        apres_le_premier,
+        "mille images sans mutation doivent tenir sur un seul parcours"
+    );
+}
+
+/// Toute mutation fait avancer `version`, donc aucune réponse périmée n'est rendue.
+#[test]
+fn test_une_mutation_refait_les_bornes() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    store.add_image(&board, BoardImage::new("i", 0.0, 0.0, 50.0, 40.0));
+    let avant = store.content_bounds(&board).expect("des bornes");
+
+    store.add_image(&board, BoardImage::new("j", 1_000.0, 0.0, 50.0, 40.0));
+    let apres = store.content_bounds(&board).expect("des bornes");
+
+    assert!(
+        apres.width > avant.width,
+        "le second nœud doit élargir les bornes : {avant:?} puis {apres:?}"
+    );
+}
+
+/// Le repère porte aussi le tableau : deux tableaux à la même version ont des bornes
+/// différentes, et le cache ne doit pas rendre celles du voisin.
+#[test]
+fn test_les_bornes_distinguent_les_tableaux() {
+    let mut store = Store::new("P");
+    let un = store.project.active_board_id.clone();
+    store.add_image(&un, BoardImage::new("i", 0.0, 0.0, 50.0, 40.0));
+    let deux = store.add_board("Second");
+    store.add_image(&deux, BoardImage::new("j", 5_000.0, 5_000.0, 50.0, 40.0));
+
+    let a = store.content_bounds(&un).expect("des bornes");
+    let b = store.content_bounds(&deux).expect("des bornes");
+    assert_ne!(a.left, b.left, "chaque tableau a ses propres bornes");
+    assert_eq!(a, store.content_bounds(&un).expect("des bornes"));
+}
