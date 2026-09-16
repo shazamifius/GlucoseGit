@@ -281,10 +281,14 @@ impl Renderer {
         let visible_ids = self
             .spatial_hash
             .query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
+        let visibles = self
+            .spatial_hash
+            .query_rect_ranks(min_wx, min_wy, max_wx, max_wy, 200.0);
         crate::perf::stage("cull");
         let pass = ViewPass {
             vp,
             visible_ids: &visible_ids,
+            visibles: &visibles,
             header_h,
         };
         let kit = PaintKit {

@@ -44,6 +44,13 @@ struct Slot {
     range: CellRange,
     stamp: u64,
     alive: bool,
+    /// Le rang auquel le tableau a présenté ce nœud — ses images, puis ses annotations, puis
+    /// ses dossiers (CULL-1).
+    ///
+    /// C'est ce qui permet au culling de rendre des **positions** plutôt que des noms. Une
+    /// passe de rendu peut alors aller droit aux nœuds visibles, au lieu de parcourir le
+    /// document entier en demandant de chacun s'il est dans l'ensemble des visibles.
+    rang: u32,
 }
 
 pub struct SpatialHash {
@@ -144,6 +151,8 @@ impl SpatialHash {
             range,
             stamp: self.stamp,
             alive: true,
+            // Le rang est posé par `sync_at`, juste après, quand la place du nœud est connue.
+            rang: 0,
         };
         let idx = match self.free.pop() {
             Some(reused) => {
@@ -314,6 +323,7 @@ impl SpatialHash {
             Some(slot) => *slot = idx,
             None => self.order.push(idx),
         }
+        self.slots[idx as usize].rang = *k as u32;
         *k += 1;
     }
 
@@ -350,6 +360,50 @@ impl SpatialHash {
     // ── Requêtes ────────────────────────────────────────────────────────────
 
     /// Requête de visibilité sans allocation d'identifiant (chemin du renderer et du picking).
+    /// Les **rangs** des nœuds qui tombent dans la fenêtre, triés et sans doublon (CULL-1).
+    ///
+    /// # Pourquoi des rangs et non des noms
+    ///
+    /// La version par noms rendait un ensemble de chaînes, et chaque passe de rendu faisait
+    /// l'inverse de ce qu'il fallait : elle parcourait **tout** le tableau en demandant de
+    /// chaque nœud s'il était dedans. Sur un million de nœuds dont cinq cents visibles, cela
+    /// faisait un million de hachages de chaîne par passe — et il y en a quatre. Mesuré :
+    /// 67 ms pour déplacer la vue, alors qu'il n'y avait rien à faire.
+    ///
+    /// Avec des rangs, une passe va droit aux nœuds visibles. Le coût cesse de dépendre de la
+    /// taille du document pour ne plus dépendre que de ce qu'on regarde — ce qui est la seule
+    /// définition utile du culling.
+    ///
+    /// Les rangs sont ceux de la présentation : les images du tableau, puis ses annotations,
+    /// puis ses dossiers. L'appelant retranche le décalage de sa propre liste.
+    pub fn query_rect_ranks(
+        &self,
+        min_x: f64,
+        min_y: f64,
+        max_x: f64,
+        max_y: f64,
+        margin: f64,
+    ) -> Vec<u32> {
+        let range = self.range_of(
+            min_x - margin,
+            min_y - margin,
+            max_x + margin,
+            max_y + margin,
+        );
+        let mut out = Vec::new();
+        for cell in range.cells() {
+            if let Some(bucket) = self.grid.get(&cell) {
+                out.extend(bucket.iter().map(|&i| self.slots[i as usize].rang));
+            }
+        }
+        // Un nœud couvre plusieurs cellules quand il est grand : le même rang revient alors
+        // autant de fois. Trier puis dédupliquer coûte moins qu'un ensemble de hachage, et
+        // rend au passage l'ordre de parcours séquentiel — donc favorable au cache.
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
     pub fn query_rect_refs(
         &self,
         min_x: f64,
@@ -405,6 +459,25 @@ impl SpatialHash {
         self.order.clear();
         self.rebuilds += 1;
     }
+}
+
+/// Les rangs d'annotation, parmi des rangs de présentation (CULL-1).
+///
+/// L'index numérote les nœuds d'un tableau d'affilée — ses images, puis ses annotations, puis
+/// ses dossiers. Cette fonction rend la tranche qui tombe sur les annotations, **déjà
+/// décalée** : ses éléments indexent directement `board.annotations`.
+///
+/// Elle vit ici parce que les rangs sortent triés : la tranche se trouve par deux recherches
+/// dichotomiques, sans parcourir quoi que ce soit.
+pub fn annotations_visibles<'a>(
+    visibles: &'a [u32],
+    board: &crate::types::Board,
+) -> impl Iterator<Item = usize> + 'a {
+    let debut = board.images.len() as u32;
+    let fin = debut + board.annotations.len() as u32;
+    let d = visibles.partition_point(|&r| r < debut);
+    let f = visibles.partition_point(|&r| r < fin);
+    visibles[d..f].iter().map(move |&r| (r - debut) as usize)
 }
 
 #[cfg(test)]

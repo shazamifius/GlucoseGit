@@ -259,3 +259,123 @@ fn test_reordonner_le_board_ne_corrompt_pas_lindex() {
         assert!(sh.contains(&img.id), "{} absent de l index", img.id);
     }
 }
+
+// ── CULL-1 : le culling rend des rangs, pas des noms ──────────────────────────
+
+/// Un rang désigne **exactement** le nœud que le tableau a présenté à cette place.
+///
+/// C'est tout ce sur quoi les passes de rendu s'appuient : si le rang mentait, une passe
+/// dessinerait un nœud à la place d'un autre — un défaut invisible aux tests de géométrie,
+/// puisque les deux nœuds existent.
+#[test]
+fn test_cull_1_a_rank_designates_the_node_the_board_presented_there() {
+    let mut board = Board::new("b", "Rangs");
+    board
+        .images
+        .push(BoardImage::new("i0", 0.0, 0.0, 10.0, 10.0));
+    board
+        .images
+        .push(BoardImage::new("i1", 20.0, 0.0, 10.0, 10.0));
+    for k in 0..5 {
+        board
+            .annotations
+            .push(mk_text(&format!("a{k}"), 100.0 * f64::from(k), 0.0));
+    }
+
+    let mut index = SpatialHash::new(256.0);
+    index.index_board(&board);
+
+    // Une fenêtre qui couvre tout : les rangs doivent être exactement 0..7.
+    let rangs = index.query_rect_ranks(-1_000.0, -1_000.0, 1_000.0, 1_000.0, 0.0);
+    assert_eq!(
+        rangs,
+        (0..7).collect::<Vec<u32>>(),
+        "les rangs ne couvrent pas la présentation entière"
+    );
+
+    // Et chaque rang tombe sur le bon nœud, décalage des images compris.
+    let debut_ann = board.images.len() as u32;
+    for &r in &rangs {
+        if r < debut_ann {
+            assert_eq!(board.images[r as usize].id, format!("i{r}"));
+        } else {
+            let ann = &board.annotations[(r - debut_ann) as usize];
+            assert_eq!(ann.id(), format!("a{}", r - debut_ann));
+        }
+    }
+}
+
+/// Les rangs sortent triés et sans doublon, même quand un nœud couvre plusieurs cellules.
+///
+/// Un grand nœud est inscrit dans chaque cellule qu'il touche ; sans déduplication, une passe
+/// le dessinerait autant de fois — et les nœuds semi-transparents s'assombriraient.
+#[test]
+fn test_ranks_come_sorted_and_deduplicated() {
+    let mut board = Board::new("b", "Grand");
+    // Bien plus grand qu'une cellule de 64 : il occupe de nombreuses cases.
+    board
+        .images
+        .push(BoardImage::new("grand", 0.0, 0.0, 2_000.0, 2_000.0));
+    board
+        .images
+        .push(BoardImage::new("petit", 10.0, 10.0, 5.0, 5.0));
+
+    let mut index = SpatialHash::new(64.0);
+    index.index_board(&board);
+
+    let rangs = index.query_rect_ranks(-10.0, -10.0, 1_500.0, 1_500.0, 0.0);
+    let mut attendus = rangs.clone();
+    attendus.sort_unstable();
+    attendus.dedup();
+    assert_eq!(
+        rangs, attendus,
+        "les rangs sortent en double ou en désordre"
+    );
+    assert_eq!(rangs.len(), 2, "deux nœuds, deux rangs : {rangs:?}");
+}
+
+/// Une fenêtre vide ne rend aucun rang — le culling coupe vraiment.
+#[test]
+fn test_an_empty_window_yields_no_rank() {
+    let mut board = Board::new("b", "Loin");
+    board.annotations.push(mk_text("a", 0.0, 0.0));
+    let mut index = SpatialHash::new(256.0);
+    index.index_board(&board);
+
+    let rangs = index.query_rect_ranks(100_000.0, 100_000.0, 101_000.0, 101_000.0, 0.0);
+    assert!(rangs.is_empty(), "le culling a rendu {rangs:?}");
+}
+
+/// Les rangs suivent le tableau quand il change : un nœud retiré décale ceux qui suivent.
+#[test]
+fn test_ranks_follow_the_board_when_it_changes() {
+    let mut board = Board::new("b", "Mouvant");
+    for k in 0..4 {
+        board
+            .annotations
+            .push(mk_text(&format!("a{k}"), 10.0 * f64::from(k), 0.0));
+    }
+    let mut index = SpatialHash::new(256.0);
+    index.index_board(&board);
+    assert_eq!(
+        index
+            .query_rect_ranks(-100.0, -100.0, 100.0, 100.0, 0.0)
+            .len(),
+        4
+    );
+
+    board.annotations.remove(1);
+    index.index_board(&board);
+    let rangs = index.query_rect_ranks(-100.0, -100.0, 100.0, 100.0, 0.0);
+    assert_eq!(
+        rangs,
+        vec![0, 1, 2],
+        "les rangs n'ont pas suivi la suppression"
+    );
+    for &r in &rangs {
+        assert_eq!(
+            board.annotations[r as usize].id(),
+            format!("a{}", r + u32::from(r > 0))
+        );
+    }
+}

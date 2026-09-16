@@ -362,9 +362,7 @@ pub fn draw_halos(
     pass: ViewPass<'_>,
 ) {
     let ViewPass {
-        visible_ids,
-        header_h,
-        ..
+        visibles, header_h, ..
     } = pass;
     let vp = &pass.vp;
     let Some(board) = store.active_board() else {
@@ -374,10 +372,11 @@ pub fn draw_halos(
     let screen_w = pixmap.width() as f32;
     let screen_h = pixmap.height() as f32;
 
-    for ann in &board.annotations {
-        if !visible_ids.contains(ann.id()) {
-            continue;
-        }
+    // On va droit aux nœuds visibles (CULL-1). La version précédente parcourait le tableau
+    // entier en demandant de chacun s'il était visible : sur un million de nœuds dont cinq
+    // cents à l'écran, c'était un million de hachages de chaîne pour cette seule passe.
+    for rang in glucose_core::quadtree::annotations_visibles(visibles, board) {
+        let ann = &board.annotations[rang];
         let Some(halo) = halo_geometry(ann, vp, screen_w, screen_h, header_h) else {
             continue;
         };

@@ -88,7 +88,17 @@ pub struct SceneOverlay<'a> {
 pub struct ViewPass<'a> {
     pub vp: Viewport,
     /// Identifiants retournés par la requête spatiale — rien d'autre ne se dessine.
+    ///
+    /// **En cours de retrait** au profit de [`Self::visibles`] : un ensemble de noms oblige
+    /// chaque passe à parcourir tout le tableau pour demander de chaque nœud s'il est dedans,
+    /// c'est-à-dire à faire l'inverse du culling (CULL-1).
     pub visible_ids: &'a HashSet<&'a str>,
+    /// Les **rangs** de présentation des nœuds visibles, triés : les images du tableau, puis
+    /// ses annotations, puis ses dossiers.
+    ///
+    /// Une passe y va droit, au lieu de filtrer le document entier. Le coût cesse alors de
+    /// dépendre de la taille du document pour ne plus dépendre que de ce qu'on regarde.
+    pub visibles: &'a [u32],
     /// Hauteur du bandeau : sommet de la zone de canevas, en unités logiques.
     pub header_h: f32,
 }

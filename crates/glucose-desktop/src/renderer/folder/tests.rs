@@ -46,6 +46,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
     let pass = ViewPass {
         vp,
         visible_ids: &vus,
+        visibles: &[],
         header_h: 0.0,
     };
     draw_folders(kit, &mut pixmap.as_mut(), store, pass);

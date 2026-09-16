@@ -61,6 +61,7 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
             scale,
         },
         visible_ids: &ids,
+        visibles: &[],
         header_h: 0.0,
     };
     let mut hue = SymbioticHueCache::new();

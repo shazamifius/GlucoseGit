@@ -291,6 +291,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
                 scale: 1.4,
             },
             visible_ids: &ids,
+            visibles: &[],
             header_h: 0.0,
         },
     );
