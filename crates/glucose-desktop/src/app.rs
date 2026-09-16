@@ -62,8 +62,13 @@ pub struct GlucoseApp {
     /// suite exactement les mêmes octets.
     pub dock_cache: DockCache,
     pub window: Option<Arc<Window>>,
-    pub context: Option<softbuffer::Context<Arc<Window>>>,
-    pub surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
+    /// Ce qui met l'image à l'écran — la carte graphique, ou le processeur à défaut.
+    ///
+    /// Derrière un `dyn` parce que le choix se fait au démarrage, une fois, en essayant : un
+    /// adaptateur graphique peut manquer, et sur une machine virtuelle ou un bureau distant
+    /// il manque souvent. L'appel indirect est payé une fois par image, contre les quelques
+    /// millisecondes que la présentation elle-même coûte.
+    pub presenter: Option<Box<dyn crate::present::Presenter>>,
     pub scale_factor: f64,
 
     // États d'interaction
@@ -181,8 +186,7 @@ impl GlucoseApp {
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
             window: None,
-            context: None,
-            surface: None,
+            presenter: None,
             scale_factor: 1.0,
             mouse_pos: (0.0, 0.0),
             modifiers: ModifiersState::empty(),
@@ -219,7 +223,7 @@ impl GlucoseApp {
         // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;
         // `sync_window_title` ne touche la fenêtre que lorsque le titre change vraiment.
         self.sync_window_title();
-        if let (Some(window), Some(surface)) = (&self.window, &mut self.surface) {
+        if let (Some(window), Some(presenter)) = (&self.window, &mut self.presenter) {
             crate::perf::frame_begin();
             let frame_started = std::time::Instant::now();
             let size = window.inner_size();
@@ -227,8 +231,8 @@ impl GlucoseApp {
             let height = size.height.max(1);
 
             if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                if let Err(e) = surface.resize(w, h) {
-                    eprintln!("[GlucoseDesktop] surface.resize failed: {e}");
+                if let Err(e) = presenter.resize(w, h) {
+                    eprintln!("[GlucoseDesktop] redimensionnement de la surface : {e}");
                 }
             }
 
@@ -280,7 +284,7 @@ impl GlucoseApp {
                 );
                 crate::perf::stage("docks");
 
-                if let Err(e) = blit_and_present(surface, pixmap) {
+                if let Err(e) = presenter.present(pixmap) {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
@@ -375,68 +379,41 @@ impl GlucoseApp {
         self.scale_factor = scale_factor;
         self.ui.scale_factor = scale_factor as f32;
 
-        let context = softbuffer::Context::new(window.clone())
-            .map_err(|e| DesktopError::WindowError(format!("softbuffer::Context : {e}")))?;
-        let mut surface = softbuffer::Surface::new(&context, window.clone())
-            .map_err(|e| DesktopError::WindowError(format!("softbuffer::Surface : {e}")))?;
-
         let size = window.inner_size();
         let width = size.width.max(1);
         let height = size.height.max(1);
-        if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-            surface
-                .resize(w, h)
-                .map_err(|e| DesktopError::WindowError(format!("surface.resize : {e}")))?;
-        }
+        let (w, h) = (
+            NonZeroU32::new(width).unwrap_or(NonZeroU32::MIN),
+            NonZeroU32::new(height).unwrap_or(NonZeroU32::MIN),
+        );
+
+        // La carte graphique d'abord, le processeur s'il n'y en a pas. Ce n'est pas un
+        // secours honteux : une machine virtuelle, un bureau distant ou un pilote absent sont
+        // des cas de tous les jours, et l'application doit s'ouvrir quand même.
+        let mut presenter: Box<dyn crate::present::Presenter> =
+            match crate::present::GpuPresenter::new(window.clone(), w, h) {
+                Ok(gpu) => {
+                    println!(
+                        "[Glucose] présentation par la carte graphique : {}",
+                        gpu.adaptateur()
+                    );
+                    Box::new(gpu)
+                }
+                Err(e) => {
+                    eprintln!("[Glucose] pas de carte graphique disponible ({e}) — présentation par le processeur");
+                    Box::new(crate::present::CpuPresenter::new(window.clone())?)
+                }
+            };
+        presenter.resize(w, h)?;
 
         self.pixmap = Pixmap::new(width, height);
         window.set_cursor(winit::window::CursorIcon::Grab);
         self.window_title_cache = title;
         self.window = Some(window);
-        self.context = Some(context);
-        self.surface = Some(surface);
+        self.presenter = Some(presenter);
         self.mark_dirty();
         Ok(())
     }
-}
-
-/// Recopie le pixmap tiny-skia (RGBA prémultiplié) dans le framebuffer
-/// softbuffer (0RGB 32 bits) puis présente la frame.
-/// Un pixel de `tiny-skia` dans le format que la fenêtre attend.
-///
-/// # Une opération par pixel plutôt que six
-///
-/// La version précédente lisait trois octets et les recomposait à coups de décalages et de
-/// `ou`. Celle-ci dit la même chose en une fois : un pixel vaut `r,g,b,a` en mémoire, donc
-/// `a<<24 | b<<16 | g<<8 | r` lu comme un mot ; l'échanger bout à bout donne
-/// `r<<24 | g<<16 | b<<8 | a`, et un décalage de huit bits laisse exactement `r<<16 | g<<8 | b`.
-/// Le processeur a une instruction pour l'échange d'octets, et le compilateur peut la
-/// vectoriser — ce qu'une recomposition octet par octet lui interdit.
-///
-/// Mesuré : **7,83 → 5,47 ms en 4K**, 1,58 → 1,06 ms en 1080p. Ce coût est payé à **chaque**
-/// image, quoi qu'il y ait à l'écran : c'est un coût de surface, le seul que ni le culling ni
-/// aucun cache ne réduira (fiche 13, vague B).
-fn pixel_fenetre(px: [u8; 4]) -> u32 {
-    u32::from_le_bytes(px).swap_bytes() >> 8
-}
-
-fn blit_and_present(
-    surface: &mut softbuffer::Surface<Arc<Window>, Arc<Window>>,
-    pixmap: &Pixmap,
-) -> DesktopResult<()> {
-    let mut buffer = surface
-        .buffer_mut()
-        .map_err(|e| DesktopError::WindowError(format!("buffer_mut : {e}")))?;
-    let (src, _) = pixmap.data().as_chunks::<4>();
-    for (dst, chunk) in buffer.iter_mut().zip(src) {
-        *dst = pixel_fenetre(*chunk);
-    }
-    crate::perf::stage("blit");
-    buffer
-        .present()
-        .map_err(|e| DesktopError::WindowError(format!("present : {e}")))?;
-    crate::perf::stage("present");
-    Ok(())
 }
 
 impl ApplicationHandler for GlucoseApp {
@@ -472,10 +449,10 @@ impl ApplicationHandler for GlucoseApp {
             WindowEvent::Resized(size) => {
                 let width = size.width.max(1);
                 let height = size.height.max(1);
-                if let Some(surface) = &mut self.surface {
+                if let Some(presenter) = &mut self.presenter {
                     if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                        if let Err(e) = surface.resize(w, h) {
-                            eprintln!("[GlucoseDesktop] surface.resize failed: {e}");
+                        if let Err(e) = presenter.resize(w, h) {
+                            eprintln!("[GlucoseDesktop] redimensionnement de la surface : {e}");
                         }
                     }
                 }
@@ -593,48 +570,6 @@ impl ApplicationHandler for GlucoseApp {
             event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::pixel_fenetre;
-
-    /// La conversion rapide rend **exactement** ce que la recomposition octet par octet rendait.
-    ///
-    /// Une optimisation qui change la couleur d'un pixel n'est pas une optimisation : c'est un
-    /// défaut plus rapide. Le test parcourt chaque valeur possible sur chaque canal, l'alpha
-    /// compris — il n'échantillonne pas, il démontre.
-    #[test]
-    fn test_the_fast_conversion_is_the_same_pixel() {
-        for v in 0..=255u8 {
-            for (i, canal) in [
-                [v, 0, 0, 255],
-                [0, v, 0, 255],
-                [0, 0, v, 255],
-                [7, 9, 11, v],
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                let attendu =
-                    (u32::from(canal[0]) << 16) | (u32::from(canal[1]) << 8) | u32::from(canal[2]);
-                assert_eq!(
-                    pixel_fenetre(canal),
-                    attendu,
-                    "canal {i}, valeur {v} : {canal:?}"
-                );
-            }
-        }
-    }
-
-    /// L'alpha ne doit **jamais** atteindre la fenêtre : elle attend `0RGB`, et un octet de
-    /// poids fort non nul y serait lu comme une couleur.
-    #[test]
-    fn test_the_alpha_never_reaches_the_window() {
-        for a in 0..=255u8 {
-            assert_eq!(pixel_fenetre([1, 2, 3, a]) >> 24, 0, "alpha {a} a fuité");
         }
     }
 }

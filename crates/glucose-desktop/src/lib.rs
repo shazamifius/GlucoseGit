@@ -29,6 +29,7 @@ pub mod interactions;
 pub mod params;
 pub mod perf;
 pub mod persist;
+pub mod present;
 pub mod renderer;
 pub mod theme;
 pub mod typography;

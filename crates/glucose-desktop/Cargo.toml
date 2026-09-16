@@ -9,6 +9,12 @@ glucose-core = { path = "../glucose-core" }
 glucose-math = { path = "../glucose-math" }
 winit = "0.30"
 softbuffer = "0.4"
+# La présentation GPU (PRESENT-1). La charte la désigne : « OpenGL ne couvre pas cette liste
+# — une couche d'abstraction GPU (Vulkan + Metal + D3D + GL ES) devient donc nécessaire ».
+# `pollster` bloque sur l'unique attente asynchrone de wgpu, celle de l'adaptateur, plutôt
+# que d'imposer un exécuteur à toute l'application.
+wgpu = "30"
+pollster = "0.4"
 tiny-skia = "0.11"
 fontdue = "0.9"
 arboard = "3.4"
