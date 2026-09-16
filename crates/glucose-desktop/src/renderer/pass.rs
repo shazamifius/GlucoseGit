@@ -87,7 +87,7 @@ pub(super) fn draw_annotations(
             Annotation::Text {
                 x, y, text, color, ..
             } => {
-                let (_, tint) = hue_cache.get_or_compute(ann, &board.annotations);
+                let (_, tint) = hue_cache.get_or_compute(ann, pass.index, board);
                 let tint = color
                     .as_deref()
                     .map(|c| parse_hex_color(c, tint.0, tint.1, tint.2))

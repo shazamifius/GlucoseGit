@@ -272,6 +272,10 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
     let rangs = glucose_core::quadtree::tous_les_rangs(
         store.active_board().expect("la preuve a un tableau actif"),
     );
+    let mut index = glucose_core::quadtree::SpatialHash::new(1000.0);
+    if let Some(b) = store.active_board() {
+        index.index_board(b);
+    }
     let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
     draw_annotations(
@@ -292,6 +296,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
                 scale: 1.4,
             },
             visibles: &rangs,
+            index: &index,
             header_h: 0.0,
         },
     );

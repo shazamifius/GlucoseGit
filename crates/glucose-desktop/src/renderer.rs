@@ -256,11 +256,7 @@ impl Renderer {
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");
         if let Some(board) = store.active_board() {
-            self.hue_cache.update_positions_and_invalidate(
-                &board.annotations,
-                store.version,
-                &board.id,
-            );
+            self.hue_cache.suivre(store.version, &board.id);
         }
         crate::perf::stage("hues");
         self.sync_spatial_index(store);
@@ -291,6 +287,7 @@ impl Renderer {
         let pass = ViewPass {
             vp,
             visibles: &rangs,
+            index: &self.spatial_hash,
             header_h,
         };
         let kit = PaintKit {

@@ -55,6 +55,10 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
     let rangs = glucose_core::quadtree::tous_les_rangs(
         store.active_board().expect("la preuve a un tableau actif"),
     );
+    let mut index = glucose_core::quadtree::SpatialHash::new(1000.0);
+    if let Some(b) = store.active_board() {
+        index.index_board(b);
+    }
     let pass = ViewPass {
         vp: Viewport {
             x: PROOF_ORIGIN,
@@ -62,6 +66,7 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
             scale,
         },
         visibles: &rangs,
+        index: &index,
         header_h: 0.0,
     };
     let mut hue = SymbioticHueCache::new();

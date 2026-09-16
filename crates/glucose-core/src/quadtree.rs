@@ -447,13 +447,32 @@ impl SpatialHash {
         max_y: f64,
         margin: f64,
     ) -> Vec<u32> {
+        let mut out = Vec::new();
+        self.query_rect_ranks_into(min_x, min_y, max_x, max_y, margin, &mut out);
+        out
+    }
+
+    /// Comme [`SpatialHash::query_rect_ranks`], en réécrivant le tampon de l'appelant.
+    ///
+    /// Une requête par carte visible et par image — ce que fait le calcul des teintes — ne
+    /// doit pas allouer une fois par carte. Le tampon appartient à celui qui interroge, et sa
+    /// capacité se stabilise après quelques images.
+    pub fn query_rect_ranks_into(
+        &self,
+        min_x: f64,
+        min_y: f64,
+        max_x: f64,
+        max_y: f64,
+        margin: f64,
+        out: &mut Vec<u32>,
+    ) {
         let range = self.range_of(
             min_x - margin,
             min_y - margin,
             max_x + margin,
             max_y + margin,
         );
-        let mut out = Vec::new();
+        out.clear();
         for cell in range.cells() {
             if let Some(bucket) = self.grid.get(&cell) {
                 out.extend(bucket.iter().map(|&i| self.slots[i as usize].rang));
@@ -464,7 +483,6 @@ impl SpatialHash {
         // rend au passage l'ordre de parcours séquentiel — donc favorable au cache.
         out.sort_unstable();
         out.dedup();
-        out
     }
 
     pub fn query_rect_refs(

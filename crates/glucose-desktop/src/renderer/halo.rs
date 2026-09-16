@@ -380,7 +380,7 @@ pub fn draw_halos(
         let Some(halo) = halo_geometry(ann, vp, screen_w, screen_h, header_h) else {
             continue;
         };
-        let (_hue, rgb) = hue_cache.get_or_compute(ann, &board.annotations);
+        let (_hue, rgb) = hue_cache.get_or_compute(ann, pass.index, board);
         draw_halo(pixmap, halo, rgb, HALO_ALPHA);
     }
 }

@@ -78,21 +78,43 @@ pub fn get_zone_hue(x: f64, y: f64) -> f64 {
     (value * 360.0).clamp(0.0, 360.0)
 }
 
+/// Portée de l'attraction symbiotique, en unités monde : au-delà, une carte n'influence plus
+/// la teinte d'une autre.
+///
+/// C'est la seule définition de ce rayon. Le cache des teintes en gardait autrefois sa propre
+/// copie, sous un autre nom, pour décider ce qu'un déplacement invalidait : deux constantes
+/// qui devaient rester égales sans que rien ne l'impose.
+pub const RAYON_SYMBIOTIQUE: f64 = 1200.0;
+
 /// Calcule la teinte symbiotique d'une annotation en tenant compte de sa position
 /// et de l'influence vectorielle circulaire de ses voisines.
-pub fn get_symbiotic_hue(ann: &Annotation, all_annotations: &[Annotation]) -> f64 {
+///
+/// # Ce que `voisines` doit contenir
+///
+/// N'importe quel **sur-ensemble** des cartes situées à moins de [`RAYON_SYMBIOTIQUE`] du
+/// point d'ancrage de `ann`. La fonction filtre elle-même par distance exacte, si bien que le
+/// résultat ne dépend pas de la générosité de l'appelant : lui donner le tableau entier ou la
+/// seule poignée que rend un index spatial produit le même nombre, au bit près.
+///
+/// C'est ce qui permet de ne plus parcourir le document. Le tableau entier restait une réponse
+/// juste, mais O(n) par carte — et c'est ce coût, et non le calcul, qui a fait naître tout un
+/// cache d'invalidation.
+pub fn get_symbiotic_hue<'a>(
+    ann: &Annotation,
+    voisines: impl IntoIterator<Item = &'a Annotation>,
+) -> f64 {
     let (ax, ay, aid) = (ann.x(), ann.y(), ann.id());
 
     // 1. Teinte de base du biome + variation individuelle
     let mut my_base_hue = (get_zone_hue(ax, ay) + id_offset(aid)).rem_euclid(360.0);
 
-    // 2. Moyenne vectorielle circulaire des voisines dans un rayon de 1200px
-    const RAYON: f64 = 1200.0;
+    // 2. Moyenne vectorielle circulaire des voisines dans le rayon symbiotique
+    const RAYON: f64 = RAYON_SYMBIOTIQUE;
     let mut sum_x = 0.0f64;
     let mut sum_y = 0.0f64;
     let mut env_weight_sum = 0.0f64;
 
-    for other in all_annotations {
+    for other in voisines {
         if other.id() == aid || !matches!(other, Annotation::Text { .. }) {
             continue;
         }

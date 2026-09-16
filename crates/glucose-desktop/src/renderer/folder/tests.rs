@@ -45,9 +45,14 @@ fn encre(store: &Store) -> (Pixmap, usize) {
     let rangs = glucose_core::quadtree::tous_les_rangs(
         store.active_board().expect("la preuve a un tableau actif"),
     );
+    let mut index = glucose_core::quadtree::SpatialHash::new(1000.0);
+    if let Some(b) = store.active_board() {
+        index.index_board(b);
+    }
     let pass = ViewPass {
         vp,
         visibles: &rangs,
+        index: &index,
         header_h: 0.0,
     };
     draw_folders(kit, &mut pixmap.as_mut(), store, pass);

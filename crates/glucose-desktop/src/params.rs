@@ -16,6 +16,7 @@
 //! calcul. Elles nomment des paramètres, elles ne font rien (§ 2.2).
 
 use crate::renderer::TextEditSession;
+use glucose_core::quadtree::SpatialHash;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::types::Viewport;
 
@@ -94,6 +95,12 @@ pub struct ViewPass<'a> {
     /// l'inverse du culling : parcourir tout le tableau pour demander de chaque nœud s'il
     /// était dedans.
     pub visibles: &'a [u32],
+    /// L'index spatial d'où sortent ces rangs, synchronisé sur le tableau actif.
+    ///
+    /// Le culling n'en a pas besoin — il a déjà sa réponse — mais le calcul d'une teinte, si :
+    /// elle dépend des cartes voisines, et les chercher dans le tableau coûterait un parcours
+    /// par carte (HALO-4).
+    pub index: &'a SpatialHash,
     /// Hauteur du bandeau : sommet de la zone de canevas, en unités logiques.
     pub header_h: f32,
 }
