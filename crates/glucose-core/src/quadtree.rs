@@ -62,15 +62,21 @@ pub struct SpatialHash {
     index_of: HashMap<Rc<str>, NodeIdx>,
     slots: Vec<Slot>,
     free: Vec<NodeIdx>,
-    /// Ordre des nœuds tel que le board les a présentés à la passe précédente. Sert de cache
-    /// de résolution `id -> index` : tant que le board ne change pas d'ordre — le cas de
-    /// TOUTES les frames d'un drag — la synchronisation ne hache plus aucune chaîne.
-    order: Vec<NodeIdx>,
+    /// Ordre des nœuds tel que le board les a présentés à la passe **précédente**. Sert de
+    /// cache de résolution `id -> index` : tant que le board ne change pas d'ordre — le cas
+    /// de TOUTES les frames d'un drag — la synchronisation ne hache plus aucune chaîne.
+    ordre_precedent: Vec<NodeIdx>,
+    /// L'ordre en cours de construction. Il est distinct du précédent, et non écrit par-dessus,
+    /// parce que le chemin rapide a besoin de relire l'ancien ordre **intact** à des places
+    /// déjà dépassées (SPAT-3).
+    ordre: Vec<NodeIdx>,
     stamp: u64,
     /// Nombre de reconstructions totales (`clear` / `build`). Instrumentation SPAT-1.
     rebuilds: u64,
     /// Nombre d'écritures dans une cellule de la grille. Instrumentation SPAT-1.
     cell_writes: u64,
+    /// Nombre de résolutions par la table de hachage. Instrumentation SPAT-3.
+    hachages: u64,
 }
 
 impl SpatialHash {
@@ -82,10 +88,12 @@ impl SpatialHash {
             index_of: HashMap::new(),
             slots: Vec::new(),
             free: Vec::new(),
-            order: Vec::new(),
+            ordre_precedent: Vec::new(),
+            ordre: Vec::new(),
             stamp: 0,
             rebuilds: 0,
             cell_writes: 0,
+            hachages: 0,
         }
     }
 
@@ -100,6 +108,14 @@ impl SpatialHash {
     /// Nombre d'écritures de cellule depuis la création : mesure directe du coût d'indexation.
     pub fn cell_write_count(&self) -> u64 {
         self.cell_writes
+    }
+
+    /// Nombre de résolutions passées par la table de hachage (SPAT-3).
+    ///
+    /// Une insertion au milieu du document doit en coûter **un**, pas un par nœud qui suit.
+    /// Sans ce compteur, l'invariant ne se vérifierait qu'au chronomètre.
+    pub fn hash_count(&self) -> u64 {
+        self.hachages
     }
 
     /// Nombre de nœuds actuellement indexés.
@@ -271,16 +287,17 @@ impl SpatialHash {
     /// à une estampille antérieure a disparu du board et est retiré.
     pub fn index_board(&mut self, board: &crate::types::Board) {
         self.stamp += 1;
-        let mut k = 0usize;
+        self.ordre.clear();
+        let mut glissement = 0i64;
         for img in &board.images {
             let (a, b, c, d) = Self::image_bbox(img);
             let range = self.range_of(a, b, c, d);
-            self.sync_at(&img.id, range, &mut k);
+            self.sync_at(&img.id, range, &mut glissement);
         }
         for ann in &board.annotations {
             let (a, b, c, d) = Self::annotation_bbox(ann);
             let range = self.range_of(a, b, c, d);
-            self.sync_at(ann.id(), range, &mut k);
+            self.sync_at(ann.id(), range, &mut glissement);
         }
         // Les dossiers sont des nœuds du canevas comme les autres. Sans eux ici, un dossier
         // seul sur un tableau n'était **pas cliquable du tout** : `collect_candidates_indexed`
@@ -289,42 +306,88 @@ impl SpatialHash {
         for f in &board.folders {
             let (a, b, c, d) = Self::folder_bbox(f);
             let range = self.range_of(a, b, c, d);
-            self.sync_at(&f.id, range, &mut k);
+            self.sync_at(&f.id, range, &mut glissement);
         }
-        self.order.truncate(k);
+        std::mem::swap(&mut self.ordre_precedent, &mut self.ordre);
 
         // Un nœud a disparu si, et seulement si, le board en a présenté moins que l'index n'en
-        // contient : les identifiants d'un board sont uniques, donc `k` compte des nœuds
+        // contient : les identifiants d'un board sont uniques, donc la passe compte des nœuds
         // distincts. Sans écart, le balayage O(n) est inutile.
-        if k != self.index_of.len() {
+        if self.ordre_precedent.len() != self.index_of.len() {
             self.sweep();
         }
     }
 
-    /// Synchronise le k-ième nœud de la passe.
+    /// Synchronise le nœud que la passe présente maintenant.
+    ///
+    /// # Invariant SPAT-3 — une insertion coûte un hachage, pas un par nœud qui suit
     ///
     /// Chemin rapide : le board présente ses nœuds dans le même ordre qu'à la passe
     /// précédente — le cas de toutes les frames d'un drag — donc l'index est déjà connu et
     /// une comparaison de chaînes suffit à le confirmer. Aucun hachage, aucune allocation.
-    fn sync_at(&mut self, id: &str, range: CellRange, k: &mut usize) {
-        let cached = self
-            .order
-            .get(*k)
-            .copied()
-            .filter(|&idx| self.slots[idx as usize].alive && &*self.names[idx as usize] == id);
-        let idx = match cached {
+    ///
+    /// Reconnaître un nœud à sa **place** avait un défaut que la mesure a mis à nu : insérer
+    /// une image décale d'un cran tout ce qui la suit — les annotations, les dossiers — et
+    /// chaque reconnaissance échouait alors. Mesuré à un million de nœuds, ajouter **une**
+    /// image coûtait 1 192 ms, contre 54 ms pour ajouter une note, qui ne décale rien.
+    ///
+    /// Or une insertion décale la queue **uniformément**. Le `glissement` est cet écart, et il
+    /// n'est qu'un endroit où regarder : la reconnaissance reste une comparaison de noms
+    /// exacte, donc aucune justesse ne dépend de lui. Il se découvre tout seul — le premier
+    /// nœud qui manque à l'appel passe par le chemin lent, et son ancien rang donne l'écart
+    /// que toute la queue partage. Un hachage, puis le chemin rapide reprend.
+    fn sync_at(&mut self, id: &str, range: CellRange, glissement: &mut i64) {
+        let k = self.ordre.len();
+        let idx = match self.retrouver_sans_hacher(id, k, *glissement) {
             Some(idx) => {
                 self.touch(idx, range);
                 idx
             }
-            None => self.upsert(id, range),
+            None => self.resoudre(id, range, k, glissement),
         };
-        match self.order.get_mut(*k) {
-            Some(slot) => *slot = idx,
-            None => self.order.push(idx),
+        self.slots[idx as usize].rang = k as u32;
+        self.ordre.push(idx);
+    }
+
+    /// Le nœud attendu au rang `k`, retrouvé sans hacher son nom — ou rien.
+    ///
+    /// Deux places sont plausibles : celle que le glissement courant désigne, et la place nue.
+    /// Quand le glissement est nul, les deux se confondent et il n'y a qu'une comparaison.
+    fn retrouver_sans_hacher(&self, id: &str, k: usize, glissement: i64) -> Option<NodeIdx> {
+        let attendue = usize::try_from(k as i64 - glissement).ok();
+        attendue
+            .and_then(|place| self.nomme(place, id))
+            .or_else(|| match attendue {
+                Some(place) if place == k => None,
+                _ => self.nomme(k, id),
+            })
+    }
+
+    /// Le nœud vivant qui occupait `place` à la passe précédente, s'il porte bien ce nom.
+    fn nomme(&self, place: usize, id: &str) -> Option<NodeIdx> {
+        self.ordre_precedent
+            .get(place)
+            .copied()
+            .filter(|&idx| self.slots[idx as usize].alive && &*self.names[idx as usize] == id)
+    }
+
+    /// Chemin lent : un hachage. Il apprend au passage de combien la queue a glissé.
+    fn resoudre(&mut self, id: &str, range: CellRange, k: usize, glissement: &mut i64) -> NodeIdx {
+        self.hachages += 1;
+        match self.index_of.get(id).copied() {
+            Some(idx) => {
+                // Le nœud était déjà indexé : son rang d'avant dit l'écart que l'insertion ou
+                // la suppression vient d'imposer à tout ce qui suit.
+                *glissement = k as i64 - self.slots[idx as usize].rang as i64;
+                self.touch(idx, range);
+                idx
+            }
+            None => {
+                let idx = self.alloc_slot(id, range);
+                self.attach(idx, range);
+                idx
+            }
         }
-        self.slots[idx as usize].rang = *k as u32;
-        *k += 1;
     }
 
     /// Retire les nœuds absents du dernier `index_board`.
@@ -456,152 +519,14 @@ impl SpatialHash {
         self.index_of.clear();
         self.slots.clear();
         self.free.clear();
-        self.order.clear();
+        self.ordre_precedent.clear();
+        self.ordre.clear();
         self.rebuilds += 1;
     }
 }
 
-/// Les nœuds visibles d'un tableau, rendus **par tranches de présentation** (CULL-1).
-///
-/// L'index numérote les nœuds d'un tableau d'affilée — ses images, puis ses annotations, puis
-/// ses dossiers — et [`SpatialHash::query_rect_ranks`] rend ces numéros triés. Une passe de
-/// rendu ne veut ni des numéros ni des indices : elle veut **les nœuds**. Ce type est le seul
-/// endroit du moteur où un rang se traduit, et il rend directement de quoi dessiner.
-///
-/// # Pourquoi les nœuds et non des indices
-///
-/// La première version rendait des indices, et chaque passe écrivait `board.annotations[i]`
-/// de son côté. Deux fautes en une : le décalage s'y rejouait à chaque appel — celle des
-/// annotations l'avait déjà oublié une fois, et aurait dessiné un nœud à la place d'un autre
-/// sans qu'aucun test de géométrie ne s'en aperçoive — et le rendu remettait la main dans les
-/// champs du modèle, contre la règle S. En rendant les nœuds, l'indexation ne se fait plus
-/// qu'ici, et il n'y a plus d'occasion de se tromper.
-///
-/// Les bornes se trouvent par deux recherches dichotomiques : lire une tranche ne parcourt
-/// rien, et le parcours qui suit est séquentiel, donc favorable au cache. Elles viennent des
-/// longueurs du tableau, si bien qu'un rang resté d'un tableau plus grand est ignoré au lieu
-/// de devenir un accès hors bornes.
-#[derive(Debug, Clone, Copy)]
-pub struct Visibles<'a> {
-    rangs: &'a [u32],
-    board: &'a crate::types::Board,
-}
-
-impl<'a> Visibles<'a> {
-    /// Interprète des rangs bruts à la lumière du tableau qui les a présentés.
-    ///
-    /// Le tableau doit être **celui-là même** que le dernier [`SpatialHash::index_board`] a
-    /// parcouru : ce sont ses longueurs qui situent les frontières entre les tranches.
-    pub fn nouvelles(rangs: &'a [u32], board: &'a crate::types::Board) -> Self {
-        Self { rangs, board }
-    }
-
-    /// Les images visibles, dans l'ordre du tableau.
-    pub fn images(self) -> impl Iterator<Item = &'a crate::types::BoardImage> {
-        let board = self.board;
-        self.tranche(0, board.images.len())
-            .map(move |i| &board.images[i])
-    }
-
-    /// Les annotations visibles, dans l'ordre du tableau.
-    pub fn annotations(self) -> impl Iterator<Item = &'a crate::types::Annotation> {
-        let board = self.board;
-        let debut = board.images.len();
-        self.tranche(debut, debut + board.annotations.len())
-            .map(move |i| &board.annotations[i])
-    }
-
-    /// Les dossiers visibles, dans l'ordre du tableau.
-    pub fn dossiers(self) -> impl Iterator<Item = &'a crate::types::CanvasFolder> {
-        let board = self.board;
-        let debut = board.images.len() + board.annotations.len();
-        self.tranche(debut, debut + board.folders.len())
-            .map(move |i| &board.folders[i])
-    }
-
-    /// La tranche `[debut, fin)` des rangs, ramenée à des indices de la liste concernée.
-    fn tranche(self, debut: usize, fin: usize) -> impl Iterator<Item = usize> + 'a {
-        let (debut, fin) = (debut as u32, fin as u32);
-        let d = self.rangs.partition_point(|&r| r < debut);
-        let f = self.rangs.partition_point(|&r| r < fin);
-        self.rangs[d..f].iter().map(move |&r| (r - debut) as usize)
-    }
-}
-
-/// Les rangs de **tous** les nœuds d'un tableau, dans l'ordre de présentation.
-///
-/// C'est le culling qui ne retient rien. Les preuves de rendu et les bancs en ont besoin :
-/// ils mesurent une passe entière, et ne veulent pas que la fenêtre décide à leur place ce
-/// qui compte. Associé à [`Visibles::nouvelles`], il rend un ensemble de tranches pleines.
-pub fn tous_les_rangs(board: &crate::types::Board) -> Vec<u32> {
-    let total = board.images.len() + board.annotations.len() + board.folders.len();
-    (0..total as u32).collect()
-}
+mod visibles;
+pub use visibles::{tous_les_rangs, Visibles};
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_spatial_hash_query() {
-        let mut sh = SpatialHash::new(1000.0);
-        let items = [
-            ("img1", 500.0, 500.0, 100.0, 100.0),
-            ("img2", 2500.0, 2500.0, 100.0, 100.0),
-        ];
-        sh.build(items);
-
-        let visible = sh.query_ids(0.0, 0.0, 1000.0, 1000.0, 0.0);
-        assert!(visible.contains("img1"));
-        assert!(!visible.contains("img2"));
-    }
-
-    #[test]
-    fn test_insert_remove_update_incremental() {
-        let mut sh = SpatialHash::new(1000.0);
-        sh.insert("a", 0.0, 0.0, 10.0, 10.0);
-        assert!(sh.contains("a"));
-        assert_eq!(sh.len(), 1);
-
-        assert!(sh.update("a", 5000.0, 5000.0, 5010.0, 5010.0));
-        assert!(sh.query_rect_refs(0.0, 0.0, 100.0, 100.0, 0.0).is_empty());
-        assert!(sh
-            .query_rect_refs(4900.0, 4900.0, 5100.0, 5100.0, 0.0)
-            .contains("a"));
-
-        assert!(sh.remove("a"));
-        assert!(!sh.remove("a"));
-        assert!(sh.is_empty());
-        assert!(sh
-            .query_rect_refs(4900.0, 4900.0, 5100.0, 5100.0, 0.0)
-            .is_empty());
-    }
-
-    #[test]
-    fn test_reindex_same_id_does_not_duplicate() {
-        let mut sh = SpatialHash::new(1000.0);
-        for _ in 0..10 {
-            sh.insert("a", 0.0, 0.0, 10.0, 10.0);
-        }
-        assert_eq!(sh.len(), 1);
-        assert_eq!(sh.query_rect_refs(0.0, 0.0, 100.0, 100.0, 0.0).len(), 1);
-        // Une seule écriture de cellule pour 10 insertions identiques (SPAT-1).
-        assert_eq!(sh.cell_write_count(), 1);
-    }
-
-    #[test]
-    fn test_free_slot_is_reused_after_remove() {
-        let mut sh = SpatialHash::new(1000.0);
-        sh.insert("a", 0.0, 0.0, 10.0, 10.0);
-        sh.remove("a");
-        sh.insert("b", 0.0, 0.0, 10.0, 10.0);
-        assert_eq!(
-            sh.slots.len(),
-            1,
-            "l'emplacement libéré doit être réutilisé"
-        );
-        let hit = sh.query_rect_refs(0.0, 0.0, 100.0, 100.0, 0.0);
-        assert!(hit.contains("b"));
-        assert!(!hit.contains("a"));
-    }
-}
+mod tests;

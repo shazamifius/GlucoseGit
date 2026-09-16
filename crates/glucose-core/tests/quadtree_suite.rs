@@ -466,3 +466,80 @@ fn test_rangs_de_lindex_et_tranches_concordent() {
         vec![0, 1, 2, 3, 4, 5]
     );
 }
+
+// ── SPAT-3 : une insertion coûte un hachage, pas un par nœud qui suit ───────
+
+/// **L'invariant SPAT-3, prouvé par un compte.**
+///
+/// Insérer une image en fin de liste décale d'un cran les annotations et les dossiers qui la
+/// suivent. Reconnaître un nœud à sa place les faisait alors toutes échouer, et l'index
+/// repassait par la table de hachage un million de fois pour une seule insertion. Mesuré à
+/// cette échelle : 365 ms, contre 70 une fois le glissement en place.
+#[test]
+fn test_une_insertion_ne_coute_quun_seul_hachage() {
+    let mut board = Board::new("b", "B");
+    for i in 0..50 {
+        board
+            .images
+            .push(mk_image(&format!("img-{i}"), i as f64 * 10.0, 0.0));
+    }
+    for i in 0..500 {
+        board
+            .annotations
+            .push(mk_text(&format!("txt-{i}"), i as f64 * 10.0, 400.0));
+    }
+    let mut sh = SpatialHash::new(1000.0);
+    sh.index_board(&board);
+
+    // Une image de plus, au milieu de la présentation : tout ce qui suit glisse d'un cran.
+    board.images.push(mk_image("img-neuf", 0.0, 0.0));
+    let avant = sh.hash_count();
+    sh.index_board(&board);
+    let du_a_linsertion = sh.hash_count() - avant;
+
+    assert!(
+        du_a_linsertion <= 2,
+        "une insertion doit coûter au plus deux hachages — le nœud neuf et celui qui \
+         découvre le glissement — mais elle en a coûté {du_a_linsertion}"
+    );
+}
+
+/// Sans changement, aucune résolution ne passe par la table : c'est le cas de toutes les
+/// images d'un déplacement de caméra ou d'un drag.
+#[test]
+fn test_un_board_inchange_ne_hache_rien() {
+    let board = board_a_trois_tranches();
+    let mut sh = SpatialHash::new(1000.0);
+    sh.index_board(&board);
+
+    let avant = sh.hash_count();
+    for _ in 0..100 {
+        sh.index_board(&board);
+    }
+    assert_eq!(
+        sh.hash_count(),
+        avant,
+        "cent passes identiques, zéro hachage"
+    );
+}
+
+/// Le glissement n'est qu'un endroit où regarder : la reconnaissance reste une comparaison de
+/// noms. Un board réordonné de fond en comble doit rester **juste**, quel qu'en soit le prix.
+#[test]
+fn test_un_reordonnancement_complet_reste_juste() {
+    let mut board = board_a_trois_tranches();
+    let mut sh = SpatialHash::new(1000.0);
+    sh.index_board(&board);
+
+    board.images.reverse();
+    board.annotations.reverse();
+    sh.index_board(&board);
+
+    let rangs = sh.query_rect_ranks(-10_000.0, -10_000.0, 10_000.0, 10_000.0, 0.0);
+    let v = glucose_core::quadtree::Visibles::nouvelles(&rangs, &board);
+    let images: Vec<&str> = v.images().map(|i| i.id.as_str()).collect();
+    let annotations: Vec<&str> = v.annotations().map(|a| a.id()).collect();
+
+    assert_eq!(images, vec!["img-2", "img-1", "img-0"]);
+    assert_eq!(annotations, vec!["txt-1", "txt-0"]);
+}

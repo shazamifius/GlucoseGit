@@ -163,6 +163,18 @@ fn main() {
         let bid = store.project.active_board_id.clone();
         let mut atelier = Atelier::new();
 
+        // Une image de chauffe, jetée : l'indexation spatiale initiale, le chargement des
+        // polices et la première teinte se paient une fois, et n'appartiennent à aucune des
+        // actions mesurées. Sans elle, la première ligne du tableau portait 1 192 ms
+        // d'indexation qui n'avaient rien à voir avec elle — et j'ai cherché la cause dans le
+        // décalage des rangs, qui n'y était pour rien.
+        bench::render_into(
+            &mut atelier.renderer,
+            &mut atelier.ui,
+            &store,
+            &mut atelier.pixmap,
+        );
+
         // ── Poser quelque chose ────────────────────────────────────────────
         let c = mesurer(&mut store, &mut atelier, |s| {
             let img = BoardImage::new("bench-img", 0.0, 0.0, 400.0, 300.0);

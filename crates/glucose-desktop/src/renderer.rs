@@ -248,8 +248,13 @@ impl Renderer {
     /// Mesuré sur un million de nœuds : 315 ms par image sans qu'aucune mutation n'ait eu
     /// lieu, et jusqu'à 2 100 ms après une. Un poste de mesure qui porte le nom d'autre chose
     /// est pire qu'un poste absent : il envoie chercher au mauvais endroit.
+    /// Les trois postes sont chronométrés séparément : ils reparcourent tous le document, mais
+    /// pas pour les mêmes raisons ni au même prix, et un poste agrégé les rendrait
+    /// indiscernables. Mesuré à un million de nœuds, la première image après une mutation :
+    /// l'index pèse 1 100 ms quand une image est ajoutée et 4 ms quand c'est une note.
     fn synchroniser_les_caches(&mut self, store: &Store) {
         self.domain_tints.refresh(store, &self.theme);
+        crate::perf::stage("teintes");
         if let Some(board) = store.active_board() {
             self.hue_cache.update_positions_and_invalidate(
                 &board.annotations,
@@ -257,7 +262,9 @@ impl Renderer {
                 &board.id,
             );
         }
+        crate::perf::stage("hues");
         self.sync_spatial_index(store);
+        crate::perf::stage("index");
     }
 
     pub fn render(
@@ -273,7 +280,6 @@ impl Renderer {
         let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
 
         self.synchroniser_les_caches(store);
-        crate::perf::stage("caches");
 
         let header_h = ui.header_height();
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
