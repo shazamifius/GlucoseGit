@@ -421,7 +421,7 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
     let vp = Viewport::default();
     let board = store.active_board().expect("le board vient d'être rempli");
     let visible: HashSet<&str> = board.annotations.iter().map(|a| a.id()).collect();
-    hue_cache.update_positions_and_invalidate(&board.annotations);
+    hue_cache.update_positions_and_invalidate(&board.annotations, 1, &board.id);
 
     let pass = ViewPass {
         vp,

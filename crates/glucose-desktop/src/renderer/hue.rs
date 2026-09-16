@@ -23,6 +23,21 @@ pub struct CachedHue {
 pub struct SymbioticHueCache {
     entries: HashMap<String, CachedHue>,
     last_positions: HashMap<String, (f64, f64)>,
+    /// Le document et le tableau pour lesquels les positions ont déjà été relevées.
+    ///
+    /// Sans ce repère, le relevé se refaisait **à chaque image** : une passe sur toutes les
+    /// annotations, plus un ensemble de tous leurs identifiants, construit puis jeté. Sur un
+    /// document d'un million de nœuds, 315 ms par image alors que rien n'avait bougé — le
+    /// premier poste de l'application, devant tout le dessin réuni.
+    ///
+    /// Une version de document qui n'a pas changé signifie qu'aucune annotation n'a bougé :
+    /// il n'y a alors rien à relever et rien à invalider.
+    repere: Option<(u64, String)>,
+    /// Combien de fois les positions ont réellement été relevées.
+    ///
+    /// C'est ce qui rend la garde **testable** : sans ce compteur, un cache qui reparcourt
+    /// tout à chaque image rend exactement les mêmes teintes et passe tous les tests.
+    parcours: usize,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -38,12 +53,38 @@ impl SymbioticHueCache {
         Self {
             entries: HashMap::new(),
             last_positions: HashMap::new(),
+            repere: None,
+            parcours: 0,
         }
+    }
+
+    /// Combien de fois les positions ont réellement été relevées depuis le début.
+    pub fn parcours(&self) -> usize {
+        self.parcours
     }
 
     /// Invalidation par voisinage : si une carte a bougé, seules les cartes à moins de
     /// [`INVALIDATION_RADIUS`] sont invalidées.
-    pub fn update_positions_and_invalidate(&mut self, annotations: &[Annotation]) {
+    ///
+    /// `version` et `board_id` disent **pour quel état** ces annotations sont données. Tant
+    /// qu'ils ne changent pas, aucune n'a pu bouger, et le relevé — qui est une passe
+    /// complète sur le document — n'a pas lieu d'être refait.
+    pub fn update_positions_and_invalidate(
+        &mut self,
+        annotations: &[Annotation],
+        version: u64,
+        board_id: &str,
+    ) {
+        if self
+            .repere
+            .as_ref()
+            .is_some_and(|(v, b)| *v == version && b == board_id)
+        {
+            return;
+        }
+        self.repere = Some((version, board_id.to_string()));
+        self.parcours += 1;
+
         let mut moved_points: Vec<(f64, f64)> = Vec::new();
         let mut current_ids: HashSet<&str> = HashSet::with_capacity(annotations.len());
 
@@ -150,7 +191,7 @@ mod tests {
         let t3 = card("T3", 3000.0, 0.0);
         let list = vec![t1.clone(), t2.clone(), t3.clone()];
 
-        cache.update_positions_and_invalidate(&list);
+        cache.update_positions_and_invalidate(&list, 1, "b");
         let _ = cache.get_or_compute(&t1, &list);
         let _ = cache.get_or_compute(&t2, &list);
         let _ = cache.get_or_compute(&t3, &list);
@@ -161,11 +202,40 @@ mod tests {
         let t1_moved = card("T1", 50.0, 0.0);
         let list_moved = vec![t1_moved.clone(), t2.clone(), t3.clone()];
 
-        cache.update_positions_and_invalidate(&list_moved);
+        cache.update_positions_and_invalidate(&list_moved, 2, "b");
 
         assert!(cache.entries.contains_key("T3"));
         assert!(!cache.entries.contains_key("T1"));
         assert!(!cache.entries.contains_key("T2"));
+    }
+
+    /// Une version inchangée ne fait **rien** parcourir.
+    ///
+    /// C'est ce qui coûtait 315 ms par image sur un document d'un million de nœuds : le
+    /// relevé complet des positions se refaisait à chaque frame, alors que rien n'avait
+    /// bougé. Sans ce test, la garde pourrait disparaître sans qu'aucune teinte ne change —
+    /// le défaut serait invisible partout sauf au chronomètre.
+    #[test]
+    fn test_an_unchanged_document_is_never_walked_again() {
+        let mut cache = SymbioticHueCache::new();
+        let list = vec![card("T1", 0.0, 0.0), card("T2", 500.0, 0.0)];
+
+        for _ in 0..50 {
+            cache.update_positions_and_invalidate(&list, 7, "b");
+        }
+        assert_eq!(
+            cache.parcours(),
+            1,
+            "cinquante images, un seul relevé attendu"
+        );
+
+        // Une version neuve, et le relevé se refait.
+        cache.update_positions_and_invalidate(&list, 8, "b");
+        assert_eq!(cache.parcours(), 2);
+
+        // Changer de tableau aussi : les positions relevées ne sont plus les bonnes.
+        cache.update_positions_and_invalidate(&list, 8, "autre");
+        assert_eq!(cache.parcours(), 3);
     }
 
     #[test]
@@ -175,12 +245,12 @@ mod tests {
         let t2 = card("T2", 200.0, 200.0);
         let list = vec![t1.clone(), t2.clone()];
 
-        cache.update_positions_and_invalidate(&list);
+        cache.update_positions_and_invalidate(&list, 1, "b");
         let (h1, _) = cache.get_or_compute(&t1, &list);
         let (h2, _) = cache.get_or_compute(&t2, &list);
 
         // Deuxième frame stationnaire : aucune modification de position
-        cache.update_positions_and_invalidate(&list);
+        cache.update_positions_and_invalidate(&list, 1, "b");
         assert_eq!(cache.entries.len(), 2);
         assert_eq!(cache.entries.get("T1").map(|e| e.hue), Some(h1));
         assert_eq!(cache.entries.get("T2").map(|e| e.hue), Some(h2));

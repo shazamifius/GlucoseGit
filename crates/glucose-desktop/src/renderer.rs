@@ -249,8 +249,11 @@ impl Renderer {
 
         self.domain_tints.refresh(store, &self.theme);
         if let Some(board) = store.active_board() {
-            self.hue_cache
-                .update_positions_and_invalidate(&board.annotations);
+            self.hue_cache.update_positions_and_invalidate(
+                &board.annotations,
+                store.version,
+                &board.id,
+            );
         }
         self.sync_spatial_index(store);
 
