@@ -1,28 +1,46 @@
 //! Mutations réversibles portant sur les images, et gestes portant sur la sélection entière
 //! (déplacement, duplication, suppression).
 
-use super::journal::{Edit, Slot};
+use super::journal::{Bouts, Edit, Slot};
 use super::Store;
 use crate::types::{Annotation, BoardImage};
 use std::collections::HashSet;
 
 /// Sélection figée au début d'un geste : évite de reconstruire les `HashSet` à chaque
 /// événement `CursorMoved` dans les fonctions qui les consomment plusieurs fois (R-22).
-struct SelectionSets {
-    images: HashSet<String>,
-    annotations: HashSet<String>,
-    folder: Option<String>,
+///
+/// # Elle **emprunte** les identifiants, elle ne les recopie pas
+///
+/// Elle les clonait. Sur une sélection de sept cent cinquante mille nœuds, cela faisait
+/// autant d'allocations à chaque geste — 594 ms de déplacement dont l'essentiel n'était que
+/// la construction de cet objet, avant même d'avoir bougé quoi que ce soit.
+///
+/// Les identifiants vivent déjà dans le `Store` et lui survivent le temps du geste : les
+/// emprunter suffit. C'est ce que la durée de vie `'a` dit, et le compilateur le tient.
+struct SelectionSets<'a> {
+    images: HashSet<&'a str>,
+    annotations: HashSet<&'a str>,
+    folder: Option<&'a str>,
+}
+
+/// Les ensembles de la sélection, construits à partir des **champs** et non du `Store`.
+///
+/// Emprunter `self` en entier interdirait de toucher au tableau juste après : le compilateur
+/// ne sait pas qu'une méthode ne lit que trois champs. En passant les champs, les emprunts
+/// deviennent visiblement disjoints, et la sélection peut vivre pendant qu'on déplace.
+fn selection_sets_de<'a>(
+    images: &'a [String],
+    annotations: &'a [String],
+    folder: Option<&'a str>,
+) -> SelectionSets<'a> {
+    SelectionSets {
+        images: images.iter().map(String::as_str).collect(),
+        annotations: annotations.iter().map(String::as_str).collect(),
+        folder,
+    }
 }
 
 impl Store {
-    fn selection_sets(&self) -> SelectionSets {
-        SelectionSets {
-            images: self.selected_image_ids.iter().cloned().collect(),
-            annotations: self.selected_annotation_ids.iter().cloned().collect(),
-            folder: self.selected_folder_id.clone(),
-        }
-    }
-
     /// Pose une image sur un board.
     ///
     /// **Site migré vers le journal** : l'entrée d'annulation porte l'image insérée et sa
@@ -149,62 +167,78 @@ impl Store {
     /// Un élément n'est cloné **qu'une fois su qu'il est touché** : le coût d'allocation suit
     /// la taille du geste, pas celle du board (JRN-1), même si la recherche des flèches
     /// attachées reste un balayage tant qu'il n'existe pas d'index inverse nœud → flèches.
+    /// Déplace la sélection d'un vecteur, en **une** entrée de journal (JRN-4).
+    ///
+    /// # Ce que cette fonction coûtait
+    ///
+    /// Elle produisait une entrée par élément, chacune portant une copie complète de l'avant
+    /// et de l'après — texte compris — plus l'identifiant du tableau recopié à chaque fois.
+    /// Sur sept cent cinquante mille nœuds : un million et demi de clones, **2 243 ms**, et
+    /// deux fois le document gardé en mémoire pour retenir deux nombres.
+    ///
+    /// Une translation a une forme fermée et son inverse aussi. Il n'y a donc rien à
+    /// mémoriser que le vecteur et les rangs qu'il a touchés : la boucle ne fait plus
+    /// qu'ajouter deux nombres et pousser un entier.
     pub fn move_selected(&mut self, board_id: &str, dx: f64, dy: f64) {
         if dx == 0.0 && dy == 0.0 {
             return;
         }
-        let sel = self.selection_sets();
-        let mut edits = Vec::new();
+        let sel = selection_sets_de(
+            &self.selected_image_ids,
+            &self.selected_annotation_ids,
+            self.selected_folder_id.as_deref(),
+        );
 
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;
         };
-        let bid = b.id.clone();
+
+        let mut images = Vec::new();
+        let mut annotations = Vec::new();
+        let mut folders = Vec::new();
+        let mut bouts = Vec::new();
 
         for (i, img) in b.images.iter_mut().enumerate() {
-            if sel.images.contains(&img.id) && !img.locked {
-                let before = img.clone();
+            if sel.images.contains(img.id.as_str()) && !img.locked {
                 img.x += dx;
                 img.y += dy;
-                edits.push(Edit::Image {
-                    board: bid.clone(),
-                    slot: Slot::changed(i, before, img.clone()),
-                });
+                images.push(i as u32);
             }
         }
 
         for (i, ann) in b.annotations.iter_mut().enumerate() {
-            let selected = sel.annotations.contains(ann.id());
-            if !selected && !arrow_follows_selection(ann, &sel) {
+            if sel.annotations.contains(ann.id()) {
+                ann.translate(dx, dy);
+                annotations.push(i as u32);
                 continue;
             }
-            let before = ann.clone();
-            if selected {
-                ann.translate(dx, dy);
-            } else {
+            // Une flèche que la sélection ne contient pas peut voir une extrémité traînée,
+            // parce que le nœud auquel elle s'accroche, lui, bouge.
+            let quels = bouts_qui_suivent(ann, &sel);
+            if quels.suit() {
                 drag_arrow_ends(ann, &sel, dx, dy);
+                bouts.push((i as u32, quels));
             }
-            edits.push(Edit::Annotation {
-                board: bid.clone(),
-                slot: Slot::changed(i, before, ann.clone()),
-            });
         }
 
         if let Some(fid) = sel.folder.as_deref() {
             for (i, f) in b.folders.iter_mut().enumerate() {
                 if f.id == fid {
-                    let before = f.clone();
                     f.x += dx;
                     f.y += dy;
-                    edits.push(Edit::Folder {
-                        board: bid.clone(),
-                        slot: Slot::changed(i, before, f.clone()),
-                    });
+                    folders.push(i as u32);
                 }
             }
         }
 
-        self.record_as_one_gesture(edits);
+        self.record_as_one_gesture(vec![Edit::Translation {
+            board: board_id.to_string(),
+            delta: (dx, dy),
+            images,
+            annotations,
+            folders,
+            bouts,
+        }]);
     }
 
     pub fn duplicate_selected(&mut self, board_id: &str) {
@@ -284,7 +318,11 @@ impl Store {
     /// Rend `None` si aucune image n'est sélectionnée — un dossier ou une carte ne porte pas
     /// de verrou, la référence n'en donne qu'aux images.
     pub fn toggle_lock_selection(&mut self, board_id: &str) -> Option<bool> {
-        let sel = self.selection_sets();
+        let sel = selection_sets_de(
+            &self.selected_image_ids,
+            &self.selected_annotation_ids,
+            self.selected_folder_id.as_deref(),
+        );
         if sel.images.is_empty() {
             return None;
         }
@@ -294,7 +332,7 @@ impl Store {
         let mut visees: Vec<usize> = Vec::new();
         let mut toutes_verrouillees = true;
         for (i, img) in b.images.iter().enumerate() {
-            if sel.images.contains(&img.id) {
+            if sel.images.contains(img.id.as_str()) {
                 toutes_verrouillees &= img.locked;
                 visees.push(i);
             }
@@ -353,25 +391,36 @@ fn set_annotation_id(ann: &mut Annotation, new_id: String) {
 
 /// R-12 — une flèche non sélectionnée suit l'extrémité dont le nœud, lui, bouge.
 /// Vrai si cette extrémité est attachée à un nœud que le geste déplace.
-fn end_follows(id: &Option<String>, sel: &SelectionSets) -> bool {
-    id.as_ref()
+fn end_follows(id: &Option<String>, sel: &SelectionSets<'_>) -> bool {
+    id.as_deref()
         .is_some_and(|s| sel.annotations.contains(s) || sel.images.contains(s))
 }
 
 /// Vrai si cette annotation est une flèche dont au moins une extrémité suit la sélection.
-fn arrow_follows_selection(ann: &Annotation, sel: &SelectionSets) -> bool {
+/// Quelles extrémités d'une flèche suivent la sélection.
+///
+/// La question « est-ce que ça suit » et la question « qu'est-ce qui suit » étaient posées
+/// séparément, à deux endroits, sur les mêmes données. Les réunir supprime une divergence
+/// possible : ce qui décide du déplacement est exactement ce qui est inscrit au journal.
+fn bouts_qui_suivent(ann: &Annotation, sel: &SelectionSets<'_>) -> Bouts {
     match ann {
         Annotation::Arrow {
             source_id,
             target_id,
             ..
-        } => end_follows(source_id, sel) || end_follows(target_id, sel),
-        _ => false,
+        } => Bouts {
+            origine: end_follows(source_id, sel),
+            cible: end_follows(target_id, sel),
+        },
+        _ => Bouts {
+            origine: false,
+            cible: false,
+        },
     }
 }
 
 /// Traîne les extrémités d'une flèche attachées à la sélection. Sans effet sur autre chose.
-fn drag_arrow_ends(ann: &mut Annotation, sel: &SelectionSets, dx: f64, dy: f64) {
+fn drag_arrow_ends(ann: &mut Annotation, sel: &SelectionSets<'_>, dx: f64, dy: f64) {
     let Annotation::Arrow {
         source_id,
         target_id,
