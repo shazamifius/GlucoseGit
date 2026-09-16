@@ -5,7 +5,7 @@
 > dit **où on en est vraiment**, mesuré sur l'arbre de travail, et **tout ce qui reste** — sans
 > trier par envie, sans omettre ce qui est pénible.
 >
-> **Date** : 2026-09-16 · mesures prises au commit `55f8f36`.
+> **Date** : 2026-09-16 · mesures prises au commit `adaf415`.
 > **État vérifié** : `cargo test --workspace` exit 0, **1 026 tests verts**, 1 ignoré,
 > clippy strict à zéro, huit cliquets mécaniques.
 >

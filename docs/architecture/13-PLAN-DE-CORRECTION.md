@@ -39,20 +39,20 @@ d'`Entrée`. Le test ne vérifiait pas la règle : il la fabriquait.
 
 | # | Ce qui se voit | Ce que j'ai établi | État |
 |---|---|---|---|
-| 1 | `Entrée` va à la ligne **une fois sur deux** | `Maj+Entrée` sautait la ligne ; une majuscule de début de phrase tient `Maj` enfoncé | **corrigé** `bad603f` |
-| 2 | Il faut **maintenir** Espace pour naviguer | Tauri **bascule** l'outil Pan et l'y laisse | **corrigé** `bad603f` |
-| 3 | Le pavé tactile est « infiniment moins bon » | le pan vertical à deux doigts était **inatteignable** : Windows livre tout en `LineDelta`, que le code prenait pour une molette | **corrigé** `bad603f` |
+| 1 | `Entrée` va à la ligne **une fois sur deux** | `Maj+Entrée` sautait la ligne ; une majuscule de début de phrase tient `Maj` enfoncé | **corrigé** `8acf827` |
+| 2 | Il faut **maintenir** Espace pour naviguer | Tauri **bascule** l'outil Pan et l'y laisse | **corrigé** `8acf827` |
+| 3 | Le pavé tactile est « infiniment moins bon » | le pan vertical à deux doigts était **inatteignable** : Windows livre tout en `LineDelta`, que le code prenait pour une molette | **corrigé** `8acf827` |
 | 4 | **Ça saccade énormément** | mesuré : le pointillé des membranes et la conversion du tampon | **corrigé, à confirmer à l'écran** |
 | 5 | Zoomer/dézoomer vite « bugue » | le cran valait +12 % contre +4 % dans Tauri (corrigé) ; reste le cache de la minimap, dont la clé contient le cadrage | partiellement corrigé |
-| 6 | `Ctrl+C` ne sort pas de l'application | la table des raccourcis n'avait ni `c` ni `x` | **corrigé** `5358fd7` |
-| 7 | Le collé venu d'ailleurs ne marche pas | même racine que 6 | **corrigé** `5358fd7` |
+| 6 | `Ctrl+C` ne sort pas de l'application | la table des raccourcis n'avait ni `c` ni `x` | **corrigé** `1a1781a` |
+| 7 | Le collé venu d'ailleurs ne marche pas | même racine que 6 | **corrigé** `1a1781a` |
 | 8 | `Ctrl`+clic n'ouvre pas un lien | un test innocente la géométrie ; deux fautes corrigées dans l'ouverture système | **corrigé, à confirmer à l'écran** |
 | 9 | Les poignées sont trop dures à attraper | **mesuré** : 24 px sur une image, mais une carte de texte n'avait que six poignées — même défaut que le 12 | **corrigé par le 12** |
 | 10 | Un texte long devient insélectionnable | le collage écrivait 44 unités de haut **en dur** : vingt lignes se dessinaient sur huit cents et ne se cliquaient que sur quarante-quatre | **corrigé** |
 | 11 | Le LaTeX n'est capté qu'entre `$` | une commande seule sur sa ligne est désormais une formule ; les `$` gardent le mode affiché | **corrigé** |
 | 12 | On ne peut pas tirer la **hauteur** d'une carte | choix assumé (TEXT-FIT-1) qui divergeait de Tauri ; c'est aussi lui qui faisait passer le 9 pour un défaut de zone de clic | **corrigé** |
 | 13 | Une carte naît à 240 px | la fiche demande une largeur **libre** jusqu'à 600, donc un second bit dans le modèle — voir ci-dessous | **reporté, avec sa raison** |
-| 14 | Le badge d'un dossier affiche zéro | `"0"` était écrit en dur dans le rendu | **corrigé** `13708ad` |
+| 14 | Le badge d'un dossier affiche zéro | `"0"` était écrit en dur dans le rendu | **corrigé** `2bf739d` |
 
 ### Ce que le témoin a révélé en cessant de planter
 

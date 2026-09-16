@@ -6,7 +6,7 @@
 > reste de la fiche 11 (les remises en question RQ-0 à RQ-6) reste valable et n'est pas rejoué
 > ici.
 >
-> **Date** : 2026-09-12 · mesures prises sur l'arbre de travail au commit `acceb0d`.
+> **Date** : 2026-09-12 · mesures prises sur l'arbre de travail au commit `13d0b9c`.
 > **État vérifié** : `cargo test --workspace` exit 0, **641 tests verts**, 0 warning.
 
 ---
@@ -163,7 +163,7 @@ et des 45 345 lignes de TypeScript. Ce qui manque **visuellement**, dans l'ordre
    sait faire `#`, `##`, `- ` et le retour à la ligne ; il ne sait pas **gras, italique, code,
    citation, liste numérotée, lien, tableau, LaTeX**.
 5. **Le compteur d'images** en haut à droite — absent.
-6. **Le dock de panneaux** avec son rebond et son FLIP — les courbes existent depuis `acceb0d`,
+6. **Le dock de panneaux** avec son rebond et son FLIP — les courbes existent depuis `13d0b9c`,
    les gestes non.
 
 ---
@@ -328,7 +328,7 @@ Glucose » se décide.*
 | 2.A.3 | Brancher `membrane_space` : dépôt → adoption, coordonnées relatives, mode minimisé |
 | 2.A.4 | Brancher `membrane_stretch` : la membrane grandit avec son contenu, et l'alerte d'étirement |
 | 2.A.5 | Le **mode focus** au geste (le cadrage `fit_viewport` sert déjà aux vols de dossier) |
-| 2.A.6 | Le tween de membrane — 200 ms, courbe prête depuis `acceb0d`, geste absent |
+| 2.A.6 | Le tween de membrane — 200 ms, courbe prête depuis `13d0b9c`, geste absent |
 | 2.A.7 | Panneau d'options, membranes imbriquées, suppression en cascade |
 | 2.A.8 | **Couleur dérivée des domaines** — `symbiotic_hue` × poids de domaine. C'est la fonctionnalité que la charte désigne pour naviguer dans l'immense |
 
@@ -336,12 +336,12 @@ Glucose » se décide.*
 
 | # | Travail |
 |---|---|
-| 2.B.1 | ✅ **Dessiner par glisser** — DRAW-1, `7ff36c8` |
-| 2.B.2 | ✅ **Les rendre cliquables** — ARROW-1, `04c9b68` : le champ `arrow_id` disparaît avec le trou |
-| 2.B.3 | ✅ Brancher `arrow_anchor` — `9b4a2f2` : la flèche s'arrête sur le **bord** du nœud |
-| 2.B.4 | ✅ **L'aimantation au tracé** — ARROW-2, `df0aef1` ; ✅ **les coudes** — ARROW-3, `5831c7f` |
-| 2.B.5 | ✅ **Étiquette** et sa saisie — LABEL-1, `9c22a27` : la pastille est mesurée, pas estimée |
-| 2.B.6 | ✅ **Prédicats sémantiques** — PRED-1, `4ab28b3` : six sigles **tracés**, puisque quatre des six caractères de Glucose Tauri sont absents des polices embarquées. Reste leur découvrabilité — le menu contextuel doit les proposer |
+| 2.B.1 | ✅ **Dessiner par glisser** — DRAW-1, `fa47763` |
+| 2.B.2 | ✅ **Les rendre cliquables** — ARROW-1, `78c76cd` : le champ `arrow_id` disparaît avec le trou |
+| 2.B.3 | ✅ Brancher `arrow_anchor` — `83331a8` : la flèche s'arrête sur le **bord** du nœud |
+| 2.B.4 | ✅ **L'aimantation au tracé** — ARROW-2, `72a47e8` ; ✅ **les coudes** — ARROW-3, `61c632b` |
+| 2.B.5 | ✅ **Étiquette** et sa saisie — LABEL-1, `9941891` : la pastille est mesurée, pas estimée |
+| 2.B.6 | ✅ **Prédicats sémantiques** — PRED-1, `73457c6` : six sigles **tracés**, puisque quatre des six caractères de Glucose Tauri sont absents des polices embarquées. Reste leur découvrabilité — le menu contextuel doit les proposer |
 | 2.B.7 | Attache à un sous-bloc / à une sélection de texte (dépend de 1.A.8) ; flèche-portail vers un autre board |
 | 2.B.8 | Épaisseur, couleur, bidirectionnelle, courbes — les options de tracé |
 
@@ -355,7 +355,7 @@ Glucose » se décide.*
 > sont ses **coudes** (ARROW-3), pas ses bouts. La ligne est corrigée ici plutôt que
 > silencieusement abandonnée : une roadmap qui se trompe sans le dire fait perdre deux fois.
 
-#### Chantier 2.C — Dossiers et miroirs *(commencé en `56737b8` et `acceb0d`)*
+#### Chantier 2.C — Dossiers et miroirs *(commencé en `52ddf1c` et `13d0b9c`)*
 
 | # | Travail |
 |---|---|
@@ -377,7 +377,7 @@ Glucose » se décide.*
 | 3.A | **Rideaux** — la fonctionnalité la plus originale de Glucose, 0 % : créer, languette nommée et colorée, rideau = board complet, visibilité privé/partagé, droits, ratios | 426 l. + 511 l. de tests |
 | 3.B | **Export** — SVG, Markdown, HTML, PNG, **et l'écriture sur le disque** qui manque même aux deux moteurs prêts | 501 l. |
 | 3.C | **Temporalité** — ancrage, invite de saisie, règle, filtre, plages, années négatives | 406 l. |
-| 3.D | **Images et fichiers** — ✅ le **routage** d'un fichier déposé (`f6a475f`) : lisible → carte, image → image, le reste → lanceur. Reste le glisser **depuis un navigateur** et la position exacte du dépôt, même cause et même correction (voir ci-dessous) ; puis mipmaps, cache borné, décodage asynchrone, chargement progressif, vidéos, dédup, tags | `sha256` branché |
+| 3.D | **Images et fichiers** — ✅ le **routage** d'un fichier déposé (`9601437`) : lisible → carte, image → image, le reste → lanceur. Reste le glisser **depuis un navigateur** et la position exacte du dépôt, même cause et même correction (voir ci-dessous) ; puis mipmaps, cache borné, décodage asynchrone, chargement progressif, vidéos, dédup, tags | `sha256` branché |
 | 3.E | **Interface** — dock animé (rebond + FLIP, courbes prêtes), sélecteur de couleur, panneau Ordonner complet, infobulles, renommer/fermer/réordonner les boards, thème centralisé (~130 littéraux), barre de statut, HUD | courbes prêtes |
 | 3.F | **Recherche** `Ctrl+F` plein texte + navigation vers un résultat | rien |
 | 3.G | Storyboard, presets, zones | rien |
@@ -417,7 +417,7 @@ manques.
 | # | Travail |
 |---|---|
 | 4.1 | **Substitution du noyau vers l'arène** — 209 accès dans `store/`, avec 641 tests comme filet. Rendue locale par la règle S. |
-| 4.2 | Étaler la reconstruction de l'index sur plusieurs frames (dette du commit `c85b0e0` : 16 ms tombent aujourd'hui d'un coup) |
+| 4.2 | Étaler la reconstruction de l'index sur plusieurs frames (dette du commit `94e216d` : 16 ms tombent aujourd'hui d'un coup) |
 | 4.3 | **L'étape C de la fiche 11** : cache pyramidal de tuiles, invalidation exacte, couche d'arêtes longues, présentation GPU avec repli CPU testé par défaut, non-régression au pixel |
 | 4.4 | Le protocole de mesure RQ-3 (paliers par octave, rendu direct vs réduction) — c'est lui qui tranche, pas un document |
 
