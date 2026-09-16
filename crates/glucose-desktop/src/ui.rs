@@ -1275,6 +1275,56 @@ pub(crate) fn render_minimap(
 ///
 /// Les coordonnées y sont relatives au coin de la vignette, puisqu'elle sera composée à sa
 /// place : c'est la seule différence avec le dessin direct d'avant.
+/// Peint un rectangle **opaque** en écrivant les pixels, sans construire de chemin.
+///
+/// # Pourquoi cette fonction existe
+///
+/// La minimap dessinait un `fill_rect` par nœud. Sur un document d'un million, cela fait un
+/// million de chemins construits, alloués et rastérisés — pour une vignette de 180 × 120,
+/// soit **trente-cinq rectangles par pixel**. Mesuré : 1 700 ms à chaque mutation du
+/// document, le premier poste de l'application.
+///
+/// Un nœud y occupe deux à quatre pixels. Construire un chemin pour cela est hors de
+/// proportion : le rectangle se réduit à quelques écritures directes.
+///
+/// # Ce que cela change à l'image, et pourquoi c'est admis
+///
+/// L'anti-crénelage disparaît sur ces rectangles : un pixel est peint si son **centre** tombe
+/// dans le rectangle, sans demi-teinte sur les bords. C'est la règle que `tiny-skia` applique
+/// lui-même quand on lui désactive le lissage, et sur des marques de deux pixels le résultat
+/// est plus net plutôt que moins fidèle (R-46). Le cadre de la minimap et les dossiers, eux,
+/// gardent leur tracé : ce sont des traits fins, où le lissage compte vraiment.
+///
+/// La couleur doit être opaque — c'est le cas de toutes celles qui passent ici — sans quoi il
+/// faudrait composer au lieu d'écrire.
+fn remplir_net(pixmap: &mut tiny_skia::PixmapMut, x: f32, y: f32, w: f32, h: f32, color: Color) {
+    let (largeur, hauteur) = (pixmap.width() as i32, pixmap.height() as i32);
+    // Un pixel est peint quand son centre — en `i + 0,5` — tombe dans le rectangle.
+    let borne = |de: f32, a: f32, max: i32| {
+        let d = (de - 0.5).ceil().max(0.0) as i32;
+        let f = (a - 0.5).ceil().clamp(0.0, max as f32) as i32;
+        (d.min(max), f)
+    };
+    let (x0, x1) = borne(x, x + w, largeur);
+    let (y0, y1) = borne(y, y + h, hauteur);
+    if x0 >= x1 || y0 >= y1 {
+        return;
+    }
+    let pixel = tiny_skia::PremultipliedColorU8::from_rgba(
+        (color.red() * 255.0).round() as u8,
+        (color.green() * 255.0).round() as u8,
+        (color.blue() * 255.0).round() as u8,
+        255,
+    )
+    .unwrap_or_else(|| tiny_skia::PremultipliedColorU8::from_rgba(0, 0, 0, 255).expect("noir"));
+    let pixels = pixmap.pixels_mut();
+    for ligne in y0..y1 {
+        let debut = (ligne * largeur + x0) as usize;
+        let fin = (ligne * largeur + x1) as usize;
+        pixels[debut..fin].fill(pixel);
+    }
+}
+
 fn dessine_fond(
     store: &Store,
     theme: &Theme,
@@ -1326,9 +1376,7 @@ fn dessine_fond(
         let iy = mb.mm_y + pad + ((r.top - mb.min_y) as f32 * mb.scale);
         let iw = (r.width as f32 * mb.scale).max(2.0 * s);
         let ih = (r.height as f32 * mb.scale).max(2.0 * s);
-        if let Some(r) = Rect::from_xywh(ix, iy, iw, ih) {
-            pixmap.fill_rect(r, &item_paint, Transform::identity(), None);
-        }
+        remplir_net(pixmap, ix, iy, iw, ih, theme.minimap_element);
     }
 
     // Dessine miniatures annotations & stickies & membranes
@@ -1345,17 +1393,15 @@ fn dessine_fond(
         let Some(boite) = ann.rect() else {
             continue;
         };
-        let (paint, plancher) = match ann {
-            Annotation::Membrane { .. } => (&membrane_paint, 4.0 * s),
-            _ => (&ann_paint, 2.0 * s),
+        let (couleur, plancher) = match ann {
+            Annotation::Membrane { .. } => (theme.minimap_element, 4.0 * s),
+            _ => (theme.text_muted, 2.0 * s),
         };
         let aw = (boite.width as f32 * mb.scale).max(plancher);
         let ah = (boite.height as f32 * mb.scale).max(plancher);
         let ax = mb.mm_x + pad + ((boite.left - mb.min_x) as f32 * mb.scale);
         let ay = mb.mm_y + pad + ((boite.top - mb.min_y) as f32 * mb.scale);
-        if let Some(r) = Rect::from_xywh(ax, ay, aw, ah) {
-            pixmap.fill_rect(r, paint, Transform::identity(), None);
-        }
+        remplir_net(pixmap, ax, ay, aw, ah, couleur);
     }
 
     // Dossiers — fiche 06 § 9 : en pointillés, à LEUR couleur, et non en gris comme le reste

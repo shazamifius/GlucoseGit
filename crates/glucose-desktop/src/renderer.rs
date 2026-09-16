@@ -235,6 +235,31 @@ impl Renderer {
         }
     }
 
+    /// Remet les caches du rendu d'accord avec le document, avant de dessiner quoi que ce soit.
+    ///
+    /// # Ce que cette méthode a coûté d'être anonyme
+    ///
+    /// Ces trois lignes vivaient au début de `render`, dans le silence, et le chronomètre les
+    /// comptait sous l'étiquette `cull`. Le nom mentait : le culling est la requête qui suit,
+    /// et elle répond en une fraction de milliseconde. Ce qui coûtait, c'était **ceci** — deux
+    /// passes sur le document entier et une reconstruction d'index — et personne ne le
+    /// cherchait là, puisque le poste semblait être du culling.
+    ///
+    /// Mesuré sur un million de nœuds : 315 ms par image sans qu'aucune mutation n'ait eu
+    /// lieu, et jusqu'à 2 100 ms après une. Un poste de mesure qui porte le nom d'autre chose
+    /// est pire qu'un poste absent : il envoie chercher au mauvais endroit.
+    fn synchroniser_les_caches(&mut self, store: &Store) {
+        self.domain_tints.refresh(store, &self.theme);
+        if let Some(board) = store.active_board() {
+            self.hue_cache.update_positions_and_invalidate(
+                &board.annotations,
+                store.version,
+                &board.id,
+            );
+        }
+        self.sync_spatial_index(store);
+    }
+
     pub fn render(
         &mut self,
         pixmap: &mut PixmapMut,
@@ -247,15 +272,8 @@ impl Renderer {
         let height = pixmap.height();
         let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
 
-        self.domain_tints.refresh(store, &self.theme);
-        if let Some(board) = store.active_board() {
-            self.hue_cache.update_positions_and_invalidate(
-                &board.annotations,
-                store.version,
-                &board.id,
-            );
-        }
-        self.sync_spatial_index(store);
+        self.synchroniser_les_caches(store);
+        crate::perf::stage("caches");
 
         let header_h = ui.header_height();
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
