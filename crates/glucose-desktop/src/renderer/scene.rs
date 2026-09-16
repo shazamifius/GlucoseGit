@@ -22,6 +22,7 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
@@ -113,10 +114,7 @@ pub(super) fn draw_membranes(
         top: pass.header_h,
     };
 
-    for ann in &board.annotations {
-        if !pass.visible_ids.contains(ann.id()) {
-            continue;
-        }
+    for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let Annotation::Membrane {
             id,
             x,
@@ -329,10 +327,7 @@ pub(super) fn draw_images(
         top: pass.header_h,
     };
 
-    for img in &board.images {
-        if !pass.visible_ids.contains(img.id.as_str()) {
-            continue;
-        }
+    for img in Visibles::nouvelles(pass.visibles, board).images() {
         let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
         let (sx, sy) = (wx as f32, wy as f32);
         let sw = (img.width * pass.vp.scale) as f32;

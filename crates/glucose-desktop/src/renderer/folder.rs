@@ -26,6 +26,7 @@ use crate::renderer::scale::WorldScale;
 use crate::renderer::{parse_hex_color, push_rounded_rect, PaintKit};
 use crate::typography::{Face, TextStyle};
 use glucose_core::hit_priority::pick_consts;
+use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
 use glucose_core::types::CanvasFolder;
@@ -87,12 +88,12 @@ impl Layout {
     }
 }
 
-/// Dessine tous les dossiers visibles du tableau actif.
+/// Dessine les dossiers visibles du tableau actif.
 ///
-/// La visibilité est décidée ici par un test de bord exact, et non par l'index spatial. Ce
-/// n'est pas un oubli : l'index interroge une zone élargie de 200 px, marge utile au picking
-/// mais superflue pour dessiner, et un tableau compte quelques dossiers, jamais des milliers.
-/// L'index, lui, les connaît désormais — c'est lui qui rend un dossier cliquable.
+/// Deux filtres, et ils ne font pas double emploi. L'index donne la tranche des dossiers
+/// proches, sans parcourir les autres : c'est lui qui rend le coût indépendant de la taille
+/// du document (CULL-1). Le test de bord qui suit reste nécessaire parce que l'index
+/// interroge une zone élargie de 200 px — marge utile au picking, superflue pour dessiner.
 pub(super) fn draw_folders(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
@@ -115,7 +116,7 @@ pub(super) fn draw_folders(
         top: pass.header_h,
     };
 
-    for f in &board.folders {
+    for f in Visibles::nouvelles(pass.visibles, board).dossiers() {
         let layout = Layout::new(f, scale);
         let (wx, wy) = world_to_screen(f.x, f.y, &pass.vp);
         let (sx, sy) = (wx as f32, wy as f32);

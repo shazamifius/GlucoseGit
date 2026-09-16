@@ -379,3 +379,90 @@ fn test_ranks_follow_the_board_when_it_changes() {
         );
     }
 }
+
+// ── CULL-1 — les tranches de présentation ───────────────────────────────────
+
+/// Un tableau de trois images, deux annotations et un dossier : rangs 0-2, 3-4, 5.
+fn board_a_trois_tranches() -> Board {
+    let mut board = Board::new("board-tranches", "Tranches");
+    for i in 0..3 {
+        board
+            .images
+            .push(mk_image(&format!("img-{i}"), i as f64 * 10.0, 0.0));
+    }
+    for i in 0..2 {
+        board
+            .annotations
+            .push(mk_text(&format!("txt-{i}"), i as f64 * 10.0, 100.0));
+    }
+    board.folders.push(glucose_core::types::CanvasFolder::new(
+        "dossier", "Dossier", "enfant",
+    ));
+    board
+}
+
+/// Chaque tranche rend les nœuds de **sa** liste, décalage déduit.
+///
+/// Le test compare des identifiants, et non des indices : c'est la faute qui a failli passer.
+/// Une tranche qui affirme décaler ses rangs et ne les décale pas dessine un nœud à la place
+/// d'un autre, sans qu'aucun test de géométrie ne s'en aperçoive — les deux nœuds existent.
+#[test]
+fn test_visibles_decale_chaque_tranche() {
+    let board = board_a_trois_tranches();
+    let rangs = [0u32, 2, 3, 4, 5];
+    let v = glucose_core::quadtree::Visibles::nouvelles(&rangs, &board);
+
+    let images: Vec<&str> = v.images().map(|i| i.id.as_str()).collect();
+    let annotations: Vec<&str> = v.annotations().map(|a| a.id()).collect();
+    let dossiers: Vec<&str> = v.dossiers().map(|f| f.id.as_str()).collect();
+
+    assert_eq!(images, vec!["img-0", "img-2"]);
+    assert_eq!(annotations, vec!["txt-0", "txt-1"]);
+    assert_eq!(dossiers, vec!["dossier"]);
+}
+
+/// Un rang au-delà du tableau est ignoré, il ne devient pas un accès hors bornes.
+#[test]
+fn test_visibles_borne_la_derniere_tranche() {
+    let board = board_a_trois_tranches();
+    let rangs = [5u32, 6, 40];
+    let v = glucose_core::quadtree::Visibles::nouvelles(&rangs, &board);
+
+    assert_eq!(v.dossiers().count(), 1);
+}
+
+/// Aucun rang : aucune passe ne dessine, et aucune ne panique.
+#[test]
+fn test_visibles_sans_rang_ne_rend_rien() {
+    let board = board_a_trois_tranches();
+    let v = glucose_core::quadtree::Visibles::nouvelles(&[], &board);
+    assert_eq!(v.images().count(), 0);
+    assert_eq!(v.annotations().count(), 0);
+    assert_eq!(v.dossiers().count(), 0);
+}
+
+/// Les rangs de l'index et ceux que le tableau présente désignent les mêmes nœuds.
+///
+/// C'est le contrat qui lie [`SpatialHash::query_rect_ranks`] à `Visibles` : sans lui, les
+/// deux moitiés du culling seraient justes séparément et fausses ensemble.
+#[test]
+fn test_rangs_de_lindex_et_tranches_concordent() {
+    let board = board_a_trois_tranches();
+    let mut sh = SpatialHash::new(1000.0);
+    sh.index_board(&board);
+
+    let rangs = sh.query_rect_ranks(-10_000.0, -10_000.0, 10_000.0, 10_000.0, 0.0);
+    let v = glucose_core::quadtree::Visibles::nouvelles(&rangs, &board);
+
+    let images: Vec<&str> = v.images().map(|i| i.id.as_str()).collect();
+    let annotations: Vec<&str> = v.annotations().map(|a| a.id()).collect();
+    let dossiers: Vec<&str> = v.dossiers().map(|f| f.id.as_str()).collect();
+
+    assert_eq!(images, vec!["img-0", "img-1", "img-2"]);
+    assert_eq!(annotations, vec!["txt-0", "txt-1"]);
+    assert_eq!(dossiers, vec!["dossier"]);
+    assert_eq!(
+        glucose_core::quadtree::tous_les_rangs(&board),
+        vec![0, 1, 2, 3, 4, 5]
+    );
+}

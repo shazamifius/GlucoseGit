@@ -67,6 +67,7 @@ use super::scale::WorldScale;
 use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
+use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
 use tiny_skia::{PixmapMut, PremultipliedColorU8};
@@ -375,8 +376,7 @@ pub fn draw_halos(
     // On va droit aux nœuds visibles (CULL-1). La version précédente parcourait le tableau
     // entier en demandant de chacun s'il était visible : sur un million de nœuds dont cinq
     // cents à l'écran, c'était un million de hachages de chaîne pour cette seule passe.
-    for rang in glucose_core::quadtree::annotations_visibles(visibles, board) {
-        let ann = &board.annotations[rang];
+    for ann in Visibles::nouvelles(visibles, board).annotations() {
         let Some(halo) = halo_geometry(ann, vp, screen_w, screen_h, header_h) else {
             continue;
         };

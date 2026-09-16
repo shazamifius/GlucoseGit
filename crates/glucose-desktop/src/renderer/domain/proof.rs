@@ -82,15 +82,16 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
 
     let mut pixmap = Pixmap::new(CANVAS.0, CANVAS.1).expect("pixmap de la preuve");
     pixmap.fill(theme.bg_canvas);
-    let ids: HashSet<&str> = std::iter::once("porteur").collect();
+    let rangs = glucose_core::quadtree::tous_les_rangs(
+        store.active_board().expect("la preuve a un tableau actif"),
+    );
     let pass = ViewPass {
         vp: Viewport {
             x: ORIGIN.0,
             y: ORIGIN.1,
             scale: zoom,
         },
-        visible_ids: &ids,
-        visibles: &[],
+        visibles: &rangs,
         header_h: 0.0,
     };
     let mut hue = SymbioticHueCache::new();
@@ -321,15 +322,16 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     tints.refresh(&store, &theme);
     let mut pixmap = Pixmap::new(CANVAS.0, CANVAS.1).expect("pixmap de la preuve");
     pixmap.fill(theme.bg_canvas);
-    let ids: HashSet<&str> = ["img", "memb"].into_iter().collect();
+    let rangs = glucose_core::quadtree::tous_les_rangs(
+        store.active_board().expect("la preuve a un tableau actif"),
+    );
     let pass = ViewPass {
         vp: Viewport {
             x: 40.0,
             y: 120.0,
             scale: 1.0,
         },
-        visible_ids: &ids,
-        visibles: &[],
+        visibles: &rangs,
         header_h: 0.0,
     };
     let mut view = pixmap.as_mut();

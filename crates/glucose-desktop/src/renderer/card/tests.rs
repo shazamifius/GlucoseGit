@@ -251,7 +251,6 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
     use crate::renderer::PaintKit;
     use glucose_core::store::Store;
     use glucose_core::types::Viewport;
-    use std::collections::HashSet;
 
     let mut store = Store::new("mode-1");
     let board = store.project.active_board_id.clone();
@@ -262,7 +261,6 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
     }
     store.add_annotation(&board, carte);
 
-    let ids: HashSet<&str> = std::iter::once("mode").collect();
     let theme = crate::theme::Theme::dark();
     let typo = Typography::new();
     let math = MathRenderer::new();
@@ -271,6 +269,9 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
 
     let mut pixmap = tiny_skia::Pixmap::new(420, 200).expect("pixmap");
     pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
+    let rangs = glucose_core::quadtree::tous_les_rangs(
+        store.active_board().expect("la preuve a un tableau actif"),
+    );
     let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
     draw_annotations(
@@ -290,8 +291,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
                 y: 30.0,
                 scale: 1.4,
             },
-            visible_ids: &ids,
-            visibles: &[],
+            visibles: &rangs,
             header_h: 0.0,
         },
     );

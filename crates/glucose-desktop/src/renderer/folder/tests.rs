@@ -42,11 +42,12 @@ fn encre(store: &Store) -> (Pixmap, usize) {
         theme: &theme,
     };
     let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
-    let vus: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let rangs = glucose_core::quadtree::tous_les_rangs(
+        store.active_board().expect("la preuve a un tableau actif"),
+    );
     let pass = ViewPass {
         vp,
-        visible_ids: &vus,
-        visibles: &[],
+        visibles: &rangs,
         header_h: 0.0,
     };
     draw_folders(kit, &mut pixmap.as_mut(), store, pass);

@@ -13,6 +13,7 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::Typography;
+use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, DomainAssignment, Viewport};
 use tiny_skia::PixmapMut;
@@ -79,10 +80,7 @@ pub(super) fn draw_annotations(
         },
     };
 
-    for ann in &board.annotations {
-        if !pass.visible_ids.contains(ann.id()) {
-            continue;
-        }
+    for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let selected = store.selected_annotation_ids.iter().any(|s| s == ann.id());
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {

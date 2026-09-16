@@ -18,7 +18,6 @@
 use crate::renderer::TextEditSession;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::types::Viewport;
-use std::collections::HashSet;
 
 /// Position du curseur, en unités logiques d'écran (§ 5.3).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -87,17 +86,13 @@ pub struct SceneOverlay<'a> {
 #[derive(Clone, Copy)]
 pub struct ViewPass<'a> {
     pub vp: Viewport,
-    /// Identifiants retournés par la requête spatiale — rien d'autre ne se dessine.
-    ///
-    /// **En cours de retrait** au profit de [`Self::visibles`] : un ensemble de noms oblige
-    /// chaque passe à parcourir tout le tableau pour demander de chaque nœud s'il est dedans,
-    /// c'est-à-dire à faire l'inverse du culling (CULL-1).
-    pub visible_ids: &'a HashSet<&'a str>,
-    /// Les **rangs** de présentation des nœuds visibles, triés : les images du tableau, puis
-    /// ses annotations, puis ses dossiers.
+    /// Ce que la requête spatiale a retenu, par tranches — rien d'autre ne se dessine.
     ///
     /// Une passe y va droit, au lieu de filtrer le document entier. Le coût cesse alors de
-    /// dépendre de la taille du document pour ne plus dépendre que de ce qu'on regarde.
+    /// dépendre de la taille du document pour ne plus dépendre que de ce qu'on regarde
+    /// (CULL-1). L'ensemble de noms qui vivait ici auparavant obligeait chaque passe à faire
+    /// l'inverse du culling : parcourir tout le tableau pour demander de chaque nœud s'il
+    /// était dedans.
     pub visibles: &'a [u32],
     /// Hauteur du bandeau : sommet de la zone de canevas, en unités logiques.
     pub header_h: f32,

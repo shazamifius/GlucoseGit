@@ -278,17 +278,13 @@ impl Renderer {
         let header_h = ui.header_height();
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let visible_ids = self
-            .spatial_hash
-            .query_rect_refs(min_wx, min_wy, max_wx, max_wy, 200.0);
-        let visibles = self
+        let rangs = self
             .spatial_hash
             .query_rect_ranks(min_wx, min_wy, max_wx, max_wy, 200.0);
         crate::perf::stage("cull");
         let pass = ViewPass {
             vp,
-            visible_ids: &visible_ids,
-            visibles: &visibles,
+            visibles: &rangs,
             header_h,
         };
         let kit = PaintKit {

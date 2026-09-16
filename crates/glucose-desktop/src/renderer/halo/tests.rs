@@ -2,7 +2,6 @@
 //! du huit bits (HALO-2), et fidélité de forme à l'ombre CSS de Glucose Tauri.
 
 use super::*;
-use std::collections::HashSet;
 use tiny_skia::{Color, Pixmap};
 
 /// Fond de référence des tests : la couleur de toile du thème sombre.
@@ -420,16 +419,13 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
     let mut hue_cache = SymbioticHueCache::new();
     let vp = Viewport::default();
     let board = store.active_board().expect("le board vient d'être rempli");
-    let visible: HashSet<&str> = board.annotations.iter().map(|a| a.id()).collect();
     hue_cache.update_positions_and_invalidate(&board.annotations, 1, &board.id);
 
     // Tous les nœuds sont visibles : le test mesure la passe entière, pas le culling.
-    let tous_les_rangs: Vec<u32> =
-        (0..board.annotations.len() as u32 + board.images.len() as u32).collect();
+    let rangs = glucose_core::quadtree::tous_les_rangs(board);
     let pass = ViewPass {
         vp,
-        visible_ids: &visible,
-        visibles: &tous_les_rangs,
+        visibles: &rangs,
         header_h: 40.0,
     };
     // Frame de chauffe : remplit le cache de teintes symbiotiques.

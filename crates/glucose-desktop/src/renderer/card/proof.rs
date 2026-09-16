@@ -13,7 +13,6 @@ use crate::renderer::pass::draw_annotations;
 use crate::renderer::PaintKit;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
-use std::collections::HashSet;
 use tiny_skia::Pixmap;
 
 /// Largeur et hauteur de la carte de la preuve visuelle, en unités monde.
@@ -53,15 +52,16 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
     let store = proof_store(text);
     let mut pixmap = Pixmap::new(1200, 800).expect("pixmap 1200x800");
     pixmap.fill(Color::from_rgba8(13, 14, 18, 255));
-    let ids: HashSet<&str> = std::iter::once("fidelite").collect();
+    let rangs = glucose_core::quadtree::tous_les_rangs(
+        store.active_board().expect("la preuve a un tableau actif"),
+    );
     let pass = ViewPass {
         vp: Viewport {
             x: PROOF_ORIGIN,
             y: PROOF_ORIGIN,
             scale,
         },
-        visible_ids: &ids,
-        visibles: &[],
+        visibles: &rangs,
         header_h: 0.0,
     };
     let mut hue = SymbioticHueCache::new();
