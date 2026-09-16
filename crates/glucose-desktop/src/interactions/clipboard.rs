@@ -13,7 +13,10 @@ const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "bmp"]
 impl GlucoseApp {
     /// Ouvre le dialogue natif d'import d'images (Ctrl+I, bouton « Ajouter » de la barre).
     pub fn pick_and_import_images(&mut self) {
-        if let Some(files) = rfd::FileDialog::new()
+        // La fenêtre est clonée avant l'appel : le dialogue s'y accroche (DIAL-1) et l'import
+        // qui suit a besoin de `self` en écriture.
+        let fenetre = self.window.clone();
+        if let Some(files) = crate::dialogue::fichier(fenetre.as_deref())
             .add_filter("Images", &IMAGE_EXTENSIONS)
             .pick_files()
         {

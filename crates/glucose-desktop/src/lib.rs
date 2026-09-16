@@ -23,6 +23,7 @@ pub mod app;
 pub mod bench;
 pub mod cadence;
 pub mod canvas;
+pub mod dialogue;
 pub mod dock;
 pub mod error;
 pub mod icons;
