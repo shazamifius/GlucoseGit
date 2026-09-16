@@ -78,6 +78,25 @@ pub struct GpuPresenter {
     texture: Option<(wgpu::Texture, wgpu::BindGroup, (u32, u32))>,
     /// Le nom de l'adaptateur retenu, pour que l'application puisse le dire.
     adaptateur: String,
+    /// Le format de la texture qui porte l'image (GAMMA-1).
+    format_image: wgpu::TextureFormat,
+}
+
+/// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
+///
+/// # Le défaut que cette fonction répare
+///
+/// `get_default_config` retient volontiers `Bgra8UnormSrgb`. Écrire dedans les octets de
+/// `tiny-skia` — qui sont déjà du sRGB — en les ayant déclarés linéaires fait appliquer une
+/// conversion linéaire → sRGB de trop, et **toute l'interface pâlit**. C'est exactement ce
+/// qu'on a vu : un fond censé être presque noir rendu en gris moyen, et les lueurs délavées.
+///
+/// Les deux réponses possibles étaient de déclarer la texture en sRGB — le sampler
+/// reconvertit alors dans l'autre sens, et les deux conversions s'annulent — ou de refuser
+/// l'espace sRGB des deux côtés. La seconde est meilleure : elle ne compense pas une
+/// conversion par une autre, elle n'en fait aucune. C'est aussi ce que ce module promet.
+fn format_sans_conversion(proposes: &[wgpu::TextureFormat]) -> Option<wgpu::TextureFormat> {
+    proposes.iter().copied().find(|f| !f.is_srgb())
 }
 
 impl GpuPresenter {
@@ -115,43 +134,7 @@ impl GpuPresenter {
             .create_surface(window)
             .map_err(|e| echec("surface", &e))?;
 
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::LowPower,
-            compatible_surface: Some(&surface),
-            ..Default::default()
-        }))
-        .map_err(|e| echec("adaptateur", &e))?;
-        let adaptateur = adapter.get_info().name;
-
-        // Les limites de l'adaptateur, et non les limites « de base » : celles-ci plafonnent
-        // les textures à 2048 pixels, ce qui refuse d'emblée tout écran au-delà du 1080p.
-        // C'est la faute qui a fait paniquer la première version sur une fenêtre de 2160 de
-        // large — une garantie de portabilité transformée en refus de fonctionner.
-        let limites = adapter.limits();
-        let plafond = limites.max_texture_dimension_2d;
-        if width.get() > plafond || height.get() > plafond {
-            return Err(DesktopError::WindowError(format!(
-                "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de                  cet adaptateur ({plafond})",
-                width.get(),
-                height.get()
-            )));
-        }
-
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("glucose"),
-            required_features: wgpu::Features::empty(),
-            required_limits: limites,
-            memory_hints: wgpu::MemoryHints::Performance,
-            ..Default::default()
-        }))
-        .map_err(|e| echec("périphérique", &e))?;
-
-        // Sans cela, la moindre erreur de validation tue l'application par un `panic!` au
-        // fond de la pile graphique. Une erreur de pilote n'est pas un bogue de Glucose : elle
-        // se dit, et l'image suivante réessaie.
-        device.on_uncaptured_error(Arc::new(|e| {
-            eprintln!("[Glucose] la couche graphique a refusé une commande : {e}");
-        }));
+        let (adapter, device, queue, adaptateur) = ouvrir(&instance, &surface, width, height)?;
 
         let config = surface
             .get_default_config(&adapter, width.get(), height.get())
@@ -160,8 +143,20 @@ impl GpuPresenter {
                     "présentation graphique : la surface n'accepte aucun format".into(),
                 )
             })?;
+        let mut config = config;
+        config.format = format_sans_conversion(&surface.get_capabilities(&adapter).formats)
+            .unwrap_or(config.format);
         let config = cadencer(&surface, &adapter, config, cadence);
         let (pipeline, layout, sampler) = atelier(&device, config.format);
+        // La texture porte les octets tels quels quand la surface est linéaire. Si aucun
+        // format non-sRGB n'était disponible, elle se déclare sRGB pour que le sampler
+        // défasse ce que la sortie refera — les deux conversions s'annulent alors.
+        let format_image = if config.format.is_srgb() {
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        } else {
+            wgpu::TextureFormat::Rgba8Unorm
+        };
+
         Ok(Self {
             surface,
             device,
@@ -172,6 +167,7 @@ impl GpuPresenter {
             layout,
             texture: None,
             adaptateur,
+            format_image,
         })
     }
 
@@ -232,7 +228,7 @@ impl GpuPresenter {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
+                format: self.format_image,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
@@ -257,6 +253,61 @@ impl GpuPresenter {
             .as_ref()
             .expect("la texture vient d'être faite")
     }
+}
+
+/// Choisit un adaptateur, ouvre un périphérique, et refuse proprement ce qu'il ne peut pas.
+///
+/// Le garde-fou de taille n'est pas décoratif : demander une surface plus grande que la
+/// texture maximale de l'adaptateur **fait paniquer** la couche graphique au fond de la pile,
+/// et la première version du module le faisait dès qu'un écran dépassait le 1080p.
+fn ouvrir(
+    instance: &wgpu::Instance,
+    surface: &wgpu::Surface<'static>,
+    width: NonZeroU32,
+    height: NonZeroU32,
+) -> DesktopResult<(wgpu::Adapter, wgpu::Device, wgpu::Queue, String)> {
+    let echec = |quoi: &str, e: &dyn std::fmt::Display| {
+        DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
+    };
+    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+        power_preference: wgpu::PowerPreference::LowPower,
+        compatible_surface: Some(surface),
+        ..Default::default()
+    }))
+    .map_err(|e| echec("adaptateur", &e))?;
+    let adaptateur = adapter.get_info().name;
+
+    // Les limites de l'adaptateur, et non les limites « de base » : celles-ci plafonnent
+    // les textures à 2048 pixels, ce qui refuse d'emblée tout écran au-delà du 1080p.
+    // C'est la faute qui a fait paniquer la première version sur une fenêtre de 2160 de
+    // large — une garantie de portabilité transformée en refus de fonctionner.
+    let limites = adapter.limits();
+    let plafond = limites.max_texture_dimension_2d;
+    if width.get() > plafond || height.get() > plafond {
+        return Err(DesktopError::WindowError(format!(
+            "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de                  cet adaptateur ({plafond})",
+            width.get(),
+            height.get()
+        )));
+    }
+
+    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+        label: Some("glucose"),
+        required_features: wgpu::Features::empty(),
+        required_limits: limites,
+        memory_hints: wgpu::MemoryHints::Performance,
+        ..Default::default()
+    }))
+    .map_err(|e| echec("périphérique", &e))?;
+
+    // Sans cela, la moindre erreur de validation tue l'application par un `panic!` au
+    // fond de la pile graphique. Une erreur de pilote n'est pas un bogue de Glucose : elle
+    // se dit, et l'image suivante réessaie.
+    device.on_uncaptured_error(Arc::new(|e| {
+        eprintln!("[Glucose] la couche graphique a refusé une commande : {e}");
+    }));
+
+    Ok((adapter, device, queue, adaptateur))
 }
 
 /// Impose la cadence demandée si la surface l'accepte, et le dit sinon.
@@ -359,7 +410,26 @@ fn atelier(
 }
 
 impl Presenter for GpuPresenter {
+    /// Réaccorde la surface — **et seulement si la taille a vraiment changé** (PRESENT-2).
+    ///
+    /// # Le défaut que cette garde répare, et ce qu'il coûtait
+    ///
+    /// L'application appelle ceci à chaque image, sans vérifier : c'était sans conséquence
+    /// avec `softbuffer`, dont le redimensionnement ne fait rien quand rien ne bouge. Mais
+    /// `Surface::configure` est tout autre chose — il détruit la chaîne d'images, la recrée,
+    /// et attend que la carte ait fini ce qu'elle avait en cours.
+    ///
+    /// Le faire soixante fois par seconde rendait l'application **plus lente qu'elle ne l'a
+    /// jamais été** : le premier poste d'une image passait de 0,03 ms à 45–97 ms, tout geste
+    /// traînait, et tirer le bord de la fenêtre la figeait. Une fonction qu'on croit gratuite
+    /// et qui ne l'est pas est pire qu'une fonction lente : personne ne la soupçonne.
+    ///
+    /// La garde vit ici plutôt que chez l'appelant, parce que c'est cette implémentation-ci
+    /// qui sait ce que l'opération coûte.
     fn resize(&mut self, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<()> {
+        if self.config.width == width.get() && self.config.height == height.get() {
+            return Ok(());
+        }
         self.config.width = width.get();
         self.config.height = height.get();
         self.surface.configure(&self.device, &self.config);
