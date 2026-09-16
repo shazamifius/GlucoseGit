@@ -1,6 +1,8 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
-use crate::dock::{apply_organize_layout, render_docks, DockManager, OrganizeState};
+use crate::dock::{
+    apply_organize_layout, render_docks, DockCache, DockManager, DockPass, OrganizeState,
+};
 use crate::error::{DesktopError, DesktopResult};
 use crate::interactions::resize::ResizeSession;
 use crate::interactions::tools::text_card;
@@ -53,6 +55,12 @@ pub struct GlucoseApp {
     pub pixmap: Option<Pixmap>,
     pub ui: UiState,
     pub dock_manager: DockManager,
+    /// Les tampons des panneaux du dock (DOCK-CACHE-1).
+    ///
+    /// Mesuré avant qu'il existe : sur un plateau vide, les panneaux étaient le premier poste
+    /// de l'application — plus cher que tout le contenu réuni — et rendaient cent fois de
+    /// suite exactement les mêmes octets.
+    pub dock_cache: DockCache,
     pub window: Option<Arc<Window>>,
     pub context: Option<softbuffer::Context<Arc<Window>>>,
     pub surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -171,6 +179,7 @@ impl GlucoseApp {
                 ui
             },
             dock_manager: DockManager::new(),
+            dock_cache: DockCache::new(),
             window: None,
             context: None,
             surface: None,
@@ -256,15 +265,18 @@ impl GlucoseApp {
                     &mut pixmap_mut,
                     &self.dock_manager,
                     &self.store,
-                    &self.renderer.typography,
-                    &self.renderer.theme,
-                    ScreenFrame {
-                        width: width as f32,
-                        height: height as f32,
-                        header_h: self.ui.header_height(),
-                        scale: self.ui.scale_factor,
+                    &DockPass {
+                        typo: &self.renderer.typography,
+                        theme: &self.renderer.theme,
+                        screen: ScreenFrame {
+                            width: width as f32,
+                            height: height as f32,
+                            header_h: self.ui.header_height(),
+                            scale: self.ui.scale_factor,
+                        },
+                        pointer,
+                        cache: Some(&self.dock_cache),
                     },
-                    pointer,
                 );
                 crate::perf::stage("docks");
 

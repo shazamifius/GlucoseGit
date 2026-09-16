@@ -2,6 +2,7 @@
 //! **le clic tombe là où le dessin le montre** (loi L4).
 
 use super::*;
+use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::store::Store;
 use std::time::Instant;
@@ -419,13 +420,16 @@ fn test_render_docks_absurd_scale_is_clamped_and_bounded() {
         &mut pixmap.as_mut(),
         &dock,
         &store,
-        &typo,
-        &theme,
-        ScreenFrame {
-            scale: 170.0,
-            ..SCREEN
+        &DockPass {
+            typo: &typo,
+            theme: &theme,
+            screen: ScreenFrame {
+                scale: 170.0,
+                ..SCREEN
+            },
+            pointer: Pointer { x: 0.0, y: 0.0 },
+            cache: None,
         },
-        Pointer { x: 0.0, y: 0.0 },
     );
     let elapsed = started.elapsed().as_millis();
     assert!(
@@ -469,11 +473,281 @@ fn test_every_panel_puts_ink_on_the_pixmap() {
             &mut pixmap.as_mut(),
             &dock_with(tab),
             &store,
-            &typo,
-            &theme,
-            SCREEN,
-            Pointer { x: 0.0, y: 0.0 },
+            &DockPass {
+                typo: &typo,
+                theme: &theme,
+                screen: SCREEN,
+                pointer: Pointer { x: 0.0, y: 0.0 },
+                cache: None,
+            },
         );
         assert_ne!(pixmap.data(), &before[..], "{tab:?} n'a rien dessiné");
+    }
+}
+
+// ── DOCK-CACHE-1 : le tampon par panneau ──────────────────────────────────────
+
+/// Le plus grand écart entre deux images, canal par canal, et où il se trouve.
+///
+/// Jamais `assert_eq!` sur les octets d'un pixmap — l'échec en déverserait plusieurs
+/// mégaoctets, et le message ne dirait rien de ce qui a bougé.
+fn ecart_max(a: &tiny_skia::Pixmap, b: &tiny_skia::Pixmap) -> (u8, usize, String) {
+    let (pa, pb) = (a.pixels(), b.pixels());
+    assert_eq!(pa.len(), pb.len(), "tailles différentes");
+    let w = a.width() as usize;
+    let (mut pire, mut compte, mut ou) = (0u8, 0usize, String::from("nulle part"));
+    for (i, (x, y)) in pa.iter().zip(pb).enumerate() {
+        let d = [
+            x.red().abs_diff(y.red()),
+            x.green().abs_diff(y.green()),
+            x.blue().abs_diff(y.blue()),
+            x.alpha().abs_diff(y.alpha()),
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or(0);
+        if d > 0 {
+            compte += 1;
+        }
+        if d > pire {
+            pire = d;
+            ou = format!(
+                "({}, {}) : rgba({}, {}, {}, {}) contre rgba({}, {}, {}, {})",
+                i % w,
+                i / w,
+                x.red(),
+                x.green(),
+                x.blue(),
+                x.alpha(),
+                y.red(),
+                y.green(),
+                y.blue(),
+                y.alpha(),
+            );
+        }
+    }
+    (pire, compte, ou)
+}
+
+/// Les deux images ne diffèrent **au plus** que d'un pas de quantification (DOCK-CACHE-1).
+///
+/// # Pourquoi un pas, et pas zéro
+///
+/// L'égalité stricte serait fausse à annoncer, et la mesure le dit : composer l'ombre
+/// semi-transparente d'un panneau sur un tampon, puis ce tampon sur le fond, n'arrondit pas
+/// comme une composition unique. `src-over` est associatif sur les couleurs exactes, il ne
+/// l'est pas sur huit bits entiers — l'erreur de la première composition est arrondie avant
+/// que la seconde ne la lise.
+///
+/// L'écart est donc **borné par construction à une unité sur 255**, et seulement là où
+/// quelque chose est semi-transparent : l'ombre, et le liseré d'anti-crénelage. Partout où le
+/// panneau est opaque, `src-over` rend exactement la source, donc l'égalité est stricte.
+///
+/// Ce test vérifie cette borne plutôt que de la supposer. Si une composition venait un jour à
+/// s'empiler une fois de plus, l'écart passerait à deux et le test le dirait.
+fn memes_pixels(a: &tiny_skia::Pixmap, b: &tiny_skia::Pixmap, quoi: &str) {
+    let (pire, compte, ou) = ecart_max(a, b);
+    assert!(
+        pire <= 1,
+        "{quoi} : écart de {pire}/255 sur {compte} pixel(s), au pire en {ou}"
+    );
+}
+
+/// Les six panneaux ouverts en même temps, pour éprouver le cache sur tous les cas.
+fn dock_complet() -> DockManager {
+    let mut dock = DockManager::new();
+    dock.top_tabs = vec![TabId::Plugins, TabId::Preset, TabId::Domains];
+    dock.bottom_tabs = vec![TabId::Organize, TabId::Pomodoro, TabId::Storyboard];
+    dock
+}
+
+/// Rend le dock, avec ou sans cache, sur un fond connu.
+fn rendu_dock(
+    dock: &DockManager,
+    cache: Option<&DockCache>,
+    pointer: Pointer,
+) -> tiny_skia::Pixmap {
+    let theme = Theme::dark();
+    let typo = Typography::new();
+    let store = Store::new("Cache");
+    let mut pixmap = tiny_skia::Pixmap::new(1440, 900).expect("pixmap");
+    pixmap.fill(theme.bg_canvas);
+    render_docks(
+        &mut pixmap.as_mut(),
+        dock,
+        &store,
+        &DockPass {
+            typo: &typo,
+            theme: &theme,
+            screen: SCREEN,
+            pointer,
+            cache,
+        },
+    );
+    pixmap
+}
+
+/// **DOCK-CACHE-1** — le cache rend **exactement** la même image que le rendu direct.
+///
+/// C'est l'invariant qui autorise tout le reste. Un cache qui accélère en changeant d'un
+/// cheveu ce qui est affiché n'est pas une optimisation : c'est une régression visuelle que
+/// personne ne verrait avant de comparer deux captures.
+///
+/// L'égalité est exacte parce que la translation vers le tampon est **entière** : la fraction
+/// sous-pixel reste dans les coordonnées, donc l'anti-crénelage tombe sur la même couverture.
+#[test]
+fn test_dock_cache_1_the_cached_dock_is_the_same_image_as_the_direct_one() {
+    let dock = dock_complet();
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let direct = rendu_dock(&dock, None, dehors);
+    let cache = DockCache::new();
+    let par_cache = rendu_dock(&dock, Some(&cache), dehors);
+    memes_pixels(&direct, &par_cache, "le cache diverge du rendu direct");
+}
+
+/// L'égalité tient aussi quand le pointeur survole un panneau — le survol passe par le cache.
+#[test]
+fn test_the_cached_dock_is_identical_while_hovering() {
+    let dock = dock_complet();
+    // Dans le premier panneau du bas, là où des boutons attendent un survol.
+    let dessus = Pointer { x: 60.0, y: 700.0 };
+    let direct = rendu_dock(&dock, None, dessus);
+    let cache = DockCache::new();
+    let par_cache = rendu_dock(&dock, Some(&cache), dessus);
+    memes_pixels(&direct, &par_cache, "le survol diverge");
+}
+
+/// Sans rien changer, **rien n'est redessiné** après la première image.
+///
+/// C'est ce que `bench_chrome` avait mesuré — cent images pour cent fois les mêmes octets —
+/// et c'est ce que le cache doit supprimer. Sans ce test, un cache qui ne servirait jamais
+/// rendrait la bonne image et passerait inaperçu.
+#[test]
+fn test_an_unchanged_dock_is_never_redrawn_twice() {
+    let dock = dock_complet();
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let cache = DockCache::new();
+    for _ in 0..20 {
+        rendu_dock(&dock, Some(&cache), dehors);
+    }
+    assert_eq!(
+        cache.rendus(),
+        6,
+        "six panneaux devaient être dessinés une fois chacun, pour vingt images"
+    );
+    assert_eq!(cache.len(), 6, "les six tampons ne sont pas gardés");
+}
+
+/// Un pointeur qui se promène **hors** des panneaux n'en invalide aucun.
+///
+/// C'est la raison d'être de la clé conditionnelle : le cas courant est la souris sur le
+/// canevas, et une clé contenant sa position rendrait le cache inutile précisément là où il
+/// sert le plus.
+#[test]
+fn test_a_pointer_outside_the_panels_invalidates_nothing() {
+    let dock = dock_complet();
+    let cache = DockCache::new();
+    rendu_dock(&dock, Some(&cache), Pointer { x: -1.0, y: -1.0 });
+    let apres_la_premiere = cache.rendus();
+    for i in 0..200 {
+        // À droite des deux docks : avec six panneaux ouverts, celui du haut court
+        // jusqu'à x ≈ 972, et le milieu de l'écran est encore dedans.
+        rendu_dock(
+            &dock,
+            Some(&cache),
+            Pointer {
+                x: 1100.0 + i as f32 * 0.5,
+                y: 400.0,
+            },
+        );
+    }
+    assert_eq!(
+        cache.rendus(),
+        apres_la_premiere,
+        "la souris hors des panneaux a fait redessiner"
+    );
+}
+
+/// Un changement d'état refait le panneau concerné, **et lui seul**.
+#[test]
+fn test_a_state_change_redraws_only_its_own_panel() {
+    let mut dock = dock_complet();
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let cache = DockCache::new();
+    rendu_dock(&dock, Some(&cache), dehors);
+    assert_eq!(cache.rendus(), 6);
+
+    dock.organize.cols = 7;
+    rendu_dock(&dock, Some(&cache), dehors);
+    assert_eq!(
+        cache.rendus(),
+        7,
+        "changer ORDONNER devait refaire ORDONNER, et rien d'autre"
+    );
+
+    dock.plugins.density_idx = 0;
+    rendu_dock(&dock, Some(&cache), dehors);
+    assert_eq!(
+        cache.rendus(),
+        8,
+        "changer PLUGINS devait refaire PLUGINS, et rien d'autre"
+    );
+}
+
+/// Un état changé se **voit** : le cache ne sert pas une image périmée.
+///
+/// Le test précédent dit que le panneau est redessiné ; celui-ci dit que ce qu'on voit a
+/// vraiment changé. Les deux ensemble ferment la porte au cache qui ment.
+#[test]
+fn test_a_changed_panel_shows_its_new_state() {
+    let mut dock = dock_complet();
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let cache = DockCache::new();
+    let avant = rendu_dock(&dock, Some(&cache), dehors);
+
+    dock.organize.layout = LayoutMode::Grid;
+    dock.organize.cols = 9;
+    let apres = rendu_dock(&dock, Some(&cache), dehors);
+    assert!(
+        ecart_max(&avant, &apres).1 > 0,
+        "le panneau montre encore son état d'avant"
+    );
+    // Et cette image est bien celle du rendu direct.
+    memes_pixels(
+        &apres,
+        &rendu_dock(&dock, None, dehors),
+        "l'état neuf diverge",
+    );
+}
+
+/// L'ombre d'un panneau tient **dans** la boîte que le cache lui réserve.
+///
+/// Si `extent` était plus petite que ce que `draw_frame` noircit, le cache rognerait l'ombre
+/// — et comme les deux dérivent maintenant de `shadow()`, ce test est ce qui garantit qu'elles
+/// ne peuvent pas se séparer plus tard.
+#[test]
+fn test_the_reserved_box_contains_the_shadow() {
+    for scale in [1.0f32, 1.25, 2.0] {
+        for panel in compute_panel_layouts(
+            &dock_complet(),
+            SCREEN.width,
+            SCREEN.height,
+            SCREEN.header_h,
+            scale,
+        ) {
+            let extent = panel.extent(scale);
+            let shadow = panel.shadow(scale);
+            let seen = panel.seen();
+            for (nom, r) in [("l'ombre", shadow), ("le cadre", seen)] {
+                assert!(
+                    r.x >= extent.x
+                        && r.y >= extent.y
+                        && r.x + r.w <= extent.x + extent.w
+                        && r.y + r.h <= extent.y + extent.h,
+                    "{nom} de {:?} sort de la boîte réservée à l'échelle {scale}",
+                    panel.tab
+                );
+            }
+        }
     }
 }

@@ -11,7 +11,7 @@ pub mod paint;
 /// Les trois durées proposées, en secondes, dans l'ordre du panneau (fiche 10 § 5.2).
 pub const PRESETS: [(&str, u32); 3] = [("25 min", 25 * 60), ("15 min", 15 * 60), ("5 min", 5 * 60)];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PomodoroState {
     pub total_seconds: u32,
     pub left_seconds: u32,

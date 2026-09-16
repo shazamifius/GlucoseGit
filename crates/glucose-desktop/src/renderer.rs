@@ -371,15 +371,18 @@ mod tests {
             &mut view,
             dock,
             store,
-            &renderer.typography,
-            &renderer.theme,
-            ScreenFrame {
-                width: 1440.0,
-                height: 900.0,
-                header_h: ui.header_height(),
-                scale: ui.scale_factor,
+            &crate::dock::DockPass {
+                typo: &renderer.typography,
+                theme: &renderer.theme,
+                screen: ScreenFrame {
+                    width: 1440.0,
+                    height: 900.0,
+                    header_h: ui.header_height(),
+                    scale: ui.scale_factor,
+                },
+                pointer: origin,
+                cache: None,
             },
-            origin,
         );
     }
 

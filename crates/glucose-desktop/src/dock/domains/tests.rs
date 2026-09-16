@@ -2,6 +2,7 @@
 //! widgets) et DOM-UI-3 (le coût ne suit pas la taille du document).
 
 use super::*;
+use crate::dock::paint::Brush;
 use crate::dock::{compute_panel_layouts, handle_dock_click, DockManager, PanelClickResult, TabId};
 use crate::params::ScreenFrame;
 use crate::theme::Theme;
@@ -452,18 +453,17 @@ fn test_the_panel_draws_in_every_state_within_its_own_frame() {
         let mut pixmap = Pixmap::new(1440, 900).expect("pixmap 1440x900");
         pixmap.fill(theme.bg_canvas);
         let before = pixmap.data().to_vec();
-        render_domains_panel(
-            &mut pixmap.as_mut(),
-            &store,
-            &dock.domains,
-            &typo,
-            &theme,
-            frame,
-            Pointer {
+        let brush = Brush {
+            typo: &typo,
+            theme: &theme,
+            s: crate::theme::clamp_ui_scale(frame.scale),
+            pointer: Pointer {
                 x: frame.x + 20.0,
                 y: frame.y + 60.0,
             },
-        );
+            origin: (0.0, 0.0),
+        };
+        render_domains_panel(&mut pixmap.as_mut(), &store, &dock.domains, &brush, frame);
         assert_ne!(
             pixmap.data(),
             before.as_slice(),
@@ -515,15 +515,14 @@ fn test_domains_panel_png_capture() {
             y: 24.0,
             ..frame
         };
-        render_domains_panel(
-            &mut pixmap.as_mut(),
-            &store,
-            &dock.domains,
-            &typo,
-            &theme,
-            shifted,
-            Pointer { x: -1.0, y: -1.0 },
-        );
+        let brush = Brush {
+            typo: &typo,
+            theme: &theme,
+            s: crate::theme::clamp_ui_scale(shifted.scale),
+            pointer: Pointer { x: -1.0, y: -1.0 },
+            origin: (0.0, 0.0),
+        };
+        render_domains_panel(&mut pixmap.as_mut(), &store, &dock.domains, &brush, shifted);
         pixmap
             .save_png(dir.join(format!("panneau-{name}.png")))
             .expect("écriture du png");

@@ -35,7 +35,7 @@ pub const DENSITIES: [&str; 3] = [
 /// Les deux dispositions de la référence.
 pub const DISPOSITIONS: [&str; 2] = ["Grille — lecture en blocs", "Fil — une section par ligne"];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PluginsState {
     pub density_idx: usize,
     pub disposition_idx: usize,

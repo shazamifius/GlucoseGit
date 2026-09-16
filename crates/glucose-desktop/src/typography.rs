@@ -240,8 +240,38 @@ impl Typography {
         &self,
         pixmap: &mut PixmapMut,
         text: &str,
+        x: f32,
+        y: f32,
+        style: TextStyle,
+    ) -> f32 {
+        self.draw_text_offset(pixmap, text, x, y, (0, 0), style)
+    }
+
+    /// Écrit un texte dont la **place** est décalée d'un nombre entier de pixels (GLYPH-1).
+    ///
+    /// # Pourquoi le décalage ne peut pas se faire sur les coordonnées
+    ///
+    /// Un panneau mis en cache se dessine dans un tampon à lui, donc son texte doit être
+    /// déplacé de l'origine de ce tampon. Le faire en soustrayant cette origine de `x` avant
+    /// d'appeler le tracé **paraît** équivalent — l'origine est entière, et une phase
+    /// sous-pixel ne dépend que de la partie fractionnaire.
+    ///
+    /// Elle ne l'est pas. `x - origine` est une soustraction en virgule flottante : son
+    /// résultat n'est pas toujours représentable, et la fraction ressort parfois décalée du
+    /// dernier bit. Quand `x` tombe près d'une frontière de phase, ce bit suffit à basculer le
+    /// glyphe sur la variante voisine. Mesuré sur le panneau PRESETS : trente-six pixels d'un
+    /// libellé, jusqu'à 23/255 d'écart avec le rendu direct.
+    ///
+    /// Le décalage porte donc sur la **cellule entière**, après que la phase a été lue sur la
+    /// position d'écran. La phase est alors exactement celle du rendu direct, et la
+    /// translation est exacte puisqu'elle n'opère que sur des entiers.
+    pub fn draw_text_offset(
+        &self,
+        pixmap: &mut PixmapMut,
+        text: &str,
         mut x: f32,
         y: f32,
+        offset: (i32, i32),
         style: TextStyle,
     ) -> f32 {
         let TextStyle { color, face, .. } = style;
@@ -258,6 +288,7 @@ impl Typography {
         // La partie fractionnaire verticale est la même pour toute la ligne : `ymin` et
         // `height` sont entiers, donc seule l'ordonnée de base porte une phase (GLYPH-1).
         let (cell_y, phase_y) = split_position(y + size);
+        let cell_y = cell_y + offset.1;
 
         for ch in text.chars() {
             if ch == '\n' {
@@ -267,7 +298,7 @@ impl Typography {
             let entry = self.glyph_variant(ch, size, face, phase_y * SUBPIXEL_PHASES + phase_x);
             let metrics = &entry.metrics;
 
-            let gx = cell_x + metrics.xmin;
+            let gx = cell_x + offset.0 + metrics.xmin;
             let gy = cell_y - metrics.ymin - metrics.height as i32;
             blend_glyph(data, (w, h), &entry, (gx, gy), (r, g, b, a));
             x += metrics.advance_width;

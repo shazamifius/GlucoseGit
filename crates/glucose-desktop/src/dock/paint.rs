@@ -48,6 +48,22 @@ pub struct Brush<'a> {
     /// L'échelle d'interface, déjà bornée.
     pub s: f32,
     pub pointer: Pointer,
+    /// Le coin haut-gauche du tampon visé, en coordonnées **écran** (DOCK-CACHE-1).
+    ///
+    /// Tout le dock se dessine en coordonnées écran — c'est ce qui permet à `hovered` de
+    /// comparer un rectangle à la position du pointeur sans conversion. Mais un panneau mis
+    /// en cache se dessine dans un tampon à lui, dont le coin n'est pas l'origine de l'écran.
+    ///
+    /// Plutôt que de convertir les coordonnées dans chaque panneau — six fichiers, des
+    /// dizaines de rectangles, et une occasion d'en oublier un — la conversion vit **ici**,
+    /// au seul endroit où le dessin touche le tampon. Les panneaux continuent de parler en
+    /// coordonnées écran et ne savent pas qu'ils sont mis en cache.
+    ///
+    /// **Elle est entière, et ce n'est pas un détail** : une translation fractionnaire
+    /// décalerait la couverture de l'anti-crénelage, et le panneau ne serait plus rendu au
+    /// même pixel près qu'avant le cache. La fraction sous-pixel reste donc dans les
+    /// coordonnées, qui ne bougent pas ; seul un entier est retiré.
+    pub origin: (f32, f32),
 }
 
 impl Brush<'_> {
@@ -58,6 +74,11 @@ impl Brush<'_> {
 
     pub fn hovered(&self, rect: WidgetRect) -> bool {
         rect.contains(self.pointer.x, self.pointer.y)
+    }
+
+    /// La translation de l'écran vers le tampon visé (DOCK-CACHE-1).
+    fn shift(&self) -> Transform {
+        Transform::from_translate(-self.origin.0, -self.origin.1)
     }
 
     pub fn fill(&self, pixmap: &mut PixmapMut, rect: WidgetRect, radius: f32, color: Color) {
@@ -71,7 +92,7 @@ impl Brush<'_> {
                 &path,
                 &paint(color),
                 tiny_skia::FillRule::Winding,
-                Transform::identity(),
+                self.shift(),
                 None,
             );
         }
@@ -91,13 +112,7 @@ impl Brush<'_> {
         let mut pb = PathBuilder::new();
         push_rounded_rect(&mut pb, rect.x, rect.y, rect.w, rect.h, radius);
         if let Some(path) = pb.finish() {
-            pixmap.stroke_path(
-                &path,
-                &paint(color),
-                &line(width),
-                Transform::identity(),
-                None,
-            );
+            pixmap.stroke_path(&path, &paint(color), &line(width), self.shift(), None);
         }
     }
 
@@ -112,7 +127,7 @@ impl Brush<'_> {
                 &path,
                 &paint(color),
                 tiny_skia::FillRule::Winding,
-                Transform::identity(),
+                self.shift(),
                 None,
             );
         }
@@ -132,14 +147,33 @@ impl Brush<'_> {
         let mut pb = PathBuilder::new();
         pb.push_circle(center.0, center.1, radius);
         if let Some(path) = pb.finish() {
-            pixmap.stroke_path(
-                &path,
-                &paint(color),
-                &line(width),
-                Transform::identity(),
-                None,
-            );
+            pixmap.stroke_path(&path, &paint(color), &line(width), self.shift(), None);
         }
+    }
+
+    /// Écrit un texte dont le style est **déjà** à l'échelle. Rend la plume.
+    ///
+    /// C'est le seul passage du dock vers la typographie, et donc le seul endroit où
+    /// l'origine du tampon s'applique au texte (DOCK-CACHE-1). Un panneau qui appellerait
+    /// `Typography::draw_text` directement écrirait en coordonnées d'écran dans un tampon
+    /// local, et son texte atterrirait ailleurs — le cliquet `cliquets_suite` interdit ce
+    /// contournement, parce qu'il a déjà eu lieu.
+    pub fn text_styled(
+        &self,
+        pixmap: &mut PixmapMut,
+        text: &str,
+        x: f32,
+        y: f32,
+        style: TextStyle,
+    ) -> f32 {
+        self.typo.draw_text_offset(
+            pixmap,
+            text,
+            x,
+            y,
+            (-self.origin.0 as i32, -self.origin.1 as i32),
+            style,
+        )
     }
 
     /// Écrit un texte ; `size` est un corps de la fiche, mis à l'échelle ici. Rend la plume.
@@ -157,7 +191,7 @@ impl Brush<'_> {
             color,
             face,
         };
-        self.typo.draw_text(pixmap, text, at.0, at.1, style)
+        self.text_styled(pixmap, text, at.0, at.1, style)
     }
 
     /// Écrit un texte centré dans un rectangle.
@@ -281,7 +315,7 @@ impl Brush<'_> {
                 &path,
                 &paint(color),
                 tiny_skia::FillRule::Winding,
-                Transform::identity(),
+                self.shift(),
                 None,
             );
         }

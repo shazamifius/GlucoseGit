@@ -22,7 +22,7 @@ pub const FORMATS: [&str; 5] = [
 /// La grille de cellules montrée : quatre colonnes sur deux rangées.
 const GRID: (usize, usize) = (4, 2);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct StoryboardState {
     pub format_idx: usize,
     pub panel_width: f64,

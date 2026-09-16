@@ -175,6 +175,7 @@ mod tests {
             theme: &theme,
             s: 1.0,
             pointer: Pointer { x: -1.0, y: -1.0 },
+            origin: (0.0, 0.0),
         };
         render_pomodoro_panel(&mut pixmap.as_mut(), &brush, FRAME, state);
         (pixmap, theme)

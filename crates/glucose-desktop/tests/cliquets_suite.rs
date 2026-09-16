@@ -602,11 +602,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         86,
     ),
     ("crates/glucose-core/src/smart_align.rs", "snap_resize", 94),
-    (
-        "crates/glucose-desktop/src/dock/domains/paint.rs",
-        "draw_row",
-        81,
-    ),
     ("crates/glucose-desktop/src/renderer.rs", "render", 102),
     (
         "crates/glucose-desktop/src/renderer/folder.rs",
@@ -772,7 +767,7 @@ fn test_cliquet_4b_aucun_fichier_ne_depasse_sa_taille_admise() {
 /// Ce cliquet ne réécrit pas les appels existants d'un coup : il **arrête l'hémorragie**.
 /// Chaque nouveau rectangle rempli doit se demander s'il peut être fin, et la réponse est
 /// presque toujours `fill_crisp`.
-const PLAFOND_FILL_RECT: usize = 18;
+const PLAFOND_FILL_RECT: usize = 10;
 
 fn compte_fill_rect() -> usize {
     sources(&src_desktop())

@@ -26,25 +26,26 @@
 //! Pour chaque panneau, `layout_*` produit la liste de ses rectangles ; le dessin la lit, le
 //! clic la lit. Aucune coordonnée n'est calculée deux fois.
 
+pub mod cache;
 pub mod domains;
 pub mod organize;
 pub mod paint;
 pub mod plugins;
 pub mod pomodoro;
 pub mod preset;
+pub mod render;
 pub mod storyboard;
 
 use crate::params::{Pointer, ScaledRect, ScreenFrame};
-use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::store::Store;
-use paint::{push_rounded_rect, Brush};
-use tiny_skia::PixmapMut;
 
+pub use cache::DockCache;
 pub use organize::{apply_organize_layout, LayoutMode, LayoutResult, OrganizeState, SortType};
 pub use plugins::OLLAMA_STATUS;
 pub use pomodoro::PomodoroState;
 pub use preset::PresetsState;
+pub use render::{render_docks, DockPass};
 pub use storyboard::StoryboardState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -284,7 +285,7 @@ impl WidgetRect {
 }
 
 /// Le cadre d'un panneau ouvert : sa place nominale, sa poignée, et son décalage s'il est tiré.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PanelLayoutBox {
     pub tab: TabId,
     pub x: f32,
@@ -322,6 +323,40 @@ impl PanelLayoutBox {
             self.grip_height,
         )
         .contains(px, py)
+    }
+
+    /// L'ombre portée du panneau, décalée vers le bas et débordant de chaque côté.
+    ///
+    /// Elle est ici, et non dans [`draw_frame`] qui la dessine, parce que [`Self::extent`] en
+    /// a besoin aussi : une boîte englobante calculée à côté de l'ombre finirait par ne plus
+    /// la contenir le jour où l'une des deux bouge. Les deux dérivent donc de cette seule
+    /// définition.
+    fn shadow(&self, s: f32) -> WidgetRect {
+        let seen = self.seen();
+        WidgetRect::new(
+            seen.x - 2.0 * s,
+            seen.y + 3.0 * s,
+            seen.w + 4.0 * s,
+            seen.h + 4.0 * s,
+        )
+    }
+
+    /// Tout ce que le panneau peut noircir : son cadre, son ombre, et son trait de bordure.
+    ///
+    /// C'est la taille du tampon qu'un panneau mis en cache doit se réserver (DOCK-CACHE-1).
+    /// Elle est **exacte et dérivée**, jamais une marge choisie au jugé : un tampon trop
+    /// petit rognerait l'ombre, un tampon trop grand paierait des pixels vides à chaque
+    /// composition.
+    fn extent(&self, s: f32) -> WidgetRect {
+        let seen = self.seen();
+        let shadow = self.shadow(s);
+        // Le contour est tracé *sur* le bord : il déborde d'une demi-épaisseur.
+        let demi_trait = 0.5 * s;
+        let x0 = (seen.x - demi_trait).min(shadow.x);
+        let y0 = (seen.y - demi_trait).min(shadow.y);
+        let x1 = (seen.x + seen.w + demi_trait).max(shadow.x + shadow.w);
+        let y1 = (seen.y + seen.h + demi_trait).max(shadow.y + shadow.h);
+        WidgetRect::new(x0, y0, x1 - x0, y1 - y0)
     }
 }
 
@@ -383,103 +418,6 @@ fn place(anchor: DockAnchor, tab: TabId, screen_h: f32, header_h: f32, s: f32) -
 }
 
 // ── Le rendu ────────────────────────────────────────────────────────────────
-
-pub fn render_docks(
-    pixmap: &mut PixmapMut,
-    dock: &DockManager,
-    store: &Store,
-    typo: &Typography,
-    theme: &Theme,
-    screen: ScreenFrame,
-    pointer: Pointer,
-) {
-    let s = crate::theme::clamp_ui_scale(screen.scale);
-    let brush = Brush {
-        typo,
-        theme,
-        s,
-        pointer,
-    };
-    for panel in compute_panel_layouts(dock, screen.width, screen.height, screen.header_h, s) {
-        let seen = panel.seen();
-        draw_frame(pixmap, &brush, &panel, seen);
-        let frame = ScaledRect {
-            x: seen.x,
-            y: seen.y,
-            w: seen.w,
-            h: seen.h,
-            scale: s,
-        };
-        draw_content(pixmap, &brush, dock, store, panel.tab, frame);
-    }
-}
-
-/// L'ombre, le fond, la bordure et la poignée — ce que tout panneau a en commun.
-fn draw_frame(pixmap: &mut PixmapMut, brush: &Brush, panel: &PanelLayoutBox, seen: WidgetRect) {
-    let theme = brush.theme;
-    let shadow = WidgetRect::new(
-        seen.x - brush.px(2.0),
-        seen.y + brush.px(3.0),
-        seen.w + brush.px(4.0),
-        seen.h + brush.px(4.0),
-    );
-    let shadow_color = if panel.is_dragged {
-        theme.panel_shadow_dragged
-    } else {
-        theme.panel_shadow
-    };
-    brush.fill(pixmap, shadow, brush.px(8.0), shadow_color);
-    brush.fill(pixmap, seen, brush.px(6.0), theme.bg_panel);
-    let border = if panel.is_dragged {
-        theme.border_accent
-    } else {
-        theme.border_subtle
-    };
-    brush.stroke(pixmap, seen, brush.px(6.0), border, brush.px(1.0));
-
-    let grip_center = (
-        seen.x + seen.w / 2.0,
-        panel.grip_y + panel.visual_offset_y + panel.grip_height / 2.0,
-    );
-    let active = panel.is_dragged || panel.grip_contains_point(brush.pointer.x, brush.pointer.y);
-    brush.grip(pixmap, grip_center, active);
-}
-
-fn draw_content(
-    pixmap: &mut PixmapMut,
-    brush: &Brush,
-    dock: &DockManager,
-    store: &Store,
-    tab: TabId,
-    frame: ScaledRect,
-) {
-    match tab {
-        TabId::Organize => {
-            organize::paint::render_organize_panel(pixmap, brush, frame, &dock.organize, store);
-        }
-        TabId::Pomodoro => {
-            pomodoro::paint::render_pomodoro_panel(pixmap, brush, frame, &dock.pomodoro);
-        }
-        TabId::Storyboard => {
-            storyboard::paint::render_storyboard_panel(pixmap, brush, frame, &dock.storyboard);
-        }
-        TabId::Plugins => {
-            plugins::paint::render_plugins_panel(pixmap, brush, frame, &dock.plugins);
-        }
-        TabId::Preset => preset::paint::render_presets_panel(pixmap, brush, frame),
-        TabId::Domains => domains::paint::render_domains_panel(
-            pixmap,
-            store,
-            &dock.domains,
-            brush.typo,
-            brush.theme,
-            frame,
-            brush.pointer,
-        ),
-    }
-}
-
-// ── Le clic ─────────────────────────────────────────────────────────────────
 
 /// Ce qu'un clic dans un panneau demande à l'application. Les gestes qu'un panneau règle
 /// lui-même — choisir un tri, cocher une densité, lancer le minuteur — rendent [`Handled`].

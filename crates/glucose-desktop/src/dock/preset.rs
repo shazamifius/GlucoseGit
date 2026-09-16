@@ -105,7 +105,7 @@ pub const PRESETS: [PresetSpec; 4] = [
 /// Le bouton de création, grisé tant que créer un gabarit n'existe pas.
 pub const CREATE_LABEL: &str = "+ Créer un preset custom";
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct PresetsState {
     pub active_preset: Option<String>,
 }
