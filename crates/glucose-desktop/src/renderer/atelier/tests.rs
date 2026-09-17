@@ -40,7 +40,7 @@ fn test_une_image_se_decode_sur_un_fil_de_fond() {
 
     let moisson = moisson_complete(&mut atelier);
     assert_eq!(moisson.len(), 1, "une demande, une réponse");
-    let (rendu, image) = &moisson[0];
+    let (rendu, image, cout) = &moisson[0];
     assert_eq!(rendu, &src);
     let pyramide = image.as_ref().expect("l'image témoin est lisible");
     assert_eq!(
@@ -52,6 +52,12 @@ fn test_une_image_se_decode_sur_un_fil_de_fond() {
     assert!(
         pyramide.niveaux_construits() > 1,
         "l'ouvrier rend une pyramide complète, pas un seul niveau"
+    );
+    // Le coût du décodage est chronométré : c'est ce qui donne son utilité à l'image dans le
+    // cache, et une utilité mesurée vaut mieux qu'une utilité estimée (ADAPT-1).
+    assert!(
+        *cout > std::time::Duration::ZERO,
+        "un décodage réussi a forcément pris du temps"
     );
     assert_eq!(atelier.en_travail(), 0, "le chantier est vide");
 }
@@ -107,7 +113,7 @@ fn test_un_lot_entier_se_decode_sans_qu_aucune_demande_se_perde() {
     assert_eq!(moisson.len(), 12, "douze demandes, douze réponses");
     for src in &attendus {
         assert!(
-            moisson.iter().any(|(rendu, img)| rendu == src && img.is_some()),
+            moisson.iter().any(|(rendu, img, _)| rendu == src && img.is_some()),
             "{src} n'est pas revenu"
         );
     }

@@ -357,7 +357,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
 
     let mut magasin = crate::renderer::magasin::Magasin::nouveau();
-    magasin.pyramide(&photo);
+    magasin.reclamer(&photo);
     magasin.attendre_le_chantier();
     crate::renderer::scene::draw_images(&mut magasin, kit, &mut view, &store, pass);
     pixmap

@@ -230,7 +230,7 @@ impl Renderer {
         overlay: SceneOverlay<'_>,
         pointer: Pointer,
     ) {
-        self.magasin.vignettes.ouvrir();
+        self.magasin.ouvrir();
         let width = pixmap.width();
         let height = pixmap.height();
         let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
@@ -319,7 +319,7 @@ impl Renderer {
         // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
         render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
         crate::perf::stage("ui");
-        self.magasin.vignettes.fermer();
+        self.magasin.fermer();
     }
 }
 

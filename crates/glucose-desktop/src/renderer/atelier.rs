@@ -46,7 +46,7 @@ use tiny_skia::Pixmap;
 ///
 /// `None` n'est pas une erreur à signaler : un fichier absent ou illisible est un cas normal
 /// du document, et l'appelant en fait un cache négatif.
-type Decodee = (String, Option<Pyramide>);
+type Decodee = (String, Option<Pyramide>, std::time::Duration);
 
 /// Les fils qui décodent, et ce qu'ils ont en chantier.
 pub struct Atelier {
@@ -82,8 +82,12 @@ impl Atelier {
                 else {
                     return;
                 };
+                // Le temps que ce fichier a coûté est ce que sa reconstruction coûterait :
+                // c'est exactement son utilité dans un cache, et elle se mesure ici plutôt
+                // que de s'estimer ailleurs (ADAPT-1).
+                let debut = std::time::Instant::now();
                 let image = decoder(&src).map(Pyramide::nouvelle);
-                if retour.send((src, image)).is_err() {
+                if retour.send((src, image, debut.elapsed())).is_err() {
                     return;
                 }
             });
@@ -117,9 +121,9 @@ impl Atelier {
     /// pas : ce qui n'est pas fini sera récolté à l'image suivante.
     pub fn recolter(&mut self) -> Vec<Decodee> {
         let mut moisson = Vec::new();
-        while let Ok((src, image)) = self.prets.try_recv() {
+        while let Ok((src, image, cout)) = self.prets.try_recv() {
             self.en_cours.remove(&src);
-            moisson.push((src, image));
+            moisson.push((src, image, cout));
         }
         moisson
     }

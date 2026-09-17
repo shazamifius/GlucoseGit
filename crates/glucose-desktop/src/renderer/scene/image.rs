@@ -88,6 +88,9 @@ pub(in crate::renderer) fn draw_images(
     // Combien d'images sont encore en chemin : c'est ce qui distingue « la scene est lente »
     // de « la scene attend », et la trace ne savait pas les separer.
     crate::perf::compteur("img_attente", magasin.en_travail() as f64);
+    // Combien d'images le cache a rendues à la machine : si ce nombre monte pendant qu'on
+    // travaille, c'est que la mémoire se tend et que la borne se contracte.
+    crate::perf::compteur("img_rendues", magasin.evincees() as f64);
 }
 
 /// Pose cette image si elle est décodée ; sinon la demande, et le dit.
@@ -110,17 +113,15 @@ fn poser_ou_demander(
     let Some(src) = img.src.as_deref().filter(|s| !s.is_empty()) else {
         return false;
     };
-    if magasin.echecs.contains(src) {
+    // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
+    // l'éviction : ce qui est à l'écran ne se rend jamais à la machine (ADAPT-1).
+    if !magasin.reclamer(src) {
         return false;
     }
-    if !magasin.cache.contains_key(src) {
-        magasin.atelier.demander(src);
-        return false;
-    }
-    let Some(pyramide) = magasin.cache.get(src) else {
+    let Some(entree) = magasin.cache.get(src) else {
         return false;
     };
-    poser(pyramide, &mut magasin.vignettes, pixmap, img, ecran);
+    poser(&entree.pyramide, &mut magasin.vignettes, pixmap, img, ecran);
     true
 }
 

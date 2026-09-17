@@ -22,6 +22,7 @@ pub mod animation;
 pub mod app;
 pub mod bench;
 pub mod cadence;
+pub mod memoire;
 pub mod canvas;
 pub mod dialogue;
 pub mod dock;
