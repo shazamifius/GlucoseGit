@@ -89,6 +89,7 @@ impl GlucoseApp {
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;
+        vu.surcouverture = (lire("img_ecrans") * 100.0) as u32;
         vu.noeuds = self.renderer.spatial_hash.len() as u32;
 
         self.chronique.enregistrer(vu);

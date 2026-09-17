@@ -146,6 +146,12 @@ pub struct Instantane {
     pub photos: u32,
     /// L'aire redessinée, en pixels — le cœur d'A.1.
     pub region_px: u32,
+    /// Combien de fois la surface de la fenêtre les images posees couvrent, en centiemes.
+    ///
+    /// **Le chiffre qui distingue une image chere d'une image repetee.** Soixante-dix photos
+    /// qui se recouvrent repeignent soixante-dix fois le meme ecran ; une duree seule ne le
+    /// separe pas de soixante-dix photos couteuses, et les deux ne se corrigent pas pareil.
+    pub surcouverture: u32,
     /// L'aire de la fenêtre, pour que la précédente soit lisible en proportion.
     pub fenetre_px: u32,
     /// Ce que les images décodées occupent, en mébioctets.

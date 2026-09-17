@@ -119,17 +119,18 @@ impl Chronique {
         }
         t.push_str("  Les images les plus lentes, et ce qu'elles faisaient\n\n");
         t.push_str(&format!(
-            "  {:>9} {:>10} {:<18} {:>8} {:>8} {:>10} {:>9}\n",
-            "a", "duree", "geste", "noeuds", "images", "redessine", "cache"
+            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>8} {:>10} {:>8}\n",
+            "a", "duree", "geste", "noeuds", "photos", "ecrans", "redessine", "cache"
         ));
         for p in self.pires().iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>8} {:>8} {:>9.0}% {:>7} Mo\n",
+                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>7.1}x {:>9.0}% {:>5} Mo\n",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
                 p.noeuds,
                 p.photos,
+                f64::from(p.surcouverture) / 100.0,
                 100.0 * p.part_redessinee(),
                 p.images_mo,
             ));
