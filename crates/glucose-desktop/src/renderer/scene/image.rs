@@ -14,6 +14,7 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use glucose_core::occlusion::{self, Calque};
 use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
@@ -53,18 +54,35 @@ pub(in crate::renderer) fn draw_images(
     let mut pixels = 0.0f64;
     let mut cachees = 0.0f64;
 
-    // OCCLUSION-1 : on ne dessine pas ce qui sera entierement recouvert.
+    // OCCLUSION-2 : on ne dessine pas ce qui sera recouvert.
     //
-    // La chronique de terrain a mesure jusqu'a **mille quatre cents fois la surface de
-    // l'ecran** pour vingt-sept photos, et neuf cents millisecondes pour les poser. En zoom
-    // proche, une seule photo couvre toute la fenetre : les vingt-six autres sont dessinees
-    // pour rien, sous elle.
+    // La chronique de terrain a mesure cent cinq photos couvrant cinquante fois la surface de
+    // l'ecran. La premiere version ne savait traiter qu'un cas -- une seule photo couvrant
+    // toute la fenetre -- et ne servait jamais : les photos se chevauchent PARTIELLEMENT, et
+    // aucune ne cache seule ce que plusieurs cachent ensemble.
+    //
+    // Le calcul vit dans le noyau parce qu'il est geometrique : les memes rectangles donnent
+    // la meme reponse sur un processeur, sur une carte graphique et sur un telephone.
     let visibles: Vec<&glucose_core::types::BoardImage> =
         Visibles::nouvelles(pass.visibles, board).images().collect();
-    let depart = premiere_utile(&visibles, &pass, &clip, magasin);
-    cachees += depart as f64;
+    let calques: Vec<Calque> = visibles
+        .iter()
+        .map(|img| calque_de(img, &pass, magasin))
+        .collect();
+    let mut caches = occlusion::Visibles::default();
+    occlusion::ce_qui_se_voit(
+        &calques,
+        occlusion::Boite::nouvelle(0.0, clip.top, clip.width, clip.height - clip.top),
+        &mut caches,
+    );
+    crate::perf::stage("occlusion");
 
-    for img in visibles.into_iter().skip(depart) {
+    for (rang, img) in visibles.into_iter().enumerate() {
+        // Une liste de parties vide veut dire : entierement recouvert, rien a peindre.
+        if caches.parts(rang).is_empty() {
+            cachees += 1.0;
+            continue;
+        }
         let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
         let (sx, sy) = (wx as f32, wy as f32);
         let sw = (img.width * pass.vp.scale) as f32;
@@ -107,53 +125,32 @@ pub(in crate::renderer) fn draw_images(
     crate::perf::compteur("img_rendues", magasin.evincees() as f64);
 }
 
-/// Le rang de la premiere image qui a besoin d'etre dessinee (OCCLUSION-1).
+/// Ce que le noyau a besoin de savoir d'une image pour decider si elle se voit.
 ///
-/// # Ce que cette fonction economise
+/// Trois conditions font qu'une image en cache une autre, et toutes se **constatent** :
 ///
-/// Les images se dessinent de l'arriere vers l'avant, chacune par-dessus la precedente. Si
-/// l'une d'elles est **opaque** et couvre **toute** la zone visible, rien de ce qui la precede
-/// ne peut apparaitre : ces images sont du travail pur perdu.
-///
-/// Mesure sur le terrain avant que cette fonction existe : vingt-sept photos couvrant mille
-/// quatre cents fois la surface de l'ecran, neuf cents millisecondes pour les poser. En zoom
-/// proche -- une photo qui remplit la fenetre -- il n'y en a qu'une a dessiner.
-///
-/// # Pourquoi c'est exact, et non une approximation
-///
-/// Trois conditions, toutes constatees, aucune estimee :
-///
-/// * l'image est **opaque** -- la pyramide l'a constate pixel par pixel au decodage ;
-/// * elle n'est pas **tournee** -- sinon la zone couverte est un parallelogramme, et les coins
-///   du rectangle qui l'entoure laisseraient voir ce qu'il y a dessous ;
-/// * son rectangle ecran **contient** la zone visible, bord a bord.
-///
-/// Une image qui ne remplit pas ces trois conditions ne cache rien, et on repart de zero.
-fn premiere_utile(
-    visibles: &[&glucose_core::types::BoardImage],
+/// * elle est **opaque** -- la pyramide l'a verifie pixel par pixel au decodage ;
+/// * elle n'est pas **tournee** -- sinon sa boite n'est plus ce qu'elle couvre, et les coins
+///   laisseraient voir dessous ;
+/// * elle est **decodee** -- une image en chemin se dessine comme un cadre, a travers lequel
+///   le fond se voit.
+fn calque_de(
+    img: &glucose_core::types::BoardImage,
     pass: &ViewPass<'_>,
-    clip: &Clip,
     magasin: &Magasin,
-) -> usize {
-    for (rang, img) in visibles.iter().enumerate().rev() {
-        if img.rotation != 0.0 {
-            continue;
-        }
-        let Some(src) = img.src.as_deref().filter(|s| !s.is_empty()) else {
-            continue;
-        };
-        let Some(entree) = magasin.cache.get(src) else {
-            continue;
-        };
-        if !entree.pyramide.opaque() {
-            continue;
-        }
-        let (sx, sy, sw, sh) = boite_ecran(img, pass);
-        if sx <= 0.0 && sy <= clip.top && sx + sw >= clip.width && sy + sh >= clip.height {
-            return rang;
-        }
+) -> Calque {
+    let (sx, sy, sw, sh) = boite_ecran(img, pass);
+    let opaque = img.rotation == 0.0
+        && img
+            .src
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .and_then(|src| magasin.cache.get(src))
+            .is_some_and(|e| e.pyramide.opaque());
+    Calque {
+        boite: occlusion::Boite::nouvelle(sx, sy, sw, sh),
+        opaque,
     }
-    0
 }
 
 /// La boite ecran d'une image : son coin haut-gauche et sa taille.

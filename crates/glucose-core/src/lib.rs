@@ -25,6 +25,7 @@ pub mod membrane_space;
 pub mod membrane_stretch;
 pub mod mirror_graph;
 pub mod persist;
+pub mod occlusion;
 pub mod quadtree;
 pub mod resize;
 pub mod rotate;

@@ -1,23 +1,13 @@
-//! OCCLUSION-1 — ce qu'on se permet de ne pas dessiner, et ce qu'on refuse de sauter.
+//! La traduction d'une image du document en calque geometrique (OCCLUSION-2).
 //!
-//! Ces tests portent sur une decision **visuelle** : retirer du dessin. Une erreur ici ne fait
-//! pas ralentir, elle fait disparaitre quelque chose de l'ecran -- le pire defaut possible,
-//! parce qu'il se voit et qu'on ne sait pas d'ou il vient. D'ou une regle unique : on ne saute
-//! une image que si les trois conditions sont **constatees**, jamais estimees.
+//! Le noyau decide de ce qui se voit ; ce module lui dit ce que sont les images. C'est ici que
+//! les trois conditions d'opacite se **constatent**, et une erreur ici ferait disparaitre
+//! quelque chose de l'ecran -- le pire defaut possible, parce qu'il se voit et qu'on ne sait
+//! pas d'ou il vient.
 
 use super::*;
 use glucose_core::types::{BoardImage, Viewport};
 use tiny_skia::Pixmap;
-
-const FENETRE: (f32, f32) = (1000.0, 800.0);
-
-fn clip() -> Clip {
-    Clip {
-        width: FENETRE.0,
-        height: FENETRE.1,
-        top: 0.0,
-    }
-}
 
 fn vue() -> Viewport {
     Viewport {
@@ -59,133 +49,44 @@ fn passe<'a>(rangs: &'a [u32], index: &'a glucose_core::quadtree::SpatialHash) -
 }
 
 #[test]
-fn test_une_image_opaque_qui_couvre_l_ecran_cache_celles_d_avant() {
-    // Le cas mesure sur le terrain : en zoom proche, une photo remplit la fenetre et les
-    // vingt-six autres sont dessinees pour rien, sous elle.
+fn test_un_calque_dit_la_verite_sur_ce_qu_il_cache() {
+    // Le desktop ne decide plus de l'occlusion -- le noyau s'en charge (OCCLUSION-2). Ce qui
+    // reste ici est la TRADUCTION : une image du document devient un calque geometrique, et
+    // c'est la que les trois conditions se constatent.
     let index = glucose_core::quadtree::SpatialHash::new(1000.0);
     let rangs: Vec<u32> = Vec::new();
     let pass = passe(&rangs, &index);
-    let magasin = magasin_avec("photo.png", true);
 
-    let dessous = image("a", 100.0, 100.0, 50.0, 50.0, "photo.png");
-    let dessus = image("b", 500.0, 400.0, 2000.0, 1600.0, "photo.png");
-    let visibles = vec![&dessous, &dessus];
-
-    assert_eq!(
-        premiere_utile(&visibles, &pass, &clip(), &magasin),
-        1,
-        "on part de l'image qui couvre tout, et pas avant"
+    let opaque = magasin_avec("photo.png", true);
+    let img = image("a", 0.0, 0.0, 200.0, 100.0, "photo.png");
+    assert!(
+        calque_de(&img, &pass, &opaque).opaque,
+        "une image opaque, droite et decodee cache ce qu'il y a dessous"
     );
+
+    // Tournee : sa boite n'est plus ce qu'elle couvre.
+    let mut tournee = img.clone();
+    tournee.rotation = 0.3;
+    assert!(!calque_de(&tournee, &pass, &opaque).opaque);
+
+    // Translucide : le fond transparait a travers elle.
+    let voile = magasin_avec("photo.png", false);
+    assert!(!calque_de(&img, &pass, &voile).opaque);
+
+    // Pas encore decodee : elle se dessine comme un cadre, a travers lequel on voit le fond.
+    // C'est le cas normal pendant un import (DECODE-1).
+    assert!(!calque_de(&img, &pass, &Magasin::nouveau()).opaque);
 }
 
 #[test]
-fn test_une_image_translucide_ne_cache_rien() {
-    // Le fond doit transparaitre a travers elle : tout ce qu'il y a dessous reste visible.
+fn test_la_boite_ecran_suit_la_vue() {
     let index = glucose_core::quadtree::SpatialHash::new(1000.0);
     let rangs: Vec<u32> = Vec::new();
     let pass = passe(&rangs, &index);
-    let magasin = magasin_avec("voile.png", false);
-
-    let dessous = image("a", 100.0, 100.0, 50.0, 50.0, "voile.png");
-    let dessus = image("b", 500.0, 400.0, 2000.0, 1600.0, "voile.png");
-    let visibles = vec![&dessous, &dessus];
-
-    assert_eq!(premiere_utile(&visibles, &pass, &clip(), &magasin), 0);
-}
-
-#[test]
-fn test_une_image_tournee_ne_cache_rien() {
-    // La zone couverte est alors un parallelogramme : les coins du rectangle qui l'entoure
-    // laisseraient voir ce qu'il y a dessous.
-    let index = glucose_core::quadtree::SpatialHash::new(1000.0);
-    let rangs: Vec<u32> = Vec::new();
-    let pass = passe(&rangs, &index);
-    let magasin = magasin_avec("photo.png", true);
-
-    let dessous = image("a", 100.0, 100.0, 50.0, 50.0, "photo.png");
-    let mut dessus = image("b", 500.0, 400.0, 2000.0, 1600.0, "photo.png");
-    dessus.rotation = 0.3;
-    let visibles = vec![&dessous, &dessus];
-
-    assert_eq!(premiere_utile(&visibles, &pass, &clip(), &magasin), 0);
-}
-
-#[test]
-fn test_une_image_qui_ne_couvre_pas_tout_ne_cache_rien() {
-    // Il suffit qu'un seul bord laisse passer : la condition se verifie bord a bord.
-    let index = glucose_core::quadtree::SpatialHash::new(1000.0);
-    let rangs: Vec<u32> = Vec::new();
-    let pass = passe(&rangs, &index);
-    let magasin = magasin_avec("photo.png", true);
-
-    let dessous = image("a", 100.0, 100.0, 50.0, 50.0, "photo.png");
-    // Large mais pas assez haute : le bas de l'ecran reste decouvert.
-    let dessus = image("b", 500.0, 300.0, 2000.0, 400.0, "photo.png");
-    let visibles = vec![&dessous, &dessus];
-
-    assert_eq!(premiere_utile(&visibles, &pass, &clip(), &magasin), 0);
-}
-
-#[test]
-fn test_une_image_pas_encore_decodee_ne_cache_rien() {
-    // Elle se dessine comme un cadre, a travers lequel on voit le fond : elle ne peut donc
-    // rien masquer. C'est aussi le cas normal pendant un import (DECODE-1).
-    let index = glucose_core::quadtree::SpatialHash::new(1000.0);
-    let rangs: Vec<u32> = Vec::new();
-    let pass = passe(&rangs, &index);
-    let magasin = Magasin::nouveau();
-
-    let dessous = image("a", 100.0, 100.0, 50.0, 50.0, "absente.png");
-    let dessus = image("b", 500.0, 400.0, 2000.0, 1600.0, "absente.png");
-    let visibles = vec![&dessous, &dessus];
-
-    assert_eq!(premiere_utile(&visibles, &pass, &clip(), &magasin), 0);
-}
-
-#[test]
-fn test_la_derniere_occultante_l_emporte() {
-    // Deux images couvrent tout : c'est la plus HAUTE qui decide, sinon on redessinerait
-    // inutilement tout ce qui la separe de la precedente.
-    let index = glucose_core::quadtree::SpatialHash::new(1000.0);
-    let rangs: Vec<u32> = Vec::new();
-    let pass = passe(&rangs, &index);
-    let magasin = magasin_avec("photo.png", true);
-
-    let a = image("a", 500.0, 400.0, 2000.0, 1600.0, "photo.png");
-    let b = image("b", 100.0, 100.0, 50.0, 50.0, "photo.png");
-    let c = image("c", 500.0, 400.0, 2000.0, 1600.0, "photo.png");
-    let visibles = vec![&a, &b, &c];
-
-    assert_eq!(premiere_utile(&visibles, &pass, &clip(), &magasin), 2);
-}
-
-#[test]
-fn test_sans_aucune_image_on_part_de_zero() {
-    let index = glucose_core::quadtree::SpatialHash::new(1000.0);
-    let rangs: Vec<u32> = Vec::new();
-    let pass = passe(&rangs, &index);
-    let magasin = Magasin::nouveau();
-    assert_eq!(premiere_utile(&[], &pass, &clip(), &magasin), 0);
-}
-
-#[test]
-fn test_le_bandeau_ne_compte_pas_comme_une_zone_a_couvrir() {
-    // La scene ne dessine pas sous le bandeau : une image qui couvre tout ce qui est SOUS lui
-    // couvre bien la zone visible, meme si elle ne monte pas jusqu'a l'ordonnee zero.
-    let index = glucose_core::quadtree::SpatialHash::new(1000.0);
-    let rangs: Vec<u32> = Vec::new();
-    let pass = passe(&rangs, &index);
-    let magasin = magasin_avec("photo.png", true);
-    let avec_bandeau = Clip {
-        width: FENETRE.0,
-        height: FENETRE.1,
-        top: 56.0,
-    };
-
-    let dessous = image("a", 100.0, 100.0, 50.0, 50.0, "photo.png");
-    // Elle commence a y = 56 exactement, et descend jusqu'en bas.
-    let dessus = image("b", 500.0, 428.0, 2000.0, 744.0, "photo.png");
-    let visibles = vec![&dessous, &dessus];
-
-    assert_eq!(premiere_utile(&visibles, &pass, &avec_bandeau, &magasin), 1);
+    // Une image centree a l'origine du monde, de 200 x 100 : son coin haut-gauche est en
+    // (-100, -50), et la vue ne la deplace pas.
+    let img = image("a", 0.0, 0.0, 200.0, 100.0, "photo.png");
+    let (sx, sy, sw, sh) = boite_ecran(&img, &pass);
+    assert_eq!((sx, sy), (-100.0, -50.0));
+    assert_eq!((sw, sh), (200.0, 100.0));
 }
