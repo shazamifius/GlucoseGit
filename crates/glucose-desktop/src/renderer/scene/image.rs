@@ -7,8 +7,8 @@
 use super::super::domain::draw_domain_gauge;
 use super::super::handles::draw_rotated_handles;
 use super::super::pass::Clip;
+use super::super::magasin::Magasin;
 use super::super::scale::WorldScale;
-use super::super::Renderer;
 use super::super::{photo, vignette, PaintKit};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
@@ -17,16 +17,13 @@ use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
-use std::collections::{HashMap, HashSet};
 use tiny_skia::{
     BlendMode, Color, FilterQuality, Paint, PathBuilder, PixmapMut, PixmapPaint, Rect, Stroke,
     Transform,
 };
 
 pub(in crate::renderer) fn draw_images(
-    image_cache: &mut HashMap<String, photo::Pyramide>,
-    vignettes: &mut vignette::Vignettes,
-    failed_images: &mut HashSet<String>,
+    magasin: &mut Magasin,
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
@@ -66,15 +63,7 @@ pub(in crate::renderer) fn draw_images(
 
         posees += 1.0;
         pixels += (sw as f64) * (sh as f64);
-        let drawn = img
-            .src
-            .as_deref()
-            .filter(|s| !s.is_empty())
-            .and_then(|src| {
-                Renderer::load_image_impl(image_cache, failed_images, src)
-                    .map(|pyramide| poser(pyramide, vignettes, pixmap, img, (sx, sy, sw, sh)))
-            });
-        if drawn.is_none() {
+        if !poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh)) {
             draw_missing_image(
                 typography,
                 theme,
@@ -94,11 +83,45 @@ pub(in crate::renderer) fn draw_images(
     let fenetre = (pixmap.width() as f64) * (pixmap.height() as f64);
     crate::perf::compteur("img_n", posees);
     crate::perf::compteur("img_ecrans", pixels / fenetre.max(1.0));
-    crate::perf::compteur(
-        "img_mo",
-        image_cache.values().map(|p| p.octets()).sum::<usize>() as f64 / 1_048_576.0,
-    );
-    crate::perf::compteur("vign_mo", vignettes.octets() as f64 / 1_048_576.0);
+    crate::perf::compteur("img_mo", magasin.octets() as f64 / 1_048_576.0);
+    crate::perf::compteur("vign_mo", magasin.vignettes.octets() as f64 / 1_048_576.0);
+    // Combien d'images sont encore en chemin : c'est ce qui distingue « la scene est lente »
+    // de « la scene attend », et la trace ne savait pas les separer.
+    crate::perf::compteur("img_attente", magasin.en_travail() as f64);
+}
+
+/// Pose cette image si elle est décodée ; sinon la demande, et le dit.
+///
+/// # INVARIANT DECODE-1 — le rendu n'attend jamais un décodage
+///
+/// Rendre `false` n'est pas un échec : c'est l'état normal d'une image qui vient d'arriver
+/// sur le canevas. L'appelant dessine alors son cadre, et la photo paraîtra d'elle-même à
+/// l'image où l'atelier la rendra — sans qu'aucune frame ait eu à l'attendre.
+///
+/// Les deux caches s'empruntent séparément : la pyramide en écriture pour construire un
+/// niveau, les vignettes pour en garder une. C'est ce que des champs distincts autorisent, et
+/// ce qu'une méthode du magasin interdirait.
+fn poser_ou_demander(
+    magasin: &mut Magasin,
+    pixmap: &mut PixmapMut,
+    img: &glucose_core::types::BoardImage,
+    ecran: (f32, f32, f32, f32),
+) -> bool {
+    let Some(src) = img.src.as_deref().filter(|s| !s.is_empty()) else {
+        return false;
+    };
+    if magasin.echecs.contains(src) {
+        return false;
+    }
+    if !magasin.cache.contains_key(src) {
+        magasin.atelier.demander(src);
+        return false;
+    }
+    let Some(pyramide) = magasin.cache.get(src) else {
+        return false;
+    };
+    poser(pyramide, &mut magasin.vignettes, pixmap, img, ecran);
+    true
 }
 
 /// Pose une image sur le canevas, par le chemin le plus économique qu'elle autorise.
@@ -112,7 +135,7 @@ pub(in crate::renderer) fn draw_images(
 /// Une image tournée passe toujours par le second : une vignette est un rectangle droit, et la
 /// faire tourner redemanderait la transformation qu'elle sert à éviter.
 fn poser(
-    pyramide: &mut photo::Pyramide,
+    pyramide: &photo::Pyramide,
     vignettes: &mut vignette::Vignettes,
     pixmap: &mut PixmapMut,
     img: &glucose_core::types::BoardImage,

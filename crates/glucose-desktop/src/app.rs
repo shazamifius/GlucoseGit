@@ -1,5 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
+mod reveil;
+
 use crate::dock::{
     apply_organize_layout, render_docks, DockCache, DockManager, DockPass, OrganizeState,
 };
@@ -8,7 +10,7 @@ use crate::interactions::resize::ResizeSession;
 use crate::interactions::tools::text_card;
 use crate::params::{Pointer, SceneOverlay, ScreenFrame};
 use crate::renderer::{Renderer, TextEditSession};
-use crate::ui::{ToastRepaint, UiState};
+use crate::ui::UiState;
 use glucose_core::hit_priority::CycleState;
 use glucose_core::smart_align::{AlignRect, AlignTarget, SnapGuides};
 use glucose_core::store::Store;
@@ -507,69 +509,15 @@ impl ApplicationHandler for GlucoseApp {
             self.drop_files(&lot);
         }
 
-        let mut has_timer = false;
-        let mut min_timeout_ms = 1000u64;
-
-        // 1. Clignotement du curseur d'édition de texte (période 500 ms)
-        if let Some(session) = &self.editing_session {
-            let elapsed = session.blink_timer.elapsed().as_millis();
-            let phase = (elapsed / 500) % 2 == 0;
-            if phase != self.last_blink_phase {
-                self.last_blink_phase = phase;
-                self.mark_dirty();
+        // Chaque raison de se reveiller dit le delai qu'elle demande ; la plus pressee decide.
+        // Aucune ne s'oublie, parce qu'aucune n'a de comptabilite a tenir (voir `reveil`).
+        match self.prochain_reveil() {
+            Some(ms) => {
+                let echeance =
+                    std::time::Instant::now() + std::time::Duration::from_millis(ms.max(1));
+                event_loop.set_control_flow(ControlFlow::WaitUntil(echeance));
             }
-            let remaining = 500 - (elapsed % 500);
-            min_timeout_ms = min_timeout_ms.min(remaining.max(1) as u64);
-            has_timer = true;
-        } else {
-            self.last_blink_phase = true;
-        }
-
-        // 2. Toast actif : c'est lui qui sait s'il faut redessiner (fondu), attendre
-        // (plateau, alpha = 1, aucun rafraîchissement) ou disparaître.
-        if let Some(ref toast) = self.ui.current_toast {
-            match toast.repaint_need() {
-                ToastRepaint::Gone => {
-                    self.ui.current_toast = None;
-                    self.mark_dirty();
-                }
-                ToastRepaint::Redraw => {
-                    self.mark_dirty();
-                    min_timeout_ms = min_timeout_ms.min(self.animation_interval_ms());
-                    has_timer = true;
-                }
-                ToastRepaint::Sleep(wait_ms) => {
-                    min_timeout_ms = min_timeout_ms.min(wait_ms);
-                    has_timer = true;
-                }
-            }
-        }
-
-        // 2 bis. Vol de la caméra : chaque image avance le viewport, et l'animation dit
-        // elle-même dans combien de temps la suivante est due.
-        if let Some(reste_ms) = self.animator.tick(&mut self.store) {
-            self.mark_dirty();
-            min_timeout_ms = min_timeout_ms.min(reste_ms.max(1).min(self.animation_interval_ms()));
-            has_timer = true;
-        }
-
-        // 3. Minuteur Pomodoro actif dans le dock
-        if self.dock_manager.pomodoro.running {
-            if self.dock_manager.tick_pomodoro() {
-                self.mark_dirty();
-            }
-            let elapsed_ms = self.dock_manager.pomodoro.last_tick.elapsed().as_millis();
-            let remaining_ms = 1000_u128.saturating_sub(elapsed_ms);
-            min_timeout_ms = min_timeout_ms.min(remaining_ms.max(1) as u64);
-            has_timer = true;
-        }
-
-        if has_timer {
-            let next_deadline =
-                std::time::Instant::now() + std::time::Duration::from_millis(min_timeout_ms);
-            event_loop.set_control_flow(ControlFlow::WaitUntil(next_deadline));
-        } else {
-            event_loop.set_control_flow(ControlFlow::Wait);
+            None => event_loop.set_control_flow(ControlFlow::Wait),
         }
     }
 }

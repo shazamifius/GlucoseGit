@@ -82,7 +82,7 @@ impl Vignettes {
     ///
     /// Rend `None` la première fois qu'une forme est demandée pour ce nœud : l'appelant dessine
     /// alors par le chemin général.
-    pub fn pour(&mut self, noeud: &str, forme: Forme, pyramide: &mut Pyramide) -> Option<&Pixmap> {
+    pub fn pour(&mut self, noeud: &str, forme: Forme, pyramide: &Pyramide) -> Option<&Pixmap> {
         let image = self.image;
         let entree = match self.par_noeud.get_mut(noeud) {
             Some(e) => e,

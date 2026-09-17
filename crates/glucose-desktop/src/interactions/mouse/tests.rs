@@ -215,9 +215,20 @@ fn test_a_double_click_opens_the_editor_inside_350_ms_and_not_beyond() {
         app.editing_session = None;
         app.last_click = None;
         click_at(&mut app, sx, sy);
-        // Le second clic arrive `elapsed_ms` plus tard : on recule l'origine du temps, ce
-        // qui vieillit le premier clic sans faire attendre le test.
-        app.click_epoch -= std::time::Duration::from_millis(elapsed_ms);
+        // Le premier clic est daté de façon à s'être produit **exactement** `elapsed_ms`
+        // avant maintenant.
+        //
+        // Reculer l'origine du temps, comme ce test le faisait, laissait le temps réel
+        // s'ajouter à l'écart voulu : tout ce qui se passait entre les deux clics — un rendu,
+        // une machine chargée, un autre banc en parallèle — allongeait la distance mesurée.
+        // À 349 ms visés pour une limite à 350, deux millisecondes de retard suffisaient à
+        // faire échouer un test qui ne disait rien de faux sur le code.
+        //
+        // La date se pose ici, juste avant le second clic : il ne reste entre elle et la
+        // lecture de l'horloge que le déplacement du curseur, qui ne dure rien.
+        if let Some(last) = &mut app.last_click {
+            last.at_ms = app.click_epoch.elapsed().as_millis() as i64 - elapsed_ms as i64;
+        }
         click_at(&mut app, sx, sy);
         assert_eq!(
             app.editing_session.is_some(),

@@ -96,17 +96,42 @@ pub struct Pyramide {
 }
 
 impl Pyramide {
-    /// Fonde la pyramide sur une image décodée. Aucun niveau réduit n'est construit ici.
+    /// Fonde la pyramide sur une image décodée, **entièrement construite**.
     ///
-    /// L'opacité se constate une fois, au décodage : c'est un parcours des octets alpha, du
-    /// même ordre que la conversion en prémultiplié qui vient de l'être faite. La constater à
-    /// chaque image, en revanche, coûterait autant que le dessin lui-même.
+    /// # Pourquoi tous les niveaux, et pas à la demande
+    ///
+    /// Les niveaux se construisaient au premier besoin, donc **dans l'image qui en avait
+    /// besoin**. Poser une photo de téléphone à quatre cents pixels demandait quatre
+    /// réductions successives — seize mégapixels à moyenner — au milieu d'une frame. Mesuré :
+    /// **58 ms pour une seule photo**, alors même que le décodage était déjà parti sur un fil
+    /// de fond. Le travail avait changé de nom, pas de place.
+    ///
+    /// Tout construire d'avance coûte environ **un tiers de plus** que le niveau natif :
+    /// chaque réduction divise la surface par quatre, et la série `1 + 1/4 + 1/16 + ...`
+    /// converge vers `4/3`. Ce n'est pas une estimation, c'est une somme géométrique — donc
+    /// il n'y a **aucun seuil à choisir**, ni en nombre de niveaux, ni en taille minimale.
+    ///
+    /// La borne est asymptotique : l'arrondi des côtés vers le haut ajoute un surcoût en
+    /// `O(largeur + hauteur)`, invisible sur une photo et sensible seulement sur une image de
+    /// quelques pixels, où il se compte en dizaines d'octets.
+    ///
+    /// Et cela vaut pour le zoom aussi : la molette ne construit plus rien, elle choisit.
+    ///
+    /// L'opacité se constate au passage, dans le même parcours.
     pub fn nouvelle(native: Pixmap) -> Self {
         let opaque = native.data().as_chunks::<4>().0.iter().all(|p| p[3] == 255);
-        Self {
-            niveaux: vec![native],
-            opaque,
+        let mut niveaux = vec![native];
+        // La descente s'arrête d'elle-même à une image de 1 × 1 : la largeur et la hauteur
+        // sont divisées par deux en arrondissant vers le haut, donc elles atteignent 1 et n'en
+        // bougent plus.
+        while let Some(dernier) = niveaux.last() {
+            if dernier.width() <= 1 && dernier.height() <= 1 {
+                break;
+            }
+            let reduit = reduire_par_deux(dernier);
+            niveaux.push(reduit);
         }
+        Self { niveaux, opaque }
     }
 
     /// Vrai si aucun pixel de la source n'est translucide.
@@ -132,23 +157,15 @@ impl Pyramide {
     /// « Couvre encore » veut dire : au moins aussi large que ce qu'on va dessiner. Choisir
     /// plus petit reviendrait à agrandir, donc à perdre du détail que la source avait.
     ///
-    /// La descente s'arrête d'elle-même à une image de 1 × 1 : elle ne dépend d'aucune borne
-    /// posée à la main.
-    pub fn niveau_pour(&mut self, largeur_ecran: f32) -> &Pixmap {
+    /// Les niveaux existent tous dès la construction : cette méthode **choisit**, elle ne
+    /// fabrique rien. C'est ce qui la rend utilisable en pleine frame, et en `&self`.
+    pub fn niveau_pour(&self, largeur_ecran: f32) -> &Pixmap {
         let voulue = largeur_ecran.max(1.0);
-        while self.dernier().width() as f32 >= voulue * 2.0 && self.dernier().width() > 1 {
-            let reduit = reduire_par_deux(self.dernier());
-            self.niveaux.push(reduit);
-        }
-        // Le dernier niveau construit est, par la boucle ci-dessus, le plus petit qui reste au
-        // moins aussi large que voulu — ou le plus petit possible.
-        self.dernier()
-    }
-
-    fn dernier(&self) -> &Pixmap {
         self.niveaux
+            .iter()
+            .take_while(|n| n.width() as f32 >= voulue || n.width() <= 1)
             .last()
-            .expect("une pyramide a son niveau natif")
+            .unwrap_or_else(|| self.native())
     }
 
     /// Rééchantillonne l'image à la forme voulue, phase comprise.
@@ -156,7 +173,7 @@ impl Pyramide {
     /// La phase entre ici, et non au moment de poser : c'est elle qui fait la netteté, et la
     /// reporter au moment de poser obligerait à une position fractionnaire, donc au pipeline
     /// générique qu'on cherche justement à éviter.
-    pub fn rendre(&mut self, forme: Forme) -> Pixmap {
+    pub fn rendre(&self, forme: Forme) -> Pixmap {
         // Une phase non nulle déborde d'un pixel sur la droite et le bas : la vignette est donc
         // dessinée un pixel plus grande, et ce pixel porte la part de l'image qui dépasse.
         let (w, h) = (forme.largeur + 1, forme.hauteur + 1);

@@ -92,6 +92,22 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
     // qui dépendrait de la position de la souris. Une capture doit être la même partout.
     let pointer = Pointer { x: -1.0, y: -1.0 };
     renderer.render(&mut pixmap.as_mut(), store, ui, overlay, pointer);
+
+    // C'est le rendu lui-même qui DEMANDE les images, sans jamais les attendre (DECODE-1) :
+    // la première passe ne peut donc que dessiner des cadres. Un banc et un témoin doivent
+    // montrer les photos, alors on attend le chantier et on repasse une fois.
+    //
+    // Ne coûte rien dès que tout est décodé -- c'est-à-dire à toutes les passes sauf la
+    // première. La mesure reste celle du rendu, jamais celle de l'attente.
+    if renderer.magasin.en_travail() > 0 {
+        renderer.magasin.attendre_le_chantier();
+        let overlay = SceneOverlay {
+            guides: &guides,
+            selection_box: None,
+            editing: None,
+        };
+        renderer.render(&mut pixmap.as_mut(), store, ui, overlay, pointer);
+    }
 }
 
 /// Ce qu'une série de frames a coûté.

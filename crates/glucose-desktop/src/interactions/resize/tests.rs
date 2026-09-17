@@ -19,19 +19,37 @@ const SCREEN: (f32, f32) = (1440.0, 900.0);
 /// Rend une frame : c'est ce qui remplit l'index spatial dont le test de clic dépend.
 pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
     let mut pixmap = Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
-    let mut view = pixmap.as_mut();
     let overlay = SceneOverlay {
         guides: &app.active_guides,
         selection_box: None,
         editing: None,
     };
     app.renderer.render(
-        &mut view,
+        &mut pixmap.as_mut(),
         &app.store,
         &mut app.ui,
         overlay,
         Pointer { x: 0.0, y: 0.0 },
     );
+
+    // C'est le rendu lui-même qui DEMANDE les images, sans jamais les attendre (DECODE-1) :
+    // la première passe ne peut que dessiner des cadres. Un témoin doit montrer la photo,
+    // alors il attend le chantier et repasse une fois -- ce que l'application ne fait jamais.
+    if app.renderer.magasin.en_travail() > 0 {
+        app.renderer.magasin.attendre_le_chantier();
+        let overlay = SceneOverlay {
+            guides: &app.active_guides,
+            selection_box: None,
+            editing: None,
+        };
+        app.renderer.render(
+            &mut pixmap.as_mut(),
+            &app.store,
+            &mut app.ui,
+            overlay,
+            Pointer { x: 0.0, y: 0.0 },
+        );
+    }
     pixmap
 }
 

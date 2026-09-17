@@ -15,7 +15,6 @@ use crate::renderer::pass::draw_annotations;
 use crate::renderer::PaintKit;
 use glucose_core::store::DomainPatch;
 use glucose_core::types::{Annotation, BoardImage, Domain, Viewport};
-use std::collections::HashSet;
 use tiny_skia::Pixmap;
 
 /// Taille des captures.
@@ -293,11 +292,15 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     let theme = Theme::dark();
     let mut store = proof_store(&[]);
     let board_id = store.project.active_board_id.clone();
+    let photo = photo_du_temoin(dir);
     if let Some(board) = store.active_board_mut() {
         board.annotations.clear();
-        board
-            .images
-            .push(BoardImage::new("img", 260.0, 200.0, 320.0, 200.0));
+        let mut image = BoardImage::new("img", 260.0, 200.0, 320.0, 200.0);
+        // Le témoin porte une VRAIE image, décodée depuis un vrai fichier. Sans `src`, il ne
+        // montrait que le cadre de remplacement : tout le chemin de rendu des images pouvait
+        // changer du tout au tout sans qu'aucune empreinte bouge, et c'est arrivé.
+        image.src = Some(photo.clone());
+        board.images.push(image);
         board.annotations.push(Annotation::Membrane {
             id: "memb".into(),
             x: 520.0,
@@ -345,8 +348,6 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
         header_h: 0.0,
     };
     let mut view = pixmap.as_mut();
-    let mut cache = std::collections::HashMap::new();
-    let mut failed = HashSet::new();
     let kit = PaintKit {
         typography: typo,
         math: &crate::renderer::math::MathRenderer::new(),
@@ -354,17 +355,27 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
         theme: &theme,
     };
     crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
-    let mut vignettes = crate::renderer::vignette::Vignettes::new();
-    crate::renderer::scene::draw_images(
-        &mut cache,
-        &mut vignettes,
-        &mut failed,
-        kit,
-        &mut view,
-        &store,
-        pass,
-    );
+
+    let mut magasin = crate::renderer::magasin::Magasin::nouveau();
+    magasin.pyramide(&photo);
+    magasin.attendre_le_chantier();
+    crate::renderer::scene::draw_images(&mut magasin, kit, &mut view, &store, pass);
     pixmap
         .save_png(dir.join("scene-image-et-membrane.png"))
         .expect("écriture du png");
+}
+
+/// Écrit la photo que le témoin pose, et rend son chemin.
+///
+/// Un dégradé exact plutôt qu'une photo réelle : il se redécrit à l'identique à chaque
+/// lancement, sur n'importe quelle machine, et une empreinte qui bouge désigne alors le rendu
+/// et jamais le fichier.
+fn photo_du_temoin(dir: &std::path::Path) -> String {
+    let chemin = dir.join("temoin-photo.png");
+    let mut brute = image::RgbaImage::new(320, 200);
+    for (x, y, px) in brute.enumerate_pixels_mut() {
+        *px = image::Rgba([(x * 4 / 5) as u8, (y * 6 / 5) as u8, 180, 255]);
+    }
+    brute.save(&chemin).expect("écriture de la photo du témoin");
+    chemin.to_string_lossy().to_string()
 }

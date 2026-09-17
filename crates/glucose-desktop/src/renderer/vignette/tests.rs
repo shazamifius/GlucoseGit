@@ -26,11 +26,11 @@ fn bicolore(largeur: u32, hauteur: u32) -> Pixmap {
 #[test]
 fn test_la_premiere_demande_ne_construit_rien() {
     let mut v = Vignettes::new();
-    let mut pyr = Pyramide::nouvelle(bicolore(64, 64));
+    let pyr = Pyramide::nouvelle(bicolore(64, 64));
     let forme = Forme::posee(10.0, 20.0, 32.0, 32.0);
 
     v.ouvrir();
-    assert!(v.pour("n", forme, &mut pyr).is_none());
+    assert!(v.pour("n", forme, &pyr).is_none());
     assert_eq!(v.faites(), 0);
 }
 
@@ -39,12 +39,12 @@ fn test_la_premiere_demande_ne_construit_rien() {
 #[test]
 fn test_la_forme_repetee_se_construit_une_fois() {
     let mut v = Vignettes::new();
-    let mut pyr = Pyramide::nouvelle(bicolore(64, 64));
+    let pyr = Pyramide::nouvelle(bicolore(64, 64));
     let forme = Forme::posee(10.0, 20.0, 32.0, 32.0);
 
     for _ in 0..20 {
         v.ouvrir();
-        v.pour("n", forme, &mut pyr);
+        v.pour("n", forme, &pyr);
         v.fermer();
     }
     assert_eq!(v.faites(), 1, "vingt images, une seule vignette");
@@ -54,12 +54,12 @@ fn test_la_forme_repetee_se_construit_une_fois() {
 #[test]
 fn test_un_zoom_continu_ne_construit_rien() {
     let mut v = Vignettes::new();
-    let mut pyr = Pyramide::nouvelle(bicolore(256, 256));
+    let pyr = Pyramide::nouvelle(bicolore(256, 256));
 
     for i in 0..30 {
         v.ouvrir();
         let taille = 40.0 + i as f32;
-        v.pour("n", Forme::posee(0.0, 0.0, taille, taille), &mut pyr);
+        v.pour("n", Forme::posee(0.0, 0.0, taille, taille), &pyr);
         v.fermer();
     }
     assert_eq!(v.faites(), 0);
@@ -72,14 +72,14 @@ fn test_un_zoom_continu_ne_construit_rien() {
 #[test]
 fn test_deux_noeuds_sur_la_meme_image_ont_chacun_la_leur() {
     let mut v = Vignettes::new();
-    let mut pyr = Pyramide::nouvelle(bicolore(64, 64));
+    let pyr = Pyramide::nouvelle(bicolore(64, 64));
     let a = Forme::posee(10.25, 20.0, 32.0, 32.0);
     let b = Forme::posee(10.75, 20.0, 32.0, 32.0);
 
     for _ in 0..5 {
         v.ouvrir();
-        v.pour("a", a, &mut pyr);
-        v.pour("b", b, &mut pyr);
+        v.pour("a", a, &pyr);
+        v.pour("b", b, &pyr);
         v.fermer();
     }
     assert_eq!(v.faites(), 2, "chaque nœud a construit la sienne, une fois");
@@ -91,20 +91,20 @@ fn test_deux_noeuds_sur_la_meme_image_ont_chacun_la_leur() {
 #[test]
 fn test_un_noeud_non_dessine_est_oublie() {
     let mut v = Vignettes::new();
-    let mut pyr = Pyramide::nouvelle(bicolore(64, 64));
+    let pyr = Pyramide::nouvelle(bicolore(64, 64));
     let forme = Forme::posee(0.0, 0.0, 32.0, 32.0);
 
     for _ in 0..3 {
         v.ouvrir();
-        v.pour("a", forme, &mut pyr);
-        v.pour("b", forme, &mut pyr);
+        v.pour("a", forme, &pyr);
+        v.pour("b", forme, &pyr);
         v.fermer();
     }
     assert_eq!(v.suivis(), 2);
 
     // « b » sort du champ : il n'est plus demandé.
     v.ouvrir();
-    v.pour("a", forme, &mut pyr);
+    v.pour("a", forme, &pyr);
     v.fermer();
     assert_eq!(v.suivis(), 1, "le nœud absent de l'image est oublié");
 }
@@ -135,7 +135,7 @@ fn test_la_vignette_ne_deplace_pas_limage() {
     );
 
     // Chemin par vignette.
-    let mut pyr = Pyramide::nouvelle(source);
+    let pyr = Pyramide::nouvelle(source);
     let vignette = pyr.rendre(Forme::posee(x, y, w, h));
     let mut par_vignette = Pixmap::new(200, 200).expect("un écran");
     par_vignette.draw_pixmap(

@@ -19,12 +19,14 @@
 
 pub mod arrow;
 pub mod arrow_label;
+pub mod atelier;
 pub mod card;
 pub mod domain;
 pub mod folder;
 pub mod halo;
 pub mod handles;
 pub mod hue;
+pub mod magasin;
 pub mod math;
 pub mod note;
 pub mod pass;
@@ -46,9 +48,7 @@ use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
 use glucose_core::text::Selection;
 use hue::SymbioticHueCache;
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
-use tiny_skia::{PathBuilder, Pixmap, PixmapMut};
+use tiny_skia::{PathBuilder, PixmapMut};
 
 #[derive(Debug, Clone)]
 pub struct TextEditSession {
@@ -132,9 +132,9 @@ pub(crate) struct PaintKit<'a> {
 
 pub struct Renderer {
     pub theme: Theme,
-    pub image_cache: HashMap<String, photo::Pyramide>,
-    pub vignettes: vignette::Vignettes,
-    pub failed_images: HashSet<String>,
+    /// Tout ce qui sert à poser une image : le cache, les vignettes, les échecs, et les fils
+    /// qui décodent pendant que la scène continue de se dessiner (DECODE-1).
+    pub magasin: magasin::Magasin,
     pub typography: Typography,
     pub math: math::MathRenderer,
     pub hue_cache: SymbioticHueCache,
@@ -157,9 +157,7 @@ impl Renderer {
     pub fn new() -> Self {
         Self {
             theme: Theme::dark(),
-            image_cache: HashMap::new(),
-            vignettes: vignette::Vignettes::new(),
-            failed_images: HashSet::new(),
+            magasin: magasin::Magasin::nouveau(),
             typography: Typography::new(),
             math: math::MathRenderer::new(),
             hue_cache: SymbioticHueCache::new(),
@@ -168,55 +166,6 @@ impl Renderer {
             spatial_version: 0,
             active_board_id: String::new(),
         }
-    }
-
-    /// Charge ou récupère une image décodée en Pixmap tiny-skia (supporte WebP, PNG, JPG, GIF, BMP).
-    /// Dispose d'un cache négatif pour ne jamais re-décoder un fichier inaccessible ou corrompu (R-29).
-    ///
-    /// Le cache est indexé par le chemin `src`, et le décodage a lieu **dans la boucle de
-    /// rendu** : c'est le pont provisoire que la fiche 09 § 4 remplace par un magasin adressé
-    /// par contenu et un décodage hors frame.
-    pub fn load_image_impl<'a>(
-        image_cache: &'a mut HashMap<String, photo::Pyramide>,
-        failed_images: &mut HashSet<String>,
-        src_or_path: &str,
-    ) -> Option<&'a mut photo::Pyramide> {
-        if failed_images.contains(src_or_path) {
-            return None;
-        }
-        if image_cache.contains_key(src_or_path) {
-            return image_cache.get_mut(src_or_path);
-        }
-
-        let path = Path::new(src_or_path);
-        if path.exists() {
-            if let Ok(dyn_img) = image::open(path) {
-                let rgba = dyn_img.to_rgba8();
-                let (w, h) = rgba.dimensions();
-                if let Some(mut pixmap) = Pixmap::new(w, h) {
-                    let src_bytes = rgba.into_raw();
-                    let dst_bytes = pixmap.data_mut();
-
-                    // Conversion RGBA en prémultiplié pour tiny-skia
-                    for i in 0..(w as usize * h as usize) {
-                        let r = src_bytes[i * 4] as f32 / 255.0;
-                        let g = src_bytes[i * 4 + 1] as f32 / 255.0;
-                        let b = src_bytes[i * 4 + 2] as f32 / 255.0;
-                        let a = src_bytes[i * 4 + 3] as f32 / 255.0;
-
-                        dst_bytes[i * 4] = ((r * a) * 255.0) as u8;
-                        dst_bytes[i * 4 + 1] = ((g * a) * 255.0) as u8;
-                        dst_bytes[i * 4 + 2] = ((b * a) * 255.0) as u8;
-                        dst_bytes[i * 4 + 3] = (a * 255.0) as u8;
-                    }
-                    image_cache.insert(src_or_path.to_string(), photo::Pyramide::nouvelle(pixmap));
-                    return image_cache.get_mut(src_or_path);
-                }
-            }
-        }
-        // Cache négatif (R-29) : ne pas retenter le décodage échoué chaque frame
-        failed_images.insert(src_or_path.to_string());
-        None
     }
 
     /// Rendu complet de la scène Glucose et de son interface
@@ -257,6 +206,12 @@ impl Renderer {
     /// indiscernables. Mesuré à un million de nœuds, la première image après une mutation :
     /// l'index pèse 1 100 ms quand une image est ajoutée et 4 ms quand c'est une note.
     fn synchroniser_les_caches(&mut self, store: &Store) {
+        // Ce que les fils de fond ont fini entre deux images entre dans les caches ici, et
+        // nulle part ailleurs : le rendu voit ensuite un cache qui ne bouge pas sous ses
+        // pieds. Une récolte est une remise d'accord comme les trois autres, et c'est bien
+        // ici qu'elle appartient.
+        self.magasin.recolter();
+        crate::perf::stage("recolte");
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");
         if let Some(board) = store.active_board() {
@@ -275,7 +230,7 @@ impl Renderer {
         overlay: SceneOverlay<'_>,
         pointer: Pointer,
     ) {
-        self.vignettes.ouvrir();
+        self.magasin.vignettes.ouvrir();
         let width = pixmap.width();
         let height = pixmap.height();
         let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
@@ -325,9 +280,7 @@ impl Renderer {
 
         // 5. Images
         scene::draw_images(
-            &mut self.image_cache,
-            &mut self.vignettes,
-            &mut self.failed_images,
+            &mut self.magasin,
             kit,
             pixmap,
             store,
@@ -366,13 +319,14 @@ impl Renderer {
         // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
         render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
         crate::perf::stage("ui");
-        self.vignettes.fermer();
+        self.magasin.vignettes.fermer();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tiny_skia::Pixmap;
     use crate::params::ScreenFrame;
     use glucose_core::smart_align::SnapGuides;
 
