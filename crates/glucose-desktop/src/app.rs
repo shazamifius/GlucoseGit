@@ -138,6 +138,13 @@ pub struct GlucoseApp {
     pub saved_version: u64,
     /// Dernier titre posé sur la fenêtre, pour ne pas repayer un appel système par frame.
     pub window_title_cache: String,
+    /// Ce qui a changé depuis la dernière image, et doit donc être redessiné (A.1).
+    ///
+    /// Dans une `Cell` pour que [`GlucoseApp::mark_dirty`] reste en `&self` : soixante-deux
+    /// appelants la prennent ainsi, et leur imposer `&mut` pour noter une salissure aurait
+    /// remonté l'emprunt à travers tout l'arbre des gestes. `Salissure` est `Copy`, donc la
+    /// cellule ne coûte rien.
+    salissure: std::cell::Cell<crate::salissure::Salissure>,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -217,6 +224,8 @@ impl GlucoseApp {
             project_path: None,
             saved_version,
             window_title_cache: String::new(),
+            // Tout, et non rien : la première image doit se dessiner entièrement.
+            salissure: std::cell::Cell::new(crate::salissure::Salissure::Tout),
         }
     }
 
@@ -246,46 +255,46 @@ impl GlucoseApp {
                 self.pixmap = Pixmap::new(width, height);
             }
 
+            // La salissure est **consommée** : ce qui est redessiné maintenant cesse d'être
+            // sale, et une nouvelle demande arrivée pendant le rendu appartient à l'image
+            // suivante. Une image neuve part de `Tout`, jamais de `Rien` (A.1).
+            let sale = self
+                .salissure
+                .replace(crate::salissure::Salissure::Rien);
+            let sale = if need_new_pixmap {
+                crate::salissure::Salissure::Tout
+            } else {
+                sale
+            };
+
+            let echelle = self.ui.scale_factor;
             if let Some(pixmap) = &mut self.pixmap {
-                let mut pixmap_mut = pixmap.as_mut();
-                let pointer = Pointer {
-                    x: self.mouse_pos.0 as f32,
-                    y: self.mouse_pos.1 as f32,
-                };
-                self.renderer.render(
-                    &mut pixmap_mut,
-                    &self.store,
-                    &mut self.ui,
-                    SceneOverlay {
-                        guides: &self.active_guides,
-                        selection_box: self.selection_box,
-                        editing: self.editing_session.as_ref(),
-                    },
-                    pointer,
-                );
-
-                // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
-                // `scale` et les coordonnées de la souris sont désormais portés par
-                // deux types distincts : les intervertir ne compile plus (R-44).
-                render_docks(
-                    &mut pixmap_mut,
-                    &self.dock_manager,
-                    &self.store,
-                    &DockPass {
-                        typo: &self.renderer.typography,
-                        theme: &self.renderer.theme,
-                        screen: ScreenFrame {
-                            width: width as f32,
-                            height: height as f32,
-                            header_h: self.ui.header_height(),
-                            scale: self.ui.scale_factor,
+                if !sale.est_propre() {
+                    Self::peindre(
+                        pixmap,
+                        &mut self.renderer,
+                        &self.store,
+                        &mut self.ui,
+                        &self.dock_manager,
+                        &self.dock_cache,
+                        SceneOverlay {
+                            guides: &self.active_guides,
+                            selection_box: self.selection_box,
+                            editing: self.editing_session.as_ref(),
                         },
-                        pointer,
-                        cache: Some(&self.dock_cache),
-                    },
-                );
-                crate::perf::stage("docks");
-
+                        Pointer {
+                            x: self.mouse_pos.0 as f32,
+                            y: self.mouse_pos.1 as f32,
+                        },
+                        echelle,
+                    );
+                }
+                // Combien d'images se sont contentées de reparaitre. Un nombre qui monte vite
+                // dit que l'application se fait réveiller pour rien -- et c'est une question
+                // qu'on ne pouvait pas poser avant que la salissure existe.
+                crate::perf::compteur("img_evitee", f64::from(u8::from(sale.est_propre())));
+                // On présente même quand rien n'a été redessiné : la demande peut venir du
+                // système -- une fenêtre recouverte puis dégagée -- et non de nous.
                 if let Err(e) = presenter.present(pixmap) {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
@@ -296,6 +305,50 @@ impl GlucoseApp {
                 .min(u128::from(u64::MAX)) as u64;
             crate::perf::frame_end();
         }
+    }
+
+    /// Peint la scène et la chrome dans le tampon.
+    ///
+    /// Extraite de `redraw` parce que celle-ci a désormais une décision à prendre avant de
+    /// peindre -- y a-t-il seulement quelque chose à redessiner -- et qu'un ordonnanceur qui
+    /// peint aussi finit par ne plus laisser voir la décision.
+    #[allow(clippy::too_many_arguments)]
+    fn peindre(
+        pixmap: &mut Pixmap,
+        renderer: &mut Renderer,
+        store: &Store,
+        ui: &mut UiState,
+        dock_manager: &DockManager,
+        dock_cache: &DockCache,
+        overlay: SceneOverlay<'_>,
+        pointer: Pointer,
+        scale: f32,
+    ) {
+        let (width, height) = (pixmap.width(), pixmap.height());
+        let mut vue = pixmap.as_mut();
+        renderer.render(&mut vue, store, ui, overlay, pointer);
+
+        // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
+        // `scale` et les coordonnées de la souris sont désormais portés par
+        // deux types distincts : les intervertir ne compile plus (R-44).
+        render_docks(
+            &mut vue,
+            dock_manager,
+            store,
+            &DockPass {
+                typo: &renderer.typography,
+                theme: &renderer.theme,
+                screen: ScreenFrame {
+                    width: width as f32,
+                    height: height as f32,
+                    header_h: ui.header_height(),
+                    scale,
+                },
+                pointer,
+                cache: Some(dock_cache),
+            },
+        );
+        crate::perf::stage("docks");
     }
 
     /// Intervalle minimal entre deux frames animées.
@@ -309,8 +362,25 @@ impl GlucoseApp {
             .clamp(ANIMATION_MIN_INTERVAL_MS, ANIMATION_MAX_INTERVAL_MS)
     }
 
-    /// Marque la vue comme sale et planifie un rafraîchissement asynchrone coalescé par Winit (Roadmap 1.11, R-15).
+    /// Marque **toute** la vue comme sale et planifie un rafraîchissement (R-15).
+    ///
+    /// C'est la déclaration de celui qui ne sait pas ce qu'il a changé, et elle reste juste :
+    /// redessiner l'écran entier coûte ce qu'il coûtait hier. Un geste qui sait désigner sa
+    /// zone appelle [`GlucoseApp::salir`] et paie beaucoup moins.
     pub fn mark_dirty(&self) {
+        self.salissure.set(crate::salissure::Salissure::Tout);
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+
+    /// Marque cette zone du **monde** comme sale, et elle seule (A.1).
+    ///
+    /// Une zone précise ne peut jamais réduire une salissure déjà posée : si `Tout` a été
+    /// demandé par ailleurs pendant la même image, il l'emporte. C'est ce qui rend l'ordre des
+    /// déclarations indifférent, et donc ce mécanisme sûr à adopter progressivement.
+    pub fn salir(&self, zone: glucose_core::geometry::Rect) {
+        self.salissure.set(self.salissure.get().avec(zone));
         if let Some(window) = &self.window {
             window.request_redraw();
         }
