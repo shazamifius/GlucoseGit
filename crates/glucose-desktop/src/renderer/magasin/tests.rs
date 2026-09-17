@@ -68,7 +68,10 @@ fn test_l_image_finit_par_arriver_et_reste() {
     let src = photo_temoin("magasin-arrivee.png");
     let mut magasin = Magasin::nouveau();
 
-    assert!(attendre(&mut magasin, &src), "l'image doit finir par arriver");
+    assert!(
+        attendre(&mut magasin, &src),
+        "l'image doit finir par arriver"
+    );
     assert_eq!(magasin.en_travail(), 0, "le chantier est vide");
 
     let pyramide = magasin.pyramide(&src).expect("elle est dans le cache");
@@ -76,7 +79,10 @@ fn test_l_image_finit_par_arriver_et_reste() {
         (pyramide.native().width(), pyramide.native().height()),
         (48, 32)
     );
-    assert!(magasin.octets() > 0, "elle occupe de la place, et on le sait");
+    assert!(
+        magasin.octets() > 0,
+        "elle occupe de la place, et on le sait"
+    );
 }
 
 #[test]
@@ -95,7 +101,11 @@ fn test_un_fichier_illisible_ne_se_redemande_jamais() {
     // R-29 : sans le cache négatif, chaque image redemanderait ce fichier, et l'atelier
     // passerait sa vie à rouvrir un fichier qui n'existe pas.
     assert!(magasin.pyramide(&absent).is_none());
-    assert_eq!(magasin.en_travail(), 0, "aucune nouvelle demande n'est partie");
+    assert_eq!(
+        magasin.en_travail(),
+        0,
+        "aucune nouvelle demande n'est partie"
+    );
 }
 
 #[test]

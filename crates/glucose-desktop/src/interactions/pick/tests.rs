@@ -42,11 +42,7 @@ fn app_with_stack() -> GlucoseApp {
 
 /// Le centre commun des deux membranes, en coordonnées écran.
 fn centre(app: &GlucoseApp) -> (f64, f64) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     world_to_screen(200.0, 150.0, &vp)
 }
 

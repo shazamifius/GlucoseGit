@@ -32,11 +32,7 @@ impl GlucoseApp {
         if (x2 - x1).abs() <= RUBBERBAND_MIN_PX && (y2 - y1).abs() <= RUBBERBAND_MIN_PX {
             return;
         }
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (left, top) = screen_to_world(x1.min(x2), y1.min(y2), &vp);
         let (right, bottom) = screen_to_world(x1.max(x2), y1.max(y2), &vp);
         let lasso = Rect::new(left, top, right - left, bottom - top);

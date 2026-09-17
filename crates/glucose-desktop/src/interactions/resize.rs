@@ -178,11 +178,7 @@ impl GlucoseApp {
         let Some(session) = self.resize_session.as_mut() else {
             return;
         };
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(screen_x, screen_y, &vp);
         let delta = (wx - session.pointer_start.0, wy - session.pointer_start.1);
         if delta.0 == 0.0 && delta.1 == 0.0 {
@@ -365,11 +361,7 @@ impl GlucoseApp {
         {
             return None;
         }
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
         let candidate = self
             .pick_candidate_at(wx, wy)

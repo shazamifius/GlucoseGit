@@ -153,11 +153,7 @@ impl GlucoseApp {
     /// débloquera le glisser depuis un navigateur — c'est la même interface qui porte les
     /// deux, et la bricoler d'ici là serait écrire du code à jeter.
     fn drop_origin(&self) -> (f64, f64) {
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (w, h) = self.window.as_ref().map_or((1440.0, 900.0), |window| {
             let size = window.inner_size();
             (f64::from(size.width), f64::from(size.height))

@@ -164,11 +164,7 @@ fn canvas_app() -> GlucoseApp {
 }
 
 fn screen_of(app: &GlucoseApp, wx: f64, wy: f64) -> (f64, f64) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     world_to_screen(wx, wy, &vp)
 }
 
@@ -309,11 +305,7 @@ fn finish_flight(app: &mut GlucoseApp) {
 
 /// Pose le curseur au point monde `(wx, wy)` et clique.
 fn click_world(app: &mut GlucoseApp, wx: f64, wy: f64) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let (sx, sy) = crate::canvas::world_to_screen(wx, wy, &vp);
     app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);

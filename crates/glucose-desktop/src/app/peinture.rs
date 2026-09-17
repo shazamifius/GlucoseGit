@@ -59,11 +59,7 @@ impl GlucoseApp {
             return;
         };
         let header_h = self.ui.header_height();
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let overlay = SceneOverlay {
             guides: &self.active_guides,
             selection_box: self.selection_box,
@@ -111,7 +107,7 @@ impl GlucoseApp {
     }
 }
 
-    /// Ce qu'une passe peut dessiner **au-delà** du rectangle d'un nœud, en pixels.
+/// Ce qu'une passe peut dessiner **au-delà** du rectangle d'un nœud, en pixels.
 ///
 /// C'est la portée du flou des halos, seule passe qui déborde vraiment : `bench_zone` a
 /// mesuré que l'écart entre un rendu par région et un rendu complet s'éteint entre seize
@@ -211,4 +207,3 @@ fn peindre_tout(
     );
     crate::perf::stage("docks");
 }
-

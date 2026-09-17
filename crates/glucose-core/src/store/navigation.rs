@@ -30,6 +30,22 @@ pub fn build_folder_stack(boards: &[Board], active_board_id: &str) -> Vec<(Strin
 }
 
 impl Store {
+    /// La vue du tableau actif, ou celle par defaut s'il n'y en a pas.
+    ///
+    /// # Pourquoi cette methode existe
+    ///
+    /// `store.active_board().map(|b| b.viewport).unwrap_or_default()` se repetait dans le
+    /// rendu, la peinture, les gestes et la chronique. Ce n'est pas qu'une longueur : chaque
+    /// occurrence est un acces direct a un champ du modele, donc un point ou le desktop se
+    /// couple a la forme interne du document -- ce que la regle S interdit, et ce que le
+    /// cliquet 1 compte.
+    ///
+    /// Une vue par defaut plutot qu'une `Option` : un document sans tableau actif n'existe
+    /// pas a l'usage, et tous les appelants faisaient deja `unwrap_or_default`.
+    pub fn viewport(&self) -> crate::types::Viewport {
+        self.active_board().map(|b| b.viewport).unwrap_or_default()
+    }
+
     pub fn active_board(&self) -> Option<&Board> {
         self.project
             .boards

@@ -134,10 +134,7 @@ fn main() {
         photo(&dossier, "import-05mpx.png", 800, 600),
     ];
 
-    println!(
-        "La cadence PENDANT un import — {} × {}\n",
-        ECRAN.0, ECRAN.1
-    );
+    println!("La cadence PENDANT un import — {} × {}\n", ECRAN.0, ECRAN.1);
     println!(
         "  {:>7}  {:>14}  {:>10}  {:>12}  {:>10}",
         "photos", "pire image", "images", "décodage", "cadence"

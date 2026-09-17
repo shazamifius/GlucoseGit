@@ -6,8 +6,8 @@
 
 use super::super::domain::draw_domain_gauge;
 use super::super::handles::draw_rotated_handles;
-use super::super::pass::Clip;
 use super::super::magasin::Magasin;
+use super::super::pass::Clip;
 use super::super::scale::WorldScale;
 use super::super::{photo, vignette, PaintKit};
 use crate::canvas::world_to_screen;

@@ -61,11 +61,7 @@ fn image_x(app: &GlucoseApp, id: &str) -> f64 {
 
 /// Appuie au centre de l'image `id`, là où elle est dessinée.
 fn press_on(app: &mut GlucoseApp, id: &str) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let img = app
         .store
         .active_board()
@@ -77,11 +73,7 @@ fn press_on(app: &mut GlucoseApp, id: &str) {
 }
 
 fn drag_by(app: &mut GlucoseApp, dx: f64, steps: usize) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let (x0, y0) = app.mouse_pos;
     for i in 1..=steps {
         let t = i as f64 / steps as f64;

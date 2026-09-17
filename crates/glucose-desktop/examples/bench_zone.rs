@@ -238,10 +238,7 @@ fn main() {
     );
     println!(
         "  {:<26} {:>11.1}% {:>10.2}ms {:>14}",
-        "toute la fenêtre",
-        100.0,
-        complet,
-        "—"
+        "toute la fenêtre", 100.0, complet, "—"
     );
     for (x0, y0, w, h) in [(200u32, 150u32, 400u32, 300u32), (500, 300, 200, 150)] {
         let ms = chronometrer(&store, (w, h), (f64::from(x0), f64::from(y0)));

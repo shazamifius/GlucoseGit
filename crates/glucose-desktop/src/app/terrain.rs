@@ -1,0 +1,129 @@
+//! Ce que l'application enregistre de son propre usage (CHRONIQUE-1).
+//!
+//! # Le geste se deduit, il ne se declare pas
+//!
+//! Un geste qui devrait penser a s'annoncer finirait par oublier -- et c'est exactement le
+//! genre d'oubli qui a coute une journee de recherche cette semaine. L'etat de l'application
+//! dit deja tout : une session de redimensionnement est ouverte, un glisser est en cours, la
+//! vue a change d'echelle. Il suffit de le lire.
+//!
+//! Le zoom est le seul qui n'ait pas d'etat persistant -- c'est un evenement de molette, pas
+//! une session. Il se lit donc sur le document lui-meme : **si l'echelle de la vue a change
+//! depuis l'image precedente, on zoome**. C'est exact, et aucune duree d'attente arbitraire
+//! n'a besoin d'etre choisie.
+//!
+//! # Ce qui est enregistre, et ce qui ne peut pas l'etre
+//!
+//! Des durees et des nombres. Le type `Instantane` ne porte que des entiers : aucun chemin,
+//! aucun nom de fichier, aucun texte de carte ne peut traverser ce chemin, quelle que soit la
+//! bonne ou mauvaise volonte d'un appelant futur.
+
+use super::GlucoseApp;
+use crate::chronique::{Geste, Instantane};
+
+impl GlucoseApp {
+    /// Ce que l'utilisateur est en train de faire.
+    ///
+    /// L'ordre compte : un zoom pendant un glisser **est** un zoom, parce que c'est le zoom
+    /// qui refait toute l'image alors que le glisser n'en refait qu'un morceau.
+    pub(super) fn geste_courant(&self, echelle_precedente: f64) -> Geste {
+        let vp = self.store.viewport();
+        if vp.scale != echelle_precedente {
+            return Geste::Zoomer;
+        }
+        if self.is_panning {
+            return Geste::DeplacerLaVue;
+        }
+        if self.resize_session.is_some() {
+            return Geste::Redimensionner;
+        }
+        if self.is_dragging_item {
+            return Geste::GlisserUnNoeud;
+        }
+        if self.draw_session.is_some() {
+            return Geste::Dessiner;
+        }
+        if self.selection_box.is_some() {
+            return Geste::Selectionner;
+        }
+        if self.editing_session.is_some() {
+            return Geste::EditerDuTexte;
+        }
+        if self.renderer.magasin.en_travail() > 0 {
+            return Geste::Decoder;
+        }
+        Geste::Repos
+    }
+
+    /// Enregistre l'image qui vient de se dessiner.
+    ///
+    /// Les postes viennent de la trace, qui les mesure desormais toujours : la variable
+    /// d'environnement ne decide plus que de l'affichage.
+    pub(super) fn enregistrer_l_image(&mut self, duree_us: u32, fenetre: (u32, u32)) {
+        let echelle = self
+            .store
+            .active_board()
+            .map(|b| b.viewport.scale)
+            .unwrap_or(1.0);
+        let geste = self.geste_courant(self.echelle_precedente);
+        self.echelle_precedente = echelle;
+
+        let mut vu = Instantane {
+            duree_us,
+            geste: Geste::TOUS.iter().position(|g| *g == geste).unwrap_or(0) as u8,
+            fenetre_px: fenetre.0.saturating_mul(fenetre.1),
+            ..Default::default()
+        };
+
+        for (nom, ms) in crate::perf::postes() {
+            let Some(i) = self.chronique.poste(nom) else {
+                continue;
+            };
+            vu.postes_us[i] = (ms * 1000.0).clamp(0.0, f64::from(u32::MAX)) as u32;
+        }
+
+        let lire = |nom: &str| crate::perf::valeur_du_compteur(nom).unwrap_or(0.0);
+        vu.photos = lire("img_n") as u32;
+        vu.images_mo = lire("img_mo") as u32;
+        vu.en_decodage = lire("img_attente").clamp(0.0, f64::from(u16::MAX)) as u16;
+        // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
+        // redessine du tout vaut zero, ce qui est exact.
+        vu.region_px = lire("img_region") as u32;
+        vu.noeuds = self.renderer.spatial_hash.len() as u32;
+
+        self.chronique.enregistrer(vu);
+    }
+
+    /// Ecrit le rapport de la session a cote du journal de l'application.
+    ///
+    /// Rend le chemin, pour que l'appelant puisse le dire a l'utilisateur -- un rapport qu'on
+    /// ne sait pas retrouver ne sert a personne.
+    pub fn ecrire_la_chronique(&self) -> std::io::Result<std::path::PathBuf> {
+        let dossier = std::env::temp_dir().join("glucose-chronique");
+        std::fs::create_dir_all(&dossier)?;
+        let chemin = dossier.join("derniere-session.txt");
+        std::fs::write(&chemin, self.chronique.rapport())?;
+        Ok(chemin)
+    }
+
+    /// Ecrit la chronique et la dit, au moment de fermer.
+    ///
+    /// Sur la console **et** dans un fichier : la console sert a qui lance depuis un terminal
+    /// et veut voir tout de suite ; le fichier sert a qui lance l'application normalement, et
+    /// pourra le retrouver ensuite.
+    pub(super) fn clore_la_chronique(&self) {
+        // Une session d'une poignee d'images n'apprend rien et noierait l'utile.
+        if self.chronique.rendues() < 30 {
+            return;
+        }
+        println!(
+            "
+{}",
+            self.chronique.rapport()
+        );
+        match self.ecrire_la_chronique() {
+            Ok(chemin) => println!("[Glucose] chronique ecrite dans {}", chemin.display()),
+            Err(e) => eprintln!("[Glucose] chronique non ecrite : {e}"),
+        }
+    }
+}

@@ -73,11 +73,7 @@ impl GlucoseApp {
             // Un objet qui naît sous la main suit le curseur (DRAW-1). Il passe avant le
             // redimensionnement et le glisser : ces deux-là agissent sur ce qui existait
             // déjà, celui-ci sur ce qui vient d'apparaître sous le doigt.
-            let vp = self
-                .store
-                .active_board()
-                .map(|b| b.viewport)
-                .unwrap_or_default();
+            let vp = self.store.viewport();
             let (wx, wy) = crate::canvas::screen_to_world(position.x, position.y, &vp);
             self.update_draw(wx, wy);
         } else if self.resize_session.is_some() {

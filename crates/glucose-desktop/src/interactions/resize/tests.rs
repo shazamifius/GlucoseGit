@@ -114,11 +114,7 @@ fn ann_box(app: &GlucoseApp, id: &str) -> AlignRect {
 
 /// Appuie exactement sur `handle` du rectangle monde `rect`.
 pub(super) fn press_handle(app: &mut GlucoseApp, rect: AlignRect, handle: Handle) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let (hx, hy) = handle.position_on(rect);
     let (sx, sy) = world_to_screen(hx, hy, &vp);
     app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
@@ -127,11 +123,7 @@ pub(super) fn press_handle(app: &mut GlucoseApp, rect: AlignRect, handle: Handle
 
 /// Déplace le pointeur de `(dx, dy)` unités monde, en `steps` événements.
 pub(super) fn drag_by(app: &mut GlucoseApp, dx: f64, dy: f64, steps: usize) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let (x0, y0) = app.mouse_pos;
     for i in 1..=steps {
         let t = i as f64 / steps as f64;
@@ -367,11 +359,7 @@ fn test_the_cursor_announces_the_gesture_over_a_handle_before_any_click() {
     let mut app = app();
     with_image(&mut app, "I1", 0.0, 0.0, 200.0, 100.0);
     let rect = image_box(&app, "I1");
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     for (handle, expected) in [
         (Handle::Right, CursorIcon::EwResize),
         (Handle::Top, CursorIcon::NsResize),
@@ -400,11 +388,7 @@ fn test_pick_1_a_handle_wins_over_the_node_and_the_node_over_the_canvas() {
     with_image(&mut app, "I1", 0.0, 0.0, 200.0, 100.0);
     let rect = image_box(&app, "I1");
     // Clic au centre : déplacement, pas redimensionnement.
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let (sx, sy) = world_to_screen(0.0, 0.0, &vp);
     app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
     app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);

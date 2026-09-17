@@ -27,11 +27,7 @@ impl GlucoseApp {
             return;
         }
 
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
         // Les poignées de coude passent avant le redimensionnement : elles appartiennent à
@@ -139,11 +135,7 @@ impl GlucoseApp {
         if self.pick_cycle.is_none() {
             return;
         }
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
         let candidates = self.pick_candidates_at(wx, wy);
         let (picked, cycle) =

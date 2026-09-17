@@ -41,7 +41,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
         tints: &tints,
         theme: &theme,
     };
-    let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
+    let vp = store.viewport();
     let rangs = glucose_core::quadtree::tous_les_rangs(
         store.active_board().expect("la preuve a un tableau actif"),
     );

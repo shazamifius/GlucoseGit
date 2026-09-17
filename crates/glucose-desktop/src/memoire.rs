@@ -128,10 +128,7 @@ mod plateforme {
         };
         let totale = champ("MemTotal:")?;
         let disponible = champ("MemAvailable:").or_else(|| champ("MemFree:"))?;
-        Some(Memoire {
-            totale,
-            disponible,
-        })
+        Some(Memoire { totale, disponible })
     }
 }
 

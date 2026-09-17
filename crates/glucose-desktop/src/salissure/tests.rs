@@ -55,8 +55,14 @@ fn test_deux_zones_donnent_leur_englobant() {
 #[test]
 fn test_rien_est_le_neutre_de_l_union() {
     let a = rect(5.0, 5.0, 5.0, 5.0);
-    assert_eq!(Salissure::Rien.union(Salissure::Zone(a)), Salissure::Zone(a));
-    assert_eq!(Salissure::Zone(a).union(Salissure::Rien), Salissure::Zone(a));
+    assert_eq!(
+        Salissure::Rien.union(Salissure::Zone(a)),
+        Salissure::Zone(a)
+    );
+    assert_eq!(
+        Salissure::Zone(a).union(Salissure::Rien),
+        Salissure::Zone(a)
+    );
     assert_eq!(Salissure::Rien.union(Salissure::Rien), Salissure::Rien);
     assert_eq!(Salissure::Rien.avec(a), Salissure::Zone(a));
 }
@@ -96,12 +102,16 @@ fn test_une_region_trop_grande_vaut_toute_la_fenetre() {
     // point où les deux s'égalent, il n'est pas choisi.
     let grande = Salissure::Zone(rect(0.0, 0.0, 1000.0, 700.0));
     assert!(
-        grande.region(&vue(0.0, 0.0, 1.0), (1280, 800), 0.0).is_none(),
+        grande
+            .region(&vue(0.0, 0.0, 1.0), (1280, 800), 0.0)
+            .is_none(),
         "une zone qui couvre plus de la moitié doit rendre la fenêtre entière"
     );
 
     let petite = Salissure::Zone(rect(0.0, 0.0, 300.0, 300.0));
-    assert!(petite.region(&vue(0.0, 0.0, 1.0), (1280, 800), 0.0).is_some());
+    assert!(petite
+        .region(&vue(0.0, 0.0, 1.0), (1280, 800), 0.0)
+        .is_some());
 }
 
 #[test]

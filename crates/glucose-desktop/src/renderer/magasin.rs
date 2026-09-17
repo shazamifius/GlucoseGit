@@ -187,11 +187,7 @@ impl Magasin {
             .filter(|(_, e)| e.vue != image)
             .map(|(src, e)| {
                 let octets = e.pyramide.octets().max(1) as u64;
-                (
-                    e.cout.as_secs_f64() / octets as f64,
-                    src.clone(),
-                    octets,
-                )
+                (e.cout.as_secs_f64() / octets as f64, src.clone(), octets)
             })
             .collect();
         // Le moins utile part le premier. `total_cmp` plutôt qu'un `partial_cmp` déplié : il

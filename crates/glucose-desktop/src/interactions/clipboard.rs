@@ -27,11 +27,7 @@ impl GlucoseApp {
     /// Importe une liste de chemins de fichiers image dans le board actif.
     pub fn import_image_files(&mut self, paths: &[PathBuf]) {
         let active_bid = self.store.project.active_board_id.clone();
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (mut cur_wx, mut cur_wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
         if self.mouse_pos.1 < self.ui.header_height() as f64 {
@@ -121,11 +117,7 @@ impl GlucoseApp {
     /// Coller depuis le presse-papiers (Image ou Texte).
     pub fn paste_from_clipboard(&mut self) {
         let active_bid = self.store.project.active_board_id.clone();
-        let vp = self
-            .store
-            .active_board()
-            .map(|b| b.viewport)
-            .unwrap_or_default();
+        let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
         match Clipboard::new() {

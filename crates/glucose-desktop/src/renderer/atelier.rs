@@ -78,7 +78,10 @@ impl Atelier {
             // tombe, `recv` rend une erreur et la boucle se termine d'elle-même : il n'y a ni
             // drapeau d'arrêt à lever, ni fil à attendre.
             std::thread::spawn(move || loop {
-                let Ok(src) = file.lock().map_err(|_| ()).and_then(|f| f.recv().map_err(|_| ()))
+                let Ok(src) = file
+                    .lock()
+                    .map_err(|_| ())
+                    .and_then(|f| f.recv().map_err(|_| ()))
                 else {
                     return;
                 };

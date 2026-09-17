@@ -93,7 +93,10 @@ fn test_un_fichier_absent_revient_sans_image_et_sans_bloquer() {
     let moisson = moisson_complete(&mut atelier);
 
     assert_eq!(moisson.len(), 1);
-    assert!(moisson[0].1.is_none(), "pas d'image, et c'est un cas normal");
+    assert!(
+        moisson[0].1.is_none(),
+        "pas d'image, et c'est un cas normal"
+    );
     assert_eq!(atelier.en_travail(), 0, "un échec libère le chantier");
 }
 
@@ -113,7 +116,9 @@ fn test_un_lot_entier_se_decode_sans_qu_aucune_demande_se_perde() {
     assert_eq!(moisson.len(), 12, "douze demandes, douze réponses");
     for src in &attendus {
         assert!(
-            moisson.iter().any(|(rendu, img, _)| rendu == src && img.is_some()),
+            moisson
+                .iter()
+                .any(|(rendu, img, _)| rendu == src && img.is_some()),
             "{src} n'est pas revenu"
         );
     }
@@ -148,5 +153,8 @@ fn test_un_pixel_opaque_traverse_la_premultiplication_intact() {
 fn test_l_atelier_a_toujours_au_moins_un_ouvrier() {
     // Sur une machine qui n'annonce qu'un cœur, « tous sauf un » donnerait zéro — et rien ne
     // serait jamais décodé.
-    assert!(ouvriers() >= 1, "au moins un ouvrier, quelle que soit la machine");
+    assert!(
+        ouvriers() >= 1,
+        "au moins un ouvrier, quelle que soit la machine"
+    );
 }

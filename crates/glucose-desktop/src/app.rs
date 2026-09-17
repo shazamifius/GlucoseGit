@@ -2,10 +2,9 @@
 
 mod peinture;
 mod reveil;
+mod terrain;
 
-use crate::dock::{
-    apply_organize_layout, DockCache, DockManager, OrganizeState,
-};
+use crate::dock::{apply_organize_layout, DockCache, DockManager, OrganizeState};
 use crate::error::{DesktopError, DesktopResult};
 use crate::interactions::resize::ResizeSession;
 use crate::interactions::tools::text_card;
@@ -138,6 +137,16 @@ pub struct GlucoseApp {
     pub saved_version: u64,
     /// Dernier titre posé sur la fenêtre, pour ne pas repayer un appel système par frame.
     pub window_title_cache: String,
+    /// Ce que la session a observe : ce qui coute, et ce qui a gele (CHRONIQUE-1).
+    ///
+    /// Enregistre en permanence, chez l'utilisateur, pendant l'usage reel. C'est la seule
+    /// mesure qui dise ce qu'il vit -- un banc ne mesure que ce qu'on lui demande.
+    pub chronique: crate::chronique::Chronique,
+    /// L'echelle de la vue a l'image precedente, qui suffit a reconnaitre un zoom.
+    ///
+    /// Le zoom n'a pas de session : c'est un evenement de molette. Le deduire du document
+    /// evite d'inventer une duree d'attente apres laquelle on cesserait de "zoomer".
+    echelle_precedente: f64,
     /// Ce qui a changé depuis la dernière image, et doit donc être redessiné (A.1).
     ///
     /// Dans une `Cell` pour que [`GlucoseApp::mark_dirty`] reste en `&self` : soixante-deux
@@ -224,6 +233,8 @@ impl GlucoseApp {
             project_path: None,
             saved_version,
             window_title_cache: String::new(),
+            chronique: crate::chronique::Chronique::nouvelle(),
+            echelle_precedente: 1.0,
             // Tout, et non rien : la première image doit se dessiner entièrement.
             salissure: std::cell::Cell::new(crate::salissure::Salissure::Tout),
         }
@@ -269,11 +280,15 @@ impl GlucoseApp {
                 }
             }
 
-            self.last_frame_ms = frame_started
-                .elapsed()
-                .as_millis()
-                .min(u128::from(u64::MAX)) as u64;
+            let ecoule = frame_started.elapsed();
+            self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
             crate::perf::frame_end();
+            // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il
+            // se contente de les afficher quand la trace est demandee.
+            self.enregistrer_l_image(
+                ecoule.as_micros().min(u128::from(u32::MAX)) as u32,
+                (width, height),
+            );
         }
     }
 
@@ -439,6 +454,7 @@ impl ApplicationHandler for GlucoseApp {
                 // R-48 — la croix ne jette plus le travail : un document modifié pose la
                 // question, et un enregistrement raté annule la fermeture (SAVE-3).
                 if self.request_close() {
+                    self.clore_la_chronique();
                     event_loop.exit();
                 } else {
                     self.mark_dirty();

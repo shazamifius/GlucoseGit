@@ -296,7 +296,7 @@ impl Renderer {
     ) {
         let width = pixmap.width();
         let height = pixmap.height();
-        let mut vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
+        let mut vp = store.viewport();
         vp.x -= f64::from(origine.0);
         vp.y -= f64::from(origine.1);
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
@@ -340,13 +340,7 @@ impl Renderer {
         crate::perf::stage("folders");
 
         // 5. Images
-        scene::draw_images(
-            &mut self.magasin,
-            kit,
-            pixmap,
-            store,
-            pass,
-        );
+        scene::draw_images(&mut self.magasin, kit, pixmap, store, pass);
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
@@ -393,9 +387,9 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tiny_skia::Pixmap;
     use crate::params::ScreenFrame;
     use glucose_core::smart_align::SnapGuides;
+    use tiny_skia::Pixmap;
 
     /// Budget de temps d'une frame complète (scène + docks) en 1440x900, en debug.
     ///

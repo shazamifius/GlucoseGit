@@ -41,10 +41,17 @@ thread_local! {
 }
 
 /// Ouvre une nouvelle frame de mesure.
+///
+/// # Pourquoi la mesure a lieu meme sans `GLUCOSE_PERF`
+///
+/// La trace verbeuse est une aide de developpement ; la **chronique**, elle, enregistre en
+/// permanence chez l'utilisateur, et c'est d'elle que viendra la connaissance du terrain.
+/// Les deux lisent les memes postes, donc les postes se mesurent toujours.
+///
+/// Le cout est une quinzaine d'appels a `Instant::now()` par image, soit environ trois cents
+/// nanosecondes : un huit-millieme du budget d'une image a 400 fps. La variable d'environnement
+/// ne decide plus de MESURER, seulement d'AFFICHER.
 pub fn frame_begin() {
-    if !enabled() {
-        return;
-    }
     let now = Instant::now();
     if level() >= 2 {
         eprintln!("[perf] --- frame begin ---");
@@ -62,17 +69,27 @@ pub fn frame_begin() {
 /// tranche ce que le chronomètre laisse ambigu — combien de nœuds, combien de pixels, combien
 /// de mégaoctets — et c'est la seule façon de ne pas avoir à deviner.
 pub fn compteur(label: &'static str, valeur: f64) {
-    if !enabled() {
-        return;
-    }
     COMPTEURS.with(|c| c.borrow_mut().push((label, valeur)));
+}
+
+/// Les postes de la frame en cours, tels que la chronique les lira.
+pub fn postes() -> Vec<(&'static str, f64)> {
+    STAGES.with(|s| s.borrow().clone())
+}
+
+/// La derniere valeur declaree sous ce nom pendant la frame en cours.
+pub fn valeur_du_compteur(label: &str) -> Option<f64> {
+    COMPTEURS.with(|c| {
+        c.borrow()
+            .iter()
+            .rev()
+            .find(|(nom, _)| *nom == label)
+            .map(|(_, v)| *v)
+    })
 }
 
 /// Enregistre la durée écoulée depuis le repère précédent sous le nom `label`.
 pub fn stage(label: &'static str) {
-    if !enabled() {
-        return;
-    }
     let now = Instant::now();
     let previous = LAST_MARK.with(|c| c.replace(Some(now)));
     if let Some(prev) = previous {
@@ -87,6 +104,8 @@ pub fn stage(label: &'static str) {
 /// Clôt la frame courante et écrit la ligne de trace sur stderr.
 pub fn frame_end() {
     if !enabled() {
+        // Les postes restent en place : la chronique les lit apres coup, et `frame_begin`
+        // les videra a la prochaine image.
         return;
     }
     let total_ms = FRAME_START

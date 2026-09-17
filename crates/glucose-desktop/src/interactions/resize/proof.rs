@@ -93,11 +93,7 @@ fn diff_bbox_within(
 }
 
 fn screen_box(app: &GlucoseApp, rect: AlignRect) -> (f64, f64, f64, f64) {
-    let vp = app
-        .store
-        .active_board()
-        .map(|b| b.viewport)
-        .unwrap_or_default();
+    let vp = app.store.viewport();
     let (x0, y0) = world_to_screen(rect.left, rect.top, &vp);
     let (x1, y1) = world_to_screen(rect.left + rect.width, rect.top + rect.height, &vp);
     (x0, y0, x1, y1)
