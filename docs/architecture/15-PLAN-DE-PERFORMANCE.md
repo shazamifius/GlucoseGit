@@ -196,6 +196,83 @@ de zoom dans les deux régimes, et regarder — l'œil décide, pas le raisonnem
 
 ---
 
+## 5 bis. La contrainte qui prime sur tout le reste — personne n'est exclu
+
+**Décidé le 17/09/2026, et non réouvrable.** J'avais proposé d'activer `x86-64-v3` (AVX2) :
+1,5 à 2,2 fois sur tout le rendu processeur, pour une ligne de configuration. C'est **refusé**,
+parce que le binaire cesserait de démarrer sur un PC antérieur à ~2013.
+
+La formulation de l'utilisateur fait loi : tous les CPU, tous les GPU, toutes les cartes du
+monde doivent faire tourner Glucose, et **personne ne doit manquer de quoi que ce soit** — ni
+de fluidité, ni de contrôle sur le canevas, ni d'interface.
+
+### Ce que le gain valait vraiment, mesuré avant de renoncer
+
+Refuser une optimisation sans savoir ce qu'elle vaut serait aussi peu sérieux que l'activer
+sans savoir qui elle exclut. Banc des photos, 2560 × 1600, trente-six images :
+
+| Source | par défaut | `x86-64-v3` | rapport |
+|---|---:|---:|---:|
+| 12 Mpx, zoom 1 | 18,9 ms | **13,2 ms** | 1,43× |
+| 2 Mpx, zoom 1 | 21,3 ms | **10,0 ms** | 2,13× |
+| 0,5 Mpx, zoom 1 | 19,1 ms | **13,2 ms** | 1,45× |
+| zoom 0,5 | 7,4 – 11,4 ms | 5,5 – 6,3 ms | ~1,6× |
+
+Le gain est donc réel, et il est refusé en connaissance de cause.
+
+### Et pourquoi la détection à l'exécution ne le récupère pas (aujourd'hui)
+
+La réponse évidente serait `is_x86_feature_detected!` : le binaire démarre partout et prend le
+chemin rapide là où il existe. C'est la bonne forme, et c'est celle qu'on prendra le jour où
+elle servira — mais elle ne sert presque à rien **en l'état**.
+
+`#[target_feature]` s'applique à nos fonctions. Or ce banc passe l'essentiel de son temps dans
+`draw_pixmap`, c'est-à-dire **dans `tiny-skia`**, qu'on ne recompile pas en deux variantes.
+Le facteur deux mesuré ci-dessus vient de là ; le récupérer supposerait d'écrire nous-mêmes
+les primitives de report.
+
+Ce n'est pas absurde — c'est même la direction du contrôle quasi total — mais c'est un
+chantier, et il se juge contre son alternative : **le tore divise le travail par cent trente-
+sept, là où AVX2 le divise par deux.** L'ordre de priorité s'en déduit tout seul.
+
+### Ce que cela change pour ce plan
+
+| Ce qui reste permis | Ce qui ne l'est plus |
+|---|---|
+| Détecter AVX2 **à l'exécution** et prendre le chemin rapide quand il existe | Compiler pour un jeu d'instructions que la machine pourrait ne pas avoir |
+| Le processeur graphique quand il répond | Exiger un processeur graphique |
+| Un chemin processeur **de plein droit** | Un chemin processeur « de secours », dégradé |
+
+Cela déplace le centre de gravité du plan, et dans le bon sens : **le plancher de performance
+doit venir de l'algorithme, pas de la machine.** Ne pas refaire ce qui n'a pas changé (A.1) et
+ne payer que la surface découverte (A.2, TORE-1) valent autant sur un portable de 2012 que sur
+un Ultra 9 — mieux, même, puisque le rapport de gain est le même et que le point de départ est
+plus bas.
+
+Une optimisation qui ne profite qu'aux machines récentes est donc **la moins prioritaire du
+plan**, quel que soit son facteur.
+
+### Le lien avec la règle des dépendances, qui n'est pas une règle séparée
+
+Le peu de dépendances sert le **contrôle quasi total** ; le contrôle sert l'universalité. Une
+dépendance qui **élargit** le matériel couvert se défend ; une dépendance de confort qui le
+rétrécit, non.
+
+État mesuré au 17/09/2026, qui corrige ce que le README annonce :
+
+| | crates |
+|---|---:|
+| `glucose-core` — le noyau | **1** (aucune dépendance) |
+| L'arbre entier de l'atelier | 160 |
+| dont la couche graphique portable | ~40 |
+| Dépendances **directes** déclarées | 12 |
+
+La couche GPU portable est le gros poste, et c'est exactement le cas que la charte prévoit :
+elle couvre Vulkan, Metal, Direct3D et OpenGL ES d'une seule interface. Écrire quatre pilotes
+à la main donnerait moins de contrôle réel, pas plus — et couvrirait moins de machines.
+
+---
+
 ## 6. Ce que ce plan refuse de faire
 
 * **Aucun LOD sémantique.** Décidé définitivement, et rappelé ici parce que c'est la première

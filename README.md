@@ -2,7 +2,7 @@
 
 # 🧬 Glucose
 
-### Le canvas infini de pensée visuelle, réécrit en Rust natif — 0 dépendance dans le noyau, huit assumées autour
+### Le canvas infini de pensée visuelle, réécrit en Rust natif — 0 dépendance dans le noyau
 
 *Pose. Relie. Zoome. Explore.*
 
@@ -33,10 +33,24 @@ Deux partis pris, tenus par des tests plutôt que par des promesses :
   symbiotique sont comparés aux valeurs de la référence par des tests — la teinte l'est au bit
   près, sur des vecteurs produits par le code TypeScript d'origine.
 
-Autour du noyau, huit dépendances assumées, chacune derrière une frontière : `winit` et
-`softbuffer` (fenêtre et présentation), `tiny-skia` (rastérisation), `fontdue` (glyphes),
-`image` (décodage), `rfd` (dialogues), `arboard` (presse-papiers) et `katex-rs` (mise en page des
-formules, isolée dans sa propre crate).
+Autour du noyau, **douze dépendances directes**, chacune derrière une frontière : `winit` et
+`softbuffer` (fenêtre et présentation), `wgpu` et `pollster` (la couche graphique portable),
+`tiny-skia` (rastérisation), `fontdue` (glyphes), `image` (décodage), `rfd` (dialogues),
+`arboard` (presse-papiers), `katex-rs` (mise en page des formules, isolée dans sa propre
+crate), et les deux crates de l'atelier lui-même.
+
+**Elles en entraînent 160 en tout, et il faut le dire.** Ce README a longtemps annoncé « huit
+dépendances assumées » sans préciser qu'il comptait les lignes du `Cargo.toml` et non l'arbre
+réel. Le gros du poids est la couche graphique : `wgpu` et ce qu'elle porte pèsent à elles
+seules une quarantaine de crates.
+
+Elle est assumée, et pour une raison précise : c'est **elle qui rend l'universalité possible**.
+Vulkan, Metal, Direct3D et OpenGL ES derrière une seule interface — écrire quatre pilotes à la
+main donnerait moins de contrôle réel, et couvrirait moins de machines. C'est exactement le cas
+que la règle prévoit : on ne peut pas faire sans, alors on fait intelligemment avec.
+
+Et le chemin processeur reste un **vrai chemin**, pas un secours : une machine sans pilote
+graphique, un bureau distant ou une machine virtuelle doivent ouvrir Glucose comme les autres.
 
 Développé et mesuré sous **Windows**. La pile est portable, mais aucune autre plateforme n'a
 encore été vérifiée : le dire est plus utile que le promettre.
@@ -109,6 +123,7 @@ déterministes (`glucose_core::synth`). *Mesures refaites le 2026-09-14.*
 |---|---|---|
 | **Tests** | **907**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
 | **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
+| **Dépendances de l'atelier** | **12** directes, **160** dans l'arbre, dont ~40 pour la couche graphique portable | `cargo tree --workspace` |
 | **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
 | **Chargement de 10⁷ nœuds** | **141 ms** | idem |
 | **Requête de viewport** | **0,21 µs** | idem |
