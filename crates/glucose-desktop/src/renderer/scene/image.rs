@@ -51,8 +51,20 @@ pub(in crate::renderer) fn draw_images(
     // le même écran, et une durée seule ne le distingue pas de trente-six images chères.
     let mut posees = 0.0f64;
     let mut pixels = 0.0f64;
+    let mut cachees = 0.0f64;
 
-    for img in Visibles::nouvelles(pass.visibles, board).images() {
+    // OCCLUSION-1 : on ne dessine pas ce qui sera entierement recouvert.
+    //
+    // La chronique de terrain a mesure jusqu'a **mille quatre cents fois la surface de
+    // l'ecran** pour vingt-sept photos, et neuf cents millisecondes pour les poser. En zoom
+    // proche, une seule photo couvre toute la fenetre : les vingt-six autres sont dessinees
+    // pour rien, sous elle.
+    let visibles: Vec<&glucose_core::types::BoardImage> =
+        Visibles::nouvelles(pass.visibles, board).images().collect();
+    let depart = premiere_utile(&visibles, &pass, &clip, magasin);
+    cachees += depart as f64;
+
+    for img in visibles.into_iter().skip(depart) {
         let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
         let (sx, sy) = (wx as f32, wy as f32);
         let sw = (img.width * pass.vp.scale) as f32;
@@ -88,9 +100,71 @@ pub(in crate::renderer) fn draw_images(
     // Combien d'images sont encore en chemin : c'est ce qui distingue « la scene est lente »
     // de « la scene attend », et la trace ne savait pas les separer.
     crate::perf::compteur("img_attente", magasin.en_travail() as f64);
+    // Combien d'images l'occlusion a evitees : le gain d'OCCLUSION-1, mesure plutot qu'annonce.
+    crate::perf::compteur("img_cachees", cachees);
     // Combien d'images le cache a rendues à la machine : si ce nombre monte pendant qu'on
     // travaille, c'est que la mémoire se tend et que la borne se contracte.
     crate::perf::compteur("img_rendues", magasin.evincees() as f64);
+}
+
+/// Le rang de la premiere image qui a besoin d'etre dessinee (OCCLUSION-1).
+///
+/// # Ce que cette fonction economise
+///
+/// Les images se dessinent de l'arriere vers l'avant, chacune par-dessus la precedente. Si
+/// l'une d'elles est **opaque** et couvre **toute** la zone visible, rien de ce qui la precede
+/// ne peut apparaitre : ces images sont du travail pur perdu.
+///
+/// Mesure sur le terrain avant que cette fonction existe : vingt-sept photos couvrant mille
+/// quatre cents fois la surface de l'ecran, neuf cents millisecondes pour les poser. En zoom
+/// proche -- une photo qui remplit la fenetre -- il n'y en a qu'une a dessiner.
+///
+/// # Pourquoi c'est exact, et non une approximation
+///
+/// Trois conditions, toutes constatees, aucune estimee :
+///
+/// * l'image est **opaque** -- la pyramide l'a constate pixel par pixel au decodage ;
+/// * elle n'est pas **tournee** -- sinon la zone couverte est un parallelogramme, et les coins
+///   du rectangle qui l'entoure laisseraient voir ce qu'il y a dessous ;
+/// * son rectangle ecran **contient** la zone visible, bord a bord.
+///
+/// Une image qui ne remplit pas ces trois conditions ne cache rien, et on repart de zero.
+fn premiere_utile(
+    visibles: &[&glucose_core::types::BoardImage],
+    pass: &ViewPass<'_>,
+    clip: &Clip,
+    magasin: &Magasin,
+) -> usize {
+    for (rang, img) in visibles.iter().enumerate().rev() {
+        if img.rotation != 0.0 {
+            continue;
+        }
+        let Some(src) = img.src.as_deref().filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        let Some(entree) = magasin.cache.get(src) else {
+            continue;
+        };
+        if !entree.pyramide.opaque() {
+            continue;
+        }
+        let (sx, sy, sw, sh) = boite_ecran(img, pass);
+        if sx <= 0.0 && sy <= clip.top && sx + sw >= clip.width && sy + sh >= clip.height {
+            return rang;
+        }
+    }
+    0
+}
+
+/// La boite ecran d'une image : son coin haut-gauche et sa taille.
+fn boite_ecran(img: &glucose_core::types::BoardImage, pass: &ViewPass<'_>) -> (f32, f32, f32, f32) {
+    let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
+    (
+        wx as f32,
+        wy as f32,
+        (img.width * pass.vp.scale) as f32,
+        (img.height * pass.vp.scale) as f32,
+    )
 }
 
 /// Pose cette image si elle est décodée ; sinon la demande, et le dit.
@@ -150,7 +224,12 @@ fn poser(
         ..Default::default()
     };
 
-    if img.rotation == 0.0 {
+    // Une vignette n'a de sens que si elle tient dans la fenetre : son role est d'eviter une
+    // transformation au moment de poser, or d'une image plus grande que l'ecran on ne voit
+    // qu'un morceau. En demander une en zoom proche allouait des dizaines de gigaoctets, et
+    // l'application plantait.
+    let tient = sw <= pixmap.width() as f32 && sh <= pixmap.height() as f32;
+    if img.rotation == 0.0 && tient {
         let forme = photo::Forme::posee(sx, sy, sw, sh);
         if let Some(vignette) = vignettes.pour(&img.id, forme, pyramide) {
             // La phase est déjà dans la vignette : il ne reste qu'une position entière, ce qui
@@ -324,3 +403,6 @@ fn draw_image_selection(
 }
 
 // ── Guides et boîte de sélection — taille écran constante ───────────────────
+
+#[cfg(test)]
+mod tests;

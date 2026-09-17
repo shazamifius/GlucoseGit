@@ -294,6 +294,13 @@ impl Renderer {
         header_h: f32,
         origine: (f32, f32),
     ) {
+        // L'index spatial se remet d'accord ici, et non chez l'appelant. Il l'etait dans
+        // `render`, si bien qu'un appelant de `rendre_la_scene` -- un banc, un temoin --
+        // dessinait un ecran VIDE sans que rien ne le dise. C'est arrive, et le banc annoncait
+        // alors un gain nul en toute bonne foi.
+        //
+        // Ne coute rien quand rien n'a change : la comparaison de version precede le balayage.
+        self.sync_spatial_index(store);
         let width = pixmap.width();
         let height = pixmap.height();
         let mut vp = store.viewport();

@@ -185,7 +185,18 @@ impl Pyramide {
         let transforme = Transform::from_scale(echelle.0, echelle.1)
             .post_translate(forme.phase_x(), forme.phase_y());
 
-        let mut vignette = Pixmap::new(w, h).expect("une vignette a une taille non nulle");
+        // `Pixmap::new` rend `None` quand l'allocation echoue. Cette ligne portait un `expect`
+        // dont le message parlait d'une taille NULLE, alors que le cas reel est l'inverse : en
+        // zoom proche, la largeur ecran d'une photo atteint des dizaines de milliers de pixels,
+        // et la vignette demandait trente-deux gigaoctets. L'application plantait la, et le
+        // message n'aurait designe ni la cause ni l'endroit.
+        //
+        // L'appelant garantit desormais que la forme tient dans la fenetre (voir `scene::image`),
+        // mais un `expect` qui ment est un piege quoi qu'il arrive : on rend une vignette vide,
+        // et le chemin general dessinera.
+        let Some(mut vignette) = Pixmap::new(w, h) else {
+            return Pixmap::new(1, 1).expect("un pixel tient toujours en memoire");
+        };
         vignette.draw_pixmap(
             0,
             0,

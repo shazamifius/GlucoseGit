@@ -34,6 +34,21 @@ pub struct Entree {
     vue: u64,
 }
 
+impl Entree {
+    /// Une entree fabriquee de toutes pieces, pour les tests.
+    ///
+    /// Le cout et la date de derniere vue ne changent rien a ce qui se dessine : seuls
+    /// l'opacite et la taille comptent pour l'occlusion, et elles viennent de la pyramide.
+    #[cfg(test)]
+    pub fn pour_test(pyramide: Pyramide) -> Self {
+        Self {
+            pyramide,
+            cout: Duration::from_millis(1),
+            vue: 0,
+        }
+    }
+}
+
 /// Tout ce qu'il faut pour poser une image sur le canevas.
 #[derive(Default)]
 pub struct Magasin {
