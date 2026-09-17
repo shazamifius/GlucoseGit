@@ -1,14 +1,14 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
+mod peinture;
 mod reveil;
 
 use crate::dock::{
-    apply_organize_layout, render_docks, DockCache, DockManager, DockPass, OrganizeState,
+    apply_organize_layout, DockCache, DockManager, OrganizeState,
 };
 use crate::error::{DesktopError, DesktopResult};
 use crate::interactions::resize::ResizeSession;
 use crate::interactions::tools::text_card;
-use crate::params::{Pointer, SceneOverlay, ScreenFrame};
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::UiState;
 use glucose_core::hit_priority::CycleState;
@@ -234,14 +234,18 @@ impl GlucoseApp {
         // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;
         // `sync_window_title` ne touche la fenêtre que lorsque le titre change vraiment.
         self.sync_window_title();
-        if let (Some(window), Some(presenter)) = (&self.window, &mut self.presenter) {
+        if let Some(window) = self.window.clone() {
             crate::perf::frame_begin();
             let frame_started = std::time::Instant::now();
             let size = window.inner_size();
             let width = size.width.max(1);
             let height = size.height.max(1);
 
-            if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
+            if let (Some(w), Some(h), Some(presenter)) = (
+                NonZeroU32::new(width),
+                NonZeroU32::new(height),
+                &mut self.presenter,
+            ) {
                 if let Err(e) = presenter.resize(w, h) {
                     eprintln!("[GlucoseDesktop] redimensionnement de la surface : {e}");
                 }
@@ -255,100 +259,22 @@ impl GlucoseApp {
                 self.pixmap = Pixmap::new(width, height);
             }
 
-            // La salissure est **consommée** : ce qui est redessiné maintenant cesse d'être
-            // sale, et une nouvelle demande arrivée pendant le rendu appartient à l'image
-            // suivante. Une image neuve part de `Tout`, jamais de `Rien` (A.1).
-            let sale = self
-                .salissure
-                .replace(crate::salissure::Salissure::Rien);
-            let sale = if need_new_pixmap {
-                crate::salissure::Salissure::Tout
-            } else {
-                sale
-            };
+            self.peindre_ce_qui_a_change((width, height), need_new_pixmap);
 
-            let echelle = self.ui.scale_factor;
-            if let Some(pixmap) = &mut self.pixmap {
-                if !sale.est_propre() {
-                    Self::peindre(
-                        pixmap,
-                        &mut self.renderer,
-                        &self.store,
-                        &mut self.ui,
-                        &self.dock_manager,
-                        &self.dock_cache,
-                        SceneOverlay {
-                            guides: &self.active_guides,
-                            selection_box: self.selection_box,
-                            editing: self.editing_session.as_ref(),
-                        },
-                        Pointer {
-                            x: self.mouse_pos.0 as f32,
-                            y: self.mouse_pos.1 as f32,
-                        },
-                        echelle,
-                    );
-                }
-                // Combien d'images se sont contentées de reparaitre. Un nombre qui monte vite
-                // dit que l'application se fait réveiller pour rien -- et c'est une question
-                // qu'on ne pouvait pas poser avant que la salissure existe.
-                crate::perf::compteur("img_evitee", f64::from(u8::from(sale.est_propre())));
+            if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
                 // On présente même quand rien n'a été redessiné : la demande peut venir du
                 // système -- une fenêtre recouverte puis dégagée -- et non de nous.
                 if let Err(e) = presenter.present(pixmap) {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
+
             self.last_frame_ms = frame_started
                 .elapsed()
                 .as_millis()
                 .min(u128::from(u64::MAX)) as u64;
             crate::perf::frame_end();
         }
-    }
-
-    /// Peint la scène et la chrome dans le tampon.
-    ///
-    /// Extraite de `redraw` parce que celle-ci a désormais une décision à prendre avant de
-    /// peindre -- y a-t-il seulement quelque chose à redessiner -- et qu'un ordonnanceur qui
-    /// peint aussi finit par ne plus laisser voir la décision.
-    #[allow(clippy::too_many_arguments)]
-    fn peindre(
-        pixmap: &mut Pixmap,
-        renderer: &mut Renderer,
-        store: &Store,
-        ui: &mut UiState,
-        dock_manager: &DockManager,
-        dock_cache: &DockCache,
-        overlay: SceneOverlay<'_>,
-        pointer: Pointer,
-        scale: f32,
-    ) {
-        let (width, height) = (pixmap.width(), pixmap.height());
-        let mut vue = pixmap.as_mut();
-        renderer.render(&mut vue, store, ui, overlay, pointer);
-
-        // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
-        // `scale` et les coordonnées de la souris sont désormais portés par
-        // deux types distincts : les intervertir ne compile plus (R-44).
-        render_docks(
-            &mut vue,
-            dock_manager,
-            store,
-            &DockPass {
-                typo: &renderer.typography,
-                theme: &renderer.theme,
-                screen: ScreenFrame {
-                    width: width as f32,
-                    height: height as f32,
-                    header_h: ui.header_height(),
-                    scale,
-                },
-                pointer,
-                cache: Some(dock_cache),
-            },
-        );
-        crate::perf::stage("docks");
     }
 
     /// Intervalle minimal entre deux frames animées.

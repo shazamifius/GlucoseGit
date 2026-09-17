@@ -270,9 +270,35 @@ impl Renderer {
         overlay: SceneOverlay<'_>,
         header_h: f32,
     ) {
+        self.rendre_la_region(pixmap, store, ui, overlay, header_h, (0.0, 0.0));
+    }
+
+    /// La scène, rendue comme si l'origine de l'écran était `origine` (A.1).
+    ///
+    /// `world_to_screen` vaut `monde x echelle + vp` : décaler la vue de `-origine` déplace
+    /// donc l'origine de l'écran d'autant, exactement. Rendre la région `(x0, y0, w, h)` dans
+    /// une image de `w x h` revient à rendre la scène entière avec `vp.x -= x0`.
+    ///
+    /// Aucune passe n'a besoin de le savoir, et c'est tout l'intérêt : la scène ignore
+    /// qu'elle est partielle. Le culling, lui, se resserre tout seul -- il part des bords du
+    /// pixmap, qui sont ceux de la région.
+    ///
+    /// `bench_zone` mesure que le résultat est identique au bit près à un rendu complet, à
+    /// condition de déborder de la portée du flou des halos.
+    pub fn rendre_la_region(
+        &mut self,
+        pixmap: &mut PixmapMut,
+        store: &Store,
+        ui: &UiState,
+        overlay: SceneOverlay<'_>,
+        header_h: f32,
+        origine: (f32, f32),
+    ) {
         let width = pixmap.width();
         let height = pixmap.height();
-        let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
+        let mut vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
+        vp.x -= f64::from(origine.0);
+        vp.y -= f64::from(origine.1);
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
         let rangs = self

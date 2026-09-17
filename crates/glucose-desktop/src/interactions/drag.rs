@@ -90,7 +90,43 @@ impl GlucoseApp {
         if step_dx.abs() > 1e-7 || step_dy.abs() > 1e-7 {
             self.store.move_selected(&active_bid, step_dx, step_dy);
         }
-        self.mark_dirty();
+        self.salir_le_deplacement((target_dx, target_dy), (step_dx, step_dy));
+    }
+
+    /// Declare ce qu'un pas de deplacement a sali (A.1) -- le premier geste a le faire.
+    ///
+    /// # Ce qui change a l'ecran, et rien d'autre
+    ///
+    /// La selection occupait un rectangle, elle en occupe un autre : seule leur reunion a
+    /// besoin d'etre redessinee. Sur trente-six photos, cela fait la difference entre
+    /// repeindre l'ecran entier a chaque mouvement de la main et repeindre la carte qu'on
+    /// tient.
+    ///
+    /// # Les deux cas ou l'on ne sait pas, et ou l'on redessine tout
+    ///
+    /// * **des guides d'alignement sont actifs** : ce sont des traits qui traversent l'ecran
+    ///   de part en part, et ils apparaissent et disparaissent d'un pas a l'autre. Leur zone
+    ///   est l'ecran ;
+    /// * **la base du geste est inconnue** : sans elle, on ne sait pas d'ou la selection
+    ///   vient. Le doute vaut `Tout`, c'est la regle de surete.
+    fn salir_le_deplacement(&self, cumul: (f64, f64), pas: (f64, f64)) {
+        let Some(base) = self.drag_selection_base else {
+            self.mark_dirty();
+            return;
+        };
+        if self.active_guides.x.is_some() || self.active_guides.y.is_some() {
+            self.mark_dirty();
+            return;
+        }
+        let rect = |dx: f64, dy: f64| glucose_core::geometry::Rect {
+            left: base.left + dx,
+            top: base.top + dy,
+            width: base.width,
+            height: base.height,
+        };
+        // La ou la selection etait avant ce pas, et la ou elle est maintenant.
+        self.salir(rect(cumul.0 - pas.0, cumul.1 - pas.1));
+        self.salir(rect(cumul.0, cumul.1));
     }
 
     /// Termine la session de drag et nettoie les guides.

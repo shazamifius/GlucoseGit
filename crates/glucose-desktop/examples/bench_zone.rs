@@ -144,6 +144,45 @@ fn comparer(
     (differents, premiere)
 }
 
+/// Ce que coute une image, region par region -- la seconde moitie de la question.
+///
+/// L'exactitude ne sert a rien si le detour coute plus cher que ce qu'il evite. Un renderer
+/// chauffe, puis la mediane de quinze images : la premiere porte l'ouverture des polices et
+/// l'index, qui n'appartiennent a aucune region.
+fn chronometrer(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> f64 {
+    let mut decale = store.clone();
+    if let Some(b) = decale.active_board_mut() {
+        b.viewport.x -= origine.0;
+        b.viewport.y -= origine.1;
+    }
+    let mut renderer = Renderer::new();
+    let mut ui = UiState::new();
+    ui.current_toast = None;
+    let mut pixmap = Pixmap::new(taille.0, taille.1).expect("pixmap");
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let mut mesures = Vec::new();
+    for i in 0..17 {
+        let t = std::time::Instant::now();
+        renderer.rendre_la_scene(
+            &mut pixmap.as_mut(),
+            &decale,
+            &ui,
+            SceneOverlay {
+                guides: &guides,
+                selection_box: None,
+                editing: None,
+            },
+            ui.header_height() - origine.1 as f32,
+        );
+        let ms = t.elapsed().as_secs_f64() * 1000.0;
+        if i >= 2 {
+            mesures.push(ms);
+        }
+    }
+    mesures.sort_by(f64::total_cmp);
+    mesures[mesures.len() / 2]
+}
+
 fn main() {
     let store = document();
     let entier = rendre(&store, ECRAN, (0.0, 0.0));
@@ -189,4 +228,30 @@ fn main() {
          donne de combien il faudra redessiner plus large que la zone reportée — une valeur\n  \
          mesurée, et non choisie."
     );
+
+    // La seconde moitié de la question : le détour coûte-t-il moins que ce qu'il évite ?
+    let complet = chronometrer(&store, ECRAN, (0.0, 0.0));
+    println!("\n  Ce qu'une image coûte, selon ce qu'on en redessine\n");
+    println!(
+        "  {:<26} {:>12} {:>12} {:>14}",
+        "région", "part", "durée", "contre tout"
+    );
+    println!(
+        "  {:<26} {:>11.1}% {:>10.2}ms {:>14}",
+        "toute la fenêtre",
+        100.0,
+        complet,
+        "—"
+    );
+    for (x0, y0, w, h) in [(200u32, 150u32, 400u32, 300u32), (500, 300, 200, 150)] {
+        let ms = chronometrer(&store, (w, h), (f64::from(x0), f64::from(y0)));
+        let part = 100.0 * f64::from(w * h) / f64::from(ECRAN.0 * ECRAN.1);
+        println!(
+            "  {:<26} {:>11.1}% {:>10.2}ms {:>13.1}x",
+            format!("({x0}, {y0}) {w}×{h}"),
+            part,
+            ms,
+            complet / ms.max(0.001)
+        );
+    }
 }
