@@ -231,13 +231,48 @@ impl Renderer {
         pointer: Pointer,
     ) {
         self.magasin.ouvrir();
+        self.synchroniser_les_caches(store);
+        self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height());
+
+        // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
+        render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
+        crate::perf::stage("ui");
+        self.magasin.fermer();
+    }
+
+    /// Ce qui suit la vue : le fond, la grille, les halos, les conteneurs, les images, les
+    /// annotations et les repères de geste. Tout ce que `world_to_screen` place.
+    ///
+    /// # Pourquoi c'est separe de la chrome (prealable a A.1)
+    ///
+    /// Un banc a pose la question qui decide de toute la vague A : **rendre une region
+    /// donne-t-il les memes pixels que rendre tout ?** Sur l'ecran entier, oui, au bit pres.
+    /// Sur une region, non : 11 a 46 % d'ecart, des la premiere ligne.
+    ///
+    /// La cause n'etait pas la scene mais l'**interface**, qui se place sur la taille du
+    /// pixmap et non sur la vue : dans une sous-fenetre, elle se redessine au mauvais endroit.
+    /// La scene, elle, se decale exactement avec `vp` -- decaler la vue de `-x0` revient a
+    /// deplacer l'origine de l'ecran en `x0`, puisque `world_to_screen` vaut
+    /// `monde x echelle + vp`.
+    ///
+    /// Les deux n'ont donc pas la meme loi et ne peuvent pas partager une salissure : la scene
+    /// se salit en coordonnees **monde**, la chrome en coordonnees **ecran**. Les separer
+    /// n'est pas un rangement, c'est la condition pour que l'une puisse se rendre par region
+    /// pendant que l'autre ne bouge pas.
+    ///
+    /// `header_h` est passe plutot que lu sur l'interface : dans une region qui commence en
+    /// `y0`, le bandeau se trouve `y0` pixels plus haut, et peut etre entierement au-dessus.
+    pub fn rendre_la_scene(
+        &mut self,
+        pixmap: &mut PixmapMut,
+        store: &Store,
+        ui: &UiState,
+        overlay: SceneOverlay<'_>,
+        header_h: f32,
+    ) {
         let width = pixmap.width();
         let height = pixmap.height();
         let vp = store.active_board().map(|b| b.viewport).unwrap_or_default();
-
-        self.synchroniser_les_caches(store);
-
-        let header_h = ui.header_height();
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
         let rangs = self
@@ -299,27 +334,33 @@ impl Renderer {
         );
         crate::perf::stage("annotations");
 
+        self.dessiner_les_reperes_du_geste(pixmap, ui, overlay, vp, (width, height), header_h);
+    }
+
+    /// Les repères du geste en cours : les guides d'alignement et la boîte de sélection.
+    ///
+    /// Ils appartiennent à la scène parce qu'ils suivent la vue, mais pas au contenu : ils
+    /// n'existent que pendant un geste, ne sont dans aucun document, et disparaîtront sans
+    /// laisser de trace. C'est aussi ce qui les distingue pour A.1 — ils salissent l'écran à
+    /// chaque mouvement de la main, et rien d'autre ne le fait pour eux.
+    fn dessiner_les_reperes_du_geste(
+        &self,
+        pixmap: &mut PixmapMut,
+        ui: &UiState,
+        overlay: SceneOverlay<'_>,
+        vp: glucose_core::types::Viewport,
+        taille: (u32, u32),
+        header_h: f32,
+    ) {
         // 7. Guides d'alignement intelligents (SNAP-1)
         if ui.smart_align {
-            scene::draw_guides(
-                &self.theme,
-                pixmap,
-                overlay.guides,
-                &vp,
-                (width, height),
-                header_h,
-            );
+            scene::draw_guides(&self.theme, pixmap, overlay.guides, &vp, taille, header_h);
         }
 
         // 8. Boîte de sélection élastique (Marquee)
         if let Some((x1, y1, x2, y2)) = overlay.selection_box {
             scene::draw_selection_box(pixmap, &self.theme, (x1, y1), (x2, y2));
         }
-
-        // 9. Interface utilisateur complète (TopBar, Tabs, Minimap, Toasts)
-        render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
-        crate::perf::stage("ui");
-        self.magasin.fermer();
     }
 }
 
