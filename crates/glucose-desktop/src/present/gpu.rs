@@ -106,7 +106,7 @@ impl GpuPresenter {
     /// pilote absent sont des cas de tous les jours. L'appelant retombe alors sur le chemin
     /// processeur, et le dit.
     pub fn new(window: Arc<Window>, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<Self> {
-        Self::avec_cadence(window, width, height, None)
+        Self::avec_cadence(window, width, height, cadence_demandee())
     }
 
     /// La même chose, en imposant la façon dont les images se succèdent.
@@ -310,6 +310,33 @@ fn ouvrir(
     Ok((adapter, device, queue, adaptateur))
 }
 
+/// La façon de présenter demandée par l'environnement, s'il en demande une.
+///
+/// # Pourquoi ce réglage existe
+///
+/// La chronique a montré que `present` coûte 28 ms sur un canevas **vide**, soit 68 % de
+/// l'image. Or `get_current_texture` **bloque** en mode `Fifo` : il attend que l'écran ait
+/// fini de balayer. Une durée seule ne distingue donc pas un travail lent d'une attente, et
+/// c'est exactement l'ambiguïté qui a déjà fait chercher au mauvais endroit cette semaine.
+///
+/// `GLUCOSE_PRESENT=immediate` supprime l'attente : ce qui reste est le travail réel. La
+/// comparaison des deux tranche la question au lieu de la raisonner.
+///
+/// * `immediate` — aucune attente, l'image part tout de suite (déchirure possible) ;
+/// * `mailbox` — sans attente ni déchirure, quand la carte le propose ;
+/// * `fifo` — le défaut : l'image attend le balayage.
+fn cadence_demandee() -> Option<wgpu::PresentMode> {
+    match std::env::var("GLUCOSE_PRESENT").ok()?.trim().to_lowercase().as_str() {
+        "immediate" => Some(wgpu::PresentMode::Immediate),
+        "mailbox" => Some(wgpu::PresentMode::Mailbox),
+        "fifo" => Some(wgpu::PresentMode::Fifo),
+        autre => {
+            eprintln!("[Glucose] GLUCOSE_PRESENT={autre} inconnu (immediate, mailbox, fifo)");
+            None
+        }
+    }
+}
+
 /// Impose la cadence demandée si la surface l'accepte, et le dit sinon.
 ///
 /// C'est ce réglage qui décide si présenter **attend** le balayage de l'écran. `Fifo`, le
@@ -439,6 +466,10 @@ impl Presenter for GpuPresenter {
     fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<()> {
         self.televerser(pixmap);
 
+        // Les trois temps de la présentation, séparés parce qu'ils n'ont pas la même nature :
+        // **acquerir** peut attendre que l'écran rende une image du carrousel, **encoder** est
+        // du travail de processeur, **soumettre** confie le tout à la carte. Mesurés ensemble,
+        // ils annonçaient 28 ms sur un canevas vide sans dire lequel les portait.
         use wgpu::CurrentSurfaceTexture as Etat;
         let frame = match self.surface.get_current_texture() {
             Etat::Success(frame) => frame,
@@ -463,6 +494,7 @@ impl Presenter for GpuPresenter {
                 )));
             }
         };
+        crate::perf::stage("acquerir");
         let cible = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -498,6 +530,7 @@ impl Presenter for GpuPresenter {
             passe.set_bind_group(0, bind, &[]);
             passe.draw(0..3, 0..1);
         }
+        crate::perf::stage("encoder");
         self.queue.submit(Some(encodeur.finish()));
         // La vue sur l'image de la surface doit être relâchée avant de la rendre au
         // compositeur : elle l'emprunte.

@@ -99,11 +99,43 @@ impl GlucoseApp {
     /// Rend le chemin, pour que l'appelant puisse le dire a l'utilisateur -- un rapport qu'on
     /// ne sait pas retrouver ne sert a personne.
     pub fn ecrire_la_chronique(&self) -> std::io::Result<std::path::PathBuf> {
-        let dossier = std::env::temp_dir().join("glucose-chronique");
-        std::fs::create_dir_all(&dossier)?;
-        let chemin = dossier.join("derniere-session.txt");
+        let chemin = Self::chemin_de_la_chronique();
+        if let Some(dossier) = chemin.parent() {
+            std::fs::create_dir_all(dossier)?;
+        }
         std::fs::write(&chemin, self.chronique.rapport())?;
         Ok(chemin)
+    }
+
+    /// Le fichier ou la chronique s'ecrit.
+    ///
+    /// Toujours le meme, et dit au demarrage : un rapport qu'on ne sait pas retrouver ne sert
+    /// a personne, et le chercher apres coup dans un dossier temporaire est decourageant.
+    pub fn chemin_de_la_chronique() -> std::path::PathBuf {
+        std::env::temp_dir()
+            .join("glucose-chronique")
+            .join("derniere-session.txt")
+    }
+
+    /// Sauve la chronique si elle a du neuf a dire.
+    ///
+    /// # Pourquoi sauver en cours de route, et pas seulement a la fermeture
+    ///
+    /// La premiere version n'ecrivait qu'a la croix. L'utilisateur a lance, utilise, ferme --
+    /// et rien n'a ete ecrit. **Une mesure qui ne survit qu'a une sortie parfaite ne mesure
+    /// rien**, parce que les sessions qui interessent sont justement celles qui finissent mal.
+    ///
+    /// Le moment de sauver n'est pas une horloge : c'est **l'apparition d'une image plus lente
+    /// que toutes les precedentes**. C'est exactement l'instant ou le fichier a quelque chose
+    /// de plus a dire, et rien n'a eu a etre choisi.
+    ///
+    /// L'ecriture a lieu hors du rendu : une entree-sortie sur le fil qui tient la cadence
+    /// serait precisement le defaut qu'on cherche a mesurer.
+    pub(super) fn sauver_la_chronique_si_besoin(&mut self) {
+        if !self.chronique.du_neuf() {
+            return;
+        }
+        let _ = self.ecrire_la_chronique();
     }
 
     /// Ecrit la chronique et la dit, au moment de fermer.
@@ -112,17 +144,19 @@ impl GlucoseApp {
     /// et veut voir tout de suite ; le fichier sert a qui lance l'application normalement, et
     /// pourra le retrouver ensuite.
     pub(super) fn clore_la_chronique(&self) {
-        // Une session d'une poignee d'images n'apprend rien et noierait l'utile.
-        if self.chronique.rendues() < 30 {
-            return;
+        // Le fichier s'ecrit TOUJOURS, meme pour une poignee d'images : c'est la trace, et
+        // elle ne coute rien. Seul l'affichage sur la console attend d'avoir quelque chose a
+        // dire, pour ne pas noyer un demarrage rate sous un tableau vide.
+        let ecrit = self.ecrire_la_chronique();
+        if self.chronique.rendues() >= 30 {
+            println!("\n{}", self.chronique.rapport());
         }
-        println!(
-            "
-{}",
-            self.chronique.rapport()
-        );
-        match self.ecrire_la_chronique() {
-            Ok(chemin) => println!("[Glucose] chronique ecrite dans {}", chemin.display()),
+        match ecrit {
+            Ok(chemin) => println!(
+                "[Glucose] chronique de {} images ecrite dans {}",
+                self.chronique.rendues(),
+                chemin.display()
+            ),
             Err(e) => eprintln!("[Glucose] chronique non ecrite : {e}"),
         }
     }

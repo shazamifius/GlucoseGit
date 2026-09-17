@@ -407,8 +407,9 @@ impl GlucoseApp {
             match crate::present::GpuPresenter::new(window.clone(), w, h) {
                 Ok(gpu) => {
                     println!(
-                        "[Glucose] présentation par la carte graphique : {}",
-                        gpu.adaptateur()
+                        "[Glucose] présentation par la carte graphique : {} ({:?})",
+                        gpu.adaptateur(),
+                        gpu.cadence()
                     );
                     Box::new(gpu)
                 }
@@ -418,6 +419,12 @@ impl GlucoseApp {
                 }
             };
         presenter.resize(w, h)?;
+        // Dit des le depart ou la chronique s'ecrira : la chercher apres coup dans un dossier
+        // temporaire est decourageant, et une mesure qu'on ne retrouve pas ne sert a personne.
+        println!(
+            "[Glucose] chronique de cette session : {}",
+            Self::chemin_de_la_chronique().display()
+        );
 
         self.pixmap = Pixmap::new(width, height);
         window.set_cursor(winit::window::CursorIcon::Grab);
@@ -454,7 +461,6 @@ impl ApplicationHandler for GlucoseApp {
                 // R-48 — la croix ne jette plus le travail : un document modifié pose la
                 // question, et un enregistrement raté annule la fermeture (SAVE-3).
                 if self.request_close() {
-                    self.clore_la_chronique();
                     event_loop.exit();
                 } else {
                     self.mark_dirty();
@@ -513,6 +519,16 @@ impl ApplicationHandler for GlucoseApp {
         }
     }
 
+    /// Winit appelle ceci quand la boucle se termine, quelle qu'en soit la raison.
+    ///
+    /// La croix n'est pas la seule facon de fermer une application : `exiting` couvre aussi
+    /// l'arret demande par le systeme et toute sortie de boucle declenchee ailleurs. La
+    /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
+    /// manquait, et une session entiere s'est perdue pour cette raison.
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        self.clore_la_chronique();
+    }
+
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         // Le lot de fichiers deposes est complet : tous les `DroppedFile` d'un meme geste
         // sont pousses par le meme appel systeme, donc ils sont tous arrives.
@@ -520,6 +536,10 @@ impl ApplicationHandler for GlucoseApp {
             let lot = std::mem::take(&mut self.dropped_files);
             self.drop_files(&lot);
         }
+
+        // Hors du rendu, et seulement quand il y a du neuf : une session qui finit mal garde
+        // alors la trace de son pire moment (CHRONIQUE-1).
+        self.sauver_la_chronique_si_besoin();
 
         // Chaque raison de se reveiller dit le delai qu'elle demande ; la plus pressee decide.
         // Aucune ne s'oublie, parce qu'aucune n'a de comptabilite a tenir (voir `reveil`).

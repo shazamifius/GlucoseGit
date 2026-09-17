@@ -253,6 +253,8 @@ pub struct Chronique {
     /// Les noms des postes, dans l'ordre où ils se sont déclarés.
     noms_des_postes: Vec<&'static str>,
     rendues: u64,
+    /// Une image est entree dans les pires depuis la derniere sauvegarde.
+    du_neuf: bool,
 }
 
 impl Default for Chronique {
@@ -269,6 +271,7 @@ impl Chronique {
             pires: Vec::with_capacity(PIRES + 1),
             noms_des_postes: Vec::new(),
             rendues: 0,
+            du_neuf: false,
         }
     }
 
@@ -319,11 +322,26 @@ impl Chronique {
         let place = self.pires.partition_point(|p| p.duree_us > vu.duree_us);
         self.pires.insert(place, vu);
         self.pires.truncate(PIRES);
+        self.du_neuf = true;
     }
 
     /// Les images les plus lentes, de la pire à la moins pire.
     pub fn pires(&self) -> &[Instantane] {
         &self.pires
+    }
+
+    /// Y a-t-il du neuf depuis la derniere fois qu'on a demande ?
+    ///
+    /// # Pourquoi cette question plutot qu'une horloge
+    ///
+    /// Sauvegarder la chronique "toutes les N secondes" demanderait de choisir N. Sauvegarder
+    /// **quand une image plus lente que toutes les precedentes est apparue** ne demande rien :
+    /// c'est exactement l'instant ou le fichier a quelque chose de plus a dire.
+    ///
+    /// Et c'est aussi l'instant qui compte : une session qui se termine mal aura au moins
+    /// garde la trace de son pire moment.
+    pub fn du_neuf(&mut self) -> bool {
+        std::mem::take(&mut self.du_neuf)
     }
 
     /// Le nom d'un poste, s'il a été vu.
