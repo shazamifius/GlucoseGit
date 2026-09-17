@@ -92,6 +92,69 @@ remonter, et elle est ré-essayée d'elle-même. Le rythme d'exploration n'est p
 C'est aussi ce qui rend le système réactif sans être nerveux : plus une voie est stable, moins
 on la remet en question ; plus elle est erratique, plus on la surveille.
 
+### La symétrie, qui manquait
+
+Le paragraphe précédent ne donnait qu'un exemple — le GPU pris par un jeu, donc on passe au
+processeur — et **c'était un angle mort**. Le cas inverse est tout aussi courant : un rendu
+Blender en mode processeur occupe les seize cœurs, et c'est alors la carte graphique qui est
+libre. Rien dans le mécanisme ne privilégie un sens ; seule ma façon de le décrire le faisait.
+
+Deux voies, deux débits mesurés, la meilleure gagne — **quelle qu'elle soit**.
+
+### Mieux qu'un interrupteur : une répartition
+
+Basculer entièrement d'un côté gaspille l'autre. Quand un travail se **divise**, les deux
+ressources travaillent ensemble, et la part de chacune n'est pas un réglage : c'est une
+conséquence.
+
+Deux ressources de débits `r1` et `r2` (unités par seconde) traitant `N` unités finissent au
+plus tôt quand elles finissent **en même temps**. D'où, sans rien choisir :
+
+```
+part1 = r1 / (r1 + r2)        part2 = r2 / (r1 + r2)
+duree = N / (r1 + r2)
+```
+
+C'est exactement ce que demande l'énoncé « des variations en pourcentage », et c'est
+l'**optimum**, pas une heuristique. Tous les cas en découlent sans code supplémentaire :
+
+| Situation | Ce que les débits deviennent | Ce que la formule donne |
+|---|---|---|
+| Les deux libres | `r1 ~ r2` | moitié-moitié, durée divisée par deux |
+| Blender occupe le processeur | `r1 -> 0` | `part1 -> 0` : tout à la carte graphique |
+| Un jeu occupe la carte | `r2 -> 0` | `part2 -> 0` : tout au processeur |
+| Le processeur à moitié pris | `r1 = r2 / 3` | un quart / trois quarts — le « semi », calculé |
+
+Aucun seuil, aucun palier, aucune mention de « plein » ou de « presque plein » : la continuité
+est dans la formule.
+
+### La réserve, et elle est sérieuse
+
+**Le partage plafonne à un facteur deux.** `(r1 + r2) / max(r1, r2)` ne dépasse jamais 2, et
+ne l'atteint que si les deux débits sont égaux. C'est un vrai gain, mais à mettre en regard
+du tore, qui divise le travail par cent trente-sept.
+
+**Et tout ne se divise pas gratuitement.** Faire dessiner le haut de l'image par le processeur
+et le bas par la carte oblige à **recombiner**, donc à transférer des pixels — et la fiche 15
+a mesuré ce que coûte déplacer trente et un mégaoctets : 3 ms. Le partage n'est donc rentable
+que si
+
+```
+N / (r1 + r2)  +  cout_de_recombinaison  <  N / max(r1, r2)
+```
+
+Cette condition se **calcule** avec les mêmes débits mesurés. On ne partage pas parce qu'on
+peut, on partage quand le calcul dit que ça paie.
+
+En pratique cela sépare nettement deux familles :
+
+* **ce qui se divise sans recombinaison** — décoder trente-six photos, construire des
+  pyramides, calculer des teintes, indexer : chaque morceau est indépendant, le partage est
+  presque parfait et il faut le faire ;
+* **le dessin d'une image** — découper l'écran coûte la recombinaison. Le bon partage n'y est
+  pas un découpage mais un **pipeline** : pendant que la carte présente l'image `n`, le
+  processeur prépare la `n+1`. Les deux travaillent à plein, et rien n'est recombiné.
+
 ### La garantie qui rend tout cela sûr — VOIE-1
 
 > **Deux voies d'une même opération produisent les mêmes pixels, au bit près.**
@@ -189,7 +252,7 @@ Mais « ensuite » n'est pas « jamais », et c'est la correction à retenir :
 |---|---|
 | **Maintenant** | A.1 (ne pas refaire ce qui n'a pas changé), la borne mémoire adaptative (§ 5) |
 | **Ensuite** | A.2 (le tore), l'ordonnanceur en cascade |
-| **Puis** | les voies : AVX2 détecté à l'exécution, le choix graphique/processeur mesuré |
+| **Puis** | les voies : AVX2 détecté à l'exécution, le partage processeur/carte sur les tâches divisibles, le pipeline sur le dessin |
 
 La borne mémoire remonte en tête parce qu'elle est autonome, sans risque visuel, et qu'elle
 répond directement à ce qui est demandé : ne pas se restreindre quand la machine est grande.
