@@ -118,6 +118,22 @@ pub struct Pose {
     pub hauteur: f32,
 }
 
+/// Avec quelle finesse un pixel se tire de la source.
+///
+/// # Ce que la pixelisation achète, et ce qu'elle coûte
+///
+/// Interpoler demande **quatre** texels et trois mélanges par pixel ; prendre le plus proche
+/// en demande un et aucun. Le gain n'est donc pas un réglage de qualité, c'est un rapport
+/// mesurable — et c'est ce qui permet de tenir le budget quand la scène n'y tient pas
+/// autrement. La charte le dit sans détour : sous cent images par seconde, on pixelise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Filtre {
+    /// Les quatre texels voisins, interpolés. Ce que l'œil attend à l'arrêt.
+    Lisse,
+    /// Le texel le plus proche, seul. Rapide, et franchement pixelisé.
+    PlusProche,
+}
+
 /// Comment les pixels de la source rejoignent ceux de la destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Melange {
@@ -138,6 +154,7 @@ pub fn reporter(
     pose: Pose,
     clip: Boite,
     melange: Melange,
+    filtre: Filtre,
 ) -> u64 {
     let Some(zone) = domaine(dest, pose, clip) else {
         return 0;
@@ -153,7 +170,7 @@ pub fn reporter(
         return reporter_tel_quel(dest, src, pose, zone, melange);
     }
 
-    reporter_en_echantillonnant(dest, src, pose, zone, melange)
+    reporter_en_echantillonnant(dest, src, pose, zone, melange, filtre)
 }
 
 /// Les pixels de destination à écrire : ceux dont le **centre** tombe à la fois dans la pose,
@@ -250,6 +267,7 @@ fn reporter_en_echantillonnant(
     pose: Pose,
     zone: (u32, u32, u32, u32),
     melange: Melange,
+    filtre: Filtre,
 ) -> u64 {
     // La hauteur ne sert qu'a la boucle : ici on n'a besoin que du coin haut-gauche, d'ou
     // partent les deux positions de texel, et de `x1` pour borner les colonnes interieures.
@@ -282,9 +300,16 @@ fn reporter_en_echantillonnant(
     // et la boucle centrale n'a plus rien à vérifier.
     let dedans = colonnes_interieures(u0, pas_x, src.largeur, (x0, x1));
 
-    match melange {
-        Melange::Remplacer => remplir::<true>(dest, src, (u0, v, pas_x, pas_y), zone, dedans),
-        Melange::Composer => remplir::<false>(dest, src, (u0, v, pas_x, pas_y), zone, dedans),
+    let pas = (u0, v, pas_x, pas_y);
+    match (melange, filtre) {
+        (Melange::Remplacer, Filtre::Lisse) => remplir::<true, true>(dest, src, pas, zone, dedans),
+        (Melange::Remplacer, Filtre::PlusProche) => {
+            remplir::<true, false>(dest, src, pas, zone, dedans)
+        }
+        (Melange::Composer, Filtre::Lisse) => remplir::<false, true>(dest, src, pas, zone, dedans),
+        (Melange::Composer, Filtre::PlusProche) => {
+            remplir::<false, false>(dest, src, pas, zone, dedans)
+        }
     }
 }
 
@@ -299,7 +324,7 @@ fn reporter_en_echantillonnant(
 ///
 /// La destination est parcourue par **tranche** plutôt que par indice : la longueur est alors
 /// connue de la boucle, et la vérification de bornes par pixel disparaît.
-fn remplir<const REMPLACE: bool>(
+fn remplir<const REMPLACE: bool, const LISSE: bool>(
     dest: &mut VueMut<'_>,
     src: &Vue<'_>,
     (u0, mut v, pas_x, pas_y): (i64, i64, i64, i64),
@@ -323,11 +348,19 @@ fn remplir<const REMPLACE: bool>(
             } else {
                 voisins(u, src.largeur)
             };
-            let s = melanger(
-                melanger(haute[xa as usize], haute[xb as usize], fu),
-                melanger(basse[xa as usize], basse[xb as usize], fu),
-                fv,
-            );
+            // Pixeliser, c'est prendre le texel dont le centre est le plus proche : une
+            // lecture au lieu de quatre, aucun melange, et le pas de la source se voit.
+            let s = if LISSE {
+                melanger(
+                    melanger(haute[xa as usize], haute[xb as usize], fu),
+                    melanger(basse[xa as usize], basse[xb as usize], fu),
+                    fv,
+                )
+            } else {
+                let colonne = if fu >= 128 { xb } else { xa };
+                let ligne = if fv >= 128 { basse } else { haute };
+                ligne[colonne as usize]
+            };
             *d = if REMPLACE { s } else { compose(s, *d) };
             u += pas_x;
         }

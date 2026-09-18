@@ -5,6 +5,7 @@
 //! quelque chose de l'ecran -- le pire defaut possible, parce qu'il se voit et qu'on ne sait
 //! pas d'ou il vient.
 
+use super::prevision::boite_ecran;
 use super::*;
 use glucose_core::types::{BoardImage, Viewport};
 use tiny_skia::Pixmap;

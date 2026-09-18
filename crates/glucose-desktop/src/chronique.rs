@@ -188,6 +188,14 @@ pub struct Instantane {
     pub vignettes_recreees: u16,
     /// Combien de chantiers ont été abandonnés depuis le début, leur forme ayant été quittée.
     pub vignettes_abandonnees: u16,
+    /// Ce que le modèle de coût avait **prévu** pour cette image, en microsecondes.
+    ///
+    /// Zéro quand la machine n'avait pas encore démontré assez pour prévoir. L'écart avec
+    /// [`Self::duree_us`] est le résidu : nul, le modèle comprend la machine ; élevé, il
+    /// désigne exactement ce qu'il ne compte pas encore.
+    pub prevu_us: u32,
+    /// Les images de cette scène se sont-elles **pixelisées** pour tenir le budget ?
+    pub pixelise: u16,
 }
 
 impl Instantane {
@@ -305,6 +313,16 @@ pub struct Chronique {
     /// Les recréations de nœuds cumulées : si elles suivent le nombre de photos, la table est
     /// vidée entre deux images et rien de ce que l'atelier construit ne peut survivre.
     noeuds_recrees: u64,
+    /// Les images où le modèle savait prévoir : combien, ce qu'il avait prévu, ce qu'elles ont
+    /// vraiment coûté, et combien se sont pixelisées.
+    ///
+    /// Le rapport des deux durées est **le résidu**, et c'est la seule grandeur de tout ce
+    /// module qui apprenne quelque chose de neuf : nul, la machine est comprise et le budget
+    /// peut se tenir par le calcul ; élevé, il désigne ce que le modèle ne compte pas encore.
+    prevues: u64,
+    prevu_us: u64,
+    mesure_us: u64,
+    pixelisees: u64,
 }
 
 impl Default for Chronique {
@@ -321,6 +339,20 @@ impl Chronique {
     pub fn part_par_vignette(&self) -> Option<f64> {
         (self.photos_posees > 0)
             .then(|| self.photos_par_vignette as f64 / self.photos_posees as f64)
+    }
+
+    /// Le rapport entre ce que le modèle avait prévu et ce que les images ont coûté.
+    ///
+    /// Un vaut « le modèle voit juste ». Au-dessous, il sous-estime — et une sous-estimation
+    /// fait tenir un budget qu'on dépasse, ce qui est le défaut le plus grave possible ici.
+    pub fn justesse_du_modele(&self) -> Option<f64> {
+        (self.prevues > 0 && self.mesure_us > 0)
+            .then(|| self.prevu_us as f64 / self.mesure_us as f64)
+    }
+
+    /// La part des images qui se sont **pixelisées** pour tenir le budget, entre 0 et 1.
+    pub fn part_pixelisee(&self) -> Option<f64> {
+        (self.rendues > 0).then(|| self.pixelisees as f64 / self.rendues as f64)
     }
 
     /// La part des poses qui ont dû **recréer** l'entrée du nœud, entre 0 et 1.
@@ -342,6 +374,10 @@ impl Chronique {
             photos_posees: 0,
             photos_par_vignette: 0,
             noeuds_recrees: 0,
+            prevues: 0,
+            prevu_us: 0,
+            mesure_us: 0,
+            pixelisees: 0,
         }
     }
 
@@ -377,6 +413,14 @@ impl Chronique {
         self.photos_posees += u64::from(vu.photos);
         self.photos_par_vignette += u64::from(vu.par_vignette);
         self.noeuds_recrees += u64::from(vu.vignettes_recreees);
+        if vu.pixelise > 0 {
+            self.pixelisees += 1;
+        }
+        if vu.prevu_us > 0 {
+            self.prevues += 1;
+            self.prevu_us += u64::from(vu.prevu_us);
+            self.mesure_us += u64::from(vu.duree_us);
+        }
 
         let poste = &mut self.par_geste[vu.geste().indice()];
         poste.rendues += 1;

@@ -170,6 +170,17 @@ impl Vignettes {
             .count()
     }
 
+    /// Y a-t-il une vignette prête pour ce nœud **à cette forme exacte** ?
+    ///
+    /// Sans effet de bord, contrairement à [`Vignettes::pour`] : elle sert à **prévoir** le
+    /// chemin qu'une photo prendra avant de le prendre, et prévoir ne doit rien changer.
+    pub fn a_prete(&self, noeud: &str, forme: Forme) -> bool {
+        self.par_noeud
+            .get(noeud)
+            .and_then(|e| e.prete.as_ref())
+            .is_some_and(|(faite, _)| *faite == forme)
+    }
+
     /// Ferme l'image et oublie les nœuds qui n'ont pas été dessinés.
     pub fn fermer(&mut self) {
         let courante = self.image;

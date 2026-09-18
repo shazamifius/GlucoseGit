@@ -243,6 +243,9 @@ impl Pyramide {
             },
             Boite::nouvelle(0.0, y0 as f32, largeur as f32, y1.saturating_sub(y0) as f32),
             report::Melange::Remplacer,
+            // Une vignette se construit toujours au mieux : elle servira des dizaines
+            // d'images, et la pixeliser une fois la pixeliserait pour toutes.
+            report::Filtre::Lisse,
         );
     }
 

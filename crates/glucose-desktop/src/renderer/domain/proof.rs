@@ -359,7 +359,8 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     let mut magasin = crate::renderer::magasin::Magasin::nouveau();
     magasin.reclamer(&photo);
     magasin.attendre_le_chantier();
-    crate::renderer::scene::draw_images(&mut magasin, kit, &mut view, &store, pass);
+    let mut cout = glucose_core::cout::Cout::nouveau();
+    crate::renderer::scene::draw_images(&mut magasin, &mut cout, kit, &mut view, &store, pass);
     pixmap
         .save_png(dir.join("scene-image-et-membrane.png"))
         .expect("écriture du png");

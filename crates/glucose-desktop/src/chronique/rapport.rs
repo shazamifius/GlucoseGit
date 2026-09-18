@@ -62,6 +62,21 @@ impl Chronique {
                 100.0 * part
             ));
         }
+        // Le résidu est la seule ligne de ce résumé qui apprenne quelque chose de neuf : elle
+        // dit ce que le modèle de coût ne comprend pas encore de cette machine.
+        if let Some(justesse) = self.justesse_du_modele() {
+            t.push_str(&format!(
+                "  le modele prevoit a {:.0} % de ce qui arrive -- l'ecart est ce qu'il ignore\n",
+                100.0 * justesse
+            ));
+        }
+        if self.part_pixelisee().is_some_and(|p| p > 0.0) {
+            let part = self.part_pixelisee().unwrap_or(0.0);
+            t.push_str(&format!(
+                "  {:.0} % des images se sont pixelisees pour tenir les cent par seconde\n",
+                100.0 * part
+            ));
+        }
         t.push('\n');
     }
 

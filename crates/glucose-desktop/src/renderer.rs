@@ -140,6 +140,12 @@ pub struct Renderer {
     pub hue_cache: SymbioticHueCache,
     /// `domain_id → teinte`, reconstruite une fois par version du document (DOMAIN-TINT-1).
     pub domain_tints: DomainTints,
+    /// Ce que cette machine coûte, appris de ce qu'elle vient de faire (COUT-1).
+    ///
+    /// Il vit ici, et non dans le magasin : il ne décrit pas les images mais **la machine**,
+    /// et il servira à toutes les passes le jour où elles sauront dire ce qu'elles vont
+    /// écrire. Aujourd'hui il ne connaît que les pixels de photos, qui sont le gros poste.
+    pub cout: glucose_core::cout::Cout,
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
     pub active_board_id: String,
@@ -162,6 +168,7 @@ impl Renderer {
             math: math::MathRenderer::new(),
             hue_cache: SymbioticHueCache::new(),
             domain_tints: DomainTints::new(),
+            cout: glucose_core::cout::Cout::nouveau(),
             spatial_hash: SpatialHash::new(1000.0),
             spatial_version: 0,
             active_board_id: String::new(),
@@ -346,8 +353,8 @@ impl Renderer {
         folder::draw_folders(kit, pixmap, store, pass);
         crate::perf::stage("folders");
 
-        // 5. Images
-        scene::draw_images(&mut self.magasin, kit, pixmap, store, pass);
+        // 5. Images — le magasin pour les poser, le modele de cout pour apprendre leur prix.
+        scene::draw_images(&mut self.magasin, &mut self.cout, kit, pixmap, store, pass);
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)

@@ -14,11 +14,13 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use glucose_core::cout::{finesse_pour, Cout, Finesse};
 use glucose_core::occlusion::{self, Calque};
 use glucose_core::quadtree::Visibles;
 use glucose_core::report;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
+use prevision::{calque_de, prevoir_la_scene, Chemin};
 use tiny_skia::{
     BlendMode, Color, FilterQuality, Paint, PathBuilder, PixmapMut, PixmapPaint, Rect, Stroke,
     Transform,
@@ -26,6 +28,7 @@ use tiny_skia::{
 
 pub(in crate::renderer) fn draw_images(
     magasin: &mut Magasin,
+    cout: &mut Cout,
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
@@ -89,6 +92,26 @@ pub(in crate::renderer) fn draw_images(
     );
     crate::perf::stage("occlusion");
 
+    // COUT-1 : on sait ce que la scene coutera AVANT de la dessiner, donc on decide une fois
+    // -- et non apres avoir rate. Sous cent images par seconde, les photos se pixelisent.
+    let prevu = prevoir_la_scene(&visibles, &caches, &pass, magasin, cout);
+    let finesse = finesse_pour(prevu);
+    // Le prevu entre dans la trace pour qu'on puisse lire le RESIDU -- mesure moins prevu --
+    // qui est la seule grandeur de tout ceci qui apprenne quelque chose de neuf.
+    if let Some(prevu) = prevu {
+        crate::perf::compteur("cout_prevu_us", prevu.as_micros() as f64);
+    }
+    crate::perf::compteur(
+        "img_pixelise",
+        f64::from(u8::from(finesse == Finesse::Pixelisee)),
+    );
+    let filtre = match finesse {
+        Finesse::Lisse => report::Filtre::Lisse,
+        Finesse::Pixelisee => report::Filtre::PlusProche,
+    };
+    // Ce que chaque chemin a REELLEMENT coute : c'est ainsi que la machine se fait comprendre.
+    let mut appris: [(u64, u64); 3] = [(0, 0); 3];
+
     for (rang, img) in visibles.into_iter().enumerate() {
         // Une liste de parties vide veut dire : entierement recouvert, rien a peindre.
         let parts = caches.parts(rang);
@@ -105,7 +128,10 @@ pub(in crate::renderer) fn draw_images(
         }
 
         posees += 1.0;
-        match poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh), parts) {
+        let debut = std::time::Instant::now();
+        let pose = poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh), parts, filtre);
+        let passees = debut.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64;
+        match pose {
             // REPORT-1 : ce qu'une photo coute est ce qu'elle ECRIT, et non la surface
             // qu'elle occupe. Recouverte a quatre-vingt-dix-neuf pour cent, elle en ecrit un
             // centieme -- et c'est ce centieme que la trace doit montrer.
@@ -114,6 +140,9 @@ pub(in crate::renderer) fn draw_images(
                 if chemin == Chemin::Vignette {
                     par_vignette += 1.0;
                 }
+                let poste = &mut appris[chemin.indice()];
+                poste.0 += ecrits;
+                poste.1 += passees;
             }
             None => draw_missing_image(
                 typography,
@@ -129,6 +158,14 @@ pub(in crate::renderer) fn draw_images(
             draw_image_adornments(pixmap, theme, scale, img, (sx, sy, sw, sh));
         }
         draw_domain_gauge(typography, tints, pixmap, scale, (sx, sy), &img.domains);
+    }
+
+    // Une observation par nature et par image : plus stable qu'une par photo, et c'est la
+    // seule facon pour la machine d'apprendre ce qu'elle vaut sans qu'on le lui demande.
+    for (chemin, (unites, nanos)) in Chemin::TOUS.iter().zip(appris) {
+        if let Some(travail) = chemin.travail(finesse) {
+            cout.observer(travail, unites, std::time::Duration::from_nanos(nanos));
+        }
     }
 
     let fenetre = (pixmap.width() as f64) * (pixmap.height() as f64);
@@ -158,45 +195,6 @@ pub(in crate::renderer) fn draw_images(
     crate::perf::compteur("img_rendues", magasin.evincees() as f64);
 }
 
-/// Ce que le noyau a besoin de savoir d'une image pour decider si elle se voit.
-///
-/// Trois conditions font qu'une image en cache une autre, et toutes se **constatent** :
-///
-/// * elle est **opaque** -- la pyramide l'a verifie pixel par pixel au decodage ;
-/// * elle n'est pas **tournee** -- sinon sa boite n'est plus ce qu'elle couvre, et les coins
-///   laisseraient voir dessous ;
-/// * elle est **decodee** -- une image en chemin se dessine comme un cadre, a travers lequel
-///   le fond se voit.
-fn calque_de(
-    img: &glucose_core::types::BoardImage,
-    pass: &ViewPass<'_>,
-    magasin: &Magasin,
-) -> Calque {
-    let (sx, sy, sw, sh) = boite_ecran(img, pass);
-    let opaque = img.rotation == 0.0
-        && img
-            .src
-            .as_deref()
-            .filter(|s| !s.is_empty())
-            .and_then(|src| magasin.cache.get(src))
-            .is_some_and(|e| e.pyramide.opaque());
-    Calque {
-        boite: occlusion::Boite::nouvelle(sx, sy, sw, sh),
-        opaque,
-    }
-}
-
-/// La boite ecran d'une image : son coin haut-gauche et sa taille.
-fn boite_ecran(img: &glucose_core::types::BoardImage, pass: &ViewPass<'_>) -> (f32, f32, f32, f32) {
-    let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
-    (
-        wx as f32,
-        wy as f32,
-        (img.width * pass.vp.scale) as f32,
-        (img.height * pass.vp.scale) as f32,
-    )
-}
-
 /// Pose cette image si elle est décodée ; sinon la demande, et le dit.
 ///
 /// # INVARIANT DECODE-1 — le rendu n'attend jamais un décodage
@@ -215,6 +213,7 @@ fn poser_ou_demander(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
+    filtre: report::Filtre,
 ) -> Option<(u64, Chemin)> {
     let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
@@ -230,20 +229,8 @@ fn poser_ou_demander(
         img,
         ecran,
         parts,
-        src,
+        filtre,
     ))
-}
-
-/// Par quel chemin une photo a été posée. C'est ce qui explique son coût, et rien d'autre ne
-/// le dit : les trois diffèrent d'un facteur dix, et la durée seule les confond.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Chemin {
-    /// Une vignette prête : un pixel pour un pixel, le chemin le moins cher.
-    Vignette,
-    /// Le rééchantillonnage depuis un niveau de pyramide.
-    Echantillon,
-    /// Le rastériseur général, pour une image tournée.
-    Tournee,
 }
 
 /// Pose une image sur le canevas, **restreinte aux morceaux d'elle qui atteignent l'œil**.
@@ -275,7 +262,7 @@ fn poser(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
-    src: &str,
+    filtre: report::Filtre,
 ) -> (u64, Chemin) {
     let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
@@ -297,35 +284,8 @@ fn poser(
     // reechantillonnage au moment de poser, or d'une image plus grande que l'ecran on ne voit
     // qu'un morceau. En demander une en zoom proche allouait des dizaines de gigaoctets, et
     // l'application plantait.
-    let tient = sw <= pixmap.width() as f32 && sh <= pixmap.height() as f32;
-    if tient {
-        let forme = photo::Forme::posee(sx, sy, sw, sh);
-        // Les trois postes se ferment l'un l'autre : ce qui precede la vignette est de la
-        // geometrie, ce qui la suit est du report. Sans cette separation, « images » reste un
-        // bloc opaque -- et c'est exactement ce qui a empeche de voir que six cent soixante-
-        // cinq millisecondes partaient ailleurs que dans le dessin.
-        crate::perf::stage("images");
-        // Ce qu'on voit de cette photo ordonne le chantier des vignettes : construire d'abord
-        // celle qui epargne le plus de travail a chaque image.
-        let visible: f64 = parts
-            .iter()
-            .map(|b| f64::from(b.largeur) * f64::from(b.hauteur))
-            .sum();
-        let vignette = vignettes.pour(&img.id, src, forme, visible);
-        crate::perf::stage("vignettes");
-        if let Some(vignette) = vignette {
-            // La phase est deja dans la vignette : il ne reste qu'une position entiere, et le
-            // report constate alors qu'un pixel vaut un pixel.
-            let pose = report::Pose {
-                x: sx.floor(),
-                y: sy.floor(),
-                largeur: vignette.width() as f32,
-                hauteur: vignette.height() as f32,
-            };
-            let ecrits = reporter_les_parts(pixmap, vignette, pose, parts, melange);
-            crate::perf::stage("report");
-            return (ecrits, Chemin::Vignette);
-        }
+    if let Some(ecrits) = poser_depuis_une_vignette(vignettes, pixmap, img, ecran, parts, melange) {
+        return (ecrits, Chemin::Vignette);
     }
 
     // MIP-1 : on part du niveau qui couvre encore la taille posée, jamais de la résolution
@@ -338,7 +298,7 @@ fn poser(
         hauteur: sh,
     };
     crate::perf::stage("images");
-    let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange);
+    let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange, filtre);
     crate::perf::stage("report");
     (ecrits, Chemin::Echantillon)
 }
@@ -373,6 +333,61 @@ fn poser_en_tournant(
     (f64::from(sw) * f64::from(sh)) as u64
 }
 
+/// Pose la photo depuis sa vignette, si elle en a une de prête à cette forme exacte.
+///
+/// Rend `None` quand la photo **déborde de la fenêtre** — une vignette n'a alors aucun sens,
+/// puisqu'on n'en verrait qu'un morceau et qu'en demander une en zoom proche allouait des
+/// dizaines de gigaoctets — ou quand le chantier ne l'a pas encore sortie.
+fn poser_depuis_une_vignette(
+    vignettes: &mut vignette::Vignettes,
+    pixmap: &mut PixmapMut,
+    img: &glucose_core::types::BoardImage,
+    ecran: (f32, f32, f32, f32),
+    parts: &[occlusion::Boite],
+    melange: report::Melange,
+) -> Option<u64> {
+    let (sx, sy, sw, sh) = ecran;
+    if sw > pixmap.width() as f32 || sh > pixmap.height() as f32 {
+        return None;
+    }
+    let forme = photo::Forme::posee(sx, sy, sw, sh);
+    // Le chemin du fichier se relit sur l'image : l'appelant l'a deja valide.
+    let src = img.src.as_deref().unwrap_or_default();
+    // Les trois postes se ferment l'un l'autre : ce qui precede la vignette est de la
+    // geometrie, ce qui la suit est du report. Sans cette separation, « images » reste un bloc
+    // opaque -- et c'est ce qui a empeche de voir que six cent soixante-cinq millisecondes
+    // partaient ailleurs que dans le dessin.
+    crate::perf::stage("images");
+    // Ce qu'on voit de cette photo ordonne le chantier des vignettes : construire d'abord
+    // celle qui epargne le plus de travail a chaque image.
+    let visible: f64 = parts
+        .iter()
+        .map(|b| f64::from(b.largeur) * f64::from(b.hauteur))
+        .sum();
+    let vignette = vignettes.pour(&img.id, src, forme, visible);
+    crate::perf::stage("vignettes");
+    let vignette = vignette?;
+
+    // La phase est deja dans la vignette : il ne reste qu'une position entiere, et le report
+    // constate alors qu'un pixel vaut un pixel -- le filtre n'a rien a y faire.
+    let pose = report::Pose {
+        x: sx.floor(),
+        y: sy.floor(),
+        largeur: vignette.width() as f32,
+        hauteur: vignette.height() as f32,
+    };
+    let ecrits = reporter_les_parts(
+        pixmap,
+        vignette,
+        pose,
+        parts,
+        melange,
+        report::Filtre::Lisse,
+    );
+    crate::perf::stage("report");
+    Some(ecrits)
+}
+
 /// Reporte la source une fois par morceau que l'occlusion laisse voir, et dit combien de
 /// pixels ont été écrits.
 ///
@@ -384,6 +399,7 @@ fn reporter_les_parts(
     pose: report::Pose,
     parts: &[occlusion::Boite],
     melange: report::Melange,
+    filtre: report::Filtre,
 ) -> u64 {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     let (texels, _) = source.data().as_chunks::<4>();
@@ -396,7 +412,7 @@ fn reporter_les_parts(
     };
     parts
         .iter()
-        .map(|part| report::reporter(&mut cible, &vue, pose, *part, melange))
+        .map(|part| report::reporter(&mut cible, &vue, pose, *part, melange, filtre))
         .sum()
 }
 
@@ -544,6 +560,8 @@ fn draw_image_selection(
 }
 
 // ── Guides et boîte de sélection — taille écran constante ───────────────────
+
+mod prevision;
 
 #[cfg(test)]
 mod tests;

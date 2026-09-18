@@ -38,6 +38,7 @@ fn pose_entiere_a_la_taille_native_recopie_exactement() {
         },
         toute(10, 10),
         Melange::Remplacer,
+        Filtre::Lisse,
     );
 
     assert_eq!(ecrits, 12, "quatre par trois pixels");
@@ -71,6 +72,7 @@ fn rien_ne_sort_du_clip() {
         },
         clip,
         Melange::Remplacer,
+        Filtre::Lisse,
     );
 
     for y in 0..16u32 {
@@ -105,7 +107,14 @@ fn peindre_par_morceaux_donne_la_meme_image_qu_en_une_fois() {
     let mut en_une_fois = unie(40, 30, [9, 9, 9, 255]);
     {
         let mut dest = VueMut::nouvelle(&mut en_une_fois, 40, 30).unwrap();
-        reporter(&mut dest, &vue, pose, toute(40, 30), Melange::Remplacer);
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            toute(40, 30),
+            Melange::Remplacer,
+            Filtre::Lisse,
+        );
     }
 
     // Quatre morceaux qui pavent la même zone, dont deux bandes très fines.
@@ -119,7 +128,14 @@ fn peindre_par_morceaux_donne_la_meme_image_qu_en_une_fois() {
     {
         let mut dest = VueMut::nouvelle(&mut par_morceaux, 40, 30).unwrap();
         for clip in morceaux {
-            reporter(&mut dest, &vue, pose, clip, Melange::Remplacer);
+            reporter(
+                &mut dest,
+                &vue,
+                pose,
+                clip,
+                Melange::Remplacer,
+                Filtre::Lisse,
+            );
         }
     }
 
@@ -144,7 +160,14 @@ fn peindre_par_morceaux_vaut_aussi_pour_la_recopie_directe() {
     let mut en_une_fois = unie(32, 32, [1, 2, 3, 255]);
     {
         let mut dest = VueMut::nouvelle(&mut en_une_fois, 32, 32).unwrap();
-        reporter(&mut dest, &vue, pose, toute(32, 32), Melange::Remplacer);
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            toute(32, 32),
+            Melange::Remplacer,
+            Filtre::Lisse,
+        );
     }
 
     let mut par_colonnes = unie(32, 32, [1, 2, 3, 255]);
@@ -157,6 +180,7 @@ fn peindre_par_morceaux_vaut_aussi_pour_la_recopie_directe() {
                 pose,
                 Boite::nouvelle(x as f32, 0.0, 1.0, 32.0),
                 Melange::Remplacer,
+                Filtre::Lisse,
             );
         }
     }
@@ -183,6 +207,7 @@ fn un_clip_disjoint_n_ecrit_rien() {
         },
         Boite::nouvelle(6.0, 6.0, 4.0, 4.0),
         Melange::Remplacer,
+        Filtre::Lisse,
     );
 
     assert_eq!(ecrits, 0, "une photo entierement recouverte ne coute rien");
@@ -207,6 +232,7 @@ fn ce_qui_deborde_de_la_destination_est_ignore_sans_paniquer() {
         },
         toute(6, 6),
         Melange::Remplacer,
+        Filtre::Lisse,
     );
 
     assert_eq!(ecrits, 25, "cinq colonnes par cinq lignes restent visibles");
@@ -233,6 +259,7 @@ fn composer_une_source_transparente_ne_change_rien() {
         },
         toute(8, 8),
         Melange::Composer,
+        Filtre::Lisse,
     );
 
     assert_eq!(fond, avant);
@@ -256,6 +283,7 @@ fn composer_une_source_opaque_remplace() {
         },
         toute(8, 8),
         Melange::Composer,
+        Filtre::Lisse,
     );
 
     assert_eq!(fond[0], [10, 20, 30, 255]);
@@ -280,6 +308,7 @@ fn agrandir_une_couleur_unie_ne_la_change_pas() {
             },
             toute(128, 128),
             Melange::Remplacer,
+            Filtre::Lisse,
         );
         assert!(ecrits > 0);
         // Le centre de la zone posée : loin des bords, donc aucune excuse.
@@ -311,6 +340,7 @@ fn reduire_beaucoup_ne_sort_jamais_de_la_source() {
         },
         toute(32, 32),
         Melange::Remplacer,
+        Filtre::Lisse,
     );
     assert_eq!(ecrits, 9);
 }
@@ -355,6 +385,7 @@ fn le_nombre_de_pixels_ecrits_est_l_aire_du_visible() {
         },
         Boite::nouvelle(0.0, 0.0, 3.0, 50.0),
         Melange::Remplacer,
+        Filtre::Lisse,
     );
     assert_eq!(ecrits, 150);
 }
@@ -395,7 +426,14 @@ fn un_clip_d_une_colonne_au_bord_ne_sort_pas_de_la_source() {
     let mut entier = unie(40, 30, [9, 9, 9, 255]);
     {
         let mut dest = VueMut::nouvelle(&mut entier, 40, 30).unwrap();
-        reporter(&mut dest, &vue, pose, toute(40, 30), Melange::Remplacer);
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            toute(40, 30),
+            Melange::Remplacer,
+            Filtre::Lisse,
+        );
     }
 
     // Chaque colonne prise seule doit donner les mêmes pixels que le rendu entier.
@@ -408,10 +446,67 @@ fn un_clip_d_une_colonne_au_bord_ne_sort_pas_de_la_source() {
             pose,
             Boite::nouvelle(x as f32, 0.0, 1.0, 30.0),
             Melange::Remplacer,
+            Filtre::Lisse,
         );
         for y in 0..30u32 {
             let i = (y * 40 + x) as usize;
             assert_eq!(colonne[i], entier[i], "colonne {x}, ligne {y}");
         }
     }
+}
+
+/// **Pixeliser ne mélange jamais deux texels.**
+///
+/// Une source de deux pixels très contrastés, agrandie : au filtre lisse, la zone de
+/// transition prend des valeurs intermédiaires ; au plus proche, il n'existe que du noir et du
+/// blanc. C'est ce qui rend le second si peu cher — une lecture au lieu de quatre — et c'est
+/// aussi ce qui se voit à l'écran.
+#[test]
+fn le_filtre_le_plus_proche_ne_cree_aucune_couleur_intermediaire() {
+    let src = vec![[0, 0, 0, 255], [255, 255, 255, 255]];
+    let vue = Vue::nouvelle(&src, 2, 1).unwrap();
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 40.0,
+        hauteur: 4.0,
+    };
+
+    let mut pixelise = unie(40, 4, [9, 9, 9, 255]);
+    {
+        let mut dest = VueMut::nouvelle(&mut pixelise, 40, 4).unwrap();
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            toute(40, 4),
+            Melange::Remplacer,
+            Filtre::PlusProche,
+        );
+    }
+    for (i, p) in pixelise.iter().enumerate() {
+        assert!(
+            *p == [0, 0, 0, 255] || *p == [255, 255, 255, 255],
+            "le pixel {i} vaut {p:?} : le plus proche a interpole"
+        );
+    }
+
+    let mut lisse = unie(40, 4, [9, 9, 9, 255]);
+    {
+        let mut dest = VueMut::nouvelle(&mut lisse, 40, 4).unwrap();
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            toute(40, 4),
+            Melange::Remplacer,
+            Filtre::Lisse,
+        );
+    }
+    assert!(
+        lisse
+            .iter()
+            .any(|p| *p != [0, 0, 0, 255] && *p != [255, 255, 255, 255]),
+        "le filtre lisse doit produire des valeurs intermediaires"
+    );
 }
