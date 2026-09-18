@@ -128,15 +128,16 @@ pub(in crate::renderer) fn draw_images(
         }
 
         posees += 1.0;
-        let debut = std::time::Instant::now();
-        let pose = poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh), parts, filtre);
-        let passees = debut.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64;
-        match pose {
+        // Le report rend LUI-MEME sa duree : entourer la pose entiere attribuait aux pixels
+        // le cout fixe d'une photo -- recherche, forme, consultation des vignettes -- et le
+        // modele surestimait alors d'un facteur deux, ce que son propre residu a revele.
+        match poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh), parts, filtre) {
             // REPORT-1 : ce qu'une photo coute est ce qu'elle ECRIT, et non la surface
             // qu'elle occupe. Recouverte a quatre-vingt-dix-neuf pour cent, elle en ecrit un
             // centieme -- et c'est ce centieme que la trace doit montrer.
-            Some((ecrits, chemin)) => {
+            Some((ecrits, chemin, passees)) => {
                 pixels += ecrits as f64;
+                let passees = passees.as_nanos().min(u128::from(u64::MAX)) as u64;
                 if chemin == Chemin::Vignette {
                     par_vignette += 1.0;
                 }
@@ -214,7 +215,7 @@ fn poser_ou_demander(
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
     filtre: report::Filtre,
-) -> Option<(u64, Chemin)> {
+) -> Option<(u64, Chemin, std::time::Duration)> {
     let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
     // l'éviction : ce qui est à l'écran ne se rend jamais à la machine (ADAPT-1).
@@ -263,7 +264,7 @@ fn poser(
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
     filtre: report::Filtre,
-) -> (u64, Chemin) {
+) -> (u64, Chemin, std::time::Duration) {
     let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
 
@@ -271,6 +272,7 @@ fn poser(
         return (
             poser_en_tournant(pyramide, pixmap, img, ecran),
             Chemin::Tournee,
+            std::time::Duration::ZERO,
         );
     }
 
@@ -284,8 +286,10 @@ fn poser(
     // reechantillonnage au moment de poser, or d'une image plus grande que l'ecran on ne voit
     // qu'un morceau. En demander une en zoom proche allouait des dizaines de gigaoctets, et
     // l'application plantait.
-    if let Some(ecrits) = poser_depuis_une_vignette(vignettes, pixmap, img, ecran, parts, melange) {
-        return (ecrits, Chemin::Vignette);
+    if let Some((ecrits, passees)) =
+        poser_depuis_une_vignette(vignettes, pixmap, img, ecran, parts, melange)
+    {
+        return (ecrits, Chemin::Vignette, passees);
     }
 
     // MIP-1 : on part du niveau qui couvre encore la taille posée, jamais de la résolution
@@ -298,9 +302,11 @@ fn poser(
         hauteur: sh,
     };
     crate::perf::stage("images");
+    let debut = std::time::Instant::now();
     let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange, filtre);
+    let passees = debut.elapsed();
     crate::perf::stage("report");
-    (ecrits, Chemin::Echantillon)
+    (ecrits, Chemin::Echantillon, passees)
 }
 
 /// Pose une image **tournée**, par le rastériseur général.
@@ -345,7 +351,7 @@ fn poser_depuis_une_vignette(
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
     melange: report::Melange,
-) -> Option<u64> {
+) -> Option<(u64, std::time::Duration)> {
     let (sx, sy, sw, sh) = ecran;
     if sw > pixmap.width() as f32 || sh > pixmap.height() as f32 {
         return None;
@@ -376,6 +382,7 @@ fn poser_depuis_une_vignette(
         largeur: vignette.width() as f32,
         hauteur: vignette.height() as f32,
     };
+    let debut = std::time::Instant::now();
     let ecrits = reporter_les_parts(
         pixmap,
         vignette,
@@ -384,8 +391,9 @@ fn poser_depuis_une_vignette(
         melange,
         report::Filtre::Lisse,
     );
+    let passees = debut.elapsed();
     crate::perf::stage("report");
-    Some(ecrits)
+    Some((ecrits, passees))
 }
 
 /// Reporte la source une fois par morceau que l'occlusion laisse voir, et dit combien de
