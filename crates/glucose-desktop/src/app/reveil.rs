@@ -31,6 +31,7 @@ impl GlucoseApp {
             self.attente_du_toast(),
             self.attente_de_l_animation(),
             self.attente_du_decodage(),
+            self.attente_du_chantier(),
             self.attente_du_pomodoro(),
         ]
         .into_iter()
@@ -91,6 +92,25 @@ impl GlucoseApp {
             return None;
         }
         self.mark_dirty();
+        Some(self.animation_interval_ms())
+    }
+
+    /// Des vignettes attendent leur tour au chantier (CASCADE-1).
+    ///
+    /// **Rien n'est sali, et c'est voulu** : une vignette donne exactement les mêmes pixels que
+    /// le chemin général, donc l'image à l'écran est déjà juste. Elle ne la rend pas plus
+    /// belle, elle la rend beaucoup moins chère — il faut donc seulement revenir, pour que
+    /// l'atelier dispose d'une nouvelle tranche de temps libre.
+    ///
+    /// Sans ce réveil, une application immobile s'endormirait avec son chantier en plan, et le
+    /// premier geste suivant paierait tout ce qui n'a pas été fait.
+    fn attente_du_chantier(&mut self) -> Option<u64> {
+        if self.renderer.magasin.vignettes.en_chantier() == 0 {
+            return None;
+        }
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
         Some(self.animation_interval_ms())
     }
 

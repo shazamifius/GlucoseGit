@@ -72,6 +72,8 @@ struct Mesure {
     posees: f64,
     ecrans: f64,
     cachees: f64,
+    /// Combien d'images il a fallu pour que le chantier des vignettes se vide (CASCADE-1).
+    montee: u32,
 }
 
 fn chronometrer(store: &Store) -> Mesure {
@@ -80,15 +82,25 @@ fn chronometrer(store: &Store) -> Mesure {
     ui.current_toast = None;
     let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("pixmap");
     let guides = glucose_core::smart_align::SnapGuides::default();
-    let mut mesures = Vec::new();
 
-    for i in 0..15 {
+    // CASCADE-1 : dans l'application, les vignettes se construisent dans le temps libre qui
+    // suit chaque image. Un banc qui ne le ferait pas mesurerait une situation qui n'existe
+    // nulle part -- toutes les photos par le chemin le plus cher, pour toujours.
+    //
+    // D'ou DEUX regimes, et les confondre donnerait un chiffre qui n'est ni l'un ni l'autre :
+    //
+    //   * la MONTEE, pendant laquelle le chantier se vide et ou les photos passent encore par
+    //     le chemin general. Elle se compte en images, et c'est ce que l'utilisateur ressent
+    //     comme « ca se stabilise » ;
+    //   * le regime ETABLI, quand plus rien n'attend. C'est le cout permanent de la scene.
+    let cadence = glucose_desktop::cadence::Cadence::inconnue();
+    let mut une_image = |renderer: &mut Renderer, ui: &UiState| -> f64 {
         glucose_desktop::perf::frame_begin();
         let t = Instant::now();
         renderer.rendre_la_scene(
             &mut pixmap.as_mut(),
             store,
-            &ui,
+            ui,
             SceneOverlay {
                 guides: &guides,
                 selection_box: None,
@@ -97,15 +109,37 @@ fn chronometrer(store: &Store) -> Mesure {
             ui.header_height(),
         );
         let ms = t.elapsed().as_secs_f64() * 1000.0;
-        // Les photos arrivent par les fils de fond : on attend qu'elles soient la, puis on
-        // mesure. Sans cela, on chronometrerait des cadres de remplacement.
-        if renderer.magasin.en_travail() > 0 {
-            renderer.magasin.attendre_le_chantier();
-            continue;
-        }
-        if i >= 3 {
-            mesures.push(ms);
-        }
+        renderer
+            .magasin
+            .avancer_les_vignettes(cadence.tranche_de_fond(t.elapsed()));
+        ms
+    };
+
+    // Les photos arrivent par les fils de fond, et c'est la PREMIERE image qui les demande :
+    // tester avant de rendre reviendrait a ne jamais les demander, et a chronometrer des
+    // cadres de remplacement -- ce que ce banc a fait un moment, en annoncant des durees
+    // magnifiques pour une scene vide.
+    une_image(&mut renderer, &ui);
+    while renderer.magasin.en_travail() > 0 {
+        renderer.magasin.attendre_le_chantier();
+        une_image(&mut renderer, &ui);
+    }
+
+    // Deux images d'amorcage : la premiere fait connaitre les formes, la seconde les repete
+    // et remplit le chantier. Attendre avant cela reviendrait a constater un chantier vide
+    // qui n'a simplement pas encore eu lieu.
+    une_image(&mut renderer, &ui);
+    une_image(&mut renderer, &ui);
+
+    let mut montee = 0u32;
+    while renderer.magasin.vignettes.en_chantier() > 0 && montee < 2_000 {
+        une_image(&mut renderer, &ui);
+        montee += 1;
+    }
+
+    let mut mesures = Vec::new();
+    for _ in 0..15 {
+        mesures.push(une_image(&mut renderer, &ui));
     }
     mesures.sort_by(f64::total_cmp);
     let lire = |nom: &str| glucose_desktop::perf::valeur_du_compteur(nom).unwrap_or(0.0);
@@ -114,6 +148,7 @@ fn chronometrer(store: &Store) -> Mesure {
         posees: lire("img_n"),
         ecrans: lire("img_ecrans"),
         cachees: lire("img_cachees"),
+        montee,
     }
 }
 
@@ -131,8 +166,8 @@ fn main() {
         ECRAN.0, ECRAN.1
     );
     println!(
-        "  {:>7} {:>6} {:>13} {:>8} {:>13} {:>8} {:>9}",
-        "photos", "zoom", "sans occlure", "posees", "avec occlure", "posees", "rapport"
+        "  {:>7} {:>6} {:>13} {:>8} {:>13} {:>8} {:>9} {:>7}",
+        "photos", "zoom", "sans occlure", "posees", "avec occlure", "posees", "rapport", "montee"
     );
 
     for zoom in [0.25f64, 1.0, 4.0] {
@@ -140,12 +175,13 @@ fn main() {
             let sans = chronometrer(&document(&voile, combien, zoom));
             let avec = chronometrer(&document(&opaque, combien, zoom));
             println!(
-                "  {combien:>7} {zoom:>6.2} {:>11.2}ms {:>8.0} {:>11.2}ms {:>8.0} {:>8.1}x",
+                "  {combien:>7} {zoom:>6.2} {:>11.2}ms {:>8.0} {:>11.2}ms {:>8.0} {:>8.1}x {:>5} im",
                 sans.ms,
                 sans.posees,
                 avec.ms,
                 avec.posees,
-                sans.ms / avec.ms.max(0.001)
+                sans.ms / avec.ms.max(0.001),
+                avec.montee
             );
         }
         println!();

@@ -105,6 +105,27 @@ impl Cadence {
         BUDGET_RENDU.min(part)
     }
 
+    /// Ce que le travail de fond peut prendre après une image qui a coûté `rendu`.
+    ///
+    /// # Deux régimes, et le second est celui qui compte
+    ///
+    /// * **L'image a tenu dans la période** — le fond prend ce qui reste, et rien ne se voit.
+    /// * **L'image a dépassé la période** — la cadence est *déjà* perdue, et le travail de fond
+    ///   est précisément ce qui la fera revenir. Lui refuser sa tranche enfermerait la machine
+    ///   dans son régime dégradé : les images resteraient chères parce que le travail
+    ///   n'avance pas, et le travail n'avancerait pas parce que les images sont chères.
+    ///
+    /// Mesuré sur le banc d'occlusion : vingt-sept photos coûtent 39,62 ms par le chemin
+    /// général, et **0,90 ms** une fois leurs vignettes faites. Ne jamais les faire, pour
+    /// protéger une cadence qu'on a déjà perdue, revient à garder quarante fois le prix.
+    ///
+    /// Dans ce second cas on accorde donc **une période**. Ce n'est pas un réglage : c'est la
+    /// seule durée de référence que l'écran donne, et elle borne le dépassement au double
+    /// d'une image déjà ratée, en échange d'une sortie en un nombre d'images borné.
+    pub fn tranche_de_fond(&self, rendu: Duration) -> Duration {
+        self.temps_libre(rendu).unwrap_or(self.periode)
+    }
+
     /// Ce qui reste pour le travail de fond après une image qui a coûté `rendu`.
     ///
     /// Rend `None` quand il ne reste rien : l'image a mangé sa période, et faire avancer une

@@ -64,10 +64,12 @@ pub(in crate::renderer) fn draw_images(
     //
     // Le calcul vit dans le noyau parce qu'il est geometrique : les memes rectangles donnent
     // la meme reponse sur un processeur, sur une carte graphique et sur un telephone.
-    // Combien de vignettes cette image aura construites. Une construction rééchantillonne la
-    // photo ENTIÈRE, même si l'occlusion n'en laisse voir qu'une bande : c'est le seul poste
-    // qui ne suit pas la surface visible, donc le seul qui puisse coûter cher sans que la
-    // surcouverture ne le montre.
+    //
+    // Combien de vignettes seront sorties du chantier pendant cette image. Une construction
+    // reechantillonne la photo ENTIERE, meme si l'occlusion n'en laisse voir qu'une bande :
+    // c'est le seul poste qui ne suive pas la surface visible, donc le seul qui puisse couter
+    // cher sans que la surcouverture ne le montre. Depuis CASCADE-1 il ne devrait plus jamais
+    // monter ici, et s'il montait, ce compteur le dirait.
     let vignettes_avant = magasin.vignettes.faites();
     let visibles: Vec<&glucose_core::types::BoardImage> =
         Visibles::nouvelles(pass.visibles, board).images().collect();
@@ -211,6 +213,7 @@ fn poser_ou_demander(
         img,
         ecran,
         parts,
+        src,
     ))
 }
 
@@ -243,26 +246,13 @@ fn poser(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
+    src: &str,
 ) -> u64 {
     let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
 
     if img.rotation != 0.0 {
-        let paint = PixmapPaint {
-            quality: FilterQuality::Bilinear,
-            blend_mode: mode_de_report(opaque, img.rotation),
-            ..Default::default()
-        };
-        let loaded = pyramide.niveau_pour(sw);
-        let ts = Transform::from_scale(sw / loaded.width() as f32, sh / loaded.height() as f32)
-            .post_translate(sx, sy)
-            .post_rotate_at(
-                img.rotation.to_degrees() as f32,
-                sx + sw / 2.0,
-                sy + sh / 2.0,
-            );
-        pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
-        return (f64::from(sw) * f64::from(sh)) as u64;
+        return poser_en_tournant(pyramide, pixmap, img, ecran);
     }
 
     let melange = if opaque {
@@ -283,7 +273,13 @@ fn poser(
         // bloc opaque -- et c'est exactement ce qui a empeche de voir que six cent soixante-
         // cinq millisecondes partaient ailleurs que dans le dessin.
         crate::perf::stage("images");
-        let vignette = vignettes.pour(&img.id, forme, pyramide);
+        // Ce qu'on voit de cette photo ordonne le chantier des vignettes : construire d'abord
+        // celle qui epargne le plus de travail a chaque image.
+        let visible: f64 = parts
+            .iter()
+            .map(|b| f64::from(b.largeur) * f64::from(b.hauteur))
+            .sum();
+        let vignette = vignettes.pour(&img.id, src, forme, visible);
         crate::perf::stage("vignettes");
         if let Some(vignette) = vignette {
             // La phase est deja dans la vignette : il ne reste qu'une position entiere, et le
@@ -313,6 +309,36 @@ fn poser(
     let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange);
     crate::perf::stage("report");
     ecrits
+}
+
+/// Pose une image **tournée**, par le rastériseur général.
+///
+/// Sa boîte n'est plus ce qu'elle couvre : ses morceaux visibles ne sont pas des rectangles,
+/// donc le report ne saurait pas les clipper, et elle ne peut rien cacher non plus. Elle
+/// reste néanmoins soumise à l'occlusion, qui la saute quand elle est entièrement recouverte
+/// — ce qui est le gain principal sur ce cas.
+fn poser_en_tournant(
+    pyramide: &photo::Pyramide,
+    pixmap: &mut PixmapMut,
+    img: &glucose_core::types::BoardImage,
+    ecran: (f32, f32, f32, f32),
+) -> u64 {
+    let (sx, sy, sw, sh) = ecran;
+    let paint = PixmapPaint {
+        quality: FilterQuality::Bilinear,
+        blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
+        ..Default::default()
+    };
+    let loaded = pyramide.niveau_pour(sw);
+    let ts = Transform::from_scale(sw / loaded.width() as f32, sh / loaded.height() as f32)
+        .post_translate(sx, sy)
+        .post_rotate_at(
+            img.rotation.to_degrees() as f32,
+            sx + sw / 2.0,
+            sy + sh / 2.0,
+        );
+    pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
+    (f64::from(sw) * f64::from(sh)) as u64
 }
 
 /// Reporte la source une fois par morceau que l'occlusion laisse voir, et dit combien de

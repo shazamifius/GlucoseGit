@@ -75,6 +75,22 @@ impl Magasin {
         Self::default()
     }
 
+    /// Avance le chantier des vignettes pendant au plus `budget` (CASCADE-1).
+    ///
+    /// Appelé **après** que l'image est présentée, avec ce que la période de l'écran laisse
+    /// encore. Le rendu n'attend donc jamais une vignette : il se contente de dire lesquelles
+    /// lui feraient gagner du temps, et celles qui ne sont pas prêtes se dessinent par le
+    /// chemin général, qui donne exactement les mêmes pixels.
+    ///
+    /// Les deux champs s'empruntent séparément — les pyramides en lecture, les vignettes en
+    /// écriture — ce qu'une méthode prenant `&mut self` entier interdirait.
+    pub fn avancer_les_vignettes(&mut self, budget: std::time::Duration) -> usize {
+        let Self {
+            cache, vignettes, ..
+        } = self;
+        vignettes.avancer_le_chantier(budget, |src| cache.get(src).map(|e| &e.pyramide))
+    }
+
     /// Ouvre une image du rendu.
     pub fn ouvrir(&mut self) {
         self.image += 1;

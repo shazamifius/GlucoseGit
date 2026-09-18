@@ -51,7 +51,9 @@
 //! [`super::vignette`] qui décide quand elle en vaut la peine et qui la garde, parce que sa
 //! taille et sa phase appartiennent au nœud du canevas, non au fichier.
 
-use tiny_skia::{FilterQuality, Pixmap, PixmapPaint, Transform};
+use glucose_core::occlusion::Boite;
+use glucose_core::report;
+use tiny_skia::Pixmap;
 
 /// La forme exacte sous laquelle une image est posée à l'écran : sa taille en pixels, et la
 /// partie fractionnaire de sa position.
@@ -75,6 +77,16 @@ impl Forme {
             hauteur: (h.round() as i64).clamp(1, u32::MAX as i64) as u32,
             phase: ((x - x.floor()).to_bits(), (y - y.floor()).to_bits()),
         }
+    }
+
+    /// Sa largeur en pixels d'écran. L'atelier s'en sert pour estimer ce qu'elle coûtera.
+    pub fn largeur(self) -> u32 {
+        self.largeur
+    }
+
+    /// Sa hauteur en pixels d'écran.
+    pub fn hauteur(self) -> u32 {
+        self.hauteur
     }
 
     fn phase_x(self) -> f32 {
@@ -174,41 +186,64 @@ impl Pyramide {
     /// reporter au moment de poser obligerait à une position fractionnaire, donc au pipeline
     /// générique qu'on cherche justement à éviter.
     pub fn rendre(&self, forme: Forme) -> Pixmap {
-        // Une phase non nulle déborde d'un pixel sur la droite et le bas : la vignette est donc
-        // dessinée un pixel plus grande, et ce pixel porte la part de l'image qui dépasse.
-        let (w, h) = (forme.largeur + 1, forme.hauteur + 1);
-        let source = self.niveau_pour(forme.largeur as f32);
-        let echelle = (
-            forme.largeur as f32 / source.width() as f32,
-            forme.hauteur as f32 / source.height() as f32,
-        );
-        let transforme = Transform::from_scale(echelle.0, echelle.1)
-            .post_translate(forme.phase_x(), forme.phase_y());
-
-        // `Pixmap::new` rend `None` quand l'allocation echoue. Cette ligne portait un `expect`
-        // dont le message parlait d'une taille NULLE, alors que le cas reel est l'inverse : en
-        // zoom proche, la largeur ecran d'une photo atteint des dizaines de milliers de pixels,
-        // et la vignette demandait trente-deux gigaoctets. L'application plantait la, et le
-        // message n'aurait designe ni la cause ni l'endroit.
-        //
-        // L'appelant garantit desormais que la forme tient dans la fenetre (voir `scene::image`),
-        // mais un `expect` qui ment est un piege quoi qu'il arrive : on rend une vignette vide,
-        // et le chemin general dessinera.
-        let Some(mut vignette) = Pixmap::new(w, h) else {
+        let Some(mut vignette) = Self::vignette_vide(forme) else {
             return Pixmap::new(1, 1).expect("un pixel tient toujours en memoire");
         };
-        vignette.draw_pixmap(
-            0,
-            0,
-            source.as_ref(),
-            &PixmapPaint {
-                quality: FilterQuality::Bilinear,
-                ..Default::default()
-            },
-            transforme,
-            None,
-        );
+        let hauteur = vignette.height();
+        self.rendre_bande(forme, &mut vignette, 0, hauteur);
         vignette
+    }
+
+    /// Le tampon d'une vignette, vide, aux dimensions que `forme` demande.
+    ///
+    /// Une phase non nulle déborde d'un pixel sur la droite et le bas : la vignette est donc
+    /// d'un pixel plus grande, et ce pixel porte la part de l'image qui dépasse.
+    ///
+    /// Rend `None` quand l'allocation échoue. Ce point portait un `expect` dont le message
+    /// parlait d'une taille NULLE, alors que le cas réel est l'inverse : en zoom proche, la
+    /// largeur écran d'une photo atteint des dizaines de milliers de pixels, et la vignette
+    /// demandait trente-deux gigaoctets. L'application plantait là, sur un message qui ne
+    /// désignait ni la cause ni l'endroit.
+    pub fn vignette_vide(forme: Forme) -> Option<Pixmap> {
+        Pixmap::new(forme.largeur + 1, forme.hauteur + 1)
+    }
+
+    /// Remplit les lignes `y0..y1` d'une vignette déjà allouée (CASCADE-1).
+    ///
+    /// # Pourquoi une vignette se construit par bandes
+    ///
+    /// La construire d'un bloc était ce qui gelait une image : quatre-vingt-neuf vignettes
+    /// demandées au même instant coûtaient 471 ms, mesurées chez l'utilisateur. Étaler ne
+    /// suffit pas si la plus petite tranche indivisible reste une vignette entière — il faut
+    /// que le travail se **découpe**, sans quoi une seule tranche peut encore faire rater
+    /// l'image.
+    ///
+    /// Le grain devient donc la ligne, qui coûte quelques microsecondes. Et ce découpage ne
+    /// coûte rien à écrire : pour le report, une bande n'est qu'un clip, et le clip est son
+    /// domaine d'itération.
+    pub fn rendre_bande(&self, forme: Forme, dest: &mut Pixmap, y0: u32, y1: u32) {
+        let source = self.niveau_pour(forme.largeur as f32);
+        let (texels, _) = source.data().as_chunks::<4>();
+        let Some(vue) = report::Vue::nouvelle(texels, source.width(), source.height()) else {
+            return;
+        };
+        let (largeur, hauteur) = (dest.width(), dest.height());
+        let (pixels, _) = dest.data_mut().as_chunks_mut::<4>();
+        let Some(mut cible) = report::VueMut::nouvelle(pixels, largeur, hauteur) else {
+            return;
+        };
+        report::reporter(
+            &mut cible,
+            &vue,
+            report::Pose {
+                x: forme.phase_x(),
+                y: forme.phase_y(),
+                largeur: forme.largeur as f32,
+                hauteur: forme.hauteur as f32,
+            },
+            Boite::nouvelle(0.0, y0 as f32, largeur as f32, y1.saturating_sub(y0) as f32),
+            report::Melange::Remplacer,
+        );
     }
 
     /// Le nombre de niveaux construits. Rend la construction paresseuse observable.

@@ -125,6 +125,12 @@ pub struct GlucoseApp {
     pub last_blink_phase: bool,
     /// Durée de la dernière frame présentée, en millisecondes.
     pub last_frame_ms: u64,
+    /// La cadence de l'écran, lue et non supposée (CADENCE-1).
+    ///
+    /// Tout le projet a longtemps raisonné sur soixante hertz. Sur un écran à 240 Hz, un banc
+    /// qui annonce « tenu » à 9 ms ment de plus du double, et fait optimiser dans la mauvaise
+    /// direction. C'est elle qui dit ce qui reste pour le travail de fond après une image.
+    pub cadence: crate::cadence::Cadence,
 
     /// Chemin du `.glucose` courant. `None` tant que le projet n'a jamais été enregistré :
     /// c'est ce qui fait que `Ctrl+S` ouvre un dialogue la première fois seulement.
@@ -230,6 +236,7 @@ impl GlucoseApp {
             click_epoch: std::time::Instant::now(),
             last_blink_phase: true,
             last_frame_ms: 0,
+            cadence: crate::cadence::Cadence::inconnue(),
             project_path: None,
             saved_version,
             window_title_cache: String::new(),
@@ -279,6 +286,23 @@ impl GlucoseApp {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
+
+            // CASCADE-1 : ce que la periode de l'ecran laisse encore sert au travail de fond.
+            // L'image est deja presentee -- ce qui suit ne la retarde pas, il occupe le temps
+            // qu'on aurait passe a attendre la suivante.
+            let rendu = frame_started.elapsed();
+            if let Some(libre) = self.cadence.temps_libre(rendu) {
+                let faites = self.renderer.magasin.avancer_les_vignettes(libre);
+                crate::perf::compteur(
+                    "vign_atelier",
+                    f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
+                );
+            }
+            crate::perf::stage("atelier");
+            crate::perf::compteur(
+                "vign_attente",
+                self.renderer.magasin.vignettes.en_chantier() as f64,
+            );
 
             let ecoule = frame_started.elapsed();
             self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
@@ -387,6 +411,21 @@ impl GlucoseApp {
             .create_window(attrs)
             .map(Arc::new)
             .map_err(|e| DesktopError::WindowError(format!("create_window : {e}")))?;
+
+        // La frequence se LIT sur l'ecran. Quand le systeme ne la donne pas -- bureau
+        // distant, machine virtuelle -- on retient le plancher de la charte : mieux vaut viser
+        // trop bas et tenir que l'inverse.
+        self.cadence = window
+            .current_monitor()
+            .and_then(|m| m.refresh_rate_millihertz())
+            .map_or_else(crate::cadence::Cadence::inconnue, |mhz| {
+                crate::cadence::Cadence::depuis_millihertz(mhz)
+            });
+        println!(
+            "[Glucose] cadence de l'ecran : {:.0} Hz, soit {:.2} ms par image",
+            self.cadence.fps(),
+            self.cadence.periode().as_secs_f64() * 1000.0
+        );
 
         let scale_factor = window.scale_factor();
         self.scale_factor = scale_factor;
