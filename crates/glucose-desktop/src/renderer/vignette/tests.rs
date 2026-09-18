@@ -292,3 +292,36 @@ fn frontiere(p: &Pixmap, ligne: u32) -> Option<u32> {
         b > r
     })
 }
+
+/// Un chantier dont la forme n'est plus demandée est **abandonné**, pas mené à terme.
+///
+/// Une vignette met plusieurs images à sortir. La finir pour une forme que la vue a quittée
+/// coûte tout et ne rapporte rien : mesuré chez l'utilisateur, trois cent quarante-trois
+/// vignettes prêtes et les trois cent quarante-trois périmées.
+#[test]
+fn test_un_chantier_perime_est_abandonne() {
+    let mut v = Vignettes::new();
+    let pyr = Pyramide::nouvelle(bicolore(256, 256));
+    let avant = Forme::posee(0.0, 0.0, 200.0, 200.0);
+    let apres = Forme::posee(0.5, 0.0, 200.0, 200.0);
+
+    for _ in 0..2 {
+        v.ouvrir();
+        v.pour("n", "f.png", avant, 1000.0);
+        v.fermer();
+    }
+    // Une tranche si courte que le chantier s'ouvre sans pouvoir finir.
+    v.avancer_le_chantier(Duration::from_nanos(1), |_| Some(&pyr));
+    assert_eq!(v.faites(), 0, "la vignette ne peut pas etre finie si vite");
+    assert_eq!(v.abandonnes(), 0);
+
+    // La vue bouge d'un demi-pixel : la forme demandee n'est plus la meme.
+    v.ouvrir();
+    v.pour("n", "f.png", apres, 1000.0);
+    v.fermer();
+    v.avancer_le_chantier(Duration::from_nanos(1), |_| Some(&pyr));
+    assert!(
+        v.abandonnes() >= 1,
+        "le chantier devenu perime devait etre abandonne, pas poursuivi"
+    );
+}

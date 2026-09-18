@@ -128,12 +128,26 @@ impl Chronique {
         }
         t.push_str("  Les images les plus lentes, et ce qu'elles faisaient\n\n");
         t.push_str(&format!(
-            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>8} {:>10} {:>8}\n",
-            "a", "duree", "geste", "noeuds", "photos", "ecrans", "redessine", "cache"
+            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>5} {:>8} {:>10} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8}\n",
+            "a",
+            "duree",
+            "geste",
+            "noeuds",
+            "photos",
+            "mip",
+            "ecrans",
+            "redessine",
+            "vign",
+            "file",
+            "perim",
+            "pret",
+            "orph",
+            "abdn",
+            "cache"
         ));
         for p in self.pires().iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>5} Mo\n",
+                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>5} Mo\n",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
@@ -147,6 +161,7 @@ impl Chronique {
                 p.vignettes_perimees,
                 p.vignettes_pretes,
                 p.vignettes_orphelines,
+                p.vignettes_abandonnees,
                 p.images_mo,
             ));
             self.ecrire_les_postes(t, p);

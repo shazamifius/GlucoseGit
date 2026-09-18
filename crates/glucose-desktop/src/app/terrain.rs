@@ -88,6 +88,16 @@ impl GlucoseApp {
         vu.en_decodage = lire("img_attente").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.vignettes = lire("vign_atelier").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.vignettes_en_attente = lire("vign_attente").clamp(0.0, f64::from(u16::MAX)) as u16;
+        // Un compteur declare mais jamais lu ici vaut ZERO dans la trace, et un zero se lit
+        // comme une mesure. Quatre l'ont ete pendant une session entiere, et tout un
+        // raisonnement s'est bati dessus : « aucune photo ne passe par une vignette » ne
+        // mesurait rien d'autre que l'absence de cette ligne.
+        vu.par_vignette = lire("img_par_vignette").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes_perimees = lire("vign_perimees").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes_pretes = lire("vign_pretes").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes_orphelines = lire("vign_orphelines").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes_recreees = lire("vign_recreees").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes_abandonnees = lire("vign_abandonnes").clamp(0.0, f64::from(u16::MAX)) as u16;
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;

@@ -184,6 +184,10 @@ pub struct Instantane {
     /// Combien de vignettes ont été achevées pour un nœud qui n'existait plus, depuis le début
     /// de la session. Du travail intégralement perdu.
     pub vignettes_orphelines: u16,
+    /// Combien de nœuds ont dû être recréés pendant cette image, faute d'entrée.
+    pub vignettes_recreees: u16,
+    /// Combien de chantiers ont été abandonnés depuis le début, leur forme ayant été quittée.
+    pub vignettes_abandonnees: u16,
 }
 
 impl Instantane {
@@ -298,6 +302,9 @@ pub struct Chronique {
     /// défaut.
     photos_posees: u64,
     photos_par_vignette: u64,
+    /// Les recréations de nœuds cumulées : si elles suivent le nombre de photos, la table est
+    /// vidée entre deux images et rien de ce que l'atelier construit ne peut survivre.
+    noeuds_recrees: u64,
 }
 
 impl Default for Chronique {
@@ -316,6 +323,14 @@ impl Chronique {
             .then(|| self.photos_par_vignette as f64 / self.photos_posees as f64)
     }
 
+    /// La part des poses qui ont dû **recréer** l'entrée du nœud, entre 0 et 1.
+    ///
+    /// Proche de 1, elle dit que la table est vidée entre deux images : une entrée recréée
+    /// naît sans vignette, donc rien de ce que l'atelier construit ne peut jamais servir.
+    pub fn part_recreee(&self) -> Option<f64> {
+        (self.photos_posees > 0).then(|| self.noeuds_recrees as f64 / self.photos_posees as f64)
+    }
+
     pub fn nouvelle() -> Self {
         Self {
             debut: std::time::Instant::now(),
@@ -326,6 +341,7 @@ impl Chronique {
             du_neuf: false,
             photos_posees: 0,
             photos_par_vignette: 0,
+            noeuds_recrees: 0,
         }
     }
 
@@ -360,6 +376,7 @@ impl Chronique {
         self.rendues += 1;
         self.photos_posees += u64::from(vu.photos);
         self.photos_par_vignette += u64::from(vu.par_vignette);
+        self.noeuds_recrees += u64::from(vu.vignettes_recreees);
 
         let poste = &mut self.par_geste[vu.geste().indice()];
         poste.rendues += 1;

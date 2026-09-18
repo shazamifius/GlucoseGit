@@ -147,6 +147,8 @@ pub(in crate::renderer) fn draw_images(
     crate::perf::compteur("vign_perimees", magasin.vignettes.perimees() as f64);
     crate::perf::compteur("vign_pretes", magasin.vignettes.pretes() as f64);
     crate::perf::compteur("vign_orphelines", magasin.vignettes.orphelines() as f64);
+    crate::perf::compteur("vign_recreees", magasin.vignettes.recreees() as f64);
+    crate::perf::compteur("vign_abandonnes", magasin.vignettes.abandonnes() as f64);
     crate::perf::compteur(
         "vign_faites",
         magasin.vignettes.faites().saturating_sub(vignettes_avant) as f64,

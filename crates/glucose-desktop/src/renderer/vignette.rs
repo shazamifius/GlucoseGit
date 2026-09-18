@@ -99,6 +99,18 @@ pub struct Vignettes {
     /// rapporter. Il se compte depuis le début de la session : s'il monte, le chantier survit
     /// à ce qu'il construit.
     orphelines: usize,
+    /// Combien de nœuds ont dû être **recréés** pendant l'image en cours, faute d'entrée.
+    ///
+    /// Une entrée recréée naît sans vignette. Si ce nombre égale celui des photos à chaque
+    /// image, c'est que la table est vidée entre deux images — et alors rien de ce que
+    /// l'atelier construit ne peut survivre assez longtemps pour servir.
+    recreees: usize,
+    /// Combien de chantiers ont été abandonnés parce que leur forme n'était plus demandée.
+    ///
+    /// S'il monte sans cesse, c'est que la vue change plus vite que l'atelier ne construit :
+    /// aucune vignette n'a le temps de servir, et il faut alors s'attaquer au **coût** d'une
+    /// vignette, pas à l'ordre dans lequel on les fait.
+    abandonnes: usize,
     /// La vignette en cours de construction, et jusqu'où elle est remplie.
     ///
     /// Une seule à la fois : on finit avant d'en commencer une autre, sinon des tampons à
@@ -127,6 +139,17 @@ impl Vignettes {
     pub fn ouvrir(&mut self) {
         self.image += 1;
         self.perimees = 0;
+        self.recreees = 0;
+    }
+
+    /// Combien de nœuds ont été recréés pendant l'image en cours.
+    pub fn recreees(&self) -> usize {
+        self.recreees
+    }
+
+    /// Combien de chantiers ont été abandonnés depuis le début, leur forme ayant été quittée.
+    pub fn abandonnes(&self) -> usize {
+        self.abandonnes
     }
 
     /// Combien de vignettes se sont révélées périmées pendant l'image en cours.
@@ -199,6 +222,9 @@ impl Vignettes {
         surface_visible: f64,
     ) -> Option<&Pixmap> {
         let image = self.image;
+        if !self.par_noeud.contains_key(noeud) {
+            self.recreees += 1;
+        }
         let entree = match self.par_noeud.get_mut(noeud) {
             Some(e) => e,
             None => self.par_noeud.entry(noeud.to_string()).or_insert(Entree {
@@ -239,14 +265,35 @@ impl Vignettes {
     }
 
     /// Le prochain nœud du chantier : celui dont on voit la plus grande surface.
+    /// Le prochain nœud du chantier : celui dont on voit la plus grande surface.
+    ///
+    /// **La forme retenue est la DERNIÈRE demandée, pas celle notée à la mise en chantier.**
+    /// Une vignette met plusieurs images à sortir ; construire la forme d'il y a vingt images
+    /// revient à la livrer déjà périmée. Mesuré : trois cent quarante-trois vignettes prêtes,
+    /// et les trois cent quarante-trois à une forme que la vue avait quittée.
     fn prochain(&self) -> Option<(String, String, Forme, f64)> {
         self.par_noeud
             .iter()
             .filter_map(|(id, e)| {
                 e.en_chantier
+                    .and(e.demandee)
                     .map(|forme| (id.clone(), e.src.clone(), forme, e.surface))
             })
             .max_by(|a, b| a.3.total_cmp(&b.3))
+    }
+
+    /// La forme en cours de construction est-elle encore celle qu'on demande ?
+    ///
+    /// Un chantier qu'on sait déjà périmé ne mérite pas d'être fini : le poursuivre coûte
+    /// autant qu'il ne rapportera rien. Mieux vaut jeter la tranche entamée et repartir de la
+    /// forme du moment.
+    fn chantier_encore_bon(&self) -> bool {
+        let Some(chantier) = self.en_cours.as_ref() else {
+            return false;
+        };
+        self.par_noeud
+            .get(&chantier.noeud)
+            .is_some_and(|e| e.demandee == Some(chantier.forme))
     }
 
     /// Avance le chantier pendant au plus `budget`, et rend combien de vignettes en sont
@@ -268,6 +315,12 @@ impl Vignettes {
         loop {
             if self.en_cours.is_none() && !self.ouvrir_un_chantier() {
                 break;
+            }
+            if !self.chantier_encore_bon() {
+                // La vue a bouge depuis l'ouverture : ce qui est commence ne servira plus.
+                self.abandonnes += 1;
+                self.en_cours = None;
+                continue;
             }
             let Some(chantier) = self.en_cours.as_mut() else {
                 break;

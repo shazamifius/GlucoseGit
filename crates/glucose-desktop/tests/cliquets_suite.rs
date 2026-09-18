@@ -820,3 +820,55 @@ trait T {
     let f = fonctions(texte);
     assert_eq!(f, vec![("a".to_string(), 6), ("b".to_string(), 1)]);
 }
+
+// ── Cliquet 9 : un champ de la chronique qui n'est jamais rempli ─────────────
+
+/// **Tout champ de `Instantane` doit être rempli quelque part.**
+///
+/// # Le défaut que ce cliquet interdit, et il a coûté une session entière
+///
+/// Quatre champs ont été ajoutés à l'instantané — la part servie par vignette, les périmées,
+/// les prêtes, les orphelines — sans que la ligne qui les remplit soit écrite. Ils valaient
+/// donc zéro dans chaque trace, **et un zéro se lit comme une mesure**. Tout un raisonnement
+/// s'est bâti dessus : « aucune photo ne passe par une vignette » ne mesurait rien d'autre que
+/// l'absence de ces lignes.
+///
+/// Un compteur qui ment est pire que pas de compteur du tout : le second se remarque.
+#[test]
+fn test_cliquet_9_aucun_champ_de_la_chronique_ne_reste_vide() {
+    let chronique = std::fs::read_to_string("src/chronique.rs").expect("chronique.rs");
+    let terrain = std::fs::read_to_string("src/app/terrain.rs").expect("terrain.rs");
+
+    // Les champs publics de `Instantane`, dans l'ordre où ils sont déclarés.
+    let debut = chronique
+        .find("pub struct Instantane {")
+        .expect("la structure Instantane");
+    let corps = &chronique[debut..];
+    let fin = corps.find("\n}").expect("la fin de la structure");
+    let champs: Vec<&str> = corps[..fin]
+        .lines()
+        // La premiere ligne est la declaration elle-meme, qui commence aussi par « pub ».
+        .skip(1)
+        .filter_map(|l| l.trim().strip_prefix("pub "))
+        .filter_map(|l| l.split(':').next())
+        .collect();
+    assert!(champs.len() > 5, "la structure n'a pas été lue");
+
+    // `instant_ms` est posé par `Chronique::enregistrer`, qui seule connaît le début de la
+    // session : c'est la seule exception, et elle se vérifie ici plutôt que de se supposer.
+    assert!(
+        chronique.contains("vu.instant_ms = "),
+        "instant_ms n'est plus posé par `enregistrer`"
+    );
+
+    let oublies: Vec<&str> = champs
+        .iter()
+        .filter(|c| c.trim() != "instant_ms" && !terrain.contains(c.trim()))
+        .copied()
+        .collect();
+    assert!(
+        oublies.is_empty(),
+        "ces champs de la chronique ne sont jamais remplis, donc ils valent zéro dans chaque \
+         trace : {oublies:?}\nUn compteur qui ment est pire que pas de compteur."
+    );
+}
