@@ -95,20 +95,22 @@ fn la_glissade_parcourt_la_vitesse_multipliee_par_tau() {
     let mut elan = Elan::default();
     elan.avancer(a(0), DIAGONALE);
     // Une poussée entretenue pendant bien plus que `τ` : la vitesse lissée rejoint la vraie.
-    for i in 1..=200 {
+    // Dix fois `τ` suffit à la faire converger à un pour vingt-deux mille.
+    let poussee = (10.0 * TAU_PAN * 1000.0) as u64;
+    for t in (10..=poussee).step_by(10) {
         elan.pousser_pan(10.0, 0.0);
-        elan.avancer(a(i * 10), DIAGONALE);
+        elan.avancer(a(t), DIAGONALE);
     }
     // 10 px toutes les 10 ms = 1000 px/s.
     let mut total = 0.0;
-    for i in 1..=400 {
-        if let Some(m) = elan.avancer(a(2000 + i * 5), DIAGONALE) {
+    for t in (5..=poussee * 2).step_by(5) {
+        if let Some(m) = elan.avancer(a(poussee + t), DIAGONALE) {
             total += m.pan.0;
         }
     }
-    let attendu = 1000.0 * TAU;
+    let attendu = 1000.0 * TAU_PAN;
     assert!(
-        (total - attendu).abs() < attendu * 0.05,
+        (total - attendu).abs() < attendu * 0.02,
         "glissade de {total} px, attendue autour de {attendu}"
     );
 }

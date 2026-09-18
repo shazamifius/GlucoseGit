@@ -44,11 +44,29 @@ static MARQUE: AtomicBool = AtomicBool::new(false);
 static MARQUES: AtomicU64 = AtomicU64::new(0);
 
 /// Le système a-t-il marqué ce défilement comme une demande de zoom ?
+///
+/// # La marque se **consomme**, et c'est tout l'objet de cette fonction
+///
+/// La première version la lisait sans l'effacer. Un message de molette qui n'était pas passé
+/// par le crochet héritait donc de la marque du précédent — et Windows a plusieurs boucles
+/// internes qui pompent les messages sans passer par celle de `winit` : un redimensionnement,
+/// un menu système, un glisser natif.
+///
+/// La conséquence se voyait, et l'utilisateur l'a décrite exactement : « tu peux aller en haut
+/// et revenir en bas et tu viens de dézoomer énormément », sur des gestes qui ne contenaient
+/// aucun zoom. Un glissement dont chaque unité vaut un quart d'octave au lieu de seize pixels
+/// traverse plusieurs octaves en un geste.
+///
+/// Consommée, la marque ne peut plus servir qu'au message qui l'a posée.
 pub fn zoom_du_systeme() -> bool {
-    MARQUE.load(Ordering::Relaxed)
+    MARQUE.swap(false, Ordering::Relaxed)
 }
 
-/// Combien de fois la marque a été vue — pour la chronique.
+/// Combien de messages ont porté la marque — pour la chronique.
+///
+/// À comparer au nombre de pincements que la navigation a comptés : les deux doivent coïncider.
+/// Un écart signifie qu'un message marqué n'a pas donné d'événement, ou l'inverse — donc que le
+/// pont et la boucle ne voient pas la même chose.
 pub fn marques() -> u64 {
     MARQUES.load(Ordering::Relaxed)
 }

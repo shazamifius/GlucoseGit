@@ -23,6 +23,14 @@ fn le_pont_lit_la_marque_du_systeme_et_rien_d_autre() {
     assert!(zoom_du_systeme(), "le bit de controle est la marque de zoom");
     assert_eq!(marques(), avant + 1, "une marque vue se compte");
 
+    // **La marque se consomme.** Sans cela, un message qui n'est pas passe par le crochet --
+    // et Windows a des boucles internes qui en pompent -- heriterait de celle du precedent.
+    // Un glissement entier devenait alors un zoom de plusieurs octaves.
+    assert!(
+        !zoom_du_systeme(),
+        "une marque deja lue ne doit plus servir a personne"
+    );
+
     plateforme::lire(message(MOLETTE_VERTICALE, 0).as_ptr().cast());
     assert!(
         !zoom_du_systeme(),

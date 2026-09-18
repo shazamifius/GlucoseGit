@@ -40,6 +40,10 @@
 //! exactement **`v₀·τ`**. Lâcher à mille pixels par seconde emporte `1000·τ` pixels, et rien
 //! d'autre à savoir.
 //!
+//! Le déplacement et le zoom n'ont pas le même `τ`, et la raison n'est pas un goût : Windows
+//! amortit déjà le glissement à deux doigts avant de nous l'envoyer, jamais le pincement. Voir
+//! [`TAU_PAN`].
+//!
 //! # Le seuil d'arrêt n'est pas une constante
 //!
 //! On s'arrête quand ce qui **reste** à parcourir tient sous le demi-pixel — la limite de ce
@@ -49,12 +53,29 @@
 
 use std::time::{Duration, Instant};
 
-/// Le temps caractéristique de la glissade.
+/// Le temps caractéristique de la glissade du **zoom**.
 ///
-/// Sa lecture directe : une glissade lâchée à `v` pixels par seconde parcourt encore `v × τ`
-/// pixels. C'est la seule grandeur de ressenti de ce module, et elle vaut pour le déplacement
-/// comme pour le zoom — une seule main, un seul élan.
-const TAU: f64 = 0.28;
+/// Sa lecture directe : une glissade lâchée à `v` octaves par seconde en parcourt encore
+/// `v × τ`. Jugé juste à la main, et laissé tel quel.
+const TAU_ZOOM: f64 = 0.28;
+
+/// Le temps caractéristique de la glissade du **déplacement**.
+///
+/// # Pourquoi il diffère de celui du zoom, et ce n'est pas un goût
+///
+/// Les deux gestes ne nous arrivent pas dans le même état. Windows amortit **déjà** le
+/// glissement à deux doigts : quand les doigts se lèvent, le pilote continue d'envoyer des
+/// défilements décroissants pendant environ un tiers de seconde. Le pincement, lui, s'arrête
+/// net avec les doigts.
+///
+/// Notre élan se compose donc avec celui du pilote pour le déplacement, et avec rien pour le
+/// zoom. Deux amortissements en série décroissent plus vite que chacun : la vitesse retenue au
+/// moment où les messages cessent vaut à peu près la moitié de celle du geste, et la glissade
+/// est d'autant plus courte. L'utilisateur l'a décrit exactement ainsi — « le zoom c'est
+/// parfait pour le smooth mais pour la translation ça freine trop vite ».
+///
+/// Compenser cette asymétrie n'ajoute pas un réglage : cela rétablit celui qui existe déjà.
+const TAU_PAN: f64 = 0.6;
 
 /// Au-delà, on ne glisse pas : on a été suspendu.
 ///
@@ -169,10 +190,11 @@ impl Elan {
         let pan = std::mem::take(&mut self.demande_pan);
         let octaves = std::mem::take(&mut self.demande_octaves);
         if dt > 0.0 {
-            let part = 1.0 - (-dt / TAU).exp();
-            self.vitesse.0 += (pan.0 / dt - self.vitesse.0) * part;
-            self.vitesse.1 += (pan.1 / dt - self.vitesse.1) * part;
-            self.vitesse_octaves += (octaves / dt - self.vitesse_octaves) * part;
+            let part_pan = 1.0 - (-dt / TAU_PAN).exp();
+            self.vitesse.0 += (pan.0 / dt - self.vitesse.0) * part_pan;
+            self.vitesse.1 += (pan.1 / dt - self.vitesse.1) * part_pan;
+            let part_zoom = 1.0 - (-dt / TAU_ZOOM).exp();
+            self.vitesse_octaves += (octaves / dt - self.vitesse_octaves) * part_zoom;
         }
         Mouvement {
             pan,
@@ -189,15 +211,19 @@ impl Elan {
             return None;
         }
         // L'intégrale exacte de la décroissance sur ce pas : jamais plus que ce qui reste.
-        let parcouru = TAU * (1.0 - (-dt / TAU).exp());
+        let parcouru_pan = TAU_PAN * (1.0 - (-dt / TAU_PAN).exp());
+        let parcouru_zoom = TAU_ZOOM * (1.0 - (-dt / TAU_ZOOM).exp());
         let mouvement = Mouvement {
-            pan: (self.vitesse.0 * parcouru, self.vitesse.1 * parcouru),
-            octaves: self.vitesse_octaves * parcouru,
+            pan: (
+                self.vitesse.0 * parcouru_pan,
+                self.vitesse.1 * parcouru_pan,
+            ),
+            octaves: self.vitesse_octaves * parcouru_zoom,
             ancre: self.ancre,
         };
-        let reste = (-dt / TAU).exp();
-        self.vitesse = (self.vitesse.0 * reste, self.vitesse.1 * reste);
-        self.vitesse_octaves *= reste;
+        self.vitesse.0 *= (-dt / TAU_PAN).exp();
+        self.vitesse.1 *= (-dt / TAU_PAN).exp();
+        self.vitesse_octaves *= (-dt / TAU_ZOOM).exp();
         mouvement.existe().then_some(mouvement)
     }
 
@@ -207,9 +233,9 @@ impl Elan {
     /// le pas d'une image — sinon une cadence élevée arrêterait le mouvement plus tôt qu'une
     /// cadence basse, ce qui serait exactement le contraire du but.
     fn eteint(&self, diagonale: f64) -> bool {
-        let reste = (self.vitesse.0 * TAU).hypot(self.vitesse.1 * TAU);
+        let reste = (self.vitesse.0 * TAU_PAN).hypot(self.vitesse.1 * TAU_PAN);
         // Ce qu'un reste d'octaves déplacerait au bord de l'écran, en pixels.
-        let reste_zoom = diagonale / 2.0 * ((self.vitesse_octaves * TAU).exp2() - 1.0).abs();
+        let reste_zoom = diagonale / 2.0 * ((self.vitesse_octaves * TAU_ZOOM).exp2() - 1.0).abs();
         reste < 0.5 && reste_zoom < 0.5
     }
 }

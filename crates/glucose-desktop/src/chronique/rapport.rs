@@ -60,6 +60,16 @@ impl Chronique {
                 "    aucun pincement reconnu : si on a pince, le systeme ne le marque pas ici\n",
             );
         }
+        // Le pont de plateforme et la boucle d'evenements doivent voir le meme nombre de
+        // pincements. Un ecart veut dire qu'un message marque n'a pas donne d'evenement -- ou
+        // l'inverse -- et c'est exactement ce qui faisait dezoomer des translations pures.
+        let marquees = crate::interactions::pincement::marques();
+        if marquees != c.pincements {
+            t.push_str(&format!(
+                "    {marquees} message(s) marque(s) par le systeme pour {} pincement(s) traite(s)\n",
+                c.pincements
+            ));
+        }
         if c.crans > 0 && c.pans > 0 {
             t.push_str(
                 "    un cran suppose au milieu d'un glissement coute un saut d'echelle visible\n",
