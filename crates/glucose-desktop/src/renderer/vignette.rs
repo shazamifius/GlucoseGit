@@ -265,6 +265,14 @@ impl Vignettes {
             entree.en_chantier = None;
         } else if repetee {
             entree.en_chantier = Some(forme);
+        } else {
+            // **La forme vient de changer : il n'y a plus rien a construire.** Laisser la
+            // demande en place la faisait survivre a ce qu'elle demandait : l'atelier ouvrait
+            // un chantier sur une forme que plus personne n'attendait, l'abandonnait des la
+            // tranche suivante, en rouvrait un autre, sans fin. Mesure chez l'utilisateur :
+            // 324 ms d'atelier par image, deux cent quarante-cinq abandons, et pas une seule
+            // photo servie par une vignette.
+            entree.en_chantier = None;
         }
         if !prete {
             return None;

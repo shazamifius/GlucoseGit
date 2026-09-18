@@ -325,3 +325,41 @@ fn test_un_chantier_perime_est_abandonne() {
         "le chantier devenu perime devait etre abandonne, pas poursuivi"
     );
 }
+
+/// Une forme qui change **sans se répéter** ne laisse aucun chantier derrière elle.
+///
+/// C'est le cas de tout mouvement continu : la vue bouge, chaque forme est neuve, et rien ne
+/// mérite d'être construit. Laisser la demande en place faisait tourner l'atelier à vide —
+/// ouvrir, abandonner, rouvrir — pour trois cent vingt-quatre millisecondes par image.
+#[test]
+fn test_un_mouvement_continu_ne_laisse_aucun_chantier() {
+    let mut v = Vignettes::new();
+    let pyr = Pyramide::nouvelle(bicolore(64, 64));
+
+    // Deux images identiques : le chantier s'ouvre.
+    let stable = Forme::posee(0.0, 0.0, 32.0, 32.0);
+    for _ in 0..2 {
+        v.ouvrir();
+        v.pour("n", "f.png", stable, 1024.0);
+        v.fermer();
+    }
+    assert_eq!(v.en_chantier(), 1);
+
+    // Puis la vue se met a bouger : chaque forme est neuve.
+    for i in 1..10 {
+        v.ouvrir();
+        v.pour(
+            "n",
+            "f.png",
+            Forme::posee(i as f32 * 0.25, 0.0, 32.0, 32.0),
+            1024.0,
+        );
+        v.fermer();
+        assert_eq!(
+            v.en_chantier(),
+            0,
+            "une forme neuve ne doit rien laisser en chantier"
+        );
+    }
+    assert_eq!(atelier(&mut v, &pyr), 0, "l'atelier n'a rien a faire");
+}
