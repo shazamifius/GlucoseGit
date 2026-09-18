@@ -5,10 +5,15 @@
 //! ne peut être ni mesuré, ni capturé, ni instrumenté de l'extérieur.
 
 use glucose_desktop::app::GlucoseApp;
+use glucose_desktop::interactions::pincement;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let event_loop = EventLoop::new()?;
+    let mut constructeur = EventLoop::builder();
+    // Ce que le pavé tactile dit du pincement passe à côté de `winit` : le pont doit être en
+    // place avant que la boucle existe, sinon le premier geste est déjà perdu.
+    pincement::brancher(&mut constructeur);
+    let event_loop = constructeur.build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let mut app = GlucoseApp::new();

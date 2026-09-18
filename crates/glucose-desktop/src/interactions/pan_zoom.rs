@@ -83,8 +83,15 @@ fn deltas(delta: MouseScrollDelta) -> (f64, f64, bool) {
 /// raison, parce qu'un défilement pris pour un cran de souris est le cas ambigu : s'il abonde
 /// pendant qu'on glisse à deux doigts, chacun coûte un saut d'échelle visible — et aucune
 /// mesure de durée ne le montrerait.
-pub fn pourquoi(delta: MouseScrollDelta, ctrl: bool) -> crate::chronique::navigation::Decision {
+pub fn pourquoi(
+    delta: MouseScrollDelta,
+    ctrl: bool,
+    pincement: bool,
+) -> crate::chronique::navigation::Decision {
     use crate::chronique::navigation::Decision;
+    if pincement {
+        return Decision::Pincement;
+    }
     let (dx, dy, ligne) = deltas(delta);
     if !ctrl && cran_de_souris(dx, dy, ligne) {
         return Decision::CranDeSouris;
@@ -108,12 +115,18 @@ impl GlucoseApp {
     /// Gère les événements de molette et gestes tactiles.
     pub fn handle_mouse_wheel(&mut self, delta: MouseScrollDelta) {
         let (cx, cy) = self.mouse_pos;
+        // Le `Ctrl` d'un pincement est virtuel : il vit dans le message du systeme, pas dans
+        // l'etat du clavier que `winit` rapporte. Les deux sources disent la meme chose --
+        // « ce defilement veut zoomer » -- et se lisent donc ensemble, ici et nulle part
+        // ailleurs, pour que la decision elle-meme reste une fonction pure.
+        let pincement = super::pincement::zoom_du_systeme();
+        let zoom_demande = self.modifiers.control_key() || pincement;
         // NAV-3 : ce que le doigt a demande entre dans la trace, avec l'instant ou il l'a
         // demande. C'est de la qu'on saura si l'ecran suit la main.
         self.chronique
             .navigation
-            .evenement(pourquoi(delta, self.modifiers.control_key()));
-        match geste(delta, self.modifiers.control_key()) {
+            .evenement(pourquoi(delta, self.modifiers.control_key(), pincement));
+        match geste(delta, zoom_demande) {
             Geste::Zoom(facteur) => self.store.zoom(facteur, cx, cy, WHEEL_SCALE_RANGE),
             Geste::Pan(dx, dy) => self.store.pan(dx, dy),
         }

@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn une_navigation_neuve_n_a_rien_a_dire() {
     let mut nav = Navigation::nouvelle();
-    assert_eq!(nav.comptes(), (0, 0, 0));
+    assert_eq!(nav.comptes(), Comptes::default());
     assert_eq!(nav.mesurees(), (0, 0));
     assert!(
         nav.image_presentee().is_none(),
@@ -52,7 +52,27 @@ fn chaque_nature_de_geste_se_compte_a_part() {
     nav.evenement(Decision::Zoom);
     nav.evenement(Decision::Pan);
     nav.evenement(Decision::CranDeSouris);
-    assert_eq!(nav.comptes(), (2, 1, 1));
+    nav.evenement(Decision::Pincement);
+    assert_eq!(
+        nav.comptes(),
+        Comptes {
+            pincements: 1,
+            zooms: 2,
+            pans: 1,
+            crans: 1
+        }
+    );
+    assert_eq!(nav.comptes().total(), 5);
+}
+
+/// **Un pincement n'est pas un zoom clavier.** Les confondre reviendrait à perdre la seule
+/// grandeur qui dise si le geste du pavé tactile arrive jusqu'ici.
+#[test]
+fn un_pincement_ne_grossit_pas_le_compte_des_zooms_clavier() {
+    let mut nav = Navigation::nouvelle();
+    nav.evenement(Decision::Pincement);
+    assert_eq!(nav.comptes().zooms, 0);
+    assert_eq!(nav.comptes().pincements, 1);
 }
 
 /// Le centile se lit sur la distribution, comme pour les images.

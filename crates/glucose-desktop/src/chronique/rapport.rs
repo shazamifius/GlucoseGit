@@ -42,16 +42,25 @@ impl Chronique {
     /// application à cent images par seconde dont chaque image montre l'état d'il y a
     /// cinquante millisecondes paraît molle, et aucune durée d'image ne l'explique.
     fn ecrire_la_navigation(&self, t: &mut String) {
-        let (zooms, pans, crans) = self.navigation.comptes();
+        let c = self.navigation.comptes();
         let (mesurees, pire) = self.navigation.mesurees();
-        if zooms + pans + crans == 0 {
+        if c.total() == 0 {
             return;
         }
         t.push_str("  Ce que la main demande, et le temps que l'ecran met a le montrer\n\n");
         t.push_str(&format!(
-            "  {zooms} zoom(s), {pans} deplacement(s), {crans} pris pour un cran de souris\n"
+            "  {} pincement(s), {} zoom(s) au clavier, {} deplacement(s), {} pris pour un cran de souris\n",
+            c.pincements, c.zooms, c.pans, c.crans
         ));
-        if crans > 0 && pans > 0 {
+        // Le pincement est le geste que Glucose ne recevait pas du tout : tant que ce compte
+        // reste nul alors qu'on a pince, le pont de plateforme ne sert pas, et c'est cela
+        // qu'il faut corriger -- pas la cadence.
+        if c.pincements == 0 && c.pans > 0 {
+            t.push_str(
+                "    aucun pincement reconnu : si on a pince, le systeme ne le marque pas ici\n",
+            );
+        }
+        if c.crans > 0 && c.pans > 0 {
             t.push_str(
                 "    un cran suppose au milieu d'un glissement coute un saut d'echelle visible\n",
             );

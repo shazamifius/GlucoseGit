@@ -16,6 +16,7 @@ pub mod mouse;
 pub mod pan_zoom;
 pub mod panels;
 pub mod pick;
+pub mod pincement;
 pub mod resize;
 pub mod selection;
 pub mod shortcuts;

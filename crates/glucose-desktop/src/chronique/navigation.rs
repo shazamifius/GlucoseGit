@@ -31,7 +31,12 @@ const TRANCHES: usize = PAR_OCTAVE * OCTAVES;
 /// Ce qu'un événement de défilement a voulu dire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Decision {
-    /// Le geste a été compris comme un zoom, au pincement ou au `Ctrl`.
+    /// Le **système** a marqué ce défilement comme un zoom : un pincement à deux doigts.
+    ///
+    /// Compté à part des autres zooms, et c'est tout l'intérêt : tant que ce compte restait
+    /// nul pendant qu'on pinçait, le geste n'arrivait tout simplement pas jusqu'ici.
+    Pincement,
+    /// Le geste a été compris comme un zoom, `Ctrl` étant tenu au clavier.
     Zoom,
     /// Le geste a été compris comme un déplacement de la vue.
     Pan,
@@ -43,9 +48,26 @@ pub enum Decision {
     CranDeSouris,
 }
 
+/// Ce que la main a demandé, par nature de geste.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Comptes {
+    pub pincements: u64,
+    pub zooms: u64,
+    pub pans: u64,
+    pub crans: u64,
+}
+
+impl Comptes {
+    /// Combien d'événements en tout — zéro veut dire que personne n'a navigué.
+    pub fn total(&self) -> u64 {
+        self.pincements + self.zooms + self.pans + self.crans
+    }
+}
+
 /// Tout ce que la navigation a vécu pendant la session.
 #[derive(Debug)]
 pub struct Navigation {
+    pincements: u64,
     zooms: u64,
     pans: u64,
     crans: u64,
@@ -69,6 +91,7 @@ impl Default for Navigation {
 impl Navigation {
     pub fn nouvelle() -> Self {
         Self {
+            pincements: 0,
             zooms: 0,
             pans: 0,
             crans: 0,
@@ -85,6 +108,7 @@ impl Navigation {
     /// celle du plus ancien geste que l'écran n'a pas encore montré, pas celle du dernier.
     pub fn evenement(&mut self, decision: Decision) {
         match decision {
+            Decision::Pincement => self.pincements += 1,
             Decision::Zoom => self.zooms += 1,
             Decision::Pan => self.pans += 1,
             Decision::CranDeSouris => self.crans += 1,
@@ -106,9 +130,15 @@ impl Navigation {
         Some(latence)
     }
 
-    /// Combien d'événements de chaque nature : zooms, déplacements, crans supposés.
-    pub fn comptes(&self) -> (u64, u64, u64) {
-        (self.zooms, self.pans, self.crans)
+    /// Combien d'événements de chaque nature : pincements, zooms clavier, déplacements,
+    /// crans supposés.
+    pub fn comptes(&self) -> Comptes {
+        Comptes {
+            pincements: self.pincements,
+            zooms: self.zooms,
+            pans: self.pans,
+            crans: self.crans,
+        }
     }
 
     /// Combien de latences ont été mesurées, et la pire.
