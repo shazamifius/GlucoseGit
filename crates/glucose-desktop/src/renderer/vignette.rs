@@ -85,6 +85,20 @@ pub struct Vignettes {
     /// rien n'ait eu à s'en apercevoir.
     pixels_produits: u64,
     nanos_passees: u64,
+    /// Combien de fois, dans l'image en cours, une vignette existait pour ce nœud **mais pour
+    /// une autre forme**.
+    ///
+    /// C'est le chiffre qui sépare deux causes qu'aucune durée ne distingue : une vignette qui
+    /// n'a pas encore été construite, et une vignette construite pour une forme que la vue a
+    /// déjà quittée. La seconde est un travail fait pour rien, et elle se corrige tout
+    /// autrement que la première.
+    perimees: usize,
+    /// Combien de vignettes ont été achevées **pour un nœud qui n'existait plus**.
+    ///
+    /// Du travail intégralement perdu, et le seul cas où l'atelier peut coûter cher sans rien
+    /// rapporter. Il se compte depuis le début de la session : s'il monte, le chantier survit
+    /// à ce qu'il construit.
+    orphelines: usize,
     /// La vignette en cours de construction, et jusqu'où elle est remplie.
     ///
     /// Une seule à la fois : on finit avant d'en commencer une autre, sinon des tampons à
@@ -112,6 +126,25 @@ impl Vignettes {
     /// Ouvre une image : ce qui sera demandé ensuite appartient à celle-ci.
     pub fn ouvrir(&mut self) {
         self.image += 1;
+        self.perimees = 0;
+    }
+
+    /// Combien de vignettes se sont révélées périmées pendant l'image en cours.
+    pub fn perimees(&self) -> usize {
+        self.perimees
+    }
+
+    /// Combien de vignettes achevées n'ont trouvé personne à qui appartenir.
+    pub fn orphelines(&self) -> usize {
+        self.orphelines
+    }
+
+    /// Combien de nœuds ont une vignette prête, quelle que soit sa forme.
+    pub fn pretes(&self) -> usize {
+        self.par_noeud
+            .values()
+            .filter(|e| e.prete.is_some())
+            .count()
     }
 
     /// Ferme l'image et oublie les nœuds qui n'ont pas été dessinés.
@@ -188,6 +221,9 @@ impl Vignettes {
         }
 
         let prete = matches!(&entree.prete, Some((faite, _)) if *faite == forme);
+        if entree.prete.is_some() && !prete {
+            self.perimees += 1;
+        }
         if prete {
             entree.en_chantier = None;
         } else if repetee {
@@ -273,9 +309,12 @@ impl Vignettes {
                 let fini = self.en_cours.take().expect("le chantier vient d'etre lu");
                 self.faites += 1;
                 sorties += 1;
-                if let Some(e) = self.par_noeud.get_mut(&fini.noeud) {
-                    e.prete = Some((fini.forme, fini.vignette));
-                    e.en_chantier = None;
+                match self.par_noeud.get_mut(&fini.noeud) {
+                    Some(e) => {
+                        e.prete = Some((fini.forme, fini.vignette));
+                        e.en_chantier = None;
+                    }
+                    None => self.orphelines += 1,
                 }
             }
 

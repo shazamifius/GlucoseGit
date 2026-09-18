@@ -53,6 +53,15 @@ impl Chronique {
                 f64::from(BUDGET_PLANCHER_US) / 1000.0
             ));
         }
+        // Se lit sur TOUTES les images, et jamais sur les plus lentes : celles-ci sont
+        // justement celles où la vignette a manqué, donc y lire cette part reviendrait à
+        // conclure d'un échantillon qui ne peut contenir que des échecs.
+        if let Some(part) = self.part_par_vignette() {
+            t.push_str(&format!(
+                "  {:.0} % des photos se posent depuis une vignette -- le chemin le moins cher\n",
+                100.0 * part
+            ));
+        }
         t.push('\n');
     }
 
@@ -124,7 +133,7 @@ impl Chronique {
         ));
         for p in self.pires().iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>5} Mo\n",
+                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>5} Mo\n",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
@@ -135,6 +144,9 @@ impl Chronique {
                 100.0 * p.part_redessinee(),
                 p.vignettes,
                 p.vignettes_en_attente,
+                p.vignettes_perimees,
+                p.vignettes_pretes,
+                p.vignettes_orphelines,
                 p.images_mo,
             ));
             self.ecrire_les_postes(t, p);

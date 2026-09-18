@@ -174,6 +174,16 @@ pub struct Instantane {
     /// Zéro sur une image de quatre-vingts photos veut dire qu'aucune n'a pu en avoir — et la
     /// seule raison possible est qu'elles débordent de la fenêtre, c'est-à-dire le zoom proche.
     pub par_vignette: u16,
+    /// Combien de vignettes existaient pour ce nœud, mais à une **autre forme**.
+    ///
+    /// Sépare deux causes qu'aucune durée ne distingue : une vignette pas encore construite,
+    /// et une vignette construite pour une forme que la vue a déjà quittée.
+    pub vignettes_perimees: u16,
+    /// Combien de nœuds ont une vignette prête, quelle que soit sa forme.
+    pub vignettes_pretes: u16,
+    /// Combien de vignettes ont été achevées pour un nœud qui n'existait plus, depuis le début
+    /// de la session. Du travail intégralement perdu.
+    pub vignettes_orphelines: u16,
 }
 
 impl Instantane {
@@ -277,6 +287,17 @@ pub struct Chronique {
     rendues: u64,
     /// Une image est entree dans les pires depuis la derniere sauvegarde.
     du_neuf: bool,
+    /// Toutes les photos posées de la session, et celles qui l'ont été depuis une vignette.
+    ///
+    /// # Pourquoi un cumul, et pas la liste des pires
+    ///
+    /// Les images les plus lentes sont **biaisées par construction** : une image dont les
+    /// photos ont leur vignette devient rapide, donc elle quitte la liste. En n'y lisant que
+    /// des `mip 0`, on conclut que le mécanisme ne sert jamais — alors qu'on ne regarde que
+    /// les cas où il n'a pas servi. Une part calculée sur **toutes** les images n'a pas ce
+    /// défaut.
+    photos_posees: u64,
+    photos_par_vignette: u64,
 }
 
 impl Default for Chronique {
@@ -286,6 +307,15 @@ impl Default for Chronique {
 }
 
 impl Chronique {
+    /// La part des photos de la session qui se sont posées depuis une vignette, entre 0 et 1.
+    ///
+    /// Se lit sur **toutes** les images, et pas sur les plus lentes, qui sont justement celles
+    /// où la vignette a manqué.
+    pub fn part_par_vignette(&self) -> Option<f64> {
+        (self.photos_posees > 0)
+            .then(|| self.photos_par_vignette as f64 / self.photos_posees as f64)
+    }
+
     pub fn nouvelle() -> Self {
         Self {
             debut: std::time::Instant::now(),
@@ -294,6 +324,8 @@ impl Chronique {
             noms_des_postes: Vec::new(),
             rendues: 0,
             du_neuf: false,
+            photos_posees: 0,
+            photos_par_vignette: 0,
         }
     }
 
@@ -326,6 +358,8 @@ impl Chronique {
     pub fn enregistrer(&mut self, mut vu: Instantane) {
         vu.instant_ms = self.debut.elapsed().as_millis().min(u128::from(u32::MAX)) as u32;
         self.rendues += 1;
+        self.photos_posees += u64::from(vu.photos);
+        self.photos_par_vignette += u64::from(vu.par_vignette);
 
         let poste = &mut self.par_geste[vu.geste().indice()];
         poste.rendues += 1;

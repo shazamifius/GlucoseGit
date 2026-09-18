@@ -74,6 +74,10 @@ struct Mesure {
     cachees: f64,
     /// Combien d'images il a fallu pour que le chantier des vignettes se vide (CASCADE-1).
     montee: u32,
+    /// Combien de photos se sont posees depuis une vignette prete, et combien ont une vignette
+    /// prete quelle que soit sa forme. Les deux ensemble disent si le chantier SERT.
+    mip: f64,
+    pretes: f64,
 }
 
 fn chronometrer(store: &Store) -> Mesure {
@@ -97,6 +101,10 @@ fn chronometrer(store: &Store) -> Mesure {
     let mut une_image = |renderer: &mut Renderer, ui: &UiState| -> f64 {
         glucose_desktop::perf::frame_begin();
         let t = Instant::now();
+        // Comme l'application : c'est `Renderer::render` qui encadre la scene, et le banc
+        // appelait `rendre_la_scene` tout nu. Sans cet encadrement il ne voyait jamais la
+        // purge des noeuds non dessines -- donc jamais ce que l'application vit.
+        renderer.magasin.ouvrir();
         renderer.rendre_la_scene(
             &mut pixmap.as_mut(),
             store,
@@ -108,6 +116,7 @@ fn chronometrer(store: &Store) -> Mesure {
             },
             ui.header_height(),
         );
+        renderer.magasin.fermer();
         let ms = t.elapsed().as_secs_f64() * 1000.0;
         renderer
             .magasin
@@ -149,6 +158,8 @@ fn chronometrer(store: &Store) -> Mesure {
         ecrans: lire("img_ecrans"),
         cachees: lire("img_cachees"),
         montee,
+        mip: lire("img_par_vignette"),
+        pretes: lire("vign_pretes"),
     }
 }
 
@@ -166,8 +177,16 @@ fn main() {
         ECRAN.0, ECRAN.1
     );
     println!(
-        "  {:>7} {:>6} {:>13} {:>8} {:>13} {:>8} {:>9} {:>7}",
-        "photos", "zoom", "sans occlure", "posees", "avec occlure", "posees", "rapport", "montee"
+        "  {:>7} {:>6} {:>13} {:>8} {:>13} {:>8} {:>9} {:>7} {:>10}",
+        "photos",
+        "zoom",
+        "sans occlure",
+        "posees",
+        "avec occlure",
+        "posees",
+        "rapport",
+        "montee",
+        "mip/pretes"
     );
 
     for zoom in [0.25f64, 1.0, 4.0] {
@@ -175,13 +194,15 @@ fn main() {
             let sans = chronometrer(&document(&voile, combien, zoom));
             let avec = chronometrer(&document(&opaque, combien, zoom));
             println!(
-                "  {combien:>7} {zoom:>6.2} {:>11.2}ms {:>8.0} {:>11.2}ms {:>8.0} {:>8.1}x {:>5} im",
+                "  {combien:>7} {zoom:>6.2} {:>11.2}ms {:>8.0} {:>11.2}ms {:>8.0} {:>8.1}x {:>5} im {:>4.0}/{:<4.0}",
                 sans.ms,
                 sans.posees,
                 avec.ms,
                 avec.posees,
                 sans.ms / avec.ms.max(0.001),
-                avec.montee
+                avec.montee,
+                avec.mip,
+                avec.pretes
             );
         }
         println!();

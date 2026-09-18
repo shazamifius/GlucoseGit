@@ -142,6 +142,11 @@ pub(in crate::renderer) fn draw_images(
     // Combien d'images l'occlusion a evitees : le gain d'OCCLUSION-1, mesure plutot qu'annonce.
     crate::perf::compteur("img_cachees", cachees);
     crate::perf::compteur("img_par_vignette", par_vignette);
+    // Une vignette existait, mais pour une forme que la vue a deja quittee : du travail fait
+    // pour rien, et qui ne se corrige pas comme une vignette simplement pas encore construite.
+    crate::perf::compteur("vign_perimees", magasin.vignettes.perimees() as f64);
+    crate::perf::compteur("vign_pretes", magasin.vignettes.pretes() as f64);
+    crate::perf::compteur("vign_orphelines", magasin.vignettes.orphelines() as f64);
     crate::perf::compteur(
         "vign_faites",
         magasin.vignettes.faites().saturating_sub(vignettes_avant) as f64,
