@@ -185,3 +185,37 @@ fn les_poussees_de_zoom_d_une_image_s_additionnent() {
     assert!((m.octaves - 0.2).abs() < 1e-12);
     assert_eq!(m.ancre, (20.0, 20.0), "la derniere ancre est la bonne");
 }
+
+/// **Le bug du « point d'origine ».** L'ancre est un lieu, pas une quantité : quand elle
+/// vivait dans la demande, la vider la remettait à `(0, 0)`, et toute la glissade de zoom
+/// tournait autour du coin supérieur gauche de la fenêtre. La vue paraissait aspirée vers un
+/// point qui n'existe nulle part dans le modèle.
+#[test]
+fn l_ancre_ne_se_consomme_pas_avec_la_demande() {
+    let mut elan = Elan::default();
+    elan.avancer(a(0), DIAGONALE);
+    elan.pousser_zoom(0.3, (640.0, 360.0));
+
+    let pendant = elan.avancer(a(16), DIAGONALE).expect("la demande existe");
+    assert_eq!(pendant.ancre, (640.0, 360.0));
+
+    let apres = elan.avancer(a(32), DIAGONALE).expect("la glissade continue");
+    assert_eq!(
+        apres.ancre,
+        (640.0, 360.0),
+        "la glissade doit tourner autour du meme point que le geste"
+    );
+}
+
+/// Un déplacement pur n'invente pas d'ancre : celle du dernier zoom reste, et elle ne sert
+/// qu'au zoom de toute façon.
+#[test]
+fn un_deplacement_ne_deplace_pas_l_ancre_du_zoom() {
+    let mut elan = Elan::default();
+    elan.avancer(a(0), DIAGONALE);
+    elan.pousser_zoom(0.1, (500.0, 500.0));
+    elan.avancer(a(16), DIAGONALE);
+    elan.pousser_pan(30.0, 30.0);
+    let m = elan.avancer(a(32), DIAGONALE).unwrap();
+    assert_eq!(m.ancre, (500.0, 500.0));
+}

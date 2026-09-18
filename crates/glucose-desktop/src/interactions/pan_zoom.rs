@@ -52,9 +52,16 @@ const OCTAVES_PAR_CRAN: f64 = 0.125;
 /// facteur était donc faux par construction — et se mesurait : « tu pinces dix-neuf fois pour
 /// parcourir le dézoom d'une image ».
 ///
-/// Dix fois un cran de molette. Ce rapport vient de ce chiffre-là, pas d'une théorie : il
-/// reste à juger à la main, et c'est la seule façon de le juger.
-const OCTAVES_PAR_PINCEMENT: f64 = 1.25;
+/// # Ce que vaut ce chiffre, et d'où il vient
+///
+/// Dix fois un cran de molette a d'abord été essayé, et s'est révélé « beaucoup beaucoup
+/// trop » à l'usage. Un effet s'y ajoutait sans qu'on le compte : **l'élan prolonge le geste
+/// d'à peu près aussi longtemps qu'il a duré**, donc il double l'amplitude ressentie. Le
+/// pincement pèse ici deux crans de molette par unité, soit un quart d'octave.
+///
+/// C'est du ressenti, donc cela se juge à la main et pas au raisonnement. Ce commentaire est
+/// le journal de ce réglage, pour que le prochain ajustement parte de ce qui a été essayé.
+const OCTAVES_PAR_PINCEMENT: f64 = 0.25;
 
 /// Un cran de molette, en pixels de défilement, là où la plateforme compte en pixels.
 ///
@@ -157,10 +164,30 @@ impl GlucoseApp {
         // une seule fois. Windows livre l'horizontal et le vertical dans deux messages
         // separes -- les appliquer chacun a leur tour faisait d'une diagonale un escalier.
         match geste(delta, ctrl, pincement) {
-            Geste::Zoom(octaves) => self.elan.pousser_zoom(octaves, self.mouse_pos),
+            Geste::Zoom(octaves) => self.elan.pousser_zoom(octaves, self.ancre_du_zoom()),
             Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy),
         }
         self.mark_dirty();
+    }
+
+    /// Le point d'écran autour duquel le zoom tourne.
+    ///
+    /// Le curseur dès qu'il a été posé — c'est la règle de Glucose Tauri, et un pincement ne
+    /// déplace pas le curseur, donc le point reste celui qu'on vise. Tant qu'il ne l'a pas
+    /// été, le centre de la fenêtre : zoomer vers un coin qu'on n'a pas choisi donne
+    /// exactement l'impression d'un « point d'origine » qui aspire la vue.
+    fn ancre_du_zoom(&self) -> (f64, f64) {
+        if self.curseur_vu {
+            return self.mouse_pos;
+        }
+        let Some(fenetre) = &self.window else {
+            return self.mouse_pos;
+        };
+        let taille = fenetre.inner_size();
+        (
+            f64::from(taille.width) / 2.0,
+            f64::from(taille.height) / 2.0,
+        )
     }
 
     /// Déplacement relatif de la caméra lors d'un pan souris (bouton milieu, droit, ou l'outil

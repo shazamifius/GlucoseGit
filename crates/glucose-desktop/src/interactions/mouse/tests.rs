@@ -204,9 +204,12 @@ fn test_a_double_click_opens_the_editor_inside_350_ms_and_not_beyond() {
     // posée à l'origine est en (120, 24). Sur le coin, une poignée gagnerait — à bon droit.
     let (sx, sy) = screen_of(&app, 120.0, 24.0);
 
+    // Des ecarts LARGES : les bornes exactes se verifient sur `rang_du_clic`, qui ne lit pas
+    // l'horloge. Viser une milliseconde de marge ici faisait echouer le test selon la charge
+    // de la machine, sans rien dire de faux sur le code.
     for (elapsed_ms, opens) in [
-        (pick_consts::DBLCLICK_MS as u64 - 1, true),
-        (pick_consts::DBLCLICK_MS as u64 + 1, false),
+        (pick_consts::DBLCLICK_MS as u64 / 2, true),
+        (pick_consts::DBLCLICK_MS as u64 * 2, false),
     ] {
         app.editing_session = None;
         app.last_click = None;

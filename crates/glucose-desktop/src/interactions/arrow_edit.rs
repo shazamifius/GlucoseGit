@@ -17,6 +17,36 @@
 
 use crate::app::{GlucoseApp, LastClickInfo};
 use crate::interactions::pick::DOUBLE_CLICK_SLOP_PX;
+
+/// Le rang d'un clic dans une série rapprochée, **sans lire l'horloge**.
+///
+/// # Pourquoi cette fonction existe à part
+///
+/// La décision tenait en quatre lignes au milieu d'une méthode qui, elle, demandait l'heure.
+/// Elle n'était donc vérifiable qu'à travers un test d'intégration visant une milliseconde de
+/// marge — et entre l'instant que ce test posait et celui que le code lisait, il s'écoulait du
+/// temps réel : un rendu, une machine chargée, un autre banc en parallèle. Le test échouait au
+/// hasard sans rien dire de faux sur le code, ce qui est pire qu'un test absent.
+///
+/// Ici l'heure est une **donnée**, comme dans [`glucose_core::anim`] : les bornes se vérifient
+/// exactement, et le test d'intégration n'a plus qu'à montrer que le câblage tient.
+pub fn rang_du_clic(
+    precedent: Option<&LastClickInfo>,
+    cle: &str,
+    position: (f64, f64),
+    maintenant_ms: i64,
+) -> u32 {
+    let Some(last) = precedent else {
+        return 1;
+    };
+    let ecoule = maintenant_ms - last.at_ms;
+    let bouge = (last.pos.0 - position.0).hypot(last.pos.1 - position.1);
+    if last.id == cle && ecoule < pick_consts::DBLCLICK_MS && bouge < DOUBLE_CLICK_SLOP_PX {
+        last.count + 1
+    } else {
+        1
+    }
+}
 use glucose_core::arrow::{self, ArrowHandle, HandleKind};
 use glucose_core::hit_priority::pick_consts;
 
@@ -38,16 +68,12 @@ impl GlucoseApp {
     /// libre, et le compte se partage : deux horloges pour une question, c'est une
     /// divergence qui attend son bug.
     pub(crate) fn click_count_at(&self, cle: &str) -> u32 {
-        let Some(last) = &self.last_click else {
-            return 1;
-        };
-        let elapsed = self.now_ms() - last.at_ms;
-        let moved = (last.pos.0 - self.mouse_pos.0).hypot(last.pos.1 - self.mouse_pos.1);
-        if last.id == cle && elapsed < pick_consts::DBLCLICK_MS && moved < DOUBLE_CLICK_SLOP_PX {
-            last.count + 1
-        } else {
-            1
-        }
+        rang_du_clic(
+            self.last_click.as_ref(),
+            cle,
+            self.mouse_pos,
+            self.now_ms(),
+        )
     }
 
     /// Retient ce clic et son rang, pour que le suivant puisse se compter.

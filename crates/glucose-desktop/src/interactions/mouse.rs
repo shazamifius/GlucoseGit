@@ -50,6 +50,7 @@ impl GlucoseApp {
     pub fn handle_cursor_moved(&mut self, position: PhysicalPosition<f64>) {
         let prev_pos = self.mouse_pos;
         self.mouse_pos = (position.x, position.y);
+        self.curseur_vu = true;
         let dx = position.x - prev_pos.0;
         let dy = position.y - prev_pos.1;
 

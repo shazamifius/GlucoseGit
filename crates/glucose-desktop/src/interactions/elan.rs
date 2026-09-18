@@ -85,7 +85,17 @@ impl Mouvement {
 #[derive(Debug, Default)]
 pub struct Elan {
     /// Ce que la main a demandé et que l'image n'a pas encore montré.
-    demande: Mouvement,
+    demande_pan: (f64, f64),
+    /// Le zoom demandé et pas encore montré, en octaves.
+    demande_octaves: f64,
+    /// Le point d'écran autour duquel l'échelle tourne.
+    ///
+    /// **Séparé de la demande, et c'est tout l'objet de ce champ.** Quand il vivait dans la
+    /// demande, la vider le remettait à zéro : toute la glissade de zoom tournait alors autour
+    /// du coin supérieur gauche de la fenêtre, et la vue partait vers un « point d'origine »
+    /// qui n'existe nulle part dans le modèle. Une ancre est un lieu, pas une quantité — elle
+    /// ne se consomme pas.
+    ancre: (f64, f64),
     /// La vitesse du geste, en pixels écran par seconde.
     vitesse: (f64, f64),
     /// La vitesse de zoom, en octaves par seconde.
@@ -97,8 +107,8 @@ pub struct Elan {
 impl Elan {
     /// La main demande un déplacement de tant de pixels écran.
     pub fn pousser_pan(&mut self, dx: f64, dy: f64) {
-        self.demande.pan.0 += dx;
-        self.demande.pan.1 += dy;
+        self.demande_pan.0 += dx;
+        self.demande_pan.1 += dy;
     }
 
     /// La main demande un changement d'échelle de tant d'octaves, autour de ce point.
@@ -106,13 +116,18 @@ impl Elan {
     /// L'ancre est celle du **dernier** geste : pendant un pincement le doigt ne bouge
     /// pratiquement pas, et entre deux gestes distincts c'est bien le point courant qui compte.
     pub fn pousser_zoom(&mut self, octaves: f64, ancre: (f64, f64)) {
-        self.demande.octaves += octaves;
-        self.demande.ancre = ancre;
+        self.demande_octaves += octaves;
+        self.ancre = ancre;
     }
 
     /// Y a-t-il encore quelque chose à montrer ? C'est ce qui décide de redemander une image.
     pub fn en_cours(&self) -> bool {
-        self.demande.existe() || self.vitesse != (0.0, 0.0) || self.vitesse_octaves != 0.0
+        self.demande_existe() || self.vitesse != (0.0, 0.0) || self.vitesse_octaves != 0.0
+    }
+
+    /// La main a-t-elle demandé quelque chose que l'image n'a pas encore montré ?
+    fn demande_existe(&self) -> bool {
+        self.demande_pan != (0.0, 0.0) || self.demande_octaves != 0.0
     }
 
     /// Ce que cette image doit appliquer, et rien de plus.
@@ -127,7 +142,7 @@ impl Elan {
             .unwrap_or(PAS_MAX)
             .as_secs_f64();
 
-        if self.demande.existe() {
+        if self.demande_existe() {
             return Some(self.prendre_la_demande(dt));
         }
         self.glisser(dt, diagonale)
@@ -151,14 +166,19 @@ impl Elan {
     /// démarrer notre glissade d'une vitesse presque nulle — c'est-à-dire n'aurait rien
     /// changé. Lissée, la vitesse retenue reste celle du geste, pas celle de sa fin.
     fn prendre_la_demande(&mut self, dt: f64) -> Mouvement {
-        let demande = std::mem::take(&mut self.demande);
+        let pan = std::mem::take(&mut self.demande_pan);
+        let octaves = std::mem::take(&mut self.demande_octaves);
         if dt > 0.0 {
             let part = 1.0 - (-dt / TAU).exp();
-            self.vitesse.0 += (demande.pan.0 / dt - self.vitesse.0) * part;
-            self.vitesse.1 += (demande.pan.1 / dt - self.vitesse.1) * part;
-            self.vitesse_octaves += (demande.octaves / dt - self.vitesse_octaves) * part;
+            self.vitesse.0 += (pan.0 / dt - self.vitesse.0) * part;
+            self.vitesse.1 += (pan.1 / dt - self.vitesse.1) * part;
+            self.vitesse_octaves += (octaves / dt - self.vitesse_octaves) * part;
         }
-        demande
+        Mouvement {
+            pan,
+            octaves,
+            ancre: self.ancre,
+        }
     }
 
     /// La main a lâché : ce qui reste s'écoule et s'éteint.
@@ -173,7 +193,7 @@ impl Elan {
         let mouvement = Mouvement {
             pan: (self.vitesse.0 * parcouru, self.vitesse.1 * parcouru),
             octaves: self.vitesse_octaves * parcouru,
-            ancre: self.demande.ancre,
+            ancre: self.ancre,
         };
         let reste = (-dt / TAU).exp();
         self.vitesse = (self.vitesse.0 * reste, self.vitesse.1 * reste);

@@ -74,6 +74,12 @@ pub struct GlucoseApp {
 
     // États d'interaction
     pub mouse_pos: (f64, f64),
+    /// Le curseur a-t-il ete pose au moins une fois dans cette fenetre ?
+    ///
+    /// `(0, 0)` est une position parfaitement valide, donc indiscernable de « on ne sait pas
+    /// encore » -- et c'est la valeur de depart. Sans ce drapeau, une fenetre qu'on vient
+    /// d'ouvrir zoome autour de son coin superieur gauche.
+    pub curseur_vu: bool,
     pub modifiers: ModifiersState,
     pub right_or_middle_down: bool,
     /// Où le clic droit s'est enfoncé, tant qu'il l'est.
@@ -214,6 +220,7 @@ impl GlucoseApp {
             presenter: None,
             scale_factor: 1.0,
             mouse_pos: (0.0, 0.0),
+            curseur_vu: false,
             modifiers: ModifiersState::empty(),
             right_or_middle_down: false,
             right_down_at: None,

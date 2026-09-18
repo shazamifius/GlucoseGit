@@ -160,3 +160,33 @@ fn test_pick_1_a_drag_never_advances_the_cycle() {
         "le glisser garde le nœud qu'il déplaçait"
     );
 }
+
+
+/// Les bornes exactes du double-clic, sur la décision pure : l'heure y est une donnée, donc
+/// la milliseconde se vérifie sans qu'une machine chargée puisse changer le résultat.
+#[test]
+fn le_rang_d_un_clic_se_verifie_a_la_milliseconde() {
+    use crate::app::LastClickInfo;
+    use crate::interactions::arrow_edit::rang_du_clic;
+
+    let precedent = LastClickInfo {
+        at_ms: 1_000,
+        pos: (100.0, 100.0),
+        id: "N1".to_string(),
+        count: 1,
+    };
+    let rang = |ms: i64, pos: (f64, f64), cle: &str| rang_du_clic(Some(&precedent), cle, pos, ms);
+
+    let limite = 1_000 + pick_consts::DBLCLICK_MS;
+    assert_eq!(rang(limite - 1, (100.0, 100.0), "N1"), 2, "juste dedans");
+    assert_eq!(rang(limite, (100.0, 100.0), "N1"), 1, "la borne exclut");
+    assert_eq!(rang(limite + 1, (100.0, 100.0), "N1"), 1, "juste dehors");
+
+    assert_eq!(rang(1_010, (100.0, 100.0), "N2"), 1, "un autre noeud");
+    assert_eq!(
+        rang(1_010, (999.0, 999.0), "N1"),
+        1,
+        "le curseur a trop bouge"
+    );
+    assert_eq!(rang_du_clic(None, "N1", (100.0, 100.0), 0), 1, "le premier");
+}
