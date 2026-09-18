@@ -89,6 +89,16 @@ pub fn valeur_du_compteur(label: &str) -> Option<f64> {
 }
 
 /// Enregistre la durée écoulée depuis le repère précédent sous le nom `label`.
+///
+/// # Un nom cumule, il n'écrase pas
+///
+/// Un poste mesuré plusieurs fois dans la même image — une fois par photo, par exemple — doit
+/// rendre **la somme** de ses passages. La première version en empilait autant d'entrées que
+/// d'appels, et la chronique, qui indexe par nom, ne gardait que la dernière : un poste
+/// parcouru quatre-vingt-neuf fois se rapportait comme s'il l'avait été une seule.
+///
+/// Cumuler rend donc possible de mesurer **à l'intérieur** d'une boucle, ce qui est la seule
+/// façon de savoir où va le temps d'une passe qui traite des dizaines d'objets.
 pub fn stage(label: &'static str) {
     let now = Instant::now();
     let previous = LAST_MARK.with(|c| c.replace(Some(now)));
@@ -97,7 +107,13 @@ pub fn stage(label: &'static str) {
         if level() >= 2 {
             eprintln!("[perf]   {label}={ms:.2}ms");
         }
-        STAGES.with(|s| s.borrow_mut().push((label, ms)));
+        STAGES.with(|s| {
+            let mut postes = s.borrow_mut();
+            match postes.iter_mut().find(|(nom, _)| *nom == label) {
+                Some((_, total)) => *total += ms,
+                None => postes.push((label, ms)),
+            }
+        });
     }
 }
 
