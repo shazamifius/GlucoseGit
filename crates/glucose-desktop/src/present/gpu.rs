@@ -80,6 +80,20 @@ pub struct GpuPresenter {
     adaptateur: String,
     /// Le format de la texture qui porte l'image (GAMMA-1).
     format_image: wgpu::TextureFormat,
+    /// La chaîne d'images doit être refaite avant la prochaine acquisition.
+    ///
+    /// # Le plantage que ce drapeau répare
+    ///
+    /// Reconfigurer la surface **détruit** la chaîne d'images et la recrée. Le faire pendant
+    /// qu'on tient l'image acquise arrachait donc le sol sous ses pieds : la couche graphique
+    /// refusait la commande — « the `SurfaceOutput` must be dropped before re-configuring » —
+    /// puis la présentation échouait à son tour sur « Surface is not configured for
+    /// presentation », et le pilote se retrouvait avec une image qui n'appartenait plus à rien.
+    ///
+    /// La réparation se **diffère** donc jusqu'au début de la présentation suivante, moment où
+    /// aucune image n'est détenue. L'image en cours s'affiche quand même : la sauter se
+    /// verrait, alors qu'une chaîne un peu désaccordée ne se voit pas.
+    a_reaccorder: bool,
 }
 
 /// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
@@ -168,7 +182,43 @@ impl GpuPresenter {
             texture: None,
             adaptateur,
             format_image,
+            a_reaccorder: false,
         })
+    }
+
+    /// Acquiert l'image de la chaîne, en réparant celle-ci d'abord si une réparation est due.
+    ///
+    /// Rend `Ok(None)` quand il n'y a **rien à afficher** : la fenêtre est réduite, cachée
+    /// derrière une autre, ou le compositeur a mis du temps à rendre la main. Dessiner dans le
+    /// vide serait du travail perdu, et le signaler comme une panne ferait crier l'application
+    /// à chaque fois qu'on la minimise.
+    fn acquerir(&mut self) -> DesktopResult<Option<wgpu::SurfaceTexture>> {
+        // Aucune image n'est détenue ici : c'est le seul instant où reconfigurer est licite.
+        if self.a_reaccorder {
+            self.surface.configure(&self.device, &self.config);
+            self.a_reaccorder = false;
+        }
+
+        use wgpu::CurrentSurfaceTexture as Etat;
+        match self.surface.get_current_texture() {
+            Etat::Success(frame) => Ok(Some(frame)),
+            // La surface tient encore, mais elle ne correspond plus tout à fait à la fenêtre.
+            // On affiche quand même — sauter une image se verrait — et la réparation se fait
+            // à la prochaine acquisition, quand plus personne ne tiendra cette image.
+            Etat::Suboptimal(frame) => {
+                self.a_reaccorder = true;
+                Ok(Some(frame))
+            }
+            Etat::Timeout | Etat::Occluded => Ok(None),
+            // La surface a vieilli ou s'est perdue : l'image suivante repartira sur des bases
+            // saines, dans quelques millisecondes.
+            autre => {
+                self.a_reaccorder = true;
+                Err(DesktopError::WindowError(format!(
+                    "la surface graphique doit être refaite : {autre:?}"
+                )))
+            }
+        }
     }
 
     /// Le nom de la carte retenue.
@@ -464,7 +514,10 @@ impl Presenter for GpuPresenter {
         }
         self.config.width = width.get();
         self.config.height = height.get();
+        // Licite ici : le redimensionnement arrive entre deux images, donc aucune n'est
+        // detenue. La chaine etant refaite a neuf, une reparation en attente n'a plus d'objet.
         self.surface.configure(&self.device, &self.config);
+        self.a_reaccorder = false;
         Ok(())
     }
 
@@ -475,29 +528,8 @@ impl Presenter for GpuPresenter {
         // **acquerir** peut attendre que l'écran rende une image du carrousel, **encoder** est
         // du travail de processeur, **soumettre** confie le tout à la carte. Mesurés ensemble,
         // ils annonçaient 28 ms sur un canevas vide sans dire lequel les portait.
-        use wgpu::CurrentSurfaceTexture as Etat;
-        let frame = match self.surface.get_current_texture() {
-            Etat::Success(frame) => frame,
-            // La surface tient encore, mais elle ne correspond plus tout à fait à la fenêtre.
-            // On affiche quand même — sauter une image se verrait — et on la réaccorde pour
-            // la suivante.
-            Etat::Suboptimal(frame) => {
-                self.surface.configure(&self.device, &self.config);
-                frame
-            }
-            // Rien à afficher, et ce n'est pas une panne : la fenêtre est réduite, cachée
-            // derrière une autre, ou le compositeur a mis du temps à rendre la main. Dessiner
-            // dans le vide serait du travail perdu, et le signaler comme une erreur ferait
-            // crier l'application à chaque fois qu'on la minimise.
-            Etat::Timeout | Etat::Occluded => return Ok(()),
-            // La surface a vieilli ou s'est perdue : on la réaccorde, et l'image suivante —
-            // dans quelques millisecondes — repartira sur des bases saines.
-            autre => {
-                self.surface.configure(&self.device, &self.config);
-                return Err(DesktopError::WindowError(format!(
-                    "la surface graphique doit être refaite : {autre:?}"
-                )));
-            }
+        let Some(frame) = self.acquerir()? else {
+            return Ok(());
         };
         crate::perf::stage("acquerir");
         let cible = frame

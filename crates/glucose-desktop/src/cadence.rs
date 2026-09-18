@@ -119,11 +119,22 @@ impl Cadence {
     /// général, et **0,90 ms** une fois leurs vignettes faites. Ne jamais les faire, pour
     /// protéger une cadence qu'on a déjà perdue, revient à garder quarante fois le prix.
     ///
-    /// Dans ce second cas on accorde donc **une période**. Ce n'est pas un réglage : c'est la
-    /// seule durée de référence que l'écran donne, et elle borne le dépassement au double
-    /// d'une image déjà ratée, en échange d'une sortie en un nombre d'images borné.
+    /// Dans ce second cas on accorde donc **autant que l'image vient de coûter**. Ce n'est pas
+    /// un réglage : c'est la borne qui garde le dépassement au double d'une image déjà ratée,
+    /// et c'est la seule grandeur du problème qui mesure le retard réel.
+    ///
+    /// # L'erreur que cette ligne corrige, et elle était contre-intuitive
+    ///
+    /// La première version accordait **une période**. Sur un écran à 240 Hz elle vaut 4,17 ms,
+    /// et le chantier n'avançait alors que d'une vignette toutes les trois images pendant que
+    /// chacune coûtait soixante-dix millisecondes — donc plus l'écran était RAPIDE, moins le
+    /// travail de fond avançait. Mesuré sur le terrain : soixante-trois vignettes en attente,
+    /// et pas une seule photo posée depuis une vignette de toute la session.
+    ///
+    /// Rattraper un retard n'a aucune raison de dépendre de la fréquence d'affichage. La durée
+    /// de l'image, elle, mesure exactement ce retard.
     pub fn tranche_de_fond(&self, rendu: Duration) -> Duration {
-        self.temps_libre(rendu).unwrap_or(self.periode)
+        self.temps_libre(rendu).unwrap_or(rendu)
     }
 
     /// Ce qui reste pour le travail de fond après une image qui a coûté `rendu`.

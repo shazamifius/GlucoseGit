@@ -86,7 +86,8 @@ impl GlucoseApp {
         vu.photos = lire("img_n") as u32;
         vu.images_mo = lire("img_mo") as u32;
         vu.en_decodage = lire("img_attente").clamp(0.0, f64::from(u16::MAX)) as u16;
-        vu.vignettes = lire("vign_faites").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes = lire("vign_atelier").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.vignettes_en_attente = lire("vign_attente").clamp(0.0, f64::from(u16::MAX)) as u16;
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;

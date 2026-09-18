@@ -54,6 +54,10 @@ pub(in crate::renderer) fn draw_images(
     let mut posees = 0.0f64;
     let mut pixels = 0.0f64;
     let mut cachees = 0.0f64;
+    // Combien de photos ont pu passer par une vignette. Les deux chemins different d'un
+    // facteur dix, et la duree seule les confond : une image chere ne dit pas si elle l'est
+    // parce qu'elle dessine beaucoup ou parce qu'elle dessine MAL.
+    let mut par_vignette = 0.0f64;
 
     // OCCLUSION-2 : on ne dessine pas ce qui sera recouvert.
     //
@@ -105,7 +109,12 @@ pub(in crate::renderer) fn draw_images(
             // REPORT-1 : ce qu'une photo coute est ce qu'elle ECRIT, et non la surface
             // qu'elle occupe. Recouverte a quatre-vingt-dix-neuf pour cent, elle en ecrit un
             // centieme -- et c'est ce centieme que la trace doit montrer.
-            Some(ecrits) => pixels += ecrits as f64,
+            Some((ecrits, chemin)) => {
+                pixels += ecrits as f64;
+                if chemin == Chemin::Vignette {
+                    par_vignette += 1.0;
+                }
+            }
             None => draw_missing_image(
                 typography,
                 theme,
@@ -132,6 +141,7 @@ pub(in crate::renderer) fn draw_images(
     crate::perf::compteur("img_attente", magasin.en_travail() as f64);
     // Combien d'images l'occlusion a evitees : le gain d'OCCLUSION-1, mesure plutot qu'annonce.
     crate::perf::compteur("img_cachees", cachees);
+    crate::perf::compteur("img_par_vignette", par_vignette);
     crate::perf::compteur(
         "vign_faites",
         magasin.vignettes.faites().saturating_sub(vignettes_avant) as f64,
@@ -198,7 +208,7 @@ fn poser_ou_demander(
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
-) -> Option<u64> {
+) -> Option<(u64, Chemin)> {
     let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
     // l'éviction : ce qui est à l'écran ne se rend jamais à la machine (ADAPT-1).
@@ -215,6 +225,18 @@ fn poser_ou_demander(
         parts,
         src,
     ))
+}
+
+/// Par quel chemin une photo a été posée. C'est ce qui explique son coût, et rien d'autre ne
+/// le dit : les trois diffèrent d'un facteur dix, et la durée seule les confond.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Chemin {
+    /// Une vignette prête : un pixel pour un pixel, le chemin le moins cher.
+    Vignette,
+    /// Le rééchantillonnage depuis un niveau de pyramide.
+    Echantillon,
+    /// Le rastériseur général, pour une image tournée.
+    Tournee,
 }
 
 /// Pose une image sur le canevas, **restreinte aux morceaux d'elle qui atteignent l'œil**.
@@ -247,12 +269,15 @@ fn poser(
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
     src: &str,
-) -> u64 {
+) -> (u64, Chemin) {
     let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
 
     if img.rotation != 0.0 {
-        return poser_en_tournant(pyramide, pixmap, img, ecran);
+        return (
+            poser_en_tournant(pyramide, pixmap, img, ecran),
+            Chemin::Tournee,
+        );
     }
 
     let melange = if opaque {
@@ -292,7 +317,7 @@ fn poser(
             };
             let ecrits = reporter_les_parts(pixmap, vignette, pose, parts, melange);
             crate::perf::stage("report");
-            return ecrits;
+            return (ecrits, Chemin::Vignette);
         }
     }
 
@@ -308,7 +333,7 @@ fn poser(
     crate::perf::stage("images");
     let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange);
     crate::perf::stage("report");
-    ecrits
+    (ecrits, Chemin::Echantillon)
 }
 
 /// Pose une image **tournée**, par le rastériseur général.

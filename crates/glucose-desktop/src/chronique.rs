@@ -158,13 +158,22 @@ pub struct Instantane {
     pub images_mo: u32,
     /// Combien d'images attendent encore leur décodage.
     pub en_decodage: u16,
-    /// Combien de vignettes cette image a **construites**.
-    ///
-    /// Une construction rééchantillonne une photo entière, quelle que soit la part d'elle qui
-    /// se voit : c'est le seul poste du rendu qui ne suive pas la surface visible. Une image
-    /// qui n'écrit presque rien et coûte pourtant une demi-seconde se lit **ici**, et nulle
-    /// part ailleurs.
+    /// Combien de vignettes l'atelier a achevées pendant cette image (CASCADE-1).
     pub vignettes: u16,
+    /// Combien de vignettes attendent encore leur tour au chantier.
+    ///
+    /// **C'est le chiffre qui dit si l'image est chère à bon droit.** Une photo sans vignette
+    /// se dessine par le chemin général, quinze fois plus cher ; tant que ce nombre n'est pas
+    /// nul, la scène est en régime transitoire. S'il ne descend jamais, c'est que le chantier
+    /// se refait aussi vite qu'il se vide — et aucune durée ne le dirait.
+    pub vignettes_en_attente: u16,
+    /// Combien de photos ont pu se poser depuis une **vignette prête**.
+    ///
+    /// À comparer à [`Self::photos`] : les deux chemins diffèrent d'un facteur dix, donc une
+    /// image chère ne dit pas d'elle-même si elle dessine beaucoup ou si elle dessine **mal**.
+    /// Zéro sur une image de quatre-vingts photos veut dire qu'aucune n'a pu en avoir — et la
+    /// seule raison possible est qu'elles débordent de la fenêtre, c'est-à-dire le zoom proche.
+    pub par_vignette: u16,
 }
 
 impl Instantane {

@@ -124,15 +124,17 @@ impl Chronique {
         ));
         for p in self.pires().iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>7.1}x {:>9.0}% {:>6} {:>5} Mo\n",
+                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>5} Mo\n",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
                 p.noeuds,
                 p.photos,
+                p.par_vignette,
                 f64::from(p.surcouverture) / 100.0,
                 100.0 * p.part_redessinee(),
                 p.vignettes,
+                p.vignettes_en_attente,
                 p.images_mo,
             ));
             self.ecrire_les_postes(t, p);
