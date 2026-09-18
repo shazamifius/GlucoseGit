@@ -291,13 +291,17 @@ impl GlucoseApp {
             // L'image est deja presentee -- ce qui suit ne la retarde pas, il occupe le temps
             // qu'on aurait passe a attendre la suivante.
             let rendu = frame_started.elapsed();
-            if let Some(libre) = self.cadence.temps_libre(rendu) {
-                let faites = self.renderer.magasin.avancer_les_vignettes(libre);
-                crate::perf::compteur(
-                    "vign_atelier",
-                    f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
-                );
-            }
+            // `tranche_de_fond` et non `temps_libre` : le second rend « rien » des que la
+            // periode est depassee, ce qui enfermait la machine dans son regime degrade --
+            // images cheres faute de vignettes, vignettes jamais construites faute de temps.
+            let faites = self
+                .renderer
+                .magasin
+                .avancer_les_vignettes(self.cadence.tranche_de_fond(rendu));
+            crate::perf::compteur(
+                "vign_atelier",
+                f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
+            );
             crate::perf::stage("atelier");
             crate::perf::compteur(
                 "vign_attente",

@@ -137,11 +137,16 @@ impl Cadence {
         self.temps_libre(rendu).unwrap_or(rendu)
     }
 
-    /// Ce qui reste pour le travail de fond après une image qui a coûté `rendu`.
+    /// Ce qui reste de la période après une image qui a coûté `rendu`, s'il reste quelque
+    /// chose.
     ///
-    /// Rend `None` quand il ne reste rien : l'image a mangé sa période, et faire avancer une
-    /// tranche par-dessus ne ferait que creuser le retard.
-    pub fn temps_libre(&self, rendu: Duration) -> Option<Duration> {
+    /// # Interne, et ce n'est pas un détail
+    ///
+    /// C'est la moitié optimiste de la question, et l'appeler directement a coûté une journée :
+    /// `None` y veut dire « la période est mangée », ce qu'un appelant traduit naturellement en
+    /// « ne rien faire » — et la machine reste alors enfermée dans son régime dégradé. Le
+    /// dehors passe par [`Cadence::tranche_de_fond`], qui répond aux **deux** régimes.
+    fn temps_libre(&self, rendu: Duration) -> Option<Duration> {
         self.periode
             .checked_sub(rendu)?
             .checked_sub(MARGE)
