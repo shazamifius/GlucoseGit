@@ -282,12 +282,16 @@ fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
     );
     let scale = |app: &GlucoseApp| app.store.active_board().unwrap().viewport.scale;
 
+    // Un geste ne deplace plus la camera lui-meme : il pousse dans l'elan, que l'image vide
+    // en une fois (voir `interactions::elan`). Le verifier demande donc de jouer l'image.
     for _ in 0..200 {
         app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, 1.0));
+        app.appliquer_l_elan(1280, 720);
     }
     assert_eq!(scale(&app), 20.0, "zoom avant borné");
     for _ in 0..400 {
         app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, -1.0));
+        app.appliquer_l_elan(1280, 720);
     }
     assert_eq!(scale(&app), 0.02, "zoom arrière borné");
 }

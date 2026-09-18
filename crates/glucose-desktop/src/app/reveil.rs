@@ -30,6 +30,7 @@ impl GlucoseApp {
             self.attente_du_curseur(),
             self.attente_du_toast(),
             self.attente_de_l_animation(),
+            self.attente_de_l_elan(),
             self.attente_du_decodage(),
             self.attente_du_chantier(),
             self.attente_du_pomodoro(),
@@ -80,6 +81,19 @@ impl GlucoseApp {
         let reste_ms = self.animator.tick(&mut self.store)?;
         self.mark_dirty();
         Some(reste_ms.max(1).min(self.animation_interval_ms()))
+    }
+
+    /// La caméra glisse encore : la main a lâché, mais l'élan n'est pas éteint.
+    ///
+    /// C'est la seule raison de réveil qui **finit d'elle-même** sans horloge extérieure :
+    /// l'élan s'éteint quand ce qui reste à parcourir tient sous le demi-pixel, donc sous ce
+    /// qu'un écran peut montrer. Rien n'a été choisi pour l'arrêter.
+    fn attente_de_l_elan(&mut self) -> Option<u64> {
+        if !self.elan.en_cours() {
+            return None;
+        }
+        self.mark_dirty();
+        Some(self.animation_interval_ms())
     }
 
     /// Des images se décodent sur les fils de fond (DECODE-1).

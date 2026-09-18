@@ -25,8 +25,6 @@ use winit::window::{Window, WindowId};
 /// Ce que dit la carte d'accueil d'un document neuf.
 const WELCOME_TEXT: &str = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
 
-/// Cadence minimale d'une animation d'interface (~60 Hz).
-const ANIMATION_MIN_INTERVAL_MS: u64 = 16;
 /// Cadence minimale de repli quand une frame est anormalement lente.
 const ANIMATION_MAX_INTERVAL_MS: u64 = 250;
 
@@ -52,6 +50,9 @@ pub struct GlucoseApp {
     pub renderer: Renderer,
     /// Les animations en cours — pour l'instant, le vol de la caméra.
     pub animator: crate::animation::Animator,
+    /// L'elan de la camera : ce que la main a demande et que l'image n'a pas encore montre,
+    /// plus la vitesse qui lui survit quand la main lache (voir [`crate::interactions::elan`]).
+    pub elan: crate::interactions::elan::Elan,
     pub pixmap: Option<Pixmap>,
     pub ui: UiState,
     pub dock_manager: DockManager,
@@ -197,6 +198,7 @@ impl GlucoseApp {
             store,
             renderer,
             animator: crate::animation::Animator::new(),
+            elan: crate::interactions::elan::Elan::default(),
             pixmap: None,
             // Le mot d'accueil est posé ici, au démarrage, et non dans `UiState::new` : un
             // constructeur d'état ne déclenche pas de notification, et un toast porte une
@@ -276,6 +278,10 @@ impl GlucoseApp {
                 self.pixmap = Pixmap::new(width, height);
             }
 
+            // La camera bouge ICI, une seule fois par image, et jamais dans l'evenement :
+            // c'est ce qui fait qu'une diagonale est une diagonale et non un escalier.
+            self.appliquer_l_elan(width, height);
+
             self.peindre_ce_qui_a_change((width, height), need_new_pixmap);
 
             if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
@@ -285,54 +291,92 @@ impl GlucoseApp {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
-            // NAV-3 : l'age du plus ancien geste que cette image montre enfin. C'est **la**
-            // grandeur qui dit « fluide », et aucune duree d'image ne l'explique.
-            if let Some(l) = self.chronique.navigation.image_presentee() {
-                crate::perf::compteur("nav_latence_us", l.as_micros() as f64);
-            }
+            self.clore_l_image(frame_started, (width, height));
+        }
+    }
 
-            // CASCADE-1 : ce que la periode de l'ecran laisse encore sert au travail de fond.
-            // L'image est deja presentee -- ce qui suit ne la retarde pas, il occupe le temps
-            // qu'on aurait passe a attendre la suivante.
-            let rendu = frame_started.elapsed();
-            // `tranche_de_fond` et non `temps_libre` : le second rend « rien » des que la
-            // periode est depassee, ce qui enfermait la machine dans son regime degrade --
-            // images cheres faute de vignettes, vignettes jamais construites faute de temps.
-            let faites = self
-                .renderer
-                .magasin
-                .avancer_les_vignettes(self.cadence.tranche_de_fond(rendu));
-            crate::perf::compteur(
-                "vign_atelier",
-                f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
-            );
-            crate::perf::stage("atelier");
-            crate::perf::compteur(
-                "vign_attente",
-                self.renderer.magasin.vignettes.en_chantier() as f64,
-            );
+    /// Ce qui suit la présentation : la latence vécue, le travail de fond, et la trace.
+    ///
+    /// Séparé du rendu parce que rien ici ne retarde l'image — elle est déjà à l'écran. Ce
+    /// bloc occupe le temps qu'on aurait passé à attendre la suivante.
+    fn clore_l_image(&mut self, debut: std::time::Instant, (largeur, hauteur): (u32, u32)) {
+        // NAV-3 : l'age du plus ancien geste que cette image montre enfin. C'est **la**
+        // grandeur qui dit « fluide », et aucune duree d'image ne l'explique.
+        if let Some(l) = self.chronique.navigation.image_presentee() {
+            crate::perf::compteur("nav_latence_us", l.as_micros() as f64);
+        }
 
-            let ecoule = frame_started.elapsed();
-            self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
-            crate::perf::frame_end();
-            // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il
-            // se contente de les afficher quand la trace est demandee.
-            self.enregistrer_l_image(
-                ecoule.as_micros().min(u128::from(u32::MAX)) as u32,
-                (width, height),
-            );
+        // CASCADE-1 : ce que la periode de l'ecran laisse encore sert au travail de fond.
+        // `tranche_de_fond` et non `temps_libre` : le second rend « rien » des que la periode
+        // est depassee, ce qui enfermait la machine dans son regime degrade -- images cheres
+        // faute de vignettes, vignettes jamais construites faute de temps.
+        let faites = self
+            .renderer
+            .magasin
+            .avancer_les_vignettes(self.cadence.tranche_de_fond(debut.elapsed()));
+        crate::perf::compteur(
+            "vign_atelier",
+            f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
+        );
+        crate::perf::stage("atelier");
+        crate::perf::compteur(
+            "vign_attente",
+            self.renderer.magasin.vignettes.en_chantier() as f64,
+        );
+
+        let ecoule = debut.elapsed();
+        self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
+        crate::perf::frame_end();
+        // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il se
+        // contente de les afficher quand la trace est demandee.
+        self.enregistrer_l_image(
+            ecoule.as_micros().min(u128::from(u32::MAX)) as u32,
+            (largeur, hauteur),
+        );
+    }
+
+    /// Applique a la camera ce que l'elan a retenu pour cette image.
+    ///
+    /// Un seul deplacement et un seul changement d'echelle, quel que soit le nombre
+    /// d'evenements recus depuis la derniere image. La diagonale de la fenetre sert de mesure
+    /// commune aux deux : elle dit ce qu'un reste de zoom deplacerait a l'ecran, donc quand il
+    /// devient invisible.
+    /// Publique pour que les bancs et les tests puissent jouer une image sans fenetre : le
+    /// geste ne deplace plus rien tout seul, donc le verifier demande de jouer l'image.
+    pub fn appliquer_l_elan(&mut self, largeur: u32, hauteur: u32) {
+        let diagonale = f64::from(largeur).hypot(f64::from(hauteur));
+        let Some(m) = self.elan.avancer(std::time::Instant::now(), diagonale) else {
+            return;
+        };
+        if m.pan != (0.0, 0.0) {
+            self.store.pan(m.pan.0, m.pan.1);
+        }
+        if m.octaves != 0.0 {
+            // Le zoom se dit en octaves et s'applique en facteur : `2^n`, et rien d'autre.
+            let facteur = m.octaves.exp2();
+            let bornes = crate::interactions::pan_zoom::WHEEL_SCALE_RANGE;
+            self.store.zoom(facteur, m.ancre.0, m.ancre.1, bornes);
         }
     }
 
     /// Intervalle minimal entre deux frames animées.
     ///
-    /// On ne demande jamais un rafraîchissement plus vite que la durée réelle de
-    /// la dernière frame : sur une machine lente, une cadence fixe de 16 ms
-    /// remplirait la file d'événements plus vite qu'elle ne se vide et priverait
-    /// la pompe de messages de l'OS de temps de traitement.
+    /// On ne demande jamais un rafraîchissement plus vite que la durée réelle de la dernière
+    /// frame : sur une machine lente, une cadence fixe remplirait la file d'événements plus
+    /// vite qu'elle ne se vide, et priverait la pompe de messages de l'OS de temps de
+    /// traitement.
+    ///
+    /// # La borne basse n'est plus un nombre
+    ///
+    /// Elle valait seize millisecondes — « environ 60 Hz ». Sur un écran à 240 Hz, cela
+    /// **plafonnait toute animation à 62 images par seconde**, y compris la glissade de la
+    /// caméra, et contredisait directement le plancher de cent de la charte : « sa fréquence
+    /// est à lire, pas à supposer ». La période de l'écran est déjà connue et déjà annoncée
+    /// au démarrage ; c'est elle, et la constante disparaît.
     fn animation_interval_ms(&self) -> u64 {
+        let periode = self.cadence.periode().as_millis().max(1) as u64;
         self.last_frame_ms
-            .clamp(ANIMATION_MIN_INTERVAL_MS, ANIMATION_MAX_INTERVAL_MS)
+            .clamp(periode, ANIMATION_MAX_INTERVAL_MS)
     }
 
     /// Marque **toute** la vue comme sale et planifie un rafraîchissement (R-15).

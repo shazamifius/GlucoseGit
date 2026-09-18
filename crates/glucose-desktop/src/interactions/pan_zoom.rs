@@ -29,14 +29,37 @@ use winit::event::MouseScrollDelta;
 /// qu'un signet ou un fichier peuvent atteindre sans que la main y arrive.
 pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, 20.0);
 
-/// Ce qu'un pixel de défilement fait à l'échelle, quand le geste est un zoom.
+/// Ce qu'un cran de molette de souris change d'échelle, en **octaves**.
 ///
-/// Reprise exacte de Glucose Tauri (`Math.pow(0.999, delta)`). Un cran de souris vaut alors
-/// environ +4 %, là où la version précédente en donnait +12 % : c'est cet écart que l'œil
-/// lisait comme un saut.
-const ZOOM_PAR_PIXEL: f64 = 0.999;
+/// # Pourquoi l'octave, et pas un facteur
+///
+/// L'échelle est multiplicative : la dire en octaves, c'est la dire dans son unité naturelle,
+/// où l'addition a un sens. Huit crans doublent la taille apparente, huit crans en arrière la
+/// divisent par deux, et le geste est exactement réversible — ce que `0.999^(-delta·40)` ne
+/// laissait ni lire ni vérifier.
+///
+/// La valeur d'avant valait 0,058 octave par cran : dix-sept crans pour doubler. C'est ce que
+/// l'utilisateur a décrit comme « la sensibilité est un peu faible ».
+const OCTAVES_PAR_CRAN: f64 = 0.125;
 
-/// Une ligne de défilement, en pixels, pour un **zoom**.
+/// Ce qu'une unité de défilement change d'échelle quand elle vient d'un **pincement**.
+///
+/// # Pourquoi le pincement a sa propre échelle, et ce n'est pas une constante de plus
+///
+/// Windows encode le pincement et le glissement à deux doigts dans la **même unité**, alors
+/// que ce sont deux gestes physiques différents : le premier mesure l'écartement des doigts,
+/// le second leur course. Les deltas du premier sont bien plus petits. Leur appliquer le même
+/// facteur était donc faux par construction — et se mesurait : « tu pinces dix-neuf fois pour
+/// parcourir le dézoom d'une image ».
+///
+/// Dix fois un cran de molette. Ce rapport vient de ce chiffre-là, pas d'une théorie : il
+/// reste à juger à la main, et c'est la seule façon de le juger.
+const OCTAVES_PAR_PINCEMENT: f64 = 1.25;
+
+/// Un cran de molette, en pixels de défilement, là où la plateforme compte en pixels.
+///
+/// Windows livre tout en crans ; macOS livre tout en pixels. Cette conversion n'existe que
+/// pour ramener les seconds aux premiers, et vaut ce qu'elle valait avant.
 const ZOOM_LIGNE_PX: f64 = 40.0;
 
 /// Une ligne de défilement, en pixels, pour un **pan**.
@@ -50,7 +73,7 @@ const PAN_LIGNE_PX: f64 = 16.0;
 /// Ce qu'un événement de défilement demande à la caméra.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Geste {
-    /// Multiplier l'échelle par ce facteur, autour du curseur.
+    /// Changer l'échelle de tant d'**octaves**, autour du curseur : `+1` double.
     Zoom(f64),
     /// Déplacer le contenu de tant de pixels écran.
     Pan(f64, f64),
@@ -59,11 +82,16 @@ pub enum Geste {
 /// NAV-2 — ce qu'un événement de défilement veut dire.
 ///
 /// Fonction pure : c'est elle qui porte toute la décision, et elle se teste sans fenêtre.
-pub fn geste(delta: MouseScrollDelta, ctrl: bool) -> Geste {
+pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool) -> Geste {
     let (dx, dy, ligne) = deltas(delta);
-    if ctrl || cran_de_souris(dx, dy, ligne) {
-        let pixels = dy * if ligne { ZOOM_LIGNE_PX } else { 1.0 };
-        return Geste::Zoom(ZOOM_PAR_PIXEL.powf(-pixels));
+    if ctrl || pincement || cran_de_souris(dx, dy, ligne) {
+        let crans = if ligne { dy } else { dy / ZOOM_LIGNE_PX };
+        let par_cran = if pincement {
+            OCTAVES_PAR_PINCEMENT
+        } else {
+            OCTAVES_PAR_CRAN
+        };
+        return Geste::Zoom(crans * par_cran);
     }
     let px = if ligne { PAN_LIGNE_PX } else { 1.0 };
     Geste::Pan(dx * px, dy * px)
@@ -96,7 +124,7 @@ pub fn pourquoi(
     if !ctrl && cran_de_souris(dx, dy, ligne) {
         return Decision::CranDeSouris;
     }
-    match geste(delta, ctrl) {
+    match geste(delta, ctrl, pincement) {
         Geste::Zoom(_) => Decision::Zoom,
         Geste::Pan(..) => Decision::Pan,
     }
@@ -114,21 +142,23 @@ fn cran_de_souris(dx: f64, dy: f64, ligne: bool) -> bool {
 impl GlucoseApp {
     /// Gère les événements de molette et gestes tactiles.
     pub fn handle_mouse_wheel(&mut self, delta: MouseScrollDelta) {
-        let (cx, cy) = self.mouse_pos;
         // Le `Ctrl` d'un pincement est virtuel : il vit dans le message du systeme, pas dans
-        // l'etat du clavier que `winit` rapporte. Les deux sources disent la meme chose --
-        // « ce defilement veut zoomer » -- et se lisent donc ensemble, ici et nulle part
-        // ailleurs, pour que la decision elle-meme reste une fonction pure.
+        // l'etat du clavier que `winit` rapporte. Les deux disent la meme chose -- « ce
+        // defilement veut zoomer » -- et se lisent donc ici, et nulle part ailleurs, pour que
+        // la decision elle-meme reste une fonction pure.
         let pincement = super::pincement::zoom_du_systeme();
-        let zoom_demande = self.modifiers.control_key() || pincement;
+        let ctrl = self.modifiers.control_key();
         // NAV-3 : ce que le doigt a demande entre dans la trace, avec l'instant ou il l'a
         // demande. C'est de la qu'on saura si l'ecran suit la main.
         self.chronique
             .navigation
-            .evenement(pourquoi(delta, self.modifiers.control_key(), pincement));
-        match geste(delta, zoom_demande) {
-            Geste::Zoom(facteur) => self.store.zoom(facteur, cx, cy, WHEEL_SCALE_RANGE),
-            Geste::Pan(dx, dy) => self.store.pan(dx, dy),
+            .evenement(pourquoi(delta, ctrl, pincement));
+        // L'evenement ne bouge PLUS la camera : il pousse dans l'elan, que l'image videra en
+        // une seule fois. Windows livre l'horizontal et le vertical dans deux messages
+        // separes -- les appliquer chacun a leur tour faisait d'une diagonale un escalier.
+        match geste(delta, ctrl, pincement) {
+            Geste::Zoom(octaves) => self.elan.pousser_zoom(octaves, self.mouse_pos),
+            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy),
         }
         self.mark_dirty();
     }
@@ -138,7 +168,10 @@ impl GlucoseApp {
     pub fn handle_pan_move(&mut self, dx: f64, dy: f64) {
         // Protection contre les sauts anormaux du curseur OS
         if dx.hypot(dy) < 300.0 {
-            self.store.pan(dx, dy);
+            // Par l'elan, comme la molette : deux mouvements de curseur arrives entre deux
+            // images se rejoignent, et lacher le bouton en plein geste laisse la vue filer
+            // au lieu de s'arreter net.
+            self.elan.pousser_pan(dx, dy);
         }
         self.mark_dirty();
     }
