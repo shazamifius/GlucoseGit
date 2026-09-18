@@ -115,6 +115,14 @@ impl Chronique {
                 100.0 * justesse
             ));
         }
+        // La scene rendue plus petite est le levier le plus puissant, et le seul qui borne
+        // TOUTES les passes a la fois : il faut donc savoir a quel point on s'en sert.
+        if let Some((part, moyen)) = self.part_reduite().filter(|(p, _)| *p > 0.0) {
+            t.push_str(&format!(
+                "  {:.0} % des images se sont rendues plus petites -- facteur moyen {moyen:.2}\n",
+                100.0 * part
+            ));
+        }
         if self.part_pixelisee().is_some_and(|p| p > 0.0) {
             let part = self.part_pixelisee().unwrap_or(0.0);
             t.push_str(&format!(

@@ -198,6 +198,9 @@ pub struct Instantane {
     pub prevu_us: u32,
     /// Les images de cette scène se sont-elles **pixelisées** pour tenir le budget ?
     pub pixelise: u16,
+    /// De combien la scene a ete rendue plus petite que la fenetre. `1` veut dire « pas du
+    /// tout » (voir [`crate::resolution`]).
+    pub reduction: u16,
     /// Ce que le report des photos a réellement coûté, en microsecondes.
     ///
     /// C'est **ce que le modèle prévoit**, et donc la seule grandeur à laquelle sa prévision
@@ -336,6 +339,10 @@ pub struct Chronique {
     prevu_us: u64,
     mesure_us: u64,
     pixelisees: u64,
+    /// La somme des facteurs de reduction : sa moyenne dit a quel point la scene a du ceder
+    /// sur sa finesse pour tenir la cadence.
+    reductions: u64,
+    reduites: u64,
 }
 
 impl Default for Chronique {
@@ -367,6 +374,16 @@ impl Chronique {
     }
 
     /// La part des images qui se sont **pixelisées** pour tenir le budget, entre 0 et 1.
+    /// La part des images dont la scene s'est rendue plus petite, et le facteur moyen.
+    pub fn part_reduite(&self) -> Option<(f64, f64)> {
+        (self.rendues > 0).then(|| {
+            (
+                self.reduites as f64 / self.rendues as f64,
+                self.reductions as f64 / self.rendues as f64,
+            )
+        })
+    }
+
     pub fn part_pixelisee(&self) -> Option<f64> {
         (self.rendues > 0).then(|| self.pixelisees as f64 / self.rendues as f64)
     }
@@ -395,6 +412,8 @@ impl Chronique {
             prevu_us: 0,
             mesure_us: 0,
             pixelisees: 0,
+            reductions: 0,
+            reduites: 0,
         }
     }
 
@@ -430,6 +449,10 @@ impl Chronique {
         self.photos_posees += u64::from(vu.photos);
         self.photos_par_vignette += u64::from(vu.par_vignette);
         self.noeuds_recrees += u64::from(vu.vignettes_recreees);
+        self.reductions += u64::from(vu.reduction.max(1));
+        if vu.reduction > 1 {
+            self.reduites += 1;
+        }
         if vu.pixelise > 0 {
             self.pixelisees += 1;
         }

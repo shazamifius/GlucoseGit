@@ -35,6 +35,7 @@ pub mod perf;
 pub mod persist;
 pub mod present;
 pub mod renderer;
+pub mod resolution;
 pub mod salissure;
 pub mod theme;
 pub mod typography;

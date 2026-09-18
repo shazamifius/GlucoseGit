@@ -58,6 +58,7 @@ impl GlucoseApp {
         let Some(mut pixmap) = self.pixmap.take() else {
             return;
         };
+        let mut reduit = self.tampon_reduit.take();
         let header_h = self.ui.header_height();
         let vp = self.store.viewport();
         let overlay = SceneOverlay {
@@ -69,9 +70,13 @@ impl GlucoseApp {
             x: self.mouse_pos.0 as f32,
             y: self.mouse_pos.1 as f32,
         };
+        // Une region se declare en coordonnees d'ecran plein. Quand la scene se rend plus
+        // petite, ces coordonnees ne designent plus rien dans le tampon ou elle se rend : le
+        // rendu partiel n'a alors pas de sens, et le chemin complet est le seul juste.
         let region = sale
             .region(&vp, fenetre, debord_des_passes(vp.scale))
-            .filter(|r| !r.touche_le_haut(header_h));
+            .filter(|r| !r.touche_le_haut(header_h))
+            .filter(|_| !self.resolution.reduite());
 
         match region {
             Some(r) => {
@@ -90,21 +95,40 @@ impl GlucoseApp {
             None => {
                 crate::perf::compteur("img_region", f64::from(fenetre.0) * f64::from(fenetre.1));
                 let echelle = self.ui.scale_factor;
-                peindre_tout(
-                    &mut pixmap,
-                    &mut self.renderer,
-                    &self.store,
-                    &mut self.ui,
-                    &self.dock_manager,
-                    &self.dock_cache,
-                    overlay,
+                let scene = reduit.as_mut().filter(|_| self.resolution.reduite());
+                let chrome = Chrome {
+                    ui: &mut self.ui,
+                    dock_manager: &self.dock_manager,
+                    dock_cache: &self.dock_cache,
                     pointer,
                     echelle,
+                };
+                peindre_tout(
+                    &mut pixmap,
+                    scene,
+                    &mut self.renderer,
+                    &self.store,
+                    chrome,
+                    overlay,
+                    self.resolution.facteur(),
                 );
             }
         }
         self.pixmap = Some(pixmap);
+        self.tampon_reduit = reduit;
     }
+}
+
+/// Ce qui ne suit pas la vue : l'interface et ses panneaux, plus ce qu'il faut pour les poser.
+///
+/// Regroupees parce qu'elles voyagent toujours ensemble, et qu'une fonction de peinture qui
+/// les recevrait une par une aurait dix arguments dont l'ordre serait la seule protection.
+struct Chrome<'a> {
+    ui: &'a mut UiState,
+    dock_manager: &'a DockManager,
+    dock_cache: &'a DockCache,
+    pointer: Pointer,
+    echelle: f32,
 }
 
 /// Ce qu'une passe peut dessiner **au-delà** du rectangle d'un nœud, en pixels.
@@ -146,7 +170,7 @@ fn repeindre_la_region(
         ui,
         overlay,
         ui.header_height() - origine.1,
-        origine,
+        crate::renderer::Cadrage::region(origine),
     );
     // `Source` et non `SourceOver` : on REMPLACE les pixels périmés, on ne compose pas
     // par-dessus. Composer redoublerait tout ce qui n'est pas opaque.
@@ -169,21 +193,41 @@ fn repeindre_la_region(
 /// Extraite de `redraw` parce que celle-ci a désormais une décision à prendre avant de
 /// peindre -- y a-t-il seulement quelque chose à redessiner -- et qu'un ordonnanceur qui
 /// peint aussi finit par ne plus laisser voir la décision.
-#[allow(clippy::too_many_arguments)]
+///
+/// `scene` est le tampon réduit, quand la scène ne se rend pas à la taille de la fenêtre. La
+/// chrome, elle, se pose toujours à pleine résolution par-dessus : elle ne suit pas la vue,
+/// elle ne coûte pas la surface de l'écran, et une barre d'outils floue se remarque bien plus
+/// qu'un canevas grossier pendant un geste.
 fn peindre_tout(
     pixmap: &mut Pixmap,
+    scene: Option<&mut Pixmap>,
     renderer: &mut Renderer,
     store: &Store,
-    ui: &mut UiState,
-    dock_manager: &DockManager,
-    dock_cache: &DockCache,
+    chrome: Chrome<'_>,
     overlay: SceneOverlay<'_>,
-    pointer: Pointer,
-    scale: f32,
+    facteur: u32,
 ) {
     let (width, height) = (pixmap.width(), pixmap.height());
     let mut vue = pixmap.as_mut();
-    renderer.render(&mut vue, store, ui, overlay, pointer);
+    let Chrome {
+        ui,
+        dock_manager,
+        dock_cache,
+        pointer,
+        echelle,
+    } = chrome;
+
+    match scene {
+        Some(tampon) => renderer.rendre_reduit(
+            &mut vue,
+            crate::renderer::SceneReduite { tampon, facteur },
+            store,
+            ui,
+            overlay,
+            pointer,
+        ),
+        None => renderer.render(&mut vue, store, ui, overlay, pointer),
+    }
 
     // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
     // `scale` et les coordonnées de la souris sont désormais portés par
@@ -199,7 +243,7 @@ fn peindre_tout(
                 width: width as f32,
                 height: height as f32,
                 header_h: ui.header_height(),
-                scale,
+                scale: echelle,
             },
             pointer,
             cache: Some(dock_cache),

@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 mod fenetre;
+mod mouvement;
 mod peinture;
 mod reveil;
 mod terrain;
@@ -53,6 +54,10 @@ pub struct GlucoseApp {
     /// L'elan de la camera : ce que la main a demande et que l'image n'a pas encore montre,
     /// plus la vitesse qui lui survit quand la main lache (voir [`crate::interactions::elan`]).
     pub elan: crate::interactions::elan::Elan,
+    /// De combien la scene est rendue plus petite que la fenetre pendant un geste, et le
+    /// tampon ou elle se rend alors (voir [`crate::resolution`]).
+    pub resolution: crate::resolution::Resolution,
+    pub tampon_reduit: Option<Pixmap>,
     pub pixmap: Option<Pixmap>,
     pub ui: UiState,
     pub dock_manager: DockManager,
@@ -205,6 +210,8 @@ impl GlucoseApp {
             renderer,
             animator: crate::animation::Animator::new(),
             elan: crate::interactions::elan::Elan::default(),
+            resolution: crate::resolution::Resolution::nette(),
+            tampon_reduit: None,
             pixmap: None,
             // Le mot d'accueil est posé ici, au démarrage, et non dans `UiState::new` : un
             // constructeur d'état ne déclenche pas de notification, et un toast porte une
@@ -289,7 +296,8 @@ impl GlucoseApp {
             // c'est ce qui fait qu'une diagonale est une diagonale et non un escalier.
             self.appliquer_l_elan(width, height);
 
-            self.peindre_ce_qui_a_change((width, height), need_new_pixmap);
+            let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
+            self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 
             if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
                 // On présente même quand rien n'a été redessiné : la demande peut venir du
@@ -332,6 +340,11 @@ impl GlucoseApp {
         );
 
         let ecoule = debut.elapsed();
+        // Ce que cette image a coute decide de la finesse de la suivante. `en_cours` dit si la
+        // main demande encore quelque chose : des qu'elle se tait, la nettete revient.
+        self.resolution
+            .observer(ecoule, self.cadence.budget_rendu(), self.elan.en_cours());
+        crate::perf::compteur("img_reduction", f64::from(self.resolution.facteur()));
         self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
         crate::perf::frame_end();
         // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il se
@@ -348,24 +361,6 @@ impl GlucoseApp {
     /// d'evenements recus depuis la derniere image. La diagonale de la fenetre sert de mesure
     /// commune aux deux : elle dit ce qu'un reste de zoom deplacerait a l'ecran, donc quand il
     /// devient invisible.
-    /// Publique pour que les bancs et les tests puissent jouer une image sans fenetre : le
-    /// geste ne deplace plus rien tout seul, donc le verifier demande de jouer l'image.
-    pub fn appliquer_l_elan(&mut self, largeur: u32, hauteur: u32) {
-        let diagonale = f64::from(largeur).hypot(f64::from(hauteur));
-        let Some(m) = self.elan.avancer(std::time::Instant::now(), diagonale) else {
-            return;
-        };
-        if m.pan != (0.0, 0.0) {
-            self.store.pan(m.pan.0, m.pan.1);
-        }
-        if m.octaves != 0.0 {
-            // Le zoom se dit en octaves et s'applique en facteur : `2^n`, et rien d'autre.
-            let facteur = m.octaves.exp2();
-            let bornes = crate::interactions::pan_zoom::WHEEL_SCALE_RANGE;
-            self.store.zoom(facteur, m.ancre.0, m.ancre.1, bornes);
-        }
-    }
-
     /// Intervalle minimal entre deux frames animées.
     ///
     /// On ne demande jamais un rafraîchissement plus vite que la durée réelle de la dernière

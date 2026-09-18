@@ -107,6 +107,7 @@ impl GlucoseApp {
             .map(|(_, ms)| (ms * 1000.0).clamp(0.0, f64::from(u32::MAX)) as u32)
             .unwrap_or(0);
         vu.pixelise = lire("img_pixelise") as u16;
+        vu.reduction = lire("img_reduction").clamp(1.0, f64::from(u16::MAX)) as u16;
         vu.blit_mo = lire("blit_mo").clamp(0.0, f64::from(u16::MAX)) as u16;
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.

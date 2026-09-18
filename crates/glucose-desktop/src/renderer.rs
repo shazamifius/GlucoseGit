@@ -159,6 +159,54 @@ impl Default for Renderer {
     }
 }
 
+/// La scene rendue plus petite que la fenetre, et de combien.
+///
+/// Les deux ne se separent jamais : un tampon sans son facteur ne dit pas comment l'agrandir,
+/// et un facteur sans son tampon ne designe rien.
+pub struct SceneReduite<'a> {
+    pub tampon: &'a mut tiny_skia::Pixmap,
+    pub facteur: u32,
+}
+
+/// Ou et a quelle finesse la scene se rend dans le pixmap qu'on lui donne.
+///
+/// Les deux vont ensemble parce qu'ils disent la meme chose -- comment passer du repere de la
+/// fenetre a celui du tampon -- et qu'un rendu qui les recevrait separement pourrait les
+/// appliquer dans le mauvais ordre.
+#[derive(Debug, Clone, Copy)]
+pub struct Cadrage {
+    /// L'origine de l'ecran, pour un rendu par region (A.1).
+    pub origine: (f32, f32),
+    /// De combien la scene est rendue plus petite que la fenetre (voir [`crate::resolution`]).
+    pub reduction: f64,
+}
+
+impl Cadrage {
+    /// La fenetre entiere, a sa taille reelle.
+    pub fn plein() -> Self {
+        Self {
+            origine: (0.0, 0.0),
+            reduction: 1.0,
+        }
+    }
+
+    /// La fenetre entiere, rendue `f` fois plus petite.
+    pub fn reduit(f: u32) -> Self {
+        Self {
+            origine: (0.0, 0.0),
+            reduction: f64::from(f.max(1)),
+        }
+    }
+
+    /// Une region de la fenetre, a sa taille reelle.
+    pub fn region(origine: (f32, f32)) -> Self {
+        Self {
+            origine,
+            reduction: 1.0,
+        }
+    }
+}
+
 impl Renderer {
     pub fn new() -> Self {
         Self {
@@ -247,6 +295,50 @@ impl Renderer {
         self.magasin.fermer();
     }
 
+    /// La scene rendue **plus petite que la fenetre**, puis agrandie, puis l'interface nette.
+    ///
+    /// # Ce que cela achete, et ce que cela coute
+    ///
+    /// Les passes qui couvrent l'ecran -- le fond, la grille, les halos, l'aura et le cadre
+    /// d'une carte zoomee -- coutent proportionnellement au nombre de pixels qu'elles
+    /// ecrivent. Les rendre dans une image `f` fois plus petite coute donc `f²` fois moins, et
+    /// c'est la seule facon connue de borner **toutes** les passes a la fois : aucune
+    /// optimisation passe par passe ne repond a un cout qui vient de la surface.
+    ///
+    /// L'agrandissement passe par REPORT-1 au plus proche voisin, la primitive la moins chere
+    /// du programme -- un texel lu, aucun melange. C'est la pixelisation assumee de la charte.
+    ///
+    /// **L'interface, elle, reste nette.** Elle ne suit pas la vue, elle ne coute pas la
+    /// surface de l'ecran, et une barre d'outils floue se remarque bien plus qu'un canevas
+    /// grossier pendant un geste.
+    pub fn rendre_reduit(
+        &mut self,
+        plein: &mut PixmapMut,
+        scene: SceneReduite<'_>,
+        store: &Store,
+        ui: &mut UiState,
+        overlay: SceneOverlay<'_>,
+        pointer: Pointer,
+    ) {
+        self.magasin.ouvrir();
+        self.synchroniser_les_caches(store);
+        let f = scene.facteur.max(1);
+        self.rendre_la_region(
+            &mut scene.tampon.as_mut(),
+            store,
+            ui,
+            overlay,
+            ui.header_height() / f as f32,
+            Cadrage::reduit(f),
+        );
+        agrandir(plein, scene.tampon, f);
+        crate::perf::stage("agrandir");
+
+        render_ui(plein, store, ui, &self.typography, &self.theme, pointer);
+        crate::perf::stage("ui");
+        self.magasin.fermer();
+    }
+
     /// Ce qui suit la vue : le fond, la grille, les halos, les conteneurs, les images, les
     /// annotations et les repères de geste. Tout ce que `world_to_screen` place.
     ///
@@ -277,7 +369,47 @@ impl Renderer {
         overlay: SceneOverlay<'_>,
         header_h: f32,
     ) {
-        self.rendre_la_region(pixmap, store, ui, overlay, header_h, (0.0, 0.0));
+        self.rendre_la_region(pixmap, store, ui, overlay, header_h, Cadrage::plein());
+    }
+
+    /// Ou la vue tombe dans ce pixmap, et quels noeuds y apparaissent.
+    ///
+    /// # Les deux transformations, et pourquoi une seule ligne les porte
+    ///
+    /// La scene se rend dans le repere du pixmap cible, qui n'est pas toujours celui de la
+    /// fenetre. `world_to_screen` vaut `monde x echelle + vp`, ce qui suffit a tout dire :
+    ///
+    /// * la **reduction** -- diviser l'ecran par `f` revient a diviser l'echelle ET la
+    ///   translation par `f`. Rien d'autre n'a besoin de le savoir : le culling se resserre
+    ///   tout seul, et le niveau de detail suit, ce qui est exactement ce qu'on attend d'une
+    ///   image plus petite ;
+    /// * l'**origine** -- decaler la vue de `-origine` deplace l'origine de l'ecran d'autant.
+    ///
+    /// L'index spatial se remet d'accord ici, et non chez l'appelant. Il l'etait dans
+    /// `render`, si bien qu'un appelant de `rendre_la_scene` -- un banc, un temoin --
+    /// dessinait un ecran VIDE sans que rien ne le dise. C'est arrive, et le banc annoncait
+    /// alors un gain nul en toute bonne foi. Ne coute rien quand rien n'a change : la
+    /// comparaison de version precede le balayage.
+    fn cadrer(
+        &mut self,
+        store: &Store,
+        (width, height): (u32, u32),
+        header_h: f32,
+        cadrage: Cadrage,
+    ) -> (glucose_core::types::Viewport, Vec<u32>) {
+        self.sync_spatial_index(store);
+        let mut vp = store.viewport();
+        let f = cadrage.reduction.max(1.0);
+        vp.scale /= f;
+        vp.x = vp.x / f - f64::from(cadrage.origine.0);
+        vp.y = vp.y / f - f64::from(cadrage.origine.1);
+        let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
+        let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
+        let rangs = self
+            .spatial_hash
+            .query_rect_ranks(min_wx, min_wy, max_wx, max_wy, 200.0);
+        crate::perf::stage("cull");
+        (vp, rangs)
     }
 
     /// La scène, rendue comme si l'origine de l'écran était `origine` (A.1).
@@ -299,26 +431,11 @@ impl Renderer {
         ui: &UiState,
         overlay: SceneOverlay<'_>,
         header_h: f32,
-        origine: (f32, f32),
+        cadrage: Cadrage,
     ) {
-        // L'index spatial se remet d'accord ici, et non chez l'appelant. Il l'etait dans
-        // `render`, si bien qu'un appelant de `rendre_la_scene` -- un banc, un temoin --
-        // dessinait un ecran VIDE sans que rien ne le dise. C'est arrive, et le banc annoncait
-        // alors un gain nul en toute bonne foi.
-        //
-        // Ne coute rien quand rien n'a change : la comparaison de version precede le balayage.
-        self.sync_spatial_index(store);
         let width = pixmap.width();
         let height = pixmap.height();
-        let mut vp = store.viewport();
-        vp.x -= f64::from(origine.0);
-        vp.y -= f64::from(origine.1);
-        let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
-        let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let rangs = self
-            .spatial_hash
-            .query_rect_ranks(min_wx, min_wy, max_wx, max_wy, 200.0);
-        crate::perf::stage("cull");
+        let (vp, rangs) = self.cadrer(store, (width, height), header_h, cadrage);
         let pass = ViewPass {
             vp,
             visibles: &rangs,
@@ -396,6 +513,40 @@ impl Renderer {
             scene::draw_selection_box(pixmap, &self.theme, (x1, y1), (x2, y2));
         }
     }
+}
+
+/// Etale la scene reduite sur toute la fenetre, au plus proche voisin.
+///
+/// Le facteur est un entier, donc chaque texel devient un carre exact de `f x f` pixels :
+/// aucun reechantillonnage, aucun texel invente, et le resultat est reproductible au bit
+/// pres. C'est ce qui permet de dire que la seule chose perdue est la finesse, et rien d'autre.
+fn agrandir(plein: &mut PixmapMut, scene: &tiny_skia::Pixmap, f: u32) {
+    let (largeur, hauteur) = (plein.width(), plein.height());
+    let (texels, _) = scene.data().as_chunks::<4>();
+    let Some(vue) = glucose_core::report::Vue::nouvelle(texels, scene.width(), scene.height())
+    else {
+        return;
+    };
+    let (pixels, _) = plein.data_mut().as_chunks_mut::<4>();
+    let Some(mut cible) = glucose_core::report::VueMut::nouvelle(pixels, largeur, hauteur) else {
+        return;
+    };
+    let pose = glucose_core::report::Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: (scene.width() * f) as f32,
+        hauteur: (scene.height() * f) as f32,
+    };
+    let clip = glucose_core::occlusion::Boite::nouvelle(0.0, 0.0, largeur as f32, hauteur as f32);
+    glucose_core::report::reporter(
+        &mut cible,
+        &vue,
+        pose,
+        clip,
+        // `Remplacer` : la scene reduite EST l'image, elle ne se compose sur rien.
+        glucose_core::report::Melange::Remplacer,
+        glucose_core::report::Filtre::PlusProche,
+    );
 }
 
 #[cfg(test)]
