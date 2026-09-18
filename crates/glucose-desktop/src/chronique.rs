@@ -196,6 +196,12 @@ pub struct Instantane {
     pub prevu_us: u32,
     /// Les images de cette scène se sont-elles **pixelisées** pour tenir le budget ?
     pub pixelise: u16,
+    /// Ce que le report des photos a réellement coûté, en microsecondes.
+    ///
+    /// C'est **ce que le modèle prévoit**, et donc la seule grandeur à laquelle sa prévision
+    /// puisse se comparer. La rapporter à la durée entière de l'image la ferait paraître
+    /// fausse alors qu'elle ne parle pas de la même chose.
+    pub report_us: u32,
 }
 
 impl Instantane {
@@ -416,10 +422,10 @@ impl Chronique {
         if vu.pixelise > 0 {
             self.pixelisees += 1;
         }
-        if vu.prevu_us > 0 {
+        if vu.prevu_us > 0 && vu.report_us > 0 {
             self.prevues += 1;
             self.prevu_us += u64::from(vu.prevu_us);
-            self.mesure_us += u64::from(vu.duree_us);
+            self.mesure_us += u64::from(vu.report_us);
         }
 
         let poste = &mut self.par_geste[vu.geste().indice()];
