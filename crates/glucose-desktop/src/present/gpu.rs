@@ -326,7 +326,12 @@ fn ouvrir(
 /// * `mailbox` — sans attente ni déchirure, quand la carte le propose ;
 /// * `fifo` — le défaut : l'image attend le balayage.
 fn cadence_demandee() -> Option<wgpu::PresentMode> {
-    match std::env::var("GLUCOSE_PRESENT").ok()?.trim().to_lowercase().as_str() {
+    match std::env::var("GLUCOSE_PRESENT")
+        .ok()?
+        .trim()
+        .to_lowercase()
+        .as_str()
+    {
         "immediate" => Some(wgpu::PresentMode::Immediate),
         "mailbox" => Some(wgpu::PresentMode::Mailbox),
         "fifo" => Some(wgpu::PresentMode::Fifo),

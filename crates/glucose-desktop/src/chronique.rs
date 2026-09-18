@@ -158,6 +158,13 @@ pub struct Instantane {
     pub images_mo: u32,
     /// Combien d'images attendent encore leur décodage.
     pub en_decodage: u16,
+    /// Combien de vignettes cette image a **construites**.
+    ///
+    /// Une construction rééchantillonne une photo entière, quelle que soit la part d'elle qui
+    /// se voit : c'est le seul poste du rendu qui ne suive pas la surface visible. Une image
+    /// qui n'écrit presque rien et coûte pourtant une demi-seconde se lit **ici**, et nulle
+    /// part ailleurs.
+    pub vignettes: u16,
 }
 
 impl Instantane {

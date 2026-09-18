@@ -63,7 +63,10 @@ fn test_ce_qui_vient_apres_n_est_jamais_cache() {
         opaque(0.0, 0.0, 1000.0, 800.0),
         opaque(10.0, 10.0, 50.0, 50.0),
     ]);
-    assert!(r[0].is_empty().not(), "la premiere est dessous, elle se voit encore");
+    assert!(
+        r[0].is_empty().not(),
+        "la premiere est dessous, elle se voit encore"
+    );
     assert!(r[1].is_empty().not());
 }
 
@@ -177,7 +180,11 @@ fn test_rien_a_dessiner_ne_panique_pas() {
 
     // Une fenetre vide non plus : cela arrive a la toute premiere image, avant que la taille
     // soit connue.
-    ce_qui_se_voit(&[opaque(0.0, 0.0, 10.0, 10.0)], Boite::nouvelle(0.0, 0.0, 0.0, 0.0), &mut out);
+    ce_qui_se_voit(
+        &[opaque(0.0, 0.0, 10.0, 10.0)],
+        Boite::nouvelle(0.0, 0.0, 0.0, 0.0),
+        &mut out,
+    );
     assert_eq!(out.calques(), 1);
     assert!(out.parts(0).is_empty());
 }

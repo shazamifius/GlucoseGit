@@ -16,6 +16,7 @@ use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::occlusion::{self, Calque};
 use glucose_core::quadtree::Visibles;
+use glucose_core::report;
 use glucose_core::resize::Handle;
 use glucose_core::store::Store;
 use tiny_skia::{
@@ -63,6 +64,11 @@ pub(in crate::renderer) fn draw_images(
     //
     // Le calcul vit dans le noyau parce qu'il est geometrique : les memes rectangles donnent
     // la meme reponse sur un processeur, sur une carte graphique et sur un telephone.
+    // Combien de vignettes cette image aura construites. Une construction rééchantillonne la
+    // photo ENTIÈRE, même si l'occlusion n'en laisse voir qu'une bande : c'est le seul poste
+    // qui ne suit pas la surface visible, donc le seul qui puisse coûter cher sans que la
+    // surcouverture ne le montre.
+    let vignettes_avant = magasin.vignettes.faites();
     let visibles: Vec<&glucose_core::types::BoardImage> =
         Visibles::nouvelles(pass.visibles, board).images().collect();
     let calques: Vec<Calque> = visibles
@@ -79,7 +85,8 @@ pub(in crate::renderer) fn draw_images(
 
     for (rang, img) in visibles.into_iter().enumerate() {
         // Une liste de parties vide veut dire : entierement recouvert, rien a peindre.
-        if caches.parts(rang).is_empty() {
+        let parts = caches.parts(rang);
+        if parts.is_empty() {
             cachees += 1.0;
             continue;
         }
@@ -92,9 +99,12 @@ pub(in crate::renderer) fn draw_images(
         }
 
         posees += 1.0;
-        pixels += (sw as f64) * (sh as f64);
-        if !poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh)) {
-            draw_missing_image(
+        match poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh), parts) {
+            // REPORT-1 : ce qu'une photo coute est ce qu'elle ECRIT, et non la surface
+            // qu'elle occupe. Recouverte a quatre-vingt-dix-neuf pour cent, elle en ecrit un
+            // centieme -- et c'est ce centieme que la trace doit montrer.
+            Some(ecrits) => pixels += ecrits as f64,
+            None => draw_missing_image(
                 typography,
                 theme,
                 pixmap,
@@ -102,7 +112,7 @@ pub(in crate::renderer) fn draw_images(
                 (sw, sh),
                 &img.id,
                 img.rotation,
-            );
+            ),
         }
         if store.selected_image_ids.contains(&img.id) {
             draw_image_adornments(pixmap, theme, scale, img, (sx, sy, sw, sh));
@@ -120,6 +130,10 @@ pub(in crate::renderer) fn draw_images(
     crate::perf::compteur("img_attente", magasin.en_travail() as f64);
     // Combien d'images l'occlusion a evitees : le gain d'OCCLUSION-1, mesure plutot qu'annonce.
     crate::perf::compteur("img_cachees", cachees);
+    crate::perf::compteur(
+        "vign_faites",
+        magasin.vignettes.faites().saturating_sub(vignettes_avant) as f64,
+    );
     // Combien d'images le cache a rendues à la machine : si ce nombre monte pendant qu'on
     // travaille, c'est que la mémoire se tend et que la borne se contracte.
     crate::perf::compteur("img_rendues", magasin.evincees() as f64);
@@ -168,9 +182,10 @@ fn boite_ecran(img: &glucose_core::types::BoardImage, pass: &ViewPass<'_>) -> (f
 ///
 /// # INVARIANT DECODE-1 — le rendu n'attend jamais un décodage
 ///
-/// Rendre `false` n'est pas un échec : c'est l'état normal d'une image qui vient d'arriver
+/// Rendre `None` n'est pas un échec : c'est l'état normal d'une image qui vient d'arriver
 /// sur le canevas. L'appelant dessine alors son cadre, et la photo paraîtra d'elle-même à
-/// l'image où l'atelier la rendra — sans qu'aucune frame ait eu à l'attendre.
+/// l'image où l'atelier la rendra — sans qu'aucune frame ait eu à l'attendre. `Some` porte le
+/// nombre de pixels écrits, qui est ce que la photo a réellement coûté.
 ///
 /// Les deux caches s'empruntent séparément : la pyramide en écriture pour construire un
 /// niveau, les vignettes pour en garder une. C'est ce que des champs distincts autorisent, et
@@ -180,80 +195,151 @@ fn poser_ou_demander(
     pixmap: &mut PixmapMut,
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
-) -> bool {
-    let Some(src) = img.src.as_deref().filter(|s| !s.is_empty()) else {
-        return false;
-    };
+    parts: &[occlusion::Boite],
+) -> Option<u64> {
+    let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
     // l'éviction : ce qui est à l'écran ne se rend jamais à la machine (ADAPT-1).
     if !magasin.reclamer(src) {
-        return false;
+        return None;
     }
-    let Some(entree) = magasin.cache.get(src) else {
-        return false;
-    };
-    poser(&entree.pyramide, &mut magasin.vignettes, pixmap, img, ecran);
-    true
+    let entree = magasin.cache.get(src)?;
+    Some(poser(
+        &entree.pyramide,
+        &mut magasin.vignettes,
+        pixmap,
+        img,
+        ecran,
+        parts,
+    ))
 }
 
-/// Pose une image sur le canevas, par le chemin le plus économique qu'elle autorise.
+/// Pose une image sur le canevas, **restreinte aux morceaux d'elle qui atteignent l'œil**.
 ///
-/// Deux chemins, et le premier n'existe que parce que le rasteriseur n'est rapide qu'à
-/// l'échelle 1 posée sur un entier (MIP-2) :
+/// # Ce que REPORT-1 change ici
 ///
-/// * la **vignette**, déjà à la taille et à la phase voulues : un report sans transformation ;
-/// * le chemin général, qui rééchantillonne depuis le niveau de pyramide adéquat (MIP-1).
+/// L'occlusion savait déjà dire quels morceaux d'une photo se voient ; ce module n'en lisait
+/// qu'une chose — la liste est-elle vide — parce que le rastériseur ne sait pas peindre une
+/// image restreinte à un rectangle sans un masque plein écran. Une photo recouverte à
+/// quatre-vingt-dix-neuf pour cent était donc peinte à cent.
 ///
-/// Une image tournée passe toujours par le second : une vignette est un rectangle droit, et la
-/// faire tourner redemanderait la transformation qu'elle sert à éviter.
+/// Le report du noyau, lui, **itère sur le rectangle visible** : le clip n'y coûte rien,
+/// puisqu'il est le domaine du parcours. Les deux chemins historiques se retrouvent alors
+/// sans être écrits deux fois :
+///
+/// * la **vignette**, déjà à la taille et à la phase voulues (MIP-2) — le report y constate
+///   qu'un pixel vaut un pixel et se réduit à un déplacement de mémoire par ligne ;
+/// * le niveau de pyramide adéquat (MIP-1), rééchantillonné à la volée.
+///
+/// Une image **tournée** garde le rastériseur général : sa boîte n'est plus ce qu'elle couvre,
+/// donc ses morceaux visibles ne sont pas des rectangles. L'occlusion continue de la sauter
+/// quand elle est entièrement cachée, ce qui reste le gain principal sur ce cas.
+///
+/// Rend le nombre de pixels écrits.
 fn poser(
     pyramide: &photo::Pyramide,
     vignettes: &mut vignette::Vignettes,
     pixmap: &mut PixmapMut,
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
-) {
+    parts: &[occlusion::Boite],
+) -> u64 {
     let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
-    let paint = PixmapPaint {
-        quality: FilterQuality::Bilinear,
-        blend_mode: mode_de_report(opaque, img.rotation),
-        ..Default::default()
+
+    if img.rotation != 0.0 {
+        let paint = PixmapPaint {
+            quality: FilterQuality::Bilinear,
+            blend_mode: mode_de_report(opaque, img.rotation),
+            ..Default::default()
+        };
+        let loaded = pyramide.niveau_pour(sw);
+        let ts = Transform::from_scale(sw / loaded.width() as f32, sh / loaded.height() as f32)
+            .post_translate(sx, sy)
+            .post_rotate_at(
+                img.rotation.to_degrees() as f32,
+                sx + sw / 2.0,
+                sy + sh / 2.0,
+            );
+        pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
+        return (f64::from(sw) * f64::from(sh)) as u64;
+    }
+
+    let melange = if opaque {
+        report::Melange::Remplacer
+    } else {
+        report::Melange::Composer
     };
 
-    // Une vignette n'a de sens que si elle tient dans la fenetre : son role est d'eviter une
-    // transformation au moment de poser, or d'une image plus grande que l'ecran on ne voit
+    // Une vignette n'a de sens que si elle tient dans la fenetre : son role est d'eviter un
+    // reechantillonnage au moment de poser, or d'une image plus grande que l'ecran on ne voit
     // qu'un morceau. En demander une en zoom proche allouait des dizaines de gigaoctets, et
     // l'application plantait.
     let tient = sw <= pixmap.width() as f32 && sh <= pixmap.height() as f32;
-    if img.rotation == 0.0 && tient {
+    if tient {
         let forme = photo::Forme::posee(sx, sy, sw, sh);
-        if let Some(vignette) = vignettes.pour(&img.id, forme, pyramide) {
-            // La phase est déjà dans la vignette : il ne reste qu'une position entière, ce qui
-            // est le seul cas où le rasteriseur se contente de recopier.
-            pixmap.draw_pixmap(
-                sx.floor() as i32,
-                sy.floor() as i32,
-                vignette.as_ref(),
-                &paint,
-                Transform::identity(),
-                None,
-            );
-            return;
+        // Les trois postes se ferment l'un l'autre : ce qui precede la vignette est de la
+        // geometrie, ce qui la suit est du report. Sans cette separation, « images » reste un
+        // bloc opaque -- et c'est exactement ce qui a empeche de voir que six cent soixante-
+        // cinq millisecondes partaient ailleurs que dans le dessin.
+        crate::perf::stage("images");
+        let vignette = vignettes.pour(&img.id, forme, pyramide);
+        crate::perf::stage("vignettes");
+        if let Some(vignette) = vignette {
+            // La phase est deja dans la vignette : il ne reste qu'une position entiere, et le
+            // report constate alors qu'un pixel vaut un pixel.
+            let pose = report::Pose {
+                x: sx.floor(),
+                y: sy.floor(),
+                largeur: vignette.width() as f32,
+                hauteur: vignette.height() as f32,
+            };
+            let ecrits = reporter_les_parts(pixmap, vignette, pose, parts, melange);
+            crate::perf::stage("report");
+            return ecrits;
         }
     }
 
     // MIP-1 : on part du niveau qui couvre encore la taille posée, jamais de la résolution
     // native. Le filtre lit alors des texels voisins au lieu d'en sauter neuf sur dix.
     let loaded = pyramide.niveau_pour(sw);
-    let ts = Transform::from_scale(sw / loaded.width() as f32, sh / loaded.height() as f32)
-        .post_translate(sx, sy)
-        .post_rotate_at(
-            img.rotation.to_degrees() as f32,
-            sx + sw / 2.0,
-            sy + sh / 2.0,
-        );
-    pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
+    let pose = report::Pose {
+        x: sx,
+        y: sy,
+        largeur: sw,
+        hauteur: sh,
+    };
+    crate::perf::stage("images");
+    let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange);
+    crate::perf::stage("report");
+    ecrits
+}
+
+/// Reporte la source une fois par morceau que l'occlusion laisse voir, et dit combien de
+/// pixels ont été écrits.
+///
+/// Les deux images sont des tampons compacts de quatre octets par pixel, prémultipliés : les
+/// convertir en tranches de `[u8; 4]` ne copie rien et ne suppose aucun boutisme.
+fn reporter_les_parts(
+    pixmap: &mut PixmapMut,
+    source: &tiny_skia::Pixmap,
+    pose: report::Pose,
+    parts: &[occlusion::Boite],
+    melange: report::Melange,
+) -> u64 {
+    let (largeur, hauteur) = (pixmap.width(), pixmap.height());
+    let (texels, _) = source.data().as_chunks::<4>();
+    let Some(vue) = report::Vue::nouvelle(texels, source.width(), source.height()) else {
+        return 0;
+    };
+    let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
+    let Some(mut cible) = report::VueMut::nouvelle(pixels, largeur, hauteur) else {
+        return 0;
+    };
+    parts
+        .iter()
+        .map(|part| report::reporter(&mut cible, &vue, pose, *part, melange))
+        .sum()
 }
 
 /// Comment reporter une image sur le canevas : en remplaçant, ou en composant.

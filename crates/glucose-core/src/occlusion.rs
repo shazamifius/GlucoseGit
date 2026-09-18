@@ -282,7 +282,13 @@ fn decouper(
             match (utile(l, c), segment) {
                 (true, None) => segment = Some(c),
                 (false, Some(d)) => {
-                    parts.push(rect_de_tuiles(visible, fenetre, (d, c - 1), l, (pas_x, pas_y)));
+                    parts.push(rect_de_tuiles(
+                        visible,
+                        fenetre,
+                        (d, c - 1),
+                        l,
+                        (pas_x, pas_y),
+                    ));
                     segment = None;
                 }
                 _ => {}
@@ -333,8 +339,9 @@ fn pour_chaque_tuile(
     let colonne = |x: f32| {
         (((x - fenetre.x) / pas_x).floor() as isize).clamp(0, colonnes as isize - 1) as usize
     };
-    let ligne =
-        |y: f32| (((y - fenetre.y) / pas_y).floor() as isize).clamp(0, lignes as isize - 1) as usize;
+    let ligne = |y: f32| {
+        (((y - fenetre.y) / pas_y).floor() as isize).clamp(0, lignes as isize - 1) as usize
+    };
 
     // Le bord droit appartient a la tuile precedente : sans le recul d'un epsilon, une zone qui
     // s'arrete pile sur une frontiere reclamerait une tuile qu'elle ne touche pas.
