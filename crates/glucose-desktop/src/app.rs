@@ -1,11 +1,11 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
+mod fenetre;
 mod peinture;
 mod reveil;
 mod terrain;
 
 use crate::dock::{apply_organize_layout, DockCache, DockManager, OrganizeState};
-use crate::error::{DesktopError, DesktopResult};
 use crate::interactions::resize::ResizeSession;
 use crate::interactions::tools::text_card;
 use crate::renderer::{Renderer, TextEditSession};
@@ -17,11 +17,10 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 use tiny_skia::Pixmap;
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::keyboard::ModifiersState;
-use winit::window::{Window, WindowAttributes, WindowId};
+use winit::window::{Window, WindowId};
 
 /// Ce que dit la carte d'accueil d'un document neuf.
 const WELCOME_TEXT: &str = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
@@ -286,6 +285,11 @@ impl GlucoseApp {
                     eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
                 }
             }
+            // NAV-3 : l'age du plus ancien geste que cette image montre enfin. C'est **la**
+            // grandeur qui dit « fluide », et aucune duree d'image ne l'explique.
+            if let Some(l) = self.chronique.navigation.image_presentee() {
+                crate::perf::compteur("nav_latence_us", l.as_micros() as f64);
+            }
 
             // CASCADE-1 : ce que la periode de l'ecran laisse encore sert au travail de fond.
             // L'image est deja presentee -- ce qui suit ne la retarde pas, il occupe le temps
@@ -401,81 +405,6 @@ impl GlucoseApp {
         self.ui
             .show_toast(format!("Disposition {} appliquée", state.layout.title()));
         self.mark_dirty();
-    }
-
-    /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
-    /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
-    fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
-        let title = self.window_title();
-        let attrs = WindowAttributes::default()
-            .with_title(&title)
-            .with_inner_size(LogicalSize::new(1440.0, 900.0));
-
-        let window = event_loop
-            .create_window(attrs)
-            .map(Arc::new)
-            .map_err(|e| DesktopError::WindowError(format!("create_window : {e}")))?;
-
-        // La frequence se LIT sur l'ecran. Quand le systeme ne la donne pas -- bureau
-        // distant, machine virtuelle -- on retient le plancher de la charte : mieux vaut viser
-        // trop bas et tenir que l'inverse.
-        self.cadence = window
-            .current_monitor()
-            .and_then(|m| m.refresh_rate_millihertz())
-            .map_or_else(crate::cadence::Cadence::inconnue, |mhz| {
-                crate::cadence::Cadence::depuis_millihertz(mhz)
-            });
-        println!(
-            "[Glucose] cadence de l'ecran : {:.0} Hz, soit {:.2} ms par image",
-            self.cadence.fps(),
-            self.cadence.periode().as_secs_f64() * 1000.0
-        );
-
-        let scale_factor = window.scale_factor();
-        self.scale_factor = scale_factor;
-        self.ui.scale_factor = scale_factor as f32;
-
-        let size = window.inner_size();
-        let width = size.width.max(1);
-        let height = size.height.max(1);
-        let (w, h) = (
-            NonZeroU32::new(width).unwrap_or(NonZeroU32::MIN),
-            NonZeroU32::new(height).unwrap_or(NonZeroU32::MIN),
-        );
-
-        // La carte graphique d'abord, le processeur s'il n'y en a pas. Ce n'est pas un
-        // secours honteux : une machine virtuelle, un bureau distant ou un pilote absent sont
-        // des cas de tous les jours, et l'application doit s'ouvrir quand même.
-        let mut presenter: Box<dyn crate::present::Presenter> =
-            match crate::present::GpuPresenter::new(window.clone(), w, h) {
-                Ok(gpu) => {
-                    println!(
-                        "[Glucose] présentation par la carte graphique : {} ({:?})",
-                        gpu.adaptateur(),
-                        gpu.cadence()
-                    );
-                    Box::new(gpu)
-                }
-                Err(e) => {
-                    eprintln!("[Glucose] pas de carte graphique disponible ({e}) — présentation par le processeur");
-                    Box::new(crate::present::CpuPresenter::new(window.clone())?)
-                }
-            };
-        presenter.resize(w, h)?;
-        // Dit des le depart ou la chronique s'ecrira : la chercher apres coup dans un dossier
-        // temporaire est decourageant, et une mesure qu'on ne retrouve pas ne sert a personne.
-        println!(
-            "[Glucose] chronique de cette session : {}",
-            Self::chemin_de_la_chronique().display()
-        );
-
-        self.pixmap = Pixmap::new(width, height);
-        window.set_cursor(winit::window::CursorIcon::Grab);
-        self.window_title_cache = title;
-        self.window = Some(window);
-        self.presenter = Some(presenter);
-        self.mark_dirty();
-        Ok(())
     }
 }
 

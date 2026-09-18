@@ -32,6 +32,8 @@
 //! gardées entières, avec leur geste, leurs postes et leurs quantités — c'est là que se lit la
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
+pub mod navigation;
+
 use std::time::Duration;
 
 /// Ce que l'utilisateur est en train de faire quand l'image se dessine.
@@ -307,6 +309,9 @@ pub struct Chronique {
     rendues: u64,
     /// Une image est entree dans les pires depuis la derniere sauvegarde.
     du_neuf: bool,
+    /// Ce que la navigation vit : ce que le doigt demande, et le temps qu'il faut pour que
+    /// l'écran le montre (NAV-3).
+    pub navigation: navigation::Navigation,
     /// Toutes les photos posées de la session, et celles qui l'ont été depuis une vignette.
     ///
     /// # Pourquoi un cumul, et pas la liste des pires
@@ -382,6 +387,7 @@ impl Chronique {
             noms_des_postes: Vec::new(),
             rendues: 0,
             du_neuf: false,
+            navigation: navigation::Navigation::nouvelle(),
             photos_posees: 0,
             photos_par_vignette: 0,
             noeuds_recrees: 0,

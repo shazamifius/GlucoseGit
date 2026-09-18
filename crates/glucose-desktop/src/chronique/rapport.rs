@@ -28,8 +28,44 @@ impl Chronique {
         let mut t = String::new();
         self.ecrire_le_resume(&mut t);
         self.ecrire_les_gestes(&mut t);
+        self.ecrire_la_navigation(&mut t);
         self.ecrire_les_pires(&mut t);
         t
+    }
+
+    /// Ce que la main a demandé, et le temps qu'il a fallu pour que l'écran le montre.
+    ///
+    /// # Pourquoi cette section existe à part
+    ///
+    /// Tout le reste de ce rapport mesure ce qu'une image **coûte**. Rien n'y disait le délai
+    /// entre le geste et ce qu'on en voit — et c'est pourtant lui qui se ressent. Une
+    /// application à cent images par seconde dont chaque image montre l'état d'il y a
+    /// cinquante millisecondes paraît molle, et aucune durée d'image ne l'explique.
+    fn ecrire_la_navigation(&self, t: &mut String) {
+        let (zooms, pans, crans) = self.navigation.comptes();
+        let (mesurees, pire) = self.navigation.mesurees();
+        if zooms + pans + crans == 0 {
+            return;
+        }
+        t.push_str("  Ce que la main demande, et le temps que l'ecran met a le montrer\n\n");
+        t.push_str(&format!(
+            "  {zooms} zoom(s), {pans} deplacement(s), {crans} pris pour un cran de souris\n"
+        ));
+        if crans > 0 && pans > 0 {
+            t.push_str(
+                "    un cran suppose au milieu d'un glissement coute un saut d'echelle visible\n",
+            );
+        }
+        if mesurees > 0 {
+            t.push_str(&format!(
+                "  latence geste -> ecran : median {:.1}ms, p90 {:.1}ms, p99 {:.1}ms, pire {:.1}ms\n",
+                ms(self.navigation.centile(0.50)),
+                ms(self.navigation.centile(0.90)),
+                ms(self.navigation.centile(0.99)),
+                ms(pire),
+            ));
+        }
+        t.push('\n');
     }
 
     fn ecrire_le_resume(&self, t: &mut String) {

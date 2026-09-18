@@ -60,16 +60,39 @@ pub enum Geste {
 ///
 /// Fonction pure : c'est elle qui porte toute la décision, et elle se teste sans fenêtre.
 pub fn geste(delta: MouseScrollDelta, ctrl: bool) -> Geste {
-    let (dx, dy, ligne) = match delta {
-        MouseScrollDelta::LineDelta(x, y) => (f64::from(x), f64::from(y), true),
-        MouseScrollDelta::PixelDelta(p) => (p.x, p.y, false),
-    };
+    let (dx, dy, ligne) = deltas(delta);
     if ctrl || cran_de_souris(dx, dy, ligne) {
         let pixels = dy * if ligne { ZOOM_LIGNE_PX } else { 1.0 };
         return Geste::Zoom(ZOOM_PAR_PIXEL.powf(-pixels));
     }
     let px = if ligne { PAN_LIGNE_PX } else { 1.0 };
     Geste::Pan(dx * px, dy * px)
+}
+
+/// Les deux composantes d'un défilement, et s'il s'exprime en lignes.
+fn deltas(delta: MouseScrollDelta) -> (f64, f64, bool) {
+    match delta {
+        MouseScrollDelta::LineDelta(x, y) => (f64::from(x), f64::from(y), true),
+        MouseScrollDelta::PixelDelta(p) => (p.x, p.y, false),
+    }
+}
+
+/// **Pourquoi** ce geste a été décidé — pour la trace, jamais pour le comportement.
+///
+/// La décision elle-même reste dans [`geste`], à un seul endroit. Celle-ci n'en lit que la
+/// raison, parce qu'un défilement pris pour un cran de souris est le cas ambigu : s'il abonde
+/// pendant qu'on glisse à deux doigts, chacun coûte un saut d'échelle visible — et aucune
+/// mesure de durée ne le montrerait.
+pub fn pourquoi(delta: MouseScrollDelta, ctrl: bool) -> crate::chronique::navigation::Decision {
+    use crate::chronique::navigation::Decision;
+    let (dx, dy, ligne) = deltas(delta);
+    if !ctrl && cran_de_souris(dx, dy, ligne) {
+        return Decision::CranDeSouris;
+    }
+    match geste(delta, ctrl) {
+        Geste::Zoom(_) => Decision::Zoom,
+        Geste::Pan(..) => Decision::Pan,
+    }
 }
 
 /// Un cran de molette de souris : vertical pur, et d'un nombre **entier** de lignes.
@@ -85,6 +108,11 @@ impl GlucoseApp {
     /// Gère les événements de molette et gestes tactiles.
     pub fn handle_mouse_wheel(&mut self, delta: MouseScrollDelta) {
         let (cx, cy) = self.mouse_pos;
+        // NAV-3 : ce que le doigt a demande entre dans la trace, avec l'instant ou il l'a
+        // demande. C'est de la qu'on saura si l'ecran suit la main.
+        self.chronique
+            .navigation
+            .evenement(pourquoi(delta, self.modifiers.control_key()));
         match geste(delta, self.modifiers.control_key()) {
             Geste::Zoom(facteur) => self.store.zoom(facteur, cx, cy, WHEEL_SCALE_RANGE),
             Geste::Pan(dx, dy) => self.store.pan(dx, dy),
