@@ -202,6 +202,8 @@ pub struct Instantane {
     /// puisse se comparer. La rapporter à la durée entière de l'image la ferait paraître
     /// fausse alors qu'elle ne parle pas de la même chose.
     pub report_us: u32,
+    /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
+    pub blit_mo: u16,
 }
 
 impl Instantane {

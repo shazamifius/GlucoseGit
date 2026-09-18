@@ -283,6 +283,11 @@ impl GpuPresenter {
                 depth_or_array_layers: 1,
             },
         );
+        // Ce qu'on envoie a la carte, en mebioctets. Une image entiere part a CHAQUE frame :
+        // a cinquante images par seconde en 4K, cela fait plus d'un gigaoctet par seconde vers
+        // une carte qui partage sa memoire avec le processeur. Le savoir, plutot que le
+        // supposer, dit si la presentation attend parce qu'elle est saturee.
+        crate::perf::compteur("blit_mo", f64::from(w) * f64::from(h) * 4.0 / 1_048_576.0);
         crate::perf::stage("blit");
     }
 }
