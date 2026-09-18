@@ -568,7 +568,13 @@ impl Presenter for GpuPresenter {
             passe.draw(0..3, 0..1);
         }
         crate::perf::stage("encoder");
+        // Les deux dernières moitiés se mesurent séparément, parce qu'elles n'attendent pas la
+        // même chose : **soumettre** peut buter sur une file de commandes pleine, **présenter**
+        // sur le compositeur qui ne rend pas la main. Mesurées ensemble, elles ont annoncé des
+        // pics de quatre cent quarante millisecondes sur des images sans une seule photo, sans
+        // jamais dire laquelle les portait.
         self.queue.submit(Some(encodeur.finish()));
+        crate::perf::stage("soumettre");
         // La vue sur l'image de la surface doit être relâchée avant de la rendre au
         // compositeur : elle l'emprunte.
         drop(cible);
