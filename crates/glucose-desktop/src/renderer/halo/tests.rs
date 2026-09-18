@@ -443,3 +443,167 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         "passe de lueurs pour {BENCH_CARD_COUNT} cartes : {elapsed} ms (budget {HALO_PASS_BUDGET_MS} ms)"
     );
 }
+
+
+/// **Les deux voies rendent les memes bits.** La division par 255 sur deux canaux a la fois
+/// doit valoir exactement celle qu'on ecrivait canal par canal, sur toute la plage que la
+/// composition peut produire -- `c x a + d x (255 - a)` ne depasse jamais `255 x 255`.
+///
+/// Le champ bas se balaie en entier ; le champ haut prend les valeurs ou un report d'un champ
+/// sur l'autre se verrait. Les croiser tous les deux couterait quatre milliards de cas pour la
+/// meme garantie, puisque les deux champs subissent le meme traitement.
+#[test]
+fn la_division_par_255_sur_deux_canaux_vaut_celle_sur_un() {
+    for bas in 0..=65_025u32 {
+        for haut in [0u32, 1, 127, 128, 254, 255, 32_640, 65_025] {
+            let attendu = super::div255(bas) | (super::div255(haut) << 16);
+            let obtenu = super::div255_swar(bas | (haut << 16));
+            assert_eq!(
+                obtenu, attendu,
+                "bas {bas} et haut {haut} : {obtenu:#010x} au lieu de {attendu:#010x}"
+            );
+        }
+    }
+}
+
+/// La composition d'un niveau de lueur, canal par canal, doit valoir ce que le mot entier
+/// produit -- sinon une teinte deriverait sans que rien ne le dise.
+#[test]
+fn la_composition_swar_vaut_la_composition_canal_par_canal() {
+    for alpha in [0u8, 1, 17, 64, 128, 200, 255] {
+        let source = super::LevelSource::new((200, 40, 120), alpha);
+        for fond in [[0u8, 0, 0, 0], [255, 255, 255, 255], [10, 200, 90, 255], [7, 7, 7, 9]] {
+            let mut obtenu = fond;
+            super::blend_pixel(&mut obtenu, source);
+
+            let inv = 255 - u32::from(alpha);
+            let canal = |c: usize, s: u32| {
+                super::div255(s + u32::from(fond[c]) * inv) as u8
+            };
+            let poids = u32::from(alpha);
+            let attendu = [
+                canal(0, 200 * poids),
+                canal(1, 40 * poids),
+                canal(2, 120 * poids),
+                canal(3, 255 * poids),
+            ];
+            assert_eq!(obtenu, attendu, "alpha {alpha} sur {fond:?}");
+        }
+    }
+}
+
+/// Ce que coute une lueur qui couvre l'ecran entier -- le cas mesure sur une vraie session,
+/// ou une seule carte zoomee faisait passer la passe a 14,7 ms de facon tres reproductible.
+///
+/// Ce n'est pas une preuve, c'est un repere : il dit ce que la passe coute sur CETTE machine,
+/// pour que l'effet d'une optimisation se lise au lieu de s'annoncer.
+#[test]
+#[ignore = "mesure un temps : sensible à la charge de la machine"]
+fn banc_une_lueur_qui_couvre_l_ecran() {
+    let mut pixmap = Pixmap::new(2560, 1440).expect("un ecran de 2560x1440");
+    pixmap.fill(background());
+    let halo = HaloBox {
+        left: 900.0,
+        top: 500.0,
+        right: 1660.0,
+        bottom: 950.0,
+        // Le sigma suit le zoom : de pres, la lueur deborde largement de l'ecran.
+        sigma: 300.0,
+    };
+    let teinte = (220, 120, 180);
+    draw_halo(&mut pixmap.as_mut(), halo, teinte, HALO_ALPHA);
+
+    const IMAGES: u32 = 20;
+    let debut = std::time::Instant::now();
+    for _ in 0..IMAGES {
+        draw_halo(&mut pixmap.as_mut(), halo, teinte, HALO_ALPHA);
+    }
+    let par_image = debut.elapsed() / IMAGES;
+    println!(
+        "  lueur plein ecran (2560x1440) : {:.2} ms par image",
+        par_image.as_secs_f64() * 1000.0
+    );
+}
+
+/// Ou va le temps de la lueur : dans le melange, ou dans le calcul du niveau ?
+///
+/// Les deux se mesurent separement, parce qu'ils appellent des remedes opposes -- l'un demande
+/// d'ecrire moins de pixels, l'autre d'en calculer moins. Optimiser le mauvais des deux est
+/// exactement ce qu'on vient de faire.
+#[test]
+#[ignore = "mesure un temps : sensible à la charge de la machine"]
+fn banc_ou_va_le_temps_de_la_lueur() {
+    const PIXELS: usize = 2560 * 1440;
+    let mut image = vec![[13u8, 14, 18, 255]; PIXELS];
+    let source = LevelSource::new((220, 120, 180), HALO_ALPHA);
+
+    let debut = std::time::Instant::now();
+    for pixel in &mut image {
+        blend_pixel(pixel, source);
+    }
+    let melange = debut.elapsed();
+
+    // Le calcul du niveau, seul : une multiplication flottante, un arrondi, une conversion.
+    let colonnes: Vec<f32> = (0..PIXELS).map(|i| (i % 1000) as f32 / 1000.0).collect();
+    let poids = f32::from(HALO_ALPHA);
+    let debut = std::time::Instant::now();
+    let mut somme = 0usize;
+    for colonne in &colonnes {
+        somme += ((poids * colonne).round() as usize).min(38);
+    }
+    let calcul = debut.elapsed();
+    assert!(somme > 0);
+
+    println!(
+        "  melange seul : {:.2} ms   calcul du niveau seul : {:.2} ms",
+        melange.as_secs_f64() * 1000.0,
+        calcul.as_secs_f64() * 1000.0
+    );
+}
+
+/// **Les segments donnent exactement les memes pixels que le calcul par pixel.**
+///
+/// C'est la garantie qui autorise le remplacement : la dichotomie ne s'appuie sur la monotonie
+/// du profil que pour trouver des frontieres, jamais pour approcher une valeur. Le test compare
+/// une ligne entiere, sur les deux cotes du sommet et pour des poids qui tombent de part et
+/// d'autre des demi-niveaux.
+#[test]
+fn les_segments_rendent_les_memes_pixels_que_le_calcul_par_pixel() {
+    let profil = EdgeProfile::new(120.0);
+    let colonnes: Vec<f32> = (0..1400)
+        .map(|x| profil.band(x as f32 + 0.5, 400.0, 1000.0))
+        .collect();
+    let levels: Vec<LevelSource> = (0..=HALO_ALPHA)
+        .map(|a| LevelSource::new((220, 120, 180), a))
+        .collect();
+    let sommet = index_du_sommet(&colonnes);
+    let dernier = levels.len() - 1;
+
+    for poids in [0.6f32, 1.4, 7.5, 19.0, 37.4, f32::from(HALO_ALPHA)] {
+        let fond = [13u8, 14, 18, 255];
+
+        // La voie de reference : un calcul et un melange par pixel.
+        let mut attendu = vec![fond; colonnes.len()];
+        for (pixel, colonne) in attendu.iter_mut().zip(&colonnes) {
+            let k = ((poids * colonne).round() as usize).min(dernier);
+            if k > 0 {
+                blend_pixel(pixel, levels[k]);
+            }
+        }
+
+        let mut obtenu = vec![fond; colonnes.len()];
+        let (gauche, droite) = obtenu.split_at_mut(sommet);
+        peindre_par_segments(gauche, poids, &colonnes[..sommet], &levels, Sens::Montant);
+        peindre_par_segments(droite, poids, &colonnes[sommet..], &levels, Sens::Descendant);
+
+        let ecart = obtenu
+            .iter()
+            .zip(&attendu)
+            .position(|(o, a)| o != a)
+            .map(|i| (i, obtenu[i], attendu[i]));
+        assert!(
+            ecart.is_none(),
+            "poids {poids} : ecart au pixel {ecart:?}"
+        );
+    }
+}
