@@ -342,8 +342,13 @@ impl GlucoseApp {
         let ecoule = debut.elapsed();
         // Ce que cette image a coute decide de la finesse de la suivante. `en_cours` dit si la
         // main demande encore quelque chose : des qu'elle se tait, la nettete revient.
+        let scene = crate::perf::valeur_du_compteur("img_scene_us").unwrap_or(0.0);
+        let mesure = crate::resolution::Mesure {
+            image: ecoule,
+            scene: std::time::Duration::from_micros(scene.max(0.0) as u64),
+        };
         self.resolution
-            .observer(ecoule, self.cadence.budget_rendu(), self.elan.en_cours());
+            .observer(mesure, self.cadence.budget_rendu(), self.elan.en_cours());
         crate::perf::compteur("img_reduction", f64::from(self.resolution.facteur()));
         self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
         crate::perf::frame_end();

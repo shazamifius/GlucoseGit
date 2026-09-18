@@ -21,13 +21,34 @@
 //! si on est en dessous alors go pixeliser tout ». Ici, *tout* veut dire tout : les formes,
 //! les textes, les halos, pas seulement les photos.
 //!
+//! # Ce qui suit la surface, et ce qui n'en dépend pas
+//!
+//! **La première version de ce module divisait tout, et c'était faux.** Elle appliquait la loi
+//! de la surface à la durée *entière* d'une image, alors que l'interface, les panneaux, le
+//! téléversement vers la carte et l'agrandissement lui-même n'en dépendent pas du tout. Le
+//! calcul divisait donc une part qui ne bougeait pas, constatait que le budget n'était toujours
+//! pas tenu, et divisait encore — jusqu'au dernier palier, où il restait bloqué. La scène
+//! devenait illisible pour un gain nul.
+//!
+//! Une image se lit donc en **deux termes** :
+//!
+//! ```text
+//!     T(f) = fixe + scène / f²
+//! ```
+//!
+//! Les deux se mesurent séparément — la scène est chronométrée pour elle-même — donc rien
+//! n'est à deviner ni à inverser. Et cela dit une chose que l'ancien modèle ne pouvait pas
+//! dire : **quand le terme fixe dépasse à lui seul le budget, aucune réduction ne le tiendra**.
+//! Abîmer l'image dans ce cas est perdant deux fois, et le modèle répond alors « pleine
+//! résolution », ce qui est à la fois le bon rendu et le bon diagnostic.
+//!
 //! # Pourquoi cela ne peut pas osciller
 //!
 //! L'écueil d'une résolution adaptative est l'oscillation : on réduit, l'image devient rapide,
 //! on rétablit, elle redevient lente. Il est évité **par construction**, en ne retenant jamais
-//! la durée observée mais ce qu'elle dit du coût à pleine résolution : `T × f²`. Cette
-//! grandeur-là ne dépend pas du facteur choisi, donc la décision qu'elle dicte est la même
-//! qu'on l'ait prise à `f = 1` ou à `f = 8`. Le point fixe est atteint dès la seconde image.
+//! la durée observée mais ce qu'elle dit du coût de la scène à pleine résolution : `scène × f²`.
+//! Cette grandeur-là ne dépend pas du facteur choisi, donc la décision qu'elle dicte est la
+//! même qu'on l'ait prise à `f = 1` ou à `f = 8`.
 //!
 //! # Et la netteté revient sans à-coup
 //!
@@ -72,25 +93,44 @@ impl Resolution {
         self.facteur > 1
     }
 
-    /// Ce que la dernière image a coûté, et ce que la main est en train de faire.
+    /// Ce que la dernière image a coûté, décomposé, et ce que la main est en train de faire.
     ///
-    /// `duree` est la durée observée **au facteur courant**, d'où la remise à l'échelle : ce
-    /// qu'on veut connaître est le coût de la scène, pas celui du compromis qu'on lui a
-    /// imposé.
-    pub fn observer(&mut self, duree: Duration, budget: Duration, en_mouvement: bool) {
+    /// `image` est la durée totale et `scene` la part qui suit la surface — chronométrée pour
+    /// elle-même, pas déduite. La différence est le terme fixe, que réduire ne touche pas.
+    pub fn observer(&mut self, mesure: Mesure, budget: Duration, en_mouvement: bool) {
         if !en_mouvement {
             // La netteté revient par moitiés : d'un coup, elle rendrait l'image chère juste
             // au moment où l'œil se pose dessus.
             self.facteur = (self.facteur / 2).max(1);
             return;
         }
-        let budget = budget.as_secs_f64().max(f64::MIN_POSITIVE);
-        let a_pleine_resolution = duree.as_secs_f64() * f64::from(self.facteur).powi(2);
-        // `g ≥ √(coût / budget)` : la surface doit être divisée par le rapport des durées,
-        // donc le côté par sa racine.
-        let voulu = (a_pleine_resolution / budget).sqrt();
-        self.facteur = palier_au_dessus(voulu);
+        let budget = budget.as_secs_f64();
+        let scene = mesure.scene.as_secs_f64();
+        let fixe = (mesure.image.as_secs_f64() - scene).max(0.0);
+        // Ce qui reste à la scène une fois le fixe payé. S'il ne reste rien, aucune réduction
+        // ne tiendra le budget : la dégrader serait perdre la netteté ET la cadence.
+        let disponible = budget - fixe;
+        if disponible <= 0.0 {
+            self.facteur = 1;
+            return;
+        }
+        let a_pleine_resolution = scene * f64::from(self.facteur).powi(2);
+        // `g ≥ √(coût / disponible)` : la surface se divise par le rapport des durées, donc
+        // le côté par sa racine.
+        self.facteur = palier_au_dessus((a_pleine_resolution / disponible).sqrt());
     }
+}
+
+/// Ce qu'une image a coûté, et la part de ce coût qui suit la surface de la scène.
+///
+/// Les deux voyagent ensemble parce que ni l'une ni l'autre ne décide seule : une image lente
+/// dont la scène ne coûte rien ne se répare pas en rapetissant la scène.
+#[derive(Debug, Clone, Copy)]
+pub struct Mesure {
+    /// La durée entière de l'image.
+    pub image: Duration,
+    /// Ce que la scène y a pris, elle seule.
+    pub scene: Duration,
 }
 
 /// Le plus petit palier qui atteint au moins `voulu`.

@@ -287,7 +287,9 @@ impl Renderer {
     ) {
         self.magasin.ouvrir();
         self.synchroniser_les_caches(store);
+        let debut = std::time::Instant::now();
         self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height());
+        noter_le_cout_de_la_scene(debut);
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
         render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
@@ -323,6 +325,7 @@ impl Renderer {
         self.magasin.ouvrir();
         self.synchroniser_les_caches(store);
         let f = scene.facteur.max(1);
+        let debut = std::time::Instant::now();
         self.rendre_la_region(
             &mut scene.tampon.as_mut(),
             store,
@@ -331,6 +334,7 @@ impl Renderer {
             ui.header_height() / f as f32,
             Cadrage::reduit(f),
         );
+        noter_le_cout_de_la_scene(debut);
         agrandir(plein, scene.tampon, f);
         crate::perf::stage("agrandir");
 
@@ -513,6 +517,16 @@ impl Renderer {
             scene::draw_selection_box(pixmap, &self.theme, (x1, y1), (x2, y2));
         }
     }
+}
+
+/// Ce que la scene a coute, elle seule, en microsecondes.
+///
+/// Mesure a part parce que c'est la **seule** part du temps d'une image qui suive la surface :
+/// l'interface, les panneaux, l'agrandissement et le televersement coutent ce qu'ils coutent,
+/// que la scene soit grande ou petite. Les confondre a deja conduit a rapetisser une scene qui
+/// ne coutait rien, jusqu'a l'illisible, sans rien gagner (voir [`crate::resolution`]).
+fn noter_le_cout_de_la_scene(debut: std::time::Instant) {
+    crate::perf::compteur("img_scene_us", debut.elapsed().as_micros() as f64);
 }
 
 /// Etale la scene reduite sur toute la fenetre, au plus proche voisin.
