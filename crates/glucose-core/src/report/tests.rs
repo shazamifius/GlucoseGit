@@ -374,3 +374,44 @@ fn l_interpolation_ne_melange_jamais_deux_canaux() {
     assert_eq!(melanger([255, 0, 255, 0], [0, 255, 0, 255], 128), [128; 4]);
     assert_eq!(melanger([255, 255, 255, 255], [0, 0, 0, 0], 0), [255; 4]);
 }
+
+/// Un clip d'une seule colonne, prise au bord de l'image, ne doit jamais lire hors de la
+/// source.
+///
+/// La boucle d'échantillonnage sépare les colonnes « intérieures » — celles dont les deux
+/// texels voisins existent — des colonnes de bord, pour ne pas vérifier les bornes des
+/// millions de fois. Ramener cette plage à l'intérieur du clip la rendait fausse : une colonne
+/// de bord était déclarée intérieure, et la lecture sortait de l'image.
+#[test]
+fn un_clip_d_une_colonne_au_bord_ne_sort_pas_de_la_source() {
+    let src = damier(13, 9);
+    let vue = Vue::nouvelle(&src, 13, 9).unwrap();
+    let pose = Pose {
+        x: 3.5,
+        y: 2.25,
+        largeur: 27.0,
+        hauteur: 19.0,
+    };
+    let mut entier = unie(40, 30, [9, 9, 9, 255]);
+    {
+        let mut dest = VueMut::nouvelle(&mut entier, 40, 30).unwrap();
+        reporter(&mut dest, &vue, pose, toute(40, 30), Melange::Remplacer);
+    }
+
+    // Chaque colonne prise seule doit donner les mêmes pixels que le rendu entier.
+    for x in 0..40u32 {
+        let mut colonne = unie(40, 30, [9, 9, 9, 255]);
+        let mut dest = VueMut::nouvelle(&mut colonne, 40, 30).unwrap();
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            Boite::nouvelle(x as f32, 0.0, 1.0, 30.0),
+            Melange::Remplacer,
+        );
+        for y in 0..30u32 {
+            let i = (y * 40 + x) as usize;
+            assert_eq!(colonne[i], entier[i], "colonne {x}, ligne {y}");
+        }
+    }
+}
