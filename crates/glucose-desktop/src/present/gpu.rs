@@ -74,8 +74,8 @@ pub struct GpuPresenter {
     pipeline: wgpu::RenderPipeline,
     sampler: wgpu::Sampler,
     layout: wgpu::BindGroupLayout,
-    /// La texture qui porte l'image, et la taille pour laquelle elle a été faite.
-    texture: Option<(wgpu::Texture, wgpu::BindGroup, (u32, u32))>,
+    /// Les textures qui portent l'image, en anneau (voir le module `anneau`).
+    anneau: anneau::Anneau,
     /// Le nom de l'adaptateur retenu, pour que l'application puisse le dire.
     adaptateur: String,
     /// Le format de la texture qui porte l'image (GAMMA-1).
@@ -95,6 +95,8 @@ pub struct GpuPresenter {
     /// verrait, alors qu'une chaîne un peu désaccordée ne se voit pas.
     a_reaccorder: bool,
 }
+
+mod anneau;
 
 /// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
 ///
@@ -179,7 +181,7 @@ impl GpuPresenter {
             pipeline,
             sampler,
             layout,
-            texture: None,
+            anneau: anneau::Anneau::nouveau(),
             adaptateur,
             format_image,
             a_reaccorder: false,
@@ -238,8 +240,27 @@ impl GpuPresenter {
     /// convertir puis recopier du côté processeur.
     fn televerser(&mut self, pixmap: &Pixmap) {
         let (w, h) = (pixmap.width(), pixmap.height());
-        let (texture, _, _) = self.texture_pour(w, h);
-        let texture = texture.clone();
+        // Les champs s'empruntent separement -- l'anneau en ecriture, le reste en lecture --
+        // ce qu'une methode prenant `&self` entier interdirait.
+        let Self {
+            device,
+            layout,
+            sampler,
+            format_image,
+            config,
+            anneau,
+            ..
+        } = self;
+        let fabrique = anneau::Fabrique {
+            device,
+            layout,
+            sampler,
+            format: *format_image,
+            // Une de plus que ce que la chaine garde en vol : pendant que la carte lit les
+            // siennes, il en reste exactement une de libre pour l'ecriture.
+            combien: config.desired_maximum_frame_latency.max(1) as usize + 1,
+        };
+        let texture = anneau.pour(&fabrique, w, h);
 
         // Les octets de `tiny-skia` partent tels quels : c'est ici que la conversion du chemin
         // processeur disparaît, et c'est tout l'intérêt du détour par la carte graphique.
@@ -263,45 +284,6 @@ impl GpuPresenter {
             },
         );
         crate::perf::stage("blit");
-    }
-
-    /// La texture à cette taille, refaite seulement si la taille a changé.
-    fn texture_pour(&mut self, w: u32, h: u32) -> &(wgpu::Texture, wgpu::BindGroup, (u32, u32)) {
-        if self.texture.as_ref().map(|(_, _, t)| *t) != Some((w, h)) {
-            let texture = self.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("glucose-image"),
-                size: wgpu::Extent3d {
-                    width: w,
-                    height: h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: self.format_image,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            });
-            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-            let bind = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("glucose-image"),
-                layout: &self.layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&self.sampler),
-                    },
-                ],
-            });
-            self.texture = Some((texture, bind, (w, h)));
-        }
-        self.texture
-            .as_ref()
-            .expect("la texture vient d'être faite")
     }
 }
 
@@ -541,11 +523,7 @@ impl Presenter for GpuPresenter {
                 label: Some("glucose-presentation"),
             });
         {
-            let bind = &self
-                .texture
-                .as_ref()
-                .expect("la texture existe à ce point")
-                .1;
+            let bind = self.anneau.courante();
             let mut passe = encodeur.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("glucose-presentation"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {

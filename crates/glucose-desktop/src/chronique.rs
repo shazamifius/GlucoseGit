@@ -351,6 +351,9 @@ impl Chronique {
     ///
     /// Un vaut « le modèle voit juste ». Au-dessous, il sous-estime — et une sous-estimation
     /// fait tenir un budget qu'on dépasse, ce qui est le défaut le plus grave possible ici.
+    ///
+    /// Ne se lit que sur les images rendues **au plus fin** : ailleurs, la prévision porte sur
+    /// un travail qui n'a pas été exécuté.
     pub fn justesse_du_modele(&self) -> Option<f64> {
         (self.prevues > 0 && self.mesure_us > 0)
             .then(|| self.prevu_us as f64 / self.mesure_us as f64)
@@ -422,7 +425,11 @@ impl Chronique {
         if vu.pixelise > 0 {
             self.pixelisees += 1;
         }
-        if vu.prevu_us > 0 && vu.report_us > 0 {
+        // **Seules les images rendues au plus fin comptent.** La prevision porte sur le
+        // rendu lisse ; sur une image pixelisee, on a execute autre chose, et comparer les
+        // deux fait paraitre le modele cinq fois trop pessimiste alors qu'il prevoit un
+        // travail qu'on n'a simplement pas fait.
+        if vu.prevu_us > 0 && vu.report_us > 0 && vu.pixelise == 0 {
             self.prevues += 1;
             self.prevu_us += u64::from(vu.prevu_us);
             self.mesure_us += u64::from(vu.report_us);
