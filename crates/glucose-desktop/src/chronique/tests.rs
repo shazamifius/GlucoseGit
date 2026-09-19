@@ -11,37 +11,6 @@ fn image(geste: Geste, duree_us: u32) -> Instantane {
 }
 
 #[test]
-fn test_une_tranche_contient_bien_la_duree_qu_elle_classe() {
-    // La propriété qui rend les centiles justes : la borne haute d'une tranche est au moins
-    // la durée qu'on y a rangée. Si elle était plus basse, un centile lu sur l'histogramme
-    // sous-estimerait la lenteur — exactement l'erreur qu'on veut éviter.
-    for us in [1u32, 2, 3, 7, 100, 999, 1_000, 16_667, 250_000, 999_999] {
-        let i = tranche(us);
-        assert!(
-            borne_haute(i) >= us,
-            "{us} us tombe en tranche {i}, dont la borne est {}",
-            borne_haute(i)
-        );
-    }
-}
-
-#[test]
-fn test_l_erreur_d_une_tranche_reste_sous_un_cinquieme() {
-    // Quatre tranches par octave bornent l'erreur relative à 2^(1/4) − 1, soit 19 %. C'est ce
-    // qui justifie ce nombre plutôt qu'un autre, donc c'est ce qui doit être vérifié.
-    for us in [100u32, 1_000, 10_000, 100_000] {
-        let i = tranche(us);
-        let haute = f64::from(borne_haute(i));
-        let erreur = (haute - f64::from(us)) / f64::from(us);
-        assert!(
-            erreur < 0.20,
-            "{us} us : borne {haute}, erreur {:.1} %",
-            100.0 * erreur
-        );
-    }
-}
-
-#[test]
 fn test_les_centiles_ne_se_laissent_pas_tromper_par_la_moyenne() {
     // Le défaut que ce module existe pour corriger : cent images à 2 ms et une à 200 ms
     // donnent une moyenne de 4 ms — excellente — alors que l'utilisateur a vu un gel.

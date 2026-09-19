@@ -13,6 +13,8 @@
 //! Puis les images les plus lentes, en entier : un histogramme dit *combien* d'images ont
 //! gelé, jamais *pourquoi*.
 
+mod oeil;
+
 use super::{Chronique, Geste, Instantane};
 
 /// Le budget d'une image à la cadence plancher de la charte, en microsecondes.
@@ -29,9 +31,26 @@ const BUDGET_PLANCHER_US: u32 = crate::cadence::BUDGET_TOTAL.as_micros() as u32;
 
 impl Chronique {
     /// Le rapport complet, en texte.
+    /// Le rapport complet, en texte.
+    ///
+    /// # L'ordre n'est pas décoratif
+    ///
+    /// Le verdict vient en premier parce que tout ce qui suit répond à « où va le temps », ce
+    /// qui est la bonne question **une fois qu'on sait laquelle poser**. La machine vient
+    /// ensuite : sans elle, aucune durée ne se relit — les mêmes dix millisecondes ne disent
+    /// pas la même chose selon que la présentation attendait un balayage. Puis le rythme, qui
+    /// est la seule section à parler de ce que l'œil reçoit. Le reste suit.
     pub fn rapport(&self) -> String {
         let mut t = String::new();
+        t.push_str(
+            "=== Chronique de la session ===
+
+",
+        );
+        self.ecrire_le_verdict(&mut t);
+        self.ecrire_la_machine(&mut t);
         self.ecrire_le_resume(&mut t);
+        self.ecrire_le_rythme(&mut t);
         self.ecrire_les_gestes(&mut t);
         self.ecrire_la_navigation(&mut t);
         self.ecrire_les_reveils(&mut t);
@@ -110,24 +129,6 @@ impl Chronique {
         let Some(evitee) = self.part_evitee() else {
             return;
         };
-        if let Some((francs, pire)) = self.regularite() {
-            t.push_str(
-                "  Ce que l'ecran MONTRE, et non ce qu'il coute
-
-",
-            );
-            t.push_str(&format!(
-                "  {:.0} % des images changent de vitesse de plus de moitie -- pire ecart {:.1}x
-",
-                100.0 * francs,
-                f64::from(pire) / 100.0
-            ));
-            t.push_str(
-                "    un mouvement fluide garde ses vitesses voisines ; aucune duree ne dit cela
-
-",
-            );
-        }
         t.push_str(
             "  Pourquoi l'application ne dort pas
 
@@ -168,22 +169,30 @@ impl Chronique {
 
     fn ecrire_le_resume(&self, t: &mut String) {
         let secondes = self.duree().as_secs_f64().max(0.001);
-        t.push_str("=== Chronique de la session ===\n\n");
         t.push_str(&format!(
-            "  duree {:.0} s, {} images, {:.0} par seconde en moyenne\n",
+            "  duree {:.0} s, {} images rendues\n",
             secondes,
             self.rendues(),
-            self.rendues() as f64 / secondes
         ));
+        // **Et non « images ÷ durée »**, qui compte le temps où personne ne demandait rien :
+        // une application qui dort dix secondes puis rend cent images en une annonce neuf
+        // images par seconde, et aucune de ces neuf n'a existé. Ce qui se ressent est le
+        // rythme des images consécutives.
+        if let Some(vue) = self.rythme.cadence_vue() {
+            t.push_str(&format!(
+                "  {vue:.0} images par seconde entre deux images consecutives\n"
+            ));
+        }
 
-        let ratees = self
-            .pires()
-            .iter()
-            .filter(|p| p.duree_us > BUDGET_PLANCHER_US)
-            .count();
+        // **Sur toutes les images, et non sur les trente-deux plus lentes.** Cette ligne
+        // annonçait « au moins 32 » quelle que soit la session, parce qu'elle comptait les
+        // membres d'une liste bornée par construction : une session ratant mille images et
+        // une en ratant trente-trois disaient le même nombre.
+        let ratees = self.images_au_dessus(BUDGET_PLANCHER_US);
         if ratees > 0 {
             t.push_str(&format!(
-                "  au moins {ratees} image(s) au-dessus de {:.1} ms -- le plancher de la charte\n",
+                "  {ratees} image(s) sur {} au-dessus de {:.1} ms -- le plancher de la charte\n",
+                self.rendues(),
                 f64::from(BUDGET_PLANCHER_US) / 1000.0
             ));
         }

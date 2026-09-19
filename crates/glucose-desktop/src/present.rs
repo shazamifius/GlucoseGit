@@ -83,6 +83,18 @@ pub trait Presenter {
 
     /// Comment cette présentation s'appelle, pour le dire à qui veut le savoir.
     fn nom(&self) -> &'static str;
+
+    /// Comment les images se succèdent devant l'écran.
+    ///
+    /// # Pourquoi cela remonte jusqu'à la chronique
+    ///
+    /// Les mêmes durées ne veulent pas dire la même chose selon que la présentation attend le
+    /// balayage ou non. Une chronique qui ne le dit pas ne se relit pas — et c'est exactement
+    /// ce qui est arrivé : l'application a tourné sans synchronisation verticale pendant toute
+    /// son histoire, la bannière de démarrage le disait, et aucune trace ne le portait.
+    fn rythme(&self) -> &'static str {
+        "presentation par le systeme"
+    }
 }
 
 /// Un pixel de `tiny-skia` dans le format que la fenêtre attend.
@@ -147,6 +159,12 @@ impl Presenter for CpuPresenter {
 
     fn nom(&self) -> &'static str {
         "processeur"
+    }
+
+    /// `softbuffer` remet le tampon au système, qui l'affiche quand il l'entend : rien ici ne
+    /// décide du balayage, et prétendre le contraire serait une mesure inventée.
+    fn rythme(&self) -> &'static str {
+        "remise au systeme de fenetrage"
     }
 }
 

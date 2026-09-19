@@ -223,8 +223,63 @@ fn compte_couplage() -> usize {
         .iter()
         .flat_map(|s| s.texte.lines())
         .filter(|ligne| !ligne.trim_start().starts_with("//"))
-        .filter(|ligne| CHAMPS.iter().any(|c| ligne.contains(c)))
+        .filter(|ligne| CHAMPS.iter().any(|c| touche_le_champ(ligne, c)))
         .count()
+}
+
+/// Cette ligne touche-t-elle **ce champ**, et non une méthode qui commence pareil ?
+///
+/// # Le faux positif que cette fonction supprime, et pourquoi il comptait
+///
+/// La recherche se faisait par sous-chaîne : `self.images_au_dessus(budget)` — une méthode de
+/// la chronique qui ne connaît rien au modèle — était comptée comme un accès direct à
+/// `.images`, et le cliquet a fait échouer la build en réclamant « passer par l'API du Store »
+/// pour du code qui n'en sort jamais.
+///
+/// **Un cliquet qui se trompe est pire qu'un cliquet absent** : il fait faire le contraire de
+/// ce qu'il défend, et la réponse tentante — relever le plafond — efface une dette réelle au
+/// passage. Le nom d'un champ se termine donc là où un identifiant Rust ne continue plus.
+fn touche_le_champ(ligne: &str, champ: &str) -> bool {
+    let mut reste = ligne;
+    while let Some(i) = reste.find(champ) {
+        let apres = &reste[i + champ.len()..];
+        let suite_est_un_identifiant = apres
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+        if !suite_est_un_identifiant {
+            return true;
+        }
+        reste = apres;
+    }
+    false
+}
+
+/// **Le lecteur d'accès au modèle se prouve lui-même**, comme celui du cliquet 3.
+#[test]
+fn test_le_lecteur_d_acces_au_modele_ne_confond_pas_un_champ_et_une_methode() {
+    for vrai in [
+        "for image in &board.images {",
+        "self.store.project.boards.len()",
+        "b.annotations.push(a);",
+        "let n = doc.folders;",
+    ] {
+        assert!(
+            CHAMPS.iter().any(|c| touche_le_champ(vrai, c)),
+            "cet acces direct doit etre compte : {vrai}"
+        );
+    }
+    for faux in [
+        "let ratees = self.images_au_dessus(BUDGET);",
+        "self.images_mo = 0;",
+        "compteur(\"img_n\", self.boards_count as f64)",
+        "vu.annotations_us = 0;",
+    ] {
+        assert!(
+            !CHAMPS.iter().any(|c| touche_le_champ(faux, c)),
+            "ceci n'est pas un acces au modele, mais il a ete compte : {faux}"
+        );
+    }
 }
 
 /// **Le couplage du desktop au modèle ne grandit pas.**
@@ -846,8 +901,7 @@ fn test_cliquet_9_aucun_champ_de_la_chronique_ne_reste_vide() {
     // `Instantane` a quitte `chronique.rs` le jour ou celui-ci a depasse sa taille admise :
     // une chronique AGREGE, un instantane DECRIT, et les deux ne changent pas pour les memes
     // raisons. Ce cliquet suit la structure, pas le fichier.
-    let chronique =
-        std::fs::read_to_string("src/chronique/instantane.rs").expect("instantane.rs");
+    let chronique = std::fs::read_to_string("src/chronique/instantane.rs").expect("instantane.rs");
     let terrain = std::fs::read_to_string("src/app/terrain.rs").expect("terrain.rs");
 
     // Les champs publics de `Instantane`, dans l'ordre où ils sont déclarés.

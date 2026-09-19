@@ -18,15 +18,8 @@
 //! La trace compte donc les deux, plus les fois où le défilement a été **pris pour un cran de
 //! souris**, qui est le cas ambigu.
 
+use super::histogramme::Histogramme;
 use std::time::{Duration, Instant};
-
-/// Combien de tranches d'histogramme par doublement de durée (voir le module parent).
-const PAR_OCTAVE: usize = 4;
-
-/// De 1 µs à 2^20 µs. Au-delà d'une seconde de latence, la question n'est plus la finesse.
-const OCTAVES: usize = 21;
-
-const TRANCHES: usize = PAR_OCTAVE * OCTAVES;
 
 /// Ce qu'un événement de défilement a voulu dire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,9 +70,7 @@ pub struct Navigation {
     /// chose en attente, sinon on mesurerait le temps où personne ne demandait rien.
     en_attente: Option<Instant>,
     /// La distribution des latences, en microsecondes.
-    latences: [u32; TRANCHES],
-    mesurees: u64,
-    pire_us: u32,
+    latences: Histogramme,
 }
 
 impl Default for Navigation {
@@ -96,9 +87,7 @@ impl Navigation {
             pans: 0,
             crans: 0,
             en_attente: None,
-            latences: [0; TRANCHES],
-            mesurees: 0,
-            pire_us: 0,
+            latences: Histogramme::nouveau(),
         }
     }
 
@@ -124,9 +113,7 @@ impl Navigation {
         let depuis = self.en_attente.take()?;
         let latence = depuis.elapsed();
         let us = latence.as_micros().min(u128::from(u32::MAX)) as u32;
-        self.latences[tranche(us)] += 1;
-        self.mesurees += 1;
-        self.pire_us = self.pire_us.max(us);
+        self.latences.ajouter(us);
         Some(latence)
     }
 
@@ -143,45 +130,13 @@ impl Navigation {
 
     /// Combien de latences ont été mesurées, et la pire.
     pub fn mesurees(&self) -> (u64, u32) {
-        (self.mesurees, self.pire_us)
+        (self.latences.compte(), self.latences.pire())
     }
 
     /// La latence sous laquelle tombe la part `p` des images, en microsecondes.
     pub fn centile(&self, p: f64) -> u32 {
-        if self.mesurees == 0 {
-            return 0;
-        }
-        let cible = (self.mesurees as f64 * p).ceil() as u64;
-        let mut cumul = 0u64;
-        for (i, n) in self.latences.iter().enumerate() {
-            cumul += u64::from(*n);
-            if cumul >= cible {
-                return borne_haute(i);
-            }
-        }
-        self.pire_us
+        self.latences.centile(p)
     }
-}
-
-/// L'indice d'histogramme d'une durée (même découpage que le module parent).
-fn tranche(us: u32) -> usize {
-    if us == 0 {
-        return 0;
-    }
-    let octave = us.ilog2() as usize;
-    let base = 1u64 << octave;
-    let reste = u64::from(us) - base;
-    let sous = (reste * PAR_OCTAVE as u64 / base) as usize;
-    (octave * PAR_OCTAVE + sous).min(TRANCHES - 1)
-}
-
-/// La durée maximale que contient cette tranche.
-fn borne_haute(i: usize) -> u32 {
-    let octave = i / PAR_OCTAVE;
-    let sous = i % PAR_OCTAVE;
-    let base = 1u64 << octave;
-    let borne = base + base * (sous as u64 + 1) / PAR_OCTAVE as u64;
-    borne.min(u64::from(u32::MAX)) as u32
 }
 
 #[cfg(test)]

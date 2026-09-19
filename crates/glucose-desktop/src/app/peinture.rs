@@ -56,6 +56,30 @@ impl GlucoseApp {
             .filter(|_| !self.resolution.reduite())
     }
 
+    /// Met l'image a l'ecran, et note l'instant ou elle y arrive (RYTHME-1).
+    ///
+    /// # Pourquoi la mesure se prend ICI et nulle part ailleurs
+    ///
+    /// C'est le seul instant de la boucle qui corresponde a quelque chose que l'oeil recoive.
+    /// Le debut du rendu, sa fin, le reveil de la boucle sont des faits internes : deux
+    /// d'entre eux peuvent varier du simple au decuple sans que l'ecran change de rythme, et
+    /// inversement. Toute la chronique a mesure ces faits internes, et c'est pourquoi elle ne
+    /// pouvait pas voir le tressaut dont l'utilisateur parle depuis des semaines.
+    pub(super) fn presenter_et_noter_le_rythme(&mut self) {
+        if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
+            // On presente meme quand rien n'a ete redessine : la demande peut venir du
+            // systeme -- une fenetre recouverte puis degagee -- et non de nous.
+            if let Err(e) = presenter.present(pixmap) {
+                eprintln!("[GlucoseDesktop] presentation du framebuffer impossible : {e}");
+            }
+        }
+        let (pas, vitesse) = self.pas_et_vitesse;
+        self.rythme_de_l_image =
+            self.chronique
+                .rythme
+                .presentee(std::time::Instant::now(), pas, vitesse);
+    }
+
     /// Redessine ce qui doit l'etre, et rien de plus. Ne presente pas.
     ///
     /// Le tampon est **sorti** de l'application le temps de la peinture : sans cela, peindre

@@ -29,6 +29,8 @@
 //! proche, la correspondance est exacte ou elle ne l'est pas, et un test le vérifie.
 
 use super::Presenter;
+use succession::{cadence_demandee, cadencer, nom_de_la_cadence};
+
 use crate::error::{DesktopError, DesktopResult};
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -97,6 +99,7 @@ pub struct GpuPresenter {
 }
 
 mod anneau;
+pub mod succession;
 
 /// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
 ///
@@ -347,64 +350,7 @@ fn ouvrir(
     Ok((adapter, device, queue, adaptateur))
 }
 
-/// La façon de présenter demandée par l'environnement, s'il en demande une.
-///
-/// # Pourquoi ce réglage existe
-///
-/// La chronique a montré que `present` coûte 28 ms sur un canevas **vide**, soit 68 % de
-/// l'image. Or `get_current_texture` **bloque** en mode `Fifo` : il attend que l'écran ait
-/// fini de balayer. Une durée seule ne distingue donc pas un travail lent d'une attente, et
-/// c'est exactement l'ambiguïté qui a déjà fait chercher au mauvais endroit cette semaine.
-///
-/// `GLUCOSE_PRESENT=immediate` supprime l'attente : ce qui reste est le travail réel. La
-/// comparaison des deux tranche la question au lieu de la raisonner.
-///
-/// * `immediate` — aucune attente, l'image part tout de suite (déchirure possible) ;
-/// * `mailbox` — sans attente ni déchirure, quand la carte le propose ;
-/// * `fifo` — le défaut : l'image attend le balayage.
-fn cadence_demandee() -> Option<wgpu::PresentMode> {
-    match std::env::var("GLUCOSE_PRESENT")
-        .ok()?
-        .trim()
-        .to_lowercase()
-        .as_str()
-    {
-        "immediate" => Some(wgpu::PresentMode::Immediate),
-        "mailbox" => Some(wgpu::PresentMode::Mailbox),
-        "fifo" => Some(wgpu::PresentMode::Fifo),
-        autre => {
-            eprintln!("[Glucose] GLUCOSE_PRESENT={autre} inconnu (immediate, mailbox, fifo)");
-            None
-        }
-    }
-}
-
-/// Impose la cadence demandée si la surface l'accepte, et le dit sinon.
-///
-/// C'est ce réglage qui décide si présenter **attend** le balayage de l'écran. `Fifo`, le
-/// défaut, est ce qu'on veut à l'usage : pas de déchirure, et le fil dort au lieu de produire
-/// des images que personne ne verra. `Immediate` ne sert qu'à mesurer le travail seul — sans
-/// lui, le banc chiffrait la période de l'écran et concluait de travers.
-fn cadencer(
-    surface: &wgpu::Surface<'static>,
-    adapter: &wgpu::Adapter,
-    mut config: wgpu::SurfaceConfiguration,
-    cadence: Option<wgpu::PresentMode>,
-) -> wgpu::SurfaceConfiguration {
-    if let Some(voulue) = cadence {
-        let possibles = surface.get_capabilities(adapter).present_modes;
-        if possibles.contains(&voulue) {
-            config.present_mode = voulue;
-        } else {
-            eprintln!(
-                "[Glucose] cadence {voulue:?} indisponible, on garde {:?}",
-                config.present_mode
-            );
-        }
-    }
-    config
-}
-
+/// montage, pas de la présentation, et le garder dans l'ouverture y mélangeait deux sujets.
 /// Le nuanceur, la disposition des liaisons, le pipeline et l'échantillonneur.
 ///
 /// Tout cela se construit une fois et ne dépend que du format de la surface — c'est du
@@ -568,5 +514,9 @@ impl Presenter for GpuPresenter {
 
     fn nom(&self) -> &'static str {
         "carte graphique"
+    }
+
+    fn rythme(&self) -> &'static str {
+        nom_de_la_cadence(self.config.present_mode)
     }
 }

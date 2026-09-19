@@ -87,12 +87,24 @@ pub struct Instantane {
     pub report_us: u32,
     /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
     pub blit_mo: u16,
-    /// De combien la vitesse apparente a changé depuis l'image précédente, en pourcentage.
+    /// Combien de temps l'image **précédente** est restée sous les yeux, en microsecondes.
     ///
-    /// Cent veut dire « aucun changement » ; deux cents, « le double ou la moitié ». Zéro dit
-    /// qu'il n'y avait pas de mouvement à comparer. C'est la seule mesure de la chronique qui
-    /// porte sur ce que l'image **montre** plutôt que sur ce qu'elle coûte.
-    pub saut_pct: u16,
+    /// À ne pas confondre avec [`Self::duree_us`], qui dit ce que **celle-ci** a coûté. Les
+    /// deux diffèrent exactement de la variation du coût d'une image à l'autre, et c'est cet
+    /// écart — pas le coût — que l'œil reçoit.
+    pub intervalle_us: u32,
+    /// De combien de pixels le contenu s'est montré à côté de sa trajectoire (RYTHME-1).
+    ///
+    /// Le mouvement est intégré sur le pas qui sépare deux **débuts de rendu**, et montré
+    /// pendant l'intervalle qui sépare deux **présentations**. Leur écart, multiplié par la
+    /// vitesse, est la distance entre là où le contenu apparaît et là où il devrait être.
+    /// C'est la seule grandeur de cette structure qui dise ce que l'œil voit.
+    pub saut_px: u16,
+    /// Le rapport `temps intégré / temps montré`, en millièmes. Mille vaut « exact ».
+    ///
+    /// Au-dessous, le contenu a moins avancé que sa durée d'affichage ne le demandait : il
+    /// traîne. Au-dessus, il a sauté. Zéro dit que la vue ne bougeait pas.
+    pub fidelite_millieme: u16,
     /// Ce qui empêchait l'application de dormir — un bit par raison de réveil.
     ///
     /// Un masque et non la seule raison la plus pressée : savoir laquelle a gagné la course

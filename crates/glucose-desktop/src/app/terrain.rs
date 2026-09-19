@@ -113,7 +113,12 @@ impl GlucoseApp {
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;
         vu.reveils = lire("reveil_masque").clamp(0.0, f64::from(u16::MAX)) as u16;
-        vu.saut_pct = lire("nav_saut_pct").clamp(0.0, f64::from(u16::MAX)) as u16;
+        // RYTHME-1 : ce que l'ecran a MONTRE. Ces trois-la ne viennent pas des compteurs mais
+        // de la mesure prise a la presentation elle-meme : un compteur f64 perdrait le type,
+        // et c'est precisement le genre de perte qui a fait lire des zeros pour des mesures.
+        vu.intervalle_us = self.rythme_de_l_image.intervalle_us;
+        vu.saut_px = self.rythme_de_l_image.saut_px;
+        vu.fidelite_millieme = self.rythme_de_l_image.fidelite_millieme;
         vu.surcouverture = (lire("img_ecrans") * 100.0) as u32;
         vu.noeuds = self.renderer.spatial_hash.len() as u32;
 

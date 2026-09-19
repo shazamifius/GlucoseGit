@@ -1,0 +1,351 @@
+//! Le rythme : le temps que l'écran **montre**, comparé au temps que le mouvement **intègre**.
+//!
+//! # Le défaut que toute la chronique était incapable de voir
+//!
+//! L'utilisateur le décrit depuis des semaines, dans les mêmes termes : « quand on freine
+//! progressivement, on voit tout en genre quatre images par seconde », alors que la chronique
+//! en affiche cent. Quatre tentatives ont cherché la cause dans le modèle du mouvement, et
+//! toutes ont échoué — parce que ce modèle est exact.
+//!
+//! Ce qui ne l'est pas, c'est son **horloge**.
+//!
+//! # La démonstration, et elle tient en trois lignes
+//!
+//! La caméra avance de `v · pas`, où `pas` est l'intervalle entre deux **débuts de rendu**.
+//! L'image obtenue reste à l'écran pendant `intervalle`, qui est l'intervalle entre deux
+//! **présentations**. Or ces deux durées ne sont pas la même :
+//!
+//! ```text
+//!     intervalle = pas + (durée du rendu − durée du rendu précédent)
+//! ```
+//!
+//! La vitesse **apparente** — celle que l'œil mesure, en pixels par seconde d'affichage —
+//! vaut donc `v · pas / intervalle`. Elle est constante si et seulement si la durée du rendu
+//! l'est. Elle ne l'est pas : la chronique de terrain donne 6 ms en médiane et 67 ms au pire,
+//! pour un même geste.
+//!
+//! **Un mouvement parfaitement régulier, rendu par une machine irrégulière, est vu saccadé.**
+//! Aucune mesure de coût ne peut le dire : les totaux, les centiles, la cadence et la latence
+//! sont tous excellents pendant que le contenu tressaute.
+//!
+//! # Ce que ce module mesure, et pourquoi c'est directement lisible
+//!
+//! Trois grandeurs, et aucune n'a de constante choisie.
+//!
+//! * **la fidélité** `pas / intervalle` — sans unité. Un vaut « le temps montré est le temps
+//!   intégré ». Un tiers veut dire que le contenu n'a avancé que du tiers de ce que cette
+//!   durée d'affichage demandait : il paraît figé. Trois veut dire qu'il a sauté ;
+//! * **le saut, en pixels** — `vitesse × |intervalle − pas|`. C'est l'écart entre où le
+//!   contenu est montré et où il devrait l'être. Comparé à l'avance attendue pendant la même
+//!   image, il dit si le tressaut est petit devant le mouvement ou du même ordre ;
+//! * **les périodes d'écran par image** — combien de balayages chaque image occupe. Un
+//!   mouvement fluide en occupe un nombre **constant** ; c'est la définition même du judder
+//!   que d'en changer, et elle ne dépend d'aucun seuil.
+//!
+//! # Pourquoi l'intervalle se mesure entre présentations, et jamais autrement
+//!
+//! C'est le seul instant de la boucle qui corresponde à quelque chose que l'œil reçoive. Le
+//! début du rendu, la fin du rendu, le réveil de la boucle sont des faits internes : deux
+//! d'entre eux peuvent varier du simple au décuple sans que l'écran change de rythme, et
+//! inversement.
+
+use super::histogramme::Histogramme;
+use std::time::{Duration, Instant};
+
+/// Le nombre de périodes d'écran qu'une image peut occuper avant d'être comptée « au-delà ».
+///
+/// Trente-deux périodes valent 133 ms sur un écran à 240 Hz, et une demi-seconde à 60 Hz :
+/// bien au-delà de tout ce qui se distingue encore d'un gel. La borne existe pour que le
+/// tableau ait une largeur, pas pour trancher quoi que ce soit.
+const PERIODES_SUIVIES: usize = 32;
+
+/// La fidélité d'une image, en millièmes — mille vaut « exacte ».
+///
+/// En millièmes parce que l'histogramme compte des entiers, et que trois chiffres suffisent
+/// largement : une fidélité de 0,997 et une de 0,998 ne se distinguent pas à l'œil.
+const FIDELITE_EXACTE: u32 = 1_000;
+
+/// Ce qu'une image a montré du mouvement, par opposition à ce qu'elle a coûté.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Image {
+    /// L'intervalle depuis la présentation précédente : la durée pendant laquelle l'image
+    /// **précédente** est restée sous les yeux.
+    pub intervalle: Duration,
+    /// Le pas de temps avec lequel le mouvement a été intégré pour cette image.
+    pub pas: Duration,
+    /// La vitesse apparente de la vue, en pixels physiques par seconde.
+    pub vitesse_px_s: f64,
+}
+
+impl Image {
+    /// Le rapport entre le temps intégré et le temps montré, en millièmes.
+    ///
+    /// Mille est l'exactitude. Au-dessous, le contenu a moins avancé que sa durée d'affichage
+    /// ne le demandait — il traîne. Au-dessus, il a sauté.
+    fn fidelite_millieme(&self) -> Option<u32> {
+        let intervalle = self.intervalle.as_secs_f64();
+        if intervalle <= 0.0 {
+            return None;
+        }
+        let rapport = self.pas.as_secs_f64() / intervalle * f64::from(FIDELITE_EXACTE);
+        Some(rapport.clamp(0.0, f64::from(u32::MAX)) as u32)
+    }
+
+    /// De combien de pixels le contenu est montré à côté de là où il devrait être.
+    ///
+    /// C'est la grandeur que l'œil voit vraiment : un écart de temps ne se perçoit pas, un
+    /// contenu qui se pose deux centimètres trop loin, si.
+    fn saut_px(&self) -> f64 {
+        let ecart = self.intervalle.as_secs_f64() - self.pas.as_secs_f64();
+        self.vitesse_px_s * ecart.abs()
+    }
+
+    /// De combien de pixels le contenu devait avancer pendant cette image.
+    ///
+    /// Sert d'échelle au précédent : sauter de trois pixels quand on en parcourt cent ne se
+    /// voit pas ; sauter de trente quand on en parcourt dix est exactement ce dont
+    /// l'utilisateur parle.
+    fn avance_px(&self) -> f64 {
+        self.vitesse_px_s * self.pas.as_secs_f64()
+    }
+}
+
+/// Ce que la session a montré, image après image.
+#[derive(Debug)]
+pub struct Rythme {
+    /// La période de l'écran, telle qu'il l'annonce. Zéro tant qu'on ne l'a pas lue.
+    periode: Duration,
+    /// Comment les images se succèdent devant la carte graphique, tel qu'elle l'a accepté.
+    presentation: &'static str,
+    /// L'instant de la présentation précédente.
+    precedente: Option<Instant>,
+    /// Combien de périodes d'écran l'image précédente a occupées.
+    periodes_precedentes: Option<usize>,
+    /// L'intervalle entre deux présentations, en microsecondes.
+    intervalles: Histogramme,
+    /// L'écart entre le temps montré et le temps intégré, en pixels.
+    sauts_px: Histogramme,
+    /// Ce que le contenu devait parcourir, en pixels, sur les mêmes images.
+    avances_px: Histogramme,
+    /// La fidélité, en millièmes, sur les seules images où la vue bougeait.
+    fidelites: Histogramme,
+    /// Combien d'images ont occupé `i` périodes d'écran.
+    periodes: [u64; PERIODES_SUIVIES + 1],
+    /// Combien d'images ont occupé un nombre de périodes **différent** de la précédente.
+    changements: u64,
+    /// Combien d'images ont pu être comparées à la précédente.
+    comparees: u64,
+    /// Combien d'images montraient un mouvement, seules à porter une fidélité.
+    en_mouvement: u64,
+}
+
+impl Default for Rythme {
+    fn default() -> Self {
+        Self::nouveau()
+    }
+}
+
+impl Rythme {
+    pub fn nouveau() -> Self {
+        Self {
+            periode: Duration::ZERO,
+            presentation: "inconnue",
+            precedente: None,
+            periodes_precedentes: None,
+            intervalles: Histogramme::nouveau(),
+            sauts_px: Histogramme::nouveau(),
+            avances_px: Histogramme::nouveau(),
+            fidelites: Histogramme::nouveau(),
+            periodes: [0; PERIODES_SUIVIES + 1],
+            changements: 0,
+            comparees: 0,
+            en_mouvement: 0,
+        }
+    }
+
+    /// Ce que l'écran a annoncé de lui-même, et ce que la carte graphique a accepté.
+    ///
+    /// Les deux sont des **faits de la machine**, pas des choix : les écrire dans le rapport
+    /// est la seule façon de ne pas relire une chronique en supposant l'un ou l'autre. Le mode
+    /// de présentation, en particulier, décide si l'image attend le balayage — et il a été
+    /// pris pour `Fifo` pendant toute l'histoire de ce dépôt alors qu'il valait `Immediate`.
+    pub fn observer_la_machine(&mut self, periode: Duration, presentation: &'static str) {
+        self.periode = periode;
+        self.presentation = presentation;
+    }
+
+    /// La période de l'écran, ou `None` si elle n'a pas été lue.
+    pub fn periode(&self) -> Option<Duration> {
+        (!self.periode.is_zero()).then_some(self.periode)
+    }
+
+    /// Comment les images se succèdent.
+    pub fn presentation(&self) -> &'static str {
+        self.presentation
+    }
+
+    /// L'image vient d'être présentée : note ce qu'elle a montré.
+    ///
+    /// Rend ce qui vient d'être mesuré, pour que l'instantané de cette image le porte.
+    pub fn presentee(&mut self, maintenant: Instant, pas: Duration, vitesse_px_s: f64) -> Mesure {
+        let precedente = self.precedente.replace(maintenant);
+        let Some(avant) = precedente else {
+            return Mesure::default();
+        };
+        let image = Image {
+            intervalle: maintenant.saturating_duration_since(avant),
+            pas,
+            vitesse_px_s,
+        };
+        self.noter_les_periodes(image.intervalle);
+        self.intervalles
+            .ajouter(micros(image.intervalle).unwrap_or(0));
+        // **Les images immobiles sont écartées de la fidélité, et il le faut.** Une vue qui ne
+        // bouge pas a un pas de temps sans signification pour l'œil : la compter ferait
+        // paraître régulier un rythme qui ne montre rien.
+        if vitesse_px_s <= 0.0 || pas.is_zero() {
+            return Mesure {
+                intervalle_us: micros(image.intervalle).unwrap_or(0),
+                ..Mesure::default()
+            };
+        }
+        self.en_mouvement += 1;
+        let saut = image.saut_px();
+        let avance = image.avance_px();
+        self.sauts_px.ajouter(entier(saut));
+        self.avances_px.ajouter(entier(avance));
+        let fidelite = image.fidelite_millieme();
+        if let Some(f) = fidelite {
+            self.fidelites.ajouter(f);
+        }
+        Mesure {
+            intervalle_us: micros(image.intervalle).unwrap_or(0),
+            saut_px: entier(saut).min(u32::from(u16::MAX)) as u16,
+            fidelite_millieme: fidelite.unwrap_or(0).min(u32::from(u16::MAX)) as u16,
+        }
+    }
+
+    /// Range cette image dans le compte des périodes d'écran, et note si elle a changé.
+    fn noter_les_periodes(&mut self, intervalle: Duration) {
+        let Some(periode) = self.periode() else {
+            return;
+        };
+        // Arrondi au plus proche : une image qui dure 1,9 période en a bien occupé deux, et la
+        // tronquer ferait paraître régulier un rythme qui alterne entre une et deux.
+        let brut = (intervalle.as_secs_f64() / periode.as_secs_f64()).round();
+        let combien = (brut.clamp(0.0, PERIODES_SUIVIES as f64) as usize).min(PERIODES_SUIVIES);
+        self.periodes[combien] += 1;
+        if let Some(avant) = self.periodes_precedentes.replace(combien) {
+            self.comparees += 1;
+            if avant != combien {
+                self.changements += 1;
+            }
+        }
+    }
+
+    /// L'intervalle entre deux images à l'écran : `(médian, p90, p99, pire)` en microsecondes.
+    pub fn intervalles(&self) -> (u32, u32, u32, u32) {
+        (
+            self.intervalles.centile(0.50),
+            self.intervalles.centile(0.90),
+            self.intervalles.centile(0.99),
+            self.intervalles.pire(),
+        )
+    }
+
+    /// La cadence réellement vue, en images par seconde — l'inverse de l'intervalle médian.
+    ///
+    /// # Pourquoi ce n'est pas « images ÷ durée »
+    ///
+    /// La moyenne de la session compte les instants où personne ne demandait rien : une
+    /// application qui dort dix secondes puis rend cent images en une seconde annonce neuf
+    /// images par seconde, et aucune de ces neuf n'a existé. La cadence qui se ressent est
+    /// celle des images **consécutives**.
+    pub fn cadence_vue(&self) -> Option<f64> {
+        let median = self.intervalles.centile(0.50);
+        (median > 0).then(|| 1_000_000.0 / f64::from(median))
+    }
+
+    /// Le saut de position : `(médian, p99, pire)` en pixels.
+    pub fn sauts(&self) -> (u32, u32, u32) {
+        (
+            self.sauts_px.centile(0.50),
+            self.sauts_px.centile(0.99),
+            self.sauts_px.pire(),
+        )
+    }
+
+    /// Ce que le contenu devait parcourir par image, en pixels — l'échelle du saut.
+    pub fn avance_mediane(&self) -> u32 {
+        self.avances_px.centile(0.50)
+    }
+
+    /// La fidélité `temps intégré / temps montré` : `(médiane, la plus basse observée)`.
+    ///
+    /// La plus basse est celle qui se voit : c'est l'image où le contenu a le plus traîné.
+    pub fn fidelite(&self) -> Option<(f64, f64)> {
+        (self.en_mouvement > 0).then(|| {
+            (
+                f64::from(self.fidelites.centile(0.50)) / f64::from(FIDELITE_EXACTE),
+                f64::from(self.fidelites.centile(0.01)) / f64::from(FIDELITE_EXACTE),
+            )
+        })
+    }
+
+    /// La part des images qui n'ont pas occupé le même nombre de balayages que la précédente.
+    ///
+    /// **C'est la mesure du judder, et elle n'a pas de seuil.** Un mouvement rendu à cadence
+    /// parfaitement régulière donne zéro, quelle que soit cette cadence — y compris une image
+    /// sur trois. Ce qui se voit n'est pas la lenteur, c'est l'irrégularité.
+    pub fn irregularite(&self) -> Option<f64> {
+        (self.comparees > 0).then(|| self.changements as f64 / self.comparees as f64)
+    }
+
+    /// Combien d'images ont occupé chaque nombre de balayages, du plus fréquent au moins.
+    ///
+    /// Ne rend que ce qui a été observé : une ligne à zéro n'apprend rien et allonge le
+    /// tableau d'autant.
+    pub fn periodes_occupees(&self) -> Vec<(usize, u64)> {
+        let mut vues: Vec<(usize, u64)> = self
+            .periodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| **n > 0)
+            .map(|(i, n)| (i, *n))
+            .collect();
+        vues.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        vues
+    }
+
+    /// Combien d'images ont été comparées à la précédente.
+    pub fn comparees(&self) -> u64 {
+        self.comparees
+    }
+}
+
+/// Ce qu'une image a montré, tel que son instantané le portera.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Mesure {
+    /// La durée pendant laquelle l'image précédente est restée à l'écran.
+    pub intervalle_us: u32,
+    /// De combien de pixels le contenu s'est montré à côté de sa trajectoire.
+    pub saut_px: u16,
+    /// Le rapport `temps intégré / temps montré`, en millièmes. Mille vaut « exact ».
+    pub fidelite_millieme: u16,
+}
+
+/// Une durée en microsecondes, bornée au type qui la porte.
+fn micros(d: Duration) -> Option<u32> {
+    u32::try_from(d.as_micros()).ok()
+}
+
+/// Un nombre réel positif, arrondi et borné.
+fn entier(valeur: f64) -> u32 {
+    if !valeur.is_finite() || valeur <= 0.0 {
+        return 0;
+    }
+    valeur.min(f64::from(u32::MAX)) as u32
+}
+
+#[cfg(test)]
+mod tests;

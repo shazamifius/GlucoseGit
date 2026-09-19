@@ -87,17 +87,3 @@ fn le_centile_suit_les_latences_observees() {
     assert_eq!(mesurees, 100);
     assert!(nav.centile(0.99) <= pire.max(1) * 2);
 }
-
-/// Le découpage en tranches est celui de la chronique : une durée tombe dans la tranche dont
-/// elle ne dépasse pas la borne haute.
-#[test]
-fn une_duree_tombe_dans_une_tranche_qui_la_contient() {
-    for us in [1u32, 7, 100, 1_000, 16_666, 500_000] {
-        let i = tranche(us);
-        assert!(
-            borne_haute(i) >= us,
-            "{us} us tombe dans une tranche bornee a {}",
-            borne_haute(i)
-        );
-    }
-}

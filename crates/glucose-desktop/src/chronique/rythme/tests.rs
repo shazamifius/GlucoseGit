@@ -1,0 +1,186 @@
+//! Ce que le rythme doit savoir dire — et le piège à ne pas retomber dedans.
+//!
+//! # Un test qui construit son propre résultat ne prouve rien
+//!
+//! Un test de ce dépôt écrivait `10.0 + d - d` : le décalage s'annulait, l'assertion était
+//! vraie par construction, et elle a laissé passer le défaut qu'elle prétendait couvrir.
+//!
+//! Ici le piège serait de fabriquer les intervalles **depuis** les pas de temps. Les tests qui
+//! suivent posent donc les deux indépendamment — un scénario de machine d'un côté, un scénario
+//! de mouvement de l'autre — exactement comme la réalité les produit.
+
+use super::*;
+
+/// Une machine parfaitement régulière : chaque image coûte la même chose.
+///
+/// Le mouvement s'intègre alors sur le même pas que celui pendant lequel il est montré, et
+/// c'est le seul cas où l'œil voit exactement la trajectoire calculée.
+#[test]
+fn test_une_machine_reguliere_ne_produit_aucun_saut() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let mut t = Instant::now();
+    let periode = Duration::from_micros(8_333);
+    for _ in 0..200 {
+        t += periode;
+        r.presentee(t, periode, 1_000.0);
+    }
+    let (median, _, _, _) = r.intervalles();
+    assert!(
+        (8_000..=10_000).contains(&median),
+        "l'intervalle median doit valoir la periode de la boucle : {median}"
+    );
+    assert_eq!(
+        r.sauts().2,
+        0,
+        "aucun saut : le temps montre est le temps integre"
+    );
+    let (mediane, pire) = r.fidelite().expect("le mouvement a ete observe");
+    assert!(
+        (0.95..=1.05).contains(&mediane),
+        "la fidelite d'une machine reguliere vaut un : {mediane}"
+    );
+    assert!(
+        (0.95..=1.05).contains(&pire),
+        "et elle ne s'ecarte jamais : {pire}"
+    );
+    assert_eq!(
+        r.irregularite(),
+        Some(0.0),
+        "chaque image occupe le meme nombre de balayages"
+    );
+}
+
+/// **Le test qui démontre la thèse de ce module.**
+///
+/// Le mouvement est parfait : la caméra avance de la durée exacte qui sépare deux débuts de
+/// rendu, à vitesse rigoureusement constante. La machine, elle, alterne une image rapide et
+/// une image lente — ce que la chronique de terrain montre (6 ms en médiane, 67 ms au pire).
+///
+/// Aucune mesure de coût ne verrait quoi que ce soit : les durées sont ce qu'elles sont, la
+/// vitesse est constante, la cadence est excellente. Ce module, lui, doit voir le tressaut.
+#[test]
+fn test_une_machine_irreguliere_fait_sauter_un_mouvement_pourtant_parfait() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+
+    // Le scénario de la machine : les durées de rendu, alternées.
+    let durees = [Duration::from_micros(6_000), Duration::from_micros(30_000)];
+    let vitesse = 1_000.0;
+
+    // On rejoue la boucle telle qu'elle est écrite : le pas d'intégration court d'un début de
+    // rendu au suivant, la présentation a lieu à la fin. Les deux ne coïncident pas.
+    let mut debut = Instant::now();
+    let mut debut_precedent: Option<Instant> = None;
+    for i in 0..200 {
+        let duree = durees[i % durees.len()];
+        let pas = debut_precedent.map_or(Duration::ZERO, |avant| {
+            debut.saturating_duration_since(avant)
+        });
+        let presentation = debut + duree;
+        if !pas.is_zero() {
+            r.presentee(presentation, pas, vitesse);
+        }
+        debut_precedent = Some(debut);
+        debut = presentation;
+    }
+
+    let (_, _, pire) = r.sauts();
+    // Les deux durées diffèrent de 24 ms ; à mille pixels par seconde, cela fait vingt-quatre
+    // pixels d'écart entre où le contenu est montré et où il devrait être.
+    assert!(
+        pire >= 20,
+        "le saut de position doit se voir, et il vaut la variation de duree fois la vitesse : {pire} px"
+    );
+    let avance = r.avance_mediane();
+    assert!(
+        pire > avance,
+        "le saut ({pire} px) doit depasser l'avance attendue ({avance} px) : c'est ce qui fait \
+         reculer le contenu"
+    );
+    let irreguliere = r.irregularite().expect("des images ont ete comparees");
+    assert!(
+        irreguliere > 0.5,
+        "une image sur deux change de nombre de balayages : {irreguliere}"
+    );
+    let (_, pire_fidelite) = r.fidelite().expect("le mouvement a ete observe");
+    assert!(
+        pire_fidelite < 0.6,
+        "sur l'image lente, le contenu n'avance que d'une fraction de ce que sa duree \
+         d'affichage demandait : {pire_fidelite}"
+    );
+}
+
+/// Une vue immobile n'a pas de fidélité : il n'y a pas de mouvement à montrer.
+#[test]
+fn test_une_vue_immobile_ne_compte_pas_dans_la_fidelite() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let mut t = Instant::now();
+    for _ in 0..50 {
+        t += Duration::from_micros(40_000);
+        r.presentee(t, Duration::from_micros(8_000), 0.0);
+    }
+    assert_eq!(
+        r.fidelite(),
+        None,
+        "aucune image ne bougeait : la fidelite n'a rien mesure"
+    );
+    assert!(
+        r.intervalles().0 > 0,
+        "les intervalles se comptent quand meme : ils disent le rythme de la boucle"
+    );
+}
+
+/// La cadence vue est celle des images consécutives, jamais « images ÷ durée ».
+#[test]
+fn test_la_cadence_vue_ignore_le_temps_ou_rien_n_etait_demande() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let mut t = Instant::now();
+    // Cent images à cent par seconde, d'affilée.
+    for _ in 0..100 {
+        t += Duration::from_micros(10_000);
+        r.presentee(t, Duration::from_micros(10_000), 100.0);
+    }
+    // Puis un long sommeil, et une seule image.
+    t += Duration::from_secs(10);
+    r.presentee(t, Duration::from_micros(10_000), 100.0);
+
+    let vue = r.cadence_vue().expect("des intervalles ont ete mesures");
+    assert!(
+        (80.0..=130.0).contains(&vue),
+        "la cadence vue doit rester celle des images consecutives : {vue}"
+    );
+}
+
+/// Sans période d'écran connue, le module ne raconte rien sur les balayages.
+#[test]
+fn test_sans_periode_connue_aucun_balayage_n_est_invente() {
+    let mut r = Rythme::nouveau();
+    let mut t = Instant::now();
+    for _ in 0..20 {
+        t += Duration::from_micros(10_000);
+        r.presentee(t, Duration::from_micros(10_000), 500.0);
+    }
+    assert_eq!(r.periode(), None);
+    assert_eq!(r.irregularite(), None, "rien a comparer sans periode");
+    assert!(
+        r.periodes_occupees().is_empty(),
+        "aucun balayage ne se compte quand l'ecran n'a rien annonce"
+    );
+    assert!(
+        r.fidelite().is_some(),
+        "la fidelite, elle, ne depend pas de l'ecran"
+    );
+}
+
+/// La première image n'a rien à comparer : elle ne doit pas inventer un intervalle.
+#[test]
+fn test_la_premiere_image_ne_mesure_rien() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let m = r.presentee(Instant::now(), Duration::from_micros(8_000), 900.0);
+    assert_eq!(m, Mesure::default());
+    assert_eq!(r.comparees(), 0);
+}

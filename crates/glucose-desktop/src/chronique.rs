@@ -32,10 +32,14 @@
 //! gardées entières, avec leur geste, leurs postes et leurs quantités — c'est là que se lit la
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
+pub mod histogramme;
 pub mod instantane;
 pub mod navigation;
+pub mod rythme;
 
+pub use histogramme::Histogramme;
 pub use instantane::Instantane;
+pub use rythme::Rythme;
 
 use std::time::Duration;
 
@@ -104,20 +108,6 @@ impl Geste {
     }
 }
 
-/// Combien de tranches d'histogramme par doublement de durée.
-///
-/// Quatre : l'erreur relative sur un centile est alors d'au plus `2^(1/4) − 1`, soit 19 %.
-/// Ce n'est pas un réglage de confort — c'est le compromis entre la finesse et la mémoire, et
-/// il se calcule. Huit tranches donneraient 9 % pour deux fois plus de compteurs.
-const PAR_OCTAVE: usize = 4;
-
-/// De 1 µs à 2^20 µs, soit un peu plus d'une seconde. Au-delà, tout tombe dans la dernière
-/// tranche — et une image d'une seconde est de toute façon dans les « pires », gardée entière.
-const OCTAVES: usize = 21;
-
-/// Le nombre de compteurs d'un histogramme.
-const TRANCHES: usize = PAR_OCTAVE * OCTAVES;
-
 /// Combien d'images lentes on garde en entier.
 ///
 /// Assez pour voir un motif se répéter, assez peu pour que la mémoire soit constante. Elles
@@ -132,76 +122,13 @@ const PIRES: usize = 32;
 pub const POSTES: usize = 24;
 
 /// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct Poste {
-    rendues: u64,
-    total_us: u64,
-    pire_us: u32,
-    histogramme: [u32; TRANCHES],
+    /// La distribution des durées de ses images, en microsecondes.
+    durees: Histogramme,
     /// La somme des durées de chaque poste de rendu, pour savoir **où** va le temps de ce
     /// geste — un geste lent ne l'est pas pour la même raison qu'un autre.
     postes_us: [u64; POSTES],
-}
-
-impl Default for Poste {
-    fn default() -> Self {
-        Self {
-            rendues: 0,
-            total_us: 0,
-            pire_us: 0,
-            histogramme: [0; TRANCHES],
-            postes_us: [0; POSTES],
-        }
-    }
-}
-
-impl Poste {
-    /// La durée sous laquelle tombe la part `p` des images, en microsecondes.
-    ///
-    /// Lue sur l'histogramme, donc juste à 19 % près — ce qui suffit largement pour distinguer
-    /// une image de 2 ms d'une image de 80 ms, qui est la question posée.
-    fn centile(&self, p: f64) -> u32 {
-        if self.rendues == 0 {
-            return 0;
-        }
-        let cible = (self.rendues as f64 * p).ceil() as u64;
-        let mut cumul = 0u64;
-        for (i, n) in self.histogramme.iter().enumerate() {
-            cumul += u64::from(*n);
-            if cumul >= cible {
-                return borne_haute(i);
-            }
-        }
-        self.pire_us
-    }
-
-    fn moyenne_us(&self) -> u64 {
-        self.total_us.checked_div(self.rendues).unwrap_or(0)
-    }
-}
-
-/// L'indice d'histogramme d'une durée.
-fn tranche(us: u32) -> usize {
-    if us == 0 {
-        return 0;
-    }
-    // `ilog2` donne l'octave ; la partie fractionnaire se découpe en `PAR_OCTAVE` en comparant
-    // le reste à des puissances intermédiaires, ce qui évite un logarithme flottant sur un
-    // chemin parcouru à chaque image.
-    let octave = us.ilog2() as usize;
-    let base = 1u64 << octave;
-    let reste = u64::from(us) - base;
-    let sous = (reste * PAR_OCTAVE as u64 / base) as usize;
-    (octave * PAR_OCTAVE + sous).min(TRANCHES - 1)
-}
-
-/// La durée maximale que contient cette tranche.
-fn borne_haute(i: usize) -> u32 {
-    let octave = i / PAR_OCTAVE;
-    let sous = i % PAR_OCTAVE;
-    let base = 1u64 << octave;
-    let borne = base + base * (sous as u64 + 1) / PAR_OCTAVE as u64;
-    borne.min(u64::from(u32::MAX)) as u32
 }
 
 /// Tout ce que la session a observé.
@@ -242,12 +169,13 @@ pub struct Chronique {
     prevu_us: u64,
     mesure_us: u64,
     pixelisees: u64,
-    /// Combien d'images ont eu une vitesse apparente comparable à la précédente.
-    sauts_mesures: u64,
-    /// Combien d'entre elles ont changé de plus de moitié — un sursaut visible.
-    sauts_francs: u64,
-    /// Le pire rapport observé, en pourcentage.
-    pire_saut: u16,
+    /// La distribution des durées de **toutes** les images, tous gestes confondus.
+    ///
+    /// Sans elle, « combien d'images ont raté le plancher » se lisait sur la liste bornée des
+    /// trente-deux plus lentes, et une session qui en ratait mille annonçait trente-deux.
+    durees: Histogramme,
+    /// Ce que l'écran a montré, par opposition à ce que les images ont coûté (RYTHME-1).
+    pub rythme: Rythme,
     /// Combien d'images n'ont **rien** redessiné du tout.
     evitees: u64,
     /// Combien d'images chaque raison de réveil a tenues éveillées, dans l'ordre des bits.
@@ -297,18 +225,13 @@ impl Chronique {
         })
     }
 
-    /// La régularité du mouvement : `(part de sursauts, pire rapport)`.
+    /// Combien d'images ont dépassé ce budget, sur **toutes** celles de la session.
     ///
-    /// Un mouvement fluide garde ses vitesses voisines d'une image à l'autre. Une part élevée
-    /// de sursauts dit que la vue avance par à-coups — ce qu'aucune mesure de durée ne peut
-    /// désigner, puisque la cadence, elle, reste bonne.
-    pub fn regularite(&self) -> Option<(f64, u16)> {
-        (self.sauts_mesures > 0).then(|| {
-            (
-                self.sauts_francs as f64 / self.sauts_mesures as f64,
-                self.pire_saut,
-            )
-        })
+    /// Se lisait auparavant sur la liste des trente-deux plus lentes, qui est bornée par
+    /// construction : une session ratant mille images et une en ratant trente-trois
+    /// annonçaient le même nombre.
+    pub fn images_au_dessus(&self, budget_us: u32) -> u64 {
+        self.durees.au_dessus(budget_us)
     }
 
     /// La part des images qui n'ont **rien** redessiné, entre 0 et 1.
@@ -355,9 +278,8 @@ impl Chronique {
             prevu_us: 0,
             mesure_us: 0,
             pixelisees: 0,
-            sauts_mesures: 0,
-            sauts_francs: 0,
-            pire_saut: 0,
+            durees: Histogramme::nouveau(),
+            rythme: Rythme::nouveau(),
             evitees: 0,
             reveils: [0; 16],
             reductions: 0,
@@ -407,15 +329,6 @@ impl Chronique {
         if vu.evitee() {
             self.evitees += 1;
         }
-        if vu.saut_pct > 0 {
-            self.sauts_mesures += 1;
-            self.pire_saut = self.pire_saut.max(vu.saut_pct);
-            // Cent cinquante pour cent : la vitesse a changé de moitié en une image, pour un
-            // geste qui, lui, ne saute pas. C'est le seuil où un sursaut se voit.
-            if vu.saut_pct >= 150 {
-                self.sauts_francs += 1;
-            }
-        }
         for (bit, compte) in self.reveils.iter_mut().enumerate() {
             if vu.reveils & (1 << bit) != 0 {
                 *compte += 1;
@@ -431,11 +344,9 @@ impl Chronique {
             self.mesure_us += u64::from(vu.report_us);
         }
 
+        self.durees.ajouter(vu.duree_us);
         let poste = &mut self.par_geste[vu.geste().indice()];
-        poste.rendues += 1;
-        poste.total_us += u64::from(vu.duree_us);
-        poste.pire_us = poste.pire_us.max(vu.duree_us);
-        poste.histogramme[tranche(vu.duree_us)] += 1;
+        poste.durees.ajouter(vu.duree_us);
         for (somme, us) in poste.postes_us.iter_mut().zip(vu.postes_us.iter()) {
             *somme += u64::from(*us);
         }
@@ -477,28 +388,28 @@ impl Chronique {
 
     /// Combien d'images ce geste a produites.
     pub fn rendues_du_geste(&self, geste: Geste) -> u64 {
-        self.par_geste[geste.indice()].rendues
+        self.par_geste[geste.indice()].durees.compte()
     }
 
     /// La durée sous laquelle tombe la part `p` des images de ce geste, en microsecondes.
     pub fn centile_du_geste(&self, geste: Geste, p: f64) -> u32 {
-        self.par_geste[geste.indice()].centile(p)
+        self.par_geste[geste.indice()].durees.centile(p)
     }
 
     /// La pire image de ce geste, en microsecondes.
     pub fn pire_du_geste(&self, geste: Geste) -> u32 {
-        self.par_geste[geste.indice()].pire_us
+        self.par_geste[geste.indice()].durees.pire()
     }
 
     /// La durée moyenne d'une image de ce geste, en microsecondes.
     pub fn moyenne_du_geste(&self, geste: Geste) -> u64 {
-        self.par_geste[geste.indice()].moyenne_us()
+        self.par_geste[geste.indice()].durees.moyenne() as u64
     }
 
     /// Où va le temps de ce geste, poste par poste. `None` s'il n'a jamais eu lieu.
     pub fn parts_du_geste(&self, geste: Geste) -> Option<Vec<(&'static str, u64)>> {
         let poste = &self.par_geste[geste.indice()];
-        if poste.rendues == 0 {
+        if poste.durees.compte() == 0 {
             return None;
         }
         Some(
@@ -514,6 +425,9 @@ impl Chronique {
 }
 
 mod rapport;
+mod verdict;
+
+pub use verdict::Constat;
 
 #[cfg(test)]
 mod tests;

@@ -72,8 +72,14 @@ pub struct GlucoseApp {
     pub perception: crate::perception::Perception,
     /// La vue de l'image precedente, pour mesurer de combien elle a bouge.
     vue_precedente: Option<glucose_core::types::Viewport>,
-    /// La vitesse apparente de l'image precedente, pour mesurer la REGULARITE du mouvement.
-    vitesse_precedente: Option<f64>,
+    /// Ce que cette image montre du mouvement : le pas de temps sur lequel il a ete integre,
+    /// et la vitesse apparente qui en resulte, en pixels par seconde.
+    ///
+    /// Les deux se lisent a la PRESENTATION, pas au calcul : c'est la seule facon de comparer
+    /// le temps que le mouvement a parcouru au temps que l'ecran l'a montre (RYTHME-1).
+    pas_et_vitesse: (std::time::Duration, f64),
+    /// Ce que la derniere presentation a montre, tel que l'instantane le portera.
+    rythme_de_l_image: crate::chronique::rythme::Mesure,
     /// Le bouton gauche tient-il la minimap ?
     ///
     /// Tant qu'il tient, la destination du vol **suit le curseur** : c'est le voyage continu
@@ -226,7 +232,8 @@ impl GlucoseApp {
             defilement_au_doigt: false,
             perception: crate::perception::Perception::nette(),
             vue_precedente: None,
-            vitesse_precedente: None,
+            pas_et_vitesse: (std::time::Duration::ZERO, 0.0),
+            rythme_de_l_image: crate::chronique::rythme::Mesure::default(),
             minimap_tenue: false,
             derniere_image: None,
             resolution: crate::resolution::Resolution::nette(),
@@ -318,13 +325,7 @@ impl GlucoseApp {
             let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
             self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 
-            if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
-                // On présente même quand rien n'a été redessiné : la demande peut venir du
-                // système -- une fenêtre recouverte puis dégagée -- et non de nous.
-                if let Err(e) = presenter.present(pixmap) {
-                    eprintln!("[GlucoseDesktop] présentation du framebuffer impossible : {e}");
-                }
-            }
+            self.presenter_et_noter_le_rythme();
             self.clore_l_image(frame_started, (width, height));
         }
     }
