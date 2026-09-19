@@ -14,44 +14,90 @@ fn pixels(x: f64, y: f64) -> MouseScrollDelta {
 /// `Ctrl` + défilement : c'est un zoom, quel que soit le reste.
 #[test]
 fn test_nav_2_ctrl_is_a_zoom() {
-    assert!(matches!(geste(lignes(0.0, 1.0), true, false), Geste::Zoom(_)));
-    assert!(matches!(geste(pixels(3.0, -7.0), true, false), Geste::Zoom(_)));
+    assert!(matches!(
+        geste(lignes(0.0, 1.0), true, false),
+        Geste::Zoom(_)
+    ));
+    assert!(matches!(
+        geste(pixels(3.0, -7.0), true, false),
+        Geste::Zoom(_)
+    ));
 }
 
 /// Le pincement zoome **même sans `Ctrl` au clavier** : c'est le systeme qui le marque, et
 /// c'était tout le défaut — le geste arrivait nu, donc il déplaçait la vue.
 #[test]
 fn test_nav_2_un_pincement_zoome_sans_ctrl_clavier() {
-    assert!(matches!(geste(lignes(0.0, 0.07), false, true), Geste::Zoom(_)));
-    assert!(matches!(geste(lignes(0.0, -0.07), false, true), Geste::Zoom(_)));
+    assert!(matches!(
+        geste(lignes(0.0, 0.07), false, true),
+        Geste::Zoom(_)
+    ));
+    assert!(matches!(
+        geste(lignes(0.0, -0.07), false, true),
+        Geste::Zoom(_)
+    ));
 }
 
-/// **Les deux gestes ont leur propre échelle, et c'est le fond de l'affaire.** Windows encode
-/// le pincement et le glissement dans la même unité alors qu'ils mesurent deux choses
-/// différentes — l'écartement des doigts d'un côté, leur course de l'autre.
+/// **La nature du geste décide du gain, la touche ne décide que du sens.**
 ///
-/// Le test vérifie que les échelles sont bien **distinctes**, pas leur rapport : celui-ci est
-/// un réglage de ressenti, il se juge à la main et doit pouvoir bouger sans casser une preuve.
+/// Windows encode le déclic d'une molette et la course d'un doigt dans la même grandeur
+/// numérique, alors que le premier est quantifié et le second continu : un pavé en envoie des
+/// dizaines d'unités par seconde. Deux gains, donc — mais **deux**, pas trois.
+///
+/// Le code d'avant en distinguait trois, et se trompait sur le troisième : `Ctrl` + glissement
+/// à deux doigts tombait dans la branche du cran de souris et zoomait deux fois trop vite. Ce
+/// sont pourtant les mêmes doigts sur le même pavé.
+///
+/// Le test vérifie les **rapports qui doivent tenir**, jamais les valeurs : celles-ci sont du
+/// ressenti, elles se jugent à la main et doivent pouvoir bouger sans casser une preuve.
 #[test]
-fn test_nav_2_un_pincement_a_sa_propre_echelle() {
+fn test_nav_2_le_gain_suit_le_geste_et_non_la_touche() {
+    // Un demi-cran : pas un nombre entier de lignes, donc jamais un déclic de molette.
     let Geste::Zoom(pince) = geste(lignes(0.0, 0.5), false, true) else {
         panic!("un pincement zoome");
     };
-    let Geste::Zoom(molette) = geste(lignes(0.0, 0.5), true, false) else {
-        panic!("ctrl zoome");
+    let Geste::Zoom(ctrl_et_doigts) = geste(lignes(0.0, 0.5), true, false) else {
+        panic!("ctrl et deux doigts zooment");
     };
     assert!(
-        pince > molette,
-        "{pince} octave(s) contre {molette} : un pincement ne se lit pas comme un cran"
+        (pince - ctrl_et_doigts).abs() < 1e-12,
+        "{pince} contre {ctrl_et_doigts} : les memes doigts sur le meme pave, seule la touche change"
+    );
+
+    // Le déclic, lui, pèse plus par unité — c'est une secousse par encoche, pas une course.
+    let Geste::Zoom(cran) = geste(lignes(0.0, 1.0), false, false) else {
+        panic!("un cran de souris zoome");
+    };
+    assert!(
+        cran > 2.0 * pince,
+        "{cran} octave(s) par cran contre {pince} par demi-unite de doigt"
+    );
+
+    // Et `Ctrl` sur une vraie molette ne la transforme pas en doigt.
+    let Geste::Zoom(cran_avec_ctrl) = geste(lignes(0.0, 1.0), true, false) else {
+        panic!("ctrl et molette zooment");
+    };
+    assert!(
+        (cran - cran_avec_ctrl).abs() < 1e-12,
+        "{cran} contre {cran_avec_ctrl} : la touche ne change pas la nature du geste"
     );
 }
 
 /// Un cran de souris — vertical pur, nombre entier de lignes — zoome.
 #[test]
 fn test_nav_2_a_mouse_notch_zooms() {
-    assert!(matches!(geste(lignes(0.0, 1.0), false, false), Geste::Zoom(_)));
-    assert!(matches!(geste(lignes(0.0, -1.0), false, false), Geste::Zoom(_)));
-    assert!(matches!(geste(lignes(0.0, 3.0), false, false), Geste::Zoom(_)));
+    assert!(matches!(
+        geste(lignes(0.0, 1.0), false, false),
+        Geste::Zoom(_)
+    ));
+    assert!(matches!(
+        geste(lignes(0.0, -1.0), false, false),
+        Geste::Zoom(_)
+    ));
+    assert!(matches!(
+        geste(lignes(0.0, 3.0), false, false),
+        Geste::Zoom(_)
+    ));
 }
 
 /// Deux doigts sur le pavé tactile déplacent la vue — **y compris vers le haut et le bas**.
@@ -60,16 +106,31 @@ fn test_nav_2_a_mouse_notch_zooms() {
 /// passe par `LineDelta` comme une souris, avec des fractions de ligne.
 #[test]
 fn test_nav_2_two_fingers_pan_in_every_direction() {
-    assert!(matches!(geste(lignes(0.0, 0.42), false, false), Geste::Pan(_, _)));
-    assert!(matches!(geste(lignes(0.0, -0.13), false, false), Geste::Pan(_, _)));
-    assert!(matches!(geste(lignes(0.7, 0.0), false, false), Geste::Pan(_, _)));
-    assert!(matches!(geste(pixels(0.0, 24.0), false, false), Geste::Pan(_, _)));
+    assert!(matches!(
+        geste(lignes(0.0, 0.42), false, false),
+        Geste::Pan(_, _)
+    ));
+    assert!(matches!(
+        geste(lignes(0.0, -0.13), false, false),
+        Geste::Pan(_, _)
+    ));
+    assert!(matches!(
+        geste(lignes(0.7, 0.0), false, false),
+        Geste::Pan(_, _)
+    ));
+    assert!(matches!(
+        geste(pixels(0.0, 24.0), false, false),
+        Geste::Pan(_, _)
+    ));
 }
 
 /// Une composante horizontale dénonce un pavé tactile, même si le vertical tombe juste.
 #[test]
 fn test_nav_2_a_whole_line_with_sideways_motion_is_still_a_pan() {
-    assert!(matches!(geste(lignes(0.5, 1.0), false, false), Geste::Pan(_, _)));
+    assert!(matches!(
+        geste(lignes(0.5, 1.0), false, false),
+        Geste::Pan(_, _)
+    ));
 }
 
 /// Un événement vide ne fait rien plutôt que de zoomer par ×1.

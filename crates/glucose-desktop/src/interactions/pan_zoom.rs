@@ -42,26 +42,39 @@ pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, 20.0);
 /// l'utilisateur a décrit comme « la sensibilité est un peu faible ».
 const OCTAVES_PAR_CRAN: f64 = 0.125;
 
-/// Ce qu'une unité de défilement change d'échelle quand elle vient d'un **pincement**.
+/// Ce qu'une unité de défilement change d'échelle quand elle vient d'un **doigt**.
 ///
-/// # Pourquoi le pincement a sa propre échelle, et ce n'est pas une constante de plus
+/// # Deux gestes physiques, deux gains — et la touche n'en fait pas partie
 ///
-/// Windows encode le pincement et le glissement à deux doigts dans la **même unité**, alors
-/// que ce sont deux gestes physiques différents : le premier mesure l'écartement des doigts,
-/// le second leur course. Les deltas du premier sont bien plus petits. Leur appliquer le même
-/// facteur était donc faux par construction — et se mesurait : « tu pinces dix-neuf fois pour
-/// parcourir le dézoom d'une image ».
+/// Un cran de molette est un **déclic** : quantifié, discret, une secousse par encoche. Une
+/// course de doigt est **continue** : le pavé en envoie des dizaines d'unités par seconde
+/// tant que le doigt bouge. Windows les encode dans la même grandeur numérique, mais leur
+/// appliquer le même gain est faux par construction — quarante unités de doigt valaient
+/// quarante crans de molette, c'est-à-dire cinq octaves en un geste.
+///
+/// Le code d'avant ne séparait que le **pincement**. `Ctrl` + glissement à deux doigts, lui,
+/// tombait dans la branche du cran de souris et zoomait donc deux fois trop vite : ce sont
+/// pourtant les mêmes doigts sur le même pavé, et seule la touche changeait. C'est corrigé
+/// ici — **la nature du geste décide du gain, la touche ne décide que du sens.**
 ///
 /// # Ce que vaut ce chiffre, et d'où il vient
 ///
-/// Dix fois un cran de molette a d'abord été essayé, et s'est révélé « beaucoup beaucoup
-/// trop » à l'usage. Un effet s'y ajoutait sans qu'on le compte : **l'élan prolonge le geste
-/// d'à peu près aussi longtemps qu'il a duré**, donc il double l'amplitude ressentie. Le
-/// pincement pèse ici deux crans de molette par unité, soit un quart d'octave.
+/// Le journal de ce réglage, pour que le prochain ajustement parte de ce qui a été essayé
+/// plutôt que du vide :
 ///
-/// C'est du ressenti, donc cela se juge à la main et pas au raisonnement. Ce commentaire est
-/// le journal de ce réglage, pour que le prochain ajustement parte de ce qui a été essayé.
-const OCTAVES_PAR_PINCEMENT: f64 = 0.25;
+/// | valeur | verdict de l'utilisateur |
+/// |---|---|
+/// | 0,058 (avant l'élan) | « la sensibilité est un peu faible » |
+/// | 1,25 | « beaucoup beaucoup trop » |
+/// | 0,25 | « ça dézoome et ça zoome trop trop vite » |
+/// | **0,0625** | à juger |
+///
+/// Un huitième d'octave par **deux** unités de doigt : il en faut seize pour doubler. Et il
+/// faut compter l'élan par-dessus, qui prolonge le geste d'à peu près aussi longtemps qu'il a
+/// duré, donc **double l'amplitude ressentie** — l'effet à la main est celui d'un huitième
+/// d'octave par unité, exactement ce que l'utilisateur jugeait « un peu faible » avant que
+/// l'élan n'existe.
+const OCTAVES_PAR_UNITE_DE_DOIGT: f64 = 0.0625;
 
 /// Un cran de molette, en pixels de défilement, là où la plateforme compte en pixels.
 ///
@@ -91,14 +104,17 @@ pub enum Geste {
 /// Fonction pure : c'est elle qui porte toute la décision, et elle se teste sans fenêtre.
 pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool) -> Geste {
     let (dx, dy, ligne) = deltas(delta);
-    if ctrl || pincement || cran_de_souris(dx, dy, ligne) {
-        let crans = if ligne { dy } else { dy / ZOOM_LIGNE_PX };
-        let par_cran = if pincement {
-            OCTAVES_PAR_PINCEMENT
-        } else {
+    // Un pincement est marqué **par le système** : c'est donc certainement un doigt, et le
+    // test d'entier — qu'un doigt satisfait parfois par accident — n'a plus à trancher.
+    let cran = !pincement && cran_de_souris(dx, dy, ligne);
+    if ctrl || pincement || cran {
+        let unites = if ligne { dy } else { dy / ZOOM_LIGNE_PX };
+        let par_unite = if cran {
             OCTAVES_PAR_CRAN
+        } else {
+            OCTAVES_PAR_UNITE_DE_DOIGT
         };
-        return Geste::Zoom(crans * par_cran);
+        return Geste::Zoom(unites * par_unite);
     }
     let px = if ligne { PAN_LIGNE_PX } else { 1.0 };
     Geste::Pan(dx * px, dy * px)
