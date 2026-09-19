@@ -21,28 +21,6 @@ fn test_a_silent_screen_falls_back_to_the_charter_floor() {
     }
 }
 
-/// Le budget d'une image reste court même sur un écran lent — c'est ce qui laisse du temps
-/// au travail de fond.
-///
-/// Sur 60 Hz, la période fait 16,7 ms ; viser 16,7 ms de rendu ne laisserait rien pour
-/// avancer une tranche, et la moindre action lourde se verrait.
-#[test]
-fn test_the_render_budget_stays_short_even_on_a_slow_screen() {
-    let lent = Cadence::depuis_millihertz(60_000);
-    assert_eq!(lent.budget_rendu(), BUDGET_RENDU);
-    assert!(lent
-        .temps_libre(BUDGET_RENDU)
-        .is_some_and(|l| l > Duration::from_millis(13)));
-}
-
-/// Sur un écran très rapide, le budget ne prend jamais toute la période.
-#[test]
-fn test_on_a_very_fast_screen_the_budget_never_eats_the_whole_period() {
-    let rapide = Cadence::depuis_millihertz(500_000);
-    assert!(rapide.budget_rendu() < rapide.periode());
-    assert!(rapide.budget_rendu() < BUDGET_RENDU);
-}
-
 /// Une image qui a mangé sa période ne laisse rien — et le dit.
 ///
 /// Faire avancer une tranche par-dessus une image déjà en retard ne ferait que creuser le

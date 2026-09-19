@@ -7,13 +7,18 @@
 //! ailleurs.** Une action lourde a le droit de durer — elle se fait en tranches qui tiennent
 //! dans le temps libre de chaque image, et le rendu ne l'attend jamais.
 //!
-//! D'où deux grandeurs, et non une :
+//! # Une seule grandeur décide, et c'est le plancher
 //!
-//! * **le budget du rendu** — ce qu'une image a le droit de coûter. On le veut court, bien
-//!   plus court que la période de l'écran, parce que c'est ce qui reste ensuite qui permet au
-//!   travail de fond d'avancer sans se voir ;
-//! * **le temps libre** — ce qui reste de la période une fois l'image rendue. C'est le
-//!   crédit que l'ordonnanceur dépense, et il se recalcule à chaque image.
+//! Ce module a longtemps porté **deux** budgets : une « cible de coût » à deux millisecondes
+//! et demie, et le plancher de la charte à dix. Deux budgets pour une seule question, c'est
+//! une question à laquelle on répond deux fois — et la cible a fini par servir de seuil de
+//! dégradation, ce qu'elle n'était pas. Rendue à moitié résolution dès qu'elle dépassait
+//! 2,5 ms, la scène partait en gros blocs sur 22 % des images d'une session réelle, sans que
+//! la cadence y gagne rien.
+//!
+//! Il n'en reste donc qu'une, [`BUDGET_TOTAL`] : **une image et son travail de fond tiennent
+//! ensemble dans dix millisecondes.** Le temps libre, lui, n'est pas un budget mais une
+//! constatation — ce qui reste de la période une fois l'image rendue.
 //!
 //! # Pourquoi la fréquence se lit et ne se suppose pas
 //!
@@ -27,14 +32,6 @@
 
 use std::time::Duration;
 
-/// Ce qu'une image a le droit de coûter, en règle générale.
-///
-/// Quatre cents images par seconde. Ce n'est pas une cadence d'affichage — aucun écran
-/// courant ne la demande — c'est une **cible de coût** : une image rendue en deux
-/// millisecondes et demie laisse tout le reste de la période au travail de fond, et c'est ce
-/// qui permet à une action lourde de s'étaler sans jamais se voir.
-pub const BUDGET_RENDU: Duration = Duration::from_micros(2_500);
-
 /// La cadence la plus basse que la charte admette, toutes machines confondues.
 pub const FPS_PLANCHER: f64 = 60.0;
 
@@ -45,13 +42,6 @@ pub const FPS_PLANCHER: f64 = 60.0;
 /// pixeliser tout ». C'est donc la seule borne légitime pour un investissement, et elle ne
 /// dépend ni de l'écran ni de ce que l'image vient de coûter.
 pub const BUDGET_TOTAL: Duration = Duration::from_millis(10);
-
-/// La part de la période qu'on s'autorise pour une image, quand la période est courte.
-///
-/// Sur un écran très rapide, [`BUDGET_RENDU`] peut dépasser ce qui est raisonnable : à
-/// 500 Hz la période entière fait deux millisecondes. Le rendu ne prend alors jamais plus
-/// des deux tiers de la période, pour qu'il reste toujours de quoi présenter et souffler.
-const PART_MAX_DU_RENDU: f64 = 2.0 / 3.0;
 
 /// Une marge gardée en fin de période, jamais offerte au travail de fond.
 ///
@@ -105,12 +95,6 @@ impl Cadence {
     /// La cadence en images par seconde.
     pub fn fps(&self) -> f64 {
         1.0 / self.periode.as_secs_f64()
-    }
-
-    /// Ce qu'une image a le droit de coûter sur cet écran.
-    pub fn budget_rendu(&self) -> Duration {
-        let part = self.periode.mul_f64(PART_MAX_DU_RENDU);
-        BUDGET_RENDU.min(part)
     }
 
     /// Ce que le travail de fond peut prendre après une image qui a coûté `rendu`.

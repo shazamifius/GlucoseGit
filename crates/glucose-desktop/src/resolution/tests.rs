@@ -182,3 +182,42 @@ fn seul_ce_qui_reste_au_budget_apres_le_fixe_dicte_le_facteur() {
     );
     assert_eq!(r.facteur(), 4);
 }
+
+/// **Le budget qu'on donne à ce module décide de ce que l'utilisateur voit**, et c'est ce
+/// qu'un test doit dire avant qu'une capture d'écran ne le dise.
+///
+/// L'application lui passait la *cible de coût* — deux millisecondes et demie, ce qu'une
+/// image vise pour laisser du temps au travail de fond. La réduction se déclenchait donc dès
+/// qu'une image dépassait 2,5 ms, c'est-à-dire presque toujours : 22 % des images d'une
+/// session réelle rendues à facteur 1,98, en gros blocs illisibles, sans que la cadence y
+/// gagne quoi que ce soit.
+///
+/// Le seuil légitime est le **plancher de la charte**. Ce test le verrouille par sa
+/// conséquence : une scène qui tient largement dans le plancher reste nette, quand bien même
+/// elle dépasse la cible.
+#[test]
+fn une_scene_qui_tient_dans_le_plancher_reste_nette_meme_au_dela_de_la_cible() {
+    let plancher = crate::cadence::BUDGET_TOTAL;
+    let cible = Duration::from_micros(2_500);
+    assert!(cible < plancher, "la cible est plus serree que le plancher");
+
+    let mut r = Resolution::nette();
+    // Six millisecondes de scène : deux fois la cible, mais bien en deçà du plancher.
+    for _ in 0..10 {
+        r.observer(scene_seule(ms(6)), plancher, true);
+    }
+    assert_eq!(
+        r.facteur(),
+        1,
+        "une image de 6 ms tient dans les dix du plancher : rien ne justifie de l'abimer"
+    );
+
+    // Et la preuve que ce n'était pas une insensibilité du module : avec l'ancien budget,
+    // la même scène part en morceaux.
+    let mut avec_la_cible = Resolution::nette();
+    avec_la_cible.observer(scene_seule(ms(6)), cible, true);
+    assert!(
+        avec_la_cible.facteur() > 1,
+        "c'est bien le budget qui decidait, et non la scene"
+    );
+}

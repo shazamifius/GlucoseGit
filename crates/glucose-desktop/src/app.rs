@@ -346,8 +346,26 @@ impl GlucoseApp {
             image: ecoule,
             scene: std::time::Duration::from_micros(scene.max(0.0) as u64),
         };
-        self.resolution
-            .observer(mesure, self.cadence.budget_rendu(), self.elan.en_cours());
+        // **Le plancher de la charte, et non la cible de cout.** `budget_rendu` vaut deux
+        // millisecondes et demie : c'est ce qu'on VISE pour laisser du temps au travail de
+        // fond, pas le seuil au-dela duquel on a le droit d'abimer l'image. Vise ainsi, la
+        // reduction se declenchait des qu'une image depassait 2,5 ms -- c'est-a-dire presque
+        // toujours -- et rendait la scene a MOITIE resolution : 22 % des images d'une session
+        // reelle, a facteur 1,98, en gros blocs illisibles.
+        //
+        // L'utilisateur l'a tranche sur capture : « c'est ultra pixelise, sur un ecran comme
+        // le mien ca passe pas ; deja ca lag, et ensuite c'est moche ». On degradait donc
+        // violemment ce qui se voit, sans meme y gagner la cadence.
+        //
+        // A dix millisecondes, les deux leviers visent le meme plancher, et l'ordre tombe de
+        // lui-meme : le filtre pixelise d'abord -- il se decide par prevision, AVANT le rendu
+        // -- et la resolution ne cede que si l'image mesuree depasse malgre lui. On abime
+        // d'abord ce qui se voit le moins.
+        let plancher = crate::cadence::BUDGET_TOTAL;
+        // Un vol compte comme un mouvement au meme titre que l'elan : la vue change sous
+        // l'oeil, et c'est cela seul qui autorise a rendre plus grossier.
+        let en_mouvement = self.elan.en_cours() || self.vol.en_cours();
+        self.resolution.observer(mesure, plancher, en_mouvement);
         crate::perf::compteur("img_reduction", f64::from(self.resolution.facteur()));
         self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
         crate::perf::frame_end();
