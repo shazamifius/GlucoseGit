@@ -1,367 +1,290 @@
-//! Ce que l'élan doit garantir. La première garantie est celle qui manquait : un geste
-//! interrompt ce qu'il contredit.
+//! Ce que l'élan doit garantir — et d'abord les deux défauts que l'utilisateur a nommés.
+//!
+//! Les tests jouent de **vraies suites d'événements et d'images**, aux rythmes réels : un pavé
+//! tactile à cent hertz, un écran à deux cent quarante. C'est là que vivaient les défauts —
+//! aucun test qui pousse un événement par image ne les aurait vus.
+//!
+//! Le temps est **simulé**, jamais dormi : l'élan reçoit l'instant de chaque événement, donc
+//! un test peut jouer une rafale, un rythme régulier ou un silence sans attendre une seule
+//! milliseconde, et sans dépendre de la charge de la machine.
 
 use super::*;
 
-/// La diagonale de l'écran servant de référence : elle ne sert qu'au seuil d'arrêt, et une
-/// valeur ordinaire suffit à le rendre représentatif.
-const DIAGONALE: f64 = 2000.0;
+/// La diagonale d'un écran ordinaire, pour le seuil d'extinction.
+const DIAGONALE: f64 = 3000.0;
 
-/// `Instant` ne se construit pas depuis un nombre : on fixe une origine une fois pour toute la
-/// suite, et chaque test n'exprime plus que des décalages. Rien ne dort jamais ici — le temps
-/// est une donnée du test, pas une attente.
-fn a(ms: u64) -> Instant {
-    static ORIGINE: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
-    *ORIGINE.get_or_init(Instant::now) + Duration::from_millis(ms)
-}
+/// L'intervalle d'émission d'un pavé tactile : une centaine d'événements par seconde.
+const PAVE: Duration = Duration::from_millis(10);
 
-/// Pousse `pas` fois `(dx, dy)` à dix millisecondes d'intervalle, en partant de `depart`.
-/// Rend l'instant de la dernière image.
-fn glisser(elan: &mut Elan, depart: u64, pas: u64, (dx, dy): (f64, f64)) -> u64 {
-    for i in 1..=pas {
-        elan.pousser_pan(dx, dy);
-        elan.avancer(a(depart + i * 10), DIAGONALE);
+/// La période d'un écran à deux cent quarante hertz.
+const IMAGE: f64 = 1.0 / 240.0;
+
+/// Un geste régulier : `combien` apports, espacés du rythme d'un pavé. Rend l'instant d'après.
+fn glisser(elan: &mut Elan, depart: Instant, combien: u32, apport: (f64, f64)) -> Instant {
+    let mut t = depart;
+    for _ in 0..combien {
+        elan.pousser_pan(apport.0, apport.1, t);
+        t += PAVE;
     }
-    depart + pas * 10
+    t
 }
 
-// ── Le frein ────────────────────────────────────────────────────────────────
-
-/// **Le défaut que cette réécriture corrige.** Une glissade vers la droite, puis un geste vers
-/// la gauche : la vue doit partir à gauche et ne jamais repartir à droite.
-///
-/// La version précédente gardait une vitesse lissée sur plus d'une demi-seconde, donc la
-/// première image sans événement relançait la vue dans l'ancien sens. Le geste ne pouvait pas
-/// interrompre ce qu'il contredisait.
-#[test]
-fn reprendre_la_main_dans_l_autre_sens_tue_la_glissade() {
-    let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    let t = glisser(&mut elan, 0, 20, (30.0, 0.0));
-
-    // La glissade est bien lancée vers la droite.
-    let filee = elan.avancer(a(t + 10), DIAGONALE).expect("la vue file");
-    assert!(filee.pan.0 > 0.0, "vers la droite : {:?}", filee.pan);
-
-    // La main repart à gauche.
-    let t = glisser(&mut elan, t + 10, 5, (-30.0, 0.0));
-
-    // Tout ce qui suit doit aller à gauche, sans exception.
-    for i in 1..=40 {
-        let Some(m) = elan.avancer(a(t + i * 10), DIAGONALE) else {
-            break;
-        };
-        assert!(
-            m.pan.0 <= 0.0,
-            "la vue est repartie a droite {i} image(s) apres le geste : {:?}",
-            m.pan
-        );
+/// Joue des images pendant `duree`, à partir de `depart`, et rend ce qui a été montré.
+fn jouer(elan: &mut Elan, depart: Instant, duree: f64) -> (f64, f64, f64) {
+    let mut total = (0.0, 0.0, 0.0);
+    let images = (duree / IMAGE) as u32;
+    for n in 1..=images {
+        let t = depart + Duration::from_secs_f64(IMAGE * f64::from(n));
+        if let Some(m) = elan.avancer(t, DIAGONALE) {
+            total.0 += m.pan.0;
+            total.1 += m.pan.1;
+            total.2 += m.octaves;
+        }
     }
+    total
 }
 
-/// Le frein vaut aussi pour l'arrêt franc : reprendre la main puis ne rien demander ne doit
-/// pas ressusciter l'élan d'avant, seulement celui du dernier geste.
-#[test]
-fn un_geste_neuf_n_herite_jamais_de_la_vitesse_du_precedent() {
-    let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    let t = glisser(&mut elan, 0, 20, (100.0, 0.0));
+/// Le plus grand pas vers la droite que l'élan montre pendant `duree`.
+fn pire_pas_a_droite(elan: &mut Elan, depart: Instant, duree: f64) -> f64 {
+    let mut pire: f64 = 0.0;
+    let images = (duree / IMAGE) as u32;
+    for n in 1..=images {
+        let t = depart + Duration::from_secs_f64(IMAGE * f64::from(n));
+        if let Some(m) = elan.avancer(t, DIAGONALE) {
+            pire = pire.max(m.pan.0);
+        }
+    }
+    pire
+}
 
-    // Un geste lent, dans le meme sens : la glissade qui suit doit etre celle du geste LENT.
-    let t = glisser(&mut elan, t, 10, (2.0, 0.0));
-    let apres = elan
-        .avancer(a(t + 10), DIAGONALE)
-        .expect("une glissade lente");
+/// **Une rafale ne projette pas la vue.** Windows livre parfois plusieurs événements d'un coup
+/// après un silence ; la version d'avant divisait leur somme par la durée d'une image de quatre
+/// millisecondes, et en déduisait une vitesse plusieurs fois trop grande. C'est ce que
+/// l'utilisateur voyait comme « des sauts d'image comme si on avait 15 fps ».
+#[test]
+fn une_rafale_ne_projette_pas_la_vue_plus_loin_qu_un_geste_regulier() {
+    // Le même déplacement total, demandé de deux façons : régulièrement, puis d'un bloc.
+    let regulier = {
+        let mut elan = Elan::default();
+        let debut = Instant::now();
+        let fin = glisser(&mut elan, debut, 10, (10.0, 0.0));
+        jouer(&mut elan, fin, 2.0).0
+    };
+    let en_rafale = {
+        let mut elan = Elan::default();
+        let debut = Instant::now();
+        // Dix événements arrivés dans la même milliseconde, après le même temps de geste.
+        let mut t = debut;
+        for _ in 0..10 {
+            elan.pousser_pan(10.0, 0.0, t);
+            t += Duration::from_micros(100);
+        }
+        jouer(&mut elan, debut + PAVE * 10, 2.0).0
+    };
+
+    // La rafale demande exactement le même déplacement ; elle ne doit pas en montrer
+    // davantage sous prétexte qu'elle est arrivée groupée.
     assert!(
-        apres.pan.0 < 5.0,
-        "la vitesse du geste rapide a survecu : {:?}",
-        apres.pan
+        en_rafale < regulier * 1.5,
+        "la rafale a projete la vue : {en_rafale:.0} px contre {regulier:.0} px"
     );
 }
 
-// ── La conduite ─────────────────────────────────────────────────────────────
-
-/// **Le défaut qui se ressentait dans la main.** Windows livre l'horizontal et le vertical
-/// dans deux messages séparés ; s'ils ne se rejoignent pas dans la même image, le mouvement en
-/// biais est joué comme un escalier.
+/// **Le frein.** Repartir dans l'autre sens tue la glissade, et la vue ne repart **jamais**
+/// dans l'ancien sens — le défaut que l'utilisateur a vu quatre fois en deux minutes.
 #[test]
-fn deux_poussees_perpendiculaires_font_une_diagonale_et_pas_un_escalier() {
+fn repartir_en_sens_inverse_ne_renvoie_jamais_dans_l_ancien_sens() {
     let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    elan.pousser_pan(10.0, 0.0);
-    elan.pousser_pan(0.0, 10.0);
-    let m = elan.avancer(a(16), DIAGONALE).expect("la demande existe");
-    assert_eq!(m.pan, (10.0, 10.0), "les deux composantes partent ensemble");
+    let debut = Instant::now();
+
+    // Un vrai geste vers la droite, au rythme d'un pavé, puis on laisse filer.
+    let fin_du_geste = glisser(&mut elan, debut, 12, (30.0, 0.0));
+    jouer(&mut elan, fin_du_geste, 0.1);
+
+    // La main repart à gauche, franchement.
+    let reprise = fin_du_geste + Duration::from_millis(100);
+    elan.pousser_pan(-30.0, 0.0, reprise);
+
+    let pire = pire_pas_a_droite(&mut elan, reprise, 1.0);
+    assert!(
+        pire <= 1e-9,
+        "la vue est repartie vers la droite de {pire} px apres le demi-tour"
+    );
 }
 
-/// Pendant le geste, la caméra suit **exactement** la demande : le contenu colle au doigt.
+/// **Le frein vaut pour le zoom**, et pour la même raison : c'est la même soustraction.
 #[test]
-fn tant_que_la_main_pousse_la_camera_suit_exactement() {
+fn inverser_le_zoom_ne_continue_pas_dans_l_ancien_sens() {
     let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    elan.pousser_pan(37.0, -12.0);
-    let m = elan.avancer(a(16), DIAGONALE).unwrap();
-    assert_eq!(m.pan, (37.0, -12.0));
+    let debut = Instant::now();
+    let mut t = debut;
+    for _ in 0..12 {
+        elan.pousser_zoom(0.05, (100.0, 100.0), t);
+        t += PAVE;
+    }
+    jouer(&mut elan, t, 0.1);
+
+    let reprise = t + Duration::from_millis(100);
+    elan.pousser_zoom(-0.05, (100.0, 100.0), reprise);
+
+    let mut pire: f64 = 0.0;
+    for n in 1..=240 {
+        let quand = reprise + Duration::from_secs_f64(IMAGE * f64::from(n));
+        if let Some(m) = elan.avancer(quand, DIAGONALE) {
+            pire = pire.max(m.octaves);
+        }
+    }
+    assert!(pire <= 1e-12, "le zoom est reparti de {pire} octave");
 }
 
-/// Une image sans demande et sans élan ne demande rien : c'est ce qui laisse la machine au
-/// repos au lieu de tourner pour rien.
+/// **Une diagonale reste une diagonale, même en zoomant.** « À la fois on va à droite, à la
+/// fois on va en haut, et en plus on zoome » — les trois composantes ne se parlent pas, donc
+/// aucune ne perturbe les autres.
 #[test]
-fn au_repos_l_elan_ne_demande_rien() {
+fn une_diagonale_zoomee_garde_ses_proportions() {
     let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    assert!(elan.avancer(a(16), DIAGONALE).is_none());
-    assert!(!elan.en_cours());
+    let debut = Instant::now();
+    let mut t = debut;
+    for _ in 0..8 {
+        elan.pousser_pan(20.0, -10.0, t);
+        elan.pousser_zoom(0.03, (50.0, 50.0), t);
+        t += PAVE;
+    }
+    let total = jouer(&mut elan, t, 3.0);
+
+    assert!(total.0 > 0.0 && total.1 < 0.0 && total.2 > 0.0, "{total:?}");
+    let rapport = total.0 / -total.1;
+    assert!(
+        (rapport - 2.0).abs() < 0.05,
+        "la diagonale a tourne : rapport {rapport:.4} au lieu de 2"
+    );
 }
 
-// ── La glissade ─────────────────────────────────────────────────────────────
-
-/// **La propriété qui justifie l'exponentielle.** Deux demi-pas donnent le même résultat qu'un
-/// pas entier : la glissade est donc identique à 30 images par seconde et à 240.
+/// **Le trajet ne dépend pas de la cadence.** À 240 Hz comme à 30 Hz, la même dette se
+/// rembourse de la même façon — sinon l'écran de l'utilisateur déciderait de la distance que
+/// parcourent ses gestes.
 #[test]
 fn la_glissade_ne_depend_pas_de_la_cadence() {
-    let distance = |pas: &[u64]| {
+    let parcours = |dt: f64| {
         let mut elan = Elan::default();
-        elan.avancer(a(0), DIAGONALE);
-        let t = glisser(&mut elan, 0, 10, (10.0, 0.0));
+        let debut = Instant::now();
+        let fin = glisser(&mut elan, debut, 10, (25.0, 0.0));
         let mut total = 0.0;
-        for d in pas {
-            if let Some(m) = elan.avancer(a(t + d), DIAGONALE) {
+        let images = (3.0 / dt) as u32;
+        for n in 1..=images {
+            let t = fin + Duration::from_secs_f64(dt * f64::from(n));
+            if let Some(m) = elan.avancer(t, DIAGONALE) {
                 total += m.pan.0;
             }
         }
         total
     };
-    // Tous les pas restent sous `PAS_MAX` : les deux parcours couvrent la meme duree, decoupee
-    // autrement.
-    let gros: Vec<u64> = (1..=12).map(|i| i * 50).collect();
-    let fin: Vec<u64> = (1..=60).map(|i| i * 10).collect();
-    let (gros, fin) = (distance(&gros), distance(&fin));
+    let rapide = parcours(IMAGE);
+    let lent = parcours(1.0 / 30.0);
     assert!(
-        (gros - fin).abs() < gros.abs() * 0.01,
-        "meme glissade attendue : {gros} contre {fin}"
+        (rapide - lent).abs() < rapide.abs().max(1.0) * 0.05,
+        "a 240 Hz {rapide:.1} px, a 30 Hz {lent:.1} px"
     );
 }
 
-/// La distance totale d'une glissade vaut `v·τ`. C'est ce qui donne un sens à `τ` et permet de
-/// le régler sans tâtonner.
+/// **Tout ce que la main demande finit par se voir**, et rien de plus : la dette se rembourse
+/// intégralement, sans en inventer ni en perdre.
 #[test]
-fn la_glissade_parcourt_la_vitesse_multipliee_par_tau() {
+fn la_dette_se_rembourse_entierement_et_pas_davantage() {
     let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    // 10 px toutes les 10 ms = 1000 px/s, entretenu bien au-dela de la fenetre de mesure.
-    let t = glisser(&mut elan, 0, 60, (10.0, 0.0));
+    let debut = Instant::now();
+    // Un apport isolé : la source n'a aucun intervalle, donc aucune inertie ne s'y ajoute.
+    elan.pousser_pan(400.0, -250.0, debut);
+    let total = jouer(&mut elan, debut, 5.0);
+    assert!(
+        (total.0 - 400.0).abs() < 1.0 && (total.1 + 250.0).abs() < 1.0,
+        "montre {total:?} pour 400 et -250 demandes"
+    );
+    assert!(!elan.en_cours(), "et il ne reste rien a montrer");
+}
 
-    let mut total = 0.0;
-    for i in 1..=2000 {
-        if let Some(m) = elan.avancer(a(t + i * 5), DIAGONALE) {
-            total += m.pan.0;
+/// **Un geste neuf n'hérite jamais du précédent.** Reprendre la main efface la dette *et* le
+/// rythme mesuré : ce qui précède appartient à un geste terminé.
+#[test]
+fn un_geste_neuf_n_herite_jamais_du_precedent() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+    let fin = glisser(&mut elan, debut, 12, (200.0, 0.0));
+    jouer(&mut elan, fin, 3.0);
+
+    // Bien plus tard, un geste minuscule et isolé.
+    let plus_tard = fin + Duration::from_secs(5);
+    elan.avancer(plus_tard, DIAGONALE);
+    elan.pousser_pan(3.0, 0.0, plus_tard);
+    let total = jouer(&mut elan, plus_tard, 3.0);
+    assert!(
+        total.0 < 5.0,
+        "trois pixels demandes, {:.1} montres : le geste precedent a deteint",
+        total.0
+    );
+}
+
+/// Une image très longue ne fait pas franchir toute la dette d'un coup — ce serait exactement
+/// la téléportation qu'on cherche à supprimer.
+#[test]
+fn une_image_tres_longue_ne_teleporte_pas() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+    elan.pousser_pan(1000.0, 0.0, debut);
+    let m = elan
+        .avancer(debut + Duration::from_secs(3), DIAGONALE)
+        .expect("il reste de la dette");
+    assert!(
+        m.pan.0 < 1000.0,
+        "toute la dette a ete franchie d'un coup : {}",
+        m.pan.0
+    );
+}
+
+/// L'ancre est un **lieu** : elle ne se consomme pas avec la dette et survit à la glissade. La
+/// confondre avec une quantité faisait tourner le zoom autour du coin de l'écran dès que la
+/// main lâchait.
+#[test]
+fn l_ancre_ne_se_consomme_pas_avec_la_dette() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+    elan.pousser_zoom(0.4, (640.0, 360.0), debut);
+    for n in 1..=60 {
+        let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
+        if let Some(m) = elan.avancer(t, DIAGONALE) {
+            assert_eq!(m.ancre, (640.0, 360.0));
         }
     }
-    let attendu = 1000.0 * TAU_PAN;
-    assert!(
-        (total - attendu).abs() < attendu * 0.02,
-        "glissade de {total} px, attendue autour de {attendu}"
-    );
 }
 
-/// Le mouvement s'éteint sur l'invisible, pas sur un epsilon choisi.
+/// Sans rien pousser, rien ne bouge — et surtout aucune image n'est demandée pour rien.
 #[test]
-fn la_glissade_s_eteint_et_ne_traine_pas() {
+fn sans_demande_il_n_y_a_rien_a_montrer() {
     let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    let t = glisser(&mut elan, 0, 20, (100.0, 100.0));
-
-    let mut i = 0;
-    while elan.en_cours() && i < 2_000 {
-        i += 1;
-        elan.avancer(a(t + i * 10), DIAGONALE);
-    }
-    assert!(i < 2_000, "une glissade doit finir");
+    let debut = Instant::now();
     assert!(!elan.en_cours());
+    for n in 1..=10 {
+        let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
+        assert_eq!(elan.avancer(t, DIAGONALE), None);
+    }
 }
 
-/// Une image très longue ne fait pas bondir la caméra : le pas de temps est borné, et au-delà
-/// de la borne le pas ne grandit plus du tout.
+/// **Un silence dans le geste ne le termine pas** tant qu'il reste dans le rythme de la
+/// source. Un pavé tactile hoquette ; conclure au lâcher à chaque trou ferait basculer de
+/// régime des dizaines de fois par seconde — c'est exactement ce que faisait la version d'avant.
 #[test]
-fn une_image_suspendue_ne_fait_pas_bondir_la_camera() {
-    let pas_apres = |attente: u64| {
-        let mut elan = Elan::default();
-        elan.avancer(a(0), DIAGONALE);
-        let t = glisser(&mut elan, 0, 20, (100.0, 0.0));
-        elan.avancer(a(t + attente), DIAGONALE).map(|m| m.pan.0)
-    };
-    let borne = pas_apres(PAS_MAX.as_millis() as u64).expect("la glissade a commence");
-    let suspendue = pas_apres(5_000).expect("une suspension glisse encore");
+fn un_trou_dans_le_rythme_ne_termine_pas_le_geste() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+    let mut t = glisser(&mut elan, debut, 8, (20.0, 0.0));
+
+    // Un trou de deux intervalles, puis le geste reprend : la source a déjà montré pire.
+    t += PAVE * 2;
+    elan.pousser_pan(20.0, 0.0, t);
+    // La dette contient les apports, et rien de plus : aucune inertie n'a été injectée.
+    let montre = jouer(&mut elan, t, 0.02).0;
     assert!(
-        (borne - suspendue).abs() < 1e-9,
-        "au-dela de la borne, le pas ne grandit plus : {borne} contre {suspendue}"
+        montre < 200.0,
+        "un simple trou a declenche l'inertie : {montre:.0} px en vingt millisecondes"
     );
-}
-
-// ── Le zoom ─────────────────────────────────────────────────────────────────
-
-/// Le zoom suit la même mécanique, en octaves, et s'arrête sur le même critère.
-#[test]
-fn le_zoom_glisse_et_s_eteint_comme_le_deplacement() {
-    let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    elan.pousser_zoom(0.5, (100.0, 200.0));
-    let m = elan.avancer(a(16), DIAGONALE).unwrap();
-    assert_eq!(m.octaves, 0.5);
-    assert_eq!(m.ancre, (100.0, 200.0), "l'ancre suit le geste");
-
-    let mut i = 0;
-    while elan.en_cours() && i < 2_000 {
-        i += 1;
-        elan.avancer(a(16 + i * 10), DIAGONALE);
-    }
-    assert!(i < 2_000, "une glissade de zoom doit finir");
-}
-
-/// Les poussées d'une même image s'additionnent : une rafale de pincement ne doit pas coûter
-/// une image par événement.
-#[test]
-fn les_poussees_d_une_image_s_additionnent() {
-    let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    elan.pousser_zoom(0.1, (10.0, 10.0));
-    elan.pousser_zoom(0.1, (20.0, 20.0));
-    let m = elan.avancer(a(16), DIAGONALE).unwrap();
-    assert!((m.octaves - 0.2).abs() < 1e-12);
-    assert_eq!(m.ancre, (20.0, 20.0), "la derniere ancre est la bonne");
-}
-
-/// **Le bug du « point d'origine ».** L'ancre est un lieu, pas une quantité : quand elle
-/// vivait dans la demande, la vider la remettait à `(0, 0)`, et toute la glissade de zoom
-/// tournait autour du coin supérieur gauche de la fenêtre.
-#[test]
-fn l_ancre_ne_se_consomme_pas_avec_la_demande() {
-    let mut elan = Elan::default();
-    elan.avancer(a(0), DIAGONALE);
-    elan.pousser_zoom(0.3, (640.0, 360.0));
-    let pendant = elan.avancer(a(16), DIAGONALE).expect("la demande existe");
-    assert_eq!(pendant.ancre, (640.0, 360.0));
-    let apres = elan
-        .avancer(a(32), DIAGONALE)
-        .expect("la glissade continue");
-    assert_eq!(
-        apres.ancre,
-        (640.0, 360.0),
-        "la glissade tourne autour du meme point que le geste"
-    );
-}
-
-// ── La mesure de vitesse ────────────────────────────────────────────────────
-
-/// **La propriété qui rend le frein possible.** Deux déplacements opposés s'annulent dans la
-/// fenêtre, donc un demi-tour est vu à l'instant où il se produit.
-#[test]
-fn deux_deplacements_opposes_s_annulent_dans_la_fenetre() {
-    let mut f = Fenetre::default();
-    for _ in 0..5 {
-        f.noter(
-            0.01,
-            &Mouvement {
-                pan: (10.0, 0.0),
-                ..Default::default()
-            },
-        );
-    }
-    for _ in 0..5 {
-        f.noter(
-            0.01,
-            &Mouvement {
-                pan: (-10.0, 0.0),
-                ..Default::default()
-            },
-        );
-    }
-    let v = f.vitesse();
-    assert!(v.pan.0.abs() < 1e-9, "vitesse residuelle {:?}", v.pan);
-}
-
-/// La fenêtre ne regarde pas plus loin que son dixième de seconde : ce qui est vieux a cessé
-/// de décrire le geste en cours.
-#[test]
-fn la_fenetre_oublie_ce_qui_precede_son_dixieme_de_seconde() {
-    let mut f = Fenetre::default();
-    // Bien au-dela de la fenetre, a grande vitesse.
-    for _ in 0..20 {
-        f.noter(
-            0.01,
-            &Mouvement {
-                pan: (100.0, 0.0),
-                ..Default::default()
-            },
-        );
-    }
-    // Puis exactement la fenetre, a vitesse lente.
-    for _ in 0..10 {
-        f.noter(
-            0.01,
-            &Mouvement {
-                pan: (1.0, 0.0),
-                ..Default::default()
-            },
-        );
-    }
-    let v = f.vitesse();
-    assert!(
-        v.pan.0 < 200.0,
-        "le passe lointain pese encore : {:?} px/s",
-        v.pan
-    );
-}
-
-/// Un geste plus court que la fenêtre a quand même une vitesse : sans cela, une chiquenaude
-/// ne lancerait rien du tout.
-#[test]
-fn un_geste_plus_court_que_la_fenetre_a_une_vitesse() {
-    let mut f = Fenetre::default();
-    f.noter(
-        0.01,
-        &Mouvement {
-            pan: (10.0, 0.0),
-            ..Default::default()
-        },
-    );
-    let v = f.vitesse();
-    assert!((v.pan.0 - 1000.0).abs() < 1e-9, "{:?}", v.pan);
-}
-
-/// L'anneau ne déborde pas : au-delà de sa taille, les plus anciennes sortent, ce qui est leur
-/// destin puisqu'elles seraient hors fenêtre de toute façon.
-#[test]
-fn l_anneau_ne_deborde_pas_et_garde_les_plus_recentes() {
-    let mut f = Fenetre::default();
-    for _ in 0..ECHANTILLONS * 3 {
-        f.noter(
-            0.001,
-            &Mouvement {
-                pan: (1.0, 0.0),
-                ..Default::default()
-            },
-        );
-    }
-    assert_eq!(f.remplies, ECHANTILLONS);
-    let v = f.vitesse();
-    assert!((v.pan.0 - 1000.0).abs() < 1e-9, "{:?}", v.pan);
-}
-
-/// Vider la fenêtre efface tout : c'est ce que fait un geste neuf, et rien ne doit survivre.
-#[test]
-fn vider_la_fenetre_efface_toute_vitesse() {
-    let mut f = Fenetre::default();
-    for _ in 0..10 {
-        f.noter(
-            0.01,
-            &Mouvement {
-                pan: (50.0, 50.0),
-                ..Default::default()
-            },
-        );
-    }
-    f.vider();
-    assert_eq!(f.vitesse(), Vitesse::default());
 }

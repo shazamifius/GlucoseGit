@@ -205,8 +205,11 @@ impl GlucoseApp {
         // une seule fois. Windows livre l'horizontal et le vertical dans deux messages
         // separes -- les appliquer chacun a leur tour faisait d'une diagonale un escalier.
         match geste(delta, ctrl, pincement, self.defilement_au_doigt) {
-            Geste::Zoom(octaves) => self.elan.pousser_zoom(octaves, self.ancre_du_zoom()),
-            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy),
+            Geste::Zoom(octaves) => {
+                self.elan
+                    .pousser_zoom(octaves, self.ancre_du_zoom(), std::time::Instant::now());
+            }
+            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy, std::time::Instant::now()),
         }
         self.mark_dirty();
     }
@@ -240,7 +243,7 @@ impl GlucoseApp {
             // Par l'elan, comme la molette : deux mouvements de curseur arrives entre deux
             // images se rejoignent, et lacher le bouton en plein geste laisse la vue filer
             // au lieu de s'arreter net.
-            self.elan.pousser_pan(dx, dy);
+            self.elan.pousser_pan(dx, dy, std::time::Instant::now());
         }
         self.mark_dirty();
     }

@@ -1,339 +1,390 @@
-//! L'élan de la caméra : ce que la main conduit, et ce qui continue quand elle lâche.
+//! L'élan de la caméra : ce que la main demande, et ce qu'il en reste quand elle lâche.
 //!
-//! # Deux régimes, et la frontière entre eux est explicite
+//! # Les deux défauts que cette version corrige, et ils avaient la même cause
 //!
-//! À tout instant la caméra est dans l'un de deux états, et c'est la **seule** structure de ce
-//! module :
+//! L'utilisateur en a nommé deux, sans savoir qu'ils n'en faisaient qu'un :
 //!
-//! * **conduite** — la main pousse. Le contenu suit *exactement* ce qu'elle demande, sans
-//!   retard ni lissage : c'est la seule chose qu'un pavé tactile doive garantir. On mesure la
-//!   vitesse au passage ;
-//! * **libre** — la main a lâché. La vitesse mesurée subsiste et décroît.
+//! * « **des sauts d'image comme si on avait 15 fps**, alors que les logs afficheront 102 » ;
+//! * « quatre fois en deux minutes, **je pars dans la direction opposée et l'algo me remet
+//!   dans la direction précédente** ».
 //!
-//! **Reprendre la main tue la glissade en cours, immédiatement.** C'est le « frein » qui
-//! manquait : une version précédente gardait une vitesse lissée qui survivait au changement
-//! d'intention, si bien qu'en repartant à gauche pendant une glissade vers la droite, la
-//! première image sans événement relançait la vue vers la droite. Le geste ne pouvait pas
-//! interrompre ce qu'il contredisait.
+//! La cause tenait à une confusion de **repère temporel**. Un pavé tactile émet une centaine
+//! d'événements par seconde ; l'écran en affiche deux cent quarante. Plus d'une image sur deux
+//! ne reçoit donc **rien**, et les événements arrivent par rafales quand le système en a
+//! retenu plusieurs.
 //!
-//! # Mesurer un geste et l'amortir sont deux métiers
+//! La version précédente convertissait « ce qui est arrivé pendant cette image » en vitesse en
+//! divisant par la durée de l'**image**. Or ce déplacement couvre la durée écoulée depuis
+//! l'**événement** précédent — deux fois et demie plus longue en moyenne, et bien davantage
+//! après une rafale. La vitesse déduite était donc surestimée, et surtout **erratique** : elle
+//! dépendait du hasard du groupement. D'où les sauts.
 //!
-//! Les confondre était l'erreur de fond. La version précédente estimait la vitesse par un
-//! lissage exponentiel de la **même** constante de temps que l'amortissement : réagir vite
-//! demandait une constante courte, glisser longtemps une constante longue, et une seule valeur
-//! ne pouvait pas faire les deux.
+//! Et comme elle basculait entre deux régimes à chaque événement — « la main pousse » /
+//! « la main a lâché » — sa fenêtre de mesure se vidait des dizaines de fois par seconde et ne
+//! contenait jamais qu'un seul échantillon. Le frein reposait sur une mesure d'un point.
 //!
-//! La vitesse se lit donc sur une **fenêtre glissante** : la somme des déplacements récents
-//! divisée par le temps qu'ils ont pris. C'est la définition d'une vitesse moyenne, rien de
-//! plus, et elle a la propriété qui manquait — deux déplacements opposés s'y **annulent**,
-//! donc un changement de sens est vu à l'instant où il se produit.
+//! # Ce qui remplace tout cela : un **reste à parcourir**
 //!
-//! # L'amortissement, et pourquoi l'exponentielle
+//! La caméra ne poursuit plus une vitesse. Elle a une **dette** — ce que la main a demandé et
+//! que l'écran n'a pas encore montré — et chaque image en rembourse une fraction :
 //!
-//! `v(t) = v₀·e^(−t/τ)` — le frottement visqueux. Choisi pour une raison qui n'a rien d'un
-//! goût : l'exponentielle est la **seule** décroissance qui se compose exactement. Deux pas
-//! d'une demi-image donnent le même résultat qu'un pas d'une image entière, donc la glissade
-//! est identique à 30 images par seconde et à 240. Une décroissance par image, elle, aurait
-//! empiré le mouvement précisément quand la machine peine.
+//! ```text
+//!     montré = reste × (1 − e^(−dt/τ))        puis     reste −= montré
+//! ```
 //!
-//! Le pas se calcule par l'intégrale exacte, `v₀·τ·(1 − e^(−dt/τ))`, jamais par `v·dt` : une
-//! image longue ne dépasse donc pas.
+//! C'est l'intégrale exacte de l'amortissement sur la durée de l'image, donc le trajet ne
+//! dépend pas de la cadence. Et trois propriétés tombent d'elles-mêmes :
 //!
-//! Et `τ` n'est pas un coefficient sans visage : la distance totale d'une glissade vaut
-//! exactement **`v₀·τ`**. Lâcher à mille pixels par seconde emporte `1000·τ` pixels.
+//! * **une rafale ne saute plus** : trois événements arrivés ensemble s'ajoutent à la dette,
+//!   qui se rembourse lissée sur les images suivantes ;
+//! * **un silence ne gèle plus** : la dette continue de se rembourser même sans événement ;
+//! * **le frein est exact et gratuit** : repartir en sens inverse **soustrait** de la dette.
+//!   Il n'y a plus d'état à basculer ni de fenêtre à vider — deux directions opposées
+//!   s'annulent parce que ce sont des nombres, et qu'on les additionne.
 //!
-//! # Le seuil d'arrêt n'est pas une constante
+//! # Tout en même temps, parce que c'est ainsi qu'on navigue
 //!
-//! On s'arrête quand ce qui **reste** à parcourir tient sous le demi-pixel — la limite de ce
-//! qu'un écran peut montrer. Ce n'est pas un epsilon choisi : c'est la définition de
-//! « invisible », et elle vaut pour le déplacement comme pour le zoom, ramené aux pixels que
-//! le bord de l'écran parcourrait.
+//! « À la fois on va à droite, à la fois on va en haut, et en plus on zoome et on dézoome et
+//! on part de l'autre côté. » La dette est un **vecteur** : deux composantes de déplacement et
+//! une d'échelle, chacune remboursée avec sa propre constante de temps. Aucune ne parle aux
+//! autres, donc une diagonale reste une diagonale et un zoom simultané ne la perturbe pas.
+//!
+//! # Le rythme de la source s'observe, il ne se suppose pas
+//!
+//! Pendant que la main pousse, la constante de temps vaut l'**intervalle d'émission mesuré** :
+//! la dette se rembourse à peu près aussi vite qu'elle se contracte, donc le contenu suit la
+//! main de près tout en lissant les rafales. Quand la main lâche, elle passe aux constantes de
+//! glissade, bien plus longues.
+//!
+//! Et « la main a lâché » ne se décide pas non plus : c'est un silence plus long que le pire
+//! intervalle que cette source ait montré récemment. Aucune durée n'a été choisie.
 
 use std::time::{Duration, Instant};
 
-/// Le temps caractéristique de la glissade du **zoom**.
-const TAU_ZOOM: f64 = 0.28;
-
-/// Le temps caractéristique de la glissade du **déplacement**.
+/// Ce qu'une glissade de déplacement met à s'éteindre.
 ///
-/// Plus long que celui du zoom, et la raison est mesurable : Windows amortit **déjà** le
-/// glissement à deux doigts — le pilote continue d'envoyer des défilements décroissants
-/// pendant environ un tiers de seconde après le lever — alors que le pincement s'arrête net
-/// avec les doigts. Notre élan se compose donc avec celui du pilote d'un côté et avec rien de
-/// l'autre, et deux amortissements en série décroissent plus vite que chacun.
-const TAU_PAN: f64 = 0.45;
+/// Après cette durée il reste 37 % du chemin, et 5 % après trois fois plus. Lâcher à mille
+/// pixels par seconde emporte donc quatre cent cinquante pixels — c'est du ressenti, et c'est
+/// le seul nombre de ce module qui se juge à la main.
+const TAU_LIBRE_PAN: f64 = 0.45;
 
-/// Sur quelle durée se lit la vitesse d'un geste.
+/// Ce qu'une glissade de zoom met à s'éteindre.
 ///
-/// Un dixième de seconde : assez long pour que le bruit d'un pavé tactile s'annule, assez
-/// court pour qu'un changement de direction soit vu tout de suite. C'est une propriété du
-/// geste humain, pas de la machine — elle ne dépend donc ni de l'écran ni de la cadence.
-const FENETRE: Duration = Duration::from_millis(100);
+/// Plus courte que celle du déplacement : l'échelle change vite d'ordre de grandeur, et une
+/// glissade longue y devient un vol plané dont on ne sait plus où il s'arrête.
+const TAU_LIBRE_ZOOM: f64 = 0.28;
 
-/// Combien d'images la fenêtre peut couvrir.
+/// Le plus long qu'une image puisse durer sans que l'élan franchisse d'un coup ce qu'elle a
+/// manqué.
 ///
-/// À 240 Hz, un dixième de seconde en compte vingt-quatre ; trente-deux laisse de la marge
-/// sans qu'aucune allocation n'ait lieu. Au-delà, les plus anciennes sortent — ce qui est
-/// exactement leur destin, puisqu'elles seraient hors fenêtre de toute façon.
-const ECHANTILLONS: usize = 32;
-
-/// Au-delà, on ne glisse pas : on a été suspendu.
-///
-/// Une image qui a mis une demi-seconde ne doit pas faire bondir la caméra de la distance
-/// correspondante. Borner le pas de temps est la façon honnête de dire que la mesure ne
-/// décrit plus un mouvement continu.
+/// Une image de trois secondes — un dialogue natif ouvert, une fenêtre réduite — rembourserait
+/// sinon la dette entière en une fois, c'est-à-dire par une téléportation.
 const PAS_MAX: Duration = Duration::from_millis(100);
 
-/// Ce qu'une image doit appliquer à la caméra.
+/// Combien d'intervalles d'émission on garde pour connaître le rythme de la source.
+///
+/// Seize : assez pour que le pire ne soit pas un accident isolé, assez peu pour qu'un
+/// changement de source — la souris après le pavé — se voie en un sixième de seconde.
+const INTERVALLES: usize = 16;
+
+/// Ce qu'une image doit montrer du mouvement de la caméra.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Mouvement {
-    /// Déplacement en pixels écran.
+    /// Le déplacement, en pixels d'écran.
     pub pan: (f64, f64),
-    /// Changement d'échelle, en **octaves** : `+1` double la taille apparente.
+    /// Le changement d'échelle, en octaves : `+1` double.
     pub octaves: f64,
-    /// Le point d'écran autour duquel l'échelle tourne.
+    /// Le point d'écran autour duquel l'échelle change.
+    ///
+    /// Une ancre est un **lieu**, pas une quantité : elle ne s'additionne pas et ne se
+    /// consomme pas. La confondre avec le reste faisait tourner tout le zoom autour du coin de
+    /// l'écran dès que la main lâchait.
     pub ancre: (f64, f64),
 }
 
 impl Mouvement {
-    /// Ce mouvement change-t-il quelque chose ?
     fn existe(&self) -> bool {
         self.pan != (0.0, 0.0) || self.octaves != 0.0
     }
-}
 
-/// Une vitesse de caméra : pixels écran par seconde, et octaves par seconde.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-struct Vitesse {
-    pan: (f64, f64),
-    octaves: f64,
-}
-
-impl Vitesse {
-    fn nulle(&self) -> bool {
-        self.pan == (0.0, 0.0) && self.octaves == 0.0
-    }
-
-    /// Ce qui reste à parcourir avant l'arrêt, en pixels écran.
+    /// Ce qui se verrait de ce mouvement, en pixels, sur un écran de cette diagonale.
     ///
-    /// La distance totale d'une glissade vaut `v·τ`, et un reste d'octaves se ramène aux
-    /// pixels que le bord de l'écran parcourrait : les deux mouvements s'arrêtent donc sur le
-    /// même critère, l'invisible.
-    fn reste_en_pixels(&self, diagonale: f64) -> f64 {
-        let deplacement = (self.pan.0 * TAU_PAN).hypot(self.pan.1 * TAU_PAN);
-        let echelle = diagonale / 2.0 * ((self.octaves * TAU_ZOOM).exp2() - 1.0).abs();
+    /// Le déplacement et le zoom se comparent ainsi dans la **seule unité** où « ça se voit »
+    /// veut dire quelque chose : un dixième d'octave ne dit rien tant qu'on ne sait pas sur
+    /// quelle surface il s'applique.
+    fn en_pixels(&self, diagonale: f64) -> f64 {
+        let deplacement = self.pan.0.hypot(self.pan.1);
+        let echelle = diagonale / 2.0 * (self.octaves.exp2() - 1.0).abs();
         deplacement.max(echelle)
     }
 }
 
-/// Dans quel régime se trouve la caméra.
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum Etat {
-    /// La main pousse : le contenu suit exactement, et rien ne survit de l'élan précédent.
-    Conduite,
-    /// La main a lâché : cette vitesse décroît jusqu'à l'invisible.
-    Libre(Vitesse),
+/// L'horizon sur lequel une vitesse de geste se mesure.
+///
+/// # Pourquoi cette durée, et pourquoi elle n'est pas arbitraire
+///
+/// C'est la latence de la poursuite oculaire : entre cent et cent trente millisecondes
+/// séparent le début d'un mouvement du moment où l'œil le suit. C'est donc l'horizon sur
+/// lequel **l'œil lui-même** intègre un déplacement — estimer la vitesse sur moins de temps
+/// mesurerait quelque chose que personne ne perçoit comme une vitesse.
+const HORIZON: Duration = Duration::from_millis(100);
+
+/// Le rythme auquel la source émet, et ce qu'elle a demandé récemment.
+///
+/// # Le piège des rafales, et il a fallu un test pour le voir
+///
+/// Windows livre parfois plusieurs événements dans la même milliseconde : il les avait retenus.
+/// Ces événements représentent pourtant un geste étalé dans le temps — leur **livraison** est
+/// groupée, pas leur **cause**.
+///
+/// Diviser leur somme par l'écart entre le premier et le dernier donne donc une vitesse
+/// absurde. Le test l'a chiffré : quarante-quatre mille pixels de glissade là où le même geste,
+/// livré régulièrement, en donnait cinq cent quarante-cinq.
+///
+/// La sortie est de ne jamais diviser par la durée de livraison, mais **par l'horizon**, qui
+/// est connu : ce qui est arrivé pendant les cent dernières millisecondes, rapporté à cent
+/// millisecondes. Un geste régulier et le même geste livré en rafale donnent alors exactement
+/// la même vitesse — c'est la propriété qu'on cherchait, et elle est exacte.
+#[derive(Debug, Default)]
+struct Source {
+    /// `(quand, ce qui est arrivé)`, le plus récent en dernier.
+    entrees: [(Option<Instant>, Mouvement); INTERVALLES],
+    curseur: usize,
+    remplies: usize,
 }
 
-/// La demande en cours et l'élan qui lui survit.
-#[derive(Debug)]
-pub struct Elan {
-    /// Ce que la main a demandé et que l'image n'a pas encore montré.
-    demande: Mouvement,
-    /// Le point d'écran autour duquel l'échelle tourne.
+impl Source {
+    /// Note ce qu'un événement apporte, et quand il est arrivé.
+    fn noter(&mut self, maintenant: Instant, apport: Mouvement) {
+        self.entrees[self.curseur] = (Some(maintenant), apport);
+        self.curseur = (self.curseur + 1) % INTERVALLES;
+        self.remplies = (self.remplies + 1).min(INTERVALLES);
+    }
+
+    fn vider(&mut self) {
+        self.remplies = 0;
+        self.curseur = 0;
+        self.entrees = [(None, Mouvement::default()); INTERVALLES];
+    }
+
+    fn dernier(&self) -> Option<Instant> {
+        let i = (self.curseur + INTERVALLES - 1) % INTERVALLES;
+        self.entrees[i].0
+    }
+
+    /// Depuis combien de temps la source se tait.
+    fn silence(&self, maintenant: Instant) -> f64 {
+        self.dernier()
+            .map(|t| maintenant.saturating_duration_since(t).as_secs_f64())
+            .unwrap_or(f64::INFINITY)
+    }
+
+    /// Les événements arrivés dans l'horizon qui précède `maintenant`.
+    fn recentes(&self, maintenant: Instant) -> impl Iterator<Item = &(Option<Instant>, Mouvement)> {
+        (0..self.remplies)
+            .map(move |n| {
+                let i = (self.curseur + INTERVALLES - 1 - n) % INTERVALLES;
+                &self.entrees[i]
+            })
+            .take_while(move |(quand, _)| {
+                quand.is_some_and(|t| maintenant.saturating_duration_since(t) <= HORIZON)
+            })
+    }
+
+    /// L'intervalle d'émission typique, en secondes : l'horizon divisé par ce qu'il contient.
     ///
-    /// **Séparé de la demande**, parce qu'une ancre est un lieu et non une quantité : elle ne
-    /// se consomme pas. Quand elle vivait dans la demande, la vider la remettait à `(0, 0)` et
-    /// toute la glissade de zoom tournait autour du coin de la fenêtre.
-    ancre: (f64, f64),
-    etat: Etat,
-    /// Les déplacements récents, d'où se lit la vitesse du geste.
-    recents: Fenetre,
-    /// Quand la dernière image a pris sa part.
-    dernier: Option<Instant>,
-}
+    /// Calculé ainsi, et non comme la moyenne des écarts, il est **insensible aux rafales** —
+    /// pour la même raison que la vitesse. Dix événements dans l'horizon donnent dix
+    /// millisecondes, qu'ils soient arrivés régulièrement ou d'un bloc.
+    fn typique(&self, maintenant: Instant) -> Option<f64> {
+        let combien = self.recentes(maintenant).count();
+        (combien > 0).then(|| HORIZON.as_secs_f64() / combien as f64)
+    }
 
-impl Default for Elan {
-    fn default() -> Self {
-        Self {
-            demande: Mouvement::default(),
+    /// Le silence au-delà duquel on peut conclure que la main a lâché.
+    ///
+    /// Le plus grand écart que cette source s'est permis récemment, jamais moins que son
+    /// intervalle typique : un pavé tactile hoquette, et conclure au lâcher à chaque trou
+    /// ferait basculer de régime des dizaines de fois par seconde.
+    fn silence_qui_termine(&self, maintenant: Instant) -> Option<f64> {
+        let typique = self.typique(maintenant)?;
+        let mut pire: f64 = typique;
+        let mut precedent: Option<Instant> = None;
+        for (quand, _) in self.recentes(maintenant) {
+            if let (Some(t), Some(p)) = (*quand, precedent) {
+                pire = pire.max(p.saturating_duration_since(t).as_secs_f64());
+            }
+            precedent = *quand;
+        }
+        Some(pire)
+    }
+
+    /// La vitesse du geste : ce qui est arrivé dans l'horizon, **rapporté à l'horizon**.
+    ///
+    /// Jamais à la durée de livraison — c'est toute la leçon des rafales. Deux apports opposés
+    /// s'y annulent, donc un demi-tour se voit à l'instant où il se fait.
+    fn vitesse(&self, maintenant: Instant) -> Mouvement {
+        let mut cumul = Mouvement::default();
+        for (_, m) in self.recentes(maintenant) {
+            cumul.pan.0 += m.pan.0;
+            cumul.pan.1 += m.pan.1;
+            cumul.octaves += m.octaves;
+        }
+        let horizon = HORIZON.as_secs_f64();
+        Mouvement {
+            pan: (cumul.pan.0 / horizon, cumul.pan.1 / horizon),
+            octaves: cumul.octaves / horizon,
             ancre: (0.0, 0.0),
-            // Au repos : aucune vitesse, donc rien à montrer et rien à éteindre.
-            etat: Etat::Libre(Vitesse::default()),
-            recents: Fenetre::default(),
-            dernier: None,
         }
     }
+}
+
+/// Ce que la main a demandé et que l'écran n'a pas encore montré.
+#[derive(Debug, Default)]
+pub struct Elan {
+    /// La dette : ce qui reste à montrer.
+    reste: Mouvement,
+    ancre: (f64, f64),
+    source: Source,
+    dernier_pas: Option<Instant>,
+    /// La main a-t-elle lâché ?
+    libre: bool,
 }
 
 impl Elan {
-    /// La main demande un déplacement de tant de pixels écran.
-    pub fn pousser_pan(&mut self, dx: f64, dy: f64) {
-        self.demande.pan.0 += dx;
-        self.demande.pan.1 += dy;
+    /// La main demande un déplacement de tant de pixels d'écran.
+    ///
+    /// # L'instant est une **donnée**, et ce n'est pas un détail
+    ///
+    /// Ce module lit le temps entre les **événements**, pas entre les images : c'est tout son
+    /// objet. Aller chercher l'horloge ici le rendrait intestable — un test ne pourrait jouer
+    /// ni une rafale, ni un rythme régulier, ni un silence, c'est-à-dire précisément les trois
+    /// situations où les défauts vivaient. La fiche 13 en a fait une règle après le double-clic.
+    pub fn pousser_pan(&mut self, dx: f64, dy: f64, maintenant: Instant) {
+        self.reprendre_la_main();
+        self.reste.pan.0 += dx;
+        self.reste.pan.1 += dy;
+        self.source.noter(
+            maintenant,
+            Mouvement {
+                pan: (dx, dy),
+                ..Mouvement::default()
+            },
+        );
     }
 
-    /// La main demande un changement d'échelle de tant d'octaves, autour de ce point.
-    pub fn pousser_zoom(&mut self, octaves: f64, ancre: (f64, f64)) {
-        self.demande.octaves += octaves;
+    /// La main demande un changement d'échelle, autour de ce point.
+    pub fn pousser_zoom(&mut self, octaves: f64, ancre: (f64, f64), maintenant: Instant) {
+        self.reprendre_la_main();
         self.ancre = ancre;
+        self.reste.octaves += octaves;
+        self.source.noter(
+            maintenant,
+            Mouvement {
+                octaves,
+                ..Mouvement::default()
+            },
+        );
     }
 
-    /// Y a-t-il encore quelque chose à montrer ? C'est ce qui décide de redemander une image.
-    pub fn en_cours(&self) -> bool {
-        match self.etat {
-            Etat::Conduite => true,
-            Etat::Libre(v) => self.demande.existe() || !v.nulle(),
+    /// Reprendre la main **tue la glissade en cours**, et c'est le frein.
+    ///
+    /// L'inertie était une prédiction de ce que la main aurait fait ; la main vient de dire
+    /// autre chose. La garder ferait exactement ce que l'utilisateur décrit — « je pars dans
+    /// la direction opposée et l'algo me remet dans la direction précédente ».
+    ///
+    /// Une fois la main revenue, plus rien n'a besoin d'être jeté : les apports s'ajoutent à la
+    /// dette, donc deux directions opposées s'annulent d'elles-mêmes.
+    fn reprendre_la_main(&mut self) {
+        if self.libre {
+            self.libre = false;
+            self.reste = Mouvement::default();
+            self.source.vider();
         }
     }
 
-    /// Ce que cette image doit appliquer, et rien de plus.
-    ///
-    /// `diagonale` est la diagonale de la fenêtre en pixels : elle sert à ramener un reste de
-    /// zoom à ce qu'il déplacerait à l'écran.
+    /// Reste-t-il quelque chose à montrer ?
+    pub fn en_cours(&self) -> bool {
+        self.reste.existe()
+    }
+
+    /// Ce que cette image doit montrer, ou rien s'il n'y a plus de dette.
     pub fn avancer(&mut self, maintenant: Instant, diagonale: f64) -> Option<Mouvement> {
-        let precedent = self.dernier.replace(maintenant);
-        let dt = precedent
+        let dt = self
+            .dernier_pas
+            .replace(maintenant)
             .map(|t| maintenant.saturating_duration_since(t).min(PAS_MAX))
             .unwrap_or(PAS_MAX)
             .as_secs_f64();
 
-        if self.demande.existe() {
-            return Some(self.conduire(dt));
-        }
-        self.laisser_filer(dt, diagonale)
-    }
+        self.constater_le_lacher(maintenant);
 
-    /// La main pousse : on applique exactement sa demande, et on la mesure.
-    ///
-    /// **C'est ici que la glissade meurt.** Reprendre la main annule l'élan précédent sans
-    /// délai : c'est ce qui permet de repartir dans l'autre sens sans que la vue continue un
-    /// instant dans l'ancien. La fenêtre de mesure se vide du même geste — les déplacements
-    /// d'avant appartenaient à un mouvement que l'utilisateur vient de contredire.
-    fn conduire(&mut self, dt: f64) -> Mouvement {
-        if self.etat != Etat::Conduite {
-            self.etat = Etat::Conduite;
-            self.recents.vider();
-        }
-        let demande = std::mem::take(&mut self.demande);
-        self.recents.noter(dt, &demande);
-        Mouvement {
-            ancre: self.ancre,
-            ..demande
-        }
-    }
-
-    /// La main a lâché : ce qui reste s'écoule et s'éteint.
-    fn laisser_filer(&mut self, dt: f64, diagonale: f64) -> Option<Mouvement> {
-        if self.etat == Etat::Conduite {
-            // Le passage de la conduite au libre : la vitesse du geste devient celle de la
-            // glissade, une fois pour toutes. Elle ne sera plus jamais modifiée sans qu'un
-            // nouveau geste ne l'efface.
-            self.etat = Etat::Libre(self.recents.vitesse());
-        }
-        let Etat::Libre(vitesse) = &mut self.etat else {
-            return None;
-        };
-        if vitesse.reste_en_pixels(diagonale) < 0.5 {
-            *vitesse = Vitesse::default();
+        // Moins d'un demi-pixel à montrer : on solde la dette plutôt que de s'en approcher
+        // indéfiniment sans jamais l'atteindre.
+        if self.reste.en_pixels(diagonale) < 0.5 {
+            self.reste = Mouvement::default();
             return None;
         }
-        // L'intégrale exacte de la décroissance sur ce pas : jamais plus que ce qui reste.
-        let pas_pan = TAU_PAN * (1.0 - (-dt / TAU_PAN).exp());
-        let pas_zoom = TAU_ZOOM * (1.0 - (-dt / TAU_ZOOM).exp());
-        let mouvement = Mouvement {
-            pan: (vitesse.pan.0 * pas_pan, vitesse.pan.1 * pas_pan),
-            octaves: vitesse.octaves * pas_zoom,
+
+        let (tau_pan, tau_zoom) = self.constantes(maintenant);
+        let part = |tau: f64| 1.0 - (-dt / tau.max(1e-6)).exp();
+        let montre = Mouvement {
+            pan: (
+                self.reste.pan.0 * part(tau_pan),
+                self.reste.pan.1 * part(tau_pan),
+            ),
+            octaves: self.reste.octaves * part(tau_zoom),
             ancre: self.ancre,
         };
-        vitesse.pan.0 *= (-dt / TAU_PAN).exp();
-        vitesse.pan.1 *= (-dt / TAU_PAN).exp();
-        vitesse.octaves *= (-dt / TAU_ZOOM).exp();
-        mouvement.existe().then_some(mouvement)
-    }
-}
-
-/// Les déplacements des dernières images, pour lire la vitesse du geste.
-///
-/// Un anneau de taille fixe : aucune allocation, aucun parcours qui grandisse, et la plus
-/// ancienne entrée disparaît d'elle-même — ce qui est exactement son destin, puisqu'elle
-/// serait hors fenêtre de toute façon.
-#[derive(Debug, Default)]
-struct Fenetre {
-    entrees: [(f64, Mouvement); ECHANTILLONS],
-    /// Où écrire la prochaine.
-    curseur: usize,
-    /// Combien d'entrées sont valides, au plus [`ECHANTILLONS`].
-    remplies: usize,
-}
-
-impl Fenetre {
-    fn vider(&mut self) {
-        self.curseur = 0;
-        self.remplies = 0;
+        self.reste.pan.0 -= montre.pan.0;
+        self.reste.pan.1 -= montre.pan.1;
+        self.reste.octaves -= montre.octaves;
+        montre.existe().then_some(montre)
     }
 
-    fn noter(&mut self, dt: f64, mouvement: &Mouvement) {
-        self.entrees[self.curseur] = (dt, *mouvement);
-        self.curseur = (self.curseur + 1) % ECHANTILLONS;
-        self.remplies = (self.remplies + 1).min(ECHANTILLONS);
-    }
-
-    /// La vitesse moyenne sur la fenêtre : la somme des déplacements sur le temps qu'ils ont pris.
+    /// La main a-t-elle lâché ? Si oui, l'inertie entre dans la dette.
     ///
-    /// # Pourquoi une moyenne, et pas la dernière valeur
-    ///
-    /// Deux déplacements opposés s'y **annulent**. C'est ce qui rend un changement de direction
-    /// visible à l'instant où il se produit, là où un lissage exponentiel le ferait traîner sur
-    /// toute sa constante de temps.
-    ///
-    /// Et c'est robuste au découpage : les événements d'un pavé tactile arrivent par paquets
-    /// irréguliers, mais leur somme sur un dixième de seconde ne dépend pas de la façon dont
-    /// les images les ont récoltés.
-    fn vitesse(&self) -> Vitesse {
-        let mut duree = 0.0;
-        let mut pan = (0.0, 0.0);
-        let mut octaves = 0.0;
-        for (dt, m) in self.recentes() {
-            duree += dt;
-            pan.0 += m.pan.0;
-            pan.1 += m.pan.1;
-            octaves += m.octaves;
+    /// Le silence qui le dit est celui que **cette source** a montré de pire récemment : un
+    /// pavé tactile, une molette et un pilote qui hoquette n'ont pas le même rythme, et aucun
+    /// nombre écrit ici ne saurait valoir pour les trois.
+    fn constater_le_lacher(&mut self, maintenant: Instant) {
+        if self.libre {
+            return;
         }
-        if duree <= 0.0 {
-            return Vitesse::default();
+        let Some(pire) = self.source.silence_qui_termine(maintenant) else {
+            return;
+        };
+        if self.source.silence(maintenant) <= pire {
+            return;
         }
-        Vitesse {
-            pan: (pan.0 / duree, pan.1 / duree),
-            octaves: octaves / duree,
-        }
+        self.libre = true;
+        // **La vitesse se lit à l'instant du dernier événement**, et non à celui où l'on
+        // constate le lâcher. Les deux diffèrent d'une durée d'image, qui dépend de l'écran :
+        // les confondre faisait glisser de mille deux cent soixante pixels à 240 Hz contre
+        // neuf cent vingt-quatre à 30 Hz, pour le même geste. La vitesse d'un geste est celle
+        // qu'il avait quand il s'est terminé, pas quand on s'en est aperçu.
+        let fin = self.source.dernier().unwrap_or(maintenant);
+        // Ce qu'une glissade amortie parcourt depuis cette vitesse : `v · τ`. L'inertie est
+        // donc une dette de plus, et non un régime à part — c'est ce qui permet au frein de
+        // l'annuler d'une soustraction.
+        let v = self.source.vitesse(fin);
+        self.reste.pan.0 += v.pan.0 * TAU_LIBRE_PAN;
+        self.reste.pan.1 += v.pan.1 * TAU_LIBRE_PAN;
+        self.reste.octaves += v.octaves * TAU_LIBRE_ZOOM;
     }
 
-    /// Les entrées de la fenêtre, de la plus récente vers la plus ancienne, et pas au-delà.
+    /// Les constantes de temps du régime courant.
     ///
-    /// # Aucune entrée ne dépasse la fenêtre, sauf la première
-    ///
-    /// La première est toujours retenue : sans elle, un geste plus court qu'un dixième de
-    /// seconde n'aurait aucune vitesse du tout, et une chiquenaude ne lancerait rien.
-    ///
-    /// Les suivantes s'arrêtent **avant** de déborder, et c'est important : une version qui
-    /// gardait l'entrée débordante laissait un seul vieil échantillon rapide dans une fenêtre
-    /// d'échantillons lents — et comme il pesait cent fois les autres, il multipliait la
-    /// vitesse mesurée par dix. Un geste qui ralentit avant de lâcher partait alors en
-    /// glissade comme s'il n'avait pas ralenti.
-    fn recentes(&self) -> impl Iterator<Item = &(f64, Mouvement)> {
-        let fenetre = FENETRE.as_secs_f64();
-        let mut cumul = 0.0;
-        (0..self.remplies)
-            .map(move |n| {
-                let i = (self.curseur + ECHANTILLONS - 1 - n) % ECHANTILLONS;
-                &self.entrees[i]
-            })
-            .take_while(move |(dt, _)| {
-                let premiere = cumul == 0.0;
-                cumul += dt;
-                premiere || cumul <= fenetre
-            })
+    /// Pendant que la main pousse, c'est le rythme **mesuré** de la source : la dette se
+    /// rembourse à peu près aussi vite qu'elle se contracte, donc le contenu suit la main de
+    /// près sans sauter sur les rafales. Quand la main a lâché, ce sont les constantes de
+    /// glissade — les deux seules valeurs de ressenti de ce module.
+    fn constantes(&self, maintenant: Instant) -> (f64, f64) {
+        if self.libre {
+            return (TAU_LIBRE_PAN, TAU_LIBRE_ZOOM);
+        }
+        let rythme = self.source.typique(maintenant).unwrap_or(TAU_LIBRE_PAN);
+        (rythme, rythme)
     }
 }
 
