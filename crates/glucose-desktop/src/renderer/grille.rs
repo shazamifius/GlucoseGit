@@ -178,6 +178,10 @@ fn poser_par_la_grille(
     let (peintes_avant, reprises_avant) = (atelier.tuiles.peintes(), atelier.tuiles.reprises());
     atelier.tuiles.ouvrir();
     let mut pixels: u64 = 0;
+    // Les postes se ferment l'un l'autre : sans cette marque, tout ce qui precede la premiere
+    // tuile -- les empreintes, la reclamation des photos -- se comptait dans son occlusion, et
+    // l'occlusion paraissait couter trois fois le rendu.
+    crate::perf::stage("empreintes");
     for adresse in adresses {
         let empreinte = ce_que_porte(store, adresse, pass.visibles);
         // Une tuile vide n'a rien à composer : c'est le cas le plus fréquent d'un canevas
@@ -196,9 +200,11 @@ fn poser_par_la_grille(
             pixels += composer(pixmap, deja, portee, place);
             continue;
         }
+        crate::perf::stage("grille");
         let Some((peinte, complete)) = rendre_une_tuile(atelier, store, adresse) else {
             continue;
         };
+        crate::perf::stage("tuile");
         // Une tuile dont une photo manquait encore ne se garde pas : elle se repeindra à
         // l'image où les octets seront là, et le cadre « en chemin » n'aura pas survécu.
         if complete {

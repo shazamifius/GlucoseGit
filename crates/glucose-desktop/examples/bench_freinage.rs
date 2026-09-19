@@ -136,6 +136,25 @@ fn rejouer(store: &mut Store, echelle: f64, regard: Regard) -> Freinage {
 
     let periode = 1.0 / 240.0;
     let mut durees_ms = Vec::with_capacity(IMAGES);
+    // Deux images de chauffe SOUS LE REGARD MESURE : la premiere image d'un regime peint
+    // toutes ses tuiles d'un coup, ce qui est le demarrage et non le geste. La compter
+    // faisait paraitre un pic de trente millisecondes qui n'a lieu qu'une fois par session.
+    for _ in 0..2 {
+        let guides = glucose_core::smart_align::SnapGuides::default();
+        let overlay = glucose_desktop::params::SceneOverlay {
+            guides: &guides,
+            selection_box: None,
+            editing: None,
+        };
+        renderer.render(
+            &mut pixmap.as_mut(),
+            store,
+            &mut ui,
+            overlay,
+            glucose_desktop::params::Pointer { x: -1.0, y: -1.0 },
+            regard,
+        );
+    }
     for i in 0..IMAGES {
         // L'amortissement exponentiel de l'élan : la vitesse à cette image.
         let t = i as f64 * periode;
