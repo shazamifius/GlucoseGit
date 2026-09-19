@@ -315,15 +315,23 @@ fn reporter_en_echantillonnant(
 
 /// La boucle de pixels, une fois le mode de mélange connu.
 ///
-/// # Pourquoi le mélange est un paramètre de type
+/// # Pourquoi le mélange et le filtre sont des paramètres de type
 ///
-/// Il ne change pas d'un pixel à l'autre — ni même d'une image à l'autre pour une photo
-/// donnée. Le tester dans la boucle coûtait une branche par pixel, sur un chemin qui en traite
-/// des millions. En paramètre de type, le compilateur produit les deux boucles et chacune ne
-/// contient plus que son cas.
+/// Ils ne changent pas d'un pixel à l'autre — ni même d'une image à l'autre pour une photo
+/// donnée. Les tester dans la boucle coûtait une branche par pixel, sur un chemin qui en
+/// traite des millions. En paramètre de type, le compilateur produit chaque boucle à part et
+/// aucune ne contient plus que son cas.
 ///
-/// La destination est parcourue par **tranche** plutôt que par indice : la longueur est alors
-/// connue de la boucle, et la vérification de bornes par pixel disparaît.
+/// # Et pourquoi la ligne se coupe en trois
+///
+/// Les colonnes où les deux texels voisins existent vraiment sont connues **d'avance**, pour
+/// toute la ligne. La version précédente le calculait bien une fois, mais elle gardait quand
+/// même les **deux comparaisons dans la boucle** — donc par pixel, sur des millions.
+///
+/// Couper la ligne en trois tranches — bord gauche, intérieur, bord droit — les fait
+/// disparaître de la seule tranche qui compte : l'intérieur, qui est presque toute la ligne.
+/// Les deux bords font au plus un pixel chacun dans le cas courant, et ils gardent le chemin
+/// prudent qui borne chaque accès.
 fn remplir<const REMPLACE: bool, const LISSE: bool>(
     dest: &mut VueMut<'_>,
     src: &Vue<'_>,
@@ -332,42 +340,89 @@ fn remplir<const REMPLACE: bool, const LISSE: bool>(
     (dedans_debut, dedans_fin): (u32, u32),
 ) -> u64 {
     let mut ecrits = 0u64;
+    let largeur = (x1 - x0 + 1) as usize;
+    // Les bornes de la tranche intérieure, en indices de la ligne de destination.
+    let g = (dedans_debut.saturating_sub(x0) as usize).min(largeur);
+    let d = (dedans_fin.saturating_sub(x0) as usize)
+        .saturating_add(1)
+        .min(largeur)
+        .max(g);
+
     for y in y0..=y1 {
         // `v` ne change pas le long d'une ligne : les deux lignes source et leur poids se
         // lisent une fois, au lieu d'une multiplication et de deux bornages par pixel.
         let (ya, yb, fv) = voisins(v, src.hauteur);
         let (haute, basse) = (src.ligne(ya), src.ligne(yb));
         let ligne = &mut dest.ligne_mut(y)[x0 as usize..=x1 as usize];
+        let (gauche, reste) = ligne.split_at_mut(g);
+        let (interieur, droite) = reste.split_at_mut(d - g);
 
         let mut u = u0;
-        for (i, d) in ligne.iter_mut().enumerate() {
-            let x = x0 + i as u32;
-            let (xa, xb, fu) = if x >= dedans_debut && x <= dedans_fin {
-                let a = (u >> FIXE) as u32;
-                (a, a + 1, ((u & (UN - 1)) >> (FIXE - 8)) as u32)
+        let bande = Bande {
+            haute,
+            basse,
+            fv,
+            pas_x,
+            source: src.largeur,
+        };
+        bande.parcourir::<REMPLACE, LISSE, false>(gauche, &mut u);
+        bande.parcourir::<REMPLACE, LISSE, true>(interieur, &mut u);
+        bande.parcourir::<REMPLACE, LISSE, false>(droite, &mut u);
+
+        v += pas_y;
+        ecrits += largeur as u64;
+    }
+    ecrits
+}
+
+/// Ce qu'une ligne de destination doit savoir de la source pour se remplir.
+///
+/// Rassemblé parce que rien n'y change d'un pixel à l'autre : le passer champ par champ à la
+/// boucle centrale l'aurait encombrée de six arguments dont aucun ne varie.
+struct Bande<'a> {
+    haute: &'a [Pixel],
+    basse: &'a [Pixel],
+    fv: u32,
+    pas_x: i64,
+    source: u32,
+}
+
+impl Bande<'_> {
+    /// Remplit une tranche de ligne. `INTERIEUR` dit que les deux texels voisins existent —
+    /// c'est ce qui autorise à se passer de tout bornage.
+    fn parcourir<const REMPLACE: bool, const LISSE: bool, const INTERIEUR: bool>(
+        &self,
+        tranche: &mut [Pixel],
+        u: &mut i64,
+    ) {
+        for pixel in tranche {
+            let (xa, xb, fu) = if INTERIEUR {
+                let a = (*u >> FIXE) as u32;
+                (a, a + 1, ((*u & (UN - 1)) >> (FIXE - 8)) as u32)
             } else {
-                voisins(u, src.largeur)
+                voisins(*u, self.source)
             };
             // Pixeliser, c'est prendre le texel dont le centre est le plus proche : une
             // lecture au lieu de quatre, aucun melange, et le pas de la source se voit.
             let s = if LISSE {
                 melanger(
-                    melanger(haute[xa as usize], haute[xb as usize], fu),
-                    melanger(basse[xa as usize], basse[xb as usize], fu),
-                    fv,
+                    melanger(self.haute[xa as usize], self.haute[xb as usize], fu),
+                    melanger(self.basse[xa as usize], self.basse[xb as usize], fu),
+                    self.fv,
                 )
             } else {
                 let colonne = if fu >= 128 { xb } else { xa };
-                let ligne = if fv >= 128 { basse } else { haute };
+                let ligne = if self.fv >= 128 {
+                    self.basse
+                } else {
+                    self.haute
+                };
                 ligne[colonne as usize]
             };
-            *d = if REMPLACE { s } else { compose(s, *d) };
-            u += pas_x;
+            *pixel = if REMPLACE { s } else { compose(s, *pixel) };
+            *u += self.pas_x;
         }
-        v += pas_y;
-        ecrits += u64::from(x1 - x0 + 1);
     }
-    ecrits
 }
 
 /// Les deux texels qui encadrent la position `t`, et le poids du second, sur huit bits.
