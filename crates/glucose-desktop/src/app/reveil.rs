@@ -77,6 +77,43 @@ impl Raison {
 }
 
 impl GlucoseApp {
+    /// Dans combien de temps demander la prochaine image d'une animation.
+    ///
+    /// # La rétroaction que cette version supprime, et elle gelait le démarrage
+    ///
+    /// La version précédente dormait **aussi longtemps que la dernière image avait coûté**,
+    /// borné entre la période de l'écran et un quart de seconde. La justification était « ne
+    /// pas remplir la file d'événements plus vite qu'elle ne se vide ». La conséquence était
+    /// une rétroaction : une image de 229 ms — la première soumission à la carte graphique —
+    /// faisait dormir la boucle 229 ms de plus, et le premier geste de l'utilisateur tombait
+    /// dans un gel d'une seconde et quart, dont un bon tiers à ne rien faire du tout.
+    ///
+    /// La chronique du rythme l'a montré au premier lancement : « le pire gel : 1261 ms à la
+    /// 1,3e seconde, dont 1032 ms à ne pas dessiner ». Aucune durée d'image ne pouvait le
+    /// dire, puisque ce temps n'était dans aucune image.
+    ///
+    /// # Ce qui remplace le sommeil : viser le prochain balayage
+    ///
+    /// L'écran bat à sa période, et l'image précédente a été présentée à un instant connu. La
+    /// prochaine image est due au balayage suivant — pas avant, parce que rien ne serait
+    /// montré ; pas après, parce que ce serait rater un balayage pour rien. Si le rendu prend
+    /// plus d'une période, c'est la présentation qui rate le balayage et attend le suivant,
+    /// ce que `Fifo` fait de lui-même.
+    ///
+    /// Aucune constante : la période est lue sur l'écran, l'instant de présentation est
+    /// observé. Et si on est déjà en retard, la réponse est zéro — tout de suite.
+    pub(super) fn animation_interval_ms(&self) -> u64 {
+        let periode = self.cadence.periode();
+        let prochain_balayage = self
+            .horloge
+            .derniere_presentation()
+            .map_or_else(|| std::time::Instant::now() + periode, |t| t + periode);
+        prochain_balayage
+            .saturating_duration_since(std::time::Instant::now())
+            .as_millis()
+            .min(u128::from(u64::MAX)) as u64
+    }
+
     /// Le délai avant le prochain réveil, ou `None` si rien n'est attendu.
     ///
     /// Chaque raison salit la vue elle-même si elle a besoin d'être redessinée : demander un

@@ -58,7 +58,7 @@ fn main() {
                 let mesure = if pas.is_zero() {
                     Default::default()
                 } else {
-                    c.rythme.presentee(presentation, pas, vitesse)
+                    c.rythme.presentee(presentation, horloge, pas, vitesse)
                 };
                 debut_precedent = Some(horloge);
                 horloge = presentation;

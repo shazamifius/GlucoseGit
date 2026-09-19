@@ -88,6 +88,25 @@ impl Chronique {
                  moyenne de la session, elle, compte le temps ou rien n'etait demande\n"
             ));
         }
+        // **Un gel se voit pareil, qu'il vienne d'une image lente ou d'une attente.** Et il ne
+        // se corrige pas du tout pareil : le premier lancement a montre un intervalle de
+        // 706 ms alors que la pire image de la session en coutait seize.
+        let (attente_med, attente_p99, attente_pire) = self.rythme.attentes();
+        t.push_str(&format!(
+            "  dont a NE PAS dessiner : median {:.2}ms, p99 {:.2}ms, pire {:.2}ms\n",
+            ms(attente_med),
+            ms(attente_p99),
+            ms(attente_pire),
+        ));
+        let (quand, pire_gel, dont_attente) = self.rythme.pire_intervalle();
+        if !pire_gel.is_zero() {
+            t.push_str(&format!(
+                "  le pire gel : {:.1}ms a la {:.1}e seconde, dont {:.1}ms a ne pas dessiner\n",
+                pire_gel.as_secs_f64() * 1000.0,
+                quand.as_secs_f64(),
+                dont_attente.as_secs_f64() * 1000.0,
+            ));
+        }
     }
 
     /// De combien le contenu se pose à côté de sa trajectoire, et à quelle échelle.

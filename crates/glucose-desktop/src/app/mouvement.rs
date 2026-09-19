@@ -41,8 +41,12 @@ impl GlucoseApp {
     /// une destination decidee. L'ordre ne les departage pas -- un geste **annule** le vol au
     /// moment ou il arrive, donc les deux ne se disputent jamais la meme image.
     pub fn appliquer_l_elan(&mut self, largeur: u32, hauteur: u32) {
-        let dt = self.duree_de_l_image();
-        self.appliquer_la_demande(largeur, hauteur);
+        // **Le pas vient de l'horloge**, donc de ce que l'ecran a montre -- et non du temps
+        // qu'il a fallu pour calculer quoi que ce soit. Une seule horloge pour l'elan, le vol
+        // et la mesure : deux d'entre elles divergeaient, et c'est ce qui se voyait.
+        let pas = self.horloge.pas();
+        let dt = pas.as_secs_f64();
+        self.appliquer_la_demande(largeur, hauteur, pas);
         self.appliquer_le_vol(largeur, hauteur, dt);
         self.mesurer_ce_que_l_oeil_voit_bouger((largeur, hauteur), dt);
     }
@@ -156,25 +160,10 @@ impl GlucoseApp {
             .observer(mesure, plancher, en_mouvement, plafond);
     }
 
-    /// La duree ecoulee depuis l'image precedente, en secondes.
-    ///
-    /// Plafonnee : une image tres longue -- un dialogue natif ouvert, une fenetre reduite --
-    /// ne doit pas faire franchir tout un vol d'un coup, ce qui serait precisement la
-    /// teleportation qu'on cherche a supprimer.
-    fn duree_de_l_image(&mut self) -> f64 {
-        const PAS_MAX: f64 = 0.1;
-        let maintenant = std::time::Instant::now();
-        let dt = self
-            .derniere_image
-            .map_or(0.0, |avant| maintenant.duration_since(avant).as_secs_f64());
-        self.derniere_image = Some(maintenant);
-        dt.min(PAS_MAX)
-    }
-
     /// Ce que la main a demande et que l'image n'a pas encore montre.
-    fn appliquer_la_demande(&mut self, largeur: u32, hauteur: u32) {
+    fn appliquer_la_demande(&mut self, largeur: u32, hauteur: u32, pas: std::time::Duration) {
         let diagonale = f64::from(largeur).hypot(f64::from(hauteur));
-        let Some(m) = self.elan.avancer(std::time::Instant::now(), diagonale) else {
+        let Some(m) = self.elan.avancer(std::time::Instant::now(), pas, diagonale) else {
             return;
         };
         if m.pan != (0.0, 0.0) {

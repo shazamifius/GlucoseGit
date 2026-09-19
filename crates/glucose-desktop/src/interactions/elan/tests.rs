@@ -19,6 +19,14 @@ const PAVE: Duration = Duration::from_millis(10);
 /// La période d'un écran à deux cent quarante hertz.
 const IMAGE: f64 = 1.0 / 240.0;
 
+/// Le pas que [`crate::horloge`] fournit à cette cadence.
+///
+/// **Il vient désormais du dehors, et c'est le fond de la correction.** L'élan mesurait son
+/// propre temps entre deux appels, c'est-à-dire entre deux débuts de rendu ; l'écran, lui,
+/// montre le résultat pendant l'intervalle qui sépare deux présentations. Les tests passent
+/// donc le pas, comme la boucle le fait.
+const PAS: Duration = Duration::from_nanos(4_166_667);
+
 /// Un geste régulier : `combien` apports, espacés du rythme d'un pavé. Rend l'instant d'après.
 fn glisser(elan: &mut Elan, depart: Instant, combien: u32, apport: (f64, f64)) -> Instant {
     let mut t = depart;
@@ -35,7 +43,7 @@ fn jouer(elan: &mut Elan, depart: Instant, duree: f64) -> (f64, f64, f64) {
     let images = (duree / IMAGE) as u32;
     for n in 1..=images {
         let t = depart + Duration::from_secs_f64(IMAGE * f64::from(n));
-        if let Some(m) = elan.avancer(t, DIAGONALE) {
+        if let Some(m) = elan.avancer(t, PAS, DIAGONALE) {
             total.0 += m.pan.0;
             total.1 += m.pan.1;
             total.2 += m.octaves;
@@ -50,7 +58,7 @@ fn pire_pas_a_droite(elan: &mut Elan, depart: Instant, duree: f64) -> f64 {
     let images = (duree / IMAGE) as u32;
     for n in 1..=images {
         let t = depart + Duration::from_secs_f64(IMAGE * f64::from(n));
-        if let Some(m) = elan.avancer(t, DIAGONALE) {
+        if let Some(m) = elan.avancer(t, PAS, DIAGONALE) {
             pire = pire.max(m.pan.0);
         }
     }
@@ -130,7 +138,7 @@ fn inverser_le_zoom_ne_continue_pas_dans_l_ancien_sens() {
     let mut pire: f64 = 0.0;
     for n in 1..=240 {
         let quand = reprise + Duration::from_secs_f64(IMAGE * f64::from(n));
-        if let Some(m) = elan.avancer(quand, DIAGONALE) {
+        if let Some(m) = elan.avancer(quand, PAS, DIAGONALE) {
             pire = pire.max(m.octaves);
         }
     }
@@ -171,9 +179,13 @@ fn la_glissade_ne_depend_pas_de_la_cadence() {
         let fin = glisser(&mut elan, debut, 10, (25.0, 0.0));
         let mut total = 0.0;
         let images = (3.0 / dt) as u32;
+        // Le pas est celui de CETTE cadence : c'est ce que l'horloge fournirait, et le passer
+        // constant ferait mesurer « le trajet depend du nombre d'images », ce qui n'est pas la
+        // question posee.
+        let pas = Duration::from_secs_f64(dt);
         for n in 1..=images {
             let t = fin + Duration::from_secs_f64(dt * f64::from(n));
-            if let Some(m) = elan.avancer(t, DIAGONALE) {
+            if let Some(m) = elan.avancer(t, pas, DIAGONALE) {
                 total += m.pan.0;
             }
         }
@@ -214,7 +226,7 @@ fn un_geste_neuf_n_herite_jamais_du_precedent() {
 
     // Bien plus tard, un geste minuscule et isolé.
     let plus_tard = fin + Duration::from_secs(5);
-    elan.avancer(plus_tard, DIAGONALE);
+    elan.avancer(plus_tard, PAS, DIAGONALE);
     elan.pousser_pan(3.0, 0.0, plus_tard);
     let total = jouer(&mut elan, plus_tard, 3.0);
     assert!(
@@ -224,20 +236,58 @@ fn un_geste_neuf_n_herite_jamais_du_precedent() {
     );
 }
 
-/// Une image très longue ne fait pas franchir toute la dette d'un coup — ce serait exactement
-/// la téléportation qu'on cherche à supprimer.
+/// **L'élan ne décide plus rien sur la durée, et c'est voulu.**
+///
+/// Ce test disait l'inverse : une image très longue ne devait pas franchir toute la dette,
+/// grâce à une borne de cent millisecondes posée ici. Elle se trompait de problème.
+///
+/// Si la boucle a été bloquée trois secondes — un dialogue natif, une fenêtre réduite — la
+/// glissade **est** terminée : trois secondes ont réellement passé, et son amortissement l'a
+/// éteinte depuis longtemps. La borne ne supprimait pas le saut ; elle le remplaçait par pire,
+/// une glissade qui reprend au ralenti pendant trente images pour rattraper un retard que
+/// personne n'attendait.
+///
+/// Le pas vient donc de [`crate::horloge`], qui ne borne rien non plus — et un pas de trois
+/// secondes solde la dette, ce qui est le résultat exact.
 #[test]
-fn une_image_tres_longue_ne_teleporte_pas() {
+fn un_pas_de_trois_secondes_solde_la_dette_et_c_est_le_bon_resultat() {
     let mut elan = Elan::default();
     let debut = Instant::now();
     elan.pousser_pan(1000.0, 0.0, debut);
     let m = elan
-        .avancer(debut + Duration::from_secs(3), DIAGONALE)
+        .avancer(
+            debut + Duration::from_secs(3),
+            Duration::from_secs(3),
+            DIAGONALE,
+        )
         .expect("il reste de la dette");
     assert!(
-        m.pan.0 < 1000.0,
-        "toute la dette a ete franchie d'un coup : {}",
+        m.pan.0 > 999.0,
+        "trois secondes ont passe : la dette doit etre soldee, pas etalee ({})",
         m.pan.0
+    );
+    assert!(!elan.en_cours(), "et il ne reste plus rien a montrer");
+}
+
+/// **Le pas décide seul de ce qui avance**, quel que soit le temps écoulé par ailleurs.
+///
+/// C'est la propriété qui rend l'élan indépendant du coût du rendu : deux images séparées de
+/// six millisecondes ou de soixante-sept montrent la même chose si l'écran a montré la même
+/// chose. Un test le prouve plutôt qu'un commentaire.
+#[test]
+fn deux_images_de_couts_opposes_montrent_le_meme_mouvement() {
+    let montre_pour = |cout_ms: u64| {
+        let mut elan = Elan::default();
+        let debut = Instant::now();
+        elan.pousser_pan(500.0, 0.0, debut);
+        elan.avancer(debut + Duration::from_millis(cout_ms), PAS, DIAGONALE)
+            .map_or(0.0, |m| m.pan.0)
+    };
+    let rapide = montre_pour(6);
+    let lente = montre_pour(67);
+    assert!(
+        (rapide - lente).abs() < 1e-9,
+        "le cout du rendu ne doit plus entrer dans la trajectoire : {rapide} contre {lente}"
     );
 }
 
@@ -251,7 +301,7 @@ fn l_ancre_ne_se_consomme_pas_avec_la_dette() {
     elan.pousser_zoom(0.4, (640.0, 360.0), debut);
     for n in 1..=60 {
         let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
-        if let Some(m) = elan.avancer(t, DIAGONALE) {
+        if let Some(m) = elan.avancer(t, PAS, DIAGONALE) {
             assert_eq!(m.ancre, (640.0, 360.0));
         }
     }
@@ -265,7 +315,7 @@ fn sans_demande_il_n_y_a_rien_a_montrer() {
     assert!(!elan.en_cours());
     for n in 1..=10 {
         let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
-        assert_eq!(elan.avancer(t, DIAGONALE), None);
+        assert_eq!(elan.avancer(t, PAS, DIAGONALE), None);
     }
 }
 
@@ -316,7 +366,7 @@ fn une_main_reguliere_ne_produit_aucun_sursaut() {
             elan.pousser_pan(10.0, 0.0, prochain_evenement);
             prochain_evenement += PAVE;
         }
-        let montre = elan.avancer(t, DIAGONALE).map_or(0.0, |m| m.pan.0);
+        let montre = elan.avancer(t, PAS, DIAGONALE).map_or(0.0, |m| m.pan.0);
         // Les toutes premières images remplissent la dette : on regarde le régime établi.
         if n < 30 {
             continue;
@@ -363,8 +413,12 @@ fn le_rythme_de_livraison_ne_change_pas_ce_qui_est_montre() {
             );
         }
         // Le même instant pour les deux : la fin du geste, plus une image.
-        elan.avancer(debut + Duration::from_secs_f64(GESTE + IMAGE), DIAGONALE)
-            .map_or(0.0, |m| m.pan.0)
+        elan.avancer(
+            debut + Duration::from_secs_f64(GESTE + IMAGE),
+            PAS,
+            DIAGONALE,
+        )
+        .map_or(0.0, |m| m.pan.0)
     };
 
     let peu = montre_pour(5);

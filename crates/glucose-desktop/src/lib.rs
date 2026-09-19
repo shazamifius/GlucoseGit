@@ -28,6 +28,7 @@ pub mod composition;
 pub mod dialogue;
 pub mod dock;
 pub mod error;
+pub mod horloge;
 pub mod icons;
 pub mod interactions;
 pub mod memoire;

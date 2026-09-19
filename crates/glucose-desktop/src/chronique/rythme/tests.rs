@@ -23,7 +23,7 @@ fn test_une_machine_reguliere_ne_produit_aucun_saut() {
     let periode = Duration::from_micros(8_333);
     for _ in 0..200 {
         t += periode;
-        r.presentee(t, periode, 1_000.0);
+        r.presentee(t, t - Duration::from_micros(2_000), periode, 1_000.0);
     }
     let (median, _, _, _) = r.intervalles();
     assert!(
@@ -79,7 +79,7 @@ fn test_une_machine_irreguliere_fait_sauter_un_mouvement_pourtant_parfait() {
         });
         let presentation = debut + duree;
         if !pas.is_zero() {
-            r.presentee(presentation, pas, vitesse);
+            r.presentee(presentation, debut, pas, vitesse);
         }
         debut_precedent = Some(debut);
         debut = presentation;
@@ -119,7 +119,12 @@ fn test_une_vue_immobile_ne_compte_pas_dans_la_fidelite() {
     let mut t = Instant::now();
     for _ in 0..50 {
         t += Duration::from_micros(40_000);
-        r.presentee(t, Duration::from_micros(8_000), 0.0);
+        r.presentee(
+            t,
+            t - Duration::from_micros(2_000),
+            Duration::from_micros(8_000),
+            0.0,
+        );
     }
     assert_eq!(
         r.fidelite(),
@@ -141,11 +146,21 @@ fn test_la_cadence_vue_ignore_le_temps_ou_rien_n_etait_demande() {
     // Cent images à cent par seconde, d'affilée.
     for _ in 0..100 {
         t += Duration::from_micros(10_000);
-        r.presentee(t, Duration::from_micros(10_000), 100.0);
+        r.presentee(
+            t,
+            t - Duration::from_micros(2_000),
+            Duration::from_micros(10_000),
+            100.0,
+        );
     }
     // Puis un long sommeil, et une seule image.
     t += Duration::from_secs(10);
-    r.presentee(t, Duration::from_micros(10_000), 100.0);
+    r.presentee(
+        t,
+        t - Duration::from_micros(2_000),
+        Duration::from_micros(10_000),
+        100.0,
+    );
 
     let vue = r.cadence_vue().expect("des intervalles ont ete mesures");
     assert!(
@@ -161,7 +176,12 @@ fn test_sans_periode_connue_aucun_balayage_n_est_invente() {
     let mut t = Instant::now();
     for _ in 0..20 {
         t += Duration::from_micros(10_000);
-        r.presentee(t, Duration::from_micros(10_000), 500.0);
+        r.presentee(
+            t,
+            t - Duration::from_micros(2_000),
+            Duration::from_micros(10_000),
+            500.0,
+        );
     }
     assert_eq!(r.periode(), None);
     assert_eq!(r.irregularite(), None, "rien a comparer sans periode");
@@ -180,7 +200,13 @@ fn test_sans_periode_connue_aucun_balayage_n_est_invente() {
 fn test_la_premiere_image_ne_mesure_rien() {
     let mut r = Rythme::nouveau();
     r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
-    let m = r.presentee(Instant::now(), Duration::from_micros(8_000), 900.0);
+    let t = Instant::now();
+    let m = r.presentee(
+        t,
+        t - Duration::from_micros(2_000),
+        Duration::from_micros(8_000),
+        900.0,
+    );
     assert_eq!(m, Mesure::default());
     assert_eq!(r.comparees(), 0);
 }

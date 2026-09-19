@@ -278,19 +278,26 @@ fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
     let scale = |app: &GlucoseApp| app.store.active_board().unwrap().viewport.scale;
 
     // Un geste ne deplace plus la camera lui-meme : il contracte une DETTE, dont chaque image
-    // rembourse une fraction du temps ecoule (voir `interactions::elan`). Le verifier demande
-    // donc de jouer des images, et de laisser le temps passer entre elles -- sans quoi rien
-    // n'est du et rien ne se montre.
-    let geste = |app: &mut GlucoseApp, sens: f32, combien: usize| {
-        for _ in 0..combien {
-            app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, sens));
-            std::thread::sleep(std::time::Duration::from_millis(1));
-            app.appliquer_l_elan(1280, 720);
-        }
-    };
-    geste(&mut app, 1.0, 300);
+    // rembourse une fraction (voir `interactions::elan`). Et le pas de cette fraction vient de
+    // ce que l'ECRAN a montre (voir `horloge`) : jouer une image demande donc de presenter la
+    // precedente, exactement comme la boucle le fait. Sans cela le pas vaut zero et rien
+    // n'avance -- ce que ce test a constate le jour ou l'horloge est arrivee.
+    //
+    // Les instants sont simules, jamais dormis : neuf cents millisecondes de sommeil pour
+    // verifier deux bornes de zoom sont neuf cents millisecondes de perdues a chaque build.
+    let mut horloge = std::time::Instant::now();
+    let geste =
+        |app: &mut GlucoseApp, horloge: &mut std::time::Instant, sens: f32, combien: usize| {
+            for _ in 0..combien {
+                app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, sens));
+                *horloge += std::time::Duration::from_millis(1);
+                app.horloge.presentee(*horloge);
+                app.appliquer_l_elan(1280, 720);
+            }
+        };
+    geste(&mut app, &mut horloge, 1.0, 300);
     assert_eq!(scale(&app), 20.0, "zoom avant borné");
-    geste(&mut app, -1.0, 600);
+    geste(&mut app, &mut horloge, -1.0, 600);
     assert_eq!(scale(&app), 0.02, "zoom arrière borné");
 }
 

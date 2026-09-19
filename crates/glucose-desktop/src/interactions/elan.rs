@@ -58,6 +58,19 @@
 //!
 //! Et « la main a lâché » ne se décide pas non plus : c'est un silence plus long que le pire
 //! intervalle que cette source ait montré récemment. Aucune durée n'a été choisie.
+//!
+//! # Ce que ce module ne savait pas, et qui a coûté quatre tentatives
+//!
+//! Tout ce qui précède est exact, et l'utilisateur l'a validé : « le frein c'est good, c'est
+//! même parfait ». Les saccades sont pourtant restées, et trois versions de plus ont cherché
+//! la cause ici.
+//!
+//! Elle n'y était pas. Ce module remboursait la dette sur **son propre** pas de temps, mesuré
+//! entre deux appels, donc entre deux débuts de rendu ; l'écran, lui, montre le résultat
+//! pendant l'intervalle qui sépare deux présentations. Les deux diffèrent exactement de la
+//! variation du coût d'une image — six millisecondes en médiane, soixante-sept au pire.
+//!
+//! Le pas vient donc désormais de [`crate::horloge`], et ce module n'a plus d'horloge du tout.
 
 use std::time::{Duration, Instant};
 
@@ -93,13 +106,6 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 /// durent quelques millisecondes, et les trous, quelques dizaines — tout en restant bien sous
 /// le seuil où un retard se perçoit, qui est la latence de la poursuite oculaire.
 const TAU_CONDUITE: f64 = 0.05;
-
-/// Le plus long qu'une image puisse durer sans que l'élan franchisse d'un coup ce qu'elle a
-/// manqué.
-///
-/// Une image de trois secondes — un dialogue natif ouvert, une fenêtre réduite — rembourserait
-/// sinon la dette entière en une fois, c'est-à-dire par une téléportation.
-const PAS_MAX: Duration = Duration::from_millis(100);
 
 /// Combien d'intervalles d'émission on garde pour connaître le rythme de la source.
 ///
@@ -271,7 +277,6 @@ pub struct Elan {
     reste: Mouvement,
     ancre: (f64, f64),
     source: Source,
-    dernier_pas: Option<Instant>,
     /// La main a-t-elle lâché ?
     libre: bool,
 }
@@ -334,14 +339,27 @@ impl Elan {
     }
 
     /// Ce que cette image doit montrer, ou rien s'il n'y a plus de dette.
-    pub fn avancer(&mut self, maintenant: Instant, diagonale: f64) -> Option<Mouvement> {
-        let dt = self
-            .dernier_pas
-            .replace(maintenant)
-            .map(|t| maintenant.saturating_duration_since(t).min(PAS_MAX))
-            .unwrap_or(PAS_MAX)
-            .as_secs_f64();
-
+    ///
+    /// # Le pas vient du dehors, et c'est le fond de la correction
+    ///
+    /// Ce module tenait sa propre horloge et mesurait entre deux appels — c'est-à-dire entre
+    /// deux **débuts de rendu**. La dette se remboursait donc du temps de *calcul*, pendant
+    /// que l'écran, lui, la montrait pendant l'intervalle de *présentation*. Les deux durées
+    /// diffèrent exactement de la variation du coût d'une image, soit jusqu'à soixante
+    /// millisecondes sur le terrain, et le contenu se posait d'autant à côté de sa
+    /// trajectoire.
+    ///
+    /// Le pas est désormais celui de [`crate::horloge`] : ce que l'écran a réellement montré,
+    /// aligné sur ses balayages. L'instant, lui, reste nécessaire — mais pour une autre
+    /// question, celle du silence qui dit que la main a lâché, et qui se lit bien sur
+    /// l'horloge du monde.
+    pub fn avancer(
+        &mut self,
+        maintenant: Instant,
+        pas: Duration,
+        diagonale: f64,
+    ) -> Option<Mouvement> {
+        let dt = pas.as_secs_f64();
         self.constater_le_lacher(maintenant);
 
         // Moins d'un demi-pixel à montrer : on solde la dette plutôt que de s'en approcher

@@ -65,7 +65,7 @@ impl GlucoseApp {
     /// d'entre eux peuvent varier du simple au decuple sans que l'ecran change de rythme, et
     /// inversement. Toute la chronique a mesure ces faits internes, et c'est pourquoi elle ne
     /// pouvait pas voir le tressaut dont l'utilisateur parle depuis des semaines.
-    pub(super) fn presenter_et_noter_le_rythme(&mut self) {
+    pub(super) fn presenter_et_noter_le_rythme(&mut self, debut_du_rendu: std::time::Instant) {
         if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
             // On presente meme quand rien n'a ete redessine : la demande peut venir du
             // systeme -- une fenetre recouverte puis degagee -- et non de nous.
@@ -73,11 +73,15 @@ impl GlucoseApp {
                 eprintln!("[GlucoseDesktop] presentation du framebuffer impossible : {e}");
             }
         }
+        let maintenant = std::time::Instant::now();
         let (pas, vitesse) = self.pas_et_vitesse;
         self.rythme_de_l_image =
             self.chronique
                 .rythme
-                .presentee(std::time::Instant::now(), pas, vitesse);
+                .presentee(maintenant, debut_du_rendu, pas, vitesse);
+        // **L'horloge de la trajectoire avance ICI**, au meme instant que la mesure : les deux
+        // parlent de la meme chose, et les separer les ferait diverger.
+        self.horloge.presentee(maintenant);
     }
 
     /// Redessine ce qui doit l'etre, et rien de plus. Ne presente pas.

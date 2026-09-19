@@ -119,6 +119,8 @@ pub struct Rythme {
     presentation: &'static str,
     /// L'instant de la présentation précédente.
     precedente: Option<Instant>,
+    /// L'instant de la toute première présentation, pour dater les gels.
+    origine: Option<Instant>,
     /// Combien de périodes d'écran l'image précédente a occupées.
     periodes_precedentes: Option<usize>,
     /// L'intervalle entre deux présentations, en microsecondes.
@@ -129,6 +131,27 @@ pub struct Rythme {
     avances_px: Histogramme,
     /// La fidélité, en millièmes, sur les seules images où la vue bougeait.
     fidelites: Histogramme,
+    /// Ce que l'application a passé à **ne pas dessiner**, entre deux images.
+    ///
+    /// # La question que la première version ne pouvait pas poser
+    ///
+    /// Un premier lancement a montré un intervalle de 706 ms alors que la pire image de la
+    /// session en coûtait 16. Les sept dixièmes de seconde manquants n'étaient dans aucune
+    /// durée de rendu : ils étaient **entre** deux images, là où rien ne mesurait rien.
+    ///
+    /// Un gel se voit exactement pareil, qu'il vienne d'une image lente ou d'une attente
+    /// interminable — mais il ne se corrige pas du tout pareil.
+    attentes: Histogramme,
+    /// À quelle seconde de la session le pire intervalle est tombé.
+    ///
+    /// Un gel dans les trois premières secondes est une initialisation ; le même gel à la
+    /// trentième est autre chose. La distribution ne dit pas lequel, et le savoir change ce
+    /// qu'il faut aller regarder.
+    pire_a_ms: u32,
+    /// La durée du pire intervalle, pour savoir à quoi `pire_a_ms` se rapporte.
+    pire_intervalle: Duration,
+    /// Ce que l'image du pire intervalle a passé à ne pas dessiner.
+    pire_attente: Duration,
     /// Combien d'images ont occupé `i` périodes d'écran.
     periodes: [u64; PERIODES_SUIVIES + 1],
     /// Combien d'images ont occupé un nombre de périodes **différent** de la précédente.
@@ -151,11 +174,16 @@ impl Rythme {
             periode: Duration::ZERO,
             presentation: "inconnue",
             precedente: None,
+            origine: None,
             periodes_precedentes: None,
             intervalles: Histogramme::nouveau(),
             sauts_px: Histogramme::nouveau(),
             avances_px: Histogramme::nouveau(),
             fidelites: Histogramme::nouveau(),
+            attentes: Histogramme::nouveau(),
+            pire_a_ms: 0,
+            pire_intervalle: Duration::ZERO,
+            pire_attente: Duration::ZERO,
             periodes: [0; PERIODES_SUIVIES + 1],
             changements: 0,
             comparees: 0,
@@ -186,10 +214,21 @@ impl Rythme {
 
     /// L'image vient d'être présentée : note ce qu'elle a montré.
     ///
+    /// `debut_du_rendu` sépare l'intervalle en deux — ce que l'application a passé à **ne pas
+    /// dessiner**, puis ce qu'elle a passé à dessiner. Un gel se voit exactement pareil dans
+    /// les deux cas, et ne se corrige pas du tout pareil.
+    ///
     /// Rend ce qui vient d'être mesuré, pour que l'instantané de cette image le porte.
-    pub fn presentee(&mut self, maintenant: Instant, pas: Duration, vitesse_px_s: f64) -> Mesure {
+    pub fn presentee(
+        &mut self,
+        maintenant: Instant,
+        debut_du_rendu: Instant,
+        pas: Duration,
+        vitesse_px_s: f64,
+    ) -> Mesure {
         let precedente = self.precedente.replace(maintenant);
         let Some(avant) = precedente else {
+            self.origine.get_or_insert(maintenant);
             return Mesure::default();
         };
         let image = Image {
@@ -197,9 +236,12 @@ impl Rythme {
             pas,
             vitesse_px_s,
         };
+        let attente = debut_du_rendu.saturating_duration_since(avant);
+        self.attentes.ajouter(micros(attente).unwrap_or(u32::MAX));
+        self.noter_le_pire(maintenant, image.intervalle, attente);
         self.noter_les_periodes(image.intervalle);
         self.intervalles
-            .ajouter(micros(image.intervalle).unwrap_or(0));
+            .ajouter(micros(image.intervalle).unwrap_or(u32::MAX));
         // **Les images immobiles sont écartées de la fidélité, et il le faut.** Une vue qui ne
         // bouge pas a un pas de temps sans signification pour l'œil : la compter ferait
         // paraître régulier un rythme qui ne montre rien.
@@ -223,6 +265,42 @@ impl Rythme {
             saut_px: entier(saut).min(u32::from(u16::MAX)) as u16,
             fidelite_millieme: fidelite.unwrap_or(0).min(u32::from(u16::MAX)) as u16,
         }
+    }
+
+    /// Retient le pire intervalle, quand il est tombé, et ce qui l'a composé.
+    fn noter_le_pire(&mut self, maintenant: Instant, intervalle: Duration, attente: Duration) {
+        if intervalle <= self.pire_intervalle {
+            return;
+        }
+        self.pire_intervalle = intervalle;
+        self.pire_attente = attente;
+        self.pire_a_ms = self
+            .origine
+            .map(|o| maintenant.saturating_duration_since(o).as_millis())
+            .unwrap_or(0)
+            .min(u128::from(u32::MAX)) as u32;
+    }
+
+    /// Le pire intervalle : `(quand, sa duree, ce qu'il a passe a ne pas dessiner)`.
+    ///
+    /// Les trois ensemble, parce qu'aucun ne se lit seul : un gel de sept dixiemes de seconde
+    /// a la deuxieme seconde d'une session, dont sept dixiemes passes hors du rendu, ne
+    /// designe pas le meme coupable que le meme gel a la trentieme, passe a dessiner.
+    pub fn pire_intervalle(&self) -> (Duration, Duration, Duration) {
+        (
+            Duration::from_millis(u64::from(self.pire_a_ms)),
+            self.pire_intervalle,
+            self.pire_attente,
+        )
+    }
+
+    /// Ce que l'application passe a NE PAS dessiner, entre deux images : `(median, p99, pire)`.
+    pub fn attentes(&self) -> (u32, u32, u32) {
+        (
+            self.attentes.centile(0.50),
+            self.attentes.centile(0.99),
+            self.attentes.pire(),
+        )
     }
 
     /// Range cette image dans le compte des périodes d'écran, et note si elle a changé.

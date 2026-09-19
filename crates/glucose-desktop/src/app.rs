@@ -27,9 +27,6 @@ use winit::window::{Window, WindowId};
 /// Ce que dit la carte d'accueil d'un document neuf.
 const WELCOME_TEXT: &str = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
 
-/// Cadence minimale de repli quand une frame est anormalement lente.
-const ANIMATION_MAX_INTERVAL_MS: u64 = 250;
-
 pub struct LastClickInfo {
     /// L'instant du clic, en millisecondes depuis [`GlucoseApp::click_epoch`].
     ///
@@ -85,11 +82,16 @@ pub struct GlucoseApp {
     /// Tant qu'il tient, la destination du vol **suit le curseur** : c'est le voyage continu
     /// que Glucose Tauri permet, par opposition au saut par clic.
     pub minimap_tenue: bool,
-    /// L'instant de la derniere image jouee, pour connaitre la duree de celle-ci.
+    /// L'horloge de la trajectoire : le temps tel que l'ECRAN le montre (voir
+    /// [`crate::horloge`]).
     ///
-    /// L'elan tient la sienne parce qu'il borne differemment les images tres longues ; le
-    /// vol, lui, lit ce champ. Deux horloges pour deux besoins, et aucune qui devine.
-    derniere_image: Option<std::time::Instant>,
+    /// # Elle remplace deux horloges, et c'est le fond du sujet
+    ///
+    /// Il y en avait deux -- celle de l'elan, celle de la boucle -- et toutes deux mesuraient
+    /// entre deux DEBUTS de rendu. Le contenu avancait donc du temps de calcul, pendant qu'il
+    /// etait montre pendant l'intervalle de presentation : deux durees qui different
+    /// exactement de la variation du cout d'une image, soit jusqu'a soixante millisecondes.
+    pub horloge: crate::horloge::Horloge,
     /// De combien la scene est rendue plus petite que la fenetre pendant un geste, et le
     /// tampon ou elle se rend alors (voir [`crate::resolution`]).
     pub resolution: crate::resolution::Resolution,
@@ -170,8 +172,6 @@ pub struct GlucoseApp {
     /// d'attendre vraiment.
     pub click_epoch: std::time::Instant,
     pub last_blink_phase: bool,
-    /// Durée de la dernière frame présentée, en millisecondes.
-    pub last_frame_ms: u64,
     /// La cadence de l'écran, lue et non supposée (CADENCE-1).
     ///
     /// Tout le projet a longtemps raisonné sur soixante hertz. Sur un écran à 240 Hz, un banc
@@ -235,7 +235,7 @@ impl GlucoseApp {
             pas_et_vitesse: (std::time::Duration::ZERO, 0.0),
             rythme_de_l_image: crate::chronique::rythme::Mesure::default(),
             minimap_tenue: false,
-            derniere_image: None,
+            horloge: crate::horloge::Horloge::nouvelle(),
             resolution: crate::resolution::Resolution::nette(),
             tampon_reduit: None,
             pixmap: None,
@@ -276,7 +276,6 @@ impl GlucoseApp {
             pick_cycle: None,
             click_epoch: std::time::Instant::now(),
             last_blink_phase: true,
-            last_frame_ms: 0,
             cadence: crate::cadence::Cadence::inconnue(),
             project_path: None,
             saved_version,
@@ -325,7 +324,7 @@ impl GlucoseApp {
             let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
             self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 
-            self.presenter_et_noter_le_rythme();
+            self.presenter_et_noter_le_rythme(frame_started);
             self.clore_l_image(frame_started, (width, height));
         }
     }
@@ -362,7 +361,6 @@ impl GlucoseApp {
         let ecoule = debut.elapsed();
         self.accorder_la_finesse(ecoule);
         crate::perf::compteur("img_reduction", f64::from(self.resolution.facteur()));
-        self.last_frame_ms = ecoule.as_millis().min(u128::from(u64::MAX)) as u64;
         crate::perf::frame_end();
         // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il se
         // contente de les afficher quand la trace est demandee.
@@ -378,25 +376,6 @@ impl GlucoseApp {
     /// d'evenements recus depuis la derniere image. La diagonale de la fenetre sert de mesure
     /// commune aux deux : elle dit ce qu'un reste de zoom deplacerait a l'ecran, donc quand il
     /// devient invisible.
-    /// Intervalle minimal entre deux frames animées.
-    ///
-    /// On ne demande jamais un rafraîchissement plus vite que la durée réelle de la dernière
-    /// frame : sur une machine lente, une cadence fixe remplirait la file d'événements plus
-    /// vite qu'elle ne se vide, et priverait la pompe de messages de l'OS de temps de
-    /// traitement.
-    ///
-    /// # La borne basse n'est plus un nombre
-    ///
-    /// Elle valait seize millisecondes — « environ 60 Hz ». Sur un écran à 240 Hz, cela
-    /// **plafonnait toute animation à 62 images par seconde**, y compris la glissade de la
-    /// caméra, et contredisait directement le plancher de cent de la charte : « sa fréquence
-    /// est à lire, pas à supposer ». La période de l'écran est déjà connue et déjà annoncée
-    /// au démarrage ; c'est elle, et la constante disparaît.
-    fn animation_interval_ms(&self) -> u64 {
-        let periode = self.cadence.periode().as_millis().max(1) as u64;
-        self.last_frame_ms.clamp(periode, ANIMATION_MAX_INTERVAL_MS)
-    }
-
     /// Marque **toute** la vue comme sale et planifie un rafraîchissement (R-15).
     ///
     /// C'est la déclaration de celui qui ne sait pas ce qu'il a changé, et elle reste juste :
