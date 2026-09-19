@@ -526,3 +526,51 @@ fn un_chiffre_qualifie_la_fleche_en_main_et_transporte_les_mains_vides() {
         "sans selection, le chiffre est un signet"
     );
 }
+
+/// **Un clavier AZERTY doit déclencher les raccourcis numériques.** C'est le défaut qui a
+/// rendu les signets de vue — et les prédicats de flèche avant eux — inatteignables pour
+/// leur auteur : la touche marquée « 3 » y produit `"`, jamais `3`.
+///
+/// Le test porte sur la touche **physique**, parce que c'est la seule chose qu'un clavier
+/// français, allemand ou russe ait en commun avec un clavier américain.
+#[test]
+fn les_chiffres_se_lisent_sur_la_touche_physique_pas_sur_la_disposition() {
+    use winit::keyboard::{KeyCode, PhysicalKey};
+
+    assert_eq!(
+        chiffre_de_la_touche(PhysicalKey::Code(KeyCode::Digit3)),
+        Some('3'),
+        "la touche marquee 3 vaut 3, meme quand elle ecrit un guillemet"
+    );
+    assert_eq!(
+        chiffre_de_la_touche(PhysicalKey::Code(KeyCode::Numpad7)),
+        Some('7'),
+        "le pave numerique repond pareil"
+    );
+    assert_eq!(chiffre_de_la_touche(PhysicalKey::Code(KeyCode::KeyA)), None);
+    assert_eq!(
+        chiffre_de_la_touche(PhysicalKey::Code(KeyCode::Quote)),
+        None,
+        "la touche qui PORTE le guillemet, elle, n'est pas un chiffre"
+    );
+
+    // Les dix chiffres, et chacun le sien : une permutation ratée se verrait ici.
+    for (rang, code) in [
+        KeyCode::Digit0,
+        KeyCode::Digit1,
+        KeyCode::Digit2,
+        KeyCode::Digit3,
+        KeyCode::Digit4,
+        KeyCode::Digit5,
+        KeyCode::Digit6,
+        KeyCode::Digit7,
+        KeyCode::Digit8,
+        KeyCode::Digit9,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let attendu = char::from_digit(rang as u32, 10);
+        assert_eq!(chiffre_de_la_touche(PhysicalKey::Code(code)), attendu);
+    }
+}

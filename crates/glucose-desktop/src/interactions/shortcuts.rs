@@ -25,8 +25,47 @@ use glucose_core::types::ArrowPredicate;
 const NUDGE_DECADE: f64 = 10.0;
 use glucose_core::store::StackMove;
 use winit::event::{ElementState, KeyEvent};
-use winit::keyboard::{Key, NamedKey};
+use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey, SmolStr};
 use winit::window::WindowLevel;
+
+/// Le chiffre que porte cette touche **physique**, quel que soit le clavier branché.
+///
+/// # Pourquoi la touche logique ne pouvait pas marcher, et pourquoi personne ne l'a vu
+///
+/// Sur un clavier **AZERTY**, la rangée du haut ne produit pas de chiffres sans `Maj` : la
+/// touche marquée « 3 » rend `"`, celle marquée « 2 » rend `é`. Un raccourci qui attend
+/// `Key::Character("3")` n'est donc **jamais** déclenché sur un clavier français — et pas
+/// davantage sur un QWERTZ allemand ou un clavier russe.
+///
+/// Les tests ne pouvaient pas l'attraper : ils appellent le routage avec un caractère qu'ils
+/// fabriquent eux-mêmes, donc ils décrivent un clavier américain sans le dire. La suite était
+/// verte, le geste n'existait pas. C'est ce qui est arrivé aux prédicats de flèche, qui
+/// tiennent les chiffres `1` à `6` depuis leur écriture sans que personne n'ait pu s'en
+/// servir, puis aux signets de vue le jour de leur livraison.
+///
+/// # Ce que cette fonction répare, au-delà des signets
+///
+/// Un raccourci numérique est **positionnel** : ce que l'on vise est la touche *marquée* 3,
+/// pas le caractère `3`. La lire sur `physical_key` dit exactement cela, et le pavé numérique
+/// y répond de la même façon — ce que la fiche 14 § J.8 demandait déjà.
+fn chiffre_de_la_touche(physique: PhysicalKey) -> Option<char> {
+    let PhysicalKey::Code(code) = physique else {
+        return None;
+    };
+    Some(match code {
+        KeyCode::Digit0 | KeyCode::Numpad0 => '0',
+        KeyCode::Digit1 | KeyCode::Numpad1 => '1',
+        KeyCode::Digit2 | KeyCode::Numpad2 => '2',
+        KeyCode::Digit3 | KeyCode::Numpad3 => '3',
+        KeyCode::Digit4 | KeyCode::Numpad4 => '4',
+        KeyCode::Digit5 | KeyCode::Numpad5 => '5',
+        KeyCode::Digit6 | KeyCode::Numpad6 => '6',
+        KeyCode::Digit7 | KeyCode::Numpad7 => '7',
+        KeyCode::Digit8 | KeyCode::Numpad8 => '8',
+        KeyCode::Digit9 | KeyCode::Numpad9 => '9',
+        _ => return None,
+    })
+}
 
 impl GlucoseApp {
     /// Une touche arrive de la fenêtre. Trois preneurs, dans l'ordre : la saisie d'un nom de
@@ -60,7 +99,13 @@ impl GlucoseApp {
         if event.repeat && !repetition_utile(&event.logical_key) {
             return;
         }
-        self.handle_shortcut_input(&event.logical_key, event.state);
+        // Les chiffres se lisent sur la touche **physique**, et c'est tout l'objet de
+        // [`chiffre_de_la_touche`] : un raccourci numérique est positionnel.
+        let touche = match chiffre_de_la_touche(event.physical_key) {
+            Some(chiffre) => Key::Character(SmolStr::new(chiffre.to_string())),
+            None => event.logical_key.clone(),
+        };
+        self.handle_shortcut_input(&touche, event.state);
     }
 
     /// Le corps de [`GlucoseApp::handle_keyboard_shortcut`], sans le `KeyEvent` de winit,
