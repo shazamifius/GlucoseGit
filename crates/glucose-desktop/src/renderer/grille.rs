@@ -301,24 +301,51 @@ fn composer(pixmap: &mut PixmapMut, tuile: &Pixmap, portee: Portee, place: Place
     let Some(mut dest) = VueMut::nouvelle(octets_dest, dw, dh) else {
         return 0;
     };
-    // La position est arrondie au pixel : c'est ce qui ouvre le chemin exact du report, un
-    // pixel pour un pixel. Le contenu avance donc par pixels entiers pendant un glissement —
-    // ce que fait tout canevas à tuiles, et ce qu'un écran ne peut de toute façon pas
-    // montrer autrement.
-    let pose = Pose {
-        x: (x as f32).round(),
-        y: (y as f32).round(),
-        largeur: place.cote_ecran.round() as f32,
-        hauteur: place.cote_ecran.round() as f32,
-    };
-    // La boîte utile de la tuile, portée à l'écran : c'est elle qui borne le parcours.
-    let facteur = place.cote_ecran / f64::from(COTE_TUILE);
-    let utile = Boite::nouvelle(
-        pose.x + (f64::from(bx0) * facteur).floor() as f32,
-        pose.y + (f64::from(by0) * facteur).floor() as f32,
-        (f64::from(bx1 - bx0) * facteur).ceil() as f32,
-        (f64::from(by1 - by0) * facteur).ceil() as f32,
+    // **Les bords se partagent, ils ne s'arrondissent pas chacun de son côté.**
+    //
+    // La première version posait chaque tuile à `round(x)` avec une largeur
+    // `round(côté)`. Entre deux niveaux, le côté n'est pas entier : `x + 332,4` arrondit à
+    // 342 pour une tuile et la suivante commence à 343 — un pixel de fond entre les deux, et
+    // l'utilisateur voit des « croix noires se former » dès qu'il bouge lentement, quand les
+    // arrondis basculent image après image.
+    //
+    // Le bord droit de cette tuile est le bord gauche de la suivante : c'est le **même
+    // nombre**, et il s'arrondit une fois. La largeur en découle. Une tuile fait alors 332 ou
+    // 333 pixels selon sa place, ce qui ne se voit pas ; un trou d'un pixel se voit partout.
+    let (x0, y0) = ((x as f32).round(), (y as f32).round());
+    let (x1, y1) = (
+        ((x + place.cote_ecran) as f32).round(),
+        ((y + place.cote_ecran) as f32).round(),
     );
+    let pose = Pose {
+        x: x0,
+        y: y0,
+        largeur: x1 - x0,
+        hauteur: y1 - y0,
+    };
+    // La boîte utile de la tuile, portée à l'écran : c'est elle qui borne le parcours. Ses
+    // bords extérieurs sont ceux de la pose, pour la même raison.
+    let facteur = place.cote_ecran / f64::from(COTE_TUILE);
+    let bord = |t: u32, origine: f32, limite: f32, plein: u32| {
+        if t == plein {
+            limite
+        } else {
+            origine + (f64::from(t) * facteur).round() as f32
+        }
+    };
+    let ux0 = if bx0 == 0 {
+        x0
+    } else {
+        bord(bx0, x0, x1, COTE_TUILE)
+    };
+    let uy0 = if by0 == 0 {
+        y0
+    } else {
+        bord(by0, y0, y1, COTE_TUILE)
+    };
+    let ux1 = bord(bx1, x0, x1, COTE_TUILE);
+    let uy1 = bord(by1, y0, y1, COTE_TUILE);
+    let utile = Boite::nouvelle(ux0, uy0, (ux1 - ux0).max(0.0), (uy1 - uy0).max(0.0));
     let clip = intersection(place.clip, utile);
     let melange = if portee.opaque {
         Melange::Remplacer

@@ -102,16 +102,15 @@ impl GlucoseApp {
     ///
     /// Aucune constante : la période est lue sur l'écran, l'instant de présentation est
     /// observé. Et si on est déjà en retard, la réponse est zéro — tout de suite.
+    ///
+    /// # Et depuis le tempo, tout de suite
+    ///
+    /// Le tempo attend APRES le rendu, jusqu'a l'heure de soumettre : le rendu peut donc
+    /// commencer des la presentation precedente, et l'attente absorbe ce qu'il reste. Viser
+    /// le prochain balayage ici ferait rater la cible des que le rendu depasse une periode --
+    /// exactement le cas qui a fait naitre le tempo.
     pub(super) fn animation_interval_ms(&self) -> u64 {
-        let periode = self.cadence.periode();
-        let prochain_balayage = self
-            .horloge
-            .derniere_presentation()
-            .map_or_else(|| std::time::Instant::now() + periode, |t| t + periode);
-        prochain_balayage
-            .saturating_duration_since(std::time::Instant::now())
-            .as_millis()
-            .min(u128::from(u64::MAX)) as u64
+        0
     }
 
     /// Le délai avant le prochain réveil, ou `None` si rien n'est attendu.

@@ -48,6 +48,7 @@ impl GlucoseApp {
         // La trajectoire se cale sur la grille de balayage de cet ecran : un pas qui n'est
         // pas un multiple de la periode decrit une duree d'affichage qui n'existe pas.
         self.horloge.accorder(self.cadence.periode());
+        self.tempo.accorder(self.cadence.periode());
 
         let scale_factor = window.scale_factor();
         self.scale_factor = scale_factor;

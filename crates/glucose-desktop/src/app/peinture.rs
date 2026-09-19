@@ -56,6 +56,57 @@ impl GlucoseApp {
             .filter(|_| !self.resolution.reduite())
     }
 
+    /// Attend l'instant que le tempo fixe pour cette image, en faisant avancer le travail de
+    /// fond pendant ce temps.
+    ///
+    /// # Pourquoi l'attente est ici, apres le rendu, et non avant
+    ///
+    /// Attendre avant de rendre reduirait la latence -- l'image montrerait un etat plus
+    /// recent -- mais demanderait de savoir combien le rendu va couter, et un rendu plus long
+    /// que prevu raterait le balayage. Attendre apres ne rate jamais : l'image est la, on
+    /// sait exactement combien de temps il reste. La regularite passe avant la latence, parce
+    /// que c'est elle qui se voit.
+    ///
+    /// Le temps d'attente n'est pas perdu : l'atelier y avance (CASCADE-1), et c'est la que
+    /// l'arbre de possibilites preparera les tuiles de la trajectoire (fiche 18, etape 3).
+    pub(super) fn attendre_l_heure_de_soumettre(&mut self, debut: std::time::Instant) {
+        // Le tempo ne regle que ce qui BOUGE : c'est la seule situation ou un intervalle
+        // irregulier se voit. Ailleurs -- un decodage, un curseur qui clignote -- attendre
+        // ferait tourner le processeur a vide pour une regularite que personne ne regarde.
+        if !(self.elan.en_cours() || self.vol.en_cours()) {
+            self.tempo.oublier();
+            crate::perf::compteur("tempo_balayages", 0.0);
+            crate::perf::compteur("tempo_attente_us", 0.0);
+            return;
+        }
+        let maintenant = std::time::Instant::now();
+        let rendu = maintenant.saturating_duration_since(debut);
+        let attente = self.tempo.attente_avant_de_soumettre(maintenant, rendu);
+        crate::perf::compteur("tempo_balayages", f64::from(self.tempo.balayages()));
+        crate::perf::compteur("tempo_attente_us", attente.as_micros() as f64);
+        if attente.is_zero() {
+            return;
+        }
+        let cible = maintenant + attente;
+        // Le travail de fond d'abord, dans ce que l'attente laisse, marge deduite.
+        let budget = attente.saturating_sub(crate::cadence::MARGE);
+        let faites = self.renderer.magasin.avancer_les_vignettes(budget);
+        crate::perf::compteur(
+            "vign_atelier",
+            f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
+        );
+        crate::perf::stage("atelier");
+        // Puis l'attente active jusqu'a la cible. Un sommeil du systeme se reveille a la
+        // milliseconde pres au mieux, et a quinze millisecondes pres au pire sur Windows sans
+        // reglage du minuteur : c'est trois balayages, soit precisement ce qu'on cherche a ne
+        // pas rater. Le processeur tourne a vide quelques centaines de microsecondes ; ce
+        // temps ira au travail de fond a mesure qu'il saura le prendre.
+        while std::time::Instant::now() < cible {
+            std::hint::spin_loop();
+        }
+        crate::perf::stage("tempo");
+    }
+
     /// Met l'image a l'ecran, et note l'instant ou elle y arrive (RYTHME-1).
     ///
     /// # Pourquoi la mesure se prend ICI et nulle part ailleurs

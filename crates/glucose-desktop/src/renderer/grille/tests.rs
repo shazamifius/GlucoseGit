@@ -313,3 +313,74 @@ fn test_une_photo_a_cheval_sur_deux_tuiles_se_voit_en_entier() {
         "les quatre tuiles qui portent la photo doivent etre peintes"
     );
 }
+
+/// **Aucune couture entre deux tuiles, à aucune échelle ni à aucune position.**
+///
+/// L'utilisateur a vu des « croix noires se former » dès qu'il bougeait lentement entre deux
+/// niveaux dyadiques : chaque tuile s'arrondissait de son côté, et `x + 332,4` donnait 342
+/// pour l'une et 343 pour la suivante — un pixel de fond entre les deux. Une photo unie posée
+/// sur plusieurs tuiles doit rester unie, à toute échelle et à toute phase sous-pixel.
+#[test]
+fn test_aucune_couture_entre_les_tuiles_a_une_echelle_non_dyadique() {
+    let couleur = [250u8, 120, 30, 255];
+    for (echelle, phase) in [
+        (1.3, 0.37),
+        (1.3, 0.62),
+        (1.7, 0.5),
+        (1.05, 0.9),
+        (0.6, 0.3),
+    ] {
+        let mut store = Store::new("Couture");
+        let board = store.project.active_board_id.clone();
+        if let Some(b) = store.active_board_mut() {
+            b.annotations.clear();
+            b.viewport = vue(100.0 + phase, 80.0 + phase, echelle);
+        }
+        let mut renderer = Renderer::new();
+        decoder(&mut renderer, "unie.png", couleur);
+        // Une photo qui traverse plusieurs frontières de tuiles dans les deux sens.
+        let mut img = BoardImage::new("large", 500.0, 400.0, 900.0, 700.0);
+        img.src = Some("unie.png".to_string());
+        store.add_image(&board, img);
+        store.clear_selection();
+        renderer.sync_spatial_index(&store);
+
+        let mut pixmap = Pixmap::new(1280, 900).expect("l'ecran");
+        let ui = interface();
+        renderer.magasin.ouvrir();
+        renderer.rendre_la_region(
+            &mut pixmap.as_mut(),
+            &store,
+            &ui,
+            sans_reperes(),
+            0.0,
+            Cadrage::plein().sous_le_regard(Regard {
+                degradation_permise: false,
+                en_mouvement: true,
+            }),
+        );
+        renderer.magasin.fermer();
+
+        // L'intérieur de la photo à l'écran, à trois pixels des bords pour ignorer l'arrondi
+        // de son propre contour.
+        let (sx, sy) = crate::canvas::world_to_screen(50.0, 50.0, &store.viewport());
+        let (ex, ey) = crate::canvas::world_to_screen(950.0, 750.0, &store.viewport());
+        let (ex, ey) = (ex.min(1280.0 - 3.0), ey.min(900.0 - 3.0));
+        let mut trous = Vec::new();
+        for y in (sy.max(3.0) as u32 + 3)..(ey as u32 - 3) {
+            for x in (sx.max(3.0) as u32 + 3)..(ex as u32 - 3) {
+                let i = ((y * 1280 + x) * 4) as usize;
+                if pixmap.data()[i..i + 4] != couleur {
+                    trous.push((x, y));
+                }
+            }
+        }
+        assert!(
+            trous.is_empty(),
+            "a l'echelle {echelle} et a la phase {phase}, {} pixels de fond dans une photo \
+             unie -- premiers : {:?}",
+            trous.len(),
+            &trous[..trous.len().min(6)]
+        );
+    }
+}

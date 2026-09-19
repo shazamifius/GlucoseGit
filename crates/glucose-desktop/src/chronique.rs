@@ -162,6 +162,11 @@ pub struct Chronique {
     /// Les tuiles peintes et reprises, cumulées : le rapport des deux dit si la grille sert.
     tuiles_peintes: u64,
     tuiles_reprises: u64,
+    /// Combien d'images le tempo a visées à chaque nombre de balayages, de un à huit et
+    /// au-delà. La ligne dominante dit à quelle cadence RÉGULIÈRE la machine s'est calée.
+    tempo: [u64; 9],
+    /// Ce que les images ont attendu pour tenir le tempo, en microsecondes.
+    attentes_du_tempo: Histogramme,
     /// Les images où le modèle savait prévoir : combien, ce qu'il avait prévu, ce qu'elles ont
     /// vraiment coûté, et combien se sont pixelisées.
     ///
@@ -266,6 +271,24 @@ impl Chronique {
         (total > 0).then(|| self.tuiles_reprises as f64 / total as f64)
     }
 
+    /// Ce que le tempo a visé : `(balayages, images)` du plus fréquent au moins, et ce que
+    /// les images ont attendu pour le tenir `(médian, pire)` en microsecondes.
+    pub fn tempo(&self) -> (Vec<(usize, u64)>, u32, u32) {
+        let mut vises: Vec<(usize, u64)> = self
+            .tempo
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| **n > 0)
+            .map(|(k, n)| (k, *n))
+            .collect();
+        vises.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        (
+            vises,
+            self.attentes_du_tempo.centile(0.50),
+            self.attentes_du_tempo.pire(),
+        )
+    }
+
     /// Combien de tuiles ont été peintes en tout — le travail fait.
     pub fn tuiles_peintes(&self) -> u64 {
         self.tuiles_peintes
@@ -298,6 +321,8 @@ impl Chronique {
             noeuds_recrees: 0,
             tuiles_peintes: 0,
             tuiles_reprises: 0,
+            tempo: [0; 9],
+            attentes_du_tempo: Histogramme::nouveau(),
             prevues: 0,
             prevu_us: 0,
             mesure_us: 0,
@@ -345,6 +370,10 @@ impl Chronique {
         self.noeuds_recrees += u64::from(vu.vignettes_recreees);
         self.tuiles_peintes += u64::from(vu.tuiles_peintes);
         self.tuiles_reprises += u64::from(vu.tuiles_reprises);
+        if vu.tempo_balayages > 0 {
+            self.tempo[(vu.tempo_balayages as usize).min(8)] += 1;
+            self.attentes_du_tempo.ajouter(vu.tempo_attente_us);
+        }
         self.reductions += u64::from(vu.reduction.max(1));
         if vu.reduction > 1 {
             self.reduites += 1;

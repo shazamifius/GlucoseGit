@@ -110,6 +110,13 @@ pub struct Instantane {
     /// vitesse, est la distance entre là où le contenu apparaît et là où il devrait être.
     /// C'est la seule grandeur de cette structure qui dise ce que l'œil voit.
     pub saut_px: u16,
+    /// Combien de balayages le tempo visait pour cette image (TEMPO-1). Zéro hors mouvement.
+    ///
+    /// À comparer au nombre de balayages **observé** : si les deux divergent, le tempo vise
+    /// juste mais la machine ne suit pas — ou l'inverse.
+    pub tempo_balayages: u16,
+    /// Ce que l'image a attendu avant de partir, en microsecondes, pour tenir ce tempo.
+    pub tempo_attente_us: u32,
     /// Le rapport `temps intégré / temps montré`, en millièmes. Mille vaut « exact ».
     ///
     /// Au-dessous, le contenu a moins avancé que sa durée d'affichage ne le demandait : il

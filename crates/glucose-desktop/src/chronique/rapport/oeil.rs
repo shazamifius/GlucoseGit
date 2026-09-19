@@ -155,6 +155,39 @@ impl Chronique {
                 super::barre(part)
             ));
         }
+        self.ecrire_le_tempo(t);
+    }
+
+    /// Ce que le tempo VISAIT, en face de ce que l'écran a montré.
+    ///
+    /// Les deux doivent se ressembler. Sinon, le tempo vise juste et la machine ne suit pas —
+    /// ou l'inverse — et c'est cet écart qu'il faut aller regarder.
+    fn ecrire_le_tempo(&self, t: &mut String) {
+        let (vises, attente_med, attente_pire) = self.tempo();
+        if vises.is_empty() {
+            return;
+        }
+        let en_mouvement: u64 = vises.iter().map(|(_, n)| n).sum();
+        let parts: Vec<String> = vises
+            .iter()
+            .take(3)
+            .map(|(k, n)| {
+                format!(
+                    "{k} balayage(s) {:.0} %",
+                    100.0 * *n as f64 / en_mouvement.max(1) as f64
+                )
+            })
+            .collect();
+        t.push_str(&format!(
+            "  le tempo, sur {en_mouvement} images en mouvement : {}\n",
+            parts.join(", ")
+        ));
+        t.push_str(&format!(
+            "    attente avant de soumettre : median {:.2}ms, pire {:.2}ms -- du temps libre, \
+             pas du temps perdu\n",
+            f64::from(attente_med) / 1000.0,
+            f64::from(attente_pire) / 1000.0
+        ));
     }
 }
 

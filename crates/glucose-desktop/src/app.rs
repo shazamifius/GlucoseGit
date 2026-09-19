@@ -77,6 +77,9 @@ pub struct GlucoseApp {
     pas_et_vitesse: (std::time::Duration, f64),
     /// Ce que la derniere presentation a montre, tel que l'instantane le portera.
     rythme_de_l_image: crate::chronique::rythme::Mesure,
+    /// Le tempo de soumission : combien de balayages par image, et quand soumettre pour que ce
+    /// soit exactement cela (voir [`crate::tempo`]).
+    pub tempo: crate::tempo::Tempo,
     /// La derniere image a-t-elle demande la suivante ?
     ///
     /// Vrai quand une raison de reveil etait active -- animation, elan, vol, decodage. Faux
@@ -241,6 +244,7 @@ impl GlucoseApp {
             pas_et_vitesse: (std::time::Duration::ZERO, 0.0),
             rythme_de_l_image: crate::chronique::rythme::Mesure::default(),
             image_attendue: false,
+            tempo: crate::tempo::Tempo::nouveau(),
             minimap_tenue: false,
             horloge: crate::horloge::Horloge::nouvelle(),
             resolution: crate::resolution::Resolution::nette(),
@@ -331,7 +335,12 @@ impl GlucoseApp {
             let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
             self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 
+            // TEMPO-1 : l'image ne part pas quand elle est prete, elle part quand c'est
+            // l'heure -- un nombre entier et CONSTANT de balayages apres la precedente. Ce
+            // qui reste d'ici la sert au travail de fond.
+            self.attendre_l_heure_de_soumettre(frame_started);
             self.presenter_et_noter_le_rythme(frame_started);
+            self.tempo.soumise(std::time::Instant::now());
             self.clore_l_image(frame_started, (width, height));
         }
     }
@@ -347,19 +356,21 @@ impl GlucoseApp {
             crate::perf::compteur("nav_latence_us", l.as_micros() as f64);
         }
 
-        // CASCADE-1 : ce que la periode de l'ecran laisse encore sert au travail de fond.
-        // `tranche_de_fond` et non `temps_libre` : le second rend « rien » des que la periode
-        // est depassee, ce qui enfermait la machine dans son regime degrade -- images cheres
-        // faute de vignettes, vignettes jamais construites faute de temps.
-        let faites = self
-            .renderer
-            .magasin
-            .avancer_les_vignettes(self.cadence.tranche_de_fond(debut.elapsed()));
-        crate::perf::compteur(
-            "vign_atelier",
-            f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
-        );
-        crate::perf::stage("atelier");
+        // CASCADE-1 : le travail de fond a deja pris l'attente du tempo. Il ne prend ici que
+        // ce que le plancher de la charte laisse encore quand l'image etait en retard -- sans
+        // quoi la machine reste enfermee dans son regime degrade : images cheres faute de
+        // vignettes, vignettes jamais construites faute de temps.
+        if crate::perf::valeur_du_compteur("tempo_attente_us").unwrap_or(0.0) <= 0.0 {
+            let faites = self
+                .renderer
+                .magasin
+                .avancer_les_vignettes(self.cadence.tranche_de_fond(debut.elapsed()));
+            crate::perf::compteur(
+                "vign_atelier",
+                f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
+            );
+            crate::perf::stage("atelier");
+        }
         crate::perf::compteur(
             "vign_attente",
             self.renderer.magasin.vignettes.en_chantier() as f64,
@@ -572,6 +583,8 @@ impl ApplicationHandler for GlucoseApp {
             }
             None => {
                 self.image_attendue = false;
+                // Un repos n'a pas de tempo : la grille repart de la prochaine soumission.
+                self.tempo.oublier();
                 event_loop.set_control_flow(ControlFlow::Wait);
             }
         }

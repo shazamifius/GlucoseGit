@@ -118,6 +118,8 @@ impl GlucoseApp {
         // RYTHME-1 : ce que l'ecran a MONTRE. Ces trois-la ne viennent pas des compteurs mais
         // de la mesure prise a la presentation elle-meme : un compteur f64 perdrait le type,
         // et c'est precisement le genre de perte qui a fait lire des zeros pour des mesures.
+        vu.tempo_balayages = lire("tempo_balayages").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.tempo_attente_us = lire("tempo_attente_us").clamp(0.0, f64::from(u32::MAX)) as u32;
         vu.intervalle_us = self.rythme_de_l_image.intervalle_us;
         vu.saut_px = self.rythme_de_l_image.saut_px;
         vu.fidelite_millieme = self.rythme_de_l_image.fidelite_millieme;

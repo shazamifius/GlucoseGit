@@ -48,7 +48,7 @@ pub const BUDGET_TOTAL: Duration = Duration::from_millis(10);
 /// La présentation, le système et l'ordonnanceur lui-même ont besoin d'un peu d'air. Sans
 /// elle, une tranche estimée au plus juste ferait rater l'image — et rater une image se voit,
 /// là où retarder une tranche ne se voit pas.
-const MARGE: Duration = Duration::from_micros(300);
+pub const MARGE: Duration = Duration::from_micros(300);
 
 /// La cadence d'un écran, et ce qu'elle autorise.
 #[derive(Debug, Clone, Copy, PartialEq)]

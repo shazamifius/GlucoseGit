@@ -248,9 +248,17 @@ impl Rythme {
         let attente = debut_du_rendu.saturating_duration_since(avant);
         self.attentes.ajouter(micros(attente).unwrap_or(u32::MAX));
         self.noter_le_pire(maintenant, image.intervalle, attente);
-        self.noter_les_periodes(image.intervalle);
         self.intervalles
             .ajouter(micros(image.intervalle).unwrap_or(u32::MAX));
+        // **Les balayages ne se comparent que quand la vue bouge.** Le judder est la
+        // definition d'un MOUVEMENT irregulier ; un toast qui s'estompe a un rythme
+        // quelconque n'en est pas un, et le compter faisait lire « 45 % d'images
+        // irregulieres » sur une session ou rien ne bougeait.
+        if vitesse_px_s > 0.0 {
+            self.noter_les_periodes(image.intervalle);
+        } else {
+            self.periodes_precedentes = None;
+        }
         // **Les images immobiles sont écartées de la fidélité, et il le faut.** Une vue qui ne
         // bouge pas a un pas de temps sans signification pour l'œil : la compter ferait
         // paraître régulier un rythme qui ne montre rien.
