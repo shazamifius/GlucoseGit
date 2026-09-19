@@ -1,5 +1,6 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
+mod accueil;
 mod fenetre;
 mod mouvement;
 mod peinture;
@@ -54,6 +55,19 @@ pub struct GlucoseApp {
     /// L'elan de la camera : ce que la main a demande et que l'image n'a pas encore montre,
     /// plus la vitesse qui lui survit quand la main lache (voir [`crate::interactions::elan`]).
     pub elan: crate::interactions::elan::Elan,
+    /// Le vol de camera en cours : une destination decidee, rejointe en douceur plutot que
+    /// par teleportation (voir [`crate::interactions::vol`]).
+    pub vol: crate::interactions::vol::Vol,
+    /// Le bouton gauche tient-il la minimap ?
+    ///
+    /// Tant qu'il tient, la destination du vol **suit le curseur** : c'est le voyage continu
+    /// que Glucose Tauri permet, par opposition au saut par clic.
+    pub minimap_tenue: bool,
+    /// L'instant de la derniere image jouee, pour connaitre la duree de celle-ci.
+    ///
+    /// L'elan tient la sienne parce qu'il borne differemment les images tres longues ; le
+    /// vol, lui, lit ce champ. Deux horloges pour deux besoins, et aucune qui devine.
+    derniere_image: Option<std::time::Instant>,
     /// De combien la scene est rendue plus petite que la fenetre pendant un geste, et le
     /// tampon ou elle se rend alors (voir [`crate::resolution`]).
     pub resolution: crate::resolution::Resolution,
@@ -183,26 +197,8 @@ impl Default for GlucoseApp {
 
 impl GlucoseApp {
     pub fn new() -> Self {
-        let mut store = Store::new("Glucose Native");
-        let active_bid = store.project.active_board_id.clone();
         let renderer = Renderer::new();
-
-        // La carte d'accueil naît par la même fabrique qu'une carte posée d'un clic : même
-        // largeur de naissance, même hauteur suivie (TEXT-FIT-1).
-        let welcome = text_card(
-            &renderer.typography,
-            &renderer.math,
-            "welcome-card",
-            0.0,
-            0.0,
-            WELCOME_TEXT,
-        );
-        store.add_annotation(&active_bid, welcome);
-        // La carte d'accueil n'est pas une modification de l'utilisateur : le document part
-        // propre, sans marqueur dans le titre — et sans rien à défaire. Tant que seul le
-        // marqueur était traité, Ctrl+Z était actif dès le lancement et retirait une carte
-        // que personne n'avait posée.
-        store.journal.clear();
+        let store = accueil::document_d_accueil(&renderer);
         let saved_version = store.version;
 
         Self {
@@ -210,6 +206,9 @@ impl GlucoseApp {
             renderer,
             animator: crate::animation::Animator::new(),
             elan: crate::interactions::elan::Elan::default(),
+            vol: crate::interactions::vol::Vol::default(),
+            minimap_tenue: false,
+            derniere_image: None,
             resolution: crate::resolution::Resolution::nette(),
             tampon_reduit: None,
             pixmap: None,

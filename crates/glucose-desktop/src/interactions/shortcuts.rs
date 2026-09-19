@@ -23,7 +23,6 @@ use glucose_core::types::ArrowPredicate;
 /// est la dizaine.
 const NUDGE_DECADE: f64 = 10.0;
 use glucose_core::store::StackMove;
-use glucose_core::types::Viewport;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::WindowLevel;
@@ -341,11 +340,27 @@ impl GlucoseApp {
     }
 
     /// Recentre la caméra PureRef sur l'origine, à l'échelle 1.
+    /// `F` — montrer tout ce qu'il y a, plutôt que revenir à un point d'origine.
+    ///
+    /// Elle posait [`Viewport::default`], c'est-à-dire l'origine du monde à l'échelle un.
+    /// L'utilisateur l'a dit sans détour : « ça ne ramène qu'au point 0 de la map, alors
+    /// qu'il NE DEVRAIT PAS Y AVOIR DE POINT 0, c'est un canva infini ». Il a raison, et
+    /// c'était une faute de conception, pas un réglage : dans un espace sans bord, l'origine
+    /// n'est le centre de rien et ne garantit pas qu'il reste quelque chose à y voir.
+    ///
+    /// Ce que la touche doit répondre est « où sont mes affaires » — donc le cadrage du
+    /// contenu, atteint par un vol pour qu'on voie d'où l'on vient.
     fn reset_view(&mut self) {
-        let board = self.store.project.active_board_id.clone();
-        self.store.set_viewport(&board, Viewport::default());
-        self.ui.show_toast("Vue recentrée");
-        self.mark_dirty();
+        let Some(fenetre) = &self.window else {
+            return;
+        };
+        let taille = fenetre.inner_size();
+        let ecran = glucose_core::membrane_focus::ScreenSize {
+            width: f64::from(taille.width),
+            height: f64::from(taille.height),
+        };
+        let bandeau = f64::from(self.ui.header_height());
+        self.cadrer_sur_le_contenu(ecran, bandeau);
     }
 
     fn toggle_always_on_top(&mut self) {

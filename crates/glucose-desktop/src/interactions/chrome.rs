@@ -13,7 +13,6 @@ use crate::ui::context_menu::MenuAction;
 use crate::ui::{handle_ui_click, UiAction};
 use glucose_core::membrane_focus::ScreenSize;
 use glucose_core::store::StackMove;
-use glucose_core::types::Viewport;
 
 impl GlucoseApp {
     /// Le fil d'Ariane occupe une bande sous les onglets, donc il passe avant la chrome.
@@ -167,7 +166,10 @@ impl GlucoseApp {
             UiAction::ExportMenu => self.export_board(),
             UiAction::SelectBoard(id) => self.store.set_active_board_id(&id),
             UiAction::AddBoard => self.add_board(),
-            UiAction::MinimapPan(wx, wy) => self.center_view_on(wx, wy, screen),
+            UiAction::MinimapPan(wx, wy) => {
+                self.minimap_tenue = true;
+                self.center_view_on(wx, wy, screen);
+            }
         }
     }
 
@@ -179,19 +181,21 @@ impl GlucoseApp {
     }
 
     /// Recentre la caméra sur un point du monde, à l'échelle courante.
+    /// Vise ce point du monde — par un **vol**, jamais par une téléportation.
+    ///
+    /// L'utilisateur : « la minimap est horrible car il faut cliquer et ça nous TP instant
+    /// là où on a cliqué, or sur Glucose tu peux maintenir directement la minimap et tu
+    /// voyages comme ça, en plus d'avoir un smooth qui ne nous TP pas instant. »
+    ///
+    /// Les deux moitiés de la réparation sont ailleurs et ne se voient pas ici : le vol est
+    /// dans [`crate::interactions::vol`], le suivi du curseur dans `handle_cursor_moved`.
+    /// Cette fonction ne fait plus que traduire un point en destination.
     fn center_view_on(&mut self, wx: f64, wy: f64, screen: ScreenFrame) {
-        let Some(board) = self.store.active_board() else {
-            return;
+        let ecran = glucose_core::membrane_focus::ScreenSize {
+            width: f64::from(screen.width),
+            height: f64::from(screen.height),
         };
-        let (id, scale) = (board.id.clone(), board.viewport.scale);
-        self.store.set_viewport(
-            &id,
-            Viewport {
-                x: f64::from(screen.width) / 2.0 - wx * scale,
-                y: f64::from(screen.height) / 2.0 - wy * scale,
-                scale,
-            },
-        );
+        self.viser_par_la_minimap((wx, wy), ecran, f64::from(screen.header_h));
     }
 }
 

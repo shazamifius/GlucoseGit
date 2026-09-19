@@ -31,6 +31,7 @@ impl GlucoseApp {
             self.attente_du_toast(),
             self.attente_de_l_animation(),
             self.attente_de_l_elan(),
+            self.attente_du_vol(),
             self.attente_du_decodage(),
             self.attente_du_chantier(),
             self.attente_du_pomodoro(),
@@ -90,6 +91,18 @@ impl GlucoseApp {
     /// qu'un écran peut montrer. Rien n'a été choisi pour l'arrêter.
     fn attente_de_l_elan(&mut self) -> Option<u64> {
         if !self.elan.en_cours() {
+            return None;
+        }
+        self.mark_dirty();
+        Some(self.animation_interval_ms())
+    }
+
+    /// Un vol de caméra est en route vers une destination.
+    ///
+    /// Même raison que l'élan, et même forme : rien ne se passe à l'écran tant que personne
+    /// ne demande l'image qui montrerait le pas suivant.
+    fn attente_du_vol(&mut self) -> Option<u64> {
+        if !self.vol.en_cours() {
             return None;
         }
         self.mark_dirty();

@@ -171,6 +171,8 @@ impl GlucoseApp {
         // la decision elle-meme reste une fonction pure.
         let pincement = super::pincement::zoom_du_systeme();
         let ctrl = self.modifiers.control_key();
+        // Un vol est une intention passee : le geste present la remplace, sans discuter.
+        self.vol.poser();
         // NAV-3 : ce que le doigt a demande entre dans la trace, avec l'instant ou il l'a
         // demande. C'est de la qu'on saura si l'ecran suit la main.
         self.chronique
@@ -211,6 +213,7 @@ impl GlucoseApp {
     pub fn handle_pan_move(&mut self, dx: f64, dy: f64) {
         // Protection contre les sauts anormaux du curseur OS
         if dx.hypot(dy) < 300.0 {
+            self.vol.poser();
             // Par l'elan, comme la molette : deux mouvements de curseur arrives entre deux
             // images se rejoignent, et lacher le bouton en plein geste laisse la vue filer
             // au lieu de s'arreter net.

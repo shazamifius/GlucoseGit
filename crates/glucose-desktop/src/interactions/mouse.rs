@@ -53,6 +53,13 @@ impl GlucoseApp {
         let dx = position.x - prev_pos.0;
         let dy = position.y - prev_pos.1;
 
+        // La minimap tenue passe avant tout le reste : tant qu'elle l'est, le curseur ne
+        // designe rien d'autre qu'une destination.
+        if self.minimap_tenue {
+            self.suivre_la_minimap(position);
+            return;
+        }
+
         if self.dock_manager.drag.is_some() {
             self.dock_manager
                 .update_drag(position.x as f32, position.y as f32);
@@ -88,6 +95,33 @@ impl GlucoseApp {
         }
 
         self.update_cursor();
+    }
+
+    /// Le curseur tient la minimap : la destination du vol le suit.
+    fn suivre_la_minimap(&mut self, position: PhysicalPosition<f64>) {
+        let Some(fenetre) = &self.window else {
+            return;
+        };
+        let taille = fenetre.inner_size();
+        let (w, h) = (taille.width as f32, taille.height as f32);
+        let echelle = crate::theme::clamp_ui_scale(self.ui.scale());
+        let Some(monde) = crate::ui::point_minimap(
+            &self.store,
+            position.x as f32,
+            position.y as f32,
+            w,
+            h,
+            echelle,
+        ) else {
+            // Sorti de la minimap en glissant : la derniere destination reste la bonne, et
+            // le vol l'atteint. Relacher le bouton est ce qui termine le geste, pas le bord.
+            return;
+        };
+        let ecran = glucose_core::membrane_focus::ScreenSize {
+            width: f64::from(w),
+            height: f64::from(h),
+        };
+        self.viser_par_la_minimap(monde, ecran, f64::from(self.ui.header_height()));
     }
 
     /// Enfoncement d'un bouton de la souris.
@@ -141,6 +175,7 @@ impl GlucoseApp {
                 }
             }
             MouseButton::Left => {
+                self.minimap_tenue = false;
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
                     self.ui
                         .show_toast(format!("Panneau {} fermé", dismissed.title()));

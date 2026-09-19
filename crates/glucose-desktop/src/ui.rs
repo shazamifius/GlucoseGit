@@ -1611,23 +1611,35 @@ pub fn handle_ui_click(
                 }
             }
         }
-    } else {
-        // Clic sur la Minimap via layout_minimap unifié (bornes réelles)
-        if let Some(mb) = layout_minimap(store, screen_w, screen_h, s) {
-            let pad = 6.0 * s;
-            if x >= mb.mm_x && x <= mb.mm_x + mb.mm_w && y >= mb.mm_y && y <= mb.mm_y + mb.mm_h {
-                let rel_x =
-                    ((x - mb.mm_x - pad) / (mb.mm_w - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
-                let rel_y =
-                    ((y - mb.mm_y - pad) / (mb.mm_h - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
-                let target_wx = mb.min_x + rel_x * mb.span_x;
-                let target_wy = mb.min_y + rel_y * mb.span_y;
-                return Some(UiAction::MinimapPan(target_wx, target_wy));
-            }
-        }
+    } else if let Some((wx, wy)) = point_minimap(store, x, y, screen_w, screen_h, s) {
+        return Some(UiAction::MinimapPan(wx, wy));
     }
 
     None
+}
+
+/// Le point du monde que la minimap désigne sous `(x, y)`, ou rien si le curseur est ailleurs.
+///
+/// Extraite du traitement du clic parce qu'elle sert **deux fois** : à l'appui, et à chaque
+/// mouvement tant que le bouton tient. Sans cela, suivre le curseur sur la minimap aurait
+/// demandé de recopier la conversion — donc deux formules à tenir d'accord, et une minimap
+/// qui viserait à côté le jour où l'une des deux bougerait.
+pub fn point_minimap(
+    store: &Store,
+    x: f32,
+    y: f32,
+    screen_w: f32,
+    screen_h: f32,
+    s: f32,
+) -> Option<(f64, f64)> {
+    let mb = layout_minimap(store, screen_w, screen_h, s)?;
+    let pad = 6.0 * s;
+    if x < mb.mm_x || x > mb.mm_x + mb.mm_w || y < mb.mm_y || y > mb.mm_y + mb.mm_h {
+        return None;
+    }
+    let rel_x = ((x - mb.mm_x - pad) / (mb.mm_w - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
+    let rel_y = ((y - mb.mm_y - pad) / (mb.mm_h - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
+    Some((mb.min_x + rel_x * mb.span_x, mb.min_y + rel_y * mb.span_y))
 }
 
 #[cfg(test)]
