@@ -91,7 +91,14 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
     // Le pointeur est posé hors de la fenêtre : aucun survol, donc aucun état de l'interface
     // qui dépendrait de la position de la souris. Une capture doit être la même partout.
     let pointer = Pointer { x: -1.0, y: -1.0 };
-    renderer.render(&mut pixmap.as_mut(), store, ui, overlay, pointer, false);
+    renderer.render(
+        &mut pixmap.as_mut(),
+        store,
+        ui,
+        overlay,
+        pointer,
+        crate::renderer::Regard::immobile(),
+    );
 
     // C'est le rendu lui-même qui DEMANDE les images, sans jamais les attendre (DECODE-1) :
     // la première passe ne peut donc que dessiner des cadres. Un banc et un témoin doivent
@@ -106,7 +113,14 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
             selection_box: None,
             editing: None,
         };
-        renderer.render(&mut pixmap.as_mut(), store, ui, overlay, pointer, false);
+        renderer.render(
+            &mut pixmap.as_mut(),
+            store,
+            ui,
+            overlay,
+            pointer,
+            crate::renderer::Regard::immobile(),
+        );
     }
 }
 

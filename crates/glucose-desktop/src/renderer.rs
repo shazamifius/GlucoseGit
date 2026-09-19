@@ -24,6 +24,7 @@ pub mod cadrage;
 pub mod card;
 pub mod domain;
 pub mod folder;
+pub mod grille;
 pub mod halo;
 pub mod handles;
 pub mod hue;
@@ -148,6 +149,11 @@ pub struct Renderer {
     /// et il servira à toutes les passes le jour où elles sauront dire ce qu'elles vont
     /// écrire. Aujourd'hui il ne connaît que les pixels de photos, qui sont le gros poste.
     pub cout: glucose_core::cout::Cout,
+    /// Les tuiles deja peintes, memoisees par empreinte (TUILE-1, voir [`grille`]).
+    ///
+    /// C'est ce qui remplace le cache de vignettes pour tout ce qui bouge : ancre au monde et
+    /// non a l'ecran, un deplacement de la vue ne l'invalide pas.
+    pub tuiles: tuiles::Tuiles,
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
     pub active_board_id: String,
@@ -161,7 +167,7 @@ impl Default for Renderer {
     }
 }
 
-pub use cadrage::{Cadrage, SceneReduite};
+pub use cadrage::{Cadrage, Regard, SceneReduite};
 
 impl Renderer {
     pub fn new() -> Self {
@@ -173,6 +179,7 @@ impl Renderer {
             hue_cache: SymbioticHueCache::new(),
             domain_tints: DomainTints::new(),
             cout: glucose_core::cout::Cout::nouveau(),
+            tuiles: tuiles::Tuiles::nouveau(),
             spatial_hash: SpatialHash::new(1000.0),
             spatial_version: 0,
             active_board_id: String::new(),
@@ -240,19 +247,12 @@ impl Renderer {
         ui: &mut UiState,
         overlay: SceneOverlay<'_>,
         pointer: Pointer,
-        degradation_permise: bool,
+        regard: Regard,
     ) {
         self.magasin.ouvrir();
         self.synchroniser_les_caches(store);
         let debut = std::time::Instant::now();
-        self.rendre_la_scene(
-            pixmap,
-            store,
-            ui,
-            overlay,
-            ui.header_height(),
-            degradation_permise,
-        );
+        self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height(), regard);
         noter_le_cout_de_la_scene(debut);
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
@@ -336,9 +336,9 @@ impl Renderer {
         ui: &UiState,
         overlay: SceneOverlay<'_>,
         header_h: f32,
-        degradation_permise: bool,
+        regard: Regard,
     ) {
-        let cadrage = Cadrage::plein().avec_degradation(degradation_permise);
+        let cadrage = Cadrage::plein().sous_le_regard(regard);
         self.rendre_la_region(pixmap, store, ui, overlay, header_h, cadrage);
     }
 
@@ -444,16 +444,17 @@ impl Renderer {
         folder::draw_folders(kit, pixmap, store, pass);
         crate::perf::stage("folders");
 
-        // 5. Images — le magasin pour les poser, le modele de cout pour apprendre leur prix.
-        scene::draw_images(
-            &mut self.magasin,
-            &mut self.cout,
+        // 5. Images -- par la grille de tuiles quand la vue le permet, en direct sinon. Le
+        // moteur se prete en pieces : le compilateur autorise des emprunts disjoints sur des
+        // champs distincts, jamais a travers `&mut self`.
+        let mut atelier = grille::Atelier {
+            magasin: &mut self.magasin,
+            cout: &mut self.cout,
+            tuiles: &mut self.tuiles,
+            index: &self.spatial_hash,
             kit,
-            pixmap,
-            store,
-            pass,
-            cadrage.degradation_permise,
-        );
+        };
+        grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage);
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
@@ -569,7 +570,14 @@ mod tests {
             editing: None,
         };
         let origin = Pointer { x: 0.0, y: 0.0 };
-        renderer.render(&mut view, store, ui, overlay, origin, false);
+        renderer.render(
+            &mut view,
+            store,
+            ui,
+            overlay,
+            origin,
+            crate::renderer::Regard::immobile(),
+        );
         crate::dock::render_docks(
             &mut view,
             dock,

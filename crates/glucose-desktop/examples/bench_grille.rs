@@ -71,6 +71,10 @@ fn document() -> Store {
             },
         );
     }
+    // `add_image` selectionne ce qu'elle ajoute. Un cadre de selection n'appartient pas au
+    // document : il se dessine par-dessus les tuiles, apres toutes les images, et non plus
+    // entrelace avec elles. Le comparer a un rendu direct mesurerait cet ordre, pas la grille.
+    store.clear_selection();
     store
 }
 
@@ -109,7 +113,7 @@ fn ecran_direct(store: &Store, vue: Viewport) -> Pixmap {
         &ui,
         sans_reperes(),
         0.0,
-        false,
+        glucose_desktop::renderer::Regard::immobile(),
     );
     pixmap
 }
@@ -184,7 +188,7 @@ fn ecran_par_tuiles(store: &Store, vue: Viewport, debord: u32) -> (Pixmap, usize
 /// **couture** — elle se verrait partout, en permanence, et interdirait l'architecture. Un
 /// écart au bord de l'écran est un effet de pixmap tronqué, celui que `bench_zone` mesure
 /// déjà et que le projet accepte.
-fn comparer(a: &Pixmap, b: &Pixmap, vue: Viewport, niveau: i32) -> (usize, usize, usize) {
+fn comparer(a: &Pixmap, b: &Pixmap, vue: Viewport, niveau: i32) -> (usize, usize, usize, u8) {
     let (aa, _) = a.data().as_chunks::<4>();
     let (bb, _) = b.data().as_chunks::<4>();
     let largeur = a.width() as usize;
@@ -192,11 +196,23 @@ fn comparer(a: &Pixmap, b: &Pixmap, vue: Viewport, niveau: i32) -> (usize, usize
     let mut total = 0usize;
     let mut aux_frontieres = 0usize;
     let mut aux_bords = 0usize;
+    // **L'amplitude, et pas seulement le compte.** Un pixel qui differe de un est un arrondi
+    // a huit bits -- composer sur du transparent puis sur le fond n'arrondit pas exactement
+    // comme composer sur le fond en une fois. Un pixel qui differe de cent est une couture.
+    // Les compter ensemble a fait croire a un ecart la ou il n'y avait que de l'arrondi.
+    let mut pire_ecart: u8 = 0;
     for (i, (x, y)) in aa.iter().zip(bb).enumerate() {
         if x == y {
             continue;
         }
         total += 1;
+        let ecart = x
+            .iter()
+            .zip(y)
+            .map(|(p, q)| p.abs_diff(*q))
+            .max()
+            .unwrap_or(0);
+        pire_ecart = pire_ecart.max(ecart);
         let (px, py) = ((i % largeur) as f64, (i / largeur) as f64);
         let bord = px < 2.0
             || py < 2.0
@@ -213,7 +229,7 @@ fn comparer(a: &Pixmap, b: &Pixmap, vue: Viewport, niveau: i32) -> (usize, usize
             aux_frontieres += 1;
         }
     }
-    (total, aux_frontieres, aux_bords)
+    (total, aux_frontieres, aux_bords, pire_ecart)
 }
 
 fn main() {
@@ -231,20 +247,21 @@ fn main() {
 
     let niveau = Adresse::niveau_pour(vue.scale);
     println!(
-        "  {:<10} {:>8} {:>11} {:>9} {:>12} {:>10}",
-        "debord", "tuiles", "differents", "part", "aux coutures", "aux bords"
+        "  {:<10} {:>8} {:>11} {:>9} {:>12} {:>10} {:>12}",
+        "debord", "tuiles", "differents", "part", "aux coutures", "aux bords", "pire ecart"
     );
     for debord in DEBORDS {
         let (compose, posees) = ecran_par_tuiles(&store, vue, debord);
-        let (differents, coutures, bords) = comparer(&direct, &compose, vue, niveau);
+        let (differents, coutures, bords, pire) = comparer(&direct, &compose, vue, niveau);
         println!(
-            "  {:<10} {:>8} {:>11} {:>8.3}% {:>12} {:>10}",
+            "  {:<10} {:>8} {:>11} {:>8.3}% {:>12} {:>10} {:>8}/255",
             format!("{debord} px"),
             posees,
             differents,
             100.0 * differents as f64 / total,
             coutures,
-            bords
+            bords,
+            pire
         );
     }
 
@@ -252,6 +269,13 @@ fn main() {
     println!("  Une couture se verrait PARTOUT et en permanence : c'est elle qui interdirait");
     println!("  l'architecture. Un ecart au bord de l'ecran est l'effet de pixmap tronque que");
     println!("  `bench_zone` mesure deja, et que le projet accepte.");
+    println!();
+    println!("  Le pire ecart dit ce que sont les pixels differents. A quatre sur 255, c'est");
+    println!("  l'arrondi a huit bits de deux compositions -- sur du transparent puis sur le");
+    println!("  fond, au lieu du fond en une fois -- et l'oeil ne le distingue pas. Une couture");
+    println!("  se lirait a cent ou plus. Ce banc a annonce « zero ecart » tant qu'il ne");
+    println!("  comptait que les pixels : il comptait alors mal les photos a cheval sur deux");
+    println!("  tuiles, dont il prenait le centre pour le coin.");
     println!();
 
     // ── Ce que la grille fait gagner ────────────────────────────────────────
@@ -283,7 +307,7 @@ fn main() {
                 &ui_direct,
                 sans_reperes(),
                 0.0,
-                false,
+                glucose_desktop::renderer::Regard::immobile(),
             );
             if i >= 2 {
                 temps.push(t.elapsed().as_secs_f64() * 1000.0);
@@ -309,7 +333,7 @@ fn main() {
                 let peinte = rendre_une_tuile(&mut renderer, &store, &ui, adresse, 0);
                 cache.ranger(empreinte, peinte);
             }
-            let Some(pixels) = cache.deja_peinte(empreinte) else {
+            let Some((pixels, _)) = cache.deja_peinte(empreinte) else {
                 continue;
             };
             let couverte = adresse.couvre();

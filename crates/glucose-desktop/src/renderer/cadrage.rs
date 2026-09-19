@@ -14,6 +14,40 @@ pub struct SceneReduite<'a> {
     pub facteur: u32,
 }
 
+/// Ce que l'oeil et la main font en ce moment -- ce que le rendu a le droit d'abimer, et ce
+/// qu'il a interet a ne pas repeindre.
+///
+/// # Deux questions, et il faut les deux
+///
+/// `degradation_permise` vient de la perception : l'oeil tolere-t-il qu'on reduise la finesse
+/// a la vitesse ou la vue bouge ? Elle tombe a faux des que la vitesse passe sous celle de la
+/// poursuite oculaire -- environ mille pixels par seconde -- donc sur toute la fin d'un
+/// freinage.
+///
+/// `en_mouvement` vient de l'elan et du vol : la vue bouge-t-elle encore, si peu que ce soit ?
+/// C'est cette question-la qui decide si la grille de tuiles doit servir. Pendant un
+/// freinage, l'oeil ne tolere plus qu'on abime -- mais repasser au rendu direct a trente
+/// millisecondes ferait sauter le contenu de soixante pixels, ce qui se voit infiniment plus
+/// qu'un agrandissement d'un facteur un virgule trois. La finesse revient a l'ARRET, d'un
+/// coup, quand plus rien ne bouge.
+///
+/// **C'est un choix de ressenti, et il se juge a l'ecran**, pas sur le papier : la charte le
+/// dit de la nettete en mouvement. Il est ecrit ici pour qu'on sache ou il se defait.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Regard {
+    /// L'oeil tolere-t-il qu'on abime l'image ? (voir [`crate::perception`])
+    pub degradation_permise: bool,
+    /// La vue bouge-t-elle encore ?
+    pub en_mouvement: bool,
+}
+
+impl Regard {
+    /// A l'arret : rien n'est degradable, rien ne bouge.
+    pub fn immobile() -> Self {
+        Self::default()
+    }
+}
+
 /// Ou et a quelle finesse la scene se rend dans le pixmap qu'on lui donne.
 ///
 /// Les deux vont ensemble parce qu'ils disent la meme chose -- comment passer du repere de la
@@ -41,6 +75,8 @@ pub struct Cadrage {
     /// d'un amortissement. Le budget dit ce dont on a **besoin**, ceci dit ce qui est
     /// **licite**, et degrader demande les deux.
     pub degradation_permise: bool,
+    /// La vue bouge-t-elle encore ? (voir [`Regard::en_mouvement`])
+    pub en_mouvement: bool,
 }
 
 impl Cadrage {
@@ -51,6 +87,7 @@ impl Cadrage {
             reduction: 1.0,
             vue: None,
             degradation_permise: false,
+            en_mouvement: false,
         }
     }
 
@@ -63,6 +100,7 @@ impl Cadrage {
             // Une scene deja rendue plus petite l'est parce que l'oeil le tolerait : c'est le
             // plafond de la perception qui a decide du facteur (`resolution::observer`).
             degradation_permise: true,
+            en_mouvement: true,
         }
     }
 
@@ -73,6 +111,7 @@ impl Cadrage {
             reduction: 1.0,
             vue: None,
             degradation_permise: false,
+            en_mouvement: false,
         }
     }
 
@@ -92,6 +131,7 @@ impl Cadrage {
                 y: -origine_monde.1 * echelle,
             }),
             degradation_permise: false,
+            en_mouvement: false,
         }
     }
 
@@ -99,6 +139,15 @@ impl Cadrage {
     pub fn avec_degradation(self, permise: bool) -> Self {
         Self {
             degradation_permise: permise,
+            ..self
+        }
+    }
+
+    /// Le meme cadrage, sous ce que l'oeil et la main font en ce moment.
+    pub fn sous_le_regard(self, regard: Regard) -> Self {
+        Self {
+            degradation_permise: regard.degradation_permise,
+            en_mouvement: regard.en_mouvement,
             ..self
         }
     }

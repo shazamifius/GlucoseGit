@@ -159,6 +159,9 @@ pub struct Chronique {
     /// Les recréations de nœuds cumulées : si elles suivent le nombre de photos, la table est
     /// vidée entre deux images et rien de ce que l'atelier construit ne peut survivre.
     noeuds_recrees: u64,
+    /// Les tuiles peintes et reprises, cumulées : le rapport des deux dit si la grille sert.
+    tuiles_peintes: u64,
+    tuiles_reprises: u64,
     /// Les images où le modèle savait prévoir : combien, ce qu'il avait prévu, ce qu'elles ont
     /// vraiment coûté, et combien se sont pixelisées.
     ///
@@ -254,6 +257,25 @@ impl Chronique {
         (self.rendues > 0).then(|| self.pixelisees as f64 / self.rendues as f64)
     }
 
+    /// La part des tuiles qui ont servi telles quelles, entre 0 et 1 — le travail épargné.
+    ///
+    /// `None` si la grille n'a jamais servi : une vue toujours entre deux niveaux et à
+    /// l'arrêt, par exemple.
+    pub fn part_de_tuiles_reprises(&self) -> Option<f64> {
+        let total = self.tuiles_peintes + self.tuiles_reprises;
+        (total > 0).then(|| self.tuiles_reprises as f64 / total as f64)
+    }
+
+    /// Combien de tuiles ont été peintes en tout — le travail fait.
+    pub fn tuiles_peintes(&self) -> u64 {
+        self.tuiles_peintes
+    }
+
+    /// Combien de tuiles ont servi telles quelles — le travail épargné.
+    pub fn tuiles_reprises(&self) -> u64 {
+        self.tuiles_reprises
+    }
+
     /// La part des poses qui ont dû **recréer** l'entrée du nœud, entre 0 et 1.
     ///
     /// Proche de 1, elle dit que la table est vidée entre deux images : une entrée recréée
@@ -274,6 +296,8 @@ impl Chronique {
             photos_posees: 0,
             photos_par_vignette: 0,
             noeuds_recrees: 0,
+            tuiles_peintes: 0,
+            tuiles_reprises: 0,
             prevues: 0,
             prevu_us: 0,
             mesure_us: 0,
@@ -319,6 +343,8 @@ impl Chronique {
         self.photos_posees += u64::from(vu.photos);
         self.photos_par_vignette += u64::from(vu.par_vignette);
         self.noeuds_recrees += u64::from(vu.vignettes_recreees);
+        self.tuiles_peintes += u64::from(vu.tuiles_peintes);
+        self.tuiles_reprises += u64::from(vu.tuiles_reprises);
         self.reductions += u64::from(vu.reduction.max(1));
         if vu.reduction > 1 {
             self.reduites += 1;

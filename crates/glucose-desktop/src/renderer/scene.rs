@@ -14,8 +14,6 @@
 pub(super) mod grid;
 pub(super) mod image;
 
-pub(super) use image::draw_images;
-
 use super::domain::{draw_domain_gauge, gauge_width};
 use super::handles::draw_resize_handles;
 use super::pass::{Clip, SELECTION_RING};

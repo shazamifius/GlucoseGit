@@ -79,6 +79,16 @@ pub struct Instantane {
     /// De combien la scene a ete rendue plus petite que la fenetre. `1` veut dire « pas du
     /// tout » (voir [`crate::resolution`]).
     pub reduction: u16,
+    /// Combien de tuiles de la grille ont été **peintes** pendant cette image (TUILE-1).
+    ///
+    /// C'est le travail réellement fait. Une image immobile n'en peint aucune ; un glissement
+    /// n'en peint que la colonne qui entre ; un zoom d'une octave les repeint toutes.
+    pub tuiles_peintes: u16,
+    /// Combien de tuiles déjà peintes ont servi telles quelles — le travail épargné.
+    ///
+    /// C'est ce que les vignettes n'ont jamais su montrer : servies à zéro pour cent sur cinq
+    /// sessions, sans qu'aucune durée ne le dise.
+    pub tuiles_reprises: u16,
     /// Ce que le report des photos a réellement coûté, en microsecondes.
     ///
     /// C'est **ce que le modèle prévoit**, et donc la seule grandeur à laquelle sa prévision

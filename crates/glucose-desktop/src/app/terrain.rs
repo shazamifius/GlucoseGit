@@ -98,6 +98,8 @@ impl GlucoseApp {
         vu.vignettes_orphelines = lire("vign_orphelines").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.vignettes_recreees = lire("vign_recreees").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.vignettes_abandonnees = lire("vign_abandonnes").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.tuiles_peintes = lire("tuiles_peintes").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.tuiles_reprises = lire("tuiles_reprises").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.prevu_us = lire("cout_prevu_us") as u32;
         // Le modele prevoit le REPORT : c'est a lui que sa prevision se compare, et non a la
         // duree entiere, qui porte aussi la presentation et l'interface.

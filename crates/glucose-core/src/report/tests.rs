@@ -364,6 +364,41 @@ fn la_multiplication_par_un_octet_est_exacte() {
     }
 }
 
+/// **Les plages donnent exactement ce que le calcul général donne**, pixel pour pixel.
+///
+/// C'est la garantie de la charte : deux voies d'une même opération produisent les mêmes
+/// pixels au bit près. La voie par plages copie les opaques et saute les transparents ; elle
+/// ne vaut que si `compose` donne le même résultat sur ces deux cas — ce qui tient à
+/// `mul255(d, 0) = 0` et `mul255(d, 255) = d`, vérifiés ici pour tout `d`.
+#[test]
+fn les_plages_composent_comme_le_calcul_general() {
+    for d in 0..=255u8 {
+        assert_eq!(mul255(d, 0), 0, "d x 0 doit valoir 0 : {d}");
+        assert_eq!(mul255(d, 255), d, "d x 255 / 255 doit valoir d : {d}");
+    }
+    // Une ligne qui mêle les trois sortes : opaque, transparent, et une frange.
+    let source: Vec<Pixel> = (0..64u32)
+        .map(|i| match i % 8 {
+            0..=2 => [200, 100, 50, 255],
+            3..=4 => [0, 0, 0, 0],
+            5 => [100, 50, 25, 128],
+            _ => [10, 20, 30, 255],
+        })
+        .collect();
+    let fond: Vec<Pixel> = (0..64u32)
+        .map(|i| [(i * 3) as u8, (i * 5) as u8, (i * 7) as u8, 255])
+        .collect();
+
+    let mut par_plages = fond.clone();
+    composer_la_ligne(&mut par_plages, &source);
+
+    let mut general = fond.clone();
+    for (d, s) in general.iter_mut().zip(&source) {
+        *d = compose(*s, *d);
+    }
+    assert_eq!(par_plages, general, "les deux voies divergent");
+}
+
 /// Le domaine écrit est exactement l'aire du rectangle visible : pas un pixel de plus.
 #[test]
 fn le_nombre_de_pixels_ecrits_est_l_aire_du_visible() {

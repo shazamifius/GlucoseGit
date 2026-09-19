@@ -360,14 +360,17 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     magasin.reclamer(&photo);
     magasin.attendre_le_chantier();
     let mut cout = glucose_core::cout::Cout::nouveau();
-    crate::renderer::scene::draw_images(
+    crate::renderer::scene::image::draw_images(
         &mut magasin,
         &mut cout,
         kit,
         &mut view,
         &store,
         pass,
-        false,
+        crate::renderer::scene::image::PasseImages {
+            degradation_permise: false,
+            en_tuile: false,
+        },
     );
     pixmap
         .save_png(dir.join("scene-image-et-membrane.png"))

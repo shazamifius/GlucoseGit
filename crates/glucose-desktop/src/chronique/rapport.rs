@@ -205,6 +205,16 @@ impl Chronique {
                 100.0 * part
             ));
         }
+        // La grille de tuiles : ce qu'elle a epargne. C'est la mesure que les vignettes n'ont
+        // jamais su donner, et c'est elle qui dit si TUILE-1 sert.
+        if let Some(part) = self.part_de_tuiles_reprises() {
+            t.push_str(&format!(
+                "  {:.0} % des tuiles ont servi telles quelles -- {} peintes, {} reprises\n",
+                100.0 * part,
+                self.tuiles_peintes(),
+                self.tuiles_reprises()
+            ));
+        }
         // Le résidu est la seule ligne de ce résumé qui apprenne quelque chose de neuf : elle
         // dit ce que le modèle de coût ne comprend pas encore de cette machine.
         if let Some(justesse) = self.justesse_du_modele() {
@@ -294,7 +304,8 @@ impl Chronique {
         }
         t.push_str("  Les images les plus lentes, et ce qu'elles faisaient\n\n");
         t.push_str(&format!(
-            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>5} {:>8} {:>10} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>7} {:>8}\n",
+            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>5} {:>8} {:>10} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>7} {:>8}
+",
             "a",
             "duree",
             "geste",
@@ -313,12 +324,14 @@ impl Chronique {
             "pret",
             "orph",
             "abdn",
+            "tuiles",
+            "reprises",
             "envoi",
             "cache"
         ));
         for p in self.pires().iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>4} Mo {:>5} Mo\n",
+                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>4} Mo {:>5} Mo\n",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
@@ -333,6 +346,8 @@ impl Chronique {
                 p.vignettes_pretes,
                 p.vignettes_orphelines,
                 p.vignettes_abandonnees,
+                p.tuiles_peintes,
+                p.tuiles_reprises,
                 p.blit_mo,
                 p.images_mo,
             ));

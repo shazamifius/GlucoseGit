@@ -209,7 +209,13 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// verrouillée et l'absence de ses poignées, la barre d'action qui n'existe qu'avec une
 /// sélection — et une image **tournée**, dont le carré, le cadre et les poignées doivent
 /// pencher ensemble.
-const EMPREINTE_TEMOIN_SELECTION: &str = "1e5c53b584519523";
+///
+/// Mise à jour au branchement de la grille de tuiles (TUILE-1) : les ornements d'une image
+/// — cadre, poignées, jauge — se dessinent désormais **après toutes les images**, et non
+/// entrelacés avec elles. Un cadre de sélection passe donc au-dessus d'une image voisine qui
+/// le recouvrait ; c'est le bon ordre, et il est vérifié sur `temoin-selection.png`. Le
+/// témoin sans sélection, lui, n'a pas bougé d'un bit.
+const EMPREINTE_TEMOIN_SELECTION: &str = "d19e889b868fceb7";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -226,7 +232,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 ///
 /// Il n'est pas dans le document : sans [`capture_with`], rien ne tiendrait son rendu — ni
 /// ses entrées, ni ses filets, ni l'alignement à droite de ses raccourcis.
-const EMPREINTE_TEMOIN_MENU: &str = "a5b1493343e6898b";
+/// Mise à jour avec le témoin de sélection, pour la même raison : le menu s'ouvre sur une
+/// sélection, dont les ornements ont changé d'ordre.
+const EMPREINTE_TEMOIN_MENU: &str = "6092d20d6fb0c664";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

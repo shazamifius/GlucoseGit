@@ -42,6 +42,65 @@ struct Rendu {
     pixels: Pixmap,
     /// La dernière image où ce rendu a servi. Ce qui n'a pas servi s'en va.
     vu: u64,
+    /// Ce que la tuile porte vraiment : la boîte des pixels non transparents, et si elle est
+    /// opaque d'un bord à l'autre.
+    ///
+    /// # Pourquoi c'est mesuré une fois plutôt que composé à chaque image
+    ///
+    /// Une tuile de photos est transparente partout où aucune photo ne passe. La composer en
+    /// entier, en source-over, coûtait cinq millisecondes pour un écran de 2560 × 1600 — huit
+    /// fois le plancher de la bande passante. Un balayage de vingt microsecondes au moment de
+    /// la ranger dit où sont ses pixels ; le report ne parcourt ensuite que ceux-là, et les
+    /// **remplace** quand ils sont opaques, ce qui est un déplacement de mémoire.
+    portee: Portee,
+}
+
+/// Où sont les pixels d'une tuile, et s'ils sont opaques.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Portee {
+    /// La boîte des pixels non transparents, en pixels de la tuile : `(x0, y0, x1, y1)`,
+    /// bords droit et bas exclus. `None` si la tuile est vide.
+    pub boite: Option<(u32, u32, u32, u32)>,
+    /// Tous les pixels de la boîte sont-ils opaques ? Vrai pour une tuile vide.
+    pub opaque: bool,
+}
+
+impl Portee {
+    /// Mesure une tuile : sa boîte non transparente et son opacité.
+    ///
+    /// Un passage sur les alphas, et rien d'autre. Le premier et le dernier pixel non
+    /// transparent de chaque ligne bornent la boîte ; un seul alpha partiel dans la boîte
+    /// suffit à la déclarer non opaque.
+    pub fn de(pixels: &Pixmap) -> Self {
+        let (largeur, hauteur) = (pixels.width(), pixels.height());
+        let (px, _) = pixels.data().as_chunks::<4>();
+        let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0u32, 0u32);
+        for y in 0..hauteur {
+            let ligne = &px[(y * largeur) as usize..((y + 1) * largeur) as usize];
+            let Some(premier) = ligne.iter().position(|p| p[3] != 0) else {
+                continue;
+            };
+            let dernier = ligne.iter().rposition(|p| p[3] != 0).unwrap_or(premier);
+            x0 = x0.min(premier as u32);
+            x1 = x1.max(dernier as u32 + 1);
+            y0 = y0.min(y);
+            y1 = y1.max(y + 1);
+        }
+        if x0 == u32::MAX {
+            return Self {
+                boite: None,
+                opaque: true,
+            };
+        }
+        let opaque = (y0..y1).all(|y| {
+            let ligne = &px[(y * largeur + x0) as usize..(y * largeur + x1) as usize];
+            ligne.iter().all(|p| p[3] == 255)
+        });
+        Self {
+            boite: Some((x0, y0, x1, y1)),
+            opaque,
+        }
+    }
 }
 
 /// Les tuiles déjà peintes, et ce que chaque case du monde porte.
@@ -104,27 +163,31 @@ impl Tuiles {
         self.portees.retain(|_, e| vivants.contains(e));
     }
 
-    /// Les pixels de cette empreinte, s'ils sont déjà peints. Les marque comme ayant servi.
-    pub fn deja_peinte(&mut self, empreinte: Empreinte) -> Option<&Pixmap> {
+    /// Les pixels de cette empreinte et leur portée, s'ils sont déjà peints. Les marque
+    /// comme ayant servi.
+    pub fn deja_peinte(&mut self, empreinte: Empreinte) -> Option<(&Pixmap, Portee)> {
         let image = self.image;
         let rendu = self.rendus.get_mut(&empreinte.valeur())?;
         if rendu.vu != image {
             rendu.vu = image;
         }
         self.reprises += 1;
-        Some(&rendu.pixels)
+        Some((&rendu.pixels, rendu.portee))
     }
 
-    /// Range les pixels d'une empreinte qu'on vient de peindre.
-    pub fn ranger(&mut self, empreinte: Empreinte, pixels: Pixmap) {
+    /// Range les pixels d'une empreinte qu'on vient de peindre, et rend leur portée.
+    pub fn ranger(&mut self, empreinte: Empreinte, pixels: Pixmap) -> Portee {
         self.peintes += 1;
+        let portee = Portee::de(&pixels);
         self.rendus.insert(
             empreinte.valeur(),
             Rendu {
                 pixels,
                 vu: self.image,
+                portee,
             },
         );
+        portee
     }
 
     /// Note ce qu'une case du monde porte, pour ne pas le recalculer à l'image suivante.
@@ -174,20 +237,26 @@ pub fn ce_que_porte(store: &Store, adresse: Adresse, rangs: &[u32]) -> Empreinte
         let Some(img) = board.images.get(*rang as usize) else {
             continue;
         };
+        // **La boîte, et non `x`/`y` nus.** Une photo range son CENTRE dans `x` et `y`
+        // (`BoardImage::rect`) ; la première version de cette fonction les prenait pour le
+        // coin, et une photo à cheval sur deux tuiles n'était comptée que dans celle de
+        // droite -- la moitié gauche disparaissait de l'écran. La preuve de redimensionnement
+        // l'a vu au premier branchement : « bord à 500 px, le document dit 400 ».
+        let boite = img.rect();
         // Hors de la tuile : elle n'en montre rien, donc elle ne doit pas s'en souvenir.
-        if img.x + img.width <= couverte.left
-            || img.x >= couverte.right()
-            || img.y + img.height <= couverte.top
-            || img.y >= couverte.bottom()
+        if boite.right() <= couverte.left
+            || boite.left >= couverte.right()
+            || boite.bottom() <= couverte.top
+            || boite.top >= couverte.bottom()
         {
             continue;
         }
         empreinte.ajouter(Occupant {
             boite: glucose_core::geometry::Rect::new(
-                img.x * echelle - ox,
-                img.y * echelle - oy,
-                img.width * echelle,
-                img.height * echelle,
+                boite.left * echelle - ox,
+                boite.top * echelle - oy,
+                boite.width * echelle,
+                boite.height * echelle,
             ),
             aspect: aspect_de(img),
         });

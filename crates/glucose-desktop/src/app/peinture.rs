@@ -84,6 +84,14 @@ impl GlucoseApp {
         self.horloge.presentee(maintenant);
     }
 
+    /// Ce que l'oeil et la main font en ce moment, pour le rendu.
+    fn regard(&self) -> crate::renderer::Regard {
+        crate::renderer::Regard {
+            degradation_permise: self.perception.autorise_a_degrader(),
+            en_mouvement: self.elan.en_cours() || self.vol.en_cours(),
+        }
+    }
+
     /// Redessine ce qui doit l'etre, et rien de plus. Ne presente pas.
     ///
     /// Le tampon est **sorti** de l'application le temps de la peinture : sans cela, peindre
@@ -109,6 +117,7 @@ impl GlucoseApp {
         let Some(mut pixmap) = self.pixmap.take() else {
             return;
         };
+        let regard = self.regard();
         let mut reduit = self.tampon_reduit.take();
         let header_h = self.ui.header_height();
         let vp = self.store.viewport();
@@ -131,7 +140,7 @@ impl GlucoseApp {
                         &self.store,
                         &self.ui,
                         overlay,
-                        self.perception.autorise_a_degrader(),
+                        regard,
                     );
                 }
                 crate::perf::compteur("img_region", r.aire() as f64);
@@ -158,7 +167,7 @@ impl GlucoseApp {
                     &self.store,
                     chrome,
                     overlay,
-                    self.perception.autorise_a_degrader(),
+                    regard,
                 );
             }
         }
@@ -207,13 +216,13 @@ fn repeindre_la_region(
     store: &Store,
     ui: &UiState,
     overlay: SceneOverlay<'_>,
-    degradation_permise: bool,
+    regard: crate::renderer::Regard,
 ) {
     let Some(mut morceau) = Pixmap::new(region.largeur, region.hauteur) else {
         return;
     };
     let origine = (region.x as f32, region.y as f32);
-    let cadrage = crate::renderer::Cadrage::region(origine).avec_degradation(degradation_permise);
+    let cadrage = crate::renderer::Cadrage::region(origine).sous_le_regard(regard);
     renderer.rendre_la_region(
         &mut morceau.as_mut(),
         store,
@@ -250,7 +259,7 @@ fn peindre_tout(
     store: &Store,
     chrome: Chrome<'_>,
     overlay: SceneOverlay<'_>,
-    degradation_permise: bool,
+    regard: crate::renderer::Regard,
 ) {
     let (width, height) = (pixmap.width(), pixmap.height());
     let mut vue = pixmap.as_mut();
@@ -264,7 +273,7 @@ fn peindre_tout(
 
     match scene {
         Some(reduite) => renderer.rendre_reduit(&mut vue, reduite, store, ui, overlay, pointer),
-        None => renderer.render(&mut vue, store, ui, overlay, pointer, degradation_permise),
+        None => renderer.render(&mut vue, store, ui, overlay, pointer, regard),
     }
 
     // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).

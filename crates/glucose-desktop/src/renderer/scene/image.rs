@@ -5,27 +5,48 @@
 //! voulue (MIP-2), en composant ou en remplaçant selon ce que son opacité autorise.
 
 use super::super::domain::draw_domain_gauge;
-use super::super::handles::draw_rotated_handles;
 use super::super::magasin::Magasin;
 use super::super::pass::Clip;
 use super::super::scale::WorldScale;
 use super::super::{photo, vignette, PaintKit};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
-use crate::theme::Theme;
-use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::cout::{finesse_pour, Cout, Finesse};
 use glucose_core::occlusion::{self, Calque};
 use glucose_core::quadtree::Visibles;
 use glucose_core::report;
-use glucose_core::resize::Handle;
 use glucose_core::store::Store;
+use ornement::{draw_image_adornments, draw_missing_image, mode_de_report};
 use prevision::{calque_de, prevoir_la_scene, Chemin};
-use tiny_skia::{
-    BlendMode, Color, FilterQuality, Paint, PathBuilder, PixmapMut, PixmapPaint, Rect, Stroke,
-    Transform,
-};
+use tiny_skia::{FilterQuality, PixmapMut, PixmapPaint, Transform};
 
+/// Comment la passe des images doit se comporter.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::renderer) struct PasseImages {
+    /// L'oeil tolere-t-il qu'on abime l'image ? (voir [`crate::perception`])
+    pub degradation_permise: bool,
+    /// Rend-on une **tuile** plutot que l'ecran ?
+    ///
+    /// # Ce qu'une tuile ne doit pas contenir, et pourquoi
+    ///
+    /// Une tuile ne connait que le **document** : c'est ce qui la rend reutilisable d'une
+    /// image a l'autre et d'une region a l'autre. Deux choses n'en font pas partie et ne
+    /// doivent donc jamais y etre peintes :
+    ///
+    /// * les **ornements** -- cadre de selection, poignees, jauge de domaines -- qui sont un
+    ///   etat de l'interface. Les y peindre laisserait une image cerclee apres sa
+    ///   deselection, tant que sa tuile survit ;
+    /// * les **vignettes** du magasin, qui sont deja un cache a la forme posee. En demander
+    ///   pour chaque tuile ferait construire par l'atelier des vignettes a la taille d'une
+    ///   tuile que personne ne reposera jamais.
+    pub en_tuile: bool,
+}
+
+/// Pose les images visibles, et rend vrai si **toutes** l'ont ete.
+///
+/// Faux veut dire qu'au moins une attendait encore son decodage : elle a ete dessinee comme
+/// ce qu'elle est a cet instant -- un cadre en chemin -- et le resultat ne doit pas etre
+/// garde, sans quoi la tuile resterait vide apres l'arrivee des octets.
 pub(in crate::renderer) fn draw_images(
     magasin: &mut Magasin,
     cout: &mut Cout,
@@ -33,18 +54,17 @@ pub(in crate::renderer) fn draw_images(
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
-    degradation_permise: bool,
-) {
+    passe: PasseImages,
+) -> bool {
     let Some(board) = store.active_board() else {
-        return;
+        return true;
     };
     let PaintKit {
-        typography,
-        tints,
-        theme,
-        ..
+        typography, theme, ..
     } = kit;
+    let degradation_permise = passe.degradation_permise;
     let scale = WorldScale::new(pass.vp.scale);
+    let mut complet = true;
     let clip = Clip {
         width: pixmap.width() as f32,
         height: pixmap.height() as f32,
@@ -140,7 +160,16 @@ pub(in crate::renderer) fn draw_images(
         // Le report rend LUI-MEME sa duree : entourer la pose entiere attribuait aux pixels
         // le cout fixe d'une photo -- recherche, forme, consultation des vignettes -- et le
         // modele surestimait alors d'un facteur deux, ce que son propre residu a revele.
-        match poser_ou_demander(magasin, pixmap, img, (sx, sy, sw, sh), parts, filtre) {
+        let pose = poser_ou_demander(
+            magasin,
+            pixmap,
+            img,
+            (sx, sy, sw, sh),
+            parts,
+            filtre,
+            passe.en_tuile,
+        );
+        match pose {
             // REPORT-1 : ce qu'une photo coute est ce qu'elle ECRIT, et non la surface
             // qu'elle occupe. Recouverte a quatre-vingt-dix-neuf pour cent, elle en ecrit un
             // centieme -- et c'est ce centieme que la trace doit montrer.
@@ -154,20 +183,22 @@ pub(in crate::renderer) fn draw_images(
                 poste.0 += ecrits;
                 poste.1 += passees;
             }
-            None => draw_missing_image(
-                typography,
-                theme,
-                pixmap,
-                (sx, sy),
-                (sw, sh),
-                &img.id,
-                img.rotation,
-            ),
+            None => {
+                complet = false;
+                draw_missing_image(
+                    typography,
+                    theme,
+                    pixmap,
+                    (sx, sy),
+                    (sw, sh),
+                    &img.id,
+                    img.rotation,
+                );
+            }
         }
-        if store.selected_image_ids.contains(&img.id) {
-            draw_image_adornments(pixmap, theme, scale, img, (sx, sy, sw, sh));
+        if !passe.en_tuile {
+            draw_image_ornaments(kit, pixmap, store, scale, img, (sx, sy, sw, sh));
         }
-        draw_domain_gauge(typography, tints, pixmap, scale, (sx, sy), &img.domains);
     }
 
     // Une observation par nature et par image : plus stable qu'une par photo, et c'est la
@@ -203,6 +234,35 @@ pub(in crate::renderer) fn draw_images(
     // Combien d'images le cache a rendues à la machine : si ce nombre monte pendant qu'on
     // travaille, c'est que la mémoire se tend et que la borne se contracte.
     crate::perf::compteur("img_rendues", magasin.evincees() as f64);
+    complet
+}
+
+/// Ce qu'une image porte en plus de ses pixels, et qui n'appartient pas au document : le
+/// cadre de selection, les poignees, la jauge de domaines.
+///
+/// Appelable a part de la pose, parce que les tuiles ne les contiennent pas (voir
+/// [`PasseImages::en_tuile`]) : quand l'ecran se compose depuis la grille, ils se dessinent
+/// ensuite, en direct, par-dessus.
+pub(in crate::renderer) fn draw_image_ornaments(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    scale: WorldScale,
+    img: &glucose_core::types::BoardImage,
+    ecran: (f32, f32, f32, f32),
+) {
+    let (sx, sy, _, _) = ecran;
+    if store.selected_image_ids.contains(&img.id) {
+        draw_image_adornments(pixmap, kit.theme, scale, img, ecran);
+    }
+    draw_domain_gauge(
+        kit.typography,
+        kit.tints,
+        pixmap,
+        scale,
+        (sx, sy),
+        &img.domains,
+    );
 }
 
 /// Pose cette image si elle est décodée ; sinon la demande, et le dit.
@@ -224,6 +284,7 @@ fn poser_ou_demander(
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
     filtre: report::Filtre,
+    sans_vignette: bool,
 ) -> Option<(u64, Chemin, std::time::Duration)> {
     let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
@@ -240,6 +301,7 @@ fn poser_ou_demander(
         ecran,
         parts,
         filtre,
+        sans_vignette,
     ))
 }
 
@@ -265,6 +327,7 @@ fn poser_ou_demander(
 /// quand elle est entièrement cachée, ce qui reste le gain principal sur ce cas.
 ///
 /// Rend le nombre de pixels écrits.
+#[allow(clippy::too_many_arguments)]
 fn poser(
     pyramide: &photo::Pyramide,
     vignettes: &mut vignette::Vignettes,
@@ -273,6 +336,7 @@ fn poser(
     ecran: (f32, f32, f32, f32),
     parts: &[occlusion::Boite],
     filtre: report::Filtre,
+    sans_vignette: bool,
 ) -> (u64, Chemin, std::time::Duration) {
     let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
@@ -295,10 +359,14 @@ fn poser(
     // reechantillonnage au moment de poser, or d'une image plus grande que l'ecran on ne voit
     // qu'un morceau. En demander une en zoom proche allouait des dizaines de gigaoctets, et
     // l'application plantait.
-    if let Some((ecrits, passees)) =
-        poser_depuis_une_vignette(vignettes, pixmap, img, ecran, parts, melange)
-    {
-        return (ecrits, Chemin::Vignette, passees);
+    // Une tuile est deja un cache : lui demander une vignette en ferait construire une a la
+    // forme d'une tuile, que personne ne reposera jamais.
+    if !sans_vignette {
+        if let Some((ecrits, passees)) =
+            poser_depuis_une_vignette(vignettes, pixmap, img, ecran, parts, melange)
+        {
+            return (ecrits, Chemin::Vignette, passees);
+        }
     }
 
     // MIP-1 : on part du niveau qui couvre encore la taille posée, jamais de la résolution
@@ -433,151 +501,7 @@ fn reporter_les_parts(
         .sum()
 }
 
-/// Comment reporter une image sur le canevas : en remplaçant, ou en composant.
-///
-/// Le remplacement est plus rapide, mais il écrit **tous** les pixels de la zone couverte. Il
-/// n'est donc licite qu'à deux conditions réunies :
-///
-/// * l'image est opaque — sinon le fond devrait transparaître à travers elle ;
-/// * elle n'est pas tournée — sinon la zone couverte est un parallélogramme, et les coins du
-///   rectangle qui l'entoure seraient remplacés par du vide, laissant quatre trous.
-///
-/// Les deux se constatent, aucune ne s'estime.
-fn mode_de_report(opaque: bool, rotation: f64) -> BlendMode {
-    if opaque && rotation == 0.0 {
-        BlendMode::Source
-    } else {
-        BlendMode::SourceOver
-    }
-}
-
-/// Ce qu'une image **sélectionnée** porte en plus : son cadre, et ses prises.
-///
-/// Une image verrouillée se signale par la couleur de son cadre et par l'absence de ses
-/// poignées (fiche 06 § 4.3) : les deux disent le même fait, l'un de loin, l'autre au moment
-/// où la main cherche une prise. Les deux suivent la rotation du nœud, comme lui.
-fn draw_image_adornments(
-    pixmap: &mut PixmapMut,
-    theme: &Theme,
-    scale: WorldScale,
-    img: &glucose_core::types::BoardImage,
-    screen_box: (f32, f32, f32, f32),
-) {
-    let (sx, sy, sw, sh) = screen_box;
-    let ink = if img.locked {
-        theme.alert
-    } else {
-        theme.selection_frame
-    };
-    draw_image_selection(pixmap, ink, (sx, sy), (sw, sh), img.rotation);
-    if !img.locked {
-        draw_rotated_handles(pixmap, theme, scale, screen_box, &Handle::ALL, img.rotation);
-    }
-}
-
-/// Une image dont les octets ne sont pas (encore) là : un cadre gris de la chrome, son
-/// identifiant dedans. Monochrome — ce n'est pas du contenu, c'est son absence.
-fn draw_missing_image(
-    typography: &Typography,
-    theme: &Theme,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    size: (f32, f32),
-    id: &str,
-    rotation: f64,
-) {
-    let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) else {
-        return;
-    };
-    // Le carré de remplacement tourne comme tournerait la texture : sans cela, une image
-    // introuvable et penchée se dessinerait droite dans un cadre incliné.
-    let ts = rotation_at(rotation, at, size);
-    let path = PathBuilder::from_rect(rect);
-    let mut fill = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    fill.set_color(theme.bg_hover);
-    pixmap.fill_path(&path, &fill, tiny_skia::FillRule::Winding, ts, None);
-
-    let mut border = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    border.set_color(theme.border_accent);
-    let stroke = Stroke {
-        width: 1.0,
-        ..Default::default()
-    };
-    pixmap.stroke_path(&path, &border, &stroke, ts, None);
-
-    typography.draw_text(
-        pixmap,
-        &format!("Image [{id}]"),
-        at.0 + 10.0,
-        at.1 + size.1 / 2.0 - 6.0,
-        TextStyle {
-            size: 12.0,
-            color: theme.text_muted,
-            face: Face::Regular,
-        },
-    );
-}
-
-/// La transformation qui fait tourner une boîte écran autour de son propre centre.
-///
-/// Un seul endroit où l'angle devient une matrice : la texture, son carré de remplacement et
-/// son cadre de sélection tournent donc exactement pareil, par construction.
-fn rotation_at(rotation: f64, at: (f32, f32), size: (f32, f32)) -> Transform {
-    if rotation == 0.0 {
-        return Transform::identity();
-    }
-    Transform::from_rotate_at(
-        rotation.to_degrees() as f32,
-        at.0 + size.0 / 2.0,
-        at.1 + size.1 / 2.0,
-    )
-}
-
-/// Débord du cadre de sélection autour de la texture, en pixels écran (fiche 06 § 4.2).
-const IMAGE_SELECTION_INSET: f32 = 3.0;
-/// Épaisseur du cadre de sélection, en pixels écran (fiche 06 § 4.2).
-const IMAGE_SELECTION_STROKE: f32 = 1.25;
-
-/// Fiche 06 § 4.2 — cadre hairline blanc pur à 0,80, débordant de 3 px, épais de 1,25 px à
-/// l'écran quel que soit le zoom. Aucun néon : le contour se lit sur une image claire par le
-/// liseré des poignées, sur le fond noir par le blanc.
-fn draw_image_selection(
-    pixmap: &mut PixmapMut,
-    ink: Color,
-    at: (f32, f32),
-    size: (f32, f32),
-    rotation: f64,
-) {
-    let d = IMAGE_SELECTION_INSET;
-    let Some(rect) = Rect::from_xywh(at.0 - d, at.1 - d, size.0 + 2.0 * d, size.1 + 2.0 * d) else {
-        return;
-    };
-    // Le cadre épouse le nœud : il tourne avec lui, autour du même centre.
-    let ts = rotation_at(
-        rotation,
-        (at.0 - d, at.1 - d),
-        (size.0 + 2.0 * d, size.1 + 2.0 * d),
-    );
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    paint.set_color(ink);
-    let stroke = Stroke {
-        width: IMAGE_SELECTION_STROKE,
-        ..Default::default()
-    };
-    pixmap.stroke_path(&PathBuilder::from_rect(rect), &paint, &stroke, ts, None);
-}
-
-// ── Guides et boîte de sélection — taille écran constante ───────────────────
-
+mod ornement;
 mod prevision;
 
 #[cfg(test)]
