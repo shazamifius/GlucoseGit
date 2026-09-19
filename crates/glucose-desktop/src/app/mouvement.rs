@@ -99,6 +99,38 @@ impl GlucoseApp {
         }
         self.perception =
             crate::perception::Perception::a_la_vitesse(deplacement, zoom, self.scale_factor);
+        self.noter_la_regularite(deplacement + zoom);
+    }
+
+    /// De combien la vitesse apparente a changé depuis l'image précédente.
+    ///
+    /// # La mesure qui manquait, et elle manquait depuis le début
+    ///
+    /// Toute la chronique dit ce qu'une image **coûte**, et rien de ce qu'elle **montre**. Or
+    /// l'utilisateur décrit un défaut qu'aucune durée ne peut désigner : « quand on freine
+    /// progressivement, on voit tout en genre quatre images par seconde », alors que la
+    /// cadence en affiche cent. Un mouvement saccadé satisfait parfaitement toutes les
+    /// mesures existantes — les totaux, les sens, les bornes, la cadence.
+    ///
+    /// Ce qu'on note ici est le **rapport** entre la vitesse apparente de cette image et celle
+    /// de la précédente, en pourcentage. Cent veut dire « aucun changement ». Le double ou la
+    /// moitié se voient ; un facteur trois est un saut franc.
+    ///
+    /// Les images immobiles sont écartées : un rapport n'a de sens qu'entre deux mouvements.
+    fn noter_la_regularite(&mut self, vitesse: f64) {
+        let precedente = self.vitesse_precedente.replace(vitesse);
+        let (Some(avant), true) = (precedente, vitesse > 1.0) else {
+            return;
+        };
+        if avant <= 1.0 {
+            return;
+        }
+        let (petit, grand) = if vitesse < avant {
+            (vitesse, avant)
+        } else {
+            (avant, vitesse)
+        };
+        crate::perf::compteur("nav_saut_pct", 100.0 * grand / petit);
     }
 
     /// Ce que cette image a coute decide de la finesse de la suivante.

@@ -72,6 +72,8 @@ pub struct GlucoseApp {
     pub perception: crate::perception::Perception,
     /// La vue de l'image precedente, pour mesurer de combien elle a bouge.
     vue_precedente: Option<glucose_core::types::Viewport>,
+    /// La vitesse apparente de l'image precedente, pour mesurer la REGULARITE du mouvement.
+    vitesse_precedente: Option<f64>,
     /// Le bouton gauche tient-il la minimap ?
     ///
     /// Tant qu'il tient, la destination du vol **suit le curseur** : c'est le voyage continu
@@ -224,6 +226,7 @@ impl GlucoseApp {
             defilement_au_doigt: false,
             perception: crate::perception::Perception::nette(),
             vue_precedente: None,
+            vitesse_precedente: None,
             minimap_tenue: false,
             derniere_image: None,
             resolution: crate::resolution::Resolution::nette(),

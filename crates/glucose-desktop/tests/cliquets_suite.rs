@@ -843,7 +843,11 @@ trait T {
 /// Un compteur qui ment est pire que pas de compteur du tout : le second se remarque.
 #[test]
 fn test_cliquet_9_aucun_champ_de_la_chronique_ne_reste_vide() {
-    let chronique = std::fs::read_to_string("src/chronique.rs").expect("chronique.rs");
+    // `Instantane` a quitte `chronique.rs` le jour ou celui-ci a depasse sa taille admise :
+    // une chronique AGREGE, un instantane DECRIT, et les deux ne changent pas pour les memes
+    // raisons. Ce cliquet suit la structure, pas le fichier.
+    let chronique =
+        std::fs::read_to_string("src/chronique/instantane.rs").expect("instantane.rs");
     let terrain = std::fs::read_to_string("src/app/terrain.rs").expect("terrain.rs");
 
     // Les champs publics de `Instantane`, dans l'ordre où ils sont déclarés.
@@ -863,8 +867,11 @@ fn test_cliquet_9_aucun_champ_de_la_chronique_ne_reste_vide() {
 
     // `instant_ms` est posé par `Chronique::enregistrer`, qui seule connaît le début de la
     // session : c'est la seule exception, et elle se vérifie ici plutôt que de se supposer.
+    // Elle se lit dans l'agregat, non dans la structure — les deux vivent desormais dans deux
+    // fichiers, et confondre les deux ferait passer ce cliquet pour un autre.
+    let agregat = std::fs::read_to_string("src/chronique.rs").expect("chronique.rs");
     assert!(
-        chronique.contains("vu.instant_ms = "),
+        agregat.contains("vu.instant_ms = "),
         "instant_ms n'est plus posé par `enregistrer`"
     );
 

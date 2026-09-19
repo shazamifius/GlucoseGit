@@ -32,7 +32,10 @@
 //! gardées entières, avec leur geste, leurs postes et leurs quantités — c'est là que se lit la
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
+pub mod instantane;
 pub mod navigation;
+
+pub use instantane::Instantane;
 
 use std::time::Duration;
 
@@ -127,119 +130,6 @@ const PIRES: usize = 32;
 /// image reste de taille fixe — condition pour qu'une session de plusieurs heures n'accumule
 /// rien.
 pub const POSTES: usize = 24;
-
-/// Ce qu'une image a coûté, et dans quel contexte.
-///
-/// **Que des entiers.** Aucun texte, aucun chemin, aucun contenu : c'est ce qui rend la
-/// promesse de confidentialité vérifiable par le type plutôt que par la relecture.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Instantane {
-    /// Depuis le début de la session.
-    pub instant_ms: u32,
-    /// Ce que l'image entière a coûté.
-    pub duree_us: u32,
-    /// L'indice du geste, au sens de [`Geste::TOUS`].
-    pub geste: u8,
-    /// La durée de chaque poste, dans l'ordre où ils se sont déclarés.
-    pub postes_us: [u32; POSTES],
-    /// Combien de nœuds le culling a retenus.
-    pub noeuds: u32,
-    /// Combien d'images ont été posées.
-    pub photos: u32,
-    /// L'aire redessinée, en pixels — le cœur d'A.1.
-    pub region_px: u32,
-    /// Combien de fois la surface de la fenêtre les images posees couvrent, en centiemes.
-    ///
-    /// **Le chiffre qui distingue une image chere d'une image repetee.** Soixante-dix photos
-    /// qui se recouvrent repeignent soixante-dix fois le meme ecran ; une duree seule ne le
-    /// separe pas de soixante-dix photos couteuses, et les deux ne se corrigent pas pareil.
-    pub surcouverture: u32,
-    /// L'aire de la fenêtre, pour que la précédente soit lisible en proportion.
-    pub fenetre_px: u32,
-    /// Ce que les images décodées occupent, en mébioctets.
-    pub images_mo: u32,
-    /// Combien d'images attendent encore leur décodage.
-    pub en_decodage: u16,
-    /// Combien de vignettes l'atelier a achevées pendant cette image (CASCADE-1).
-    pub vignettes: u16,
-    /// Combien de vignettes attendent encore leur tour au chantier.
-    ///
-    /// **C'est le chiffre qui dit si l'image est chère à bon droit.** Une photo sans vignette
-    /// se dessine par le chemin général, quinze fois plus cher ; tant que ce nombre n'est pas
-    /// nul, la scène est en régime transitoire. S'il ne descend jamais, c'est que le chantier
-    /// se refait aussi vite qu'il se vide — et aucune durée ne le dirait.
-    pub vignettes_en_attente: u16,
-    /// Combien de photos ont pu se poser depuis une **vignette prête**.
-    ///
-    /// À comparer à [`Self::photos`] : les deux chemins diffèrent d'un facteur dix, donc une
-    /// image chère ne dit pas d'elle-même si elle dessine beaucoup ou si elle dessine **mal**.
-    /// Zéro sur une image de quatre-vingts photos veut dire qu'aucune n'a pu en avoir — et la
-    /// seule raison possible est qu'elles débordent de la fenêtre, c'est-à-dire le zoom proche.
-    pub par_vignette: u16,
-    /// Combien de vignettes existaient pour ce nœud, mais à une **autre forme**.
-    ///
-    /// Sépare deux causes qu'aucune durée ne distingue : une vignette pas encore construite,
-    /// et une vignette construite pour une forme que la vue a déjà quittée.
-    pub vignettes_perimees: u16,
-    /// Combien de nœuds ont une vignette prête, quelle que soit sa forme.
-    pub vignettes_pretes: u16,
-    /// Combien de vignettes ont été achevées pour un nœud qui n'existait plus, depuis le début
-    /// de la session. Du travail intégralement perdu.
-    pub vignettes_orphelines: u16,
-    /// Combien de nœuds ont dû être recréés pendant cette image, faute d'entrée.
-    pub vignettes_recreees: u16,
-    /// Combien de chantiers ont été abandonnés depuis le début, leur forme ayant été quittée.
-    pub vignettes_abandonnees: u16,
-    /// Ce que le modèle de coût avait **prévu** pour cette image, en microsecondes.
-    ///
-    /// Zéro quand la machine n'avait pas encore démontré assez pour prévoir. L'écart avec
-    /// [`Self::duree_us`] est le résidu : nul, le modèle comprend la machine ; élevé, il
-    /// désigne exactement ce qu'il ne compte pas encore.
-    pub prevu_us: u32,
-    /// Les images de cette scène se sont-elles **pixelisées** pour tenir le budget ?
-    pub pixelise: u16,
-    /// De combien la scene a ete rendue plus petite que la fenetre. `1` veut dire « pas du
-    /// tout » (voir [`crate::resolution`]).
-    pub reduction: u16,
-    /// Ce que le report des photos a réellement coûté, en microsecondes.
-    ///
-    /// C'est **ce que le modèle prévoit**, et donc la seule grandeur à laquelle sa prévision
-    /// puisse se comparer. La rapporter à la durée entière de l'image la ferait paraître
-    /// fausse alors qu'elle ne parle pas de la même chose.
-    pub report_us: u32,
-    /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
-    pub blit_mo: u16,
-    /// Ce qui empêchait l'application de dormir — un bit par raison de réveil.
-    ///
-    /// Un masque et non la seule raison la plus pressée : savoir laquelle a gagné la course
-    /// ne dit pas laquelle il faudrait supprimer. Les huit tiennent dans un `u16`.
-    pub reveils: u16,
-}
-
-impl Instantane {
-    /// Cette image n'a-t-elle **rien** redessiné du tout ?
-    ///
-    /// La salissure était propre : l'image précédente était encore exacte, et on s'est
-    /// contenté de la représenter. C'est l'issue la moins chère qui existe.
-    pub fn evitee(&self) -> bool {
-        self.region_px == 0
-    }
-
-    /// La part de la fenêtre qui a été redessinée, entre 0 et 1.
-    pub fn part_redessinee(&self) -> f64 {
-        if self.fenetre_px == 0 {
-            return 1.0;
-        }
-        f64::from(self.region_px) / f64::from(self.fenetre_px)
-    }
-
-    fn geste(&self) -> Geste {
-        Geste::TOUS
-            .get(self.geste as usize)
-            .copied()
-            .unwrap_or(Geste::Repos)
-    }
-}
 
 /// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
 #[derive(Debug, Clone)]
@@ -352,6 +242,12 @@ pub struct Chronique {
     prevu_us: u64,
     mesure_us: u64,
     pixelisees: u64,
+    /// Combien d'images ont eu une vitesse apparente comparable à la précédente.
+    sauts_mesures: u64,
+    /// Combien d'entre elles ont changé de plus de moitié — un sursaut visible.
+    sauts_francs: u64,
+    /// Le pire rapport observé, en pourcentage.
+    pire_saut: u16,
     /// Combien d'images n'ont **rien** redessiné du tout.
     evitees: u64,
     /// Combien d'images chaque raison de réveil a tenues éveillées, dans l'ordre des bits.
@@ -401,6 +297,20 @@ impl Chronique {
         })
     }
 
+    /// La régularité du mouvement : `(part de sursauts, pire rapport)`.
+    ///
+    /// Un mouvement fluide garde ses vitesses voisines d'une image à l'autre. Une part élevée
+    /// de sursauts dit que la vue avance par à-coups — ce qu'aucune mesure de durée ne peut
+    /// désigner, puisque la cadence, elle, reste bonne.
+    pub fn regularite(&self) -> Option<(f64, u16)> {
+        (self.sauts_mesures > 0).then(|| {
+            (
+                self.sauts_francs as f64 / self.sauts_mesures as f64,
+                self.pire_saut,
+            )
+        })
+    }
+
     /// La part des images qui n'ont **rien** redessiné, entre 0 et 1.
     ///
     /// C'est la seule mesure qui dise si le travail de l'image précédente a servi deux fois.
@@ -445,6 +355,9 @@ impl Chronique {
             prevu_us: 0,
             mesure_us: 0,
             pixelisees: 0,
+            sauts_mesures: 0,
+            sauts_francs: 0,
+            pire_saut: 0,
             evitees: 0,
             reveils: [0; 16],
             reductions: 0,
@@ -493,6 +406,15 @@ impl Chronique {
         }
         if vu.evitee() {
             self.evitees += 1;
+        }
+        if vu.saut_pct > 0 {
+            self.sauts_mesures += 1;
+            self.pire_saut = self.pire_saut.max(vu.saut_pct);
+            // Cent cinquante pour cent : la vitesse a changé de moitié en une image, pour un
+            // geste qui, lui, ne saute pas. C'est le seuil où un sursaut se voit.
+            if vu.saut_pct >= 150 {
+                self.sauts_francs += 1;
+            }
         }
         for (bit, compte) in self.reveils.iter_mut().enumerate() {
             if vu.reveils & (1 << bit) != 0 {

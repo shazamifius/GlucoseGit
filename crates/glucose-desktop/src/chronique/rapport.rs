@@ -110,6 +110,24 @@ impl Chronique {
         let Some(evitee) = self.part_evitee() else {
             return;
         };
+        if let Some((francs, pire)) = self.regularite() {
+            t.push_str(
+                "  Ce que l'ecran MONTRE, et non ce qu'il coute
+
+",
+            );
+            t.push_str(&format!(
+                "  {:.0} % des images changent de vitesse de plus de moitie -- pire ecart {:.1}x
+",
+                100.0 * francs,
+                f64::from(pire) / 100.0
+            ));
+            t.push_str(
+                "    un mouvement fluide garde ses vitesses voisines ; aucune duree ne dit cela
+
+",
+            );
+        }
         t.push_str(
             "  Pourquoi l'application ne dort pas
 
