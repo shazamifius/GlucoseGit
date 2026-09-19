@@ -105,6 +105,11 @@ impl Navigation {
         self.en_attente.get_or_insert_with(Instant::now);
     }
 
+    /// Un geste attend-il d'être montré ?
+    pub fn en_attente(&self) -> bool {
+        self.en_attente.is_some()
+    }
+
     /// L'écran vient de montrer ce qui était en attente.
     ///
     /// Rend la latence si quelque chose attendait — une image qui ne montre aucun geste neuf

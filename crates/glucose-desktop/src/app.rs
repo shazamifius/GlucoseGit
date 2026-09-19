@@ -77,6 +77,12 @@ pub struct GlucoseApp {
     pas_et_vitesse: (std::time::Duration, f64),
     /// Ce que la derniere presentation a montre, tel que l'instantane le portera.
     rythme_de_l_image: crate::chronique::rythme::Mesure,
+    /// La derniere image a-t-elle demande la suivante ?
+    ///
+    /// Vrai quand une raison de reveil etait active -- animation, elan, vol, decodage. Faux
+    /// quand l'application s'est endormie faute de quoi que ce soit a faire : l'intervalle qui
+    /// suit est alors du repos, pas un gel, et la trajectoire n'a rien a rattraper.
+    image_attendue: bool,
     /// Le bouton gauche tient-il la minimap ?
     ///
     /// Tant qu'il tient, la destination du vol **suit le curseur** : c'est le voyage continu
@@ -234,6 +240,7 @@ impl GlucoseApp {
             vue_precedente: None,
             pas_et_vitesse: (std::time::Duration::ZERO, 0.0),
             rythme_de_l_image: crate::chronique::rythme::Mesure::default(),
+            image_attendue: false,
             minimap_tenue: false,
             horloge: crate::horloge::Horloge::nouvelle(),
             resolution: crate::resolution::Resolution::nette(),
@@ -558,11 +565,15 @@ impl ApplicationHandler for GlucoseApp {
         // Aucune ne s'oublie, parce qu'aucune n'a de comptabilite a tenir (voir `reveil`).
         match self.prochain_reveil() {
             Some(ms) => {
+                self.image_attendue = true;
                 let echeance =
                     std::time::Instant::now() + std::time::Duration::from_millis(ms.max(1));
                 event_loop.set_control_flow(ControlFlow::WaitUntil(echeance));
             }
-            None => event_loop.set_control_flow(ControlFlow::Wait),
+            None => {
+                self.image_attendue = false;
+                event_loop.set_control_flow(ControlFlow::Wait);
+            }
         }
     }
 }

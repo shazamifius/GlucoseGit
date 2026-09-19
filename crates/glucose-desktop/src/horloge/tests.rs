@@ -42,7 +42,7 @@ fn test_chaque_pas_est_un_nombre_entier_de_balayages() {
     let mut t = Instant::now();
     for us in TERRAIN.iter().chain(TERRAIN.iter()) {
         t += Duration::from_micros(*us);
-        h.presentee(t);
+        h.presentee(t, true);
         let reste = h.pas().as_nanos() % P240.as_nanos();
         assert_eq!(
             reste,
@@ -68,7 +68,7 @@ fn test_la_somme_des_pas_suit_le_temps_reel_sans_deriver() {
     let image = P240.mul_f64(1.4);
     for _ in 0..10_000 {
         t += image;
-        h.presentee(t);
+        h.presentee(t, true);
         somme += h.pas();
     }
     let reel = t.saturating_duration_since(depart);
@@ -91,7 +91,7 @@ fn test_la_dette_reste_sous_une_periode() {
     let mut t = Instant::now();
     for us in [1_000u64, 2_500, 4_200, 9_900, 100, 50_000, 300] {
         t += Duration::from_micros(us);
-        h.presentee(t);
+        h.presentee(t, true);
         assert!(
             h.dette() < P240,
             "la dette a depasse une periode : {:?}",
@@ -109,15 +109,15 @@ fn test_tant_qu_aucun_balayage_n_a_eu_lieu_la_trajectoire_attend() {
     let mut h = Horloge::nouvelle();
     h.accorder(P240);
     let mut t = Instant::now();
-    h.presentee(t);
+    h.presentee(t, true);
     t += Duration::from_micros(1_000);
-    h.presentee(t);
+    h.presentee(t, true);
     assert_eq!(h.pas(), Duration::ZERO, "un millieme de seconde, rien vu");
     t += Duration::from_micros(1_000);
-    h.presentee(t);
+    h.presentee(t, true);
     assert_eq!(h.pas(), Duration::ZERO, "deux, toujours rien");
     t += Duration::from_micros(3_000);
-    h.presentee(t);
+    h.presentee(t, true);
     assert_eq!(h.pas(), P240, "cinq millemes : un balayage, et un seul");
 }
 
@@ -142,7 +142,7 @@ fn test_le_pas_ignore_ce_que_l_image_a_coute() {
     h.accorder(P240);
     let mut pas: Vec<Duration> = Vec::new();
     for instant in &presentations {
-        h.presentee(*instant);
+        h.presentee(*instant, true);
         pas.push(h.pas());
     }
 
@@ -152,7 +152,7 @@ fn test_le_pas_ignore_ce_que_l_image_a_coute() {
     autre.accorder(P240);
     let mut pas_bis: Vec<Duration> = Vec::new();
     for instant in &presentations {
-        autre.presentee(*instant);
+        autre.presentee(*instant, true);
         pas_bis.push(autre.pas());
     }
     assert_eq!(pas, pas_bis);
@@ -202,7 +202,7 @@ fn test_une_cadence_qui_varie_fait_encore_varier_la_vitesse_apparente() {
     h.accorder(P240);
     let mut apparentes: Vec<f64> = Vec::new();
     for (i, instant) in presentations.iter().enumerate() {
-        h.presentee(*instant);
+        h.presentee(*instant, true);
         let (Some(suivante), true) = (presentations.get(i + 1), i > 1) else {
             continue;
         };
@@ -223,10 +223,10 @@ fn test_une_cadence_qui_varie_fait_encore_varier_la_vitesse_apparente() {
 fn test_sans_periode_le_pas_reste_l_intervalle_observe() {
     let mut h = Horloge::nouvelle();
     let mut t = Instant::now();
-    h.presentee(t);
+    h.presentee(t, true);
     assert_eq!(h.pas(), Duration::ZERO, "la premiere image n'a pas de pas");
     t += Duration::from_micros(7_000);
-    h.presentee(t);
+    h.presentee(t, true);
     assert_eq!(h.pas(), Duration::from_micros(7_000));
     assert_eq!(h.periode(), None);
 }
@@ -240,11 +240,11 @@ fn test_un_long_blocage_se_rattrape_d_un_seul_pas() {
     let mut h = Horloge::nouvelle();
     h.accorder(P240);
     let mut t = Instant::now();
-    h.presentee(t);
+    h.presentee(t, true);
     t += Duration::from_micros(8_400);
-    h.presentee(t);
+    h.presentee(t, true);
     t += Duration::from_secs(3);
-    h.presentee(t);
+    h.presentee(t, true);
     assert!(
         h.pas() > Duration::from_millis(2_900),
         "trois secondes ont passe : la trajectoire doit les avoir parcourues, pas cent \
@@ -252,10 +252,36 @@ fn test_un_long_blocage_se_rattrape_d_un_seul_pas() {
         h.pas()
     );
     t += Duration::from_micros(8_400);
-    h.presentee(t);
+    h.presentee(t, true);
     assert!(
         h.pas() <= P240.saturating_mul(3),
         "et l'image suivante repart normalement : {:?}",
         h.pas()
     );
+}
+
+/// **Un sommeil n'est pas une trajectoire à rattraper.** L'image qui suit un repos repart
+/// d'un pas nul, et non de trois secondes.
+#[test]
+fn test_un_repos_ne_laisse_aucune_dette() {
+    let mut h = Horloge::nouvelle();
+    h.accorder(P240);
+    let mut t = Instant::now();
+    h.presentee(t, true);
+    t += Duration::from_micros(8_400);
+    h.presentee(t, true);
+    assert_eq!(h.pas(), P240.saturating_mul(2));
+    // L'application s'endort trois secondes, faute de quoi que ce soit a faire.
+    t += Duration::from_secs(3);
+    h.presentee(t, false);
+    assert_eq!(
+        h.pas(),
+        Duration::ZERO,
+        "rien n'a ete demande pendant le sommeil"
+    );
+    assert_eq!(h.dette(), Duration::ZERO, "et rien ne reste a rattraper");
+    // Le geste qui reveille repart d'un pas ordinaire.
+    t += Duration::from_micros(8_400);
+    h.presentee(t, true);
+    assert_eq!(h.pas(), P240.saturating_mul(2));
 }

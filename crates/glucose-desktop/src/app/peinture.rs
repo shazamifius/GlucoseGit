@@ -75,13 +75,18 @@ impl GlucoseApp {
         }
         let maintenant = std::time::Instant::now();
         let (pas, vitesse) = self.pas_et_vitesse;
+        // Un geste arrive pendant un sommeil demande aussi une image : elle est attendue au
+        // sens ou la precedente n'avait rien demande, mais la main, si. Ce qui compte est de ne
+        // pas mesurer un SOMMEIL comme un gel ; un geste qui reveille est bien un intervalle
+        // que l'oeil vit -- entre la derniere image et celle que sa main vient de demander.
+        let attendue = self.image_attendue || self.chronique.navigation.en_attente();
         self.rythme_de_l_image =
             self.chronique
                 .rythme
-                .presentee(maintenant, debut_du_rendu, pas, vitesse);
+                .presentee(maintenant, debut_du_rendu, pas, vitesse, attendue);
         // **L'horloge de la trajectoire avance ICI**, au meme instant que la mesure : les deux
         // parlent de la meme chose, et les separer les ferait diverger.
-        self.horloge.presentee(maintenant);
+        self.horloge.presentee(maintenant, self.image_attendue);
     }
 
     /// Ce que l'oeil et la main font en ce moment, pour le rendu.

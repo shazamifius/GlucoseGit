@@ -125,11 +125,20 @@ impl Horloge {
     /// elle n'existe pas encore quand on la dessine. La seule grandeur du même ordre qui soit
     /// déjà mesurée est celle que l'image précédente vient de vivre — et elle est bien plus
     /// proche de la vérité que le temps de calcul, qui n'en est pas une approximation du tout.
-    pub fn presentee(&mut self, maintenant: Instant) {
+    ///
+    /// `attendue` dit si cette image avait été demandée par la précédente. Sinon l'application
+    /// dormait : il n'y a aucune trajectoire à rattraper, et un pas de trois secondes ferait
+    /// franchir d'un coup au premier geste ce que personne n'a demandé pendant le sommeil.
+    pub fn presentee(&mut self, maintenant: Instant, attendue: bool) {
         let Some(avant) = self.precedente.replace(maintenant) else {
             // La première image n'a pas d'intervalle : la trajectoire n'avance pas encore.
             return;
         };
+        if !attendue {
+            self.dette = Duration::ZERO;
+            self.pas = Duration::ZERO;
+            return;
+        }
         let intervalle = maintenant.saturating_duration_since(avant);
         let Some(periode) = self.periode() else {
             self.pas = intervalle;

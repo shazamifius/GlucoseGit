@@ -219,18 +219,27 @@ impl Rythme {
     /// les deux cas, et ne se corrige pas du tout pareil.
     ///
     /// Rend ce qui vient d'être mesuré, pour que l'instantané de cette image le porte.
+    /// `attendue` dit si l'image precedente avait **demande** celle-ci -- une animation, un
+    /// geste, un decodage en cours. Sinon l'application dormait, et l'intervalle est du
+    /// repos : le mesurer comme un gel a fait paraitre « 3 092 ms a la 7,7e seconde » sur une
+    /// session ou personne ne touchait a rien.
     pub fn presentee(
         &mut self,
         maintenant: Instant,
         debut_du_rendu: Instant,
         pas: Duration,
         vitesse_px_s: f64,
+        attendue: bool,
     ) -> Mesure {
         let precedente = self.precedente.replace(maintenant);
         let Some(avant) = precedente else {
             self.origine.get_or_insert(maintenant);
             return Mesure::default();
         };
+        if !attendue {
+            self.periodes_precedentes = None;
+            return Mesure::default();
+        }
         let image = Image {
             intervalle: maintenant.saturating_duration_since(avant),
             pas,

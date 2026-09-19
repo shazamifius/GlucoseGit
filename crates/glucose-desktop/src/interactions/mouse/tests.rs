@@ -291,7 +291,7 @@ fn test_the_wheel_zoom_is_bounded_between_0_02_and_20() {
             for _ in 0..combien {
                 app.handle_mouse_wheel(MouseScrollDelta::LineDelta(0.0, sens));
                 *horloge += std::time::Duration::from_millis(1);
-                app.horloge.presentee(*horloge);
+                app.horloge.presentee(*horloge, true);
                 app.appliquer_l_elan(1280, 720);
             }
         };

@@ -23,7 +23,7 @@ fn test_une_machine_reguliere_ne_produit_aucun_saut() {
     let periode = Duration::from_micros(8_333);
     for _ in 0..200 {
         t += periode;
-        r.presentee(t, t - Duration::from_micros(2_000), periode, 1_000.0);
+        r.presentee(t, t - Duration::from_micros(2_000), periode, 1_000.0, true);
     }
     let (median, _, _, _) = r.intervalles();
     assert!(
@@ -79,7 +79,7 @@ fn test_une_machine_irreguliere_fait_sauter_un_mouvement_pourtant_parfait() {
         });
         let presentation = debut + duree;
         if !pas.is_zero() {
-            r.presentee(presentation, debut, pas, vitesse);
+            r.presentee(presentation, debut, pas, vitesse, true);
         }
         debut_precedent = Some(debut);
         debut = presentation;
@@ -124,6 +124,7 @@ fn test_une_vue_immobile_ne_compte_pas_dans_la_fidelite() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(8_000),
             0.0,
+            true,
         );
     }
     assert_eq!(
@@ -151,6 +152,7 @@ fn test_la_cadence_vue_ignore_le_temps_ou_rien_n_etait_demande() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(10_000),
             100.0,
+            true,
         );
     }
     // Puis un long sommeil, et une seule image.
@@ -160,6 +162,7 @@ fn test_la_cadence_vue_ignore_le_temps_ou_rien_n_etait_demande() {
         t - Duration::from_micros(2_000),
         Duration::from_micros(10_000),
         100.0,
+        true,
     );
 
     let vue = r.cadence_vue().expect("des intervalles ont ete mesures");
@@ -181,6 +184,7 @@ fn test_sans_periode_connue_aucun_balayage_n_est_invente() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(10_000),
             500.0,
+            true,
         );
     }
     assert_eq!(r.periode(), None);
@@ -206,7 +210,46 @@ fn test_la_premiere_image_ne_mesure_rien() {
         t - Duration::from_micros(2_000),
         Duration::from_micros(8_000),
         900.0,
+        true,
     );
     assert_eq!(m, Mesure::default());
     assert_eq!(r.comparees(), 0);
+}
+
+/// **Un sommeil n'est pas un gel.** Une application qui n'a rien a faire dort, et l'intervalle
+/// qui suit ne dit rien de ce que l'oeil a recu -- personne ne regardait un mouvement.
+#[test]
+fn test_un_sommeil_ne_compte_pas_comme_un_gel() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let mut t = Instant::now();
+    for _ in 0..20 {
+        t += Duration::from_micros(8_333);
+        r.presentee(
+            t,
+            t - Duration::from_micros(2_000),
+            Duration::from_micros(8_333),
+            500.0,
+            true,
+        );
+    }
+    // Trois secondes de sommeil, puis une image que rien n'attendait.
+    t += Duration::from_secs(3);
+    r.presentee(
+        t,
+        t - Duration::from_micros(2_000),
+        Duration::ZERO,
+        0.0,
+        false,
+    );
+    let (_, _, _, pire) = r.intervalles();
+    assert!(
+        pire < 20_000,
+        "le sommeil de trois secondes ne doit pas paraitre dans les intervalles : {pire} us"
+    );
+    let (_, gel, _) = r.pire_intervalle();
+    assert!(
+        gel < Duration::from_millis(20),
+        "ni comme le pire gel : {gel:?}"
+    );
 }
