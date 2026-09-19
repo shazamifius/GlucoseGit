@@ -91,7 +91,11 @@ fn une_duree_insensee_retombe_sur_le_dernier_palier() {
     // net et de laisser la mesure dire ou est vraiment le temps.
     let mut r = Resolution::nette();
     r.observer(scene_seule(ms(120)), Duration::ZERO, true);
-    assert_eq!(r.facteur(), 1, "un budget intenable ne s'achete pas en pixels");
+    assert_eq!(
+        r.facteur(),
+        1,
+        "un budget intenable ne s'achete pas en pixels"
+    );
 }
 
 /// Le facteur ne quitte jamais les paliers : l'agrandissement au plus proche par un entier
@@ -108,7 +112,6 @@ fn le_facteur_reste_une_puissance_de_deux() {
         );
     }
 }
-
 
 /// **L'erreur qui a rendu l'application illisible, et que rien n'interdisait.**
 ///
@@ -156,7 +159,11 @@ fn un_facteur_deja_haut_redescend_quand_la_scene_n_est_pas_en_cause() {
             true,
         );
     }
-    assert_eq!(r.facteur(), 1, "le modele doit savoir revenir sur sa decision");
+    assert_eq!(
+        r.facteur(),
+        1,
+        "le modele doit savoir revenir sur sa decision"
+    );
 }
 
 /// Le cas mixte : le terme fixe tient dans le budget, et ce qui reste dicte le facteur.

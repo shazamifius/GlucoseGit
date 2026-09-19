@@ -382,8 +382,7 @@ impl GlucoseApp {
     /// au démarrage ; c'est elle, et la constante disparaît.
     fn animation_interval_ms(&self) -> u64 {
         let periode = self.cadence.periode().as_millis().max(1) as u64;
-        self.last_frame_ms
-            .clamp(periode, ANIMATION_MAX_INTERVAL_MS)
+        self.last_frame_ms.clamp(periode, ANIMATION_MAX_INTERVAL_MS)
     }
 
     /// Marque **toute** la vue comme sale et planifie un rafraîchissement (R-15).

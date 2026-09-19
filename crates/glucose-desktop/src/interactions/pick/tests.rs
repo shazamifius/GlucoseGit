@@ -161,7 +161,6 @@ fn test_pick_1_a_drag_never_advances_the_cycle() {
     );
 }
 
-
 /// Les bornes exactes du double-clic, sur la décision pure : l'heure y est une donnée, donc
 /// la milliseconde se vérifie sans qu'une machine chargée puisse changer le résultat.
 #[test]

@@ -444,7 +444,6 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
     );
 }
 
-
 /// **Les deux voies rendent les memes bits.** La division par 255 sur deux canaux a la fois
 /// doit valoir exactement celle qu'on ecrivait canal par canal, sur toute la plage que la
 /// composition peut produire -- `c x a + d x (255 - a)` ne depasse jamais `255 x 255`.
@@ -472,14 +471,17 @@ fn la_division_par_255_sur_deux_canaux_vaut_celle_sur_un() {
 fn la_composition_swar_vaut_la_composition_canal_par_canal() {
     for alpha in [0u8, 1, 17, 64, 128, 200, 255] {
         let source = super::LevelSource::new((200, 40, 120), alpha);
-        for fond in [[0u8, 0, 0, 0], [255, 255, 255, 255], [10, 200, 90, 255], [7, 7, 7, 9]] {
+        for fond in [
+            [0u8, 0, 0, 0],
+            [255, 255, 255, 255],
+            [10, 200, 90, 255],
+            [7, 7, 7, 9],
+        ] {
             let mut obtenu = fond;
             super::blend_pixel(&mut obtenu, source);
 
             let inv = 255 - u32::from(alpha);
-            let canal = |c: usize, s: u32| {
-                super::div255(s + u32::from(fond[c]) * inv) as u8
-            };
+            let canal = |c: usize, s: u32| super::div255(s + u32::from(fond[c]) * inv) as u8;
             let poids = u32::from(alpha);
             let attendu = [
                 canal(0, 200 * poids),
@@ -594,16 +596,19 @@ fn les_segments_rendent_les_memes_pixels_que_le_calcul_par_pixel() {
         let mut obtenu = vec![fond; colonnes.len()];
         let (gauche, droite) = obtenu.split_at_mut(sommet);
         peindre_par_segments(gauche, poids, &colonnes[..sommet], &levels, Sens::Montant);
-        peindre_par_segments(droite, poids, &colonnes[sommet..], &levels, Sens::Descendant);
+        peindre_par_segments(
+            droite,
+            poids,
+            &colonnes[sommet..],
+            &levels,
+            Sens::Descendant,
+        );
 
         let ecart = obtenu
             .iter()
             .zip(&attendu)
             .position(|(o, a)| o != a)
             .map(|i| (i, obtenu[i], attendu[i]));
-        assert!(
-            ecart.is_none(),
-            "poids {poids} : ecart au pixel {ecart:?}"
-        );
+        assert!(ecart.is_none(), "poids {poids} : ecart au pixel {ecart:?}");
     }
 }

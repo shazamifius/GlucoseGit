@@ -326,8 +326,20 @@ pub(super) fn draw_halo(dst: &mut PixmapMut, halo: HaloBox, rgb: (u8, u8, u8), a
         let debut = y as usize * largeur + x0 as usize;
         let ligne = &mut pixels[debut..debut + (x1 - x0) as usize];
         let (gauche, droite) = ligne.split_at_mut(sommet);
-        peindre_par_segments(gauche, row_weight, &columns[..sommet], &levels, Sens::Montant);
-        peindre_par_segments(droite, row_weight, &columns[sommet..], &levels, Sens::Descendant);
+        peindre_par_segments(
+            gauche,
+            row_weight,
+            &columns[..sommet],
+            &levels,
+            Sens::Montant,
+        );
+        peindre_par_segments(
+            droite,
+            row_weight,
+            &columns[sommet..],
+            &levels,
+            Sens::Descendant,
+        );
     }
 }
 

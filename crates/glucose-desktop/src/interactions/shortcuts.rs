@@ -6,7 +6,7 @@
 //! `V` choisit l'outil de sélection). Elles sont donc essayées dans un ordre fixe, chacune
 //! rendant `true` si elle a consommé la touche :
 //!
-//! 1. **Fichier** (`persist`) — `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`
+//! 1. **Fichier** (`persist`) — `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`, `Ctrl+E`
 //! 2. **Édition** — `Ctrl+V`, `Ctrl+Z`, `Ctrl+Y`, `Ctrl+D`, `Ctrl+A`
 //! 3. **Outils** — les lettres nues
 //!

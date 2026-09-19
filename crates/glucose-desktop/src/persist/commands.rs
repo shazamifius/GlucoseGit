@@ -80,7 +80,8 @@ impl GlucoseApp {
         self.window_title_cache = title;
     }
 
-    /// `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`. Rend `true` si la touche a été consommée.
+    /// `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`, `Ctrl+E`. Rend `true` si la touche a été
+    /// consommée.
     pub fn handle_file_shortcut(&mut self, key: &str) -> bool {
         if !self.modifiers.control_key() {
             return false;
@@ -100,6 +101,10 @@ impl GlucoseApp {
             }
             "i" | "I" => {
                 self.pick_and_import_images();
+                true
+            }
+            "e" | "E" => {
+                self.export_board();
                 true
             }
             _ => false,

@@ -69,7 +69,9 @@ fn un_geste_neuf_n_herite_jamais_de_la_vitesse_du_precedent() {
 
     // Un geste lent, dans le meme sens : la glissade qui suit doit etre celle du geste LENT.
     let t = glisser(&mut elan, t, 10, (2.0, 0.0));
-    let apres = elan.avancer(a(t + 10), DIAGONALE).expect("une glissade lente");
+    let apres = elan
+        .avancer(a(t + 10), DIAGONALE)
+        .expect("une glissade lente");
     assert!(
         apres.pan.0 < 5.0,
         "la vitesse du geste rapide a survecu : {:?}",
@@ -240,7 +242,9 @@ fn l_ancre_ne_se_consomme_pas_avec_la_demande() {
     elan.pousser_zoom(0.3, (640.0, 360.0));
     let pendant = elan.avancer(a(16), DIAGONALE).expect("la demande existe");
     assert_eq!(pendant.ancre, (640.0, 360.0));
-    let apres = elan.avancer(a(32), DIAGONALE).expect("la glissade continue");
+    let apres = elan
+        .avancer(a(32), DIAGONALE)
+        .expect("la glissade continue");
     assert_eq!(
         apres.ancre,
         (640.0, 360.0),
@@ -256,10 +260,22 @@ fn l_ancre_ne_se_consomme_pas_avec_la_demande() {
 fn deux_deplacements_opposes_s_annulent_dans_la_fenetre() {
     let mut f = Fenetre::default();
     for _ in 0..5 {
-        f.noter(0.01, &Mouvement { pan: (10.0, 0.0), ..Default::default() });
+        f.noter(
+            0.01,
+            &Mouvement {
+                pan: (10.0, 0.0),
+                ..Default::default()
+            },
+        );
     }
     for _ in 0..5 {
-        f.noter(0.01, &Mouvement { pan: (-10.0, 0.0), ..Default::default() });
+        f.noter(
+            0.01,
+            &Mouvement {
+                pan: (-10.0, 0.0),
+                ..Default::default()
+            },
+        );
     }
     let v = f.vitesse();
     assert!(v.pan.0.abs() < 1e-9, "vitesse residuelle {:?}", v.pan);
@@ -272,11 +288,23 @@ fn la_fenetre_oublie_ce_qui_precede_son_dixieme_de_seconde() {
     let mut f = Fenetre::default();
     // Bien au-dela de la fenetre, a grande vitesse.
     for _ in 0..20 {
-        f.noter(0.01, &Mouvement { pan: (100.0, 0.0), ..Default::default() });
+        f.noter(
+            0.01,
+            &Mouvement {
+                pan: (100.0, 0.0),
+                ..Default::default()
+            },
+        );
     }
     // Puis exactement la fenetre, a vitesse lente.
     for _ in 0..10 {
-        f.noter(0.01, &Mouvement { pan: (1.0, 0.0), ..Default::default() });
+        f.noter(
+            0.01,
+            &Mouvement {
+                pan: (1.0, 0.0),
+                ..Default::default()
+            },
+        );
     }
     let v = f.vitesse();
     assert!(
@@ -291,7 +319,13 @@ fn la_fenetre_oublie_ce_qui_precede_son_dixieme_de_seconde() {
 #[test]
 fn un_geste_plus_court_que_la_fenetre_a_une_vitesse() {
     let mut f = Fenetre::default();
-    f.noter(0.01, &Mouvement { pan: (10.0, 0.0), ..Default::default() });
+    f.noter(
+        0.01,
+        &Mouvement {
+            pan: (10.0, 0.0),
+            ..Default::default()
+        },
+    );
     let v = f.vitesse();
     assert!((v.pan.0 - 1000.0).abs() < 1e-9, "{:?}", v.pan);
 }
@@ -302,7 +336,13 @@ fn un_geste_plus_court_que_la_fenetre_a_une_vitesse() {
 fn l_anneau_ne_deborde_pas_et_garde_les_plus_recentes() {
     let mut f = Fenetre::default();
     for _ in 0..ECHANTILLONS * 3 {
-        f.noter(0.001, &Mouvement { pan: (1.0, 0.0), ..Default::default() });
+        f.noter(
+            0.001,
+            &Mouvement {
+                pan: (1.0, 0.0),
+                ..Default::default()
+            },
+        );
     }
     assert_eq!(f.remplies, ECHANTILLONS);
     let v = f.vitesse();
@@ -314,7 +354,13 @@ fn l_anneau_ne_deborde_pas_et_garde_les_plus_recentes() {
 fn vider_la_fenetre_efface_toute_vitesse() {
     let mut f = Fenetre::default();
     for _ in 0..10 {
-        f.noter(0.01, &Mouvement { pan: (50.0, 50.0), ..Default::default() });
+        f.noter(
+            0.01,
+            &Mouvement {
+                pan: (50.0, 50.0),
+                ..Default::default()
+            },
+        );
     }
     f.vider();
     assert_eq!(f.vitesse(), Vitesse::default());

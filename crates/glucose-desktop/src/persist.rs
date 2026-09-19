@@ -13,11 +13,13 @@
 //! | `Ctrl+Maj+S` | Enregistre sous un nouveau chemin |
 //! | `Ctrl+O` | Ouvre un projet |
 //! | `Ctrl+I` | Importe des images (le raccourci qu'occupait `Ctrl+O`) |
+//! | `Ctrl+E` | Exporte le tableau courant ; l'extension choisie decide du format |
 
 pub mod assets;
 pub mod atomic;
 pub mod close;
 pub mod commands;
+pub mod export;
 
 use crate::error::{DesktopError, DesktopResult};
 use glucose_core::persist::{self, GlucoseFile, FILE_EXTENSION};

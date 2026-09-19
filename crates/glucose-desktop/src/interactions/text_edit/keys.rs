@@ -111,7 +111,7 @@ impl Command {
     }
 }
 
-/// La frappe est-elle une commande de fichier (`Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`) ?
+/// La frappe est-elle une commande de fichier (`Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+E`) ?
 ///
 /// Une session d'édition avale TOUTES les touches — c'est ce qui permet de taper `s` dans une
 /// carte sans déclencher un raccourci. Mais `Ctrl+S` au milieu d'une phrase veut dire
@@ -121,7 +121,9 @@ pub fn is_file_command(modifiers: &ModifiersState, key: &Key) -> bool {
     if !modifiers.control_key() {
         return false;
     }
-    matches!(key, Key::Character(c) if matches!(c.as_str(), "s" | "S" | "o" | "O"))
+    // `Ctrl+E` est ici pour la meme raison que `Ctrl+S` : exporter un texte encore en cours
+    // de frappe exporterait la version d'avant la phrase qu'on vient de taper.
+    matches!(key, Key::Character(c) if matches!(c.as_str(), "s" | "S" | "o" | "O" | "e" | "E"))
 }
 
 impl GlucoseApp {

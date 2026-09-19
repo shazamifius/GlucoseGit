@@ -68,12 +68,7 @@ impl GlucoseApp {
     /// libre, et le compte se partage : deux horloges pour une question, c'est une
     /// divergence qui attend son bug.
     pub(crate) fn click_count_at(&self, cle: &str) -> u32 {
-        rang_du_clic(
-            self.last_click.as_ref(),
-            cle,
-            self.mouse_pos,
-            self.now_ms(),
-        )
+        rang_du_clic(self.last_click.as_ref(), cle, self.mouse_pos, self.now_ms())
     }
 
     /// Retient ce clic et son rang, pour que le suivant puisse se compter.

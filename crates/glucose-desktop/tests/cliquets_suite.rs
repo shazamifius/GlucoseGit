@@ -259,7 +259,10 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 /// seul compte au lieu d'un par fichier.
 /// Le nombre ne prouve pas la vérité de chaque message, mais il interdit la prolifération, et
 /// chaque site retiré est un site de moins à relire.
-const PLAFOND_TOASTS: usize = 45;
+///
+/// L'export en a ajouté **un** — un seul pour les deux issues, parce que réussir et échouer
+/// sont la même phrase à dire au même endroit : ce qui vient d'avoir lieu.
+const PLAFOND_TOASTS: usize = 46;
 
 fn compte_toasts() -> usize {
     sources(&src_desktop())
@@ -308,7 +311,6 @@ const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
     // Écrits et testés, en attente de leur geste (fiche 12 § 4).
     "curtain_model",
     "curtain_panel",
-    "export",
     "membrane_stretch",
     "mirror_graph",
     "text_anchors",
