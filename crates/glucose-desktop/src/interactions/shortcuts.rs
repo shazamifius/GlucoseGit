@@ -7,7 +7,7 @@
 //! rendant `true` si elle a consommé la touche :
 //!
 //! 1. **Fichier** (`persist`) — `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`, `Ctrl+E`
-//! 1bis. **Signets de vue** — `Ctrl+1`..`Ctrl+9` posent, `1`..`9` y volent
+//!    dont les **signets de vue** — `Ctrl+1`..`Ctrl+9` posent, `1`..`9` y volent
 //! 2. **Édition** — `Ctrl+V`, `Ctrl+Z`, `Ctrl+Y`, `Ctrl+D`, `Ctrl+A`
 //! 3. **Outils** — les lettres nues
 //!
