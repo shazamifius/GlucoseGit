@@ -74,6 +74,26 @@ const TAU_LIBRE_PAN: f64 = 0.45;
 /// glissade longue y devient un vol plané dont on ne sait plus où il s'arrête.
 const TAU_LIBRE_ZOOM: f64 = 0.28;
 
+/// Le temps que met la vue à rattraper la main pendant qu'elle pousse.
+///
+/// # Pourquoi il est **constant**, et ce que coûtait de le calculer
+///
+/// La version précédente le déduisait du rythme de la source, à chaque image : l'horizon
+/// divisé par le nombre d'événements qu'il contenait. Ce nombre oscille — cinq, puis douze,
+/// puis huit, selon ce que le pilote a livré — donc la constante de temps oscillait avec lui,
+/// entre six et vingt millisecondes. **La fraction remboursée variait d'un facteur trois d'une
+/// image à l'autre, pour une main parfaitement régulière.** C'est une saccade, et c'est ce que
+/// l'utilisateur voyait.
+///
+/// La preuve était sous les yeux : le vol de caméra, qui emploie la même équation avec une
+/// constante **fixe**, a toujours été jugé fluide — « quand on fait F ou Ctrl+1, il n'y a
+/// presque aucun problème ».
+///
+/// Cinquante millisecondes absorbent les deux irrégularités de la livraison — les rafales, qui
+/// durent quelques millisecondes, et les trous, quelques dizaines — tout en restant bien sous
+/// le seuil où un retard se perçoit, qui est la latence de la poursuite oculaire.
+const TAU_CONDUITE: f64 = 0.05;
+
 /// Le plus long qu'une image puisse durer sans que l'élan franchisse d'un coup ce qu'elle a
 /// manqué.
 ///
@@ -191,24 +211,29 @@ impl Source {
             })
     }
 
-    /// L'intervalle d'émission typique, en secondes : l'horizon divisé par ce qu'il contient.
-    ///
-    /// Calculé ainsi, et non comme la moyenne des écarts, il est **insensible aux rafales** —
-    /// pour la même raison que la vitesse. Dix événements dans l'horizon donnent dix
-    /// millisecondes, qu'ils soient arrivés régulièrement ou d'un bloc.
-    fn typique(&self, maintenant: Instant) -> Option<f64> {
-        let combien = self.recentes(maintenant).count();
-        (combien > 0).then(|| HORIZON.as_secs_f64() / combien as f64)
-    }
-
     /// Le silence au-delà duquel on peut conclure que la main a lâché.
     ///
-    /// Le plus grand écart que cette source s'est permis récemment, jamais moins que son
-    /// intervalle typique : un pavé tactile hoquette, et conclure au lâcher à chaque trou
-    /// ferait basculer de régime des dizaines de fois par seconde.
+    /// Le plus grand écart que cette source s'est permis récemment, jamais moins que le temps
+    /// de rattrapage : un pavé tactile hoquette, et conclure au lâcher à chaque trou ferait
+    /// basculer de régime des dizaines de fois par seconde.
+    ///
+    /// # Le plancher est [`TAU_CONDUITE`], et surtout pas l'intervalle typique
+    ///
+    /// La version précédente y mettait l'intervalle typique — donc le **nombre** d'événements
+    /// reçus. C'était le défaut de la constante de temps, déplacé d'un cran : le même geste
+    /// livré en cinq morceaux ou en vingt ne concluait pas au lâcher au même moment, et
+    /// montrait donc six pour cent de plus dans un cas que dans l'autre.
+    ///
+    /// `TAU_CONDUITE` ne dépend de rien, et il a un sens ici : conclure au lâcher plus vite
+    /// que le temps qu'on met à rattraper la main n'aurait de toute façon aucun effet visible.
+    /// Rend `None` tant qu'il n'y a pas **deux** événements : une vitesse est un rapport, et
+    /// un point isolé n'en porte aucune. Un cran de molette seul ne mérite pas de glissade —
+    /// il s'applique en douceur, et c'est tout ce qu'on peut savoir de lui.
     fn silence_qui_termine(&self, maintenant: Instant) -> Option<f64> {
-        let typique = self.typique(maintenant)?;
-        let mut pire: f64 = typique;
+        if self.remplies < 2 {
+            return None;
+        }
+        let mut pire: f64 = TAU_CONDUITE;
         let mut precedent: Option<Instant> = None;
         for (quand, _) in self.recentes(maintenant) {
             if let (Some(t), Some(p)) = (*quand, precedent) {
@@ -326,7 +351,7 @@ impl Elan {
             return None;
         }
 
-        let (tau_pan, tau_zoom) = self.constantes(maintenant);
+        let (tau_pan, tau_zoom) = self.constantes();
         let part = |tau: f64| 1.0 - (-dt / tau.max(1e-6)).exp();
         let montre = Mouvement {
             pan: (
@@ -375,16 +400,18 @@ impl Elan {
 
     /// Les constantes de temps du régime courant.
     ///
-    /// Pendant que la main pousse, c'est le rythme **mesuré** de la source : la dette se
-    /// rembourse à peu près aussi vite qu'elle se contracte, donc le contenu suit la main de
-    /// près sans sauter sur les rafales. Quand la main a lâché, ce sont les constantes de
-    /// glissade — les deux seules valeurs de ressenti de ce module.
-    fn constantes(&self, maintenant: Instant) -> (f64, f64) {
+    /// Pendant que la main pousse, la vue la rattrape en [`TAU_CONDUITE`] — assez pour lisser
+    /// les irrégularités de livraison, assez peu pour que le retard ne se perçoive pas. Quand
+    /// la main a lâché, ce sont les constantes de glissade.
+    ///
+    /// **Aucune des trois ne dépend de l'instant**, et c'est tout l'objet de cette version :
+    /// une constante de temps qui change d'une image à l'autre fait varier ce qui est montré
+    /// alors que le geste, lui, n'a pas changé.
+    fn constantes(&self) -> (f64, f64) {
         if self.libre {
             return (TAU_LIBRE_PAN, TAU_LIBRE_ZOOM);
         }
-        let rythme = self.source.typique(maintenant).unwrap_or(TAU_LIBRE_PAN);
-        (rythme, rythme)
+        (TAU_CONDUITE, TAU_CONDUITE)
     }
 }
 

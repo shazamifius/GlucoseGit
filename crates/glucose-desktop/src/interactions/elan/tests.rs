@@ -288,3 +288,89 @@ fn un_trou_dans_le_rythme_ne_termine_pas_le_geste() {
         "un simple trou a declenche l'inertie : {montre:.0} px en vingt millisecondes"
     );
 }
+
+/// **À main régulière, la vue avance régulièrement.** C'est la propriété que l'utilisateur
+/// jugeait absente — « ce n'est absolument pas fluide » — et qu'aucun test ne vérifiait.
+///
+/// Le défaut venait d'une constante de temps recalculée à chaque image depuis le nombre
+/// d'événements reçus. Ce nombre oscille avec la livraison du pilote, donc la fraction montrée
+/// oscillait avec lui, pour un geste qui, lui, ne changeait pas.
+///
+/// Le test compare chaque image à la précédente. Un geste régulier ne doit produire aucun
+/// sursaut — et c'est bien un rapport qu'on mesure, pas une valeur : la vitesse elle-même a le
+/// droit de monter et de descendre, à condition de le faire continûment.
+#[test]
+fn une_main_reguliere_ne_produit_aucun_sursaut() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+
+    // Un geste long et régulier, au rythme d'un pavé, pendant qu'on joue les images à 240 Hz.
+    // Les deux rythmes ne tombent pas juste — c'est précisément le cas réel.
+    let mut prochain_evenement = debut;
+    let mut precedent: Option<f64> = None;
+    let mut pire_rapport: f64 = 1.0;
+
+    for n in 1..=240u32 {
+        let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
+        while prochain_evenement <= t {
+            elan.pousser_pan(10.0, 0.0, prochain_evenement);
+            prochain_evenement += PAVE;
+        }
+        let montre = elan.avancer(t, DIAGONALE).map_or(0.0, |m| m.pan.0);
+        // Les toutes premières images remplissent la dette : on regarde le régime établi.
+        if n < 30 {
+            continue;
+        }
+        if let Some(avant) = precedent {
+            let (petit, grand) = if montre < avant {
+                (montre, avant)
+            } else {
+                (avant, montre)
+            };
+            if petit > 0.01 {
+                pire_rapport = pire_rapport.max(grand / petit);
+            }
+        }
+        precedent = Some(montre);
+    }
+
+    assert!(
+        pire_rapport < 1.6,
+        "une image a montre {pire_rapport:.2} fois ce que la precedente montrait, \
+         pour une main parfaitement reguliere"
+    );
+}
+
+/// **La constante de temps ne dépend pas de ce que le pilote vient de livrer.** C'est la
+/// formulation directe du défaut : le même déplacement, sur la même durée, doit montrer la
+/// même chose — que le pilote l'ait livré en cinq morceaux ou en vingt.
+///
+/// Les deux gestes sont observés **au même instant**, un instant après la fin commune : sans
+/// cela on comparerait deux états qui n'ont pas le même âge, et l'écart mesuré ne dirait rien
+/// de la livraison.
+#[test]
+fn le_rythme_de_livraison_ne_change_pas_ce_qui_est_montre() {
+    const GESTE: f64 = 0.1;
+    let montre_pour = |combien: u32| {
+        let mut elan = Elan::default();
+        let debut = Instant::now();
+        let pas = GESTE / f64::from(combien);
+        for k in 0..combien {
+            elan.pousser_pan(
+                100.0 / f64::from(combien),
+                0.0,
+                debut + Duration::from_secs_f64(pas * f64::from(k)),
+            );
+        }
+        // Le même instant pour les deux : la fin du geste, plus une image.
+        elan.avancer(debut + Duration::from_secs_f64(GESTE + IMAGE), DIAGONALE)
+            .map_or(0.0, |m| m.pan.0)
+    };
+
+    let peu = montre_pour(5);
+    let beaucoup = montre_pour(20);
+    assert!(
+        (peu - beaucoup).abs() < peu.max(beaucoup) * 0.02,
+        "cinq evenements montrent {peu:.3} px, vingt en montrent {beaucoup:.3} —          pour le meme deplacement sur la meme duree"
+    );
+}
