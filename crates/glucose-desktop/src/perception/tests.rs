@@ -11,9 +11,15 @@ fn a_tant_de_degres(degres: f64, echelle: f64) -> f64 {
 /// elle ne doit tenir à aucun seuil : zéro pixel par seconde donne un, point.
 #[test]
 fn a_l_arret_la_nettete_est_entiere() {
-    assert_eq!(Perception::a_la_vitesse(0.0, 1.0).facteur_admissible(), 1);
-    assert_eq!(Perception::a_la_vitesse(0.0, 3.0).facteur_admissible(), 1);
-    assert!(!Perception::a_la_vitesse(0.0, 1.0).autorise_a_degrader());
+    assert_eq!(
+        Perception::a_la_vitesse(0.0, 0.0, 1.0).facteur_admissible(),
+        1
+    );
+    assert_eq!(
+        Perception::a_la_vitesse(0.0, 0.0, 3.0).facteur_admissible(),
+        1
+    );
+    assert!(!Perception::a_la_vitesse(0.0, 0.0, 1.0).autorise_a_degrader());
     assert_eq!(Perception::nette().facteur_admissible(), 1);
 }
 
@@ -23,7 +29,7 @@ fn a_l_arret_la_nettete_est_entiere() {
 #[test]
 fn sous_la_vitesse_de_poursuite_rien_n_est_degradable() {
     for degres in [1.0, 5.0, 12.0, 19.9] {
-        let p = Perception::a_la_vitesse(a_tant_de_degres(degres, 1.0), 1.0);
+        let p = Perception::a_la_vitesse(a_tant_de_degres(degres, 1.0), 0.0, 1.0);
         assert_eq!(
             p.facteur_admissible(),
             1,
@@ -39,7 +45,7 @@ fn sous_la_vitesse_de_poursuite_rien_n_est_degradable() {
 fn le_facteur_admissible_ne_decroit_jamais_avec_la_vitesse() {
     let mut precedent = 1;
     for px in (0..8_000).step_by(25) {
-        let facteur = Perception::a_la_vitesse(f64::from(px), 1.0).facteur_admissible();
+        let facteur = Perception::a_la_vitesse(f64::from(px), 0.0, 1.0).facteur_admissible();
         assert!(
             facteur >= precedent,
             "a {px} px/s le facteur est retombe a {facteur} apres {precedent}"
@@ -56,14 +62,14 @@ fn un_amortissement_exponentiel_redevient_net_avant_de_s_eteindre() {
     let depart = 4_000.0;
 
     // Au lâcher, la vue file : l'œil ne suit plus, on a le droit d'abîmer.
-    assert!(Perception::a_la_vitesse(depart, 1.0).autorise_a_degrader());
+    assert!(Perception::a_la_vitesse(depart, 0.0, 1.0).autorise_a_degrader());
 
     // On intègre l'amortissement, et on cherche l'instant où la netteté revient.
     let mut retour = None;
     for pas in 0..200 {
         let t = f64::from(pas) * 0.01;
         let vitesse = depart * (-t / TAU).exp();
-        if !Perception::a_la_vitesse(vitesse, 1.0).autorise_a_degrader() {
+        if !Perception::a_la_vitesse(vitesse, 0.0, 1.0).autorise_a_degrader() {
             retour = Some(t);
             break;
         }
@@ -90,8 +96,8 @@ fn un_amortissement_exponentiel_redevient_net_avant_de_s_eteindre() {
 #[test]
 fn deux_ecrans_de_densites_differentes_tolerent_la_meme_chose() {
     for degres in [25.0, 40.0, 80.0] {
-        let simple = Perception::a_la_vitesse(a_tant_de_degres(degres, 1.0), 1.0);
-        let dense = Perception::a_la_vitesse(a_tant_de_degres(degres, 2.5), 2.5);
+        let simple = Perception::a_la_vitesse(a_tant_de_degres(degres, 1.0), 0.0, 1.0);
+        let dense = Perception::a_la_vitesse(a_tant_de_degres(degres, 2.5), 0.0, 2.5);
         assert_eq!(
             simple.facteur_admissible(),
             dense.facteur_admissible(),
@@ -104,7 +110,7 @@ fn deux_ecrans_de_densites_differentes_tolerent_la_meme_chose() {
 #[test]
 fn le_facteur_est_toujours_une_puissance_de_deux() {
     for px in (0..20_000).step_by(37) {
-        let f = Perception::a_la_vitesse(f64::from(px), 1.0).facteur_admissible();
+        let f = Perception::a_la_vitesse(f64::from(px), 0.0, 1.0).facteur_admissible();
         assert!(f >= 1 && f.is_power_of_two(), "{px} px/s donne {f}");
     }
 }
@@ -114,12 +120,56 @@ fn le_facteur_est_toujours_une_puissance_de_deux() {
 #[test]
 fn une_vitesse_insensee_ne_casse_rien() {
     for vitesse in [1e9, f64::MAX, f64::INFINITY] {
-        let f = Perception::a_la_vitesse(vitesse, 1.0).facteur_admissible();
+        let f = Perception::a_la_vitesse(vitesse, 0.0, 1.0).facteur_admissible();
         assert!(f >= 1 && f.is_power_of_two(), "{vitesse} donne {f}");
     }
     // Et une vitesse négative — qui n'a pas de sens — se lit comme un arrêt.
     assert_eq!(
-        Perception::a_la_vitesse(-500.0, 1.0).facteur_admissible(),
+        Perception::a_la_vitesse(-500.0, 0.0, 1.0).facteur_admissible(),
         1
+    );
+}
+
+/// **Un zoom n'est pas poursuivable, et c'est ce qui le distingue d'un déplacement.**
+///
+/// L'œil ne poursuit qu'une trajectoire. Un déplacement emporte tout l'écran dans le même
+/// sens — une seule poursuite les annule tous. Un zoom écarte le contenu radialement : chaque
+/// point part ailleurs, et rien ne peut suivre ailleurs qu'au point fixe.
+///
+/// À vitesse apparente égale, un zoom doit donc autoriser **plus** qu'un déplacement.
+#[test]
+fn un_zoom_autorise_plus_qu_un_deplacement_de_meme_vitesse() {
+    for degres in [8.0, 15.0, 30.0, 60.0] {
+        let px = a_tant_de_degres(degres, 1.0);
+        let pan = Perception::a_la_vitesse(px, 0.0, 1.0).facteur_admissible();
+        let zoom = Perception::a_la_vitesse(0.0, px, 1.0).facteur_admissible();
+        assert!(
+            zoom >= pan,
+            "a {degres} deg/s : un zoom tolere {zoom}, un deplacement {pan}"
+        );
+    }
+
+    // Et sous la vitesse de poursuite, l'écart est franc : le déplacement n'autorise rien,
+    // le zoom autorise déjà quelque chose.
+    let px = a_tant_de_degres(10.0, 1.0);
+    assert_eq!(
+        Perception::a_la_vitesse(px, 0.0, 1.0).facteur_admissible(),
+        1
+    );
+    assert!(Perception::a_la_vitesse(0.0, px, 1.0).autorise_a_degrader());
+}
+
+/// **Les deux mouvements s'additionnent.** Zoomer en se déplaçant glisse davantage sous l'œil
+/// que l'un des deux seul — sans quoi une diagonale zoomée passerait pour un simple pan.
+#[test]
+fn le_zoom_s_ajoute_a_ce_que_le_deplacement_laisse_passer() {
+    let rapide = a_tant_de_degres(40.0, 1.0);
+    let un_peu = a_tant_de_degres(6.0, 1.0);
+
+    let seul = Perception::a_la_vitesse(rapide, 0.0, 1.0).facteur_admissible();
+    let avec = Perception::a_la_vitesse(rapide, un_peu, 1.0).facteur_admissible();
+    assert!(
+        avec >= seul,
+        "un zoom par-dessus un pan rapide : {avec} contre {seul}"
     );
 }

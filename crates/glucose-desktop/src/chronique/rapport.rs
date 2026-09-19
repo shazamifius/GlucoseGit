@@ -273,7 +273,11 @@ impl Chronique {
             "geste",
             "noeuds",
             "photos",
-            "mip",
+            // Cette colonne a porte l'en-tete « mip » pendant toute son existence alors
+            // qu'elle compte les photos posees DEPUIS UNE VIGNETTE. Un en-tete faux est pire
+            // qu'une colonne absente : il a fait chercher un defaut de pyramide la ou il n'y
+            // en avait pas.
+            "vign/px",
             "ecrans",
             "redessine",
             "vign",

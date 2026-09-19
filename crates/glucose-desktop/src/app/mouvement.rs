@@ -68,15 +68,31 @@ impl GlucoseApp {
             width: f64::from(largeur),
             height: f64::from(hauteur),
         };
-        let vitesse = match (self.vue_precedente, dt > 0.0) {
+        // Le mouvement se **décompose**, parce que l'œil ne les traite pas pareil. Le
+        // déplacement d'un point est affine en sa position : sa part **constante** est le
+        // déplacement du centre de l'écran — un glissement uniforme, que la poursuite annule
+        // — et sa part **linéaire** est le zoom, qui écarte le contenu radialement et
+        // qu'aucune poursuite ne peut suivre ailleurs qu'au point fixe.
+        let (deplacement, zoom) = match (self.vue_precedente, dt > 0.0) {
             (Some(avant), true) => {
-                crate::interactions::vol::ecart_max_en_pixels(avant, vue, ecran) / dt
+                let centre = (ecran.width / 2.0, ecran.height / 2.0);
+                let monde = (
+                    (centre.0 - avant.x) / avant.scale,
+                    (centre.1 - avant.y) / avant.scale,
+                );
+                let apres = (monde.0 * vue.scale + vue.x, monde.1 * vue.scale + vue.y);
+                let deplacement = (apres.0 - centre.0).hypot(apres.1 - centre.1);
+                // Au bord, le zoom écarte de la demi-diagonale fois le rapport des échelles.
+                let demi_diagonale = ecran.width.hypot(ecran.height) / 2.0;
+                let zoom = demi_diagonale * (vue.scale / avant.scale - 1.0).abs();
+                (deplacement / dt, zoom / dt)
             }
             // Première image, ou durée nulle : on ne sait rien, donc on ne dégrade rien.
-            _ => 0.0,
+            _ => (0.0, 0.0),
         };
         self.vue_precedente = Some(vue);
-        self.perception = crate::perception::Perception::a_la_vitesse(vitesse, self.scale_factor);
+        self.perception =
+            crate::perception::Perception::a_la_vitesse(deplacement, zoom, self.scale_factor);
     }
 
     /// Ce que cette image a coute decide de la finesse de la suivante.

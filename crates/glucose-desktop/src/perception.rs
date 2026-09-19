@@ -85,14 +85,32 @@ impl Perception {
         Self { facteur: 1 }
     }
 
-    /// Ce que l'œil tolère quand la vue se déplace de tant de **pixels physiques** par seconde.
+    /// Ce que l'œil tolère quand la vue bouge, en **pixels physiques** par seconde.
     ///
-    /// `echelle` est le facteur d'échelle annoncé par le système pour cet écran — le pont
-    /// entre les pixels physiques qu'on mesure et les pixels logiques qui portent l'angle.
-    pub fn a_la_vitesse(pixels_par_seconde: f64, echelle: f64) -> Self {
-        let logiques = pixels_par_seconde / echelle.max(f64::MIN_POSITIVE);
-        let degres = logiques.max(0.0) * DEGRES_PAR_PIXEL_LOGIQUE;
-        let glissement = (degres - POURSUITE_MAX).max(0.0);
+    /// # Deux mouvements, et un seul est poursuivable
+    ///
+    /// L'œil ne poursuit qu'**une** trajectoire à la fois. Or les deux mouvements d'une
+    /// caméra ne se ressemblent pas :
+    ///
+    /// * un **déplacement** emporte tout l'écran dans le même sens, à la même vitesse. Une
+    ///   seule poursuite les annule tous — c'est le cas favorable, et le contenu reste net ;
+    /// * un **zoom** écarte le contenu radialement : chaque point part dans une direction
+    ///   différente, à une vitesse proportionnelle à sa distance du point fixe. Aucune
+    ///   poursuite ne peut annuler cela ailleurs qu'au point fixe lui-même.
+    ///
+    /// Le glissement rétinien d'un zoom n'est donc **pas** amorti par la poursuite, et il
+    /// s'ajoute à ce que le déplacement laisse passer. C'est la distinction qui manquait :
+    /// elle interdisait de dégrader pendant un pincement, où l'œil ne voit pourtant presque
+    /// rien — huit cent trente-deux pincements dans une session où le rendu fin coûtait
+    /// soixante-quinze millisecondes.
+    ///
+    /// `echelle` est le facteur annoncé par le système pour cet écran — le pont entre les
+    /// pixels physiques qu'on mesure et les pixels logiques qui portent l'angle.
+    pub fn a_la_vitesse(deplacement: f64, zoom: f64, echelle: f64) -> Self {
+        let en_degres =
+            |px: f64| px.max(0.0) / echelle.max(f64::MIN_POSITIVE) * DEGRES_PAR_PIXEL_LOGIQUE;
+        // Le déplacement passe par la poursuite ; le zoom n'y passe pas.
+        let glissement = (en_degres(deplacement) - POURSUITE_MAX).max(0.0) + en_degres(zoom);
         // Un facteur admissible fractionnaire n'a pas de sens pour un rendu : on ne réduit
         // que par paliers dyadiques. `floor` sur la puissance de deux inférieure est la seule
         // lecture sûre — arrondir au-dessus abîmerait plus que l'œil ne le tolère.
