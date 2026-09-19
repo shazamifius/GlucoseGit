@@ -38,6 +38,14 @@ pub const BUDGET_RENDU: Duration = Duration::from_micros(2_500);
 /// La cadence la plus basse que la charte admette, toutes machines confondues.
 pub const FPS_PLANCHER: f64 = 60.0;
 
+/// Ce qu'une image **et son travail de fond** ont le droit de coûter ensemble.
+///
+/// Cent images par seconde : le plancher que la charte pose sans le négocier — « 100 fps
+/// minimum constant, tout le temps, quoi qu'il se passe ; si on est en dessous, alors go
+/// pixeliser tout ». C'est donc la seule borne légitime pour un investissement, et elle ne
+/// dépend ni de l'écran ni de ce que l'image vient de coûter.
+pub const BUDGET_TOTAL: Duration = Duration::from_millis(10);
+
 /// La part de la période qu'on s'autorise pour une image, quand la période est courte.
 ///
 /// Sur un écran très rapide, [`BUDGET_RENDU`] peut dépasser ce qui est raisonnable : à
@@ -107,34 +115,51 @@ impl Cadence {
 
     /// Ce que le travail de fond peut prendre après une image qui a coûté `rendu`.
     ///
-    /// # Deux régimes, et le second est celui qui compte
+    /// # Deux régimes, et une borne au-dessus des deux
     ///
     /// * **L'image a tenu dans la période** — le fond prend ce qui reste, et rien ne se voit.
     /// * **L'image a dépassé la période** — la cadence est *déjà* perdue, et le travail de fond
-    ///   est précisément ce qui la fera revenir. Lui refuser sa tranche enfermerait la machine
-    ///   dans son régime dégradé : les images resteraient chères parce que le travail
+    ///   est précisément ce qui la fera revenir. Lui refuser toute tranche enfermerait la
+    ///   machine dans son régime dégradé : les images resteraient chères parce que le travail
     ///   n'avance pas, et le travail n'avancerait pas parce que les images sont chères.
     ///
     /// Mesuré sur le banc d'occlusion : vingt-sept photos coûtent 39,62 ms par le chemin
     /// général, et **0,90 ms** une fois leurs vignettes faites. Ne jamais les faire, pour
     /// protéger une cadence qu'on a déjà perdue, revient à garder quarante fois le prix.
     ///
-    /// Dans ce second cas on accorde donc **autant que l'image vient de coûter**. Ce n'est pas
-    /// un réglage : c'est la borne qui garde le dépassement au double d'une image déjà ratée,
-    /// et c'est la seule grandeur du problème qui mesure le retard réel.
+    /// Dans les deux cas, la tranche s'arrête au **plancher de la charte** : une image et son
+    /// travail de fond tiennent ensemble dans [`BUDGET_TOTAL`], ou le fond ne prend rien.
     ///
-    /// # L'erreur que cette ligne corrige, et elle était contre-intuitive
+    /// # Les deux erreurs que cette ligne a traversées, parce qu'aucune n'était évidente
     ///
-    /// La première version accordait **une période**. Sur un écran à 240 Hz elle vaut 4,17 ms,
+    /// **La première version accordait une période.** Sur un écran à 240 Hz elle vaut 4,17 ms,
     /// et le chantier n'avançait alors que d'une vignette toutes les trois images pendant que
     /// chacune coûtait soixante-dix millisecondes — donc plus l'écran était RAPIDE, moins le
-    /// travail de fond avançait. Mesuré sur le terrain : soixante-trois vignettes en attente,
-    /// et pas une seule photo posée depuis une vignette de toute la session.
+    /// travail de fond avançait. Rattraper un retard n'a aucune raison de dépendre de la
+    /// fréquence d'affichage, et ce diagnostic-là reste juste.
     ///
-    /// Rattraper un retard n'a aucune raison de dépendre de la fréquence d'affichage. La durée
-    /// de l'image, elle, mesure exactement ce retard.
+    /// **La deuxième accordait autant que l'image venait de coûter**, en le justifiant ainsi :
+    /// « la durée de l'image mesure exactement ce retard ». C'était une **rétroaction
+    /// positive**, et le terrain l'a payée cher : une image chère donnait une grosse tranche,
+    /// qui rendait l'image suivante plus chère, qui donnait une tranche plus grosse encore. La
+    /// chronique montrait l'atelier prendre la moitié de chaque image lente —
+    ///
+    /// ```text
+    ///    3.8s   71.74ms  repos  428 noeuds  413 photos   file 361
+    ///           dont atelier 35.97ms, report 29.32ms
+    /// ```
+    ///
+    /// — pour un rendement de **zéro pour cent** : pas une photo de la session ne s'est posée
+    /// depuis une vignette. On empruntait sans jamais rembourser.
+    ///
+    /// La borne ne peut donc venir ni de l'écran ni du retard. Elle vient de la charte : on
+    /// investit dans ce qui sépare l'image du plancher, et rien de plus. Quand le rendu seul
+    /// mange déjà les dix millisecondes, le fond se tait — et c'est précisément l'instant où
+    /// la pixelisation doit rendre la main, pas l'atelier la prendre.
     pub fn tranche_de_fond(&self, rendu: Duration) -> Duration {
-        self.temps_libre(rendu).unwrap_or(rendu)
+        let dans_la_periode = self.temps_libre(rendu).unwrap_or(Duration::ZERO);
+        let sous_le_plancher = BUDGET_TOTAL.saturating_sub(rendu + MARGE);
+        dans_la_periode.max(sous_le_plancher)
     }
 
     /// Ce qui reste de la période après une image qui a coûté `rendu`, s'il reste quelque

@@ -17,10 +17,15 @@ use super::{Chronique, Geste, Instantane};
 
 /// Le budget d'une image à la cadence plancher de la charte, en microsecondes.
 ///
-/// Soixante images par seconde. Ce n'est pas la cible — elle est à 400 — mais c'est le seuil
-/// au-dessous duquel la charte considère que quelque chose ne va pas, donc le bon repère pour
-/// compter les images ratées.
-const BUDGET_PLANCHER_US: u32 = 1_000_000 / 60;
+/// **Cent** images par seconde, et non soixante : la charte a été révisée le 18/09/2026 et ne
+/// négocie plus ce plancher — « si on est en dessous, alors go pixeliser tout ». Ce rapport
+/// annonçait donc 16,7 ms comme « le plancher de la charte » alors que la charte en demandait
+/// dix, et comptait pour réussies des images qui ne l'étaient pas.
+///
+/// La valeur ne se redéclare pas ici : c'est [`crate::cadence::BUDGET_TOTAL`], la même que
+/// celle qui borne le travail de fond. Deux copies d'un même plancher finissent toujours par
+/// diverger, et celle-ci avait déjà divergé.
+const BUDGET_PLANCHER_US: u32 = crate::cadence::BUDGET_TOTAL.as_micros() as u32;
 
 impl Chronique {
     /// Le rapport complet, en texte.
