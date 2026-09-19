@@ -25,6 +25,16 @@ pub struct Cadrage {
     pub origine: (f32, f32),
     /// De combien la scene est rendue plus petite que la fenetre (voir [`crate::resolution`]).
     pub reduction: f64,
+    /// La vue a employer, quand ce n'est pas celle du document.
+    ///
+    /// # Pourquoi une tuile en a besoin
+    ///
+    /// Une tuile ne se rend pas dans le repere de l'ecran mais dans le sien : son coin est
+    /// l'origine, et son echelle est celle de son niveau. Elle ne depend donc d'AUCUNE vue --
+    /// c'est meme toute sa raison d'etre. Sans cette porte, la rendre demanderait d'ecrire
+    /// dans le document la vue qu'on veut, puis de la remettre : un etat partage modifie le
+    /// temps d'un rendu, ce qu'aucun test ne saurait rattraper.
+    pub vue: Option<glucose_core::types::Viewport>,
     /// L'oeil tolere-t-il qu'on abime cette image ? (voir [`crate::perception`])
     ///
     /// Faux a l'arret et a toute vitesse que l'oeil sait poursuivre -- donc sur toute la fin
@@ -39,6 +49,7 @@ impl Cadrage {
         Self {
             origine: (0.0, 0.0),
             reduction: 1.0,
+            vue: None,
             degradation_permise: false,
         }
     }
@@ -48,6 +59,7 @@ impl Cadrage {
         Self {
             origine: (0.0, 0.0),
             reduction: f64::from(f.max(1)),
+            vue: None,
             // Une scene deja rendue plus petite l'est parce que l'oeil le tolerait : c'est le
             // plafond de la perception qui a decide du facteur (`resolution::observer`).
             degradation_permise: true,
@@ -59,6 +71,26 @@ impl Cadrage {
         Self {
             origine,
             reduction: 1.0,
+            vue: None,
+            degradation_permise: false,
+        }
+    }
+
+    /// Le cadrage d'une **tuile** : sa vue a elle, et rien du document.
+    ///
+    /// L'echelle est celle du niveau, et l'origine place le coin de la tuile sur celui du
+    /// pixmap. Une tuile est degradable par construction : elle se rend a son echelle exacte,
+    /// donc il n'y a rien a y abimer.
+    pub fn tuile(niveau: i32, origine_monde: (f64, f64)) -> Self {
+        let echelle = glucose_core::tuile::Adresse::echelle(niveau);
+        Self {
+            origine: (0.0, 0.0),
+            reduction: 1.0,
+            vue: Some(glucose_core::types::Viewport {
+                scale: echelle,
+                x: -origine_monde.0 * echelle,
+                y: -origine_monde.1 * echelle,
+            }),
             degradation_permise: false,
         }
     }

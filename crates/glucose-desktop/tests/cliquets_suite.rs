@@ -313,15 +313,6 @@ const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
     // La fondation 10⁷ (fiche 11, étape B), en attente de sa substitution (fiche 12, vague 4).
     "arena",
     "fixed",
-    // TUILE-1 (fiche 18, étape 2), écrit le 19/09/2026. La géométrie et l'empreinte arrivent
-    // AVANT le cache qui s'en sert, parce que le banc devait d'abord dire si l'architecture
-    // tenait — elle tient : composer un écran depuis des tuiles coûte 0,92 ms à l'échelle
-    // exacte, contre les 46 ms que le rendu direct met aujourd'hui.
-    //
-    // **L'échéance est la brique suivante du même chantier** : le cache mémoïsé, puis son
-    // branchement au rendu. Si cette ligne est encore là quand le cache existe, c'est que le
-    // branchement a été oublié — et c'est exactement ce que ce cliquet doit dire.
-    "tuile",
     // Écrits et testés, en attente de leur geste (fiche 12 § 4).
     "curtain_model",
     "curtain_panel",

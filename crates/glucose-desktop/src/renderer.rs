@@ -36,6 +36,7 @@ pub mod predicate;
 pub mod richtext;
 pub mod scale;
 pub mod scene;
+pub mod tuiles;
 pub mod vignette;
 pub mod wrap;
 
@@ -367,11 +368,15 @@ impl Renderer {
         cadrage: Cadrage,
     ) -> (glucose_core::types::Viewport, Vec<u32>) {
         self.sync_spatial_index(store);
-        let mut vp = store.viewport();
-        let f = cadrage.reduction.max(1.0);
-        vp.scale /= f;
-        vp.x = vp.x / f - f64::from(cadrage.origine.0);
-        vp.y = vp.y / f - f64::from(cadrage.origine.1);
+        // La vue du cadrage l'emporte : une tuile se rend dans SON repere, pas dans celui de
+        // l'ecran, et elle n'a ni reduction ni origine a appliquer par-dessus.
+        let mut vp = cadrage.vue.unwrap_or_else(|| store.viewport());
+        if cadrage.vue.is_none() {
+            let f = cadrage.reduction.max(1.0);
+            vp.scale /= f;
+            vp.x = vp.x / f - f64::from(cadrage.origine.0);
+            vp.y = vp.y / f - f64::from(cadrage.origine.1);
+        }
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
         let rangs = self

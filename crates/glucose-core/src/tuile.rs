@@ -204,6 +204,14 @@ impl Empreinte {
     pub fn valeur(self) -> u64 {
         self.0
     }
+
+    /// L'empreinte que porte ce nombre — l'opération inverse de [`Self::valeur`].
+    ///
+    /// Sert à un cache qui garde les empreintes sous leur forme nue : les retenir comme des
+    /// nombres évite d'imposer son type à une table qui n'a que faire de leur sens.
+    pub fn depuis(valeur: u64) -> Self {
+        Self(valeur)
+    }
 }
 
 /// Ce qu'un nœud apporte à une tuile — sa place et son aspect, et rien d'autre.
