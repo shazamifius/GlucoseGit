@@ -15,11 +15,11 @@ fn pixels(x: f64, y: f64) -> MouseScrollDelta {
 #[test]
 fn test_nav_2_ctrl_is_a_zoom() {
     assert!(matches!(
-        geste(lignes(0.0, 1.0), true, false),
+        geste(lignes(0.0, 1.0), true, false, false),
         Geste::Zoom(_)
     ));
     assert!(matches!(
-        geste(pixels(3.0, -7.0), true, false),
+        geste(pixels(3.0, -7.0), true, false, false),
         Geste::Zoom(_)
     ));
 }
@@ -29,11 +29,11 @@ fn test_nav_2_ctrl_is_a_zoom() {
 #[test]
 fn test_nav_2_un_pincement_zoome_sans_ctrl_clavier() {
     assert!(matches!(
-        geste(lignes(0.0, 0.07), false, true),
+        geste(lignes(0.0, 0.07), false, true, false),
         Geste::Zoom(_)
     ));
     assert!(matches!(
-        geste(lignes(0.0, -0.07), false, true),
+        geste(lignes(0.0, -0.07), false, true, false),
         Geste::Zoom(_)
     ));
 }
@@ -53,10 +53,10 @@ fn test_nav_2_un_pincement_zoome_sans_ctrl_clavier() {
 #[test]
 fn test_nav_2_le_gain_suit_le_geste_et_non_la_touche() {
     // Un demi-cran : pas un nombre entier de lignes, donc jamais un déclic de molette.
-    let Geste::Zoom(pince) = geste(lignes(0.0, 0.5), false, true) else {
+    let Geste::Zoom(pince) = geste(lignes(0.0, 0.5), false, true, false) else {
         panic!("un pincement zoome");
     };
-    let Geste::Zoom(ctrl_et_doigts) = geste(lignes(0.0, 0.5), true, false) else {
+    let Geste::Zoom(ctrl_et_doigts) = geste(lignes(0.0, 0.5), true, false, false) else {
         panic!("ctrl et deux doigts zooment");
     };
     assert!(
@@ -65,7 +65,7 @@ fn test_nav_2_le_gain_suit_le_geste_et_non_la_touche() {
     );
 
     // Le déclic, lui, pèse plus par unité — c'est une secousse par encoche, pas une course.
-    let Geste::Zoom(cran) = geste(lignes(0.0, 1.0), false, false) else {
+    let Geste::Zoom(cran) = geste(lignes(0.0, 1.0), false, false, false) else {
         panic!("un cran de souris zoome");
     };
     assert!(
@@ -74,7 +74,7 @@ fn test_nav_2_le_gain_suit_le_geste_et_non_la_touche() {
     );
 
     // Et `Ctrl` sur une vraie molette ne la transforme pas en doigt.
-    let Geste::Zoom(cran_avec_ctrl) = geste(lignes(0.0, 1.0), true, false) else {
+    let Geste::Zoom(cran_avec_ctrl) = geste(lignes(0.0, 1.0), true, false, false) else {
         panic!("ctrl et molette zooment");
     };
     assert!(
@@ -87,15 +87,15 @@ fn test_nav_2_le_gain_suit_le_geste_et_non_la_touche() {
 #[test]
 fn test_nav_2_a_mouse_notch_zooms() {
     assert!(matches!(
-        geste(lignes(0.0, 1.0), false, false),
+        geste(lignes(0.0, 1.0), false, false, false),
         Geste::Zoom(_)
     ));
     assert!(matches!(
-        geste(lignes(0.0, -1.0), false, false),
+        geste(lignes(0.0, -1.0), false, false, false),
         Geste::Zoom(_)
     ));
     assert!(matches!(
-        geste(lignes(0.0, 3.0), false, false),
+        geste(lignes(0.0, 3.0), false, false, false),
         Geste::Zoom(_)
     ));
 }
@@ -107,19 +107,19 @@ fn test_nav_2_a_mouse_notch_zooms() {
 #[test]
 fn test_nav_2_two_fingers_pan_in_every_direction() {
     assert!(matches!(
-        geste(lignes(0.0, 0.42), false, false),
+        geste(lignes(0.0, 0.42), false, false, false),
         Geste::Pan(_, _)
     ));
     assert!(matches!(
-        geste(lignes(0.0, -0.13), false, false),
+        geste(lignes(0.0, -0.13), false, false, false),
         Geste::Pan(_, _)
     ));
     assert!(matches!(
-        geste(lignes(0.7, 0.0), false, false),
+        geste(lignes(0.7, 0.0), false, false, false),
         Geste::Pan(_, _)
     ));
     assert!(matches!(
-        geste(pixels(0.0, 24.0), false, false),
+        geste(pixels(0.0, 24.0), false, false, false),
         Geste::Pan(_, _)
     ));
 }
@@ -128,7 +128,7 @@ fn test_nav_2_two_fingers_pan_in_every_direction() {
 #[test]
 fn test_nav_2_a_whole_line_with_sideways_motion_is_still_a_pan() {
     assert!(matches!(
-        geste(lignes(0.5, 1.0), false, false),
+        geste(lignes(0.5, 1.0), false, false, false),
         Geste::Pan(_, _)
     ));
 }
@@ -136,16 +136,19 @@ fn test_nav_2_a_whole_line_with_sideways_motion_is_still_a_pan() {
 /// Un événement vide ne fait rien plutôt que de zoomer par ×1.
 #[test]
 fn test_nav_2_an_empty_event_moves_nothing() {
-    assert_eq!(geste(lignes(0.0, 0.0), false, false), Geste::Pan(0.0, 0.0));
+    assert_eq!(
+        geste(lignes(0.0, 0.0), false, false, false),
+        Geste::Pan(0.0, 0.0)
+    );
 }
 
 /// Le sens : molette vers l'avant agrandit, vers soi réduit.
 #[test]
 fn test_nav_2_forward_grows_and_backward_shrinks() {
-    let Geste::Zoom(avant) = geste(lignes(0.0, 1.0), false, false) else {
+    let Geste::Zoom(avant) = geste(lignes(0.0, 1.0), false, false, false) else {
         panic!("un cran doit zoomer");
     };
-    let Geste::Zoom(arriere) = geste(lignes(0.0, -1.0), false, false) else {
+    let Geste::Zoom(arriere) = geste(lignes(0.0, -1.0), false, false, false) else {
         panic!("un cran doit zoomer");
     };
     assert!(avant > 0.0, "vers l'avant, on agrandit : {avant} octave(s)");
@@ -153,7 +156,7 @@ fn test_nav_2_forward_grows_and_backward_shrinks() {
     // **Ce que l'octave fait gagner** : deux crans valent la somme de deux crans, et non le
     // carré d'un facteur. Le zoom devient additif, donc indépendant du découpage des
     // événements reçus -- et l'élan peut les accumuler sans rien trahir.
-    let Geste::Zoom(deux) = geste(lignes(0.0, 2.0), false, false) else {
+    let Geste::Zoom(deux) = geste(lignes(0.0, 2.0), false, false, false) else {
         panic!("un cran doit zoomer");
     };
     assert!((deux - 2.0 * avant).abs() < 1e-12);
@@ -162,7 +165,7 @@ fn test_nav_2_forward_grows_and_backward_shrinks() {
 /// **Huit crans doublent.** C'est ce que l'octave permet de dire, et de vérifier.
 #[test]
 fn test_nav_2_huit_crans_doublent_exactement() {
-    let Geste::Zoom(un) = geste(lignes(0.0, 1.0), false, false) else {
+    let Geste::Zoom(un) = geste(lignes(0.0, 1.0), false, false, false) else {
         panic!("un cran doit zoomer");
     };
     assert!(
@@ -175,9 +178,48 @@ fn test_nav_2_huit_crans_doublent_exactement() {
 /// Deux doigts vers le bas font descendre le contenu — le signe de winit est celui du monde.
 #[test]
 fn test_nav_2_the_content_follows_the_fingers() {
-    let Geste::Pan(dx, dy) = geste(lignes(0.0, 0.5), false, false) else {
+    let Geste::Pan(dx, dy) = geste(lignes(0.0, 0.5), false, false, false) else {
         panic!("un glissement doit paner");
     };
     assert_eq!(dx, 0.0);
     assert_eq!(dy, 0.5 * PAN_LIGNE_PX);
+}
+
+/// **Une source ne change pas au milieu d'un geste**, et c'est ce qui ferme le dernier cas
+/// ambigu : un pavé tactile qui tombe par hasard sur un nombre entier de lignes.
+///
+/// Mesuré en conditions réelles : six défilements sur huit cent quatre-vingt-neuf, chacun
+/// coûtant un saut de zoom d'un huitième d'octave au milieu d'un glissement. Rare, mais
+/// parfaitement visible — et la chronique le signalait à chaque session.
+#[test]
+fn un_pave_qui_tombe_sur_un_entier_ne_devient_pas_une_molette() {
+    // Le delta ambigu : vertical pur, nombre entier de lignes. Hors contexte, c'est un cran.
+    let ambigu = lignes(0.0, 1.0);
+    let Geste::Zoom(comme_un_cran) = geste(ambigu, false, false, false) else {
+        panic!("sans contexte, l'entier se lit comme un cran");
+    };
+
+    // Le même delta, alors que le geste en cours vient déjà d'un doigt : c'est un pan.
+    assert!(
+        matches!(geste(ambigu, false, false, true), Geste::Pan(..)),
+        "le geste vient d'un pave : cet entier est une course de doigt"
+    );
+    assert!(comme_un_cran > 0.0);
+}
+
+/// Ce qu'une molette **ne peut pas** produire : une fraction de ligne, ou un mouvement
+/// latéral. C'est ce qui dénonce un pavé sans le moindre doute, et sans aucun seuil.
+#[test]
+fn seul_un_delta_impossible_a_la_molette_denonce_un_pave() {
+    assert!(source_continue(lignes(0.0, 0.42)), "une fraction de ligne");
+    assert!(source_continue(lignes(0.7, 0.0)), "un mouvement lateral");
+    assert!(source_continue(lignes(0.5, 1.0)), "les deux a la fois");
+    assert!(
+        source_continue(pixels(0.0, 24.0)),
+        "des pixels, jamais des lignes"
+    );
+
+    // Un cran de molette, lui, reste indiscernable — et c'est exact : il l'est vraiment.
+    assert!(!source_continue(lignes(0.0, 1.0)));
+    assert!(!source_continue(lignes(0.0, -3.0)));
 }

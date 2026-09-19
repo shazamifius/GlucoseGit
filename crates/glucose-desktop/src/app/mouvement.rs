@@ -91,6 +91,12 @@ impl GlucoseApp {
             _ => (0.0, 0.0),
         };
         self.vue_precedente = Some(vue);
+        // La vue s'est immobilisee : le geste est fini, et le prochain pourra venir d'une
+        // autre source. C'est le seul instant ou l'oubli est sur, et il ne coute aucune
+        // constante de temps.
+        if deplacement == 0.0 && zoom == 0.0 && !self.elan.en_cours() {
+            self.defilement_au_doigt = false;
+        }
         self.perception =
             crate::perception::Perception::a_la_vitesse(deplacement, zoom, self.scale_factor);
     }

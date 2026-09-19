@@ -102,11 +102,13 @@ pub enum Geste {
 /// NAV-2 — ce qu'un événement de défilement veut dire.
 ///
 /// Fonction pure : c'est elle qui porte toute la décision, et elle se teste sans fenêtre.
-pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool) -> Geste {
+pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool, doigt: bool) -> Geste {
     let (dx, dy, ligne) = deltas(delta);
     // Un pincement est marqué **par le système** : c'est donc certainement un doigt, et le
     // test d'entier — qu'un doigt satisfait parfois par accident — n'a plus à trancher.
-    let cran = !pincement && cran_de_souris(dx, dy, ligne);
+    // `doigt` dit que le geste en cours vient déjà d'un pavé : le même geste ne change pas de
+    // source en son milieu.
+    let cran = !pincement && !doigt && cran_de_souris(dx, dy, ligne);
     if ctrl || pincement || cran {
         let unites = if ligne { dy } else { dy / ZOOM_LIGNE_PX };
         let par_unite = if cran {
@@ -138,16 +140,17 @@ pub fn pourquoi(
     delta: MouseScrollDelta,
     ctrl: bool,
     pincement: bool,
+    doigt: bool,
 ) -> crate::chronique::navigation::Decision {
     use crate::chronique::navigation::Decision;
     if pincement {
         return Decision::Pincement;
     }
     let (dx, dy, ligne) = deltas(delta);
-    if !ctrl && cran_de_souris(dx, dy, ligne) {
+    if !ctrl && !doigt && cran_de_souris(dx, dy, ligne) {
         return Decision::CranDeSouris;
     }
-    match geste(delta, ctrl, pincement) {
+    match geste(delta, ctrl, pincement, doigt) {
         Geste::Zoom(_) => Decision::Zoom,
         Geste::Pan(..) => Decision::Pan,
     }
@@ -155,11 +158,25 @@ pub fn pourquoi(
 
 /// Un cran de molette de souris : vertical pur, et d'un nombre **entier** de lignes.
 ///
-/// Un pavé tactile ne remplit ces deux conditions ensemble que par accident, et l'accident
-/// coûte une image de zoom au milieu d'un pan — invisible. L'inverse, prendre une souris pour
-/// un pavé, coûterait tout le zoom à la molette.
+/// Un pavé tactile ne remplit ces deux conditions ensemble que par accident — mais l'accident
+/// arrive, et il se mesure : six défilements sur huit cent quatre-vingt-neuf dans une session
+/// réelle, chacun coûtant un saut de zoom d'un huitième d'octave au milieu d'un glissement.
+///
+/// D'où le garde-fou de [`source_continue`], qui n'est pas une heuristique de plus : **une
+/// source ne change pas au milieu d'un geste.** Si le pavé vient d'émettre un delta qu'une
+/// molette ne peut pas produire, celui-ci vient du pavé aussi.
 fn cran_de_souris(dx: f64, dy: f64, ligne: bool) -> bool {
     ligne && dx == 0.0 && dy != 0.0 && dy.fract() == 0.0
+}
+
+/// Ce défilement **ne peut pas** venir d'une molette de souris.
+///
+/// Une molette rend exactement cent vingt unités par cran, et rien à l'horizontale. Un delta
+/// fractionnaire ou latéral dénonce donc un pavé tactile, sans doute possible — et ce verdict
+/// vaut pour tout le geste, puisqu'une source ne change pas en son milieu.
+pub fn source_continue(delta: MouseScrollDelta) -> bool {
+    let (dx, dy, ligne) = deltas(delta);
+    !ligne || dx != 0.0 || dy.fract() != 0.0
 }
 
 impl GlucoseApp {
@@ -173,15 +190,21 @@ impl GlucoseApp {
         let ctrl = self.modifiers.control_key();
         // Un vol est une intention passee : le geste present la remplace, sans discuter.
         self.vol.poser();
+        // La source du geste, observee : un delta qu'une molette ne peut pas produire dit que
+        // ce geste vient d'un pave, et ce verdict tient jusqu'a ce que le geste s'eteigne.
+        self.defilement_au_doigt |= source_continue(delta) || pincement;
         // NAV-3 : ce que le doigt a demande entre dans la trace, avec l'instant ou il l'a
         // demande. C'est de la qu'on saura si l'ecran suit la main.
-        self.chronique
-            .navigation
-            .evenement(pourquoi(delta, ctrl, pincement));
+        self.chronique.navigation.evenement(pourquoi(
+            delta,
+            ctrl,
+            pincement,
+            self.defilement_au_doigt,
+        ));
         // L'evenement ne bouge PLUS la camera : il pousse dans l'elan, que l'image videra en
         // une seule fois. Windows livre l'horizontal et le vertical dans deux messages
         // separes -- les appliquer chacun a leur tour faisait d'une diagonale un escalier.
-        match geste(delta, ctrl, pincement) {
+        match geste(delta, ctrl, pincement, self.defilement_au_doigt) {
             Geste::Zoom(octaves) => self.elan.pousser_zoom(octaves, self.ancre_du_zoom()),
             Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy),
         }

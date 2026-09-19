@@ -58,6 +58,13 @@ pub struct GlucoseApp {
     /// Le vol de camera en cours : une destination decidee, rejointe en douceur plutot que
     /// par teleportation (voir [`crate::interactions::vol`]).
     pub vol: crate::interactions::vol::Vol,
+    /// Le defilement en cours vient-il d'un pave tactile ?
+    ///
+    /// Observe, jamais suppose : un delta fractionnaire ou lateral est une chose qu'une
+    /// molette ne peut pas produire. Le verdict vaut pour tout le geste -- une source ne
+    /// change pas en son milieu -- et s'efface quand la vue s'immobilise, donc entre deux
+    /// gestes. Aucune duree n'a eu a etre choisie.
+    pub defilement_au_doigt: bool,
     /// Ce que l'oeil tolere de perdre, a la vitesse a laquelle la vue bouge en ce moment.
     ///
     /// Recalcule a chaque image depuis le deplacement REEL de la vue -- donc quelle qu'en
@@ -214,6 +221,7 @@ impl GlucoseApp {
             animator: crate::animation::Animator::new(),
             elan: crate::interactions::elan::Elan::default(),
             vol: crate::interactions::vol::Vol::default(),
+            defilement_au_doigt: false,
             perception: crate::perception::Perception::nette(),
             vue_precedente: None,
             minimap_tenue: false,
