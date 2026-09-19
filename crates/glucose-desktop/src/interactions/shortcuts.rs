@@ -7,6 +7,7 @@
 //! rendant `true` si elle a consommé la touche :
 //!
 //! 1. **Fichier** (`persist`) — `Ctrl+S`, `Ctrl+Maj+S`, `Ctrl+O`, `Ctrl+I`, `Ctrl+E`
+//! 1bis. **Signets de vue** — `Ctrl+1`..`Ctrl+9` posent, `1`..`9` y volent
 //! 2. **Édition** — `Ctrl+V`, `Ctrl+Z`, `Ctrl+Y`, `Ctrl+D`, `Ctrl+A`
 //! 3. **Outils** — les lettres nues
 //!
@@ -83,6 +84,9 @@ impl GlucoseApp {
             Key::Character(ref c) => {
                 let key = c.as_str();
                 if self.handle_predicate_shortcut(key) {
+                    return;
+                }
+                if self.handle_bookmark_shortcut(key) {
                     return;
                 }
                 if self.handle_file_shortcut(key) {
@@ -188,6 +192,58 @@ impl GlucoseApp {
         // bruit — la même règle que pour `Échap` et pour l'ordre d'empilement.
         self.mark_dirty();
         true
+    }
+
+    /// Les signets de vue : `Ctrl+1` à `Ctrl+9` posent, `1` à `9` y ramènent en volant.
+    ///
+    /// # Ce que c'est, en un geste
+    ///
+    /// On est quelque part sur la carte, `Ctrl+3`. Plus tard, où que l'on soit et à n'importe
+    /// quelle échelle, `3` y ramène — par un vol, donc en voyant d'où l'on vient. Neuf
+    /// emplacements par tableau, enregistrés avec le document.
+    ///
+    /// # La cohabitation avec les prédicats de flèche n'a rien coûté
+    ///
+    /// `1` à `6` qualifient déjà les flèches sélectionnées (PRED-1). Mais ce raccourci-là
+    /// **rend la main** quand rien n'est sélectionné, et refuse `Ctrl`. L'ordre d'appel suffit
+    /// donc à départager, sans un seul test de plus : une flèche en main, le chiffre la
+    /// qualifie ; les mains vides, il transporte.
+    fn handle_bookmark_shortcut(&mut self, key: &str) -> bool {
+        if self.modifiers.alt_key() {
+            return false;
+        }
+        let mut chiffres = key.chars();
+        let (Some(cle @ '1'..='9'), None) = (chiffres.next(), chiffres.next()) else {
+            return false;
+        };
+        let message = if self.modifiers.control_key() {
+            self.poser_le_signet(cle)
+        } else {
+            self.voler_vers_le_signet(cle)
+        };
+        // Un seul site de message pour les deux gestes : poser ne se voit pas, et un signet
+        // vide ne se voit pas non plus. Un vol **réussi**, lui, se voit -- donc il se tait.
+        if let Some(message) = message {
+            self.ui.show_toast(message);
+        }
+        true
+    }
+
+    fn poser_le_signet(&mut self, cle: char) -> Option<String> {
+        let tableau = self.store.project.active_board_id.clone();
+        let vue = self.store.viewport();
+        self.store.set_bookmark(&tableau, &cle.to_string(), vue);
+        Some(format!("Signet {cle} pose ici"))
+    }
+
+    fn voler_vers_le_signet(&mut self, cle: char) -> Option<String> {
+        let tableau = self.store.project.active_board_id.clone();
+        let Some(vue) = self.store.bookmark(&tableau, &cle.to_string()) else {
+            return Some(format!("Signet {cle} vide -- Ctrl+{cle} le pose ici"));
+        };
+        self.vol.viser(vue);
+        self.mark_dirty();
+        None
     }
 
     /// Raccourcis d'édition du document. Rend `true` si la touche a été consommée.

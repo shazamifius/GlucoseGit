@@ -88,6 +88,32 @@ impl Store {
         }
     }
 
+    /// Retient le cadrage courant sous cette clé — un signet de vue.
+    ///
+    /// # Pourquoi cela ne fait pas avancer la version du document
+    ///
+    /// Un signet est **persisté** avec le tableau, mais il n'est pas du contenu : c'est un
+    /// état de vue, au même titre que le cadrage lui-même, que [`Self::set_viewport`] écrit
+    /// sans rien marquer non plus (UNDO-1). Faire avancer la version ici rendrait `Ctrl+Z`
+    /// capable de défaire un signet — un geste que personne n'attend — et marquerait comme
+    /// modifié un document dont pas un nœud n'a bougé.
+    pub fn set_bookmark(&mut self, board_id: &str, cle: &str, vp: Viewport) {
+        if let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) {
+            b.bookmarks.insert(cle.to_string(), vp.normalized());
+        }
+    }
+
+    /// Le cadrage retenu sous cette clé, s'il y en a un.
+    pub fn bookmark(&self, board_id: &str, cle: &str) -> Option<Viewport> {
+        self.project
+            .boards
+            .iter()
+            .find(|b| b.id == board_id)?
+            .bookmarks
+            .get(cle)
+            .copied()
+    }
+
     pub fn pan(&mut self, dx: f64, dy: f64) {
         if let Some(b) = self.active_board_mut() {
             b.viewport.x += dx;

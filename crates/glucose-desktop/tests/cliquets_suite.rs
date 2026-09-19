@@ -262,9 +262,12 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 ///
 /// L'export en a ajouté **un** — un seul pour les deux issues, parce que réussir et échouer
 /// sont la même phrase à dire au même endroit : ce qui vient d'avoir lieu. Et il en a retiré
-/// un : le bouton « Exporter » n'a plus à annoncer qu'il ne sait pas exporter. Le compte est
-/// donc revenu où il était, pour un geste de plus.
-const PLAFOND_TOASTS: usize = 45;
+/// un : le bouton « Exporter » n'a plus à annoncer qu'il ne sait pas exporter.
+///
+/// Les signets de vue en ajoutent **un** pour deux gestes. Poser un signet ne se voit pas, et
+/// rappeler un signet vide ne se voit pas non plus : ce sont les deux seuls cas où il faut
+/// parler. Un vol réussi, lui, se regarde — donc il se tait.
+const PLAFOND_TOASTS: usize = 46;
 
 fn compte_toasts() -> usize {
     sources(&src_desktop())

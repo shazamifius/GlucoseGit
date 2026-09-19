@@ -322,23 +322,27 @@ fn test_pred_1_a_mixed_selection_qualifies_only_its_arrows() {
     assert_eq!(carte_avant, carte_apres, "la carte n'a pas été touchée");
 }
 
-/// Sans flèche dans la sélection, le chiffre n'est pas consommé — et ne dit rien.
+/// Sans flèche dans la sélection, le prédicat **rend la main** — il n'avale pas la touche.
 ///
-/// Un raccourci qui avale une touche pour ne rien faire est pire qu'un raccourci absent :
-/// il empêche la suivante de servir, et il le fait en silence.
+/// Un raccourci qui avale une touche pour ne rien faire est pire qu'un raccourci absent : il
+/// empêche la suivante de servir, et il le fait en silence.
+///
+/// Ce que ce test protégeait a fini par servir : les signets de vue ont pris les chiffres
+/// libres sans qu'une ligne du prédicat ne change. Il vérifie donc désormais les deux
+/// moitiés — le prédicat n'écrit rien, et **quelqu'un d'autre a pu répondre**.
 #[test]
 fn test_pred_1_a_digit_without_an_arrow_is_not_swallowed() {
     let mut app = app_avec_fleche();
     app.store.set_selected_annotation_ids(vec!["t".into()]);
     let version = app.store.version;
-    // Le mot d'accueil est déjà là : ce qui se mesure est le **changement**, pas l'absence.
-    let dit = app.ui.current_toast.as_ref().map(|t| t.message.clone());
     tape(&mut app, "5");
-    assert_eq!(app.store.version, version, "rien n'a été écrit");
-    assert_eq!(
-        app.ui.current_toast.as_ref().map(|t| t.message.clone()),
-        dit,
-        "et rien de neuf n'a été dit"
+    assert_eq!(app.store.version, version, "le predicat n'a rien écrit");
+    assert!(
+        app.ui
+            .toast_message()
+            .is_some_and(|m| m.contains("Signet 5")),
+        "la touche est restée disponible pour la suite : {:?}",
+        app.ui.toast_message()
     );
 }
 
@@ -413,4 +417,112 @@ fn test_annuler_et_retablir_se_repetent() {
     for touche in ["z", "Z", "y", "Y"] {
         assert!(super::repetition_utile(&lettre(touche)));
     }
+}
+
+// ── Les signets de vue ──────────────────────────────────────────────────────
+
+/// **Poser puis revenir.** Le geste entier, sans fenêtre : `Ctrl+3` retient le cadrage, on
+/// s'en va, `3` déclenche le vol de retour vers exactement celui-là.
+#[test]
+fn un_signet_retient_la_vue_et_le_chiffre_y_ramene() {
+    let mut app = GlucoseApp::new();
+    let tableau = app.store.project.active_board_id.clone();
+    let depart = glucose_core::types::Viewport {
+        x: -820.0,
+        y: 340.0,
+        scale: 2.5,
+    };
+    app.store.set_viewport(&tableau, depart);
+
+    touche(&mut app, "3", ModifiersState::CONTROL);
+    assert_eq!(
+        app.store.bookmark(&tableau, "3"),
+        Some(depart),
+        "Ctrl+3 retient le cadrage courant"
+    );
+
+    // On s'en va ailleurs, puis on rappelle le signet.
+    app.store.set_viewport(
+        &tableau,
+        glucose_core::types::Viewport {
+            x: 9000.0,
+            y: -9000.0,
+            scale: 0.3,
+        },
+    );
+    touche(&mut app, "3", ModifiersState::empty());
+    assert!(app.vol.en_cours(), "le chiffre declenche un vol de retour");
+
+    // Le vol y arrive : c'est la garantie de `vol`, on vérifie ici qu'il vise le bon endroit.
+    let ecran = glucose_core::membrane_focus::ScreenSize {
+        width: 1920.0,
+        height: 1080.0,
+    };
+    for _ in 0..600 {
+        let vue = app.store.viewport();
+        match app.vol.avancer(vue, ecran, 1.0 / 60.0) {
+            Some(suivante) => app.store.set_viewport(&tableau, suivante),
+            None => break,
+        }
+    }
+    assert_eq!(
+        app.store.viewport(),
+        depart,
+        "on revient exactement au signet"
+    );
+}
+
+/// **Un signet vide ne téléporte pas et ne se tait pas non plus** : rien ne se voit, donc il
+/// faut le dire — et dire comment le poser.
+#[test]
+fn un_signet_vide_le_dit_au_lieu_de_ne_rien_faire() {
+    let mut app = GlucoseApp::new();
+    let avant = app.store.viewport();
+
+    touche(&mut app, "7", ModifiersState::empty());
+    assert!(!app.vol.en_cours(), "rien a rejoindre");
+    assert_eq!(app.store.viewport(), avant, "et la vue n'a pas bouge");
+    assert!(
+        app.ui.toast_message().is_some_and(|m| m.contains('7')),
+        "le message nomme le signet : {:?}",
+        app.ui.toast_message()
+    );
+}
+
+/// **Poser un signet ne modifie pas le document.** C'est un état de vue, comme le cadrage :
+/// `Ctrl+Z` n'a rien à défaire, et le titre ne doit pas se marquer « modifié ».
+#[test]
+fn poser_un_signet_ne_salit_pas_le_document() {
+    let mut app = GlucoseApp::new();
+    let version = app.store.version;
+    touche(&mut app, "1", ModifiersState::CONTROL);
+    assert_eq!(app.store.version, version);
+    assert!(!app.is_dirty(), "le document n'a pas change");
+}
+
+/// **La flèche l'emporte sur le signet, et seulement quand elle est là.** Les chiffres
+/// qualifient les flèches sélectionnées (PRED-1) ; sans sélection, ils transportent. L'ordre
+/// d'appel suffit à départager, et ce test le verrouille dans les deux sens.
+#[test]
+fn un_chiffre_qualifie_la_fleche_en_main_et_transporte_les_mains_vides() {
+    let mut app = GlucoseApp::new();
+    let tableau = app.store.project.active_board_id.clone();
+    app.store
+        .set_bookmark(&tableau, "2", glucose_core::types::Viewport::default());
+
+    // Une flèche en main : le chiffre la qualifie, et aucun vol ne part.
+    let fleche = glucose_core::types::Annotation::arrow("fl1", 0.0, 0.0, 100.0, 100.0);
+    app.store.add_annotation(&tableau, fleche);
+    app.store
+        .set_selected_annotation_ids(vec!["fl1".to_string()]);
+    touche(&mut app, "2", ModifiersState::empty());
+    assert!(!app.vol.en_cours(), "la fleche a pris la touche");
+
+    // Les mains vides : le même chiffre transporte.
+    app.store.clear_selection();
+    touche(&mut app, "2", ModifiersState::empty());
+    assert!(
+        app.vol.en_cours(),
+        "sans selection, le chiffre est un signet"
+    );
 }
