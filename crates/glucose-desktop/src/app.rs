@@ -4,7 +4,7 @@ mod accueil;
 mod fenetre;
 mod mouvement;
 mod peinture;
-mod reveil;
+pub mod reveil;
 mod terrain;
 
 use crate::dock::{apply_organize_layout, DockCache, DockManager, OrganizeState};

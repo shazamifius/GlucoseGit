@@ -50,7 +50,9 @@ impl GlucoseApp {
         } else {
             sale
         };
-        crate::perf::compteur("img_evitee", f64::from(u8::from(sale.est_propre())));
+        // Rien a redessiner : la region reste a zero, et c'est ce zero qui dit dans la trace
+        // qu'une image a ete evitee. Un compteur de plus pour le meme fait n'aurait servi
+        // qu'a diverger -- celui d'avant n'etait d'ailleurs lu par personne.
         if sale.est_propre() {
             return;
         }
@@ -172,18 +174,13 @@ fn repeindre_la_region(
         ui.header_height() - origine.1,
         crate::renderer::Cadrage::region(origine),
     );
-    // `Source` et non `SourceOver` : on REMPLACE les pixels périmés, on ne compose pas
-    // par-dessus. Composer redoublerait tout ce qui n'est pas opaque.
-    pixmap.draw_pixmap(
-        region.x as i32,
-        region.y as i32,
-        morceau.as_ref(),
-        &tiny_skia::PixmapPaint {
-            blend_mode: tiny_skia::BlendMode::Source,
-            ..Default::default()
-        },
-        tiny_skia::Transform::identity(),
-        None,
+    // `Remplacer` et non `Composer` : on ÉCRASE les pixels périmés. Composer redoublerait
+    // tout ce qui n'est pas opaque, et l'erreur serait invisible sur un fond sombre.
+    crate::composition::poser(
+        &mut pixmap.as_mut(),
+        &morceau,
+        (region.x as f32, region.y as f32),
+        glucose_core::report::Melange::Remplacer,
     );
     crate::perf::stage("region");
 }

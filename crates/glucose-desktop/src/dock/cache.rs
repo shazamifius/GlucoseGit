@@ -24,6 +24,8 @@ use super::{
     domains, plugins, DockManager, DockPass, OrganizeState, PanelLayoutBox, PomodoroState,
     PresetsState, StoryboardState, TabId,
 };
+use crate::composition::poser;
+use glucose_core::report::Melange;
 use glucose_core::store::Store;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -199,12 +201,16 @@ pub(super) fn draw_panel_cached(
     }
 
     let garde = &panneaux[&panel.tab];
-    pixmap.draw_pixmap(
-        origin.0 as i32,
-        origin.1 as i32,
-        garde.pixmap.as_ref(),
-        &tiny_skia::PixmapPaint::default(),
-        Transform::identity(),
-        None,
-    );
+    if !poser(pixmap, &garde.pixmap, origin, Melange::Composer) {
+        // Une vue que REPORT-1 refuse — une taille impossible — retombe sur le rasteriseur.
+        // Ne rien dessiner effacerait le panneau, ce qui serait pire que le coût évité.
+        pixmap.draw_pixmap(
+            origin.0 as i32,
+            origin.1 as i32,
+            garde.pixmap.as_ref(),
+            &tiny_skia::PixmapPaint::default(),
+            Transform::identity(),
+            None,
+        );
+    }
 }

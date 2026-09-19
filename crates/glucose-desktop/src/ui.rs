@@ -1258,13 +1258,13 @@ pub(crate) fn render_minimap(
         *cache = dessine_fond(store, theme, &mb, s).map(|pixmap| MinimapCache { pixmap, key: cle });
     }
     if let Some(c) = cache.as_ref() {
-        pixmap.draw_pixmap(
-            mb.mm_x.round() as i32,
-            mb.mm_y.round() as i32,
-            c.pixmap.as_ref(),
-            &tiny_skia::PixmapPaint::default(),
-            Transform::identity(),
-            None,
+        // Par REPORT-1, comme les panneaux du dock : le fond de la minimap est un tampon posé
+        // à une position entière, exactement le cas où le chemin exact s'applique.
+        crate::composition::poser(
+            pixmap,
+            &c.pixmap,
+            (mb.mm_x, mb.mm_y),
+            glucose_core::report::Melange::Composer,
         );
     }
 

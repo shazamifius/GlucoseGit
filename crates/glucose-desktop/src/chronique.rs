@@ -209,9 +209,22 @@ pub struct Instantane {
     pub report_us: u32,
     /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
     pub blit_mo: u16,
+    /// Ce qui empêchait l'application de dormir — un bit par raison de réveil.
+    ///
+    /// Un masque et non la seule raison la plus pressée : savoir laquelle a gagné la course
+    /// ne dit pas laquelle il faudrait supprimer. Les huit tiennent dans un `u16`.
+    pub reveils: u16,
 }
 
 impl Instantane {
+    /// Cette image n'a-t-elle **rien** redessiné du tout ?
+    ///
+    /// La salissure était propre : l'image précédente était encore exacte, et on s'est
+    /// contenté de la représenter. C'est l'issue la moins chère qui existe.
+    pub fn evitee(&self) -> bool {
+        self.region_px == 0
+    }
+
     /// La part de la fenêtre qui a été redessinée, entre 0 et 1.
     pub fn part_redessinee(&self) -> f64 {
         if self.fenetre_px == 0 {
@@ -339,6 +352,10 @@ pub struct Chronique {
     prevu_us: u64,
     mesure_us: u64,
     pixelisees: u64,
+    /// Combien d'images n'ont **rien** redessiné du tout.
+    evitees: u64,
+    /// Combien d'images chaque raison de réveil a tenues éveillées, dans l'ordre des bits.
+    reveils: [u64; 16],
     /// La somme des facteurs de reduction : sa moyenne dit a quel point la scene a du ceder
     /// sur sa finesse pour tenir la cadence.
     reductions: u64,
@@ -384,6 +401,22 @@ impl Chronique {
         })
     }
 
+    /// La part des images qui n'ont **rien** redessiné, entre 0 et 1.
+    ///
+    /// C'est la seule mesure qui dise si le travail de l'image précédente a servi deux fois.
+    /// Proche de zéro, elle veut dire que quelque chose salit tout à chaque image — et le
+    /// coût d'une image ne dira jamais laquelle.
+    pub fn part_evitee(&self) -> Option<f64> {
+        (self.rendues > 0).then(|| self.evitees as f64 / self.rendues as f64)
+    }
+
+    /// Combien d'images chaque raison de réveil a tenues éveillées.
+    pub fn reveils(&self) -> impl Iterator<Item = (crate::app::reveil::Raison, u64)> + '_ {
+        crate::app::reveil::Raison::TOUTES
+            .into_iter()
+            .map(|r| (r, self.reveils[r.bit().trailing_zeros() as usize]))
+    }
+
     pub fn part_pixelisee(&self) -> Option<f64> {
         (self.rendues > 0).then(|| self.pixelisees as f64 / self.rendues as f64)
     }
@@ -412,6 +445,8 @@ impl Chronique {
             prevu_us: 0,
             mesure_us: 0,
             pixelisees: 0,
+            evitees: 0,
+            reveils: [0; 16],
             reductions: 0,
             reduites: 0,
         }
@@ -455,6 +490,14 @@ impl Chronique {
         }
         if vu.pixelise > 0 {
             self.pixelisees += 1;
+        }
+        if vu.evitee() {
+            self.evitees += 1;
+        }
+        for (bit, compte) in self.reveils.iter_mut().enumerate() {
+            if vu.reveils & (1 << bit) != 0 {
+                *compte += 1;
+            }
         }
         // **Seules les images rendues au plus fin comptent.** La prevision porte sur le
         // rendu lisse ; sur une image pixelisee, on a execute autre chose, et comparer les

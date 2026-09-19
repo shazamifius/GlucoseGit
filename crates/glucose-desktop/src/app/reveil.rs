@@ -19,6 +19,63 @@
 use super::GlucoseApp;
 use crate::ui::ToastRepaint;
 
+/// Ce qui empêche l'application de dormir, à une image donnée.
+///
+/// # Pourquoi cette énumération a fallu être écrite
+///
+/// La chronique disait ce qu'une image coûte, jamais **pourquoi elle a été demandée**. Sur une
+/// session où l'utilisateur regardait surtout son canevas sans y toucher, elle comptait trois
+/// mille six cents images « au repos » — et rien ne permettait de savoir si elles étaient
+/// dues, ou si quelque chose réveillait l'application pour rien.
+///
+/// Une image inutile est la plus chère de toutes : elle coûte son prix entier et ne montre
+/// rien de neuf. Avant de rendre les images moins chères, il faut savoir combien ne devraient
+/// pas exister.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Raison {
+    Curseur,
+    Toast,
+    Animation,
+    Elan,
+    Vol,
+    Decodage,
+    Chantier,
+    Pomodoro,
+}
+
+impl Raison {
+    /// Dans l'ordre des bits du masque. L'ordre est celui de [`GlucoseApp::prochain_reveil`],
+    /// pour qu'une raison ajoutée là se retrouve ici sans réfléchir.
+    pub const TOUTES: [Self; 8] = [
+        Self::Curseur,
+        Self::Toast,
+        Self::Animation,
+        Self::Elan,
+        Self::Vol,
+        Self::Decodage,
+        Self::Chantier,
+        Self::Pomodoro,
+    ];
+
+    pub fn nom(self) -> &'static str {
+        match self {
+            Self::Curseur => "curseur qui clignote",
+            Self::Toast => "message a l'ecran",
+            Self::Animation => "animation en cours",
+            Self::Elan => "la vue glisse encore",
+            Self::Vol => "vol de camera",
+            Self::Decodage => "images en decodage",
+            Self::Chantier => "vignettes a construire",
+            Self::Pomodoro => "minuteur",
+        }
+    }
+
+    /// Le bit de cette raison dans le masque d'une image.
+    pub fn bit(self) -> u16 {
+        1 << Self::TOUTES.iter().position(|r| *r == self).unwrap_or(0)
+    }
+}
+
 impl GlucoseApp {
     /// Le délai avant le prochain réveil, ou `None` si rien n'est attendu.
     ///
@@ -26,7 +83,7 @@ impl GlucoseApp {
     /// rafraîchissement et demander un réveil sont deux choses distinctes — un toast au
     /// plateau attend sans rien redessiner, un décodage redessine sans rien animer.
     pub(super) fn prochain_reveil(&mut self) -> Option<u64> {
-        [
+        let attentes = [
             self.attente_du_curseur(),
             self.attente_du_toast(),
             self.attente_de_l_animation(),
@@ -35,10 +92,16 @@ impl GlucoseApp {
             self.attente_du_decodage(),
             self.attente_du_chantier(),
             self.attente_du_pomodoro(),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
+        ];
+        // Toutes les raisons actives, et non la seule qui l'emporte : savoir laquelle est la
+        // plus pressée ne dit pas laquelle il faudrait supprimer.
+        let masque = attentes
+            .iter()
+            .zip(Raison::TOUTES)
+            .filter(|(attente, _)| attente.is_some())
+            .fold(0u16, |masque, (_, raison)| masque | raison.bit());
+        crate::perf::compteur("reveil_masque", f64::from(masque));
+        attentes.into_iter().flatten().min()
     }
 
     /// Le curseur d'édition de texte clignote à la demi-seconde.

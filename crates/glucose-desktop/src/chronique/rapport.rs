@@ -34,6 +34,7 @@ impl Chronique {
         self.ecrire_le_resume(&mut t);
         self.ecrire_les_gestes(&mut t);
         self.ecrire_la_navigation(&mut t);
+        self.ecrire_les_reveils(&mut t);
         self.ecrire_les_pires(&mut t);
         t
     }
@@ -87,6 +88,61 @@ impl Chronique {
                 ms(self.navigation.centile(0.90)),
                 ms(self.navigation.centile(0.99)),
                 ms(pire),
+            ));
+        }
+        t.push('\n');
+    }
+
+    /// Pourquoi l'application ne dort pas, et ce que ça lui coûte.
+    ///
+    /// # La question que le reste du rapport ne pose jamais
+    ///
+    /// Tout ce qui précède mesure ce qu'une image **coûte**. Rien n'y disait si elle avait
+    /// lieu d'être. Une image inutile est pourtant la plus chère de toutes : elle se paie en
+    /// entier et ne montre rien de neuf.
+    ///
+    /// Deux lignes y répondent. Celle des images évitées dit combien de fois l'image
+    /// précédente était encore exacte — c'est la part du travail qui a servi deux fois.
+    /// Celle des réveils dit ce qui empêchait de dormir, raison par raison : une raison qui
+    /// tient l'application éveillée sur la quasi-totalité des images est celle à supprimer,
+    /// et aucune durée ne l'aurait désignée.
+    fn ecrire_les_reveils(&self, t: &mut String) {
+        let Some(evitee) = self.part_evitee() else {
+            return;
+        };
+        t.push_str(
+            "  Pourquoi l'application ne dort pas
+
+",
+        );
+        t.push_str(&format!(
+            "  {:.0} % des images n'ont RIEN eu a redessiner -- l'image d'avant suffisait
+",
+            100.0 * evitee
+        ));
+        let total = self.rendues().max(1);
+        let mut raisons: Vec<(&'static str, u64)> = self
+            .reveils()
+            .filter(|(_, images)| *images > 0)
+            .map(|(r, images)| (r.nom(), images))
+            .collect();
+        if raisons.is_empty() {
+            t.push_str(
+                "    aucune : chaque image a ete demandee par un geste
+
+",
+            );
+            return;
+        }
+        raisons.sort_by_key(|(_, images)| std::cmp::Reverse(*images));
+        for (nom, images) in raisons {
+            let part = images as f64 / total as f64;
+            t.push_str(&format!(
+                "      {:<22} {:>5.1}%  {}
+",
+                nom,
+                100.0 * part,
+                barre(part)
             ));
         }
         t.push('\n');

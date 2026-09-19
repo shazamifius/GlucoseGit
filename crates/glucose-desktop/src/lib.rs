@@ -24,6 +24,7 @@ pub mod bench;
 pub mod cadence;
 pub mod canvas;
 pub mod chronique;
+pub mod composition;
 pub mod dialogue;
 pub mod dock;
 pub mod error;
