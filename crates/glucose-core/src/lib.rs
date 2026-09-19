@@ -38,4 +38,5 @@ pub mod synth;
 pub mod text;
 pub mod text_anchors;
 pub mod timeline;
+pub mod tuile;
 pub mod types;
