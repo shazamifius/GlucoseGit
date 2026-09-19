@@ -90,3 +90,45 @@ fn chaque_format_rend_sa_propre_forme() {
     assert!(svg.starts_with("<?xml"), "un svg commence par son prologue");
     assert!(svg.contains("<svg"), "et porte sa balise racine");
 }
+
+/// **Le chemin complet, jusqu'au disque** — tout sauf le dialogue natif.
+///
+/// Ce test remplace celui qui vérifiait que le bouton « Exporter » ne *prétendait* pas avoir
+/// exporté. Cette garde avait un sens tant que le bouton ne faisait rien ; maintenant qu'il
+/// fait, ce qu'il faut prouver est qu'il **fait**, et que l'octet arrive sur le disque.
+#[test]
+fn un_export_arrive_vraiment_sur_le_disque() {
+    let mut app = crate::app::GlucoseApp::new();
+    app.store
+        .project
+        .boards
+        .first_mut()
+        .expect("un projet neuf a un tableau")
+        .annotations
+        .push(Annotation::text(
+            "a1",
+            10.0,
+            20.0,
+            "Une phrase reconnaissable",
+        ));
+
+    let chemin = std::env::temp_dir().join(format!(
+        "glucose-export-{}-{}.md",
+        std::process::id(),
+        line!()
+    ));
+    let octets = app
+        .try_export(&chemin, Format::Markdown)
+        .expect("l'export doit aboutir");
+
+    let relu = std::fs::read_to_string(&chemin).expect("le fichier doit exister");
+    // Le temporaire part avant toute assertion : un échec ne doit pas laisser de trace
+    // derrière lui (fiche 17 § 5 — `coller_image` fait cette faute, ne la refaisons pas).
+    let _ = std::fs::remove_file(&chemin);
+
+    assert_eq!(relu.len(), octets, "le compte rendu dit ce qui a ete ecrit");
+    assert!(
+        relu.contains("Une phrase reconnaissable"),
+        "le contenu du tableau traverse jusqu'au disque : {relu}"
+    );
+}

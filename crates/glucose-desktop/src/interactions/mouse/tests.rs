@@ -36,15 +36,6 @@ fn click_topbar(app: &mut GlucoseApp, action: UiAction) {
 }
 
 #[test]
-fn test_the_export_button_does_not_claim_to_have_exported() {
-    let mut app = GlucoseApp::new();
-    let before = app.store.version;
-    click_topbar(&mut app, UiAction::ExportMenu);
-    assert_eq!(app.ui.toast_message(), Some(NOT_YET_EXPORT));
-    assert_eq!(app.store.version, before, "et rien n'a touché le document");
-}
-
-#[test]
 fn test_the_collab_button_does_not_claim_to_be_connected() {
     let mut app = GlucoseApp::new();
     click_topbar(&mut app, UiAction::ToggleCollab);

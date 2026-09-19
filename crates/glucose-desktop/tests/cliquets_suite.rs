@@ -261,8 +261,10 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 /// chaque site retiré est un site de moins à relire.
 ///
 /// L'export en a ajouté **un** — un seul pour les deux issues, parce que réussir et échouer
-/// sont la même phrase à dire au même endroit : ce qui vient d'avoir lieu.
-const PLAFOND_TOASTS: usize = 46;
+/// sont la même phrase à dire au même endroit : ce qui vient d'avoir lieu. Et il en a retiré
+/// un : le bouton « Exporter » n'a plus à annoncer qu'il ne sait pas exporter. Le compte est
+/// donc revenu où il était, pour un geste de plus.
+const PLAFOND_TOASTS: usize = 45;
 
 fn compte_toasts() -> usize {
     sources(&src_desktop())

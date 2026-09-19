@@ -7,7 +7,6 @@
 use crate::animation::fly_out_to_depth;
 use crate::app::GlucoseApp;
 use crate::dock::TabId;
-use crate::interactions::mouse::NOT_YET_EXPORT;
 use crate::params::{Pointer, ScreenFrame};
 use crate::ui::action_bar::ActionBarClick;
 use crate::ui::context_menu::MenuAction;
@@ -165,10 +164,7 @@ impl GlucoseApp {
             } else {
                 "Trans-domaines désactivé"
             }),
-            // Fiche 09 § 5 : aucun export n'est branché. Le bouton reste, parce que la barre
-            // d'outils le prévoit (fiche 10) ; il dit la vérité plutôt que d'annoncer une
-            // exportation qui n'a pas lieu.
-            UiAction::ExportMenu => self.ui.show_toast(NOT_YET_EXPORT),
+            UiAction::ExportMenu => self.export_board(),
             UiAction::SelectBoard(id) => self.store.set_active_board_id(&id),
             UiAction::AddBoard => self.add_board(),
             UiAction::MinimapPan(wx, wy) => self.center_view_on(wx, wy, screen),

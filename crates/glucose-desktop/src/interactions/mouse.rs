@@ -23,7 +23,6 @@ use winit::event::MouseButton;
 
 /// Ce que disent les boutons dont la fonction n'existe pas encore. Un bouton qui annonce ce
 /// qu'il n'a pas fait est un bouton qui ment ; celui-ci dit ce qu'il en est.
-pub const NOT_YET_EXPORT: &str = "Export : pas encore disponible";
 pub const NOT_YET_STORYBOARD: &str = "Storyboard : pas encore disponible";
 pub const NOT_YET_AI: &str = "IA locale : pas encore disponible";
 
