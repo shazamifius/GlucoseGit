@@ -32,6 +32,7 @@ pub mod icons;
 pub mod interactions;
 pub mod memoire;
 pub mod params;
+pub mod perception;
 pub mod perf;
 pub mod persist;
 pub mod present;

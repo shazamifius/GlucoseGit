@@ -97,10 +97,17 @@ impl Resolution {
     ///
     /// `image` est la durée totale et `scene` la part qui suit la surface — chronométrée pour
     /// elle-même, pas déduite. La différence est le terme fixe, que réduire ne touche pas.
-    pub fn observer(&mut self, mesure: Mesure, budget: Duration, en_mouvement: bool) {
-        if !en_mouvement {
-            // La netteté revient par moitiés : d'un coup, elle rendrait l'image chère juste
-            // au moment où l'œil se pose dessus.
+    /// `plafond` est ce que l'œil tolère à la vitesse courante ([`crate::perception`]) : le
+    /// budget dit ce dont on a **besoin**, le plafond ce qui est **licite**. Dégrader demande
+    /// les deux, et c'est l'absence de la seconde condition qui faisait persister les gros
+    /// blocs pendant que l'amortissement s'éteignait.
+    pub fn observer(&mut self, mesure: Mesure, budget: Duration, en_mouvement: bool, plafond: u32) {
+        // L'œil ne tolère rien à cette vitesse : il n'y a plus de décision à prendre, quel
+        // que soit le budget. C'est le cas de l'arrêt, et celui de toute la fin d'un
+        // amortissement — donc celui où la netteté doit revenir sans qu'on la lui demande.
+        if !en_mouvement || plafond <= 1 {
+            // Par moitiés : revenir d'un coup rendrait l'image chère juste au moment où
+            // l'œil se pose dessus.
             self.facteur = (self.facteur / 2).max(1);
             return;
         }
@@ -116,8 +123,10 @@ impl Resolution {
         }
         let a_pleine_resolution = scene * f64::from(self.facteur).powi(2);
         // `g ≥ √(coût / disponible)` : la surface se divise par le rapport des durées, donc
-        // le côté par sa racine.
-        self.facteur = palier_au_dessus((a_pleine_resolution / disponible).sqrt());
+        // le côté par sa racine. Puis le plafond de l'œil, qui a le dernier mot : on ne
+        // dégrade jamais plus que ce que la vitesse rend invisible.
+        let voulu = palier_au_dessus((a_pleine_resolution / disponible).sqrt());
+        self.facteur = voulu.min(plafond);
     }
 }
 

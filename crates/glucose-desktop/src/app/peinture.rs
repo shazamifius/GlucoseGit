@@ -35,6 +35,27 @@ use glucose_core::store::Store;
 use tiny_skia::Pixmap;
 
 impl GlucoseApp {
+    /// La region d'ecran a repeindre, ou `None` quand il faut tout refaire.
+    ///
+    /// Trois raisons de tout refaire, et chacune est une impossibilite, pas une prudence :
+    ///
+    /// * la salissure ne sait pas se localiser -- le cas par defaut ;
+    /// * la zone touche la **chrome**, qui se place sur la taille de la fenetre et ne sait
+    ///   donc pas se rendre decalee ;
+    /// * la scene se rend **plus petite** : une region se declare en coordonnees d'ecran
+    ///   plein, et ces coordonnees ne designent plus rien dans le tampon reduit.
+    fn region_a_repeindre(
+        &self,
+        sale: crate::salissure::Salissure,
+        vp: glucose_core::types::Viewport,
+        fenetre: (u32, u32),
+        header_h: f32,
+    ) -> Option<crate::salissure::Region> {
+        sale.region(&vp, fenetre, debord_des_passes(vp.scale))
+            .filter(|r| !r.touche_le_haut(header_h))
+            .filter(|_| !self.resolution.reduite())
+    }
+
     /// Redessine ce qui doit l'etre, et rien de plus. Ne presente pas.
     ///
     /// Le tampon est **sorti** de l'application le temps de la peinture : sans cela, peindre
@@ -72,15 +93,7 @@ impl GlucoseApp {
             x: self.mouse_pos.0 as f32,
             y: self.mouse_pos.1 as f32,
         };
-        // Une region se declare en coordonnees d'ecran plein. Quand la scene se rend plus
-        // petite, ces coordonnees ne designent plus rien dans le tampon ou elle se rend : le
-        // rendu partiel n'a alors pas de sens, et le chemin complet est le seul juste.
-        let region = sale
-            .region(&vp, fenetre, debord_des_passes(vp.scale))
-            .filter(|r| !r.touche_le_haut(header_h))
-            .filter(|_| !self.resolution.reduite());
-
-        match region {
+        match self.region_a_repeindre(sale, vp, fenetre, header_h) {
             Some(r) => {
                 if !r.est_vide() {
                     repeindre_la_region(
@@ -90,6 +103,7 @@ impl GlucoseApp {
                         &self.store,
                         &self.ui,
                         overlay,
+                        self.perception.autorise_a_degrader(),
                     );
                 }
                 crate::perf::compteur("img_region", r.aire() as f64);
@@ -97,7 +111,11 @@ impl GlucoseApp {
             None => {
                 crate::perf::compteur("img_region", f64::from(fenetre.0) * f64::from(fenetre.1));
                 let echelle = self.ui.scale_factor;
-                let scene = reduit.as_mut().filter(|_| self.resolution.reduite());
+                let facteur = self.resolution.facteur();
+                let scene = reduit
+                    .as_mut()
+                    .filter(|_| self.resolution.reduite())
+                    .map(|tampon| crate::renderer::SceneReduite { tampon, facteur });
                 let chrome = Chrome {
                     ui: &mut self.ui,
                     dock_manager: &self.dock_manager,
@@ -112,7 +130,7 @@ impl GlucoseApp {
                     &self.store,
                     chrome,
                     overlay,
-                    self.resolution.facteur(),
+                    self.perception.autorise_a_degrader(),
                 );
             }
         }
@@ -161,18 +179,20 @@ fn repeindre_la_region(
     store: &Store,
     ui: &UiState,
     overlay: SceneOverlay<'_>,
+    degradation_permise: bool,
 ) {
     let Some(mut morceau) = Pixmap::new(region.largeur, region.hauteur) else {
         return;
     };
     let origine = (region.x as f32, region.y as f32);
+    let cadrage = crate::renderer::Cadrage::region(origine).avec_degradation(degradation_permise);
     renderer.rendre_la_region(
         &mut morceau.as_mut(),
         store,
         ui,
         overlay,
         ui.header_height() - origine.1,
-        crate::renderer::Cadrage::region(origine),
+        cadrage,
     );
     // `Remplacer` et non `Composer` : on ÉCRASE les pixels périmés. Composer redoublerait
     // tout ce qui n'est pas opaque, et l'erreur serait invisible sur un fond sombre.
@@ -197,12 +217,12 @@ fn repeindre_la_region(
 /// qu'un canevas grossier pendant un geste.
 fn peindre_tout(
     pixmap: &mut Pixmap,
-    scene: Option<&mut Pixmap>,
+    scene: Option<crate::renderer::SceneReduite<'_>>,
     renderer: &mut Renderer,
     store: &Store,
     chrome: Chrome<'_>,
     overlay: SceneOverlay<'_>,
-    facteur: u32,
+    degradation_permise: bool,
 ) {
     let (width, height) = (pixmap.width(), pixmap.height());
     let mut vue = pixmap.as_mut();
@@ -215,15 +235,8 @@ fn peindre_tout(
     } = chrome;
 
     match scene {
-        Some(tampon) => renderer.rendre_reduit(
-            &mut vue,
-            crate::renderer::SceneReduite { tampon, facteur },
-            store,
-            ui,
-            overlay,
-            pointer,
-        ),
-        None => renderer.render(&mut vue, store, ui, overlay, pointer),
+        Some(reduite) => renderer.rendre_reduit(&mut vue, reduite, store, ui, overlay, pointer),
+        None => renderer.render(&mut vue, store, ui, overlay, pointer, degradation_permise),
     }
 
     // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).

@@ -115,6 +115,7 @@ fn chronometrer(store: &Store) -> Mesure {
                 editing: None,
             },
             ui.header_height(),
+            false,
         );
         renderer.magasin.fermer();
         let ms = t.elapsed().as_secs_f64() * 1000.0;

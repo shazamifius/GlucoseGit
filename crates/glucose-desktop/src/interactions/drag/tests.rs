@@ -30,6 +30,7 @@ fn render(app: &mut GlucoseApp) {
         &mut app.ui,
         overlay,
         Pointer { x: 0.0, y: 0.0 },
+        false,
     );
 }
 

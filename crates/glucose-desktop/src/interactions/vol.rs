@@ -131,7 +131,7 @@ fn composer(centre: (f64, f64), altitude: f64, ecran: ScreenSize) -> Viewport {
 /// C'est ce qui permet un critère d'arrêt en pixels, la seule unité dans laquelle « c'est
 /// arrivé » veut dire quelque chose : un dixième d'octave ne se voit pas de la même façon
 /// selon qu'on regarde une vignette ou un mur d'images.
-fn ecart_max_en_pixels(a: Viewport, b: Viewport, ecran: ScreenSize) -> f64 {
+pub fn ecart_max_en_pixels(a: Viewport, b: Viewport, ecran: ScreenSize) -> f64 {
     let coins = [
         (0.0, 0.0),
         (ecran.width, 0.0),

@@ -104,6 +104,7 @@ fn rendre(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> Pixmap {
             editing: None,
         },
         ui.header_height() - origine.1 as f32,
+        false,
     );
     pixmap
 }
@@ -173,6 +174,7 @@ fn chronometrer(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> f64 {
                 editing: None,
             },
             ui.header_height() - origine.1 as f32,
+            false,
         );
         let ms = t.elapsed().as_secs_f64() * 1000.0;
         if i >= 2 {

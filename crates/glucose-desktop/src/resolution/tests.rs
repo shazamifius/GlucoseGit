@@ -5,6 +5,13 @@ use super::*;
 
 const BUDGET: Duration = Duration::from_millis(10);
 
+/// Ce que l'œil tolère, quand ce n'est pas lui qu'on teste.
+///
+/// Les tests de ce fichier portent sur le **budget** : ce dont on a besoin. Le plafond de la
+/// perception — ce qui est licite — a ses propres tests dans [`crate::perception`], et le
+/// neutraliser ici garde chaque loi vérifiée pour elle-même.
+const SANS_PLAFOND: u32 = u32::MAX;
+
 fn ms(n: u64) -> Duration {
     Duration::from_millis(n)
 }
@@ -23,7 +30,7 @@ fn scene_seule(duree: Duration) -> Mesure {
 #[test]
 fn une_image_qui_tient_reste_nette() {
     let mut r = Resolution::nette();
-    r.observer(scene_seule(ms(4)), BUDGET, true);
+    r.observer(scene_seule(ms(4)), BUDGET, true, SANS_PLAFOND);
     assert_eq!(r.facteur(), 1);
     assert!(!r.reduite());
 }
@@ -33,7 +40,7 @@ fn une_image_qui_tient_reste_nette() {
 #[test]
 fn une_image_douze_fois_trop_chere_se_rend_quatre_fois_plus_petite() {
     let mut r = Resolution::nette();
-    r.observer(scene_seule(ms(120)), BUDGET, true);
+    r.observer(scene_seule(ms(120)), BUDGET, true, SANS_PLAFOND);
     assert_eq!(r.facteur(), 4);
 }
 
@@ -52,7 +59,7 @@ fn la_resolution_ne_peut_pas_osciller() {
         let f = f64::from(r.facteur());
         // Ce que coûte vraiment une image rendue à ce facteur : la loi de la surface.
         let observe = Duration::from_secs_f64(cout_a_pleine_resolution / 1000.0 / (f * f));
-        r.observer(scene_seule(observe), BUDGET, true);
+        r.observer(scene_seule(observe), BUDGET, true, SANS_PLAFOND);
         vus.push(r.facteur());
     }
 
@@ -68,12 +75,12 @@ fn la_resolution_ne_peut_pas_osciller() {
 #[test]
 fn la_nettete_revient_par_moities_et_finit_par_revenir() {
     let mut r = Resolution::nette();
-    r.observer(scene_seule(ms(500)), BUDGET, true);
+    r.observer(scene_seule(ms(500)), BUDGET, true, SANS_PLAFOND);
     assert_eq!(r.facteur(), 8, "une image cinquante fois trop chere");
 
     let mut paliers = Vec::new();
     for _ in 0..5 {
-        r.observer(scene_seule(ms(1)), BUDGET, false);
+        r.observer(scene_seule(ms(1)), BUDGET, false, SANS_PLAFOND);
         paliers.push(r.facteur());
     }
     assert_eq!(paliers, vec![4, 2, 1, 1, 1]);
@@ -83,14 +90,19 @@ fn la_nettete_revient_par_moities_et_finit_par_revenir() {
 #[test]
 fn une_duree_insensee_retombe_sur_le_dernier_palier() {
     let mut r = Resolution::nette();
-    r.observer(scene_seule(Duration::from_secs(3600)), BUDGET, true);
+    r.observer(
+        scene_seule(Duration::from_secs(3600)),
+        BUDGET,
+        true,
+        SANS_PLAFOND,
+    );
     assert_eq!(r.facteur(), 8);
 
     // Un budget nul ne se tient par AUCUN facteur. La bonne reponse n'est donc pas de
     // rapetisser au maximum -- ce serait perdre la nettete sans rien gagner -- mais de rendre
     // net et de laisser la mesure dire ou est vraiment le temps.
     let mut r = Resolution::nette();
-    r.observer(scene_seule(ms(120)), Duration::ZERO, true);
+    r.observer(scene_seule(ms(120)), Duration::ZERO, true, SANS_PLAFOND);
     assert_eq!(
         r.facteur(),
         1,
@@ -104,7 +116,7 @@ fn une_duree_insensee_retombe_sur_le_dernier_palier() {
 fn le_facteur_reste_une_puissance_de_deux() {
     let mut r = Resolution::nette();
     for duree in [1u64, 7, 11, 23, 50, 99, 137, 400, 900] {
-        r.observer(scene_seule(ms(duree)), BUDGET, true);
+        r.observer(scene_seule(ms(duree)), BUDGET, true, SANS_PLAFOND);
         assert!(
             PALIERS.contains(&r.facteur()),
             "{duree} ms a donne un facteur hors palier : {}",
@@ -132,6 +144,7 @@ fn une_image_dont_le_cout_n_est_pas_dans_la_scene_reste_nette() {
         },
         BUDGET,
         true,
+        SANS_PLAFOND,
     );
     assert_eq!(
         r.facteur(),
@@ -145,7 +158,7 @@ fn une_image_dont_le_cout_n_est_pas_dans_la_scene_reste_nette() {
 #[test]
 fn un_facteur_deja_haut_redescend_quand_la_scene_n_est_pas_en_cause() {
     let mut r = Resolution::nette();
-    r.observer(scene_seule(ms(500)), BUDGET, true);
+    r.observer(scene_seule(ms(500)), BUDGET, true, SANS_PLAFOND);
     assert_eq!(r.facteur(), 8, "la scene coutait vraiment, au depart");
 
     for _ in 0..3 {
@@ -157,6 +170,7 @@ fn un_facteur_deja_haut_redescend_quand_la_scene_n_est_pas_en_cause() {
             },
             BUDGET,
             true,
+            SANS_PLAFOND,
         );
     }
     assert_eq!(
@@ -179,6 +193,7 @@ fn seul_ce_qui_reste_au_budget_apres_le_fixe_dicte_le_facteur() {
         },
         BUDGET,
         true,
+        SANS_PLAFOND,
     );
     assert_eq!(r.facteur(), 4);
 }
@@ -204,7 +219,7 @@ fn une_scene_qui_tient_dans_le_plancher_reste_nette_meme_au_dela_de_la_cible() {
     let mut r = Resolution::nette();
     // Six millisecondes de scène : deux fois la cible, mais bien en deçà du plancher.
     for _ in 0..10 {
-        r.observer(scene_seule(ms(6)), plancher, true);
+        r.observer(scene_seule(ms(6)), plancher, true, SANS_PLAFOND);
     }
     assert_eq!(
         r.facteur(),
@@ -215,7 +230,7 @@ fn une_scene_qui_tient_dans_le_plancher_reste_nette_meme_au_dela_de_la_cible() {
     // Et la preuve que ce n'était pas une insensibilité du module : avec l'ancien budget,
     // la même scène part en morceaux.
     let mut avec_la_cible = Resolution::nette();
-    avec_la_cible.observer(scene_seule(ms(6)), cible, true);
+    avec_la_cible.observer(scene_seule(ms(6)), cible, true, SANS_PLAFOND);
     assert!(
         avec_la_cible.facteur() > 1,
         "c'est bien le budget qui decidait, et non la scene"

@@ -30,6 +30,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
         &mut app.ui,
         overlay,
         Pointer { x: 0.0, y: 0.0 },
+        false,
     );
 
     // C'est le rendu lui-même qui DEMANDE les images, sans jamais les attendre (DECODE-1) :
@@ -48,6 +49,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
             &mut app.ui,
             overlay,
             Pointer { x: 0.0, y: 0.0 },
+            false,
         );
     }
     pixmap

@@ -92,6 +92,7 @@ fn main() {
                 editing: Some(&session),
             },
             Pointer { x: 0.0, y: 0.0 },
+            false,
         );
         let png = pixmap.encode_png().expect("encoder un PNG");
         let chemin = format!("{dossier}/temoin-edition.png");

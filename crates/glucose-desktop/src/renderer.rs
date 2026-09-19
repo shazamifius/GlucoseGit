@@ -20,6 +20,7 @@
 pub mod arrow;
 pub mod arrow_label;
 pub mod atelier;
+pub mod cadrage;
 pub mod card;
 pub mod domain;
 pub mod folder;
@@ -159,53 +160,7 @@ impl Default for Renderer {
     }
 }
 
-/// La scene rendue plus petite que la fenetre, et de combien.
-///
-/// Les deux ne se separent jamais : un tampon sans son facteur ne dit pas comment l'agrandir,
-/// et un facteur sans son tampon ne designe rien.
-pub struct SceneReduite<'a> {
-    pub tampon: &'a mut tiny_skia::Pixmap,
-    pub facteur: u32,
-}
-
-/// Ou et a quelle finesse la scene se rend dans le pixmap qu'on lui donne.
-///
-/// Les deux vont ensemble parce qu'ils disent la meme chose -- comment passer du repere de la
-/// fenetre a celui du tampon -- et qu'un rendu qui les recevrait separement pourrait les
-/// appliquer dans le mauvais ordre.
-#[derive(Debug, Clone, Copy)]
-pub struct Cadrage {
-    /// L'origine de l'ecran, pour un rendu par region (A.1).
-    pub origine: (f32, f32),
-    /// De combien la scene est rendue plus petite que la fenetre (voir [`crate::resolution`]).
-    pub reduction: f64,
-}
-
-impl Cadrage {
-    /// La fenetre entiere, a sa taille reelle.
-    pub fn plein() -> Self {
-        Self {
-            origine: (0.0, 0.0),
-            reduction: 1.0,
-        }
-    }
-
-    /// La fenetre entiere, rendue `f` fois plus petite.
-    pub fn reduit(f: u32) -> Self {
-        Self {
-            origine: (0.0, 0.0),
-            reduction: f64::from(f.max(1)),
-        }
-    }
-
-    /// Une region de la fenetre, a sa taille reelle.
-    pub fn region(origine: (f32, f32)) -> Self {
-        Self {
-            origine,
-            reduction: 1.0,
-        }
-    }
-}
+pub use cadrage::{Cadrage, SceneReduite};
 
 impl Renderer {
     pub fn new() -> Self {
@@ -284,11 +239,19 @@ impl Renderer {
         ui: &mut UiState,
         overlay: SceneOverlay<'_>,
         pointer: Pointer,
+        degradation_permise: bool,
     ) {
         self.magasin.ouvrir();
         self.synchroniser_les_caches(store);
         let debut = std::time::Instant::now();
-        self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height());
+        self.rendre_la_scene(
+            pixmap,
+            store,
+            ui,
+            overlay,
+            ui.header_height(),
+            degradation_permise,
+        );
         noter_le_cout_de_la_scene(debut);
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
@@ -372,8 +335,10 @@ impl Renderer {
         ui: &UiState,
         overlay: SceneOverlay<'_>,
         header_h: f32,
+        degradation_permise: bool,
     ) {
-        self.rendre_la_region(pixmap, store, ui, overlay, header_h, Cadrage::plein());
+        let cadrage = Cadrage::plein().avec_degradation(degradation_permise);
+        self.rendre_la_region(pixmap, store, ui, overlay, header_h, cadrage);
     }
 
     /// Ou la vue tombe dans ce pixmap, et quels noeuds y apparaissent.
@@ -475,7 +440,15 @@ impl Renderer {
         crate::perf::stage("folders");
 
         // 5. Images — le magasin pour les poser, le modele de cout pour apprendre leur prix.
-        scene::draw_images(&mut self.magasin, &mut self.cout, kit, pixmap, store, pass);
+        scene::draw_images(
+            &mut self.magasin,
+            &mut self.cout,
+            kit,
+            pixmap,
+            store,
+            pass,
+            cadrage.degradation_permise,
+        );
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
@@ -591,7 +564,7 @@ mod tests {
             editing: None,
         };
         let origin = Pointer { x: 0.0, y: 0.0 };
-        renderer.render(&mut view, store, ui, overlay, origin);
+        renderer.render(&mut view, store, ui, overlay, origin, false);
         crate::dock::render_docks(
             &mut view,
             dock,

@@ -33,6 +33,7 @@ pub(in crate::renderer) fn draw_images(
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
+    degradation_permise: bool,
 ) {
     let Some(board) = store.active_board() else {
         return;
@@ -95,7 +96,15 @@ pub(in crate::renderer) fn draw_images(
     // COUT-1 : on sait ce que la scene coutera AVANT de la dessiner, donc on decide une fois
     // -- et non apres avoir rate. Sous cent images par seconde, les photos se pixelisent.
     let prevu = prevoir_la_scene(&visibles, &caches, &pass, magasin, cout);
-    let finesse = finesse_pour(prevu);
+    // Deux conditions, et non une. Le budget dit ce dont on a **besoin** ; la perception dit
+    // ce qui est **licite**. La seconde manquait, et c'est elle qui faisait persister la
+    // pixelisation pendant que l'amortissement s'eteignait : l'oeil retrouvait son acuite,
+    // le budget restait tendu, donc le grain restait.
+    let finesse = if degradation_permise {
+        finesse_pour(prevu)
+    } else {
+        Finesse::Lisse
+    };
     // Le prevu entre dans la trace pour qu'on puisse lire le RESIDU -- mesure moins prevu --
     // qui est la seule grandeur de tout ceci qui apprenne quelque chose de neuf.
     if let Some(prevu) = prevu {

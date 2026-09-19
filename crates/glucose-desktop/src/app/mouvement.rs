@@ -44,6 +44,78 @@ impl GlucoseApp {
         let dt = self.duree_de_l_image();
         self.appliquer_la_demande(largeur, hauteur);
         self.appliquer_le_vol(largeur, hauteur, dt);
+        self.mesurer_ce_que_l_oeil_voit_bouger((largeur, hauteur), dt);
+    }
+
+    /// De combien la vue vient de bouger, et ce que l'œil tolère à cette vitesse.
+    ///
+    /// # Pourquoi on mesure le **déplacement**, et non la vitesse de l'élan
+    ///
+    /// L'élan connaît sa propre vitesse, mais il n'est qu'une des sources de mouvement : un
+    /// vol de caméra, un geste direct, un signet rappelé déplacent la vue sans passer par
+    /// lui. Ce que l'œil voit, c'est le mouvement **résultant**, d'où qu'il vienne.
+    ///
+    /// Et il se mesure exactement : le déplacement d'un point de l'écran entre deux cadrages
+    /// est affine en sa position, donc son maximum est atteint à un coin. C'est déjà ce que
+    /// calcule [`crate::interactions::vol::ecart_max_en_pixels`], et c'est la bonne grandeur
+    /// — un zoom qui ne translate rien fait pourtant glisser toute l'image sous l'œil.
+    fn mesurer_ce_que_l_oeil_voit_bouger(&mut self, (largeur, hauteur): (u32, u32), dt: f64) {
+        let Some(tableau) = self.store.active_board() else {
+            return;
+        };
+        let vue = tableau.viewport;
+        let ecran = glucose_core::membrane_focus::ScreenSize {
+            width: f64::from(largeur),
+            height: f64::from(hauteur),
+        };
+        let vitesse = match (self.vue_precedente, dt > 0.0) {
+            (Some(avant), true) => {
+                crate::interactions::vol::ecart_max_en_pixels(avant, vue, ecran) / dt
+            }
+            // Première image, ou durée nulle : on ne sait rien, donc on ne dégrade rien.
+            _ => 0.0,
+        };
+        self.vue_precedente = Some(vue);
+        self.perception = crate::perception::Perception::a_la_vitesse(vitesse, self.scale_factor);
+    }
+
+    /// Ce que cette image a coute decide de la finesse de la suivante.
+    ///
+    /// Deux questions, et il faut les deux : le budget dit ce dont on a **besoin**, la
+    /// perception ce qui est **licite**. La seconde manquait, et c'est elle qui faisait
+    /// persister les gros blocs pendant que l'amortissement s'eteignait.
+    pub(super) fn accorder_la_finesse(&mut self, ecoule: std::time::Duration) {
+        // Ce que cette image a coute decide de la finesse de la suivante. `en_cours` dit si la
+        // main demande encore quelque chose : des qu'elle se tait, la nettete revient.
+        let scene = crate::perf::valeur_du_compteur("img_scene_us").unwrap_or(0.0);
+        let mesure = crate::resolution::Mesure {
+            image: ecoule,
+            scene: std::time::Duration::from_micros(scene.max(0.0) as u64),
+        };
+        // **Le plancher de la charte, et non la cible de cout.** `budget_rendu` vaut deux
+        // millisecondes et demie : c'est ce qu'on VISE pour laisser du temps au travail de
+        // fond, pas le seuil au-dela duquel on a le droit d'abimer l'image. Vise ainsi, la
+        // reduction se declenchait des qu'une image depassait 2,5 ms -- c'est-a-dire presque
+        // toujours -- et rendait la scene a MOITIE resolution : 22 % des images d'une session
+        // reelle, a facteur 1,98, en gros blocs illisibles.
+        //
+        // L'utilisateur l'a tranche sur capture : « c'est ultra pixelise, sur un ecran comme
+        // le mien ca passe pas ; deja ca lag, et ensuite c'est moche ». On degradait donc
+        // violemment ce qui se voit, sans meme y gagner la cadence.
+        //
+        // A dix millisecondes, les deux leviers visent le meme plancher, et l'ordre tombe de
+        // lui-meme : le filtre pixelise d'abord -- il se decide par prevision, AVANT le rendu
+        // -- et la resolution ne cede que si l'image mesuree depasse malgre lui. On abime
+        // d'abord ce qui se voit le moins.
+        let plancher = crate::cadence::BUDGET_TOTAL;
+        // Un vol compte comme un mouvement au meme titre que l'elan : la vue change sous
+        // l'oeil, et c'est cela seul qui autorise a rendre plus grossier.
+        let en_mouvement = self.elan.en_cours() || self.vol.en_cours();
+        // Ce que l'oeil tolere a la vitesse a laquelle la vue vient de bouger. Le budget dit
+        // ce dont on a BESOIN, ceci dit ce qui est LICITE -- et degrader demande les deux.
+        let plafond = self.perception.facteur_admissible();
+        self.resolution
+            .observer(mesure, plancher, en_mouvement, plafond);
     }
 
     /// La duree ecoulee depuis l'image precedente, en secondes.

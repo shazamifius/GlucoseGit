@@ -80,6 +80,7 @@ fn une_image(renderer: &mut Renderer, ui: &mut UiState, pixmap: &mut Pixmap, sto
             editing: None,
         },
         Pointer { x: -1.0, y: -1.0 },
+        false,
     );
     let ms = t.elapsed().as_secs_f64() * 1000.0;
     glucose_desktop::perf::frame_end();

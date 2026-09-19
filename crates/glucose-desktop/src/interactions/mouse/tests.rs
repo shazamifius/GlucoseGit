@@ -141,6 +141,7 @@ fn render(app: &mut GlucoseApp) {
         &mut app.ui,
         overlay,
         crate::params::Pointer { x: 0.0, y: 0.0 },
+        false,
     );
 }
 
