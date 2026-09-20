@@ -31,6 +31,21 @@
 //! `k` redescend quand le rendu a tenu, avec sa marge, dans `k − 1` périodes depuis assez
 //! longtemps pour qu'une oscillation soit un événement rare et non un tremblement.
 //!
+//! # Le typique, et non le pire
+//!
+//! La première version montait `k` au premier raté et ne le redescendait que si le **pire**
+//! rendu de la seconde tenait un cran plus bas. Sur le terrain, un seul pic par seconde — une
+//! colonne de tuiles à peindre au zoom, vingt-sept millisecondes — suffisait à le bloquer à
+//! sept balayages : quarante-trois images par seconde, régulières, et l'utilisateur les a
+//! trouvées « absolument parfaites ». C'est la thèse confirmée, et c'est quand même quatre
+//! fois trop lent pour la charte.
+//!
+//! Un raté isolé est une image irrégulière, et c'est tout : on l'accepte. `k` monte quand les
+//! ratés dépassent **un pour cent** des images — le seuil que le verdict de la chronique
+//! emploie déjà pour dire qu'un plancher n'en est plus un — et redescend quand **quatre-
+//! vingt-dix-neuf pour cent** des rendus auraient tenu un cran plus bas. Le même nombre dans
+//! les deux sens, et il ne vient pas d'ici.
+//!
 //! # Ce que l'attente coûte, et ce qu'elle rapporte
 //!
 //! Elle ajoute de la latence : à `k = 2` et 4,87 ms de rendu, l'image attend 3,5 ms avant de
@@ -68,14 +83,20 @@ pub struct Tempo {
     /// Retenu plutôt que recalculé : `k` peut redescendre entre le moment où l'image est prête
     /// et celui où elle part, et la cible de CETTE image ne doit pas bouger avec lui.
     cible: Option<Instant>,
-    /// Le début de la fenêtre d'observation en cours, et le rendu le plus long qu'elle a vu.
+    /// La fenêtre d'observation en cours : son début, combien d'images elle a vues, combien
+    /// ont raté leur balayage, et combien auraient tenu un cran plus bas.
     ///
-    /// La descente de `k` se décide **une fois par horizon**, sur le pire rendu de l'horizon :
-    /// c'est lui qui raterait. Une première version gardait le pire depuis le dernier raté ;
-    /// il ne s'oubliait jamais, et `k` ne redescendait jamais.
+    /// `k` se décide sur ces comptes, jamais sur une image seule : monter au premier raté et
+    /// ne descendre que si le pire tient bloquait `k` en haut au premier pic de la seconde.
     fenetre: Option<Instant>,
-    pire_rendu: Duration,
+    vues: u32,
+    rates: u32,
+    tiendraient_en_dessous: u32,
 }
+
+/// La part d'images irrégulières au-delà de laquelle une cadence n'est plus tenue : une sur
+/// cent. C'est le seuil du verdict de la chronique, repris et non redéclaré en esprit.
+const TOLERANCE_POUR_CENT: u32 = 1;
 
 impl Default for Tempo {
     fn default() -> Self {
@@ -91,7 +112,9 @@ impl Tempo {
             derniere_soumission: None,
             cible: None,
             fenetre: None,
-            pire_rendu: Duration::ZERO,
+            vues: 0,
+            rates: 0,
+            tiendraient_en_dessous: 0,
         }
     }
 
@@ -120,38 +143,51 @@ impl Tempo {
         };
         let cible = derniere + self.intervalle();
         self.cible = Some(cible);
-        // **Le balayage est raté** : l'image sera vue une période de plus que prévu, et la
-        // suivante vise un cran plus loin pour que cela ne se reproduise pas.
-        if maintenant > cible + crate::cadence::MARGE {
-            self.balayages += 1;
-            // Un raté ouvre une fenêtre neuve : la descente attendra un horizon entier.
-            self.fenetre = Some(maintenant);
-            self.pire_rendu = Duration::ZERO;
-            return Duration::ZERO;
-        }
-        self.observer_le_rendu(maintenant, rendu);
-        cible.saturating_duration_since(maintenant)
-    }
-
-    /// Note ce rendu dans la fenêtre en cours ; à la fin de l'horizon, décide si `k` descend.
-    ///
-    /// `k` redescend d'un cran si le **pire** rendu de l'horizon tient, avec sa marge, dans
-    /// `k − 1` périodes. Une décision par horizon : une oscillation est alors un événement,
-    /// pas un tremblement.
-    fn observer_le_rendu(&mut self, maintenant: Instant, rendu: Duration) {
-        let debut = *self.fenetre.get_or_insert(maintenant);
-        self.pire_rendu = self.pire_rendu.max(rendu);
-        if maintenant.saturating_duration_since(debut) < HORIZON {
-            return;
-        }
+        self.fenetre.get_or_insert(maintenant);
+        self.vues += 1;
         let en_dessous = self
             .periode
             .saturating_mul(self.balayages.saturating_sub(1));
-        if self.balayages > 1 && self.pire_rendu + crate::cadence::MARGE <= en_dessous {
+        if rendu + crate::cadence::MARGE <= en_dessous {
+            self.tiendraient_en_dessous += 1;
+        }
+        // **Le balayage est raté** : cette image sera vue une période de plus que prévu. Un
+        // raté isolé est une image irrégulière, et c'est tout ; c'est leur FREQUENCE qui fait
+        // monter `k` — plus d'un pour cent, et jamais sur le premier.
+        if maintenant > cible + crate::cadence::MARGE {
+            self.rates += 1;
+            if self.rates >= 2 && self.rates * 100 > self.vues * TOLERANCE_POUR_CENT {
+                self.balayages += 1;
+                self.nouvelle_fenetre(maintenant);
+            }
+            return Duration::ZERO;
+        }
+        self.decider_a_la_fin_de_l_horizon(maintenant, en_dessous);
+        cible.saturating_duration_since(maintenant)
+    }
+
+    /// À la fin de l'horizon, `k` redescend si quatre-vingt-dix-neuf pour cent des rendus
+    /// auraient tenu un cran plus bas. Une décision par horizon : une oscillation est alors
+    /// un événement, pas un tremblement.
+    fn decider_a_la_fin_de_l_horizon(&mut self, maintenant: Instant, en_dessous: Duration) {
+        let Some(debut) = self.fenetre else {
+            return;
+        };
+        if maintenant.saturating_duration_since(debut) < HORIZON {
+            return;
+        }
+        let assez = self.tiendraient_en_dessous * 100 >= self.vues * (100 - TOLERANCE_POUR_CENT);
+        if self.balayages > 1 && !en_dessous.is_zero() && assez {
             self.balayages -= 1;
         }
+        self.nouvelle_fenetre(maintenant);
+    }
+
+    fn nouvelle_fenetre(&mut self, maintenant: Instant) {
         self.fenetre = Some(maintenant);
-        self.pire_rendu = Duration::ZERO;
+        self.vues = 0;
+        self.rates = 0;
+        self.tiendraient_en_dessous = 0;
     }
 
     /// L'image vient d'être soumise.

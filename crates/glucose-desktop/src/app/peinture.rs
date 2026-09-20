@@ -96,11 +96,22 @@ impl GlucoseApp {
             f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
         );
         crate::perf::stage("atelier");
-        // Puis l'attente active jusqu'a la cible. Un sommeil du systeme se reveille a la
-        // milliseconde pres au mieux, et a quinze millisecondes pres au pire sur Windows sans
-        // reglage du minuteur : c'est trois balayages, soit precisement ce qu'on cherche a ne
-        // pas rater. Le processeur tourne a vide quelques centaines de microsecondes ; ce
-        // temps ira au travail de fond a mesure qu'il saura le prendre.
+        // **Dormir, et ne tourner a vide que la marge.** La premiere version tournait a vide
+        // jusqu'a la cible -- seize millisecondes par image sur le terrain. Un coeur a cent
+        // pour cent chauffe, la frequence baisse, et tout le rendu ralentit trois fois :
+        // `clear` passait de une a quatre millisecondes, `blit` de une a six. Le tempo ratait
+        // alors ses cibles, montait, attendait plus, chauffait plus. Un cercle, et la charte
+        // le nomme : le bridage thermique est le regime normal d'un portable.
+        //
+        // `thread::sleep` est a haute resolution sur Windows 10 depuis Rust 1.77 -- un
+        // minuteur de quelques dizaines de microsecondes, sans toucher a la periode du
+        // systeme. Il dort jusqu'a la marge ; la marge seule se passe a vide, pour la
+        // precision.
+        let reveil = cible - crate::cadence::MARGE;
+        let maintenant = std::time::Instant::now();
+        if reveil > maintenant {
+            std::thread::sleep(reveil - maintenant);
+        }
         while std::time::Instant::now() < cible {
             std::hint::spin_loop();
         }

@@ -103,11 +103,14 @@ fn test_k_redescend_apres_l_horizon_et_pas_avant() {
         tempo.soumise(t);
         k_par_image.push(tempo.balayages());
     }
-    assert_eq!(k_par_image[1], 2, "le rendu lent a fait monter k");
+    // Le premier raté ne monte rien -- un raté isolé est une image irrégulière, et c'est
+    // tout. Le deuxième fait monter k.
+    assert_eq!(k_par_image[0], 1, "un rate isole ne monte pas k");
+    assert_eq!(k_par_image[1], 2, "le deuxieme rate fait monter k");
     // À deux balayages par image, une seconde vaut cent vingt images : k doit tenir au moins
     // jusque-là, et être redescendu bien avant la fin.
     assert!(
-        k_par_image[..100].iter().all(|k| *k == 2),
+        k_par_image[1..100].iter().all(|k| *k == 2),
         "k est redescendu avant l'horizon"
     );
     assert_eq!(
@@ -133,10 +136,45 @@ fn test_un_rendu_bimodal_ne_fait_pas_osciller_k() {
         })
         .collect();
     let intervalles = rejouer(&mut tempo, &rendus);
-    let changements = intervalles.windows(2).filter(|w| w[0] != w[1]).count();
+    // Les seuls changements admis sont ceux du demarrage, le temps que k trouve son cran ;
+    // ensuite, plus aucun -- c'est cela, ne pas trembler.
+    let dernier_changement = intervalles
+        .windows(2)
+        .rposition(|w| w[0] != w[1])
+        .unwrap_or(0);
     assert!(
-        changements <= 2,
-        "le tempo tremble : {changements} changements d'intervalle sur 600 images"
+        dernier_changement < 10,
+        "le tempo tremble : un changement d'intervalle a l'image {dernier_changement} sur 600"
+    );
+    assert_eq!(
+        tempo.balayages(),
+        2,
+        "un tiers de rendus a 4,5 ms impose deux balayages"
+    );
+}
+
+/// **Un pic isolé ne fait pas monter `k`.** C'est le défaut du terrain : une colonne de
+/// tuiles à peindre par seconde bloquait le tempo à sept balayages, quarante-trois images par
+/// seconde pour un rendu typique de cinq millisecondes.
+#[test]
+fn test_un_pic_par_seconde_ne_bloque_pas_k_en_haut() {
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(P240);
+    // Un rendu typique à 5 ms -- deux balayages -- et un pic à 27 ms toutes les 100 images.
+    let rendus: Vec<Duration> = (0..1_200)
+        .map(|i| {
+            if i % 100 == 50 {
+                Duration::from_micros(27_000)
+            } else {
+                Duration::from_micros(5_000)
+            }
+        })
+        .collect();
+    rejouer(&mut tempo, &rendus);
+    assert_eq!(
+        tempo.balayages(),
+        2,
+        "le tempo doit se caler sur le rendu typique, pas sur le pic"
     );
 }
 

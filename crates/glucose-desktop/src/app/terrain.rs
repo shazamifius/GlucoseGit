@@ -55,6 +55,62 @@ impl GlucoseApp {
         Geste::Repos
     }
 
+    /// Ce qui suit la présentation : la latence vécue, le travail de fond, et la trace.
+    ///
+    /// Séparé du rendu parce que rien ici ne retarde l'image — elle est déjà à l'écran. Ce
+    /// bloc occupe le temps qu'on aurait passé à attendre la suivante.
+    pub(super) fn clore_l_image(
+        &mut self,
+        debut: std::time::Instant,
+        (largeur, hauteur): (u32, u32),
+    ) {
+        // NAV-3 : l'age du plus ancien geste que cette image montre enfin. C'est **la**
+        // grandeur qui dit « fluide », et aucune duree d'image ne l'explique.
+        if let Some(l) = self.chronique.navigation.image_presentee() {
+            crate::perf::compteur("nav_latence_us", l.as_micros() as f64);
+        }
+
+        // CASCADE-1 : le travail de fond a deja pris l'attente du tempo. Il ne prend ici que
+        // ce que le plancher de la charte laisse encore quand l'image etait en retard -- sans
+        // quoi la machine reste enfermee dans son regime degrade : images cheres faute de
+        // vignettes, vignettes jamais construites faute de temps.
+        if crate::perf::valeur_du_compteur("tempo_attente_us").unwrap_or(0.0) <= 0.0 {
+            let faites = self
+                .renderer
+                .magasin
+                .avancer_les_vignettes(self.cadence.tranche_de_fond(debut.elapsed()));
+            crate::perf::compteur(
+                "vign_atelier",
+                f64::from(u32::try_from(faites).unwrap_or(u32::MAX)),
+            );
+            crate::perf::stage("atelier");
+        }
+        crate::perf::compteur(
+            "vign_attente",
+            self.renderer.magasin.vignettes.en_chantier() as f64,
+        );
+
+        // **Ce que l'image a coute, et non ce qu'elle a attendu.** Depuis le tempo, une image
+        // attend jusqu'a l'heure de partir ; cette attente est du temps libre, pas du travail.
+        // La compter faisait lire « 98 % des images au-dessus de dix millisecondes » sur une
+        // session ou elles en coutaient cinq et en attendaient seize -- et faisait rapetisser
+        // la scene pour un budget qu'elle tenait.
+        let attente = crate::perf::valeur_du_compteur("tempo_attente_us")
+            .map_or(std::time::Duration::ZERO, |us| {
+                std::time::Duration::from_micros(us.max(0.0) as u64)
+            });
+        let ecoule = debut.elapsed().saturating_sub(attente);
+        self.accorder_la_finesse(ecoule);
+        crate::perf::compteur("img_reduction", f64::from(self.resolution.facteur()));
+        crate::perf::frame_end();
+        // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il se
+        // contente de les afficher quand la trace est demandee.
+        self.enregistrer_l_image(
+            ecoule.as_micros().min(u128::from(u32::MAX)) as u32,
+            (largeur, hauteur),
+        );
+    }
+
     /// Enregistre l'image qui vient de se dessiner.
     ///
     /// Les postes viennent de la trace, qui les mesure desormais toujours : la variable
