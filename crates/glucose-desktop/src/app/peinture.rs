@@ -69,7 +69,7 @@ impl GlucoseApp {
     ///
     /// Le temps d'attente n'est pas perdu : l'atelier y avance (CASCADE-1), et c'est la que
     /// l'arbre de possibilites preparera les tuiles de la trajectoire (fiche 18, etape 3).
-    pub(super) fn attendre_l_heure_de_soumettre(&mut self, debut: std::time::Instant) {
+    pub(super) fn attendre_l_heure_de_soumettre(&mut self) {
         // Le tempo ne regle que ce qui BOUGE : c'est la seule situation ou un intervalle
         // irregulier se voit. Ailleurs -- un decodage, un curseur qui clignote -- attendre
         // ferait tourner le processeur a vide pour une regularite que personne ne regarde.
@@ -80,8 +80,7 @@ impl GlucoseApp {
             return;
         }
         let maintenant = std::time::Instant::now();
-        let rendu = maintenant.saturating_duration_since(debut);
-        let attente = self.tempo.attente_avant_de_soumettre(maintenant, rendu);
+        let attente = self.tempo.attente_avant_de_soumettre(maintenant);
         crate::perf::compteur("tempo_balayages", f64::from(self.tempo.balayages()));
         crate::perf::compteur("tempo_attente_us", attente.as_micros() as f64);
         if attente.is_zero() {

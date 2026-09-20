@@ -5,21 +5,34 @@ use super::*;
 
 const P240: Duration = Duration::from_nanos(4_166_667);
 
-/// Rejoue une suite de rendus et rend les intervalles de soumission qui en résultent.
+/// Un tirage déterministe : un générateur congruentiel, pour que le test rejoue toujours la
+/// même session sans dépendre de quoi que ce soit.
+fn uniforme(graine: &mut u64) -> f64 {
+    *graine = graine
+        .wrapping_mul(6_364_136_223_846_793_005)
+        .wrapping_add(1_442_695_040_888_963_407);
+    (*graine >> 11) as f64 / (1u64 << 53) as f64
+}
+
+/// Rejoue une suite de rendus et rend les instants de soumission qui en résultent.
 ///
-/// Le temps est simulé : l'image `n` commence à la soumission précédente, coûte `rendu`, et
-/// part après l'attente que le tempo demande.
-fn rejouer(tempo: &mut Tempo, rendus: &[Duration]) -> Vec<Duration> {
+/// Le temps est simulé, dans l'ordre de la boucle réelle : l'image `n` commence quand la
+/// présentation précédente a rendu la main, coûte `rendu`, attend ce que le tempo demande,
+/// part, puis sa présentation coûte `presentation` avant que la suivante ne commence.
+fn rejouer(tempo: &mut Tempo, rendus: &[Duration], presentation: Duration) -> Vec<Instant> {
     let mut t = Instant::now();
-    tempo.soumise(t);
-    let mut soumissions = vec![t];
+    let mut soumissions = Vec::with_capacity(rendus.len());
     for rendu in rendus {
         let pret = t + *rendu;
-        let attente = tempo.attente_avant_de_soumettre(pret, *rendu);
-        t = pret + attente;
-        tempo.soumise(t);
-        soumissions.push(t);
+        let attente = tempo.attente_avant_de_soumettre(pret);
+        let soumission = pret + attente;
+        soumissions.push(soumission);
+        t = soumission + presentation;
     }
+    soumissions
+}
+
+fn intervalles(soumissions: &[Instant]) -> Vec<Duration> {
     soumissions.windows(2).map(|w| w[1] - w[0]).collect()
 }
 
@@ -30,9 +43,9 @@ fn test_un_rendu_juste_au_dessus_de_la_periode_se_cale_sur_deux_balayages() {
     let mut tempo = Tempo::nouveau();
     tempo.accorder(P240);
     let rendus = vec![Duration::from_micros(4_870); 60];
-    let intervalles = rejouer(&mut tempo, &rendus);
-    // La première image rate (k valait 1), les suivantes sont toutes à deux balayages.
-    let regime = &intervalles[2..];
+    let intervalles = intervalles(&rejouer(&mut tempo, &rendus, Duration::ZERO));
+    // Les premières images ratent (k valait 1), les suivantes sont toutes à deux balayages.
+    let regime = &intervalles[4..];
     for (i, d) in regime.iter().enumerate() {
         assert_eq!(
             *d,
@@ -49,7 +62,7 @@ fn test_un_rendu_rapide_reste_a_un_balayage() {
     let mut tempo = Tempo::nouveau();
     tempo.accorder(P240);
     let rendus = vec![Duration::from_micros(3_000); 30];
-    let intervalles = rejouer(&mut tempo, &rendus);
+    let intervalles = intervalles(&rejouer(&mut tempo, &rendus, Duration::ZERO));
     for d in &intervalles {
         assert_eq!(*d, P240, "chaque image occupe un balayage : {d:?}");
     }
@@ -64,15 +77,14 @@ fn test_la_grille_des_soumissions_ne_derive_pas() {
     let mut tempo = Tempo::nouveau();
     tempo.accorder(P240);
     let depart = Instant::now();
-    tempo.soumise(depart);
+    tempo.attente_avant_de_soumettre(depart);
     let mut t = depart;
     for _ in 0..100 {
         // Le rendu prend un temps qui n'est pas un multiple de quoi que ce soit.
         let pret = t + Duration::from_micros(3_333);
-        let attente = tempo.attente_avant_de_soumettre(pret, Duration::from_micros(3_333));
+        let attente = tempo.attente_avant_de_soumettre(pret);
         // L'horloge réelle a un peu de retard sur la cible : c'est le cas normal d'un sommeil.
         t = pret + attente + Duration::from_micros(40);
-        tempo.soumise(t);
     }
     let attendu = depart + P240.saturating_mul(100);
     let derniere = tempo.derniere_soumission.expect("des soumissions");
@@ -84,34 +96,68 @@ fn test_la_grille_des_soumissions_ne_derive_pas() {
     );
 }
 
-/// `k` redescend quand le rendu le permet — mais pas avant l'horizon, pour ne pas trembler.
+/// **La grille ne suit pas la présentation.** Sur le terrain, `present()` enchaîne le
+/// téléversement, l'acquisition, l'encodage et la remise au compositeur : de 1,5 à 5 ms,
+/// jamais moins que la marge. La première version recalait la grille sur sa fin, et chaque
+/// intervalle en portait la variation — l'écran montrait `k` ou `k + 1` balayages au hasard,
+/// le décalage que la chronique a lu entre le tempo visé et les balayages observés.
+///
+/// Ici la présentation varie d'une image à l'autre, et les soumissions restent sur la grille
+/// à la nanoseconde une fois `k` trouvé.
 #[test]
-fn test_k_redescend_apres_l_horizon_et_pas_avant() {
+fn test_une_presentation_lente_ne_recale_pas_la_grille() {
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(P240);
+    let mut t = Instant::now();
+    let mut graine = 7u64;
+    let mut soumissions = Vec::new();
+    for _ in 0..300 {
+        let pret = t + Duration::from_micros(2_000);
+        let attente = tempo.attente_avant_de_soumettre(pret);
+        let soumission = pret + attente;
+        soumissions.push(soumission);
+        let presentation = Duration::from_micros(1_500 + (uniforme(&mut graine) * 3_500.0) as u64);
+        t = soumission + presentation;
+    }
+    // Deux millisecondes de rendu et jusqu'à cinq de présentation : deux balayages.
+    assert_eq!(tempo.balayages(), 2);
+    let regime = &intervalles(&soumissions)[10..];
+    for (i, d) in regime.iter().enumerate() {
+        assert_eq!(
+            *d,
+            P240.saturating_mul(2),
+            "l'intervalle {i} a suivi la présentation : {d:?}"
+        );
+    }
+}
+
+/// `k` redescend quand le rendu le permet — mais pas avant la fin de l'échantillon, pour ne
+/// pas trembler.
+#[test]
+fn test_k_redescend_a_la_fin_de_l_echantillon_et_pas_avant() {
     let mut tempo = Tempo::nouveau();
     tempo.accorder(P240);
     // Un rendu lent fait monter k à deux.
     let mut rendus = vec![Duration::from_micros(4_870); 5];
     // Puis le rendu tombe nettement sous une période.
-    rendus.extend(std::iter::repeat_n(Duration::from_micros(2_000), 400));
+    rendus.extend(std::iter::repeat_n(Duration::from_micros(2_000), 600));
     let mut t = Instant::now();
-    tempo.soumise(t);
     let mut k_par_image = Vec::new();
     for rendu in &rendus {
         let pret = t + *rendu;
-        let attente = tempo.attente_avant_de_soumettre(pret, *rendu);
+        let attente = tempo.attente_avant_de_soumettre(pret);
         t = pret + attente;
-        tempo.soumise(t);
         k_par_image.push(tempo.balayages());
     }
-    // Le premier raté ne monte rien -- un raté isolé est une image irrégulière, et c'est
-    // tout. Le deuxième fait monter k.
-    assert_eq!(k_par_image[0], 1, "un rate isole ne monte pas k");
-    assert_eq!(k_par_image[1], 2, "le deuxieme rate fait monter k");
-    // À deux balayages par image, une seconde vaut cent vingt images : k doit tenir au moins
-    // jusque-là, et être redescendu bien avant la fin.
+    // Un raté isolé ne monte rien ; deux non plus -- ce n'est encore que la tolérance sur
+    // l'échantillon entier. Le troisième la dépasse, et k monte.
+    assert_eq!(k_par_image[2], 1, "deux rates ne montent pas k");
+    assert_eq!(k_par_image[3], 2, "le troisieme rate fait monter k");
+    // Deux cents images d'échantillon avant de pouvoir conclure : k tient au moins jusque-là,
+    // et est redescendu bien avant la fin.
     assert!(
-        k_par_image[1..100].iter().all(|k| *k == 2),
-        "k est redescendu avant l'horizon"
+        k_par_image[3..200].iter().all(|k| *k == 2),
+        "k est redescendu avant la fin de l'echantillon"
     );
     assert_eq!(
         *k_par_image.last().expect("des images"),
@@ -135,7 +181,7 @@ fn test_un_rendu_bimodal_ne_fait_pas_osciller_k() {
             }
         })
         .collect();
-    let intervalles = rejouer(&mut tempo, &rendus);
+    let intervalles = intervalles(&rejouer(&mut tempo, &rendus, Duration::ZERO));
     // Les seuls changements admis sont ceux du demarrage, le temps que k trouve son cran ;
     // ensuite, plus aucun -- c'est cela, ne pas trembler.
     let dernier_changement = intervalles
@@ -170,11 +216,93 @@ fn test_un_pic_par_seconde_ne_bloque_pas_k_en_haut() {
             }
         })
         .collect();
-    rejouer(&mut tempo, &rendus);
+    let soumissions = rejouer(&mut tempo, &rendus, Duration::ZERO);
     assert_eq!(
         tempo.balayages(),
         2,
         "le tempo doit se caler sur le rendu typique, pas sur le pic"
+    );
+    // Et il ne bouge plus une fois calé : chaque pic est UNE image irrégulière -- la sienne --
+    // et jamais un changement de cran qui en ferait d'autres.
+    let regime = &intervalles(&soumissions)[10..];
+    let deux = P240.saturating_mul(2);
+    let irregulieres = regime.iter().filter(|d| **d != deux).count();
+    let pics = rendus[10..].iter().filter(|r| **r > deux).count();
+    assert!(
+        irregulieres <= pics,
+        "{irregulieres} images irregulieres pour {pics} pics : le tempo a bouge autour du pic"
+    );
+}
+
+/// Les rendus de la session du 20/09 sur 429 photos, tels que la chronique les a lus, la
+/// présentation déduite : une médiane à 8 ms, un p90 à 11, un p99 à 20, un pire à 40. La
+/// distribution est reconstruite par interpolation entre ces quantiles.
+fn rendus_du_terrain(n: usize) -> Vec<Duration> {
+    const QUANTILES: [(f64, f64); 6] = [
+        (0.0, 4.0),
+        (0.5, 8.0),
+        (0.9, 11.0),
+        (0.99, 20.0),
+        (0.999, 40.0),
+        (1.0, 40.0),
+    ];
+    let mut graine = 0x9E37_79B9_7F4A_7C15u64;
+    (0..n)
+        .map(|_| {
+            let u = uniforme(&mut graine);
+            let (a, b) = QUANTILES
+                .windows(2)
+                .map(|w| (w[0], w[1]))
+                .find(|(_, b)| u <= b.0)
+                .unwrap_or((QUANTILES[4], QUANTILES[5]));
+            let t = if b.0 > a.0 {
+                (u - a.0) / (b.0 - a.0)
+            } else {
+                0.0
+            };
+            Duration::from_secs_f64((a.1 + t * (b.1 - a.1)) / 1000.0)
+        })
+        .collect()
+}
+
+/// **La session du terrain, rejouée : `k` ne doit pas trembler.**
+///
+/// La chronique du 20/09 lisait « le tempo, sur 4742 images en mouvement : 4 balayages 42 %,
+/// 3 balayages 28 %, 5 balayages 27 % » — trois valeurs, aucune dominante. Un changement de
+/// `k` est une image irrégulière au même titre qu'un raté ; le tempo n'a donc le droit d'en
+/// produire que sous la même tolérance, une pour cent, une fois calé.
+///
+/// Ce que ce test ne peut pas exiger, et il faut le dire : UN cran dominant. Le p99 de cette
+/// distribution tombe sur une frontière de `k`, et à la frontière exacte deux crans se
+/// partagent le temps par nature -- c'est le bruit d'un comptage sur deux cents images, pas
+/// un tremblement. La version à l'horizon d'une seconde donnait 47 changements ici ; celle-ci
+/// en donne 14.
+#[test]
+fn test_la_distribution_du_terrain_ne_fait_pas_trembler_k() {
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(P240);
+    let rendus = rendus_du_terrain(6_000);
+    let mut t = Instant::now();
+    let mut k_par_image = Vec::with_capacity(rendus.len());
+    for rendu in &rendus {
+        let pret = t + *rendu;
+        let attente = tempo.attente_avant_de_soumettre(pret);
+        t = pret + attente + Duration::from_micros(2_000);
+        k_par_image.push(tempo.balayages());
+    }
+    // Le calage : le temps que k trouve son cran. Au-delà, chaque changement se compte.
+    let regime = &k_par_image[1_000..];
+    let changements = regime.windows(2).filter(|w| w[0] != w[1]).count();
+    let toleres = regime.len() / 100;
+    let mut parts = std::collections::BTreeMap::new();
+    for k in regime {
+        *parts.entry(*k).or_insert(0usize) += 1;
+    }
+    assert!(
+        changements <= toleres,
+        "le tempo tremble : {changements} changements de k sur {} images (tolérés : \
+         {toleres}) ; répartition {parts:?}",
+        regime.len()
     );
 }
 
@@ -183,8 +311,8 @@ fn test_un_pic_par_seconde_ne_bloque_pas_k_en_haut() {
 fn test_sans_periode_aucune_attente() {
     let mut tempo = Tempo::nouveau();
     let t = Instant::now();
-    tempo.soumise(t);
-    let attente =
-        tempo.attente_avant_de_soumettre(t + Duration::from_millis(1), Duration::from_millis(1));
+    tempo.attente_avant_de_soumettre(t);
+    let attente = tempo.attente_avant_de_soumettre(t + Duration::from_millis(1));
     assert_eq!(attente, Duration::ZERO);
+    assert!(tempo.derniere_soumission.is_none());
 }

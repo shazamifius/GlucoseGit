@@ -338,9 +338,8 @@ impl GlucoseApp {
             // TEMPO-1 : l'image ne part pas quand elle est prete, elle part quand c'est
             // l'heure -- un nombre entier et CONSTANT de balayages apres la precedente. Ce
             // qui reste d'ici la sert au travail de fond.
-            self.attendre_l_heure_de_soumettre(frame_started);
+            self.attendre_l_heure_de_soumettre();
             self.presenter_et_noter_le_rythme(frame_started);
-            self.tempo.soumise(std::time::Instant::now());
             self.clore_l_image(frame_started, (width, height));
         }
     }
