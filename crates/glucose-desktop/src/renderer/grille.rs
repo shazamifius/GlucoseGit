@@ -178,17 +178,12 @@ fn poser_par_la_grille(
     let (peintes_avant, reprises_avant) = (atelier.tuiles.peintes(), atelier.tuiles.reprises());
     atelier.tuiles.ouvrir();
     let mut pixels: u64 = 0;
-    // Les postes se ferment l'un l'autre : sans cette marque, tout ce qui precede la premiere
-    // tuile -- les empreintes, la reclamation des photos -- se comptait dans son occlusion, et
-    // l'occlusion paraissait couter trois fois le rendu.
-    crate::perf::stage("empreintes");
+    // **Les postes se ferment l'un l'autre, et chacun porte le nom de ce qu'il mesure.** La
+    // première version marquait « empreintes » avant la boucle et « grille » après : le
+    // premier mesurait la réclamation des photos, le second absorbait les empreintes ET la
+    // composition de toutes les tuiles -- 3,5 ms sur 429 photos, sans dire lesquelles.
+    crate::perf::stage("reclamer");
     for adresse in adresses {
-        let empreinte = ce_que_porte(store, adresse, pass.visibles);
-        // Une tuile vide n'a rien à composer : c'est le cas le plus fréquent d'un canevas
-        // infini, et c'est lui qui rend le déplacement sur du vide gratuit.
-        if empreinte == Empreinte::vide() {
-            continue;
-        }
         let place = Place {
             adresse,
             vp: pass.vp,
@@ -196,25 +191,7 @@ fn poser_par_la_grille(
             clip,
             filtre,
         };
-        if let Some((deja, portee)) = atelier.tuiles.deja_peinte(empreinte) {
-            pixels += composer(pixmap, deja, portee, place);
-            continue;
-        }
-        crate::perf::stage("grille");
-        let Some((peinte, complete)) = rendre_une_tuile(atelier, store, adresse) else {
-            continue;
-        };
-        crate::perf::stage("tuile");
-        // Une tuile dont une photo manquait encore ne se garde pas : elle se repeindra à
-        // l'image où les octets seront là, et le cadre « en chemin » n'aura pas survécu.
-        if complete {
-            let portee = atelier.tuiles.ranger(empreinte, peinte);
-            if let Some((deja, _)) = atelier.tuiles.deja_peinte(empreinte) {
-                pixels += composer(pixmap, deja, portee, place);
-            }
-        } else {
-            pixels += composer(pixmap, &peinte, Portee::de(&peinte), place);
-        }
+        pixels += poser_une_tuile(atelier, pixmap, store, pass.visibles, place);
     }
     atelier.tuiles.fermer();
     crate::perf::stage("grille");
@@ -225,6 +202,47 @@ fn poser_par_la_grille(
         atelier.tuiles.peintes() - peintes_avant,
         atelier.tuiles.reprises() - reprises_avant,
     )
+}
+
+/// Pose une tuile à sa place : depuis le cache si elle y est, peinte sinon. Rend combien de
+/// pixels ont été écrits.
+fn poser_une_tuile(
+    atelier: &mut Atelier<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    visibles: &[u32],
+    place: Place,
+) -> u64 {
+    let empreinte = ce_que_porte(store, place.adresse, visibles);
+    // Une tuile vide n'a rien à composer : c'est le cas le plus fréquent d'un canevas
+    // infini, et c'est lui qui rend le déplacement sur du vide gratuit.
+    if empreinte == Empreinte::vide() {
+        return 0;
+    }
+    let deja = atelier.tuiles.deja_peinte(empreinte);
+    crate::perf::stage("empreintes");
+    if let Some((deja, portee)) = deja {
+        let pixels = composer(pixmap, deja, portee, place);
+        crate::perf::stage("composer");
+        return pixels;
+    }
+    let Some((peinte, complete)) = rendre_une_tuile(atelier, store, place.adresse) else {
+        return 0;
+    };
+    // Une tuile dont une photo manquait encore ne se garde pas : elle se repeindra à
+    // l'image où les octets seront là, et le cadre « en chemin » n'aura pas survécu.
+    let pixels = if complete {
+        atelier.tuiles.ranger(empreinte, peinte);
+        crate::perf::stage("tuile");
+        atelier
+            .tuiles
+            .deja_peinte(empreinte)
+            .map_or(0, |(deja, portee)| composer(pixmap, deja, portee, place))
+    } else {
+        composer(pixmap, &peinte, &Portee::de(&peinte), place)
+    };
+    crate::perf::stage("composer");
+    pixels
 }
 
 /// Rend une tuile dans son propre repère : les photos qui la traversent, et rien d'autre.
@@ -286,7 +304,7 @@ struct Place {
 /// portée mesurée au rangement borne le parcours à ce qui existe, et une boîte opaque se
 /// **remplace** : un déplacement de mémoire par ligne, la primitive la moins chère du
 /// programme.
-fn composer(pixmap: &mut PixmapMut, tuile: &Pixmap, portee: Portee, place: Place) -> u64 {
+fn composer(pixmap: &mut PixmapMut, tuile: &Pixmap, portee: &Portee, place: Place) -> u64 {
     let Some((bx0, by0, bx1, by1)) = portee.boite else {
         return 0;
     };
@@ -294,7 +312,10 @@ fn composer(pixmap: &mut PixmapMut, tuile: &Pixmap, portee: Portee, place: Place
     let (x, y) = world_to_screen(couverte.left, couverte.top, &place.vp);
     let (dw, dh) = (pixmap.width(), pixmap.height());
     let (octets_src, _) = tuile.data().as_chunks::<4>();
-    let Some(src) = Vue::nouvelle(octets_src, tuile.width(), tuile.height()) else {
+    // La tuile connaît ses plages : à l'échelle exacte, la composition ne lit plus un alpha.
+    let Some(src) = Vue::nouvelle(octets_src, tuile.width(), tuile.height())
+        .map(|v| v.avec_plages(&portee.plages))
+    else {
         return 0;
     };
     let (octets_dest, _) = pixmap.data_mut().as_chunks_mut::<4>();

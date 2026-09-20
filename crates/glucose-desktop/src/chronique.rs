@@ -116,10 +116,13 @@ const PIRES: usize = 32;
 
 /// Combien de postes distincts une image peut déclarer.
 ///
-/// Le rendu en compte quatorze aujourd'hui. La borne existe pour que l'enregistrement d'une
-/// image reste de taille fixe — condition pour qu'une session de plusieurs heures n'accumule
-/// rien.
-pub const POSTES: usize = 24;
+/// La borne existe pour que l'enregistrement d'une image reste de taille fixe — condition
+/// pour qu'une session de plusieurs heures n'accumule rien. Mais un poste déclaré au-delà
+/// de la borne est **ignoré en silence**, et vaut alors zéro dans chaque trace — un zéro qui
+/// se lit comme une mesure, le défaut même du cliquet 9. Le rendu en comptait trente quand
+/// la borne en admettait vingt-quatre ; un cliquet compte désormais les marques du code et
+/// refuse qu'elles dépassent.
+pub const POSTES: usize = 32;
 
 /// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
 #[derive(Debug, Clone, Default)]

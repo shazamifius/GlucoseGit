@@ -31,6 +31,7 @@
 //! ne construit rien de lui-même en pleine image — il **note**, comme le faisait déjà
 //! CASCADE-1, et l'atelier vient ensuite dans le temps libre.
 
+use glucose_core::report::Plages;
 use glucose_core::store::Store;
 use glucose_core::tuile::{couvrant, Adresse, Empreinte, Occupant, COTE};
 use glucose_core::types::Viewport;
@@ -55,50 +56,32 @@ struct Rendu {
     portee: Portee,
 }
 
-/// Où sont les pixels d'une tuile, et s'ils sont opaques.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Où sont les pixels d'une tuile, s'ils sont opaques — et, ligne par ligne, où exactement.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Portee {
     /// La boîte des pixels non transparents, en pixels de la tuile : `(x0, y0, x1, y1)`,
     /// bords droit et bas exclus. `None` si la tuile est vide.
     pub boite: Option<(u32, u32, u32, u32)>,
     /// Tous les pixels de la boîte sont-ils opaques ? Vrai pour une tuile vide.
     pub opaque: bool,
+    /// Les plages de chaque ligne : ce que la composition copie, saute ou mélange, sans
+    /// avoir à relire un alpha. Lues ici, une fois, et non à chaque image — `bench_salissure`
+    /// mesurait ce balayage répété à 4,8 ms par écran, la moitié d'une image.
+    pub plages: Plages,
 }
 
 impl Portee {
-    /// Mesure une tuile : sa boîte non transparente et son opacité.
+    /// Mesure une tuile : ses plages, et ce qui s'en déduit.
     ///
-    /// Un passage sur les alphas, et rien d'autre. Le premier et le dernier pixel non
-    /// transparent de chaque ligne bornent la boîte ; un seul alpha partiel dans la boîte
-    /// suffit à la déclarer non opaque.
+    /// Un passage sur les alphas, et rien d'autre. La boîte est l'englobant des plages non
+    /// transparentes ; un seul alpha partiel suffit à déclarer la tuile non opaque.
     pub fn de(pixels: &Pixmap) -> Self {
-        let (largeur, hauteur) = (pixels.width(), pixels.height());
         let (px, _) = pixels.data().as_chunks::<4>();
-        let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0u32, 0u32);
-        for y in 0..hauteur {
-            let ligne = &px[(y * largeur) as usize..((y + 1) * largeur) as usize];
-            let Some(premier) = ligne.iter().position(|p| p[3] != 0) else {
-                continue;
-            };
-            let dernier = ligne.iter().rposition(|p| p[3] != 0).unwrap_or(premier);
-            x0 = x0.min(premier as u32);
-            x1 = x1.max(dernier as u32 + 1);
-            y0 = y0.min(y);
-            y1 = y1.max(y + 1);
-        }
-        if x0 == u32::MAX {
-            return Self {
-                boite: None,
-                opaque: true,
-            };
-        }
-        let opaque = (y0..y1).all(|y| {
-            let ligne = &px[(y * largeur + x0) as usize..(y * largeur + x1) as usize];
-            ligne.iter().all(|p| p[3] == 255)
-        });
+        let plages = Plages::de(px, pixels.width(), pixels.height());
         Self {
-            boite: Some((x0, y0, x1, y1)),
-            opaque,
+            boite: plages.boite(),
+            opaque: plages.opaque(),
+            plages,
         }
     }
 }
@@ -165,18 +148,18 @@ impl Tuiles {
 
     /// Les pixels de cette empreinte et leur portée, s'ils sont déjà peints. Les marque
     /// comme ayant servi.
-    pub fn deja_peinte(&mut self, empreinte: Empreinte) -> Option<(&Pixmap, Portee)> {
+    pub fn deja_peinte(&mut self, empreinte: Empreinte) -> Option<(&Pixmap, &Portee)> {
         let image = self.image;
         let rendu = self.rendus.get_mut(&empreinte.valeur())?;
         if rendu.vu != image {
             rendu.vu = image;
         }
         self.reprises += 1;
-        Some((&rendu.pixels, rendu.portee))
+        Some((&rendu.pixels, &rendu.portee))
     }
 
-    /// Range les pixels d'une empreinte qu'on vient de peindre, et rend leur portée.
-    pub fn ranger(&mut self, empreinte: Empreinte, pixels: Pixmap) -> Portee {
+    /// Range les pixels d'une empreinte qu'on vient de peindre.
+    pub fn ranger(&mut self, empreinte: Empreinte, pixels: Pixmap) {
         self.peintes += 1;
         let portee = Portee::de(&pixels);
         self.rendus.insert(
@@ -187,7 +170,6 @@ impl Tuiles {
                 portee,
             },
         );
-        portee
     }
 
     /// Note ce qu'une case du monde porte, pour ne pas le recalculer à l'image suivante.

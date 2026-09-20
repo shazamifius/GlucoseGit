@@ -545,3 +545,87 @@ fn le_filtre_le_plus_proche_ne_cree_aucune_couleur_intermediaire() {
         "le filtre lisse doit produire des valeurs intermediaires"
     );
 }
+
+/// **Une source qui connaît ses plages se compose exactement comme une qui les cherche**, y
+/// compris sous un clip qui coupe les plages en deux, et le compte des pixels écrits ne dit
+/// que ce qui a été écrit.
+///
+/// C'est la garantie de la charte, une fois de plus : deux voies, les mêmes bits. La voie par
+/// plages est celle des tuiles ; l'autre reste pour ce qui n'a pas été rangé.
+#[test]
+fn les_plages_connues_composent_comme_les_plages_cherchees() {
+    // Une source qui mêle les trois natures, sur des plages qui changent d'une ligne à
+    // l'autre : le pire cas pour un rognage au clip.
+    let (l, h) = (40u32, 12u32);
+    let source: Vec<Pixel> = (0..l * h)
+        .map(|i| {
+            let (x, y) = (i % l, i / l);
+            match (x + y * 3) % 11 {
+                0..=3 => [200, 100, 50, 255],
+                4..=6 => [0, 0, 0, 0],
+                7 => [100, 50, 25, 128],
+                _ => [10, 20, 30, 255],
+            }
+        })
+        .collect();
+    let fond: Vec<Pixel> = (0..64 * 64u32)
+        .map(|i| [(i * 3) as u8, (i * 5) as u8, (i * 7) as u8, 255])
+        .collect();
+    let plages = Plages::de(&source, l, h);
+    let pose = Pose {
+        x: 5.0,
+        y: 7.0,
+        largeur: l as f32,
+        hauteur: h as f32,
+    };
+    // Un clip qui coupe la pose de tous les côtés.
+    let clip = Boite::nouvelle(9.0, 9.0, 20.0, 6.0);
+
+    let mut cherchees = fond.clone();
+    let ecrits_cherchees = {
+        let vue = Vue::nouvelle(&source, l, h).unwrap();
+        let mut dest = VueMut::nouvelle(&mut cherchees, 64, 64).unwrap();
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            clip,
+            Melange::Composer,
+            Filtre::Lisse,
+        )
+    };
+    let mut connues = fond.clone();
+    let ecrits_connues = {
+        let vue = Vue::nouvelle(&source, l, h).unwrap().avec_plages(&plages);
+        assert!(vue.plages().is_some(), "les plages doivent être retenues");
+        let mut dest = VueMut::nouvelle(&mut connues, 64, 64).unwrap();
+        reporter(
+            &mut dest,
+            &vue,
+            pose,
+            clip,
+            Melange::Composer,
+            Filtre::Lisse,
+        )
+    };
+    assert_eq!(cherchees, connues, "les deux voies divergent");
+    // Sans plages, tout le domaine compte comme écrit ; avec, seulement ce qui l'a été.
+    assert!(
+        ecrits_connues < ecrits_cherchees,
+        "{ecrits_connues} vs {ecrits_cherchees}"
+    );
+    let non_transparents = (9..29u32)
+        .flat_map(|x| (9..15u32).map(move |y| (x, y)))
+        .filter(|(x, y)| source[((y - 7) * l + (x - 5)) as usize][3] != 0)
+        .count() as u64;
+    assert_eq!(ecrits_connues, non_transparents);
+}
+
+/// Des plages lues sur une autre image ne sont pas retenues : elles mentiraient.
+#[test]
+fn des_plages_d_une_autre_taille_sont_refusees() {
+    let source = unie(4, 4, [1, 1, 1, 255]);
+    let autres = Plages::de(&unie(5, 4, [0; 4]), 5, 4);
+    let vue = Vue::nouvelle(&source, 4, 4).unwrap().avec_plages(&autres);
+    assert!(vue.plages().is_none());
+}

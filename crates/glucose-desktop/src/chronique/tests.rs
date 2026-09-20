@@ -109,10 +109,11 @@ fn test_les_postes_se_nomment_une_fois_et_gardent_leur_indice() {
 fn test_le_nombre_de_postes_est_borne() {
     // La borne existe pour que l'enregistrement d'une image reste de taille fixe.
     let mut c = Chronique::nouvelle();
-    let noms: [&'static str; 26] = [
-        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r",
-        "s", "t", "u", "v", "w", "x", "y", "z",
-    ];
+    // Plus de noms que la borne n'en admet, quelle qu'elle soit : le test ne doit pas avoir
+    // à changer quand elle change.
+    let noms: Vec<&'static str> = (0..POSTES + 10)
+        .map(|i| Box::leak(format!("poste-{i}").into_boxed_str()) as &'static str)
+        .collect();
     let acceptes = noms.iter().filter(|n| c.poste(n).is_some()).count();
     assert_eq!(acceptes, POSTES, "au-dela de {POSTES}, un poste est refuse");
 }

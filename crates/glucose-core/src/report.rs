@@ -36,6 +36,15 @@
 
 use crate::occlusion::Boite;
 
+mod exact;
+pub mod plages;
+
+pub use plages::{Nature, Plage, Plages};
+
+use exact::{compose, reporter_tel_quel};
+#[cfg(test)]
+use exact::{composer_la_ligne, mul255};
+
 /// Un pixel, tel qu'il vit en mémoire : rouge, vert, bleu, alpha, **prémultipliés**.
 ///
 /// Quatre octets plutôt qu'un entier de trente-deux bits : l'ordre en mémoire est alors le
@@ -49,6 +58,9 @@ pub struct Vue<'a> {
     pixels: &'a [Pixel],
     largeur: u32,
     hauteur: u32,
+    /// Ses plages, si quelqu'un les a lues une fois pour toutes : le source-over n'a alors
+    /// plus à les chercher à chaque report.
+    plages: Option<&'a Plages>,
 }
 
 /// Une image qu'on écrit.
@@ -70,7 +82,24 @@ impl<'a> Vue<'a> {
             pixels,
             largeur,
             hauteur,
+            plages: None,
         })
+    }
+
+    /// La même vue, qui connaît ses plages.
+    ///
+    /// Des plages lues sur une autre image que celle-ci seraient un mensonge que rien ne
+    /// rattraperait : elles ne sont retenues que si leur taille est celle de la vue.
+    pub fn avec_plages(mut self, plages: &'a Plages) -> Self {
+        if plages.largeur() == self.largeur && plages.hauteur() == self.hauteur {
+            self.plages = Some(plages);
+        }
+        self
+    }
+
+    /// Ses plages, si elle les connaît.
+    pub fn plages(&self) -> Option<&'a Plages> {
+        self.plages
     }
 
     /// Sa largeur en pixels.
@@ -83,7 +112,7 @@ impl<'a> Vue<'a> {
         self.hauteur
     }
 
-    fn ligne(&self, y: u32) -> &[Pixel] {
+    pub(super) fn ligne(&self, y: u32) -> &[Pixel] {
         let d = y as usize * self.largeur as usize;
         &self.pixels[d..d + self.largeur as usize]
     }
@@ -100,7 +129,7 @@ impl<'a> VueMut<'a> {
         })
     }
 
-    fn ligne_mut(&mut self, y: u32) -> &mut [Pixel] {
+    pub(super) fn ligne_mut(&mut self, y: u32) -> &mut [Pixel] {
         let d = y as usize * self.largeur as usize;
         &mut self.pixels[d..d + self.largeur as usize]
     }
@@ -202,45 +231,6 @@ fn premier_centre(bord: f32) -> i64 {
 /// Le dernier pixel dont le centre est strictement avant `bord`.
 fn dernier_centre(bord: f32) -> i64 {
     (f64::from(bord) - 0.5).ceil() as i64 - 1
-}
-
-/// Un pixel de source pour un pixel de destination : la ligne devient une recopie contiguë.
-fn reporter_tel_quel(
-    dest: &mut VueMut<'_>,
-    src: &Vue<'_>,
-    pose: Pose,
-    (x0, y0, x1, y1): (u32, u32, u32, u32),
-    melange: Melange,
-) -> u64 {
-    let (dx, dy) = (pose.x as i64, pose.y as i64);
-    let mut ecrits = 0u64;
-    for y in y0..=y1 {
-        let sy = i64::from(y) - dy;
-        if sy < 0 || sy >= i64::from(src.hauteur) {
-            continue;
-        }
-        // Le décalage est le même sur les deux bords : la partie commune se lit d'un bloc,
-        // et ce qui déborde de la source se rogne une fois pour toute la ligne.
-        let sx0 = i64::from(x0) - dx;
-        let sx1 = i64::from(x1) - dx;
-        let rogne_gauche = (-sx0).max(0);
-        let rogne_droite = (sx1 - (i64::from(src.largeur) - 1)).max(0);
-        let largeur = (sx1 - sx0 + 1) - rogne_gauche - rogne_droite;
-        if largeur <= 0 {
-            continue;
-        }
-        let depart_src = (sx0 + rogne_gauche) as usize;
-        let depart_dest = (i64::from(x0) + rogne_gauche) as usize;
-        let n = largeur as usize;
-        let source = &src.ligne(sy as u32)[depart_src..depart_src + n];
-        let cible = &mut dest.ligne_mut(y)[depart_dest..depart_dest + n];
-        match melange {
-            Melange::Remplacer => cible.copy_from_slice(source),
-            Melange::Composer => composer_la_ligne(cible, source),
-        }
-        ecrits += n as u64;
-    }
-    ecrits
 }
 
 /// Combien de bits de partie fractionnaire portent les coordonnées de texel.
@@ -510,71 +500,6 @@ fn melanger(a: Pixel, b: Pixel, t: u32) -> Pixel {
         (((a >> 8) & UN_CANAL_SUR_DEUX) * inverse + ((b >> 8) & UN_CANAL_SUR_DEUX) * t + demi)
             & !UN_CANAL_SUR_DEUX;
     ((pairs & UN_CANAL_SUR_DEUX) | impairs).to_ne_bytes()
-}
-
-/// Compose une ligne source par-dessus une ligne cible, **par plages**.
-///
-/// # Ce que cela change, et pourquoi c'est exact
-///
-/// Une tuile de photos est faite de trois sortes de pixels : ceux d'une photo opaque, alpha
-/// 255 ; ceux où aucune photo ne passe, alpha 0 ; et une frange de bords anti-aliasés ou de
-/// photos translucides, alpha entre les deux. Les deux premières sortes font l'immense
-/// majorité, et pour elles le source-over a une réponse fermée :
-///
-/// * alpha 255 : `d = s + d × 0 = s` — une copie ;
-/// * alpha 0 : `d = 0 + d × 1 = d` — rien à faire, puisqu'en prémultiplié un pixel
-///   transparent est entièrement nul.
-///
-/// Calculer quatre multiplications par pixel pour aboutir à « copie » ou « rien » coûtait
-/// cinq millisecondes par écran de 2560 × 1600. Reconnaître les plages coûte une comparaison
-/// par pixel, et les plages elles-mêmes se traitent d'un bloc.
-///
-/// **Les pixels sont identiques au bit près** à ceux du calcul général, parce que
-/// `mul255(d, 0) = 0` et `mul255(d, 255) = d` pour tout `d` — c'est une propriété de la
-/// formule, vérifiée par un test. Le cas général reste pour ce qui n'est ni l'un ni l'autre.
-fn composer_la_ligne(cible: &mut [Pixel], source: &[Pixel]) {
-    let n = cible.len().min(source.len());
-    let mut i = 0;
-    while i < n {
-        let alpha = source[i][3];
-        // La longueur de la plage de même nature, à partir d'ici.
-        let sorte = |a: u8| match a {
-            255 => 2u8,
-            0 => 0u8,
-            _ => 1u8,
-        };
-        let s = sorte(alpha);
-        let mut fin = i + 1;
-        while fin < n && sorte(source[fin][3]) == s {
-            fin += 1;
-        }
-        match s {
-            2 => cible[i..fin].copy_from_slice(&source[i..fin]),
-            0 => {}
-            _ => {
-                for (d, s) in cible[i..fin].iter_mut().zip(&source[i..fin]) {
-                    *d = compose(*s, *d);
-                }
-            }
-        }
-        i = fin;
-    }
-}
-
-/// « Source par-dessus », en prémultiplié : `d = s + d × (1 − a)`.
-fn compose(s: Pixel, d: Pixel) -> Pixel {
-    let inv = 255 - s[3];
-    let mut sortie = [0u8; 4];
-    for c in 0..4 {
-        sortie[c] = s[c].saturating_add(mul255(d[c], inv));
-    }
-    sortie
-}
-
-/// `a × b / 255`, exact pour tous les octets, et sans division.
-fn mul255(a: u8, b: u8) -> u8 {
-    let t = u32::from(a) * u32::from(b) + 128;
-    ((t + (t >> 8)) >> 8) as u8
 }
 
 #[cfg(test)]

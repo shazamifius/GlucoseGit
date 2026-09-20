@@ -940,3 +940,60 @@ fn test_cliquet_9_aucun_champ_de_la_chronique_ne_reste_vide() {
          trace : {oublies:?}\nUn compteur qui ment est pire que pas de compteur."
     );
 }
+
+// ── Cliquet 10 : les marques de mesure que la chronique ne saurait pas garder ─────────────
+
+/// Les noms distincts passés à `perf::stage` dans le code de production.
+///
+/// Lus sur le texte brut, commentaires compris : une marque citée dans un commentaire est
+/// comptée en trop, ce qui est le sens prudent pour une borne à ne pas dépasser.
+fn marques_de_mesure() -> BTreeSet<String> {
+    let mut noms = BTreeSet::new();
+    for source in sources(&src_desktop()) {
+        let mut depuis = source.texte.as_str();
+        while let Some(i) = depuis.find("perf::stage(\"") {
+            let apres = &depuis[i + "perf::stage(\"".len()..];
+            if let Some(fin) = apres.find('"') {
+                noms.insert(apres[..fin].to_string());
+            }
+            depuis = apres;
+        }
+    }
+    noms
+}
+
+/// La borne que la chronique s'est donnée, lue dans son code.
+fn borne_des_postes() -> usize {
+    let texte = fs::read_to_string(src_desktop().join("chronique.rs")).expect("chronique.rs");
+    let ligne = texte
+        .lines()
+        .find(|l| l.trim_start().starts_with("pub const POSTES: usize ="))
+        .expect("la constante POSTES");
+    ligne
+        .split('=')
+        .nth(1)
+        .and_then(|v| v.trim().trim_end_matches(';').parse().ok())
+        .expect("une valeur entière")
+}
+
+/// **Aucune marque de mesure n'est perdue en silence.**
+///
+/// La chronique garde `POSTES` noms de postes par image ; au-delà, `poste()` rend `None` et
+/// la marque est ignorée -- elle vaut alors zéro dans chaque trace, et un zéro se lit comme
+/// une mesure (cliquet 9). Le rendu déclarait trente marques quand la borne en admettait
+/// vingt-quatre, et les six dernières à se présenter n'apparaissaient nulle part.
+///
+/// À la hausse : une marque de plus a été écrite. Relever `POSTES` est la réponse juste, et
+/// ce test dit de combien.
+#[test]
+fn test_cliquet_10_aucune_marque_de_mesure_n_est_perdue() {
+    let marques = marques_de_mesure();
+    let borne = borne_des_postes();
+    assert!(
+        marques.len() <= borne,
+        "{} marques de mesure distinctes pour une chronique qui n'en garde que {borne} : les \
+         dernières à se déclarer seraient ignorées en silence. Relever POSTES dans \
+         chronique.rs. Marques : {marques:?}",
+        marques.len()
+    );
+}
