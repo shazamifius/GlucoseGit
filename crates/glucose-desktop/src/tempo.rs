@@ -140,6 +140,30 @@ impl Tempo {
         self.periode.saturating_mul(self.balayages)
     }
 
+    /// **Ce qu'une image doit coûter pour que le tempo descende d'un cran.**
+    ///
+    /// # Pourquoi la finesse se règle là-dessus, et non sur le plancher de la charte
+    ///
+    /// L'utilisateur, sur capture : « lorsqu'on bouge c'est extrêmement pixelisé ; mon
+    /// ordinateur est plutôt puissant, pourquoi cette pixelisation ». La chronique lui
+    /// donnait raison : 48 % des images rendues à un facteur 2,86 — un pixel d'écran pour
+    /// 8,2 du canevas — pendant que le tempo, lui, tenait quatre balayages, soit 16,7 ms
+    /// par image. **On abîmait pour tenir dix millisecondes alors qu'on en avait seize.**
+    ///
+    /// La cible utile n'est donc pas un plancher abstrait : c'est un cran de moins que ce
+    /// que le tempo tient déjà. Une image qui y arrive fait descendre `k` — et la cible
+    /// descend avec lui, jusqu'au plancher de la charte, en dessous duquel abîmer n'achète
+    /// plus rien que l'œil réclame.
+    ///
+    /// Sans période connue, ou tant que rien ne bouge, le plancher de la charte reste seul :
+    /// c'est ce qu'il a toujours voulu dire.
+    pub fn cible_pour_descendre(&self) -> Duration {
+        let cran_en_dessous = self
+            .periode
+            .saturating_mul(self.balayages.saturating_sub(1));
+        cran_en_dessous.max(crate::cadence::BUDGET_TOTAL)
+    }
+
     /// L'image est prête : dit combien attendre avant de la soumettre, fixe le départ de la
     /// grille pour la suivante, et ajuste `k`.
     ///

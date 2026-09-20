@@ -139,9 +139,30 @@ impl Plages {
         (x0 != u32::MAX).then_some((x0, y0, x1, y1))
     }
 
-    /// Tout ce qui n'est pas transparent est-il opaque ? Vrai pour une image vide.
+    /// **Toute la boîte est-elle opaque** — pas un seul pixel qui laisse voir dessous ?
+    /// Vrai pour une image entièrement transparente, qui n'a pas de boîte.
+    ///
+    /// # Le défaut que cette formulation corrige, et il se voyait à l'écran
+    ///
+    /// La première version répondait « aucune plage mixte », ce qui acceptait les plages
+    /// **transparentes**. Une tuile trouée — deux photos séparées par du vide — était donc
+    /// déclarée opaque, composée par `Remplacer`, et son trou ÉCRASAIT le fond en
+    /// transparent : de gros carrés noirs derrière les photos, que l'utilisateur a vus dès
+    /// la session suivante.
+    ///
+    /// L'opacité utile est celle de la **boîte** : c'est elle qui borne la composition, et
+    /// c'est donc sur elle seule que la question se pose. Un trou à l'intérieur suffit à
+    /// répondre non ; ce qui est autour ne décide de rien, puisque rien ne l'y compose.
     pub fn opaque(&self) -> bool {
-        self.plages.iter().all(|p| p.nature != Nature::Mixte)
+        let Some((x0, y0, x1, y1)) = self.boite() else {
+            return true;
+        };
+        (y0..y1).all(|y| {
+            self.ligne(y)
+                .iter()
+                .filter(|p| p.x1 > x0 && p.x0 < x1)
+                .all(|p| p.nature == Nature::Opaque)
+        })
     }
 
     /// Ce que ces plages pèsent en mémoire, hors leur propre en-tête.
@@ -230,6 +251,40 @@ mod tests {
         let plages = Plages::de(&px, l, h);
         assert_eq!(plages.boite(), None);
         assert!(plages.opaque(), "vide vaut opaque : rien à mélanger");
+    }
+
+    /// **Un trou dans la boîte suffit à refuser l'opacité.**
+    ///
+    /// C'est le défaut qui a mis de gros carrés noirs derrière les photos : une tuile
+    /// portant deux photos séparées par du vide était déclarée opaque, donc composée par
+    /// `Remplacer`, et son trou écrasait le fond en transparent. La première version ne
+    /// regardait que l'absence de plages MIXTES, ce qui laissait passer les transparentes ;
+    /// ce test échoue sur elle.
+    #[test]
+    fn test_un_trou_dans_la_boite_refuse_l_opacite() {
+        // Deux photos opaques séparées par du vide, sur la même ligne.
+        let (px, l, h) = image(&[&[0, 255, 255, 0, 0, 255, 255, 0]]);
+        let plages = Plages::de(&px, l, h);
+        assert_eq!(plages.boite(), Some((1, 0, 7, 1)));
+        assert!(
+            !plages.opaque(),
+            "le vide entre les deux photos est DANS la boîte : elle n'est pas opaque"
+        );
+
+        // Le même trou, mais en diagonale : une photo en haut à gauche, une en bas à droite.
+        let (px, l, h) = image(&[&[255, 255, 0, 0], &[0, 0, 255, 255]]);
+        let plages = Plages::de(&px, l, h);
+        assert_eq!(plages.boite(), Some((0, 0, 4, 2)));
+        assert!(!plages.opaque(), "chaque ligne a son trou dans la boîte");
+
+        // Et le cas qui doit rester opaque : la boîte est pleine, le vide est autour.
+        let (px, l, h) = image(&[&[0; 4], &[0, 255, 255, 0], &[0; 4]]);
+        let plages = Plages::de(&px, l, h);
+        assert_eq!(plages.boite(), Some((1, 1, 3, 2)));
+        assert!(
+            plages.opaque(),
+            "ce qui est hors de la boîte n'est jamais composé, donc ne décide de rien"
+        );
     }
 
     #[test]

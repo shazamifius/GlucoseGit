@@ -316,3 +316,36 @@ fn test_sans_periode_aucune_attente() {
     assert_eq!(attente, Duration::ZERO);
     assert!(tempo.derniere_soumission.is_none());
 }
+
+/// **La cible de la finesse descend avec le tempo, et s'arrête au plancher de la charte.**
+///
+/// C'est ce qui a mis fin à la pixelisation permanente : on abîmait pour tenir dix
+/// millisecondes pendant que le tempo en tenait seize. Viser un cran sous ce qui est tenu
+/// laisse tranquilles les images qui ne font rater personne, et pousse quand même vers le bas.
+#[test]
+fn test_la_cible_de_la_finesse_suit_le_tempo_sans_passer_sous_la_charte() {
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(P240);
+    // Sans rien de mesuré, k vaut un : il n'y a pas de cran en dessous, et le plancher de la
+    // charte reste seul.
+    assert_eq!(tempo.cible_pour_descendre(), crate::cadence::BUDGET_TOTAL);
+
+    // Un rendu de 15 ms fait monter k à quatre ; la cible est alors de trois balayages.
+    let rendus = vec![Duration::from_micros(15_000); 300];
+    rejouer(&mut tempo, &rendus, Duration::ZERO);
+    assert_eq!(tempo.balayages(), 4);
+    assert_eq!(tempo.cible_pour_descendre(), P240.saturating_mul(3));
+    assert!(
+        tempo.cible_pour_descendre() > crate::cadence::BUDGET_TOTAL,
+        "à quatre balayages, viser dix millisecondes serait abîmer pour rien"
+    );
+
+    // À deux balayages, un cran plus bas vaut 4,17 ms : le plancher de la charte l'emporte,
+    // parce qu'en dessous on abîmerait sans que l'œil y gagne quoi que ce soit.
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(P240);
+    let rendus = vec![Duration::from_micros(5_000); 300];
+    rejouer(&mut tempo, &rendus, Duration::ZERO);
+    assert_eq!(tempo.balayages(), 2);
+    assert_eq!(tempo.cible_pour_descendre(), crate::cadence::BUDGET_TOTAL);
+}

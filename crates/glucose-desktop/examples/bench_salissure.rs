@@ -46,6 +46,9 @@ const DEBORD: f64 = 2_000.0;
 const IMAGES: usize = 120;
 const VITESSE: f64 = 1_200.0;
 const TAU: f64 = 0.45;
+/// La vitesse d'un pincement, en octaves par seconde : deux octaves en une demi-seconde, ce
+/// qui franchit deux niveaux de tuiles -- le cas qui fait peindre le plus.
+const OCTAVES_PAR_SECONDE: f64 = 4.0;
 
 /// La période d'un balayage double à 240 Hz : ce qu'une image doit coûter, présentation
 /// comprise, pour que le tempo tienne deux balayages.
@@ -133,6 +136,8 @@ struct Scene<'a> {
     ecran: ScreenFrame,
     board: &'a str,
     depart: Viewport,
+    /// Le geste joué : un zoom qui s'éteint, ou un glissement qui s'éteint.
+    zoom: bool,
 }
 
 /// Ce qu'un régime a donné : ses images, leurs postes, et ce que la chrome y a répété.
@@ -141,6 +146,8 @@ struct Regime {
     totaux: Vec<f64>,
     /// Combien d'images n'ont pas eu à peindre leur fond.
     fond_saute: usize,
+    /// Combien de tuiles chaque image a dû peindre : c'est le pic qui fait rater le tempo.
+    tuiles: Vec<f64>,
     images: Vec<Vec<(&'static str, f64)>>,
     chrome_identique: usize,
     comparees: usize,
@@ -162,8 +169,22 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
     for i in 0..IMAGES + 2 {
         let t = i as f64 * periode;
         let v = VITESSE * (-t / TAU).exp();
-        vue.x -= v * periode;
-        vue.y -= v * periode * 0.4;
+        if scene.zoom {
+            // Un pincement qui s'éteint : l'échelle avance en OCTAVES, parce que c'est en
+            // octaves que les niveaux de tuiles changent -- et c'est le franchissement d'une
+            // octave qui fait peindre une colonne entière d'un coup.
+            let octaves = OCTAVES_PAR_SECONDE * (-t / TAU).exp() * periode;
+            let avant = vue.scale;
+            vue.scale *= octaves.exp2();
+            // Le zoom se fait au centre de l'écran : ce que la main fait d'un pincement.
+            let centre = (f64::from(ECRAN.0) / 2.0, f64::from(ECRAN.1) / 2.0);
+            let facteur = vue.scale / avant;
+            vue.x = centre.0 - (centre.0 - vue.x) * facteur;
+            vue.y = centre.1 - (centre.1 - vue.y) * facteur;
+        } else {
+            vue.x -= v * periode;
+            vue.y -= v * periode * 0.4;
+        }
         scene.store.set_viewport(scene.board, vue);
         let overlay = SceneOverlay {
             guides: &guides,
@@ -208,6 +229,9 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
         }
         regime.totaux.push(total);
         regime.images.push(glucose_desktop::perf::postes());
+        regime
+            .tuiles
+            .push(glucose_desktop::perf::valeur_du_compteur("tuiles_peintes").unwrap_or(0.0));
         if glucose_desktop::perf::valeur_du_compteur("fond_saute").unwrap_or(0.0) > 0.0 {
             regime.fond_saute += 1;
         }
@@ -235,6 +259,8 @@ fn main() {
         .unwrap_or(CARTES_PAR_DEFAUT);
     // L'écart entre deux photos : `bench_salissure 429 0 0` les fait paver l'écran.
     let ecart: f64 = args.next().and_then(|a| a.parse().ok()).unwrap_or(40.0);
+    // Le geste : `zoom` joue un pincement qui s'éteint, sinon un glissement.
+    let zoom = args.next().is_some_and(|a| a == "zoom");
     let dossier = std::env::temp_dir().join("glucose-bench-photos");
     std::fs::create_dir_all(&dossier).expect("dossier temporaire");
     let chemin = ecrire_photo(&dossier);
@@ -295,6 +321,7 @@ fn main() {
                     ecran,
                     board: &board,
                     depart,
+                    zoom,
                 },
                 regard,
                 en_cache,
@@ -304,6 +331,7 @@ fn main() {
             entree.images.extend(regime.images);
             entree.chrome_identique += regime.chrome_identique;
             entree.fond_saute += regime.fond_saute;
+            entree.tuiles.extend(regime.tuiles);
             entree.comparees += regime.comparees;
         }
     }
@@ -335,9 +363,11 @@ fn main() {
         }
     }
 
+    let geste = if zoom { "pincement" } else { "glissade" };
     println!(
         "Banc de la salissure — {photos} photos et {cartes} cartes, {} x {}, {IMAGES} images \
-         de glissade\n",
+         de {geste}, {ecart:.0} px entre les photos
+",
         ECRAN.0, ECRAN.1
     );
     println!(
@@ -381,6 +411,32 @@ fn main() {
     println!(
         "  La bande de la chrome (les {header_h} px du haut) est identique a l'image precedente \
          sur {chrome_identique}/{comparees} images : son cout est refait a l'identique."
+    );
+    let tuiles = avec.tuiles;
+    // L'image la plus chère, et ce qu'elle peignait : c'est la seule façon de savoir si le
+    // pic du temps EST le pic des tuiles, au lieu de le supposer.
+    if let Some((i, pire)) = totaux.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)) {
+        let sans_pic: Vec<f64> = totaux
+            .iter()
+            .zip(&tuiles)
+            .filter(|(_, t)| **t == 0.0)
+            .map(|(d, _)| *d)
+            .collect();
+        println!(
+            "
+  L'image la plus chere : {:.2}ms, et elle peignait {:.0} tuiles. Les images              qui n'en peignent AUCUNE : {:.2}ms median, {:.2}ms p99.",
+            pire,
+            tuiles.get(i).copied().unwrap_or(0.0),
+            centile(&sans_pic, 0.5),
+            centile(&sans_pic, 0.99)
+        );
+    }
+    println!(
+        "  Tuiles peintes par image : median {:.0}, p90 {:.0}, p99 {:.0}, pire {:.0} -- c'est          le PIC qui fait rater le tempo, jamais la mediane.",
+        centile(&tuiles, 0.5),
+        centile(&tuiles, 0.9),
+        centile(&tuiles, 0.99),
+        centile(&tuiles, 1.0)
     );
     println!(
         "  Le fond n'a pas ete peint sur {saute} % des images : les tuiles le recouvraient \

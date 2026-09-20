@@ -134,22 +134,26 @@ impl GlucoseApp {
             image: ecoule,
             scene: std::time::Duration::from_micros(scene.max(0.0) as u64),
         };
-        // **Le plancher de la charte, et non la cible de cout.** `budget_rendu` vaut deux
-        // millisecondes et demie : c'est ce qu'on VISE pour laisser du temps au travail de
-        // fond, pas le seuil au-dela duquel on a le droit d'abimer l'image. Vise ainsi, la
-        // reduction se declenchait des qu'une image depassait 2,5 ms -- c'est-a-dire presque
-        // toujours -- et rendait la scene a MOITIE resolution : 22 % des images d'une session
-        // reelle, a facteur 1,98, en gros blocs illisibles.
+        // **Ce que le tempo vise pour descendre d'un cran, et non un plancher abstrait.**
         //
-        // L'utilisateur l'a tranche sur capture : « c'est ultra pixelise, sur un ecran comme
-        // le mien ca passe pas ; deja ca lag, et ensuite c'est moche ». On degradait donc
-        // violemment ce qui se voit, sans meme y gagner la cadence.
+        // La premiere version visait `budget_rendu`, deux millisecondes et demie : la
+        // reduction se declenchait des qu'une image depassait ce chiffre -- presque toujours
+        // -- et rendait la scene a MOITIE resolution. L'utilisateur l'a tranche sur capture :
+        // « c'est ultra pixelise, sur un ecran comme le mien ca passe pas ».
         //
-        // A dix millisecondes, les deux leviers visent le meme plancher, et l'ordre tombe de
-        // lui-meme : le filtre pixelise d'abord -- il se decide par prevision, AVANT le rendu
-        // -- et la resolution ne cede que si l'image mesuree depasse malgre lui. On abime
-        // d'abord ce qui se voit le moins.
-        let plancher = crate::cadence::BUDGET_TOTAL;
+        // La deuxieme visait le plancher de la charte, dix millisecondes. Et la chronique a
+        // montre que ce n'etait toujours pas la bonne question : le TEMPO tenait quatre
+        // balayages, soit 16,7 ms par image, pendant qu'on degradait 48 % des images pour en
+        // tenir dix. On abimait ce qui se voit pour un budget que personne n'attendait -- et
+        // l'utilisateur l'a redit : « mon ordinateur est plutot puissant, pourquoi cette
+        // pixelisation ».
+        //
+        // La cible est donc un cran sous ce que le tempo tient DEJA : y arriver le fait
+        // descendre, et la cible descend avec lui, jusqu'au plancher de la charte. L'ordre
+        // des leviers ne change pas : le filtre pixelise d'abord -- il se decide par
+        // prevision, AVANT le rendu -- et la resolution ne cede que si l'image mesuree
+        // depasse malgre lui. On abime d'abord ce qui se voit le moins.
+        let plancher = self.tempo.cible_pour_descendre();
         // Un vol compte comme un mouvement au meme titre que l'elan : la vue change sous
         // l'oeil, et c'est cela seul qui autorise a rendre plus grossier.
         let en_mouvement = self.elan.en_cours() || self.vol.en_cours();
