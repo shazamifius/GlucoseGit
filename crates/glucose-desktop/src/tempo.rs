@@ -140,28 +140,44 @@ impl Tempo {
         self.periode.saturating_mul(self.balayages)
     }
 
-    /// **Ce qu'une image doit coûter pour que le tempo descende d'un cran.**
+    /// **Ce qu'une image doit coûter pour que la cadence tienne le plancher de la charte.**
     ///
-    /// # Pourquoi la finesse se règle là-dessus, et non sur le plancher de la charte
+    /// # Pourquoi ce n'est ni dix millisecondes, ni ce que le tempo tient
     ///
-    /// L'utilisateur, sur capture : « lorsqu'on bouge c'est extrêmement pixelisé ; mon
-    /// ordinateur est plutôt puissant, pourquoi cette pixelisation ». La chronique lui
-    /// donnait raison : 48 % des images rendues à un facteur 2,86 — un pixel d'écran pour
-    /// 8,2 du canevas — pendant que le tempo, lui, tenait quatre balayages, soit 16,7 ms
-    /// par image. **On abîmait pour tenir dix millisecondes alors qu'on en avait seize.**
+    /// Dix millisecondes est le plancher de la charte, mais l'écran ne sait pas montrer une
+    /// image pendant dix millisecondes : il la montre un nombre **entier** de balayages. À
+    /// 240 Hz, viser dix, c'est viser entre deux crans — deux balayages en donnent 8,33 et
+    /// trois en donnent 12,5. Une image à neuf millisecondes ne tient donc pas le plancher,
+    /// elle occupe trois balayages, et le viser ainsi laisse une zone morte où l'on dégrade
+    /// sans jamais descendre.
     ///
-    /// La cible utile n'est donc pas un plancher abstrait : c'est un cran de moins que ce
-    /// que le tempo tient déjà. Une image qui y arrive fait descendre `k` — et la cible
-    /// descend avec lui, jusqu'au plancher de la charte, en dessous duquel abîmer n'achète
-    /// plus rien que l'œil réclame.
+    /// Viser un cran sous ce que le tempo tient est pire encore, et la mesure l'a dit tout
+    /// de suite : quand `k` monte, la cible monte avec lui, donc on dégrade moins, donc `k`
+    /// monte encore. Une session entière l'a montré — le tempo est monté jusqu'à neuf
+    /// balayages, quarante-trois images par seconde, cinquante millisecondes de latence.
+    /// **C'était un cercle, pas un asservissement**, et l'écrire ici est moins cher que de
+    /// le redécouvrir.
     ///
-    /// Sans période connue, ou tant que rien ne bouge, le plancher de la charte reste seul :
-    /// c'est ce qu'il a toujours voulu dire.
+    /// La cible est donc le **plus grand nombre entier de balayages qui tienne le plancher**.
+    /// Elle ne dépend que de la période lue sur l'écran et du plancher de la charte : à
+    /// 240 Hz elle vaut deux balayages, à 60 Hz elle vaut le seul balayage que la machine
+    /// sait montrer. Rien ne la fait dériver.
     pub fn cible_pour_descendre(&self) -> Duration {
-        let cran_en_dessous = self
-            .periode
-            .saturating_mul(self.balayages.saturating_sub(1));
-        cran_en_dessous.max(crate::cadence::BUDGET_TOTAL)
+        let Some(crans) = self.crans_sous_le_plancher() else {
+            return crate::cadence::BUDGET_TOTAL;
+        };
+        self.periode.saturating_mul(crans)
+    }
+
+    /// Combien de balayages tiennent dans le plancher de la charte — au moins un, puisque
+    /// c'est le plus petit intervalle qu'un écran sache montrer.
+    fn crans_sous_le_plancher(&self) -> Option<u32> {
+        let periode = self.periode.as_nanos();
+        (periode > 0).then(|| {
+            u32::try_from(crate::cadence::BUDGET_TOTAL.as_nanos() / periode)
+                .unwrap_or(u32::MAX)
+                .max(1)
+        })
     }
 
     /// L'image est prête : dit combien attendre avant de la soumettre, fixe le départ de la

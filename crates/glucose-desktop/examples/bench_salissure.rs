@@ -138,6 +138,8 @@ struct Scene<'a> {
     depart: Viewport,
     /// Le geste joué : un zoom qui s'éteint, ou un glissement qui s'éteint.
     zoom: bool,
+    /// Le tampon de la scène réduite, quand on mesure ce que la dégradation rapporte.
+    reduit: &'a mut Pixmap,
 }
 
 /// Ce qu'un régime a donné : ses images, leurs postes, et ce que la chrome y a répété.
@@ -157,7 +159,7 @@ struct Regime {
 ///
 /// `en_cache` dit si la bande du haut a le droit de se souvenir. Sinon son cache est vidé
 /// avant chaque image : c'est le régime d'hier, celui qui redessine la chrome à chaque fois.
-fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
+fn jouer(scene: &mut Scene<'_>, regard: Regard, reduction: u32) -> Regime {
     let periode = 1.0 / 240.0;
     let guides = glucose_core::smart_align::SnapGuides::default();
     let pointer = Pointer { x: -1.0, y: -1.0 };
@@ -191,20 +193,35 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
             selection_box: None,
             editing: None,
         };
-        if !en_cache {
-            scene.ui.bande_cache = None;
-        }
-
         glucose_desktop::perf::frame_begin();
         let t0 = std::time::Instant::now();
-        scene.renderer.render(
-            &mut scene.pixmap.as_mut(),
-            scene.store,
-            scene.ui,
-            overlay,
-            pointer,
-            regard,
-        );
+        if reduction > 1 {
+            // Le chemin de la dégradation : la scène se rend dans un tampon `f` fois plus
+            // petit, puis s'agrandit au plus proche. Elle ne passe alors PAS par les tuiles
+            // (`Cadrage::reduit` impose le régime direct), et c'est justement ce que la
+            // mesure doit trancher : perdre le cache pour gagner de la surface, est-ce un
+            // bon marché ?
+            scene.renderer.rendre_reduit(
+                &mut scene.pixmap.as_mut(),
+                glucose_desktop::renderer::SceneReduite {
+                    tampon: scene.reduit,
+                    facteur: reduction,
+                },
+                scene.store,
+                scene.ui,
+                overlay,
+                pointer,
+            );
+        } else {
+            scene.renderer.render(
+                &mut scene.pixmap.as_mut(),
+                scene.store,
+                scene.ui,
+                overlay,
+                pointer,
+                regard,
+            );
+        }
         render_docks(
             &mut scene.pixmap.as_mut(),
             scene.dock_manager,
@@ -273,6 +290,7 @@ fn main() {
     let dock_cache = DockCache::default();
     let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("l'ecran");
     let mut sortie = Pixmap::new(ECRAN.0, ECRAN.1).expect("la copie");
+    let mut reduit = Pixmap::new(ECRAN.0.div_ceil(2), ECRAN.1.div_ceil(2)).expect("le reduit");
     let board = store.project.active_board_id.clone();
     let header_h = ui.header_height().ceil() as u32;
 
@@ -304,13 +322,14 @@ fn main() {
     // du même banc ont donné 2,3, 6,2 et 5,7 ms de médiane : la fréquence de la machine varie
     // plus que ce qu'on mesure. Comparer deux exécutions, c'est comparer le bruit — et c'est
     // la faute que ce dépôt a déjà payée deux fois (fiche 19 § 4).
-    let mut mesures: BTreeMap<bool, Regime> = BTreeMap::new();
+    let mut mesures: BTreeMap<u32, Regime> = BTreeMap::new();
     for tour in 0..2 {
         // L'ordre s'inverse d'un tour à l'autre : ce qui passe en premier paie le
         // réchauffement des caches, et l'alternance le partage équitablement.
-        for en_cache in [tour == 0, tour != 0] {
+        for reduction in if tour == 0 { [1, 2] } else { [2, 1] } {
             let regime = jouer(
                 &mut Scene {
+                    reduit: &mut reduit,
                     renderer: &mut renderer,
                     ui: &mut ui,
                     store: &mut store,
@@ -324,9 +343,9 @@ fn main() {
                     zoom,
                 },
                 regard,
-                en_cache,
+                reduction,
             );
-            let entree = mesures.entry(en_cache).or_default();
+            let entree = mesures.entry(reduction).or_default();
             entree.totaux.extend(regime.totaux);
             entree.images.extend(regime.images);
             entree.chrome_identique += regime.chrome_identique;
@@ -335,8 +354,8 @@ fn main() {
             entree.comparees += regime.comparees;
         }
     }
-    let avec = mesures.remove(&true).unwrap_or_default();
-    let sans = mesures.remove(&false).unwrap_or_default();
+    let avec = mesures.remove(&1).unwrap_or_default();
+    let sans = mesures.remove(&2).unwrap_or_default();
     let images = avec.images;
     let totaux = avec.totaux;
     let chrome_identique = avec.chrome_identique;
@@ -398,8 +417,8 @@ fn main() {
     );
     let sans_median = centile(&sans.totaux, 0.5);
     println!(
-        "\n  Chrome REDESSINEE a chaque image : {:>7.2}ms median, {:>7.2}ms p90 -- soit \
-         {:+.2}ms par image",
+        "\n  Scene REDUITE de moitie (donc SANS les tuiles) : {:>7.2}ms median, {:>7.2}ms \
+         p90 -- soit {:+.2}ms par image, pour un pixel d'ecran qui en montre quatre.",
         sans_median,
         centile(&sans.totaux, 0.9),
         sans_median - total_median

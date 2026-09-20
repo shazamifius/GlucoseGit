@@ -317,35 +317,46 @@ fn test_sans_periode_aucune_attente() {
     assert!(tempo.derniere_soumission.is_none());
 }
 
-/// **La cible de la finesse descend avec le tempo, et s'arrête au plancher de la charte.**
+/// **La cible de la finesse ne dérive pas avec le tempo.**
 ///
-/// C'est ce qui a mis fin à la pixelisation permanente : on abîmait pour tenir dix
-/// millisecondes pendant que le tempo en tenait seize. Viser un cran sous ce qui est tenu
-/// laisse tranquilles les images qui ne font rater personne, et pousse quand même vers le bas.
+/// C'est la correction d'un cercle que la mesure a attrapé en une session : viser un cran
+/// sous ce que le tempo tient faisait monter la cible avec `k`, donc dégrader moins, donc
+/// monter `k` encore — jusqu'à neuf balayages et quarante-trois images par seconde. La cible
+/// est désormais le plus grand nombre entier de balayages qui tienne le plancher de la
+/// charte, et rien ne la fait bouger.
 #[test]
-fn test_la_cible_de_la_finesse_suit_le_tempo_sans_passer_sous_la_charte() {
+fn test_la_cible_de_la_finesse_ne_derive_pas_avec_le_tempo() {
     let mut tempo = Tempo::nouveau();
     tempo.accorder(P240);
-    // Sans rien de mesuré, k vaut un : il n'y a pas de cran en dessous, et le plancher de la
-    // charte reste seul.
-    assert_eq!(tempo.cible_pour_descendre(), crate::cadence::BUDGET_TOTAL);
+    // À 240 Hz, dix millisecondes valent deux balayages pleins : 8,33 ms.
+    let deux_balayages = P240.saturating_mul(2);
+    assert_eq!(tempo.cible_pour_descendre(), deux_balayages);
 
-    // Un rendu de 15 ms fait monter k à quatre ; la cible est alors de trois balayages.
-    let rendus = vec![Duration::from_micros(15_000); 300];
+    // Un rendu lent fait monter k -- la cible, elle, ne bouge pas d'une nanoseconde.
+    let rendus = vec![Duration::from_micros(30_000); 400];
     rejouer(&mut tempo, &rendus, Duration::ZERO);
-    assert_eq!(tempo.balayages(), 4);
-    assert_eq!(tempo.cible_pour_descendre(), P240.saturating_mul(3));
     assert!(
-        tempo.cible_pour_descendre() > crate::cadence::BUDGET_TOTAL,
-        "à quatre balayages, viser dix millisecondes serait abîmer pour rien"
+        tempo.balayages() >= 7,
+        "k doit avoir monte : {}",
+        tempo.balayages()
+    );
+    assert_eq!(
+        tempo.cible_pour_descendre(),
+        deux_balayages,
+        "la cible a suivi k : c'est le cercle qu'on vient de casser"
     );
 
-    // À deux balayages, un cran plus bas vaut 4,17 ms : le plancher de la charte l'emporte,
-    // parce qu'en dessous on abîmerait sans que l'œil y gagne quoi que ce soit.
-    let mut tempo = Tempo::nouveau();
-    tempo.accorder(P240);
-    let rendus = vec![Duration::from_micros(5_000); 300];
-    rejouer(&mut tempo, &rendus, Duration::ZERO);
-    assert_eq!(tempo.balayages(), 2);
-    assert_eq!(tempo.cible_pour_descendre(), crate::cadence::BUDGET_TOTAL);
+    // Sur un écran de 60 Hz, un seul balayage tient dans le plancher : on ne vise pas
+    // l'impossible, et surtout pas zéro.
+    let mut lent = Tempo::nouveau();
+    lent.accorder(Duration::from_nanos(16_666_667));
+    assert_eq!(
+        lent.cible_pour_descendre(),
+        Duration::from_nanos(16_666_667)
+    );
+
+    // Sans période connue, le plancher de la charte reste seul : c'est ce qu'il a toujours
+    // voulu dire.
+    let muet = Tempo::nouveau();
+    assert_eq!(muet.cible_pour_descendre(), crate::cadence::BUDGET_TOTAL);
 }
