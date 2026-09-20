@@ -5,8 +5,8 @@
 > le défaut que quatre tentatives avaient cherché au mauvais endroit, un mode de présentation
 > que personne n'avait choisi, et une promesse fausse dans la mesure elle-même.
 >
-> **Date** : 2026-09-19 · cinq commits, de `6b7c864` à `e32f428`.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 294 tests verts**, clippy strict à
+> **Date** : 2026-09-19 et 20 · neuf commits, de `6b7c864` à `2c98f16`.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 302 tests verts**, clippy strict à
 > zéro, dix cliquets mécaniques.
 >
 > **Le point de départ, mot pour mot** : « quand on freine progressivement, on voit tout en
@@ -26,6 +26,8 @@
 | **La grille** (`renderer/grille.rs`) | TUILE-1 branché : les photos se posent depuis les tuiles, en trois régimes | 7 tests, `bench_grille`, `bench_freinage` |
 | **La composition** (`report.rs`, `tuiles.rs`) | Chaque tuile porte sa boîte utile et son opacité ; le source-over traite les plages opaques par copie et saute les transparentes | test d'égalité au bit près |
 | **L'histogramme** (`chronique/histogramme.rs`) | Le découpage était écrit deux fois et promettait 19 % d'erreur en donnant 25. Il est unique, géométrique, et un test balaie l'étendue entière | tests |
+| **Le tempo** (`tempo.rs`) | Un nombre entier et **constant** de balayages par image : chaque image est soumise `k` périodes après la précédente, quitte à attendre. `k` monte si les ratés dépassent 1 %, redescend si 99 % tiendraient un cran plus bas | 9 tests, deux sessions réelles (§ 7) |
+| **Les coutures** (`renderer/grille.rs`) | Entre deux niveaux dyadiques, les bords de tuiles adjacentes partagent le même arrondi : plus de « croix noires » | test à cinq échelles et cinq phases |
 
 ---
 
@@ -192,3 +194,61 @@ et c'est là que ça se défait si l'écran dit le contraire.
    croit.** L'histogramme a passé le second pendant des semaines.
 3. **Une marque de mesure absorbe tout ce qui la précède.** Un poste qui paraît trois fois
    plus cher que le travail qu'il nomme est une marque mal posée avant d'être un défaut.
+
+---
+
+## 7. Le lendemain : le tempo, et ce que deux sessions réelles en ont dit
+
+### 7.1 Ce que la première session a montré
+
+Après la grille et l'horloge, l'utilisateur constatait « une nette amélioration », mais deux
+défauts :
+
+* **des croix noires** qui « se forment » dès qu'on bouge lentement — les **coutures** entre
+  tuiles. Entre deux niveaux dyadiques, chaque tuile arrondissait sa position seule ; `x +
+  332,4` donnait 342 pour l'une et 343 pour la suivante. Corrigé : le bord droit d'une tuile
+  **est** le bord gauche de la suivante, arrondi une fois. Le test attrapait 947 pixels de fond
+  en ligne verticale avant, zéro après ;
+* **le freinage saccade encore**, « avec un seul petit texte ou 800 images ». La chronique
+  le chiffrait : 86 % des images sur un balayage, 13 % sur deux, fidélité minimale **0,51** —
+  le rapport ½. Le rendu coûte 4,87 ms pour un écran qui bat toutes les 4,17 : une image sur
+  sept rate le balayage. C'est la limite de l'horloge, celle que son test annonçait.
+
+La réponse est le **frame pacing** (`tempo.rs`) : un nombre entier de balayages par image,
+constant, chaque image soumise `k` périodes après la précédente — quitte à attendre.
+
+### 7.2 Ce que la deuxième session a montré, et c'est la thèse confirmée
+
+L'utilisateur : « c'est absolument parfait ». La chronique : **43 images par seconde**, le
+tempo calé à 5-7 balayages, régulières. **La régularité prime sur la cadence** — c'est ce que
+le ressenti dit, en conditions réelles, sur un cas qui résistait depuis des semaines.
+
+Et c'est quatre fois trop lent pour la charte, avec 55 ms de latence. Trois défauts dans la
+première version du tempo, tous corrigés (`2c98f16`) :
+
+* `k` montait au premier raté et ne redescendait que si le **pire** rendu de la seconde
+  tenait : un pic par seconde (une colonne de tuiles au zoom, 27 ms) le bloquait en haut. Il
+  se cale désormais sur le **typique** — monte si les ratés dépassent 1 %, descend si 99 %
+  tiendraient — avec le seuil du verdict, dans les deux sens ;
+* l'attente **tournait à vide** sur le processeur, 16 ms par image. Un cœur à 100 % sur un
+  portable → la fréquence baisse → `clear` de 1 à 4 ms, `blit` de 1 à 6 → le tempo rate,
+  monte, attend plus, chauffe plus. Il dort (`thread::sleep` est à haute résolution sur
+  Windows 10 depuis Rust 1.77) et ne tourne à vide que la marge ;
+* la durée d'image comptait l'attente : « 98 % au-dessus de 10 ms » pour des images qui en
+  coûtaient 5.
+
+**Attendu, non vérifié** : deux balayages par image, 120 images par seconde régulières,
+latence d'une quinzaine de millisecondes. C'est la première chose que la prochaine session
+doit faire vérifier.
+
+### 7.3 Ce que la chronique désigne maintenant
+
+À vide, une image coûte 4 à 5 ms : `clear` 1-2, `ui` 1-2, `blit` 1, `docks` 0,5. C'est ce
+qui interdit un balayage unique à 240 Hz, et « 100 % des images redessinent » est dans le
+verdict à chaque session. Entre deux images d'un glissement, la barre, les onglets, la minimap
+et les panneaux **n'ont pas bougé** — on les repeint et on les téléverse quand même.
+
+C'est l'**étape 1 du plan 18**, la salissure, et elle est la première chose que la variance
+désigne. Juste après : les pics au changement d'octave (48 tuiles d'un coup, `occlusion
+27 ms`), à composer depuis le niveau voisin en attendant, et à préparer dans le temps libre
+que le tempo dégage.
