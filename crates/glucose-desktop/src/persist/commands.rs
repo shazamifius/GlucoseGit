@@ -15,20 +15,19 @@ use crate::persist::assets;
 use glucose_core::persist::FILE_EXTENSION;
 use glucose_core::types::Project;
 use std::path::{Path, PathBuf};
-use winit::window::Window;
 
 // ── Dialogues ───────────────────────────────────────────────────────────────
 
-fn pick_save_path(parent: Option<&Window>, suggested: &str) -> Option<PathBuf> {
-    crate::dialogue::fichier(parent)
+fn pick_save_path(ancre: crate::dialogue::Ancre<'_>, suggested: &str) -> Option<PathBuf> {
+    crate::dialogue::fichier(ancre)
         .add_filter("Projet Glucose", &[FILE_EXTENSION])
         .set_file_name(format!("{suggested}.{FILE_EXTENSION}"))
         .save_file()
         .map(with_glucose_extension)
 }
 
-fn pick_open_path(parent: Option<&Window>) -> Option<PathBuf> {
-    crate::dialogue::fichier(parent)
+fn pick_open_path(ancre: crate::dialogue::Ancre<'_>) -> Option<PathBuf> {
+    crate::dialogue::fichier(ancre)
         .add_filter("Projet Glucose", &[FILE_EXTENSION])
         .pick_file()
 }
@@ -113,10 +112,12 @@ impl GlucoseApp {
 
     /// Enregistre, en demandant un chemin si le projet n'en a pas encore.
     pub fn save_project(&mut self) {
-        let fenetre = self.window.clone();
         let target = match self.project_path.clone() {
             Some(path) => Some(path),
-            None => pick_save_path(fenetre.as_deref(), &self.document_label()),
+            None => {
+                let suggere = self.document_label();
+                self.sous_un_dialogue(|fenetre| pick_save_path(fenetre, &suggere))
+            }
         };
         if let Some(path) = target {
             self.save_to(path);
@@ -125,16 +126,15 @@ impl GlucoseApp {
 
     /// Enregistre sous un nouveau chemin, qui devient celui du projet.
     pub fn save_project_as(&mut self) {
-        let fenetre = self.window.clone();
-        if let Some(path) = pick_save_path(fenetre.as_deref(), &self.document_label()) {
+        let suggere = self.document_label();
+        if let Some(path) = self.sous_un_dialogue(|fenetre| pick_save_path(fenetre, &suggere)) {
             self.save_to(path);
         }
     }
 
     /// Ouvre un projet, en remplaçant le document courant.
     pub fn open_project(&mut self) {
-        let fenetre = self.window.clone();
-        if let Some(path) = pick_open_path(fenetre.as_deref()) {
+        if let Some(path) = self.sous_un_dialogue(pick_open_path) {
             self.open_from(path);
         }
     }

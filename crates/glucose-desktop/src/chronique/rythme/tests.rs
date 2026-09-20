@@ -253,3 +253,57 @@ fn test_un_sommeil_ne_compte_pas_comme_un_gel() {
         "ni comme le pire gel : {gel:?}"
     );
 }
+
+/// **Un dialogue n'est pas un gel non plus** — et lui, l'image qui le suit L'ATTENDAIT : un
+/// décodage en cours, un toast, un geste posé juste avant. Sans l'oubli, une ouverture de
+/// fichier se lisait « le pire gel : 19 836 ms à la 21,2e seconde ».
+#[test]
+fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let mut t = Instant::now();
+    for _ in 0..20 {
+        t += Duration::from_micros(8_333);
+        r.presentee(
+            t,
+            t - Duration::from_micros(2_000),
+            Duration::from_micros(8_333),
+            500.0,
+            true,
+        );
+    }
+    // Vingt secondes à choisir un fichier, puis une image que le décodage attendait.
+    r.oublier();
+    t += Duration::from_secs(20);
+    r.presentee(
+        t,
+        t - Duration::from_micros(2_000),
+        Duration::from_micros(8_333),
+        0.0,
+        true,
+    );
+    let (_, _, _, pire) = r.intervalles();
+    assert!(
+        pire < 20_000,
+        "le dialogue ne doit pas paraitre dans les intervalles : {pire} us"
+    );
+    let (_, gel, _) = r.pire_intervalle();
+    assert!(
+        gel < Duration::from_millis(20),
+        "ni comme le pire gel : {gel:?}"
+    );
+    // Et la mesure reprend dès l'image d'après.
+    t += Duration::from_micros(8_333);
+    r.presentee(
+        t,
+        t - Duration::from_micros(2_000),
+        Duration::from_micros(8_333),
+        500.0,
+        true,
+    );
+    let (_, _, _, pire) = r.intervalles();
+    assert!(
+        (8_000..=10_000).contains(&pire),
+        "la mesure a repris : {pire} us"
+    );
+}

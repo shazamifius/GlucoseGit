@@ -31,8 +31,15 @@ impl GlucoseApp {
         if vp.scale != echelle_precedente {
             return Geste::Zoomer;
         }
-        if self.is_panning {
+        // La vue se déplace, que la main la tienne encore ou qu'elle glisse sur son élan :
+        // pour l'œil c'est le même mouvement, et c'est lui que la chronique juge. Sans l'élan
+        // ici, chaque glissement au pavé tactile se comptait « repos » -- deux mille sept cents
+        // images d'une session réelle, sous le nom de ce qui ne bouge pas.
+        if self.is_panning || self.elan.en_cours() {
             return Geste::DeplacerLaVue;
+        }
+        if self.vol.en_cours() {
+            return Geste::Animer;
         }
         if self.resize_session.is_some() {
             return Geste::Redimensionner;

@@ -52,7 +52,7 @@ use std::time::Duration;
 pub enum Geste {
     /// Rien en cours : l'image vient d'une animation, d'un survol ou du système.
     Repos,
-    /// La vue se déplace — clic droit ou molette latérale.
+    /// La vue se déplace — sous la main, ou sur son élan une fois lâchée.
     DeplacerLaVue,
     /// La vue change d'échelle.
     Zoomer,

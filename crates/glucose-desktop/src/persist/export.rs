@@ -29,7 +29,6 @@ use crate::app::GlucoseApp;
 use crate::error::{DesktopError, DesktopResult};
 use glucose_core::types::Board;
 use std::path::{Path, PathBuf};
-use winit::window::Window;
 
 /// Un format de sortie.
 ///
@@ -94,8 +93,8 @@ pub fn destination(choisi: PathBuf) -> (PathBuf, Format) {
     }
 }
 
-fn choisir_la_sortie(parent: Option<&Window>, nom: &str) -> Option<PathBuf> {
-    let mut dialogue = crate::dialogue::fichier(parent);
+fn choisir_la_sortie(ancre: crate::dialogue::Ancre<'_>, nom: &str) -> Option<PathBuf> {
+    let mut dialogue = crate::dialogue::fichier(ancre);
     for format in Format::TOUS {
         dialogue = dialogue.add_filter(format.nom(), &[format.extension()]);
     }
@@ -107,9 +106,8 @@ fn choisir_la_sortie(parent: Option<&Window>, nom: &str) -> Option<PathBuf> {
 impl GlucoseApp {
     /// Exporte le tableau courant : demande un nom, écrit, et dit ce qui a été écrit.
     pub fn export_board(&mut self) {
-        let fenetre = self.window.clone();
         let nom = self.document_label();
-        let Some(choisi) = choisir_la_sortie(fenetre.as_deref(), &nom) else {
+        let Some(choisi) = self.sous_un_dialogue(|ancre| choisir_la_sortie(ancre, &nom)) else {
             return;
         };
         let (chemin, format) = destination(choisi);

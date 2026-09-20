@@ -10,7 +10,6 @@
 //! lu par `is_dirty()` (SAVE-2). Deux mécanismes finiraient par diverger.
 
 use crate::app::GlucoseApp;
-use winit::window::Window;
 
 /// Ce que l'utilisateur répond quand on ferme une fenêtre au document modifié.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,8 +43,8 @@ fn unsaved_changes_question(label: &str) -> String {
 /// donc une modification des dépendances — et sans elle, Windows retombe silencieusement
 /// sur `MessageBoxW`, qui ignore les libellés personnalisés. Un bouton dont le texte
 /// disparaît selon la plate-forme serait pire qu'un bouton standard expliqué.
-fn ask_unsaved_changes(parent: Option<&Window>, label: &str) -> CloseChoice {
-    let answer = crate::dialogue::message(parent)
+fn ask_unsaved_changes(ancre: crate::dialogue::Ancre<'_>, label: &str) -> CloseChoice {
+    let answer = crate::dialogue::message(ancre)
         .set_level(rfd::MessageLevel::Warning)
         .set_title("Modifications non enregistrées")
         .set_description(unsaved_changes_question(label))
@@ -71,10 +70,8 @@ impl GlucoseApp {
         if !self.is_dirty() {
             return true;
         }
-        // La fenêtre est empruntée avant la question : le dialogue doit s'y accrocher
-        // (DIAL-1), et `close_with` a besoin de `self` en écriture juste après.
-        let fenetre = self.window.clone();
-        let choix = ask_unsaved_changes(fenetre.as_deref(), &self.document_label());
+        let label = self.document_label();
+        let choix = self.sous_un_dialogue(|fenetre| ask_unsaved_changes(fenetre, &label));
         self.close_with(choix)
     }
 

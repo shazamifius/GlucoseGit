@@ -284,6 +284,17 @@ impl Rythme {
         }
     }
 
+    /// La boucle a été tenue hors de tout rendu — un dialogue natif, le plus souvent.
+    ///
+    /// L'utilisateur regardait le dialogue, pas le canevas : l'intervalle qui suit n'est ni
+    /// un gel ni un mouvement. Sans cela, une ouverture de fichier se lisait « le pire gel :
+    /// 19 836 ms à la 21,2e seconde, dont 19 775 ms à ne pas dessiner » -- vrai, et sans
+    /// aucun intérêt, pendant qu'il cachait le vrai pire gel de la session.
+    pub fn oublier(&mut self) {
+        self.precedente = None;
+        self.periodes_precedentes = None;
+    }
+
     /// Retient le pire intervalle, quand il est tombé, et ce qui l'a composé.
     fn noter_le_pire(&mut self, maintenant: Instant, intervalle: Duration, attente: Duration) {
         if intervalle <= self.pire_intervalle {

@@ -152,6 +152,15 @@ impl Horloge {
         self.dette = self.dette.saturating_sub(self.pas);
     }
 
+    /// La boucle a été tenue hors de tout rendu — un dialogue natif, le plus souvent : rien de
+    /// ce qui précède ne décrit ce que l'œil a vu, et la trajectoire repart de la prochaine
+    /// présentation, sans dette.
+    pub fn oublier(&mut self) {
+        self.precedente = None;
+        self.dette = Duration::ZERO;
+        self.pas = Duration::ZERO;
+    }
+
     /// Ce que la trajectoire doit avancer pour l'image qu'on s'apprête à dessiner.
     pub fn pas(&self) -> Duration {
         self.pas

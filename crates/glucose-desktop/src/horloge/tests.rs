@@ -285,3 +285,30 @@ fn test_un_repos_ne_laisse_aucune_dette() {
     h.presentee(t, true);
     assert_eq!(h.pas(), P240.saturating_mul(2));
 }
+
+/// **Un dialogue n'est pas une trajectoire à rattraper non plus** — et lui, l'image qui le
+/// suit était attendue. L'horloge doit être prévenue, sans quoi vingt secondes de dialogue
+/// feraient franchir d'un coup au premier geste ce que personne n'a demandé.
+#[test]
+fn test_un_dialogue_ne_laisse_aucune_dette() {
+    let mut h = Horloge::nouvelle();
+    h.accorder(P240);
+    let mut t = Instant::now();
+    h.presentee(t, true);
+    t += Duration::from_micros(8_400);
+    h.presentee(t, true);
+    assert_eq!(h.pas(), P240.saturating_mul(2));
+    // Vingt secondes à choisir un fichier ; l'image suivante, elle, était attendue.
+    h.oublier();
+    t += Duration::from_secs(20);
+    h.presentee(t, true);
+    assert_eq!(
+        h.pas(),
+        Duration::ZERO,
+        "rien n'a ete montre pendant le dialogue"
+    );
+    assert_eq!(h.dette(), Duration::ZERO, "et rien ne reste a rattraper");
+    t += Duration::from_micros(8_400);
+    h.presentee(t, true);
+    assert_eq!(h.pas(), P240.saturating_mul(2));
+}
