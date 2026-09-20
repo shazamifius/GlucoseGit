@@ -103,6 +103,8 @@ impl Regime {
 /// magasin et le modèle de coût en écriture pendant que le kit emprunte la typographie en
 /// lecture. Le compilateur l'autorise sur des champs distincts, jamais à travers `&mut self`.
 pub(super) struct Atelier<'a> {
+    /// Le document : une tuile se rend depuis lui, comme n'importe quelle passe.
+    pub store: &'a Store,
     pub magasin: &'a mut super::magasin::Magasin,
     pub cout: &'a mut Cout,
     pub tuiles: &'a mut Tuiles,
@@ -110,6 +112,152 @@ pub(super) struct Atelier<'a> {
     pub kit: PaintKit<'a>,
 }
 
+/// Ce que la pose du fond a besoin d'emprunter, champ par champ.
+///
+/// Séparés parce que le moteur ne peut pas se prêter entier : la passe tient déjà son index
+/// spatial en lecture, et `&mut self` serait refusé. C'est la même raison qui a fait naître
+/// l'atelier de la grille.
+pub(super) struct Fond<'a> {
+    pub couverture: &'a mut Couverture,
+    pub tuiles: &'a Tuiles,
+    pub theme: &'a super::Theme,
+}
+
+/// Le fond du canevas et sa grille de points — **sauf si les tuiles vont tout recouvrir**,
+/// auquel cas ces deux passes écrivent des pixels que personne ne lira jamais : un cinquième
+/// d'une image sur 2560 × 1600.
+///
+/// C'est ici que l'écran se relève, une fois pour les deux questions qui en dépendent : « le
+/// fond se verra-t-il ? », posée maintenant, et « que faut-il poser ? », posée par la passe
+/// des images. Les séparer, c'était calculer les mêmes empreintes deux fois.
+pub(super) fn poser_le_fond(
+    fond: Fond<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    pass: ViewPass<'_>,
+    cadrage: Cadrage,
+    header_h: f32,
+) {
+    let (width, height) = (pixmap.width(), pixmap.height());
+    relever(
+        fond.couverture,
+        fond.tuiles,
+        store,
+        pass,
+        cadrage,
+        (width as f32, height as f32),
+    );
+    let recouvert = fond.couverture.recouvre_tout();
+    crate::perf::compteur("fond_saute", f64::from(u8::from(recouvert)));
+    crate::perf::stage("releve");
+    if recouvert {
+        return;
+    }
+    pixmap.fill(fond.theme.bg_canvas);
+    crate::perf::stage("clear");
+    super::scene::grid::draw_grid(pixmap, &pass.vp, width, height, header_h);
+    crate::perf::stage("grid");
+}
+
+/// Ce que l'écran porte en tuiles, **relevé une fois par image**.
+///
+/// # Pourquoi ce relevé existe, et pourquoi il est réutilisé
+///
+/// Deux questions ont besoin des mêmes empreintes : « le fond va-t-il se voir ? », qui se
+/// pose **avant** d'effacer, et « que faut-il poser ? », qui se pose après. Les calculer deux
+/// fois, c'est la géométrie calculée deux fois que la charte interdit — et c'est mesurable :
+/// la vérification seule a fait monter le poste du fond de 0,98 à 1,11 ms, pour un gain nul
+/// sur un document dont les photos ne pavent pas l'écran.
+///
+/// Le relevé est donc gardé d'une passe à l'autre, dans un tampon que le moteur réutilise :
+/// aucune allocation par image (fiche 05 § 4.3).
+#[derive(Default)]
+pub(super) struct Couverture {
+    /// Les tuiles de l'écran et ce que chacune porte, dans l'ordre où elles se poseront.
+    tuiles: Vec<(Adresse, Empreinte)>,
+    /// Le niveau dyadique de ce relevé, et le facteur d'agrandissement qui en découle.
+    niveau: i32,
+    /// Les tuiles relevées recouvrent-elles l'écran, sans laisser voir le fond ?
+    recouvre_tout: bool,
+}
+
+impl Couverture {
+    /// Les tuiles recouvrent-elles tout ce que le fond aurait rempli ?
+    pub(super) fn recouvre_tout(&self) -> bool {
+        self.recouvre_tout
+    }
+}
+
+/// Relève ce que l'écran porte, et si cela suffit à cacher le fond.
+///
+/// # Pourquoi la réponse est exacte, et non prudente
+///
+/// Une tuile n'est comptée que si **son rendu est déjà là** — donc sa portée est connue, et
+/// non supposée — et si cette portée est opaque **sur la tuile entière**. La pose d'une telle
+/// tuile est alors un `Remplacer` sur toute sa surface, et les poses pavent l'écran sans trou
+/// ni recouvrement, puisque le bord droit d'une tuile **est** le bord gauche de la suivante
+/// (le partage des bords qui a supprimé les « croix noires »).
+///
+/// Une seule tuile manquante, transparente ou partielle, et la réponse est non : on efface,
+/// comme hier. Il n'y a donc aucune zone à calculer, aucun bord à arrondir, et aucun pixel
+/// périmé possible — le pire défaut qui soit, puisqu'il se voit sans qu'on sache d'où il
+/// vient.
+///
+/// Ce que le test prouve, et c'est la bonne formulation : quand cette fonction dit oui,
+/// **peindre sur un fond rouge ou sur un fond noir donne les mêmes pixels**.
+pub(super) fn relever(
+    releve: &mut Couverture,
+    tuiles: &Tuiles,
+    store: &Store,
+    pass: ViewPass<'_>,
+    cadrage: Cadrage,
+    ecran: (f32, f32),
+) {
+    releve.tuiles.clear();
+    releve.recouvre_tout = false;
+    if Regime::pour(cadrage, pass.vp) == Regime::Direct {
+        return;
+    }
+    let (niveau, adresses) = a_l_ecran(pass.vp, ecran);
+    releve.niveau = niveau;
+    let mut tout = true;
+    for adresse in adresses {
+        let empreinte = ce_que_porte(store, adresse, pass.visibles);
+        // Opaque, et sur la tuile ENTIÈRE : une photo qui ne remplit pas sa tuile laisse
+        // voir le fond autour d'elle.
+        tout &= tuiles
+            .portee_de(empreinte)
+            .is_some_and(|p| p.opaque && p.boite == Some((0, 0, COTE_TUILE, COTE_TUILE)));
+        releve.tuiles.push((adresse, empreinte));
+    }
+    releve.recouvre_tout = tout && !releve.tuiles.is_empty();
+}
+
+/// **Les tuiles de cet écran vont-elles le recouvrir entièrement ?**
+///
+/// # Pourquoi la question se pose avant d'effacer, et ce qu'elle épargne
+///
+/// Le fond se remplit d'une couleur unie, puis la grille de points s'y pose, puis les tuiles
+/// se composent par-dessus. Sur un mur de photos, ces tuiles sont **opaques** et se posent
+/// par `Melange::Remplacer` : chaque pixel du fond est écrasé sans jamais avoir été lu.
+/// `bench_salissure` chiffre ce travail jeté à 1,1 ms par image sur 2560 × 1600 — un
+/// cinquième de l'image, pour un fond que personne ne verra.
+///
+/// # Pourquoi c'est exact, et non prudent
+///
+/// Une tuile n'est comptée que si **son rendu est déjà là** — donc sa portée est connue, et
+/// non supposée — et si cette portée est opaque **sur la tuile entière**. La pose d'une telle
+/// tuile est alors un `Remplacer` sur toute sa surface, et les poses pavent l'écran sans trou
+/// ni recouvrement, puisque le bord droit d'une tuile **est** le bord gauche de la suivante
+/// (le partage des bords qui a supprimé les « croix noires »).
+///
+/// Une seule tuile manquante, transparente ou partielle, et la réponse est non : on efface,
+/// comme hier. Il n'y a donc aucune zone à calculer, aucun bord à arrondir, et aucun pixel
+/// périmé possible — le pire défaut qui soit, puisqu'il se voit sans qu'on sache d'où il
+/// vient.
+///
+/// Ce que le test prouve, et c'est la bonne formulation : quand cette fonction dit oui,
+/// **peindre sur un fond rouge ou sur un fond noir donne les mêmes pixels**.
 /// Pose les images : par la grille quand la vue le permet, en direct sinon.
 pub(super) fn poser_les_images(
     atelier: &mut Atelier<'_>,
@@ -117,6 +265,7 @@ pub(super) fn poser_les_images(
     store: &Store,
     pass: ViewPass<'_>,
     cadrage: Cadrage,
+    releve: &Couverture,
 ) {
     let regime = Regime::pour(cadrage, pass.vp);
     if regime == Regime::Direct {
@@ -136,7 +285,7 @@ pub(super) fn poser_les_images(
         crate::perf::compteur("tuiles_reprises", 0.0);
         return;
     }
-    let (peintes, reprises) = poser_par_la_grille(atelier, pixmap, store, pass, regime);
+    let (peintes, reprises) = poser_par_la_grille(atelier, pixmap, store, pass, regime, releve);
     crate::perf::compteur("tuiles_peintes", peintes as f64);
     crate::perf::compteur("tuiles_reprises", reprises as f64);
 }
@@ -152,12 +301,12 @@ fn poser_par_la_grille(
     store: &Store,
     pass: ViewPass<'_>,
     regime: Regime,
+    releve: &Couverture,
 ) -> (u64, u64) {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     let ecran = (largeur as f32, hauteur as f32);
     let clip = Boite::nouvelle(0.0, pass.header_h, ecran.0, ecran.1 - pass.header_h);
-    let (niveau, adresses) = a_l_ecran(pass.vp, ecran);
-    let facteur = pass.vp.scale / Adresse::echelle(niveau);
+    let facteur = pass.vp.scale / Adresse::echelle(releve.niveau);
     let cote_ecran = f64::from(COTE_TUILE) * facteur;
     let filtre = match regime {
         Regime::Exact => Filtre::Lisse,
@@ -183,15 +332,17 @@ fn poser_par_la_grille(
     // premier mesurait la réclamation des photos, le second absorbait les empreintes ET la
     // composition de toutes les tuiles -- 3,5 ms sur 429 photos, sans dire lesquelles.
     crate::perf::stage("reclamer");
-    for adresse in adresses {
+    // Les empreintes viennent du relevé : elles ont déjà été lues avant le fond, et les
+    // recalculer serait la géométrie calculée deux fois que la charte interdit.
+    for (adresse, empreinte) in &releve.tuiles {
         let place = Place {
-            adresse,
+            adresse: *adresse,
             vp: pass.vp,
             cote_ecran,
             clip,
             filtre,
         };
-        pixels += poser_une_tuile(atelier, pixmap, store, pass.visibles, place);
+        pixels += poser_une_tuile(atelier, pixmap, *empreinte, place);
     }
     atelier.tuiles.fermer();
     crate::perf::stage("grille");
@@ -209,24 +360,21 @@ fn poser_par_la_grille(
 fn poser_une_tuile(
     atelier: &mut Atelier<'_>,
     pixmap: &mut PixmapMut,
-    store: &Store,
-    visibles: &[u32],
+    empreinte: Empreinte,
     place: Place,
 ) -> u64 {
-    let empreinte = ce_que_porte(store, place.adresse, visibles);
     // Une tuile vide n'a rien à composer : c'est le cas le plus fréquent d'un canevas
     // infini, et c'est lui qui rend le déplacement sur du vide gratuit.
     if empreinte == Empreinte::vide() {
         return 0;
     }
     let deja = atelier.tuiles.deja_peinte(empreinte);
-    crate::perf::stage("empreintes");
     if let Some((deja, portee)) = deja {
         let pixels = composer(pixmap, deja, portee, place);
         crate::perf::stage("composer");
         return pixels;
     }
-    let Some((peinte, complete)) = rendre_une_tuile(atelier, store, place.adresse) else {
+    let Some((peinte, complete)) = rendre_une_tuile(atelier, place.adresse) else {
         return 0;
     };
     // Une tuile dont une photo manquait encore ne se garde pas : elle se repeindra à
@@ -249,11 +397,8 @@ fn poser_une_tuile(
 ///
 /// Rend aussi si **toutes** ces photos étaient décodées. Sinon, la tuile montre un cadre
 /// en chemin, et l'appelant ne doit pas la garder.
-fn rendre_une_tuile(
-    atelier: &mut Atelier<'_>,
-    store: &Store,
-    adresse: Adresse,
-) -> Option<(Pixmap, bool)> {
+fn rendre_une_tuile(atelier: &mut Atelier<'_>, adresse: Adresse) -> Option<(Pixmap, bool)> {
+    let store = atelier.store;
     let cote = COTE_TUILE;
     let mut pixmap = Pixmap::new(cote, cote)?;
     let couverte = adresse.couvre();

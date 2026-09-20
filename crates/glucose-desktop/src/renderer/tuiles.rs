@@ -158,6 +158,15 @@ impl Tuiles {
         Some((&rendu.pixels, &rendu.portee))
     }
 
+    /// La portée d'une empreinte déjà peinte, **sans rien noter**.
+    ///
+    /// Distinct de [`Tuiles::deja_peinte`], qui marque la tuile comme ayant servi et compte
+    /// une reprise : une question posée avant de dessiner n'est pas un usage, et la compter
+    /// comme tel fausserait la seule mesure qui dit si le cache sert.
+    pub fn portee_de(&self, empreinte: Empreinte) -> Option<&Portee> {
+        self.rendus.get(&empreinte.valeur()).map(|r| &r.portee)
+    }
+
     /// Range les pixels d'une empreinte qu'on vient de peindre.
     pub fn ranger(&mut self, empreinte: Empreinte, pixels: Pixmap) {
         self.peintes += 1;

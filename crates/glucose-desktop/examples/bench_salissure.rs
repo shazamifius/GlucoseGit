@@ -41,6 +41,8 @@ const ECRAN: (u32, u32) = (2560, 1600);
 const PHOTOS_PAR_DEFAUT: usize = 120;
 const CARTES_PAR_DEFAUT: usize = 20;
 const TAILLE_POSEE: (f64, f64) = (420.0, 315.0);
+/// De combien le mur commence avant l'origine, pour que la vue reste à l'intérieur.
+const DEBORD: f64 = 2_000.0;
 const IMAGES: usize = 120;
 const VITESSE: f64 = 1_200.0;
 const TAU: f64 = 0.45;
@@ -70,16 +72,21 @@ fn ecrire_photo(dossier: &Path) -> PathBuf {
 }
 
 /// Un mur de photos, et des cartes de texte semées dessus : la scène d'un utilisateur.
-fn document(chemin: &Path, renderer: &Renderer, photos: usize, cartes: usize) -> Store {
+/// `ecart` est l'espace entre deux photos : à zéro, elles **pavent** l'écran, et le fond
+/// n'a plus aucune chance d'être vu — c'est le seul régime où la grille peut le sauter.
+fn document(chemin: &Path, renderer: &Renderer, photos: usize, cartes: usize, ecart: f64) -> Store {
     let mut store = Store::new("salissure");
     let board = store.project.active_board_id.clone();
     let colonnes = (photos as f64).sqrt().ceil() as usize;
     for i in 0..photos {
         let (ligne, colonne) = (i / colonnes, i % colonnes);
+        // Le mur déborde largement de ce que la glissade parcourt : sinon l'écran voit son
+        // bord, et une tuile à cheval sur le vide n'est pas couverte -- ce qui est exact, et
+        // ne mesure pas le cas qu'on veut mesurer.
         let mut img = BoardImage::new(
             format!("photo-{i}"),
-            colonne as f64 * (TAILLE_POSEE.0 + 40.0),
-            ligne as f64 * (TAILLE_POSEE.1 + 40.0),
+            colonne as f64 * (TAILLE_POSEE.0 + ecart) - DEBORD,
+            ligne as f64 * (TAILLE_POSEE.1 + ecart) - DEBORD,
             TAILLE_POSEE.0,
             TAILLE_POSEE.1,
         );
@@ -132,6 +139,8 @@ struct Scene<'a> {
 #[derive(Default)]
 struct Regime {
     totaux: Vec<f64>,
+    /// Combien d'images n'ont pas eu à peindre leur fond.
+    fond_saute: usize,
     images: Vec<Vec<(&'static str, f64)>>,
     chrome_identique: usize,
     comparees: usize,
@@ -199,6 +208,9 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
         }
         regime.totaux.push(total);
         regime.images.push(glucose_desktop::perf::postes());
+        if glucose_desktop::perf::valeur_du_compteur("fond_saute").unwrap_or(0.0) > 0.0 {
+            regime.fond_saute += 1;
+        }
         let bande = bande_du_haut(scene.pixmap, header_h).to_vec();
         if let Some(avant) = &precedente {
             regime.comparees += 1;
@@ -221,6 +233,8 @@ fn main() {
         .next()
         .and_then(|a| a.parse().ok())
         .unwrap_or(CARTES_PAR_DEFAUT);
+    // L'écart entre deux photos : `bench_salissure 429 0 0` les fait paver l'écran.
+    let ecart: f64 = args.next().and_then(|a| a.parse().ok()).unwrap_or(40.0);
     let dossier = std::env::temp_dir().join("glucose-bench-photos");
     std::fs::create_dir_all(&dossier).expect("dossier temporaire");
     let chemin = ecrire_photo(&dossier);
@@ -228,7 +242,7 @@ fn main() {
     let mut renderer = Renderer::new();
     let mut ui = UiState::new();
     ui.current_toast = None;
-    let mut store = document(&chemin, &renderer, photos, cartes);
+    let mut store = document(&chemin, &renderer, photos, cartes, ecart);
     let dock_manager = DockManager::new();
     let dock_cache = DockCache::default();
     let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("l'ecran");
@@ -289,6 +303,7 @@ fn main() {
             entree.totaux.extend(regime.totaux);
             entree.images.extend(regime.images);
             entree.chrome_identique += regime.chrome_identique;
+            entree.fond_saute += regime.fond_saute;
             entree.comparees += regime.comparees;
         }
     }
@@ -298,6 +313,11 @@ fn main() {
     let totaux = avec.totaux;
     let chrome_identique = avec.chrome_identique;
     let comparees = avec.comparees;
+    let saute = if totaux.is_empty() {
+        0
+    } else {
+        100 * avec.fond_saute / totaux.len()
+    };
 
     // Un poste absent d'une image y vaut ZÉRO, et non « absent » : sinon sa médiane ne dirait
     // que ce qu'il coûte quand il est là.
@@ -361,5 +381,9 @@ fn main() {
     println!(
         "  La bande de la chrome (les {header_h} px du haut) est identique a l'image precedente \
          sur {chrome_identique}/{comparees} images : son cout est refait a l'identique."
+    );
+    println!(
+        "  Le fond n'a pas ete peint sur {saute} % des images : les tuiles le recouvraient \
+         entierement, et `clear` comme `grid` disparaissent alors du profil."
     );
 }

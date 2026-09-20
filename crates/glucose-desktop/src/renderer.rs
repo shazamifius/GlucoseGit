@@ -154,6 +154,10 @@ pub struct Renderer {
     /// C'est ce qui remplace le cache de vignettes pour tout ce qui bouge : ancre au monde et
     /// non a l'ecran, un deplacement de la vue ne l'invalide pas.
     pub tuiles: tuiles::Tuiles,
+    /// Ce que l'écran porte en tuiles, relevé une fois par image et lu deux fois : avant le
+    /// fond, pour savoir s'il se verra, et pendant la pose. Gardé ici pour n'allouer qu'une
+    /// fois (fiche 05 § 4.3).
+    couverture: grille::Couverture,
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
     pub active_board_id: String,
@@ -180,6 +184,7 @@ impl Renderer {
             domain_tints: DomainTints::new(),
             cout: glucose_core::cout::Cout::nouveau(),
             tuiles: tuiles::Tuiles::nouveau(),
+            couverture: grille::Couverture::default(),
             spatial_hash: SpatialHash::new(1000.0),
             spatial_version: 0,
             active_board_id: String::new(),
@@ -423,13 +428,18 @@ impl Renderer {
             theme: &self.theme,
         };
 
-        // 1. Le fond du canevas
-        pixmap.fill(self.theme.bg_canvas);
-        crate::perf::stage("clear");
-
-        // 2. Grille de points infinie
-        scene::grid::draw_grid(pixmap, &vp, width, height, header_h);
-        crate::perf::stage("grid");
+        grille::poser_le_fond(
+            grille::Fond {
+                couverture: &mut self.couverture,
+                tuiles: &self.tuiles,
+                theme: &self.theme,
+            },
+            pixmap,
+            store,
+            pass,
+            cadrage,
+            header_h,
+        );
 
         // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
         halo::draw_halos(&mut self.hue_cache, pixmap, store, pass);
@@ -448,13 +458,14 @@ impl Renderer {
         // moteur se prete en pieces : le compilateur autorise des emprunts disjoints sur des
         // champs distincts, jamais a travers `&mut self`.
         let mut atelier = grille::Atelier {
+            store,
             magasin: &mut self.magasin,
             cout: &mut self.cout,
             tuiles: &mut self.tuiles,
             index: &self.spatial_hash,
             kit,
         };
-        grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage);
+        grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage, &self.couverture);
         crate::perf::stage("images");
 
         // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)

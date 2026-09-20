@@ -384,3 +384,98 @@ fn test_aucune_couture_entre_les_tuiles_a_une_echelle_non_dyadique() {
         );
     }
 }
+
+/// Un document dont les photos **pavent** l'écran : le cas du mur de photos, celui où le fond
+/// n'a aucune chance d'être vu.
+fn mur(vue: Viewport) -> (Store, Renderer) {
+    let mut store = Store::new("Mur");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = vue;
+    }
+    let mut renderer = Renderer::new();
+    decoder(&mut renderer, "mur.png", [60, 120, 200, 255]);
+    // Des photos jointives, largement au-delà des bords de l'écran : la tuile la plus
+    // excentrée est couverte comme les autres.
+    let cote = 200.0;
+    for ligne in -4..8 {
+        for colonne in -4..10 {
+            let mut img = BoardImage::new(
+                format!("m{ligne}_{colonne}"),
+                f64::from(colonne) * cote,
+                f64::from(ligne) * cote,
+                cote,
+                cote,
+            );
+            img.src = Some("mur.png".to_string());
+            store.add_image(&board, img);
+        }
+    }
+    store.clear_selection();
+    renderer.sync_spatial_index(&store);
+    (store, renderer)
+}
+
+/// Rend une image sur un fond **donné**, pour voir si ce fond transparaît.
+fn sur_le_fond(renderer: &mut Renderer, store: &Store, cadrage: Cadrage, fond: [u8; 4]) -> Pixmap {
+    let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("l'ecran");
+    for bloc in pixmap.data_mut().as_chunks_mut::<4>().0 {
+        bloc.copy_from_slice(&fond);
+    }
+    let ui = interface();
+    renderer.magasin.ouvrir();
+    renderer.rendre_la_region(
+        &mut pixmap.as_mut(),
+        store,
+        &ui,
+        sans_reperes(),
+        0.0,
+        cadrage,
+    );
+    renderer.magasin.fermer();
+    pixmap
+}
+
+/// **Quand la grille annonce qu'elle recouvre tout, le fond ne se voit pas.**
+///
+/// C'est la seule formulation qui prouve ce qu'il faut : si un seul pixel du fond survivait,
+/// deux fonds différents donneraient deux images différentes. Aucun bord n'est calculé ici,
+/// aucune tolérance n'est admise — c'est une égalité au bit près, sur l'écran entier.
+///
+/// Et le contraire se vérifie aussi, sinon le test passerait pour une scène vide : sur un
+/// document clairsemé, la grille dit non, et le fond se voit bel et bien.
+#[test]
+fn test_quand_la_grille_recouvre_tout_le_fond_ne_se_voit_pas() {
+    let cadrage = Cadrage::plein();
+    let (store, mut renderer) = mur(vue(-150.0, -150.0, 1.0));
+    // La première image peint les tuiles ; c'est la suivante qui peut sauter le fond.
+    une_image(&mut renderer, &store, cadrage);
+    let rouge = sur_le_fond(&mut renderer, &store, cadrage, [255, 0, 0, 255]);
+    let noir = sur_le_fond(&mut renderer, &store, cadrage, [0, 0, 0, 255]);
+    assert_eq!(
+        rouge.data(),
+        noir.data(),
+        "le fond transparaît alors que la grille annonce le recouvrir"
+    );
+    assert!(
+        crate::perf::valeur_du_compteur("fond_saute").unwrap_or(0.0) > 0.0,
+        "le fond aurait dû être sauté : sinon ce test ne prouve que l'opacité des photos"
+    );
+
+    // Un document clairsemé : la grille dit non, et le fond se voit.
+    let (store, mut renderer) = document(vue(0.0, 0.0, 1.0));
+    une_image(&mut renderer, &store, cadrage);
+    let rouge = sur_le_fond(&mut renderer, &store, cadrage, [255, 0, 0, 255]);
+    let noir = sur_le_fond(&mut renderer, &store, cadrage, [0, 0, 0, 255]);
+    assert_eq!(
+        rouge.data(),
+        noir.data(),
+        "sur un document clairsemé, le fond EST redessiné : les deux images doivent être          identiques, et par le fond peint, pas par un fond sauté"
+    );
+    assert_eq!(
+        crate::perf::valeur_du_compteur("fond_saute").unwrap_or(0.0),
+        0.0,
+        "un document clairsemé ne doit jamais faire sauter le fond"
+    );
+}
