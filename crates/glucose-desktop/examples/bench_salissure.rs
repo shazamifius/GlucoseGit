@@ -112,6 +112,105 @@ fn centile(v: &[f64], p: f64) -> f64 {
     t[((t.len() as f64 * p) as usize).min(t.len() - 1)]
 }
 
+/// Ce qu'une passe du banc a besoin d'emprunter — regroupé parce que ces champs voyagent
+/// toujours ensemble, et qu'une fonction qui les recevrait un par un aurait dix arguments
+/// dont l'ordre serait la seule protection.
+struct Scene<'a> {
+    renderer: &'a mut Renderer,
+    ui: &'a mut UiState,
+    store: &'a mut Store,
+    pixmap: &'a mut Pixmap,
+    sortie: &'a mut Pixmap,
+    dock_manager: &'a DockManager,
+    dock_cache: &'a DockCache,
+    ecran: ScreenFrame,
+    board: &'a str,
+    depart: Viewport,
+}
+
+/// Ce qu'un régime a donné : ses images, leurs postes, et ce que la chrome y a répété.
+#[derive(Default)]
+struct Regime {
+    totaux: Vec<f64>,
+    images: Vec<Vec<(&'static str, f64)>>,
+    chrome_identique: usize,
+    comparees: usize,
+}
+
+/// Rejoue le glissement une fois, et rend ce qu'il a coûté.
+///
+/// `en_cache` dit si la bande du haut a le droit de se souvenir. Sinon son cache est vidé
+/// avant chaque image : c'est le régime d'hier, celui qui redessine la chrome à chaque fois.
+fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
+    let periode = 1.0 / 240.0;
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let pointer = Pointer { x: -1.0, y: -1.0 };
+    let mut regime = Regime::default();
+    let mut precedente: Option<Vec<u8>> = None;
+    let header_h = scene.ui.header_height().ceil() as u32;
+    let mut vue = scene.depart;
+    scene.store.set_viewport(scene.board, vue);
+    for i in 0..IMAGES + 2 {
+        let t = i as f64 * periode;
+        let v = VITESSE * (-t / TAU).exp();
+        vue.x -= v * periode;
+        vue.y -= v * periode * 0.4;
+        scene.store.set_viewport(scene.board, vue);
+        let overlay = SceneOverlay {
+            guides: &guides,
+            selection_box: None,
+            editing: None,
+        };
+        if !en_cache {
+            scene.ui.bande_cache = None;
+        }
+
+        glucose_desktop::perf::frame_begin();
+        let t0 = std::time::Instant::now();
+        scene.renderer.render(
+            &mut scene.pixmap.as_mut(),
+            scene.store,
+            scene.ui,
+            overlay,
+            pointer,
+            regard,
+        );
+        render_docks(
+            &mut scene.pixmap.as_mut(),
+            scene.dock_manager,
+            scene.store,
+            &DockPass {
+                typo: &scene.renderer.typography,
+                theme: &scene.renderer.theme,
+                screen: scene.ecran,
+                pointer,
+                cache: Some(scene.dock_cache),
+            },
+        );
+        glucose_desktop::perf::stage("docks");
+        // Le téléversement, tel que `write_texture` le paie : une copie de l'image entière.
+        scene.sortie.data_mut().copy_from_slice(scene.pixmap.data());
+        glucose_desktop::perf::stage("blit");
+        let total = t0.elapsed().as_secs_f64() * 1000.0;
+        glucose_desktop::perf::frame_end();
+
+        if i < 2 {
+            continue;
+        }
+        regime.totaux.push(total);
+        regime.images.push(glucose_desktop::perf::postes());
+        let bande = bande_du_haut(scene.pixmap, header_h).to_vec();
+        if let Some(avant) = &precedente {
+            regime.comparees += 1;
+            if *avant == bande {
+                regime.chrome_identique += 1;
+            }
+        }
+        precedente = Some(bande);
+    }
+    regime
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let photos: usize = args
@@ -137,12 +236,12 @@ fn main() {
     let board = store.project.active_board_id.clone();
     let header_h = ui.header_height().ceil() as u32;
 
-    let mut vue = Viewport {
+    let depart = Viewport {
         x: 200.0,
         y: 200.0,
         scale: 1.0,
     };
-    store.set_viewport(&board, vue);
+    store.set_viewport(&board, depart);
     // Les photos se décodent une fois, hors mesure ; puis deux images de chauffe, pour que
     // la première image d'un régime — celle qui peint toutes ses tuiles — ne soit pas comptée.
     bench::render_into(&mut renderer, &mut ui, &store, &mut pixmap);
@@ -152,8 +251,8 @@ fn main() {
         degradation_permise: false,
         en_mouvement: true,
     };
-    let guides = glucose_core::smart_align::SnapGuides::default();
-    let pointer = Pointer { x: -1.0, y: -1.0 };
+    let _guides = glucose_core::smart_align::SnapGuides::default();
+    let _pointer = Pointer { x: -1.0, y: -1.0 };
     let ecran = ScreenFrame {
         width: ECRAN.0 as f32,
         height: ECRAN.1 as f32,
@@ -161,70 +260,47 @@ fn main() {
         scale: ui.scale_factor,
     };
 
-    let periode = 1.0 / 240.0;
-    // Les postes de chaque image, image par image : un poste absent d'une image vaut ZÉRO
-    // pour celle-ci, sinon sa médiane ne dirait que ce qu'il coûte quand il est là.
-    let mut images: Vec<Vec<(&'static str, f64)>> = Vec::with_capacity(IMAGES);
-    let mut totaux = Vec::with_capacity(IMAGES);
-    let mut chrome_identique = 0usize;
-    let mut comparees = 0usize;
-    let mut precedente: Option<Vec<u8>> = None;
-    for i in 0..IMAGES + 2 {
-        let t = i as f64 * periode;
-        let v = VITESSE * (-t / TAU).exp();
-        vue.x -= v * periode;
-        vue.y -= v * periode * 0.4;
-        store.set_viewport(&board, vue);
-        let overlay = SceneOverlay {
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-        };
-
-        glucose_desktop::perf::frame_begin();
-        let t0 = std::time::Instant::now();
-        renderer.render(
-            &mut pixmap.as_mut(),
-            &store,
-            &mut ui,
-            overlay,
-            pointer,
-            regard,
-        );
-        render_docks(
-            &mut pixmap.as_mut(),
-            &dock_manager,
-            &store,
-            &DockPass {
-                typo: &renderer.typography,
-                theme: &renderer.theme,
-                screen: ecran,
-                pointer,
-                cache: Some(&dock_cache),
-            },
-        );
-        glucose_desktop::perf::stage("docks");
-        // Le téléversement, tel que `write_texture` le paie : une copie de l'image entière.
-        sortie.data_mut().copy_from_slice(pixmap.data());
-        glucose_desktop::perf::stage("blit");
-        let total = t0.elapsed().as_secs_f64() * 1000.0;
-        glucose_desktop::perf::frame_end();
-
-        if i < 2 {
-            continue;
+    // **Les deux régimes se mesurent dans la MÊME exécution, et alternés.** Trois lancements
+    // du même banc ont donné 2,3, 6,2 et 5,7 ms de médiane : la fréquence de la machine varie
+    // plus que ce qu'on mesure. Comparer deux exécutions, c'est comparer le bruit — et c'est
+    // la faute que ce dépôt a déjà payée deux fois (fiche 19 § 4).
+    let mut mesures: BTreeMap<bool, Regime> = BTreeMap::new();
+    for tour in 0..2 {
+        // L'ordre s'inverse d'un tour à l'autre : ce qui passe en premier paie le
+        // réchauffement des caches, et l'alternance le partage équitablement.
+        for en_cache in [tour == 0, tour != 0] {
+            let regime = jouer(
+                &mut Scene {
+                    renderer: &mut renderer,
+                    ui: &mut ui,
+                    store: &mut store,
+                    pixmap: &mut pixmap,
+                    sortie: &mut sortie,
+                    dock_manager: &dock_manager,
+                    dock_cache: &dock_cache,
+                    ecran,
+                    board: &board,
+                    depart,
+                },
+                regard,
+                en_cache,
+            );
+            let entree = mesures.entry(en_cache).or_default();
+            entree.totaux.extend(regime.totaux);
+            entree.images.extend(regime.images);
+            entree.chrome_identique += regime.chrome_identique;
+            entree.comparees += regime.comparees;
         }
-        totaux.push(total);
-        images.push(glucose_desktop::perf::postes());
-        let bande = bande_du_haut(&pixmap, header_h).to_vec();
-        if let Some(avant) = &precedente {
-            comparees += 1;
-            if *avant == bande {
-                chrome_identique += 1;
-            }
-        }
-        precedente = Some(bande);
     }
+    let avec = mesures.remove(&true).unwrap_or_default();
+    let sans = mesures.remove(&false).unwrap_or_default();
+    let images = avec.images;
+    let totaux = avec.totaux;
+    let chrome_identique = avec.chrome_identique;
+    let comparees = avec.comparees;
 
+    // Un poste absent d'une image y vaut ZÉRO, et non « absent » : sinon sa médiane ne dirait
+    // que ce qu'il coûte quand il est là.
     let mut postes: BTreeMap<&'static str, Vec<f64>> = BTreeMap::new();
     for image in &images {
         for (nom, _) in image {
@@ -269,6 +345,14 @@ fn main() {
         "TOTAL",
         total_median,
         centile(&totaux, 0.9)
+    );
+    let sans_median = centile(&sans.totaux, 0.5);
+    println!(
+        "\n  Chrome REDESSINEE a chaque image : {:>7.2}ms median, {:>7.2}ms p90 -- soit \
+         {:+.2}ms par image",
+        sans_median,
+        centile(&sans.totaux, 0.9),
+        sans_median - total_median
     );
     println!(
         "\n  Deux balayages a 240 Hz valent {DEUX_BALAYAGES_MS:.2} ms : le total doit tenir \

@@ -19,7 +19,7 @@ pub struct Instantane {
     /// L'indice du geste, au sens de [`Geste::TOUS`].
     pub geste: u8,
     /// La durée de chaque poste, dans l'ordre où ils se sont déclarés.
-    pub postes_us: [u32; POSTES],
+    pub postes_us: PostesUs,
     /// Combien de nœuds le culling a retenus.
     pub noeuds: u32,
     /// Combien d'images ont été posées.
@@ -127,6 +127,33 @@ pub struct Instantane {
     /// Un masque et non la seule raison la plus pressée : savoir laquelle a gagné la course
     /// ne dit pas laquelle il faudrait supprimer. Les huit tiennent dans un `u16`.
     pub reveils: u16,
+}
+
+/// Les durées des postes d'une image, en microsecondes, dans l'ordre de la chronique.
+///
+/// Un type à part pour une seule raison : `Default` ne se dérive que jusqu'à trente-deux
+/// éléments, et la borne des postes n'a pas à dépendre d'une limite de la bibliothèque
+/// standard. Il se lit et s'écrit comme le tableau qu'il enveloppe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PostesUs(pub [u32; POSTES]);
+
+impl Default for PostesUs {
+    fn default() -> Self {
+        Self([0; POSTES])
+    }
+}
+
+impl std::ops::Deref for PostesUs {
+    type Target = [u32; POSTES];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for PostesUs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl Instantane {

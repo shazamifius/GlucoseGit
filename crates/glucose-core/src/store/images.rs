@@ -41,6 +41,14 @@ fn selection_sets_de<'a>(
 }
 
 impl Store {
+    /// Combien de photos le tableau actif porte.
+    ///
+    /// C'est ce que la barre affiche dans son badge ; elle le lisait sur le champ, et la
+    /// règle S veut qu'elle passe par ici.
+    pub fn nombre_d_images(&self) -> usize {
+        self.active_board().map_or(0, |b| b.images.len())
+    }
+
     /// Pose une image sur un board.
     ///
     /// **Site migré vers le journal** : l'entrée d'annulation porte l'image insérée et sa

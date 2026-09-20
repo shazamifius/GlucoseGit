@@ -92,7 +92,7 @@ impl WorldScale {
 ///
 /// Un côté nul serait invisible : il est ramené à un pixel, la plus petite chose qu'un écran
 /// sache montrer. Des coordonnées non finies ne dessinent rien plutôt que de tout arrêter.
-pub(super) fn fill_crisp(
+pub(crate) fn fill_crisp(
     pixmap: &mut tiny_skia::PixmapMut,
     rect: tiny_skia::Rect,
     color: tiny_skia::Color,

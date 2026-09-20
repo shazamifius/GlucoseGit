@@ -187,7 +187,14 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// L'empreinte est gardée ici plutôt qu'une image de référence dans le dépôt : le rendu va
 /// changer souvent, et une image versionnée à chaque fois ferait grossir l'historique sans
 /// rien apprendre de plus.
-const EMPREINTE_TEMOIN: &str = "21068a8524e8f7d4";
+///
+/// Mise à jour au passage de la bande du haut en cache : ses rectangles passent par
+/// `scale::fill_crisp`, qui les aligne sur la grille au lieu de les anti-aliaser. **Deux
+/// pixels changent** sur les 1 620 000 de la capture, d'au plus 3/255 : le bord droit du
+/// trait blanc de l'onglet actif, qui bavait d'une demi-teinte sur le fond et qui est
+/// désormais franc. Regardé au zoom avant de toucher à cette valeur — c'est exactement ce
+/// que SCALE-3 promet, un dessin plus net, pas un accident.
+const EMPREINTE_TEMOIN: &str = "035450767f06256f";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -215,7 +222,8 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// entrelacés avec elles. Un cadre de sélection passe donc au-dessus d'une image voisine qui
 /// le recouvrait ; c'est le bon ordre, et il est vérifié sur `temoin-selection.png`. Le
 /// témoin sans sélection, lui, n'a pas bougé d'un bit.
-const EMPREINTE_TEMOIN_SELECTION: &str = "d19e889b868fceb7";
+/// Les deux mêmes pixels de bordure que le témoin, et pour la même raison.
+const EMPREINTE_TEMOIN_SELECTION: &str = "a44679e721aa7cdd";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -234,7 +242,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// ses entrées, ni ses filets, ni l'alignement à droite de ses raccourcis.
 /// Mise à jour avec le témoin de sélection, pour la même raison : le menu s'ouvre sur une
 /// sélection, dont les ornements ont changé d'ordre.
-const EMPREINTE_TEMOIN_MENU: &str = "6092d20d6fb0c664";
+/// Les deux mêmes pixels de bordure que le témoin, et pour la même raison.
+const EMPREINTE_TEMOIN_MENU: &str = "72cdd5d6acdb2c40";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

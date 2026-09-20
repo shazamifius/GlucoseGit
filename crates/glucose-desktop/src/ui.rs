@@ -1,39 +1,29 @@
 //! Composants graphiques d'interface de Glucose (TopBar, BoardTabs, Minimap, Toasts).
 
-use crate::icons::{draw_icon_scaled, IconType};
-use crate::params::{ButtonState, Pointer, ScaledRect};
+use crate::icons::IconType;
+use crate::params::Pointer;
 use crate::theme::Theme;
-use crate::typography::{Face, TextStyle, Typography};
+use crate::typography::{Face, Typography};
 use glucose_core::store::Store;
-use glucose_core::types::Annotation;
-use std::time::{Duration, Instant};
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use tiny_skia::PixmapMut;
 
 pub const TOPBAR_HEIGHT: f32 = 44.0;
 pub mod action_bar;
+pub mod bande;
+pub mod boutons;
 pub mod breadcrumb;
 pub mod context_menu;
+pub mod minimap;
+pub mod toast;
+
+pub use boutons::{
+    draw_action_button, draw_tool_button, layout_topbar, TopbarButtonDef, TopbarLayout,
+};
+pub use minimap::{layout_minimap, point_minimap, MinimapBounds, MinimapCache};
+pub use toast::{Toast, ToastRepaint};
 
 pub const TABS_HEIGHT: f32 = 34.0;
 pub const TOTAL_HEADER_HEIGHT: f32 = TOPBAR_HEIGHT + TABS_HEIGHT;
-
-/// Corps du libellé d'un bouton d'action de la barre d'outils.
-const ACTION_LABEL_FONT: f32 = 12.0;
-/// Abscisse du libellé dans un bouton d'action : la marge de l'icône, l'icône, son écart.
-const ACTION_LABEL_X: f32 = 26.0;
-/// Marge entre la fin du libellé et le bord droit d'un bouton d'action.
-const ACTION_LABEL_PAD_RIGHT: f32 = 10.0;
-
-/// Largeur d'un bouton d'action pour `label`, à l'échelle `s`.
-///
-/// Le libellé est **mesuré**, pas supposé : les largeurs étaient des littéraux calibrés à
-/// l'œil sur une police donnée, et le premier changement de police (R-51) a fait déborder
-/// « Trans-domaines » de son cadre. Il est mesuré en gras — la graisse du bouton actif, la
-/// plus large — pour qu'un bouton ne change pas de taille quand on le bascule.
-fn action_button_width(typo: &Typography, label: &str, s: f32) -> f32 {
-    let (text_w, _) = typo.measure_text(label, ACTION_LABEL_FONT * s, Face::Bold);
-    (ACTION_LABEL_X + ACTION_LABEL_PAD_RIGHT) * s + text_w
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActiveTool {
@@ -53,6 +43,23 @@ impl ActiveTool {
     /// C'est l'outil qui le sait, donc c'est lui qui le dit. Chaque fabrique portait son
     /// propre message : quatre sites pour un seul événement, donc quatre formulations à
     /// tenir d'accord, et une de plus à chaque outil ajouté.
+    /// L'icône qui le désigne dans la barre.
+    ///
+    /// C'est l'outil qui la connaît, comme il connaît son message de création : la table qui
+    /// les appariait dans la mise en page devait être tenue d'accord avec cette énumération,
+    /// et un outil ajouté sans y penser aurait pris l'icône du voisin.
+    pub fn icone(self) -> IconType {
+        match self {
+            Self::Select => IconType::Select,
+            Self::Pan => IconType::Pan,
+            Self::Text => IconType::Text,
+            Self::Sticky => IconType::Sticky,
+            Self::Arrow => IconType::Arrow,
+            Self::Folder => IconType::Folder,
+            Self::Membrane => IconType::Membrane,
+        }
+    }
+
     pub fn creation_label(self) -> Option<&'static str> {
         match self {
             Self::Select | Self::Pan => None,
@@ -84,68 +91,6 @@ pub enum UiAction {
     MinimapPan(f64, f64),
 }
 
-pub struct Toast {
-    pub message: String,
-    pub created_at: Instant,
-    pub duration: Duration,
-}
-
-impl Toast {
-    /// Temps de vie à l'écran (fiche 07 § 1, `TOAST_DURATION`).
-    pub const DURATION_MS: u64 = 2400;
-    /// Apparition (fiche 07 § 1, `TOAST_ANIM_IN`).
-    pub const FADE_IN_MS: f32 = 180.0;
-    /// Disparition. La référence retire son toast d'un coup ; un fondu est une extension.
-    pub const FADE_OUT_MS: f32 = 400.0;
-
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-            created_at: Instant::now(),
-            duration: Duration::from_millis(Self::DURATION_MS),
-        }
-    }
-
-    pub fn is_expired(&self) -> bool {
-        self.created_at.elapsed() >= self.duration
-    }
-
-    pub fn alpha(&self) -> f32 {
-        let elapsed = self.created_at.elapsed().as_millis() as f32;
-        let total = self.duration.as_millis() as f32;
-        if elapsed > total - Self::FADE_OUT_MS {
-            ((total - elapsed) / Self::FADE_OUT_MS).clamp(0.0, 1.0)
-        } else {
-            (elapsed / Self::FADE_IN_MS).clamp(0.0, 1.0)
-        }
-    }
-
-    /// Ce que le toast demande à la boucle : `Redraw` pendant un fondu, `Sleep(ms)` sur le
-    /// plateau jusqu'au début du fondu sortant, `Gone` une fois expiré. La boucle n'a ainsi
-    /// aucun chiffre à connaître — les siens, dupliqués, avaient déjà divergé une fois.
-    pub fn repaint_need(&self) -> ToastRepaint {
-        if self.is_expired() {
-            return ToastRepaint::Gone;
-        }
-        let elapsed = self.created_at.elapsed().as_millis() as f32;
-        let total = self.duration.as_millis() as f32;
-        let fade_out_at = total - Self::FADE_OUT_MS;
-        if elapsed < Self::FADE_IN_MS || elapsed >= fade_out_at {
-            ToastRepaint::Redraw
-        } else {
-            ToastRepaint::Sleep((fade_out_at - elapsed).ceil().max(1.0) as u64)
-        }
-    }
-}
-
-/// Voir [`Toast::repaint_need`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ToastRepaint {
-    Redraw,
-    Sleep(u64),
-    Gone,
-}
-
 pub struct UiState {
     pub active_tool: ActiveTool,
     pub smart_align: bool,
@@ -161,58 +106,10 @@ pub struct UiState {
     pub scale_factor: f32,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
+    /// La barre et les onglets, déjà dessinés (voir [`bande::BandeCache`]).
+    pub bande_cache: Option<bande::BandeCache>,
 }
 
-/// Le fond de la minimap, gardé d'une image à l'autre.
-///
-/// # Pourquoi
-///
-/// La minimap dessinait **un rectangle par nœud du tableau, à chaque image**, dans une vignette
-/// de 180 × 120 pixels où la plupart tombent les uns sur les autres. Le banc a chiffré ce que
-/// cela coûte : **5,1 ms sur les 9,4 d'une image** à dix mille nœuds, soit plus de la moitié du
-/// budget, pour redessiner à l'identique ce qui était déjà là.
-///
-/// Or ce fond ne dépend que de deux choses : le document, et le cadrage de la carte. Le
-/// rectangle de caméra, lui, bouge à chaque déplacement — mais c'est **un** rectangle, et il se
-/// dessine par-dessus.
-///
-/// # Pourquoi la clé tient malgré le pan
-///
-/// Le cadrage de la minimap englobe le contenu **et** la caméra : c'est ce qui permet de voir
-/// où l'on est quand on s'éloigne du document. Tant qu'on travaille à l'intérieur du contenu —
-/// le cas normal — la caméra ne change rien aux bornes, et la clé reste identique d'une image à
-/// l'autre. Ce n'est qu'en sortant du document que le cadrage bouge, et le fond se refait alors
-/// le temps du déplacement.
-///
-/// # Ce que la composition coûte vraiment, et qui n'était pas ce que je croyais
-///
-/// « Source par-dessus » est associatif **en réels** : composer le fond puis la scène donne le
-/// même résultat que tout composer d'un coup. Il ne l'est pas **en entiers de huit bits**, où
-/// chaque étape arrondit. Passer par un pixmap intermédiaire ajoute donc un arrondi, et l'écart
-/// atteint un niveau de quantification sur les pixels semi-transparents.
-///
-/// L'empreinte de la scène témoin a changé pour cette raison, et la capture a été regardée :
-/// la minimap y est identique à l'œil. Un niveau sur 255 est en dessous de ce qu'un écran
-/// distingue — mais il fallait le mesurer, pas le supposer, et surtout pas écrire « au bit
-/// près » comme je l'avais fait.
-pub struct MinimapCache {
-    pixmap: tiny_skia::Pixmap,
-    key: MinimapKey,
-}
-
-/// Ce qui, s'il change, oblige à refaire le fond de la minimap.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct MinimapKey {
-    /// La version du document : toute modification la fait avancer.
-    version: u64,
-    /// La taille de la vignette en pixels entiers — elle change avec l'échelle de l'interface.
-    size: (u32, u32),
-    /// Les bornes du cadrage, en bits : deux `f64` égaux ont les mêmes bits, et c'est la seule
-    /// comparaison qui ait un sens ici (on ne veut pas d'un seuil arbitraire).
-    bounds: [u64; 4],
-}
-
-/// Le mot d'accueil, posé par l'application au démarrage — pas par le constructeur.
 pub const WELCOME_TOAST: &str = "Bienvenue dans Glucose !";
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -248,6 +145,7 @@ impl UiState {
             context_menu_at: None,
             scale_factor: 1.0,
             minimap_cache: None,
+            bande_cache: None,
         }
     }
 
@@ -303,11 +201,9 @@ pub fn render_ui(
         }
     }
 
-    // 1. Barre supérieure
-    render_topbar(pixmap, store, ui, typo, theme, w, pointer);
-
-    // 2. Barre d'onglets
-    render_board_tabs(pixmap, store, ui, typo, theme, w, pointer);
+    // 1 et 2. La barre et les onglets : la bande du haut, rendue une fois par changement.
+    bande::render_bande(pixmap, store, ui, typo, theme, w, pointer);
+    crate::perf::stage("bande");
 
     // 2 bis. Fil d'Ariane des dossiers — seulement quand on est entré quelque part.
     breadcrumb::draw_breadcrumb(
@@ -321,7 +217,7 @@ pub fn render_ui(
 
     // 3. Minimap (en bas à droite)
     let echelle_ui = ui.scale_factor;
-    render_minimap(
+    minimap::render_minimap(
         pixmap,
         store,
         theme,
@@ -331,12 +227,14 @@ pub fn render_ui(
         &mut ui.minimap_cache,
     );
 
+    crate::perf::stage("minimap");
+
     // 4. Barre d'action contextuelle — sous le toast, qui doit rester lisible par-dessus.
     action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
 
     // 5. Toast notification (au centre en bas)
     if let Some(ref toast) = ui.current_toast {
-        render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
+        toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
     }
 
     // 6. Menu contextuel — par-dessus tout, y compris le toast : il attend une décision.
@@ -353,410 +251,6 @@ pub fn render_ui(
                 ui.scale_factor,
             );
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct TopbarButtonDef {
-    pub action: UiAction,
-    pub x: f32,
-    pub y: f32,
-    pub w: f32,
-    pub h: f32,
-    pub icon: IconType,
-    pub label: &'static str,
-    pub active: bool,
-    pub is_tool: bool,
-}
-
-pub struct TopbarLayout {
-    pub buttons: Vec<TopbarButtonDef>,
-    pub separators: Vec<f32>,
-    pub img_badge: Option<(f32, String)>,
-}
-
-pub fn layout_topbar(
-    width: f32,
-    ui: &UiState,
-    typo: &Typography,
-    board_img_count: usize,
-) -> TopbarLayout {
-    let mut buttons = Vec::new();
-    let mut separators = Vec::new();
-    let s = ui.scale();
-    let label_w = |label: &str| action_button_width(typo, label, s);
-
-    // Responsive design :
-    // - Mode complet : width >= 1320px * scale
-    // - Mode compact : 1050px * scale <= width < 1320px * scale
-    // - Mode ultra-compact : width < 1050px * scale
-    let is_compact = width < 1320.0 * s;
-    let is_ultra = width < 1050.0 * s;
-
-    let topbar_h = ui.topbar_height();
-    let tool_size = 30.0 * s;
-    let tool_y = (topbar_h - tool_size) / 2.0;
-
-    let mut cur_x = 100.0 * s;
-
-    // 1. Outils de base (Select, Pan)
-    buttons.push(TopbarButtonDef {
-        action: UiAction::SelectTool(ActiveTool::Select),
-        x: cur_x,
-        y: tool_y,
-        w: tool_size,
-        h: tool_size,
-        icon: IconType::Select,
-        label: "",
-        active: ui.active_tool == ActiveTool::Select,
-        is_tool: true,
-    });
-    cur_x += tool_size + 2.0 * s;
-
-    buttons.push(TopbarButtonDef {
-        action: UiAction::SelectTool(ActiveTool::Pan),
-        x: cur_x,
-        y: tool_y,
-        w: tool_size,
-        h: tool_size,
-        icon: IconType::Pan,
-        label: "",
-        active: ui.active_tool == ActiveTool::Pan,
-        is_tool: true,
-    });
-    cur_x += tool_size + 2.0 * s;
-
-    // Séparateur 1
-    separators.push(cur_x + 3.0 * s);
-    cur_x += 9.0 * s;
-
-    // 2. Annotations (Text, Sticky, Arrow, Folder, Membrane)
-    let ann_tools = [
-        (ActiveTool::Text, IconType::Text),
-        (ActiveTool::Sticky, IconType::Sticky),
-        (ActiveTool::Arrow, IconType::Arrow),
-        (ActiveTool::Folder, IconType::Folder),
-        (ActiveTool::Membrane, IconType::Membrane),
-    ];
-    for (t, icon) in ann_tools {
-        buttons.push(TopbarButtonDef {
-            action: UiAction::SelectTool(t),
-            x: cur_x,
-            y: tool_y,
-            w: tool_size,
-            h: tool_size,
-            icon,
-            label: "",
-            active: ui.active_tool == t,
-            is_tool: true,
-        });
-        cur_x += tool_size + 2.0 * s;
-    }
-
-    // Séparateur 2
-    separators.push(cur_x + 3.0 * s);
-    cur_x += 9.0 * s;
-
-    // 3. + Images
-    let act_h = 28.0 * s;
-    let act_y = (topbar_h - act_h) / 2.0;
-
-    let (img_w, img_label) = if is_ultra {
-        (tool_size, "")
-    } else {
-        (label_w("Images"), "Images")
-    };
-    buttons.push(TopbarButtonDef {
-        action: UiAction::AddImages,
-        x: cur_x,
-        y: act_y,
-        w: img_w,
-        h: act_h,
-        icon: IconType::Plus,
-        label: img_label,
-        active: false,
-        is_tool: false,
-    });
-    cur_x += img_w + 6.0 * s;
-
-    // Séparateur 3
-    separators.push(cur_x + 1.0 * s);
-    cur_x += 7.0 * s;
-
-    // 4. Ordonner, Timer, Storyboard
-    let panels = [
-        (UiAction::Organize, IconType::Organize, "Ordonner", false),
-        (UiAction::ToggleTimer, IconType::Timer, "Timer", false),
-        (
-            UiAction::ToggleStoryboard,
-            IconType::Storyboard,
-            "Storyboard",
-            false,
-        ),
-    ];
-    for (act, icon, lbl, active) in panels {
-        let (btn_w, btn_lbl) = if is_ultra {
-            (tool_size, "")
-        } else {
-            (label_w(lbl), lbl)
-        };
-        buttons.push(TopbarButtonDef {
-            action: act,
-            x: cur_x,
-            y: act_y,
-            w: btn_w,
-            h: act_h,
-            icon,
-            label: btn_lbl,
-            active,
-            is_tool: false,
-        });
-        cur_x += btn_w + 4.0 * s;
-    }
-
-    // Séparateur 4
-    separators.push(cur_x + 2.0 * s);
-    cur_x += 8.0 * s;
-
-    // 5. Aimant, Trans-domaines
-    let toggles = [
-        (
-            UiAction::ToggleMagnet,
-            IconType::Magnet,
-            "Aimant",
-            ui.smart_align,
-        ),
-        (
-            UiAction::ToggleTransDomain,
-            IconType::TransDomain,
-            "Trans-domaines",
-            ui.trans_domain,
-        ),
-    ];
-    for (act, icon, lbl, active) in toggles {
-        let (btn_w, btn_lbl) = if is_ultra {
-            (tool_size, "")
-        } else {
-            (label_w(lbl), lbl)
-        };
-        buttons.push(TopbarButtonDef {
-            action: act,
-            x: cur_x,
-            y: act_y,
-            w: btn_w,
-            h: act_h,
-            icon,
-            label: btn_lbl,
-            active,
-            is_tool: false,
-        });
-        cur_x += btn_w + 4.0 * s;
-    }
-
-    let left_end = cur_x;
-
-    // 6. Groupe de Droite
-    let (col_w, col_lbl) = if is_ultra {
-        (tool_size, "")
-    } else {
-        (label_w("Collaborer"), "Collaborer")
-    };
-    let (exp_w, exp_lbl) = if is_ultra {
-        (tool_size, "")
-    } else {
-        (label_w("Exporter"), "Exporter")
-    };
-    let (plu_w, plu_lbl) = if is_compact {
-        (tool_size, "")
-    } else {
-        (label_w("Plugins"), "Plugins")
-    };
-    let (pre_w, pre_lbl) = if is_compact {
-        (tool_size, "")
-    } else {
-        (label_w("Preset"), "Preset")
-    };
-    let (dom_w, dom_lbl) = if is_compact {
-        (tool_size, "")
-    } else {
-        (label_w("Domaines"), "Domaines")
-    };
-
-    let badge_w = if board_img_count > 0 { 42.0 * s } else { 0.0 };
-    let right_total_w = col_w
-        + 8.0 * s
-        + exp_w
-        + 8.0 * s
-        + plu_w
-        + 4.0 * s
-        + pre_w
-        + 4.0 * s
-        + dom_w
-        + badge_w
-        + 16.0 * s;
-
-    let right_start = (width - right_total_w - 12.0 * s).max(left_end + 16.0 * s);
-    let mut rx = right_start;
-
-    // Collaborer
-    buttons.push(TopbarButtonDef {
-        action: UiAction::ToggleCollab,
-        x: rx,
-        y: act_y,
-        w: col_w,
-        h: act_h,
-        icon: IconType::Collab,
-        label: col_lbl,
-        active: false,
-        is_tool: false,
-    });
-    rx += col_w + 5.0 * s;
-
-    // Séparateur avant Exporter
-    separators.push(rx + 1.0 * s);
-    rx += 7.0 * s;
-
-    // Exporter
-    buttons.push(TopbarButtonDef {
-        action: UiAction::ExportMenu,
-        x: rx,
-        y: act_y,
-        w: exp_w,
-        h: act_h,
-        icon: IconType::Export,
-        label: exp_lbl,
-        active: false,
-        is_tool: false,
-    });
-    rx += exp_w + 5.0 * s;
-
-    // Séparateur avant Plugins
-    separators.push(rx + 1.0 * s);
-    rx += 7.0 * s;
-
-    // Plugins, Preset, Domaines
-    let right_actions = [
-        (UiAction::TogglePlugins, IconType::Plugins, plu_lbl, plu_w),
-        (UiAction::TogglePreset, IconType::Preset, pre_lbl, pre_w),
-        (UiAction::ToggleDomains, IconType::Domains, dom_lbl, dom_w),
-    ];
-    for (act, icon, lbl, bw) in right_actions {
-        buttons.push(TopbarButtonDef {
-            action: act,
-            x: rx,
-            y: act_y,
-            w: bw,
-            h: act_h,
-            icon,
-            label: lbl,
-            active: false,
-            is_tool: false,
-        });
-        rx += bw + 4.0 * s;
-    }
-
-    let img_badge = if board_img_count > 0 {
-        Some((rx + 4.0 * s, format!("{}img", board_img_count)))
-    } else {
-        None
-    };
-
-    TopbarLayout {
-        buttons,
-        separators,
-        img_badge,
-    }
-}
-
-fn render_topbar(
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    ui: &UiState,
-    typo: &Typography,
-    theme: &Theme,
-    width: f32,
-    pointer: Pointer,
-) {
-    let (mx, my) = (pointer.x, pointer.y);
-    let s = ui.scale();
-    let topbar_h = ui.topbar_height();
-
-    // Fond header
-    let mut bg_paint = Paint::default();
-    bg_paint.set_color(theme.bg_header);
-    if let Some(rect) = Rect::from_xywh(0.0, 0.0, width, topbar_h) {
-        pixmap.fill_rect(rect, &bg_paint, Transform::identity(), None);
-    }
-
-    // Bordure inférieure
-    let mut border_paint = Paint::default();
-    border_paint.set_color(theme.border_subtle);
-    if let Some(rect) = Rect::from_xywh(0.0, topbar_h - 1.0, width, 1.0) {
-        pixmap.fill_rect(rect, &border_paint, Transform::identity(), None);
-    }
-
-    // Logo GLUCOSE
-    typo.draw_text(
-        pixmap,
-        "GLUCOSE",
-        12.0 * s,
-        (topbar_h - 14.0 * s) / 2.0,
-        TextStyle {
-            size: 14.0 * s,
-            color: theme.text_primary,
-            face: Face::Bold,
-        },
-    );
-
-    let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
-    let layout = layout_topbar(width, ui, typo, img_count);
-
-    // Séparateurs
-    for sep_x in layout.separators {
-        draw_separator(
-            pixmap,
-            sep_x,
-            (topbar_h - 20.0 * s) / 2.0,
-            20.0 * s,
-            theme.border_subtle,
-        );
-    }
-
-    // Boutons
-    for btn in &layout.buttons {
-        let is_hover = mx >= btn.x && mx < btn.x + btn.w && my >= btn.y && my < btn.y + btn.h;
-        let state = ButtonState {
-            active: btn.active,
-            hover: is_hover,
-        };
-        if btn.is_tool {
-            draw_tool_button(pixmap, theme, box_of(btn, s), btn.icon, state);
-        } else {
-            draw_action_button(
-                pixmap,
-                typo,
-                theme,
-                box_of(btn, s),
-                btn.icon,
-                btn.label,
-                state,
-            );
-        }
-    }
-
-    // Badge nombre d'images à droite
-    if let Some((badge_x, ref badge_txt)) = layout.img_badge {
-        typo.draw_text(
-            pixmap,
-            badge_txt,
-            badge_x,
-            (topbar_h - 11.0 * s) / 2.0,
-            TextStyle {
-                size: 11.0 * s,
-                color: theme.badge_text,
-                face: Face::Regular,
-            },
-        );
     }
 }
 
@@ -782,19 +276,16 @@ pub fn layout_tabs(
     let mut layouts = Vec::new();
     let mut tab_x = 8.0 * s;
     let tabs_h = TABS_HEIGHT * s;
-    let active_id = &store.project.active_board_id;
-
-    for board in &store.project.boards {
-        let is_active = &board.id == active_id;
+    for (id, nom, is_active) in store.onglets() {
         let (tw, _) = typo.measure_text(
-            &board.name,
+            nom,
             12.0 * s,
             if is_active { Face::Bold } else { Face::Regular },
         );
         let tab_w = tw + 28.0 * s;
         layouts.push(TabButtonLayout {
-            board_id: board.id.clone(),
-            name: board.name.clone(),
+            board_id: id.to_string(),
+            name: nom.to_string(),
             x: tab_x,
             y: y_start,
             width: tab_w,
@@ -820,747 +311,6 @@ pub fn layout_tabs(
     layouts
 }
 
-fn render_board_tabs(
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    ui: &UiState,
-    typo: &Typography,
-    theme: &Theme,
-    width: f32,
-    pointer: Pointer,
-) {
-    let (mx, my) = (pointer.x, pointer.y);
-    let s = ui.scale();
-    let y_start = ui.topbar_height();
-    let tabs_h = ui.tabs_height();
-
-    // Fond tabs
-    let mut bg_paint = Paint::default();
-    bg_paint.set_color(theme.bg_canvas);
-    if let Some(rect) = Rect::from_xywh(0.0, y_start, width, tabs_h) {
-        pixmap.fill_rect(rect, &bg_paint, Transform::identity(), None);
-    }
-
-    // Bordure inférieure
-    let mut border_paint = Paint::default();
-    border_paint.set_color(theme.border_subtle);
-    if let Some(rect) = Rect::from_xywh(0.0, y_start + tabs_h - 1.0, width, 1.0) {
-        pixmap.fill_rect(rect, &border_paint, Transform::identity(), None);
-    }
-
-    let tabs = layout_tabs(store, typo, y_start, s);
-    for tab in tabs {
-        let is_hover =
-            mx >= tab.x && mx < tab.x + tab.width && my >= tab.y && my < tab.y + tab.height;
-
-        if tab.is_plus {
-            if is_hover {
-                let mut p_paint = Paint::default();
-                p_paint.set_color(theme.bg_hover);
-                if let Some(rect) = Rect::from_xywh(tab.x, y_start + 5.0 * s, 24.0 * s, 24.0 * s) {
-                    pixmap.fill_rect(rect, &p_paint, Transform::identity(), None);
-                }
-            }
-            draw_icon_scaled(
-                pixmap,
-                IconType::Plus,
-                tab.x + 5.0 * s,
-                y_start + 10.0 * s,
-                14.0 * s,
-                theme.text_muted,
-                1.5 * s,
-            );
-        } else {
-            if is_hover && !tab.is_active {
-                let mut h_paint = Paint::default();
-                h_paint.set_color(theme.bg_hover);
-                if let Some(rect) =
-                    Rect::from_xywh(tab.x, y_start + 4.0 * s, tab.width, tabs_h - 6.0 * s)
-                {
-                    pixmap.fill_rect(rect, &h_paint, Transform::identity(), None);
-                }
-            }
-
-            let text_color = if tab.is_active {
-                theme.text_primary
-            } else {
-                theme.text_secondary
-            };
-
-            typo.draw_text(
-                pixmap,
-                &tab.name,
-                tab.x + 14.0 * s,
-                y_start + 10.0 * s,
-                TextStyle {
-                    size: 12.0 * s,
-                    color: text_color,
-                    face: if tab.is_active {
-                        Face::Bold
-                    } else {
-                        Face::Regular
-                    },
-                },
-            );
-
-            // Fiche 06 § 10.2 : l'onglet actif porte une bordure inférieure de 2 px, blanc
-            // pur — pas l'accent, qui n'est jamais décoratif.
-            if tab.is_active {
-                let mut line_paint = Paint::default();
-                line_paint.set_color(theme.text_accent);
-                if let Some(rect) =
-                    Rect::from_xywh(tab.x, y_start + tabs_h - 2.0 * s, tab.width, 2.0 * s)
-                {
-                    pixmap.fill_rect(rect, &line_paint, Transform::identity(), None);
-                }
-            }
-        }
-    }
-}
-
-/// Un trait vertical d'un pixel, **posé sur la grille de pixels**.
-///
-/// Les boutons sont désormais mesurés, donc leurs abscisses sont fractionnaires. Un trait
-/// d'un pixel à une abscisse fractionnaire s'étale en gris sur deux colonnes ; et dans un
-/// build de debug, `tiny-skia` refuse par assertion le rectangle intérieur de largeur nulle
-/// que produit son anti-aliasing sur ce cas. Arrondir est la seule bonne réponse aux deux.
-fn draw_separator(pixmap: &mut PixmapMut, x: f32, y: f32, h: f32, color: Color) {
-    let mut paint = Paint::default();
-    paint.set_color(color);
-    if let Some(rect) = Rect::from_xywh(x.round(), y.round(), 1.0, h) {
-        pixmap.fill_rect(rect, &paint, Transform::identity(), None);
-    }
-}
-
-fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
-    let r = r.min(w / 2.0).min(h / 2.0);
-    pb.move_to(x + r, y);
-    pb.line_to(x + w - r, y);
-    pb.quad_to(x + w, y, x + w, y + r);
-    pb.line_to(x + w, y + h - r);
-    pb.quad_to(x + w, y + h, x + w - r, y + h);
-    pb.line_to(x + r, y + h);
-    pb.quad_to(x, y + h, x, y + h - r);
-    pb.line_to(x, y + r);
-    pb.quad_to(x, y, x + r, y);
-    pb.close();
-}
-
-/// Rectangle d'un bouton de barre d'outils, échelle UI comprise.
-fn box_of(btn: &TopbarButtonDef, scale: f32) -> ScaledRect {
-    ScaledRect {
-        x: btn.x,
-        y: btn.y,
-        w: btn.w,
-        h: btn.h,
-        scale,
-    }
-}
-
-fn draw_tool_button(
-    pixmap: &mut PixmapMut,
-    theme: &Theme,
-    rect: ScaledRect,
-    icon: IconType,
-    state: ButtonState,
-) {
-    let ScaledRect { x, y, w, h, scale } = rect;
-    let ButtonState { active, hover } = state;
-    let bg_color = if active {
-        theme.bg_active
-    } else if hover {
-        theme.bg_hover
-    } else {
-        Color::TRANSPARENT
-    };
-
-    if bg_color != Color::TRANSPARENT {
-        let mut p = Paint::default();
-        p.set_color(bg_color);
-        p.anti_alias = true;
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0 * scale);
-        if let Some(path) = pb.finish() {
-            pixmap.fill_path(
-                &path,
-                &p,
-                tiny_skia::FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-    }
-
-    if active {
-        let mut sp = Paint::default();
-        sp.set_color(theme.border_accent);
-        sp.anti_alias = true;
-        let stroke = Stroke {
-            width: 1.0 * scale,
-            ..Default::default()
-        };
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(
-            &mut pb,
-            x + 0.5 * scale,
-            y + 0.5 * scale,
-            w - 1.0 * scale,
-            h - 1.0 * scale,
-            4.0 * scale,
-        );
-        if let Some(path) = pb.finish() {
-            pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
-        }
-    }
-
-    let icon_color = if active {
-        theme.text_accent
-    } else if hover {
-        theme.text_primary
-    } else {
-        theme.text_muted
-    };
-
-    let icon_size = 14.0 * scale;
-    let icon_x = x + (w - icon_size) / 2.0;
-    let icon_y = y + (h - icon_size) / 2.0;
-    draw_icon_scaled(
-        pixmap,
-        icon,
-        icon_x,
-        icon_y,
-        icon_size,
-        icon_color,
-        1.4 * scale,
-    );
-}
-
-fn draw_action_button(
-    pixmap: &mut PixmapMut,
-    typo: &Typography,
-    theme: &Theme,
-    rect: ScaledRect,
-    icon: IconType,
-    label: &str,
-    state: ButtonState,
-) {
-    let ScaledRect { x, y, w, h, scale } = rect;
-    let ButtonState { active, hover } = state;
-    let bg_color = if active {
-        theme.bg_active
-    } else if hover {
-        theme.bg_hover
-    } else {
-        Color::TRANSPARENT
-    };
-
-    if bg_color != Color::TRANSPARENT {
-        let mut p = Paint::default();
-        p.set_color(bg_color);
-        p.anti_alias = true;
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0 * scale);
-        if let Some(path) = pb.finish() {
-            pixmap.fill_path(
-                &path,
-                &p,
-                tiny_skia::FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-    }
-
-    if active {
-        let mut sp = Paint::default();
-        sp.set_color(theme.border_accent);
-        sp.anti_alias = true;
-        let stroke = Stroke {
-            width: 1.0 * scale,
-            ..Default::default()
-        };
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(
-            &mut pb,
-            x + 0.5 * scale,
-            y + 0.5 * scale,
-            w - 1.0 * scale,
-            h - 1.0 * scale,
-            4.0 * scale,
-        );
-        if let Some(path) = pb.finish() {
-            pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
-        }
-    }
-
-    let color = if active {
-        theme.text_accent
-    } else if hover {
-        theme.text_primary
-    } else {
-        theme.text_secondary
-    };
-
-    let icon_size = 14.0 * scale;
-    if label.is_empty() {
-        let icon_x = x + (w - icon_size) / 2.0;
-        let icon_y = y + (h - icon_size) / 2.0;
-        draw_icon_scaled(pixmap, icon, icon_x, icon_y, icon_size, color, 1.3 * scale);
-    } else {
-        let icon_y = y + (h - icon_size) / 2.0;
-        draw_icon_scaled(
-            pixmap,
-            icon,
-            x + 8.0 * scale,
-            icon_y,
-            icon_size,
-            color,
-            1.3 * scale,
-        );
-        let font = ACTION_LABEL_FONT * scale;
-        typo.draw_text(
-            pixmap,
-            label,
-            x + ACTION_LABEL_X * scale,
-            y + (h - font) / 2.0,
-            TextStyle {
-                size: font,
-                color,
-                face: if active { Face::Bold } else { Face::Regular },
-            },
-        );
-    }
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct MinimapBounds {
-    pub mm_x: f32,
-    pub mm_y: f32,
-    pub mm_w: f32,
-    pub mm_h: f32,
-    pub min_x: f64,
-    pub min_y: f64,
-    pub max_x: f64,
-    pub max_y: f64,
-    pub span_x: f64,
-    pub span_y: f64,
-    pub scale: f32,
-    pub cam_left: f64,
-    pub cam_top: f64,
-    pub vp_w: f64,
-    pub vp_h: f64,
-}
-
-pub fn layout_minimap(
-    store: &Store,
-    screen_w: f32,
-    screen_h: f32,
-    scale: f32,
-) -> Option<MinimapBounds> {
-    let board = store.active_board()?;
-    let s = crate::theme::clamp_ui_scale(scale);
-    let mm_w = 180.0f32 * s;
-    let mm_h = 120.0f32 * s;
-    // Fiche 06 § 9 : `bottom: 12px`, `right: 12px`.
-    let mm_x = screen_w - mm_w - 12.0 * s;
-    let mm_y = screen_h - mm_h - 12.0 * s;
-    let header_h = TOTAL_HEADER_HEIGHT * s;
-
-    // Les bornes du contenu sont une question qu'on pose au document ; la minimap n'a pas à
-    // les recalculer avec ses propres tailles. Un tableau vide n'en a pas : la caméra seule
-    // fait alors la carte.
-    let contenu = store.content_bounds(&board.id);
-    let (mut min_x, mut min_y, mut max_x, mut max_y) = match contenu {
-        Some(r) => (r.left, r.top, r.right(), r.bottom()),
-        None => (
-            f64::INFINITY,
-            f64::INFINITY,
-            f64::NEG_INFINITY,
-            f64::NEG_INFINITY,
-        ),
-    };
-
-    let vp = &board.viewport;
-    let vp_w = screen_w as f64 / vp.scale;
-    let vp_h = (screen_h as f64 - header_h as f64) / vp.scale;
-    let cam_left = -vp.x / vp.scale;
-    let cam_top = -vp.y / vp.scale;
-
-    min_x = min_x.min(cam_left) - 200.0;
-    min_y = min_y.min(cam_top) - 200.0;
-    max_x = max_x.max(cam_left + vp_w) + 200.0;
-    max_y = max_y.max(cam_top + vp_h) + 200.0;
-
-    // Garde-fou : un viewport corrompu (échelle nulle, NaN) ou un board vide
-    // laisserait des bornes infinies, puis des coordonnées NaN transmises au
-    // rasterizer. On renonce alors à la minimap plutôt que de dessiner du bruit.
-    let finite = [min_x, min_y, max_x, max_y, cam_left, cam_top, vp_w, vp_h];
-    if finite.iter().any(|v| !v.is_finite()) {
-        return None;
-    }
-
-    let span_x = (max_x - min_x).max(1.0);
-    let span_y = (max_y - min_y).max(1.0);
-
-    let scale_x = (mm_w - 12.0 * s) / span_x as f32;
-    let scale_y = (mm_h - 12.0 * s) / span_y as f32;
-    let minimap_scale = scale_x.min(scale_y);
-
-    Some(MinimapBounds {
-        mm_x,
-        mm_y,
-        mm_w,
-        mm_h,
-        min_x,
-        min_y,
-        max_x,
-        max_y,
-        span_x,
-        span_y,
-        scale: minimap_scale,
-        cam_left,
-        cam_top,
-        vp_w,
-        vp_h,
-    })
-}
-
-pub(crate) fn render_minimap(
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    theme: &Theme,
-    w: f32,
-    h: f32,
-    scale: f32,
-    cache: &mut Option<MinimapCache>,
-) {
-    let s = crate::theme::clamp_ui_scale(scale);
-    let mb = match layout_minimap(store, w, h, s) {
-        Some(m) => m,
-        None => return,
-    };
-    if store.active_board().is_none() {
-        return;
-    }
-
-    let cle = MinimapKey {
-        version: store.version,
-        size: (mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32),
-        bounds: [
-            mb.min_x.to_bits(),
-            mb.min_y.to_bits(),
-            mb.max_x.to_bits(),
-            mb.max_y.to_bits(),
-        ],
-    };
-    if cache.as_ref().map(|c| c.key) != Some(cle) {
-        *cache = dessine_fond(store, theme, &mb, s).map(|pixmap| MinimapCache { pixmap, key: cle });
-    }
-    if let Some(c) = cache.as_ref() {
-        // Par REPORT-1, comme les panneaux du dock : le fond de la minimap est un tampon posé
-        // à une position entière, exactement le cas où le chemin exact s'applique.
-        crate::composition::poser(
-            pixmap,
-            &c.pixmap,
-            (mb.mm_x, mb.mm_y),
-            glucose_core::report::Melange::Composer,
-        );
-    }
-
-    dessine_camera(pixmap, theme, &mb, s);
-}
-
-/// Dessine le fond de la minimap — tout sauf le rectangle de caméra — dans un pixmap à part.
-///
-/// Les coordonnées y sont relatives au coin de la vignette, puisqu'elle sera composée à sa
-/// place : c'est la seule différence avec le dessin direct d'avant.
-/// Peint un rectangle **opaque** en écrivant les pixels, sans construire de chemin.
-///
-/// # Pourquoi cette fonction existe
-///
-/// La minimap dessinait un `fill_rect` par nœud. Sur un document d'un million, cela fait un
-/// million de chemins construits, alloués et rastérisés — pour une vignette de 180 × 120,
-/// soit **trente-cinq rectangles par pixel**. Mesuré : 1 700 ms à chaque mutation du
-/// document, le premier poste de l'application.
-///
-/// Un nœud y occupe deux à quatre pixels. Construire un chemin pour cela est hors de
-/// proportion : le rectangle se réduit à quelques écritures directes.
-///
-/// # Ce que cela change à l'image, et pourquoi c'est admis
-///
-/// L'anti-crénelage disparaît sur ces rectangles : un pixel est peint si son **centre** tombe
-/// dans le rectangle, sans demi-teinte sur les bords. C'est la règle que `tiny-skia` applique
-/// lui-même quand on lui désactive le lissage, et sur des marques de deux pixels le résultat
-/// est plus net plutôt que moins fidèle (R-46). Le cadre de la minimap et les dossiers, eux,
-/// gardent leur tracé : ce sont des traits fins, où le lissage compte vraiment.
-///
-/// La couleur doit être opaque — c'est le cas de toutes celles qui passent ici — sans quoi il
-/// faudrait composer au lieu d'écrire.
-fn remplir_net(pixmap: &mut tiny_skia::PixmapMut, x: f32, y: f32, w: f32, h: f32, color: Color) {
-    let (largeur, hauteur) = (pixmap.width() as i32, pixmap.height() as i32);
-    // Un pixel est peint quand son centre — en `i + 0,5` — tombe dans le rectangle.
-    let borne = |de: f32, a: f32, max: i32| {
-        let d = (de - 0.5).ceil().max(0.0) as i32;
-        let f = (a - 0.5).ceil().clamp(0.0, max as f32) as i32;
-        (d.min(max), f)
-    };
-    let (x0, x1) = borne(x, x + w, largeur);
-    let (y0, y1) = borne(y, y + h, hauteur);
-    if x0 >= x1 || y0 >= y1 {
-        return;
-    }
-    let pixel = tiny_skia::PremultipliedColorU8::from_rgba(
-        (color.red() * 255.0).round() as u8,
-        (color.green() * 255.0).round() as u8,
-        (color.blue() * 255.0).round() as u8,
-        255,
-    )
-    .unwrap_or_else(|| tiny_skia::PremultipliedColorU8::from_rgba(0, 0, 0, 255).expect("noir"));
-    let pixels = pixmap.pixels_mut();
-    for ligne in y0..y1 {
-        let debut = (ligne * largeur + x0) as usize;
-        let fin = (ligne * largeur + x1) as usize;
-        pixels[debut..fin].fill(pixel);
-    }
-}
-
-fn dessine_fond(
-    store: &Store,
-    theme: &Theme,
-    mb: &MinimapBounds,
-    s: f32,
-) -> Option<tiny_skia::Pixmap> {
-    let board = store.active_board()?;
-    let mut vignette = tiny_skia::Pixmap::new(mb.mm_w.ceil() as u32, mb.mm_h.ceil() as u32)?;
-    let pixmap = &mut vignette.as_mut();
-    // Le fond se dessine à l'origine de sa propre vignette.
-    let mb = &MinimapBounds {
-        mm_x: 0.0,
-        mm_y: 0.0,
-        ..mb.clone()
-    };
-
-    // Fond minimap
-    let mut bg_paint = Paint::default();
-    bg_paint.set_color(theme.minimap_bg);
-    if let Some(rect) = Rect::from_xywh(mb.mm_x, mb.mm_y, mb.mm_w, mb.mm_h) {
-        pixmap.fill_rect(rect, &bg_paint, Transform::identity(), None);
-    }
-
-    // Bordure minimap
-    let mut border_paint = Paint::default();
-    border_paint.set_color(theme.minimap_border);
-    let stroke = Stroke {
-        width: 1.0 * s,
-        ..Default::default()
-    };
-    let mut pb = PathBuilder::new();
-    pb.move_to(mb.mm_x, mb.mm_y);
-    pb.line_to(mb.mm_x + mb.mm_w, mb.mm_y);
-    pb.line_to(mb.mm_x + mb.mm_w, mb.mm_y + mb.mm_h);
-    pb.line_to(mb.mm_x, mb.mm_y + mb.mm_h);
-    pb.close();
-    if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
-    }
-
-    let pad = 6.0 * s;
-
-    // Dessine miniatures images
-    let mut item_paint = Paint::default();
-    item_paint.set_color(theme.minimap_element);
-    for img in &board.images {
-        let r = img.rect();
-        let ix = mb.mm_x + pad + ((r.left - mb.min_x) as f32 * mb.scale);
-        let iy = mb.mm_y + pad + ((r.top - mb.min_y) as f32 * mb.scale);
-        let iw = (r.width as f32 * mb.scale).max(2.0 * s);
-        let ih = (r.height as f32 * mb.scale).max(2.0 * s);
-        remplir_net(pixmap, ix, iy, iw, ih, theme.minimap_element);
-    }
-
-    // Dessine miniatures annotations & stickies & membranes
-    let mut ann_paint = Paint::default();
-    ann_paint.set_color(theme.text_muted);
-    // Une membrane est du contenu, mais sa couleur propre n'est pas lue ici : dans la
-    // minimap elle se dessine comme les autres nœuds, en gris.
-    let mut membrane_paint = Paint::default();
-    membrane_paint.set_color(theme.minimap_element);
-
-    // Une flèche n'a pas de boîte et ne se dessine pas ici ; les autres nœuds ont la leur,
-    // taille de naissance comprise, et un plancher de quelques pixels pour rester visibles.
-    for ann in &board.annotations {
-        let Some(boite) = ann.rect() else {
-            continue;
-        };
-        let (couleur, plancher) = match ann {
-            Annotation::Membrane { .. } => (theme.minimap_element, 4.0 * s),
-            _ => (theme.text_muted, 2.0 * s),
-        };
-        let aw = (boite.width as f32 * mb.scale).max(plancher);
-        let ah = (boite.height as f32 * mb.scale).max(plancher);
-        let ax = mb.mm_x + pad + ((boite.left - mb.min_x) as f32 * mb.scale);
-        let ay = mb.mm_y + pad + ((boite.top - mb.min_y) as f32 * mb.scale);
-        remplir_net(pixmap, ax, ay, aw, ah, couleur);
-    }
-
-    // Dossiers — fiche 06 § 9 : en pointillés, à LEUR couleur, et non en gris comme le reste
-    // du contenu. C'est ce qui les distingue d'une membrane à l'œil, sur une carte de 180 px.
-    let folder_stroke = Stroke {
-        width: 1.0 * s,
-        dash: tiny_skia::StrokeDash::new(vec![2.0 * s, 2.0 * s], 0.0),
-        ..Default::default()
-    };
-    for f in &board.folders {
-        let fx = mb.mm_x + pad + ((f.x - mb.min_x) as f32 * mb.scale);
-        let fy = mb.mm_y + pad + ((f.y - mb.min_y) as f32 * mb.scale);
-        let fw = (f.width as f32 * mb.scale).max(4.0 * s);
-        let fh = (f.height as f32 * mb.scale).max(4.0 * s);
-        let (r, g, b) = crate::renderer::parse_hex_color(&f.color, 136, 136, 136);
-        let mut folder_paint = Paint {
-            anti_alias: true,
-            ..Default::default()
-        };
-        folder_paint.set_color(Color::from_rgba8(r, g, b, 179));
-        let mut fpb = PathBuilder::new();
-        fpb.move_to(fx, fy);
-        fpb.line_to(fx + fw, fy);
-        fpb.line_to(fx + fw, fy + fh);
-        fpb.line_to(fx, fy + fh);
-        fpb.close();
-        if let Some(path) = fpb.finish() {
-            pixmap.stroke_path(
-                &path,
-                &folder_paint,
-                &folder_stroke,
-                Transform::identity(),
-                None,
-            );
-        }
-    }
-
-    Some(vignette)
-}
-
-/// Dessine le rectangle de caméra. Il bouge à chaque déplacement, donc il n'est jamais mis en
-/// cache — mais c'est **un** rectangle, pas un par nœud.
-fn dessine_camera(pixmap: &mut PixmapMut, theme: &Theme, mb: &MinimapBounds, s: f32) {
-    let pad = 6.0 * s;
-    let cx = mb.mm_x + pad + ((mb.cam_left - mb.min_x) as f32 * mb.scale);
-    let cy = mb.mm_y + pad + ((mb.cam_top - mb.min_y) as f32 * mb.scale);
-    let cw = (mb.vp_w as f32 * mb.scale).max(4.0 * s);
-    let ch = (mb.vp_h as f32 * mb.scale).max(4.0 * s);
-
-    let mut cam_paint = Paint::default();
-    cam_paint.set_color(theme.minimap_viewport);
-    let cam_stroke = Stroke {
-        width: 1.5 * s,
-        ..Default::default()
-    };
-    let mut cam_pb = PathBuilder::new();
-    cam_pb.move_to(cx, cy);
-    cam_pb.line_to(cx + cw, cy);
-    cam_pb.line_to(cx + cw, cy + ch);
-    cam_pb.line_to(cx, cy + ch);
-    cam_pb.close();
-    if let Some(path) = cam_pb.finish() {
-        pixmap.stroke_path(&path, &cam_paint, &cam_stroke, Transform::identity(), None);
-    }
-}
-
-fn render_toast(
-    pixmap: &mut PixmapMut,
-    toast: &Toast,
-    typo: &Typography,
-    theme: &Theme,
-    w: f32,
-    h: f32,
-    scale: f32,
-) {
-    let alpha = toast.alpha();
-    if alpha <= 0.01 {
-        return;
-    }
-
-    let s = crate::theme::clamp_ui_scale(scale);
-    let (tw, _) = typo.measure_text(&toast.message, 13.0 * s, Face::Regular);
-    let toast_w = tw + 40.0 * s;
-    let toast_h = 36.0 * s;
-    let toast_x = (w - toast_w) / 2.0;
-    let toast_y = h - 64.0 * s;
-
-    // Fond pilule avec opacité animée
-    let mut bg_paint = Paint::default();
-    let a_byte = ((theme.toast_bg.alpha() * alpha * 255.0) as u8).max(1);
-    bg_paint.set_color(Color::from_rgba8(
-        (theme.toast_bg.red() * 255.0) as u8,
-        (theme.toast_bg.green() * 255.0) as u8,
-        (theme.toast_bg.blue() * 255.0) as u8,
-        a_byte,
-    ));
-
-    let mut pb = PathBuilder::new();
-    let r = 18.0 * s;
-    pb.move_to(toast_x + r, toast_y);
-    pb.line_to(toast_x + toast_w - r, toast_y);
-    pb.quad_to(toast_x + toast_w, toast_y, toast_x + toast_w, toast_y + r);
-    pb.line_to(toast_x + toast_w, toast_y + toast_h - r);
-    pb.quad_to(
-        toast_x + toast_w,
-        toast_y + toast_h,
-        toast_x + toast_w - r,
-        toast_y + toast_h,
-    );
-    pb.line_to(toast_x + r, toast_y + toast_h);
-    pb.quad_to(toast_x, toast_y + toast_h, toast_x, toast_y + toast_h - r);
-    pb.line_to(toast_x, toast_y + r);
-    pb.quad_to(toast_x, toast_y, toast_x + r, toast_y);
-
-    let mut border_paint = Paint::default();
-    let b_byte = ((theme.toast_border.alpha() * alpha * 255.0) as u8).max(1);
-    border_paint.set_color(Color::from_rgba8(
-        (theme.toast_border.red() * 255.0) as u8,
-        (theme.toast_border.green() * 255.0) as u8,
-        (theme.toast_border.blue() * 255.0) as u8,
-        b_byte,
-    ));
-    let stroke = Stroke {
-        width: 1.0 * s,
-        ..Default::default()
-    };
-
-    if let Some(path) = pb.finish() {
-        pixmap.fill_path(
-            &path,
-            &bg_paint,
-            tiny_skia::FillRule::Winding,
-            Transform::identity(),
-            None,
-        );
-        pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
-    }
-
-    // Texte centré
-    let text_a = ((theme.toast_text.alpha() * alpha * 255.0) as u8).max(1);
-    let text_color = Color::from_rgba8(
-        (theme.toast_text.red() * 255.0) as u8,
-        (theme.toast_text.green() * 255.0) as u8,
-        (theme.toast_text.blue() * 255.0) as u8,
-        text_a,
-    );
-    typo.draw_text(
-        pixmap,
-        &toast.message,
-        toast_x + 20.0 * s,
-        toast_y + (toast_h - 13.0 * s) / 2.0,
-        TextStyle {
-            size: 13.0 * s,
-            color: text_color,
-            face: Face::Regular,
-        },
-    );
-}
-
 /// Détecte si un clic souris se situe sur l'interface et retourne l'action associée
 pub fn handle_ui_click(
     x: f32,
@@ -1576,7 +326,7 @@ pub fn handle_ui_click(
     let s = ui.scale();
 
     if y < topbar_h {
-        let img_count = store.active_board().map(|b| b.images.len()).unwrap_or(0);
+        let img_count = store.nombre_d_images();
         let layout = layout_topbar(screen_w, ui, typo, img_count);
         for btn in layout.buttons {
             if x >= btn.x && x < btn.x + btn.w && y >= btn.y && y < btn.y + btn.h {
@@ -1618,34 +368,12 @@ pub fn handle_ui_click(
     None
 }
 
-/// Le point du monde que la minimap désigne sous `(x, y)`, ou rien si le curseur est ailleurs.
-///
-/// Extraite du traitement du clic parce qu'elle sert **deux fois** : à l'appui, et à chaque
-/// mouvement tant que le bouton tient. Sans cela, suivre le curseur sur la minimap aurait
-/// demandé de recopier la conversion — donc deux formules à tenir d'accord, et une minimap
-/// qui viserait à côté le jour où l'une des deux bougerait.
-pub fn point_minimap(
-    store: &Store,
-    x: f32,
-    y: f32,
-    screen_w: f32,
-    screen_h: f32,
-    s: f32,
-) -> Option<(f64, f64)> {
-    let mb = layout_minimap(store, screen_w, screen_h, s)?;
-    let pad = 6.0 * s;
-    if x < mb.mm_x || x > mb.mm_x + mb.mm_w || y < mb.mm_y || y > mb.mm_y + mb.mm_h {
-        return None;
-    }
-    let rel_x = ((x - mb.mm_x - pad) / (mb.mm_w - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
-    let rel_y = ((y - mb.mm_y - pad) / (mb.mm_h - 2.0 * pad).max(1.0)).clamp(0.0, 1.0) as f64;
-    Some((mb.min_x + rel_x * mb.span_x, mb.min_y + rel_y * mb.span_y))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::typography::Typography;
+    use crate::ui::boutons::{ACTION_LABEL_FONT, ACTION_LABEL_PAD_RIGHT, ACTION_LABEL_X};
+    use std::time::{Duration, Instant};
 
     /// Fiche 06 § 9 et § 10 — minimap 180 × 120 à 12 px des bords ; barre d'outils 44 px,
     /// onglets 34 px, boutons d'outil 30 × 30.

@@ -6,6 +6,18 @@ use crate::error::{CoreError, CoreResult};
 use crate::types::{Annotation, Board};
 
 impl Store {
+    /// Les tableaux du projet, dans l'ordre, avec leur nom et s'ils sont actifs.
+    ///
+    /// Ce que la barre d'onglets a besoin de savoir, et rien de plus : elle lisait la
+    /// collection du modèle, ce que la règle S interdit au desktop (fiche 12 § 3).
+    pub fn onglets(&self) -> impl Iterator<Item = (&str, &str, bool)> {
+        let actif = self.project.active_board_id.as_str();
+        self.project
+            .boards
+            .iter()
+            .map(move |b| (b.id.as_str(), b.name.as_str(), b.id == actif))
+    }
+
     /// **Site migré vers le journal.** Renommer ne clone pas le board : l'entrée ne porte
     /// que les deux noms.
     pub fn rename_board(&mut self, board_id: &str, name: impl Into<String>) {

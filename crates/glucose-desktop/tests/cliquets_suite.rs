@@ -35,7 +35,7 @@ struct Source {
 }
 
 /// Tous les `.rs` de production sous une racine : ni les fichiers de tests ou de preuves, ni
-/// ce qui suit un `#[cfg(test)]` dans un fichier de production.
+/// ce qu'un `#[cfg(test)]` retire de la production dans un fichier qui en contient.
 fn sources(racine: &Path) -> Vec<Source> {
     let mut out = Vec::new();
     let Ok(entrees) = fs::read_dir(racine) else {
@@ -53,17 +53,115 @@ fn sources(racine: &Path) -> Vec<Source> {
             let Ok(texte) = fs::read_to_string(&chemin) else {
                 continue;
             };
-            let production = match texte.find("#[cfg(test)]") {
-                Some(i) => texte[..i].to_string(),
-                None => texte,
-            };
             out.push(Source {
                 chemin,
-                texte: production,
+                texte: sans_les_tests(&texte),
             });
         }
     }
     out
+}
+
+/// Le texte d'un fichier privé de tout ce qu'un `#[cfg(test)]` en retire : l'item qui suit
+/// chaque attribut, quel qu'il soit — un module, une fonction, un `use`.
+///
+/// # Le défaut que cette fonction corrige, et ce qu'il cachait
+///
+/// La première version coupait le texte au **premier** `#[cfg(test)]`, en supposant que
+/// c'était le bloc `mod tests` de la fin. Un `#[cfg(test)] pub fn toast_message` à la ligne
+/// 279 de `ui.rs` suffisait donc à faire disparaître les mille trois cents lignes qui
+/// suivaient : le cliquet des tailles voyait un fichier de 279 lignes là où il y en avait
+/// 1 650 de production, et dix fichiers étaient dans ce cas — `typography.rs` coupé à sa
+/// ligne 47, `theme.rs` à sa ligne 362. **Un cliquet qui se trompe dans ce sens efface une
+/// dette au lieu de la montrer.**
+///
+/// L'item qui suit l'attribut se termine au premier `;` s'il n'ouvre pas d'accolade avant,
+/// et à l'accolade fermante équilibrée sinon — la règle que [`fonctions`] applique déjà.
+fn sans_les_tests(texte: &str) -> String {
+    let lignes: Vec<&str> = texte.lines().collect();
+    let mut out = String::with_capacity(texte.len());
+    let mut i = 0;
+    while i < lignes.len() {
+        if lignes[i].trim() != "#[cfg(test)]" {
+            out.push_str(lignes[i]);
+            out.push('\n');
+            i += 1;
+            continue;
+        }
+        // L'item retiré commence à la ligne suivante, et finit là où sa syntaxe le dit.
+        let mut profondeur = 0i32;
+        let mut ouverte = false;
+        let mut j = i + 1;
+        while j < lignes.len() {
+            let propre = nue(lignes[j]);
+            if !ouverte && propre.contains(';') && !propre.contains('{') {
+                break;
+            }
+            for c in propre.chars() {
+                match c {
+                    '{' => {
+                        profondeur += 1;
+                        ouverte = true;
+                    }
+                    '}' => profondeur -= 1,
+                    _ => {}
+                }
+            }
+            if ouverte && profondeur <= 0 {
+                break;
+            }
+            j += 1;
+        }
+        i = j + 1;
+    }
+    out
+}
+
+/// **Le lecteur de production ne s'arrête pas au premier `#[cfg(test)]`.** Il décide de
+/// tous les cliquets qui lisent la production ; s'il se trompe, ce sont eux qui mentent.
+#[test]
+fn test_le_lecteur_de_production_retire_chaque_item_de_test_et_rien_d_autre() {
+    let texte = "\
+fn avant() {
+    let s = \"{\";
+}
+
+#[cfg(test)]
+use std::collections::HashMap;
+
+#[cfg(test)]
+pub fn pour_les_tests(&self) -> u32 {
+    if vrai {
+        1
+    } else {
+        2
+    }
+}
+
+fn apres() {
+    x();
+}
+
+#[cfg(test)]
+mod tests {
+    fn cache() {}
+}
+";
+    let production = sans_les_tests(texte);
+    let noms: Vec<String> = fonctions(&production).into_iter().map(|(n, _)| n).collect();
+    assert_eq!(
+        noms,
+        vec!["avant".to_string(), "apres".to_string()],
+        "la production est ce qui n'est pas sous un #[cfg(test)], et tout cela : {production}"
+    );
+    assert!(
+        !production.contains("HashMap"),
+        "un `use` de test est retiré"
+    );
+    assert!(
+        !production.contains("cache"),
+        "le module de tests est retiré"
+    );
 }
 
 fn racine_du_workspace() -> PathBuf {
@@ -216,7 +314,25 @@ const CHAMPS: &[&str] = &[".annotations", ".images", ".folders", ".boards"];
 ///
 /// Il valait 66 quand il comptait aussi les tests en ligne des fichiers de production ; il n'en
 /// compte plus que le code, et trente accès directs vivaient dans ces tests.
-const PLAFOND_COUPLAGE: usize = 36;
+///
+/// # Pourquoi il est passé de 36 à 51 sans qu'un seul accès ait été ajouté
+///
+/// Le lecteur de production coupait un fichier au **premier** `#[cfg(test)]`, en supposant que
+/// c'était le `mod tests` de la fin. Dix fichiers en avaient un plus haut — une fonction de
+/// test, un `use` — et tout ce qui suivait disparaissait : `ui.rs` était lu sur 279 de ses
+/// 1 650 lignes de production, `typography.rs` sur 47 de ses 679. Ce plafond ne disait donc
+/// pas « 36 accès dans le desktop » mais « 36 accès dans ce que le lecteur savait lire ».
+///
+/// Le lecteur retire désormais l'item qui suit chaque attribut, et rien d'autre ; il se prouve
+/// par son propre test. La mesure vraie est **51**, et c'est elle que ce plafond porte : le
+/// remonter à ce qui EXISTE n'est pas relâcher la règle, c'est cesser d'effacer une dette.
+/// Un seul a été remboursé au passage — la barre d'onglets, qui lisait la collection des
+/// tableaux et passe par `Store::onglets`.
+///
+/// Le reste est nommé : la minimap lit les trois collections d'un tableau pour les dessiner,
+/// et le redimensionnement cherche un nœud par son identifiant. Les deux demandent une API de
+/// lecture que le `Store` n'a pas encore, et c'est le chantier de la règle S (fiche 12 § 3).
+const PLAFOND_COUPLAGE: usize = 51;
 
 fn compte_couplage() -> usize {
     sources(&src_desktop())
@@ -322,7 +438,18 @@ fn test_cliquet_1_le_couplage_du_desktop_au_modele_ne_grandit_pas() {
 /// Les signets de vue en ajoutent **un** pour deux gestes. Poser un signet ne se voit pas, et
 /// rappeler un signet vide ne se voit pas non plus : ce sont les deux seuls cas où il faut
 /// parler. Un vol réussi, lui, se regarde — donc il se tait.
-const PLAFOND_TOASTS: usize = 46;
+///
+/// # Pourquoi il est passé de 46 à 48 sans qu'un seul toast ait été ajouté
+///
+/// Même cause que [`PLAFOND_COUPLAGE`] : le lecteur coupait `ui.rs` à sa ligne 279, et les
+/// deux sites de `handle_ui_click` n'étaient pas comptés. Ils existaient depuis toujours.
+///
+/// Et l'un des deux est exactement ce que ce cliquet défend : `NOT_YET_COLLAB` annonce une
+/// fonctionnalité qui n'existe pas, ce que la fiche 05 § 5.4 interdit — un bouton dont
+/// l'action n'existe pas est **absent ou grisé**, jamais un message qui simule. Le retirer
+/// change ce que l'utilisateur voit, donc cela lui revient ; la dette est nommée ici en
+/// attendant, et ce plafond descendra d'un cran ce jour-là.
+const PLAFOND_TOASTS: usize = 48;
 
 fn compte_toasts() -> usize {
     sources(&src_desktop())

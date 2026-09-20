@@ -122,16 +122,27 @@ const PIRES: usize = 32;
 /// se lit comme une mesure, le défaut même du cliquet 9. Le rendu en comptait trente quand
 /// la borne en admettait vingt-quatre ; un cliquet compte désormais les marques du code et
 /// refuse qu'elles dépassent.
-pub const POSTES: usize = 32;
+pub const POSTES: usize = 40;
 
 /// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 struct Poste {
     /// La distribution des durées de ses images, en microsecondes.
     durees: Histogramme,
     /// La somme des durées de chaque poste de rendu, pour savoir **où** va le temps de ce
     /// geste — un geste lent ne l'est pas pour la même raison qu'un autre.
     postes_us: [u64; POSTES],
+}
+
+impl Default for Poste {
+    // À la main : `Default` ne se dérive que jusqu'à trente-deux éléments, et la borne des
+    // postes n'a pas à dépendre d'une limite de la bibliothèque standard.
+    fn default() -> Self {
+        Self {
+            durees: Histogramme::nouveau(),
+            postes_us: [0; POSTES],
+        }
+    }
 }
 
 /// Tout ce que la session a observé.
