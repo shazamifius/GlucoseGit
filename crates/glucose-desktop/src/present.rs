@@ -133,6 +133,14 @@ pub trait Presenter {
     fn rythme(&self) -> &'static str {
         "presentation par le systeme"
     }
+
+    /// Combien d'images la chaîne garde en vol, quand elle en a une.
+    ///
+    /// Zéro veut dire « pas de chaîne » : la voie système remet son tampon au gestionnaire
+    /// de fenêtres, qui n'en garde aucune.
+    fn images_en_vol(&self) -> u32 {
+        0
+    }
 }
 
 /// Un pixel de `tiny-skia` dans le format que la fenêtre attend.

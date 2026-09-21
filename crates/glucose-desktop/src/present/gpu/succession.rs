@@ -47,6 +47,40 @@ pub(super) fn cadence_demandee() -> Option<wgpu::PresentMode> {
     }
 }
 
+/// Combien d'images la chaîne garde en vol, si l'environnement le demande.
+///
+/// # Pourquoi ce réglage existe, et ce qu'il doit trancher
+///
+/// La chronique du 21/09 au soir donne `acquerir` à **19,5 ms en médiane au repos**, premier
+/// poste de la session et loin devant tout le reste. `get_current_texture` ne dessine rien :
+/// il demande à la chaîne une image libre, et s'il attend vingt millisecondes, c'est qu'il
+/// n'y en a pas.
+///
+/// Le compteur `surf` a déjà écarté la première hypothèse — aucune reconfiguration de
+/// surface sur les images lentes. Reste la **profondeur de la chaîne** : `wgpu` la déduit de
+/// `desired_maximum_frame_latency`, que `get_default_config` fixe à deux. Sur DXGI en modèle
+/// « flip », le compositeur retient une image pendant qu'il en affiche une autre, et deux ne
+/// suffisent pas toujours : l'application attend alors qu'une se libère, à chaque image.
+///
+/// Trois ou quatre images coûtent quelques mébioctets et **une** image de latence
+/// supplémentaire en théorie — contre vingt millisecondes d'attente mesurées. La comparaison
+/// tranche la question au lieu de la raisonner, comme `GLUCOSE_CARTE` l'a fait pour les gels
+/// de `present`.
+///
+/// ```text
+///     GLUCOSE_IMAGES=3    la chaîne garde trois images en vol
+/// ```
+pub(super) fn images_demandees() -> Option<u32> {
+    let brut = std::env::var("GLUCOSE_IMAGES").ok()?;
+    match brut.trim().parse::<u32>() {
+        Ok(n) if (1..=8).contains(&n) => Some(n),
+        _ => {
+            eprintln!("[Glucose] GLUCOSE_IMAGES={brut} ignore (un entier de 1 a 8)");
+            None
+        }
+    }
+}
+
 /// La carte graphique demandée par l'environnement : la plus économe par défaut.
 ///
 /// # Pourquoi ce réglage existe, et pourquoi il n'est pas l'arbitre

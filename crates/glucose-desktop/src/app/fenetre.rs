@@ -76,6 +76,14 @@ impl GlucoseApp {
             presenter.rythme(),
             self.cadence.periode().as_secs_f64() * 1000.0
         );
+        // **Ce que la chaine garde en vol**, et il n'etait ecrit nulle part. Une attente a
+        // l'acquisition -- 19,5 ms en mediane sur la session du 21/09 au soir -- ne se
+        // comprend pas sans ce nombre : si la chaine n'a pas d'image libre, la demander
+        // attend qu'il s'en libere une.
+        let en_vol = presenter.images_en_vol();
+        if en_vol > 0 {
+            println!("[Glucose] images gardees en vol par la chaine : {en_vol}");
+        }
         // Dit des le depart ou la chronique s'ecrira : la chercher apres coup dans un dossier
         // temporaire est decourageant, et une mesure qu'on ne retrouve pas ne sert a personne.
         println!(

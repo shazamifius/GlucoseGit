@@ -114,6 +114,7 @@ pub struct GpuPresenter {
 
 mod anneau;
 mod cinq_temps;
+mod ouverture;
 pub mod succession;
 
 /// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
@@ -168,7 +169,8 @@ impl GpuPresenter {
             .create_surface(window)
             .map_err(|e| echec("surface", &e))?;
 
-        let (adapter, device, queue, adaptateur) = ouvrir(&instance, &surface, width, height)?;
+        let (adapter, device, queue, adaptateur) =
+            ouverture::ouvrir(&instance, &surface, width, height)?;
 
         let config = surface
             .get_default_config(&adapter, width.get(), height.get())
@@ -180,7 +182,13 @@ impl GpuPresenter {
         let mut config = config;
         config.format = format_sans_conversion(&surface.get_capabilities(&adapter).formats)
             .unwrap_or(config.format);
-        let config = cadencer(&surface, &adapter, config, cadence);
+        let mut config = cadencer(&surface, &adapter, config, cadence);
+        // **Ce que la chaîne garde en vol.** `get_default_config` met deux ; la chronique dit
+        // que `get_current_texture` attend alors vingt millisecondes au repos, ce qui veut
+        // dire qu'aucune image n'est libre quand on la demande.
+        if let Some(n) = succession::images_demandees() {
+            config.desired_maximum_frame_latency = n;
+        }
         let (pipeline, layout, sampler) = atelier(&device, config.format);
         // La texture porte les octets tels quels quand la surface est linéaire. Si aucun
         // format non-sRGB n'était disponible, elle se déclare sRGB pour que le sampler
@@ -295,6 +303,14 @@ impl GpuPresenter {
         self.config.present_mode
     }
 
+    /// Combien d'images la chaîne garde en vol.
+    ///
+    /// Se dit au démarrage, à côté de la cadence : une attente à l'acquisition ne se
+    /// comprend pas sans ce nombre, et il n'était écrit nulle part.
+    pub fn images_en_vol(&self) -> u32 {
+        self.config.desired_maximum_frame_latency
+    }
+
     /// Téléverse l'image dans la texture, sans rien convertir.
     ///
     /// C'est la moitié du travail que la carte graphique fait à la place du processeur, et la
@@ -352,61 +368,6 @@ impl GpuPresenter {
         crate::perf::compteur("blit_mo", f64::from(w) * f64::from(h) * 4.0 / 1_048_576.0);
         crate::perf::stage("blit");
     }
-}
-
-/// Choisit un adaptateur, ouvre un périphérique, et refuse proprement ce qu'il ne peut pas.
-///
-/// Le garde-fou de taille n'est pas décoratif : demander une surface plus grande que la
-/// texture maximale de l'adaptateur **fait paniquer** la couche graphique au fond de la pile,
-/// et la première version du module le faisait dès qu'un écran dépassait le 1080p.
-fn ouvrir(
-    instance: &wgpu::Instance,
-    surface: &wgpu::Surface<'static>,
-    width: NonZeroU32,
-    height: NonZeroU32,
-) -> DesktopResult<(wgpu::Adapter, wgpu::Device, wgpu::Queue, String)> {
-    let echec = |quoi: &str, e: &dyn std::fmt::Display| {
-        DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
-    };
-    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: succession::carte_demandee(),
-        compatible_surface: Some(surface),
-        ..Default::default()
-    }))
-    .map_err(|e| echec("adaptateur", &e))?;
-    let adaptateur = adapter.get_info().name;
-
-    // Les limites de l'adaptateur, et non les limites « de base » : celles-ci plafonnent
-    // les textures à 2048 pixels, ce qui refuse d'emblée tout écran au-delà du 1080p.
-    // C'est la faute qui a fait paniquer la première version sur une fenêtre de 2160 de
-    // large — une garantie de portabilité transformée en refus de fonctionner.
-    let limites = adapter.limits();
-    let plafond = limites.max_texture_dimension_2d;
-    if width.get() > plafond || height.get() > plafond {
-        return Err(DesktopError::WindowError(format!(
-            "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de                  cet adaptateur ({plafond})",
-            width.get(),
-            height.get()
-        )));
-    }
-
-    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-        label: Some("glucose"),
-        required_features: wgpu::Features::empty(),
-        required_limits: limites,
-        memory_hints: wgpu::MemoryHints::Performance,
-        ..Default::default()
-    }))
-    .map_err(|e| echec("périphérique", &e))?;
-
-    // Sans cela, la moindre erreur de validation tue l'application par un `panic!` au
-    // fond de la pile graphique. Une erreur de pilote n'est pas un bogue de Glucose : elle
-    // se dit, et l'image suivante réessaie.
-    device.on_uncaptured_error(Arc::new(|e| {
-        eprintln!("[Glucose] la couche graphique a refusé une commande : {e}");
-    }));
-
-    Ok((adapter, device, queue, adaptateur))
 }
 
 /// montage, pas de la présentation, et le garder dans l'ouverture y mélangeait deux sujets.
@@ -591,6 +552,10 @@ impl Presenter for GpuPresenter {
 
     fn nom(&self) -> &'static str {
         "carte graphique"
+    }
+
+    fn images_en_vol(&self) -> u32 {
+        self.config.desired_maximum_frame_latency
     }
 
     fn rythme(&self) -> &'static str {
