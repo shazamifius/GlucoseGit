@@ -47,6 +47,44 @@ pub(super) fn cadence_demandee() -> Option<wgpu::PresentMode> {
     }
 }
 
+/// La carte graphique demandée par l'environnement : la plus économe par défaut.
+///
+/// # Pourquoi ce réglage existe, et pourquoi il n'est pas l'arbitre
+///
+/// Sur la session de terrain du 21/09, `present` a gelé huit fois entre 150 et 360 ms,
+/// pendant l'édition de texte et le zoom, sur un canevas de 482 nœuds sans une photo. Rien
+/// dans le code de Glucose ne s'exécute pendant `queue.present` : c'est le pilote ou le
+/// compositeur qui bloque, et la fiche 18 (étape 5) le nomme « jamais élucidé » depuis trois
+/// sessions.
+///
+/// La machine porte deux cartes — un Intel Arc intégré, que `LowPower` retient, et une RTX
+/// dédiée. Sur un portable hybride, l'écran externe est souvent câblé sur la dédiée : chaque
+/// image rendue sur l'intégrée traverse alors le bus pour être composée, et c'est un chemin
+/// connu pour geler. **L'hypothèse se teste en une session**, pas en raisonnant :
+///
+/// ```text
+///     GLUCOSE_CARTE=rapide    la carte la plus puissante
+///     GLUCOSE_CARTE=econome   la plus économe (le défaut)
+/// ```
+///
+/// Ce n'est pas l'arbitre de la fiche 21, qui choisira par le **débit observé** et sans
+/// variable. C'est l'instrument qui dira s'il y a quelque chose à arbitrer.
+pub(super) fn carte_demandee() -> wgpu::PowerPreference {
+    match std::env::var("GLUCOSE_CARTE")
+        .ok()
+        .as_deref()
+        .map(|v| v.trim().to_lowercase())
+        .as_deref()
+    {
+        Some("rapide") => wgpu::PowerPreference::HighPerformance,
+        Some("econome") | None => wgpu::PowerPreference::LowPower,
+        Some(autre) => {
+            eprintln!("[Glucose] GLUCOSE_CARTE={autre} inconnu (rapide, econome)");
+            wgpu::PowerPreference::LowPower
+        }
+    }
+}
+
 /// L'ordre dans lequel on veut que les images se succèdent, le meilleur d'abord.
 ///
 /// # Le défaut que cette liste répare, et il courait depuis le premier jour

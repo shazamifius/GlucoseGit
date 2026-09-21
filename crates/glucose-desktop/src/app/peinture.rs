@@ -35,6 +35,12 @@ use glucose_core::store::Store;
 use tiny_skia::Pixmap;
 
 impl GlucoseApp {
+    /// **La carte pose-t-elle les photos ?** -- la question dont dependent trois decisions de
+    /// cette boucle, et qui merite un nom plutot que trois copies du meme predicat.
+    pub(super) fn la_carte_pose_les_photos(&self) -> bool {
+        self.presenter.as_ref().is_some_and(|p| p.pose_les_photos())
+    }
+
     /// La region d'ecran a repeindre, ou `None` quand il faut tout refaire.
     ///
     /// Quatre raisons de tout refaire, et chacune est une impossibilite, pas une prudence :
@@ -69,7 +75,7 @@ impl GlucoseApp {
         sale.region(&vp, fenetre, debord_des_passes(vp.scale))
             .filter(|r| !r.touche_le_haut(header_h))
             .filter(|_| !self.resolution.reduite())
-            .filter(|_| !self.presenter.as_ref().is_some_and(|p| p.pose_les_photos()))
+            .filter(|_| !self.la_carte_pose_les_photos())
     }
 
     /// Attend l'instant que le tempo fixe pour cette image, en faisant avancer le travail de
@@ -240,24 +246,21 @@ impl GlucoseApp {
         };
         let pointer = self.pointeur();
         match self.region_a_repeindre(sale, vp, fenetre, header_h) {
-            Some(r) => {
-                if !r.est_vide() {
-                    repeindre_la_region(
-                        &mut pixmap,
-                        r,
-                        &mut self.renderer,
-                        &self.store,
-                        &self.ui,
-                        overlay,
-                        regard,
-                    );
-                }
-                crate::perf::compteur("img_region", r.aire() as f64);
-            }
+            Some(r) => repeindre_la_region(
+                &mut pixmap,
+                r,
+                &mut self.renderer,
+                (&self.store, &self.ui),
+                overlay,
+                regard,
+            ),
             None => {
                 crate::perf::compteur("img_region", f64::from(fenetre.0) * f64::from(fenetre.1));
                 let echelle = self.ui.scale_factor;
                 let facteur = self.resolution.facteur();
+                // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a
+                // travers des champs, jamais a travers une methode.
+                let par_la_carte = self.la_carte_pose_les_photos();
                 let scene = reduit
                     .as_mut()
                     .filter(|_| self.resolution.reduite())
@@ -273,7 +276,6 @@ impl GlucoseApp {
                 //
                 // On ne reduit alors PAS : la carte filtre en bilineaire sans rien payer,
                 // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
-                let par_la_carte = self.presenter.as_ref().is_some_and(|p| p.pose_les_photos());
                 if par_la_carte {
                     let (tampon, confie) = peindre_par_la_carte(
                         (&mut pixmap, self.tampon_dessus.take()),
@@ -339,11 +341,16 @@ fn repeindre_la_region(
     pixmap: &mut Pixmap,
     region: crate::salissure::Region,
     renderer: &mut Renderer,
-    store: &Store,
-    ui: &UiState,
+    (store, ui): (&Store, &UiState),
     overlay: SceneOverlay<'_>,
     regard: crate::renderer::Regard,
 ) {
+    // La region se mesure ici, vide ou non : c'est elle qui dit a la chronique combien
+    // l'image a evite de repeindre.
+    crate::perf::compteur("img_region", region.aire() as f64);
+    if region.est_vide() {
+        return;
+    }
     let Some(mut morceau) = Pixmap::new(region.largeur, region.hauteur) else {
         return;
     };

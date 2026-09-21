@@ -107,7 +107,20 @@ impl GlucoseApp {
                 std::time::Duration::from_micros(us.max(0.0) as u64)
             });
         let ecoule = debut.elapsed().saturating_sub(attente);
-        self.accorder_la_finesse(ecoule);
+        // **La resolution ne s'observe que sur la voie qu'elle commande.** Sur la voie
+        // graphique, la scene ne se reduit jamais -- la carte filtre sans rien payer, donc
+        // abimer l'image n'achete rien. Laisser le modele observer quand meme faisait trois
+        // choses fausses a la fois : il lisait des images qui portent les gels du pilote
+        // (`present` a 300 ms) et concluait qu'il fallait reduire ; il faisait allouer un
+        // tampon reduit que personne ne lisait, et ce tampon neuf forcait un rendu complet ;
+        // et la chronique annoncait « 26 % des images se rendent plus petites » sur une voie
+        // qui n'en rend aucune. Un mecanisme qui s'adapte a un cout qu'il ne commande plus
+        // est la forme exacte du cercle vicieux, et la chronique en avait deja quatre.
+        if self.la_carte_pose_les_photos() {
+            self.resolution = crate::resolution::Resolution::nette();
+        } else {
+            self.accorder_la_finesse(ecoule);
+        }
         crate::perf::compteur("img_reduction", f64::from(self.resolution.facteur()));
         crate::perf::frame_end();
         // La chronique lit les postes APRES `frame_end` : celui-ci ne les efface pas, il se
@@ -257,5 +270,97 @@ impl GlucoseApp {
             ),
             Err(e) => eprintln!("[Glucose] chronique non ecrite : {e}"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::present::Presenter;
+    use crate::resolution::{Mesure, Resolution};
+    use std::time::Duration;
+
+    /// Une presentation qui ne presente rien, mais qui DIT poser les photos : c'est la seule
+    /// chose que cette decision lit.
+    struct Carte;
+
+    impl Presenter for Carte {
+        fn resize(
+            &mut self,
+            _: std::num::NonZeroU32,
+            _: std::num::NonZeroU32,
+        ) -> crate::error::DesktopResult<()> {
+            Ok(())
+        }
+        fn present(&mut self, _: &tiny_skia::Pixmap) -> crate::error::DesktopResult<()> {
+            Ok(())
+        }
+        fn pose_les_photos(&self) -> bool {
+            true
+        }
+        fn nom(&self) -> &'static str {
+            "carte factice"
+        }
+        fn rythme(&self) -> &'static str {
+            "aucun"
+        }
+    }
+
+    /// Une resolution deja reduite, comme le modele la laisse apres un pic.
+    fn reduite() -> Resolution {
+        let mut r = Resolution::nette();
+        // Une scene de 30 ms pour un budget de 8 : la loi demande la racine de leur
+        // rapport, soit le palier 4 -- en mouvement, et avec un oeil qui tolere jusqu'a 4.
+        r.observer(
+            Mesure {
+                image: Duration::from_millis(32),
+                scene: Duration::from_millis(30),
+            },
+            Duration::from_millis(8),
+            true,
+            4,
+        );
+        assert!(
+            r.reduite(),
+            "le montage doit partir d'une resolution reduite"
+        );
+        r
+    }
+
+    /// **Sur la voie graphique, la resolution reste nette quoi que l'image ait coute.**
+    ///
+    /// # Le cercle que ce test ferme
+    ///
+    /// Le modele de resolution observait toutes les images, y compris celles de la voie
+    /// graphique -- qui ne reduit jamais. Il y lisait les gels du pilote (`present` a
+    /// 300 ms), concluait qu'il fallait reduire, faisait allouer un tampon que personne ne
+    /// lisait, et ce tampon neuf forcait un rendu complet. La chronique annoncait alors
+    /// « 26 % des images se rendent plus petites » sur une voie qui n'en rend aucune.
+    ///
+    /// Le contraste avec la voie processeur est la preuve : le meme montage, la meme image
+    /// lente, et la resolution y reste reduite -- parce que la, elle commande vraiment.
+    #[test]
+    fn test_la_resolution_ne_s_observe_que_sur_la_voie_qu_elle_commande() {
+        let lente = std::time::Instant::now() - Duration::from_millis(300);
+
+        let mut par_la_carte = GlucoseApp::new();
+        par_la_carte.presenter = Some(Box::new(Carte));
+        par_la_carte.resolution = reduite();
+        par_la_carte.clore_l_image(lente, (800, 600));
+        assert_eq!(
+            par_la_carte.resolution.facteur(),
+            1,
+            "la carte pose les photos : rien ne se reduit, quoi que l'image ait coute"
+        );
+
+        let mut par_le_processeur = GlucoseApp::new();
+        par_le_processeur.presenter = None;
+        par_le_processeur.resolution = reduite();
+        par_le_processeur.clore_l_image(lente, (800, 600));
+        assert!(
+            par_le_processeur.resolution.reduite(),
+            "sur la voie processeur, la meme image lente laisse la resolution reduite : la \
+             decision distingue bien les deux voies"
+        );
     }
 }

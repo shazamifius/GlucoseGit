@@ -329,7 +329,7 @@ fn ouvrir(
         DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
     };
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::LowPower,
+        power_preference: succession::carte_demandee(),
         compatible_surface: Some(surface),
         ..Default::default()
     }))
