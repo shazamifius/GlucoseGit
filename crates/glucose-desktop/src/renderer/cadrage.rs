@@ -48,6 +48,45 @@ impl Regard {
     }
 }
 
+/// Quelle part de la scene ce rendu produit.
+///
+/// # Pourquoi la scene se coupe en deux, et exactement la
+///
+/// La voie graphique pose les photos elle-meme ([`crate::present::scene_gpu`]). Le processeur
+/// doit alors produire ce qui les entoure -- mais pas d'un seul tenant : **une partie passe
+/// dessous et une partie dessus**, et les melanger mettrait une membrane par-dessus la photo
+/// qu'elle contient.
+///
+/// La frontiere n'est pas choisie : c'est l'ordre de `rendre_la_region`, qui suit celui de
+/// Glucose Tauri. Sous les photos viennent le fond, les lueurs, les membranes et les
+/// dossiers -- tous des CONTENANTS. Dessus viennent les annotations et les reperes du geste.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Couche {
+    /// Tout, d'un seul tenant : la voie processeur, qui pose aussi les photos.
+    Tout,
+    /// Ce qui passe **sous** les photos : le fond, les lueurs, les membranes, les dossiers.
+    Dessous,
+    /// Ce qui passe **sur** les photos : les annotations et les reperes du geste.
+    Dessus,
+}
+
+impl Couche {
+    /// Cette couche porte-t-elle ce qui se dessine avant les photos ?
+    pub fn porte_le_dessous(self) -> bool {
+        matches!(self, Self::Tout | Self::Dessous)
+    }
+
+    /// Cette couche porte-t-elle ce qui se dessine apres les photos ?
+    pub fn porte_le_dessus(self) -> bool {
+        matches!(self, Self::Tout | Self::Dessus)
+    }
+
+    /// Le processeur pose-t-il lui-meme les photos ?
+    pub fn porte_les_photos(self) -> bool {
+        matches!(self, Self::Tout)
+    }
+}
+
 /// Ou et a quelle finesse la scene se rend dans le pixmap qu'on lui donne.
 ///
 /// Les deux vont ensemble parce qu'ils disent la meme chose -- comment passer du repere de la
@@ -77,6 +116,8 @@ pub struct Cadrage {
     pub degradation_permise: bool,
     /// La vue bouge-t-elle encore ? (voir [`Regard::en_mouvement`])
     pub en_mouvement: bool,
+    /// Quelle part de la scene ce rendu produit (voir [`Couche`]).
+    pub couche: Couche,
 }
 
 impl Cadrage {
@@ -88,6 +129,7 @@ impl Cadrage {
             vue: None,
             degradation_permise: false,
             en_mouvement: false,
+            couche: Couche::Tout,
         }
     }
 
@@ -101,6 +143,7 @@ impl Cadrage {
             // plafond de la perception qui a decide du facteur (`resolution::observer`).
             degradation_permise: true,
             en_mouvement: true,
+            couche: Couche::Tout,
         }
     }
 
@@ -112,6 +155,7 @@ impl Cadrage {
             vue: None,
             degradation_permise: false,
             en_mouvement: false,
+            couche: Couche::Tout,
         }
     }
 
@@ -132,6 +176,7 @@ impl Cadrage {
             }),
             degradation_permise: false,
             en_mouvement: false,
+            couche: Couche::Tout,
         }
     }
 

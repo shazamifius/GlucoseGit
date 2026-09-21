@@ -172,7 +172,7 @@ impl Default for Renderer {
     }
 }
 
-pub use cadrage::{Cadrage, Regard, SceneReduite};
+pub use cadrage::{Cadrage, Couche, Regard, SceneReduite};
 
 impl Renderer {
     pub fn new() -> Self {
@@ -429,58 +429,52 @@ impl Renderer {
             theme: &self.theme,
         };
 
-        grille::poser_le_fond(
-            grille::Fond {
-                couverture: &mut self.couverture,
-                tuiles: &self.tuiles,
-                theme: &self.theme,
-            },
-            pixmap,
-            store,
-            pass,
-            cadrage,
-            header_h,
-        );
-
-        // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
-        halo::draw_halos(&mut self.hue_cache, pixmap, store, pass);
-        crate::perf::stage("halos");
-
-        // 4. Membranes (pointillés, titre protecteur en haut à gauche)
-        scene::draw_membranes(kit, pixmap, store, pass);
-        crate::perf::stage("membranes");
-
-        // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
-        // conteneurs et sous leur contenu. Ils n'avaient aucun pixel jusqu'ici.
-        folder::draw_folders(kit, pixmap, store, pass);
-        crate::perf::stage("folders");
+        if cadrage.couche.porte_le_dessous() {
+            dessiner_sous_les_photos(
+                grille::Fond {
+                    couverture: &mut self.couverture,
+                    tuiles: &self.tuiles,
+                    theme: &self.theme,
+                },
+                &mut self.hue_cache,
+                pixmap,
+                (store, pass, kit),
+                cadrage,
+                header_h,
+            );
+        }
 
         // 5. Images -- par la grille de tuiles quand la vue le permet, en direct sinon. Le
         // moteur se prete en pieces : le compilateur autorise des emprunts disjoints sur des
         // champs distincts, jamais a travers `&mut self`.
-        let mut atelier = grille::Atelier {
-            store,
-            magasin: &mut self.magasin,
-            cout: &mut self.cout,
-            tuiles: &mut self.tuiles,
-            index: &self.spatial_hash,
-            kit,
-        };
-        grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage, &self.couverture);
-        crate::perf::stage("images");
+        if cadrage.couche.porte_les_photos() {
+            let mut atelier = grille::Atelier {
+                store,
+                magasin: &mut self.magasin,
+                cout: &mut self.cout,
+                tuiles: &mut self.tuiles,
+                index: &self.spatial_hash,
+                kit,
+            };
+            grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage, &self.couverture);
+            crate::perf::stage("images");
+        }
 
-        // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition live in-place)
-        pass::draw_annotations(
-            &mut self.hue_cache,
-            kit,
-            pixmap,
-            store,
-            overlay.editing,
-            pass,
-        );
-        crate::perf::stage("annotations");
+        // **Ce qui passe SUR les photos.**
+        if cadrage.couche.porte_le_dessus() {
+            // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition in-place)
+            pass::draw_annotations(
+                &mut self.hue_cache,
+                kit,
+                pixmap,
+                store,
+                overlay.editing,
+                pass,
+            );
+            crate::perf::stage("annotations");
 
-        self.dessiner_les_reperes_du_geste(pixmap, ui, overlay, vp, (width, height), header_h);
+            self.dessiner_les_reperes_du_geste(pixmap, ui, overlay, vp, (width, height), header_h);
+        }
     }
 
     /// Les repères du geste en cours : les guides d'alignement et la boîte de sélection.
@@ -552,6 +546,38 @@ fn agrandir(plein: &mut PixmapMut, scene: &tiny_skia::Pixmap, f: u32) {
         glucose_core::report::Melange::Remplacer,
         glucose_core::report::Filtre::PlusProche,
     );
+}
+
+/// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
+///
+/// Tous des CONTENANTS, et c'est ce qui fait la frontière : quand la voie graphique pose
+/// les photos, cette part se rend à part et lui sert de fond (voir [`Couche`]). Les
+/// mélanger mettrait une membrane par-dessus la photo qu'elle contient.
+/// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
+///
+/// Une fonction libre et non une methode : `pass` tient deja `&self.spatial_hash`, donc un
+/// `&mut self` par-dessus ne compilerait pas. Le moteur se prete en pieces, comme pour
+/// l'atelier -- le compilateur autorise des emprunts disjoints sur des champs distincts,
+/// jamais a travers `&mut self`.
+fn dessiner_sous_les_photos(
+    fond: grille::Fond<'_>,
+    hue_cache: &mut SymbioticHueCache,
+    pixmap: &mut PixmapMut,
+    (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
+    cadrage: Cadrage,
+    header_h: f32,
+) {
+    grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
+    // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
+    halo::draw_halos(hue_cache, pixmap, store, pass);
+    crate::perf::stage("halos");
+    // 4. Membranes (pointillés, titre protecteur en haut à gauche)
+    scene::draw_membranes(kit, pixmap, store, pass);
+    crate::perf::stage("membranes");
+    // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
+    // conteneurs et sous leur contenu.
+    folder::draw_folders(kit, pixmap, store, pass);
+    crate::perf::stage("folders");
 }
 
 #[cfg(test)]
