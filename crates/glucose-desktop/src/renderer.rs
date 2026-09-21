@@ -477,6 +477,24 @@ impl Renderer {
         }
     }
 
+    /// **Les photos que l'écran montre, et où chacune se pose** — pour la voie graphique.
+    ///
+    /// Le cadrage vit ici, parce qu'il touche l'index spatial du moteur ; la traduction en
+    /// poses vit dans [`voies`], parce qu'elle ne dépend que du modèle et de la vue.
+    pub fn photos_a_poser(
+        &mut self,
+        store: &Store,
+        taille: (u32, u32),
+        header_h: f32,
+        cadrage: Cadrage,
+    ) -> Vec<crate::present::scene_gpu::Pose> {
+        let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
+        voies::poses_des_photos(&vp, &rangs, store)
+            .into_iter()
+            .map(|(_, pose)| pose)
+            .collect()
+    }
+
     /// Les repères du geste en cours : les guides d'alignement et la boîte de sélection.
     ///
     /// Ils appartiennent à la scène parce qu'ils suivent la vue, mais pas au contenu : ils
@@ -548,37 +566,9 @@ fn agrandir(plein: &mut PixmapMut, scene: &tiny_skia::Pixmap, f: u32) {
     );
 }
 
-/// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
-///
-/// Tous des CONTENANTS, et c'est ce qui fait la frontière : quand la voie graphique pose
-/// les photos, cette part se rend à part et lui sert de fond (voir [`Couche`]). Les
-/// mélanger mettrait une membrane par-dessus la photo qu'elle contient.
-/// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
-///
-/// Une fonction libre et non une methode : `pass` tient deja `&self.spatial_hash`, donc un
-/// `&mut self` par-dessus ne compilerait pas. Le moteur se prete en pieces, comme pour
-/// l'atelier -- le compilateur autorise des emprunts disjoints sur des champs distincts,
-/// jamais a travers `&mut self`.
-fn dessiner_sous_les_photos(
-    fond: grille::Fond<'_>,
-    hue_cache: &mut SymbioticHueCache,
-    pixmap: &mut PixmapMut,
-    (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
-    cadrage: Cadrage,
-    header_h: f32,
-) {
-    grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
-    // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
-    halo::draw_halos(hue_cache, pixmap, store, pass);
-    crate::perf::stage("halos");
-    // 4. Membranes (pointillés, titre protecteur en haut à gauche)
-    scene::draw_membranes(kit, pixmap, store, pass);
-    crate::perf::stage("membranes");
-    // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
-    // conteneurs et sous leur contenu.
-    folder::draw_folders(kit, pixmap, store, pass);
-    crate::perf::stage("folders");
-}
+mod voies;
+
+use voies::dessiner_sous_les_photos;
 
 #[cfg(test)]
 mod tests {

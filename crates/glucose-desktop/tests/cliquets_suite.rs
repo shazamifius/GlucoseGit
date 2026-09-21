@@ -332,7 +332,7 @@ const CHAMPS: &[&str] = &[".annotations", ".images", ".folders", ".boards"];
 /// Le reste est nommé : la minimap lit les trois collections d'un tableau pour les dessiner,
 /// et le redimensionnement cherche un nœud par son identifiant. Les deux demandent une API de
 /// lecture que le `Store` n'a pas encore, et c'est le chantier de la règle S (fiche 12 § 3).
-const PLAFOND_COUPLAGE: usize = 51;
+const PLAFOND_COUPLAGE: usize = 43;
 
 fn compte_couplage() -> usize {
     sources(&src_desktop())
@@ -359,11 +359,14 @@ fn touche_le_champ(ligne: &str, champ: &str) -> bool {
     let mut reste = ligne;
     while let Some(i) = reste.find(champ) {
         let apres = &reste[i + champ.len()..];
-        let suite_est_un_identifiant = apres
-            .chars()
-            .next()
-            .is_some_and(|c| c.is_alphanumeric() || c == '_');
-        if !suite_est_un_identifiant {
+        let suivant = apres.chars().next();
+        let suite_est_un_identifiant = suivant.is_some_and(|c| c.is_alphanumeric() || c == '_');
+        // **Un appel de methode n'est pas un acces a un champ**, et c'est tout l'inverse :
+        // `Visibles::images()` est precisement l'API par laquelle on CESSE de lire la
+        // collection en direct. La compter faisait monter le plafond a chaque fois qu'on
+        // passait un site a l'API -- le cliquet punissait ce qu'il existe pour encourager.
+        let suite_est_un_appel = suivant == Some('(');
+        if !suite_est_un_identifiant && !suite_est_un_appel {
             return true;
         }
         reste = apres;
@@ -390,6 +393,9 @@ fn test_le_lecteur_d_acces_au_modele_ne_confond_pas_un_champ_et_une_methode() {
         "self.images_mo = 0;",
         "compteur(\"img_n\", self.boards_count as f64)",
         "vu.annotations_us = 0;",
+        // Les APPELS : l'API meme par laquelle on cesse de lire le modele en direct.
+        "for img in Visibles::nouvelles(&rangs, board).images() {",
+        "let n = store.annotations().len();",
     ] {
         assert!(
             !CHAMPS.iter().any(|c| touche_le_champ(faux, c)),

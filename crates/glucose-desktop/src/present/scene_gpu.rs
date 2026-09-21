@@ -55,7 +55,7 @@ const NUANCEUR: &str = r#"
 struct Pose {
     // x, y, largeur, hauteur, en pixels d'ecran.
     boite: vec4<f32>,
-    // L'opacite, et trois reserves : un element de tableau s'aligne sur seize octets.
+    // L'opacite, l'angle en radians, et deux reserves : un element s'aligne sur seize octets.
     reglage: vec4<f32>,
 };
 
@@ -80,10 +80,18 @@ fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Sortie 
     );
     let c = coins[v];
     let p = poses[i];
-    let px = (p.boite.x + c.x * p.boite.z) / ecran.taille.x * 2.0 - 1.0;
-    let py = 1.0 - (p.boite.y + c.y * p.boite.w) / ecran.taille.y * 2.0;
+    // La rotation se fait autour du CENTRE de la photo, comme le modele la definit.
+    let demi = vec2<f32>(p.boite.z, p.boite.w) * 0.5;
+    let centre = vec2<f32>(p.boite.x, p.boite.y) + demi;
+    let ecart = (c - vec2<f32>(0.5, 0.5)) * vec2<f32>(p.boite.z, p.boite.w);
+    let a = p.reglage.y;
+    let tourne = vec2<f32>(
+        ecart.x * cos(a) - ecart.y * sin(a),
+        ecart.x * sin(a) + ecart.y * cos(a),
+    );
+    let e = centre + tourne;
     var s: Sortie;
-    s.position = vec4<f32>(px, py, 0.0, 1.0);
+    s.position = vec4<f32>(e.x / ecran.taille.x * 2.0 - 1.0, 1.0 - e.y / ecran.taille.y * 2.0, 0.0, 1.0);
     s.uv = c;
     s.opacite = p.reglage.x;
     return s;
@@ -106,6 +114,8 @@ pub struct Pose {
     pub largeur: f32,
     pub hauteur: f32,
     pub opacite: f32,
+    /// L'angle, en radians, autour du **centre** de la photo.
+    pub angle: f32,
 }
 
 /// Ce qu'une pose occupe dans le tampon : deux `vec4`, l'alignement d'un élément de tableau.
@@ -119,7 +129,7 @@ impl Pose {
             self.largeur,
             self.hauteur,
             self.opacite,
-            0.0,
+            self.angle,
             0.0,
             0.0,
         ] {

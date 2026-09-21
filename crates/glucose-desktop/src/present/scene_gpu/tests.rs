@@ -149,6 +149,7 @@ fn test_une_photo_se_pose_ou_on_le_dit() {
             largeur: 32.0,
             hauteur: 16.0,
             opacite: 1.0,
+            angle: 0.0,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -183,6 +184,7 @@ fn test_l_opacite_compose_en_premultiplie() {
             largeur: 64.0,
             hauteur: 64.0,
             opacite: 0.5,
+            angle: 0.0,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -222,10 +224,51 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
         largeur: 4.0,
         hauteur: 4.0,
         opacite: 1.0,
+        angle: 0.0,
     };
     scene.preparer(&peripherique, &file, (8.0, 8.0), &[("a".to_string(), pose)]);
     scene.fermer();
 
     assert!(scene.connait("a"), "ce qui a servi reste");
     assert!(!scene.connait("b"), "ce qui n'a pas servi est oublie");
+}
+
+/// **Un quart de tour transpose la photo autour de son centre.**
+///
+/// Sans ce test, l'angle pourrait tourner autour du COIN -- l'erreur la plus courante -- et
+/// rien ne le dirait : une photo carree non tournee passe les deux epreuves precedentes.
+///
+/// La photo choisie est large et plate, et les deux pixels lus sont dehors dans un cas et
+/// dedans dans l'autre : ils ne peuvent pas etre justes tous les deux par accident.
+#[test]
+fn test_un_quart_de_tour_tourne_autour_du_centre() {
+    let cote = 64;
+    let sources = vec![("vert", photo(8, [0, 180, 0, 255]))];
+    // Sans rotation : x de 16 a 48, y de 28 a 36. Centre en (32, 32).
+    let poses = vec![(
+        "vert".to_string(),
+        Pose {
+            x: 16.0,
+            y: 28.0,
+            largeur: 32.0,
+            hauteur: 8.0,
+            opacite: 1.0,
+            angle: std::f32::consts::FRAC_PI_2,
+        },
+    )];
+    let Some(octets) = rendre(cote, &poses, &sources) else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    // Tournee d'un quart de tour autour du centre : x de 28 a 36, y de 16 a 48.
+    assert_eq!(
+        pixel(&octets, cote, 32, 20),
+        [0, 180, 0, 255],
+        "dedans une fois tournee, dehors sans rotation"
+    );
+    assert_eq!(
+        pixel(&octets, cote, 20, 32),
+        [0, 0, 0, 0],
+        "dehors une fois tournee, dedans sans rotation"
+    );
 }
