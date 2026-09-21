@@ -7,7 +7,7 @@
 > tranché, ce qu'un banc neuf a chiffré pour la première fois, et surtout **les trois
 > corrections que j'ai écrites et que la mesure a refusées l'une après l'autre**.
 >
-> **Date** : 2026-09-21, soirée · sept commits, de `ad65716` à `cd4b6a4`.
+> **Date** : 2026-09-21, soirée · treize commits, de `ad65716` à `e4b6711`.
 > **État vérifié** : `cargo test --workspace` exit 0, **1 355 tests verts**, clippy strict à
 > zéro, onze cliquets, aucun plafond relevé. Une **seconde session de terrain** a suivi les
 > quatre premiers commits, et le § 9 dit ce qu'elle a mesuré.
@@ -292,3 +292,81 @@ qui **se jugent à la main**, et le code le dit.
 rôles sans rapport — la vitesse de rattrapage, et le silence au-delà duquel on déclare la main
 partie. Les baisser ensemble a fait conclure au lâcher entre deux événements d'une source
 lente : **le pilote décidait de la fin d'un geste.** `SILENCE_MINIMAL` les sépare.
+
+
+---
+
+## 10. Trois sessions de terrain de plus, et ce qu'elles ont désigné
+
+| | début de session | après le § 9 | après le tempo |
+|---|---:|---:|---:|
+| tempo | 8 balayages (68 %) | 5 (35 %), 4 (28 %) | **4 (45 %), 5 (32 %)** |
+| latence p99 | 65,5 ms | 39,0 ms | **27,6 ms** |
+| images par seconde | 26 | 43 | **51** |
+| `blit` p99 | 32,77 ms | 2,05 ms | **2,44 ms** |
+
+Verdict de l'utilisateur : *« au niveau ressenti c'est vraiment vraiment pas mal »*, puis
+*« c'est parfait »*, et sur le pari de la cascade : *« non les cartes n'apparaissent pas par
+vagues pendant les dézooms, tout est PARFAITEMENT fluide »*.
+
+### 10.1 Les compteurs ont répondu, et pas ce qu'on attendait
+
+Les colonnes `text` et `report` ajoutées à la chronique donnent, sur les images lentes :
+
+```
+    57.6s  25.41ms  repos    text=1  report=0    dont textures 19.09ms
+     4.7s  34.97ms  zoomer   text=19 report=463  dont textures 27.95ms
+```
+
+**Une seule texture qui coûte dix-neuf millisecondes.** Une carte de texte ordinaire en coûte
+un huitième. Et la seconde ligne prouve que le budget **mord** — quatre cent soixante-trois
+reports — donc ce n'est pas lui le problème : il borne le *nombre*, il ne peut rien contre une
+texture qui coûte à elle seule plus que l'image entière, que la garantie « au moins une »
+laisse forcément passer.
+
+La colonne `kpx`, ajoutée ensuite, a tranché l'hypothèse : `text=6, kpx=5734` — **six textures
+d'un mégapixel chacune, 9,46 ms**, soit 1,58 ms par mégapixel. Ce sont bien de grandes cartes
+zoomées, et mon calcul qui les excluait était faux : je l'avais fait sur des cartes de onze
+kilopixels, où le coût fixe domine.
+
+### 10.2 Quatre-vingt-six surfaces périmées, et une image perdue à chaque fois
+
+Une session a produit quatre-vingt-six `Outdated` — jamais vus auparavant. Le code posait un
+drapeau, rendait une **erreur**, et ne réparait qu'à l'acquisition suivante : l'image en cours
+était rendue pour rien. La chronique le montrait sans qu'on puisse le lire : 2,5 % des images
+à **trente-deux balayages**, exactement la part des images perdues.
+
+Rien n'interdisait pourtant de reconfigurer sur place — `get_current_texture` venait
+d'échouer, donc aucune image n'était détenue, ce que le drapeau existe précisément pour
+garantir. La surface se répare maintenant tout de suite, et l'acquisition est retentée. Les
+`Outdated` ont disparu de la sortie à la session suivante.
+
+Et une surface périmée n'est pas une panne : c'est un événement normal du cycle de vie d'une
+fenêtre. Elle ne crie plus.
+
+### 10.3 BANDE-1 — ce qui reste entre soixante et cent vingt images par seconde
+
+Le tempo à quatre balayages vaut soixante images par seconde ; la charte en demande cent, donc
+deux balayages, donc 8,33 ms par image. Le terrain en donne 9,74.
+
+**Ce qui sépare des deux balayages n'est plus un pic, c'est l'ordinaire** : `effacer` 2,05 ms
+et `blit` 1,72 ms, qui ne dessinent rien et travaillent sur l'écran entier. `bench_dessus`,
+écrit avant toute correction, a mesuré ce que la couche du dessus touche vraiment :
+
+```
+    canevas nu           198 lignes sur 1600    12,4 %    étendue 0-1587 = 99,2 %
+    avec une sélection   232 lignes sur 1600    14,5 %
+```
+
+**Douze pour cent**, et la seconde colonne a tranché la conception du même coup : un seul
+rectangle ne gagnerait rien, parce que la chrome occupe le haut et le bas avec du vide entre
+les deux. Il faut les intervalles maximaux de lignes consécutives.
+
+Le choix de **balayer** plutôt que de faire déclarer sa boîte à chaque dessinateur est
+délibéré : la déclaration est plus rapide et fausse par construction — le jour où un site
+oublie, ses pixels ne s'effacent plus et personne ne le voit, ce qui est exactement la forme
+des quatre régressions de l'étape 1. Le balayage mesure ce qui a été réellement écrit.
+
+**Le gain n'est pas mesuré.** Ce chantier branche ; `dessus_lignes` et le poste `relever`
+diront à la prochaine session si `effacer` et `blit` tombent à un huitième, et si le tempo
+descend à deux balayages.
