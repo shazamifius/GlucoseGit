@@ -234,8 +234,35 @@ impl GpuPresenter {
                 Ok(Some(frame))
             }
             Etat::Timeout | Etat::Occluded => Ok(None),
-            // La surface a vieilli ou s'est perdue : l'image suivante repartira sur des bases
-            // saines, dans quelques millisecondes.
+            // **La surface a vieilli : on la répare ICI, et on réessaie tout de suite.**
+            //
+            // La version précédente posait le drapeau, rendait une erreur, et laissait la
+            // réparation à l'acquisition suivante. L'image en cours était donc perdue --
+            // rendue pour rien, jamais présentée -- et la session du 21/09 au soir en compte
+            // **quatre-vingt-six**, chacune accompagnée d'une ligne sur la sortie d'erreur.
+            // Le tempo les voyait comme des gels : 2,5 % des images à trente-deux balayages,
+            // exactement la part des images perdues, et un pire gel de 508 ms.
+            //
+            // Rien n'interdit de reconfigurer à cet instant : `get_current_texture` vient
+            // d'échouer, donc aucune image n'est détenue -- c'est la condition que le drapeau
+            // [`GpuPresenter::a_reaccorder`] existe pour garantir, et elle est remplie ici.
+            //
+            // Une surface périmée n'est d'ailleurs pas une panne : c'est un événement normal
+            // du cycle de vie d'une fenêtre, que le compositeur provoque en redimensionnant,
+            // en changeant de résolution ou en déplaçant la fenêtre d'un écran à l'autre. La
+            // signaler comme une erreur faisait crier l'application pour un cas prévu.
+            Etat::Outdated | Etat::Lost => {
+                self.surface.configure(&self.device, &self.config);
+                self.a_reaccorder = false;
+                match self.surface.get_current_texture() {
+                    Etat::Success(frame) | Etat::Suboptimal(frame) => Ok(Some(frame)),
+                    // Deux échecs de suite : la fenêtre n'est probablement pas affichable en
+                    // ce moment. On saute l'image, comme pour un `Occluded`.
+                    _ => Ok(None),
+                }
+            }
+            // Ce qui reste est une vraie panne -- mémoire épuisée, périphérique perdu -- et
+            // doit se dire.
             autre => {
                 self.a_reaccorder = true;
                 Err(DesktopError::WindowError(format!(
