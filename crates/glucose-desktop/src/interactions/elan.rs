@@ -89,23 +89,61 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 
 /// Le temps que met la vue à rattraper la main pendant qu'elle pousse.
 ///
-/// # Pourquoi il est **constant**, et ce que coûtait de le calculer
+/// # C'est un nombre de **ressenti**, et c'est le second de ce module
 ///
-/// La version précédente le déduisait du rythme de la source, à chaque image : l'horizon
-/// divisé par le nombre d'événements qu'il contenait. Ce nombre oscille — cinq, puis douze,
-/// puis huit, selon ce que le pilote a livré — donc la constante de temps oscillait avec lui,
-/// entre six et vingt millisecondes. **La fraction remboursée variait d'un facteur trois d'une
-/// image à l'autre, pour une main parfaitement régulière.** C'est une saccade, et c'est ce que
-/// l'utilisateur voyait.
+/// Comme [`TAU_LIBRE_PAN`], il ne se déduit d'aucune loi : il se juge à la main. Ce qu'il
+/// gouverne est exactement ce que l'utilisateur décrit quand il dit *« lorsqu'on utilise le
+/// pavé tactile, c'est trop trop trop smooth, pas assez réactif, ça traîne »* — le **retard
+/// permanent** de la vue sur la main, qui vaut `v · τ` : cinquante pixels à mille deux cents
+/// pixels par seconde quand il valait cinquante millisecondes.
 ///
-/// La preuve était sous les yeux : le vol de caméra, qui emploie la même équation avec une
-/// constante **fixe**, a toujours été jugé fluide — « quand on fait F ou Ctrl+1, il n'y a
-/// presque aucun problème ».
+/// `bench_demarrage` pèse les deux côtés de l'échange, au tempo que le terrain tient depuis
+/// CASCADE-2 — cinq balayages :
 ///
-/// Cinquante millisecondes absorbent les deux irrégularités de la livraison — les rafales, qui
-/// durent quelques millisecondes, et les trous, quelques dizaines — tout en restant bien sous
-/// le seuil où un retard se perçoit, qui est la latence de la poursuite oculaire.
-const TAU_CONDUITE: f64 = 0.05;
+/// ```text
+///                        montee a 90 %   retard    grain    grain en rafales
+///     50 ms                  145,8 ms   46,7 px    12,6 %        24,6 %
+///     20 ms                   62,5 ms   13,1 px    27,3 %        53,3 %
+/// ```
+///
+/// Le retard est divisé par trois et demi, la montée par deux ; le grain double. C'est un
+/// arbitrage de ressenti, et il a été tranché par le ressenti : l'utilisateur demande de la
+/// réactivité et ne signale pas de saccade.
+///
+/// # Ce que j'ai essayé de mettre à sa place, et pourquoi trois tests l'ont refusé
+///
+/// La charte veut qu'une constante arbitraire **disparaisse** plutôt qu'elle rétrécisse. J'ai
+/// donc voulu la déduire — le plus grossier des deux quanta qui découpent le geste, celui de
+/// la source et celui de l'écran. Trois tests ont protesté, et chacun verrouille une
+/// propriété qu'aucune loi de ce genre ne peut tenir :
+///
+/// * `un_pas_de_trois_secondes_solde_la_dette` — après un gel, tout doit se rattraper ; donc
+///   τ ne peut pas croître avec le pas de l'image ;
+/// * `le_rythme_de_livraison_ne_change_pas_ce_qui_est_montre` — le rendu ne doit pas dépendre
+///   de la façon dont le pilote découpe le geste ; donc τ ne peut pas venir de la source ;
+/// * `une_main_reguliere_ne_produit_aucun_sursaut` — le grain reste borné ; donc τ ne peut pas
+///   être arbitrairement petit.
+///
+/// Les trois ensemble **verrouillent une constante**, et la seule liberté qui reste est sa
+/// valeur. La dire au lieu de la déguiser en loi est plus honnête que de tordre un test.
+const TAU_CONDUITE: f64 = 0.02;
+
+/// Le plus petit silence dont on puisse conclure que la main a lâché.
+///
+/// # Pourquoi ce n'est plus [`TAU_CONDUITE`], et ce que leur confusion coûtait
+///
+/// Un seul nombre tenait les deux rôles : la vitesse à laquelle la vue rattrape la main, et
+/// le silence au-delà duquel on la déclare partie. Rien ne les lie, et les baisser ensemble
+/// a immédiatement cassé `le_rythme_de_livraison_ne_change_pas_ce_qui_est_montre` : une
+/// source à cinq événements par dixième de seconde se voyait déclarée lâchée entre deux
+/// événements, quand une source à vingt ne l'était pas. **Le pilote décidait de la fin d'un
+/// geste.**
+///
+/// Cinquante millisecondes restent donc ici, où elles n'ont jamais gêné personne, pendant
+/// que le lissage descend. Ce seuil n'est de toute façon qu'un **plancher** : le vrai critère
+/// est le pire écart que cette source vient de montrer, et il le dépasse dès qu'elle
+/// hoquette.
+const SILENCE_MINIMAL: f64 = 0.05;
 
 /// Combien d'intervalles d'émission on garde pour connaître le rythme de la source.
 ///
@@ -223,15 +261,15 @@ impl Source {
     /// de rattrapage : un pavé tactile hoquette, et conclure au lâcher à chaque trou ferait
     /// basculer de régime des dizaines de fois par seconde.
     ///
-    /// # Le plancher est [`TAU_CONDUITE`], et surtout pas l'intervalle typique
+    /// # Le plancher est [`SILENCE_MINIMAL`], et surtout pas l'intervalle typique
     ///
     /// La version précédente y mettait l'intervalle typique — donc le **nombre** d'événements
     /// reçus. C'était le défaut de la constante de temps, déplacé d'un cran : le même geste
     /// livré en cinq morceaux ou en vingt ne concluait pas au lâcher au même moment, et
     /// montrait donc six pour cent de plus dans un cas que dans l'autre.
     ///
-    /// `TAU_CONDUITE` ne dépend de rien, et il a un sens ici : conclure au lâcher plus vite
-    /// que le temps qu'on met à rattraper la main n'aurait de toute façon aucun effet visible.
+    /// [`SILENCE_MINIMAL`] ne dépend de rien, et il a un sens ici : sous cette durée, un
+    /// silence n'est pas une fin de geste mais un hoquet de livraison.
     /// Rend `None` tant qu'il n'y a pas **deux** événements : une vitesse est un rapport, et
     /// un point isolé n'en porte aucune. Un cran de molette seul ne mérite pas de glissade —
     /// il s'applique en douceur, et c'est tout ce qu'on peut savoir de lui.
@@ -239,7 +277,7 @@ impl Source {
         if self.remplies < 2 {
             return None;
         }
-        let mut pire: f64 = TAU_CONDUITE;
+        let mut pire: f64 = SILENCE_MINIMAL;
         let mut precedent: Option<Instant> = None;
         for (quand, _) in self.recentes(maintenant) {
             if let (Some(t), Some(p)) = (*quand, precedent) {
