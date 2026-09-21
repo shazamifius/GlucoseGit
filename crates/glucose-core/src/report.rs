@@ -267,16 +267,34 @@ fn reporter_en_echantillonnant(
     let depart = |centre: f64, taille: f64, source: u32| -> i64 {
         (centre / taille * f64::from(source) * UN as f64) as i64 - UN / 2
     };
+    // **L'échantillonnage s'ancre sur la POSE, jamais sur la zone.**
+    //
+    // La zone est ce que le clip laisse voir ; la pose est ce qu'on dessine. Partir du
+    // premier pixel de la zone semblait équivalent — c'est le même pixel, au même endroit —
+    // mais `pas_x` et `pas_y` sont **tronqués** à `2⁻¹⁶` de texel, et la boucle les
+    // additionne. Le texel lu à la ligne mille dépendait donc de la ligne où l'on avait
+    // commencé : deux clips différents rendaient des pixels différents **pour la même tuile
+    // au même endroit**, ce qui contredit tout ce sur quoi le cache de tuiles repose.
+    //
+    // Le défaut s'est révélé en composant l'écran en bandes : la même image donnait 3 620
+    // octets d'écart selon qu'elle était faite d'un morceau ou de deux. Il existait avant
+    // elles, silencieux, et se serait vu comme un frémissement d'une ligne au bord d'un
+    // panneau ou d'un dialogue.
+    //
+    // Ancré sur la pose, le départ ne dépend plus que de ce qu'on dessine, et le décalage
+    // jusqu'à la zone se paie en **une** multiplication — pas une par pixel.
+    let ancre_x = premier_centre(pose.x);
+    let ancre_y = premier_centre(pose.y);
     let u0 = depart(
-        f64::from(x0) + 0.5 - f64::from(pose.x),
+        f64::from(ancre_x as f32) + 0.5 - f64::from(pose.x),
         f64::from(pose.largeur),
         src.largeur,
-    );
+    ) + (i64::from(x0) - ancre_x) * pas_x;
     let v = depart(
-        f64::from(y0) + 0.5 - f64::from(pose.y),
+        f64::from(ancre_y as f32) + 0.5 - f64::from(pose.y),
         f64::from(pose.hauteur),
         src.hauteur,
-    );
+    ) + (i64::from(y0) - ancre_y) * pas_y;
 
     // Les colonnes où les deux texels voisins existent vraiment.
     //

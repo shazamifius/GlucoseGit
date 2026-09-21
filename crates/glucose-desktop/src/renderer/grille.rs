@@ -54,7 +54,7 @@ use crate::params::ViewPass;
 use glucose_core::cout::Cout;
 use glucose_core::occlusion::Boite;
 use glucose_core::quadtree::{SpatialHash, Visibles};
-use glucose_core::report::{reporter, Filtre, Melange, Pose, Vue, VueMut};
+use glucose_core::report::Filtre;
 use glucose_core::store::Store;
 use glucose_core::tuile::{Adresse, Empreinte};
 use glucose_core::types::Viewport;
@@ -65,8 +65,8 @@ use tiny_skia::{Pixmap, PixmapMut};
 pub(super) enum Regime {
     /// L'échelle est dyadique : les tuiles se composent pixel pour pixel.
     Exact,
-    /// Entre deux niveaux, et l'œil tolère : la tuile s'agrandit au texel le plus proche.
-    PlusProche,
+    /// Entre deux niveaux, et l'œil tolère : la tuile s'agrandit, interpolée.
+    Entre,
     /// Entre deux niveaux, et l'œil ne tolère rien : la passe directe.
     Direct,
 }
@@ -91,7 +91,7 @@ impl Regime {
         // image ferait sauter le contenu de soixante pixels. Un agrandissement d'un facteur
         // un virgule trois se voit moins qu'un tel saut ; la finesse revient a l'arret.
         if cadrage.en_mouvement || cadrage.degradation_permise {
-            return Self::PlusProche;
+            return Self::Entre;
         }
         Self::Direct
     }
@@ -182,6 +182,16 @@ pub(super) struct Couverture {
 }
 
 impl Couverture {
+    /// Un releve fabrique de toutes pieces, pour les tests.
+    #[cfg(test)]
+    pub(super) fn pour_test(tuiles: Vec<(Adresse, Empreinte)>, niveau: i32) -> Self {
+        Self {
+            tuiles,
+            niveau,
+            recouvre_tout: false,
+        }
+    }
+
     /// Les tuiles recouvrent-elles tout ce que le fond aurait rempli ?
     pub(super) fn recouvre_tout(&self) -> bool {
         self.recouvre_tout
@@ -285,7 +295,7 @@ pub(super) fn poser_les_images(
         crate::perf::compteur("tuiles_reprises", 0.0);
         return;
     }
-    let (peintes, reprises) = poser_par_la_grille(atelier, pixmap, store, pass, regime, releve);
+    let (peintes, reprises) = poser_par_la_grille(atelier, pixmap, store, pass, releve);
     crate::perf::compteur("tuiles_peintes", peintes as f64);
     crate::perf::compteur("tuiles_reprises", reprises as f64);
 }
@@ -300,7 +310,6 @@ fn poser_par_la_grille(
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
-    regime: Regime,
     releve: &Couverture,
 ) -> (u64, u64) {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
@@ -308,10 +317,20 @@ fn poser_par_la_grille(
     let clip = Boite::nouvelle(0.0, pass.header_h, ecran.0, ecran.1 - pass.header_h);
     let facteur = pass.vp.scale / Adresse::echelle(releve.niveau);
     let cote_ecran = f64::from(COTE_TUILE) * facteur;
-    let filtre = match regime {
-        Regime::Exact => Filtre::Lisse,
-        _ => Filtre::PlusProche,
-    };
+    // **La grille interpole, toujours — et c'est ce qui retire a la pixelisation sa raison
+    // d'etre.**
+    //
+    // Elle posait les tuiles au texel le plus proche des qu'on sortait d'une echelle
+    // dyadique, parce que `bench_tuiles` mesurait 20,68 ms pour interpoler un ecran de
+    // 2560 x 1600 contre 3,19 au plus proche. Ces vingt millisecondes n'etaient la limite de
+    // rien : c'etait celle d'**un coeur sur seize**. Depuis que la composition se decoupe en
+    // bandes, le meme ecran interpole coute 2,75 ms la ou le PIXELISE en coutait 8,25 avant
+    // cette session -- plus beau ET plus rapide, ce qui ne laisse rien a arbitrer.
+    //
+    // Sur une machine qui n'a pas de coeurs a donner, le mecanisme reste entier : la finesse
+    // repond au budget par `Cadrage::degradation_permise`, en amont, et c'est la qu'une
+    // machine lente se fera entendre -- par ce qu'elle MESURE, pas par un materiel suppose.
+    let filtre = Filtre::Lisse;
 
     // Ce qui est à l'écran reste hors d'atteinte de l'éviction, même quand aucune photo n'est
     // posée par la passe directe : sans cela, le magasin rendrait à la machine des images
@@ -332,18 +351,27 @@ fn poser_par_la_grille(
     // premier mesurait la réclamation des photos, le second absorbait les empreintes ET la
     // composition de toutes les tuiles -- 3,5 ms sur 429 photos, sans dire lesquelles.
     crate::perf::stage("reclamer");
+
+    // **Peindre, puis composer — et non peindre-et-composer tuile par tuile.**
+    //
+    // Les deux travaux ne demandent pas la même chose du cache : peindre l'ÉCRIT, composer
+    // le LIT. Tant qu'ils étaient entrelacés, la boucle entière tenait le cache en écriture,
+    // et un seul fil pouvait y toucher. Séparés, la seconde moitié ne lit plus que des
+    // pixels déjà là — et seize fils peuvent la faire ensemble (voir `composer_en_bandes`).
+    //
     // Les empreintes viennent du relevé : elles ont déjà été lues avant le fond, et les
     // recalculer serait la géométrie calculée deux fois que la charte interdit.
-    for (adresse, empreinte) in &releve.tuiles {
-        let place = Place {
-            adresse: *adresse,
-            vp: pass.vp,
-            cote_ecran,
-            clip,
-            filtre,
-        };
-        pixels += poser_une_tuile(atelier, pixmap, *empreinte, place);
-    }
+    let provisoires = peindre_ce_qui_manque(atelier, releve);
+    crate::perf::stage("tuile");
+
+    let modele = Place {
+        adresse: Adresse::contenant(releve.niveau, 0.0, 0.0),
+        vp: pass.vp,
+        cote_ecran,
+        clip,
+        filtre,
+    };
+    pixels += composer_en_bandes(pixmap, atelier.tuiles, releve, &provisoires, modele);
     atelier.tuiles.fermer();
     crate::perf::stage("grille");
 
@@ -355,42 +383,35 @@ fn poser_par_la_grille(
     )
 }
 
-/// Pose une tuile à sa place : depuis le cache si elle y est, peinte sinon. Rend combien de
-/// pixels ont été écrits.
-fn poser_une_tuile(
+/// Peint les tuiles que le cache n'a pas encore, et rend celles qu'il ne faut **pas** garder.
+///
+/// Un seul fil : c'est la moitié du travail qui écrit dans le cache. Elle marque aussi, par
+/// [`Tuiles::deja_peinte`], que chaque tuile a servi à cette image — ce qui borne le cache à
+/// ce que l'écran demande, et doit donc se faire une fois, ici, et pas dans chaque bande.
+fn peindre_ce_qui_manque(
     atelier: &mut Atelier<'_>,
-    pixmap: &mut PixmapMut,
-    empreinte: Empreinte,
-    place: Place,
-) -> u64 {
-    // Une tuile vide n'a rien à composer : c'est le cas le plus fréquent d'un canevas
-    // infini, et c'est lui qui rend le déplacement sur du vide gratuit.
-    if empreinte == Empreinte::vide() {
-        return 0;
+    releve: &Couverture,
+) -> Vec<(Adresse, Pixmap, Portee)> {
+    let mut provisoires = Vec::new();
+    for (adresse, empreinte) in &releve.tuiles {
+        // Une tuile vide n'a rien à peindre : c'est le cas le plus fréquent d'un canevas
+        // infini, et c'est lui qui rend le déplacement sur du vide gratuit.
+        if *empreinte == Empreinte::vide() || atelier.tuiles.deja_peinte(*empreinte).is_some() {
+            continue;
+        }
+        let Some((peinte, complete)) = rendre_une_tuile(atelier, *adresse) else {
+            continue;
+        };
+        // Une tuile dont une photo manquait encore ne se garde pas : elle se repeindra à
+        // l'image où les octets seront là, et le cadre « en chemin » n'aura pas survécu.
+        if complete {
+            atelier.tuiles.ranger(*empreinte, peinte);
+        } else {
+            let portee = Portee::de(&peinte);
+            provisoires.push((*adresse, peinte, portee));
+        }
     }
-    let deja = atelier.tuiles.deja_peinte(empreinte);
-    if let Some((deja, portee)) = deja {
-        let pixels = composer(pixmap, deja, portee, place);
-        crate::perf::stage("composer");
-        return pixels;
-    }
-    let Some((peinte, complete)) = rendre_une_tuile(atelier, place.adresse) else {
-        return 0;
-    };
-    // Une tuile dont une photo manquait encore ne se garde pas : elle se repeindra à
-    // l'image où les octets seront là, et le cadre « en chemin » n'aura pas survécu.
-    let pixels = if complete {
-        atelier.tuiles.ranger(empreinte, peinte);
-        crate::perf::stage("tuile");
-        atelier
-            .tuiles
-            .deja_peinte(empreinte)
-            .map_or(0, |(deja, portee)| composer(pixmap, deja, portee, place))
-    } else {
-        composer(pixmap, &peinte, &Portee::de(&peinte), place)
-    };
-    crate::perf::stage("composer");
-    pixels
+    provisoires
 }
 
 /// Rend une tuile dans son propre repère : les photos qui la traversent, et rien d'autre.
@@ -440,96 +461,6 @@ struct Place {
     filtre: Filtre,
 }
 
-/// Compose une tuile à sa place à l'écran, et rend combien de pixels ont été écrits.
-///
-/// # Seulement ce que la tuile porte, et en le remplaçant quand c'est opaque
-///
-/// Composer chaque tuile en entier, en source-over, coûtait cinq millisecondes pour un écran
-/// de 2560 × 1600 — le report lisait et mélangeait des millions de pixels transparents. La
-/// portée mesurée au rangement borne le parcours à ce qui existe, et une boîte opaque se
-/// **remplace** : un déplacement de mémoire par ligne, la primitive la moins chère du
-/// programme.
-fn composer(pixmap: &mut PixmapMut, tuile: &Pixmap, portee: &Portee, place: Place) -> u64 {
-    let Some((bx0, by0, bx1, by1)) = portee.boite else {
-        return 0;
-    };
-    let couverte = place.adresse.couvre();
-    let (x, y) = world_to_screen(couverte.left, couverte.top, &place.vp);
-    let (dw, dh) = (pixmap.width(), pixmap.height());
-    let (octets_src, _) = tuile.data().as_chunks::<4>();
-    // La tuile connaît ses plages : à l'échelle exacte, la composition ne lit plus un alpha.
-    let Some(src) = Vue::nouvelle(octets_src, tuile.width(), tuile.height())
-        .map(|v| v.avec_plages(&portee.plages))
-    else {
-        return 0;
-    };
-    let (octets_dest, _) = pixmap.data_mut().as_chunks_mut::<4>();
-    let Some(mut dest) = VueMut::nouvelle(octets_dest, dw, dh) else {
-        return 0;
-    };
-    // **Les bords se partagent, ils ne s'arrondissent pas chacun de son côté.**
-    //
-    // La première version posait chaque tuile à `round(x)` avec une largeur
-    // `round(côté)`. Entre deux niveaux, le côté n'est pas entier : `x + 332,4` arrondit à
-    // 342 pour une tuile et la suivante commence à 343 — un pixel de fond entre les deux, et
-    // l'utilisateur voit des « croix noires se former » dès qu'il bouge lentement, quand les
-    // arrondis basculent image après image.
-    //
-    // Le bord droit de cette tuile est le bord gauche de la suivante : c'est le **même
-    // nombre**, et il s'arrondit une fois. La largeur en découle. Une tuile fait alors 332 ou
-    // 333 pixels selon sa place, ce qui ne se voit pas ; un trou d'un pixel se voit partout.
-    let (x0, y0) = ((x as f32).round(), (y as f32).round());
-    let (x1, y1) = (
-        ((x + place.cote_ecran) as f32).round(),
-        ((y + place.cote_ecran) as f32).round(),
-    );
-    let pose = Pose {
-        x: x0,
-        y: y0,
-        largeur: x1 - x0,
-        hauteur: y1 - y0,
-    };
-    // La boîte utile de la tuile, portée à l'écran : c'est elle qui borne le parcours. Ses
-    // bords extérieurs sont ceux de la pose, pour la même raison.
-    let facteur = place.cote_ecran / f64::from(COTE_TUILE);
-    let bord = |t: u32, origine: f32, limite: f32, plein: u32| {
-        if t == plein {
-            limite
-        } else {
-            origine + (f64::from(t) * facteur).round() as f32
-        }
-    };
-    let ux0 = if bx0 == 0 {
-        x0
-    } else {
-        bord(bx0, x0, x1, COTE_TUILE)
-    };
-    let uy0 = if by0 == 0 {
-        y0
-    } else {
-        bord(by0, y0, y1, COTE_TUILE)
-    };
-    let ux1 = bord(bx1, x0, x1, COTE_TUILE);
-    let uy1 = bord(by1, y0, y1, COTE_TUILE);
-    let utile = Boite::nouvelle(ux0, uy0, (ux1 - ux0).max(0.0), (uy1 - uy0).max(0.0));
-    let clip = intersection(place.clip, utile);
-    let melange = if portee.opaque {
-        Melange::Remplacer
-    } else {
-        Melange::Composer
-    };
-    reporter(&mut dest, &src, pose, clip, melange, place.filtre)
-}
-
-/// L'intersection de deux boîtes, vide si elles ne se touchent pas.
-fn intersection(a: Boite, b: Boite) -> Boite {
-    let x0 = a.x.max(b.x);
-    let y0 = a.y.max(b.y);
-    let x1 = (a.x + a.largeur).min(b.x + b.largeur);
-    let y1 = (a.y + a.hauteur).min(b.y + b.hauteur);
-    Boite::nouvelle(x0, y0, (x1 - x0).max(0.0), (y1 - y0).max(0.0))
-}
-
 /// Ce qui n'appartient pas au document, par-dessus les tuiles : cadre de sélection,
 /// poignées, jauge de domaines.
 fn dessiner_les_ornements(
@@ -572,6 +503,10 @@ fn noter_ce_que_l_ecran_a_recu(pixmap: &PixmapMut, store: &Store, pass: ViewPass
     crate::perf::compteur("img_par_vignette", 0.0);
     crate::perf::compteur("img_pixelise", 0.0);
 }
+
+mod bandes;
+
+use bandes::composer_en_bandes;
 
 #[cfg(test)]
 mod tests;

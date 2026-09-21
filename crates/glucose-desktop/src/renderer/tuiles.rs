@@ -148,6 +148,22 @@ impl Tuiles {
 
     /// Les pixels de cette empreinte et leur portée, s'ils sont déjà peints. Les marque
     /// comme ayant servi.
+    /// Les pixels de cette empreinte et leur portée, **sans rien marquer**.
+    ///
+    /// # Pourquoi elle existe à côté de [`Tuiles::deja_peinte`]
+    ///
+    /// Sa sœur prend `&mut self`, parce qu'elle note que la tuile a servi à cette image —
+    /// c'est ce qui borne le cache à ce que l'écran demande. Mais une méthode mutable ne
+    /// peut pas être appelée par seize fils à la fois, et composer l'écran en bandes le
+    /// demande.
+    ///
+    /// La marque n'a pas à être posée seize fois de toute façon : la passe qui peint les
+    /// tuiles manquantes l'a déjà posée, une fois, pour chacune.
+    pub fn lire(&self, empreinte: Empreinte) -> Option<(&Pixmap, &Portee)> {
+        let rendu = self.rendus.get(&empreinte.valeur())?;
+        Some((&rendu.pixels, &rendu.portee))
+    }
+
     pub fn deja_peinte(&mut self, empreinte: Empreinte) -> Option<(&Pixmap, &Portee)> {
         let image = self.image;
         let rendu = self.rendus.get_mut(&empreinte.valeur())?;

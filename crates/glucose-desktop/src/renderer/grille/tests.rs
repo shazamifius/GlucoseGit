@@ -110,7 +110,7 @@ fn test_le_regime_suit_l_echelle_et_la_perception() {
     assert_eq!(Regime::pour(plein, vue(0.0, 0.0, 1.3)), Regime::Direct);
     assert_eq!(
         Regime::pour(plein.avec_degradation(true), vue(0.0, 0.0, 1.3)),
-        Regime::PlusProche
+        Regime::Entre
     );
     // Une tuile ne se rend jamais par la grille, ni une scène réduite.
     assert_eq!(
