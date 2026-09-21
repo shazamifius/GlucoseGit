@@ -462,6 +462,12 @@ impl Renderer {
 
         // **Ce qui passe SUR les photos.**
         if cadrage.couche.porte_le_dessus() {
+            // Le cadre de selection, les poignees et la jauge : ils vivent au bout de la pose
+            // des photos pour la voie processeur, donc la couche du dessus doit les appeler
+            // quand la carte pose a sa place -- sans quoi ils disparaissent purement.
+            if !cadrage.couche.porte_les_photos() {
+                grille::dessiner_les_ornements(kit, pixmap, store, pass);
+            }
             // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition in-place)
             pass::draw_annotations(
                 &mut self.hue_cache,

@@ -479,7 +479,14 @@ struct Place {
 
 /// Ce qui n'appartient pas au document, par-dessus les tuiles : cadre de sélection,
 /// poignées, jauge de domaines.
-fn dessiner_les_ornements(
+///
+/// # Pourquoi la couche du DESSUS doit l'appeler elle-meme
+///
+/// Ils vivaient au bout de `poser_par_la_grille`, donc ils disparaissaient avec elle des que
+/// la carte posait les photos : l'utilisateur voyait ses photos, mais plus une seule poignee
+/// pour les redimensionner. Ils n'appartiennent pas a la pose des photos -- ils appartiennent
+/// a ce qui se dessine PAR-DESSUS, et c'est la couche du dessus qui les porte.
+pub(super) fn dessiner_les_ornements(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
