@@ -61,7 +61,7 @@ pub(super) fn draw_image_adornments(
 
 /// Une image dont les octets ne sont pas (encore) là : un cadre gris de la chrome, son
 /// identifiant dedans. Monochrome — ce n'est pas du contenu, c'est son absence.
-pub(super) fn draw_missing_image(
+pub(in crate::renderer) fn draw_missing_image(
     typography: &Typography,
     theme: &Theme,
     pixmap: &mut PixmapMut,

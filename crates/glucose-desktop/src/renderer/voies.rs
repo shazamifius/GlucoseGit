@@ -73,7 +73,7 @@ pub(super) fn dessiner_sous_les_photos(
 /// Une fonction libre, comme sa jumelle : `pass` tient déjà `&self.spatial_hash`, donc un
 /// `&mut self` par-dessus ne compilerait pas.
 pub(super) fn dessiner_sur_les_photos(
-    hue_cache: &mut SymbioticHueCache,
+    (hue_cache, magasin): (&mut SymbioticHueCache, &mut super::magasin::Magasin),
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
     (ui, overlay): (&UiState, SceneOverlay<'_>),
@@ -82,7 +82,11 @@ pub(super) fn dessiner_sur_les_photos(
     // Le cadre de selection, les poignees et la jauge : ils vivent au bout de la pose des
     // photos pour la voie processeur, donc la couche du dessus doit les appeler quand la
     // carte pose a sa place -- sans quoi ils disparaissent purement.
+    //
+    // Les photos EN CHEMIN viennent avant eux : leurs poignees se dessinent par-dessus leur
+    // cadre, comme sur la voie processeur.
     if !cadrage.couche.porte_les_photos() {
+        dessiner_les_photos_en_chemin(magasin, kit, pixmap, store, pass);
         grille::dessiner_les_ornements(kit, pixmap, store, pass);
     }
     // 6. Annotations (cartes de texte, pense-betes, fleches + edition in-place)
@@ -121,6 +125,83 @@ fn dessiner_les_reperes_du_geste(
     if let Some((x1, y1, x2, y2)) = overlay.selection_box {
         scene::draw_selection_box(pixmap, theme, (x1, y1), (x2, y2));
     }
+}
+
+/// **Les photos dont les octets ne sont pas encore là**, dessinées comme ce qu'elles sont.
+///
+/// # La régression que ceci répare, et pourquoi aucun test ne pouvait la voir
+///
+/// Sur la voie processeur, une photo qu'on n'a pas encore décodée se dessine comme un cadre
+/// gris portant son identifiant — c'est `draw_missing_image`, appelée au moment où la pose
+/// échoue. Quand les photos sont descendues sur la carte, cette pose a cessé d'avoir lieu :
+/// la carte ne connaît pas la photo, donc elle ne dessine rien, **et plus rien ne la
+/// dessinait**. Un commentaire de ce module promettait pourtant que « le processeur porte le
+/// cadre en chemin dans la couche du dessus » ; personne ne l'avait écrit.
+///
+/// Cela ne se voit que dans les deux secondes qui suivent l'ouverture d'un document — le
+/// temps que l'atelier décode — ou sur une photo dont le fichier a disparu. Les tests
+/// d'aspect, eux, montent leurs scènes avec des photos déjà là. C'est la capture de la voie
+/// graphique (`examples/capture_voie_gpu.rs`) qui l'a montrée, au premier coup d'œil, en
+/// comparant les deux voies côte à côte.
+///
+/// # L'écart d'ordre, assumé et borné
+///
+/// Le cadre se pose dans la couche du **dessus**, donc après les photos que la carte a
+/// posées. Sur la voie processeur il se pose à son rang. Deux photos qui se chevauchent,
+/// dont celle **du dessous** est en chemin, montrent donc son cadre par-dessus sa voisine
+/// pendant le temps du décodage.
+///
+/// La réponse exacte serait que la carte pose elle-même ce cadre, à son rang : c'est un quad
+/// uni et une bordure, donc l'étape 3 de la fiche 21 pour les formes. Le libellé, lui,
+/// demandera un atlas de glyphes. Tant que ce n'est pas fait, un artefact transitoire vaut
+/// mieux qu'une photo invisible.
+pub(super) fn dessiner_les_photos_en_chemin(
+    magasin: &mut super::magasin::Magasin,
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    pass: ViewPass<'_>,
+) {
+    let Some(board) = store.active_board() else {
+        return;
+    };
+    let clip = super::pass::Clip {
+        width: pixmap.width() as f32,
+        height: pixmap.height() as f32,
+        top: pass.header_h,
+    };
+    let mut en_chemin = 0.0f64;
+    for img in Visibles::nouvelles(pass.visibles, board).images() {
+        // `reclamer` fait les deux d'un coup : elle demande la photo a l'atelier si elle
+        // manque, et dit si elle est la. Une photo sans source, elle, ne viendra jamais.
+        let presente = img.src.as_deref().is_some_and(|src| magasin.reclamer(src));
+        if presente {
+            continue;
+        }
+        // Le modele place une photo par son CENTRE : le coin s'en deduit.
+        let (wx, wy) = crate::canvas::world_to_screen(
+            img.x - img.width / 2.0,
+            img.y - img.height / 2.0,
+            &pass.vp,
+        );
+        let (sx, sy) = (wx as f32, wy as f32);
+        let sw = (img.width * pass.vp.scale) as f32;
+        let sh = (img.height * pass.vp.scale) as f32;
+        if clip.rejects(sx, sy, sw, sh) {
+            continue;
+        }
+        en_chemin += 1.0;
+        super::scene::image::ornement::draw_missing_image(
+            kit.typography,
+            kit.theme,
+            pixmap,
+            (sx, sy),
+            (sw, sh),
+            &img.id,
+            img.rotation,
+        );
+    }
+    crate::perf::compteur("photos_en_chemin", en_chemin);
 }
 
 /// **Ce que le processeur confie à la carte** pour une image.

@@ -487,7 +487,7 @@ impl Renderer {
 
         if cadrage.couche.porte_le_dessus() {
             dessiner_sur_les_photos(
-                &mut self.hue_cache,
+                (&mut self.hue_cache, &mut self.magasin),
                 pixmap,
                 (store, pass, kit),
                 (ui, overlay),

@@ -60,7 +60,6 @@
 //! machine virtuelle, bureau distant, pilote absent. Le jour où le GPU échoue, l'application
 //! ne s'arrête pas : elle le dit et continue.
 
-#[cfg(test)]
 pub mod banc_gpu;
 pub mod couches;
 pub mod fond_gpu;

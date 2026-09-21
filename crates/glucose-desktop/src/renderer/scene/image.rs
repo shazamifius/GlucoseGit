@@ -501,7 +501,7 @@ fn reporter_les_parts(
         .sum()
 }
 
-mod ornement;
+pub(in crate::renderer) mod ornement;
 mod prevision;
 
 #[cfg(test)]
