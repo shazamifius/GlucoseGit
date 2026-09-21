@@ -143,6 +143,13 @@ impl Renderer {
         };
         self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
         let photos = self.photos_a_poser(store, taille, header_h, sous);
+        // **Reclamer, sinon rien n'est jamais decode.** Le magasin ne decode que ce qu'on lui
+        // demande, et il oublie ce qu'on ne lui redemande pas. La voie processeur le faisait
+        // dans `poser_les_images` ; l'oublier ici laissait le cache vide, donc aucune texture
+        // a televerser -- et un ecran noir ou seules les cartes de texte se voyaient.
+        for (src, _) in &photos {
+            self.magasin.reclamer(src);
+        }
 
         let sur = Cadrage {
             couche: Couche::Dessus,

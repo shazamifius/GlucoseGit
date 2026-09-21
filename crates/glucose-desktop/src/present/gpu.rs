@@ -543,6 +543,10 @@ impl Presenter for GpuPresenter {
         let retenues = self
             .scene
             .preparer(&self.device, &self.queue, ecran, photos);
+        // Le diagnostic qui dit OU la chaine se rompt : combien de photos la scene demande,
+        // et combien la carte sait poser.
+        crate::perf::compteur("photos_vues", photos.len() as f64);
+        crate::perf::compteur("photos_posees", retenues.len() as f64);
         self.couches
             .televerser(&self.device, &self.queue, dessous, dessus);
         crate::perf::stage("blit");
