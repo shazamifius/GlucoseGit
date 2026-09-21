@@ -103,10 +103,13 @@ pub trait Presenter {
     ///
     /// `source` donne les pixels d'une photo que la carte ne connaît pas encore : elle ne les
     /// demande qu'une fois, au premier affichage, et jamais plus.
+    ///
+    /// Le **budget** est ce qui sépare cette image du plancher de la charte : ce qu'on
+    /// s'autorise à rendre de textures manquantes avant de reporter le reste (CASCADE-2).
     fn presenter_en_couches(
         &mut self,
         _dessous: &Pixmap,
-        _confie: &crate::renderer::Confie,
+        (_confie, _budget): (&crate::renderer::Confie, std::time::Duration),
         _source: &dyn Fn(&str) -> Option<Pixmap>,
         _dessus: &Pixmap,
     ) -> DesktopResult<()> {

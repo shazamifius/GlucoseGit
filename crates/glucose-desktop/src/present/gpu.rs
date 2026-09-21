@@ -542,11 +542,11 @@ impl Presenter for GpuPresenter {
     fn presenter_en_couches(
         &mut self,
         dessous: &Pixmap,
-        confie: &crate::renderer::Confie,
+        (confie, budget): (&crate::renderer::Confie, std::time::Duration),
         source: &dyn Fn(&str) -> Option<Pixmap>,
         dessus: &Pixmap,
     ) -> DesktopResult<()> {
-        cinq_temps::presenter(self, (dessous, dessus), confie, source)
+        cinq_temps::presenter(self, (dessous, dessus), (confie, budget), source)
     }
 
     fn nom(&self) -> &'static str {

@@ -35,6 +35,8 @@
 //! image, et le **remplissage** domine de toute façon. La complexité d'un atlas ne se prend
 //! que si un banc la réclame.
 
+use crate::renderer::voies::APoser;
+use std::time::{Duration, Instant};
 use tiny_skia::Pixmap;
 
 /// Le nuanceur : deux triangles par photo, calculés depuis leur indice.
@@ -150,12 +152,22 @@ pub struct SceneGpu {
     ecran: wgpu::Buffer,
     /// Combien de poses le tampon peut porter avant d'être refait.
     capacite: usize,
+    /// Ce que la carte détient, **indexé par identité et non par clé**.
+    ///
+    /// Une identité porte au plus une texture : quand un composant change de palier, la
+    /// nouvelle remplace l'ancienne, et la mémoire ne double jamais. Tant que la nouvelle
+    /// n'est pas rendue, c'est l'ancienne qui se pose — un peu floue, jamais absente.
     photos: std::collections::HashMap<String, Televersee>,
     image: u64,
 }
 
 struct Televersee {
     liaison: wgpu::BindGroup,
+    /// **Ce que cette texture montre** : la clé qui l'a produite.
+    ///
+    /// Quand elle diffère de celle que la scène demande, la texture est périmée — elle se
+    /// pose quand même, et se refera dès qu'il y aura du temps pour elle.
+    cle: String,
     /// La dernière image où cette photo a été posée.
     vue: u64,
 }
@@ -338,9 +350,17 @@ impl SceneGpu {
         })
     }
 
-    /// Cette photo est-elle déjà sur la carte ?
-    pub fn connait(&self, cle: &str) -> bool {
-        self.photos.contains_key(cle)
+    /// La carte détient-elle **exactement** ce que cette texture montre ?
+    ///
+    /// Une identité connue dont la clé diffère n'est pas « connue » : elle est périmée, et
+    /// elle se refera quand le budget le permettra.
+    pub fn connait(&self, identite: &str, cle: &str) -> bool {
+        self.photos.get(identite).is_some_and(|t| t.cle == cle)
+    }
+
+    /// La carte détient-elle quelque chose à poser pour cette identité, fût-ce périmé ?
+    pub fn detient(&self, identite: &str) -> bool {
+        self.photos.contains_key(identite)
     }
 
     /// **Téléverse une photo décodée, une fois pour toutes.**
@@ -351,7 +371,7 @@ impl SceneGpu {
         &mut self,
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
-        cle: &str,
+        (identite, cle): (&str, &str),
         source: &Pixmap,
     ) {
         let (l, h) = (source.width(), source.height());
@@ -397,10 +417,13 @@ impl SceneGpu {
             }],
         });
         let image = self.image;
+        // La nouvelle texture **remplace** celle que cette identité portait : une identité
+        // n'en a jamais deux, donc la mémoire ne double pas pendant un changement de palier.
         self.photos.insert(
-            cle.to_string(),
+            identite.to_string(),
             Televersee {
                 liaison,
+                cle: cle.to_string(),
                 vue: image,
             },
         );
@@ -414,17 +437,37 @@ impl SceneGpu {
         &mut self,
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
-        photos: &[(String, Pose)],
+        (a_poser, budget): (&[APoser], Duration),
         source: &dyn Fn(&str) -> Option<Pixmap>,
     ) {
-        for (cle, _) in photos {
-            if self.connait(cle) {
-                continue;
-            }
-            if let Some(pixels) = source(cle) {
-                self.televerser(peripherique, file, cle, &pixels);
+        let debut = Instant::now();
+        let mut faites = 0.0_f64;
+        let mut reportees = 0.0_f64;
+        // **Deux tours, et l'ordre est ce qui rend la cascade sûre.** Au premier, ce que la
+        // carte n'a pas du tout : sans texture, un composant ne se dessine pas, et un trou
+        // est toujours pire qu'un flou. Au second, ce qu'elle détient mais qui a vieilli.
+        for urgent in [true, false] {
+            for t in a_poser {
+                if self.connait(&t.identite, &t.cle) {
+                    continue;
+                }
+                if self.detient(&t.identite) == urgent {
+                    continue;
+                }
+                // Le budget ne se vérifie qu'au second tour : ce qui manque entièrement se
+                // rend quoi qu'il en coûte, sans quoi la scène serait incomplète.
+                if !urgent && debut.elapsed() >= budget {
+                    reportees += 1.0;
+                    continue;
+                }
+                if let Some(pixels) = source(&t.cle) {
+                    self.televerser(peripherique, file, (&t.identite, &t.cle), &pixels);
+                    faites += 1.0;
+                }
             }
         }
+        crate::perf::compteur("textures_faites", faites);
+        crate::perf::compteur("textures_reportees", reportees);
     }
 
     /// Ouvre une image : ce qui ne servira pas d'ici à [`SceneGpu::fermer`] sera oublié.
@@ -451,7 +494,7 @@ impl SceneGpu {
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
         ecran: (f32, f32),
-        photos: &[(String, Pose)],
+        photos: &[APoser],
     ) -> Vec<String> {
         if photos.len() > self.capacite {
             // Le tampon suit ce que l'ecran demande, comme le cache de tuiles : il grandit
@@ -470,14 +513,23 @@ impl SceneGpu {
         let mut octets = Vec::with_capacity(photos.len() * OCTETS_POSE);
         let mut retenues = Vec::with_capacity(photos.len());
         let image = self.image;
-        for (cle, pose) in photos {
-            let Some(televersee) = self.photos.get_mut(cle) else {
+        let mut perimees = 0.0_f64;
+        for t in photos {
+            // **On pose ce que la carte détient pour cette identité**, à jour ou non. Une
+            // texture périmée est l'ancien palier : elle se pose à la place demandée, donc
+            // au bon endroit et à la bonne taille, et la carte la filtre. C'est un demi-pixel
+            // d'adoucissement pendant une image ou deux, contre une image qui gèle.
+            let Some(televersee) = self.photos.get_mut(&t.identite) else {
                 continue;
             };
+            if televersee.cle != t.cle {
+                perimees += 1.0;
+            }
             televersee.vue = image;
-            pose.ecrire(&mut octets);
-            retenues.push(cle.clone());
+            t.pose.ecrire(&mut octets);
+            retenues.push(t.identite.clone());
         }
+        crate::perf::compteur("textures_perimees", perimees);
         if !octets.is_empty() {
             file.write_buffer(&self.poses, 0, &octets);
         }

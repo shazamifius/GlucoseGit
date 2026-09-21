@@ -40,6 +40,13 @@ const ECRAN: (u32, u32) = (2560, 1600);
 const CARTES_PAR_DEFAUT: usize = 120;
 const IMAGES: usize = 100;
 
+/// Ce que le rendu des textures manquantes s'autorise par image, quand la cascade joue.
+///
+/// Ce n'est pas un choix du banc : c'est le plancher de la charte moins ce qu'une image
+/// coute, et c'est ainsi que l'application le calcule (`Cadence::tranche_de_fond`). L'image
+/// de reference coute ici une milliseconde, donc il en reste neuf.
+const BUDGET: std::time::Duration = std::time::Duration::from_millis(9);
+
 fn mur(renderer: &Renderer, cartes: usize) -> Store {
     let mut store = Store::new("texte");
     let board = store.project.active_board_id.clone();
@@ -81,7 +88,13 @@ struct Geste {
 /// Le processeur y produit les deux couches et ce qu'il confie à la carte ; le banc ne
 /// compose pas, parce que c'est le coût **processeur** qu'il mesure, et que la chronique
 /// chiffre la composition à part.
-fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> Viewport) -> Geste {
+fn jouer(
+    renderer: &mut Renderer,
+    store: &mut Store,
+    vue: impl Fn(usize) -> Viewport,
+    budget: std::time::Duration,
+    connues: &mut std::collections::HashMap<String, String>,
+) -> Geste {
     let board = store.project.active_board_id.clone();
     let mut dessous = Pixmap::new(ECRAN.0, ECRAN.1).expect("un pixmap");
     let mut dessus = Pixmap::new(ECRAN.0, ECRAN.1).expect("un pixmap");
@@ -95,7 +108,6 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
     };
     // La memoire de la carte graphique : ce qu'elle detient, et ce qu'elle oublie a la fin
     // d'une image ou cela n'a pas servi -- la meme loi que `SceneGpu`.
-    let mut connues: std::collections::HashSet<String> = std::collections::HashSet::new();
     for i in 0..IMAGES {
         store.set_viewport(&board, vue(i));
         let avant = renderer.typography.cached_glyph_count();
@@ -118,19 +130,37 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
                 en_mouvement: true,
             },
         );
-        // Ce que la carte ne connait pas se rend maintenant, comme la presentation le fait.
+        // Ce que la carte ne connait pas se rend maintenant, comme la presentation le fait --
+        // et dans le MEME ordre qu'elle : d'abord ce qui manque entierement, ensuite ce qui a
+        // vieilli, et rien au-dela du budget (CASCADE-2).
+        let debut_des_textures = Instant::now();
         let mut rendues = 0.0f64;
-        let mut vues = std::collections::HashSet::new();
-        for (cle, _) in confie.textures() {
-            if !connues.contains(&cle) {
-                if let Some(c) = confie.composant(&cle) {
+        let a_poser = confie.textures();
+        for urgent in [true, false] {
+            for t in &a_poser {
+                if connues.get(&t.identite).is_some_and(|c| *c == t.cle) {
+                    continue;
+                }
+                if connues.contains_key(&t.identite) == urgent {
+                    continue;
+                }
+                if !urgent && debut_des_textures.elapsed() >= budget {
+                    continue;
+                }
+                if let Some(c) = confie.composant(&t.cle) {
                     // Le rendu est ce qu'on mesure ; la texture elle-meme, la carte la garde.
-                    rendues += f64::from(u8::from(c.rendre(renderer.kit()).is_some()));
+                    if c.rendre(renderer.kit()).is_some() {
+                        rendues += 1.0;
+                        connues.insert(t.identite.clone(), t.cle.clone());
+                    }
                 }
             }
-            vues.insert(cle);
         }
-        connues = vues;
+        // La memoire oublie ce qui n'a pas servi, par IDENTITE : un composant garde son
+        // ancien palier tant que le nouveau n'est pas pret.
+        let servies: std::collections::HashSet<&String> =
+            a_poser.iter().map(|t| &t.identite).collect();
+        connues.retain(|id, _| servies.contains(id));
         glucose_desktop::perf::compteur("textures_rendues", rendues);
         glucose_desktop::perf::stage("textures");
         geste.rendues.push(rendues);
@@ -193,43 +223,78 @@ fn main() {
         renderer.typography.cached_glyph_count()
     );
 
-    // Une image de chauffe a l'echelle 1 : le cache se remplit une fois.
-    let chauffe = jouer(&mut renderer, &mut store, |_| Viewport {
-        x: 100.0,
-        y: 100.0,
-        scale: 1.0,
-    });
-    ligne("immobile", &chauffe);
-    println!(
-        "  apres la chauffe : {} variantes\n",
-        renderer.typography.cached_glyph_count()
-    );
+    // **Les deux regimes, alternes dans la MEME execution** (fiche 20 § 5.1) : sans budget,
+    // toutes les textures manquantes se rendent d'un coup ; avec, ce qui ne rentre pas
+    // attend l'image suivante en gardant son ancien palier pose.
+    for (nom, budget) in [
+        ("sans cascade", std::time::Duration::MAX),
+        ("avec cascade", BUDGET),
+    ] {
+        println!("  {nom} :");
+        // **La memoire de la carte survit d'un geste a l'autre**, comme dans l'application.
+        // La reinitialiser ferait de chaque premiere image un pic legitime -- rien a garder,
+        // donc rien a etaler -- et la cascade n'aurait rien a montrer.
+        let mut connues: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        // Une image de chauffe a l'echelle 1 : le cache se remplit une fois.
+        let g = jouer(
+            &mut renderer,
+            &mut store,
+            |_| Viewport {
+                x: 100.0,
+                y: 100.0,
+                scale: 1.0,
+            },
+            budget,
+            &mut connues,
+        );
+        ligne("immobile", &g);
 
-    // Le glissement : l'echelle ne bouge pas, la phase sous-pixel de chaque glyphe si.
-    let g = jouer(&mut renderer, &mut store, |i| Viewport {
-        x: 100.0 - i as f64 * 7.3,
-        y: 100.0 - i as f64 * 2.1,
-        scale: 1.0,
-    });
-    ligne("glissement", &g);
+        // Le glissement : l'echelle ne bouge pas, la phase sous-pixel de chaque glyphe si.
+        let g = jouer(
+            &mut renderer,
+            &mut store,
+            |i| Viewport {
+                x: 100.0 - i as f64 * 7.3,
+                y: 100.0 - i as f64 * 2.1,
+                scale: 1.0,
+            },
+            budget,
+            &mut connues,
+        );
+        ligne("glissement", &g);
 
-    // Le zoom : l'echelle avance d'un demi pour cent par image, donc la taille de police
-    // change presque a chaque image.
-    let g = jouer(&mut renderer, &mut store, |i| Viewport {
-        x: 100.0,
-        y: 100.0,
-        scale: 1.0 + i as f64 * 0.005,
-    });
-    ligne("zoom", &g);
+        // Le zoom : l'echelle avance d'un demi pour cent par image, donc la taille de
+        // police change presque a chaque image.
+        let g = jouer(
+            &mut renderer,
+            &mut store,
+            |i| Viewport {
+                x: 100.0,
+                y: 100.0,
+                scale: 1.0 + i as f64 * 0.005,
+            },
+            budget,
+            &mut connues,
+        );
+        ligne("zoom", &g);
 
-    // Le zoom par octaves : l'echelle double, mais par paliers dyadiques -- ce que
-    // deviendrait un zoom si la taille de police se quantifiait comme les tuiles.
-    let g = jouer(&mut renderer, &mut store, |i| Viewport {
-        x: 100.0,
-        y: 100.0,
-        scale: if i < 50 { 1.0 } else { 2.0 },
-    });
-    ligne("par paliers", &g);
+        // Le zoom par octaves : le pic le plus brutal, celui ou TOUTES les cartes changent
+        // de texture sur une seule image.
+        let g = jouer(
+            &mut renderer,
+            &mut store,
+            |i| Viewport {
+                x: 100.0,
+                y: 100.0,
+                scale: if i < 50 { 1.0 } else { 2.0 },
+            },
+            budget,
+            &mut connues,
+        );
+        ligne("par paliers", &g);
+        println!();
+    }
 
     println!(
         "\n  cache de glyphes a la fin : {} variantes (plafond 4096)",

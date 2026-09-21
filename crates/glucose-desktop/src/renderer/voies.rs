@@ -163,14 +163,42 @@ pub struct Confie {
     pub dessous_porte_quelque_chose: bool,
 }
 
+/// Une texture que la carte doit poser : ce qu'elle est, ce qu'elle montre, et où.
+///
+/// La **clé** change dès qu'un pixel change ; l'**identité** ne change jamais tant que c'est
+/// le même composant. Les séparer est ce qui permet de poser l'ancien palier d'une carte
+/// pendant que le nouveau se rend (CASCADE-2).
+#[derive(Debug, Clone)]
+pub struct APoser {
+    /// Ce que la texture montre : une empreinte nouvelle est une texture nouvelle.
+    pub cle: String,
+    /// Ce que le composant **est** : stable d'un palier à l'autre, d'une frappe à l'autre.
+    pub identite: String,
+    /// Où la poser, à l'échelle de la vue.
+    pub pose: Pose,
+}
+
 impl Confie {
     /// **Tout ce que la carte pose comme texture**, dans l'ordre du modèle : les photos, puis
     /// les cartes de texte par-dessus.
-    pub fn textures(&self) -> Vec<(String, Pose)> {
+    ///
+    /// Une photo est sa propre identité : ses octets ne changent pas, donc sa clé non plus.
+    /// Une carte de texte porte les deux, et elles diffèrent dès qu'elle change de palier.
+    pub fn textures(&self) -> Vec<APoser> {
+        let identite = |cle: &String| {
+            self.composants
+                .iter()
+                .find(|c| &c.cle == cle)
+                .map_or_else(|| cle.clone(), |c| c.identite.clone())
+        };
         self.photos
             .iter()
             .chain(self.cartes.iter())
-            .cloned()
+            .map(|(cle, pose)| APoser {
+                identite: identite(cle),
+                cle: cle.clone(),
+                pose: *pose,
+            })
             .collect()
     }
 

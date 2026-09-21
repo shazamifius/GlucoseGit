@@ -30,13 +30,14 @@ use crate::present::couches;
 pub(super) fn presenter(
     p: &mut GpuPresenter,
     (dessous, dessus): (&Pixmap, &Pixmap),
-    confie: &crate::renderer::Confie,
+    (confie, budget): (&crate::renderer::Confie, std::time::Duration),
     source: &dyn Fn(&str) -> Option<Pixmap>,
 ) -> DesktopResult<()> {
     // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
     let textures = confie.textures();
     p.scene.ouvrir();
-    p.scene.assurer(&p.device, &p.queue, &textures, source);
+    p.scene
+        .assurer(&p.device, &p.queue, (&textures, budget), source);
     // **Ce que la carte ne connaissait pas encore**, et il fallait le séparer du reste.
     //
     // `assurer` crée et téléverse les textures que la scène réclame et que la carte n'a pas :

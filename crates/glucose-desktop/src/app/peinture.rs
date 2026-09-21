@@ -160,13 +160,22 @@ impl GlucoseApp {
                 // La voie graphique : le dessous, les photos, le dessus.
                 Some(dessus) => {
                     let (renderer, confie) = (&self.renderer, &self.confie);
+                    // **Ce qui sépare cette image du plancher de la charte**, et c'est tout
+                    // le budget que le rendu des textures manquantes a le droit de prendre.
+                    //
+                    // Il ne se choisit pas : l'image a déjà coûté ce qu'elle a coûté, et la
+                    // charte dit qu'elle et son travail de fond tiennent ensemble dans dix
+                    // millisecondes. Ce qui ne rentre pas attend l'image suivante, en gardant
+                    // son ancien palier posé (CASCADE-2). Sur une image déjà en retard, le
+                    // budget est nul : on ne creuse pas un trou en le remplissant.
+                    let budget = self.cadence.tranche_de_fond(debut_du_rendu.elapsed());
                     // Ce que la carte ne connait pas encore : une photo vient du magasin,
                     // un composant -- carte de texte, photo en chemin -- se rend a la
                     // demande, une fois, puis plus jamais tant que son empreinte ne change
                     // pas (COMPOSANT-1).
                     presenter.presenter_en_couches(
                         pixmap,
-                        confie,
+                        (confie, budget),
                         &|cle| match confie.composant(cle) {
                             Some(composant) => composant.rendre(renderer.kit()),
                             None => renderer

@@ -80,6 +80,17 @@ use tiny_skia::Pixmap;
 pub struct Composant {
     /// La clé de la texture : la nature, l'identifiant et l'empreinte de ce qu'elle montre.
     pub cle: String,
+    /// **Ce que ce composant est**, indépendamment de ce qu'il montre en ce moment : la
+    /// nature et l'identifiant, sans l'empreinte.
+    ///
+    /// Deux textures de la même identité sont le même composant à deux paliers, ou avant et
+    /// après une frappe. C'est ce qui permet de **garder l'ancienne posée** tant que la
+    /// nouvelle n'est pas rendue (CASCADE-2) : un composant un peu flou vaut mieux qu'un
+    /// composant absent, et infiniment mieux qu'une image qui gèle pour le rendre.
+    ///
+    /// Elle est portée explicitement et non déduite de la clé : découper sur le dernier
+    /// deux-points supposerait qu'aucun identifiant n'en contienne, ce que rien ne garantit.
+    pub identite: String,
     /// Où la texture se pose, à l'échelle de la **vue**.
     pub pose: Pose,
     contenu: Contenu,
@@ -248,6 +259,7 @@ impl Regime {
         let rapport = self.rapport();
         let mut composant = Composant {
             cle: String::new(),
+            identite: format!("{prefixe}:{id}"),
             pose: Pose {
                 x: coin.0 - marge * rapport,
                 y: coin.1 - marge * rapport,

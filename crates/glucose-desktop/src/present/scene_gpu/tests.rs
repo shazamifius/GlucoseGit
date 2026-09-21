@@ -11,6 +11,7 @@
 //! matériel n'est pas un défaut du code.
 
 use super::*;
+use crate::renderer::voies::APoser;
 
 /// Un périphérique hors fenêtre, ou `None` si cette machine n'en offre pas.
 fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
@@ -34,6 +35,15 @@ fn photo(cote: u32, couleur: [u8; 4]) -> Pixmap {
     p
 }
 
+/// Ce qu'une photo pose : son identité est sa clé, puisque ses octets ne changent jamais.
+fn a_poser(cle: &str, pose: Pose) -> APoser {
+    APoser {
+        cle: cle.to_string(),
+        identite: cle.to_string(),
+        pose,
+    }
+}
+
 /// Dessine `poses` dans une cible de `cote` pixels, et rend ses octets RGBA.
 fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Option<Vec<u8>> {
     let (peripherique, file) = carte()?;
@@ -41,9 +51,10 @@ fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Op
     let mut scene = SceneGpu::nouvelle(&peripherique, format);
     scene.ouvrir();
     for (cle, source) in sources {
-        scene.televerser(&peripherique, &file, cle, source);
+        scene.televerser(&peripherique, &file, (cle, cle), source);
     }
-    let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), poses);
+    let poses: Vec<APoser> = poses.iter().map(|(c, p)| a_poser(c, *p)).collect();
+    let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), &poses);
 
     let taille = wgpu::Extent3d {
         width: cote,
@@ -212,9 +223,9 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
     };
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
-    scene.televerser(&peripherique, &file, "a", &photo(4, [1, 2, 3, 255]));
-    scene.televerser(&peripherique, &file, "b", &photo(4, [4, 5, 6, 255]));
-    assert!(scene.connait("a") && scene.connait("b"));
+    scene.televerser(&peripherique, &file, ("a", "a"), &photo(4, [1, 2, 3, 255]));
+    scene.televerser(&peripherique, &file, ("b", "b"), &photo(4, [4, 5, 6, 255]));
+    assert!(scene.connait("a", "a") && scene.connait("b", "b"));
 
     // Une image ou seule `a` sert.
     scene.ouvrir();
@@ -226,11 +237,11 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
         opacite: 1.0,
         angle: 0.0,
     };
-    scene.preparer(&peripherique, &file, (8.0, 8.0), &[("a".to_string(), pose)]);
+    scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("a", pose)]);
     scene.fermer();
 
-    assert!(scene.connait("a"), "ce qui a servi reste");
-    assert!(!scene.connait("b"), "ce qui n'a pas servi est oublie");
+    assert!(scene.connait("a", "a"), "ce qui a servi reste");
+    assert!(!scene.connait("b", "b"), "ce qui n'a pas servi est oublie");
 }
 
 /// **Un quart de tour transpose la photo autour de son centre.**
@@ -270,5 +281,157 @@ fn test_un_quart_de_tour_tourne_autour_du_centre() {
         pixel(&octets, cote, 20, 32),
         [0, 0, 0, 0],
         "dehors une fois tournee, dedans sans rotation"
+    );
+}
+
+/// **CASCADE-2 : un ancien palier se pose tant que le nouveau n'est pas prêt.**
+///
+/// C'est la propriété qui rend le report sûr. Sans elle, borner le rendu des textures ferait
+/// **disparaître** les composants pas encore refaits — et un trou est infiniment pire qu'un
+/// flou d'une image.
+///
+/// # Ce test porte sa preuve
+///
+/// Il rejoue l'ancienne loi — une mémoire indexée par **clé** — en demandant la clé neuve à
+/// une carte qui ne détient que l'ancienne, et vérifie que cette question-là répond `false`
+/// pendant que la question par **identité** répond `true`. Sur l'ancienne implémentation, la
+/// pose ne trouvait rien et le composant n'était pas dessiné du tout.
+#[test]
+fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    // La carte détient la carte de texte `c1` à son ancien palier.
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("carte:c1", "carte:c1:ancien"),
+        &photo(4, [1, 2, 3, 255]),
+    );
+
+    // La scène en demande maintenant un palier neuf.
+    assert!(
+        !scene.connait("carte:c1", "carte:c1:neuf"),
+        "la clé neuve n'est pas détenue : c'est ce qui la fera rendre quand il y aura du temps"
+    );
+    assert!(
+        scene.detient("carte:c1"),
+        "l'identité, elle, est détenue -- et c'est ce qui evite le trou"
+    );
+
+    // Et elle se pose : l'ancienne texture, à la place et à la taille demandées.
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 8.0,
+        hauteur: 8.0,
+        opacite: 1.0,
+        angle: 0.0,
+    };
+    let retenues = scene.preparer(
+        &peripherique,
+        &file,
+        (16.0, 16.0),
+        &[APoser {
+            cle: "carte:c1:neuf".to_string(),
+            identite: "carte:c1".to_string(),
+            pose,
+        }],
+    );
+    assert_eq!(
+        retenues,
+        vec!["carte:c1".to_string()],
+        "l'ancien palier doit se poser ; sous l'ancienne loi, indexee par cle, il disparaissait"
+    );
+}
+
+/// **Ce qui manque entièrement se rend même sans budget ; ce qui a vieilli attend.**
+///
+/// L'ordre des deux tours est ce qui rend la cascade sûre, et un budget nul est le cas
+/// extrême qui le montre : une image déjà en retard ne doit pas creuser un trou pour se
+/// rattraper, mais elle ne doit pas non plus laisser un composant sans aucune texture.
+#[test]
+fn test_cascade_le_budget_reporte_le_perime_et_jamais_l_absent() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("vieux", "vieux:ancien"),
+        &photo(4, [1, 2, 3, 255]),
+    );
+
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+    };
+    let demande = |cle: &str, identite: &str| APoser {
+        cle: cle.to_string(),
+        identite: identite.to_string(),
+        pose,
+    };
+    // Budget nul : l'image n'a plus une milliseconde à donner.
+    scene.assurer(
+        &peripherique,
+        &file,
+        (
+            &[demande("vieux:neuf", "vieux"), demande("neuf", "neuf")],
+            std::time::Duration::ZERO,
+        ),
+        &|_| Some(photo(4, [9, 9, 9, 255])),
+    );
+
+    assert!(
+        scene.connait("neuf", "neuf"),
+        "ce qui manque entierement se rend meme sans budget : un trou est pire qu'un flou"
+    );
+    assert!(
+        !scene.connait("vieux", "vieux:neuf"),
+        "ce qui a vieilli attend le budget ; c'est tout l'objet de la cascade"
+    );
+    assert!(
+        scene.detient("vieux"),
+        "et il garde son ancien palier, donc il se pose"
+    );
+}
+
+/// **Une identité ne porte jamais deux textures.** Sans quoi la mémoire de la carte
+/// doublerait à chaque changement de palier, et la borne du magasin — ce que l'écran
+/// demande — cesserait d'en être une.
+#[test]
+fn test_cascade_un_nouveau_palier_remplace_l_ancien_et_ne_s_ajoute_pas() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("c", "c:x1"),
+        &photo(4, [1, 1, 1, 255]),
+    );
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("c", "c:x2"),
+        &photo(4, [2, 2, 2, 255]),
+    );
+    assert!(scene.connait("c", "c:x2"), "la neuve a pris la place");
+    assert!(
+        !scene.connait("c", "c:x1"),
+        "et l'ancienne n'est plus la : une identite ne porte qu'une texture"
     );
 }

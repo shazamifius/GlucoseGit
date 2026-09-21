@@ -194,7 +194,15 @@ pub fn composer_les_cinq_temps(
     lueurs.preparer(peripherique, file, ecran, &confie.lueurs);
     let textures = confie.textures();
     scene.ouvrir();
-    scene.assurer(peripherique, file, &textures, source);
+    // Le banc et l'epreuve des deux voies comparent des IMAGES : elles doivent etre
+    // completes, donc aucun report. Un budget illimite est la seule valeur juste ici --
+    // une cascade rendrait la comparaison dependante du temps qu'il fait.
+    scene.assurer(
+        peripherique,
+        file,
+        (&textures, std::time::Duration::MAX),
+        source,
+    );
     let retenues = scene.preparer(peripherique, file, ecran, &textures);
     let utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
     deux.televerser(peripherique, file, (dessous, utile), dessus);
