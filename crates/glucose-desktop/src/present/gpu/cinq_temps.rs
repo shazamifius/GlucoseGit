@@ -37,12 +37,25 @@ pub(super) fn presenter(
     let textures = confie.textures();
     p.scene.ouvrir();
     p.scene.assurer(&p.device, &p.queue, &textures, source);
+    // **Ce que la carte ne connaissait pas encore**, et il fallait le séparer du reste.
+    //
+    // `assurer` crée et téléverse les textures que la scène réclame et que la carte n'a pas :
+    // les photos qui viennent d'être décodées, et surtout les **composants** qui changent de
+    // palier ou entrent à l'écran. La fiche 22 § 11.2 chiffre ce pic à trente millisecondes
+    // sur une image, et il tombait jusqu'ici dans `blit` — une marque qui absorbait tout ce
+    // qui la précédait, exactement comme `occlusion` (fiche 19 § 4.4) et `recolte` (fiche 22
+    // § 5.4). Trois fois le même piège, et trois fois il a désigné le mauvais coupable.
+    crate::perf::stage("textures");
     let ecran = (dessous.width() as f32, dessous.height() as f32);
     let retenues = p.scene.preparer(&p.device, &p.queue, ecran, &textures);
     let photos = &confie.photos[..];
     p.fond.preparer(&p.queue, ecran, confie.fond);
     p.lueurs
         .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
+    // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
+    // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de
+    // quads, et ce n'est pas le même chantier que le bus.
+    crate::perf::stage("poses");
     // Le diagnostic qui dit OU la chaine se rompt : combien de photos la scene demande,
     // et combien la carte sait poser.
     crate::perf::compteur("photos_vues", photos.len() as f64);
