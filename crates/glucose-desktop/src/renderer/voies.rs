@@ -9,8 +9,8 @@
 //! ferait perdre de vue qu'elles doivent rester d'accord.
 
 use super::{
-    folder, grille, halo, noter_le_cout_de_la_scene, render_ui, scene, Couche, PaintKit, Regard,
-    Renderer, SymbioticHueCache,
+    folder, grille, halo, noter_le_cout_de_la_scene, pass, render_ui, scene, Couche, PaintKit,
+    Regard, Renderer, SymbioticHueCache,
 };
 use crate::params::ViewPass;
 use crate::params::{Pointer, SceneOverlay};
@@ -27,7 +27,13 @@ use tiny_skia::PixmapMut;
 /// Tous des CONTENANTS, et c'est ce qui fait la frontière : quand la voie graphique pose
 /// les photos, cette part se rend à part et lui sert de fond (voir [`Couche`]). Les
 /// mélanger mettrait une membrane par-dessus la photo qu'elle contient.
-/// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
+///
+/// # La frontière se déplace, et elle se lit ici
+///
+/// Le fond et les lueurs ne se peignent que sur la voie **processeur**. Sur la voie
+/// graphique, la carte les produit elle-même ([`crate::present::fond_gpu`],
+/// [`crate::present::lueurs_gpu`]) et cette couche ne porte plus que les membranes et les
+/// dossiers — donc, sur un document qui n'en a pas, **rien du tout**.
 ///
 /// Une fonction libre et non une methode : `pass` tient deja `&self.spatial_hash`, donc un
 /// `&mut self` par-dessus ne compilerait pas. Le moteur se prete en pieces, comme pour
@@ -40,18 +46,172 @@ pub(super) fn dessiner_sous_les_photos(
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
     cadrage: Cadrage,
     header_h: f32,
-) {
-    grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
-    // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
-    halo::draw_halos(hue_cache, pixmap, store, pass);
-    crate::perf::stage("halos");
+) -> bool {
+    if cadrage.couche.porte_le_fond() {
+        grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
+        // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
+        halo::draw_halos(hue_cache, pixmap, store, pass);
+        crate::perf::stage("halos");
+    }
     // 4. Membranes (pointillés, titre protecteur en haut à gauche)
-    scene::draw_membranes(kit, pixmap, store, pass);
+    let membranes = scene::draw_membranes(kit, pixmap, store, pass);
     crate::perf::stage("membranes");
     // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
     // conteneurs et sous leur contenu.
-    folder::draw_folders(kit, pixmap, store, pass);
+    let dossiers = folder::draw_folders(kit, pixmap, store, pass);
     crate::perf::stage("folders");
+    // Le fond couvre tout : quand il est là, la couche porte forcément de l'encre.
+    cadrage.couche.porte_le_fond() || membranes || dossiers
+}
+
+/// **Ce qui passe sur les photos** : les ornements, les annotations, les repères du geste.
+///
+/// La jumelle de [`dessiner_sous_les_photos`], et elles vivent ensemble pour la même raison :
+/// ce sont les deux moitiés d'une frontière, et une frontière dont les deux bords sont écrits
+/// à deux endroits finit par ne plus être la même des deux côtés.
+///
+/// Une fonction libre, comme sa jumelle : `pass` tient déjà `&self.spatial_hash`, donc un
+/// `&mut self` par-dessus ne compilerait pas.
+pub(super) fn dessiner_sur_les_photos(
+    hue_cache: &mut SymbioticHueCache,
+    pixmap: &mut PixmapMut,
+    (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
+    (ui, overlay): (&UiState, SceneOverlay<'_>),
+    cadrage: Cadrage,
+) {
+    // Le cadre de selection, les poignees et la jauge : ils vivent au bout de la pose des
+    // photos pour la voie processeur, donc la couche du dessus doit les appeler quand la
+    // carte pose a sa place -- sans quoi ils disparaissent purement.
+    if !cadrage.couche.porte_les_photos() {
+        grille::dessiner_les_ornements(kit, pixmap, store, pass);
+    }
+    // 6. Annotations (cartes de texte, pense-betes, fleches + edition in-place)
+    pass::draw_annotations(hue_cache, kit, pixmap, store, overlay.editing, pass);
+    crate::perf::stage("annotations");
+    let taille = (pixmap.width(), pixmap.height());
+    dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);
+}
+
+/// Les reperes du geste en cours : les guides d'alignement et la boite de selection.
+///
+/// Ils appartiennent a la scene parce qu'ils suivent la vue, mais pas au contenu : ils
+/// n'existent que pendant un geste, ne sont dans aucun document, et disparaitront sans
+/// laisser de trace. C'est aussi ce qui les distingue pour A.1 -- ils salissent l'ecran a
+/// chaque mouvement de la main, et rien d'autre ne le fait pour eux.
+fn dessiner_les_reperes_du_geste(
+    theme: &super::Theme,
+    pixmap: &mut PixmapMut,
+    (ui, overlay): (&UiState, SceneOverlay<'_>),
+    pass: ViewPass<'_>,
+    taille: (u32, u32),
+) {
+    // 7. Guides d'alignement intelligents (SNAP-1)
+    if ui.smart_align {
+        scene::draw_guides(
+            theme,
+            pixmap,
+            overlay.guides,
+            &pass.vp,
+            taille,
+            pass.header_h,
+        );
+    }
+
+    // 8. Boite de selection elastique (Marquee)
+    if let Some((x1, y1, x2, y2)) = overlay.selection_box {
+        scene::draw_selection_box(pixmap, theme, (x1, y1), (x2, y2));
+    }
+}
+
+/// **Ce que le processeur confie à la carte** pour une image.
+///
+/// Trois listes, et rien d'autre : ce sont les seules choses que la voie graphique sait
+/// produire aujourd'hui. Elles voyagent ensemble parce qu'elles viennent du **même** cadrage
+/// — même vue, même culling — et que les séparer laisserait croire qu'on peut les calculer
+/// à des instants différents.
+#[derive(Debug, Default, Clone)]
+pub struct Confie {
+    /// Le fond, ou `None` quand la couche du dessous le porte encore.
+    pub fond: Option<crate::present::fond_gpu::Fond>,
+    /// Les lueurs des cartes visibles, dans l'ordre où le processeur les peindrait.
+    pub lueurs: Vec<crate::present::lueurs_gpu::Lueur>,
+    /// Où chaque photo visible se pose.
+    pub photos: Vec<(String, Pose)>,
+    /// La couche du dessous a-t-elle reçu de l'encre ?
+    ///
+    /// Quand elle n'en a pas — ni membrane, ni dossier, le fond étant sur la carte — elle est
+    /// entièrement transparente, et **rien ne part** : ni ses quinze mébioctets, ni le dessin
+    /// qui composerait du vide. C'est la passe elle-même qui répond, en comptant ce qu'elle
+    /// dessine ; balayer les pixels coûterait un écran entier pour la même réponse.
+    pub dessous_porte_quelque_chose: bool,
+}
+
+/// **Le fond de cette image**, tel que la carte a besoin de le connaître.
+///
+/// Rien n'est décidé ici : le pas de la grille, le rayon d'un point, son opacité et son
+/// extinction viennent du socle ([`super::scene::grid`]), qui les tient de la fiche 06.
+pub(super) fn fond_a_peindre(
+    theme: &super::Theme,
+    vp: &Viewport,
+    header_h: f32,
+) -> crate::present::fond_gpu::Fond {
+    let canvas = theme.bg_canvas;
+    let (pas, rayon, opacite) = super::scene::grid::grid_params(vp).unwrap_or((0.0, 0.0, 0.0));
+    crate::present::fond_gpu::Fond {
+        rouge: canvas.red(),
+        vert: canvas.green(),
+        bleu: canvas.blue(),
+        echelle: vp.scale as f32,
+        vue_x: vp.x as f32,
+        vue_y: vp.y as f32,
+        pas: pas as f32,
+        rayon,
+        opacite,
+        gris: f32::from(super::scene::grid::grid_grey()) / 255.0,
+        header: header_h,
+    }
+}
+
+/// **Les lueurs que l'écran montre**, et où chacune se pose.
+///
+/// # Ce que cette fonction emporte avec elle, et qu'il ne faut pas perdre
+///
+/// `draw_halos` faisait **deux** choses sans rapport : calculer la teinte symbiotique de
+/// chaque carte — qui dépend du voisinage, coûte cher, et sert aussi aux annotations — et
+/// peindre. Déplacer la peinture sur la carte sans garder le calcul laisserait les teintes
+/// périmées ; c'est exactement le piège qui a fait disparaître les poignées quand la pose des
+/// photos est descendue sur la carte (fiche 21). Le calcul reste donc ici, au même endroit du
+/// même parcours.
+pub(super) fn lueurs_a_poser(
+    hue_cache: &mut SymbioticHueCache,
+    store: &Store,
+    pass: ViewPass<'_>,
+    ecran: (f32, f32),
+) -> Vec<crate::present::lueurs_gpu::Lueur> {
+    let Some(board) = store.active_board() else {
+        return Vec::new();
+    };
+    let mut lueurs = Vec::new();
+    for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
+        let Some(boite) = halo::halo_geometry(ann, &pass.vp, ecran.0, ecran.1, pass.header_h)
+        else {
+            continue;
+        };
+        let (_hue, (r, v, b)) = hue_cache.get_or_compute(ann, pass.index, board);
+        lueurs.push(crate::present::lueurs_gpu::Lueur {
+            gauche: boite.left,
+            haut: boite.top,
+            droite: boite.right,
+            bas: boite.bottom,
+            sigma: boite.sigma,
+            alpha: f32::from(halo::HALO_ALPHA) / 255.0,
+            portee: halo::portee_du_flou(boite.sigma),
+            rouge: f32::from(r) / 255.0,
+            vert: f32::from(v) / 255.0,
+            bleu: f32::from(b) / 255.0,
+        });
+    }
+    lueurs
 }
 
 /// **Ou chaque photo visible se pose a l'ecran**, en pixels et en radians.
@@ -96,21 +256,6 @@ pub(super) fn poses_des_photos(vp: &Viewport, rangs: &[u32], store: &Store) -> V
 
 /// Les deux entrees de la voie graphique, posees ici pour que le moteur reste lisible.
 impl Renderer {
-    /// **Les photos que l'écran montre, et où chacune se pose** — pour la voie graphique.
-    ///
-    /// Le cadrage vit ici, parce qu'il touche l'index spatial du moteur ; la traduction en
-    /// poses vit dans [`voies`], parce qu'elle ne dépend que du modèle et de la vue.
-    pub fn photos_a_poser(
-        &mut self,
-        store: &Store,
-        taille: (u32, u32),
-        header_h: f32,
-        cadrage: Cadrage,
-    ) -> Vec<(String, crate::present::scene_gpu::Pose)> {
-        let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
-        poses_des_photos(&vp, &rangs, store)
-    }
-
     /// **Rend la scene en deux couches, et dit ou les photos se posent.**
     ///
     /// C'est l'entree de la voie graphique, la ou [`Renderer::render`] est celle de la voie
@@ -128,7 +273,7 @@ impl Renderer {
         chrome: (&mut UiState, Pointer),
         overlay: SceneOverlay<'_>,
         regard: Regard,
-    ) -> Vec<(String, crate::present::scene_gpu::Pose)> {
+    ) -> Confie {
         let (ui, pointer) = chrome;
         let header_h = ui.header_height();
         let taille = (dessous.width(), dessous.height());
@@ -141,13 +286,14 @@ impl Renderer {
             couche: Couche::Dessous,
             ..plein
         };
-        self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
-        let photos = self.photos_a_poser(store, taille, header_h, sous);
+        let encre = self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
+        let mut confie = self.confier_a_la_carte(store, taille, header_h, sous);
+        confie.dessous_porte_quelque_chose = encre;
         // **Reclamer, sinon rien n'est jamais decode.** Le magasin ne decode que ce qu'on lui
         // demande, et il oublie ce qu'on ne lui redemande pas. La voie processeur le faisait
         // dans `poser_les_images` ; l'oublier ici laissait le cache vide, donc aucune texture
         // a televerser -- et un ecran noir ou seules les cartes de texte se voyaient.
-        for (src, _) in &photos {
+        for (src, _) in &confie.photos {
             self.magasin.reclamer(src);
         }
 
@@ -160,6 +306,37 @@ impl Renderer {
         render_ui(dessus, store, ui, &self.typography, &self.theme, pointer);
         crate::perf::stage("ui");
         self.magasin.fermer();
-        photos
+        confie
+    }
+
+    /// **Tout ce que la carte a besoin de savoir** pour cette image : le fond, les lueurs,
+    /// les photos.
+    ///
+    /// Les trois viennent du **même** cadrage, donc du même culling : les calculer ensemble
+    /// n'est pas un regroupement de confort, c'est ce qui interdit qu'une passe voie une vue
+    /// et une autre passe une autre.
+    fn confier_a_la_carte(
+        &mut self,
+        store: &Store,
+        taille: (u32, u32),
+        header_h: f32,
+        cadrage: Cadrage,
+    ) -> Confie {
+        let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
+        let pass = ViewPass {
+            vp,
+            visibles: &rangs,
+            index: &self.spatial_hash,
+            header_h,
+        };
+        let ecran = (taille.0 as f32, taille.1 as f32);
+        let lueurs = lueurs_a_poser(&mut self.hue_cache, store, pass, ecran);
+        crate::perf::stage("lueurs");
+        Confie {
+            fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
+            lueurs,
+            photos: poses_des_photos(&vp, &rangs, store),
+            dessous_porte_quelque_chose: true,
+        }
     }
 }

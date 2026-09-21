@@ -86,6 +86,10 @@ pub struct GpuPresenter {
     scene: super::scene_gpu::SceneGpu,
     /// Les deux couches du processeur, autour des photos.
     couches: super::couches::Couches,
+    /// Le fond du canevas et sa grille (fiche 21, etape 3).
+    fond: super::fond_gpu::FondGpu,
+    /// Les lueurs des cartes (fiche 21, etape 3).
+    lueurs: super::lueurs_gpu::Lueurs,
     /// La chaîne d'images doit être refaite avant la prochaine acquisition.
     ///
     /// # Le plantage que ce drapeau répare
@@ -103,6 +107,7 @@ pub struct GpuPresenter {
 }
 
 mod anneau;
+mod cinq_temps;
 pub mod succession;
 
 /// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
@@ -184,9 +189,13 @@ impl GpuPresenter {
         // les photos dans le format de la SURFACE, celui ou tout se compose (fiche 21).
         let scene = super::scene_gpu::SceneGpu::nouvelle(&device, config.format);
         let couches = super::couches::Couches::nouvelles(&device, config.format);
+        let fond = super::fond_gpu::FondGpu::nouveau(&device, config.format);
+        let lueurs = super::lueurs_gpu::Lueurs::nouvelles(&device, config.format);
         Ok(Self {
             scene,
             couches,
+            fond,
+            lueurs,
             surface,
             device,
             queue,
@@ -526,53 +535,18 @@ impl Presenter for GpuPresenter {
         true
     }
 
-    /// **La scene en trois temps** : sous les photos, les photos, sur les photos.
+    /// **La scene en cinq temps** : le fond, les lueurs, le dessous, les photos, le dessus.
     ///
-    /// Voir [`super::couches`] pour ce que cet ordre garantit.
+    /// Le corps vit dans [`cinq_temps`] : ce fichier decrivait deja la presentation d'une
+    /// image finie, et melanger les deux le faisait passer les six cents lignes.
     fn presenter_en_couches(
         &mut self,
         dessous: &Pixmap,
-        photos: &[(String, super::scene_gpu::Pose)],
+        confie: &crate::renderer::Confie,
         source: &dyn Fn(&str) -> Option<Pixmap>,
         dessus: &Pixmap,
     ) -> DesktopResult<()> {
-        self.scene.ouvrir();
-        self.scene
-            .assurer(&self.device, &self.queue, photos, source);
-        let ecran = (dessous.width() as f32, dessous.height() as f32);
-        let retenues = self
-            .scene
-            .preparer(&self.device, &self.queue, ecran, photos);
-        // Le diagnostic qui dit OU la chaine se rompt : combien de photos la scene demande,
-        // et combien la carte sait poser.
-        crate::perf::compteur("photos_vues", photos.len() as f64);
-        crate::perf::compteur("photos_posees", retenues.len() as f64);
-        self.couches
-            .televerser(&self.device, &self.queue, dessous, dessus);
-        crate::perf::stage("blit");
-
-        let Some(frame) = self.acquerir()? else {
-            self.scene.fermer();
-            return Ok(());
-        };
-        crate::perf::stage("acquerir");
-        let cible = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encodeur = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("glucose-couches"),
-            });
-        super::couches::composer(&mut encodeur, &cible, &self.couches, &self.scene, &retenues);
-        crate::perf::stage("encoder");
-        self.queue.submit(Some(encodeur.finish()));
-        crate::perf::stage("soumettre");
-        drop(cible);
-        self.queue.present(frame);
-        crate::perf::stage("present");
-        self.scene.fermer();
-        Ok(())
+        cinq_temps::presenter(self, (dessous, dessus), confie, source)
     }
 
     fn nom(&self) -> &'static str {

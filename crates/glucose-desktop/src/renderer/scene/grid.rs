@@ -42,15 +42,47 @@ pub(in crate::renderer) fn grid_dot(scale: f64) -> Option<(f32, f32)> {
     let alpha = (0.3 * scale).clamp(0.08, 0.45) as f32;
     Some((radius, alpha))
 }
+
+/// Le pas de la grille en unités monde, à cette échelle.
+///
+/// Il part du pas nominal de la fiche 06 et **double** tant qu'il tomberait sous
+/// [`GRID_MIN_SCREEN_STEP`] à l'écran. C'est ce doublement qui garantit FOND-GPU-1 : un pixel
+/// ne peut être touché que par un seul point, puisque le pas ne descend jamais sous
+/// trente-deux pixels quand le rayon plafonne à deux et demi.
+///
+/// Extrait de [`draw_grid`] pour que la voie graphique le lise sans rien recalculer : la
+/// géométrie se calcule une fois, c'est la charte, et deux copies du même `while` ont déjà
+/// coûté une octave faussée dans l'histogramme (fiche 19 § 4.1).
+pub(crate) fn grid_step(scale: f64) -> f64 {
+    let mut step = GRID_STEP;
+    let mut doublings = 0u32;
+    while step * scale < GRID_MIN_SCREEN_STEP && doublings < MAX_GRID_DOUBLINGS {
+        step *= 2.0;
+        doublings += 1;
+    }
+    step
+}
+
+/// Cette vue dessine-t-elle une grille, et avec quels nombres ?
+///
+/// `None` quand rien ne se dessine — échelle dégénérée, ou sous l'extinction de la fiche 06.
+/// Le triplet est `(pas en unités monde, rayon en pixels, opacité)`.
+pub(crate) fn grid_params(vp: &Viewport) -> Option<(f64, f32, f32)> {
+    if !vp.scale.is_finite() || vp.scale <= MIN_GRID_SCALE {
+        return None;
+    }
+    let (radius, alpha) = grid_dot(vp.scale)?;
+    Some((grid_step(vp.scale), radius, alpha))
+}
+
+/// Le gris d'un point de grille, tel que la fiche 06 le donne.
+pub(crate) const fn grid_grey() -> u8 {
+    GRID_DOT_GREY
+}
+
 // ── Grille ──────────────────────────────────────────────────────────────────
 
-pub(in crate::renderer) fn draw_grid(
-    pixmap: &mut PixmapMut,
-    vp: &Viewport,
-    w: u32,
-    h: u32,
-    header_h: f32,
-) {
+pub(crate) fn draw_grid(pixmap: &mut PixmapMut, vp: &Viewport, w: u32, h: u32, header_h: f32) {
     // Une échelle nulle, négative ou NaN rendait la boucle d'adaptation du pas
     // infinie : on la borne inconditionnellement. Et sous l'échelle d'extinction, il n'y a
     // rien à dessiner.
@@ -72,12 +104,7 @@ pub(in crate::renderer) fn draw_grid(
 
     // Pas dynamique adaptatif : ne descend jamais sous ~32 px à l'écran pour éviter toute
     // explosion CPU. C'est un choix de densité, pas une borne sur une longueur du monde.
-    let mut step = GRID_STEP;
-    let mut doublings = 0u32;
-    while step * vp.scale < GRID_MIN_SCREEN_STEP && doublings < MAX_GRID_DOUBLINGS {
-        step *= 2.0;
-        doublings += 1;
-    }
+    let step = grid_step(vp.scale);
 
     let start_x = (min_wx / step).floor() * step;
     let end_x = (max_wx / step).ceil() * step;

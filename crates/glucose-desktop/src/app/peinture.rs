@@ -37,13 +37,28 @@ use tiny_skia::Pixmap;
 impl GlucoseApp {
     /// La region d'ecran a repeindre, ou `None` quand il faut tout refaire.
     ///
-    /// Trois raisons de tout refaire, et chacune est une impossibilite, pas une prudence :
+    /// Quatre raisons de tout refaire, et chacune est une impossibilite, pas une prudence :
     ///
     /// * la salissure ne sait pas se localiser -- le cas par defaut ;
     /// * la zone touche la **chrome**, qui se place sur la taille de la fenetre et ne sait
     ///   donc pas se rendre decalee ;
     /// * la scene se rend **plus petite** : une region se declare en coordonnees d'ecran
-    ///   plein, et ces coordonnees ne designent plus rien dans le tampon reduit.
+    ///   plein, et ces coordonnees ne designent plus rien dans le tampon reduit ;
+    /// * **la carte pose les photos** -- et c'est la raison la moins evidente des quatre.
+    ///
+    /// # Le defaut que la derniere garde repare, et pourquoi il ne s'etait jamais vu
+    ///
+    /// Sur la voie graphique, le tampon principal n'est plus l'image : il est la **couche du
+    /// dessous**, qui ne porte ni les photos ni la chrome. Y repeindre une region au cadrage
+    /// `Tout` y aurait pose un carre d'image complete -- fond opaque, photos, annotations --
+    /// au milieu d'une couche transparente, et la presentation l'aurait compose sous les vraies
+    /// photos.
+    ///
+    /// Rien ne l'a montre parce que la salissure ne sait presque jamais se localiser : la
+    /// chronique porte « 100 % des images redessinent » a chaque session. Le defaut attendait
+    /// le jour ou l'etape 1 du plan 18 aboutirait -- c'est-a-dire le jour ou l'on croirait
+    /// avoir gagne. C'est exactement la forme que prend « deplacer une fonctionnalite emporte
+    /// ce qui l'entoure ».
     fn region_a_repeindre(
         &self,
         sale: crate::salissure::Salissure,
@@ -54,6 +69,7 @@ impl GlucoseApp {
         sale.region(&vp, fenetre, debord_des_passes(vp.scale))
             .filter(|r| !r.touche_le_haut(header_h))
             .filter(|_| !self.resolution.reduite())
+            .filter(|_| !self.presenter.as_ref().is_some_and(|p| p.pose_les_photos()))
     }
 
     /// Attend l'instant que le tempo fixe pour cette image, en faisant avancer le travail de
@@ -140,7 +156,7 @@ impl GlucoseApp {
                     let magasin = &self.renderer.magasin;
                     presenter.presenter_en_couches(
                         pixmap,
-                        &self.photos_posees,
+                        &self.confie,
                         &|cle| magasin.cache.get(cle).map(|e| e.pyramide.native().clone()),
                         dessus,
                     )
@@ -259,15 +275,15 @@ impl GlucoseApp {
                 // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
                 let par_la_carte = self.presenter.as_ref().is_some_and(|p| p.pose_les_photos());
                 if par_la_carte {
-                    let (tampon, photos) = peindre_par_la_carte(
+                    let (tampon, confie) = peindre_par_la_carte(
                         (&mut pixmap, self.tampon_dessus.take()),
                         &mut self.renderer,
-                        &self.store,
+                        (&self.store, self.confie.dessous_porte_quelque_chose),
                         chrome,
                         (overlay, regard),
                     );
                     self.tampon_dessus = tampon;
-                    self.photos_posees = photos;
+                    self.confie = confie;
                 } else {
                     peindre_tout(
                         &mut pixmap,
@@ -352,8 +368,8 @@ fn repeindre_la_region(
     crate::perf::stage("region");
 }
 
-/// **Peint les deux couches du processeur**, celles qui entourent les photos, et dit ou
-/// chaque photo se pose.
+/// **Peint les deux couches du processeur**, celles qui entourent les photos, et dit ce que
+/// la carte doit poser entre les deux -- le fond, les lueurs, les photos.
 ///
 /// Le dessus part transparent : tout ce qui n'y est pas dessine laisse voir les photos, et
 /// c'est ce qui rend la composition juste sans qu'aucune region ne soit calculee.
@@ -363,13 +379,10 @@ fn repeindre_la_region(
 fn peindre_par_la_carte(
     (pixmap, tampon): (&mut Pixmap, Option<Pixmap>),
     renderer: &mut Renderer,
-    store: &Store,
+    (store, dessous_sali): (&Store, bool),
     chrome: Chrome<'_>,
     (overlay, regard): (SceneOverlay<'_>, crate::renderer::Regard),
-) -> (
-    Option<Pixmap>,
-    Vec<(String, crate::present::scene_gpu::Pose)>,
-) {
+) -> (Option<Pixmap>, crate::renderer::Confie) {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     // Le tampon du dessus suit la fenetre : il se refait quand elle change de taille, et
     // jamais autrement.
@@ -378,7 +391,7 @@ fn peindre_par_la_carte(
         tampon = Pixmap::new(largeur, hauteur);
     }
     let Some(dessus) = tampon.as_mut() else {
-        return (None, Vec::new());
+        return (None, crate::renderer::Confie::default());
     };
     let Chrome {
         ui,
@@ -388,7 +401,20 @@ fn peindre_par_la_carte(
         echelle,
     } = chrome;
     dessus.fill(tiny_skia::Color::TRANSPARENT);
-    let photos = renderer.rendre_les_couches(
+    // **Le dessous part transparent lui aussi** -- mais seulement s'il a ete sali.
+    //
+    // Il portait le fond, donc il l'ecrasait a chaque image et la question ne se posait pas.
+    // La carte le peint maintenant, et ce qui reste ici -- membranes et dossiers -- se
+    // compose PAR-DESSUS : sans effacement, l'image d'avant resterait.
+    //
+    // Sur un document qui n'a ni membrane ni dossier, le tampon n'a jamais ete touche : il
+    // est deja transparent, et l'effacer serait ecrire seize mebioctets de zeros sur seize
+    // mebioctets de zeros. Un tampon jamais sali n'a pas besoin d'etre nettoye.
+    if dessous_sali {
+        pixmap.fill(tiny_skia::Color::TRANSPARENT);
+    }
+    crate::perf::stage("effacer");
+    let confie = renderer.rendre_les_couches(
         &mut pixmap.as_mut(),
         &mut dessus.as_mut(),
         store,
@@ -414,7 +440,7 @@ fn peindre_par_la_carte(
         },
     );
     crate::perf::stage("docks");
-    (tampon, photos)
+    (tampon, confie)
 }
 
 /// Peint la scène et la chrome dans le tampon.

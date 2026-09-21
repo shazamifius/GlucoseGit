@@ -60,8 +60,12 @@
 //! machine virtuelle, bureau distant, pilote absent. Le jour où le GPU échoue, l'application
 //! ne s'arrête pas : elle le dit et continue.
 
+#[cfg(test)]
+pub mod banc_gpu;
 pub mod couches;
+pub mod fond_gpu;
 pub mod gpu;
+pub mod lueurs_gpu;
 pub mod scene_gpu;
 
 pub use gpu::GpuPresenter;
@@ -92,14 +96,18 @@ pub trait Presenter {
         false
     }
 
-    /// Présente la scène en trois temps. N'est appelée que si [`Presenter::pose_les_photos`].
+    /// Présente la scène en cinq temps. N'est appelée que si [`Presenter::pose_les_photos`].
+    ///
+    /// L'ordre est tout, et il est celui du modèle : **le fond**, **les lueurs**, la couche du
+    /// dessous (membranes et dossiers), **les photos**, la couche du dessus. Les intervertir
+    /// mettrait une membrane par-dessus la photo qu'elle contient.
     ///
     /// `source` donne les pixels d'une photo que la carte ne connaît pas encore : elle ne les
     /// demande qu'une fois, au premier affichage, et jamais plus.
     fn presenter_en_couches(
         &mut self,
         _dessous: &Pixmap,
-        _photos: &[(String, scene_gpu::Pose)],
+        _confie: &crate::renderer::Confie,
         _source: &dyn Fn(&str) -> Option<Pixmap>,
         _dessus: &Pixmap,
     ) -> DesktopResult<()> {

@@ -76,6 +76,21 @@ impl Couche {
         matches!(self, Self::Tout | Self::Dessous)
     }
 
+    /// Le processeur peint-il lui-meme le fond et les lueurs ?
+    ///
+    /// # Ou passe vraiment la frontiere, et pourquoi elle bouge
+    ///
+    /// Elle n'est pas fixee une fois pour toutes : elle recule a chaque passe qui descend sur
+    /// la carte. Le fond et les lueurs y sont depuis la fiche 21 etape 3, donc la couche du
+    /// dessous ne porte plus que les membranes et les dossiers -- et, sur un document qui n'en
+    /// a pas, plus rien du tout.
+    ///
+    /// C'est ce qui rend le televersement de cette couche EVITABLE au lieu d'etre seulement
+    /// mis en cache : un fond opaque existe toujours, une couche vide n'existe pas.
+    pub fn porte_le_fond(self) -> bool {
+        matches!(self, Self::Tout)
+    }
+
     /// Cette couche porte-t-elle ce qui se dessine apres les photos ?
     pub fn porte_le_dessus(self) -> bool {
         matches!(self, Self::Tout | Self::Dessus)

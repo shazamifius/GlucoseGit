@@ -11,7 +11,7 @@
 //! constante** : c'est l'exception de SCALE-1. Les poignées elles-mêmes sont dessinées par
 //! [`super::handles`], aux positions que le test de clic utilise (RESIZE-1).
 
-pub(super) mod grid;
+pub mod grid;
 pub(super) mod image;
 
 use super::domain::{draw_domain_gauge, gauge_width};
@@ -89,14 +89,20 @@ impl MembraneLayout {
     }
 }
 
+/// Rend **vrai** si au moins une membrane a recu de l'encre.
+///
+/// La couche du dessous s'en sert pour savoir si elle doit exister : quand la carte peint le
+/// fond et les lueurs, une couche sans membrane ni dossier est entierement transparente, et
+/// quinze mebioctets par image cessent de traverser le bus. Compter ici ne coute rien --
+/// la boucle passe deja par la -- la ou balayer les pixels couterait un ecran entier.
 pub(super) fn draw_membranes(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
-) {
+) -> bool {
     let Some(board) = store.active_board() else {
-        return;
+        return false;
     };
     let PaintKit {
         typography,
@@ -111,6 +117,7 @@ pub(super) fn draw_membranes(
         top: pass.header_h,
     };
 
+    let mut encre = false;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let Annotation::Membrane {
             id,
@@ -132,6 +139,7 @@ pub(super) fn draw_membranes(
         if clip.rejects(sx, sy, layout.width, layout.height) {
             continue;
         }
+        encre = true;
 
         let tint = color
             .as_deref()
@@ -171,6 +179,7 @@ pub(super) fn draw_membranes(
         let gauge_x = sx + layout.width - gauge_width(scale, domains.len());
         draw_domain_gauge(typography, tints, pixmap, scale, (gauge_x, sy), domains);
     }
+    encre
 }
 
 fn draw_membrane_shape(

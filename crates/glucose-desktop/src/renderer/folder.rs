@@ -94,17 +94,18 @@ impl Layout {
 /// proches, sans parcourir les autres : c'est lui qui rend le coût indépendant de la taille
 /// du document (CULL-1). Le test de bord qui suit reste nécessaire parce que l'index
 /// interroge une zone élargie de 200 px — marge utile au picking, superflue pour dessiner.
+/// Rend **vrai** si au moins un dossier a recu de l'encre (voir `draw_membranes`).
 pub(super) fn draw_folders(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
     pass: ViewPass<'_>,
-) {
+) -> bool {
     let Some(board) = store.active_board() else {
-        return;
+        return false;
     };
     if board.folders.is_empty() {
-        return;
+        return false;
     }
     let PaintKit {
         typography, theme, ..
@@ -116,6 +117,7 @@ pub(super) fn draw_folders(
         top: pass.header_h,
     };
 
+    let mut encre = false;
     for f in Visibles::nouvelles(pass.visibles, board).dossiers() {
         let layout = Layout::new(f, scale);
         let (wx, wy) = world_to_screen(f.x, f.y, &pass.vp);
@@ -123,6 +125,7 @@ pub(super) fn draw_folders(
         if clip.rejects(sx, sy, layout.width, layout.height) {
             continue;
         }
+        encre = true;
         let tint = parse_hex_color(&f.color, 136, 136, 136);
         let selected = store.selected_folder_id.as_deref() == Some(f.id.as_str());
 
@@ -149,6 +152,7 @@ pub(super) fn draw_folders(
             );
         }
     }
+    encre
 }
 
 /// Le cadre : halo de sélection, corps teinté, bordure, séparation du bandeau.

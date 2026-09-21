@@ -253,7 +253,7 @@ impl EdgeProfile {
 
 /// La boîte **dilatée** d'une carte, en pixels écran : celle que le flou étale.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct HaloBox {
+pub(crate) struct HaloBox {
     pub left: f32,
     pub top: f32,
     pub right: f32,
@@ -288,7 +288,7 @@ fn first_pixel_at_or_after(position: f32, limit: i32) -> i32 {
 /// pas par bande. Les epreuves d'aspect, elles, veulent une lueur isolee sur un fond connu,
 /// et c'est ce qu'elle donne.
 #[cfg(test)]
-pub(super) fn draw_halo(dst: &mut PixmapMut, halo: HaloBox, rgb: (u8, u8, u8), alpha: u8) {
+pub(crate) fn draw_halo(dst: &mut PixmapMut, halo: HaloBox, rgb: (u8, u8, u8), alpha: u8) {
     let (largeur, hauteur) = (dst.width() as i32, dst.height() as i32);
     if let Some(prete) = LueurPrete::nouvelle(halo, rgb, alpha, largeur, hauteur) {
         prete.peindre(dst, 0);
@@ -361,7 +361,7 @@ fn peindre_par_segments(
 }
 
 /// La boîte dilatée de la lueur d'une carte, ou `None` si elle ne touche pas le cadre.
-pub(super) fn halo_geometry(
+pub(crate) fn halo_geometry(
     ann: &Annotation,
     vp: &Viewport,
     screen_w: f32,
@@ -399,6 +399,16 @@ pub(super) fn halo_geometry(
         && halo.bottom + reach >= header_h
         && halo.top - reach <= screen_h;
     visible.then_some(halo)
+}
+
+/// **La portée du flou** : la distance au-delà de laquelle la lueur ne peut plus changer un
+/// pixel, en pixels d'écran (HALO-2).
+///
+/// Elle ne se règle pas, elle se mesure sur la table obtenue — voir [`EdgeProfile::reach`].
+/// La voie graphique en a besoin pour dimensionner le quad d'une lueur : au-delà, elle
+/// dessinerait des pixels dont elle a déjà prouvé qu'ils ne bougeront pas.
+pub(crate) fn portee_du_flou(sigma: f32) -> f32 {
+    EdgeProfile::new(sigma).reach(HALO_ALPHA)
 }
 
 /// Passe de rendu des lueurs d'ambiance (L1 : ne parcourt que les cartes visibles).

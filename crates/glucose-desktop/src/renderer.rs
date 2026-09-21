@@ -404,6 +404,8 @@ impl Renderer {
     ///
     /// `bench_zone` mesure que le résultat est identique au bit près à un rendu complet, à
     /// condition de déborder de la portée du flou des halos.
+    /// Rend **vrai** si cette couche a reçu de l'encre — la seule question dont dépend le
+    /// téléversement de la couche du dessous (voir [`voies::Confie`]).
     pub fn rendre_la_region(
         &mut self,
         pixmap: &mut PixmapMut,
@@ -412,7 +414,7 @@ impl Renderer {
         overlay: SceneOverlay<'_>,
         header_h: f32,
         cadrage: Cadrage,
-    ) {
+    ) -> bool {
         let width = pixmap.width();
         let height = pixmap.height();
         let (vp, rangs) = self.cadrer(store, (width, height), header_h, cadrage);
@@ -429,8 +431,9 @@ impl Renderer {
             theme: &self.theme,
         };
 
+        let mut encre = false;
         if cadrage.couche.porte_le_dessous() {
-            dessiner_sous_les_photos(
+            encre = dessiner_sous_les_photos(
                 grille::Fond {
                     couverture: &mut self.couverture,
                     tuiles: &self.tuiles,
@@ -444,70 +447,53 @@ impl Renderer {
             );
         }
 
-        // 5. Images -- par la grille de tuiles quand la vue le permet, en direct sinon. Le
-        // moteur se prete en pieces : le compilateur autorise des emprunts disjoints sur des
-        // champs distincts, jamais a travers `&mut self`.
         if cadrage.couche.porte_les_photos() {
-            let mut atelier = grille::Atelier {
-                store,
-                magasin: &mut self.magasin,
-                cout: &mut self.cout,
-                tuiles: &mut self.tuiles,
-                index: &self.spatial_hash,
-                kit,
-            };
-            grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage, &self.couverture);
-            crate::perf::stage("images");
-        }
-
-        // **Ce qui passe SUR les photos.**
-        if cadrage.couche.porte_le_dessus() {
-            // Le cadre de selection, les poignees et la jauge : ils vivent au bout de la pose
-            // des photos pour la voie processeur, donc la couche du dessus doit les appeler
-            // quand la carte pose a sa place -- sans quoi ils disparaissent purement.
-            if !cadrage.couche.porte_les_photos() {
-                grille::dessiner_les_ornements(kit, pixmap, store, pass);
-            }
-            // 6. Annotations (cartes de texte, pense-bêtes, flèches + édition in-place)
-            pass::draw_annotations(
-                &mut self.hue_cache,
-                kit,
+            poser_les_photos(
+                grille::Atelier {
+                    store,
+                    magasin: &mut self.magasin,
+                    cout: &mut self.cout,
+                    tuiles: &mut self.tuiles,
+                    index: &self.spatial_hash,
+                    kit,
+                },
                 pixmap,
-                store,
-                overlay.editing,
-                pass,
+                (store, pass),
+                (cadrage, &self.couverture),
             );
-            crate::perf::stage("annotations");
-
-            self.dessiner_les_reperes_du_geste(pixmap, ui, overlay, vp, (width, height), header_h);
         }
+
+        if cadrage.couche.porte_le_dessus() {
+            dessiner_sur_les_photos(
+                &mut self.hue_cache,
+                pixmap,
+                (store, pass, kit),
+                (ui, overlay),
+                cadrage,
+            );
+            // Le dessus porte toujours la chrome, donc toujours de l'encre.
+            encre = true;
+        }
+        encre
     }
+}
 
-    /// Les repères du geste en cours : les guides d'alignement et la boîte de sélection.
-    ///
-    /// Ils appartiennent à la scène parce qu'ils suivent la vue, mais pas au contenu : ils
-    /// n'existent que pendant un geste, ne sont dans aucun document, et disparaîtront sans
-    /// laisser de trace. C'est aussi ce qui les distingue pour A.1 — ils salissent l'écran à
-    /// chaque mouvement de la main, et rien d'autre ne le fait pour eux.
-    fn dessiner_les_reperes_du_geste(
-        &self,
-        pixmap: &mut PixmapMut,
-        ui: &UiState,
-        overlay: SceneOverlay<'_>,
-        vp: glucose_core::types::Viewport,
-        taille: (u32, u32),
-        header_h: f32,
-    ) {
-        // 7. Guides d'alignement intelligents (SNAP-1)
-        if ui.smart_align {
-            scene::draw_guides(&self.theme, pixmap, overlay.guides, &vp, taille, header_h);
-        }
-
-        // 8. Boîte de sélection élastique (Marquee)
-        if let Some((x1, y1, x2, y2)) = overlay.selection_box {
-            scene::draw_selection_box(pixmap, &self.theme, (x1, y1), (x2, y2));
-        }
-    }
+/// Pose les photos sur la voie **processeur** : par la grille de tuiles quand la vue le
+/// permet, en direct sinon.
+///
+/// Une fonction **libre**, et ce n'est pas un choix de style : l'atelier emprunte quatre
+/// champs du moteur à la fois, dont trois en écriture, et le compilateur autorise des
+/// emprunts disjoints sur des champs distincts, jamais à travers `&mut self`. Le rendu se
+/// prête en pièces — plusieurs méthodes ont déjà dû descendre ici pour cette seule raison.
+fn poser_les_photos(
+    atelier: grille::Atelier<'_>,
+    pixmap: &mut PixmapMut,
+    (store, pass): (&Store, ViewPass<'_>),
+    (cadrage, couverture): (Cadrage, &grille::Couverture),
+) {
+    let mut atelier = atelier;
+    grille::poser_les_images(&mut atelier, pixmap, store, pass, cadrage, couverture);
+    crate::perf::stage("images");
 }
 
 /// Ce que la scene a coute, elle seule, en microsecondes.
@@ -554,9 +540,10 @@ fn agrandir(plein: &mut PixmapMut, scene: &tiny_skia::Pixmap, f: u32) {
     );
 }
 
-mod voies;
+pub mod voies;
 
-use voies::dessiner_sous_les_photos;
+pub use voies::Confie;
+use voies::{dessiner_sous_les_photos, dessiner_sur_les_photos};
 
 #[cfg(test)]
 mod tests {

@@ -11,15 +11,21 @@
 //! La frontière n'est donc pas choisie : c'est celle du modèle, et [`super::super::renderer::Couche`]
 //! la porte.
 //!
-//! # Ce que coûte la seconde couche, et pourquoi c'est acceptable
+//! # Ce que coûte la seconde couche, et ce qui l'a fait disparaître
 //!
-//! Deux téléversements d'écran au lieu d'un. Sur 2560 × 1600 cela fait deux fois quinze
-//! mébioctets, là où `blit` en coûtait un seul — environ 1,5 ms de plus dans le pire cas.
+//! Deux téléversements d'écran au lieu d'un : sur 2560 × 1600, deux fois quinze mébioctets.
 //!
-//! En face, la voie graphique retire 3 à 5 ms à la scène **et cesse de pixeliser**. Le marché
-//! est donc largement bon, et il le restera : la couche du dessous est presque toujours
-//! statique — un fond et des lueurs qui ne bougent pas — donc elle se prête exactement au
-//! suivi de salissure qui sert déjà à la bande du haut. C'est la suite, pas un préalable.
+//! La première idée pour le réduire était de **ne pas re-téléverser le dessous quand il n'a
+//! pas changé**, comme pour la bande du haut. Elle ne vaut rien, et il suffit de la regarder
+//! pour le voir : pendant un déplacement ou un zoom — les seuls moments où la cadence est en
+//! jeu — le fond se décale et les lueurs suivent leurs cartes. **Tout change à chaque image**,
+//! donc un cache de salissure y gagnerait exactement zéro.
+//!
+//! Ce qui marche est plus simple et définitif : faire descendre le fond et les lueurs sur la
+//! carte ([`super::fond_gpu`], [`super::lueurs_gpu`]). La couche du dessous ne porte alors
+//! plus que les membranes et les dossiers, et sur un document qui n'en a pas elle est
+//! **entièrement vide** — [`Couches::televerser`] la saute alors, et ce téléversement-là
+//! n'existe plus du tout. Un coût supprimé vaut mieux qu'un coût mis en cache.
 
 use tiny_skia::Pixmap;
 
@@ -71,6 +77,8 @@ pub struct Couches {
     echantillonneur: wgpu::Sampler,
     dessous: Option<Portee>,
     dessus: Option<Portee>,
+    /// La couche du dessous porte-t-elle quelque chose pour l'image en cours ?
+    dessous_pose: bool,
 }
 
 impl Couches {
@@ -123,6 +131,7 @@ impl Couches {
             }),
             dessous: None,
             dessus: None,
+            dessous_pose: false,
         }
     }
 
@@ -238,21 +247,32 @@ impl Couches {
     }
 
     /// Téléverse les deux couches du processeur. À faire avant d'ouvrir la passe.
+    ///
+    /// `dessous_utile` dit si la couche du dessous porte quelque chose. Quand elle ne porte
+    /// rien — ni fond, ni membrane, ni dossier — **rien ne part** : ni le téléversement de
+    /// quinze mébioctets, ni le dessin qui composerait du transparent sur du fond.
+    ///
+    /// Ce n'est pas une mesure de pixels, qui coûterait un balayage de l'écran entier : c'est
+    /// le socle qui **sait** ce qu'il a dessiné, et il est le seul à pouvoir le dire sans
+    /// rien parcourir.
     pub fn televerser(
         &mut self,
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
-        dessous: &Pixmap,
+        (dessous, dessous_utile): (&Pixmap, bool),
         dessus: &Pixmap,
     ) {
-        Self::accorder(
-            peripherique,
-            file,
-            &self.disposition,
-            &self.echantillonneur,
-            &mut self.dessous,
-            dessous,
-        );
+        self.dessous_pose = dessous_utile;
+        if dessous_utile {
+            Self::accorder(
+                peripherique,
+                file,
+                &self.disposition,
+                &self.echantillonneur,
+                &mut self.dessous,
+                dessous,
+            );
+        }
         Self::accorder(
             peripherique,
             file,
@@ -263,12 +283,23 @@ impl Couches {
         );
     }
 
-    /// Pose la couche du dessous : elle **remplace**, puisqu'elle porte le fond.
-    pub fn poser_le_dessous(&self, passe: &mut wgpu::RenderPass<'_>) {
+    /// Pose la couche du dessous, quand elle porte quelque chose.
+    ///
+    /// Elle **remplace** quand elle porte le fond — la voie processeur — et se **compose**
+    /// quand la carte l'a peint elle-même : il ne reste alors que des membranes et des
+    /// dossiers sur du transparent, et remplacer effacerait le fond qu'on vient de poser.
+    pub fn poser_le_dessous(&self, passe: &mut wgpu::RenderPass<'_>, porte_le_fond: bool) {
+        if !self.dessous_pose {
+            return;
+        }
         let Some(portee) = self.dessous.as_ref() else {
             return;
         };
-        passe.set_pipeline(&self.remplace);
+        passe.set_pipeline(if porte_le_fond {
+            &self.remplace
+        } else {
+            &self.compose
+        });
         passe.set_bind_group(0, &portee.liaison, &[]);
         passe.draw(0..3, 0..1);
     }
@@ -285,18 +316,29 @@ impl Couches {
     }
 }
 
-/// **Encode la passe des trois temps** : le dessous, les photos, le dessus.
+/// Les cinq temps d'une image, dans l'ordre du modele.
 ///
-/// L'ordre est tout : le dessous REMPLACE, puisqu'il porte le fond ; le dessus se COMPOSE,
-/// puisqu'il est transparent partout ou les photos doivent se voir. Les intervertir mettrait
-/// le fond par-dessus tout, et une membrane par-dessus la photo qu'elle contient.
-pub fn composer(
-    encodeur: &mut wgpu::CommandEncoder,
-    cible: &wgpu::TextureView,
-    couches: &Couches,
-    scene: &super::scene_gpu::SceneGpu,
-    retenues: &[String],
-) {
+/// Regroupes parce qu'ils voyagent toujours ensemble, et qu'une fonction qui les recevrait un
+/// par un aurait cinq arguments dont l'ordre serait la seule protection.
+pub struct Temps<'a> {
+    pub fond: &'a super::fond_gpu::FondGpu,
+    pub lueurs: &'a super::lueurs_gpu::Lueurs,
+    pub couches: &'a Couches,
+    pub scene: &'a super::scene_gpu::SceneGpu,
+    pub retenues: &'a [String],
+}
+
+/// **Encode la passe des cinq temps** : le fond, les lueurs, le dessous, les photos, le
+/// dessus.
+///
+/// L'ordre est tout, et c'est celui de la voie processeur : le fond REMPLACE puisqu'il est
+/// opaque et couvre tout ; les lueurs se composent dessus ; la couche du dessous porte les
+/// membranes et les dossiers, qui sont des CONTENANTS ; les photos viennent ensuite ; et le
+/// dessus se compose en dernier, transparent partout ou les photos doivent se voir.
+///
+/// Les intervertir mettrait le fond par-dessus tout, ou une membrane par-dessus la photo
+/// qu'elle contient.
+pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, temps: Temps<'_>) {
     let mut passe = encodeur.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("glucose-couches"),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -304,7 +346,8 @@ pub fn composer(
             resolve_target: None,
             depth_slice: None,
             ops: wgpu::Operations {
-                // Rien a effacer : la couche du dessous porte le fond et couvre tout.
+                // Rien a effacer : le fond couvre tout, qu'il vienne de la carte ou de la
+                // couche du dessous.
                 load: wgpu::LoadOp::Load,
                 store: wgpu::StoreOp::Store,
             },
@@ -314,7 +357,11 @@ pub fn composer(
         occlusion_query_set: None,
         multiview_mask: None,
     });
-    couches.poser_le_dessous(&mut passe);
-    scene.poser(&mut passe, retenues);
-    couches.poser_le_dessus(&mut passe);
+    temps.fond.poser(&mut passe);
+    temps.lueurs.poser(&mut passe);
+    temps
+        .couches
+        .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
+    temps.scene.poser(&mut passe, temps.retenues);
+    temps.couches.poser_le_dessus(&mut passe);
 }
