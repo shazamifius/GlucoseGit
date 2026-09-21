@@ -62,11 +62,20 @@
 //! **47 % des images rendues à un facteur moyen 3,42** — un pixel d'écran pour onze du
 //! canevas — pendant que la scène nette, elle, tenait dans le budget.
 //!
-//! La référence est donc désormais **ce que la scène a coûté la dernière fois qu'elle s'est
-//! rendue nette**, et rien d'autre. Elle existe toujours : le facteur revient à un dès que la
-//! main s'arrête, donc elle se remesure à chaque geste. Tant qu'elle n'existe pas — au tout
-//! premier mouvement d'une session — on ne réduit pas : *on ne dégrade pas ce qu'on n'a pas
-//! mesuré*, la même règle que pour la finesse des photos.
+//! ## La référence est donc le minimum de deux choses, et aucune n'est supposée
+//!
+//! `scène × f²` reste utile, mais pour ce qu'elle est vraiment : un **majorant**. Une scène
+//! réduite coûte *plus* que le quotient exact, donc son produit par `f²` dépasse ce que la
+//! scène nette coûterait. Sûr, mais parfois quatre fois trop haut.
+//!
+//! **Ce que la scène a coûté la dernière fois qu'elle s'est rendue nette** est exact, mais
+//! vieillit : tant que la main bouge, le facteur ne revient pas à un et rien ne la rafraîchit.
+//!
+//! S'y fier *seule* a été mon erreur, et la session suivante l'a montrée sans appel : le
+//! facteur se figeait sur le pic qui l'avait déclenché, parce que le chemin du retour passait
+//! justement par le majorant. Le minimum des deux garde ce que chacune apporte — le majorant
+//! suit l'image courante et fait revenir la netteté **pendant** le mouvement, la mesure le
+//! borne et l'empêche de s'emballer.
 //!
 //! # Et la netteté revient sans à-coup
 //!
@@ -151,16 +160,30 @@ impl Resolution {
             self.facteur = 1;
             return;
         }
-        // On ne dégrade pas ce qu'on n'a pas mesuré : sans image nette de référence, on
-        // rend net, ce qui est à la fois le bon rendu et la façon d'obtenir la mesure.
-        let Some(nette) = self.nette else {
-            self.facteur = 1;
-            return;
-        };
+        // **Deux estimations du coût de la scène nette, et on prend la plus basse.**
+        //
+        // `scène × f²` en est un **majorant**, et c'est tout ce qu'on peut en dire : une scène
+        // réduite a perdu les tuiles, donc elle coûte *plus* que le quotient exact, donc son
+        // produit par `f²` dépasse ce que la scène nette coûterait vraiment. Majorant sûr,
+        // mais qui peut être quatre fois trop haut — c'est lui qui emballait la réduction.
+        //
+        // La mesure d'une image nette, elle, est exacte. Mais elle **vieillit** : tant que la
+        // main bouge, le facteur ne revient pas à un, donc rien ne la rafraîchit. S'y fier
+        // seule fige le facteur sur le pic qui l'a déclenché — c'est ce que j'ai fait, et la
+        // session suivante l'a montré : le chemin du retour avait disparu.
+        //
+        // Le minimum des deux garde ce que chacune apporte. Le majorant suit l'image courante,
+        // donc il redescend dès que la scène réduite devient rapide, et la netteté revient
+        // **pendant** le mouvement. La mesure borne le majorant, donc il ne peut plus
+        // s'emballer. Aucune n'est supposée : l'une est mesurée, l'autre est une inégalité.
+        let majorant = mesure.scene.as_secs_f64() * f64::from(self.facteur).powi(2);
+        let a_pleine_resolution = self
+            .nette
+            .map_or(majorant, |nette| nette.as_secs_f64().min(majorant));
         // `g ≥ √(coût / disponible)` : la surface se divise par le rapport des durées, donc
         // le côté par sa racine. Puis le plafond de l'œil, qui a le dernier mot : on ne
         // dégrade jamais plus que ce que la vitesse rend invisible.
-        let voulu = palier_au_dessus((nette.as_secs_f64() / disponible).sqrt());
+        let voulu = palier_au_dessus((a_pleine_resolution / disponible).sqrt());
         self.facteur = voulu.min(plafond);
     }
 }

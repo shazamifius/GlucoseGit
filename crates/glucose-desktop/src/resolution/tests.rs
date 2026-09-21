@@ -124,6 +124,45 @@ fn une_scene_reduite_ne_sert_pas_de_reference_a_sa_propre_reduction() {
     assert_eq!(r.facteur(), 1, "a l'arret, la scene redevient nette");
 }
 
+/// **La netteté revient PENDANT le mouvement, pas seulement à l'arrêt.**
+///
+/// Le test au-dessus dit qu'on ne s'emballe pas. Celui-ci dit l'inverse, et il a fallu une
+/// session de terrain pour comprendre qu'il manquait : une correction qui ne se fiait qu'à la
+/// dernière image nette figeait le facteur sur le **pic qui l'avait déclenché**. Tant que la
+/// main bougeait, rien ne rafraîchissait cette mesure, donc rien ne ramenait la netteté —
+/// j'avais supprimé le chemin du retour en croyant supprimer un cercle.
+///
+/// Le majorant `scène × f²`, lui, suit l'image courante : dès que la scène réduite devient
+/// rapide, il redescend, et la netteté revient sans attendre l'arrêt. C'est pour cela que la
+/// décision prend le **minimum** des deux, et non l'une ou l'autre.
+#[test]
+fn la_nettete_revient_pendant_le_mouvement_des_que_la_scene_le_permet() {
+    let mut r = Resolution::nette();
+
+    // Un pic fait réduire, et la mesure nette retient ce pic.
+    r.observer(scene_seule(ms(40)), BUDGET, true, SANS_PLAFOND);
+    assert!(r.facteur() > 1, "un pic a 40 ms doit faire reduire");
+
+    // La scène redevient rapide -- le pic est passé -- et la main bouge TOUJOURS.
+    for _ in 0..6 {
+        r.observer(scene_seule(ms(1)), BUDGET, true, SANS_PLAFOND);
+    }
+    assert_eq!(
+        r.facteur(),
+        1,
+        "la nettete doit revenir sans attendre l'arret : la scene tient largement"
+    );
+
+    // LA PREUVE QUE CE TEST ATTRAPE QUELQUE CHOSE. La version qui ne lisait que la derniere
+    // image nette voyait 40 ms, et concluait qu'il fallait rester reduit.
+    let voulu_par_la_mesure_seule = (40.0_f64 / BUDGET.as_secs_f64() / 1000.0).sqrt();
+    assert!(
+        voulu_par_la_mesure_seule > 1.0,
+        "la mesure nette seule reclamait un facteur {voulu_par_la_mesure_seule} : si elle ne \
+         le reclame plus, le cas ne reproduit plus le defaut"
+    );
+}
+
 /// La netteté revient par moitiés : d'un coup, elle rendrait l'image chère juste au moment où
 /// l'œil se pose dessus.
 #[test]
