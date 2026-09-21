@@ -73,7 +73,29 @@ pub struct TextEditSession {
     /// Elle est posée au premier mouvement vertical et oubliée dès qu'autre chose bouge le
     /// curseur, pour que la colonne suive alors la nouvelle position.
     pub goal_x: Option<f32>,
+    /// Quand la phase du clignotement a commencé.
+    ///
+    /// Sert à **décider** de la phase et à caler le réveil ([`crate::app`]) ; le rendu, lui,
+    /// ne la lit pas — voir [`TextEditSession::curseur_visible`].
     pub blink_timer: std::time::Instant,
+    /// Le curseur est-il dans sa demi-seconde allumée ?
+    ///
+    /// # BLINK-1 — un rastériseur qui lit l'horloge n'est pas reproductible
+    ///
+    /// La visibilité se déduisait de `blink_timer.elapsed()` **dans le dessin**, à deux
+    /// endroits. Deux conséquences, et la seconde est la vraie :
+    ///
+    /// * le test d'aspect des cartes échouait au hasard depuis trois sessions — il posait un
+    ///   `blink_timer` en phase éteinte, et le second de ses deux rendus arrivait parfois une
+    ///   demi-seconde plus tard, curseur rallumé. Il est nommé « instable » dans la fiche 17
+    ///   § 5 depuis, sans que la cause ait été cherchée ;
+    /// * plus grave : **le même état rendait deux images différentes**. La fiche 05 § 4.4 le
+    ///   dit — le renderer *lit*, il ne calcule pas. Une horloge dans une passe de dessin
+    ///   rend toute épreuve d'aspect non reproductible, et interdit de comparer deux voies.
+    ///
+    /// La phase se décide donc là où le temps avance — la boucle de réveil, qui la calculait
+    /// **déjà** pour savoir quand se réveiller — et le dessin ne fait plus que la lire.
+    pub curseur_visible: bool,
 }
 
 /// Décode une couleur hexadécimale `#rrggbb` ou `#rgb` ; `None` si ce n'en est pas une.

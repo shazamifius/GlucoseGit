@@ -35,6 +35,7 @@ fn session(buffer: &str, caret: usize) -> TextEditSession {
         selection: Selection::at(caret),
         goal_x: None,
         blink_timer: std::time::Instant::now(),
+        curseur_visible: false,
     }
 }
 

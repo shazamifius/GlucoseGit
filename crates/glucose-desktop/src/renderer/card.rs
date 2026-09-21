@@ -354,10 +354,10 @@ impl Caret {
             selection: card.editing.map(|s| s.selection).unwrap_or_default(),
             // Le curseur clignote, la sélection non : un fond qui s'allume et s'éteint
             // rendrait la lecture du texte sélectionné impossible.
-            visible: card
-                .editing
-                .map(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
-                .unwrap_or(false),
+            //
+            // La phase se **lit** (BLINK-1) : la calculer ici rendrait le dessin dépendant de
+            // l'instant où il a lieu, donc non reproductible.
+            visible: card.editing.is_some_and(|s| s.curseur_visible),
             drawn: false,
         }
     }

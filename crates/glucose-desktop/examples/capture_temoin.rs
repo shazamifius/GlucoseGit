@@ -77,6 +77,9 @@ fn main() {
             selection: Selection::at(tete),
             goal_x: None,
             blink_timer: std::time::Instant::now(),
+            // Le temoin est une capture de reference : son curseur est eteint, sans quoi
+            // l'image changerait selon l'instant ou elle est prise (BLINK-1).
+            curseur_visible: false,
         };
         let mut renderer = Renderer::new();
         let mut ui = UiState::new();

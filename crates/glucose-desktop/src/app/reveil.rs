@@ -145,12 +145,16 @@ impl GlucoseApp {
     /// Le réveil est calé sur **ce qui reste** de la demi-seconde en cours, et non sur une
     /// demi-seconde pleine : sans cela le clignotement dériverait à chaque image lente.
     fn attente_du_curseur(&mut self) -> Option<u64> {
-        let Some(session) = &self.editing_session else {
+        let Some(session) = self.editing_session.as_mut() else {
             self.last_blink_phase = true;
             return None;
         };
         let elapsed = session.blink_timer.elapsed().as_millis();
         let phase = (elapsed / 500) % 2 == 0;
+        // **C'est ici que la phase se décide, et nulle part ailleurs** (BLINK-1). Cette
+        // fonction la calculait déjà pour savoir quand se réveiller ; le dessin la
+        // recalculait de son côté, sur une horloge qui avait avancé entre-temps.
+        session.curseur_visible = phase;
         if phase != self.last_blink_phase {
             self.last_blink_phase = phase;
             self.mark_dirty();

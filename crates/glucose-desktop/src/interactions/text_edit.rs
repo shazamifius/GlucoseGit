@@ -39,6 +39,9 @@ impl GlucoseApp {
             selection,
             goal_x: None,
             blink_timer: std::time::Instant::now(),
+            // Un curseur qui vient de naître est allumé : la phase zéro est la phase
+            // visible, et la boucle de réveil prendra le relais à la demi-seconde.
+            curseur_visible: true,
         });
         self.mark_dirty();
     }

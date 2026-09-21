@@ -229,17 +229,35 @@ fn deux_modes(texte: &str) -> (tiny_skia::Pixmap, tiny_skia::Pixmap) {
 
 /// Une session d'édition d'essai, **curseur éteint**.
 ///
-/// Le curseur clignote une demi-seconde sur deux : posé ici dans sa phase éteinte, il n'ajoute
-/// pas sa barre aux différences que ces tests mesurent.
+/// # Ce que cette fonction disait avant, et pourquoi elle échouait au hasard
+///
+/// Elle reculait `blink_timer` d'exactement une demi-seconde, pour tomber dans la phase
+/// éteinte. Le dessin, lui, relisait l'horloge : si le second des deux rendus arrivait plus
+/// d'une demi-seconde après la construction, la phase avait tourné et le curseur se
+/// rallumait. Le test devenait faux sans que rien n'ait changé dans le code — il est nommé
+/// « instable » dans la fiche 17 § 5 depuis trois sessions.
+///
+/// La phase est désormais un **état**, posé ici et lu tel quel (BLINK-1). Aucune horloge
+/// n'intervient plus dans le dessin, donc ces épreuves ne peuvent plus dépendre du moment où
+/// elles tournent.
 fn session(texte: &str) -> crate::renderer::TextEditSession {
+    session_a_la_phase(texte, false, std::time::Instant::now())
+}
+
+/// La même session, à la phase et à l'instant qu'on veut — de quoi prouver que le dessin ne
+/// dépend plus ni de l'une ni de l'autre.
+fn session_a_la_phase(
+    texte: &str,
+    curseur_visible: bool,
+    blink_timer: std::time::Instant,
+) -> crate::renderer::TextEditSession {
     crate::renderer::TextEditSession {
         ann_id: "mode".into(),
         buffer: texte.to_string(),
         selection: glucose_core::text::Selection::at(texte.len()),
         goal_x: None,
-        blink_timer: std::time::Instant::now()
-            .checked_sub(std::time::Duration::from_millis(500))
-            .expect("une demi-seconde avant maintenant"),
+        blink_timer,
+        curseur_visible,
     }
 }
 
@@ -332,6 +350,59 @@ fn test_mode_1_editing_shows_the_markdown_signs_on_screen() {
         repos_nu.data(),
         edition_nu.data(),
         "sans signe à montrer, éditer ne doit rien changer au dessin"
+    );
+}
+
+/// **BLINK-1 — le dessin ne dépend plus de l'heure qu'il est.**
+///
+/// # Le test porte sa propre preuve
+///
+/// Deux sessions à la **même** phase de curseur mais dont les horloges sont en opposition —
+/// une demi-seconde d'écart, soit exactement une demi-période de clignotement. Elles doivent
+/// donner la même image au bit près.
+///
+/// Sur l'implémentation d'avant, ces deux-là rendaient des images **différentes** : le dessin
+/// lisait `blink_timer.elapsed()`, donc la première montrait le curseur et la seconde non. Le
+/// test échoue donc sur l'ancien code, et c'est la seule preuve qui compte — plus forte qu'un
+/// `git stash`, qui ne prouve qu'une fois.
+#[test]
+fn test_le_dessin_ne_lit_plus_l_horloge_du_curseur() {
+    let maintenant = std::time::Instant::now();
+    let une_demi_periode = maintenant
+        .checked_sub(std::time::Duration::from_millis(500))
+        .expect("une demi-seconde avant maintenant");
+
+    for visible in [false, true] {
+        let tot = rendu_de(
+            MODE_TEXT,
+            Some(&session_a_la_phase(MODE_TEXT, visible, maintenant)),
+        );
+        let tard = rendu_de(
+            MODE_TEXT,
+            Some(&session_a_la_phase(MODE_TEXT, visible, une_demi_periode)),
+        );
+        assert_eq!(
+            tot.data(),
+            tard.data(),
+            "curseur {visible} : deux horloges en opposition de phase ont rendu deux images \
+             differentes -- le dessin lit encore l'heure"
+        );
+    }
+
+    // Et la phase change vraiment quelque chose : sans cela, le test ci-dessus passerait sur
+    // un curseur qui ne se dessine jamais (fiche 17 § 3.1 -- un zero se lit comme une mesure).
+    let eteint = rendu_de(
+        MODE_TEXT,
+        Some(&session_a_la_phase(MODE_TEXT, false, maintenant)),
+    );
+    let allume = rendu_de(
+        MODE_TEXT,
+        Some(&session_a_la_phase(MODE_TEXT, true, maintenant)),
+    );
+    assert_ne!(
+        eteint.data(),
+        allume.data(),
+        "le curseur allume et le curseur eteint donnent la meme image : il ne se dessine pas"
     );
 }
 

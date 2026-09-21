@@ -129,8 +129,9 @@ pub(super) fn draw_sticky(
                 ink: document_color(color.as_deref()).unwrap_or(ctx.theme.sticky_yellow_text),
                 text: editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str()),
                 world_width: w as f32,
+                // La phase se **lit** (BLINK-1), elle ne se recalcule pas dans le dessin.
                 cursor: editing
-                    .filter(|s| (s.blink_timer.elapsed().as_millis() / 500) % 2 == 0)
+                    .filter(|s| s.curseur_visible)
                     .map(|s| s.selection.head),
             };
             draw_paper(ctx, pixmap, at, &layout, &paper, highlighted);
