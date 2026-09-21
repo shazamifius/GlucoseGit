@@ -54,6 +54,10 @@ struct Empreinte {
     lignes: u32,
     /// La première et la dernière de ces lignes — l'étendue d'un téléversement en un bloc.
     etendue: (u32, u32),
+    /// **Ce que le relevé lui-même coûte.** Sans lui, ce banc dirait ce qu'il y a à gagner
+    /// sans dire ce qu'il faut payer pour le savoir — et le terrain a montré que le second
+    /// pouvait dépasser le premier.
+    cout_ms: f64,
 }
 
 fn main() {
@@ -61,7 +65,9 @@ fn main() {
         "\n  Ce que la couche du dessus touche, sur un ecran de {} x {}\n",
         ECRAN.0, ECRAN.1
     );
-    println!("    cas                     lignes ecrites   etendue     part   en un bloc");
+    println!(
+        "    cas                     lignes ecrites   etendue     part   en un bloc   relever"
+    );
     for (nom, cartes, selection) in [
         ("canevas nu", 0, false),
         ("document charge", CARTES, false),
@@ -71,13 +77,14 @@ fn main() {
         let part = f64::from(e.lignes) / f64::from(ECRAN.1);
         let bloc = f64::from(e.etendue.1.saturating_sub(e.etendue.0) + 1) / f64::from(ECRAN.1);
         println!(
-            "    {nom:<22}  {:>6} / {}   {:>4}-{:<5} {:>6.1} %     {:>5.1} %",
+            "    {nom:<22}  {:>6} / {}   {:>4}-{:<5} {:>6.1} %     {:>5.1} %   {:>6.2} ms",
             e.lignes,
             ECRAN.1,
             e.etendue.0,
             e.etendue.1,
             part * 100.0,
-            bloc * 100.0
+            bloc * 100.0,
+            e.cout_ms
         );
     }
     println!(
@@ -126,25 +133,26 @@ fn mesurer(cartes: usize, selection: bool) -> Empreinte {
             en_mouvement: false,
         },
     );
-    balayer(&dessus)
+    // Le relevé se mesure sur dix passes : une seule serait noyée dans le bruit de la
+    // première lecture, qui remplit les caches.
+    let debut = std::time::Instant::now();
+    let mut e = balayer(&dessus);
+    for _ in 0..9 {
+        e = balayer(&dessus);
+    }
+    e.cout_ms = debut.elapsed().as_secs_f64() * 100.0;
+    e
 }
 
 /// Les lignes de ce pixmap qui portent au moins un pixel non transparent.
+///
+/// **C'est le releveur de production qui est appelé**, et non une copie : un banc qui mesure
+/// autre chose que ce qui tourne ne mesure rien.
 fn balayer(p: &Pixmap) -> Empreinte {
-    let largeur = p.width() as usize;
-    let mut lignes = 0;
-    let mut premiere = u32::MAX;
-    let mut derniere = 0;
-    for (y, rang) in p.data().chunks_exact(largeur * 4).enumerate() {
-        // Le canal alpha est le quatrième de chaque pixel ; en prémultiplié, un pixel
-        // entièrement transparent a ses quatre octets nuls.
-        if rang.iter().any(|o| *o != 0) {
-            lignes += 1;
-            let y = u32::try_from(y).unwrap_or(0);
-            premiere = premiere.min(y);
-            derniere = derniere.max(y);
-        }
-    }
+    let bandes = glucose_desktop::present::bandes::Bandes::relever(p);
+    let lignes = bandes.lignes();
+    let premiere = bandes.intervalles().first().map_or(u32::MAX, |b| b.start);
+    let derniere = bandes.intervalles().last().map_or(0, |b| b.end - 1);
     Empreinte {
         lignes,
         etendue: if lignes == 0 {
@@ -152,6 +160,7 @@ fn balayer(p: &Pixmap) -> Empreinte {
         } else {
             (premiere, derniere)
         },
+        cout_ms: 0.0,
     }
 }
 

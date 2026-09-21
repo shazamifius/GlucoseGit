@@ -259,6 +259,12 @@ impl GpuPresenter {
             // en changeant de résolution ou en déplaçant la fenêtre d'un écran à l'autre. La
             // signaler comme une erreur faisait crier l'application pour un cas prévu.
             Etat::Outdated | Etat::Lost => {
+                // **Combien de fois la surface a dû être refaite.** Reconfigurer n'est pas
+                // gratuit -- la chaîne d'images est détruite et recréée -- et remplacer une
+                // image perdue par une reconfiguration peut coûter plus cher que le défaut
+                // qu'on répare. Sans ce compteur, la chronique montre un `acquerir` lourd
+                // sans dire s'il vient de là ou d'une chaîne saturée.
+                crate::perf::compteur("surfaces_refaites", 1.0);
                 self.surface.configure(&self.device, &self.config);
                 self.a_reaccorder = false;
                 match self.surface.get_current_texture() {

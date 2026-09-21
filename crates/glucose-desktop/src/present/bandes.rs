@@ -71,7 +71,7 @@ impl Bandes {
         }
         let mut bandes: Vec<Range<u32>> = Vec::new();
         for (y, rang) in p.data().chunks_exact(largeur * 4).enumerate() {
-            if rang.iter().all(|o| *o == 0) {
+            if ligne_vide(rang) {
                 continue;
             }
             let y = u32::try_from(y).unwrap_or(u32::MAX);
@@ -130,6 +130,25 @@ impl Bandes {
     pub fn vides(&self) -> bool {
         self.0.is_empty()
     }
+}
+
+/// Cette ligne est-elle entièrement transparente ?
+///
+/// # Pourquoi par blocs, et ce que l'octet par octet coûtait
+///
+/// `rang.iter().all(|o| *o == 0)` dit la même chose et le terrain l'a chiffré : **4,87 ms par
+/// image**, pour un relevé censé en économiser 1,5. Le compilateur ne vectorisait pas la
+/// comparaison d'octets, et la lecture plafonnait à trois gigaoctets par seconde là où une
+/// lecture séquentielle en donne dix fois plus.
+///
+/// Comparer des blocs de trente-deux octets à un bloc nul se compile, lui, en quelques
+/// instructions vectorielles. Le reste de la ligne — au plus trente et un octets — finit à
+/// l'unité. Et le court-circuit reste : une ligne écrite s'arrête au premier bloc non nul,
+/// donc ce sont les lignes **vides** qui décident du coût, et elles se lisent au plus vite.
+fn ligne_vide(rang: &[u8]) -> bool {
+    const BLOC: usize = 32;
+    let (blocs, reste) = rang.as_chunks::<BLOC>();
+    blocs.iter().all(|c| *c == [0u8; BLOC]) && reste.iter().all(|o| *o == 0)
 }
 
 #[cfg(test)]

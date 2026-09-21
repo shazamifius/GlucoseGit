@@ -113,6 +113,12 @@ pub struct Instantane {
     /// NOMBRE de textures ou de leur TAILLE. Une seule texture à dix-neuf millisecondes ne
     /// s'explique que par la seconde, et rien ne le disait.
     pub textures_kpx: u16,
+    /// Combien de fois la surface a dû être refaite pendant cette image.
+    ///
+    /// Presque toujours zéro. Quand ce n'est pas le cas, c'est que le compositeur a changé
+    /// quelque chose sous nos pieds, et la reconfiguration qui suit coûte cher : ce compteur
+    /// dit si un `acquerir` lourd vient de là.
+    pub surfaces_refaites: u16,
     /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
     pub blit_mo: u16,
     /// Combien de temps l'image **précédente** est restée sous les yeux, en microsecondes.

@@ -119,8 +119,17 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 /// plus tôt. Ce retard ne se voit pas en ligne droite — il n'y décale que la position — mais
 /// dans un rond il décale l'**angle**, et un angle faux se voit bien plus qu'un retard.
 ///
-/// Chaque division rapproche la vue de la main et rend le grain plus visible ; c'est l'œil
-/// qui dit où s'arrêter, et aucun chiffre de ce fichier ne le dira à sa place.
+/// **Et c'est à cinq millisecondes que l'œil a dit stop** : *« c'est lagy, genre 10 fps, limite
+/// avant c'était même mieux ; il faut un juste milieu entre maintenant et avant »*. Le grain
+/// y montait à 98 % en livraison groupée, et la vitesse de translation venait de doubler —
+/// les deux se composent, puisqu'un même écart relatif se voit d'autant plus que le contenu
+/// va vite. La mesure disait que la fenêtre de poursuite oculaire restait plate ; elle avait
+/// tort, et l'œil raison.
+///
+/// Dix millisecondes est donc ce juste milieu, et il est mesuré des deux côtés : six pixels
+/// de retard, et un grain que le cran d'avant tenait déjà. Chaque division rapproche la vue
+/// de la main et rend le grain plus visible ; aucun chiffre de ce fichier ne dira où
+/// s'arrêter à la place de l'œil.
 ///
 /// # Ce que j'ai essayé de mettre à sa place, et pourquoi trois tests l'ont refusé
 ///
@@ -138,7 +147,7 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 ///
 /// Les trois ensemble **verrouillent une constante**, et la seule liberté qui reste est sa
 /// valeur. La dire au lieu de la déguiser en loi est plus honnête que de tordre un test.
-const TAU_CONDUITE: f64 = 0.005;
+const TAU_CONDUITE: f64 = 0.01;
 
 /// Le plus petit silence dont on puisse conclure que la main a lâché.
 ///
