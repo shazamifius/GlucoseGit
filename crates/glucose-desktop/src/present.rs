@@ -61,6 +61,7 @@
 //! ne s'arrête pas : elle le dit et continue.
 
 pub mod gpu;
+pub mod scene_gpu;
 
 pub use gpu::GpuPresenter;
 
