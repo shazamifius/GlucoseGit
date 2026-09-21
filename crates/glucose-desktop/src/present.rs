@@ -60,6 +60,7 @@
 //! machine virtuelle, bureau distant, pilote absent. Le jour où le GPU échoue, l'application
 //! ne s'arrête pas : elle le dit et continue.
 
+pub mod couches;
 pub mod gpu;
 pub mod scene_gpu;
 
@@ -81,6 +82,31 @@ pub trait Presenter {
 
     /// Met cette image à l'écran.
     fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<()>;
+
+    /// **Cette présentation sait-elle poser les photos elle-même ?**
+    ///
+    /// Quand elle le sait, l'application lui donne la scène en trois temps plutôt qu'en une
+    /// image finie : ce qui passe sous les photos, les photos, ce qui passe dessus. Le
+    /// filtrage est alors câblé dans le silicium, et il ne coûte rien à aucune échelle.
+    fn pose_les_photos(&self) -> bool {
+        false
+    }
+
+    /// Présente la scène en trois temps. N'est appelée que si [`Presenter::pose_les_photos`].
+    ///
+    /// `source` donne les pixels d'une photo que la carte ne connaît pas encore : elle ne les
+    /// demande qu'une fois, au premier affichage, et jamais plus.
+    fn presenter_en_couches(
+        &mut self,
+        _dessous: &Pixmap,
+        _photos: &[(String, scene_gpu::Pose)],
+        _source: &dyn Fn(&str) -> Option<Pixmap>,
+        _dessus: &Pixmap,
+    ) -> DesktopResult<()> {
+        Err(DesktopError::WindowError(
+            "cette presentation ne pose pas les photos".into(),
+        ))
+    }
 
     /// Comment cette présentation s'appelle, pour le dire à qui veut le savoir.
     fn nom(&self) -> &'static str;

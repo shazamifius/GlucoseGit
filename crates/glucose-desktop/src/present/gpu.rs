@@ -82,6 +82,10 @@ pub struct GpuPresenter {
     adaptateur: String,
     /// Le format de la texture qui porte l'image (GAMMA-1).
     format_image: wgpu::TextureFormat,
+    /// Les photos que la carte detient, et de quoi les poser (fiche 21, etape 1).
+    scene: super::scene_gpu::SceneGpu,
+    /// Les deux couches du processeur, autour des photos.
+    couches: super::couches::Couches,
     /// La chaîne d'images doit être refaite avant la prochaine acquisition.
     ///
     /// # Le plantage que ce drapeau répare
@@ -176,7 +180,13 @@ impl GpuPresenter {
             wgpu::TextureFormat::Rgba8Unorm
         };
 
+        // La voie graphique de la scene se construit ici, ou le peripherique vit : elle pose
+        // les photos dans le format de la SURFACE, celui ou tout se compose (fiche 21).
+        let scene = super::scene_gpu::SceneGpu::nouvelle(&device, config.format);
+        let couches = super::couches::Couches::nouvelles(&device, config.format);
         Ok(Self {
+            scene,
+            couches,
             surface,
             device,
             queue,
@@ -509,6 +519,55 @@ impl Presenter for GpuPresenter {
         drop(cible);
         self.queue.present(frame);
         crate::perf::stage("present");
+        Ok(())
+    }
+
+    fn pose_les_photos(&self) -> bool {
+        true
+    }
+
+    /// **La scene en trois temps** : sous les photos, les photos, sur les photos.
+    ///
+    /// Voir [`super::couches`] pour ce que cet ordre garantit.
+    fn presenter_en_couches(
+        &mut self,
+        dessous: &Pixmap,
+        photos: &[(String, super::scene_gpu::Pose)],
+        source: &dyn Fn(&str) -> Option<Pixmap>,
+        dessus: &Pixmap,
+    ) -> DesktopResult<()> {
+        self.scene.ouvrir();
+        self.scene
+            .assurer(&self.device, &self.queue, photos, source);
+        let ecran = (dessous.width() as f32, dessous.height() as f32);
+        let retenues = self
+            .scene
+            .preparer(&self.device, &self.queue, ecran, photos);
+        self.couches
+            .televerser(&self.device, &self.queue, dessous, dessus);
+        crate::perf::stage("blit");
+
+        let Some(frame) = self.acquerir()? else {
+            self.scene.fermer();
+            return Ok(());
+        };
+        crate::perf::stage("acquerir");
+        let cible = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encodeur = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("glucose-couches"),
+            });
+        super::couches::composer(&mut encodeur, &cible, &self.couches, &self.scene, &retenues);
+        crate::perf::stage("encoder");
+        self.queue.submit(Some(encodeur.finish()));
+        crate::perf::stage("soumettre");
+        drop(cible);
+        self.queue.present(frame);
+        crate::perf::stage("present");
+        self.scene.fermer();
         Ok(())
     }
 

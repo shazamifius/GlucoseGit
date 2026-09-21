@@ -406,6 +406,27 @@ impl SceneGpu {
         );
     }
 
+    /// **Televerse ce que la carte ne connait pas encore**, et rien d'autre.
+    ///
+    /// `source` n'est appelee que pour les photos absentes : une photo ne traverse le bus
+    /// qu'une fois dans sa vie, au premier affichage.
+    pub fn assurer(
+        &mut self,
+        peripherique: &wgpu::Device,
+        file: &wgpu::Queue,
+        photos: &[(String, Pose)],
+        source: &dyn Fn(&str) -> Option<Pixmap>,
+    ) {
+        for (cle, _) in photos {
+            if self.connait(cle) {
+                continue;
+            }
+            if let Some(pixels) = source(cle) {
+                self.televerser(peripherique, file, cle, &pixels);
+            }
+        }
+    }
+
     /// Ouvre une image : ce qui ne servira pas d'ici à [`SceneGpu::fermer`] sera oublié.
     pub fn ouvrir(&mut self) {
         self.image += 1;
