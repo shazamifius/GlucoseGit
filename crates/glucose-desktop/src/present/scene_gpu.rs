@@ -443,9 +443,11 @@ impl SceneGpu {
         let debut = Instant::now();
         let mut faites = 0.0_f64;
         let mut reportees = 0.0_f64;
-        // **Deux tours, et l'ordre est ce qui rend la cascade sûre.** Au premier, ce que la
-        // carte n'a pas du tout : sans texture, un composant ne se dessine pas, et un trou
-        // est toujours pire qu'un flou. Au second, ce qu'elle détient mais qui a vieilli.
+        // **Deux tours, et leur ordre EST la priorité.** Au premier, ce que la carte n'a pas
+        // du tout : sans texture, un composant ne se dessine pas, et un trou se voit plus
+        // qu'un flou. Au second, ce qu'elle détient mais qui a vieilli. L'urgent mange donc
+        // le budget en premier, et le périmé prend ce qui reste — sans qu'aucun second
+        // budget ait eu à être choisi.
         for urgent in [true, false] {
             for t in a_poser {
                 if self.connait(&t.identite, &t.cle) {
@@ -454,9 +456,20 @@ impl SceneGpu {
                 if self.detient(&t.identite) == urgent {
                     continue;
                 }
-                // Le budget ne se vérifie qu'au second tour : ce qui manque entièrement se
-                // rend quoi qu'il en coûte, sans quoi la scène serait incomplète.
-                if !urgent && debut.elapsed() >= budget {
+                // **Le budget vaut pour les deux tours**, et la première version se trompait
+                // ici. Elle n'en exemptait que l'urgent, au motif qu'un trou est pire qu'un
+                // flou — vrai pour une carte isolée, faux pour quatre cent quatre-vingts.
+                // Le terrain a tranché : les douze images les plus lentes de la session du
+                // 21/09 au soir sont toutes des dézooms et des vols de caméra, où toutes les
+                // cartes entrent à l'écran ensemble, et `textures` y coûte jusqu'à 57,6 ms.
+                // Geler une image d'un vingtième de seconde se voit bien plus que deux cents
+                // cartes qui paraissent une image plus tard.
+                //
+                // **Au moins une par image, toujours.** C'est ce qui garantit qu'une scène
+                // finit par se compléter, même quand chaque image dépasse déjà le plancher
+                // et que le budget est nul — la même raison qui fait que `tranche_de_fond`
+                // ne rend jamais zéro à l'atelier de décodage.
+                if faites > 0.0 && debut.elapsed() >= budget {
                     reportees += 1.0;
                     continue;
                 }

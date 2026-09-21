@@ -348,13 +348,18 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
     );
 }
 
-/// **Ce qui manque entièrement se rend même sans budget ; ce qui a vieilli attend.**
+/// **L'absent passe avant le périmé, et au moins un se rend toujours.**
 ///
-/// L'ordre des deux tours est ce qui rend la cascade sûre, et un budget nul est le cas
-/// extrême qui le montre : une image déjà en retard ne doit pas creuser un trou pour se
-/// rattraper, mais elle ne doit pas non plus laisser un composant sans aucune texture.
+/// L'ordre des deux tours est la priorité : sans texture un composant ne se dessine pas, donc
+/// l'urgent mange le budget en premier. Mais le budget vaut pour lui aussi — quatre cent
+/// quatre-vingts cartes qui entrent ensemble coûtaient 57 ms sur une image, et geler un
+/// vingtième de seconde se voit plus que deux cents cartes qui paraissent une image plus tard.
+///
+/// Un budget nul est le cas extrême qui montre les deux règles à la fois : l'absent est servi,
+/// le périmé attend, et **au moins une texture se rend** pour qu'une scène finisse toujours
+/// par se compléter.
 #[test]
-fn test_cascade_le_budget_reporte_le_perime_et_jamais_l_absent() {
+fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     let Some((peripherique, file)) = carte() else {
         eprintln!("aucune carte graphique : test saute");
         return;
@@ -394,7 +399,8 @@ fn test_cascade_le_budget_reporte_le_perime_et_jamais_l_absent() {
 
     assert!(
         scene.connait("neuf", "neuf"),
-        "ce qui manque entierement se rend meme sans budget : un trou est pire qu'un flou"
+        "l'absent passe en premier, et au moins un se rend toujours -- sinon une scene ne se \
+         completerait jamais sur une machine qui depasse le plancher a chaque image"
     );
     assert!(
         !scene.connait("vieux", "vieux:neuf"),

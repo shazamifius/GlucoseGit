@@ -144,7 +144,7 @@ fn jouer(
                 if connues.contains_key(&t.identite) == urgent {
                     continue;
                 }
-                if !urgent && debut_des_textures.elapsed() >= budget {
+                if rendues > 0.0 && debut_des_textures.elapsed() >= budget {
                     continue;
                 }
                 if let Some(c) = confie.composant(&t.cle) {
