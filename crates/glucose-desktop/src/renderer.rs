@@ -23,6 +23,7 @@ pub mod atelier;
 pub mod cadrage;
 pub mod card;
 pub mod domain;
+mod fils;
 pub mod folder;
 pub mod grille;
 pub mod halo;

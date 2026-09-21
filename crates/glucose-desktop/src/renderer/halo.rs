@@ -281,65 +281,17 @@ fn first_pixel_at_or_after(position: f32, limit: i32) -> i32 {
     }
 }
 
-/// Compose la lueur d'une boîte sur `dst` (HALO-1).
+/// Pose UNE lueur, sans rien preparer d'avance.
+///
+/// **Reservee aux tests**, et c'est ce qu'elle a toujours ete sans le dire : la production
+/// prepare toutes ses lueurs d'un coup ([`LueurPrete`]) pour que le preambule ne se refasse
+/// pas par bande. Les epreuves d'aspect, elles, veulent une lueur isolee sur un fond connu,
+/// et c'est ce qu'elle donne.
+#[cfg(test)]
 pub(super) fn draw_halo(dst: &mut PixmapMut, halo: HaloBox, rgb: (u8, u8, u8), alpha: u8) {
-    if alpha == 0
-        || !halo.left.is_finite()
-        || !halo.top.is_finite()
-        || !halo.right.is_finite()
-        || !halo.bottom.is_finite()
-    {
-        return;
-    }
-    let profile = EdgeProfile::new(halo.sigma);
-    let reach = profile.reach(alpha);
-
-    let width = dst.width() as i32;
-    let height = dst.height() as i32;
-    let x0 = first_pixel_at_or_after(halo.left - reach, width);
-    let x1 = first_pixel_at_or_after(halo.right + reach, width);
-    let y0 = first_pixel_at_or_after(halo.top - reach, height);
-    let y1 = first_pixel_at_or_after(halo.bottom + reach, height);
-    if x1 <= x0 || y1 <= y0 {
-        return;
-    }
-
-    // Le profil horizontal ne dépend que de la colonne : il se calcule une fois pour
-    // toutes les lignes, et la boucle chaude n'y fait plus qu'une lecture.
-    let columns: Vec<f32> = (x0..x1)
-        .map(|x| profile.band(x as f32 + 0.5, halo.left, halo.right))
-        .collect();
-    // La lueur ne prend que `alpha` niveaux distincts : ils se précalculent tous.
-    let levels: Vec<LevelSource> = (0..=alpha).map(|a| LevelSource::new(rgb, a)).collect();
-
-    // Le profil horizontal est unimodal : il monte, plafonne, puis redescend. Son SOMMET
-    // coupe la ligne en deux morceaux monotones, ce qui est tout ce dont la suite a besoin.
-    let sommet = index_du_sommet(&columns);
-    let largeur = width as usize;
-    let (pixels, _) = dst.data_mut().as_chunks_mut::<4>();
-    let peak = f32::from(alpha);
-    for y in y0..y1 {
-        let row_weight = profile.band(y as f32 + 0.5, halo.top, halo.bottom) * peak;
-        if row_weight < 0.5 {
-            continue;
-        }
-        let debut = y as usize * largeur + x0 as usize;
-        let ligne = &mut pixels[debut..debut + (x1 - x0) as usize];
-        let (gauche, droite) = ligne.split_at_mut(sommet);
-        peindre_par_segments(
-            gauche,
-            row_weight,
-            &columns[..sommet],
-            &levels,
-            Sens::Montant,
-        );
-        peindre_par_segments(
-            droite,
-            row_weight,
-            &columns[sommet..],
-            &levels,
-            Sens::Descendant,
-        );
+    let (largeur, hauteur) = (dst.width() as i32, dst.height() as i32);
+    if let Some(prete) = LueurPrete::nouvelle(halo, rgb, alpha, largeur, hauteur) {
+        prete.peindre(dst, 0);
     }
 }
 
@@ -470,14 +422,27 @@ pub fn draw_halos(
     // On va droit aux nœuds visibles (CULL-1). La version précédente parcourait le tableau
     // entier en demandant de chacun s'il était visible : sur un million de nœuds dont cinq
     // cents à l'écran, c'était un million de hachages de chaîne pour cette seule passe.
+    //
+    // **Deux temps, parce que la teinte s'écrit et que la lueur se peint.** Le cache des
+    // teintes symbiotiques se modifie — il dépend du voisinage et coûte cher —, donc il tient
+    // le premier temps à lui seul. La peinture, elle, ne lit plus que des couleurs déjà
+    // décidées, et seize fils peuvent la faire ensemble.
+    let mut a_peindre: Vec<(HaloBox, (u8, u8, u8))> = Vec::new();
     for ann in Visibles::nouvelles(visibles, board).annotations() {
         let Some(halo) = halo_geometry(ann, vp, screen_w, screen_h, header_h) else {
             continue;
         };
         let (_hue, rgb) = hue_cache.get_or_compute(ann, pass.index, board);
-        draw_halo(pixmap, halo, rgb, HALO_ALPHA);
+        a_peindre.push((halo, rgb));
     }
+    peindre_en_bandes(pixmap, &a_peindre);
 }
+
+mod bandes;
+
+use bandes::peindre_en_bandes;
+#[cfg(test)]
+use bandes::{peindre_en, LueurPrete};
 
 #[cfg(test)]
 mod tests;

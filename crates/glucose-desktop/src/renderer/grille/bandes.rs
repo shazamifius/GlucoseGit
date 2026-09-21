@@ -13,6 +13,7 @@
 //! moins cher que pixeliser sur un coeur, et c'est ce qui retire a la pixelisation sa
 //! derniere justification.
 
+use super::super::fils::bandes_utiles;
 use super::{Couverture, Place, Portee, Tuiles, COTE_TUILE};
 use crate::canvas::world_to_screen;
 use glucose_core::occlusion::Boite;
@@ -133,26 +134,6 @@ fn composer_dans(
         pixels += composer(dest, peinte, portee, place, decalage);
     }
     pixels
-}
-
-/// En combien de bandes découper l'écran — un nombre qui se **constate**, jamais choisi.
-///
-/// Trois bornes, et chacune dit pourquoi elle existe :
-///
-/// * ce que la machine annonce, parce qu'au-delà les bandes se disputeraient les mêmes cœurs ;
-/// * le nombre de tuiles, parce qu'une bande sans tuile ne fait rien et qu'un fil lancé pour
-///   rien coûte une vingtaine de microsecondes ;
-/// * la hauteur en pixels, parce qu'une bande doit contenir au moins une ligne.
-///
-/// Le nombre de fils de la machine ne change pas d'une image à l'autre : on le lit une fois.
-/// Ce qui change — un jeu qui occupe les cœurs — se verra dans le **débit**, et c'est un
-/// autre mécanisme que celui-ci.
-fn bandes_utiles(tuiles: usize, hauteur: u32) -> usize {
-    static FILS: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-    let fils = *FILS.get_or_init(|| {
-        std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get)
-    });
-    fils.min(tuiles).min(hauteur as usize).max(1)
 }
 
 /// Compose une tuile à sa place à l'écran, et rend combien de pixels ont été écrits.
@@ -360,23 +341,5 @@ mod tests {
                 );
             }
         }
-    }
-
-    /// Le decoupage ne se fait pas quand il ne rapporterait rien -- et surtout, il ne
-    /// demande jamais plus de bandes que l'ecran n'a de lignes.
-    #[test]
-    fn test_le_nombre_de_bandes_se_constate_et_ne_depasse_rien() {
-        assert_eq!(
-            bandes_utiles(0, 1080),
-            1,
-            "aucune tuile : aucun fil a lancer"
-        );
-        assert_eq!(bandes_utiles(1, 1080), 1, "une tuile ne se partage pas");
-        assert_eq!(
-            bandes_utiles(400, 3),
-            3,
-            "jamais plus de bandes que de lignes"
-        );
-        assert!(bandes_utiles(400, 1080) >= 1);
     }
 }

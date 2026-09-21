@@ -612,3 +612,77 @@ fn les_segments_rendent_les_memes_pixels_que_le_calcul_par_pixel() {
         assert!(ecart.is_none(), "poids {poids} : ecart au pixel {ecart:?}");
     }
 }
+
+/// **Le nombre de bandes ne change aucun pixel d'une lueur.**
+///
+/// La garantie que la charte exige de toute adaptation : elle change *comment* on arrive au
+/// resultat, jamais le resultat. Ici les voies sont « un fil » et « n fils », et c'est le
+/// seul moyen de savoir qu'une bande ne decale pas sa part d'une ligne -- le defaut typique
+/// d'un decoupage, et celui qui se verrait le moins sur un degrade.
+///
+/// Une lueur est justement le pire cas pour un tel defaut : son profil est continu, donc un
+/// decalage d'une ligne ne fait pas de trou franc, seulement une bavure qu'on prendrait pour
+/// du flou.
+#[test]
+fn test_les_bandes_ne_changent_aucun_pixel_d_une_lueur() {
+    let (largeur, hauteur) = (320u32, 260u32);
+    // Trois lueurs qui se CHEVAUCHENT et debordent de l'ecran : c'est la composition
+    // successive qui doit rester identique, pas seulement une lueur isolee.
+    let lueurs = [
+        (
+            HaloBox {
+                left: 40.0,
+                top: 30.0,
+                right: 200.0,
+                bottom: 90.0,
+                sigma: 14.0,
+            },
+            (220u8, 90u8, 60u8),
+        ),
+        (
+            HaloBox {
+                left: 120.0,
+                top: 100.5,
+                right: 300.0,
+                bottom: 170.5,
+                sigma: 9.0,
+            },
+            (60u8, 200u8, 180u8),
+        ),
+        (
+            HaloBox {
+                left: -30.0,
+                top: 190.0,
+                right: 90.0,
+                bottom: 300.0,
+                sigma: 20.0,
+            },
+            (120u8, 120u8, 240u8),
+        ),
+    ];
+
+    let peindre = |fils: usize| -> Vec<u8> {
+        let mut pixmap = Pixmap::new(largeur, hauteur).expect("l'ecran");
+        pixmap.fill(background());
+        // Le chemin de production, exactement : ce sont `LueurPrete` et `peindre_en` qui
+        // portent le decalage, donc c'est eux qu'il faut eprouver -- une boucle ecrite dans
+        // le test prouverait que le test sait decaler, pas que le rendu sait.
+        let pretes: Vec<LueurPrete> = lueurs
+            .iter()
+            .filter_map(|(halo, rgb)| {
+                LueurPrete::nouvelle(*halo, *rgb, HALO_ALPHA, largeur as i32, hauteur as i32)
+            })
+            .collect();
+        peindre_en(fils, &mut pixmap.as_mut(), &pretes);
+        pixmap.data().to_vec()
+    };
+
+    let temoin = peindre(1);
+    // Des nombres premiers entre eux avec la hauteur : les frontieres ne retombent jamais
+    // deux fois au meme endroit.
+    for fils in [2, 3, 5, 7, 16, 64] {
+        let vu = peindre(fils);
+        let ecarts = temoin.iter().zip(&vu).filter(|(a, b)| a != b).count();
+        assert_eq!(ecarts, 0, "{fils} bandes changent {ecarts} octets");
+    }
+}
