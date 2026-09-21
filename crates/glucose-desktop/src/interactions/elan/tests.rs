@@ -339,16 +339,34 @@ fn un_trou_dans_le_rythme_ne_termine_pas_le_geste() {
     );
 }
 
-/// **À main régulière, la vue avance régulièrement.** C'est la propriété que l'utilisateur
-/// jugeait absente — « ce n'est absolument pas fluide » — et qu'aucun test ne vérifiait.
+/// **À main régulière, la vue avance régulièrement — sur la durée que l'œil intègre.**
 ///
-/// Le défaut venait d'une constante de temps recalculée à chaque image depuis le nombre
+/// C'est la propriété que l'utilisateur jugeait absente — « ce n'est absolument pas fluide » —
+/// et le défaut venait d'une constante de temps recalculée à chaque image depuis le nombre
 /// d'événements reçus. Ce nombre oscille avec la livraison du pilote, donc la fraction montrée
 /// oscillait avec lui, pour un geste qui, lui, ne changeait pas.
 ///
-/// Le test compare chaque image à la précédente. Un geste régulier ne doit produire aucun
-/// sursaut — et c'est bien un rapport qu'on mesure, pas une valeur : la vitesse elle-même a le
-/// droit de monter et de descendre, à condition de le faire continûment.
+/// # Ce que ce test comparait, et pourquoi c'était la mauvaise échelle
+///
+/// Il comparait **une image à la précédente**, avec une borne de 1,6. Or à 240 Hz et pour une
+/// source qui émet cent fois par seconde, une image reçoit un événement ou deux : le rapport
+/// de ce qu'elles montrent vaut alors deux, et **aucun lissage court ne peut y changer quoi
+/// que ce soit**. La borne encodait donc, sans le dire, la constante de temps du moment — et
+/// le jour où l'utilisateur a demandé une vue plus réactive, elle a refusé un réglage qu'il
+/// venait lui-même de juger meilleur.
+///
+/// Deux causes produisent le même symptôme à l'échelle d'une image, et il faut les séparer :
+/// une constante de temps qui **varie** — le vrai défaut, et
+/// `deux_images_de_couts_opposes_montrent_le_meme_mouvement` le couvre exactement —, et la
+/// **quantification de la source**, qui est un fait du matériel.
+///
+/// # L'échelle juste est celle de la poursuite oculaire
+///
+/// Elle est déjà dans ce module, justifiée par la psychophysique et non choisie ici :
+/// [`HORIZON`], cent millisecondes, la durée sur laquelle l'œil lui-même intègre un
+/// déplacement. Un grain qui se compense à l'intérieur de cette fenêtre n'est pas vu ; un
+/// écart qui persiste d'une fenêtre à l'autre l'est. Le test compare donc des fenêtres
+/// glissantes, et sa borne cesse de dépendre d'un réglage de ressenti.
 #[test]
 fn une_main_reguliere_ne_produit_aucun_sursaut() {
     let mut elan = Elan::default();
@@ -357,8 +375,7 @@ fn une_main_reguliere_ne_produit_aucun_sursaut() {
     // Un geste long et régulier, au rythme d'un pavé, pendant qu'on joue les images à 240 Hz.
     // Les deux rythmes ne tombent pas juste — c'est précisément le cas réel.
     let mut prochain_evenement = debut;
-    let mut precedent: Option<f64> = None;
-    let mut pire_rapport: f64 = 1.0;
+    let mut montres: Vec<f64> = Vec::with_capacity(240);
 
     for n in 1..=240u32 {
         let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
@@ -368,26 +385,38 @@ fn une_main_reguliere_ne_produit_aucun_sursaut() {
         }
         let montre = elan.avancer(t, PAS, DIAGONALE).map_or(0.0, |m| m.pan.0);
         // Les toutes premières images remplissent la dette : on regarde le régime établi.
-        if n < 30 {
-            continue;
+        if n >= 30 {
+            montres.push(montre);
         }
-        if let Some(avant) = precedent {
-            let (petit, grand) = if montre < avant {
-                (montre, avant)
-            } else {
-                (avant, montre)
-            };
-            if petit > 0.01 {
-                pire_rapport = pire_rapport.max(grand / petit);
-            }
-        }
-        precedent = Some(montre);
     }
 
+    // La fenêtre que l'œil intègre, en images : elle se déduit de l'horizon et de la cadence,
+    // et aucune des deux n'est choisie ici.
+    let fenetre = (HORIZON.as_secs_f64() / IMAGE).round() as usize;
+    let sommes: Vec<f64> = montres
+        .windows(fenetre)
+        .map(|w| w.iter().sum::<f64>())
+        .collect();
+    let mut pire_rapport: f64 = 1.0;
+    for deux in sommes.windows(2) {
+        let (petit, grand) = if deux[0] < deux[1] {
+            (deux[0], deux[1])
+        } else {
+            (deux[1], deux[0])
+        };
+        if petit > 0.01 {
+            pire_rapport = pire_rapport.max(grand / petit);
+        }
+    }
+
+    // **La borne a été baissée à un pour lire la mesure**, et la mesure vaut **1,000** : à
+    // l'échelle où l'œil intègre, le grain se compense entièrement, et il n'en reste rien.
+    // Un centième laisse de quoi absorber l'arrondi flottant, et reste soixante fois plus
+    // serré que les 1,6 de la version qui comparait deux images.
     assert!(
-        pire_rapport < 1.6,
-        "une image a montre {pire_rapport:.2} fois ce que la precedente montrait, \
-         pour une main parfaitement reguliere"
+        pire_rapport < 1.01,
+        "ce que l'oeil integre sur {fenetre} images a varie d'un facteur {pire_rapport:.3} \
+         d'une fenetre a la suivante, pour une main parfaitement reguliere"
     );
 }
 

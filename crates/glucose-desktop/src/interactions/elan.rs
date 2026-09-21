@@ -104,11 +104,14 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 ///                        montee a 90 %   retard    grain    grain en rafales
 ///     50 ms                  145,8 ms   46,7 px    12,6 %        24,6 %
 ///     20 ms                   62,5 ms   13,1 px    27,3 %        53,3 %
+///     10 ms                     voir bench_demarrage
 /// ```
 ///
-/// Le retard est divisé par trois et demi, la montée par deux ; le grain double. C'est un
-/// arbitrage de ressenti, et il a été tranché par le ressenti : l'utilisateur demande de la
-/// réactivité et ne signale pas de saccade.
+/// C'est un arbitrage de ressenti, et il a été tranché par le ressenti, deux fois. À
+/// cinquante millisecondes : *« trop trop trop smooth, pas assez réactif, ça traîne »*. À
+/// vingt : *« c'est super, pour ce qui est du smooth tu peux encore diviser par deux »*.
+/// Chaque division rapproche la vue de la main et rend le grain plus visible ; c'est l'œil
+/// qui dit où s'arrêter, et aucun chiffre de ce fichier ne le dira à sa place.
 ///
 /// # Ce que j'ai essayé de mettre à sa place, et pourquoi trois tests l'ont refusé
 ///
@@ -126,7 +129,7 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 ///
 /// Les trois ensemble **verrouillent une constante**, et la seule liberté qui reste est sa
 /// valeur. La dire au lieu de la déguiser en loi est plus honnête que de tordre un test.
-const TAU_CONDUITE: f64 = 0.02;
+const TAU_CONDUITE: f64 = 0.01;
 
 /// Le plus petit silence dont on puisse conclure que la main a lâché.
 ///
