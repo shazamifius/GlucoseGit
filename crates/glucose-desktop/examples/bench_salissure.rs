@@ -138,6 +138,21 @@ struct Scene<'a> {
     depart: Viewport,
     /// Le geste joué : un zoom qui s'éteint, ou un glissement qui s'éteint.
     zoom: bool,
+    /// De combien la scène se rend plus petite. `1` veut dire « pas du tout ».
+    ///
+    /// # Pourquoi ce banc devait apprendre à réduire
+    ///
+    /// Il appelait `render`, qui ne réduit jamais — c'est `rendre_reduit` qui le fait, et
+    /// seul `app/peinture.rs` l'appelle. **La réduction n'a donc jamais été mesurée par un
+    /// banc**, alors qu'elle décide de 40 à 80 % des images sur le terrain et qu'elle est ce
+    /// que l'utilisateur voit comme « trop pixelisé ».
+    ///
+    /// Trois sessions de suite ont servi à en juger, et aucune ne jouait le même geste : on
+    /// ne compare pas trois chroniques qui mesurent trois choses. Ce banc joue le même geste
+    /// à chaque facteur, et c'est la seule façon d'en tirer une conclusion.
+    reduction: u32,
+    /// Le tampon dans lequel la scène réduite se rend, à sa taille.
+    tampon: Option<Pixmap>,
 }
 
 /// Ce qu'un régime a donné : ses images, leurs postes, et ce que la chrome y a répété.
@@ -196,15 +211,32 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
         }
         glucose_desktop::perf::frame_begin();
         let t0 = std::time::Instant::now();
-        {
-            scene.renderer.render(
-                &mut scene.pixmap.as_mut(),
-                scene.store,
-                scene.ui,
-                overlay,
-                pointer,
-                regard,
-            );
+        match scene.tampon.as_mut() {
+            // Le chemin de la reduction, tel que `app/peinture.rs` l'emprunte.
+            Some(tampon) => {
+                let reduite = glucose_desktop::renderer::SceneReduite {
+                    tampon,
+                    facteur: scene.reduction,
+                };
+                scene.renderer.rendre_reduit(
+                    &mut scene.pixmap.as_mut(),
+                    reduite,
+                    scene.store,
+                    scene.ui,
+                    overlay,
+                    pointer,
+                );
+            }
+            None => {
+                scene.renderer.render(
+                    &mut scene.pixmap.as_mut(),
+                    scene.store,
+                    scene.ui,
+                    overlay,
+                    pointer,
+                    regard,
+                );
+            }
         }
         render_docks(
             &mut scene.pixmap.as_mut(),
@@ -262,6 +294,13 @@ fn main() {
     let ecart: f64 = args.next().and_then(|a| a.parse().ok()).unwrap_or(40.0);
     // Le geste : `zoom` joue un pincement qui s'éteint, sinon un glissement.
     let zoom = args.next().is_some_and(|a| a == "zoom");
+    // `reduit=N` joue la scene rendue N fois plus petite, par le chemin que `app/peinture.rs`
+    // emprunte -- celui qu'aucun banc ne prenait.
+    let reduction: u32 = args
+        .next()
+        .and_then(|a| a.strip_prefix("reduit=").and_then(|n| n.parse().ok()))
+        .unwrap_or(1)
+        .max(1);
     let dossier = std::env::temp_dir().join("glucose-bench-photos");
     std::fs::create_dir_all(&dossier).expect("dossier temporaire");
     let chemin = ecrire_photo(&dossier);
@@ -323,6 +362,11 @@ fn main() {
                     board: &board,
                     depart,
                     zoom,
+                    reduction,
+                    tampon: (reduction > 1).then(|| {
+                        Pixmap::new((ECRAN.0 / reduction).max(1), (ECRAN.1 / reduction).max(1))
+                            .expect("le tampon reduit")
+                    }),
                 },
                 regard,
                 en_cache,
@@ -365,9 +409,14 @@ fn main() {
     }
 
     let geste = if zoom { "pincement" } else { "glissade" };
+    let finesse = if reduction > 1 {
+        format!(", scene rendue {reduction} fois plus petite")
+    } else {
+        String::new()
+    };
     println!(
         "Banc de la salissure — {photos} photos et {cartes} cartes, {} x {}, {IMAGES} images \
-         de {geste}, {ecart:.0} px entre les photos
+         de {geste}, {ecart:.0} px entre les photos{finesse}
 ",
         ECRAN.0, ECRAN.1
     );
