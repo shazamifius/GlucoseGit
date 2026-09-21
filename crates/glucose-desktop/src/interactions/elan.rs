@@ -107,9 +107,18 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 ///     10 ms                     voir bench_demarrage
 /// ```
 ///
-/// C'est un arbitrage de ressenti, et il a été tranché par le ressenti, deux fois. À
+/// C'est un arbitrage de ressenti, et il a été tranché par le ressenti, trois fois. À
 /// cinquante millisecondes : *« trop trop trop smooth, pas assez réactif, ça traîne »*. À
-/// vingt : *« c'est super, pour ce qui est du smooth tu peux encore diviser par deux »*.
+/// vingt : *« c'est super, pour ce qui est du smooth tu peux encore diviser par deux »*. À
+/// dix, et c'est le geste qui l'a désigné : *« on veut être en mode livre, on va à droite
+/// puis en diagonale en haut puis faire des ronds, et on a une espèce de smooth qui fait que
+/// c'est lent à TOURNER »*.
+///
+/// Tourner est le cas le plus dur, et il dit pourquoi ce nombre compte : la dette est un
+/// vecteur, donc pendant un virage la vue montre encore la direction que la main avait un τ
+/// plus tôt. Ce retard ne se voit pas en ligne droite — il n'y décale que la position — mais
+/// dans un rond il décale l'**angle**, et un angle faux se voit bien plus qu'un retard.
+///
 /// Chaque division rapproche la vue de la main et rend le grain plus visible ; c'est l'œil
 /// qui dit où s'arrêter, et aucun chiffre de ce fichier ne le dira à sa place.
 ///
@@ -129,7 +138,7 @@ const TAU_LIBRE_ZOOM: f64 = 0.28;
 ///
 /// Les trois ensemble **verrouillent une constante**, et la seule liberté qui reste est sa
 /// valeur. La dire au lieu de la déguiser en loi est plus honnête que de tordre un test.
-const TAU_CONDUITE: f64 = 0.01;
+const TAU_CONDUITE: f64 = 0.005;
 
 /// Le plus petit silence dont on puisse conclure que la main a lâché.
 ///

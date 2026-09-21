@@ -84,11 +84,21 @@ const ZOOM_LIGNE_PX: f64 = 40.0;
 
 /// Une ligne de défilement, en pixels, pour un **pan**.
 ///
-/// Tauri emploie 40 pour le zoom et 16 pour le pan — deux valeurs pour une seule conversion.
-/// C'est une incohérence de la référence, et elle est reprise **délibérément** : c'est cette
-/// sensation-là qui est validée à la main. Les unifier est une expérience à mener au doigt,
-/// pas une correction à faire sur le papier.
-const PAN_LIGNE_PX: f64 = 16.0;
+/// # C'est un nombre de ressenti, et l'expérience a été menée
+///
+/// Tauri emploie 40 pour le zoom et 16 pour le pan. Cette valeur de 16 en venait, reprise
+/// délibérément, avec cette note : *« les unifier est une expérience à mener au doigt, pas
+/// une correction à faire sur le papier »*. L'expérience a eu lieu.
+///
+/// L'utilisateur, après la session du 21/09 au soir : *« on veut être en mode livre, genre on
+/// va à droite puis en diagonale en haut puis faire des ronds — la vitesse de translation
+/// n'est pas assez élevée »*. Et dans la même phrase : *« le zoom c'est parfait en vrai »*,
+/// ce qui isole le pan et lui seul.
+///
+/// Trente-deux : le doigt parcourt deux fois plus de canevas pour la même course sur le
+/// pavé. C'est toujours moins que les quarante du zoom, et cela se juge à la main — comme
+/// [`crate::interactions::elan`] le fait pour ses deux constantes de temps.
+const PAN_LIGNE_PX: f64 = 32.0;
 
 /// Ce qu'un événement de défilement demande à la caméra.
 #[derive(Debug, Clone, Copy, PartialEq)]
