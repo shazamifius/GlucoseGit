@@ -100,7 +100,7 @@ matériel, on observe son débit.** Aucune table de matériels, aucun `if` par c
 |---|---|---|
 | **1** | **Les photos sur la carte.** Elles deviennent des textures téléversées une fois ; la scène est un lot de quads. Le chrome, le texte et les lueurs restent au processeur, composés par-dessus. | La chronique : `report` et `agrandir` disparaissent du profil, et **plus une image n'est réduite** |
 | **2** | **L'arbitre.** Les deux voies mesurent leur débit ; le choix se fait à chaud, et suit le bridage comme la concurrence. | Un banc qui occupe la carte et vérifie que Glucose passe au processeur sans saut visible |
-| **3** | **Le reste de la scène sur la carte** : texte, formes, lueurs. | Égalité d'aspect avec la voie processeur, à un écart borné |
+| **3** | **Le reste de la scène sur la carte** : texte, formes, lueurs. **Le fond et les lueurs sont faits** (fiche [`22`](22-SESSION-DU-21-09.md)) ; le texte et les formes restent. | Égalité d'aspect avec la voie processeur, à un écart borné — **tenue par `tests/voies_suite.rs` : 3 niveaux sur la scène entière** |
 | **4** | **La spécialisation par classe de machine** : des routines qui s'assemblent selon le débit constaté. | Sur une machine sans carte utilisable, la voie processeur reste au niveau d'aujourd'hui |
 
 **L'étape 1 est la seule qui réponde au grief de l'utilisateur** — « une interface absolument
@@ -112,9 +112,10 @@ quel.
 
 ## 5. Ce qui devra être tranché en chemin
 
-1. **La composition des deux couches.** La scène sort de la carte, le chrome du processeur. Le
-   plus simple est de téléverser le chrome en RGBA et de le composer dans le nuanceur — un
-   seul téléversement de la taille de l'écran, ce que `present/gpu.rs` fait déjà.
+1. **La composition des deux couches.** *Tranché, et la réponse a changé en chemin* : deux
+   couches d'abord (fond + lueurs + contenants dessous, le reste dessus), puis **cinq
+   temps** une fois le fond et les lueurs sur la carte — et la couche du dessous **cesse
+   d'exister** quand elle est vide, ce qui vaut mieux que la mettre en cache (fiche 22 § 4).
 2. **Les textures des photos.** Un atlas borné, ou un tableau de textures. Le choix dépend du
    nombre de photos visibles simultanément, que le quadtree connaît déjà.
 3. **Ce que devient le cache de tuiles sur la voie GPU.** Probablement rien : la carte n'a pas
