@@ -74,10 +74,26 @@ pub(super) enum Regime {
 impl Regime {
     /// Le régime que cette vue commande, sous ce cadrage.
     ///
-    /// Une tuile ne se rend jamais par la grille — ce serait se rendre soi-même — ni une
-    /// scène réduite, qui est déjà une pixelisation pilotée par la perception.
+    /// Une tuile ne se rend jamais par la grille — ce serait se rendre soi-même.
+    ///
+    /// # Une scène réduite passe par la grille, et c'est un changement
+    ///
+    /// Elle en était exclue, au motif qu'elle est « déjà une pixelisation pilotée par la
+    /// perception ». Le raisonnement confondait deux choses : la grille n'est pas un moyen de
+    /// dégrader, c'est un **cache**. En priver la scène réduite, c'est la faire repeindre
+    /// entièrement à chaque image, précisément quand on cherchait à la rendre moins chère.
+    ///
+    /// Le coût de cette confusion se lit dans trois chroniques de terrain d'affilée :
+    /// `agrandir` premier poste réel du zoom à 2,90 ms, `grille` absente de son profil, et
+    /// **80 % des images rendues plus petites** — pendant que le cache existait, chaud, et ne
+    /// servait pas. Pire, elle bouclait : réduire perdait les tuiles, la scène réduite coûtait
+    /// donc presque autant qu'entière, le modèle en concluait qu'il fallait réduire encore.
+    ///
+    /// Rien ne s'y opposait techniquement. La réduction est déjà une **vue** : `cadrer`
+    /// divise l'échelle et la translation par `f`, donc le niveau dyadique suit de lui-même
+    /// et les tuiles se posent dans ce repère comme dans tout autre.
     pub(super) fn pour(cadrage: Cadrage, vp: Viewport) -> Self {
-        if cadrage.vue.is_some() || cadrage.reduction > 1.0 {
+        if cadrage.vue.is_some() {
             return Self::Direct;
         }
         let niveau = Adresse::niveau_pour(vp.scale);

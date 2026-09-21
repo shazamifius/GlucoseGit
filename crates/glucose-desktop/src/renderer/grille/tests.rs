@@ -112,14 +112,40 @@ fn test_le_regime_suit_l_echelle_et_la_perception() {
         Regime::pour(plein.avec_degradation(true), vue(0.0, 0.0, 1.3)),
         Regime::Entre
     );
-    // Une tuile ne se rend jamais par la grille, ni une scène réduite.
+    // Une tuile ne se rend jamais par la grille : ce serait se rendre soi-même.
     assert_eq!(
         Regime::pour(Cadrage::tuile(0, (0.0, 0.0)), vue(0.0, 0.0, 1.0)),
         Regime::Direct
     );
+}
+
+/// **Une scène réduite passe par la grille**, et ce test dit l'inverse de ce qu'il disait.
+///
+/// Il exigeait `Direct`, au motif qu'une scène réduite est « déjà une pixelisation ». Le
+/// raisonnement confondait deux choses : la grille n'est pas un moyen de dégrader, c'est un
+/// **cache**. L'en priver faisait repeindre la scène entière à chaque image, précisément
+/// quand on cherchait à la rendre moins chère -- et cela bouclait, puisque le modèle de
+/// résolution lisait ce surcoût comme une raison de réduire davantage.
+///
+/// Trois chroniques de terrain d'affilée l'ont montré : `agrandir` premier poste réel du
+/// zoom, `grille` absente de son profil, et jusqu'à 80 % des images rendues plus petites.
+///
+/// Rien ne s'y opposait : `cadrer` divise l'échelle et la translation par `f`, donc une scène
+/// réduite est une **vue** comme une autre, et son niveau dyadique suit de lui-même.
+#[test]
+fn test_une_scene_reduite_passe_par_la_grille_comme_les_autres() {
+    // A l'echelle dyadique reduite, le chemin exact -- celui qui ne coute qu'un deplacement
+    // de memoire par ligne.
     assert_eq!(
         Regime::pour(Cadrage::reduit(2), vue(0.0, 0.0, 1.0)),
-        Regime::Direct
+        Regime::Exact
+    );
+    // Entre deux niveaux, la meme regle que partout : l'oeil decide. Une scene reduite l'est
+    // TOUJOURS en mouvement -- c'est le plafond de la perception qui a permis le facteur --
+    // donc elle tombe toujours du cote ou la grille sert.
+    assert_eq!(
+        Regime::pour(Cadrage::reduit(2), vue(0.0, 0.0, 1.3)),
+        Regime::Entre
     );
 }
 
