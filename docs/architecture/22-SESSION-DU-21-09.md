@@ -6,8 +6,8 @@
 > et surtout ce qu'une image mise à côté d'une autre a montré que trois commits et mille
 > trois cents tests n'avaient pas vu.
 >
-> **Date** : 2026-09-21 · trois commits, de `2e547ca` à `7257acf`.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 346 tests verts**, clippy strict à
+> **Date** : 2026-09-21 · huit commits, de `2e547ca` à `ad39efe` — la seconde moitié à partir du § 10.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 352 tests verts**, clippy strict à
 > zéro, onze cliquets, aucun plafond relevé.
 >
 > **Le point de départ** : la chronique de terrain de midi, sur un document de 482 nœuds et
@@ -298,3 +298,143 @@ l'exige.
    session ont été baissées à zéro pour lire la mesure, puis remontées à la mesure. La borne
    du fond, calculée à sept, a été mesurée à sept : c'est la seule fois où un raisonnement a
    été confirmé au niveau près, et c'est parce qu'on a regardé.
+
+---
+
+## 10. La session de terrain, et ce qu'elle a dit de différent
+
+L'utilisateur a joué 94 secondes sur le document de 482 nœuds — 1 318 images, 435 de
+déplacement, 655 de zoom, 219 d'édition — et a conclu : *« le problème c'est clairement le
+texte, ça fait que lag »* et *« on est à max 60 fps pas 100 »*.
+
+La chronique dit autre chose, et trois choses :
+
+| # | Fait | Chiffre |
+|---|---|---|
+| 1 | **Le tempo est bloqué à 8 balayages** (33 ms) sur 98 % des images en mouvement, alors que l'image médiane coûte 11,6 ms — elle tiendrait dans 3 | 18 images par seconde, 55 ms de latence |
+| 2 | **Ce qui le bloque, ce sont les gels de `present`** : 360, 310, 272, 218, 189, 158 ms, pendant l'édition et le zoom, et `blit` à 106 et 300 ms | Aucun code de Glucose ne s'exécute pendant `queue.present` |
+| 3 | **« 26 % des images se rendent plus petites »** — sur une voie qui ne réduit jamais | Le modèle observait des images qui portent les gels, et concluait qu'il fallait réduire |
+
+`halos` et `clear` ont bien disparu du profil, comme le § 6 l'attendait. Mais le tempo
+ne peut pas descendre tant que plus d'une image sur cent gèle, et c'est le § 12.
+
+### 10.1 La résolution observait une voie qu'elle ne commande plus
+
+Cinquième cercle vicieux de ce projet, et le plus discret : sur la voie graphique, le
+modèle de résolution lisait des images de 300 ms — le pilote —, décidait de réduire,
+faisait allouer un tampon réduit que personne ne lisait, et ce tampon **neuf** forçait un
+rendu complet à l'image suivante. Un mécanisme qui s'adapte à un coût qu'il ne commande
+plus. Sur la voie graphique, la résolution reste nette, point ; un test porte la décision
+et son contraste avec la voie processeur (`ab3703e`).
+
+---
+
+## 11. Le texte : ce que la mesure a démenti, et ce qu'elle a désigné
+
+### 11.1 L'hypothèse, et elle était fausse
+
+Le cache de glyphes, indexé au dixième de point et plafonné à 4 096 variantes, devait être
+contourné par la taille pendant un zoom et évincé en boucle pendant un glissement.
+`bench_texte` **compte** au lieu de chronométrer — combien de variantes chaque image a dû
+construire — et les deux hypothèses sont vraies **et sans effet** :
+
+```
+    immobile     annotations  12,0 ms   glyphes rastérisés  0
+    glissement   annotations  13,0 ms   glyphes rastérisés  0
+    zoom         annotations  15,1 ms   glyphes rastérisés  93
+
+    dont, par carte visible :   cadre 7,7 ms   corps 1,9 ms   mise en page 0,55 ms
+```
+
+L'image immobile, qui ne rastérise rien, coûte la même chose. Ce qui coûte est le
+**remplissage** de soixante-douze rectangles arrondis anti-crénelés à chaque image, pour des
+pixels qui n'ont pas changé.
+
+### 11.2 COMPOSANT-1 — la réponse est celle des photos
+
+L'utilisateur l'avait nommée : comprendre « ce bloc texte comme un composant, pas comme une
+image ». Un composant se rend **une fois** dans un tampon à sa taille, devient une texture
+sur la carte, et ne coûte plus que sa pose tant que rien de ce qu'il montre ne change. Une
+empreinte — texte, taille, teinte, sélection, échelle, phase — est sa clé ; l'ancienne
+texture s'oublie à la fin de l'image, comme une photo sortie de l'écran. Elle se rend **à la
+demande**, quand la carte dit qu'elle ne la connaît pas : le socle ne tient pas de liste de
+ce que la carte détient.
+
+En mouvement, la carte interpole — palier dyadique le plus proche, pose fractionnaire ; à
+l'arrêt, tout est exact — échelle exacte, phase exacte, pose entière. C'est la politique
+des tuiles.
+
+| geste | avant | après |
+|---|---:|---:|
+| immobile | 12,0 ms | **1,5 ms** |
+| glissement | 13,0 ms | **1,6 ms** |
+| zoom | 15,1 ms | **2,2 ms** |
+
+**Et les pics, dits franchement** : quand toutes les cartes visibles changent de palier ou
+entrent à l'écran, elles se rendent d'un coup — jusqu'à 30 ms sur **une** image. Avant,
+c'était 12 à 15 ms sur toutes. Le lissage en cascade, dans le temps libre du tempo, est la
+suite nommée (§ 13).
+
+Les photos en chemin sont des composants aussi, posés à leur rang : l'écart d'ordre du
+§ 5.1 n'existe plus.
+
+### 11.3 ORNEMENTS-1 — ce que l'épreuve des deux voies a imposé
+
+Les affordances — cadre de sélection, poignées, réglettes — se dessinaient **au rang** de
+leur nœud sur la voie processeur et **au-dessus de tout** sur la voie graphique. Tant que
+les cartes étaient dans la couche du dessus, ça ne se voyait pas ; dès qu'elles sont
+devenues des textures, l'épreuve a protesté à 214 niveaux. Elles passent au-dessus de tout,
+sur les deux voies : une poignée cachée par une carte voisine ne s'attrape pas.
+`draw_annotations` fait deux passes — le contenu, puis ce qui passe dessus — et la voie
+graphique a la première vide, ce qui rend les deux voies identiques par construction.
+
+### 11.4 Trois défauts trouvés par l'épreuve, dont deux qui dormaient
+
+* le chemin des **tuiles** composait les ornements une **seconde** fois — un trait de
+  sélection à 197 au lieu de 137 ;
+* `poses_des_photos` multipliait par π/180 une rotation **déjà en radians** : une photo
+  penchée de π/8 était posée droite par la carte. Quatrième régression de l'étape 1,
+  invisible parce que la photo penchée du témoin est en chemin ;
+* la texture d'une carte coupait le dernier rang du trait anti-crénelé quand la phase
+  sous-pixel le poussait d'un pixel.
+
+### 11.5 Ce qui reste d'écart, et il n'est pas à nous
+
+Sur la scène témoin, le pire écart entre les deux voies passe de 3 à **25 niveaux, sur
+quelques dizaines de pixels** : un cran de couverture de `tiny-skia` sur le trait de
+sélection. Le rastériseur accumule ses bords en virgule fixe le long de chaque ligne, et la
+même forme translatée d'un nombre **entier** de pixels ne donne pas toujours la même
+couverture là où la tangente d'un coin arrondi frôle une frontière de sous-pixel — vérifié
+par un micro-test qui ne fait que translater. Un test le mesure et le borne ; une carte au
+repos, elle, se repose au bit près.
+
+---
+
+## 12. Les gels de `present` — jamais élucidés, et c'est ce qui bloque tout
+
+Huit gels entre 150 et 360 ms en 94 secondes, pendant l'édition, le zoom et le repos.
+Aucun code de Glucose ne s'exécute pendant `queue.present` ; il n'y a pas de sauvegarde
+périodique ; c'est le pilote ou le compositeur. La fiche 18 (étape 5) le nomme « jamais
+élucidé » depuis trois sessions.
+
+**L'hypothèse la plus forte se teste en une session** : la machine porte deux cartes, et
+`LowPower` retient l'Intel Arc intégré. Sur un portable hybride, l'écran externe est souvent
+câblé sur la dédiée, et chaque image rendue sur l'intégrée traverse le bus pour être
+composée — un chemin connu pour geler. `GLUCOSE_CARTE=rapide` prend la RTX. Ce n'est pas
+l'arbitre de la fiche 21 ; c'est l'instrument qui dira s'il y a quelque chose à arbitrer.
+
+Tant que ça gèle, le tempo se cale sur le p99, et le p99 est fait de gels.
+
+---
+
+## 13. Ce qui reste, chiffré — révisé
+
+| # | Ce que c'est | Chiffre | Statut |
+|---|---|---|---|
+| 1 | **Le gain à l'écran des composants** | 12–15 ms → 1,5–2,2 ms au banc | **Non mesuré en session** |
+| 2 | **Les gels de `present`** | 150–360 ms, huit fois en 94 s | Test `GLUCOSE_CARTE=rapide` à faire |
+| 3 | **Le lissage des composants** : rendre les textures manquantes dans le temps libre, en gardant l'ancien palier | pics à 30 ms sur une image | Non commencé |
+| 4 | **La chrome** (barre, minimap, docks) : `effacer` 1–2 ms + `blit` 1–2 ms restent pour elle seule | ~3 ms | Une couche à part, téléversée par rectangles |
+| 5 | **Les pense-bêtes** comme composants | même mécanisme | Non commencé |
+| 6 | **L'arbitre** (fiche 21, étape 2) | — | Non commencé |
+| 7 | **Le SIMD à l'exécution** | facteur 3 à 4 sur la voie processeur | Rien de fait |
