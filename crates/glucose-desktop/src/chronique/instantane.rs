@@ -95,6 +95,18 @@ pub struct Instantane {
     /// puisse se comparer. La rapporter à la durée entière de l'image la ferait paraître
     /// fausse alors qu'elle ne parle pas de la même chose.
     pub report_us: u32,
+    /// Combien de textures cette image a **rendues** parce que la carte ne les avait pas.
+    ///
+    /// C'est le pic que CASCADE-2 étale, et il n'était lisible nulle part : le compteur
+    /// existait depuis que la cascade existe, et personne ne l'affichait — « un compteur
+    /// déclaré et jamais lu vaut zéro », fiche 17 § 3.1. Sans lui, impossible de dire si le
+    /// poste `textures` coûte parce qu'il rend beaucoup ou parce qu'il rend cher.
+    pub textures_faites: u16,
+    /// Combien de textures cette image a **reportées** faute de budget.
+    ///
+    /// Avec la précédente, elle dit si la cascade mord : zéro report et un poste lourd
+    /// signifie que le budget ne borne rien, ce qu'aucune durée ne montrerait seule.
+    pub textures_reportees: u16,
     /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
     pub blit_mo: u16,
     /// Combien de temps l'image **précédente** est restée sous les yeux, en microsecondes.

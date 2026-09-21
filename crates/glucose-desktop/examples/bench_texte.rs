@@ -293,6 +293,23 @@ fn main() {
             &mut connues,
         );
         ligne("par paliers", &g);
+
+        // **Le dezoom large** : toutes les cartes du document entrent a l'ecran ensemble.
+        // C'est le cas que la chronique du terrain designe -- les douze images les plus
+        // lentes en sont -- et le seul ou le nombre de cartes VISIBLES approche le nombre de
+        // cartes du document. Un cout quadratique en ce nombre ne se voit que la.
+        let g = jouer(
+            &mut renderer,
+            &mut store,
+            |i| Viewport {
+                x: 100.0,
+                y: 100.0,
+                scale: if i < 50 { 1.0 } else { 0.18 },
+            },
+            budget,
+            &mut connues,
+        );
+        ligne("dezoom large", &g);
         println!();
     }
 

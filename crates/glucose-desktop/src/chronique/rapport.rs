@@ -326,7 +326,7 @@ impl Chronique {
         }
         t.push_str("  Les images les plus lentes, et ce qu'elles faisaient\n\n");
         t.push_str(&format!(
-            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>5} {:>8} {:>10} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>7} {:>8}
+            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>5} {:>8} {:>10} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>6} {:>6} {:>7} {:>8}
 ",
             "a",
             "duree",
@@ -348,12 +348,14 @@ impl Chronique {
             "abdn",
             "tuiles",
             "reprises",
+            "text",
+            "report",
             "envoi",
             "cache"
         ));
         for p in self.pires().iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>4} Mo {:>5} Mo\n",
+                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>6} {:>6} {:>4} Mo {:>5} Mo\n",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
@@ -370,6 +372,8 @@ impl Chronique {
                 p.vignettes_abandonnees,
                 p.tuiles_peintes,
                 p.tuiles_reprises,
+                p.textures_faites,
+                p.textures_reportees,
                 p.blit_mo,
                 p.images_mo,
             ));

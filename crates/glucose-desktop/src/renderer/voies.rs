@@ -185,17 +185,31 @@ impl Confie {
     /// Une photo est sa propre identité : ses octets ne changent pas, donc sa clé non plus.
     /// Une carte de texte porte les deux, et elles diffèrent dès qu'elle change de palier.
     pub fn textures(&self) -> Vec<APoser> {
-        let identite = |cle: &String| {
-            self.composants
-                .iter()
-                .find(|c| &c.cle == cle)
-                .map_or_else(|| cle.clone(), |c| c.identite.clone())
-        };
+        // **Les identités se relèvent une fois, et se lisent ensuite.**
+        //
+        // La première version de CASCADE-2 cherchait l'identité de chaque clé par un parcours
+        // linéaire des composants. Sur le document de l'utilisateur — quatre cent
+        // quatre-vingt-deux cartes — cela fait deux cent trente-deux mille comparaisons de
+        // chaînes par image, et la chronique du terrain les a chiffrées : le poste `textures`
+        // restait à **treize millisecondes** sur les images de zoom alors que son budget en
+        // vaut moins de deux, et que le rendu des textures, lui, était bien borné.
+        //
+        // C'est exactement ce que la fiche 05 interdit — la géométrie calculée deux fois —
+        // sous une autre forme : une correspondance recalculée à chaque élément.
+        let par_cle: std::collections::HashMap<&str, &str> = self
+            .composants
+            .iter()
+            .map(|c| (c.cle.as_str(), c.identite.as_str()))
+            .collect();
         self.photos
             .iter()
             .chain(self.cartes.iter())
             .map(|(cle, pose)| APoser {
-                identite: identite(cle),
+                // Une photo est sa propre identité : ses octets ne changent pas, donc sa clé
+                // non plus, et elle n'est dans aucun composant.
+                identite: par_cle
+                    .get(cle.as_str())
+                    .map_or_else(|| cle.clone(), |identite| (*identite).to_string()),
                 cle: cle.clone(),
                 pose: *pose,
             })
