@@ -70,6 +70,60 @@ fn la_resolution_ne_peut_pas_osciller() {
     );
 }
 
+/// **Le cercle que le modèle `scène × f²` produisait, et qu'il ne produit plus.**
+///
+/// Le test au-dessus simule `coût / f²` — c'est-à-dire l'hypothèse même du modèle. Il ne
+/// pouvait donc pas la mettre en défaut ; il vérifiait que le calcul est cohérent avec ce
+/// qu'on lui donne, ce qui est vrai et sans intérêt.
+///
+/// La réalité mesurée est autre : **rendre la scène réduite désactive le cache de tuiles**,
+/// donc une scène à `f = 4` ne coûte pas le seizième d'une scène nette. Elle coûte souvent
+/// DAVANTAGE par pixel, puisqu'elle repeint ce que la grille aurait repris. Multipliée par
+/// `f²`, elle paraissait alors gigantesque, et le modèle réduisait encore.
+///
+/// Sur le terrain : 47 % des images à un facteur moyen 3,42, pendant que la scène nette
+/// tenait dans le budget. Ce test rejoue exactement cette forme.
+#[test]
+fn une_scene_reduite_ne_sert_pas_de_reference_a_sa_propre_reduction() {
+    let mut r = Resolution::nette();
+
+    // Une image nette qui tient largement : c'est la référence, et elle vaut 4 ms.
+    r.observer(scene_seule(ms(4)), BUDGET, true, SANS_PLAFOND);
+    assert_eq!(r.facteur(), 1, "une scene a 4 ms tient dans 10 ms");
+
+    // Une pointe passagère fait réduire -- un pic de tuiles au franchissement d'octave.
+    r.observer(scene_seule(ms(40)), BUDGET, true, SANS_PLAFOND);
+    let apres_la_pointe = r.facteur();
+    assert!(apres_la_pointe > 1, "une scene a 40 ms doit faire reduire");
+
+    // Et maintenant le cas qui compte : reduite, la scene a PERDU les tuiles, donc elle
+    // coute encore 12 ms au lieu des 40/f² que l'ancien modele attendait.
+    for _ in 0..8 {
+        r.observer(scene_seule(ms(12)), BUDGET, true, SANS_PLAFOND);
+    }
+    assert!(
+        r.facteur() <= apres_la_pointe,
+        "le facteur s'emballe : {} apres etre monte a {apres_la_pointe}",
+        r.facteur()
+    );
+
+    // LA PREUVE QUE CE TEST ATTRAPE QUELQUE CHOSE. L'ancien modele lisait la scene reduite
+    // comme `9 ms x f²`, et concluait un facteur bien plus haut. On rejoue son calcul.
+    let f = f64::from(apres_la_pointe);
+    let cru_par_l_ancien = 12.0 * f * f;
+    assert!(
+        cru_par_l_ancien > 40.0,
+        "l'ancien modele voyait {cru_par_l_ancien} ms la ou la scene nette en coute 40 : \
+         s'il n'est plus plus pessimiste, le cas ne reproduit plus le cercle"
+    );
+
+    // Et la nettete revient entierement des que la main s'arrete.
+    for _ in 0..8 {
+        r.observer(scene_seule(ms(12)), BUDGET, false, SANS_PLAFOND);
+    }
+    assert_eq!(r.facteur(), 1, "a l'arret, la scene redevient nette");
+}
+
 /// La netteté revient par moitiés : d'un coup, elle rendrait l'image chère juste au moment où
 /// l'œil se pose dessus.
 #[test]

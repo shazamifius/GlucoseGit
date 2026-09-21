@@ -45,10 +45,28 @@
 //! # Pourquoi cela ne peut pas osciller
 //!
 //! L'écueil d'une résolution adaptative est l'oscillation : on réduit, l'image devient rapide,
-//! on rétablit, elle redevient lente. Il est évité **par construction**, en ne retenant jamais
-//! la durée observée mais ce qu'elle dit du coût de la scène à pleine résolution : `scène × f²`.
-//! Cette grandeur-là ne dépend pas du facteur choisi, donc la décision qu'elle dicte est la
-//! même qu'on l'ait prise à `f = 1` ou à `f = 8`.
+//! on rétablit, elle redevient lente. Il faut donc une grandeur qui ne dépende **pas** du
+//! facteur choisi — le coût de la scène à pleine résolution — et décider d'après elle.
+//!
+//! ## Et cette grandeur, on la MESURE. On l'a longtemps devinée, et c'était faux.
+//!
+//! Ce module la calculait par `scène × f²`, en écrivant que la loi était « exacte ». Elle ne
+//! l'est plus depuis TUILE-1, et pour une raison qui n'a rien d'un détail : **rendre la scène
+//! réduite désactive le cache de tuiles** — `Cadrage::reduit` impose le régime direct. Une
+//! scène réduite n'est donc pas la même scène divisée par `f²` : c'est un *autre* travail,
+//! plus cher par pixel, qui repeint ce que la grille aurait repris.
+//!
+//! D'où un cercle, et c'est le troisième de la même famille trouvé le même jour. On réduit ;
+//! réduire perd les tuiles ; la scène réduite coûte donc presque autant qu'entière ;
+//! multipliée par `f²`, elle paraît énorme ; on réduit encore. Sur une session réelle :
+//! **47 % des images rendues à un facteur moyen 3,42** — un pixel d'écran pour onze du
+//! canevas — pendant que la scène nette, elle, tenait dans le budget.
+//!
+//! La référence est donc désormais **ce que la scène a coûté la dernière fois qu'elle s'est
+//! rendue nette**, et rien d'autre. Elle existe toujours : le facteur revient à un dès que la
+//! main s'arrête, donc elle se remesure à chaque geste. Tant qu'elle n'existe pas — au tout
+//! premier mouvement d'une session — on ne réduit pas : *on ne dégrade pas ce qu'on n'a pas
+//! mesuré*, la même règle que pour la finesse des photos.
 //!
 //! # Et la netteté revient sans à-coup
 //!
@@ -69,6 +87,10 @@ const PALIERS: [u32; 4] = [1, 2, 4, 8];
 #[derive(Debug, Clone, Copy)]
 pub struct Resolution {
     facteur: u32,
+    /// Ce que la scène a coûté la dernière fois qu'elle s'est rendue **nette**.
+    ///
+    /// `None` tant qu'aucune image pleine n'a été mesurée dans cette session.
+    nette: Option<Duration>,
 }
 
 impl Default for Resolution {
@@ -80,7 +102,10 @@ impl Default for Resolution {
 impl Resolution {
     /// Pleine résolution : ce qu'on montre dès que la main ne demande plus rien.
     pub fn nette() -> Self {
-        Self { facteur: 1 }
+        Self {
+            facteur: 1,
+            nette: None,
+        }
     }
 
     /// De combien la scène est réduite. `1` veut dire « pas du tout ».
@@ -102,6 +127,12 @@ impl Resolution {
     /// les deux, et c'est l'absence de la seconde condition qui faisait persister les gros
     /// blocs pendant que l'amortissement s'éteignait.
     pub fn observer(&mut self, mesure: Mesure, budget: Duration, en_mouvement: bool, plafond: u32) {
+        // **La seule mesure qui vaille référence est celle d'une image nette.** Une image
+        // réduite ne dit rien du coût de la scène entière : elle a été rendue autrement, sans
+        // les tuiles (voir l'en-tête du module).
+        if self.facteur == 1 {
+            self.nette = Some(mesure.scene);
+        }
         // L'œil ne tolère rien à cette vitesse : il n'y a plus de décision à prendre, quel
         // que soit le budget. C'est le cas de l'arrêt, et celui de toute la fin d'un
         // amortissement — donc celui où la netteté doit revenir sans qu'on la lui demande.
@@ -112,8 +143,7 @@ impl Resolution {
             return;
         }
         let budget = budget.as_secs_f64();
-        let scene = mesure.scene.as_secs_f64();
-        let fixe = (mesure.image.as_secs_f64() - scene).max(0.0);
+        let fixe = (mesure.image.as_secs_f64() - mesure.scene.as_secs_f64()).max(0.0);
         // Ce qui reste à la scène une fois le fixe payé. S'il ne reste rien, aucune réduction
         // ne tiendra le budget : la dégrader serait perdre la netteté ET la cadence.
         let disponible = budget - fixe;
@@ -121,11 +151,16 @@ impl Resolution {
             self.facteur = 1;
             return;
         }
-        let a_pleine_resolution = scene * f64::from(self.facteur).powi(2);
+        // On ne dégrade pas ce qu'on n'a pas mesuré : sans image nette de référence, on
+        // rend net, ce qui est à la fois le bon rendu et la façon d'obtenir la mesure.
+        let Some(nette) = self.nette else {
+            self.facteur = 1;
+            return;
+        };
         // `g ≥ √(coût / disponible)` : la surface se divise par le rapport des durées, donc
         // le côté par sa racine. Puis le plafond de l'œil, qui a le dernier mot : on ne
         // dégrade jamais plus que ce que la vitesse rend invisible.
-        let voulu = palier_au_dessus((a_pleine_resolution / disponible).sqrt());
+        let voulu = palier_au_dessus((nette.as_secs_f64() / disponible).sqrt());
         self.facteur = voulu.min(plafond);
     }
 }
