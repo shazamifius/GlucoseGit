@@ -89,6 +89,9 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
         rasterises: Vec::new(),
         postes: BTreeMap::new(),
     };
+    // La memoire de la carte graphique : ce qu'elle detient, et ce qu'elle oublie a la fin
+    // d'une image ou cela n'a pas servi -- la meme loi que `SceneGpu`.
+    let mut connues: std::collections::HashSet<String> = std::collections::HashSet::new();
     for i in 0..IMAGES {
         store.set_viewport(&board, vue(i));
         let avant = renderer.typography.cached_glyph_count();
@@ -96,7 +99,7 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
         let debut = Instant::now();
         dessus.fill(tiny_skia::Color::TRANSPARENT);
         glucose_desktop::perf::stage("effacer");
-        renderer.rendre_les_couches(
+        let confie = renderer.rendre_les_couches(
             &mut dessous.as_mut(),
             &mut dessus.as_mut(),
             store,
@@ -111,6 +114,21 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
                 en_mouvement: true,
             },
         );
+        // Ce que la carte ne connait pas se rend maintenant, comme la presentation le fait.
+        let mut rendues = 0.0f64;
+        let mut vues = std::collections::HashSet::new();
+        for (cle, _) in confie.textures() {
+            if !connues.contains(&cle) {
+                if let Some(c) = confie.composant(&cle) {
+                    // Le rendu est ce qu'on mesure ; la texture elle-meme, la carte la garde.
+                    rendues += f64::from(u8::from(c.rendre(renderer.kit()).is_some()));
+                }
+            }
+            vues.insert(cle);
+        }
+        connues = vues;
+        glucose_desktop::perf::compteur("textures_rendues", rendues);
+        glucose_desktop::perf::stage("textures");
         geste.durees.push(debut.elapsed().as_secs_f64() * 1000.0);
         glucose_desktop::perf::frame_end();
         for (nom, ms) in glucose_desktop::perf::postes() {

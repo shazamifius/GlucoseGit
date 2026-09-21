@@ -226,8 +226,47 @@ impl TextCard<'_> {
 }
 
 pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
-    // Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
-    // l'unique mise à l'échelle (CARD-1, WRAP-1).
+    let Some((text, layout, at)) = poser(ctx, &card) else {
+        return;
+    };
+    dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
+    if card.selected {
+        let screen_box = (at.0, at.1, layout.width, layout.height);
+        draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
+    }
+}
+
+/// **Le contenu seul** : le cadre, le corps, la prévisualisation — sans les poignées.
+///
+/// C'est ce qu'une texture de carte porte (COMPOSANT-1). Les poignées n'en font pas partie :
+/// ce sont des affordances en pixels écran, qui débordent de la boîte et ne suivent pas le
+/// zoom — elles restent dans la couche du dessus, comme pour les photos.
+pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
+    let Some((text, layout, at)) = poser(ctx, &card) else {
+        return;
+    };
+    dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
+}
+
+/// **Les ornements seuls** : les poignées d'une carte sélectionnée, quand la carte graphique
+/// porte son contenu.
+pub(super) fn draw_card_ornements(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
+    if !card.selected {
+        return;
+    }
+    let Some((_, layout, at)) = poser(ctx, &card) else {
+        return;
+    };
+    let screen_box = (at.0, at.1, layout.width, layout.height);
+    draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
+}
+
+/// La mise en page de la carte et son coin à l'écran, ou `None` si elle ne touche pas le
+/// cadre.
+///
+/// Le découpage en lignes et la hauteur nécessaire se calculent en unités monde, AVANT
+/// l'unique mise à l'échelle (CARD-1, WRAP-1).
+fn poser(ctx: &Pass, card: &TextCard) -> Option<(TextLayout, CardLayout, (f32, f32))> {
     let text = card_text_layout(
         ctx.typography,
         ctx.math,
@@ -237,23 +276,27 @@ pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard)
     );
     let layout =
         CardLayout::text_card(card.size.0, card.size.1, text.line_count()).scaled(ctx.scale);
-
     let (wx, wy) = world_to_screen(card.origin.0, card.origin.1, &ctx.vp);
     let (sx, sy) = (wx as f32, wy as f32);
     if ctx.clip.rejects(sx, sy, layout.width, layout.height) {
-        return;
+        return None;
     }
+    Some((text, layout, (sx, sy)))
+}
 
-    draw_card_frame(ctx, pixmap, (sx, sy), &layout, &card);
-
+fn dessiner_le_contenu(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &CardLayout,
+    text: &TextLayout,
+    card: &TextCard,
+) {
+    draw_card_frame(ctx, pixmap, at, layout, card);
     // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
     if ctx.scale.draws_detail() {
-        draw_card_body(ctx, pixmap, (sx, sy), &layout, &text, &card);
-        ornament::draw_formula_preview(ctx, pixmap, (sx, sy), &layout, &text, &card);
-    }
-    if card.selected {
-        let screen_box = (sx, sy, layout.width, layout.height);
-        draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
+        draw_card_body(ctx, pixmap, at, layout, text, card);
+        ornament::draw_formula_preview(ctx, pixmap, at, layout, text, card);
     }
 }
 

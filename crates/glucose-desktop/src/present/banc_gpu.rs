@@ -166,3 +166,53 @@ pub fn canaux_hors_tolerance(a: &Pixmap, b: &Pixmap, tolerance: u8) -> usize {
         .filter(|(x, y)| x.abs_diff(**y) > tolerance)
         .count()
 }
+
+/// **Compose les cinq temps hors fenêtre**, exactement comme la présentation le fait, et
+/// rend l'image.
+///
+/// Écrite une fois ici plutôt que dans chaque banc et chaque épreuve : deux copies de la
+/// même composition finiraient par ne plus composer la même chose, et c'est précisément ce
+/// que ces épreuves existent pour attraper.
+///
+/// `source` donne les pixels d'une texture que la carte ne connaît pas : une photo décodée,
+/// ou un composant rendu à la demande (COMPOSANT-1).
+pub fn composer_les_cinq_temps(
+    (peripherique, file): (&wgpu::Device, &wgpu::Queue),
+    taille: (u32, u32),
+    confie: &crate::renderer::Confie,
+    (dessous, dessus): (&Pixmap, &Pixmap),
+    source: &dyn Fn(&str) -> Option<Pixmap>,
+) -> Option<Pixmap> {
+    use crate::present::{couches, fond_gpu, lueurs_gpu, scene_gpu};
+    let ecran = (taille.0 as f32, taille.1 as f32);
+    let mut fond = fond_gpu::FondGpu::nouveau(peripherique, FORMAT);
+    let mut lueurs = lueurs_gpu::Lueurs::nouvelles(peripherique, FORMAT);
+    let mut scene = scene_gpu::SceneGpu::nouvelle(peripherique, FORMAT);
+    let mut deux = couches::Couches::nouvelles(peripherique, FORMAT);
+
+    fond.preparer(file, ecran, confie.fond);
+    lueurs.preparer(peripherique, file, ecran, &confie.lueurs);
+    let textures = confie.textures();
+    scene.ouvrir();
+    scene.assurer(peripherique, file, &textures, source);
+    let retenues = scene.preparer(peripherique, file, ecran, &textures);
+    let utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
+    deux.televerser(peripherique, file, (dessous, utile), dessus);
+
+    let cible = cible(peripherique, taille);
+    let vue = cible.create_view(&Default::default());
+    let mut encodeur = peripherique.create_command_encoder(&Default::default());
+    couches::composer(
+        &mut encodeur,
+        &vue,
+        couches::Temps {
+            fond: &fond,
+            lueurs: &lueurs,
+            couches: &deux,
+            scene: &scene,
+            retenues: &retenues,
+        },
+    );
+    file.submit(Some(encodeur.finish()));
+    relire(peripherique, file, &cible, taille)
+}

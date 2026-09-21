@@ -27,7 +27,7 @@
 
 use glucose_core::synth;
 use glucose_desktop::params::{Pointer, SceneOverlay};
-use glucose_desktop::present::{banc_gpu, couches, fond_gpu, lueurs_gpu, scene_gpu};
+use glucose_desktop::present::banc_gpu;
 use glucose_desktop::renderer::{Regard, Renderer};
 use glucose_desktop::ui::UiState;
 
@@ -65,9 +65,10 @@ fn main() {
     );
 
     println!(
-        "  {} lueur(s), {} photo(s), dessous {}",
+        "  {} lueur(s), {} photo(s), {} composant(s), dessous {}",
         confie.lueurs.len(),
         confie.photos.len(),
+        confie.composants.len(),
         if confie.dessous_porte_quelque_chose {
             "porte de l'encre"
         } else {
@@ -75,7 +76,7 @@ fn main() {
         }
     );
 
-    let Some(image) = composer(&confie, (&dessous, &dessus), (largeur, hauteur)) else {
+    let Some(image) = composer(&renderer, &confie, (&dessous, &dessus), (largeur, hauteur)) else {
         println!("aucune carte utilisable : rien a capturer");
         return;
     };
@@ -88,40 +89,17 @@ fn main() {
 
 /// Compose les cinq temps hors fenêtre, exactement comme la présentation le fait.
 fn composer(
+    renderer: &Renderer,
     confie: &glucose_desktop::renderer::Confie,
     (dessous, dessus): (&tiny_skia::Pixmap, &tiny_skia::Pixmap),
     taille: (u32, u32),
 ) -> Option<tiny_skia::Pixmap> {
     let (peripherique, file) = banc_gpu::carte()?;
-    let format = banc_gpu::FORMAT;
-    let ecran = (taille.0 as f32, taille.1 as f32);
-
-    let mut fond = fond_gpu::FondGpu::nouveau(&peripherique, format);
-    let mut lueurs = lueurs_gpu::Lueurs::nouvelles(&peripherique, format);
-    let mut scene = scene_gpu::SceneGpu::nouvelle(&peripherique, format);
-    let mut deux_couches = couches::Couches::nouvelles(&peripherique, format);
-
-    fond.preparer(&file, ecran, confie.fond);
-    lueurs.preparer(&peripherique, &file, ecran, &confie.lueurs);
-    scene.ouvrir();
-    let retenues = scene.preparer(&peripherique, &file, ecran, &confie.photos);
-    let dessous_utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
-    deux_couches.televerser(&peripherique, &file, (dessous, dessous_utile), dessus);
-
-    let cible = banc_gpu::cible(&peripherique, taille);
-    let vue = cible.create_view(&Default::default());
-    let mut encodeur = peripherique.create_command_encoder(&Default::default());
-    couches::composer(
-        &mut encodeur,
-        &vue,
-        couches::Temps {
-            fond: &fond,
-            lueurs: &lueurs,
-            couches: &deux_couches,
-            scene: &scene,
-            retenues: &retenues,
-        },
-    );
-    file.submit(Some(encodeur.finish()));
-    banc_gpu::relire(&peripherique, &file, &cible, taille)
+    banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        confie,
+        (dessous, dessus),
+        &|cle| confie.composant(cle).and_then(|c| c.rendre(renderer.kit())),
+    )
 }

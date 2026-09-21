@@ -159,11 +159,22 @@ impl GlucoseApp {
             {
                 // La voie graphique : le dessous, les photos, le dessus.
                 Some(dessus) => {
-                    let magasin = &self.renderer.magasin;
+                    let (renderer, confie) = (&self.renderer, &self.confie);
+                    // Ce que la carte ne connait pas encore : une photo vient du magasin,
+                    // un composant -- carte de texte, photo en chemin -- se rend a la
+                    // demande, une fois, puis plus jamais tant que son empreinte ne change
+                    // pas (COMPOSANT-1).
                     presenter.presenter_en_couches(
                         pixmap,
-                        &self.confie,
-                        &|cle| magasin.cache.get(cle).map(|e| e.pyramide.native().clone()),
+                        confie,
+                        &|cle| match confie.composant(cle) {
+                            Some(composant) => composant.rendre(renderer.kit()),
+                            None => renderer
+                                .magasin
+                                .cache
+                                .get(cle)
+                                .map(|e| e.pyramide.native().clone()),
+                        },
                         dessus,
                     )
                 }

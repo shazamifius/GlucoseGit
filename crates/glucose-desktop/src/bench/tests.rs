@@ -223,7 +223,12 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// le recouvrait ; c'est le bon ordre, et il est vérifié sur `temoin-selection.png`. Le
 /// témoin sans sélection, lui, n'a pas bougé d'un bit.
 /// Les deux mêmes pixels de bordure que le témoin, et pour la même raison.
-const EMPREINTE_TEMOIN_SELECTION: &str = "a44679e721aa7cdd";
+/// **Mise à jour le 21/09** (ORNEMENTS-1) : les affordances — cadre de sélection, poignées,
+/// réglettes — passent au-dessus de toutes les annotations, et non plus au rang de leur
+/// photo. Le cadre de la photo penchée traverse désormais la carte de formule qui la
+/// recouvre, ce qui est aussi la seule façon d'attraper ses poignées. Et le trait ne se
+/// compose plus deux fois : le chemin des tuiles l'ajoutait par-dessus celui de la passe.
+const EMPREINTE_TEMOIN_SELECTION: &str = "82d806579f104266";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -243,7 +248,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// Mise à jour avec le témoin de sélection, pour la même raison : le menu s'ouvre sur une
 /// sélection, dont les ornements ont changé d'ordre.
 /// Les deux mêmes pixels de bordure que le témoin, et pour la même raison.
-const EMPREINTE_TEMOIN_MENU: &str = "72cdd5d6acdb2c40";
+/// **Mise à jour le 21/09** : même cause que la sélection — cette scène est la scène
+/// sélectionnée, un menu par-dessus.
+const EMPREINTE_TEMOIN_MENU: &str = "7ba68440c9ec0f9e";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

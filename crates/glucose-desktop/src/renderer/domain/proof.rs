@@ -106,7 +106,7 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
         tints: &tints,
         theme: &theme,
     };
-    draw_annotations(&mut hue, kit, &mut view, store, None, pass);
+    draw_annotations(&mut hue, kit, &mut view, store, (None, false), pass);
     pixmap
 }
 

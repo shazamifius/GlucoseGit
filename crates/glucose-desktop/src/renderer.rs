@@ -22,6 +22,7 @@ pub mod arrow_label;
 pub mod atelier;
 pub mod cadrage;
 pub mod card;
+pub mod composants;
 pub mod domain;
 mod fils;
 pub mod folder;
@@ -149,7 +150,7 @@ pub(crate) fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h:
 /// Ce avec quoi une passe peint, et qui ne change pas de la frame : la police, la table des
 /// teintes de domaine et le thème. Un seul paramètre au lieu de trois (R-44).
 #[derive(Clone, Copy)]
-pub(crate) struct PaintKit<'a> {
+pub struct PaintKit<'a> {
     pub typography: &'a Typography,
     pub math: &'a math::MathRenderer,
     pub tints: &'a DomainTints,
@@ -426,6 +427,20 @@ impl Renderer {
     ///
     /// `bench_zone` mesure que le résultat est identique au bit près à un rendu complet, à
     /// condition de déborder de la portée du flou des halos.
+    /// Ce qu'une passe de dessin lit sans le modifier : la typographie, les formules, les
+    /// teintes, le thème.
+    ///
+    /// Publique parce que la voie graphique rend une carte **hors contexte** — à la demande,
+    /// quand sa texture manque — et n'a alors que le moteur sous la main.
+    pub fn kit(&self) -> PaintKit<'_> {
+        PaintKit {
+            typography: &self.typography,
+            math: &self.math,
+            tints: &self.domain_tints,
+            theme: &self.theme,
+        }
+    }
+
     /// Rend **vrai** si cette couche a reçu de l'encre — la seule question dont dépend le
     /// téléversement de la couche du dessous (voir [`voies::Confie`]).
     pub fn rendre_la_region(
@@ -446,6 +461,8 @@ impl Renderer {
             index: &self.spatial_hash,
             header_h,
         };
+        // Par champs et non par `self.kit()` : les passes qui suivent empruntent d'autres
+        // champs en ecriture, et un emprunt disjoint ne se prouve qu'a travers des champs.
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,
@@ -487,7 +504,7 @@ impl Renderer {
 
         if cadrage.couche.porte_le_dessus() {
             dessiner_sur_les_photos(
-                (&mut self.hue_cache, &mut self.magasin),
+                &mut self.hue_cache,
                 pixmap,
                 (store, pass, kit),
                 (ui, overlay),

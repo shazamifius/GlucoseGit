@@ -33,11 +33,13 @@ pub(super) fn presenter(
     confie: &crate::renderer::Confie,
     source: &dyn Fn(&str) -> Option<Pixmap>,
 ) -> DesktopResult<()> {
-    let photos = &confie.photos[..];
+    // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
+    let textures = confie.textures();
     p.scene.ouvrir();
-    p.scene.assurer(&p.device, &p.queue, photos, source);
+    p.scene.assurer(&p.device, &p.queue, &textures, source);
     let ecran = (dessous.width() as f32, dessous.height() as f32);
-    let retenues = p.scene.preparer(&p.device, &p.queue, ecran, photos);
+    let retenues = p.scene.preparer(&p.device, &p.queue, ecran, &textures);
+    let photos = &confie.photos[..];
     p.fond.preparer(&p.queue, ecran, confie.fond);
     p.lueurs
         .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
@@ -46,6 +48,8 @@ pub(super) fn presenter(
     crate::perf::compteur("photos_vues", photos.len() as f64);
     crate::perf::compteur("photos_posees", retenues.len() as f64);
     crate::perf::compteur("lueurs_posees", confie.lueurs.len() as f64);
+    crate::perf::compteur("cartes_posees", confie.cartes.len() as f64);
+    crate::perf::compteur("composants", confie.composants.len() as f64);
     // La couche du dessous ne part que si elle porte quelque chose. Quand la carte peint
     // le fond et les lueurs, elle ne reste que les membranes et les dossiers -- et sur un
     // document qui n'en a pas, quinze mebioctets par image cessent de traverser le bus.

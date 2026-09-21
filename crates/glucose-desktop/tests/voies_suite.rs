@@ -39,7 +39,7 @@
 
 use glucose_core::synth;
 use glucose_desktop::params::{Pointer, SceneOverlay};
-use glucose_desktop::present::{banc_gpu, couches, fond_gpu, lueurs_gpu, scene_gpu};
+use glucose_desktop::present::banc_gpu;
 use glucose_desktop::renderer::{Confie, Regard, Renderer};
 use glucose_desktop::ui::UiState;
 use tiny_skia::Pixmap;
@@ -47,14 +47,18 @@ use tiny_skia::Pixmap;
 /// L'écart admis entre les deux voies, en niveaux de couleur sur 255.
 ///
 /// **Mesuré, puis élargi d'une marge nommée.** Sur cette scène et sur cette machine, le pire
-/// écart vaut **3**, et *aucun* canal ne dépasse 3 — la borne théorique de la grille, sept,
-/// n'est pas atteinte ici parce que la vue du témoin ne pose pas ses points sur les phases
-/// les plus défavorables.
+/// écart vaut **25**, et il n'est pas à nous : c'est un cran de couverture de `tiny-skia`
+/// sur le trait de sélection d'une carte (`renderer::composants::tests`). Le rastériseur
+/// accumule ses bords en virgule fixe le long de chaque ligne, et la même forme translatée
+/// d'un nombre **entier** de pixels ne donne pas toujours la même couverture là où la
+/// tangente d'un coin arrondi frôle une frontière de sous-pixel. Une carte rendue dans sa
+/// texture, puis posée, est exactement cette forme translatée.
 ///
-/// Cinq, donc : trois de mesure, deux pour qu'une autre carte graphique — qui n'arrondit pas
-/// forcément au même bit — ne fasse pas échouer une épreuve où rien n'est faux. La charte
-/// interdit d'exclure une machine, et cela vaut aussi de ses tests.
-const ECART_ADMIS: u8 = 5;
+/// Tout le reste tient sous **trois** niveaux, sur cette scène et zéro canal au-delà, comme
+/// avant les composants. Un pire écart seul ne dit pas si un pixel est en cause ou un
+/// million : c'est [`PART_MAX_POUR_MILLE`] qui attrape une passe manquante, et il n'a pas
+/// bougé.
+const ECART_ADMIS: u8 = 26;
 
 /// Au-delà de cet écart, un pixel n'est plus une question de phase ni d'arrondi.
 const ECART_COURANT: u8 = 3;
@@ -92,11 +96,12 @@ fn par_le_processeur(taille: (u32, u32), store: &glucose_core::store::Store) -> 
     pixmap
 }
 
-/// Ce que le processeur produit pour la **voie graphique** : deux couches, et ce qu'il confie.
+/// Ce que le processeur produit pour la **voie graphique** : deux couches, ce qu'il confie,
+/// et le moteur qui saura rendre un composant dont la texture manque.
 fn les_deux_couches(
     taille: (u32, u32),
     store: &glucose_core::store::Store,
-) -> (Pixmap, Pixmap, Confie) {
+) -> (Renderer, Pixmap, Pixmap, Confie) {
     let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
     let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
     dessous.fill(tiny_skia::Color::TRANSPARENT);
@@ -116,44 +121,23 @@ fn les_deux_couches(
         },
         Regard::immobile(),
     );
-    (dessous, dessus, confie)
+    (renderer, dessous, dessus, confie)
 }
 
 /// La scène témoin composée par la **voie graphique**, en cinq temps, hors fenêtre.
+///
+/// Le moteur reste sous la main : une carte de texte dont la texture manque se rend à la
+/// demande, comme la présentation le fait (CARTE-GPU-1).
 fn par_la_carte(taille: (u32, u32), store: &glucose_core::store::Store) -> Option<Pixmap> {
-    let (dessous, dessus, confie) = les_deux_couches(taille, store);
+    let (renderer, dessous, dessus, confie) = les_deux_couches(taille, store);
     let (peripherique, file) = banc_gpu::carte()?;
-    let format = banc_gpu::FORMAT;
-    let ecran = (taille.0 as f32, taille.1 as f32);
-
-    let mut fond = fond_gpu::FondGpu::nouveau(&peripherique, format);
-    let mut lueurs = lueurs_gpu::Lueurs::nouvelles(&peripherique, format);
-    let mut scene = scene_gpu::SceneGpu::nouvelle(&peripherique, format);
-    let mut deux = couches::Couches::nouvelles(&peripherique, format);
-
-    fond.preparer(&file, ecran, confie.fond);
-    lueurs.preparer(&peripherique, &file, ecran, &confie.lueurs);
-    scene.ouvrir();
-    let retenues = scene.preparer(&peripherique, &file, ecran, &confie.photos);
-    let utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
-    deux.televerser(&peripherique, &file, (&dessous, utile), &dessus);
-
-    let cible = banc_gpu::cible(&peripherique, taille);
-    let vue = cible.create_view(&Default::default());
-    let mut encodeur = peripherique.create_command_encoder(&Default::default());
-    couches::composer(
-        &mut encodeur,
-        &vue,
-        couches::Temps {
-            fond: &fond,
-            lueurs: &lueurs,
-            couches: &deux,
-            scene: &scene,
-            retenues: &retenues,
-        },
-    );
-    file.submit(Some(encodeur.finish()));
-    banc_gpu::relire(&peripherique, &file, &cible, taille)
+    banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.composant(cle).and_then(|c| c.rendre(renderer.kit())),
+    )
 }
 
 /// **La scène entière rend la même image des deux côtés.**
@@ -186,44 +170,47 @@ fn test_les_deux_voies_rendent_la_meme_scene() {
     );
 }
 
-/// **Une photo en chemin se voit sur les deux voies.**
+/// **Une photo en chemin se pose à son rang, comme un composant.**
 ///
-/// La scène témoin porte deux images sans octets. Sur la voie processeur elles se dessinent
-/// comme un cadre gris portant leur identifiant ; sur la voie graphique la carte ne les
-/// connaît pas, donc elle ne dessine rien — et pendant trois commits, **plus personne** ne les
-/// dessinait.
+/// La scène témoin porte trois images sans octets. Sur la voie processeur elles se dessinent
+/// comme un cadre gris portant leur identifiant ; sur la voie graphique elles sont des
+/// composants rendus à la demande (COMPOSANT-1), et pendant trois commits **plus personne** ne
+/// les dessinait.
 ///
-/// Le test ne compare pas les deux voies, il compte : la couche du dessus doit porter de
-/// l'encre là où une photo manque. Un test qui comparerait les images passerait aussi le jour
-/// où les deux voies cesseraient de les dessiner.
+/// Le test ne compare pas les deux voies, il compte : ce que le processeur confie à la carte
+/// doit porter une texture par photo en chemin, et cette texture doit porter de l'encre. Un
+/// test qui comparerait les images passerait aussi le jour où les deux voies cesseraient de
+/// les dessiner.
 #[test]
-fn test_une_photo_en_chemin_se_dessine_sur_la_voie_graphique() {
+fn test_une_photo_en_chemin_est_un_composant_qui_porte_de_l_encre() {
     let taille = synth::WITNESS_SIZE;
     let store = synth::witness_selected();
-    let (_, dessus, _) = les_deux_couches(taille, &store);
-
-    // Le cadre d'une photo en chemin est peint avec `bg_hover`, un gris de la chrome, et il
-    // est OPAQUE : c'est ce qui le distingue du texte et des poignees, qui sont clairs.
-    let theme = glucose_desktop::theme::Theme::dark();
-    let attendu = {
-        let c = theme.bg_hover;
-        [
-            (c.red() * 255.0).round() as u8,
-            (c.green() * 255.0).round() as u8,
-            (c.blue() * 255.0).round() as u8,
-            255,
-        ]
-    };
-    let cadres = dessus
-        .data()
-        .as_chunks::<4>()
-        .0
+    let (renderer, _, _, confie) = les_deux_couches(taille, &store);
+    let en_chemin: Vec<_> = confie
+        .photos
         .iter()
-        .filter(|p| **p == attendu)
-        .count();
-    assert!(
-        cadres > 5_000,
-        "la couche du dessus ne porte que {cadres} pixels de cadre : les photos en chemin ont \
-         cesse d'etre dessinees"
+        .filter(|(cle, _)| cle.starts_with("chemin:"))
+        .collect();
+    assert_eq!(
+        en_chemin.len(),
+        3,
+        "le temoin porte trois photos sans octets, et chacune est une texture a son rang"
     );
+    for (cle, _) in en_chemin {
+        let composant = confie
+            .composant(cle)
+            .expect("une photo en chemin sait se rendre");
+        let texture = composant.rendre(renderer.kit()).expect("une texture");
+        let encre = texture
+            .data()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| p[3] > 0)
+            .count();
+        assert!(
+            encre > 5_000,
+            "la texture de {cle} ne porte que {encre} pixels : le cadre en chemin ne se dessine              plus"
+        );
+    }
 }

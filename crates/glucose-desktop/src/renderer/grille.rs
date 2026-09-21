@@ -390,8 +390,10 @@ fn poser_par_la_grille(
     pixels += composer_en_bandes(pixmap, atelier.tuiles, releve, &provisoires, modele);
     atelier.tuiles.fermer();
     crate::perf::stage("grille");
-
-    dessiner_les_ornements(atelier.kit, pixmap, store, pass);
+    // Les ornements ne se dessinent plus ici : ils passent au-dessus de TOUT, apres les
+    // annotations, sur les deux voies (ORNEMENTS-1). Les laisser ici aussi les composait deux
+    // fois -- un trait de selection a 197 au lieu de 137, et c'est l'epreuve des deux voies
+    // qui l'a vu.
     noter_ce_que_l_ecran_a_recu(pixmap, store, pass, pixels);
     (
         atelier.tuiles.peintes() - peintes_avant,

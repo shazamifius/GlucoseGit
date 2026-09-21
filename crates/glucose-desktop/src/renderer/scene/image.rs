@@ -63,7 +63,6 @@ pub(in crate::renderer) fn draw_images(
         typography, theme, ..
     } = kit;
     let degradation_permise = passe.degradation_permise;
-    let scale = WorldScale::new(pass.vp.scale);
     let mut complet = true;
     let clip = Clip {
         width: pixmap.width() as f32,
@@ -195,9 +194,6 @@ pub(in crate::renderer) fn draw_images(
                     img.rotation,
                 );
             }
-        }
-        if !passe.en_tuile {
-            draw_image_ornaments(kit, pixmap, store, scale, img, (sx, sy, sw, sh));
         }
     }
 

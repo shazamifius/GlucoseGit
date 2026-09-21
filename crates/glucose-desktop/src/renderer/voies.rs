@@ -73,25 +73,32 @@ pub(super) fn dessiner_sous_les_photos(
 /// Une fonction libre, comme sa jumelle : `pass` tient déjà `&self.spatial_hash`, donc un
 /// `&mut self` par-dessus ne compilerait pas.
 pub(super) fn dessiner_sur_les_photos(
-    (hue_cache, magasin): (&mut SymbioticHueCache, &mut super::magasin::Magasin),
+    hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
     (ui, overlay): (&UiState, SceneOverlay<'_>),
     cadrage: Cadrage,
 ) {
-    // Le cadre de selection, les poignees et la jauge : ils vivent au bout de la pose des
-    // photos pour la voie processeur, donc la couche du dessus doit les appeler quand la
-    // carte pose a sa place -- sans quoi ils disparaissent purement.
-    //
-    // Les photos EN CHEMIN viennent avant eux : leurs poignees se dessinent par-dessus leur
-    // cadre, comme sur la voie processeur.
-    if !cadrage.couche.porte_les_photos() {
-        dessiner_les_photos_en_chemin(magasin, kit, pixmap, store, pass);
-        grille::dessiner_les_ornements(kit, pixmap, store, pass);
-    }
-    // 6. Annotations (cartes de texte, pense-betes, fleches + edition in-place)
-    pass::draw_annotations(hue_cache, kit, pixmap, store, overlay.editing, pass);
+    // 6. Annotations (cartes de texte, pense-betes, fleches + edition in-place). Sur la voie
+    // graphique, les cartes de texte sont des textures que la carte pose : seuls leurs
+    // ornements se dessinent ici (COMPOSANT-1).
+    let cartes_par_la_carte = !cadrage.couche.porte_les_photos();
+    pass::draw_annotations(
+        hue_cache,
+        kit,
+        pixmap,
+        store,
+        (overlay.editing, cartes_par_la_carte),
+        pass,
+    );
     crate::perf::stage("annotations");
+    // 6 bis. Les ornements des photos -- cadre de selection, poignees, reglette -- passent
+    // au-dessus de TOUT, sur les deux voies (ORNEMENTS-1). Ils vivaient au bout de la pose de
+    // chaque photo, donc sous les cartes qui la recouvraient : une poignee cachee par une
+    // carte ne s'attrape pas, et les deux voies ne pouvaient pas se ressembler tant que l'une
+    // les posait a un rang et l'autre au-dessus.
+    grille::dessiner_les_ornements(kit, pixmap, store, pass);
+    crate::perf::stage("ornements");
     let taille = (pixmap.width(), pixmap.height());
     dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);
 }
@@ -127,86 +134,9 @@ fn dessiner_les_reperes_du_geste(
     }
 }
 
-/// **Les photos dont les octets ne sont pas encore là**, dessinées comme ce qu'elles sont.
-///
-/// # La régression que ceci répare, et pourquoi aucun test ne pouvait la voir
-///
-/// Sur la voie processeur, une photo qu'on n'a pas encore décodée se dessine comme un cadre
-/// gris portant son identifiant — c'est `draw_missing_image`, appelée au moment où la pose
-/// échoue. Quand les photos sont descendues sur la carte, cette pose a cessé d'avoir lieu :
-/// la carte ne connaît pas la photo, donc elle ne dessine rien, **et plus rien ne la
-/// dessinait**. Un commentaire de ce module promettait pourtant que « le processeur porte le
-/// cadre en chemin dans la couche du dessus » ; personne ne l'avait écrit.
-///
-/// Cela ne se voit que dans les deux secondes qui suivent l'ouverture d'un document — le
-/// temps que l'atelier décode — ou sur une photo dont le fichier a disparu. Les tests
-/// d'aspect, eux, montent leurs scènes avec des photos déjà là. C'est la capture de la voie
-/// graphique (`examples/capture_voie_gpu.rs`) qui l'a montrée, au premier coup d'œil, en
-/// comparant les deux voies côte à côte.
-///
-/// # L'écart d'ordre, assumé et borné
-///
-/// Le cadre se pose dans la couche du **dessus**, donc après les photos que la carte a
-/// posées. Sur la voie processeur il se pose à son rang. Deux photos qui se chevauchent,
-/// dont celle **du dessous** est en chemin, montrent donc son cadre par-dessus sa voisine
-/// pendant le temps du décodage.
-///
-/// La réponse exacte serait que la carte pose elle-même ce cadre, à son rang : c'est un quad
-/// uni et une bordure, donc l'étape 3 de la fiche 21 pour les formes. Le libellé, lui,
-/// demandera un atlas de glyphes. Tant que ce n'est pas fait, un artefact transitoire vaut
-/// mieux qu'une photo invisible.
-pub(super) fn dessiner_les_photos_en_chemin(
-    magasin: &mut super::magasin::Magasin,
-    kit: PaintKit<'_>,
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    pass: ViewPass<'_>,
-) {
-    let Some(board) = store.active_board() else {
-        return;
-    };
-    let clip = super::pass::Clip {
-        width: pixmap.width() as f32,
-        height: pixmap.height() as f32,
-        top: pass.header_h,
-    };
-    let mut en_chemin = 0.0f64;
-    for img in Visibles::nouvelles(pass.visibles, board).images() {
-        // `reclamer` fait les deux d'un coup : elle demande la photo a l'atelier si elle
-        // manque, et dit si elle est la. Une photo sans source, elle, ne viendra jamais.
-        let presente = img.src.as_deref().is_some_and(|src| magasin.reclamer(src));
-        if presente {
-            continue;
-        }
-        // Le modele place une photo par son CENTRE : le coin s'en deduit.
-        let (wx, wy) = crate::canvas::world_to_screen(
-            img.x - img.width / 2.0,
-            img.y - img.height / 2.0,
-            &pass.vp,
-        );
-        let (sx, sy) = (wx as f32, wy as f32);
-        let sw = (img.width * pass.vp.scale) as f32;
-        let sh = (img.height * pass.vp.scale) as f32;
-        if clip.rejects(sx, sy, sw, sh) {
-            continue;
-        }
-        en_chemin += 1.0;
-        super::scene::image::ornement::draw_missing_image(
-            kit.typography,
-            kit.theme,
-            pixmap,
-            (sx, sy),
-            (sw, sh),
-            &img.id,
-            img.rotation,
-        );
-    }
-    crate::perf::compteur("photos_en_chemin", en_chemin);
-}
-
 /// **Ce que le processeur confie à la carte** pour une image.
 ///
-/// Trois listes, et rien d'autre : ce sont les seules choses que la voie graphique sait
+/// Quatre listes, et rien d'autre : ce sont les seules choses que la voie graphique sait
 /// produire aujourd'hui. Elles voyagent ensemble parce qu'elles viennent du **même** cadrage
 /// — même vue, même culling — et que les séparer laisserait croire qu'on peut les calculer
 /// à des instants différents.
@@ -216,8 +146,14 @@ pub struct Confie {
     pub fond: Option<crate::present::fond_gpu::Fond>,
     /// Les lueurs des cartes visibles, dans l'ordre où le processeur les peindrait.
     pub lueurs: Vec<crate::present::lueurs_gpu::Lueur>,
-    /// Où chaque photo visible se pose.
+    /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**.
     pub photos: Vec<(String, Pose)>,
+    /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
+    /// annotations passent au-dessus (COMPOSANT-1).
+    pub cartes: Vec<(String, Pose)>,
+    /// Ce qui se rend **à la demande**, quand la carte graphique ne connaît pas la clé : les
+    /// cartes de texte, les photos en chemin.
+    pub composants: Vec<super::composants::Composant>,
     /// La couche du dessous a-t-elle reçu de l'encre ?
     ///
     /// Quand elle n'en a pas — ni membrane, ni dossier, le fond étant sur la carte — elle est
@@ -225,6 +161,23 @@ pub struct Confie {
     /// qui composerait du vide. C'est la passe elle-même qui répond, en comptant ce qu'elle
     /// dessine ; balayer les pixels coûterait un écran entier pour la même réponse.
     pub dessous_porte_quelque_chose: bool,
+}
+
+impl Confie {
+    /// **Tout ce que la carte pose comme texture**, dans l'ordre du modèle : les photos, puis
+    /// les cartes de texte par-dessus.
+    pub fn textures(&self) -> Vec<(String, Pose)> {
+        self.photos
+            .iter()
+            .chain(self.cartes.iter())
+            .cloned()
+            .collect()
+    }
+
+    /// Le composant qui porte cette clé, s'il y en a un : c'est lui qui sait se rendre.
+    pub fn composant(&self, cle: &str) -> Option<&super::composants::Composant> {
+        self.composants.iter().find(|c| c.cle == cle)
+    }
 }
 
 /// **Le fond de cette image**, tel que la carte a besoin de le connaître.
@@ -295,7 +248,8 @@ pub(super) fn lueurs_a_poser(
     lueurs
 }
 
-/// **Ou chaque photo visible se pose a l'ecran**, en pixels et en radians.
+/// **Ou chaque photo visible se pose a l'ecran**, en pixels et en radians -- et, pour
+/// celles dont les octets ne sont pas encore la, le composant qui les dessinera.
 ///
 /// # Ce que cette fonction est, et ce qu'elle n'est pas
 ///
@@ -305,14 +259,36 @@ pub(super) fn lueurs_a_poser(
 ///
 /// Le culling a deja fait son travail, donc `rangs` ne designe que ce qui touche l'ecran.
 ///
-/// Une photo sans source n'y figure pas : elle n'a pas de texture, et se dessine comme un
-/// cadre « en chemin » que le processeur porte dans la couche du dessus.
-pub(super) fn poses_des_photos(vp: &Viewport, rangs: &[u32], store: &Store) -> Vec<(String, Pose)> {
+/// **Reclamer, sinon rien n'est jamais decode.** Le magasin ne decode que ce qu'on lui
+/// demande, et il oublie ce qu'on ne lui redemande pas. C'est ici que chaque photo visible se
+/// reclame, et `reclamer` dit du meme coup si elle est la : sinon, elle se pose comme un
+/// cadre en chemin, **a son rang** -- ni dessous ni dessus les autres, exactement ou la voie
+/// processeur la dessine.
+///
+/// L'angle est celui du modele, en **radians** : le multiplier par pi sur cent quatre-vingts
+/// posait droite une photo penchee de pi sur huit, et aucune epreuve ne le voyait parce que
+/// la photo penchee du temoin est en chemin.
+pub(super) fn poses_des_photos(
+    regime: &super::composants::Regime,
+    magasin: &mut super::magasin::Magasin,
+    (vp, rangs, store): (&Viewport, &[u32], &Store),
+) -> (Vec<(String, Pose)>, Vec<super::composants::Composant>) {
     let Some(board) = store.active_board() else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
     let mut posees = Vec::new();
+    let mut composants = Vec::new();
+    let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
+        let presente = img.src.as_deref().is_some_and(|src| magasin.reclamer(src));
+        if !presente {
+            if let Some(c) = regime.photo_en_chemin(img) {
+                posees.push((c.cle.clone(), c.pose));
+                composants.push(c);
+                en_chemin += 1.0;
+            }
+            continue;
+        }
         let Some(src) = img.src.as_deref() else {
             continue;
         };
@@ -328,11 +304,60 @@ pub(super) fn poses_des_photos(vp: &Viewport, rangs: &[u32], store: &Store) -> V
                 largeur: (img.width * vp.scale) as f32,
                 hauteur: (img.height * vp.scale) as f32,
                 opacite: 1.0,
-                angle: img.rotation.to_radians() as f32,
+                angle: img.rotation as f32,
             },
         ));
     }
-    posees
+    crate::perf::compteur("photos_en_chemin", en_chemin);
+    (posees, composants)
+}
+
+/// **Les cartes de texte que l'ecran montre**, comme composants (COMPOSANT-1).
+///
+/// La teinte symbiotique se calcule ici, comme dans `draw_annotations` : c'est le meme
+/// parcours, au meme endroit, et c'est elle qui entre dans l'empreinte. La carte en edition
+/// n'y figure pas : elle reste au processeur, dans la couche du dessus.
+fn composants_de_texte(
+    regime: &super::composants::Regime,
+    hue_cache: &mut SymbioticHueCache,
+    kit: PaintKit<'_>,
+    (store, pass, edition): (&Store, ViewPass<'_>, Option<&str>),
+) -> (Vec<(String, Pose)>, Vec<super::composants::Composant>) {
+    let Some(board) = store.active_board() else {
+        return (Vec::new(), Vec::new());
+    };
+    let mut posees = Vec::new();
+    let mut composants = Vec::new();
+    for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
+        let glucose_core::types::Annotation::Text {
+            x, y, text, color, ..
+        } = ann
+        else {
+            continue;
+        };
+        if edition == Some(ann.id()) {
+            continue;
+        }
+        let Some((w, h)) = ann.size() else {
+            continue;
+        };
+        let (_, symbiose) = hue_cache.get_or_compute(ann, pass.index, board);
+        let teinte = color
+            .as_deref()
+            .map(|c| super::parse_hex_color(c, symbiose.0, symbiose.1, symbiose.2))
+            .unwrap_or(symbiose);
+        let selectionnee = store.selected_annotation_ids.iter().any(|s| s == ann.id());
+        if let Some(c) = regime.carte(
+            kit,
+            ann.id(),
+            (*x, *y, w as f32, h as f32),
+            (text, teinte, selectionnee),
+        ) {
+            posees.push((c.cle.clone(), c.pose));
+            composants.push(c);
+        }
+    }
+    (posees, composants)
 }
 
 /// Les deux entrees de la voie graphique, posees ici pour que le moteur reste lisible.
@@ -368,15 +393,9 @@ impl Renderer {
             ..plein
         };
         let encre = self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
-        let mut confie = self.confier_a_la_carte(store, taille, header_h, sous);
+        let edition = overlay.editing.map(|s| s.ann_id.as_str());
+        let mut confie = self.confier_a_la_carte(store, taille, header_h, (sous, edition, regard));
         confie.dessous_porte_quelque_chose = encre;
-        // **Reclamer, sinon rien n'est jamais decode.** Le magasin ne decode que ce qu'on lui
-        // demande, et il oublie ce qu'on ne lui redemande pas. La voie processeur le faisait
-        // dans `poser_les_images` ; l'oublier ici laissait le cache vide, donc aucune texture
-        // a televerser -- et un ecran noir ou seules les cartes de texte se voyaient.
-        for (src, _) in &confie.photos {
-            self.magasin.reclamer(src);
-        }
 
         let sur = Cadrage {
             couche: Couche::Dessus,
@@ -391,9 +410,9 @@ impl Renderer {
     }
 
     /// **Tout ce que la carte a besoin de savoir** pour cette image : le fond, les lueurs,
-    /// les photos.
+    /// les photos, les composants.
     ///
-    /// Les trois viennent du **même** cadrage, donc du même culling : les calculer ensemble
+    /// Tous viennent du **même** cadrage, donc du même culling : les calculer ensemble
     /// n'est pas un regroupement de confort, c'est ce qui interdit qu'une passe voie une vue
     /// et une autre passe une autre.
     fn confier_a_la_carte(
@@ -401,7 +420,7 @@ impl Renderer {
         store: &Store,
         taille: (u32, u32),
         header_h: f32,
-        cadrage: Cadrage,
+        (cadrage, edition, regard): (Cadrage, Option<&str>, Regard),
     ) -> Confie {
         let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
         let pass = ViewPass {
@@ -413,10 +432,28 @@ impl Renderer {
         let ecran = (taille.0 as f32, taille.1 as f32);
         let lueurs = lueurs_a_poser(&mut self.hue_cache, store, pass, ecran);
         crate::perf::stage("lueurs");
+        // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
+        // tous : deux composants voisins se rendent au meme palier.
+        let regime = super::composants::Regime::de(vp, regard, taille, header_h);
+        let (photos, en_chemin) =
+            poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store));
+        let kit = PaintKit {
+            typography: &self.typography,
+            math: &self.math,
+            tints: &self.domain_tints,
+            theme: &self.theme,
+        };
+        let (cartes, de_texte) =
+            composants_de_texte(&regime, &mut self.hue_cache, kit, (store, pass, edition));
+        crate::perf::stage("composants");
+        let mut composants = en_chemin;
+        composants.extend(de_texte);
         Confie {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
             lueurs,
-            photos: poses_des_photos(&vp, &rangs, store),
+            photos,
+            cartes,
+            composants,
             dessous_porte_quelque_chose: true,
         }
     }
