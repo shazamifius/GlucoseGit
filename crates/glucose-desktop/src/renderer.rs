@@ -477,24 +477,6 @@ impl Renderer {
         }
     }
 
-    /// **Les photos que l'écran montre, et où chacune se pose** — pour la voie graphique.
-    ///
-    /// Le cadrage vit ici, parce qu'il touche l'index spatial du moteur ; la traduction en
-    /// poses vit dans [`voies`], parce qu'elle ne dépend que du modèle et de la vue.
-    pub fn photos_a_poser(
-        &mut self,
-        store: &Store,
-        taille: (u32, u32),
-        header_h: f32,
-        cadrage: Cadrage,
-    ) -> Vec<crate::present::scene_gpu::Pose> {
-        let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
-        voies::poses_des_photos(&vp, &rangs, store)
-            .into_iter()
-            .map(|(_, pose)| pose)
-            .collect()
-    }
-
     /// Les repères du geste en cours : les guides d'alignement et la boîte de sélection.
     ///
     /// Ils appartiennent à la scène parce qu'ils suivent la vue, mais pas au contenu : ils

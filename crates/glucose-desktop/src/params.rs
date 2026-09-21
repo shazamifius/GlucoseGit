@@ -75,6 +75,10 @@ pub struct ButtonState {
 /// d'alignement, rectangle de sélection en cours, session d'édition de texte.
 ///
 /// Ils ne font pas partie du document : ils vivent le temps d'un geste.
+///
+/// `Copy` parce que tous ses champs le sont, et parce qu'une scene qui se rend en DEUX
+/// couches doit le donner deux fois (voir `Renderer::rendre_les_couches`).
+#[derive(Clone, Copy)]
 pub struct SceneOverlay<'a> {
     pub guides: &'a SnapGuides,
     /// `(x0, y0, x1, y1)` en coordonnées monde, `None` hors sélection rectangle.

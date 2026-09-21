@@ -8,10 +8,15 @@
 //! carte attend. Aucune des deux n'existe pour la voie processeur seule, et les separer
 //! ferait perdre de vue qu'elles doivent rester d'accord.
 
-use super::{folder, grille, halo, scene, PaintKit, SymbioticHueCache};
+use super::{
+    folder, grille, halo, noter_le_cout_de_la_scene, render_ui, scene, Couche, PaintKit, Regard,
+    Renderer, SymbioticHueCache,
+};
 use crate::params::ViewPass;
+use crate::params::{Pointer, SceneOverlay};
 use crate::present::scene_gpu::Pose;
 use crate::renderer::Cadrage;
+use crate::ui::UiState;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::Viewport;
@@ -87,4 +92,67 @@ pub(super) fn poses_des_photos(vp: &Viewport, rangs: &[u32], store: &Store) -> V
         ));
     }
     posees
+}
+
+/// Les deux entrees de la voie graphique, posees ici pour que le moteur reste lisible.
+impl Renderer {
+    /// **Les photos que l'écran montre, et où chacune se pose** — pour la voie graphique.
+    ///
+    /// Le cadrage vit ici, parce qu'il touche l'index spatial du moteur ; la traduction en
+    /// poses vit dans [`voies`], parce qu'elle ne dépend que du modèle et de la vue.
+    pub fn photos_a_poser(
+        &mut self,
+        store: &Store,
+        taille: (u32, u32),
+        header_h: f32,
+        cadrage: Cadrage,
+    ) -> Vec<(String, crate::present::scene_gpu::Pose)> {
+        let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
+        poses_des_photos(&vp, &rangs, store)
+    }
+
+    /// **Rend la scene en deux couches, et dit ou les photos se posent.**
+    ///
+    /// C'est l'entree de la voie graphique, la ou [`Renderer::render`] est celle de la voie
+    /// processeur. Elle produit ce qui entoure les photos -- dessous et dessus -- et laisse
+    /// la carte les poser entre les deux.
+    ///
+    /// Le dessus part **transparent** : tout ce qui n'y est pas dessine laisse voir les
+    /// photos, et c'est ce qui fait que la composition est juste sans qu'aucune region ne
+    /// soit calculee.
+    pub fn rendre_les_couches(
+        &mut self,
+        dessous: &mut PixmapMut,
+        dessus: &mut PixmapMut,
+        store: &Store,
+        chrome: (&mut UiState, Pointer),
+        overlay: SceneOverlay<'_>,
+        regard: Regard,
+    ) -> Vec<(String, crate::present::scene_gpu::Pose)> {
+        let (ui, pointer) = chrome;
+        let header_h = ui.header_height();
+        let taille = (dessous.width(), dessous.height());
+        self.magasin.ouvrir();
+        self.synchroniser_les_caches(store);
+        let debut = std::time::Instant::now();
+
+        let plein = Cadrage::plein().sous_le_regard(regard);
+        let sous = Cadrage {
+            couche: Couche::Dessous,
+            ..plein
+        };
+        self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
+        let photos = self.photos_a_poser(store, taille, header_h, sous);
+
+        let sur = Cadrage {
+            couche: Couche::Dessus,
+            ..plein
+        };
+        self.rendre_la_region(dessus, store, ui, overlay, header_h, sur);
+        noter_le_cout_de_la_scene(debut);
+        render_ui(dessus, store, ui, &self.typography, &self.theme, pointer);
+        crate::perf::stage("ui");
+        self.magasin.fermer();
+        photos
+    }
 }

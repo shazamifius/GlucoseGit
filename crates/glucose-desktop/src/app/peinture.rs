@@ -130,7 +130,24 @@ impl GlucoseApp {
         if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
             // On presente meme quand rien n'a ete redessine : la demande peut venir du
             // systeme -- une fenetre recouverte puis degagee -- et non de nous.
-            if let Err(e) = presenter.present(pixmap) {
+            let issue = match self
+                .tampon_dessus
+                .as_ref()
+                .filter(|_| presenter.pose_les_photos())
+            {
+                // La voie graphique : le dessous, les photos, le dessus.
+                Some(dessus) => {
+                    let magasin = &self.renderer.magasin;
+                    presenter.presenter_en_couches(
+                        pixmap,
+                        &self.photos_posees,
+                        &|cle| magasin.cache.get(cle).map(|e| e.pyramide.native().clone()),
+                        dessus,
+                    )
+                }
+                None => presenter.present(pixmap),
+            };
+            if let Err(e) = issue {
                 eprintln!("[GlucoseDesktop] presentation du framebuffer impossible : {e}");
             }
         }
@@ -163,9 +180,12 @@ impl GlucoseApp {
     /// Le tampon est **sorti** de l'application le temps de la peinture : sans cela, peindre
     /// emprunterait `self` en ecriture par le tampon et en lecture par le document, et il
     /// faudrait passer chaque champ un par un pour convaincre le compilateur.
-    pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
-        // La salissure est **consommee** : ce qui est redessine maintenant cesse d'etre sale,
-        // et une nouvelle demande arrivee pendant le rendu appartient a l'image suivante.
+    /// Ce qu'il faut repeindre, ou `None` quand l'image d'avant suffisait.
+    ///
+    /// La decision vit a part de la peinture : un ordonnanceur qui peint aussi finit par ne
+    /// plus laisser voir la decision -- et c'est elle qui dit, dans la trace, qu'une image a
+    /// ete EVITEE. Un compteur de plus pour le meme fait n'aurait servi qu'a diverger.
+    fn ce_quil_faut_repeindre(&mut self, tampon_neuf: bool) -> Option<crate::salissure::Salissure> {
         let sale = self.salissure.replace(crate::salissure::Salissure::Rien);
         // Un tampon neuf ne contient rien : il n'y a aucune image precedente a menager.
         let sale = if tampon_neuf {
@@ -173,29 +193,36 @@ impl GlucoseApp {
         } else {
             sale
         };
-        // Rien a redessiner : la region reste a zero, et c'est ce zero qui dit dans la trace
-        // qu'une image a ete evitee. Un compteur de plus pour le meme fait n'aurait servi
-        // qu'a diverger -- celui d'avant n'etait d'ailleurs lu par personne.
-        if sale.est_propre() {
-            return;
+        (!sale.est_propre()).then_some(sale)
+    }
+
+    /// Ou la main pointe, en pixels d'ecran.
+    fn pointeur(&self) -> Pointer {
+        Pointer {
+            x: self.mouse_pos.0 as f32,
+            y: self.mouse_pos.1 as f32,
         }
+    }
+
+    pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
+        // La salissure est **consommee** : ce qui est redessine maintenant cesse d'etre sale,
+        // et une nouvelle demande arrivee pendant le rendu appartient a l'image suivante.
+        let Some(sale) = self.ce_quil_faut_repeindre(tampon_neuf) else {
+            return;
+        };
 
         let Some(mut pixmap) = self.pixmap.take() else {
             return;
         };
         let regard = self.regard();
         let mut reduit = self.tampon_reduit.take();
-        let header_h = self.ui.header_height();
-        let vp = self.store.viewport();
+        let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
         let overlay = SceneOverlay {
             guides: &self.active_guides,
             selection_box: self.selection_box,
             editing: self.editing_session.as_ref(),
         };
-        let pointer = Pointer {
-            x: self.mouse_pos.0 as f32,
-            y: self.mouse_pos.1 as f32,
-        };
+        let pointer = self.pointeur();
         match self.region_a_repeindre(sale, vp, fenetre, header_h) {
             Some(r) => {
                 if !r.est_vide() {
@@ -226,15 +253,32 @@ impl GlucoseApp {
                     pointer,
                     echelle,
                 };
-                peindre_tout(
-                    &mut pixmap,
-                    scene,
-                    &mut self.renderer,
-                    &self.store,
-                    chrome,
-                    overlay,
-                    regard,
-                );
+                // **La voie graphique, quand la presentation sait poser les photos.**
+                //
+                // On ne reduit alors PAS : la carte filtre en bilineaire sans rien payer,
+                // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
+                let par_la_carte = self.presenter.as_ref().is_some_and(|p| p.pose_les_photos());
+                if par_la_carte {
+                    let (tampon, photos) = peindre_par_la_carte(
+                        (&mut pixmap, self.tampon_dessus.take()),
+                        &mut self.renderer,
+                        &self.store,
+                        chrome,
+                        (overlay, regard),
+                    );
+                    self.tampon_dessus = tampon;
+                    self.photos_posees = photos;
+                } else {
+                    peindre_tout(
+                        &mut pixmap,
+                        scene,
+                        &mut self.renderer,
+                        &self.store,
+                        chrome,
+                        overlay,
+                        regard,
+                    );
+                }
             }
         }
         self.pixmap = Some(pixmap);
@@ -306,6 +350,71 @@ fn repeindre_la_region(
         glucose_core::report::Melange::Remplacer,
     );
     crate::perf::stage("region");
+}
+
+/// **Peint les deux couches du processeur**, celles qui entourent les photos, et dit ou
+/// chaque photo se pose.
+///
+/// Le dessus part transparent : tout ce qui n'y est pas dessine laisse voir les photos, et
+/// c'est ce qui rend la composition juste sans qu'aucune region ne soit calculee.
+///
+/// Une fonction libre et non une methode, pour la meme raison que `peindre_tout` : `overlay`
+/// emprunte deja l'application, et un `&mut self` par-dessus ne compilerait pas.
+fn peindre_par_la_carte(
+    (pixmap, tampon): (&mut Pixmap, Option<Pixmap>),
+    renderer: &mut Renderer,
+    store: &Store,
+    chrome: Chrome<'_>,
+    (overlay, regard): (SceneOverlay<'_>, crate::renderer::Regard),
+) -> (
+    Option<Pixmap>,
+    Vec<(String, crate::present::scene_gpu::Pose)>,
+) {
+    let (largeur, hauteur) = (pixmap.width(), pixmap.height());
+    // Le tampon du dessus suit la fenetre : il se refait quand elle change de taille, et
+    // jamais autrement.
+    let mut tampon = tampon.filter(|t| t.width() == largeur && t.height() == hauteur);
+    if tampon.is_none() {
+        tampon = Pixmap::new(largeur, hauteur);
+    }
+    let Some(dessus) = tampon.as_mut() else {
+        return (None, Vec::new());
+    };
+    let Chrome {
+        ui,
+        dock_manager,
+        dock_cache,
+        pointer,
+        echelle,
+    } = chrome;
+    dessus.fill(tiny_skia::Color::TRANSPARENT);
+    let photos = renderer.rendre_les_couches(
+        &mut pixmap.as_mut(),
+        &mut dessus.as_mut(),
+        store,
+        (ui, pointer),
+        overlay,
+        regard,
+    );
+    render_docks(
+        &mut dessus.as_mut(),
+        dock_manager,
+        store,
+        &DockPass {
+            typo: &renderer.typography,
+            theme: &renderer.theme,
+            screen: ScreenFrame {
+                width: largeur as f32,
+                height: hauteur as f32,
+                header_h: ui.header_height(),
+                scale: echelle,
+            },
+            pointer,
+            cache: Some(dock_cache),
+        },
+    );
+    crate::perf::stage("docks");
+    (tampon, photos)
 }
 
 /// Peint la scène et la chrome dans le tampon.

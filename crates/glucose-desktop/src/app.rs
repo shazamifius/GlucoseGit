@@ -105,6 +105,13 @@ pub struct GlucoseApp {
     /// tampon ou elle se rend alors (voir [`crate::resolution`]).
     pub resolution: crate::resolution::Resolution,
     pub tampon_reduit: Option<Pixmap>,
+    /// La couche qui passe **sur** les photos, quand la carte les pose elle-meme.
+    ///
+    /// Elle part transparente a chaque image : tout ce qui n'y est pas dessine laisse voir
+    /// les photos, et c'est ce qui rend la composition juste sans calculer une seule region.
+    pub tampon_dessus: Option<Pixmap>,
+    /// Ou chaque photo se pose, pour la voie graphique (fiche 21, etape 1).
+    pub photos_posees: Vec<(String, crate::present::scene_gpu::Pose)>,
     pub pixmap: Option<Pixmap>,
     pub ui: UiState,
     pub dock_manager: DockManager,
@@ -249,6 +256,8 @@ impl GlucoseApp {
             horloge: crate::horloge::Horloge::nouvelle(),
             resolution: crate::resolution::Resolution::nette(),
             tampon_reduit: None,
+            tampon_dessus: None,
+            photos_posees: Vec::new(),
             pixmap: None,
             // Le mot d'accueil est posé ici, au démarrage, et non dans `UiState::new` : un
             // constructeur d'état ne déclenche pas de notification, et un toast porte une
