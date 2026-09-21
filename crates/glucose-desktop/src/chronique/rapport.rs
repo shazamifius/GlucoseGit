@@ -267,30 +267,52 @@ impl Chronique {
         self.ecrire_la_repartition(t);
     }
 
-    /// Où va le temps, geste par geste et poste par poste.
+    /// Où va le temps, geste par geste et poste par poste — **au centile, comme le reste**.
+    ///
+    /// # Pourquoi il n'y a plus de pourcentage
+    ///
+    /// Il y en avait un, et il mentait deux fois. D'abord parce qu'il venait d'une **somme**,
+    /// qu'une seule image aberrante suffisait à décider (voir `Poste::postes`). Ensuite parce
+    /// qu'un pourcentage invite à additionner, et **des centiles ne s'additionnent pas** : la
+    /// médiane d'une somme n'est pas la somme des médianes, et les postes d'un geste n'ont
+    /// aucune raison d'être médians sur la même image.
+    ///
+    /// Restent des millisecondes, qui sont vraies sans rien supposer, et la durée médiane du
+    /// geste en en-tête, qui donne l'échelle. La barre compare les postes **entre eux** — elle
+    /// est relative au plus coûteux, pas à un tout, donc personne ne peut la sommer.
+    ///
+    /// Le pire est affiché à côté du typique : c'est lui qui désigne un gel, et la section des
+    /// images les plus lentes le décompose.
     fn ecrire_la_repartition(&self, t: &mut String) {
-        t.push_str("  Ou va le temps de chaque geste\n\n");
+        t.push_str("  Ou va le temps de chaque geste -- au centile, pas en moyenne\n\n");
         for geste in Geste::TOUS {
             let Some(parts) = self.parts_du_geste(geste) else {
                 continue;
             };
-            t.push_str(&format!("  {} :\n", geste.nom()));
-            let total: u64 = parts.iter().map(|(_, us)| *us).sum();
-            if total == 0 {
+            let reference = self.median_du_geste(geste);
+            // Un geste dont aucune marque n'a jamais rien coute n'a pas d'en-tete a ecrire :
+            // sans cette garde, le rapport annoncait un geste puis ne disait rien de lui.
+            if reference == 0 || parts.is_empty() {
                 continue;
             }
+            t.push_str(&format!(
+                "  {} (image mediane {:.2}ms) :\n",
+                geste.nom(),
+                ms(reference)
+            ));
+            t.push_str("      poste            median       p99      pire\n");
             let mut tries = parts;
-            tries.sort_by_key(|(_, us)| std::cmp::Reverse(*us));
-            for (nom, us) in tries.into_iter().take(6) {
-                let part = us as f64 / total as f64;
-                if part < 0.01 {
-                    break;
-                }
+            tries.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.5)));
+            let tete = tries.first().map_or(1, |(_, h)| h.centile(0.5).max(1));
+            for (nom, h) in tries.into_iter().take(6) {
+                let median = h.centile(0.5);
                 t.push_str(&format!(
-                    "      {:<14} {:>5.1}%  {}\n",
+                    "      {:<14} {:>7.2}ms {:>7.2}ms {:>9.2}ms  {}\n",
                     nom,
-                    100.0 * part,
-                    barre(part)
+                    ms(median),
+                    ms(h.centile(0.99)),
+                    ms(h.pire()),
+                    barre(f64::from(median) / f64::from(tete))
                 ));
             }
             t.push('\n');

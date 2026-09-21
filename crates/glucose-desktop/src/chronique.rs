@@ -129,18 +129,33 @@ pub const POSTES: usize = 40;
 struct Poste {
     /// La distribution des durées de ses images, en microsecondes.
     durees: Histogramme,
-    /// La somme des durées de chaque poste de rendu, pour savoir **où** va le temps de ce
-    /// geste — un geste lent ne l'est pas pour la même raison qu'un autre.
-    postes_us: [u64; POSTES],
+    /// La distribution de chaque poste de rendu, pour savoir **où** va le temps de ce geste —
+    /// un geste lent ne l'est pas pour la même raison qu'un autre.
+    ///
+    /// # Pourquoi une distribution, alors qu'une somme tenait en huit octets
+    ///
+    /// C'était une somme, et le rapport en tirait un pourcentage. Sur une session réelle de
+    /// trente et une images, il a annoncé **`blit` 62,4 %** du temps du repos. La vérité :
+    /// trente images à 0,94 ms, et **une** à 335 ms — le gel d'initialisation du pilote, à la
+    /// deuxième seconde. Une seule image aberrante décidait donc du portrait de tout un geste,
+    /// et je l'ai crue au point de l'écrire dans une fiche d'architecture.
+    ///
+    /// C'est exactement ce que le module d'à côté interdit dans sa première phrase — *« cent
+    /// images à 2 ms et une à 200 ms donnent une moyenne de 4 ms, alors que l'utilisateur a vu
+    /// un gel »*. La leçon avait été tirée pour les durées d'image et jamais appliquée à leur
+    /// décomposition, si bien que le tableau des gestes se lisait au centile pendant que la
+    /// ligne du dessous se lisait en moyenne.
+    ///
+    /// Le coût est de 356 octets par poste et par geste, soit 142 Ko pour la session entière,
+    /// quelle que soit sa durée. Le tableau vit dans un `Vec`, donc rien ne passe par la pile.
+    postes: Vec<Histogramme>,
 }
 
 impl Default for Poste {
-    // À la main : `Default` ne se dérive que jusqu'à trente-deux éléments, et la borne des
-    // postes n'a pas à dépendre d'une limite de la bibliothèque standard.
     fn default() -> Self {
         Self {
             durees: Histogramme::nouveau(),
-            postes_us: [0; POSTES],
+            postes: vec![Histogramme::nouveau(); POSTES],
         }
     }
 }
@@ -416,8 +431,10 @@ impl Chronique {
         self.durees.ajouter(vu.duree_us);
         let poste = &mut self.par_geste[vu.geste().indice()];
         poste.durees.ajouter(vu.duree_us);
-        for (somme, us) in poste.postes_us.iter_mut().zip(vu.postes_us.iter()) {
-            *somme += u64::from(*us);
+        // Les zéros comptent : un poste qui ne travaille qu'une image sur dix ne coûte rien à
+        // une image typique, et c'est précisément ce qu'on veut lire.
+        for (distribution, us) in poste.postes.iter_mut().zip(vu.postes_us.iter()) {
+            distribution.ajouter(*us);
         }
 
         // Les pires se tiennent triées : une image plus rapide que la dernière ne coûte qu'une
@@ -476,20 +493,30 @@ impl Chronique {
     }
 
     /// Où va le temps de ce geste, poste par poste. `None` s'il n'a jamais eu lieu.
-    pub fn parts_du_geste(&self, geste: Geste) -> Option<Vec<(&'static str, u64)>> {
+    ///
+    /// Rend la **distribution** de chaque poste, pas son total : c'est à qui lit de choisir le
+    /// centile qui répond à sa question, et aucune image aberrante ne peut décider seule du
+    /// portrait (voir [`Poste::postes`]). Un poste qui n'a jamais rien coûté est omis.
+    pub fn parts_du_geste(&self, geste: Geste) -> Option<Vec<(&'static str, &Histogramme)>> {
         let poste = &self.par_geste[geste.indice()];
         if poste.durees.compte() == 0 {
             return None;
         }
         Some(
             poste
-                .postes_us
+                .postes
                 .iter()
                 .enumerate()
-                .filter_map(|(i, us)| (*us > 0).then_some(*us).zip(self.nom_du_poste(i)))
-                .map(|(us, nom)| (nom, us))
+                .filter(|(_, h)| h.pire() > 0)
+                .filter_map(|(i, h)| self.nom_du_poste(i).map(|nom| (nom, h)))
                 .collect(),
         )
+    }
+
+    /// La durée médiane d'une image de ce geste, en microsecondes — la référence à laquelle un
+    /// poste se compare.
+    pub fn median_du_geste(&self, geste: Geste) -> u32 {
+        self.par_geste[geste.indice()].durees.centile(0.5)
     }
 }
 

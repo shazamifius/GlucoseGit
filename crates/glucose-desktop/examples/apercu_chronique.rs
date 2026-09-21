@@ -35,6 +35,17 @@ fn main() {
         "immediate (AUCUNE synchronisation)",
     );
 
+    // **Les postes se nomment, sinon ils valent zero.** Ils etaient renseignes par indice et
+    // jamais declares : `nom_du_poste` rendait `None`, le rapport les ecartait tous, et la
+    // section « ou va le temps » s'imprimait VIDE sous chaque geste. Un apercu qui n'affiche
+    // pas la section la plus lue ne permet pas de juger sa lisibilite, ce qui est sa seule
+    // raison d'etre -- et c'est le defaut du cliquet 9 : un zero qui se lit comme une mesure.
+    let postes = [
+        c.poste("report").expect("report"),
+        c.poste("agrandir").expect("agrandir"),
+        c.poste("blit").expect("blit"),
+    ];
+
     let mut horloge = Instant::now();
     let mut debut_precedent: Option<Instant> = None;
     // Mille pixels par seconde : un glissement franc au pavé tactile.
@@ -64,11 +75,39 @@ fn main() {
                 debut_precedent = Some(horloge);
                 horloge = presentation;
 
-                c.enregistrer(image(duree_us, tour, mesure));
+                c.enregistrer(image(duree_us, tour, mesure, postes));
             }
         }
     }
+    c.enregistrer(gel_d_initialisation(postes));
     println!("{}", c.rapport());
+}
+
+/// **Le gel du demarrage, tel que le terrain le produit, et il est ici pour une raison.**
+///
+/// Sur la session du 20/09, `blit` a coute 335 ms sur UNE image -- l'initialisation paresseuse
+/// du pilote, a la deuxieme seconde -- et 0,94 ms sur les trente autres. Le rapport en tirait
+/// « blit 62,4 % du temps du repos », parce qu'il sommait. Une seule image decidait du
+/// portrait, et je l'ai crue au point de l'ecrire dans une fiche d'architecture.
+///
+/// L'apercu joue donc ce cas : c'est lui qui permet de verifier, d'un coup d'oeil, que la
+/// mediane d'un poste reste petite pendant que son pire dit le gel.
+fn gel_d_initialisation(postes: [usize; 3]) -> Instantane {
+    let mut vu = Instantane {
+        duree_us: 347_530,
+        geste: Geste::TOUS
+            .iter()
+            .position(|g| *g == Geste::Zoomer)
+            .unwrap_or(0) as u8,
+        noeuds: 429,
+        photos: 429,
+        region_px: 2_560 * 1_600,
+        fenetre_px: 2_560 * 1_600,
+        reduction: 1,
+        ..Default::default()
+    };
+    vu.postes_us[postes[2]] = 335_440;
+    vu
 }
 
 /// Les durées du terrain, mélangées de façon déterministe.
@@ -92,6 +131,7 @@ fn image(
     duree_us: u32,
     tour: usize,
     mesure: glucose_desktop::chronique::rythme::Mesure,
+    postes: [usize; 3],
 ) -> Instantane {
     let mut vu = Instantane {
         duree_us,
@@ -112,8 +152,8 @@ fn image(
         ..Default::default()
     };
     // Le report prend l'essentiel, le reste se partage — la répartition du terrain.
-    vu.postes_us[0] = duree_us * 45 / 100;
-    vu.postes_us[1] = duree_us * 12 / 100;
-    vu.postes_us[2] = duree_us * 10 / 100;
+    vu.postes_us[postes[0]] = duree_us * 45 / 100;
+    vu.postes_us[postes[1]] = duree_us * 12 / 100;
+    vu.postes_us[postes[2]] = duree_us * 10 / 100;
     vu
 }

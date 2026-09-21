@@ -1,13 +1,14 @@
-# 20 — La salissure, et deux cercles vicieux que j'ai construits moi-même
+# 20 — La salissure, deux cercles vicieux, et un instrument qui mentait
 
 > **Rôle de ce document.** La fiche [`19`](19-SESSION-DU-19-09.md) désignait l'**étape 1 du
 > plan [`18`](18-PLAN-R-ET-D.md)** — la salissure — comme le chantier suivant. Celle-ci dit ce
 > que la journée en a fait. Elle dit aussi, et c'est sa partie la plus utile, **deux
 > corrections que j'ai écrites et que la mesure a démenties**, dont une régression visible à
-> l'écran que l'utilisateur a signalée en photo.
+> l'écran que l'utilisateur a signalée en photo — et **un chiffre faux que la chronique
+> elle-même m'a fait écrire dans la première version de cette fiche** (§ 4.5).
 >
-> **Date** : 2026-09-20 et 21 · huit commits, de `af2ffa4` à `574a0a4`.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 321 tests verts** (29 binaires),
+> **Date** : 2026-09-20 et 21 · dix commits, de `af2ffa4` à la correction de la chronique.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 322 tests verts** (29 binaires),
 > clippy strict à zéro, **onze** cliquets mécaniques. Poussé sur `main`.
 >
 > **Le point de départ, mot pour mot** : « sa fait des gros gros carrée noir derrnier » et
@@ -69,8 +70,15 @@ désormais relevées **une** fois et lues deux.
 
 ### 2.3 Ne téléverser que ce qui a changé — **pas fait**
 
-C'est le tiers restant de l'étape 1, et c'est le plus gros poste qui reste. La chronique de la
-dernière session au repos donne `blit` à **62,4 %** du temps. Rien n'a été tenté ici.
+C'est le tiers restant de l'étape 1. Rien n'a été tenté ici.
+
+> **Correction.** La première version de cette fiche justifiait ce chantier par « `blit` à
+> 62,4 % du temps au repos », lu dans la chronique. **Ce chiffre était faux**, et c'est la
+> chronique qui mentait : elle sommait les postes, si bien que l'unique image du gel de
+> démarrage — 335 ms de `blit` — écrasait les trente autres, à 0,94 ms. Le § 4.5 raconte le
+> défaut et sa correction. La vraie raison de traiter `blit` est plus modeste et suffit : il
+> coûte **environ 1 ms par image**, sur un budget de 4,17 ms à 240 Hz, et il est désormais le
+> plus gros poste fixe une fois `clear` sauté et la chrome mise en cache.
 
 ---
 
@@ -187,6 +195,46 @@ Deux plafonds remontent donc à la mesure vraie — le couplage de 36 à 51, les
 48 — **sans qu'un seul accès ni un seul toast ait été ajouté**. Ce n'est pas relâcher la règle,
 c'est cesser d'effacer une dette : chacun porte désormais le compte de ce qui **existe**.
 
+### 4.5 La chronique elle-même sommait ses postes — et m'a fait écrire un chiffre faux
+
+Le tableau « où va le temps » donnait un pourcentage par poste. Il venait d'une **somme** sur
+toutes les images du geste. Sur la session de terrain du 20/09 — trente et une images, dont
+**une** à 335 ms de `blit` (le gel d'initialisation du pilote, à la deuxième seconde) — il a
+donc annoncé :
+
+    blit  62,4 %
+
+La vérité, poste par poste : `blit` coûte **0,94 ms** à une image typique. Une seule image
+aberrante sur trente et une décidait du portrait du geste entier, et **j'ai écrit ce 62,4 %
+dans la première version de cette fiche** comme justification d'un chantier.
+
+Le plus dur à admettre : le module `histogramme.rs`, écrit trois jours plus tôt, s'ouvre sur
+la phrase *« cent images à 2 ms et une à 200 ms donnent une moyenne de 4 ms — excellente —
+alors que l'utilisateur a vu un gel »*. La leçon avait été tirée pour les **durées d'image** et
+jamais appliquée à leur **décomposition** : le tableau des gestes se lisait au centile pendant
+que la ligne du dessous, juste en dessous, se lisait en moyenne.
+
+Chaque poste garde désormais sa **distribution** (356 octets par poste et par geste, 142 Ko
+pour la session entière, quelle que soit sa durée). Le rapport donne médiane, p99 et pire :
+
+    poste            median       p99      pire
+    report            2.90ms   30.07ms     30.07ms  ############
+    agrandir          0.86ms    8.02ms      8.02ms  ####........
+    blit              0.86ms    6.89ms    335.44ms  ####........
+
+Le gel n'est pas perdu — il est à sa place, dans le pire, où il se lit pour ce qu'il est.
+
+**Et le pourcentage a disparu**, parce qu'il mentait une seconde fois : un pourcentage invite
+à additionner, et des centiles ne s'additionnent pas — la médiane d'une somme n'est pas la
+somme des médianes, et deux postes n'ont aucune raison d'être médians sur la même image. La
+barre compare les postes **entre eux**, relative au plus coûteux ; personne ne peut la sommer.
+
+Le test qui porte ce défaut **contient sa propre preuve** : il rejoue l'ancienne lecture — la
+somme, que l'histogramme garde encore — sur les mêmes images, et vérifie qu'elle conclut
+l'inverse. Une preuve permanente, là où un `git stash` n'aurait prouvé qu'une fois.
+
+*Trouvé en relisant cette fiche, écrite une heure plus tôt.*
+
 ---
 
 ## 5. Trois leçons de méthode, pour la liste de la fiche 17
@@ -203,7 +251,15 @@ L'épreuve d'aspect ne peut pas voir qu'un cache ne sert à rien. Chaque cache p
 **compte de dessins réels**, et un test le lit. C'est la leçon des vignettes, qui ont servi à
 1 % pendant cinq sessions.
 
-### 5.3 Un test qui prouve une égalité ne prouve pas un choix
+### 5.3 L'instrument de mesure se vérifie comme le reste
+
+Trois sessions ont lu « où va le temps » et l'ont cru. Le tableau était faux depuis qu'il
+existe. **Une mesure qu'on lit tous les jours est celle qu'on vérifie le moins**, parce que sa
+familiarité tient lieu de preuve. Elle mérite un test au même titre que le code qu'elle juge —
+et le sien devait être *« une image aberrante ne décide pas du typique »*, pas *« la somme est
+correcte »*, qui était vrai et sans intérêt.
+
+### 5.4 Un test qui prouve une égalité ne prouve pas un choix
 
 Le test des plages comparait `reporter` à lui-même. Les deux voies étaient justes ; c'est la
 décision prise **avant** l'appel qui était fausse (§ 3.1). Quand une correction change une
@@ -216,7 +272,7 @@ décision prise **avant** l'appel qui était fausse (§ 3.1). Quand une correcti
 | # | Ce que c'est | Chiffre | Statut |
 |---|---|---|---|
 | 1 | **Le pic du changement d'octave** | 77 tuiles, **43 ms** contre 6,7 ms pour une image ordinaire, une image sur 240 | Isolé, non résolu ; le raffinement progressif a échoué (§ 4.2) |
-| 2 | **Le téléversement partiel** (`blit`) | **62,4 %** du temps au repos | Étape 1 du plan 18, **non commencée** |
+| 2 | **Le téléversement partiel** (`blit`) | ~**1 ms** par image, soit un quart du budget à 240 Hz | Étape 1 du plan 18, **non commencée** |
 | 3 | **Les halos** | **7,7 ms**, 46 % du temps sur une scène de cartes de texte | Jamais attaqué |
 | 4 | **Le gel de démarrage** | ~1,26 s à la 2,3ᵉ seconde, dont 335 ms dans `blit` | Décrit fiche 19 § 5.1, non résolu |
 | 5 | **COUT-1 sur les tuiles** | Prévoit à 27 % depuis la grille | Dette nommée fiche 19, non remboursée |
