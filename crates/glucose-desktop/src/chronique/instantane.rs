@@ -107,6 +107,12 @@ pub struct Instantane {
     /// Avec la précédente, elle dit si la cascade mord : zéro report et un poste lourd
     /// signifie que le budget ne borne rien, ce qu'aucune durée ne montrerait seule.
     pub textures_reportees: u16,
+    /// La surface totale des textures rendues par cette image, en **kilopixels**.
+    ///
+    /// Avec [`Instantane::textures_faites`], elle dit si un poste `textures` lourd vient du
+    /// NOMBRE de textures ou de leur TAILLE. Une seule texture à dix-neuf millisecondes ne
+    /// s'explique que par la seconde, et rien ne le disait.
+    pub textures_kpx: u16,
     /// Ce que cette image a envoyé à la carte graphique, en mébioctets.
     pub blit_mo: u16,
     /// Combien de temps l'image **précédente** est restée sous les yeux, en microsecondes.

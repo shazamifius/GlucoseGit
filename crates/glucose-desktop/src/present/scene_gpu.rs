@@ -443,6 +443,7 @@ impl SceneGpu {
         let debut = Instant::now();
         let mut faites = 0.0_f64;
         let mut reportees = 0.0_f64;
+        let mut surface = 0.0_f64;
         // **Deux tours, et leur ordre EST la priorité.** Au premier, ce que la carte n'a pas
         // du tout : sans texture, un composant ne se dessine pas, et un trou se voit plus
         // qu'un flou. Au second, ce qu'elle détient mais qui a vieilli. L'urgent mange donc
@@ -474,11 +475,17 @@ impl SceneGpu {
                     continue;
                 }
                 if let Some(pixels) = source(&t.cle) {
+                    // **Ce qu'une texture pese vraiment**, en kilopixels. Les chroniques du
+                    // 21/09 montrent UNE texture a dix-neuf millisecondes, ce qu'aucune carte
+                    // de texte ordinaire ne peut couter : il faut donc savoir laquelle, et la
+                    // surface est la seule grandeur qui puisse l'expliquer.
+                    surface += f64::from(pixels.width()) * f64::from(pixels.height()) / 1000.0;
                     self.televerser(peripherique, file, (&t.identite, &t.cle), &pixels);
                     faites += 1.0;
                 }
             }
         }
+        crate::perf::compteur("textures_kpx", surface);
         crate::perf::compteur("textures_faites", faites);
         crate::perf::compteur("textures_reportees", reportees);
     }
