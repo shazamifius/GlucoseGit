@@ -7,9 +7,10 @@
 > tranché, ce qu'un banc neuf a chiffré pour la première fois, et surtout **les trois
 > corrections que j'ai écrites et que la mesure a refusées l'une après l'autre**.
 >
-> **Date** : 2026-09-21, soirée · quatre commits, de `ad65716` à `ef23bd9`.
+> **Date** : 2026-09-21, soirée · sept commits, de `ad65716` à `cd4b6a4`.
 > **État vérifié** : `cargo test --workspace` exit 0, **1 355 tests verts**, clippy strict à
-> zéro, onze cliquets, aucun plafond relevé.
+> zéro, onze cliquets, aucun plafond relevé. Une **seconde session de terrain** a suivi les
+> quatre premiers commits, et le § 9 dit ce qu'elle a mesuré.
 >
 > **Le point de départ, mot pour mot** : *« au niveau utilisation je trouve que tout est
 > fluide MAIS un logiciel lent […] au commencement d'une action, lorsque tu as 0 vélocité et
@@ -236,3 +237,58 @@ L'élan, le tempo et la constante de conduite subissaient tous les trois le mêm
 d'ailleurs. Devant un symptôme, la question n'est pas « quel mécanisme le produit » mais
 « lequel le **commande** » — et c'est la même question que les six cercles vicieux posent
 depuis le début.
+
+
+---
+
+## 9. La seconde session de terrain, et ce que CASCADE-2 a vraiment donné
+
+L'utilisateur a rejoué le document sur la RTX après les quatre premiers commits.
+
+| | avant | après |
+|---|---:|---:|
+| tempo | 8 balayages (68 %) | **5 (35 %), 4 (28 %)** |
+| latence p99 | 65,5 ms | **39,0 ms** |
+| latence médiane | 39,0 ms | **23,2 ms** |
+| images par seconde | 26 | **43** |
+| judder | 22 % | **10 %** |
+| `blit` p99 | 32,77 ms | **2,05 ms** |
+
+Son verdict : *« au niveau ressenti c'est vraiment vraiment pas mal »*.
+
+**`blit` était bien un faux coupable**, et la séparation des marques l'a prouvé en une
+session : seul, il vaut 1,72 ms en médiane et 3,70 ms au pire. Aucun des chantiers que la
+fiche 22 § 13 lui destinait — la chrome par rectangles — n'avait lieu d'être.
+
+### 9.1 Et le vrai coupable est nommé sans ambiguïté
+
+Les **douze** images les plus lentes de la session sont toutes dominées par `textures` :
+57,6 / 56,0 / 53,6 / 51,6 / 50,3 ms. Toutes sont des dézooms ou des vols de caméra.
+
+CASCADE-2 n'y pouvait rien, **par construction** : son premier tour — ce que la carte n'a pas
+du tout — était exempté de budget, au motif qu'un trou se voit plus qu'un flou. Vrai pour une
+carte isolée ; faux pour quatre cent quatre-vingts. Pendant un dézoom, **toutes** les cartes
+du document entrent à l'écran ensemble, aucune n'est connue, donc rien n'était borné.
+
+Le budget vaut désormais pour les deux tours, leur ordre restant la priorité — et avec lui la
+garantie sans laquelle le mécanisme serait faux : **au moins une texture par image**, sinon
+une machine dont chaque image dépasse le plancher aurait un budget nul en permanence et une
+scène ne se compléterait jamais.
+
+### 9.2 La réactivité du pavé, et une constante qui servait deux rôles
+
+*« Lorsqu'on utilise le pavé tactile, c'est trop trop trop smooth, pas assez réactif, ça
+traîne. »* Dit une seconde fois, alors que la latence avait déjà été divisée par 1,7 : ce qui
+traîne est le **retard permanent** de la vue sur la main, `v · τ`, soit 46,7 px.
+
+`TAU_CONDUITE` passe de 50 à 20 ms — retard divisé par 3,5, montée par 2,3, grain doublé. La
+charte demande qu'une constante arbitraire disparaisse plutôt qu'elle rétrécisse, et j'ai
+essayé : **trois tests l'ont refusé**, et chacun verrouille une propriété qu'aucune loi de ce
+genre ne tient (§ 4.3 du même esprit). Les trois ensemble verrouillent une constante ; la
+seule liberté est sa valeur. Elle rejoint donc `TAU_LIBRE_PAN` parmi les nombres de ce module
+qui **se jugent à la main**, et le code le dit.
+
+**Un défaut trouvé en la baissant, et il dormait depuis toujours** : ce nombre tenait deux
+rôles sans rapport — la vitesse de rattrapage, et le silence au-delà duquel on déclare la main
+partie. Les baisser ensemble a fait conclure au lâcher entre deux événements d'une source
+lente : **le pilote décidait de la fin d'un geste.** `SILENCE_MINIMAL` les sépare.
