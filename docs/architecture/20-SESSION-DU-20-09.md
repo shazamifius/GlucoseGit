@@ -1,4 +1,4 @@
-# 20 — La salissure, deux cercles vicieux, et un instrument qui mentait
+# 20 — La salissure, les cercles vicieux, et quinze coeurs qui dormaient
 
 > **Rôle de ce document.** La fiche [`19`](19-SESSION-DU-19-09.md) désignait l'**étape 1 du
 > plan [`18`](18-PLAN-R-ET-D.md)** — la salissure — comme le chantier suivant. Celle-ci dit ce
@@ -7,8 +7,8 @@
 > l'écran que l'utilisateur a signalée en photo — et **un chiffre faux que la chronique
 > elle-même m'a fait écrire dans la première version de cette fiche** (§ 4.5).
 >
-> **Date** : 2026-09-20 et 21 · dix commits, de `af2ffa4` à la correction de la chronique.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 322 tests verts** (29 binaires),
+> **Date** : 2026-09-20 et 21 · seize commits, de `af2ffa4` à `5f542db`.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 327 tests verts** (29 binaires),
 > clippy strict à zéro, **onze** cliquets mécaniques. Poussé sur `main`.
 >
 > **Le point de départ, mot pour mot** : « sa fait des gros gros carrée noir derrnier » et
@@ -301,6 +301,126 @@ Trois issues, et le choix engage la vision du produit :
 Ma recommandation, argumentée : **2, puis 3**. Un levier qui coûte visiblement et rapporte peu
 n'est pas un levier ; et tant qu'il existe, il masque le vrai coût des scènes lourdes et
 retire l'urgence de traiter les postes du § 6.
+
+---
+
+## 7bis. Le parallélisme — la découverte qui change la feuille de route
+
+### La question de l'utilisateur, et elle était la bonne
+
+> « Je ne sais pas comment Glucose Tauri fonctionne mais lui pouvait avoir des milliards
+> d'images sans lager du tout, et de même sur téléphone. Comment ça se fait qu'on a une techno
+> qui est mieux juste à côté ? »
+
+**Ce que le navigateur fait et que nous ne faisons pas** : il ne recompose jamais les pixels.
+Les images vivent en textures sur la carte, déplacer la vue change une matrice, et
+l'interpolation bilinéaire est **câblée dans les unités de texture** — elle ne coûte rien.
+Figma tient ses millions d'objets ainsi, par tuiles et par shaders.
+
+La charte interdit d'y répondre par le GPU. Restait à savoir ce que le processeur peut.
+
+### Ce que la mesure a trouvé, et c'est gênant
+
+`bench_tuiles`, sur 2560 × 1600, agrandissement ×1,5 :
+
+| | |
+|---|---|
+| au texel le plus proche | **3,19 ms** — pixelisé, ce qu'on faisait |
+| interpolé | **20,68 ms** — net, six fois trop cher |
+
+J'ai cru que ces 20 ms venaient de *tiny-skia*. **Faux** : le banc utilise notre propre
+primitive, REPORT-1, déjà monomorphisée. Alors j'ai cherché où elles vont, et la réponse
+tenait en deux recherches :
+
+```text
+is_x86_feature_detected  ->  aucune occurrence dans tout le dépôt
+thread::spawn            ->  une seule, dans l'atelier de DÉCODAGE
+```
+
+**La composition des pixels tournait sur un cœur, en scalaire, sur une machine qui en annonce
+seize.** C'est exactement ce que la charte refuse : *« à quoi ça sert de se priver de physique
+et de matériel lorsqu'on le possède ? »*
+
+### `bench_bandes` — le découpage de la destination
+
+| fils | durée | facteur |
+|---|---|---|
+| 1 | 21,78 ms | — |
+| 4 | 4,70 ms | 4,3× |
+| 8 | 3,31 ms | 6,1× |
+| **16** | **2,38 ms** | **8,5×** |
+
+**Interpoler sur seize fils coûte moins que pixeliser sur un.** La pixelisation n'était pas un
+compromis entre la vitesse et la beauté : c'était le prix de n'avoir jamais utilisé la machine.
+
+La grille interpole donc **toujours**. Sur un pincement de 429 photos : **8,25 ms pixelisé
+avant cette session, 4,70 ms net aujourd'hui**.
+
+> **Le SIMD reste entier.** C'est l'autre moitié du facteur, et rien n'en est fait.
+
+### Deux défauts trouvés par le test « au bit près », dont un qui dormait
+
+Le test exige ce que la charte exige : deux voies, les mêmes pixels au bit près. Il a refusé
+deux fois.
+
+1. **À moi** : je retranchais le haut de la bande *avant* d'arrondir. `f32::round` s'éloigne de
+   zéro, donc tout demi-pixel passant du côté négatif basculait. C'est la règle des « croix
+   noires » transposée d'un axe à l'autre : **un bord partagé s'arrondit une fois, dans le
+   repère où il est commun**.
+2. **Dans REPORT-1, et il précède les bandes** : l'échantillonnage s'ancrait sur la **zone** —
+   ce que le clip laisse voir — au lieu de la **pose**. Or les pas sont tronqués à 2⁻¹⁶ de
+   texel et la boucle les additionne : **deux clips différents rendaient des pixels différents
+   pour la même tuile au même endroit**. Silencieux, et contraire à tout ce sur quoi le cache
+   de tuiles repose.
+
+---
+
+## 7ter. La réduction de résolution — quatre tours pour une réponse
+
+### Ce que j'ai fait de travers, et c'est une leçon de méthode
+
+J'ai corrigé le modèle de résolution **trois fois d'affilée** en jugeant sur des chroniques de
+terrain. Elles ne mesuraient pas la même chose : l'une sans un pincement, la suivante avec
+**272**, la dernière avec **280 images d'édition de texte**. Trois conclusions successives
+tirées d'une comparaison qui n'en autorisait aucune.
+
+**La raison pour laquelle je n'avais pas de banc** : `bench_salissure` appelait `render`, qui
+ne réduit jamais — c'est `rendre_reduit` qui le fait, et seul `app/peinture.rs` l'appelle. La
+réduction **n'avait jamais été mesurée par un banc**, alors qu'elle décide de 40 à 80 % des
+images et qu'elle *est* ce que l'utilisateur voit comme « trop pixelisé ».
+
+### Ce que le banc dit, une fois écrit
+
+429 photos, un pincement, 2560 × 1600 :
+
+| régime | médiane | pire image | tuiles au pic |
+|---|---|---|---|
+| **net** | **4,21 ms** | 32,93 ms | 77 |
+| réduit ×2, avec tuiles | 4,70 ms | 15,43 ms | 24 |
+| réduit ×4, avec tuiles | 5,58 ms | 8,89 ms | 8 |
+| réduit ×2, **sans** tuiles | 6,76 ms | 15,79 ms | 0 |
+| réduit ×4, **sans** tuiles | 6,12 ms | 9,98 ms | 0 |
+
+1. **Faire passer la scène réduite par la grille est bon** : −2,06 ms à ×2. Le cache en était
+   exclu au motif qu'une scène réduite « est déjà une pixelisation » — le raisonnement
+   confondait un moyen de dégrader avec un **cache**.
+2. **Réduire ne rapporte rien en régime permanent** : 4,21 → 4,70 → 5,58 ms. La courbe monte.
+   `agrandir` coûte plus que ce que la grille économise.
+3. **Réduire a un seul mérite, et il est grand : le pic.** 32,93 → 8,89 ms, et 77 tuiles → 8.
+
+### Ce que cela désigne, et ce n'est pas ce que je croyais en commençant
+
+La réduction **n'est pas à supprimer** : elle est le seul outil qui existe contre le pic. Mais
+elle est déclenchée par un modèle qui regarde le **typique**, alors que son seul bénéfice est
+sur le **pic** — d'où 80 % d'images abîmées pour un événement qui en concerne une sur 240.
+
+Et le pic **se prévoit** : c'est le franchissement d'une octave, et le niveau dyadique est
+connu *avant* de dessiner. Un modèle qui réduirait pour cette image-là, et pour elle seule,
+rendrait la scène nette partout ailleurs.
+
+**C'est le chantier suivant, et il est le plus prometteur de tous.** L'autre voie, qui se
+mesure aussi : paralléliser la *peinture* des tuiles comme leur composition l'est maintenant —
+77 tuiles sur seize fils, c'est cinq par fil.
 
 ---
 
