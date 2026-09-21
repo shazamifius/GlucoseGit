@@ -61,6 +61,7 @@
 //! ne s'arrête pas : elle le dit et continue.
 
 pub mod banc_gpu;
+pub mod bandes;
 pub mod couches;
 pub mod fond_gpu;
 pub mod gpu;

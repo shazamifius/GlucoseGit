@@ -33,44 +33,23 @@ pub(super) fn presenter(
     (confie, budget): (&crate::renderer::Confie, std::time::Duration),
     source: &dyn Fn(&str) -> Option<Pixmap>,
 ) -> DesktopResult<()> {
-    // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
-    let textures = confie.textures();
-    p.scene.ouvrir();
-    p.scene
-        .assurer(&p.device, &p.queue, (&textures, budget), source);
-    // **Ce que la carte ne connaissait pas encore**, et il fallait le séparer du reste.
-    //
-    // `assurer` crée et téléverse les textures que la scène réclame et que la carte n'a pas :
-    // les photos qui viennent d'être décodées, et surtout les **composants** qui changent de
-    // palier ou entrent à l'écran. La fiche 22 § 11.2 chiffre ce pic à trente millisecondes
-    // sur une image, et il tombait jusqu'ici dans `blit` — une marque qui absorbait tout ce
-    // qui la précédait, exactement comme `occlusion` (fiche 19 § 4.4) et `recolte` (fiche 22
-    // § 5.4). Trois fois le même piège, et trois fois il a désigné le mauvais coupable.
-    crate::perf::stage("textures");
-    let ecran = (dessous.width() as f32, dessous.height() as f32);
-    let retenues = p.scene.preparer(&p.device, &p.queue, ecran, &textures);
-    let photos = &confie.photos[..];
-    p.fond.preparer(&p.queue, ecran, confie.fond);
-    p.lueurs
-        .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
-    // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
-    // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de
-    // quads, et ce n'est pas le même chantier que le bus.
-    crate::perf::stage("poses");
-    // Le diagnostic qui dit OU la chaine se rompt : combien de photos la scene demande,
-    // et combien la carte sait poser.
-    crate::perf::compteur("photos_vues", photos.len() as f64);
-    crate::perf::compteur("photos_posees", retenues.len() as f64);
-    crate::perf::compteur("lueurs_posees", confie.lueurs.len() as f64);
-    crate::perf::compteur("cartes_posees", confie.cartes.len() as f64);
-    crate::perf::compteur("composants", confie.composants.len() as f64);
+    let retenues = preparer_la_scene(p, (dessous, confie, budget), source);
     // La couche du dessous ne part que si elle porte quelque chose. Quand la carte peint
     // le fond et les lueurs, elle ne reste que les membranes et les dossiers -- et sur un
     // document qui n'en a pas, quinze mebioctets par image cessent de traverser le bus.
+    // **Ce qui part sur le bus** : ce que cette image a ecrit, plus ce que la precedente
+    // avait ecrit et qu'elle n'ecrit plus -- sans quoi la texture garderait l'ancien, la
+    // couche n'ayant pas d'anneau qui la renouvellerait.
+    let a_televerser = p.bandes_envoyees.union(&confie.bandes_du_dessus);
+    p.bandes_envoyees = confie.bandes_du_dessus.clone();
     let dessous_utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
     crate::perf::compteur("dessous_televerse", f64::from(u8::from(dessous_utile)));
-    p.couches
-        .televerser(&p.device, &p.queue, (dessous, dessous_utile), dessus);
+    p.couches.televerser(
+        &p.device,
+        &p.queue,
+        (dessous, dessous_utile),
+        (dessus, &a_televerser),
+    );
     crate::perf::stage("blit");
 
     let Some(frame) = p.acquerir()? else {
@@ -105,4 +84,51 @@ pub(super) fn presenter(
     crate::perf::stage("present");
     p.scene.fermer();
     Ok(())
+}
+
+/// **Le premier temps : donner à la carte ce qu'elle ne connaît pas, puis poser les quads.**
+///
+/// Extraite de [`presenter`], qui enchaînait la préparation, la composition et la
+/// présentation — trois raisons de changer, et quatre-vingt-huit lignes là où la fiche 05 en
+/// admet quatre-vingts. La coupure tombe à l'endroit où la nature du travail change : ici on
+/// téléverse et on écrit des tampons, après on dessine.
+///
+/// Rend les clés que la carte saura poser.
+fn preparer_la_scene(
+    p: &mut GpuPresenter,
+    (dessous, confie, budget): (&Pixmap, &crate::renderer::Confie, std::time::Duration),
+    source: &dyn Fn(&str) -> Option<Pixmap>,
+) -> Vec<String> {
+    // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
+    let textures = confie.textures();
+    p.scene.ouvrir();
+    p.scene
+        .assurer(&p.device, &p.queue, (&textures, budget), source);
+    // **Ce que la carte ne connaissait pas encore**, et il fallait le séparer du reste.
+    //
+    // `assurer` crée et téléverse les textures que la scène réclame et que la carte n'a pas :
+    // les photos qui viennent d'être décodées, et surtout les **composants** qui changent de
+    // palier ou entrent à l'écran. La fiche 22 § 11.2 chiffre ce pic à trente millisecondes
+    // sur une image, et il tombait jusqu'ici dans `blit` — une marque qui absorbait tout ce
+    // qui la précédait, exactement comme `occlusion` (fiche 19 § 4.4) et `recolte` (fiche 22
+    // § 5.4). Trois fois le même piège, et trois fois il a désigné le mauvais coupable.
+    crate::perf::stage("textures");
+    let ecran = (dessous.width() as f32, dessous.height() as f32);
+    let retenues = p.scene.preparer(&p.device, &p.queue, ecran, &textures);
+    let photos = &confie.photos[..];
+    p.fond.preparer(&p.queue, ecran, confie.fond);
+    p.lueurs
+        .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
+    // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
+    // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de
+    // quads, et ce n'est pas le même chantier que le bus.
+    crate::perf::stage("poses");
+    // Le diagnostic qui dit OU la chaine se rompt : combien de photos la scene demande,
+    // et combien la carte sait poser.
+    crate::perf::compteur("photos_vues", photos.len() as f64);
+    crate::perf::compteur("photos_posees", retenues.len() as f64);
+    crate::perf::compteur("lueurs_posees", confie.lueurs.len() as f64);
+    crate::perf::compteur("cartes_posees", confie.cartes.len() as f64);
+    crate::perf::compteur("composants", confie.composants.len() as f64);
+    retenues
 }

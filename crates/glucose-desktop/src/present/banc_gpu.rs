@@ -205,7 +205,16 @@ pub fn composer_les_cinq_temps(
     );
     let retenues = scene.preparer(peripherique, file, ecran, &textures);
     let utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
-    deux.televerser(peripherique, file, (dessous, utile), dessus);
+    // Le banc et l'epreuve des deux voies composent des images COMPLETES : tout part.
+    deux.televerser(
+        peripherique,
+        file,
+        (dessous, utile),
+        (
+            dessus,
+            &crate::present::bandes::Bandes::tout(dessus.height()),
+        ),
+    );
 
     let cible = cible(peripherique, taille);
     let vue = cible.create_view(&Default::default());

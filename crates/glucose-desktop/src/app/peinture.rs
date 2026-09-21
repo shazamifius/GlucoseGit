@@ -297,12 +297,16 @@ impl GlucoseApp {
                 // On ne reduit alors PAS : la carte filtre en bilineaire sans rien payer,
                 // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
                 if par_la_carte {
+                    // Ce que l'image precedente avait ecrit dans le dessus : c'est cela
+                    // seul qu'il faut effacer, et rien d'autre (BANDE-1).
+                    let bandes_precedentes = self.confie.bandes_du_dessus.clone();
                     let (tampon, confie) = peindre_par_la_carte(
                         (&mut pixmap, self.tampon_dessus.take()),
                         &mut self.renderer,
                         (&self.store, self.confie.dessous_porte_quelque_chose),
                         chrome,
                         (overlay, regard),
+                        &bandes_precedentes,
                     );
                     self.tampon_dessus = tampon;
                     self.confie = confie;
@@ -409,6 +413,7 @@ fn peindre_par_la_carte(
     (store, dessous_sali): (&Store, bool),
     chrome: Chrome<'_>,
     (overlay, regard): (SceneOverlay<'_>, crate::renderer::Regard),
+    bandes_precedentes: &crate::present::bandes::Bandes,
 ) -> (Option<Pixmap>, crate::renderer::Confie) {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     // Le tampon du dessus suit la fenetre : il se refait quand elle change de taille, et
@@ -427,7 +432,16 @@ fn peindre_par_la_carte(
         pointer,
         echelle,
     } = chrome;
-    dessus.fill(tiny_skia::Color::TRANSPARENT);
+    // **On n'efface que ce que l'image précédente avait écrit.**
+    //
+    // Remplir seize mébioctets de transparent coûtait 2,05 ms par image sur le terrain, pour
+    // une couche qui n'en porte qu'un huitième. Les bandes de l'image d'avant suffisent :
+    // partout ailleurs, le tampon est transparent depuis qu'il existe et le rester.
+    //
+    // La première image, elle, hérite d'un tampon dont on ne sait rien -- il vient d'être
+    // alloué, ou la fenêtre a changé de taille : `bandes_precedentes` vaut alors toute la
+    // hauteur, et c'est l'appelant qui le sait.
+    bandes_precedentes.effacer(dessus);
     // **Le dessous part transparent lui aussi** -- mais seulement s'il a ete sali.
     //
     // Il portait le fond, donc il l'ecrasait a chaque image et la question ne se posait pas.
@@ -441,7 +455,7 @@ fn peindre_par_la_carte(
         pixmap.fill(tiny_skia::Color::TRANSPARENT);
     }
     crate::perf::stage("effacer");
-    let confie = renderer.rendre_les_couches(
+    let mut confie = renderer.rendre_les_couches(
         &mut pixmap.as_mut(),
         &mut dessus.as_mut(),
         store,
@@ -449,6 +463,34 @@ fn peindre_par_la_carte(
         overlay,
         regard,
     );
+    poser_les_docks(
+        dessus,
+        (dock_manager, dock_cache),
+        store,
+        (renderer, ui, pointer),
+        (largeur, hauteur, echelle),
+    );
+    // **Ce que cette image a écrit dans la couche du dessus**, relevé une fois que tout y
+    // est : la chrome se dessine après le renderer, donc un relevé pris plus tôt manquerait
+    // les docks -- et une bande manquée est un pixel qui ne s'efface jamais.
+    confie.bandes_du_dessus = crate::present::bandes::Bandes::relever(dessus);
+    crate::perf::compteur("dessus_lignes", f64::from(confie.bandes_du_dessus.lignes()));
+    crate::perf::stage("relever");
+    (tampon, confie)
+}
+
+/// Pose les panneaux déroulants dans la couche du dessus.
+///
+/// Une fonction à part parce que la peinture par la carte a désormais un relevé à faire après
+/// elle, et que le cliquet des quatre-vingts lignes a raison : ce qui **dessine** et ce qui
+/// **mesure** ne sont pas la même chose.
+fn poser_les_docks(
+    dessus: &mut Pixmap,
+    (dock_manager, dock_cache): (&DockManager, &DockCache),
+    store: &Store,
+    (renderer, ui, pointer): (&Renderer, &UiState, Pointer),
+    (largeur, hauteur, echelle): (u32, u32, f32),
+) {
     render_docks(
         &mut dessus.as_mut(),
         dock_manager,
@@ -467,7 +509,6 @@ fn peindre_par_la_carte(
         },
     );
     crate::perf::stage("docks");
-    (tampon, confie)
 }
 
 /// Peint la scène et la chrome dans le tampon.

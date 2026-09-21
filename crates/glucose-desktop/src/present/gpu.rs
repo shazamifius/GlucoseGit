@@ -90,6 +90,12 @@ pub struct GpuPresenter {
     fond: super::fond_gpu::FondGpu,
     /// Les lueurs des cartes (fiche 21, etape 3).
     lueurs: super::lueurs_gpu::Lueurs,
+    /// Les bandes de la couche du dessus que la texture détient déjà.
+    ///
+    /// Cette couche n'a pas d'anneau : sa texture garde son contenu d'une image à l'autre,
+    /// ce qui permet de n'y écrire que ce qui a changé. Encore faut-il savoir ce qu'elle
+    /// porte, pour effacer sur la carte les bandes que le processeur n'écrit plus.
+    bandes_envoyees: super::bandes::Bandes,
     /// La chaîne d'images doit être refaite avant la prochaine acquisition.
     ///
     /// # Le plantage que ce drapeau répare
@@ -204,6 +210,7 @@ impl GpuPresenter {
             sampler,
             layout,
             anneau: anneau::Anneau::nouveau(),
+            bandes_envoyees: super::bandes::Bandes::default(),
             adaptateur,
             format_image,
             a_reaccorder: false,

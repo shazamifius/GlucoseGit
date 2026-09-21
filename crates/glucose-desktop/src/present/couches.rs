@@ -27,6 +27,7 @@
 //! **entièrement vide** — [`Couches::televerser`] la saute alors, et ce téléversement-là
 //! n'existe plus du tout. Un coût supprimé vaut mieux qu'un coût mis en cache.
 
+use super::bandes::Bandes;
 use tiny_skia::Pixmap;
 
 /// Le nuanceur des couches : un triangle qui déborde de l'écran, et la texture telle quelle.
@@ -175,75 +176,114 @@ impl Couches {
     }
 
     /// Téléverse une couche, en refaisant sa texture seulement si la taille a changé.
+    /// Fabrique la texture d'une couche et de quoi la lier au nuanceur.
+    ///
+    /// Une fonction libre plutôt qu'un bloc dans `accorder` : celle-ci décidait **et** fabriquait
+    /// **et** téléversait, ce qui lui faisait passer les quatre-vingts lignes que la fiche 05
+    /// admet — et le cliquet a eu raison de le dire.
+    fn fabriquer(
+        peripherique: &wgpu::Device,
+        disposition: &wgpu::BindGroupLayout,
+        filtre: &wgpu::Sampler,
+        taille: (u32, u32),
+    ) -> Portee {
+        let dim = wgpu::Extent3d {
+            width: taille.0,
+            height: taille.1,
+            depth_or_array_layers: 1,
+        };
+        let texture = peripherique.create_texture(&wgpu::TextureDescriptor {
+            label: Some("couche"),
+            size: dim,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        let vue = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let liaison = peripherique.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("couche"),
+            layout: disposition,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&vue),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(filtre),
+                },
+            ],
+        });
+        Portee {
+            texture,
+            liaison,
+            taille,
+        }
+    }
+
     fn accorder(
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
         disposition: &wgpu::BindGroupLayout,
         filtre: &wgpu::Sampler,
         place: &mut Option<Portee>,
-        source: &Pixmap,
+        (source, bandes): (&Pixmap, &Bandes),
     ) {
         let taille = (source.width(), source.height());
         let refaire = place.as_ref().is_none_or(|p| p.taille != taille);
         if refaire {
-            let dim = wgpu::Extent3d {
-                width: taille.0,
-                height: taille.1,
-                depth_or_array_layers: 1,
-            };
-            let texture = peripherique.create_texture(&wgpu::TextureDescriptor {
-                label: Some("couche"),
-                size: dim,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            });
-            let vue = texture.create_view(&wgpu::TextureViewDescriptor::default());
-            let liaison = peripherique.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("couche"),
-                layout: disposition,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&vue),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(filtre),
-                    },
-                ],
-            });
-            *place = Some(Portee {
-                texture,
-                liaison,
-                taille,
-            });
+            *place = Some(Self::fabriquer(peripherique, disposition, filtre, taille));
         }
         let Some(portee) = place.as_ref() else {
             return;
         };
-        file.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &portee.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            source.data(),
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(taille.0 * 4),
-                rows_per_image: Some(taille.1),
-            },
-            wgpu::Extent3d {
-                width: taille.0,
-                height: taille.1,
-                depth_or_array_layers: 1,
-            },
-        );
+        // **Une texture neuve ne contient rien de ce qu'on croit** : tout part, une fois.
+        // Ensuite elle garde ce qu'on y a mis d'une image à l'autre -- il n'y a pas d'anneau
+        // ici, contrairement à l'image principale -- et c'est précisément ce qui permet de
+        // n'envoyer que ce qui a changé.
+        let a_envoyer = if refaire {
+            Bandes::tout(taille.1)
+        } else {
+            bandes.clone()
+        };
+        let largeur = taille.0 as usize * 4;
+        let mut lignes = 0_u32;
+        for bande in a_envoyer.intervalles() {
+            let hauteur = bande.end - bande.start;
+            if hauteur == 0 {
+                continue;
+            }
+            lignes += hauteur;
+            file.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &portee.texture,
+                    mip_level: 0,
+                    // L'origine porte la bande : c'est tout ce que `write_texture` demande
+                    // pour n'écrire qu'une tranche, et le reste de la texture ne bouge pas.
+                    origin: wgpu::Origin3d {
+                        x: 0,
+                        y: bande.start,
+                        z: 0,
+                    },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &source.data()[bande.start as usize * largeur..bande.end as usize * largeur],
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(taille.0 * 4),
+                    rows_per_image: Some(hauteur),
+                },
+                wgpu::Extent3d {
+                    width: taille.0,
+                    height: hauteur,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+        crate::perf::compteur("blit_lignes", f64::from(lignes));
     }
 
     /// Téléverse les deux couches du processeur. À faire avant d'ouvrir la passe.
@@ -260,17 +300,21 @@ impl Couches {
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
         (dessous, dessous_utile): (&Pixmap, bool),
-        dessus: &Pixmap,
+        (dessus, bandes): (&Pixmap, &Bandes),
     ) {
         self.dessous_pose = dessous_utile;
         if dessous_utile {
+            // La couche du dessous porte des membranes et des dossiers, qui suivent la vue :
+            // elle change partout dès que la vue bouge, et un relevé de bandes n'y gagnerait
+            // rien. C'est le même raisonnement que la fiche 22 § 4, qui a préféré la
+            // supprimer plutôt que la mettre en cache.
             Self::accorder(
                 peripherique,
                 file,
                 &self.disposition,
                 &self.echantillonneur,
                 &mut self.dessous,
-                dessous,
+                (dessous, &Bandes::tout(dessous.height())),
             );
         }
         Self::accorder(
@@ -279,7 +323,7 @@ impl Couches {
             &self.disposition,
             &self.echantillonneur,
             &mut self.dessus,
-            dessus,
+            (dessus, bandes),
         );
     }
 

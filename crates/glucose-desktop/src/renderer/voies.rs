@@ -154,6 +154,13 @@ pub struct Confie {
     /// Ce qui se rend **à la demande**, quand la carte graphique ne connaît pas la clé : les
     /// cartes de texte, les photos en chemin.
     pub composants: Vec<super::composants::Composant>,
+    /// **Les lignes que la couche du dessus porte**, relevées après que tout y a été dessiné.
+    ///
+    /// Elles décident de ce qui s'efface et de ce qui part sur le bus (BANDE-1) : la chrome
+    /// et les ornements n'occupent qu'un huitième de l'écran, et le reste n'a aucune raison
+    /// d'être touché. Le relevé appartient à la peinture et non au renderer, parce que la
+    /// chrome se dessine **après** lui — un relevé pris ici manquerait les docks.
+    pub bandes_du_dessus: crate::present::bandes::Bandes,
     /// La couche du dessous a-t-elle reçu de l'encre ?
     ///
     /// Quand elle n'en a pas — ni membrane, ni dossier, le fond étant sur la carte — elle est
@@ -496,6 +503,9 @@ impl Renderer {
             photos,
             cartes,
             composants,
+            // Le releve appartient a la peinture : la chrome se dessine APRES le renderer,
+            // donc rien de juste ne peut etre dit ici.
+            bandes_du_dessus: crate::present::bandes::Bandes::default(),
             dessous_porte_quelque_chose: true,
         }
     }
