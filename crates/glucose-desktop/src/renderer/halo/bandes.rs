@@ -100,6 +100,11 @@ impl LueurPrete {
         })
     }
 
+    /// Les ordonnées d'écran que cette lueur touche, bornes comprises.
+    pub(super) fn lignes(&self) -> (i32, i32) {
+        (self.ecran.1, self.ecran.3)
+    }
+
     /// Peint la part de cette lueur qui tombe dans `dst`, une vue qui commence à `decalage`.
     pub(super) fn peindre(&self, dst: &mut PixmapMut, decalage: i32) {
         let (x0, y0, x1, y1) = self.ecran;
@@ -181,7 +186,16 @@ pub(super) fn peindre_en_bandes(pixmap: &mut PixmapMut, halos: &[(HaloBox, (u8, 
     if pretes.is_empty() {
         return;
     }
-    let fils = crate::renderer::fils::bandes_utiles(pretes.len(), hauteur);
+    // L'etendue verticale que les lueurs touchent, toutes ensemble : c'est CELA qui se
+    // partage, et non leur nombre.
+    let lignes = pretes
+        .iter()
+        .map(|p| p.lignes())
+        .fold((i32::MAX, i32::MIN), |(h, b), (ph, pb)| {
+            (h.min(ph), b.max(pb))
+        });
+    let touchees = u32::try_from(lignes.1 - lignes.0).unwrap_or(0);
+    let fils = crate::renderer::fils::bandes_utiles(touchees.min(hauteur));
     peindre_en(fils, pixmap, &pretes);
 }
 

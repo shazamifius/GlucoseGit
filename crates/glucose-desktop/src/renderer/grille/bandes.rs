@@ -54,8 +54,11 @@ pub(super) fn composer_en_bandes(
     provisoires: &[(Adresse, Pixmap, Portee)],
     modele: Place,
 ) -> u64 {
+    // Les tuiles pavent ce que l'ecran montre : leur travail se compte en lignes de l'ecran,
+    // et il n'y en a aucune a partager s'il n'y a aucune tuile.
     let combien = releve.tuiles.len() + provisoires.len();
-    let fils = bandes_utiles(combien, pixmap.height());
+    let lignes = if combien == 0 { 0 } else { pixmap.height() };
+    let fils = bandes_utiles(lignes);
     composer_en(fils, pixmap, tuiles, releve, provisoires, modele)
 }
 
