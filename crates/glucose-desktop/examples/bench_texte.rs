@@ -70,6 +70,9 @@ fn centile(v: &[f64], p: f64) -> f64 {
 struct Geste {
     durees: Vec<f64>,
     rasterises: Vec<usize>,
+    /// Combien de textures de composants cette image a dû rendre parce que la carte ne les
+    /// connaissait pas — le pic que la fiche 22 § 11.2 annonce à trente millisecondes.
+    rendues: Vec<f64>,
     postes: BTreeMap<&'static str, Vec<f64>>,
 }
 
@@ -87,6 +90,7 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
     let mut geste = Geste {
         durees: Vec::new(),
         rasterises: Vec::new(),
+        rendues: Vec::new(),
         postes: BTreeMap::new(),
     };
     // La memoire de la carte graphique : ce qu'elle detient, et ce qu'elle oublie a la fin
@@ -129,6 +133,7 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
         connues = vues;
         glucose_desktop::perf::compteur("textures_rendues", rendues);
         glucose_desktop::perf::stage("textures");
+        geste.rendues.push(rendues);
         geste.durees.push(debut.elapsed().as_secs_f64() * 1000.0);
         glucose_desktop::perf::frame_end();
         for (nom, ms) in glucose_desktop::perf::postes() {
@@ -146,21 +151,25 @@ fn jouer(renderer: &mut Renderer, store: &mut Store, vue: impl Fn(usize) -> View
 fn ligne(nom: &str, geste: &Geste) {
     let r: Vec<f64> = geste.rasterises.iter().map(|&n| n as f64).collect();
     println!(
-        "  {nom:<12} image  med {:6.2} ms  p90 {:6.2}  p99 {:6.2}  pire {:6.2}   |  rasterises  med {:5.0}  p99 {:5.0}  pire {:5.0}",
+        "  {nom:<12} image  med {:6.2} ms  p90 {:6.2}  p99 {:6.2}  pire {:6.2}   |  rasterises  med {:5.0}  pire {:5.0}   |  textures rendues  med {:5.0}  pire {:5.0}",
         centile(&geste.durees, 0.5),
         centile(&geste.durees, 0.9),
         centile(&geste.durees, 0.99),
         centile(&geste.durees, 1.0),
         centile(&r, 0.5),
-        centile(&r, 0.99),
         centile(&r, 1.0),
+        centile(&geste.rendues, 0.5),
+        centile(&geste.rendues, 1.0),
     );
     // Les postes, du plus lourd au plus leger en mediane -- et jamais sommes (fiche 20 § 4.5).
     let mut postes: Vec<(&str, f64, f64, f64)> = geste
         .postes
         .iter()
         .map(|(n, v)| (*n, centile(v, 0.5), centile(v, 0.99), centile(v, 1.0)))
-        .filter(|(_, med, _, _)| *med >= 0.05)
+        // **Le filtre porte sur le pire, pas sur la médiane.** Un poste dont la médiane est
+        // nulle et le pire vaut trente millisecondes est précisément celui qu'on cherche ici,
+        // et filtrer sur la médiane le jetait — la faute de la fiche 20 § 4.5, à l'envers.
+        .filter(|(_, med, _, pire)| *med >= 0.05 || *pire >= 0.5)
         .collect();
     postes.sort_by(|a, b| b.1.total_cmp(&a.1));
     for (n, med, p99, pire) in postes.iter().take(8) {
