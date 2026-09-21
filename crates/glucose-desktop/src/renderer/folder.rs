@@ -140,7 +140,6 @@ pub(super) fn draw_folders(
                 (tint, selected, scale),
                 store.folder_child_count(&f.child_board_id),
             );
-            let _ = theme;
         }
         if selected {
             draw_resize_handles(

@@ -280,7 +280,7 @@ l'exige.
 | 4 | **Le SIMD à l'exécution** | facteur 3 à 4 sur la voie processeur, rien de fait | `is_x86_feature_detected` absent du dépôt |
 | 5 | **Le gel de démarrage** | `present` 30 ms sur les seize premières images | Fiche 19 § 5.1, non résolu |
 | 6 | **Le cas sRGB** | une surface sans format linéaire assombrit les couches ET les passes | Cohérent entre elles, faux par rapport au processeur ; jamais rencontré sur cette machine |
-| 7 | **`let _ = theme;`** dans `folder.rs` | interdit par la fiche 05 § 6.1 | Vu, non corrigé |
+| 7 | **Quatre `let _ =` en production** : `terrain.rs`, `close.rs`, `scale.rs`, `breadcrumb.rs` | interdits par la fiche 05 § 6.1 | Vus ; celui de `folder.rs` — un résidu, la variable servait trois lignes plus bas — est retiré |
 
 ---
 
