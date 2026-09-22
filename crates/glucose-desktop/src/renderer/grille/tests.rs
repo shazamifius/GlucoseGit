@@ -505,3 +505,110 @@ fn test_quand_la_grille_recouvre_tout_le_fond_ne_se_voit_pas() {
         "un document clairsemé ne doit jamais faire sauter le fond"
     );
 }
+
+// ── RECADRAGE-1 : ce qu'on retire ne se voit plus, sur les deux chemins du processeur ────────
+
+/// Une photo dont le quart gauche est une bande noire, décodée dans le magasin.
+///
+/// C'est la forme d'une image en boîte aux lettres tournée d'un quart : la bande est ce qu'un
+/// recadrage doit faire disparaître, et le reste est blanc pour que la frontière se lise.
+fn decoder_avec_une_bande(renderer: &mut Renderer, src: &str) {
+    let mut pixmap = Pixmap::new(64, 64).expect("une image");
+    let largeur = pixmap.width() as usize;
+    for (i, bloc) in pixmap
+        .data_mut()
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .enumerate()
+    {
+        let x = i % largeur;
+        let couleur = if x < largeur / 4 {
+            [0, 0, 0, 255]
+        } else {
+            [255, 255, 255, 255]
+        };
+        bloc.copy_from_slice(&couleur);
+    }
+    renderer.magasin.cache.insert(
+        src.to_string(),
+        crate::renderer::magasin::Entree::pour_test(crate::renderer::photo::Pyramide::nouvelle(
+            pixmap,
+        )),
+    );
+}
+
+/// Un document d'une seule photo à bande, cadrée ou non, sous une vue donnée.
+fn document_a_bande(vue: Viewport, crop: glucose_core::types::Recadrage) -> (Store, Renderer) {
+    let mut store = Store::new("Recadrage");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = vue;
+    }
+    let mut renderer = Renderer::new();
+    decoder_avec_une_bande(&mut renderer, "bande.png");
+    let mut img = BoardImage::new("i0", 256.0, 192.0, 200.0, 200.0);
+    img.src = Some("bande.png".to_string());
+    img.crop = crop;
+    store.add_image(&board, img);
+    store.clear_selection();
+    renderer.sync_spatial_index(&store);
+    (store, renderer)
+}
+
+/// Le pixel à `(x, y)` de l'écran, en RGBA.
+fn pixel(p: &Pixmap, x: u32, y: u32) -> [u8; 4] {
+    let i = (y * p.width() + x) as usize * 4;
+    let d = p.data();
+    [d[i], d[i + 1], d[i + 2], d[i + 3]]
+}
+
+/// **Retirer le quart gauche fait disparaître la bande noire**, sur le chemin des tuiles
+/// comme sur le chemin direct.
+///
+/// La photo de 200 × 200 est centrée en (256, 192) : sa boîte va de x = 156 à 356. Sans
+/// recadrage, sa bande noire couvre x ∈ [156, 206[ ; avec un recadrage d'un quart à gauche,
+/// c'est le blanc qui doit y être — la source entière se pose sur 266 pixels de large, dont
+/// les 66 premiers sont hors de la boîte et ne s'écrivent pas.
+///
+/// **Vérifié à l'envers dans le même test** : la même scène sans recadrage montre la bande.
+/// Sans ce contrepoint, un test qui trouverait du blanc partout passerait aussi le jour où la
+/// photo cesserait de se dessiner.
+#[test]
+fn test_retirer_le_quart_gauche_fait_disparaitre_la_bande_sur_les_deux_chemins() {
+    let sans = glucose_core::types::Recadrage::ENTIER;
+    let quart = glucose_core::types::Recadrage::depuis_les_marges(0.25, 0.0, 0.0, 0.0);
+    // Échelle 1 : le régime est Exact, les tuiles peignent. Échelle 1,3 : Direct.
+    for (echelle, chemin) in [(1.0, "tuiles"), (1.3, "direct")] {
+        let v = vue(0.0, 0.0, echelle);
+        let cadrage = Cadrage::plein();
+
+        let (store, mut renderer) = document_a_bande(v, sans);
+        let temoin = une_image(&mut renderer, &store, cadrage);
+        let (store, mut renderer) = document_a_bande(v, quart);
+        let cadre = une_image(&mut renderer, &store, cadrage);
+
+        // Un point dans la bande, à un quart de la boîte depuis la gauche, au milieu en hauteur.
+        let (sx, sy, sw, _) = (156.0 * echelle, 92.0 * echelle, 200.0 * echelle, 0.0);
+        let x = (sx + sw * 0.12) as u32;
+        let y = (sy + 100.0 * echelle) as u32;
+        assert_eq!(
+            pixel(&temoin, x, y),
+            [0, 0, 0, 255],
+            "chemin {chemin} : sans recadrage, la bande noire doit etre la"
+        );
+        assert_eq!(
+            pixel(&cadre, x, y),
+            [255, 255, 255, 255],
+            "chemin {chemin} : le quart gauche retire, c'est le blanc qui doit paraitre"
+        );
+        // Et la boîte n'a pas bougé : juste à gauche d'elle, les deux images sont identiques.
+        let hors = (sx - 4.0) as u32;
+        assert_eq!(
+            pixel(&temoin, hors, y),
+            pixel(&cadre, hors, y),
+            "chemin {chemin} : rien ne doit s'ecrire hors de la boite"
+        );
+    }
+}

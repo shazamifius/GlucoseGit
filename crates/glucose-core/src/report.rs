@@ -116,6 +116,12 @@ impl<'a> Vue<'a> {
         let d = y as usize * self.largeur as usize;
         &self.pixels[d..d + self.largeur as usize]
     }
+
+    /// Le pixel en `(x, y)`. Hors de l'image, c'est une faute de l'appelant — la vue a
+    /// vérifié sa taille une fois pour toutes, et c'est à lui de rester dedans.
+    pub fn pixel(&self, x: u32, y: u32) -> Pixel {
+        self.pixels[y as usize * self.largeur as usize + x as usize]
+    }
 }
 
 impl<'a> VueMut<'a> {

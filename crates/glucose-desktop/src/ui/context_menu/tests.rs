@@ -59,6 +59,7 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
         vec![
             MenuAction::Duplicate,
             MenuAction::ToggleLock,
+            MenuAction::TrimBorders,
             MenuAction::ToFront,
             MenuAction::ToBack,
             MenuAction::Delete,

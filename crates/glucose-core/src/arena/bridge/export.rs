@@ -114,6 +114,12 @@ impl Bridge {
                 .map(|o| o.1 as f64)
                 .unwrap_or_default(),
             is_video: f.has(Flags::VIDEO),
+            crop: self
+                .doc
+                .crop
+                .get(id)
+                .copied()
+                .unwrap_or(crate::types::Recadrage::ENTIER),
             fit: t.and_then(|t| t.fit.as_deref()).map(str::to_string),
             domains: self.doc.domains.get(id).cloned().unwrap_or_default(),
             mirror_of: self.mirror_name(id),

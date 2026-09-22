@@ -354,6 +354,9 @@ pub(super) fn poses_des_photos(
                 hauteur: (img.height * vp.scale) as f32,
                 opacite: 1.0,
                 angle: img.rotation as f32,
+                // Le recadrage du modele, lu et jamais calcule : la carte montre la fenetre
+                // de la photo que le document dit (RECADRAGE-1).
+                fenetre: Pose::fenetre_de(img.crop),
             },
         ));
     }

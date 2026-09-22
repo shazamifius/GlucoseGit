@@ -8,7 +8,7 @@
 use glucose_core::types::{
     Annotation, ArrowPredicate, AssetRef, Board, BoardImage, BoardZone, CanvasFolder,
     CurtainEditable, CurtainNote, CurtainVisibility, Domain, DomainAssignment, FolderMirrorSource,
-    FolderSortMode, MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot, Project,
+    FolderSortMode, MembraneCurtain, MembraneMode, Point2D, Preset, PresetSlot, Project, Recadrage,
     StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor, TextSelection, Viewport,
 };
 
@@ -64,6 +64,8 @@ fn images() -> Vec<BoardImage> {
     linked.src = Some("C:/photos/planche.jpg".into());
     linked.is_video = true;
     linked.tags = vec![];
+    // Un recadrage non neutre (RECADRAGE-1, schema v2) : l'aller-retour doit le rendre au bit.
+    linked.crop = Recadrage::depuis_les_marges(0.125, 0.0, 0.0625, 0.25);
 
     vec![embedded, linked]
 }

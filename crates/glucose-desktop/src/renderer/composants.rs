@@ -295,6 +295,7 @@ impl Regime {
                 hauteur: pixels.1 as f32 * rapport,
                 opacite: 1.0,
                 angle: 0.0,
+                fenetre: Pose::TOUT,
             },
             contenu,
             echelle: self.echelle,

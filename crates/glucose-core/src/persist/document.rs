@@ -51,11 +51,16 @@ pub fn write_project(w: &mut Writer, project: &Project) {
     w.i64(*updated_at);
 }
 
-pub fn read_project(r: &mut Reader<'_>) -> CoreResult<Project> {
+/// **Relit un projet du schema `version`.**
+///
+/// La version vient du manifeste, jamais du document : un lecteur qui devinerait le schema en
+/// regardant ce qui reste d'octets se relirait a l'envers le jour ou un champ optionnel se
+/// termine par les memes octets qu'un champ absent.
+pub fn read_project(r: &mut Reader<'_>, version: u16) -> CoreResult<Project> {
     Ok(Project {
         version: r.text()?,
         name: r.text()?,
-        boards: r.seq(read_board)?,
+        boards: r.seq(|rr| read_board(rr, version))?,
         active_board_id: r.text()?,
         presets: r.seq(read_preset)?,
         domains: r.seq(read_domain)?,
@@ -96,11 +101,12 @@ fn write_board(w: &mut Writer, board: &Board) {
     w.i64(*updated_at);
 }
 
-fn read_board(r: &mut Reader<'_>) -> CoreResult<Board> {
+/// Lit un tableau du schema `version` -- qui ne sert aujourd'hui qu'a ses images.
+fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
     Ok(Board {
         id: r.text()?,
         name: r.text()?,
-        images: r.seq(super::image::read_image)?,
+        images: r.seq(|rr| super::image::read_image(rr, version))?,
         annotations: r.seq(super::annotation::read_annotation)?,
         folders: r.seq(read_folder)?,
         panels: r.seq(read_panel)?,

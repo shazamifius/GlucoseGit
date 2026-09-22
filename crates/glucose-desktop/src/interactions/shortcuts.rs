@@ -317,6 +317,9 @@ impl GlucoseApp {
             "a" | "A" => self.select_all(),
             "]" => self.restack(StackMove::Front),
             "[" => self.restack(StackMove::Back),
+            // B comme bordures : les bandes unies des images sélectionnées se retirent
+            // (BORDURES-1). Sur le lot entier, en une entrée d'annulation.
+            "b" | "B" => self.retirer_les_bordures_de_la_selection(),
             _ => return false,
         }
         self.mark_dirty();
@@ -389,10 +392,15 @@ impl GlucoseApp {
     }
 
     /// Duplique la sélection entière.
+    ///
+    /// **Sans toast** : le double apparaît, décalé, sous les yeux de celui qui vient d'appuyer.
+    /// Un message qui décrit ce que l'œil enregistre est du bruit — la règle de `Échap`, de
+    /// l'ordre d'empilement et des prédicats, appliquée ici aussi. Le site a cédé sa place au
+    /// compte-rendu du recadrage, qui dit ce que l'œil ne voit **pas** : une image restée
+    /// telle quelle parce qu'elle n'a pas de bordure, ou pas encore de pixels.
     pub(crate) fn duplicate_selection(&mut self) {
         let board = self.store.project.active_board_id.clone();
         self.store.duplicate_selected(&board);
-        self.ui.show_toast("Dupliqué");
         self.mark_dirty();
     }
 

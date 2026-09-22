@@ -4,7 +4,7 @@ use super::*;
 use crate::types::{
     Annotation, ArrowPredicate, AssetRef, Board, BoardImage, CanvasFolder, CurtainEditable,
     CurtainVisibility, DomainAssignment, FolderMirrorSource, FolderSortMode, MembraneCurtain,
-    MembraneMode, Point2D, StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor,
+    MembraneMode, Point2D, Recadrage, StickyOperator, StoryboardPanel, TemporalAnchor, TextAnchor,
     TextSelection, Viewport,
 };
 
@@ -69,6 +69,8 @@ fn tableau_complet() -> Board {
         original_width: 1920.0,
         original_height: 1080.0,
         is_video: true,
+        // Un recadrage non neutre, pour que l'aller-retour prouve qu'il ne se perd pas.
+        crop: Recadrage::depuis_les_marges(0.1, 0.05, 0.2, 0.0),
         fit: Some("cover".into()),
         domains: domaines.clone(),
         mirror_of: Some("img-2".into()),

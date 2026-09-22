@@ -101,6 +101,9 @@ impl Bridge {
             .set(Flags::VIDEO, img.is_video);
         let id = self.intern(&img.id, Kind::Image, bx, flags);
 
+        if !img.crop.est_entier() {
+            self.doc.crop.set(id, img.crop);
+        }
         if img.rotation != 0.0 {
             self.doc.rotation.set(id, img.rotation as f32);
         }

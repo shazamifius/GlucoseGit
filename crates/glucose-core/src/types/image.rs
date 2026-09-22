@@ -1,6 +1,6 @@
 //! Les images posées sur le canvas, et la référence vers leurs octets.
 
-use super::{DomainAssignment, Id, TemporalAnchor};
+use super::{DomainAssignment, Id, Recadrage, TemporalAnchor};
 use crate::geometry::Rect;
 
 /// Référence à un asset binaire (image, vidéo, fichier).
@@ -48,6 +48,13 @@ pub struct BoardImage {
     pub original_width: f64,
     pub original_height: f64,
     pub is_video: bool,
+    /// **Ce qu'on retire des bords de cette image** (RECADRAGE-1).
+    ///
+    /// Non destructif : les octets du fichier ne bougent pas, et deux poses de la meme photo
+    /// peuvent etre cadrees differemment. [`Recadrage::ENTIER`] est l'etat de toute image
+    /// qu'on n'a jamais cadree -- il n'y a pas d'`Option`, parce que « pas de recadrage » et
+    /// « recadrage qui garde tout » sont le meme etat.
+    pub crop: Recadrage,
     pub fit: Option<String>,
     pub domains: Vec<DomainAssignment>,
     pub mirror_of: Option<Id>,
@@ -73,6 +80,7 @@ impl BoardImage {
             original_width: width,
             original_height: height,
             is_video: false,
+            crop: Recadrage::ENTIER,
             fit: None,
             domains: Vec::new(),
             mirror_of: None,

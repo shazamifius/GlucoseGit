@@ -334,12 +334,16 @@ fn poser(
     filtre: report::Filtre,
     sans_vignette: bool,
 ) -> (u64, Chemin, std::time::Duration) {
-    let (sx, sy, sw, sh) = ecran;
     let opaque = pyramide.opaque();
+    // RECADRAGE-1 : la source ENTIERE se pose sur une boite plus grande, dont la fenetre
+    // visible coincide avec `ecran`. Les parts, qui sont des morceaux d'`ecran`, restent le
+    // clip -- et le report n'itere que sur le clip, donc rien ne coute plus.
+    let source = boite_source(img, ecran);
+    let (vx, vy, vw, vh) = source;
 
     if img.rotation != 0.0 {
         return (
-            poser_en_tournant(pyramide, pixmap, img, ecran),
+            poser_en_tournant(pyramide, pixmap, img, ecran, source),
             Chemin::Tournee,
             std::time::Duration::ZERO,
         );
@@ -357,7 +361,10 @@ fn poser(
     // l'application plantait.
     // Une tuile est deja un cache : lui demander une vignette en ferait construire une a la
     // forme d'une tuile, que personne ne reposera jamais.
-    if !sans_vignette {
+    // Une image RECADREE n'en a pas non plus : la vignette est l'image entiere a la taille
+    // posee, et ce qu'on montre n'en est qu'une fenetre. Elle passe par le report, qui sait
+    // clipper ; une vignette de la fenetre seule est une suite possible, a mesurer d'abord.
+    if !sans_vignette && img.crop.est_entier() {
         if let Some((ecrits, passees)) =
             poser_depuis_une_vignette(vignettes, pixmap, img, ecran, parts, melange)
         {
@@ -367,12 +374,14 @@ fn poser(
 
     // MIP-1 : on part du niveau qui couvre encore la taille posée, jamais de la résolution
     // native. Le filtre lit alors des texels voisins au lieu d'en sauter neuf sur dix.
-    let loaded = pyramide.niveau_pour(sw);
+    // Le niveau se choisit sur la taille a laquelle la SOURCE se pose, pas sur la boite :
+    // une photo cadree au quart montre chaque texel quatre fois plus grand.
+    let loaded = pyramide.niveau_pour(vw);
     let pose = report::Pose {
-        x: sx,
-        y: sy,
-        largeur: sw,
-        hauteur: sh,
+        x: vx,
+        y: vy,
+        largeur: vw,
+        hauteur: vh,
     };
     crate::perf::stage("images");
     let debut = std::time::Instant::now();
@@ -393,23 +402,79 @@ fn poser_en_tournant(
     pixmap: &mut PixmapMut,
     img: &glucose_core::types::BoardImage,
     ecran: (f32, f32, f32, f32),
+    source: (f32, f32, f32, f32),
 ) -> u64 {
     let (sx, sy, sw, sh) = ecran;
-    let paint = PixmapPaint {
-        quality: FilterQuality::Bilinear,
-        blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
-        ..Default::default()
+    let (vx, vy, vw, vh) = source;
+    let loaded = pyramide.niveau_pour(vw);
+    let rotation = Transform::from_rotate_at(
+        img.rotation.to_degrees() as f32,
+        sx + sw / 2.0,
+        sy + sh / 2.0,
+    );
+    // La source se pose a SA boite -- plus grande que celle du noeud si l'image est cadree --
+    // et tourne autour du centre du noeud, comme le modele le definit.
+    let pose_source =
+        Transform::from_scale(vw / loaded.width() as f32, vh / loaded.height() as f32)
+            .post_translate(vx, vy)
+            .post_concat(rotation);
+    if img.crop.est_entier() {
+        let paint = PixmapPaint {
+            quality: FilterQuality::Bilinear,
+            blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
+            ..Default::default()
+        };
+        pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, pose_source, None);
+        return (f64::from(sw) * f64::from(sh)) as u64;
+    }
+    // RECADRAGE-1 sur une image tournee : la boite du noeud, tournee, est le seul endroit ou
+    // la source a le droit d'ecrire. Un rectangle rempli d'un MOTIF fait exactement cela sans
+    // masque -- le motif est la source posee, le rectangle est la fenetre --, la ou un masque
+    // couterait un ecran entier a chaque image.
+    // Un CHEMIN et non `fill_rect` : la fenetre est tournee, donc rien ne l'aligne sur la
+    // grille des pixels, et c'est le rasteriseur de chemins qui sait couvrir un bord oblique.
+    let Some(fenetre) = tiny_skia::Rect::from_xywh(sx, sy, sw, sh) else {
+        return 0;
     };
-    let loaded = pyramide.niveau_pour(sw);
-    let ts = Transform::from_scale(sw / loaded.width() as f32, sh / loaded.height() as f32)
-        .post_translate(sx, sy)
-        .post_rotate_at(
-            img.rotation.to_degrees() as f32,
-            sx + sw / 2.0,
-            sy + sh / 2.0,
-        );
-    pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, ts, None);
+    let fenetre = tiny_skia::PathBuilder::from_rect(fenetre);
+    // Le motif se donne dans le repere du rectangle : la pose de la source, SANS la rotation
+    // que le remplissage applique deja a tout.
+    let paint = tiny_skia::Paint {
+        blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
+        anti_alias: true,
+        shader: tiny_skia::Pattern::new(
+            loaded.as_ref(),
+            tiny_skia::SpreadMode::Pad,
+            FilterQuality::Bilinear,
+            1.0,
+            Transform::from_scale(vw / loaded.width() as f32, vh / loaded.height() as f32)
+                .post_translate(vx, vy),
+        ),
+        ..tiny_skia::Paint::default()
+    };
+    pixmap.fill_path(
+        &fenetre,
+        &paint,
+        tiny_skia::FillRule::Winding,
+        rotation,
+        None,
+    );
     (f64::from(sw) * f64::from(sh)) as u64
+}
+
+/// **Où la source ENTIÈRE se pose** pour que sa fenêtre visible coïncide avec la boîte du nœud
+/// (RECADRAGE-1). Sans recadrage, c'est la boîte elle-même, au bit près.
+fn boite_source(
+    img: &glucose_core::types::BoardImage,
+    (sx, sy, sw, sh): (f32, f32, f32, f32),
+) -> (f32, f32, f32, f32) {
+    if img.crop.est_entier() {
+        return (sx, sy, sw, sh);
+    }
+    let (x, y, w, h) =
+        img.crop
+            .source_pour((f64::from(sx), f64::from(sy), f64::from(sw), f64::from(sh)));
+    (x as f32, y as f32, w as f32, h as f32)
 }
 
 /// Pose la photo depuis sa vignette, si elle en a une de prête à cette forme exacte.

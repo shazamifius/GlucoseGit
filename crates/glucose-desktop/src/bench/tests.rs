@@ -250,7 +250,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// Les deux mêmes pixels de bordure que le témoin, et pour la même raison.
 /// **Mise à jour le 21/09** : même cause que la sélection — cette scène est la scène
 /// sélectionnée, un menu par-dessus.
-const EMPREINTE_TEMOIN_MENU: &str = "7ba68440c9ec0f9e";
+/// **Mise à jour le 22/09** : une entrée de plus, « Retirer les bordures — Ctrl+B »
+/// (BORDURES-1), regardée sur `temoin-menu.png` avant d'écrire ce nombre.
+const EMPREINTE_TEMOIN_MENU: &str = "596f74f05c8c706d";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

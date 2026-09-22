@@ -303,3 +303,194 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
          repeint la carte que la carte graphique porte deja"
     );
 }
+
+// ── RECADRAGE-1 : les deux voies cadrent pareil ───────────────────────────────────────────
+
+/// Une photo dont le quart gauche est une bande noire, écrite sur le disque pour que le
+/// magasin la décode comme il décoderait la vraie.
+///
+/// Sur le disque et non fabriquée en mémoire : l'entrée de test du magasin n'est pas visible
+/// d'un test d'intégration, et c'est très bien ainsi — ce test emprunte le chemin de
+/// l'application, décodage compris.
+fn photo_a_bande() -> std::path::PathBuf {
+    let (l, h) = (64u32, 64u32);
+    let mut octets = Vec::with_capacity((l * h * 4) as usize);
+    for y in 0..h {
+        for x in 0..l {
+            let _ = y;
+            let v = if x < l / 4 { 0 } else { 255 };
+            octets.extend_from_slice(&[v, v, v, 255]);
+        }
+    }
+    let chemin = std::env::temp_dir().join("glucose-voies-recadrage-bande.png");
+    image::save_buffer(&chemin, &octets, l, h, image::ExtendedColorType::Rgba8)
+        .expect("ecriture de la photo temoin");
+    chemin
+}
+
+/// Un document d'une seule photo à bande, cadrée d'un quart à gauche ou entière.
+fn document_cadre(crop: glucose_core::types::Recadrage) -> glucose_core::store::Store {
+    let mut store = glucose_core::store::Store::new("Recadrage");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
+    }
+    let mut img = glucose_core::types::BoardImage::new("i0", 400.0, 300.0, 200.0, 200.0);
+    img.src = Some(photo_a_bande().to_string_lossy().into_owned());
+    img.crop = crop;
+    store.add_image(&board, img);
+    store.clear_selection();
+    store
+}
+
+/// Les deux couches et ce que le processeur confie, avec un magasin qui a **fini** de décoder.
+///
+/// Le premier rendu réclame la photo au chantier ; on attend qu'il la livre ; le second rendu
+/// est celui qu'on compare. C'est le chemin de l'application, en deux images au lieu de
+/// quelques dizaines.
+fn les_deux_couches_decodees(
+    taille: (u32, u32),
+    store: &glucose_core::store::Store,
+) -> (Renderer, Pixmap, Pixmap, Confie) {
+    let mut renderer = Renderer::new();
+    renderer.sync_spatial_index(store);
+    let mut ui = UiState::new();
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let rendre = |renderer: &mut Renderer, ui: &mut UiState| {
+        let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        dessous.fill(tiny_skia::Color::TRANSPARENT);
+        dessus.fill(tiny_skia::Color::TRANSPARENT);
+        let confie = renderer.rendre_les_couches(
+            &mut dessous.as_mut(),
+            &mut dessus.as_mut(),
+            store,
+            (ui, Pointer { x: 0.0, y: 0.0 }),
+            SceneOverlay {
+                guides: &guides,
+                selection_box: None,
+                editing: None,
+            },
+            Regard::immobile(),
+        );
+        (dessous, dessus, confie)
+    };
+    let _ = rendre(&mut renderer, &mut ui);
+    renderer.magasin.attendre_le_chantier();
+    let (dessous, dessus, confie) = rendre(&mut renderer, &mut ui);
+    (renderer, dessous, dessus, confie)
+}
+
+/// La scène processeur, avec le même magasin décodé.
+fn par_le_processeur_decode(taille: (u32, u32), store: &glucose_core::store::Store) -> Pixmap {
+    let mut renderer = Renderer::new();
+    renderer.sync_spatial_index(store);
+    let mut ui = UiState::new();
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let rendre = |renderer: &mut Renderer, ui: &mut UiState| {
+        let mut pixmap = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        renderer.render(
+            &mut pixmap.as_mut(),
+            store,
+            ui,
+            SceneOverlay {
+                guides: &guides,
+                selection_box: None,
+                editing: None,
+            },
+            Pointer { x: 0.0, y: 0.0 },
+            Regard::immobile(),
+        );
+        pixmap
+    };
+    let _ = rendre(&mut renderer, &mut ui);
+    renderer.magasin.attendre_le_chantier();
+    rendre(&mut renderer, &mut ui)
+}
+
+fn pixel(p: &Pixmap, x: u32, y: u32) -> [u8; 4] {
+    let i = (y * p.width() + x) as usize * 4;
+    let d = p.data();
+    [d[i], d[i + 1], d[i + 2], d[i + 3]]
+}
+
+/// **Une photo cadrée d'un quart se rend pareil des deux côtés**, et la bande a disparu des
+/// deux.
+///
+/// La voie graphique cadre par la fenêtre de texture du quad ; la voie processeur par une
+/// source posée plus grande et clippée à la boîte. Deux mécanismes sans rien de commun, et
+/// c'est ce qui rend l'égalité probante : un même résultat obtenu par deux chemins n'a aucune
+/// raison d'être le même s'il est faux.
+///
+/// Le contrepoint est dans le même test : sans recadrage, la bande est là des deux côtés.
+#[test]
+fn test_les_deux_voies_cadrent_pareil_et_la_bande_a_disparu() {
+    let taille = (800u32, 600u32);
+    let quart = glucose_core::types::Recadrage::depuis_les_marges(0.25, 0.0, 0.0, 0.0);
+    let store = document_cadre(quart);
+    let (renderer, dessous, dessus, confie) = les_deux_couches_decodees(taille, &store);
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    // La source est celle de l'application (`app/peinture.rs`) : un composant se rend a la
+    // demande, une PHOTO vient du magasin. La premiere version de ce test ne donnait que les
+    // composants, et la carte ne montrait rien du tout -- une image a cote d'une autre l'a
+    // dit en une lecture, la ou le pixel seul accusait le recadrage.
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| match confie.composant(cle) {
+            Some(composant) => composant.rendre(renderer.kit()),
+            None => renderer
+                .magasin
+                .cache
+                .get(cle)
+                .map(|e| e.pyramide.native().clone()),
+        },
+    )
+    .expect("la composition en cinq temps");
+    let processeur = par_le_processeur_decode(taille, &store);
+
+    // La boîte va de x = 300 à 500, y = 200 à 400. Un point dans ce qui était la bande.
+    let (x, y) = (324u32, 300u32);
+    assert_eq!(
+        pixel(&processeur, x, y),
+        [255, 255, 255, 255],
+        "processeur : la bande doit avoir disparu"
+    );
+    assert_eq!(
+        pixel(&carte, x, y),
+        [255, 255, 255, 255],
+        "carte : la bande doit avoir disparu"
+    );
+
+    // Et les deux voies restent d'accord sur l'écran entier, à l'écart déjà admis.
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux sur une photo cadree"
+    );
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+
+    // Le contrepoint : sans recadrage, la bande est là — des deux côtés.
+    let entiere = document_cadre(glucose_core::types::Recadrage::ENTIER);
+    let temoin = par_le_processeur_decode(taille, &entiere);
+    assert_eq!(
+        pixel(&temoin, x, y),
+        [0, 0, 0, 255],
+        "sans recadrage, la bande noire doit etre la : sinon ce test ne regarde pas la photo"
+    );
+}

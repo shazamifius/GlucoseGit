@@ -55,6 +55,8 @@ const SEPARATOR: f32 = 7.0;
 pub enum MenuAction {
     Duplicate,
     ToggleLock,
+    /// Retirer les bandes unies des images sélectionnées (BORDURES-1).
+    TrimBorders,
     ToFront,
     ToBack,
     Delete,
@@ -107,6 +109,11 @@ fn entrees(store: &Store) -> Option<Vec<Def>> {
                 "Verrouiller"
             };
             defs.push(Some((MenuAction::ToggleLock, label, "L")));
+            defs.push(Some((
+                MenuAction::TrimBorders,
+                "Retirer les bordures",
+                "Ctrl+B",
+            )));
         }
         defs.push(None);
         defs.push(Some((MenuAction::ToFront, "Au premier plan", "Ctrl+]")));

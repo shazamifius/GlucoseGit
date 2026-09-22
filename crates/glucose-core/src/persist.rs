@@ -54,7 +54,18 @@ use container::{ParsedSection, Section};
 use manifest::{AssetEntry, Manifest};
 
 /// Version du schéma du document produite par cette build.
-pub const DOCUMENT_VERSION: u16 = 1;
+///
+/// **Passée à 2 le 22/09/2026** : les images portent leur recadrage (RECADRAGE-1). Un document
+/// v1 reste lisible — ses images sont entières, ce qu'elles étaient avant que le geste
+/// n'existe — et c'est la première migration chaînée que le § 8 annonçait.
+pub const DOCUMENT_VERSION: u16 = 2;
+
+/// Le schéma depuis lequel une image porte son recadrage (RECADRAGE-1).
+///
+/// Nommé plutôt qu'écrit en chiffre à l'endroit du test : un `if version < 2` au fond d'un
+/// lecteur ne dit pas de quel champ il parle, et le jour où le schéma monte à 3, personne ne
+/// sait plus lequel des `2` disséminés désignait celui-ci.
+pub const RECADRAGE_DEPUIS: u16 = 2;
 /// Plus ancien schéma de document que cette build sait lire.
 pub const MIN_READABLE_DOCUMENT_VERSION: u16 = 1;
 /// Extension de fichier, sans le point.
@@ -80,10 +91,19 @@ pub fn encode_document(project: &Project) -> Vec<u8> {
     w.into_bytes()
 }
 
-/// Relit un document nu produit par [`encode_document`].
+/// Relit un document nu produit par [`encode_document`], au schéma de cette build.
+///
+/// Un document nu n'a pas de manifeste, donc rien ne dit de quel schéma il vient : il ne
+/// s'emploie que pour un aller-retour dans la même build. Un fichier `.glucose`, lui, passe
+/// par [`decode_document_v`], qui reçoit la version que son manifeste porte.
 pub fn decode_document(payload: &[u8]) -> CoreResult<Project> {
+    decode_document_v(payload, DOCUMENT_VERSION)
+}
+
+/// Relit un document nu écrit au schéma `version`.
+pub fn decode_document_v(payload: &[u8], version: u16) -> CoreResult<Project> {
     let mut r = Reader::new(payload);
-    let project = document::read_project(&mut r)?;
+    let project = document::read_project(&mut r, version)?;
     r.finish()?;
     Ok(project)
 }
@@ -156,7 +176,10 @@ pub fn decode(file: &[u8]) -> CoreResult<GlucoseFile> {
     check_document_version(manifest.document_version)?;
 
     let document_section = container::require(&sections, container::KIND_DOCUMENT)?;
-    let project = decode_document(document_section.payload)?;
+    // **La version vient du manifeste**, et c'est elle qui dit quels champs le document
+    // porte. La deviner en regardant les octets restants serait un format qui se relit a
+    // l'envers (RECADRAGE-1, premiere migration chainee).
+    let project = decode_document_v(document_section.payload, manifest.document_version)?;
     let assets = rebuild_assets(&manifest, &sections)?;
 
     Ok(GlucoseFile {

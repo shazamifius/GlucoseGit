@@ -15,6 +15,57 @@ use persist_fixture::rich_project;
 
 const SAVED_AT: i64 = 1_770_000_123_456;
 
+/// **Un document au schéma v1 se lit encore, et ses images sont entières** (RECADRAGE-1).
+///
+/// C'est la première migration chaînée du format, et elle se prouve sur de vrais octets : ce
+/// témoin a été écrit par la build du commit `9ffb376`, la dernière à produire du v1, depuis
+/// la même fixture — avant qu'un recadrage n'y soit posé. Il n'est pas régénérable par cette
+/// build, et c'est tout son intérêt : un test qui écrirait le v1 lui-même ne prouverait que sa
+/// propre idée du v1.
+///
+/// Ce qu'on vérifie : le manifeste dit v1, tout ce qui existait en v1 revient à l'identique,
+/// et chaque image porte le recadrage neutre — l'état qu'elle avait avant que le geste
+/// n'existe.
+#[test]
+fn test_un_document_v1_se_lit_encore_et_ses_images_sont_entieres() {
+    let temoin = include_bytes!("persist_fixture/riche-v1.glucose");
+    let relu = persist::decode(temoin).expect("un document v1 doit se lire");
+    assert_eq!(
+        relu.manifest.document_version, 1,
+        "le temoin est bien un v1"
+    );
+
+    // La fixture d'aujourd'hui, ramenée à ce qu'elle était en v1 : sans recadrage.
+    let mut attendu = rich_project();
+    for board in &mut attendu.boards {
+        for img in &mut board.images {
+            img.crop = glucose_core::types::Recadrage::ENTIER;
+        }
+    }
+    assert_eq!(
+        relu.project, attendu,
+        "tout ce qui existait en v1 doit revenir a l'identique, et les images entieres"
+    );
+
+    // Et réécrit par cette build, il monte au schéma du jour sans rien perdre.
+    let reecrit = persist::encode(&relu.project, &AssetStore::new(), SAVED_AT);
+    let remonte = persist::decode(&reecrit).expect("le document migre se relit");
+    assert_eq!(remonte.manifest.document_version, persist::DOCUMENT_VERSION);
+    assert_eq!(remonte.project, relu.project);
+}
+
+/// **La version se lit dans le manifeste, jamais dans les octets** : relire un v2 en croyant
+/// que c'est un v1 échoue, au lieu de rendre un document à moitié juste.
+#[test]
+fn test_lire_un_v2_comme_un_v1_echoue_au_lieu_de_deviner() {
+    let nu = persist::encode_document(&rich_project());
+    assert!(
+        persist::decode_document_v(&nu, 1).is_err(),
+        "les octets du recadrage ne peuvent pas passer pour la suite du document"
+    );
+    assert!(persist::decode_document_v(&nu, 2).is_ok());
+}
+
 #[test]
 fn test_round_trip_of_a_rich_project_is_the_identity() {
     let project = rich_project();

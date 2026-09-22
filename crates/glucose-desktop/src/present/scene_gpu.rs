@@ -35,6 +35,10 @@
 //! image, et le **remplissage** domine de toute façon. La complexité d'un atlas ne se prend
 //! que si un banc la réclame.
 
+mod pose;
+pub use pose::Pose;
+use pose::OCTETS_POSE;
+
 use crate::renderer::voies::APoser;
 use std::time::{Duration, Instant};
 use tiny_skia::Pixmap;
@@ -59,6 +63,9 @@ struct Pose {
     boite: vec4<f32>,
     // L'opacite, l'angle en radians, et deux reserves : un element s'aligne sur seize octets.
     reglage: vec4<f32>,
+    // La fenetre de la source que ce quad montre, en fractions : u0, v0, largeur, hauteur.
+    // (0, 0, 1, 1) est la texture entiere ; un recadrage la resserre (RECADRAGE-1).
+    fenetre: vec4<f32>,
 };
 
 struct Ecran { taille: vec2<f32>, _r: vec2<f32> };
@@ -94,7 +101,10 @@ fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Sortie 
     let e = centre + tourne;
     var s: Sortie;
     s.position = vec4<f32>(e.x / ecran.taille.x * 2.0 - 1.0, 1.0 - e.y / ecran.taille.y * 2.0, 0.0, 1.0);
-    s.uv = c;
+    // Le coin du quad se lit dans la fenetre de la source, et non dans la texture entiere :
+    // c'est ainsi qu'un recadrage ne coute rien -- la carte echantillonne un sous-rectangle,
+    // et aucun pixel n'est ecrit hors de la boite.
+    s.uv = p.fenetre.xy + c * p.fenetre.zw;
     s.opacite = p.reglage.x;
     return s;
 }
@@ -106,39 +116,6 @@ fn fs(e: Sortie) -> @location(0) vec4<f32> {
     return textureSample(source, filtre, e.uv) * e.opacite;
 }
 "#;
-
-/// Où une photo se pose à l'écran, et avec quelle opacité.
-#[derive(Debug, Clone, Copy)]
-pub struct Pose {
-    /// Le coin haut-gauche, en pixels d'écran.
-    pub x: f32,
-    pub y: f32,
-    pub largeur: f32,
-    pub hauteur: f32,
-    pub opacite: f32,
-    /// L'angle, en radians, autour du **centre** de la photo.
-    pub angle: f32,
-}
-
-/// Ce qu'une pose occupe dans le tampon : deux `vec4`, l'alignement d'un élément de tableau.
-const OCTETS_POSE: usize = 32;
-
-impl Pose {
-    fn ecrire(&self, dans: &mut Vec<u8>) {
-        for v in [
-            self.x,
-            self.y,
-            self.largeur,
-            self.hauteur,
-            self.opacite,
-            self.angle,
-            0.0,
-            0.0,
-        ] {
-            dans.extend_from_slice(&v.to_le_bytes());
-        }
-    }
-}
 
 /// Les photos que la carte détient, et de quoi les poser.
 pub struct SceneGpu {

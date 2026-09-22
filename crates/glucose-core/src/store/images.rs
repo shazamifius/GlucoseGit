@@ -73,6 +73,17 @@ impl Store {
     /// **Site migré vers le journal.** C'est le chemin le plus chaud du store : déplacer,
     /// redimensionner, verrouiller, réassigner un domaine passent tous par ici. L'entrée
     /// d'annulation porte l'image avant et après, indépendamment de la taille du document.
+    /// Une image de ce tableau, par son identifiant.
+    pub fn image(&self, board_id: &str, id: &str) -> Option<&BoardImage> {
+        self.project
+            .boards
+            .iter()
+            .find(|b| b.id == board_id)?
+            .images
+            .iter()
+            .find(|i| i.id == id)
+    }
+
     pub fn update_image<F: FnOnce(&mut BoardImage)>(&mut self, board_id: &str, id: &str, f: F) {
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;

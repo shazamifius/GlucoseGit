@@ -8,7 +8,7 @@ use super::document::{
     read_domain_assignment, read_temporal_anchor, write_domain_assignment, write_temporal_anchor,
 };
 use crate::error::{CoreError, CoreResult};
-use crate::types::{AssetRef, BoardImage};
+use crate::types::{AssetRef, BoardImage, Recadrage};
 
 pub fn write_image(w: &mut Writer, img: &BoardImage) {
     let BoardImage {
@@ -28,6 +28,7 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
         original_width,
         original_height,
         is_video,
+        crop,
         fit,
         domains,
         mirror_of,
@@ -50,13 +51,25 @@ pub fn write_image(w: &mut Writer, img: &BoardImage) {
     w.f64(*original_width);
     w.f64(*original_height);
     w.flag(*is_video);
+    // RECADRAGE-1, schema de document v2. Quatre fractions toujours ecrites : un recadrage
+    // entier en vaut quatre nuls, ce qui est le meme etat et se lit sans branche.
+    let (g, h, d, b) = crop.marges();
+    for part in [g, h, d, b] {
+        w.f64(part);
+    }
     w.opt_text(fit.as_ref());
     w.seq(domains, write_domain_assignment);
     w.opt_text(mirror_of.as_ref());
     w.opt(temporal_anchor.as_ref(), write_temporal_anchor);
 }
 
-pub fn read_image(r: &mut Reader<'_>) -> CoreResult<BoardImage> {
+/// **Lit une image du schema `version`.**
+///
+/// C'est la premiere migration chainee que le § 8 de [`super`] annonce, et elle est de la
+/// forme la plus simple qui soit : un champ apparu en v2 se lit en v2 et vaut son neutre en
+/// v1. Le lecteur ne DEVINE rien -- un champ optionnel deduit de ce qui reste d'octets serait
+/// un format qui se relit a l'envers.
+pub fn read_image(r: &mut Reader<'_>, version: u16) -> CoreResult<BoardImage> {
     Ok(BoardImage {
         id: r.text()?,
         membrane_id: r.opt_text()?,
@@ -74,11 +87,25 @@ pub fn read_image(r: &mut Reader<'_>) -> CoreResult<BoardImage> {
         original_width: r.f64()?,
         original_height: r.f64()?,
         is_video: r.flag()?,
+        crop: read_crop(r, version)?,
         fit: r.opt_text()?,
         domains: r.seq(read_domain_assignment)?,
         mirror_of: r.opt_text()?,
         temporal_anchor: r.opt(read_temporal_anchor)?,
     })
+}
+
+/// Le recadrage d'une image, apparu au schema v2 (RECADRAGE-1).
+///
+/// Un document v1 n'en porte aucun octet, et ses images sont entieres -- ce qu'elles etaient
+/// avant que le geste n'existe. La reconstruction passe par le meme constructeur que tout le
+/// reste, donc un fichier trafique ne peut pas introduire un recadrage qui ne laisse rien.
+fn read_crop(r: &mut Reader<'_>, version: u16) -> CoreResult<Recadrage> {
+    if version < crate::persist::RECADRAGE_DEPUIS {
+        return Ok(Recadrage::ENTIER);
+    }
+    let (gauche, haut, droite, bas) = (r.f64()?, r.f64()?, r.f64()?, r.f64()?);
+    Ok(Recadrage::depuis_les_marges(gauche, haut, droite, bas))
 }
 
 const ASSET_EMBED: u8 = 0;

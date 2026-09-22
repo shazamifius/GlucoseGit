@@ -166,6 +166,11 @@ pub struct Doc {
     /// Les dimensions d'origine d'une image, en pixels — presque toujours renseignées, donc
     /// dans leur propre table plutôt que noyées dans [`ImageTrait`].
     pub original: Sparse<(f32, f32)>,
+    /// **Ce qu'on retire des bords d'une image** (RECADRAGE-1).
+    ///
+    /// Éparse, et c'est ce qui la rend gratuite : la quasi-totalité des images sont entières,
+    /// et une image entière n'a pas de ligne ici.
+    pub crop: Sparse<crate::types::Recadrage>,
     /// Le tableau enfant d'un dossier, et son nom.
     pub folder: Sparse<(Box<str>, Box<str>)>,
     /// Le rang d'un panneau de storyboard.

@@ -161,6 +161,7 @@ fn test_une_photo_se_pose_ou_on_le_dit() {
             hauteur: 16.0,
             opacite: 1.0,
             angle: 0.0,
+            fenetre: Pose::TOUT,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -196,6 +197,7 @@ fn test_l_opacite_compose_en_premultiplie() {
             hauteur: 64.0,
             opacite: 0.5,
             angle: 0.0,
+            fenetre: Pose::TOUT,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -236,6 +238,7 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
         hauteur: 4.0,
         opacite: 1.0,
         angle: 0.0,
+        fenetre: Pose::TOUT,
     };
     scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("a", pose)]);
     scene.fermer();
@@ -265,6 +268,7 @@ fn test_un_quart_de_tour_tourne_autour_du_centre() {
             hauteur: 8.0,
             opacite: 1.0,
             angle: std::f32::consts::FRAC_PI_2,
+            fenetre: Pose::TOUT,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -330,6 +334,7 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         hauteur: 8.0,
         opacite: 1.0,
         angle: 0.0,
+        fenetre: Pose::TOUT,
     };
     let retenues = scene.preparer(
         &peripherique,
@@ -380,6 +385,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
         hauteur: 4.0,
         opacite: 1.0,
         angle: 0.0,
+        fenetre: Pose::TOUT,
     };
     let demande = |cle: &str, identite: &str| APoser {
         cle: cle.to_string(),

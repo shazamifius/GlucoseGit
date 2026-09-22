@@ -91,6 +91,7 @@ impl GlucoseApp {
         match action {
             MenuAction::Duplicate => self.duplicate_selection(),
             MenuAction::ToggleLock => self.toggle_lock(),
+            MenuAction::TrimBorders => self.retirer_les_bordures_de_la_selection(),
             MenuAction::ToFront => {
                 self.store.move_selection_in_stack(&board, StackMove::Front);
             }

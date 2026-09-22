@@ -55,6 +55,7 @@ mod board;
 mod folder;
 mod image;
 mod project;
+mod recadrage;
 
 pub use annotation::{
     Annotation, ArrowPredicate, CurtainEditable, CurtainNote, CurtainVisibility, MembraneCurtain,
@@ -64,3 +65,4 @@ pub use board::{Board, FolderTreeNode, StoryboardPanel, Viewport};
 pub use folder::{CanvasFolder, FolderMirrorSource, FolderSortMode};
 pub use image::{AssetRef, BoardImage};
 pub use project::{AssetStore, BoardZone, Preset, PresetSlot, Project};
+pub use recadrage::Recadrage;
