@@ -214,6 +214,12 @@ pub fn render_ui(
         TOTAL_HEADER_HEIGHT * ui.scale(),
         ui.scale_factor,
     );
+    // **Le fil d'Ariane a sa marque, et il ne l'avait pas.** `minimap` mesurait depuis
+    // `bande`, donc le fil d'Ariane tombait dedans -- QUATRIEME marque de ce dépôt à
+    // absorber ce qui la précède, après `occlusion` (fiche 19 § 4.4), `recolte` (fiche 22
+    // § 5.4) et `blit` (fiche 23 § 2). Les trois premières ont chacune désigné le mauvais
+    // coupable pendant plusieurs sessions.
+    crate::perf::stage("ariane");
 
     // 3. Minimap (en bas à droite)
     let echelle_ui = ui.scale_factor;
@@ -229,29 +235,51 @@ pub fn render_ui(
 
     crate::perf::stage("minimap");
 
-    // 4. Barre d'action contextuelle — sous le toast, qui doit rester lisible par-dessus.
-    action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
+    // 4, 5 et 6. Ce qui ne paraît que sur décision : la barre d'action, le toast, le menu.
+    poser_ce_qui_attend_une_decision(pixmap, store, ui, typo, theme, (w, h), pointer);
+    // **Ce que `ui` nomme désormais** : la barre d'action, le toast et le menu contextuel —
+    // ce qui ne paraît que sur décision de l'utilisateur. La marque se posait auparavant chez
+    // l'appelant, donc après le retour, et couvrait la bande, le fil d'Ariane et la minimap
+    // en plus : un poste qui nomme quatre choses ne désigne rien.
+    crate::perf::stage("ui");
+}
 
-    // 5. Toast notification (au centre en bas)
+/// La barre d'action, le toast et le menu contextuel — ce qui attend une décision.
+///
+/// Extraite de [`render_ui`], qui posait la chrome permanente et celle-ci dans la même
+/// fonction : la première paraît toujours, la seconde presque jamais, et les mêler faisait
+/// passer le cliquet des quatre-vingts lignes.
+///
+/// L'ordre entre les trois n'est pas libre : le toast doit rester lisible par-dessus la barre
+/// d'action, et le menu par-dessus tout, puisqu'il attend qu'on choisisse.
+fn poser_ce_qui_attend_une_decision(
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    ui: &UiState,
+    typo: &Typography,
+    theme: &Theme,
+    (w, h): (f32, f32),
+    pointer: Pointer,
+) {
+    action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
     if let Some(ref toast) = ui.current_toast {
         toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
     }
-
-    // 6. Menu contextuel — par-dessus tout, y compris le toast : il attend une décision.
-    if let Some(at) = ui.context_menu_at {
-        if let Some(menu) =
-            context_menu::layout_context_menu(store, typo, at, (w, h), ui.scale_factor)
-        {
-            context_menu::draw_context_menu(
-                pixmap,
-                &menu,
-                typo,
-                theme,
-                (pointer.x, pointer.y),
-                ui.scale_factor,
-            );
-        }
-    }
+    let Some(at) = ui.context_menu_at else {
+        return;
+    };
+    let Some(menu) = context_menu::layout_context_menu(store, typo, at, (w, h), ui.scale_factor)
+    else {
+        return;
+    };
+    context_menu::draw_context_menu(
+        pixmap,
+        &menu,
+        typo,
+        theme,
+        (pointer.x, pointer.y),
+        ui.scale_factor,
+    );
 }
 
 #[derive(Debug, Clone, PartialEq)]

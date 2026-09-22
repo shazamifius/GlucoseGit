@@ -17,6 +17,52 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowAttributes;
 
 impl GlucoseApp {
+    /// **Ce que la machine annonce d'elle-meme**, ecrit une fois au demarrage.
+    ///
+    /// Une fonction a part parce qu'`init_window` cree la fenetre, lit la cadence, accorde
+    /// les horloges et ouvre la presentation : ce qui **etablit** et ce qui **annonce** ne
+    /// changent pas pour les memes raisons, et le cliquet des quatre-vingts lignes a raison.
+    fn annoncer_la_machine(
+        &self,
+        presenter: &dyn crate::present::Presenter,
+        (largeur, hauteur): (u32, u32),
+        echelle: f64,
+    ) {
+        println!(
+            "[Glucose] succession des images : {} -- l'ecran bat toutes les {:.2} ms",
+            presenter.rythme(),
+            self.cadence.periode().as_secs_f64() * 1000.0
+        );
+        // **Ce que la chaine garde en vol**, et il n'etait ecrit nulle part. Une attente a
+        // l'acquisition -- 19,5 ms en mediane sur la session du 21/09 au soir -- ne se
+        // comprend pas sans ce nombre : si la chaine n'a pas d'image libre, la demander
+        // attend qu'il s'en libere une. Le terrain a depuis tranche : voir
+        // `succession::images_demandees`.
+        let en_vol = presenter.images_en_vol();
+        if en_vol > 0 {
+            println!("[Glucose] images gardees en vol par la chaine : {en_vol}");
+        }
+        // **La surface et l'echelle de l'interface**, sans lesquelles la chrome ne se relit
+        // pas. Les postes `bande`, `minimap`, `ariane` et `ui` couvrent des rectangles dont
+        // la taille est proportionnelle au CARRE de cette echelle : a 175 %, la minimap
+        // occupe trois fois plus de pixels qu'a 100 %. `bench_texte` la mesure a 0,05 ms et
+        // le terrain a 0,86 -- l'ecart ne se comprend pas sans ce nombre, et aucune trace ne
+        // le portait. C'est la lecon de la fiche 19 § 6.1 : une mesure qui ne dit pas ou elle
+        // a ete prise ne se relit pas.
+        println!(
+            "[Glucose] fenetre : {largeur} x {hauteur} pixels, interface a {:.0} % ({:.0} x {:.0} points)",
+            echelle * 100.0,
+            f64::from(largeur) / echelle,
+            f64::from(hauteur) / echelle,
+        );
+        // Dit des le depart ou la chronique s'ecrira : la chercher apres coup dans un dossier
+        // temporaire est decourageant, et une mesure qu'on ne retrouve pas ne sert a personne.
+        println!(
+            "[Glucose] chronique de cette session : {}",
+            Self::chemin_de_la_chronique().display()
+        );
+    }
+
     /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
     /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
     pub(super) fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
@@ -71,25 +117,7 @@ impl GlucoseApp {
         self.chronique
             .rythme
             .observer_la_machine(self.cadence.periode(), presenter.rythme());
-        println!(
-            "[Glucose] succession des images : {} -- l'ecran bat toutes les {:.2} ms",
-            presenter.rythme(),
-            self.cadence.periode().as_secs_f64() * 1000.0
-        );
-        // **Ce que la chaine garde en vol**, et il n'etait ecrit nulle part. Une attente a
-        // l'acquisition -- 19,5 ms en mediane sur la session du 21/09 au soir -- ne se
-        // comprend pas sans ce nombre : si la chaine n'a pas d'image libre, la demander
-        // attend qu'il s'en libere une.
-        let en_vol = presenter.images_en_vol();
-        if en_vol > 0 {
-            println!("[Glucose] images gardees en vol par la chaine : {en_vol}");
-        }
-        // Dit des le depart ou la chronique s'ecrira : la chercher apres coup dans un dossier
-        // temporaire est decourageant, et une mesure qu'on ne retrouve pas ne sert a personne.
-        println!(
-            "[Glucose] chronique de cette session : {}",
-            Self::chemin_de_la_chronique().display()
-        );
+        self.annoncer_la_machine(presenter.as_ref(), (width, height), scale_factor);
 
         self.pixmap = Pixmap::new(width, height);
         window.set_cursor(winit::window::CursorIcon::Grab);

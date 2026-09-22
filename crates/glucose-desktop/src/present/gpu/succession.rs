@@ -70,6 +70,34 @@ pub(super) fn cadence_demandee() -> Option<wgpu::PresentMode> {
 /// ```text
 ///     GLUCOSE_IMAGES=3    la chaîne garde trois images en vol
 /// ```
+///
+/// # Ce que le terrain a répondu, le 22/09 : l'hypothèse est morte
+///
+/// Deux sessions, mêmes gestes, même document de 482 nœuds, sur la RTX en `mailbox` :
+///
+/// ```text
+///                        deux images      trois images
+///     images par seconde        51               43
+///     a l'ecran, median      19,48 ms         23,17 ms
+///     latence mediane        19,5 ms          23,2 ms
+///     au-dessus de 10 ms        8 %             10 %
+///     judder                   16 %             19 %
+///     tempo a 5 balayages      53 %             66 %
+/// ```
+///
+/// **Trois images en vol dégradent tout**, et de façon cohérente sur six indicateurs. Mais
+/// surtout : `acquerir` **n'apparaît dans aucune des deux chroniques** — ni dans les postes
+/// du repos, ni dans ceux du déplacement, ni dans ceux du zoom, donc il vaut moins de
+/// 0,36 ms. Il n'y avait rien à gagner : la profondeur de la chaîne ne tenait rien.
+///
+/// Les 19,5 ms du 21/09 au soir étaient une **attente de synchronisation**, pas une pénurie
+/// d'images. En `Fifo`, `get_current_texture` attend le balayage — et c'est du repos, la
+/// documentation de [`PREFERENCES`] le dit déjà. En `Mailbox`, que la RTX offre et l'Arc non,
+/// il ne bloque plus. Le nombre d'images en vol n'a jamais été le sujet.
+///
+/// Le réglage reste, parce qu'il est un **instrument** et non un choix de production : il a
+/// tranché une question en une session, et une autre machine pourra la reposer. Le défaut de
+/// `wgpu` — deux — est celui qu'on garde.
 pub(super) fn images_demandees() -> Option<u32> {
     let brut = std::env::var("GLUCOSE_IMAGES").ok()?;
     match brut.trim().parse::<u32>() {

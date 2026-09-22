@@ -286,7 +286,6 @@ impl Renderer {
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
         render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
-        crate::perf::stage("ui");
         self.magasin.fermer();
     }
 
@@ -332,7 +331,6 @@ impl Renderer {
         crate::perf::stage("agrandir");
 
         render_ui(plein, store, ui, &self.typography, &self.theme, pointer);
-        crate::perf::stage("ui");
         self.magasin.fermer();
     }
 

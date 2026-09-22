@@ -453,7 +453,6 @@ impl Renderer {
         self.rendre_la_region(dessus, store, ui, overlay, header_h, sur);
         noter_le_cout_de_la_scene(debut);
         render_ui(dessus, store, ui, &self.typography, &self.theme, pointer);
-        crate::perf::stage("ui");
         self.magasin.fermer();
         confie
     }
