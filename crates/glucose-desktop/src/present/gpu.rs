@@ -29,7 +29,7 @@
 //! proche, la correspondance est exacte ou elle ne l'est pas, et un test le vérifie.
 
 use super::Presenter;
-use succession::{cadence_demandee, cadencer, nom_de_la_cadence};
+use succession::{cadence_demandee, nom_de_la_cadence};
 
 use crate::error::{DesktopError, DesktopResult};
 use std::num::NonZeroU32;
@@ -117,23 +117,6 @@ mod cinq_temps;
 mod ouverture;
 pub mod succession;
 
-/// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
-///
-/// # Le défaut que cette fonction répare
-///
-/// `get_default_config` retient volontiers `Bgra8UnormSrgb`. Écrire dedans les octets de
-/// `tiny-skia` — qui sont déjà du sRGB — en les ayant déclarés linéaires fait appliquer une
-/// conversion linéaire → sRGB de trop, et **toute l'interface pâlit**. C'est exactement ce
-/// qu'on a vu : un fond censé être presque noir rendu en gris moyen, et les lueurs délavées.
-///
-/// Les deux réponses possibles étaient de déclarer la texture en sRGB — le sampler
-/// reconvertit alors dans l'autre sens, et les deux conversions s'annulent — ou de refuser
-/// l'espace sRGB des deux côtés. La seconde est meilleure : elle ne compense pas une
-/// conversion par une autre, elle n'en fait aucune. C'est aussi ce que ce module promet.
-fn format_sans_conversion(proposes: &[wgpu::TextureFormat]) -> Option<wgpu::TextureFormat> {
-    proposes.iter().copied().find(|f| !f.is_srgb())
-}
-
 impl GpuPresenter {
     /// Ouvre une présentation graphique sur cette fenêtre, ou dit pourquoi elle ne peut pas.
     ///
@@ -186,23 +169,22 @@ impl GpuPresenter {
         let (adapter, device, queue, adaptateur) =
             ouverture::ouvrir(&instance, &surface, width, height, carte)?;
 
-        let config = surface
-            .get_default_config(&adapter, width.get(), height.get())
-            .ok_or_else(|| {
-                DesktopError::WindowError(
-                    "présentation graphique : la surface n'accepte aucun format".into(),
-                )
-            })?;
-        let mut config = config;
-        config.format = format_sans_conversion(&surface.get_capabilities(&adapter).formats)
-            .unwrap_or(config.format);
-        let mut config = cadencer(&surface, &adapter, config, cadence);
-        // **Ce que la chaîne garde en vol.** `get_default_config` met deux ; la chronique dit
-        // que `get_current_texture` attend alors vingt millisecondes au repos, ce qui veut
-        // dire qu'aucune image n'est libre quand on la demande.
-        if let Some(n) = succession::images_demandees() {
-            config.desired_maximum_frame_latency = n;
-        }
+        let config = ouverture::accorder_la_surface(&surface, &adapter, (width, height), cadence)?;
+        // **La surface se configure ICI, a la naissance.**
+        //
+        // Elle ne l'etait nulle part : `resize` le faisait, mais il court-circuite quand les
+        // dimensions n'ont pas change -- ce qui est le cas juste apres la construction. Au
+        // demarrage, ce sont les deux `Resized` que `winit` envoie de lui-meme qui
+        // configuraient la surface, par accident (fiche 19 § 5.1 les chiffre a 191 et 37 ms).
+        //
+        // Une reouverture, elle, ne recoit aucun `Resized` : la premiere image demandait donc
+        // une texture a une surface non configuree, et wgpu paniquait -- « Surface is not
+        // configured for presentation ». Le defaut dormait depuis toujours et n'attendait que
+        // le jour ou une carte se rouvrirait, c'est-a-dire le jour ou ARBITRE-2 a rendu la
+        // bascule possible.
+        //
+        // Un objet naissant pret a servir ne depend d'aucun evenement exterieur.
+        surface.configure(&device, &config);
         let (pipeline, layout, sampler) = atelier(&device, config.format);
         // La texture porte les octets tels quels quand la surface est linéaire. Si aucun
         // format non-sRGB n'était disponible, elle se déclare sRGB pour que le sampler
@@ -476,6 +458,8 @@ impl Presenter for GpuPresenter {
     /// La garde vit ici plutôt que chez l'appelant, parce que c'est cette implémentation-ci
     /// qui sait ce que l'opération coûte.
     fn resize(&mut self, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<()> {
+        // La surface est configuree des la construction : a dimensions egales, il n'y a
+        // vraiment rien a faire, et ce court-circuit ne cache plus une surface muette.
         if self.config.width == width.get() && self.config.height == height.get() {
             return Ok(());
         }

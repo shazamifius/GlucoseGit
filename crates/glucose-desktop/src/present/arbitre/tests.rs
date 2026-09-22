@@ -300,3 +300,19 @@ fn test_deux_cartes_se_departagent_sur_la_part_et_non_sur_le_compte() {
     assert!(beaucoup_vue.vaut_mieux_que(peu_vue));
     assert!(!peu_vue.vaut_mieux_que(beaucoup_vue));
 }
+
+/// **L'essai forcé bascule tout de suite**, échauffement compris — et une seule fois.
+///
+/// C'est un instrument : il existe parce que la bascule ne s'était jamais exécutée, et que le
+/// jour où elle l'a pu, elle a planté. Un chemin qu'on ne peut emprunter qu'en priant pour un
+/// gel est un chemin qu'on ne vérifie jamais.
+#[test]
+fn test_l_essai_force_bascule_tout_de_suite_et_une_seule_fois() {
+    let mut a = Arbitre::nouveau(Preference::Econome);
+    a.essai_force = true;
+    assert_eq!(a.observer(SAIN), Verdict::Essayer(Preference::Rapide));
+    assert_eq!(a.courante(), Preference::Rapide);
+    // Et il ne se redéclenche pas : la carte suivante fait ses preuves normalement.
+    assert_eq!(saines(&mut a, 10_000), Verdict::Continuer);
+    assert_eq!(a.courante(), Preference::Rapide);
+}

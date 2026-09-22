@@ -67,3 +67,57 @@ pub(super) fn ouvrir(
 
     Ok((adapter, device, queue, adaptateur))
 }
+
+/// ── Ce que la surface accepte, et sous quel format ────────────────────────────────────
+///
+/// Ces deux-là s'exécutent **une fois**, au démarrage, comme le reste de ce fichier : elles
+/// accordent la surface à ce que la fenêtre et l'adaptateur offrent, et ce qu'elles décident
+/// ne change plus. Elles vivaient dans `gpu.rs`, qui présente des images et n'avait aucune
+/// raison de porter aussi cela — le cliquet des six cents lignes l'a dit.
+/// **Ce que cette surface accepte**, une fois choisis son format, sa cadence et sa profondeur.
+///
+/// Extraite d'`avec_cadence`, qui ouvrait le périphérique, accordait la surface ET bâtissait
+/// les quatre passes : trois raisons de changer, et quatre-vingt-six lignes là où la fiche 05
+/// en admet quatre-vingts. La coupure tombe là où la nature du travail change — ici on
+/// s'accorde à ce que la fenêtre offre, là-bas on construit ce qui dessinera dessus.
+pub(super) fn accorder_la_surface(
+    surface: &wgpu::Surface<'static>,
+    adapter: &wgpu::Adapter,
+    (width, height): (NonZeroU32, NonZeroU32),
+    cadence: Option<wgpu::PresentMode>,
+) -> DesktopResult<wgpu::SurfaceConfiguration> {
+    let mut config = surface
+        .get_default_config(adapter, width.get(), height.get())
+        .ok_or_else(|| {
+            DesktopError::WindowError(
+                "présentation graphique : la surface n'accepte aucun format".into(),
+            )
+        })?;
+    config.format =
+        format_sans_conversion(&surface.get_capabilities(adapter).formats).unwrap_or(config.format);
+    let mut config = super::succession::cadencer(surface, adapter, config, cadence);
+    // **Ce que la chaîne garde en vol.** `get_default_config` met deux ; la chronique dit que
+    // `get_current_texture` attend alors vingt millisecondes au repos, ce qui veut dire
+    // qu'aucune image n'est libre quand on la demande.
+    if let Some(n) = super::succession::images_demandees() {
+        config.desired_maximum_frame_latency = n;
+    }
+    Ok(config)
+}
+
+/// Un format de surface qui n'impose **aucune** conversion, s'il en existe un.
+///
+/// # Le défaut que cette fonction répare
+///
+/// `get_default_config` retient volontiers `Bgra8UnormSrgb`. Écrire dedans les octets de
+/// `tiny-skia` — qui sont déjà du sRGB — en les ayant déclarés linéaires fait appliquer une
+/// conversion linéaire → sRGB de trop, et **toute l'interface pâlit**. C'est exactement ce
+/// qu'on a vu : un fond censé être presque noir rendu en gris moyen, et les lueurs délavées.
+///
+/// Les deux réponses possibles étaient de déclarer la texture en sRGB — le sampler
+/// reconvertit alors dans l'autre sens, et les deux conversions s'annulent — ou de refuser
+/// l'espace sRGB des deux côtés. La seconde est meilleure : elle ne compense pas une
+/// conversion par une autre, elle n'en fait aucune. C'est aussi ce que ce module promet.
+fn format_sans_conversion(proposes: &[wgpu::TextureFormat]) -> Option<wgpu::TextureFormat> {
+    proposes.iter().copied().find(|f| !f.is_srgb())
+}

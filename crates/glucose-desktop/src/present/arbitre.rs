@@ -209,6 +209,19 @@ pub struct Arbitre {
     echauffement: u32,
     /// Une fois la décision prise, elle ne se refait plus.
     tranche: bool,
+    /// **Essayer l'autre carte tout de suite**, sans attendre un gel (`GLUCOSE_ARBITRE=essaie`).
+    ///
+    /// # Un instrument, et il a été payé une fois
+    ///
+    /// La bascule ne s'était **jamais** exécutée : ARBITRE-1 ne déclenchait pas, et le jour où
+    /// ARBITRE-2 l'a rendue possible, elle a planté à sa première tentative — une surface que
+    /// personne n'avait configurée. Un chemin qu'on ne peut emprunter qu'en priant pour un gel
+    /// est un chemin qu'on ne vérifie jamais.
+    ///
+    /// Il rejoint `GLUCOSE_CARTE` et `GLUCOSE_IMAGES` parmi les réglages qui sont des
+    /// instruments et non des choix de production : *« il a tranché une question en une
+    /// session, et une autre machine pourra la reposer »*.
+    essai_force: bool,
 }
 
 impl Arbitre {
@@ -223,6 +236,8 @@ impl Arbitre {
             echantillon: Bilan::default(),
             echauffement: crate::cadence::ECHANTILLON,
             tranche: false,
+            essai_force: std::env::var_os("GLUCOSE_ARBITRE")
+                .is_some_and(|v| v.eq_ignore_ascii_case("essaie")),
         }
     }
 
@@ -244,6 +259,13 @@ impl Arbitre {
     pub fn observer(&mut self, present_us: u32) -> Verdict {
         if self.tranche {
             return Verdict::Continuer;
+        }
+        // L'instrument passe devant tout, échauffement compris : ce qu'il sert à vérifier est
+        // la bascule elle-même, pas la loi qui la déclenche.
+        if self.essai_force {
+            self.essai_force = false;
+            println!("[Glucose] arbitre : essai force par GLUCOSE_ARBITRE");
+            return self.juger();
         }
         if self.echauffement > 0 {
             self.echauffement -= 1;
