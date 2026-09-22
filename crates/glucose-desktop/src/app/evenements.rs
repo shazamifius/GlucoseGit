@@ -163,6 +163,17 @@ impl ApplicationHandler for GlucoseApp {
         // fiche 17 § 2.3 raconte. Ici, aucune image ne l'est.
         self.rouvrir_la_carte_si_demande();
 
+        // **Ce que le processus coute a la machine** (EMPREINTE-1). Ici, et non dans la
+        // boucle d'images : au repos il ne s'en rend aucune, donc un releve accroche aux
+        // images ne mesurerait jamais le repos -- precisement le cas qui interesse.
+        let compte = crate::chronique::veille::Compte {
+            sous_la_main: self.chronique.rendues_sous_la_main(),
+            rendues: self.chronique.rendues(),
+        };
+        self.chronique
+            .veille
+            .observer(std::time::Instant::now(), compte);
+
         // Hors du rendu, et seulement quand il y a du neuf : une session qui finit mal garde
         // alors la trace de son pire moment (CHRONIQUE-1).
         self.sauver_la_chronique_si_besoin();

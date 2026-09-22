@@ -61,6 +61,7 @@ impl Chronique {
         self.ecrire_les_gestes(&mut t);
         self.ecrire_la_navigation(&mut t);
         self.ecrire_les_reveils(&mut t);
+        self.ecrire_l_empreinte(&mut t);
         self.ecrire_les_pires(&mut t);
         t
     }
@@ -114,6 +115,59 @@ impl Chronique {
                 ms(self.navigation.centile(0.90)),
                 ms(self.navigation.centile(0.99)),
                 ms(pire),
+            ));
+        }
+        t.push('\n');
+    }
+
+    /// **Ce que le processus coûte a la machine**, et surtout quand on ne le touche pas
+    /// (EMPREINTE-1).
+    ///
+    /// # La seule section qui ne parle pas d'une image
+    ///
+    /// Tout le reste de ce rapport mesure ce qu'une **image** coûte. Un logiciel peut tenir
+    /// cent images par seconde et prendre huit cents mébioctets à l'ouverture d'un document
+    /// vide, ou occuper un dixième de cœur pendant qu'il dort — ce qui empêche un portable de
+    /// se rendormir, et c'est de l'autonomie en moins. Aucune durée d'image ne le dit.
+    ///
+    /// La ligne qui compte est celle du repos : c'est elle qui répond à *« économe »*.
+    fn ecrire_l_empreinte(&self, t: &mut String) {
+        if !self.veille.a_mesure() {
+            return;
+        }
+        let (maintenant, pire) = self.veille.memoire();
+        t.push_str(
+            "  Ce que Glucose coute a la machine, et non ce que ses images coutent
+
+",
+        );
+        t.push_str(&format!(
+            "  memoire de travail : {:.0} Mo a la fin, {:.0} Mo au pire de la session
+",
+            mo(maintenant),
+            mo(pire)
+        ));
+        for (quoi, part) in [
+            ("pendant qu'on ne le touche pas", self.veille.au_repos()),
+            ("pendant qu'on s'en sert", self.veille.a_l_usage()),
+        ] {
+            let Some(p) = part else {
+                continue;
+            };
+            t.push_str(&format!(
+                "  processeur {quoi} : {:.1} % d'un coeur, sur {:.0} s observees
+",
+                p.coeurs * 100.0,
+                p.sur.as_secs_f64()
+            ));
+        }
+        // **Le nombre qui accuse** : une image rendue alors que personne ne regarde empeche le
+        // processeur de descendre dans ses etats de sommeil profond. Zero est la seule bonne
+        // reponse, et toute autre valeur designe un reveil a expliquer.
+        if let Some(ips) = self.veille.images_sans_la_main() {
+            t.push_str(&format!(
+                "  et il dessine {ips:.1} image(s) par seconde pendant ce temps -- zero est la seule bonne reponse
+"
             ));
         }
         t.push('\n');
@@ -507,4 +561,9 @@ fn postes_a_montrer<'a>(
     }
     retenus.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.99)));
     retenus
+}
+
+/// Des octets, en mébioctets — l'unité dans laquelle un utilisateur lit une mémoire.
+fn mo(octets: u64) -> f64 {
+    octets as f64 / (1024.0 * 1024.0)
 }

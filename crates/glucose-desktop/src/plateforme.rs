@@ -17,6 +17,7 @@
 //! une régression. La charte interdit d'exclure une machine ; elle n'interdit pas qu'un pont
 //! natif arrive d'abord là où la mesure l'a réclamé.
 
+pub mod empreinte;
 pub mod moisson;
 
 #[cfg(windows)]
