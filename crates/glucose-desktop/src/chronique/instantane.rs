@@ -113,6 +113,26 @@ pub struct Instantane {
     /// NOMBRE de textures ou de leur TAILLE. Une seule texture à dix-neuf millisecondes ne
     /// s'explique que par la seconde, et rien ne le disait.
     pub textures_kpx: u16,
+    /// Combien de panneaux du dock ont été **réellement redessinés** pendant cette image.
+    ///
+    /// Le poste `docks` vaut 1,02 ms en médiane et jusqu'à 7,70 sur une image de zoom. Ces
+    /// deux nombres n'appellent pas la même réponse : une composition de tampons qu'on ne
+    /// peut supprimer qu'en sortant la chrome de la couche du dessus, ou des panneaux qui se
+    /// refont parce que leur clé est trop large. **Aucune durée ne les distingue.**
+    pub dock_rendus: u16,
+    /// La bande du haut a-t-elle été redessinée pendant cette image ?
+    ///
+    /// Même question que la précédente, pour le poste `bande` — 0,22 ms en médiane, 6,95 sur
+    /// une image de zoom du terrain.
+    pub bande_refaite: u16,
+    /// Combien de cartes le processeur a dessinées **entières** pendant cette image.
+    ///
+    /// Sur la voie graphique il ne devrait y en avoir aucune : les cartes de texte sont des
+    /// textures que la carte pose. Il en reste deux sortes — celle qu'on édite, et les
+    /// pense-bêtes, qui ne sont pas encore des composants. Le terrain du 22/09 donne
+    /// `annotations` à 9,74 ms au p99 du zoom avec **zéro** texture rendue, ce qui ne
+    /// s'explique que par un dessin direct ; ce compteur dit lequel.
+    pub cartes_entieres: u16,
     /// Combien de fois la surface a dû être refaite pendant cette image.
     ///
     /// Presque toujours zéro. Quand ce n'est pas le cas, c'est que le compositeur a changé

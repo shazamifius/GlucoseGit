@@ -491,6 +491,16 @@ fn poser_les_docks(
     (renderer, ui, pointer): (&Renderer, &UiState, Pointer),
     (largeur, hauteur, echelle): (u32, u32, f32),
 ) {
+    // **Combien de panneaux ont ete REELLEMENT redessines**, et non combien sont ouverts.
+    //
+    // Le cache du dock garde un tampon par panneau ; sa propre documentation dit que le gain
+    // est de 1,1x seulement, parce que composer un tampon coute presque ce que coute le
+    // dessin qu'il remplace. La question que ce compteur tranche est donc la suivante : le
+    // poste `docks`, qui vaut 1,02 ms en median et jusqu'a 7,70 au pire sur une image de
+    // zoom, paie-t-il des panneaux qui se REFONT, ou seulement leur composition ? Les deux
+    // n'appellent pas la meme reponse -- une cle trop large d'un cote, une couche a part de
+    // l'autre -- et aucune duree ne les distingue.
+    let avant = dock_cache.rendus();
     render_docks(
         &mut dessus.as_mut(),
         dock_manager,
@@ -507,6 +517,10 @@ fn poser_les_docks(
             pointer,
             cache: Some(dock_cache),
         },
+    );
+    crate::perf::compteur(
+        "dock_rendus",
+        dock_cache.rendus().saturating_sub(avant) as f64,
     );
     crate::perf::stage("docks");
 }

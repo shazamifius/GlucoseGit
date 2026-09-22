@@ -29,6 +29,13 @@ use super::{Chronique, Geste, Instantane};
 /// diverger, et celle-ci avait déjà divergé.
 const BUDGET_PLANCHER_US: u32 = crate::cadence::BUDGET_TOTAL.as_micros() as u32;
 
+/// Une colonne de la table des images lentes : son en-tete, et de quoi la lire.
+///
+/// Un alias et non le type ecrit en clair : clippy refuse un `Vec` de couples dont le second
+/// membre est un objet-trait, et il a raison -- la signature disait trois fois la meme chose
+/// et ne se lisait plus.
+type Colonne<'a> = (&'a str, &'a dyn Fn(&Instantane) -> u32);
+
 impl Chronique {
     /// Le rapport complet, en texte.
     /// Le rapport complet, en texte.
@@ -328,67 +335,77 @@ impl Chronique {
     }
 
     /// Les images les plus lentes, avec tout leur contexte : c'est là que se lit la cause.
+    ///
+    /// # Pourquoi les colonnes vont et viennent
+    ///
+    /// Elles étaient vingt-deux, toujours les mêmes, et **la moitié valait zéro sur toute une
+    /// session**. Sur la voie graphique, `vign`, `file`, `perim`, `pret`, `orph`, `abdn`,
+    /// `tuiles` et `reprises` comptent des mécanismes de la voie processeur qui ne s'exécutent
+    /// pas : huit colonnes de zéros occupant la moitié de la largeur, pendant que `text` et
+    /// `kpx` — celles qui désignaient la cause — se lisaient à l'autre bout de la ligne.
+    ///
+    /// Une colonne dont **aucune** des images retenues ne porte de valeur ne dit rien, et
+    /// l'espace qu'elle prend est pris à celles qui disent quelque chose. Aucun seuil n'a eu
+    /// à être choisi : zéro partout, ou bien elle reste.
     fn ecrire_les_pires(&self, t: &mut String) {
-        if self.pires().is_empty() {
+        let pires = self.pires();
+        if pires.is_empty() {
             return;
         }
-        t.push_str("  Les images les plus lentes, et ce qu'elles faisaient\n\n");
-        t.push_str(&format!(
-            "  {:>9} {:>10} {:<18} {:>7} {:>7} {:>5} {:>8} {:>10} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>6} {:>5} {:>7} {:>8}
+        let colonnes: Vec<Colonne<'_>> = vec![
+            ("noeuds", &|p: &Instantane| p.noeuds),
+            ("photos", &|p: &Instantane| p.photos),
+            // En centièmes d'écran, comme la structure la garde : c'est ce chiffre qui a
+            // désigné REPORT-1 en annonçant 14 930 pour soixante-seize photos empilées.
+            ("ecran%", &|p: &Instantane| p.surcouverture),
+            ("vign/px", &|p: &Instantane| u32::from(p.par_vignette)),
+            ("vign", &|p: &Instantane| u32::from(p.vignettes)),
+            ("file", &|p: &Instantane| u32::from(p.vignettes_en_attente)),
+            ("perim", &|p: &Instantane| u32::from(p.vignettes_perimees)),
+            ("pret", &|p: &Instantane| u32::from(p.vignettes_pretes)),
+            ("orph", &|p: &Instantane| u32::from(p.vignettes_orphelines)),
+            ("abdn", &|p: &Instantane| u32::from(p.vignettes_abandonnees)),
+            ("tuiles", &|p: &Instantane| u32::from(p.tuiles_peintes)),
+            ("repris", &|p: &Instantane| u32::from(p.tuiles_reprises)),
+            ("text", &|p: &Instantane| u32::from(p.textures_faites)),
+            ("kpx", &|p: &Instantane| u32::from(p.textures_kpx)),
+            ("report", &|p: &Instantane| u32::from(p.textures_reportees)),
+            ("dock", &|p: &Instantane| u32::from(p.dock_rendus)),
+            ("bande", &|p: &Instantane| u32::from(p.bande_refaite)),
+            ("direct", &|p: &Instantane| u32::from(p.cartes_entieres)),
+            ("surf", &|p: &Instantane| u32::from(p.surfaces_refaites)),
+            ("envoiMo", &|p: &Instantane| u32::from(p.blit_mo)),
+            ("cacheMo", &|p: &Instantane| p.images_mo),
+        ];
+        let retenues: Vec<&Colonne<'_>> = colonnes
+            .iter()
+            .filter(|(_, lire)| pires.iter().take(12).any(|p| lire(p) > 0))
+            .collect();
+        t.push_str(
+            "  Les images les plus lentes, et ce qu'elles faisaient
+
 ",
-            "a",
-            "duree",
-            "geste",
-            "noeuds",
-            "photos",
-            // Cette colonne a porte l'en-tete « mip » pendant toute son existence alors
-            // qu'elle compte les photos posees DEPUIS UNE VIGNETTE. Un en-tete faux est pire
-            // qu'une colonne absente : il a fait chercher un defaut de pyramide la ou il n'y
-            // en avait pas.
-            "vign/px",
-            "ecrans",
-            "redessine",
-            "vign",
-            "file",
-            "perim",
-            "pret",
-            "orph",
-            "abdn",
-            "tuiles",
-            "reprises",
-            "text",
-            "kpx",
-            "report",
-            "surf",
-            "envoi",
-            "cache"
+        );
+        t.push_str(&format!(
+            "  {:>7} {:>8} {:<18} {:>9}",
+            "a", "duree", "geste", "redessine"
         ));
-        for p in self.pires().iter().take(12) {
+        for (nom, _) in &retenues {
+            t.push_str(&format!(" {nom:>7}"));
+        }
+        t.push('\n');
+        for p in pires.iter().take(12) {
             t.push_str(&format!(
-                "  {:>7.1}s {:>8.2}ms {:<18} {:>7} {:>7} {:>5} {:>7.1}x {:>9.0}% {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>6} {:>8} {:>6} {:>7} {:>6} {:>5} {:>4} Mo {:>5} Mo\n",
+                "  {:>6.1}s {:>6.2}ms {:<18} {:>8.0}%",
                 f64::from(p.instant_ms) / 1000.0,
                 f64::from(p.duree_us) / 1000.0,
                 nom_du_geste(p),
-                p.noeuds,
-                p.photos,
-                p.par_vignette,
-                f64::from(p.surcouverture) / 100.0,
                 100.0 * p.part_redessinee(),
-                p.vignettes,
-                p.vignettes_en_attente,
-                p.vignettes_perimees,
-                p.vignettes_pretes,
-                p.vignettes_orphelines,
-                p.vignettes_abandonnees,
-                p.tuiles_peintes,
-                p.tuiles_reprises,
-                p.textures_faites,
-                p.textures_kpx,
-                p.textures_reportees,
-                p.surfaces_refaites,
-                p.blit_mo,
-                p.images_mo,
             ));
+            for (_, lire) in &retenues {
+                t.push_str(&format!(" {:>7}", lire(p)));
+            }
+            t.push('\n');
             self.ecrire_les_postes(t, p);
         }
     }

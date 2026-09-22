@@ -202,7 +202,17 @@ pub fn render_ui(
     }
 
     // 1 et 2. La barre et les onglets : la bande du haut, rendue une fois par changement.
+    //
+    // **Refaite, ou seulement recomposee ?** Le poste `bande` vaut 0,22 ms en median et
+    // 6,95 ms sur une image de zoom du terrain : un ecart de trente qui ne peut venir que
+    // d'un redessin. Reste a savoir combien souvent -- et la duree seule ne le dit pas.
+    let dessins_avant = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
     bande::render_bande(pixmap, store, ui, typo, theme, w, pointer);
+    let dessins_apres = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
+    crate::perf::compteur(
+        "bande_refaite",
+        f64::from(u8::from(dessins_apres != dessins_avant)),
+    );
     crate::perf::stage("bande");
 
     // 2 bis. Fil d'Ariane des dossiers — seulement quand on est entré quelque part.

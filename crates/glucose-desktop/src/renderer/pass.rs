@@ -104,6 +104,37 @@ pub(super) fn draw_annotations(
         }
     }
 
+    let entieres = dessiner_ce_qui_passe_au_dessus(
+        hue_cache,
+        (&ctx, pixmap),
+        (store, board, pass),
+        editing_session,
+    );
+    crate::perf::compteur("cartes_entieres", entieres);
+}
+
+/// **Ce qui passe au-dessus des cartes** : pense-bêtes, flèches, poignées, la carte qu'on
+/// édite — et le compte de ce que le processeur a dessiné **entier**.
+///
+/// Extraite de [`draw_annotations`], qui portait les deux passes d'ORNEMENTS-1 et le compteur
+/// dans la même fonction : le cliquet des quatre-vingts lignes a raison, et les deux passes
+/// ne changent pas pour les mêmes raisons — la première est le contenu à son rang, celle-ci
+/// est ce qui doit rester attrapable.
+///
+/// # Ce que le compte tranche
+///
+/// Sur la voie graphique il ne devrait y avoir **aucune** carte dessinée entière : elles sont
+/// des textures que la carte pose. Il en reste deux sortes — celle qu'on édite, et les
+/// pense-bêtes, qui ne sont pas encore des composants. Le terrain du 22/09 donne
+/// `annotations` à 9,74 ms au p99 du zoom avec **zéro** texture rendue, ce qui ne s'explique
+/// que par un dessin direct ; ce compteur dit lequel, au lieu de le supposer.
+fn dessiner_ce_qui_passe_au_dessus(
+    hue_cache: &mut SymbioticHueCache,
+    (ctx, pixmap): (&Pass, &mut PixmapMut),
+    (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
+    editing_session: Option<&TextEditSession>,
+) -> f64 {
+    let mut entieres = 0.0_f64;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let selected = store.selected_annotation_ids.iter().any(|s| s == ann.id());
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
@@ -113,23 +144,29 @@ pub(super) fn draw_annotations(
                     // La carte qu'on edite se dessine entiere, ici, au premier plan : son
                     // curseur clignote et sa previsualisation deborde de sa boite.
                     if editing.is_some() {
-                        draw_text_card(&ctx, pixmap, carte);
+                        entieres += 1.0;
+                        draw_text_card(ctx, pixmap, carte);
                     } else {
-                        draw_card_ornements(&ctx, pixmap, carte);
+                        draw_card_ornements(ctx, pixmap, carte);
                     }
                 }
-                draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
+                draw_node_gauge(ctx, pixmap, (*x, *y), ann.domains());
             }
             Annotation::Sticky { x, y, .. } => {
-                draw_sticky(&ctx, pixmap, ann, selected, editing);
-                draw_node_gauge(&ctx, pixmap, (*x, *y), ann.domains());
+                // Un pense-bete n'est pas encore un composant : il se dessine entier a chaque
+                // image, sur les deux voies. C'est le meme mecanisme que COMPOSANT-1 et il
+                // n'a jamais ete applique -- ce compteur dira ce qu'il coute ici.
+                entieres += 1.0;
+                draw_sticky(ctx, pixmap, ann, selected, editing);
+                draw_node_gauge(ctx, pixmap, (*x, *y), ann.domains());
             }
             Annotation::Arrow { .. } => {
-                draw_arrow_node(&ctx, pixmap, ann, board, selected, editing);
+                draw_arrow_node(ctx, pixmap, ann, board, selected, editing);
             }
             _ => {}
         }
     }
+    entieres
 }
 
 /// Ce qu'une carte de texte montre, tel que la passe le dessine — ou `None` si ce nœud n'en

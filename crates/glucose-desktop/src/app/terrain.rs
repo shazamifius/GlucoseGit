@@ -190,6 +190,9 @@ impl GlucoseApp {
         vu.textures_faites = lire("textures_faites").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.textures_kpx = lire("textures_kpx").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.surfaces_refaites = lire("surfaces_refaites").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.dock_rendus = lire("dock_rendus").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.bande_refaite = lire("bande_refaite").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.cartes_entieres = lire("cartes_entieres").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.textures_reportees = lire("textures_reportees").clamp(0.0, f64::from(u16::MAX)) as u16;
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.
