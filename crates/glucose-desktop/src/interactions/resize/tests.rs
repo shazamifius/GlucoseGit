@@ -756,17 +756,177 @@ fn test_une_rotation_est_un_seul_geste_annulable() {
     assert_eq!(angle(&app), 0.0, "un seul Ctrl+Z ramène l'angle de départ");
 }
 
-/// `Alt` sur un **côté** ne tourne pas : un côté n'a pas d'azimut propre.
+// ── Le recadrage à la main (RECADRAGE-1) ─────────────────────────────────────
+
+fn crop(app: &GlucoseApp) -> glucose_core::types::Recadrage {
+    app.store
+        .active_board()
+        .and_then(|b| b.images.iter().find(|i| i.id == "img"))
+        .map(|i| i.crop)
+        .expect("image")
+}
+
+/// `Alt` sur un **côté** recadre : ni rotation, ni redimensionnement.
+///
+/// Ce test disait l'inverse — « `Alt` sur un côté redimensionne toujours », parce qu'un côté
+/// n'a pas d'azimut propre. C'était vrai, et c'était un geste sans effet propre ; `Alt` y a
+/// acquis un sens, donc le test devient exact **et** plus exigeant : le bord droit tiré de
+/// soixante vers la gauche retire trois dixièmes de la source à droite, la boîte perd soixante
+/// unités par la droite et **pas une** par la gauche, et l'angle ne bouge pas.
 #[test]
-fn test_alt_sur_un_cote_redimensionne_toujours() {
+fn test_alt_sur_un_cote_recadre_au_lieu_de_redimensionner() {
     let (mut app, rect) = app_avec_image();
     app.modifiers = ModifiersState::ALT;
     press_handle(&mut app, rect, Handle::Right);
-    drag_by(&mut app, 60.0, 0.0, 3);
+    drag_by(&mut app, -60.0, 0.0, 3);
     release(&mut app);
 
     assert_eq!(angle(&app), 0.0, "aucune rotation");
-    assert!(taille(&app).0 > rect.width, "mais un élargissement");
+    let (g, h, d, b) = crop(&app).marges();
+    assert!(
+        (d - 0.3).abs() < 1e-9,
+        "trois dixiemes retires a droite : {d}"
+    );
+    assert_eq!((g, h, b), (0.0, 0.0, 0.0));
+    let apres = image_box(&app, "img");
+    assert!(
+        approx(apres.left, rect.left),
+        "le bord gauche n'a pas bouge"
+    );
+    assert!(
+        approx(apres.width, rect.width - 60.0),
+        "la boite a perdu soixante"
+    );
+    assert!(approx(apres.height, rect.height), "et rien en hauteur");
+}
+
+/// Le geste est décidé à l'appui : relâcher `Alt` en route ne le rend pas au redimensionnement.
+#[test]
+fn test_le_mode_de_recadrage_est_decide_a_lappui() {
+    let (mut app, rect) = app_avec_image();
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::Left);
+    app.modifiers = ModifiersState::empty();
+    drag_by(&mut app, 40.0, 0.0, 4);
+    release(&mut app);
+
+    assert!(
+        (crop(&app).marges().0 - 0.2).abs() < 1e-9,
+        "le geste est reste un recadrage"
+    );
+    assert!(approx(image_box(&app, "img").left, rect.left + 40.0));
+}
+
+/// Un recadrage est **un** geste annulable, et `Échap` en cours de route n'en laisse rien.
+#[test]
+fn test_un_recadrage_est_un_seul_geste_annulable() {
+    let (mut app, rect) = app_avec_image();
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::Top);
+    drag_by(&mut app, 0.0, 25.0, 5);
+    release(&mut app);
+    assert!(!crop(&app).est_entier());
+
+    assert!(app.store.undo());
+    assert!(
+        crop(&app).est_entier(),
+        "un seul Ctrl+Z rend l'image entiere"
+    );
+    assert_eq!(image_box(&app, "img"), rect, "et sa boite de depart");
+
+    // Échap pendant le geste : rien ne reste, ni dans le document ni dans la pile.
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::Bottom);
+    drag_by(&mut app, 0.0, -30.0, 3);
+    assert!(app.cancel_resize());
+    assert!(crop(&app).est_entier());
+    assert_eq!(image_box(&app, "img"), rect);
+}
+
+/// Tirer un bord **vers l'extérieur** rend ce qu'on avait retiré, et s'arrête à l'image : on
+/// ne montre pas des pixels qui n'existent pas.
+#[test]
+fn test_tirer_vers_l_exterieur_rend_ce_qu_on_avait_retire_et_pas_plus() {
+    let (mut app, rect) = app_avec_image();
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, rect, Handle::Right);
+    drag_by(&mut app, -60.0, 0.0, 3);
+    release(&mut app);
+    let cadree = image_box(&app, "img");
+
+    // Le même bord, tiré de deux cents vers la droite : bien au-delà des soixante retirés.
+    app.modifiers = ModifiersState::ALT;
+    press_handle(&mut app, cadree, Handle::Right);
+    drag_by(&mut app, 200.0, 0.0, 4);
+    release(&mut app);
+
+    assert!(
+        crop(&app).est_entier(),
+        "l'image est revenue entiere, et pas au-dela"
+    );
+    assert_eq!(image_box(&app, "img"), rect, "a sa boite de depart");
+}
+
+/// Sur une image **tournée**, le bord recule le long de son propre axe.
+///
+/// Un quart de tour, puis le bord « droit » de l'image tiré : à l'écran, ce bord est en bas,
+/// et c'est vers le haut que la boîte doit reculer — la hauteur à l'écran diminue, la largeur
+/// à l'écran ne bouge pas.
+#[test]
+fn test_sur_une_image_tournee_le_bord_recule_le_long_de_son_axe() {
+    let (mut app, rect) = app_avec_image();
+    let board = app.store.project.active_board_id.clone();
+    app.store.update_image(&board, "img", |img| {
+        img.rotation = std::f64::consts::FRAC_PI_2
+    });
+    app.store.journal.clear();
+    let centre_avant = (rect.left + rect.width / 2.0, rect.top + rect.height / 2.0);
+
+    app.modifiers = ModifiersState::ALT;
+    // La poignée « droite » de l'image se trouve, à l'écran, sous son centre. Le curseur s'y
+    // place d'abord : `drag_by` part de la position écran du pointeur, et l'ouvrir en monde
+    // sans la poser lui ferait partir d'un coin de l'écran — c'est ce que la première version
+    // de ce test a fait, et le recadrage est allé au maximum.
+    let vp = app.store.viewport();
+    let (sx, sy) = world_to_screen(centre_avant.0, centre_avant.1 + rect.width / 2.0, &vp);
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    assert!(
+        app.resize_session.is_some(),
+        "la poignee droite de l'image tournee doit etre sous le curseur"
+    );
+    drag_by(&mut app, 0.0, -50.0, 4);
+    release(&mut app);
+
+    let (g, _, d, _) = crop(&app).marges();
+    assert!(
+        (d - 0.25).abs() < 1e-9 || (g - 0.25).abs() < 1e-9,
+        "un quart retire : {g} {d}"
+    );
+    let img = app
+        .store
+        .active_board()
+        .and_then(|b| b.images.iter().find(|i| i.id == "img"))
+        .cloned()
+        .expect("image");
+    // La boîte du modèle (non tournée) a perdu cinquante de LARGEUR ; à l'écran c'est la
+    // hauteur qui a diminué, et le centre s'est déplacé verticalement.
+    assert!(
+        approx(img.width, rect.width - 50.0),
+        "largeur : {}",
+        img.width
+    );
+    assert!(approx(img.height, rect.height), "hauteur : {}", img.height);
+    assert!(
+        approx(img.x, centre_avant.0),
+        "le centre n'a pas bouge en x : {}",
+        img.x
+    );
+    assert!(
+        (img.y - centre_avant.1).abs() > 1.0,
+        "mais il a bouge en y : {}",
+        img.y
+    );
 }
 
 /// Le résultat ne dépend pas du nombre d'événements reçus (ROT-1).

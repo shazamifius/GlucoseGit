@@ -194,6 +194,36 @@ impl Recadrage {
         )
     }
 
+    /// **Le recadrage qu'on obtient en tirant un bord de la boîte** de `deplacement` unités
+    /// monde, dans le repère de l'image (RECADRAGE-1, le geste).
+    ///
+    /// Tirer le bord gauche vers la droite retire davantage à gauche ; le tirer vers la gauche
+    /// rend ce qu'on avait retiré, jusqu'à l'image entière et pas au-delà — on ne peut pas
+    /// montrer des pixels qui n'existent pas. Le déplacement se convertit en fraction de la
+    /// **source entière**, pas de la boîte : c'est ce qui fait qu'un bord tiré de dix unités
+    /// recule de dix unités à l'écran, quel que soit le cadrage déjà posé.
+    ///
+    /// `bord` est un des quatre côtés ; un coin ne recadre pas — il tourne, et c'est le geste
+    /// voisin qui le porte. `boite` est la boîte du nœud au départ du geste.
+    pub fn en_tirant_le_bord(
+        self,
+        bord: crate::resize::Handle,
+        deplacement: (f64, f64),
+        boite: (f64, f64, f64, f64),
+    ) -> Self {
+        use crate::resize::Handle;
+        let (_, _, sw, sh) = self.source_pour(boite);
+        let (dx, dy) = (deplacement.0 / sw, deplacement.1 / sh);
+        let (g, h, d, b) = self.marges();
+        match bord {
+            Handle::Left => Self::depuis_les_marges(g + dx, h, d, b),
+            Handle::Right => Self::depuis_les_marges(g, h, d - dx, b),
+            Handle::Top => Self::depuis_les_marges(g, h + dy, d, b),
+            Handle::Bottom => Self::depuis_les_marges(g, h, d, b - dy),
+            _ => self,
+        }
+    }
+
     /// **Le rapport largeur sur hauteur que ce cadrage donne** à une image d'origine `(l, h)`.
     ///
     /// C'est ce qui permet de garder la forme de ce qu'on montre quand on cadre : couper les

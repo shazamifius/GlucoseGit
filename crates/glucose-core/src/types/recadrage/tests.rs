@@ -146,3 +146,38 @@ fn test_retirer_une_bande_ne_deplace_pas_ce_qu_on_garde() {
     assert!((h2 - 90.0).abs() < 1e-9, "dix pour cent de cent : {h2}");
     assert_eq!(plus.source_pour((x2, y2, w2, h2)), (0.0, 0.0, 200.0, 100.0));
 }
+
+/// **Tirer un bord recadre de ce qu'on a tiré**, et le tirer en arrière rend ce qu'on avait
+/// retiré — jamais plus que l'image.
+#[test]
+fn test_tirer_un_bord_recadre_de_ce_qu_on_a_tire() {
+    use crate::resize::Handle;
+    let boite = (0.0, 0.0, 200.0, 100.0);
+    // Le bord gauche tiré de cinquante vers la droite : un quart de la source.
+    let quart = Recadrage::ENTIER.en_tirant_le_bord(Handle::Left, (50.0, 0.0), boite);
+    let (g, h, d, b) = quart.marges();
+    assert!((g - 0.25).abs() < 1e-12, "gauche : {g}");
+    assert_eq!((h, d, b), (0.0, 0.0, 0.0));
+
+    // Depuis cette boîte cadrée (150 de large), le même bord tiré de vingt en arrière rend
+    // vingt unités : la source entière fait toujours 200, donc un dixième.
+    let boite_cadree = Recadrage::ENTIER.boite_apres(quart, boite);
+    let moins = quart.en_tirant_le_bord(Handle::Left, (-20.0, 0.0), boite_cadree);
+    assert!(
+        (moins.marges().0 - 0.15).abs() < 1e-12,
+        "gauche : {}",
+        moins.marges().0
+    );
+
+    // Tiré bien au-delà de l'image : on s'arrête à l'image entière.
+    let trop = quart.en_tirant_le_bord(Handle::Left, (-500.0, 0.0), boite_cadree);
+    assert_eq!(trop.marges().0, 0.0);
+
+    // Le bas se tire vers le haut ; un coin ne recadre pas.
+    let bas = Recadrage::ENTIER.en_tirant_le_bord(Handle::Bottom, (0.0, -25.0), boite);
+    assert!((bas.marges().3 - 0.25).abs() < 1e-12);
+    assert_eq!(
+        Recadrage::ENTIER.en_tirant_le_bord(Handle::TopLeft, (30.0, 30.0), boite),
+        Recadrage::ENTIER
+    );
+}

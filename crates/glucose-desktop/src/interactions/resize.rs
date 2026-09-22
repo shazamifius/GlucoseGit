@@ -11,6 +11,14 @@
 //! texte suit son texte (TEXT-FIT-1, `renderer/card.rs`) — le geste ne tire que sa
 //! largeur et écrit la hauteur reflué ; une image conserve son rapport sur les coins,
 //! `Shift` le libère (RESIZE-3, `glucose_core::resize`).
+//!
+//! # `Alt` change le geste, et la poignée dit lequel (RECADRAGE-1)
+//!
+//! Sur une image, `Alt` tenu à l'appui fait faire autre chose aux poignées : un **coin**
+//! tourne, un **côté** recadre. La symétrie n'est pas décorative — un côté « n'a pas d'azimut
+//! propre », donc il ne pouvait pas tourner, et `Alt` sur un côté était sans effet ; un coin
+//! n'a pas de bord à lui, donc il ne peut pas recadrer. Chaque poignée porte le seul geste
+//! qu'elle sait faire, et le même modificateur dit « pas la taille, autre chose ».
 
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
@@ -66,13 +74,26 @@ pub struct ResizeSession {
     /// Le pointeur a-t-il bougé ? Un simple clic sur une poignée n'est pas un geste et ne
     /// laisse pas d'entrée d'undo.
     pub moved: bool,
-    /// Le geste fait **tourner** au lieu de redimensionner : `Alt` tenu sur une poignée de
-    /// coin d'une image.
+    /// Ce que le geste fait de la poignée : redimensionner, ou — `Alt` tenu sur une image —
+    /// tourner par un coin, recadrer par un côté.
     ///
     /// Décidé à l'appui et non relu à chaque mouvement : relâcher `Alt` en cours de route
     /// changerait de geste au milieu, et l'utilisateur verrait sa rotation devenir un
     /// redimensionnement sans avoir rien lâché.
-    pub rotating: bool,
+    pub geste: Geste,
+    /// Le recadrage de l'image au départ du geste, quand le geste recadre.
+    pub crop_start: glucose_core::types::Recadrage,
+}
+
+/// Ce qu'une poignée tirée fait au nœud.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Geste {
+    /// La boîte change de taille.
+    Redimensionner,
+    /// L'image tourne autour de son centre (`Alt` + coin).
+    Tourner,
+    /// L'image se recadre par ce bord (`Alt` + côté) — RECADRAGE-1.
+    Recadrer,
 }
 
 /// Le curseur winit d'une poignée, via le nom CSS que le noyau connaît.
@@ -114,12 +135,20 @@ impl GlucoseApp {
             .unwrap_or_default();
 
         self.store.begin_live_edit();
-        // `Alt` sur un coin d'image fait tourner. Un coin, parce qu'un côté n'a pas d'azimut
-        // propre — il en partagerait un avec son opposé ; et une image, parce qu'elle est le
-        // seul nœud dont le modèle porte un angle.
-        let rotating = self.modifiers.alt_key()
-            && handle.is_corner()
-            && matches!(target, ResizeTarget::Image { .. });
+        // `Alt` sur une image change le geste, et la poignée dit lequel : un coin tourne —
+        // un côté n'a pas d'azimut propre, il en partagerait un avec son opposé —, un côté
+        // recadre — un coin n'a pas de bord à lui. Une image, parce qu'elle est le seul nœud
+        // dont le modèle porte un angle et un cadrage.
+        let geste = match (&target, self.modifiers.alt_key(), handle.is_corner()) {
+            (ResizeTarget::Image { .. }, true, true) => Geste::Tourner,
+            (ResizeTarget::Image { .. }, true, false) => Geste::Recadrer,
+            _ => Geste::Redimensionner,
+        };
+        let crop_start = self
+            .store
+            .image(&self.store.project.active_board_id, target.id())
+            .map(|img| img.crop)
+            .unwrap_or_default();
 
         self.resize_session = Some(ResizeSession {
             target,
@@ -128,7 +157,8 @@ impl GlucoseApp {
             pointer_start: (wx, wy),
             snap_targets,
             moved: false,
-            rotating,
+            geste,
+            crop_start,
         });
         true
     }
@@ -186,15 +216,59 @@ impl GlucoseApp {
         }
         session.moved = true;
         let session = session.clone();
-        if session.rotating {
-            self.write_rotation(&session, (wx, wy));
-        } else {
-            let rule = self.rule_of(&session.target);
-            let (rect, guides) = self.resized_box(&session, rule, delta, vp.scale);
-            self.write_resized_box(&session.target, rect);
-            self.active_guides = guides;
+        match session.geste {
+            Geste::Tourner => self.write_rotation(&session, (wx, wy)),
+            Geste::Recadrer => self.write_crop(&session, delta),
+            Geste::Redimensionner => {
+                let rule = self.rule_of(&session.target);
+                let (rect, guides) = self.resized_box(&session, rule, delta, vp.scale);
+                self.write_resized_box(&session.target, rect);
+                self.active_guides = guides;
+            }
         }
         self.mark_dirty();
+    }
+
+    /// **Le recadrage que le pointeur demande**, écrit sur l'image avec la boîte qui va avec.
+    ///
+    /// Le geste repart toujours du cadrage **du début** : deux mouvements du même endroit au
+    /// même endroit donnent le même résultat, quel que soit le nombre d'événements entre les
+    /// deux — la règle de la rotation (ROT-1), pour la même raison. Le déplacement est ramené
+    /// dans le repère de l'image, et la boîte recule de ce qu'on retire pour que le contenu
+    /// ne bouge pas : c'est le noyau qui la calcule, comme pour les bordures.
+    fn write_crop(&mut self, session: &ResizeSession, delta: (f64, f64)) {
+        let ResizeTarget::Image { id, rotation } = &session.target else {
+            return;
+        };
+        let local = rotate(delta, -rotation);
+        let depart = (
+            session.start.left,
+            session.start.top,
+            session.start.width,
+            session.start.height,
+        );
+        let nouveau = session
+            .crop_start
+            .en_tirant_le_bord(session.handle, local, depart);
+        let (x, y, w, h) = session.crop_start.boite_apres(nouveau, depart);
+        let rect = recenter_rotated(
+            session.start,
+            AlignRect {
+                left: x,
+                top: y,
+                width: w,
+                height: h,
+            },
+            *rotation,
+        );
+        let board = self.store.project.active_board_id.clone();
+        self.store.update_image(&board, id, |img| {
+            img.crop = nouveau;
+            img.x = rect.left + rect.width / 2.0;
+            img.y = rect.top + rect.height / 2.0;
+            img.width = rect.width;
+            img.height = rect.height;
+        });
     }
 
     /// L'angle que le pointeur demande, écrit sur le nœud.
