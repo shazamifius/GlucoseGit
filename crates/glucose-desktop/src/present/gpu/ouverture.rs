@@ -9,7 +9,6 @@
 //! admet, et le cliquet a eu raison de le dire.
 
 use super::super::{DesktopError, DesktopResult};
-use super::succession;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -23,12 +22,13 @@ pub(super) fn ouvrir(
     surface: &wgpu::Surface<'static>,
     width: NonZeroU32,
     height: NonZeroU32,
+    carte: wgpu::PowerPreference,
 ) -> DesktopResult<(wgpu::Adapter, wgpu::Device, wgpu::Queue, String)> {
     let echec = |quoi: &str, e: &dyn std::fmt::Display| {
         DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
     };
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: succession::carte_demandee(),
+        power_preference: carte,
         compatible_surface: Some(surface),
         ..Default::default()
     }))

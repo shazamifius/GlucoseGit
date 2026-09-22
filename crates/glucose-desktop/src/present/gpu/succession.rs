@@ -132,18 +132,37 @@ pub(super) fn images_demandees() -> Option<u32> {
 /// Ce n'est pas l'arbitre de la fiche 21, qui choisira par le **débit observé** et sans
 /// variable. C'est l'instrument qui dira s'il y a quelque chose à arbitrer.
 pub(super) fn carte_demandee() -> wgpu::PowerPreference {
+    pour_wgpu(carte_imposee().unwrap_or(crate::present::arbitre::Preference::Econome))
+}
+
+/// La carte que l'environnement impose, s'il en impose une (ARBITRE-1).
+///
+/// Quand elle est posee, l'utilisateur a tranche et l'arbitre n'a plus rien a arbitrer : il
+/// ne s'installe pas. C'est ce qui garde le reglage utile comme **instrument** -- forcer une
+/// carte pour la mesurer -- sans qu'il redevienne le seul moyen d'avoir un logiciel fluide.
+pub fn carte_imposee() -> Option<crate::present::arbitre::Preference> {
+    use crate::present::arbitre::Preference;
     match std::env::var("GLUCOSE_CARTE")
         .ok()
         .as_deref()
         .map(|v| v.trim().to_lowercase())
         .as_deref()
     {
-        Some("rapide") => wgpu::PowerPreference::HighPerformance,
-        Some("econome") | None => wgpu::PowerPreference::LowPower,
+        Some("rapide") => Some(Preference::Rapide),
+        Some("econome") => Some(Preference::Econome),
+        None => None,
         Some(autre) => {
             eprintln!("[Glucose] GLUCOSE_CARTE={autre} inconnu (rapide, econome)");
-            wgpu::PowerPreference::LowPower
+            None
         }
+    }
+}
+
+/// Ce que `wgpu` comprend de notre preference.
+pub fn pour_wgpu(p: crate::present::arbitre::Preference) -> wgpu::PowerPreference {
+    match p {
+        crate::present::arbitre::Preference::Econome => wgpu::PowerPreference::LowPower,
+        crate::present::arbitre::Preference::Rapide => wgpu::PowerPreference::HighPerformance,
     }
 }
 

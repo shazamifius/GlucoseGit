@@ -141,7 +141,20 @@ impl GpuPresenter {
     /// pilote absent sont des cas de tous les jours. L'appelant retombe alors sur le chemin
     /// processeur, et le dit.
     pub fn new(window: Arc<Window>, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<Self> {
-        Self::avec_cadence(window, width, height, cadence_demandee())
+        Self::sur_la_carte(window, width, height, succession::carte_demandee())
+    }
+
+    /// La meme, sur la carte que l'arbitre designe (ARBITRE-1).
+    ///
+    /// `GLUCOSE_CARTE` garde le dernier mot : quand il est pose, l'utilisateur a tranche et
+    /// l'arbitre n'a plus rien a arbitrer.
+    pub fn sur_la_carte(
+        window: Arc<Window>,
+        width: NonZeroU32,
+        height: NonZeroU32,
+        carte: wgpu::PowerPreference,
+    ) -> DesktopResult<Self> {
+        Self::avec_cadence(window, width, height, cadence_demandee(), carte)
     }
 
     /// La même chose, en imposant la façon dont les images se succèdent.
@@ -159,6 +172,7 @@ impl GpuPresenter {
         width: NonZeroU32,
         height: NonZeroU32,
         cadence: Option<wgpu::PresentMode>,
+        carte: wgpu::PowerPreference,
     ) -> DesktopResult<Self> {
         let echec = |quoi: &str, e: &dyn std::fmt::Display| {
             DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
@@ -170,7 +184,7 @@ impl GpuPresenter {
             .map_err(|e| echec("surface", &e))?;
 
         let (adapter, device, queue, adaptateur) =
-            ouverture::ouvrir(&instance, &surface, width, height)?;
+            ouverture::ouvrir(&instance, &surface, width, height, carte)?;
 
         let config = surface
             .get_default_config(&adapter, width.get(), height.get())

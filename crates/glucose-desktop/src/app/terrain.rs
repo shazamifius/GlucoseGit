@@ -20,6 +20,7 @@
 
 use super::GlucoseApp;
 use crate::chronique::{Geste, Instantane};
+use std::num::NonZeroU32;
 
 impl GlucoseApp {
     /// Ce que l'utilisateur est en train de faire.
@@ -151,12 +152,8 @@ impl GlucoseApp {
             ..Default::default()
         };
 
-        for (nom, ms) in crate::perf::postes() {
-            let Some(i) = self.chronique.poste(nom) else {
-                continue;
-            };
-            vu.postes_us[i] = (ms * 1000.0).clamp(0.0, f64::from(u32::MAX)) as u32;
-        }
+        let present_us = self.relever_les_postes(&mut vu);
+        self.arbitrer_la_carte(present_us);
 
         let lire = |nom: &str| crate::perf::valeur_du_compteur(nom).unwrap_or(0.0);
         vu.photos = lire("img_n") as u32;
@@ -277,6 +274,101 @@ impl GlucoseApp {
             ),
             Err(e) => eprintln!("[Glucose] chronique non ecrite : {e}"),
         }
+    }
+}
+
+impl GlucoseApp {
+    /// **Range les postes de cette image dans son enregistrement**, et rend ce que `present` a
+    /// coute.
+    ///
+    /// Extraite d'`enregistrer_l_image`, qui lisait les postes, les compteurs, le rythme et la
+    /// navigation dans la meme fonction : le cliquet des quatre-vingts lignes a raison, et
+    /// `present` est le seul poste dont un autre mecanisme -- l'arbitre -- a besoin.
+    fn relever_les_postes(&mut self, vu: &mut Instantane) -> u32 {
+        let mut present_us = 0u32;
+        for (nom, ms) in crate::perf::postes() {
+            let us = (ms * 1000.0).clamp(0.0, f64::from(u32::MAX)) as u32;
+            if nom == "present" {
+                present_us = us;
+            }
+            let Some(i) = self.chronique.poste(nom) else {
+                continue;
+            };
+            vu.postes_us[i] = us;
+        }
+        present_us
+    }
+
+    /// **Note ce que la presentation vient de couter, et rouvre la carte si l'arbitre le
+    /// demande** (ARBITRE-1).
+    ///
+    /// La decision se prend ici, la reouverture a la fin de l'image : detruire la chaine
+    /// pendant qu'une image est detenue arrache le sol sous ses pieds, et c'est exactement le
+    /// plantage que la fiche 17 § 2.3 raconte.
+    pub(super) fn arbitrer_la_carte(&mut self, present_us: u32) {
+        use crate::present::arbitre::Verdict;
+        let Some(arbitre) = self.arbitre.as_mut() else {
+            return;
+        };
+        match arbitre.observer(present_us) {
+            Verdict::Continuer => {}
+            Verdict::Essayer(p) | Verdict::Revenir(p) => self.carte_a_rouvrir = Some(p),
+        }
+    }
+
+    /// **Rouvre la presentation sur la carte que l'arbitre a designee.**
+    ///
+    /// A appeler hors du rendu, quand aucune image n'est detenue. Un echec n'est pas une
+    /// panne : on garde celle qui marche, et on le dit -- une carte qui refuse de s'ouvrir
+    /// vaut mieux qu'une application qui se ferme.
+    pub(super) fn rouvrir_la_carte_si_demande(&mut self) {
+        let Some(voulue) = self.carte_a_rouvrir.take() else {
+            return;
+        };
+        let Some(window) = self.window.clone() else {
+            return;
+        };
+        let taille = window.inner_size();
+        let (Some(w), Some(h)) = (
+            NonZeroU32::new(taille.width.max(1)),
+            NonZeroU32::new(taille.height.max(1)),
+        ) else {
+            return;
+        };
+        // L'ancienne part AVANT que la nouvelle ne s'ouvre : deux chaines sur la meme fenetre
+        // ne coexistent pas, et la surface appartient a celle qui l'a creee.
+        self.presenter = None;
+        let carte = crate::present::gpu::succession::pour_wgpu(voulue);
+        match crate::present::GpuPresenter::sur_la_carte(window, w, h, carte) {
+            Ok(neuf) => {
+                println!(
+                    "[Glucose] arbitre : la presentation passe sur la carte {} -- {}",
+                    voulue.nom(),
+                    neuf.adaptateur()
+                );
+                let neuf: Box<dyn crate::present::Presenter> = Box::new(neuf);
+                // La chronique doit savoir comment les images se succedent sur CETTE carte :
+                // l'Arc n'offre pas `mailbox`, la RTX si, et les memes durees ne veulent pas
+                // dire la meme chose selon que la presentation attendait un balayage.
+                self.chronique
+                    .rythme
+                    .observer_la_machine(self.cadence.periode(), neuf.rythme());
+                self.presenter = Some(neuf);
+            }
+            Err(e) => {
+                eprintln!(
+                    "[Glucose] arbitre : la carte {} ne s'ouvre pas ({e})",
+                    voulue.nom()
+                );
+                // On ne reste pas sans presentation : on rouvre celle d'avant.
+                if let Some(window) = self.window.clone() {
+                    if let Ok(reprise) = crate::present::GpuPresenter::new(window, w, h) {
+                        self.presenter = Some(Box::new(reprise));
+                    }
+                }
+            }
+        }
+        self.mark_dirty();
     }
 }
 

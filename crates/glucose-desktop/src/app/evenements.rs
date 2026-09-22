@@ -146,6 +146,11 @@ impl ApplicationHandler for GlucoseApp {
             self.drop_files(&lot);
         }
 
+        // **La carte se rouvre ici, hors du rendu** (ARBITRE-1) : detruire la chaine pendant
+        // qu'une image est detenue arrache le sol sous ses pieds, et c'est le plantage que la
+        // fiche 17 § 2.3 raconte. Ici, aucune image ne l'est.
+        self.rouvrir_la_carte_si_demande();
+
         // Hors du rendu, et seulement quand il y a du neuf : une session qui finit mal garde
         // alors la trace de son pire moment (CHRONIQUE-1).
         self.sauver_la_chronique_si_besoin();

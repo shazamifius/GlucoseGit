@@ -94,7 +94,13 @@ impl Banc {
             // `Immediate` pour mesurer le TRAVAIL : en `Fifo`, présenter attend le balayage
             // de l'écran, et le banc chiffrerait la période de l'écran au lieu du coût.
             "carte graphique" => {
-                match GpuPresenter::avec_cadence(window, w, h, Some(wgpu::PresentMode::Immediate)) {
+                match GpuPresenter::avec_cadence(
+                    window,
+                    w,
+                    h,
+                    Some(wgpu::PresentMode::Immediate),
+                    wgpu::PowerPreference::LowPower,
+                ) {
                     Ok(gpu) => {
                         println!("  adaptateur : {}", gpu.adaptateur());
                         println!("  cadence    : {:?}", gpu.cadence());
@@ -107,7 +113,13 @@ impl Banc {
                 }
             }
             "carte graphique (vsync)" => {
-                match GpuPresenter::avec_cadence(window, w, h, Some(wgpu::PresentMode::Fifo)) {
+                match GpuPresenter::avec_cadence(
+                    window,
+                    w,
+                    h,
+                    Some(wgpu::PresentMode::Fifo),
+                    wgpu::PowerPreference::LowPower,
+                ) {
                     Ok(gpu) => {
                         println!("  cadence    : {:?}", gpu.cadence());
                         Box::new(gpu)

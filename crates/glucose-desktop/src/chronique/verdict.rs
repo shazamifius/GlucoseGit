@@ -101,10 +101,10 @@ impl Chronique {
             return None;
         }
         let part = ratees as f64 / total as f64;
-        // La référence est **une image sur cent** : au-delà, le plancher n'est plus un
-        // plancher. La charte demande « constant, quoi qu'il se passe » ; un pour cent est
-        // déjà une concession, pas un objectif.
-        let gravite = part / 0.01;
+        // La référence est **une image sur cent**, et elle ne se redéclare pas ici : c'est
+        // le même nombre que le tempo suit pour monter d'un cran et que l'arbitre suit pour
+        // essayer une autre carte (ARBITRE-1).
+        let gravite = part / crate::cadence::PART_TOLEREE;
         let (_, _, p99, pire) = self.rythme.intervalles();
         Some(Constat {
             gravite,

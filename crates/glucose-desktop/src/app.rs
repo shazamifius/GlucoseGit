@@ -130,6 +130,19 @@ pub struct GlucoseApp {
     pub presenter: Option<Box<dyn crate::present::Presenter>>,
     pub scale_factor: f64,
 
+    /// **Qui choisit la carte graphique, en la regardant travailler** (ARBITRE-1).
+    ///
+    /// `None` quand `GLUCOSE_CARTE` impose une carte : l'utilisateur a tranche, il n'y a plus
+    /// rien a arbitrer.
+    pub arbitre: Option<crate::present::arbitre::Arbitre>,
+    /// La carte a rouvrir a la fin de cette image, quand l'arbitre en demande une autre.
+    ///
+    /// La decision se prend pendant qu'on enregistre l'image, et la reouverture detruit la
+    /// chaine : les separer est ce qui garantit qu'aucune image n'est detenue au moment ou le
+    /// sol se derobe -- la meme raison qui fait qu'une surface perimee se repare a
+    /// l'acquisition suivante et pas sur place (fiche 17 § 2.3).
+    pub carte_a_rouvrir: Option<crate::present::arbitre::Preference>,
+
     /// **La selection a reduire au relachement, si le geste n'etait qu'un clic** (SEL-MULTI-1).
     ///
     /// Presser sur un element deja selectionne ne doit PAS reduire la selection : c'est ce qui
@@ -305,6 +318,8 @@ impl GlucoseApp {
             },
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
+            arbitre: None,
+            carte_a_rouvrir: None,
             reduire_a_la_relache: None,
             historique_du_texte: Default::default(),
             clic_de_reveil: false,

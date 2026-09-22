@@ -35,6 +35,19 @@ use std::time::Duration;
 /// La cadence la plus basse que la charte admette, toutes machines confondues.
 pub const FPS_PLANCHER: f64 = 60.0;
 
+/// **La part d'images qui ont le droit de rater le plancher** : une sur cent.
+///
+/// La charte demande « constant, quoi qu'il se passe » ; un pour cent est déjà une
+/// concession, pas un objectif. Ce nombre décide de trois choses à la fois — quand le tempo
+/// monte d'un cran, quand le verdict dit qu'une cadence cloche, et quand l'arbitre essaie une
+/// autre carte graphique — et il vivait **en deux exemplaires** : un `0.01` dans le verdict,
+/// un `TOLERANCE_POUR_CENT` dans le tempo.
+///
+/// Deux copies d'un même seuil finissent toujours par diverger, et la documentation du tempo
+/// le disait déjà sans pouvoir l'empêcher : « le seuil du verdict de la chronique, repris et
+/// non redéclaré **en esprit** ». Il est désormais repris tout court.
+pub const PART_TOLEREE: f64 = 0.01;
+
 /// Ce qu'une image **et son travail de fond** ont le droit de coûter ensemble.
 ///
 /// Cent images par seconde : le plancher que la charte pose sans le négocier — « 100 fps

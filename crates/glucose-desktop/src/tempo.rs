@@ -78,9 +78,13 @@
 
 use std::time::{Duration, Instant};
 
-/// La part d'images irrégulières au-delà de laquelle une cadence n'est plus tenue : une sur
-/// cent. C'est le seuil du verdict de la chronique, repris et non redéclaré en esprit.
-const TOLERANCE_POUR_CENT: u32 = 1;
+/// La part d'images irrégulières au-delà de laquelle une cadence n'est plus tenue.
+///
+/// Elle ne se déclare plus ici : c'est [`crate::cadence::PART_TOLEREE`], la même que le
+/// verdict de la chronique et l'arbitre des cartes lisent. La version précédente disait
+/// « repris et non redéclaré **en esprit** » — ce qui est exactement la façon dont deux
+/// copies d'un seuil commencent à diverger.
+const TOLERANCE_POUR_CENT: u32 = (crate::cadence::PART_TOLEREE * 100.0) as u32;
 
 /// Le nombre de ratés qu'il faut pour parler d'une fréquence : un seul est un événement.
 const UNE_FREQUENCE: u32 = 2;
