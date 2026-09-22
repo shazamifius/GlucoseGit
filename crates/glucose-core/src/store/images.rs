@@ -427,6 +427,38 @@ fn bouts_qui_suivent(ann: &Annotation, sel: &SelectionSets<'_>) -> Bouts {
     }
 }
 
+impl Store {
+    /// **Les images qu'un rangement doit toucher** : la sélection, ou tout le tableau si
+    /// elle est vide (ORDONNER-1).
+    ///
+    /// # Pourquoi cette règle vit ici et non dans le panneau
+    ///
+    /// « Une sélection vide veut dire tout le tableau » est une règle **métier**, pas une
+    /// commodité d'affichage : c'est elle qui décide de ce qu'un geste modifie. La laisser
+    /// dans le desktop obligeait celui-ci à lire `board.images` et `selected_image_ids` pour
+    /// la reconstituer, et deux endroits qui reconstituent la même règle finissent par ne
+    /// plus la dire pareil.
+    ///
+    /// Le panneau rangeait d'ailleurs **tout** le tableau quoi qu'on ait sélectionné :
+    /// choisir douze images pour les aligner et voir les quatre cents autres se réarranger
+    /// avec elles n'est pas une maladresse, c'est une fonction qui détruit un travail qu'on
+    /// ne lui avait pas confié.
+    pub fn images_a_organiser(&self) -> Vec<BoardImage> {
+        let Some(board) = self.active_board() else {
+            return Vec::new();
+        };
+        if self.selected_image_ids.is_empty() {
+            return board.images.clone();
+        }
+        board
+            .images
+            .iter()
+            .filter(|i| self.selected_image_ids.contains(&i.id))
+            .cloned()
+            .collect()
+    }
+}
+
 /// Traîne les extrémités d'une flèche attachées à la sélection. Sans effet sur autre chose.
 fn drag_arrow_ends(ann: &mut Annotation, sel: &SelectionSets<'_>, dx: f64, dy: f64) {
     let Annotation::Arrow {

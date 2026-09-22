@@ -777,11 +777,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         112,
     ),
     (
-        "crates/glucose-core/src/layout.rs",
-        "calculate_image_layout",
-        212,
-    ),
-    (
         "crates/glucose-core/src/membrane_focus.rs",
         "focus_decision",
         103,
