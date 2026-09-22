@@ -300,3 +300,123 @@ d'abord, c'est lui qu'on écrit de travers en premier.
    *« Ce que Glucose coûte à la machine »*.
 7. **SEL-MULTI-1** de la session précédente, toujours non vérifié : presser une image déjà
    sélectionnée et déplacer plusieurs images ensemble.
+
+---
+
+## 9. Trois sessions de terrain, et ce qu'elles ont démenti — y compris moi, deux fois
+
+L'utilisateur a joué trois sessions après les six premiers commits. Elles ont validé quatre
+chantiers sur cinq, et **démenti mes deux hypothèses successives sur le gel du canevas**.
+
+### 9.1 Ce qu'il a validé à l'écran, sans réserve
+
+> *« TOUT le système avec Alt ça fonctionne parfaitement, que ce soit pour crop, pour rotate ou
+> autre. Le Ctrl+Z fonctionne lui aussi parfaitement. »*
+
+`Alt` + côté recadre, `Alt` + coin tourne, un lot s'annule d'un coup. RECADRAGE-1 et 2 sont
+tenus.
+
+Et la première mesure d'empreinte en usage réel, sur la RTX imposée à la main :
+
+| | |
+|---|---:|
+| images par seconde | **103** |
+| p99 de tous les gestes | 13,78 ms |
+| au-dessus du plancher | 2 % |
+| mémoire de travail | **307 Mo** |
+| processeur **sans la main** | **0,3 % d'un cœur** sur 399 s |
+| images dessinées sans la main | **0,1 par seconde** |
+
+C'est la meilleure mesure que ce dépôt ait produite, et elle valide EMPREINTE-1 : l'application
+dort vraiment quand on la laisse.
+
+### 9.2 Le gel du canevas — deux hypothèses, deux démentis
+
+> *« Le canva ça a freeze, mais Ctrl+O, Ctrl+S et tout ça fonctionnent parfaitement encore. »*
+
+**Première hypothèse, et elle était fausse par construction.** J'ai d'abord cru à mes propres
+essais : j'avais lancé l'application quatre fois en la tuant par délai d'attente, et les
+instances restantes tenaient la carte. C'était vrai — *« 1 test sur 4 que tu as fait
+fonctionnait, sinon ils étaient tous freeze ; moi j'ai lancé comme ça et aucun freeze »* — mais
+ce n'était pas **tout** : le gel est revenu sur ses propres lancements.
+
+**Seconde hypothèse : la surface refusait les images.** Elle expliquait parfaitement les deux
+faits — un canevas figé pendant que l'interface répond, et treize secondes « à ne pas
+dessiner ». Le contrat de la présentation ne distinguait pas « présentée » de « refusée »,
+l'application effaçait la salissure et s'endormait. [`crate::present::Issue`] sépare les trois
+cas, et la chronique les compte.
+
+**La chronique suivante n'a affiché aucune ligne de refus.** Le mécanisme est juste et le
+compteur est utile, mais **ce n'est pas la cause**. Il ne faut pas le laisser croire.
+
+### 9.3 Ce que trois sessions disent de la bascule de carte, et c'est la piste
+
+Trois sessions, même machine, même document de vingt-deux nœuds :
+
+| | `GLUCOSE_CARTE=rapide` **au lancement** | bascule à chaud | bascule à chaud |
+|---|---:|---:|---:|
+| durée | 437 s | 37 s | 17 s |
+| `present` pire | **2,50 ms** | 127,54 ms | **406,14 ms** |
+| `soumettre` pire | 0,43 ms | 50,83 ms | 48,82 ms |
+| images par seconde | **103** | 61 | 73 |
+| pire gel | — | 13 099 ms | 763 ms |
+
+**La RTX ouverte au lancement ne gèle pas. La même RTX ouverte par bascule gèle.** Trois cent
+fois pire sur `present`, et `soumettre` passe de moins d'une milliseconde à cinquante.
+
+L'explication qui tient : sur un portable hybride, la fenêtre a été créée pendant que l'Arc
+pilotait l'écran, et le système l'a associée à cette carte. Recréer une chaîne d'images NVIDIA
+sur ce même `HWND` force la composition à traverser le bus — **exactement le chemin hybride que
+la fiche 22 § 12 décrit, et qu'ARBITRE-1 existe pour fuir**. L'arbitre soigne donc le mal en
+l'infligeant d'une autre façon.
+
+**Ce n'est pas établi** : trois sessions, dont deux courtes, et aucun banc. Mais c'est la seule
+hypothèse qui explique les trois colonnes ensemble, et elle se teste en une session.
+
+**La sortie probable, si elle se confirme** : l'arbitre **persiste son verdict** au lieu de
+basculer à chaud. Il observe, conclut, écrit son choix à côté de la chronique ; le lancement
+suivant ouvre directement la bonne carte, sans jamais recréer de chaîne sur une fenêtre vivante.
+L'adaptation prend effet une fois, au démarrage — ce que `GLUCOSE_CARTE=rapide` fait à la main,
+et que personne n'aurait à taper. C'est moins « temps réel » que la charte ne l'ambitionne ;
+c'est aussi la seule forme qui ne dégrade pas ce qu'elle répare.
+
+### 9.4 Ce qui reste du gel, et qui n'est expliqué par rien
+
+* **763 à 13 099 ms « à ne pas dessiner »**, hors de tout code de rendu. Le poste que la
+  fiche 24 § 12 nomme « jamais instrumenté » depuis deux sessions, et dont on sait maintenant
+  qu'il **n'est pas** un refus de surface.
+* **Le tressaut, premier du verdict et qui empire** : ×76, puis ×25, puis **×85**. Le contenu se
+  pose à 1 024 px de sa trajectoire au p99, 8 002 au pire, pour 12 px d'avance attendue. La
+  fidélité la plus basse tombe à **0,05**.
+* **`soumettre` à 48 ms**, deux fois, sans explication.
+* **`docks` à 9,91 ms au repos** — la clé trop large, désignée fiche 24 § 14.1, jamais traitée.
+* **633 Mo au pire** pour vingt-deux nœuds, quand la même session finit à 325.
+
+### 9.5 Ctrl+B — le défaut n'est toujours pas reproduit
+
+> *« Le crop avec Ctrl+B fonctionne mal, c'est souvent PAS que du noir mais aussi du blanc ou
+> autre. »*
+
+Le cas « liseré blanc puis bande noire » **marche** : `bench_bordures` le vérifie, compression
+JPEG comprise. Sur l'illustration qu'il a fournie, les quatre bords se trouvent au pixel près.
+Et la mesure de sa capture d'écran dit que l'illustration **touche le fond du canevas sur ses
+quatre côtés** — le contour clair qu'on croit y voir est le cadre de sélection, blanc à
+quatre-vingts pour cent, qui entoure toute image sélectionnée et que `Ctrl+B` laisse en place
+pour qu'on puisse annuler.
+
+Le critère est passé du pire pixel au **centile 99** — sur son illustration, le pire pixel
+s'arrêtait trois lignes trop tôt et laissait un liseré. C'est une amélioration mesurée, pas une
+réponse à son cas.
+
+`GLUCOSE_BORDURES=1` écrit, pour chaque image d'un lot, ce que la détection a trouvé en pixels
+et le fichier d'où elle vient. **Il n'a pas encore été lu** : la session où la variable était
+posée ne porte aucune ligne de bordures, donc aucun `Ctrl+B` n'a eu lieu.
+
+### 9.6 Pinterest — l'instrument est posé, jamais lu
+
+Ce qu'on glisse depuis une grille de Pinterest est un **lien**, pas une image : il faut remonter
+jusqu'à `i.pinimg.com` pour que le geste marche. `CF_DIBV5` et `CF_DIB` se lisent désormais — le
+bitmap que beaucoup de pages posent dans le presse-papiers du glisser, et que `Ctrl+V` lisait
+déjà —, et `GLUCOSE_DEPOT=1` écrit la liste des formats qu'un dépôt portait. **Cette liste n'a
+jamais été rapportée.** Sans elle, toute correction est une supposition.
+
