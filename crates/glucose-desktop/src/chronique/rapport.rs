@@ -291,7 +291,10 @@ impl Chronique {
     /// Le pire est affiché à côté du typique : c'est lui qui désigne un gel, et la section des
     /// images les plus lentes le décompose.
     fn ecrire_la_repartition(&self, t: &mut String) {
-        t.push_str("  Ou va le temps de chaque geste -- au centile, pas en moyenne\n\n");
+        t.push_str(
+            "  Ou va le temps de chaque geste -- au centile, et TRIE PAR LE P99\n    \
+             c'est lui que le tempo suit : un poste peut etre nul en median et geler l'image\n\n",
+        );
         for geste in Geste::TOUS {
             let Some(parts) = self.parts_du_geste(geste) else {
                 continue;
