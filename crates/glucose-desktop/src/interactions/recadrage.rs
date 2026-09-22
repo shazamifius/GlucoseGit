@@ -15,6 +15,16 @@
 //! première, `end_live_edit` après la dernière, et le défaire les rend toutes d'un coup. C'est
 //! la règle de la fiche 05 § 3.6, et c'est celle du dépôt de fichiers.
 //!
+//! # Dire ce qu'on a trouvé, sur demande
+//!
+//! Un lot recadré ne dit, à l'écran, que son compte : *« 3 images recadrées, 1 sans bordure »*.
+//! Quand le résultat ne ressemble pas à ce qu'on attendait, ce compte ne permet pas de savoir
+//! **pourquoi** — la bordure n'a-t-elle pas été vue, ou n'y en avait-il pas ?
+//!
+//! `GLUCOSE_BORDURES=1` fait écrire, pour chaque image du lot, ce que la détection a trouvé en
+//! pixels et le fichier d'où elle vient. C'est un instrument, comme `GLUCOSE_DEPOT` : il se
+//! déclenche chez celui qui fait le geste, et il ne change rien à ce que le geste fait.
+//!
 //! # Ce qui n'est pas encore décodé est laissé tel quel
 //!
 //! Une image dont les octets ne sont pas là — en chemin, ou un fichier disparu — n'a pas de
@@ -49,7 +59,11 @@ impl GlucoseApp {
 
         self.store.begin_live_edit();
         let mut changees = 0usize;
+        let dire = std::env::var_os("GLUCOSE_BORDURES").is_some();
         for (id, detecte) in decisions {
+            if dire {
+                self.dire_ce_qui_a_ete_trouve(&board, &id, detecte);
+            }
             if self.appliquer_le_recadrage(&board, &id, detecte) {
                 changees += 1;
             }
@@ -62,6 +76,35 @@ impl GlucoseApp {
             sans_pixels,
         ));
         self.mark_dirty();
+    }
+
+    /// **Écrit ce que la détection a trouvé sur cette image**, en pixels de l'original.
+    ///
+    /// En pixels et non en fractions : c'est dans cette unité que celui qui regarde son image
+    /// peut dire si le compte est juste. Le nom du fichier suit, pour qu'on puisse rejouer la
+    /// même image dans `bench_bordures`.
+    fn dire_ce_qui_a_ete_trouve(&self, board: &str, id: &str, detecte: Recadrage) {
+        let Some(img) = self.store.image(board, id) else {
+            return;
+        };
+        let (l, h) = (img.original_width, img.original_height);
+        let (g, t, d, b) = detecte.marges();
+        let px = |part: f64, dim: f64| (part * dim).round() as i64;
+        println!(
+            "[Glucose] bordures : {} ({} x {}) -- gauche {} haut {} droite {} bas {}{}",
+            img.src.as_deref().unwrap_or("(sans fichier)"),
+            l.round() as i64,
+            h.round() as i64,
+            px(g, l),
+            px(t, h),
+            px(d, l),
+            px(b, h),
+            if detecte.est_entier() {
+                "  [AUCUNE BORDURE TROUVEE]"
+            } else {
+                ""
+            }
+        );
     }
 
     /// Les bandes de cette image, lues sur ses pixels natifs, ou rien si elle n'en a pas.
