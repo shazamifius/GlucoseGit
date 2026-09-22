@@ -279,7 +279,14 @@ impl Chronique {
     ///
     /// Restent des millisecondes, qui sont vraies sans rien supposer, et la durée médiane du
     /// geste en en-tête, qui donne l'échelle. La barre compare les postes **entre eux** — elle
-    /// est relative au plus coûteux, pas à un tout, donc personne ne peut la sommer.
+    /// est relative au plus coûteux **au p99**, pas à un tout, donc personne ne peut la sommer.
+    ///
+    /// # Pourquoi le p99 et non la médiane
+    ///
+    /// Parce que c'est le p99 que le tempo suit : le nombre de balayages par image se cale sur
+    /// le centile de la distribution, jamais sur son typique. Trier par la médiane rangeait en
+    /// tête ce qui ne décide de rien, et **cachait purement et simplement** les postes à pic —
+    /// voir [`postes_a_montrer`], qui dit le défaut en entier.
     ///
     /// Le pire est affiché à côté du typique : c'est lui qui désigne un gel, et la section des
     /// images les plus lentes le décompose.
@@ -301,18 +308,16 @@ impl Chronique {
                 ms(reference)
             ));
             t.push_str("      poste            median       p99      pire\n");
-            let mut tries = parts;
-            tries.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.5)));
-            let tete = tries.first().map_or(1, |(_, h)| h.centile(0.5).max(1));
-            for (nom, h) in tries.into_iter().take(6) {
-                let median = h.centile(0.5);
+            let retenus = postes_a_montrer(parts);
+            let tete = retenus.first().map_or(1, |(_, h)| h.centile(0.99).max(1));
+            for (nom, h) in retenus {
                 t.push_str(&format!(
                     "      {:<14} {:>7.2}ms {:>7.2}ms {:>9.2}ms  {}\n",
                     nom,
-                    ms(median),
+                    ms(h.centile(0.5)),
                     ms(h.centile(0.99)),
                     ms(h.pire()),
-                    barre(f64::from(median) / f64::from(tete))
+                    barre(f64::from(h.centile(0.99)) / f64::from(tete))
                 ));
             }
             t.push('\n');
@@ -438,4 +443,48 @@ fn barre(part: f64) -> String {
         s.push(if i < pleins { '#' } else { '.' });
     }
     s
+}
+
+/// **Les postes qu'un geste doit montrer** : les six plus gros en median, et les six plus
+/// gros au p99 -- leur union, triee par le p99.
+///
+/// # Le defaut que cette fonction repare, et il rendait le rapport aveugle
+///
+/// Le tableau triait par **mediane** et coupait a six. Un poste dont la mediane est nulle et
+/// le p99 vaut vingt millisecondes -- exactement celui qu'on cherche quand on demande
+/// pourquoi le tempo ne descend pas -- n'y paraissait jamais. La chronique du 22/09 en donne
+/// la preuve : `textures` est absent des trois gestes, et les douze images les plus lentes de
+/// la session sont toutes dominees par lui, jusqu'a 24,88 ms.
+///
+/// C'est la faute de la fiche 20 § 4.5 **prise a l'envers**, et elle avait deja ete corrigee
+/// une fois : la fiche 23 § 6 raconte le meme filtre jete de `bench_texte` la veille. Repare
+/// dans le banc, laisse dans l'instrument principal -- celui qui tourne chez l'utilisateur.
+///
+/// # Pourquoi l'union, et pourquoi le p99 decide de l'ordre
+///
+/// Les deux lectures servent et ne se remplacent pas : la mediane dit ce qu'une image coute
+/// **d'ordinaire**, le p99 dit ce qui la fait **geler**. Prendre l'union ne demande aucun
+/// seuil de duree -- un seuil serait une constante arbitraire, et la charte les refuse quand
+/// elles peuvent disparaitre.
+///
+/// L'ordre, lui, suit le p99, parce que c'est **lui que le tempo suit** : le nombre de
+/// balayages par image se cale sur le centile de la distribution, jamais sur son typique. Un
+/// rapport qui trie par la mediane range donc en tete ce qui ne decide de rien.
+fn postes_a_montrer<'a>(
+    parts: Vec<(&'static str, &'a super::Histogramme)>,
+) -> Vec<(&'static str, &'a super::Histogramme)> {
+    const COMBIEN: usize = 6;
+    let mut par_median = parts.clone();
+    par_median.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.5)));
+    let mut retenus: Vec<(&'static str, &'a super::Histogramme)> =
+        par_median.into_iter().take(COMBIEN).collect();
+    let mut par_p99 = parts;
+    par_p99.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.99)));
+    for (nom, h) in par_p99.into_iter().take(COMBIEN) {
+        if !retenus.iter().any(|(deja, _)| *deja == nom) {
+            retenus.push((nom, h));
+        }
+    }
+    retenus.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.99)));
+    retenus
 }

@@ -231,3 +231,56 @@ fn test_une_part_redessinee_se_lit_meme_sans_fenetre() {
     let vu = Instantane::default();
     assert_eq!(vu.part_redessinee(), 1.0);
 }
+
+/// **Un poste nul en median et enorme au p99 doit paraitre dans le rapport.**
+///
+/// Le cas est reel, et c'est celui du 22/09 : `textures` coute moins d'un dixieme de
+/// milliseconde sur l'image ordinaire et vingt-cinq sur une image de zoom, et il n'apparait
+/// dans AUCUN des trois gestes de la chronique. Les douze images les plus lentes de la
+/// session sont pourtant toutes dominees par lui.
+///
+/// La cause : le tableau triait par mediane et coupait a six. Ce test porte sa preuve -- il
+/// rejoue cette lecture sur les memes donnees et verifie qu'elle jetait le poste.
+#[test]
+fn test_un_poste_nul_en_median_et_enorme_au_p99_reste_visible() {
+    let mut c = Chronique::nouvelle();
+    // Sept postes ordinaires : assez pour que le sixieme rang soit disputé.
+    let ordinaires: Vec<(usize, u32)> = [
+        "docks", "minimap", "relever", "blit", "effacer", "present", "poses",
+    ]
+    .iter()
+    .enumerate()
+    .map(|(rang, nom)| (c.poste(nom).expect("poste"), 1_000 - rang as u32 * 100))
+    .collect();
+    let textures = c.poste("textures").expect("poste");
+    for i in 0..100 {
+        let mut vu = image(Geste::Zoomer, 7_000);
+        for (indice, us) in &ordinaires {
+            vu.postes_us[*indice] = *us;
+        }
+        // Cinq images sur cent portent le pic, et zero partout ailleurs.
+        vu.postes_us[textures] = if i % 20 == 0 { 25_000 } else { 0 };
+        c.enregistrer(vu);
+    }
+
+    let parts = c.parts_du_geste(Geste::Zoomer).expect("des parts");
+    // **L'ancienne lecture, rejouee ici** : trier par mediane, garder six. Elle jette le
+    // poste qu'on cherche, et c'est la seule preuve qui compte.
+    let mut par_median = parts.clone();
+    par_median.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.5)));
+    let ancienne: Vec<&str> = par_median.iter().take(6).map(|(n, _)| *n).collect();
+    assert!(
+        !ancienne.contains(&"textures"),
+        "l'ancienne lecture montrait textures, le test ne prouve plus rien : {ancienne:?}"
+    );
+
+    let rapport = c.rapport();
+    let bloc = rapport
+        .split("  Ou va le temps")
+        .nth(1)
+        .expect("le tableau des postes");
+    assert!(
+        bloc.contains("textures"),
+        "le poste qui gele l'image doit paraitre :\n{bloc}"
+    );
+}
