@@ -30,9 +30,22 @@
 //! 2. **`FileGroupDescriptorW` + `FileContents`** — le navigateur. Les octets s'écrivent dans
 //!    le répertoire temporaire, et le dépôt redevient **exactement** un fichier glissé :
 //!    [`crate::interactions::drop`] le route sans savoir d'où il vient ;
-//! 3. **l'adresse seule** — une page qui ne promet aucun contenu, un lien glissé depuis la
+//! 3. **le bitmap** — beaucoup de pages n'offrent pas de fichier promis mais posent l'image
+//!    décompressée dans le presse-papiers du glisser, exactement comme un `Ctrl+C` sur une
+//!    image. Elle s'écrit en PNG et redevient un fichier comme les deux formats précédents ;
+//! 4. **l'adresse seule** — une page qui ne promet aucun contenu, un lien glissé depuis la
 //!    barre d'adresse. On pose alors le lien, que [`crate::interactions::links`] rend
 //!    cliquable. Un repli visible vaut mieux qu'un geste sans effet.
+//!
+//! # Ce que Pinterest a appris, et l'instrument qui en est né
+//!
+//! *« Lorsqu'on importe depuis Pinterest ça ne fonctionne pas ; il faut remonter le lien
+//! jusqu'à trouver l'image. »* Ce qu'on glisse depuis une grille de Pinterest n'est pas une
+//! image mais un **lien** : le navigateur n'a alors ni fichier promis ni bitmap à offrir, et
+//! aucune supposition sur ce qu'il offre ne remplace la liste de ce qu'il a réellement offert.
+//!
+//! [`dire_les_formats`] l'écrit, sur demande — `GLUCOSE_DEPOT=1`. C'est un instrument, pas une
+//! trace : il se déclenche chez celui qui fait le geste, là où le geste a lieu.
 //!
 //! # Prendre la place de `winit` plutôt que de coexister
 //!
@@ -55,18 +68,20 @@
 //! [`super::moisson`], sans un `unsafe`, et testés sur n'importe quelle machine. Ce fichier
 //! lit des formats et copie des octets ; il ne juge de rien.
 
+mod formats;
+
+use formats::{dire_les_formats, format_enregistre, offre, tirer, Bloc};
+
 use super::moisson::{self, Moisson};
 use std::sync::mpsc::Sender;
-use windows::core::{implement, Interface, Ref, Result as WinResult, PCWSTR};
-use windows::Win32::Foundation::{DRAGDROP_E_ALREADYREGISTERED, HGLOBAL, HWND, POINTL};
+use windows::core::{implement, Interface, Ref, Result as WinResult};
+use windows::Win32::Foundation::{DRAGDROP_E_ALREADYREGISTERED, HWND, POINTL};
 use windows::Win32::System::Com::{
-    IDataObject, ISequentialStream, IStream, FORMATETC, STGMEDIUM, TYMED, TYMED_HGLOBAL,
-    TYMED_ISTREAM,
+    IDataObject, ISequentialStream, IStream, TYMED, TYMED_HGLOBAL, TYMED_ISTREAM,
 };
-use windows::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
 use windows::Win32::System::Ole::{
-    IDropTarget, IDropTarget_Impl, RegisterDragDrop, ReleaseStgMedium, RevokeDragDrop, CF_HDROP,
-    CF_UNICODETEXT, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE,
+    IDropTarget, IDropTarget_Impl, RegisterDragDrop, ReleaseStgMedium, RevokeDragDrop, CF_DIB,
+    CF_DIBV5, CF_HDROP, CF_UNICODETEXT, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE,
 };
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::{DragQueryFileW, FILEGROUPDESCRIPTORW, HDROP};
@@ -213,42 +228,13 @@ fn porte_quelque_chose(objet: &IDataObject) -> bool {
         CF_HDROP.0,
         format_enregistre("FileGroupDescriptorW"),
         format_enregistre("FileContents"),
+        CF_DIBV5.0,
+        CF_DIB.0,
         CF_UNICODETEXT.0,
         format_enregistre("UniformResourceLocatorW"),
     ]
     .into_iter()
     .any(|format| format != 0 && offre(objet, format, TYMED(u32::MAX as i32)))
-}
-
-/// Le numéro qu'un format porte sur cette session de Windows.
-///
-/// Les formats du shell n'ont pas de numéro fixe : chaque session en attribue un, et deux
-/// programmes qui demandent le même nom reçoivent le même numéro. Zéro veut dire que Windows
-/// a refusé, et un format à zéro ne se demande jamais.
-fn format_enregistre(nom: &str) -> u16 {
-    let large: Vec<u16> = nom.encode_utf16().chain(std::iter::once(0)).collect();
-    // `RegisterClipboardFormatW` rend un `u32` dont seuls les seize bits bas servent de
-    // format ; zéro signale l'échec, et c'est le seul cas que nous ayons à distinguer.
-    let numero = unsafe {
-        windows::Win32::System::DataExchange::RegisterClipboardFormatW(PCWSTR(large.as_ptr()))
-    };
-    u16::try_from(numero).unwrap_or(0)
-}
-
-/// Une demande de format, telle que Windows l'attend.
-fn demande(format: u16, tymed: TYMED, index: i32) -> FORMATETC {
-    FORMATETC {
-        cfFormat: format,
-        ptd: std::ptr::null_mut(),
-        dwAspect: windows::Win32::System::Com::DVASPECT_CONTENT.0,
-        lindex: index,
-        tymed: tymed.0 as u32,
-    }
-}
-
-/// Cet objet offre-t-il ce format ?
-fn offre(objet: &IDataObject, format: u16, tymed: TYMED) -> bool {
-    unsafe { objet.QueryGetData(&demande(format, tymed, -1)).is_ok() }
 }
 
 /// **Tout ce que ce dépôt apporte**, dans l'ordre du plus sûr au plus pauvre.
@@ -257,6 +243,7 @@ fn offre(objet: &IDataObject, format: u16, tymed: TYMED) -> bool {
 /// *en plus* des octets, et poser les deux mettrait deux nœuds là où l'utilisateur en a
 /// déposé un.
 fn recolter(objet: &IDataObject) -> Moisson {
+    dire_les_formats(objet);
     let par_fichiers = fichiers_reels(objet);
     if !par_fichiers.is_empty() {
         return Moisson {
@@ -271,10 +258,104 @@ fn recolter(objet: &IDataObject) -> Moisson {
             ..Moisson::default()
         };
     }
+    let bitmap = bitmap_pose(objet);
+    if !bitmap.is_empty() {
+        return Moisson {
+            chemins: bitmap,
+            ..Moisson::default()
+        };
+    }
     Moisson {
         liens: adresses(objet),
         ..Moisson::default()
     }
+}
+
+/// **L'image décompressée que la page a posée dans le presse-papiers du glisser**, écrite en
+/// fichier.
+///
+/// Beaucoup de pages n'offrent aucun fichier promis mais posent le bitmap, exactement comme un
+/// `Ctrl+C` sur une image — c'est d'ailleurs ce que `paste_from_clipboard` lit déjà depuis
+/// toujours, et c'est pour cela que le collage marchait là où le glisser ne marchait pas.
+///
+/// Le DIB de Windows est **presque** un fichier BMP : il lui manque quatorze octets d'en-tête.
+/// Les ajouter laisse le décodeur du projet faire le reste — palettes, masques, orientation —
+/// plutôt que d'écrire un second décodeur d'images dans un module de COM.
+fn bitmap_pose(objet: &IDataObject) -> Vec<std::path::PathBuf> {
+    // `CF_DIBV5` d'abord : il porte l'espace colorimétrique et la transparence, que `CF_DIB`
+    // perd. Une page qui offre les deux offre le même contenu, en moins bien pour le second.
+    for format in [CF_DIBV5.0, CF_DIB.0] {
+        let Some(mut medium) = tirer(objet, format, TYMED_HGLOBAL, -1) else {
+            continue;
+        };
+        let dib = unsafe {
+            let lu = Bloc::prendre(medium.u.hGlobal).map(|bloc| bloc.copier());
+            ReleaseStgMedium(&mut medium);
+            lu
+        };
+        let Some(dib) = dib else { continue };
+        let Some(bmp) = en_fichier_bmp(&dib) else {
+            continue;
+        };
+        let Ok(dossier) = moisson::dossier() else {
+            return Vec::new();
+        };
+        if let Some(chemin) = moisson::poser(&dossier, "image.bmp", 0, &bmp) {
+            return vec![chemin];
+        }
+    }
+    Vec::new()
+}
+
+/// Les quatorze octets qui font d'un DIB un fichier BMP.
+///
+/// L'offset des pixels se **calcule** depuis l'en-tête : sa taille, sa palette, et les trois
+/// masques qu'un `BI_BITFIELDS` ajoute. Le supposer à quarante octets marcherait sur le cas
+/// courant et donnerait une image décalée sur tous les autres — le genre de faute qui ne se
+/// voit que chez quelqu'un d'autre.
+fn en_fichier_bmp(dib: &[u8]) -> Option<Vec<u8>> {
+    const BI_BITFIELDS: u32 = 3;
+    let lire =
+        |i: usize| -> Option<u32> { Some(u32::from_le_bytes(dib.get(i..i + 4)?.try_into().ok()?)) };
+    let taille_entete = lire(0)? as usize;
+    if taille_entete < 12 || taille_entete > dib.len() {
+        return None;
+    }
+    // Un en-tête de douze octets est l'ancien `BITMAPCOREHEADER`, dont les champs ne sont pas
+    // aux mêmes places. On ne le traite pas : plus aucun navigateur n'en produit, et le
+    // traiter à moitié serait pire que de le refuser.
+    if taille_entete < 40 {
+        return None;
+    }
+    let bits = u32::from(u16::from_le_bytes(dib.get(14..16)?.try_into().ok()?));
+    let compression = lire(16)?;
+    let couleurs = lire(32)? as usize;
+    let palette = if bits <= 8 {
+        let entrees = if couleurs > 0 {
+            couleurs
+        } else {
+            1usize << bits
+        };
+        entrees * 4
+    } else {
+        0
+    };
+    // Les masques ne suivent l'en-tête que pour un `BITMAPINFOHEADER` ; un V4 ou un V5 les
+    // porte dans ses propres champs.
+    let masques = if compression == BI_BITFIELDS && taille_entete == 40 {
+        12
+    } else {
+        0
+    };
+    let debut = 14 + taille_entete + palette + masques;
+    let total = 14 + dib.len();
+    let mut bmp = Vec::with_capacity(total);
+    bmp.extend_from_slice(b"BM");
+    bmp.extend_from_slice(&(total as u32).to_le_bytes());
+    bmp.extend_from_slice(&0u32.to_le_bytes());
+    bmp.extend_from_slice(&(debut as u32).to_le_bytes());
+    bmp.extend_from_slice(dib);
+    Some(bmp)
 }
 
 /// Les chemins d'un `CF_HDROP` — ce que `winit` transmettait, et rien de plus.
@@ -442,78 +523,66 @@ fn adresses(objet: &IDataObject) -> Vec<String> {
     Vec::new()
 }
 
-/// Demande un format à l'objet, et rend ce que Windows a posé.
-///
-/// Le `STGMEDIUM` rendu appartient à l'appelant : il doit le rendre par `ReleaseStgMedium`,
-/// et c'est pour cela que chaque appelant le fait explicitement plutôt que de le confier à un
-/// garde — un garde exigerait de posséder le medium, et `ReleaseStgMedium` le veut mutable.
-fn tirer(objet: &IDataObject, format: u16, tymed: TYMED, index: i32) -> Option<STGMEDIUM> {
-    if format == 0 {
-        return None;
-    }
-    let demande = demande(format, tymed, index);
-    unsafe {
-        // `QueryGetData` d'abord : un objet refuse `GetData` par une exception chez certains
-        // fournisseurs, et une exception traversant une frontiere COM ne se rattrape pas.
-        if objet.QueryGetData(&demande).is_err() {
-            return None;
-        }
-        objet.GetData(&demande).ok()
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::en_fichier_bmp;
 
-/// Un bloc de mémoire globale, verrouillé le temps qu'on le lise.
-///
-/// `GlobalLock` doit être défait par `GlobalUnlock`, y compris quand la lecture échoue : ce
-/// garde est ce qui rend impossible de l'oublier sur un chemin d'erreur.
-struct Bloc {
-    poignee: HGLOBAL,
-    pointeur: *mut core::ffi::c_void,
-    taille: usize,
-}
+    /// Un DIB tel que Windows le pose : l'en-tête d'un BMP moins ses quatorze premiers octets.
+    fn dib_depuis_un_bmp(bmp: &[u8]) -> Vec<u8> {
+        bmp[14..].to_vec()
+    }
 
-impl Bloc {
-    /// Verrouille ce bloc, ou rend rien s'il est vide.
+    /// **Un DIB redevient un BMP que le décodeur du projet sait lire**, et l'image en sort
+    /// intacte.
     ///
-    /// # Sûreté
-    ///
-    /// `poignee` doit être une poignée de mémoire globale valide, telle que Windows vient de
-    /// la poser dans un `STGMEDIUM`.
-    unsafe fn prendre(poignee: HGLOBAL) -> Option<Self> {
-        let pointeur = unsafe { GlobalLock(poignee) };
-        if pointeur.is_null() {
-            return None;
+    /// C'est tout ce qu'on demande à ces quatorze octets, et c'est exactement ce qui se casse
+    /// sans qu'on le voie : un offset de pixels supposé à quarante marche sur le cas courant et
+    /// donne une image décalée dès qu'une palette ou des masques s'intercalent.
+    #[test]
+    fn test_un_dib_redevient_un_bmp_lisible() {
+        for (largeur, hauteur) in [(7u32, 5u32), (64, 1), (1, 64)] {
+            let mut source = image::RgbaImage::new(largeur, hauteur);
+            for (x, y, p) in source.enumerate_pixels_mut() {
+                *p = image::Rgba([(x * 37 % 256) as u8, (y * 91 % 256) as u8, 40, 255]);
+            }
+            let mut bmp = std::io::Cursor::new(Vec::new());
+            source
+                .write_to(&mut bmp, image::ImageFormat::Bmp)
+                .expect("ecriture BMP");
+            let bmp = bmp.into_inner();
+
+            let refait = en_fichier_bmp(&dib_depuis_un_bmp(&bmp)).expect("un DIB se recompose");
+            let relu = image::load_from_memory(&refait)
+                .expect("le BMP recompose doit se lire")
+                .to_rgba8();
+            assert_eq!(relu.dimensions(), (largeur, hauteur));
+            for (x, y, p) in relu.enumerate_pixels() {
+                assert_eq!(
+                    p.0[..3],
+                    source.get_pixel(x, y).0[..3],
+                    "pixel ({x}, {y}) de l'image {largeur} x {hauteur}"
+                );
+            }
         }
-        let taille = unsafe { GlobalSize(poignee) };
-        if taille == 0 {
-            unsafe { GlobalUnlock(poignee).ok() };
-            return None;
-        }
-        Some(Self {
-            poignee,
-            pointeur,
-            taille: taille.min(OCTETS_MAX),
-        })
     }
 
-    /// Les octets du bloc, copiés.
-    fn copier(&self) -> Vec<u8> {
-        unsafe { std::slice::from_raw_parts(self.pointeur.cast::<u8>(), self.taille).to_vec() }
-    }
-
-    /// Le bloc lu comme du texte large, jusqu'à son premier zéro.
-    fn texte_large(&self) -> String {
-        let combien = self.taille / 2;
-        let large = unsafe { std::slice::from_raw_parts(self.pointeur.cast::<u16>(), combien) };
-        let fin = large.iter().position(|c| *c == 0).unwrap_or(combien);
-        String::from_utf16_lossy(&large[..fin])
-    }
-}
-
-impl Drop for Bloc {
-    fn drop(&mut self) {
-        unsafe {
-            GlobalUnlock(self.poignee).ok();
-        }
+    /// **Ce qui n'est pas un DIB est refusé**, plutôt que de produire un fichier illisible que
+    /// le routage du dépôt prendrait pour un lanceur.
+    #[test]
+    fn test_ce_qui_n_est_pas_un_dib_est_refuse() {
+        assert!(en_fichier_bmp(&[]).is_none());
+        assert!(
+            en_fichier_bmp(&[0, 0, 0, 0]).is_none(),
+            "un en-tete de taille nulle"
+        );
+        // Un `BITMAPCOREHEADER` de douze octets : refusé sciemment, ses champs ne sont pas aux
+        // mêmes places et plus aucun navigateur n'en produit.
+        let mut core = vec![0u8; 12];
+        core[0] = 12;
+        assert!(en_fichier_bmp(&core).is_none());
+        // Un en-tête qui annonce plus grand que ce qu'il porte.
+        let mut menteur = vec![0u8; 40];
+        menteur[0] = 200;
+        assert!(en_fichier_bmp(&menteur).is_none());
     }
 }

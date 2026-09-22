@@ -23,20 +23,25 @@
 //! de fond se détecte alors exactement comme une noire, et le seuil de FFmpeg garde son sens :
 //! c'est l'écart qu'un noir vidéo bruité atteint sans cesser d'être du noir.
 //!
-//! **Le pire pixel de la ligne, et non sa moyenne.** FFmpeg moyenne la ligne, et c'est juste
-//! pour une vidéo : ce qu'il coupe est du noir bruité, ce qu'il garde est de l'image. Glucose
-//! coupe des captures d'écran, et ce qu'il garde est **du texte fin sur un fond uni** — le
-//! contenu le plus fréquent du canevas. La première ligne de pixels du haut des lettres porte
-//! trois pour cent d'encre ; sa moyenne reste sous le seuil, et la moyenne la mange. Deux
-//! essais l'ont dit : la moyenne perd le haut des lettres, et la médiane — essayée pour tenir
-//! malgré un filigrane — prend un damier entier pour une bande, puisque la moitié de ses pixels
-//! sont d'une même couleur.
+//! **Un centile, et non la moyenne ni le pire pixel.** Quatre critères ont été essayés, et
+//! chacun a été refusé par une mesure :
 //!
-//! Une ligne est donc de la bande si **aucun** de ses pixels ne s'écarte du bord de plus que le
-//! bruit. Le défaut de ce critère est de s'arrêter une ligne trop tôt sur un pixel de bruit
-//! isolé, ce qui laisse une ligne de bande et ne se voit pas ; le défaut de la moyenne est de
-//! manger du contenu, ce qui se voit. **On choisit le défaut qui ne se voit pas.** Un filigrane
-//! posé dans la bande l'arrête à sa ligne, comme chez FFmpeg — c'est assumé, et un test le dit.
+//! | critère | ce qu'il fait de faux | ce qui l'a dit |
+//! |---|---|---|
+//! | la **moyenne** (FFmpeg) | mange le haut des lettres : la première ligne de pixels d'un texte porte trois pour cent d'encre, et sa moyenne reste sous le seuil | un test de texte fin sur fond uni |
+//! | la **médiane** | prend un damier entier pour une bande — la moitié des pixels d'une ligne de texte sont du fond | le damier des preuves |
+//! | le **pire pixel** | s'arrête trop tôt et **laisse un liseré visible** : sur une illustration réelle, la première ligne refusée portait quatre pixels de plume sur cinq cent six | l'image de l'utilisateur, mesurée |
+//! | le **centile 99** | retenu | — |
+//!
+//! Une ligne est de la bande si **au plus un centième** de ses pixels s'écartent du bord de
+//! plus que le bruit. Ce que cela laisse passer est ce qu'on ne perd pas à couper : sur une
+//! ligne de cinq cents pixels, un pour cent en fait cinq — le bruit d'un bord compressé, ou le
+//! premier rang anti-crénelé d'une forme. Ce que cela arrête est un contenu, qui en occupe
+//! davantage dès sa première ligne.
+//!
+//! **Ce nombre se juge à la main**, comme `TAU_CONDUITE` et `PAN_LIGNE_PX` : aucune loi ne le
+//! donne, et son journal est au-dessus de [`PART_ABERRANTE`]. Un filigrane posé dans la bande
+//! l'arrête à sa ligne, comme chez FFmpeg — c'est assumé, et un test le dit.
 //!
 //! # Les quatre bords se rognent ensemble, jusqu'à ce que plus rien ne bouge
 //!
@@ -69,6 +74,29 @@ use crate::types::Recadrage;
 /// dit la même chose d'une bande blanche que d'une bande noire.
 pub const ECART_DE_BANDE: f64 = 24.0;
 
+/// **La part des pixels d'une ligne qui peuvent s'écarter sans qu'elle cesse d'être de la
+/// bande.**
+///
+/// # Ce nombre se juge à la main, et voici son journal
+///
+/// * **zéro** — le pire pixel. Refusé par l'image de l'utilisateur : la première ligne refusée
+///   du haut de son illustration portait **quatre pixels de plume sur cinq cent six**, et les
+///   trois lignes suivantes six, huit et treize. Le recadrage s'arrêtait donc trois lignes
+///   avant la vraie frontière, et **le liseré blanc restant se voyait à l'écran** ;
+/// * **un pour cent** — retenu. Sur une ligne de cinq cents pixels, cinq pixels : le bruit d'un
+///   bord compressé, ou le premier rang anti-crénelé d'une forme. Ce n'est pas ce qu'on perd à
+///   couper ;
+/// * **deux pour cent** — pas essayé sur le terrain. Il couperait trois lignes de plus sur la
+///   même image, et rognerait la première ligne d'un texte fin à moins de deux pour cent
+///   d'encre. À reprendre si un cas réel le réclame.
+///
+/// Ce n'est **pas** [`crate::cadence::PART_TOLEREE`], qui vaut le même nombre : celle-là
+/// compte des images ratées par une cadence, celle-ci des pixels dans une ligne. Deux
+/// grandeurs sans rapport qui partagent une valeur ne doivent pas partager une constante —
+/// c'est exactement la faute d'ARBITRE-1, qui avait repris le seuil du tempo sans reprendre sa
+/// grandeur.
+pub const PART_ABERRANTE: f64 = 0.01;
+
 /// **Les bandes unies qui entourent cette image**, comme recadrage à lui appliquer.
 ///
 /// Rend [`Recadrage::ENTIER`] quand il n'y en a aucune. Le coût est celui des bandes, pas de
@@ -100,7 +128,7 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
 ///
 /// La couleur de référence est celle de la **première** ligne parcourue — le bord —, prise
 /// comme médiane par canal pour qu'un logo dans le coin ne la fausse pas. Une ligne est de la
-/// bande si **aucun** de ses pixels ne s'écarte de cette couleur de plus que
+/// bande si au plus [`PART_ABERRANTE`] de ses pixels s'écartent de cette couleur de plus que
 /// [`ECART_DE_BANDE`].
 fn compter<I, F>(ordre: I, mut ligne_de: F) -> u32
 where
@@ -115,7 +143,7 @@ where
             break;
         }
         let couleur = *reference.get_or_insert_with(|| mediane(&pixels));
-        if pire_ecart(&pixels, couleur) > ECART_DE_BANDE {
+        if ecart_au_centile(&pixels, couleur) > ECART_DE_BANDE {
             break;
         }
         combien += 1;
@@ -150,16 +178,27 @@ fn mediane(pixels: &[Pixel]) -> Pixel {
     sortie
 }
 
-/// **Le pixel de la ligne le plus éloigné de cette couleur**, sur son canal le plus éloigné.
+/// **L'écart du pixel qui laisse [`PART_ABERRANTE`] de la ligne au-dessus de lui.**
 ///
-/// Le seul pixel d'encre d'une ligne suffit à dire qu'elle n'est plus de la bande — c'est ce
-/// qui empêche de manger le haut des lettres, là où une moyenne passait dessous.
-fn pire_ecart(pixels: &[Pixel], couleur: Pixel) -> f64 {
-    pixels
+/// Chaque pixel donne son écart sur son canal le plus éloigné ; on regarde celui qui sépare le
+/// dernier centième du reste. Quelques pixels d'encre ne suffisent donc plus à arrêter une
+/// bande — ce qui laissait un liseré —, mais une ligne de contenu, qui en porte bien
+/// davantage dès son premier rang, l'arrête toujours.
+fn ecart_au_centile(pixels: &[Pixel], couleur: Pixel) -> f64 {
+    let mut ecarts: Vec<u8> = pixels
         .iter()
         .map(|p| (0..3).map(|c| p[c].abs_diff(couleur[c])).max().unwrap_or(0))
-        .max()
-        .map_or(0.0, f64::from)
+        .collect();
+    if ecarts.is_empty() {
+        return 0.0;
+    }
+    ecarts.sort_unstable();
+    // Le rang qui laisse `PART_ABERRANTE` de la ligne au-dessus de lui. Une ligne courte le
+    // ramène au dernier pixel, ce qui redonne le pire : sur dix pixels, un centième n'existe
+    // pas, et tolérer un pixel sur dix serait tolérer dix pour cent.
+    let n = ecarts.len();
+    let hors = ((n as f64) * PART_ABERRANTE).floor() as usize;
+    f64::from(ecarts[n - 1 - hors.min(n - 1)])
 }
 
 #[cfg(test)]
