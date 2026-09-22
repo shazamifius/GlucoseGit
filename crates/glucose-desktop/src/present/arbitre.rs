@@ -260,16 +260,21 @@ impl Arbitre {
         if self.tranche {
             return Verdict::Continuer;
         }
-        // L'instrument passe devant tout, échauffement compris : ce qu'il sert à vérifier est
-        // la bascule elle-même, pas la loi qui la déclenche.
+        if self.echauffement > 0 {
+            self.echauffement -= 1;
+            return Verdict::Continuer;
+        }
+        // **L'instrument attend l'échauffement, comme la loi qu'il remplace.**
+        //
+        // La première version basculait à la toute première image — c'est-à-dire pendant que
+        // le document se chargeait encore, que l'atelier décodait et que des textures étaient
+        // en vol. Ce n'est un état qu'aucune bascule réelle ne rencontre : l'arbitre en
+        // observe deux cents avant de juger. Un instrument qui met l'application dans un état
+        // impossible ne vérifie pas le chemin qu'il prétend vérifier — il en invente un autre.
         if self.essai_force {
             self.essai_force = false;
             println!("[Glucose] arbitre : essai force par GLUCOSE_ARBITRE");
             return self.juger();
-        }
-        if self.echauffement > 0 {
-            self.echauffement -= 1;
-            return Verdict::Continuer;
         }
         self.courante.1.noter(present_us);
         self.echantillon.noter(present_us);

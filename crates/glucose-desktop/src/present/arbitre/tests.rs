@@ -301,15 +301,22 @@ fn test_deux_cartes_se_departagent_sur_la_part_et_non_sur_le_compte() {
     assert!(!peu_vue.vaut_mieux_que(beaucoup_vue));
 }
 
-/// **L'essai forcé bascule tout de suite**, échauffement compris — et une seule fois.
+/// **L'essai forcé attend l'échauffement**, puis bascule — et une seule fois.
 ///
 /// C'est un instrument : il existe parce que la bascule ne s'était jamais exécutée, et que le
 /// jour où elle l'a pu, elle a planté. Un chemin qu'on ne peut emprunter qu'en priant pour un
 /// gel est un chemin qu'on ne vérifie jamais.
+///
+/// Mais il doit vérifier **ce chemin-là**, et pas un autre : il attend donc l'échauffement,
+/// comme la loi qu'il remplace.
 #[test]
-fn test_l_essai_force_bascule_tout_de_suite_et_une_seule_fois() {
+fn test_l_essai_force_attend_l_echauffement_puis_bascule_une_seule_fois() {
     let mut a = Arbitre::nouveau(Preference::Econome);
     a.essai_force = true;
+    // Pendant l'échauffement, il ne fait rien : l'application se charge encore, et basculer
+    // là mettrait le chemin dans un état qu'aucune bascule réelle ne rencontre.
+    assert_eq!(saines(&mut a, ECHANTILLON), Verdict::Continuer);
+    assert_eq!(a.courante(), Preference::Econome);
     assert_eq!(a.observer(SAIN), Verdict::Essayer(Preference::Rapide));
     assert_eq!(a.courante(), Preference::Rapide);
     // Et il ne se redéclenche pas : la carte suivante fait ses preuves normalement.

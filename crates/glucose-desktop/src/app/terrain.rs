@@ -337,14 +337,18 @@ impl GlucoseApp {
         };
         // L'ancienne part AVANT que la nouvelle ne s'ouvre : deux chaines sur la meme fenetre
         // ne coexistent pas, et la surface appartient a celle qui l'a creee.
+        let depart = std::time::Instant::now();
         self.presenter = None;
+        let lachee = depart.elapsed();
         let carte = crate::present::gpu::succession::pour_wgpu(voulue);
         match crate::present::GpuPresenter::sur_la_carte(window, w, h, carte) {
             Ok(neuf) => {
                 println!(
-                    "[Glucose] arbitre : la presentation passe sur la carte {} -- {}",
+                    "[Glucose] arbitre : la presentation passe sur la carte {} -- {}                      (ancienne lachee en {:.0} ms, nouvelle ouverte en {:.0} ms)",
                     voulue.nom(),
-                    neuf.adaptateur()
+                    neuf.adaptateur(),
+                    lachee.as_secs_f64() * 1000.0,
+                    (depart.elapsed() - lachee).as_secs_f64() * 1000.0
                 );
                 let neuf: Box<dyn crate::present::Presenter> = Box::new(neuf);
                 // La chronique doit savoir comment les images se succedent sur CETTE carte :
