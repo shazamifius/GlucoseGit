@@ -225,6 +225,12 @@ pub struct GlucoseApp {
     /// fichier se poserait comme s'il était seul, tous au même point, et le geste entier
     /// laisserait huit entrées d'annulation au lieu d'une.
     pub dropped_files: Vec<std::path::PathBuf>,
+    /// **Ce que le systeme depose sur la fenetre**, quand un pont natif existe (DEPOT-WEB-1).
+    ///
+    /// `winit` ne transmet que `CF_HDROP` -- les chemins de l'explorateur -- et un navigateur
+    /// n'en donne jamais. La cible de depot du projet lit aussi les fichiers qu'une page
+    /// PROMET, et la position ou le curseur a lache, que `winit` recoit et jette.
+    pub depots: Option<crate::plateforme::Depots>,
     /// Où en est le cycle de profondeur (PICK-1) : la pile visée au dernier clic, et le rang
     /// qu'on y a atteint. `None` quand le dernier clic n'a désigné aucun nœud, ou qu'il a
     /// fait autre chose que sélectionner — ouvrir, éditer, glisser.
@@ -348,6 +354,7 @@ impl GlucoseApp {
             text_drag: None,
             last_click: None,
             dropped_files: Vec::new(),
+            depots: None,
             pick_cycle: None,
             click_epoch: std::time::Instant::now(),
             last_blink_phase: true,

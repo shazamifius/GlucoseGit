@@ -146,6 +146,18 @@ impl ApplicationHandler for GlucoseApp {
             self.drop_files(&lot);
         }
 
+        // **Ce que le pont natif a recolte** (DEPOT-WEB-1). Il ecrit depuis la boucle de
+        // messages de Windows, au milieu d'un geste ; on pose ici, ou le document n'est lu
+        // par personne. Un lot par depot : glisser huit images d'une page est UN geste.
+        for recolte in self
+            .depots
+            .as_ref()
+            .map(|d| d.recolter())
+            .unwrap_or_default()
+        {
+            self.poser_le_depot(&recolte);
+        }
+
         // **La carte se rouvre ici, hors du rendu** (ARBITRE-1) : detruire la chaine pendant
         // qu'une image est detenue arrache le sol sous ses pieds, et c'est le plantage que la
         // fiche 17 § 2.3 raconte. Ici, aucune image ne l'est.

@@ -63,6 +63,35 @@ impl GlucoseApp {
         );
     }
 
+    /// **Ce qui s'accroche a une fenetre une fois qu'elle existe**, et qui n'est pas elle.
+    ///
+    /// L'arbitre des cartes et le pont de depot du systeme ont en commun de n'avoir de sens
+    /// qu'une fois la fenetre ouverte, et de n'avoir rien a voir l'un avec l'autre. Les
+    /// laisser dans `init_window` lui a fait passer les quatre-vingts lignes -- le cliquet a
+    /// raison, et la coupure tombe la ou la nature du travail change : au-dessus on cree, ici
+    /// on accroche.
+    fn accrocher_les_mecanismes(&mut self, window: &Arc<winit::window::Window>) {
+        // **L'arbitre ne s'installe que si personne n'a tranche a sa place** (ARBITRE-1). Son
+        // echantillon se compte en IMAGES, pas en secondes, et c'est celui du tempo : la
+        // premiere version s'en etait invente un autre -- une seconde de l'ecran -- et cette
+        // fenetre-la se refermait douze secondes avant le premier gel du terrain.
+        self.arbitre = crate::present::gpu::succession::carte_imposee().map_or_else(
+            || {
+                Some(crate::present::arbitre::Arbitre::nouveau(
+                    crate::present::arbitre::Preference::Econome,
+                ))
+            },
+            |_| None,
+        );
+        // **Le pont de depot du systeme**, a la place de celui de `winit` (DEPOT-WEB-1). Un
+        // echec ne casse rien : `winit` garde la main, et seul le depot depuis un navigateur
+        // manque -- c'est-a-dire l'etat d'avant.
+        self.depots = crate::plateforme::installer(window);
+        if self.depots.is_some() {
+            println!("[Glucose] depot : les images glissees depuis un navigateur sont lues");
+        }
+    }
+
     /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
     /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
     pub(super) fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
@@ -117,18 +146,7 @@ impl GlucoseApp {
         self.chronique
             .rythme
             .observer_la_machine(self.cadence.periode(), presenter.rythme());
-        // **L'arbitre ne s'installe que si personne n'a tranche a sa place** (ARBITRE-1). Son
-        // echantillon se compte en IMAGES, pas en secondes, et c'est celui du tempo : la
-        // premiere version s'en etait invente un autre -- une seconde de l'ecran -- et cette
-        // fenetre-la se refermait douze secondes avant le premier gel du terrain.
-        self.arbitre = crate::present::gpu::succession::carte_imposee().map_or_else(
-            || {
-                Some(crate::present::arbitre::Arbitre::nouveau(
-                    crate::present::arbitre::Preference::Econome,
-                ))
-            },
-            |_| None,
-        );
+        self.accrocher_les_mecanismes(&window);
         self.annoncer_la_machine(presenter.as_ref(), (width, height), scale_factor);
 
         self.pixmap = Pixmap::new(width, height);

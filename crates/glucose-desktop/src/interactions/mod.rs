@@ -8,6 +8,7 @@ pub mod arrow_edit;
 pub mod chrome;
 pub mod clipboard;
 pub mod cursor;
+pub mod depot_web;
 pub mod domains;
 pub mod drag;
 pub mod drop;

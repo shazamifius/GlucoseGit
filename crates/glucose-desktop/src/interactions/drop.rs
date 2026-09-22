@@ -142,18 +142,22 @@ fn file_name_of(path: &Path) -> String {
 impl GlucoseApp {
     /// Le point du monde où un lot déposé se pose : le centre de ce qu'on regarde.
     ///
-    /// winit **reçoit** la position du curseur — `IDropTarget::Drop` la prend en paramètre —
-    /// et la jette : le paramètre s'appelle `_pt`. Et pendant un glisser, Windows ne remonte
-    /// aucun mouvement de souris à la fenêtre, donc la dernière position connue date d'avant
-    /// le geste, parfois de plusieurs minutes.
+    /// **Là où le curseur a lâché quand on le sait**, et le centre de ce qu'on regarde sinon.
     ///
-    /// Poser au centre est donc le seul choix **prévisible** : un fichier déposé apparaît
-    /// toujours au milieu de l'écran, jamais à un endroit tiré au sort. La position exacte
-    /// viendra avec la couche `IDropTarget` propre au projet, qui est aussi ce qui
-    /// débloquera le glisser depuis un navigateur — c'est la même interface qui porte les
-    /// deux, et la bricoler d'ici là serait écrire du code à jeter.
-    fn drop_origin(&self) -> (f64, f64) {
+    /// winit **reçoit** la position du curseur — `IDropTarget::Drop` la prend en paramètre —
+    /// et la jette : son paramètre s'appelle `_pt`. Et pendant un glisser, Windows ne remonte
+    /// aucun mouvement de souris à la fenêtre, donc la dernière position connue date d'avant
+    /// le geste, parfois de plusieurs minutes. Poser au centre était le seul choix
+    /// **prévisible** qui restât.
+    ///
+    /// Depuis DEPOT-WEB-1, la cible de dépôt du projet la transmet, et ce module cesse d'être
+    /// aveugle — mais seulement là où un pont existe. Le centre reste donc la réponse quand
+    /// personne ne l'a dite, et c'est ce que `client` vaut alors.
+    pub(crate) fn drop_origin(&self, client: Option<(f64, f64)>) -> (f64, f64) {
         let vp = self.store.viewport();
+        if let Some((cx, cy)) = client {
+            return crate::canvas::screen_to_world(cx, cy, &vp);
+        }
         let (w, h) = self.window.as_ref().map_or((1440.0, 900.0), |window| {
             let size = window.inner_size();
             (f64::from(size.width), f64::from(size.height))
@@ -167,10 +171,30 @@ impl GlucoseApp {
     /// Le lot entier tient dans **une** entrée d'annulation : déposer huit fichiers puis se
     /// raviser est un seul geste, et le défaire demande un seul `Ctrl+Z`.
     pub fn drop_files(&mut self, paths: &[PathBuf]) {
-        if paths.is_empty() {
+        self.deposer(paths, &[], None);
+    }
+
+    /// **Tout ce qu'un dépôt apporte, posé en une fois** — des fichiers, des adresses, ou les
+    /// deux (DEPOT-WEB-1).
+    ///
+    /// `client` est la position du curseur en pixels physiques depuis le coin de la zone de
+    /// dessin — la même unité que `mouse_pos`, pour que la conversion en monde soit celle que
+    /// tout le reste emploie. Elle vaut `None` là où aucun pont ne la transmet.
+    ///
+    /// **Une seule fonction pour les deux natures**, et c'est ce que le cliquet des toasts a
+    /// imposé : un dépôt est un geste, un geste rend **un** compte-rendu. Une seconde fonction
+    /// avec son propre message aurait dit deux fois la même chose de deux façons.
+    pub(crate) fn deposer(
+        &mut self,
+        paths: &[PathBuf],
+        liens: &[String],
+        client: Option<(f64, f64)>,
+    ) {
+        let attendus = paths.len() + liens.len();
+        if attendus == 0 {
             return;
         }
-        let (ox, oy) = self.drop_origin();
+        let (ox, oy) = self.drop_origin(client);
         let board = self.store.project.active_board_id.clone();
 
         self.store.begin_live_edit();
@@ -181,14 +205,40 @@ impl GlucoseApp {
                 placed += 1;
             }
         }
+        for lien in liens {
+            let offset = placed as f64 * CASCADE;
+            self.place_link(&board, lien, (ox + offset, oy + offset));
+            placed += 1;
+        }
         self.store.end_live_edit();
 
         // **Un** compte-rendu pour le lot, échecs compris. Déposer huit fichiers ne doit pas
         // produire huit messages : ce qui s'est passé se dit d'une phrase, et celui qui a
         // raté s'y compte au lieu de s'annoncer tout seul au milieu des autres.
-        self.ui
-            .show_toast(compte_rendu(placed, paths.len() - placed));
+        self.ui.show_toast(compte_rendu(placed, attendus - placed));
         self.mark_dirty();
+    }
+
+    /// **Une adresse déposée, posée en carte et cliquable** (DEPOT-WEB-1).
+    ///
+    /// Elle s'écrit en Markdown `[adresse](adresse)`, et non en texte nu : `links::url_at`
+    /// ne suit que ce que la syntaxe désigne comme un lien, et une adresse écrite nue
+    /// resterait du texte que `Ctrl`+clic ignore. Poser un lien qui ne s'ouvre pas serait un
+    /// bouton qui ment (fiche 05 § 5.4), sous la forme d'une carte.
+    fn place_link(&mut self, board: &str, adresse: &str, (x, y): (f64, f64)) {
+        let aid = self.store.generate_id("text");
+        // La fabrique **mesure** la carte : une adresse longue se dessinerait sur trois lignes
+        // et ne se cliquerait que sur une si on posait une hauteur en dur — ce que le collage
+        // de texte a déjà payé une fois.
+        let ann = super::tools::text_card(
+            &self.renderer.typography,
+            &self.renderer.math,
+            aid,
+            x,
+            y,
+            crate::plateforme::moisson::lien_markdown(adresse),
+        );
+        self.store.add_annotation(board, ann);
     }
 
     /// Pose un fichier au point donné. Rend `false` si rien n'a pu l'être.
