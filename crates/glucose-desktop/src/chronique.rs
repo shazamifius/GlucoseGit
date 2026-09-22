@@ -32,12 +32,14 @@
 //! gardées entières, avec leur geste, leurs postes et leurs quantités — c'est là que se lit la
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
+pub mod entracte;
 pub mod histogramme;
 pub mod instantane;
 pub mod navigation;
 pub mod rythme;
 pub mod veille;
 
+pub use entracte::Entracte;
 pub use histogramme::Histogramme;
 pub use instantane::Instantane;
 pub use rythme::Rythme;
@@ -179,6 +181,12 @@ pub struct Chronique {
     /// Ce que le PROCESSUS coûte à la machine, et surtout quand on ne le touche pas
     /// (EMPREINTE-1). Tout le reste de ce module mesure ce qu'une IMAGE coûte.
     pub veille: Veille,
+    /// **Où va le temps quand on ne dessine pas** (ENTRACTE-1).
+    ///
+    /// Le rythme chiffre cet intervalle depuis la fiche 19 — jusqu'à 748 ms sur un seul gel —
+    /// sans jamais pouvoir dire ce qu'il contient. Trois sessions l'ont nommé « jamais
+    /// instrumenté », et deux hypothèses écrites pour l'expliquer ont été démenties.
+    pub entracte: Entracte,
     /// **Les images que la surface a refusées** : fenêtre cachée, ou image perdue.
     ///
     /// Elles ne sont dans aucune autre mesure de ce module, et c'est exactement ce qui rendait
@@ -359,6 +367,7 @@ impl Chronique {
             du_neuf: false,
             navigation: navigation::Navigation::nouvelle(),
             veille: Veille::default(),
+            entracte: Entracte::nouveau(),
             cachees: 0,
             perdues: 0,
             photos_posees: 0,

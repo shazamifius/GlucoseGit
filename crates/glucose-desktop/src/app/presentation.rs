@@ -162,10 +162,16 @@ impl GlucoseApp {
         // pas mesurer un SOMMEIL comme un gel ; un geste qui reveille est bien un intervalle
         // que l'oeil vit -- entre la derniere image et celle que sa main vient de demander.
         let attendue = self.image_attendue || self.chronique.navigation.en_attente();
+        // **L'entracte se ferme ici, et pas au debut du rendu** (ENTRACTE-1). Les deux
+        // mesures decoupent le meme intervalle par ses deux bouts : leur donner le meme
+        // instant et le meme verdict est ce qui les empeche de diverger. Le rythme dit
+        // COMBIEN l'application a passe a ne pas dessiner ; l'entracte dit OU il est alle.
+        self.chronique.entracte.fermer(debut_du_rendu, attendue);
         self.rythme_de_l_image =
             self.chronique
                 .rythme
                 .presentee(maintenant, debut_du_rendu, pas, vitesse, attendue);
+        self.chronique.entracte.ouvrir(maintenant);
         // **L'horloge de la trajectoire avance ICI**, au meme instant que la mesure : les deux
         // parlent de la meme chose, et les separer les ferait diverger.
         self.horloge.presentee(maintenant, self.image_attendue);

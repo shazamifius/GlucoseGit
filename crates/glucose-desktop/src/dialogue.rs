@@ -52,6 +52,7 @@ impl GlucoseApp {
         let reponse = ouvrir(Ancre(fenetre.as_deref()));
         self.horloge.oublier();
         self.chronique.rythme.oublier();
+        self.chronique.entracte.oublier();
         self.tempo.oublier();
         reponse
     }

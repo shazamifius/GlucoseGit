@@ -13,6 +13,7 @@
 //! et le **rythme** (redessiner, attendre).
 
 use super::GlucoseApp;
+use crate::chronique::entracte::Poste;
 use std::num::NonZeroU32;
 use tiny_skia::Pixmap;
 use winit::application::ApplicationHandler;
@@ -90,6 +91,46 @@ impl ApplicationHandler for GlucoseApp {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        // **L'image n'est pas un evenement de la main** : l'entracte se ferme a l'interieur
+        // du rendu, avec l'instant exact que le rythme emploie (ENTRACTE-1).
+        if matches!(event, WindowEvent::RedrawRequested) {
+            self.redraw();
+            return;
+        }
+        // Tout le reste est du temps entre deux images, et il nous appartient. Sans cette
+        // marque il irait grossir « attendre Windows », qui porterait alors un gel que
+        // Glucose s'infligerait lui-meme -- la forme exacte des quatre marques mal posees de
+        // ce depot.
+        let entree = std::time::Instant::now();
+        self.chronique.entracte.imputer(entree, Poste::Main);
+        self.aiguiller(event_loop, event);
+        self.chronique
+            .entracte
+            .imputer(std::time::Instant::now(), Poste::Systeme);
+    }
+
+    /// Winit appelle ceci quand la boucle se termine, quelle qu'en soit la raison.
+    ///
+    /// La croix n'est pas la seule facon de fermer une application : `exiting` couvre aussi
+    /// l'arret demande par le systeme et toute sortie de boucle declenchee ailleurs. La
+    /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
+    /// manquait, et une session entiere s'est perdue pour cette raison.
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        self.clore_la_chronique();
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.entretenir(event_loop);
+    }
+}
+
+impl GlucoseApp {
+    /// **L'aiguillage**, et rien d'autre : chaque famille sait ce qu'elle fait.
+    ///
+    /// Separe de `window_event` pour que la mesure de l'entracte encadre le traitement sans
+    /// avoir a se repeter devant chaque retour anticipe -- une marque oubliee sur un seul
+    /// chemin suffirait a fausser toute la section.
+    fn aiguiller(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
         if self.evenement_de_la_main(&event) {
             return;
         }
@@ -121,24 +162,19 @@ impl ApplicationHandler for GlucoseApp {
                 self.ui.scale_factor = scale_factor as f32;
                 self.mark_dirty();
             }
-            WindowEvent::RedrawRequested => {
-                self.redraw();
-            }
             _ => {}
         }
     }
 
-    /// Winit appelle ceci quand la boucle se termine, quelle qu'en soit la raison.
+    /// **Ce que la boucle fait quand la file de messages est vide** : poser ce qui est arrive,
+    /// relever ce que le processus coute, et dire quand revenir.
     ///
-    /// La croix n'est pas la seule facon de fermer une application : `exiting` couvre aussi
-    /// l'arret demande par le systeme et toute sortie de boucle declenchee ailleurs. La
-    /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
-    /// manquait, et une session entiere s'est perdue pour cette raison.
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        self.clore_la_chronique();
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    /// Chaque etape porte sa marque d'entracte : c'est ici que sept dixiemes de seconde se
+    /// sont caches pendant trois sessions, et aucun poste du rendu ne pouvait les voir.
+    fn entretenir(&mut self, event_loop: &ActiveEventLoop) {
+        self.chronique
+            .entracte
+            .imputer(std::time::Instant::now(), Poste::Depot);
         // Le lot de fichiers deposes est complet : tous les `DroppedFile` d'un meme geste
         // sont pousses par le meme appel systeme, donc ils sont tous arrives.
         if !self.dropped_files.is_empty() {
@@ -161,7 +197,17 @@ impl ApplicationHandler for GlucoseApp {
         // **La carte se rouvre ici, hors du rendu** (ARBITRE-1) : detruire la chaine pendant
         // qu'une image est detenue arrache le sol sous ses pieds, et c'est le plantage que la
         // fiche 17 § 2.3 raconte. Ici, aucune image ne l'est.
+        //
+        // Elle porte sa propre marque parce qu'elle est la seule etape de cette fonction qui
+        // puisse couter des centaines de millisecondes : la banniere du terrain annonce « 138
+        // ms pour lacher l'ancienne, 606 pour ouvrir la nouvelle ».
+        self.chronique
+            .entracte
+            .imputer(std::time::Instant::now(), Poste::Carte);
         self.rouvrir_la_carte_si_demande();
+        self.chronique
+            .entracte
+            .imputer(std::time::Instant::now(), Poste::Entretien);
 
         // **Ce que le processus coute a la machine** (EMPREINTE-1). Ici, et non dans la
         // boucle d'images : au repos il ne s'en rend aucune, donc un releve accroche aux
@@ -180,7 +226,11 @@ impl ApplicationHandler for GlucoseApp {
 
         // Chaque raison de se reveiller dit le delai qu'elle demande ; la plus pressee decide.
         // Aucune ne s'oublie, parce qu'aucune n'a de comptabilite a tenir (voir `reveil`).
-        match self.prochain_reveil() {
+        let reveil = self.prochain_reveil();
+        self.chronique
+            .entracte
+            .imputer(std::time::Instant::now(), Poste::Systeme);
+        match reveil {
             Some(ms) => {
                 self.image_attendue = true;
                 let echeance =

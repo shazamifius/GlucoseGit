@@ -13,6 +13,7 @@
 //!
 //! `cargo run -p glucose-desktop --example apercu_chronique`
 
+use glucose_desktop::chronique::entracte::Poste;
 use glucose_desktop::chronique::{Chronique, Geste, Instantane};
 use std::time::{Duration, Instant};
 
@@ -57,14 +58,23 @@ fn main() {
     // « 0 % d'images irrégulières » sous une distribution de balayages pourtant étalée de un à
     // seize. Une reconstitution qui lisse ce qu'elle prétend montrer ne montre rien.
     let sequence = entrelacer();
+    // **La bascule de carte, a sa place dans la session.** La banniere du 22/09 au soir
+    // annonce « ancienne lachee en 138 ms, nouvelle ouverte en 606 ms » ; la chronique de la
+    // meme session donne « le pire gel : 763,3 ms, dont 748,7 a ne pas dessiner ». Les deux
+    // nombres ne se sont jamais rencontres dans un rapport, faute d'une section pour les
+    // porter -- c'est exactement ce que l'entracte repare.
+    let bascule_au_tour = 2;
     for tour in 0..4 {
-        for duree_us in &sequence {
+        for (rang, duree_us) in sequence.iter().enumerate() {
             {
                 let duree_us = *duree_us;
                 let duree = Duration::from_micros(u64::from(duree_us));
                 let pas = debut_precedent.map_or(Duration::ZERO, |avant| {
                     horloge.saturating_duration_since(avant)
                 });
+                // L'entracte precede l'image : c'est ce que la boucle a fait avant de dessiner.
+                let bascule = tour == bascule_au_tour && rang == 0;
+                horloge = entracte(&mut c, horloge, bascule);
                 let presentation = horloge + duree;
                 let mesure = if pas.is_zero() {
                     Default::default()
@@ -72,6 +82,7 @@ fn main() {
                     c.rythme
                         .presentee(presentation, horloge, pas, vitesse, true)
                 };
+                c.entracte.ouvrir(presentation);
                 debut_precedent = Some(horloge);
                 horloge = presentation;
 
@@ -81,6 +92,26 @@ fn main() {
     }
     c.enregistrer(gel_d_initialisation(postes));
     println!("{}", c.rapport());
+}
+
+/// **Un entracte**, du terrain : Windows attend, la main parle, l'entretien passe.
+///
+/// Rend l'instant ou le rendu commence. Quand `bascule` est vrai, l'arbitre change de carte
+/// au milieu -- lacher l'ancienne et ouvrir la nouvelle ont coute 138 et 606 ms sur la
+/// machine de l'utilisateur, et rien dans la chronique ne pouvait le nommer.
+fn entracte(c: &mut Chronique, depart: Instant, bascule: bool) -> Instant {
+    let mut horloge = depart + Duration::from_micros(720);
+    c.entracte.imputer(horloge, Poste::Main);
+    horloge += Duration::from_micros(30);
+    c.entracte.imputer(horloge, Poste::Depot);
+    c.entracte.imputer(horloge, Poste::Carte);
+    if bascule {
+        horloge += Duration::from_millis(744);
+    }
+    c.entracte.imputer(horloge, Poste::Entretien);
+    horloge += Duration::from_micros(60);
+    c.entracte.fermer(horloge, true);
+    horloge
 }
 
 /// **Le gel du demarrage, tel que le terrain le produit, et il est ici pour une raison.**

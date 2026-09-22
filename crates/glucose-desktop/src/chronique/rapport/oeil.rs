@@ -7,6 +7,7 @@
 //! temps ». C'est la bonne question une fois qu'on sait laquelle poser. Ces trois sections-ci
 //! disent **laquelle poser**, et elles doivent donc être lues avant.
 
+use crate::chronique::entracte::Poste;
 use crate::chronique::Chronique;
 
 impl Chronique {
@@ -67,6 +68,9 @@ impl Chronique {
         }
         t.push_str("  Le rythme -- ce que l'oeil recoit, et non ce que l'image coute\n\n");
         self.ecrire_les_intervalles(t);
+        // Juste apres la ligne « dont a NE PAS dessiner », parce que c'est a elle que cette
+        // section repond -- et qu'elle n'a jamais su repondre pendant trois sessions.
+        self.ecrire_l_entracte(t);
         self.ecrire_le_tressaut(t);
         self.ecrire_les_balayages(t);
         t.push('\n');
@@ -187,6 +191,99 @@ impl Chronique {
              pas du temps perdu\n",
             f64::from(attente_med) / 1000.0,
             f64::from(attente_pire) / 1000.0
+        ));
+    }
+
+    /// **Ou va le temps a ne pas dessiner** (ENTRACTE-1).
+    ///
+    /// # La section qui manquait, et trois sessions l'ont demandee
+    ///
+    /// La ligne juste au-dessus chiffre cet intervalle depuis la fiche 19, et elle n'a jamais
+    /// pu dire ce qu'il contenait : 185 ms au p99, puis 717, puis 748,7 sur un gel de 763.
+    /// Deux hypotheses ecrites pour l'expliquer ont ete dementies, dont une par son propre
+    /// compteur.
+    ///
+    /// Les cinq postes se somment a l'entracte entier, et c'est ce qui rend cette section
+    /// lisible : un poste ne peut pas absorber ce qui le precede, faute que ce depot a payee
+    /// quatre fois -- `occlusion`, `recolte`, `blit`, `minimap`.
+    ///
+    /// # L'ordre suit le PIRE, et c'est l'inverse du tableau des postes du rendu
+    ///
+    /// La fiche 24 § 2 a fait passer ce tableau-la de la mediane au p99, parce que le tempo
+    /// se cale sur le centile. **Ici la bonne grandeur est encore une autre**, et la reprendre
+    /// sans reflechir referait la meme faute a un cran de plus.
+    ///
+    /// Un poste du rendu se paie a CHAQUE image : son p99 dit ce qui fait geler. Un poste de
+    /// l'entracte, lui, peut n'exister qu'une fois dans toute la session -- la bascule de
+    /// carte a lieu au plus deux fois dans la vie du processus, et elle coute sept dixiemes
+    /// de seconde. Son p99 est donc rigoureusement nul, et trier par lui reléguerait en
+    /// dernier le seul poste qu'on cherchait.
+    ///
+    /// Et un poste rigoureusement nul ne parait pas : une ligne de zeros n'apprend rien et
+    /// allonge le tableau d'autant.
+    fn ecrire_l_entracte(&self, t: &mut String) {
+        if self.entracte.comptes() == 0 {
+            return;
+        }
+        let mut lignes: Vec<(&'static str, u32, u32, u32)> = Poste::TOUS
+            .iter()
+            .map(|p| {
+                let (median, p99, pire) = self.entracte.poste(*p);
+                (p.nom(), median, p99, pire)
+            })
+            .filter(|(_, _, _, pire)| *pire > 0)
+            .collect();
+        if lignes.is_empty() {
+            return;
+        }
+        lignes.sort_by_key(|(_, _, p99, pire)| std::cmp::Reverse((*pire, *p99)));
+        let plafond = lignes
+            .iter()
+            .map(|(_, _, _, pire)| *pire)
+            .max()
+            .unwrap_or(1);
+        t.push_str(
+            "    et voici OU il est alle -- l'application ne dessine pas, mais elle n'est pas \
+             inactive\n",
+        );
+        t.push_str("      poste                median       p99      pire\n");
+        for (nom, median, p99, pire) in lignes {
+            t.push_str(&format!(
+                "      {nom:<18} {:7.2}ms {:7.2}ms {:9.2}ms  {}\n",
+                ms(median),
+                ms(p99),
+                ms(pire),
+                super::barre(f64::from(pire) / f64::from(plafond.max(1)))
+            ));
+        }
+        self.ecrire_le_pire_entracte(t);
+    }
+
+    /// **Le pire entracte, decompose** : la seule ligne du rapport qui nomme un gel.
+    ///
+    /// Une distribution dit ce qui arrive d'ordinaire. Elle ne dit pas ce qu'UNE attente de
+    /// sept dixiemes de seconde contenait, et c'est pourtant la seule question que trois
+    /// sessions ont posee. Les parts nulles sont tues : ce qui compte est qui a pris le temps.
+    fn ecrire_le_pire_entracte(&self, t: &mut String) {
+        let (quand, total, parts) = self.entracte.pire();
+        if total.is_zero() {
+            return;
+        }
+        let mut portees: Vec<(&'static str, f64)> = parts
+            .iter()
+            .filter(|(_, d)| !d.is_zero())
+            .map(|(p, d)| (p.nom(), d.as_secs_f64() * 1000.0))
+            .collect();
+        portees.sort_by(|a, b| b.1.total_cmp(&a.1));
+        let detail: Vec<String> = portees
+            .iter()
+            .map(|(nom, valeur)| format!("{nom} {valeur:.1}ms"))
+            .collect();
+        t.push_str(&format!(
+            "    la pire attente : {:.1}ms a la {:.1}e seconde -- dont {}\n",
+            total.as_secs_f64() * 1000.0,
+            quand.as_secs_f64(),
+            detail.join(", ")
         ));
     }
 }
