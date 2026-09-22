@@ -48,6 +48,10 @@ pub enum Command {
     Paste,
     /// Valider la saisie et sortir.
     Commit,
+    /// Revenir d'une entree dans la saisie en cours (TEXTE-UNDO-1).
+    Undo,
+    /// Repartir d'une entree vers l'avant.
+    Redo,
 }
 
 impl Command {
@@ -96,6 +100,12 @@ impl Command {
                 "c" | "C" => Self::Copy,
                 "x" | "X" => Self::Cut,
                 "v" | "V" => Self::Paste,
+                // **Ctrl+Z ne faisait rien pendant une saisie** : `handle_text_key` avale le
+                // clavier avant les raccourcis globaux -- il le faut, sans quoi taper « n »
+                // dans une carte creerait un pense-bete -- et rien ne le rattrapait ici.
+                "z" | "Z" if extend => Self::Redo,
+                "z" | "Z" => Self::Undo,
+                "y" | "Y" => Self::Redo,
                 _ => return None,
             },
             // Ce que la couche de composition a produit : un caractère accentué, un idéogramme,
@@ -154,7 +164,18 @@ impl GlucoseApp {
 
     /// Exécute une intention sur la saisie en cours.
     pub(crate) fn apply_text_command(&mut self, command: Command, extend: bool) {
+        // **Le point unique ou toute modification passe** : c'est donc le seul endroit ou
+        // l'historique ait a se tenir, et aucune commande ne peut lui echapper par distraction.
+        self.noter_pour_annulation(&command);
         match command {
+            Command::Undo => {
+                self.annuler_la_saisie(true);
+                return;
+            }
+            Command::Redo => {
+                self.annuler_la_saisie(false);
+                return;
+            }
             Command::Commit => {
                 self.commit_editing();
                 self.mark_dirty();
@@ -377,3 +398,57 @@ impl GlucoseApp {
 
 #[cfg(test)]
 mod tests;
+
+impl crate::app::GlucoseApp {
+    /// **Note l'etat d'avant si cette commande ouvre une nouvelle entree** (TEXTE-UNDO-1).
+    ///
+    /// Seules les commandes qui CHANGENT le texte comptent : deplacer le curseur ou etendre la
+    /// selection ne s'annule pas, et les empiler noierait les vraies modifications sous des
+    /// dizaines d'entrees vides.
+    fn noter_pour_annulation(&mut self, command: &Command) {
+        use super::historique::{Instant, Nature};
+        let nature = match command {
+            Command::Insert(texte) => Nature::du_texte(texte),
+            Command::Delete(..) => Nature::Effacement,
+            Command::Paste | Command::Cut => Nature::Isole,
+            _ => return,
+        };
+        let Some(session) = &self.editing_session else {
+            return;
+        };
+        let avant = Instant {
+            texte: session.buffer.clone(),
+            selection: session.selection,
+        };
+        self.historique_du_texte.noter(avant, nature);
+    }
+
+    /// Revient d'une entree, ou repart vers l'avant.
+    fn annuler_la_saisie(&mut self, en_arriere: bool) {
+        use super::historique::Instant;
+        let Some(session) = &self.editing_session else {
+            return;
+        };
+        let courant = Instant {
+            texte: session.buffer.clone(),
+            selection: session.selection,
+        };
+        let vise = if en_arriere {
+            self.historique_du_texte.annuler(courant)
+        } else {
+            self.historique_du_texte.retablir(courant)
+        };
+        let Some(vise) = vise else {
+            return;
+        };
+        let Some(session) = &mut self.editing_session else {
+            return;
+        };
+        session.buffer = vise.texte;
+        session.selection = vise.selection;
+        // La colonne visee par les fleches verticales appartient au curseur d'avant : la
+        // garder ferait sauter la ligne suivante a une abscisse qui n'a plus de sens.
+        session.goal_x = None;
+        self.mark_dirty();
+    }
+}

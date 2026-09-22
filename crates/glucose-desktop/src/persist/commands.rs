@@ -190,6 +190,7 @@ impl GlucoseApp {
         // plus : ce qu'il retient — un renommage ouvert, une suppression en attente — désigne
         // des identifiants du document précédent (DOM-UI-1).
         self.editing_session = None;
+        self.historique_du_texte.oublier();
         self.selection_box = None;
         self.dock_manager.domains.reset();
         let repaired = self.store.load_project(file.project);

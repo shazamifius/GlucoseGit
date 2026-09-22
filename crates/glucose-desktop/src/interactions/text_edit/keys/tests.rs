@@ -86,10 +86,21 @@ fn test_key_1_composed_text_is_inserted_as_it_comes() {
     assert_eq!(compose, Some((Command::Insert("é".into()), false)));
     // Un caractère de contrôle n'est pas du texte : il ne doit pas entrer dans le document.
     assert_eq!(Command::of(&touche("a"), &AUCUN, Some("\u{7f}")), None);
-    // Sous Ctrl, ce n'est pas de la saisie mais un raccourci.
+    // **Sous Ctrl, ce n'est jamais de la saisie.** Le texte que le systeme accompagne a la
+    // frappe est ignore : ou bien la touche est un raccourci, ou bien elle ne veut rien dire.
+    //
+    // Ce test prenait `z` pour exemple du second cas. Depuis TEXTE-UNDO-1, `Ctrl+Z` est un
+    // raccourci -- l'exemple est donc devenu faux sans que la propriete le soit. Il en prend
+    // un qui ne l'est toujours pas, et verifie EN PLUS que `z` est bien devenu un raccourci
+    // et non une insertion : la seconde moitie est plus exigeante que ce qu'il demandait.
+    assert_eq!(
+        Command::of(&touche("q"), &ModifiersState::CONTROL, Some("q")),
+        None
+    );
     assert_eq!(
         Command::of(&touche("z"), &ModifiersState::CONTROL, Some("z")),
-        None
+        Some((Command::Undo, false)),
+        "Ctrl+Z doit annuler, et surtout ne pas inserer un « z »"
     );
 }
 

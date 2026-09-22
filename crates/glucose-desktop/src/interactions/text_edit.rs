@@ -11,7 +11,8 @@
 //! jour, et le premier oubli laissait un surlignage fantôme derrière le curseur.
 
 pub mod geometry;
-pub mod keys;
+pub mod historique;
+pub(crate) mod keys;
 
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;
@@ -33,6 +34,10 @@ impl GlucoseApp {
         selection: Selection,
     ) {
         let selection = selection.clamped(&initial_text);
+        // **Le passe d'une saisie ne se prolonge pas dans une autre** (TEXTE-UNDO-1). Sans
+        // cet oubli, annuler dans une carte y reposerait le texte d'une carte precedente --
+        // et c'est la sorte de defaut qu'on ne comprend qu'apres avoir perdu du travail.
+        self.historique_du_texte.oublier();
         self.editing_session = Some(TextEditSession {
             ann_id,
             buffer: initial_text,

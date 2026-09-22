@@ -130,6 +130,13 @@ pub struct GlucoseApp {
     pub presenter: Option<Box<dyn crate::present::Presenter>>,
     pub scale_factor: f64,
 
+    /// Le passe et l'avenir de la saisie en cours (TEXTE-UNDO-1).
+    ///
+    /// Il vit **a cote** de la session et non dedans : depuis COMPOSANT-2, l'empreinte de la
+    /// texture d'une carte en saisie porte une copie de cette session, et un historique range
+    /// la serait clone a chaque frappe.
+    pub historique_du_texte: crate::interactions::text_edit::historique::Historique,
+
     /// **Le prochain clic ne sert qu'à revenir au premier plan** (REVEIL-1).
     ///
     /// Windows transmet à la fenêtre le clic qui l'active, et Glucose l'exécutait donc sur le
@@ -287,6 +294,7 @@ impl GlucoseApp {
             },
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
+            historique_du_texte: Default::default(),
             clic_de_reveil: false,
             relachement_a_jeter: false,
             window: None,

@@ -652,3 +652,128 @@ fn test_le_relachement_du_clic_avale_est_avale_aussi() {
         "le clic suivant, lui, agit"
     );
 }
+
+// ── TEXTE-UNDO-1 : annuler pendant qu'on ecrit ──────────────────────────────
+
+use crate::interactions::text_edit::keys::Command;
+use glucose_core::text::Selection;
+
+/// Ce que `Ctrl+Z` veut dire quand une carte est en saisie, tel que la vraie chaine le lit.
+///
+/// **C'est la moitie qui manquait** : `handle_text_key` avale le clavier avant les raccourcis
+/// globaux des qu'une carte est en saisie -- il le faut, sans quoi taper « n » creerait un
+/// pense-bete -- et `Command::of` ne connaissait ni `z` ni `y`. La touche n'atteignait donc
+/// rien du tout.
+fn commande_de(c: &str, mods: ModifiersState) -> Option<(Command, bool)> {
+    Command::of(&Key::Character(SmolStr::new(c)), &mods, None)
+}
+
+/// Tape ce texte caractere par caractere, comme le clavier le ferait.
+fn ecrire(app: &mut GlucoseApp, texte: &str) {
+    for c in texte.chars() {
+        app.apply_text_command(Command::Insert(c.to_string()), false);
+    }
+}
+
+/// Une carte ouverte en saisie, vide.
+fn app_en_saisie() -> GlucoseApp {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    let carte = crate::interactions::tools::text_card(
+        &app.renderer.typography,
+        &app.renderer.math,
+        "c1".to_string(),
+        0.0,
+        0.0,
+        String::new(),
+    );
+    app.store.add_annotation(&board, carte);
+    app.store.clear_selection();
+    app.start_text_edit_at("c1".to_string(), String::new(), Selection::at(0));
+    app
+}
+
+/// **Ctrl+Z pendant une saisie veut dire « annuler », et annule le dernier mot.**
+#[test]
+fn test_ctrl_z_pendant_une_saisie_annule_le_dernier_mot() {
+    assert_eq!(
+        commande_de("z", ModifiersState::CONTROL),
+        Some((Command::Undo, false)),
+        "Ctrl+Z ne voulait rien dire pendant une saisie"
+    );
+
+    let mut app = app_en_saisie();
+    ecrire(&mut app, "Bonjour le monde");
+    assert_eq!(
+        app.editing_session.as_ref().map(|s| s.buffer.as_str()),
+        Some("Bonjour le monde")
+    );
+    app.apply_text_command(Command::Undo, false);
+    assert_eq!(
+        app.editing_session.as_ref().map(|s| s.buffer.as_str()),
+        Some("Bonjour le "),
+        "un Ctrl+Z retire le dernier mot, pas la derniere lettre"
+    );
+}
+
+/// **Ctrl+Maj+Z et Ctrl+Y retablissent**, et les deux disent la meme chose.
+#[test]
+fn test_ctrl_maj_z_et_ctrl_y_retablissent_ce_qui_vient_d_etre_annule() {
+    let maj = ModifiersState::CONTROL | ModifiersState::SHIFT;
+    assert_eq!(commande_de("z", maj), Some((Command::Redo, true)));
+    assert_eq!(
+        commande_de("y", ModifiersState::CONTROL),
+        Some((Command::Redo, false))
+    );
+
+    let mut app = app_en_saisie();
+    ecrire(&mut app, "Bonjour le monde");
+    app.apply_text_command(Command::Undo, false);
+    app.apply_text_command(Command::Redo, true);
+    assert_eq!(
+        app.editing_session.as_ref().map(|s| s.buffer.as_str()),
+        Some("Bonjour le monde")
+    );
+}
+
+/// **Le passe d'une saisie ne se prolonge pas dans une autre.**
+///
+/// Sans cet oubli, annuler dans une carte y reposerait le texte d'une carte precedente : le
+/// genre de defaut qu'on ne comprend qu'apres avoir perdu du travail.
+#[test]
+fn test_ouvrir_une_autre_carte_oublie_le_passe_de_la_precedente() {
+    let mut app = app_en_saisie();
+    ecrire(&mut app, "Bonjour le monde");
+    app.start_text_edit_at("c1".to_string(), "Autre".to_string(), Selection::at(5));
+    app.apply_text_command(Command::Undo, false);
+    assert_eq!(
+        app.editing_session.as_ref().map(|s| s.buffer.as_str()),
+        Some("Autre"),
+        "le passe de la carte precedente a deborde sur celle-ci"
+    );
+}
+
+/// **Deplacer le curseur ne s'annule pas.**
+///
+/// Empiler les deplacements noierait les vraies modifications sous des dizaines d'entrees
+/// vides : trois `Ctrl+Z` ne rendraient alors que le curseur, et le texte resterait entier.
+#[test]
+fn test_deplacer_le_curseur_ne_cree_pas_d_entree() {
+    let mut app = app_en_saisie();
+    ecrire(&mut app, "Bonjour");
+    let avant = app.historique_du_texte.profondeur();
+    for _ in 0..5 {
+        app.apply_text_command(
+            Command::Move(
+                glucose_core::text::Motion::Char,
+                glucose_core::text::Direction::Backward,
+            ),
+            false,
+        );
+    }
+    assert_eq!(
+        app.historique_du_texte.profondeur(),
+        avant,
+        "cinq deplacements ont empile cinq entrees vides"
+    );
+}
