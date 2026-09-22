@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 mod accueil;
+mod evenements;
 mod fenetre;
 mod mouvement;
 mod peinture;
@@ -18,11 +19,9 @@ use glucose_core::store::Store;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use tiny_skia::Pixmap;
-use winit::application::ApplicationHandler;
-use winit::event::{ElementState, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow};
+use winit::event::ElementState;
 use winit::keyboard::ModifiersState;
-use winit::window::{Window, WindowId};
+use winit::window::Window;
 
 /// Ce que dit la carte d'accueil d'un document neuf.
 const WELCOME_TEXT: &str = "# Bienvenue dans Glucose !\n- 100% Rust ultra-rapide\n- Teintes symbiotiques dynamiques\n- Double-cliquez pour éditer";
@@ -130,6 +129,25 @@ pub struct GlucoseApp {
     /// millisecondes que la présentation elle-même coûte.
     pub presenter: Option<Box<dyn crate::present::Presenter>>,
     pub scale_factor: f64,
+
+    /// **Le prochain clic ne sert qu'à revenir au premier plan** (REVEIL-1).
+    ///
+    /// Windows transmet à la fenêtre le clic qui l'active, et Glucose l'exécutait donc sur le
+    /// canevas : revenir d'un navigateur pour coller une image désélectionnait ce qu'on avait
+    /// choisi, déplaçait un nœud, ou traçait un trait — selon l'outil actif et l'endroit où le
+    /// curseur se trouvait. C'est le comportement que macOS refuse depuis toujours, et pour
+    /// une bonne raison : **un clic d'activation n'est pas un geste**, c'est une formalité du
+    /// système d'exploitation.
+    ///
+    /// Le drapeau se lève à la reprise du focus et retombe au premier mouvement de souris :
+    /// quelqu'un qui revient par Alt+Tab, bouge la souris puis clique veut vraiment cliquer.
+    /// Aucune durée n'a eu à être choisie — un délai aurait été une constante arbitraire, et
+    /// il aurait avalé des clics une demi-seconde après coup.
+    pub clic_de_reveil: bool,
+    /// Le relâchement du clic avalé se jette avec lui : sans cela, la moitié d'un geste
+    /// arrive sans sa première moitié, et c'est exactement ce qui referme un tracé qui n'a
+    /// jamais commencé.
+    pub relachement_a_jeter: bool,
 
     // États d'interaction
     pub mouse_pos: (f64, f64),
@@ -269,6 +287,8 @@ impl GlucoseApp {
             },
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
+            clic_de_reveil: false,
+            relachement_a_jeter: false,
             window: None,
             presenter: None,
             scale_factor: 1.0,
@@ -404,6 +424,28 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
+    /// **Ce clic agit-il sur le canevas, ou rend-il seulement le premier plan ?** (REVEIL-1)
+    ///
+    /// Windows transmet a la fenetre le clic qui l'active. Revenir d'un navigateur pour coller
+    /// une image executait donc ce clic sur le canevas : il deselectionnait ce qu'on avait
+    /// choisi, deplacait un noeud ou tracait un trait, selon l'outil actif et l'endroit ou le
+    /// curseur se trouvait. macOS refuse ce comportement depuis toujours, et pour une bonne
+    /// raison : **un clic d'activation n'est pas un geste**, c'est une formalite du systeme.
+    ///
+    /// Le relachement part avec l'appui qu'il termine. Sans cela, la seconde moitie d'un geste
+    /// arrive sans la premiere -- et c'est exactement ce qui referme un trace qui n'a jamais
+    /// commence, ou relache un panneau que personne n'a saisi.
+    pub(crate) fn ce_clic_agit(&mut self, state: ElementState) -> bool {
+        match state {
+            ElementState::Pressed if std::mem::take(&mut self.clic_de_reveil) => {
+                self.relachement_a_jeter = true;
+                false
+            }
+            ElementState::Released if std::mem::take(&mut self.relachement_a_jeter) => false,
+            _ => true,
+        }
+    }
+
     /// Applique la réorganisation issue du panneau ORDONNER (Masonry, Grille, Même Hauteur, etc.)
     ///
     /// # ORDONNER-1 — on range **ce qui est sélectionné**, et rien d'autre
@@ -451,129 +493,5 @@ impl GlucoseApp {
         self.ui
             .show_toast(format!("{} : {quoi} rangé(es)", state.layout.title()));
         self.mark_dirty();
-    }
-}
-
-impl ApplicationHandler for GlucoseApp {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if self.window.is_some() {
-            return;
-        }
-        let started = std::time::Instant::now();
-        if let Err(e) = self.init_window(event_loop) {
-            eprintln!("[GlucoseDesktop] initialisation de la fenêtre impossible : {e}");
-            event_loop.exit();
-            return;
-        }
-        crate::perf::event("resumed", started);
-    }
-
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        match event {
-            WindowEvent::CloseRequested => {
-                // R-48 — la croix ne jette plus le travail : un document modifié pose la
-                // question, et un enregistrement raté annule la fermeture (SAVE-3).
-                if self.request_close() {
-                    event_loop.exit();
-                } else {
-                    self.mark_dirty();
-                }
-            }
-            WindowEvent::Resized(size) => {
-                let width = size.width.max(1);
-                let height = size.height.max(1);
-                if let Some(presenter) = &mut self.presenter {
-                    if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
-                        if let Err(e) = presenter.resize(w, h) {
-                            eprintln!("[GlucoseDesktop] redimensionnement de la surface : {e}");
-                        }
-                    }
-                }
-                self.pixmap = Pixmap::new(width, height);
-                self.mark_dirty();
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.scale_factor = scale_factor;
-                self.ui.scale_factor = scale_factor as f32;
-                self.mark_dirty();
-            }
-            WindowEvent::RedrawRequested => {
-                self.redraw();
-            }
-            WindowEvent::ModifiersChanged(mods) => {
-                self.modifiers = mods.state();
-            }
-            WindowEvent::CursorMoved { position, .. } => {
-                self.handle_cursor_moved(position);
-            }
-            WindowEvent::MouseWheel { delta, .. } => {
-                self.handle_mouse_wheel(delta);
-            }
-            WindowEvent::MouseInput { button, state, .. } => {
-                let (screen_w, screen_h) = if let Some(w) = &self.window {
-                    let sz = w.inner_size();
-                    (sz.width as f32, sz.height as f32)
-                } else {
-                    (1280.0, 720.0)
-                };
-                match state {
-                    ElementState::Pressed => self.handle_mouse_down(button, screen_w, screen_h),
-                    ElementState::Released => self.handle_mouse_up(button),
-                }
-            }
-            WindowEvent::KeyboardInput { event, .. } => {
-                self.handle_key(&event);
-            }
-            WindowEvent::DroppedFile(path_buf) => {
-                // Un evenement par fichier : on accumule, et `about_to_wait` pose le lot.
-                self.dropped_files.push(path_buf);
-            }
-            _ => {}
-        }
-    }
-
-    /// Winit appelle ceci quand la boucle se termine, quelle qu'en soit la raison.
-    ///
-    /// La croix n'est pas la seule facon de fermer une application : `exiting` couvre aussi
-    /// l'arret demande par le systeme et toute sortie de boucle declenchee ailleurs. La
-    /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
-    /// manquait, et une session entiere s'est perdue pour cette raison.
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        self.clore_la_chronique();
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        // Le lot de fichiers deposes est complet : tous les `DroppedFile` d'un meme geste
-        // sont pousses par le meme appel systeme, donc ils sont tous arrives.
-        if !self.dropped_files.is_empty() {
-            let lot = std::mem::take(&mut self.dropped_files);
-            self.drop_files(&lot);
-        }
-
-        // Hors du rendu, et seulement quand il y a du neuf : une session qui finit mal garde
-        // alors la trace de son pire moment (CHRONIQUE-1).
-        self.sauver_la_chronique_si_besoin();
-
-        // Chaque raison de se reveiller dit le delai qu'elle demande ; la plus pressee decide.
-        // Aucune ne s'oublie, parce qu'aucune n'a de comptabilite a tenir (voir `reveil`).
-        match self.prochain_reveil() {
-            Some(ms) => {
-                self.image_attendue = true;
-                let echeance =
-                    std::time::Instant::now() + std::time::Duration::from_millis(ms.max(1));
-                event_loop.set_control_flow(ControlFlow::WaitUntil(echeance));
-            }
-            None => {
-                self.image_attendue = false;
-                // Un repos n'a pas de tempo : la grille repart de la prochaine soumission.
-                self.tempo.oublier();
-                event_loop.set_control_flow(ControlFlow::Wait);
-            }
-        }
     }
 }

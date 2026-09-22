@@ -574,3 +574,81 @@ fn les_chiffres_se_lisent_sur_la_touche_physique_pas_sur_la_disposition() {
         assert_eq!(chiffre_de_la_touche(PhysicalKey::Code(code)), attendu);
     }
 }
+
+// -- REVEIL-1 : le clic qui rend le premier plan ------------------------------
+
+/// Rejoue ce que `window_event` fait d'un clic : la garde, puis le geste.
+fn jouer_le_clic(app: &mut GlucoseApp, state: ElementState) {
+    if !app.ce_clic_agit(state) {
+        return;
+    }
+    match state {
+        ElementState::Pressed => app.handle_mouse_down(MouseButton::Left, 1280.0, 720.0),
+        ElementState::Released => app.handle_mouse_up(MouseButton::Left),
+    }
+}
+
+/// **Le clic qui reveille Glucose n'agit pas sur le canevas.**
+///
+/// Ses mots, apres une session de travail reelle : « il faut dabord cliquer pour reveiller
+/// glucose et ensuite pouvoir faire sa ». Ce clic-la tombait sur le canevas, et selon l'outil
+/// actif il deselectionnait, deplacait ou tracait.
+///
+/// Le test porte sa preuve : la meme sequence sans le drapeau perd la selection.
+#[test]
+fn test_le_clic_qui_rend_le_premier_plan_n_agit_pas_sur_le_canevas() {
+    let selection = || vec!["i0".to_string(), "i1".to_string(), "i2".to_string()];
+
+    let mut reveil = app_with(3);
+    reveil.store.selected_image_ids = selection();
+    reveil.mouse_pos = (900.0, 600.0);
+    reveil.clic_de_reveil = true;
+    jouer_le_clic(&mut reveil, ElementState::Pressed);
+    jouer_le_clic(&mut reveil, ElementState::Released);
+    assert_eq!(
+        reveil.store.selected_image_ids.len(),
+        3,
+        "le clic de reveil a touche la selection"
+    );
+
+    // **Sans le drapeau**, le meme clic sur le vide deselectionne : c'est ce qui arrivait.
+    let mut ordinaire = app_with(3);
+    ordinaire.store.selected_image_ids = selection();
+    ordinaire.mouse_pos = (900.0, 600.0);
+    jouer_le_clic(&mut ordinaire, ElementState::Pressed);
+    jouer_le_clic(&mut ordinaire, ElementState::Released);
+    assert!(
+        ordinaire.store.selected_image_ids.is_empty(),
+        "le test ne prouve rien : un clic ordinaire ne touchait deja pas la selection"
+    );
+}
+
+/// **Apres un mouvement de souris, le clic redevient un geste.**
+///
+/// Quelqu'un qui revient par Alt+Tab, bouge la souris puis clique veut vraiment cliquer. Sans
+/// ce second test, avaler TOUS les clics passerait le premier -- et Glucose serait
+/// inutilisable a chaque retour au premier plan.
+#[test]
+fn test_apres_un_mouvement_le_clic_redevient_un_geste() {
+    let mut app = app_with(1);
+    app.clic_de_reveil = true;
+    // Ce que `CursorMoved` fait du drapeau, et c'est tout ce qui est en jeu.
+    app.clic_de_reveil = false;
+    assert!(app.ce_clic_agit(ElementState::Pressed));
+}
+
+/// **Le relachement part avec l'appui qu'il termine.**
+///
+/// Sans cela la seconde moitie d'un geste arrive sans la premiere, et c'est ce qui referme un
+/// trace qui n'a jamais commence.
+#[test]
+fn test_le_relachement_du_clic_avale_est_avale_aussi() {
+    let mut app = app_with(1);
+    app.clic_de_reveil = true;
+    assert!(!app.ce_clic_agit(ElementState::Pressed));
+    assert!(!app.ce_clic_agit(ElementState::Released));
+    assert!(
+        app.ce_clic_agit(ElementState::Pressed),
+        "le clic suivant, lui, agit"
+    );
+}
