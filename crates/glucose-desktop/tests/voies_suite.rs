@@ -102,6 +102,15 @@ fn les_deux_couches(
     taille: (u32, u32),
     store: &glucose_core::store::Store,
 ) -> (Renderer, Pixmap, Pixmap, Confie) {
+    les_deux_couches_en_editant(taille, store, None)
+}
+
+/// La meme chose, avec une saisie en cours sur l'une des cartes.
+fn les_deux_couches_en_editant(
+    taille: (u32, u32),
+    store: &glucose_core::store::Store,
+    editing: Option<&glucose_desktop::renderer::TextEditSession>,
+) -> (Renderer, Pixmap, Pixmap, Confie) {
     let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
     let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
     dessous.fill(tiny_skia::Color::TRANSPARENT);
@@ -117,7 +126,7 @@ fn les_deux_couches(
         SceneOverlay {
             guides: &guides,
             selection_box: None,
-            editing: None,
+            editing,
         },
         Regard::immobile(),
     );
@@ -213,4 +222,84 @@ fn test_une_photo_en_chemin_est_un_composant_qui_porte_de_l_encre() {
             "la texture de {cle} ne porte que {encre} pixels : le cadre en chemin ne se dessine              plus"
         );
     }
+}
+
+/// Combien de pixels d'une couche portent de l'encre.
+fn encre(p: &Pixmap) -> usize {
+    p.data()
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .filter(|c| c[3] > 0)
+        .count()
+}
+
+/// **La carte qu'on ecrit est portee par la carte graphique, et le processeur ne la redessine
+/// plus** (COMPOSANT-2).
+///
+/// # Pourquoi ce test compte au lieu de comparer
+///
+/// Deux fautes opposees sont possibles, et une comparaison d'images n'en verrait qu'une :
+///
+/// * si personne ne la dessine, elle **disparait** -- c'est la forme exacte des quatre
+///   regressions de l'etape 1, et la fiche 22 § 5 rappelle qu'aucun test de passe ne peut les
+///   voir, puisqu'un test de passe appelle la passe ;
+/// * si les deux la dessinent, elle se compose **deux fois** sur elle-meme, ce qui ne se voit
+///   presque pas sur un fond sombre et fausse pourtant l'epreuve des deux voies.
+///
+/// La couche du dessus porte la chrome et les ornements, et rien de plus. Ouvrir une saisie
+/// n'y change donc rien : si son encre grandit, c'est que le processeur y a repeint la carte.
+#[test]
+fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
+    let taille = synth::WITNESS_SIZE;
+    let store = synth::witness_selected();
+    let board = store.active_board().expect("un tableau");
+    let (id, texte) = board
+        .annotations
+        .iter()
+        .find_map(|a| match a {
+            glucose_core::types::Annotation::Text { id, text, .. } => {
+                Some((id.clone(), text.clone()))
+            }
+            _ => None,
+        })
+        .expect("le temoin porte au moins une carte de texte");
+
+    let session = glucose_desktop::renderer::TextEditSession {
+        ann_id: id.clone(),
+        buffer: texte,
+        selection: glucose_core::text::Selection::at(1),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible: true,
+    };
+    let (_, _, sans, _) = les_deux_couches_en_editant(taille, &store, None);
+    let (_, _, avec, confie) = les_deux_couches_en_editant(taille, &store, Some(&session));
+
+    let prefixe = format!("carte:{id}:");
+    assert!(
+        confie
+            .cartes
+            .iter()
+            .any(|(cle, _)| cle.starts_with(&prefixe)),
+        "la carte en saisie doit etre une texture que la carte pose, et elle ne l'est pas"
+    );
+    assert_eq!(
+        confie
+            .cartes
+            .last()
+            .map(|(cle, _)| cle.starts_with(&prefixe)),
+        Some(true),
+        "elle se pose en DERNIER, donc au-dessus des autres cartes"
+    );
+    // **Ce test echoue sur l'implementation d'avant**, et c'est la seule preuve qui compte :
+    // en y retablissant `au_processeur = editing.is_some()`, la couche du dessus passe de
+    // 205 918 a 260 930 pixels d'encre -- cinquante-cinq mille de plus, soit exactement une
+    // carte repeinte par-dessus celle que la carte graphique pose deja.
+    let (avant, apres) = (encre(&sans), encre(&avec));
+    assert!(
+        apres <= avant + avant / 20,
+        "la couche du dessus passe de {avant} a {apres} pixels d'encre : le processeur y \
+         repeint la carte que la carte graphique porte deja"
+    );
 }
