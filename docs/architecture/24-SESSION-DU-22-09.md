@@ -452,3 +452,55 @@ un écran de 2 916 kpx. Un cran de zoom de plus et la question se poserait pour 
 
 **Ce qu'il faut faire d'abord** : comprendre pourquoi le second diagnostic compte zéro à
 l'échelle 1. Puis, si le trou est réel, le refermer — et la documentation dit déjà comment.
+
+---
+
+## 14. Ce que les trois compteurs ont répondu, et ce qu'ils ont démenti
+
+Une session de travail réelle de cinq minutes, 2 648 images, avec les compteurs du § 11.
+
+| | avant l'instrument | maintenant |
+|---|---:|---:|
+| images par seconde | 51 | **73** |
+| tempo | 5 balayages (54 %) | **3 (71 %)** |
+| p99 de tous les gestes | 16 à 19,5 ms | **11,59 ms, partout** |
+| au-dessus de 10 ms | 10 à 12 % | **3 %** |
+| latence p99 | 27,6 ms | **19,5 ms** |
+
+### 14.1 `dock` dément ce que j'avais écrit
+
+Le § 11 posait la question ainsi : le poste `docks` paie-t-il des panneaux qui **se refont**, ou
+seulement leur **composition** ? Je penchais pour la seconde — le cache du dock le dit
+lui-même, *« composer un tampon coûte à peu près ce que coûte le dessin qu'il remplace »* — et
+j'en avais tiré qu'il faudrait sortir la chrome de la couche qu'on efface.
+
+**La colonne `dock` vaut 1 ou 2 sur dix des douze images les plus lentes.** Les panneaux se
+redessinent, et c'est cela qu'on paie. Une couche à part n'y aurait rien changé : elle
+économise la composition, pas le dessin. **C'est la clé qui est trop large**, et c'est un
+chantier entièrement différent de celui que j'avais annoncé.
+
+### 14.2 `bande` est le plus gros poste isolé de la session
+
+```
+    10.5s  22.12ms zoomer   dock=2 bande=1   dont bande 14.95ms, docks 2.31ms
+```
+
+**Quinze millisecondes pour redessiner la barre du haut.** À 150 % d'échelle elle couvre
+2160 × 66 pixels, soit 143 kilopixels — et `bench_composant` chiffre le remplissage à cinq
+millisecondes par mégapixel, donc moins d'une milliseconde. **Il y a un facteur vingt à
+expliquer**, et aucune hypothèse ne tient avant d'avoir mesuré.
+
+### 14.3 `ornements` sort de l'ombre
+
+Invisible dans l'ancien tableau — médiane nulle — il monte à 4,78 ms, et sur une image de zoom
+où ni la bande ni les panneaux ne se refont, il est le **premier** poste. Troisième cause,
+jamais nommée jusqu'ici.
+
+### 14.4 Ce que cela met à la place du § 12
+
+| # | Ce que c'est | Chiffre | Statut |
+|---|---|---|---|
+| 1 | **`bande` quand elle se refait** | 14,95 ms pour 143 kpx, soit vingt fois le remplissage | **Inexpliqué.** Mesurer avant toute hypothèse |
+| 2 | **La clé des panneaux** | `dock` = 1 ou 2 sur dix images lentes sur douze | La composition n'était pas la cause |
+| 3 | **`ornements`** | jusqu'à 4,78 ms | Jamais instrumenté plus finement |
+| 4 | Le reste du § 12 | — | Inchangé |
