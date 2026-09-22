@@ -422,7 +422,33 @@ aucune image retenue ne porte de valeur ne paraît plus, et aucun seuil n'a eu �
 | 2 | **`textures`** — p99 à 8-10 ms sur les trois gestes, y compris au repos | 5 ms/Mpx, un tiers de cadre | Le § 5.1 dit la sortie : le cadre analytique sur la carte |
 | 3 | **Les pense-bêtes comme composants** | `direct` le chiffrera | Même mécanisme que COMPOSANT-1, jamais appliqué |
 | 4 | **L'arbitre** (fiche 21, étape 2) | l'Arc gèle `present` à 300 ms | `GLUCOSE_CARTE=rapide` reste à taper à chaque lancement |
-| 5 | **Une carte plus grande que l'écran** n'est plus un composant | falaise dans `Regime::composer` | **À vérifier : rien ne semble la dessiner alors** |
+| 5 | **Une carte plus grande que l'écran** n'est plus un composant | falaise dans `Regime::composer` | **Piste, non établie** — voir § 13 |
 | 6 | **Le SIMD à l'exécution** | facteur 3 à 4 | `is_x86_feature_detected` toujours absent |
 | 7 | **Les 185 ms « à ne pas dessiner »** au p99, pire 510 ms | hors de tout code de rendu | Jamais instrumenté |
 | 8 | **Le constat « travail refait »** du verdict | annonce x1,1 en permanence | Dette nommée au § 7 |
+
+---
+
+## 13. Une piste ouverte, et pourquoi elle reste ouverte
+
+`Regime::composer` refuse de faire un composant d'une carte dont la texture dépasserait
+l'écran, et la documentation de `composants.rs` promet alors, mot pour mot : *« il se dessine
+en direct, comme une photo en zoom proche »*. Sur la voie graphique, la première passe de
+`draw_annotations` est vide et la seconde ne pose que des ornements — **personne ne semble
+dessiner cette carte-là**, et elle disparaîtrait donc au zoom fort.
+
+Ce serait la cinquième régression de l'étape 1, et exactement la forme que la fiche 22 § 9.1
+décrit : *un commentaire qui décrit une intention passe pour une description*.
+
+**Mais je n'ai pas réussi à l'établir, et je ne l'écris donc pas comme un fait.** Un premier
+diagnostic confirme que le refus intervient bien dès qu'une carte dépasse l'écran — à l'échelle
+4 sur un écran de 500 × 300. Un second, de bout en bout, donne **zéro carte posée à l'échelle 1
+aussi**, ce qui n'a aucun sens : c'est le diagnostic qui est faux quelque part, pas forcément le
+code. Conclure du second serait raisonner sur un instrument non vérifié, ce que cette fiche
+entière reproche par ailleurs.
+
+Le terrain en est proche sans y être : la plus grosse texture de la session vaut 2 332 kpx pour
+un écran de 2 916 kpx. Un cran de zoom de plus et la question se poserait pour de bon.
+
+**Ce qu'il faut faire d'abord** : comprendre pourquoi le second diagnostic compte zéro à
+l'échelle 1. Puis, si le trou est réel, le refermer — et la documentation dit déjà comment.
