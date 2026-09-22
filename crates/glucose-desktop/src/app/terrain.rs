@@ -321,12 +321,49 @@ impl GlucoseApp {
         }
     }
 
+    /// **La vue est-elle immobile ?** La seule situation ou un gel ne se voit pas.
+    ///
+    /// C'est mot pour mot la question que le tempo pose pour decider s'il regle quoi que ce
+    /// soit : *« le tempo ne regle que ce qui BOUGE : c'est la seule situation ou un
+    /// intervalle irregulier se voit »*. La bascule de carte suit la meme loi, pour la meme
+    /// raison -- et **aucune constante n'a eu a etre choisie**, parce que le jugement etait
+    /// deja ecrit.
+    fn la_vue_est_immobile(&self) -> bool {
+        !(self.elan.en_cours() || self.vol.en_cours())
+    }
+
     /// **Rouvre la presentation sur la carte que l'arbitre a designee.**
     ///
     /// A appeler hors du rendu, quand aucune image n'est detenue. Un echec n'est pas une
     /// panne : on garde celle qui marche, et on le dit -- une carte qui refuse de s'ouvrir
     /// vaut mieux qu'une application qui se ferme.
+    ///
+    /// # ARBITRE-3 -- pourquoi elle attend que la vue s'arrete
+    ///
+    /// **Ouvrir une carte graphique coute une demi-seconde, et ce n'est pas un defaut a
+    /// corriger.** La banniere du terrain l'a chiffre sur la machine de l'utilisateur --
+    /// *« ancienne lachee en 138 ms, nouvelle ouverte en 606 ms »* -- et les mesures publiees
+    /// de `wgpu` donnent la meme chose ailleurs : instance 202 ms, adaptateur 143, peripherique
+    /// 85, configuration de la surface 140. C'est pourquoi les logiciels professionnels
+    /// demandent un redemarrage pour changer de carte, plutot que de le faire a chaud.
+    ///
+    /// Sur la chronique du 22/09 au soir, ces 744 millisecondes tombent **pendant un zoom**,
+    /// a la 10,4e seconde, et l'image suivante paie encore 406 ms de `present` -- la premiere
+    /// presentation sur une chaine neuve. Un peu plus d'une seconde de canevas fige, en plein
+    /// geste. C'est le gel que l'utilisateur decrit.
+    ///
+    /// On ne peut donc pas rendre cette bascule rapide. **On peut la rendre invisible** : un
+    /// gel d'une seconde pendant que rien ne bouge n'a rien a montrer de travers. L'arbitre
+    /// conclut quand il conclut -- c'est pendant le mouvement qu'il mesure ; sa demande, elle,
+    /// attend le premier instant ou la vue s'immobilise, et il arrive toujours : l'elan
+    /// s'eteint de lui-meme des que la main lache.
+    ///
+    /// La demande n'est donc pas jetee tant qu'elle n'est pas honoree, et ce tour de boucle
+    /// ne coute rien : un `Option` qu'on ne prend pas.
     pub(super) fn rouvrir_la_carte_si_demande(&mut self) {
+        if !self.la_vue_est_immobile() {
+            return;
+        }
         let Some(voulue) = self.carte_a_rouvrir.take() else {
             return;
         };
@@ -473,5 +510,66 @@ mod tests {
             "sur la voie processeur, la meme image lente laisse la resolution reduite : la \
              decision distingue bien les deux voies"
         );
+    }
+
+    /// Une application dont la vue **glisse encore** : la main a lache, l'elan n'est pas eteint.
+    fn app_en_mouvement() -> GlucoseApp {
+        let mut app = GlucoseApp::new();
+        app.elan.pousser_pan(120.0, 0.0, std::time::Instant::now());
+        assert!(
+            app.elan.en_cours(),
+            "la mise en place du test doit vraiment mettre la vue en mouvement"
+        );
+        app
+    }
+
+    #[test]
+    fn test_la_bascule_de_carte_attend_que_la_vue_s_immobilise() {
+        // ARBITRE-3. Ouvrir une carte graphique coute une demi-seconde -- 606 ms mesurees sur
+        // la machine de l'utilisateur, et les chiffres publies de `wgpu` donnent le meme
+        // ordre. Le faire pendant un zoom fige le canevas en plein geste ; le faire au repos
+        // ne montre rien de travers.
+        let mut app = app_en_mouvement();
+        app.carte_a_rouvrir = Some(crate::present::arbitre::Preference::Rapide);
+        app.rouvrir_la_carte_si_demande();
+
+        // **La preuve a l'envers : la demande survit.** Sans la garde, ce `take()` l'aurait
+        // consommee pendant que la vue glissait, et la reconstruction de toute la chaine
+        // graphique serait tombee au milieu du geste -- exactement ce que la chronique du
+        // 22/09 au soir montre : 744 ms a la 10,4e seconde, pendant un zoom.
+        assert_eq!(
+            app.carte_a_rouvrir,
+            Some(crate::present::arbitre::Preference::Rapide),
+            "une demande ne se perd pas parce que la vue bougeait : elle attend"
+        );
+    }
+
+    #[test]
+    fn test_la_bascule_part_des_que_la_vue_s_arrete() {
+        let mut app = GlucoseApp::new();
+        assert!(
+            !app.elan.en_cours(),
+            "une application neuve a la vue immobile"
+        );
+        app.carte_a_rouvrir = Some(crate::present::arbitre::Preference::Rapide);
+        app.rouvrir_la_carte_si_demande();
+
+        // Sans fenetre, la reouverture ne peut pas aboutir -- mais la demande a ete PRISE, et
+        // c'est ce qui prouve que la garde l'a laissee passer. Une garde qui ne s'ouvre jamais
+        // vaut exactement un arbitre supprime, et rien dans le rapport ne le dirait.
+        assert_eq!(
+            app.carte_a_rouvrir, None,
+            "vue immobile : la demande est honoree tout de suite"
+        );
+    }
+
+    #[test]
+    fn test_l_immobilite_est_celle_que_le_tempo_juge_deja() {
+        // Aucune constante n'a ete choisie : c'est mot pour mot la question que
+        // `attendre_l_heure_de_soumettre` pose -- « le tempo ne regle que ce qui BOUGE, c'est
+        // la seule situation ou un intervalle irregulier se voit ». Deux jugements separes qui
+        // doivent rester d'accord finissent par ne plus l'etre.
+        assert!(GlucoseApp::new().la_vue_est_immobile());
+        assert!(!app_en_mouvement().la_vue_est_immobile());
     }
 }
