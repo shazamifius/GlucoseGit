@@ -194,6 +194,11 @@ impl GlucoseApp {
                 // ou si on cherchait celui du dessous.
                 if self.drag_applied_delta == (0.0, 0.0) {
                     self.advance_pick_cycle();
+                    // SEL-MULTI-1 : rien n'a bouge, donc c'etait un clic -- la selection se
+                    // ramene a l'element presse. Un glissement, lui, la garde entiere.
+                    self.reduire_la_selection_si_demandee();
+                } else {
+                    self.reduire_a_la_relache = None;
                 }
                 self.finish_resize();
                 self.finish_item_drag();

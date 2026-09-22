@@ -130,6 +130,17 @@ pub struct GlucoseApp {
     pub presenter: Option<Box<dyn crate::present::Presenter>>,
     pub scale_factor: f64,
 
+    /// **La selection a reduire au relachement, si le geste n'etait qu'un clic** (SEL-MULTI-1).
+    ///
+    /// Presser sur un element deja selectionne ne doit PAS reduire la selection : c'est ce qui
+    /// permet de deplacer plusieurs images d'un seul geste. Mais un clic simple sur l'un
+    /// d'eux, lui, doit bien reduire -- sinon on ne pourrait plus jamais ramener la selection
+    /// a un seul element sans passer par le vide.
+    ///
+    /// Les deux gestes commencent par la meme pression et ne se distinguent qu'a la fin :
+    /// **c'est donc le relachement qui tranche**, et rien d'autre ne le peut.
+    pub reduire_a_la_relache: Option<String>,
+
     /// Le passe et l'avenir de la saisie en cours (TEXTE-UNDO-1).
     ///
     /// Il vit **a cote** de la session et non dedans : depuis COMPOSANT-2, l'empreinte de la
@@ -294,6 +305,7 @@ impl GlucoseApp {
             },
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
+            reduire_a_la_relache: None,
             historique_du_texte: Default::default(),
             clic_de_reveil: false,
             relachement_a_jeter: false,

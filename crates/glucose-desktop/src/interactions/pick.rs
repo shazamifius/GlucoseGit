@@ -216,6 +216,24 @@ impl GlucoseApp {
 
     pub(crate) fn select_node(&mut self, top: &PickCandidate) {
         let additive = self.modifiers.shift_key();
+        // **SEL-MULTI-1 -- presser sur un element deja selectionne ne reduit pas la
+        // selection.**
+        //
+        // `select_image(id, false)` commence par `clear_selection()`. Selectionner douze
+        // images puis presser sur l'une d'elles pour les deplacer ramenait donc la selection
+        // a UNE avant meme que le glissement ne demarre : `init_item_drag` n'en voyait plus
+        // qu'une, et on ne pouvait deplacer les images qu'une par une.
+        //
+        // La reduction n'est pas supprimee, elle est **differee** : un clic simple sur un
+        // membre de la selection doit toujours ramener la selection a lui seul, sinon on ne
+        // pourrait plus en sortir sans passer par le vide. Les deux gestes commencent par la
+        // meme pression et ne se distinguent qu'a la fin, donc c'est le relachement qui
+        // tranche (voir `reduire_la_selection_si_demandee`).
+        if !additive && self.est_deja_selectionne(top) {
+            self.reduire_a_la_relache = Some(top.id.clone());
+            return;
+        }
+        self.reduire_a_la_relache = None;
         match top.owner {
             PickOwner::Image => self.store.select_image(top.id.clone(), additive),
             PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {
@@ -223,6 +241,36 @@ impl GlucoseApp {
             }
             PickOwner::Folder => self.store.select_folder(top.id.clone()),
         }
+    }
+
+    /// Ce noeud fait-il deja partie de la selection ?
+    fn est_deja_selectionne(&self, top: &PickCandidate) -> bool {
+        match top.owner {
+            PickOwner::Image => self.store.selected_image_ids.contains(&top.id),
+            PickOwner::Annotation | PickOwner::Membrane | PickOwner::Arrow => {
+                self.store.selected_annotation_ids.contains(&top.id)
+            }
+            PickOwner::Folder => self.store.selected_folder_id.as_ref() == Some(&top.id),
+        }
+    }
+
+    /// **Ramene la selection au seul element presse**, quand le geste n'etait qu'un clic.
+    ///
+    /// Appelee au relachement, et seulement si rien n'a bouge : un glissement garde la
+    /// selection entiere, un clic la reduit. Le cycle de profondeur a deja eu sa chance juste
+    /// avant, et s'il a designe un autre noeud il a efface cette demande en le selectionnant.
+    pub(crate) fn reduire_la_selection_si_demandee(&mut self) {
+        let Some(id) = self.reduire_a_la_relache.take() else {
+            return;
+        };
+        if self.store.selected_image_ids.contains(&id) {
+            self.store.clear_selection();
+            self.store.select_image(id, false);
+        } else if self.store.selected_annotation_ids.contains(&id) {
+            self.store.clear_selection();
+            self.store.select_annotation(id, false);
+        }
+        self.mark_dirty();
     }
 }
 

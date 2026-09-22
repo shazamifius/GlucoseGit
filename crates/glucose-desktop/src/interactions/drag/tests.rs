@@ -268,3 +268,105 @@ fn test_live_4_emptying_a_text_card_deletes_it_undoably() {
         "et c'est tout : rien n'a été perdu en route"
     );
 }
+
+// -- SEL-MULTI-1 : glisser toute une selection -------------------------------
+
+/// Trois images posees cote a cote, toutes selectionnees.
+fn app_avec_trois_images_selectionnees() -> GlucoseApp {
+    let mut app = app();
+    with_image(&mut app, "a", -300.0, 0.0);
+    with_image(&mut app, "b", 0.0, 0.0);
+    with_image(&mut app, "c", 300.0, 0.0);
+    app.store.selected_image_ids = vec!["a".into(), "b".into(), "c".into()];
+    app
+}
+
+/// **Glisser une image selectionnee deplace TOUTE la selection.**
+///
+/// Ses mots : « lorsque on selectionne plusieur image et on veux les moove bas ces juste pas
+/// possible on peut que moove 1 image par 1 image ».
+///
+/// La cause tenait dans `select_image(id, false)`, qui commence par `clear_selection()` : la
+/// pression ramenait la selection a UNE image avant meme que `init_item_drag` ne lise ce
+/// qu'il devait deplacer. Les trois images etaient bien selectionnees a l'ecran, et une seule
+/// suivait la souris.
+#[test]
+fn test_glisser_une_image_selectionnee_deplace_toute_la_selection() {
+    let mut app = app_avec_trois_images_selectionnees();
+    let avant = ["a", "b", "c"].map(|id| image_x(&app, id));
+
+    // **Ce test echoue sur l'implementation d'avant**, et c'est la seule preuve qui compte :
+    // en retirant la garde de `select_node`, cette assertion tombe avec le message qu'elle
+    // porte -- la selection valait 1 au lieu de 3 des la pression.
+    press_on(&mut app, "b");
+    assert_eq!(
+        app.store.selected_image_ids.len(),
+        3,
+        "la pression a reduit la selection avant meme que le glissement ne commence"
+    );
+    drag_by(&mut app, 120.0, 6);
+    release(&mut app);
+
+    let apres = ["a", "b", "c"].map(|id| image_x(&app, id));
+    for (i, id) in ["a", "b", "c"].iter().enumerate() {
+        let parcouru = apres[i] - avant[i];
+        assert!(
+            (parcouru - 120.0).abs() < 1.0,
+            "{id} a parcouru {parcouru:.1} au lieu de 120 : la selection ne suit pas"
+        );
+    }
+}
+
+/// **Un clic simple sur un membre de la selection la ramene a lui seul.**
+///
+/// La reduction n'est pas supprimee, elle est differee : sans elle, on ne pourrait plus jamais
+/// sortir d'une selection multiple sans passer par le vide. Ce test est la moitie qui empeche
+/// de « corriger » le premier en gardant tout, tout le temps.
+#[test]
+fn test_un_clic_sans_deplacement_ramene_la_selection_a_l_element_presse() {
+    let mut app = app_avec_trois_images_selectionnees();
+    press_on(&mut app, "b");
+    release(&mut app);
+    assert_eq!(
+        app.store.selected_image_ids,
+        vec!["b".to_string()],
+        "un clic simple doit ramener la selection a ce qu'il designe"
+    );
+}
+
+/// **Presser sur une image HORS selection la remplace**, comme avant.
+///
+/// Rien de ce qui marchait ne doit changer : c'est la seule facon de savoir que la correction
+/// n'a pas deplace le probleme.
+#[test]
+fn test_presser_hors_selection_remplace_la_selection() {
+    let mut app = app();
+    with_image(&mut app, "a", -300.0, 0.0);
+    with_image(&mut app, "b", 0.0, 0.0);
+    app.store.selected_image_ids = vec!["a".into()];
+
+    press_on(&mut app, "b");
+    assert_eq!(
+        app.store.selected_image_ids,
+        vec!["b".to_string()],
+        "presser une image non selectionnee doit la choisir, elle seule"
+    );
+}
+
+/// **Glisser ne reduit pas la selection au relachement.**
+///
+/// Le drapeau de reduction doit etre oublie des qu'un pixel a bouge, sinon le glissement
+/// deplacerait tout puis ne garderait qu'une image selectionnee -- et le geste suivant
+/// n'emporterait de nouveau qu'elle.
+#[test]
+fn test_apres_un_glissement_la_selection_reste_entiere() {
+    let mut app = app_avec_trois_images_selectionnees();
+    press_on(&mut app, "b");
+    drag_by(&mut app, 120.0, 6);
+    release(&mut app);
+    assert_eq!(
+        app.store.selected_image_ids.len(),
+        3,
+        "la selection a fondu apres le glissement"
+    );
+}
