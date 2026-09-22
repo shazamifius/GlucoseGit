@@ -364,19 +364,34 @@ pub(super) fn poses_des_photos(
 /// **Les cartes de texte que l'ecran montre**, comme composants (COMPOSANT-1).
 ///
 /// La teinte symbiotique se calcule ici, comme dans `draw_annotations` : c'est le meme
-/// parcours, au meme endroit, et c'est elle qui entre dans l'empreinte. La carte en edition
-/// n'y figure pas : elle reste au processeur, dans la couche du dessus.
+/// parcours, au meme endroit, et c'est elle qui entre dans l'empreinte.
+///
+/// # La carte qu'on edite en est une aussi (COMPOSANT-2)
+///
+/// Elle en etait exclue, et elle se redessinait donc en entier a chaque image : le terrain du
+/// 22/09 la chiffre a 9,74 ms en median sur le geste « editer du texte », dont l'image
+/// mediane coute 19,48 ms. **Cinquante et une images par seconde pendant qu'on ecrit**, la ou
+/// la charte en demande cent -- et ce n'est pas la frappe qui coute, c'est de refaire a
+/// l'identique entre deux touches.
+///
+/// Ce qu'elle montre ne change qu'a la frappe et deux fois par seconde pour le curseur : son
+/// empreinte le dit, et la texture ne se refait que la. Elle se pose **en dernier**, donc
+/// au-dessus des autres cartes, ce qui est exactement le rang que le processeur lui donnait
+/// en la dessinant dans sa seconde passe.
 fn composants_de_texte(
     regime: &super::composants::Regime,
     hue_cache: &mut SymbioticHueCache,
     kit: PaintKit<'_>,
-    (store, pass, edition): (&Store, ViewPass<'_>, Option<&str>),
+    (store, pass, edition): (&Store, ViewPass<'_>, Option<&super::TextEditSession>),
 ) -> (Vec<(String, Pose)>, Vec<super::composants::Composant>) {
     let Some(board) = store.active_board() else {
         return (Vec::new(), Vec::new());
     };
     let mut posees = Vec::new();
     let mut composants = Vec::new();
+    // Ce qu'on edite passe au-dessus des autres cartes : on le met de cote et on l'ajoute
+    // apres, plutot que de trier une liste dont l'ordre est deja celui du modele.
+    let mut en_saisie = None;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let glucose_core::types::Annotation::Text {
             x, y, text, color, ..
@@ -384,9 +399,7 @@ fn composants_de_texte(
         else {
             continue;
         };
-        if edition == Some(ann.id()) {
-            continue;
-        }
+        let saisie = edition.filter(|e| e.ann_id == ann.id());
         let Some((w, h)) = ann.size() else {
             continue;
         };
@@ -396,15 +409,28 @@ fn composants_de_texte(
             .map(|c| super::parse_hex_color(c, symbiose.0, symbiose.1, symbiose.2))
             .unwrap_or(symbiose);
         let selectionnee = store.selected_annotation_ids.iter().any(|s| s == ann.id());
-        if let Some(c) = regime.carte(
+        // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
+        // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
+        let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());
+        let Some(c) = regime.carte(
             kit,
             ann.id(),
             (*x, *y, w as f32, h as f32),
-            (text, teinte, selectionnee),
-        ) {
+            (corps, teinte, selectionnee),
+            saisie,
+        ) else {
+            continue;
+        };
+        if saisie.is_some() {
+            en_saisie = Some(c);
+        } else {
             posees.push((c.cle.clone(), c.pose));
             composants.push(c);
         }
+    }
+    if let Some(c) = en_saisie {
+        posees.push((c.cle.clone(), c.pose));
+        composants.push(c);
     }
     (posees, composants)
 }
@@ -442,8 +468,8 @@ impl Renderer {
             ..plein
         };
         let encre = self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
-        let edition = overlay.editing.map(|s| s.ann_id.as_str());
-        let mut confie = self.confier_a_la_carte(store, taille, header_h, (sous, edition, regard));
+        let mut confie =
+            self.confier_a_la_carte(store, taille, header_h, (sous, overlay.editing, regard));
         confie.dessous_porte_quelque_chose = encre;
 
         let sur = Cadrage {
@@ -468,7 +494,7 @@ impl Renderer {
         store: &Store,
         taille: (u32, u32),
         header_h: f32,
-        (cadrage, edition, regard): (Cadrage, Option<&str>, Regard),
+        (cadrage, edition, regard): (Cadrage, Option<&super::TextEditSession>, Regard),
     ) -> Confie {
         let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
         let pass = ViewPass {

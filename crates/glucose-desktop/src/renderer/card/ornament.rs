@@ -264,6 +264,66 @@ const PREVIEW_RADIUS: f32 = 6.0;
 ///
 /// Elle se pose à droite, et bascule à gauche si elle sortirait de l'écran : le même réflexe
 /// que le menu contextuel, pour la même raison.
+/// **Cette carte montre-t-elle une previsualisation de formule ?**
+///
+/// C'est la seule chose qui empeche une carte en saisie d'etre un composant (COMPOSANT-2) :
+/// la plaque se pose hors de sa boite et son placement lit `clip.width`, qui vaut l'ecran
+/// dans une passe et la texture dans un composant.
+///
+/// **Le seul endroit qui en decide**, et c'est ce qui compte : `Regime::carte` refuse alors
+/// d'en faire une texture, `draw_annotations` la dessine alors entiere. Deux tests separes
+/// qui doivent rester d'accord finissent par ne plus l'etre -- ou bien les deux la
+/// dessinent, ou bien aucun.
+///
+/// La mise en page se refait ici, et c'est assume : `bench_texte` la chiffre a 0,55 ms pour
+/// soixante-douze cartes, soit huit microsecondes pour celle-ci, et c'est la SEULE carte
+/// concernee. Porter une liste d'identites depuis la voie graphique jusqu'ici couterait plus
+/// cher en couplage qu'en calcul.
+pub(in crate::renderer) fn porte_une_previsualisation(ctx: &Pass, card: &TextCard) -> bool {
+    let Some(session) = card.editing else {
+        return false;
+    };
+    let text = super::card_text_layout(
+        ctx.typography,
+        ctx.math,
+        card.body,
+        card.size.0,
+        card.mode(),
+    );
+    previsualisation_en_cours(&text, session)
+}
+
+/// **Le curseur est-il pose sur une ligne de formule ?**
+///
+/// La seule condition qui decide qu'une previsualisation VA se poser, et la seule qui se
+/// calcule sans mesurer la formule. Deux appelants la lisent : [`draw_formula_preview`], qui
+/// la pose, et `Regime::carte`, qui refuse alors de faire de la carte un composant --
+/// la plaque sort de la boite de la carte et son placement lit `clip.width`, donc elle ne
+/// tiendrait pas dans une texture (COMPOSANT-2).
+///
+/// **Une seule definition pour les deux**, parce que deux tests qui doivent rester d'accord
+/// finissent par ne plus l'etre : le processeur dessinerait la carte que la carte graphique
+/// pose deja, ou personne ne la dessinerait.
+pub(in crate::renderer) fn previsualisation_en_cours(
+    text: &crate::renderer::richtext::TextLayout,
+    session: &crate::renderer::TextEditSession,
+) -> bool {
+    ligne_de_formule(text, session).is_some()
+}
+
+/// La ligne de formule sous le curseur, et son mode d'affichage.
+fn ligne_de_formule<'a>(
+    text: &'a crate::renderer::richtext::TextLayout,
+    session: &crate::renderer::TextEditSession,
+) -> Option<(&'a VisualLine, bool)> {
+    let rang = crate::renderer::richtext::hit::line_of_offset(text, session.selection.head);
+    let line = text.lines.get(rang)?;
+    match line.kind {
+        BlockKind::Math { display } => Some((line, display)),
+        _ => None,
+    }
+}
+
 pub(super) fn draw_formula_preview(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
@@ -275,13 +335,10 @@ pub(super) fn draw_formula_preview(
     let Some(session) = card.editing else {
         return;
     };
+    let Some((line, display)) = ligne_de_formule(text, session) else {
+        return;
+    };
     let rang = crate::renderer::richtext::hit::line_of_offset(text, session.selection.head);
-    let Some(line) = text.lines.get(rang) else {
-        return;
-    };
-    let BlockKind::Math { display } = line.kind else {
-        return;
-    };
     let source = super::paragraph_of(card.body, line);
     let Some((corps, _)) = glucose_core::text::block::formula(source) else {
         return;

@@ -113,6 +113,15 @@ enum Contenu {
         corps: String,
         teinte: (u8, u8, u8),
         selectionnee: bool,
+        /// La saisie en cours sur cette carte, **figee** (COMPOSANT-2).
+        ///
+        /// Une carte qu'on edite changeait a chaque image parce que personne ne s'etait
+        /// demande a quelle frequence elle change VRAIMENT : son texte bouge a la frappe,
+        /// son curseur deux fois par seconde, et rien d'autre. Le terrain du 22/09 la
+        /// chiffre a 9,74 ms en median sur le geste « editer du texte », dont l'image
+        /// mediane coute 19,48 ms -- cinquante et une images par seconde pendant qu'on
+        /// ecrit, la ou la charte en demande cent.
+        edition: Option<crate::renderer::TextEditSession>,
     },
     PhotoEnChemin {
         id: String,
@@ -135,6 +144,7 @@ impl Contenu {
                 corps,
                 teinte,
                 selectionnee,
+                edition,
                 ..
             } => {
                 0u8.hash(h);
@@ -143,6 +153,24 @@ impl Contenu {
                 taille.1.to_bits().hash(h);
                 teinte.hash(h);
                 selectionnee.hash(h);
+                // **Ce que la saisie change, et rien d'autre.** Le texte est deja dans
+                // `corps` -- `carte_de` y met le tampon d'edition. Restent l'etendue
+                // selectionnee et la phase du curseur, que BLINK-1 a sortie de l'horloge
+                // pour en faire un booleen : sans elle, deux phases opposees donneraient la
+                // meme cle et le curseur cesserait de clignoter.
+                //
+                // `goal_x` et `blink_timer` n'y sont PAS, et c'est voulu : ils decident de
+                // ce que le curseur fera, jamais de ce qu'il montre. Les hacher referait la
+                // texture a chaque touche de direction sans qu'un pixel change.
+                match edition {
+                    Some(e) => {
+                        1u8.hash(h);
+                        e.selection.anchor.hash(h);
+                        e.selection.head.hash(h);
+                        e.curseur_visible.hash(h);
+                    }
+                    None => 0u8.hash(h),
+                }
             }
             Self::PhotoEnChemin {
                 id,
@@ -285,10 +313,27 @@ impl Regime {
         id: &str,
         (x, y, w, h): (f64, f64, f32, f32),
         (corps, teinte, selectionnee): (&str, (u8, u8, u8), bool),
+        edition: Option<&crate::renderer::TextEditSession>,
     ) -> Option<Composant> {
+        // MODE-1 : une carte qu'on corrige montre ses signes, une carte qu'on lit ne les
+        // montre pas -- et le decoupage en lignes n'est pas le meme dans les deux modes.
+        let mode = if edition.is_some() {
+            TextMode::Source
+        } else {
+            TextMode::Rendered
+        };
         // La hauteur suit le texte : une carte ne tronque jamais son contenu (TEXT-FIT-1).
-        let lignes =
-            card_text_layout(kit.typography, kit.math, corps, w, TextMode::Rendered).line_count();
+        let mise_en_page = card_text_layout(kit.typography, kit.math, corps, w, mode);
+        // **Une previsualisation de formule ne rentre pas dans une texture.** Elle se pose a
+        // DROITE de la carte, hors de sa boite, et bascule a gauche quand le bord de l'ecran
+        // approche -- son placement lit `clip.width`, qui vaut l'ecran dans une passe et la
+        // texture dans un composant. La carte reste donc au processeur tant qu'elle en
+        // montre une ; c'est le seul cas, et il dure le temps qu'un curseur traverse une
+        // formule.
+        if edition.is_some_and(|e| super::card::previsualisation_en_cours(&mise_en_page, e)) {
+            return None;
+        }
+        let lignes = mise_en_page.line_count();
         let vue = CardLayout::text_card(w, h, lignes).scaled(WorldScale::new(self.vue.scale));
         let (sx, sy) = world_to_screen(x, y, &self.vue);
         let (sx, sy) = (sx as f32, sy as f32);
@@ -309,6 +354,7 @@ impl Regime {
                 corps: corps.to_string(),
                 teinte,
                 selectionnee,
+                edition: edition.cloned(),
             },
         )
     }
@@ -377,6 +423,7 @@ impl Composant {
                 corps,
                 teinte,
                 selectionnee,
+                edition,
             } => {
                 // `world_to_screen` vaut `monde x echelle + vue` : la vue qui place le coin
                 // de la carte en `(marge + phase)` s'en deduit en une ligne.
@@ -407,7 +454,7 @@ impl Composant {
                         body: corps,
                         tint: *teinte,
                         selected: *selectionnee,
-                        editing: None,
+                        editing: edition.as_ref(),
                     },
                 );
             }

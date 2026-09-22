@@ -2,7 +2,9 @@
 //! tri qui envoie chaque nœud à son dessin — la carte, le pense-bête, la flèche.
 
 use super::arrow::draw_arrow;
-use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, TextCard};
+use super::card::{
+    draw_card_contenu, draw_card_ornements, draw_text_card, porte_une_previsualisation, TextCard,
+};
 use super::domain::{draw_domain_gauge, DomainTints};
 use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
@@ -108,7 +110,7 @@ pub(super) fn draw_annotations(
         hue_cache,
         (&ctx, pixmap),
         (store, board, pass),
-        editing_session,
+        (editing_session, cartes_par_la_carte),
     );
     crate::perf::compteur("cartes_entieres", entieres);
 }
@@ -132,7 +134,7 @@ fn dessiner_ce_qui_passe_au_dessus(
     hue_cache: &mut SymbioticHueCache,
     (ctx, pixmap): (&Pass, &mut PixmapMut),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
-    editing_session: Option<&TextEditSession>,
+    (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
 ) -> f64 {
     let mut entieres = 0.0_f64;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
@@ -141,9 +143,14 @@ fn dessiner_ce_qui_passe_au_dessus(
         match ann {
             Annotation::Text { x, y, .. } => {
                 if let Some(carte) = carte_de(hue_cache, ann, store, pass, editing) {
-                    // La carte qu'on edite se dessine entiere, ici, au premier plan : son
-                    // curseur clignote et sa previsualisation deborde de sa boite.
-                    if editing.is_some() {
+                    // **La carte qu'on edite est un composant comme les autres** depuis
+                    // COMPOSANT-2, et seules ses poignees restent ici. Elle ne se dessine
+                    // entiere que sur la voie processeur, ou quand sa previsualisation de
+                    // formule l'empeche d'etre une texture -- c'est le meme test, ecrit une
+                    // seule fois, que celui qui decide de la faire ou non.
+                    let au_processeur = editing.is_some()
+                        && (!cartes_par_la_carte || porte_une_previsualisation(ctx, &carte));
+                    if au_processeur {
                         entieres += 1.0;
                         draw_text_card(ctx, pixmap, carte);
                     } else {

@@ -55,6 +55,8 @@
 //! signes réapparaissent et le texte peut demander une ligne de plus — la carte l'affiche,
 //! puisque `text_card` prend le maximum entre la hauteur écrite et celle qu'il faut.
 
+pub(super) use ornament::{porte_une_previsualisation, previsualisation_en_cours};
+
 use super::handles::draw_resize_handles;
 use super::pass::{Pass, SELECTION_RING};
 use super::richtext::draw::{draw_line, draw_line_selection};
