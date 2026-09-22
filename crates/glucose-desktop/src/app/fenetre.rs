@@ -117,14 +117,14 @@ impl GlucoseApp {
         self.chronique
             .rythme
             .observer_la_machine(self.cadence.periode(), presenter.rythme());
-        // **L'arbitre ne s'installe que si personne n'a tranche a sa place** (ARBITRE-1). Sa
-        // fenetre d'observation vaut une seconde de CET ecran : elle se deduit de la cadence
-        // qu'on vient de lire, elle n'est pas choisie.
+        // **L'arbitre ne s'installe que si personne n'a tranche a sa place** (ARBITRE-1). Son
+        // echantillon se compte en IMAGES, pas en secondes, et c'est celui du tempo : la
+        // premiere version s'en etait invente un autre -- une seconde de l'ecran -- et cette
+        // fenetre-la se refermait douze secondes avant le premier gel du terrain.
         self.arbitre = crate::present::gpu::succession::carte_imposee().map_or_else(
             || {
                 Some(crate::present::arbitre::Arbitre::nouveau(
                     crate::present::arbitre::Preference::Econome,
-                    self.cadence.periode(),
                 ))
             },
             |_| None,

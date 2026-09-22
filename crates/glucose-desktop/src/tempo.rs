@@ -78,20 +78,14 @@
 
 use std::time::{Duration, Instant};
 
-/// La part d'images irrégulières au-delà de laquelle une cadence n'est plus tenue.
+/// Ce que la tolérance permet de ratés, et sur combien d'images elle se juge.
 ///
-/// Elle ne se déclare plus ici : c'est [`crate::cadence::PART_TOLEREE`], la même que le
-/// verdict de la chronique et l'arbitre des cartes lisent. La version précédente disait
-/// « repris et non redéclaré **en esprit** » — ce qui est exactement la façon dont deux
-/// copies d'un seuil commencent à diverger.
-const TOLERANCE_POUR_CENT: u32 = (crate::cadence::PART_TOLEREE * 100.0) as u32;
-
-/// Le nombre de ratés qu'il faut pour parler d'une fréquence : un seul est un événement.
-const UNE_FREQUENCE: u32 = 2;
-
-/// Le nombre d'images sur lequel la tolérance se juge : le plus petit où [`UNE_FREQUENCE`]
-/// ratés la valent exactement.
-const ECHANTILLON: u32 = UNE_FREQUENCE * 100 / TOLERANCE_POUR_CENT;
+/// Ni l'un ni l'autre ne se déclarent plus ici : ils sont dans [`crate::cadence`], avec la
+/// part dont ils se déduisent, et **l'arbitre des cartes les lit aussi**. La version
+/// précédente disait « repris et non redéclaré **en esprit** » — ce qui est exactement la
+/// façon dont deux copies d'un seuil commencent à diverger, et l'arbitre en a fait la preuve
+/// en s'inventant une fenêtre à lui.
+use crate::cadence::{ECHANTILLON, UNE_FREQUENCE};
 
 /// Le rythme de soumission des images.
 #[derive(Debug, Clone, Copy)]

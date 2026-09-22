@@ -48,6 +48,28 @@ pub const FPS_PLANCHER: f64 = 60.0;
 /// non redéclaré **en esprit** ». Il est désormais repris tout court.
 pub const PART_TOLEREE: f64 = 0.01;
 
+/// La même part, en pour cent, pour qui compte en entiers.
+const TOLERANCE_POUR_CENT: u32 = (PART_TOLEREE * 100.0) as u32;
+
+/// **Le nombre de ratés qu'il faut pour parler d'une fréquence** : un seul est un événement.
+///
+/// C'est aussi, par construction de [`ECHANTILLON`], ce que la tolérance permet sur un
+/// échantillon entier — les deux coïncident, et c'est voulu.
+pub const UNE_FREQUENCE: u32 = 2;
+
+/// **Le nombre d'images sur lequel la tolérance se juge** : le plus petit où
+/// [`UNE_FREQUENCE`] ratés la valent exactement.
+///
+/// Il se compte en **images**, jamais en secondes. Le tempo l'avait déjà établi : à quarante
+/// images par seconde, « quatre-vingt-dix-neuf pour cent tiendraient » jugé sur une seconde
+/// se lit « toutes tiendraient », et un pour cent cesse d'être mesurable. Une machine lente
+/// regarde donc plus longtemps, ce qui est exactement ce qu'il faut.
+///
+/// Il vivait dans [`crate::tempo`], qui n'était pas seul à en avoir besoin : l'arbitre des
+/// cartes s'en était inventé un autre — « une seconde de l'écran » — et les deux jugeaient la
+/// même tolérance sur deux échantillons différents. Une constante de moins, pas une de plus.
+pub const ECHANTILLON: u32 = UNE_FREQUENCE * 100 / TOLERANCE_POUR_CENT;
+
 /// Ce qu'une image **et son travail de fond** ont le droit de coûter ensemble.
 ///
 /// Cent images par seconde : le plancher que la charte pose sans le négocier — « 100 fps

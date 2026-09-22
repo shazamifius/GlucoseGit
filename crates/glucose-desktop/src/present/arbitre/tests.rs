@@ -1,23 +1,32 @@
 //! Ce que l'arbitre promet : il essaie, il regarde, il garde la meilleure — et il ne peut
 //! pas osciller.
+//!
+//! La moitié la plus utile de ce fichier rejoue **la session de terrain du 22/09 au soir**,
+//! celle où l'arbitre n'a rien fait pendant que la carte gelait quatre fois. Les deux défauts
+//! y sont séparés, et chacun est montré en train de conclure l'inverse.
 
 use super::*;
+use crate::cadence::ECHANTILLON;
 
-/// Un écran à 240 Hz : la fenêtre d'observation vaut alors 240 images.
-fn a_240hz(depart: Preference) -> Arbitre {
-    Arbitre::nouveau(depart, Duration::from_secs_f64(1.0 / 240.0))
+/// Un `present` qui tient largement le plancher — la médiane du terrain au repos.
+const SAIN: u32 = 1_020;
+/// Le plancher de la charte, en microsecondes.
+const PLANCHER: u32 = 10_000;
+
+/// Un arbitre qui a fini son échauffement : c'est dans ce régime que tout se joue.
+fn chauffe(depart: Preference) -> Arbitre {
+    let mut a = Arbitre::nouveau(depart);
+    for _ in 0..ECHANTILLON {
+        assert_eq!(a.observer(SAIN), Verdict::Continuer);
+    }
+    a
 }
 
-/// Un `present` qui tient largement le plancher.
-const SAIN: u32 = 1_000;
-/// Un `present` qui gèle — quatre cents millisecondes, comme sur le terrain.
-const GEL: u32 = 400_000;
-
-/// Joue `combien` images dont `gels` gèlent, et rend le dernier verdict rencontré.
-fn jouer(a: &mut Arbitre, combien: u64, gels: u64) -> Verdict {
+/// Joue `combien` images saines, et rend le dernier verdict rencontré.
+fn saines(a: &mut Arbitre, combien: u32) -> Verdict {
     let mut dernier = Verdict::Continuer;
-    for i in 0..combien {
-        let v = a.observer(if i < gels { GEL } else { SAIN });
+    for _ in 0..combien {
+        let v = a.observer(SAIN);
         if v != Verdict::Continuer {
             dernier = v;
         }
@@ -25,64 +34,194 @@ fn jouer(a: &mut Arbitre, combien: u64, gels: u64) -> Verdict {
     dernier
 }
 
-/// **Une carte qui tient est gardée**, et la décision ne se refait plus.
+// --------------------------------------------------------------------------------------
+// La session du terrain, rejouée
+// --------------------------------------------------------------------------------------
+
+/// Quarante-huit secondes, 2 546 images, et les quatre gels de `present` que la chronique a
+/// retenus, chacun à sa seconde.
 ///
-/// C'est la moitié qui empêche l'arbitre de devenir un mécanisme qui s'agite : sur une
-/// machine saine il ne doit strictement rien faire, et cesser de se poser la question.
+/// **C'est un minorant, et c'est voulu** : la table des images lentes n'en garde que douze, et
+/// la fiche 17 § 3.2 rappelle que c'est un échantillon biaisé. Il a pu y avoir d'autres gels
+/// entre dix et cent cinquante millisecondes que personne n'a vus. Une loi qui bascule sur ces
+/// quatre-là basculera a fortiori sur davantage.
+const IMAGES: u32 = 2_546;
+const GELS: [(u32, u32); 4] = [
+    // (image, ce que `present` a coûté en µs) — l'image se déduit de la seconde : t / 48 s.
+    (833, 194_210),   // 15,7 s, au repos
+    (1_204, 156_120), // 22,7 s, en déplaçant la vue
+    (1_437, 478_760), // 27,1 s, en déplaçant la vue
+    (1_782, 221_710), // 33,6 s, en déplaçant la vue
+];
+
+/// Ce que `present` a coûté à l'image `i` de cette session.
+fn terrain(i: u32) -> u32 {
+    GELS.iter()
+        .find_map(|&(quand, us)| (quand == i).then_some(us))
+        .unwrap_or(SAIN)
+}
+
+/// **La session où l'arbitre n'a rien fait le fait maintenant basculer**, et dès le premier
+/// gel.
+///
+/// Le premier gel tombe à la 833ᵉ image : 194,21 ms, soit 18,4 images entièrement perdues, là
+/// où la tolérance en permet deux par échantillon. La conclusion est acquise sans attendre la
+/// fin de l'échantillon — attendre ne ferait que prolonger les gels.
 #[test]
-fn test_une_carte_qui_tient_est_gardee_et_la_question_est_close() {
-    let mut a = a_240hz(Preference::Econome);
-    assert_eq!(jouer(&mut a, 240, 0), Verdict::Continuer);
-    assert!(a.a_tranche(), "la question doit etre close");
+fn test_la_session_du_terrain_fait_basculer_des_le_premier_gel() {
+    let mut a = Arbitre::nouveau(Preference::Econome);
+    let mut bascule = None;
+    for i in 0..IMAGES {
+        if a.observer(terrain(i)) == Verdict::Essayer(Preference::Rapide) {
+            bascule = Some(i);
+            break;
+        }
+    }
+    assert_eq!(
+        bascule,
+        Some(833),
+        "l'arbitre doit essayer l'autre carte au premier gel, pas au quatrieme"
+    );
+    assert_eq!(a.courante(), Preference::Rapide);
+}
+
+/// **Premier défaut, rejoué : compter des images gelées ne pouvait pas déclencher.**
+///
+/// L'ancienne loi comptait combien d'images dépassaient le plancher dans `present`. Sur cette
+/// session : quatre sur 2 546, soit **0,157 %**, sous le pour cent toléré. La nouvelle grandeur
+/// — le temps perdu ramené en images — en donne **3,97 %**, vingt-cinq fois plus.
+///
+/// Les deux nombres sont calculés ici sur les mêmes données, et c'est tout l'écart entre une
+/// loi aveugle et une loi qui voit.
+#[test]
+fn test_l_ancienne_grandeur_concluait_l_inverse_sur_les_memes_images() {
+    let gelees = GELS.len() as f64;
+    let part_ancienne = gelees / f64::from(IMAGES);
+    assert!(
+        part_ancienne <= crate::cadence::PART_TOLEREE,
+        "l'ancienne loi tolerait ces gels : {:.3} % <= {:.0} %",
+        part_ancienne * 100.0,
+        crate::cadence::PART_TOLEREE * 100.0
+    );
+
+    let mut bilan = Bilan::default();
+    for i in 0..IMAGES {
+        bilan.noter(terrain(i));
+    }
+    let part = bilan.part_perdue();
+    assert!(
+        part > crate::cadence::PART_TOLEREE * 3.0,
+        "le temps perdu doit depasser franchement la tolerance, et il vaut {:.2} %",
+        part * 100.0
+    );
+    // 101 images perdues sur 2 546 : le chiffre exact, pour qu'une dérive se voie.
+    assert!(
+        (bilan.images_perdues() - 101.1).abs() < 0.5,
+        "images perdues : {:.1}",
+        bilan.images_perdues()
+    );
+}
+
+/// **Second défaut, rejoué : la porte se fermait douze secondes avant le premier gel.**
+///
+/// L'ancienne loi jugeait une fois, au bout d'une seconde d'écran — 240 images à 240 Hz — puis
+/// déclarait la question close. Le premier gel de la session tombe à la 833ᵉ image. **Même
+/// avec la bonne grandeur, l'arbitre n'aurait rien vu**, et c'est ce défaut-là qui décidait.
+#[test]
+fn test_l_ancienne_fenetre_se_fermait_avant_le_premier_gel() {
+    const ANCIENNE_FENETRE: u32 = 240; // une seconde d'un ecran a 240 Hz
+    let premier_gel = GELS[0].0;
+    assert!(
+        ANCIENNE_FENETRE < premier_gel,
+        "la porte se fermait a l'image {ANCIENNE_FENETRE}, le premier gel tombe a la {premier_gel}"
+    );
+
+    // Et l'arbitre d'aujourd'hui, lui, regarde encore à cette image-là.
+    let mut a = chauffe(Preference::Econome);
+    saines(&mut a, premier_gel);
+    assert!(
+        !a.a_tranche(),
+        "la question ne doit pas etre close tant qu'une carte reste a essayer"
+    );
+    assert_eq!(a.observer(GELS[0].1), Verdict::Essayer(Preference::Rapide));
+}
+
+// --------------------------------------------------------------------------------------
+// Les propriétés
+// --------------------------------------------------------------------------------------
+
+/// **Une carte qui tient ne fait jamais rien bouger**, même après dix mille images.
+///
+/// La version précédente prouvait « la question est close » au bout d'une seconde ; c'est
+/// précisément ce qui l'a rendue aveugle. La promesse utile est plus forte : sur une machine
+/// saine, l'arbitre ne bascule **jamais**, quelle que soit la durée de la session.
+#[test]
+fn test_une_carte_qui_tient_ne_fait_jamais_rien() {
+    let mut a = Arbitre::nouveau(Preference::Econome);
+    assert_eq!(saines(&mut a, 10_000), Verdict::Continuer);
     assert_eq!(a.courante(), Preference::Econome);
+    assert_eq!(a.bilan().perdu_us, 0);
 }
 
-/// **Une carte qui gèle en fait essayer une autre.**
-///
-/// Le cas du terrain : sur l'Intel Arc, `present` dépasse le plancher sur bien plus d'une
-/// image sur cent, et les douze images les plus lentes d'une session en sont faites.
+/// **Un gel de 194 ms suffit**, parce qu'il vaut dix-huit images entières.
 #[test]
-fn test_une_carte_qui_gele_en_fait_essayer_une_autre() {
-    let mut a = a_240hz(Preference::Econome);
-    // Dix pour cent d'images gelées : dix fois ce que la cadence tolère.
-    assert_eq!(jouer(&mut a, 240, 24), Verdict::Essayer(Preference::Rapide));
-    assert_eq!(a.courante(), Preference::Rapide, "la carte a change");
-    assert!(!a.a_tranche(), "la nouvelle doit encore faire ses preuves");
+fn test_un_seul_gel_franc_suffit() {
+    let mut a = chauffe(Preference::Econome);
+    assert_eq!(a.observer(194_210), Verdict::Essayer(Preference::Rapide));
 }
 
-/// **Une seule image sur cent ne suffit pas** : c'est exactement ce que la cadence tolère.
+/// **Ce que la tolérance permet ne déclenche rien** : deux images perdues par échantillon.
 ///
 /// Sans cette borne, l'arbitre changerait de carte au premier hoquet — et un hoquet, toute
 /// machine en a.
 #[test]
-fn test_la_part_toleree_ne_declenche_rien() {
-    let mut a = a_240hz(Preference::Econome);
-    // Deux gels sur 240, soit 0,83 % : sous la tolérance.
-    assert_eq!(jouer(&mut a, 240, 2), Verdict::Continuer);
-    assert!(a.a_tranche());
+fn test_ce_que_la_tolerance_permet_ne_declenche_rien() {
+    let mut a = chauffe(Preference::Econome);
+    // Deux images perdues tout rond : le plancher, deux fois de trop.
+    assert_eq!(a.observer(PLANCHER * 2), Verdict::Continuer);
+    assert_eq!(a.observer(PLANCHER * 2), Verdict::Continuer);
     assert_eq!(a.courante(), Preference::Econome);
-}
-
-/// **Il ne juge pas avant d'avoir regardé une seconde entière.**
-///
-/// La fenêtre se déduit de la cadence lue : à 240 Hz elle vaut 240 images. Juger sur dix
-/// images ferait dépendre la décision du hasard des premières.
-#[test]
-fn test_il_ne_juge_pas_avant_d_avoir_regarde_une_seconde() {
-    let mut a = a_240hz(Preference::Econome);
-    assert_eq!(jouer(&mut a, 239, 239), Verdict::Continuer);
-    assert!(
-        !a.a_tranche(),
-        "239 images ne font pas une seconde a 240 Hz"
+    // La troisième passe au-dessus, et là seulement il bouge.
+    assert_eq!(
+        a.observer(PLANCHER * 2),
+        Verdict::Essayer(Preference::Rapide)
     );
 }
 
-/// **La fenêtre suit l'écran, elle n'est pas choisie.** À 60 Hz, une seconde vaut 60 images.
+/// **L'échantillon se renouvelle** : des pertes étalées sur toute une session ne s'additionnent
+/// pas jusqu'à déclencher.
+///
+/// Une image perdue toutes les cent images est exactement la tolérance ; mille images de ce
+/// régime ne doivent rien faire bouger, alors qu'un cumul sans renouvellement en compterait dix
+/// et basculerait.
 #[test]
-fn test_la_fenetre_suit_la_cadence_de_l_ecran() {
-    let mut a = Arbitre::nouveau(Preference::Econome, Duration::from_secs_f64(1.0 / 60.0));
-    assert_eq!(jouer(&mut a, 59, 59), Verdict::Continuer);
-    assert_eq!(a.observer(GEL), Verdict::Essayer(Preference::Rapide));
+fn test_l_echantillon_se_renouvelle_et_la_tolerance_reste_une_part() {
+    let mut a = chauffe(Preference::Econome);
+    for i in 0..1_000 {
+        let v = a.observer(if i % 100 == 0 { PLANCHER * 2 } else { SAIN });
+        assert_eq!(v, Verdict::Continuer, "a l'image {i}");
+    }
+    assert_eq!(a.courante(), Preference::Econome);
+}
+
+/// **Le démarrage ne compte pas** : un pilote qui s'initialise ne dit rien de sa carte.
+///
+/// La fiche 22 § 6 mesure `present` à 30 ms sur les seize premières images. Sans échauffement,
+/// toute machine du monde basculerait au lancement — ce qui est exactement le choix par
+/// étiquette que la charte refuse, sous un autre nom.
+#[test]
+fn test_le_demarrage_ne_fait_pas_basculer() {
+    let mut a = Arbitre::nouveau(Preference::Econome);
+    for _ in 0..16 {
+        assert_eq!(a.observer(30_090), Verdict::Continuer);
+    }
+    assert_eq!(saines(&mut a, ECHANTILLON), Verdict::Continuer);
+    assert_eq!(a.courante(), Preference::Econome);
+    assert_eq!(
+        a.bilan().perdu_us,
+        0,
+        "les images du demarrage ne doivent pas etre au bilan de la carte"
+    );
 }
 
 /// **Si les deux gèlent, on revient à la moins pire — et on ne bouge plus jamais.**
@@ -92,43 +231,72 @@ fn test_la_fenetre_suit_la_cadence_de_l_ecran() {
 /// question est close pour de bon, quelle que soit la charge de la machine.
 #[test]
 fn test_si_les_deux_gelent_on_revient_a_la_moins_pire_et_on_ne_bouge_plus() {
-    let mut a = a_240hz(Preference::Econome);
-    // L'économe gèle une image sur dix.
-    assert_eq!(jouer(&mut a, 240, 24), Verdict::Essayer(Preference::Rapide));
-    // La rapide gèle une image sur quatre : pire encore.
+    let mut a = chauffe(Preference::Econome);
+    // L'économe perd une image sur cinquante : au-dessus de la tolérance, sans plus.
+    for i in 0..1_000 {
+        if a.observer(if i % 50 == 0 { PLANCHER * 2 } else { SAIN }) != Verdict::Continuer {
+            break;
+        }
+    }
     assert_eq!(
-        jouer(&mut a, 240, 60),
-        Verdict::Revenir(Preference::Econome)
+        a.courante(),
+        Preference::Rapide,
+        "l'autre doit etre essayee"
     );
+
+    // La rapide gèle franchement : bien pire.
+    for _ in 0..ECHANTILLON {
+        a.observer(SAIN);
+    }
+    assert_eq!(a.observer(478_760), Verdict::Revenir(Preference::Econome));
     assert_eq!(a.courante(), Preference::Econome);
     assert!(a.a_tranche());
 
     // Et mille images de gels de plus ne la font plus bouger.
-    assert_eq!(jouer(&mut a, 1_000, 1_000), Verdict::Continuer);
+    for _ in 0..1_000 {
+        assert_eq!(a.observer(478_760), Verdict::Continuer);
+    }
     assert_eq!(a.courante(), Preference::Econome);
 }
 
-/// **Si la seconde tient, on la garde** — même si la première gelait moins qu'elle ne le
-/// craignait.
+/// **Si la seconde tient, on la garde** — et elle a droit au même échauffement, parce que
+/// rouvrir une carte lui fait tout reconstruire.
 #[test]
 fn test_si_la_seconde_tient_on_la_garde() {
-    let mut a = a_240hz(Preference::Econome);
-    jouer(&mut a, 240, 24);
-    assert_eq!(jouer(&mut a, 240, 0), Verdict::Continuer);
+    let mut a = chauffe(Preference::Econome);
+    assert_eq!(a.observer(478_760), Verdict::Essayer(Preference::Rapide));
+    assert_eq!(saines(&mut a, 10_000), Verdict::Continuer);
     assert_eq!(a.courante(), Preference::Rapide);
-    assert!(a.a_tranche());
+    assert!(
+        !a.a_tranche(),
+        "rien ne l'oblige a clore : il observe encore"
+    );
 }
 
 /// **Une durée d'image longue pour une autre raison ne dit rien de la carte.**
 ///
-/// L'arbitre lit le poste `present` seul. Une image lente parce qu'une texture se rendait,
-/// ou parce que la chrome s'est refaite, n'a aucune raison de faire changer de carte — et
-/// confondre les deux ferait basculer sur le premier zoom un peu lourd.
+/// L'arbitre lit le poste `present` seul. Une image lente parce qu'une texture se rendait — la
+/// session du terrain en porte une à 226 ms — n'a aucune raison de faire changer de carte.
 #[test]
 fn test_seul_le_poste_present_compte() {
-    let mut a = a_240hz(Preference::Econome);
-    // `present` reste sain : peu importe ce que le reste de l'image a coûté.
-    assert_eq!(jouer(&mut a, 240, 0), Verdict::Continuer);
+    let mut a = chauffe(Preference::Econome);
+    assert_eq!(saines(&mut a, 1_000), Verdict::Continuer);
     assert_eq!(a.courante(), Preference::Econome);
-    assert_eq!(a.bilan().gels, 0);
+    assert_eq!(a.bilan().perdu_us, 0);
+}
+
+/// **Le bilan compare des parts, pas des comptes** : deux cartes observées inégalement se
+/// départagent quand même.
+#[test]
+fn test_deux_cartes_se_departagent_sur_la_part_et_non_sur_le_compte() {
+    let peu_vue = Bilan {
+        observees: 100,
+        perdu_us: 100_000, // dix images perdues sur cent : 10 %
+    };
+    let beaucoup_vue = Bilan {
+        observees: 10_000,
+        perdu_us: 500_000, // cinquante sur dix mille : 0,5 %
+    };
+    assert!(beaucoup_vue.vaut_mieux_que(peu_vue));
+    assert!(!peu_vue.vaut_mieux_que(beaucoup_vue));
 }
