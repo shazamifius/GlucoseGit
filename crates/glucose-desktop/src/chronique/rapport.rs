@@ -161,6 +161,13 @@ impl Chronique {
                 p.sur.as_secs_f64()
             ));
         }
+        let (cachees, perdues) = self.refusees();
+        if cachees + perdues > 0 {
+            t.push_str(&format!(
+                "  images que la surface a refusees : {perdues} perdue(s), {cachees} cachee(s)
+"
+            ));
+        }
         // **Le nombre qui accuse** : une image rendue alors que personne ne regarde empeche le
         // processeur de descendre dans ses etats de sommeil profond. Zero est la seule bonne
         // reponse, et toute autre valeur designe un reveil a expliquer.

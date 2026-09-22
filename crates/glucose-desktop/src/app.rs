@@ -5,6 +5,7 @@ mod evenements;
 mod fenetre;
 mod mouvement;
 mod peinture;
+mod presentation;
 pub mod reveil;
 mod terrain;
 

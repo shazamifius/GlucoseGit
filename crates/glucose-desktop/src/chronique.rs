@@ -179,6 +179,14 @@ pub struct Chronique {
     /// Ce que le PROCESSUS coûte à la machine, et surtout quand on ne le touche pas
     /// (EMPREINTE-1). Tout le reste de ce module mesure ce qu'une IMAGE coûte.
     pub veille: Veille,
+    /// **Les images que la surface a refusées** : fenêtre cachée, ou image perdue.
+    ///
+    /// Elles ne sont dans aucune autre mesure de ce module, et c'est exactement ce qui rendait
+    /// un canevas figé impossible à lire : le rythme ne mesure un intervalle qu'entre deux
+    /// images PRÉSENTÉES, donc une rafale de refus ne paraît que comme un long « à ne pas
+    /// dessiner », sans rien qui la nomme.
+    cachees: u64,
+    perdues: u64,
     /// Toutes les photos posées de la session, et celles qui l'ont été depuis une vignette.
     ///
     /// # Pourquoi un cumul, et pas la liste des pires
@@ -351,6 +359,8 @@ impl Chronique {
             du_neuf: false,
             navigation: navigation::Navigation::nouvelle(),
             veille: Veille::default(),
+            cachees: 0,
+            perdues: 0,
             photos_posees: 0,
             photos_par_vignette: 0,
             noeuds_recrees: 0,
@@ -379,6 +389,17 @@ impl Chronique {
     /// Combien d'images ont été enregistrées.
     pub fn rendues(&self) -> u64 {
         self.rendues
+    }
+
+    /// Note une image que la surface a refusée.
+    pub fn noter_un_refus(&mut self, cachees: u64, perdues: u64) {
+        self.cachees += cachees;
+        self.perdues += perdues;
+    }
+
+    /// Combien d'images la surface a refusées : cachées, puis perdues.
+    pub fn refusees(&self) -> (u64, u64) {
+        (self.cachees, self.perdues)
     }
 
     /// **Combien d'images la main a demandees**, depuis le debut de la session.

@@ -81,12 +81,41 @@ use winit::window::Window;
 ///
 /// La frontière est volontairement étroite — deux gestes, redimensionner et présenter. Tout
 /// ce qui distingue les deux chemins vit derrière ; rien n'en sort.
+/// **Ce qu'une présentation a fait de l'image qu'on lui a donnée.**
+///
+/// # Le trou que ce type ferme
+///
+/// La présentation rendait `Ok(())` dans deux cas qui n'ont rien à voir : l'image est partie à
+/// l'écran, ou **la surface a refusé de la prendre** et l'image a été jetée. L'application ne
+/// pouvait pas les distinguer : elle effaçait la salissure, considérait l'image comme faite,
+/// et s'endormait — sur un canevas figé, pendant que l'interface continuait de répondre.
+///
+/// C'est exactement ce que l'utilisateur décrit : *« le canva ça a freeze, mais Ctrl+O, Ctrl+S
+/// et tout ça fonctionnent parfaitement »*. Et c'est ce que sa chronique montre sans pouvoir le
+/// nommer : **treize secondes « à ne pas dessiner »**, c'est-à-dire hors de tout code de rendu,
+/// parce qu'aucune image n'était présentée et que le rythme n'avait donc rien à mesurer entre
+/// les deux.
+///
+/// Les trois cas ne se traitent pas pareil, et c'est pourquoi ce n'est pas un booléen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Issue {
+    /// L'image est partie à l'écran.
+    Presentee,
+    /// La fenêtre n'est pas visible — réduite, ou entièrement recouverte. Ne rien redemander :
+    /// dessiner pour personne est du travail perdu, et c'est le seul cas où dormir est juste.
+    Cachee,
+    /// La surface a refusé l'image, et rien ne dit que la suivante échouera aussi. **Il faut en
+    /// redemander une** : sans cela, la dernière image reste à l'écran jusqu'au prochain geste,
+    /// et si tous les gestes échouent de la même façon, jusqu'à la fin de la session.
+    Perdue,
+}
+
 pub trait Presenter {
     /// Accorde la surface à la taille de la fenêtre.
     fn resize(&mut self, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<()>;
 
     /// Met cette image à l'écran.
-    fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<()>;
+    fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<Issue>;
 
     /// **Cette présentation sait-elle poser les photos elle-même ?**
     ///
@@ -114,7 +143,7 @@ pub trait Presenter {
         (_confie, _budget): (&crate::renderer::Confie, std::time::Duration),
         _source: &dyn Fn(&str) -> Option<Pixmap>,
         _dessus: &Pixmap,
-    ) -> DesktopResult<()> {
+    ) -> DesktopResult<Issue> {
         Err(DesktopError::WindowError(
             "cette presentation ne pose pas les photos".into(),
         ))
@@ -187,7 +216,7 @@ impl Presenter for CpuPresenter {
             .map_err(|e| DesktopError::WindowError(format!("surface.resize : {e}")))
     }
 
-    fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<()> {
+    fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<Issue> {
         let mut buffer = self
             .surface
             .buffer_mut()
@@ -201,7 +230,8 @@ impl Presenter for CpuPresenter {
             .present()
             .map_err(|e| DesktopError::WindowError(format!("present : {e}")))?;
         crate::perf::stage("present");
-        Ok(())
+        // Cette voie n'a pas de chaîne d'images à refuser : ce qui part, part.
+        Ok(Issue::Presentee)
     }
 
     fn nom(&self) -> &'static str {

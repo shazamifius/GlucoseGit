@@ -28,6 +28,7 @@
 //! écart d'un demi-pixel — et la charte demande « net à quasi 100 % à l'arrêt ». Au plus
 //! proche, la correspondance est exacte ou elle ne l'est pas, et un test le vérifie.
 
+use super::Issue;
 use super::Presenter;
 use succession::{cadence_demandee, nom_de_la_cadence};
 
@@ -227,7 +228,7 @@ impl GpuPresenter {
     /// derrière une autre, ou le compositeur a mis du temps à rendre la main. Dessiner dans le
     /// vide serait du travail perdu, et le signaler comme une panne ferait crier l'application
     /// à chaque fois qu'on la minimise.
-    fn acquerir(&mut self) -> DesktopResult<Option<wgpu::SurfaceTexture>> {
+    fn acquerir(&mut self) -> DesktopResult<Result<wgpu::SurfaceTexture, Issue>> {
         // Aucune image n'est détenue ici : c'est le seul instant où reconfigurer est licite.
         if self.a_reaccorder {
             self.surface.configure(&self.device, &self.config);
@@ -236,15 +237,19 @@ impl GpuPresenter {
 
         use wgpu::CurrentSurfaceTexture as Etat;
         match self.surface.get_current_texture() {
-            Etat::Success(frame) => Ok(Some(frame)),
+            Etat::Success(frame) => Ok(Ok(frame)),
             // La surface tient encore, mais elle ne correspond plus tout à fait à la fenêtre.
             // On affiche quand même — sauter une image se verrait — et la réparation se fait
             // à la prochaine acquisition, quand plus personne ne tiendra cette image.
             Etat::Suboptimal(frame) => {
                 self.a_reaccorder = true;
-                Ok(Some(frame))
+                Ok(Ok(frame))
             }
-            Etat::Timeout | Etat::Occluded => Ok(None),
+            // **Deux refus qui ne se traitent pas pareil.** Une fenêtre recouverte n'a besoin
+            // de rien ; une attente dépassée est un accident dont la suivante peut se remettre,
+            // et l'image doit être redemandée — sans quoi la dernière reste à l'écran.
+            Etat::Occluded => Ok(Err(Issue::Cachee)),
+            Etat::Timeout => Ok(Err(Issue::Perdue)),
             // **La surface a vieilli : on la répare ICI, et on réessaie tout de suite.**
             //
             // La version précédente posait le drapeau, rendait une erreur, et laissait la
@@ -272,10 +277,12 @@ impl GpuPresenter {
                 self.surface.configure(&self.device, &self.config);
                 self.a_reaccorder = false;
                 match self.surface.get_current_texture() {
-                    Etat::Success(frame) | Etat::Suboptimal(frame) => Ok(Some(frame)),
+                    Etat::Success(frame) | Etat::Suboptimal(frame) => Ok(Ok(frame)),
                     // Deux échecs de suite : la fenêtre n'est probablement pas affichable en
-                    // ce moment. On saute l'image, comme pour un `Occluded`.
-                    _ => Ok(None),
+                    // ce moment. On saute l'image — mais on en redemande une, parce que rien
+                    // ne dit que la suivante échouera aussi, et que ne rien redemander fige le
+                    // canevas jusqu'au prochain geste.
+                    _ => Ok(Err(Issue::Perdue)),
                 }
             }
             // Ce qui reste est une vraie panne -- mémoire épuisée, périphérique perdu -- et
@@ -472,15 +479,16 @@ impl Presenter for GpuPresenter {
         Ok(())
     }
 
-    fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<()> {
+    fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<Issue> {
         self.televerser(pixmap);
 
         // Les trois temps de la présentation, séparés parce qu'ils n'ont pas la même nature :
         // **acquerir** peut attendre que l'écran rende une image du carrousel, **encoder** est
         // du travail de processeur, **soumettre** confie le tout à la carte. Mesurés ensemble,
         // ils annonçaient 28 ms sur un canevas vide sans dire lequel les portait.
-        let Some(frame) = self.acquerir()? else {
-            return Ok(());
+        let frame = match self.acquerir()? {
+            Ok(frame) => frame,
+            Err(issue) => return Ok(issue),
         };
         crate::perf::stage("acquerir");
         let cible = frame
@@ -527,7 +535,7 @@ impl Presenter for GpuPresenter {
         drop(cible);
         self.queue.present(frame);
         crate::perf::stage("present");
-        Ok(())
+        Ok(Issue::Presentee)
     }
 
     fn pose_les_photos(&self) -> bool {
@@ -544,7 +552,7 @@ impl Presenter for GpuPresenter {
         (confie, budget): (&crate::renderer::Confie, std::time::Duration),
         source: &dyn Fn(&str) -> Option<Pixmap>,
         dessus: &Pixmap,
-    ) -> DesktopResult<()> {
+    ) -> DesktopResult<Issue> {
         cinq_temps::presenter(self, (dessous, dessus), (confie, budget), source)
     }
 

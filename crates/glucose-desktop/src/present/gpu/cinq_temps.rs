@@ -32,7 +32,7 @@ pub(super) fn presenter(
     (dessous, dessus): (&Pixmap, &Pixmap),
     (confie, budget): (&crate::renderer::Confie, std::time::Duration),
     source: &dyn Fn(&str) -> Option<Pixmap>,
-) -> DesktopResult<()> {
+) -> DesktopResult<crate::present::Issue> {
     let retenues = preparer_la_scene(p, (dessous, confie, budget), source);
     // La couche du dessous ne part que si elle porte quelque chose. Quand la carte peint
     // le fond et les lueurs, elle ne reste que les membranes et les dossiers -- et sur un
@@ -52,9 +52,15 @@ pub(super) fn presenter(
     );
     crate::perf::stage("blit");
 
-    let Some(frame) = p.acquerir()? else {
-        p.scene.fermer();
-        return Ok(());
+    let frame = match p.acquerir()? {
+        Ok(frame) => frame,
+        // La surface a refusé l'image : on ferme la scène comme si on l'avait posée — ce qui
+        // est vrai, elle a été préparée — et on dit à l'appelant ce qui s'est passé. Sans
+        // cette distinction, il croirait l'image faite et s'endormirait sur un canevas figé.
+        Err(issue) => {
+            p.scene.fermer();
+            return Ok(issue);
+        }
     };
     crate::perf::stage("acquerir");
     let cible = frame
@@ -83,7 +89,7 @@ pub(super) fn presenter(
     p.queue.present(frame);
     crate::perf::stage("present");
     p.scene.fermer();
-    Ok(())
+    Ok(crate::present::Issue::Presentee)
 }
 
 /// **Le premier temps : donner à la carte ce qu'elle ne connaît pas, puis poser les quads.**

@@ -187,6 +187,11 @@ impl GlucoseApp {
         vu.textures_faites = lire("textures_faites").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.textures_kpx = lire("textures_kpx").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.surfaces_refaites = lire("surfaces_refaites").clamp(0.0, f64::from(u16::MAX)) as u16;
+        // **Les images que la surface a refusees** : elles ne sont dans aucune autre mesure,
+        // et une rafale de refus est exactement ce qui fige un canevas sans que rien ne le
+        // dise.
+        self.chronique
+            .noter_un_refus(lire("images_cachees") as u64, lire("images_perdues") as u64);
         vu.dock_rendus = lire("dock_rendus").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.bande_refaite = lire("bande_refaite").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.cartes_entieres = lire("cartes_entieres").clamp(0.0, f64::from(u16::MAX)) as u16;
@@ -395,8 +400,11 @@ mod tests {
         ) -> crate::error::DesktopResult<()> {
             Ok(())
         }
-        fn present(&mut self, _: &tiny_skia::Pixmap) -> crate::error::DesktopResult<()> {
-            Ok(())
+        fn present(
+            &mut self,
+            _: &tiny_skia::Pixmap,
+        ) -> crate::error::DesktopResult<crate::present::Issue> {
+            Ok(crate::present::Issue::Presentee)
         }
         fn pose_les_photos(&self) -> bool {
             true
