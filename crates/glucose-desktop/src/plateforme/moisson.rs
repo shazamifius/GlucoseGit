@@ -34,6 +34,15 @@ use std::path::{Path, PathBuf};
 /// Le dossier où les dépôts du web se posent, sous le répertoire temporaire du système.
 const DOSSIER: &str = "glucose_depose";
 
+/// **Combien d'octets au plus on accepte d'un seul fichier venu d'une page** — promis par le
+/// navigateur, ou rapatrié par Glucose.
+///
+/// Deux cent cinquante-six mébioctets est ce qu'une image de très haute définition atteint au
+/// pire ; au-delà, ce n'est plus une image qu'on dépose sur un canevas, et une page peut en
+/// promettre autant qu'elle veut. La borne était écrite **deux fois** dans le pont, à
+/// l'identique : elle vit ici, où les deux chemins la lisent.
+pub const OCTETS_MAX: usize = 256 * 1024 * 1024;
+
 /// Le nom retenu quand la page n'en donne aucun d'utilisable.
 const SANS_NOM: &str = "depose";
 
@@ -255,13 +264,33 @@ pub fn adresses_dans(octets: &[u8]) -> Vec<String> {
             let fin = reste
                 .find(|c: char| !c.is_ascii_graphic() || "\"'<>\\^`{|}".contains(c))
                 .unwrap_or(reste.len());
-            let adresse = &reste[..fin];
+            let adresse = sans_ponctuation_finale(&reste[..fin]);
             if adresse.len() > "https://".len() && !trouvees.iter().any(|a| a == adresse) {
                 trouvees.push(adresse.to_string());
             }
         }
     }
     trouvees
+}
+
+/// **Une adresse sans la ponctuation qui la suivait dans le texte.**
+///
+/// Une parenthèse fermante est permise dans une adresse — `…/wiki/Paris_(homonymie)` —, et
+/// pourtant `url(https://…/h.png)` la colle à celle qui n'en a pas : le premier essai réel a
+/// demandé `…h.png)` et reçu un refus. On ne la garde que si l'adresse en ouvre une ; un point,
+/// une virgule ou un point-virgule final appartiennent toujours à la phrase.
+fn sans_ponctuation_finale(adresse: &str) -> &str {
+    let mut a = adresse;
+    loop {
+        let avant = a;
+        a = a.trim_end_matches(['.', ',', ';', ':', '!']);
+        if a.ends_with(')') && a.matches('(').count() < a.matches(')').count() {
+            a = &a[..a.len() - 1];
+        }
+        if a == avant {
+            return a;
+        }
+    }
 }
 
 #[cfg(test)]

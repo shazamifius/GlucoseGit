@@ -198,3 +198,20 @@ fn test_une_adresse_se_lit_en_utf8_comme_en_chaine_large() {
     );
     assert!(adresses_dans(b"rien d'utile, http seul, httpx://non").is_empty());
 }
+
+/// La ponctuation qui suit une adresse dans un texte ne lui appartient pas — sauf la
+/// parenthèse qu'elle ouvre elle-même.
+#[test]
+fn test_la_ponctuation_du_texte_n_appartient_pas_a_l_adresse() {
+    assert_eq!(
+        adresses_dans(b"fond: url(https://i.pinimg.com/originals/d5/h.png); voir https://a.fr/x."),
+        vec![
+            "https://i.pinimg.com/originals/d5/h.png".to_string(),
+            "https://a.fr/x".to_string(),
+        ]
+    );
+    assert_eq!(
+        adresses_dans(b"https://fr.wikipedia.org/wiki/Paris_(homonymie)"),
+        vec!["https://fr.wikipedia.org/wiki/Paris_(homonymie)".to_string()]
+    );
+}

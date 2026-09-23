@@ -15,7 +15,7 @@ use windows::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
 
 /// Combien d'octets au plus on accepte d'un seul bloc — la borne de [`super`], reprise ici
 /// parce que c'est ici qu'on lit.
-pub(super) const OCTETS_MAX: usize = 256 * 1024 * 1024;
+pub(super) use crate::plateforme::moisson::OCTETS_MAX;
 
 /// **Écrit dans la console tout ce que ce dépôt portait**, quand `GLUCOSE_DEPOT` est posé.
 ///
@@ -81,18 +81,48 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
 /// que des données à lui, et savoir si l'adresse de l'image s'y cache décide de tout ce qui
 /// suit — la lire, ou devoir la chercher ailleurs.
 fn dire_les_adresses(objet: &IDataObject, format: u16) {
-    use windows::Win32::System::Com::TYMED_HGLOBAL;
-    let Some(mut medium) = tirer(objet, format, TYMED_HGLOBAL, -1) else {
-        return;
-    };
-    let octets = unsafe {
-        let lu = Bloc::prendre(medium.u.hGlobal).map(|bloc| bloc.copier());
-        windows::Win32::System::Ole::ReleaseStgMedium(&mut medium);
-        lu
-    };
-    for adresse in crate::plateforme::moisson::adresses_dans(&octets.unwrap_or_default()) {
+    for adresse in crate::plateforme::moisson::adresses_dans(&octets_du_format(objet, format)) {
         eprintln!("           -> {adresse}");
     }
+}
+
+/// Les octets d'un format lisible en mémoire globale, ou rien.
+fn octets_du_format(objet: &IDataObject, format: u16) -> Vec<u8> {
+    use windows::Win32::System::Com::TYMED_HGLOBAL;
+    let Some(mut medium) = tirer(objet, format, TYMED_HGLOBAL, -1) else {
+        return Vec::new();
+    };
+    unsafe {
+        let lu = Bloc::prendre(medium.u.hGlobal).map(|bloc| bloc.copier());
+        windows::Win32::System::Ole::ReleaseStgMedium(&mut medium);
+        lu.unwrap_or_default()
+    }
+}
+
+/// **Les adresses que portent les formats de texte et de page** d'un dépôt (DEPOT-WEB-4).
+///
+/// Le fragment HTML d'abord : c'est lui qui porte `<img src=…>`, l'adresse de l'image
+/// elle-même. Puis les données que la page a posées dans son glisser, puis les liens et le
+/// texte. [`super::super::sources::candidats`] les classera ; ici, on ne fait que les lire.
+pub(super) fn adresses_portees(objet: &IDataObject) -> Vec<String> {
+    let noms = [
+        "HTML Format",
+        "text/html",
+        "Chromium Web Custom MIME Data Format",
+        "UniformResourceLocatorW",
+        "text/x-moz-url",
+    ];
+    let mut formats: Vec<u16> = noms.iter().map(|n| format_enregistre(n)).collect();
+    formats.push(windows::Win32::System::Ole::CF_UNICODETEXT.0);
+    let mut adresses: Vec<String> = Vec::new();
+    for format in formats.into_iter().filter(|f| *f != 0) {
+        for a in crate::plateforme::moisson::adresses_dans(&octets_du_format(objet, format)) {
+            if !adresses.contains(&a) {
+                adresses.push(a);
+            }
+        }
+    }
+    adresses
 }
 
 /// Le nom qu'un format porte, pour les formats nommés ; son numéro sinon.

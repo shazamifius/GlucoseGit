@@ -86,13 +86,9 @@ use windows::Win32::System::Ole::{
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::{DragQueryFileW, FILEGROUPDESCRIPTORW, HDROP};
 
-/// Combien d'octets au plus on accepte d'un seul fichier promis par une page.
-///
-/// Ce n'est pas une borne de confort : le flux est lu **dans le fil de l'interface**, pendant
-/// que le navigateur le remplit, et une page peut en promettre autant qu'elle veut. Deux
-/// cent cinquante-six mébioctets est ce qu'une image de très haute définition atteint au pire
-/// — au-delà, ce n'est plus une image qu'on dépose sur un canevas.
-const OCTETS_MAX: usize = 256 * 1024 * 1024;
+/// La borne d'un fichier promis : le flux est lu **dans le fil de l'interface**, pendant que le
+/// navigateur le remplit, et une page peut en promettre autant qu'elle veut.
+use moisson::OCTETS_MAX;
 
 /// Ce qu'on lit d'un coup dans le flux d'un fichier promis.
 const TRANCHE: usize = 64 * 1024;
@@ -106,9 +102,9 @@ const TRANCHE: usize = 64 * 1024;
 ///
 /// `hwnd` doit être la fenêtre vivante du fil courant, et ce fil doit être celui de la boucle
 /// d'événements — c'est lui qui a initialisé OLE, et c'est lui qui appellera la cible.
-pub fn installer(hwnd: isize, vers: Sender<Moisson>) -> bool {
+pub fn installer(hwnd: isize, vers: Sender<Moisson>, reveil: super::Reveil) -> bool {
     let fenetre = HWND(hwnd as *mut core::ffi::c_void);
-    let cible: IDropTarget = Cible { vers }.into();
+    let cible: IDropTarget = Cible { vers, reveil }.into();
     unsafe {
         // **On tente d'abord, on révoque ensuite**, et cet ordre est ce qui rend l'échec sûr.
         //
@@ -150,6 +146,8 @@ pub fn installer(hwnd: isize, vers: Sender<Moisson>) -> bool {
 struct Cible {
     /// Par où la moisson rejoint la boucle d'images.
     vers: Sender<Moisson>,
+    /// De quoi la réveiller quand une image rapatriée arrive après coup.
+    reveil: super::Reveil,
 }
 
 #[allow(non_snake_case)]
@@ -192,16 +190,37 @@ impl IDropTarget_Impl for Cible_Impl {
         let Some(objet) = donnees.as_ref() else {
             return Ok(());
         };
-        let mut recolte = recolter(objet);
+        let (mut recolte, sorte) = recolter(objet);
         // `POINTL` est en pixels de l'écran ; la fenêtre les convertira en pixels à elle.
         recolte.ou = Some((f64::from(ou.x), f64::from(ou.y)));
+        if let Sorte::Repli = sorte {
+            let adresses = adresses_a_rapatrier(objet, &recolte);
+            if !adresses.is_empty() {
+                super::rapatrier::rapatrier(
+                    adresses,
+                    recolte.ou,
+                    recolte,
+                    (self.this.vers.clone(), self.this.reveil.clone()),
+                );
+                return Ok(());
+            }
+        }
         if !recolte.est_vide() {
             // Le récepteur peut avoir disparu si la fenêtre se ferme pendant un dépôt : ce
             // n'est pas une panne, c'est la fin.
-            let _ = self.this.vers.send(recolte);
+            self.this.vers.send(recolte).ok();
         }
         Ok(())
     }
+}
+
+/// **Toutes les adresses que ce dépôt porte** : celles des formats de texte et de page, et
+/// celles des raccourcis qu'on s'apprêtait à poser en liens.
+fn adresses_a_rapatrier(objet: &IDataObject, repli: &Moisson) -> Vec<String> {
+    let mut adresses = formats::adresses_portees(objet);
+    adresses.extend(moisson::lire_les_raccourcis(&repli.chemins).1);
+    adresses.extend(repli.liens.iter().cloned());
+    adresses
 }
 
 /// Écrit dans `effet` ce que Windows doit montrer au curseur.
@@ -232,6 +251,11 @@ fn porte_quelque_chose(objet: &IDataObject) -> bool {
         CF_DIB.0,
         CF_UNICODETEXT.0,
         format_enregistre("UniformResourceLocatorW"),
+        // **Ce que Pinterest porte, et rien d'autre** (DEPOT-WEB-4) : une page, ou les donnees
+        // qu'elle pose elle-meme. Le curseur montrait « interdit » a l'entree alors que
+        // l'adresse de l'image s'y trouvait peut-etre.
+        format_enregistre("HTML Format"),
+        format_enregistre("Chromium Web Custom MIME Data Format"),
     ]
     .into_iter()
     .any(|format| format != 0 && offre(objet, format, TYMED(u32::MAX as i32)))
@@ -242,14 +266,15 @@ fn porte_quelque_chose(objet: &IDataObject) -> bool {
 /// Le premier format qui donne quelque chose gagne : un navigateur offre souvent l'adresse
 /// *en plus* des octets, et poser les deux mettrait deux nœuds là où l'utilisateur en a
 /// déposé un.
-fn recolter(objet: &IDataObject) -> Moisson {
+fn recolter(objet: &IDataObject) -> (Moisson, Sorte) {
     dire_les_formats(objet);
     let par_fichiers = fichiers_reels(objet);
     if !par_fichiers.is_empty() {
-        return Moisson {
+        let m = Moisson {
             chemins: par_fichiers,
             ..Moisson::default()
         };
+        return (m, Sorte::Contenu);
     }
     // **Un raccourci promis passe APRES le bitmap** (DEPOT-WEB-2). Glisser une epingle depuis
     // Pinterest fait promettre a Chrome un `.url` -- une adresse habillee en fichier, le
@@ -258,30 +283,42 @@ fn recolter(objet: &IDataObject) -> Moisson {
     let promis = fichiers_promis(objet);
     let que_des_raccourcis = promis.iter().all(|p| moisson::est_un_raccourci(p));
     if !promis.is_empty() && !que_des_raccourcis {
-        return Moisson {
+        let m = Moisson {
             chemins: promis,
             ..Moisson::default()
         };
+        return (m, Sorte::Contenu);
     }
+    // **Tout le reste est un repli** (DEPOT-WEB-4) : la vignette que la page a posee -- a la
+    // taille ou elle l'affichait --, des raccourcis, une adresse. S'il y a mieux a rapatrier,
+    // c'est le pont qui le cherchera.
     let bitmap = bitmap_pose(objet);
-    if !bitmap.is_empty() {
-        return Moisson {
+    let repli = if !bitmap.is_empty() {
+        Moisson {
             chemins: bitmap,
             ..Moisson::default()
-        };
-    }
-    // Les raccourcis se poseront en liens : `drop` lit leur adresse, comme pour un raccourci
-    // glisse depuis le bureau.
-    if !promis.is_empty() {
-        return Moisson {
+        }
+    } else if !promis.is_empty() {
+        // Les raccourcis se poseront en liens : `drop` lit leur adresse.
+        Moisson {
             chemins: promis,
             ..Moisson::default()
-        };
-    }
-    Moisson {
-        liens: adresses(objet),
-        ..Moisson::default()
-    }
+        }
+    } else {
+        Moisson {
+            liens: adresses(objet),
+            ..Moisson::default()
+        }
+    };
+    (repli, Sorte::Repli)
+}
+
+/// **Ce que la récolte a trouvé** : l'image elle-même, ou seulement de quoi se replier.
+enum Sorte {
+    /// De vrais fichiers, ou ceux que le navigateur a téléchargés lui-même : on les pose.
+    Contenu,
+    /// Une vignette, des raccourcis, des adresses : on cherche mieux avant de s'y résoudre.
+    Repli,
 }
 
 /// **L'image décompressée que la page a posée dans le presse-papiers du glisser**, écrite en

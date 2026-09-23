@@ -19,12 +19,36 @@
 
 pub mod empreinte;
 pub mod moisson;
+pub mod rapatrier;
+pub mod sources;
 
 #[cfg(windows)]
 mod depot_windows;
+#[cfg(windows)]
+mod telechargement_windows;
 
 use moisson::Moisson;
 use std::sync::mpsc::{Receiver, Sender};
+
+/// **Les octets qu'une adresse web rend**, au plus `limite`, ou la raison de n'en pas rendre
+/// (DEPOT-WEB-4).
+///
+/// Seules les adresses `http` et `https` passent ; [`sources::decouper`] refuse le reste.
+pub fn telecharger(url: &str, limite: usize) -> Result<Vec<u8>, String> {
+    let adresse = sources::decouper(url).ok_or_else(|| format!("adresse refusee : {url}"))?;
+    telecharger_ici(&adresse, limite)
+}
+
+#[cfg(windows)]
+fn telecharger_ici(adresse: &sources::Adresse, limite: usize) -> Result<Vec<u8>, String> {
+    telechargement_windows::telecharger(adresse, limite)
+}
+
+/// Sur une plateforme sans téléchargeur, le dépôt retombe sur son repli : le lien.
+#[cfg(not(windows))]
+fn telecharger_ici(_adresse: &sources::Adresse, _limite: usize) -> Result<Vec<u8>, String> {
+    Err("pas de telechargeur sur cette plateforme".to_string())
+}
 
 /// Par où les dépôts du système rejoignent la boucle d'images.
 ///
@@ -51,14 +75,23 @@ impl Depots {
 /// Rend `None` quand cette plateforme n'a pas de pont, ou quand le système l'a refusé.
 /// L'application marche alors exactement comme avant : `winit` garde son glisser-déposer de
 /// fichiers, et seul le dépôt depuis un navigateur manque.
-pub fn installer(fenetre: &winit::window::Window) -> Option<Depots> {
+pub fn installer(fenetre: &std::sync::Arc<winit::window::Window>) -> Option<Depots> {
     let (envoyer, recevoir) = std::sync::mpsc::channel();
-    poser_le_pont(fenetre, envoyer).then_some(Depots { recevoir })
+    // **Un depot peut arriver pendant que la boucle dort** (DEPOT-WEB-4) : l'image rapatriee
+    // sur un fil a part tombe une seconde apres le geste, et sans ce reveil elle attendrait le
+    // prochain mouvement de souris pour paraitre. `request_redraw` se demande de n'importe quel
+    // fil, et la boucle pose ce qui est arrive des qu'elle a fini de le traiter.
+    let fenetre_pour_le_reveil = std::sync::Arc::clone(fenetre);
+    let reveil: Reveil = std::sync::Arc::new(move || fenetre_pour_le_reveil.request_redraw());
+    poser_le_pont(fenetre, envoyer, reveil).then_some(Depots { recevoir })
 }
+
+/// **De quoi reveiller la boucle d'images** depuis un autre fil.
+pub type Reveil = std::sync::Arc<dyn Fn() + Send + Sync>;
 
 /// Le pont de cette plateforme, s'il y en a un.
 #[cfg(windows)]
-fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Moisson>) -> bool {
+fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Moisson>, reveil: Reveil) -> bool {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let Ok(poignee) = fenetre.window_handle() else {
         return false;
@@ -66,11 +99,15 @@ fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Moisson>) -> bool
     let RawWindowHandle::Win32(w) = poignee.as_raw() else {
         return false;
     };
-    depot_windows::installer(w.hwnd.get(), vers)
+    depot_windows::installer(w.hwnd.get(), vers, reveil)
 }
 
 /// Sur une plateforme sans pont, il n'y a rien à poser et rien à dire.
 #[cfg(not(windows))]
-fn poser_le_pont(_fenetre: &winit::window::Window, _vers: Sender<Moisson>) -> bool {
+fn poser_le_pont(
+    _fenetre: &winit::window::Window,
+    _vers: Sender<Moisson>,
+    _reveil: Reveil,
+) -> bool {
     false
 }
