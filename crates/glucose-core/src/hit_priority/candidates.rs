@@ -134,8 +134,14 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     // fait. Tauri le tenait du DOM — une bande invisible que le navigateur savait toucher —
     // et le portage avait gardé le champ sans le navigateur : personne ne le remplissait,
     // donc aucune flèche n'était jamais sélectionnable.
+    // Une flèche que le bouton « Trans-domaines » a masquée ne s'attrape pas.
+    let domaines = |id: &str| crate::arrow::domaines_du_noeud(input.images, input.annotations, id);
+    let visibles = input
+        .annotations
+        .iter()
+        .filter(|a| input.trans_domaines_visibles || !crate::arrow::est_trans_domaine(a, domaines));
     if let Some((fleche, dist)) = crate::arrow::at(
-        input.annotations,
+        visibles,
         // Une flèche ancrée se vise **là où elle se dessine**, sur le bord du nœud
         // qu'elle touche et non sur son centre. Le résolveur donne la boîte d'un nœud ;
         // l'arbitre n'a pas à savoir comment une ancre se calcule.
@@ -367,6 +373,7 @@ pub fn collect_candidates_indexed(
         selected_annotation_ids: input.selected_annotation_ids,
         selected_folder_id: input.selected_folder_id,
         dom_hint: input.dom_hint,
+        trans_domaines_visibles: input.trans_domaines_visibles,
     };
 
     collect_candidates(&filtered_input)

@@ -375,3 +375,77 @@ fn test_what_is_not_an_arrow_has_no_label_anchor() {
         None
     );
 }
+
+// ── Les liens trans-domaines (fiche 03 § 11.6) ──────────────────────────────────────
+
+/// Un nœud qui porte ces domaines, à poids égal.
+fn porteur(id: &str, domaines: &[&str]) -> Annotation {
+    let mut a = Annotation::text(id, 0.0, 0.0, id);
+    for d in domaines {
+        a.domains_mut().push(crate::types::DomainAssignment {
+            domain_id: (*d).to_string(),
+            weight: 0.5,
+        });
+    }
+    a
+}
+
+/// Une flèche de `source` vers `cible`.
+fn liant(source: &str, cible: &str) -> Annotation {
+    let mut f = fleche("f", (0.0, 0.0), (10.0, 0.0));
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    } = &mut f
+    {
+        *source_id = Some(source.to_string());
+        *target_id = Some(cible.to_string());
+    }
+    f
+}
+
+/// **Un lien est trans-domaine quand ses deux bouts portent des domaines et n'en partagent
+/// aucun** — et seulement alors : un seul domaine commun suffit à le garder dans son
+/// territoire, et un bout sans domaine ne dit rien de ce que la flèche traverse.
+#[test]
+fn test_un_lien_trans_domaine_ne_partage_aucun_domaine() {
+    let noeuds = [
+        porteur("physique", &["sciences"]),
+        porteur("chimie", &["sciences", "industrie"]),
+        porteur("peinture", &["arts"]),
+        porteur("brouillon", &[]),
+    ];
+    let domaines = |id: &str| domaines_du_noeud(&[], &noeuds, id);
+    assert!(est_trans_domaine(&liant("physique", "peinture"), domaines));
+    assert!(
+        !est_trans_domaine(&liant("physique", "chimie"), domaines),
+        "un domaine commun"
+    );
+    assert!(
+        !est_trans_domaine(&liant("physique", "brouillon"), domaines),
+        "un bout sans domaine"
+    );
+    assert!(
+        !est_trans_domaine(&liant("physique", "inconnu"), domaines),
+        "un bout introuvable"
+    );
+    assert!(
+        !est_trans_domaine(&fleche("libre", (0.0, 0.0), (5.0, 5.0)), domaines),
+        "une flèche libre"
+    );
+}
+
+/// **Une image est une extrémité comme une autre** : ses domaines se lisent aussi.
+#[test]
+fn test_une_image_porte_ses_domaines_au_bout_d_une_fleche() {
+    let mut photo = crate::types::BoardImage::new("photo", 0.0, 0.0, 10.0, 10.0);
+    photo.domains.push(crate::types::DomainAssignment {
+        domain_id: "arts".into(),
+        weight: 1.0,
+    });
+    let images = [photo];
+    let noeuds = [porteur("physique", &["sciences"])];
+    let domaines = |id: &str| domaines_du_noeud(&images, &noeuds, id);
+    assert!(est_trans_domaine(&liant("physique", "photo"), domaines));
+}

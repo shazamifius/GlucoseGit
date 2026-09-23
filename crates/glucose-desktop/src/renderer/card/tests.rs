@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::renderer::math::MathRenderer;
+use crate::renderer::pass::Affichage;
 use crate::renderer::richtext::VisualLine;
 use crate::typography::Face;
 use glucose_core::types::Annotation;
@@ -306,7 +307,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
         },
         &mut view,
         &store,
-        (edition, false),
+        Affichage::complet(edition),
         ViewPass {
             vp: Viewport {
                 x: 30.0,

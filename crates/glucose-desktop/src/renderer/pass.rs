@@ -54,6 +54,32 @@ pub(crate) struct Pass<'a> {
     pub vp: Viewport,
     pub scale: WorldScale,
     pub clip: Clip,
+    /// Les liens trans-domaines se montrent-ils (fiche 03 § 11.6) ?
+    pub trans_domaines: bool,
+}
+
+/// **Ce que la passe des annotations doit savoir de l'interface**, et que le document ne dit
+/// pas.
+#[derive(Clone, Copy)]
+pub(crate) struct Affichage<'a> {
+    /// La carte en édition : elle se dessine depuis son tampon, pas depuis le document.
+    pub edition: Option<&'a TextEditSession>,
+    /// Les cartes de texte sont des textures que la carte graphique pose (COMPOSANT-1).
+    pub cartes_par_la_carte: bool,
+    /// Le bouton « Trans-domaines » : coupé, les liens trans-domaines ne se dessinent pas.
+    pub trans_domaines: bool,
+}
+
+#[cfg(test)]
+impl<'a> Affichage<'a> {
+    /// Tout se montre, et tout se dessine au processeur : l'état d'une épreuve.
+    pub fn complet(edition: Option<&'a TextEditSession>) -> Self {
+        Self {
+            edition,
+            cartes_par_la_carte: false,
+            trans_domaines: true,
+        }
+    }
 }
 
 /// Dessine les annotations visibles du tableau actif.
@@ -66,7 +92,7 @@ pub(super) fn draw_annotations(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
-    (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
+    affichage: Affichage<'_>,
     pass: ViewPass<'_>,
 ) {
     let Some(board) = store.active_board() else {
@@ -84,6 +110,7 @@ pub(super) fn draw_annotations(
             height: pixmap.height() as f32,
             top: pass.header_h,
         },
+        trans_domaines: affichage.trans_domaines,
     };
 
     // **Deux passes, et c'est ce qui rend les deux voies identiques par construction**
@@ -95,9 +122,9 @@ pub(super) fn draw_annotations(
     // dessine ce que ces textures porteraient, dans le meme ordre. Une affordance -- une
     // poignee, un cadre de selection -- n'est donc jamais cachee par une carte voisine, ce
     // qui est aussi la seule facon de pouvoir l'attraper.
-    if !cartes_par_la_carte {
+    if !affichage.cartes_par_la_carte {
         for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
-            let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
+            let editing = affichage.edition.filter(|s| s.ann_id.as_str() == ann.id());
             if editing.is_none() {
                 if let Some(carte) = carte_de(hue_cache, ann, store, pass, None) {
                     draw_card_contenu(&ctx, pixmap, carte);
@@ -106,12 +133,8 @@ pub(super) fn draw_annotations(
         }
     }
 
-    let entieres = dessiner_ce_qui_passe_au_dessus(
-        hue_cache,
-        (&ctx, pixmap),
-        (store, board, pass),
-        (editing_session, cartes_par_la_carte),
-    );
+    let entieres =
+        dessiner_ce_qui_passe_au_dessus(hue_cache, (&ctx, pixmap), (store, board, pass), affichage);
     crate::perf::compteur("cartes_entieres", entieres);
 }
 
@@ -134,8 +157,9 @@ fn dessiner_ce_qui_passe_au_dessus(
     hue_cache: &mut SymbioticHueCache,
     (ctx, pixmap): (&Pass, &mut PixmapMut),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
-    (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
+    affichage: Affichage<'_>,
 ) -> f64 {
+    let (editing_session, cartes_par_la_carte) = (affichage.edition, affichage.cartes_par_la_carte);
     let mut entieres = 0.0_f64;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let selected = store.selected_annotation_ids.iter().any(|s| s == ann.id());
@@ -242,7 +266,16 @@ fn draw_arrow_node(
     selected: bool,
     editing: Option<&TextEditSession>,
 ) {
-    draw_arrow_path(ctx, pixmap, ann, board, selected);
+    // Un lien trans-domaine se dessine en pointilles, et disparait -- etiquette comprise --
+    // quand le bouton est coupe. La regle est celle du noyau, que l'arbitre de clic lit aussi :
+    // une fleche qu'on ne voit pas ne s'attrape pas.
+    let trans = glucose_core::arrow::est_trans_domaine(ann, |id| {
+        glucose_core::arrow::domaines_du_noeud(&board.images, &board.annotations, id)
+    });
+    if trans && !ctx.trans_domaines {
+        return;
+    }
+    draw_arrow_path(ctx, pixmap, ann, board, (selected, trans));
     // L'étiquette et le prédicat visent **le même** point du tracé. Quand les deux sont là,
     // l'une monte et l'autre descend : sinon ils se recouvriraient exactement.
     let porte_les_deux = matches!(
@@ -268,16 +301,28 @@ fn draw_arrow_path(
     pixmap: &mut PixmapMut,
     ann: &Annotation,
     board: &glucose_core::types::Board,
-    selected: bool,
+    (selected, pointillee): (bool, bool),
 ) {
     let Some(points) = glucose_core::arrow::path_in(ann, board) else {
         return;
     };
     let dernier = points.len().saturating_sub(2);
+    // Le motif des tirets court le long de TOUTE la polyligne : chaque tronçon le reprend là
+    // où le précédent l'a laissé, sans quoi chaque coude recommencerait par un tiret plein.
+    let mut parcouru = 0.0f32;
     for (i, segment) in points.windows(2).enumerate() {
         // Une polyligne ne porte qu'une pointe, à son dernier tronçon : les coudes sont des
         // passages, pas des arrivées.
-        draw_arrow(ctx, pixmap, segment[0], segment[1], selected, i == dernier);
+        let tirets = pointillee.then_some(parcouru);
+        draw_arrow(
+            ctx,
+            pixmap,
+            (segment[0], segment[1]),
+            (selected, i == dernier),
+            tirets,
+        );
+        let (dx, dy) = (segment[1].0 - segment[0].0, segment[1].1 - segment[0].1);
+        parcouru += ctx.scale.world(dx.hypot(dy) as f32);
     }
     // Les poignées de coude n'apparaissent que sur une flèche sélectionnée (ARROW-3) : une
     // affordance appartient à ce qu'on manipule, et les montrer toutes couvrirait le
@@ -286,3 +331,6 @@ fn draw_arrow_path(
         super::handles::draw_arrow_handles(pixmap, ctx.theme, ann, board, &ctx.vp);
     }
 }
+
+#[cfg(test)]
+mod tests;

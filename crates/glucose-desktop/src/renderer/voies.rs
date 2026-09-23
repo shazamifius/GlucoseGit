@@ -88,7 +88,11 @@ pub(super) fn dessiner_sur_les_photos(
         kit,
         pixmap,
         store,
-        (overlay.editing, cartes_par_la_carte),
+        pass::Affichage {
+            edition: overlay.editing,
+            cartes_par_la_carte,
+            trans_domaines: ui.trans_domain,
+        },
         pass,
     );
     crate::perf::stage("annotations");

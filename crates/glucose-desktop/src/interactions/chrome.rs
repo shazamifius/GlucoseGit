@@ -159,11 +159,16 @@ impl GlucoseApp {
             UiAction::ToggleDomains => self.dock_manager.toggle_tab(TabId::Domains),
             // L'aimant et la collaboration ont déjà basculé leur état dans `handle_ui_click`.
             UiAction::ToggleMagnet | UiAction::ToggleCollab => {}
-            UiAction::ToggleTransDomain => self.ui.show_toast(if self.ui.trans_domain {
-                "Trans-domaines activé"
-            } else {
-                "Trans-domaines désactivé"
-            }),
+            // Le bouton change ce que la passe des annotations dessine, sans que le document
+            // bouge : rien d'autre ne saurait qu'il faut tout repeindre.
+            UiAction::ToggleTransDomain => {
+                self.mark_dirty();
+                self.ui.show_toast(if self.ui.trans_domain {
+                    "Liens trans-domaines affichés"
+                } else {
+                    "Liens trans-domaines masqués"
+                });
+            }
             UiAction::ExportMenu => self.export_board(),
             UiAction::SelectBoard(id) => self.store.set_active_board_id(&id),
             UiAction::AddBoard => self.add_board(),

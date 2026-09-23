@@ -11,7 +11,7 @@
 use super::*;
 use crate::params::ViewPass;
 use crate::renderer::hue::SymbioticHueCache;
-use crate::renderer::pass::draw_annotations;
+use crate::renderer::pass::{draw_annotations, Affichage};
 use crate::renderer::PaintKit;
 use glucose_core::store::DomainPatch;
 use glucose_core::types::{Annotation, BoardImage, Domain, Viewport};
@@ -106,7 +106,14 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
         tints: &tints,
         theme: &theme,
     };
-    draw_annotations(&mut hue, kit, &mut view, store, (None, false), pass);
+    draw_annotations(
+        &mut hue,
+        kit,
+        &mut view,
+        store,
+        Affichage::complet(None),
+        pass,
+    );
     pixmap
 }
 

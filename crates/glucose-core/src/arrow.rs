@@ -44,7 +44,7 @@
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
 use crate::types::Annotation;
-use crate::types::{Board, CanvasFolder};
+use crate::types::{Board, BoardImage, CanvasFolder, DomainAssignment};
 
 /// Épaisseur de la bande qui désigne une flèche, en pixels **écran**.
 ///
@@ -189,17 +189,17 @@ fn distance_along(points: &[(f64, f64)], point: (f64, f64)) -> Option<f64> {
 ///
 /// À égalité, la **dernière** l'emporte : c'est celle qui est dessinée au-dessus, donc celle
 /// que la main croit viser. Le même arbitrage que pour les nœuds empilés.
-pub fn at(
-    annotations: &[Annotation],
+pub fn at<'a>(
+    annotations: impl IntoIterator<Item = &'a Annotation>,
     resolve: impl Fn(&str) -> Option<Rect> + Copy,
     point: (f64, f64),
     scale: f64,
-) -> Option<(&Annotation, f64)> {
+) -> Option<(&'a Annotation, f64)> {
     // La bande garde une épaisseur **écran** : une flèche ne devient pas plus dure à viser
     // parce qu'on s'est éloigné. C'est la même exception que les poignées (SCALE-1).
     let portee = BAND_PX / 2.0 / scale.max(1e-6);
     annotations
-        .iter()
+        .into_iter()
         .filter_map(|a| distance_to_with(a, resolve, point).map(|d| (a, d)))
         .filter(|(_, d)| *d <= portee)
         .reduce(|meilleur, courant| {
@@ -412,6 +412,56 @@ pub fn label_anchor_in(arrow: &Annotation, board: &Board) -> Option<(f64, f64)> 
 /// Le chemin d'une flèche ancrée dans son tableau — le raccourci courant de [`path_with`].
 pub fn path_in(arrow: &Annotation, board: &Board) -> Option<Vec<(f64, f64)>> {
     path_with(arrow, |id| node_rect(board, id))
+}
+
+/// **Cette flèche relie-t-elle deux domaines étrangers l'un à l'autre** ?
+///
+/// Un lien est **trans-domaine** quand ses deux extrémités portent des domaines et n'en
+/// partagent **aucun** : une idée qui traverse une frontière de la carte. C'est ce que la
+/// référence dessinait en pointillés et laissait masquer d'un bouton (fiche 03 § 11.6). Une
+/// flèche libre, ou dont un bout ne porte aucun domaine, n'en est pas un : on ne sait rien de
+/// ce qu'elle traverse.
+///
+/// Les poids ne comptent pas, seule la présence : un domaine porté à un dixième reste le
+/// territoire du nœud, et c'est ce que la référence lisait aussi.
+pub fn est_trans_domaine<'a>(
+    arrow: &Annotation,
+    domaines_de: impl Fn(&str) -> Option<&'a [DomainAssignment]>,
+) -> bool {
+    let Annotation::Arrow {
+        source_id: Some(source),
+        target_id: Some(cible),
+        ..
+    } = arrow
+    else {
+        return false;
+    };
+    let (Some(de), Some(vers)) = (domaines_de(source), domaines_de(cible)) else {
+        return false;
+    };
+    !de.is_empty()
+        && !vers.is_empty()
+        && !de
+            .iter()
+            .any(|a| vers.iter().any(|b| a.domain_id == b.domain_id))
+}
+
+/// Les domaines d'un nœud, annotation ou image. Un dossier n'en porte pas.
+pub fn domaines_du_noeud<'a>(
+    images: &'a [BoardImage],
+    annotations: &'a [Annotation],
+    id: &str,
+) -> Option<&'a [DomainAssignment]> {
+    annotations
+        .iter()
+        .find(|a| a.id() == id)
+        .map(Annotation::domains)
+        .or_else(|| {
+            images
+                .iter()
+                .find(|i| i.id == id)
+                .map(|i| i.domains.as_slice())
+        })
 }
 
 #[cfg(test)]
