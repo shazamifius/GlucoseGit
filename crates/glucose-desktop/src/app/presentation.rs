@@ -177,10 +177,13 @@ impl GlucoseApp {
         self.chronique
             .rythme
             .en_retard(maintenant, debut_du_rendu, due);
-        self.rythme_de_l_image =
-            self.chronique
-                .rythme
-                .presentee(maintenant, debut_du_rendu, pas, vitesse, attendue);
+        self.rythme_de_l_image = self.chronique.rythme.presentee(
+            maintenant,
+            debut_du_rendu,
+            pas,
+            vitesse,
+            (attendue, due),
+        );
         self.chronique.entracte.ouvrir(maintenant);
         // **L'horloge de la trajectoire avance ICI**, au meme instant que la mesure : les deux
         // parlent de la meme chose, et les separer les ferait diverger.

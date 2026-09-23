@@ -355,7 +355,7 @@ mod tests {
             let fin = debut + Duration::from_micros(*rendu);
             // Un mouvement continu : chaque image est due des la presentation precedente.
             c.rythme.en_retard(fin, debut, Some(t));
-            c.rythme.presentee(fin, debut, pas, 1_000.0, true);
+            c.rythme.presentee(fin, debut, pas, 1_000.0, (true, None));
             c.enregistrer(Instantane {
                 duree_us: 5_800,
                 region_px: 0,

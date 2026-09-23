@@ -81,7 +81,7 @@ fn main() {
                 } else {
                     c.rythme.en_retard(presentation, horloge, Some(due));
                     c.rythme
-                        .presentee(presentation, horloge, pas, vitesse, true)
+                        .presentee(presentation, horloge, pas, vitesse, (true, None))
                 };
                 c.entracte.ouvrir(presentation);
                 debut_precedent = Some(horloge);

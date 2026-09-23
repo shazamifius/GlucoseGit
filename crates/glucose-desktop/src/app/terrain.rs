@@ -462,7 +462,7 @@ mod tests {
             il_y_a_vingt_secondes,
             Duration::ZERO,
             0.0,
-            true,
+            (true, None),
         );
         app.chronique.entracte.ouvrir(il_y_a_vingt_secondes);
         app.noter_l_echeance(il_y_a_vingt_secondes + Duration::from_millis(1));

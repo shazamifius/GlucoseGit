@@ -254,13 +254,22 @@ impl Rythme {
     /// geste, un decodage en cours. Sinon l'application dormait, et l'intervalle est du
     /// repos : le mesurer comme un gel a fait paraitre « 3 092 ms a la 7,7e seconde » sur une
     /// session ou personne ne touchait a rien.
+    ///
+    /// `due` est l'**echeance** de cette image -- l'instant ou elle est devenue necessaire
+    /// (GEL-1). Ce que l'oeil voit reste a l'ecran depuis la presentation precedente, mais
+    /// il n'attend rien tant qu'aucune image n'est due : un toast qui dort jusqu'a son fondu
+    /// demande bien l'image de son reveil, et les 1,8 s de sommeil, pendant lesquelles l'ecran
+    /// etait juste, se lisaient « pire 1 874 ms » dans la ligne « une image reste a
+    /// l'ecran ». L'histogramme compte donc depuis la plus tardive des deux. Pendant un
+    /// mouvement, l'image suivante est due des la precedente -- le tempo attend APRES le
+    /// rendu -- et rien n'y change.
     pub fn presentee(
         &mut self,
         maintenant: Instant,
         debut_du_rendu: Instant,
         pas: Duration,
         vitesse_px_s: f64,
-        attendue: bool,
+        (attendue, due): (bool, Option<Instant>),
     ) -> Mesure {
         let precedente = self.precedente.replace(maintenant);
         let Some(avant) = precedente else {
@@ -283,8 +292,9 @@ impl Rythme {
             maintenant.saturating_duration_since(debut_du_rendu),
         );
         let precedentes = self.parts_precedentes.replace(parts);
+        let depart = due.map_or(avant, |due| due.max(avant));
         self.intervalles
-            .ajouter(micros(image.intervalle).unwrap_or(u32::MAX));
+            .ajouter(micros(maintenant.saturating_duration_since(depart)).unwrap_or(u32::MAX));
         // **Les balayages ne se comparent que quand la vue bouge.** Le judder est la
         // definition d'un MOUVEMENT irregulier ; un toast qui s'estompe a un rythme
         // quelconque n'en est pas un, et le compter faisait lire « 45 % d'images

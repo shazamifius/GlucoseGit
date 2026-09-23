@@ -23,7 +23,13 @@ fn test_une_machine_reguliere_ne_produit_aucun_saut() {
     let periode = Duration::from_micros(8_333);
     for _ in 0..200 {
         t += periode;
-        r.presentee(t, t - Duration::from_micros(2_000), periode, 1_000.0, true);
+        r.presentee(
+            t,
+            t - Duration::from_micros(2_000),
+            periode,
+            1_000.0,
+            (true, None),
+        );
     }
     let (median, _, _, _) = r.intervalles();
     assert!(
@@ -79,7 +85,7 @@ fn test_une_machine_irreguliere_fait_sauter_un_mouvement_pourtant_parfait() {
         });
         let presentation = debut + duree;
         if !pas.is_zero() {
-            r.presentee(presentation, debut, pas, vitesse, true);
+            r.presentee(presentation, debut, pas, vitesse, (true, None));
         }
         debut_precedent = Some(debut);
         debut = presentation;
@@ -124,7 +130,7 @@ fn test_une_vue_immobile_ne_compte_pas_dans_la_fidelite() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(8_000),
             0.0,
-            true,
+            (true, None),
         );
     }
     assert_eq!(
@@ -152,7 +158,7 @@ fn test_la_cadence_vue_ignore_le_temps_ou_rien_n_etait_demande() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(10_000),
             100.0,
-            true,
+            (true, None),
         );
     }
     // Puis un long sommeil, et une seule image.
@@ -162,7 +168,7 @@ fn test_la_cadence_vue_ignore_le_temps_ou_rien_n_etait_demande() {
         t - Duration::from_micros(2_000),
         Duration::from_micros(10_000),
         100.0,
-        true,
+        (true, None),
     );
 
     let vue = r.cadence_vue().expect("des intervalles ont ete mesures");
@@ -184,7 +190,7 @@ fn test_sans_periode_connue_aucun_balayage_n_est_invente() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(10_000),
             500.0,
-            true,
+            (true, None),
         );
     }
     assert_eq!(r.periode(), None);
@@ -210,7 +216,7 @@ fn test_la_premiere_image_ne_mesure_rien() {
         t - Duration::from_micros(2_000),
         Duration::from_micros(8_000),
         900.0,
-        true,
+        (true, None),
     );
     assert_eq!(m, Mesure::default());
     assert_eq!(r.comparees(), 0);
@@ -232,7 +238,7 @@ fn test_un_sommeil_ne_compte_pas_comme_un_gel() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(8_333),
             500.0,
-            true,
+            (true, None),
         );
     }
     // Trois secondes de sommeil, puis une image que rien n'attendait -- sinon le geste qui
@@ -248,7 +254,7 @@ fn test_un_sommeil_ne_compte_pas_comme_un_gel() {
         t - Duration::from_micros(2_000),
         Duration::ZERO,
         0.0,
-        false,
+        (false, None),
     );
     let (_, _, _, pire) = r.intervalles();
     assert!(
@@ -279,7 +285,7 @@ fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
             t - Duration::from_micros(2_000),
             Duration::from_micros(8_333),
             500.0,
-            true,
+            (true, None),
         );
     }
     // Vingt secondes à choisir un fichier, puis une image que le décodage attendait.
@@ -296,7 +302,7 @@ fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
         t - Duration::from_micros(2_000),
         Duration::from_micros(8_333),
         0.0,
-        true,
+        (true, None),
     );
     let (_, _, _, pire) = r.intervalles();
     assert!(
@@ -315,7 +321,7 @@ fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
         t - Duration::from_micros(2_000),
         Duration::from_micros(8_333),
         500.0,
-        true,
+        (true, None),
     );
     let (_, _, _, pire) = r.intervalles();
     assert!(
@@ -335,7 +341,7 @@ fn test_un_gel_se_compte_depuis_l_echeance_de_l_image() {
     let mut r = Rythme::nouveau();
     r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
     let mut t = Instant::now();
-    r.presentee(t, t, Duration::ZERO, 0.0, true);
+    r.presentee(t, t, Duration::ZERO, 0.0, (true, None));
 
     // Cinq secondes de pause, puis un geste : l'image est due au geste.
     let geste = t + Duration::from_secs(5);
@@ -346,7 +352,7 @@ fn test_un_gel_se_compte_depuis_l_echeance_de_l_image() {
         geste + Duration::from_millis(1),
         Duration::ZERO,
         0.0,
-        true,
+        (true, None),
     );
     let (_, apres_la_pause, _) = r.pire_intervalle();
     assert!(
@@ -358,7 +364,13 @@ fn test_un_gel_se_compte_depuis_l_echeance_de_l_image() {
     let due = t;
     t += Duration::from_millis(705);
     r.en_retard(t, t - Duration::from_millis(5), Some(due));
-    r.presentee(t, t - Duration::from_millis(5), Duration::ZERO, 0.0, true);
+    r.presentee(
+        t,
+        t - Duration::from_millis(5),
+        Duration::ZERO,
+        0.0,
+        (true, None),
+    );
     let (_, gel, dont_attente) = r.pire_intervalle();
     assert_eq!(gel, Duration::from_millis(705));
     assert_eq!(dont_attente, Duration::from_millis(700));
@@ -367,5 +379,39 @@ fn test_un_gel_se_compte_depuis_l_echeance_de_l_image() {
         perdu,
         Duration::from_millis(690),
         "le temps perdu au-dela du plancher, et lui seul"
+    );
+}
+
+/// **Le sommeil d'un toast n'est pas une image qui reste à l'écran** — la chronique du 23/09
+/// affichait « pire 1 874 ms » sur une session où rien n'avait gelé.
+///
+/// Le toast dort jusqu'au début de son fondu : l'image de son réveil est bien attendue, mais
+/// elle ne devient **due** qu'au réveil. L'histogramme compte depuis l'échéance quand elle
+/// est plus tardive que la présentation précédente ; pendant un mouvement, où l'image
+/// suivante est due dès la précédente, rien ne change.
+#[test]
+fn test_le_sommeil_d_un_toast_n_est_pas_une_image_qui_reste() {
+    let t = Instant::now();
+    let mut r = Rythme::default();
+    r.presentee(t, t, Duration::ZERO, 0.0, (true, None));
+    // Réveil programmé 1 800 ms plus tard ; l'image est rendue en 5 ms.
+    let reveil = t + Duration::from_millis(1_800);
+    let fin = reveil + Duration::from_millis(5);
+    r.presentee(fin, reveil, Duration::ZERO, 0.0, (true, Some(reveil)));
+    assert_eq!(r.intervalles().3, 5_000, "5 ms, pas 1 805");
+
+    // Un mouvement : l'image suivante est due AVANT que la précédente ne soit présentée.
+    let suivante = fin + Duration::from_micros(13_780);
+    r.presentee(
+        suivante,
+        fin,
+        Duration::ZERO,
+        0.0,
+        (true, Some(fin - Duration::from_micros(100))),
+    );
+    assert_eq!(
+        r.intervalles().3,
+        13_780,
+        "l'intervalle entier, comme avant"
     );
 }
