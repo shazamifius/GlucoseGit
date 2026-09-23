@@ -61,6 +61,9 @@ pub struct Vue<'a> {
     /// Ses plages, si quelqu'un les a lues une fois pour toutes : le source-over n'a alors
     /// plus à les chercher à chaque report.
     plages: Option<&'a Plages>,
+    /// Les texels qu'un filtre a le droit de lire, bornes incluses : gauche, haut, droite,
+    /// bas. L'image entière par défaut ; la fenêtre d'un recadrage sinon (BORDURES-4).
+    fenetre: [u32; 4],
 }
 
 /// Une image qu'on écrit.
@@ -78,12 +81,29 @@ impl<'a> Vue<'a> {
     /// faire aucune : c'est le seul endroit où une taille peut mentir.
     pub fn nouvelle(pixels: &'a [Pixel], largeur: u32, hauteur: u32) -> Option<Self> {
         let attendu = (largeur as usize).checked_mul(hauteur as usize)?;
-        (pixels.len() == attendu && largeur > 0 && hauteur > 0).then_some(Self {
+        // `then` et non `then_some` : la fenêtre se calcule APRÈS la vérification, sans quoi
+        // une vue vide déborderait en retirant un à sa largeur nulle.
+        (pixels.len() == attendu && largeur > 0 && hauteur > 0).then(|| Self {
             pixels,
             largeur,
             hauteur,
             plages: None,
+            fenetre: [0, 0, largeur - 1, hauteur - 1],
         })
+    }
+
+    /// La même vue, dont un filtre ne lit **que** les texels `[gauche, haut, droite, bas]`,
+    /// bornes incluses (BORDURES-4).
+    ///
+    /// C'est la fenêtre d'un recadrage : ses bords se **prolongent**, exactement comme ceux de
+    /// l'image, au lieu de mêler au dernier rang gardé ce que le recadrage a retiré. Une
+    /// fenêtre qui sortirait de l'image, ou dont les bords se croisent, n'est pas retenue —
+    /// la même prudence que pour des plages lues sur une autre image.
+    pub fn avec_fenetre(mut self, [gauche, haut, droite, bas]: [u32; 4]) -> Self {
+        if gauche <= droite && droite < self.largeur && haut <= bas && bas < self.hauteur {
+            self.fenetre = [gauche, haut, droite, bas];
+        }
+        self
     }
 
     /// La même vue, qui connaît ses plages.
@@ -308,7 +328,8 @@ fn reporter_en_echantillonnant(
     // traite des millions — alors que la réponse est la même pour toute une colonne, et que
     // l'immense majorité d'entre elles sont à l'intérieur. On les calcule donc **une fois**,
     // et la boucle centrale n'a plus rien à vérifier.
-    let dedans = colonnes_interieures(u0, pas_x, src.largeur, (x0, x1));
+    let [gauche, _, droite, _] = src.fenetre;
+    let dedans = colonnes_interieures(u0, pas_x, (gauche, droite), (x0, x1));
 
     let pas = (u0, v, pas_x, pas_y);
     match (melange, filtre) {
@@ -361,7 +382,7 @@ fn remplir<const REMPLACE: bool, const LISSE: bool>(
     for y in y0..=y1 {
         // `v` ne change pas le long d'une ligne : les deux lignes source et leur poids se
         // lisent une fois, au lieu d'une multiplication et de deux bornages par pixel.
-        let (ya, yb, fv) = voisins(v, src.hauteur);
+        let (ya, yb, fv) = voisins(v, (src.fenetre[1], src.fenetre[3]));
         let (haute, basse) = (src.ligne(ya), src.ligne(yb));
         let ligne = &mut dest.ligne_mut(y)[x0 as usize..=x1 as usize];
         let (gauche, reste) = ligne.split_at_mut(g);
@@ -373,7 +394,7 @@ fn remplir<const REMPLACE: bool, const LISSE: bool>(
             basse,
             fv,
             pas_x,
-            source: src.largeur,
+            bornes: (src.fenetre[0], src.fenetre[2]),
         };
         bande.parcourir::<REMPLACE, LISSE, false>(gauche, &mut u);
         bande.parcourir::<REMPLACE, LISSE, true>(interieur, &mut u);
@@ -394,7 +415,8 @@ struct Bande<'a> {
     basse: &'a [Pixel],
     fv: u32,
     pas_x: i64,
-    source: u32,
+    /// Les colonnes lisibles, bornes incluses : la fenêtre de la source.
+    bornes: (u32, u32),
 }
 
 impl Bande<'_> {
@@ -417,7 +439,7 @@ impl Bande<'_> {
                 let a = (*u >> FIXE) as u32;
                 (a, a + 1, ((*u & (UN - 1)) >> (FIXE - 8)) as u32)
             } else {
-                voisins(*u, self.source)
+                voisins(*u, self.bornes)
             };
             // Pixeliser, c'est prendre le texel dont le centre est le plus proche : une
             // lecture au lieu de quatre, aucun melange, et le pas de la source se voit.
@@ -450,16 +472,18 @@ impl Bande<'_> {
 
 /// Les deux texels qui encadrent la position `t`, et le poids du second, sur huit bits.
 ///
-/// Les bords se **prolongent** au lieu de se replier : un texel demandé hors de l'image rend le
-/// plus proche. C'est ce qui évite qu'une image ne bave sur son bord opposé en zoom proche.
+/// Les bords se **prolongent** au lieu de se replier : un texel demandé hors de la fenêtre —
+/// l'image entière, ou ce qu'un recadrage en garde — rend le plus proche. C'est ce qui évite
+/// qu'une image ne bave sur son bord opposé en zoom proche, et qu'une bande retirée ne
+/// revienne en liseré sur le bord qu'elle touchait (BORDURES-4).
 ///
 /// Le poids est ramené à huit bits : l'erreur qu'il introduit vaut un deux-cent-cinquante-
 /// sixième de l'écart entre deux texels, soit moins d'un demi-niveau sur une sortie de huit
 /// bits. Elle est donc **invisible par construction**, et c'est ce qui permet d'interpoler les
 /// quatre canaux d'un seul geste.
-fn voisins(t: i64, taille: u32) -> (u32, u32, u32) {
+fn voisins(t: i64, (premier, dernier): (u32, u32)) -> (u32, u32, u32) {
     let entier = t >> FIXE;
-    let borne = |k: i64| k.clamp(0, i64::from(taille) - 1) as u32;
+    let borne = |k: i64| k.clamp(i64::from(premier), i64::from(dernier)) as u32;
     (
         borne(entier),
         borne(entier + 1),
@@ -467,7 +491,7 @@ fn voisins(t: i64, taille: u32) -> (u32, u32, u32) {
     )
 }
 
-/// La plage de colonnes où `u` et `u + 1` tombent tous deux dans la source.
+/// La plage de colonnes où `u` et `u + 1` tombent tous deux dans la fenêtre de la source.
 ///
 /// Rend une plage vide — début après fin — quand il n'y en a aucune, ce qui arrive pour une
 /// image vue de très loin, où chaque pixel saute par-dessus plusieurs texels.
@@ -476,14 +500,20 @@ fn voisins(t: i64, taille: u32) -> (u32, u32, u32) {
 /// une colonne qui ne l'est pas, et la boucle centrale lirait alors un texel hors de la source.
 /// Un clip d'une seule colonne suffisait à le déclencher — c'est ce que le test du découpage
 /// en morceaux a attrapé.
-fn colonnes_interieures(u0: i64, pas: i64, largeur: u32, (x0, x1): (u32, u32)) -> (u32, u32) {
+fn colonnes_interieures(
+    u0: i64,
+    pas: i64,
+    (gauche, droite): (u32, u32),
+    (x0, x1): (u32, u32),
+) -> (u32, u32) {
     const AUCUNE: (u32, u32) = (u32::MAX, 0);
-    if pas <= 0 || largeur < 2 {
+    if pas <= 0 || droite <= gauche {
         return AUCUNE;
     }
-    let haut = (i64::from(largeur) - 1) * UN;
-    // `u(x) = u0 + (x − x0) · pas`, donc `0 ⩽ u(x) < haut` se renverse exactement.
-    let premier = (-u0).div_euclid(pas) + i64::from((-u0).rem_euclid(pas) != 0);
+    let bas = i64::from(gauche) * UN;
+    let haut = i64::from(droite) * UN;
+    // `u(x) = u0 + (x − x0) · pas`, donc `bas ⩽ u(x) < haut` se renverse exactement.
+    let premier = (bas - u0).div_euclid(pas) + i64::from((bas - u0).rem_euclid(pas) != 0);
     let dernier = (haut - 1 - u0).div_euclid(pas);
     let debut = i64::from(x0) + premier.max(0);
     let fin = i64::from(x0) + dernier;

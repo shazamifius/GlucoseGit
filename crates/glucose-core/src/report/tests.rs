@@ -629,3 +629,76 @@ fn des_plages_d_une_autre_taille_sont_refusees() {
     let vue = Vue::nouvelle(&source, 4, 4).unwrap().avec_plages(&autres);
     assert!(vue.plages().is_none());
 }
+
+/// **Une bande retirée ne revient pas sur le bord qu'elle touchait** (BORDURES-4).
+///
+/// Dix colonnes blanches, puis un contenu uni : `Ctrl+B` retire les dix. Posée à la manière
+/// du recadrage — la source entière sur une boîte plus grande, la boîte du nœud pour clip —,
+/// chaque pixel montré doit valoir le contenu, **au bit près**, à toute échelle et toute
+/// phase : un filtre qui lirait la colonne retirée l'éclaircirait.
+///
+/// La preuve est portée par le test lui-même : sans la fenêtre, la même pose ramène le blanc
+/// — c'est le liseré mesuré sur la capture de l'utilisateur du 23/09.
+#[test]
+fn une_bande_retiree_ne_revient_pas_sur_le_bord() {
+    const CONTENU: Pixel = [40, 40, 40, 255];
+    let (l, h) = (40u32, 20u32);
+    let src: Vec<Pixel> = (0..l * h)
+        .map(|i| if i % l < 10 { [255; 4] } else { CONTENU })
+        .collect();
+    let recadrage = crate::types::Recadrage::depuis_les_marges(10.0 / f64::from(l), 0.0, 0.0, 0.0);
+    let fenetre = recadrage.texels_lisibles((l, h), 1);
+    let (dl, dh) = (200u32, 60u32);
+    let mut avec_blanc_sans_fenetre = 0;
+    for echelle in [0.61f64, 1.0, 1.5, 3.7] {
+        for phase in [0.0f64, 0.3, 0.5, 0.8] {
+            let boite = (5.0 + phase, 3.0 + phase, 30.0 * echelle, 20.0 * echelle);
+            let (x, y, largeur, hauteur) = recadrage.source_pour(boite);
+            let pose = Pose {
+                x: x as f32,
+                y: y as f32,
+                largeur: largeur as f32,
+                hauteur: hauteur as f32,
+            };
+            let clip = Boite::nouvelle(
+                boite.0 as f32,
+                boite.1 as f32,
+                boite.2 as f32,
+                boite.3 as f32,
+            );
+            for borne in [true, false] {
+                let vue = Vue::nouvelle(&src, l, h).unwrap();
+                let vue = if borne {
+                    vue.avec_fenetre(fenetre)
+                } else {
+                    vue
+                };
+                let mut fond = unie(dl, dh, [0, 0, 0, 0]);
+                let mut dest = VueMut::nouvelle(&mut fond, dl, dh).unwrap();
+                reporter(
+                    &mut dest,
+                    &vue,
+                    pose,
+                    clip,
+                    Melange::Remplacer,
+                    Filtre::Lisse,
+                );
+                let ecrits: Vec<&Pixel> = fond.iter().filter(|p| p[3] != 0).collect();
+                assert!(!ecrits.is_empty());
+                let clairs = ecrits.iter().filter(|p| p[0] > CONTENU[0]).count();
+                if borne {
+                    assert_eq!(
+                        clairs, 0,
+                        "echelle {echelle}, phase {phase} : le blanc revient"
+                    );
+                } else {
+                    avec_blanc_sans_fenetre += usize::from(clairs > 0);
+                }
+            }
+        }
+    }
+    assert!(
+        avec_blanc_sans_fenetre > 0,
+        "sans la fenetre, le blanc devait revenir -- sinon ce test ne prouve rien"
+    );
+}

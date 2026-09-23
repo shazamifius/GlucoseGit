@@ -296,6 +296,7 @@ impl Regime {
                 opacite: 1.0,
                 angle: 0.0,
                 fenetre: Pose::TOUT,
+                bornes: Pose::PARTOUT,
             },
             contenu,
             echelle: self.echelle,

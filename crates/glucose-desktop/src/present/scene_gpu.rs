@@ -66,6 +66,8 @@ struct Pose {
     // La fenetre de la source que ce quad montre, en fractions : u0, v0, largeur, hauteur.
     // (0, 0, 1, 1) est la texture entiere ; un recadrage la resserre (RECADRAGE-1).
     fenetre: vec4<f32>,
+    // Ce que le filtre a le droit de lire : u et v minimaux, puis maximaux (BORDURES-4).
+    bornes: vec4<f32>,
 };
 
 struct Ecran { taille: vec2<f32>, _r: vec2<f32> };
@@ -79,6 +81,7 @@ struct Sortie {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
     @location(1) @interpolate(flat) opacite: f32,
+    @location(2) @interpolate(flat) bornes: vec4<f32>,
 };
 
 @vertex
@@ -106,6 +109,7 @@ fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Sortie 
     // et aucun pixel n'est ecrit hors de la boite.
     s.uv = p.fenetre.xy + c * p.fenetre.zw;
     s.opacite = p.reglage.x;
+    s.bornes = p.bornes;
     return s;
 }
 
@@ -113,7 +117,10 @@ fn vs(@builtin(vertex_index) v: u32, @builtin(instance_index) i: u32) -> Sortie 
 fn fs(e: Sortie) -> @location(0) vec4<f32> {
     // Premultiplie : la meme loi que `Melange::Composer` du noyau, pour que les deux voies
     // composent de la meme facon.
-    return textureSample(source, filtre, e.uv) * e.opacite;
+    // Les bords de la fenetre se prolongent, comme ceux de la texture (BORDURES-4) : le
+    // filtre ne lit jamais ce que le recadrage a retire.
+    let uv = clamp(e.uv, e.bornes.xy, e.bornes.zw);
+    return textureSample(source, filtre, uv) * e.opacite;
 }
 "#;
 

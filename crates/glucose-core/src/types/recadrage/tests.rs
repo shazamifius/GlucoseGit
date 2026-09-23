@@ -181,3 +181,70 @@ fn test_tirer_un_bord_recadre_de_ce_qu_on_a_tire() {
         Recadrage::ENTIER
     );
 }
+
+// ── BORDURES-4 : les texels qu'on a le droit de lire ─────────────────────────────────
+
+/// **Sans recadrage, tout se lit**, à tous les niveaux — y compris le dernier texel d'une
+/// taille impaire, qui ne couvre qu'un pixel natif et le couvre entièrement.
+#[test]
+fn test_une_image_entiere_se_lit_entiere_a_tout_niveau() {
+    for (l, h) in [(1200u32, 576u32), (1199, 575), (1, 1), (3, 7)] {
+        for facteur in [1u32, 2, 4, 8] {
+            let (lf, hf) = (l.div_ceil(facteur), h.div_ceil(facteur));
+            assert_eq!(
+                Recadrage::ENTIER.texels_lisibles((l, h), facteur),
+                [0, 0, lf - 1, hf - 1],
+                "{l} x {h} reduite {facteur} fois"
+            );
+        }
+    }
+}
+
+/// **Un bord entier ne bascule jamais**, et c'est ce qui dispense de toute tolérance.
+///
+/// `Ctrl+B` pose des marges de la forme `x / largeur`, et `(x / largeur) · largeur` ne rend
+/// pas toujours `x` en virgule flottante. La règle du centre lit `x − ½`, à un demi-pixel de
+/// tout arrondi : chaque bord possible de trois largeurs réelles est vérifié, un par un.
+#[test]
+fn test_un_bord_entier_ne_bascule_jamais() {
+    for l in [576u32, 1199, 1200, 4097] {
+        // Au-dela, le constructeur ramene les marges pour garder un centieme (RECADRAGE-1).
+        for x in 0..l * 99 / 200 {
+            let marge = f64::from(x) / f64::from(l);
+            let r = Recadrage::depuis_les_marges(marge, 0.0, marge, 0.0);
+            let [g, _, d, _] = r.texels_lisibles((l, 10), 1);
+            assert_eq!((g, d), (x, l - 1 - x), "largeur {l}, marge de {x} pixels");
+        }
+    }
+}
+
+/// **Un texel qui chevauche le bord ne se lit pas** : il ramènerait la moitié de la bande.
+///
+/// La forêt de l'utilisateur, recadrée par `Ctrl+B` : 14 colonnes à gauche, 15 à droite.
+/// Réduite de moitié, la colonne 1 185 — retirée — partage son texel avec la 1 184 — gardée :
+/// ce texel-là est refusé, et le bord se prolonge depuis son voisin entièrement dedans.
+#[test]
+fn test_un_texel_qui_chevauche_le_bord_ne_se_lit_pas() {
+    let (l, h) = (1200u32, 576u32);
+    let r = Recadrage::depuis_les_marges(
+        14.0 / f64::from(l),
+        12.0 / f64::from(h),
+        15.0 / f64::from(l),
+        17.0 / f64::from(h),
+    );
+    assert_eq!(r.texels_lisibles((l, h), 1), [14, 12, 1184, 558]);
+    // Réduite deux fois : 1 184 et 1 185 font le texel 592, 558 et 559 le rang 279.
+    assert_eq!(r.texels_lisibles((l, h), 2), [7, 6, 591, 278]);
+    // Quatre fois : les colonnes 12 à 15 font le texel 3, dont deux sont retirées.
+    assert_eq!(r.texels_lisibles((l, h), 4)[0], 4);
+}
+
+/// **Une fenêtre plus étroite qu'un texel lit celui qui contient son milieu** : aucun n'est
+/// entièrement dedans, et il faut pourtant montrer quelque chose.
+#[test]
+fn test_une_fenetre_plus_etroite_qu_un_texel_lit_son_milieu() {
+    // Un centième de 100 pixels : un seul pixel natif, le 50, réduit huit fois.
+    let r = Recadrage::depuis_les_marges(0.5, 0.0, 0.49, 0.0);
+    let [g, _, d, _] = r.texels_lisibles((100, 10), 8);
+    assert_eq!((g, d), (6, 6), "le pixel 50 vit dans le texel 6");
+}

@@ -341,6 +341,12 @@ pub(super) fn poses_des_photos(
         let Some(src) = img.src.as_deref() else {
             continue;
         };
+        // Ce que le filtre a le droit de lire se decide sur la texture native, celle que la
+        // carte recoit (BORDURES-4).
+        let bornes = magasin.cache.get(src).map_or(Pose::PARTOUT, |e| {
+            let n = e.pyramide.native();
+            Pose::bornes_de(img.crop, (n.width(), n.height()))
+        });
         // Le modele place une photo par son CENTRE : le coin s'en deduit, et c'est le piege
         // que `ce_que_porte` avait deja paye une fois.
         let (x, y) =
@@ -357,6 +363,7 @@ pub(super) fn poses_des_photos(
                 // Le recadrage du modele, lu et jamais calcule : la carte montre la fenetre
                 // de la photo que le document dit (RECADRAGE-1).
                 fenetre: Pose::fenetre_de(img.crop),
+                bornes,
             },
         ));
     }

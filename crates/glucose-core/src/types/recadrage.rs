@@ -237,6 +237,65 @@ impl Recadrage {
         }
         l / h
     }
+
+    /// **Les texels qu'on a le droit de lire** pour montrer cette fenêtre d'une image de
+    /// `largeur × hauteur` pixels, réduite `facteur` fois (BORDURES-4).
+    ///
+    /// Rend `[gauche, haut, droite, bas]`, **bornes incluses**, en texels de l'image réduite.
+    ///
+    /// # Pourquoi ce n'est pas la fenêtre elle-même
+    ///
+    /// Un filtre lisse lit toujours deux texels voisins. Au bord de la fenêtre, le second est
+    /// **hors** de ce qu'on montre — c'est exactement ce qu'on vient de retirer. Une bande
+    /// blanche que `Ctrl+B` avait coupée revenait donc, mêlée au dernier rang gardé, en
+    /// liseré clair : sur la capture de l'utilisateur du 23/09, **123** au bord droit, pour
+    /// 78 dans l'image et 209 dans la colonne coupée. Les bords de la fenêtre se
+    /// **prolongent** donc, comme ceux de l'image le font déjà : un texel demandé hors d'elle
+    /// rend le plus proche qui soit dedans.
+    ///
+    /// # Quels texels sont dedans, sans une seule tolérance
+    ///
+    /// 1. Un pixel natif est gardé si son **centre** tombe dans la fenêtre — la règle du
+    ///    rastériseur, celle que le report applique déjà à la destination. Un bord entier,
+    ///    tel que `Ctrl+B` le pose, tombe alors à un demi-pixel de tout arrondi : aucune
+    ///    erreur de virgule flottante ne peut le faire basculer.
+    /// 2. Un texel d'une image réduite `facteur` fois moyenne les pixels natifs
+    ///    `[k · facteur, (k + 1) · facteur[` : il n'est lisible que si **tous** sont gardés.
+    ///    Sans cette seconde règle, un niveau de pyramide dont le texel chevauche le bord
+    ///    ramène la moitié de la bande par un autre chemin.
+    ///
+    /// Une fenêtre plus étroite qu'un texel n'en garde aucun entier : on lit alors celui qui
+    /// contient son milieu — il y a toujours quelque chose à montrer (RECADRAGE-1).
+    pub fn texels_lisibles(self, (largeur, hauteur): (u32, u32), facteur: u32) -> [u32; 4] {
+        let (gauche, droite) = lisibles(self.gauche, 1.0 - self.droite, largeur, facteur);
+        let (haut, bas) = lisibles(self.haut, 1.0 - self.bas, hauteur, facteur);
+        [gauche, haut, droite, bas]
+    }
+}
+
+/// Les texels lisibles sur un axe : la fenêtre va de `debut` à `fin`, en fractions d'une
+/// taille native `n`, et l'image est réduite `facteur` fois.
+fn lisibles(debut: f64, fin: f64, n: u32, facteur: u32) -> (u32, u32) {
+    let n = i64::from(n.max(1));
+    let f = i64::from(facteur.max(1));
+    // Les pixels natifs dont le centre tombe dans [debut, fin[.
+    let premier = (debut * n as f64 - 0.5).ceil() as i64;
+    let dernier = (fin * n as f64 - 0.5).ceil() as i64 - 1;
+    let (premier, dernier) = (premier.clamp(0, n - 1), dernier.clamp(0, n - 1));
+    // Les texels dont TOUS les pixels natifs sont gardés. Le dernier texel d'une taille
+    // impaire ne couvre que ce qui existe : il est lisible des que le dernier pixel l'est.
+    let bas = (premier + f - 1) / f;
+    let haut = if dernier == n - 1 {
+        (n + f - 1) / f - 1
+    } else {
+        (dernier + 1) / f - 1
+    };
+    if bas <= haut {
+        return (bas as u32, haut as u32);
+    }
+    let milieu = ((debut + fin) / 2.0 * n as f64).floor() as i64;
+    let k = (milieu.clamp(0, n - 1) / f) as u32;
+    (k, k)
 }
 
 #[cfg(test)]

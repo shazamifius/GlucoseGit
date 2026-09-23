@@ -172,12 +172,27 @@ impl Pyramide {
     /// Les niveaux existent tous dès la construction : cette méthode **choisit**, elle ne
     /// fabrique rien. C'est ce qui la rend utilisable en pleine frame, et en `&self`.
     pub fn niveau_pour(&self, largeur_ecran: f32) -> &Pixmap {
+        &self.niveaux[self.indice_pour(largeur_ecran)]
+    }
+
+    /// **Combien de fois** le niveau que [`Pyramide::niveau_pour`] choisit est réduit : un
+    /// pour la résolution native, deux pour le premier niveau, et ainsi de suite.
+    ///
+    /// C'est ce qu'un recadrage doit savoir pour ne lire aucun texel qui mêle ce qu'il garde à
+    /// ce qu'il retire (BORDURES-4) : le texel `k` d'un niveau réduit `f` fois moyenne les
+    /// pixels natifs `[k · f, (k + 1) · f[`.
+    pub fn facteur_pour(&self, largeur_ecran: f32) -> u32 {
+        1 << self.indice_pour(largeur_ecran)
+    }
+
+    /// Le rang du niveau choisi : le plus réduit dont la largeur couvre encore l'écran.
+    fn indice_pour(&self, largeur_ecran: f32) -> usize {
         let voulue = largeur_ecran.max(1.0);
         self.niveaux
             .iter()
             .take_while(|n| n.width() as f32 >= voulue || n.width() <= 1)
-            .last()
-            .unwrap_or_else(|| self.native())
+            .count()
+            .saturating_sub(1)
     }
 
     /// Rééchantillonne l'image à la forme voulue, phase comprise.

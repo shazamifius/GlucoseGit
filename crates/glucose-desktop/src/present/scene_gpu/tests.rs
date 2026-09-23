@@ -162,6 +162,7 @@ fn test_une_photo_se_pose_ou_on_le_dit() {
             opacite: 1.0,
             angle: 0.0,
             fenetre: Pose::TOUT,
+            bornes: Pose::PARTOUT,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -198,6 +199,7 @@ fn test_l_opacite_compose_en_premultiplie() {
             opacite: 0.5,
             angle: 0.0,
             fenetre: Pose::TOUT,
+            bornes: Pose::PARTOUT,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -239,6 +241,7 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
         opacite: 1.0,
         angle: 0.0,
         fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
     };
     scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("a", pose)]);
     scene.fermer();
@@ -269,6 +272,7 @@ fn test_un_quart_de_tour_tourne_autour_du_centre() {
             opacite: 1.0,
             angle: std::f32::consts::FRAC_PI_2,
             fenetre: Pose::TOUT,
+            bornes: Pose::PARTOUT,
         },
     )];
     let Some(octets) = rendre(cote, &poses, &sources) else {
@@ -335,6 +339,7 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         opacite: 1.0,
         angle: 0.0,
         fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
     };
     let retenues = scene.preparer(
         &peripherique,
@@ -386,6 +391,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
         opacite: 1.0,
         angle: 0.0,
         fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
     };
     let demande = |cle: &str, identite: &str| APoser {
         cle: cle.to_string(),
@@ -445,5 +451,82 @@ fn test_cascade_un_nouveau_palier_remplace_l_ancien_et_ne_s_ajoute_pas() {
     assert!(
         !scene.connait("c", "c:x1"),
         "et l'ancienne n'est plus la : une identite ne porte qu'une texture"
+    );
+}
+
+/// **Une bande retirée ne revient pas sur le bord qu'elle touchait** — sur la carte, comme
+/// dans le report du noyau (BORDURES-4).
+///
+/// C'est le défaut que la capture de l'utilisateur du 23/09 montrait au bord droit de sa
+/// forêt : 123 là où l'image vaut 78, parce que le filtre lisait la colonne blanche que
+/// `Ctrl+B` venait de retirer. Dix colonnes blanches, un contenu uni, la fenêtre qui retire
+/// les dix : chaque pixel posé doit valoir le contenu, à toute échelle et toute phase. Et sans
+/// les bornes, la même pose doit ramener le blanc — sinon ce test ne prouverait rien.
+#[test]
+fn test_une_bande_retiree_ne_revient_pas_sur_le_bord() {
+    const CONTENU: [u8; 4] = [40, 40, 40, 255];
+    let (l, h) = (40u32, 20u32);
+    let mut source = Pixmap::new(l, h).expect("une photo");
+    for (i, bloc) in source
+        .data_mut()
+        .as_chunks_mut::<4>()
+        .0
+        .iter_mut()
+        .enumerate()
+    {
+        *bloc = if (i as u32) % l < 10 {
+            [255; 4]
+        } else {
+            CONTENU
+        };
+    }
+    let crop = glucose_core::types::Recadrage::depuis_les_marges(0.25, 0.0, 0.0, 0.0);
+    let cote = 128;
+    let mut blanc_sans_bornes = 0;
+    for echelle in [0.61f32, 1.5, 3.7] {
+        for phase in [0.0f32, 0.3, 0.5, 0.8] {
+            for borne in [true, false] {
+                let pose = Pose {
+                    x: 5.0 + phase,
+                    y: 3.0 + phase,
+                    largeur: 30.0 * echelle,
+                    hauteur: 20.0 * echelle,
+                    opacite: 1.0,
+                    angle: 0.0,
+                    fenetre: Pose::fenetre_de(crop),
+                    bornes: if borne {
+                        Pose::bornes_de(crop, (l, h))
+                    } else {
+                        Pose::PARTOUT
+                    },
+                };
+                let sources = vec![("cadree", source.clone())];
+                let Some(octets) = rendre(cote, &[("cadree".to_string(), pose)], &sources) else {
+                    eprintln!("aucune carte graphique : test saute");
+                    return;
+                };
+                let poses: Vec<[u8; 4]> = octets
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .copied()
+                    .filter(|p| p[3] != 0)
+                    .collect();
+                assert!(!poses.is_empty());
+                let clairs = poses.iter().filter(|p| p[0] > CONTENU[0]).count();
+                if borne {
+                    assert_eq!(
+                        clairs, 0,
+                        "echelle {echelle}, phase {phase} : le blanc revient"
+                    );
+                } else {
+                    blanc_sans_bornes += usize::from(clairs > 0);
+                }
+            }
+        }
+    }
+    assert!(
+        blanc_sans_bornes > 0,
+        "sans les bornes, le blanc devait revenir -- sinon ce test ne prouve rien"
     );
 }

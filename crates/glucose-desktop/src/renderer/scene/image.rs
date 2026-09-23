@@ -385,7 +385,8 @@ fn poser(
     };
     crate::perf::stage("images");
     let debut = std::time::Instant::now();
-    let ecrits = reporter_les_parts(pixmap, loaded, pose, parts, melange, filtre);
+    let source = (loaded, Some(lisibles(pyramide, img, vw)));
+    let ecrits = reporter_les_parts(pixmap, source, pose, parts, melange, filtre);
     let passees = debut.elapsed();
     crate::perf::stage("report");
     (ecrits, Chemin::Echantillon, passees)
@@ -438,16 +439,26 @@ fn poser_en_tournant(
     };
     let fenetre = tiny_skia::PathBuilder::from_rect(fenetre);
     // Le motif se donne dans le repere du rectangle : la pose de la source, SANS la rotation
-    // que le remplissage applique deja a tout.
+    // que le remplissage applique deja a tout. Et il ne porte que la fenetre (BORDURES-4) :
+    // `Pad` en prolonge alors les bords, au lieu de ramener ce que le recadrage retire. La
+    // copie ne se paie que pour une image a la fois tournee et cadree.
+    let [g, h, d, b] = lisibles(pyramide, img, vw);
+    let Some(dedans) =
+        tiny_skia::IntRect::from_ltrb(g as i32, h as i32, d as i32 + 1, b as i32 + 1)
+            .and_then(|r| loaded.clone_rect(r))
+    else {
+        return 0;
+    };
     let paint = tiny_skia::Paint {
         blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
         anti_alias: true,
         shader: tiny_skia::Pattern::new(
-            loaded.as_ref(),
+            dedans.as_ref(),
             tiny_skia::SpreadMode::Pad,
             FilterQuality::Bilinear,
             1.0,
-            Transform::from_scale(vw / loaded.width() as f32, vh / loaded.height() as f32)
+            Transform::from_translate(g as f32, h as f32)
+                .post_scale(vw / loaded.width() as f32, vh / loaded.height() as f32)
                 .post_translate(vx, vy),
         ),
         ..tiny_skia::Paint::default()
@@ -460,6 +471,18 @@ fn poser_en_tournant(
         None,
     );
     (f64::from(sw) * f64::from(sh)) as u64
+}
+
+/// Les texels du niveau choisi pour `vw` que le recadrage laisse lire (BORDURES-4).
+fn lisibles(
+    pyramide: &photo::Pyramide,
+    img: &glucose_core::types::BoardImage,
+    vw: f32,
+) -> [u32; 4] {
+    let native = pyramide.native();
+    let facteur = pyramide.facteur_pour(vw);
+    img.crop
+        .texels_lisibles((native.width(), native.height()), facteur)
 }
 
 /// **Où la source ENTIÈRE se pose** pour que sa fenêtre visible coïncide avec la boîte du nœud
@@ -523,7 +546,7 @@ fn poser_depuis_une_vignette(
     let debut = std::time::Instant::now();
     let ecrits = reporter_les_parts(
         pixmap,
-        vignette,
+        (vignette, None),
         pose,
         parts,
         melange,
@@ -541,7 +564,7 @@ fn poser_depuis_une_vignette(
 /// convertir en tranches de `[u8; 4]` ne copie rien et ne suppose aucun boutisme.
 fn reporter_les_parts(
     pixmap: &mut PixmapMut,
-    source: &tiny_skia::Pixmap,
+    (source, fenetre): (&tiny_skia::Pixmap, Option<[u32; 4]>),
     pose: report::Pose,
     parts: &[occlusion::Boite],
     melange: report::Melange,
@@ -552,6 +575,7 @@ fn reporter_les_parts(
     let Some(vue) = report::Vue::nouvelle(texels, source.width(), source.height()) else {
         return 0;
     };
+    let vue = fenetre.map_or(vue, |f| vue.avec_fenetre(f));
     let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
     let Some(mut cible) = report::VueMut::nouvelle(pixels, largeur, hauteur) else {
         return 0;
