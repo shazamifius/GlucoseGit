@@ -60,7 +60,7 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
     );
 
     // A part, puis repose la ou la pose le dit.
-    let composant = regime.photo_en_chemin(&img).expect("un composant");
+    let composant = regime.photo_en_chemin(&img).expect("un composant").seule();
     let texture = composant.rendre(kit).expect("une texture");
     let mut reposee = Pixmap::new(taille.0, taille.1).expect("pixmap");
     let (px, py) = (composant.pose.x, composant.pose.y);
@@ -173,7 +173,8 @@ Et un lien.";
     );
     let composant = regime
         .carte(kit, "c", (x, y, w, h), (corps, teinte, selectionnee), None)
-        .expect("un composant");
+        .expect("un composant")
+        .seule();
     let texture = composant.rendre(kit).expect("une texture");
     let mut reposee = Pixmap::new(taille.0, taille.1).expect("pixmap");
     crate::composition::poser(
@@ -282,6 +283,7 @@ fn test_la_cle_change_avec_la_phase_du_curseur_et_avec_sa_position() {
                 Some(&e),
             )
             .expect("un composant")
+            .seule()
             .cle
     };
     assert_ne!(
@@ -312,6 +314,7 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
                 Some(&e),
             )
             .expect("un composant")
+            .seule()
             .identite
     };
     assert_eq!(identite("ab", true), identite("abc", false));
@@ -406,7 +409,8 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
     );
     let composant = regime
         .carte(kit, "c", (x, y, w, h), (corps, teinte, false), Some(&e))
-        .expect("un composant");
+        .expect("un composant")
+        .seule();
     let texture = composant.rendre(kit).expect("une texture");
     let mut reposee = Pixmap::new(taille.0, taille.1).expect("pixmap");
     crate::composition::poser(
@@ -478,7 +482,8 @@ fn test_cent_images_de_saisie_immobile_ne_font_que_deux_textures() {
                 (corps, (96, 165, 250), false),
                 Some(&e),
             )
-            .expect("un composant");
+            .expect("un composant")
+            .seule();
         vues.insert(c.cle);
     }
     assert_eq!(
@@ -511,7 +516,8 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
                 (corps, (96, 165, 250), false),
                 Some(&e),
             )
-            .expect("un composant");
+            .expect("un composant")
+            .seule();
         vues.insert(c.cle);
     }
     assert_eq!(

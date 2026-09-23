@@ -57,22 +57,41 @@
 //!   la couche du dessus, donc au-dessus de tout ; il se pose maintenant **à son rang**, et
 //!   l'écart d'ordre de la fiche 22 § 5.1 n'existe plus.
 //!
-//! Ce qui ne l'est pas : un composant plus grand que l'écran, dont la texture ne tiendrait
-//! pas — il se dessine en direct, comme une photo en zoom proche. Et les **ornements** —
-//! poignées, réglette de domaines — qui sont des affordances en pixels écran, pas du contenu :
-//! ils restent dans la couche du dessus, comme pour les photos.
+//! Ce qui ne l'est pas : les **ornements** — poignées, réglette de domaines — qui sont des
+//! affordances en pixels écran, pas du contenu : ils restent dans la couche du dessus, comme
+//! pour les photos.
+//!
+//! # DE-PRES-1 — un composant plus grand que l'écran se découpe en tuiles
+//!
+//! Sa texture entière dépasserait l'écran : elle coûterait des pixels que personne ne voit, et
+//! une carte graphique ne l'accepte pas au-delà de sa taille maximale. Ce module la refusait,
+//! et sa documentation promettait qu'elle se dessinerait alors « en direct » — **personne ne
+//! le faisait** : de près, une carte disparaissait, et il ne restait que sa lueur et la grille
+//! (fiche 24 § 13, fiche 29 § 4.2).
+//!
+//! Elle se découpe donc en carrés de [`glucose_core::tuile::COTE`] pixels, ancrés à son propre
+//! coin, et **seuls ceux que l'écran montre** existent : se déplacer de près ne rend que ceux
+//! qui entrent. Le détail est dans [`decoupe`].
 
 use super::card::{card_text_layout, draw_card_contenu, CardLayout, TextCard};
 use super::pass::{Clip, Pass, SELECTION_RING};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
 use super::scene::image::ornement::draw_missing_image;
+use super::voies::APoser;
 use super::{PaintKit, Regard};
 use crate::canvas::world_to_screen;
 use crate::present::scene_gpu::Pose;
+use glucose_core::tuile::Adresse;
 use glucose_core::types::{BoardImage, Viewport};
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use tiny_skia::Pixmap;
+
+mod contenu;
+mod decoupe;
+
+use contenu::{cadre_en_chemin, Contenu};
 
 /// Un composant que la carte graphique posera, et tout ce qu'il faut pour le rendre **hors
 /// contexte** — sans le document, sans la vue — si sa texture manque encore.
@@ -93,7 +112,9 @@ pub struct Composant {
     pub identite: String,
     /// Où la texture se pose, à l'échelle de la **vue**.
     pub pose: Pose,
-    contenu: Contenu,
+    /// Partagé entre les tuiles d'un même composant : une carte découpée en quatre-vingts
+    /// carrés ne copie pas quatre-vingts fois son texte.
+    contenu: Arc<Contenu>,
     /// L'échelle à laquelle la texture se rend — exacte à l'arrêt, un palier en mouvement.
     echelle: f64,
     /// La phase sous-pixel du composant dans sa texture : exacte à l'arrêt, nulle en mouvement.
@@ -102,90 +123,24 @@ pub struct Composant {
     marge: f32,
     /// La taille de la texture, en pixels.
     pixels: (u32, u32),
+    /// **Où cette texture commence dans celle du composant entier**, en pixels : l'origine
+    /// pour un composant entier, le coin de la tuile — gouttière comprise — pour une tuile
+    /// (DE-PRES-1).
+    depart: (f32, f32),
+    /// Ce que la carte pose **à la place** de cette tuile tant qu'elle ne la détient pas : le
+    /// morceau correspondant du composant entier, à un palier plus bas (DE-PRES-1).
+    pub repli: Option<APoser>,
 }
 
-/// Ce qu'un composant montre, et ce qu'il faut pour le dessiner.
-#[derive(Debug, Clone)]
-enum Contenu {
-    Carte {
-        origine: (f64, f64),
-        taille: (f32, f32),
-        corps: String,
-        teinte: (u8, u8, u8),
-        selectionnee: bool,
-        /// La saisie en cours sur cette carte, **figee** (COMPOSANT-2).
-        ///
-        /// Une carte qu'on edite changeait a chaque image parce que personne ne s'etait
-        /// demande a quelle frequence elle change VRAIMENT : son texte bouge a la frappe,
-        /// son curseur deux fois par seconde, et rien d'autre. Le terrain du 22/09 la
-        /// chiffre a 9,74 ms en median sur le geste « editer du texte », dont l'image
-        /// mediane coute 19,48 ms -- cinquante et une images par seconde pendant qu'on
-        /// ecrit, la ou la charte en demande cent.
-        edition: Option<crate::renderer::TextEditSession>,
-    },
-    PhotoEnChemin {
-        id: String,
-        /// La taille de la photo à l'échelle de rendu, en pixels.
-        taille: (f32, f32),
-        /// La boîte englobante du cadre tourné, à l'échelle de rendu — gardée telle quelle,
-        /// parce que la recalculer depuis la texture arrondie décalait le cadre d'un pixel,
-        /// et un cadre anti-crénelé décalé d'un pixel n'a plus un bord en commun avec lui-même.
-        englobante: (f32, f32),
-        /// En radians, autour du centre — l'unité du modèle.
-        rotation: f64,
-    },
-}
-
-impl Contenu {
-    fn hacher(&self, h: &mut impl Hasher) {
-        match self {
-            Self::Carte {
-                taille,
-                corps,
-                teinte,
-                selectionnee,
-                edition,
-                ..
-            } => {
-                0u8.hash(h);
-                corps.hash(h);
-                taille.0.to_bits().hash(h);
-                taille.1.to_bits().hash(h);
-                teinte.hash(h);
-                selectionnee.hash(h);
-                // **Ce que la saisie change, et rien d'autre.** Le texte est deja dans
-                // `corps` -- `carte_de` y met le tampon d'edition. Restent l'etendue
-                // selectionnee et la phase du curseur, que BLINK-1 a sortie de l'horloge
-                // pour en faire un booleen : sans elle, deux phases opposees donneraient la
-                // meme cle et le curseur cesserait de clignoter.
-                //
-                // `goal_x` et `blink_timer` n'y sont PAS, et c'est voulu : ils decident de
-                // ce que le curseur fera, jamais de ce qu'il montre. Les hacher referait la
-                // texture a chaque touche de direction sans qu'un pixel change.
-                match edition {
-                    Some(e) => {
-                        1u8.hash(h);
-                        e.selection.anchor.hash(h);
-                        e.selection.head.hash(h);
-                        e.curseur_visible.hash(h);
-                    }
-                    None => 0u8.hash(h),
-                }
-            }
-            Self::PhotoEnChemin {
-                id,
-                taille,
-                rotation,
-                ..
-            } => {
-                1u8.hash(h);
-                id.hash(h);
-                taille.0.to_bits().hash(h);
-                taille.1.to_bits().hash(h);
-                rotation.to_bits().hash(h);
-            }
-        }
-    }
+/// **Ce qu'un composant devient à l'écran** : sa texture entière — ou, s'il est plus grand
+/// que l'écran, les tuiles qu'on en voit et leur repli (DE-PRES-1).
+#[derive(Debug, Default)]
+pub struct Pieces {
+    /// Ce qui se pose, dans l'ordre : une texture, ou les tuiles visibles.
+    pub posees: Vec<Composant>,
+    /// La texture entière à un palier plus bas, qui ne se pose **jamais pour elle-même** —
+    /// seulement à la place d'une tuile absente. Elle se rend à la demande, comme le reste.
+    pub repli: Option<Composant>,
 }
 
 /// Ce que le composant montre, résumé en un nombre : tout ce qui change ses pixels, rien
@@ -264,15 +219,49 @@ impl Regime {
         }
     }
 
-    /// Assemble le composant, ou `None` si sa texture dépasserait l'écran.
+    /// **Ce que ce composant devient à l'écran** : sa texture entière si elle tient dans
+    /// l'écran, ses tuiles visibles et leur repli sinon (DE-PRES-1).
+    ///
+    /// `coin` est le coin du contenu à l'écran, à l'échelle de la vue ; `mesure` donne, pour
+    /// une échelle de rendu, la largeur, la hauteur et la marge du contenu en pixels — c'est
+    /// elle qui permet de mesurer le repli à un autre palier que celui de l'image.
     fn composer(
         &self,
-        prefixe: &str,
-        id: &str,
-        (sx, sy): (f32, f32),
-        (largeur, hauteur, marge): (f32, f32, f32),
+        (prefixe, id): (&str, &str),
+        coin: (f32, f32),
+        mesure: &dyn Fn(f64) -> (f32, f32, f32),
         contenu: Contenu,
-    ) -> Option<Composant> {
+    ) -> Pieces {
+        let identite = format!("{prefixe}:{id}");
+        let contenu = Arc::new(contenu);
+        let (phase, pose) = self.phase_et_coin(coin.0, coin.1);
+        let entier = self.assembler(
+            (identite, &contenu),
+            self.echelle,
+            (phase, pose),
+            mesure(self.echelle),
+        );
+        if entier.tient_dans(self.ecran) {
+            return Pieces {
+                posees: vec![entier],
+                repli: None,
+            };
+        }
+        let repli = self.repli(&entier, coin, mesure);
+        Pieces {
+            posees: decoupe::tuiles(self, &entier, repli.as_ref()),
+            repli,
+        }
+    }
+
+    /// Le composant entier à l'échelle `echelle`, posé en `coin` avec cette phase.
+    fn assembler(
+        &self,
+        (identite, contenu): (String, &Arc<Contenu>),
+        echelle: f64,
+        (phase, coin): ((f32, f32), (f32, f32)),
+        (largeur, hauteur, marge): (f32, f32, f32),
+    ) -> Composant {
         // La phase sous-pixel pousse le contenu de moins d'un pixel : la texture le compte,
         // sans quoi le dernier rang du trait anti-crenele est coupe -- vingt-cinq niveaux aux
         // coins bas d'une carte selectionnee, et c'est l'epreuve des deux voies qui l'a vu.
@@ -280,14 +269,10 @@ impl Regime {
             (largeur + 2.0 * marge + 1.0).ceil() as u32,
             (hauteur + 2.0 * marge + 1.0).ceil() as u32,
         );
-        if pixels.0 == 0 || pixels.1 == 0 || pixels.0 > self.ecran.0 || pixels.1 > self.ecran.1 {
-            return None;
-        }
-        let (phase, coin) = self.phase_et_coin(sx, sy);
-        let rapport = self.rapport();
+        let rapport = (self.vue.scale / echelle) as f32;
         let mut composant = Composant {
             cle: String::new(),
-            identite: format!("{prefixe}:{id}"),
+            identite,
             pose: Pose {
                 x: coin.0 - marge * rapport,
                 y: coin.1 - marge * rapport,
@@ -298,17 +283,53 @@ impl Regime {
                 fenetre: Pose::TOUT,
                 bornes: Pose::PARTOUT,
             },
-            contenu,
-            echelle: self.echelle,
+            contenu: Arc::clone(contenu),
+            echelle,
             phase,
             marge,
             pixels,
+            depart: (0.0, 0.0),
+            repli: None,
         };
-        composant.cle = format!("{prefixe}:{id}:{:016x}", empreinte(&composant));
-        Some(composant)
+        composant.cle = format!("{}:{:016x}", composant.identite, empreinte(&composant));
+        composant
     }
 
-    /// **Une carte de texte**, ou `None` si elle ne touche pas l'écran ou le dépasse.
+    /// **Le repli d'un composant découpé** : lui tout entier, au plus haut palier dyadique
+    /// dont la texture tient dans l'écran.
+    ///
+    /// Aucun nombre n'est choisi : c'est la même limite que celle qui a décidé de découper,
+    /// et un palier dyadique ne change pas pendant qu'on zoome plus près — le repli se rend
+    /// donc une fois, et sert tout le temps qu'on reste de près.
+    ///
+    /// Il porte **l'identité du composant entier**, et c'est ce qui le rend gratuit à l'entrée
+    /// du régime découpé : la texture que la carte détenait juste avant, quand le composant
+    /// tenait encore dans l'écran, sert de repli tant que la sienne n'est pas rendue.
+    fn repli(
+        &self,
+        entier: &Composant,
+        coin: (f32, f32),
+        mesure: &dyn Fn(f64) -> (f32, f32, f32),
+    ) -> Option<Composant> {
+        let mut palier = Adresse::echelle(Adresse::niveau_pour(self.echelle));
+        // Chaque tour divise par deux ; le zéro de la virgule flottante borne la boucle, et
+        // un écran sans pixel n'a de toute façon rien à montrer.
+        while palier > 0.0 {
+            let repli = self.assembler(
+                (entier.identite.clone(), &entier.contenu),
+                palier,
+                ((0.0, 0.0), coin),
+                mesure(palier),
+            );
+            if repli.tient_dans(self.ecran) {
+                return Some(repli);
+            }
+            palier /= 2.0;
+        }
+        None
+    }
+
+    /// **Une carte de texte**, ou `None` si elle ne touche pas l'écran.
     pub(super) fn carte(
         &self,
         kit: PaintKit<'_>,
@@ -316,7 +337,7 @@ impl Regime {
         (x, y, w, h): (f64, f64, f32, f32),
         (corps, teinte, selectionnee): (&str, (u8, u8, u8), bool),
         edition: Option<&crate::renderer::TextEditSession>,
-    ) -> Option<Composant> {
+    ) -> Option<Pieces> {
         // MODE-1 : une carte qu'on corrige montre ses signes, une carte qu'on lit ne les
         // montre pas -- et le decoupage en lignes n'est pas le meme dans les deux modes.
         let mode = if edition.is_some() {
@@ -342,14 +363,16 @@ impl Regime {
         if self.clip.rejects(sx, sy, vue.width, vue.height) {
             return None;
         }
-        let rendu = CardLayout::text_card(w, h, lignes).scaled(WorldScale::new(self.echelle));
-        let anneau = WorldScale::new(self.echelle).screen(SELECTION_RING);
-        let marge = (rendu.border.max(anneau) / 2.0).ceil() + 1.0;
-        self.composer(
-            "carte",
-            id,
+        let mesure = |echelle: f64| {
+            let rendu = CardLayout::text_card(w, h, lignes).scaled(WorldScale::new(echelle));
+            let anneau = WorldScale::new(echelle).screen(SELECTION_RING);
+            let marge = (rendu.border.max(anneau) / 2.0).ceil() + 1.0;
+            (rendu.width, rendu.height, marge)
+        };
+        Some(self.composer(
+            ("carte", id),
             (sx, sy),
-            (rendu.width, rendu.height, marge),
+            &mesure,
             Contenu::Carte {
                 origine: (x, y),
                 taille: (w, h),
@@ -358,14 +381,14 @@ impl Regime {
                 selectionnee,
                 edition: edition.cloned(),
             },
-        )
+        ))
     }
 
     /// **Une photo dont les octets ne sont pas encore là**, comme un cadre à son rang.
     ///
     /// La texture est la boîte englobante du cadre **tourné** : le libellé, lui, reste droit,
     /// comme le processeur le dessine — la texture se pose donc sans angle.
-    pub(super) fn photo_en_chemin(&self, img: &BoardImage) -> Option<Composant> {
+    pub(super) fn photo_en_chemin(&self, img: &BoardImage) -> Option<Pieces> {
         let (sx, sy) =
             world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &self.vue);
         let (sx, sy) = (sx as f32, sy as f32);
@@ -376,38 +399,31 @@ impl Regime {
         if self.clip.rejects(sx, sy, sw, sh) {
             return None;
         }
-        let taille = (
-            (img.width * self.echelle) as f32,
-            (img.height * self.echelle) as f32,
-        );
-        // La boîte englobante d'un rectangle tourné autour de son centre.
-        let (cos, sin) = (
-            img.rotation.cos().abs() as f32,
-            img.rotation.sin().abs() as f32,
-        );
-        let englobante = (
-            taille.0 * cos + taille.1 * sin,
-            taille.0 * sin + taille.1 * cos,
-        );
-        // Le centre de la photo à l'écran, d'où le coin de la boîte englobante se déduit.
+        let taille = (img.width, img.height);
+        let mesure = |echelle: f64| {
+            let (_, englobante) = cadre_en_chemin(taille, img.rotation, echelle);
+            (englobante.0, englobante.1, 2.0)
+        };
+        // Le centre de la photo à l'écran, d'où le coin de la boîte englobante se déduit. La
+        // boîte est prise à l'échelle de RENDU puis ramenée à la vue, exactement comme avant
+        // le découpage : les deux voies gardent le même coin, au bit près.
         let rapport = self.rapport();
+        let (_, englobante) = cadre_en_chemin(taille, img.rotation, self.echelle);
         let centre = (sx + sw / 2.0, sy + sh / 2.0);
         let coin = (
             centre.0 - englobante.0 / 2.0 * rapport,
             centre.1 - englobante.1 / 2.0 * rapport,
         );
-        self.composer(
-            "chemin",
-            &img.id,
+        Some(self.composer(
+            ("chemin", &img.id),
             coin,
-            (englobante.0, englobante.1, 2.0),
+            &mesure,
             Contenu::PhotoEnChemin {
                 id: img.id.clone(),
                 taille,
-                englobante,
                 rotation: img.rotation,
             },
-        )
+        ))
     }
 }
 
@@ -417,8 +433,13 @@ impl Composant {
     /// celle qui pose son coin sur la marge, à sa phase.
     pub fn rendre(&self, kit: PaintKit<'_>) -> Option<Pixmap> {
         let mut pixmap = Pixmap::new(self.pixels.0, self.pixels.1)?;
-        let coin = (self.marge + self.phase.0, self.marge + self.phase.1);
-        match &self.contenu {
+        // Une tuile est le composant entier vu depuis son coin : la même vue, décalée de là
+        // où elle commence (DE-PRES-1).
+        let coin = (
+            self.marge + self.phase.0 - self.depart.0,
+            self.marge + self.phase.1 - self.depart.1,
+        );
+        match self.contenu.as_ref() {
             Contenu::Carte {
                 origine,
                 taille,
@@ -463,9 +484,9 @@ impl Composant {
             Contenu::PhotoEnChemin {
                 id,
                 taille,
-                englobante,
                 rotation,
             } => {
+                let (taille, englobante) = cadre_en_chemin(*taille, *rotation, self.echelle);
                 // Le cadre non tourne se place au centre de la boite englobante ; c'est la
                 // rotation autour de ce centre qui le fait tenir dedans.
                 let at = (
@@ -477,13 +498,30 @@ impl Composant {
                     kit.theme,
                     &mut pixmap.as_mut(),
                     at,
-                    *taille,
+                    taille,
                     id,
                     *rotation,
                 );
             }
         }
         Some(pixmap)
+    }
+
+    /// Sa texture tient-elle dans l'écran ? C'est la limite qui décide de le découper.
+    fn tient_dans(&self, ecran: (u32, u32)) -> bool {
+        self.pixels.0 <= ecran.0 && self.pixels.1 <= ecran.1
+    }
+}
+
+#[cfg(test)]
+impl Pieces {
+    /// **La texture unique d'un composant qui tient dans l'écran** : ni tuile, ni repli.
+    fn seule(mut self) -> Composant {
+        assert!(
+            self.posees.len() == 1 && self.repli.is_none(),
+            "un composant qui tient dans l'ecran est une texture, et une seule"
+        );
+        self.posees.remove(0)
     }
 }
 

@@ -196,6 +196,10 @@ pub struct APoser {
     pub identite: String,
     /// Où la poser, à l'échelle de la vue.
     pub pose: Pose,
+    /// **Ce que la carte pose à la place, tant qu'elle ne détient pas celle-ci** : pour la
+    /// tuile d'un composant plus grand que l'écran, le même rectangle lu dans sa texture
+    /// entière à un palier plus bas (DE-PRES-1). Un repli n'a pas de repli.
+    pub repli: Option<Box<APoser>>,
 }
 
 impl Confie {
@@ -216,22 +220,24 @@ impl Confie {
         //
         // C'est exactement ce que la fiche 05 interdit — la géométrie calculée deux fois —
         // sous une autre forme : une correspondance recalculée à chaque élément.
-        let par_cle: std::collections::HashMap<&str, &str> = self
+        let par_cle: std::collections::HashMap<&str, &super::composants::Composant> = self
             .composants
             .iter()
-            .map(|c| (c.cle.as_str(), c.identite.as_str()))
+            .map(|c| (c.cle.as_str(), c))
             .collect();
         self.photos
             .iter()
             .chain(self.cartes.iter())
-            .map(|(cle, pose)| APoser {
-                // Une photo est sa propre identité : ses octets ne changent pas, donc sa clé
-                // non plus, et elle n'est dans aucun composant.
-                identite: par_cle
-                    .get(cle.as_str())
-                    .map_or_else(|| cle.clone(), |identite| (*identite).to_string()),
-                cle: cle.clone(),
-                pose: *pose,
+            .map(|(cle, pose)| {
+                let composant = par_cle.get(cle.as_str());
+                APoser {
+                    // Une photo est sa propre identité : ses octets ne changent pas, donc sa
+                    // clé non plus, et elle n'est dans aucun composant.
+                    identite: composant.map_or_else(|| cle.clone(), |c| c.identite.clone()),
+                    cle: cle.clone(),
+                    pose: *pose,
+                    repli: composant.and_then(|c| c.repli.clone()).map(Box::new),
+                }
             })
             .collect()
     }
@@ -344,9 +350,8 @@ pub(super) fn poses_des_photos(
     for img in Visibles::nouvelles(rangs, board).images() {
         let presente = img.src.as_deref().is_some_and(|src| magasin.reclamer(src));
         if !presente {
-            if let Some(c) = regime.photo_en_chemin(img) {
-                posees.push((c.cle.clone(), c.pose));
-                composants.push(c);
+            if let Some(pieces) = regime.photo_en_chemin(img) {
+                ranger(pieces, &mut posees, &mut composants);
                 en_chemin += 1.0;
             }
             continue;
@@ -435,7 +440,7 @@ fn composants_de_texte(
         // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
         // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
         let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());
-        let Some(c) = regime.carte(
+        let Some(pieces) = regime.carte(
             kit,
             ann.id(),
             (*x, *y, w as f32, h as f32),
@@ -445,17 +450,29 @@ fn composants_de_texte(
             continue;
         };
         if saisie.is_some() {
-            en_saisie = Some(c);
+            en_saisie = Some(pieces);
         } else {
-            posees.push((c.cle.clone(), c.pose));
-            composants.push(c);
+            ranger(pieces, &mut posees, &mut composants);
         }
     }
-    if let Some(c) = en_saisie {
+    if let Some(pieces) = en_saisie {
+        ranger(pieces, &mut posees, &mut composants);
+    }
+    (posees, composants)
+}
+
+/// **Range les pièces d'un composant** : ce qui se pose, à son rang, et tout ce qui sait se
+/// rendre — le repli compris, qui ne se pose jamais pour lui-même (DE-PRES-1).
+fn ranger(
+    pieces: super::composants::Pieces,
+    posees: &mut Vec<(String, Pose)>,
+    composants: &mut Vec<super::composants::Composant>,
+) {
+    for c in pieces.posees {
         posees.push((c.cle.clone(), c.pose));
         composants.push(c);
     }
-    (posees, composants)
+    composants.extend(pieces.repli);
 }
 
 /// Les deux entrees de la voie graphique, posees ici pour que le moteur reste lisible.

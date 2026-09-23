@@ -498,3 +498,72 @@ fn test_les_deux_voies_cadrent_pareil_et_la_bande_a_disparu() {
         "sans recadrage, la bande noire doit etre la : sinon ce test ne regarde pas la photo"
     );
 }
+
+// ── De près : une carte plus grande que l'écran ───────────────────────────────────────────
+
+/// Un document d'une seule carte de texte, vue à `echelle` avec son coin haut-gauche posé en
+/// `coin` à l'écran.
+fn document_de_pres(echelle: f64, coin: (f64, f64)) -> glucose_core::store::Store {
+    let mut store = glucose_core::store::Store::new("De pres");
+    let board = store.project.active_board_id.clone();
+    let (x, y) = (100.0, 100.0);
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: coin.0 - x * echelle,
+            y: coin.1 - y * echelle,
+            scale: echelle,
+        };
+    }
+    store.add_annotation(
+        &board,
+        glucose_core::types::Annotation::Text {
+            id: "de-pres".to_string(),
+            x,
+            y,
+            width: Some(240.0),
+            height: Some(60.0),
+            text: "Un texte qu'on lit de tres pres, accents compris : éàçù.".to_string(),
+            font_size: Some(14.0),
+            color: None,
+            cursor_pos: None,
+            source_file: None,
+            membrane_id: None,
+            domains: Vec::new(),
+            mirror_of: None,
+            temporal_anchor: None,
+        },
+    );
+    store.clear_selection();
+    store
+}
+
+/// **Une carte plus grande que l'écran se dessine sur les deux voies.**
+///
+/// C'est le défaut que l'utilisateur a montré le 23/09 : *« lorsqu'on est trop proche d'un
+/// texte, celui-ci ne veut tout simplement pas s'afficher »*. La voie graphique refusait d'en
+/// faire une texture — elle aurait dépassé l'écran — et personne ne la dessinait à la place ;
+/// il ne restait que sa lueur et la grille. La fiche 24 § 13 l'avait prédit sans pouvoir
+/// l'établir, faute de cette épreuve-ci.
+///
+/// Deux vues : une où le coin de la carte est à l'écran, une où elle le couvre entièrement.
+#[test]
+fn test_une_carte_plus_grande_que_l_ecran_se_dessine_sur_les_deux_voies() {
+    let taille = (800u32, 600u32);
+    for (echelle, coin) in [(6.0, (150.37, 180.61)), (14.0, (-900.2, -500.9))] {
+        let store = document_de_pres(echelle, coin);
+        let Some(carte) = par_la_carte(taille, &store) else {
+            eprintln!("aucune carte utilisable : epreuve sautee");
+            return;
+        };
+        let processeur = par_le_processeur(taille, &store);
+        let _ = carte.save_png(format!(r"C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-Documents-GlucoseGit-main/3b3cd992-dff0-4aaf-9a68-e8d42ba227b1/scratchpad/depres-carte-{echelle}.png"));
+        let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+        let canaux = processeur.data().len();
+        assert!(
+            larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+            "a l'echelle {echelle}, l'ecart depasse {ECART_COURANT} sur {larges} canaux sur \
+             {canaux} : la carte manque sur une des deux voies"
+        );
+    }
+}

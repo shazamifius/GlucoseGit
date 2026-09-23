@@ -38,6 +38,7 @@ fn photo(cote: u32, couleur: [u8; 4]) -> Pixmap {
 /// Ce qu'une photo pose : son identité est sa clé, puisque ses octets ne changent jamais.
 fn a_poser(cle: &str, pose: Pose) -> APoser {
     APoser {
+        repli: None,
         cle: cle.to_string(),
         identite: cle.to_string(),
         pose,
@@ -346,6 +347,7 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         &file,
         (16.0, 16.0),
         &[APoser {
+            repli: None,
             cle: "carte:c1:neuf".to_string(),
             identite: "carte:c1".to_string(),
             pose,
@@ -394,6 +396,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
         bornes: Pose::PARTOUT,
     };
     let demande = |cle: &str, identite: &str| APoser {
+        repli: None,
         cle: cle.to_string(),
         identite: identite.to_string(),
         pose,
@@ -528,5 +531,139 @@ fn test_une_bande_retiree_ne_revient_pas_sur_le_bord() {
     assert!(
         blanc_sans_bornes > 0,
         "sans les bornes, le blanc devait revenir -- sinon ce test ne prouve rien"
+    );
+}
+
+// -- DE-PRES-1 : le repli des tuiles ------------------------------------------
+
+/// Une tuile qu'on demande, et son repli : la même place, une autre texture.
+fn tuile_et_repli(pose: Pose) -> APoser {
+    APoser {
+        cle: "carte:c@6#0,0:k".to_string(),
+        identite: "carte:c@6#0,0".to_string(),
+        pose,
+        repli: Some(Box::new(APoser {
+            cle: "carte:c:k".to_string(),
+            identite: "carte:c".to_string(),
+            pose,
+            repli: None,
+        })),
+    }
+}
+
+/// **Une tuile absente se remplace par son repli, et le repli survit aux images où il ne sert
+/// à rien** (DE-PRES-1).
+///
+/// Sans le premier, une carte vue de près se trouerait pendant que ses tuiles se rendent ;
+/// sans le second, le repli serait oublié dès que toutes sont là, et le premier zoom — qui
+/// les change toutes — n'aurait plus rien pour combler.
+#[test]
+fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let demande = [tuile_et_repli(pose)];
+
+    scene.ouvrir();
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("carte:c", "carte:c:k"),
+        &photo(4, [7, 7, 7, 255]),
+    );
+    let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
+    assert_eq!(
+        retenues,
+        vec!["carte:c".to_string()],
+        "la tuile manque : son repli se pose"
+    );
+    scene.fermer();
+
+    scene.ouvrir();
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("carte:c@6#0,0", "carte:c@6#0,0:k"),
+        &photo(4, [9, 9, 9, 255]),
+    );
+    let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
+    assert_eq!(
+        retenues,
+        vec!["carte:c@6#0,0".to_string()],
+        "la tuile est la : elle se pose"
+    );
+    scene.fermer();
+    assert!(
+        scene.connait("carte:c", "carte:c:k"),
+        "le repli n'a pas ete pose, et il est garde pour le prochain zoom"
+    );
+}
+
+/// **Un repli se rend sur le temps qui reste, et jamais au prix d'une image.**
+///
+/// Toujours demandé tant qu'une carte est découpée — une carte ouverte de près n'en aurait
+/// sinon jamais —, mais après tout le reste, et jamais par la règle « au moins une par
+/// image », qui existe pour que le contenu se complète, pas pour préparer un zoom.
+#[test]
+fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let demande = [tuile_et_repli(pose)];
+    let source = |_: &str| Some(photo(4, [9, 9, 9, 255]));
+
+    // La tuile est deja la, et l'image n'a plus une milliseconde : rien n'est force.
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("carte:c@6#0,0", "carte:c@6#0,0:k"),
+        &photo(4, [1, 1, 1, 255]),
+    );
+    scene.assurer(
+        &peripherique,
+        &file,
+        (&demande, std::time::Duration::ZERO),
+        &source,
+    );
+    assert!(
+        !scene.detient("carte:c"),
+        "sans temps, le repli attend : il ne force jamais une image"
+    );
+
+    // Du temps : il se rend, bien que sa tuile soit la.
+    scene.assurer(
+        &peripherique,
+        &file,
+        (&demande, std::time::Duration::MAX),
+        &source,
+    );
+    assert!(
+        scene.connait("carte:c", "carte:c:k"),
+        "avec du temps, le repli se prepare"
     );
 }

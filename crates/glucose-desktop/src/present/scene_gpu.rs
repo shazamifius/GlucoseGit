@@ -35,12 +35,12 @@
 //! image, et le **remplissage** domine de toute façon. La complexité d'un atlas ne se prend
 //! que si un banc la réclame.
 
+mod cascade;
 mod pose;
 pub use pose::Pose;
 use pose::OCTETS_POSE;
 
 use crate::renderer::voies::APoser;
-use std::time::{Duration, Instant};
 use tiny_skia::Pixmap;
 
 /// Le nuanceur : deux triangles par photo, calculés depuis leur indice.
@@ -413,67 +413,6 @@ impl SceneGpu {
         );
     }
 
-    /// **Televerse ce que la carte ne connait pas encore**, et rien d'autre.
-    ///
-    /// `source` n'est appelee que pour les photos absentes : une photo ne traverse le bus
-    /// qu'une fois dans sa vie, au premier affichage.
-    pub fn assurer(
-        &mut self,
-        peripherique: &wgpu::Device,
-        file: &wgpu::Queue,
-        (a_poser, budget): (&[APoser], Duration),
-        source: &dyn Fn(&str) -> Option<Pixmap>,
-    ) {
-        let debut = Instant::now();
-        let mut faites = 0.0_f64;
-        let mut reportees = 0.0_f64;
-        let mut surface = 0.0_f64;
-        // **Deux tours, et leur ordre EST la priorité.** Au premier, ce que la carte n'a pas
-        // du tout : sans texture, un composant ne se dessine pas, et un trou se voit plus
-        // qu'un flou. Au second, ce qu'elle détient mais qui a vieilli. L'urgent mange donc
-        // le budget en premier, et le périmé prend ce qui reste — sans qu'aucun second
-        // budget ait eu à être choisi.
-        for urgent in [true, false] {
-            for t in a_poser {
-                if self.connait(&t.identite, &t.cle) {
-                    continue;
-                }
-                if self.detient(&t.identite) == urgent {
-                    continue;
-                }
-                // **Le budget vaut pour les deux tours**, et la première version se trompait
-                // ici. Elle n'en exemptait que l'urgent, au motif qu'un trou est pire qu'un
-                // flou — vrai pour une carte isolée, faux pour quatre cent quatre-vingts.
-                // Le terrain a tranché : les douze images les plus lentes de la session du
-                // 21/09 au soir sont toutes des dézooms et des vols de caméra, où toutes les
-                // cartes entrent à l'écran ensemble, et `textures` y coûte jusqu'à 57,6 ms.
-                // Geler une image d'un vingtième de seconde se voit bien plus que deux cents
-                // cartes qui paraissent une image plus tard.
-                //
-                // **Au moins une par image, toujours.** C'est ce qui garantit qu'une scène
-                // finit par se compléter, même quand chaque image dépasse déjà le plancher
-                // et que le budget est nul — la même raison qui fait que `tranche_de_fond`
-                // ne rend jamais zéro à l'atelier de décodage.
-                if faites > 0.0 && debut.elapsed() >= budget {
-                    reportees += 1.0;
-                    continue;
-                }
-                if let Some(pixels) = source(&t.cle) {
-                    // **Ce qu'une texture pese vraiment**, en kilopixels. Les chroniques du
-                    // 21/09 montrent UNE texture a dix-neuf millisecondes, ce qu'aucune carte
-                    // de texte ordinaire ne peut couter : il faut donc savoir laquelle, et la
-                    // surface est la seule grandeur qui puisse l'expliquer.
-                    surface += f64::from(pixels.width()) * f64::from(pixels.height()) / 1000.0;
-                    self.televerser(peripherique, file, (&t.identite, &t.cle), &pixels);
-                    faites += 1.0;
-                }
-            }
-        }
-        crate::perf::compteur("textures_kpx", surface);
-        crate::perf::compteur("textures_faites", faites);
-        crate::perf::compteur("textures_reportees", reportees);
-    }
-
     /// Ouvre une image : ce qui ne servira pas d'ici à [`SceneGpu::fermer`] sera oublié.
     pub fn ouvrir(&mut self) {
         self.image += 1;
@@ -519,19 +458,34 @@ impl SceneGpu {
         let image = self.image;
         let mut perimees = 0.0_f64;
         for t in photos {
+            // **Le repli se garde tant que sa tuile peut en avoir besoin** (DE-PRES-1). Il
+            // ne se pose qu'à la place d'une tuile absente ; oublié à la fin de chaque image
+            // où toutes sont là, il manquerait au premier zoom, qui les change toutes.
+            if let Some(gardee) = t
+                .repli
+                .as_deref()
+                .and_then(|r| self.photos.get_mut(&r.identite))
+            {
+                gardee.vue = image;
+            }
             // **On pose ce que la carte détient pour cette identité**, à jour ou non. Une
             // texture périmée est l'ancien palier : elle se pose à la place demandée, donc
             // au bon endroit et à la bonne taille, et la carte la filtre. C'est un demi-pixel
-            // d'adoucissement pendant une image ou deux, contre une image qui gèle.
-            let Some(televersee) = self.photos.get_mut(&t.identite) else {
+            // d'adoucissement pendant une image ou deux, contre une image qui gèle. À défaut,
+            // son repli : un peu flou, jamais un trou.
+            let posee = match t.repli.as_deref() {
+                Some(repli) if !self.photos.contains_key(&t.identite) => repli,
+                _ => t,
+            };
+            let Some(televersee) = self.photos.get_mut(&posee.identite) else {
                 continue;
             };
             if televersee.cle != t.cle {
                 perimees += 1.0;
             }
             televersee.vue = image;
-            t.pose.ecrire(&mut octets);
-            retenues.push(t.identite.clone());
+            posee.pose.ecrire(&mut octets);
+            retenues.push(posee.identite.clone());
         }
         crate::perf::compteur("textures_perimees", perimees);
         if !octets.is_empty() {
