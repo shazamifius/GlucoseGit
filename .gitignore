@@ -42,14 +42,16 @@ coverage/
 STABILITY.md
 PHASE1_TO_PHASE2_TRANSITION.md
 
-# Les captures de travail (scène témoin) se régénèrent par
+# Les captures de travail (scène témoin, vitrine) se régénèrent par
 #   cargo run -p glucose-desktop --example capture_temoin -- docs/screenshots
-# Seules les captures de la vitrine, celles du README, sont versionnées.
-docs/screenshots/temoin*.png
+# Ce sont des sorties : aucune n'est versionnée. Les captures du README sont prises à la main,
+# dans l'application, et vivent dans `docs/captures/`.
+docs/screenshots/
 
-# Captures produites par `cargo run --example capture_temoin` : des sorties, pas des sources.
+# Captures produites par `capture_temoin` et `capture_voie_gpu` : des sorties, pas des sources.
 /temoin*.png
 /vitrine*.png
+/voie-gpu.png
 
 # Mesures de performance écrites par `GLUCOSE_PERF=1`.
 /perf_*.txt
