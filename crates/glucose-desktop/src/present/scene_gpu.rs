@@ -151,6 +151,8 @@ pub struct SceneGpu {
     /// n'est pas rendue, c'est l'ancienne qui se pose — un peu floue, jamais absente.
     photos: std::collections::HashMap<String, Televersee>,
     image: u64,
+    /// Ce que les textures gardées hors de l'écran occupent, en octets (VRAM-1).
+    en_cache: u64,
 }
 
 struct Televersee {
@@ -162,6 +164,8 @@ struct Televersee {
     cle: String,
     /// La dernière image où cette photo a été posée.
     vue: u64,
+    /// Ce qu'elle occupe sur la carte, en octets.
+    octets: u64,
 }
 
 /// Combien de poses le tampon porte au départ — il grandit si l'écran en demande plus.
@@ -206,6 +210,7 @@ impl SceneGpu {
             capacite: POSES_AU_DEPART,
             photos: std::collections::HashMap::new(),
             image: 0,
+            en_cache: 0,
         }
     }
 
@@ -417,6 +422,7 @@ impl SceneGpu {
                 liaison,
                 cle: cle.to_string(),
                 vue: image,
+                octets: u64::from(l) * u64::from(h) * 4,
             },
         );
     }
@@ -426,13 +432,38 @@ impl SceneGpu {
         self.image += 1;
     }
 
-    /// Oublie les photos qui n'ont pas servi à cette image.
+    /// **Oublie ce qui n'a pas servi à cette image, au-delà de ce que la carte peut garder**
+    /// (VRAM-1).
     ///
-    /// La borne du magasin est donc **ce que l'écran demande**, et rien d'autre : aucun nombre
-    /// n'a eu à être choisi. C'est la même loi que le cache de tuiles.
-    pub fn fermer(&mut self) {
+    /// Ce qui a servi reste toujours. Ce qui a quitté l'écran se garde, **les plus récemment
+    /// vues d'abord**, tant que le tout tient dans `gardable` octets — ce que le budget de la
+    /// carte accorde à un cache ([`crate::memoire::MemoireGraphique::part_pour_un_cache`]).
+    /// Revenir sur une photo gardée ne la téléverse pas : elle est là, et elle se pose.
+    ///
+    /// Sans budget connu, `gardable` vaut zéro, et la borne redevient **ce que l'écran demande**
+    /// — la loi d'avant, qui ne choisissait aucun nombre et n'en choisit toujours pas.
+    pub fn fermer(&mut self, gardable: u64) {
         let image = self.image;
-        self.photos.retain(|_, t| t.vue == image);
+        let mut hors_ecran: Vec<(u64, u64, String)> = self
+            .photos
+            .iter()
+            .filter(|(_, t)| t.vue != image)
+            .map(|(identite, t)| (t.vue, t.octets, identite.clone()))
+            .collect();
+        hors_ecran.sort_by_key(|(vue, ..)| std::cmp::Reverse(*vue));
+        self.en_cache = 0;
+        for (_, octets, identite) in hors_ecran {
+            if self.en_cache + octets <= gardable {
+                self.en_cache += octets;
+            } else {
+                self.photos.remove(&identite);
+            }
+        }
+    }
+
+    /// Ce que les textures gardées hors de l'écran occupent, en octets.
+    pub fn octets_en_cache(&self) -> u64 {
+        self.en_cache
     }
 
     /// **Écrit les poses dans le tampon**, et rend celles que la carte saura dessiner.

@@ -124,3 +124,25 @@ fn test_la_borne_se_contracte_quand_la_machine_se_tend() {
         "la borne doit suivre le disponible à la baisse"
     );
 }
+
+/// **Un cache de textures prend la moitié de ce que le budget laisserait sans lui** (VRAM-1),
+/// et rend ce qu'il garde quand une autre application réclame la carte.
+///
+/// Un budget de 8 Gio dont Glucose occupe 2, dont 1 en cache : sans le cache, il en laisserait
+/// 7, le cache en prend la moitié. Qu'un Blender réduise le budget à 2 Gio : il ne laisse plus
+/// que 1, et le cache n'a plus droit qu'à la moitié. Au-delà du budget, rien.
+#[test]
+fn test_la_part_d_un_cache_de_textures_suit_le_budget_de_la_carte() {
+    const GIO: u64 = 1 << 30;
+    let carte = |budget: u64| crate::memoire::MemoireGraphique {
+        budget,
+        utilisee: 2 * GIO,
+    };
+    assert_eq!(carte(8 * GIO).part_pour_un_cache(GIO), 7 * GIO / 2);
+    assert_eq!(carte(2 * GIO).part_pour_un_cache(GIO), GIO / 2);
+    assert_eq!(
+        carte(GIO).part_pour_un_cache(0),
+        0,
+        "au-dela du budget, rien"
+    );
+}

@@ -67,6 +67,20 @@ pub struct Veille {
     /// Le temps mural et le temps processeur cumulés, dans chacun des deux régimes.
     endormi: (u64, u64),
     eveille: (u64, u64),
+    /// Ce que la carte graphique porte pour Glucose, si la plateforme sait le dire (VRAM-1).
+    carte: Option<Carte>,
+}
+
+/// **Ce que la carte graphique a porté pour Glucose pendant la session**, en octets, et ce que
+/// le système lui accordait (VRAM-1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Carte {
+    pub utilisee: u64,
+    pub utilisee_pire: u64,
+    pub budget: u64,
+    pub budget_plus_bas: u64,
+    /// Ce que le cache des textures hors de l'écran a gardé, au plus.
+    pub cache_pire: u64,
 }
 
 /// Où en est la session quand on la relève.
@@ -137,6 +151,30 @@ impl Veille {
         self.dernier = Some((maintenant, vu));
         self.sous_la_main = compte.sous_la_main;
         self.rendues_au_dernier = compte.rendues;
+    }
+
+    /// **Range un relevé de la carte graphique** : ce qu'elle porte, ce que le système accorde,
+    /// et ce que le cache de textures en garde.
+    pub fn noter_la_carte(&mut self, vu: crate::memoire::MemoireGraphique, en_cache: u64) {
+        let avant = self.carte.unwrap_or(Carte {
+            utilisee: 0,
+            utilisee_pire: 0,
+            budget: vu.budget,
+            budget_plus_bas: vu.budget,
+            cache_pire: 0,
+        });
+        self.carte = Some(Carte {
+            utilisee: vu.utilisee,
+            utilisee_pire: avant.utilisee_pire.max(vu.utilisee),
+            budget: vu.budget,
+            budget_plus_bas: avant.budget_plus_bas.min(vu.budget),
+            cache_pire: avant.cache_pire.max(en_cache),
+        });
+    }
+
+    /// Ce que la carte a porté, ou rien si la plateforme ne l'a jamais dit.
+    pub fn carte(&self) -> Option<Carte> {
+        self.carte
     }
 
     /// Y a-t-il quelque chose à dire ? Sur une plateforme sans relevé, non — et le rapport se

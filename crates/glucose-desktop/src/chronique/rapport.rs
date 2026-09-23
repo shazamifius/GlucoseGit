@@ -149,6 +149,17 @@ impl Chronique {
             mo(maintenant),
             mo(pire)
         ));
+        if let Some(c) = self.veille.carte() {
+            t.push_str(&format!(
+                "  memoire graphique : {:.0} Mo a la fin, {:.0} Mo au pire, dont {:.0} Mo gardes hors de l'ecran au plus -- pour un budget accorde de {:.0} Mo ({:.0} Mo au plus bas)
+",
+                mo(c.utilisee),
+                mo(c.utilisee_pire),
+                mo(c.cache_pire),
+                mo(c.budget),
+                mo(c.budget_plus_bas)
+            ));
+        }
         for (quoi, part) in [
             ("pendant qu'on ne le touche pas", self.veille.au_repos()),
             ("pendant qu'on s'en sert", self.veille.a_l_usage()),

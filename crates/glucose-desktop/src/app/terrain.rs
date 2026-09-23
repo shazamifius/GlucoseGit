@@ -200,6 +200,7 @@ impl GlucoseApp {
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;
         vu.reveils = self.provenance.de_l_image();
+        self.noter_la_carte_graphique();
         // RYTHME-1 : ce que l'ecran a MONTRE. Ces trois-la ne viennent pas des compteurs mais
         // de la mesure prise a la presentation elle-meme : un compteur f64 perdrait le type,
         // et c'est precisement le genre de perte qui a fait lire des zeros pour des mesures.
@@ -212,6 +213,21 @@ impl GlucoseApp {
         vu.noeuds = self.renderer.spatial_hash.len() as u32;
 
         self.chronique.enregistrer(vu);
+    }
+
+    /// **Ce que la carte graphique porte pour Glucose, et ce que le système lui accorde**
+    /// (VRAM-1), tels que la présentation vient de les relever.
+    fn noter_la_carte_graphique(&mut self) {
+        let lire = |nom: &str| crate::perf::valeur_du_compteur(nom);
+        if let (Some(utilisee), Some(budget)) = (lire("vram_utilisee"), lire("vram_budget")) {
+            self.chronique.veille.noter_la_carte(
+                crate::memoire::MemoireGraphique {
+                    budget: budget as u64,
+                    utilisee: utilisee as u64,
+                },
+                lire("vram_cache").unwrap_or(0.0) as u64,
+            );
+        }
     }
 
     /// Ecrit le rapport de la session a cote du journal de l'application.

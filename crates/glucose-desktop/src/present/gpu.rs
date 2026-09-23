@@ -81,6 +81,9 @@ pub struct GpuPresenter {
     anneau: anneau::Anneau,
     /// Le nom de l'adaptateur retenu, pour que l'application puisse le dire.
     adaptateur: String,
+    /// Ce que le système accorde à Glucose sur cette carte, relu à chaque image (VRAM-1) —
+    /// `None` là où la plateforme ne sait pas le dire.
+    sonde: Option<crate::plateforme::graphique::Sonde>,
     /// Le format de la texture qui porte l'image (GAMMA-1).
     format_image: wgpu::TextureFormat,
     /// Les photos que la carte detient, et de quoi les poser (fiche 21, etape 1).
@@ -171,6 +174,8 @@ impl GpuPresenter {
             ouverture::ouvrir(&instance, &surface, width, height, carte)?;
 
         let config = ouverture::accorder_la_surface(&surface, &adapter, (width, height), cadence)?;
+        let info = adapter.get_info();
+        let sonde = crate::plateforme::graphique::Sonde::pour(info.vendor, info.device);
         // **La surface se configure ICI, a la naissance.**
         //
         // Elle ne l'etait nulle part : `resize` le faisait, mais il court-circuite quand les
@@ -217,6 +222,7 @@ impl GpuPresenter {
             anneau: anneau::Anneau::nouveau(),
             bandes_envoyees: super::bandes::Bandes::default(),
             adaptateur,
+            sonde,
             format_image,
             a_reaccorder: false,
         })

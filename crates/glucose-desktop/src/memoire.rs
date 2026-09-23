@@ -61,6 +61,33 @@ impl Memoire {
     }
 }
 
+/// **Ce que le système accorde à Glucose sur la carte graphique, et ce qu'il y occupe**, en
+/// octets (VRAM-1).
+///
+/// Le budget n'est pas la taille de la carte : c'est la part que le système réserve à ce
+/// processus **maintenant**, et elle rétrécit quand une autre application en réclame. Il se lit
+/// par [`crate::plateforme::graphique::Sonde`] ; ce type ne porte que la règle, qui se teste
+/// sans carte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MemoireGraphique {
+    pub budget: u64,
+    pub utilisee: u64,
+}
+
+impl MemoireGraphique {
+    /// Ce qu'un cache de textures a le droit de garder, sachant qu'il en garde déjà `en_cache`.
+    ///
+    /// La règle de la mémoire vive, et pour la même raison : un cache ne prend jamais plus que
+    /// ce qu'il laisse — la moitié de ce que le budget laisserait **sans lui**. Quand une autre
+    /// application prend de la mémoire graphique, le budget baisse, et le cache rend ce qu'il
+    /// gardait, les plus anciennes d'abord.
+    pub fn part_pour_un_cache(&self, en_cache: u64) -> u64 {
+        self.budget
+            .saturating_sub(self.utilisee.saturating_sub(en_cache))
+            / 2
+    }
+}
+
 #[cfg(target_os = "windows")]
 mod plateforme {
     use super::Memoire;

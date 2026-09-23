@@ -245,7 +245,7 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
         bornes: Pose::PARTOUT,
     };
     scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("a", pose)]);
-    scene.fermer();
+    scene.fermer(0);
 
     assert!(scene.connait("a", "a"), "ce qui a servi reste");
     assert!(!scene.connait("b", "b"), "ce qui n'a pas servi est oublie");
@@ -589,7 +589,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
         vec!["carte:c".to_string()],
         "la tuile manque : son repli se pose"
     );
-    scene.fermer();
+    scene.fermer(0);
 
     scene.ouvrir();
     scene.televerser(
@@ -604,7 +604,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
         vec!["carte:c@6#0,0".to_string()],
         "la tuile est la : elle se pose"
     );
-    scene.fermer();
+    scene.fermer(0);
     assert!(
         scene.connait("carte:c", "carte:c:k"),
         "le repli n'a pas ete pose, et il est garde pour le prochain zoom"
@@ -689,4 +689,63 @@ fn test_les_bornes_d_un_recadrage_se_rapportent_au_niveau_envoye() {
         19.5 / 20.0,
         "et le dernier, qui ne touche aucune coupe"
     );
+}
+
+// -- VRAM-1 : la carte garde ce que son budget permet ---------------------------
+
+/// **Hors de l'écran, la carte garde les plus récemment vues, tant qu'elles tiennent dans ce
+/// que son budget accorde** — et rien de plus.
+///
+/// Trois photos de 4 × 4 (64 octets chacune) : `a` vue à l'image 1, `b` à l'image 2, `c` à la
+/// 3 ; puis une image où seule `d` sert. Avec 128 octets à garder, `c` et `b` restent — les
+/// plus récentes —, `a` part. Avec zéro, c'est la loi d'avant : ce que l'écran demande.
+#[test]
+fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let jouer = |gardable: u64| {
+        let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+        for nom in ["a", "b", "c"] {
+            scene.ouvrir();
+            scene.televerser(&peripherique, &file, (nom, nom), &photo(4, [1, 2, 3, 255]));
+            scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser(nom, pose)]);
+            scene.fermer(u64::MAX);
+        }
+        scene.ouvrir();
+        scene.televerser(&peripherique, &file, ("d", "d"), &photo(4, [4, 5, 6, 255]));
+        scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("d", pose)]);
+        scene.fermer(gardable);
+        scene
+    };
+    let scene = jouer(128);
+    assert!(scene.detient("d"), "ce qui sert reste toujours");
+    assert!(
+        scene.detient("c") && scene.detient("b"),
+        "les deux plus recentes tiennent dans le budget : elles restent"
+    );
+    assert!(
+        !scene.detient("a"),
+        "la plus ancienne ne tient plus : elle part"
+    );
+    assert_eq!(scene.octets_en_cache(), 128);
+
+    let scene = jouer(0);
+    assert!(scene.detient("d"));
+    assert!(
+        !scene.detient("a") && !scene.detient("b") && !scene.detient("c"),
+        "sans budget, la loi d'avant : ce que l'ecran demande, et rien de plus"
+    );
+    assert_eq!(scene.octets_en_cache(), 0);
 }

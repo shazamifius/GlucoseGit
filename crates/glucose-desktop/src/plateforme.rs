@@ -18,6 +18,7 @@
 //! natif arrive d'abord là où la mesure l'a réclamé.
 
 pub mod empreinte;
+pub mod graphique;
 pub mod moisson;
 pub mod rapatrier;
 pub mod sources;

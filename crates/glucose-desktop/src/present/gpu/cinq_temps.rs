@@ -58,7 +58,7 @@ pub(super) fn presenter(
         // est vrai, elle a été préparée — et on dit à l'appelant ce qui s'est passé. Sans
         // cette distinction, il croirait l'image faite et s'endormirait sur un canevas figé.
         Err(issue) => {
-            p.scene.fermer();
+            fermer_la_scene(p);
             return Ok(issue);
         }
     };
@@ -88,7 +88,7 @@ pub(super) fn presenter(
     drop(cible);
     p.queue.present(frame);
     crate::perf::stage("present");
-    p.scene.fermer();
+    fermer_la_scene(p);
     Ok(crate::present::Issue::Presentee)
 }
 
@@ -137,4 +137,20 @@ fn preparer_la_scene(
     crate::perf::compteur("cartes_posees", confie.cartes.len() as f64);
     crate::perf::compteur("composants", confie.composants.len() as f64);
     retenues
+}
+
+/// **Ferme la scène en gardant, de ce qui a quitté l'écran, ce que le budget de la carte
+/// permet** (VRAM-1), et dit à la chronique ce que la carte porte.
+fn fermer_la_scene(p: &mut GpuPresenter) {
+    let memoire = p
+        .sonde
+        .as_ref()
+        .and_then(crate::plateforme::graphique::Sonde::lire);
+    let gardable = memoire.map_or(0, |m| m.part_pour_un_cache(p.scene.octets_en_cache()));
+    p.scene.fermer(gardable);
+    if let Some(m) = memoire {
+        crate::perf::compteur("vram_utilisee", m.utilisee as f64);
+        crate::perf::compteur("vram_budget", m.budget as f64);
+        crate::perf::compteur("vram_cache", p.scene.octets_en_cache() as f64);
+    }
 }
