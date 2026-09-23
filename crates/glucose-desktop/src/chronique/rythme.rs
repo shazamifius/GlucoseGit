@@ -131,6 +131,33 @@ pub struct Rythme {
     avances_px: Histogramme,
     /// La fidélité, en millièmes, sur les seules images où la vue bougeait.
     fidelites: Histogramme,
+    /// **Le saut, rangé selon ce qui a fait bouger l'intervalle** (TRESSAUT-1).
+    ///
+    /// # Le défaut que cette séparation ferme
+    ///
+    /// Depuis la fiche 19, le pas d'une image vaut l'intervalle de la précédente. Un gel
+    /// produit donc **deux** sauts géants : l'image figée, dont le contenu s'arrête, puis
+    /// l'image de rattrapage, dont le contenu bondit. Dès qu'un pour cent des intervalles gèle,
+    /// le p99 du saut tombe forcément dans les gels — et le verdict, qui juge le tressaut sur ce
+    /// p99, annonçait un défaut de mouvement là où il n'y avait qu'un gel compté une deuxième
+    /// fois. Sur la session du 22/09 au soir : « tressaut x85 », premier du verdict, pour un
+    /// pire gel de 763 ms dont 748 à ne pas dessiner.
+    ///
+    /// Aucun seuil ne sépare les deux : chaque intervalle se décompose en ce que l'application
+    /// a passé à **ne pas dessiner** et ce qu'elle a passé à **dessiner**, et c'est la part qui
+    /// a le plus changé depuis l'image précédente qui a déplacé le contenu. Deux mesures qu'on
+    /// compare, pas une constante qu'on choisit.
+    sauts_par_l_attente: Histogramme,
+    sauts_par_le_rendu: Histogramme,
+    /// Ce que l'image précédente a passé à ne pas dessiner, puis à dessiner.
+    parts_precedentes: Option<(Duration, Duration)>,
+    /// **Le temps perdu à ne pas dessiner alors qu'une image était attendue**, au-delà du
+    /// plancher de la charte.
+    ///
+    /// C'est la grandeur qu'ARBITRE-2 a dû apprendre pour `present` : un gel de 480 ms n'est
+    /// pas une image ratée, c'est quarante-sept images perdues. La même loi vaut ici, pour la
+    /// même raison, avec le même plancher.
+    perdu_a_ne_pas_dessiner: Duration,
     /// Ce que l'application a passé à **ne pas dessiner**, entre deux images.
     ///
     /// # La question que la première version ne pouvait pas poser
@@ -180,6 +207,10 @@ impl Rythme {
             sauts_px: Histogramme::nouveau(),
             avances_px: Histogramme::nouveau(),
             fidelites: Histogramme::nouveau(),
+            sauts_par_l_attente: Histogramme::nouveau(),
+            sauts_par_le_rendu: Histogramme::nouveau(),
+            parts_precedentes: None,
+            perdu_a_ne_pas_dessiner: Duration::ZERO,
             attentes: Histogramme::nouveau(),
             pire_a_ms: 0,
             pire_intervalle: Duration::ZERO,
@@ -238,6 +269,7 @@ impl Rythme {
         };
         if !attendue {
             self.periodes_precedentes = None;
+            self.parts_precedentes = None;
             return Mesure::default();
         }
         let image = Image {
@@ -246,6 +278,12 @@ impl Rythme {
             vitesse_px_s,
         };
         let attente = debut_du_rendu.saturating_duration_since(avant);
+        let parts = (
+            attente,
+            maintenant.saturating_duration_since(debut_du_rendu),
+        );
+        let precedentes = self.parts_precedentes.replace(parts);
+        self.perdu_a_ne_pas_dessiner += attente.saturating_sub(crate::cadence::BUDGET_TOTAL);
         self.attentes.ajouter(micros(attente).unwrap_or(u32::MAX));
         self.noter_le_pire(maintenant, image.intervalle, attente);
         self.intervalles
@@ -272,6 +310,7 @@ impl Rythme {
         let saut = image.saut_px();
         let avance = image.avance_px();
         self.sauts_px.ajouter(entier(saut));
+        self.attribuer_le_saut(entier(saut), parts, precedentes);
         self.avances_px.ajouter(entier(avance));
         let fidelite = image.fidelite_millieme();
         if let Some(f) = fidelite {
@@ -293,6 +332,52 @@ impl Rythme {
     pub fn oublier(&mut self) {
         self.precedente = None;
         self.periodes_precedentes = None;
+        self.parts_precedentes = None;
+    }
+
+    /// **Range ce saut du côté de ce qui a fait bouger l'intervalle** (TRESSAUT-1).
+    ///
+    /// L'intervalle d'une image est la somme de ce qu'elle a passé à ne pas dessiner et de ce
+    /// qu'elle a passé à dessiner ; son saut vient de ce que cet intervalle diffère du
+    /// précédent. La part qui a le plus changé est celle qui a déplacé le contenu.
+    ///
+    /// Une image sans précédente connue — la première après un repos ou un dialogue — n'est
+    /// rangée nulle part : on ne sait pas ce qui a bougé, et le deviner serait choisir.
+    fn attribuer_le_saut(
+        &mut self,
+        saut: u32,
+        (attente, rendu): (Duration, Duration),
+        precedentes: Option<(Duration, Duration)>,
+    ) {
+        let Some((attente_avant, rendu_avant)) = precedentes else {
+            return;
+        };
+        let par_l_attente = attente.abs_diff(attente_avant) > rendu.abs_diff(rendu_avant);
+        if par_l_attente {
+            self.sauts_par_l_attente.ajouter(saut);
+        } else {
+            self.sauts_par_le_rendu.ajouter(saut);
+        }
+    }
+
+    /// Le saut des images dont l'intervalle a bougé parce que l'application **ne dessinait
+    /// pas** : `(p99, pire, combien)`.
+    pub fn sauts_par_l_attente(&self) -> (u32, u32, u64) {
+        let h = &self.sauts_par_l_attente;
+        (h.centile(0.99), h.pire(), h.compte())
+    }
+
+    /// Le saut des images dont l'intervalle a bougé parce que le **rendu** a changé de durée :
+    /// `(p99, pire, combien)`. C'est le seul tressaut que le mouvement et le tempo commandent.
+    pub fn sauts_par_le_rendu(&self) -> (u32, u32, u64) {
+        let h = &self.sauts_par_le_rendu;
+        (h.centile(0.99), h.pire(), h.compte())
+    }
+
+    /// Le temps perdu à ne pas dessiner alors qu'une image était attendue, au-delà du
+    /// plancher de la charte, et sur combien d'intervalles il se compte.
+    pub fn perdu_a_ne_pas_dessiner(&self) -> (Duration, u64) {
+        (self.perdu_a_ne_pas_dessiner, self.attentes.compte())
     }
 
     /// Retient le pire intervalle, quand il est tombé, et ce qui l'a composé.

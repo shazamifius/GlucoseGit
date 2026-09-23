@@ -49,6 +49,7 @@ impl Chronique {
     /// toujours quelque chose à dire n'apprend plus rien.
     pub fn verdict(&self) -> Vec<Constat> {
         let mut constats: Vec<Constat> = [
+            self.constat_du_gel(),
             self.constat_du_tressaut(),
             self.constat_de_la_cadence(),
             self.constat_du_travail_refait(),
@@ -63,13 +64,65 @@ impl Chronique {
         constats
     }
 
-    /// Le contenu se pose-t-il là où il devrait ?
+    /// L'application a-t-elle cessé de dessiner alors qu'une image était attendue ?
+    ///
+    /// # Le constat qui manquait, et un autre le portait sous un faux nom
+    ///
+    /// Jusqu'ici un gel n'avait **aucun** constat à lui. La cadence compte les images dont le
+    /// **rendu** dépasse le plancher, et un gel passé à ne pas dessiner n'en est pas un ; c'est
+    /// le tressaut qui le portait, deux fois — l'image figée puis l'image de rattrapage — et le
+    /// verdict le rangeait premier sous le nom d'un défaut de mouvement. Quatre sessions l'ont
+    /// lu ainsi, et le plan suivant proposait de l'attaquer par la prédiction de pose.
+    ///
+    /// # La grandeur est celle d'ARBITRE-2, et aucune n'a été inventée
+    ///
+    /// Un gel de sept dixièmes de seconde n'est pas une image ratée : c'est soixante-dix images
+    /// perdues. On compte donc le temps passé à ne pas dessiner **au-delà du plancher**, ramené
+    /// en images, et on le compare à la part que la charte tolère — les deux nombres que le
+    /// tempo et l'arbitre lisent déjà dans [`crate::cadence`].
+    fn constat_du_gel(&self) -> Option<Constat> {
+        let (perdu, intervalles) = self.rythme.perdu_a_ne_pas_dessiner();
+        if intervalles == 0 || perdu.is_zero() {
+            return None;
+        }
+        let images_perdues = perdu.as_secs_f64() / crate::cadence::BUDGET_TOTAL.as_secs_f64();
+        let part = images_perdues / intervalles as f64;
+        let (quand, _, dont_attente) = self.rythme.pire_intervalle();
+        let (_, pire_saut, _) = self.rythme.sauts_par_l_attente();
+        Some(Constat {
+            gravite: part / crate::cadence::PART_TOLEREE,
+            nature: "gel",
+            fait: format!(
+                "l'application a passe {:.0} ms a NE PAS dessiner alors qu'une image etait \
+                 attendue -- {images_perdues:.0} images perdues sur {intervalles} ({:.0} %)",
+                perdu.as_secs_f64() * 1000.0,
+                100.0 * part
+            ),
+            consequence: format!(
+                "le canevas se fige ({:.0} ms d'un coup a la {:.1}e seconde) puis le contenu \
+                 bondit jusqu'a {pire_saut} px ; « et voici OU il est alle » dit qui a pris ce \
+                 temps",
+                dont_attente.as_secs_f64() * 1000.0,
+                quand.as_secs_f64()
+            ),
+        })
+    }
+
+    /// Le contenu se pose-t-il là où il devrait, quand le **rendu** change de durée ?
     ///
     /// La référence est l'**avance attendue** : sauter de trois pixels quand on en parcourt
     /// cent ne se voit pas ; sauter de trente quand on en parcourt dix fait reculer le
     /// contenu, et c'est exactement ce que l'utilisateur décrit par « ultra saccadé ».
+    ///
+    /// **Seuls les sauts que le rendu a causés comptent ici** (TRESSAUT-1). Ceux qu'un gel
+    /// hors du rendu a causés ont leur propre constat, juste au-dessus : les compter aussi
+    /// comptait chaque gel deux fois de plus, et le nommait d'un défaut qu'il n'est pas.
     fn constat_du_tressaut(&self) -> Option<Constat> {
-        let (saut_median, saut_p99, saut_pire) = self.rythme.sauts();
+        let (saut_median, _, _) = self.rythme.sauts();
+        let (saut_p99, saut_pire, combien) = self.rythme.sauts_par_le_rendu();
+        if combien == 0 {
+            return None;
+        }
         let avance = self.rythme.avance_mediane().max(1);
         // **Le p99, et non la médiane.** Tout ce module répète que ce qui se ressent est le
         // pire centile, et la gravité du tressaut ne fait pas exception : un mouvement dont
@@ -81,8 +134,9 @@ impl Chronique {
             gravite,
             nature: "tressaut",
             fait: format!(
-                "le contenu se pose {saut_median} px a cote de sa trajectoire (p99 {saut_p99}, \
-                 pire {saut_pire}), pour {avance} px d'avance attendue par image"
+                "quand le rendu change de duree, le contenu se pose a {saut_p99} px de sa \
+                 trajectoire au p99 (pire {saut_pire} ; median de toutes les images \
+                 {saut_median}), pour {avance} px d'avance attendue par image"
             ),
             consequence: format!(
                 "le mouvement est integre sur un pas et montre pendant un autre ; {:.0} % des \
@@ -105,7 +159,11 @@ impl Chronique {
         // le même nombre que le tempo suit pour monter d'un cran et que l'arbitre suit pour
         // essayer une autre carte (ARBITRE-1).
         let gravite = part / crate::cadence::PART_TOLEREE;
-        let (_, _, p99, pire) = self.rythme.intervalles();
+        // **Les durees de RENDU, et non les intervalles a l'ecran.** Ce constat compte des
+        // images trop cheres a dessiner ; il citait pourtant les intervalles, qui contiennent
+        // aussi le temps passe a NE PAS dessiner -- et annoncait « c'est un gel » sur ce que le
+        // constat du gel porte desormais. Un constat parle de ce qu'il mesure.
+        let (p99, pire) = (self.durees.centile(0.99), self.durees.pire());
         Some(Constat {
             gravite,
             nature: "cadence",
@@ -115,8 +173,8 @@ impl Chronique {
                 f64::from(plancher) / 1000.0
             ),
             consequence: format!(
-                "l'ecran garde parfois une image {:.1} ms (pire {:.1} ms) : c'est un gel, pas \
-                 une cadence basse",
+                "une image sur cent coute plus de {:.1} ms a dessiner (pire {:.1} ms) : c'est \
+                 le rendu lui-meme qui depasse, et le tempo doit monter d'un cran pour le tenir",
                 f64::from(p99) / 1000.0,
                 f64::from(pire) / 1000.0
             ),
@@ -277,5 +335,107 @@ mod tests {
                 paire[1].nature
             );
         }
+    }
+
+    /// Rejoue une session en mouvement : chaque image est `(a ne pas dessiner, a dessiner)` en
+    /// microsecondes, la vue glisse a mille pixels par seconde, et le pas de chaque image vaut
+    /// l'intervalle de la precedente -- ce que l'horloge fait depuis la fiche 19.
+    ///
+    /// Les deux parts sont posees independamment, comme la machine les produit : fabriquer les
+    /// intervalles depuis les pas rendrait le test vrai par construction.
+    fn rejouer(images: &[(u64, u64)]) -> Chronique {
+        use std::time::{Duration, Instant};
+        let mut c = Chronique::nouvelle();
+        c.rythme
+            .observer_la_machine(Duration::from_micros(4_166), "fifo");
+        let mut t = Instant::now();
+        let mut pas = Duration::ZERO;
+        for (attente, rendu) in images {
+            let debut = t + Duration::from_micros(*attente);
+            let fin = debut + Duration::from_micros(*rendu);
+            c.rythme.presentee(fin, debut, pas, 1_000.0, true);
+            c.enregistrer(Instantane {
+                duree_us: 5_800,
+                region_px: 0,
+                fenetre_px: 1_000_000,
+                reduction: 1,
+                ..Default::default()
+            });
+            pas = fin - t;
+            t = fin;
+        }
+        c
+    }
+
+    /// La session du 22/09 au soir, dans sa forme : trois balayages tenus par le tempo, et des
+    /// gels passes a NE PAS dessiner -- six de 110 ms, le p99 du terrain, et un de 748 ms, la
+    /// bascule de carte.
+    fn session_avec_des_gels() -> Vec<(u64, u64)> {
+        (0..700)
+            .map(|i| match i {
+                350 => (748_000, 11_800),
+                i if i % 100 == 0 && i > 0 => (110_000, 11_800),
+                _ => (700, 11_800),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_un_gel_hors_du_rendu_n_est_pas_un_tressaut() {
+        let c = rejouer(&session_avec_des_gels());
+
+        // **L'ancienne lecture, rejouee sur les memes images** : le p99 de TOUS les sauts,
+        // rapporte a l'avance. Chaque gel y paraissait deux fois -- l'image figee, puis celle
+        // qui rattrape --, et quatorze images sur sept cents suffisent a tenir le p99. C'est
+        // ce qui faisait lire « tressaut x85 » en tete du verdict, quatre sessions de suite.
+        let (_, p99_de_tous, _) = c.rythme.sauts();
+        let avance = c.rythme.avance_mediane().max(1);
+        let ancienne_gravite = f64::from(p99_de_tous) / f64::from(avance);
+        assert!(
+            ancienne_gravite > 5.0,
+            "l'ancienne lecture accusait le mouvement : x{ancienne_gravite:.1}"
+        );
+
+        let verdict = c.verdict();
+        assert!(
+            verdict.iter().all(|v| v.nature != "tressaut"),
+            "le rendu n'a pas bouge d'une microseconde : aucun tressaut ne lui revient -- {verdict:?}"
+        );
+        assert_eq!(
+            verdict.first().map(|v| v.nature),
+            Some("gel"),
+            "le gel est nomme, et il passe en tete : {verdict:?}"
+        );
+        // Les quatorze images qu'un gel a deplacees, et elles seules, vont du cote de l'attente.
+        assert_eq!(c.rythme.sauts_par_l_attente().2, 14);
+    }
+
+    #[test]
+    fn test_un_rendu_qui_change_de_duree_reste_un_tressaut() {
+        // Le cas inverse, sans lequel le premier ne prouverait rien : une separation qui
+        // rangerait TOUT du cote de l'attente passerait le test precedent. Ici le rendu deborde
+        // d'une image sur trente -- trois balayages rates -- et l'application ne cesse jamais
+        // de dessiner.
+        let images: Vec<(u64, u64)> = (0..700)
+            .map(|i| {
+                if i % 30 == 0 {
+                    (700, 40_000)
+                } else {
+                    (700, 11_800)
+                }
+            })
+            .collect();
+        let c = rejouer(&images);
+        let verdict = c.verdict();
+
+        assert!(
+            verdict.iter().any(|v| v.nature == "tressaut"),
+            "un rendu irregulier deplace le contenu, et c'est un tressaut : {verdict:?}"
+        );
+        assert!(
+            verdict.iter().all(|v| v.nature != "gel"),
+            "l'application n'a jamais cesse de dessiner : aucun gel -- {verdict:?}"
+        );
+        assert_eq!(c.rythme.sauts_par_l_attente().2, 0);
     }
 }

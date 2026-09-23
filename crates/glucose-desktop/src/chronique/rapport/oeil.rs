@@ -125,6 +125,25 @@ impl Chronique {
             "    pour {avance} px d'avance attendue par image -- un saut plus grand que \
              l'avance fait RECULER le contenu\n"
         ));
+        // **D'ou vient chaque saut** (TRESSAUT-1). Un gel en produit deux -- l'image figee,
+        // puis celle qui rattrape -- et ils ne se corrigent pas du tout comme un rendu qui
+        // change de duree. Les confondre a fait lire un gel comme un defaut de mouvement.
+        for (quoi, (p99, pire, combien)) in [
+            (
+                "le temps a NE PAS dessiner -- les gels",
+                self.rythme.sauts_par_l_attente(),
+            ),
+            (
+                "le rendu qui change de duree -- le tressaut",
+                self.rythme.sauts_par_le_rendu(),
+            ),
+        ] {
+            if combien > 0 {
+                t.push_str(&format!(
+                    "    deplace par {quoi} : p99 {p99} px, pire {pire} px, sur {combien} images\n"
+                ));
+            }
+        }
         if let Some((mediane, basse)) = self.rythme.fidelite() {
             t.push_str(&format!(
                 "  fidelite temps integre / temps montre : mediane {mediane:.2}, la plus basse \
