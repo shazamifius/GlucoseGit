@@ -31,7 +31,7 @@ pub(super) fn presenter(
     p: &mut GpuPresenter,
     (dessous, dessus): (&Pixmap, &Pixmap),
     (confie, budget): (&crate::renderer::Confie, std::time::Duration),
-    source: &dyn Fn(&str) -> Option<Pixmap>,
+    source: &crate::present::scene_gpu::Source<'_>,
 ) -> DesktopResult<crate::present::Issue> {
     let retenues = preparer_la_scene(p, (dessous, confie, budget), source);
     // La couche du dessous ne part que si elle porte quelque chose. Quand la carte peint
@@ -103,7 +103,7 @@ pub(super) fn presenter(
 fn preparer_la_scene(
     p: &mut GpuPresenter,
     (dessous, confie, budget): (&Pixmap, &crate::renderer::Confie, std::time::Duration),
-    source: &dyn Fn(&str) -> Option<Pixmap>,
+    source: &crate::present::scene_gpu::Source<'_>,
 ) -> Vec<String> {
     // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
     let textures = confie.textures();

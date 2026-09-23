@@ -5,10 +5,9 @@
 //! cents quand le repli des tuiles (DE-PRES-1) y est entré. La coupure tombe là où la question
 //! change — là-bas la mémoire de la carte, ici le temps qu'on lui donne.
 
-use super::SceneGpu;
+use super::{SceneGpu, Source};
 use crate::renderer::voies::APoser;
 use std::time::{Duration, Instant};
-use tiny_skia::Pixmap;
 
 impl SceneGpu {
     /// **Televerse ce que la carte ne connait pas encore**, et rien d'autre.
@@ -20,7 +19,7 @@ impl SceneGpu {
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
         (a_poser, budget): (&[APoser], Duration),
-        source: &dyn Fn(&str) -> Option<Pixmap>,
+        source: &Source<'_>,
     ) {
         let mut tranche = Tranche {
             debut: Instant::now(),
@@ -73,7 +72,7 @@ impl SceneGpu {
         &mut self,
         (peripherique, file): (&wgpu::Device, &wgpu::Queue),
         (t, urgent): (&APoser, bool),
-        source: &dyn Fn(&str) -> Option<Pixmap>,
+        source: &Source<'_>,
         tranche: &mut Tranche,
     ) {
         if self.connait(&t.identite, &t.cle) || self.detient(&t.identite) == urgent {

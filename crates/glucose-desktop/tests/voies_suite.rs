@@ -147,7 +147,7 @@ fn par_la_carte(taille: (u32, u32), store: &glucose_core::store::Store) -> Optio
         taille,
         &confie,
         (&dessous, &dessus),
-        &|cle| confie.composant(cle).and_then(|c| c.rendre(renderer.kit())),
+        &|cle| confie.pixels(&renderer, cle),
     )
 }
 
@@ -451,14 +451,7 @@ fn test_les_deux_voies_cadrent_pareil_et_la_bande_a_disparu() {
         taille,
         &confie,
         (&dessous, &dessus),
-        &|cle| match confie.composant(cle) {
-            Some(composant) => composant.rendre(renderer.kit()),
-            None => renderer
-                .magasin
-                .cache
-                .get(cle)
-                .map(|e| e.pyramide.native().clone()),
-        },
+        &|cle| confie.pixels(&renderer, cle),
     )
     .expect("la composition en cinq temps");
     let processeur = par_le_processeur_decode(taille, &store);
@@ -566,4 +559,111 @@ fn test_une_carte_plus_grande_que_l_ecran_se_dessine_sur_les_deux_voies() {
              {canaux} : la carte manque sur une des deux voies"
         );
     }
+}
+
+// ── NIVEAU-GPU-1 : la carte reçoit le niveau qui couvre la taille posée ────────────────────
+
+/// Un damier d'un pixel, 512 × 512, écrit sur le disque : le pire cas du crénelage. Lu un
+/// texel sur huit, il donne des motifs ; moyenné comme la pyramide le fait, du gris.
+fn photo_damier() -> std::path::PathBuf {
+    let cote = 512u32;
+    let mut octets = Vec::with_capacity((cote * cote * 4) as usize);
+    for y in 0..cote {
+        for x in 0..cote {
+            let v = if (x + y) % 2 == 0 { 0 } else { 255 };
+            octets.extend_from_slice(&[v, v, v, 255]);
+        }
+    }
+    let chemin = std::env::temp_dir().join("glucose-voies-niveau-damier.png");
+    image::save_buffer(
+        &chemin,
+        &octets,
+        cote,
+        cote,
+        image::ExtendedColorType::Rgba8,
+    )
+    .expect("ecriture de la photo damier");
+    chemin
+}
+
+/// Le damier posé en 200 × 200 dans le monde, vu à l'échelle `echelle`.
+fn document_damier(echelle: f64) -> glucose_core::store::Store {
+    let mut store = glucose_core::store::Store::new("Niveau");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 400.0 - 400.0 * echelle,
+            y: 300.0 - 300.0 * echelle,
+            scale: echelle,
+        };
+    }
+    let mut img = glucose_core::types::BoardImage::new("damier", 400.0, 300.0, 200.0, 200.0);
+    img.src = Some(photo_damier().to_string_lossy().into_owned());
+    store.add_image(&board, img);
+    store.clear_selection();
+    store
+}
+
+/// **Une photo posée petite part au niveau qui la couvre, et non en natif** (NIVEAU-GPU-1).
+///
+/// Soixante pixels à l'écran : le niveau de soixante-quatre, huit fois réduit. La voie
+/// graphique envoyait les 512 × 512 natifs — pour une épingle en original, 27 Mo et treize
+/// millisecondes de processeur par envoi (`bench_televersement`). Et la texture garde le
+/// fichier pour identité : quand le niveau change, l'ancien reste posé pendant que le nouveau
+/// se téléverse.
+#[test]
+fn test_une_photo_posee_petite_part_au_niveau_qui_la_couvre() {
+    let store = document_damier(0.3);
+    let (renderer, _, _, confie) = les_deux_couches_decodees((800, 600), &store);
+    let (cle, _) = confie.photos.first().expect("la photo est posee");
+    let texture = confie.pixels(&renderer, cle).expect("ses pixels");
+    assert_eq!(
+        (texture.width(), texture.height()),
+        (64, 64),
+        "soixante pixels a l'ecran : le niveau de soixante-quatre, pas les 512 natifs"
+    );
+    let src = photo_damier().to_string_lossy().into_owned();
+    let identite = confie
+        .textures()
+        .into_iter()
+        .find(|t| &t.cle == cle)
+        .map(|t| t.identite);
+    assert_eq!(
+        identite,
+        Some(src),
+        "l'identite reste le fichier : un changement de niveau garde l'ancien pose"
+    );
+}
+
+/// **Une photo réduite se rend pareil sur les deux voies** — ce que la texture native, lue un
+/// texel sur huit par le filtre bilinéaire, ne pouvait pas faire : le damier y devenait des
+/// motifs là où le processeur, qui part du niveau, montre du gris.
+#[test]
+fn test_une_photo_reduite_se_rend_pareil_sur_les_deux_voies() {
+    let taille = (800u32, 600u32);
+    let store = document_damier(0.3);
+    let (renderer, dessous, dessus, confie) = les_deux_couches_decodees(taille, &store);
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.pixels(&renderer, cle),
+    )
+    .expect("la composition en cinq temps");
+    let processeur = par_le_processeur_decode(taille, &store);
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux} (pire {pire}) : la \
+         carte ne lit pas le niveau que le processeur lit"
+    );
+    assert!(pire <= ECART_ADMIS, "pire ecart {pire}");
 }

@@ -22,6 +22,9 @@ use glucose_core::store::Store;
 use glucose_core::types::Viewport;
 use tiny_skia::PixmapMut;
 
+mod confie;
+pub use confie::{APoser, Confie};
+
 /// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
 ///
 /// Tous des CONTENANTS, et c'est ce qui fait la frontière : quand la voie graphique pose
@@ -147,107 +150,6 @@ fn dessiner_les_reperes_du_geste(
     }
 }
 
-/// **Ce que le processeur confie à la carte** pour une image.
-///
-/// Quatre listes, et rien d'autre : ce sont les seules choses que la voie graphique sait
-/// produire aujourd'hui. Elles voyagent ensemble parce qu'elles viennent du **même** cadrage
-/// — même vue, même culling — et que les séparer laisserait croire qu'on peut les calculer
-/// à des instants différents.
-#[derive(Debug, Default, Clone)]
-pub struct Confie {
-    /// Le fond, ou `None` quand la couche du dessous le porte encore.
-    pub fond: Option<crate::present::fond_gpu::Fond>,
-    /// Les lueurs des cartes visibles, dans l'ordre où le processeur les peindrait.
-    pub lueurs: Vec<crate::present::lueurs_gpu::Lueur>,
-    /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**.
-    pub photos: Vec<(String, Pose)>,
-    /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
-    /// annotations passent au-dessus (COMPOSANT-1).
-    pub cartes: Vec<(String, Pose)>,
-    /// Ce qui se rend **à la demande**, quand la carte graphique ne connaît pas la clé : les
-    /// cartes de texte, les photos en chemin.
-    pub composants: Vec<super::composants::Composant>,
-    /// **Les lignes que la couche du dessus porte**, relevées après que tout y a été dessiné.
-    ///
-    /// Elles décident de ce qui s'efface et de ce qui part sur le bus (BANDE-1) : la chrome
-    /// et les ornements n'occupent qu'un huitième de l'écran, et le reste n'a aucune raison
-    /// d'être touché. Le relevé appartient à la peinture et non au renderer, parce que la
-    /// chrome se dessine **après** lui — un relevé pris ici manquerait les docks.
-    pub bandes_du_dessus: crate::present::bandes::Bandes,
-    /// La couche du dessous a-t-elle reçu de l'encre ?
-    ///
-    /// Quand elle n'en a pas — ni membrane, ni dossier, le fond étant sur la carte — elle est
-    /// entièrement transparente, et **rien ne part** : ni ses quinze mébioctets, ni le dessin
-    /// qui composerait du vide. C'est la passe elle-même qui répond, en comptant ce qu'elle
-    /// dessine ; balayer les pixels coûterait un écran entier pour la même réponse.
-    pub dessous_porte_quelque_chose: bool,
-}
-
-/// Une texture que la carte doit poser : ce qu'elle est, ce qu'elle montre, et où.
-///
-/// La **clé** change dès qu'un pixel change ; l'**identité** ne change jamais tant que c'est
-/// le même composant. Les séparer est ce qui permet de poser l'ancien palier d'une carte
-/// pendant que le nouveau se rend (CASCADE-2).
-#[derive(Debug, Clone)]
-pub struct APoser {
-    /// Ce que la texture montre : une empreinte nouvelle est une texture nouvelle.
-    pub cle: String,
-    /// Ce que le composant **est** : stable d'un palier à l'autre, d'une frappe à l'autre.
-    pub identite: String,
-    /// Où la poser, à l'échelle de la vue.
-    pub pose: Pose,
-    /// **Ce que la carte pose à la place, tant qu'elle ne détient pas celle-ci** : pour la
-    /// tuile d'un composant plus grand que l'écran, le même rectangle lu dans sa texture
-    /// entière à un palier plus bas (DE-PRES-1). Un repli n'a pas de repli.
-    pub repli: Option<Box<APoser>>,
-}
-
-impl Confie {
-    /// **Tout ce que la carte pose comme texture**, dans l'ordre du modèle : les photos, puis
-    /// les cartes de texte par-dessus.
-    ///
-    /// Une photo est sa propre identité : ses octets ne changent pas, donc sa clé non plus.
-    /// Une carte de texte porte les deux, et elles diffèrent dès qu'elle change de palier.
-    pub fn textures(&self) -> Vec<APoser> {
-        // **Les identités se relèvent une fois, et se lisent ensuite.**
-        //
-        // La première version de CASCADE-2 cherchait l'identité de chaque clé par un parcours
-        // linéaire des composants. Sur le document de l'utilisateur — quatre cent
-        // quatre-vingt-deux cartes — cela fait deux cent trente-deux mille comparaisons de
-        // chaînes par image, et la chronique du terrain les a chiffrées : le poste `textures`
-        // restait à **treize millisecondes** sur les images de zoom alors que son budget en
-        // vaut moins de deux, et que le rendu des textures, lui, était bien borné.
-        //
-        // C'est exactement ce que la fiche 05 interdit — la géométrie calculée deux fois —
-        // sous une autre forme : une correspondance recalculée à chaque élément.
-        let par_cle: std::collections::HashMap<&str, &super::composants::Composant> = self
-            .composants
-            .iter()
-            .map(|c| (c.cle.as_str(), c))
-            .collect();
-        self.photos
-            .iter()
-            .chain(self.cartes.iter())
-            .map(|(cle, pose)| {
-                let composant = par_cle.get(cle.as_str());
-                APoser {
-                    // Une photo est sa propre identité : ses octets ne changent pas, donc sa
-                    // clé non plus, et elle n'est dans aucun composant.
-                    identite: composant.map_or_else(|| cle.clone(), |c| c.identite.clone()),
-                    cle: cle.clone(),
-                    pose: *pose,
-                    repli: composant.and_then(|c| c.repli.clone()).map(Box::new),
-                }
-            })
-            .collect()
-    }
-
-    /// Le composant qui porte cette clé, s'il y en a un : c'est lui qui sait se rendre.
-    pub fn composant(&self, cle: &str) -> Option<&super::composants::Composant> {
-        self.composants.iter().find(|c| c.cle == cle)
-    }
-}
-
 /// **Le fond de cette image**, tel que la carte a besoin de le connaître.
 ///
 /// Rien n'est décidé ici : le pas de la grille, le rayon d'un point, son opacité et son
@@ -340,18 +242,22 @@ pub(super) fn poses_des_photos(
     regime: &super::composants::Regime,
     magasin: &mut super::magasin::Magasin,
     (vp, rangs, store): (&Viewport, &[u32], &Store),
-) -> (Vec<(String, Pose)>, Vec<super::composants::Composant>) {
+) -> PhotosAPoser {
+    let mut photos = PhotosAPoser::default();
     let Some(board) = store.active_board() else {
-        return (Vec::new(), Vec::new());
+        return photos;
     };
-    let mut posees = Vec::new();
-    let mut composants = Vec::new();
+    let PhotosAPoser {
+        posees,
+        composants,
+        niveaux,
+    } = &mut photos;
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
         let presente = img.src.as_deref().is_some_and(|src| magasin.reclamer(src));
         if !presente {
             if let Some(pieces) = regime.photo_en_chemin(img) {
-                ranger(pieces, &mut posees, &mut composants);
+                ranger(pieces, posees, composants);
                 en_chemin += 1.0;
             }
             continue;
@@ -359,23 +265,39 @@ pub(super) fn poses_des_photos(
         let Some(src) = img.src.as_deref() else {
             continue;
         };
-        // Ce que le filtre a le droit de lire se decide sur la texture native, celle que la
-        // carte recoit (BORDURES-4).
-        let bornes = magasin.cache.get(src).map_or(Pose::PARTOUT, |e| {
-            let n = e.pyramide.native();
-            Pose::bornes_de(img.crop, (n.width(), n.height()))
-        });
+        let Some(entree) = magasin.cache.get(src) else {
+            continue;
+        };
         // Le modele place une photo par son CENTRE : le coin s'en deduit, et c'est le piege
         // que `ce_que_porte` avait deja paye une fois.
         let (x, y) =
             crate::canvas::world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, vp);
+        let boite = (x, y, img.width * vp.scale, img.height * vp.scale);
+        // **NIVEAU-GPU-1 : la carte reçoit le niveau qui couvre encore la taille posée**, et
+        // non la texture native. La règle est celle de la voie processeur (MIP-1), lue au même
+        // endroit : sur la taille à laquelle la SOURCE entière se pose, qu'un recadrage rend
+        // plus grande que la boîte. Une épingle de 27 Mo posée en vignette partait entière sur
+        // le bus — treize millisecondes de processeur pour un envoi, d'où les photos qui
+        // arrivaient en vagues —, et le filtre lisait un texel sur dix : du crénelage.
+        let (_, _, largeur_source, _) = img.crop.source_pour(boite);
+        let pyramide = &entree.pyramide;
+        let facteur = pyramide.facteur_pour(largeur_source as f32);
+        let (native, niveau) = (pyramide.native(), pyramide.niveau_reduit(facteur));
+        // Ce que le filtre a le droit de lire se decide sur ce niveau-la (BORDURES-4).
+        let bornes = Pose::bornes_de(
+            img.crop,
+            (native.width(), native.height()),
+            (facteur, (niveau.width(), niveau.height())),
+        );
+        let cle = format!("{src}@{facteur}");
+        niveaux.insert(cle.clone(), (src.to_string(), facteur));
         posees.push((
-            src.to_string(),
+            cle,
             Pose {
                 x: x as f32,
                 y: y as f32,
-                largeur: (img.width * vp.scale) as f32,
-                hauteur: (img.height * vp.scale) as f32,
+                largeur: boite.2 as f32,
+                hauteur: boite.3 as f32,
                 opacite: 1.0,
                 angle: img.rotation as f32,
                 // Le recadrage du modele, lu et jamais calcule : la carte montre la fenetre
@@ -386,7 +308,16 @@ pub(super) fn poses_des_photos(
         ));
     }
     crate::perf::compteur("photos_en_chemin", en_chemin);
-    (posees, composants)
+    photos
+}
+
+/// **Ce que la passe des photos confie à la carte** : où chacune se pose, ce qui sait se
+/// rendre pour celles en chemin, et le niveau de chacune de celles qui sont là.
+#[derive(Default)]
+pub(super) struct PhotosAPoser {
+    posees: Vec<(String, Pose)>,
+    composants: Vec<super::composants::Composant>,
+    niveaux: std::collections::HashMap<String, (String, u32)>,
 }
 
 /// **Les cartes de texte que l'ecran montre**, comme composants (COMPOSANT-1).
@@ -549,8 +480,11 @@ impl Renderer {
         // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
         // tous : deux composants voisins se rendent au meme palier.
         let regime = super::composants::Regime::de(vp, regard, taille, header_h);
-        let (photos, en_chemin) =
-            poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store));
+        let PhotosAPoser {
+            posees: photos,
+            composants: en_chemin,
+            niveaux,
+        } = poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store));
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,
@@ -566,6 +500,7 @@ impl Renderer {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
             lueurs,
             photos,
+            niveaux,
             cartes,
             composants,
             // Le releve appartient a la peinture : la chrome se dessine APRES le renderer,

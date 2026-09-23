@@ -185,6 +185,16 @@ impl Pyramide {
         1 << self.indice_pour(largeur_ecran)
     }
 
+    /// **Le niveau réduit `facteur` fois**, tel que [`Pyramide::facteur_pour`] l'a désigné.
+    ///
+    /// C'est ce que la carte reçoit (NIVEAU-GPU-1) : le facteur voyage dans la clé de sa
+    /// texture, et ce qui la rend relit le même niveau, sans rien recalculer. Un facteur
+    /// au-delà du dernier niveau rend le dernier — le plus petit qui existe.
+    pub fn niveau_reduit(&self, facteur: u32) -> &Pixmap {
+        let rang = (facteur.max(1).trailing_zeros() as usize).min(self.niveaux.len() - 1);
+        &self.niveaux[rang]
+    }
+
     /// Le rang du niveau choisi : le plus réduit dont la largeur couvre encore l'écran.
     fn indice_pour(&self, largeur_ecran: f32) -> usize {
         let voulue = largeur_ecran.max(1.0);

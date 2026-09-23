@@ -409,7 +409,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
             &[demande("vieux:neuf", "vieux"), demande("neuf", "neuf")],
             std::time::Duration::ZERO,
         ),
-        &|_| Some(photo(4, [9, 9, 9, 255])),
+        &|_| Some(std::borrow::Cow::Owned(photo(4, [9, 9, 9, 255]))),
     );
 
     assert!(
@@ -498,7 +498,7 @@ fn test_une_bande_retiree_ne_revient_pas_sur_le_bord() {
                     angle: 0.0,
                     fenetre: Pose::fenetre_de(crop),
                     bornes: if borne {
-                        Pose::bornes_de(crop, (l, h))
+                        Pose::bornes_de(crop, (l, h), (1, (l, h)))
                     } else {
                         Pose::PARTOUT
                     },
@@ -633,7 +633,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         bornes: Pose::PARTOUT,
     };
     let demande = [tuile_et_repli(pose)];
-    let source = |_: &str| Some(photo(4, [9, 9, 9, 255]));
+    let source = |_: &str| Some(std::borrow::Cow::Owned(photo(4, [9, 9, 9, 255])));
 
     // La tuile est deja la, et l'image n'a plus une milliseconde : rien n'est force.
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
@@ -665,5 +665,28 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
     assert!(
         scene.connait("carte:c", "carte:c:k"),
         "avec du temps, le repli se prepare"
+    );
+}
+
+/// **Les bornes d'un recadrage se rapportent au niveau envoyé, pas à la texture native**
+/// (NIVEAU-GPU-1).
+///
+/// Quarante colonnes natives, dix coupées à gauche, un niveau deux fois réduit de vingt
+/// colonnes : le premier texel lisible est le cinquième du niveau — celui qui ne moyenne que
+/// des colonnes gardées —, et sa borne est son centre, 5,5 sur vingt. Rapportée aux quarante
+/// colonnes natives, elle tomberait au milieu de la bande coupée.
+#[test]
+fn test_les_bornes_d_un_recadrage_se_rapportent_au_niveau_envoye() {
+    let crop = glucose_core::types::Recadrage::depuis_les_marges(0.25, 0.0, 0.0, 0.0);
+    let bornes = Pose::bornes_de(crop, (40, 20), (2, (20, 10)));
+    assert_eq!(
+        bornes[0],
+        5.5 / 20.0,
+        "le premier texel lisible du niveau, en son centre"
+    );
+    assert_eq!(
+        bornes[2],
+        19.5 / 20.0,
+        "et le dernier, qui ne touche aucune coupe"
     );
 }

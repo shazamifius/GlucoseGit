@@ -101,6 +101,6 @@ fn composer(
         taille,
         confie,
         (dessous, dessus),
-        &|cle| confie.composant(cle).and_then(|c| c.rendre(renderer.kit())),
+        &|cle| confie.pixels(renderer, cle),
     )
 }

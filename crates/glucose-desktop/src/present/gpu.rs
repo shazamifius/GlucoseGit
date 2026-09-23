@@ -550,7 +550,7 @@ impl Presenter for GpuPresenter {
         &mut self,
         dessous: &Pixmap,
         (confie, budget): (&crate::renderer::Confie, std::time::Duration),
-        source: &dyn Fn(&str) -> Option<Pixmap>,
+        source: &crate::present::scene_gpu::Source<'_>,
         dessus: &Pixmap,
     ) -> DesktopResult<Issue> {
         cinq_temps::presenter(self, (dessous, dessus), (confie, budget), source)

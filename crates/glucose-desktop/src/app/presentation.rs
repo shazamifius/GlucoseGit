@@ -144,14 +144,7 @@ impl GlucoseApp {
                     presenter.presenter_en_couches(
                         pixmap,
                         (confie, budget),
-                        &|cle| match confie.composant(cle) {
-                            Some(composant) => composant.rendre(renderer.kit()),
-                            None => renderer
-                                .magasin
-                                .cache
-                                .get(cle)
-                                .map(|e| e.pyramide.native().clone()),
-                        },
+                        &|cle| confie.pixels(renderer, cle),
                         dessus,
                     )
                 }

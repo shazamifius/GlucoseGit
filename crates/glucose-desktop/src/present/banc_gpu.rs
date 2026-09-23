@@ -181,7 +181,7 @@ pub fn composer_les_cinq_temps(
     taille: (u32, u32),
     confie: &crate::renderer::Confie,
     (dessous, dessus): (&Pixmap, &Pixmap),
-    source: &dyn Fn(&str) -> Option<Pixmap>,
+    source: &crate::present::scene_gpu::Source<'_>,
 ) -> Option<Pixmap> {
     use crate::present::{couches, fond_gpu, lueurs_gpu, scene_gpu};
     let ecran = (taille.0 as f32, taille.1 as f32);

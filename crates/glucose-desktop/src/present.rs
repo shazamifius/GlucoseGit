@@ -142,7 +142,7 @@ pub trait Presenter {
         &mut self,
         _dessous: &Pixmap,
         (_confie, _budget): (&crate::renderer::Confie, std::time::Duration),
-        _source: &dyn Fn(&str) -> Option<Pixmap>,
+        _source: &crate::present::scene_gpu::Source<'_>,
         _dessus: &Pixmap,
     ) -> DesktopResult<Issue> {
         Err(DesktopError::WindowError(

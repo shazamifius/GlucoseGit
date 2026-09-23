@@ -43,6 +43,14 @@ use pose::OCTETS_POSE;
 use crate::renderer::voies::APoser;
 use tiny_skia::Pixmap;
 
+/// **Ce qui donne les pixels d'une texture que la carte ne connaît pas encore.**
+///
+/// Un `Cow` et non un `Pixmap` : un composant se rend et se donne, mais une photo existe déjà
+/// dans le magasin, et la copier avant de la téléverser coûtait plus que le téléversement
+/// lui-même — 10,5 ms de copie pour 2,9 ms d'envoi sur une épingle de 27 Mo
+/// (`bench_televersement`). Elle se prête.
+pub type Source<'s> = dyn Fn(&str) -> Option<std::borrow::Cow<'s, Pixmap>> + 's;
+
 /// Le nuanceur : deux triangles par photo, calculés depuis leur indice.
 ///
 /// Aucun tampon de sommets, aucun maillage : le rectangle se déduit de `vertex_index`, et sa

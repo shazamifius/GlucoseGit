@@ -42,13 +42,18 @@ impl Pose {
     /// Aucune borne de plus que la texture : ce qu'un composant, jamais recadré, emploie.
     pub const PARTOUT: [f32; 4] = [0.0, 0.0, 1.0, 1.0];
 
-    /// **Les bornes qu'un recadrage donne à une texture native** `largeur × hauteur` : le
-    /// centre du premier et du dernier texel lisibles, selon la règle du noyau
-    /// ([`glucose_core::types::Recadrage::texels_lisibles`]) — la même que la voie processeur
-    /// suit, écrite une fois. Le filtre, ramené dans ces bornes, ne lit aucun autre texel.
-    pub fn bornes_de(crop: glucose_core::types::Recadrage, (l, h): (u32, u32)) -> [f32; 4] {
-        let [g, haut, d, bas] = crop.texels_lisibles((l, h), 1);
-        let (l, h) = (l as f32, h as f32);
+    /// **Les bornes qu'un recadrage donne à un niveau** `niveau` d'une image `native`, réduit
+    /// `facteur` fois : le centre du premier et du dernier texel lisibles, selon la règle du
+    /// noyau ([`glucose_core::types::Recadrage::texels_lisibles`]) — la même que la voie
+    /// processeur suit, écrite une fois. Le filtre, ramené dans ces bornes, ne lit aucun autre
+    /// texel, et un texel réduit qui mêlerait ce qu'on garde à ce qu'on a coupé n'est pas lu.
+    pub fn bornes_de(
+        crop: glucose_core::types::Recadrage,
+        native: (u32, u32),
+        (facteur, niveau): (u32, (u32, u32)),
+    ) -> [f32; 4] {
+        let [g, haut, d, bas] = crop.texels_lisibles(native, facteur);
+        let (l, h) = (niveau.0 as f32, niveau.1 as f32);
         [
             (g as f32 + 0.5) / l,
             (haut as f32 + 0.5) / h,
