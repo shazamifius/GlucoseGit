@@ -28,13 +28,14 @@ impl Horloge {
 /// Le tour de boucle du terrain : l'image part, Windows attend, la main parle, l'entretien
 /// passe, et le rendu reprend.
 fn un_entracte_ordinaire(e: &mut Entracte, h: &mut Horloge) {
-    e.ouvrir(h.apres(0));
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
     e.imputer(h.apres(8), Poste::Main);
     e.imputer(h.apres(1), Poste::Depot);
     e.imputer(h.apres(0), Poste::Carte);
     e.imputer(h.apres(0), Poste::Entretien);
     e.imputer(h.apres(1), Poste::Systeme);
-    e.fermer(h.apres(0), true);
+    e.fermer(h.apres(0), Some(ouverte));
 }
 
 #[test]
@@ -62,10 +63,11 @@ fn test_le_temps_d_un_poste_ne_tombe_pas_dans_celui_d_a_cote() {
     // La bascule de carte du terrain : 138 ms pour lâcher l'ancienne, 606 pour ouvrir la
     // nouvelle. La bannière du 22/09 au soir donne ces deux nombres, et la chronique de la
     // même session donne « 748,7 ms à ne pas dessiner » sur son pire gel.
-    e.ouvrir(h.apres(0));
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
     e.imputer(h.apres(4), Poste::Carte);
     e.imputer(h.apres(744), Poste::Entretien);
-    e.fermer(h.apres(1), true);
+    e.fermer(h.apres(1), Some(ouverte));
 
     assert_eq!(
         e.poste(Poste::Carte).2,
@@ -90,10 +92,11 @@ fn test_le_pire_entracte_garde_sa_decomposition() {
     let mut h = Horloge::neuve();
     un_entracte_ordinaire(&mut e, &mut h);
     // Puis la bascule, bien plus tard dans la session.
-    e.ouvrir(h.apres(2_000));
+    let ouverte = h.apres(2_000);
+    e.ouvrir(ouverte);
     e.imputer(h.apres(4), Poste::Carte);
     e.imputer(h.apres(744), Poste::Entretien);
-    e.fermer(h.apres(1), true);
+    e.fermer(h.apres(1), Some(ouverte));
     un_entracte_ordinaire(&mut e, &mut h);
 
     let (gels, tus) = e.gels();
@@ -126,13 +129,15 @@ fn test_le_pire_entracte_garde_sa_decomposition() {
 fn test_le_gel_du_demarrage_ne_cache_pas_les_autres() {
     let mut e = Entracte::nouveau();
     let mut h = Horloge::neuve();
-    e.ouvrir(h.apres(0));
-    e.fermer(h.apres(607), true);
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
+    e.fermer(h.apres(607), Some(ouverte));
     un_entracte_ordinaire(&mut e, &mut h);
-    e.ouvrir(h.apres(4_000));
+    let ouverte = h.apres(4_000);
+    e.ouvrir(ouverte);
     e.imputer(h.apres(0), Poste::Main);
     e.imputer(h.apres(163), Poste::Systeme);
-    e.fermer(h.apres(1), true);
+    e.fermer(h.apres(1), Some(ouverte));
 
     let (gels, _) = e.gels();
     assert_eq!(
@@ -154,9 +159,10 @@ fn test_un_sommeil_ne_se_range_pas_comme_un_gel() {
     let mut h = Horloge::neuve();
     un_entracte_ordinaire(&mut e, &mut h);
     // Personne ne touche à rien pendant deux minutes : l'application dort, et c'est sain.
-    e.ouvrir(h.apres(0));
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
     e.imputer(h.apres(120_000), Poste::Entretien);
-    e.fermer(h.apres(1), false);
+    e.fermer(h.apres(1), None);
 
     assert_eq!(e.comptes(), 1, "le sommeil n'est pas un entracte de plus");
     assert_eq!(
@@ -171,12 +177,13 @@ fn test_un_dialogue_natif_s_oublie() {
     let mut e = Entracte::nouveau();
     let mut h = Horloge::neuve();
     un_entracte_ordinaire(&mut e, &mut h);
-    e.ouvrir(h.apres(0));
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
     // L'utilisateur choisit un fichier : la boucle est tenue ailleurs, et l'intervalle qui
     // suit n'est ni un gel ni un mouvement.
     e.oublier();
     e.imputer(h.apres(19_800), Poste::Entretien);
-    e.fermer(h.apres(1), true);
+    e.fermer(h.apres(1), Some(ouverte));
 
     assert_eq!(e.comptes(), 1);
     assert_eq!(
@@ -191,8 +198,9 @@ fn test_hors_d_un_entracte_rien_ne_se_mesure() {
     let mut e = Entracte::nouveau();
     let mut h = Horloge::neuve();
     // Pendant le rendu, `imputer` peut être appelé par un chemin qui ne sait pas où il est.
+    let jamais_ouverte = h.apres(0);
     e.imputer(h.apres(50), Poste::Carte);
-    e.fermer(h.apres(50), true);
+    e.fermer(h.apres(50), Some(jamais_ouverte));
     assert_eq!(
         e.comptes(),
         0,
@@ -213,4 +221,64 @@ fn test_chaque_poste_a_un_nom_et_un_indice_distincts() {
     noms.sort_unstable();
     noms.dedup();
     assert_eq!(noms.len(), Poste::COMBIEN);
+}
+
+/// **GEL-1** — une pause suivie d'un dépôt n'est pas un gel.
+///
+/// C'est la session économe du 23/09 : l'utilisateur quitte Glucose pour son navigateur, y
+/// reste onze secondes, glisse une image. La première version rangeait les onze secondes en
+/// « attendre Windows » — premier du verdict à x310. L'image n'est devenue nécessaire qu'au
+/// dépôt ; seul ce qui suit l'échéance se range.
+#[test]
+fn test_une_pause_avant_un_depot_n_est_pas_un_gel() {
+    let mut e = Entracte::nouveau();
+    let mut h = Horloge::neuve();
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
+    let depot = h.apres(11_000);
+    e.imputer(depot, Poste::Depot);
+    e.imputer(h.apres(1), Poste::Systeme);
+    e.fermer(h.apres(1), Some(depot));
+
+    assert!(
+        e.gels().0.is_empty(),
+        "deux millisecondes apres le depot ne sont pas un gel : {:?}",
+        e.gels().0
+    );
+    assert_eq!(e.total().2, 2_000);
+    // **La preuve a l'envers** : avec l'echeance posee a l'ouverture -- ce que la premiere
+    // version faisait en rangeant tout l'entracte --, les onze secondes redeviennent un gel.
+    let mut ancienne = Entracte::nouveau();
+    let mut h = Horloge::neuve();
+    let ouverte = h.apres(0);
+    ancienne.ouvrir(ouverte);
+    ancienne.imputer(h.apres(11_000), Poste::Depot);
+    ancienne.fermer(h.apres(2), Some(ouverte));
+    assert_eq!(
+        ancienne.gels().0.len(),
+        1,
+        "l'ancienne lecture comptait un gel"
+    );
+}
+
+/// **GEL-1** — une image due que Windows ne laisse pas rendre, elle, est un gel.
+///
+/// Le cas inverse, sans lequel le précédent ne prouverait rien : une échéance qui ne
+/// compterait jamais rien passerait le test de la pause.
+#[test]
+fn test_une_image_due_et_retenue_par_windows_est_un_gel() {
+    let mut e = Entracte::nouveau();
+    let mut h = Horloge::neuve();
+    let ouverte = h.apres(0);
+    e.ouvrir(ouverte);
+    let due = h.apres(1);
+    e.fermer(h.apres(700), Some(due));
+
+    let (gels, _) = e.gels();
+    assert_eq!(gels.len(), 1);
+    assert_eq!(
+        gels[0].parts().first().copied(),
+        Some((Poste::Systeme, Duration::from_millis(700))),
+        "l'image etait due, et Windows a tenu le fil sept dixiemes de seconde"
+    );
 }

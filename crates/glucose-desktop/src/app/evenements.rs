@@ -116,6 +116,7 @@ impl ApplicationHandler for GlucoseApp {
     /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
     /// manquait, et une session entiere s'est perdue pour cette raison.
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        self.noter_le_gel_en_cours();
         self.clore_la_chronique();
     }
 

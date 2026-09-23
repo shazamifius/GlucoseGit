@@ -33,6 +33,7 @@
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
 pub mod entracte;
+pub mod geste;
 pub mod histogramme;
 pub mod instantane;
 pub mod navigation;
@@ -40,77 +41,13 @@ pub mod rythme;
 pub mod veille;
 
 pub use entracte::Entracte;
+pub use geste::Geste;
 pub use histogramme::Histogramme;
 pub use instantane::Instantane;
 pub use rythme::Rythme;
 pub use veille::Veille;
 
 use std::time::Duration;
-
-/// Ce que l'utilisateur est en train de faire quand l'image se dessine.
-///
-/// Déduit de l'état de l'application, jamais déclaré : un geste qui devrait penser à
-/// s'annoncer finirait par oublier, et c'est précisément le genre d'oubli qui a coûté une
-/// journée de recherche cette semaine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Geste {
-    /// Rien en cours : l'image vient d'une animation, d'un survol ou du système.
-    Repos,
-    /// La vue se déplace — sous la main, ou sur son élan une fois lâchée.
-    DeplacerLaVue,
-    /// La vue change d'échelle.
-    Zoomer,
-    /// Un ou plusieurs nœuds suivent la main.
-    GlisserUnNoeud,
-    /// Un nœud change de taille par une poignée.
-    Redimensionner,
-    /// Un objet naît sous la main.
-    Dessiner,
-    /// Le rectangle de sélection élastique s'étire.
-    Selectionner,
-    /// Du texte s'écrit dans une carte.
-    EditerDuTexte,
-    /// Des images finissent de se décoder en arrière-plan.
-    Decoder,
-    /// La caméra vole vers une cible.
-    Animer,
-}
-
-impl Geste {
-    /// Tous les gestes, dans l'ordre de leur indice.
-    pub const TOUS: [Geste; 10] = [
-        Geste::Repos,
-        Geste::DeplacerLaVue,
-        Geste::Zoomer,
-        Geste::GlisserUnNoeud,
-        Geste::Redimensionner,
-        Geste::Dessiner,
-        Geste::Selectionner,
-        Geste::EditerDuTexte,
-        Geste::Decoder,
-        Geste::Animer,
-    ];
-
-    fn indice(self) -> usize {
-        Self::TOUS.iter().position(|g| *g == self).unwrap_or(0)
-    }
-
-    /// Le nom court qui paraît dans le rapport.
-    pub fn nom(self) -> &'static str {
-        match self {
-            Geste::Repos => "repos",
-            Geste::DeplacerLaVue => "deplacer la vue",
-            Geste::Zoomer => "zoomer",
-            Geste::GlisserUnNoeud => "glisser un noeud",
-            Geste::Redimensionner => "redimensionner",
-            Geste::Dessiner => "dessiner",
-            Geste::Selectionner => "selectionner",
-            Geste::EditerDuTexte => "editer du texte",
-            Geste::Decoder => "decoder des images",
-            Geste::Animer => "animer la camera",
-        }
-    }
-}
 
 /// Combien d'images lentes on garde en entier.
 ///
@@ -187,6 +124,11 @@ pub struct Chronique {
     /// sans jamais pouvoir dire ce qu'il contient. Trois sessions l'ont nommé « jamais
     /// instrumenté », et deux hypothèses écrites pour l'expliquer ont été démenties.
     pub entracte: Entracte,
+    /// **Depuis combien de temps une image était due quand la session s'est fermée** (GEL-1).
+    ///
+    /// Un gel qui ne finit jamais ne laisse aucun intervalle à mesurer : sans cette valeur, le
+    /// canevas le plus figé de toutes les sessions paraissait sain.
+    gel_a_la_fermeture: Option<Duration>,
     /// **Les images que la surface a refusées** : fenêtre cachée, ou image perdue.
     ///
     /// Elles ne sont dans aucune autre mesure de ce module, et c'est exactement ce qui rendait
@@ -380,6 +322,7 @@ impl Chronique {
             navigation: navigation::Navigation::nouvelle(),
             veille: Veille::default(),
             entracte: Entracte::nouveau(),
+            gel_a_la_fermeture: None,
             cachees: 0,
             perdues: 0,
             photos_posees: 0,
@@ -414,6 +357,17 @@ impl Chronique {
     }
 
     /// Note une image que la surface a refusée.
+    /// La session se ferme alors qu'une image était due depuis `retard` — ou aucune.
+    pub fn noter_la_fermeture(&mut self, retard: Option<Duration>) {
+        self.gel_a_la_fermeture = retard;
+    }
+
+    /// Le gel en cours à la fermeture, s'il dépassait le plancher de la charte.
+    pub fn gel_a_la_fermeture(&self) -> Option<Duration> {
+        self.gel_a_la_fermeture
+            .filter(|d| *d > crate::cadence::BUDGET_TOTAL)
+    }
+
     pub fn noter_un_refus(&mut self, cachees: u64, perdues: u64) {
         self.cachees += cachees;
         self.perdues += perdues;

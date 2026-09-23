@@ -74,11 +74,14 @@ fn main() {
                 });
                 // L'entracte precede l'image : c'est ce que la boucle a fait avant de dessiner.
                 let bascule = tour == bascule_au_tour && rang == 0;
+                // Un zoom continu : chaque image est due des la presentation precedente.
+                let due = horloge;
                 horloge = entracte(&mut c, horloge, bascule);
                 let presentation = horloge + duree;
                 let mesure = if pas.is_zero() {
                     Default::default()
                 } else {
+                    c.rythme.en_retard(presentation, horloge, Some(due));
                     c.rythme
                         .presentee(presentation, horloge, pas, vitesse, true)
                 };
@@ -110,7 +113,7 @@ fn entracte(c: &mut Chronique, depart: Instant, bascule: bool) -> Instant {
     }
     c.entracte.imputer(horloge, Poste::Entretien);
     horloge += Duration::from_micros(60);
-    c.entracte.fermer(horloge, true);
+    c.entracte.fermer(horloge, Some(depart));
     horloge
 }
 

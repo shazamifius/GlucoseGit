@@ -564,6 +564,50 @@ mod tests {
         );
     }
 
+    /// **GEL-1** — la session qui se ferme pendant un gel le dit.
+    ///
+    /// Le 23/09, l'utilisateur a vu Glucose *« COMPLETEMENT freeze »*, et sa chronique finissait
+    /// sur une image normale : un gel qui ne finit pas ne laisse aucun intervalle a mesurer.
+    /// Ici une image est due depuis vingt secondes quand on ferme.
+    #[test]
+    fn test_un_gel_en_cours_a_la_fermeture_se_dit() {
+        use std::time::{Duration, Instant};
+        let mut app = GlucoseApp::new();
+        let il_y_a_vingt_secondes = Instant::now() - Duration::from_secs(20);
+        app.chronique.rythme.presentee(
+            il_y_a_vingt_secondes,
+            il_y_a_vingt_secondes,
+            Duration::ZERO,
+            0.0,
+            true,
+        );
+        app.chronique.entracte.ouvrir(il_y_a_vingt_secondes);
+        app.noter_l_echeance(il_y_a_vingt_secondes + Duration::from_millis(1));
+        // Une seconde demande, plus tard, ne raccourcit pas le gel : l'oeil attend la premiere.
+        app.mark_dirty();
+        app.noter_le_gel_en_cours();
+
+        let gel = app
+            .chronique
+            .gel_a_la_fermeture()
+            .expect("une image etait due depuis vingt secondes");
+        assert!(gel >= Duration::from_millis(19_990), "{gel:?}");
+        assert!(
+            app.chronique.rapport().contains("FERMEE PENDANT UN GEL"),
+            "le rapport doit le dire en toutes lettres"
+        );
+        let (gels, _) = app.chronique.entracte.gels();
+        assert_eq!(gels.len(), 1, "le gel se range avec les autres, decompose");
+    }
+
+    /// Fermer une application qui n'attendait rien ne fait pas un gel.
+    #[test]
+    fn test_une_fermeture_au_repos_n_est_pas_un_gel() {
+        let mut app = GlucoseApp::new();
+        app.noter_le_gel_en_cours();
+        assert_eq!(app.chronique.gel_a_la_fermeture(), None);
+    }
+
     #[test]
     fn test_l_immobilite_est_celle_que_le_tempo_juge_deja() {
         // Aucune constante n'a ete choisie : c'est mot pour mot la question que

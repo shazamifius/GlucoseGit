@@ -112,7 +112,11 @@ impl GlucoseApp {
     }
 
     /// pouvait pas voir le tressaut dont l'utilisateur parle depuis des semaines.
-    pub(super) fn presenter_et_noter_le_rythme(&mut self, debut_du_rendu: std::time::Instant) {
+    pub(super) fn presenter_et_noter_le_rythme(
+        &mut self,
+        debut_du_rendu: std::time::Instant,
+        due: Option<std::time::Instant>,
+    ) {
         if let (Some(pixmap), Some(presenter)) = (&self.pixmap, &mut self.presenter) {
             // On presente meme quand rien n'a ete redessine : la demande peut venir du
             // systeme -- une fenetre recouverte puis degagee -- et non de nous.
@@ -166,7 +170,13 @@ impl GlucoseApp {
         // mesures decoupent le meme intervalle par ses deux bouts : leur donner le meme
         // instant et le meme verdict est ce qui les empeche de diverger. Le rythme dit
         // COMBIEN l'application a passe a ne pas dessiner ; l'entracte dit OU il est alle.
-        self.chronique.entracte.fermer(debut_du_rendu, attendue);
+        //
+        // **Et un gel se compte depuis l'echeance, pas depuis l'image precedente** (GEL-1) : le
+        // retard avant `presentee`, qui oublie la presentation precedente.
+        self.chronique.entracte.fermer(debut_du_rendu, due);
+        self.chronique
+            .rythme
+            .en_retard(maintenant, debut_du_rendu, due);
         self.rythme_de_l_image =
             self.chronique
                 .rythme

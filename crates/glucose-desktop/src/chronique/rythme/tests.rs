@@ -224,7 +224,9 @@ fn test_un_sommeil_ne_compte_pas_comme_un_gel() {
     r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
     let mut t = Instant::now();
     for _ in 0..20 {
+        let due = t;
         t += Duration::from_micros(8_333);
+        r.en_retard(t, t - Duration::from_micros(2_000), Some(due));
         r.presentee(
             t,
             t - Duration::from_micros(2_000),
@@ -233,8 +235,14 @@ fn test_un_sommeil_ne_compte_pas_comme_un_gel() {
             true,
         );
     }
-    // Trois secondes de sommeil, puis une image que rien n'attendait.
+    // Trois secondes de sommeil, puis une image que rien n'attendait -- sinon le geste qui
+    // l'a demandee, trois millisecondes avant son rendu (GEL-1).
     t += Duration::from_secs(3);
+    r.en_retard(
+        t,
+        t - Duration::from_micros(2_000),
+        Some(t - Duration::from_millis(3)),
+    );
     r.presentee(
         t,
         t - Duration::from_micros(2_000),
@@ -263,7 +271,9 @@ fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
     r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
     let mut t = Instant::now();
     for _ in 0..20 {
+        let due = t;
         t += Duration::from_micros(8_333);
+        r.en_retard(t, t - Duration::from_micros(2_000), Some(due));
         r.presentee(
             t,
             t - Duration::from_micros(2_000),
@@ -274,7 +284,13 @@ fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
     }
     // Vingt secondes à choisir un fichier, puis une image que le décodage attendait.
     r.oublier();
+    let demandee_avant_le_dialogue = t;
     t += Duration::from_secs(20);
+    r.en_retard(
+        t,
+        t - Duration::from_micros(2_000),
+        Some(demandee_avant_le_dialogue),
+    );
     r.presentee(
         t,
         t - Duration::from_micros(2_000),
@@ -305,5 +321,51 @@ fn test_un_dialogue_ne_compte_pas_comme_un_gel() {
     assert!(
         (8_000..=10_000).contains(&pire),
         "la mesure a repris : {pire} us"
+    );
+}
+
+/// **GEL-1** — un gel se compte depuis l'instant où l'image était due, et seulement lui.
+///
+/// Deux cas qui se ressemblent dans un intervalle et n'ont rien à voir : une pause de cinq
+/// secondes que termine un geste, et une image due que rien ne rend pendant sept dixièmes de
+/// seconde. Le premier était compté comme un gel de cinq secondes ; le second est le seul
+/// que l'œil voie figé.
+#[test]
+fn test_un_gel_se_compte_depuis_l_echeance_de_l_image() {
+    let mut r = Rythme::nouveau();
+    r.observer_la_machine(Duration::from_micros(4_166), "Fifo");
+    let mut t = Instant::now();
+    r.presentee(t, t, Duration::ZERO, 0.0, true);
+
+    // Cinq secondes de pause, puis un geste : l'image est due au geste.
+    let geste = t + Duration::from_secs(5);
+    t = geste + Duration::from_millis(4);
+    r.en_retard(t, geste + Duration::from_millis(1), Some(geste));
+    r.presentee(
+        t,
+        geste + Duration::from_millis(1),
+        Duration::ZERO,
+        0.0,
+        true,
+    );
+    let (_, apres_la_pause, _) = r.pire_intervalle();
+    assert!(
+        apres_la_pause < Duration::from_millis(20),
+        "une pause terminee par un geste n'est pas un gel : {apres_la_pause:?}"
+    );
+
+    // Puis une image due tout de suite, que le rendu ne commence que 700 ms plus tard.
+    let due = t;
+    t += Duration::from_millis(705);
+    r.en_retard(t, t - Duration::from_millis(5), Some(due));
+    r.presentee(t, t - Duration::from_millis(5), Duration::ZERO, 0.0, true);
+    let (_, gel, dont_attente) = r.pire_intervalle();
+    assert_eq!(gel, Duration::from_millis(705));
+    assert_eq!(dont_attente, Duration::from_millis(700));
+    let (perdu, _) = r.perdu_a_ne_pas_dessiner();
+    assert_eq!(
+        perdu,
+        Duration::from_millis(690),
+        "le temps perdu au-dela du plancher, et lui seul"
     );
 }

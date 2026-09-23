@@ -136,12 +136,19 @@ impl Gel {
 /// Où va le temps entre deux images, sur toute une session.
 #[derive(Debug)]
 pub struct Entracte {
-    /// Le début de la tranche en cours, ou `None` hors d'un entracte.
+    /// L'instant où l'entracte en cours s'est ouvert, ou `None` hors d'un entracte.
+    ouverture: Option<Instant>,
+    /// Le début de la tranche en cours.
     marque: Option<Instant>,
     /// Le poste auquel la tranche en cours s'impute.
     poste: Poste,
-    /// Ce que l'entracte en cours a donné à chaque poste.
-    en_cours: Parts,
+    /// **Les tranches de l'entracte en cours, horodatées** (GEL-1).
+    ///
+    /// Horodatées, parce que ce qui compte n'est connu qu'à la fin : l'instant où l'image est
+    /// devenue **due**. Ce qui précède est du repos — l'utilisateur regardait, ou était dans
+    /// un autre logiciel — et ne se range nulle part. Le tampon se vide à chaque entracte et
+    /// garde sa capacité : aucune allocation une fois la session lancée.
+    tranches: Vec<(Poste, Instant, Instant)>,
     /// La distribution de chaque poste, en microsecondes.
     par_poste: [Histogramme; Poste::COMBIEN],
     /// La distribution de l'entracte entier, pour vérifier que les parts s'y retrouvent.
@@ -164,9 +171,10 @@ impl Default for Entracte {
 impl Entracte {
     pub fn nouveau() -> Self {
         Self {
+            ouverture: None,
             marque: None,
             poste: Poste::Systeme,
-            en_cours: [Duration::ZERO; Poste::COMBIEN],
+            tranches: Vec::new(),
             par_poste: std::array::from_fn(|_| Histogramme::nouveau()),
             totaux: Histogramme::nouveau(),
             gels: Vec::with_capacity(super::PIRES + 1),
@@ -182,7 +190,8 @@ impl Entracte {
     /// deux mesurent le même intervalle par ses deux bouts, et les séparer les ferait diverger.
     pub fn ouvrir(&mut self, maintenant: Instant) {
         self.origine.get_or_insert(maintenant);
-        self.en_cours = [Duration::ZERO; Poste::COMBIEN];
+        self.tranches.clear();
+        self.ouverture = Some(maintenant);
         self.marque = Some(maintenant);
         self.poste = Poste::Systeme;
     }
@@ -195,31 +204,46 @@ impl Entracte {
         let Some(depuis) = self.marque else {
             return;
         };
-        self.en_cours[self.poste.indice()] += maintenant.saturating_duration_since(depuis);
+        if maintenant > depuis {
+            self.tranches.push((self.poste, depuis, maintenant));
+        }
         self.marque = Some(maintenant);
         self.poste = poste;
     }
 
-    /// **Le rendu commence** : l'entracte se ferme et ses parts se rangent.
+    /// **Le rendu commence** : l'entracte se ferme, et seule la part qui suit l'échéance se
+    /// range.
     ///
-    /// `garder` dit si cet intervalle a un sens — c'est la même question que le rythme pose
-    /// sous le nom `attendue`. Une application qui dormait parce que personne ne demandait
-    /// rien n'a pas gelé, et ranger son sommeil ferait du repos le pire moment de chaque
-    /// session. La leçon est de la fiche 19 § 5, et elle a coûté une lecture entière.
-    pub fn fermer(&mut self, maintenant: Instant, garder: bool) {
+    /// `due` est l'instant où l'image est devenue nécessaire (GEL-1). Avant lui, l'application
+    /// n'avait rien à montrer : c'était du repos, et le ranger ferait du repos le pire gel de
+    /// la session — ce que la première version faisait, onze secondes passées dans un
+    /// navigateur comptées comme un gel. Sans échéance, l'image n'était attendue par personne
+    /// et rien ne se range. La leçon est de la fiche 19 § 5, et elle a coûté deux fois.
+    pub fn fermer(&mut self, maintenant: Instant, due: Option<Instant>) {
         // **Un entracte qui n'a jamais ete ouvert n'a rien a ranger.** Deux tests l'ont
         // exige : une image qui suit un dialogue natif, et la toute premiere de la session.
         // Sans cette garde, chacune rangeait cinq parts nulles et comptait un entracte qui
         // n'a pas eu lieu -- des zeros qui tirent la mediane vers le bas et font paraitre
         // saine une distribution qu'on n'a pas mesuree.
-        let ouvert = self.marque.is_some();
+        let ouverture = self.ouverture.take();
         self.imputer(maintenant, Poste::Systeme);
         self.marque = None;
-        if !ouvert || !garder {
+        let (Some(ouverture), Some(due)) = (ouverture, due) else {
+            self.tranches.clear();
             return;
+        };
+        let depart = due.max(ouverture);
+        let mut parts: Parts = [Duration::ZERO; Poste::COMBIEN];
+        for (poste, debut, fin) in self.tranches.drain(..) {
+            parts[poste.indice()] += fin.saturating_duration_since(debut.max(depart));
         }
-        let total: Duration = self.en_cours.iter().sum();
-        for (poste, part) in self.par_poste.iter_mut().zip(self.en_cours) {
+        self.ranger(maintenant, parts);
+    }
+
+    /// Range les parts d'un entracte fermé : les distributions, et le gel s'il en est un.
+    fn ranger(&mut self, maintenant: Instant, parts: Parts) {
+        let total: Duration = parts.iter().sum();
+        for (poste, part) in self.par_poste.iter_mut().zip(parts) {
             poste.ajouter(micros(part));
         }
         self.totaux.ajouter(micros(total));
@@ -230,11 +254,7 @@ impl Entracte {
                 .origine
                 .map(|o| maintenant.saturating_duration_since(o))
                 .unwrap_or_default();
-            self.garder_le_gel(Gel {
-                a,
-                total,
-                parts: self.en_cours,
-            });
+            self.garder_le_gel(Gel { a, total, parts });
         }
     }
 
@@ -253,7 +273,9 @@ impl Entracte {
     /// Le rythme oublie son intervalle pour la même raison, et au même instant : sans cela une
     /// ouverture de fichier se lit « le pire gel : 19 836 ms », vrai et sans aucun intérêt.
     pub fn oublier(&mut self) {
+        self.ouverture = None;
         self.marque = None;
+        self.tranches.clear();
     }
 
     /// La distribution d'un poste : `(médian, p99, pire)` en microsecondes.

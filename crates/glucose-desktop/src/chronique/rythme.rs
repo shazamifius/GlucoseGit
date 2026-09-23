@@ -283,9 +283,6 @@ impl Rythme {
             maintenant.saturating_duration_since(debut_du_rendu),
         );
         let precedentes = self.parts_precedentes.replace(parts);
-        self.perdu_a_ne_pas_dessiner += attente.saturating_sub(crate::cadence::BUDGET_TOTAL);
-        self.attentes.ajouter(micros(attente).unwrap_or(u32::MAX));
-        self.noter_le_pire(maintenant, image.intervalle, attente);
         self.intervalles
             .ajouter(micros(image.intervalle).unwrap_or(u32::MAX));
         // **Les balayages ne se comparent que quand la vue bouge.** Le judder est la
@@ -378,6 +375,49 @@ impl Rythme {
     /// plancher de la charte, et sur combien d'intervalles il se compte.
     pub fn perdu_a_ne_pas_dessiner(&self) -> (Duration, u64) {
         (self.perdu_a_ne_pas_dessiner, self.attentes.compte())
+    }
+
+    /// **Le retard de cette image sur l'instant où elle était due** (GEL-1).
+    ///
+    /// # Le défaut que cette mesure ferme, et il a mis un faux gel en tête du verdict
+    ///
+    /// Le gel se mesurait depuis la **présentation précédente**, dès que l'image était
+    /// « attendue ». Or « attendue » se décidait au dernier moment : l'utilisateur quitte
+    /// Glucose pour son navigateur, y reste onze secondes, glisse une image — et le dépôt, en
+    /// lançant un décodage, rend l'image suivante « attendue ». Les onze secondes passées
+    /// dans le navigateur devenaient un gel de onze secondes, « attendre Windows », premier
+    /// du verdict à x310. C'est la dette de la fiche 24 § 7 — *un sommeil n'est pas un gel* —,
+    /// et le constat du gel l'avait portée en tête.
+    ///
+    /// Un gel est le temps entre l'instant où une image est **devenue nécessaire** — un
+    /// geste, un dépôt, une animation qui demande la suivante, un réveil programmé — et
+    /// l'instant où elle paraît. Aucune constante : l'échéance est un fait que l'application
+    /// connaît, puisque c'est elle qui la pose.
+    ///
+    /// Et c'est ce qui rend « attendre Windows » décisif : une attente chez Windows **alors
+    /// qu'une image était due** veut dire que Windows tenait le fil de Glucose, et non que
+    /// personne ne demandait rien.
+    ///
+    /// À appeler **avant** [`Self::presentee`], qui oublie la présentation précédente. Après
+    /// un dialogue natif, il n'y a pas de précédente : ce qui suit n'est pas un gel.
+    pub fn en_retard(
+        &mut self,
+        maintenant: Instant,
+        debut_du_rendu: Instant,
+        due: Option<Instant>,
+    ) {
+        let (Some(avant), Some(due)) = (self.precedente, due) else {
+            return;
+        };
+        let depart = due.max(avant);
+        let attente = debut_du_rendu.saturating_duration_since(depart);
+        self.perdu_a_ne_pas_dessiner += attente.saturating_sub(crate::cadence::BUDGET_TOTAL);
+        self.attentes.ajouter(micros(attente).unwrap_or(u32::MAX));
+        self.noter_le_pire(
+            maintenant,
+            maintenant.saturating_duration_since(depart),
+            attente,
+        );
     }
 
     /// Retient le pire intervalle, quand il est tombé, et ce qui l'a composé.

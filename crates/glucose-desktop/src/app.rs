@@ -279,6 +279,16 @@ pub struct GlucoseApp {
     /// remonté l'emprunt à travers tout l'arbre des gestes. `Salissure` est `Copy`, donc la
     /// cellule ne coûte rien.
     salissure: std::cell::Cell<crate::salissure::Salissure>,
+    /// **L'instant où la prochaine image est devenue nécessaire** (GEL-1) — le plus ancien
+    /// depuis la dernière image rendue.
+    ///
+    /// Posé par qui demande une image : un geste qui salit la vue, un dépôt, une animation qui
+    /// réclame la suivante, un réveil programmé. Le rendu le prend à son début. Un gel se
+    /// mesure depuis lui, et non depuis l'image précédente : entre les deux, l'application
+    /// n'avait peut-être rien à montrer, et ce repos n'est pas un gel.
+    ///
+    /// En `Cell` pour la même raison que la salissure : `mark_dirty` ne prend que `&self`.
+    image_due: std::cell::Cell<Option<std::time::Instant>>,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -367,6 +377,7 @@ impl GlucoseApp {
             echelle_precedente: 1.0,
             // Tout, et non rien : la première image doit se dessiner entièrement.
             salissure: std::cell::Cell::new(crate::salissure::Salissure::Tout),
+            image_due: std::cell::Cell::new(None),
         }
     }
 
@@ -378,6 +389,9 @@ impl GlucoseApp {
         if let Some(window) = self.window.clone() {
             crate::perf::frame_begin();
             let frame_started = std::time::Instant::now();
+            // L'echeance de CETTE image, prise avant tout dessin : ce que le rendu demandera
+            // ensuite -- une surface perdue, un composant manquant -- est pour la suivante.
+            let due = self.image_due.take();
             let size = window.inner_size();
             let width = size.width.max(1);
             let height = size.height.max(1);
@@ -411,7 +425,7 @@ impl GlucoseApp {
             // l'heure -- un nombre entier et CONSTANT de balayages apres la precedente. Ce
             // qui reste d'ici la sert au travail de fond.
             self.attendre_l_heure_de_soumettre();
-            self.presenter_et_noter_le_rythme(frame_started);
+            self.presenter_et_noter_le_rythme(frame_started, due);
             self.clore_l_image(frame_started, (width, height));
         }
     }
@@ -428,6 +442,7 @@ impl GlucoseApp {
     /// redessiner l'écran entier coûte ce qu'il coûtait hier. Un geste qui sait désigner sa
     /// zone appelle [`GlucoseApp::salir`] et paie beaucoup moins.
     pub fn mark_dirty(&self) {
+        self.noter_l_echeance(std::time::Instant::now());
         self.salissure.set(crate::salissure::Salissure::Tout);
         if let Some(window) = &self.window {
             window.request_redraw();
@@ -440,10 +455,36 @@ impl GlucoseApp {
     /// demandé par ailleurs pendant la même image, il l'emporte. C'est ce qui rend l'ordre des
     /// déclarations indifférent, et donc ce mécanisme sûr à adopter progressivement.
     pub fn salir(&self, zone: glucose_core::geometry::Rect) {
+        self.noter_l_echeance(std::time::Instant::now());
         self.salissure.set(self.salissure.get().avec(zone));
         if let Some(window) = &self.window {
             window.request_redraw();
         }
+    }
+
+    /// **Une image est due à cet instant** (GEL-1) : la plus ancienne échéance l'emporte.
+    ///
+    /// La plus ancienne, parce que c'est elle que l'œil attend depuis le plus longtemps : une
+    /// seconde demande pendant qu'une première attend encore ne raccourcit pas le gel.
+    pub(crate) fn noter_l_echeance(&self, a: std::time::Instant) {
+        let plus_tot = self.image_due.get().map_or(a, |deja| deja.min(a));
+        self.image_due.set(Some(plus_tot));
+    }
+
+    /// **Le gel en cours au moment de fermer** — ce qu'aucune image suivante ne mesurera.
+    ///
+    /// La chronique ne mesure un gel qu'entre deux images présentées. Un canevas qui fige et
+    /// ne repart jamais ne laisse donc **aucune** trace : c'est exactement le gel que
+    /// l'utilisateur a décrit le 23/09 — *« la 2e a COMPLÈTEMENT freeze »* — et sa chronique
+    /// finissait sur une image normale. Fermer alors qu'une image est due depuis longtemps est
+    /// un gel comme un autre, et il se range avec les autres, décomposé.
+    pub(crate) fn noter_le_gel_en_cours(&mut self) {
+        let maintenant = std::time::Instant::now();
+        let due = self.image_due.get();
+        self.chronique.rythme.en_retard(maintenant, maintenant, due);
+        self.chronique.entracte.fermer(maintenant, due);
+        self.chronique
+            .noter_la_fermeture(due.map(|d| maintenant.saturating_duration_since(d)));
     }
 
     /// Réorganise automatiquement les éléments en grille ordonnée

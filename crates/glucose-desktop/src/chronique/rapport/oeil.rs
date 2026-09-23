@@ -11,8 +11,27 @@ use crate::chronique::entracte::Poste;
 use crate::chronique::Chronique;
 
 impl Chronique {
+    /// **Le gel qui ne finit pas** (GEL-1) : aucune image ne l'a suivi, donc aucun intervalle
+    /// ne le mesure, et aucun constat ne le compte.
+    ///
+    /// C'est la premiere ligne du rapport quand elle existe : c'est elle qui repond a « tout a
+    /// fige », et elle ne doit dependre d'aucune autre section -- une session qui gele des la
+    /// premiere image n'en aurait aucune.
+    fn ecrire_le_gel_a_la_fermeture(&self, t: &mut String) {
+        let Some(gel) = self.gel_a_la_fermeture() else {
+            return;
+        };
+        t.push_str(&format!(
+            "  LA SESSION S'EST FERMEE PENDANT UN GEL : une image etait due depuis {:.0} ms et              n'a jamais paru
+
+",
+            gel.as_secs_f64() * 1000.0
+        ));
+    }
+
     /// Ce qui cloche, du plus grave au moins, avec son chiffre et sa conséquence.
     pub(super) fn ecrire_le_verdict(&self, t: &mut String) {
+        self.ecrire_le_gel_a_la_fermeture(t);
         let constats = self.verdict();
         if constats.is_empty() {
             t.push_str("  LE VERDICT -- rien ne depasse sa reference, cette session est saine\n\n");

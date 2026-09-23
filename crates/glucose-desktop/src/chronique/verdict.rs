@@ -353,6 +353,8 @@ mod tests {
         for (attente, rendu) in images {
             let debut = t + Duration::from_micros(*attente);
             let fin = debut + Duration::from_micros(*rendu);
+            // Un mouvement continu : chaque image est due des la presentation precedente.
+            c.rythme.en_retard(fin, debut, Some(t));
             c.rythme.presentee(fin, debut, pas, 1_000.0, true);
             c.enregistrer(Instantane {
                 duree_us: 5_800,
