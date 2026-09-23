@@ -29,7 +29,7 @@ impl GlucoseApp {
     /// plus a le connaitre. La fiche 05 § 1.7 demande un gestionnaire qui traduit un evenement
     /// en intention et rien d'autre ; melanger la naissance d'une fenetre et le relachement
     /// d'un bouton dans un seul `match` est ce qui l'a fait passer les quatre-vingts lignes.
-    fn evenement_de_la_main(&mut self, event: &WindowEvent) -> bool {
+    pub(super) fn evenement_de_la_main(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::ModifiersChanged(mods) => self.modifiers = mods.state(),
             // **Le focus n'etait ecoute nulle part** (REVEIL-1). Le clic qui ramene Glucose au
@@ -52,6 +52,7 @@ impl GlucoseApp {
             WindowEvent::DroppedFile(chemin) => self.depot.fichiers.push(chemin.clone()),
             _ => return false,
         }
+        self.provenance.noter_la_main();
         true
     }
 
@@ -60,10 +61,7 @@ impl GlucoseApp {
         if !self.ce_clic_agit(state) {
             return;
         }
-        let (largeur, hauteur) = self.window.as_ref().map_or((1280.0, 720.0), |w| {
-            let taille = w.inner_size();
-            (taille.width as f32, taille.height as f32)
-        });
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
         match state {
             ElementState::Pressed => self.handle_mouse_down(button, largeur, hauteur),
             ElementState::Released => self.handle_mouse_up(button),
@@ -181,6 +179,7 @@ impl GlucoseApp {
         if !self.depot.fichiers.is_empty() {
             let lot = std::mem::take(&mut self.depot.fichiers);
             self.drop_files(&lot);
+            self.provenance.noter_un_depot();
         }
 
         // **Ce que le pont natif a recolte** (DEPOT-WEB-1). Il ecrit depuis la boucle de
@@ -194,6 +193,7 @@ impl GlucoseApp {
             .unwrap_or_default()
         {
             self.recevoir_le_depot(depot);
+            self.provenance.noter_un_depot();
         }
 
         self.chronique
@@ -204,7 +204,7 @@ impl GlucoseApp {
         // boucle d'images : au repos il ne s'en rend aucune, donc un releve accroche aux
         // images ne mesurerait jamais le repos -- precisement le cas qui interesse.
         let compte = crate::chronique::veille::Compte {
-            sous_la_main: self.chronique.rendues_sous_la_main(),
+            sous_la_main: self.provenance.evenements_de_la_main(),
             rendues: self.chronique.rendues(),
         };
         self.chronique

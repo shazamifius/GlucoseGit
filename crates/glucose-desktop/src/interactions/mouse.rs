@@ -90,11 +90,35 @@ impl GlucoseApp {
         } else if self.selection_box.is_some() {
             self.update_selection_box(position.x, position.y);
             self.mark_dirty();
-        } else if position.y < self.ui.header_height() as f64 {
-            self.mark_dirty();
+        } else {
+            let bande = f64::from(self.ui.header_height());
+            if position.y < bande || prev_pos.1 < bande {
+                self.suivre_le_survol_de_la_bande();
+            }
         }
 
         self.update_cursor();
+    }
+
+    /// **La bande ne se redessine que quand le survol change** : d'un bouton à un autre, d'un
+    /// onglet à un autre, ou hors de la bande.
+    ///
+    /// Elle se redessinait à chaque mouvement du pointeur au-dessus d'elle — l'image entière,
+    /// pour des pixels identiques tant qu'il restait sur le même bouton. Et elle ne se
+    /// redessinait pas quand il la quittait, si bien qu'un bouton restait éclairé sous un
+    /// pointeur parti (fiche 29 § 4.4).
+    fn suivre_le_survol_de_la_bande(&mut self) {
+        let survol = crate::ui::bande::survol_de_la_bande(
+            &self.store,
+            &self.ui,
+            &self.renderer.typography,
+            self.taille_de_la_fenetre().0,
+            self.pointer(),
+        );
+        if survol != self.ui.survol {
+            self.ui.survol = survol;
+            self.mark_dirty();
+        }
     }
 
     /// Le curseur tient la minimap : la destination du vol le suit.

@@ -166,10 +166,11 @@ pub struct Instantane {
     /// Au-dessous, le contenu a moins avancé que sa durée d'affichage ne le demandait : il
     /// traîne. Au-dessus, il a sauté. Zéro dit que la vue ne bougeait pas.
     pub fidelite_millieme: u16,
-    /// Ce qui empêchait l'application de dormir — un bit par raison de réveil.
+    /// **D'où vient l'image** — un bit par raison de réveil, plus la main, un dépôt, ou le
+    /// système quand rien de connu ne l'a demandée (`app::reveil::Provenance`).
     ///
     /// Un masque et non la seule raison la plus pressée : savoir laquelle a gagné la course
-    /// ne dit pas laquelle il faudrait supprimer. Les huit tiennent dans un `u16`.
+    /// ne dit pas laquelle il faudrait supprimer. Les onze tiennent dans un `u16`.
     pub reveils: u16,
     /// **Pourquoi les panneaux se sont refaits** — un bit par partie de leur clé (DOCKS-1).
     ///

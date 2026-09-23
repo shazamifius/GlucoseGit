@@ -527,3 +527,46 @@ fn cadre_de(panel: &crate::dock::PanelLayoutBox, scale: f32) -> ScaledRect {
         scale,
     }
 }
+
+/// **Survoler la barre ne redessine que quand le survol change** (fiche 29 § 4.4).
+///
+/// Chaque mouvement du pointeur au-dessus de la barre refaisait l'image entière, pour des
+/// pixels identiques tant qu'il restait sur le même bouton ; et le quitter ne redessinait
+/// rien, si bien qu'un bouton restait éclairé sous un pointeur parti.
+#[test]
+fn test_survoler_la_barre_ne_redessine_que_quand_le_survol_change() {
+    use crate::salissure::Salissure;
+    let mut app = GlucoseApp::new();
+    let barre = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, 0);
+    let (a, b) = (&barre.buttons[0], &barre.buttons[1]);
+    let mut bouger = |x: f32, y: f32| {
+        app.handle_cursor_moved(PhysicalPosition::new(f64::from(x), f64::from(y)));
+        app.prendre_la_salissure()
+    };
+    let milieu = a.y + a.h / 2.0;
+    assert_eq!(
+        bouger(a.x + 2.0, milieu),
+        Salissure::Tout,
+        "entrer sur un bouton l'eclaire"
+    );
+    assert_eq!(
+        bouger(a.x + 3.0, milieu),
+        Salissure::Rien,
+        "sur le meme bouton, rien ne change"
+    );
+    assert_eq!(
+        bouger(b.x + 2.0, milieu),
+        Salissure::Tout,
+        "un autre bouton : le survol change"
+    );
+    assert_eq!(
+        bouger(400.0, 500.0),
+        Salissure::Tout,
+        "quitter la barre eteint le bouton"
+    );
+    assert_eq!(
+        bouger(401.0, 500.0),
+        Salissure::Rien,
+        "et survoler le canevas ne redessine rien"
+    );
+}

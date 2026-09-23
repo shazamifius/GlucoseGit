@@ -16,6 +16,9 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowAttributes;
 
+/// La taille d'une fenêtre qui naît, en unités logiques.
+const TAILLE_INITIALE: (f64, f64) = (1440.0, 900.0);
+
 impl GlucoseApp {
     /// **Ce que la machine annonce d'elle-meme**, ecrit une fois au demarrage.
     ///
@@ -99,13 +102,24 @@ impl GlucoseApp {
         }
     }
 
+    /// **La taille de la fenêtre**, ou celle qu'elle a à sa naissance tant qu'elle n'existe pas —
+    /// dans une épreuve, par exemple.
+    pub(crate) fn taille_de_la_fenetre(&self) -> (f32, f32) {
+        self.window
+            .as_ref()
+            .map_or((TAILLE_INITIALE.0 as f32, TAILLE_INITIALE.1 as f32), |w| {
+                let taille = w.inner_size();
+                (taille.width as f32, taille.height as f32)
+            })
+    }
+
     /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
     /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
     pub(super) fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
         let title = self.window_title();
         let attrs = WindowAttributes::default()
             .with_title(&title)
-            .with_inner_size(LogicalSize::new(1440.0, 900.0));
+            .with_inner_size(LogicalSize::new(TAILLE_INITIALE.0, TAILLE_INITIALE.1));
 
         let window = event_loop
             .create_window(attrs)

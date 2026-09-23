@@ -199,7 +199,7 @@ impl GlucoseApp {
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;
-        vu.reveils = lire("reveil_masque").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.reveils = self.provenance.de_l_image();
         // RYTHME-1 : ce que l'ecran a MONTRE. Ces trois-la ne viennent pas des compteurs mais
         // de la mesure prise a la presentation elle-meme : un compteur f64 perdrait le type,
         // et c'est precisement le genre de perte qui a fait lire des zeros pour des mesures.

@@ -200,7 +200,7 @@ impl Chronique {
             return;
         };
         t.push_str(
-            "  Pourquoi l'application ne dort pas
+            "  D'ou viennent les images -- la main, une raison de se reveiller, ou le systeme
 
 ",
         );
@@ -215,12 +215,9 @@ impl Chronique {
             .filter(|(_, images)| *images > 0)
             .map(|(r, images)| (r.nom(), images))
             .collect();
+        // Chaque image a au moins une provenance -- le systeme quand rien de connu ne l'a
+        // demandee --, donc une liste vide ne veut dire qu'une chose : aucune image.
         if raisons.is_empty() {
-            t.push_str(
-                "    aucune : chaque image a ete demandee par un geste
-
-",
-            );
             return;
         }
         raisons.sort_by_key(|(_, images)| std::cmp::Reverse(*images));

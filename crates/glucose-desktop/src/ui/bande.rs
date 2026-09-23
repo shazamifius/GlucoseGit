@@ -50,8 +50,45 @@ pub struct BandeKey {
     images: usize,
     /// Les tableaux — identifiant, nom, lequel est actif — réduits à une empreinte.
     tableaux: u64,
-    bouton_survole: Option<usize>,
-    onglet_survole: Option<usize>,
+    survol: Survol,
+}
+
+/// **Ce que le pointeur survole dans la bande** : un bouton, un onglet — la seule chose de la
+/// bande qu'il change.
+///
+/// Une seule définition, lue deux fois : par le dessin, pour sa clé, et par la souris, pour
+/// savoir s'il y a quelque chose à redessiner. Deux définitions finiraient par ne plus
+/// désigner le même bouton, et la souris redessinerait pour rien — ou ne redessinerait pas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Survol {
+    bouton: Option<usize>,
+    onglet: Option<usize>,
+}
+
+/// Ce que le pointeur survole dans des layouts déjà calculés.
+fn survol(barre: &TopbarLayout, onglets: &[TabButtonLayout], pointer: Pointer) -> Survol {
+    Survol {
+        bouton: barre
+            .buttons
+            .iter()
+            .position(|b| contient(b.x, b.y, b.w, b.h, pointer)),
+        onglet: onglets
+            .iter()
+            .position(|t| contient(t.x, t.y, t.width, t.height, pointer)),
+    }
+}
+
+/// **Ce que le pointeur survole dans la bande d'une fenêtre large de `largeur`.**
+pub fn survol_de_la_bande(
+    store: &Store,
+    ui: &UiState,
+    typo: &Typography,
+    largeur: f32,
+    pointer: Pointer,
+) -> Survol {
+    let barre = layout_topbar(largeur, ui, typo, store.nombre_d_images());
+    let onglets = layout_tabs(store, typo, ui.topbar_height(), ui.scale());
+    survol(&barre, &onglets, pointer)
 }
 
 /// La bande déjà dessinée, et la clé sous laquelle elle l'a été.
@@ -87,13 +124,7 @@ pub(super) fn render_bande(
         smart_align: ui.smart_align,
         images,
         tableaux: empreinte_des_tableaux(&onglets),
-        bouton_survole: barre
-            .buttons
-            .iter()
-            .position(|b| contient(b.x, b.y, b.w, b.h, pointer)),
-        onglet_survole: onglets
-            .iter()
-            .position(|t| contient(t.x, t.y, t.width, t.height, pointer)),
+        survol: survol(&barre, &onglets, pointer),
     };
     let hauteur = ui.header_height().ceil() as u32;
     let perime = ui
@@ -113,7 +144,7 @@ pub(super) fn render_bande(
                 theme,
                 largeur,
                 &barre,
-                cle.bouton_survole,
+                cle.survol.bouton,
             );
             render_board_tabs(
                 &mut vue,
@@ -122,7 +153,7 @@ pub(super) fn render_bande(
                 theme,
                 largeur,
                 &onglets,
-                cle.onglet_survole,
+                cle.survol.onglet,
             );
         }
         let dessins = ui.bande_cache.as_ref().map_or(0, |c| c.dessins) + 1;

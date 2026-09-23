@@ -94,8 +94,9 @@ pub enum UiAction {
 pub struct UiState {
     pub active_tool: ActiveTool,
     pub smart_align: bool,
-    #[allow(dead_code)]
-    pub hovered_btn: Option<String>,
+    /// Ce que le pointeur survole dans la bande, tel que la souris l'a vu en dernier : c'est
+    /// ce qui lui dit si un mouvement change quelque chose à redessiner.
+    pub survol: bande::Survol,
     pub current_toast: Option<Toast>,
     /// Le menu contextuel ouvert, et le point où il l'a été. `None` quand il est fermé.
     ///
@@ -138,7 +139,7 @@ impl UiState {
         Self {
             active_tool: ActiveTool::Select,
             smart_align: true,
-            hovered_btn: None,
+            survol: bande::Survol::default(),
             current_toast: None,
             context_menu_at: None,
             scale_factor: 1.0,

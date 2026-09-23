@@ -86,6 +86,8 @@ pub struct GlucoseApp {
     /// quand l'application s'est endormie faute de quoi que ce soit a faire : l'intervalle qui
     /// suit est alors du repos, pas un gel, et la trajectoire n'a rien a rattraper.
     image_attendue: bool,
+    /// D'où vient chaque image : la main, une raison de réveil, un dépôt, ou le système.
+    pub(crate) provenance: reveil::Provenance,
     /// Le bouton gauche tient-il la minimap ?
     ///
     /// Tant qu'il tient, la destination du vol **suit le curseur** : c'est le voyage continu
@@ -303,6 +305,7 @@ impl GlucoseApp {
             pas_et_vitesse: (std::time::Duration::ZERO, 0.0),
             rythme_de_l_image: crate::chronique::rythme::Mesure::default(),
             image_attendue: false,
+            provenance: reveil::Provenance::default(),
             tempo: crate::tempo::Tempo::nouveau(),
             minimap_tenue: false,
             horloge: crate::horloge::Horloge::nouvelle(),
@@ -426,6 +429,13 @@ impl GlucoseApp {
     /// C'est la déclaration de celui qui ne sait pas ce qu'il a changé, et elle reste juste :
     /// redessiner l'écran entier coûte ce qu'il coûtait hier. Un geste qui sait désigner sa
     /// zone appelle [`GlucoseApp::salir`] et paie beaucoup moins.
+    /// Ce que la prochaine image devra redessiner, pris comme la peinture le prend : une
+    /// épreuve y lit si un geste a demandé une image, sans avoir à en peindre une.
+    #[cfg(test)]
+    pub(crate) fn prendre_la_salissure(&self) -> crate::salissure::Salissure {
+        self.salissure.replace(crate::salissure::Salissure::Rien)
+    }
+
     pub fn mark_dirty(&self) {
         self.noter_l_echeance(std::time::Instant::now());
         self.salissure.set(crate::salissure::Salissure::Tout);

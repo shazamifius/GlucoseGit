@@ -72,11 +72,13 @@ pub struct Veille {
 /// Où en est la session quand on la relève.
 ///
 /// Deux nombres et non un, parce que la question et sa réponse ne se lisent pas au même
-/// endroit : c'est **la main** qui dit s'il y avait un utilisateur, et ce sont **les images**
-/// qui disent ce que l'application faisait pendant ce temps.
+/// endroit : ce sont **les événements de la main** qui disent s'il y avait un utilisateur, et
+/// **les images** qui disent ce que l'application faisait pendant ce temps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Compte {
-    /// Combien d'images la main a demandées depuis le début de la session.
+    /// Combien d'**événements** la main a envoyés depuis le début de la session : souris,
+    /// molette, clavier, focus. Des événements et non des images classées sous un geste — un
+    /// survol n'est classé sous aucun, et c'est pourtant la main (fiche 29 § 4.4).
     pub sous_la_main: u64,
     /// Combien d'images ont été rendues, toutes causes confondues.
     pub rendues: u64,

@@ -41,12 +41,20 @@ pub enum Raison {
     Decodage,
     Chantier,
     Pomodoro,
+    /// La main a bougé, cliqué ou tapé depuis l'image précédente.
+    Main,
+    /// Un dépôt est arrivé — un fichier lâché, une image rapatriée d'une page.
+    Depot,
+    /// **Personne de ce que Glucose sait nommer** : la fenêtre que le système demande de
+    /// repeindre, ou une raison qu'on aurait oublié d'écrire ici. C'est la ligne qui accuse.
+    Systeme,
 }
 
 impl Raison {
-    /// Dans l'ordre des bits du masque. L'ordre est celui de [`GlucoseApp::prochain_reveil`],
-    /// pour qu'une raison ajoutée là se retrouve ici sans réfléchir.
-    pub const TOUTES: [Self; 8] = [
+    /// Dans l'ordre des bits du masque. Les huit premières sont dans l'ordre de
+    /// [`GlucoseApp::prochain_reveil`], pour qu'une raison ajoutée là se retrouve ici sans
+    /// réfléchir ; les trois dernières ne réveillent pas, elles disent ce qui est arrivé.
+    pub const TOUTES: [Self; 11] = [
         Self::Curseur,
         Self::Toast,
         Self::Animation,
@@ -55,6 +63,9 @@ impl Raison {
         Self::Decodage,
         Self::Chantier,
         Self::Pomodoro,
+        Self::Main,
+        Self::Depot,
+        Self::Systeme,
     ];
 
     pub fn nom(self) -> &'static str {
@@ -67,12 +78,76 @@ impl Raison {
             Self::Decodage => "images en decodage",
             Self::Chantier => "vignettes a construire",
             Self::Pomodoro => "minuteur",
+            Self::Main => "la main",
+            Self::Depot => "un depot arrive",
+            Self::Systeme => "le systeme",
         }
     }
 
     /// Le bit de cette raison dans le masque d'une image.
     pub fn bit(self) -> u16 {
         1 << Self::TOUTES.iter().position(|r| *r == self).unwrap_or(0)
+    }
+}
+
+/// **D'où vient chaque image** : la main, une raison de réveil, un dépôt — ou personne de
+/// connu, c'est-à-dire le système.
+///
+/// # Pourquoi elle existe : l'instrument était aveugle
+///
+/// Le masque des raisons se notait comme un compteur de l'image, dans `about_to_wait` —
+/// c'est-à-dire **entre** deux images. Or `perf::frame_begin` vide les compteurs au début de
+/// chaque image : le masque était effacé avant d'être lu, et la chronique répondait
+/// « aucune : chaque image a été demandée par un geste » à toutes les sessions, y compris
+/// celle qui dessinait treize images par seconde sans qu'on y touche (fiche 29 § 4.4).
+///
+/// Il vit donc ici, dans l'application, jusqu'à l'image qu'il a provoquée.
+///
+/// # Et la main se compte en gestes, pas en images
+///
+/// La veille appelait « sans la main » un intervalle sans image **classée** sous un geste.
+/// Un survol de la barre n'en a pas — il est classé « repos » — et redessinait pourtant à
+/// chaque mouvement : l'application passait pour éveillée toute seule pendant que la main la
+/// survolait. Un événement de la souris ou du clavier, lui, ne se classe pas : il a eu lieu.
+#[derive(Debug, Default)]
+pub struct Provenance {
+    /// Les raisons actives au dernier endormissement : celles qui ont demandé l'image à venir.
+    raisons: u16,
+    /// Ce qui est arrivé depuis l'image précédente, hors des raisons de réveil.
+    arrive: u16,
+    /// Combien d'événements la main a envoyés depuis le début de la session.
+    evenements_de_la_main: u64,
+}
+
+impl Provenance {
+    /// La souris a bougé, cliqué, tourné ; le clavier a parlé ; le focus a changé.
+    pub fn noter_la_main(&mut self) {
+        self.evenements_de_la_main += 1;
+        self.arrive |= Raison::Main.bit();
+    }
+
+    /// Un dépôt vient d'être posé.
+    pub fn noter_un_depot(&mut self) {
+        self.arrive |= Raison::Depot.bit();
+    }
+
+    /// Combien d'événements la main a envoyés depuis le début de la session.
+    pub fn evenements_de_la_main(&self) -> u64 {
+        self.evenements_de_la_main
+    }
+
+    /// **Ce que l'image qu'on enregistre doit à chacun**, et l'oubli de ce qui est arrivé
+    /// avant elle.
+    ///
+    /// Une image que rien de connu n'a demandée est portée au compte du système : c'est ainsi
+    /// que la ligne qui accuse existe, au lieu d'un silence.
+    pub fn de_l_image(&mut self) -> u16 {
+        let masque = self.raisons | std::mem::take(&mut self.arrive);
+        if masque == 0 {
+            Raison::Systeme.bit()
+        } else {
+            masque
+        }
     }
 }
 
@@ -136,7 +211,7 @@ impl GlucoseApp {
             .zip(Raison::TOUTES)
             .filter(|(attente, _)| attente.is_some())
             .fold(0u16, |masque, (_, raison)| masque | raison.bit());
-        crate::perf::compteur("reveil_masque", f64::from(masque));
+        self.provenance.raisons = masque;
         attentes.into_iter().flatten().min()
     }
 
@@ -256,3 +331,6 @@ impl GlucoseApp {
         Some(1000_u128.saturating_sub(elapsed_ms).max(1) as u64)
     }
 }
+
+#[cfg(test)]
+mod tests;

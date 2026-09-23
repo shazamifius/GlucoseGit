@@ -378,23 +378,6 @@ impl Chronique {
         (self.cachees, self.perdues)
     }
 
-    /// **Combien d'images la main a demandees**, depuis le debut de la session.
-    ///
-    /// C'est-a-dire toutes sauf celles du repos. La veille s'en sert pour savoir si un
-    /// intervalle s'est passe sans utilisateur : compter les images RENDUES ne repondrait
-    /// pas, puisqu'une application qui se reveille toute seule en rend aussi -- et c'est
-    /// exactement ce que la premiere mesure a annonce comme « pendant qu'on s'en sert »
-    /// alors que personne n'y touchait.
-    pub fn rendues_sous_la_main(&self) -> u64 {
-        // **Le decodage n'est pas la main, et c'est meme ce qu'on cherche a mesurer.** Un
-        // document ouvert puis laisse la continue de decoder ; c'est exactement « ce que
-        // Glucose coute en arriere-plan ». Le compter comme de l'usage ferait disparaitre du
-        // rapport le seul regime ou il pese.
-        let sans_la_main =
-            self.rendues_du_geste(Geste::Repos) + self.rendues_du_geste(Geste::Decoder);
-        self.rendues.saturating_sub(sans_la_main)
-    }
-
     /// Retient l'indice d'un poste, et le crée s'il est nouveau.
     ///
     /// Les noms sont des littéraux du code, donc en nombre fini et connus d'avance : la table
