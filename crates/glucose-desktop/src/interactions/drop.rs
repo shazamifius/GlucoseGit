@@ -190,6 +190,12 @@ impl GlucoseApp {
         liens: &[String],
         client: Option<(f64, f64)>,
     ) {
+        // **Un raccourci Internet est une adresse**, d'ou qu'il vienne (DEPOT-WEB-2) : il
+        // rejoint les liens, et se pose en carte qu'on peut suivre plutot qu'en carte qui
+        // porte son nom de fichier.
+        let (fichiers, adresses) = crate::plateforme::moisson::lire_les_raccourcis(paths);
+        let liens: Vec<String> = liens.iter().cloned().chain(adresses).collect();
+        let paths = fichiers.as_slice();
         let attendus = paths.len() + liens.len();
         if attendus == 0 {
             return;
@@ -205,7 +211,7 @@ impl GlucoseApp {
                 placed += 1;
             }
         }
-        for lien in liens {
+        for lien in &liens {
             let offset = placed as f64 * CASCADE;
             self.place_link(&board, lien, (ox + offset, oy + offset));
             placed += 1;

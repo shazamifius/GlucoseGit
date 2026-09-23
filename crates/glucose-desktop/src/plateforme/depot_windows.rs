@@ -251,8 +251,13 @@ fn recolter(objet: &IDataObject) -> Moisson {
             ..Moisson::default()
         };
     }
+    // **Un raccourci promis passe APRES le bitmap** (DEPOT-WEB-2). Glisser une epingle depuis
+    // Pinterest fait promettre a Chrome un `.url` -- une adresse habillee en fichier, le
+    // format le plus pauvre qui soit. Le prendre au deuxieme rang faisait passer une adresse
+    // devant l'image que la page posait peut-etre a cote.
     let promis = fichiers_promis(objet);
-    if !promis.is_empty() {
+    let que_des_raccourcis = promis.iter().all(|p| moisson::est_un_raccourci(p));
+    if !promis.is_empty() && !que_des_raccourcis {
         return Moisson {
             chemins: promis,
             ..Moisson::default()
@@ -262,6 +267,14 @@ fn recolter(objet: &IDataObject) -> Moisson {
     if !bitmap.is_empty() {
         return Moisson {
             chemins: bitmap,
+            ..Moisson::default()
+        };
+    }
+    // Les raccourcis se poseront en liens : `drop` lit leur adresse, comme pour un raccourci
+    // glisse depuis le bureau.
+    if !promis.is_empty() {
+        return Moisson {
+            chemins: promis,
             ..Moisson::default()
         };
     }

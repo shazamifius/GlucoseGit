@@ -159,5 +159,69 @@ pub fn poser(dossier: &Path, propose: &str, rang: usize, octets: &[u8]) -> Optio
     Some(chemin)
 }
 
+/// **Ce fichier est-il un raccourci Internet** — une adresse dans un habit de fichier ?
+///
+/// # Le défaut que cette question ferme
+///
+/// Glisser une épingle depuis la grille de Pinterest ne donne pas l'image : Chrome promet un
+/// fichier `.url`, soixante-quatorze octets qui disent `URL=https://fr.pinterest.com/pin/…`.
+/// Le pont le traitait comme n'importe quel fichier promis — le deuxième format le plus sûr,
+/// devant le bitmap — et `drop` le posait en carte portant son **nom** :
+/// *« 1790160747344231500-0-fr.pinterest.com.url »*. Ni l'image, ni un lien qu'on puisse
+/// suivre. C'est ce que l'utilisateur a vu le 23/09.
+///
+/// Un raccourci n'apporte aucun contenu : il n'apporte qu'une adresse, et c'est le format le
+/// **plus pauvre** qu'un dépôt puisse porter. Il se lit donc comme tel, où qu'il vienne —
+/// promis par un navigateur ou glissé depuis le bureau.
+pub fn est_un_raccourci(chemin: &Path) -> bool {
+    chemin
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("url"))
+}
+
+/// **L'adresse qu'un raccourci Internet désigne**, ou rien s'il n'en porte pas.
+///
+/// Le format est un fichier INI de Windows : une section `[InternetShortcut]` et une clé
+/// `URL=`. On ne lit que cette clé-là, dans cette section-là — un raccourci peut porter une
+/// icône, des dates, un numéro de favori, et aucun ne désigne ce qu'on a voulu déposer.
+pub fn adresse_du_raccourci(texte: &str) -> Option<String> {
+    let mut dans_la_section = false;
+    for ligne in texte.lines().map(str::trim) {
+        if ligne.starts_with('[') {
+            dans_la_section = ligne.eq_ignore_ascii_case("[InternetShortcut]");
+            continue;
+        }
+        let Some((cle, valeur)) = ligne.split_once('=') else {
+            continue;
+        };
+        if dans_la_section && cle.trim().eq_ignore_ascii_case("URL") {
+            let adresse = valeur.trim();
+            return (!adresse.is_empty()).then(|| adresse.to_string());
+        }
+    }
+    None
+}
+
+/// **Sépare les raccourcis du reste**, et rend leurs adresses à la place de leurs fichiers.
+///
+/// Un raccourci illisible reste un fichier : le lanceur le montrera, et c'est un repli
+/// visible plutôt qu'un dépôt qui disparaît.
+pub fn lire_les_raccourcis(chemins: &[PathBuf]) -> (Vec<PathBuf>, Vec<String>) {
+    let mut fichiers = Vec::with_capacity(chemins.len());
+    let mut adresses = Vec::new();
+    for chemin in chemins {
+        let adresse = est_un_raccourci(chemin)
+            .then(|| std::fs::read(chemin).ok())
+            .flatten()
+            .and_then(|octets| adresse_du_raccourci(&String::from_utf8_lossy(&octets)));
+        match adresse {
+            Some(a) => adresses.push(a),
+            None => fichiers.push(chemin.clone()),
+        }
+    }
+    (fichiers, adresses)
+}
+
 #[cfg(test)]
 mod tests;

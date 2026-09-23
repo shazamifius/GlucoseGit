@@ -331,3 +331,38 @@ fn test_the_batch_report_counts_both_what_landed_and_what_did_not() {
     assert_eq!(compte_rendu(0, 4), "Aucun des 4 fichiers n'a pu être posé");
     assert_eq!(compte_rendu(0, 0), "", "un lot vide n'a rien à dire");
 }
+
+/// **DEPOT-WEB-2** — un raccourci Internet se pose en lien qu'on peut suivre, pas en carte qui
+/// porte son nom de fichier.
+///
+/// C'est ce que l'utilisateur a vu le 23/09 en glissant deux épingles depuis Pinterest : deux
+/// cartes « 1790160747344231500-0-fr.pinterest.com.url », ni image ni lien. Le fichier est ici
+/// celui du terrain, aux octets près.
+#[test]
+fn test_a_web_shortcut_lands_as_a_link_not_as_its_file_name() {
+    let bac = Bac::neuf("raccourci");
+    let path = bac.ecrit(
+        "1790160747344231500-0-fr.pinterest.com.url",
+        b"[InternetShortcut]\r\nURL=https://fr.pinterest.com/pin/288441551156395185/\r\n",
+    );
+    let mut app = app();
+    app.drop_files(std::slice::from_ref(&path));
+
+    let posees = annotations(&app);
+    assert_eq!(posees.len(), 1, "un raccourci, une carte");
+    let Annotation::Text { text, .. } = &posees[0] else {
+        panic!("un lien se pose en carte de texte, pas {posees:?}");
+    };
+    assert!(
+        !text.contains(".url"),
+        "la carte ne doit pas porter le nom du fichier : {text}"
+    );
+    // La preuve va jusqu'a ce que le clic emploie : une chaine bien formee en apparence ne
+    // prouve pas qu'un lien s'ouvre (fiche 25 § 3.2).
+    let debut = text.find("https://").expect("l'adresse est dans la carte");
+    assert_eq!(
+        crate::interactions::links::url_at(text, debut + 4).as_deref(),
+        Some("https://fr.pinterest.com/pin/288441551156395185/"),
+        "Ctrl+clic doit suivre l'epingle : {text}"
+    );
+}

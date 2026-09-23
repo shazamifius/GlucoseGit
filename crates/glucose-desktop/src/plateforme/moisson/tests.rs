@@ -134,3 +134,39 @@ fn test_une_position_sans_fichier_n_est_pas_un_depot() {
     };
     assert!(m.est_vide());
 }
+
+/// Les octets **exacts** du raccourci que Chrome a promis quand l'utilisateur a glissé une
+/// épingle depuis la grille de Pinterest, le 23/09 — relus sur son disque, fins de ligne
+/// Windows comprises.
+const RACCOURCI_DU_TERRAIN: &str =
+    "[InternetShortcut]\r\nURL=https://fr.pinterest.com/pin/288441551156395185/\r\n";
+
+#[test]
+fn test_un_raccourci_du_terrain_rend_son_adresse() {
+    assert_eq!(
+        adresse_du_raccourci(RACCOURCI_DU_TERRAIN).as_deref(),
+        Some("https://fr.pinterest.com/pin/288441551156395185/")
+    );
+}
+
+/// Seule la clé `URL` de la section `[InternetShortcut]` désigne ce qu'on a déposé : une autre
+/// section peut porter sa propre clé `URL`, et un raccourci sans adresse n'en invente pas une.
+#[test]
+fn test_seule_l_adresse_du_raccourci_compte() {
+    let brouille = "[DEFAULT]\r\nBASEURL=https://ailleurs.example/\r\n[Autre]\r\nURL=https://piege.example/\r\n\
+                    [InternetShortcut]\r\nIconIndex=0\r\nurl = https://vrai.example/x \r\n";
+    assert_eq!(
+        adresse_du_raccourci(brouille).as_deref(),
+        Some("https://vrai.example/x")
+    );
+    assert_eq!(adresse_du_raccourci("[InternetShortcut]\r\nURL=\r\n"), None);
+    assert_eq!(adresse_du_raccourci("du texte quelconque"), None);
+}
+
+#[test]
+fn test_un_raccourci_se_reconnait_a_son_extension_quelle_que_soit_sa_casse() {
+    assert!(est_un_raccourci(Path::new("epingle.url")));
+    assert!(est_un_raccourci(Path::new(r"C:\bureau\Lien.URL")));
+    assert!(!est_un_raccourci(Path::new("image.jpg")));
+    assert!(!est_un_raccourci(Path::new("url")));
+}
