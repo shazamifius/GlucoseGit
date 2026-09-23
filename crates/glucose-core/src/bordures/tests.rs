@@ -212,3 +212,99 @@ fn test_un_ciel_uni_se_fait_rogner_et_c_est_assume() {
         "le ciel est pris pour une bande : c'est connu et annulable"
     );
 }
+
+// ── BORDURES-3 : les rangées de transition entre la bande et le contenu ─────────────
+
+/// Un contenu texturé comme une peinture : jamais uni, autour d'un brun-vert.
+fn peinture(x: u32, y: u32) -> Pixel {
+    let v = ((x * 37 + y * 11) % 41) as u8;
+    [100 + v, 95 + v / 2, 45 + v / 3, 255]
+}
+
+/// Le mélange `a · bande + (1 − a) · pixel`, canal par canal : ce que l'anticrénelage et la
+/// compression font du rang qui touche la bande.
+fn fondu(bande: Pixel, p: Pixel, a: f64) -> Pixel {
+    let m = |c: usize| (a * f64::from(bande[c]) + (1.0 - a) * f64::from(p[c])).round() as u8;
+    [m(0), m(1), m(2), 255]
+}
+
+/// **Le liseré que l'utilisateur voit après `Ctrl+B`**, reconstitué depuis sa capture du 23/09.
+///
+/// Mesuré au bord du haut, de l'extérieur vers l'intérieur : le fond du canevas, puis
+/// `243,239,218` — presque blanc —, `147,140,103` — à mi-chemin —, et l'image `118,111,58`.
+/// La bande blanche est partie ; les deux rangs qui la mêlaient à l'image sont restés, et c'est
+/// le liseré clair. Ici : six rangs de bande blanche, puis deux rangs de transition —
+/// `0,87 · blanc` puis `0,21 · blanc` sur le premier rang de peinture —, puis la peinture.
+#[test]
+fn test_les_rangs_de_transition_partent_avec_la_bande() {
+    let (l, h) = (200, 60);
+    let img = image(l, h, |x, y| match y {
+        0..6 => BLANC,
+        6 => fondu(BLANC, peinture(x, 8), 0.87),
+        7 => fondu(BLANC, peinture(x, 8), 0.21),
+        _ => peinture(x, y),
+    });
+    assert_eq!(
+        en_pixels(&img, l, h).1,
+        8,
+        "la bande ET ses deux rangs de transition, sinon le liseré reste"
+    );
+}
+
+/// **Un dégradé du contenu n'est pas une transition** — c'est le bord du bas de la même capture.
+///
+/// Mesuré de l'intérieur vers l'extérieur : `76, 78, 80, 85, 93, 98, 103, 111` — l'image
+/// s'éclaircit doucement vers son bord —, puis `186,183,177`, puis la bande. Seul `186` est une
+/// transition : les rangs du dégradé ne diffèrent de leur voisin que de quelques niveaux, ce
+/// qu'un contenu fait tout le temps.
+#[test]
+fn test_un_degrade_du_contenu_reste_seul_le_rang_de_transition_part() {
+    let (l, h) = (200, 60);
+    let degrade = |x: u32, y: u32| {
+        let p = peinture(x, y);
+        let k = (y.saturating_sub(44) * 5) as u8;
+        [
+            p[0].saturating_add(k),
+            p[1].saturating_add(k),
+            p[2].saturating_add(k),
+            255,
+        ]
+    };
+    let img = image(l, h, |x, y| match y {
+        0..52 => degrade(x, y),
+        52 => fondu(BLANC, degrade(x, 51), 0.54),
+        _ => BLANC,
+    });
+    assert_eq!(
+        en_pixels(&img, l, h).3,
+        8,
+        "sept rangs de bande et UN rang de transition -- le dégradé reste entier"
+    );
+}
+
+/// **Un fondu doux vers la bande ne se mange pas rang après rang.**
+///
+/// Le cas inverse, sans lequel les deux précédents ne prouveraient rien : une règle qui
+/// retirerait tout rang « un peu plus proche de la bande » dévorerait un vignettage entier.
+/// Vingt rangs qui glissent vers le blanc par pas de sept niveaux : aucun n'est une transition,
+/// et seuls les rangs déjà assez proches du blanc pour être de la bande partent.
+#[test]
+fn test_un_fondu_doux_vers_la_bande_ne_se_mange_pas() {
+    let (l, h) = (200, 80);
+    let img = image(l, h, |x, y| match y {
+        0..50 => peinture(x, y),
+        50..70 => fondu(BLANC, peinture(x, 49), f64::from(y - 49) / 21.0),
+        _ => BLANC,
+    });
+    // Ce que la bande seule retire : les rangs à moins de vingt-quatre niveaux du blanc.
+    let proches = (50..70)
+        .rev()
+        .take_while(|&y| {
+            (0..l).all(|x| {
+                let p = fondu(BLANC, peinture(x, 49), f64::from(y - 49) / 21.0);
+                (0..3).all(|c| 255 - p[c] <= 24)
+            })
+        })
+        .count() as u32;
+    assert_eq!(en_pixels(&img, l, h).3, 10 + proches);
+}

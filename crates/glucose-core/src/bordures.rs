@@ -52,6 +52,30 @@
 //! suffisent en pratique ; la boucle s'arrête d'elle-même parce qu'un rectangle ne peut que
 //! rétrécir.
 //!
+//! # BORDURES-3 — la couleur d'une bande se fige, et elle emporte ses rangs de transition
+//!
+//! L'utilisateur l'a signalé deux fois, et sa capture du 23/09 l'a chiffré : après `Ctrl+B`,
+//! **un liseré clair reste** sur trois côtés. Au bord du haut, de l'extérieur vers l'intérieur :
+//! `243,239,218`, puis `147,140,103`, puis l'image. La bande blanche est partie ; les deux rangs
+//! qui la **mêlaient** à l'image sont restés. L'anticrénelage et la compression fondent toujours
+//! le rang qui touche la bande : il n'est ni la bande, ni le contenu.
+//!
+//! Un rang est une **transition** quand il s'explique comme un mélange de la couleur de la
+//! bande et du rang suivant — `a · bande + (1 − a) · suivant`, avec un `a` commun à toute la
+//! ligne, trouvé par moindres carrés — **et** ne s'explique pas comme du simple contenu, c'est
+//! à dire qu'il diffère du rang suivant de plus que le bruit. Les deux tolérances sont
+//! [`ECART_DE_BANDE`] au centile de [`PART_ABERRANTE`] : aucun nombre n'est nouveau. Un dégradé
+//! du contenu, qui change de quelques niveaux par rang, n'est jamais une transition ; le rang
+//! qui saute de quarante niveaux vers la bande en est une.
+//!
+//! **Et un défaut plus ancien, que le test du dégradé a montré** : la boucle des quatre bords
+//! reprenait à chaque passage, comme couleur de bande, **le rang où elle venait de s'arrêter**.
+//! Un dégradé qui touche une bande se faisait donc grignoter de deux ou trois rangs à chaque
+//! tour — vingt et un rangs retirés là où la bande en comptait dix. La couleur d'un bord se
+//! **fige** désormais dès qu'il a trouvé sa bande ; un bord qui n'en a pas encore trouvé la
+//! cherche toujours à l'intérieur de ce que les autres ont retiré, ce pour quoi la boucle
+//! existe.
+//!
 //! # Ce qui trompe, et qu'on ne cache pas
 //!
 //! Une photo dont le **contenu** commence par une zone unie — un ciel sans nuage en haut, un
@@ -106,12 +130,23 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
     let (l, h) = (image.largeur(), image.hauteur());
     // Le rectangle qui reste : [x0, x1[ × [y0, y1[. Il ne peut que rétrécir.
     let (mut x0, mut y0, mut x1, mut y1) = (0u32, 0u32, l, h);
+    // La couleur de la bande de chaque bord -- haut, bas, gauche, droite --, figée dès qu'il
+    // l'a trouvée (BORDURES-3).
+    let mut bandes: [Option<Pixel>; 4] = [None; 4];
     loop {
         let avant = (x0, y0, x1, y1);
-        y0 += compter(y0..y1, |y| ligne(image, y, x0..x1));
-        y1 -= compter((y0..y1).rev(), |y| ligne(image, y, x0..x1));
-        x0 += compter(x0..x1, |x| colonne(image, x, y0..y1));
-        x1 -= compter((x0..x1).rev(), |x| colonne(image, x, y0..y1));
+        y0 += compter((y0..y1).collect(), &mut bandes[0], |y| {
+            ligne(image, y, x0..x1)
+        });
+        y1 -= compter((y0..y1).rev().collect(), &mut bandes[1], |y| {
+            ligne(image, y, x0..x1)
+        });
+        x0 += compter((x0..x1).collect(), &mut bandes[2], |x| {
+            colonne(image, x, y0..y1)
+        });
+        x1 -= compter((x0..x1).rev().collect(), &mut bandes[3], |x| {
+            colonne(image, x, y0..y1)
+        });
         if (x0, y0, x1, y1) == avant {
             break;
         }
@@ -124,31 +159,89 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
     )
 }
 
-/// Combien de lignes, prises dans cet ordre, sont de la bande.
+/// Combien de lignes, prises dans cet ordre, sont de la bande **ou de sa transition**.
 ///
-/// La couleur de référence est celle de la **première** ligne parcourue — le bord —, prise
-/// comme médiane par canal pour qu'un logo dans le coin ne la fausse pas. Une ligne est de la
-/// bande si au plus [`PART_ABERRANTE`] de ses pixels s'écartent de cette couleur de plus que
-/// [`ECART_DE_BANDE`].
-fn compter<I, F>(ordre: I, mut ligne_de: F) -> u32
+/// La couleur de la bande est `bande` si ce bord l'a déjà trouvée, sinon celle de la
+/// **première** ligne parcourue — le bord —, prise comme médiane par canal pour qu'un logo
+/// dans le coin ne la fausse pas. Elle se fige dès que le bord a trouvé sa bande
+/// (BORDURES-3). Une ligne est de la bande si au plus [`PART_ABERRANTE`] de ses pixels
+/// s'écartent de cette couleur de plus que [`ECART_DE_BANDE`] ; la première qui n'en est
+/// plus, et les suivantes, partent encore tant qu'elles sont des transitions.
+fn compter<F>(ordre: Vec<u32>, bande: &mut Option<Pixel>, mut ligne_de: F) -> u32
 where
-    I: IntoIterator<Item = u32>,
     F: FnMut(u32) -> Vec<Pixel>,
 {
-    let mut reference: Option<Pixel> = None;
-    let mut combien = 0u32;
-    for indice in ordre {
-        let pixels = ligne_de(indice);
-        if pixels.is_empty() {
-            break;
-        }
-        let couleur = *reference.get_or_insert_with(|| mediane(&pixels));
-        if ecart_au_centile(&pixels, couleur) > ECART_DE_BANDE {
-            break;
-        }
-        combien += 1;
+    let Some(&premier) = ordre.first() else {
+        return 0;
+    };
+    let mut courante = ligne_de(premier);
+    if courante.is_empty() {
+        return 0;
     }
-    combien
+    let couleur = bande.unwrap_or_else(|| mediane(&courante));
+    let mut rang = 0usize;
+    while ecart_au_centile(&courante, couleur) <= ECART_DE_BANDE {
+        rang += 1;
+        let Some(&suivant) = ordre.get(rang) else {
+            break;
+        };
+        courante = ligne_de(suivant);
+    }
+    if rang > 0 {
+        bande.get_or_insert(couleur);
+    }
+    // Une transition n'existe qu'entre une bande et un contenu : sans bande, rien a fondre.
+    if bande.is_some() {
+        while let Some(&suivant) = ordre.get(rang + 1) {
+            let apres = ligne_de(suivant);
+            if !est_une_transition(&courante, &apres, couleur) {
+                break;
+            }
+            rang += 1;
+            courante = apres;
+        }
+    }
+    u32::try_from(rang).unwrap_or(u32::MAX)
+}
+
+/// **Ce rang est-il un mélange de la bande et du rang suivant** (BORDURES-3) ?
+///
+/// Le mélange `a · bande + (1 − a) · suivant` se trouve par moindres carrés sur toute la ligne
+/// — un seul `a`, parce qu'un flou ou une compression fondent la ligne entière de la même
+/// façon. Le rang est une transition si ce mélange l'explique au bruit près, et si le rang
+/// suivant **seul** ne l'explique pas : sans la seconde condition, tout rang d'un dégradé
+/// doux passerait pour une transition, et un vignettage se mangerait rang après rang.
+fn est_une_transition(rang: &[Pixel], suivant: &[Pixel], bande: Pixel) -> bool {
+    if rang.len() != suivant.len() || rang.is_empty() {
+        return false;
+    }
+    let canal = |p: &Pixel, c: usize| f64::from(p[c]);
+    let (mut num, mut den) = (0.0f64, 0.0f64);
+    for (p, q) in rang.iter().zip(suivant) {
+        for c in 0..3 {
+            let vers_la_bande = canal(&bande, c) - canal(q, c);
+            num += (canal(p, c) - canal(q, c)) * vers_la_bande;
+            den += vers_la_bande * vers_la_bande;
+        }
+    }
+    if den <= 0.0 {
+        return false;
+    }
+    let a = (num / den).clamp(0.0, 1.0);
+    let ecart_au_melange = rang.iter().zip(suivant).map(|(p, q)| {
+        (0..3)
+            .map(|c| {
+                let melange = a * canal(&bande, c) + (1.0 - a) * canal(q, c);
+                (canal(p, c) - melange).abs()
+            })
+            .fold(0.0f64, f64::max)
+    });
+    let ecart_au_suivant = rang.iter().zip(suivant).map(|(p, q)| {
+        (0..3)
+            .map(|c| (canal(p, c) - canal(q, c)).abs())
+            .fold(0.0f64, f64::max)
+    });
+    au_centile(ecart_au_melange) <= ECART_DE_BANDE && au_centile(ecart_au_suivant) > ECART_DE_BANDE
 }
 
 /// La ligne `y`, sur les colonnes `xs`, copiée : les colonnes ne sont pas contiguës, et une
@@ -185,20 +278,27 @@ fn mediane(pixels: &[Pixel]) -> Pixel {
 /// bande — ce qui laissait un liseré —, mais une ligne de contenu, qui en porte bien
 /// davantage dès son premier rang, l'arrête toujours.
 fn ecart_au_centile(pixels: &[Pixel], couleur: Pixel) -> f64 {
-    let mut ecarts: Vec<u8> = pixels
-        .iter()
-        .map(|p| (0..3).map(|c| p[c].abs_diff(couleur[c])).max().unwrap_or(0))
-        .collect();
+    au_centile(pixels.iter().map(|p| {
+        (0..3)
+            .map(|c| f64::from(p[c].abs_diff(couleur[c])))
+            .fold(0.0f64, f64::max)
+    }))
+}
+
+/// **L'écart qui laisse [`PART_ABERRANTE`] des pixels au-dessus de lui** — la même règle pour
+/// la bande et pour la transition, écrite une fois.
+fn au_centile(ecarts: impl Iterator<Item = f64>) -> f64 {
+    let mut ecarts: Vec<f64> = ecarts.collect();
     if ecarts.is_empty() {
         return 0.0;
     }
-    ecarts.sort_unstable();
+    ecarts.sort_unstable_by(f64::total_cmp);
     // Le rang qui laisse `PART_ABERRANTE` de la ligne au-dessus de lui. Une ligne courte le
     // ramène au dernier pixel, ce qui redonne le pire : sur dix pixels, un centième n'existe
     // pas, et tolérer un pixel sur dix serait tolérer dix pour cent.
     let n = ecarts.len();
     let hors = ((n as f64) * PART_ABERRANTE).floor() as usize;
-    f64::from(ecarts[n - 1 - hors.min(n - 1)])
+    ecarts[n - 1 - hors.min(n - 1)]
 }
 
 #[cfg(test)]
