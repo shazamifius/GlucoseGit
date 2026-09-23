@@ -113,6 +113,11 @@ pub(super) fn dessiner_sur_les_photos(
         overlay.arrivages,
         (&pass.vp, ui.scale_factor),
     );
+    // **Une marque ici, et c'est la cinquieme du genre.** Sans elle, tout ce qui suit
+    // `ornements` -- les guides, la boite de selection, les marqueurs de telechargement, puis
+    // le debut de l'interface -- se facturait a `bande`, qui a monte a 14,95, 32,28 et
+    // 20,66 ms sur le terrain alors que `bench_bande` la chiffre a 0,49 ms refaite.
+    crate::perf::stage("reperes");
 }
 
 /// Les reperes du geste en cours : les guides d'alignement et la boite de selection.

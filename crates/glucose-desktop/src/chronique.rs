@@ -63,7 +63,7 @@ const PIRES: usize = 32;
 /// se lit comme une mesure, le défaut même du cliquet 9. Le rendu en comptait trente quand
 /// la borne en admettait vingt-quatre ; un cliquet compte désormais les marques du code et
 /// refuse qu'elles dépassent.
-pub const POSTES: usize = 40;
+pub const POSTES: usize = 41;
 
 /// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
 #[derive(Debug, Clone)]
