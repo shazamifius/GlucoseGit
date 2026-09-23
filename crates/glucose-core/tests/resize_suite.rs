@@ -311,7 +311,6 @@ fn test_pick_1_a_selected_node_exposes_its_eight_handles() {
             selected_annotation_ids: &empty,
             selected_folder_id: None,
             dom_hint: None,
-            trans_domaines_visibles: true,
         };
         let top = collect_candidates(&input)
             .into_iter()
@@ -362,7 +361,6 @@ fn test_pick_1_a_text_card_offers_all_eight_handles() {
             selected_annotation_ids: &selected,
             selected_folder_id: None,
             dom_hint: None,
-            trans_domaines_visibles: true,
         };
         collect_candidates(&input)
             .into_iter()

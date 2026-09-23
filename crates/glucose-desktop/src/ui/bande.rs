@@ -47,7 +47,6 @@ pub struct BandeKey {
     echelle: u32,
     outil: ActiveTool,
     smart_align: bool,
-    trans_domain: bool,
     images: usize,
     /// Les tableaux — identifiant, nom, lequel est actif — réduits à une empreinte.
     tableaux: u64,
@@ -86,7 +85,6 @@ pub(super) fn render_bande(
         echelle: ui.scale_factor.to_bits(),
         outil: ui.active_tool,
         smart_align: ui.smart_align,
-        trans_domain: ui.trans_domain,
         images,
         tableaux: empreinte_des_tableaux(&onglets),
         bouton_survole: barre

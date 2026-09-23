@@ -194,7 +194,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// trait blanc de l'onglet actif, qui bavait d'une demi-teinte sur le fond et qui est
 /// désormais franc. Regardé au zoom avant de toucher à cette valeur — c'est exactement ce
 /// que SCALE-3 promet, un dessin plus net, pas un accident.
-const EMPREINTE_TEMOIN: &str = "035450767f06256f";
+/// **Mise à jour le 24/09** : le bouton Trans-domaines ne s'allume plus -- il n'a pas de fonction
+/// (fiche 29 § 3.1). Seuls ses pixels changent (797-929 × 8-36), comparés avant et après, et
+/// regardés : fond, liseré et gras disparaissent, rien d'autre.
+const EMPREINTE_TEMOIN: &str = "237ecf57a9f311a5";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -228,7 +231,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// photo. Le cadre de la photo penchée traverse désormais la carte de formule qui la
 /// recouvre, ce qui est aussi la seule façon d'attraper ses poignées. Et le trait ne se
 /// compose plus deux fois : le chemin des tuiles l'ajoutait par-dessus celui de la passe.
-const EMPREINTE_TEMOIN_SELECTION: &str = "82d806579f104266";
+/// **Mise à jour le 24/09** : le bouton Trans-domaines ne s'allume plus -- il n'a pas de fonction
+/// (fiche 29 § 3.1). Seuls ses pixels changent (797-929 × 8-36), comparés avant et après, et
+/// regardés : fond, liseré et gras disparaissent, rien d'autre.
+const EMPREINTE_TEMOIN_SELECTION: &str = "b85191ec30aeb1c1";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -252,7 +258,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// sélectionnée, un menu par-dessus.
 /// **Mise à jour le 22/09** : une entrée de plus, « Retirer les bordures — Ctrl+B »
 /// (BORDURES-1), regardée sur `temoin-menu.png` avant d'écrire ce nombre.
-const EMPREINTE_TEMOIN_MENU: &str = "596f74f05c8c706d";
+/// **Mise à jour le 24/09** : le bouton Trans-domaines ne s'allume plus -- il n'a pas de fonction
+/// (fiche 29 § 3.1). Seuls ses pixels changent (797-929 × 8-36), comparés avant et après, et
+/// regardés : fond, liseré et gras disparaissent, rien d'autre.
+const EMPREINTE_TEMOIN_MENU: &str = "78b1a136ec21e980";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

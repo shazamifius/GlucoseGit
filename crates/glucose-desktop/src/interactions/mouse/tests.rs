@@ -46,6 +46,27 @@ fn test_the_collab_button_does_not_claim_to_be_connected() {
     assert_eq!(app.ui.toast_message(), Some(crate::ui::NOT_YET_COLLAB));
 }
 
+/// Trans-domaines n'a pas encore de fonction, et l'utilisateur a demandé qu'il ne fasse rien
+/// (fiche 29 § 3.1) : le clic ne l'allume pas, et aucun message ne prétend le contraire. Le
+/// test passe par la souris, pas par l'état : c'est l'état posé à la main qui a caché, une
+/// session entière, que le bouton ne basculait pas.
+#[test]
+fn test_the_trans_domain_button_does_nothing() {
+    let mut app = GlucoseApp::new();
+    let avant = app.ui.toast_message().map(str::to_owned);
+    for _ in 0..2 {
+        click_topbar(&mut app, UiAction::TransDomain);
+        assert_eq!(app.ui.toast_message(), avant.as_deref(), "aucun message");
+        let barre = layout_topbar(SCREEN.0, &app.ui, &app.renderer.typography, 0);
+        let bouton = barre
+            .buttons
+            .iter()
+            .find(|b| b.action == UiAction::TransDomain)
+            .expect("le bouton reste posé");
+        assert!(!bouton.active, "il ne s'allume jamais");
+    }
+}
+
 #[test]
 fn test_the_storyboard_activate_button_does_not_stay_lit() {
     let mut app = GlucoseApp::new();

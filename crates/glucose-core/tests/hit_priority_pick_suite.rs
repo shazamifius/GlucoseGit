@@ -65,7 +65,6 @@ fn test_pick_priority_image_in_membrane() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -94,7 +93,6 @@ fn test_pick_membrane_edge() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -122,7 +120,6 @@ fn test_nested_membranes_smallest_wins() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -149,7 +146,6 @@ fn test_text_terminal_cycle() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -190,7 +186,6 @@ fn test_collect_candidates_indexed_matches_naive() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let naive = collect_candidates(&input);
@@ -212,7 +207,6 @@ fn test_collect_candidates_indexed_matches_naive() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
     let empty_indexed = collect_candidates_indexed(&empty_input, &hash);
     assert!(empty_indexed.is_empty());

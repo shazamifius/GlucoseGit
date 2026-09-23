@@ -384,7 +384,7 @@ Trois manques n'apparaissent nulle part parce qu'ils ne sont pas des fonctionnal
 | 11.3 | Affecter un domaine avec un poids | `assignDomainToNode` | ✅ `try_assign` / `try_unassign`, poids validé `0..1`, `NaN` refusé | — |
 | 11.4 | Couleur de membrane dérivée des poids | — | ❌ | 9 |
 | 11.5 | Badges de domaine sur les nœuds | `AnnotationBadges` | ✅ jauge par domaine au-dessus du nœud : sigle, couleur, niveau de pondération | — |
-| 11.6 | Liens trans-domaines en pointillés | `Toolbar` toggle | ✅ `arrow::est_trans_domaine` : deux bouts porteurs de domaines, aucun en commun → pointillés 6-4 ; le bouton coupé les masque **et** l'arbitre de clic les ignore | — |
+| 11.6 | Trans-domaines | `Toolbar` toggle | ⏸ **à définir par l'utilisateur** — ce n'est PAS « des liens en pointillés » : cette lecture de Glucose Tauri était fausse et a été retirée (fiche 29 § 3.1). Le bouton est posé, ne s'allume jamais et ne fait rien | 9 |
 | 11.7 | Filtrer par domaine | — | ❌ | 9 |
 | 11.8 | Icône / emoji de domaine | `Domain.icon` | ✅ sigle texte cyclable — *pas d'emoji : la police n'en a pas (R-51)* | — |
 | 11.9 | Domaines partagés entre boards | `Project.domains` | ✅ catalogue au niveau projet, cascade multi-boards testée | — |

@@ -80,7 +80,7 @@ pub enum UiAction {
     ToggleTimer,
     ToggleStoryboard,
     ToggleMagnet,
-    ToggleTransDomain,
+    TransDomain,
     ToggleCollab,
     ExportMenu,
     TogglePlugins,
@@ -94,7 +94,6 @@ pub enum UiAction {
 pub struct UiState {
     pub active_tool: ActiveTool,
     pub smart_align: bool,
-    pub trans_domain: bool,
     #[allow(dead_code)]
     pub hovered_btn: Option<String>,
     pub current_toast: Option<Toast>,
@@ -139,7 +138,6 @@ impl UiState {
         Self {
             active_tool: ActiveTool::Select,
             smart_align: true,
-            trans_domain: true,
             hovered_btn: None,
             current_toast: None,
             context_menu_at: None,

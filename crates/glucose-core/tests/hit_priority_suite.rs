@@ -112,7 +112,6 @@ fn test_hit_priority_rules() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
     let cands = collect_candidates(&input);
     assert_eq!(cands[0].id, "I1");
@@ -190,7 +189,6 @@ fn test_nested_containers_smallest_wins() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
     assert_eq!(order(&input1)[0], "membrane-body:PETITE");
 
@@ -230,7 +228,6 @@ fn test_text_is_last_among_contents() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -269,7 +266,6 @@ fn test_handles_absolute_priority() {
         selected_annotation_ids: &sel_m,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -319,7 +315,6 @@ fn test_click_cycle_chain() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
 
     let cands = collect_candidates(&input);
@@ -425,7 +420,6 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
-        trans_domaines_visibles: true,
     };
     let cands = collect_candidates(&input);
 
@@ -438,57 +432,5 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
     assert!(
         cands.iter().all(|c| c.corner.is_none()),
         "et n'offrir aucune poignée : {cands:?}"
-    );
-}
-
-/// **Une flèche que le bouton « Trans-domaines » masque ne s'attrape pas** (fiche 03 § 11.6).
-///
-/// Deux photos de domaines étrangers, une flèche accrochée de l'une à l'autre, le curseur sur
-/// sa tige : montrée, elle se prend ; masquée, le clic passe à travers — on ne vole pas le
-/// geste de la main avec ce que l'œil ne voit pas.
-#[test]
-fn test_une_fleche_trans_domaine_masquee_ne_s_attrape_pas() {
-    use glucose_core::types::DomainAssignment;
-    let empty: [String; 0] = [];
-    let photo = |id: &str, x: f64, domaine: &str| {
-        let mut p = img(id, x, 300.0, 100.0, 100.0, false);
-        p.domains.push(DomainAssignment {
-            domain_id: domaine.into(),
-            weight: 1.0,
-        });
-        p
-    };
-    let images = [photo("a", 150.0, "sciences"), photo("b", 650.0, "arts")];
-    let mut fleche = Annotation::arrow("f", 150.0, 300.0, 650.0, 300.0);
-    if let Annotation::Arrow {
-        source_id,
-        target_id,
-        ..
-    } = &mut fleche
-    {
-        *source_id = Some("a".into());
-        *target_id = Some("b".into());
-    }
-    let montree = PickInput {
-        wx: 400.0,
-        wy: 300.0,
-        scale: 1.0,
-        images: &images,
-        annotations: std::slice::from_ref(&fleche),
-        folders: &[],
-        selected_image_ids: &empty,
-        selected_annotation_ids: &empty,
-        selected_folder_id: None,
-        dom_hint: None,
-        trans_domaines_visibles: true,
-    };
-    assert_eq!(collect_candidates(&montree)[0].kind, PickKind::Arrow);
-    let masquee = PickInput {
-        trans_domaines_visibles: false,
-        ..montree
-    };
-    assert!(
-        collect_candidates(&masquee).is_empty(),
-        "le clic passe à travers"
     );
 }

@@ -126,9 +126,6 @@ pub struct PickInput<'a> {
     pub selected_annotation_ids: &'a [String],
     pub selected_folder_id: Option<&'a str>,
     pub dom_hint: Option<DomHint<'a>>,
-    /// Les liens trans-domaines se montrent-ils ? Masqués, ils ne s'attrapent pas non plus :
-    /// une flèche qu'on ne voit pas ne doit pas voler le clic (fiche 03 § 11.6).
-    pub trans_domaines_visibles: bool,
 }
 
 mod candidates;

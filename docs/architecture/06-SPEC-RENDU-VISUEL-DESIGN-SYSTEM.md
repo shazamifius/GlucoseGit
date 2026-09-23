@@ -85,7 +85,7 @@
 > Ce qui existe : un trait de 1,8 px avec une pointe triangulaire (`note.rs`), l'ancrage au périmètre (`arrow_anchor.rs`, testé). Le reste :
 
 ### 7.1 Système Multi-Couches de la Flèche
-* **À FAIRE** — Trois passes : hitbox invisible de 24 px `rgba(0, 0, 0, 0.01)` (les flèches ne sont pas cliquables, fiche 07 § 3.1) ; halo de `strokeWidth + 4` (`+ 10` sélectionnée) à 0,18 (0,45) en dégradé source → cible ; ligne d'âme de `strokeWidth` (2 px nominal) à 0,92, dégradé ou blanc si sélectionnée ; pointillé `6 4` pour les liens trans-domaines.
+* **À FAIRE** — Trois passes : hitbox invisible de 24 px `rgba(0, 0, 0, 0.01)` (les flèches ne sont pas cliquables, fiche 07 § 3.1) ; halo de `strokeWidth + 4` (`+ 10` sélectionnée) à 0,18 (0,45) en dégradé source → cible ; ligne d'âme de `strokeWidth` (2 px nominal) à 0,92, dégradé ou blanc si sélectionnée. *(Le pointillé `6 4` des « liens trans-domaines » de Glucose Tauri n'est PAS la fonction voulue : l'utilisateur l'a démenti, et elle reste à définir avec lui — fiche 29 § 3.1.)*
 
 ### 7.2 Ancrage au Périmètre sans Inversion
 * **À VÉRIFIER** — Décollement de 12 px (`ANCHOR_MARGIN`), réduit à $\min(12, (d - 4)/2)$ sous 24 px de distance ; la flèche ne s'inverse jamais. `arrow_anchor.rs` a trois tests ; les chiffres 12 et 24 restent à tenir.

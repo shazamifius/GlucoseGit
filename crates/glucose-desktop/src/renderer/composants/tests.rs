@@ -158,7 +158,6 @@ Et un lien.";
             height: taille.1 as f32,
             top: 0.0,
         },
-        trans_domaines: true,
     };
     draw_card_contenu(
         &ctx,
@@ -392,7 +391,6 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
             height: taille.1 as f32,
             top: 0.0,
         },
-        trans_domaines: true,
     };
     draw_card_contenu(
         &ctx,

@@ -230,7 +230,7 @@ fn groupe_des_images(regle: &mut Regle<'_>) {
     regle.separateur(1.0, 7.0);
 }
 
-/// Les panneaux et les deux bascules : ce qui change l'état de l'application.
+/// Les panneaux, l'aimant, et Trans-domaines.
 fn groupe_des_panneaux(regle: &mut Regle<'_>, ui: &UiState) {
     regle.action(UiAction::Organize, IconType::Organize, "Ordonner", false);
     regle.action(UiAction::ToggleTimer, IconType::Timer, "Timer", false);
@@ -247,11 +247,13 @@ fn groupe_des_panneaux(regle: &mut Regle<'_>, ui: &UiState) {
         "Aimant",
         ui.smart_align,
     );
+    // Trans-domaines est posé, et sa fonction n'est pas encore définie : il n'a donc pas d'état
+    // à montrer, et ne s'allume jamais (fiche 29 § 3.1).
     regle.action(
-        UiAction::ToggleTransDomain,
+        UiAction::TransDomain,
         IconType::TransDomain,
         "Trans-domaines",
-        ui.trans_domain,
+        false,
     );
 }
 

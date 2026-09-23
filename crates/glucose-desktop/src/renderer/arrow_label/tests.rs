@@ -65,7 +65,6 @@ fn rendu(arrow: &Annotation, editing: Option<&TextEditSession>) -> Pixmap {
             height: 600.0,
             top: 0.0,
         },
-        trans_domaines: true,
     };
     draw_arrow_label(&ctx, &mut pixmap.as_mut(), &board, arrow, editing, false);
     pixmap

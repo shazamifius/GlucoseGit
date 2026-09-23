@@ -9,7 +9,7 @@
 use super::*;
 use crate::params::ViewPass;
 use crate::renderer::hue::SymbioticHueCache;
-use crate::renderer::pass::{draw_annotations, Affichage};
+use crate::renderer::pass::draw_annotations;
 use crate::renderer::PaintKit;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
@@ -80,14 +80,7 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
         tints: &tints,
         theme: &theme,
     };
-    draw_annotations(
-        &mut hue,
-        kit,
-        &mut view,
-        &store,
-        Affichage::complet(None),
-        pass,
-    );
+    draw_annotations(&mut hue, kit, &mut view, &store, (None, false), pass);
     pixmap
 }
 
