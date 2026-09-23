@@ -89,6 +89,7 @@ fn par_le_processeur(taille: (u32, u32), store: &glucose_core::store::Store) -> 
             guides: &guides,
             selection_box: None,
             editing: None,
+            arrivages: &[],
         },
         Pointer { x: 0.0, y: 0.0 },
         Regard::immobile(),
@@ -124,6 +125,7 @@ fn les_deux_couches_en_editant(
         store,
         (&mut ui, Pointer { x: 0.0, y: 0.0 }),
         SceneOverlay {
+            arrivages: &[],
             guides: &guides,
             selection_box: None,
             editing,
@@ -375,6 +377,7 @@ fn les_deux_couches_decodees(
                 guides: &guides,
                 selection_box: None,
                 editing: None,
+                arrivages: &[],
             },
             Regard::immobile(),
         );
@@ -402,6 +405,7 @@ fn par_le_processeur_decode(taille: (u32, u32), store: &glucose_core::store::Sto
                 guides: &guides,
                 selection_box: None,
                 editing: None,
+                arrivages: &[],
             },
             Pointer { x: 0.0, y: 0.0 },
             Regard::immobile(),

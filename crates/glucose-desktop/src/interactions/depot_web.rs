@@ -21,17 +21,70 @@
 //! `https://`, donc rien de ce qu'une page dépose ici ne peut faire exécuter quoi que ce soit.
 
 use crate::app::GlucoseApp;
-use crate::plateforme::moisson::Moisson;
+use crate::params::Arrivage;
+use crate::plateforme::moisson::{Depot, Moisson};
+
+/// **Ce qui arrive du système par glisser-déposer**, et n'est pas encore posé.
+#[derive(Default)]
+pub struct Arrivees {
+    /// Les fichiers déposés sur la fenêtre, en attente d'être posés **ensemble**.
+    ///
+    /// winit émet un `DroppedFile` **par fichier** : un lot de huit donne huit événements,
+    /// tous poussés par le même appel système et donc tous présents avant le prochain
+    /// `about_to_wait`. Les accumuler jusque-là reconstitue le lot — sans quoi chaque
+    /// fichier se poserait comme s'il était seul, tous au même point, et le geste entier
+    /// laisserait huit entrées d'annulation au lieu d'une.
+    pub fichiers: Vec<std::path::PathBuf>,
+    /// **Ce que le système dépose sur la fenêtre**, quand un pont natif existe (DEPOT-WEB-1).
+    ///
+    /// `winit` ne transmet que `CF_HDROP` — les chemins de l'explorateur — et un navigateur
+    /// n'en donne jamais. La cible de dépôt du projet lit aussi les fichiers qu'une page
+    /// PROMET, et la position où le curseur a lâché, que `winit` reçoit et jette.
+    pub pont: Option<crate::plateforme::Depots>,
+    /// **Les images annoncées**, pas encore livrées : leur marqueur est à l'écran
+    /// (DEPOT-WEB-5).
+    pub en_chemin: Vec<Arrivage>,
+}
 
 impl GlucoseApp {
+    /// **Ce que le pont de dépôt fait parvenir** : une annonce, ou une livraison.
+    pub fn recevoir_le_depot(&mut self, depot: Depot) {
+        match depot {
+            Depot::EnChemin { numero, ou, hote } => self.annoncer_l_arrivage(numero, ou, hote),
+            Depot::Pose { numero, moisson } => self.poser_le_depot(numero, &moisson),
+        }
+    }
+
+    /// **Un téléchargement commence** : son marqueur paraît au point de dépôt, et ce point
+    /// se fige dans le monde — l'image s'y posera même si la vue bouge d'ici là.
+    fn annoncer_l_arrivage(&mut self, numero: u64, ou: Option<(f64, f64)>, hote: String) {
+        let monde = self.drop_origin(self.ecran_vers_client(ou));
+        self.depot.en_chemin.push(Arrivage {
+            numero,
+            monde,
+            hote,
+        });
+        self.mark_dirty();
+    }
+
     /// **Pose ce qu'un dépôt du système vient d'apporter.**
     ///
     /// Un appel par moisson : glisser huit images d'une page est **un** geste, et deux dépôts
     /// successifs en sont deux. C'est `deposer` qui en fait une entrée d'annulation, et qui
     /// rend l'unique compte-rendu.
-    pub fn poser_le_depot(&mut self, recolte: &Moisson) {
-        let ou = self.ecran_vers_client(recolte.ou);
-        self.deposer(&recolte.chemins, &recolte.liens, ou);
+    ///
+    /// Une livraison annoncée se pose au point que son annonce a figé, et retire son marqueur
+    /// — dans la même image, pour qu'aucune ne montre ni l'un ni l'autre.
+    pub fn poser_le_depot(&mut self, numero: Option<u64>, recolte: &Moisson) {
+        let annonce = numero
+            .and_then(|n| self.depot.en_chemin.iter().position(|a| a.numero == n))
+            .map(|i| self.depot.en_chemin.remove(i));
+        let origine = match annonce {
+            Some(a) => a.monde,
+            None => self.drop_origin(self.ecran_vers_client(recolte.ou)),
+        };
+        self.deposer(&recolte.chemins, &recolte.liens, origine);
+        self.mark_dirty();
     }
 
     /// **Les pixels de l'écran, vus depuis le coin de la zone de dessin.**

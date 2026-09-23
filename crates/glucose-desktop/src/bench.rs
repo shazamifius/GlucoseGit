@@ -87,6 +87,7 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
         guides: &guides,
         selection_box: None,
         editing: None,
+        arrivages: &[],
     };
     // Le pointeur est posé hors de la fenêtre : aucun survol, donc aucun état de l'interface
     // qui dépendrait de la position de la souris. Une capture doit être la même partout.
@@ -112,6 +113,7 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
             guides: &guides,
             selection_box: None,
             editing: None,
+            arrivages: &[],
         };
         renderer.render(
             &mut pixmap.as_mut(),

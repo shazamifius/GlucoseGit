@@ -27,7 +27,7 @@ mod depot_windows;
 #[cfg(windows)]
 mod telechargement_windows;
 
-use moisson::Moisson;
+use moisson::Depot;
 use std::sync::mpsc::{Receiver, Sender};
 
 /// **Les octets qu'une adresse web rend**, au plus `limite`, ou la raison de n'en pas rendre
@@ -57,7 +57,7 @@ fn telecharger_ici(_adresse: &sources::Adresse, _limite: usize) -> Result<Vec<u8
 /// canal est ce qui rend l'instant du dépôt indépendant de l'instant où on le pose.
 pub struct Depots {
     /// Le bout que la boucle d'images draine.
-    recevoir: Receiver<Moisson>,
+    recevoir: Receiver<Depot>,
 }
 
 impl Depots {
@@ -65,7 +65,7 @@ impl Depots {
     ///
     /// Un lot par dépôt : glisser huit images d'une page est un geste, et huit gestes en sont
     /// huit. C'est `interactions::drop` qui décide qu'un lot tient dans une entrée d'annulation.
-    pub fn recolter(&self) -> Vec<Moisson> {
+    pub fn recolter(&self) -> Vec<Depot> {
         self.recevoir.try_iter().collect()
     }
 }
@@ -91,7 +91,7 @@ pub type Reveil = std::sync::Arc<dyn Fn() + Send + Sync>;
 
 /// Le pont de cette plateforme, s'il y en a un.
 #[cfg(windows)]
-fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Moisson>, reveil: Reveil) -> bool {
+fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Depot>, reveil: Reveil) -> bool {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let Ok(poignee) = fenetre.window_handle() else {
         return false;
@@ -104,10 +104,6 @@ fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Moisson>, reveil:
 
 /// Sur une plateforme sans pont, il n'y a rien à poser et rien à dire.
 #[cfg(not(windows))]
-fn poser_le_pont(
-    _fenetre: &winit::window::Window,
-    _vers: Sender<Moisson>,
-    _reveil: Reveil,
-) -> bool {
+fn poser_le_pont(_fenetre: &winit::window::Window, _vers: Sender<Depot>, _reveil: Reveil) -> bool {
     false
 }

@@ -144,6 +144,7 @@ impl GlucoseApp {
             guides: &self.active_guides,
             selection_box: self.selection_box,
             editing: self.editing_session.as_ref(),
+            arrivages: &self.depot.en_chemin,
         };
         let pointer = self.pointeur();
         match self.region_a_repeindre(sale, vp, fenetre, header_h) {
@@ -158,14 +159,10 @@ impl GlucoseApp {
             None => {
                 crate::perf::compteur("img_region", f64::from(fenetre.0) * f64::from(fenetre.1));
                 let echelle = self.ui.scale_factor;
-                let facteur = self.resolution.facteur();
                 // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a
                 // travers des champs, jamais a travers une methode.
                 let par_la_carte = self.la_carte_pose_les_photos();
-                let scene = reduit
-                    .as_mut()
-                    .filter(|_| self.resolution.reduite())
-                    .map(|tampon| crate::renderer::SceneReduite { tampon, facteur });
+                let scene = self.resolution.scene_reduite(reduit.as_mut());
                 let chrome = Chrome {
                     ui: &mut self.ui,
                     dock_manager: &self.dock_manager,

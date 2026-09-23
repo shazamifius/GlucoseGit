@@ -10,27 +10,46 @@
 //! S'il ne trouve rien, le dépôt retombe sur ce qu'il portait : la vignette que la page avait
 //! posée, ou le lien qu'on peut suivre. Un repli visible vaut mieux qu'un geste sans effet.
 
-use super::moisson::{self, Moisson, OCTETS_MAX};
+use super::moisson::{self, Depot, Moisson, OCTETS_MAX};
 use super::sources::{self, Candidat};
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 
-/// **Cherche l'image de ces adresses sur un fil à part**, et envoie ce qu'on a trouvé — ou le
-/// repli — par le canal des dépôts.
+/// Le numéro du prochain rapatriement : ce qui relie une livraison à son annonce.
+static PROCHAIN: AtomicU64 = AtomicU64::new(1);
+
+/// **Annonce le rapatriement, puis cherche l'image de ces adresses sur un fil à part**, et
+/// envoie ce qu'on a trouvé — ou le repli — par le canal des dépôts.
+///
+/// L'annonce part **avant** le fil, depuis l'instant du lâcher : c'est elle qui fait paraître
+/// le marqueur au point de dépôt pendant la seconde qu'il faut — mesurée à 0,8 à 1,4 s sur
+/// trois épingles réelles, dont l'essentiel avant le premier octet de l'image.
 pub fn rapatrier(
     adresses: Vec<String>,
-    ou: Option<(f64, f64)>,
     repli: Moisson,
-    (vers, reveil): (Sender<Moisson>, super::Reveil),
+    (vers, reveil): (Sender<Depot>, super::Reveil),
 ) {
+    let numero = PROCHAIN.fetch_add(1, Ordering::Relaxed);
+    let hote = adresses
+        .iter()
+        .find_map(|a| sources::decouper(a))
+        .map(|a| a.hote)
+        .unwrap_or_default();
+    let ou = repli.ou;
+    if vers.send(Depot::EnChemin { numero, ou, hote }).is_err() {
+        return;
+    }
     std::thread::spawn(move || {
         let moisson = chercher(&adresses, ou).unwrap_or(repli);
-        if moisson.est_vide() {
-            return;
-        }
-        // La fenêtre a pu se fermer pendant le téléchargement : ce n'est pas une panne.
-        if vers.send(moisson).is_ok() {
+        // Toujours, même vide : c'est ce qui retire l'annonce. La fenêtre a pu se fermer
+        // pendant le téléchargement, et ce n'est pas une panne.
+        let pose = Depot::Pose {
+            numero: Some(numero),
+            moisson,
+        };
+        if vers.send(pose).is_ok() {
             reveil();
         }
     });

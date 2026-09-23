@@ -93,8 +93,8 @@ impl GlucoseApp {
         // **Le pont de depot du systeme**, a la place de celui de `winit` (DEPOT-WEB-1). Un
         // echec ne casse rien : `winit` garde la main, et seul le depot depuis un navigateur
         // manque -- c'est-a-dire l'etat d'avant.
-        self.depots = crate::plateforme::installer(window);
-        if self.depots.is_some() {
+        self.depot.pont = crate::plateforme::installer(window);
+        if self.depot.pont.is_some() {
             println!("[Glucose] depot : les images glissees depuis un navigateur sont lues");
         }
     }

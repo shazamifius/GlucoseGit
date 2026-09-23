@@ -84,6 +84,24 @@ pub struct SceneOverlay<'a> {
     /// `(x0, y0, x1, y1)` en coordonnées monde, `None` hors sélection rectangle.
     pub selection_box: Option<(f64, f64, f64, f64)>,
     pub editing: Option<&'a TextEditSession>,
+    /// Les images en train d'arriver d'un dépôt web, là où elles se poseront.
+    pub arrivages: &'a [Arrivage],
+}
+
+/// **Une image qui arrive** : un dépôt web annoncé, pas encore livré.
+///
+/// Elle vit hors du document — rien n'est posé tant que rien n'est arrivé, et un `Ctrl+Z`
+/// n'a rien à défaire —, mais elle a déjà sa place dans le monde : celle où le curseur a
+/// lâché, figée à l'annonce. La vue peut bouger pendant la seconde d'attente ; l'image
+/// arrivera quand même là où on l'a déposée.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Arrivage {
+    /// Le numéro de l'annonce, que la livraison porte aussi.
+    pub numero: u64,
+    /// Le point du monde où l'image se posera.
+    pub monde: (f64, f64),
+    /// Le site d'où elle vient : ce que le marqueur dit, et rien qu'il ne sache pas.
+    pub hote: String,
 }
 
 /// Tranche visible en cours de dessin : ce que la requête spatiale a retenu

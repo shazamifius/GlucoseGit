@@ -23,6 +23,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
         guides: &app.active_guides,
         selection_box: None,
         editing: None,
+        arrivages: &[],
     };
     app.renderer.render(
         &mut pixmap.as_mut(),
@@ -42,6 +43,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
             guides: &app.active_guides,
             selection_box: None,
             editing: None,
+            arrivages: &[],
         };
         app.renderer.render(
             &mut pixmap.as_mut(),

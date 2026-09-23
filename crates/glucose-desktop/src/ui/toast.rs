@@ -85,7 +85,7 @@ fn fondue(couleur: Color, alpha: f32) -> Color {
 }
 
 /// La pilule du toast : un rectangle dont les bouts sont des demi-cercles.
-fn pilule(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<tiny_skia::Path> {
+pub(crate) fn pilule(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<tiny_skia::Path> {
     let mut pb = PathBuilder::new();
     pb.move_to(x + r, y);
     pb.line_to(x + w - r, y);

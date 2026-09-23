@@ -134,6 +134,7 @@ fn render(app: &mut GlucoseApp) {
         guides: &app.active_guides,
         selection_box: None,
         editing: None,
+        arrivages: &[],
     };
     app.renderer.render(
         &mut view,

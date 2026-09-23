@@ -105,6 +105,14 @@ pub(super) fn dessiner_sur_les_photos(
     crate::perf::stage("ornements");
     let taille = (pixmap.width(), pixmap.height());
     dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);
+    // 9. Les images qui arrivent d'un depot web : au-dessus de tout, comme un toast, mais la
+    // ou elles se poseront.
+    super::arrivage::dessiner_les_arrivages(
+        kit,
+        pixmap,
+        overlay.arrivages,
+        (&pass.vp, ui.scale_factor),
+    );
 }
 
 /// Les reperes du geste en cours : les guides d'alignement et la boite de selection.

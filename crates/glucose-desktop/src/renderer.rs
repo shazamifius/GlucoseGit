@@ -17,6 +17,7 @@
 //! | [`handles`] | les poignées de redimensionnement, là où le test de clic les cherche |
 //! | [`wrap`] | le découpage d'un paragraphe en lignes (WRAP-1) |
 
+pub mod arrivage;
 pub mod arrow;
 pub mod arrow_label;
 pub mod atelier;
@@ -608,6 +609,7 @@ mod tests {
             guides: &guides,
             selection_box: None,
             editing: None,
+            arrivages: &[],
         };
         let origin = Pointer { x: 0.0, y: 0.0 };
         renderer.render(

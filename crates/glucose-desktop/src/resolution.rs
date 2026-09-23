@@ -127,6 +127,18 @@ impl Resolution {
         self.facteur > 1
     }
 
+    /// **La scène réduite**, s'il y en a une : ce tampon, à ce facteur — et rien quand la
+    /// résolution est pleine, même si un tampon réduit traîne d'une image précédente.
+    pub fn scene_reduite<'a>(
+        &self,
+        tampon: Option<&'a mut tiny_skia::Pixmap>,
+    ) -> Option<crate::renderer::SceneReduite<'a>> {
+        let facteur = self.facteur;
+        tampon
+            .filter(|_| self.reduite())
+            .map(|tampon| crate::renderer::SceneReduite { tampon, facteur })
+    }
+
     /// Ce que la dernière image a coûté, décomposé, et ce que la main est en train de faire.
     ///
     /// `image` est la durée totale et `scene` la part qui suit la surface — chronométrée pour

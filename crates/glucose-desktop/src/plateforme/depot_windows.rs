@@ -72,7 +72,7 @@ mod formats;
 
 use formats::{dire_les_formats, format_enregistre, offre, tirer, Bloc};
 
-use super::moisson::{self, Moisson};
+use super::moisson::{self, Depot, Moisson};
 use std::sync::mpsc::Sender;
 use windows::core::{implement, Interface, Ref, Result as WinResult};
 use windows::Win32::Foundation::{DRAGDROP_E_ALREADYREGISTERED, HWND, POINTL};
@@ -102,7 +102,7 @@ const TRANCHE: usize = 64 * 1024;
 ///
 /// `hwnd` doit être la fenêtre vivante du fil courant, et ce fil doit être celui de la boucle
 /// d'événements — c'est lui qui a initialisé OLE, et c'est lui qui appellera la cible.
-pub fn installer(hwnd: isize, vers: Sender<Moisson>, reveil: super::Reveil) -> bool {
+pub fn installer(hwnd: isize, vers: Sender<Depot>, reveil: super::Reveil) -> bool {
     let fenetre = HWND(hwnd as *mut core::ffi::c_void);
     let cible: IDropTarget = Cible { vers, reveil }.into();
     unsafe {
@@ -145,7 +145,7 @@ pub fn installer(hwnd: isize, vers: Sender<Moisson>, reveil: super::Reveil) -> b
 #[implement(IDropTarget)]
 struct Cible {
     /// Par où la moisson rejoint la boucle d'images.
-    vers: Sender<Moisson>,
+    vers: Sender<Depot>,
     /// De quoi la réveiller quand une image rapatriée arrive après coup.
     reveil: super::Reveil,
 }
@@ -198,7 +198,6 @@ impl IDropTarget_Impl for Cible_Impl {
             if !adresses.is_empty() {
                 super::rapatrier::rapatrier(
                     adresses,
-                    recolte.ou,
                     recolte,
                     (self.this.vers.clone(), self.this.reveil.clone()),
                 );
@@ -208,7 +207,11 @@ impl IDropTarget_Impl for Cible_Impl {
         if !recolte.est_vide() {
             // Le récepteur peut avoir disparu si la fenêtre se ferme pendant un dépôt : ce
             // n'est pas une panne, c'est la fin.
-            self.this.vers.send(recolte).ok();
+            let pose = Depot::Pose {
+                numero: None,
+                moisson: recolte,
+            };
+            self.this.vers.send(pose).ok();
         }
         Ok(())
     }

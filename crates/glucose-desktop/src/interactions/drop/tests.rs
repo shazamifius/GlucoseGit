@@ -366,3 +366,82 @@ fn test_a_web_shortcut_lands_as_a_link_not_as_its_file_name() {
         "Ctrl+clic doit suivre l'epingle : {text}"
     );
 }
+
+// ── DEPOT-WEB-5 : l'annonce d'une image qui arrive ─────────────────────────────────────
+
+/// Une livraison, telle que le fil du rapatriement l'envoie.
+fn livraison(numero: u64, chemins: Vec<PathBuf>) -> crate::plateforme::moisson::Depot {
+    crate::plateforme::moisson::Depot::Pose {
+        numero: Some(numero),
+        moisson: crate::plateforme::moisson::Moisson {
+            chemins,
+            liens: Vec::new(),
+            ou: None,
+        },
+    }
+}
+
+/// **Une image annoncée se pose là où on l'a lâchée, même si la vue a bougé pendant qu'elle
+/// arrivait** — et son marqueur part dans la même image.
+///
+/// Avant l'annonce, le point de lâcher restait en pixels d'écran jusqu'à la livraison, et se
+/// convertissait avec la vue **du moment de la livraison** : un déplacement pendant la seconde
+/// d'attente envoyait l'image ailleurs sur le canevas.
+#[test]
+fn test_une_image_annoncee_se_pose_au_point_du_lacher() {
+    use crate::plateforme::moisson::Depot;
+    let bac = Bac::neuf("arrivage");
+    let mut app = app();
+    app.recevoir_le_depot(Depot::EnChemin {
+        numero: 7,
+        ou: None,
+        hote: "fr.pinterest.com".into(),
+    });
+    assert_eq!(app.depot.en_chemin.len(), 1, "le marqueur paraît au lâcher");
+    let annonce = app.depot.en_chemin[0].monde;
+
+    // La vue part ailleurs pendant la seconde d'attente.
+    let board = app.store.project.active_board_id.clone();
+    let loin = glucose_core::types::Viewport {
+        x: -5000.0,
+        y: 3000.0,
+        scale: 0.5,
+    };
+    app.store.set_viewport(&board, loin);
+    app.recevoir_le_depot(livraison(7, vec![bac.png("epingle.png")]));
+
+    assert!(
+        app.depot.en_chemin.is_empty(),
+        "le marqueur part avec la livraison"
+    );
+    let images = &app.store.active_board().expect("un tableau").images;
+    assert_eq!(images.len(), 1);
+    assert_eq!((images[0].x, images[0].y), annonce, "au point du lâcher");
+}
+
+/// **Une livraison vide retire aussi son marqueur** : sans elle, l'annonce resterait à l'écran
+/// pour toujours. Et une livraison qu'aucune annonce n'attend ne retire rien.
+#[test]
+fn test_une_livraison_vide_retire_son_marqueur() {
+    use crate::plateforme::moisson::Depot;
+    let mut app = app();
+    for numero in [1, 2] {
+        app.recevoir_le_depot(Depot::EnChemin {
+            numero,
+            ou: None,
+            hote: String::new(),
+        });
+    }
+    app.recevoir_le_depot(livraison(1, Vec::new()));
+    assert_eq!(app.depot.en_chemin.len(), 1);
+    assert_eq!(
+        app.depot.en_chemin[0].numero, 2,
+        "seule l'annonce livrée part"
+    );
+    app.recevoir_le_depot(livraison(99, Vec::new()));
+    assert_eq!(
+        app.depot.en_chemin.len(),
+        1,
+        "une livraison inconnue ne retire rien"
+    );
+}

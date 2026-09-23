@@ -90,6 +90,7 @@ fn main() {
             &store,
             &mut ui,
             SceneOverlay {
+                arrivages: &[],
                 guides: &guides,
                 selection_box: None,
                 editing: Some(&session),

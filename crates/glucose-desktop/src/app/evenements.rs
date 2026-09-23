@@ -49,7 +49,7 @@ impl GlucoseApp {
             WindowEvent::MouseInput { button, state, .. } => self.clic(*button, *state),
             WindowEvent::KeyboardInput { event, .. } => self.handle_key(event),
             // Un evenement par fichier : on accumule, et `about_to_wait` pose le lot.
-            WindowEvent::DroppedFile(chemin) => self.dropped_files.push(chemin.clone()),
+            WindowEvent::DroppedFile(chemin) => self.depot.fichiers.push(chemin.clone()),
             _ => return false,
         }
         true
@@ -178,21 +178,22 @@ impl GlucoseApp {
             .imputer(std::time::Instant::now(), Poste::Depot);
         // Le lot de fichiers deposes est complet : tous les `DroppedFile` d'un meme geste
         // sont pousses par le meme appel systeme, donc ils sont tous arrives.
-        if !self.dropped_files.is_empty() {
-            let lot = std::mem::take(&mut self.dropped_files);
+        if !self.depot.fichiers.is_empty() {
+            let lot = std::mem::take(&mut self.depot.fichiers);
             self.drop_files(&lot);
         }
 
         // **Ce que le pont natif a recolte** (DEPOT-WEB-1). Il ecrit depuis la boucle de
         // messages de Windows, au milieu d'un geste ; on pose ici, ou le document n'est lu
         // par personne. Un lot par depot : glisser huit images d'une page est UN geste.
-        for recolte in self
-            .depots
+        for depot in self
+            .depot
+            .pont
             .as_ref()
             .map(|d| d.recolter())
             .unwrap_or_default()
         {
-            self.poser_le_depot(&recolte);
+            self.recevoir_le_depot(depot);
         }
 
         self.chronique

@@ -171,25 +171,20 @@ impl GlucoseApp {
     /// Le lot entier tient dans **une** entrée d'annulation : déposer huit fichiers puis se
     /// raviser est un seul geste, et le défaire demande un seul `Ctrl+Z`.
     pub fn drop_files(&mut self, paths: &[PathBuf]) {
-        self.deposer(paths, &[], None);
+        let origine = self.drop_origin(None);
+        self.deposer(paths, &[], origine);
     }
 
     /// **Tout ce qu'un dépôt apporte, posé en une fois** — des fichiers, des adresses, ou les
     /// deux (DEPOT-WEB-1).
     ///
-    /// `client` est la position du curseur en pixels physiques depuis le coin de la zone de
-    /// dessin — la même unité que `mouse_pos`, pour que la conversion en monde soit celle que
-    /// tout le reste emploie. Elle vaut `None` là où aucun pont ne la transmet.
+    /// `(ox, oy)` est le point du **monde** où le lot se pose : l'appelant le tire du curseur
+    /// ([`Self::drop_origin`]), ou de l'annonce d'un téléchargement, qui l'a figé au lâcher.
     ///
     /// **Une seule fonction pour les deux natures**, et c'est ce que le cliquet des toasts a
     /// imposé : un dépôt est un geste, un geste rend **un** compte-rendu. Une seconde fonction
     /// avec son propre message aurait dit deux fois la même chose de deux façons.
-    pub(crate) fn deposer(
-        &mut self,
-        paths: &[PathBuf],
-        liens: &[String],
-        client: Option<(f64, f64)>,
-    ) {
+    pub(crate) fn deposer(&mut self, paths: &[PathBuf], liens: &[String], (ox, oy): (f64, f64)) {
         // **Un raccourci Internet est une adresse**, d'ou qu'il vienne (DEPOT-WEB-2) : il
         // rejoint les liens, et se pose en carte qu'on peut suivre plutot qu'en carte qui
         // porte son nom de fichier.
@@ -200,7 +195,6 @@ impl GlucoseApp {
         if attendus == 0 {
             return;
         }
-        let (ox, oy) = self.drop_origin(client);
         let board = self.store.project.active_board_id.clone();
 
         self.store.begin_live_edit();

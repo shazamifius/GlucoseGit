@@ -91,6 +91,7 @@ fn sans_reperes<'a>() -> SceneOverlay<'a> {
     let guides: &'static glucose_core::smart_align::SnapGuides =
         Box::leak(Box::new(glucose_core::smart_align::SnapGuides::default()));
     SceneOverlay {
+        arrivages: &[],
         guides,
         selection_box: None,
         editing: None,

@@ -70,6 +70,31 @@ pub struct Moisson {
     pub ou: Option<(f64, f64)>,
 }
 
+/// **Ce qu'un dépôt fait parvenir à la boucle d'images**, dans l'ordre où cela arrive.
+///
+/// Un dépôt qui porte ses fichiers se pose d'un coup. Un dépôt qui ne porte que des adresses
+/// — Pinterest, dix fois sur dix — part se faire rapatrier, et la seconde que cela prend ne
+/// doit pas être un geste sans réponse : Nielsen place à **un dixième de seconde** la limite
+/// d'une manipulation directe qui semble répondre. L'annonce part donc à l'instant du lâcher,
+/// et la livraison la rejoint par son numéro.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Depot {
+    /// **Un téléchargement commence** : le numéro qui le reliera à sa livraison, le point de
+    /// l'écran où le curseur a lâché, et le site d'où l'image vient.
+    EnChemin {
+        numero: u64,
+        ou: Option<(f64, f64)>,
+        hote: String,
+    },
+    /// **Ce qu'un dépôt apporte** — rapatrié s'il porte le numéro de son annonce. Une livraison
+    /// annoncée arrive **toujours**, vide s'il le faut : sans elle, l'annonce resterait à
+    /// l'écran pour toujours.
+    Pose {
+        numero: Option<u64>,
+        moisson: Moisson,
+    },
+}
+
 impl Moisson {
     /// Rien n'a été récolté.
     pub fn est_vide(&self) -> bool {

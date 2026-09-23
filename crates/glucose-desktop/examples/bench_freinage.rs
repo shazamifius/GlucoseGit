@@ -142,6 +142,7 @@ fn rejouer(store: &mut Store, echelle: f64, regard: Regard) -> Freinage {
     for _ in 0..2 {
         let guides = glucose_core::smart_align::SnapGuides::default();
         let overlay = glucose_desktop::params::SceneOverlay {
+            arrivages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,
@@ -165,6 +166,7 @@ fn rejouer(store: &mut Store, echelle: f64, regard: Regard) -> Freinage {
 
         let guides = glucose_core::smart_align::SnapGuides::default();
         let overlay = glucose_desktop::params::SceneOverlay {
+            arrivages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,

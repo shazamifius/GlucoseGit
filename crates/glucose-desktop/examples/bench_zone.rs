@@ -99,6 +99,7 @@ fn rendre(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> Pixmap {
         &decale,
         &ui,
         SceneOverlay {
+            arrivages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,
@@ -169,6 +170,7 @@ fn chronometrer(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> f64 {
             &decale,
             &ui,
             SceneOverlay {
+                arrivages: &[],
                 guides: &guides,
                 selection_box: None,
                 editing: None,
