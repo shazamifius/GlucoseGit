@@ -20,7 +20,6 @@
 
 use super::GlucoseApp;
 use crate::chronique::{Geste, Instantane};
-use std::num::NonZeroU32;
 
 impl GlucoseApp {
     /// Ce que l'utilisateur est en train de faire.
@@ -305,12 +304,8 @@ impl GlucoseApp {
         present_us
     }
 
-    /// **Note ce que la presentation vient de couter, et rouvre la carte si l'arbitre le
-    /// demande** (ARBITRE-1).
-    ///
-    /// La decision se prend ici, la reouverture a la fin de l'image : detruire la chaine
-    /// pendant qu'une image est detenue arrache le sol sous ses pieds, et c'est exactement le
-    /// plantage que la fiche 17 § 2.3 raconte.
+    /// **Note ce que la presentation vient de couter, et retient la carte si l'arbitre
+    /// conclut** (ARBITRE-4).
     pub(super) fn arbitrer_la_carte(&mut self, present_us: u32) {
         use crate::present::arbitre::Verdict;
         let Some(arbitre) = self.arbitre.as_mut() else {
@@ -318,104 +313,43 @@ impl GlucoseApp {
         };
         match arbitre.observer(present_us) {
             Verdict::Continuer => {}
-            Verdict::Essayer(p) | Verdict::Revenir(p) => self.carte_a_rouvrir = Some(p),
+            Verdict::Essayer(p) | Verdict::Revenir(p) => self.retenir_la_carte(p),
         }
     }
 
-    /// **La vue est-elle immobile ?** La seule situation ou un gel ne se voit pas.
+    /// **La carte que l'arbitre a choisie s'ouvrira au prochain lancement** -- et pas avant.
     ///
-    /// C'est mot pour mot la question que le tempo pose pour decider s'il regle quoi que ce
-    /// soit : *« le tempo ne regle que ce qui BOUGE : c'est la seule situation ou un
-    /// intervalle irregulier se voit »*. La bascule de carte suit la meme loi, pour la meme
-    /// raison -- et **aucune constante n'a eu a etre choisie**, parce que le jugement etait
-    /// deja ecrit.
-    fn la_vue_est_immobile(&self) -> bool {
-        !(self.elan.en_cours() || self.vol.en_cours())
-    }
-
-    /// **Rouvre la presentation sur la carte que l'arbitre a designee.**
+    /// # Pourquoi elle ne s'ouvre plus tout de suite, et ARBITRE-3 n'y suffisait pas
     ///
-    /// A appeler hors du rendu, quand aucune image n'est detenue. Un echec n'est pas une
-    /// panne : on garde celle qui marche, et on le dit -- une carte qui refuse de s'ouvrir
-    /// vaut mieux qu'une application qui se ferme.
+    /// La carte se rouvrait sur la fenetre vivante, d'abord en plein geste, puis -- ARBITRE-3
+    /// -- des que la vue s'immobilisait. La session du 23/09 a 14 h 44 a montre que le moment
+    /// n'etait pas le probleme : apres la bascule, Glucose a presente des centaines d'images a
+    /// 103 par seconde, la latence du geste est restee normale, et **l'utilisateur voyait un
+    /// canevas fige**. Les images partaient et n'arrivaient pas a l'ecran ; chaque
+    /// presentation repondait « reussie ». Cinq sessions : la carte ouverte au lancement n'a
+    /// jamais fige, la meme ouverte en cours de route a fige a chaque fois.
+    /// [`crate::present::souvenir`] le raconte en entier.
     ///
-    /// # ARBITRE-3 -- pourquoi elle attend que la vue s'arrete
+    /// Le souvenir s'ecrit, la banniere le dit, et l'arbitre s'arrete pour cette session :
+    /// ce qu'il observerait ensuite viendrait de la carte qu'il vient de condamner, et il le
+    /// prendrait pour celle qu'il a choisie.
     ///
-    /// **Ouvrir une carte graphique coute une demi-seconde, et ce n'est pas un defaut a
-    /// corriger.** La banniere du terrain l'a chiffre sur la machine de l'utilisateur --
-    /// *« ancienne lachee en 138 ms, nouvelle ouverte en 606 ms »* -- et les mesures publiees
-    /// de `wgpu` donnent la meme chose ailleurs : instance 202 ms, adaptateur 143, peripherique
-    /// 85, configuration de la surface 140. C'est pourquoi les logiciels professionnels
-    /// demandent un redemarrage pour changer de carte, plutot que de le faire a chaud.
-    ///
-    /// Sur la chronique du 22/09 au soir, ces 744 millisecondes tombent **pendant un zoom**,
-    /// a la 10,4e seconde, et l'image suivante paie encore 406 ms de `present` -- la premiere
-    /// presentation sur une chaine neuve. Un peu plus d'une seconde de canevas fige, en plein
-    /// geste. C'est le gel que l'utilisateur decrit.
-    ///
-    /// On ne peut donc pas rendre cette bascule rapide. **On peut la rendre invisible** : un
-    /// gel d'une seconde pendant que rien ne bouge n'a rien a montrer de travers. L'arbitre
-    /// conclut quand il conclut -- c'est pendant le mouvement qu'il mesure ; sa demande, elle,
-    /// attend le premier instant ou la vue s'immobilise, et il arrive toujours : l'elan
-    /// s'eteint de lui-meme des que la main lache.
-    ///
-    /// La demande n'est donc pas jetee tant qu'elle n'est pas honoree, et ce tour de boucle
-    /// ne coute rien : un `Option` qu'on ne prend pas.
-    pub(super) fn rouvrir_la_carte_si_demande(&mut self) {
-        if !self.la_vue_est_immobile() {
-            return;
+    /// **Ce que cela laisse de cote** : `Revenir` -- garder la meilleure des deux -- demandait
+    /// d'avoir vu les deux dans la meme session. D'un lancement a l'autre, l'arbitre ne garde
+    /// que son dernier choix ; deux cartes qui gelent toutes deux le feraient alterner.
+    fn retenir_la_carte(&mut self, carte: crate::present::arbitre::Preference) {
+        self.arbitre = None;
+        match crate::present::souvenir::ecrire(&self.souvenir_de_la_carte, carte) {
+            Ok(()) => println!(
+                "[Glucose] arbitre : cette carte gele -- la carte {} s'ouvrira au prochain \
+                 lancement (en changer en cours de route fige l'affichage)",
+                carte.nom()
+            ),
+            Err(e) => eprintln!(
+                "[Glucose] arbitre : la carte {} n'a pas pu etre retenue ({e})",
+                carte.nom()
+            ),
         }
-        let Some(voulue) = self.carte_a_rouvrir.take() else {
-            return;
-        };
-        let Some(window) = self.window.clone() else {
-            return;
-        };
-        let taille = window.inner_size();
-        let (Some(w), Some(h)) = (
-            NonZeroU32::new(taille.width.max(1)),
-            NonZeroU32::new(taille.height.max(1)),
-        ) else {
-            return;
-        };
-        // L'ancienne part AVANT que la nouvelle ne s'ouvre : deux chaines sur la meme fenetre
-        // ne coexistent pas, et la surface appartient a celle qui l'a creee.
-        let depart = std::time::Instant::now();
-        self.presenter = None;
-        let lachee = depart.elapsed();
-        let carte = crate::present::gpu::succession::pour_wgpu(voulue);
-        match crate::present::GpuPresenter::sur_la_carte(window, w, h, carte) {
-            Ok(neuf) => {
-                println!(
-                    "[Glucose] arbitre : la presentation passe sur la carte {} -- {}                      (ancienne lachee en {:.0} ms, nouvelle ouverte en {:.0} ms)",
-                    voulue.nom(),
-                    neuf.adaptateur(),
-                    lachee.as_secs_f64() * 1000.0,
-                    (depart.elapsed() - lachee).as_secs_f64() * 1000.0
-                );
-                let neuf: Box<dyn crate::present::Presenter> = Box::new(neuf);
-                // La chronique doit savoir comment les images se succedent sur CETTE carte :
-                // l'Arc n'offre pas `mailbox`, la RTX si, et les memes durees ne veulent pas
-                // dire la meme chose selon que la presentation attendait un balayage.
-                self.chronique
-                    .rythme
-                    .observer_la_machine(self.cadence.periode(), neuf.rythme());
-                self.presenter = Some(neuf);
-            }
-            Err(e) => {
-                eprintln!(
-                    "[Glucose] arbitre : la carte {} ne s'ouvre pas ({e})",
-                    voulue.nom()
-                );
-                // On ne reste pas sans presentation : on rouvre celle d'avant.
-                if let Some(window) = self.window.clone() {
-                    if let Ok(reprise) = crate::present::GpuPresenter::new(window, w, h) {
-                        self.presenter = Some(Box::new(reprise));
-                    }
-                }
-            }
-        }
-        self.mark_dirty();
     }
 }
 
@@ -513,57 +447,6 @@ mod tests {
         );
     }
 
-    /// Une application dont la vue **glisse encore** : la main a lache, l'elan n'est pas eteint.
-    fn app_en_mouvement() -> GlucoseApp {
-        let mut app = GlucoseApp::new();
-        app.elan.pousser_pan(120.0, 0.0, std::time::Instant::now());
-        assert!(
-            app.elan.en_cours(),
-            "la mise en place du test doit vraiment mettre la vue en mouvement"
-        );
-        app
-    }
-
-    #[test]
-    fn test_la_bascule_de_carte_attend_que_la_vue_s_immobilise() {
-        // ARBITRE-3. Ouvrir une carte graphique coute une demi-seconde -- 606 ms mesurees sur
-        // la machine de l'utilisateur, et les chiffres publies de `wgpu` donnent le meme
-        // ordre. Le faire pendant un zoom fige le canevas en plein geste ; le faire au repos
-        // ne montre rien de travers.
-        let mut app = app_en_mouvement();
-        app.carte_a_rouvrir = Some(crate::present::arbitre::Preference::Rapide);
-        app.rouvrir_la_carte_si_demande();
-
-        // **La preuve a l'envers : la demande survit.** Sans la garde, ce `take()` l'aurait
-        // consommee pendant que la vue glissait, et la reconstruction de toute la chaine
-        // graphique serait tombee au milieu du geste -- exactement ce que la chronique du
-        // 22/09 au soir montre : 744 ms a la 10,4e seconde, pendant un zoom.
-        assert_eq!(
-            app.carte_a_rouvrir,
-            Some(crate::present::arbitre::Preference::Rapide),
-            "une demande ne se perd pas parce que la vue bougeait : elle attend"
-        );
-    }
-
-    #[test]
-    fn test_la_bascule_part_des_que_la_vue_s_arrete() {
-        let mut app = GlucoseApp::new();
-        assert!(
-            !app.elan.en_cours(),
-            "une application neuve a la vue immobile"
-        );
-        app.carte_a_rouvrir = Some(crate::present::arbitre::Preference::Rapide);
-        app.rouvrir_la_carte_si_demande();
-
-        // Sans fenetre, la reouverture ne peut pas aboutir -- mais la demande a ete PRISE, et
-        // c'est ce qui prouve que la garde l'a laissee passer. Une garde qui ne s'ouvre jamais
-        // vaut exactement un arbitre supprime, et rien dans le rapport ne le dirait.
-        assert_eq!(
-            app.carte_a_rouvrir, None,
-            "vue immobile : la demande est honoree tout de suite"
-        );
-    }
-
     /// **GEL-1** — la session qui se ferme pendant un gel le dit.
     ///
     /// Le 23/09, l'utilisateur a vu Glucose *« COMPLETEMENT freeze »*, et sa chronique finissait
@@ -608,13 +491,35 @@ mod tests {
         assert_eq!(app.chronique.gel_a_la_fermeture(), None);
     }
 
+    /// **ARBITRE-4** -- quand l'arbitre conclut, la carte se RETIENT, et rien ne se rouvre.
+    ///
+    /// L'arbitre du test voit deux cents images d'echauffement, puis des presentations qui
+    /// gelent : il conclut, et le souvenir doit porter l'autre carte. Et il s'arrete : ce
+    /// qu'il observerait ensuite viendrait de la carte qu'il vient de condamner.
     #[test]
-    fn test_l_immobilite_est_celle_que_le_tempo_juge_deja() {
-        // Aucune constante n'a ete choisie : c'est mot pour mot la question que
-        // `attendre_l_heure_de_soumettre` pose -- « le tempo ne regle que ce qui BOUGE, c'est
-        // la seule situation ou un intervalle irregulier se voit ». Deux jugements separes qui
-        // doivent rester d'accord finissent par ne plus l'etre.
-        assert!(GlucoseApp::new().la_vue_est_immobile());
-        assert!(!app_en_mouvement().la_vue_est_immobile());
+    fn test_le_verdict_de_l_arbitre_se_retient_pour_le_prochain_lancement() {
+        use crate::present::arbitre::{Arbitre, Preference};
+        let dossier = std::env::temp_dir().join(format!("glucose-arbitre4-{}", std::process::id()));
+        let mut app = GlucoseApp::new();
+        app.souvenir_de_la_carte = dossier.join("carte.txt");
+        app.arbitre = Some(Arbitre::nouveau(Preference::Econome));
+
+        for _ in 0..crate::cadence::ECHANTILLON {
+            app.arbitrer_la_carte(1_000);
+        }
+        assert!(app.arbitre.is_some(), "l'echauffement ne conclut rien");
+        for _ in 0..10 {
+            app.arbitrer_la_carte(480_000);
+        }
+        assert_eq!(
+            crate::present::souvenir::lire(&app.souvenir_de_la_carte),
+            Some(Preference::Rapide),
+            "la carte choisie est retenue pour le prochain lancement"
+        );
+        assert!(
+            app.arbitre.is_none(),
+            "l'arbitre s'arrete pour cette session"
+        );
+        std::fs::remove_dir_all(&dossier).ok();
     }
 }

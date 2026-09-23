@@ -75,14 +75,21 @@ impl GlucoseApp {
         // echantillon se compte en IMAGES, pas en secondes, et c'est celui du tempo : la
         // premiere version s'en etait invente un autre -- une seconde de l'ecran -- et cette
         // fenetre-la se refermait douze secondes avant le premier gel du terrain.
-        self.arbitre = crate::present::gpu::succession::carte_imposee().map_or_else(
-            || {
-                Some(crate::present::arbitre::Arbitre::nouveau(
-                    crate::present::arbitre::Preference::Econome,
-                ))
-            },
-            |_| None,
-        );
+        //
+        // **Il part de la carte que le lancement a ouverte** (ARBITRE-4) : celle qu'il a
+        // retenue lors d'une session precedente, s'il en a retenu une.
+        let depart = crate::present::gpu::succession::carte_de_depart(&self.souvenir_de_la_carte);
+        self.arbitre = crate::present::gpu::succession::carte_imposee()
+            .is_none()
+            .then(|| crate::present::arbitre::Arbitre::nouveau(depart));
+        if crate::present::souvenir::lire(&self.souvenir_de_la_carte).is_some()
+            && self.arbitre.is_some()
+        {
+            println!(
+                "[Glucose] arbitre : la carte {} a ete retenue lors d'une session precedente",
+                depart.nom()
+            );
+        }
         // **Le pont de depot du systeme**, a la place de celui de `winit` (DEPOT-WEB-1). Un
         // echec ne casse rien : `winit` garde la main, et seul le depot depuis un navigateur
         // manque -- c'est-a-dire l'etat d'avant.

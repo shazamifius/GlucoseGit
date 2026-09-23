@@ -195,17 +195,6 @@ impl GlucoseApp {
             self.poser_le_depot(&recolte);
         }
 
-        // **La carte se rouvre ici, hors du rendu** (ARBITRE-1) : detruire la chaine pendant
-        // qu'une image est detenue arrache le sol sous ses pieds, et c'est le plantage que la
-        // fiche 17 § 2.3 raconte. Ici, aucune image ne l'est.
-        //
-        // Elle porte sa propre marque parce qu'elle est la seule etape de cette fonction qui
-        // puisse couter des centaines de millisecondes : la banniere du terrain annonce « 138
-        // ms pour lacher l'ancienne, 606 pour ouvrir la nouvelle ».
-        self.chronique
-            .entracte
-            .imputer(std::time::Instant::now(), Poste::Carte);
-        self.rouvrir_la_carte_si_demande();
         self.chronique
             .entracte
             .imputer(std::time::Instant::now(), Poste::Entretien);

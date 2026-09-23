@@ -184,6 +184,13 @@ impl Preference {
         }
     }
 
+    /// La carte que ce nom designe -- l'inverse de [`Self::nom`], pour relire un souvenir.
+    pub fn depuis_nom(nom: &str) -> Option<Self> {
+        [Self::Econome, Self::Rapide]
+            .into_iter()
+            .find(|p| p.nom() == nom)
+    }
+
     /// Le nom qu'en dit la chronique.
     pub fn nom(self) -> &'static str {
         match self {

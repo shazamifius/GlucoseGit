@@ -252,10 +252,10 @@ impl Chronique {
     /// sans reflechir referait la meme faute a un cran de plus.
     ///
     /// Un poste du rendu se paie a CHAQUE image : son p99 dit ce qui fait geler. Un poste de
-    /// l'entracte, lui, peut n'exister qu'une fois dans toute la session -- la bascule de
-    /// carte a lieu au plus deux fois dans la vie du processus, et elle coute sept dixiemes
-    /// de seconde. Son p99 est donc rigoureusement nul, et trier par lui reléguerait en
-    /// dernier le seul poste qu'on cherchait.
+    /// l'entracte, lui, peut ne peser qu'une fois dans toute la session -- un enregistrement
+    /// qui tient le fil cent cinquante millisecondes, et rien d'autre. Son p99 est donc
+    /// rigoureusement nul, et trier par lui reléguerait en dernier le seul poste qu'on
+    /// cherchait. C'est l'apercu qui l'a montre, sur la bascule de carte qui existait alors.
     ///
     /// Et un poste rigoureusement nul ne parait pas : une ligne de zeros n'apprend rien et
     /// allonge le tableau d'autant.

@@ -132,7 +132,16 @@ pub(super) fn images_demandees() -> Option<u32> {
 /// Ce n'est pas l'arbitre de la fiche 21, qui choisira par le **débit observé** et sans
 /// variable. C'est l'instrument qui dira s'il y a quelque chose à arbitrer.
 pub(super) fn carte_demandee() -> wgpu::PowerPreference {
-    pour_wgpu(carte_imposee().unwrap_or(crate::present::arbitre::Preference::Econome))
+    pour_wgpu(carte_de_depart(&crate::present::souvenir::chemin()))
+}
+
+/// **La carte a ouvrir au lancement** : celle que l'environnement impose, sinon celle que
+/// l'arbitre a retenue lors d'une session precedente (ARBITRE-4), sinon l'econome -- celle
+/// qui gene le moins les autres logiciels.
+pub fn carte_de_depart(souvenir: &std::path::Path) -> crate::present::arbitre::Preference {
+    carte_imposee()
+        .or_else(|| crate::present::souvenir::lire(souvenir))
+        .unwrap_or(crate::present::arbitre::Preference::Econome)
 }
 
 /// La carte que l'environnement impose, s'il en impose une (ARBITRE-1).

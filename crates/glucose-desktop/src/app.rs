@@ -136,13 +136,10 @@ pub struct GlucoseApp {
     /// `None` quand `GLUCOSE_CARTE` impose une carte : l'utilisateur a tranche, il n'y a plus
     /// rien a arbitrer.
     pub arbitre: Option<crate::present::arbitre::Arbitre>,
-    /// La carte a rouvrir a la fin de cette image, quand l'arbitre en demande une autre.
-    ///
-    /// La decision se prend pendant qu'on enregistre l'image, et la reouverture detruit la
-    /// chaine : les separer est ce qui garantit qu'aucune image n'est detenue au moment ou le
-    /// sol se derobe -- la meme raison qui fait qu'une surface perimee se repare a
-    /// l'acquisition suivante et pas sur place (fiche 17 § 2.3).
-    pub carte_a_rouvrir: Option<crate::present::arbitre::Preference>,
+    /// **Ou l'arbitre retient la carte qu'il a choisie** (ARBITRE-4) -- le fichier de ce
+    /// que l'application a appris de cette machine. Un champ plutot qu'un appel, pour que les
+    /// tests ecrivent ailleurs que chez l'utilisateur.
+    pub souvenir_de_la_carte: std::path::PathBuf,
 
     /// **La selection a reduire au relachement, si le geste n'etait qu'un clic** (SEL-MULTI-1).
     ///
@@ -336,7 +333,7 @@ impl GlucoseApp {
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
             arbitre: None,
-            carte_a_rouvrir: None,
+            souvenir_de_la_carte: crate::present::souvenir::chemin(),
             reduire_a_la_relache: None,
             historique_du_texte: Default::default(),
             clic_de_reveil: false,

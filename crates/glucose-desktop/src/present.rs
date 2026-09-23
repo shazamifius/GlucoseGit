@@ -68,6 +68,7 @@ pub mod fond_gpu;
 pub mod gpu;
 pub mod lueurs_gpu;
 pub mod scene_gpu;
+pub mod souvenir;
 
 pub use gpu::GpuPresenter;
 

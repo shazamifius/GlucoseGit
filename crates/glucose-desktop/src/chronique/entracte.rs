@@ -15,7 +15,7 @@
 //! Ce module ne fait aucune hypothèse. Il **découpe** cet intervalle et dit, pour chaque
 //! morceau, à qui il appartient.
 //!
-//! # Les cinq postes, et pourquoi ils se somment exactement
+//! # Les quatre postes, et pourquoi ils se somment exactement
 //!
 //! Entre deux images, le contrôle est à tout instant à **un seul** endroit :
 //!
@@ -24,7 +24,6 @@
 //! | `systeme` | winit et Windows : le sommeil demandé, et la file de messages |
 //! | `main` | nos gestionnaires d'événements — souris, clavier, molette |
 //! | `depot` | ce qu'un glisser-déposer a apporté, et qu'on pose dans le document |
-//! | `carte` | la réouverture de la carte graphique, quand l'arbitre en change |
 //! | `entretien` | le reste de `about_to_wait` : l'empreinte, la chronique, les réveils |
 //!
 //! **Leur somme vaut l'entracte entier, au bit près**, et un test l'exige. C'est la garantie
@@ -61,8 +60,6 @@ pub enum Poste {
     Main,
     /// Poser dans le document ce qu'un glisser-déposer a apporté — décodage compris.
     Depot,
-    /// Lâcher une carte graphique et en ouvrir une autre sur la même fenêtre (ARBITRE-1).
-    Carte,
     /// Le reste de `about_to_wait` : l'empreinte du processus, la chronique sauvée, le calcul
     /// du prochain réveil.
     Entretien,
@@ -70,13 +67,7 @@ pub enum Poste {
 
 impl Poste {
     /// Tous les postes, dans l'ordre de leur indice.
-    pub const TOUS: [Poste; 5] = [
-        Poste::Systeme,
-        Poste::Main,
-        Poste::Depot,
-        Poste::Carte,
-        Poste::Entretien,
-    ];
+    pub const TOUS: [Poste; 4] = [Poste::Systeme, Poste::Main, Poste::Depot, Poste::Entretien];
 
     /// Combien il y en a.
     pub const COMBIEN: usize = Self::TOUS.len();
@@ -87,8 +78,7 @@ impl Poste {
             Self::Systeme => 0,
             Self::Main => 1,
             Self::Depot => 2,
-            Self::Carte => 3,
-            Self::Entretien => 4,
+            Self::Entretien => 3,
         }
     }
 
@@ -101,7 +91,6 @@ impl Poste {
             Self::Systeme => "attendre Windows",
             Self::Main => "ecouter la main",
             Self::Depot => "poser un depot",
-            Self::Carte => "changer de carte",
             Self::Entretien => "entretien",
         }
     }

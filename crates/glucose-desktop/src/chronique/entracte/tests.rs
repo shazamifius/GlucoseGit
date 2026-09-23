@@ -32,7 +32,6 @@ fn un_entracte_ordinaire(e: &mut Entracte, h: &mut Horloge) {
     e.ouvrir(ouverte);
     e.imputer(h.apres(8), Poste::Main);
     e.imputer(h.apres(1), Poste::Depot);
-    e.imputer(h.apres(0), Poste::Carte);
     e.imputer(h.apres(0), Poste::Entretien);
     e.imputer(h.apres(1), Poste::Systeme);
     e.fermer(h.apres(0), Some(ouverte));
@@ -60,21 +59,21 @@ fn test_les_parts_se_somment_a_l_entracte_entier() {
 fn test_le_temps_d_un_poste_ne_tombe_pas_dans_celui_d_a_cote() {
     let mut e = Entracte::nouveau();
     let mut h = Horloge::neuve();
-    // La bascule de carte du terrain : 138 ms pour lâcher l'ancienne, 606 pour ouvrir la
-    // nouvelle. La bannière du 22/09 au soir donne ces deux nombres, et la chronique de la
-    // même session donne « 748,7 ms à ne pas dessiner » sur son pire gel.
+    // Un événement qui tient le fil sept dixièmes de seconde — ce que faisait la bascule de
+    // carte du 22/09 au soir, 138 ms pour lâcher l'ancienne et 606 pour ouvrir la nouvelle,
+    // avant qu'ARBITRE-4 ne la retire de la session.
     let ouverte = h.apres(0);
     e.ouvrir(ouverte);
-    e.imputer(h.apres(4), Poste::Carte);
+    e.imputer(h.apres(4), Poste::Main);
     e.imputer(h.apres(744), Poste::Entretien);
     e.fermer(h.apres(1), Some(ouverte));
 
     assert_eq!(
-        e.poste(Poste::Carte).2,
+        e.poste(Poste::Main).2,
         744_000,
-        "la carte porte sa bascule"
+        "la main porte ce qu'elle a tenu"
     );
-    // **La preuve à l'envers.** Sans l'imputation au poste `carte`, ces 744 ms seraient
+    // **La preuve à l'envers.** Sans l'imputation au poste de la main, ces 744 ms seraient
     // restées dans `systeme` — l'entracte entier aurait la même durée, et le rapport aurait
     // dit « attendre Windows 748 ms » sur un gel que Glucose s'inflige lui-même. C'est
     // exactement la forme des quatre marques mal posées, et c'est ce que ce test interdit.
@@ -94,7 +93,7 @@ fn test_le_pire_entracte_garde_sa_decomposition() {
     // Puis la bascule, bien plus tard dans la session.
     let ouverte = h.apres(2_000);
     e.ouvrir(ouverte);
-    e.imputer(h.apres(4), Poste::Carte);
+    e.imputer(h.apres(4), Poste::Main);
     e.imputer(h.apres(744), Poste::Entretien);
     e.fermer(h.apres(1), Some(ouverte));
     un_entracte_ordinaire(&mut e, &mut h);
@@ -110,7 +109,7 @@ fn test_le_pire_entracte_garde_sa_decomposition() {
     // **La ligne qui nomme un gel** : 744 des 749 millisecondes, et on sait quoi corriger.
     assert_eq!(
         gels[0].parts().first().copied(),
-        Some((Poste::Carte, Duration::from_millis(744)))
+        Some((Poste::Main, Duration::from_millis(744)))
     );
     assert!(
         gels[0].a >= Duration::from_millis(2_000),
@@ -199,14 +198,14 @@ fn test_hors_d_un_entracte_rien_ne_se_mesure() {
     let mut h = Horloge::neuve();
     // Pendant le rendu, `imputer` peut être appelé par un chemin qui ne sait pas où il est.
     let jamais_ouverte = h.apres(0);
-    e.imputer(h.apres(50), Poste::Carte);
+    e.imputer(h.apres(50), Poste::Main);
     e.fermer(h.apres(50), Some(jamais_ouverte));
     assert_eq!(
         e.comptes(),
         0,
         "aucun intervalle a decouper, donc rien a ranger"
     );
-    assert_eq!(e.poste(Poste::Carte).2, 0);
+    assert_eq!(e.poste(Poste::Main).2, 0);
 }
 
 #[test]
