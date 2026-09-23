@@ -1,39 +1,40 @@
-name: ✨ Feature Request
-description: Suggérer une nouvelle fonctionnalité
+name: Proposer une idée
+description: Une fonctionnalité, un geste, une amélioration
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Une idée encore floue a sa place dans les
+        [Discussions](https://github.com/shazamifius/GlucoseGit/discussions). Ce formulaire
+        est pour une proposition déjà claire.
+
+  - type: textarea
+    id: need
+    attributes:
+      label: Ce qui vous manque
+      description: La situation où vous en avez eu besoin. Le besoin compte plus que la solution.
+      placeholder: "Quand je range une centaine de références, je ne retrouve plus celles d'un même artiste."
+    validations:
+      required: true
+
   - type: textarea
     id: idea
     attributes:
-      label: Quelle est ton idée ?
-      description: Décris la fonctionnalité que tu aimerais voir
+      label: Ce que vous imaginez
+      description: À quoi ressemblerait le geste, et ce qu'il changerait à l'écran.
     validations:
       required: true
 
   - type: textarea
-    id: why
+    id: today
     attributes:
-      label: Pourquoi ?
-      description: Quel problème ça résoudrait ? Quel usage ça permettrait ?
-    validations:
-      required: true
+      label: Comment vous faites aujourd'hui
+      description: Dans Glucose, dans un autre logiciel, ou à la main.
 
-  - type: textarea
-    id: alternatives
+  - type: checkboxes
+    id: tauri
     attributes:
-      label: Alternatives considérées
-      description: Y a-t-il déjà un moyen de faire ça avec les outils existants ?
-
-  - type: dropdown
-    id: phase
-    attributes:
-      label: Phase ROADMAP correspondante
-      description: "Si tu connais la roadmap, à quelle phase ça correspondrait ?"
+      label: Glucose Tauri
       options:
-        - Pas encore prévu
-        - Phase 6 (Réglette Temporelle)
-        - Phase 7 (CRDT / Multi-utilisateur)
-        - Phase 8 (IA locale)
-        - Phase 9 (WikiGit)
-        - Phase 10 (Apprentissage spatial)
-        - Phase 11 (Distribution multi-OS)
+        - label: Cette fonctionnalité existait dans Glucose Tauri, l'ancienne version

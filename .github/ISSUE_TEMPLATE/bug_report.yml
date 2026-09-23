@@ -1,28 +1,39 @@
-name: 🐛 Bug Report
-description: Signaler un bug dans Glucose
+name: Signaler un bug
+description: Quelque chose ne marche pas comme il devrait dans Glucose
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Merci de signaler ce bug ! Plus tu donnes de détails, plus vite il sera corrigé.
+        Merci de prendre le temps de le signaler. Plus le récit est précis, plus vite le
+        défaut se retrouve.
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: Quelle version de Glucose ?
+      options:
+        - Glucose Rust, compilé depuis la branche main
+        - Glucose Tauri, installé depuis une release (version figée, plus corrigée)
+    validations:
+      required: true
 
   - type: textarea
     id: description
     attributes:
-      label: Description du bug
-      description: Que s'est-il passé ? Que devait-il se passer à la place ?
-      placeholder: "J'ai cliqué sur X et l'app a crashé..."
+      label: Ce qui s'est passé
+      description: Ce que vous attendiez, et ce que vous avez vu à la place.
+      placeholder: "J'ai glissé une image depuis le navigateur, et une carte vide est apparue à la place."
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: Étapes pour reproduire
+      label: Pour le reproduire
       placeholder: |
         1. Ouvrir Glucose
-        2. Créer un sticky avec `N`
+        2. Appuyer sur N et cliquer sur la feuille
         3. ...
     validations:
       required: true
@@ -30,28 +41,34 @@ body:
   - type: dropdown
     id: os
     attributes:
-      label: Système d'exploitation
+      label: Système
       options:
         - Windows 11
         - Windows 10
-        - macOS Apple Silicon
-        - macOS Intel
-        - Linux (Ubuntu/Debian)
-        - Linux (Arch / autre)
-        - NixOS
+        - macOS
+        - Linux
+        - Autre (à préciser plus bas)
     validations:
       required: true
 
   - type: input
-    id: version
+    id: machine
     attributes:
-      label: Version de Glucose
-      placeholder: "0.2.0"
-    validations:
-      required: true
+      label: Carte graphique et écran
+      description: Glucose choisit sa voie de rendu selon la machine, ces deux informations aident beaucoup.
+      placeholder: "Intel Arc intégré + RTX 4060, écran 2560 × 1440 à 144 Hz"
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Pour Glucose Rust, le résultat de `git rev-parse --short HEAD`.
+      placeholder: "5d7adf5"
 
   - type: textarea
     id: extra
     attributes:
-      label: Captures d'écran / logs
-      description: Si possible, joins une capture ou les logs console (F12 dans l'app)
+      label: Captures, fichier, sortie
+      description: |
+        Une capture d'écran, le fichier `.glucose` en cause, ou ce que Glucose a écrit dans le
+        terminal si vous l'avez lancé avec `cargo run`.

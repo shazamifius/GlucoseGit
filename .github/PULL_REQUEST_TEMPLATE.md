@@ -1,31 +1,28 @@
-<!--
-Merci pour ta contribution ! Voici quelques infos pour faciliter la relecture.
--->
+<!-- Merci pour cette contribution. Quelques repères pour la relecture. -->
 
-## Description
+## Pourquoi
 
-<!-- Que fait cette PR ? Quel problème elle résout ? Le *pourquoi* avant le *quoi*. -->
+<!-- Le problème que ce changement résout, avant ce qu'il fait. -->
 
-## Type de changement
+## Ce qui change
 
-- [ ] 🐛 Correction
-- [ ] ✨ Fonctionnalité — branchée, visible, annulable, enregistrée (les quatre)
-- [ ] ♻️ Refonte (pas de changement de comportement)
-- [ ] 📚 Documentation
-- [ ] 🔒 Sécurité
-- [ ] ⚡ Performance — avec la mesure avant / après
-- [ ] 🧪 Tests
+<!-- Ce que l'utilisateur verra de différent, ou ce qui change sous le capot. -->
 
-## Chantier
+## Genre de changement
 
-<!-- À quel chantier de docs/architecture/12-PLAN-D-EXECUTION.md ce changement contribue ? -->
+- [ ] Correction
+- [ ] Fonctionnalité : branchée, visible, annulable et enregistrée (les quatre)
+- [ ] Refonte, sans changement de comportement
+- [ ] Performance, avec la mesure avant et après
+- [ ] Documentation
+- [ ] Tests
 
-## Checklist
+## Vérifications
 
 - [ ] `cargo fmt --all -- --check` passe
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings` passe, sans `#[allow]` ajouté
 - [ ] `cargo test --workspace` passe
 - [ ] `glucose-core` n'a toujours aucune dépendance
 - [ ] Aucun bouton n'annonce une action qui n'a pas lieu
-- [ ] Le message de commit décrit ce que fait le code (vérifiable par `grep`)
-- [ ] Documentation mise à jour si nécessaire (README, GUIDE, dossier d'architecture)
+- [ ] Essayé dans l'application, sur : <!-- système, carte graphique -->
+- [ ] Le guide, le README ou le carnet de bord sont à jour si le changement les touche
