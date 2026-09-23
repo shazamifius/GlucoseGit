@@ -308,3 +308,102 @@ fn test_un_fondu_doux_vers_la_bande_ne_se_mange_pas() {
         .count() as u32;
     assert_eq!(en_pixels(&img, l, h).3, 10 + proches);
 }
+
+// ── BORDURES-4 : un bord qui ondule, et la pointe d'un objet ─────────────────────────
+
+/// **Le bord d'une peinture ondule, et son fondu part quand même** — la forêt de
+/// l'utilisateur, `Ctrl+B` du 23/09.
+///
+/// Mesuré au bas de son image, de la bande vers l'intérieur : un rang blanc à quatre-vingt-
+/// quatorze pour cent, dont deux segments de peinture débordent sur la marge (x = 13 à 71 et
+/// 765 à 774), puis un rang à mi-chemin où ces mêmes segments sont déjà de la peinture, puis
+/// l'image. Aucun des deux n'est de la bande — trop de pixels s'en écartent — et le mélange
+/// uniforme de BORDURES-3 n'en expliquait que 94 %. Ils restaient, et c'était le liseré.
+///
+/// Ici : huit rangs blancs, un rang à 0,94 de blanc dont un vingtième déborde à 0,5, un rang à
+/// 0,3 dont le même vingtième est déjà de la peinture, puis la peinture. Les deux partent.
+#[test]
+fn test_le_fondu_d_un_bord_qui_ondule_part_avec_la_bande() {
+    let (l, h) = (200, 60);
+    let deborde = |x: u32| (10..20).contains(&x);
+    let img = image(l, h, |x, y| match y {
+        0..8 => BLANC,
+        8 if deborde(x) => fondu(BLANC, peinture(x, 10), 0.5),
+        8 => fondu(BLANC, peinture(x, 10), 0.94),
+        9 if deborde(x) => peinture(x, 10),
+        9 => fondu(BLANC, peinture(x, 10), 0.3),
+        _ => peinture(x, y),
+    });
+    assert_eq!(
+        en_pixels(&img, l, h).1,
+        10,
+        "la bande et ses deux rangs de fondu, malgré les coups de pinceau qui débordent"
+    );
+}
+
+/// **La pointe d'un objet sur un fond uni ne se mange pas.**
+///
+/// Une illustration posée sur un fond blanc : le fond et la marge sont le même blanc. Un objet
+/// étroit monte plus haut que les autres, et son sommet est flou sur trois rangs ; un objet
+/// large, plus bas, fixe les bords gauche et droit — le fond reste donc dans le cadre, autour
+/// de la pointe. BORDURES-3 prenait ses trois rangs pour des transitions : son mélange
+/// uniforme les expliquait tous, puisque les neuf dixièmes de chaque rang sont du fond sur du
+/// fond. Sur les images de l'utilisateur, cela rognait d'un à trois rangs le haut ou le flanc
+/// d'un objet. Leur pixel **typique** n'a pas bougé : ce sont du contenu, et ils restent.
+///
+/// L'objet étroit **seul** ne le prouverait pas, et la première version de ce test l'a appris :
+/// une fois les marges de gauche et de droite retirées, son sommet flou occupe toute la largeur
+/// qui reste — c'est alors un vrai fondu contre la bande, et il part, à raison.
+#[test]
+fn test_la_pointe_d_un_objet_sur_un_fond_uni_ne_se_mange_pas() {
+    let (l, h) = (200, 80);
+    let sombre = [30, 30, 30, 255];
+    let pointe = |x: u32| (90..110).contains(&x);
+    let img = image(l, h, |x, y| match y {
+        20 if pointe(x) => fondu(BLANC, sombre, 0.75),
+        21 if pointe(x) => fondu(BLANC, sombre, 0.5),
+        22 if pointe(x) => fondu(BLANC, sombre, 0.25),
+        23..50 if pointe(x) => sombre,
+        50..70 if (10..190).contains(&x) => sombre,
+        _ => BLANC,
+    });
+    assert_eq!(
+        en_pixels(&img, l, h).1,
+        20,
+        "la marge part, le haut flou de l'objet reste"
+    );
+}
+
+/// **Un fondu dans une peinture sombre part aussi** — la colonne gauche d'une illustration de
+/// l'utilisateur, sur bande noire.
+///
+/// Sa luminosité valait 58 % de celle de sa voisine, uniformément : un fondu, sans doute.
+/// Mais un tiers de ses pixels étaient déjà presque noirs, et là un fondu vers le noir ne se
+/// voit pas. Jugée sur tous les pixels, la médiane du déplacement tombait sous le bruit et la
+/// colonne restait, en liseré sombre. Elle se juge sur ceux qui **peuvent** montrer un fondu.
+///
+/// Ici, des bandes verticales : quatre colonnes sur dix presque noires, deux à quarante, quatre
+/// à quatre-vingts ; le rang de fondu en garde 58 %. Parmi tous les pixels, seuls quatre sur
+/// dix ont bougé au-delà du bruit ; parmi ceux qui le pouvaient, quatre sur six.
+#[test]
+fn test_un_fondu_dans_une_peinture_sombre_part_aussi() {
+    let (l, h) = (200, 60);
+    let sombre = |x: u32| {
+        let v = match (x + 6) % 10 {
+            0..4 => 15,
+            4..6 => 40,
+            _ => 80,
+        };
+        [v, v, v, 255]
+    };
+    let img = image(l, h, |x, y| match y {
+        0..8 => NOIR,
+        8 => fondu(NOIR, sombre(x), 0.42),
+        _ => sombre(x),
+    });
+    assert_eq!(
+        en_pixels(&img, l, h).1,
+        9,
+        "la bande noire et son rang de fondu"
+    );
+}

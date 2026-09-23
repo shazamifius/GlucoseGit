@@ -204,44 +204,80 @@ where
     u32::try_from(rang).unwrap_or(u32::MAX)
 }
 
-/// **Ce rang est-il un mélange de la bande et du rang suivant** (BORDURES-3) ?
+/// **Ce rang est-il un mélange de la bande et du rang suivant** (BORDURES-3, BORDURES-4) ?
 ///
-/// Le mélange `a · bande + (1 − a) · suivant` se trouve par moindres carrés sur toute la ligne
-/// — un seul `a`, parce qu'un flou ou une compression fondent la ligne entière de la même
-/// façon. Le rang est une transition si ce mélange l'explique au bruit près, et si le rang
-/// suivant **seul** ne l'explique pas : sans la seconde condition, tout rang d'un dégradé
-/// doux passerait pour une transition, et un vignettage se mangerait rang après rang.
+/// Chaque pixel se lit comme `a · bande + (1 − a) · son voisin du rang suivant`, avec **son
+/// propre** `a` : la projection du pixel sur le segment qui va du voisin à la bande. Le rang
+/// est une transition si deux choses sont vraies à la fois.
+///
+/// **Le mélange l'explique** : au plus [`PART_ABERRANTE`] de ses pixels s'écartent du leur de
+/// plus que le bruit. Un pixel plus sombre que son voisin, vers une bande blanche, n'est pas
+/// un mélange — et un contenu texturé en porte toujours bien davantage.
+///
+/// **Le pixel typique a bougé vers la bande**, et il ne se cherche que parmi ceux qui
+/// **peuvent** montrer un fondu : les pixels dont le voisin n'est pas déjà de la couleur de la
+/// bande. Un fond blanc sous une bande blanche est identique fondu ou non ; un contenu presque
+/// noir sous une bande noire aussi. Il faut que ces pixels-là soient la **majorité** — sinon le
+/// rang est surtout du fond sur du fond, comme un texte ou la pointe d'un objet posé sur la
+/// marge, et rien ne permet d'y voir un fondu —, et que leur **médiane** ait bougé au-delà du
+/// bruit : un dégradé doux, qui change de quelques niveaux par rang, n'en est pas un.
+///
+/// # Ce que les images de l'utilisateur ont appris (BORDURES-4)
+///
+/// BORDURES-3 prenait un `a` **commun** à toute la ligne, au motif qu'un flou fond la ligne
+/// entière de la même façon, et jugeait le déplacement sur un centième des pixels. Les
+/// quarante-neuf images de ses deux documents l'ont démenti deux fois :
+///
+/// * **le bord d'une peinture ondule.** Le premier rang gardé de sa forêt mêlait 79 à 90 % de
+///   blanc selon l'endroit, et le dernier portait deux coups de pinceau débordant sur la
+///   marge : le mélange uniforme n'en expliquait que 94 %, et **le liseré restait** ;
+/// * **un centième ne fait pas un fondu.** Sur sept illustrations posées sur un fond de la
+///   couleur de la marge, les rangs où seule la pointe d'un objet paraît passaient pour des
+///   transitions, et **un à trois rangs d'objet** étaient rognés.
+///
+/// Et la majorité se compte **parmi les pixels qui peuvent montrer un fondu**, pas parmi tous :
+/// la colonne gauche d'une peinture sombre sur bande noire — sa luminosité vaut 58 % de celle
+/// de sa voisine, uniformément — porte 28 % de pixels presque noirs où aucun fondu ne se voit.
+/// Comptée sur tous les pixels, la médiane la gardait, en liseré sombre.
 fn est_une_transition(rang: &[Pixel], suivant: &[Pixel], bande: Pixel) -> bool {
     if rang.len() != suivant.len() || rang.is_empty() {
         return false;
     }
     let canal = |p: &Pixel, c: usize| f64::from(p[c]);
-    let (mut num, mut den) = (0.0f64, 0.0f64);
-    for (p, q) in rang.iter().zip(suivant) {
+    let ecart_au_melange = rang.iter().zip(suivant).map(|(p, q)| {
+        let (mut num, mut den) = (0.0f64, 0.0f64);
         for c in 0..3 {
             let vers_la_bande = canal(&bande, c) - canal(q, c);
             num += (canal(p, c) - canal(q, c)) * vers_la_bande;
             den += vers_la_bande * vers_la_bande;
         }
-    }
-    if den <= 0.0 {
-        return false;
-    }
-    let a = (num / den).clamp(0.0, 1.0);
-    let ecart_au_melange = rang.iter().zip(suivant).map(|(p, q)| {
+        // Un voisin qui EST la bande n'offre qu'un point : le mélange vaut alors ce point.
+        let a = if den > 0.0 {
+            (num / den).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         (0..3)
-            .map(|c| {
-                let melange = a * canal(&bande, c) + (1.0 - a) * canal(q, c);
-                (canal(p, c) - melange).abs()
-            })
+            .map(|c| (canal(p, c) - (a * canal(&bande, c) + (1.0 - a) * canal(q, c))).abs())
             .fold(0.0f64, f64::max)
     });
-    let ecart_au_suivant = rang.iter().zip(suivant).map(|(p, q)| {
-        (0..3)
-            .map(|c| (canal(p, c) - canal(q, c)).abs())
-            .fold(0.0f64, f64::max)
-    });
-    au_centile(ecart_au_melange) <= ECART_DE_BANDE && au_centile(ecart_au_suivant) > ECART_DE_BANDE
+    // Ce que chaque pixel qui PEUT montrer un fondu s'est déplacé depuis son voisin.
+    let deplacements: Vec<f64> = rang
+        .iter()
+        .zip(suivant)
+        .filter(|(_, q)| ecart(q, &bande) > ECART_DE_BANDE)
+        .map(|(p, q)| ecart(p, q))
+        .collect();
+    deplacements.len() * 2 > rang.len()
+        && au_centile(ecart_au_melange) <= ECART_DE_BANDE
+        && au_dessus_de(deplacements.into_iter(), 0.5) > ECART_DE_BANDE
+}
+
+/// L'écart entre deux pixels, sur leur canal le plus éloigné.
+fn ecart(p: &Pixel, q: &Pixel) -> f64 {
+    (0..3)
+        .map(|c| f64::from(p[c].abs_diff(q[c])))
+        .fold(0.0f64, f64::max)
 }
 
 /// La ligne `y`, sur les colonnes `xs`, copiée : les colonnes ne sont pas contiguës, et une
@@ -278,26 +314,28 @@ fn mediane(pixels: &[Pixel]) -> Pixel {
 /// bande — ce qui laissait un liseré —, mais une ligne de contenu, qui en porte bien
 /// davantage dès son premier rang, l'arrête toujours.
 fn ecart_au_centile(pixels: &[Pixel], couleur: Pixel) -> f64 {
-    au_centile(pixels.iter().map(|p| {
-        (0..3)
-            .map(|c| f64::from(p[c].abs_diff(couleur[c])))
-            .fold(0.0f64, f64::max)
-    }))
+    au_centile(pixels.iter().map(|p| ecart(p, &couleur)))
 }
 
 /// **L'écart qui laisse [`PART_ABERRANTE`] des pixels au-dessus de lui** — la même règle pour
 /// la bande et pour la transition, écrite une fois.
 fn au_centile(ecarts: impl Iterator<Item = f64>) -> f64 {
+    au_dessus_de(ecarts, PART_ABERRANTE)
+}
+
+/// **L'écart qui laisse la part `part` des pixels au-dessus de lui** : un centième pour ce
+/// qu'on tolère, la moitié pour le pixel typique.
+fn au_dessus_de(ecarts: impl Iterator<Item = f64>, part: f64) -> f64 {
     let mut ecarts: Vec<f64> = ecarts.collect();
     if ecarts.is_empty() {
         return 0.0;
     }
     ecarts.sort_unstable_by(f64::total_cmp);
-    // Le rang qui laisse `PART_ABERRANTE` de la ligne au-dessus de lui. Une ligne courte le
-    // ramène au dernier pixel, ce qui redonne le pire : sur dix pixels, un centième n'existe
-    // pas, et tolérer un pixel sur dix serait tolérer dix pour cent.
+    // Le rang qui laisse `part` de la ligne au-dessus de lui. Une ligne courte le ramène au
+    // dernier pixel, ce qui redonne le pire : sur dix pixels, un centième n'existe pas, et
+    // tolérer un pixel sur dix serait tolérer dix pour cent.
     let n = ecarts.len();
-    let hors = ((n as f64) * PART_ABERRANTE).floor() as usize;
+    let hors = ((n as f64) * part).floor() as usize;
     ecarts[n - 1 - hors.min(n - 1)]
 }
 
