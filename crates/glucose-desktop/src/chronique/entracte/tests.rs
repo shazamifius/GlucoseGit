@@ -96,18 +96,55 @@ fn test_le_pire_entracte_garde_sa_decomposition() {
     e.fermer(h.apres(1), true);
     un_entracte_ordinaire(&mut e, &mut h);
 
-    let (quand, total, parts) = e.pire();
-    assert_eq!(total, Duration::from_millis(749));
-    let carte = parts
-        .iter()
-        .find(|(p, _)| *p == Poste::Carte)
-        .map(|(_, d)| *d)
-        .expect("le poste de la carte");
+    let (gels, tus) = e.gels();
+    assert_eq!(tus, 0);
+    assert_eq!(
+        gels.len(),
+        1,
+        "les entractes de dix millisecondes ne sont pas des gels"
+    );
+    assert_eq!(gels[0].total, Duration::from_millis(749));
     // **La ligne qui nomme un gel** : 744 des 749 millisecondes, et on sait quoi corriger.
-    assert_eq!(carte, Duration::from_millis(744));
+    assert_eq!(
+        gels[0].parts().first().copied(),
+        Some((Poste::Carte, Duration::from_millis(744)))
+    );
     assert!(
-        quand >= Duration::from_millis(2_000),
-        "le pire est date, parce qu'un gel a la premiere seconde est une initialisation : {quand:?}"
+        gels[0].a >= Duration::from_millis(2_000),
+        "le gel est date, parce qu'un gel a la premiere seconde est une initialisation : {:?}",
+        gels[0].a
+    );
+}
+
+/// **ENTRACTE-2** — le gel du démarrage ne cache plus les autres.
+///
+/// C'est la première session réelle qui l'a montré : le pire entracte était le démarrage,
+/// 607 ms à la 0,6ᵉ seconde, et la section ne décomposait que lui pendant que le verdict
+/// comptait 2 314 ms perdues. Chaque attente qui a mangé au moins une image est gardée, et la
+/// plus longue vient en tête.
+#[test]
+fn test_le_gel_du_demarrage_ne_cache_pas_les_autres() {
+    let mut e = Entracte::nouveau();
+    let mut h = Horloge::neuve();
+    e.ouvrir(h.apres(0));
+    e.fermer(h.apres(607), true);
+    un_entracte_ordinaire(&mut e, &mut h);
+    e.ouvrir(h.apres(4_000));
+    e.imputer(h.apres(0), Poste::Main);
+    e.imputer(h.apres(163), Poste::Systeme);
+    e.fermer(h.apres(1), true);
+
+    let (gels, _) = e.gels();
+    assert_eq!(
+        gels.len(),
+        2,
+        "le demarrage ET l'evenement de 163 ms : {gels:?}"
+    );
+    assert_eq!(gels[0].total, Duration::from_millis(607));
+    assert_eq!(
+        gels[1].parts().first().copied(),
+        Some((Poste::Main, Duration::from_millis(163))),
+        "le second gel est nomme, lui aussi"
     );
 }
 

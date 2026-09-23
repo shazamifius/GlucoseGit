@@ -33,11 +33,18 @@
 //! pendant plusieurs sessions. Ici, ce qu'un poste ne prend pas, un autre le porte : rien ne
 //! peut disparaître, et rien ne peut compter deux fois.
 //!
-//! # Le pire entracte est gardé décomposé, et c'est lui qui répond
+//! # Chaque gel est gardé décomposé, et pas seulement le pire (ENTRACTE-2)
 //!
 //! Une distribution dit ce qui arrive d'ordinaire ; elle ne dit pas ce qu'**un** gel de sept
-//! dixièmes de seconde contenait. Le pire entracte de la session garde donc ses cinq parts
-//! telles quelles — c'est une ligne de rapport, et c'est la seule qui nomme un gel.
+//! dixièmes de seconde contenait. La première version gardait donc le pire entracte avec ses
+//! cinq parts — et la première session réelle a montré pourquoi ce n'était pas assez : le pire
+//! était le gel du **démarrage**, 607 ms à la 0,6ᵉ seconde, connu depuis la fiche 19, et il
+//! cachait tous les autres. Le verdict comptait 2 314 ms perdues ; la section n'en expliquait
+//! qu'un quart.
+//!
+//! Sont gardées désormais **toutes les attentes qui ont coûté au moins une image entière** —
+//! exactement celles que le constat du gel additionne, avec le même plancher. La liste et le
+//! constat se recoupent donc par construction, et aucun seuil n'a été choisi.
 
 use super::histogramme::Histogramme;
 use std::time::{Duration, Instant};
@@ -103,6 +110,29 @@ impl Poste {
 /// Ce que chaque poste a pris pendant un entracte.
 type Parts = [Duration; Poste::COMBIEN];
 
+/// **Une attente qui a coûté au moins une image entière**, datée et décomposée.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Gel {
+    /// Depuis la première image de la session.
+    pub a: Duration,
+    /// Ce que l'attente a duré en tout.
+    pub total: Duration,
+    parts: Parts,
+}
+
+impl Gel {
+    /// Ce que chaque poste y a pris, du plus gros au plus petit, sans les postes vides.
+    pub fn parts(&self) -> Vec<(Poste, Duration)> {
+        let mut parts: Vec<(Poste, Duration)> = Poste::TOUS
+            .iter()
+            .map(|p| (*p, self.parts[p.indice()]))
+            .filter(|(_, d)| !d.is_zero())
+            .collect();
+        parts.sort_by_key(|(_, d)| std::cmp::Reverse(*d));
+        parts
+    }
+}
+
 /// Où va le temps entre deux images, sur toute une session.
 #[derive(Debug)]
 pub struct Entracte {
@@ -116,13 +146,12 @@ pub struct Entracte {
     par_poste: [Histogramme; Poste::COMBIEN],
     /// La distribution de l'entracte entier, pour vérifier que les parts s'y retrouvent.
     totaux: Histogramme,
-    /// Le pire entracte de la session, décomposé.
-    pire: Parts,
-    /// Ce que ce pire entracte valait en tout.
-    pire_total: Duration,
-    /// À quelle milliseconde de la session il est tombé.
-    pire_a_ms: u32,
-    /// L'instant de la première présentation, pour dater le pire.
+    /// **Les gels de la session**, du plus long au plus court — bornés comme les images
+    /// lentes de la chronique, pour que la mémoire reste constante.
+    gels: Vec<Gel>,
+    /// Combien de gels la borne a laissés de côté : un rapport qui en tait se doit de le dire.
+    gels_non_gardes: u64,
+    /// L'instant de la première présentation, pour dater les gels.
     origine: Option<Instant>,
 }
 
@@ -140,9 +169,8 @@ impl Entracte {
             en_cours: [Duration::ZERO; Poste::COMBIEN],
             par_poste: std::array::from_fn(|_| Histogramme::nouveau()),
             totaux: Histogramme::nouveau(),
-            pire: [Duration::ZERO; Poste::COMBIEN],
-            pire_total: Duration::ZERO,
-            pire_a_ms: 0,
+            gels: Vec::with_capacity(super::PIRES + 1),
+            gels_non_gardes: 0,
             origine: None,
         }
     }
@@ -195,14 +223,28 @@ impl Entracte {
             poste.ajouter(micros(part));
         }
         self.totaux.ajouter(micros(total));
-        if total > self.pire_total {
-            self.pire_total = total;
-            self.pire = self.en_cours;
-            self.pire_a_ms = self
+        // Le plancher de la charte : une attente plus longue a mange au moins une image
+        // entiere, et c'est la meme borne que le constat du gel emploie pour les compter.
+        if total > crate::cadence::BUDGET_TOTAL {
+            let a = self
                 .origine
-                .map(|o| maintenant.saturating_duration_since(o).as_millis())
-                .unwrap_or(0)
-                .min(u128::from(u32::MAX)) as u32;
+                .map(|o| maintenant.saturating_duration_since(o))
+                .unwrap_or_default();
+            self.garder_le_gel(Gel {
+                a,
+                total,
+                parts: self.en_cours,
+            });
+        }
+    }
+
+    /// Range un gel parmi les autres, du plus long au plus court, dans la borne.
+    fn garder_le_gel(&mut self, gel: Gel) {
+        let place = self.gels.partition_point(|g| g.total >= gel.total);
+        self.gels.insert(place, gel);
+        if self.gels.len() > super::PIRES {
+            self.gels.truncate(super::PIRES);
+            self.gels_non_gardes += 1;
         }
     }
 
@@ -234,21 +276,13 @@ impl Entracte {
         self.totaux.compte()
     }
 
-    /// **Le pire entracte, décomposé** : quand, combien, et ce que chaque poste y a pris.
+    /// **Les gels de la session**, du plus long au plus court, et combien la borne en a tus.
     ///
-    /// C'est la ligne qui nomme un gel. Une distribution dit ce qui arrive d'ordinaire ; elle
-    /// ne dit pas ce qu'une attente de sept dixièmes de seconde contenait, et c'est pourtant
-    /// la seule question que trois sessions ont posée.
-    pub fn pire(&self) -> (Duration, Duration, Vec<(Poste, Duration)>) {
-        let parts = Poste::TOUS
-            .iter()
-            .map(|p| (*p, self.pire[p.indice()]))
-            .collect();
-        (
-            Duration::from_millis(u64::from(self.pire_a_ms)),
-            self.pire_total,
-            parts,
-        )
+    /// Une distribution dit ce qui arrive d'ordinaire ; elle ne dit pas ce qu'une attente de
+    /// sept dixièmes de seconde contenait, et c'est pourtant la seule question que trois
+    /// sessions ont posée.
+    pub fn gels(&self) -> (&[Gel], u64) {
+        (&self.gels, self.gels_non_gardes)
     }
 }
 

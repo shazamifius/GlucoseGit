@@ -275,35 +275,48 @@ impl Chronique {
                 super::barre(f64::from(pire) / f64::from(plafond.max(1)))
             ));
         }
-        self.ecrire_le_pire_entracte(t);
+        self.ecrire_les_gels(t);
     }
 
-    /// **Le pire entracte, decompose** : la seule ligne du rapport qui nomme un gel.
+    /// **Chaque gel, decompose** : les seules lignes du rapport qui nomment un gel.
     ///
     /// Une distribution dit ce qui arrive d'ordinaire. Elle ne dit pas ce qu'UNE attente de
-    /// sept dixiemes de seconde contenait, et c'est pourtant la seule question que trois
-    /// sessions ont posee. Les parts nulles sont tues : ce qui compte est qui a pris le temps.
-    fn ecrire_le_pire_entracte(&self, t: &mut String) {
-        let (quand, total, parts) = self.entracte.pire();
-        if total.is_zero() {
+    /// sept dixiemes de seconde contenait. La premiere version ne gardait que la pire, et la
+    /// premiere session reelle l'a montre insuffisant : c'etait le demarrage, et il cachait
+    /// tous les autres (ENTRACTE-2). Chaque gel dit donc quand, combien, et les trois postes
+    /// qui y ont pris le plus -- les autres n'ajoutent rien a ce qu'il faut corriger.
+    fn ecrire_les_gels(&self, t: &mut String) {
+        let (gels, tus) = self.entracte.gels();
+        if gels.is_empty() {
             return;
         }
-        let mut portees: Vec<(&'static str, f64)> = parts
-            .iter()
-            .filter(|(_, d)| !d.is_zero())
-            .map(|(p, d)| (p.nom(), d.as_secs_f64() * 1000.0))
-            .collect();
-        portees.sort_by(|a, b| b.1.total_cmp(&a.1));
-        let detail: Vec<String> = portees
-            .iter()
-            .map(|(nom, valeur)| format!("{nom} {valeur:.1}ms"))
-            .collect();
+        let somme: f64 = gels.iter().map(|g| g.total.as_secs_f64() * 1000.0).sum();
         t.push_str(&format!(
-            "    la pire attente : {:.1}ms a la {:.1}e seconde -- dont {}\n",
-            total.as_secs_f64() * 1000.0,
-            quand.as_secs_f64(),
-            detail.join(", ")
+            "    les attentes qui ont coute au moins une image -- {}, soit {somme:.0} ms :
+",
+            gels.len()
         ));
+        for gel in gels {
+            let detail: Vec<String> = gel
+                .parts()
+                .iter()
+                .take(3)
+                .map(|(p, d)| format!("{} {:.1}ms", p.nom(), d.as_secs_f64() * 1000.0))
+                .collect();
+            t.push_str(&format!(
+                "      a {:5.1}s  {:7.1}ms -- {}
+",
+                gel.a.as_secs_f64(),
+                gel.total.as_secs_f64() * 1000.0,
+                detail.join(", ")
+            ));
+        }
+        if tus > 0 {
+            t.push_str(&format!(
+                "      et {tus} autre(s), plus courte(s) que toutes celles-ci
+"
+            ));
+        }
     }
 }
 
