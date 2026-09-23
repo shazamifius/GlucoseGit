@@ -1,330 +1,178 @@
 <div align="center">
 
-# 🧬 Glucose
+# Glucose
 
-### Le canvas infini de pensée visuelle, réécrit en Rust natif — 0 dépendance dans le noyau
+**Un canevas infini pour penser en images et en texte. Natif, écrit en Rust.**
 
 *Pose. Relie. Zoome. Explore.*
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Rust](https://img.shields.io/badge/Rust-noyau%20100%25%20std-CE422B.svg?style=flat-square&logo=rust)](https://www.rust-lang.org/)
-[![Dependencies](https://img.shields.io/badge/d%C3%A9pendances%20du%20noyau-0-brightgreen.svg?style=flat-square)](#-ce-qui-est-mesuré-pas-affirmé)
-[![LaTeX](https://img.shields.io/badge/LaTeX-KaTeX%20natif-8b5cf6.svg?style=flat-square)](#-les-formules-sont-natives)
+[![Licence MIT](https://img.shields.io/badge/licence-MIT-blue?style=flat-square)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-natif-CE422B?style=flat-square&logo=rust)](https://www.rust-lang.org/)
+[![Noyau sans dépendance](https://img.shields.io/badge/noyau-0%20d%C3%A9pendance-brightgreen?style=flat-square)](#mesuré-pas-affirmé)
+[![Windows](https://img.shields.io/badge/v%C3%A9rifi%C3%A9%20sous-Windows-0078D6?style=flat-square)](#essayer-glucose-rust)
+[![État](https://img.shields.io/badge/%C3%A9tat-en%20d%C3%A9veloppement-orange?style=flat-square)](#ce-qui-manque-encore)
 
-[**📖 Guide**](GUIDE.md) · [**🗺️ Dossier d'architecture**](docs/architecture/00-INDEX.md) · [**🐛 Issues**](../../issues)
-
-</div>
-
----
-
-## ✨ Qu'est-ce que c'est ?
-
-**Glucose** est un canvas infini pour penser en images et en texte — moodboard, cartes Markdown,
-formules, membranes, dossiers-sous-canvas, flèches sémantiques. La version d'origine tournait
-sur Tauri et TypeScript ; **ce dépôt la recrée en Rust natif**, avec le même rendu et les mêmes
-fonctionnalités pour cible, et un code qui, lui, ne doit rien à l'ancien.
-
-Deux partis pris, tenus par des tests plutôt que par des promesses :
-
-- 🛡️ **Le noyau (`glucose-core`) n'a aucune dépendance.** Modèle, géométrie, index spatial,
-  alignement, undo par journal, format de fichier, SHA-256 : tout est écrit sur `std`, et
-  `cargo tree -p glucose-core` le prouve.
-- 🎯 **Ce qui est affiché est fidèle.** Le thème, la grille, les cartes, les poignées, la teinte
-  symbiotique sont comparés aux valeurs de la référence par des tests — la teinte l'est au bit
-  près, sur des vecteurs produits par le code TypeScript d'origine.
-
-Autour du noyau, **douze dépendances directes**, chacune derrière une frontière : `winit` et
-`softbuffer` (fenêtre et présentation), `wgpu` et `pollster` (la couche graphique portable),
-`tiny-skia` (rastérisation), `fontdue` (glyphes), `image` (décodage), `rfd` (dialogues),
-`arboard` (presse-papiers), `katex-rs` (mise en page des formules, isolée dans sa propre
-crate), et les deux crates de l'atelier lui-même.
-
-**Elles en entraînent 160 en tout, et il faut le dire.** Ce README a longtemps annoncé « huit
-dépendances assumées » sans préciser qu'il comptait les lignes du `Cargo.toml` et non l'arbre
-réel. Le gros du poids est la couche graphique : `wgpu` et ce qu'elle porte pèsent à elles
-seules une quarantaine de crates.
-
-Elle est assumée, et pour une raison précise : c'est **elle qui rend l'universalité possible**.
-Vulkan, Metal, Direct3D et OpenGL ES derrière une seule interface — écrire quatre pilotes à la
-main donnerait moins de contrôle réel, et couvrirait moins de machines. C'est exactement le cas
-que la règle prévoit : on ne peut pas faire sans, alors on fait intelligemment avec.
-
-Et le chemin processeur reste un **vrai chemin**, pas un secours : une machine sans pilote
-graphique, un bureau distant ou une machine virtuelle doivent ouvrir Glucose comme les autres.
-
-Développé et mesuré sous **Windows**. La pile est portable, mais aucune autre plateforme n'a
-encore été vérifiée : le dire est plus utile que le promettre.
-
----
-
-## 📸 À quoi ça ressemble
-
-<div align="center">
-
-![Le canvas de Glucose, avec ses membranes, ses dossiers, ses flèches et ses formules](docs/screenshots/vitrine.png)
-
-*Un tableau de travail : cartes Markdown, membrane colorée, dossier-sous-canvas, flèches, minimap — et des formules LaTeX rendues nativement.*
+[Guide d'utilisation](GUIDE.md) · [Discussions](https://github.com/shazamifius/GlucoseGit/discussions) · [Signaler un bug](https://github.com/shazamifius/GlucoseGit/issues/new/choose) · [L'ancienne version](#glucose-tauri-lancienne-version)
 
 </div>
 
-### 🧮 Les formules sont natives
+> [!IMPORTANT]
+> **Glucose a changé de moteur.** La première version, **Glucose Tauri**, était une
+> application web (React et TypeScript) enfermée dans une fenêtre Tauri. Elle est **figée**.
+> Ce dépôt est désormais **Glucose Rust** : le même logiciel, recréé de zéro en Rust natif,
+> sans navigateur et sans JavaScript.
+>
+> - La branche `main` ne contient **que** Glucose Rust. Pas une ligne de TypeScript.
+> - Glucose Rust **n'a pas encore de version téléchargeable** : pour l'essayer, il faut le
+>   compiler ([deux commandes](#essayer-glucose-rust)).
+> - Les versions publiées dans l'onglet *Releases*, jusqu'à `v1.0.2-beta.1`, sont toutes
+>   **Glucose Tauri**.
+> - Les fichiers enregistrés par Glucose Tauri **ne s'ouvrent pas encore** dans Glucose Rust.
 
-Glucose rend le LaTeX **sans navigateur, sans JavaScript et sans moteur de rendu HTML**. La mise
-en page vient de [`katex-rs`](https://crates.io/crates/katex-rs), le portage Rust de KaTeX ; le
-dessin est fait par le rastériseur du projet, avec les vingt fontes de KaTeX embarquées (540 Ko).
+<!-- CAPTURE : le canevas principal, avec des photos, des cartes, une membrane et des flèches -->
 
-Conséquence directe : une formule est **vectorielle**, donc nette à n'importe quel zoom — ce
-n'est pas une image que l'on agrandit.
+## Ce qu'est Glucose
 
-### ✍️ Le Markdown en ligne est du vrai texte stylé
+Une feuille noire, sans bord, sur laquelle on pose tout ce qui aide à penser : des photos,
+des cartes de texte en Markdown, des formules, des notes, des flèches qui disent *pourquoi*
+deux choses sont liées, des membranes qui regroupent, des dossiers qui s'ouvrent sur un autre
+canevas. On zoome pour voir le détail, on dézoome pour voir la forme d'ensemble.
 
-`**gras**`, `*italique*`, `~~barré~~` et `` `code` `` se composent avec **cinq polices
-embarquées** : quatre Inter — droit, gras, italique, gras italique — et JetBrains Mono pour le
-code. Pas d'oblique synthétique, pas de fausse graisse : chaque style est un fichier de fonte,
-et la mesure d'une ligne tient compte du visage de chaque fragment, donc le retour à la ligne
-tombe où le texte se dessine vraiment.
+Glucose sert à monter un moodboard, préparer du concept art, organiser une campagne de jeu de
+rôle, démêler un sujet d'étude. Son horizon est plus large : rendre navigable une carte
+immense, jusqu'à **l'univers entier des connaissances**, des millions de textes, de liens et
+de domaines, sur lequel on se déplace sans effort.
 
-Au repos les signes disparaissent ; pendant l'édition ils réapparaissent en gris, `# ` compris —
-c'est **la même mise en page**, à une largeur nulle près pour les signes effacés, ce qui garantit
-que le curseur vise le bon octet dans les deux vues.
+L'interface est volontairement presque absente : monochrome, plate, sans décor. **La couleur
+appartient à ce que vous posez**, pas au logiciel.
 
-### 🖱️ La sélection de texte est celle qu'on connaît
+## Pourquoi tout réécrire en Rust
 
-Glisser sélectionne, un double-clic prend un mot, un triple un paragraphe, et `Maj`+clic **étend
-depuis l'ancre** — de quoi relier deux points sans avoir à glisser d'un trait entre eux. Un
-glisser entamé par un double-clic continue de prendre des mots entiers, dans les deux sens.
+Glucose Tauri tenait beaucoup d'images, mais il portait un navigateur entier. Passer au natif
+n'a de sens que pour aller plus loin, sur chacun de ces points à la fois :
 
-Au clavier : `Ctrl`+flèches par mot, `↑ ↓` à **colonne gardée** (elle est mémorisée, donc le
-curseur ne dérive pas vers la gauche à force de monter et descendre), `Début`/`Fin` sur la ligne
-**visible** — pas le paragraphe —, `Ctrl+A`, et copier-couper-coller **dans** le texte. Les
-accents composés passent par la couche de composition du système, donc taper `é` fonctionne sur
-n'importe quelle disposition.
+- **Toujours fluide.** Au moins cent images par seconde, quoi qu'il se passe. Quand la
+  machine ne suit plus, ce qui cède est la finesse des images *pendant* le mouvement, jamais
+  la cadence. À l'arrêt, tout est net.
+- **Aucune machine exclue.** Un vieux PC, une machine sans carte graphique, un bureau
+  distant : Glucose doit s'ouvrir partout, et utiliser tout ce que chaque machine offre.
+- **Deux moteurs, pas un compromis.** Le processeur et la carte graphique ont chacun leur
+  voie, écrite pour ce qu'ils font le mieux. Glucose choisit sa carte graphique en la
+  regardant travailler, et cherche à se placer **là où il reste de la place** : il ne doit
+  jamais disputer les ressources à Blender ou Photoshop ouverts à côté.
+- **Des millions d'éléments.** Le noyau est conçu pour dix millions de nœuds.
+- **Presque rien sous le capot.** Le noyau n'a aucune dépendance. Chaque dépendance de
+  l'application se justifie par une impossibilité de faire sans, pas par le confort.
 
-<div align="center">
+## Ce qui fonctionne aujourd'hui
 
-![Un gros plan sur des formules LaTeX rendues au zoom x1,9](docs/screenshots/vitrine-zoom.png)
+Tout ce qui modifie le document s'annule par `Ctrl+Z` et s'enregistre avec lui. Le détail,
+touche par touche, est dans le **[guide](GUIDE.md)**.
 
-*Le même document à ×1,9. Les sommes gardent leurs bornes, les exposants leur place, et rien
-n'est pixelisé : tout est retracé.*
-
-</div>
-
-Une formule qui ne compile pas n'est pas avalée en silence : elle s'affiche **en rouge, avec sa
-source**, là où elle est.
-
----
-
-## 📊 Ce qui est mesuré, pas affirmé
-
-Chaque chiffre de ce tableau se reproduit par une commande, sur des documents synthétiques
-déterministes (`glucose_core::synth`). *Mesures refaites le 2026-09-14.*
-
-| | Mesure | Comment la refaire |
-|---|---|---|
-| **Tests** | **907**, zéro échec, zéro avertissement de compilation, clippy strict à zéro | `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` |
-| **Dépendances du noyau** | **0** — `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
-| **Dépendances de l'atelier** | **12** directes, **160** dans l'arbre, dont ~40 pour la couche graphique portable | `cargo tree --workspace` |
-| **10⁷ nœuds en mémoire** | **423,8 Mo**, index spatial compris | `cargo run --release -p glucose-core --example bench_arena` |
-| **Chargement de 10⁷ nœuds** | **141 ms** | idem |
-| **Requête de viewport** | **0,21 µs** | idem |
-| **Une image de rendu** | **1,2 ms** à mille nœuds, **3,9 ms** à dix mille (1080p) ; **7,6 ms** à mille nœuds en **4K** | `cargo run --release -p glucose-desktop --example bench_frame` |
-| **Le rendu est reproductible** | deux images de la même scène sont **identiques au bit près** | `cargo test -p glucose-desktop --lib bench` |
-
-Le banc n'est pas décoratif. En une journée d'existence, il a trouvé que le rendu **n'était
-pas** déterministe — un toast portait une horloge, et deux images de la même scène différaient
-de sept mille pixels — puis que la minimap redessinait un rectangle par nœud à chaque image, et
-que la grille de fond construisait huit mille cercles de Bézier par image en 4K.
-
-| Une image, à dix mille nœuds, au zoom 1 | Avant | Après | |
-|---|---:|---:|---|
-| 1080p | 17,3 ms | **4,1 ms** | ×4,2 |
-| 1440p | 37,3 ms | **8,2 ms** | ×4,5 |
-| 4K | 27,2 ms | **11,1 ms** | ×2,4 |
-
-Le budget de 10 ms n'est pas encore tenu partout — la 4K à dix mille nœuds le dépasse d'une
-milliseconde, et les documents très dézoomés ou à cent mille nœuds restent loin. Ce qui reste
-est chiffré poste par poste dans la [fiche 12](docs/architecture/12-PLAN-D-EXECUTION.md) ; le
-premier poste en 4K est désormais l'effacement du fond, un coût de surface que seule une couche
-de présentation GPU réduira.
-
----
-
-## 🧭 Où en est le portage, honnêtement
-
-La cible est **exactement** Glucose Tauri, visuellement et fonctionnellement. Ce tableau dit ce
-qui est **branché** — utilisable, annulable, enregistré —, ce qui **existe dans le noyau sans
-geste** pour l'atteindre, et ce qui **n'existe pas encore**. Il est tenu à jour à chaque
-chantier ; l'inventaire détaillé, fonctionnalité par fonctionnalité, est dans le
-[dossier d'architecture](docs/architecture/00-INDEX.md).
-
-| Domaine | ✅ Branché | 🧩 Noyau écrit et testé, sans geste | ❌ Pas encore |
-|---|---|---|---|
-| **Canvas & caméra** | canvas infini, pan (milieu, droit, `Espace`), zoom au curseur borné, grille adaptative, minimap cliquable, DPI | | signets de vue, cadrage sur le contenu, défilement horizontal |
-| **Sélection & manipulation** | clic, `Maj`+clic, `Ctrl+A`, sélection élastique, **cycle de profondeur au clic** (PICK-1 : re-cliquer atteint le nœud du dessous), déplacement à la souris **et au clavier** (`←↑→↓`, `Maj` par dix), magnétisme avec guides (SNAP-1), redimensionnement à huit poignées avec ratio, curseurs de poignées, **verrouillage** `L` (cadre rouge, poignées retirées), **ordre d'empilement** `Ctrl+]` / `Ctrl+[`, dupliquer, supprimer, **barre d'action flottante** (compte, verrouiller, supprimer), **menu contextuel** au clic droit sur place, **rotation** (`Alt` + coin, `Maj` par huitièmes de tour) | | | menu contextuel, barre d'action flottante, rotation, verrouillage, ordre d'empilement, déplacement au clavier |
-| **Images** | import par dialogue (`Ctrl+I`), dépôt d'un fichier depuis l'explorateur, collage `Ctrl+V`, PNG / JPEG / WebP / GIF / BMP | | dépôt multi-fichiers et **depuis un navigateur**, mipmaps, cache borné, décodage asynchrone, vidéos |
-| **Cartes texte** | création, édition en place, retour à la ligne, hauteur qui suit le contenu, **les genres de bloc** — titres `#` à `######`, puces, listes numérotées, citations, blocs de code clôturés, séparateurs `---`, petit texte `-# ` —, **Markdown en ligne** — gras, italique, barré, code en chasse fixe, échappement `\*` — signes grisés pendant l'édition, **sélection complète** (souris, double et triple-clic, `Maj`, mots, `↑↓` à colonne gardée, copier-couper-coller, IME), **LaTeX** `$…$` et `$$…$$` avec **délimiteurs verts s'il compile, rouges sinon** et **prévisualisation en direct** à côté de la carte **liens** `[texte](url)` bleus et soulignés, ouverts au `Ctrl`+clic, **tableaux** aux colonnes alignées | ancres de texte robustes | sélection à la souris dans un pense-bête, annuler pendant la saisie |
-| **Notes adhésives** | création, édition, opérateurs ET / OU / MAIS / PARCE QUE affichés | | choix de couleur, raccourcis d'opérateur, pilule colorée |
-| **Flèches** | création (taille fixe), rendu droit | ancrage au bord des nœuds | dessin par glisser, sélection, courbes, waypoints, étiquette, prédicats sémantiques, portails |
-| **Membranes** | création (taille fixe), rendu, titre éditable | adoption au dépôt, modes minimisé et étiré, mode focus, tween | dessin par glisser, panneau d'options, couleur dérivée des domaines |
-| **Dossiers & miroirs** | outil Dossier, rendu, entrée au double-clic avec plongée animée, fil d'Ariane | miroirs avec détection de cycle | badge compteur (affiche zéro), mini-carte de contenu, miroir d'un dossier du disque |
-| **Domaines** | créer / renommer / colorer / supprimer avec cascade, assignation pondérée, jauges sur les nœuds | | filtrage, couleur de membrane dérivée |
-| **Undo / redo** | `Ctrl+Z` / `Ctrl+Y`, journal d'éditions (le coût ne dépend pas du document), un geste = une entrée, la navigation hors historique | | coalescence de la frappe, libellés d'action, Time Machine |
-| **Persistance** | `Ctrl+S` / `Ctrl+Maj+S` / `Ctrl+O`, format `.glucose` v2 binaire avec somme de contrôle par section, écriture atomique, actifs dédupliqués par SHA-256, alerte à la fermeture | | autosave, versions durables, récupération après crash, import des fichiers Tauri (v1) |
-| **Panneaux** | Ordonner (applique une disposition), Pomodoro (décompte réel), Domaines | | Storyboard, Presets et Plugins sont des **façades honnêtes** — ils disent ce qu'ils ne font pas ; Collaborer, Exporter, Recherche, Time Machine, réglette temporelle, HUD |
-| **Export** | | SVG et Markdown, sans écriture disque | HTML, PNG, le menu, l'écriture sur le disque |
-| **Temporalité, rideaux** | | calculs de timeline, modèle et panneau de rideau | tout le reste |
-| **Collaboration, plugins** | | | rien |
-
-Le rendu de ce qui est branché suit une règle unique : une carte se dessine en unités monde
-puis subit **une seule** transformation — jamais une borne par valeur — et le texte est posé au
-quart de pixel. La preuve est un test permanent qui compare l'encre d'une carte à cinq zooms.
-
----
-
-## 🏗️ Architecture du workspace
-
-```
-crates/
-├── glucose-core/        0 dépendance — le noyau, testé sans écran
-│   ├── src/types.rs           modèle de données (boards, images, annotations, dossiers, domaines)
-│   ├── src/store/             la seule porte d'écriture : mutations, journal d'undo, ids, navigation
-│   ├── src/persist/           format .glucose v2 : conteneur, sections, sommes de contrôle
-│   ├── src/arena/, fixed.rs   la fondation 10⁷ : arène SoA, coordonnées entières, index CSR
-│   ├── src/quadtree.rs        index spatial du modèle actuel (culling, clic, alignement)
-│   ├── src/hit_priority/      l'arbitre de clic PICK-1
-│   ├── src/smart_align.rs     magnétisme SNAP-1
-│   ├── src/resize.rs          géométrie du redimensionnement
-│   ├── src/symbiotic_hue.rs   teinte symbiotique, au bit près de la référence
-│   ├── src/layout.rs          dispositions du panneau Ordonner
-│   ├── src/anim.rs            courbes et durées d'animation, testées sans horloge
-│   ├── src/text/              Markdown en ligne et sélection : des fonctions pures, sans écran
-│   ├── src/synth.rs           documents synthétiques déterministes pour les bancs
-│   ├── src/membrane_*.rs, curtain_*.rs, arrow_anchor.rs, text_anchors.rs, timeline.rs,
-│   │   mirror_graph.rs, export.rs — écrits et testés, en attente de leur geste
-│   ├── examples/              bench_arena, bench_store
-│   └── tests/                 21 suites d'intégration
-│
-├── glucose-math/        1 dépendance (katex-rs) — les formules en géométrie pure, sans pixel
-│
-└── glucose-desktop/     l'application : winit, softbuffer, tiny-skia, fontdue, image, rfd, arboard
-    ├── src/app.rs             la boucle d'événements et la présentation
-    ├── src/interactions/      souris, clavier, glisser, redimensionner, presse-papiers, domaines
-    ├── src/interactions/text_* la saisie : intentions du clavier, gestes de la souris, géométrie
-    ├── src/renderer/          scène, cartes, notes, dossiers, halos, formules, échelle unique
-    ├── src/renderer/richtext/  le texte riche : fragments, reflux par visage, tracé
-    ├── src/ui.rs, dock.rs     barre d'outils, onglets, minimap, toasts, panneaux
-    ├── src/theme.rs           tous les jetons de couleur, tenus par test contre la référence
-    ├── src/typography/        cinq visages, glyphes au quart de pixel, couverture vérifiée
-    ├── src/persist/           enregistrer, ouvrir, écriture atomique, alerte de fermeture
-    ├── src/animation.rs       l'horloge des animations (le vol de la caméra)
-    ├── src/bench.rs           le banc de frame et la capture témoin
-    └── examples/              bench_frame, bench_etapes, capture_temoin
-```
-
----
-
-## ⚡ Raccourcis clavier & contrôles
-
-*Ceux qui sont branchés aujourd'hui, relevés dans le code. Les raccourcis de la référence qui
-manquent encore (`F` dossier, `G` aimant, `L` verrouiller, `Ctrl+F` recherche…) sont dans le
-tableau ci-dessus, colonne « pas encore ».*
-
-| Action | Raccourci / geste |
+| | |
 |---|---|
-| **Pan** | clic du milieu ou clic droit **glissé**, ou `Espace` + clic gauche, ou outil `H` |
-| **Menu contextuel** | clic droit **sur place** (sans glisser) · `Échap` ou un clic ailleurs le referme |
-| **Zoom au curseur** | molette |
-| **Outils** | `V` sélection · `T` texte · `N` note · `A` flèche · `M` membrane · Dossier par la barre d'outils |
-| **Sélectionner** | clic · `Maj`+clic pour ajouter · glisser dans le vide pour une sélection élastique · `Ctrl+A` |
-| **Déplacer / redimensionner** | glisser l'élément · glisser une poignée (`Maj` libère le ratio) · `Échap` annule un redimensionnement |
-| **Faire tourner** | `Alt` + glisser un **coin** d'image · `Maj` verrouille sur les huit directions des poignées |
-| **Éditer un texte** | double-clic (le mot visé est pris) · `Entrée` valide · `Maj+Entrée` saute une ligne · `Échap` sort |
-| **Suivre un lien** | `Ctrl`+clic sur son texte (`http` et `https` seulement) |
-| **Sélectionner du texte** | glisser · double-clic un mot · triple-clic un paragraphe · `Maj`+clic étend depuis l'ancre |
-| **Déplacer le curseur** | `← →` · `Ctrl` par mot · `↑ ↓` colonne gardée · `Début`/`Fin` la ligne visible · `Ctrl+Début`/`Fin` le texte entier · `Maj` avec chacun pour étendre |
-| **Écrire** | `Ctrl+A` tout · `Ctrl+C`/`X`/`V` dans le texte · `Retour arrière`/`Suppr` (+`Ctrl` par mot) · accents composés (IME) |
-| **Entrer dans un dossier** | double-clic · fil d'Ariane pour remonter |
-| **Ajouter des images** | `Ctrl+I`, bouton `+ Images`, dépôt d'un fichier, `Ctrl+V` |
-| **Dupliquer / supprimer** | `Ctrl+D` · `Suppr` ou `Retour` |
-| **Verrouiller** | `L` (images sélectionnées) |
-| **Ordre d'empilement** | `Ctrl+]` au premier plan · `Ctrl+[` à l'arrière-plan |
-| **Déplacer au clavier** | `← ↑ → ↓` d'une unité · `Maj` par dix |
-| **Annuler / rétablir** | `Ctrl+Z` · `Ctrl+Y` ou `Ctrl+Maj+Z` |
-| **Enregistrer / ouvrir** | `Ctrl+S` · `Ctrl+Maj+S` (enregistrer sous) · `Ctrl+O` |
-| **Recentrer la vue** | `F` (origine, échelle 1 — ne cadre pas encore le contenu) |
-| **Toujours au premier plan** | `Alt+T` |
+| **Naviguer** | canevas infini, zoom au curseur, pavé tactile (deux doigts pour se déplacer, pincer pour zoomer), élan fluide, `F` cadre tout le contenu, **signets de vue** (`Ctrl+1` à `9` pour poser, `1` à `9` pour y voler), minimap qu'on tient pour voyager, plusieurs tableaux en onglets |
+| **Images** | PNG, JPEG, WebP, GIF, BMP ; import, collage, glisser-déposer de plusieurs fichiers à la fois ; **depuis un navigateur** sous Windows : Glucose télécharge lui-même l'image, une épingle Pinterest arrive en pleine résolution ; rotation, **recadrage non destructif**, `Ctrl+B` retire les bordures unies d'un lot d'images, verrouillage |
+| **Texte** | cartes Markdown (titres, listes, citations, blocs de code, tableaux, liens), gras, italique, barré, **formules LaTeX** rendues nativement et vectorielles, nettes à tout zoom ; édition complète au clavier et à la souris |
+| **Relier** | flèches tracées au glisser, qui s'accrochent aux éléments ; coudes, étiquettes, et **six relations** qu'on pose d'une touche : *est précurseur de*, *contredit*, *hérite de*, *inspire*, *dépend de*, *illustre* |
+| **Organiser** | membranes, dossiers qui s'ouvrent sur un sous-canevas avec une plongée animée, domaines colorés assignés avec un poids, panneau Ordonner, alignement magnétique avec guides |
+| **Fichiers** | format `.glucose` binaire, écriture atomique, somme de contrôle par section, chaque image stockée une seule fois ; alerte à la fermeture ; export Markdown et SVG ; un fichier texte déposé devient une carte, tout autre fichier une tuile qui y mène |
 
----
+## Ce qui manque encore
 
-## 🛠️ Compilation & tests
+Glucose Tauri reste la cible, fonctionnalité par fonctionnalité. Il manque notamment :
 
-### Prérequis
-- [Rust toolchain](https://rustup.rs/) stable (le projet est vérifié avec la 1.95).
-- Aucun outil tiers, aucun Node.js, aucun GPU requis.
+- la **collaboration**, les **plugins** et l'**IA locale** : leurs panneaux existent et disent
+  honnêtement qu'ils ne font rien encore ;
+- le **Storyboard** et l'application des **Presets** ;
+- la recherche, la Time Machine, la réglette temporelle ;
+- la sauvegarde automatique et la récupération après un plantage ;
+- l'ouverture des fichiers de Glucose Tauri ;
+- l'export en PNG et en HTML, et les vidéos ;
+- **macOS, Linux et Android** : le code est écrit pour y tourner, mais seul Windows a été
+  vérifié. Le glisser-déposer depuis un navigateur n'existe que sous Windows.
 
-### Vérifier
+## Essayer Glucose Rust
+
+Il n'y a pas encore d'installateur. Il faut [Rust](https://rustup.rs) (version stable), puis :
+
 ```bash
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
-```
-
-### Lancer l'application
-```bash
+git clone https://github.com/shazamifius/GlucoseGit.git
+cd GlucoseGit
 cargo run -p glucose-desktop --release
 ```
 
-### Mesurer
-```bash
-cargo run --release -p glucose-desktop --example bench_frame      # le budget de frame
-cargo run --release -p glucose-core    --example bench_arena      # 10⁷ nœuds
-cargo run --release -p glucose-desktop --example capture_temoin   # la scène de référence en PNG
-```
+La première compilation prend quelques minutes. L'exécutable se trouve ensuite dans
+`target/release/`.
 
-L'exécutable autonome se trouve dans `target/release/glucose-desktop.exe`.
-## 🌿 Les deux branches
+Aucun Node.js, aucun navigateur, aucune carte graphique n'est requis. Sous Linux, les
+dialogues de fichiers demandent GTK 3 (`libgtk-3-dev` sous Debian et Ubuntu) ; cette
+plateforme n'est pas encore vérifiée, et un retour y est précieux.
 
-Ce dépôt porte **deux logiciels**, et une seule branche les mélangeait.
+## Glucose Tauri, l'ancienne version
 
-| Branche | Ce qu'elle contient | Son état |
+| | |
+|---|---|
+| **Ce que c'est** | la première version de Glucose : React et TypeScript dans une fenêtre Tauri |
+| **Son code** | la branche [`tauri-v1.0.1`](https://github.com/shazamifius/GlucoseGit/tree/tauri-v1.0.1), figée |
+| **La télécharger** | l'onglet [Releases](https://github.com/shazamifius/GlucoseGit/releases), de `v0.2.0` à `v1.0.2-beta.1` (Windows, macOS, Linux) |
+| **Son avenir** | aucun correctif. Elle reste la **référence** visuelle et fonctionnelle de Glucose Rust |
+
+## Mesuré, pas affirmé
+
+Chaque chiffre se refait par une commande, sur des documents synthétiques déterministes. Ils
+sont datés : le projet avance vite, et un chiffre ancien ne doit pas passer pour actuel.
+
+| | Mesure | Pour la refaire |
 |---|---|---|
-| **`main`** | **Glucose Rust** seul — `crates/`, `docs/`, rien d'autre | vivante, c'est ici qu'on travaille |
-| **`tauri-v1.0.1`** | **Glucose Tauri** — `src/` en React/TypeScript, `src-tauri/`, Vite, Node | figée, c'est la référence |
+| **Dépendances du noyau** | **0** : `glucose-core` n'utilise que la bibliothèque standard | `cargo tree -p glucose-core` |
+| **Dépendances de l'application** | **12** directes, **132** dans l'arbre complet sous Windows, dont l'essentiel pour la couche graphique portable *(23/09/2026)* | `cargo tree --workspace` |
+| **Dix millions de nœuds** | **424 Mo** en mémoire, chargés en **141 ms**, une requête de vue en **0,21 µs** *(14/09/2026)* | `cargo run --release -p glucose-core --example bench_arena` |
+| **429 photos, écran 2560 × 1600** | processeur : 4,2 à 6,3 ms par image, **pixelisée** ; carte graphique intégrée : **1,22 ms, nette** ; carte dédiée : **0,26 ms, nette** *(21/09/2026)* | `cargo run --release -p glucose-desktop --example bench_voie_gpu` |
+| **Tests** | environ **1 500** *(23/09/2026)* | `cargo test --workspace` |
 
-`main` n'a plus une ligne de TypeScript ni un fichier `package.json` : `cargo` suffit à tout
-faire, et une recherche dans le code ne ramène plus deux réponses pour la même question.
+La troisième ligne dit pourquoi Glucose a deux moteurs : la carte graphique filtre les images
+dans son silicium, et rend net pour un cinquième du prix ce que le processeur ne tient qu'en
+abîmant. Le processeur, lui, reste une voie de plein droit, pas un secours.
 
-### Pourquoi la référence reste lisible sans changer de branche
+## Sous le capot
 
-Glucose Tauri n'est pas un vestige : c'est **la spécification exécutable** de ce que Glucose
-Rust doit faire. Il faut pouvoir la lire à tout moment — un `git checkout` à chaque question
-serait le prix caché de ce découpage.
-
-Un **arbre de travail lié** (`git worktree`) l'évite. Glucose Tauri est déposé une fois pour
-toutes dans un répertoire voisin, sur sa branche, en partageant les objets Git de ce dépôt :
-
-```bash
-git worktree add ../GlucoseTauri tauri-v1.0.1
+```
+crates/
+├── glucose-core/      le noyau : modèle, géométrie, index spatial, annulation,
+│                      format de fichier, texte, SHA-256. Aucune dépendance, testé sans écran.
+├── glucose-math/      les formules LaTeX en géométrie pure (katex-rs, le portage Rust de KaTeX)
+└── glucose-desktop/   l'application : la fenêtre (winit), les deux voies de rendu
+                       (tiny-skia au processeur, wgpu pour la carte graphique), les glyphes
+                       (fontdue), le décodage d'images, les dialogues, le presse-papiers
 ```
 
-Il s'y lance comme avant (`npm run dev`), et se lit depuis `main` par son chemin. Aucun
-changement de branche, aucun second clone, aucun octet dupliqué dans `.git`.
+`wgpu` est la plus grosse dépendance, et elle est assumée : c'est elle qui atteint Vulkan,
+Metal, Direct3D et OpenGL ES derrière une seule interface. Écrire quatre pilotes à la main
+couvrirait moins de machines, pas plus.
 
-```text
-Documents/
-├── GlucoseGit-main/     ← main : Glucose Rust           (cargo)
-└── GlucoseTauri/        ← tauri-v1.0.1 : Glucose Tauri  (npm)
-```
+## Documentation
 
----
+| | |
+|---|---|
+| [`GUIDE.md`](GUIDE.md) | **utiliser Glucose** : chaque geste, chaque touche |
+| [`docs/`](docs/README.md) | le carnet de bord de l'ingénierie : plans, mesures, décisions. En français, écrit au fil des sessions |
+| [`style.md`](style.md) | le langage visuel : pourquoi l'interface est monochrome et brutaliste |
+| [`PLUGINS.md`](PLUGINS.md) | la vision du système de plugins, pas encore construit |
 
-## 📄 Licence
+## Contribuer
 
-[MIT](LICENSE) — utilisation, modification et redistribution libres.
+Les retours d'usage valent autant que le code. Une idée, une question, un avis : les
+[Discussions](https://github.com/shazamifius/GlucoseGit/discussions). Un bug : une
+[issue](https://github.com/shazamifius/GlucoseGit/issues/new/choose). Pour le code, lire
+d'abord [`CONTRIBUTING.md`](.github/CONTRIBUTING.md).
 
----
+## Soutenir le projet
 
-<div align="center">
+Glucose est libre et le restera. Pour aider à le faire avancer :
+[GitHub Sponsors](https://github.com/sponsors/shazamifius) ou
+[Ko-fi](https://ko-fi.com/shazamifius).
 
-**Glucose, c'est juste poser, relier, zoomer, explorer.**
+## Licence
 
-</div>
+[MIT](LICENSE) : utilisation, modification et redistribution libres.
