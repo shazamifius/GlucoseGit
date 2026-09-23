@@ -19,6 +19,7 @@ use crate::renderer::card::text_card_fit_height;
 use crate::renderer::math::MathRenderer;
 use crate::typography::Typography;
 use crate::ui::ActiveTool;
+use glucose_core::text::Selection;
 use glucose_core::types::{Annotation, CanvasFolder, DEFAULT_TEXT_CARD_WIDTH};
 
 /// Ce qu'une carte de texte fraîche dit.
@@ -135,11 +136,14 @@ impl GlucoseApp {
     }
 
     /// Une carte ou un pense-bête naît en édition : le texte de départ est là pour être
-    /// remplacé.
+    /// remplacé, donc il naît **sélectionné** — la première touche l'efface.
+    ///
+    /// Il naissait le curseur à la fin, et il fallait `Ctrl+A` avant d'écrire : le commentaire
+    /// disait « là pour être remplacé », et le code le laissait être prolongé.
     fn add_and_edit(&mut self, ann: Annotation, id: String, text: &str) {
         let board = self.store.project.active_board_id.clone();
         self.store.add_annotation(&board, ann);
-        self.start_text_edit(id, text.to_string());
+        self.start_text_edit_at(id, text.to_string(), Selection::all(text));
     }
 
     /// Pose une flèche et ouvre le geste qui l'étire (DRAW-1), **accrochée** à ce qu'elle
@@ -318,6 +322,27 @@ mod tests {
             DEFAULT_TEXT_CARD_WIDTH,
         );
         assert_eq!(card.size(), Some((DEFAULT_TEXT_CARD_WIDTH, expected)));
+    }
+
+    /// **Une carte et un pense-bête naissent leur texte sélectionné** : la première lettre
+    /// tapée remplace « Nouveau texte » au lieu de s'y ajouter.
+    #[test]
+    fn test_le_texte_de_naissance_se_remplace_a_la_premiere_touche() {
+        use crate::interactions::text_edit::keys::Command;
+        for (outil, provisoire) in [
+            (ActiveTool::Text, NEW_TEXT),
+            (ActiveTool::Sticky, NEW_STICKY),
+        ] {
+            let mut app = app_with_tool(outil);
+            assert!(app.place_with_tool(0.0, 0.0));
+            let session = app.editing_session.as_ref().expect("en edition");
+            assert_eq!(session.selection, Selection::all(provisoire));
+            app.apply_text_command(Command::Insert("A".into()), false);
+            assert_eq!(
+                app.editing_session.as_ref().expect("en edition").buffer,
+                "A"
+            );
+        }
     }
 
     /// Les outils qui ne créent rien ne consomment pas le clic.

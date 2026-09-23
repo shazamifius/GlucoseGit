@@ -64,8 +64,8 @@ posé, Glucose revient tout seul à l'outil de sélection.
 | **Membrane** | `M` | un cadre en pointillés, nommé « Groupe » |
 | **Dossier** | bouton de la barre | un dossier, qui contient un tableau à lui |
 
-Une carte et une note naissent avec un texte provisoire et le curseur à la fin : `Ctrl+A`
-puis tapez pour le remplacer.
+Une carte et une note naissent avec un texte provisoire déjà sélectionné : tapez pour le
+remplacer.
 
 ### Les images
 
