@@ -266,3 +266,75 @@ partie ne devrait bouger pendant un zoom** ; la prochaine chronique dira laquell
    compte doit suivre, et les boutons d'assignation s'allumer.
 4. **Deux lancements du même document pour la mémoire** : `GLUCOSE_CARTE=econome`, puis
    `GLUCOSE_CARTE=rapide` — et comparer la ligne « mémoire de travail ».
+
+---
+
+## 9. La première session de terrain avec les nouveaux instruments, et ce qu'elle a tranché
+
+L'utilisateur a joué vingt-huit secondes sur la carte rapide — 1 588 images, 277 pincements —,
+testé l'enregistrement sur les deux cartes (*« les save .glucose fonctionnent, que ce soit
+rapide ou économe »*), et glissé deux épingles depuis Pinterest. **Sa sortie console ne m'est
+pas parvenue** : seule la chronique, écrite sur son disque, a pu être relue. Elle ne garde que
+la **dernière** session, donc la mémoire sur l'Intel est perdue.
+
+### 9.1 La clé des panneaux n'était pas trop large — démenti de la fiche 24 § 14.1
+
+```
+    Pourquoi les panneaux se redessinent
+      document modifie              7 images
+      souris dans le panneau        6 images
+      selection                     5 images
+      premiere fois                 1 images
+      place ou taille               1 images
+```
+
+**Vingt images sur 1 588, toutes pour une raison légitime.** Les panneaux ne se refont
+**jamais** pendant un zoom. La fiche 24 avait vu `dock=2` sur dix des douze images les plus
+lentes et en avait conclu que la clé était trop large ; c'était l'inverse de la causalité :
+les images qui refont un panneau sont celles où le document change, et ces images-là sont
+chères pour d'autres raisons aussi. **Ce qui reste à gagner est le coût d'un rendu légitime** —
+6 ms pour deux panneaux à 150 % —, pas la clé.
+
+Et les cinq images « sélection » sont exactement celles qui montraient, avant DOCKS-1, un
+compte périmé.
+
+### 9.2 Pinterest donne un raccourci, pas une image — DEPOT-WEB-2
+
+Les deux fichiers déposés étaient encore sur le disque, soixante-quatorze octets chacun :
+
+```
+    [InternetShortcut]
+    URL=https://fr.pinterest.com/pin/288441551156395185/
+```
+
+Chrome promet un **raccourci** pour un lien glissé, et le pont le prenait au deuxième rang,
+**devant** le bitmap — une adresse habillée en fichier, posée en carte portant son nom. Un
+raccourci se lit désormais pour ce qu'il est et se pose en lien qu'on suit, d'où qu'il vienne ;
+il passe **après** le bitmap. Et deux `.jpg` déposés la veille par le même chemin prouvent que
+le pont fonctionne quand la page livre l'image.
+
+**Ce qui n'est pas résolu** : si Pinterest ne pose aucun bitmap, on obtient le lien de
+l'épingle, pas son image. L'image demanderait de télécharger la page — HTTP, donc une décision
+qui engage la charte. La liste des formats que `GLUCOSE_DEPOT=1` écrit pour ce dépôt tranchera
+entre les deux, et elle n'est toujours pas lue.
+
+### 9.3 Le gel du démarrage cachait les autres — ENTRACTE-2
+
+Le verdict : **[gel] x14,6**, 2 314 ms perdues à ne pas dessiner. L'entracte n'en décomposait
+qu'une attente — la pire, **le démarrage**, 607 ms à la 0,6ᵉ seconde. Les trois quarts restants
+n'avaient pas de nom, et « écouter la main » avait un pire à **162,66 ms** — un seul
+gestionnaire d'événement, sans doute un enregistrement — qu'aucune ligne ne datait.
+
+C'est la faute de la fiche 25 § 7 — une valeur extrême qui cache les autres —, refaite dans
+l'instrument écrit pour la réparer. Chaque attente qui a mangé au moins une image est
+désormais gardée, datée et décomposée ; la liste et le constat du gel se recoupent par
+construction.
+
+### 9.4 Ce que la session dit d'autre
+
+| | |
+|---|---|
+| mémoire de travail, carte rapide | **311 Mo**, 313 au pire — le chiffre de l'Intel manque pour tester la piste du § 7 |
+| aucune bascule de carte | `changer de carte` 0,01 ms au pire : ARBITRE-3 n'a pas été exercé |
+| le tressaut, enfin le vrai | **x7,7** sur les seuls sauts du rendu : 3 balayages 88,5 %, 2 : 8,4 %, 4 : 3,1 % — les pics de `textures` à 8-9 ms |
+| **`bande` à 32,28 ms** | une seule image, à la 4,6ᵉ seconde, quand le document change : la barre du haut refaite coûte trente fois son remplissage. Le facteur vingt de la fiche 24 § 14.2 a doublé, et reste inexpliqué |
