@@ -61,16 +61,24 @@ fn rapporter(nom: &str, pixels: &[Pixel], l: u32, h: u32) {
         println!("{nom} : dimensions incoherentes");
         return;
     };
-    let r = bordures::detecter(&vue);
+    // Le meilleur de cinq : c'est le coût de la détection, pas celui du bruit de la machine.
+    let mut r = bordures::detecter(&vue);
+    let mut duree = std::time::Duration::MAX;
+    for _ in 0..5 {
+        let debut = std::time::Instant::now();
+        r = bordures::detecter(&vue);
+        duree = duree.min(debut.elapsed());
+    }
     let (g, ht, d, b) = r.marges();
     let px = |part: f64, dim: u32| (part * f64::from(dim)).round() as u32;
     println!("\n{nom}  ({l} x {h})");
     println!(
-        "  retire : gauche {}  haut {}  droite {}  bas {}",
+        "  retire : gauche {}  haut {}  droite {}  bas {}   en {:.2} ms",
         px(g, l),
         px(ht, h),
         px(d, l),
-        px(b, h)
+        px(b, h),
+        duree.as_secs_f64() * 1000.0
     );
 
     // Et, bord par bord, ce que chaque critere aurait dit ligne par ligne : c'est la colonne

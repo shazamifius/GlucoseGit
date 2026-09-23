@@ -180,7 +180,7 @@ where
     }
     let couleur = bande.unwrap_or_else(|| mediane(&courante));
     let mut rang = 0usize;
-    while ecart_au_centile(&courante, couleur) <= ECART_DE_BANDE {
+    while est_de_la_bande(&courante, couleur) {
         rang += 1;
         let Some(&suivant) = ordre.get(rang) else {
             break;
@@ -261,16 +261,18 @@ fn est_une_transition(rang: &[Pixel], suivant: &[Pixel], bande: Pixel) -> bool {
             .map(|c| (canal(p, c) - (a * canal(&bande, c) + (1.0 - a) * canal(q, c))).abs())
             .fold(0.0f64, f64::max)
     });
-    // Ce que chaque pixel qui PEUT montrer un fondu s'est déplacé depuis son voisin.
-    let deplacements: Vec<f64> = rang
-        .iter()
-        .zip(suivant)
-        .filter(|(_, q)| ecart(q, &bande) > ECART_DE_BANDE)
-        .map(|(p, q)| ecart(p, q))
-        .collect();
-    deplacements.len() * 2 > rang.len()
-        && au_centile(ecart_au_melange) <= ECART_DE_BANDE
-        && au_dessus_de(deplacements.into_iter(), 0.5) > ECART_DE_BANDE
+    // Les pixels qui PEUVENT montrer un fondu, et ceux d'entre eux qui ont bougé au-delà du
+    // bruit. Leur médiane a bougé quand ils sont plus de la moitié à l'avoir fait.
+    let (mut informatifs, mut bouges) = (0usize, 0usize);
+    for (p, q) in rang.iter().zip(suivant) {
+        if ecart(q, &bande) > ECART_DE_BANDE {
+            informatifs += 1;
+            bouges += usize::from(ecart(p, q) > ECART_DE_BANDE);
+        }
+    }
+    informatifs * 2 > rang.len()
+        && bouges > informatifs / 2
+        && au_plus(PART_ABERRANTE, ecart_au_melange, ECART_DE_BANDE)
 }
 
 /// L'écart entre deux pixels, sur leur canal le plus éloigné.
@@ -307,36 +309,38 @@ fn mediane(pixels: &[Pixel]) -> Pixel {
     sortie
 }
 
-/// **L'écart du pixel qui laisse [`PART_ABERRANTE`] de la ligne au-dessus de lui.**
+/// **Cette ligne est-elle de la bande** : au plus [`PART_ABERRANTE`] de ses pixels s'écartent-ils
+/// de sa couleur de plus que le bruit ?
 ///
-/// Chaque pixel donne son écart sur son canal le plus éloigné ; on regarde celui qui sépare le
-/// dernier centième du reste. Quelques pixels d'encre ne suffisent donc plus à arrêter une
-/// bande — ce qui laissait un liseré —, mais une ligne de contenu, qui en porte bien
-/// davantage dès son premier rang, l'arrête toujours.
-fn ecart_au_centile(pixels: &[Pixel], couleur: Pixel) -> f64 {
-    au_centile(pixels.iter().map(|p| ecart(p, &couleur)))
+/// Chaque pixel donne son écart sur son canal le plus éloigné. Quelques pixels d'encre ne
+/// suffisent donc pas à arrêter une bande — ce qui laissait un liseré —, mais une ligne de
+/// contenu, qui en porte bien davantage dès son premier rang, l'arrête toujours.
+fn est_de_la_bande(pixels: &[Pixel], couleur: Pixel) -> bool {
+    au_plus(
+        PART_ABERRANTE,
+        pixels.iter().map(|p| ecart(p, &couleur)),
+        ECART_DE_BANDE,
+    )
 }
 
-/// **L'écart qui laisse [`PART_ABERRANTE`] des pixels au-dessus de lui** — la même règle pour
-/// la bande et pour la transition, écrite une fois.
-fn au_centile(ecarts: impl Iterator<Item = f64>) -> f64 {
-    au_dessus_de(ecarts, PART_ABERRANTE)
-}
-
-/// **L'écart qui laisse la part `part` des pixels au-dessus de lui** : un centième pour ce
-/// qu'on tolère, la moitié pour le pixel typique.
-fn au_dessus_de(ecarts: impl Iterator<Item = f64>, part: f64) -> f64 {
-    let mut ecarts: Vec<f64> = ecarts.collect();
-    if ecarts.is_empty() {
-        return 0.0;
+/// **Au plus la part `part` de ces écarts dépasse-t-elle `seuil` ?** — la question qu'un centile
+/// pose, sans le calculer.
+///
+/// « Le centile qui laisse un centième au-dessus de lui est sous le bruit » et « au plus un
+/// centième des écarts dépassent le bruit » sont **la même proposition** : la valeur au rang
+/// `n − 1 − ⌊n · part⌋` des écarts triés ne dépasse le seuil que si plus de `⌊n · part⌋`
+/// valeurs le dépassent. La seconde forme se vérifie en comptant — un passage, aucun tri,
+/// aucune allocation —, là où la première triait la ligne entière pour n'en lire qu'une valeur.
+///
+/// Une ligne courte ramène la tolérance à zéro : sur dix pixels, un centième n'existe pas, et
+/// tolérer un pixel sur dix serait tolérer dix pour cent.
+fn au_plus(part: f64, ecarts: impl Iterator<Item = f64>, seuil: f64) -> bool {
+    let (mut n, mut au_dela) = (0usize, 0usize);
+    for e in ecarts {
+        n += 1;
+        au_dela += usize::from(e > seuil);
     }
-    ecarts.sort_unstable_by(f64::total_cmp);
-    // Le rang qui laisse `part` de la ligne au-dessus de lui. Une ligne courte le ramène au
-    // dernier pixel, ce qui redonne le pire : sur dix pixels, un centième n'existe pas, et
-    // tolérer un pixel sur dix serait tolérer dix pour cent.
-    let n = ecarts.len();
-    let hors = ((n as f64) * part).floor() as usize;
-    ecarts[n - 1 - hors.min(n - 1)]
+    au_dela <= ((n as f64) * part).floor() as usize
 }
 
 #[cfg(test)]
