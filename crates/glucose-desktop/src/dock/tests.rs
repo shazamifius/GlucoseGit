@@ -567,15 +567,24 @@ fn rendu_dock(
     cache: Option<&DockCache>,
     pointer: Pointer,
 ) -> tiny_skia::Pixmap {
+    rendu_dock_sur(dock, &Store::new("Cache"), cache, pointer)
+}
+
+/// Le même, sur un document donné — pour les panneaux qui lisent le document.
+fn rendu_dock_sur(
+    dock: &DockManager,
+    store: &Store,
+    cache: Option<&DockCache>,
+    pointer: Pointer,
+) -> tiny_skia::Pixmap {
     let theme = Theme::dark();
     let typo = Typography::new();
-    let store = Store::new("Cache");
     let mut pixmap = tiny_skia::Pixmap::new(1440, 900).expect("pixmap");
     pixmap.fill(theme.bg_canvas);
     render_docks(
         &mut pixmap.as_mut(),
         dock,
-        &store,
+        store,
         &DockPass {
             typo: &typo,
             theme: &theme,
@@ -718,6 +727,75 @@ fn test_a_changed_panel_shows_its_new_state() {
         &rendu_dock(&dock, None, dehors),
         "l'état neuf diverge",
     );
+}
+
+/// **DOCKS-1** — sélectionner des nœuds se voit dans les panneaux qui comptent la sélection.
+///
+/// « Domaines » écrit « N nœud(s) sélectionné(s) » et grise ses boutons d'assignation quand
+/// rien n'est sélectionné ; « Ordonner » compte les images visées. La clé du cache ne
+/// connaissait du document que sa **version**, et sélectionner n'en est pas une : c'est de la
+/// navigation, pas une commande (fiche 05 § 3.5). Le panneau restait donc sur son ancien
+/// compte, boutons grisés, tant que la souris ne passait pas dessus — un bouton qui ment,
+/// exactement ce que la fiche 05 § 5.4 interdit.
+///
+/// La sélection est posée par l'API du document, sur des identifiants qu'aucun nœud ne porte :
+/// les deux panneaux n'en lisent que le **nombre**, et c'est ce que ce test exerce.
+#[test]
+fn test_a_selection_change_shows_in_the_panels_that_count_it() {
+    let dock = dock_complet();
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let mut store = Store::new("Selection");
+    let cache = DockCache::new();
+    rendu_dock_sur(&dock, &store, Some(&cache), dehors);
+
+    store.select_image("img-a".into(), false);
+    store.select_annotation("note-b".into(), true);
+    let par_le_cache = rendu_dock_sur(&dock, &store, Some(&cache), dehors);
+    let en_direct = rendu_dock_sur(&dock, &store, None, dehors);
+    memes_pixels(
+        &par_le_cache,
+        &en_direct,
+        "le cache montre la selection d'avant",
+    );
+}
+
+/// **DOCKS-1** — le cache dit POURQUOI il a refait un panneau, et il le dit juste.
+///
+/// La section « Pourquoi les panneaux se redessinent » en dépend : une raison mal nommée y
+/// désignerait le mauvais remède, ce que ce dépôt a payé quatre fois avec des marques de
+/// mesure mal posées. Chaque cas change **une seule** partie de la clé et exige ce bit-là, et
+/// lui seul.
+#[test]
+fn test_the_cache_names_why_a_panel_was_redrawn() {
+    use crate::dock::RaisonDuPanneau as R;
+    let dock = dock_complet();
+    let dehors = Pointer { x: -1.0, y: -1.0 };
+    let mut store = Store::new("Raisons");
+    let cache = DockCache::new();
+
+    rendu_dock_sur(&dock, &store, Some(&cache), dehors);
+    assert_eq!(cache.prendre_les_raisons(), R::PremiereFois.bit());
+
+    rendu_dock_sur(&dock, &store, Some(&cache), dehors);
+    assert_eq!(
+        cache.prendre_les_raisons(),
+        0,
+        "rien n'a change, rien ne se refait"
+    );
+
+    store.select_image("img-a".into(), false);
+    rendu_dock_sur(&dock, &store, Some(&cache), dehors);
+    assert_eq!(cache.prendre_les_raisons(), R::Selection.bit());
+
+    // Au milieu du premier panneau : la souris y est, il se refait pour elle.
+    let panneau =
+        &compute_panel_layouts(&dock, SCREEN.width, SCREEN.height, SCREEN.header_h, 1.0)[0];
+    let dedans = Pointer {
+        x: panneau.x + panneau.width / 2.0,
+        y: panneau.y + panneau.height / 2.0,
+    };
+    rendu_dock_sur(&dock, &store, Some(&cache), dedans);
+    assert_eq!(cache.prendre_les_raisons(), R::Pointeur.bit());
 }
 
 /// L'ombre d'un panneau tient **dans** la boîte que le cache lui réserve.

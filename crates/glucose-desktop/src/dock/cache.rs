@@ -81,6 +81,20 @@ impl EtatPanneau {
 /// Le cas courant est justement celui-là : la souris est sur le canevas, et les panneaux
 /// tiennent. Quand elle entre dans un panneau, ce panneau-là se refait à chaque mouvement —
 /// un seul, celui avec lequel on est en train d'interagir.
+///
+/// # La sélection, que la version du document ne voit pas (DOCKS-1)
+///
+/// « Domaines » écrit combien de nœuds sont sélectionnés et grise ses boutons d'assignation
+/// quand il n'y en a aucun ; « Ordonner » compte les images visées. Or sélectionner n'est pas
+/// une commande — c'est de la navigation, et la fiche 05 § 3.5 interdit qu'elle touche
+/// l'annulation — donc la **version** du document ne bouge pas. Le panneau restait sur son
+/// ancien compte, boutons grisés, jusqu'à ce que la souris passe dessus : 27 198 pixels
+/// faux, jusqu'à 197 niveaux, dans le test qui l'a montré.
+///
+/// Les deux panneaux ne lisent que le **nombre** de nœuds sélectionnés, et c'est ce que la clé
+/// retient : comparer les identifiants eux-mêmes coûterait une copie de la sélection entière
+/// par panneau et par image, pour un « tout sélectionner » sur un document de dix millions de
+/// nœuds.
 #[derive(Clone, PartialEq)]
 struct ClePanneau {
     geometrie: PanelLayoutBox,
@@ -89,6 +103,79 @@ struct ClePanneau {
     pointeur: Option<(u32, u32)>,
     etat: EtatPanneau,
     document: u64,
+    selection: (usize, usize),
+}
+
+impl ClePanneau {
+    /// **Ce qui a changé depuis le dernier rendu de ce panneau** : un bit par raison, ou zéro
+    /// s'il est à jour.
+    ///
+    /// La question que la fiche 24 § 14.1 a posée et laissée ouverte : les panneaux se
+    /// refont sur dix des douze images les plus lentes, et c'est *la clé qui est trop large* —
+    /// mais **laquelle de ses parties** ? Aucune durée ne le dit, et la deviner a déjà fait
+    /// annoncer un chantier qui n'aurait rien changé.
+    fn ce_qui_differe(ancienne: Option<&Self>, neuve: &Self) -> u16 {
+        let Some(a) = ancienne else {
+            return Raison::PremiereFois.bit();
+        };
+        [
+            (
+                a.geometrie != neuve.geometrie || a.tampon != neuve.tampon,
+                Raison::Place,
+            ),
+            (a.echelle != neuve.echelle, Raison::Echelle),
+            (a.pointeur != neuve.pointeur, Raison::Pointeur),
+            (a.etat != neuve.etat, Raison::Etat),
+            (a.document != neuve.document, Raison::Document),
+            (a.selection != neuve.selection, Raison::Selection),
+        ]
+        .into_iter()
+        .filter(|(differe, _)| *differe)
+        .fold(0, |masque, (_, raison)| masque | raison.bit())
+    }
+}
+
+/// **Pourquoi un panneau s'est redessiné** — une partie de sa clé, nommée pour la chronique.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Raison {
+    PremiereFois,
+    Place,
+    Echelle,
+    Pointeur,
+    Etat,
+    Document,
+    Selection,
+}
+
+impl Raison {
+    /// Dans l'ordre des bits du masque.
+    pub const TOUTES: [Self; 7] = [
+        Self::PremiereFois,
+        Self::Place,
+        Self::Echelle,
+        Self::Pointeur,
+        Self::Etat,
+        Self::Document,
+        Self::Selection,
+    ];
+
+    /// Ce que le rapport en dit, sans jargon.
+    pub fn nom(self) -> &'static str {
+        match self {
+            Self::PremiereFois => "premiere fois",
+            Self::Place => "place ou taille",
+            Self::Echelle => "echelle de l'interface",
+            Self::Pointeur => "souris dans le panneau",
+            Self::Etat => "reglage du panneau",
+            Self::Document => "document modifie",
+            Self::Selection => "selection",
+        }
+    }
+
+    /// Le bit de cette raison dans le masque d'une image.
+    pub fn bit(self) -> u16 {
+        1 << Self::TOUTES.iter().position(|r| *r == self).unwrap_or(0)
+    }
 }
 
 /// Le tampon d'un panneau, et la clé qui dit de quoi il est l'image.
@@ -116,6 +203,9 @@ pub struct DockCache {
     /// jamais rendrait la même image et passerait tous les tests d'aspect. On ne saurait
     /// qu'il est inutile qu'au chronomètre, c'est-à-dire jamais de façon déterministe.
     rendus: Cell<usize>,
+    /// Pourquoi les panneaux se sont refaits depuis la dernière fois qu'on a demandé — un bit
+    /// par [`Raison`] (DOCKS-1).
+    raisons: Cell<u16>,
 }
 
 impl DockCache {
@@ -135,6 +225,11 @@ impl DockCache {
     /// Combien de panneaux ont été dessinés depuis le début — le travail réellement fait.
     pub fn rendus(&self) -> usize {
         self.rendus.get()
+    }
+
+    /// **Pourquoi des panneaux se sont refaits** depuis le dernier appel, et on repart de zéro.
+    pub fn prendre_les_raisons(&self) -> u16 {
+        self.raisons.take()
     }
 }
 
@@ -167,11 +262,16 @@ pub(super) fn draw_panel_cached(
             .then(|| (pointer.x.to_bits(), pointer.y.to_bits())),
         etat: EtatPanneau::de(dock, panel.tab),
         document: store.version,
+        selection: (
+            store.selected_image_ids.len(),
+            store.selected_annotation_ids.len(),
+        ),
     };
 
     let mut panneaux = cache.panneaux.borrow_mut();
-    let a_jour = panneaux.get(&panel.tab).is_some_and(|p| p.cle == cle);
-    if !a_jour {
+    let raisons = ClePanneau::ce_qui_differe(panneaux.get(&panel.tab).map(|p| &p.cle), &cle);
+    cache.raisons.set(cache.raisons.get() | raisons);
+    if raisons != 0 {
         let Some(mut neuf) = Pixmap::new(taille.0, taille.1) else {
             // Une taille que le tampon refuse : plutôt que de ne rien dessiner, on retombe
             // sur le rendu direct. Un cache qui échoue effacerait le panneau, ce qui serait

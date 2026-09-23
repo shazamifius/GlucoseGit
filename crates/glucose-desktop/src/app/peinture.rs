@@ -403,6 +403,7 @@ fn poser_les_docks(
         "dock_rendus",
         dock_cache.rendus().saturating_sub(avant) as f64,
     );
+    crate::perf::compteur("dock_pourquoi", f64::from(dock_cache.prendre_les_raisons()));
     crate::perf::stage("docks");
 }
 

@@ -238,6 +238,9 @@ pub struct Chronique {
     evitees: u64,
     /// Combien d'images chaque raison de réveil a tenues éveillées, dans l'ordre des bits.
     reveils: [u64; 16],
+    /// Combien d'images ont refait un panneau pour chaque raison, dans l'ordre des bits de
+    /// [`crate::dock::RaisonDuPanneau`] (DOCKS-1).
+    panneaux_refaits: [u64; 16],
     /// La somme des facteurs de reduction : sa moyenne dit a quel point la scene a du ceder
     /// sur sa finesse pour tenir la cadence.
     reductions: u64,
@@ -299,6 +302,15 @@ impl Chronique {
     /// coût d'une image ne dira jamais laquelle.
     pub fn part_evitee(&self) -> Option<f64> {
         (self.rendues > 0).then(|| self.evitees as f64 / self.rendues as f64)
+    }
+
+    /// Combien d'images ont refait un panneau, raison par raison (DOCKS-1).
+    pub fn panneaux_refaits(
+        &self,
+    ) -> impl Iterator<Item = (crate::dock::RaisonDuPanneau, u64)> + '_ {
+        crate::dock::RaisonDuPanneau::TOUTES
+            .into_iter()
+            .map(|r| (r, self.panneaux_refaits[r.bit().trailing_zeros() as usize]))
     }
 
     /// Combien d'images chaque raison de réveil a tenues éveillées.
@@ -385,6 +397,7 @@ impl Chronique {
             rythme: Rythme::nouveau(),
             evitees: 0,
             reveils: [0; 16],
+            panneaux_refaits: [0; 16],
             reductions: 0,
             reduites: 0,
         }
@@ -465,6 +478,11 @@ impl Chronique {
         }
         if vu.evitee() {
             self.evitees += 1;
+        }
+        for (bit, compte) in self.panneaux_refaits.iter_mut().enumerate() {
+            if vu.dock_pourquoi & (1 << bit) != 0 {
+                *compte += 1;
+            }
         }
         for (bit, compte) in self.reveils.iter_mut().enumerate() {
             if vu.reveils & (1 << bit) != 0 {

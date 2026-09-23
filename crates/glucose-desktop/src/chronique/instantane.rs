@@ -171,6 +171,11 @@ pub struct Instantane {
     /// Un masque et non la seule raison la plus pressée : savoir laquelle a gagné la course
     /// ne dit pas laquelle il faudrait supprimer. Les huit tiennent dans un `u16`.
     pub reveils: u16,
+    /// **Pourquoi les panneaux se sont refaits** — un bit par partie de leur clé (DOCKS-1).
+    ///
+    /// `dock_rendus` dit combien ; celui-ci dit pourquoi, et c'est ce qui décide du remède :
+    /// une souris dans un panneau le refait à bon droit, une échelle qui tremble non.
+    pub dock_pourquoi: u16,
 }
 
 /// Les durées des postes d'une image, en microsecondes, dans l'ordre de la chronique.

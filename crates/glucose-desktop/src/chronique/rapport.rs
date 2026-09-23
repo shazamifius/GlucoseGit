@@ -14,6 +14,7 @@
 //! gelé, jamais *pourquoi*.
 
 mod oeil;
+mod panneaux;
 
 use super::{Chronique, Geste, Instantane};
 
@@ -61,6 +62,7 @@ impl Chronique {
         self.ecrire_les_gestes(&mut t);
         self.ecrire_la_navigation(&mut t);
         self.ecrire_les_reveils(&mut t);
+        self.ecrire_les_panneaux(&mut t);
         self.ecrire_l_empreinte(&mut t);
         self.ecrire_les_pires(&mut t);
         t

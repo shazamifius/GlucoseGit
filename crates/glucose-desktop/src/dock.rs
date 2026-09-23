@@ -40,7 +40,7 @@ use crate::params::{Pointer, ScaledRect, ScreenFrame};
 use crate::typography::Typography;
 use glucose_core::store::Store;
 
-pub use cache::DockCache;
+pub use cache::{DockCache, Raison as RaisonDuPanneau};
 pub use organize::{apply_organize_layout, LayoutMode, LayoutResult, OrganizeState, SortType};
 pub use plugins::OLLAMA_STATUS;
 pub use pomodoro::PomodoroState;

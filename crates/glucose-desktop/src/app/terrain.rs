@@ -193,6 +193,7 @@ impl GlucoseApp {
         self.chronique
             .noter_un_refus(lire("images_cachees") as u64, lire("images_perdues") as u64);
         vu.dock_rendus = lire("dock_rendus").clamp(0.0, f64::from(u16::MAX)) as u16;
+        vu.dock_pourquoi = lire("dock_pourquoi").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.bande_refaite = lire("bande_refaite").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.cartes_entieres = lire("cartes_entieres").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.textures_reportees = lire("textures_reportees").clamp(0.0, f64::from(u16::MAX)) as u16;
