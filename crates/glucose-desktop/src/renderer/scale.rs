@@ -100,12 +100,54 @@ pub(crate) fn fill_crisp(
     let Some(rect) = on_pixel_grid(rect) else {
         return;
     };
-    let mut paint = tiny_skia::Paint {
-        anti_alias: false,
-        ..Default::default()
-    };
-    paint.set_color(color);
-    pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
+    remplir(pixmap, rect, color.premultiply());
+}
+
+/// **Remplit des pixels entiers d'une couleur unie, par la règle même de `tiny-skia`** — sans
+/// passer par lui.
+///
+/// Un rectangle sur la grille n'a aucune couverture partielle : chaque pixel reçoit la couleur,
+/// posée sur le fond, et c'est tout. Passer par le rastériseur coûtait la mise en place de son
+/// pipeline à chaque appel — environ 0,65 µs, soit deux millisecondes et demie pour les
+/// poignées de 243 photos sélectionnées (`bench_ornements`) — pour une opération qui tient en
+/// une ligne par pixel.
+///
+/// Les formules sont celles de sa voie huit bits (`pipeline/lowp.rs`) : la couleur prémultipliée
+/// ramenée sur `[0, 255]` au plus proche, puis `s + (d · (255 − a) + 255) >> 8`. Opaque, elle
+/// donne la couleur elle-même, ce que sa copie mémoire donne aussi. L'épreuve les compare à
+/// `fill_rect` sur des milliers de cas tirés au hasard, au bit près.
+fn remplir(
+    pixmap: &mut tiny_skia::PixmapMut,
+    rect: tiny_skia::Rect,
+    couleur: tiny_skia::PremultipliedColor,
+) {
+    let s = [
+        couleur.red(),
+        couleur.green(),
+        couleur.blue(),
+        couleur.alpha(),
+    ]
+    .map(|v| (v * 255.0 + 0.5) as u16);
+    let reste = 255 - s[3];
+    let (largeur, hauteur) = (pixmap.width() as usize, pixmap.height() as usize);
+    let borne = |v: f32, max: usize| (v.max(0.0) as usize).min(max);
+    let (x0, x1) = (borne(rect.left(), largeur), borne(rect.right(), largeur));
+    let (y0, y1) = (borne(rect.top(), hauteur), borne(rect.bottom(), hauteur));
+    if x0 >= x1 || y0 >= y1 {
+        return;
+    }
+    let pas = largeur * 4;
+    let donnees = pixmap.data_mut();
+    for y in y0..y1 {
+        for pixel in donnees[y * pas + x0 * 4..y * pas + x1 * 4]
+            .as_chunks_mut::<4>()
+            .0
+        {
+            for (d, s) in pixel.iter_mut().zip(s) {
+                *d = (s + ((u16::from(*d) * reste + 255) >> 8)) as u8;
+            }
+        }
+    }
 }
 
 /// Le même rectangle, ramené sur la grille de pixels, ou `None` s'il n'a pas de sens.
@@ -193,6 +235,81 @@ mod tests {
             .expect("sur la grille");
         assert_eq!((sur.x(), sur.y()), (10.0, 11.0));
         assert_eq!((sur.width(), sur.height()), (20.0, 1.0));
+    }
+
+    /// **Le remplissage direct donne les octets de `tiny-skia`, au bit près** — sur des fonds,
+    /// des couleurs et des rectangles tirés au hasard, opaques, translucides, transparents,
+    /// dedans, à cheval sur le bord ; et rien du tout quand le rectangle est dehors.
+    ///
+    /// C'est ce qui autorise à ne plus passer par lui : sans cette épreuve, la voie directe
+    /// serait une imitation, et un arrondi différent déplacerait chaque filet de l'interface
+    /// d'un niveau sans que rien ne le dise. Elle a trouvé au passage un défaut de `tiny-skia`
+    /// lui-même, que la voie directe n'a pas (voir plus bas).
+    #[test]
+    fn test_scale_3_le_remplissage_direct_donne_les_octets_de_tiny_skia() {
+        let mut graine = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut tirer = move |n: u32| {
+            graine ^= graine << 13;
+            graine ^= graine >> 7;
+            graine ^= graine << 17;
+            (graine % u64::from(n)) as u32
+        };
+        for _ in 0..2_000 {
+            let (l, h) = (1 + tirer(24), 1 + tirer(24));
+            let mut fond = tiny_skia::Pixmap::new(l, h).expect("pixmap");
+            for pixel in fond.data_mut().as_chunks_mut::<4>().0 {
+                // Un fond prémultiplié : aucune composante au-dessus de son alpha.
+                let a = tirer(256) as u8;
+                for c in &mut pixel[..3] {
+                    *c = (tirer(u32::from(a) + 1)) as u8;
+                }
+                pixel[3] = a;
+            }
+            let alpha = [0, 255, tirer(256)][tirer(3) as usize] as u8;
+            let couleur = tiny_skia::Color::from_rgba8(
+                tirer(256) as u8,
+                tirer(256) as u8,
+                tirer(256) as u8,
+                alpha,
+            );
+            let x = tirer(40) as f32 - 8.0;
+            let y = tirer(40) as f32 - 8.0;
+            let Some(rect) =
+                tiny_skia::Rect::from_xywh(x, y, 1.0 + tirer(20) as f32, 1.0 + tirer(20) as f32)
+            else {
+                continue;
+            };
+            let mut obtenu = fond.clone();
+            remplir(&mut obtenu.as_mut(), rect, couleur.premultiply());
+            // **La reference est `tiny-skia` sur le rectangle deja coupe a l'image.** Sur un
+            // rectangle qui deborde a gauche ou en haut, il peint une colonne ou une rangee de
+            // trop -- de -7 a 9, les colonnes 0 a 9 et non 0 a 8 : un pixel qui n'appartient
+            // pas au rectangle. Coupe d'abord, il est exact, et c'est ce qu'on lui demande.
+            let image = tiny_skia::Rect::from_xywh(0.0, 0.0, l as f32, h as f32).expect("image");
+            let coupe = rect
+                .intersect(&image)
+                .filter(|c| c.width() > 0.0 && c.height() > 0.0);
+            let Some(coupe) = coupe else {
+                assert_eq!(
+                    obtenu.data(),
+                    fond.data(),
+                    "{rect:?} est dehors : rien ne change"
+                );
+                continue;
+            };
+            let mut attendu = fond.clone();
+            let mut paint = tiny_skia::Paint {
+                anti_alias: false,
+                ..Default::default()
+            };
+            paint.set_color(couleur);
+            attendu.fill_rect(coupe, &paint, tiny_skia::Transform::identity(), None);
+            assert_eq!(
+                obtenu.data(),
+                attendu.data(),
+                "{l}x{h}, {rect:?}, couleur {couleur:?} : les octets different"
+            );
+        }
     }
 
     /// Des coordonnées impossibles ne dessinent rien plutôt que d'arrêter le rendu.

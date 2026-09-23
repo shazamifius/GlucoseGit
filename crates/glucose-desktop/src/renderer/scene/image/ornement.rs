@@ -10,12 +10,16 @@
 //!
 //! Les ornements se dessinent donc **par-dessus** les tuiles, à chaque image, en direct.
 
+use super::super::super::domain::draw_domain_gauge;
 use super::super::super::handles::draw_rotated_handles;
+use super::super::super::scale::fill_crisp;
 use super::super::super::scale::WorldScale;
+use super::super::super::PaintKit;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::resize::Handle;
-use tiny_skia::{BlendMode, Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use glucose_core::store::Store;
+use tiny_skia::{BlendMode, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 /// Comment reporter une image sur le canevas : en remplaçant, ou en composant.
 ///
@@ -32,30 +36,6 @@ pub(super) fn mode_de_report(opaque: bool, rotation: f64) -> BlendMode {
         BlendMode::Source
     } else {
         BlendMode::SourceOver
-    }
-}
-
-/// Ce qu'une image **sélectionnée** porte en plus : son cadre, et ses prises.
-///
-/// Une image verrouillée se signale par la couleur de son cadre et par l'absence de ses
-/// poignées (fiche 06 § 4.3) : les deux disent le même fait, l'un de loin, l'autre au moment
-/// où la main cherche une prise. Les deux suivent la rotation du nœud, comme lui.
-pub(super) fn draw_image_adornments(
-    pixmap: &mut PixmapMut,
-    theme: &Theme,
-    scale: WorldScale,
-    img: &glucose_core::types::BoardImage,
-    screen_box: (f32, f32, f32, f32),
-) {
-    let (sx, sy, sw, sh) = screen_box;
-    let ink = if img.locked {
-        theme.alert
-    } else {
-        theme.selection_frame
-    };
-    draw_image_selection(pixmap, ink, (sx, sy), (sw, sh), img.rotation);
-    if !img.locked {
-        draw_rotated_handles(pixmap, theme, scale, screen_box, &Handle::ALL, img.rotation);
     }
 }
 
@@ -128,34 +108,166 @@ const IMAGE_SELECTION_INSET: f32 = 3.0;
 /// Épaisseur du cadre de sélection, en pixels écran (fiche 06 § 4.2).
 const IMAGE_SELECTION_STROKE: f32 = 1.25;
 
-/// Fiche 06 § 4.2 — cadre hairline blanc pur à 0,80, débordant de 3 px, épais de 1,25 px à
-/// l'écran quel que soit le zoom. Aucun néon : le contour se lit sur une image claire par le
-/// liseré des poignées, sur le fond noir par le blanc.
-fn draw_image_selection(
-    pixmap: &mut PixmapMut,
-    ink: Color,
-    at: (f32, f32),
-    size: (f32, f32),
-    rotation: f64,
-) {
-    let d = IMAGE_SELECTION_INSET;
-    let Some(rect) = Rect::from_xywh(at.0 - d, at.1 - d, size.0 + 2.0 * d, size.1 + 2.0 * d) else {
+/// **Les cadres de sélection des images** — fiche 06 § 4.2 : un liseré blanc pur à 0,80,
+/// débordant de 3 px, épais de 1,25 px à l'écran quel que soit le zoom ; celui d'une image
+/// verrouillée prend l'encre de l'alerte. Aucun néon : le contour se lit sur une image claire
+/// par le liseré des poignées, sur le fond noir par le blanc.
+///
+/// # Un cadre droit est quatre filets, et un filet ne s'anti-crénèle pas
+///
+/// Chaque cadre passait par le contour anti-crénelé du rastériseur : 40 µs pièce, presque tout
+/// de mise en place, 9,9 ms pour 243 photos sélectionnées (`bench_ornements`). Réunis en un
+/// seul tracé, ils coûtaient encore cinq à sept millisecondes : un contour qui couvre l'écran se
+/// balaie ligne par ligne, quatre sous-lignes par pixel. Or un cadre **droit** n'a aucun bord
+/// oblique — c'est exactement le cas de SCALE-3, où l'anti-crénelage n'apporte rien et coûte
+/// tout. Il se pose donc en quatre filets sur la grille, de l'épaisseur entière la plus proche
+/// de 1,25 px : un pixel, net.
+///
+/// Un cadre **penché** garde le contour : ses bords sont obliques. Il entre dans un seul tracé
+/// par ses quatre coins tournés — une rotation ne déforme rien, donc tourner le rectangle puis
+/// le border revient à border le rectangle puis le tourner.
+#[derive(Default)]
+pub(super) struct Cadres {
+    /// Les cadres droits, en rectangles écran, et s'ils sont verrouillés.
+    droits: Vec<(Rect, bool)>,
+    /// Les cadres penchés, un tracé par encre : normaux, puis verrouillés.
+    penches: [PathBuilder; 2],
+}
+
+impl Cadres {
+    /// Ajoute le cadre d'une image posée sur la boîte écran `(sx, sy, sw, sh)`.
+    pub(super) fn ajouter(
+        &mut self,
+        img: &glucose_core::types::BoardImage,
+        (sx, sy, sw, sh): (f32, f32, f32, f32),
+    ) {
+        let d = IMAGE_SELECTION_INSET;
+        let (at, size) = ((sx - d, sy - d), (sw + 2.0 * d, sh + 2.0 * d));
+        if img.rotation == 0.0 {
+            if let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) {
+                self.droits.push((rect, img.locked));
+            }
+            return;
+        }
+        // Le cadre épouse le nœud : il tourne avec lui, autour du même centre.
+        let mut coins = [
+            tiny_skia::Point::from_xy(at.0, at.1),
+            tiny_skia::Point::from_xy(at.0 + size.0, at.1),
+            tiny_skia::Point::from_xy(at.0 + size.0, at.1 + size.1),
+            tiny_skia::Point::from_xy(at.0, at.1 + size.1),
+        ];
+        rotation_at(img.rotation, at, size).map_points(&mut coins);
+        let trace = &mut self.penches[usize::from(img.locked)];
+        trace.move_to(coins[0].x, coins[0].y);
+        for c in &coins[1..] {
+            trace.line_to(c.x, c.y);
+        }
+        trace.close();
+    }
+
+    /// Pose tous les cadres ajoutés : les droits en filets, les penchés en un tracé par encre.
+    pub(super) fn poser(self, pixmap: &mut PixmapMut, theme: &Theme) {
+        let encres = [theme.selection_frame, theme.alert];
+        for (rect, verrouille) in self.droits {
+            poser_un_cadre_droit(pixmap, rect, encres[usize::from(verrouille)]);
+        }
+        let stroke = Stroke {
+            width: IMAGE_SELECTION_STROKE,
+            ..Default::default()
+        };
+        for (trace, encre) in self.penches.into_iter().zip(encres) {
+            let Some(chemin) = trace.finish() else {
+                continue;
+            };
+            let mut paint = Paint {
+                anti_alias: true,
+                ..Default::default()
+            };
+            paint.set_color(encre);
+            pixmap.stroke_path(&chemin, &paint, &stroke, Transform::identity(), None);
+        }
+    }
+}
+
+/// **Un cadre droit en quatre filets sur la grille**, centrés sur le bord du rectangle comme
+/// l'était le contour : le liseré déborde d'une demi-épaisseur au-dehors et mord d'autant
+/// au-dedans. Les filets ne se chevauchent pas — une encre à 0,80 posée deux fois aux coins
+/// y serait plus claire.
+fn poser_un_cadre_droit(pixmap: &mut PixmapMut, rect: Rect, encre: tiny_skia::Color) {
+    let e = IMAGE_SELECTION_STROKE.round().max(1.0);
+    let (x, y) = ((rect.x() - e / 2.0).round(), (rect.y() - e / 2.0).round());
+    let (l, h) = ((rect.width() + e).round(), (rect.height() + e).round());
+    if l <= 2.0 * e || h <= 2.0 * e {
         return;
+    }
+    for (fx, fy, fl, fh) in [
+        (x, y, l, e),
+        (x, y + h - e, l, e),
+        (x, y + e, e, h - 2.0 * e),
+        (x + l - e, y + e, e, h - 2.0 * e),
+    ] {
+        if let Some(filet) = Rect::from_xywh(fx, fy, fl, fh) {
+            fill_crisp(pixmap, filet, encre);
+        }
+    }
+}
+
+/// **Une image visible, et sa boite a l'ecran** : `(x, y, largeur, hauteur)` en pixels.
+pub(in crate::renderer) type Posee<'a> =
+    (&'a glucose_core::types::BoardImage, (f32, f32, f32, f32));
+
+/// Ce que les images portent en plus de leurs pixels, et qui n'appartient pas au document :
+/// les cadres de selection, les poignees, les jauges de domaines -- pour toutes les images
+/// visibles d'un coup, chacune avec sa boite a l'ecran.
+///
+/// Appelable a part de la pose, parce que les tuiles ne les contiennent pas (voir
+/// [`PasseImages::en_tuile`]) : quand l'ecran se compose depuis la grille, ils se dessinent
+/// ensuite, en direct, par-dessus.
+///
+/// # Toutes ensemble, et dans cet ordre
+///
+/// Les cadres d'abord, en un trace ; les poignees ensuite, qui se posent SUR le cadre de leur
+/// image ; les jauges enfin. Image par image, les dix-sept appels d'une photo selectionnee
+/// coutaient 21,6 ms pour 243 photos (`bench_ornements`) -- le poste qui faisait tomber le
+/// tempo a 48 images par seconde sur la longue session du 23/09.
+pub(in crate::renderer) fn draw_image_ornaments(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    scale: WorldScale,
+    images: &[Posee<'_>],
+) {
+    // La selection se lit une fois : la chercher dans une liste pour chaque image faisait
+    // autant de comparaisons que le produit des deux.
+    let choisies: std::collections::HashSet<&str> = store
+        .selected_image_ids
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let selectionnees = || {
+        images
+            .iter()
+            .filter(|(img, _)| choisies.contains(img.id.as_str()))
     };
-    // Le cadre épouse le nœud : il tourne avec lui, autour du même centre.
-    let ts = rotation_at(
-        rotation,
-        (at.0 - d, at.1 - d),
-        (size.0 + 2.0 * d, size.1 + 2.0 * d),
-    );
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    paint.set_color(ink);
-    let stroke = Stroke {
-        width: IMAGE_SELECTION_STROKE,
-        ..Default::default()
-    };
-    pixmap.stroke_path(&PathBuilder::from_rect(rect), &paint, &stroke, ts, None);
+    let mut cadres = Cadres::default();
+    for (img, ecran) in selectionnees() {
+        cadres.ajouter(img, *ecran);
+    }
+    cadres.poser(pixmap, kit.theme);
+    // Une image verrouillee se signale par la couleur de son cadre et par l'absence de ses
+    // poignees (fiche 06 § 4.3) : les deux disent le meme fait, l'un de loin, l'autre au
+    // moment ou la main cherche une prise.
+    for (img, ecran) in selectionnees().filter(|(img, _)| !img.locked) {
+        draw_rotated_handles(pixmap, kit.theme, scale, *ecran, &Handle::ALL, img.rotation);
+    }
+    for (img, (sx, sy, _, _)) in images {
+        draw_domain_gauge(
+            kit.typography,
+            kit.tints,
+            pixmap,
+            scale,
+            (*sx, *sy),
+            &img.domains,
+        );
+    }
 }

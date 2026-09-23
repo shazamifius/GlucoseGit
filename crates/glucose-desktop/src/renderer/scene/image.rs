@@ -4,10 +4,9 @@
 //! **reporte**, depuis un niveau de réduction (MIP-1) ou depuis une vignette déjà à la forme
 //! voulue (MIP-2), en composant ou en remplaçant selon ce que son opacité autorise.
 
-use super::super::domain::draw_domain_gauge;
 use super::super::magasin::Magasin;
 use super::super::pass::Clip;
-use super::super::scale::WorldScale;
+
 use super::super::{photo, vignette, PaintKit};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
@@ -16,7 +15,8 @@ use glucose_core::occlusion::{self, Calque};
 use glucose_core::quadtree::Visibles;
 use glucose_core::report;
 use glucose_core::store::Store;
-use ornement::{draw_image_adornments, draw_missing_image, mode_de_report};
+pub(in crate::renderer) use ornement::draw_image_ornaments;
+use ornement::{draw_missing_image, mode_de_report};
 use prevision::{calque_de, prevoir_la_scene, Chemin};
 use tiny_skia::{FilterQuality, PixmapMut, PixmapPaint, Transform};
 
@@ -231,34 +231,6 @@ pub(in crate::renderer) fn draw_images(
     // travaille, c'est que la mémoire se tend et que la borne se contracte.
     crate::perf::compteur("img_rendues", magasin.evincees() as f64);
     complet
-}
-
-/// Ce qu'une image porte en plus de ses pixels, et qui n'appartient pas au document : le
-/// cadre de selection, les poignees, la jauge de domaines.
-///
-/// Appelable a part de la pose, parce que les tuiles ne les contiennent pas (voir
-/// [`PasseImages::en_tuile`]) : quand l'ecran se compose depuis la grille, ils se dessinent
-/// ensuite, en direct, par-dessus.
-pub(in crate::renderer) fn draw_image_ornaments(
-    kit: PaintKit<'_>,
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    scale: WorldScale,
-    img: &glucose_core::types::BoardImage,
-    ecran: (f32, f32, f32, f32),
-) {
-    let (sx, sy, _, _) = ecran;
-    if store.selected_image_ids.contains(&img.id) {
-        draw_image_adornments(pixmap, kit.theme, scale, img, ecran);
-    }
-    draw_domain_gauge(
-        kit.typography,
-        kit.tints,
-        pixmap,
-        scale,
-        (sx, sy),
-        &img.domains,
-    );
 }
 
 /// Pose cette image si elle est décodée ; sinon la demande, et le dit.

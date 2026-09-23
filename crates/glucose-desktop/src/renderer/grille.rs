@@ -497,20 +497,17 @@ pub(super) fn dessiner_les_ornements(
     let Some(board) = store.active_board() else {
         return;
     };
-    let scale = WorldScale::new(pass.vp.scale);
-    for img in Visibles::nouvelles(pass.visibles, board).images() {
-        let (wx, wy) = world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
-        let sw = (img.width * pass.vp.scale) as f32;
-        let sh = (img.height * pass.vp.scale) as f32;
-        draw_image_ornaments(
-            kit,
-            pixmap,
-            store,
-            scale,
-            img,
-            (wx as f32, wy as f32, sw, sh),
-        );
-    }
+    let images: Vec<_> = Visibles::nouvelles(pass.visibles, board)
+        .images()
+        .map(|img| {
+            let (wx, wy) =
+                world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, &pass.vp);
+            let sw = (img.width * pass.vp.scale) as f32;
+            let sh = (img.height * pass.vp.scale) as f32;
+            (img, (wx as f32, wy as f32, sw, sh))
+        })
+        .collect();
+    draw_image_ornaments(kit, pixmap, store, WorldScale::new(pass.vp.scale), &images);
 }
 
 /// Les compteurs de la chronique, tels que l'**écran** les vit — et non la dernière tuile.

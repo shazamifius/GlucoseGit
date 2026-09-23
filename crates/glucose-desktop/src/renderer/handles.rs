@@ -6,7 +6,7 @@
 //! la même boîte : une poignée dessinée est donc une poignée cliquable, par construction
 //! (loi L4, appliquée au canevas).
 
-use super::scale::WorldScale;
+use super::scale::{fill_crisp, WorldScale};
 use crate::theme::Theme;
 use glucose_core::resize::Handle;
 use glucose_core::smart_align::AlignRect;
@@ -47,37 +47,54 @@ pub(super) fn draw_rotated_handles(
     let local = AlignRect::new(-(w as f64) / 2.0, -(h as f64) / 2.0, w as f64, h as f64);
     let side = scale.screen(HANDLE_SIDE);
     let outline = scale.screen(HANDLE_OUTLINE);
-
-    let mut fill = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    fill.set_color(theme.handle_fill);
-    let mut border = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    border.set_color(theme.handle_outline);
-    let stroke = Stroke {
-        width: outline,
-        ..Default::default()
-    };
-
     for handle in handles {
         let (cx, cy) = glucose_core::rotate::place(centre, handle.position_on(local), rotation);
-        let Some(square) =
-            Rect::from_xywh(cx as f32 - side / 2.0, cy as f32 - side / 2.0, side, side)
-        else {
-            continue;
-        };
-        pixmap.fill_rect(square, &fill, Transform::identity(), None);
-        pixmap.stroke_path(
-            &PathBuilder::from_rect(square),
-            &border,
-            &stroke,
-            Transform::identity(),
-            None,
+        poser_une_poignee(
+            pixmap,
+            (cx as f32, cy as f32),
+            (side, outline),
+            (theme.handle_fill, theme.handle_outline),
         );
+    }
+}
+
+/// **Une poignée, nette** : un carré de liseré, et un carré de fond dedans, tous deux posés
+/// sur la grille de pixels (SCALE-3).
+///
+/// Elle était un carré plein puis un contour, anti-crénelés : deux passages dans le
+/// rastériseur pour une forme alignée sur les axes, à qui l'anti-crénelage n'apporte rien —
+/// il la rendait même floue sur une demi-position. Et c'étaient seize appels par photo
+/// sélectionnée : `bench_ornements` les chiffre à 12,5 ms pour 243 photos, la moitié du poste
+/// qui faisait tomber le tempo à 48 images par seconde sur la longue session du 23/09.
+///
+/// La géométrie est celle du contour d'avant, centré sur le bord du carré : le liseré déborde
+/// d'une demi-épaisseur au-dehors et mord d'autant au-dedans.
+fn poser_une_poignee(
+    pixmap: &mut PixmapMut,
+    (cx, cy): (f32, f32),
+    (side, outline): (f32, f32),
+    (fond, liseré): (tiny_skia::Color, tiny_skia::Color),
+) {
+    let exterieur = side + outline;
+    let Some(bord) = Rect::from_xywh(
+        (cx - exterieur / 2.0).round(),
+        (cy - exterieur / 2.0).round(),
+        exterieur.round(),
+        exterieur.round(),
+    ) else {
+        return;
+    };
+    fill_crisp(pixmap, bord, liseré);
+    // Le fond se retire du bord d'une épaisseur entière de chaque côté : sur la grille, un
+    // liseré a un nombre entier de pixels, et jamais moins d'un.
+    let e = outline.round().max(1.0);
+    if let Some(dedans) = Rect::from_xywh(
+        bord.x() + e,
+        bord.y() + e,
+        bord.width() - 2.0 * e,
+        bord.height() - 2.0 * e,
+    ) {
+        fill_crisp(pixmap, dedans, fond);
     }
 }
 
