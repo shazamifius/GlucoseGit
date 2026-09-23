@@ -41,7 +41,15 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
     let mut tampon = [FORMATETC::default(); 1];
     loop {
         let mut lus = 0u32;
-        if unsafe { enumerateur.Next(&mut tampon, Some(&mut lus)) }.is_err() || lus == 0 {
+        // **Une erreur de l'enumeration se dit** : elle etait avalee, et trois depots de la
+        // session du 23/09 ont affiche une liste VIDE sans qu'on puisse savoir si l'objet ne
+        // portait rien ou si Windows refusait de le dire.
+        let lu = unsafe { enumerateur.Next(&mut tampon, Some(&mut lus)) };
+        if lu.is_err() {
+            eprintln!("    l'enumeration s'arrete sur une erreur : {lu:?}");
+            break;
+        }
+        if lus == 0 {
             break;
         }
         let f = tampon[0];
@@ -61,6 +69,29 @@ pub(super) fn dire_les_formats(objet: &IDataObject) {
                 "ANNONCE SEULEMENT"
             }
         );
+        if lisible {
+            dire_les_adresses(objet, f.cfFormat);
+        }
+    }
+}
+
+/// **Les adresses web qu'un format transporte**, s'il se lit en mémoire globale.
+///
+/// C'est la question que la liste des formats laisse ouverte : Pinterest ne donne souvent
+/// que des données à lui, et savoir si l'adresse de l'image s'y cache décide de tout ce qui
+/// suit — la lire, ou devoir la chercher ailleurs.
+fn dire_les_adresses(objet: &IDataObject, format: u16) {
+    use windows::Win32::System::Com::TYMED_HGLOBAL;
+    let Some(mut medium) = tirer(objet, format, TYMED_HGLOBAL, -1) else {
+        return;
+    };
+    let octets = unsafe {
+        let lu = Bloc::prendre(medium.u.hGlobal).map(|bloc| bloc.copier());
+        windows::Win32::System::Ole::ReleaseStgMedium(&mut medium);
+        lu
+    };
+    for adresse in crate::plateforme::moisson::adresses_dans(&octets.unwrap_or_default()) {
+        eprintln!("           -> {adresse}");
     }
 }
 

@@ -170,3 +170,31 @@ fn test_un_raccourci_se_reconnait_a_son_extension_quelle_que_soit_sa_casse() {
     assert!(!est_un_raccourci(Path::new("image.jpg")));
     assert!(!est_un_raccourci(Path::new("url")));
 }
+
+/// **DEPOT-WEB-3** — une adresse se retrouve, qu'elle soit écrite en UTF-8 ou en chaîne large.
+///
+/// Chromium range les données qu'une page pose dans son glisser en chaînes larges ; un
+/// fragment HTML, lui, est en UTF-8. L'instrument doit voir les deux, sinon il dirait
+/// « aucune adresse » sur exactement le format qu'on veut lire.
+#[test]
+fn test_une_adresse_se_lit_en_utf8_comme_en_chaine_large() {
+    let html = br#"<a href="https://fr.pinterest.com/pin/1/"><img src="https://i.pinimg.com/236x/ab/cd.jpg" alt=x></a>"#;
+    assert_eq!(
+        adresses_dans(html),
+        vec![
+            "https://fr.pinterest.com/pin/1/".to_string(),
+            "https://i.pinimg.com/236x/ab/cd.jpg".to_string(),
+        ]
+    );
+
+    // La meme adresse en chaine large, precedee d'un octet : l'alignement impair aussi.
+    let mut large = vec![0x07u8];
+    for c in "type\0https://i.pinimg.com/originals/ef.png\0".encode_utf16() {
+        large.extend_from_slice(&c.to_le_bytes());
+    }
+    assert_eq!(
+        adresses_dans(&large),
+        vec!["https://i.pinimg.com/originals/ef.png".to_string()]
+    );
+    assert!(adresses_dans(b"rien d'utile, http seul, httpx://non").is_empty());
+}

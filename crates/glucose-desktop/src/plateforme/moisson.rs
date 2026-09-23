@@ -223,5 +223,46 @@ pub fn lire_les_raccourcis(chemins: &[PathBuf]) -> (Vec<PathBuf>, Vec<String>) {
     (fichiers, adresses)
 }
 
+/// **Les adresses web que ces octets transportent**, dans l'ordre et sans doublon.
+///
+/// # Pourquoi l'instrument en a besoin
+///
+/// Glisser une épingle depuis la grille de Pinterest n'apporte, le plus souvent, **aucun**
+/// format standard : ni image, ni fichier, ni adresse — seulement `DragImageBits`, la vignette
+/// qui suit le curseur, et `Chromium Web Custom MIME Data Format`, les données que la page a
+/// posées elle-même dans le glisser (session économe du 23/09, six dépôts sur dix). La seule
+/// question qui reste est de savoir si l'adresse de l'image y est **cachée** — et elle ne se
+/// devine pas.
+///
+/// On cherche donc `http://` et `https://` en UTF-8 **et** en UTF-16 — Chromium range ses
+/// données dans un « pickle » de chaînes larges —, sur les deux alignements possibles d'une
+/// chaîne large. Une adresse s'arrête au premier caractère qu'une adresse ne peut pas porter
+/// sans être encodée : c'est la définition de la RFC 3986, pas un choix.
+pub fn adresses_dans(octets: &[u8]) -> Vec<String> {
+    let mut textes = vec![String::from_utf8_lossy(octets).into_owned()];
+    for decalage in 0..2 {
+        let (paires, _) = octets.get(decalage..).unwrap_or_default().as_chunks::<2>();
+        let larges: Vec<u16> = paires.iter().map(|p| u16::from_le_bytes(*p)).collect();
+        textes.push(String::from_utf16_lossy(&larges));
+    }
+    let mut trouvees: Vec<String> = Vec::new();
+    for texte in &textes {
+        for (debut, _) in texte.match_indices("http") {
+            let reste = &texte[debut..];
+            if !(reste.starts_with("http://") || reste.starts_with("https://")) {
+                continue;
+            }
+            let fin = reste
+                .find(|c: char| !c.is_ascii_graphic() || "\"'<>\\^`{|}".contains(c))
+                .unwrap_or(reste.len());
+            let adresse = &reste[..fin];
+            if adresse.len() > "https://".len() && !trouvees.iter().any(|a| a == adresse) {
+                trouvees.push(adresse.to_string());
+            }
+        }
+    }
+    trouvees
+}
+
 #[cfg(test)]
 mod tests;

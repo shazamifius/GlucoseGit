@@ -53,3 +53,6 @@ docs/screenshots/temoin*.png
 
 # Mesures de performance écrites par `GLUCOSE_PERF=1`.
 /perf_*.txt
+
+# Les sorties de session que l utilisateur ecrit a la racine pour qu elles soient lues
+/sortie-*.txt
