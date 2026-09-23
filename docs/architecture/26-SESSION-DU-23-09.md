@@ -338,3 +338,83 @@ construction.
 | aucune bascule de carte | `changer de carte` 0,01 ms au pire : ARBITRE-3 n'a pas été exercé |
 | le tressaut, enfin le vrai | **x7,7** sur les seuls sauts du rendu : 3 balayages 88,5 %, 2 : 8,4 %, 4 : 3,1 % — les pics de `textures` à 8-9 ms |
 | **`bande` à 32,28 ms** | une seule image, à la 4,6ᵉ seconde, quand le document change : la barre du haut refaite coûte trente fois son remplissage. Le facteur vingt de la fiche 24 § 14.2 a doublé, et reste inexpliqué |
+
+---
+
+## 10. Deux sessions de plus, et une correction à ce que ce document affirmait
+
+L'utilisateur a joué deux sessions, sorties écrites dans un fichier : `GLUCOSE_CARTE=econome`
+avec `GLUCOSE_DEPOT=1`, puis sans carte imposée. **La seconde a « COMPLÈTEMENT » gelé.**
+
+### 10.1 La mémoire : la piste du § 7 est établie
+
+| même document | mémoire de travail |
+|---|---:|
+| NVIDIA, ouverte au lancement | **311 Mo** |
+| Intel Arc, imposée | **636 Mo** |
+
+Deux sessions, une seule différence. Une carte intégrée n'a pas de mémoire à elle : ce
+qu'elle détient vit dans la RAM du processus. Les 461 à 633 Mo des fiches 25 et 26 étaient
+l'Intel, pas une fuite. Ce que les deux cartes détiennent pour vingt-deux nœuds — environ
+325 Mo — reste à mesurer poste par poste, et c'est un chantier d'empreinte à part.
+
+### 10.2 Pinterest ne donne presque rien — DEPOT-WEB-3
+
+Dix dépôts sur l'Intel. **Six** ne portaient **aucun** format standard : `DragContext`,
+`DragImageBits` — la vignette qui suit le curseur —, `chromium/x-renderer-taint`, et
+`Chromium Web Custom MIME Data Format`, les données que la page pose elle-même. **Quatre**
+portaient le lien de l'épingle — le raccourci `.url` — et un fragment HTML. **Aucun** ne
+portait l'image.
+
+L'instrument écrit désormais les adresses cachées dans chaque format. Mais quelle qu'elle
+soit, **obtenir l'image demande de la télécharger** : c'est la décision que DEPOT-WEB-1 avait
+évitée, et la mesure l'impose maintenant. Elle est soumise à l'utilisateur.
+
+### 10.3 La moitié des gels mesurés étaient faux — GEL-1
+
+Sur l'Intel, le verdict mettait **[gel] x310** en tête : 11 020 ms à la 25,8ᵉ seconde, puis
+1 773, 1 197, 1 006 ms, tous « attendre Windows », tous finis par « poser un dépôt ».
+L'utilisateur n'a rien vu geler dans cette session. Il était **dans son navigateur**.
+
+La mesure partait de l'image précédente dès qu'une image était « attendue », et « attendue »
+se décidait au dernier moment : le dépôt lance un décodage, l'image suivante devient attendue,
+et tout le temps passé dans le navigateur devenait un gel. **C'était la dette de la fiche 24
+§ 7, et le constat du gel que j'ai ajouté au § 4 l'avait portée en tête du verdict.**
+
+Un gel se compte désormais depuis l'instant où l'image est **devenue nécessaire** — posé par
+`mark_dirty` et `salir`, pris au début du rendu. Et « attendre Windows » devient décisif :
+une attente chez Windows **alors qu'une image était due** veut dire que Windows tenait le fil.
+
+### 10.4 Le gel qui ne finit pas était invisible
+
+La session sans carte imposée a gelé « complètement », et sa chronique finissait sur une
+image normale. Elle ne pouvait pas faire autrement : **un gel ne se mesurait qu'entre deux
+images présentées**, et un gel qui ne finit jamais n'a pas d'image suivante. Fermer pendant
+qu'une image est due se range désormais comme un gel, et le rapport l'écrit en première ligne.
+
+### 10.5 La correction : j'avais écarté trop vite ce que le brief proposait
+
+Le § 3.1 conclut que *« l'arbitrage que le brief voulait soumettre n'a pas lieu d'être »*.
+**C'était aller trop loin.** J'ai démenti un **mécanisme** — la carte ouverte par bascule reste
+lente, `present` p99 2,90 ms le réfute — et j'en ai conclu contre la **corrélation**, que la
+mesure n'a jamais démentie :
+
+| session | carte | gel ressenti |
+|---|---|---|
+| 22/09, 437 s | rapide **au lancement** | aucun |
+| 23/09 12 h 53, 28 s | rapide **au lancement** | aucun |
+| 22/09, 37 s | **bascule** | 13 s |
+| 22/09, 17 s | **bascule** | 763 ms |
+| 23/09 13 h 37, 18 s | **bascule**, au repos (ARBITRE-3) | « complètement » |
+
+Cinq sessions, et la ligne de partage n'a pas bougé. ARBITRE-3 a fait basculer la carte **au
+repos** — 586 ms, puis 467 ms sur la première présentation —, et la session a gelé quand même.
+Et **les trois dépôts qui ont suivi la bascule ont affiché une liste de formats vide**, ce
+qu'aucun des dix dépôts de la session sans bascule n'a fait.
+
+**Ce qui n'est pas établi** : le mécanisme du gel complet. Les instruments de GEL-1 et
+DEPOT-WEB-3 le diront à la prochaine session sans carte imposée. **Ce qui l'est assez pour
+agir** : ouvrir une carte au lancement n'a jamais gelé, en changer en cours de route a gelé
+trois fois sur trois. Si la prochaine session le confirme, la sortie est celle que le brief
+proposait — l'arbitre retient son verdict et le lancement suivant ouvre la bonne carte —, et
+c'est une décision qui engage la vision.
