@@ -418,3 +418,42 @@ agir** : ouvrir une carte au lancement n'a jamais gelé, en changer en cours de 
 trois fois sur trois. Si la prochaine session le confirme, la sortie est celle que le brief
 proposait — l'arbitre retient son verdict et le lancement suivant ouvre la bonne carte —, et
 c'est une décision qui engage la vision.
+
+---
+
+## 11. Le gel complet, enfin nommé — ARBITRE-4
+
+La session du 23/09 à 14 h 44, sans carte imposée, a « RE freeze total ». Pour la première
+fois, les instruments de GEL-1 étaient en place, et ils ont dit ce qu'aucune chronique
+n'avait pu dire :
+
+```
+    8,3 s    l'arbitre passe sur la NVIDIA (89 + 475 ms)
+    8,8 s    première image sur la nouvelle carte : 500 ms de present
+    9,4 s    Glucose dessine et PRÉSENTE des centaines d'images, à 103 par seconde ;
+    → 14 s   latence du geste p99 16,4 ms ; à la fermeture, aucune image en retard
+             de plus de 46 ms — et l'utilisateur voyait un canevas FIGÉ
+```
+
+**Les images partaient, et n'arrivaient pas à l'écran.** Chaque présentation répondait
+« réussie ». C'est ce que l'utilisateur décrit depuis trois jours — *« le canva freeze, mais
+Ctrl+O, Ctrl+S fonctionnent »* : ces fenêtres-là sont dessinées par Windows, pas par Glucose.
+
+Cela dément la fiche 25 § 9.3 — la carte ne présente pas lentement, elle présente vite et
+pour personne — **et ma réfutation du § 3.1** : j'avais lu `present` à 2,90 ms au p99 comme la
+preuve que la RTX présentait normalement.
+
+> **La leçon, et elle vaut pour tout instrument de ce dépôt : un accusé de réception n'est pas
+> une livraison.** Une présentation qui répond vite dit que la carte a accepté l'image, pas
+> que l'œil l'a vue. Rien, de l'intérieur de l'application, ne mesure ce que l'écran montre —
+> seul l'utilisateur le peut, et c'est pour cela que son *« c'est figé »* devait primer sur
+> mes chiffres.
+
+**La correction** : l'arbitre ne change plus de carte en cours de route. Quand il conclut, il
+écrit son choix dans `carte.txt` (dossier local de l'application), la bannière le dit, et le
+lancement suivant ouvre directement cette carte — le chemin qui n'a jamais figé en cinq
+sessions. Le poste « changer de carte » de l'entracte disparaît avec ce qu'il mesurait.
+
+**Ce qui reste à confirmer à l'écran** : premier lancement sans variable sur l'Intel, jusqu'à
+ce que la bannière dise *« la carte rapide s'ouvrira au prochain lancement »* ; puis un second
+lancement, qui doit s'ouvrir sur la NVIDIA et ne jamais figer.
