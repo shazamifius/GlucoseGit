@@ -1,15 +1,16 @@
 # Glucose — Roadmap & Architecture
 
+> [!WARNING]
+> **Archive de Glucose Tauri, figée au 2026-06-10.** Tout ce que cette roadmap marque ✅ est
+> acquis dans Glucose Tauri (branche `tauri-v1.0.1`), **pas dans Glucose Rust**. Lire d'abord
+> le [`README.md`](README.md) de ce dossier ; le plan de Glucose Rust vit dans
+> [`docs/architecture/`](../architecture/00-INDEX.md).
+
 > **Vision :** une surface cognitive infinie. Une seule interface — pas de modes — capable de soutenir aussi bien la création d'un jeu vidéo, l'élaboration d'une langue construite, que la cartographie versionnée de toute la connaissance humaine.
 >
 > **Mission (cap nord) :** devenir **la nouvelle feuille blanche entre humains** — la meilleure façon de partager une idée, qu'elle soit artistique, technique, scolaire ou mathématique. Et, plus tard, **le meilleur pont entre l'humain et l'IA** : un espace 2D que l'IA peut générer ET relire, et que l'humain comprend d'un regard.
 >
 > **Principe :** poser, relier, zoomer, explorer. Rien d'autre.
-
-> **Document hérité — lire [`README.md`](README.md) de ce dossier d'abord.** Cette roadmap est
-> celle de **Glucose Tauri** (TypeScript, PixiJS, Automerge), figée au 2026-06-10. Tout ce
-> qu'elle marque ✅ est acquis dans le code `src/`, **pas dans la version Rust**. Le plan de la
-> version Rust est la [fiche 12](../architecture/12-PLAN-D-EXECUTION.md).
 
 **Dernière mise à jour du contenu :** 2026-06-10
 **Pile décrite :** React + PixiJS + Zustand + Automerge, backend Tauri (`src-tauri/`)

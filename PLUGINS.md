@@ -247,8 +247,13 @@ Ce qui ne doit pas être négocié, même sous la pression d'un cas particulier 
 
 ## 9. Écart avec le code actuel
 
-Aujourd'hui (v1.0.1-beta.24), le code **contredit** cette vision sur quatre points. Il
-faut le dire clairement plutôt que de laisser croire que la vision est déjà là.
+**Dans Glucose Rust**, la version de la branche `main`, rien de ce système n'existe encore :
+le panneau Plugins montre sa forme et dit lui-même qu'il ne fait rien. Il n'y a ni
+installation, ni exécution, ni bus.
+
+**Dans Glucose Tauri** (v1.0.1-beta.24, branche `tauri-v1.0.1`), un premier système de
+plugins existait, et il **contredit** cette vision sur quatre points. Il faut le dire
+clairement plutôt que de laisser croire que la vision est déjà là.
 
 | Aujourd'hui | Vision |
 |---|---|
@@ -268,10 +273,13 @@ Ce qui, en revanche, est déjà conforme :
 
 ### Chemin de migration (ordre conseillé)
 
+Écrit pour Glucose Tauri. Glucose Rust partira directement de la vision, sans passer par
+l'étape intermédiaire ; l'ordre reste une bonne indication de ce qui structure le reste.
+
 1. **Généraliser le tiroir** : rendre tout le contenu d'un tiroir depuis le manifeste
    (les contrôles du §5), au lieu des sections codées en dur.
 2. **Sortir « Choisir un texte »** du panneau vers un contrôle `file` déclaré.
-3. **Extraire l'IA locale** en plugin fournisseur : les commandes Rust existantes
+3. **Extraire l'IA locale** en plugin fournisseur : les commandes du backend de Glucose Tauri
    (`system_specs`, `ollama_status`, `install_ollama`, `pull_model`, `ollama_generate`)
    deviennent l'implémentation d'un plugin, plus des fonctions de l'application.
 4. **Introduire `provides` / `needs`** et le registre de services.

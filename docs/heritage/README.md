@@ -1,5 +1,11 @@
 # Héritage — les documents de Glucose Tauri
 
+> [!WARNING]
+> **Archives.** Ces documents décrivent **Glucose Tauri**, la première version de Glucose
+> (React et TypeScript dans Tauri), figée. Ils ne décrivent pas le logiciel de la branche
+> `main`, qui est **Glucose Rust**. Son code vit sur la branche
+> [`tauri-v1.0.1`](https://github.com/shazamifius/GlucoseGit/tree/tauri-v1.0.1).
+
 Ces documents décrivent **la version TypeScript / Tauri** de Glucose, celle que la réécriture
 en Rust prend pour cible. Ils sont conservés parce qu'ils servent encore :
 
@@ -8,8 +14,8 @@ en Rust prend pour cible. Ils sont conservés parce qu'ils servent encore :
 - **comme vision** — le pont humain ↔ IA, Wikipédia dans Glucose, les plugins comme bus : ce cap
   n'a pas changé.
 
-**Ce qu'ils déclarent « fait », « livré » ou « stable » l'est dans le code TypeScript du dossier
-`src/`, pas dans les crates Rust.** L'état réel de la version Rust est tenu, fonctionnalité par
+**Ce qu'ils déclarent « fait », « livré » ou « stable » l'est dans le code TypeScript de Glucose
+Tauri (dossier `src/` de la branche `tauri-v1.0.1`), pas dans les crates Rust.** L'état réel de la version Rust est tenu, fonctionnalité par
 fonctionnalité, dans [`docs/architecture/`](../architecture/00-INDEX.md), et résumé dans le
 [README](../../README.md).
 
