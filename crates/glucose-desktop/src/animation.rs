@@ -124,6 +124,16 @@ impl Animator {
     /// Applique l'action différée à l'arrivée. C'est le seul endroit où une animation touche au
     /// store, et il le fait par la porte unique du viewport.
     pub fn tick(&mut self, store: &mut Store) -> Option<u64> {
+        let ecoule = self.flight.as_ref()?.start.elapsed().as_secs_f64() * 1000.0;
+        self.avancer(store, ecoule)
+    }
+
+    /// **La même image, à `elapsed` millisecondes du départ.**
+    ///
+    /// L'horloge est un argument, et c'est ce qui permet de dire où en est un vol sans dépendre
+    /// de la vitesse de la machine : une épreuve qui lisait l'horloge demandait une image « au
+    /// tout début du vol » et tombait au hasard, quand aucune microseconde ne s'était écoulée.
+    pub(crate) fn avancer(&mut self, store: &mut Store, elapsed: f64) -> Option<u64> {
         let flight = self.flight.as_ref()?;
         // Le tableau a changé sous le vol : il n'a plus de sujet.
         if store.project.active_board_id != flight.board {
@@ -131,7 +141,6 @@ impl Animator {
             return None;
         }
 
-        let elapsed = flight.start.elapsed().as_secs_f64() * 1000.0;
         let interpoler =
             |de: f64, vers: f64| Tween::new(de, vers, flight.duration_ms, flight.curve).at(elapsed);
         let vp = Viewport {

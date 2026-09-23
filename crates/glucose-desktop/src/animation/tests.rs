@@ -81,8 +81,9 @@ fn test_pendant_le_vol_on_est_encore_dans_le_tableau_parent() {
     let mut a = Animator::new();
     assert!(fly_into_folder(&store, &mut a, "fold-1", ECRAN));
 
-    // Une image au tout début du vol.
-    let reste = a.tick(&mut store).expect("le vol court");
+    // Une image au tout début du vol : une milliseconde après le départ, et non « maintenant »,
+    // qui peut valoir zéro sur une machine rapide.
+    let reste = a.avancer(&mut store, 1.0).expect("le vol court");
     assert!(reste > 0, "il reste du chemin");
     assert_eq!(
         store.project.active_board_id, board,
