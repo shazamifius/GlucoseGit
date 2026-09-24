@@ -127,7 +127,7 @@ mod tests {
     /// quatre, et la part décide où l'on s'arrête.
     #[test]
     fn test_le_cran_est_le_plus_petit_qui_tient() {
-        let demande = |c: u32| 1_000_000u64 >> (2 * c);
+        let demande = |c: u32| 1_000_000u64.checked_shr(2 * c).unwrap_or(0);
         assert_eq!(
             cran_qui_tient(u64::MAX, demande),
             Some(0),
@@ -146,7 +146,10 @@ mod tests {
     /// **Ce qui ne tient à aucun cran le dit** — les photos réduites au pixel pèsent encore.
     #[test]
     fn test_ce_qui_ne_tient_a_aucun_cran_deborde() {
-        let demande = |c: u32| 4 + (1_000_000u64 >> (2 * c));
+        // Au trente-deuxième cran, décaler un entier de 64 bits de 64 déborde : l'épreuve
+        // paniquait là, en profil de test, depuis qu'elle existe. Au-delà du pixel, la
+        // réduction ne pèse plus rien.
+        let demande = |c: u32| 4 + 1_000_000u64.checked_shr(2 * c).unwrap_or(0);
         assert_eq!(cran_qui_tient(3, demande), None);
         assert_eq!(cran_qui_tient(4, demande), Some(10));
     }
