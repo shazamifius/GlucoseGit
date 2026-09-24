@@ -78,6 +78,14 @@ impl SceneGpu {
         if self.connait(&t.identite, &t.cle) || self.detient(&t.identite) == urgent {
             return;
         }
+        // **CASCADE-3 : on prévoit avant d'entamer.** Vérifier qu'il reste du temps ne suffit
+        // pas : une carte de texte grande comme l'écran, commencée avec une milliseconde de
+        // marge, en prend quinze — l'image de zoom de 35 ms du 24/09, dont 28 en textures.
+        // Ce qu'elle coûtera se lit sur ce qu'ont coûté les précédentes, par pixel posé : la
+        // seule grandeur connue avant de la rendre. Rien n'est choisi, et tant que rien n'est
+        // mesuré, la règle d'avant.
+        let surface = (f64::from(t.pose.largeur.max(1.0)) * f64::from(t.pose.hauteur.max(1.0))) as u64;
+        let prevu = self.debit.prevoir(surface).unwrap_or_default();
         // **Le budget vaut pour les deux tours**, et la première version se trompait ici.
         // Elle n'en exemptait que l'urgent, au motif qu'un trou est pire qu'un flou — vrai
         // pour une carte isolée, faux pour quatre cent quatre-vingts. Le terrain a tranché :
@@ -90,11 +98,13 @@ impl SceneGpu {
         // se compléter, même quand chaque image dépasse déjà le plancher et que le budget est
         // nul — la même raison qui fait que `tranche_de_fond` ne rend jamais zéro à l'atelier
         // de décodage.
-        if tranche.faites > 0.0 && tranche.debut.elapsed() >= tranche.budget {
+        if tranche.faites > 0.0 && tranche.debut.elapsed() + prevu >= tranche.budget {
             tranche.reportees += 1.0;
             return;
         }
+        let debut = Instant::now();
         if let Some(pixels) = source(&t.cle) {
+            let photo = matches!(pixels, super::Pixels::Pretes(_));
             let pixels = pixels.vue();
             // **Ce qu'une texture pese vraiment**, en kilopixels. Les chroniques du 21/09
             // montrent UNE texture a dix-neuf millisecondes, ce qu'aucune carte de texte
@@ -102,8 +112,41 @@ impl SceneGpu {
             // seule grandeur qui puisse l'expliquer.
             tranche.surface += f64::from(pixels.width()) * f64::from(pixels.height()) / 1000.0;
             self.televerser(peripherique, file, (&t.identite, &t.cle), pixels);
+            if photo {
+                self.marquer_photo(&t.identite);
+            }
+            self.debit.noter(surface, debut.elapsed());
             tranche.faites += 1.0;
         }
+    }
+}
+
+/// **Ce qu'une texture coûte sur cette machine**, par pixel qu'elle couvre à l'écran : les
+/// pixels posés et le temps qu'ils ont pris, cumulés depuis le début (CASCADE-3).
+///
+/// Une moyenne cumulée et non glissante : glisser demanderait une fenêtre, donc un nombre à
+/// choisir. Photos et cartes de texte y sont mêlées — la carte ne sait lesquelles elle rend
+/// qu'une fois qu'elle les a rendues ; l'erreur tient dans un facteur deux, et le rôle de la
+/// prévision est d'écarter la texture de quinze millisecondes, pas de compter au pixel.
+#[derive(Debug, Default, Clone, Copy)]
+pub(super) struct Debit {
+    pixels: u64,
+    nanos: u64,
+}
+
+impl Debit {
+    pub(super) fn noter(&mut self, pixels: u64, duree: Duration) {
+        self.pixels = self.pixels.saturating_add(pixels);
+        self.nanos = self
+            .nanos
+            .saturating_add(duree.as_nanos().min(u128::from(u64::MAX)) as u64);
+    }
+
+    /// Ce que `pixels` coûteront, ou rien tant que rien n'est mesuré.
+    fn prevoir(&self, pixels: u64) -> Option<Duration> {
+        (self.pixels > 0).then(|| {
+            Duration::from_nanos((pixels as f64 * self.nanos as f64 / self.pixels as f64) as u64)
+        })
     }
 }
 

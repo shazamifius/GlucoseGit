@@ -27,6 +27,10 @@ pub struct Releve {
     pub lettres: u64,
     /// Ce que l'étagement a fait depuis le début.
     pub mouvements: Mouvements,
+    /// Le plus grand cran commun des photos sur la carte (ETAGES-3).
+    pub cran_pire: u32,
+    /// Combien d'images ont dû se composer sur le processeur, la carte ne tenant pas l'écran.
+    pub images_debordees: u64,
 }
 
 /// Le dernier relevé, et le pire de chaque étage.
@@ -72,6 +76,14 @@ impl Etages {
             r.lettres as f64 / MO,
             self.lettres_pire as f64 / MO
         ));
+        // Ce qui ne se voit que si la carte a manqué de place : zéro cran, c'est le cas normal,
+        // et il ne mérite pas une ligne.
+        if r.cran_pire > 0 || r.images_debordees > 0 {
+            t.push_str(&format!(
+                "  la carte manquait de place : photos reduites de {} cran(s) au plus, {} image(s) composee(s) par le processeur\n",
+                r.cran_pire, r.images_debordees
+            ));
+        }
     }
 }
 
@@ -95,6 +107,8 @@ mod tests {
                 repris: 4,
                 perdus: 1,
             },
+            cran_pire: 0,
+            images_debordees: 0,
         };
         e.noter(releve(900, 10));
         e.noter(releve(120, 1060));
@@ -102,5 +116,15 @@ mod tests {
         assert!(t.contains("120 Mo tenus et 1060 Mo offerts"), "{t}");
         assert!(t.contains("au pire 900 Mo tenus, 1060 Mo offerts"), "{t}");
         assert!(t.contains("offerts 12, repris 4, jetes par le systeme 1"), "{t}");
+        assert!(!t.contains("manquait de place"), "zero cran ne se dit pas : {t}");
+
+        e.noter(Releve {
+            cran_pire: 2,
+            images_debordees: 5,
+            ..releve(120, 1060)
+        });
+        let mut t = String::new();
+        e.ecrire(&mut t);
+        assert!(t.contains("reduites de 2 cran(s) au plus, 5 image(s)"), "{t}");
     }
 }

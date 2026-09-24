@@ -86,6 +86,16 @@ impl MemoireGraphique {
             .saturating_sub(self.utilisee.saturating_sub(en_cache))
             / 2
     }
+
+    /// **Ce que les photos à l'écran peuvent occuper** sans dépasser le budget (ETAGES-3) :
+    /// le budget, moins tout ce que Glucose tient sur la carte **hormis** ces photos et le
+    /// cache — lequel se rend de lui-même quand la place manque.
+    pub fn part_pour_les_photos(&self, en_cache: u64, photos_posees: u64) -> u64 {
+        self.budget.saturating_sub(
+            self.utilisee
+                .saturating_sub(en_cache.saturating_add(photos_posees)),
+        )
+    }
 }
 
 #[cfg(target_os = "windows")]

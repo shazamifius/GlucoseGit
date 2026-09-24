@@ -39,6 +39,20 @@ impl GlucoseApp {
     /// cette boucle, et qui merite un nom plutot que trois copies du meme predicat.
     pub(super) fn la_carte_pose_les_photos(&self) -> bool {
         self.presenter.as_ref().is_some_and(|p| p.pose_les_photos())
+            && !self.renderer.carte.debordee
+    }
+
+    /// **Ce que la carte laisse aux photos, dit au rendu avant l'image** (ETAGES-3) ; et,
+    /// quand elle ne tenait plus l'écran, le rejugement depuis la voie du processeur — c'est
+    /// lui qui dira qu'elle peut reprendre.
+    pub(super) fn preparer_la_carte(&mut self, fenetre: (u32, u32)) {
+        self.renderer.carte.part_des_photos =
+            self.presenter.as_ref().and_then(|p| p.part_pour_les_photos());
+        if self.renderer.carte.debordee {
+            let header_h = self.ui.header_height();
+            self.renderer
+                .rejuger_la_carte(&self.store, fenetre, header_h);
+        }
     }
 
     /// La region d'ecran a repeindre, ou `None` quand il faut tout refaire.

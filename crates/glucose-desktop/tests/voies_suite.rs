@@ -359,7 +359,17 @@ fn les_deux_couches_decodees(
     taille: (u32, u32),
     store: &glucose_core::store::Store,
 ) -> (Renderer, Pixmap, Pixmap, Confie) {
+    les_deux_couches_sous_un_budget(taille, store, None)
+}
+
+/// Les deux couches, quand la carte ne laisse aux photos que `part` octets (ETAGES-3).
+fn les_deux_couches_sous_un_budget(
+    taille: (u32, u32),
+    store: &glucose_core::store::Store,
+    part: Option<u64>,
+) -> (Renderer, Pixmap, Pixmap, Confie) {
     let mut renderer = Renderer::new();
+    renderer.carte.part_des_photos = part;
     renderer.sync_spatial_index(store);
     let mut ui = UiState::new();
     let guides = glucose_core::smart_align::SnapGuides::default();
@@ -667,4 +677,27 @@ fn test_une_photo_reduite_se_rend_pareil_sur_les_deux_voies() {
          carte ne lit pas le niveau que le processeur lit"
     );
     assert!(pire <= ECART_ADMIS, "pire ecart {pire}");
+}
+
+/// **Quand la carte manque de place, la photo perd un cran** (ETAGES-3) — par le vrai rendu,
+/// sur ce que la carte reçoit.
+///
+/// Soixante pixels à l'écran demandent le niveau de 64 : 16 Kio. Une part d'un octet de
+/// moins, et c'est celui de 32 qui part. Une part nulle, et même le pixel ne tient pas : la
+/// carte le dit, et l'image se composera sur le processeur.
+#[test]
+fn test_quand_la_carte_manque_de_place_la_photo_perd_un_cran() {
+    let store = document_damier(0.3);
+    let niveau_recu = |part: Option<u64>| {
+        let (renderer, _, _, confie) = les_deux_couches_sous_un_budget((800, 600), &store, part);
+        let (cle, _) = confie.photos.first().expect("la photo est posee").clone();
+        let texture = confie.pixels(&renderer, &cle).expect("ses pixels");
+        let texture = texture.vue();
+        ((texture.width(), texture.height()), renderer.carte.debordee)
+    };
+    assert_eq!(niveau_recu(None), ((64, 64), false), "sans budget, la regle d'avant");
+    assert_eq!(niveau_recu(Some(64 * 64 * 4)), ((64, 64), false), "juste assez");
+    assert_eq!(niveau_recu(Some(64 * 64 * 4 - 1)), ((32, 32), false), "un cran");
+    let (renderer, _, _, _) = les_deux_couches_sous_un_budget((800, 600), &store, Some(0));
+    assert!(renderer.carte.debordee, "rien ne tient : la carte le dit");
 }

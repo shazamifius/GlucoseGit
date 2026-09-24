@@ -229,6 +229,8 @@ impl GlucoseApp {
                 offerts: magasin.octets_en(Etat::Offert) as u64,
                 lettres: self.renderer.typography.octets_en_cache() as u64,
                 mouvements: magasin.mouvements(),
+                cran_pire: self.renderer.carte.cran_pire,
+                images_debordees: self.renderer.carte.images_debordees,
             });
     }
 
@@ -455,6 +457,23 @@ mod tests {
     ///
     /// Le contraste avec la voie processeur est la preuve : le meme montage, la meme image
     /// lente, et la resolution y reste reduite -- parce que la, elle commande vraiment.
+    /// **La carte qui ne tient plus l'ecran cede la place au processeur, et la reprend**
+    /// des qu'elle tient a nouveau (ETAGES-3).
+    #[test]
+    fn test_la_carte_qui_deborde_cede_la_place_puis_la_reprend() {
+        let mut app = GlucoseApp::new();
+        app.presenter = Some(Box::new(Carte));
+        assert!(app.la_carte_pose_les_photos());
+        app.renderer.carte.debordee = true;
+        assert!(
+            !app.la_carte_pose_les_photos(),
+            "la carte deborde : le processeur compose"
+        );
+        // Cette carte-ci ne dit pas de budget : rejugee, elle tient.
+        app.preparer_la_carte((800, 600));
+        assert!(app.la_carte_pose_les_photos(), "et elle reprend la main");
+    }
+
     #[test]
     fn test_la_resolution_ne_s_observe_que_sur_la_voie_qu_elle_commande() {
         let lente = std::time::Instant::now() - Duration::from_millis(300);

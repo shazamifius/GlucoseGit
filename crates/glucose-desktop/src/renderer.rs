@@ -186,6 +186,8 @@ pub struct Renderer {
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
     pub active_board_id: String,
+    /// Ce que la carte laisse aux photos, et le cran qu'on en a déduit (ETAGES-3).
+    pub carte: voies::cran::EtatDeLaCarte,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -213,6 +215,7 @@ impl Renderer {
             spatial_hash: SpatialHash::new(1000.0),
             spatial_version: 0,
             active_board_id: String::new(),
+            carte: Default::default(),
         }
     }
 

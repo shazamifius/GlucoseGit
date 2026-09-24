@@ -54,9 +54,9 @@ pub enum Raison {
 }
 
 impl Raison {
-    /// Dans l'ordre des bits du masque. Les neuf premières sont dans l'ordre de
-    /// [`GlucoseApp::prochain_reveil`], pour qu'une raison ajoutée là se retrouve ici sans
-    /// réfléchir ; les trois dernières ne réveillent pas, elles disent ce qui est arrivé.
+    /// Dans l'ordre des bits du masque. Les neuf premières réveillent — chacune a sa ligne
+    /// dans [`GlucoseApp::prochain_reveil`] ; les trois dernières ne réveillent pas, elles
+    /// disent ce qui est arrivé.
     pub const TOUTES: [Self; 12] = [
         Self::Curseur,
         Self::Toast,
@@ -122,6 +122,9 @@ pub struct Provenance {
     arrive: u16,
     /// Combien d'événements la main a envoyés depuis le début de la session.
     evenements_de_la_main: u64,
+    /// Combien de fois une image a été demandée — les passages par `mark_dirty`. Une raison
+    /// interrogée pendant que ce nombre bouge est une raison qui a demandé l'image.
+    demandes: std::cell::Cell<u64>,
 }
 
 impl Provenance {
@@ -139,6 +142,15 @@ impl Provenance {
     /// Combien d'événements la main a envoyés depuis le début de la session.
     pub fn evenements_de_la_main(&self) -> u64 {
         self.evenements_de_la_main
+    }
+
+    /// Une image vient d'être demandée.
+    pub fn noter_une_demande(&self) {
+        self.demandes.set(self.demandes.get() + 1);
+    }
+
+    fn demandes(&self) -> u64 {
+        self.demandes.get()
     }
 
     /// **Ce que l'image qu'on enregistre doit à chacun**, et l'oubli de ce qui est arrivé
@@ -198,27 +210,44 @@ impl GlucoseApp {
     /// Chaque raison salit la vue elle-même si elle a besoin d'être redessinée : demander un
     /// rafraîchissement et demander un réveil sont deux choses distinctes — un toast au
     /// plateau attend sans rien redessiner, un décodage redessine sans rien animer.
+    ///
+    /// # Une raison n'est portée au compte d'une image que si elle l'a demandée
+    ///
+    /// Le masque notait toute raison **active** : un toast endormi sur son plateau comptait
+    /// donc pour chaque image que l'élan dessinait pendant ce temps, et la chronique annonçait
+    /// « message à l'écran : 56,9 % » là où il n'en demandait presque aucune — la fiche 31 en
+    /// a tiré une conclusion que rien n'établissait. Une raison compte désormais si elle a
+    /// franchi la seule porte par où l'on demande une image, `mark_dirty`, pendant qu'on
+    /// l'interrogeait.
     pub(crate) fn prochain_reveil(&mut self) -> Option<u64> {
-        let attentes = [
-            self.attente_du_curseur(),
-            self.attente_du_toast(),
-            self.attente_de_l_animation(),
-            self.attente_de_l_elan(),
-            self.attente_du_vol(),
-            self.attente_du_decodage(),
-            self.attente_du_chantier(),
-            self.attente_du_pomodoro(),
-            self.attente_de_la_commande(),
+        type Attente = fn(&mut GlucoseApp) -> Option<u64>;
+        // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
+        // leur seul ordre finissent par ne plus l'être.
+        let attentes: [(Raison, Attente); 9] = [
+            (Raison::Curseur, Self::attente_du_curseur),
+            (Raison::Toast, Self::attente_du_toast),
+            (Raison::Animation, Self::attente_de_l_animation),
+            (Raison::Elan, Self::attente_de_l_elan),
+            (Raison::Vol, Self::attente_du_vol),
+            (Raison::Decodage, Self::attente_du_decodage),
+            (Raison::Chantier, Self::attente_du_chantier),
+            (Raison::Pomodoro, Self::attente_du_pomodoro),
+            (Raison::Commande, Self::attente_de_la_commande),
         ];
-        // Toutes les raisons actives, et non la seule qui l'emporte : savoir laquelle est la
-        // plus pressée ne dit pas laquelle il faudrait supprimer.
-        let masque = attentes
-            .iter()
-            .zip(Raison::TOUTES)
-            .filter(|(attente, _)| attente.is_some())
-            .fold(0u16, |masque, (_, raison)| masque | raison.bit());
+        let (mut masque, mut plus_proche) = (0u16, None::<u64>);
+        for (raison, attente) in attentes {
+            let avant = self.provenance.demandes();
+            let delai = attente(self);
+            if self.provenance.demandes() != avant {
+                masque |= raison.bit();
+            }
+            plus_proche = match (plus_proche, delai) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            };
+        }
         self.provenance.raisons = masque;
-        attentes.into_iter().flatten().min()
+        plus_proche
     }
 
     /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1) : il faut repasser à chaque image,

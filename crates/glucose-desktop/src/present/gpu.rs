@@ -560,6 +560,14 @@ impl Presenter for GpuPresenter {
         }
     }
 
+    fn part_pour_les_photos(&self) -> Option<u64> {
+        let m = self.sonde.as_ref()?.lire()?;
+        Some(m.part_pour_les_photos(
+            self.scene.octets_en_cache(),
+            self.scene.octets_des_photos_posees(),
+        ))
+    }
+
     /// **La scene en cinq temps** : le fond, les lueurs, le dessous, les photos, le dessus.
     ///
     /// Le corps vit dans [`cinq_temps`] : ce fichier decrivait deja la presentation d'une

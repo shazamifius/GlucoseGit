@@ -23,6 +23,7 @@ use glucose_core::types::Viewport;
 use tiny_skia::PixmapMut;
 
 mod confie;
+pub mod cran;
 pub use confie::{APoser, Confie};
 
 /// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
@@ -242,6 +243,7 @@ pub(super) fn poses_des_photos(
     regime: &super::composants::Regime,
     magasin: &mut super::magasin::Magasin,
     (vp, rangs, store): (&Viewport, &[u32], &Store),
+    cran: u32,
 ) -> PhotosAPoser {
     let mut photos = PhotosAPoser::default();
     let Some(board) = store.active_board() else {
@@ -255,7 +257,7 @@ pub(super) fn poses_des_photos(
     } = &mut photos;
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
-        match pose_tenue(magasin, img, vp) {
+        match pose_tenue(magasin, img, (vp, cran)) {
             Some(tenue) => {
                 let cle = format!("{}@{}", tenue.src, tenue.facteur);
                 if let Some((facteur, pose)) = tenue.repli {
@@ -292,7 +294,7 @@ struct PhotoTenue {
 fn pose_tenue(
     magasin: &mut super::magasin::Magasin,
     img: &glucose_core::types::BoardImage,
-    vp: &Viewport,
+    (vp, cran): (&Viewport, u32),
 ) -> Option<PhotoTenue> {
     let src = img.src.as_deref()?;
     if !magasin.reclamer(src, img.width) {
@@ -310,7 +312,8 @@ fn pose_tenue(
     // plus grande que la boîte. Une épingle de 27 Mo posée en vignette partait entière sur
     // le bus — treize millisecondes de processeur pour un envoi, d'où les photos qui
     // arrivaient en vagues —, et le filtre lisait un texel sur dix : du crénelage.
-    let (_, _, largeur_source, _) = img.crop.source_pour(boite);
+    // ETAGES-3 : le cran commun, quand la carte ne tient pas l'écran entier.
+    let largeur_source = cran::largeur_source(img, vp) / 2f64.powi(cran as i32);
     // **ETAGES-1 : la carte demande toujours le niveau VOULU.** S'il n'est pas tenu — offert
     // au système, il revient —, la carte pose ce qu'elle détient déjà pour cette photo, net
     // s'il était resté dans son cache. Et seulement si elle ne détient rien, le meilleur
@@ -519,7 +522,11 @@ impl Renderer {
             composants: en_chemin,
             niveaux,
             replis,
-        } = poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store));
+        } = {
+            self.carte.juger(&self.magasin, store, (&vp, &rangs));
+            let cran = self.carte.cran;
+            poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store), cran)
+        };
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,

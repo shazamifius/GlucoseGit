@@ -135,6 +135,12 @@ pub trait Presenter {
     /// dernière fois, rend ce que le cache des textures garde au-delà (ETAGES-2).
     fn suivre_le_budget(&mut self) {}
 
+    /// **Ce que les photos à l'écran peuvent occuper sur la carte** (ETAGES-3), ou rien si
+    /// la plateforme ne dit pas de budget — la règle d'avant, qui n'en demandait pas.
+    fn part_pour_les_photos(&self) -> Option<u64> {
+        None
+    }
+
     /// Présente la scène en cinq temps. N'est appelée que si [`Presenter::pose_les_photos`].
     ///
     /// L'ordre est tout, et il est celui du modèle : **le fond**, **les lueurs**, la couche du

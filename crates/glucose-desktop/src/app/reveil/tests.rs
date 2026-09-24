@@ -85,3 +85,30 @@ fn test_un_survol_est_la_main() {
     );
     assert_eq!(images_de(&app, Raison::Systeme), 1);
 }
+
+/// **Un message endormi sur son plateau ne demande pas les images des autres.**
+///
+/// Le masque notait toute raison active : pendant les deux secondes où un message reste
+/// immobile, chaque image que l'élan ou la main dessinait lui était portée — « message à
+/// l'écran : 56,9 % » sur la longue session du 23/09, pour un message qui n'en demandait
+/// presque aucune. Il ne compte plus que s'il redessine lui-même : à son entrée, à sa sortie.
+#[test]
+fn test_un_message_endormi_ne_demande_pas_les_images_des_autres() {
+    let mut app = GlucoseApp::new();
+    app.ui.show_toast("Un message au repos");
+    if let Some(toast) = app.ui.current_toast.as_mut() {
+        toast.created_at = std::time::Instant::now() - std::time::Duration::from_millis(1000);
+    }
+    let _ = app.prochain_reveil();
+    // Une image que la main demande, pendant que le message dort.
+    app.provenance.noter_la_main();
+    crate::perf::frame_begin();
+    app.enregistrer_l_image(1_000, (800, 600));
+    assert_eq!(
+        images_de(&app, Raison::Toast),
+        0,
+        "le message dormait : l'image est a la main, pas a lui"
+    );
+    assert_eq!(images_de(&app, Raison::Main), 1);
+}
+

@@ -146,3 +146,21 @@ fn test_la_part_d_un_cache_de_textures_suit_le_budget_de_la_carte() {
         "au-dela du budget, rien"
     );
 }
+
+/// **Ce que les photos à l'écran peuvent occuper** (ETAGES-3) : le budget, moins ce que
+/// Glucose tient d'autre sur la carte.
+///
+/// Un budget de 8 Gio, dont Glucose occupe 7 : 3 pour les photos posées, 1 en cache, 3 pour
+/// le reste (cartes de texte, couches, chaîne d'images). Les photos peuvent donc prendre
+/// 8 − 3 = 5 Gio — le cache se rendra de lui-même si elles en ont besoin. Qu'un Blender
+/// réduise le budget à 2 Gio, sous ce que le reste occupe : plus rien.
+#[test]
+fn test_la_part_des_photos_est_ce_que_le_reste_laisse() {
+    const GIO: u64 = 1 << 30;
+    let carte = |budget: u64| crate::memoire::MemoireGraphique {
+        budget,
+        utilisee: 7 * GIO,
+    };
+    assert_eq!(carte(8 * GIO).part_pour_les_photos(GIO, 3 * GIO), 5 * GIO);
+    assert_eq!(carte(2 * GIO).part_pour_les_photos(GIO, 3 * GIO), 0);
+}

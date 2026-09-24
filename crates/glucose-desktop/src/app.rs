@@ -412,6 +412,7 @@ impl GlucoseApp {
             // Un `Ctrl+B` qui attend ses originaux les redemande, ou s'applique s'ils sont
             // revenus (ETAGES-1) — avant la peinture, pour que ce qu'il change se voie ici.
             self.poursuivre_les_bordures();
+            self.preparer_la_carte((width, height));
             self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 
             // TEMPO-1 : l'image ne part pas quand elle est prete, elle part quand c'est
@@ -442,6 +443,7 @@ impl GlucoseApp {
     }
 
     pub fn mark_dirty(&self) {
+        self.provenance.noter_une_demande();
         self.noter_l_echeance(std::time::Instant::now());
         self.salissure.set(crate::salissure::Salissure::Tout);
         if let Some(window) = &self.window {

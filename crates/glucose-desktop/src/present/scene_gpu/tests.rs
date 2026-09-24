@@ -749,3 +749,107 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
     );
     assert_eq!(scene.octets_en_cache(), 0);
 }
+
+/// **La carte sait ce qu'occupent ses photos à l'écran** (ETAGES-3) : ce que le magasin lui a
+/// prêté, et non ce qu'un composant a rendu ; posé à cette image, et non gardé en cache.
+#[test]
+fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let a_poser = |cle: &str| APoser {
+        repli: None,
+        cle: cle.to_string(),
+        identite: cle.to_string(),
+        pose,
+    };
+    let pretee = photo(4, [1, 2, 3, 255]);
+    let demandes = [a_poser("photo"), a_poser("carte")];
+    scene.assurer(
+        &peripherique,
+        &file,
+        (&demandes, std::time::Duration::MAX),
+        &|cle| {
+            Some(if cle == "photo" {
+                Pixels::Pretes(pretee.as_ref())
+            } else {
+                Pixels::Rendues(photo(8, [4, 5, 6, 255]))
+            })
+        },
+    );
+    scene.preparer(&peripherique, &file, (8.0, 8.0), &demandes);
+    assert_eq!(
+        scene.octets_des_photos_posees(),
+        4 * 4 * 4,
+        "la photo, et pas la carte de texte"
+    );
+    scene.ouvrir();
+    assert_eq!(
+        scene.octets_des_photos_posees(),
+        0,
+        "ce qui n'est pas pose a cette image ne compte pas"
+    );
+}
+
+/// **La cascade n'entame pas ce qu'elle ne finira pas** (CASCADE-3) : sur une machine qui a
+/// montré qu'un pixel posé coûte une seconde, une texture de seize pixels n'a aucune chance
+/// de tenir dans cinq millisecondes — elle attend l'image suivante, même s'il en restait
+/// presque cinq quand on l'a regardée. La première passe toujours : c'est elle qui mesure, et
+/// une scène doit finir par se compléter.
+///
+/// Une seconde et non une milliseconde : la première texture, mesurée pour de bon en quelques
+/// microsecondes, entre dans la moyenne — et une milliseconde semée s'y diluait assez pour
+/// laisser passer la seconde. Le débit suit ce que la machine montre, c'est voulu.
+#[test]
+fn test_la_cascade_prevoit_avant_d_entamer() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.debit.noter(1, std::time::Duration::from_secs(1));
+    scene.ouvrir();
+    let a_poser = |cle: &str| APoser {
+        repli: None,
+        cle: cle.to_string(),
+        identite: cle.to_string(),
+        pose: Pose {
+            x: 0.0,
+            y: 0.0,
+            largeur: 4.0,
+            hauteur: 4.0,
+            opacite: 1.0,
+            angle: 0.0,
+            fenetre: Pose::TOUT,
+            bornes: Pose::PARTOUT,
+        },
+    };
+    scene.assurer(
+        &peripherique,
+        &file,
+        (
+            &[a_poser("premiere"), a_poser("seconde")],
+            std::time::Duration::from_millis(5),
+        ),
+        &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
+    );
+    assert!(scene.connait("premiere", "premiere"), "la premiere passe toujours");
+    assert!(
+        !scene.connait("seconde", "seconde"),
+        "prevue bien au-dela des cinq millisecondes du budget : elle attend"
+    );
+}
+
