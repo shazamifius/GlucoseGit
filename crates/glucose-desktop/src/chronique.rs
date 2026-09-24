@@ -66,6 +66,10 @@ const PIRES: usize = 32;
 /// refuse qu'elles dépassent.
 pub const POSTES: usize = 41;
 
+/// Les tempos que la chronique distingue : de un à huit balayages, et au-delà dans la
+/// dernière case. L'indice zéro, hors mouvement, ne se remplit jamais.
+const TEMPOS_SUIVIS: usize = 9;
+
 /// Ce qu'on sait d'un geste : combien d'images, et comment elles se distribuent.
 #[derive(Debug, Clone)]
 struct Poste {
@@ -98,6 +102,18 @@ impl Default for Poste {
         Self {
             durees: Histogramme::nouveau(),
             postes: vec![Histogramme::nouveau(); POSTES],
+        }
+    }
+}
+
+impl Poste {
+    /// Compte cette image : sa durée, et celle de chacun de ses postes.
+    fn ajouter(&mut self, vu: &Instantane) {
+        self.durees.ajouter(vu.duree_us);
+        // Les zéros comptent : un poste qui ne travaille qu'une image sur dix ne coûte rien à
+        // une image typique, et c'est précisément ce qu'on veut lire.
+        for (distribution, us) in self.postes.iter_mut().zip(vu.postes_us.iter()) {
+            distribution.ajouter(*us);
         }
     }
 }
@@ -157,7 +173,22 @@ pub struct Chronique {
     tuiles_reprises: u64,
     /// Combien d'images le tempo a visées à chaque nombre de balayages, de un à huit et
     /// au-delà. La ligne dominante dit à quelle cadence RÉGULIÈRE la machine s'est calée.
-    tempo: [u64; 9],
+    tempo: [u64; TEMPOS_SUIVIS],
+    /// **Ce qu'une image coûte selon le tempo où elle a été dessinée** (TEMPO-2).
+    ///
+    /// Sa session du 24/09 : des images de 8 ms en médiane, un tempo à cinq et huit balayages
+    /// — 43 images par seconde. Deux lectures s'opposent, et aucun chiffre de la chronique ne
+    /// les départageait. Ou bien une queue de coûts réelle tient le tempo en haut ; ou bien
+    /// c'est un **cercle** : un tempo haut espace les images, la vue avance davantage entre
+    /// deux, chacune a plus à redessiner et coûte plus cher, et le tempo reste haut. Si les
+    /// images coûtent plus cher à huit balayages qu'à trois, c'est le cercle.
+    duree_par_tempo: Vec<Histogramme>,
+    /// **Les images qui ont raté leur balayage**, et où est allé leur temps (TEMPO-2).
+    ///
+    /// Ce sont elles, et elles seules, qui font monter le tempo. Le tableau des gestes les
+    /// noie parmi toutes les autres : un poste peut y paraître modeste au p99 et dominer
+    /// chacune des images qui ratent.
+    ratees: Poste,
     /// Ce que les images ont attendu pour tenir le tempo, en microsecondes.
     attentes_du_tempo: Histogramme,
     /// Les images où le modèle savait prévoir : combien, ce qu'il avait prévu, ce qu'elles ont
@@ -331,7 +362,9 @@ impl Chronique {
             noeuds_recrees: 0,
             tuiles_peintes: 0,
             tuiles_reprises: 0,
-            tempo: [0; 9],
+            tempo: [0; TEMPOS_SUIVIS],
+            duree_par_tempo: vec![Histogramme::nouveau(); TEMPOS_SUIVIS],
+            ratees: Poste::default(),
             attentes_du_tempo: Histogramme::nouveau(),
             prevues: 0,
             prevu_us: 0,
@@ -404,8 +437,13 @@ impl Chronique {
         self.tuiles_peintes += u64::from(vu.tuiles_peintes);
         self.tuiles_reprises += u64::from(vu.tuiles_reprises);
         if vu.tempo_balayages > 0 {
-            self.tempo[(vu.tempo_balayages as usize).min(8)] += 1;
+            let k = (vu.tempo_balayages as usize).min(TEMPOS_SUIVIS - 1);
+            self.tempo[k] += 1;
+            self.duree_par_tempo[k].ajouter(vu.duree_us);
             self.attentes_du_tempo.ajouter(vu.tempo_attente_us);
+        }
+        if vu.tempo_ratee != 0 {
+            self.ratees.ajouter(&vu);
         }
         self.reductions += u64::from(vu.reduction.max(1));
         if vu.reduction > 1 {
@@ -438,13 +476,7 @@ impl Chronique {
         }
 
         self.durees.ajouter(vu.duree_us);
-        let poste = &mut self.par_geste[vu.geste().indice()];
-        poste.durees.ajouter(vu.duree_us);
-        // Les zéros comptent : un poste qui ne travaille qu'une image sur dix ne coûte rien à
-        // une image typique, et c'est précisément ce qu'on veut lire.
-        for (distribution, us) in poste.postes.iter_mut().zip(vu.postes_us.iter()) {
-            distribution.ajouter(*us);
-        }
+        self.par_geste[vu.geste().indice()].ajouter(&vu);
 
         // Les pires se tiennent triées : une image plus rapide que la dernière ne coûte qu'une
         // comparaison, ce qui est le cas de la quasi-totalité d'entre elles.
@@ -507,7 +539,26 @@ impl Chronique {
     /// centile qui répond à sa question, et aucune image aberrante ne peut décider seule du
     /// portrait (voir [`Poste::postes`]). Un poste qui n'a jamais rien coûté est omis.
     pub fn parts_du_geste(&self, geste: Geste) -> Option<Vec<(&'static str, &Histogramme)>> {
-        let poste = &self.par_geste[geste.indice()];
+        self.parts(&self.par_geste[geste.indice()])
+    }
+
+    /// **Les images qui ont raté leur balayage** (TEMPO-2) : leur durée, et la distribution
+    /// de chacun de leurs postes, comme [`Self::parts_du_geste`].
+    pub fn ratees(&self) -> Option<(&Histogramme, Vec<(&'static str, &Histogramme)>)> {
+        Some((&self.ratees.durees, self.parts(&self.ratees)?))
+    }
+
+    /// **Ce qu'une image coûte à chaque tempo** (TEMPO-2) : le nombre de balayages visé, et la
+    /// distribution des durées des images dessinées à ce tempo — pour ceux qui en ont vu.
+    pub fn duree_par_tempo(&self) -> impl Iterator<Item = (usize, &Histogramme)> + '_ {
+        self.duree_par_tempo
+            .iter()
+            .enumerate()
+            .filter(|(_, h)| h.compte() > 0)
+    }
+
+    /// Les postes d'un ensemble d'images, un poste qui n'a jamais rien coûté étant omis.
+    fn parts<'a>(&self, poste: &'a Poste) -> Option<Vec<(&'static str, &'a Histogramme)>> {
         if poste.durees.compte() == 0 {
             return None;
         }

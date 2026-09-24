@@ -204,7 +204,7 @@ impl Chronique {
     ///
     /// Les deux doivent se ressembler. Sinon, le tempo vise juste et la machine ne suit pas —
     /// ou l'inverse — et c'est cet écart qu'il faut aller regarder.
-    fn ecrire_le_tempo(&self, t: &mut String) {
+    pub(in crate::chronique) fn ecrire_le_tempo(&self, t: &mut String) {
         let (vises, attente_med, attente_pire) = self.tempo();
         if vises.is_empty() {
             return;
@@ -230,6 +230,60 @@ impl Chronique {
             f64::from(attente_med) / 1000.0,
             f64::from(attente_pire) / 1000.0
         ));
+        self.ecrire_le_cout_par_tempo(t);
+        self.ecrire_les_ratees(t, en_mouvement);
+    }
+
+    /// **Ce qu'une image coûte selon le tempo où elle est dessinée** (TEMPO-2) — la ligne qui
+    /// départage une vraie queue de coûts d'un cercle, où le tempo haut rend lui-même les
+    /// images plus chères.
+    fn ecrire_le_cout_par_tempo(&self, t: &mut String) {
+        t.push_str(
+            "    ce qu'une image coute selon le tempo ou elle est dessinee -- plus chere quand \
+             le tempo est haut, c'est un cercle\n\
+             \x20      tempo    images    median       p90       p99\n",
+        );
+        for (k, h) in self.duree_par_tempo() {
+            t.push_str(&format!(
+                "      {k:>2} bal. {:>9} {:>7.2}ms {:>7.2}ms {:>7.2}ms\n",
+                h.compte(),
+                super::ms(h.centile(0.5)),
+                super::ms(h.centile(0.9)),
+                super::ms(h.centile(0.99)),
+            ));
+        }
+    }
+
+    /// **Où les images qui ratent leur balayage passent leur temps** (TEMPO-2).
+    ///
+    /// Trié par la **médiane**, et c'est voulu : toutes ces images ont raté, la question n'est
+    /// plus « laquelle gèle » mais « qu'est-ce qui les rend, d'ordinaire, trop longues ».
+    fn ecrire_les_ratees(&self, t: &mut String, en_mouvement: u64) {
+        let Some((durees, parts)) = self.ratees() else {
+            t.push_str("    aucune image n'a rate son balayage\n");
+            return;
+        };
+        t.push_str(&format!(
+            "    {} image(s) ont rate leur balayage ({:.1} % des images en mouvement), \
+             median {:.2}ms -- ce sont elles qui font monter le tempo\n\
+             \x20      poste            median       p90      pire\n",
+            durees.compte(),
+            100.0 * durees.compte() as f64 / en_mouvement.max(1) as f64,
+            super::ms(durees.centile(0.5)),
+        ));
+        let mut retenus = super::postes_a_montrer(parts);
+        retenus.sort_by_key(|(_, h)| std::cmp::Reverse(h.centile(0.5)));
+        let tete = retenus.first().map_or(1, |(_, h)| h.centile(0.5).max(1));
+        for (nom, h) in retenus {
+            t.push_str(&format!(
+                "      {:<14} {:>7.2}ms {:>7.2}ms {:>9.2}ms  {}\n",
+                nom,
+                super::ms(h.centile(0.5)),
+                super::ms(h.centile(0.9)),
+                super::ms(h.pire()),
+                super::barre(f64::from(h.centile(0.5)) / f64::from(tete))
+            ));
+        }
     }
 
     /// **Ou va le temps a ne pas dessiner** (ENTRACTE-1).

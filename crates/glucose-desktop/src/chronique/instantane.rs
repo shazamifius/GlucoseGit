@@ -161,6 +161,9 @@ pub struct Instantane {
     pub tempo_balayages: u16,
     /// Ce que l'image a attendu avant de partir, en microsecondes, pour tenir ce tempo.
     pub tempo_attente_us: u32,
+    /// **L'image a-t-elle raté son balayage** — un ou zéro (TEMPO-2). C'est ce qui fait
+    /// monter le tempo, et c'est le seul moyen de savoir où ces images-là passent leur temps.
+    pub tempo_ratee: u8,
     /// Le rapport `temps intégré / temps montré`, en millièmes. Mille vaut « exact ».
     ///
     /// Au-dessous, le contenu a moins avancé que sa durée d'affichage ne le demandait : il

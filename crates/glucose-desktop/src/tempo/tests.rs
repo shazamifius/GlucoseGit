@@ -360,3 +360,22 @@ fn test_la_cible_de_la_finesse_ne_derive_pas_avec_le_tempo() {
     let muet = Tempo::nouveau();
     assert_eq!(muet.cible_pour_descendre(), crate::cadence::BUDGET_TOTAL);
 }
+
+/// **Le tempo dit quelle image a raté son balayage** (TEMPO-2) : celle qui arrive après sa
+/// cible, et elle seule — la suivante, à l'heure, ne l'a pas raté.
+#[test]
+fn test_le_tempo_dit_quelle_image_a_rate_son_balayage() {
+    let periode = Duration::from_micros(4_167);
+    let mut tempo = Tempo::nouveau();
+    tempo.accorder(periode);
+    let debut = Instant::now();
+    tempo.attente_avant_de_soumettre(debut);
+    assert!(!tempo.a_rate(), "la premiere image pose la grille");
+    // Cinq periodes plus tard, pour un tempo d'un balayage : ratee.
+    let tard = debut + periode * 5;
+    tempo.attente_avant_de_soumettre(tard);
+    assert!(tempo.a_rate(), "l'image en retard a rate son balayage");
+    // La suivante arrive avant sa cible : a l'heure.
+    tempo.attente_avant_de_soumettre(tard + periode / 2);
+    assert!(!tempo.a_rate(), "l'image a l'heure n'a rien rate");
+}

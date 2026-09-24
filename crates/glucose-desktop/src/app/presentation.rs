@@ -26,12 +26,14 @@ impl GlucoseApp {
             self.tempo.oublier();
             crate::perf::compteur("tempo_balayages", 0.0);
             crate::perf::compteur("tempo_attente_us", 0.0);
+            crate::perf::compteur("tempo_ratee", 0.0);
             return;
         }
         let maintenant = std::time::Instant::now();
         let attente = self.tempo.attente_avant_de_soumettre(maintenant);
         crate::perf::compteur("tempo_balayages", f64::from(self.tempo.balayages()));
         crate::perf::compteur("tempo_attente_us", attente.as_micros() as f64);
+        crate::perf::compteur("tempo_ratee", f64::from(u8::from(self.tempo.a_rate())));
         if attente.is_zero() {
             return;
         }
@@ -183,3 +185,6 @@ impl GlucoseApp {
         self.horloge.presentee(maintenant, self.image_attendue);
     }
 }
+
+#[cfg(test)]
+mod tests;

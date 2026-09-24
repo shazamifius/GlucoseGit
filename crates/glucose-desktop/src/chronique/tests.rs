@@ -284,3 +284,59 @@ fn test_un_poste_nul_en_median_et_enorme_au_p99_reste_visible() {
         "le poste qui gele l'image doit paraitre :\n{bloc}"
     );
 }
+
+/// **Le rapport dit ce qu'une image coûte à chaque tempo, et où vont les images qui ratent
+/// leur balayage** (TEMPO-2).
+///
+/// Sa session du 24/09 : 43 images par seconde pour des images de 8 ms en médiane, et rien
+/// pour dire si une queue de coûts tenait le tempo en haut ou si le tempo haut rendait
+/// lui-même les images plus chères. Ici, cent images ordinaires à trois balayages, et vingt
+/// à huit qui ratent toutes, dominées par `blit` : les deux tableaux doivent le montrer.
+#[test]
+fn test_le_rapport_dit_le_cout_par_tempo_et_ou_vont_les_images_ratees() {
+    let mut c = Chronique::nouvelle();
+    let blit = c.poste("blit").expect("poste");
+    let effacer = c.poste("effacer").expect("poste");
+    for _ in 0..100 {
+        let mut vu = image(Geste::Zoomer, 5_000);
+        vu.tempo_balayages = 3;
+        vu.postes_us[blit] = 1_000;
+        vu.postes_us[effacer] = 2_000;
+        c.enregistrer(vu);
+    }
+    for _ in 0..20 {
+        let mut vu = image(Geste::Zoomer, 20_000);
+        vu.tempo_balayages = 8;
+        vu.tempo_ratee = 1;
+        vu.postes_us[blit] = 15_000;
+        vu.postes_us[effacer] = 2_000;
+        c.enregistrer(vu);
+    }
+
+    let par_tempo: Vec<(usize, u64, u32)> = c
+        .duree_par_tempo()
+        .map(|(k, h)| (k, h.compte(), h.centile(0.5)))
+        .collect();
+    assert_eq!(par_tempo.len(), 2, "deux tempos vus : {par_tempo:?}");
+    assert_eq!((par_tempo[0].0, par_tempo[0].1), (3, 100));
+    assert_eq!((par_tempo[1].0, par_tempo[1].1), (8, 20));
+    assert!(
+        par_tempo[1].2 > par_tempo[0].2 * 3,
+        "a huit balayages, les images coutent plus : {par_tempo:?}"
+    );
+
+    let (durees, _) = c.ratees().expect("des images ratees");
+    assert_eq!(durees.compte(), 20, "seules les images ratees y sont");
+
+    let mut t = String::new();
+    c.ecrire_le_tempo(&mut t);
+    assert!(t.contains(" 3 bal.") && t.contains(" 8 bal."), "{t}");
+    assert!(t.contains("20 image(s) ont rate"), "{t}");
+    let bloc = t.split("ont rate").nth(1).expect("le tableau des ratees");
+    let premier = bloc.lines().nth(2).map(str::trim_start).unwrap_or_default();
+    assert!(
+        premier.starts_with("blit"),
+        "le poste qui domine les images ratees vient en tete :
+{t}"
+    );
+}

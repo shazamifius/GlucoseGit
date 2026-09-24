@@ -96,6 +96,9 @@ pub struct Tempo {
     balayages: u32,
     /// L'instant d'où part la grille : la dernière soumission, à l'heure ou non.
     derniere_soumission: Option<Instant>,
+    /// **La dernière image jugée a-t-elle raté son balayage ?** Ce sont ces images-là qui
+    /// font monter `k`, et la chronique dit où elles ont passé leur temps (TEMPO-2).
+    ratee: bool,
     /// L'échantillon en cours : combien d'images il a vues, combien ont raté leur balayage,
     /// et combien l'auraient raté un cran plus bas.
     ///
@@ -117,6 +120,7 @@ impl Tempo {
             periode: Duration::ZERO,
             balayages: 1,
             derniere_soumission: None,
+            ratee: false,
             vues: 0,
             rates: 0,
             rateraient_en_dessous: 0,
@@ -131,6 +135,11 @@ impl Tempo {
     /// Combien de balayages chaque image occupe en ce moment.
     pub fn balayages(&self) -> u32 {
         self.balayages
+    }
+
+    /// La dernière image jugée a-t-elle raté son balayage ?
+    pub fn a_rate(&self) -> bool {
+        self.ratee
     }
 
     /// La durée pendant laquelle une image reste à l'écran, au tempo courant.
@@ -185,6 +194,7 @@ impl Tempo {
     /// qu'on est en retard. Rien d'autre n'a à être signalé ensuite : la soumission qui suit
     /// est réputée avoir lieu à l'instant que cette fonction a retenu.
     pub fn attente_avant_de_soumettre(&mut self, maintenant: Instant) -> Duration {
+        self.ratee = false;
         if self.periode.is_zero() {
             return Duration::ZERO;
         }
@@ -197,6 +207,7 @@ impl Tempo {
         self.vues += 1;
         // **Le balayage est raté** : cette image sera vue une période de plus que prévu.
         let rate = maintenant > cible + crate::cadence::MARGE;
+        self.ratee = rate;
         if rate {
             self.rates += 1;
         }
