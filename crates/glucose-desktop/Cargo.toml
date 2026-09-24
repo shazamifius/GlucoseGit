@@ -25,3 +25,12 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 windows = { version = "0.62", features = ["Win32_System_Ole", "Win32_System_Com", "Win32_System_Memory", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_UI_Shell", "Win32_Foundation", "Win32_System_Com_StructuredStorage", "Win32_System_DataExchange", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_Networking_WinHttp", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common"] }
 windows-core = "0.62"
 
+
+[dev-dependencies]
+# L'oracle de notre lecteur des documents de Glucose Tauri (`src/tauri/automerge.rs`) : la
+# bibliothèque de référence, dans les épreuves et les exemples SEULEMENT. Elle n'entre jamais
+# dans l'application (decisions/03).
+automerge = "0.12"
+# L'oracle de notre DEFLATE (`glucose_core::persist::tauri::inflate`) : ce qu'elle compresse, notre
+# lecteur doit le rendre à l'octet près. Aucune caisse de plus : `png` la tire déjà (decisions/03).
+miniz_oxide = "0.8"

@@ -41,6 +41,7 @@ pub mod present;
 pub mod renderer;
 pub mod resolution;
 pub mod salissure;
+pub mod tauri;
 pub mod tempo;
 pub mod theme;
 pub mod typography;

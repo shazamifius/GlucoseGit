@@ -40,6 +40,7 @@
 pub mod bytes;
 pub mod container;
 pub mod manifest;
+pub mod tauri;
 
 mod annotation;
 mod document;
