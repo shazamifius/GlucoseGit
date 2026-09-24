@@ -8,8 +8,9 @@
 //!   qui naît au premier geste, dans le dossier de l'application ;
 //! * **en changeant de document** ou en fermant, [`GlucoseApp::fermer_le_document`] écrit la
 //!   vue et attend que tout soit sur le disque ;
-//! * **au lancement**, [`GlucoseApp::retrouver_un_brouillon`] rouvre le travail qu'un
-//!   plantage a laissé sans nom.
+//! * **au lancement**, [`GlucoseApp::retrouver_le_travail`] rouvre ce qu'un plantage a
+//!   interrompu : le travail laissé sans nom, ou le document dont un texte était en cours
+//!   de frappe ([`super::frappe`]).
 //!
 //! Rien ici ne s'exécute dans le constructeur de l'application : les centaines d'épreuves
 //! qui en créent une n'écrivent donc jamais de brouillon chez l'utilisateur.
@@ -37,9 +38,10 @@ pub struct Disque {
     pub a_sceller: Vec<(String, Arc<Vec<u8>>)>,
     /// Le passé qu'on regarde dans la Time Machine, et ce qu'on a mis de côté pour revenir.
     pub voyage: Option<crate::interactions::temps::Voyage>,
-    /// Où naissent les brouillons : le dossier de l'application. Un champ, et non une
-    /// constante, pour que les épreuves en donnent un à elles — elles ne doivent jamais
-    /// laisser un faux brouillon que le vrai lancement suivant rouvrirait.
+    /// Où naissent les brouillons, et où se gardent les textes en cours de frappe : le
+    /// dossier de l'application. Un champ, et non une constante, pour que les épreuves en
+    /// donnent un à elles — elles ne doivent jamais laisser un faux brouillon que le vrai
+    /// lancement suivant rouvrirait.
     pub brouillons: PathBuf,
 }
 
@@ -64,16 +66,22 @@ impl GlucoseApp {
             // On regarde le passé : ce qui s'y fait n'est pas de l'histoire (HISTOIRE-3).
             return;
         }
-        let rien = transactions.is_empty()
-            && self
+        let a_ecrire = !transactions.is_empty()
+            || self
                 .disque
                 .ecriture
                 .as_ref()
-                .is_none_or(|e| !e.a_du_travail());
-        if rien {
-            self.dire_l_erreur_d_ecriture();
-            return;
+                .is_some_and(Ecriture::a_du_travail);
+        if a_ecrire {
+            self.ecrire_les_gestes(transactions);
         }
+        // Après les gestes : une saisie qui vient de se valider s'écrit avant que son texte
+        // en cours ne s'oublie.
+        self.garder_la_saisie();
+        self.dire_l_erreur_d_ecriture();
+    }
+
+    fn ecrire_les_gestes(&mut self, transactions: Vec<glucose_core::store::journal::Transaction>) {
         let instant = now_millis();
         if let Err(e) = self.s_assurer_d_un_fichier() {
             self.dire_l_echec(&e);
@@ -96,7 +104,6 @@ impl GlucoseApp {
             // continu de Glucose Tauri, au coût du geste (INVARIANT SAVE-2 inchangé).
             self.saved_version = self.store.version;
         }
-        self.dire_l_erreur_d_ecriture();
     }
 
     /// Donne un fichier au document qui n'en a pas : un brouillon, dans le dossier de
@@ -126,7 +133,15 @@ impl GlucoseApp {
             .depart
             .take()
             .unwrap_or_else(|| self.store.project.clone());
-        match Ecriture::nouvelle(chemin, &depart, brouillon, &self.disque.objets, instant) {
+        let objets = &self.disque.objets;
+        match Ecriture::nouvelle(
+            chemin,
+            &depart,
+            brouillon,
+            objets,
+            instant,
+            &self.disque.brouillons,
+        ) {
             Ok(e) => {
                 self.disque.ecriture = Some(e);
                 self.sceller_ce_qui_attend();
@@ -164,7 +179,7 @@ impl GlucoseApp {
     /// **La seule voix du disque quand il refuse.** Un brouillon qui ne naît pas, une écriture
     /// refusée, une fermeture qui n'aboutit pas : c'est la même nouvelle pour l'utilisateur,
     /// et la même chose à faire.
-    fn dire_l_echec(&mut self, cause: &str) {
+    pub(super) fn dire_l_echec(&mut self, cause: &str) {
         self.ui.show_toast(format!(
             "L'enregistrement a échoué : {cause} — le document est intact en mémoire, \
              Ctrl+Maj+S pour l'enregistrer ailleurs"
@@ -177,6 +192,7 @@ impl GlucoseApp {
     /// le prochain lancement rouvrira. Rend `false` si le disque a refusé : l'appelant qui
     /// fermait la fenêtre la garde ouverte (SAVE-3).
     pub fn fermer_le_document(&mut self) -> bool {
+        self.terminer_les_gestes_en_cours();
         self.consigner();
         let Some(e) = self.disque.ecriture.take() else {
             return true;
@@ -192,6 +208,15 @@ impl GlucoseApp {
         }
     }
 
+    /// **Ce qui est en cours se termine avant qu'on quitte un document** : l'aperçu du passé
+    /// revient au présent, la carte en édition se valide — comme un clic ailleurs. Sans cela,
+    /// fermer la fenêtre pendant une frappe perdait le texte (le document passait pour
+    /// propre), et ouvrir un document pendant un aperçu laissait l'écriture suspendue.
+    pub(crate) fn terminer_les_gestes_en_cours(&mut self) {
+        self.revenir_au_present();
+        self.commit_editing();
+    }
+
     /// Oublie le document sans nom qu'on ferme sans l'enregistrer : son brouillon s'efface.
     pub fn abandonner_le_brouillon(&mut self) {
         if let Some(e) = self.disque.ecriture.take() {
@@ -201,16 +226,24 @@ impl GlucoseApp {
         }
     }
 
-    /// Rouvre le travail qu'un plantage a laissé sans nom — le brouillon le plus récent
-    /// qu'aucune autre fenêtre de Glucose ne tient ouvert.
-    pub fn retrouver_un_brouillon(&mut self) {
-        let Some(chemin) = brouillon_orphelin(&self.disque.brouillons) else {
-            return;
+    /// Rouvre ce qu'un plantage a interrompu, le plus récent d'abord : un brouillon qu'aucune
+    /// autre fenêtre de Glucose ne tient ouvert, ou un document nommé dont un texte était en
+    /// cours de frappe.
+    pub fn retrouver_le_travail(&mut self) {
+        let chemin = match travail_interrompu(&self.disque.brouillons) {
+            None => return,
+            Some(Interrompu::Document(chemin)) => return self.open_from(chemin),
+            Some(Interrompu::Brouillon(chemin)) => chemin,
         };
         let message = match self.ouvrir_un_brouillon(&chemin) {
-            Ok(gestes) => format!(
-                "Travail non enregistré retrouvé ({gestes} geste(s)) — Ctrl+S pour lui donner \
-                 un nom"
+            Ok((gestes, texte_rendu)) => format!(
+                "Travail non enregistré retrouvé ({gestes} geste(s){}) — Ctrl+S pour lui \
+                 donner un nom",
+                if texte_rendu {
+                    ", et le texte que tu tapais"
+                } else {
+                    ""
+                }
             ),
             Err(e) => format!(
                 "Un brouillon n'a pas pu se rouvrir : {e} — il reste dans {}",
@@ -220,29 +253,27 @@ impl GlucoseApp {
         self.ui.show_toast(message);
     }
 
-    fn ouvrir_un_brouillon(&mut self, chemin: &Path) -> Result<usize, String> {
+    fn ouvrir_un_brouillon(&mut self, chemin: &Path) -> Result<(usize, bool), String> {
         let f = std::fs::File::open(chemin).map_err(|e| e.to_string())?;
         let ouvert =
             histoire::ouvrir(&mut std::io::BufReader::new(f)).map_err(|e| e.to_string())?;
-        self.adopter_un_ouvert(&ouvert, chemin.to_path_buf());
+        let adoption = self.adopter_un_ouvert(&ouvert, chemin.to_path_buf());
         if let Some(e) = self.disque.ecriture.as_mut() {
             e.brouillon = true;
         }
         self.project_path = None;
         // Du travail sans nom : le document est « modifié » jusqu'à ce qu'il en ait un.
         self.saved_version = self.store.version.wrapping_sub(1);
-        Ok(ouvert.gestes.len())
+        Ok((ouvert.gestes.len(), adoption.texte_rendu))
     }
 
-    /// Fait d'un fichier ouvert le document courant : ses images, son état, son écriture.
-    ///
-    /// Rend les nœuds réparés, et la raison pour laquelle le fichier ne peut pas s'écrire sur
-    /// place, s'il y en a une — l'ouverture le dira.
+    /// Fait d'un fichier ouvert le document courant : ses images, son état, son écriture —
+    /// et le texte qu'un arrêt y avait laissé en cours de frappe.
     pub(crate) fn adopter_un_ouvert(
         &mut self,
         ouvert: &histoire::Ouvert,
         chemin: PathBuf,
-    ) -> (usize, Option<String>) {
+    ) -> Adoption {
         // Le document qu'on quitte s'écrit une dernière fois. S'il n'a pas pu, son écriture
         // s'abandonne ici — le toast l'a dit — plutôt que de retenir le nouveau document.
         if !self.fermer_le_document() {
@@ -275,8 +306,9 @@ impl GlucoseApp {
         self.store.bump_version();
         self.disque.depart = None;
         self.disque.a_sceller.clear();
-        match Ecriture::reprendre(ouvert, chemin, &self.disque.objets) {
-            Ok(mut e) => {
+        let saisies = self.disque.brouillons.clone();
+        match Ecriture::reprendre(ouvert, chemin, &self.disque.objets, &saisies) {
+            Ok((mut e, saisie)) => {
                 if ouvert.geste_en_echec.is_some() {
                     // Un geste qui ne se rejoue pas : un instantané de l'état lu fera repartir
                     // l'histoire d'ici, et le geste fautif ne sera plus jamais rejoué.
@@ -284,51 +316,71 @@ impl GlucoseApp {
                 }
                 self.disque.ecriture = Some(e);
                 self.sceller_ce_qui_attend();
-                (repares, None)
+                let texte_rendu = saisie.is_some_and(|s| self.rendre_la_saisie(s));
+                self.suivre_le_document();
+                Adoption {
+                    repares,
+                    refus: None,
+                    texte_rendu,
+                }
             }
             Err(err) => {
-                // Un fichier qu'on ne peut pas écrire — lecture seule, clé retirée — s'ouvre
-                // quand même : ce qu'on y change part dans un brouillon, qui commence à l'état
-                // lu. Le fichier, lui, n'est pas touché.
+                // Un fichier qu'on ne peut pas écrire — lecture seule, clé retirée, document
+                // tenu par une autre fenêtre — s'ouvre quand même : ce qu'on y change part
+                // dans un brouillon, qui commence à l'état lu. Le fichier, lui, n'est pas
+                // touché.
                 self.disque.depart = Some(self.store.project.clone());
-                (repares, Some(err))
+                self.suivre_le_document();
+                Adoption {
+                    repares,
+                    refus: Some(err),
+                    texte_rendu: false,
+                }
             }
         }
     }
 }
 
-/// Le brouillon le plus récent qu'aucun processus ne tient ouvert.
-fn brouillon_orphelin(dossier: &Path) -> Option<PathBuf> {
-    let mut brouillons: Vec<(std::time::SystemTime, PathBuf)> = std::fs::read_dir(dossier)
-        .ok()?
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| {
-            p.extension().and_then(|e| e.to_str()) == Some(glucose_core::persist::FILE_EXTENSION)
-        })
-        .filter(|p| !tenu_ailleurs(p))
-        .filter_map(|p| Some((std::fs::metadata(&p).ok()?.modified().ok()?, p)))
-        .collect();
-    brouillons.sort();
-    brouillons.pop().map(|(_, p)| p)
+/// Ce que l'adoption d'un fichier ouvert a dû faire, pour que l'ouverture le dise.
+pub(crate) struct Adoption {
+    /// Nœuds réparés au chargement.
+    pub repares: usize,
+    /// Pourquoi le fichier ne s'écrit pas sur place, s'il ne s'écrit pas.
+    pub refus: Option<String>,
+    /// Un texte en cours de frappe, laissé par un arrêt, est revenu dans le document.
+    pub texte_rendu: bool,
 }
 
-/// Un autre Glucose écrit-il dans ce fichier ? Sous Windows, s'ouvrir sans aucun partage
-/// échoue tant qu'un autre le tient.
-#[cfg(windows)]
-fn tenu_ailleurs(chemin: &Path) -> bool {
-    use std::os::windows::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new()
-        .read(true)
-        .share_mode(0)
-        .open(chemin)
-        .is_err()
+/// Ce qu'un arrêt brutal a laissé à rouvrir.
+enum Interrompu {
+    Brouillon(PathBuf),
+    Document(PathBuf),
 }
 
-#[cfg(not(windows))]
-fn tenu_ailleurs(_chemin: &Path) -> bool {
-    false
+/// Le plus récent de ce qu'un arrêt a laissé : un brouillon qu'aucun processus ne tient
+/// ouvert, ou un document nommé qu'une saisie attend.
+fn travail_interrompu(dossier: &Path) -> Option<Interrompu> {
+    let mut trouves: Vec<(std::time::SystemTime, Interrompu)> = Vec::new();
+    for p in std::fs::read_dir(dossier).ok()?.flatten().map(|e| e.path()) {
+        let Ok(date) = std::fs::metadata(&p).and_then(|m| m.modified()) else {
+            continue;
+        };
+        let extension = p.extension().and_then(|e| e.to_str());
+        if extension == Some(glucose_core::persist::FILE_EXTENSION)
+            && !super::verrou::tenu_ailleurs(&p)
+        {
+            trouves.push((date, Interrompu::Brouillon(p)));
+        } else if extension == Some("saisie") {
+            if let Some(d) = super::frappe::document_d_une_saisie(&p, dossier) {
+                trouves.push((date, Interrompu::Document(d)));
+            }
+        }
+    }
+    trouves
+        .into_iter()
+        .max_by_key(|(date, _)| *date)
+        .map(|(_, i)| i)
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

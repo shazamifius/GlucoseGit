@@ -22,10 +22,16 @@
 //! sont pas dans le document, elle est confiée au scribe ([`super::scribe`]). Une image dont
 //! le fichier n'existe pas encore — une image collée, que l'atelier est en train d'écrire —
 //! attend son tour, et se reconfie dès qu'il paraît.
+//!
+//! # Le texte en cours de frappe
+//!
+//! Ce qu'une carte en édition contient se confie au scribe à chaque changement
+//! ([`Ecriture::saisir`]) ; il le garde à côté du document jusqu'à ce que la saisie devienne
+//! un geste. Rouvrir le document le retrouve ([`Ecriture::reprendre`]).
 
 use super::objets::{Objets, Source};
-use super::scribe::{Depart, Octets, Ordre, Scribe};
-use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Vue};
+use super::scribe::{chemin_de_saisie, Depart, Octets, Ordre, Scribe};
+use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Saisie, Vue};
 use glucose_core::store::journal::Transaction;
 use glucose_core::types::{BoardImage, Project};
 use std::collections::HashSet;
@@ -49,16 +55,23 @@ pub struct Ecriture {
     confiees: HashSet<String>,
     /// Les clés dont le fichier n'existait pas encore quand on a voulu les sceller.
     en_attente: Vec<String>,
+    /// Le texte en cours de frappe confié au scribe — ce que son fichier garde. `None` : il
+    /// n'y en a pas.
+    saisie: Option<Saisie>,
 }
 
 impl Ecriture {
     /// Continue l'histoire d'un document qu'on vient d'ouvrir. Échoue si le fichier ne
-    /// s'ouvre pas en écriture — lecture seule, disque retiré.
+    /// s'ouvre pas en écriture — lecture seule, disque retiré, document tenu ailleurs.
+    ///
+    /// Rend aussi le texte qu'un arrêt a laissé en cours de frappe dans ce document, s'il
+    /// vaut encore : aucun geste ne l'a suivi. Celui qui ne vaut plus s'effacera.
     pub fn reprendre(
         ouvert: &Ouvert,
         chemin: PathBuf,
         objets: &Arc<Objets>,
-    ) -> Result<Self, String> {
+        saisies: &Path,
+    ) -> Result<(Self, Option<Saisie>), String> {
         let depart = Depart {
             chemin: chemin.clone(),
             base: None,
@@ -66,14 +79,29 @@ impl Ecriture {
             chaine: ouvert.chaine,
             version: ouvert.version_du_conteneur,
             objets: ouvert.objets.iter().map(|(e, t)| (*e, *t)).collect(),
+            dernier_geste: ouvert.dernier_geste,
+            saisies: saisies.to_path_buf(),
         };
-        Ok(Self::avec(
+        let fichier = chemin_de_saisie(saisies, &chemin);
+        let lue = std::fs::read(&fichier)
+            .ok()
+            .map(|o| histoire::saisie::lire(&o));
+        let mut e = Self::avec(
             Scribe::commencer(depart, Arc::clone(objets))?,
             chemin,
             false,
             ouvert.octets_depuis_l_instantane,
             ouvert.taille_de_l_instantane,
-        ))
+        );
+        // Un fichier présent, lisible ou non, est à effacer dès qu'aucune saisie ne l'occupe.
+        e.saisie = lue
+            .as_ref()
+            .map(|l| l.as_ref().map(|(_, s)| s.clone()).unwrap_or_default());
+        let rendue = lue
+            .flatten()
+            .filter(|(point, _)| *point == ouvert.dernier_geste)
+            .map(|(_, s)| s);
+        Ok((e, rendue))
     }
 
     /// Commence un fichier neuf, dont la base est l'état `depart` du document.
@@ -83,11 +111,12 @@ impl Ecriture {
         brouillon: bool,
         objets: &Arc<Objets>,
         instant: i64,
+        saisies: &Path,
     ) -> Result<Self, String> {
         let base =
             glucose_core::persist::encode(depart, &glucose_core::types::AssetStore::new(), instant);
         let taille = glucose_core::persist::encode_document(depart).len() as u64;
-        let d = Depart::neuf(chemin.clone(), base)?;
+        let d = Depart::neuf(chemin.clone(), base, saisies.to_path_buf())?;
         Ok(Self::avec(
             Scribe::commencer(d, Arc::clone(objets))?,
             chemin,
@@ -107,7 +136,30 @@ impl Ecriture {
             auteur: auteur_de_ce_lancement(),
             confiees: HashSet::new(),
             en_attente: Vec::new(),
+            saisie: None,
         }
+    }
+
+    /// Le texte de la carte en édition — `(annotation, texte)` sur ce tableau — ou `None`
+    /// quand aucune ne l'est. Ne dérange le scribe que s'il a changé.
+    pub fn saisir(&mut self, tableau: &str, en_cours: Option<(&str, &str)>) {
+        let pareille = match (&self.saisie, en_cours) {
+            (None, None) => true,
+            (Some(s), Some((annotation, texte))) => {
+                s.texte == texte && s.annotation == annotation && s.tableau == tableau
+            }
+            _ => false,
+        };
+        if pareille {
+            return;
+        }
+        self.saisie = en_cours.map(|(annotation, texte)| Saisie {
+            document: String::new(),
+            tableau: tableau.to_string(),
+            annotation: annotation.to_string(),
+            texte: texte.to_string(),
+        });
+        self.scribe.envoyer(Ordre::Saisie(self.saisie.clone()));
     }
 
     /// Écrit les transactions appliquées depuis la dernière fois, scelle les images qui
@@ -250,9 +302,11 @@ impl Ecriture {
         self.scribe.prendre_l_erreur()
     }
 
-    /// Oublie ce document : attend le scribe, puis efface le brouillon s'il en est un.
+    /// Oublie ce document : attend le scribe, puis efface le brouillon s'il en est un — et
+    /// le texte qu'on y tapait.
     pub fn abandonner(self) {
         let (chemin, brouillon) = (self.chemin.clone(), self.brouillon);
+        self.scribe.envoyer(Ordre::Saisie(None));
         drop(self);
         if brouillon {
             let _ = std::fs::remove_file(chemin);

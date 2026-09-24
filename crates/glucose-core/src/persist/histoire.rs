@@ -40,10 +40,12 @@
 
 pub mod geste;
 pub mod ouvrir;
+pub mod saisie;
 pub mod vue;
 
 pub use geste::Geste;
 pub use ouvrir::{etat_au_geste, ouvrir, retour_au_geste, Ouvert};
+pub use saisie::Saisie;
 pub use vue::Vue;
 
 use super::bytes::{Reader, Writer};

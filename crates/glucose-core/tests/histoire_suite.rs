@@ -378,3 +378,45 @@ fn test_chaque_point_du_passe_se_relit_se_restaure_et_se_defait() {
         );
     }
 }
+
+/// **Le point d'accroche d'un texte en cours de frappe** : la chaîne juste après le dernier
+/// geste. Une vue, un jalon ne le déplacent pas — ils ne changent pas ce qu'on tapait ; un
+/// geste, si — c'est que la saisie a été validée.
+#[test]
+fn test_le_dernier_geste_ne_bouge_qu_avec_un_geste() {
+    let mut store = Store::new("x");
+    let b = store.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&store);
+    let graine = disque.chaine;
+    let ouvrir = |d: &Disque| histoire::ouvrir(&mut std::io::Cursor::new(&d.octets)).unwrap();
+    assert_eq!(
+        ouvrir(&disque).dernier_geste,
+        graine,
+        "sans geste : la graine"
+    );
+
+    store.add_image(&b, image("a", 0.0));
+    disque.ecrire(&mut store);
+    let o = ouvrir(&disque);
+    assert_ne!(o.dernier_geste, graine);
+    assert_ne!(
+        o.dernier_geste, o.chaine,
+        "la vue écrite après ne le déplace pas"
+    );
+    let apres = o.dernier_geste;
+
+    let e = disque.chaine.encadrer(
+        nature::JALON,
+        &histoire::contenu_jalon(&Jalon {
+            instant: 3,
+            genre: Genre::Nomme,
+            libelle: "ici".into(),
+        }),
+    );
+    disque.octets.extend_from_slice(&e);
+    assert_eq!(ouvrir(&disque).dernier_geste, apres, "un jalon non plus");
+
+    store.add_image(&b, image("b", 300.0));
+    disque.ecrire(&mut store);
+    assert_ne!(ouvrir(&disque).dernier_geste, apres, "un geste, si");
+}

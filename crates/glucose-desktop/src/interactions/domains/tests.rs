@@ -542,6 +542,8 @@ fn test_a_domain_created_by_clicking_survives_save_and_reopen() {
         "le document entier doit revenir"
     );
 
+    // Un document ouvert ne s'efface pas (un seul scribe par fichier) : on ferme d'abord.
+    drop((app, reopened));
     std::fs::remove_file(&path).expect("nettoyage");
 }
 
@@ -561,5 +563,6 @@ fn test_opening_a_document_drops_any_gesture_in_flight() {
     app.open_from(path.clone());
 
     assert_eq!(app.dock_manager.domains, DomainsUi::default());
+    drop(app);
     std::fs::remove_file(&path).expect("nettoyage");
 }

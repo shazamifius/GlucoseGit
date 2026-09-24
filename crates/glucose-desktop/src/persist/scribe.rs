@@ -20,14 +20,25 @@
 //! empreinte (15 ms pour 4,7 Mo : jamais sur le fil qui dessine), ajoute un **objet** si ces
 //! octets ne sont pas déjà dans le fichier, puis un **lien** de sa clé vers l'empreinte, et
 //! pose la tranche dans le registre des [`Objets`]. Dès lors l'image ne dépend plus de rien.
+//!
+//! # Garder le texte en cours de frappe
+//!
+//! Le texte d'une carte en édition n'est pas encore un geste ([`histoire::saisie`]). Le scribe
+//! le garde dans un petit fichier à côté, **après** avoir synchronisé les entrées qui le
+//! précèdent, et l'accroche à la chaîne après le dernier geste qu'il a écrit. Passant par la
+//! même file que les gestes, l'ordre est celui du travail : la validation s'écrit, se
+//! synchronise, et alors seulement le fichier de la saisie s'efface.
+//!
+//! Le fichier du document s'ouvre pour y écrire **seul** ([`super::verrou`]).
 
 use super::objets::{Objets, Source};
+use super::verrou;
 use glucose_core::hash::sha256;
-use glucose_core::persist::histoire::{self, nature, ouvrir::Tranche, Chaine};
+use glucose_core::persist::histoire::{self, nature, ouvrir::Tranche, Chaine, Saisie};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -53,6 +64,9 @@ pub enum Ordre {
         oublier: bool,
         reponse: Sender<Result<(), String>>,
     },
+    /// Garder ce texte en cours de frappe, ou l'oublier (`None`). Le document qu'il porte est
+    /// posé par le scribe, qui sait où il écrit.
+    Saisie(Option<Saisie>),
 }
 
 /// Où commence l'écriture.
@@ -67,11 +81,15 @@ pub struct Depart {
     pub version: u16,
     /// Les octets déjà dans le fichier, par empreinte.
     pub objets: HashMap<[u8; 32], Tranche>,
+    /// La chaîne après le dernier geste : là où une saisie s'accroche.
+    pub dernier_geste: Chaine,
+    /// Le dossier où vivent les saisies : celui des brouillons.
+    pub saisies: PathBuf,
 }
 
 impl Depart {
     /// Un fichier neuf, qui commencera par cette base.
-    pub fn neuf(chemin: PathBuf, base: Vec<u8>) -> Result<Self, String> {
+    pub fn neuf(chemin: PathBuf, base: Vec<u8>, saisies: PathBuf) -> Result<Self, String> {
         let chaine = Chaine::de_la_base(&base).map_err(|e| e.to_string())?;
         Ok(Self {
             chemin,
@@ -80,6 +98,8 @@ impl Depart {
             version: glucose_core::persist::container::CONTAINER_VERSION,
             objets: HashMap::new(),
             base: Some(base),
+            dernier_geste: chaine,
+            saisies,
         })
     }
 }
@@ -174,6 +194,25 @@ struct Plume {
     /// base périmée.
     a_relever: bool,
     objets: HashMap<[u8; 32], Tranche>,
+    dernier_geste: Chaine,
+    saisies: PathBuf,
+    /// Le fichier de la saisie de ce document, et ce qu'il garde.
+    fichier_de_saisie: PathBuf,
+    saisie: Option<(Chaine, Saisie)>,
+}
+
+/// **La preuve que ce qui a été confié au fichier est sur le disque.** Seul
+/// [`Plume::synchroniser`] en fabrique une, et toucher au fichier d'une saisie la demande :
+/// effacer un texte en cours avant que sa validation soit écrite ne se compile pas. Aucune
+/// épreuve ne saurait le voir — il y faudrait une coupure de courant à la microseconde.
+struct Synchronise(());
+
+/// Ce qu'un tour du scribe doit faire une fois ses entrées sur le disque.
+#[derive(Default)]
+struct Tour {
+    attentes: Vec<Sender<Result<(), String>>>,
+    /// La dernière demande de saisie du tour, accrochée au point où elle est arrivée.
+    saisie: Option<Option<(Chaine, Saisie)>>,
 }
 
 fn vie(
@@ -183,19 +222,27 @@ fn vie(
     erreur: &Mutex<Option<String>>,
 ) {
     while let Ok(premier) = recu.recv() {
-        let mut attentes = Vec::new();
+        let mut tour = Tour::default();
         let mut ordre = Some(premier);
         while let Some(o) = ordre.take() {
-            if let Err(e) = plume.traiter(o, objets, &mut attentes) {
+            if let Err(e) = plume.traiter(o, objets, &mut tour) {
                 signaler(erreur, &e);
             }
             ordre = recu.try_recv().ok();
         }
-        let fin = plume.fichier.sync_data().map_err(|e| e.to_string());
+        let fin = plume.synchroniser();
         if let Err(e) = &fin {
             signaler(erreur, e);
         }
-        for r in attentes {
+        // La saisie après la synchronisation, et seulement si elle a réussi : une validation
+        // est sur le disque avant que le texte qu'elle remplace ne s'efface.
+        if let (Ok(jeton), Some(s)) = (&fin, tour.saisie.take()) {
+            if let Err(e) = plume.garder(s, jeton) {
+                signaler(erreur, &e);
+            }
+        }
+        let fin = fin.map(|_| ());
+        for r in tour.attentes {
             let _ = r.send(fin.clone());
         }
     }
@@ -210,27 +257,19 @@ fn signaler(erreur: &Mutex<Option<String>>, e: &str) {
 
 impl Plume {
     fn ouvrir(depart: Depart) -> Result<Self, String> {
-        let dire = |e: std::io::Error| format!("{} : {e}", depart.chemin.display());
+        let dire = |e: std::io::Error| verrou::dire(&depart.chemin, &e);
         let fichier = match &depart.base {
             Some(base) => {
                 // Aucun dossier n'est créé ici : un chemin choisi par l'utilisateur existe, et
                 // enregistrer ne doit jamais en inventer un. Seul le dossier des brouillons,
                 // qui appartient à l'application, se crée — par qui l'y met.
-                let mut f = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(&depart.chemin)
-                    .map_err(dire)?;
+                let mut f = verrou::ouvrir_seul(OpenOptions::new().create(true), &depart.chemin)?;
+                // Vidé une fois tenu, jamais avant : c'est peut-être le document d'un autre.
+                f.set_len(0).map_err(dire)?;
                 f.write_all(base).map_err(dire)?;
                 f
             }
-            None => OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&depart.chemin)
-                .map_err(dire)?,
+            None => verrou::ouvrir_seul(&mut OpenOptions::new(), &depart.chemin)?,
         };
         // Une fin déchirée (écriture interrompue) ne suit pas la chaîne : on écrit par-dessus.
         if fichier.metadata().map_err(dire)?.len() > depart.fin {
@@ -238,28 +277,35 @@ impl Plume {
         }
         Ok(Self {
             a_relever: depart.version < glucose_core::persist::container::CONTAINER_VERSION,
+            fichier_de_saisie: chemin_de_saisie(&depart.saisies, &depart.chemin),
             chemin: depart.chemin,
             fichier,
             fin: depart.fin,
             chaine: depart.chaine,
             objets: depart.objets,
+            dernier_geste: depart.dernier_geste,
+            saisies: depart.saisies,
+            saisie: None,
         })
     }
 
-    fn traiter(
-        &mut self,
-        ordre: Ordre,
-        objets: &Objets,
-        attentes: &mut Vec<Sender<Result<(), String>>>,
-    ) -> Result<(), String> {
+    fn traiter(&mut self, ordre: Ordre, objets: &Objets, tour: &mut Tour) -> Result<(), String> {
         match ordre {
             Ordre::Entree { nature, contenu } => {
                 let e = self.chaine.encadrer(nature, &contenu);
-                self.ajouter(&[&e])
+                self.ajouter(&[&e])?;
+                if nature == nature::GESTE {
+                    self.dernier_geste = self.chaine;
+                }
+                Ok(())
             }
             Ordre::Sceller { cle, octets } => self.sceller(&cle, octets, objets),
             Ordre::Synchroniser(r) => {
-                attentes.push(r);
+                tour.attentes.push(r);
+                Ok(())
+            }
+            Ordre::Saisie(s) => {
+                tour.saisie = Some(s.map(|s| (self.dernier_geste, s)));
                 Ok(())
             }
             Ordre::Deplacer {
@@ -331,19 +377,31 @@ impl Plume {
         Ok(())
     }
 
+    fn synchroniser(&mut self) -> Result<Synchronise, String> {
+        self.fichier
+            .sync_data()
+            .map(|()| Synchronise(()))
+            .map_err(|e| e.to_string())
+    }
+
     fn deplacer(&mut self, vers: PathBuf, oublier: bool, objets: &Objets) -> Result<(), String> {
         let dire = |e: std::io::Error| format!("{} : {e}", vers.display());
-        self.fichier.sync_data().map_err(dire)?;
+        let jeton = self.synchroniser()?;
         // Copier à côté, puis renommer : un « Enregistrer sous » interrompu ne laisse jamais
         // un fichier cible à moitié copié.
         let a_cote = vers.with_extension("glucose.tmp");
+        // Hors de Windows, renommer par-dessus un document qu'un autre écrit réussirait : il
+        // écrirait ensuite dans un fichier que plus personne ne voit.
+        #[cfg(not(windows))]
+        if vers.exists() && verrou::tenu_ailleurs(&vers) {
+            return Err(verrou::deja_tenu(&vers));
+        }
         std::fs::copy(&self.chemin, &a_cote).map_err(dire)?;
-        std::fs::rename(&a_cote, &vers).map_err(dire)?;
-        let nouveau = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&vers)
-            .map_err(dire)?;
+        if let Err(e) = std::fs::rename(&a_cote, &vers) {
+            let _ = std::fs::remove_file(&a_cote);
+            return Err(verrou::dire(&vers, &e));
+        }
+        let nouveau = verrou::ouvrir_seul(&mut OpenOptions::new(), &vers)?;
         nouveau.sync_data().map_err(dire)?;
         let ancien = std::mem::replace(&mut self.chemin, vers);
         self.fichier = nouveau;
@@ -352,6 +410,47 @@ impl Plume {
             // Le brouillon a fini son travail : il vit désormais sous son vrai nom.
             let _ = std::fs::remove_file(ancien);
         }
+        // La saisie suit le document : elle se nomme d'après lui.
+        let saisie = self.saisie.take();
+        let _ = self.garder(None, &jeton);
+        self.fichier_de_saisie = chemin_de_saisie(&self.saisies, &self.chemin);
+        match saisie {
+            Some(s) => self.garder(Some(s), &jeton),
+            None => Ok(()),
+        }
+    }
+
+    /// Écrit la saisie, ou l'efface. Écrite à côté puis renommée : le fichier d'une saisie
+    /// est toujours entier — l'ancienne ou la nouvelle, jamais un mélange.
+    fn garder(&mut self, s: Option<(Chaine, Saisie)>, _: &Synchronise) -> Result<(), String> {
+        let f = &self.fichier_de_saisie;
+        let dire = |e: std::io::Error| format!("texte en cours, {} : {e}", f.display());
+        let Some((point, mut saisie)) = s else {
+            self.saisie = None;
+            return match std::fs::remove_file(f) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(dire(e)),
+                _ => Ok(()),
+            };
+        };
+        saisie.document = self.chemin.to_string_lossy().into_owned();
+        std::fs::create_dir_all(&self.saisies).map_err(dire)?;
+        let a_cote = f.with_extension("saisie.tmp");
+        let mut t = File::create(&a_cote).map_err(dire)?;
+        t.write_all(&histoire::saisie::ecrire(point, &saisie))
+            .map_err(dire)?;
+        t.sync_data().map_err(dire)?;
+        drop(t);
+        std::fs::rename(&a_cote, f).map_err(dire)?;
+        self.saisie = Some((point, saisie));
         Ok(())
     }
+}
+
+/// Le fichier de la saisie d'un document : nommé par l'empreinte de son chemin, dans le
+/// dossier des saisies. Un document n'en a qu'un, qu'il retrouve en s'ouvrant.
+pub fn chemin_de_saisie(dossier: &Path, document: &Path) -> PathBuf {
+    let canonique = std::fs::canonicalize(document).unwrap_or_else(|_| document.to_path_buf());
+    let e = sha256(canonique.as_os_str().as_encoded_bytes());
+    let nom: String = e[..8].iter().map(|o| format!("{o:02x}")).collect();
+    dossier.join(format!("{nom}.saisie"))
 }

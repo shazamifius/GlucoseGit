@@ -28,9 +28,11 @@ pub mod commands;
 pub mod disque;
 pub mod ecriture;
 pub mod export;
+pub mod frappe;
 pub mod import;
 pub mod objets;
 pub mod scribe;
+pub mod verrou;
 
 use crate::error::{DesktopError, DesktopResult};
 use glucose_core::persist::{self, GlucoseFile, FILE_EXTENSION};

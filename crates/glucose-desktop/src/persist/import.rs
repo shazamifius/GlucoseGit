@@ -107,6 +107,7 @@ impl GlucoseApp {
         // Un document importé n'est pas encore enregistré en Glucose Rust : il est « modifié »,
         // et fermer sans l'enregistrer posera la question.
         self.saved_version = self.store.version.wrapping_sub(1);
+        self.suivre_le_document();
     }
 }
 

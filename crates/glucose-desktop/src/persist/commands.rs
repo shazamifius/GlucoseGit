@@ -262,12 +262,13 @@ impl GlucoseApp {
         }
         f.seek(SeekFrom::Start(0)).map_err(ouvrir_err)?;
         let ouvert = histoire::ouvrir(&mut std::io::BufReader::new(f))?;
-        let (repaired, refus) = self.adopter_un_ouvert(&ouvert, path.to_path_buf());
+        let adoption = self.adopter_un_ouvert(&ouvert, path.to_path_buf());
         Ok(Ouverture::Glucose(OpenReport {
-            repaired,
+            repaired: adoption.repares,
             fin_ignoree: ouvert.fin_ignoree,
             geste_en_echec: ouvert.geste_en_echec.is_some(),
-            refus,
+            refus: adoption.refus,
+            texte_rendu: adoption.texte_rendu,
         }))
     }
 }
@@ -291,6 +292,8 @@ struct OpenReport {
     /// Pourquoi le fichier ne s'écrit pas sur place, s'il ne s'écrit pas : les changements
     /// iront dans un brouillon.
     refus: Option<String>,
+    /// Le texte qu'on tapait quand Glucose s'est arrêté est revenu.
+    texte_rendu: bool,
 }
 
 fn save_message(report: &SaveReport, label: &str) -> String {
@@ -325,6 +328,9 @@ fn open_message(project: &Project, report: &OpenReport) -> String {
         msg.push_str(
             ", un geste de l'histoire n'a pas pu se rejouer : ouvert dans le dernier état sûr",
         );
+    }
+    if report.texte_rendu {
+        msg.push_str(", le texte que tu tapais quand Glucose s'est arrêté est revenu (Ctrl+Z)");
     }
     msg
 }
@@ -428,6 +434,8 @@ mod tests {
             "l'undo du projet precedent doit partir"
         );
 
+        // Un document ouvert ne s'efface pas (un seul scribe par fichier) : on ferme d'abord.
+        drop((app, reopened));
         std::fs::remove_file(&path).expect("nettoyage");
     }
 
@@ -504,10 +512,11 @@ mod tests {
             fin_ignoree: 0,
             geste_en_echec: false,
             refus: None,
+            texte_rendu: false,
         };
         let opened = open_message(&project, &sain);
         assert!(opened.contains("2 tableau(x)"));
-        for silence in ["réparé", "interrompu", "rejouer"] {
+        for silence in ["réparé", "interrompu", "rejouer", "tapais"] {
             assert!(
                 !opened.contains(silence),
                 "un document sain ne parle pas de « {silence} » : {opened}"
@@ -521,11 +530,13 @@ mod tests {
                 fin_ignoree: 12,
                 geste_en_echec: true,
                 refus: Some("lecture seule".into()),
+                texte_rendu: true,
             },
         );
         assert!(abime.contains("4 nœud(s) réparé(s)"), "{abime}");
         assert!(abime.contains("interrompu"), "{abime}");
         assert!(abime.contains("dernier état sûr"), "{abime}");
         assert!(abime.contains("brouillon"), "{abime}");
+        assert!(abime.contains("tapais"), "{abime}");
     }
 }

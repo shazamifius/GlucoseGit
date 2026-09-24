@@ -9,7 +9,7 @@ use glucose_core::types::Annotation;
 use std::path::{Path, PathBuf};
 
 /// Un dossier à soi, vidé : les épreuves tournent en parallèle.
-fn dossier(nom: &str) -> PathBuf {
+pub(crate) fn dossier(nom: &str) -> PathBuf {
     let d = std::env::temp_dir()
         .join("glucose-tests-histoire")
         .join(nom);
@@ -19,14 +19,14 @@ fn dossier(nom: &str) -> PathBuf {
 }
 
 /// Une application dont les brouillons naissent dans `d`, jamais chez l'utilisateur.
-fn application(d: &Path) -> GlucoseApp {
+pub(crate) fn application(d: &Path) -> GlucoseApp {
     let mut app = GlucoseApp::new();
     app.disque.brouillons = d.join("brouillons");
     app
 }
 
 /// Pose une carte **par la fabrique de l'application** : mesurée, comme un clic la pose.
-fn noter(app: &mut GlucoseApp, id: &str, texte: &str) {
+pub(crate) fn noter(app: &mut GlucoseApp, id: &str, texte: &str) {
     let b = app.store.project.active_board_id.clone();
     let carte = crate::interactions::tools::text_card(
         &app.renderer.typography,
@@ -40,7 +40,7 @@ fn noter(app: &mut GlucoseApp, id: &str, texte: &str) {
 }
 
 /// Ce que l'image suivante ferait : écrire le document, puis attendre le disque.
-fn image_suivante(app: &mut GlucoseApp) {
+pub(crate) fn image_suivante(app: &mut GlucoseApp) {
     app.consigner();
     if let Some(e) = &app.disque.ecriture {
         e.synchroniser().expect("le disque doit suivre");
@@ -54,7 +54,7 @@ fn png(d: &Path, nom: &str, teinte: u8) -> PathBuf {
     chemin
 }
 
-fn rouvrir(d: &Path, chemin: &Path) -> GlucoseApp {
+pub(crate) fn rouvrir(d: &Path, chemin: &Path) -> GlucoseApp {
     let mut autre = application(d);
     autre.open_from(chemin.to_path_buf());
     autre
@@ -169,7 +169,7 @@ fn test_un_brouillon_nait_au_premier_geste_et_se_retrouve() {
     assert_eq!(brouillons.len(), 1, "le premier geste ouvre un brouillon");
 
     let mut voisine = application(&d);
-    voisine.retrouver_un_brouillon();
+    voisine.retrouver_le_travail();
     assert!(
         voisine.store.project != app.store.project,
         "un brouillon tenu par une autre fenêtre ne se vole pas"
@@ -178,7 +178,7 @@ fn test_un_brouillon_nait_au_premier_geste_et_se_retrouve() {
     let attendu = app.store.project.clone();
     drop(app);
     let mut relance = application(&d);
-    relance.retrouver_un_brouillon();
+    relance.retrouver_le_travail();
     assert_eq!(relance.store.project, attendu);
     assert!(relance.is_dirty(), "du travail sans nom est « modifié »");
     assert!(relance.project_path.is_none());
@@ -288,8 +288,10 @@ fn test_une_fin_dechiree_par_un_plantage_laisse_tout_le_reste() {
     assert!(toast.message.contains("interrompu"), "{}", toast.message);
     noter(&mut autre, "apres", "écrit par-dessus la fin déchirée");
     image_suivante(&mut autre);
+    let ecrit = autre.store.project.clone();
+    drop(autre);
     let troisieme = rouvrir(&d, &chemin);
-    assert_eq!(troisieme.store.project, autre.store.project);
+    assert_eq!(troisieme.store.project, ecrit);
     let toast = troisieme
         .ui
         .current_toast
@@ -433,4 +435,55 @@ fn test_les_fleches_parcourent_le_passe() {
     app.agir_dans_le_temps(TempsIntent::Voir(0));
     assert!(app.touche_du_temps(&Key::Named(NamedKey::Escape)));
     assert_eq!(ids(&app), etats[3]);
+}
+
+/// **Ouvrir un document pendant un aperçu du passé revient d'abord au présent** : l'aperçu
+/// suspend l'écriture, et le document ouvert ensuite doit s'écrire, lui. La Time Machine
+/// montre alors son histoire à lui.
+#[test]
+fn test_ouvrir_pendant_un_apercu_revient_au_present() {
+    let (mut app, chemin, _) = trois_gestes("apercu-puis-ouvrir");
+    app.agir_dans_le_temps(TempsIntent::Voir(1));
+    let d = chemin.parent().unwrap().to_path_buf();
+    let autre = d.join("autre.glucose");
+    let mut voisine = application(&d);
+    voisine.save_to(autre.clone());
+    drop(voisine);
+
+    app.open_from(autre.clone());
+    assert!(app.disque.voyage.is_none(), "l'aperçu est fini");
+    assert!(app.dock_manager.temps.regarde.is_none());
+    assert!(
+        app.dock_manager.temps.gestes.is_empty(),
+        "la réglette est celle du document ouvert"
+    );
+    noter(&mut app, "neuve", "écrite dans le document ouvert");
+    image_suivante(&mut app);
+    assert_eq!(app.dock_manager.temps.gestes.len(), 1);
+    let attendu = app.store.project.clone();
+    drop(app);
+    assert_eq!(rouvrir(&d, &autre).store.project, attendu);
+    assert_eq!(
+        histoire::ouvrir(&mut std::fs::File::open(&chemin).unwrap())
+            .unwrap()
+            .gestes
+            .len(),
+        3,
+        "le premier document n'a rien reçu de l'aperçu"
+    );
+}
+
+/// Un document ouvert sans pouvoir s'écrire — une autre fenêtre le tient — n'a pas d'histoire
+/// à montrer : la réglette se vide, au lieu de garder celle du document quitté.
+#[test]
+fn test_la_reglette_d_un_document_sans_ecriture_est_vide() {
+    let (mut app, chemin, _) = trois_gestes("reglette-vide");
+    let d = chemin.parent().unwrap().to_path_buf();
+    let tenu = d.join("tenu.glucose");
+    let mut voisine = application(&d);
+    voisine.save_to(tenu.clone());
+    app.open_from(tenu);
+    assert!(app.disque.ecriture.is_none(), "tenu par la voisine");
+    assert!(app.dock_manager.temps.gestes.is_empty());
+    drop(voisine);
 }

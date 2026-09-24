@@ -66,6 +66,9 @@ pub struct Ouvert {
     /// Là où la prochaine entrée s'écrira, et la chaîne à y reprendre.
     pub fin: u64,
     pub chaine: Chaine,
+    /// La chaîne juste après le dernier geste — la graine s'il n'y en a aucun. C'est à ce
+    /// point qu'un texte en cours de frappe s'accroche ([`super::saisie`]).
+    pub dernier_geste: Chaine,
     /// Octets de fin qui ne suivaient pas la chaîne — une écriture interrompue. Zéro pour un
     /// fichier intact.
     pub fin_ignoree: u64,
@@ -112,6 +115,7 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         instantanes: Vec::new(),
         fin: base.fin,
         chaine: base.graine,
+        dernier_geste: base.graine,
         fin_ignoree: 0,
         version_du_conteneur: base.version,
         octets_depuis_l_instantane: 0,
@@ -347,6 +351,7 @@ fn ranger(
                 .map(|c| i64::from_le_bytes(c.try_into().unwrap_or([0; 8])))
                 .unwrap_or(0);
             o.gestes.push(Repere { tranche, instant });
+            o.dernier_geste = o.chaine;
             o.octets_depuis_l_instantane += tranche.longueur;
             a_rejouer.push(ARejouer::Geste(o.gestes.len() - 1, contenu));
         }

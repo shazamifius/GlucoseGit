@@ -653,6 +653,7 @@ fn test_persist_1_a_resized_image_survives_save_and_reopen() {
         resized,
         "la taille est là au réveil"
     );
+    drop((app, reopened));
     std::fs::remove_dir_all(&dir).expect("nettoyage");
 }
 
@@ -687,6 +688,7 @@ fn test_text_fit_1_an_older_document_gets_its_card_heights_fitted_on_open() {
         !reopened.is_dirty(),
         "recaler à l'ouverture n'est pas une modification"
     );
+    drop((app, reopened));
     std::fs::remove_dir_all(&dir).expect("nettoyage");
 }
 

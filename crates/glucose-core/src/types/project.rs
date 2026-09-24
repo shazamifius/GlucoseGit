@@ -101,6 +101,16 @@ impl Project {
         self.boards.iter_mut().flat_map(|b| b.images.iter_mut())
     }
 
+    /// L'annotation `id` du tableau `tableau`, si elle y est.
+    pub fn annotation(&self, tableau: &str, id: &str) -> Option<&super::Annotation> {
+        self.boards
+            .iter()
+            .find(|b| b.id == tableau)?
+            .annotations
+            .iter()
+            .find(|a| a.id() == id)
+    }
+
     /// Le nombre d'annotations de tous les tableaux.
     pub fn nombre_d_annotations(&self) -> usize {
         self.boards.iter().map(|b| b.annotations.len()).sum()

@@ -66,10 +66,21 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
+    /// Un autre document devient le document courant : la Time Machine, si elle est ouverte,
+    /// montre son histoire à lui.
+    pub(crate) fn suivre_le_document(&mut self) {
+        if self.dock_manager.is_open(TabId::Temps) {
+            self.lire_l_histoire();
+        }
+    }
+
     /// Relit l'histoire du fichier : ce que la réglette et les jalons montrent. Rien, tant
     /// que le document n'a pas de fichier — il n'a pas encore d'histoire.
     pub fn lire_l_histoire(&mut self) -> Option<Ouvert> {
         self.consigner();
+        let t = &mut self.dock_manager.temps;
+        t.gestes.clear();
+        t.jalons.clear();
         let ecriture = self.disque.ecriture.as_ref()?;
         ecriture.synchroniser().ok()?;
         let fichier = std::fs::File::open(&ecriture.chemin).ok()?;

@@ -67,8 +67,9 @@ impl GlucoseApp {
     /// se ferme sans un mot ; un document modifié pose la question, et la réponse est
     /// traitée par [`GlucoseApp::close_with`], qui refuse de fermer sur un échec.
     pub fn request_close(&mut self) -> bool {
-        // Ce que le dernier geste a changé s'écrit d'abord : un document qui a un nom est
-        // alors enregistré, et se ferme sans question (HISTOIRE-1).
+        // Ce que le dernier geste a changé s'écrit d'abord — la carte en édition comprise : un
+        // document qui a un nom est alors enregistré, et se ferme sans question (HISTOIRE-1).
+        self.terminer_les_gestes_en_cours();
         self.consigner();
         if !self.is_dirty() {
             return self.fermer_le_document();
