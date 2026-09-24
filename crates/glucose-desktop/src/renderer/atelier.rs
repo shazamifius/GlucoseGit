@@ -35,6 +35,7 @@
 //! décide pas non plus ce qu'on dessine en attendant. Il répond à une seule question — « ces
 //! octets, décodés, les voici » — et il y répond quand il peut.
 
+use super::apercu::{self, Apercu};
 use super::photo::{Pyramide, Retour, Transit};
 use std::collections::{HashSet, VecDeque};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -76,8 +77,12 @@ pub enum Fait {
 }
 
 enum Travail {
-    Decoder(String),
+    /// Un fichier à décoder — par son aperçu d'abord, s'il y a un dossier où le chercher.
+    Decoder(String, Option<std::sync::Arc<std::path::Path>>),
     Deplacer(Deplacement<Transit>),
+    /// La vue d'ensemble d'une image à garder sur le disque (ETAGES-4) : la source, le
+    /// dossier, l'aperçu.
+    Ecrire(String, std::sync::Arc<std::path::Path>, Apercu),
 }
 
 /// Les trois files, lues dans l'ordre de leur urgence.
@@ -118,6 +123,12 @@ pub struct Atelier {
     /// Les offres parties et pas revenues : elles n'apportent rien à montrer, et ne
     /// réveillent donc personne — mais un témoin qui veut un état fini les attend.
     offres: usize,
+    /// Où chercher et garder les aperçus, si l'application le veut (ETAGES-4). Sans lui,
+    /// l'atelier ne touche jamais au disque que pour lire les sources — ce que veulent les
+    /// épreuves, qui ne doivent rien écrire chez l'utilisateur.
+    apercus: Option<std::sync::Arc<std::path::Path>>,
+    /// Les écritures parties : comme les offres, un état fini les attend.
+    ecritures: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl Default for Atelier {
@@ -143,10 +154,11 @@ impl Atelier {
     pub fn nouveau() -> Self {
         let commandes = Arc::new(Commandes::default());
         let (retour, prets) = channel::<Fait>();
+        let ecritures: Arc<std::sync::atomic::AtomicUsize> = Default::default();
         for _ in 0..ouvriers() {
-            let commandes = Arc::clone(&commandes);
-            let retour = retour.clone();
-            std::thread::spawn(move || ouvrier(&commandes, &retour));
+            let (commandes, retour, ecritures) =
+                (Arc::clone(&commandes), retour.clone(), Arc::clone(&ecritures));
+            std::thread::spawn(move || ouvrier(&commandes, &retour, &ecritures));
         }
         Self {
             commandes,
@@ -154,6 +166,8 @@ impl Atelier {
             en_cours: HashSet::new(),
             reprises: 0,
             offres: 0,
+            apercus: None,
+            ecritures,
         }
     }
 
@@ -162,14 +176,46 @@ impl Atelier {
     /// Rend `true` si la demande est partie — ce qui n'arrive qu'une fois par fichier tant
     /// qu'il n'est pas revenu.
     pub fn demander(&mut self, src: &str) -> bool {
+        self.decoder_par(src, self.apercus.clone())
+    }
+
+    /// Demande le décodage **entier** de ce fichier, sans passer par son aperçu : un niveau
+    /// que l'écran veut n'y est pas (ETAGES-4).
+    pub fn redecoder(&mut self, src: &str) -> bool {
+        self.decoder_par(src, None)
+    }
+
+    fn decoder_par(&mut self, src: &str, apercus: Option<std::sync::Arc<std::path::Path>>) -> bool {
         if self.en_cours.contains(src) {
             return false;
         }
-        if !self.confier(Travail::Decoder(src.to_string())) {
+        if !self.confier(Travail::Decoder(src.to_string(), apercus)) {
             return false;
         }
         self.en_cours.insert(src.to_string());
         true
+    }
+
+    /// **Garde les aperçus dans ce dossier** : les décodages y cherchent d'abord, et les
+    /// vues d'ensemble s'y écrivent.
+    pub fn brancher_les_apercus(&mut self, dossier: std::path::PathBuf) {
+        self.apercus = Some(dossier.into());
+    }
+
+    /// Les aperçus sont-ils gardés ?
+    pub fn garde_les_apercus(&self) -> bool {
+        self.apercus.is_some()
+    }
+
+    /// **Écrit la vue d'ensemble de cette image**, sur un fil et sans rien attendre.
+    pub fn ecrire_l_apercu(&mut self, src: &str, apercu: Apercu) {
+        let Some(dossier) = self.apercus.clone() else {
+            return;
+        };
+        if self.confier(Travail::Ecrire(src.to_string(), dossier, apercu)) {
+            self.ecritures
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
     }
 
     /// **Confie un niveau à un ouvrier**, qui l'offrira ou le reprendra.
@@ -188,11 +234,12 @@ impl Atelier {
             return false;
         };
         match &travail {
-            Travail::Decoder(_) => files.decodages.push_back(travail),
+            Travail::Decoder(..) => files.decodages.push_back(travail),
             Travail::Deplacer(d) => match d.charge {
                 Transit::AReprendre(_) => files.reprises.push_back(travail),
                 Transit::AOffrir(_) => files.offres.push_back(travail),
             },
+            Travail::Ecrire(..) => files.offres.push_back(travail),
         }
         drop(files);
         self.commandes.reveil.notify_one();
@@ -229,23 +276,42 @@ impl Atelier {
         self.en_cours.len() + self.reprises
     }
 
-    /// Tout ce qui est parti et pas revenu, offres comprises.
+    /// Tout ce qui est parti et pas revenu, offres et écritures comprises.
     pub fn en_route(&self) -> usize {
-        self.en_travail() + self.offres
+        self.en_travail()
+            + self.offres
+            + self.ecritures.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 
 /// La vie d'un ouvrier : prendre le plus urgent, le faire, le rendre — jusqu'à la fermeture.
-fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>) {
+fn ouvrier(
+    commandes: &Commandes,
+    retour: &Sender<Fait>,
+    ecritures: &std::sync::atomic::AtomicUsize,
+) {
     while let Some(travail) = attendre(commandes) {
         let fait = match travail {
-            Travail::Decoder(src) => {
+            Travail::Decoder(src, apercus) => {
                 // Le temps que ce fichier a coûté est ce que sa reconstruction coûterait :
                 // c'est exactement son utilité dans un cache, et elle se mesure ici plutôt
-                // que de s'estimer ailleurs (ADAPT-1).
+                // que de s'estimer ailleurs (ADAPT-1). Un aperçu coûte peu : l'image qui en
+                // naît se rend la première si la mémoire manque, et c'est juste.
                 let debut = Instant::now();
-                let pyramide = decoder(&src);
+                let pyramide = apercus
+                    .and_then(|dossier| apercu::lire(&apercu::chemin(&dossier, &src)?))
+                    .and_then(Pyramide::depuis_apercu)
+                    .or_else(|| decoder(&src));
                 Fait::Decodee((src, pyramide, debut.elapsed()))
+            }
+            Travail::Ecrire(src, dossier, a) => {
+                // Un aperçu qui ne s'écrit pas n'est qu'un aperçu de moins : la source reste.
+                // Un aperçu déjà là n'est pas réécrit : son nom dit la source telle qu'elle est.
+                if let Some(chemin) = apercu::chemin(&dossier, &src).filter(|c| !c.exists()) {
+                    let _ = apercu::ecrire(&chemin, &a);
+                }
+                ecritures.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                continue;
             }
             Travail::Deplacer(d) => Fait::Deplace(Deplacement {
                 src: d.src,

@@ -49,6 +49,23 @@ impl Niveau {
         })
     }
 
+    /// Un niveau tenu, copié de ces octets — ceux d'un aperçu (ETAGES-4).
+    pub(super) fn depuis_octets(largeur: u32, hauteur: u32, octets: &[u8]) -> Option<Self> {
+        let mut niveau = Self::vide(largeur, hauteur)?;
+        let place = niveau.octets_mut()?;
+        (place.len() == octets.len()).then(|| place.copy_from_slice(octets))?;
+        Some(niveau)
+    }
+
+    /// Un niveau jamais décodé : ses dimensions sont connues, ses pixels sont à refaire.
+    pub(super) fn perdu(largeur: u32, hauteur: u32) -> Self {
+        Self {
+            largeur,
+            hauteur,
+            octets: Octets::Perdus,
+        }
+    }
+
     /// Ses pixels, s'il est tenu.
     pub(super) fn vue(&self) -> Option<PixmapRef<'_>> {
         match &self.octets {

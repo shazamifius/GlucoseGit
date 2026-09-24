@@ -42,6 +42,8 @@ pub struct Entree {
     /// L'image du rendu où la vue d'ensemble a été fixée : plusieurs nœuds peuvent montrer le
     /// même fichier, et c'est le plus grand d'entre eux qui compte.
     queue_vue: u64,
+    /// Sa vue d'ensemble reste à écrire sur le disque (ETAGES-4) : dès qu'on la connaît.
+    apercu_a_ecrire: bool,
 }
 
 impl Entree {
@@ -54,6 +56,7 @@ impl Entree {
             generation,
             queue,
             queue_vue: 0,
+            apercu_a_ecrire: false,
         }
     }
 
@@ -154,6 +157,13 @@ impl Magasin {
             });
     }
 
+    /// **Garde les aperçus dans ce dossier** (ETAGES-4) : une image vue une fois s'ouvrira
+    /// ensuite déjà montrée. L'application le demande ; les épreuves, qui ne doivent rien
+    /// écrire chez l'utilisateur, ne le demandent pas.
+    pub fn brancher_les_apercus(&mut self, dossier: std::path::PathBuf) {
+        self.atelier.brancher_les_apercus(dossier);
+    }
+
     /// Ferme l'image du rendu : décide ce que chaque niveau devient, puis rend la mémoire que
     /// la machine réclame.
     pub fn fermer(&mut self) {
@@ -251,10 +261,13 @@ impl Magasin {
     }
 
     /// Une pyramide neuve : entièrement tenue, et à revoir — la fermeture offrira ce que
-    /// l'écran ne demande pas.
+    /// l'écran ne demande pas. Née d'un décodage entier, elle garde sa vue d'ensemble sur le
+    /// disque ; née d'un aperçu, elle en vient.
     fn accueillir(&mut self, src: String, pyramide: Pyramide, cout: Duration) {
         self.generations += 1;
+        let a_ecrire = self.atelier.garde_les_apercus() && pyramide.entiere();
         let mut entree = Entree::nouvelle(pyramide, cout, self.image, self.generations);
+        entree.apercu_a_ecrire = a_ecrire;
         // Une image redécodée garde ce qu'on savait de sa vue d'ensemble.
         if let Some(ancienne) = self.cache.get(&src) {
             (entree.queue, entree.queue_vue) = (ancienne.queue, ancienne.queue_vue);
@@ -322,8 +335,17 @@ impl Magasin {
                     });
                 }
             }
+            // Ce qui manque ne se trouve pas dans l'aperçu : un niveau perdu se redécode depuis
+            // le fichier entier (ETAGES-4).
             if redecoder {
-                atelier.demander(&src);
+                atelier.redecoder(&src);
+            }
+            // La vue d'ensemble est connue dès que l'écran a montré l'image une fois.
+            if entree.apercu_a_ecrire && entree.queue_vue != 0 {
+                entree.apercu_a_ecrire = false;
+                if let Some(a) = entree.pyramide.apercu(entree.queue) {
+                    atelier.ecrire_l_apercu(&src, a);
+                }
             }
             if voulus != 0 {
                 a_revoir.insert(src);

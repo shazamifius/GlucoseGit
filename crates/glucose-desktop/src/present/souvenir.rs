@@ -67,8 +67,8 @@ pub fn dossier_depuis(
         .unwrap_or_else(|| temporaire.join("glucose"))
 }
 
-/// Le fichier du souvenir sur cette machine.
-pub fn chemin() -> PathBuf {
+/// Le dossier de l'application sur cette machine.
+pub fn dossier() -> PathBuf {
     let var = |nom: &str| std::env::var_os(nom).map(PathBuf::from);
     dossier_depuis(
         var("LOCALAPPDATA"),
@@ -76,7 +76,11 @@ pub fn chemin() -> PathBuf {
         var("HOME"),
         std::env::temp_dir(),
     )
-    .join(FICHIER)
+}
+
+/// Le fichier du souvenir sur cette machine.
+pub fn chemin() -> PathBuf {
+    dossier().join(FICHIER)
 }
 
 /// **La carte retenue**, ou rien si aucune session ne l'a encore choisie.

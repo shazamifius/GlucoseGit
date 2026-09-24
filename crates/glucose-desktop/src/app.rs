@@ -296,7 +296,11 @@ impl Default for GlucoseApp {
 
 impl GlucoseApp {
     pub fn new() -> Self {
-        let renderer = Renderer::new();
+        let mut renderer = Renderer::new();
+        // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
+        renderer
+            .magasin
+            .brancher_les_apercus(crate::present::souvenir::dossier().join("apercus"));
         let store = accueil::document_d_accueil(&renderer);
         let saved_version = store.version;
 

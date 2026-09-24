@@ -20,6 +20,7 @@
 pub mod arrivage;
 pub mod arrow;
 pub mod arrow_label;
+pub mod apercu;
 pub mod atelier;
 pub mod cadrage;
 pub mod card;

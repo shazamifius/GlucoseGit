@@ -187,10 +187,7 @@ impl Pyramide {
                 if dernier.largeur <= 1 && dernier.hauteur <= 1 {
                     break;
                 }
-                let (dw, dh) = (
-                    dernier.largeur.div_ceil(2).max(1),
-                    dernier.hauteur.div_ceil(2).max(1),
-                );
+                let (dw, dh) = dimensions_au_rang((dernier.largeur, dernier.hauteur), 1)?;
                 let mut suivant = Niveau::vide(dw, dh)?;
                 reduire_par_deux(dernier.vue()?, suivant.octets_mut()?, (dw, dh));
                 suivant
@@ -391,6 +388,49 @@ impl Pyramide {
             .sum()
     }
 
+    // ── Ce qui se garde sur le disque (ETAGES-4) ─────────────────────────────────────
+
+    /// **Une pyramide née d'un aperçu** : les niveaux gardés sont tenus, les plus grands se
+    /// disent perdus — l'écran qui les voudra les fera redécoder depuis le fichier.
+    pub fn depuis_apercu(a: super::apercu::Apercu) -> Option<Self> {
+        let perdus = (0..a.rang).map(|k| {
+            let (l, h) = dimensions_au_rang(a.natives, k)?;
+            Some(Niveau::perdu(l, h))
+        });
+        let gardes = a.niveaux.iter().enumerate().map(|(i, octets)| {
+            let (l, h) = dimensions_au_rang(a.natives, a.rang + i)?;
+            Niveau::depuis_octets(l, h, octets)
+        });
+        Some(Self {
+            niveaux: perdus.chain(gardes).collect::<Option<Vec<_>>>()?,
+            opaque: a.opaque,
+            voulus: AtomicU64::new(0),
+        })
+    }
+
+    /// **L'aperçu de cette pyramide**, de ce rang au pixel — ou rien si l'un de ces niveaux
+    /// n'est pas tenu.
+    pub fn apercu(&self, rang: usize) -> Option<super::apercu::Apercu> {
+        let niveaux = self
+            .niveaux
+            .get(rang..)?
+            .iter()
+            .map(|n| Some(n.vue()?.data().to_vec()))
+            .collect::<Option<Vec<_>>>()?;
+        Some(super::apercu::Apercu {
+            natives: self.dimensions_natives(),
+            opaque: self.opaque,
+            rang,
+            niveaux,
+        })
+    }
+
+    /// Aucun niveau n'est perdu : la pyramide vient d'un décodage entier, et rien ne s'en est
+    /// perdu depuis.
+    pub fn entiere(&self) -> bool {
+        self.niveaux.iter().all(|n| n.etat() != Etat::Perdu)
+    }
+
     // ── Ce que le magasin demande pour décider (ETAGES-1) ─────────────────────────────
 
     /// Les rangs voulus depuis la dernière fois, et l'oubli de cette liste.
@@ -435,6 +475,19 @@ impl Pyramide {
             }
         }
     }
+}
+
+/// **Les dimensions du niveau de ce rang**, pour une image de ces dimensions natives — ou
+/// rien si la pyramide s'arrête avant. La règle de [`Pyramide::nouvelle`], écrite une fois :
+/// chaque côté divisé par deux en arrondissant vers le haut, jusqu'au pixel.
+pub fn dimensions_au_rang((mut l, mut h): (u32, u32), rang: usize) -> Option<(u32, u32)> {
+    for _ in 0..rang {
+        if l <= 1 && h <= 1 {
+            return None;
+        }
+        (l, h) = (l.div_ceil(2).max(1), h.div_ceil(2).max(1));
+    }
+    Some((l, h))
 }
 
 /// Prémultiplie des pixels RGBA droits dans `dest`, en entiers et arrondis au plus proche.

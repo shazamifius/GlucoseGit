@@ -194,3 +194,50 @@ fn test_ce_qui_revient_pour_une_autre_pyramide_ne_s_y_pose_pas() {
     magasin.rentrer(retour(generation));
     assert_eq!(magasin.cache[&src].pyramide.etat(0), Etat::Perdu);
 }
+
+/// **Une image vue une fois s'ouvre ensuite déjà montrée** (ETAGES-4).
+///
+/// Première session : la photo est décodée, l'écran la montre, et sa vue d'ensemble — le
+/// niveau de 128 pour une échelle d'ensemble d'un quart — s'écrit sur le disque. Seconde
+/// session, un magasin neuf sur le même dossier : la photo arrive par son aperçu, ses petits
+/// niveaux tenus et ses grands perdus ; quand l'écran veut l'original, il se redécode.
+#[test]
+fn test_une_image_vue_une_fois_s_ouvre_deja_montree() {
+    let src = grande_photo("etages-apercu.png");
+    let dossier =
+        std::env::temp_dir().join(format!("glucose-apercus-magasin-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dossier);
+    let session = || {
+        let mut m = Magasin::nouveau();
+        m.brancher_les_apercus(dossier.clone());
+        m.echelle_ensemble = 0.25;
+        for _ in 0..1000 {
+            une_image(&mut m, |m| {
+                m.reclamer(&src, 512.0);
+            });
+            if m.cache.contains_key(&src) {
+                return m;
+            }
+        }
+        panic!("la photo temoin n'est jamais arrivee");
+    };
+
+    let mut premiere = session();
+    une_image(&mut premiere, montree_a(100.0, &src));
+    let chemin = crate::renderer::apercu::chemin(&dossier, &src).expect("un chemin");
+    assert!(chemin.exists(), "la vue d'ensemble s'est ecrite");
+
+    let mut seconde = session();
+    let p = &seconde.cache[&src].pyramide;
+    let queue = p.rang_pour(128.0);
+    assert_eq!(p.dimensions(1 << queue).0, 128);
+    assert_eq!(p.etat(0), Etat::Perdu, "l'original ne vient pas du disque");
+    assert_eq!(p.etat(queue), Etat::Tenu, "la vue d'ensemble, si");
+
+    une_image(&mut seconde, montree_a(600.0, &src));
+    assert_eq!(
+        seconde.cache[&src].pyramide.etat(0),
+        Etat::Tenu,
+        "l'ecran voulait l'original : il s'est redecode"
+    );
+}
