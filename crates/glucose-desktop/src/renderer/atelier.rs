@@ -328,6 +328,9 @@ fn ouvrier(
     retour: &Sender<Fait>,
     ecritures: &std::sync::atomic::AtomicUsize,
 ) {
+    // Le cœur « laissé au fil qui dessine » ne lui est réservé par rien : il faut le lui
+    // céder (CEDER-1).
+    crate::plateforme::priorite::ceder_au_fil_qui_dessine();
     while let Some(travail) = attendre(commandes) {
         let fait = match travail {
             Travail::Decoder(src, apercus, objets) => {
@@ -388,7 +391,8 @@ fn attendre(commandes: &Commandes) -> Option<Travail> {
 /// Combien d'ouvriers, sur cette machine.
 ///
 /// Tous les cœurs sauf un : celui qui reste tient la cadence, et il ne doit jamais se
-/// retrouver en concurrence avec le décodage pour son propre temps. Au moins un ouvrier, même
+/// retrouver en concurrence avec le décodage pour son propre temps — ce que seul l'ordre de
+/// passage garantit ([`crate::plateforme::priorite`]). Au moins un ouvrier, même
 /// sur une machine qui n'annonce qu'un cœur — sinon l'atelier ne décoderait jamais rien.
 fn ouvriers() -> usize {
     std::thread::available_parallelism()

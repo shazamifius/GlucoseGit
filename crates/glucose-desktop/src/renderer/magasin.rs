@@ -170,6 +170,10 @@ impl Magasin {
         self.vignettes.fermer();
         self.etager();
         self.ramener_sous_la_borne();
+        // Un poste à lui (CEDER-1). Sans cette marque, son coût tombait dans celui des
+        // panneaux, qui se posent juste après : la chronique accusait les panneaux de ce que
+        // faisaient l'atelier réveillé et la mémoire rendue.
+        crate::perf::stage("etages");
     }
 
     /// L'image déjà décodée pour ce chemin, ou rien — et une demande partie à l'atelier.
