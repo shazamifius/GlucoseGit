@@ -154,10 +154,11 @@ mod windows_seulement {
             label: Some("banc memoire"),
             required_features: wgpu::Features::empty(),
             required_limits: limites,
-            memory_hints: if std::env::var_os("ECONOME").is_some() {
-                wgpu::MemoryHints::MemoryUsage
-            } else {
+            // Le reglage de l'application ; `PERFORMANCE=1` rejoue l'ancien pour comparer.
+            memory_hints: if std::env::var_os("PERFORMANCE").is_some() {
                 wgpu::MemoryHints::Performance
+            } else {
+                wgpu::MemoryHints::MemoryUsage
             },
             ..Default::default()
         }))
@@ -214,8 +215,10 @@ mod windows_seulement {
         avant = apres;
 
         // Le niveau qui couvre une photo posée à 400 pixels : ce que la carte reçoit au repos.
+        let t = std::time::Instant::now();
         televerser_tout(&mut scene, (&peripherique, &file), &magasin, Some(400.0));
         attendre(&peripherique);
+        println!("    243 textures creees et remplies en {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
         let apres = relever(dxgi.as_ref());
         dire("envoyer le niveau pour 400 px", avant, apres);
         avant = apres;
@@ -228,11 +231,13 @@ mod windows_seulement {
         avant = apres;
 
         // Dix allers-retours : un geste de zoom qui change de palier sans cesse.
+        let t = std::time::Instant::now();
         for tour in 0..10 {
             let largeur = if tour % 2 == 0 { Some(400.0) } else { None };
             televerser_tout(&mut scene, (&peripherique, &file), &magasin, largeur);
             attendre(&peripherique);
         }
+        println!("    dix changements de palier en {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
         let apres = relever(dxgi.as_ref());
         dire("dix changements de palier", avant, apres);
         avant = apres;

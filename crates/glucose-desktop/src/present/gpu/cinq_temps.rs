@@ -141,7 +141,7 @@ fn preparer_la_scene(
 
 /// **Ferme la scène en gardant, de ce qui a quitté l'écran, ce que le budget de la carte
 /// permet** (VRAM-1), et dit à la chronique ce que la carte porte.
-fn fermer_la_scene(p: &mut GpuPresenter) {
+pub(super) fn fermer_la_scene(p: &mut GpuPresenter) {
     let memoire = p
         .sonde
         .as_ref()

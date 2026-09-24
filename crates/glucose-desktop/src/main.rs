@@ -17,6 +17,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let mut app = GlucoseApp::new();
+    // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
+    // Glucose dort (ETAGES-2).
+    app.reveil = Some(event_loop.create_proxy());
     event_loop.run_app(&mut app)?;
 
     Ok(())

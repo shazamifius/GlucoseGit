@@ -53,7 +53,13 @@ pub(super) fn ouvrir(
         label: Some("glucose"),
         required_features: wgpu::Features::empty(),
         required_limits: limites,
-        memory_hints: wgpu::MemoryHints::Performance,
+        // **L'allocateur au plus juste** (ETAGES-1). Réglé sur `Performance`, il réservait
+        // 198 Mo de mémoire graphique dès l'ouverture, pour rien, et en gardait ~60 de plus
+        // sur les 243 photos de l'utilisateur. `bench_memoire`, deux passages chacun : créer
+        // et remplir 243 textures coûte 176 à 219 ms contre 179 à 188, dix changements de
+        // palier 3,1 s contre 2,7 à 3,1 — l'écart est dans le bruit. La place, elle, revient
+        // aux applications d'à côté.
+        memory_hints: wgpu::MemoryHints::MemoryUsage,
         ..Default::default()
     }))
     .map_err(|e| echec("périphérique", &e))?;

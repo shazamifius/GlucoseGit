@@ -160,6 +160,9 @@ impl GlucoseApp {
 
         let mut presenter = ouvrir_la_presentation(&window, w, h)?;
         presenter.resize(w, h)?;
+        if let Some(proxy) = self.reveil.clone() {
+            presenter.brancher_le_reveil(Box::new(move || proxy.send_event(()).is_ok()));
+        }
         // La chronique doit porter les deux faits de la machine : ce que l'ecran annonce de
         // lui-meme, et comment la carte a accepte de faire succeder les images. Sans eux, ses
         // durees ne se relisent pas -- une image de dix millisecondes ne dit pas la meme chose

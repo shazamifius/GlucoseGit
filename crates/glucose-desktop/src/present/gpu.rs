@@ -548,6 +548,18 @@ impl Presenter for GpuPresenter {
         true
     }
 
+    fn brancher_le_reveil(&mut self, reveil: crate::plateforme::graphique::Reveil) {
+        if let Some(sonde) = self.sonde.as_mut() {
+            sonde.veiller(reveil);
+        }
+    }
+
+    fn suivre_le_budget(&mut self) {
+        if self.sonde.as_ref().is_some_and(|s| s.a_change()) {
+            cinq_temps::fermer_la_scene(self);
+        }
+    }
+
     /// **La scene en cinq temps** : le fond, les lueurs, le dessous, les photos, le dessus.
     ///
     /// Le corps vit dans [`cinq_temps`] : ce fichier decrivait deja la presentation d'une

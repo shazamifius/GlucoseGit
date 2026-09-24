@@ -154,6 +154,10 @@ pub struct GlucoseApp {
     /// **c'est donc le relachement qui tranche**, et rien d'autre ne le peut.
     pub reduire_a_la_relache: Option<String>,
 
+    /// De quoi réveiller la boucle depuis un autre fil — le veilleur du budget de la carte
+    /// (ETAGES-2). Donné par `main`, qui seul tient la boucle avant qu'elle tourne.
+    pub reveil: Option<winit::event_loop::EventLoopProxy<()>>,
+
     /// Le passe et l'avenir de la saisie en cours (TEXTE-UNDO-1).
     ///
     /// Il vit **a cote** de la session et non dedans : depuis COMPOSANT-2, l'empreinte de la
@@ -323,6 +327,7 @@ impl GlucoseApp {
             arbitre: None,
             souvenir_de_la_carte: crate::present::souvenir::chemin(),
             reduire_a_la_relache: None,
+            reveil: None,
             historique_du_texte: Default::default(),
             bordures_en_attente: None,
             clic_de_reveil: false,

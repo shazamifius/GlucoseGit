@@ -127,6 +127,14 @@ pub trait Presenter {
         false
     }
 
+    /// **Donne de quoi réveiller la boucle** quand le système change ce qu'il accorde à la
+    /// carte (ETAGES-2). Sans effet pour une présentation qui ne tient rien sur une carte.
+    fn brancher_le_reveil(&mut self, _reveil: crate::plateforme::graphique::Reveil) {}
+
+    /// **Suit le budget de la carte, même sans dessiner** : si le système l'a changé depuis la
+    /// dernière fois, rend ce que le cache des textures garde au-delà (ETAGES-2).
+    fn suivre_le_budget(&mut self) {}
+
     /// Présente la scène en cinq temps. N'est appelée que si [`Presenter::pose_les_photos`].
     ///
     /// L'ordre est tout, et il est celui du modèle : **le fond**, **les lueurs**, la couche du

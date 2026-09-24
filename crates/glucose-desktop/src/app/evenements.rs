@@ -171,6 +171,11 @@ impl GlucoseApp {
     /// Chaque etape porte sa marque d'entracte : c'est ici que sept dixiemes de seconde se
     /// sont caches pendant trois sessions, et aucun poste du rendu ne pouvait les voir.
     fn entretenir(&mut self, event_loop: &ActiveEventLoop) {
+        // Le système a peut-être changé ce qu'il accorde à la carte : le veilleur a réveillé
+        // la boucle pour cela, et ce qui dépasse se rend sans attendre une image (ETAGES-2).
+        if let Some(presenter) = self.presenter.as_mut() {
+            presenter.suivre_le_budget();
+        }
         self.chronique
             .entracte
             .imputer(std::time::Instant::now(), Poste::Depot);
