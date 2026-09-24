@@ -11,6 +11,7 @@
 //! | [`storyboard`] | STORYBOARD | façade honnête (fiche 09 § 8) |
 //! | [`plugins`] | PLUGINS | façade honnête (fiche 09 § 10) |
 //! | [`preset`] | PRESETS | les gabarits s'affichent, aucun ne se pose encore |
+//! | [`temps`] | TIME MACHINE | agit : l'histoire du document, l'aperçu du passé, restaurer, les jalons |
 //!
 //! Chaque module porte **son** état, **sa** géométrie et **son** clic ; son sous-module
 //! `paint` porte son dessin. Ce fichier n'a plus que ce qui leur est commun : le dock
@@ -35,6 +36,7 @@ pub mod pomodoro;
 pub mod preset;
 pub mod render;
 pub mod storyboard;
+pub mod temps;
 
 use crate::params::{Pointer, ScaledRect, ScreenFrame};
 use crate::typography::Typography;
@@ -56,6 +58,8 @@ pub enum TabId {
     Plugins,
     Preset,
     Domains,
+    /// La Time Machine (fiche 10 § 5.7) : seule à droite, sur toute la hauteur.
+    Temps,
 }
 
 impl TabId {
@@ -63,6 +67,7 @@ impl TabId {
         match self {
             Self::Organize | Self::Pomodoro | Self::Storyboard => DockAnchor::BottomLeft,
             Self::Plugins | Self::Preset | Self::Domains => DockAnchor::TopLeft,
+            Self::Temps => DockAnchor::Right,
         }
     }
 
@@ -74,6 +79,7 @@ impl TabId {
             Self::Plugins => "PLUGINS",
             Self::Preset => "PRESETS",
             Self::Domains => "DOMAINES",
+            Self::Temps => "TIME MACHINE",
         }
     }
 
@@ -87,6 +93,7 @@ impl TabId {
             Self::Plugins => 340.0,
             Self::Preset => 280.0,
             Self::Domains => 320.0,
+            Self::Temps => 324.0,
         }
     }
 
@@ -98,6 +105,8 @@ impl TabId {
             Self::Plugins => 460.0,
             Self::Preset => 460.0,
             Self::Domains => 430.0,
+            // Toute la hauteur disponible : `place` la borne à l'écran.
+            Self::Temps => f32::MAX,
         }
     }
 }
@@ -115,6 +124,8 @@ const GRIP_HEIGHT: f32 = 16.0;
 pub enum DockAnchor {
     TopLeft,
     BottomLeft,
+    /// Le bord droit, sur toute la hauteur : la Time Machine, comme chez Glucose Tauri.
+    Right,
 }
 
 #[derive(Debug, Clone)]
@@ -140,6 +151,10 @@ pub struct DockManager {
     /// est en cours de frappe. Aucune donnée de domaine — celles-ci vivent dans le document
     /// (DOM-UI-1, `dock::domains`).
     pub domains: domains::DomainsUi,
+    /// Le panneau de droite : la Time Machine.
+    pub right_tabs: Vec<TabId>,
+    /// Ce que la Time Machine montre : les gestes, les jalons, le point regardé.
+    pub temps: temps::TempsUi,
 }
 
 /// `new()` n'est pas dérivable : l'état initial ouvre deux onglets bas.
@@ -161,6 +176,8 @@ impl DockManager {
             plugins: plugins::PluginsState::default(),
             presets: PresetsState::default(),
             domains: domains::DomainsUi::default(),
+            right_tabs: Vec::new(),
+            temps: temps::TempsUi::default(),
         }
     }
 
@@ -168,6 +185,7 @@ impl DockManager {
         match anchor {
             DockAnchor::TopLeft => &self.top_tabs,
             DockAnchor::BottomLeft => &self.bottom_tabs,
+            DockAnchor::Right => &self.right_tabs,
         }
     }
 
@@ -175,6 +193,7 @@ impl DockManager {
         match anchor {
             DockAnchor::TopLeft => &mut self.top_tabs,
             DockAnchor::BottomLeft => &mut self.bottom_tabs,
+            DockAnchor::Right => &mut self.right_tabs,
         }
     }
 
@@ -247,9 +266,11 @@ impl DockManager {
     pub fn finish_drag(&mut self) -> Option<TabId> {
         let drag = self.drag.take()?;
         let dy = drag.current_y - drag.start_y;
+        let dx = drag.current_x - drag.start_x;
         let dismissed = match drag.tab.anchor() {
             DockAnchor::TopLeft => dy < -DISMISS_DRAG_PX,
             DockAnchor::BottomLeft => dy > DISMISS_DRAG_PX,
+            DockAnchor::Right => dx > DISMISS_DRAG_PX,
         };
         dismissed.then(|| {
             self.dismiss_tab(drag.tab);
@@ -367,24 +388,32 @@ impl PanelLayoutBox {
 /// La place de chaque panneau ouvert, dans les deux docks.
 pub fn compute_panel_layouts(
     dock: &DockManager,
-    _screen_w: f32,
+    screen_w: f32,
     screen_h: f32,
     header_h: f32,
     scale: f32,
 ) -> Vec<PanelLayoutBox> {
     let s = crate::theme::clamp_ui_scale(scale);
     let mut layouts = Vec::new();
-    for anchor in [DockAnchor::TopLeft, DockAnchor::BottomLeft] {
+    for anchor in [
+        DockAnchor::TopLeft,
+        DockAnchor::BottomLeft,
+        DockAnchor::Right,
+    ] {
         let mut x = DOCK_MARGIN * s;
         for &tab in dock.tabs(anchor) {
             let width = tab.default_width() * s;
+            if anchor == DockAnchor::Right {
+                x = screen_w - DOCK_MARGIN * s - width;
+            }
             let (y, height) = place(anchor, tab, screen_h, header_h, s);
             let grip_height = GRIP_HEIGHT * s;
             // La poignée est du côté de la sortie : en bas pour le dock du haut, en haut
-            // pour celui du bas (fiche 10 § 4).
+            // pour celui du bas (fiche 10 § 4) — et en haut à droite, où l'on tire vers le
+            // bord.
             let grip_y = match anchor {
                 DockAnchor::TopLeft => y + height - grip_height,
-                DockAnchor::BottomLeft => y,
+                DockAnchor::BottomLeft | DockAnchor::Right => y,
             };
             let dragging = dock.drag.as_ref().filter(|d| d.tab == tab);
             layouts.push(PanelLayoutBox {
@@ -418,6 +447,10 @@ fn place(anchor: DockAnchor, tab: TabId, screen_h: f32, header_h: f32, s: f32) -
             let height = (tab.default_height() * s).min(screen_h - header_h - 2.0 * margin);
             (screen_h - height - margin, height)
         }
+        DockAnchor::Right => {
+            let y = header_h + 8.0 * s;
+            (y, (tab.default_height() * s).min(screen_h - y - margin))
+        }
     }
 }
 
@@ -438,6 +471,8 @@ pub enum PanelClickResult {
     DownloadModel,
     /// Un geste du panneau DOMAINES, à traduire en commande par `interactions::domains`.
     Domain(domains::DomainIntent),
+    /// Un geste de la Time Machine, à traduire par `interactions::temps`.
+    Temps(temps::TempsIntent),
 }
 
 /// Le clic va au panneau qui le contient, et à personne d'autre.
@@ -514,6 +549,13 @@ fn click_panel(
                 !store.selected_annotation_ids.is_empty() || !store.selected_image_ids.is_empty();
             match domains::hit_domains_panel(&layout, store, pointer, has_selection) {
                 Some(intent) => PanelClickResult::Domain(intent),
+                None => PanelClickResult::Handled,
+            }
+        }
+        TabId::Temps => {
+            let layout = temps::layout_temps_panel(frame, &dock.temps);
+            match temps::click_temps_panel(&dock.temps, &layout, pointer) {
+                Some(intent) => PanelClickResult::Temps(intent),
                 None => PanelClickResult::Handled,
             }
         }

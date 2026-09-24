@@ -72,6 +72,13 @@ impl GlucoseApp {
     /// domaine, l'édition d'une annotation, puis les raccourcis globaux. Chacun rend `false`
     /// quand la touche ne le concerne pas ; aucun ne contient de logique (§ 1.7).
     pub fn handle_key(&mut self, event: &KeyEvent) {
+        let appuyee = event.state == winit::event::ElementState::Pressed;
+        if appuyee
+            && (self.frapper_le_nom_du_jalon(&event.logical_key)
+                || self.touche_du_temps(&event.logical_key))
+        {
+            return;
+        }
         if self.handle_domain_rename_key(event) || self.handle_text_key(event) {
             return;
         }

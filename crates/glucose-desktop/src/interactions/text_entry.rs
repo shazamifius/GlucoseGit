@@ -21,6 +21,32 @@ pub struct TextEntry {
 }
 
 impl TextEntry {
+    /// Applique une touche d'édition : effacer, se déplacer, écrire. Rend `true` si la touche
+    /// en était une. Valider et renoncer (`Entrée`, `Échap`) ne sont pas ici : ce qu'ils font
+    /// dépend de qui a ouvert la saisie.
+    pub fn editer(&mut self, key: &winit::keyboard::Key) -> bool {
+        use winit::keyboard::{Key, NamedKey};
+        match key {
+            Key::Named(NamedKey::Backspace) => {
+                self.backspace();
+            }
+            Key::Named(NamedKey::Delete) => {
+                self.delete();
+            }
+            Key::Named(NamedKey::ArrowLeft) => {
+                self.move_left();
+            }
+            Key::Named(NamedKey::ArrowRight) => {
+                self.move_right();
+            }
+            Key::Named(NamedKey::Home) => self.home(),
+            Key::Named(NamedKey::End) => self.end(),
+            Key::Character(text) => self.insert(text.as_str()),
+            _ => return false,
+        }
+        true
+    }
+
     /// Une saisie amorcée par `initial`, curseur à la fin.
     pub fn new(initial: impl Into<String>) -> Self {
         let buffer = initial.into();

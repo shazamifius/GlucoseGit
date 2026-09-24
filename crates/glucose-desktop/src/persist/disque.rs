@@ -35,6 +35,8 @@ pub struct Disque {
     /// Des octets d'images à sceller dès qu'un fichier existera — les images en base64 d'un
     /// vieux document Tauri.
     pub a_sceller: Vec<(String, Arc<Vec<u8>>)>,
+    /// Le passé qu'on regarde dans la Time Machine, et ce qu'on a mis de côté pour revenir.
+    pub voyage: Option<crate::interactions::temps::Voyage>,
     /// Où naissent les brouillons : le dossier de l'application. Un champ, et non une
     /// constante, pour que les épreuves en donnent un à elles — elles ne doivent jamais
     /// laisser un faux brouillon que le vrai lancement suivant rouvrirait.
@@ -48,6 +50,7 @@ impl Disque {
             ecriture: None,
             depart: Some(depart),
             a_sceller: Vec::new(),
+            voyage: None,
             brouillons: dossier_des_brouillons(),
         }
     }
@@ -57,6 +60,10 @@ impl GlucoseApp {
     /// **Écrit ce que le journal a appliqué au document** depuis la dernière image.
     pub fn consigner(&mut self) {
         let transactions = self.store.journal.prendre_les_ecrits();
+        if self.disque.voyage.is_some() {
+            // On regarde le passé : ce qui s'y fait n'est pas de l'histoire (HISTOIRE-3).
+            return;
+        }
         let rien = transactions.is_empty()
             && self
                 .disque
@@ -68,33 +75,42 @@ impl GlucoseApp {
             return;
         }
         let instant = now_millis();
-        if self.disque.ecriture.is_none() {
-            // Le dossier des brouillons appartient à l'application : lui seul se crée.
-            if let Err(e) = std::fs::create_dir_all(&self.disque.brouillons) {
-                self.dire_l_echec(&format!("dossier des brouillons, {e}"));
-                return;
-            }
-            let brouillon = nouveau_brouillon(&self.disque.brouillons, instant);
-            if let Err(e) = self.naitre(brouillon, true, instant) {
-                self.dire_l_echec(&format!("brouillon, {e}"));
-                return;
-            }
+        if let Err(e) = self.s_assurer_d_un_fichier() {
+            self.dire_l_echec(&e);
+            return;
         }
         let Some(ecriture) = self.disque.ecriture.as_mut() else {
             return;
         };
+        let nombre = transactions.len();
         ecriture.consigner(
             transactions,
             &self.store.project,
             &self.disque.objets,
             instant,
         );
+        // La réglette de la Time Machine s'allonge sans relire le fichier.
+        self.dock_manager.temps.noter(nombre, instant);
         if !ecriture.brouillon {
             // Un document qui a un nom vient d'être enregistré : c'est l'enregistrement
             // continu de Glucose Tauri, au coût du geste (INVARIANT SAVE-2 inchangé).
             self.saved_version = self.store.version;
         }
         self.dire_l_erreur_d_ecriture();
+    }
+
+    /// Donne un fichier au document qui n'en a pas : un brouillon, dans le dossier de
+    /// l'application — le seul dossier qui se crée, parce qu'il appartient à l'application.
+    pub(crate) fn s_assurer_d_un_fichier(&mut self) -> Result<(), String> {
+        if self.disque.ecriture.is_some() {
+            return Ok(());
+        }
+        std::fs::create_dir_all(&self.disque.brouillons)
+            .map_err(|e| format!("dossier des brouillons, {e}"))?;
+        let instant = now_millis();
+        let brouillon = nouveau_brouillon(&self.disque.brouillons, instant);
+        self.naitre(brouillon, true, instant)
+            .map_err(|e| format!("brouillon, {e}"))
     }
 
     /// Crée le fichier d'un document qui n'en avait pas : sa base est l'état de départ, et

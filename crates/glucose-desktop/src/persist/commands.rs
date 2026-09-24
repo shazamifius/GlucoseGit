@@ -108,6 +108,11 @@ impl GlucoseApp {
                 self.export_board();
                 true
             }
+            // La Time Machine, au raccourci de Glucose Tauri.
+            "h" | "H" => {
+                self.basculer_la_machine();
+                true
+            }
             _ => false,
         }
     }
@@ -152,6 +157,10 @@ impl GlucoseApp {
             Err(err) => err.to_string(),
         };
         self.ui.show_toast(message);
+        // Ctrl+S pose un jalon : la Time Machine ouverte le montre aussitôt.
+        if self.dock_manager.is_open(crate::dock::TabId::Temps) {
+            self.lire_l_histoire();
+        }
         self.sync_window_title();
         self.mark_dirty();
     }

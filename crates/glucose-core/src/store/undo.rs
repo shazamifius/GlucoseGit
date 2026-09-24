@@ -178,6 +178,26 @@ impl Store {
         self.record_as_one_gesture(edits);
     }
 
+    /// **Applique une transaction venue d'ailleurs comme un seul geste** — le retour dans le
+    /// temps (HISTOIRE-3) : « restaurer cet état » est la suite des gestes qui ont suivi,
+    /// retournés, et c'est un geste comme un autre — annulable, écrit dans l'histoire.
+    ///
+    /// Atomique : la transaction s'applique entièrement, sur une copie du document, ou pas du
+    /// tout. Rend `false` si une de ses éditions ne s'applique pas, ou pendant un geste ouvert.
+    pub fn appliquer_comme_un_geste(&mut self, t: crate::store::journal::Transaction) -> bool {
+        if t.is_empty() || self.journal.is_open() {
+            return false;
+        }
+        let mut essai = self.project.clone();
+        if !t.apply(&mut essai) {
+            return false;
+        }
+        self.project = essai;
+        self.record_as_one_gesture(t.edits);
+        self.settle_navigation();
+        true
+    }
+
     pub fn can_undo(&self) -> bool {
         self.journal.can_undo()
     }

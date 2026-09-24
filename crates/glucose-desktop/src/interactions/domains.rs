@@ -260,35 +260,8 @@ impl GlucoseApp {
                 self.commit_domain_rename();
                 true
             }
-            Key::Named(NamedKey::Backspace) => {
-                rename.entry.backspace();
-                true
-            }
-            Key::Named(NamedKey::Delete) => {
-                rename.entry.delete();
-                true
-            }
-            Key::Named(NamedKey::ArrowLeft) => {
-                rename.entry.move_left();
-                true
-            }
-            Key::Named(NamedKey::ArrowRight) => {
-                rename.entry.move_right();
-                true
-            }
-            Key::Named(NamedKey::Home) => {
-                rename.entry.home();
-                true
-            }
-            Key::Named(NamedKey::End) => {
-                rename.entry.end();
-                true
-            }
-            Key::Character(text) if produces_text => {
-                rename.entry.insert(text.as_str());
-                true
-            }
-            _ => false,
+            Key::Character(_) if !produces_text => false,
+            autre => rename.entry.editer(autre),
         }
     }
 

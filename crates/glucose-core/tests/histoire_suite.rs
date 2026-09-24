@@ -308,3 +308,73 @@ fn test_une_nature_inconnue_demande_une_version_plus_recente() {
         .to_string();
     assert!(err.contains("plus récente"), "{err}");
 }
+
+/// **Le retour dans le temps** (HISTOIRE-3) : pour chaque point du passé, l'état relu est
+/// celui qu'avait le document à ce geste ; restaurer y ramène le document par **un** geste
+/// annulable ; et défaire ce geste rend le présent.
+#[test]
+fn test_chaque_point_du_passe_se_relit_se_restaure_et_se_defait() {
+    let mut store = Store::new("temps");
+    let b = store.project.active_board_id.clone();
+    let mut disque = Disque::nouveau(&store);
+    let mut etats = vec![store.project.clone()];
+    let geste = |store: &mut Store, disque: &mut Disque, etats: &mut Vec<_>| {
+        for t in store.journal.prendre_les_ecrits() {
+            let g = Geste {
+                instant: etats.len() as i64,
+                auteur: 1,
+                transaction: t,
+            };
+            let e = disque
+                .chaine
+                .encadrer(nature::GESTE, &histoire::contenu_geste(&g));
+            disque.octets.extend_from_slice(&e);
+            etats.push(store.project.clone());
+        }
+    };
+    store.add_image(&b, image("a", 0.0));
+    geste(&mut store, &mut disque, &mut etats);
+    store.add_image(&b, image("b", 1.0));
+    geste(&mut store, &mut disque, &mut etats);
+    // Un instantané au milieu : les points d'après partent de lui, ceux d'avant de la base.
+    let e = disque.chaine.encadrer(
+        nature::INSTANTANE,
+        &histoire::contenu_instantane(&store.project),
+    );
+    disque.octets.extend_from_slice(&e);
+    store.select_image("a".into(), false);
+    store.move_selected(&b, 40.0, 2.0);
+    geste(&mut store, &mut disque, &mut etats);
+    store.add_annotation(&b, Annotation::text("t", 1.0, 1.0, "trois"));
+    geste(&mut store, &mut disque, &mut etats);
+    store.clear_selection();
+    store.select_image("b".into(), false);
+    store.delete_selected(&b);
+    geste(&mut store, &mut disque, &mut etats);
+    assert!(store.undo());
+    geste(&mut store, &mut disque, &mut etats);
+
+    let lire = || histoire::ouvrir(&mut std::io::Cursor::new(&disque.octets)).unwrap();
+    let o = lire();
+    assert_eq!(o.gestes.len(), etats.len() - 1);
+    for (k, attendu) in etats.iter().enumerate() {
+        let passe = histoire::etat_au_geste(&mut std::io::Cursor::new(&disque.octets), &o, k)
+            .expect("chaque point se relit");
+        assert_eq!(&passe, attendu, "au geste {k}");
+    }
+    for k in [0, 2, 4] {
+        let mut essai = store.clone();
+        let retour = histoire::retour_au_geste(&mut std::io::Cursor::new(&disque.octets), &o, k)
+            .expect("le retour se construit");
+        assert!(
+            essai.appliquer_comme_un_geste(retour),
+            "restaurer au geste {k}"
+        );
+        assert_eq!(essai.project, etats[k], "restauré au geste {k}");
+        assert!(essai.undo(), "restaurer est un geste annulable");
+        assert_eq!(
+            essai.project, store.project,
+            "défaire la restauration rend le présent"
+        );
+    }
+}

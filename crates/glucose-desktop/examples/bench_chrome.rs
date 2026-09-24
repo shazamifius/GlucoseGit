@@ -59,10 +59,8 @@ fn dock_avec(tab: TabId) -> DockManager {
     let mut dock = DockManager::new();
     dock.top_tabs.clear();
     dock.bottom_tabs.clear();
-    match tab.anchor() {
-        glucose_desktop::dock::DockAnchor::TopLeft => dock.top_tabs.push(tab),
-        glucose_desktop::dock::DockAnchor::BottomLeft => dock.bottom_tabs.push(tab),
-    }
+    // Le dock sait de quel côté ranger l'onglet : le banc n'a pas à le redire.
+    dock.toggle_tab(tab);
     dock
 }
 
@@ -161,6 +159,7 @@ fn main() {
         TabId::Plugins,
         TabId::Preset,
         TabId::Domains,
+        TabId::Temps,
     ] {
         let dock = dock_avec(tab);
         // La répétition, sur des tampons neufs : c'est une propriété du rendu, pas une durée.

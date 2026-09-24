@@ -231,6 +231,28 @@ pub struct Theme {
     /// Teinte de repli d'un domaine dont la couleur du document est illisible : un gris
     /// neutre, pour que le domaine reste visible sans que l'application choisisse une couleur.
     pub domain_fallback: Color,
+
+    /// Les couleurs de la Time Machine.
+    pub temps: CouleursDuTemps,
+}
+
+/// **L'ambre du temps** (fiche 06 § 1, fiche 10 § 5.7) : les jalons nommés, le curseur du
+/// passé, et le liseré qui dit qu'on regarde un état passé. Pour cela seulement.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CouleursDuTemps {
+    /// `#fbbf24`.
+    pub ambre: Color,
+    /// Le voile ambré à l'intérieur du liseré d'aperçu (`rgba(251, 191, 36, 0.18)`).
+    pub voile: Color,
+}
+
+impl CouleursDuTemps {
+    fn sombres() -> Self {
+        Self {
+            ambre: hex(0xfbbf24),
+            voile: hexa(0xfbbf24, 46),
+        }
+    }
 }
 
 impl Default for Theme {
@@ -355,6 +377,7 @@ impl Theme {
             danger: hex(0xef4444),
 
             domain_fallback: hex(0x888888),
+            temps: CouleursDuTemps::sombres(),
         }
     }
 }

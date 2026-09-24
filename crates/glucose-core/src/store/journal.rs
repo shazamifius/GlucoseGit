@@ -256,6 +256,12 @@ impl Transaction {
         }
     }
 
+    /// La transaction qui défait celle-ci : chaque édition retournée, dans l'ordre inverse.
+    pub fn inverse(mut self) -> Self {
+        self.invert();
+        self
+    }
+
     /// Applique la transaction au projet. Rend `false` à la première édition impossible.
     ///
     /// Ouverte au reste du noyau pour une seule raison : **rejouer** l'histoire écrite sur le

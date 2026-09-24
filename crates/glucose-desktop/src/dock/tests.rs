@@ -81,12 +81,21 @@ fn test_the_grip_is_on_the_side_a_panel_leaves_by() {
     let mut dock = DockManager::new();
     dock.top_tabs = vec![TabId::Domains];
     dock.bottom_tabs = vec![TabId::Organize];
+    dock.right_tabs = vec![TabId::Temps];
     for panel in compute_panel_layouts(&dock, 1440.0, 900.0, 78.0, 1.0) {
         let expected = match panel.tab.anchor() {
             DockAnchor::TopLeft => panel.y + panel.height - panel.grip_height,
-            DockAnchor::BottomLeft => panel.y,
+            DockAnchor::BottomLeft | DockAnchor::Right => panel.y,
         };
         assert_eq!(panel.grip_y, expected, "{:?}", panel.tab);
+        if panel.tab == TabId::Temps {
+            assert_eq!(
+                panel.x + panel.width,
+                1440.0 - 12.0,
+                "la Time Machine tient le bord droit"
+            );
+            assert!(panel.y + panel.height <= 900.0, "et ne dépasse pas l'écran");
+        }
     }
 }
 

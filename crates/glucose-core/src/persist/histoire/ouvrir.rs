@@ -77,6 +77,9 @@ pub struct Ouvert {
     pub taille_de_l_instantane: u64,
     /// Le rang du geste qui n'a pas pu se rejouer, s'il y en a un.
     pub geste_en_echec: Option<usize>,
+    /// Le document de la base, et son schéma : le point de départ du temps.
+    pub base: Tranche,
+    pub version_de_la_base: u16,
 }
 
 /// Lit un document entier depuis un lecteur à accès direct.
@@ -90,6 +93,11 @@ pub fn ouvrir<R: Read + Seek>(r: &mut R) -> CoreResult<Ouvert> {
         manifeste.document_version,
     )?;
     let mut ouvert = Ouvert {
+        base: Tranche {
+            offset: base.document.offset,
+            longueur: base.document.longueur,
+        },
+        version_de_la_base: manifeste.document_version,
         taille_de_l_instantane: base.document.payload.len() as u64,
         projet: document,
         objets: base.objets,
@@ -387,4 +395,59 @@ fn rejouer(o: &mut Ouvert, a_rejouer: Vec<ARejouer>) {
             }
         }
     }
+}
+
+// ── Le retour dans le temps ─────────────────────────────────────────────────
+
+fn lire_la_tranche<R: Read + Seek>(r: &mut R, t: Tranche) -> CoreResult<Vec<u8>> {
+    let mut contenu =
+        vec![0u8; usize::try_from(t.longueur).map_err(|_| super::tronque("une entrée"))?];
+    r.seek(SeekFrom::Start(t.offset)).map_err(io)?;
+    r.read_exact(&mut contenu)
+        .map_err(|_| super::tronque("une entrée"))?;
+    Ok(contenu)
+}
+
+/// **L'état du document après ses `k` premiers gestes** — ce que la Time Machine montre.
+///
+/// Il part du dernier instantané qui précède le geste `k` (ou de la base), et rejoue ce qui
+/// sépare les deux : jamais plus que le poids d'un instantané, par la règle qui les pose.
+/// Les vues ne sont pas rejouées : on regarde le passé depuis là où l'on est.
+pub fn etat_au_geste<R: Read + Seek>(r: &mut R, o: &Ouvert, k: usize) -> CoreResult<Project> {
+    let k = k.min(o.gestes.len());
+    let depart = o.instantanes.iter().rev().find(|i| i.apres <= k);
+    let (mut projet, premier) = match depart {
+        Some(i) => (lire_instantane(&lire_la_tranche(r, i.tranche)?)?, i.apres),
+        None => (
+            super::super::decode_document_v(&lire_la_tranche(r, o.base)?, o.version_de_la_base)?,
+            0,
+        ),
+    };
+    for repere in &o.gestes[premier..k] {
+        let g = lire_geste(&lire_la_tranche(r, repere.tranche)?)?;
+        if !g.transaction.apply(&mut projet) {
+            return Err(CoreError::DeserializationError(
+                "un geste de l'histoire ne se rejoue pas : ce point du passé est inaccessible"
+                    .to_string(),
+            ));
+        }
+    }
+    Ok(projet)
+}
+
+/// **Le geste qui ramène l'état présent à celui d'après les `k` premiers gestes** : les gestes
+/// qui ont suivi, chacun retourné, du plus récent au plus ancien. Rien n'est recalculé —
+/// chaque geste porte son avant et son après, et c'est exactement ce qu'il faut pour
+/// revenir.
+pub fn retour_au_geste<R: Read + Seek>(
+    r: &mut R,
+    o: &Ouvert,
+    k: usize,
+) -> CoreResult<crate::store::journal::Transaction> {
+    let mut retour = crate::store::journal::Transaction::default();
+    for repere in o.gestes.iter().skip(k).rev() {
+        let g = lire_geste(&lire_la_tranche(r, repere.tranche)?)?;
+        retour.edits.extend(g.transaction.inverse().edits);
+    }
+    Ok(retour)
 }

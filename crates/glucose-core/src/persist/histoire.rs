@@ -43,7 +43,7 @@ pub mod ouvrir;
 pub mod vue;
 
 pub use geste::Geste;
-pub use ouvrir::{ouvrir, Ouvert};
+pub use ouvrir::{etat_au_geste, ouvrir, retour_au_geste, Ouvert};
 pub use vue::Vue;
 
 use super::bytes::{Reader, Writer};

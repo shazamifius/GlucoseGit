@@ -2,7 +2,9 @@
 //! gestes — importer, enregistrer, ouvrir, fermer —, jamais par un état posé à la main.
 
 use crate::app::GlucoseApp;
+use crate::dock::temps::TempsIntent;
 use glucose_core::hash::{hex_of, sha256};
+use glucose_core::persist::histoire;
 use glucose_core::types::Annotation;
 use std::path::{Path, PathBuf};
 
@@ -298,4 +300,137 @@ fn test_une_fin_dechiree_par_un_plantage_laisse_tout_le_reste() {
         "les débris ont été retirés en écrivant : {}",
         toast.message
     );
+}
+
+// ── La Time Machine (HISTOIRE-3) ────────────────────────────────────────────
+
+fn ids(app: &GlucoseApp) -> Vec<String> {
+    app.store.project.boards[0]
+        .annotations
+        .iter()
+        .map(|a| a.id().to_string())
+        .collect()
+}
+
+/// Trois gestes écrits, la machine ouverte, et les états de chacun.
+fn trois_gestes(nom: &str) -> (GlucoseApp, PathBuf, Vec<Vec<String>>) {
+    let d = dossier(nom);
+    let chemin = d.join("temps.glucose");
+    let mut app = application(&d);
+    app.save_to(chemin.clone());
+    let mut etats = vec![ids(&app)];
+    for i in 0..3 {
+        noter(&mut app, &format!("n{i}"), &format!("note {i}"));
+        image_suivante(&mut app);
+        etats.push(ids(&app));
+    }
+    app.basculer_la_machine();
+    (app, chemin, etats)
+}
+
+/// **Regarder le passé n'écrit rien**, même ce qu'on y fait ; revenir rend le présent tel
+/// qu'on l'a laissé.
+#[test]
+fn test_l_apercu_montre_le_passe_et_n_ecrit_rien() {
+    let (mut app, chemin, etats) = trois_gestes("apercu");
+    assert_eq!(app.dock_manager.temps.gestes.len(), 3);
+    let present = app.store.project.clone();
+    let taille = std::fs::metadata(&chemin).unwrap().len();
+
+    app.agir_dans_le_temps(TempsIntent::Voir(1));
+    assert_eq!(ids(&app), etats[1], "l'état après un geste");
+    assert_eq!(app.dock_manager.temps.regarde, Some(1));
+    noter(&mut app, "dans-le-passe", "un essai qui ne compte pas");
+    image_suivante(&mut app);
+    assert_eq!(
+        std::fs::metadata(&chemin).unwrap().len(),
+        taille,
+        "rien n'est écrit"
+    );
+
+    app.agir_dans_le_temps(TempsIntent::Maintenant);
+    assert_eq!(app.store.project, present, "le présent revient tel quel");
+    assert!(app.dock_manager.temps.regarde.is_none());
+    assert!(app.store.undo(), "et son journal avec lui");
+}
+
+/// **Restaurer est un geste** : il s'écrit, et `Ctrl+Z` le défait.
+#[test]
+fn test_restaurer_un_etat_passe_est_un_geste_annulable() {
+    let (mut app, chemin, etats) = trois_gestes("restaurer");
+    let present = app.store.project.clone();
+    app.agir_dans_le_temps(TempsIntent::Voir(1));
+    app.agir_dans_le_temps(TempsIntent::Restaurer);
+    assert_eq!(ids(&app), etats[1]);
+    assert!(
+        app.dock_manager.temps.regarde.is_none(),
+        "restaurer revient au présent"
+    );
+    image_suivante(&mut app);
+    assert_eq!(
+        app.dock_manager.temps.gestes.len(),
+        4,
+        "la restauration est un geste de plus"
+    );
+    assert_eq!(
+        rouvrir(chemin.parent().unwrap(), &chemin).store.project,
+        app.store.project
+    );
+    assert!(app.store.undo());
+    assert_eq!(
+        app.store.project, present,
+        "défaire la restauration rend le présent"
+    );
+}
+
+/// **Un jalon se nomme au clavier**, et se relit dans le fichier.
+#[test]
+fn test_un_jalon_se_nomme_et_se_relit() {
+    use winit::keyboard::{Key, NamedKey};
+    let (mut app, chemin, _) = trois_gestes("jalon");
+    app.agir_dans_le_temps(TempsIntent::CommencerUnJalon);
+    for c in "Avant la refonte".chars() {
+        assert!(app.frapper_le_nom_du_jalon(&Key::Character(c.to_string().into())));
+    }
+    assert!(app.frapper_le_nom_du_jalon(&Key::Named(NamedKey::Enter)));
+    assert!(app.dock_manager.temps.nom.is_none());
+    // Deux jalons : le Ctrl+S du début (enregistré), et celui qu'on vient de nommer.
+    let jalons = &app.dock_manager.temps.jalons;
+    assert_eq!(jalons.len(), 2);
+    assert!(!jalons[0].nomme, "le premier vient de Ctrl+S");
+    let nomme = &jalons[1];
+    assert_eq!(
+        (nomme.libelle.as_str(), nomme.apres, nomme.nomme),
+        ("Avant la refonte", 3, true)
+    );
+
+    let f = std::fs::File::open(&chemin).unwrap();
+    let o = histoire::ouvrir(&mut std::io::BufReader::new(f)).unwrap();
+    assert!(o
+        .jalons
+        .iter()
+        .any(|(_, j)| j.libelle == "Avant la refonte"));
+}
+
+/// `←` et `→` parcourent le passé geste par geste ; `Échap` revient au présent.
+#[test]
+fn test_les_fleches_parcourent_le_passe() {
+    use winit::keyboard::{Key, NamedKey};
+    let (mut app, _, etats) = trois_gestes("fleches");
+    assert!(
+        !app.touche_du_temps(&Key::Named(NamedKey::ArrowLeft)),
+        "au présent, les flèches déplacent la sélection"
+    );
+    app.agir_dans_le_temps(TempsIntent::Voir(2));
+    assert!(app.touche_du_temps(&Key::Named(NamedKey::ArrowLeft)));
+    assert_eq!(ids(&app), etats[1]);
+    assert!(app.touche_du_temps(&Key::Named(NamedKey::ArrowRight)));
+    assert!(app.touche_du_temps(&Key::Named(NamedKey::ArrowRight)));
+    assert!(
+        app.dock_manager.temps.regarde.is_none(),
+        "au bout, le présent"
+    );
+    app.agir_dans_le_temps(TempsIntent::Voir(0));
+    assert!(app.touche_du_temps(&Key::Named(NamedKey::Escape)));
+    assert_eq!(ids(&app), etats[3]);
 }

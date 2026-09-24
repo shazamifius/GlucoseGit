@@ -45,6 +45,7 @@ enum EtatPanneau {
     Plugins(plugins::PluginsState),
     Preset(PresetsState),
     Domains(domains::DomainsUi),
+    Temps(super::temps::TempsUi),
 }
 
 impl EtatPanneau {
@@ -56,6 +57,7 @@ impl EtatPanneau {
             TabId::Plugins => Self::Plugins(dock.plugins.clone()),
             TabId::Preset => Self::Preset(dock.presets.clone()),
             TabId::Domains => Self::Domains(dock.domains.clone()),
+            TabId::Temps => Self::Temps(dock.temps.clone()),
         }
     }
 }

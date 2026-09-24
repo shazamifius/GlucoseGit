@@ -57,6 +57,73 @@ pub fn render_docks(
             }
         }
     }
+    if dock.temps.regarde.is_some() {
+        lisere_du_passe(pixmap, pass, s);
+    }
+}
+
+/// **Le liseré du passé** : quand la Time Machine montre un état passé, un trait ambre borde
+/// la fenêtre et un voile ambré glisse vers l'intérieur (fiche 10 § 5.7 : `3px solid`,
+/// `inset 0 0 60px`). On ne peut pas oublier qu'on ne regarde pas le présent.
+///
+/// Le voile est un dégradé linéaire par bord, de la teinte au transparent : aucun nombre de
+/// pas à choisir.
+fn lisere_du_passe(pixmap: &mut PixmapMut, pass: &DockPass<'_>, s: f32) {
+    use tiny_skia::{
+        Color, FillRule, GradientStop, LinearGradient, Paint, PathBuilder, Point, Rect, SpreadMode,
+        Transform,
+    };
+    let (w, h) = (pass.screen.width, pass.screen.height);
+    let theme = pass.theme;
+    let voile = 60.0 * s;
+    let transparent = Color::from_rgba(
+        theme.temps.voile.red(),
+        theme.temps.voile.green(),
+        theme.temps.voile.blue(),
+        0.0,
+    )
+    .unwrap_or(Color::TRANSPARENT);
+    // (rectangle, départ du dégradé, arrivée) pour chaque bord.
+    let bords = [
+        ((0.0, 0.0, w, voile), (0.0, 0.0), (0.0, voile)),
+        ((0.0, h - voile, w, voile), (0.0, h), (0.0, h - voile)),
+        ((0.0, 0.0, voile, h), (0.0, 0.0), (voile, 0.0)),
+        ((w - voile, 0.0, voile, h), (w, 0.0), (w - voile, 0.0)),
+    ];
+    for ((x, y, bw, bh), de, a) in bords {
+        let (Some(rect), Some(degrade)) = (
+            Rect::from_xywh(x, y, bw, bh),
+            LinearGradient::new(
+                Point::from_xy(de.0, de.1),
+                Point::from_xy(a.0, a.1),
+                vec![
+                    GradientStop::new(0.0, theme.temps.voile),
+                    GradientStop::new(1.0, transparent),
+                ],
+                SpreadMode::Pad,
+                Transform::identity(),
+            ),
+        ) else {
+            continue;
+        };
+        let paint = Paint {
+            shader: degrade,
+            anti_alias: false,
+            ..Paint::default()
+        };
+        let chemin = PathBuilder::from_rect(rect);
+        pixmap.fill_path(
+            &chemin,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+    }
+    let brush = Brush::nouveau((pass.typo, theme), s, pass.pointer, (0.0, 0.0));
+    let trait_ = 3.0 * s;
+    let cadre = WidgetRect::new(trait_ / 2.0, trait_ / 2.0, w - trait_, h - trait_);
+    brush.stroke(pixmap, cadre, 0.0, theme.temps.ambre, trait_);
 }
 
 /// Dessine un panneau — son cadre puis son contenu — là où le pinceau vise.
@@ -131,6 +198,7 @@ fn draw_content(
         TabId::Domains => {
             domains::paint::render_domains_panel(pixmap, store, &dock.domains, brush, frame)
         }
+        TabId::Temps => super::temps::paint::render_temps_panel(pixmap, brush, frame, &dock.temps),
     }
 }
 

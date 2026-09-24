@@ -57,6 +57,7 @@ impl GlucoseApp {
         match result {
             PanelClickResult::ApplyLayout(state) => self.apply_dock_layout(&state),
             PanelClickResult::Domain(intent) => self.apply_domain_intent(intent),
+            PanelClickResult::Temps(intent) => self.agir_dans_le_temps(intent),
             // Fiche 09 § 8 : le storyboard n'a pas d'effet sur le canevas. Le panneau ne doit
             // pas laisser croire le contraire.
             PanelClickResult::StoryboardNotReady => self.ui.show_toast(NOT_YET_STORYBOARD),
