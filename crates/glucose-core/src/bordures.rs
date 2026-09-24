@@ -105,6 +105,29 @@
 //! d'un studio sont les mêmes pixels ; seul le filet, qui n'a qu'une ligne, ne se confond
 //! avec rien.
 //!
+//! # BORDURES-6 — une tache sur la marge ne l'arrête pas
+//!
+//! Sa gravure du 24/09, 736 × 828 : une plaque sur une marge de papier. `Ctrl+B` retirait 49,
+//! 51 et 51 pixels à gauche, en haut et en bas — et **11** à droite, sur 56. À quinze pixels du
+//! bord, une petite tache sur le papier, invisible à l'œil, vingt-cinq à quarante niveaux sous
+//! le blanc : chaque colonne qui la traversait en portait un peu plus d'un centième, et la
+//! tolérance, jugée ligne par ligne, y voyait le début du contenu. Deux autres, plus loin,
+//! auraient arrêté le balayage à leur tour.
+//!
+//! La tolérance du centième se juge désormais **aussi sur la bande entière** : une tache
+//! s'enjambe si la marge reprend derrière elle, si tout ce qu'on retire garde au plus un
+//! centième de pixels étrangers, et si la marge s'arrête sur **un bord net** — une ligne dont
+//! la majorité des pixels la quittent, atteinte par des lignes qui en portent chacune plus que
+//! la précédente, comme le fait un bord droit, même penché ([`enjamber`]).
+//!
+//! **Le bord net a été imposé par ses images.** Sans lui, la même règle changeait 48 de ses
+//! 286 images, et la plupart en perdant du contenu : le texte sous une affiche, le titre
+//! manuscrit d'un dessin, tout un pan sombre d'une peinture de marais, les étoiles autour d'un
+//! arbre fractal. Une zone sombre parsemée de détails ressemble trait pour trait à une marge
+//! tachée ; ce qui les sépare est la façon dont elle finit. Avec lui, **deux** images changent
+//! — sa gravure, et une tache rose au-dessus d'une plante, retirée juste au-dessus de la pointe
+//! de sa tige —, et les deux sont justes.
+//!
 //! # Ce qui trompe, et qu'on ne cache pas
 //!
 //! Une photo dont le **contenu** commence par une zone unie — un ciel sans nuage en haut, un
@@ -154,24 +177,32 @@ pub const PART_ABERRANTE: f64 = 0.01;
 /// **Les bandes unies qui entourent cette image**, comme recadrage à lui appliquer.
 ///
 /// Rend [`Recadrage::ENTIER`] quand il n'y en a aucune. Le coût est celui des bandes, pas de
-/// l'image : le balayage s'arrête à la première ligne qui n'en est plus, donc une photo sans
-/// bordure ne coûte que quatre lignes.
+/// l'image : le balayage s'arrête à la première ligne qui n'en est plus — ou, derrière une
+/// tache, dès que ce qui suit ne peut plus être une marge —, donc une photo sans bordure ne
+/// coûte que quelques lignes.
 pub fn detecter(image: &Vue<'_>) -> Recadrage {
     let (l, h) = (image.largeur(), image.hauteur());
     // Le rectangle qui reste : [x0, x1[ × [y0, y1[. Il ne peut que rétrécir.
     let (mut x0, mut y0, mut x1, mut y1) = (0u32, 0u32, l, h);
-    // La couleur de la bande de chaque bord -- haut, bas, gauche, droite --, figée dès qu'il
-    // l'a trouvée (BORDURES-3), sauf derrière un filet (BORDURES-5).
-    let mut bandes: [Option<Pixel>; 4] = [None; 4];
+    // Ce que chaque bord -- haut, bas, gauche, droite -- a retiré : la couleur de sa bande,
+    // figée dès qu'il l'a trouvée (BORDURES-3) sauf derrière un filet (BORDURES-5), et le
+    // compte de ses pixels (BORDURES-6).
+    let mut bords = [Bord::default(); 4];
     loop {
         let avant = (x0, y0, x1, y1);
         // Chaque bord sait ce qu'il a déjà retiré : un filet ne se reconnaît qu'au bord.
-        y0 += compter(y0, y0..y1, &mut bandes[0], |y| ligne(image, y, x0..x1));
-        y1 -= compter(h - y1, (y0..y1).rev(), &mut bandes[1], |y| {
+        let vers = |a: u32, b: u32| (a..b).collect::<Vec<u32>>();
+        let a_rebours = |a: u32, b: u32| (a..b).rev().collect::<Vec<u32>>();
+        y0 += compter(y0, &vers(y0, y1), &mut bords[0], |y| {
             ligne(image, y, x0..x1)
         });
-        x0 += compter(x0, x0..x1, &mut bandes[2], |x| colonne(image, x, y0..y1));
-        x1 -= compter(l - x1, (x0..x1).rev(), &mut bandes[3], |x| {
+        y1 -= compter(h - y1, &a_rebours(y0, y1), &mut bords[1], |y| {
+            ligne(image, y, x0..x1)
+        });
+        x0 += compter(x0, &vers(x0, x1), &mut bords[2], |x| {
+            colonne(image, x, y0..y1)
+        });
+        x1 -= compter(l - x1, &a_rebours(x0, x1), &mut bords[3], |x| {
             colonne(image, x, y0..y1)
         });
         if (x0, y0, x1, y1) == avant {
@@ -190,10 +221,30 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
     )
 }
 
+/// Ce qu'un bord a retiré jusqu'ici : la couleur de sa bande, et le compte de ses pixels —
+/// tous, et ceux qui s'écartaient de cette couleur (BORDURES-6).
+///
+/// C'est sur ce compte que la tolérance du centième se juge **pour la bande entière**, et non
+/// plus seulement ligne par ligne : c'est ce qui permet d'enjamber une tache ([`enjamber`]).
+#[derive(Debug, Clone, Copy, Default)]
+struct Bord {
+    couleur: Option<Pixel>,
+    pixels: usize,
+    etrangers: usize,
+}
+
+impl Bord {
+    /// Retire cette ligne de la bande, et la compte.
+    fn retirer(&mut self, ligne: &[Pixel], couleur: Pixel) {
+        self.pixels += ligne.len();
+        self.etrangers += etrangers(ligne, couleur);
+    }
+}
+
 /// Combien de lignes, prises dans cet ordre, sont de la bande **ou de sa transition**.
 ///
-/// `deja` est ce que ce bord a retiré aux passages précédents, `bande` la couleur de sa bande
-/// s'il l'a trouvée. Chaque ligne est, dans cet ordre :
+/// `deja` est ce que ce bord a retiré aux passages précédents, `bord` la couleur de sa bande
+/// s'il l'a trouvée et le compte de ce qu'il a retiré. Chaque ligne est, dans cet ordre :
 ///
 /// * **de la bande** — au plus [`PART_ABERRANTE`] de ses pixels s'écartent de sa couleur de
 ///   plus que [`ECART_DE_BANDE`] ;
@@ -201,54 +252,115 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
 /// * **l'ouverture de la bande**, au bord — la **première** ligne, prise comme médiane par
 ///   canal pour qu'un logo dans le coin ne la fausse pas — **ou derrière un filet**
 ///   ([`ouvre_une_bande`]) ;
+/// * **une tache sur la marge**, que la bande enjambe ([`enjamber`]) ;
 ///
 /// et la première qui n'est rien de cela est le contenu. La couleur d'une bande se fige dès
 /// qu'elle est trouvée (BORDURES-3) : seul un filet la cède à la bande qui le suit.
-fn compter<F>(
-    deja: u32,
-    ordre: impl IntoIterator<Item = u32>,
-    bande: &mut Option<Pixel>,
-    ligne_de: F,
-) -> u32
+fn compter<F>(deja: u32, ordre: &[u32], bord: &mut Bord, mut ligne_de: F) -> u32
 where
     F: FnMut(u32) -> Vec<Pixel>,
 {
-    let mut lignes = ordre.into_iter().map(ligne_de).peekable();
-    let mut rang = 0u32;
-    while let Some(courante) = lignes.next() {
+    let mut rang = 0usize;
+    while let Some(&indice) = ordre.get(rang) {
+        let courante = ligne_de(indice);
         // Une ligne vide vient d'un rectangle déjà réduit à rien : elle n'est pas une bande.
         if courante.is_empty() {
             break;
         }
-        let suivante = lignes.peek().map(Vec::as_slice);
-        let de_la_bordure = match *bande {
-            Some(c) if est_de_la_bande(&courante, c) => true,
-            Some(c) if suivante.is_some_and(|s| est_une_transition(&courante, s, c)) => true,
+        let suivante = ordre.get(rang + 1).map(|&i| ligne_de(i));
+        let suivante = suivante.as_deref();
+        let avance = match bord.couleur {
+            Some(c) if est_de_la_bande(&courante, c) => {
+                bord.retirer(&courante, c);
+                1
+            }
+            Some(c) if suivante.is_some_and(|s| est_une_transition(&courante, s, c)) => 1,
             // Ce bord n'a retiré qu'une ligne, et celle-ci n'en est pas : peut-être un filet.
-            Some(_) if deja + rang == 1 => ouvrir(bande, &courante, suivante, true),
-            None => ouvrir(bande, &courante, suivante, false),
-            Some(_) => false,
+            Some(_) if deja as usize + rang == 1 => ouvrir(bord, &courante, suivante, true),
+            None => ouvrir(bord, &courante, suivante, false),
+            Some(c) => enjamber(bord, c, ordre[rang..].iter().map(|&i| ligne_de(i))),
         };
-        if !de_la_bordure {
+        if avance == 0 {
             break;
         }
-        rang += 1;
+        rang += avance;
     }
-    rang
+    u32::try_from(rang).unwrap_or(u32::MAX)
 }
 
-/// Ouvre la bande sur cette ligne si elle en ouvre une, et dit si elle l'a fait.
+/// Ouvre la bande sur cette ligne si elle en ouvre une : une ligne retirée, ou aucune.
 fn ouvrir(
-    bande: &mut Option<Pixel>,
+    bord: &mut Bord,
     ligne: &[Pixel],
     suivante: Option<&[Pixel]>,
     derriere_un_filet: bool,
-) -> bool {
-    let ouverte = ouvre_une_bande(ligne, suivante, derriere_un_filet);
-    if ouverte.is_some() {
-        *bande = ouverte;
+) -> usize {
+    let Some(couleur) = ouvre_une_bande(ligne, suivante, derriere_un_filet) else {
+        return 0;
+    };
+    *bord = Bord {
+        couleur: Some(couleur),
+        ..Bord::default()
+    };
+    bord.retirer(ligne, couleur);
+    1
+}
+
+/// **Une tache sur la marge s'enjambe-t-elle ?** Rend combien de lignes retirer — jusqu'à la
+/// dernière où la marge reprend —, ou zéro (BORDURES-6).
+///
+/// `lignes` part de la première ligne qui n'est pas de la bande. Trois conditions, et aucune
+/// ne demande un nombre nouveau :
+///
+/// * **la marge reprend** derrière la tache, de sa couleur ;
+/// * **ce qu'on retire reste une marge** : au plus [`PART_ABERRANTE`] de tous ses pixels —
+///   bande et taches ensemble — s'écartent de sa couleur. Un titre, une rangée de texte, un
+///   objet pèsent bien davantage, et arrêtent le balayage comme avant ;
+/// * **la marge s'arrête sur un bord net** : une ligne dont la **majorité** des pixels la
+///   quittent, atteinte depuis la dernière reprise par des lignes qui en portent chacune
+///   **plus** que la précédente. C'est ce que fait un bord droit, même penché — celui d'une
+///   plaque, d'une photo posée sur une page. Le bord d'une peinture qui s'éclaircit ou d'une
+///   aquarelle monte et descend : sur ses images, c'est ce qui séparait les vrais cas des
+///   faux.
+fn enjamber(bord: &mut Bord, couleur: Pixel, lignes: impl Iterator<Item = Vec<Pixel>>) -> usize {
+    let (mut pixels, mut etrangers_vus) = (bord.pixels, bord.etrangers);
+    // La dernière reprise de la marge : combien de lignes jusqu'à elle, et le compte d'alors.
+    let mut reprise: Option<(usize, usize, usize)> = None;
+    // Depuis la dernière reprise : les écarts de la ligne précédente, et s'ils montent.
+    let (mut precedente, mut monte) = (None::<usize>, true);
+    for (k, ligne) in lignes.enumerate() {
+        let (n, e) = (ligne.len(), etrangers(&ligne, couleur));
+        if n == 0 {
+            return 0;
+        }
+        if 2 * e > n {
+            let Some((lignes_retirees, p, et)) = reprise.filter(|_| monte) else {
+                return 0;
+            };
+            (bord.pixels, bord.etrangers) = (p, et);
+            return lignes_retirees;
+        }
+        pixels += n;
+        etrangers_vus += e;
+        if e <= tolere(n) {
+            // La marge reprend -- à condition que les taches n'en fassent pas autre chose.
+            if etrangers_vus > tolere(pixels) {
+                return 0;
+            }
+            reprise = Some((k + 1, pixels, etrangers_vus));
+            (precedente, monte) = (None, true);
+        } else {
+            monte = monte && precedente.is_none_or(|p| e > p);
+            precedente = Some(e);
+            // Ni une rampe vers un bord net, ni une tache qu'une ligne propre rattraperait : la
+            // reprise suivante la refuserait. S'arrêter ici ne change rien au verdict, et c'est
+            // ce qui borne le balayage à ce que coûtent les bandes.
+            if !monte && etrangers_vus > tolere(pixels + n) {
+                return 0;
+            }
+        }
     }
-    ouverte.is_some()
+    0
 }
 
 /// **Cette ligne ouvre-t-elle une bande ?** Rend sa couleur si oui (BORDURES-5).
@@ -384,11 +496,20 @@ fn mediane(pixels: &[Pixel]) -> Pixel {
 /// suffisent donc pas à arrêter une bande — ce qui laissait un liseré —, mais une ligne de
 /// contenu, qui en porte bien davantage dès son premier rang, l'arrête toujours.
 fn est_de_la_bande(pixels: &[Pixel], couleur: Pixel) -> bool {
-    au_plus(
-        PART_ABERRANTE,
-        pixels.iter().map(|p| ecart(p, &couleur)),
-        ECART_DE_BANDE,
-    )
+    etrangers(pixels, couleur) <= tolere(pixels.len())
+}
+
+/// Combien de ces pixels s'écartent de cette couleur de plus que le bruit.
+fn etrangers(pixels: &[Pixel], couleur: Pixel) -> usize {
+    pixels
+        .iter()
+        .filter(|p| ecart(p, &couleur) > ECART_DE_BANDE)
+        .count()
+}
+
+/// Combien de pixels étrangers la tolérance admet parmi `n` : le centième, arrondi en dessous.
+fn tolere(n: usize) -> usize {
+    ((n as f64) * PART_ABERRANTE).floor() as usize
 }
 
 /// **Au plus la part `part` de ces écarts dépasse-t-elle `seuil` ?** — la question qu'un centile

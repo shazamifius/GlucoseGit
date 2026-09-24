@@ -259,6 +259,58 @@ fn son_filet() -> Cas {
     })
 }
 
+/// **Sa gravure du 24/09**, réduite : une plaque au bord droit légèrement penché, sur une
+/// marge de papier blanc, et deux taches sur la marge de droite — une de cinq colonnes sur huit
+/// lignes, une de deux sur quatre —, chacune au-delà de la tolérance d'une colonne.
+fn gravure_tachee() -> Cas {
+    let (l, h) = (300, 260);
+    image(l, h, move |x, y| {
+        // Le bord droit de la plaque penche de trois pixels sur sa hauteur, comme le sien :
+        // la colonne 250 est la premiere entierement blanche.
+        let bord_droit = 247 + (y.saturating_sub(30)) * 4 / 200;
+        let tache = ((280..285).contains(&x) && (100..108).contains(&y))
+            || ((265..267).contains(&x) && (150..154).contains(&y));
+        if (40..bord_droit).contains(&x) && (30..230).contains(&y) {
+            contenu(x, y)
+        } else if tache {
+            [215, 215, 215, 255]
+        } else {
+            BLANC
+        }
+    })
+}
+
+/// Une page : une marge, un titre en lettres fines, un blanc, puis une image à bord net.
+fn titre_au_dessus() -> Cas {
+    image(300, 300, |x, y| match y {
+        20..30 if (60..240).contains(&x) && x % 5 == 0 => NOIR,
+        60..280 if (30..270).contains(&x) => contenu(x, y),
+        _ => BLANC,
+    })
+}
+
+/// Une page : une marge, un objet qui s'élargit rang après rang — la pointe d'un triangle —,
+/// un blanc, puis une image à bord net.
+fn objet_au_dessus() -> Cas {
+    image(300, 300, |x, y| match y {
+        20..30 if x.abs_diff(150) < 3 * (y - 19) => NOIR,
+        60..280 if (30..270).contains(&x) => contenu(x, y),
+        _ => BLANC,
+    })
+}
+
+/// Une marge, une petite tache, la marge, puis un contenu qui commence en hésitant — un rang
+/// d'encre, un rang deux fois plus clairsemé, puis l'image.
+fn bord_qui_hesite() -> Cas {
+    image(300, 300, |x, y| match y {
+        25 if (100..105).contains(&x) => [215, 215, 215, 255],
+        40 if (30..270).contains(&x) && x % 5 == 0 => NOIR,
+        41 if (30..270).contains(&x) && x % 10 == 0 => NOIR,
+        42..280 if (30..270).contains(&x) => contenu(x, y),
+        _ => BLANC,
+    })
+}
+
 /// Le même cas entouré d'un filet de cette couleur sur les bords choisis — gauche, haut,
 /// droite, bas.
 fn avec_un_filet(cas: &Cas, bords: [bool; 4], couleur: Pixel) -> Cas {
@@ -516,7 +568,7 @@ fn test_un_filet_au_bord_ne_cache_pas_la_marge() {
 /// L'image unie n'y est pas : tout y est bande, filet compris, et rien n'en est retiré.
 #[test]
 fn test_un_filet_au_bord_ne_change_rien_a_ce_qu_on_trouve_derriere() {
-    let cas: [(&str, Fabrique); 15] = [
+    let cas: [(&str, Fabrique); 19] = [
         ("boite aux lettres", boite_aux_lettres),
         ("bande blanche", bande_blanche),
         ("quatre couleurs", quatre_couleurs),
@@ -532,6 +584,10 @@ fn test_un_filet_au_bord_ne_change_rien_a_ce_qu_on_trouve_derriere() {
         ("bord qui ondule", bord_qui_ondule),
         ("pointe d'un objet", pointe_d_un_objet),
         ("peinture sombre", peinture_sombre),
+        ("gravure tachee", gravure_tachee),
+        ("titre au-dessus", titre_au_dessus),
+        ("objet au-dessus", objet_au_dessus),
+        ("bord qui hesite", bord_qui_hesite),
     ];
     let seuls = (0..4).map(|i| std::array::from_fn(|j| i == j));
     for (nom, fabrique) in cas {
@@ -585,4 +641,66 @@ fn test_un_filet_ne_se_reconnait_que_devant_une_bande() {
         _ => contenu(x, y),
     });
     assert_eq!(en_pixels(&cas), (0, 1, 0, 0), "seul le premier rang part");
+}
+
+// ── BORDURES-6 : une tache sur la marge ───────────────────────────────────────────────
+
+/// **Une tache sur la marge ne l'arrête pas** — sa gravure du 24/09.
+///
+/// Une marge de papier blanc autour d'une plaque, et, à quinze pixels du bord droit, une petite
+/// tache invisible à l'œil : vingt-cinq à quarante niveaux sous le blanc. Chaque colonne qui la
+/// traverse en porte un peu plus d'un centième, et le bord droit s'arrêtait là — onze pixels
+/// retirés sur cinquante-six. La tache s'enjambe : la marge reprend derrière elle, tout ce
+/// qu'on retire reste sous le centième, et la marge finit sur le bord net de la plaque, penché
+/// comme le sien.
+#[test]
+fn test_une_tache_sur_la_marge_ne_l_arrete_pas() {
+    assert_eq!(
+        en_pixels(&gravure_tachee()),
+        (40, 30, 50, 30),
+        "toute la marge de droite, jusqu'au bord de la plaque"
+    );
+}
+
+/// **Un titre au-dessus d'une image ne part pas.**
+///
+/// La marge reprend derrière lui et s'arrête sur le bord net d'une image : c'est exactement la
+/// forme d'une tache. Mais ses lettres pèsent un pixel sur cinq de ses rangs, bien plus que le
+/// centième de ce qu'on retirerait — c'est un contenu, et la marge s'arrête sur lui.
+#[test]
+fn test_un_titre_au_dessus_d_une_image_ne_part_pas() {
+    assert_eq!(
+        en_pixels(&titre_au_dessus()),
+        (30, 20, 30, 20),
+        "la marge part, le titre reste"
+    );
+}
+
+/// **Un objet au-dessus d'une image ne part pas, même s'il s'élargit régulièrement.**
+///
+/// Rang après rang, il porte plus d'encre que le précédent : le balayage ne peut pas l'écarter
+/// en chemin, puisqu'il pourrait être la rampe d'un bord net. C'est la reprise de la marge,
+/// derrière lui, qui le juge — et il pèse bien plus que le centième de ce qu'on retirerait.
+#[test]
+fn test_un_objet_au_dessus_d_une_image_ne_part_pas() {
+    assert_eq!(
+        en_pixels(&objet_au_dessus()),
+        (30, 20, 30, 20),
+        "la marge part, l'objet reste"
+    );
+}
+
+/// **Une tache devant un bord qui hésite reste.**
+///
+/// Ce qui séparait, sur ses 286 images, les deux vrais cas des quarante-six faux : le bord d'une
+/// peinture qui s'éclaircit, d'une aquarelle, d'une zone sombre parsemée de détails, monte et
+/// descend avant de devenir franc. Un bord droit ne fait que monter. Ici, un rang d'encre puis
+/// un rang deux fois plus clairsemé : ce n'est pas un bord net, et la tache n'est pas enjambée.
+#[test]
+fn test_une_tache_devant_un_bord_qui_hesite_reste() {
+    assert_eq!(
+        en_pixels(&bord_qui_hesite()),
+        (30, 25, 30, 20),
+        "la marge s'arrete sur la tache"
+    );
 }
