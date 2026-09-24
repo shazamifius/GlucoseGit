@@ -230,4 +230,25 @@ images au repos.
 
 ---
 
+## 13. Ce que l'utilisateur a dit en fin de session
+
+* *« Tout ça en une seule session, ça fait énorme, c'est parfait. »* — dit avant le test à
+  l'écran : ce n'est pas une validation de ce qui s'y verra.
+* **Le gel de 2,46 s était l'enregistrement** (`Ctrl+S`, un document de 180 Mo et 243 photos).
+  L'enregistrement est aujourd'hui fait dans le geste, d'un bloc, sur le fil qui dessine.
+  Sa parole : *« le système d'enregistrement de Glucose est clairement pas fini — juste
+  fonctionnel, absolument pas là où je voudrais aller »*. Ce qu'il veut, plus tard : **un
+  système à la git**, avec tout un *wayback* — revenir en arrière et voir l'état du projet à
+  n'importe quel moment. **Glucose Tauri l'avait déjà implémenté** : les jalons durables
+  (`.glucose.versions/`, fiche 09 § 2.1 et § 3.3 — un dossier `tst.glucose.versions/` écrit
+  par Tauri existe encore sur son bureau), la Time Machine (fiche 09 § 7, fiche 10 § 5.7,
+  `GlucoseTauri/src/components/TimelinePanel.tsx`). À étudier avant de concevoir, et à
+  concevoir entier plutôt qu'à rapiécer : pour l'instant, l'enregistrement doit juste
+  rester fonctionnel.
+* **`Ctrl+B` « fonctionne extrêmement mal »**. Il donnera deux images à la session suivante
+  qui l'illustrent. Les fiches 26 à 28 racontent sa construction et ses critères : à
+  remettre en question sur ses images, pas à défendre.
+
+---
+
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
