@@ -76,6 +76,35 @@
 //! cherche toujours à l'intérieur de ce que les autres ont retiré, ce pour quoi la boucle
 //! existe.
 //!
+//! # BORDURES-5 — un filet au bord ne cache pas la bande
+//!
+//! Son image du 24/09, 849 × 1200 : une photo sombre dans une marge blanche. Après `Ctrl+B`, le
+//! haut, la gauche et le bas étaient parfaits, et **toute la marge de droite restait**. Sa
+//! dernière colonne est un **filet gris** — `88,88,88` sur toute la hauteur, un pixel de large
+//! —, et les cent huit colonnes blanches commencent juste derrière. Le bord droit prenait ce
+//! gris pour la couleur de sa bande, en retirait la colonne, puis s'arrêtait sur le blanc,
+//! qui n'est pas du gris. Les trois autres bords, eux, ne croisaient ce filet que sur un pixel
+//! de leur ligne : dans la tolérance.
+//!
+//! Ce n'était pas un accident : sur les 275 images de ses documents, **quatre** portent un tel
+//! filet devant une bande — la découpe ou le redimensionnement en laisse un sur la dernière
+//! ligne —, et chaque fois tout un côté restait. Un filet est **une seule ligne unie, derrière
+//! laquelle commence une bande épaisse d'une autre couleur** ; il part, et la bande se cherche
+//! derrière lui comme au bord. D'où la propriété que les épreuves vérifient sur chacune de
+//! leurs images : **un filet au bord ne change rien à ce que `Ctrl+B` trouve derrière lui** —
+//! une ligne de plus, exactement.
+//!
+//! **Un seul filet.** En admettre plusieurs à la suite fait d'un dégradé une pile de filets :
+//! le haut d'une photo de dune part d'un voile clair qui s'assombrit ligne après ligne, et le
+//! ciel s'ouvrait comme une bande derrière — soixante-quatorze lignes de ciel partaient.
+//!
+//! **Ce qui a été essayé et refusé** : ouvrir une bande derrière n'importe quelle bande, dès
+//! qu'une ligne unie succède franchement à la précédente. Cela retirait aussi un passe-partout
+//! entier — mais, sur ses images, le fond uni d'une photo posée entre deux bandes noires
+//! partait avec : cent vingt-trois lignes de photo. Une bande noire de film et le fond gris
+//! d'un studio sont les mêmes pixels ; seul le filet, qui n'a qu'une ligne, ne se confond
+//! avec rien.
+//!
 //! # Ce qui trompe, et qu'on ne cache pas
 //!
 //! Une photo dont le **contenu** commence par une zone unie — un ciel sans nuage en haut, un
@@ -84,8 +113,9 @@
 //! ce sont les mêmes pixels ; seule l'intention les sépare. L'action est donc **explicite et
 //! annulable** — un geste, un `Ctrl+Z` — et jamais automatique.
 //!
-//! Et une image entièrement unie proposerait de tout retirer : c'est l'invariant du
-//! [`Recadrage`] qui garantit alors qu'il reste quelque chose, pas ce module.
+//! Et une image où **tout** est bande n'a rien autour de quoi une bordure existerait : rien
+//! n'en est retiré. Avant, le recadrage la réduisait à son centième, la plus fine bande que
+//! son invariant tolère — une nuance unie, `Ctrl+B`, et il en restait un trait.
 
 use crate::report::{Pixel, Vue};
 use crate::types::Recadrage;
@@ -131,25 +161,26 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
     // Le rectangle qui reste : [x0, x1[ × [y0, y1[. Il ne peut que rétrécir.
     let (mut x0, mut y0, mut x1, mut y1) = (0u32, 0u32, l, h);
     // La couleur de la bande de chaque bord -- haut, bas, gauche, droite --, figée dès qu'il
-    // l'a trouvée (BORDURES-3).
+    // l'a trouvée (BORDURES-3), sauf derrière un filet (BORDURES-5).
     let mut bandes: [Option<Pixel>; 4] = [None; 4];
     loop {
         let avant = (x0, y0, x1, y1);
-        y0 += compter((y0..y1).collect(), &mut bandes[0], |y| {
+        // Chaque bord sait ce qu'il a déjà retiré : un filet ne se reconnaît qu'au bord.
+        y0 += compter(y0, y0..y1, &mut bandes[0], |y| ligne(image, y, x0..x1));
+        y1 -= compter(h - y1, (y0..y1).rev(), &mut bandes[1], |y| {
             ligne(image, y, x0..x1)
         });
-        y1 -= compter((y0..y1).rev().collect(), &mut bandes[1], |y| {
-            ligne(image, y, x0..x1)
-        });
-        x0 += compter((x0..x1).collect(), &mut bandes[2], |x| {
-            colonne(image, x, y0..y1)
-        });
-        x1 -= compter((x0..x1).rev().collect(), &mut bandes[3], |x| {
+        x0 += compter(x0, x0..x1, &mut bandes[2], |x| colonne(image, x, y0..y1));
+        x1 -= compter(l - x1, (x0..x1).rev(), &mut bandes[3], |x| {
             colonne(image, x, y0..y1)
         });
         if (x0, y0, x1, y1) == avant {
             break;
         }
+    }
+    // Tout était bande : il n'y a rien autour de quoi une bordure existerait.
+    if x0 >= x1 || y0 >= y1 {
+        return Recadrage::ENTIER;
     }
     Recadrage::depuis_les_marges(
         f64::from(x0) / f64::from(l),
@@ -161,47 +192,84 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
 
 /// Combien de lignes, prises dans cet ordre, sont de la bande **ou de sa transition**.
 ///
-/// La couleur de la bande est `bande` si ce bord l'a déjà trouvée, sinon celle de la
-/// **première** ligne parcourue — le bord —, prise comme médiane par canal pour qu'un logo
-/// dans le coin ne la fausse pas. Elle se fige dès que le bord a trouvé sa bande
-/// (BORDURES-3). Une ligne est de la bande si au plus [`PART_ABERRANTE`] de ses pixels
-/// s'écartent de cette couleur de plus que [`ECART_DE_BANDE`] ; la première qui n'en est
-/// plus, et les suivantes, partent encore tant qu'elles sont des transitions.
-fn compter<F>(ordre: Vec<u32>, bande: &mut Option<Pixel>, mut ligne_de: F) -> u32
+/// `deja` est ce que ce bord a retiré aux passages précédents, `bande` la couleur de sa bande
+/// s'il l'a trouvée. Chaque ligne est, dans cet ordre :
+///
+/// * **de la bande** — au plus [`PART_ABERRANTE`] de ses pixels s'écartent de sa couleur de
+///   plus que [`ECART_DE_BANDE`] ;
+/// * **une transition** entre la bande et la ligne suivante ([`est_une_transition`]) ;
+/// * **l'ouverture de la bande**, au bord — la **première** ligne, prise comme médiane par
+///   canal pour qu'un logo dans le coin ne la fausse pas — **ou derrière un filet**
+///   ([`ouvre_une_bande`]) ;
+///
+/// et la première qui n'est rien de cela est le contenu. La couleur d'une bande se fige dès
+/// qu'elle est trouvée (BORDURES-3) : seul un filet la cède à la bande qui le suit.
+fn compter<F>(
+    deja: u32,
+    ordre: impl IntoIterator<Item = u32>,
+    bande: &mut Option<Pixel>,
+    ligne_de: F,
+) -> u32
 where
     F: FnMut(u32) -> Vec<Pixel>,
 {
-    let Some(&premier) = ordre.first() else {
-        return 0;
-    };
-    let mut courante = ligne_de(premier);
-    if courante.is_empty() {
-        return 0;
-    }
-    let couleur = bande.unwrap_or_else(|| mediane(&courante));
-    let mut rang = 0usize;
-    while est_de_la_bande(&courante, couleur) {
-        rang += 1;
-        let Some(&suivant) = ordre.get(rang) else {
+    let mut lignes = ordre.into_iter().map(ligne_de).peekable();
+    let mut rang = 0u32;
+    while let Some(courante) = lignes.next() {
+        // Une ligne vide vient d'un rectangle déjà réduit à rien : elle n'est pas une bande.
+        if courante.is_empty() {
             break;
-        };
-        courante = ligne_de(suivant);
-    }
-    if rang > 0 {
-        bande.get_or_insert(couleur);
-    }
-    // Une transition n'existe qu'entre une bande et un contenu : sans bande, rien a fondre.
-    if bande.is_some() {
-        while let Some(&suivant) = ordre.get(rang + 1) {
-            let apres = ligne_de(suivant);
-            if !est_une_transition(&courante, &apres, couleur) {
-                break;
-            }
-            rang += 1;
-            courante = apres;
         }
+        let suivante = lignes.peek().map(Vec::as_slice);
+        let de_la_bordure = match *bande {
+            Some(c) if est_de_la_bande(&courante, c) => true,
+            Some(c) if suivante.is_some_and(|s| est_une_transition(&courante, s, c)) => true,
+            // Ce bord n'a retiré qu'une ligne, et celle-ci n'en est pas : peut-être un filet.
+            Some(_) if deja + rang == 1 => ouvrir(bande, &courante, suivante, true),
+            None => ouvrir(bande, &courante, suivante, false),
+            Some(_) => false,
+        };
+        if !de_la_bordure {
+            break;
+        }
+        rang += 1;
     }
-    u32::try_from(rang).unwrap_or(u32::MAX)
+    rang
+}
+
+/// Ouvre la bande sur cette ligne si elle en ouvre une, et dit si elle l'a fait.
+fn ouvrir(
+    bande: &mut Option<Pixel>,
+    ligne: &[Pixel],
+    suivante: Option<&[Pixel]>,
+    derriere_un_filet: bool,
+) -> bool {
+    let ouverte = ouvre_une_bande(ligne, suivante, derriere_un_filet);
+    if ouverte.is_some() {
+        *bande = ouverte;
+    }
+    ouverte.is_some()
+}
+
+/// **Cette ligne ouvre-t-elle une bande ?** Rend sa couleur si oui (BORDURES-5).
+///
+/// **Au bord**, il suffit qu'elle soit unie : au plus [`PART_ABERRANTE`] de ses pixels
+/// s'écartent de sa médiane de plus que [`ECART_DE_BANDE`]. C'est le pari de FFmpeg — une
+/// ligne unie qui touche le bord est une bande.
+///
+/// **Derrière un filet**, il faut de plus que la bande soit **épaisse** : la ligne d'après est
+/// de sa couleur. Un filet se reconnaît à ce qu'il cache ; une ligne unie seule derrière lui
+/// n'est pas une bande, et la retirer serait retirer une ligne de contenu. Le voile de la dune
+/// — `241`, puis `218`, puis `192`, puis le ciel — perdait ainsi sa deuxième ligne.
+fn ouvre_une_bande(
+    ligne: &[Pixel],
+    suivante: Option<&[Pixel]>,
+    derriere_un_filet: bool,
+) -> Option<Pixel> {
+    let couleur = mediane(ligne);
+    let unie = est_de_la_bande(ligne, couleur);
+    let epaisse = !derriere_un_filet || suivante.is_some_and(|s| est_de_la_bande(s, couleur));
+    (unie && epaisse).then_some(couleur)
 }
 
 /// **Ce rang est-il un mélange de la bande et du rang suivant** (BORDURES-3, BORDURES-4) ?
