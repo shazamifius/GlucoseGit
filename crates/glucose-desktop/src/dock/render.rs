@@ -52,13 +52,7 @@ pub fn render_docks(
         match pass.cache {
             Some(cache) => cache::draw_panel_cached(pixmap, cache, dock, store, pass, &panel, s),
             None => {
-                let brush = Brush {
-                    typo: pass.typo,
-                    theme: pass.theme,
-                    s,
-                    pointer: pass.pointer,
-                    origin: (0.0, 0.0),
-                };
+                let brush = Brush::nouveau((pass.typo, pass.theme), s, pass.pointer, (0.0, 0.0));
                 draw_panel(pixmap, &brush, dock, store, &panel, s);
             }
         }
@@ -108,7 +102,7 @@ fn draw_frame(pixmap: &mut PixmapMut, brush: &Brush, panel: &PanelLayoutBox, see
         seen.x + seen.w / 2.0,
         panel.grip_y + panel.visual_offset_y + panel.grip_height / 2.0,
     );
-    let active = panel.is_dragged || panel.grip_contains_point(brush.pointer.x, brush.pointer.y);
+    let active = panel.is_dragged || brush.hovered(panel.grip_rect());
     brush.grip(pixmap, grip_center, active);
 }
 

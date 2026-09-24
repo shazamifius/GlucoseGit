@@ -47,7 +47,17 @@ pub struct Brush<'a> {
     pub theme: &'a Theme,
     /// L'échelle d'interface, déjà bornée.
     pub s: f32,
-    pub pointer: Pointer,
+    /// Le pointeur ne se lit que par [`Brush::hovered`] : c'est ce qui permet de savoir, sans
+    /// rien deviner, de quoi le dessin dépend (SURVOL-2).
+    pointer: Pointer,
+    /// **Les questions de survol que ce dessin a posées**, dans l'ordre (SURVOL-2).
+    ///
+    /// Un panneau ne dépend du pointeur qu'à travers elles : tant que leurs réponses sont les
+    /// mêmes, ses pixels le sont aussi. Le cache les repose au pointeur suivant au lieu de
+    /// comparer des positions — la clé gardait la position exacte, et chaque pixel de
+    /// mouvement au-dessus d'un panneau le redessinait entier : 76 fois en 35 s, cinq
+    /// millisecondes chaque fois, sur la session de l'utilisateur du 24/09.
+    questions: std::cell::RefCell<Vec<WidgetRect>>,
     /// Le coin haut-gauche du tampon visé, en coordonnées **écran** (DOCK-CACHE-1).
     ///
     /// Tout le dock se dessine en coordonnées écran — c'est ce qui permet à `hovered` de
@@ -66,13 +76,40 @@ pub struct Brush<'a> {
     pub origin: (f32, f32),
 }
 
-impl Brush<'_> {
+impl<'a> Brush<'a> {
+    pub fn nouveau(
+        (typo, theme): (&'a Typography, &'a Theme),
+        s: f32,
+        pointer: Pointer,
+        origin: (f32, f32),
+    ) -> Self {
+        Self {
+            typo,
+            theme,
+            s,
+            pointer,
+            origin,
+            questions: Default::default(),
+        }
+    }
+
+    /// **Les questions de survol posées, et ce que le pointeur y répondait** — et leur oubli.
+    pub(super) fn prendre_le_survol(&self) -> Vec<(WidgetRect, bool)> {
+        self.questions
+            .take()
+            .into_iter()
+            .map(|r| (r, r.contains(self.pointer.x, self.pointer.y)))
+            .collect()
+    }
+
     /// Une longueur de la fiche, en pixels d'écran.
     pub fn px(&self, logical: f32) -> f32 {
         logical * self.s
     }
 
+    /// Le pointeur est-il sur ce rectangle ? La question est notée (SURVOL-2).
     pub fn hovered(&self, rect: WidgetRect) -> bool {
+        self.questions.borrow_mut().push(rect);
         rect.contains(self.pointer.x, self.pointer.y)
     }
 

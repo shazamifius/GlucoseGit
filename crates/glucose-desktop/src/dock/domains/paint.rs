@@ -138,8 +138,7 @@ fn draw_row(
     draw_name(p, pixmap, row, domain, ui);
 
     // Croix de suppression.
-    let delete_hot =
-        row.delete.contains(p.brush.pointer.x, p.brush.pointer.y) || row.confirm.is_some();
+    let delete_hot = p.brush.hovered(row.delete) || row.confirm.is_some();
     let cross = if delete_hot {
         p.brush.theme.text_primary
     } else {
@@ -179,7 +178,7 @@ fn draw_mark(
 
     let cx = row.swatch.x + row.swatch.w / 2.0;
     let cy = row.swatch.y + row.swatch.h / 2.0;
-    let hovered = row.swatch.contains(p.brush.pointer.x, p.brush.pointer.y);
+    let hovered = p.brush.hovered(row.swatch);
     let rayon = row.swatch.w / 2.0 - if hovered { 0.0 } else { m.pad / 6.0 };
     p.brush.circle(pixmap, (cx, cy), rayon, tint);
 
@@ -281,7 +280,7 @@ fn draw_steps(
         (tint.blue() * 255.0) as u8,
     );
     for (index, rect) in row.steps.iter().enumerate() {
-        let hovered = enabled && rect.contains(p.brush.pointer.x, p.brush.pointer.y);
+        let hovered = enabled && p.brush.hovered(*rect);
         let alpha = if enabled { 60 } else { 24 };
         p.brush.fill(
             pixmap,
@@ -318,7 +317,7 @@ fn draw_steps(
 /// Le bouton qui détache la sélection de ce domaine — le « − » au bout de la rangée.
 fn draw_unassign(p: &Painter, pixmap: &mut PixmapMut, row: &DomainRowLayout, enabled: bool) {
     let m = &p.m;
-    let hovered = enabled && row.unassign.contains(p.brush.pointer.x, p.brush.pointer.y);
+    let hovered = enabled && p.brush.hovered(row.unassign);
     let fond = if hovered {
         p.brush.theme.bg_hover
     } else {
@@ -372,7 +371,7 @@ fn draw_confirm(
         },
     );
     for (rect, label, danger) in [(yes, "Oui", true), (no, "Non", false)] {
-        let hovered = rect.contains(p.brush.pointer.x, p.brush.pointer.y);
+        let hovered = p.brush.hovered(rect);
         let background = match (danger, hovered) {
             (true, true) => p.brush.theme.danger,
             (true, false) => p.brush.theme.bg_hover,
@@ -427,9 +426,7 @@ fn draw_footer(
         },
     );
 
-    let hovered = layout
-        .add_button
-        .contains(p.brush.pointer.x, p.brush.pointer.y);
+    let hovered = p.brush.hovered(layout.add_button);
     p.brush.fill(
         pixmap,
         layout.add_button,

@@ -315,6 +315,11 @@ impl PanelLayoutBox {
     }
 
     pub fn grip_contains_point(&self, px: f32, py: f32) -> bool {
+        self.grip_rect().contains(px, py)
+    }
+
+    /// Le rectangle de la poignée, là où l'œil la voit.
+    pub fn grip_rect(&self) -> WidgetRect {
         let seen = self.seen();
         WidgetRect::new(
             seen.x,
@@ -322,7 +327,6 @@ impl PanelLayoutBox {
             seen.w,
             self.grip_height,
         )
-        .contains(px, py)
     }
 
     /// L'ombre portée du panneau, décalée vers le bas et débordant de chaque côté.

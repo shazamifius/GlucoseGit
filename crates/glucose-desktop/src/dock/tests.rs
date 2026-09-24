@@ -787,14 +787,30 @@ fn test_the_cache_names_why_a_panel_was_redrawn() {
     rendu_dock_sur(&dock, &store, Some(&cache), dehors);
     assert_eq!(cache.prendre_les_raisons(), R::Selection.bit());
 
-    // Au milieu du premier panneau : la souris y est, il se refait pour elle.
+    // SURVOL-2 : le pointeur ne compte que par ce que le dessin lui demande. Sur la poignée
+    // du premier panneau, une réponse change — il se refait pour elle.
     let panneau =
         &compute_panel_layouts(&dock, SCREEN.width, SCREEN.height, SCREEN.header_h, 1.0)[0];
-    let dedans = Pointer {
-        x: panneau.x + panneau.width / 2.0,
-        y: panneau.y + panneau.height / 2.0,
+    let poignee = panneau.grip_rect();
+    let sur = |dx: f32| Pointer {
+        x: poignee.x + poignee.w / 2.0 + dx,
+        y: poignee.y + poignee.h / 2.0,
     };
-    rendu_dock_sur(&dock, &store, Some(&cache), dedans);
+    rendu_dock_sur(&dock, &store, Some(&cache), sur(0.0));
+    assert_eq!(cache.prendre_les_raisons(), R::Pointeur.bit());
+
+    // Un demi-pixel plus loin, toujours sur la poignée : aucune réponse ne change, rien ne se
+    // refait. La clé gardait la position exacte, et c'est ce qui redessinait le panneau entier
+    // à chaque pixel de mouvement — 76 fois en 35 s sur la session du 24/09.
+    rendu_dock_sur(&dock, &store, Some(&cache), sur(0.5));
+    assert_eq!(
+        cache.prendre_les_raisons(),
+        0,
+        "le pointeur a bouge sans rien changer a ce qu'il survole"
+    );
+
+    // Il ressort : la poignée n'est plus survolée, le panneau se refait.
+    rendu_dock_sur(&dock, &store, Some(&cache), dehors);
     assert_eq!(cache.prendre_les_raisons(), R::Pointeur.bit());
 }
 

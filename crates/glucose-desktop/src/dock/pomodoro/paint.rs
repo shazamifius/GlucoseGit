@@ -170,13 +170,12 @@ mod tests {
         let typo = Typography::new();
         let mut pixmap = Pixmap::new(200, 240).expect("pixmap");
         pixmap.fill(theme.bg_canvas);
-        let brush = Brush {
-            typo: &typo,
-            theme: &theme,
-            s: 1.0,
-            pointer: Pointer { x: -1.0, y: -1.0 },
-            origin: (0.0, 0.0),
-        };
+        let brush = Brush::nouveau(
+            (&typo, &theme),
+            1.0,
+            Pointer { x: -1.0, y: -1.0 },
+            (0.0, 0.0),
+        );
         render_pomodoro_panel(&mut pixmap.as_mut(), &brush, FRAME, state);
         (pixmap, theme)
     }

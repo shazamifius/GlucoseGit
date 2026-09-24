@@ -25,6 +25,8 @@ use super::{
     PresetsState, StoryboardState, TabId,
 };
 use crate::composition::poser;
+use crate::dock::WidgetRect;
+use crate::params::Pointer;
 use glucose_core::report::Melange;
 use glucose_core::store::Store;
 use std::cell::{Cell, RefCell};
@@ -100,7 +102,6 @@ struct ClePanneau {
     geometrie: PanelLayoutBox,
     echelle: u32,
     tampon: (i32, i32, u32, u32),
-    pointeur: Option<(u32, u32)>,
     etat: EtatPanneau,
     document: u64,
     selection: (usize, usize),
@@ -114,7 +115,7 @@ impl ClePanneau {
     /// refont sur dix des douze images les plus lentes, et c'est *la clé qui est trop large* —
     /// mais **laquelle de ses parties** ? Aucune durée ne le dit, et la deviner a déjà fait
     /// annoncer un chantier qui n'aurait rien changé.
-    fn ce_qui_differe(ancienne: Option<&Self>, neuve: &Self) -> u16 {
+    fn ce_qui_differe(ancienne: Option<&Self>, neuve: &Self, survol_change: bool) -> u16 {
         let Some(a) = ancienne else {
             return Raison::PremiereFois.bit();
         };
@@ -124,7 +125,7 @@ impl ClePanneau {
                 Raison::Place,
             ),
             (a.echelle != neuve.echelle, Raison::Echelle),
-            (a.pointeur != neuve.pointeur, Raison::Pointeur),
+            (survol_change, Raison::Pointeur),
             (a.etat != neuve.etat, Raison::Etat),
             (a.document != neuve.document, Raison::Document),
             (a.selection != neuve.selection, Raison::Selection),
@@ -182,6 +183,18 @@ impl Raison {
 struct Panneau {
     pixmap: Pixmap,
     cle: ClePanneau,
+    /// Les questions de survol que son dessin a posées, et ce que le pointeur y répondait
+    /// (SURVOL-2). Les mêmes réponses au pointeur suivant disent les mêmes pixels.
+    survol: Vec<(WidgetRect, bool)>,
+}
+
+impl Panneau {
+    /// Le pointeur a-t-il changé une réponse que le dessin a lue ?
+    fn survol_change(&self, pointer: Pointer) -> bool {
+        self.survol
+            .iter()
+            .any(|(r, oui)| r.contains(pointer.x, pointer.y) != *oui)
+    }
 }
 
 /// Les tampons des panneaux du dock (DOCK-CACHE-1).
@@ -257,9 +270,6 @@ pub(super) fn draw_panel_cached(
         geometrie: panel.clone(),
         echelle: s.to_bits(),
         tampon: (origin.0 as i32, origin.1 as i32, taille.0, taille.1),
-        pointeur: extent
-            .contains(pointer.x, pointer.y)
-            .then(|| (pointer.x.to_bits(), pointer.y.to_bits())),
         etat: EtatPanneau::de(dock, panel.tab),
         document: store.version,
         selection: (
@@ -269,7 +279,12 @@ pub(super) fn draw_panel_cached(
     };
 
     let mut panneaux = cache.panneaux.borrow_mut();
-    let raisons = ClePanneau::ce_qui_differe(panneaux.get(&panel.tab).map(|p| &p.cle), &cle);
+    let garde = panneaux.get(&panel.tab);
+    let raisons = ClePanneau::ce_qui_differe(
+        garde.map(|p| &p.cle),
+        &cle,
+        garde.is_some_and(|p| p.survol_change(pointer)),
+    );
     cache.raisons.set(cache.raisons.get() | raisons);
     if raisons != 0 {
         let Some(mut neuf) = Pixmap::new(taille.0, taille.1) else {
@@ -277,27 +292,23 @@ pub(super) fn draw_panel_cached(
             // sur le rendu direct. Un cache qui échoue effacerait le panneau, ce qui serait
             // pire que le coût qu'il évite.
             drop(panneaux);
-            let brush = Brush {
-                typo,
-                theme,
-                s,
-                pointer,
-                origin: (0.0, 0.0),
-            };
+            let brush = Brush::nouveau((typo, theme), s, pointer, (0.0, 0.0));
             cache.rendus.set(cache.rendus.get() + 1);
             draw_panel(pixmap, &brush, dock, store, panel, s);
             return;
         };
-        let brush = Brush {
-            typo,
-            theme,
-            s,
-            pointer,
-            origin,
-        };
+        let brush = Brush::nouveau((typo, theme), s, pointer, origin);
         cache.rendus.set(cache.rendus.get() + 1);
         draw_panel(&mut neuf.as_mut(), &brush, dock, store, panel, s);
-        panneaux.insert(panel.tab, Panneau { pixmap: neuf, cle });
+        let survol = brush.prendre_le_survol();
+        panneaux.insert(
+            panel.tab,
+            Panneau {
+                pixmap: neuf,
+                cle,
+                survol,
+            },
+        );
     }
 
     let garde = &panneaux[&panel.tab];
