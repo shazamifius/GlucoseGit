@@ -226,6 +226,13 @@ impl Magasin {
         true
     }
 
+    /// **Adopte des pixels déjà là** — une image collée — sous ce chemin (COLLER-1) : sa
+    /// pyramide se fait et son fichier s'écrit sur un ouvrier, et elle arrive comme un
+    /// décodage. Le fil qui dessine ne les touche pas.
+    pub fn adopter(&mut self, src: &str, rgba: Vec<u8>, dimensions: (u32, u32)) -> bool {
+        self.atelier.adopter(src, rgba, dimensions)
+    }
+
     /// **L'original de cette image est-il tenu ?** `None` si l'image n'est pas dans le magasin.
     ///
     /// S'il ne l'est pas, il est redemandé : le lire le marque voulu, et l'image est revue à la

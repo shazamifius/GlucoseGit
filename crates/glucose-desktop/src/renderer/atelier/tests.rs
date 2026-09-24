@@ -164,3 +164,36 @@ fn test_l_atelier_a_toujours_au_moins_un_ouvrier() {
         "au moins un ouvrier, quelle que soit la machine"
     );
 }
+
+/// **Une image collée se pose par l'atelier** (COLLER-1) : sa pyramide vient de ses pixels,
+/// son fichier s'écrit, et elle arrive comme un décodage — sans que le fil qui dessine ait rien
+/// encodé. Relue depuis son fichier, elle rend les mêmes pixels.
+#[test]
+fn test_une_image_collee_s_adopte_et_s_ecrit() {
+    let dossier = std::env::temp_dir().join("glucose-atelier-tests");
+    std::fs::create_dir_all(&dossier).expect("dossier de test");
+    let chemin = dossier.join(format!("colle-{}.png", std::process::id()));
+    let _ = std::fs::remove_file(&chemin);
+    let src = chemin.to_string_lossy().to_string();
+    let rgba: Vec<u8> = (0..40 * 30)
+        .flat_map(|i: u32| [(i % 256) as u8, (i / 7 % 256) as u8, 90, 255])
+        .collect();
+
+    let mut atelier = Atelier::nouveau();
+    assert!(atelier.adopter(&src, rgba, (40, 30)));
+    assert!(
+        !atelier.demander(&src),
+        "une image en chantier ne se redemande pas"
+    );
+    let moisson = moisson_complete(&mut atelier);
+    assert_eq!(moisson.len(), 1);
+    let adoptee = moisson[0].1.as_ref().expect("l'image est adoptee");
+    assert_eq!(adoptee.dimensions_natives(), (40, 30));
+    assert!(chemin.exists(), "son fichier est ecrit");
+    let relue = decoder(&src).expect("le fichier se relit");
+    let (a, b) = (
+        adoptee.native().expect("tenu"),
+        relue.native().expect("tenu"),
+    );
+    assert!(a.data() == b.data(), "relue, elle rend d'autres pixels");
+}

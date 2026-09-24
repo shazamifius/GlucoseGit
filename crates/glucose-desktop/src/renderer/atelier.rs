@@ -83,6 +83,9 @@ enum Travail {
     /// La vue d'ensemble d'une image à garder sur le disque (ETAGES-4) : la source, le
     /// dossier, l'aperçu.
     Ecrire(String, std::sync::Arc<std::path::Path>, Apercu),
+    /// Des pixels déjà là — une image collée — à poser en pyramide **et** à écrire en fichier
+    /// sous ce chemin (COLLER-1).
+    Adopter(String, Vec<u8>, (u32, u32)),
 }
 
 /// Les trois files, lues dans l'ordre de leur urgence.
@@ -199,6 +202,21 @@ impl Atelier {
         true
     }
 
+    /// **Adopte des pixels déjà là** — une image collée — sous ce chemin : un ouvrier en fait
+    /// la pyramide, écrit le fichier, puis la rend comme un décodage (COLLER-1).
+    ///
+    /// Le fichier d'abord, la pyramide ensuite : une image qu'on relirait avant qu'il existe
+    /// passerait pour illisible, et ne se redemanderait jamais.
+    pub fn adopter(&mut self, src: &str, rgba: Vec<u8>, dimensions: (u32, u32)) -> bool {
+        if self.en_cours.contains(src)
+            || !self.confier(Travail::Adopter(src.to_string(), rgba, dimensions))
+        {
+            return false;
+        }
+        self.en_cours.insert(src.to_string());
+        true
+    }
+
     /// **Garde les aperçus dans ce dossier** : les décodages y cherchent d'abord, et les
     /// vues d'ensemble s'y écrivent.
     pub fn brancher_les_apercus(&mut self, dossier: std::path::PathBuf) {
@@ -237,7 +255,7 @@ impl Atelier {
             return false;
         };
         match &travail {
-            Travail::Decoder(..) => files.decodages.push_back(travail),
+            Travail::Decoder(..) | Travail::Adopter(..) => files.decodages.push_back(travail),
             Travail::Deplacer(d) => match d.charge {
                 Transit::AReprendre(_) => files.reprises.push_back(travail),
                 Transit::AOffrir(_) => files.offres.push_back(travail),
@@ -303,6 +321,13 @@ fn ouvrier(
                     .and_then(|dossier| apercu::lire(&apercu::chemin(&dossier, &src)?))
                     .and_then(Pyramide::depuis_apercu)
                     .or_else(|| decoder(&src));
+                Fait::Decodee((src, pyramide, debut.elapsed()))
+            }
+            Travail::Adopter(src, rgba, (l, h)) => {
+                let debut = Instant::now();
+                let ecrit =
+                    image::save_buffer(&src, &rgba, l, h, image::ExtendedColorType::Rgba8).is_ok();
+                let pyramide = ecrit.then(|| Pyramide::depuis_rgba(l, h, &rgba)).flatten();
                 Fait::Decodee((src, pyramide, debut.elapsed()))
             }
             Travail::Ecrire(src, dossier, a) => {

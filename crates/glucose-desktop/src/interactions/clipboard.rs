@@ -172,8 +172,15 @@ impl GlucoseApp {
 impl GlucoseApp {
     /// Pose sur le tableau une image venue du presse-papiers.
     ///
-    /// Le tampon n'est pas un fichier : il faut l'écrire pour que le cache d'images sache le
+    /// Le tampon n'est pas un fichier : il faut l'écrire pour que le document sache le
     /// relire, et c'est le répertoire temporaire du système qui l'accueille.
+    ///
+    /// # COLLER-1 — rien de lourd sur le fil qui dessine
+    ///
+    /// L'image s'encodait en PNG ici, dans le geste : 15 ms pour une épingle, 150 pour une
+    /// capture 4K, mesurés — l'écran figé le temps d'un `Ctrl+V`. Elle se pose maintenant tout
+    /// de suite, en chemin, et c'est un ouvrier de l'atelier qui écrit son fichier et fait sa
+    /// pyramide, à partir des pixels mêmes : rien à décoder.
     fn coller_image(
         &mut self,
         board: &str,
@@ -190,22 +197,11 @@ impl GlucoseApp {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        let filename = format!("paste_{nanos}.png");
-        let file_path = temp_dir.join(&filename);
-        if let Err(e) = image::save_buffer(
-            &file_path,
-            &img_data.bytes,
-            w as u32,
-            h as u32,
-            image::ExtendedColorType::Rgba8,
-        ) {
-            let err = DesktopError::ImageDecodeFailed {
-                path: filename,
-                reason: e.to_string(),
-            };
-            self.ui.show_toast(err.to_string());
-            return;
-        }
+        let file_path = temp_dir.join(format!("paste_{nanos}.png"));
+        let src = file_path.to_string_lossy().to_string();
+        self.renderer
+            .magasin
+            .adopter(&src, img_data.bytes.to_vec(), (w as u32, h as u32));
         // Une image collée naît bornée en largeur, son rapport préservé : un rendu de
         // navigateur peut faire plusieurs milliers de pixels, et naître plus large que le
         // tableau n'aide personne.
@@ -213,7 +209,7 @@ impl GlucoseApp {
         let haute = (h as f64) * (large / (w as f64).max(1.0));
         let id = self.store.generate_id("img-paste");
         let mut img = BoardImage::new(id, wx, wy, large, haute);
-        img.src = Some(file_path.to_string_lossy().to_string());
+        img.src = Some(src);
         img.original_width = w as f64;
         img.original_height = h as f64;
         self.store.add_image(board, img);
