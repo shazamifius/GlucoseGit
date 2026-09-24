@@ -160,6 +160,7 @@ impl Chronique {
                 mo(c.budget_plus_bas)
             ));
         }
+        self.veille.etages.ecrire(t);
         for (quoi, part) in [
             ("pendant qu'on ne le touche pas", self.veille.au_repos()),
             ("pendant qu'on s'en sert", self.veille.a_l_usage()),

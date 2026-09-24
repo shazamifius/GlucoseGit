@@ -253,12 +253,13 @@ impl Renderer {
     /// pas pour les mêmes raisons ni au même prix, et un poste agrégé les rendrait
     /// indiscernables. Mesuré à un million de nœuds, la première image après une mutation :
     /// l'index pèse 1 100 ms quand une image est ajoutée et 4 ms quand c'est une note.
-    fn synchroniser_les_caches(&mut self, store: &Store) {
+    fn synchroniser_les_caches(&mut self, store: &Store, ecran: (u32, u32)) {
         // Ce que les fils de fond ont fini entre deux images entre dans les caches ici, et
         // nulle part ailleurs : le rendu voit ensuite un cache qui ne bouge pas sous ses
         // pieds. Une récolte est une remise d'accord comme les trois autres, et c'est bien
         // ici qu'elle appartient.
         self.magasin.recolter();
+        self.magasin.regler_la_vue_d_ensemble(store, ecran);
         crate::perf::stage("recolte");
         self.domain_tints.refresh(store, &self.theme);
         crate::perf::stage("teintes");
@@ -280,7 +281,7 @@ impl Renderer {
         regard: Regard,
     ) {
         self.magasin.ouvrir();
-        self.synchroniser_les_caches(store);
+        self.synchroniser_les_caches(store, (pixmap.width(), pixmap.height()));
         let debut = std::time::Instant::now();
         self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height(), regard);
         noter_le_cout_de_la_scene(debut);
@@ -316,7 +317,7 @@ impl Renderer {
         pointer: Pointer,
     ) {
         self.magasin.ouvrir();
-        self.synchroniser_les_caches(store);
+        self.synchroniser_les_caches(store, (plein.width(), plein.height()));
         let f = scene.facteur.max(1);
         let debut = std::time::Instant::now();
         self.rendre_la_region(

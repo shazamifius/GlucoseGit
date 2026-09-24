@@ -266,7 +266,9 @@ fn test_la_vignette_ne_deplace_pas_limage() {
 
     // Chemin par vignette.
     let pyr = Pyramide::nouvelle(source);
-    let vignette = pyr.rendre(Forme::posee(x, y, w, h));
+    let vignette = pyr
+        .rendre(Forme::posee(x, y, w, h))
+        .expect("une pyramide neuve tient tous ses niveaux");
     let mut par_vignette = Pixmap::new(200, 200).expect("un écran");
     par_vignette.draw_pixmap(
         x.floor() as i32,

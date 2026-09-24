@@ -21,11 +21,17 @@ fn photo_temoin(nom: &str, w: u32, h: u32) -> std::path::PathBuf {
 fn moisson_complete(atelier: &mut Atelier) -> Vec<Decodee> {
     let mut tout = Vec::new();
     let depart = std::time::Instant::now();
+    let decodees = |faits: Vec<Fait>| {
+        faits.into_iter().filter_map(|f| match f {
+            Fait::Decodee(d) => Some(d),
+            Fait::Deplace(_) => None,
+        })
+    };
     while atelier.en_travail() > 0 && depart.elapsed() < std::time::Duration::from_secs(30) {
-        tout.extend(atelier.recolter());
+        tout.extend(decodees(atelier.recolter()));
         std::thread::yield_now();
     }
-    tout.extend(atelier.recolter());
+    tout.extend(decodees(atelier.recolter()));
     tout
 }
 
@@ -43,10 +49,7 @@ fn test_une_image_se_decode_sur_un_fil_de_fond() {
     let (rendu, image, cout) = &moisson[0];
     assert_eq!(rendu, &src);
     let pyramide = image.as_ref().expect("l'image témoin est lisible");
-    assert_eq!(
-        (pyramide.native().width(), pyramide.native().height()),
-        (64, 48)
-    );
+    assert_eq!(pyramide.dimensions_natives(), (64, 48));
     // Ce qui revient est PRÊT À POSER : la pyramide est faite, pas seulement le décodage.
     // Sans cela, le fil de rendu la construisait lui-même — 73 ms mesurés en pleine image.
     assert!(
@@ -139,8 +142,9 @@ fn test_un_pixel_opaque_traverse_la_premultiplication_intact() {
     }
     brute.save(&chemin).expect("écriture");
 
-    let image = decoder(&chemin.to_string_lossy()).expect("décodage");
-    let (pixels, _) = image.data().as_chunks::<4>();
+    let pyramide = decoder(&chemin.to_string_lossy()).expect("décodage");
+    let natif = pyramide.native().expect("une pyramide neuve tient tous ses niveaux");
+    let (pixels, _) = natif.data().as_chunks::<4>();
     for (i, attendu) in [0u8, 1, 128, 255].iter().enumerate() {
         assert_eq!(
             pixels[i][0], *attendu,

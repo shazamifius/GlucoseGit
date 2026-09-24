@@ -235,6 +235,15 @@ impl Typography {
         self.glyph_cache.borrow().len()
     }
 
+    /// Les octets que les bitmaps du cache occupent.
+    pub fn octets_en_cache(&self) -> usize {
+        self.glyph_cache
+            .borrow()
+            .values()
+            .map(|(g, _)| g.bitmap.capacity())
+            .sum()
+    }
+
     /// Dessine une chaîne de caractères vectorielle avec antialiasing et cache de glyphes (R-26, R-27)
     pub fn draw_text(
         &self,

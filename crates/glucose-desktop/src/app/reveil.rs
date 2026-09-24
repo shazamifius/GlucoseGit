@@ -41,6 +41,9 @@ pub enum Raison {
     Decodage,
     Chantier,
     Pomodoro,
+    /// Une commande attend ses images : un `Ctrl+B` dont les originaux reviennent de chez le
+    /// système (ETAGES-1).
+    Commande,
     /// La main a bougé, cliqué ou tapé depuis l'image précédente.
     Main,
     /// Un dépôt est arrivé — un fichier lâché, une image rapatriée d'une page.
@@ -51,10 +54,10 @@ pub enum Raison {
 }
 
 impl Raison {
-    /// Dans l'ordre des bits du masque. Les huit premières sont dans l'ordre de
+    /// Dans l'ordre des bits du masque. Les neuf premières sont dans l'ordre de
     /// [`GlucoseApp::prochain_reveil`], pour qu'une raison ajoutée là se retrouve ici sans
     /// réfléchir ; les trois dernières ne réveillent pas, elles disent ce qui est arrivé.
-    pub const TOUTES: [Self; 11] = [
+    pub const TOUTES: [Self; 12] = [
         Self::Curseur,
         Self::Toast,
         Self::Animation,
@@ -63,6 +66,7 @@ impl Raison {
         Self::Decodage,
         Self::Chantier,
         Self::Pomodoro,
+        Self::Commande,
         Self::Main,
         Self::Depot,
         Self::Systeme,
@@ -78,6 +82,7 @@ impl Raison {
             Self::Decodage => "images en decodage",
             Self::Chantier => "vignettes a construire",
             Self::Pomodoro => "minuteur",
+            Self::Commande => "une commande attend ses images",
             Self::Main => "la main",
             Self::Depot => "un depot arrive",
             Self::Systeme => "le systeme",
@@ -193,7 +198,7 @@ impl GlucoseApp {
     /// Chaque raison salit la vue elle-même si elle a besoin d'être redessinée : demander un
     /// rafraîchissement et demander un réveil sont deux choses distinctes — un toast au
     /// plateau attend sans rien redessiner, un décodage redessine sans rien animer.
-    pub(super) fn prochain_reveil(&mut self) -> Option<u64> {
+    pub(crate) fn prochain_reveil(&mut self) -> Option<u64> {
         let attentes = [
             self.attente_du_curseur(),
             self.attente_du_toast(),
@@ -203,6 +208,7 @@ impl GlucoseApp {
             self.attente_du_decodage(),
             self.attente_du_chantier(),
             self.attente_du_pomodoro(),
+            self.attente_de_la_commande(),
         ];
         // Toutes les raisons actives, et non la seule qui l'emporte : savoir laquelle est la
         // plus pressée ne dit pas laquelle il faudrait supprimer.
@@ -213,6 +219,15 @@ impl GlucoseApp {
             .fold(0u16, |masque, (_, raison)| masque | raison.bit());
         self.provenance.raisons = masque;
         attentes.into_iter().flatten().min()
+    }
+
+    /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1) : il faut repasser à chaque image,
+    /// parce que le dernier revient pendant un rendu — après que le lot a regardé — et que
+    /// plus rien d'autre ne réveillerait l'application pour qu'il s'applique.
+    fn attente_de_la_commande(&mut self) -> Option<u64> {
+        self.bordures_en_attente.as_ref()?;
+        self.mark_dirty();
+        Some(self.animation_interval_ms())
     }
 
     /// Le curseur d'édition de texte clignote à la demi-seconde.

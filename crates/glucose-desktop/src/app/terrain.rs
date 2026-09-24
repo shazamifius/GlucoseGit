@@ -215,6 +215,23 @@ impl GlucoseApp {
         self.chronique.enregistrer(vu);
     }
 
+    /// **La mémoire vive, étage par étage** (ETAGES-1) : ce que le magasin tient, ce qu'il a
+    /// offert, les lettres, et les allers-retours. Au rythme de la veille, une fois par
+    /// seconde : les sommes parcourent le magasin, et n'ont rien à faire à chaque image.
+    pub(super) fn relever_les_etages(&mut self) {
+        use crate::renderer::photo::Etat;
+        let magasin = &self.renderer.magasin;
+        self.chronique
+            .veille
+            .etages
+            .noter(crate::chronique::etages::Releve {
+                tenus: magasin.octets_en(Etat::Tenu) as u64,
+                offerts: magasin.octets_en(Etat::Offert) as u64,
+                lettres: self.renderer.typography.octets_en_cache() as u64,
+                mouvements: magasin.mouvements(),
+            });
+    }
+
     /// **Ce que la carte graphique porte pour Glucose, et ce que le système lui accorde**
     /// (VRAM-1), tels que la présentation vient de les relever.
     fn noter_la_carte_graphique(&mut self) {

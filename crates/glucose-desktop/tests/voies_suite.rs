@@ -618,6 +618,7 @@ fn test_une_photo_posee_petite_part_au_niveau_qui_la_couvre() {
     let (renderer, _, _, confie) = les_deux_couches_decodees((800, 600), &store);
     let (cle, _) = confie.photos.first().expect("la photo est posee");
     let texture = confie.pixels(&renderer, cle).expect("ses pixels");
+    let texture = texture.vue();
     assert_eq!(
         (texture.width(), texture.height()),
         (64, 64),

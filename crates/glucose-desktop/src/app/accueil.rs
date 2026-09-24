@@ -30,3 +30,14 @@ pub(super) fn document_d_accueil(renderer: &Renderer) -> Store {
     store.journal.clear();
     store
 }
+
+/// L'interface qu'on trouve au lancement : celle de toujours, et le mot d'accueil.
+///
+/// Le mot est posé ici, au démarrage, et non dans `UiState::new` : un constructeur d'état ne
+/// déclenche pas de notification, et un toast porte une horloge qui rendait tout rendu non
+/// reproductible.
+pub(super) fn interface_d_accueil() -> crate::ui::UiState {
+    let mut ui = crate::ui::UiState::new();
+    ui.show_toast(crate::ui::WELCOME_TOAST);
+    ui
+}

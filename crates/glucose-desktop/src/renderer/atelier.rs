@@ -20,17 +20,26 @@
 //! comme constante. Un cœur de moins gardé pour le fil de rendu, parce que c'est lui qui tient
 //! la cadence et qu'il ne doit jamais attendre son tour.
 //!
+//! # Trois gestes, et leur ordre est la priorité (ETAGES-1)
+//!
+//! Depuis la mémoire par étages, l'atelier ne fait plus que décoder. Il **reprend** au système
+//! les niveaux que l'écran redemande, et il lui **offre** ceux qui ne servent plus — deux
+//! gestes de trois à cinq millisecondes pour dix mégaoctets, trop chers pour le fil qui
+//! dessine. Un ouvrier libre prend d'abord une reprise (l'écran l'attend, et elle coûte sept
+//! fois moins qu'un décodage), puis un décodage, puis une offre (rien ne l'attend). Aucune
+//! priorité chiffrée : trois files, lues dans cet ordre.
+//!
 //! # Ce que ce module ne fait pas
 //!
 //! Il ne décide pas quoi garder : le cache et sa borne appartiennent à l'appelant. Il ne
 //! décide pas non plus ce qu'on dessine en attendant. Il répond à une seule question — « ces
 //! octets, décodés, les voici » — et il y répond quand il peut.
 
-use super::photo::Pyramide;
-use std::collections::HashSet;
+use super::photo::{Pyramide, Retour, Transit};
+use std::collections::{HashSet, VecDeque};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::sync::{Arc, Mutex};
-use tiny_skia::Pixmap;
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, Instant};
 
 /// Ce qu'un ouvrier rend : le chemin demandé, et la **pyramide** s'il a su lire le fichier.
 ///
@@ -46,16 +55,69 @@ use tiny_skia::Pixmap;
 ///
 /// `None` n'est pas une erreur à signaler : un fichier absent ou illisible est un cas normal
 /// du document, et l'appelant en fait un cache négatif.
-type Decodee = (String, Option<Pyramide>, std::time::Duration);
+pub type Decodee = (String, Option<Pyramide>, Duration);
 
-/// Les fils qui décodent, et ce qu'ils ont en chantier.
+/// **Un niveau qui voyage** : de quelle image, de quelle pyramide, quel rang — et ce qu'il
+/// porte, à l'aller comme au retour.
+///
+/// La **génération** dit quelle pyramide l'a envoyé : une image redécodée entre-temps en a
+/// une neuve, et ce qui revient pour l'ancienne ne doit pas s'y poser.
+pub struct Deplacement<T> {
+    pub src: String,
+    pub generation: u64,
+    pub rang: usize,
+    pub charge: T,
+}
+
+/// Ce qu'un ouvrier rend.
+pub enum Fait {
+    Decodee(Decodee),
+    Deplace(Deplacement<Retour>),
+}
+
+enum Travail {
+    Decoder(String),
+    Deplacer(Deplacement<Transit>),
+}
+
+/// Les trois files, lues dans l'ordre de leur urgence.
+#[derive(Default)]
+struct Files {
+    reprises: VecDeque<Travail>,
+    decodages: VecDeque<Travail>,
+    offres: VecDeque<Travail>,
+    fermee: bool,
+}
+
+impl Files {
+    fn prochain(&mut self) -> Option<Travail> {
+        self.reprises
+            .pop_front()
+            .or_else(|| self.decodages.pop_front())
+            .or_else(|| self.offres.pop_front())
+    }
+}
+
+#[derive(Default)]
+struct Commandes {
+    files: Mutex<Files>,
+    reveil: Condvar,
+}
+
+/// Les fils qui décodent, reprennent et offrent, et ce qu'ils ont en chantier.
 pub struct Atelier {
-    demandes: Sender<String>,
-    prets: Receiver<Decodee>,
+    commandes: Arc<Commandes>,
+    prets: Receiver<Fait>,
     /// Ce qui est parti au décodage et n'est pas revenu. Sert à ne pas redemander à chaque
     /// image la même photo — sans quoi une seule image en cours de décodage saturerait la
     /// file en quelques dixièmes de seconde.
     en_cours: HashSet<String>,
+    /// Les reprises parties et pas revenues : comme un décodage, elles apporteront quelque
+    /// chose à montrer.
+    reprises: usize,
+    /// Les offres parties et pas revenues : elles n'apportent rien à montrer, et ne
+    /// réveillent donc personne — mais un témoin qui veut un état fini les attend.
+    offres: usize,
 }
 
 impl Default for Atelier {
@@ -64,42 +126,34 @@ impl Default for Atelier {
     }
 }
 
+impl Drop for Atelier {
+    /// Les ouvriers se terminent d'eux-mêmes : la file se ferme, et chacun le voit en se
+    /// réveillant. Ce qui restait à faire tombe avec elle — des niveaux à offrir ou à
+    /// reprendre, dont la mémoire est rendue au système.
+    fn drop(&mut self) {
+        if let Ok(mut files) = self.commandes.files.lock() {
+            files.fermee = true;
+        }
+        self.commandes.reveil.notify_all();
+    }
+}
+
 impl Atelier {
     /// Ouvre l'atelier et lance ses ouvriers.
     pub fn nouveau() -> Self {
-        let (demandes, file) = channel::<String>();
-        let (retour, prets) = channel::<Decodee>();
-        let file = Arc::new(Mutex::new(file));
-
+        let commandes = Arc::new(Commandes::default());
+        let (retour, prets) = channel::<Fait>();
         for _ in 0..ouvriers() {
-            let file = Arc::clone(&file);
+            let commandes = Arc::clone(&commandes);
             let retour = retour.clone();
-            // Un ouvrier vit tant que la file existe. Quand l'atelier est détruit, le `Sender`
-            // tombe, `recv` rend une erreur et la boucle se termine d'elle-même : il n'y a ni
-            // drapeau d'arrêt à lever, ni fil à attendre.
-            std::thread::spawn(move || loop {
-                let Ok(src) = file
-                    .lock()
-                    .map_err(|_| ())
-                    .and_then(|f| f.recv().map_err(|_| ()))
-                else {
-                    return;
-                };
-                // Le temps que ce fichier a coûté est ce que sa reconstruction coûterait :
-                // c'est exactement son utilité dans un cache, et elle se mesure ici plutôt
-                // que de s'estimer ailleurs (ADAPT-1).
-                let debut = std::time::Instant::now();
-                let image = decoder(&src).map(Pyramide::nouvelle);
-                if retour.send((src, image, debut.elapsed())).is_err() {
-                    return;
-                }
-            });
+            std::thread::spawn(move || ouvrier(&commandes, &retour));
         }
-
         Self {
-            demandes,
+            commandes,
             prets,
             en_cours: HashSet::new(),
+            reprises: 0,
+            offres: 0,
         }
     }
 
@@ -111,10 +165,37 @@ impl Atelier {
         if self.en_cours.contains(src) {
             return false;
         }
-        if self.demandes.send(src.to_string()).is_err() {
+        if !self.confier(Travail::Decoder(src.to_string())) {
             return false;
         }
         self.en_cours.insert(src.to_string());
+        true
+    }
+
+    /// **Confie un niveau à un ouvrier**, qui l'offrira ou le reprendra.
+    pub fn deplacer(&mut self, deplacement: Deplacement<Transit>) {
+        let reprise = matches!(deplacement.charge, Transit::AReprendre(_));
+        if self.confier(Travail::Deplacer(deplacement)) {
+            match reprise {
+                true => self.reprises += 1,
+                false => self.offres += 1,
+            }
+        }
+    }
+
+    fn confier(&self, travail: Travail) -> bool {
+        let Ok(mut files) = self.commandes.files.lock() else {
+            return false;
+        };
+        match &travail {
+            Travail::Decoder(_) => files.decodages.push_back(travail),
+            Travail::Deplacer(d) => match d.charge {
+                Transit::AReprendre(_) => files.reprises.push_back(travail),
+                Transit::AOffrir(_) => files.offres.push_back(travail),
+            },
+        }
+        drop(files);
+        self.commandes.reveil.notify_one();
         true
     }
 
@@ -122,21 +203,74 @@ impl Atelier {
     ///
     /// C'est le seul point de contact entre les fils de fond et le rendu, et il ne bloque
     /// pas : ce qui n'est pas fini sera récolté à l'image suivante.
-    pub fn recolter(&mut self) -> Vec<Decodee> {
+    pub fn recolter(&mut self) -> Vec<Fait> {
         let mut moisson = Vec::new();
-        while let Ok((src, image, cout)) = self.prets.try_recv() {
-            self.en_cours.remove(&src);
-            moisson.push((src, image, cout));
+        while let Ok(fait) = self.prets.try_recv() {
+            match &fait {
+                Fait::Decodee((src, ..)) => {
+                    self.en_cours.remove(src);
+                }
+                Fait::Deplace(d) => match d.charge {
+                    Retour::Repris(_) => self.reprises = self.reprises.saturating_sub(1),
+                    Retour::Offerts(_) => self.offres = self.offres.saturating_sub(1),
+                },
+            }
+            moisson.push(fait);
         }
         moisson
     }
 
-    /// Combien d'images sont encore en chantier.
+    /// Combien de décodages et de reprises sont encore en chantier.
     ///
     /// C'est ce qui dit à la boucle d'événements de repasser bientôt : tant qu'il reste du
-    /// travail, l'application a une raison de se réveiller même si l'utilisateur ne fait rien.
+    /// travail qui apportera quelque chose à montrer, l'application a une raison de se
+    /// réveiller même si l'utilisateur ne fait rien. Une offre n'en apporte pas.
     pub fn en_travail(&self) -> usize {
-        self.en_cours.len()
+        self.en_cours.len() + self.reprises
+    }
+
+    /// Tout ce qui est parti et pas revenu, offres comprises.
+    pub fn en_route(&self) -> usize {
+        self.en_travail() + self.offres
+    }
+}
+
+/// La vie d'un ouvrier : prendre le plus urgent, le faire, le rendre — jusqu'à la fermeture.
+fn ouvrier(commandes: &Commandes, retour: &Sender<Fait>) {
+    while let Some(travail) = attendre(commandes) {
+        let fait = match travail {
+            Travail::Decoder(src) => {
+                // Le temps que ce fichier a coûté est ce que sa reconstruction coûterait :
+                // c'est exactement son utilité dans un cache, et elle se mesure ici plutôt
+                // que de s'estimer ailleurs (ADAPT-1).
+                let debut = Instant::now();
+                let pyramide = decoder(&src);
+                Fait::Decodee((src, pyramide, debut.elapsed()))
+            }
+            Travail::Deplacer(d) => Fait::Deplace(Deplacement {
+                src: d.src,
+                generation: d.generation,
+                rang: d.rang,
+                charge: d.charge.accomplir(),
+            }),
+        };
+        if retour.send(fait).is_err() {
+            return;
+        }
+    }
+}
+
+/// Le prochain travail, en dormant tant qu'il n'y en a pas ; `None` à la fermeture.
+fn attendre(commandes: &Commandes) -> Option<Travail> {
+    let mut files = commandes.files.lock().ok()?;
+    loop {
+        if files.fermee {
+            return None;
+        }
+        if let Some(travail) = files.prochain() {
+            return Some(travail);
+        }
+        files = commandes.reveil.wait(files).ok()?;
     }
 }
 
@@ -152,45 +286,19 @@ fn ouvriers() -> usize {
         .max(1)
 }
 
-/// Lit un fichier image et le rend prêt à poser : décodé, et prémultiplié.
+/// Lit un fichier image et le rend prêt à poser : décodé, prémultiplié, et réduit.
 ///
-/// La prémultiplication est faite ici, sur le fil de fond, parce qu'elle coûte autant que le
-/// décodage sur une grande photo — la laisser au fil de rendu aurait déplacé le problème d'un
-/// mètre.
-fn decoder(src: &str) -> Option<Pixmap> {
+/// Les pixels vont directement dans les pages de la pyramide ([`Pyramide::depuis_rgba`]) : le
+/// `Pixmap` intermédiaire qu'il y avait ici coûtait une copie de plus par image — dix
+/// mégaoctets pour une épingle.
+fn decoder(src: &str) -> Option<Pyramide> {
     let chemin = std::path::Path::new(src);
     if !chemin.exists() {
         return None;
     }
     let rgba = image::open(chemin).ok()?.to_rgba8();
     let (w, h) = rgba.dimensions();
-    let mut pixmap = Pixmap::new(w, h)?;
-    let source = rgba.into_raw();
-    let (source, _) = source.as_chunks::<4>();
-    let (destination, _) = pixmap.data_mut().as_chunks_mut::<4>();
-
-    for (px, out) in source.iter().zip(destination.iter_mut()) {
-        let a = u32::from(px[3]);
-        // Prémultiplication en entiers, arrondie au plus proche : `t = c·a + 128`, puis
-        // `(t + (t >> 8)) >> 8`. Le décalage remplace la division par 255 exactement sur toute
-        // la plage — c'est vérifié canal par canal, et `a = 255` redonne `c` sans écart.
-        //
-        // La version flottante qui était ici tronquait : un canal à 255 sur un pixel opaque
-        // ressortait à 254. Invisible sur une photo, visible sur un aplat près d'une bordure.
-        // Ma première réécriture se trompait dans l'autre sens — 128 devenait 129 — et c'est
-        // le test qui l'a dit, pas la relecture.
-        let premultiplie = |c: u8| {
-            let t = u32::from(c) * a + 128;
-            ((t + (t >> 8)) >> 8) as u8
-        };
-        *out = [
-            premultiplie(px[0]),
-            premultiplie(px[1]),
-            premultiplie(px[2]),
-            px[3],
-        ];
-    }
-    Some(pixmap)
+    Pyramide::depuis_rgba(w, h, rgba.as_raw())
 }
 
 #[cfg(test)]

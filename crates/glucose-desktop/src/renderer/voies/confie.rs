@@ -23,6 +23,10 @@ pub struct Confie {
     /// **Le niveau de chaque photo décodée**, par clé : son fichier, et combien de fois le
     /// niveau que la carte reçoit est réduit (NIVEAU-GPU-1).
     pub niveaux: std::collections::HashMap<String, (String, u32)>,
+    /// **Ce qui remplace une photo dont le niveau voulu n'est pas tenu**, par la clé de la
+    /// photo : la clé du meilleur niveau tenu, et sa pose (ETAGES-1). La carte ne le pose
+    /// que si elle ne détient rien d'autre pour cette photo.
+    pub replis: std::collections::HashMap<String, (String, Pose)>,
     /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
     /// annotations passent au-dessus (COMPOSANT-1).
     pub cartes: Vec<(String, Pose)>,
@@ -99,11 +103,22 @@ impl Confie {
                     (None, Some((src, _))) => src.clone(),
                     (None, None) => cle.clone(),
                 };
+                // Le repli d'une photo a son identité à lui : sous celle de la photo, il
+                // remplacerait la texture nette que la carte a peut-être gardée (ETAGES-1).
+                let repli = match composant {
+                    Some(c) => c.repli.clone(),
+                    None => self.replis.get(cle.as_str()).map(|(cle_du_repli, pose)| APoser {
+                        identite: format!("{identite}#repli"),
+                        cle: cle_du_repli.clone(),
+                        pose: *pose,
+                        repli: None,
+                    }),
+                };
                 APoser {
                     identite,
                     cle: cle.clone(),
                     pose: *pose,
-                    repli: composant.and_then(|c| c.repli.clone()).map(Box::new),
+                    repli: repli.map(Box::new),
                 }
             })
             .collect()
@@ -123,16 +138,15 @@ impl Confie {
         &'a self,
         renderer: &'a crate::renderer::Renderer,
         cle: &str,
-    ) -> Option<std::borrow::Cow<'a, tiny_skia::Pixmap>> {
+    ) -> Option<crate::present::scene_gpu::Pixels<'a>> {
+        use crate::present::scene_gpu::Pixels;
         if let Some(composant) = self.composant(cle) {
-            return composant
-                .rendre(renderer.kit())
-                .map(std::borrow::Cow::Owned);
+            return composant.rendre(renderer.kit()).map(Pixels::Rendues);
         }
+        // Un niveau offert au système ne se prête pas (ETAGES-1) : la texture attend qu'il
+        // soit repris, et l'ancienne se pose en attendant.
         let (src, facteur) = self.niveaux.get(cle)?;
         let entree = renderer.magasin.cache.get(src)?;
-        Some(std::borrow::Cow::Borrowed(
-            entree.pyramide.niveau_reduit(*facteur),
-        ))
+        entree.pyramide.niveau(*facteur).map(Pixels::Pretes)
     }
 }

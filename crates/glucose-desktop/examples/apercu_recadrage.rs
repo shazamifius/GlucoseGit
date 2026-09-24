@@ -101,18 +101,17 @@ fn charger(chemin: &str) -> Option<Pixmap> {
 /// grande, la boîte du nœud pour clip, au niveau de pyramide qu'elle choisirait. Rend l'image
 /// et la taille de la boîte, posée à une phase non entière dans une marge transparente.
 fn rendre(pyramide: &Pyramide, crop: Recadrage, zoom: f64, borne: bool) -> (Pixmap, (u32, u32)) {
-    let native = pyramide.native();
+    let natives = pyramide.dimensions_natives();
     let (bl, bh) = (
-        f64::from(native.width()) * crop.largeur_visible() * zoom,
-        f64::from(native.height()) * crop.hauteur_visible() * zoom,
+        f64::from(natives.0) * crop.largeur_visible() * zoom,
+        f64::from(natives.1) * crop.hauteur_visible() * zoom,
     );
     let boite = (10.3, 10.6, bl, bh);
     let (x, y, vw, vh) = crop.source_pour(boite);
-    let niveau = pyramide.niveau_pour(vw as f32);
-    let fenetre = crop.texels_lisibles(
-        (native.width(), native.height()),
-        pyramide.facteur_pour(vw as f32),
-    );
+    let niveau = pyramide
+        .niveau_pour(vw as f32)
+        .expect("une pyramide neuve tient tous ses niveaux");
+    let fenetre = crop.texels_lisibles(natives, pyramide.facteur_pour(vw as f32));
     let (dl, dh) = (bl.ceil() as u32 + 21, bh.ceil() as u32 + 22);
     let mut dest = Pixmap::new(dl, dh).expect("un rendu");
     let (texels, _) = niveau.data().as_chunks::<4>();

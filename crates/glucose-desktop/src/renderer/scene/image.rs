@@ -257,7 +257,7 @@ fn poser_ou_demander(
     let src = img.src.as_deref().filter(|s| !s.is_empty())?;
     // Réclamer marque l'image comme servie à cette passe, ce qui la met hors d'atteinte de
     // l'éviction : ce qui est à l'écran ne se rend jamais à la machine (ADAPT-1).
-    if !magasin.reclamer(src) {
+    if !magasin.reclamer(src, img.width) {
         return None;
     }
     let entree = magasin.cache.get(src)?;
@@ -348,7 +348,10 @@ fn poser(
     // native. Le filtre lit alors des texels voisins au lieu d'en sauter neuf sur dix.
     // Le niveau se choisit sur la taille a laquelle la SOURCE se pose, pas sur la boite :
     // une photo cadree au quart montre chaque texel quatre fois plus grand.
-    let loaded = pyramide.niveau_pour(vw);
+    // ETAGES-1 : le meilleur niveau TENU -- le voulu, ou un voisin le temps qu'il revienne.
+    let Some((facteur, loaded)) = pyramide.meilleur_pour(vw) else {
+        return (0, Chemin::Echantillon, std::time::Duration::ZERO);
+    };
     let pose = report::Pose {
         x: vx,
         y: vy,
@@ -357,7 +360,7 @@ fn poser(
     };
     crate::perf::stage("images");
     let debut = std::time::Instant::now();
-    let source = (loaded, Some(lisibles(pyramide, img, vw)));
+    let source = (loaded, Some(lisibles(pyramide, img, facteur)));
     let ecrits = reporter_les_parts(pixmap, source, pose, parts, melange, filtre);
     let passees = debut.elapsed();
     crate::perf::stage("report");
@@ -379,7 +382,9 @@ fn poser_en_tournant(
 ) -> u64 {
     let (sx, sy, sw, sh) = ecran;
     let (vx, vy, vw, vh) = source;
-    let loaded = pyramide.niveau_pour(vw);
+    let Some((facteur, loaded)) = pyramide.meilleur_pour(vw) else {
+        return 0;
+    };
     let rotation = Transform::from_rotate_at(
         img.rotation.to_degrees() as f32,
         sx + sw / 2.0,
@@ -397,7 +402,7 @@ fn poser_en_tournant(
             blend_mode: mode_de_report(pyramide.opaque(), img.rotation),
             ..Default::default()
         };
-        pixmap.draw_pixmap(0, 0, loaded.as_ref(), &paint, pose_source, None);
+        pixmap.draw_pixmap(0, 0, loaded, &paint, pose_source, None);
         return (f64::from(sw) * f64::from(sh)) as u64;
     }
     // RECADRAGE-1 sur une image tournee : la boite du noeud, tournee, est le seul endroit ou
@@ -414,7 +419,7 @@ fn poser_en_tournant(
     // que le remplissage applique deja a tout. Et il ne porte que la fenetre (BORDURES-4) :
     // `Pad` en prolonge alors les bords, au lieu de ramener ce que le recadrage retire. La
     // copie ne se paie que pour une image a la fois tournee et cadree.
-    let [g, h, d, b] = lisibles(pyramide, img, vw);
+    let [g, h, d, b] = lisibles(pyramide, img, facteur);
     let Some(dedans) =
         tiny_skia::IntRect::from_ltrb(g as i32, h as i32, d as i32 + 1, b as i32 + 1)
             .and_then(|r| loaded.clone_rect(r))
@@ -445,16 +450,18 @@ fn poser_en_tournant(
     (f64::from(sw) * f64::from(sh)) as u64
 }
 
-/// Les texels du niveau choisi pour `vw` que le recadrage laisse lire (BORDURES-4).
+/// Les texels du niveau réduit `facteur` fois que le recadrage laisse lire (BORDURES-4).
+///
+/// Le facteur est celui du niveau qui SERT, et non du voulu : ce qui se lit est ce qui est
+/// tenu (ETAGES-1), et des bornes calculées sur un autre niveau laisseraient passer une
+/// colonne retirée — la faute exacte de la fiche 28.
 fn lisibles(
     pyramide: &photo::Pyramide,
     img: &glucose_core::types::BoardImage,
-    vw: f32,
+    facteur: u32,
 ) -> [u32; 4] {
-    let native = pyramide.native();
-    let facteur = pyramide.facteur_pour(vw);
     img.crop
-        .texels_lisibles((native.width(), native.height()), facteur)
+        .texels_lisibles(pyramide.dimensions_natives(), facteur)
 }
 
 /// **Où la source ENTIÈRE se pose** pour que sa fenêtre visible coïncide avec la boîte du nœud
@@ -518,7 +525,7 @@ fn poser_depuis_une_vignette(
     let debut = std::time::Instant::now();
     let ecrits = reporter_les_parts(
         pixmap,
-        (vignette, None),
+        (vignette.as_ref(), None),
         pose,
         parts,
         melange,
@@ -536,7 +543,7 @@ fn poser_depuis_une_vignette(
 /// convertir en tranches de `[u8; 4]` ne copie rien et ne suppose aucun boutisme.
 fn reporter_les_parts(
     pixmap: &mut PixmapMut,
-    (source, fenetre): (&tiny_skia::Pixmap, Option<[u32; 4]>),
+    (source, fenetre): (tiny_skia::PixmapRef<'_>, Option<[u32; 4]>),
     pose: report::Pose,
     parts: &[occlusion::Boite],
     melange: report::Melange,

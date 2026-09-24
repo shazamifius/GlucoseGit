@@ -161,6 +161,9 @@ pub struct GlucoseApp {
     /// la serait clone a chaque frappe.
     pub historique_du_texte: crate::interactions::text_edit::historique::Historique,
 
+    /// Un `Ctrl+B` dont les originaux reviennent de chez le système (ETAGES-1).
+    pub bordures_en_attente: Option<crate::interactions::recadrage::LotDeBordures>,
+
     /// **Le prochain clic ne sert qu'à revenir au premier plan** (REVEIL-1).
     ///
     /// Windows transmet à la fenêtre le clic qui l'active, et Glucose l'exécutait donc sur le
@@ -314,20 +317,14 @@ impl GlucoseApp {
             tampon_dessus: None,
             confie: crate::renderer::Confie::default(),
             pixmap: None,
-            // Le mot d'accueil est posé ici, au démarrage, et non dans `UiState::new` : un
-            // constructeur d'état ne déclenche pas de notification, et un toast porte une
-            // horloge qui rendait tout rendu non reproductible.
-            ui: {
-                let mut ui = UiState::new();
-                ui.show_toast(crate::ui::WELCOME_TOAST);
-                ui
-            },
+            ui: accueil::interface_d_accueil(),
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
             arbitre: None,
             souvenir_de_la_carte: crate::present::souvenir::chemin(),
             reduire_a_la_relache: None,
             historique_du_texte: Default::default(),
+            bordures_en_attente: None,
             clic_de_reveil: false,
             relachement_a_jeter: false,
             window: None,
@@ -407,6 +404,9 @@ impl GlucoseApp {
             self.appliquer_l_elan(width, height);
 
             let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
+            // Un `Ctrl+B` qui attend ses originaux les redemande, ou s'applique s'ils sont
+            // revenus (ETAGES-1) — avant la peinture, pour que ce qu'il change se voie ici.
+            self.poursuivre_les_bordures();
             self.peindre_ce_qui_a_change((width, height), tampon_neuf);
 
             // TEMPO-1 : l'image ne part pas quand elle est prete, elle part quand c'est

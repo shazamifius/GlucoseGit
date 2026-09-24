@@ -357,7 +357,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
     crate::renderer::scene::draw_membranes(kit, &mut view, &store, pass);
 
     let mut magasin = crate::renderer::magasin::Magasin::nouveau();
-    magasin.reclamer(&photo);
+    magasin.reclamer(&photo, 0.0);
     magasin.attendre_le_chantier();
     let mut cout = glucose_core::cout::Cout::nouveau();
     crate::renderer::scene::image::draw_images(

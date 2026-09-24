@@ -251,64 +251,97 @@ pub(super) fn poses_des_photos(
         posees,
         composants,
         niveaux,
+        replis,
     } = &mut photos;
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
-        let presente = img.src.as_deref().is_some_and(|src| magasin.reclamer(src));
-        if !presente {
-            if let Some(pieces) = regime.photo_en_chemin(img) {
-                ranger(pieces, posees, composants);
-                en_chemin += 1.0;
+        match pose_tenue(magasin, img, vp) {
+            Some(tenue) => {
+                let cle = format!("{}@{}", tenue.src, tenue.facteur);
+                if let Some((facteur, pose)) = tenue.repli {
+                    let cle_du_repli = format!("{}@{facteur}", tenue.src);
+                    niveaux.insert(cle_du_repli.clone(), (tenue.src.clone(), facteur));
+                    replis.insert(cle.clone(), (cle_du_repli, pose));
+                }
+                niveaux.insert(cle.clone(), (tenue.src, tenue.facteur));
+                posees.push((cle, tenue.pose));
             }
-            continue;
+            None => {
+                if let Some(pieces) = regime.photo_en_chemin(img) {
+                    ranger(pieces, posees, composants);
+                    en_chemin += 1.0;
+                }
+            }
         }
-        let Some(src) = img.src.as_deref() else {
-            continue;
-        };
-        let Some(entree) = magasin.cache.get(src) else {
-            continue;
-        };
-        // Le modele place une photo par son CENTRE : le coin s'en deduit, et c'est le piege
-        // que `ce_que_porte` avait deja paye une fois.
-        let (x, y) =
-            crate::canvas::world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, vp);
-        let boite = (x, y, img.width * vp.scale, img.height * vp.scale);
-        // **NIVEAU-GPU-1 : la carte reçoit le niveau qui couvre encore la taille posée**, et
-        // non la texture native. La règle est celle de la voie processeur (MIP-1), lue au même
-        // endroit : sur la taille à laquelle la SOURCE entière se pose, qu'un recadrage rend
-        // plus grande que la boîte. Une épingle de 27 Mo posée en vignette partait entière sur
-        // le bus — treize millisecondes de processeur pour un envoi, d'où les photos qui
-        // arrivaient en vagues —, et le filtre lisait un texel sur dix : du crénelage.
-        let (_, _, largeur_source, _) = img.crop.source_pour(boite);
-        let pyramide = &entree.pyramide;
-        let facteur = pyramide.facteur_pour(largeur_source as f32);
-        let (native, niveau) = (pyramide.native(), pyramide.niveau_reduit(facteur));
-        // Ce que le filtre a le droit de lire se decide sur ce niveau-la (BORDURES-4).
-        let bornes = Pose::bornes_de(
-            img.crop,
-            (native.width(), native.height()),
-            (facteur, (niveau.width(), niveau.height())),
-        );
-        let cle = format!("{src}@{facteur}");
-        niveaux.insert(cle.clone(), (src.to_string(), facteur));
-        posees.push((
-            cle,
-            Pose {
-                x: x as f32,
-                y: y as f32,
-                largeur: boite.2 as f32,
-                hauteur: boite.3 as f32,
-                opacite: 1.0,
-                angle: img.rotation as f32,
-                // Le recadrage du modele, lu et jamais calcule : la carte montre la fenetre
-                // de la photo que le document dit (RECADRAGE-1).
-                fenetre: Pose::fenetre_de(img.crop),
-                bornes,
-            },
-        ));
     }
     crate::perf::compteur("photos_en_chemin", en_chemin);
     photos
+}
+
+/// **Ce que la carte doit savoir d'une photo que le magasin tient** : son fichier, le niveau
+/// voulu et sa pose — et, si ce niveau n'est pas tenu, celui qui le remplace en attendant.
+struct PhotoTenue {
+    src: String,
+    facteur: u32,
+    pose: Pose,
+    repli: Option<(u32, Pose)>,
+}
+
+/// **Où la carte posera cette photo, et à quel niveau** — ou rien si le magasin ne tient
+/// encore rien d'elle : elle est alors en chemin, et se dessine comme telle.
+fn pose_tenue(
+    magasin: &mut super::magasin::Magasin,
+    img: &glucose_core::types::BoardImage,
+    vp: &Viewport,
+) -> Option<PhotoTenue> {
+    let src = img.src.as_deref()?;
+    if !magasin.reclamer(src, img.width) {
+        return None;
+    }
+    let entree = magasin.cache.get(src)?;
+    // Le modele place une photo par son CENTRE : le coin s'en deduit, et c'est le piege
+    // que `ce_que_porte` avait deja paye une fois.
+    let (x, y) =
+        crate::canvas::world_to_screen(img.x - img.width / 2.0, img.y - img.height / 2.0, vp);
+    let boite = (x, y, img.width * vp.scale, img.height * vp.scale);
+    // **NIVEAU-GPU-1 : la carte reçoit le niveau qui couvre encore la taille posée**, et
+    // non la texture native. La règle est celle de la voie processeur (MIP-1), lue au même
+    // endroit : sur la taille à laquelle la SOURCE entière se pose, qu'un recadrage rend
+    // plus grande que la boîte. Une épingle de 27 Mo posée en vignette partait entière sur
+    // le bus — treize millisecondes de processeur pour un envoi, d'où les photos qui
+    // arrivaient en vagues —, et le filtre lisait un texel sur dix : du crénelage.
+    let (_, _, largeur_source, _) = img.crop.source_pour(boite);
+    // **ETAGES-1 : la carte demande toujours le niveau VOULU.** S'il n'est pas tenu — offert
+    // au système, il revient —, la carte pose ce qu'elle détient déjà pour cette photo, net
+    // s'il était resté dans son cache. Et seulement si elle ne détient rien, le meilleur
+    // niveau tenu, sous une identité à lui : poser le repli sous l'identité de la photo
+    // remplacerait une texture nette par une floue, le temps d'une reprise.
+    let pyramide = &entree.pyramide;
+    let voulu = pyramide.facteur_pour(largeur_source as f32);
+    let (tenu, _) = pyramide.meilleur_pour(largeur_source as f32)?;
+    let pose = |facteur: u32| Pose {
+        x: x as f32,
+        y: y as f32,
+        largeur: boite.2 as f32,
+        hauteur: boite.3 as f32,
+        opacite: 1.0,
+        angle: img.rotation as f32,
+        // Le recadrage du modele, lu et jamais calcule : la carte montre la fenetre de la
+        // photo que le document dit (RECADRAGE-1).
+        fenetre: Pose::fenetre_de(img.crop),
+        // Ce que le filtre a le droit de lire se decide sur ce niveau-la (BORDURES-4).
+        bornes: Pose::bornes_de(
+            img.crop,
+            pyramide.dimensions_natives(),
+            (facteur, pyramide.dimensions(facteur)),
+        ),
+    };
+    Some(PhotoTenue {
+        src: src.to_string(),
+        facteur: voulu,
+        pose: pose(voulu),
+        repli: (tenu != voulu).then(|| (tenu, pose(tenu))),
+    })
 }
 
 /// **Ce que la passe des photos confie à la carte** : où chacune se pose, ce qui sait se
@@ -318,6 +351,7 @@ pub(super) struct PhotosAPoser {
     posees: Vec<(String, Pose)>,
     composants: Vec<super::composants::Composant>,
     niveaux: std::collections::HashMap<String, (String, u32)>,
+    replis: std::collections::HashMap<String, (String, Pose)>,
 }
 
 /// **Les cartes de texte que l'ecran montre**, comme composants (COMPOSANT-1).
@@ -430,7 +464,7 @@ impl Renderer {
         let header_h = ui.header_height();
         let taille = (dessous.width(), dessous.height());
         self.magasin.ouvrir();
-        self.synchroniser_les_caches(store);
+        self.synchroniser_les_caches(store, taille);
         let debut = std::time::Instant::now();
 
         let plein = Cadrage::plein().sous_le_regard(regard);
@@ -484,6 +518,7 @@ impl Renderer {
             posees: photos,
             composants: en_chemin,
             niveaux,
+            replis,
         } = poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store));
         let kit = PaintKit {
             typography: &self.typography,
@@ -501,6 +536,7 @@ impl Renderer {
             lueurs,
             photos,
             niveaux,
+            replis,
             cartes,
             composants,
             // Le releve appartient a la peinture : la chrome se dessine APRES le renderer,

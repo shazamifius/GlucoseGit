@@ -20,6 +20,7 @@
 pub mod empreinte;
 pub mod graphique;
 pub mod moisson;
+pub mod offre;
 pub mod rapatrier;
 pub mod sources;
 

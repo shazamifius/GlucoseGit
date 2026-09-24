@@ -40,11 +40,7 @@ fn poser_entree(magasin: &mut Magasin, nom: &str, cote: u32, cout_ms: u64, vue: 
     let pixmap = Pixmap::new(cote, cote).expect("une image");
     magasin.cache.insert(
         nom.to_string(),
-        Entree {
-            pyramide: Pyramide::nouvelle(pixmap),
-            cout: Duration::from_millis(cout_ms),
-            vue,
-        },
+        Entree::nouvelle(Pyramide::nouvelle(pixmap), Duration::from_millis(cout_ms), vue, 0),
     );
 }
 
@@ -75,10 +71,7 @@ fn test_l_image_finit_par_arriver_et_reste() {
     assert_eq!(magasin.en_travail(), 0, "le chantier est vide");
 
     let pyramide = magasin.pyramide(&src).expect("elle est dans le cache");
-    assert_eq!(
-        (pyramide.native().width(), pyramide.native().height()),
-        (48, 32)
-    );
+    assert_eq!(pyramide.dimensions_natives(), (48, 32));
     assert!(
         magasin.octets() > 0,
         "elle occupe de la place, et on le sait"
@@ -197,3 +190,5 @@ fn test_l_eviction_s_arrete_des_que_la_borne_est_tenue() {
         magasin.cache.len()
     );
 }
+
+mod etages;

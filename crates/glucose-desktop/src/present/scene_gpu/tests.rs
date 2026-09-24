@@ -52,7 +52,7 @@ fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Op
     let mut scene = SceneGpu::nouvelle(&peripherique, format);
     scene.ouvrir();
     for (cle, source) in sources {
-        scene.televerser(&peripherique, &file, (cle, cle), source);
+        scene.televerser(&peripherique, &file, (cle, cle), source.as_ref());
     }
     let poses: Vec<APoser> = poses.iter().map(|(c, p)| a_poser(c, *p)).collect();
     let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), &poses);
@@ -228,8 +228,8 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
     };
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
-    scene.televerser(&peripherique, &file, ("a", "a"), &photo(4, [1, 2, 3, 255]));
-    scene.televerser(&peripherique, &file, ("b", "b"), &photo(4, [4, 5, 6, 255]));
+    scene.televerser(&peripherique, &file, ("a", "a"), photo(4, [1, 2, 3, 255]).as_ref());
+    scene.televerser(&peripherique, &file, ("b", "b"), photo(4, [4, 5, 6, 255]).as_ref());
     assert!(scene.connait("a", "a") && scene.connait("b", "b"));
 
     // Une image ou seule `a` sert.
@@ -318,7 +318,7 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         &peripherique,
         &file,
         ("carte:c1", "carte:c1:ancien"),
-        &photo(4, [1, 2, 3, 255]),
+        photo(4, [1, 2, 3, 255]).as_ref(),
     );
 
     // La scène en demande maintenant un palier neuf.
@@ -382,7 +382,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
         &peripherique,
         &file,
         ("vieux", "vieux:ancien"),
-        &photo(4, [1, 2, 3, 255]),
+        photo(4, [1, 2, 3, 255]).as_ref(),
     );
 
     let pose = Pose {
@@ -409,7 +409,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
             &[demande("vieux:neuf", "vieux"), demande("neuf", "neuf")],
             std::time::Duration::ZERO,
         ),
-        &|_| Some(std::borrow::Cow::Owned(photo(4, [9, 9, 9, 255]))),
+        &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
     );
 
     assert!(
@@ -442,13 +442,13 @@ fn test_cascade_un_nouveau_palier_remplace_l_ancien_et_ne_s_ajoute_pas() {
         &peripherique,
         &file,
         ("c", "c:x1"),
-        &photo(4, [1, 1, 1, 255]),
+        photo(4, [1, 1, 1, 255]).as_ref(),
     );
     scene.televerser(
         &peripherique,
         &file,
         ("c", "c:x2"),
-        &photo(4, [2, 2, 2, 255]),
+        photo(4, [2, 2, 2, 255]).as_ref(),
     );
     assert!(scene.connait("c", "c:x2"), "la neuve a pris la place");
     assert!(
@@ -581,7 +581,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
         &peripherique,
         &file,
         ("carte:c", "carte:c:k"),
-        &photo(4, [7, 7, 7, 255]),
+        photo(4, [7, 7, 7, 255]).as_ref(),
     );
     let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
     assert_eq!(
@@ -596,7 +596,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
         &peripherique,
         &file,
         ("carte:c@6#0,0", "carte:c@6#0,0:k"),
-        &photo(4, [9, 9, 9, 255]),
+        photo(4, [9, 9, 9, 255]).as_ref(),
     );
     let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
     assert_eq!(
@@ -633,7 +633,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         bornes: Pose::PARTOUT,
     };
     let demande = [tuile_et_repli(pose)];
-    let source = |_: &str| Some(std::borrow::Cow::Owned(photo(4, [9, 9, 9, 255])));
+    let source = |_: &str| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])));
 
     // La tuile est deja la, et l'image n'a plus une milliseconde : rien n'est force.
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
@@ -642,7 +642,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         &peripherique,
         &file,
         ("carte:c@6#0,0", "carte:c@6#0,0:k"),
-        &photo(4, [1, 1, 1, 255]),
+        photo(4, [1, 1, 1, 255]).as_ref(),
     );
     scene.assurer(
         &peripherique,
@@ -719,12 +719,12 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
         for nom in ["a", "b", "c"] {
             scene.ouvrir();
-            scene.televerser(&peripherique, &file, (nom, nom), &photo(4, [1, 2, 3, 255]));
+            scene.televerser(&peripherique, &file, (nom, nom), photo(4, [1, 2, 3, 255]).as_ref());
             scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser(nom, pose)]);
             scene.fermer(u64::MAX);
         }
         scene.ouvrir();
-        scene.televerser(&peripherique, &file, ("d", "d"), &photo(4, [4, 5, 6, 255]));
+        scene.televerser(&peripherique, &file, ("d", "d"), photo(4, [4, 5, 6, 255]).as_ref());
         scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("d", pose)]);
         scene.fermer(gardable);
         scene

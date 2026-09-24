@@ -95,12 +95,13 @@ impl SceneGpu {
             return;
         }
         if let Some(pixels) = source(&t.cle) {
+            let pixels = pixels.vue();
             // **Ce qu'une texture pese vraiment**, en kilopixels. Les chroniques du 21/09
             // montrent UNE texture a dix-neuf millisecondes, ce qu'aucune carte de texte
             // ordinaire ne peut couter : il faut donc savoir laquelle, et la surface est la
             // seule grandeur qui puisse l'expliquer.
             tranche.surface += f64::from(pixels.width()) * f64::from(pixels.height()) / 1000.0;
-            self.televerser(peripherique, file, (&t.identite, &t.cle), &pixels);
+            self.televerser(peripherique, file, (&t.identite, &t.cle), pixels);
             tranche.faites += 1.0;
         }
     }

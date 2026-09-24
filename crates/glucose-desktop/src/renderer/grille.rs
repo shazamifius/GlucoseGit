@@ -354,7 +354,7 @@ fn poser_par_la_grille(
     if let Some(board) = store.active_board() {
         for img in Visibles::nouvelles(pass.visibles, board).images() {
             if let Some(src) = img.src.as_deref() {
-                atelier.magasin.reclamer(src);
+                atelier.magasin.reclamer(src, img.width);
             }
         }
     }

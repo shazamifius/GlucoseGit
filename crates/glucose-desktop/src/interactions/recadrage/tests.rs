@@ -198,3 +198,56 @@ fn test_une_image_tournee_recule_le_long_de_son_axe() {
     assert!((img.x - 290.0).abs() < 1e-9, "x : {}", img.x);
     assert!((img.y - 320.0).abs() < 1e-9, "y : {}", img.y);
 }
+
+/// **Un lot dont l'original est chez le système attend, puis s'applique d'un seul bloc**
+/// (ETAGES-1).
+///
+/// La photo est loin de l'écran, et son original a été offert : rien ne le lit. `Ctrl+B` ne
+/// change donc rien tout de suite — il le redemande et attend. L'application ne fait passer
+/// une image que lorsqu'elle demande à se réveiller, comme la vraie boucle : c'est ce qui
+/// attrape un lot qui attendrait sans que rien ne le fasse repasser.
+#[test]
+fn test_un_lot_attend_ses_originaux_puis_s_applique_d_un_bloc() {
+    use crate::renderer::photo::Etat;
+    let mut app = app();
+    decoder_a_bandes(&mut app, "bandes.png");
+    poser(&mut app, "i", "bandes.png", 100_000.0, 100_000.0);
+    app.store.selected_image_ids = vec!["i".into()];
+    app.store.journal.clear();
+    // Le mot d'accueil réveillerait l'application de lui-même, et cacherait un lot qui ne
+    // la réveille pas.
+    app.ui.current_toast = None;
+
+    // Une image du rendu où rien ne lit l'original : il part chez le système. Puis une image
+    // de repos : l'offre est rentrée, et plus rien ne fait revoir cette photo hors de l'écran.
+    let magasin = &mut app.renderer.magasin;
+    magasin.ouvrir();
+    magasin.reclamer("bandes.png", 200.0);
+    magasin.fermer();
+    magasin.attendre_le_chantier();
+    magasin.ouvrir();
+    magasin.fermer();
+    assert_eq!(magasin.cache["bandes.png"].pyramide.etat(0), Etat::Offert);
+
+    app.retirer_les_bordures_de_la_selection();
+    assert!(
+        image(&app, "i").crop.est_entier(),
+        "rien ne change tant que l'original n'est pas revenu"
+    );
+
+    for _ in 0..1000 {
+        if app.bordures_en_attente.is_none() || app.prochain_reveil().is_none() {
+            break;
+        }
+        app.une_image_sans_fenetre((800, 600));
+        app.renderer.magasin.attendre_le_chantier();
+    }
+    assert!(
+        app.bordures_en_attente.is_none(),
+        "le lot attend encore : plus rien ne l'a fait repasser"
+    );
+    assert!(!image(&app, "i").crop.est_entier(), "les bandes sont parties");
+    assert!(app.store.undo(), "il y a quelque chose a annuler");
+    assert!(image(&app, "i").crop.est_entier(), "et un Ctrl+Z les rend");
+    assert!(!app.store.undo(), "un seul geste : une seule entree");
+}

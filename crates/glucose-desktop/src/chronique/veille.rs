@@ -69,6 +69,8 @@ pub struct Veille {
     eveille: (u64, u64),
     /// Ce que la carte graphique porte pour Glucose, si la plateforme sait le dire (VRAM-1).
     carte: Option<Carte>,
+    /// La mémoire vive, étage par étage (ETAGES-1).
+    pub etages: super::etages::Etages,
 }
 
 /// **Ce que la carte graphique a porté pour Glucose pendant la session**, en octets, et ce que
@@ -108,21 +110,23 @@ pub struct Part {
 }
 
 impl Veille {
-    /// **Relève l'empreinte si l'intervalle est écoulé**, et range ce qu'elle dit.
+    /// **Relève l'empreinte si l'intervalle est écoulé**, range ce qu'elle dit, et rend vrai
+    /// quand elle l'a fait — l'appelant relève alors les étages au même rythme.
     ///
     /// `compte` dit où en est la session : ce que la main a demandé — s'il n'a pas bougé,
     /// l'intervalle qui vient de s'écouler s'est passé sans utilisateur — et ce qui a été
     /// rendu, qui dira ce que l'application dessine alors que personne ne la regarde.
-    pub fn observer(&mut self, maintenant: Instant, compte: Compte) {
+    pub fn observer(&mut self, maintenant: Instant, compte: Compte) -> bool {
         if let Some((quand, _)) = self.dernier {
             if maintenant.duration_since(quand) < INTERVALLE {
-                return;
+                return false;
             }
         }
         let Some(vu) = relever() else {
-            return;
+            return false;
         };
         self.noter(maintenant, compte, vu);
+        true
     }
 
     /// **Range un relevé**, sans l'avoir pris.

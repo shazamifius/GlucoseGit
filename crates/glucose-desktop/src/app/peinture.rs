@@ -119,6 +119,19 @@ impl GlucoseApp {
         (!sale.est_propre()).then_some(sale)
     }
 
+    /// **Une image de l'application, sans fenêtre** : ce que `redraw` peint, par la voie
+    /// processeur, sur un tampon de cette taille. Pour les épreuves qui doivent faire passer
+    /// le temps comme l'application le fait — image après image.
+    #[cfg(test)]
+    pub(crate) fn une_image_sans_fenetre(&mut self, (largeur, hauteur): (u32, u32)) {
+        if self.pixmap.is_none() {
+            self.pixmap = Pixmap::new(largeur, hauteur);
+        }
+        self.mark_dirty();
+        self.poursuivre_les_bordures();
+        self.peindre_ce_qui_a_change((largeur, hauteur), false);
+    }
+
     /// Ou la main pointe, en pixels d'ecran.
     fn pointeur(&self) -> Pointer {
         Pointer {

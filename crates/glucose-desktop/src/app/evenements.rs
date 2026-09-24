@@ -207,9 +207,13 @@ impl GlucoseApp {
             sous_la_main: self.provenance.evenements_de_la_main(),
             rendues: self.chronique.rendues(),
         };
-        self.chronique
+        if self
+            .chronique
             .veille
-            .observer(std::time::Instant::now(), compte);
+            .observer(std::time::Instant::now(), compte)
+        {
+            self.relever_les_etages();
+        }
 
         // Hors du rendu, et seulement quand il y a du neuf : une session qui finit mal garde
         // alors la trace de son pire moment (CHRONIQUE-1).

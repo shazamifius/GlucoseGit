@@ -30,6 +30,15 @@
 //! Une image dont les octets ne sont pas là — en chemin, ou un fichier disparu — n'a pas de
 //! pixels à examiner. Elle ne change pas, et le compte-rendu le dit : « 3 images recadrées,
 //! 1 sans pixels ». Deviner ses bandes depuis autre chose serait inventer.
+//!
+//! # Ce que le système garde est attendu, sans geler (ETAGES-1)
+//!
+//! Depuis la mémoire par étages, l'original d'une image est presque toujours **offert** au
+//! système : l'écran n'en montre qu'une réduction. Le lire tout de suite demanderait de le
+//! reprendre sur le fil qui dessine — quatre à cinq millisecondes par image, deux cents pour
+//! un lot de quarante-cinq. Le lot **attend** donc ses originaux : il les réclame, l'écran
+//! continue de vivre, et il s'applique d'un seul bloc — une seule entrée d'annulation — à
+//! l'image où le dernier est revenu.
 
 use crate::app::GlucoseApp;
 use glucose_core::bordures;
@@ -48,6 +57,38 @@ impl GlucoseApp {
             return;
         }
         let board = self.store.project.active_board_id.clone();
+        self.bordures_en_attente = Some(LotDeBordures { board, ids });
+        self.poursuivre_les_bordures();
+    }
+
+    /// **Applique le lot en attente dès que tous ses originaux sont tenus** — appelée à
+    /// chaque image, et au geste lui-même.
+    ///
+    /// Tant qu'il en manque, chacun est redemandé : le lire le marque voulu, et le magasin le
+    /// reprend. Une image qui n'est pas du tout dans le magasin n'est pas attendue — elle n'a
+    /// pas de pixels, et le compte-rendu le dira.
+    pub(crate) fn poursuivre_les_bordures(&mut self) {
+        let Some(lot) = self.bordures_en_attente.as_ref() else {
+            return;
+        };
+        let fichiers: Vec<String> = lot
+            .ids
+            .iter()
+            .filter_map(|id| self.store.image(&lot.board, id)?.src.clone())
+            .collect();
+        let en_route = fichiers
+            .iter()
+            .filter(|src| self.renderer.magasin.original_tenu(src) == Some(false))
+            .count();
+        if en_route > 0 {
+            return;
+        }
+        if let Some(lot) = self.bordures_en_attente.take() {
+            self.appliquer_les_bordures(lot);
+        }
+    }
+
+    fn appliquer_les_bordures(&mut self, LotDeBordures { board, ids }: LotDeBordures) {
         // D'abord tout lire, ensuite tout écrire : la détection emprunte le magasin du
         // renderer, l'écriture emprunte le document, et les mêler dans une boucle ferait
         // tenir deux emprunts que rien n'oblige à cohabiter.
@@ -112,7 +153,7 @@ impl GlucoseApp {
         let img = self.store.image(board, id)?;
         let src = img.src.as_deref()?;
         let entree = self.renderer.magasin.cache.get(src)?;
-        let natif = entree.pyramide.native();
+        let natif = entree.pyramide.native()?;
         let (texels, _) = natif.data().as_chunks::<4>();
         let vue = Vue::nouvelle(texels, natif.width(), natif.height())?;
         Some(bordures::detecter(&vue))
@@ -147,6 +188,12 @@ impl GlucoseApp {
         });
         true
     }
+}
+
+/// **Un `Ctrl+B` qui attend ses originaux** : le tableau, et les images qu'il vise.
+pub struct LotDeBordures {
+    board: String,
+    ids: Vec<String>,
 }
 
 /// Ce qu'un lot a donné, en une phrase — pure, donc testable sans fenêtre.
