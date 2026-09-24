@@ -311,6 +311,68 @@ fn bord_qui_hesite() -> Cas {
     })
 }
 
+/// Une plaque sur une marge blanche, dont le bord du haut penche de trois pixels sur sa
+/// largeur : les rangs 26 à 28 sont de la marge qui se retire, un quart de plus à chaque rang.
+fn plaque_penchee() -> Cas {
+    image(300, 300, |x, y| {
+        let haut = 26 + (x.saturating_sub(30)) * 4 / 240;
+        if (30..270).contains(&x) && (haut..270).contains(&y) {
+            contenu(x, y)
+        } else {
+            BLANC
+        }
+    })
+}
+
+/// **Sa deuxième gravure** : l'image a été recadrée de travers avant d'arriver chez lui. Le
+/// haut coupe la marge en biais — neuf dixièmes de papier au premier rang, six au deuxième,
+/// puis la plaque — sans aucune bande de ce côté ; la marge du bas, elle, est entière.
+fn coupee_en_biais() -> Cas {
+    image(300, 300, |x, y| {
+        let haut = match x {
+            0..180 => 2,
+            180..270 => 1,
+            _ => 0,
+        };
+        if (haut..270).contains(&y) {
+            contenu(x, y)
+        } else {
+            BLANC
+        }
+    })
+}
+
+/// Un grand disque sur fond blanc : son sommet s'élargit vite, mais sur bien plus d'un
+/// centième de la ligne avant d'en couvrir la majorité.
+fn disque() -> Cas {
+    image(300, 300, |x, y| {
+        let (dx, dy) = (i64::from(x) - 150, i64::from(y) - 150);
+        if dx * dx + dy * dy <= 140 * 140 {
+            [30, 90, 200, 255]
+        } else {
+            BLANC
+        }
+    })
+}
+
+/// Un objet dont le haut s'élargit vite — vingt, puis cinquante, puis quatre-vingt-dix pixels
+/// — puis ne bouge plus : il n'occupe jamais qu'un tiers de la ligne.
+fn objet_qui_s_elargit() -> Cas {
+    image(300, 300, |x, y| {
+        let largeur = match y {
+            20 => 20,
+            21 => 50,
+            22..280 => 90,
+            _ => 0,
+        };
+        if x.abs_diff(150) * 2 < largeur {
+            [30, 30, 30, 255]
+        } else {
+            BLANC
+        }
+    })
+}
+
 /// Le même cas entouré d'un filet de cette couleur sur les bords choisis — gauche, haut,
 /// droite, bas.
 fn avec_un_filet(cas: &Cas, bords: [bool; 4], couleur: Pixel) -> Cas {
@@ -568,7 +630,7 @@ fn test_un_filet_au_bord_ne_cache_pas_la_marge() {
 /// L'image unie n'y est pas : tout y est bande, filet compris, et rien n'en est retiré.
 #[test]
 fn test_un_filet_au_bord_ne_change_rien_a_ce_qu_on_trouve_derriere() {
-    let cas: [(&str, Fabrique); 19] = [
+    let cas: [(&str, Fabrique); 20] = [
         ("boite aux lettres", boite_aux_lettres),
         ("bande blanche", bande_blanche),
         ("quatre couleurs", quatre_couleurs),
@@ -588,6 +650,7 @@ fn test_un_filet_au_bord_ne_change_rien_a_ce_qu_on_trouve_derriere() {
         ("titre au-dessus", titre_au_dessus),
         ("objet au-dessus", objet_au_dessus),
         ("bord qui hesite", bord_qui_hesite),
+        ("plaque penchee", plaque_penchee),
     ];
     let seuls = (0..4).map(|i| std::array::from_fn(|j| i == j));
     for (nom, fabrique) in cas {
@@ -702,5 +765,58 @@ fn test_une_tache_devant_un_bord_qui_hesite_reste() {
         en_pixels(&bord_qui_hesite()),
         (30, 25, 30, 20),
         "la marge s'arrete sur la tache"
+    );
+}
+
+// ── BORDURES-7 : la frange d'un bord ───────────────────────────────────────────────────
+
+/// **La frange d'un bord penché part avec la marge** — ses deux gravures du 24/09.
+///
+/// Après `Ctrl+B`, un fin liseré clair restait le long de leurs bords : la plaque penche, et la
+/// marge s'y retire sur quelques lignes, un peu plus de plaque à chacune. La coupe s'arrêtait
+/// à la première, et le reste de papier se voyait. Ici, trois rangs où la marge perd un quart
+/// de la ligne à chaque fois : ils partent, et la coupe tombe sur le premier rang de plaque.
+#[test]
+fn test_la_frange_d_un_bord_penche_part_avec_la_marge() {
+    assert_eq!(
+        en_pixels(&plaque_penchee()),
+        (30, 29, 30, 30),
+        "les trois rangs de la frange partent"
+    );
+}
+
+/// **Le sommet d'un disque reste.** Il s'élargit vite, lui aussi, mais il lui faut bien plus
+/// d'un centième de la ligne pour en couvrir la majorité : ce n'est pas le bord d'une plaque.
+#[test]
+fn test_le_sommet_d_un_disque_reste() {
+    assert_eq!(
+        en_pixels(&disque()),
+        (11, 11, 10, 10),
+        "la coupe s'arrete ou le disque commence"
+    );
+}
+
+/// **Le haut d'un objet qui ne remplit pas la ligne reste.** Son sommet s'élargit vite, puis
+/// se stabilise au tiers de la ligne : ce qui suit la frange est encore surtout du papier, ce
+/// n'est pas un contenu où déboucher. (Son tout premier rang part, lui, comme un fondu contre
+/// la bande — BORDURES-3 : une fois les côtés retirés, il occupe la largeur qui reste.)
+#[test]
+fn test_le_haut_d_un_objet_qui_ne_remplit_pas_la_ligne_reste() {
+    assert_eq!(
+        en_pixels(&objet_qui_s_elargit()),
+        (106, 21, 105, 20),
+        "le haut de l'objet reste"
+    );
+}
+
+/// **Un bord sans marge garde sa frange de papier jugée sur la marge d'en face** — sa deuxième
+/// gravure, où le haut n'a aucune bande : son premier rang est déjà en partie de la plaque. La
+/// couleur du papier vient de la marge du bas : une marge est une seule feuille.
+#[test]
+fn test_un_bord_sans_marge_perd_sa_frange_sur_la_couleur_d_en_face() {
+    assert_eq!(
+        en_pixels(&coupee_en_biais()),
+        (0, 2, 0, 30),
+        "les deux rangs de papier du haut partent"
     );
 }

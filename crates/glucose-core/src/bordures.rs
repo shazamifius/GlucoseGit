@@ -105,28 +105,11 @@
 //! d'un studio sont les mêmes pixels ; seul le filet, qui n'a qu'une ligne, ne se confond
 //! avec rien.
 //!
-//! # BORDURES-6 — une tache sur la marge ne l'arrête pas
+//! # Ce qui sépare la bande du contenu
 //!
-//! Sa gravure du 24/09, 736 × 828 : une plaque sur une marge de papier. `Ctrl+B` retirait 49,
-//! 51 et 51 pixels à gauche, en haut et en bas — et **11** à droite, sur 56. À quinze pixels du
-//! bord, une petite tache sur le papier, invisible à l'œil, vingt-cinq à quarante niveaux sous
-//! le blanc : chaque colonne qui la traversait en portait un peu plus d'un centième, et la
-//! tolérance, jugée ligne par ligne, y voyait le début du contenu. Deux autres, plus loin,
-//! auraient arrêté le balayage à leur tour.
-//!
-//! La tolérance du centième se juge désormais **aussi sur la bande entière** : une tache
-//! s'enjambe si la marge reprend derrière elle, si tout ce qu'on retire garde au plus un
-//! centième de pixels étrangers, et si la marge s'arrête sur **un bord net** — une ligne dont
-//! la majorité des pixels la quittent, atteinte par des lignes qui en portent chacune plus que
-//! la précédente, comme le fait un bord droit, même penché ([`enjamber`]).
-//!
-//! **Le bord net a été imposé par ses images.** Sans lui, la même règle changeait 48 de ses
-//! 286 images, et la plupart en perdant du contenu : le texte sous une affiche, le titre
-//! manuscrit d'un dessin, tout un pan sombre d'une peinture de marais, les étoiles autour d'un
-//! arbre fractal. Une zone sombre parsemée de détails ressemble trait pour trait à une marge
-//! tachée ; ce qui les sépare est la façon dont elle finit. Avec lui, **deux** images changent
-//! — sa gravure, et une tache rose au-dessus d'une plante, retirée juste au-dessus de la pointe
-//! de sa tige —, et les deux sont justes.
+//! Quand ils ne se touchent pas d'un trait, la lisière est dans le module `lisiere` : le fondu d'un
+//! rang (BORDURES-3), une tache sur la marge (BORDURES-6), la frange d'un bord de plaque
+//! (BORDURES-7).
 //!
 //! # Ce qui trompe, et qu'on ne cache pas
 //!
@@ -142,6 +125,9 @@
 
 use crate::report::{Pixel, Vue};
 use crate::types::Recadrage;
+use lisiere::{enjamber, est_une_transition, frange};
+
+mod lisiere;
 
 /// **L'écart au-delà duquel un pixel n'est plus de la bande**, en niveaux sur 255.
 ///
@@ -186,23 +172,24 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
     let (mut x0, mut y0, mut x1, mut y1) = (0u32, 0u32, l, h);
     // Ce que chaque bord -- haut, bas, gauche, droite -- a retiré : la couleur de sa bande,
     // figée dès qu'il l'a trouvée (BORDURES-3) sauf derrière un filet (BORDURES-5), et le
-    // compte de ses pixels (BORDURES-6).
+    // compte de ses pixels (BORDURES-6). Deux bords opposés se suivent dans le tableau : le
+    // vis-à-vis de `k` est `k ^ 1`.
     let mut bords = [Bord::default(); 4];
     loop {
         let avant = (x0, y0, x1, y1);
         // Chaque bord sait ce qu'il a déjà retiré : un filet ne se reconnaît qu'au bord.
         let vers = |a: u32, b: u32| (a..b).collect::<Vec<u32>>();
         let a_rebours = |a: u32, b: u32| (a..b).rev().collect::<Vec<u32>>();
-        y0 += compter(y0, &vers(y0, y1), &mut bords[0], |y| {
+        y0 += compter(y0, &vers(y0, y1), &mut bords, 0, |y| {
             ligne(image, y, x0..x1)
         });
-        y1 -= compter(h - y1, &a_rebours(y0, y1), &mut bords[1], |y| {
+        y1 -= compter(h - y1, &a_rebours(y0, y1), &mut bords, 1, |y| {
             ligne(image, y, x0..x1)
         });
-        x0 += compter(x0, &vers(x0, x1), &mut bords[2], |x| {
+        x0 += compter(x0, &vers(x0, x1), &mut bords, 2, |x| {
             colonne(image, x, y0..y1)
         });
-        x1 -= compter(l - x1, &a_rebours(x0, x1), &mut bords[3], |x| {
+        x1 -= compter(l - x1, &a_rebours(x0, x1), &mut bords, 3, |x| {
             colonne(image, x, y0..y1)
         });
         if (x0, y0, x1, y1) == avant {
@@ -225,7 +212,7 @@ pub fn detecter(image: &Vue<'_>) -> Recadrage {
 /// tous, et ceux qui s'écartaient de cette couleur (BORDURES-6).
 ///
 /// C'est sur ce compte que la tolérance du centième se juge **pour la bande entière**, et non
-/// plus seulement ligne par ligne : c'est ce qui permet d'enjamber une tache ([`enjamber`]).
+/// plus seulement ligne par ligne : c'est ce qui permet d'enjamber une tache ([`lisiere::enjamber`]).
 #[derive(Debug, Clone, Copy, Default)]
 struct Bord {
     couleur: Option<Pixel>,
@@ -248,18 +235,27 @@ impl Bord {
 ///
 /// * **de la bande** — au plus [`PART_ABERRANTE`] de ses pixels s'écartent de sa couleur de
 ///   plus que [`ECART_DE_BANDE`] ;
-/// * **une transition** entre la bande et la ligne suivante ([`est_une_transition`]) ;
+/// * **une transition** entre la bande et la ligne suivante ([`lisiere::est_une_transition`]) ;
 /// * **l'ouverture de la bande**, au bord — la **première** ligne, prise comme médiane par
 ///   canal pour qu'un logo dans le coin ne la fausse pas — **ou derrière un filet**
 ///   ([`ouvre_une_bande`]) ;
-/// * **une tache sur la marge**, que la bande enjambe ([`enjamber`]) ;
+/// * **une tache sur la marge**, que la bande enjambe ([`lisiere::enjamber`]) ;
 ///
-/// et la première qui n'est rien de cela est le contenu. La couleur d'une bande se fige dès
-/// qu'elle est trouvée (BORDURES-3) : seul un filet la cède à la bande qui le suit.
-fn compter<F>(deja: u32, ordre: &[u32], bord: &mut Bord, mut ligne_de: F) -> u32
+/// et la première qui n'est rien de cela est le contenu — à moins qu'une **frange** n'y mène
+/// encore ([`lisiere::frange`]). La couleur d'une bande se fige dès qu'elle est trouvée (BORDURES-3) :
+/// seul un filet la cède à la bande qui le suit.
+///
+/// `bords` porte les quatre bords, `cote` celui qui balaie : la frange d'un bord sans marge se
+/// juge sur la couleur de la marge d'en face, ou de n'importe quelle autre — une marge est une
+/// seule feuille.
+fn compter<F>(deja: u32, ordre: &[u32], bords: &mut [Bord; 4], cote: usize, mut ligne_de: F) -> u32
 where
     F: FnMut(u32) -> Vec<Pixel>,
 {
+    let marge_ailleurs = bords[cote ^ 1]
+        .couleur
+        .or_else(|| (0..4).filter(|&i| i != cote).find_map(|i| bords[i].couleur));
+    let bord = &mut bords[cote];
     let mut rang = 0usize;
     while let Some(&indice) = ordre.get(rang) {
         let courante = ligne_de(indice);
@@ -285,6 +281,9 @@ where
         }
         rang += avance;
     }
+    if let (Some(couleur), Some(reste)) = (bord.couleur.or(marge_ailleurs), ordre.get(rang..)) {
+        rang += frange(reste.iter().map(|&i| ligne_de(i)), couleur);
+    }
     u32::try_from(rang).unwrap_or(u32::MAX)
 }
 
@@ -306,63 +305,6 @@ fn ouvrir(
     1
 }
 
-/// **Une tache sur la marge s'enjambe-t-elle ?** Rend combien de lignes retirer — jusqu'à la
-/// dernière où la marge reprend —, ou zéro (BORDURES-6).
-///
-/// `lignes` part de la première ligne qui n'est pas de la bande. Trois conditions, et aucune
-/// ne demande un nombre nouveau :
-///
-/// * **la marge reprend** derrière la tache, de sa couleur ;
-/// * **ce qu'on retire reste une marge** : au plus [`PART_ABERRANTE`] de tous ses pixels —
-///   bande et taches ensemble — s'écartent de sa couleur. Un titre, une rangée de texte, un
-///   objet pèsent bien davantage, et arrêtent le balayage comme avant ;
-/// * **la marge s'arrête sur un bord net** : une ligne dont la **majorité** des pixels la
-///   quittent, atteinte depuis la dernière reprise par des lignes qui en portent chacune
-///   **plus** que la précédente. C'est ce que fait un bord droit, même penché — celui d'une
-///   plaque, d'une photo posée sur une page. Le bord d'une peinture qui s'éclaircit ou d'une
-///   aquarelle monte et descend : sur ses images, c'est ce qui séparait les vrais cas des
-///   faux.
-fn enjamber(bord: &mut Bord, couleur: Pixel, lignes: impl Iterator<Item = Vec<Pixel>>) -> usize {
-    let (mut pixels, mut etrangers_vus) = (bord.pixels, bord.etrangers);
-    // La dernière reprise de la marge : combien de lignes jusqu'à elle, et le compte d'alors.
-    let mut reprise: Option<(usize, usize, usize)> = None;
-    // Depuis la dernière reprise : les écarts de la ligne précédente, et s'ils montent.
-    let (mut precedente, mut monte) = (None::<usize>, true);
-    for (k, ligne) in lignes.enumerate() {
-        let (n, e) = (ligne.len(), etrangers(&ligne, couleur));
-        if n == 0 {
-            return 0;
-        }
-        if 2 * e > n {
-            let Some((lignes_retirees, p, et)) = reprise.filter(|_| monte) else {
-                return 0;
-            };
-            (bord.pixels, bord.etrangers) = (p, et);
-            return lignes_retirees;
-        }
-        pixels += n;
-        etrangers_vus += e;
-        if e <= tolere(n) {
-            // La marge reprend -- à condition que les taches n'en fassent pas autre chose.
-            if etrangers_vus > tolere(pixels) {
-                return 0;
-            }
-            reprise = Some((k + 1, pixels, etrangers_vus));
-            (precedente, monte) = (None, true);
-        } else {
-            monte = monte && precedente.is_none_or(|p| e > p);
-            precedente = Some(e);
-            // Ni une rampe vers un bord net, ni une tache qu'une ligne propre rattraperait : la
-            // reprise suivante la refuserait. S'arrêter ici ne change rien au verdict, et c'est
-            // ce qui borne le balayage à ce que coûtent les bandes.
-            if !monte && etrangers_vus > tolere(pixels + n) {
-                return 0;
-            }
-        }
-    }
-    0
-}
-
 /// **Cette ligne ouvre-t-elle une bande ?** Rend sa couleur si oui (BORDURES-5).
 ///
 /// **Au bord**, il suffit qu'elle soit unie : au plus [`PART_ABERRANTE`] de ses pixels
@@ -382,77 +324,6 @@ fn ouvre_une_bande(
     let unie = est_de_la_bande(ligne, couleur);
     let epaisse = !derriere_un_filet || suivante.is_some_and(|s| est_de_la_bande(s, couleur));
     (unie && epaisse).then_some(couleur)
-}
-
-/// **Ce rang est-il un mélange de la bande et du rang suivant** (BORDURES-3, BORDURES-4) ?
-///
-/// Chaque pixel se lit comme `a · bande + (1 − a) · son voisin du rang suivant`, avec **son
-/// propre** `a` : la projection du pixel sur le segment qui va du voisin à la bande. Le rang
-/// est une transition si deux choses sont vraies à la fois.
-///
-/// **Le mélange l'explique** : au plus [`PART_ABERRANTE`] de ses pixels s'écartent du leur de
-/// plus que le bruit. Un pixel plus sombre que son voisin, vers une bande blanche, n'est pas
-/// un mélange — et un contenu texturé en porte toujours bien davantage.
-///
-/// **Le pixel typique a bougé vers la bande**, et il ne se cherche que parmi ceux qui
-/// **peuvent** montrer un fondu : les pixels dont le voisin n'est pas déjà de la couleur de la
-/// bande. Un fond blanc sous une bande blanche est identique fondu ou non ; un contenu presque
-/// noir sous une bande noire aussi. Il faut que ces pixels-là soient la **majorité** — sinon le
-/// rang est surtout du fond sur du fond, comme un texte ou la pointe d'un objet posé sur la
-/// marge, et rien ne permet d'y voir un fondu —, et que leur **médiane** ait bougé au-delà du
-/// bruit : un dégradé doux, qui change de quelques niveaux par rang, n'en est pas un.
-///
-/// # Ce que les images de l'utilisateur ont appris (BORDURES-4)
-///
-/// BORDURES-3 prenait un `a` **commun** à toute la ligne, au motif qu'un flou fond la ligne
-/// entière de la même façon, et jugeait le déplacement sur un centième des pixels. Les
-/// quarante-neuf images de ses deux documents l'ont démenti deux fois :
-///
-/// * **le bord d'une peinture ondule.** Le premier rang gardé de sa forêt mêlait 79 à 90 % de
-///   blanc selon l'endroit, et le dernier portait deux coups de pinceau débordant sur la
-///   marge : le mélange uniforme n'en expliquait que 94 %, et **le liseré restait** ;
-/// * **un centième ne fait pas un fondu.** Sur sept illustrations posées sur un fond de la
-///   couleur de la marge, les rangs où seule la pointe d'un objet paraît passaient pour des
-///   transitions, et **un à trois rangs d'objet** étaient rognés.
-///
-/// Et la majorité se compte **parmi les pixels qui peuvent montrer un fondu**, pas parmi tous :
-/// la colonne gauche d'une peinture sombre sur bande noire — sa luminosité vaut 58 % de celle
-/// de sa voisine, uniformément — porte 28 % de pixels presque noirs où aucun fondu ne se voit.
-/// Comptée sur tous les pixels, la médiane la gardait, en liseré sombre.
-fn est_une_transition(rang: &[Pixel], suivant: &[Pixel], bande: Pixel) -> bool {
-    if rang.len() != suivant.len() || rang.is_empty() {
-        return false;
-    }
-    let canal = |p: &Pixel, c: usize| f64::from(p[c]);
-    let ecart_au_melange = rang.iter().zip(suivant).map(|(p, q)| {
-        let (mut num, mut den) = (0.0f64, 0.0f64);
-        for c in 0..3 {
-            let vers_la_bande = canal(&bande, c) - canal(q, c);
-            num += (canal(p, c) - canal(q, c)) * vers_la_bande;
-            den += vers_la_bande * vers_la_bande;
-        }
-        // Un voisin qui EST la bande n'offre qu'un point : le mélange vaut alors ce point.
-        let a = if den > 0.0 {
-            (num / den).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
-        (0..3)
-            .map(|c| (canal(p, c) - (a * canal(&bande, c) + (1.0 - a) * canal(q, c))).abs())
-            .fold(0.0f64, f64::max)
-    });
-    // Les pixels qui PEUVENT montrer un fondu, et ceux d'entre eux qui ont bougé au-delà du
-    // bruit. Leur médiane a bougé quand ils sont plus de la moitié à l'avoir fait.
-    let (mut informatifs, mut bouges) = (0usize, 0usize);
-    for (p, q) in rang.iter().zip(suivant) {
-        if ecart(q, &bande) > ECART_DE_BANDE {
-            informatifs += 1;
-            bouges += usize::from(ecart(p, q) > ECART_DE_BANDE);
-        }
-    }
-    informatifs * 2 > rang.len()
-        && bouges > informatifs / 2
-        && au_plus(PART_ABERRANTE, ecart_au_melange, ECART_DE_BANDE)
 }
 
 /// L'écart entre deux pixels, sur leur canal le plus éloigné.
