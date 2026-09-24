@@ -108,10 +108,19 @@ impl Offerte {
 #[cfg(windows)]
 mod imp {
     use windows::Win32::System::Memory::{
-        OfferVirtualMemory, ReclaimVirtualMemory, VirtualAlloc, VirtualFree, VirtualQuery,
-        VmOfferPriorityNormal, MEMORY_BASIC_INFORMATION, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE,
-        PAGE_READWRITE,
+        VirtualAlloc, VirtualFree, VirtualQuery, VmOfferPriorityNormal, MEMORY_BASIC_INFORMATION,
+        MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_READWRITE,
     };
+
+    unsafe extern "system" {
+        /// Déclarées ici, par pointeur et taille, et non par la liaison de la bibliothèque :
+        /// celle-ci veut une tranche Rust, c'est-à-dire une **référence** — et une référence
+        /// promet au compilateur que la mémoire est lisible, ce qu'une page offerte n'est plus.
+        /// Il a alors le droit d'y lire par anticipation, et une lecture d'une page offerte
+        /// fait tomber le processus. Un pointeur brut ne promet rien.
+        fn OfferVirtualMemory(adresse: *mut std::ffi::c_void, taille: usize, priorite: i32) -> u32;
+        fn ReclaimVirtualMemory(adresse: *const std::ffi::c_void, taille: usize) -> u32;
+    }
 
     /// Où vivent les octets d'une région.
     pub enum Bloc {
@@ -191,9 +200,10 @@ mod imp {
 
         pub fn offrir(&mut self) -> bool {
             match self {
-                // Sûr : des pages entières, engagées par ce bloc.
+                // Sûr : des pages entières, engagées par ce bloc, désignées par pointeur.
                 Self::Pages(p) => unsafe {
-                    OfferVirtualMemory(p.toutes(), VmOfferPriorityNormal) == 0
+                    OfferVirtualMemory(p.debut.as_ptr().cast(), p.engagee, VmOfferPriorityNormal.0)
+                        == 0
                 },
                 Self::Tas(_) => false,
             }
@@ -201,10 +211,13 @@ mod imp {
 
         pub fn reprendre(&mut self) -> bool {
             match self {
-                // Sûr : les pages que `offrir` a offertes. Tout autre code que le succès — la
-                // mémoire jetée, ou un refus — se lit comme un contenu perdu : le refaire est
-                // toujours juste, s'en servir ne le serait pas.
-                Self::Pages(p) => unsafe { ReclaimVirtualMemory(p.toutes()) == 0 },
+                // Sûr : les pages que `offrir` a offertes, désignées par pointeur et jamais
+                // par une tranche tant qu'elles ne sont pas reprises. Tout autre code que le
+                // succès — la mémoire jetée, ou un refus — se lit comme un contenu perdu : le
+                // refaire est toujours juste, s'en servir ne le serait pas.
+                Self::Pages(p) => unsafe {
+                    ReclaimVirtualMemory(p.debut.as_ptr().cast_const().cast(), p.engagee) == 0
+                },
                 Self::Tas(_) => true,
             }
         }
@@ -238,12 +251,6 @@ mod imp {
                 longueur,
                 engagee,
             })
-        }
-
-        fn toutes(&mut self) -> &mut [u8] {
-            // Sûr : les pages engagées ; l'offre et la reprise ne les lisent pas, elles en
-            // changent l'état.
-            unsafe { std::slice::from_raw_parts_mut(self.debut.as_ptr(), self.engagee) }
         }
     }
 
