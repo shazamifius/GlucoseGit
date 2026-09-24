@@ -267,3 +267,156 @@ fn un_contenu_minuscule_reste_centre_malgre_la_borne() {
         centre.1
     );
 }
+
+// ── Partir : le chemin de van Wijk et Nuij ──────────────────────────────────────────────
+
+/// Le point du monde au centre de l'écran.
+fn centre(v: Viewport) -> (f64, f64) {
+    (
+        (ECRAN.width / 2.0 - v.x) / v.scale,
+        (ECRAN.height / 2.0 - v.y) / v.scale,
+    )
+}
+
+/// Un cadrage dont le centre montre ce point du monde, à cette échelle.
+fn centre_sur(monde: (f64, f64), scale: f64) -> Viewport {
+    vue(
+        ECRAN.width / 2.0 - monde.0 * scale,
+        ECRAN.height / 2.0 - monde.1 * scale,
+        scale,
+    )
+}
+
+/// Tout un départ, image par image.
+fn depart_complet(vol: &mut Vol, depart: Viewport, dt: f64) -> Vec<Viewport> {
+    let mut vues = vec![depart];
+    for _ in 0..100_000 {
+        match vol.avancer(*vues.last().expect("une vue"), ECRAN, dt) {
+            Some(v) => vues.push(v),
+            None => return vues,
+        }
+    }
+    panic!("un depart doit se terminer");
+}
+
+/// Deux vues très zoomées, loin l'une de l'autre : le cas des « parcours chelous ».
+fn loin_et_zoome() -> (Viewport, Viewport) {
+    (
+        centre_sur((0.0, 0.0), 4.0),
+        centre_sur((100_000.0, 30_000.0), 2.0),
+    )
+}
+
+/// **Un départ arrive exactement, et s'arrête.**
+#[test]
+fn un_depart_arrive_exactement_et_s_arrete() {
+    let (depart, cible) = loin_et_zoome();
+    let mut vol = Vol::default();
+    vol.voler_vers(cible);
+    let vues = depart_complet(&mut vol, depart, 1.0 / 240.0);
+    assert_eq!(*vues.last().expect("une vue"), cible);
+    assert!(!vol.en_cours());
+}
+
+/// **Loin et zoomé, la carte ne défile jamais** — ce que l'utilisateur a vu, et qui lui faisait
+/// mal aux yeux : *« un full zoom qui traverse toute la map »*.
+///
+/// À chaque image, le centre ne glisse pas de plus que l'allure du chemin ne le permet à
+/// l'échelle où l'on est, et le zoom pas davantage : au plus vite, à mi-vol, `1,875 × VITESSE`
+/// par seconde — la vitesse de pointe du profil de secousse minimale. Le **suivi**, sur le
+/// même trajet, glisse de cinq écrans dès sa première image à 240 Hz — trois cents fois
+/// davantage : c'est ce que faisaient `F` et les signets.
+#[test]
+fn loin_et_zoome_la_carte_ne_defile_jamais() {
+    let (depart, cible) = loin_et_zoome();
+    let dt = 1.0 / 240.0;
+    let pointe = 1.875 * VITESSE * dt;
+    let mut vol = Vol::default();
+    vol.voler_vers(cible);
+    let vues = depart_complet(&mut vol, depart, dt);
+    for paire in vues.windows(2) {
+        let (a, b) = (paire[0], paire[1]);
+        let (ca, cb) = (centre(a), centre(b));
+        let glisse = (cb.0 - ca.0).hypot(cb.1 - ca.1) * a.scale.max(b.scale);
+        let zoom = (b.scale / a.scale).ln().abs();
+        assert!(
+            glisse <= ECRAN.width * pointe / glucose_core::chemin::RHO * 1.01,
+            "une image glisse de {glisse:.0} px"
+        );
+        assert!(
+            zoom <= glucose_core::chemin::RHO * pointe * 1.01,
+            "zoom {zoom}"
+        );
+    }
+    let mut suivi = Vol::default();
+    suivi.viser(cible);
+    let premiere = suivi.avancer(depart, ECRAN, dt).expect("un pas");
+    let (c0, c1) = (centre(depart), centre(premiere));
+    let glisse = (c1.0 - c0.0).hypot(c1.1 - c0.1) * depart.scale.max(premiere.scale);
+    let borne = ECRAN.width * pointe / glucose_core::chemin::RHO;
+    assert!(
+        glisse > 100.0 * borne,
+        "le suivi glissait de {glisse:.0} px"
+    );
+}
+
+/// **Un départ démarre et s'arrête en douceur** : sa première et sa dernière image bougent à
+/// peine, comparées à celles du milieu.
+#[test]
+fn un_depart_demarre_et_s_arrete_en_douceur() {
+    let (depart, cible) = loin_et_zoome();
+    let mut vol = Vol::default();
+    vol.voler_vers(cible);
+    let vues = depart_complet(&mut vol, depart, 1.0 / 240.0);
+    let pas: Vec<f64> = vues
+        .windows(2)
+        .map(|p| ecart_max_en_pixels(p[0], p[1], ECRAN))
+        .collect();
+    let plus_grand = pas.iter().copied().fold(0.0, f64::max);
+    let (premier, dernier) = (pas[0], pas[pas.len() - 1]);
+    assert!(
+        premier < plus_grand / 100.0,
+        "premier pas {premier} sur {plus_grand}"
+    );
+    assert!(
+        dernier < plus_grand / 20.0,
+        "dernier pas {dernier} sur {plus_grand}"
+    );
+}
+
+/// **Un départ ne dépend pas de la cadence** : au même instant du vol, 240 Hz et 60 Hz montrent
+/// la même vue.
+#[test]
+fn un_depart_ne_depend_pas_de_la_cadence() {
+    let (depart, cible) = loin_et_zoome();
+    let (mut rapide, mut lent) = (Vol::default(), Vol::default());
+    rapide.voler_vers(cible);
+    lent.voler_vers(cible);
+    let vite = depart_complet(&mut rapide, depart, 1.0 / 240.0);
+    let doux = depart_complet(&mut lent, depart, 1.0 / 60.0);
+    for (k, v) in doux.iter().enumerate().take(doux.len() - 1) {
+        let w = vite[4 * k];
+        assert!(ecart_max_en_pixels(*v, w, ECRAN) < 1e-3, "a l'image {k}");
+    }
+}
+
+/// **Partir ailleurs en plein vol ne fait pas sauter la vue** : le chemin se retrace depuis là
+/// où l'on est, et la vue repart en douceur.
+#[test]
+fn partir_ailleurs_en_plein_vol_ne_fait_pas_sauter_la_vue() {
+    let (depart, cible) = loin_et_zoome();
+    let dt = 1.0 / 240.0;
+    let mut vol = Vol::default();
+    vol.voler_vers(cible);
+    let mut courante = depart;
+    for _ in 0..120 {
+        courante = vol.avancer(courante, ECRAN, dt).expect("en vol");
+    }
+    vol.voler_vers(centre_sur((-50_000.0, 0.0), 8.0));
+    let suivante = vol.avancer(courante, ECRAN, dt).expect("en vol");
+    assert!(
+        ecart_max_en_pixels(courante, suivante, ECRAN) < 1.0,
+        "la vue a saute de {} px",
+        ecart_max_en_pixels(courante, suivante, ECRAN)
+    );
+}

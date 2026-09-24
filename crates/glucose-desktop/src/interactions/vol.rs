@@ -10,9 +10,21 @@
 //! là où on a cliqué, or sur Glucose tu peux maintenir directement la minimap et tu voyages
 //! comme ça, en plus d'avoir un smooth ».
 //!
-//! # Deux mouvements indépendants, parce que ce sont deux grandeurs différentes
+//! # Deux vols : on suit, ou l'on part
 //!
-//! Un vol n'interpole **pas** les trois nombres du cadrage. Il interpole :
+//! **Suivre** — la minimap qu'on maintient, dont la destination change à chaque mouvement du
+//! curseur : on comble à chaque image une fraction de l'écart ([`Vol::viser`]).
+//!
+//! **Partir** — `F`, un signet : une destination fixe, parfois lointaine. Suivre y faisait des
+//! « parcours chelous » : le zoom arrivait vite, le centre traînait, et la carte défilait à
+//! toute allure une fois zoomé. Un départ suit désormais le chemin de van Wijk et Nuij
+//! ([`glucose_core::chemin`]), où zoom et translation avancent ensemble et où l'on prend de la
+//! hauteur quand c'est loin ; il le parcourt à une allure constante pour l'œil, avec un départ
+//! et une arrivée en douceur ([`Vol::voler_vers`]).
+//!
+//! # Suivre : deux mouvements indépendants, parce que ce sont deux grandeurs différentes
+//!
+//! Le suivi n'interpole **pas** les trois nombres du cadrage. Il interpole :
 //!
 //! * le **point du monde au centre de l'écran** — un déplacement, en unités du monde ;
 //! * l'**altitude**, c'est-à-dire l'échelle **en octaves** — une grandeur multiplicative.
@@ -32,6 +44,7 @@
 //! ne garantit qu'il reste quoi que ce soit à y voir. Ce module ne connaît que des
 //! destinations calculées à partir du contenu.
 
+use glucose_core::chemin::Chemin;
 use glucose_core::geometry::Rect;
 use glucose_core::membrane_focus::{fit_viewport, focus_consts, ScreenSize};
 use glucose_core::types::Viewport;
@@ -46,21 +59,67 @@ use glucose_core::types::Viewport;
 /// veut y être. Traîner davantage donnerait l'impression que le logiciel hésite.
 const TAU: f64 = 0.18;
 
+/// **L'allure d'un départ**, en longueur de chemin par seconde ([`Chemin::longueur`]).
+///
+/// Trois : glisser d'une largeur d'écran — qui vaut `√2` — prend un peu moins d'une
+/// demi-seconde, zoomer d'un facteur deux un sixième de seconde, et revenir d'un zoom de mille
+/// à tout le contenu une seconde et demie. Au plus vite, à mi-vol, l'œil voit passer quatre
+/// largeurs d'écran par seconde — jamais la carte entière d'un coup.
+///
+/// **Ce nombre se juge à l'écran**, comme [`TAU`] : aucune loi ne le donne. Plus bas, un
+/// départ lointain traîne ; plus haut, on revient aux images qui défilent.
+const VITESSE: f64 = 3.0;
+
+/// **Le profil de secousse minimale** : la part du chemin parcourue à la fraction `x` du
+/// temps (Flash et Hogan, 1985).
+///
+/// C'est le mouvement que fait un bras humain qui va d'un point à un autre, et le plus doux
+/// qui soit : vitesse et accélération nulles au départ comme à l'arrivée, et nulle secousse
+/// entre les deux. Une allure constante démarrerait et s'arrêterait d'un coup.
+fn secousse_minimale(x: f64) -> f64 {
+    let x = x.clamp(0.0, 1.0);
+    x * x * x * (10.0 - 15.0 * x + 6.0 * x * x)
+}
+
 /// Un vol en cours, ou rien.
 ///
-/// L'état tient en une destination. Il n'y a ni vitesse, ni durée écoulée, ni point de
-/// départ mémorisé : à chaque image on regarde où l'on est et où l'on va, et on comble une
-/// fraction de l'écart. Redéfinir la destination en plein vol est donc gratuit et sans
-/// discontinuité — c'est exactement ce que demande une minimap qu'on maintient.
+/// Pour **suivre**, l'état tient en une destination : à chaque image on regarde où l'on est et
+/// où l'on va, et on comble une fraction de l'écart. Redéfinir la destination en plein vol est
+/// donc gratuit et sans discontinuité — c'est exactement ce que demande une minimap qu'on
+/// maintient. Pour **partir**, il s'y ajoute le chemin, tracé au premier pas depuis la vue
+/// d'alors, et le temps déjà passé dessus.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Vol {
     cible: Option<Viewport>,
+    depart: Option<Depart>,
+}
+
+/// Un départ vers une destination fixe : son chemin, une fois tracé, et le temps écoulé.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Depart {
+    chemin: Option<Chemin>,
+    ecoule: f64,
 }
 
 impl Vol {
-    /// Décide d'aller là. Remplace une destination précédente sans secousse.
+    /// **Suit** cette destination — la minimap. Remplace une destination précédente sans
+    /// secousse.
     pub fn viser(&mut self, cible: Viewport) {
         self.cible = Some(cible);
+        self.depart = None;
+    }
+
+    /// **Part** vers cette destination — `F`, un signet : par le chemin de van Wijk et Nuij,
+    /// tracé depuis la vue où l'on sera à la prochaine image.
+    ///
+    /// Partir ailleurs en plein vol retrace le chemin depuis là où l'on est : la vue ne saute
+    /// pas, elle repart.
+    pub fn voler_vers(&mut self, cible: Viewport) {
+        self.cible = Some(cible);
+        self.depart = Some(Depart {
+            chemin: None,
+            ecoule: 0.0,
+        });
     }
 
     /// Abandonne le vol en cours : la vue reste où elle est.
@@ -69,6 +128,7 @@ impl Vol {
     /// elle ne doit jamais discuter avec le geste présent.
     pub fn poser(&mut self) {
         self.cible = None;
+        self.depart = None;
     }
 
     pub fn en_cours(&self) -> bool {
@@ -83,6 +143,20 @@ impl Vol {
     /// ce que trois images courtes auraient fait.
     pub fn avancer(&mut self, vue: Viewport, ecran: ScreenSize, dt: f64) -> Option<Viewport> {
         let cible = self.cible?;
+        if let Some(depart) = self.depart.as_mut() {
+            let chemin = *depart
+                .chemin
+                .get_or_insert_with(|| Chemin::entre(vue, cible, ecran));
+            depart.ecoule += dt;
+            let duree = chemin.longueur() / VITESSE;
+            if depart.ecoule >= duree {
+                self.poser();
+                return Some(cible);
+            }
+            return Some(
+                chemin.vue_a(chemin.longueur() * secousse_minimale(depart.ecoule / duree)),
+            );
+        }
         // Moins d'un demi-pixel d'écart où que ce soit : on **pose** exactement la cible,
         // plutôt que de s'en approcher indéfiniment sans jamais l'atteindre.
         if ecart_max_en_pixels(vue, cible, ecran) < 0.5 {
@@ -202,7 +276,8 @@ impl crate::app::GlucoseApp {
             self.ui.show_toast("Rien a cadrer : ce tableau est vide");
             return;
         };
-        self.vol.viser(cadrage_du_contenu(contenu, ecran, bandeau));
+        self.vol
+            .voler_vers(cadrage_du_contenu(contenu, ecran, bandeau));
         self.mark_dirty();
     }
 

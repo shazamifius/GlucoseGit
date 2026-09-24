@@ -286,7 +286,7 @@ impl GlucoseApp {
         let Some(vue) = self.store.bookmark(&tableau, &cle.to_string()) else {
             return Some(format!("Signet {cle} vide -- Ctrl+{cle} le pose ici"));
         };
-        self.vol.viser(vue);
+        self.vol.voler_vers(vue);
         self.mark_dirty();
         None
     }

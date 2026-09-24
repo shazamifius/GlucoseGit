@@ -50,6 +50,7 @@ fn test_un_vol_instantane_execute_quand_meme_sa_suite() {
             y: 20.0,
             scale: 2.0,
         },
+        ECRAN,
         0,
         Pending::EnterFolder("fold-1".into()),
     );
@@ -113,6 +114,7 @@ fn test_le_vol_arrive_sur_son_cadrage_et_entre() {
         &store,
         &board,
         cible,
+        ECRAN,
         100,
         Pending::EnterFolder("fold-1".into()),
     );
@@ -152,19 +154,23 @@ fn test_l_echelle_s_interpole_geometriquement() {
         },
     );
     let mut a = Animator::new();
+    // Un zoom sur place, autour du centre de l'écran : le chemin n'y glisse pas, il ne fait
+    // que zoomer — d'un même facteur à chaque pas.
+    let depart = Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: 1.0,
+    };
+    let arrivee = Viewport {
+        x: ECRAN.width / 2.0 * (1.0 - 100.0),
+        y: ECRAN.height / 2.0 * (1.0 - 100.0),
+        scale: 100.0,
+    };
     // Une courbe linéaire isole l'effet de l'échelle : avec l'amorti, le temps ne serait pas
     // à mi-course au milieu.
     a.flight = Some(Flight {
-        from: Viewport {
-            x: 0.0,
-            y: 0.0,
-            scale: 1.0,
-        },
-        to: Viewport {
-            x: 0.0,
-            y: 0.0,
-            scale: 100.0,
-        },
+        chemin: Chemin::entre(depart, arrivee, ECRAN),
+        to: arrivee,
         start: Instant::now() - Duration::from_millis(50),
         duration_ms: 100,
         curve: Curve::Linear,
@@ -195,6 +201,7 @@ fn test_un_second_vol_part_de_la_ou_la_camera_est() {
             y: 0.0,
             scale: 1.0,
         },
+        ECRAN,
         400,
         Pending::Nothing,
     );
@@ -211,6 +218,7 @@ fn test_un_second_vol_part_de_la_ou_la_camera_est() {
             y: 0.0,
             scale: 1.0,
         },
+        ECRAN,
         400,
         Pending::Nothing,
     );

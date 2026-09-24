@@ -21,6 +21,7 @@
 //! qui lit la position de la caméra lit la même.
 
 use glucose_core::anim::{timing, Curve, Tween};
+use glucose_core::chemin::Chemin;
 use glucose_core::geometry::Rect;
 use glucose_core::membrane_focus::{fit_viewport, focus_consts, ScreenSize};
 use glucose_core::store::Store;
@@ -41,7 +42,10 @@ pub enum Pending {
 /// Un vol de caméra : d'un cadrage à un autre, en un temps donné, suivi d'une action.
 #[derive(Debug, Clone)]
 struct Flight {
-    from: Viewport,
+    /// Le chemin de van Wijk et Nuij, du cadrage de départ à celui d'arrivée : le même que
+    /// celui de `F` et des signets ([`crate::interactions::vol`]). Une seule géométrie de vol
+    /// dans tout le programme ; seule l'allure diffère — ici, la durée et la courbe du dossier.
+    chemin: Chemin,
     to: Viewport,
     start: Instant,
     duration_ms: u32,
@@ -80,6 +84,7 @@ impl Animator {
         store: &Store,
         board: &str,
         to: Viewport,
+        screen: ScreenSize,
         duration_ms: u32,
         then: Pending,
     ) {
@@ -90,9 +95,10 @@ impl Animator {
             .find(|b| b.id == board)
             .map(|b| b.viewport)
             .unwrap_or_default();
+        let to = to.normalized();
         self.flight = Some(Flight {
-            from,
-            to: to.normalized(),
+            chemin: Chemin::entre(from, to, screen),
+            to,
             start: Instant::now(),
             duration_ms,
             curve: Curve::EaseOutCubic,
@@ -115,7 +121,7 @@ impl Animator {
         then: Pending,
     ) {
         let to = fit_viewport(b, screen, focus_consts::FIT_PADDING);
-        self.fly_to(store, board, to, duration_ms, then);
+        self.fly_to(store, board, to, screen, duration_ms, then);
     }
 
     /// Fait avancer l'animation d'une image et rend le temps à attendre avant la suivante, en
@@ -141,18 +147,10 @@ impl Animator {
             return None;
         }
 
-        let interpoler =
-            |de: f64, vers: f64| Tween::new(de, vers, flight.duration_ms, flight.curve).at(elapsed);
-        let vp = Viewport {
-            x: interpoler(flight.from.x, flight.to.x),
-            y: interpoler(flight.from.y, flight.to.y),
-            // L'échelle s'interpole **géométriquement** : passer de 0,1 à 10 en ligne droite
-            // passerait la moitié du vol au-dessus de l'échelle 5, et donnerait une plongée qui
-            // s'arrête net. En raison, chaque pas multiplie l'échelle par le même facteur, et
-            // le mouvement se lit à vitesse constante — c'est ce que fait un zoom à la molette,
-            // dont chaque cran multiplie déjà.
-            scale: (interpoler(flight.from.scale.ln(), flight.to.scale.ln())).exp(),
-        };
+        // Zoom et translation avancent ensemble le long du chemin : la courbe du dossier dit
+        // quelle part en est faite, le chemin dit où l'on est alors.
+        let part = Tween::new(0.0, 1.0, flight.duration_ms, flight.curve).at(elapsed);
+        let vp = flight.chemin.vue_a(flight.chemin.longueur() * part);
         let board = flight.board.clone();
         store.set_viewport(&board, vp);
 
@@ -280,6 +278,7 @@ pub fn fly_out_to_depth(
             store,
             &parent_board,
             cadrage_du_parent,
+            screen,
             timing::FOLDER_TRANSITION_MS,
             Pending::Nothing,
         );
