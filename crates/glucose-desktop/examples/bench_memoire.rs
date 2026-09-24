@@ -89,8 +89,7 @@ mod windows_seulement {
         let Some(a) = a else { return (0, 0) };
         let lire = |groupe| {
             let mut vu = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
-            unsafe { a.QueryVideoMemoryInfo(0, groupe, &mut vu) }
-                .map_or(0, |()| vu.CurrentUsage)
+            unsafe { a.QueryVideoMemoryInfo(0, groupe, &mut vu) }.map_or(0, |()| vu.CurrentUsage)
         };
         (
             lire(DXGI_MEMORY_SEGMENT_GROUP_LOCAL),
@@ -218,7 +217,10 @@ mod windows_seulement {
         let t = std::time::Instant::now();
         televerser_tout(&mut scene, (&peripherique, &file), &magasin, Some(400.0));
         attendre(&peripherique);
-        println!("    243 textures creees et remplies en {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
+        println!(
+            "    243 textures creees et remplies en {:.1} ms",
+            t.elapsed().as_secs_f64() * 1e3
+        );
         let apres = relever(dxgi.as_ref());
         dire("envoyer le niveau pour 400 px", avant, apres);
         avant = apres;
@@ -237,7 +239,10 @@ mod windows_seulement {
             televerser_tout(&mut scene, (&peripherique, &file), &magasin, largeur);
             attendre(&peripherique);
         }
-        println!("    dix changements de palier en {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
+        println!(
+            "    dix changements de palier en {:.1} ms",
+            t.elapsed().as_secs_f64() * 1e3
+        );
         let apres = relever(dxgi.as_ref());
         dire("dix changements de palier", avant, apres);
         avant = apres;
@@ -298,7 +303,10 @@ mod windows_seulement {
             let apres = relever(dxgi);
             dire(marche, avant, apres);
             dire_les_etages(magasin);
-            println!("    l'atelier a fini en {:.0} ms", duree.as_secs_f64() * 1e3);
+            println!(
+                "    l'atelier a fini en {:.0} ms",
+                duree.as_secs_f64() * 1e3
+            );
             avant = apres;
         }
         let duree = image(magasin, Some(150.0));

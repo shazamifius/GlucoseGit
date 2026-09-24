@@ -43,7 +43,10 @@ fn main() {
         .unwrap_or_default();
     println!("{} images dans le tableau\n", images.len());
 
-    for session in ["premiere (decoder, puis ecrire)", "seconde (relire les apercus)"] {
+    for session in [
+        "premiere (decoder, puis ecrire)",
+        "seconde (relire les apercus)",
+    ] {
         let mut magasin = Magasin::nouveau();
         magasin.brancher_les_apercus(dossier.clone());
         let t = Instant::now();

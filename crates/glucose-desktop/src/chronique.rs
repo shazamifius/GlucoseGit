@@ -33,12 +33,12 @@
 //! cause. Leur nombre est borné, donc la mémoire aussi.
 
 pub mod entracte;
+pub mod etages;
 pub mod geste;
 pub mod histogramme;
 pub mod instantane;
 pub mod navigation;
 pub mod rythme;
-pub mod etages;
 pub mod veille;
 
 pub use entracte::Entracte;

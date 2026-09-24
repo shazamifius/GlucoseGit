@@ -40,7 +40,12 @@ fn poser_entree(magasin: &mut Magasin, nom: &str, cote: u32, cout_ms: u64, vue: 
     let pixmap = Pixmap::new(cote, cote).expect("une image");
     magasin.cache.insert(
         nom.to_string(),
-        Entree::nouvelle(Pyramide::nouvelle(pixmap), Duration::from_millis(cout_ms), vue, 0),
+        Entree::nouvelle(
+            Pyramide::nouvelle(pixmap),
+            Duration::from_millis(cout_ms),
+            vue,
+            0,
+        ),
     );
 }
 

@@ -143,7 +143,9 @@ fn test_un_pixel_opaque_traverse_la_premultiplication_intact() {
     brute.save(&chemin).expect("écriture");
 
     let pyramide = decoder(&chemin.to_string_lossy()).expect("décodage");
-    let natif = pyramide.native().expect("une pyramide neuve tient tous ses niveaux");
+    let natif = pyramide
+        .native()
+        .expect("une pyramide neuve tient tous ses niveaux");
     let (pixels, _) = natif.data().as_chunks::<4>();
     for (i, attendu) in [0u8, 1, 128, 255].iter().enumerate() {
         assert_eq!(

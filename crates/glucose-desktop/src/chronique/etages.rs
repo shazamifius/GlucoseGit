@@ -115,8 +115,14 @@ mod tests {
         e.ecrire(&mut t);
         assert!(t.contains("120 Mo tenus et 1060 Mo offerts"), "{t}");
         assert!(t.contains("au pire 900 Mo tenus, 1060 Mo offerts"), "{t}");
-        assert!(t.contains("offerts 12, repris 4, jetes par le systeme 1"), "{t}");
-        assert!(!t.contains("manquait de place"), "zero cran ne se dit pas : {t}");
+        assert!(
+            t.contains("offerts 12, repris 4, jetes par le systeme 1"),
+            "{t}"
+        );
+        assert!(
+            !t.contains("manquait de place"),
+            "zero cran ne se dit pas : {t}"
+        );
 
         e.noter(Releve {
             cran_pire: 2,
@@ -125,6 +131,9 @@ mod tests {
         });
         let mut t = String::new();
         e.ecrire(&mut t);
-        assert!(t.contains("reduites de 2 cran(s) au plus, 5 image(s)"), "{t}");
+        assert!(
+            t.contains("reduites de 2 cran(s) au plus, 5 image(s)"),
+            "{t}"
+        );
     }
 }

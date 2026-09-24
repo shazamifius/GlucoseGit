@@ -15,7 +15,12 @@ fn dossier(nom: &str) -> PathBuf {
 fn pyramide() -> Pyramide {
     let mut p = tiny_skia::Pixmap::new(300, 200).expect("une image");
     for (i, px) in p.data_mut().as_chunks_mut::<4>().0.iter_mut().enumerate() {
-        *px = [(i % 251) as u8, (i / 300 % 241) as u8, (i % 7 * 30) as u8, 255];
+        *px = [
+            (i % 251) as u8,
+            (i / 300 % 241) as u8,
+            (i % 7 * 30) as u8,
+            255,
+        ];
     }
     Pyramide::nouvelle(p)
 }
@@ -25,7 +30,9 @@ fn pyramide() -> Pyramide {
 #[test]
 fn test_un_apercu_revient_au_bit_pres() {
     let p = pyramide();
-    let a = p.apercu(2).expect("tous les niveaux d'une pyramide neuve sont tenus");
+    let a = p
+        .apercu(2)
+        .expect("tous les niveaux d'une pyramide neuve sont tenus");
     assert_eq!(a.niveaux.len(), p.niveaux_construits() - 2);
     let chemin = dossier("aller-retour").join("a.apercu");
     ecrire(&chemin, &a).expect("l'ecriture");
@@ -40,8 +47,14 @@ fn test_un_apercu_revient_au_bit_pres() {
         assert_eq!(partielle.etat(rang), attendu, "le niveau de rang {rang}");
     }
     let ici = partielle.niveau(4).expect("tenu").data().to_vec();
-    assert!(ici == p.niveau(4).expect("tenu").data(), "les octets du niveau 4 different");
-    assert!(!partielle.entiere(), "une pyramide nee d'un apercu n'est pas entiere");
+    assert!(
+        ici == p.niveau(4).expect("tenu").data(),
+        "les octets du niveau 4 different"
+    );
+    assert!(
+        !partielle.entiere(),
+        "une pyramide nee d'un apercu n'est pas entiere"
+    );
 }
 
 /// **Un aperçu qui ne se tient pas se tait** : tronqué, étranger, ou d'une autre version.
@@ -76,8 +89,19 @@ fn test_une_source_modifiee_change_d_apercu() {
     std::fs::write(&source, [1u8; 10]).expect("ecrit");
     let src = source.to_string_lossy().to_string();
     let avant = chemin(&d, &src).expect("un chemin");
-    assert_eq!(chemin(&d, &src), Some(avant.clone()), "la meme source, le meme nom");
+    assert_eq!(
+        chemin(&d, &src),
+        Some(avant.clone()),
+        "la meme source, le meme nom"
+    );
     std::fs::write(&source, [1u8; 11]).expect("reecrit");
-    assert_ne!(chemin(&d, &src), Some(avant), "une autre taille, un autre nom");
-    assert!(chemin(&d, "nulle/part.png").is_none(), "une source absente n'a pas d'apercu");
+    assert_ne!(
+        chemin(&d, &src),
+        Some(avant),
+        "une autre taille, un autre nom"
+    );
+    assert!(
+        chemin(&d, "nulle/part.png").is_none(),
+        "une source absente n'a pas d'apercu"
+    );
 }

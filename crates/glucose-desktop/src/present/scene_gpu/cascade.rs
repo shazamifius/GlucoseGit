@@ -84,7 +84,8 @@ impl SceneGpu {
         // Ce qu'elle coûtera se lit sur ce qu'ont coûté les précédentes, par pixel posé : la
         // seule grandeur connue avant de la rendre. Rien n'est choisi, et tant que rien n'est
         // mesuré, la règle d'avant.
-        let surface = (f64::from(t.pose.largeur.max(1.0)) * f64::from(t.pose.hauteur.max(1.0))) as u64;
+        let surface =
+            (f64::from(t.pose.largeur.max(1.0)) * f64::from(t.pose.hauteur.max(1.0))) as u64;
         let prevu = self.debit.prevoir(surface).unwrap_or_default();
         // **Le budget vaut pour les deux tours**, et la première version se trompait ici.
         // Elle n'en exemptait que l'urgent, au motif qu'un trou est pire qu'un flou — vrai

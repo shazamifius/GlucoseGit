@@ -111,4 +111,3 @@ fn test_un_message_endormi_ne_demande_pas_les_images_des_autres() {
     );
     assert_eq!(images_de(&app, Raison::Main), 1);
 }
-

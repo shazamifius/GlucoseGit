@@ -17,10 +17,10 @@
 //! | [`handles`] | les poignées de redimensionnement, là où le test de clic les cherche |
 //! | [`wrap`] | le découpage d'un paragraphe en lignes (WRAP-1) |
 
+pub mod apercu;
 pub mod arrivage;
 pub mod arrow;
 pub mod arrow_label;
-pub mod apercu;
 pub mod atelier;
 pub mod cadrage;
 pub mod card;

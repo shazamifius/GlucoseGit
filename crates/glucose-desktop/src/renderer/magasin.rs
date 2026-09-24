@@ -456,9 +456,7 @@ impl Magasin {
     /// fil perdu fasse échouer un test au lieu de le faire tourner sans fin.
     pub fn attendre_le_chantier(&mut self) {
         let depart = std::time::Instant::now();
-        while self.atelier.en_route() > 0
-            && depart.elapsed() < std::time::Duration::from_secs(60)
-        {
+        while self.atelier.en_route() > 0 && depart.elapsed() < std::time::Duration::from_secs(60) {
             self.recolter();
             std::thread::yield_now();
         }
@@ -472,7 +470,10 @@ impl Magasin {
 
     /// Les octets de leurs niveaux dans cet état — tenus, offerts, en chemin.
     pub fn octets_en(&self, etat: Etat) -> usize {
-        self.cache.values().map(|e| e.pyramide.octets_en(etat)).sum()
+        self.cache
+            .values()
+            .map(|e| e.pyramide.octets_en(etat))
+            .sum()
     }
 }
 

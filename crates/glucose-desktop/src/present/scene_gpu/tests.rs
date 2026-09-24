@@ -228,8 +228,18 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
     };
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
-    scene.televerser(&peripherique, &file, ("a", "a"), photo(4, [1, 2, 3, 255]).as_ref());
-    scene.televerser(&peripherique, &file, ("b", "b"), photo(4, [4, 5, 6, 255]).as_ref());
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("a", "a"),
+        photo(4, [1, 2, 3, 255]).as_ref(),
+    );
+    scene.televerser(
+        &peripherique,
+        &file,
+        ("b", "b"),
+        photo(4, [4, 5, 6, 255]).as_ref(),
+    );
     assert!(scene.connait("a", "a") && scene.connait("b", "b"));
 
     // Une image ou seule `a` sert.
@@ -719,12 +729,22 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
         for nom in ["a", "b", "c"] {
             scene.ouvrir();
-            scene.televerser(&peripherique, &file, (nom, nom), photo(4, [1, 2, 3, 255]).as_ref());
+            scene.televerser(
+                &peripherique,
+                &file,
+                (nom, nom),
+                photo(4, [1, 2, 3, 255]).as_ref(),
+            );
             scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser(nom, pose)]);
             scene.fermer(u64::MAX);
         }
         scene.ouvrir();
-        scene.televerser(&peripherique, &file, ("d", "d"), photo(4, [4, 5, 6, 255]).as_ref());
+        scene.televerser(
+            &peripherique,
+            &file,
+            ("d", "d"),
+            photo(4, [4, 5, 6, 255]).as_ref(),
+        );
         scene.preparer(&peripherique, &file, (8.0, 8.0), &[a_poser("d", pose)]);
         scene.fermer(gardable);
         scene
@@ -846,10 +866,12 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
         ),
         &|_| Some(Pixels::Rendues(photo(4, [9, 9, 9, 255]))),
     );
-    assert!(scene.connait("premiere", "premiere"), "la premiere passe toujours");
+    assert!(
+        scene.connait("premiere", "premiere"),
+        "la premiere passe toujours"
+    );
     assert!(
         !scene.connait("seconde", "seconde"),
         "prevue bien au-dela des cinq millisecondes du budget : elle attend"
     );
 }
-

@@ -24,7 +24,12 @@ fn test_une_pyramide_nait_complete() {
     // et le dernier mesure un pixel de large. Rien n'a été choisi : la descente s'arrête où
     // la division par deux ne bouge plus.
     assert_eq!(p.niveaux_construits(), 13);
-    assert_eq!(p.niveau_pour(1.0).expect("une pyramide neuve tient tous ses niveaux").width(), 1);
+    assert_eq!(
+        p.niveau_pour(1.0)
+            .expect("une pyramide neuve tient tous ses niveaux")
+            .width(),
+        1
+    );
 }
 
 /// Le coût de la pyramide entière est borné par une somme géométrique, pas par un réglage.
@@ -71,7 +76,9 @@ fn test_la_pyramide_entiere_coute_un_tiers_de_plus_que_sa_source() {
 #[test]
 fn test_le_niveau_choisi_couvre_la_taille_demandee() {
     let p = Pyramide::nouvelle(unie(4032, 3024, [10, 20, 30, 255]));
-    let niveau = p.niveau_pour(420.0).expect("une pyramide neuve tient tous ses niveaux");
+    let niveau = p
+        .niveau_pour(420.0)
+        .expect("une pyramide neuve tient tous ses niveaux");
 
     assert!(
         niveau.width() >= 420,
@@ -106,7 +113,9 @@ fn test_choisir_un_niveau_ne_construit_jamais_rien() {
 fn test_une_image_unie_le_reste_a_tous_les_niveaux() {
     let couleur = [40, 80, 120, 255];
     let p = Pyramide::nouvelle(unie(64, 64, couleur));
-    let niveau = p.niveau_pour(3.0).expect("une pyramide neuve tient tous ses niveaux");
+    let niveau = p
+        .niveau_pour(3.0)
+        .expect("une pyramide neuve tient tous ses niveaux");
 
     assert!(niveau.width() <= 4);
     for bloc in niveau.data().as_chunks::<4>().0 {
@@ -119,7 +128,9 @@ fn test_une_image_unie_le_reste_a_tous_les_niveaux() {
 #[test]
 fn test_un_cote_impair_se_reduit_sans_deborder() {
     let p = Pyramide::nouvelle(unie(7, 5, [9, 9, 9, 255]));
-    let niveau = p.niveau_pour(3.0).expect("une pyramide neuve tient tous ses niveaux");
+    let niveau = p
+        .niveau_pour(3.0)
+        .expect("une pyramide neuve tient tous ses niveaux");
     assert_eq!((niveau.width(), niveau.height()), (4, 3));
     for bloc in niveau.data().as_chunks::<4>().0 {
         assert_eq!(bloc, &[9, 9, 9, 255]);
@@ -130,7 +141,9 @@ fn test_un_cote_impair_se_reduit_sans_deborder() {
 #[test]
 fn test_la_descente_s_arrete_au_pixel() {
     let p = Pyramide::nouvelle(unie(64, 64, [1, 2, 3, 255]));
-    let niveau = p.niveau_pour(0.0).expect("une pyramide neuve tient tous ses niveaux");
+    let niveau = p
+        .niveau_pour(0.0)
+        .expect("une pyramide neuve tient tous ses niveaux");
     assert_eq!(niveau.width(), 1);
 }
 
@@ -145,7 +158,9 @@ fn test_la_reduction_moyenne_ses_quatre_pixels() {
     data[12..16].copy_from_slice(&[100, 100, 100, 255]);
 
     let p = Pyramide::nouvelle(source);
-    let niveau = p.niveau_pour(1.0).expect("une pyramide neuve tient tous ses niveaux");
+    let niveau = p
+        .niveau_pour(1.0)
+        .expect("une pyramide neuve tient tous ses niveaux");
     assert_eq!((niveau.width(), niveau.height()), (1, 1));
     assert_eq!(&niveau.data()[0..4], &[50, 50, 50, 255]);
 }

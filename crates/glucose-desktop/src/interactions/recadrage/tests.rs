@@ -246,7 +246,10 @@ fn test_un_lot_attend_ses_originaux_puis_s_applique_d_un_bloc() {
         app.bordures_en_attente.is_none(),
         "le lot attend encore : plus rien ne l'a fait repasser"
     );
-    assert!(!image(&app, "i").crop.est_entier(), "les bandes sont parties");
+    assert!(
+        !image(&app, "i").crop.est_entier(),
+        "les bandes sont parties"
+    );
     assert!(app.store.undo(), "il y a quelque chose a annuler");
     assert!(image(&app, "i").crop.est_entier(), "et un Ctrl+Z les rend");
     assert!(!app.store.undo(), "un seul geste : une seule entree");

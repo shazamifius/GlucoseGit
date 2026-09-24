@@ -176,7 +176,13 @@ impl Pyramide {
 
     /// Construit toutes les réductions sous le niveau natif, et constate l'opacité au passage.
     fn batir(native: Niveau) -> Option<Self> {
-        let opaque = native.vue()?.data().as_chunks::<4>().0.iter().all(|p| p[3] == 255);
+        let opaque = native
+            .vue()?
+            .data()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|p| p[3] == 255);
         let mut niveaux = vec![native];
         // La descente s'arrête d'elle-même à une image de 1 × 1 : la largeur et la hauteur
         // sont divisées par deux en arrondissant vers le haut, donc elles atteignent 1 et n'en

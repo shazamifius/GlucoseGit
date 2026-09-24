@@ -156,8 +156,11 @@ impl Atelier {
         let (retour, prets) = channel::<Fait>();
         let ecritures: Arc<std::sync::atomic::AtomicUsize> = Default::default();
         for _ in 0..ouvriers() {
-            let (commandes, retour, ecritures) =
-                (Arc::clone(&commandes), retour.clone(), Arc::clone(&ecritures));
+            let (commandes, retour, ecritures) = (
+                Arc::clone(&commandes),
+                retour.clone(),
+                Arc::clone(&ecritures),
+            );
             std::thread::spawn(move || ouvrier(&commandes, &retour, &ecritures));
         }
         Self {
@@ -278,9 +281,7 @@ impl Atelier {
 
     /// Tout ce qui est parti et pas revenu, offres et écritures comprises.
     pub fn en_route(&self) -> usize {
-        self.en_travail()
-            + self.offres
-            + self.ecritures.load(std::sync::atomic::Ordering::Relaxed)
+        self.en_travail() + self.offres + self.ecritures.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 

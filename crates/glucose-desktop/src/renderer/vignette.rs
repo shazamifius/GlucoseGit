@@ -372,8 +372,7 @@ impl Vignettes {
             // Le niveau qu'il faut n'est pas tenu (ETAGES-1) : le lire l'a redemandé, et le
             // chantier reprendra quand il sera revenu. Le bâtir sur un autre y figerait un
             // flou ou un crénelage pour toutes les images qui s'en serviront.
-            if !pyramide.rendre_bande(chantier.forme, &mut chantier.vignette, chantier.ligne, fin)
-            {
+            if !pyramide.rendre_bande(chantier.forme, &mut chantier.vignette, chantier.ligne, fin) {
                 break;
             }
             let passees = t.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64;

@@ -41,11 +41,11 @@ mod imp {
     use std::sync::atomic::{AtomicBool, Ordering};
     use windows::core::Interface;
     use windows::Win32::Foundation::{CloseHandle, HANDLE};
-    use windows::Win32::System::Threading::{SetEvent, WaitForSingleObject, INFINITE};
     use windows::Win32::Graphics::Dxgi::{
         CreateDXGIFactory1, IDXGIAdapter1, IDXGIAdapter3, IDXGIFactory1,
         DXGI_MEMORY_SEGMENT_GROUP_LOCAL, DXGI_QUERY_VIDEO_MEMORY_INFO,
     };
+    use windows::Win32::System::Threading::{SetEvent, WaitForSingleObject, INFINITE};
 
     /// La carte graphique qui présente, vue par le gestionnaire de mémoire vidéo de Windows.
     pub struct Sonde {
@@ -166,7 +166,8 @@ mod imp {
             let change = std::sync::Arc::new(AtomicBool::new(false));
             let fermer = std::sync::Arc::new(AtomicBool::new(false));
             let fil = {
-                let (evenement, change, fermer) = (evenement.clone(), change.clone(), fermer.clone());
+                let (evenement, change, fermer) =
+                    (evenement.clone(), change.clone(), fermer.clone());
                 std::thread::spawn(move || loop {
                     // Sûr : l'événement vit tant que ce fil vit — `drop` l'attend avant de fermer.
                     unsafe { WaitForSingleObject(evenement.0, INFINITE) };

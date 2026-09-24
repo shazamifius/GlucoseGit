@@ -97,9 +97,9 @@ impl EtatDeLaCarte {
     ) {
         let verdict = match self.part_des_photos {
             None => Some(0),
-            Some(part) => cran_qui_tient(part, |c| {
-                demande_des_photos(magasin, store, (vp, rangs), c)
-            }),
+            Some(part) => {
+                cran_qui_tient(part, |c| demande_des_photos(magasin, store, (vp, rangs), c))
+            }
         };
         self.cran = verdict.unwrap_or(CRAN_MAX);
         self.cran_pire = self.cran_pire.max(self.cran);
@@ -128,8 +128,16 @@ mod tests {
     #[test]
     fn test_le_cran_est_le_plus_petit_qui_tient() {
         let demande = |c: u32| 1_000_000u64 >> (2 * c);
-        assert_eq!(cran_qui_tient(u64::MAX, demande), Some(0), "tout tient : aucun cran");
-        assert_eq!(cran_qui_tient(1_000_000, demande), Some(0), "juste ce qu'il faut");
+        assert_eq!(
+            cran_qui_tient(u64::MAX, demande),
+            Some(0),
+            "tout tient : aucun cran"
+        );
+        assert_eq!(
+            cran_qui_tient(1_000_000, demande),
+            Some(0),
+            "juste ce qu'il faut"
+        );
         assert_eq!(cran_qui_tient(999_999, demande), Some(1));
         assert_eq!(cran_qui_tient(62_500, demande), Some(2));
         assert_eq!(cran_qui_tient(62_499, demande), Some(3));
@@ -154,9 +162,10 @@ mod tests {
         store.add_image(&board, img);
         let mut magasin = Magasin::nouveau();
         let pixmap = tiny_skia::Pixmap::new(512, 512).expect("une image");
-        magasin
-            .cache
-            .insert("p.png".into(), Entree::pour_test(Pyramide::nouvelle(pixmap)));
+        magasin.cache.insert(
+            "p.png".into(),
+            Entree::pour_test(Pyramide::nouvelle(pixmap)),
+        );
         let vp = Viewport::default();
         let demande = |c| demande_des_photos(&magasin, &store, (&vp, &[0]), c);
         assert_eq!(demande(0), 64 * 64 * 4, "soixante pixels : le niveau de 64");

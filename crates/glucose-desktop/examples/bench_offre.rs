@@ -46,7 +46,10 @@ fn travail_mo() -> f64 {
 }
 
 fn par_region(total: Duration) -> String {
-    format!("{:>8.1} us par region", total.as_secs_f64() * 1e6 / REGIONS as f64)
+    format!(
+        "{:>8.1} us par region",
+        total.as_secs_f64() * 1e6 / REGIONS as f64
+    )
 }
 
 fn main() {
@@ -61,7 +64,8 @@ fn main() {
     );
     let attendu: Vec<u64> = tenues.iter().map(|r| somme(r.octets())).collect();
     let t = Instant::now();
-    let chaude: u64 = attendu.iter().sum::<u64>() + tenues.iter().map(|r| somme(r.octets())).sum::<u64>();
+    let chaude: u64 =
+        attendu.iter().sum::<u64>() + tenues.iter().map(|r| somme(r.octets())).sum::<u64>();
     let lecture_chaude = t.elapsed();
 
     let t = Instant::now();
@@ -91,7 +95,11 @@ fn main() {
     );
     println!(
         "contenu {} -- memoire de travail {:.0} Mo (controle {chaude})",
-        if apres == attendu { "identique" } else { "ALTERE" },
+        if apres == attendu {
+            "identique"
+        } else {
+            "ALTERE"
+        },
         travail_mo()
     );
 

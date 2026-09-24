@@ -109,7 +109,10 @@ fn test_ce_que_l_ecran_redemande_revient_intact() {
     une_image(&mut magasin, montree_a(600.0, &src));
 
     assert_eq!(magasin.cache[&src].pyramide.etat(0), Etat::Tenu);
-    assert!(natif(&magasin, &src) == avant, "l'original repris a d'autres octets");
+    assert!(
+        natif(&magasin, &src) == avant,
+        "l'original repris a d'autres octets"
+    );
     assert!(magasin.mouvements().repris >= 1);
 }
 
@@ -164,7 +167,10 @@ fn test_un_niveau_perdu_se_redecode() {
 
     une_image(&mut magasin, montree_a(600.0, &src));
 
-    assert!(natif(&magasin, &src) == avant, "l'original redécodé diffère");
+    assert!(
+        natif(&magasin, &src) == avant,
+        "l'original redécodé diffère"
+    );
 }
 
 /// **Ce qui revient pour une pyramide remplacée ne s'y pose pas** : une image redécodée en a

@@ -234,7 +234,8 @@ mod imp {
     impl Pages {
         fn nouvelles(longueur: usize) -> Option<Self> {
             // Sûr : une allocation neuve, rendue dans `drop`.
-            let p = unsafe { VirtualAlloc(None, longueur, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE) };
+            let p =
+                unsafe { VirtualAlloc(None, longueur, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE) };
             let debut = std::ptr::NonNull::new(p.cast::<u8>())?;
             let mut info = MEMORY_BASIC_INFORMATION::default();
             // Sûr : `info` est local et du type que l'appel remplit.
@@ -245,7 +246,11 @@ mod imp {
                     std::mem::size_of::<MEMORY_BASIC_INFORMATION>(),
                 )
             };
-            let engagee = if lu == 0 { longueur } else { info.RegionSize.max(longueur) };
+            let engagee = if lu == 0 {
+                longueur
+            } else {
+                info.RegionSize.max(longueur)
+            };
             Some(Self {
                 debut,
                 longueur,

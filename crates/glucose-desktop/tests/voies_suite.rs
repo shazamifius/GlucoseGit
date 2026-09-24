@@ -695,9 +695,21 @@ fn test_quand_la_carte_manque_de_place_la_photo_perd_un_cran() {
         let texture = texture.vue();
         ((texture.width(), texture.height()), renderer.carte.debordee)
     };
-    assert_eq!(niveau_recu(None), ((64, 64), false), "sans budget, la regle d'avant");
-    assert_eq!(niveau_recu(Some(64 * 64 * 4)), ((64, 64), false), "juste assez");
-    assert_eq!(niveau_recu(Some(64 * 64 * 4 - 1)), ((32, 32), false), "un cran");
+    assert_eq!(
+        niveau_recu(None),
+        ((64, 64), false),
+        "sans budget, la regle d'avant"
+    );
+    assert_eq!(
+        niveau_recu(Some(64 * 64 * 4)),
+        ((64, 64), false),
+        "juste assez"
+    );
+    assert_eq!(
+        niveau_recu(Some(64 * 64 * 4 - 1)),
+        ((32, 32), false),
+        "un cran"
+    );
     let (renderer, _, _, _) = les_deux_couches_sous_un_budget((800, 600), &store, Some(0));
     assert!(renderer.carte.debordee, "rien ne tient : la carte le dit");
 }

@@ -11,7 +11,10 @@ fn test_une_region_neuve_est_nulle_et_porte_ce_qu_on_a_demande() {
     let r = Tenue::nouvelle(OCTETS).expect("trois mégaoctets se trouvent toujours");
     assert_eq!(r.octets().len(), OCTETS);
     assert!(r.octets().iter().all(|&o| o == 0));
-    assert!(Tenue::nouvelle(0).is_none(), "une région vide ne se demande pas");
+    assert!(
+        Tenue::nouvelle(0).is_none(),
+        "une région vide ne se demande pas"
+    );
 }
 
 /// **Ce qui revient est ce qui est parti, ou rien** : jamais un contenu altéré.
@@ -31,7 +34,11 @@ fn test_une_region_offerte_puis_reprise_rend_ses_octets() {
         .reprendre()
         .expect("la machine avait de la place : la région devait revenir intacte");
     assert!(
-        reprise.octets().iter().enumerate().all(|(i, &o)| o == motif(i)),
+        reprise
+            .octets()
+            .iter()
+            .enumerate()
+            .all(|(i, &o)| o == motif(i)),
         "une région reprise a rendu d'autres octets que ceux qui étaient partis"
     );
 }
@@ -93,6 +100,9 @@ fn pages_presentes(debut: *const u8, longueur: usize) -> usize {
 fn test_une_region_plus_petite_qu_une_page_revient_toujours() {
     let mut r = Tenue::nouvelle(100).expect("cent octets se trouvent toujours");
     r.octets_mut().fill(9);
-    let reprise = r.offrir().reprendre().expect("une petite région ne se perd jamais");
+    let reprise = r
+        .offrir()
+        .reprendre()
+        .expect("une petite région ne se perd jamais");
     assert_eq!(reprise.octets(), &[9u8; 100][..]);
 }

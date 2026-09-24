@@ -107,12 +107,15 @@ impl Confie {
                 // remplacerait la texture nette que la carte a peut-être gardée (ETAGES-1).
                 let repli = match composant {
                     Some(c) => c.repli.clone(),
-                    None => self.replis.get(cle.as_str()).map(|(cle_du_repli, pose)| APoser {
-                        identite: format!("{identite}#repli"),
-                        cle: cle_du_repli.clone(),
-                        pose: *pose,
-                        repli: None,
-                    }),
+                    None => self
+                        .replis
+                        .get(cle.as_str())
+                        .map(|(cle_du_repli, pose)| APoser {
+                            identite: format!("{identite}#repli"),
+                            cle: cle_du_repli.clone(),
+                            pose: *pose,
+                            repli: None,
+                        }),
                 };
                 APoser {
                     identite,
