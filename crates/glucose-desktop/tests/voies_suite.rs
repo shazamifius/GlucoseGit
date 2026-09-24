@@ -315,18 +315,51 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
 /// d'un test d'intégration, et c'est très bien ainsi — ce test emprunte le chemin de
 /// l'application, décodage compris.
 fn photo_a_bande() -> std::path::PathBuf {
-    let (l, h) = (64u32, 64u32);
+    photo_d_epreuve("bande", (64, 64), |x, _| if x < 64 / 4 { 0 } else { 255 })
+}
+
+/// **Une photo d'épreuve, nommée par son contenu — et jamais réécrite.**
+///
+/// Les épreuves de ce fichier tournent en parallèle, et chacune réécrivait la même photo, sous
+/// le même nom, à chaque appel : l'atelier d'une épreuve lisait parfois un fichier qu'une autre
+/// venait de vider pour le réécrire. Un damier lu de travers donnait une texture de 65 × 65
+/// au lieu de 64, ou des gris qui n'étaient pas ceux du processeur — « l'épreuve de la carte
+/// qui tombe au hasard » (fiche 35 § 4). Ni la carte, ni le processeur : un fichier partagé.
+///
+/// Nommée par l'empreinte de ses pixels, une photo qui existe est déjà la bonne. Deux
+/// écritures simultanées posent chacune le même fichier entier, par renommage.
+fn photo_d_epreuve(
+    nom: &str,
+    (l, h): (u32, u32),
+    gris: impl Fn(u32, u32) -> u8,
+) -> std::path::PathBuf {
+    static ECRITURES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let mut octets = Vec::with_capacity((l * h * 4) as usize);
     for y in 0..h {
         for x in 0..l {
-            let _ = y;
-            let v = if x < l / 4 { 0 } else { 255 };
+            let v = gris(x, y);
             octets.extend_from_slice(&[v, v, v, 255]);
         }
     }
-    let chemin = std::env::temp_dir().join("glucose-voies-recadrage-bande.png");
-    image::save_buffer(&chemin, &octets, l, h, image::ExtendedColorType::Rgba8)
-        .expect("ecriture de la photo temoin");
+    let empreinte = glucose_core::hash::hex_of(&glucose_core::hash::sha256(&octets));
+    let chemin = std::env::temp_dir().join(format!("glucose-voies-{nom}-{}.png", &empreinte[..16]));
+    if !chemin.is_file() {
+        let rang = ECRITURES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let a_cote = chemin.with_extension(format!("{}-{rang}.tmp", std::process::id()));
+        image::save_buffer_with_format(
+            &a_cote,
+            &octets,
+            l,
+            h,
+            image::ExtendedColorType::Rgba8,
+            image::ImageFormat::Png,
+        )
+        .expect("ecriture de la photo d'epreuve");
+        // Posée entre-temps par une autre épreuve ? La sienne vaut la nôtre.
+        if std::fs::rename(&a_cote, &chemin).is_err() {
+            let _ = std::fs::remove_file(&a_cote);
+        }
+    }
     chemin
 }
 
@@ -576,24 +609,17 @@ fn test_une_carte_plus_grande_que_l_ecran_se_dessine_sur_les_deux_voies() {
 /// Un damier d'un pixel, 512 × 512, écrit sur le disque : le pire cas du crénelage. Lu un
 /// texel sur huit, il donne des motifs ; moyenné comme la pyramide le fait, du gris.
 fn photo_damier() -> std::path::PathBuf {
-    let cote = 512u32;
-    let mut octets = Vec::with_capacity((cote * cote * 4) as usize);
-    for y in 0..cote {
-        for x in 0..cote {
-            let v = if (x + y) % 2 == 0 { 0 } else { 255 };
-            octets.extend_from_slice(&[v, v, v, 255]);
-        }
-    }
-    let chemin = std::env::temp_dir().join("glucose-voies-niveau-damier.png");
-    image::save_buffer(
-        &chemin,
-        &octets,
-        cote,
-        cote,
-        image::ExtendedColorType::Rgba8,
+    photo_d_epreuve(
+        "damier",
+        (512, 512),
+        |x, y| {
+            if (x + y) % 2 == 0 {
+                0
+            } else {
+                255
+            }
+        },
     )
-    .expect("ecriture de la photo damier");
-    chemin
 }
 
 /// Le damier posé en 200 × 200 dans le monde, vu à l'échelle `echelle`.
