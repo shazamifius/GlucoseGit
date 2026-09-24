@@ -59,7 +59,12 @@ impl Store {
             return;
         };
         let index = b.images.len();
-        b.images.push(img.clone());
+        b.images.push(img);
+        // Posée dans une membrane, elle lui appartient dès sa naissance (MEMB-1).
+        if let Some(m) = super::membranes::membrane_d_accueil(b, &id) {
+            b.images[index].membrane_id = Some(m);
+        }
+        let img = b.images[index].clone();
 
         self.record_edit(Edit::Image {
             board: board_id.to_string(),
@@ -202,11 +207,14 @@ impl Store {
         if dx == 0.0 && dy == 0.0 {
             return;
         }
-        let sel = selection_sets_de(
-            &self.selected_image_ids,
-            &self.selected_annotation_ids,
-            self.selected_folder_id.as_deref(),
-        );
+        // Une membrane emporte son contenu (MEMB-1) : ce qui bouge est la sélection, et ce
+        // que ses membranes possèdent.
+        let emport = self.ce_qu_emporte_la_selection(board_id);
+        let sel = SelectionSets {
+            images: emport.images.iter().map(String::as_str).collect(),
+            annotations: emport.annotations.iter().map(String::as_str).collect(),
+            folder: self.selected_folder_id.as_deref(),
+        };
 
         let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
             return;

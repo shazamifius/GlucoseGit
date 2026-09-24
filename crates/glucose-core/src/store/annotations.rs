@@ -135,7 +135,12 @@ impl Store {
             return;
         };
         let index = b.annotations.len();
-        b.annotations.push(ann.clone());
+        b.annotations.push(ann);
+        // Posée dans une membrane, elle lui appartient dès sa naissance (MEMB-1).
+        if let Some(m) = super::membranes::membrane_d_accueil(b, &id) {
+            b.annotations[index].set_membrane_id(Some(m));
+        }
+        let ann = b.annotations[index].clone();
 
         self.record_edit(Edit::Annotation {
             board: board_id.to_string(),
@@ -245,6 +250,8 @@ impl Store {
 
         let mut edits = Vec::new();
         for b in &mut self.project.boards {
+            // Le cadre part, son contenu reste : à la membrane qui le contenait (MEMB-1).
+            edits.extend(super::membranes::liberer_les_membres(b, &id_set));
             for i in (0..b.annotations.len()).rev() {
                 if doomed(&b.annotations[i]) {
                     let ann = b.annotations.remove(i);

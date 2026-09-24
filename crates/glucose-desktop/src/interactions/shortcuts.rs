@@ -382,8 +382,19 @@ impl GlucoseApp {
         } else {
             1.0
         };
+        let rien = self.store.selected_image_ids.is_empty()
+            && self.store.selected_annotation_ids.is_empty()
+            && self.store.selected_folder_id.is_none();
+        if rien {
+            return;
+        }
         let board = self.store.project.active_board_id.clone();
+        // Un cran est un dépôt comme un autre (MEMB-1) : pousser une carte hors de sa membrane
+        // la libère, dans le même geste.
+        self.store.begin_live_edit();
         self.store.move_selected(&board, dx * pas, dy * pas);
+        self.store.rattacher_la_selection(&board);
+        self.store.end_live_edit();
         self.mark_dirty();
     }
 

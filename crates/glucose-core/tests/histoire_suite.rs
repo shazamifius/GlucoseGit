@@ -138,6 +138,33 @@ fn test_l_histoire_relue_redonne_le_document_apres_chaque_geste() {
         board.images.pop();
     });
     verifier(&mut store, "une mise en page qui retire une image");
+    // MEMB-1 : naître dans une membrane, l'emporter, en sortir au dépôt, la supprimer.
+    store.add_annotation(&b, Annotation::membrane("m", -500.0, -500.0, 400.0, 800.0));
+    store.add_image(&b, image("dans-m", -450.0));
+    let membre = |store: &Store| {
+        store
+            .active_board()
+            .and_then(|board| board.images.iter().find(|i| i.id == "dans-m"))
+            .and_then(|i| i.membrane_id.clone())
+    };
+    assert_eq!(membre(&store).as_deref(), Some("m"), "née dans la membrane");
+    verifier(&mut store, "naître dans une membrane");
+    store.clear_selection();
+    store.select_annotation("m".into(), false);
+    store.move_selected(&b, 7.0, 3.0);
+    verifier(&mut store, "une membrane emporte son contenu");
+    store.clear_selection();
+    store.select_image("dans-m".into(), false);
+    store.begin_live_edit();
+    store.move_selected(&b, 0.0, 900.0);
+    store.rattacher_la_selection(&b);
+    store.end_live_edit();
+    assert_eq!(membre(&store), None, "lâchée dehors");
+    verifier(&mut store, "lâcher hors de la membrane");
+    store.move_selected(&b, 0.0, -900.0);
+    store.rattacher_la_selection(&b);
+    store.remove_annotations(&b, &["m"]);
+    verifier(&mut store, "supprimer la membrane libère son contenu");
     store.try_remove_board(&b2).expect("l'annexe se supprime");
     verifier(&mut store, "supprimer un tableau");
     // La navigation n'est pas un geste, mais la vue l'emporte.

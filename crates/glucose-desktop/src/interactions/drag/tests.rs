@@ -371,3 +371,58 @@ fn test_apres_un_glissement_la_selection_reste_entiere() {
         "la selection a fondu apres le glissement"
     );
 }
+
+fn membre_de(app: &GlucoseApp, id: &str) -> Option<String> {
+    app.store
+        .image(&app.store.project.active_board_id, id)
+        .and_then(|i| i.membrane_id.clone())
+}
+
+/// **MEMB-1, par les gestes de l'application** : lâcher une image dans une membrane la lui
+/// donne, glisser la membrane l'emporte — même là où elle déborde, que la zone redessinée
+/// couvre —, et chaque geste s'annule d'un seul `Ctrl+Z`.
+#[test]
+fn test_memb_1_une_membrane_garde_ce_qu_on_y_lache_et_l_emporte() {
+    let mut app = app();
+    app.ui.smart_align = false;
+    let board = app.store.project.active_board_id.clone();
+    app.store.add_annotation(
+        &board,
+        glucose_core::types::Annotation::membrane("M", 600.0, -200.0, 520.0, 400.0),
+    );
+    with_image(&mut app, "I1", 0.0, 0.0);
+    assert_eq!(membre_de(&app, "I1"), None, "posée dehors");
+
+    press_on(&mut app, "I1");
+    drag_by(&mut app, 1100.0, 10);
+    release(&mut app);
+    // Une image se place par son centre : 1 100 est dans la membrane (jusqu'à 1 120), et son
+    // bord droit, à 1 200, déborde.
+    assert_eq!(image_x(&app, "I1"), 1100.0);
+    assert_eq!(membre_de(&app, "I1").as_deref(), Some("M"), "lâchée dedans");
+
+    app.store.clear_selection();
+    app.store.select_annotation("M".into(), false);
+    let vp = app.store.viewport();
+    let (sx, sy) = world_to_screen(650.0, -150.0, &vp);
+    app.init_item_drag(650.0, -150.0);
+    let base = app.drag_selection_base.expect("une zone");
+    assert!(
+        base.left + base.width >= 1200.0,
+        "la zone redessinée couvre ce qui déborde : {base:?}"
+    );
+    app.handle_item_drag_move(sx + 100.0 * vp.scale, sy);
+    app.finish_item_drag();
+    assert_eq!(image_x(&app, "I1"), 1200.0, "la membrane l'emporte");
+
+    assert!(app.store.undo());
+    assert_eq!(image_x(&app, "I1"), 1100.0);
+    assert_eq!(membre_de(&app, "I1").as_deref(), Some("M"));
+    assert!(app.store.undo());
+    assert_eq!(image_x(&app, "I1"), 0.0);
+    assert_eq!(
+        membre_de(&app, "I1"),
+        None,
+        "un Ctrl+Z rend la position ET la liberté"
+    );
+}

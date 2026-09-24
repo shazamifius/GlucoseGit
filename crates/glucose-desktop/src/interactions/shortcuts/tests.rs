@@ -777,3 +777,30 @@ fn test_deplacer_le_curseur_ne_cree_pas_d_entree() {
         "cinq deplacements ont empile cinq entrees vides"
     );
 }
+
+/// **Un cran est un dépôt** (MEMB-1) : pousser une image hors de sa membrane au clavier la
+/// libère, et le `Ctrl+Z` de ce cran rend sa place et son appartenance ensemble.
+#[test]
+fn test_pousser_hors_d_une_membrane_la_libere() {
+    let mut app = app_with(0);
+    let board = app.store.project.active_board_id.clone();
+    app.store.add_annotation(
+        &board,
+        Annotation::membrane("M", -50.0, -50.0, 100.0, 100.0),
+    );
+    app.store
+        .add_image(&board, BoardImage::new("i0", 0.0, 0.0, 20.0, 20.0));
+    app.store.set_selected_image_ids(vec!["i0".into()]);
+    let membre = |app: &GlucoseApp| image(app, "i0").membrane_id;
+    assert_eq!(membre(&app).as_deref(), Some("M"));
+
+    let mut crans = 0;
+    while membre(&app).is_some() && crans < 100 {
+        fleche(&mut app, NamedKey::ArrowRight, ModifiersState::SHIFT);
+        crans += 1;
+    }
+    assert!(image(&app, "i0").x > 50.0, "sortie par le bord droit");
+    assert_eq!(membre(&app), None, "libérée au cran qui la sort");
+    assert!(app.store.undo());
+    assert_eq!(membre(&app).as_deref(), Some("M"), "un Ctrl+Z la rend");
+}

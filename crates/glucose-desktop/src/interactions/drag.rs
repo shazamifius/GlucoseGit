@@ -15,24 +15,15 @@ impl GlucoseApp {
         self.drag_applied_delta = (0.0, 0.0);
         self.store.begin_live_edit();
 
-        // Préparer la boîte englobante et les cibles d'aimantation (SNAP-1)
+        // Préparer la boîte englobante et les cibles d'aimantation (SNAP-1). Ce qui bouge est
+        // ce que la sélection emporte — le contenu de ses membranes compris (MEMB-1) : il se
+        // redessine avec elle, et une membrane ne s'aimante pas sur ses propres membres.
+        let emport = self
+            .store
+            .ce_qu_emporte_la_selection(&self.store.project.active_board_id);
         if let Some(board) = self.store.active_board() {
-            let mut exclude = HashSet::new();
-            let mut rects = Vec::new();
-            for id in &self.store.selected_image_ids {
-                exclude.insert(id.clone());
-                if let Some(img) = board.images.iter().find(|i| &i.id == id) {
-                    rects.push(img.rect());
-                }
-            }
-            for id in &self.store.selected_annotation_ids {
-                exclude.insert(id.clone());
-                if let Some(ann) = board.annotations.iter().find(|a| a.id() == id) {
-                    if let Some(r) = ann.rect() {
-                        rects.push(r);
-                    }
-                }
-            }
+            let mut exclude: HashSet<String> = emport.ids().cloned().collect();
+            let mut rects = emport.boites(board);
             if let Some(fid) = &self.store.selected_folder_id {
                 exclude.insert(fid.clone());
                 if let Some(f) = board.folders.iter().find(|f| &f.id == fid) {
@@ -129,6 +120,12 @@ impl GlucoseApp {
     pub fn finish_item_drag(&mut self) {
         if self.is_dragging_item {
             self.is_dragging_item = false;
+            // Le dépôt : ce qu'on lâche change peut-être de membrane (MEMB-1) — dans le même
+            // geste que le déplacement, qu'un seul `Ctrl+Z` défait.
+            if self.drag_applied_delta != (0.0, 0.0) {
+                let board = self.store.project.active_board_id.clone();
+                self.store.rattacher_la_selection(&board);
+            }
             self.store.end_live_edit();
             self.active_guides = SnapGuides::default();
             self.drag_selection_base = None;
