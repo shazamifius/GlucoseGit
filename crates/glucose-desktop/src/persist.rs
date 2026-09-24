@@ -7,19 +7,30 @@
 //! lire l'horloge, ouvrir un dialogue — et remonter chaque échec à l'utilisateur par un toast
 //! (standard § 6.4). Un échec d'enregistrement silencieux serait pire que pas d'enregistrement.
 //!
+//! # L'histoire (HISTOIRE-1)
+//!
+//! Le document s'écrit **pendant** qu'on travaille : chaque geste s'ajoute à la suite de son
+//! fichier ([`disque`], [`ecriture`], [`scribe`]), et ses images y entrent une fois, par leur
+//! empreinte ([`objets`]). Un document sans nom écrit dans un brouillon, que le lancement
+//! suivant rouvre après un plantage. Un document de Glucose Tauri s'importe ([`import`]).
+//!
 //! | Raccourci | Effet |
 //! |---|---|
-//! | `Ctrl+S` | Enregistre ; demande un chemin si le projet n'en a pas encore |
+//! | `Ctrl+S` | Pose un jalon — tout est déjà écrit ; demande un nom au document qui n'en a pas |
 //! | `Ctrl+Maj+S` | Enregistre sous un nouveau chemin |
 //! | `Ctrl+O` | Ouvre un projet |
 //! | `Ctrl+I` | Importe des images (le raccourci qu'occupait `Ctrl+O`) |
 //! | `Ctrl+E` | Exporte le tableau courant ; l'extension choisie decide du format |
 
-pub mod assets;
 pub mod atomic;
 pub mod close;
 pub mod commands;
+pub mod disque;
+pub mod ecriture;
 pub mod export;
+pub mod import;
+pub mod objets;
+pub mod scribe;
 
 use crate::error::{DesktopError, DesktopResult};
 use glucose_core::persist::{self, GlucoseFile, FILE_EXTENSION};

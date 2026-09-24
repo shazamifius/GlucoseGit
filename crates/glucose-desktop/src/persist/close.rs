@@ -67,8 +67,11 @@ impl GlucoseApp {
     /// se ferme sans un mot ; un document modifié pose la question, et la réponse est
     /// traitée par [`GlucoseApp::close_with`], qui refuse de fermer sur un échec.
     pub fn request_close(&mut self) -> bool {
+        // Ce que le dernier geste a changé s'écrit d'abord : un document qui a un nom est
+        // alors enregistré, et se ferme sans question (HISTOIRE-1).
+        self.consigner();
         if !self.is_dirty() {
-            return true;
+            return self.fermer_le_document();
         }
         let label = self.document_label();
         let choix = self.sous_un_dialogue(|fenetre| ask_unsaved_changes(fenetre, &label));
@@ -82,14 +85,19 @@ impl GlucoseApp {
     pub fn close_with(&mut self, choice: CloseChoice) -> bool {
         match choice {
             CloseChoice::Cancel => false,
-            CloseChoice::Discard => true,
+            CloseChoice::Discard => {
+                // Le document sans nom qu'on ne garde pas : son brouillon s'efface, et le
+                // prochain lancement ne le rouvrira pas.
+                self.abandonner_le_brouillon();
+                true
+            }
             CloseChoice::Save => {
                 self.save_project();
                 // `save_project` a déjà dit pourquoi si l'écriture a échoué (toast). La
                 // seule question qui reste est celle du document lui-même : tant qu'il est
                 // modifié, rien n'a été écrit, et fermer perdrait exactement ce que R-48
                 // décrit. On relit donc l'état « modifié », jamais le retour du dialogue.
-                !self.is_dirty()
+                !self.is_dirty() && self.fermer_le_document()
             }
         }
     }

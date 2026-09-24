@@ -220,6 +220,25 @@ impl Transaction {
         self.edits.push(edit);
     }
 
+    /// Les images que ce geste **pose** dans le document — celles dont il écrit l'« après » :
+    /// une image ajoutée ou changée, et les images d'un tableau rétabli. C'est ce qu'il faut
+    /// savoir pour mettre leurs octets dans le fichier (HISTOIRE-1).
+    pub fn images_posees(&self) -> Vec<&crate::types::BoardImage> {
+        let mut out = Vec::new();
+        for e in &self.edits {
+            match e {
+                Edit::Image { slot, .. } => out.extend(slot.after.as_deref()),
+                Edit::Board { slot } => {
+                    if let Some(b) = slot.after.as_deref() {
+                        out.extend(b.images.iter());
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
     /// Somme des poids — la taille du geste, au sens de JRN-1.
     pub fn weight(&self) -> usize {
         self.edits.iter().map(Edit::weight).sum()

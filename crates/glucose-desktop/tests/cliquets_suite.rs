@@ -332,7 +332,12 @@ const CHAMPS: &[&str] = &[".annotations", ".images", ".folders", ".boards"];
 /// Le reste est nommé : la minimap lit les trois collections d'un tableau pour les dessiner,
 /// et le redimensionnement cherche un nœud par son identifiant. Les deux demandent une API de
 /// lecture que le `Store` n'a pas encore, et c'est le chantier de la règle S (fiche 12 § 3).
-const PLAFOND_COUPLAGE: usize = 43;
+///
+/// **38 depuis le 24/09/2026 (HISTOIRE-1)** : l'enregistrement relisait chaque image du
+/// document, tableau par tableau, pour la réécrire ; il écrit désormais le geste, et c'est le
+/// noyau qui répond « toutes les images » et « les images qu'un geste pose ». Cinq accès
+/// directs sont partis avec lui.
+const PLAFOND_COUPLAGE: usize = 38;
 
 fn compte_couplage() -> usize {
     sources(&src_desktop())

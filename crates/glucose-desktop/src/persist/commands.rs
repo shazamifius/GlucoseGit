@@ -5,15 +5,17 @@
 //! savoir de `GlucoseApp`. Ici on ne fait que l'orchestrer et remonter chaque échec par un
 //! toast (standard § 6.4) : un enregistrement raté doit se voir.
 
+use super::import::message_d_import;
+use super::objets::Source;
 use super::{
-    human_size, now_millis, read_project_file, with_glucose_extension, write_project_file,
-    SaveReport, APP_TITLE, DIRTY_MARK, UNTITLED,
+    human_size, now_millis, with_glucose_extension, SaveReport, APP_TITLE, DIRTY_MARK, UNTITLED,
 };
 use crate::app::GlucoseApp;
-use crate::error::DesktopResult;
-use crate::persist::assets;
+use crate::error::{DesktopError, DesktopResult};
+use glucose_core::persist::histoire::{self, Genre};
 use glucose_core::persist::FILE_EXTENSION;
 use glucose_core::types::Project;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 // ── Dialogues ───────────────────────────────────────────────────────────────
@@ -139,84 +141,153 @@ impl GlucoseApp {
         }
     }
 
-    /// Le chemin est connu : encoder, écrire, confirmer ou dire pourquoi ça a échoué.
+    /// Le chemin est connu : enregistrer, confirmer ou dire pourquoi ça a échoué.
     pub(crate) fn save_to(&mut self, path: PathBuf) {
-        match self.try_save(&path) {
+        let message = match self.try_save(&path) {
             Ok(report) => {
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
-                self.ui
-                    .show_toast(save_message(&report, &self.document_label()));
+                save_message(&report, &self.document_label())
             }
-            Err(err) => self.ui.show_toast(err.to_string()),
-        }
-        self.sync_window_title();
-        self.mark_dirty();
-    }
-
-    fn try_save(&mut self, path: &Path) -> DesktopResult<SaveReport> {
-        // Le magasin d'actifs est reconstruit à chaque enregistrement : c'est ce qui rend le
-        // ramasse-miettes du § 8 automatique (cf. `assets::collect`).
-        let collected = assets::collect(&self.store.project);
-        let report = SaveReport {
-            bytes: write_project_file(path, &self.store.project, &collected.store, now_millis())?,
-            assets: collected.store.len(),
-            unreadable: collected.unreadable.len(),
+            Err(err) => err.to_string(),
         };
-        self.store.assets = collected.store;
-        Ok(report)
-    }
-
-    /// Le chemin est connu : lire, décoder, adopter le document ou dire pourquoi ça a échoué.
-    pub(crate) fn open_from(&mut self, path: PathBuf) {
-        match self.try_open(&path) {
-            Ok(report) => {
-                self.project_path = Some(path);
-                self.saved_version = self.store.version;
-                self.ui
-                    .show_toast(open_message(&self.store.project, &report));
-            }
-            Err(err) => self.ui.show_toast(err.to_string()),
-        }
+        self.ui.show_toast(message);
         self.sync_window_title();
         self.mark_dirty();
     }
 
-    fn try_open(&mut self, path: &Path) -> DesktopResult<OpenReport> {
-        let mut file = read_project_file(path)?;
-        let restored = assets::restore(&mut file.project, &file.assets);
+    /// **Enregistrer ne réécrit plus rien** (HISTOIRE-1). Le document s'écrit déjà, geste
+    /// après geste ; enregistrer, c'est :
+    ///
+    /// * au même endroit — poser un jalon, et attendre que tout soit sur le disque ;
+    /// * ailleurs (« Enregistrer sous », ou le premier nom d'un brouillon) — copier le fichier
+    ///   tel quel, histoire comprise, et continuer dans la copie ;
+    /// * pour un document qui n'a encore aucun fichier — l'écrire là : sa base, ses gestes,
+    ///   ses images.
+    fn try_save(&mut self, path: &Path) -> DesktopResult<SaveReport> {
+        let echec = |reason: String| DesktopError::SaveFailed {
+            path: path.display().to_string(),
+            reason,
+        };
+        let instant = now_millis();
+        match self.disque.ecriture.as_ref().map(|e| e.chemin == path) {
+            Some(true) => {}
+            Some(false) => {
+                // Ce qui attend s'écrit d'abord dans l'ancien fichier : la copie l'emporte.
+                self.consigner();
+                self.disque
+                    .ecriture
+                    .as_mut()
+                    .ok_or_else(|| echec("aucun fichier ouvert".to_string()))?
+                    .deplacer(path.to_path_buf())
+                    .map_err(echec)?;
+            }
+            None => self
+                .naitre(path.to_path_buf(), false, instant)
+                .map_err(echec)?,
+        }
+        self.consigner();
+        let ecriture = self
+            .disque
+            .ecriture
+            .as_ref()
+            .ok_or_else(|| echec("aucun fichier ouvert".to_string()))?;
+        ecriture
+            .jalon(&self.store.project, Genre::Enregistrement, "", instant)
+            .map_err(echec)?;
+        Ok(SaveReport {
+            bytes: std::fs::metadata(path)
+                .map(|m| m.len() as usize)
+                .unwrap_or(0),
+            assets: self.store.nombre_d_images(),
+            unreadable: self.images_hors_du_document(),
+        })
+    }
 
-        // L'édition en cours porte sur un document qui n'existe plus. Le panneau DOMAINES non
-        // plus : ce qu'il retient — un renommage ouvert, une suppression en attente — désigne
-        // des identifiants du document précédent (DOM-UI-1).
-        self.editing_session = None;
-        self.historique_du_texte.oublier();
-        self.selection_box = None;
-        self.dock_manager.domains.reset();
-        let repaired = self.store.load_project(file.project);
-        self.store.assets = file.assets;
-        // Un document antérieur à TEXT-FIT-1 peut porter des cartes dont la hauteur rangée
-        // n'est pas celle de leur texte : on la recale à l'ouverture, hors undo, pour que le
-        // test de clic et les poignées voient la boîte dessinée.
-        self.fit_all_text_cards();
-        // `load_project` ne fait pas avancer la version ; sans ce coup de pouce, l'index
-        // spatial du renderer croirait regarder le document précédent et n'afficherait rien.
-        self.store.bump_version();
-        Ok(OpenReport { restored, repaired })
+    /// Les images dont les octets ne sont pas encore dans le document, et qu'aucun fichier ne
+    /// porte plus : elles s'afficheront vides à la prochaine ouverture. L'utilisateur doit le
+    /// savoir (standard § 6.4).
+    fn images_hors_du_document(&self) -> usize {
+        self.store
+            .project
+            .toutes_les_images()
+            .filter_map(|i| i.src.as_deref())
+            .filter(|cle| {
+                !self.disque.objets.est_scellee(cle)
+                    && !matches!(
+                        self.disque.objets.source(cle),
+                        Some(Source::Fichier(_)) | Some(Source::Memoire(_))
+                    )
+                    && !Path::new(cle).is_file()
+            })
+            .count()
+    }
+
+    /// Le chemin est connu : lire, adopter le document ou dire pourquoi ça a échoué.
+    pub(crate) fn open_from(&mut self, path: PathBuf) {
+        let message = match self.try_open(&path) {
+            Ok(Ouverture::Glucose(report)) => {
+                self.project_path = Some(path);
+                self.saved_version = self.store.version;
+                open_message(&self.store.project, &report)
+            }
+            Ok(Ouverture::Tauri(importe)) => message_d_import(&self.store.project.name, &importe),
+            Err(err) => err.to_string(),
+        };
+        self.ui.show_toast(message);
+        self.sync_window_title();
+        self.mark_dirty();
+    }
+
+    fn try_open(&mut self, path: &Path) -> DesktopResult<Ouverture> {
+        let ouvrir_err = |e: std::io::Error| DesktopError::OpenFailed {
+            path: path.display().to_string(),
+            reason: e.to_string(),
+        };
+        let mut f = std::fs::File::open(path).map_err(ouvrir_err)?;
+        let mut tete = [0u8; 16];
+        let lus = f.read(&mut tete).map_err(ouvrir_err)?;
+        if glucose_core::persist::tauri::reconnaitre(&tete[..lus]).is_some() {
+            let octets = std::fs::read(path).map_err(ouvrir_err)?;
+            return self.importer_de_tauri(path, &octets).map(Ouverture::Tauri);
+        }
+        f.seek(SeekFrom::Start(0)).map_err(ouvrir_err)?;
+        let ouvert = histoire::ouvrir(&mut std::io::BufReader::new(f))?;
+        let (repaired, refus) = self.adopter_un_ouvert(&ouvert, path.to_path_buf());
+        Ok(Ouverture::Glucose(OpenReport {
+            repaired,
+            fin_ignoree: ouvert.fin_ignoree,
+            geste_en_echec: ouvert.geste_en_echec.is_some(),
+            refus,
+        }))
     }
 }
 
-/// Ce qu'une ouverture a dû rattraper : images réincorporées, assignations de domaine
-/// réparées. Les deux se disent à l'utilisateur plutôt que de se faire en silence (§ 6.4).
+/// Ce qu'une ouverture a rendu : un document de Glucose Rust, ou un import de Glucose Tauri.
+enum Ouverture {
+    Glucose(OpenReport),
+    Tauri(super::import::Importe),
+}
+
+/// Ce qu'une ouverture a dû rattraper. Tout se dit à l'utilisateur plutôt que de se faire en
+/// silence (§ 6.4).
 struct OpenReport {
-    restored: usize,
+    /// Assignations de domaine réparées.
     repaired: usize,
+    /// Octets de fin ignorés : un enregistrement interrompu (un plantage, une coupure).
+    fin_ignoree: u64,
+    /// Un geste de l'histoire n'a pas pu se rejouer : le document est ouvert dans le dernier
+    /// état cohérent.
+    geste_en_echec: bool,
+    /// Pourquoi le fichier ne s'écrit pas sur place, s'il ne s'écrit pas : les changements
+    /// iront dans un brouillon.
+    refus: Option<String>,
 }
 
 fn save_message(report: &SaveReport, label: &str) -> String {
     let mut msg = format!("« {label} » enregistré — {}", human_size(report.bytes));
     if report.assets > 0 {
-        msg.push_str(&format!(", {} image(s) incorporée(s)", report.assets));
+        msg.push_str(&format!(", {} image(s) dans le document", report.assets));
     }
     if report.unreadable > 0 {
         msg.push_str(&format!(", {} introuvable(s)", report.unreadable));
@@ -227,14 +298,24 @@ fn save_message(report: &SaveReport, label: &str) -> String {
 fn open_message(project: &Project, report: &OpenReport) -> String {
     let boards = project.boards.len();
     let mut msg = format!("« {} » ouvert — {boards} tableau(x)", project.name);
-    if report.restored > 0 {
-        msg.push_str(&format!(", {} image(s) restituée(s)", report.restored));
-    }
     if report.repaired > 0 {
         msg.push_str(&format!(
             ", {} nœud(s) réparé(s) : domaine disparu ou pondération aberrante",
             report.repaired
         ));
+    }
+    if report.fin_ignoree > 0 {
+        msg.push_str(", la fin d'un enregistrement interrompu ignorée");
+    }
+    if let Some(r) = &report.refus {
+        msg.push_str(&format!(
+            ", non modifiable sur place ({r}) : tes changements iront dans un brouillon"
+        ));
+    }
+    if report.geste_en_echec {
+        msg.push_str(
+            ", un geste de l'histoire n'a pas pu se rejouer : ouvert dans le dernier état sûr",
+        );
     }
     msg
 }
@@ -402,34 +483,40 @@ mod tests {
         let msg = save_message(&report, "carnet");
         assert!(msg.contains("carnet"));
         assert!(msg.contains("4.0 Kio"));
-        assert!(msg.contains("2 image(s) incorporée(s)"));
+        assert!(msg.contains("2 image(s) dans le document"));
         assert!(msg.contains("1 introuvable(s)"));
 
         let mut project = Project::new("deux tableaux");
         project
             .boards
             .push(glucose_core::types::Board::new("b2", "Annexe"));
-        let opened = open_message(
-            &project,
-            &OpenReport {
-                restored: 3,
-                repaired: 0,
-            },
-        );
+        let sain = OpenReport {
+            repaired: 0,
+            fin_ignoree: 0,
+            geste_en_echec: false,
+            refus: None,
+        };
+        let opened = open_message(&project, &sain);
         assert!(opened.contains("2 tableau(x)"));
-        assert!(opened.contains("3 image(s) restituée(s)"));
-        assert!(
-            !opened.contains("réparé"),
-            "un document sain ne parle pas de réparation"
-        );
+        for silence in ["réparé", "interrompu", "rejouer"] {
+            assert!(
+                !opened.contains(silence),
+                "un document sain ne parle pas de « {silence} » : {opened}"
+            );
+        }
 
-        let repaired = open_message(
+        let abime = open_message(
             &project,
             &OpenReport {
-                restored: 0,
                 repaired: 4,
+                fin_ignoree: 12,
+                geste_en_echec: true,
+                refus: Some("lecture seule".into()),
             },
         );
-        assert!(repaired.contains("4 nœud(s) réparé(s)"), "{repaired}");
+        assert!(abime.contains("4 nœud(s) réparé(s)"), "{abime}");
+        assert!(abime.contains("interrompu"), "{abime}");
+        assert!(abime.contains("dernier état sûr"), "{abime}");
+        assert!(abime.contains("brouillon"), "{abime}");
     }
 }

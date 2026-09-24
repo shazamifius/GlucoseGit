@@ -246,6 +246,9 @@ pub struct GlucoseApp {
     /// direction. C'est elle qui dit ce qui reste pour le travail de fond après une image.
     pub cadence: crate::cadence::Cadence,
 
+    /// Ce que le document a sur le disque : son fichier, son histoire en train de s'écrire,
+    /// et où sont les octets de ses images (HISTOIRE-1).
+    pub disque: crate::persist::disque::Disque,
     /// Chemin du `.glucose` courant. `None` tant que le projet n'a jamais été enregistré :
     /// c'est ce qui fait que `Ctrl+S` ouvre un dialogue la première fois seulement.
     pub project_path: Option<std::path::PathBuf>,
@@ -297,12 +300,9 @@ impl Default for GlucoseApp {
 impl GlucoseApp {
     pub fn new() -> Self {
         let mut renderer = Renderer::new();
-        // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
-        renderer
-            .magasin
-            .brancher_les_apercus(crate::present::souvenir::dossier().join("apercus"));
         let store = accueil::document_d_accueil(&renderer);
         let saved_version = store.version;
+        let disque = accueil::brancher_le_disque(&mut renderer, &store);
 
         Self {
             store,
@@ -364,6 +364,7 @@ impl GlucoseApp {
             click_epoch: std::time::Instant::now(),
             last_blink_phase: true,
             cadence: crate::cadence::Cadence::inconnue(),
+            disque,
             project_path: None,
             saved_version,
             window_title_cache: String::new(),
@@ -376,6 +377,9 @@ impl GlucoseApp {
     }
 
     pub fn redraw(&mut self) {
+        // Ce que le dernier événement a changé dans le document s'écrit (JRN-5) — avant le
+        // titre, qu'un document enregistré au fil de l'eau ne marque plus « modifié ».
+        self.consigner();
         // Le marqueur « modifié » du titre suit l'état réel du document (INVARIANT SAVE-2).
         // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;
         // `sync_window_title` ne touche la fenêtre que lorsque le titre change vraiment.

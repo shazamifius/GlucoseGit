@@ -142,7 +142,7 @@ fn test_un_pixel_opaque_traverse_la_premultiplication_intact() {
     }
     brute.save(&chemin).expect("écriture");
 
-    let pyramide = decoder(&chemin.to_string_lossy()).expect("décodage");
+    let pyramide = decoder(&chemin.to_string_lossy(), None).expect("décodage");
     let natif = pyramide
         .native()
         .expect("une pyramide neuve tient tous ses niveaux");
@@ -190,7 +190,7 @@ fn test_une_image_collee_s_adopte_et_s_ecrit() {
     let adoptee = moisson[0].1.as_ref().expect("l'image est adoptee");
     assert_eq!(adoptee.dimensions_natives(), (40, 30));
     assert!(chemin.exists(), "son fichier est ecrit");
-    let relue = decoder(&src).expect("le fichier se relit");
+    let relue = decoder(&src, None).expect("le fichier se relit");
     let (a, b) = (
         adoptee.native().expect("tenu"),
         relue.native().expect("tenu"),

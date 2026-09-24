@@ -77,8 +77,13 @@ pub enum Fait {
 }
 
 enum Travail {
-    /// Un fichier à décoder — par son aperçu d'abord, s'il y a un dossier où le chercher.
-    Decoder(String, Option<std::sync::Arc<std::path::Path>>),
+    /// Une image à décoder — par son aperçu d'abord, s'il y a un dossier où le chercher —,
+    /// et le registre qui dit où sont ses octets.
+    Decoder(
+        String,
+        Option<std::sync::Arc<std::path::Path>>,
+        Option<Arc<crate::persist::objets::Objets>>,
+    ),
     Deplacer(Deplacement<Transit>),
     /// La vue d'ensemble d'une image à garder sur le disque (ETAGES-4) : la source, le
     /// dossier, l'aperçu.
@@ -132,6 +137,9 @@ pub struct Atelier {
     apercus: Option<std::sync::Arc<std::path::Path>>,
     /// Les écritures parties : comme les offres, un état fini les attend.
     ecritures: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// Où sont les octets de chaque image (HISTOIRE-1). Sans lui — les épreuves —, une clé
+    /// se lit comme un chemin de fichier, ce qu'elle était avant le registre.
+    objets: Option<Arc<crate::persist::objets::Objets>>,
 }
 
 impl Default for Atelier {
@@ -174,6 +182,7 @@ impl Atelier {
             offres: 0,
             apercus: None,
             ecritures,
+            objets: None,
         }
     }
 
@@ -195,7 +204,11 @@ impl Atelier {
         if self.en_cours.contains(src) {
             return false;
         }
-        if !self.confier(Travail::Decoder(src.to_string(), apercus)) {
+        if !self.confier(Travail::Decoder(
+            src.to_string(),
+            apercus,
+            self.objets.clone(),
+        )) {
             return false;
         }
         self.en_cours.insert(src.to_string());
@@ -215,6 +228,12 @@ impl Atelier {
         }
         self.en_cours.insert(src.to_string());
         true
+    }
+
+    /// **Lit les octets des images par ce registre** : le document pour une image scellée,
+    /// le fichier d'origine pour une image qui ne l'est pas encore (HISTOIRE-1).
+    pub fn brancher_les_objets(&mut self, objets: Arc<crate::persist::objets::Objets>) {
+        self.objets = Some(objets);
     }
 
     /// **Garde les aperçus dans ce dossier** : les décodages y cherchent d'abord, et les
@@ -311,7 +330,7 @@ fn ouvrier(
 ) {
     while let Some(travail) = attendre(commandes) {
         let fait = match travail {
-            Travail::Decoder(src, apercus) => {
+            Travail::Decoder(src, apercus, objets) => {
                 // Le temps que ce fichier a coûté est ce que sa reconstruction coûterait :
                 // c'est exactement son utilité dans un cache, et elle se mesure ici plutôt
                 // que de s'estimer ailleurs (ADAPT-1). Un aperçu coûte peu : l'image qui en
@@ -320,7 +339,7 @@ fn ouvrier(
                 let pyramide = apercus
                     .and_then(|dossier| apercu::lire(&apercu::chemin(&dossier, &src)?))
                     .and_then(Pyramide::depuis_apercu)
-                    .or_else(|| decoder(&src));
+                    .or_else(|| decoder(&src, objets.as_deref()));
                 Fait::Decodee((src, pyramide, debut.elapsed()))
             }
             Travail::Adopter(src, rgba, (l, h)) => {
@@ -378,17 +397,21 @@ fn ouvriers() -> usize {
         .max(1)
 }
 
-/// Lit un fichier image et le rend prêt à poser : décodé, prémultiplié, et réduit.
+/// Lit une image et la rend prête à poser : décodée, prémultipliée, et réduite.
+///
+/// Les octets viennent du registre des objets — le document pour une image scellée, le
+/// fichier d'origine sinon (HISTOIRE-1). Le format se reconnaît à la **signature** des
+/// octets, jamais à une extension : une clé du document n'en a pas.
 ///
 /// Les pixels vont directement dans les pages de la pyramide ([`Pyramide::depuis_rgba`]) : le
 /// `Pixmap` intermédiaire qu'il y avait ici coûtait une copie de plus par image — dix
 /// mégaoctets pour une épingle.
-fn decoder(src: &str) -> Option<Pyramide> {
-    let chemin = std::path::Path::new(src);
-    if !chemin.exists() {
-        return None;
-    }
-    let rgba = image::open(chemin).ok()?.to_rgba8();
+fn decoder(src: &str, objets: Option<&crate::persist::objets::Objets>) -> Option<Pyramide> {
+    let octets = match objets {
+        Some(o) => o.lire(src)?,
+        None => std::fs::read(src).ok()?,
+    };
+    let rgba = image::load_from_memory(&octets).ok()?.to_rgba8();
     let (w, h) = rgba.dimensions();
     Pyramide::depuis_rgba(w, h, rgba.as_raw())
 }

@@ -28,6 +28,42 @@ pub fn magasin_tauri() -> Option<PathBuf> {
     Some(base?.join("com.glucose.app").join("assets"))
 }
 
+/// Les fichiers où chercher une image du magasin : le dossier `objects/` d'un document
+/// portable d'abord, le magasin global ensuite.
+fn candidats<'a>(
+    nom: &'a str,
+    dossier: Option<&'a Path>,
+    magasin: Option<&'a Path>,
+) -> impl Iterator<Item = PathBuf> + 'a {
+    dossier
+        .map(|d| d.join("objects").join(nom))
+        .into_iter()
+        .chain(magasin.map(|m| m.join(nom)))
+}
+
+/// Le fichier qui porte les octets d'une image, **sans le lire** : le premier qui existe.
+///
+/// C'est ce que l'import emploie : lire et vérifier cent trente images sur le fil qui dessine
+/// figerait l'écran. Le scribe les lira, et en calculera l'empreinte, sur son fil à lui.
+pub fn localiser(
+    p: &Provenance,
+    dossier: Option<&Path>,
+    magasin: Option<&Path>,
+) -> Option<PathBuf> {
+    match p {
+        Provenance::Magasin(nom) => candidats(nom, dossier, magasin).find(|c| c.is_file()),
+        Provenance::Chemin(c) => {
+            let c = Path::new(c);
+            let c = match dossier {
+                Some(d) if c.is_relative() => d.join(c),
+                _ => c.to_path_buf(),
+            };
+            c.is_file().then_some(c)
+        }
+        Provenance::Octets(_) | Provenance::Web(_) | Provenance::Inconnue => None,
+    }
+}
+
 /// Les octets d'une image, lus et vérifiés.
 ///
 /// `dossier` est celui du document : c'est là que vivent `objects/` (document portable) et
@@ -41,14 +77,10 @@ pub fn resoudre(
     match provenance {
         Provenance::Octets(o) => Ok(o.clone()),
         Provenance::Magasin(nom) => {
-            let candidats = dossier
-                .map(|d| d.join("objects").join(nom))
-                .into_iter()
-                .chain(magasin.map(|m| m.join(nom)));
             // Le premier exemplaire **vérifié** l'emporte : une copie abîmée dans `objects/`
             // ne masque pas la bonne du magasin global.
             let mut abimee = None;
-            for chemin in candidats {
+            for chemin in candidats(nom, dossier, magasin) {
                 if let Ok(octets) = std::fs::read(&chemin) {
                     match verifier(nom, &octets) {
                         Ok(()) => return Ok(octets),

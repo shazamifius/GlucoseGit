@@ -17,6 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let mut app = GlucoseApp::new();
+    // Le travail qu'un plantage a laissé sans nom se rouvre (HISTOIRE-1). Ici et non dans
+    // `new` : les épreuves créent des centaines d'applications, et aucune ne doit rouvrir le
+    // brouillon de l'utilisateur.
+    app.retrouver_un_brouillon();
     // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
     // Glucose dort (ETAGES-2).
     app.reveil = Some(event_loop.create_proxy());

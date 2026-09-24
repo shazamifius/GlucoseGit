@@ -28,7 +28,33 @@ pub(super) fn document_d_accueil(renderer: &Renderer) -> Store {
     // marqueur était traité, Ctrl+Z était actif dès le lancement et retirait une carte
     // que personne n'avait posée.
     store.journal.clear();
+    // Ni dans l'histoire non plus : la carte fait partie de l'état de départ, que la base du
+    // document écrira telle quelle (JRN-5). Sans cela, chaque lancement ouvrirait un brouillon.
+    store.journal.prendre_les_ecrits();
     store
+}
+
+/// Ce que l'application garde sur le disque, branché au rendu : les aperçus des images vues
+/// (ETAGES-4), et le registre qui dit où sont les octets de chaque image (HISTOIRE-1).
+///
+/// Le document d'accueil n'a pas de fichier : il est l'état de départ, que la base de son
+/// brouillon écrira au premier geste.
+pub(super) fn brancher_le_disque(
+    renderer: &mut Renderer,
+    store: &Store,
+) -> crate::persist::disque::Disque {
+    // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
+    renderer
+        .magasin
+        .brancher_les_apercus(crate::present::souvenir::dossier().join("apercus"));
+    let disque = crate::persist::disque::Disque::nouveau(store.project.clone());
+    // L'atelier lit les octets des images là où le registre les dit : le document, ou le
+    // fichier d'où elles viennent tant qu'elles n'y sont pas scellées.
+    renderer
+        .magasin
+        .atelier
+        .brancher_les_objets(std::sync::Arc::clone(&disque.objets));
+    disque
 }
 
 /// L'interface qu'on trouve au lancement : celle de toujours, et le mot d'accueil.

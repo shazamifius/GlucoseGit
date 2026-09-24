@@ -90,6 +90,22 @@ pub struct Project {
 }
 
 impl Project {
+    /// Toutes les images du projet, tableau après tableau.
+    pub fn toutes_les_images(&self) -> impl Iterator<Item = &super::BoardImage> {
+        self.boards.iter().flat_map(|b| b.images.iter())
+    }
+
+    /// Toutes les images du projet, à modifier — ce que fait un import, avant que le projet ne
+    /// devienne un document.
+    pub fn toutes_les_images_mut(&mut self) -> impl Iterator<Item = &mut super::BoardImage> {
+        self.boards.iter_mut().flat_map(|b| b.images.iter_mut())
+    }
+
+    /// Le nombre d'annotations de tous les tableaux.
+    pub fn nombre_d_annotations(&self) -> usize {
+        self.boards.iter().map(|b| b.annotations.len()).sum()
+    }
+
     pub fn new(name: impl Into<String>) -> Self {
         let board = Board::new("main", "Canvas Principal");
         let active_id = board.id.clone();
