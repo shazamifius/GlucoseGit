@@ -6,7 +6,7 @@
 //! ```text
 //! EN-TÊTE — 16 octets, toujours en tête du fichier
 //!    0..8   magie          b"GLUCOSE\x1a"
-//!    8..10  u16 LE         version du conteneur (2 aujourd'hui)
+//!    8..10  u16 LE         version du conteneur (3 aujourd'hui, 2 avant l'histoire)
 //!   10..12  u16 LE         fanions, réservés, valent 0
 //!   12..16  u32 LE         nombre de sections N
 //!
@@ -42,7 +42,12 @@ use crate::hash::sha256;
 /// Windows : un `.glucose` ouvert par erreur dans un terminal ne le remplit pas de binaire.
 pub const MAGIC: [u8; 8] = *b"GLUCOSE\x1a";
 /// Version du conteneur produite par cette build.
-pub const CONTAINER_VERSION: u16 = 2;
+///
+/// **3 depuis le 24/09/2026** : la base peut être suivie d'une histoire en ajout seul
+/// (`persist::histoire`). Une base v2 est une base v3 à l'histoire vide — elle se lit telle
+/// quelle, et passe à 3 quand sa première entrée s'ajoute, pour qu'une build plus ancienne la
+/// refuse au lieu d'en montrer un état périmé.
+pub const CONTAINER_VERSION: u16 = 3;
 /// Plus ancienne version de conteneur que cette build sait lire.
 pub const MIN_READABLE_VERSION: u16 = 2;
 

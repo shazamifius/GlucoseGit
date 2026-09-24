@@ -52,6 +52,10 @@
 //!   compaction) **vide le journal** plutôt que de tenter de le réécrire.
 //! - **JRN-3** — une transaction est atomique : elle se défait entièrement ou pas du tout, et
 //!   ses éditions se défont dans l'ordre inverse de leur enregistrement.
+//! - **JRN-5** — toute transaction **appliquée** au document — validée, défaite ou refaite —
+//!   passe par la file de sortie ([`Journal::prendre_les_ecrits`]), dans l'ordre où elle a été
+//!   appliquée. C'est tout ce que l'histoire du disque écrit (`persist::histoire`) : rejouer
+//!   cette file depuis l'état de départ redonne le document, et rien d'autre ne le modifie.
 
 use crate::types::Project;
 
@@ -234,7 +238,11 @@ impl Transaction {
     }
 
     /// Applique la transaction au projet. Rend `false` à la première édition impossible.
-    fn apply(&self, project: &mut Project) -> bool {
+    ///
+    /// Ouverte au reste du noyau pour une seule raison : **rejouer** l'histoire écrite sur le
+    /// disque (`persist::histoire`), qui n'est rien d'autre que la suite des transactions
+    /// appliquées au document, dans l'ordre.
+    pub(crate) fn apply(&self, project: &mut Project) -> bool {
         self.edits.iter().all(|edit| edit.apply(project))
     }
 }
@@ -248,6 +256,8 @@ pub struct Journal {
     done: Vec<Transaction>,
     undone: Vec<Transaction>,
     open: Option<Transaction>,
+    /// Ce qui a été appliqué au document depuis la dernière lecture de la file (JRN-5).
+    ecrits: Vec<Transaction>,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
 }
@@ -258,6 +268,7 @@ impl Journal {
             done: Vec::new(),
             undone: Vec::new(),
             open: None,
+            ecrits: Vec::new(),
             max_depth,
         }
     }
@@ -288,8 +299,18 @@ impl Journal {
             .sum()
     }
 
+    /// Les transactions appliquées depuis le dernier appel, dans l'ordre (JRN-5).
+    ///
+    /// Un geste validé y entre tel quel ; un pas d'annulation y entre **retourné**, tel qu'il a
+    /// été appliqué. Un geste abandonné n'y entre jamais : il n'a rien laissé.
+    pub fn prendre_les_ecrits(&mut self) -> Vec<Transaction> {
+        std::mem::take(&mut self.ecrits)
+    }
+
     /// Vide tout. Appelé quand une édition a contourné le journal (chargement d'un projet,
     /// compaction) : mieux vaut perdre l'historique que le rendre faux (JRN-2).
+    ///
+    /// La file de sortie, elle, reste : ce qu'elle porte **a été** appliqué, et doit s'écrire.
     pub fn clear(&mut self) {
         self.done.clear();
         self.undone.clear();
@@ -363,6 +384,7 @@ impl Journal {
     }
 
     fn commit(&mut self, tx: Transaction) {
+        self.ecrits.push(tx.clone());
         self.done.push(tx);
         if self.done.len() > self.max_depth {
             self.done.remove(0);
@@ -408,6 +430,7 @@ impl Journal {
             self.clear();
             return false;
         }
+        self.ecrits.push(tx.clone());
         to.push(tx);
         true
     }

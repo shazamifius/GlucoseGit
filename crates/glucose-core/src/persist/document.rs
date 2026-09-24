@@ -73,7 +73,7 @@ pub fn read_project(r: &mut Reader<'_>, version: u16) -> CoreResult<Project> {
 
 // ── Tableau ─────────────────────────────────────────────────────────────────
 
-fn write_board(w: &mut Writer, board: &Board) {
+pub(super) fn write_board(w: &mut Writer, board: &Board) {
     let Board {
         id,
         images,
@@ -102,7 +102,7 @@ fn write_board(w: &mut Writer, board: &Board) {
 }
 
 /// Lit un tableau du schema `version` -- qui ne sert aujourd'hui qu'a ses images.
-fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
+pub(super) fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
     Ok(Board {
         id: r.text()?,
         name: r.text()?,
@@ -120,14 +120,14 @@ fn read_board(r: &mut Reader<'_>, version: u16) -> CoreResult<Board> {
 
 // ── Caméra et signets ───────────────────────────────────────────────────────
 
-fn write_viewport(w: &mut Writer, viewport: &Viewport) {
+pub(super) fn write_viewport(w: &mut Writer, viewport: &Viewport) {
     let Viewport { x, y, scale } = viewport;
     w.f64(*x);
     w.f64(*y);
     w.f64(*scale);
 }
 
-fn read_viewport(r: &mut Reader<'_>) -> CoreResult<Viewport> {
+pub(super) fn read_viewport(r: &mut Reader<'_>) -> CoreResult<Viewport> {
     Ok(Viewport {
         x: r.f64()?,
         y: r.f64()?,
@@ -135,7 +135,7 @@ fn read_viewport(r: &mut Reader<'_>) -> CoreResult<Viewport> {
     })
 }
 
-fn write_bookmarks(w: &mut Writer, bookmarks: &HashMap<String, Viewport>) {
+pub(super) fn write_bookmarks(w: &mut Writer, bookmarks: &HashMap<String, Viewport>) {
     let mut entries: Vec<(&String, &Viewport)> = bookmarks.iter().collect();
     entries.sort_by(|a, b| a.0.cmp(b.0));
     w.count(entries.len());
@@ -145,7 +145,7 @@ fn write_bookmarks(w: &mut Writer, bookmarks: &HashMap<String, Viewport>) {
     }
 }
 
-fn read_bookmarks(r: &mut Reader<'_>) -> CoreResult<HashMap<String, Viewport>> {
+pub(super) fn read_bookmarks(r: &mut Reader<'_>) -> CoreResult<HashMap<String, Viewport>> {
     let entries = r.seq(|rr| {
         let key = rr.text()?;
         let vp = read_viewport(rr)?;
@@ -156,7 +156,7 @@ fn read_bookmarks(r: &mut Reader<'_>) -> CoreResult<HashMap<String, Viewport>> {
 
 // ── Dossiers de canevas ─────────────────────────────────────────────────────
 
-fn write_folder(w: &mut Writer, folder: &CanvasFolder) {
+pub(super) fn write_folder(w: &mut Writer, folder: &CanvasFolder) {
     let CanvasFolder {
         id,
         name,
@@ -182,7 +182,7 @@ fn write_folder(w: &mut Writer, folder: &CanvasFolder) {
     w.opt(mirror_source.as_ref(), write_mirror_source);
 }
 
-fn read_folder(r: &mut Reader<'_>) -> CoreResult<CanvasFolder> {
+pub(super) fn read_folder(r: &mut Reader<'_>) -> CoreResult<CanvasFolder> {
     Ok(CanvasFolder {
         id: r.text()?,
         name: r.text()?,
@@ -231,7 +231,7 @@ fn read_mirror_source(r: &mut Reader<'_>) -> CoreResult<FolderMirrorSource> {
 
 // ── Storyboard et zones ─────────────────────────────────────────────────────
 
-fn write_panel(w: &mut Writer, panel: &StoryboardPanel) {
+pub(super) fn write_panel(w: &mut Writer, panel: &StoryboardPanel) {
     let StoryboardPanel {
         id,
         order,
@@ -251,7 +251,7 @@ fn write_panel(w: &mut Writer, panel: &StoryboardPanel) {
     w.f64(*height);
 }
 
-fn read_panel(r: &mut Reader<'_>) -> CoreResult<StoryboardPanel> {
+pub(super) fn read_panel(r: &mut Reader<'_>) -> CoreResult<StoryboardPanel> {
     Ok(StoryboardPanel {
         id: r.text()?,
         order: r.i32()?,
@@ -263,7 +263,7 @@ fn read_panel(r: &mut Reader<'_>) -> CoreResult<StoryboardPanel> {
     })
 }
 
-fn write_zone(w: &mut Writer, zone: &BoardZone) {
+pub(super) fn write_zone(w: &mut Writer, zone: &BoardZone) {
     let BoardZone {
         slot_id,
         x,
@@ -279,7 +279,7 @@ fn write_zone(w: &mut Writer, zone: &BoardZone) {
     w.f64(*height);
 }
 
-fn read_zone(r: &mut Reader<'_>) -> CoreResult<BoardZone> {
+pub(super) fn read_zone(r: &mut Reader<'_>) -> CoreResult<BoardZone> {
     Ok(BoardZone {
         slot_id: r.text()?,
         x: r.f64()?,
@@ -291,7 +291,7 @@ fn read_zone(r: &mut Reader<'_>) -> CoreResult<BoardZone> {
 
 // ── Presets ─────────────────────────────────────────────────────────────────
 
-fn write_preset(w: &mut Writer, preset: &Preset) {
+pub(super) fn write_preset(w: &mut Writer, preset: &Preset) {
     let Preset {
         id,
         name,
@@ -309,7 +309,7 @@ fn write_preset(w: &mut Writer, preset: &Preset) {
     w.i64(*created_at);
 }
 
-fn read_preset(r: &mut Reader<'_>) -> CoreResult<Preset> {
+pub(super) fn read_preset(r: &mut Reader<'_>) -> CoreResult<Preset> {
     Ok(Preset {
         id: r.text()?,
         name: r.text()?,
@@ -348,7 +348,7 @@ fn read_preset_slot(r: &mut Reader<'_>) -> CoreResult<PresetSlot> {
 
 // ── Domaines ────────────────────────────────────────────────────────────────
 
-fn write_domain(w: &mut Writer, domain: &Domain) {
+pub(super) fn write_domain(w: &mut Writer, domain: &Domain) {
     let Domain {
         id,
         name,
@@ -364,7 +364,7 @@ fn write_domain(w: &mut Writer, domain: &Domain) {
     w.i64(*created_at);
 }
 
-fn read_domain(r: &mut Reader<'_>) -> CoreResult<Domain> {
+pub(super) fn read_domain(r: &mut Reader<'_>) -> CoreResult<Domain> {
     Ok(Domain {
         id: r.text()?,
         name: r.text()?,

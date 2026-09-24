@@ -124,8 +124,11 @@ impl Store {
     /// Le coût de la comparaison est en O(n) sur le board — ce qui est conforme à JRN-1,
     /// puisque le geste peut légitimement toucher tout le board.
     ///
-    /// Si la transformation change le **nombre** d'éléments, elle sort du cadre de cette
-    /// méthode : le journal est alors vidé (JRN-2) plutôt que de décrire faussement le geste.
+    /// Si la transformation change le **nombre** d'éléments, les rangs ne se correspondent
+    /// plus : le geste s'enregistre alors comme ce qu'il est, **le tableau entier** avant et
+    /// après. C'est conforme à JRN-1 — la modification est de cette taille. Vider le journal,
+    /// comme c'était fait, laissait une modification que l'histoire du disque n'aurait jamais
+    /// écrite (JRN-5).
     pub fn mutate_board_layout<F: FnOnce(&mut crate::types::Board)>(
         &mut self,
         board_id: &str,
@@ -133,18 +136,25 @@ impl Store {
     ) {
         use crate::store::journal::{Edit, Slot};
 
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
+        let Some(rang) = self.project.boards.iter().position(|b| b.id == board_id) else {
             return;
         };
+        let b = &mut self.project.boards[rang];
         let bid = b.id.clone();
         let images_before = b.images.clone();
         let anns_before = b.annotations.clone();
+        let avant = (b.images.len(), b.annotations.len());
 
         f(b);
 
-        if b.images.len() != images_before.len() || b.annotations.len() != anns_before.len() {
-            self.journal.clear();
-            self.bump_version();
+        if (b.images.len(), b.annotations.len()) != avant {
+            let mut ancien = b.clone();
+            ancien.images = images_before;
+            ancien.annotations = anns_before;
+            let nouveau = b.clone();
+            self.record_edit(Edit::Board {
+                slot: Slot::changed(rang, ancien, nouveau),
+            });
             return;
         }
 

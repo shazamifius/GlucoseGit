@@ -39,6 +39,7 @@
 
 pub mod bytes;
 pub mod container;
+pub mod histoire;
 pub mod manifest;
 pub mod tauri;
 
@@ -51,7 +52,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::hash::sha256;
 use crate::types::{AssetStore, Project};
 use bytes::{Reader, Writer};
-use container::{ParsedSection, Section};
+use container::Section;
 use manifest::{AssetEntry, Manifest};
 
 /// Version du schéma du document produite par cette build.
@@ -164,29 +165,25 @@ pub fn encode(project: &Project, assets: &AssetStore, saved_at: i64) -> Vec<u8> 
     container::assemble(&sections)
 }
 
-/// Relit un fichier `.glucose` complet.
+/// Relit un fichier `.glucose` complet, **histoire comprise**, depuis la mémoire.
 ///
-/// L'intégrité est prouvée avant tout décodage : en-tête, table, puis **chaque** somme de
-/// contrôle. Un fichier tronqué ou altéré rend une [`CoreError::DeserializationError`] dont le
-/// message dit quoi faire (standard § 6.5), jamais une panique ni un document à moitié juste.
+/// L'intégrité de la base est prouvée avant tout décodage : en-tête, table, puis **chaque**
+/// somme de contrôle. L'histoire qui la suit est rejouée ([`histoire::ouvrir`]) : l'état rendu
+/// est celui du document au dernier geste écrit, jamais celui d'une base périmée. Un fichier
+/// tronqué ou altéré rend une [`CoreError::DeserializationError`] dont le message dit quoi
+/// faire (standard § 6.5), jamais une panique ni un document à moitié juste.
+///
+/// Le bureau n'emploie pas cette fonction : il ouvre sans lire les images
+/// ([`histoire::ouvrir`] sur le fichier). Elle sert à relire d'un bloc — les épreuves, les
+/// outils.
 pub fn decode(file: &[u8]) -> CoreResult<GlucoseFile> {
-    let sections = container::parse(file)?;
-
-    let manifest_section = container::require(&sections, container::KIND_MANIFEST)?;
-    let manifest = manifest::decode(manifest_section.payload)?;
-    check_document_version(manifest.document_version)?;
-
-    let document_section = container::require(&sections, container::KIND_DOCUMENT)?;
-    // **La version vient du manifeste**, et c'est elle qui dit quels champs le document
-    // porte. La deviner en regardant les octets restants serait un format qui se relit a
-    // l'envers (RECADRAGE-1, premiere migration chainee).
-    let project = decode_document_v(document_section.payload, manifest.document_version)?;
-    let assets = rebuild_assets(&manifest, &sections)?;
-
+    container::parse(file)?;
+    let ouvert = histoire::ouvrir(&mut std::io::Cursor::new(file))?;
+    let assets = rebuild_assets(file, &ouvert)?;
     Ok(GlucoseFile {
-        project,
+        project: ouvert.projet,
         assets,
-        manifest,
+        manifest: ouvert.manifeste,
     })
 }
 
@@ -206,29 +203,41 @@ fn check_document_version(version: u16) -> CoreResult<()> {
     Ok(())
 }
 
-/// Réassocie chaque clé d'actif au contenu qui porte son empreinte.
-fn rebuild_assets(manifest: &Manifest, sections: &[ParsedSection<'_>]) -> CoreResult<AssetStore> {
+/// Réassocie chaque clé d'image au contenu qui porte son empreinte, et le vérifie.
+fn rebuild_assets(file: &[u8], ouvert: &histoire::Ouvert) -> CoreResult<AssetStore> {
     let mut store = AssetStore::new();
-    for entry in &manifest.assets {
-        let blob = sections
-            .iter()
-            .find(|s| s.kind == container::KIND_ASSET && s.digest == entry.digest)
-            .ok_or_else(|| {
-                CoreError::DeserializationError(format!(
-                    "l'actif « {} » est annoncé par le manifeste mais absent du fichier — \
-                     le projet a été enregistré incomplètement, rouvre la copie précédente",
-                    entry.key
-                ))
-            })?;
-        if blob.payload.len() as u64 != entry.size {
+    let annonces: std::collections::HashMap<&str, u64> = ouvert
+        .manifeste
+        .assets
+        .iter()
+        .map(|a| (a.key.as_str(), a.size))
+        .collect();
+    for (cle, empreinte) in &ouvert.liens {
+        let absent = || {
+            CoreError::DeserializationError(format!(
+                "l'actif « {cle} » est annoncé par le manifeste mais absent du fichier — \
+                 le projet a été enregistré incomplètement, rouvre la copie précédente"
+            ))
+        };
+        let tranche = ouvert.objets.get(empreinte).ok_or_else(absent)?;
+        let debut = usize::try_from(tranche.offset).map_err(|_| absent())?;
+        let octets = file
+            .get(debut..debut + tranche.longueur as usize)
+            .ok_or_else(absent)?;
+        if let Some(&taille) = annonces.get(cle.as_str()) {
+            if octets.len() as u64 != taille {
+                return Err(CoreError::DeserializationError(format!(
+                    "l'actif « {cle} » fait {} octets au lieu des {taille} annoncés — fichier corrompu",
+                    octets.len()
+                )));
+            }
+        }
+        if sha256(octets) != *empreinte {
             return Err(CoreError::DeserializationError(format!(
-                "l'actif « {} » fait {} octets au lieu des {} annoncés — fichier corrompu",
-                entry.key,
-                blob.payload.len(),
-                entry.size
+                "l'image « {cle} » ne correspond plus à son empreinte — fichier corrompu"
             )));
         }
-        store.insert(entry.key.clone(), blob.payload.to_vec());
+        store.insert(cle.clone(), octets.to_vec());
     }
     Ok(store)
 }
