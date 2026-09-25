@@ -40,6 +40,7 @@ const DOMAINE: u8 = 8;
 const PRESET: u8 = 9;
 const NOM_DU_PROJET: u8 = 10;
 const TABLEAU_ACTIF: u8 = 11;
+const ORDRE_DES_TABLEAUX: u8 = 12;
 
 /// Un geste tel que l'histoire le garde : quand, par qui, et quoi.
 #[derive(Debug, Clone, PartialEq)]
@@ -142,6 +143,10 @@ fn ecrire_edition(w: &mut Writer, edit: &Edit) {
             w.u8(TABLEAU_ACTIF);
             ecrire_textes(w, whole);
         }
+        Edit::BoardOrder { whole } => {
+            w.u8(ORDRE_DES_TABLEAUX);
+            ecrire_l_ordre(w, whole);
+        }
     }
 }
 
@@ -186,6 +191,9 @@ fn lire_edition(r: &mut Reader<'_>, version: u16) -> CoreResult<Edit> {
         },
         TABLEAU_ACTIF => Edit::ActiveBoard {
             whole: lire_textes(r)?,
+        },
+        ORDRE_DES_TABLEAUX => Edit::BoardOrder {
+            whole: Whole::new(r.seq(|rr| rr.text())?, r.seq(|rr| rr.text())?),
         },
         autre => return Err(unknown("édition de l'histoire", autre)),
     })
@@ -243,6 +251,12 @@ fn lire_case<T>(
 fn ecrire_textes(w: &mut Writer, whole: &Whole<String>) {
     w.text(&whole.before);
     w.text(&whole.after);
+}
+
+fn ecrire_l_ordre(w: &mut Writer, whole: &Whole<Vec<String>>) {
+    for ordre in [&whole.before, &whole.after] {
+        w.seq(ordre, |ww, id| ww.text(id));
+    }
 }
 
 fn lire_textes(r: &mut Reader<'_>) -> CoreResult<Whole<String>> {

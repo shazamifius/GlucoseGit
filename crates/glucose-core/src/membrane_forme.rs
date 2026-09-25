@@ -27,10 +27,12 @@
 //! c'est-à-dire sur presque toute sa surface.
 //!
 //! Chaque couche est un rectangle aux coins **circulaires**, le `rx` du `<rect>` que dessinait
-//! Glucose Tauri (`SvgAnnotationLayer.tsx`). Les coins de [`crate`] étaient jusqu'ici des
-//! paraboles — des Bézier quadratiques dont le point de contrôle est le coin —, qui bombent de
-//! six pour cent du rayon au milieu du coin : un accident du traceur, pas une décision, et un
-//! écart de dizaines de pixels avec la référence au fort zoom.
+//! Glucose Tauri (`SvgAnnotationLayer.tsx`). Le traceur du bureau (`push_rounded_rect`) en
+//! fait des paraboles — des Bézier quadratiques dont le point de contrôle est le coin —, qui
+//! bombent de six pour cent du rayon au milieu du coin : un accident du traceur, pas une
+//! décision, et un écart de dizaines de pixels avec la référence au fort zoom. Les trente et
+//! une autres formes arrondies de l'application — cartes comprises, deux pixels d'écart à
+//! l'échelle 1 — le gardent encore : c'est un chantier à part.
 //!
 //! La couverture d'un pixel est celle d'un **filtre-boîte d'un pixel** posé perpendiculairement
 //! au bord, lue sur la distance signée, qui est exacte. Le pointillé se lit sur l'**abscisse

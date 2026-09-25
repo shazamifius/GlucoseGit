@@ -167,6 +167,20 @@ fn test_l_histoire_relue_redonne_le_document_apres_chaque_geste() {
     verifier(&mut store, "supprimer la membrane libère son contenu");
     store.try_remove_board(&b2).expect("l'annexe se supprime");
     verifier(&mut store, "supprimer un tableau");
+    // BOARDS-1 : un onglet se range, puis part avec les dossiers imbriqués qu'il contient.
+    let b3 = store.add_board("Troisième");
+    store
+        .try_move_board(&b3, Some(&b))
+        .expect("l'onglet se range devant");
+    verifier(&mut store, "ranger un onglet");
+    store.create_folder(&b3, CanvasFolder::new("f3", "Dossier", ""));
+    let dans_b3 = store.project.boards[0].folders[0].child_board_id.clone();
+    store.create_folder(&dans_b3, CanvasFolder::new("f4", "Imbriqué", ""));
+    verifier(&mut store, "des dossiers imbriqués");
+    store
+        .try_remove_board(&b3)
+        .expect("l'onglet part avec ses dossiers");
+    verifier(&mut store, "supprimer un onglet et ses dossiers");
     // La navigation n'est pas un geste, mais la vue l'emporte.
     store.set_viewport(
         &b,

@@ -431,3 +431,27 @@ fn test_une_edition_sans_effet_ne_laisse_aucune_trace() {
     assert!(j.redo(&mut p), "le rétablissement marche toujours");
     assert_eq!(images(&p).len(), 2);
 }
+
+/// **JRN-2 pour l'ordre des boards** : un ordre qui ne nomme pas exactement les boards présents
+/// — il en manque un, il en nomme un de trop, il en répète un — est refusé, et rien ne bouge.
+#[test]
+fn test_un_ordre_incomplet_est_refuse_sans_rien_deplacer() {
+    let boards: Vec<crate::types::Board> = ["a", "b", "c"]
+        .iter()
+        .map(|id| crate::types::Board::new(*id, *id))
+        .collect();
+    let ids = |b: &[crate::types::Board]| b.iter().map(|x| x.id.clone()).collect::<Vec<_>>();
+    for faux in [
+        vec!["c", "a"],
+        vec!["c", "a", "b", "d"],
+        vec!["c", "a", "a"],
+    ] {
+        let mut b = boards.clone();
+        let ordre: Vec<String> = faux.iter().map(|s| s.to_string()).collect();
+        assert!(!edit::ranger(&mut b, &ordre), "{faux:?} n'est pas un ordre");
+        assert_eq!(ids(&b), ["a", "b", "c"], "rien n'a bougé");
+    }
+    let mut b = boards;
+    assert!(edit::ranger(&mut b, &["c".into(), "a".into(), "b".into()]));
+    assert_eq!(ids(&b), ["c", "a", "b"]);
+}

@@ -197,9 +197,12 @@ impl Store {
         });
     }
 
+    /// Supprime ces dossiers de ce tableau, et ce qu'on n'atteint plus sans eux (BOARDS-1) :
+    /// le contenu d'un dossier part, sauf si un miroir le tient encore ; celui des dossiers
+    /// qu'il contenait part avec lui.
     pub fn remove_folders(&mut self, parent_board_id: &str, ids: &[&str]) {
         let id_set: HashSet<&str> = ids.iter().copied().collect();
-        let mut child_board_ids = Vec::new();
+        let onglets = super::boards::racines(&self.project.boards);
         let mut edits = Vec::new();
 
         if let Some(par) = self
@@ -213,7 +216,6 @@ impl Store {
                     continue;
                 }
                 let removed = par.folders.remove(i);
-                child_board_ids.push(removed.child_board_id.clone());
                 edits.push(Edit::Folder {
                     board: parent_board_id.to_string(),
                     slot: Slot::removed(i, removed),
@@ -223,17 +225,10 @@ impl Store {
 
         // Un sous-board supprimé emporte tout son contenu : l'entrée est lourde, et c'est
         // exactement la taille de ce que le geste détruit (JRN-1).
-        for i in (0..self.project.boards.len()).rev() {
-            if !child_board_ids.contains(&self.project.boards[i].id) {
-                continue;
-            }
-            let removed = self.project.boards.remove(i);
-            edits.push(Edit::Board {
-                slot: Slot::removed(i, removed),
-            });
-        }
+        edits.extend(self.retirer_l_inatteignable(&onglets));
 
-        if child_board_ids.contains(&self.project.active_board_id) {
+        let actif = &self.project.active_board_id;
+        if !self.project.boards.iter().any(|b| &b.id == actif) {
             let before = self.project.active_board_id.clone();
             self.project.active_board_id = parent_board_id.to_string();
             edits.push(Edit::ActiveBoard {

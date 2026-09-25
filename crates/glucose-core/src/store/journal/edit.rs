@@ -117,6 +117,14 @@ pub enum Edit {
     ActiveBoard {
         whole: Whole<String>,
     },
+    /// **L'ordre des boards** : leurs identifiants, avant et après (BOARDS-1).
+    ///
+    /// Déplacer un onglet ne change que l'ordre. Un retrait suivi d'une insertion écrirait deux
+    /// copies complètes du board — ses images, ses textes — pour dire où il se range ; l'ordre
+    /// seul pèse quelques octets par board.
+    BoardOrder {
+        whole: Whole<Vec<String>>,
+    },
 }
 
 impl Edit {
@@ -137,7 +145,8 @@ impl Edit {
             | Self::Domain { .. }
             | Self::Preset { .. }
             | Self::ProjectName { .. }
-            | Self::ActiveBoard { .. } => None,
+            | Self::ActiveBoard { .. }
+            | Self::BoardOrder { .. } => None,
         }
     }
 
@@ -154,6 +163,7 @@ impl Edit {
             Self::BoardName { whole, .. } => whole.flip(),
             Self::ProjectName { whole } => whole.flip(),
             Self::ActiveBoard { whole } => whole.flip(),
+            Self::BoardOrder { whole } => whole.flip(),
             // Toute la raison d'être de cette variante : l'inverse d'un déplacement est le
             // déplacement opposé, et il n'y a rien d'autre à retourner.
             Self::Translation { delta, .. } => *delta = (-delta.0, -delta.1),
@@ -175,6 +185,7 @@ impl Edit {
                 project.active_board_id = whole.after.clone();
                 return true;
             }
+            Self::BoardOrder { whole } => return ranger(&mut project.boards, &whole.after),
             _ => {}
         }
 
@@ -227,6 +238,7 @@ impl Edit {
             Self::BoardName { whole, .. } => whole.is_noop(),
             Self::ProjectName { whole } => whole.is_noop(),
             Self::ActiveBoard { whole } => whole.is_noop(),
+            Self::BoardOrder { whole } => whole.is_noop(),
             // Un vecteur nul ne déplace rien, et une translation sans cible non plus.
             Self::Translation {
                 delta,
@@ -266,6 +278,12 @@ impl Edit {
             Self::BoardName { whole, .. } => whole.before.len() + whole.after.len(),
             Self::ProjectName { whole } => whole.before.len() + whole.after.len(),
             Self::ActiveBoard { whole } => whole.before.len() + whole.after.len(),
+            Self::BoardOrder { whole } => whole
+                .before
+                .iter()
+                .chain(&whole.after)
+                .map(String::len)
+                .sum(),
             // Le poids d'un déplacement est celui de sa **liste**, pas celui de ce qu'elle
             // désigne : c'est un rang par élément, là où deux copies complètes coûtaient la
             // taille du document. C'est ce que JRN-1 cherche à borner.
@@ -281,6 +299,26 @@ impl Edit {
             }
         }
     }
+}
+
+/// Range les boards dans l'ordre de ces identifiants.
+///
+/// L'ordre doit nommer **exactement** les boards présents, chacun une fois : sinon une édition
+/// a contourné le journal (JRN-2), et la fonction rend `false` sans rien avoir déplacé.
+pub(crate) fn ranger(boards: &mut [Board], ordre: &[String]) -> bool {
+    let rang: std::collections::HashMap<&str, usize> = ordre
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id.as_str(), i))
+        .collect();
+    let complet = rang.len() == ordre.len()
+        && ordre.len() == boards.len()
+        && boards.iter().all(|b| rang.contains_key(b.id.as_str()));
+    if !complet {
+        return false;
+    }
+    boards.sort_by_key(|b| rang[b.id.as_str()]);
+    true
 }
 
 /// Applique un déplacement aux rangs qu'il désigne (JRN-4).
