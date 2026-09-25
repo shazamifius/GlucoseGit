@@ -55,8 +55,6 @@
 //! signes réapparaissent et le texte peut demander une ligne de plus — la carte l'affiche,
 //! puisque `text_card` prend le maximum entre la hauteur écrite et celle qu'il faut.
 
-pub(super) use ornament::{porte_une_previsualisation, previsualisation_en_cours};
-
 use super::pass::{Pass, SELECTION_RING};
 use super::richtext::draw::{draw_line, draw_line_selection};
 use super::richtext::{
@@ -239,12 +237,12 @@ pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard)
     dessiner_les_ornements(ctx, pixmap, at, &layout, &text, &card);
 }
 
-/// **Le contenu seul** : le cadre, le corps, la prévisualisation — ni poignées ni curseur.
+/// **Le contenu seul** : le cadre et le corps — ni poignées, ni curseur, ni prévisualisation.
 ///
 /// C'est ce qu'une texture de carte porte (COMPOSANT-1). Les poignées n'en font pas partie :
 /// ce sont des affordances en pixels écran, qui débordent de la boîte et ne suivent pas le
-/// zoom — elles restent dans la couche du dessus, comme pour les photos. Le curseur non plus
-/// ([`draw_card_ornements`]).
+/// zoom — elles restent dans la couche du dessus, comme pour les photos. Ce qui suit le curseur
+/// non plus ([`draw_card_ornements`]).
 pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
@@ -252,8 +250,9 @@ pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCa
     dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
 }
 
-/// **Les ornements seuls** : les poignées d'une carte sélectionnée, et le curseur d'une carte
-/// qu'on édite, quand la carte graphique porte son contenu.
+/// **Les ornements seuls** : les poignées d'une carte sélectionnée ; le curseur et la
+/// prévisualisation de formule d'une carte qu'on édite — quand la carte graphique porte son
+/// contenu.
 ///
 /// Le curseur est ici et non dans le contenu (COMPOSANT-3) : il clignote deux fois par seconde
 /// et suit chaque flèche du clavier. Dans la texture, chaque clignotement la refaisait
@@ -261,7 +260,7 @@ pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCa
 /// **jamais**, ni sa phase ni sa place n'ont à entrer dans la clé de la texture : c'est vrai
 /// par construction, pas par une copie de la saisie qu'on aurait pensé à éteindre.
 pub(super) fn draw_card_ornements(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
-    if !card.selected && !card.editing.is_some_and(|s| s.curseur_visible) {
+    if !card.selected && card.editing.is_none() {
         return;
     }
     let Some((text, layout, at)) = poser(ctx, &card) else {
@@ -305,7 +304,6 @@ fn dessiner_le_contenu(
     // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
     if ctx.scale.draws_detail() {
         draw_card_body(ctx, pixmap, at, layout, text, card);
-        ornament::draw_formula_preview(ctx, pixmap, at, layout, text, card);
     }
 }
 

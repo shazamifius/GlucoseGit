@@ -346,68 +346,26 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
     assert_eq!(identite("ab", true), identite("abc", false));
 }
 
-/// **Une carte dont le curseur est pose sur une formule reste au processeur.**
-///
-/// Sa previsualisation se pose hors de sa boite et son placement lit la largeur du clip, qui
-/// vaut l'ecran dans une passe et la texture dans un composant : elle ne tiendrait pas
-/// dedans, et elle basculerait a gauche au lieu de se poser a droite.
-#[test]
-fn test_une_formule_sous_le_curseur_garde_la_carte_au_processeur() {
-    let renderer = Renderer::new();
-    let (_, regime) = regime_temoin();
-    let corps = "$$x^2$$";
-    let composant = |tete: usize| {
-        let e = saisie(corps, tete, true);
-        regime
-            .carte(
-                renderer.kit(),
-                "c",
-                (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), false),
-                Some(&e),
-            )
-            .is_some()
-    };
-    assert!(
-        !composant(3),
-        "une previsualisation de formule ne rentre pas dans une texture"
-    );
-    // **Et le refus est bien cible** : la meme carte, dont le texte n'est pas une formule,
-    // redevient un composant. Sans ce second cas, le test passerait aussi si le refus etait
-    // devenu inconditionnel -- et toutes les cartes en saisie seraient retombees au
-    // processeur sans que rien ne le dise.
-    let ordinaire = saisie("Une note ordinaire.", 3, true);
-    assert!(
-        regime
-            .carte(
-                renderer.kit(),
-                "c",
-                (60.0, 40.0, 240.0, 60.0),
-                ("Une note ordinaire.", (96, 165, 250), false),
-                Some(&ordinaire),
-            )
-            .is_some(),
-        "une carte en saisie sans formule reste une texture"
-    );
+/// Une carte en saisie peinte par les deux voies : la carte entiere en place au processeur
+/// (curseur allume, puis eteint), et la texture reposee sous les ornements de la couche du
+/// dessus.
+struct DeuxVoies {
+    en_place: Pixmap,
+    eteint: Pixmap,
+    reposee: Pixmap,
 }
 
-/// **Une carte en saisie donne les memes pixels sur les deux voies**, curseur compris : la
-/// carte entiere dessinee en place par le processeur, contre la texture reposee puis le
-/// curseur que la couche du dessus pose (COMPOSANT-3).
-///
-/// C'est l'epreuve qui compte : une texture qui montrerait autre chose que ce que le
-/// processeur dessine ferait diverger les deux voies sans qu'aucun test de passe le voie --
-/// c'est exactement la forme des quatre regressions de l'etape 1 (fiche 22 § 5).
-#[test]
-fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
+/// La carte d'epreuve : a une position fractionnaire, pour que la texture ait une phase.
+const CARTE: (f64, f64, f32, f32) = (60.3, 40.7, 240.0, 60.0);
+
+fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let (vp, regime) = regime_temoin();
     let taille = (500u32, 300u32);
-    let (x, y, w, h) = (60.3, 40.7, 240.0f32, 60.0f32);
-    let corps = "Une note qu'on ecrit, avec des accents : eac.";
+    let (x, y, w, h) = CARTE;
     let teinte = (96, 165, 250);
-    let (e, eteint) = (saisie(corps, 12, true), saisie(corps, 12, false));
+    let (e, eteint) = (saisie(corps, tete, true), saisie(corps, tete, false));
     let carte = |editing| TextCard {
         origin: (x, y),
         size: (w, h),
@@ -434,18 +392,10 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
         crate::renderer::card::draw_text_card(&ctx, &mut pixmap.as_mut(), carte(Some(saisie)));
         pixmap
     };
-    let en_place = en_place_avec(&e);
-    // **L'epreuve voit le curseur.** Sans ce temoin, elle passerait aussi si aucune des deux
-    // voies ne le peignait -- la forme exacte d'une regression que personne ne verrait.
-    assert_ne!(
-        en_place.data(),
-        en_place_avec(&eteint).data(),
-        "le curseur allume doit se voir"
-    );
 
     let composant = regime
         .carte(kit, "c", (x, y, w, h), (corps, teinte, false), Some(&e))
-        .expect("un composant")
+        .expect("une carte en saisie est toujours un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
     let mut reposee = Pixmap::new(taille.0, taille.1).expect("pixmap");
@@ -456,35 +406,90 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
         glucose_core::report::Melange::Composer,
     );
     crate::renderer::card::draw_card_ornements(&ctx, &mut reposee.as_mut(), carte(Some(&e)));
-    let pire = en_place
-        .data()
-        .iter()
-        .zip(reposee.data())
-        .map(|(a, b)| a.abs_diff(*b))
-        .max()
-        .unwrap_or(0);
-    let canaux = en_place
-        .data()
-        .iter()
-        .zip(reposee.data())
-        .filter(|(a, b)| a.abs_diff(**b) > 1)
-        .count();
-    // **La meme borne que la carte selectionnee, et c'est la meme cause.**
-    //
-    // `draw_card_frame` traite une carte en saisie comme une carte selectionnee : son cadre
-    // fin devient l'anneau de deux pixels. On retrouve donc exactement le cran de couverture
-    // que `test_une_carte_selectionnee_se_repose_a_un_cran_de_couverture_pres` mesure, et
-    // pour la meme raison -- `tiny-skia` accumule ses bords en virgule fixe le long de chaque
-    // ligne, et la meme forme a une position absolue differente ne donne pas toujours la meme
-    // couverture la ou la tangente d'un coin arrondi frole une frontiere de sous-pixel.
-    //
-    // La mesure le dit sans ambiguite : le meme test sans saisie donne **zero**, et le seul
-    // changement entre les deux est l'epaisseur de ce trait. Une seconde borne pour la meme
-    // cause finirait par diverger de la premiere : c'est la sienne qu'on reprend.
-    assert!(pire <= 26, "carte en saisie : pire {pire}");
+    DeuxVoies {
+        en_place: en_place_avec(&e),
+        eteint: en_place_avec(&eteint),
+        reposee,
+    }
+}
+
+/// Le pire ecart entre deux images, et le nombre de canaux qui different de plus d'un niveau.
+fn ecart(a: &Pixmap, b: &Pixmap) -> (u8, usize) {
+    let paires = || a.data().iter().zip(b.data());
+    let pire = paires().map(|(p, q)| p.abs_diff(*q)).max().unwrap_or(0);
+    let canaux = paires().filter(|(p, q)| p.abs_diff(**q) > 1).count();
+    (pire, canaux)
+}
+
+/// **La meme borne que la carte selectionnee, et c'est la meme cause.**
+///
+/// `draw_card_frame` traite une carte en saisie comme une carte selectionnee : son anneau de
+/// deux pixels. On retrouve donc exactement le cran de couverture que
+/// `test_une_carte_selectionnee_se_repose_a_un_cran_de_couverture_pres` mesure, et pour la
+/// meme raison -- `tiny-skia` accumule ses bords en virgule fixe le long de chaque ligne, et la
+/// meme forme a une position absolue differente ne donne pas toujours la meme couverture la ou
+/// la tangente d'un coin arrondi frole une frontiere de sous-pixel.
+///
+/// La mesure le dit sans ambiguite : le meme test sans saisie donne **zero**, et le seul
+/// changement entre les deux est l'epaisseur de ce trait. Une seconde borne pour la meme cause
+/// finirait par diverger de la premiere : c'est la sienne qu'on reprend.
+fn dans_le_cran_de_l_anneau(voies: &DeuxVoies, quoi: &str) {
+    let (pire, canaux) = ecart(&voies.en_place, &voies.reposee);
+    assert!(pire <= 26, "{quoi} : pire {pire}");
     assert!(
         canaux <= 200,
-        "carte en saisie : {canaux} canaux au-dela de 1 -- ce n'est plus un coin"
+        "{quoi} : {canaux} canaux au-dela de 1 -- ce n'est plus un coin"
+    );
+}
+
+/// **Une carte en saisie donne les memes pixels sur les deux voies**, curseur compris : la
+/// carte entiere dessinee en place par le processeur, contre la texture reposee puis le
+/// curseur que la couche du dessus pose (COMPOSANT-3).
+///
+/// C'est l'epreuve qui compte : une texture qui montrerait autre chose que ce que le
+/// processeur dessine ferait diverger les deux voies sans qu'aucun test de passe le voie --
+/// c'est exactement la forme des quatre regressions de l'etape 1 (fiche 22 § 5).
+#[test]
+fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
+    let voies = deux_voies_en_saisie("Une note qu'on ecrit, avec des accents : eac.", 12);
+    // **L'epreuve voit le curseur.** Sans ce temoin, elle passerait aussi si aucune des deux
+    // voies ne le peignait -- la forme exacte d'une regression que personne ne verrait.
+    assert_ne!(
+        voies.en_place.data(),
+        voies.eteint.data(),
+        "le curseur allume doit se voir"
+    );
+    dans_le_cran_de_l_anneau(&voies, "carte en saisie");
+}
+
+/// **Une formule sous le curseur : la carte reste une texture, et sa previsualisation se pose
+/// au-dessus** (COMPOSANT-3).
+///
+/// La pastille qui montre la formule qu'on ecrit se pose a DROITE de la carte, hors de sa
+/// boite, et son placement lit la largeur du clip. Dans le contenu, elle ne tenait pas dans une
+/// texture, et la carte entiere retombait au processeur a chaque image tant que le curseur
+/// traversait une formule. C'est un ornement : elle suit le curseur, comme lui.
+#[test]
+fn test_une_formule_sous_le_curseur_reste_une_texture_et_sa_pastille_se_pose_au_dessus() {
+    let voies = deux_voies_en_saisie("$$x^2$$", 3);
+    dans_le_cran_de_l_anneau(&voies, "formule en saisie");
+    // **L'epreuve voit la pastille** : de l'encre a droite de la carte, que la carte seule n'a
+    // pas. Sans ce temoin, une pastille oubliee par les deux voies passerait.
+    let (x, _, w, _) = CARTE;
+    let bord = (x + f64::from(w) + 20.5) as u32 + 4;
+    let encre_a_droite = |p: &Pixmap| {
+        let largeur = p.width() as usize;
+        p.data()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| i % largeur > bord as usize && c[3] > 0)
+            .count()
+    };
+    assert!(
+        encre_a_droite(&voies.reposee) > 100,
+        "la pastille de la formule doit se voir a droite de la carte, sur la voie graphique"
     );
 }
 

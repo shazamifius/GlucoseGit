@@ -2,9 +2,7 @@
 //! tri qui envoie chaque nœud à son dessin — la carte, le pense-bête, la flèche.
 
 use super::arrow::{draw_arrow, Fleche};
-use super::card::{
-    draw_card_contenu, draw_card_ornements, draw_text_card, porte_une_previsualisation, TextCard,
-};
+use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, TextCard};
 use super::domain::{draw_domain_gauge, DomainTints};
 use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
@@ -145,12 +143,10 @@ fn dessiner_ce_qui_passe_au_dessus(
             Annotation::Text { x, y, .. } => {
                 if let Some(carte) = carte_de(hue_cache, ann, store, pass, editing) {
                     // **La carte qu'on edite est un composant comme les autres** depuis
-                    // COMPOSANT-2, et seules ses poignees restent ici. Elle ne se dessine
-                    // entiere que sur la voie processeur, ou quand sa previsualisation de
-                    // formule l'empeche d'etre une texture -- c'est le meme test, ecrit une
-                    // seule fois, que celui qui decide de la faire ou non.
-                    let au_processeur = editing.is_some()
-                        && (!cartes_par_la_carte || porte_une_previsualisation(ctx, &carte));
+                    // COMPOSANT-2, et seuls ses ornements restent ici -- poignees, curseur,
+                    // previsualisation de formule (COMPOSANT-3). Elle ne se dessine entiere
+                    // que sur la voie processeur.
+                    let au_processeur = editing.is_some() && !cartes_par_la_carte;
                     if au_processeur {
                         entieres += 1.0;
                         draw_text_card(ctx, pixmap, carte);

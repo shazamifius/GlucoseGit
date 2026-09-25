@@ -360,17 +360,10 @@ impl Regime {
             TextMode::Rendered
         };
         // La hauteur suit le texte : une carte ne tronque jamais son contenu (TEXT-FIT-1).
-        let mise_en_page = card_text_layout(kit.typography, kit.math, corps, w, mode);
-        // **Une previsualisation de formule ne rentre pas dans une texture.** Elle se pose a
-        // DROITE de la carte, hors de sa boite, et bascule a gauche quand le bord de l'ecran
-        // approche -- son placement lit `clip.width`, qui vaut l'ecran dans une passe et la
-        // texture dans un composant. La carte reste donc au processeur tant qu'elle en
-        // montre une ; c'est le seul cas, et il dure le temps qu'un curseur traverse une
-        // formule.
-        if edition.is_some_and(|e| super::card::previsualisation_en_cours(&mise_en_page, e)) {
-            return None;
-        }
-        let lignes = mise_en_page.line_count();
+        //
+        // Une carte qu'on edite est toujours une texture : ce qui suit son curseur -- le trait,
+        // la previsualisation d'une formule -- se pose au-dessus (COMPOSANT-3).
+        let lignes = card_text_layout(kit.typography, kit.math, corps, w, mode).line_count();
         let vue = CardLayout::text_card(w, h, lignes)
             .scaled(WorldScale::new(self.vue.scale, self.densite));
         let (sx, sy) = world_to_screen(x, y, &self.vue);

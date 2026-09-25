@@ -16,9 +16,21 @@ use tiny_skia::Pixmap;
 const LARGEUR: f32 = 300.0;
 const ECRAN: (u32, u32) = (400, 300);
 
-/// La boîte `(x0, y0, x1, y1)` des pixels que le curseur allumé change, ou `None` s'il ne se
-/// pose nulle part.
-fn curseur(corps: &str, tete: usize) -> Option<(u32, u32, u32, u32)> {
+/// Une vue de la carte : son zoom, et l'abscisse d'écran où elle commence.
+#[derive(Clone, Copy)]
+struct Vue {
+    zoom: f64,
+    x: f64,
+}
+
+/// La carte à l'échelle 1, collée au bord gauche de l'écran.
+const PRES: Vue = Vue { zoom: 1.0, x: 0.0 };
+
+/// Une boîte de pixels `(x0, y0, x1, y1)`, bornes comprises.
+type Boite = (u32, u32, u32, u32);
+
+/// La carte en saisie, entière, telle que le processeur la peint.
+fn rendu(corps: &str, tete: usize, vue: Vue, curseur_visible: bool) -> Pixmap {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let ctx = Pass {
@@ -27,42 +39,43 @@ fn curseur(corps: &str, tete: usize) -> Option<(u32, u32, u32, u32)> {
         tints: kit.tints,
         theme: kit.theme,
         vp: Viewport {
-            scale: 1.0,
-            x: 0.0,
+            scale: vue.zoom,
+            x: vue.x,
             y: 0.0,
         },
-        scale: WorldScale::new(1.0, 1.0),
+        scale: WorldScale::new(vue.zoom, 1.0),
         clip: Clip {
             width: ECRAN.0 as f32,
             height: ECRAN.1 as f32,
             top: 0.0,
         },
     };
-    let rendu = |curseur_visible| {
-        let saisie = TextEditSession {
-            ann_id: "c".into(),
-            buffer: corps.into(),
-            selection: Selection::at(tete),
-            goal_x: None,
-            blink_timer: std::time::Instant::now(),
-            curseur_visible,
-        };
-        let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("pixmap");
-        let carte = TextCard {
-            origin: (0.0, 0.0),
-            size: (LARGEUR, 60.0),
-            body: corps,
-            tint: (96, 165, 250),
-            selected: false,
-            editing: Some(&saisie),
-        };
-        draw_text_card(&ctx, &mut pixmap.as_mut(), carte);
-        pixmap
+    let saisie = TextEditSession {
+        ann_id: "c".into(),
+        buffer: corps.into(),
+        selection: Selection::at(tete),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible,
     };
-    let (allume, eteint) = (rendu(true), rendu(false));
-    let mut boite: Option<(u32, u32, u32, u32)> = None;
-    let paires = allume.pixels().iter().zip(eteint.pixels());
-    for (i, _) in paires.enumerate().filter(|(_, (a, b))| a != b) {
+    let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("pixmap");
+    let carte = TextCard {
+        origin: (0.0, 0.0),
+        size: (LARGEUR, 60.0),
+        body: corps,
+        tint: (96, 165, 250),
+        selected: false,
+        editing: Some(&saisie),
+    };
+    draw_text_card(&ctx, &mut pixmap.as_mut(), carte);
+    pixmap
+}
+
+/// La boîte des pixels que `garde` retient, ou `None` s'il n'y en a aucun.
+fn boite_ou(retenu: impl Fn(usize, u32, u32) -> bool) -> Option<Boite> {
+    let mut boite: Option<Boite> = None;
+    let pixels = (ECRAN.0 * ECRAN.1) as usize;
+    for i in (0..pixels).filter(|&i| retenu(i, i as u32 % ECRAN.0, i as u32 / ECRAN.0)) {
         let (x, y) = (i as u32 % ECRAN.0, i as u32 / ECRAN.0);
         boite = Some(match boite {
             None => (x, y, x, y),
@@ -70,6 +83,25 @@ fn curseur(corps: &str, tete: usize) -> Option<(u32, u32, u32, u32)> {
         });
     }
     boite
+}
+
+/// La boîte des pixels que le curseur allumé change, ou `None` s'il ne se pose nulle part.
+fn curseur(corps: &str, tete: usize) -> Option<Boite> {
+    curseur_dans(corps, tete, PRES)
+}
+
+fn curseur_dans(corps: &str, tete: usize, vue: Vue) -> Option<Boite> {
+    let (allume, eteint) = (
+        rendu(corps, tete, vue, true),
+        rendu(corps, tete, vue, false),
+    );
+    boite_ou(|i, _, _| allume.pixels()[i] != eteint.pixels()[i])
+}
+
+/// La boîte de l'encre posée à droite de l'abscisse `x` — là où une pastille de formule se
+/// pose, hors de la carte.
+fn encre_a_droite_de(image: &Pixmap, x: u32) -> Option<Boite> {
+    boite_ou(|i, px, _| px > x && image.pixels()[i].alpha() > 0)
 }
 
 /// Le haut de la ligne `rang` et la marge gauche du texte, à l'échelle 1.
@@ -80,7 +112,7 @@ fn ligne(rang: usize) -> (f32, f32) {
 
 /// Le curseur se pose en haut de la ligne attendue, à un pixel près (il est calé sur la
 /// grille), et à l'abscisse demandée.
-fn sur_la_ligne(corps: &str, tete: usize, rang: usize) -> (u32, u32, u32, u32) {
+fn sur_la_ligne(corps: &str, tete: usize, rang: usize) -> Boite {
     let boite = curseur(corps, tete).expect("le curseur allume doit se voir");
     let (haut, _) = ligne(rang);
     assert!(
@@ -189,4 +221,77 @@ fn test_composant_3_toute_position_du_texte_a_sa_ligne() {
             );
         }
     }
+}
+
+/// **Sous le seuil de détail, une carte n'a ni curseur ni pastille** (SCALE-2) : elle n'est
+/// plus que son cadre, sans texte, et rien de ce qui suit le curseur n'y aurait de sens.
+///
+/// Le curseur et la pastille vivaient dans le contenu, que le seuil coupe ; sortis du contenu
+/// (COMPOSANT-3), ils se peignaient sur une carte vide — trouvé en relisant, aucune épreuve ne
+/// le voyait.
+#[test]
+fn test_composant_3_sous_le_seuil_de_detail_la_carte_n_a_ni_curseur_ni_pastille() {
+    let seuil = f64::from(WorldScale::SIMPLIFIED_BELOW);
+    let (dessus, dessous) = (
+        Vue {
+            zoom: seuil * 1.25,
+            x: 0.0,
+        },
+        Vue {
+            zoom: seuil * 0.75,
+            x: 0.0,
+        },
+    );
+    // Au-dessus du seuil, les deux se voient : sans ces témoins, l'épreuve serait aveugle.
+    assert!(curseur_dans("abc", 1, dessus).is_some());
+    let bord = |vue: Vue| (f64::from(LARGEUR) * vue.zoom) as u32 + 1;
+    let formule = |vue: Vue| rendu("$$x^2$$", 3, vue, false);
+    assert!(
+        encre_a_droite_de(&formule(dessus), bord(dessus)).is_some(),
+        "au-dessus du seuil, la pastille de la formule se voit"
+    );
+    assert_eq!(
+        curseur_dans("abc", 1, dessous),
+        None,
+        "sous le seuil, la carte n'est qu'un cadre : pas de curseur"
+    );
+    assert_eq!(
+        encre_a_droite_de(&formule(dessous), bord(dessous)),
+        None,
+        "sous le seuil, pas de pastille"
+    );
+}
+
+/// **Basculée à gauche, la pastille garde l'écart qu'elle a à droite.**
+///
+/// Elle se pose à droite de la carte, et bascule à gauche quand le bord de l'écran approche.
+/// L'écart de droite suivait le corps du texte, celui de gauche restait au corps de
+/// référence : au demi-zoom, basculée, elle se collait deux fois plus près. Un seul écart
+/// désormais, calculé une fois.
+#[test]
+fn test_composant_3_la_pastille_basculee_a_gauche_garde_son_ecart() {
+    // Au demi-zoom, la carte finit sur le bord droit de l'écran : la pastille bascule.
+    let vue = Vue {
+        zoom: 0.5,
+        x: f64::from(ECRAN.0) - f64::from(LARGEUR) * 0.5,
+    };
+    let image = rendu("$$x^2 + y^2 + z^2 = r^2$$", 3, vue, false);
+    let gauche = vue.x as u32;
+    let pastille = boite_ou(|i, px, _| px + 1 < gauche && image.pixels()[i].alpha() > 0)
+        .expect("la pastille doit basculer a gauche de la carte");
+    // Son filet d'un pixel déborde d'un demi-pixel du bord de la plaque.
+    let attendu = vue.x - f64::from(super::PREVIEW_GAP) * vue.zoom + 0.5;
+    let bord = f64::from(pastille.2) + 1.0;
+    assert!(
+        (bord - attendu).abs() <= 1.0,
+        "la pastille finit a {bord}, et non a l'ecart attendu de la carte ({attendu})"
+    );
+    // **Et à hauteur de la ligne qu'on écrit** — ici la première : l'œil n'a pas à chercher
+    // le lien entre les deux.
+    let haut = CardLayout::text_card(LARGEUR, 60.0, 1).pad_y * vue.zoom as f32 - 0.5;
+    assert!(
+        (pastille.1 as f32 - haut).abs() <= 1.0,
+        "la pastille commence a {}, et non a la hauteur de sa ligne ({haut})",
+        pastille.1
+    );
 }

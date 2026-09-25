@@ -8,12 +8,15 @@
 //! fonctions.
 
 use super::{CardLayout, Pass, TextCard};
+use crate::params::Pen;
 use crate::renderer::handles::draw_resize_handles;
-use crate::renderer::richtext::hit::offset_to_x;
-use crate::renderer::richtext::{font_of, indent_of, ink_of, TextLayout, VisualLine};
+use crate::renderer::richtext::hit::{line_of_offset, offset_to_x};
+use crate::renderer::richtext::{font_of, indent_of, ink_of, mode_of, TextLayout, VisualLine};
 use crate::renderer::scale::WorldScale;
+use crate::theme::Theme;
 use glucose_core::resize::Handle;
-use tiny_skia::{Color, PixmapMut, Rect};
+use glucose_core::text::BlockKind;
+use tiny_skia::{Color, FillRule, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 /// Largeur du curseur d'édition.
 const CURSOR_WIDTH: f32 = 2.0;
@@ -28,11 +31,21 @@ pub(super) fn dessiner_les_ornements(
     text: &TextLayout,
     card: &TextCard,
 ) {
+    // SCALE-2 : sous le seuil de détail, la carte n'est plus que son cadre — pas de texte, donc
+    // ni curseur ni formule à suivre. Les poignées, elles, restent : on redimensionne une carte
+    // qu'on ne lit plus. Elles passent sur la pastille (une affordance n'est jamais cachée,
+    // ORNEMENTS-1), le curseur sur tout.
+    let detail = ctx.scale.draws_detail();
+    if detail {
+        draw_formula_preview(ctx, pixmap, at, layout, text, card);
+    }
     if card.selected {
         let screen_box = (at.0, at.1, layout.width, layout.height);
         draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
     }
-    draw_card_caret(ctx, pixmap, at, layout, text, card);
+    if detail {
+        draw_card_caret(ctx, pixmap, at, layout, text, card);
+    }
 }
 
 /// Le curseur d'édition, sur la ligne qui le porte.
@@ -79,6 +92,109 @@ fn draw_card_caret(
 /// Des sabotages qui les retiraient ne faisaient rien tomber.
 fn porte_le_curseur(line: &VisualLine, cursor: usize) -> bool {
     line.start <= cursor && cursor <= line.end
+}
+
+// ── La prévisualisation d'une formule (fiche 12 § 1.A.3) ──────────────────────
+
+/// Écart entre la carte éditée et sa pastille de prévisualisation, au corps de référence.
+const PREVIEW_GAP: f32 = 12.0;
+/// Marges intérieures de la pastille, au corps de référence.
+const PREVIEW_PAD: f32 = 10.0;
+/// Rayon de ses coins, celui des autres surfaces flottantes.
+const PREVIEW_RADIUS: f32 = 6.0;
+
+/// **La formule que le curseur est en train d'écrire**, rendue en direct à côté de la carte.
+///
+/// Pendant l'édition, une ligne de formule montre sa source — c'est elle qu'on corrige, et on
+/// n'édite pas une fraction. Le résultat n'apparaîtrait donc qu'en sortant de la carte. Cette
+/// pastille le montre pendant la frappe, à hauteur de la ligne éditée : les délimiteurs
+/// colorés disent **si** ça compile, celle-ci dit **quoi**. Elle ne s'affiche que là où elle a
+/// quelque chose à dire : une ligne de formule, en édition, qui compile.
+///
+/// **C'est un ornement, pas du contenu** (COMPOSANT-3) : elle suit le curseur et se pose hors
+/// de la boîte. Dans le contenu, elle empêchait la carte d'être une texture — son placement lit
+/// `clip.width`, qui vaut la texture dans un composant et l'écran dans une passe —, et toute la
+/// carte retombait au processeur, à chaque image, le temps qu'un curseur traverse une formule.
+/// Au-dessus, `clip.width` vaut l'écran sur les deux voies : elle se pose à droite, et bascule
+/// à gauche quand le bord de l'écran approche.
+fn draw_formula_preview(
+    ctx: &Pass,
+    pixmap: &mut PixmapMut,
+    at: (f32, f32),
+    layout: &CardLayout,
+    text: &TextLayout,
+    card: &TextCard,
+) {
+    let Some(session) = card.editing else {
+        return;
+    };
+    let rang = line_of_offset(text, session.selection.head);
+    let Some(line) = text.lines.get(rang) else {
+        return;
+    };
+    let BlockKind::Math { display } = line.kind else {
+        return;
+    };
+    let source = super::paragraph_of(card.body, line);
+    let Some((corps, _)) = glucose_core::text::block::formula(source) else {
+        return;
+    };
+    let corps = &source[corps];
+    let mode = mode_of(display);
+    let Some((w, h, d)) = ctx.math.measure(corps, mode, layout.font) else {
+        return;
+    };
+
+    // La pastille suit le corps du texte, comme la carte : un seul rapport pour ses marges et
+    // son écart, des deux côtés. L'écart de gauche restait au corps de référence et se collait
+    // d'autant plus à la carte qu'on zoomait.
+    let corps_relatif = layout.font / super::BODY_FONT;
+    let (pad, ecart) = (PREVIEW_PAD * corps_relatif, PREVIEW_GAP * corps_relatif);
+    let (bw, bh) = (w + pad * 2.0, h + d + pad * 2.0);
+    let droite = at.0 + layout.width + ecart;
+    let x = if droite + bw <= ctx.clip.width {
+        droite
+    } else {
+        (at.0 - bw - ecart).max(0.0)
+    };
+    // À hauteur de la ligne qu'on écrit : l'œil n'a pas à chercher le lien entre les deux.
+    let y = at.1 + layout.pad_y + rang as f32 * layout.line_height;
+
+    plaque(pixmap, (x, y, bw, bh), PREVIEW_RADIUS, ctx.theme);
+    let plume = Pen {
+        x: x + pad,
+        y: y + pad + h,
+        font_size: layout.font,
+    };
+    ctx.math
+        .draw(pixmap, corps, mode, plume, ctx.theme.card_body);
+}
+
+/// Le fond d'une surface flottante : sa matière et son filet.
+fn plaque(pixmap: &mut PixmapMut, (x, y, w, h): (f32, f32, f32, f32), r: f32, theme: &Theme) {
+    let mut pb = PathBuilder::new();
+    crate::renderer::push_rounded_rect(&mut pb, x, y, w, h, r);
+    let Some(path) = pb.finish() else {
+        return;
+    };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
+    paint.set_color(theme.btn_bg);
+    pixmap.fill_path(
+        &path,
+        &paint,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+    paint.set_color(theme.btn_border);
+    let filet = Stroke {
+        width: 1.0,
+        ..Default::default()
+    };
+    pixmap.stroke_path(&path, &paint, &filet, Transform::identity(), None);
 }
 
 #[cfg(test)]
