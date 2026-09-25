@@ -292,16 +292,16 @@ fn poser_ce_qui_attend_une_decision(
     pointer: Pointer,
 ) {
     action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
-    // Pendant l'édition des ancres, son panneau prend la place de la barre d'options.
-    match &ui.ancrage {
-        Some(a) => ancrage::draw_ancrage(pixmap, a, typo, theme, ((w, h), ui.scale_factor)),
-        None => options_de_fleche::draw_options_de_fleche(
+    // Pendant l'édition des ancres, sa fenêtre couvre tout : le moteur de rendu la pose
+    // par-dessus l'interface (`poser_la_fenetre_d_ancrage`).
+    if ui.ancrage.is_none() {
+        options_de_fleche::draw_options_de_fleche(
             pixmap,
             store,
             typo,
             theme,
             ((w, h), ui.scale_factor),
-        ),
+        );
     }
     if let Some(ref toast) = ui.current_toast {
         toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);

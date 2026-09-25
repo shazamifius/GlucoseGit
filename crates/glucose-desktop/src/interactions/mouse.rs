@@ -191,7 +191,7 @@ impl GlucoseApp {
     fn handle_left_down(&mut self, screen: ScreenFrame) {
         let pointer = self.pointer();
         let taken = self.click_context_menu(pointer, screen)
-            || self.click_ancrage(pointer, screen.scale)
+            || self.click_ancrage(pointer)
             || self.click_skips_flight()
             || self.click_breadcrumb(pointer, screen)
             || self.click_options_de_fleche(pointer, screen)

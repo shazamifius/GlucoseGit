@@ -192,6 +192,18 @@ pub fn source_continue(delta: MouseScrollDelta) -> bool {
 impl GlucoseApp {
     /// Gère les événements de molette et gestes tactiles.
     pub fn handle_mouse_wheel(&mut self, delta: MouseScrollDelta) {
+        // La fenêtre de l'éditeur du texte lié prend la molette : elle fait défiler son texte,
+        // et le canevas, derrière le voile, ne bouge pas.
+        if self.ui.ancrage.is_some() {
+            let (_, dy, ligne) = deltas(delta);
+            let points = if ligne {
+                -dy * PAN_LIGNE_PX
+            } else {
+                -dy / self.densite()
+            };
+            self.defiler_l_ancrage(points as f32);
+            return;
+        }
         // Le `Ctrl` d'un pincement est virtuel : il vit dans le message du systeme, pas dans
         // l'etat du clavier que `winit` rapporte. Les deux disent la meme chose -- « ce
         // defilement veut zoomer » -- et se lisent donc ici, et nulle part ailleurs, pour que

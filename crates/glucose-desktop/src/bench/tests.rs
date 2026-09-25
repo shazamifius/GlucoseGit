@@ -289,7 +289,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis** (DPI-1) : le trait d'un sigle devient une fraction de sa taille, et non 1,4 pixel
 /// fixe — ceux de la barre d'options, plus grands que ceux d'une pastille, s'épaississent.
 /// 280 pixels changent, tous sur les six sigles de la barre (1046-1151 × 842-852).
-const EMPREINTE_TEMOIN_SELECTION: &str = "82e7ffe6248d4250";
+/// **Puis** (BARRES-1) : les barres du bas prennent la mesure et l'habit de celles de Tauri —
+/// corps de 13, chaque bouton encadré, une barre de 37 points au lieu de 23. Seule leur bande
+/// change ; regardée agrandie.
+const EMPREINTE_TEMOIN_SELECTION: &str = "8603922ca02faccd";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -346,7 +349,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (DPI-1) : le trait d'un sigle devient une fraction de sa taille, et non 1,4 pixel
 /// fixe — ceux de la barre d'options, plus grands que ceux d'une pastille, s'épaississent.
 /// 280 pixels changent, tous sur les six sigles de la barre (1046-1151 × 842-852).
-const EMPREINTE_TEMOIN_MENU: &str = "379a18e79e808ddd";
+/// **Puis** (BARRES-1) : les barres du bas prennent la mesure et l'habit de celles de Tauri —
+/// corps de 13, chaque bouton encadré, une barre de 37 points au lieu de 23. Seule leur bande
+/// change ; regardée agrandie.
+const EMPREINTE_TEMOIN_MENU: &str = "826b5eb48038e548";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

@@ -18,9 +18,10 @@
 //! lisent la même liste (loi L4), comme la barre d'action au-dessus de laquelle elle se pose.
 
 use super::action_bar::{
-    dans, filet_vertical, fond_arrondi, BTN_PAD_X, BTN_PAD_Y, BTN_RADIUS, FONT, GAP, PAD_X, PAD_Y,
-    RADIUS,
+    bouton, dans, filet_vertical, pastille, BTN_PAD_X, BTN_PAD_Y, FONT, GAP, ICON, ICON_GAP,
+    ICON_STROKE, PAD_X, PAD_Y,
 };
+use crate::icons::{draw_icon_scaled, IconType};
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::arrow::aspect::EPAISSEUR;
@@ -33,7 +34,7 @@ use tiny_skia::PixmapMut;
 pub const EPAISSEURS: [(f64, &str); 4] = [(1.0, "1"), (2.0, "2"), (3.0, "3"), (5.0, "5")];
 
 /// L'écart entre cette barre et la barre d'action qu'elle surmonte.
-const AU_DESSUS: f32 = 6.0;
+const AU_DESSUS: f32 = 8.0;
 
 /// Ce qu'un bouton de la barre montre.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -41,6 +42,8 @@ pub enum Contenu {
     Texte(&'static str),
     /// Le sigle d'une relation, dessiné comme sur la flèche.
     Sigle(ArrowPredicate),
+    /// Une icône et son libellé : une action, pas un réglage.
+    Action(IconType, &'static str),
 }
 
 /// Ce qu'un clic sur un bouton demande.
@@ -175,11 +178,17 @@ fn groupes_de_boutons(store: &Store) -> Option<Vec<Vec<(Contenu, bool, Action)>>
                 .collect()
         })
         .collect();
-    // L'éditeur d'ancres, pour une flèche seule qui touche une carte de texte : c'est dans une
-    // carte qu'on désigne un passage.
+    // L'éditeur du texte lié, pour une flèche seule qui touche une carte de texte : c'est dans
+    // une carte qu'on désigne un passage. « Ancrer… » se lisait comme un libellé tronqué, et
+    // pas comme un bouton ; il dit maintenant ce qu'il fait, en entier, avec son crayon — et
+    // s'allume quand la flèche désigne déjà un passage.
     if let [fleche] = fleches[..] {
         if touche_une_carte(store, fleche) {
-            groupes.push(vec![(Contenu::Texte("Ancrer…"), false, Action::Ancrer)]);
+            groupes.push(vec![(
+                Contenu::Action(IconType::Crayon, EDITER_LE_TEXTE_LIE),
+                designe_un_passage(fleche),
+                Action::Ancrer,
+            )]);
         }
     }
     Some(groupes)
@@ -204,6 +213,7 @@ pub fn layout_options_de_fleche(
     let largeur_de = |c: &Contenu| match c {
         Contenu::Texte(t) => mesure(t) + BTN_PAD_X * s * 2.0,
         Contenu::Sigle(_) => hauteur_btn,
+        Contenu::Action(_, t) => (ICON + ICON_GAP) * s + mesure(t) + BTN_PAD_X * s * 2.0,
     };
 
     // Une première passe mesure, la seconde place : la barre se centre sur sa largeur.
@@ -267,6 +277,24 @@ pub fn action_sous(barre: &OptionsDeFleche, px: f32, py: f32) -> Option<Action> 
         .map(|b| b.action)
 }
 
+/// Le libellé du bouton qui ouvre l'éditeur du texte lié.
+pub const EDITER_LE_TEXTE_LIE: &str = "Éditer le texte lié";
+
+/// La flèche désigne-t-elle déjà un passage, dans sa source ou dans sa cible ?
+fn designe_un_passage(fleche: &Annotation) -> bool {
+    let Annotation::Arrow {
+        source_text_sel,
+        target_text_sel,
+        ..
+    } = fleche
+    else {
+        return false;
+    };
+    [source_text_sel, target_text_sel]
+        .into_iter()
+        .any(|sel| glucose_core::text_anchors::has_text_selection(sel.as_ref()))
+}
+
 /// La flèche touche-t-elle, par l'un de ses bouts, une carte de texte ?
 fn touche_une_carte(store: &Store, fleche: &Annotation) -> bool {
     let Annotation::Arrow {
@@ -308,13 +336,7 @@ pub fn draw_options_de_fleche(
     };
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
-    fond_arrondi(
-        pixmap,
-        barre.rect,
-        RADIUS * s,
-        theme.btn_bg,
-        Some(theme.btn_border),
-    );
+    pastille(pixmap, barre.rect, s, theme);
     let (_, y, _, h) = barre.rect;
     let style = |color| TextStyle {
         size: font,
@@ -340,38 +362,41 @@ pub fn draw_options_de_fleche(
         );
     }
     for b in &barre.boutons {
-        if b.allume {
-            fond_arrondi(
-                pixmap,
-                b.rect,
-                BTN_RADIUS * s,
-                theme.bg_active,
-                Some(theme.border_medium),
-            );
-        }
+        bouton(pixmap, b.rect, (s, b.allume), theme);
+        let encre = if b.allume {
+            theme.text_accent
+        } else {
+            theme.text_secondary
+        };
         let (bx, by, bw, bh) = b.rect;
-        match b.contenu {
-            Contenu::Texte(t) => {
-                let encre = if b.allume {
-                    theme.text_primary
-                } else {
-                    theme.text_muted
-                };
-                typography.draw_text(
+        // Ce que le bouton écrit, et où : après son icône s'il en a une.
+        let texte = match b.contenu {
+            Contenu::Texte(t) => Some((bx + BTN_PAD_X * s, t)),
+            Contenu::Action(icone, t) => {
+                draw_icon_scaled(
                     pixmap,
-                    t,
+                    icone,
                     bx + BTN_PAD_X * s,
-                    by + (bh - font) / 2.0,
-                    style(encre),
+                    by + (bh - ICON * s) / 2.0,
+                    ICON * s,
+                    encre,
+                    ICON_STROKE,
                 );
+                Some((bx + (BTN_PAD_X + ICON + ICON_GAP) * s, t))
             }
-            Contenu::Sigle(p) => crate::renderer::predicate::draw_sigil(
-                pixmap,
-                p,
-                (bx + bw / 2.0, by + bh / 2.0),
-                bh * 0.3,
-                theme.predicate_color(p),
-            ),
+            Contenu::Sigle(p) => {
+                crate::renderer::predicate::draw_sigil(
+                    pixmap,
+                    p,
+                    (bx + bw / 2.0, by + bh / 2.0),
+                    bh * 0.3,
+                    theme.predicate_color(p),
+                );
+                None
+            }
+        };
+        if let Some((x, t)) = texte {
+            typography.draw_text(pixmap, t, x, by + (bh - font) / 2.0, style(encre));
         }
     }
 }

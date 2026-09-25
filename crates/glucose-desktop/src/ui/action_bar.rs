@@ -28,30 +28,39 @@ use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::store::Store;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
+// ── Les mesures des barres du bas, en points (pixels logiques) ─────────────────
+//
+// Elles suivaient la fiche 10 à la lettre : un corps de 11, des boutons plats hauts de 15, une
+// barre de 23. Il les a trouvées **beaucoup trop petites**, et un bouton plat ne se lisait pas
+// comme un bouton (« on ne sait même pas que c'est un bouton »). Celles de Glucose Tauri
+// faisaient environ 37 points, chaque bouton encadré. Les barres du bas en prennent la
+// mesure et l'habit : un corps de 13, des boutons encadrés de 23, une barre de 37 — sous la
+// barre du haut (44), dont elles restent les cadettes.
+
 /// Distance entre le bas de la fenêtre et celui de la barre.
-const BOTTOM: f32 = 12.0;
-/// Marges intérieures de la pastille : `4px 8px`.
-pub(super) const PAD_X: f32 = 8.0;
-pub(super) const PAD_Y: f32 = 4.0;
+const BOTTOM: f32 = 14.0;
+/// Marges intérieures de la pastille.
+pub(super) const PAD_X: f32 = 10.0;
+pub(super) const PAD_Y: f32 = 7.0;
 /// Rayon de ses coins.
-pub(super) const RADIUS: f32 = 6.0;
+pub(super) const RADIUS: f32 = 8.0;
 /// Écart entre deux éléments de la rangée.
-pub(super) const GAP: f32 = 4.0;
+pub(super) const GAP: f32 = 6.0;
 /// Corps du texte.
-pub(super) const FONT: f32 = 11.0;
+pub(super) const FONT: f32 = 13.0;
 /// Retrait entre le compteur et son filet séparateur.
-const COUNT_PAD: f32 = 6.0;
-/// Marges intérieures d'un bouton : `2px 7px`.
-pub(super) const BTN_PAD_X: f32 = 7.0;
-pub(super) const BTN_PAD_Y: f32 = 2.0;
+const COUNT_PAD: f32 = 8.0;
+/// Marges intérieures d'un bouton.
+pub(super) const BTN_PAD_X: f32 = 10.0;
+pub(super) const BTN_PAD_Y: f32 = 5.0;
 /// Rayon des coins d'un bouton.
-pub(super) const BTN_RADIUS: f32 = 4.0;
+pub(super) const BTN_RADIUS: f32 = 5.0;
 /// Côté de l'icône d'un bouton.
-const ICON: f32 = 10.0;
+pub(super) const ICON: f32 = 13.0;
 /// Écart entre l'icône et son libellé.
-const ICON_GAP: f32 = 4.0;
+pub(super) const ICON_GAP: f32 = 6.0;
 /// Épaisseur du trait d'une icône, rapportée à sa boîte de 14 unités.
-const ICON_STROKE: f32 = 1.3;
+pub(super) const ICON_STROKE: f32 = 1.3;
 
 /// Ce qu'un clic sur la barre demande.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -203,13 +212,7 @@ pub fn draw_action_bar(
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
 
-    fond_arrondi(
-        pixmap,
-        bar.rect,
-        RADIUS * s,
-        theme.btn_bg,
-        Some(theme.btn_border),
-    );
+    pastille(pixmap, bar.rect, s, theme);
 
     let base = bar.rect.1 + (bar.rect.3 - font) / 2.0;
     typography.draw_text(
@@ -235,7 +238,7 @@ pub fn draw_action_bar(
         let ink = if btn.on {
             theme.alert
         } else {
-            theme.text_muted
+            theme.text_secondary
         };
         if btn.on {
             fond_arrondi(
@@ -245,6 +248,8 @@ pub fn draw_action_bar(
                 theme.alert_bg,
                 Some(theme.alert_border),
             );
+        } else {
+            bouton(pixmap, btn.rect, (s, false), theme);
         }
         let (bx, by, _, bh) = btn.rect;
         draw_icon_scaled(
@@ -286,6 +291,33 @@ pub(super) fn filet_vertical(pixmap: &mut PixmapMut, x: f32, y: f32, hauteur: f3
     };
     paint.set_color(color);
     pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+}
+
+/// **La pastille d'une barre du bas** : le panneau sombre de Tauri (`#111`), bordé (`#2a2a2a`).
+pub(super) fn pastille(pixmap: &mut PixmapMut, rect: (f32, f32, f32, f32), s: f32, theme: &Theme) {
+    fond_arrondi(
+        pixmap,
+        rect,
+        RADIUS * s,
+        theme.bg_panel,
+        Some(theme.border_medium),
+    );
+}
+
+/// **Un bouton d'une barre du bas** : une boîte encadrée — ce qui le fait lire comme un
+/// bouton. Allumé, il s'éclaire (`#2d2d2d`, filet `#444`), comme l'état actif de Tauri.
+pub(super) fn bouton(
+    pixmap: &mut PixmapMut,
+    rect: (f32, f32, f32, f32),
+    (s, allume): (f32, bool),
+    theme: &Theme,
+) {
+    let (fond, filet) = if allume {
+        (theme.bg_active, theme.border_accent)
+    } else {
+        (theme.btn_bg, theme.btn_border)
+    };
+    fond_arrondi(pixmap, rect, BTN_RADIUS * s, fond, Some(filet));
 }
 
 /// Une pastille : son fond, puis son filet.

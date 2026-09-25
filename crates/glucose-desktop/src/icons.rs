@@ -34,6 +34,9 @@ pub enum IconType {
     Unlock,
     /// Une corbeille — l'action « supprimer ».
     Trash,
+    /// Un crayon — « éditer » : le bouton qui ouvre l'éditeur du texte lié d'une flèche,
+    /// le tracé même de celui de Glucose Tauri (`ArrowOptions.tsx`).
+    Crayon,
 }
 
 #[allow(dead_code)]
@@ -82,6 +85,7 @@ pub fn draw_icon_scaled(
         | IconType::Plugins
         | IconType::Preset
         | IconType::Domains
+        | IconType::Crayon
         | IconType::Plus => (16.0, stroke_width * (16.0 / target_size)),
         _ => (14.0, stroke_width * (14.0 / target_size)),
     };
@@ -103,7 +107,7 @@ pub fn draw_icon_scaled(
         | IconType::Folder
         | IconType::Membrane
         | IconType::Plus => draw_tool_icon(pixmap, icon, &paint, &stroke, ts),
-        IconType::Lock | IconType::Unlock | IconType::Trash => {
+        IconType::Lock | IconType::Unlock | IconType::Trash | IconType::Crayon => {
             draw_action_icon(pixmap, icon, &paint, &stroke, ts)
         }
         _ => draw_panel_icon(pixmap, icon, &paint, &stroke, ts, color, s_width),
@@ -257,7 +261,7 @@ fn draw_panel_icon(
     }
 }
 
-/// Les actions d'une sélection : verrouiller, supprimer (fiche 10 § 3).
+/// Les actions d'une sélection : verrouiller, supprimer (fiche 10 § 3), éditer le texte lié.
 fn draw_action_icon(
     pixmap: &mut PixmapMut,
     icon: IconType,
@@ -299,6 +303,21 @@ fn draw_action_icon(
             pb.line_to(3.5, 12.0);
             pb.line_to(10.5, 12.0);
             pb.line_to(11.0, 4.0);
+            if let Some(path) = pb.finish() {
+                pixmap.stroke_path(&path, paint, stroke, ts, None);
+            }
+        }
+        // <path d="M11.5 1.5l3 3L5 14H2v-3z"/><path d="M9.5 3.5l3 3"/> — boîte de 16.
+        IconType::Crayon => {
+            let mut pb = PathBuilder::new();
+            pb.move_to(11.5, 1.5);
+            pb.line_to(14.5, 4.5);
+            pb.line_to(5.0, 14.0);
+            pb.line_to(2.0, 14.0);
+            pb.line_to(2.0, 11.0);
+            pb.close();
+            pb.move_to(9.5, 3.5);
+            pb.line_to(12.5, 6.5);
             if let Some(path) = pb.finish() {
                 pixmap.stroke_path(&path, paint, stroke, ts, None);
             }

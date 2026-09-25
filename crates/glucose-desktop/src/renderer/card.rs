@@ -72,10 +72,12 @@ use crate::renderer::math::MathRenderer;
 use crate::typography::Typography;
 
 mod ornament;
+mod texte_seul;
 use crate::theme::Theme;
 use glucose_core::resize::Handle;
 use glucose_core::text::{BlockKind, Selection};
 use ornament::{draw_code_plate, draw_ornament};
+pub(crate) use texte_seul::peindre_le_texte_seul;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────

@@ -27,6 +27,7 @@ pub mod cadrage;
 pub mod card;
 pub mod composants;
 pub mod domain;
+mod fenetre_d_ancrage;
 mod fils;
 pub mod focus;
 pub mod folder;
@@ -287,6 +288,7 @@ impl Renderer {
 
         // 9. Interface utilisateur complete (TopBar, Tabs, Minimap, Toasts)
         render_ui(pixmap, store, ui, &self.typography, &self.theme, pointer);
+        self.poser_la_fenetre_d_ancrage(pixmap, store, ui);
         self.magasin.fermer();
     }
 
@@ -332,6 +334,7 @@ impl Renderer {
         crate::perf::stage("agrandir");
 
         render_ui(plein, store, ui, &self.typography, &self.theme, pointer);
+        self.poser_la_fenetre_d_ancrage(plein, store, ui);
         self.magasin.fermer();
     }
 

@@ -56,15 +56,17 @@ fn touche(app: &mut GlucoseApp, nom: NamedKey) {
     assert!(app.touche_de_l_ancrage(&Key::Named(nom)));
 }
 
-/// Le point d'écran d'un octet d'une carte — sur la ligne qui le porte, là où il se dessine.
+/// Le point d'écran d'un octet du texte de la fenêtre — sur la ligne qui le porte, là où il se
+/// dessine. `carte` et `texte` disent de quelle étape il s'agit ; c'est la fenêtre qui le montre.
 fn point(app: &GlucoseApp, carte: &str, texte: &str, octet: usize) -> (f64, f64) {
-    let board = app.store.active_board().expect("un tableau");
-    let ann = board
-        .annotations
-        .iter()
-        .find(|a| a.id() == carte)
-        .expect("la carte");
-    let (w, _) = ann.size().expect("une taille");
+    assert_eq!(
+        app.ui.ancrage.as_ref().and_then(|a| a.carte()),
+        Some(carte),
+        "la fenêtre montre la carte de l'étape"
+    );
+    let (fenetre, montre) = app.fenetre_d_ancrage().expect("la fenêtre est ouverte");
+    assert_eq!(montre, texte);
+    let zone = fenetre.zone;
     let fin = texte[octet..]
         .chars()
         .next()
@@ -72,17 +74,16 @@ fn point(app: &GlucoseApp, carte: &str, texte: &str, octet: usize) -> (f64, f64)
     let r = crate::renderer::passages::rectangles(
         (&app.renderer.typography, &app.renderer.math),
         texte,
-        w as f32,
+        zone.largeur_monde,
         &[(octet, fin)],
     )[0];
-    let monde = (
-        ann.x() + f64::from(r.0) + 1.0,
-        ann.y() + f64::from(r.1 + r.3 / 2.0),
-    );
-    crate::canvas::world_to_screen(monde.0, monde.1, &app.store.viewport())
+    (
+        f64::from(zone.rect.0 + (r.0 + 1.0) * zone.s),
+        f64::from(zone.rect.1 + (r.1 + r.3 / 2.0 - zone.defilement) * zone.s),
+    )
 }
 
-/// « Ancrer… » dans la barre d'options.
+/// « Éditer le texte lié » dans la barre d'options.
 fn ouvrir(app: &mut GlucoseApp) {
     let barre = crate::ui::options_de_fleche::layout_options_de_fleche(
         &app.store,
@@ -94,8 +95,14 @@ fn ouvrir(app: &mut GlucoseApp) {
     let b = barre
         .boutons
         .iter()
-        .find(|b| b.contenu == crate::ui::options_de_fleche::Contenu::Texte("Ancrer…"))
-        .expect("le bouton Ancrer…");
+        .find(|b| {
+            b.contenu
+                == crate::ui::options_de_fleche::Contenu::Action(
+                    crate::icons::IconType::Crayon,
+                    crate::ui::options_de_fleche::EDITER_LE_TEXTE_LIE,
+                )
+        })
+        .expect("le bouton « Éditer le texte lié »");
     clic(
         app,
         (
@@ -103,7 +110,6 @@ fn ouvrir(app: &mut GlucoseApp) {
             f64::from(b.rect.1 + b.rect.3 / 2.0),
         ),
     );
-    // La caméra part vers la carte ; l'épreuve vise dans la vue d'où elle part.
     app.vol.poser();
 }
 
@@ -163,19 +169,19 @@ fn test_fleche_4_ancrer_de_bout_en_bout() {
     assert!(designe(&app, true).is_empty() && designe(&app, false).is_empty());
 }
 
-/// **`Échap` laisse tout comme avant**, et un clic hors de la carte ne désélectionne rien.
+/// **`Échap` laisse tout comme avant**, et un clic hors de la fenêtre ne désélectionne rien.
 #[test]
 fn test_fleche_4_echap_annule_et_un_faux_clic_ne_defait_rien() {
     let mut app = application();
     ouvrir(&mut app);
-    clic(&mut app, (300.0, 650.0));
+    clic(&mut app, (20.0, 880.0));
     assert!(app.ui.ancrage.is_some(), "toujours ouvert");
     assert!(
         app.ui
             .ancrage
             .as_ref()
             .is_some_and(|a| a.ancres().is_empty()),
-        "un clic hors de la carte ne choisit rien"
+        "un clic hors de la fenêtre ne choisit rien"
     );
     assert_eq!(
         app.store.selected_arrows().len(),
@@ -207,4 +213,132 @@ fn test_fleche_4_ctrl_ajoute_un_passage() {
         designe(&app, true),
         ["bonjours@0".to_string(), format!("bonjours@{second}")]
     );
+}
+
+/// **Une puce se retire par sa croix**, et elle seule : la fenêtre de Tauri, sa liste de ce
+/// qui est choisi, un passage à la fois.
+#[test]
+fn test_ancre_ux_une_puce_se_retire_par_sa_croix() {
+    let mut app = application();
+    ouvrir(&mut app);
+    let second = SOURCE.rfind("bonjours").expect("le second");
+    let p = point(&app, "source", SOURCE, 2);
+    clic(&mut app, p);
+    app.modifiers = ModifiersState::CONTROL;
+    let p = point(&app, "source", SOURCE, second + 2);
+    clic(&mut app, p);
+    app.modifiers = ModifiersState::empty();
+    let (fenetre, _) = app.fenetre_d_ancrage().expect("ouverte");
+    let croix = fenetre.choisi.expect("deux puces").puces[0].croix;
+    clic(
+        &mut app,
+        (
+            f64::from(croix.0 + croix.2 / 2.0),
+            f64::from(croix.1 + croix.3 / 2.0),
+        ),
+    );
+    let reste: Vec<i64> = app
+        .ui
+        .ancrage
+        .as_ref()
+        .expect("ouverte")
+        .ancres()
+        .iter()
+        .map(|a| a.start)
+        .collect();
+    assert_eq!(reste, [second as i64], "seul le premier est parti");
+}
+
+/// **La molette fait défiler un long texte dans la fenêtre**, et le canevas ne bouge pas.
+#[test]
+fn test_ancre_ux_la_molette_fait_defiler_la_fenetre() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    let long = "une ligne\n".repeat(60);
+    app.store.update_annotation(&board, "source", |a| {
+        if let Annotation::Text { text, .. } = a {
+            text.clone_from(&long);
+        }
+    });
+    ouvrir(&mut app);
+    let vue = app.store.viewport();
+    app.handle_mouse_wheel(winit::event::MouseScrollDelta::LineDelta(0.0, -3.0));
+    let defile = app.ui.ancrage.as_ref().expect("ouverte").defilement;
+    assert!(defile > 0.0, "le texte a défilé : {defile}");
+    let (fenetre, _) = app.fenetre_d_ancrage().expect("ouverte");
+    assert!(defile <= fenetre.zone.defilement_max());
+    assert_eq!(app.store.viewport(), vue, "le canevas n'a pas bougé");
+}
+
+/// **Un choix qui touche une formule la prend entière** : on ne désigne pas la moitié d'une
+/// fraction qu'on voit dessinée.
+#[test]
+fn test_ancre_ux_un_choix_dans_une_formule_la_prend_entiere() {
+    let texte = "avant\n$$\\frac{a+b}{c}$$\napres";
+    let app = GlucoseApp::new();
+    let mise_en_page = crate::renderer::card::card_text_layout(
+        &app.renderer.typography,
+        &app.renderer.math,
+        texte,
+        400.0,
+        crate::renderer::richtext::TextMode::Rendered,
+    );
+    let debut = texte.find("$$").expect("la formule");
+    let fin = texte.rfind("$$").expect("sa fin") + 2;
+    assert_eq!(
+        super::etendre_aux_formules(&mise_en_page, (debut + 4, debut + 4)),
+        (debut, fin),
+        "un clic dans la formule"
+    );
+    assert_eq!(
+        super::etendre_aux_formules(&mise_en_page, (1, debut + 3)),
+        (1, fin),
+        "un glisser qui y entre"
+    );
+    assert_eq!(
+        super::etendre_aux_formules(&mise_en_page, (0, 5)),
+        (0, 5),
+        "ce qui ne la touche pas reste tel quel"
+    );
+}
+
+/// **Par le vrai clic, une formule se choisit entière** : cliquer au milieu d'une fraction
+/// dessinée désigne toute la formule, pas un morceau de sa source.
+#[test]
+fn test_ancre_ux_un_clic_sur_une_formule_la_choisit_entiere() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    let texte = "avant\n$$\\frac{a+b}{c}$$\napres".to_string();
+    let copie = texte.clone();
+    app.store.update_annotation(&board, "source", |a| {
+        if let Annotation::Text { text, .. } = a {
+            *text = copie;
+        }
+    });
+    ouvrir(&mut app);
+    let (fenetre, _) = app.fenetre_d_ancrage().expect("ouverte");
+    let zone = fenetre.zone;
+    let debut = texte.find("$$").expect("la formule");
+    let fin = texte.rfind("$$").expect("sa fin") + 2;
+    let r = crate::renderer::passages::rectangles(
+        (&app.renderer.typography, &app.renderer.math),
+        &texte,
+        zone.largeur_monde,
+        &[(debut, fin)],
+    )[0];
+    let centre = (
+        f64::from(zone.rect.0 + (r.0 + r.2 / 2.0) * zone.s),
+        f64::from(zone.rect.1 + (r.1 + r.3 / 2.0) * zone.s),
+    );
+    clic(&mut app, centre);
+    let choisi: Vec<(i64, i64)> = app
+        .ui
+        .ancrage
+        .as_ref()
+        .expect("ouverte")
+        .ancres()
+        .iter()
+        .map(|a| (a.start, a.end))
+        .collect();
+    assert_eq!(choisi, [(debut as i64, fin as i64)]);
 }
