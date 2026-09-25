@@ -204,7 +204,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Mise à jour le 25/09** (BOARDS-1) : le contenu d'un dossier n'est plus un onglet —
 /// « Dossier témoin » quitte la barre, qui ne montre plus que l'onglet racine, comme Glucose
 /// Tauri. Seule cette bande change (143-272 × 55-67), regardée avant et après.
-const EMPREINTE_TEMOIN: &str = "5d01699ffd208fec";
+/// **Mise à jour le 25/09** (ARC-1) : un seul traceur de rectangle arrondi dans toute
+/// l'application, en arcs de cercle et non plus en paraboles. 4 040 pixels changent, tous aux
+/// coins des cartes, des pastilles et des boutons (199-1625 × 15-889) ; regardés au coin agrandi.
+const EMPREINTE_TEMOIN: &str = "08ecdcc97870f008";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -251,7 +254,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Mise à jour le 25/09** (BOARDS-1) : le contenu d'un dossier n'est plus un onglet —
 /// « Dossier témoin » quitte la barre, qui ne montre plus que l'onglet racine, comme Glucose
 /// Tauri. Seule cette bande change (143-272 × 55-67), regardée avant et après.
-const EMPREINTE_TEMOIN_SELECTION: &str = "b2a5fcb728cf10d6";
+/// **Mise à jour le 25/09** (ARC-1) : un seul traceur de rectangle arrondi dans toute
+/// l'application, en arcs de cercle et non plus en paraboles. 4 204 pixels changent, tous aux
+/// coins des cartes, des pastilles et des boutons (199-1625 × 15-889) ; regardés au coin agrandi.
+const EMPREINTE_TEMOIN_SELECTION: &str = "598513f4c6789432";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -288,7 +294,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Mise à jour le 25/09** (BOARDS-1) : le contenu d'un dossier n'est plus un onglet —
 /// « Dossier témoin » quitte la barre, qui ne montre plus que l'onglet racine, comme Glucose
 /// Tauri. Seule cette bande change (143-272 × 55-67), regardée avant et après.
-const EMPREINTE_TEMOIN_MENU: &str = "d1dc60065f7e2417";
+/// **Mise à jour le 25/09** (ARC-1) : un seul traceur de rectangle arrondi dans toute
+/// l'application, en arcs de cercle et non plus en paraboles. 4 272 pixels changent, tous aux
+/// coins des cartes, des pastilles et des boutons (199-1625 × 15-889) ; regardés au coin agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "ab23c79000c95e7c";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

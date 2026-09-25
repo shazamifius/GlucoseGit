@@ -1,6 +1,7 @@
 //! Tracé vectoriel ultra-précis des icônes de Glucose via tiny-skia.
 //! Reproduit fidèlement les tracés SVG de Toolbar.tsx avec anti-aliasing et subpixel rendering.
 
+use crate::renderer::push_rounded_rect;
 use tiny_skia::{
     Color, LineCap, LineJoin, Paint, PathBuilder, PixmapMut, Stroke, StrokeDash, Transform,
 };
@@ -33,21 +34,6 @@ pub enum IconType {
     Unlock,
     /// Une corbeille — l'action « supprimer ».
     Trash,
-}
-
-/// Dessine un rectangle à coins arrondis dans un PathBuilder
-fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
-    let r = r.min(w / 2.0).min(h / 2.0);
-    pb.move_to(x + r, y);
-    pb.line_to(x + w - r, y);
-    pb.quad_to(x + w, y, x + w, y + r);
-    pb.line_to(x + w, y + h - r);
-    pb.quad_to(x + w, y + h, x + w - r, y + h);
-    pb.line_to(x + r, y + h);
-    pb.quad_to(x, y + h, x, y + h - r);
-    pb.line_to(x, y + r);
-    pb.quad_to(x, y, x + r, y);
-    pb.close();
 }
 
 #[allow(dead_code)]

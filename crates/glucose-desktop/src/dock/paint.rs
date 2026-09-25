@@ -10,24 +10,10 @@
 
 use super::WidgetRect;
 use crate::params::{Pointer, ScaledRect};
+use crate::renderer::push_rounded_rect;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
-
-/// Ajoute un rectangle à coins arrondis dans un `PathBuilder`.
-pub fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
-    let r = r.min(w / 2.0).min(h / 2.0);
-    pb.move_to(x + r, y);
-    pb.line_to(x + w - r, y);
-    pb.quad_to(x + w, y, x + w, y + r);
-    pb.line_to(x + w, y + h - r);
-    pb.quad_to(x + w, y + h, x + w - r, y + h);
-    pb.line_to(x + r, y + h);
-    pb.quad_to(x, y + h, x, y + h - r);
-    pb.line_to(x, y + r);
-    pb.quad_to(x, y, x + r, y);
-    pb.close();
-}
 
 /// L'aspect d'un bouton : ce qui, hors survol, décide de sa couleur.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

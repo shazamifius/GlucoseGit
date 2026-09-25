@@ -19,6 +19,7 @@
 
 pub mod apercu;
 pub mod arrivage;
+mod arrondi;
 pub mod arrow;
 pub mod arrow_label;
 pub mod atelier;
@@ -51,12 +52,13 @@ use crate::params::{Pointer, SceneOverlay, ViewPass};
 use crate::theme::Theme;
 use crate::typography::Typography;
 use crate::ui::{render_ui, UiState};
+pub(crate) use arrondi::push_rounded_rect;
 use domain::DomainTints;
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
 use glucose_core::text::Selection;
 use hue::SymbioticHueCache;
-use tiny_skia::{PathBuilder, PixmapMut};
+use tiny_skia::PixmapMut;
 
 #[derive(Debug, Clone)]
 pub struct TextEditSession {
@@ -129,25 +131,6 @@ pub(crate) fn parse_hex_color(
     default_b: u8,
 ) -> (u8, u8, u8) {
     parse_hex_rgb(hex).unwrap_or((default_r, default_g, default_b))
-}
-
-/// Ajoute un rectangle à coins arrondis dans un PathBuilder.
-///
-/// Le rayon est ramené à la moitié du plus petit côté : c'est une contrainte **géométrique**
-/// — un coin ne peut pas être plus rond que la forme — et non une borne sur une valeur
-/// dérivée du zoom, puisque rayon et côtés subissent la même mise à l'échelle.
-pub(crate) fn push_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
-    let r = r.min(w / 2.0).min(h / 2.0);
-    pb.move_to(x + r, y);
-    pb.line_to(x + w - r, y);
-    pb.quad_to(x + w, y, x + w, y + r);
-    pb.line_to(x + w, y + h - r);
-    pb.quad_to(x + w, y + h, x + w - r, y + h);
-    pb.line_to(x + r, y + h);
-    pb.quad_to(x, y + h, x, y + h - r);
-    pb.line_to(x, y + r);
-    pb.quad_to(x, y, x + r, y);
-    pb.close();
 }
 
 /// Ce avec quoi une passe peint, et qui ne change pas de la frame : la police, la table des

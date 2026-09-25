@@ -538,26 +538,25 @@ fn ecart_max(a: &tiny_skia::Pixmap, b: &tiny_skia::Pixmap) -> (u8, usize, String
     (pire, compte, ou)
 }
 
-/// Les deux images ne diffèrent **au plus** que d'un pas de quantification (DOCK-CACHE-1).
+/// Les deux images sont **les mêmes, au bit près** (DOCK-CACHE-1).
 ///
-/// # Pourquoi un pas, et pas zéro
+/// # Pourquoi zéro, et plus un pas
 ///
-/// L'égalité stricte serait fausse à annoncer, et la mesure le dit : composer l'ombre
-/// semi-transparente d'un panneau sur un tampon, puis ce tampon sur le fond, n'arrondit pas
-/// comme une composition unique. `src-over` est associatif sur les couleurs exactes, il ne
-/// l'est pas sur huit bits entiers — l'erreur de la première composition est arrondie avant
-/// que la seconde ne la lise.
+/// Le rendu sans cache peignait les panneaux directement sur l'image, et le cache les pose
+/// depuis leur tampon. `src-over` est associatif sur les couleurs exactes, pas sur huit bits :
+/// chaque couche semi-transparente s'arrondit avant que la suivante ne la lise, et le tampon
+/// ajoute une composition. L'écart admis était « une unité, par construction » — ce n'était
+/// pas une borne : il vaut une unité **par couche transparente superposée**, et deux pixels
+/// sont passés à deux quand les coins sont devenus des arcs (ARC-1), là où deux ombres se
+/// croisent, et là où l'ombre, le fond et le trait d'un panneau se superposent au coin.
 ///
-/// L'écart est donc **borné par construction à une unité sur 255**, et seulement là où
-/// quelque chose est semi-transparent : l'ombre, et le liseré d'anti-crénelage. Partout où le
-/// panneau est opaque, `src-over` rend exactement la source, donc l'égalité est stricte.
-///
-/// Ce test vérifie cette borne plutôt que de la supposer. Si une composition venait un jour à
-/// s'empiler une fois de plus, l'écart passerait à deux et le test le dirait.
+/// Le rendu sans cache passe maintenant par un cache neuf, le même chemin : les arrondis sont
+/// les mêmes, et l'égalité est stricte. Plus rien n'est toléré, donc un panneau périmé d'un
+/// seul niveau se voit.
 fn memes_pixels(a: &tiny_skia::Pixmap, b: &tiny_skia::Pixmap, quoi: &str) {
     let (pire, compte, ou) = ecart_max(a, b);
     assert!(
-        pire <= 1,
+        pire == 0,
         "{quoi} : écart de {pire}/255 sur {compte} pixel(s), au pire en {ou}"
     );
 }
@@ -605,34 +604,40 @@ fn rendu_dock_sur(
     pixmap
 }
 
-/// **DOCK-CACHE-1** — le cache rend **exactement** la même image que le rendu direct.
+/// **DOCK-CACHE-1** — ce que le cache **réutilise** est exactement ce qu'un rendu neuf peint.
 ///
 /// C'est l'invariant qui autorise tout le reste. Un cache qui accélère en changeant d'un
 /// cheveu ce qui est affiché n'est pas une optimisation : c'est une régression visuelle que
-/// personne ne verrait avant de comparer deux captures.
-///
-/// L'égalité est exacte parce que la translation vers le tampon est **entière** : la fraction
-/// sous-pixel reste dans les coordonnées, donc l'anti-crénelage tombe sur la même couverture.
+/// personne ne verrait avant de comparer deux captures. La seconde image est prise dans les
+/// tampons gardés — c'est elle qu'on compare, pas la première, qui se dessine.
 #[test]
 fn test_dock_cache_1_the_cached_dock_is_the_same_image_as_the_direct_one() {
     let dock = dock_complet();
     let dehors = Pointer { x: -1.0, y: -1.0 };
-    let direct = rendu_dock(&dock, None, dehors);
     let cache = DockCache::new();
-    let par_cache = rendu_dock(&dock, Some(&cache), dehors);
-    memes_pixels(&direct, &par_cache, "le cache diverge du rendu direct");
+    rendu_dock(&dock, Some(&cache), dehors);
+    let reutilise = rendu_dock(&dock, Some(&cache), dehors);
+    assert_eq!(
+        cache.rendus(),
+        6,
+        "la seconde image est prise dans le cache"
+    );
+    let neuf = rendu_dock(&dock, None, dehors);
+    memes_pixels(&neuf, &reutilise, "le cache diverge du rendu neuf");
 }
 
-/// L'égalité tient aussi quand le pointeur survole un panneau — le survol passe par le cache.
+/// L'égalité tient quand le pointeur **entre** dans un panneau : le cache, rempli pointeur
+/// dehors, doit refaire ce que le survol change.
 #[test]
 fn test_the_cached_dock_is_identical_while_hovering() {
     let dock = dock_complet();
     // Dans le premier panneau du bas, là où des boutons attendent un survol.
     let dessus = Pointer { x: 60.0, y: 700.0 };
-    let direct = rendu_dock(&dock, None, dessus);
     let cache = DockCache::new();
+    rendu_dock(&dock, Some(&cache), Pointer { x: -1.0, y: -1.0 });
     let par_cache = rendu_dock(&dock, Some(&cache), dessus);
-    memes_pixels(&direct, &par_cache, "le survol diverge");
+    let neuf = rendu_dock(&dock, None, dessus);
+    memes_pixels(&neuf, &par_cache, "le survol diverge");
 }
 
 /// Sans rien changer, **rien n'est redessiné** après la première image.

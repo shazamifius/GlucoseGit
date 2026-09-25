@@ -17,6 +17,16 @@
 //! deux défauts réels que personne ne cherchait — un second pinceau qui recopiait le premier
 //! (soixante-treize lignes), et une phase sous-pixel qui basculait sur une soustraction en
 //! virgule flottante (`Typography::draw_text_offset`).
+//!
+//! # Un seul chemin (ARC-1)
+//!
+//! Le rendu sans cache peignait les panneaux directement sur l'image ; il passe maintenant par
+//! un cache neuf, qui ne garde rien. Peints de deux façons, les panneaux s'arrondissaient
+//! différemment aux coins où des couches transparentes se superposent, et les épreuves
+//! toléraient un écart qui aurait caché un panneau périmé. `bench_chrome` compare donc la
+//! réutilisation à ce que coûte vraiment un panneau qui change : 7,18 ms contre 1,24 pour les
+//! six (2 560 × 1 600). Ce n'est pas le cache qui a gagné — c'est la référence qui paie
+//! maintenant son tampon.
 
 use super::paint::Brush;
 use super::render::draw_panel;

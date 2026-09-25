@@ -168,7 +168,9 @@ fn main() {
             .filter(|_| pinceau.rendu(&dock, &store, dehors).data() == reference.data())
             .count();
 
-        // Le chronomètre, dans un tampon réutilisé : c'est le dock qu'on mesure.
+        // Le chronomètre, dans un tampon réutilisé : c'est le dock qu'on mesure. Sans cache,
+        // chaque panneau se refait dans un tampon neuf et s'y pose (ARC-1 : un seul chemin) —
+        // ce que coûte, à l'écran, un panneau qui change à chaque image.
         let mut temps = Vec::with_capacity(IMAGES);
         let mut sortie = Pixmap::new(ECRAN.0, ECRAN.1).expect("un tampon");
         for _ in 0..IMAGES {

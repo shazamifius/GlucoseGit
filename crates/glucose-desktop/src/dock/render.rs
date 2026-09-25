@@ -48,14 +48,14 @@ pub fn render_docks(
         pass.screen.header_h,
         s,
     );
+    // Sans cache, un cache neuf qui ne garde rien : **le même chemin** — un tampon par
+    // panneau, posé de la même façon. Peint directement sur l'image, un panneau s'arrondit
+    // autrement (une composition de moins par couche transparente), et l'écart, deux niveaux
+    // aux coins où des ombres se croisent, cachait ce qu'il fallait voir : un panneau périmé.
+    let neuf = cache::DockCache::new();
+    let cache = pass.cache.unwrap_or(&neuf);
     for panel in layouts {
-        match pass.cache {
-            Some(cache) => cache::draw_panel_cached(pixmap, cache, dock, store, pass, &panel, s),
-            None => {
-                let brush = Brush::nouveau((pass.typo, pass.theme), s, pass.pointer, (0.0, 0.0));
-                draw_panel(pixmap, &brush, dock, store, &panel, s);
-            }
-        }
+        cache::draw_panel_cached(pixmap, cache, dock, store, pass, &panel, s);
     }
 }
 
