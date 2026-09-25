@@ -47,6 +47,7 @@ mod navigation;
 mod order;
 mod resize;
 mod selection;
+mod textes;
 mod undo;
 
 pub use annotations::Reglage;

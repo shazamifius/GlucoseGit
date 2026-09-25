@@ -77,26 +77,11 @@ impl GlucoseApp {
             // Une carte de texte vidée disparaît — une suppression comme une autre.
             self.store.remove_annotations(&board, &[&session.ann_id]);
         } else {
+            // Le noyau écrit le texte **et** fait suivre les ancres des flèches qui y désignent
+            // un passage, dans ce même geste (FLECHE-4). Une membrane et une flèche vidées
+            // perdent leur texte, qui est optionnel ; une carte garde sa chaîne.
             self.store
-                .update_annotation(&board, &session.ann_id, |ann| match ann {
-                    Annotation::Text { text, .. } | Annotation::Sticky { text, .. } => {
-                        *text = session.buffer.clone();
-                    }
-                    // Une membrane et une flèche portent un texte **optionnel** : le vider,
-                    // c'est le retirer, pas y ranger une chaîne vide qui se dessinerait en
-                    // pastille creuse.
-                    //
-                    // Les quatre variantes sont couvertes, et il n'y a donc plus de bras
-                    // fourre-tout : une annotation d'un nouveau genre fera échouer la
-                    // compilation ici, au lieu de perdre silencieusement ce qu'on y écrit.
-                    Annotation::Membrane { text, .. } | Annotation::Arrow { text, .. } => {
-                        *text = if is_empty {
-                            None
-                        } else {
-                            Some(session.buffer.clone())
-                        };
-                    }
-                });
+                .ecrire_le_texte(&board, &session.ann_id, &session.buffer);
             self.fit_text_card_height(&session.ann_id);
         }
         self.store.end_live_edit();

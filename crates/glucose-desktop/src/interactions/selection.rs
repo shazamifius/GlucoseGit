@@ -80,6 +80,13 @@ impl GlucoseApp {
             return Vec::new();
         };
         let vp = board.viewport;
+        // Une flèche ancrée à un passage se vise là où le dessin la pose (FLECHE-4).
+        let noeuds = crate::renderer::arrow::NoeudsDuRendu {
+            board,
+            index: Some(&self.renderer.spatial_hash),
+            typographie: &self.renderer.typography,
+            math: &self.renderer.math,
+        };
         let input = PickInput {
             wx,
             wy,
@@ -91,6 +98,7 @@ impl GlucoseApp {
             selected_annotation_ids: &self.store.selected_annotation_ids,
             selected_folder_id: self.store.selected_folder_id.as_deref(),
             dom_hint: None,
+            noeuds: Some(&noeuds),
         };
         let mut candidats = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
         // En focus, ce qu'on ne voit pas ne s'attrape pas (MEMB-2).

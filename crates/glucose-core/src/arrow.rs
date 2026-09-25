@@ -48,6 +48,53 @@ pub mod trace;
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
 use crate::quadtree::{noeud_au_rang, SpatialHash};
+use crate::types::{TextAnchor, TextSelection};
+
+/// **Ce qu'une flèche demande à ce qu'elle relie** (FLECHE-4) : la boîte d'un nœud — et, si
+/// l'on sait mesurer son texte, la hauteur d'un passage dans ce nœud.
+///
+/// Une flèche ancrée à un passage précis d'une carte part de ce passage, à sa hauteur, et non
+/// du milieu de la carte (Tauri : `findTextSelPosition`). Mesurer un texte demande sa mise en
+/// page, qui vit avec les polices, hors du noyau : le noyau la **demande**, par ce trait, et
+/// le dessin comme le clic passent par le même — un clic ne vise jamais une flèche ailleurs
+/// que là où elle est dessinée (loi L4).
+///
+/// Une simple fonction `id → boîte` en est un : elle ne sait mesurer aucun texte, et une flèche
+/// ancrée à un passage part alors du milieu, comme avant.
+pub trait Noeuds {
+    /// La boîte du nœud, s'il existe.
+    fn boite(&self, id: &str) -> Option<Rect>;
+
+    /// La hauteur, depuis le haut du nœud, du passage que ces ancres désignent — `None` si on
+    /// ne sait pas la mesurer, ou si le passage a disparu.
+    fn hauteur_du_passage(&self, _id: &str, _ancres: &[TextAnchor]) -> Option<f64> {
+        None
+    }
+}
+
+impl<F: Fn(&str) -> Option<Rect>> Noeuds for F {
+    fn boite(&self, id: &str) -> Option<Rect> {
+        self(id)
+    }
+}
+
+/// Ce que le débogage montre d'un interlocuteur : son rôle, pas son contenu — qui peut être
+/// tout un tableau.
+impl std::fmt::Debug for dyn Noeuds + '_ {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Noeuds")
+    }
+}
+
+impl Noeuds for &dyn Noeuds {
+    fn boite(&self, id: &str) -> Option<Rect> {
+        (**self).boite(id)
+    }
+
+    fn hauteur_du_passage(&self, id: &str, ancres: &[TextAnchor]) -> Option<f64> {
+        (**self).hauteur_du_passage(id, ancres)
+    }
+}
 use crate::types::Annotation;
 use crate::types::{Board, CanvasFolder};
 
@@ -86,18 +133,26 @@ pub fn path(arrow: &Annotation) -> Option<Vec<(f64, f64)>> {
 /// Une flèche qui vise un nœud ne vise pas son centre : elle s'arrête sur son **bord**, du
 /// côté d'où elle vient. C'est ce que [`crate::arrow_anchor`] sait faire depuis toujours —
 /// cent soixante-dix-sept lignes écrites, testées, et que personne n'appelait.
+///
+/// Ancrée à un passage que le nœud sait mesurer, elle vise ce passage : même boîte, mais un
+/// point de visée à sa hauteur — elle sort donc du bord qui fait face, à cette hauteur.
 fn anchor_of(
-    resolve: impl Fn(&str) -> Option<Rect>,
-    id: Option<&String>,
+    noeuds: &impl Noeuds,
+    (id, passage): (Option<&String>, Option<&TextSelection>),
     fallback: (f64, f64),
 ) -> ArrowAnchor {
-    let Some(rect) = id.and_then(|id| resolve(id)) else {
+    let Some((id, rect)) = id.and_then(|id| Some((id, noeuds.boite(id)?))) else {
         return ArrowAnchor::point(fallback.0, fallback.1);
     };
     let centre = rect.center();
+    let ancres = crate::text_anchors::normalize_text_sel(passage);
+    let y = (!ancres.is_empty())
+        .then(|| noeuds.hauteur_du_passage(id, &ancres))
+        .flatten()
+        .map_or(centre.y, |h| rect.top + h);
     ArrowAnchor::with_box(
         centre.x,
-        centre.y,
+        y,
         rect.left,
         rect.right(),
         rect.top,
@@ -140,10 +195,7 @@ pub fn node_rect_indexe(board: &Board, index: &SpatialHash, id: &str) -> Option<
 /// des nœuds visés. Le brancher **ici** le propage partout d'un coup : le test de clic, la
 /// sélection élastique et le dessin lisent tous cette fonction, donc aucun d'eux ne peut
 /// voir une flèche ailleurs que là où elle est (ARROW-1).
-pub fn path_with(
-    arrow: &Annotation,
-    resolve: impl Fn(&str) -> Option<Rect>,
-) -> Option<Vec<(f64, f64)>> {
+pub fn path_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<(f64, f64)>> {
     let Annotation::Arrow {
         x,
         y,
@@ -152,6 +204,8 @@ pub fn path_with(
         waypoints,
         source_id,
         target_id,
+        source_text_sel,
+        target_text_sel,
         ..
     } = arrow
     else {
@@ -160,8 +214,16 @@ pub fn path_with(
     if source_id.is_none() && target_id.is_none() {
         return path(arrow);
     }
-    let depart = anchor_of(&resolve, source_id.as_ref(), (*x, *y));
-    let arrivee = anchor_of(&resolve, target_id.as_ref(), (*x2, *y2));
+    let depart = anchor_of(
+        &noeuds,
+        (source_id.as_ref(), source_text_sel.as_ref()),
+        (*x, *y),
+    );
+    let arrivee = anchor_of(
+        &noeuds,
+        (target_id.as_ref(), target_text_sel.as_ref()),
+        (*x2, *y2),
+    );
     // `Point2D` est le point du **document**, `Point` celui de la géométrie : deux types
     // pour une même notion, dont la fusion dépasse ce chantier. La conversion est ici, à
     // l'unique frontière où les deux se rencontrent.
@@ -192,11 +254,11 @@ pub fn distance_to(arrow: &Annotation, point: (f64, f64)) -> Option<f64> {
 /// par une ligne brisée pour la mesurer ; un segment se mesure exactement.
 pub fn distance_to_with(
     arrow: &Annotation,
-    resolve: impl Fn(&str) -> Option<Rect>,
+    noeuds: impl Noeuds,
     point: (f64, f64),
     tolerance: f64,
 ) -> Option<f64> {
-    let brisee = trace::aplatir(&morceaux_with(arrow, resolve)?, tolerance);
+    let brisee = trace::aplatir(&morceaux_with(arrow, noeuds)?, tolerance);
     distance_along(&brisee, point)
 }
 
@@ -207,19 +269,16 @@ pub fn est_courbe(arrow: &Annotation) -> bool {
 
 /// **Les morceaux qu'une flèche ancrée dessine** — la description que le dessin, le clic,
 /// les poignées et l'étiquette lisent tous (FLECHE-1, loi L4).
-pub fn morceaux_with(
-    arrow: &Annotation,
-    resolve: impl Fn(&str) -> Option<Rect>,
-) -> Option<Vec<trace::Morceau>> {
+pub fn morceaux_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<trace::Morceau>> {
     Some(trace::morceaux(
-        &path_with(arrow, resolve)?,
+        &path_with(arrow, noeuds)?,
         est_courbe(arrow),
     ))
 }
 
 /// Les mêmes morceaux, pour une flèche de ce tableau.
 pub fn morceaux_in(arrow: &Annotation, board: &Board) -> Option<Vec<trace::Morceau>> {
-    morceaux_with(arrow, |id| node_rect(board, id))
+    morceaux_with(arrow, |id: &str| node_rect(board, id))
 }
 
 /// La plus courte distance d'un point à une polyligne.
@@ -238,7 +297,7 @@ fn distance_along(points: &[(f64, f64)], point: (f64, f64)) -> Option<f64> {
 /// que la main croit viser. Le même arbitrage que pour les nœuds empilés.
 pub fn at(
     annotations: &[Annotation],
-    resolve: impl Fn(&str) -> Option<Rect> + Copy,
+    noeuds: impl Noeuds + Copy,
     point: (f64, f64),
     scale: f64,
 ) -> Option<(&Annotation, f64)> {
@@ -250,7 +309,7 @@ pub fn at(
     let tolerance = 0.25 / scale.max(1e-6);
     annotations
         .iter()
-        .filter_map(|a| distance_to_with(a, resolve, point, tolerance).map(|d| (a, d)))
+        .filter_map(|a| distance_to_with(a, noeuds, point, tolerance).map(|d| (a, d)))
         .filter(|(_, d)| *d <= portee)
         .reduce(|meilleur, courant| {
             if courant.1 <= meilleur.1 {
@@ -381,8 +440,8 @@ pub struct ArrowHandle {
 /// Les milieux d'abord, les coudes ensuite : un coude se dessine **par-dessus** le milieu
 /// du tronçon qu'il vient de couper, et c'est aussi l'ordre dans lequel on veut les
 /// attraper — voir [`handle_at`].
-pub fn handles(arrow: &Annotation, resolve: impl Fn(&str) -> Option<Rect>) -> Vec<ArrowHandle> {
-    let Some(points) = path_with(arrow, resolve) else {
+pub fn handles(arrow: &Annotation, noeuds: impl Noeuds) -> Vec<ArrowHandle> {
+    let Some(points) = path_with(arrow, noeuds) else {
         return Vec::new();
     };
     // Le milieu d'un tronçon est pris **sur le tracé** : sur une flèche courbe, le milieu de
@@ -414,12 +473,12 @@ pub fn handles(arrow: &Annotation, resolve: impl Fn(&str) -> Option<Rect>) -> Ve
 /// tronçon insérerait un second coude par-dessus le premier.
 pub fn handle_at(
     arrow: &Annotation,
-    resolve: impl Fn(&str) -> Option<Rect>,
+    noeuds: impl Noeuds,
     point: (f64, f64),
     scale: f64,
 ) -> Option<ArrowHandle> {
     let portee = HANDLE_GRAB_PX / scale.max(1e-6);
-    handles(arrow, resolve)
+    handles(arrow, noeuds)
         .into_iter()
         .map(|h| {
             let distance = (h.at.0 - point.0).hypot(h.at.1 - point.1);
@@ -444,11 +503,8 @@ pub fn handle_at(
 /// (`ArrowSvgLayer.tsx`, `midSeg = Math.floor(n / 2)`).
 ///
 /// Sur une flèche courbe, c'est le milieu du morceau médian **sur la courbe** (FLECHE-1).
-pub fn label_anchor(
-    arrow: &Annotation,
-    resolve: impl Fn(&str) -> Option<Rect>,
-) -> Option<(f64, f64)> {
-    milieu_du_trace(&morceaux_with(arrow, resolve)?)
+pub fn label_anchor(arrow: &Annotation, noeuds: impl Noeuds) -> Option<(f64, f64)> {
+    milieu_du_trace(&morceaux_with(arrow, noeuds)?)
 }
 
 /// Le point où une flèche porte ce qu'elle dit, lu sur ses morceaux déjà calculés.
@@ -461,12 +517,12 @@ pub fn milieu_du_trace(morceaux: &[trace::Morceau]) -> Option<(f64, f64)> {
 
 /// Le même point, pour une flèche de ce tableau.
 pub fn label_anchor_in(arrow: &Annotation, board: &Board) -> Option<(f64, f64)> {
-    label_anchor(arrow, |id| node_rect(board, id))
+    label_anchor(arrow, |id: &str| node_rect(board, id))
 }
 
 /// Le chemin d'une flèche ancrée dans son tableau — le raccourci courant de [`path_with`].
 pub fn path_in(arrow: &Annotation, board: &Board) -> Option<Vec<(f64, f64)>> {
-    path_with(arrow, |id| node_rect(board, id))
+    path_with(arrow, |id: &str| node_rect(board, id))
 }
 
 #[cfg(test)]

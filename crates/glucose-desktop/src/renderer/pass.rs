@@ -256,7 +256,13 @@ fn draw_arrow_node(
     else {
         return;
     };
-    let Some(fleche) = Fleche::de(hue_cache, (ann, board, pass), selected) else {
+    let noeuds = super::arrow::NoeudsDuRendu {
+        board,
+        index: Some(pass.index),
+        typographie: ctx.typography,
+        math: ctx.math,
+    };
+    let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), selected) else {
         return;
     };
     if au_processeur {
@@ -265,9 +271,7 @@ fn draw_arrow_node(
     // Les poignées de coude n'apparaissent que sur une flèche sélectionnée (ARROW-3) : une
     // affordance appartient à ce qu'on manipule.
     if selected {
-        let poignees = arrow::handles(ann, |noeud| {
-            arrow::node_rect_indexe(board, pass.index, noeud)
-        });
+        let poignees = arrow::handles(ann, noeuds);
         super::handles::draw_arrow_handles(pixmap, ctx.theme, &poignees, &ctx.vp);
     }
     let Some(milieu) = arrow::milieu_du_trace(&fleche.morceaux) else {

@@ -511,7 +511,6 @@ const MODULES_SANS_APPELANT_ADMIS: &[&str] = &[
     "curtain_panel",
     "membrane_stretch",
     "mirror_graph",
-    "text_anchors",
     "timeline",
     // Outillage de mesure : les documents synthétiques des bancs et de la capture témoin. Il
     // vit dans le noyau pour rester sans dépendance et se tester sans écran ; il n'a pas

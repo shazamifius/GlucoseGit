@@ -34,7 +34,7 @@ fn test_arrow_3_a_straight_arrow_offers_one_midpoint_and_no_bend() {
     let app = app_avec_fleche();
     let board = app.store.active_board().expect("un board");
     let fleche = &board.annotations[0];
-    let poignees = arrow::handles(fleche, |id| arrow::node_rect(board, id));
+    let poignees = arrow::handles(fleche, |id: &str| arrow::node_rect(board, id));
 
     assert_eq!(poignees.len(), 1);
     assert_eq!(poignees[0].kind, HandleKind::Midpoint(0));
@@ -88,7 +88,7 @@ fn test_arrow_3_a_bend_splits_the_segment_into_two_offers() {
 
     let board = app.store.active_board().expect("un board");
     let fleche = &board.annotations[0];
-    let poignees = arrow::handles(fleche, |id| arrow::node_rect(board, id));
+    let poignees = arrow::handles(fleche, |id: &str| arrow::node_rect(board, id));
     let milieux = poignees
         .iter()
         .filter(|h| matches!(h.kind, HandleKind::Midpoint(_)))

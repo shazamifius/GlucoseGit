@@ -25,10 +25,12 @@
 //! ne visite que les pixels que la flèche peut toucher.
 
 use super::hue::SymbioticHueCache;
+use super::math::MathRenderer;
 use super::pass::Pass;
 use super::scale::WorldScale;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
+use crate::typography::Typography;
 use glucose_core::arrow::aspect::{self, Rgb, Teintes};
 use glucose_core::arrow::champ::{self, Champ, Disque};
 use glucose_core::arrow::trace::{self, Morceau};
@@ -55,9 +57,11 @@ impl Fleche {
     /// l'index en temps constant, et les teintes de ses deux bouts.
     pub(super) fn de(
         hue_cache: &mut SymbioticHueCache,
-        (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
+        ann: &Annotation,
+        (pass, noeuds): (ViewPass<'_>, NoeudsDuRendu<'_>),
         selectionnee: bool,
     ) -> Option<Self> {
+        let board = noeuds.board;
         let Annotation::Arrow {
             id,
             source_id,
@@ -69,9 +73,7 @@ impl Fleche {
         else {
             return None;
         };
-        let morceaux = noyau::morceaux_with(ann, |noeud| {
-            noyau::node_rect_indexe(board, pass.index, noeud)
-        })?;
+        let morceaux = noyau::morceaux_with(ann, noeuds)?;
         let bouts = (morceaux.first()?.depart(), morceaux.last()?.arrivee());
         let teintes = aspect::teintes(
             teinte_d_un_bout(hue_cache, (board, pass), id, source_id.as_deref(), bouts.0),
@@ -205,12 +207,18 @@ pub(super) fn draw_arrow(ctx: &Pass, pixmap: &mut PixmapMut, fleche: &Fleche) ->
 /// Leurs étiquettes, badges et poignées y restent.
 pub(super) fn fleches_a_poser(
     hue_cache: &mut SymbioticHueCache,
-    store: &Store,
-    pass: ViewPass<'_>,
+    (store, pass): (&Store, ViewPass<'_>),
+    (typographie, math): (&Typography, &MathRenderer),
     ecran: (f32, f32),
 ) -> Vec<Champ> {
     let Some(board) = store.active_board() else {
         return Vec::new();
+    };
+    let noeuds = NoeudsDuRendu {
+        board,
+        index: Some(pass.index),
+        typographie,
+        math,
     };
     let echelle = WorldScale::new(pass.vp.scale);
     Visibles::nouvelles(pass.visibles, board)
@@ -218,10 +226,18 @@ pub(super) fn fleches_a_poser(
         .filter(|a| matches!(a, Annotation::Arrow { .. }))
         .filter_map(|ann| {
             let selectionnee = store.selected_annotation_ids.iter().any(|s| s == ann.id());
-            Fleche::de(hue_cache, (ann, board, pass), selectionnee)?.champ(&pass.vp, echelle, ecran)
+            Fleche::de(hue_cache, ann, (pass, noeuds), selectionnee)?
+                .champ(&pass.vp, echelle, ecran)
         })
         .collect()
 }
 
+mod noeuds;
+pub(crate) use noeuds::NoeudsDuRendu;
+
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "arrow/ancres_tests.rs"]
+mod ancres_tests;

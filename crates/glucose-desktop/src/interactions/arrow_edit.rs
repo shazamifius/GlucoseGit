@@ -88,9 +88,15 @@ impl GlucoseApp {
     fn arrow_handle_at(&self, wx: f64, wy: f64) -> Option<(String, ArrowHandle)> {
         let board = self.store.active_board()?;
         let scale = board.viewport.scale;
+        // Les poignées se cherchent sur le tracé que le dessin pose (FLECHE-4).
+        let noeuds = crate::renderer::arrow::NoeudsDuRendu {
+            board,
+            index: Some(&self.renderer.spatial_hash),
+            typographie: &self.renderer.typography,
+            math: &self.renderer.math,
+        };
         self.store.selected_arrows().into_iter().find_map(|ann| {
-            let handle =
-                arrow::handle_at(ann, |node| arrow::node_rect(board, node), (wx, wy), scale)?;
+            let handle = arrow::handle_at(ann, noeuds, (wx, wy), scale)?;
             Some((ann.id().to_string(), handle))
         })
     }

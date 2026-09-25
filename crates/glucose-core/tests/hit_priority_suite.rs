@@ -112,6 +112,7 @@ fn test_hit_priority_rules() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
+        noeuds: None,
     };
     let cands = collect_candidates(&input);
     assert_eq!(cands[0].id, "I1");
@@ -189,6 +190,7 @@ fn test_nested_containers_smallest_wins() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
+        noeuds: None,
     };
     assert_eq!(order(&input1)[0], "membrane-body:PETITE");
 
@@ -228,6 +230,7 @@ fn test_text_is_last_among_contents() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
+        noeuds: None,
     };
 
     let cands = collect_candidates(&input);
@@ -266,6 +269,7 @@ fn test_handles_absolute_priority() {
         selected_annotation_ids: &sel_m,
         selected_folder_id: None,
         dom_hint: None,
+        noeuds: None,
     };
 
     let cands = collect_candidates(&input);
@@ -315,6 +319,7 @@ fn test_click_cycle_chain() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
+        noeuds: None,
     };
 
     let cands = collect_candidates(&input);
@@ -420,6 +425,7 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         selected_annotation_ids: &empty,
         selected_folder_id: None,
         dom_hint: None,
+        noeuds: None,
     };
     let cands = collect_candidates(&input);
 

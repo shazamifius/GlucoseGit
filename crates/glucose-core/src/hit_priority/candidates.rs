@@ -134,15 +134,20 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     // fait. Tauri le tenait du DOM — une bande invisible que le navigateur savait toucher —
     // et le portage avait gardé le champ sans le navigateur : personne ne le remplissait,
     // donc aucune flèche n'était jamais sélectionnable.
-    if let Some((fleche, dist)) = crate::arrow::at(
-        input.annotations,
-        // Une flèche ancrée se vise **là où elle se dessine**, sur le bord du nœud
-        // qu'elle touche et non sur son centre. Le résolveur donne la boîte d'un nœud ;
-        // l'arbitre n'a pas à savoir comment une ancre se calcule.
-        |id| node_rect_of(input, id),
-        (input.wx, input.wy),
-        input.scale,
-    ) {
+    // Une flèche ancrée se vise **là où elle se dessine**, sur le bord du nœud qu'elle touche
+    // et à la hauteur du passage qu'elle désigne. L'arbitre n'a pas à savoir comment une ancre
+    // se calcule : il demande à qui sait mesurer, ou, à défaut, aux boîtes du tableau.
+    let point = (input.wx, input.wy);
+    let visee = match input.noeuds {
+        Some(noeuds) => crate::arrow::at(input.annotations, noeuds, point, input.scale),
+        None => crate::arrow::at(
+            input.annotations,
+            |id: &str| node_rect_of(input, id),
+            point,
+            input.scale,
+        ),
+    };
+    if let Some((fleche, dist)) = visee {
         out.push(PickCandidate {
             owner: PickOwner::Arrow,
             id: fleche.id().to_string(),
@@ -367,6 +372,7 @@ pub fn collect_candidates_indexed(
         selected_annotation_ids: input.selected_annotation_ids,
         selected_folder_id: input.selected_folder_id,
         dom_hint: input.dom_hint,
+        noeuds: input.noeuds,
     };
 
     collect_candidates(&filtered_input)
