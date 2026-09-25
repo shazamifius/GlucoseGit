@@ -414,6 +414,16 @@ fn test_un_jalon_se_nomme_et_se_relit() {
         (nomme.libelle.as_str(), nomme.apres, nomme.nomme),
         ("Avant la refonte", 3, true)
     );
+    // Et il porte sa date à l'horloge de l'utilisateur, celle de l'instant écrit dans le
+    // fichier (registre de Tauri, 12).
+    #[cfg(windows)]
+    assert_eq!(
+        nomme.date,
+        crate::plateforme::heure::heure_locale(nomme.instant),
+        "le jalon relu porte sa date locale"
+    );
+    #[cfg(windows)]
+    assert!(nomme.date.is_some(), "Windows donne l'heure locale");
 
     let f = std::fs::File::open(&chemin).unwrap();
     let o = histoire::ouvrir(&mut std::io::BufReader::new(f)).unwrap();

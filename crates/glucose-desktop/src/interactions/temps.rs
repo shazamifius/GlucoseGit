@@ -121,6 +121,7 @@ impl GlucoseApp {
                 libelle: j.libelle.clone(),
                 nomme: j.genre == Genre::Nomme,
                 instant: j.instant,
+                date: crate::plateforme::heure::heure_locale(j.instant),
             })
             .collect();
         t.maintenant = now_millis();

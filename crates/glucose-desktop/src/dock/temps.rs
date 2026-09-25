@@ -26,6 +26,8 @@ pub struct JalonVu {
     /// Posé et nommé par l'utilisateur, ou par `Ctrl+S`.
     pub nomme: bool,
     pub instant: i64,
+    /// Sa date à l'horloge de l'utilisateur, si le système la donne (registre de Tauri, 12).
+    pub date: Option<crate::plateforme::heure::HeureLocale>,
 }
 
 /// Ce que la Time Machine montre, et ce qu'on y est en train de faire.
@@ -218,6 +220,7 @@ mod tests {
                     libelle: format!("après {apres}"),
                     nomme: true,
                     instant: 0,
+                    date: None,
                 })
                 .collect(),
             ..TempsUi::default()
@@ -306,6 +309,34 @@ mod tests {
             il_y_a(0, 5_000),
             "à l'instant",
             "une horloge qui recule ne dit pas « dans »"
+        );
+    }
+
+    /// **Un jalon dit sa date exacte** (registre de Tauri, 12), et la durée relative seulement
+    /// quand le système ne donne pas l'heure locale.
+    #[test]
+    fn test_un_jalon_dit_sa_date_exacte() {
+        let mut j = JalonVu {
+            apres: 12,
+            libelle: "avant la refonte".to_string(),
+            nomme: true,
+            instant: 1_000_000,
+            date: Some(crate::plateforme::heure::HeureLocale {
+                annee: 2026,
+                mois: 9,
+                jour: 25,
+                heure: 22,
+                minute: 19,
+            }),
+        };
+        assert_eq!(
+            paint::detail_du_jalon(&j, 1_000_000 + 3 * 3_600_000),
+            "nommé · 25/09/2026 22:19 · geste 12"
+        );
+        j.date = None;
+        assert_eq!(
+            paint::detail_du_jalon(&j, 1_000_000 + 3 * 3_600_000),
+            "nommé · il y a 3 h · geste 12"
         );
     }
 }

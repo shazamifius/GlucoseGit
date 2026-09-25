@@ -189,12 +189,7 @@ fn jalons(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &Temp
             theme.text_primary,
             Face::Bold,
         );
-        let genre = if j.nomme { "nommé" } else { "Ctrl+S" };
-        let detail = format!(
-            "{genre} · geste {} · {}",
-            j.apres,
-            il_y_a(ui.maintenant, j.instant)
-        );
+        let detail = detail_du_jalon(j, ui.maintenant);
         brush.text(
             pixmap,
             &detail,
@@ -205,6 +200,17 @@ fn jalons(pixmap: &mut PixmapMut, brush: &Brush, layout: &TempsLayout, ui: &Temp
         );
         brush.button(pixmap, *bouton, "Restaurer", 9.5, ButtonLook::default());
     }
+}
+
+/// Ce qu'une ligne de jalon dit sous son nom : qui l'a posé, **quand** — la date exacte
+/// (registre de Tauri, 12), la durée relative seulement quand le système ne donne pas l'heure
+/// locale —, et le geste qu'il désigne.
+pub(super) fn detail_du_jalon(j: &super::JalonVu, maintenant: i64) -> String {
+    let genre = if j.nomme { "nommé" } else { "Ctrl+S" };
+    let quand = j
+        .date
+        .map_or_else(|| il_y_a(maintenant, j.instant), |d| d.to_string());
+    format!("{genre} · {quand} · geste {}", j.apres)
 }
 
 /// « + Marquer un jalon », ou le champ où son nom se tape.
