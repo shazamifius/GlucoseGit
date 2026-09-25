@@ -480,9 +480,21 @@ impl GlucoseApp {
     /// son texte. C'est une normalisation de chargement, pas une action de l'utilisateur —
     /// elle n'entre pas dans la pile d'undo, que `load_project` vient de vider.
     pub fn fit_all_text_cards(&mut self) {
-        let typography = &self.renderer.typography;
-        let math = &self.renderer.math;
-        for board in &mut self.store.project.boards {
+        let (typography, math) = (&self.renderer.typography, &self.renderer.math);
+        ajuster_les_cartes(&mut self.store.project.boards, typography, math);
+    }
+}
+
+/// **Mesure chaque carte de texte de ces tableaux** : sa hauteur écrite est un plancher, la
+/// mesure l'élève si le texte en demande plus. Hors journal : c'est ce que fait un document
+/// qu'on lit, avant qu'il ne devienne un geste (BOARDS-2) ou le document courant.
+pub(crate) fn ajuster_les_cartes(
+    boards: &mut [glucose_core::types::Board],
+    typography: &crate::typography::Typography,
+    math: &crate::renderer::math::MathRenderer,
+) {
+    {
+        for board in boards {
             for ann in &mut board.annotations {
                 let Annotation::Text {
                     width,

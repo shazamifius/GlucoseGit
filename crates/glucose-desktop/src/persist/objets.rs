@@ -42,6 +42,14 @@ pub enum Source {
         offset: u64,
         longueur: u64,
     },
+    /// Une tranche d'**un autre** document : une image qu'un import vient d'apporter
+    /// (BOARDS-2), le temps que le scribe la copie dans celui-ci.
+    Ailleurs {
+        fichier: PathBuf,
+        empreinte: [u8; 32],
+        offset: u64,
+        longueur: u64,
+    },
 }
 
 /// Le registre, partagé entre le fil qui dessine, les ouvriers de l'atelier et le fil
@@ -102,6 +110,12 @@ impl Objets {
                 offset,
                 longueur,
             }) => self.lire_la_tranche(&empreinte, offset, longueur),
+            Some(Source::Ailleurs {
+                fichier,
+                empreinte,
+                offset,
+                longueur,
+            }) => lire_une_tranche(&fichier, &empreinte, offset, longueur),
             Some(Source::Fichier(chemin)) => std::fs::read(chemin).ok(),
             Some(Source::Memoire(octets)) => Some(octets.as_ref().clone()),
             None => std::fs::read(cle).ok(),
@@ -109,11 +123,21 @@ impl Objets {
     }
 
     fn lire_la_tranche(&self, empreinte: &[u8; 32], offset: u64, longueur: u64) -> Option<Vec<u8>> {
-        let chemin = self.document()?;
-        let mut f = std::fs::File::open(chemin).ok()?;
-        f.seek(SeekFrom::Start(offset)).ok()?;
-        let mut octets = vec![0u8; usize::try_from(longueur).ok()?];
-        f.read_exact(&mut octets).ok()?;
-        (sha256(&octets) == *empreinte).then_some(octets)
+        lire_une_tranche(&self.document()?, empreinte, offset, longueur)
     }
+}
+
+/// **Les octets d'une tranche de ce fichier**, s'ils ont l'empreinte annoncée — `None` sinon :
+/// une tranche abîmée se dessine introuvable, jamais avec les octets d'une autre image.
+pub fn lire_une_tranche(
+    fichier: &std::path::Path,
+    empreinte: &[u8; 32],
+    offset: u64,
+    longueur: u64,
+) -> Option<Vec<u8>> {
+    let mut f = std::fs::File::open(fichier).ok()?;
+    f.seek(SeekFrom::Start(offset)).ok()?;
+    let mut octets = vec![0u8; usize::try_from(longueur).ok()?];
+    f.read_exact(&mut octets).ok()?;
+    (sha256(&octets) == *empreinte).then_some(octets)
 }

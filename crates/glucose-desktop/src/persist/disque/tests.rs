@@ -47,7 +47,7 @@ pub(crate) fn image_suivante(app: &mut GlucoseApp) {
     }
 }
 
-fn png(d: &Path, nom: &str, teinte: u8) -> PathBuf {
+pub(crate) fn png(d: &Path, nom: &str, teinte: u8) -> PathBuf {
     let chemin = d.join(nom);
     let img = image::RgbaImage::from_pixel(8, 6, image::Rgba([teinte, 40, 200, 255]));
     img.save(&chemin).expect("png d'épreuve");

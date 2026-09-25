@@ -28,7 +28,7 @@ fn pick_save_path(ancre: crate::dialogue::Ancre<'_>, suggested: &str) -> Option<
         .map(with_glucose_extension)
 }
 
-fn pick_open_path(ancre: crate::dialogue::Ancre<'_>) -> Option<PathBuf> {
+pub(super) fn pick_open_path(ancre: crate::dialogue::Ancre<'_>) -> Option<PathBuf> {
     crate::dialogue::fichier(ancre)
         .add_filter("Projet Glucose", &[FILE_EXTENSION])
         .pick_file()

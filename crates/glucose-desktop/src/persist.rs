@@ -22,6 +22,7 @@
 //! | `Ctrl+I` | Importe des images (le raccourci qu'occupait `Ctrl+O`) |
 //! | `Ctrl+E` | Exporte le tableau courant ; l'extension choisie decide du format |
 
+pub mod ajout;
 pub mod atomic;
 pub mod close;
 pub mod commands;

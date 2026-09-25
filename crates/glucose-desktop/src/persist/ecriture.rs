@@ -231,6 +231,32 @@ impl Ecriture {
         }
         let chemin = match objets.source(cle) {
             Some(Source::Fichier(p)) => p,
+            // Les octets d'une image importée : dans son document d'origine (BOARDS-2).
+            Some(Source::Ailleurs {
+                fichier,
+                empreinte,
+                offset,
+                longueur,
+            }) => {
+                self.confiees.insert(cle.to_string());
+                let octets = Octets::Tranche {
+                    fichier,
+                    empreinte,
+                    offset,
+                    longueur,
+                };
+                self.scribe.envoyer(Ordre::Sceller {
+                    cle: cle.to_string(),
+                    octets,
+                });
+                return;
+            }
+            // Des octets que le document portait en base64 : un document Tauri ajouté dans un
+            // onglet (BOARDS-2).
+            Some(Source::Memoire(octets)) => {
+                self.sceller_des_octets(cle, octets.as_ref().clone());
+                return;
+            }
             _ => PathBuf::from(cle),
         };
         if !chemin.is_file() {

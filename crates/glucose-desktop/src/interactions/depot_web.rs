@@ -79,12 +79,41 @@ impl GlucoseApp {
         let annonce = numero
             .and_then(|n| self.depot.en_chemin.iter().position(|a| a.numero == n))
             .map(|i| self.depot.en_chemin.remove(i));
-        let origine = match annonce {
-            Some(a) => a.monde,
-            None => self.drop_origin(self.ecran_vers_client(recolte.ou)),
-        };
-        self.deposer(&recolte.chemins, &recolte.liens, origine);
+        let client = self.ecran_vers_client(recolte.ou);
+        self.poser_une_moisson(recolte, client, annonce.map(|a| a.monde));
+    }
+
+    /// **Pose une moisson lâchée en ce point de la fenêtre** — ou au point qu'une annonce a
+    /// figé. À part de la conversion depuis l'écran, qui demande une fenêtre : c'est la
+    /// décision, et elle s'éprouve sans.
+    pub(crate) fn poser_une_moisson(
+        &mut self,
+        recolte: &Moisson,
+        client: Option<(f64, f64)>,
+        annonce: Option<(f64, f64)>,
+    ) {
+        let sur_les_onglets = annonce.is_none() && self.sur_les_onglets(client);
+        let origine = annonce.unwrap_or_else(|| self.drop_origin(client));
+        // **Lâchés sur la barre d'onglets, les documents s'ajoutent** dans des onglets neufs
+        // (BOARDS-2) ; le reste du lot se pose sur le canevas, comme d'habitude.
+        let (documents, reste): (Vec<_>, Vec<_>) = recolte
+            .chemins
+            .iter()
+            .cloned()
+            .partition(|p| sur_les_onglets && est_un_document(p));
+        for document in &documents {
+            self.ajouter_un_document(document);
+        }
+        self.deposer(&reste, &recolte.liens, origine);
         self.mark_dirty();
+    }
+
+    /// Ce point, en pixels de la fenêtre, tombe-t-il dans la barre d'onglets ?
+    fn sur_les_onglets(&self, client: Option<(f64, f64)>) -> bool {
+        client.is_some_and(|(_, y)| {
+            let y = y as f32;
+            y >= self.ui.topbar_height() && y < self.ui.header_height()
+        })
     }
 
     /// **Les pixels de l'écran, vus depuis le coin de la zone de dessin.**
@@ -99,4 +128,11 @@ impl GlucoseApp {
         let coin = self.window.as_ref()?.inner_position().ok()?;
         Some((x - f64::from(coin.x), y - f64::from(coin.y)))
     }
+}
+
+/// Un document de Glucose — de Glucose Rust ou de Glucose Tauri, qui partagent l'extension.
+fn est_un_document(chemin: &std::path::Path) -> bool {
+    chemin
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(glucose_core::persist::FILE_EXTENSION))
 }

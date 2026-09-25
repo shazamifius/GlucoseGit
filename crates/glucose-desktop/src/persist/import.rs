@@ -37,12 +37,31 @@ impl GlucoseApp {
         chemin: &Path,
         octets: &[u8],
     ) -> DesktopResult<Importe> {
-        let (valeur, fin_ignoree) = tauri::lire(octets).map_err(DesktopError::from)?;
-        let (mut projet, rapport) = tauri::projet::traduire(&valeur);
+        let lu = tauri::lire(octets).map_err(DesktopError::from)?;
         if !self.fermer_le_document() {
             self.disque.ecriture = None;
         }
         self.disque.objets.vider();
+        let (projet, importe) = self.placer_un_document_tauri(chemin, lu);
+        // Ses images portées en base64 attendent le premier fichier pour s'y sceller.
+        for cle in projet.toutes_les_images().filter_map(|i| i.src.clone()) {
+            if let Some(Source::Memoire(octets)) = self.disque.objets.source(&cle) {
+                self.disque.a_sceller.push((cle, octets));
+            }
+        }
+        self.adopter_un_import(projet);
+        Ok(importe)
+    }
+
+    /// **Traduit un document Tauri déjà lu, et place ses images dans le registre** : ce que
+    /// l'ouverture et l'ajout dans un onglet partagent (BOARDS-2). Rien du document courant
+    /// n'est touché ici.
+    pub(crate) fn placer_un_document_tauri(
+        &mut self,
+        chemin: &Path,
+        (valeur, fin_ignoree): (tauri::Valeur, usize),
+    ) -> (glucose_core::types::Project, Importe) {
+        let (mut projet, rapport) = tauri::projet::traduire(&valeur);
         let dossier = chemin.parent();
         let magasin = crate::tauri::magasin_tauri();
         let provenances: HashMap<&str, &Provenance> = rapport
@@ -63,8 +82,7 @@ impl GlucoseApp {
             importe.manquantes += usize::from(cle.is_none());
             img.src = cle;
         }
-        self.adopter_un_import(projet);
-        Ok(importe)
+        (projet, importe)
     }
 
     /// La clé d'une image importée, et d'où ses octets se liront en attendant d'être scellés.
@@ -78,11 +96,9 @@ impl GlucoseApp {
         match provenance? {
             Provenance::Octets(octets) => {
                 let cle = format!("tauri:{id}");
-                let octets = Arc::new(octets.clone());
                 self.disque
                     .objets
-                    .poser(&cle, Source::Memoire(Arc::clone(&octets)));
-                self.disque.a_sceller.push((cle.clone(), octets));
+                    .poser(&cle, Source::Memoire(Arc::new(octets.clone())));
                 Some(cle)
             }
             p => {

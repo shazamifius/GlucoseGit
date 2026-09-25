@@ -47,6 +47,13 @@ use std::thread::JoinHandle;
 pub enum Octets {
     Chemin(PathBuf),
     Memoire(Vec<u8>),
+    /// Une tranche d'un autre document, vérifiée par son empreinte (BOARDS-2).
+    Tranche {
+        fichier: PathBuf,
+        empreinte: [u8; 32],
+        offset: u64,
+        longueur: u64,
+    },
 }
 
 /// Ce qu'on demande au scribe.
@@ -343,6 +350,18 @@ impl Plume {
             Octets::Memoire(o) => o,
             Octets::Chemin(p) => std::fs::read(&p)
                 .map_err(|e| format!("image non incorporée, {} : {e}", p.display()))?,
+            Octets::Tranche {
+                fichier,
+                empreinte,
+                offset,
+                longueur,
+            } => super::objets::lire_une_tranche(&fichier, &empreinte, offset, longueur)
+                .ok_or_else(|| {
+                    format!(
+                        "image non incorporée : sa tranche de {} est illisible ou abîmée",
+                        fichier.display()
+                    )
+                })?,
         };
         let empreinte = sha256(&octets);
         let tranche = match self.objets.get(&empreinte) {

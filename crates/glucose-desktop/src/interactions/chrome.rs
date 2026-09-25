@@ -123,6 +123,7 @@ impl GlucoseApp {
                 }
             }
             MenuAction::NouvelOnglet => self.ajouter_un_onglet(),
+            MenuAction::AjouterUnDocument => self.choisir_un_document_a_ajouter(),
         }
         self.mark_dirty();
     }

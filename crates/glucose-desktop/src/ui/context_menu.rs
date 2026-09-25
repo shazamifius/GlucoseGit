@@ -68,6 +68,8 @@ pub enum MenuAction {
     SupprimerOnglet,
     /// Sur un onglet : un board de plus.
     NouvelOnglet,
+    /// Sur un onglet : un autre document, dans des onglets neufs (BOARDS-2).
+    AjouterUnDocument,
 }
 
 /// Une ligne du menu : soit une entrée, soit un filet.
@@ -108,6 +110,11 @@ fn entrees_d_onglet(store: &Store) -> Vec<Def> {
     }
     defs.push(None);
     defs.push(Some((MenuAction::NouvelOnglet, "Nouveau board", "+")));
+    defs.push(Some((
+        MenuAction::AjouterUnDocument,
+        "Importer un document…",
+        "déposer ici",
+    )));
     defs
 }
 

@@ -519,7 +519,7 @@ impl GlucoseApp {
         self.store.mutate_board_layout(&board_id, |board| {
             glucose_core::layout::organize_board_grid(board, 40.0);
         });
-        self.ui.show_toast("Canvas ordonné");
+        // Sans message : toute la toile se réarrange sous les yeux.
         self.mark_dirty();
     }
 
