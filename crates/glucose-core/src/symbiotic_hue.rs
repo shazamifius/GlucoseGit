@@ -103,8 +103,21 @@ pub fn get_symbiotic_hue<'a>(
     ann: &Annotation,
     voisines: impl IntoIterator<Item = &'a Annotation>,
 ) -> f64 {
-    let (ax, ay, aid) = (ann.x(), ann.y(), ann.id());
+    teinte_au_point(ann.id(), (ann.x(), ann.y()), voisines)
+}
 
+/// **La même teinte, pour un identifiant posé en un point** — sans nœud qui l'y porte.
+///
+/// Une teinte ne dépend que de trois choses : un identifiant, une position, et le voisinage.
+/// Le bout libre d'une flèche n'est aucun nœud, et Glucose Tauri lui donne pourtant une
+/// teinte : celle qu'aurait la flèche si elle était posée là (`ArrowSvgLayer.tsx`,
+/// `getSymbioticHue({ ...ann, x, y })`). Plutôt que de fabriquer une copie de la flèche pour
+/// la déplacer, le calcul se prend ici à sa source.
+pub fn teinte_au_point<'a>(
+    aid: &str,
+    (ax, ay): (f64, f64),
+    voisines: impl IntoIterator<Item = &'a Annotation>,
+) -> f64 {
     // 1. Teinte de base du biome + variation individuelle
     let mut my_base_hue = (get_zone_hue(ax, ay) + id_offset(aid)).rem_euclid(360.0);
 

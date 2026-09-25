@@ -131,6 +131,15 @@ impl SpatialHash {
         self.index_of.contains_key(id)
     }
 
+    /// **Le rang d'un nœud dans son tableau, en temps constant** — la position que
+    /// [`Visibles`] sait lire. Une flèche retrouve ainsi ses deux nœuds sans parcourir le
+    /// document (FLECHE-1) : avant, chaque flèche visible cherchait les siens un par un,
+    /// dans tout le tableau, à chaque image.
+    pub fn rang_de(&self, id: &str) -> Option<u32> {
+        let slot = self.slots.get(*self.index_of.get(id)? as usize)?;
+        slot.alive.then_some(slot.rang)
+    }
+
     // ── Primitives de grille ────────────────────────────────────────────────
 
     fn range_of(&self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> CellRange {
@@ -544,7 +553,7 @@ impl SpatialHash {
 }
 
 mod visibles;
-pub use visibles::{tous_les_rangs, Visibles};
+pub use visibles::{noeud_au_rang, tous_les_rangs, Noeud, Visibles};
 
 #[cfg(test)]
 mod tests;

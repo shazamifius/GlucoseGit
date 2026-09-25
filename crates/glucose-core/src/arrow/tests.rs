@@ -375,3 +375,55 @@ fn test_what_is_not_an_arrow_has_no_label_anchor() {
         None
     );
 }
+
+/// **Une flèche courbe se vise sur sa courbe** (FLECHE-1) : le sommet de l'arche, loin de la
+/// ligne brisée qui la porte, prend la flèche ; un point de la ligne brisée, loin de la
+/// courbe, ne la prend pas. Tauri la visait le long de sa ligne brisée.
+#[test]
+fn test_fleche_1_une_courbe_se_vise_sur_sa_courbe() {
+    let mut arche = coudee("arche", (0.0, 0.0), &[(200.0, -200.0)], (400.0, 0.0));
+    if let Annotation::Arrow { arrow_type, .. } = &mut arche {
+        *arrow_type = Some("curved".to_string());
+    }
+    let trace = morceaux_with(&arche, libre).expect("un tracé");
+    // Le milieu du premier morceau, sur la courbe.
+    let sur_la_courbe = trace[0].milieu();
+    let ligne = (100.0, -100.0);
+    let ecart = (sur_la_courbe.0 - ligne.0).hypot(sur_la_courbe.1 - ligne.1);
+    assert!(
+        ecart > 20.0,
+        "la courbe s'écarte de sa ligne brisée : {ecart}"
+    );
+    let prises = |p: (f64, f64)| at(std::slice::from_ref(&arche), libre, p, 1.0).is_some();
+    assert!(prises(sur_la_courbe), "la courbe se prend là où on la voit");
+    assert!(
+        !prises(ligne),
+        "la ligne brisée, invisible, ne se prend pas"
+    );
+}
+
+/// **L'index retrouve les nœuds d'une flèche**, en temps constant — et un index en retard
+/// d'une passe, qui verrait un autre nœud au même rang, ne fait pas viser le mauvais : il fait
+/// chercher par le tableau.
+#[test]
+fn test_fleche_1_l_index_retrouve_les_noeuds_meme_en_retard() {
+    let mut board = crate::types::Board::new("b", "b");
+    board
+        .annotations
+        .push(Annotation::sticky("un", 0.0, 0.0, "un"));
+    board
+        .annotations
+        .push(Annotation::sticky("deux", 900.0, 400.0, "deux"));
+    let mut index = SpatialHash::new(2000.0);
+    index.index_board(&board);
+    let attendu = node_rect(&board, "deux");
+    assert!(attendu.is_some());
+    assert_eq!(node_rect_indexe(&board, &index, "deux"), attendu);
+    // Le tableau change d'ordre, l'index ne le sait pas encore.
+    board.annotations.swap(0, 1);
+    assert_eq!(
+        node_rect_indexe(&board, &index, "deux"),
+        node_rect(&board, "deux")
+    );
+    assert_eq!(node_rect_indexe(&board, &index, "absent"), None);
+}

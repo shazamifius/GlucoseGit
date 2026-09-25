@@ -41,8 +41,13 @@
 //! raison d'ARROW-1 : deux fonctions qui placent des poignées finiraient par les placer
 //! ailleurs l'une que l'autre, et le clic manquerait ce que l'œil voit.
 
+pub mod aspect;
+pub mod champ;
+pub mod trace;
+
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
+use crate::quadtree::{noeud_au_rang, SpatialHash};
 use crate::types::Annotation;
 use crate::types::{Board, CanvasFolder};
 
@@ -115,6 +120,20 @@ pub fn node_rect(board: &Board, id: &str) -> Option<Rect> {
         .map(CanvasFolder::rect)
 }
 
+/// **La boîte d'un nœud, retrouvée par l'index spatial** — en temps constant, là où
+/// [`node_rect`] parcourt le tableau.
+///
+/// L'identifiant trouvé au rang est vérifié : un index qui aurait une passe de retard ne fait
+/// pas viser le mauvais nœud, il fait seulement chercher par le tableau.
+pub fn node_rect_indexe(board: &Board, index: &SpatialHash, id: &str) -> Option<Rect> {
+    if let Some(noeud) = index.rang_de(id).and_then(|r| noeud_au_rang(board, r)) {
+        if noeud.id() == id {
+            return noeud.rect();
+        }
+    }
+    node_rect(board, id)
+}
+
 /// Les points par lesquels une flèche passe **une fois ancrée** à ce qu'elle relie.
 ///
 /// C'est la même suite que [`path`], sauf que les deux bouts sont ramenés sur le périmètre
@@ -166,13 +185,41 @@ pub fn distance_to(arrow: &Annotation, point: (f64, f64)) -> Option<f64> {
     distance_along(&path(arrow)?, point)
 }
 
-/// La même distance, à une flèche **ancrée** : c'est là où elle se dessine qu'on la vise.
+/// La même distance, à une flèche **ancrée** et telle qu'elle se dessine — courbe comprise :
+/// c'est là où on la voit qu'on la vise (FLECHE-1).
+///
+/// `tolerance` est la précision, en unités du monde, avec laquelle une courbe se remplace
+/// par une ligne brisée pour la mesurer ; un segment se mesure exactement.
 pub fn distance_to_with(
     arrow: &Annotation,
     resolve: impl Fn(&str) -> Option<Rect>,
     point: (f64, f64),
+    tolerance: f64,
 ) -> Option<f64> {
-    distance_along(&path_with(arrow, resolve)?, point)
+    let brisee = trace::aplatir(&morceaux_with(arrow, resolve)?, tolerance);
+    distance_along(&brisee, point)
+}
+
+/// Une flèche est-elle courbe ? Le champ de Tauri, `arrowType: "curved"`.
+pub fn est_courbe(arrow: &Annotation) -> bool {
+    matches!(arrow, Annotation::Arrow { arrow_type: Some(t), .. } if t == "curved")
+}
+
+/// **Les morceaux qu'une flèche ancrée dessine** — la description que le dessin, le clic,
+/// les poignées et l'étiquette lisent tous (FLECHE-1, loi L4).
+pub fn morceaux_with(
+    arrow: &Annotation,
+    resolve: impl Fn(&str) -> Option<Rect>,
+) -> Option<Vec<trace::Morceau>> {
+    Some(trace::morceaux(
+        &path_with(arrow, resolve)?,
+        est_courbe(arrow),
+    ))
+}
+
+/// Les mêmes morceaux, pour une flèche de ce tableau.
+pub fn morceaux_in(arrow: &Annotation, board: &Board) -> Option<Vec<trace::Morceau>> {
+    morceaux_with(arrow, |id| node_rect(board, id))
 }
 
 /// La plus courte distance d'un point à une polyligne.
@@ -198,9 +245,12 @@ pub fn at(
     // La bande garde une épaisseur **écran** : une flèche ne devient pas plus dure à viser
     // parce qu'on s'est éloigné. C'est la même exception que les poignées (SCALE-1).
     let portee = BAND_PX / 2.0 / scale.max(1e-6);
+    // Un quart de pixel : la ligne brisée qui remplace une courbe ne se distingue pas d'elle
+    // à l'écran, donc on vise exactement ce qu'on voit.
+    let tolerance = 0.25 / scale.max(1e-6);
     annotations
         .iter()
-        .filter_map(|a| distance_to_with(a, resolve, point).map(|d| (a, d)))
+        .filter_map(|a| distance_to_with(a, resolve, point, tolerance).map(|d| (a, d)))
         .filter(|(_, d)| *d <= portee)
         .reduce(|meilleur, courant| {
             if courant.1 <= meilleur.1 {
@@ -335,13 +385,13 @@ pub fn handles(arrow: &Annotation, resolve: impl Fn(&str) -> Option<Rect>) -> Ve
     let Some(points) = path_with(arrow, resolve) else {
         return Vec::new();
     };
-    let milieux = points
-        .windows(2)
-        .enumerate()
-        .map(|(index, seg)| ArrowHandle {
-            kind: HandleKind::Midpoint(index),
-            at: ((seg[0].0 + seg[1].0) / 2.0, (seg[0].1 + seg[1].1) / 2.0),
-        });
+    // Le milieu d'un tronçon est pris **sur le tracé** : sur une flèche courbe, le milieu de
+    // la corde tomberait à côté du trait, et la poignée flotterait dans le vide.
+    let troncons = trace::morceaux(&points, est_courbe(arrow));
+    let milieux = troncons.iter().enumerate().map(|(index, m)| ArrowHandle {
+        kind: HandleKind::Midpoint(index),
+        at: m.milieu(),
+    });
     // Les coudes sont les points **intérieurs** du chemin : les deux bouts n'en sont pas,
     // et Glucose Tauri ne leur donne aucune poignée non plus.
     let coudes = points
@@ -392,16 +442,21 @@ pub fn handle_at(
 /// le milieu de la corde tombe souvent à côté du trait, parfois très loin, et l'étiquette
 /// s'y détacherait de ce qu'elle nomme. Glucose Tauri place le sien exactement là
 /// (`ArrowSvgLayer.tsx`, `midSeg = Math.floor(n / 2)`).
+///
+/// Sur une flèche courbe, c'est le milieu du morceau médian **sur la courbe** (FLECHE-1).
 pub fn label_anchor(
     arrow: &Annotation,
     resolve: impl Fn(&str) -> Option<Rect>,
 ) -> Option<(f64, f64)> {
-    let points = path_with(arrow, resolve)?;
-    // `points` vient de `path_with`, qui pousse toujours au moins l'origine et la pointe.
-    let milieu = points.len() / 2;
-    let (ax, ay) = *points.get(milieu.saturating_sub(1))?;
-    let (bx, by) = *points.get(milieu)?;
-    Some(((ax + bx) / 2.0, (ay + by) / 2.0))
+    milieu_du_trace(&morceaux_with(arrow, resolve)?)
+}
+
+/// Le point où une flèche porte ce qu'elle dit, lu sur ses morceaux déjà calculés.
+pub fn milieu_du_trace(morceaux: &[trace::Morceau]) -> Option<(f64, f64)> {
+    // `n` points font `n − 1` morceaux ; le tronçon médian de Tauri, entre les points
+    // `⌊n/2⌋ − 1` et `⌊n/2⌋`, est le morceau `⌊n/2⌋ − 1`.
+    let n = morceaux.len() + 1;
+    Some(morceaux.get((n / 2).saturating_sub(1))?.milieu())
 }
 
 /// Le même point, pour une flèche de ce tableau.

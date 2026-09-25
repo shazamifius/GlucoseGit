@@ -71,6 +71,48 @@ impl<'a> Visibles<'a> {
     }
 }
 
+/// Un nœud du tableau, quelle que soit sa nature.
+#[derive(Debug, Clone, Copy)]
+pub enum Noeud<'a> {
+    Image(&'a crate::types::BoardImage),
+    Annotation(&'a crate::types::Annotation),
+    Dossier(&'a crate::types::CanvasFolder),
+}
+
+impl Noeud<'_> {
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Image(i) => &i.id,
+            Self::Annotation(a) => a.id(),
+            Self::Dossier(f) => &f.id,
+        }
+    }
+
+    /// Sa boîte, s'il en a une — une flèche n'en a pas.
+    pub fn rect(&self) -> Option<crate::geometry::Rect> {
+        match self {
+            Self::Image(i) => Some(i.rect()),
+            Self::Annotation(a) => a.rect(),
+            Self::Dossier(f) => Some(f.rect()),
+        }
+    }
+}
+
+/// Le nœud présenté à ce rang — images, puis annotations, puis dossiers, l'ordre de
+/// [`super::SpatialHash::index_board`].
+pub fn noeud_au_rang(board: &crate::types::Board, rang: u32) -> Option<Noeud<'_>> {
+    let mut r = rang as usize;
+    if let Some(i) = board.images.get(r) {
+        return Some(Noeud::Image(i));
+    }
+    r -= board.images.len();
+    if let Some(a) = board.annotations.get(r) {
+        return Some(Noeud::Annotation(a));
+    }
+    r -= board.annotations.len();
+    board.folders.get(r).map(Noeud::Dossier)
+}
+
 /// Les rangs de **tous** les nœuds d'un tableau, dans l'ordre de présentation.
 ///
 /// C'est le culling qui ne retient rien. Les preuves de rendu et les bancs en ont besoin :
