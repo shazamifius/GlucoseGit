@@ -18,17 +18,18 @@ use super::domain::{draw_domain_gauge, gauge_width};
 use super::handles::draw_resize_handles;
 use super::pass::{Clip, SELECTION_RING};
 use super::scale::WorldScale;
-use super::{parse_hex_color, push_rounded_rect, PaintKit};
+use super::{parse_hex_color, PaintKit};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle};
+use glucose_core::membrane_forme::{Arrondi, Bord, Membrane};
 use glucose_core::quadtree::Visibles;
 use glucose_core::resize::Handle;
 use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
-use tiny_skia::{Color, LineCap, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
 /// Rayon des coins d'une membrane, en unités monde.
 const MEMBRANE_RADIUS: f32 = 60.0;
@@ -93,41 +94,48 @@ impl MembraneLayout {
 /// mode Focus la reprend ([`super::focus`]).
 pub(crate) const MEMBRANE_SANS_COULEUR: (u8, u8, u8) = (96, 165, 250);
 
+/// L'opacité du fond translucide d'une membrane, sur 255.
+const MEMBRANE_FILL_ALPHA: u8 = 8;
+/// L'opacité de son contour au repos, sur 255.
+const MEMBRANE_BORDER_ALPHA: u8 = 115;
+/// L'opacité de son contour quand elle est sélectionnée, sur 255.
+const MEMBRANE_SELECTED_ALPHA: u8 = 235;
+
 /// La teinte d'une membrane : sa couleur, ou celle d'une membrane qui n'en a pas.
 fn teinte_de_membrane(couleur: Option<&str>) -> (u8, u8, u8) {
     let (r, g, b) = MEMBRANE_SANS_COULEUR;
     couleur.map_or(MEMBRANE_SANS_COULEUR, |c| parse_hex_color(c, r, g, b))
 }
 
-/// Rend **vrai** si au moins une membrane a recu de l'encre.
-///
-/// La couche du dessous s'en sert pour savoir si elle doit exister : quand la carte peint le
-/// fond et les lueurs, une couche sans membrane ni dossier est entierement transparente, et
-/// quinze mebioctets par image cessent de traverser le bus. Compter ici ne coute rien --
-/// la boucle passe deja par la -- la ou balayer les pixels couterait un ecran entier.
-pub(super) fn draw_membranes(
-    kit: PaintKit<'_>,
-    pixmap: &mut PixmapMut,
+/// Une membrane que l'écran montre : ce que le document en dit, et où elle se pose.
+struct MembraneVue<'a> {
+    text: Option<&'a str>,
+    domains: &'a [glucose_core::types::DomainAssignment],
+    /// Son coin haut-gauche, à l'écran.
+    coin: (f32, f32),
+    layout: MembraneLayout,
+    teinte: (u8, u8, u8),
+    selectionnee: bool,
+    scale: WorldScale,
+}
+
+/// **Chaque membrane visible, une fois.** Le culling et la mise à l'échelle ne s'écrivent
+/// qu'ici : la forme et les ornements les lisent, et ne peuvent donc pas diverger.
+fn pour_chaque_membrane(
     store: &Store,
     pass: ViewPass<'_>,
-) -> bool {
+    taille: (f32, f32),
+    mut faire: impl FnMut(MembraneVue<'_>),
+) {
     let Some(board) = store.active_board() else {
-        return false;
+        return;
     };
-    let PaintKit {
-        typography,
-        tints,
-        theme,
-        ..
-    } = kit;
     let scale = WorldScale::new(pass.vp.scale);
     let clip = Clip {
-        width: pixmap.width() as f32,
-        height: pixmap.height() as f32,
+        width: taille.0,
+        height: taille.1,
         top: pass.header_h,
     };
-
-    let mut encre = false;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let Annotation::Membrane {
             id,
@@ -145,173 +153,184 @@ pub(super) fn draw_membranes(
         };
         let layout = MembraneLayout::new(*width as f32, *height as f32).scaled(scale);
         let (wx, wy) = world_to_screen(*x, *y, &pass.vp);
-        let (sx, sy) = (wx as f32, wy as f32);
-        if clip.rejects(sx, sy, layout.width, layout.height) {
+        let coin = (wx as f32, wy as f32);
+        if clip.rejects(coin.0, coin.1, layout.width, layout.height) {
             continue;
         }
-        encre = true;
-
-        let tint = teinte_de_membrane(color.as_deref());
-        let selected = store.selected_annotation_ids.contains(id);
-        draw_membrane_shape(pixmap, (sx, sy), &layout, tint, (selected, scale));
-
-        if scale.draws_detail() {
-            if let Some(label) = text.as_deref().filter(|l| !l.is_empty()) {
-                typography.draw_text_with_outline(
-                    pixmap,
-                    label,
-                    sx + layout.label_dx,
-                    sy - layout.label_dy,
-                    TextStyle {
-                        size: layout.label_font,
-                        color: Color::from_rgba8(tint.0, tint.1, tint.2, 255),
-                        face: Face::Bold,
-                    },
-                    theme.bg_canvas,
-                );
-            }
-        }
-        if selected {
-            draw_resize_handles(
-                pixmap,
-                theme,
-                scale,
-                (sx, sy, layout.width, layout.height),
-                &Handle::ALL,
-            );
-        }
-        // La réglette d'une membrane s'aligne à DROITE de son bord haut : le coin haut-gauche
-        // est déjà occupé par le titre protecteur, et deux textes superposés ne se lisent ni
-        // l'un ni l'autre.
-        let gauge_x = sx + layout.width - gauge_width(scale, domains.len());
-        draw_domain_gauge(typography, tints, pixmap, scale, (gauge_x, sy), domains);
+        faire(MembraneVue {
+            text: text.as_deref(),
+            domains,
+            coin,
+            layout,
+            teinte: teinte_de_membrane(color.as_deref()),
+            selectionnee: store.selected_annotation_ids.contains(id),
+            scale,
+        });
     }
+}
+
+impl MembraneVue<'_> {
+    /// **La membrane telle que la loi la décrit** (MEMB-FORME-1) : deux halos, le fond
+    /// translucide, le contour — une seule teinte, donc un seul champ d'opacité.
+    fn forme(&self) -> Membrane {
+        let (l, (x, y)) = (&self.layout, self.coin);
+        let fond = Arrondi::nouveau(x, y, l.width, l.height, l.radius);
+        // Le halo appartient au cadre, donc il le suit ; vu de trop loin pour qu'on lise un
+        // titre, il n'y a plus de halo à voir non plus.
+        let halo = |(pad_monde, alpha): (f32, u8)| {
+            let pad = self.scale.world(pad_monde);
+            let forme = Arrondi::nouveau(
+                x - pad,
+                y - pad,
+                l.width + pad * 2.0,
+                l.height + pad * 2.0,
+                l.radius + pad * 0.5,
+            );
+            let alpha = if self.scale.draws_detail() {
+                f32::from(alpha) / 255.0
+            } else {
+                0.0
+            };
+            (forme, alpha)
+        };
+        let (r, g, b) = self.teinte;
+        Membrane {
+            remplissages: [
+                halo(MEMBRANE_GLOW[0]),
+                halo(MEMBRANE_GLOW[1]),
+                (fond, f32::from(MEMBRANE_FILL_ALPHA) / 255.0),
+            ],
+            bord: self.bord(fond),
+            teinte: [
+                f32::from(r) / 255.0,
+                f32::from(g) / 255.0,
+                f32::from(b) / 255.0,
+            ],
+        }
+    }
+
+    /// Le contour d'une membrane : pointillé au repos, plein quand elle est prise.
+    ///
+    /// # Le pointillé s'arrête où le pixel s'arrête
+    ///
+    /// Un tiret plus fin qu'un pixel ne se voit pas comme un tiret : l'œil n'y lit qu'un trait
+    /// continu, à moitié moins dense puisque la moitié du parcours est vide. On dessine donc
+    /// exactement cela — un trait plein, d'opacité moitié. Le seuil n'est pas choisi : c'est
+    /// le pixel, la plus petite chose qu'un écran sache montrer.
+    fn bord(&self, forme: Arrondi) -> Bord {
+        let dash = self.layout.dash;
+        let pointille = !self.selectionnee && dash >= 1.0;
+        let (largeur, opacite) = if self.selectionnee {
+            (self.scale.screen(SELECTION_RING), MEMBRANE_SELECTED_ALPHA)
+        } else if pointille {
+            (self.layout.border, MEMBRANE_BORDER_ALPHA)
+        } else {
+            (self.layout.border, MEMBRANE_BORDER_ALPHA / 2)
+        };
+        Bord {
+            forme,
+            demi_largeur: largeur / 2.0,
+            pointille: pointille.then(|| forme.pointille(dash)),
+            alpha: f32::from(opacite) / 255.0,
+        }
+    }
+}
+
+/// **Les formes des membranes que l'écran montre**, pour la carte (MEMB-FORME-1).
+pub(super) fn formes_des_membranes(
+    store: &Store,
+    pass: ViewPass<'_>,
+    taille: (u32, u32),
+) -> Vec<Membrane> {
+    let mut formes = Vec::new();
+    pour_chaque_membrane(store, pass, (taille.0 as f32, taille.1 as f32), |m| {
+        formes.push(m.forme());
+    });
+    formes
+}
+
+/// **Les membranes entières, au processeur** : leurs formes, puis leurs ornements. Rend vrai
+/// si au moins une membrane a reçu de l'encre.
+///
+/// Toutes les formes d'abord, les ornements ensuite — l'ordre de la voie graphique, où la
+/// carte pose les formes sous la couche qui porte les ornements. Un titre passe donc au-dessus
+/// du voile d'une membrane voisine sur les deux voies, au lieu de dépendre de la voie.
+pub(super) fn draw_membranes(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    pass: ViewPass<'_>,
+) -> bool {
+    let (l, h) = (pixmap.width(), pixmap.height());
+    let mut encre = false;
+    {
+        let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
+        pour_chaque_membrane(store, pass, (l as f32, h as f32), |m| {
+            encre |= glucose_core::membrane_forme::peindre(&m.forme(), pixels, l, h);
+        });
+    }
+    draw_membrane_ornaments(kit, pixmap, store, pass) || encre
+}
+
+/// **Ce qui reste au processeur sur les deux voies** : le titre, les poignées, la réglette des
+/// domaines. Rend vrai si quelque chose a été posé — c'est ce qui décide si la couche du
+/// dessous doit être relevée et envoyée.
+pub(super) fn draw_membrane_ornaments(
+    kit: PaintKit<'_>,
+    pixmap: &mut PixmapMut,
+    store: &Store,
+    pass: ViewPass<'_>,
+) -> bool {
+    let taille = (pixmap.width() as f32, pixmap.height() as f32);
+    let mut encre = false;
+    pour_chaque_membrane(store, pass, taille, |m| {
+        encre |= poser_les_ornements(kit, pixmap, &m);
+    });
     encre
 }
 
-fn draw_membrane_shape(
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &MembraneLayout,
-    tint: (u8, u8, u8),
-    state: (bool, WorldScale),
-) {
-    let (selected, scale) = state;
-    let (r, g, b) = tint;
-
-    // 1. Halo ultra-discret multicouche — il appartient au cadre, donc il le suit.
-    if scale.draws_detail() {
-        for (pad_world, alpha) in MEMBRANE_GLOW {
-            let pad = scale.world(pad_world);
-            let mut pb = PathBuilder::new();
-            push_rounded_rect(
-                &mut pb,
-                at.0 - pad,
-                at.1 - pad,
-                layout.width + pad * 2.0,
-                layout.height + pad * 2.0,
-                layout.radius + pad * 0.5,
-            );
-            if let Some(path) = pb.finish() {
-                let mut paint = Paint {
-                    anti_alias: true,
-                    ..Default::default()
-                };
-                paint.set_color(Color::from_rgba8(r, g, b, alpha));
-                pixmap.fill_path(
-                    &path,
-                    &paint,
-                    tiny_skia::FillRule::Winding,
-                    Transform::identity(),
-                    None,
-                );
-            }
-        }
+fn poser_les_ornements(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVue<'_>) -> bool {
+    let (sx, sy) = m.coin;
+    let (layout, (r, g, b)) = (m.layout, m.teinte);
+    let mut encre = !m.domains.is_empty();
+    if let Some(label) = m.text.filter(|l| !l.is_empty() && m.scale.draws_detail()) {
+        kit.typography.draw_text_with_outline(
+            pixmap,
+            label,
+            sx + layout.label_dx,
+            sy - layout.label_dy,
+            TextStyle {
+                size: layout.label_font,
+                color: Color::from_rgba8(r, g, b, 255),
+                face: Face::Bold,
+            },
+            kit.theme.bg_canvas,
+        );
+        encre = true;
     }
-
-    let mut pb = PathBuilder::new();
-    push_rounded_rect(
-        &mut pb,
-        at.0,
-        at.1,
-        layout.width,
-        layout.height,
-        layout.radius,
-    );
-    let Some(path) = pb.finish() else {
-        return;
-    };
-
-    // 2. Remplissage translucide.
-    let mut fill = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    fill.set_color(Color::from_rgba8(r, g, b, 8));
-    pixmap.fill_path(
-        &path,
-        &fill,
-        tiny_skia::FillRule::Winding,
-        Transform::identity(),
-        None,
-    );
-
-    draw_membrane_border(
+    if m.selectionnee {
+        draw_resize_handles(
+            pixmap,
+            kit.theme,
+            m.scale,
+            (sx, sy, layout.width, layout.height),
+            &Handle::ALL,
+        );
+        encre = true;
+    }
+    // La réglette d'une membrane s'aligne à DROITE de son bord haut : le coin haut-gauche est
+    // déjà occupé par le titre protecteur, et deux textes superposés ne se lisent ni l'un ni
+    // l'autre.
+    let gauge_x = sx + layout.width - gauge_width(m.scale, m.domains.len());
+    draw_domain_gauge(
+        kit.typography,
+        kit.tints,
         pixmap,
-        &path,
-        tint,
-        (selected, scale, layout.border, layout.dash),
+        m.scale,
+        (gauge_x, sy),
+        m.domains,
     );
-}
-
-/// Le contour d'une membrane : pointillé au repos, plein quand elle est prise.
-///
-/// # Le pointillé s'arrête où le pixel s'arrête
-///
-/// Un tiret plus fin qu'un pixel ne se voit pas comme un tiret : l'œil n'y lit qu'un trait
-/// continu, à moitié moins dense puisque la moitié du parcours est vide. On dessine donc
-/// exactement cela — un trait plein, d'opacité moitié. Le seuil n'est pas choisi : c'est le
-/// pixel, la plus petite chose qu'un écran sache montrer.
-///
-/// Ce n'est pas qu'une question d'aspect. Le tiret est mis à l'échelle (SCALE-1), donc leur
-/// **nombre** ne dépend pas du zoom : une membrane de cinq mille unités de périmètre en porte
-/// deux cent cinquante à toute échelle, chacun avec deux bouts arrondis. Au fort dézoom on
-/// rastérisait donc cinq cents arcs sous le pixel, par membrane et par image — la moitié du
-/// coût d'une image à l'échelle 0,02. La pire image y est divisée par deux (fiche 13, vague B).
-fn draw_membrane_border(
-    pixmap: &mut PixmapMut,
-    path: &tiny_skia::Path,
-    tint: (u8, u8, u8),
-    state: (bool, WorldScale, f32, f32),
-) {
-    let (r, g, b) = tint;
-    let (selected, scale, border_width, dash) = state;
-    let pointille = !selected && dash >= 1.0;
-    let opacite = if selected {
-        235
-    } else if pointille {
-        115
-    } else {
-        115 / 2
-    };
-    let mut border = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    border.set_color(Color::from_rgba8(r, g, b, opacite));
-    let stroke = Stroke {
-        width: if selected {
-            scale.screen(SELECTION_RING)
-        } else {
-            border_width
-        },
-        dash: pointille
-            .then(|| tiny_skia::StrokeDash::new(vec![dash, dash], 0.0))
-            .flatten(),
-        line_cap: LineCap::Round,
-        ..Default::default()
-    };
-    pixmap.stroke_path(path, &border, &stroke, Transform::identity(), None);
+    encre
 }
 
 pub(super) fn draw_guides(

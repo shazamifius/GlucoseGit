@@ -197,7 +197,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Mise à jour le 23/09 au soir** : le bouton Trans-domaines ne s'allume plus -- il n'a pas de fonction
 /// (fiche 29 § 3.1). Seuls ses pixels changent (797-929 × 8-36), comparés avant et après, et
 /// regardés : fond, liseré et gras disparaissent, rien d'autre.
-const EMPREINTE_TEMOIN: &str = "cfdfc0992b2596ed";
+/// **Mise à jour le 25/09** (MEMB-FORME-1) : la forme de la membrane suit la loi du noyau —
+/// coins en arc de cercle, le `rx` de Glucose Tauri, au lieu de paraboles ; le voile composé en
+/// une fois au lieu de trois arrondis successifs. 151 700 pixels changent, dont 4 468 de plus de deux
+/// niveaux, tous sur la membrane (760-1220 × 94-434) ; regardés côte à côte et au coin agrandi.
+const EMPREINTE_TEMOIN: &str = "e9d119fa5d175890";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -237,7 +241,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Mise à jour le 23/09 dans la nuit** (ORNEMENTS-2) : poignées et cadres droits posés sur la
 /// grille de pixels. Seuls les ornements changent (4 491 pixels), regardés au zoom : le liseré
 /// d'une poignée n'est plus deux demi-teintes, le cadre d'une image verrouillée est un filet net.
-const EMPREINTE_TEMOIN_SELECTION: &str = "5f1218324b4232dc";
+/// **Mise à jour le 25/09** (MEMB-FORME-1) : la forme de la membrane suit la loi du noyau —
+/// coins en arc de cercle, le `rx` de Glucose Tauri, au lieu de paraboles ; le voile composé en
+/// une fois au lieu de trois arrondis successifs. 151 702 pixels changent, dont 4 468 de plus de deux
+/// niveaux, tous sur la membrane (760-1220 × 94-434) ; regardés côte à côte et au coin agrandi.
+const EMPREINTE_TEMOIN_SELECTION: &str = "5cd43333dac9c9ce";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -267,7 +275,11 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Mise à jour le 23/09 dans la nuit** (ORNEMENTS-2) : poignées et cadres droits posés sur la
 /// grille de pixels. Seuls les ornements changent (4 491 pixels), regardés au zoom : le liseré
 /// d'une poignée n'est plus deux demi-teintes, le cadre d'une image verrouillée est un filet net.
-const EMPREINTE_TEMOIN_MENU: &str = "5f02d3881b2d3cef";
+/// **Mise à jour le 25/09** (MEMB-FORME-1) : la forme de la membrane suit la loi du noyau —
+/// coins en arc de cercle, le `rx` de Glucose Tauri, au lieu de paraboles ; le voile composé en
+/// une fois au lieu de trois arrondis successifs. 144 267 pixels changent, dont 3 515 de plus de deux
+/// niveaux, tous sur la membrane (760-1220 × 94-434) ; regardés côte à côte et au coin agrandi.
+const EMPREINTE_TEMOIN_MENU: &str = "cb5df1c371663bc4";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

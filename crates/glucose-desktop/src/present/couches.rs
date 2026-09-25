@@ -231,14 +231,14 @@ impl Couches {
         filtre: &wgpu::Sampler,
         place: &mut Option<Portee>,
         (source, bandes): (&Pixmap, &Bandes),
-    ) {
+    ) -> u32 {
         let taille = (source.width(), source.height());
         let refaire = place.as_ref().is_none_or(|p| p.taille != taille);
         if refaire {
             *place = Some(Self::fabriquer(peripherique, disposition, filtre, taille));
         }
         let Some(portee) = place.as_ref() else {
-            return;
+            return 0;
         };
         // **Une texture neuve ne contient rien de ce qu'on croit** : tout part, une fois.
         // Ensuite elle garde ce qu'on y a mis d'une image à l'autre -- il n'y a pas d'anneau
@@ -283,41 +283,41 @@ impl Couches {
                 },
             );
         }
-        crate::perf::compteur("blit_lignes", f64::from(lignes));
+        lignes
     }
 
     /// Téléverse les deux couches du processeur. À faire avant d'ouvrir la passe.
     ///
-    /// `dessous_utile` dit si la couche du dessous porte quelque chose. Quand elle ne porte
-    /// rien — ni fond, ni membrane, ni dossier — **rien ne part** : ni le téléversement de
-    /// quinze mébioctets, ni le dessin qui composerait du transparent sur du fond.
+    /// `dessous_utile` dit si la couche du dessous se pose. Quand elle ne porte rien — ni
+    /// fond, ni ornement de membrane, ni dossier — **rien ne part** : ni ses bandes, ni le
+    /// dessin qui composerait du transparent sur du fond.
     ///
-    /// Ce n'est pas une mesure de pixels, qui coûterait un balayage de l'écran entier : c'est
-    /// le socle qui **sait** ce qu'il a dessiné, et il est le seul à pouvoir le dire sans
-    /// rien parcourir.
+    /// # Les deux couches partent par bandes (BANDE-1, BANDE-2)
+    ///
+    /// Le dessous partait entier, et la raison était juste tant qu'il portait la forme des
+    /// membranes : elles suivent la vue, et un grand cadre touche toutes les lignes. Depuis que
+    /// la carte les dessine (MEMB-FORME-1), il n'y reste que des titres, des poignées, des
+    /// réglettes et des dossiers — quelques bandes, comme le dessus.
     pub fn televerser(
         &mut self,
         peripherique: &wgpu::Device,
         file: &wgpu::Queue,
-        (dessous, dessous_utile): (&Pixmap, bool),
+        (dessous, dessous_utile, bandes_du_dessous): (&Pixmap, bool, &Bandes),
         (dessus, bandes): (&Pixmap, &Bandes),
     ) {
         self.dessous_pose = dessous_utile;
+        let mut lignes = 0;
         if dessous_utile {
-            // La couche du dessous porte des membranes et des dossiers, qui suivent la vue :
-            // elle change partout dès que la vue bouge, et un relevé de bandes n'y gagnerait
-            // rien. C'est le même raisonnement que la fiche 22 § 4, qui a préféré la
-            // supprimer plutôt que la mettre en cache.
-            Self::accorder(
+            lignes += Self::accorder(
                 peripherique,
                 file,
                 &self.disposition,
                 &self.echantillonneur,
                 &mut self.dessous,
-                (dessous, &Bandes::tout(dessous.height())),
+                (dessous, bandes_du_dessous),
             );
         }
-        Self::accorder(
+        lignes += Self::accorder(
             peripherique,
             file,
             &self.disposition,
@@ -325,6 +325,9 @@ impl Couches {
             &mut self.dessus,
             (dessus, bandes),
         );
+        // Les deux couches ensemble : chacune écrasait le compte de l'autre, et le dessous,
+        // envoyé le premier, n'apparaissait jamais.
+        crate::perf::compteur("blit_lignes", f64::from(lignes));
     }
 
     /// Pose la couche du dessous, quand elle porte quelque chose.
@@ -367,6 +370,7 @@ impl Couches {
 pub struct Temps<'a> {
     pub fond: &'a super::fond_gpu::FondGpu,
     pub lueurs: &'a super::lueurs_gpu::Lueurs,
+    pub membranes: &'a super::membranes_gpu::Membranes,
     pub couches: &'a Couches,
     pub scene: &'a super::scene_gpu::SceneGpu,
     pub retenues: &'a [String],
@@ -403,6 +407,8 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
     });
     temps.fond.poser(&mut passe);
     temps.lueurs.poser(&mut passe);
+    // La forme des membranes, sous leurs titres qui sont dans la couche du dessous.
+    temps.membranes.poser(&mut passe);
     temps
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());

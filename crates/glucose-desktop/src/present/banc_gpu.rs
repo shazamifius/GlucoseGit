@@ -183,15 +183,17 @@ pub fn composer_les_cinq_temps(
     (dessous, dessus): (&Pixmap, &Pixmap),
     source: &crate::present::scene_gpu::Source<'_>,
 ) -> Option<Pixmap> {
-    use crate::present::{couches, fond_gpu, lueurs_gpu, scene_gpu};
+    use crate::present::{couches, fond_gpu, lueurs_gpu, membranes_gpu, scene_gpu};
     let ecran = (taille.0 as f32, taille.1 as f32);
     let mut fond = fond_gpu::FondGpu::nouveau(peripherique, FORMAT);
     let mut lueurs = lueurs_gpu::Lueurs::nouvelles(peripherique, FORMAT);
+    let mut membranes = membranes_gpu::Membranes::nouvelles(peripherique, FORMAT);
     let mut scene = scene_gpu::SceneGpu::nouvelle(peripherique, FORMAT);
     let mut deux = couches::Couches::nouvelles(peripherique, FORMAT);
 
     fond.preparer(file, ecran, confie.fond);
     lueurs.preparer(peripherique, file, ecran, &confie.lueurs);
+    membranes.preparer(peripherique, file, ecran, &confie.membranes);
     let textures = confie.textures();
     scene.ouvrir();
     // Le banc et l'epreuve des deux voies comparent des IMAGES : elles doivent etre
@@ -209,7 +211,11 @@ pub fn composer_les_cinq_temps(
     deux.televerser(
         peripherique,
         file,
-        (dessous, utile),
+        (
+            dessous,
+            utile,
+            &crate::present::bandes::Bandes::tout(dessous.height()),
+        ),
         (
             dessus,
             &crate::present::bandes::Bandes::tout(dessus.height()),
@@ -225,6 +231,7 @@ pub fn composer_les_cinq_temps(
         couches::Temps {
             fond: &fond,
             lueurs: &lueurs,
+            membranes: &membranes,
             couches: &deux,
             scene: &scene,
             retenues: &retenues,

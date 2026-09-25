@@ -38,36 +38,6 @@ use std::sync::Arc;
 use tiny_skia::Pixmap;
 use winit::window::Window;
 
-/// Le nuanceur : un triangle plein écran, et la texture telle quelle.
-const SHADER: &str = r#"
-struct VsOut {
-    @builtin(position) pos: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-};
-
-// Trois sommets qui débordent de l'écran : (0,0), (2,0), (0,2) en coordonnées de texture,
-// donc (-1,-1), (3,-1), (-1,3) en coordonnées d'écran. Le triangle couvre tout le cadre, et
-// ce qui dépasse est découpé — c'est moins de travail qu'un quadrilatère en deux triangles,
-// dont la diagonale ferait rastériser deux fois la même ligne de pixels.
-@vertex
-fn vs(@builtin(vertex_index) i: u32) -> VsOut {
-    var out: VsOut;
-    let uv = vec2<f32>(f32((i << 1u) & 2u), f32(i & 2u));
-    out.uv = uv;
-    // L'image a son origine en haut à gauche, l'écran en bas à gauche : l'ordonnée s'inverse.
-    out.pos = vec4<f32>(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, 0.0, 1.0);
-    return out;
-}
-
-@group(0) @binding(0) var image: texture_2d<f32>;
-@group(0) @binding(1) var au_plus_proche: sampler;
-
-@fragment
-fn fs(in: VsOut) -> @location(0) vec4<f32> {
-    return vec4<f32>(textureSample(image, au_plus_proche, in.uv).rgb, 1.0);
-}
-"#;
-
 /// La présentation par le processeur graphique.
 pub struct GpuPresenter {
     surface: wgpu::Surface<'static>,
@@ -94,12 +64,16 @@ pub struct GpuPresenter {
     fond: super::fond_gpu::FondGpu,
     /// Les lueurs des cartes (fiche 21, etape 3).
     lueurs: super::lueurs_gpu::Lueurs,
+    /// La forme des membranes (MEMB-FORME-1).
+    membranes: super::membranes_gpu::Membranes,
     /// Les bandes de la couche du dessus que la texture détient déjà.
     ///
     /// Cette couche n'a pas d'anneau : sa texture garde son contenu d'une image à l'autre,
     /// ce qui permet de n'y écrire que ce qui a changé. Encore faut-il savoir ce qu'elle
     /// porte, pour effacer sur la carte les bandes que le processeur n'écrit plus.
     bandes_envoyees: super::bandes::Bandes,
+    /// Les bandes de la couche du dessous que sa texture détient déjà (BANDE-2).
+    bandes_du_dessous_envoyees: super::bandes::Bandes,
     /// La chaîne d'images doit être refaite avant la prochaine acquisition.
     ///
     /// # Le plantage que ce drapeau répare
@@ -117,6 +91,7 @@ pub struct GpuPresenter {
 }
 
 mod anneau;
+mod atelier;
 mod cinq_temps;
 mod ouverture;
 pub mod succession;
@@ -191,7 +166,7 @@ impl GpuPresenter {
         //
         // Un objet naissant pret a servir ne depend d'aucun evenement exterieur.
         surface.configure(&device, &config);
-        let (pipeline, layout, sampler) = atelier(&device, config.format);
+        let (pipeline, layout, sampler) = atelier::atelier(&device, config.format);
         // La texture porte les octets tels quels quand la surface est linéaire. Si aucun
         // format non-sRGB n'était disponible, elle se déclare sRGB pour que le sampler
         // défasse ce que la sortie refera — les deux conversions s'annulent alors.
@@ -207,11 +182,13 @@ impl GpuPresenter {
         let couches = super::couches::Couches::nouvelles(&device, config.format);
         let fond = super::fond_gpu::FondGpu::nouveau(&device, config.format);
         let lueurs = super::lueurs_gpu::Lueurs::nouvelles(&device, config.format);
+        let membranes = super::membranes_gpu::Membranes::nouvelles(&device, config.format);
         Ok(Self {
             scene,
             couches,
             fond,
             lueurs,
+            membranes,
             surface,
             device,
             queue,
@@ -221,6 +198,7 @@ impl GpuPresenter {
             layout,
             anneau: anneau::Anneau::nouveau(),
             bandes_envoyees: super::bandes::Bandes::default(),
+            bandes_du_dessous_envoyees: super::bandes::Bandes::default(),
             adaptateur,
             sonde,
             format_image,
@@ -377,80 +355,6 @@ impl GpuPresenter {
         crate::perf::compteur("blit_mo", f64::from(w) * f64::from(h) * 4.0 / 1_048_576.0);
         crate::perf::stage("blit");
     }
-}
-
-/// montage, pas de la présentation, et le garder dans l'ouverture y mélangeait deux sujets.
-/// Le nuanceur, la disposition des liaisons, le pipeline et l'échantillonneur.
-///
-/// Tout cela se construit une fois et ne dépend que du format de la surface — c'est du
-/// montage, pas de la présentation, et le garder dans l'ouverture y mélangeait deux sujets.
-fn atelier(
-    device: &wgpu::Device,
-    format: wgpu::TextureFormat,
-) -> (wgpu::RenderPipeline, wgpu::BindGroupLayout, wgpu::Sampler) {
-    let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("glucose-presentation"),
-        source: wgpu::ShaderSource::Wgsl(SHADER.into()),
-    });
-
-    let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("glucose-image"),
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                count: None,
-            },
-        ],
-    });
-
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("glucose-presentation"),
-        bind_group_layouts: &[Some(&layout)],
-        ..Default::default()
-    });
-
-    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("glucose-presentation"),
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &module,
-            entry_point: Some("vs"),
-            compilation_options: Default::default(),
-            buffers: &[],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &module,
-            entry_point: Some("fs"),
-            compilation_options: Default::default(),
-            targets: &[Some(format.into())],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        cache: None,
-        multiview_mask: None,
-    });
-
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("glucose-au-plus-proche"),
-        mag_filter: wgpu::FilterMode::Nearest,
-        min_filter: wgpu::FilterMode::Nearest,
-        ..Default::default()
-    });
-
-    (pipeline, layout, sampler)
 }
 
 impl Presenter for GpuPresenter {

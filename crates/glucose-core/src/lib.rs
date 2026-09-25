@@ -24,6 +24,7 @@ pub mod hash;
 pub mod hit_priority;
 pub mod layout;
 pub mod membrane_focus;
+pub mod membrane_forme;
 pub mod membrane_space;
 pub mod membrane_stretch;
 pub mod mirror_graph;

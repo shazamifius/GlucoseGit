@@ -18,6 +18,9 @@ pub struct Confie {
     pub fond: Option<crate::present::fond_gpu::Fond>,
     /// Les lueurs des cartes visibles, dans l'ordre où le processeur les peindrait.
     pub lueurs: Vec<crate::present::lueurs_gpu::Lueur>,
+    /// La forme des membranes visibles, dans l'ordre du modèle (MEMB-FORME-1) : leurs titres,
+    /// poignées et réglettes restent dans la couche du dessous.
+    pub membranes: Vec<glucose_core::membrane_forme::Membrane>,
     /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**.
     pub photos: Vec<(String, Pose)>,
     /// **Le niveau de chaque photo décodée**, par clé : son fichier, et combien de fois le
@@ -40,6 +43,12 @@ pub struct Confie {
     /// d'être touché. Le relevé appartient à la peinture et non au renderer, parce que la
     /// chrome se dessine **après** lui — un relevé pris ici manquerait les docks.
     pub bandes_du_dessus: crate::present::bandes::Bandes,
+    /// **Les lignes que la couche du dessous porte**, relevées de même (BANDE-2).
+    ///
+    /// Depuis que la forme des membranes est sur la carte, il n'y reste que leurs titres,
+    /// poignées et réglettes, et les dossiers : quelques bandes, là où elle partait entière
+    /// dès qu'une membrane était visible — quinze mébioctets effacés et envoyés à chaque image.
+    pub bandes_du_dessous: crate::present::bandes::Bandes,
     /// La couche du dessous a-t-elle reçu de l'encre ?
     ///
     /// Quand elle n'en a pas — ni membrane, ni dossier, le fond étant sur la carte — elle est

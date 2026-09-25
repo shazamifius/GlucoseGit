@@ -148,6 +148,13 @@ impl GlucoseApp {
         self.peindre_ce_qui_a_change((largeur, hauteur), false);
     }
 
+    /// **La voie processeur vient d'écrire ce tampon en entier** : c'est l'image complète,
+    /// et il est aussi la couche du dessous de la voie graphique. Si l'arbitre repasse sur la
+    /// carte, la première image devra tout effacer — ses bandes d'avant ne disent plus rien.
+    fn dessous_entierement_sali(&mut self, hauteur: u32) {
+        self.confie.bandes_du_dessous = crate::present::bandes::Bandes::tout(hauteur);
+    }
+
     /// Ou la main pointe, en pixels d'ecran.
     fn pointeur(&self) -> Pointer {
         Pointer {
@@ -176,6 +183,9 @@ impl GlucoseApp {
             arrivages: &self.depot.en_chemin,
         };
         let pointer = self.pointeur();
+        // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a travers
+        // des champs, jamais a travers une methode.
+        let par_la_carte = self.la_carte_pose_les_photos();
         match self.region_a_repeindre(sale, vp, fenetre, header_h) {
             Some(r) => repeindre_la_region(
                 &mut pixmap,
@@ -188,9 +198,6 @@ impl GlucoseApp {
             None => {
                 crate::perf::compteur("img_region", f64::from(fenetre.0) * f64::from(fenetre.1));
                 let echelle = self.ui.scale_factor;
-                // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a
-                // travers des champs, jamais a travers une methode.
-                let par_la_carte = self.la_carte_pose_les_photos();
                 let scene = self.resolution.scene_reduite(reduit.as_mut());
                 let chrome = Chrome {
                     ui: &mut self.ui,
@@ -204,16 +211,12 @@ impl GlucoseApp {
                 // On ne reduit alors PAS : la carte filtre en bilineaire sans rien payer,
                 // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
                 if par_la_carte {
-                    // Ce que l'image precedente avait ecrit dans le dessus : c'est cela
-                    // seul qu'il faut effacer, et rien d'autre (BANDE-1).
-                    let bandes_precedentes = self.confie.bandes_du_dessus.clone();
                     let (tampon, confie) = peindre_par_la_carte(
                         (&mut pixmap, self.tampon_dessus.take()),
                         &mut self.renderer,
-                        (&self.store, self.confie.dessous_porte_quelque_chose),
+                        (&self.store, &self.confie),
                         chrome,
                         (overlay, regard),
-                        &bandes_precedentes,
                     );
                     self.tampon_dessus = tampon;
                     self.confie = confie;
@@ -229,6 +232,9 @@ impl GlucoseApp {
                     );
                 }
             }
+        }
+        if !par_la_carte {
+            self.dessous_entierement_sali(pixmap.height());
         }
         self.pixmap = Some(pixmap);
         self.tampon_reduit = reduit;
@@ -317,10 +323,9 @@ fn repeindre_la_region(
 fn peindre_par_la_carte(
     (pixmap, tampon): (&mut Pixmap, Option<Pixmap>),
     renderer: &mut Renderer,
-    (store, dessous_sali): (&Store, bool),
+    (store, precedente): (&Store, &crate::renderer::Confie),
     chrome: Chrome<'_>,
     (overlay, regard): (SceneOverlay<'_>, crate::renderer::Regard),
-    bandes_precedentes: &crate::present::bandes::Bandes,
 ) -> (Option<Pixmap>, crate::renderer::Confie) {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     // Le tampon du dessus suit la fenetre : il se refait quand elle change de taille, et
@@ -346,21 +351,16 @@ fn peindre_par_la_carte(
     // partout ailleurs, le tampon est transparent depuis qu'il existe et le rester.
     //
     // La première image, elle, hérite d'un tampon dont on ne sait rien -- il vient d'être
-    // alloué, ou la fenêtre a changé de taille : `bandes_precedentes` vaut alors toute la
+    // alloué, ou la fenêtre a changé de taille : ses bandes d'avant valent alors toute la
     // hauteur, et c'est l'appelant qui le sait.
-    bandes_precedentes.effacer(dessus);
-    // **Le dessous part transparent lui aussi** -- mais seulement s'il a ete sali.
+    precedente.bandes_du_dessus.effacer(dessus);
+    // **Le dessous de même : seulement là où il avait écrit** (BANDE-2).
     //
-    // Il portait le fond, donc il l'ecrasait a chaque image et la question ne se posait pas.
-    // La carte le peint maintenant, et ce qui reste ici -- membranes et dossiers -- se
-    // compose PAR-DESSUS : sans effacement, l'image d'avant resterait.
-    //
-    // Sur un document qui n'a ni membrane ni dossier, le tampon n'a jamais ete touche : il
-    // est deja transparent, et l'effacer serait ecrire seize mebioctets de zeros sur seize
-    // mebioctets de zeros. Un tampon jamais sali n'a pas besoin d'etre nettoye.
-    if dessous_sali {
-        pixmap.fill(tiny_skia::Color::TRANSPARENT);
-    }
+    // Ce qui y reste -- titres, poignées et réglettes des membranes, dossiers -- se compose
+    // PAR-DESSUS ce que la carte a peint : sans effacement, l'image d'avant resterait. Mais
+    // il n'occupe que quelques bandes, et un document sans membrane ni dossier n'en a aucune :
+    // effacer l'écran entier écrivait seize mébioctets de zéros sur des zéros.
+    precedente.bandes_du_dessous.effacer(pixmap);
     crate::perf::stage("effacer");
     let mut confie = renderer.rendre_les_couches(
         &mut pixmap.as_mut(),
@@ -382,6 +382,11 @@ fn peindre_par_la_carte(
     // les docks -- et une bande manquée est un pixel qui ne s'efface jamais.
     confie.bandes_du_dessus = crate::present::bandes::Bandes::relever(dessus);
     crate::perf::compteur("dessus_lignes", f64::from(confie.bandes_du_dessus.lignes()));
+    // Le dessous ne se relève que s'il a reçu de l'encre : le socle sait ce qu'il y a dessiné,
+    // et un balayage de l'écran pour découvrir qu'il est vide ne coûterait que du temps.
+    if confie.dessous_porte_quelque_chose {
+        confie.bandes_du_dessous = crate::present::bandes::Bandes::relever(pixmap);
+    }
     crate::perf::stage("relever");
     (tampon, confie)
 }
@@ -489,3 +494,6 @@ fn peindre_tout(
     );
     crate::perf::stage("docks");
 }
+
+#[cfg(test)]
+mod tests;

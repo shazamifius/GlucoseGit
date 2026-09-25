@@ -42,12 +42,24 @@ pub(super) fn presenter(
     // couche n'ayant pas d'anneau qui la renouvellerait.
     let a_televerser = p.bandes_envoyees.union(&confie.bandes_du_dessus);
     p.bandes_envoyees = confie.bandes_du_dessus.clone();
-    let dessous_utile = confie.fond.is_none() || confie.dessous_porte_quelque_chose;
+    // Le dessous de même (BANDE-2) -- sauf quand il porte le fond : alors tout part.
+    let du_dessous = if confie.fond.is_none() {
+        crate::present::bandes::Bandes::tout(dessous.height())
+    } else {
+        confie.bandes_du_dessous.clone()
+    };
+    let dessous_utile = !du_dessous.vides();
+    let dessous_a_televerser = p.bandes_du_dessous_envoyees.union(&du_dessous);
+    // Un dessous qui ne se pose pas n'envoie rien : sa texture garde ce qu'elle avait, et ce
+    // sont ces bandes-là qu'il faudra effacer le jour où il se reposera.
+    if dessous_utile {
+        p.bandes_du_dessous_envoyees = du_dessous;
+    }
     crate::perf::compteur("dessous_televerse", f64::from(u8::from(dessous_utile)));
     p.couches.televerser(
         &p.device,
         &p.queue,
-        (dessous, dessous_utile),
+        (dessous, dessous_utile, &dessous_a_televerser),
         (dessus, &a_televerser),
     );
     crate::perf::stage("blit");
@@ -77,6 +89,7 @@ pub(super) fn presenter(
         couches::Temps {
             fond: &p.fond,
             lueurs: &p.lueurs,
+            membranes: &p.membranes,
             couches: &p.couches,
             scene: &p.scene,
             retenues: &retenues,
@@ -125,6 +138,8 @@ fn preparer_la_scene(
     p.fond.preparer(&p.queue, ecran, confie.fond);
     p.lueurs
         .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
+    p.membranes
+        .preparer(&p.device, &p.queue, ecran, &confie.membranes);
     // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
     // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de
     // quads, et ce n'est pas le même chantier que le bus.

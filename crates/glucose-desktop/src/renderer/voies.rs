@@ -57,8 +57,13 @@ pub(super) fn dessiner_sous_les_photos(
         halo::draw_halos(hue_cache, pixmap, store, pass);
         crate::perf::stage("halos");
     }
-    // 4. Membranes (pointillés, titre protecteur en haut à gauche)
-    let membranes = scene::draw_membranes(kit, pixmap, store, pass);
+    // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
+    // carte sinon (MEMB-FORME-1) ; leurs titres, poignées et réglettes, ici sur les deux voies.
+    let membranes = if cadrage.couche.porte_le_fond() {
+        scene::draw_membranes(kit, pixmap, store, pass)
+    } else {
+        scene::draw_membrane_ornaments(kit, pixmap, store, pass)
+    };
     crate::perf::stage("membranes");
     // 4 bis. Dossiers — des portails vers un autre tableau, donc dessinés AVEC les autres
     // conteneurs et sous leur contenu.
@@ -514,6 +519,8 @@ impl Renderer {
         let ecran = (taille.0 as f32, taille.1 as f32);
         let lueurs = lueurs_a_poser(&mut self.hue_cache, store, pass, ecran);
         crate::perf::stage("lueurs");
+        let membranes = scene::formes_des_membranes(store, pass, taille);
+        crate::perf::stage("membranes");
         // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
         // tous : deux composants voisins se rendent au meme palier.
         let regime = super::composants::Regime::de(vp, regard, taille, header_h);
@@ -541,6 +548,7 @@ impl Renderer {
         Confie {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
             lueurs,
+            membranes,
             photos,
             niveaux,
             replis,
@@ -549,6 +557,7 @@ impl Renderer {
             // Le releve appartient a la peinture : la chrome se dessine APRES le renderer,
             // donc rien de juste ne peut etre dit ici.
             bandes_du_dessus: crate::present::bandes::Bandes::default(),
+            bandes_du_dessous: crate::present::bandes::Bandes::default(),
             dessous_porte_quelque_chose: true,
         }
     }

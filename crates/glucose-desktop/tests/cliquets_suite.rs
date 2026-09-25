@@ -797,11 +797,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "draw_frame",
         94,
     ),
-    (
-        "crates/glucose-desktop/src/renderer/scene.rs",
-        "draw_membranes",
-        86,
-    ),
 ];
 
 /// Les fichiers de production plus longs que [`FICHIER_MAX`], admis tels quels.
