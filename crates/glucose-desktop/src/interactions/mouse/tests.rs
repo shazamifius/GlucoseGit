@@ -156,6 +156,7 @@ fn render(app: &mut GlucoseApp) {
         selection_box: None,
         editing: None,
         arrivages: &[],
+        eclairages: &[],
     };
     app.renderer.render(
         &mut view,

@@ -76,6 +76,7 @@ fn une_image(renderer: &mut Renderer, ui: &mut UiState, pixmap: &mut Pixmap, sto
         ui,
         SceneOverlay {
             arrivages: &[],
+            eclairages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,

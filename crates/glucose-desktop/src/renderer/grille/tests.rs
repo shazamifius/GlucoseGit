@@ -76,6 +76,7 @@ fn sans_reperes<'a>() -> crate::params::SceneOverlay<'a> {
         selection_box: None,
         editing: None,
         arrivages: &[],
+        eclairages: &[],
     }
 }
 

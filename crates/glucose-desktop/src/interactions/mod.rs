@@ -24,6 +24,7 @@ pub mod recadrage;
 pub mod resize;
 pub mod selection;
 pub mod shortcuts;
+pub mod survol;
 pub mod temps;
 pub mod text_edit;
 pub mod text_entry;

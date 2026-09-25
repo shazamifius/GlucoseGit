@@ -176,11 +176,13 @@ impl GlucoseApp {
         let regard = self.regard();
         let mut reduit = self.tampon_reduit.take();
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
+        let eclairages = self.eclairages();
         let overlay = SceneOverlay {
             guides: &self.active_guides,
             selection_box: self.selection_box,
             editing: self.editing_session.as_ref(),
             arrivages: &self.depot.en_chemin,
+            eclairages: &eclairages,
         };
         let pointer = self.pointeur();
         // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a travers

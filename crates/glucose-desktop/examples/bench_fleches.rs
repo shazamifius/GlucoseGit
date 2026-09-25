@@ -129,6 +129,7 @@ fn poste_annotations(avec_fleches: bool, echelle: f64) -> f64 {
                     selection_box: None,
                     editing: None,
                     arrivages: &[],
+                    eclairages: &[],
                 },
                 ui.header_height(),
                 Cadrage::plein(),

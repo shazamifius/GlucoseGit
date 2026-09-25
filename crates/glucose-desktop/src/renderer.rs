@@ -38,6 +38,7 @@ pub mod magasin;
 pub mod math;
 pub mod note;
 pub mod pass;
+pub mod passages;
 pub mod photo;
 pub mod predicate;
 pub mod richtext;
@@ -604,6 +605,7 @@ mod tests {
             selection_box: None,
             editing: None,
             arrivages: &[],
+            eclairages: &[],
         };
         let origin = Pointer { x: 0.0, y: 0.0 };
         renderer.render(

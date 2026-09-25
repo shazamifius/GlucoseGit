@@ -125,6 +125,7 @@ fn mesurer(cartes: usize, selection: bool) -> Empreinte {
         (&mut ui, Pointer { x: 0.0, y: 0.0 }),
         SceneOverlay {
             arrivages: &[],
+            eclairages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,

@@ -203,6 +203,7 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
         scene.store.set_viewport(scene.board, vue);
         let overlay = SceneOverlay {
             arrivages: &[],
+            eclairages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,

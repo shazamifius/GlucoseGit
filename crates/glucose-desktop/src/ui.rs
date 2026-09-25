@@ -104,6 +104,8 @@ pub struct UiState {
     /// Ce que le pointeur survole dans la bande, tel que la souris l'a vu en dernier : c'est
     /// ce qui lui dit si un mouvement change quelque chose à redessiner.
     pub survol: bande::Survol,
+    /// La flèche que la souris survole : ce qu'elle ancre brille dans ses cartes (FLECHE-4).
+    pub fleche_survolee: Option<String>,
     pub current_toast: Option<Toast>,
     /// Le menu contextuel ouvert, et le point où il l'a été. `None` quand il est fermé.
     ///
@@ -149,6 +151,7 @@ impl UiState {
             active_tool: ActiveTool::Select,
             smart_align: true,
             survol: bande::Survol::default(),
+            fleche_survolee: None,
             current_toast: None,
             context_menu_at: None,
             scale_factor: 1.0,

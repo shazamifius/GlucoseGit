@@ -91,6 +91,7 @@ fn main() {
             &mut ui,
             SceneOverlay {
                 arrivages: &[],
+                eclairages: &[],
                 guides: &guides,
                 selection_box: None,
                 editing: Some(&session),

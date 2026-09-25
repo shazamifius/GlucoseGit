@@ -86,6 +86,20 @@ pub struct SceneOverlay<'a> {
     pub editing: Option<&'a TextEditSession>,
     /// Les images en train d'arriver d'un dépôt web, là où elles se poseront.
     pub arrivages: &'a [Arrivage],
+    /// Les passages de cartes à faire briller : ce qu'une flèche survolée désigne, ou ce que
+    /// l'éditeur d'ancres sélectionne (FLECHE-4).
+    pub eclairages: &'a [Eclairage],
+}
+
+/// **Un passage à faire briller** dans une carte de texte (FLECHE-4).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Eclairage {
+    /// La carte.
+    pub carte: String,
+    /// Ses plages, en octets de sa source.
+    pub plages: Vec<(usize, usize)>,
+    /// Sa couleur — celle de la carte, si `None`.
+    pub teinte: Option<(u8, u8, u8)>,
 }
 
 /// **Une image qui arrive** : un dépôt web annoncé, pas encore livré.

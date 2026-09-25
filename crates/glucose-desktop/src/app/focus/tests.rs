@@ -120,6 +120,7 @@ fn pixel_du_rendu(app: &mut GlucoseApp, (wx, wy): (f64, f64)) -> [u8; 4] {
             selection_box: None,
             editing: None,
             arrivages: &[],
+            eclairages: &[],
         },
         crate::params::Pointer { x: -1.0, y: -1.0 },
         crate::renderer::Regard::immobile(),

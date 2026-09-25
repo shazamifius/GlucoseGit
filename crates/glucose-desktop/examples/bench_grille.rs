@@ -92,6 +92,7 @@ fn sans_reperes<'a>() -> SceneOverlay<'a> {
         Box::leak(Box::new(glucose_core::smart_align::SnapGuides::default()));
     SceneOverlay {
         arrivages: &[],
+        eclairages: &[],
         guides,
         selection_box: None,
         editing: None,

@@ -46,6 +46,7 @@ fn une_image(app: &mut GlucoseApp, dessous: &mut Pixmap, precedente: &Confie) ->
         selection_box: None,
         editing: None,
         arrivages: &[],
+        eclairages: &[],
     };
     let chrome = Chrome {
         ui: &mut app.ui,

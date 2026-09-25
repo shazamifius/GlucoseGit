@@ -111,6 +111,7 @@ fn chronometrer(store: &Store) -> Mesure {
             ui,
             SceneOverlay {
                 arrivages: &[],
+                eclairages: &[],
                 guides: &guides,
                 selection_box: None,
                 editing: None,

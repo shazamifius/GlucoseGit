@@ -24,6 +24,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
         selection_box: None,
         editing: None,
         arrivages: &[],
+        eclairages: &[],
     };
     app.renderer.render(
         &mut pixmap.as_mut(),
@@ -44,6 +45,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
             selection_box: None,
             editing: None,
             arrivages: &[],
+            eclairages: &[],
         };
         app.renderer.render(
             &mut pixmap.as_mut(),

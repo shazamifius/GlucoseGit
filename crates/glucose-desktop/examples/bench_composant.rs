@@ -118,6 +118,7 @@ fn preparer(renderer: &mut Renderer, store: &mut Store, echelle: f64) -> Option<
         (&mut ui, Pointer { x: 0.0, y: 0.0 }),
         SceneOverlay {
             arrivages: &[],
+            eclairages: &[],
             guides: &guides,
             selection_box: None,
             editing: None,

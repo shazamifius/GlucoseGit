@@ -283,11 +283,9 @@ fn first_pixel_at_or_after(position: f32, limit: i32) -> i32 {
 
 /// Pose UNE lueur, sans rien preparer d'avance.
 ///
-/// **Reservee aux tests**, et c'est ce qu'elle a toujours ete sans le dire : la production
-/// prepare toutes ses lueurs d'un coup ([`LueurPrete`]) pour que le preambule ne se refasse
-/// pas par bande. Les epreuves d'aspect, elles, veulent une lueur isolee sur un fond connu,
-/// et c'est ce qu'elle donne.
-#[cfg(test)]
+/// Les lueurs des cartes se preparent toutes d'un coup ([`LueurPrete`]), pour que le
+/// preambule ne se refasse pas par bande. Celle-ci sert une lueur isolee : les epreuves
+/// d'aspect, et le passage qu'une fleche survolee fait briller (FLECHE-4).
 pub(crate) fn draw_halo(dst: &mut PixmapMut, halo: HaloBox, rgb: (u8, u8, u8), alpha: u8) {
     let (largeur, hauteur) = (dst.width() as i32, dst.height() as i32);
     if let Some(prete) = LueurPrete::nouvelle(halo, rgb, alpha, largeur, hauteur) {
@@ -450,9 +448,9 @@ pub fn draw_halos(
 
 mod bandes;
 
-use bandes::peindre_en_bandes;
+use bandes::{peindre_en_bandes, LueurPrete};
 #[cfg(test)]
-use bandes::{peindre_en, LueurPrete};
+use bandes::peindre_en;
 
 #[cfg(test)]
 mod tests;

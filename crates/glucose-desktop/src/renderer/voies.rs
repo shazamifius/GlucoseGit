@@ -100,6 +100,8 @@ pub(super) fn dessiner_sur_les_photos(
         (overlay.editing, cartes_par_la_carte),
         pass,
     );
+    // Ce qu'une flèche survolée désigne brille par-dessus les cartes (FLECHE-4).
+    super::passages::eclairer(hue_cache, kit, pixmap, (store, overlay.eclairages, pass));
     crate::perf::stage("annotations");
     // 6 bis. Les ornements des photos -- cadre de selection, poignees, reglette -- passent
     // au-dessus de TOUT, sur les deux voies (ORNEMENTS-1). Ils vivaient au bout de la pose de
