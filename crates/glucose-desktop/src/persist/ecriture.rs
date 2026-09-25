@@ -345,11 +345,6 @@ fn auteur_de_ce_lancement() -> u64 {
     x ^ (x >> 33)
 }
 
-/// Le dossier des brouillons : les documents qui n'ont pas encore de nom.
-pub fn dossier_des_brouillons() -> PathBuf {
-    crate::present::souvenir::dossier().join("brouillons")
-}
-
 /// Un nom de brouillon neuf, dans ce dossier.
 pub fn nouveau_brouillon(dossier: &Path, instant: i64) -> PathBuf {
     dossier.join(format!(

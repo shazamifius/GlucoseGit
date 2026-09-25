@@ -1,6 +1,6 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
-mod accueil;
+pub(crate) mod accueil;
 mod evenements;
 mod fenetre;
 pub mod focus;
@@ -304,10 +304,10 @@ impl GlucoseApp {
     pub fn new() -> Self {
         let mut renderer = Renderer::new();
         let store = accueil::document_d_accueil(&renderer);
-        let saved_version = store.version;
         let disque = accueil::brancher_le_disque(&mut renderer, &store);
 
-        Self {
+        let mut app = Self {
+            saved_version: store.version,
             store,
             renderer,
             animator: crate::animation::Animator::new(),
@@ -333,7 +333,7 @@ impl GlucoseApp {
             dock_manager: DockManager::new(),
             dock_cache: DockCache::new(),
             arbitre: None,
-            souvenir_de_la_carte: crate::present::souvenir::chemin(),
+            souvenir_de_la_carte: std::path::PathBuf::new(),
             reduire_a_la_relache: None,
             reveil: None,
             historique_du_texte: Default::default(),
@@ -370,14 +370,15 @@ impl GlucoseApp {
             cadence: crate::cadence::Cadence::inconnue(),
             disque,
             project_path: None,
-            saved_version,
             window_title_cache: String::new(),
             chronique: crate::chronique::Chronique::nouvelle(),
             echelle_precedente: 1.0,
             // Tout, et non rien : la première image doit se dessiner entièrement.
             salissure: std::cell::Cell::new(crate::salissure::Salissure::Tout),
             image_due: std::cell::Cell::new(None),
-        }
+        };
+        app.habiter(&accueil::dossier_hors_lancement());
+        app
     }
 
     pub fn redraw(&mut self) {

@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Le dossier de l'utilisateur, et ce qui l'y attend : le dernier document, ou ce qu'un
     // plantage a laissé. Ici et non dans `new` : les épreuves créent des centaines
     // d'applications, et aucune ne doit écrire chez l'utilisateur ni rouvrir son travail.
-    app.disque.brouillons = glucose_desktop::persist::ecriture::dossier_des_brouillons();
+    app.habiter(&glucose_desktop::present::souvenir::dossier());
     app.retrouver_le_travail();
     // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
     // Glucose dort (ETAGES-2).

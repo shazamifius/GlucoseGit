@@ -247,6 +247,11 @@ impl Atelier {
         self.apercus.is_some()
     }
 
+    /// Où les aperçus s'écrivent, s'ils s'écrivent.
+    pub fn dossier_des_apercus(&self) -> Option<&std::path::Path> {
+        self.apercus.as_deref()
+    }
+
     /// **Écrit la vue d'ensemble de cette image**, sur un fil et sans rien attendre.
     pub fn ecrire_l_apercu(&mut self, src: &str, apercu: Apercu) {
         let Some(dossier) = self.apercus.clone() else {

@@ -40,12 +40,10 @@ pub struct Disque {
     /// Où naissent les brouillons, où se gardent les textes en cours de frappe et le souvenir
     /// du dernier document.
     ///
-    /// **Seul le vrai lancement y met le dossier de l'utilisateur** (`main.rs`). Toute autre
-    /// application — les centaines que créent les épreuves, les bancs, les exemples — travaille
-    /// dans un dossier temporaire qui n'appartient à personne. C'était l'inverse : chaque
-    /// épreuve devait penser à en donner un, et celles qui n'y pensaient pas écrivaient chez
-    /// l'utilisateur — le souvenir d'un document d'épreuve que son lancement suivant aurait
-    /// visé. Un défaut qu'on ne peut plus oublier d'éviter.
+    /// **Seul le vrai lancement y met le dossier de l'utilisateur**, par
+    /// [`GlucoseApp::habiter`] ; toute autre application — les centaines que créent les
+    /// épreuves, les bancs, les exemples — habite un dossier temporaire qui n'appartient à
+    /// personne.
     pub brouillons: PathBuf,
 }
 
@@ -57,7 +55,7 @@ impl Disque {
             depart: Some(depart),
             a_sceller: Vec::new(),
             voyage: None,
-            brouillons: std::env::temp_dir().join("glucose-hors-lancement"),
+            brouillons: crate::app::accueil::dossier_hors_lancement().join("brouillons"),
         }
     }
 }

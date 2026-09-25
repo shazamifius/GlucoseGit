@@ -34,8 +34,7 @@ pub(super) fn document_d_accueil(renderer: &Renderer) -> Store {
     store
 }
 
-/// Ce que l'application garde sur le disque, branché au rendu : les aperçus des images vues
-/// (ETAGES-4), et le registre qui dit où sont les octets de chaque image (HISTOIRE-1).
+/// Le registre qui dit où sont les octets de chaque image (HISTOIRE-1), branché au rendu.
 ///
 /// Le document d'accueil n'a pas de fichier : il est l'état de départ, que la base de son
 /// brouillon écrira au premier geste.
@@ -43,10 +42,6 @@ pub(super) fn brancher_le_disque(
     renderer: &mut Renderer,
     store: &Store,
 ) -> crate::persist::disque::Disque {
-    // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
-    renderer
-        .magasin
-        .brancher_les_apercus(crate::present::souvenir::dossier().join("apercus"));
     let disque = crate::persist::disque::Disque::nouveau(store.project.clone());
     // L'atelier lit les octets des images là où le registre les dit : le document, ou le
     // fichier d'où elles viennent tant qu'elles n'y sont pas scellées.
@@ -55,6 +50,34 @@ pub(super) fn brancher_le_disque(
         .atelier
         .brancher_les_objets(std::sync::Arc::clone(&disque.objets));
     disque
+}
+
+/// **Le dossier d'une application qui n'est pas le vrai lancement** : un dossier temporaire
+/// qui n'appartient à personne.
+pub fn dossier_hors_lancement() -> std::path::PathBuf {
+    std::env::temp_dir().join("glucose-hors-lancement")
+}
+
+impl super::GlucoseApp {
+    /// **Le dossier où l'application habite** : ses brouillons et les textes en cours de
+    /// frappe, les aperçus des images vues (ETAGES-4), le souvenir de la carte graphique.
+    ///
+    /// # Une seule porte, et seul le vrai lancement l'ouvre sur le dossier de l'utilisateur
+    ///
+    /// Le défaut s'est présenté deux fois. Les brouillons d'abord : chaque épreuve devait
+    /// penser à en donner un autre, et celles qui n'y pensaient pas écrivaient chez lui (fiche
+    /// 37 § 9.3). Puis les **aperçus** : la correction avait laissé leur dossier à part, et
+    /// chaque suite d'épreuves en déposait un dans son vrai dossier. Ici, tout ce qu'une
+    /// application écrit de durable dérive d'un seul chemin : `new` l'ouvre sur un dossier
+    /// temporaire, `main.rs` seul sur celui de l'utilisateur.
+    pub fn habiter(&mut self, dossier: &std::path::Path) {
+        self.disque.brouillons = dossier.join("brouillons");
+        // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
+        self.renderer
+            .magasin
+            .brancher_les_apercus(dossier.join("apercus"));
+        self.souvenir_de_la_carte = dossier.join(crate::present::souvenir::FICHIER);
+    }
 }
 
 /// L'interface qu'on trouve au lancement : celle de toujours, et le mot d'accueil.
@@ -67,3 +90,6 @@ pub(super) fn interface_d_accueil() -> crate::ui::UiState {
     ui.show_toast(crate::ui::WELCOME_TOAST);
     ui
 }
+
+#[cfg(test)]
+mod tests;

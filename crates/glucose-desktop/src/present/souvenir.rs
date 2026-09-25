@@ -43,7 +43,7 @@ use crate::present::arbitre::Preference;
 use std::path::{Path, PathBuf};
 
 /// Le nom du fichier, dans le dossier de l'application.
-const FICHIER: &str = "carte.txt";
+pub const FICHIER: &str = "carte.txt";
 
 /// **Le dossier où l'application garde ce qu'elle a appris de la machine.**
 ///
