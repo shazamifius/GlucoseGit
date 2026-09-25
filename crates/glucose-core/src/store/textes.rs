@@ -2,7 +2,7 @@
 
 use super::Store;
 use crate::text_anchors::{normalize_text_sel, suivre};
-use crate::types::{Annotation, TextSelection};
+use crate::types::{Annotation, TextAnchor, TextSelection};
 
 impl Store {
     /// **Écrit le texte d'un nœud, et fait suivre les ancres des flèches** qui y désignent un
@@ -56,6 +56,32 @@ impl Store {
                 *sel = (!suivies.is_empty()).then_some(TextSelection::Anchors(suivies));
             });
         }
+    }
+
+    /// **Pose les passages d'une flèche** — ceux de sa source et de sa cible, choisis dans
+    /// l'éditeur d'ancres (FLECHE-4). Une liste vide retire le passage de ce côté : la flèche
+    /// garde son nœud, et en part par son milieu.
+    pub fn ancrer_la_fleche(
+        &mut self,
+        board_id: &str,
+        fleche: &str,
+        (source, cible): (Vec<TextAnchor>, Vec<TextAnchor>),
+    ) {
+        let passage = |ancres: Vec<TextAnchor>| {
+            (!ancres.is_empty()).then_some(TextSelection::Anchors(ancres))
+        };
+        let (source, cible) = (passage(source), passage(cible));
+        self.update_annotation(board_id, fleche, |ann| {
+            if let Annotation::Arrow {
+                source_text_sel,
+                target_text_sel,
+                ..
+            } = ann
+            {
+                *source_text_sel = source;
+                *target_text_sel = cible;
+            }
+        });
     }
 
     /// Les flèches qui désignent un passage du nœud `id`, et de quel côté.

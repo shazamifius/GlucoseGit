@@ -9,6 +9,7 @@ use tiny_skia::PixmapMut;
 
 pub const TOPBAR_HEIGHT: f32 = 44.0;
 pub mod action_bar;
+pub mod ancrage;
 pub mod bande;
 pub mod boutons;
 pub mod breadcrumb;
@@ -106,6 +107,8 @@ pub struct UiState {
     pub survol: bande::Survol,
     /// La flèche que la souris survole : ce qu'elle ancre brille dans ses cartes (FLECHE-4).
     pub fleche_survolee: Option<String>,
+    /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
+    pub ancrage: Option<ancrage::Ancrage>,
     pub current_toast: Option<Toast>,
     /// Le menu contextuel ouvert, et le point où il l'a été. `None` quand il est fermé.
     ///
@@ -152,6 +155,7 @@ impl UiState {
             smart_align: true,
             survol: bande::Survol::default(),
             fleche_survolee: None,
+            ancrage: None,
             current_toast: None,
             context_menu_at: None,
             scale_factor: 1.0,
@@ -284,13 +288,17 @@ fn poser_ce_qui_attend_une_decision(
     pointer: Pointer,
 ) {
     action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
-    options_de_fleche::draw_options_de_fleche(
-        pixmap,
-        store,
-        typo,
-        theme,
-        ((w, h), ui.scale_factor),
-    );
+    // Pendant l'édition des ancres, son panneau prend la place de la barre d'options.
+    match &ui.ancrage {
+        Some(a) => ancrage::draw_ancrage(pixmap, a, typo, theme, ((w, h), ui.scale_factor)),
+        None => options_de_fleche::draw_options_de_fleche(
+            pixmap,
+            store,
+            typo,
+            theme,
+            ((w, h), ui.scale_factor),
+        ),
+    }
     if let Some(ref toast) = ui.current_toast {
         toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
     }

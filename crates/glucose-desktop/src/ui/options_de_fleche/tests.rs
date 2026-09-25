@@ -101,11 +101,16 @@ fn test_fleche_3_ce_qu_un_clic_demande() {
     let b = barre(&store).expect("une barre");
     let centre = |bt: &Bouton| (bt.rect.0 + bt.rect.2 / 2.0, bt.rect.1 + bt.rect.3 / 2.0);
     let (x, y) = centre(bouton(&b, Contenu::Texte("Courbe")));
-    assert_eq!(reglage_sous(&b, x, y), Some(Reglage::Courbe(true)));
+    assert_eq!(
+        action_sous(&b, x, y),
+        Some(Action::Regler(Reglage::Courbe(true)))
+    );
     let (x, y) = centre(bouton(&b, Contenu::Sigle(ArrowPredicate::Inspire)));
     assert_eq!(
-        reglage_sous(&b, x, y),
-        Some(Reglage::Relation(Some(ArrowPredicate::Inspire)))
+        action_sous(&b, x, y),
+        Some(Action::Regler(Reglage::Relation(Some(
+            ArrowPredicate::Inspire
+        ))))
     );
 
     let ids = vec!["f1".to_string()];
@@ -117,9 +122,15 @@ fn test_fleche_3_ce_qu_un_clic_demande() {
     store.regler_les_fleches(&board, &ids, Reglage::DoubleSens(true));
     let b = barre(&store).expect("une barre");
     let (x, y) = centre(bouton(&b, Contenu::Sigle(ArrowPredicate::Inspire)));
-    assert_eq!(reglage_sous(&b, x, y), Some(Reglage::Relation(None)));
+    assert_eq!(
+        action_sous(&b, x, y),
+        Some(Action::Regler(Reglage::Relation(None)))
+    );
     let (x, y) = centre(bouton(&b, Contenu::Texte("Double sens")));
-    assert_eq!(reglage_sous(&b, x, y), Some(Reglage::DoubleSens(false)));
+    assert_eq!(
+        action_sous(&b, x, y),
+        Some(Action::Regler(Reglage::DoubleSens(false)))
+    );
     // Entre deux boutons, rien — mais la barre couvre le clic.
     let premier = &b.boutons[0];
     let entre = (premier.rect.0 + premier.rect.2 + 1.0, premier.rect.1 + 1.0);

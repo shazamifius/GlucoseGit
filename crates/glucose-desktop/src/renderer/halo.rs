@@ -448,9 +448,9 @@ pub fn draw_halos(
 
 mod bandes;
 
-use bandes::{peindre_en_bandes, LueurPrete};
 #[cfg(test)]
 use bandes::peindre_en;
+use bandes::{peindre_en_bandes, LueurPrete};
 
 #[cfg(test)]
 mod tests;

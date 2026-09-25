@@ -76,6 +76,10 @@ impl GlucoseApp {
             return;
         }
 
+        // Le choix d'un passage dans l'éditeur d'ancres (FLECHE-4).
+        if self.glisser_l_ancrage() {
+            return;
+        }
         // Un glisser de sélection de texte passe avant tous les autres : tant qu'il dure, la
         // souris écrit dans une carte et ne déplace ni nœud ni caméra.
         if self.drag_text_to(self.mouse_pos) {
@@ -186,6 +190,7 @@ impl GlucoseApp {
     fn handle_left_down(&mut self, screen: ScreenFrame) {
         let pointer = self.pointer();
         let taken = self.click_context_menu(pointer, screen)
+            || self.click_ancrage(pointer, screen.scale)
             || self.click_skips_flight()
             || self.click_breadcrumb(pointer, screen)
             || self.click_options_de_fleche(pointer, screen)
@@ -215,7 +220,7 @@ impl GlucoseApp {
                 }
             }
             MouseButton::Left => {
-                if self.lacher_l_onglet() {
+                if self.lacher_l_onglet() || self.lacher_l_ancrage() {
                     return;
                 }
                 self.minimap_tenue = false;

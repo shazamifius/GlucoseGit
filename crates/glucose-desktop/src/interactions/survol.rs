@@ -33,6 +33,10 @@ impl GlucoseApp {
     /// **Les passages à faire briller dans cette image** : ceux que la flèche survolée ancre,
     /// dans sa source et dans sa cible, chacun à la couleur de sa carte.
     pub(crate) fn eclairages(&self) -> Vec<Eclairage> {
+        // L'éditeur d'ancres ouvert, c'est ce qu'on choisit qui brille.
+        if let Some(choisi) = self.eclairages_de_l_ancrage() {
+            return choisi;
+        }
         let (Some(id), Some(board)) = (&self.ui.fleche_survolee, self.store.active_board()) else {
             return Vec::new();
         };

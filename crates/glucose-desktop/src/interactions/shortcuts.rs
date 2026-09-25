@@ -74,7 +74,8 @@ impl GlucoseApp {
     pub fn handle_key(&mut self, event: &KeyEvent) {
         let appuyee = event.state == winit::event::ElementState::Pressed;
         if appuyee
-            && (self.frapper_le_nom_du_jalon(&event.logical_key)
+            && (self.touche_de_l_ancrage(&event.logical_key)
+                || self.frapper_le_nom_du_jalon(&event.logical_key)
                 || self.frapper_le_nom_de_l_onglet(&event.logical_key)
                 || self.touche_du_temps(&event.logical_key))
         {

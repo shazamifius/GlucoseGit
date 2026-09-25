@@ -157,7 +157,11 @@ impl GlucoseApp {
     /// d'action. Elle prend tout ce qui tombe sur elle, comme sa voisine ; un réglage est un
     /// geste, qu'un `Ctrl+Z` défait, et il s'applique à toutes les flèches sélectionnées.
     pub fn click_options_de_fleche(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
-        use crate::ui::options_de_fleche::{couvre, layout_options_de_fleche, reglage_sous};
+        use crate::ui::options_de_fleche::{action_sous, couvre, layout_options_de_fleche, Action};
+        // Pendant l'édition des ancres, c'est son panneau qui parle (FLECHE-4).
+        if self.ui.ancrage.is_some() {
+            return false;
+        }
         let Some(barre) = layout_options_de_fleche(
             &self.store,
             &self.renderer.typography,
@@ -169,7 +173,11 @@ impl GlucoseApp {
         if !couvre(&barre, pointer.x, pointer.y) {
             return false;
         }
-        if let Some(reglage) = reglage_sous(&barre, pointer.x, pointer.y) {
+        if let Some(Action::Ancrer) = action_sous(&barre, pointer.x, pointer.y) {
+            self.commencer_l_ancrage();
+            return true;
+        }
+        if let Some(Action::Regler(reglage)) = action_sous(&barre, pointer.x, pointer.y) {
             let fleches: Vec<String> = self
                 .store
                 .selected_arrows()

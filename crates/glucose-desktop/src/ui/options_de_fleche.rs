@@ -43,14 +43,23 @@ pub enum Contenu {
     Sigle(ArrowPredicate),
 }
 
-/// Un bouton : sa boîte, ce qu'il montre, s'il est allumé, et le réglage qu'un clic pose.
+/// Ce qu'un clic sur un bouton demande.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Action {
+    /// Poser ce réglage sur toutes les flèches sélectionnées.
+    Regler(Reglage),
+    /// Ouvrir l'éditeur d'ancres de la flèche sélectionnée (FLECHE-4).
+    Ancrer,
+}
+
+/// Un bouton : sa boîte, ce qu'il montre, s'il est allumé, et ce qu'un clic demande.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Bouton {
     pub rect: (f32, f32, f32, f32),
     pub contenu: Contenu,
     /// Toutes les flèches sélectionnées ont déjà ce réglage.
     pub allume: bool,
-    pub reglage: Reglage,
+    pub action: Action,
 }
 
 /// La barre, une fois placée.
@@ -150,6 +159,32 @@ impl EnCommun {
     }
 }
 
+/// **Les boutons de la barre**, par groupe — ou `None` s'il n'y a pas de flèche sélectionnée.
+/// Quels boutons : cette fonction ; où les poser : [`layout_options_de_fleche`].
+fn groupes_de_boutons(store: &Store) -> Option<Vec<Vec<(Contenu, bool, Action)>>> {
+    let fleches = store.selected_arrows();
+    if fleches.is_empty() {
+        return None;
+    }
+    let mut groupes: Vec<Vec<(Contenu, bool, Action)>> = EnCommun::de(&fleches)
+        .groupes()
+        .into_iter()
+        .map(|g| {
+            g.into_iter()
+                .map(|(c, a, r)| (c, a, Action::Regler(r)))
+                .collect()
+        })
+        .collect();
+    // L'éditeur d'ancres, pour une flèche seule qui touche une carte de texte : c'est dans une
+    // carte qu'on désigne un passage.
+    if let [fleche] = fleches[..] {
+        if touche_une_carte(store, fleche) {
+            groupes.push(vec![(Contenu::Texte("Ancrer…"), false, Action::Ancrer)]);
+        }
+    }
+    Some(groupes)
+}
+
 /// La barre pour la sélection courante, ou `None` s'il n'y a pas de flèche sélectionnée.
 ///
 /// Fonction pure : elle ne lit que le store et la typographie, et ne dessine rien.
@@ -159,11 +194,7 @@ pub fn layout_options_de_fleche(
     screen: (f32, f32),
     scale: f32,
 ) -> Option<OptionsDeFleche> {
-    let fleches = store.selected_arrows();
-    if fleches.is_empty() {
-        return None;
-    }
-    let groupes = EnCommun::de(&fleches).groupes();
+    let groupes = groupes_de_boutons(store)?;
     let dessous = super::action_bar::layout_action_bar(store, typography, screen, scale)?;
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
@@ -205,7 +236,7 @@ pub fn layout_options_de_fleche(
             mots.push((epaisseur, curseur));
             curseur += mesure(epaisseur) + GAP * s;
         }
-        for (i, (contenu, allume, reglage)) in groupe.into_iter().enumerate() {
+        for (i, (contenu, allume, action)) in groupe.into_iter().enumerate() {
             if i > 0 {
                 curseur += GAP * s;
             }
@@ -214,7 +245,7 @@ pub fn layout_options_de_fleche(
                 rect: (curseur, y + PAD_Y * s, w, hauteur_btn),
                 contenu,
                 allume,
-                reglage,
+                action,
             });
             curseur += w;
         }
@@ -227,13 +258,34 @@ pub fn layout_options_de_fleche(
     })
 }
 
-/// Le réglage qu'un clic en `(px, py)` demande — `None` s'il tombe à côté d'un bouton.
-pub fn reglage_sous(barre: &OptionsDeFleche, px: f32, py: f32) -> Option<Reglage> {
+/// Ce qu'un clic en `(px, py)` demande — `None` s'il tombe à côté d'un bouton.
+pub fn action_sous(barre: &OptionsDeFleche, px: f32, py: f32) -> Option<Action> {
     barre
         .boutons
         .iter()
         .find(|b| dans(b.rect, px, py))
-        .map(|b| b.reglage)
+        .map(|b| b.action)
+}
+
+/// La flèche touche-t-elle, par l'un de ses bouts, une carte de texte ?
+fn touche_une_carte(store: &Store, fleche: &Annotation) -> bool {
+    let Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    } = fleche
+    else {
+        return false;
+    };
+    let Some(board) = store.active_board() else {
+        return false;
+    };
+    [source_id, target_id].into_iter().flatten().any(|id| {
+        matches!(
+            store.project.annotation(&board.id, id),
+            Some(Annotation::Text { .. })
+        )
+    })
 }
 
 /// Le clic tombe-t-il sur la barre, bouton ou pas ? Ce qui tombe dessus ne doit jamais
