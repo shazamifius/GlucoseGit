@@ -64,6 +64,7 @@ pub mod arbitre;
 pub mod banc_gpu;
 pub mod bandes;
 pub mod couches;
+pub mod fleches_gpu;
 pub mod fond_gpu;
 pub mod gpu;
 pub mod lisere_gpu;

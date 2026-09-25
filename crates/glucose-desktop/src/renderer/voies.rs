@@ -521,6 +521,8 @@ impl Renderer {
         crate::perf::stage("lueurs");
         let membranes = scene::formes_des_membranes(store, pass, taille);
         crate::perf::stage("membranes");
+        let fleches = super::arrow::fleches_a_poser(&mut self.hue_cache, store, pass, ecran);
+        crate::perf::stage("fleches");
         // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
         // tous : deux composants voisins se rendent au meme palier.
         let regime = super::composants::Regime::de(vp, regard, taille, header_h);
@@ -549,6 +551,7 @@ impl Renderer {
             fond: Some(fond_a_peindre(&self.theme, &vp, header_h)),
             lueurs,
             membranes,
+            fleches,
             photos,
             niveaux,
             replis,

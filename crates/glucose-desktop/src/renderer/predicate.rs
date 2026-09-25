@@ -26,7 +26,7 @@
 
 use super::pass::Pass;
 use crate::canvas::world_to_screen;
-use glucose_core::types::{Annotation, ArrowPredicate, Board};
+use glucose_core::types::{Annotation, ArrowPredicate};
 use tiny_skia::{Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
 /// Rayon de la pastille d'un prédicat, en pixels **écran** (Glucose Tauri : `r={10}`).
@@ -108,7 +108,7 @@ fn sigil_of(predicate: ArrowPredicate) -> &'static [Stroke2D] {
 pub(super) fn draw_arrow_predicate(
     ctx: &Pass<'_>,
     pixmap: &mut PixmapMut,
-    board: &Board,
+    (wx, wy): (f64, f64),
     arrow: &Annotation,
     lowered: bool,
 ) {
@@ -117,9 +117,6 @@ pub(super) fn draw_arrow_predicate(
         ..
     } = arrow
     else {
-        return;
-    };
-    let Some((wx, wy)) = glucose_core::arrow::label_anchor_in(arrow, board) else {
         return;
     };
     let (sx, sy) = world_to_screen(wx, wy, &ctx.vp);

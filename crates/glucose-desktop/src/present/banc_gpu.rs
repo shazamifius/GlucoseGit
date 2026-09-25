@@ -183,11 +183,14 @@ pub fn composer_les_cinq_temps(
     (dessous, dessus): (&Pixmap, &Pixmap),
     source: &crate::present::scene_gpu::Source<'_>,
 ) -> Option<Pixmap> {
-    use crate::present::{couches, fond_gpu, lisere_gpu, lueurs_gpu, membranes_gpu, scene_gpu};
+    use crate::present::{
+        couches, fleches_gpu, fond_gpu, lisere_gpu, lueurs_gpu, membranes_gpu, scene_gpu,
+    };
     let ecran = (taille.0 as f32, taille.1 as f32);
     let mut fond = fond_gpu::FondGpu::nouveau(peripherique, FORMAT);
     let mut lueurs = lueurs_gpu::Lueurs::nouvelles(peripherique, FORMAT);
     let mut membranes = membranes_gpu::Membranes::nouvelles(peripherique, FORMAT);
+    let mut fleches = fleches_gpu::FlechesGpu::nouvelles(peripherique, FORMAT);
     let mut lisere = lisere_gpu::LisereGpu::nouveau(peripherique, FORMAT);
     let mut scene = scene_gpu::SceneGpu::nouvelle(peripherique, FORMAT);
     let mut deux = couches::Couches::nouvelles(peripherique, FORMAT);
@@ -195,6 +198,7 @@ pub fn composer_les_cinq_temps(
     fond.preparer(file, ecran, confie.fond);
     lueurs.preparer(peripherique, file, ecran, &confie.lueurs);
     membranes.preparer(peripherique, file, ecran, &confie.membranes);
+    fleches.preparer(peripherique, file, ecran, &confie.fleches);
     lisere.preparer(file, ecran, confie.lisere);
     let textures = confie.textures();
     scene.ouvrir();
@@ -234,6 +238,7 @@ pub fn composer_les_cinq_temps(
             fond: &fond,
             lueurs: &lueurs,
             membranes: &membranes,
+            fleches: &fleches,
             lisere: &lisere,
             couches: &deux,
             scene: &scene,

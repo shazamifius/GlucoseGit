@@ -1,7 +1,7 @@
 //! La passe sur les annotations : ce qu'une frame garde constant d'un nœud à l'autre, et le
 //! tri qui envoie chaque nœud à son dessin — la carte, le pense-bête, la flèche.
 
-use super::arrow::draw_arrow;
+use super::arrow::{draw_arrow, Fleche};
 use super::card::{
     draw_card_contenu, draw_card_ornements, draw_text_card, porte_une_previsualisation, TextCard,
 };
@@ -15,9 +15,10 @@ use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
 use crate::typography::Typography;
+use glucose_core::arrow;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
-use glucose_core::types::{Annotation, DomainAssignment, Viewport};
+use glucose_core::types::{Annotation, Board, DomainAssignment, Viewport};
 use tiny_skia::PixmapMut;
 
 /// Épaisseur de l'anneau de sélection, **en pixels écran**.
@@ -168,7 +169,13 @@ fn dessiner_ce_qui_passe_au_dessus(
                 draw_node_gauge(ctx, pixmap, (*x, *y), ann.domains());
             }
             Annotation::Arrow { .. } => {
-                draw_arrow_node(ctx, pixmap, ann, board, selected, editing);
+                draw_arrow_node(
+                    ctx,
+                    pixmap,
+                    hue_cache,
+                    (ann, board, pass),
+                    (selected, editing, !cartes_par_la_carte),
+                );
             }
             _ => {}
         }
@@ -230,59 +237,54 @@ fn draw_node_gauge(
     );
 }
 
-/// Une flèche entière : son tracé, puis ce qu'elle dit.
+/// Une flèche entière : son tracé, puis ce qu'elle dit (FLECHE-1).
 ///
-/// L'étiquette se pose **après** le tracé : elle doit se lire par-dessus, pas être barrée
-/// par lui.
+/// Sa description se calcule **une fois** par image, et tout la lit : le trait, l'étiquette,
+/// le badge, les poignées. Le trait ne se peint ici que sur la voie processeur : sur la voie
+/// graphique, la carte le peint (FLECHE-2), et seuls l'étiquette, le badge et les poignées
+/// restent dans la couche du dessus.
 fn draw_arrow_node(
     ctx: &Pass<'_>,
     pixmap: &mut PixmapMut,
-    ann: &Annotation,
-    board: &glucose_core::types::Board,
-    selected: bool,
-    editing: Option<&TextEditSession>,
+    hue_cache: &mut SymbioticHueCache,
+    (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
+    (selected, editing, au_processeur): (bool, Option<&TextEditSession>, bool),
 ) {
-    draw_arrow_path(ctx, pixmap, ann, board, selected);
-    // L'étiquette et le prédicat visent **le même** point du tracé. Quand les deux sont là,
-    // l'une monte et l'autre descend : sinon ils se recouvriraient exactement.
-    let porte_les_deux = matches!(
-        ann,
-        Annotation::Arrow {
-            text: Some(_),
-            predicate: Some(_),
-            ..
-        }
-    );
-    super::arrow_label::draw_arrow_label(ctx, pixmap, board, ann, editing, porte_les_deux);
-    super::predicate::draw_arrow_predicate(ctx, pixmap, board, ann, porte_les_deux);
-}
-
-/// Trace une flèche, tronçon par tronçon.
-///
-/// Le tracé vient de [`glucose_core::arrow::path_in`], celui-là même que l'arbitre de clic
-/// interroge : une flèche ancrée s'arrête sur le bord du nœud qu'elle vise, et elle se
-/// **vise** là où elle se dessine. Deux endroits qui recalculeraient cette forme finiraient
-/// par en dessiner deux différentes — c'est ce que la rotation a coûté (ARROW-1).
-fn draw_arrow_path(
-    ctx: &Pass<'_>,
-    pixmap: &mut PixmapMut,
-    ann: &Annotation,
-    board: &glucose_core::types::Board,
-    selected: bool,
-) {
-    let Some(points) = glucose_core::arrow::path_in(ann, board) else {
+    let Annotation::Arrow {
+        text, predicate, ..
+    } = ann
+    else {
         return;
     };
-    let dernier = points.len().saturating_sub(2);
-    for (i, segment) in points.windows(2).enumerate() {
-        // Une polyligne ne porte qu'une pointe, à son dernier tronçon : les coudes sont des
-        // passages, pas des arrivées.
-        draw_arrow(ctx, pixmap, segment[0], segment[1], selected, i == dernier);
+    let Some(fleche) = Fleche::de(hue_cache, (ann, board, pass), selected) else {
+        return;
+    };
+    if au_processeur {
+        draw_arrow(ctx, pixmap, &fleche);
     }
     // Les poignées de coude n'apparaissent que sur une flèche sélectionnée (ARROW-3) : une
-    // affordance appartient à ce qu'on manipule, et les montrer toutes couvrirait le
-    // canevas de disques.
+    // affordance appartient à ce qu'on manipule.
     if selected {
-        super::handles::draw_arrow_handles(pixmap, ctx.theme, ann, board, &ctx.vp);
+        let poignees = arrow::handles(ann, |noeud| {
+            arrow::node_rect_indexe(board, pass.index, noeud)
+        });
+        super::handles::draw_arrow_handles(pixmap, ctx.theme, &poignees, &ctx.vp);
     }
+    let Some(milieu) = arrow::milieu_du_trace(&fleche.morceaux) else {
+        return;
+    };
+    // L'étiquette et le prédicat visent **le même** point du tracé. Quand les deux sont là,
+    // l'une monte et l'autre descend : sinon ils se recouvriraient exactement.
+    let porte_les_deux = text.is_some() && predicate.is_some();
+    let (r, g, b) = fleche.teintes.milieu;
+    let encre = tiny_skia::Color::from_rgba8(r, g, b, 255);
+    super::arrow_label::draw_arrow_label(
+        ctx,
+        pixmap,
+        (milieu, encre),
+        ann,
+        editing,
+        porte_les_deux,
+    );
+    super::predicate::draw_arrow_predicate(ctx, pixmap, milieu, ann, porte_les_deux);
 }

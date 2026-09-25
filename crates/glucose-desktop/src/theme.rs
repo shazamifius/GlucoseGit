@@ -189,12 +189,6 @@ pub struct Theme {
     /// référence, et sa chasse fixe suffit à le distinguer.
     pub code_bg: Color,
 
-    // ── Flèches (§ 7) ──────────────────────────────────────────────────────
-    /// La couleur d'une flèche que le document ne colore pas — **provisoire** : la référence
-    /// la teinte du dégradé symbiotique de ses deux extrémités (§ 7.1), qui arrive avec le
-    /// chantier des flèches (fiche 12, 2.B).
-    pub arrow_default: Color,
-
     // ── Minimap (§ 9) ──────────────────────────────────────────────────────
     pub minimap_bg: Color,
     pub minimap_border: Color,
@@ -353,8 +347,6 @@ impl Theme {
             text_selection: Color::from_rgba8(74, 127, 181, 115),
             link: hex(0x60a5fa),
             code_bg: Color::from_rgba8(255, 255, 255, 20),
-
-            arrow_default: hexa(0x94a3b8, 220),
 
             minimap_bg: hexa(0x0d0d0d, 235),
             minimap_border: hex(0x2a2a2a),

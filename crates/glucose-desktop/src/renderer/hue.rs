@@ -112,6 +112,28 @@ impl SymbioticHueCache {
             .insert(ann.id().to_string(), CachedHue { hue, rgb });
         (hue, rgb)
     }
+
+    /// **La teinte qu'aurait `id` posé en `point`** — celle du bout libre d'une flèche
+    /// (FLECHE-1). Elle n'est pas gardée : un bout libre suit la main, et ne se demande qu'une
+    /// fois par image.
+    pub fn au_point(
+        &mut self,
+        id: &str,
+        point: (f64, f64),
+        index: &SpatialHash,
+        board: &Board,
+    ) -> f64 {
+        index.query_rect_ranks_into(
+            point.0,
+            point.1,
+            point.0,
+            point.1,
+            RAYON_SYMBIOTIQUE,
+            &mut self.voisins,
+        );
+        let voisines = Visibles::nouvelles(&self.voisins, board).annotations();
+        glucose_core::symbiotic_hue::teinte_au_point(id, point, voisines)
+    }
 }
 
 #[cfg(test)]

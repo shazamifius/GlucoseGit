@@ -102,19 +102,20 @@ fn poser_une_poignee(
 ///
 /// Sa valeur vient du noyau, celui-là même que l'arbitre de clic interroge : une poignée
 /// dessinée est une poignée cliquable, par construction (loi L4).
+///
+/// `poignees` est la **même** liste que `begin_arrow_bend` interroge
+/// ([`glucose_core::arrow::handles`]) : impossible de dessiner une poignée là où le clic n'en
+/// trouvera pas.
 pub(super) fn draw_arrow_handles(
     pixmap: &mut PixmapMut,
     theme: &Theme,
-    ann: &glucose_core::types::Annotation,
-    board: &glucose_core::types::Board,
+    poignees: &[glucose_core::arrow::ArrowHandle],
     vp: &glucose_core::types::Viewport,
 ) {
-    use glucose_core::arrow::{self, HandleKind, HANDLE_RADIUS_PX};
+    use glucose_core::arrow::{HandleKind, HANDLE_RADIUS_PX};
 
     let rayon = HANDLE_RADIUS_PX as f32;
-    // La **même** liste que `begin_arrow_bend` interroge : impossible de dessiner une
-    // poignée là où le clic n'en trouvera pas.
-    for handle in arrow::handles(ann, |node| arrow::node_rect(board, node)) {
+    for handle in poignees {
         let (sx, sy) = crate::canvas::world_to_screen(handle.at.0, handle.at.1, vp);
         let (cx, cy) = (sx as f32, sy as f32);
         let (chemin, fond) = match handle.kind {

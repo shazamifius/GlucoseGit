@@ -207,7 +207,14 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Mise à jour le 25/09** (ARC-1) : un seul traceur de rectangle arrondi dans toute
 /// l'application, en arcs de cercle et non plus en paraboles. 4 040 pixels changent, tous aux
 /// coins des cartes, des pastilles et des boutons (199-1625 × 15-889) ; regardés au coin agrandi.
-const EMPREINTE_TEMOIN: &str = "08ecdcc97870f008";
+/// **Mise à jour le 25/09** (FLECHE-1) : les flèches prennent l'aspect de Glucose Tauri — un
+/// fil en dégradé de la teinte de la source à celle de la cible, un halo, une pastille ronde
+/// au bout — et le témoin gagne une flèche courbe à double sens entre deux cartes. 7 210 pixels
+/// changent, tous sur les flèches et leurs étiquettes (497-1145 × 101-710) ; regardés agrandis.
+/// Puis (FLECHE-2) la flèche se peint par la loi de son champ et non plus par `tiny-skia` :
+/// quelques milliers de pixels du bord du halo changent d'anticrénelage (au plus 39 niveaux,
+/// filtre-boîte contre suréchantillonnage) ; côte à côte et agrandis, on ne les distingue pas.
+const EMPREINTE_TEMOIN: &str = "16fb4d3d6b6eb856";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -257,7 +264,14 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Mise à jour le 25/09** (ARC-1) : un seul traceur de rectangle arrondi dans toute
 /// l'application, en arcs de cercle et non plus en paraboles. 4 204 pixels changent, tous aux
 /// coins des cartes, des pastilles et des boutons (199-1625 × 15-889) ; regardés au coin agrandi.
-const EMPREINTE_TEMOIN_SELECTION: &str = "598513f4c6789432";
+/// **Mise à jour le 25/09** (FLECHE-1) : les flèches prennent l'aspect de Glucose Tauri — un
+/// fil en dégradé de la teinte de la source à celle de la cible, un halo, une pastille ronde
+/// au bout — et le témoin gagne une flèche courbe à double sens entre deux cartes. 9 251 pixels
+/// changent, tous sur les flèches et leurs étiquettes (497-1145 × 101-710) ; regardés agrandis.
+/// Puis (FLECHE-2) la flèche se peint par la loi de son champ et non plus par `tiny-skia` :
+/// quelques milliers de pixels du bord du halo changent d'anticrénelage (au plus 39 niveaux,
+/// filtre-boîte contre suréchantillonnage) ; côte à côte et agrandis, on ne les distingue pas.
+const EMPREINTE_TEMOIN_SELECTION: &str = "84c6fed1c17a5d5c";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -297,7 +311,14 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Mise à jour le 25/09** (ARC-1) : un seul traceur de rectangle arrondi dans toute
 /// l'application, en arcs de cercle et non plus en paraboles. 4 272 pixels changent, tous aux
 /// coins des cartes, des pastilles et des boutons (199-1625 × 15-889) ; regardés au coin agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "ab23c79000c95e7c";
+/// **Mise à jour le 25/09** (FLECHE-1) : les flèches prennent l'aspect de Glucose Tauri — un
+/// fil en dégradé de la teinte de la source à celle de la cible, un halo, une pastille ronde
+/// au bout — et le témoin gagne une flèche courbe à double sens entre deux cartes. 9 251 pixels
+/// changent, tous sur les flèches et leurs étiquettes (497-1145 × 101-710) ; regardés agrandis.
+/// Puis (FLECHE-2) la flèche se peint par la loi de son champ et non plus par `tiny-skia` :
+/// quelques milliers de pixels du bord du halo changent d'anticrénelage (au plus 39 niveaux,
+/// filtre-boîte contre suréchantillonnage) ; côte à côte et agrandis, on ne les distingue pas.
+const EMPREINTE_TEMOIN_MENU: &str = "03595943ac27372a";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

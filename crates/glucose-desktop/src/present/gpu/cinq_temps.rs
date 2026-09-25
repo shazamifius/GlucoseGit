@@ -90,6 +90,7 @@ pub(super) fn presenter(
             fond: &p.fond,
             lueurs: &p.lueurs,
             membranes: &p.membranes,
+            fleches: &p.fleches,
             lisere: &p.lisere,
             couches: &p.couches,
             scene: &p.scene,
@@ -141,6 +142,8 @@ fn preparer_la_scene(
         .preparer(&p.device, &p.queue, ecran, &confie.lueurs);
     p.membranes
         .preparer(&p.device, &p.queue, ecran, &confie.membranes);
+    p.fleches
+        .preparer(&p.device, &p.queue, ecran, &confie.fleches);
     p.lisere.preparer(&p.queue, ecran, confie.lisere);
     // Les poses, les uniformes et les sommets : de quoi dessiner, pas de quoi téléverser
     // une image. Ce poste doit rester petit ; s'il grandit, c'est que la scène a trop de

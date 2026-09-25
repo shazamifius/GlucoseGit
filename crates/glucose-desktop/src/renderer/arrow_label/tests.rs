@@ -8,7 +8,7 @@ use crate::renderer::DomainTints;
 use crate::theme::Theme;
 use crate::typography::Typography;
 use glucose_core::text::Selection;
-use glucose_core::types::Viewport;
+use glucose_core::types::{Board, Viewport};
 use tiny_skia::{Color, Pixmap};
 
 /// Le fond de la toile, pour reconnaître ce qui a été peint.
@@ -66,7 +66,15 @@ fn rendu(arrow: &Annotation, editing: Option<&TextEditSession>) -> Pixmap {
             top: 0.0,
         },
     };
-    draw_arrow_label(&ctx, &mut pixmap.as_mut(), &board, arrow, editing, false);
+    let milieu = glucose_core::arrow::label_anchor_in(arrow, &board).expect("un milieu");
+    draw_arrow_label(
+        &ctx,
+        &mut pixmap.as_mut(),
+        (milieu, theme.arrow_label_text),
+        arrow,
+        editing,
+        false,
+    );
     pixmap
 }
 

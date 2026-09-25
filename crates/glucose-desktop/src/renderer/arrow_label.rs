@@ -25,7 +25,7 @@ use super::pass::Pass;
 use crate::canvas::world_to_screen;
 use crate::renderer::TextEditSession;
 use crate::typography::{Face, TextStyle};
-use glucose_core::types::{Annotation, Board};
+use glucose_core::types::Annotation;
 use tiny_skia::{Paint, PathBuilder, PixmapMut, Rect, Transform};
 
 /// Corps de l'étiquette, en pixels **écran** (Glucose Tauri : `fontSize={11}`).
@@ -73,18 +73,18 @@ fn shown_text<'a>(
 ///
 /// `lifted` monte la pastille pour laisser la place au badge de prédicat, qui vise le même
 /// point.
+///
+/// `(milieu, encre)` : le point du tracé où elle se pose, en coordonnées du monde, et la
+/// couleur de son texte — la teinte médiane de la flèche, comme chez Tauri (`fill={colMid}`).
 pub(super) fn draw_arrow_label(
     ctx: &Pass<'_>,
     pixmap: &mut PixmapMut,
-    board: &Board,
+    ((wx, wy), encre): ((f64, f64), tiny_skia::Color),
     arrow: &Annotation,
     editing: Option<&TextEditSession>,
     lifted: bool,
 ) {
     let Some((text, caret)) = shown_text(arrow, editing) else {
-        return;
-    };
-    let Some((wx, wy)) = glucose_core::arrow::label_anchor_in(arrow, board) else {
         return;
     };
     let (typography, theme, scale) = (ctx.typography, ctx.theme, ctx.scale);
@@ -123,7 +123,7 @@ pub(super) fn draw_arrow_label(
         cy - text_h / 2.0,
         TextStyle {
             size,
-            color: theme.arrow_label_text,
+            color: encre,
             face: Face::Regular,
         },
     );

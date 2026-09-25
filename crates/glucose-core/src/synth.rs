@@ -332,6 +332,26 @@ fn witness_notes(store: &mut Store) {
         *predicate = Some(crate::types::ArrowPredicate::HeriteDe);
     }
     store.add_annotation(BOARD, accrochee);
+    // Une flèche **courbe**, à **double sens**, entre deux cartes de teintes différentes : son
+    // dégradé va de l'une à l'autre, elle s'arque par son étape, et ses deux bouts portent une
+    // pastille (FLECHE-1). Sans elle, ni le dégradé ni la courbe n'avaient de témoin.
+    let mut courbe = Annotation::arrow("a-courbe", 180.0, 380.0, 460.0, 380.0);
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        arrow_type,
+        arrow_bidirectional,
+        waypoints,
+        ..
+    } = &mut courbe
+    {
+        *source_id = Some("t-maths".to_string());
+        *target_id = Some("t-maths-nues".to_string());
+        *arrow_type = Some("curved".to_string());
+        *arrow_bidirectional = true;
+        *waypoints = vec![crate::types::Point2D { x: 320.0, y: 250.0 }];
+    }
+    store.add_annotation(BOARD, courbe);
 }
 
 /// Ce qui contient : une membrane titrée et un dossier.

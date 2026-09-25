@@ -371,6 +371,7 @@ pub struct Temps<'a> {
     pub fond: &'a super::fond_gpu::FondGpu,
     pub lueurs: &'a super::lueurs_gpu::Lueurs,
     pub membranes: &'a super::membranes_gpu::Membranes,
+    pub fleches: &'a super::fleches_gpu::FlechesGpu,
     pub lisere: &'a super::lisere_gpu::LisereGpu,
     pub couches: &'a Couches,
     pub scene: &'a super::scene_gpu::SceneGpu,
@@ -414,6 +415,9 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
     temps.scene.poser(&mut passe, temps.retenues);
+    // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
+    // poignées qui sont dans la couche du dessus (FLECHE-2).
+    temps.fleches.poser(&mut passe);
     temps.couches.poser_le_dessus(&mut passe);
     // Le liseré du passé, par-dessus tout : il borde la fenêtre entière, chrome comprise.
     temps.lisere.poser(&mut passe);

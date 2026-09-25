@@ -66,6 +66,8 @@ pub struct GpuPresenter {
     lueurs: super::lueurs_gpu::Lueurs,
     /// La forme des membranes (MEMB-FORME-1).
     membranes: super::membranes_gpu::Membranes,
+    /// Le champ des flèches (FLECHE-2).
+    fleches: super::fleches_gpu::FlechesGpu,
     /// Le liseré du passé de la Time Machine.
     lisere: super::lisere_gpu::LisereGpu,
     /// Les bandes de la couche du dessus que la texture détient déjà.
@@ -185,6 +187,7 @@ impl GpuPresenter {
         let fond = super::fond_gpu::FondGpu::nouveau(&device, config.format);
         let lueurs = super::lueurs_gpu::Lueurs::nouvelles(&device, config.format);
         let membranes = super::membranes_gpu::Membranes::nouvelles(&device, config.format);
+        let fleches = super::fleches_gpu::FlechesGpu::nouvelles(&device, config.format);
         let lisere = super::lisere_gpu::LisereGpu::nouveau(&device, config.format);
         Ok(Self {
             scene,
@@ -192,6 +195,7 @@ impl GpuPresenter {
             fond,
             lueurs,
             membranes,
+            fleches,
             lisere,
             surface,
             device,

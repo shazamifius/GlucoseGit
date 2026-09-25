@@ -21,6 +21,9 @@ pub struct Confie {
     /// La forme des membranes visibles, dans l'ordre du modèle (MEMB-FORME-1) : leurs titres,
     /// poignées et réglettes restent dans la couche du dessous.
     pub membranes: Vec<glucose_core::membrane_forme::Membrane>,
+    /// Le champ des flèches visibles, dans l'ordre du modèle (FLECHE-2) : leurs étiquettes,
+    /// badges et poignées restent dans la couche du dessus.
+    pub fleches: Vec<glucose_core::arrow::champ::Champ>,
     /// Où chaque photo visible se pose, à son rang — décodée ou **en chemin**.
     pub photos: Vec<(String, Pose)>,
     /// **Le niveau de chaque photo décodée**, par clé : son fichier, et combien de fois le
