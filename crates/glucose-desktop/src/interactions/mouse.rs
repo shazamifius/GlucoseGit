@@ -59,6 +59,10 @@ impl GlucoseApp {
             self.suivre_la_minimap(position);
             return;
         }
+        // Un onglet tenu : il glisse vers sa nouvelle place (BOARDS-1).
+        if self.suivre_l_onglet_tenu() {
+            return;
+        }
         // La réglette de la Time Machine tenue : le passé suit le curseur.
         if self.dock_manager.temps.glisse {
             self.glisser_la_reglette(position.x as f32);
@@ -155,6 +159,11 @@ impl GlucoseApp {
 
     /// Enfoncement d'un bouton de la souris.
     pub fn handle_mouse_down(&mut self, button: MouseButton, screen_w: f32, screen_h: f32) {
+        // Un onglet qu'on renomme se valide dès qu'on clique ailleurs que dans son champ — le
+        // champ de Glucose Tauri validait en perdant le focus.
+        if self.ui.onglets.renomme.is_some() && !self.clic_dans_le_champ_de_l_onglet() {
+            self.valider_le_renommage();
+        }
         match button {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = true;
@@ -204,6 +213,9 @@ impl GlucoseApp {
                 }
             }
             MouseButton::Left => {
+                if self.lacher_l_onglet() {
+                    return;
+                }
                 self.minimap_tenue = false;
                 self.dock_manager.temps.glisse = false;
                 if let Some(dismissed) = self.dock_manager.finish_drag() {

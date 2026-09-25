@@ -50,7 +50,17 @@ impl GlucoseApp {
         if bouge > super::pick::DOUBLE_CLICK_SLOP_PX {
             return;
         }
-        self.ui.context_menu_at = Some((self.mouse_pos.0 as f32, self.mouse_pos.1 as f32));
+        let (x, y) = (self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);
+        // Sur un onglet, le menu est celui de l'onglet (BOARDS-1).
+        let onglets = crate::ui::layout_tabs(&self.store, &self.ui, &self.renderer.typography);
+        self.ui.onglets.menu = match crate::ui::onglets::cible(&onglets, x, y) {
+            Some(
+                crate::ui::onglets::CibleOnglet::Onglet(id)
+                | crate::ui::onglets::CibleOnglet::Fermer(id),
+            ) => Some(id),
+            _ => None,
+        };
+        self.ui.context_menu_at = Some((x, y));
         self.mark_dirty();
     }
 
@@ -63,10 +73,11 @@ impl GlucoseApp {
         let Some(at) = self.ui.context_menu_at else {
             return false;
         };
+        let onglet = self.ui.onglets.menu.take();
         let menu = crate::ui::context_menu::layout_context_menu(
             &self.store,
             &self.renderer.typography,
-            at,
+            (at, onglet.as_deref()),
             (screen.width, screen.height),
             self.ui.scale_factor,
         );
@@ -81,12 +92,12 @@ impl GlucoseApp {
         }
         if let Some(action) = crate::ui::context_menu::hit_context_menu(&menu, pointer.x, pointer.y)
         {
-            self.apply_menu_action(action);
+            self.apply_menu_action(action, onglet.as_deref());
         }
         true
     }
 
-    fn apply_menu_action(&mut self, action: MenuAction) {
+    fn apply_menu_action(&mut self, action: MenuAction, onglet: Option<&str>) {
         let board = self.store.project.active_board_id.clone();
         match action {
             MenuAction::Duplicate => self.duplicate_selection(),
@@ -101,6 +112,17 @@ impl GlucoseApp {
             MenuAction::Delete => self.delete_selection(),
             MenuAction::Paste => self.paste_from_clipboard(),
             MenuAction::SelectAll => self.select_all(),
+            MenuAction::RenommerOnglet => {
+                if let Some(id) = onglet {
+                    self.commencer_le_renommage(id);
+                }
+            }
+            MenuAction::SupprimerOnglet => {
+                if let Some(id) = onglet {
+                    self.fermer_l_onglet(id);
+                }
+            }
+            MenuAction::NouvelOnglet => self.ajouter_un_onglet(),
         }
         self.mark_dirty();
     }
@@ -164,20 +186,14 @@ impl GlucoseApp {
             // ne prétend le contraire (fiche 29 § 3.1).
             UiAction::TransDomain => {}
             UiAction::ExportMenu => self.export_board(),
-            UiAction::SelectBoard(id) => self.store.set_active_board_id(&id),
-            UiAction::AddBoard => self.add_board(),
+            UiAction::SelectBoard(id) => self.cliquer_un_onglet(id),
+            UiAction::CloseBoard(id) => self.fermer_l_onglet(&id),
+            UiAction::AddBoard => self.ajouter_un_onglet(),
             UiAction::MinimapPan(wx, wy) => {
                 self.minimap_tenue = true;
                 self.center_view_on(wx, wy, screen);
             }
         }
-    }
-
-    fn add_board(&mut self) {
-        let name = format!("Board {}", self.store.project.boards.len() + 1);
-        let id = self.store.add_board(name);
-        self.store.set_active_board_id(id);
-        self.ui.show_toast("Nouveau board créé");
     }
 
     /// Recentre la caméra sur un point du monde, à l'échelle courante.

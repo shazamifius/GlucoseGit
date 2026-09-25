@@ -201,7 +201,10 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// coins en arc de cercle, le `rx` de Glucose Tauri, au lieu de paraboles ; le voile composé en
 /// une fois au lieu de trois arrondis successifs. 151 700 pixels changent, dont 4 468 de plus de deux
 /// niveaux, tous sur la membrane (760-1220 × 94-434) ; regardés côte à côte et au coin agrandi.
-const EMPREINTE_TEMOIN: &str = "e9d119fa5d175890";
+/// **Mise à jour le 25/09** (BOARDS-1) : le contenu d'un dossier n'est plus un onglet —
+/// « Dossier témoin » quitte la barre, qui ne montre plus que l'onglet racine, comme Glucose
+/// Tauri. Seule cette bande change (143-272 × 55-67), regardée avant et après.
+const EMPREINTE_TEMOIN: &str = "5d01699ffd208fec";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -245,7 +248,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// coins en arc de cercle, le `rx` de Glucose Tauri, au lieu de paraboles ; le voile composé en
 /// une fois au lieu de trois arrondis successifs. 151 702 pixels changent, dont 4 468 de plus de deux
 /// niveaux, tous sur la membrane (760-1220 × 94-434) ; regardés côte à côte et au coin agrandi.
-const EMPREINTE_TEMOIN_SELECTION: &str = "5cd43333dac9c9ce";
+/// **Mise à jour le 25/09** (BOARDS-1) : le contenu d'un dossier n'est plus un onglet —
+/// « Dossier témoin » quitte la barre, qui ne montre plus que l'onglet racine, comme Glucose
+/// Tauri. Seule cette bande change (143-272 × 55-67), regardée avant et après.
+const EMPREINTE_TEMOIN_SELECTION: &str = "b2a5fcb728cf10d6";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -279,7 +285,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// coins en arc de cercle, le `rx` de Glucose Tauri, au lieu de paraboles ; le voile composé en
 /// une fois au lieu de trois arrondis successifs. 144 267 pixels changent, dont 3 515 de plus de deux
 /// niveaux, tous sur la membrane (760-1220 × 94-434) ; regardés côte à côte et au coin agrandi.
-const EMPREINTE_TEMOIN_MENU: &str = "cb5df1c371663bc4";
+/// **Mise à jour le 25/09** (BOARDS-1) : le contenu d'un dossier n'est plus un onglet —
+/// « Dossier témoin » quitte la barre, qui ne montre plus que l'onglet racine, comme Glucose
+/// Tauri. Seule cette bande change (143-272 × 55-67), regardée avant et après.
+const EMPREINTE_TEMOIN_MENU: &str = "d1dc60065f7e2417";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

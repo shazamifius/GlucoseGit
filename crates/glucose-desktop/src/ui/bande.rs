@@ -37,7 +37,6 @@ use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::report::Melange;
 use glucose_core::store::Store;
-use std::hash::{Hash, Hasher};
 use tiny_skia::{Color, Pixmap, PixmapMut, Rect};
 
 /// Tout ce dont l'aspect de la bande dépend.
@@ -48,7 +47,8 @@ pub struct BandeKey {
     outil: ActiveTool,
     smart_align: bool,
     images: usize,
-    /// Les tableaux — identifiant, nom, lequel est actif — réduits à une empreinte.
+    /// Les onglets — identifiant, nom, lequel est actif — et ce qu'on leur fait — le nom
+    /// qu'on tape, celui qui glisse —, réduits à une empreinte.
     tableaux: u64,
     survol: Survol,
 }
@@ -87,7 +87,7 @@ pub fn survol_de_la_bande(
     pointer: Pointer,
 ) -> Survol {
     let barre = layout_topbar(largeur, ui, typo, store.nombre_d_images());
-    let onglets = layout_tabs(store, typo, ui.topbar_height(), ui.scale());
+    let onglets = layout_tabs(store, ui, typo);
     survol(&barre, &onglets, pointer)
 }
 
@@ -116,14 +116,14 @@ pub(super) fn render_bande(
 ) {
     let images = store.nombre_d_images();
     let barre = layout_topbar(largeur, ui, typo, images);
-    let onglets = layout_tabs(store, typo, ui.topbar_height(), ui.scale());
+    let onglets = layout_tabs(store, ui, typo);
     let cle = BandeKey {
         largeur: largeur.to_bits(),
         echelle: ui.scale_factor.to_bits(),
         outil: ui.active_tool,
         smart_align: ui.smart_align,
         images,
-        tableaux: empreinte_des_tableaux(&onglets),
+        tableaux: super::onglets::empreinte(&onglets, &ui.onglets),
         survol: survol(&barre, &onglets, pointer),
     };
     let hauteur = ui.header_height().ceil() as u32;
@@ -172,17 +172,6 @@ pub(super) fn render_bande(
 /// Le pointeur est-il dans cette boîte ?
 fn contient(x: f32, y: f32, w: f32, h: f32, p: Pointer) -> bool {
     p.x >= x && p.x < x + w && p.y >= y && p.y < y + h
-}
-
-/// Ce qui, dans les onglets, change leur dessin : les noms, l'ordre, et lequel est actif.
-fn empreinte_des_tableaux(onglets: &[TabButtonLayout]) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    for t in onglets {
-        t.board_id.hash(&mut h);
-        t.name.hash(&mut h);
-        t.is_active.hash(&mut h);
-    }
-    h.finish()
 }
 
 /// Rectangle d'un bouton de barre d'outils, échelle UI comprise.
@@ -306,8 +295,16 @@ fn render_board_tabs(
         fill_crisp(pixmap, rect, theme.border_subtle);
     }
 
+    let etat = &ui.onglets;
+    let glisse = etat
+        .tenu
+        .as_ref()
+        .filter(|t| t.glisse)
+        .map(|t| t.id.as_str());
     for (i, tab) in onglets.iter().enumerate() {
         let is_hover = survole == Some(i);
+        // Pendant un glisser, l'onglet survolé est la place d'arrivée : il porte le trait.
+        let arrivee = glisse.is_some_and(|g| is_hover && !tab.is_plus && tab.board_id != g);
         if tab.is_plus {
             if is_hover {
                 if let Some(rect) = Rect::from_xywh(tab.x, y_start + 5.0 * s, 24.0 * s, 24.0 * s) {
@@ -324,8 +321,70 @@ fn render_board_tabs(
                 1.5 * s,
             );
         } else {
-            dessiner_un_onglet(pixmap, typo, theme, tab, is_hover, (s, y_start, tabs_h));
+            let tenu = glisse == Some(tab.board_id.as_str());
+            dessiner_un_onglet(
+                pixmap,
+                typo,
+                theme,
+                tab,
+                (is_hover, tenu),
+                (s, y_start, tabs_h),
+            );
+            if let Some((_, entree)) = etat.renomme.as_ref().filter(|(id, _)| *id == tab.board_id) {
+                dessiner_le_champ(pixmap, typo, theme, tab, entree, (s, y_start, tabs_h));
+            }
+            if arrivee {
+                if let Some(r) =
+                    Rect::from_xywh(tab.x, y_start + tabs_h - 2.0 * s, tab.width, 2.0 * s)
+                {
+                    fill_crisp(pixmap, r, theme.text_muted);
+                }
+            }
         }
+    }
+}
+
+/// **Le champ de renommage**, à la place du nom : le fond et le filet du champ de Glucose
+/// Tauri, le texte tapé, et le curseur.
+fn dessiner_le_champ(
+    pixmap: &mut PixmapMut,
+    typo: &Typography,
+    theme: &Theme,
+    tab: &TabButtonLayout,
+    entree: &crate::interactions::text_entry::TextEntry,
+    (s, y_start, tabs_h): (f32, f32, f32),
+) {
+    let (x, h) = (tab.x + 10.0 * s, tabs_h - 14.0 * s);
+    let largeur = super::onglets::CHAMP * s + 8.0 * s;
+    if let Some(r) = Rect::from_xywh(x, y_start + 7.0 * s, largeur, h) {
+        fill_crisp(pixmap, r, theme.bg_active);
+    }
+    for (bx, by, bw, bh) in [
+        (x, y_start + 7.0 * s, largeur, 1.0),
+        (x, y_start + 7.0 * s + h - 1.0, largeur, 1.0),
+        (x, y_start + 7.0 * s, 1.0, h),
+        (x + largeur - 1.0, y_start + 7.0 * s, 1.0, h),
+    ] {
+        if let Some(r) = Rect::from_xywh(bx, by, bw, bh) {
+            fill_crisp(pixmap, r, theme.border_medium);
+        }
+    }
+    let corps = super::onglets::CORPS * s;
+    let style = TextStyle {
+        size: corps,
+        color: theme.text_primary,
+        face: Face::Regular,
+    };
+    typo.draw_text(
+        pixmap,
+        entree.text(),
+        x + 4.0 * s,
+        y_start + 10.0 * s,
+        style,
+    );
+    let (avant, _) = typo.measure_text(entree.before_cursor(), corps, Face::Regular);
+    if let Some(r) = Rect::from_xywh(x + 4.0 * s + avant, y_start + 10.0 * s, 1.0, corps * 1.2) {
+        fill_crisp(pixmap, r, theme.text_primary);
     }
 }
 
@@ -335,19 +394,39 @@ fn dessiner_un_onglet(
     typo: &Typography,
     theme: &Theme,
     tab: &TabButtonLayout,
-    is_hover: bool,
+    (is_hover, tenu): (bool, bool),
     (s, y_start, tabs_h): (f32, f32, f32),
 ) {
-    if is_hover && !tab.is_active {
+    if is_hover && !tab.is_active && !tenu {
         if let Some(rect) = Rect::from_xywh(tab.x, y_start + 4.0 * s, tab.width, tabs_h - 6.0 * s) {
             fill_crisp(pixmap, rect, theme.bg_hover);
         }
     }
-    let text_color = if tab.is_active {
+    // L'onglet qu'on glisse s'efface à moitié, comme dans Glucose Tauri (`opacity: 0.5`).
+    let text_color = if tenu {
+        theme.text_muted
+    } else if tab.is_active {
         theme.text_primary
     } else {
         theme.text_secondary
     };
+    if let Some((cx, cy, cote)) = tab.fermer {
+        typo.draw_text(
+            pixmap,
+            "×",
+            cx + cote * 0.2,
+            cy - cote * 0.05,
+            TextStyle {
+                size: cote,
+                color: if is_hover {
+                    theme.text_secondary
+                } else {
+                    theme.text_muted
+                },
+                face: Face::Regular,
+            },
+        );
+    }
     typo.draw_text(
         pixmap,
         &tab.name,

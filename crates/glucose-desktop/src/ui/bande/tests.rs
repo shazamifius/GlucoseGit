@@ -57,7 +57,7 @@ impl Pinceau {
         let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("un tampon");
         let largeur = ECRAN.0 as f32;
         let barre = layout_topbar(largeur, ui, &self.typo, store.nombre_d_images());
-        let onglets = layout_tabs(store, &self.typo, ui.topbar_height(), ui.scale());
+        let onglets = layout_tabs(store, ui, &self.typo);
         let survole_btn = barre
             .buttons
             .iter()

@@ -3,7 +3,7 @@
 use crate::icons::IconType;
 use crate::params::Pointer;
 use crate::theme::Theme;
-use crate::typography::{Face, Typography};
+use crate::typography::Typography;
 use glucose_core::store::Store;
 use tiny_skia::PixmapMut;
 
@@ -14,12 +14,14 @@ pub mod boutons;
 pub mod breadcrumb;
 pub mod context_menu;
 pub mod minimap;
+pub mod onglets;
 pub mod toast;
 
 pub use boutons::{
     draw_action_button, draw_tool_button, layout_topbar, TopbarButtonDef, TopbarLayout,
 };
 pub use minimap::{layout_minimap, point_minimap, MinimapBounds, MinimapCache};
+pub use onglets::{layout_tabs, TabButtonLayout};
 pub use toast::{Toast, ToastRepaint};
 
 pub const TABS_HEIGHT: f32 = 34.0;
@@ -89,6 +91,8 @@ pub enum UiAction {
     TogglePreset,
     ToggleDomains,
     SelectBoard(String),
+    /// La croix d'un onglet : le supprimer (BOARDS-1).
+    CloseBoard(String),
     AddBoard,
     MinimapPan(f64, f64),
 }
@@ -110,6 +114,8 @@ pub struct UiState {
     pub minimap_cache: Option<MinimapCache>,
     /// La barre et les onglets, déjà dessinés (voir [`bande::BandeCache`]).
     pub bande_cache: Option<bande::BandeCache>,
+    /// Ce qu'on est en train de faire aux onglets : les renommer, les glisser (BOARDS-1).
+    pub onglets: onglets::EtatDesOnglets,
 }
 
 pub const WELCOME_TOAST: &str = "Bienvenue dans Glucose !";
@@ -147,6 +153,7 @@ impl UiState {
             scale_factor: 1.0,
             minimap_cache: None,
             bande_cache: None,
+            onglets: onglets::EtatDesOnglets::default(),
         }
     }
 
@@ -279,8 +286,13 @@ fn poser_ce_qui_attend_une_decision(
     let Some(at) = ui.context_menu_at else {
         return;
     };
-    let Some(menu) = context_menu::layout_context_menu(store, typo, at, (w, h), ui.scale_factor)
-    else {
+    let Some(menu) = context_menu::layout_context_menu(
+        store,
+        typo,
+        (at, ui.onglets.menu.as_deref()),
+        (w, h),
+        ui.scale_factor,
+    ) else {
         return;
     };
     context_menu::draw_context_menu(
@@ -291,63 +303,6 @@ fn poser_ce_qui_attend_une_decision(
         (pointer.x, pointer.y),
         ui.scale_factor,
     );
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TabButtonLayout {
-    pub board_id: String,
-    pub name: String,
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-    pub is_active: bool,
-    pub is_plus: bool,
-}
-
-pub fn layout_tabs(
-    store: &Store,
-    typo: &Typography,
-    y_start: f32,
-    scale: f32,
-) -> Vec<TabButtonLayout> {
-    let s = crate::theme::clamp_ui_scale(scale);
-    let mut layouts = Vec::new();
-    let mut tab_x = 8.0 * s;
-    let tabs_h = TABS_HEIGHT * s;
-    for (id, nom, is_active) in store.onglets() {
-        let (tw, _) = typo.measure_text(
-            nom,
-            12.0 * s,
-            if is_active { Face::Bold } else { Face::Regular },
-        );
-        let tab_w = tw + 28.0 * s;
-        layouts.push(TabButtonLayout {
-            board_id: id.to_string(),
-            name: nom.to_string(),
-            x: tab_x,
-            y: y_start,
-            width: tab_w,
-            height: tabs_h,
-            is_active,
-            is_plus: false,
-        });
-        tab_x += tab_w + 4.0 * s;
-    }
-
-    // Bouton + (créer un board)
-    layouts.push(TabButtonLayout {
-        board_id: String::new(),
-        name: "+".into(),
-        x: tab_x,
-        y: y_start,
-        width: 30.0 * s,
-        height: tabs_h,
-        is_active: false,
-        is_plus: true,
-    });
-
-    layouts
 }
 
 /// Détecte si un clic souris se situe sur l'interface et retourne l'action associée
@@ -389,17 +344,12 @@ pub fn handle_ui_click(
             }
         }
     } else if y >= topbar_h && y < header_h {
-        // Clic sur la BoardTabs bar via layout_tabs unifié
-        let tabs = layout_tabs(store, typo, topbar_h, s);
-        for tab in tabs {
-            if x >= tab.x && x < tab.x + tab.width && y >= tab.y && y < tab.y + tab.height {
-                if tab.is_plus {
-                    return Some(UiAction::AddBoard);
-                } else {
-                    return Some(UiAction::SelectBoard(tab.board_id));
-                }
-            }
-        }
+        // Les onglets : la même géométrie que le dessin (loi L4).
+        return onglets::cible(&layout_tabs(store, ui, typo), x, y).map(|c| match c {
+            onglets::CibleOnglet::Onglet(id) => UiAction::SelectBoard(id),
+            onglets::CibleOnglet::Fermer(id) => UiAction::CloseBoard(id),
+            onglets::CibleOnglet::Plus => UiAction::AddBoard,
+        });
     } else if let Some((wx, wy)) = point_minimap(store, x, y, screen_w, screen_h, s) {
         return Some(UiAction::MinimapPan(wx, wy));
     }
@@ -493,7 +443,10 @@ mod tests {
             for btn in layout.buttons.iter().filter(|b| !b.label.is_empty()) {
                 // La topbar n'écrit qu'en maigre et en gras : l'italique et la chasse fixe
                 // appartiennent au contenu, pas à la chrome.
-                for face in [Face::Regular, Face::Bold] {
+                for face in [
+                    crate::typography::Face::Regular,
+                    crate::typography::Face::Bold,
+                ] {
                     let (text_w, _) =
                         typo.measure_text(btn.label, ACTION_LABEL_FONT * ui.scale(), face);
                     let right_edge = ACTION_LABEL_X * ui.scale() + text_w;
@@ -547,7 +500,7 @@ mod tests {
         for target_id in [&b1, &b2, &b3, &b4] {
             store.set_active_board_id(target_id);
 
-            let tabs = layout_tabs(&store, &typo, ui.topbar_height(), ui.scale());
+            let tabs = layout_tabs(&store, &ui, &typo);
             assert_eq!(tabs.len(), 5); // 4 boards + 1 bouton '+'
 
             for tab in &tabs {
@@ -626,7 +579,7 @@ mod tests {
         assert_eq!(act, Some(UiAction::SelectTool(ActiveTool::Pan)));
 
         // 2. Tabs à 150 %
-        let tabs = layout_tabs(&store, &typo, ui.topbar_height(), ui.scale());
+        let tabs = layout_tabs(&store, &ui, &typo);
         assert_eq!(tabs.len(), 3); // b1, b2, plus
         let first_tab = &tabs[0];
         assert_eq!(first_tab.height, 34.0 * 1.5);

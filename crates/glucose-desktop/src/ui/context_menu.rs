@@ -62,6 +62,12 @@ pub enum MenuAction {
     Delete,
     Paste,
     SelectAll,
+    /// Sur un onglet : l'ouvrir au renommage (BOARDS-1).
+    RenommerOnglet,
+    /// Sur un onglet : le supprimer, avec ses dossiers.
+    SupprimerOnglet,
+    /// Sur un onglet : un board de plus.
+    NouvelOnglet,
 }
 
 /// Une ligne du menu : soit une entrée, soit un filet.
@@ -90,7 +96,25 @@ pub struct ContextMenu {
 /// fermée ; retirer, c'est ne pas parler de porte du tout.
 type Def = Option<(MenuAction, &'static str, &'static str)>;
 
-fn entrees(store: &Store) -> Option<Vec<Def>> {
+/// Les entrées d'un menu ouvert sur un onglet — celles du menu des feuilles d'un classeur.
+fn entrees_d_onglet(store: &Store) -> Vec<Def> {
+    let mut defs = vec![Some((
+        MenuAction::RenommerOnglet,
+        "Renommer",
+        "Double-clic",
+    ))];
+    if store.onglets().nth(1).is_some() {
+        defs.push(Some((MenuAction::SupprimerOnglet, "Supprimer", "×")));
+    }
+    defs.push(None);
+    defs.push(Some((MenuAction::NouvelOnglet, "Nouveau board", "+")));
+    defs
+}
+
+fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
+    if onglet.is_some() {
+        return Some(entrees_d_onglet(store));
+    }
     let images = store.selected_image_ids.len();
     let sur_selection = images + store.selected_annotation_ids.len() > 0;
     let mut defs: Vec<Option<(MenuAction, &'static str, &'static str)>> = Vec::new();
@@ -127,20 +151,21 @@ fn entrees(store: &Store) -> Option<Vec<Def>> {
     Some(defs)
 }
 
-/// Ce qu'un menu proposerait à cet endroit, ouvert en `(ax, ay)`.
+/// Ce qu'un menu proposerait à cet endroit, ouvert en `(ax, ay)` — sur le canevas, ou sur
+/// l'onglet qu'on nomme.
 ///
 /// Fonction pure : elle ne lit que le store et la typographie, et ne dessine rien. Rend `None`
 /// quand il n'y aurait rien à proposer.
 pub fn layout_context_menu(
     store: &Store,
     typography: &Typography,
-    at: (f32, f32),
+    (at, onglet): ((f32, f32), Option<&str>),
     screen: (f32, f32),
     scale: f32,
 ) -> Option<ContextMenu> {
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
-    let defs = entrees(store)?;
+    let defs = entrees(store, onglet)?;
 
     let largeur_ligne = |label: &str, shortcut: &str| {
         let (a, _) = typography.measure_text(label, font, Face::Regular);

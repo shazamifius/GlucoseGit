@@ -28,7 +28,7 @@ fn store_with(images: usize, cartes: usize, selection: bool) -> Store {
 }
 
 fn menu(store: &Store, at: (f32, f32)) -> ContextMenu {
-    layout_context_menu(store, &Typography::new(), at, SCREEN, 1.0).expect("un menu")
+    layout_context_menu(store, &Typography::new(), (at, None), SCREEN, 1.0).expect("un menu")
 }
 
 fn actions(m: &ContextMenu) -> Vec<MenuAction> {
