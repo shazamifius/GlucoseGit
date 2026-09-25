@@ -110,6 +110,8 @@ pub struct UiState {
     /// Sous l'outil Flèche armé, le nœud dont une flèche partirait si l'on appuyait ici : sa
     /// lueur s'avive avant même le premier geste (LUEUR-1).
     pub noeud_pressenti: Option<String>,
+    /// Sous un outil de création armé, l'élément à naître, là où il se poserait (PLACEMENT-1).
+    pub placement: crate::interactions::placement::Placement,
     /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
     pub ancrage: Option<ancrage::Ancrage>,
     pub current_toast: Option<Toast>,
@@ -159,6 +161,7 @@ impl UiState {
             survol: bande::Survol::default(),
             fleche_survolee: None,
             noeud_pressenti: None,
+            placement: Default::default(),
             ancrage: None,
             current_toast: None,
             context_menu_at: None,

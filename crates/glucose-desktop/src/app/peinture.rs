@@ -31,6 +31,7 @@ use crate::dock::{render_docks, DockCache, DockManager, DockPass};
 use crate::params::{Pointer, SceneOverlay, ScreenFrame};
 use crate::renderer::Renderer;
 use crate::ui::UiState;
+use glucose_core::smart_align::SnapGuides;
 use glucose_core::store::Store;
 use tiny_skia::Pixmap;
 
@@ -163,6 +164,19 @@ impl GlucoseApp {
         }
     }
 
+    /// **Ce qui se pose par-dessus la scène à cette image** : les passages qui brillent, les
+    /// cartes désignées, et le fantôme d'un outil de création armé.
+    ///
+    /// Le fantôme porte ses propres guides d'alignement (PLACEMENT-1) : ceux d'un glisser
+    /// n'existent pas en même temps, puisqu'un outil de création n'est armé qu'entre deux gestes.
+    fn ce_qui_se_pose_dessus(&mut self) -> Dessus {
+        Dessus {
+            eclairages: self.eclairages(),
+            designees: self.suivre_la_designation(),
+            fantome: self.fantome_montre(),
+        }
+    }
+
     pub(super) fn peindre_ce_qui_a_change(&mut self, fenetre: (u32, u32), tampon_neuf: bool) {
         // La salissure est **consommee** : ce qui est redessine maintenant cesse d'etre sale,
         // et une nouvelle demande arrivee pendant le rendu appartient a l'image suivante.
@@ -176,15 +190,15 @@ impl GlucoseApp {
         let regard = self.regard();
         let mut reduit = self.tampon_reduit.take();
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
-        let eclairages = self.eclairages();
-        let designees = self.suivre_la_designation();
+        let dessus = self.ce_qui_se_pose_dessus();
         let overlay = SceneOverlay {
-            guides: &self.active_guides,
+            guides: dessus.guides(&self.active_guides),
             selection_box: self.selection_box,
             editing: self.editing_session.as_ref(),
             arrivages: &self.depot.en_chemin,
-            eclairages: &eclairages,
-            designees: &designees,
+            eclairages: &dessus.eclairages,
+            designees: &dessus.designees,
+            fantome: dessus.fantome.as_ref().map(|f| f.rect),
         };
         let pointer = self.pointeur();
         // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a travers
@@ -242,6 +256,20 @@ impl GlucoseApp {
         }
         self.pixmap = Some(pixmap);
         self.tampon_reduit = reduit;
+    }
+}
+
+/// Ce qui se pose par-dessus la scène, calculé avant de la peindre.
+struct Dessus {
+    eclairages: Vec<crate::params::Eclairage>,
+    designees: Vec<(String, f32)>,
+    fantome: Option<crate::interactions::placement::Fantome>,
+}
+
+impl Dessus {
+    /// Les guides à montrer : ceux du fantôme s'il y en a un, sinon ceux du geste en cours.
+    fn guides<'a>(&'a self, du_geste: &'a SnapGuides) -> &'a SnapGuides {
+        self.fantome.as_ref().map_or(du_geste, |f| &f.guides)
     }
 }
 

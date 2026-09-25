@@ -110,6 +110,7 @@ impl GlucoseApp {
             }
             self.suivre_la_fleche_survolee();
             self.suivre_le_noeud_pressenti();
+            self.suivre_le_fantome();
         }
 
         self.update_cursor();

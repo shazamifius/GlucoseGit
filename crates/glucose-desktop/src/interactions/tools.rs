@@ -99,6 +99,11 @@ impl GlucoseApp {
     /// Rend `false` pour les outils qui ne créent rien — sélection et main — : le clic n'a
     /// pas été consommé.
     pub fn place_with_tool(&mut self, wx: f64, wy: f64) -> bool {
+        // PLACEMENT-1 : l'élément se pose là où son fantôme était — aimanté.
+        let (wx, wy) = self
+            .placement_aimante((wx, wy))
+            .map_or((wx, wy), |f| (f.rect.left, f.rect.top));
+        self.ui.placement.fantome = None;
         match self.ui.active_tool {
             ActiveTool::Select | ActiveTool::Pan => return false,
             ActiveTool::Text => self.place_text_card(wx, wy),

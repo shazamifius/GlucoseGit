@@ -152,6 +152,11 @@ fn dessiner_les_reperes_du_geste(
         );
     }
 
+    // 7 bis. L'élément à naître sous un outil de création armé (PLACEMENT-1).
+    if let Some(fantome) = overlay.fantome {
+        scene::dessiner_le_fantome(pixmap, theme, fantome, &pass.vp);
+    }
+
     // 8. Boite de selection elastique (Marquee)
     if let Some((x1, y1, x2, y2)) = overlay.selection_box {
         scene::draw_selection_box(pixmap, theme, (x1, y1), (x2, y2));

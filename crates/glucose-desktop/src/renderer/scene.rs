@@ -373,6 +373,24 @@ pub(super) fn draw_guides(
     }
 }
 
+/// **L'élément à naître** sous un outil de création armé (PLACEMENT-1) : sa boîte, là où un
+/// clic le poserait, à l'habit de la sélection élastique — une affordance monochrome, comme
+/// toute la chrome, et qui ne ressemble à rien de ce qu'un document contient.
+pub(super) fn dessiner_le_fantome(
+    pixmap: &mut PixmapMut,
+    theme: &Theme,
+    fantome: glucose_core::geometry::Rect,
+    vp: &Viewport,
+) {
+    let a = world_to_screen(fantome.left, fantome.top, vp);
+    let b = world_to_screen(
+        fantome.left + fantome.width,
+        fantome.top + fantome.height,
+        vp,
+    );
+    draw_selection_box(pixmap, theme, a, b);
+}
+
 /// Fiche 07 § 7.3 — la sélection élastique : contour blanc à 0,50 de 1 px, intérieur blanc
 /// à 0,03. Monochrome, comme toute la chrome.
 pub(super) fn draw_selection_box(

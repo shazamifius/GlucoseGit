@@ -94,6 +94,9 @@ pub struct SceneOverlay<'a> {
     /// l'indice qui dit à quoi une flèche va se lier (LUEUR-1, l'`isHighlightBox` de Tauri) —,
     /// en glissant de l'un à l'autre (LUEUR-2).
     pub designees: &'a [(String, f32)],
+    /// Sous un outil de création armé, l'élément à naître là où il se poserait, en unités
+    /// monde (PLACEMENT-1).
+    pub fantome: Option<glucose_core::geometry::Rect>,
 }
 
 impl<'a> SceneOverlay<'a> {
@@ -109,6 +112,7 @@ impl<'a> SceneOverlay<'a> {
             arrivages: &[],
             eclairages: &[],
             designees: &[],
+            fantome: None,
         }
     }
 }
