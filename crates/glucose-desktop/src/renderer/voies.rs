@@ -405,7 +405,6 @@ fn composants_de_texte(
             .as_deref()
             .map(|c| super::parse_hex_color(c, symbiose.0, symbiose.1, symbiose.2))
             .unwrap_or(symbiose);
-        let selectionnee = store.selected_annotation_ids.iter().any(|s| s == ann.id());
         // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
         // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
         let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());
@@ -413,7 +412,7 @@ fn composants_de_texte(
             kit,
             ann.id(),
             (*x, *y, w as f32, h as f32),
-            (corps, teinte, selectionnee),
+            (corps, teinte),
             saisie,
         ) else {
             continue;

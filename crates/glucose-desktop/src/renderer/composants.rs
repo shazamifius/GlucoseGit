@@ -349,7 +349,7 @@ impl Regime {
         kit: PaintKit<'_>,
         id: &str,
         (x, y, w, h): (f64, f64, f32, f32),
-        (corps, teinte, selectionnee): (&str, (u8, u8, u8), bool),
+        (corps, teinte): (&str, (u8, u8, u8)),
         edition: Option<&crate::renderer::TextEditSession>,
     ) -> Option<Pieces> {
         // MODE-1 : une carte qu'on corrige montre ses signes, une carte qu'on lit ne les
@@ -387,7 +387,6 @@ impl Regime {
                 taille: (w, h),
                 corps: corps.to_string(),
                 teinte,
-                selectionnee,
                 edition: edition.cloned(),
             },
         ))
@@ -454,7 +453,6 @@ impl Composant {
                 taille,
                 corps,
                 teinte,
-                selectionnee,
                 edition,
             } => {
                 // `world_to_screen` vaut `monde x echelle + vue` : la vue qui place le coin
@@ -485,7 +483,8 @@ impl Composant {
                         size: *taille,
                         body: corps,
                         tint: *teinte,
-                        selected: *selectionnee,
+                        // La selection se montre au-dessus, jamais dans la texture.
+                        selected: false,
                         editing: edition.as_ref(),
                     },
                 );

@@ -183,8 +183,7 @@ impl GlucoseApp {
         vu.pixelise = lire("img_pixelise") as u16;
         vu.reduction = lire("img_reduction").clamp(1.0, f64::from(u16::MAX)) as u16;
         vu.blit_mo = lire("blit_mo").clamp(0.0, f64::from(u16::MAX)) as u16;
-        vu.textures_faites = lire("textures_faites").clamp(0.0, f64::from(u16::MAX)) as u16;
-        vu.textures_kpx = lire("textures_kpx").clamp(0.0, f64::from(u16::MAX)) as u16;
+        lire_les_textures(&mut vu, &lire);
         vu.surfaces_refaites = lire("surfaces_refaites").clamp(0.0, f64::from(u16::MAX)) as u16;
         // **Les images que la surface a refusees** : elles ne sont dans aucune autre mesure,
         // et une rafale de refus est exactement ce qui fige un canevas sans que rien ne le
@@ -195,7 +194,6 @@ impl GlucoseApp {
         vu.dock_pourquoi = lire("dock_pourquoi").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.bande_refaite = lire("bande_refaite").clamp(0.0, f64::from(u16::MAX)) as u16;
         vu.cartes_entieres = lire("cartes_entieres").clamp(0.0, f64::from(u16::MAX)) as u16;
-        vu.textures_reportees = lire("textures_reportees").clamp(0.0, f64::from(u16::MAX)) as u16;
         // Sans la passe des images, la region n'est pas declaree : une image qui n'a rien
         // redessine du tout vaut zero, ce qui est exact.
         vu.region_px = lire("img_region") as u32;
@@ -387,6 +385,18 @@ impl GlucoseApp {
             ),
         }
     }
+}
+
+/// **Ce que la carte graphique a rendu pendant l'image** : combien de textures, leur surface,
+/// le temps passé à les rendre, et combien ont attendu faute de budget (CASCADE-2).
+///
+/// Extraite de `enregistrer_l_image` quand le temps du rendu y est entré (COMPOSANT-4) : les
+/// quatre répondent à la même question — de quoi le poste `textures` est fait.
+fn lire_les_textures(vu: &mut Instantane, lire: &impl Fn(&str) -> f64) {
+    vu.textures_faites = lire("textures_faites").clamp(0.0, f64::from(u16::MAX)) as u16;
+    vu.textures_kpx = lire("textures_kpx").clamp(0.0, f64::from(u16::MAX)) as u16;
+    vu.textures_rendu_us = lire("textures_rendu_us").clamp(0.0, f64::from(u32::MAX)) as u32;
+    vu.textures_reportees = lire("textures_reportees").clamp(0.0, f64::from(u16::MAX)) as u16;
 }
 
 #[cfg(test)]

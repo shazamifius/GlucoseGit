@@ -15,7 +15,6 @@ pub(super) enum Contenu {
         taille: (f32, f32),
         corps: String,
         teinte: (u8, u8, u8),
-        selectionnee: bool,
         /// La saisie en cours sur cette carte, **figee** (COMPOSANT-2).
         ///
         /// Une carte qu'on edite changeait a chaque image parce que personne ne s'etait
@@ -61,7 +60,6 @@ impl Contenu {
                 taille,
                 corps,
                 teinte,
-                selectionnee,
                 edition,
                 ..
             } => {
@@ -70,7 +68,8 @@ impl Contenu {
                 taille.0.to_bits().hash(h);
                 taille.1.to_bits().hash(h);
                 teinte.hash(h);
-                selectionnee.hash(h);
+                // **Pas la selection** (COMPOSANT-4) : l'anneau qui la montre se pose au-dessus,
+                // et selectionner une carte ne refait plus sa texture.
                 // **Ce que la saisie change, et rien d'autre.** Le texte est deja dans
                 // `corps` -- `carte_de` y met le tampon d'edition. Reste l'etendue
                 // selectionnee, que la texture peint sous le texte ; **pas le curseur**, qui

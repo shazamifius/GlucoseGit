@@ -441,6 +441,9 @@ impl Chronique {
             ("repris", &|p: &Instantane| u32::from(p.tuiles_reprises)),
             ("text", &|p: &Instantane| u32::from(p.textures_faites)),
             ("kpx", &|p: &Instantane| u32::from(p.textures_kpx)),
+            // En microsecondes : la part du poste `textures` passée à RENDRE, le reste étant
+            // l'envoi à la carte.
+            ("rendu_us", &|p: &Instantane| p.textures_rendu_us),
             ("report", &|p: &Instantane| u32::from(p.textures_reportees)),
             ("dock", &|p: &Instantane| u32::from(p.dock_rendus)),
             ("bande", &|p: &Instantane| u32::from(p.bande_refaite)),

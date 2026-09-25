@@ -222,7 +222,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// leur boîte, un état qu'on ne voit jamais. 467 262 pixels changent, au plus 211 niveaux :
 /// l'intérieur et le pourtour des cartes, et une flèche dont le bout suit la carte agrandie ;
 /// regardés côte à côte et agrandis.
-const EMPREINTE_TEMOIN: &str = "54afed5d3dd7c5aa";
+/// **Puis, le 26/09** (COMPOSANT-4) : la brume d'une carte se peint par la loi des membranes au
+/// lieu du remplissage de `tiny-skia`, et l'anneau d'une carte sélectionnée passe au-dessus du
+/// contenu. 86 986 pixels changent, **au plus deux niveaux**, tous au contour des cartes (l'arrondi
+/// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
+const EMPREINTE_TEMOIN: &str = "8f9af9596f89bcab";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -292,7 +296,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Puis** (BARRES-1) : les barres du bas prennent la mesure et l'habit de celles de Tauri —
 /// corps de 13, chaque bouton encadré, une barre de 37 points au lieu de 23. Seule leur bande
 /// change ; regardée agrandie.
-const EMPREINTE_TEMOIN_SELECTION: &str = "8603922ca02faccd";
+/// **Puis, le 26/09** (COMPOSANT-4) : la brume d'une carte se peint par la loi des membranes au
+/// lieu du remplissage de `tiny-skia`, et l'anneau d'une carte sélectionnée passe au-dessus du
+/// contenu. 86 071 pixels changent, **au plus deux niveaux**, tous au contour des cartes (l'arrondi
+/// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
+const EMPREINTE_TEMOIN_SELECTION: &str = "93fd4d74f8693c25";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -352,7 +360,11 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (BARRES-1) : les barres du bas prennent la mesure et l'habit de celles de Tauri —
 /// corps de 13, chaque bouton encadré, une barre de 37 points au lieu de 23. Seule leur bande
 /// change ; regardée agrandie.
-const EMPREINTE_TEMOIN_MENU: &str = "826b5eb48038e548";
+/// **Puis, le 26/09** (COMPOSANT-4) : la brume d'une carte se peint par la loi des membranes au
+/// lieu du remplissage de `tiny-skia`, et l'anneau d'une carte sélectionnée passe au-dessus du
+/// contenu. 86 071 pixels changent, **au plus deux niveaux**, tous au contour des cartes (l'arrondi
+/// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
+const EMPREINTE_TEMOIN_MENU: &str = "a560693d89a76563";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

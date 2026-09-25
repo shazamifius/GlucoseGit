@@ -285,6 +285,27 @@ pub struct Membrane {
 }
 
 impl Membrane {
+    /// **Un plein d'une seule couche** : `forme`, de `teinte`, à l'opacité `alpha`, sans bord.
+    ///
+    /// C'est la brume d'une carte de texte — sa teinte à 3 % sous le texte (LUEUR-1). Elle se
+    /// peignait par le remplissage anticrénelé de `tiny-skia` : les trois quarts du rendu d'une
+    /// carte qu'on écrit, pour un voile uniforme (`bench_saisie`, COMPOSANT-4). Un plein est une
+    /// membrane dégénérée — un champ d'une couche —, et la même loi le peint : une composition
+    /// par pixel là où il est constant, le calcul exact sur les seuls pixels de son bord.
+    pub fn plein(forme: Arrondi, teinte: [f32; 3], alpha: f32) -> Self {
+        let vide = (forme, 0.0);
+        Self {
+            remplissages: [vide, vide, (forme, alpha)],
+            bord: Bord {
+                forme,
+                demi_largeur: 0.0,
+                pointille: None,
+                alpha: 0.0,
+            },
+            teinte,
+        }
+    }
+
     /// **L'opacité de la membrane au point `(x, y)`** — le centre d'un pixel.
     ///
     /// Le produit des transparences de ses couches, dans l'ordre : c'est ce que donnent quatre

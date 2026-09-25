@@ -27,6 +27,7 @@ impl SceneGpu {
             faites: 0.0,
             reportees: 0.0,
             surface: 0.0,
+            rendu: Duration::ZERO,
         };
         // Les replis des tuiles (DE-PRES-1), une fois chacun : les cent tuiles d'une carte vue
         // de près partagent le même.
@@ -63,6 +64,7 @@ impl SceneGpu {
             }
         }
         crate::perf::compteur("textures_kpx", tranche.surface);
+        crate::perf::compteur("textures_rendu_us", tranche.rendu.as_secs_f64() * 1e6);
         crate::perf::compteur("textures_faites", tranche.faites);
         crate::perf::compteur("textures_reportees", tranche.reportees);
     }
@@ -105,6 +107,7 @@ impl SceneGpu {
         }
         let debut = Instant::now();
         if let Some(pixels) = source(&t.cle) {
+            tranche.rendu += debut.elapsed();
             let photo = matches!(pixels, super::Pixels::Pretes(_));
             let pixels = pixels.vue();
             // **Ce qu'une texture pese vraiment**, en kilopixels. Les chroniques du 21/09
@@ -158,4 +161,7 @@ struct Tranche {
     faites: f64,
     reportees: f64,
     surface: f64,
+    /// Le temps passé à **obtenir** les pixels — rendre un composant au processeur, ou lire
+    /// une photo déjà décodée —, à part de leur téléversement.
+    rendu: Duration,
 }

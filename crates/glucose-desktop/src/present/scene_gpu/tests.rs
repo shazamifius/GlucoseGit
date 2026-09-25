@@ -437,6 +437,53 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     );
 }
 
+/// **La chronique sait ce que le rendu des textures a pris**, à part de leur envoi.
+///
+/// Pendant qu'il écrit, sa chronique donne 11,6 ms de `textures` par image, et le banc 2,2 ms
+/// pour la même carte sur la même machine : seul ce compteur départagera un rendu plus lent
+/// chez lui d'un envoi plus lent. Un compteur déclaré et jamais lu vaut zéro (fiche 17) — et
+/// un compteur jamais nourri aussi : une source qui prend trois millisecondes doit s'y lire.
+#[test]
+fn test_la_cascade_compte_ce_que_le_rendu_a_pris() {
+    let Some((peripherique, file)) = carte() else {
+        eprintln!("aucune carte graphique : test saute");
+        return;
+    };
+    let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
+    scene.ouvrir();
+    let pose = Pose {
+        x: 0.0,
+        y: 0.0,
+        largeur: 4.0,
+        hauteur: 4.0,
+        opacite: 1.0,
+        angle: 0.0,
+        fenetre: Pose::TOUT,
+        bornes: Pose::PARTOUT,
+    };
+    let demande = APoser {
+        repli: None,
+        cle: "carte:c:1".to_string(),
+        identite: "carte:c".to_string(),
+        pose,
+    };
+    let lente = |_: &str| {
+        std::thread::sleep(std::time::Duration::from_millis(3));
+        Some(Pixels::Rendues(photo(4, [9, 9, 9, 255])))
+    };
+    scene.assurer(
+        &peripherique,
+        &file,
+        (&[demande], std::time::Duration::MAX),
+        &lente,
+    );
+    let rendu = crate::perf::valeur_du_compteur("textures_rendu_us").unwrap_or(0.0);
+    assert!(
+        rendu >= 3000.0,
+        "une source de trois millisecondes n'en a laisse que {rendu} us au compteur"
+    );
+}
+
 /// **Une identité ne porte jamais deux textures.** Sans quoi la mémoire de la carte
 /// doublerait à chaque changement de palier, et la borne du magasin — ce que l'écran
 /// demande — cesserait d'en être une.

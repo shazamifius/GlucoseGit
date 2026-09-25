@@ -113,6 +113,14 @@ pub struct Instantane {
     /// NOMBRE de textures ou de leur TAILLE. Une seule texture à dix-neuf millisecondes ne
     /// s'explique que par la seconde, et rien ne le disait.
     pub textures_kpx: u16,
+    /// Le temps passé à **rendre** ces textures au processeur, en microsecondes — le reste du
+    /// poste `textures` est leur création et leur téléversement sur la carte.
+    ///
+    /// Sa chronique du 25/09 donne 11,6 ms de `textures` par image pendant qu'on écrit, pour
+    /// une carte de 798 kpx ; `bench_saisie` rend une carte semblable, sur la même machine, en
+    /// 2,2 ms téléversement compris. Aucune durée seule ne départage les deux explications
+    /// qui restent : un rendu plus lent chez lui qu'au banc, ou un envoi plus lent.
+    pub textures_rendu_us: u32,
     /// Combien de panneaux du dock ont été **réellement redessinés** pendant cette image.
     ///
     /// Le poste `docks` vaut 1,02 ms en médiane et jusqu'à 7,70 sur une image de zoom. Ces

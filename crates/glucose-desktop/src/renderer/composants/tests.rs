@@ -132,7 +132,8 @@ fn regime_temoin() -> (Viewport, Regime) {
     )
 }
 
-/// Un composant de carte, rendu à part et reposé, comparé à la carte dessinée en place.
+/// Un composant de carte, rendu à part et reposé sous ses ornements, comparé à la carte
+/// entière dessinée en place par le processeur : les deux voies.
 fn ecart_carte(selectionnee: bool, densite: f32) -> (u8, usize) {
     let renderer = Renderer::new();
     let kit = renderer.kit();
@@ -147,6 +148,14 @@ fn ecart_carte(selectionnee: bool, densite: f32) -> (u8, usize) {
     let corps = "Accents : éàçùôêîï — « guillemets »
 Et un lien.";
     let teinte = (96, 165, 250);
+    let carte = || TextCard {
+        origin: (x, y),
+        size: (w, h),
+        body: corps,
+        tint: teinte,
+        selected: selectionnee,
+        editing: None,
+    };
 
     let mut en_place = Pixmap::new(taille.0, taille.1).expect("pixmap");
     let ctx = Pass {
@@ -162,20 +171,9 @@ Et un lien.";
             top: 0.0,
         },
     };
-    draw_card_contenu(
-        &ctx,
-        &mut en_place.as_mut(),
-        TextCard {
-            origin: (x, y),
-            size: (w, h),
-            body: corps,
-            tint: teinte,
-            selected: selectionnee,
-            editing: None,
-        },
-    );
+    crate::renderer::card::draw_text_card(&ctx, &mut en_place.as_mut(), carte());
     let composant = regime
-        .carte(kit, "c", (x, y, w, h), (corps, teinte, selectionnee), None)
+        .carte(kit, "c", (x, y, w, h), (corps, teinte), None)
         .expect("un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -186,62 +184,30 @@ Et un lien.";
         (composant.pose.x, composant.pose.y),
         glucose_core::report::Melange::Composer,
     );
-    let pire = en_place
-        .data()
-        .iter()
-        .zip(reposee.data())
-        .map(|(a, b)| a.abs_diff(*b))
-        .max()
-        .unwrap_or(0);
-    let canaux = en_place
-        .data()
-        .iter()
-        .zip(reposee.data())
-        .filter(|(a, b)| a.abs_diff(**b) > 1)
-        .count();
-    (pire, canaux)
+    crate::renderer::card::draw_card_ornements(&ctx, &mut reposee.as_mut(), carte());
+    ecart(&en_place, &reposee)
 }
 
 /// **Une carte au repos se repose au bit près** : même code, même mise en page, même phase.
 #[test]
 fn test_une_carte_se_repose_au_bit_pres() {
-    let (pire, canaux) = ecart_carte(false, 1.0);
-    assert!(
-        pire <= 1 && canaux == 0,
-        "carte au repos : pire {pire}, {canaux} canaux au-dela de 1"
-    );
+    assert_eq!(ecart_carte(false, 1.0), (0, 0), "carte au repos");
 }
 
-/// **Une carte sélectionnée se repose à un cran de couverture près**, et ce cran n'est pas
-/// à nous.
+/// **Une carte sélectionnée se repose au bit près, elle aussi** — à 100 % comme à 150 %.
 ///
-/// Le trait de sélection est un anneau anti-crénelé de deux pixels, et `tiny-skia` accumule
-/// ses bords en virgule fixe le long de chaque ligne : la même forme, translatée d'un nombre
-/// **entier** de pixels, ne donne pas toujours la même couverture aux points où la tangente
-/// d'un coin arrondi frôle une frontière de sous-pixel. L'écart vaut un cran de son
-/// suréchantillonnage — au plus une vingtaine de niveaux, sur quelques dizaines de pixels — et
-/// il existe déjà sur la voie processeur seule, entre deux images d'un glissement.
-///
-/// Ce n'est donc pas une différence de loi entre les voies : c'est la sensibilité du
-/// rastériseur à la position absolue, mesurée et bornée ici pour qu'elle ne grandisse pas.
+/// Elle se reposait « à un cran de couverture près » : jusqu'à vingt-six niveaux sur deux cents
+/// canaux, et ce cran n'était pas à nous. L'anneau de sélection était un trait anticrénelé de
+/// `tiny-skia`, peint DANS la texture, et `tiny-skia` accumule ses bords en virgule fixe le long
+/// de chaque ligne : la même forme translatée d'un nombre entier de pixels ne donnait pas
+/// toujours la même couverture. Depuis COMPOSANT-4, l'anneau se pose au-dessus, au même endroit
+/// sur les deux voies, et la brume se peint par une loi évaluée pixel par pixel : la tolérance
+/// disparaît avec sa cause.
 #[test]
-fn test_une_carte_selectionnee_se_repose_a_un_cran_de_couverture_pres() {
-    // DPI-1 : à 150 %, l'anneau de la texture a l'épaisseur de celui qu'on dessine en place.
-    let (pire, canaux) = ecart_carte(true, 1.5);
-    assert!(
-        pire <= 26,
-        "à 150 %, pire {pire} -- plus qu'un cran de couverture"
-    );
-    assert!(canaux <= 200, "à 150 %, {canaux} canaux au-delà de 1");
-    let (pire, canaux) = ecart_carte(true, 1.0);
-    assert!(
-        pire <= 26,
-        "carte selectionnee : pire {pire} -- plus qu'un cran de couverture"
-    );
-    assert!(
-        canaux <= 200,
-        "carte selectionnee : {canaux} canaux au-dela de 1 -- ce n'est plus un coin, c'est un          bord entier"
-    );
+fn test_une_carte_selectionnee_se_repose_au_bit_pres() {
+    assert_eq!(ecart_carte(true, 1.0), (0, 0), "a 100 %");
+    // DPI-1 : à 150 %, l'anneau a l'épaisseur de celui qu'on dessine en place.
+    assert_eq!(ecart_carte(true, 1.5), (0, 0), "a 150 %");
 }
 
 // -- COMPOSANT-2 : la carte qu'on edite --------------------------------------
@@ -263,7 +229,7 @@ fn test_la_carte_qu_on_edite_est_un_composant() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), false),
+                (corps, (96, 165, 250)),
                 Some(&e),
             )
             .is_some(),
@@ -291,7 +257,7 @@ fn test_composant_3_la_cle_ignore_le_curseur_et_suit_la_selection() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), false),
+                (corps, (96, 165, 250)),
                 Some(&e),
             )
             .expect("un composant")
@@ -336,7 +302,7 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), false),
+                (corps, (96, 165, 250)),
                 Some(&e),
             )
             .expect("un composant")
@@ -394,7 +360,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
     };
 
     let composant = regime
-        .carte(kit, "c", (x, y, w, h), (corps, teinte, false), Some(&e))
+        .carte(kit, "c", (x, y, w, h), (corps, teinte), Some(&e))
         .expect("une carte en saisie est toujours un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -421,25 +387,12 @@ fn ecart(a: &Pixmap, b: &Pixmap) -> (u8, usize) {
     (pire, canaux)
 }
 
-/// **La meme borne que la carte selectionnee, et c'est la meme cause.**
+/// **Les deux voies donnent les memes pixels**, au bit pres.
 ///
-/// `draw_card_frame` traite une carte en saisie comme une carte selectionnee : son anneau de
-/// deux pixels. On retrouve donc exactement le cran de couverture que
-/// `test_une_carte_selectionnee_se_repose_a_un_cran_de_couverture_pres` mesure, et pour la
-/// meme raison -- `tiny-skia` accumule ses bords en virgule fixe le long de chaque ligne, et la
-/// meme forme a une position absolue differente ne donne pas toujours la meme couverture la ou
-/// la tangente d'un coin arrondi frole une frontiere de sous-pixel.
-///
-/// La mesure le dit sans ambiguite : le meme test sans saisie donne **zero**, et le seul
-/// changement entre les deux est l'epaisseur de ce trait. Une seconde borne pour la meme cause
-/// finirait par diverger de la premiere : c'est la sienne qu'on reprend.
-fn dans_le_cran_de_l_anneau(voies: &DeuxVoies, quoi: &str) {
-    let (pire, canaux) = ecart(&voies.en_place, &voies.reposee);
-    assert!(pire <= 26, "{quoi} : pire {pire}");
-    assert!(
-        canaux <= 200,
-        "{quoi} : {canaux} canaux au-dela de 1 -- ce n'est plus un coin"
-    );
+/// Une carte en saisie se reposait « dans le cran de l'anneau » -- vingt-six niveaux, pour la
+/// meme cause que la carte selectionnee. L'anneau n'est plus dans la texture (COMPOSANT-4).
+fn au_bit_pres(voies: &DeuxVoies, quoi: &str) {
+    assert_eq!(ecart(&voies.en_place, &voies.reposee), (0, 0), "{quoi}");
 }
 
 /// **Une carte en saisie donne les memes pixels sur les deux voies**, curseur compris : la
@@ -459,7 +412,7 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
         voies.eteint.data(),
         "le curseur allume doit se voir"
     );
-    dans_le_cran_de_l_anneau(&voies, "carte en saisie");
+    au_bit_pres(&voies, "carte en saisie");
 }
 
 /// **Une formule sous le curseur : la carte reste une texture, et sa previsualisation se pose
@@ -472,7 +425,7 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
 #[test]
 fn test_une_formule_sous_le_curseur_reste_une_texture_et_sa_pastille_se_pose_au_dessus() {
     let voies = deux_voies_en_saisie("$$x^2$$", 3);
-    dans_le_cran_de_l_anneau(&voies, "formule en saisie");
+    au_bit_pres(&voies, "formule en saisie");
     // **L'epreuve voit la pastille** : de l'encre a droite de la carte, que la carte seule n'a
     // pas. Sans ce temoin, une pastille oubliee par les deux voies passerait.
     let (x, _, w, _) = CARTE;
@@ -522,7 +475,7 @@ fn test_cent_images_de_saisie_immobile_ne_font_qu_une_texture() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), false),
+                (corps, (96, 165, 250)),
                 Some(&e),
             )
             .expect("un composant")
@@ -556,7 +509,7 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
                 renderer.kit(),
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
-                (corps, (96, 165, 250), false),
+                (corps, (96, 165, 250)),
                 Some(&e),
             )
             .expect("un composant")

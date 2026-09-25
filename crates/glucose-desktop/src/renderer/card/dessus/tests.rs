@@ -295,3 +295,59 @@ fn test_composant_3_la_pastille_basculee_a_gauche_garde_son_ecart() {
         pastille.1
     );
 }
+
+/// Une carte sans saisie, dont le coin est à `(40, 40)` de l'écran, sélectionnée ou non.
+fn carte_posee(selectionnee: bool) -> Pixmap {
+    let renderer = Renderer::new();
+    let kit = renderer.kit();
+    let ctx = Pass {
+        typography: kit.typography,
+        math: kit.math,
+        tints: kit.tints,
+        theme: kit.theme,
+        vp: Viewport {
+            scale: 1.0,
+            x: 40.0,
+            y: 40.0,
+        },
+        scale: WorldScale::new(1.0, 1.0),
+        clip: Clip {
+            width: ECRAN.0 as f32,
+            height: ECRAN.1 as f32,
+            top: 0.0,
+        },
+    };
+    let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("pixmap");
+    let carte = TextCard {
+        origin: (0.0, 0.0),
+        size: (LARGEUR, 60.0),
+        body: "Une carte.",
+        tint: (96, 165, 250),
+        selected: selectionnee,
+        editing: None,
+    };
+    draw_text_card(&ctx, &mut pixmap.as_mut(), carte);
+    pixmap
+}
+
+/// **L'anneau d'une carte sélectionnée se pose sur son bord** (COMPOSANT-4), et nulle part
+/// ailleurs dans la carte.
+///
+/// Il a quitté la texture pour les ornements : les deux voies le peignent par la même fonction,
+/// donc leur épreuve d'accord ne dirait rien s'il disparaissait. Lu au quart du bord haut, là
+/// où aucune poignée ne se pose.
+#[test]
+fn test_composant_4_l_anneau_d_une_carte_selectionnee_se_pose_sur_son_bord() {
+    let (avec, sans) = (carte_posee(true), carte_posee(false));
+    let pixel = |p: &Pixmap, x: u32, y: u32| p.pixels()[(y * ECRAN.0 + x) as usize];
+    let x = 40 + (LARGEUR / 4.0) as u32;
+    assert!(
+        (39..=40).any(|y| pixel(&avec, x, y) != pixel(&sans, x, y)),
+        "l'anneau doit passer sur le bord haut de la carte"
+    );
+    assert_eq!(
+        pixel(&avec, x, 70),
+        pixel(&sans, x, 70),
+        "dedans, la selection ne change rien : la carte reste la meme"
+    );
+}

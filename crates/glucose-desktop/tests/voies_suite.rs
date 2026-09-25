@@ -299,6 +299,53 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
     );
 }
 
+/// **Sélectionner une carte ne refait pas sa texture** (COMPOSANT-4) : l'anneau qui la désigne
+/// se pose dans la couche du dessus.
+///
+/// Sa session du 25/09 à 22 h 19 donne 12,35 ms de `textures` au p99 du geste « sélectionner » :
+/// l'anneau était peint dans la texture, et la sélection entrait dans sa clé. Deux images du
+/// même document, avant et après un clic sur une carte, doivent demander les mêmes textures —
+/// et la couche du dessus doit porter l'anneau.
+#[test]
+fn test_selectionner_une_carte_ne_refait_pas_sa_texture() {
+    let taille = synth::WITNESS_SIZE;
+    let mut store = synth::witness();
+    store.clear_selection();
+    let id = store
+        .active_board()
+        .expect("un tableau")
+        .annotations
+        .iter()
+        .find(|a| matches!(a, glucose_core::types::Annotation::Text { .. }))
+        .map(|a| a.id().to_string())
+        .expect("le temoin porte une carte de texte");
+    let (_, _, dessus_avant, avant) = les_deux_couches(taille, &store);
+    store.select_annotation(id.clone(), false);
+    let (_, _, dessus_apres, apres) = les_deux_couches(taille, &store);
+
+    let cles = |c: &Confie| {
+        c.cartes
+            .iter()
+            .map(|(cle, _)| cle.clone())
+            .collect::<Vec<_>>()
+    };
+    assert!(
+        cles(&avant)
+            .iter()
+            .any(|c| c.starts_with(&format!("carte:{id}:"))),
+        "la carte est une texture : sans elle, l'epreuve ne dirait rien"
+    );
+    assert_eq!(
+        cles(&avant),
+        cles(&apres),
+        "selectionner une carte ne doit refaire aucune texture"
+    );
+    assert!(
+        encre(&dessus_apres) > encre(&dessus_avant),
+        "l'anneau et les poignees de la carte selectionnee se posent dans la couche du dessus"
+    );
+}
+
 /// **Sur la voie graphique, le curseur de la carte qu'on écrit se pose dans la couche du
 /// dessus** (COMPOSANT-3) — et rien d'autre ne change quand il clignote.
 ///

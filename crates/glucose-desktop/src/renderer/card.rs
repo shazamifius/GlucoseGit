@@ -55,14 +55,14 @@
 //! signes réapparaissent et le texte peut demander une ligne de plus — la carte l'affiche,
 //! puisque `text_card` prend le maximum entre la hauteur écrite et celle qu'il faut.
 
-use super::pass::{Pass, SELECTION_RING};
+use super::pass::Pass;
 use super::richtext::draw::{draw_line, draw_line_selection};
 use super::richtext::{
     font_of, indent_of, ink_of, layout_rich_text, Ink, TextBox, TextLayout, TextMode, VisualLine,
     LINE_FACTOR,
 };
 use super::scale::WorldScale;
-use super::{push_rounded_rect, TextEditSession};
+use super::TextEditSession;
 use crate::canvas::world_to_screen;
 use crate::renderer::math::MathRenderer;
 use crate::typography::Typography;
@@ -72,10 +72,11 @@ mod ornament;
 mod texte_seul;
 use crate::theme::Theme;
 use dessus::dessiner_les_ornements;
+use glucose_core::membrane_forme::{Arrondi, Membrane};
 use glucose_core::text::{BlockKind, Selection};
 use ornament::{draw_code_plate, draw_ornament};
 pub(crate) use texte_seul::peindre_le_texte_seul;
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
+use tiny_skia::{Color, PixmapMut};
 
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────
 
@@ -300,14 +301,14 @@ fn dessiner_le_contenu(
     text: &TextLayout,
     card: &TextCard,
 ) {
-    draw_card_frame(ctx, pixmap, at, layout, card);
+    draw_card_brume(pixmap, at, layout, card);
     // SCALE-2 — l'unique niveau de détail : sous le seuil, la carte s'arrête à son cadre.
     if ctx.scale.draws_detail() {
         draw_card_body(ctx, pixmap, at, layout, text, card);
     }
 }
 
-/// **La brume de la carte, et l'anneau qui la désigne** (LUEUR-1).
+/// **La brume de la carte** (LUEUR-1).
 ///
 /// Tauri pose sous le texte la teinte de la carte **à 3 %** (`color-mix(AURA 3%)`) et rien
 /// d'autre : aucun cadre au repos, et la lueur, découpée à l'intérieur de la boîte, ne passe
@@ -315,49 +316,26 @@ fn dessiner_le_contenu(
 /// le contour en lueur ». Ici, la carte portait un fond presque opaque à 12 % de sa teinte et
 /// un filet : un rectangle plein, qu'il trouvait laid.
 ///
-/// Sélectionnée ou éditée, un anneau la désigne : c'est une affordance, pas un habit.
-fn draw_card_frame(
-    ctx: &Pass,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &CardLayout,
-    card: &TextCard,
-) {
-    let mut pb = PathBuilder::new();
-    push_rounded_rect(
-        &mut pb,
-        at.0,
-        at.1,
-        layout.width,
-        layout.height,
-        layout.radius,
-    );
-    let Some(path) = pb.finish() else {
-        return;
-    };
+/// L'anneau qui désigne une carte sélectionnée ou éditée n'est pas ici : c'est une
+/// affordance, pas un habit, et il se pose avec les autres (`dessus.rs`, COMPOSANT-4).
+///
+/// **La brume se peint par la loi des membranes** (COMPOSANT-4) : un plein d'une couche, une
+/// composition par pixel là où il est constant, le calcul exact au seul bord. Le remplissage
+/// anticrénelé de `tiny-skia` en coûtait les trois quarts du rendu d'une carte qu'on écrit —
+/// 1,54 ms sur 2,05 pour sa carte de notes vue à ×2,3 (`bench_saisie`) —, pour un voile
+/// uniforme. Et une loi évaluée pixel par pixel donne le même pixel quel que soit le morceau
+/// de carte qu'on peint : c'est ce qui manquait pour ne refaire que les lignes qu'une frappe
+/// change.
+fn draw_card_brume(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, card: &TextCard) {
     let (r, g, b) = card.tint;
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    paint.set_color(Color::from_rgba8(r, g, b, BRUME));
-    pixmap.fill_path(
-        &path,
-        &paint,
-        tiny_skia::FillRule::Winding,
-        Transform::identity(),
-        None,
+    let brume = Membrane::plein(
+        Arrondi::nouveau(at.0, at.1, layout.width, layout.height, layout.radius),
+        [r, g, b].map(|c| f32::from(c) / 255.0),
+        f32::from(BRUME) / 255.0,
     );
-    if !(card.selected || card.editing.is_some()) {
-        return;
-    }
-    paint.set_color(ctx.theme.selection_frame);
-    let stroke = Stroke {
-        // L'anneau est une affordance et garde sa taille écran (exception SCALE-1).
-        width: ctx.scale.screen(SELECTION_RING),
-        ..Default::default()
-    };
-    pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+    let (largeur, hauteur) = (pixmap.width(), pixmap.height());
+    let (pixels, _) = pixmap.data_mut().as_chunks_mut::<4>();
+    glucose_core::membrane_forme::peindre(&brume, pixels, largeur, hauteur);
 }
 
 /// L'opacité de la brume sous le texte, sur 255 : les 3 % de Tauri.
