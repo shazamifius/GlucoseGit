@@ -49,6 +49,7 @@ mod resize;
 mod selection;
 mod undo;
 
+pub use annotations::Reglage;
 pub use domains::DomainPatch;
 pub use journal::UNDO_DEPTH;
 pub use membranes::Emport;

@@ -31,21 +31,21 @@ use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 /// Distance entre le bas de la fenêtre et celui de la barre.
 const BOTTOM: f32 = 12.0;
 /// Marges intérieures de la pastille : `4px 8px`.
-const PAD_X: f32 = 8.0;
-const PAD_Y: f32 = 4.0;
+pub(super) const PAD_X: f32 = 8.0;
+pub(super) const PAD_Y: f32 = 4.0;
 /// Rayon de ses coins.
-const RADIUS: f32 = 6.0;
+pub(super) const RADIUS: f32 = 6.0;
 /// Écart entre deux éléments de la rangée.
-const GAP: f32 = 4.0;
+pub(super) const GAP: f32 = 4.0;
 /// Corps du texte.
-const FONT: f32 = 11.0;
+pub(super) const FONT: f32 = 11.0;
 /// Retrait entre le compteur et son filet séparateur.
 const COUNT_PAD: f32 = 6.0;
 /// Marges intérieures d'un bouton : `2px 7px`.
-const BTN_PAD_X: f32 = 7.0;
-const BTN_PAD_Y: f32 = 2.0;
+pub(super) const BTN_PAD_X: f32 = 7.0;
+pub(super) const BTN_PAD_Y: f32 = 2.0;
 /// Rayon des coins d'un bouton.
-const BTN_RADIUS: f32 = 4.0;
+pub(super) const BTN_RADIUS: f32 = 4.0;
 /// Côté de l'icône d'un bouton.
 const ICON: f32 = 10.0;
 /// Écart entre l'icône et son libellé.
@@ -184,7 +184,7 @@ pub fn covers(bar: &ActionBar, px: f32, py: f32) -> bool {
     dans(bar.rect, px, py)
 }
 
-fn dans((x, y, w, h): (f32, f32, f32, f32), px: f32, py: f32) -> bool {
+pub(super) fn dans((x, y, w, h): (f32, f32, f32, f32), px: f32, py: f32) -> bool {
     px >= x && px <= x + w && py >= y && py <= y + h
 }
 
@@ -276,7 +276,7 @@ pub fn draw_action_bar(
 /// colonnes et devient un gris pâle — c'est R-46 appliqué à un filet plutôt qu'à un glyphe.
 /// L'arrondir le garde net, et le sortir du chemin anti-aliasé évite au passage le tracé
 /// « hairline » du rastériseur, qui n'aime pas les rectangles plus fins qu'un pixel.
-fn filet_vertical(pixmap: &mut PixmapMut, x: f32, y: f32, hauteur: f32, color: Color) {
+pub(super) fn filet_vertical(pixmap: &mut PixmapMut, x: f32, y: f32, hauteur: f32, color: Color) {
     let Some(rect) = Rect::from_xywh(x.round(), y.round(), 1.0, hauteur.round().max(1.0)) else {
         return;
     };
@@ -289,7 +289,7 @@ fn filet_vertical(pixmap: &mut PixmapMut, x: f32, y: f32, hauteur: f32, color: C
 }
 
 /// Une pastille : son fond, puis son filet.
-fn fond_arrondi(
+pub(super) fn fond_arrondi(
     pixmap: &mut PixmapMut,
     (x, y, w, h): (f32, f32, f32, f32),
     radius: f32,

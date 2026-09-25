@@ -15,6 +15,7 @@ pub mod breadcrumb;
 pub mod context_menu;
 pub mod minimap;
 pub mod onglets;
+pub mod options_de_fleche;
 pub mod toast;
 
 pub use boutons::{
@@ -280,6 +281,13 @@ fn poser_ce_qui_attend_une_decision(
     pointer: Pointer,
 ) {
     action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
+    options_de_fleche::draw_options_de_fleche(
+        pixmap,
+        store,
+        typo,
+        theme,
+        ((w, h), ui.scale_factor),
+    );
     if let Some(ref toast) = ui.current_toast {
         toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
     }

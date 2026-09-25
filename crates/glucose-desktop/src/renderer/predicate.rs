@@ -164,7 +164,7 @@ pub(super) fn draw_arrow_predicate(
 }
 
 /// Trace le sigle d'un prédicat, centré en `(cx, cy)` et inscrit dans un carré de `extent`.
-pub(super) fn draw_sigil(
+pub(crate) fn draw_sigil(
     pixmap: &mut PixmapMut,
     predicate: ArrowPredicate,
     (cx, cy): (f32, f32),

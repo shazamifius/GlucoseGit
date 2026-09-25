@@ -153,6 +153,38 @@ impl GlucoseApp {
         true
     }
 
+    /// **La barre d'options des flèches sélectionnées** (FLECHE-3), au-dessus de la barre
+    /// d'action. Elle prend tout ce qui tombe sur elle, comme sa voisine ; un réglage est un
+    /// geste, qu'un `Ctrl+Z` défait, et il s'applique à toutes les flèches sélectionnées.
+    pub fn click_options_de_fleche(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
+        use crate::ui::options_de_fleche::{couvre, layout_options_de_fleche, reglage_sous};
+        let Some(barre) = layout_options_de_fleche(
+            &self.store,
+            &self.renderer.typography,
+            (screen.width, screen.height),
+            screen.scale,
+        ) else {
+            return false;
+        };
+        if !couvre(&barre, pointer.x, pointer.y) {
+            return false;
+        }
+        if let Some(reglage) = reglage_sous(&barre, pointer.x, pointer.y) {
+            let fleches: Vec<String> = self
+                .store
+                .selected_arrows()
+                .iter()
+                .map(|a| a.id().to_string())
+                .collect();
+            let board = self.store.project.active_board_id.clone();
+            self.store.begin_live_edit();
+            self.store.regler_les_fleches(&board, &fleches, reglage);
+            self.store.end_live_edit();
+            self.mark_dirty();
+        }
+        true
+    }
+
     /// La barre d'outils, les onglets et la minimap.
     pub fn click_chrome(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
         let Some(action) = handle_ui_click(

@@ -271,7 +271,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// Puis (FLECHE-2) la flèche se peint par la loi de son champ et non plus par `tiny-skia` :
 /// quelques milliers de pixels du bord du halo changent d'anticrénelage (au plus 39 niveaux,
 /// filtre-boîte contre suréchantillonnage) ; côte à côte et agrandis, on ne les distingue pas.
-const EMPREINTE_TEMOIN_SELECTION: &str = "84c6fed1c17a5d5c";
+/// **Mise à jour le 25/09** (FLECHE-3) : une flèche est sélectionnée — la barre de ses
+/// options se pose au-dessus de la barre d'action. 13 094 pixels changent, tous dans cette
+/// barre (637-1162 × 835-859) ; regardée agrandie.
+const EMPREINTE_TEMOIN_SELECTION: &str = "8a885e077655ea31";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -318,7 +321,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// Puis (FLECHE-2) la flèche se peint par la loi de son champ et non plus par `tiny-skia` :
 /// quelques milliers de pixels du bord du halo changent d'anticrénelage (au plus 39 niveaux,
 /// filtre-boîte contre suréchantillonnage) ; côte à côte et agrandis, on ne les distingue pas.
-const EMPREINTE_TEMOIN_MENU: &str = "03595943ac27372a";
+/// **Mise à jour le 25/09** (FLECHE-3) : une flèche est sélectionnée — la barre de ses
+/// options se pose au-dessus de la barre d'action. 13 094 pixels changent, tous dans cette
+/// barre (637-1162 × 835-859) ; regardée agrandie.
+const EMPREINTE_TEMOIN_MENU: &str = "c49f8b4b159b2329";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

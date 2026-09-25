@@ -4,6 +4,19 @@ use super::journal::{Edit, Slot};
 use super::Store;
 use crate::error::{CoreError, CoreResult};
 use crate::types::{Annotation, ArrowPredicate, Point2D, StoryboardPanel};
+
+/// Un réglage d'une flèche (FLECHE-3) : ce que la barre d'options d'une flèche propose.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Reglage {
+    /// Courbe (`arrowType: "curved"`) ou droite (`"straight"`).
+    Courbe(bool),
+    /// Dans les deux sens : une pastille au départ aussi.
+    DoubleSens(bool),
+    /// L'épaisseur du trait, en pixels d'écran (`strokeWidth`).
+    Epaisseur(f64),
+    /// La relation qu'elle porte, ou aucune.
+    Relation(Option<ArrowPredicate>),
+}
 use std::collections::HashSet;
 
 impl Store {
@@ -105,23 +118,51 @@ impl Store {
     }
 
     /// Pose — ou retire — le prédicat sémantique de chaque flèche nommée.
-    ///
-    /// Rend le nombre de flèches touchées : ce qui n'est pas une flèche est **ignoré** et
-    /// non refusé, pour qu'un geste posé sur une sélection mêlée serve quand même à ce
-    /// qu'il peut servir. L'appelant sait alors quoi dire.
     pub fn set_arrow_predicate(
         &mut self,
         board_id: &str,
         ids: &[String],
         predicate: Option<ArrowPredicate>,
     ) -> usize {
+        self.regler_les_fleches(board_id, ids, Reglage::Relation(predicate))
+    }
+
+    /// **Règle chaque flèche nommée** — sa forme, son sens, son épaisseur, sa relation
+    /// (FLECHE-3). Le seul chemin par lequel ces réglages s'écrivent : la barre d'options et
+    /// les chiffres du clavier y passent tous deux.
+    ///
+    /// Rend le nombre de flèches touchées : ce qui n'est pas une flèche est **ignoré** et
+    /// non refusé, pour qu'un geste posé sur une sélection mêlée serve quand même à ce
+    /// qu'il peut servir. L'appelant sait alors quoi dire.
+    pub fn regler_les_fleches(
+        &mut self,
+        board_id: &str,
+        ids: &[String],
+        reglage: Reglage,
+    ) -> usize {
         let mut touchees = 0;
         for id in ids {
             let mut est_une_fleche = false;
             self.update_annotation(board_id, id, |ann| {
-                if let Annotation::Arrow { predicate: p, .. } = ann {
-                    *p = predicate;
-                    est_une_fleche = true;
+                let Annotation::Arrow {
+                    arrow_type,
+                    arrow_bidirectional,
+                    stroke_width,
+                    predicate,
+                    ..
+                } = ann
+                else {
+                    return;
+                };
+                est_une_fleche = true;
+                match reglage {
+                    // Les deux valeurs de Glucose Tauri : un document écrit ici s'y relit.
+                    Reglage::Courbe(courbe) => {
+                        *arrow_type = Some(if courbe { "curved" } else { "straight" }.to_string());
+                    }
+                    Reglage::DoubleSens(oui) => *arrow_bidirectional = oui,
+                    Reglage::Epaisseur(e) => *stroke_width = Some(e),
+                    Reglage::Relation(p) => *predicate = p,
                 }
             });
             touchees += usize::from(est_une_fleche);
@@ -412,3 +453,6 @@ fn build_mirror(
     }
     m
 }
+
+#[cfg(test)]
+mod tests;

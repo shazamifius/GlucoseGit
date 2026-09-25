@@ -187,6 +187,7 @@ impl GlucoseApp {
         let taken = self.click_context_menu(pointer, screen)
             || self.click_skips_flight()
             || self.click_breadcrumb(pointer, screen)
+            || self.click_options_de_fleche(pointer, screen)
             || self.click_action_bar(pointer, screen)
             || self.click_chrome(pointer, screen)
             || self.click_dock(pointer, screen);
