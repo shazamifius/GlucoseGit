@@ -24,9 +24,10 @@
 //! le nombre de fils, distribuees a mesure qu'un fil se libere.
 
 use super::{
-    first_pixel_at_or_after, index_du_sommet, peindre_par_segments, EdgeProfile, HaloBox,
-    LevelSource, Sens, HALO_ALPHA,
+    blend_pixel, first_pixel_at_or_after, index_du_sommet, peindre_par_segments, EdgeProfile,
+    HaloBox, LevelSource, Sens,
 };
+use glucose_core::membrane_forme::{couverture_d_un_plein, Arrondi};
 use tiny_skia::PixmapMut;
 
 /// Compose la lueur d'une boîte sur `dst` (HALO-1).
@@ -130,21 +131,89 @@ impl LueurPrete {
             }
             let debut = y as usize * largeur + x0 as usize;
             let ligne = &mut pixels[debut..debut + (x1 - x0) as usize];
-            let (gauche, droite) = ligne.split_at_mut(self.sommet);
-            peindre_par_segments(
-                gauche,
-                row_weight,
-                &self.columns[..self.sommet],
-                &self.levels,
-                Sens::Montant,
-            );
-            peindre_par_segments(
-                droite,
-                row_weight,
-                &self.columns[self.sommet..],
-                &self.levels,
-                Sens::Descendant,
-            );
+            let Some(carte) = self.boite.carte else {
+                self.segments(ligne, row_weight, (0, ligne.len()));
+                continue;
+            };
+            let (touche, plein) = self.decoupe(&carte, ecran_y, ligne.len());
+            self.segments(ligne, row_weight, (0, touche.0));
+            self.frange(ligne, row_weight, (&carte, ecran_y), (touche.0, plein.0));
+            self.frange(ligne, row_weight, (&carte, ecran_y), (plein.1, touche.1));
+            self.segments(ligne, row_weight, (touche.1, ligne.len()));
+        }
+    }
+
+    /// **Où la carte découpe la ligne** (LUEUR-1), en indices de la ligne : les pixels qu'elle
+    /// couvre en partie ou en entier, et, dedans, ceux qu'elle couvre en entier — où la lueur
+    /// n'écrit rien.
+    ///
+    /// Couvert en entier veut dire à distance au plus `−½` du bord : c'est la carte **rentrée
+    /// d'un demi-pixel**, ce que [`Arrondi::dilate`] rend exactement. Touché veut dire à moins
+    /// de `½` : la carte sortie d'autant, et un pixel de marge de chaque côté, que la frange
+    /// calcule pixel par pixel — une frange trop large ne coûte qu'un calcul, jamais un faux.
+    fn decoupe(&self, carte: &Arrondi, y: f32, n: usize) -> ((usize, usize), (usize, usize)) {
+        let x0 = self.ecran.0;
+        let a_l_indice = |x: f32| {
+            let n = n as i32;
+            (first_pixel_at_or_after(x, x0 + n) - x0).clamp(0, n) as usize
+        };
+        let Some((o0, o1)) = carte.dilate(0.5).etendue(y) else {
+            return ((n, n), (n, n));
+        };
+        let touche = (
+            a_l_indice(o0).saturating_sub(1),
+            (a_l_indice(o1) + 1).min(n),
+        );
+        let plein = carte
+            .dilate(-0.5)
+            .etendue(y)
+            .map_or((touche.0, touche.0), |(i0, i1)| {
+                let p0 = a_l_indice(i0).clamp(touche.0, touche.1);
+                (p0, a_l_indice(i1).clamp(p0, touche.1))
+            });
+        (touche, plein)
+    }
+
+    /// Les pixels `[a, b)` de la ligne, par segments de niveau constant : chaque moitié du
+    /// profil est monotone, et la frontière est son sommet.
+    fn segments(&self, ligne: &mut [[u8; 4]], poids: f32, (a, b): (usize, usize)) {
+        if a >= b {
+            return;
+        }
+        let sommet = self.sommet.clamp(a, b);
+        peindre_par_segments(
+            &mut ligne[a..sommet],
+            poids,
+            &self.columns[a..sommet],
+            &self.levels,
+            Sens::Montant,
+        );
+        peindre_par_segments(
+            &mut ligne[sommet..b],
+            poids,
+            &self.columns[sommet..b],
+            &self.levels,
+            Sens::Descendant,
+        );
+    }
+
+    /// Les pixels `[a, b)` au bord de la carte, un par un : la lueur y vaut ce qu'elle vaut
+    /// partout, multipliée par ce que la carte laisse du pixel.
+    fn frange(
+        &self,
+        ligne: &mut [[u8; 4]],
+        poids: f32,
+        (carte, y): (&Arrondi, f32),
+        (a, b): (usize, usize),
+    ) {
+        let dernier = self.levels.len() - 1;
+        for j in a..b.min(ligne.len()) {
+            let x = (self.ecran.0 + j as i32) as f32 + 0.5;
+            let reste = 1.0 - couverture_d_un_plein(carte.distance(x, y));
+            let k = ((poids * self.columns[j] * reste).round() as usize).min(dernier);
+            if k > 0 {
+                blend_pixel(&mut ligne[j], self.levels[k]);
+            }
         }
     }
 }
@@ -174,13 +243,13 @@ impl LueurPrete {
 /// donne, il suffit de lui présenter la bande et de descendre la boîte d'autant.
 ///
 /// Rien ne se partage, donc rien ne se synchronise, et le compilateur le vérifie lui-même.
-pub(super) fn peindre_en_bandes(pixmap: &mut PixmapMut, halos: &[(HaloBox, (u8, u8, u8))]) {
+pub(super) fn peindre_en_bandes(pixmap: &mut PixmapMut, halos: &[(HaloBox, (u8, u8, u8), u8)]) {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
     // Le préambule une fois, pas une fois par bande (voir [`LueurPrete`]).
     let pretes: Vec<LueurPrete> = halos
         .iter()
-        .filter_map(|(halo, rgb)| {
-            LueurPrete::nouvelle(*halo, *rgb, HALO_ALPHA, largeur as i32, hauteur as i32)
+        .filter_map(|(halo, rgb, alpha)| {
+            LueurPrete::nouvelle(*halo, *rgb, *alpha, largeur as i32, hauteur as i32)
         })
         .collect();
     if pretes.is_empty() {

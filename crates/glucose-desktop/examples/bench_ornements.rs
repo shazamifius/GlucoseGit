@@ -86,13 +86,7 @@ fn mesurer(n: usize) -> f64 {
             &mut dessus.as_mut(),
             &store,
             (&mut ui, Pointer { x: 0.0, y: 0.0 }),
-            SceneOverlay {
-                arrivages: &[],
-                eclairages: &[],
-                guides: &guides,
-                selection_box: None,
-                editing: None,
-            },
+            SceneOverlay::sans_rien(&guides),
             Regard::immobile(),
         );
         let ornements = glucose_desktop::perf::postes()

@@ -90,13 +90,7 @@ fn sans_reperes<'a>() -> SceneOverlay<'a> {
     // durée de vie statique évite de les faire voyager dans chaque signature.
     let guides: &'static glucose_core::smart_align::SnapGuides =
         Box::leak(Box::new(glucose_core::smart_align::SnapGuides::default()));
-    SceneOverlay {
-        arrivages: &[],
-        eclairages: &[],
-        guides,
-        selection_box: None,
-        editing: None,
-    }
+    SceneOverlay::sans_rien(guides)
 }
 
 /// L'écran rendu d'un bloc, comme aujourd'hui — la référence.

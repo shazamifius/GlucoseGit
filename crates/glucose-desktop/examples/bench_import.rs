@@ -74,13 +74,7 @@ fn une_image(renderer: &mut Renderer, ui: &mut UiState, pixmap: &mut Pixmap, sto
         &mut pixmap.as_mut(),
         store,
         ui,
-        SceneOverlay {
-            arrivages: &[],
-            eclairages: &[],
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-        },
+        SceneOverlay::sans_rien(&guides),
         Pointer { x: -1.0, y: -1.0 },
         glucose_desktop::renderer::Regard::immobile(),
     );

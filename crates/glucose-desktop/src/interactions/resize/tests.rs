@@ -19,13 +19,7 @@ const SCREEN: (f32, f32) = (1440.0, 900.0);
 /// Rend une frame : c'est ce qui remplit l'index spatial dont le test de clic dépend.
 pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
     let mut pixmap = Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
-    let overlay = SceneOverlay {
-        guides: &app.active_guides,
-        selection_box: None,
-        editing: None,
-        arrivages: &[],
-        eclairages: &[],
-    };
+    let overlay = SceneOverlay::sans_rien(&app.active_guides);
     app.renderer.render(
         &mut pixmap.as_mut(),
         &app.store,
@@ -40,13 +34,7 @@ pub(crate) fn render_frame(app: &mut GlucoseApp) -> Pixmap {
     // alors il attend le chantier et repasse une fois -- ce que l'application ne fait jamais.
     if app.renderer.magasin.en_travail() > 0 {
         app.renderer.magasin.attendre_le_chantier();
-        let overlay = SceneOverlay {
-            guides: &app.active_guides,
-            selection_box: None,
-            editing: None,
-            arrivages: &[],
-            eclairages: &[],
-        };
+        let overlay = SceneOverlay::sans_rien(&app.active_guides);
         app.renderer.render(
             &mut pixmap.as_mut(),
             &app.store,
@@ -1120,6 +1108,48 @@ fn test_draw_1_dragging_the_arrow_tool_draws_the_arrow() {
         (*x2 - 300.0).abs() < 1.0 && (*y2 - 120.0).abs() < 1.0,
         "la pointe suit la main : ({x2}, {y2})"
     );
+}
+
+/// **La flèche qu'on tire se voit pendant qu'on la tire** (GESTE-1) — son défaut : elle
+/// restait invisible jusqu'au relâchement.
+///
+/// L'épreuve rend avec le moteur **de l'application**, qui a déjà dessiné avant le geste : un
+/// moteur neuf indexerait le tableau à sa première image, flèche comprise, et passerait même
+/// sans la correction.
+#[test]
+fn test_geste_1_la_fleche_se_voit_avant_le_relachement() {
+    let mut app = app();
+    let avant = render_frame(&mut app);
+    app.ui.active_tool = crate::ui::ActiveTool::Arrow;
+    let vp = app.store.active_board().expect("un tableau").viewport;
+    let (sx, sy) = world_to_screen(0.0, 0.0, &vp);
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, SCREEN.0, SCREEN.1);
+    drag_by(&mut app, 300.0, 120.0, 6);
+    assert!(app.store.in_live_edit(), "la main tient toujours la flèche");
+
+    let pendant = render_frame(&mut app);
+    // Le milieu du tracé, là où aucune pastille ne se pose : de l'encre, ou rien.
+    let (mx, my) = world_to_screen(150.0, 60.0, &vp);
+    let encre = |p: &Pixmap| {
+        let mut somme = 0u32;
+        for dy in -3..=3 {
+            for dx in -3..=3 {
+                let x = (mx as i32 + dx) as u32;
+                let y = (my as i32 + dy) as u32;
+                let c = p.pixel(x, y).expect("dans l'image");
+                somme += u32::from(c.red()) + u32::from(c.green()) + u32::from(c.blue());
+            }
+        }
+        somme
+    };
+    assert!(
+        encre(&pendant) > encre(&avant) + 200,
+        "le milieu de la flèche porte de l'encre pendant le glisser : {} contre {}",
+        encre(&pendant),
+        encre(&avant)
+    );
+    release(&mut app);
 }
 
 /// Un **clic** sans glisser garde le vecteur de naissance : une flèche de longueur nulle ne

@@ -145,6 +145,7 @@ fn peindre_un_passage(
             right: gauche + largeur + etale,
             bottom: haut + hauteur + etale,
             sigma: s.world(ECART_TYPE),
+            carte: None,
         },
         (r, g, b),
         LUEUR,

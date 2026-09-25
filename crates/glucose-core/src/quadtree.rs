@@ -77,6 +77,10 @@ pub struct SpatialHash {
     cell_writes: u64,
     /// Nombre de résolutions par la table de hachage. Instrumentation SPAT-3.
     hachages: u64,
+    /// Les longueurs des trois listes du tableau — images, annotations, dossiers — tel que le
+    /// dernier [`SpatialHash::index_board`] l'a vu. Ce sont elles qui disent ce qu'un rang de
+    /// l'index désigne, même quand le tableau a grandi depuis (GESTE-1).
+    longueurs: [usize; 3],
 }
 
 impl SpatialHash {
@@ -94,6 +98,7 @@ impl SpatialHash {
             rebuilds: 0,
             cell_writes: 0,
             hachages: 0,
+            longueurs: [0; 3],
         }
     }
 
@@ -125,6 +130,12 @@ impl SpatialHash {
 
     pub fn is_empty(&self) -> bool {
         self.index_of.is_empty()
+    }
+
+    /// Les longueurs des listes du tableau — images, annotations, dossiers — tel que le dernier
+    /// [`SpatialHash::index_board`] l'a vu : ce qu'un rang de l'index désigne (GESTE-1).
+    pub fn longueurs(&self) -> [usize; 3] {
+        self.longueurs
     }
 
     pub fn contains(&self, id: &str) -> bool {
@@ -318,6 +329,11 @@ impl SpatialHash {
             self.sync_at(&f.id, range, &mut glissement);
         }
         std::mem::swap(&mut self.ordre_precedent, &mut self.ordre);
+        self.longueurs = [
+            board.images.len(),
+            board.annotations.len(),
+            board.folders.len(),
+        ];
 
         // Un nœud a disparu si, et seulement si, le board en a présenté moins que l'index n'en
         // contient : les identifiants d'un board sont uniques, donc la passe compte des nœuds
@@ -552,7 +568,9 @@ impl SpatialHash {
     }
 }
 
+mod geste;
 mod visibles;
+pub use geste::SuiviDuGeste;
 pub use visibles::{noeud_au_rang, tous_les_rangs, Noeud, Visibles};
 
 #[cfg(test)]

@@ -67,6 +67,7 @@ use super::scale::WorldScale;
 use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
+use glucose_core::membrane_forme::Arrondi;
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
@@ -84,8 +85,52 @@ pub const HALO_BLUR: f32 = 60.0;
 /// Opacité de la lueur, sur 255 — les 15 % de `color-mix(in srgb, AURA 15%, transparent)`.
 pub const HALO_ALPHA: u8 = 38;
 
-/// L'écart-type de la gaussienne, en unités monde (CSS : `blur = 2σ`).
-const HALO_SIGMA: f32 = HALO_BLUR / 2.0;
+/// **Deux intensités de lueur, celles de Tauri** : au repos, et quand la carte est
+/// **désignée** — la cible qu'une flèche en train de naître vise, les bouts d'une flèche
+/// survolée (`isHighlightBox` : `0 0 80px 40px`, à 40 %).
+///
+/// C'est l'indice qui dit, pendant qu'on tire une flèche, à quoi elle va se lier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Eclat {
+    Repos,
+    Designee,
+}
+
+impl Eclat {
+    /// L'éclat d'une carte : désignée si elle est parmi `designees`.
+    pub fn de(ann: &Annotation, designees: &[String]) -> Self {
+        if designees.iter().any(|d| d == ann.id()) {
+            Self::Designee
+        } else {
+            Self::Repos
+        }
+    }
+
+    /// La dilatation de la boîte avant le flou, en unités monde.
+    fn etalement(self) -> f32 {
+        match self {
+            Self::Repos => HALO_SPREAD,
+            Self::Designee => 40.0,
+        }
+    }
+
+    /// L'écart-type de la gaussienne, en unités monde (CSS : `blur = 2σ`).
+    fn sigma(self) -> f32 {
+        match self {
+            Self::Repos => HALO_BLUR / 2.0,
+            Self::Designee => 80.0 / 2.0,
+        }
+    }
+
+    /// L'opacité au plateau, sur 255.
+    pub fn alpha(self) -> u8 {
+        match self {
+            // 40 % de 255.
+            Self::Designee => 102,
+            Self::Repos => HALO_ALPHA,
+        }
+    }
+}
 
 /// Divise par 255 avec arrondi au plus proche, sans division entière.
 ///
@@ -214,17 +259,29 @@ impl EdgeProfile {
     /// Elle ne se règle pas, elle se mesure (HALO-2). À la distance `d` au-delà d'un bord,
     /// la lueur vaut au plus `alpha · Q(d)`, où `Q` est la masse que la table laisse
     /// derrière elle ; elle s'arrondit donc à zéro dès que `Q(d)` passe sous `½ / alpha`.
-    /// On avance dans la queue jusqu'à ce point, et pas d'un pixel de plus.
+    ///
+    /// **La portée est le point où `Q` franchit ce seuil, pas la dernière frontière avant
+    /// lui.** Entre deux frontières de pixel, [`Self::cumulative`] interpole : la queue y passe
+    /// encore au-dessus du seuil sur une fraction de pixel. S'arrêter à la frontière coupait
+    /// une rangée de lueur au niveau un, à la même place sur les deux voies — ce qui la rendait
+    /// invisible à leur épreuve d'accord ; c'est la loi calculée pixel par pixel qui l'a vue
+    /// (LUEUR-1).
     fn reach(&self, alpha: u8) -> f32 {
         let negligible = 0.5 / f32::from(alpha).max(1.0);
-        let inside = self
-            .cdf
-            .iter()
-            .rposition(|&mass| 1.0 - mass > negligible)
-            .unwrap_or(0);
-        // `inside` est la dernière frontière qui compte encore ; sa distance au centre est
-        // `inside − (r + ½)`, et la portée est cette distance vue depuis le bord.
-        (inside as f32 - self.radius - 0.5).max(0.0)
+        let Some(i) = self.cdf.iter().rposition(|&mass| 1.0 - mass >= negligible) else {
+            return 0.0;
+        };
+        let (q_i, q_suivant) = (
+            1.0 - self.cdf[i],
+            self.cdf.get(i + 1).map_or(0.0, |mass| 1.0 - mass),
+        );
+        let fraction = if q_i > q_suivant {
+            (q_i - negligible) / (q_i - q_suivant)
+        } else {
+            0.0
+        };
+        // `i` est une frontière de pixel ; sa distance au centre est `i − (r + ½)`.
+        (i as f32 - self.radius - 0.5 + fraction).max(0.0)
     }
 
     /// `Φ(t)` : la fraction de la lueur qui tombe à gauche de la distance `t`, en pixels.
@@ -260,6 +317,12 @@ pub(crate) struct HaloBox {
     pub bottom: f32,
     /// L'écart-type de la gaussienne, en pixels écran.
     pub sigma: f32,
+    /// La carte que la lueur entoure, en pixels écran — ou rien pour une lueur libre.
+    ///
+    /// LUEUR-1 : l'ombre de Tauri est une `box-shadow`, et CSS la **découpe** à l'intérieur de
+    /// la boîte qui la porte. La carte ne pose donc jamais sa lueur sous son propre texte :
+    /// c'est ce qui fait « le texte sur fond noir, le contour en lueur ».
+    pub carte: Option<glucose_core::membrane_forme::Arrondi>,
 }
 
 /// Première rangée (ou colonne) dont le centre de pixel atteint `position`, bornée à l'écran.
@@ -362,9 +425,8 @@ fn peindre_par_segments(
 pub(crate) fn halo_geometry(
     ann: &Annotation,
     vp: &Viewport,
-    screen_w: f32,
-    screen_h: f32,
-    header_h: f32,
+    (screen_w, screen_h, header_h): (f32, f32, f32),
+    eclat: Eclat,
 ) -> Option<HaloBox> {
     if !matches!(ann, Annotation::Text { .. }) {
         return None;
@@ -373,15 +435,27 @@ pub(crate) fn halo_geometry(
 
     let scale = WorldScale::new(vp.scale);
     let (sx, sy) = world_to_screen(rect.left, rect.top, vp);
+    let (sx, sy) = (sx as f32, sy as f32);
+    let (w, h) = (
+        scale.world(rect.width as f32),
+        scale.world(rect.height as f32),
+    );
     // Toutes ces longueurs sont des unités monde mises à l'échelle : la lueur grandit
     // avec sa carte (SCALE-1), et rien ici ne demande l'exception écran.
-    let spread = scale.world(HALO_SPREAD);
+    let spread = scale.world(eclat.etalement());
     let halo = HaloBox {
-        left: sx as f32 - spread,
-        top: sy as f32 - spread,
-        right: sx as f32 + scale.world(rect.width as f32) + spread,
-        bottom: sy as f32 + scale.world(rect.height as f32) + spread,
-        sigma: scale.world(HALO_SIGMA),
+        left: sx - spread,
+        top: sy - spread,
+        right: sx + w + spread,
+        bottom: sy + h + spread,
+        sigma: scale.world(eclat.sigma()),
+        carte: Some(Arrondi::nouveau(
+            sx,
+            sy,
+            w,
+            h,
+            scale.world(super::card::CORNER_RADIUS),
+        )),
     };
 
     // Frustum culling : la lueur déborde de la portée du flou, et pas d'un pixel de plus.
@@ -391,7 +465,7 @@ pub(crate) fn halo_geometry(
     // `NaN`, toute comparaison avec `NaN` est fausse, et une condition de **rejet** les
     // laissait donc toutes passer — `halo_geometry` annonçait alors une boîte qui n'existe
     // pas. Écrite en positif, elle les rejette sans avoir à les nommer.
-    let reach = EdgeProfile::new(halo.sigma).reach(HALO_ALPHA);
+    let reach = EdgeProfile::new(halo.sigma).reach(eclat.alpha());
     let visible = halo.right + reach >= 0.0
         && halo.left - reach <= screen_w
         && halo.bottom + reach >= header_h
@@ -399,14 +473,14 @@ pub(crate) fn halo_geometry(
     visible.then_some(halo)
 }
 
-/// **La portée du flou** : la distance au-delà de laquelle la lueur ne peut plus changer un
-/// pixel, en pixels d'écran (HALO-2).
+/// **La portée du flou** : la distance au-delà de laquelle une lueur d'opacité `alpha` ne peut
+/// plus changer un pixel, en pixels d'écran (HALO-2).
 ///
 /// Elle ne se règle pas, elle se mesure sur la table obtenue — voir [`EdgeProfile::reach`].
 /// La voie graphique en a besoin pour dimensionner le quad d'une lueur : au-delà, elle
 /// dessinerait des pixels dont elle a déjà prouvé qu'ils ne bougeront pas.
-pub(crate) fn portee_du_flou(sigma: f32) -> f32 {
-    EdgeProfile::new(sigma).reach(HALO_ALPHA)
+pub(crate) fn portee_du_flou(sigma: f32, alpha: u8) -> f32 {
+    EdgeProfile::new(sigma).reach(alpha)
 }
 
 /// Passe de rendu des lueurs d'ambiance (L1 : ne parcourt que les cartes visibles).
@@ -414,7 +488,7 @@ pub fn draw_halos(
     hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     store: &Store,
-    pass: ViewPass<'_>,
+    (pass, designees): (ViewPass<'_>, &[String]),
 ) {
     let ViewPass {
         visibles, header_h, ..
@@ -435,13 +509,15 @@ pub fn draw_halos(
     // teintes symbiotiques se modifie — il dépend du voisinage et coûte cher —, donc il tient
     // le premier temps à lui seul. La peinture, elle, ne lit plus que des couleurs déjà
     // décidées, et seize fils peuvent la faire ensemble.
-    let mut a_peindre: Vec<(HaloBox, (u8, u8, u8))> = Vec::new();
+    let mut a_peindre: Vec<(HaloBox, (u8, u8, u8), u8)> = Vec::new();
     for ann in Visibles::nouvelles(visibles, board).annotations() {
-        let Some(halo) = halo_geometry(ann, vp, screen_w, screen_h, header_h) else {
+        let eclat = Eclat::de(ann, designees);
+        let ecran = (screen_w, screen_h, header_h);
+        let Some(halo) = halo_geometry(ann, vp, ecran, eclat) else {
             continue;
         };
         let (_hue, rgb) = hue_cache.get_or_compute(ann, pass.index, board);
-        a_peindre.push((halo, rgb));
+        a_peindre.push((halo, rgb, eclat.alpha()));
     }
     peindre_en_bandes(pixmap, &a_peindre);
 }

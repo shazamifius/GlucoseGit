@@ -86,8 +86,9 @@ pub(super) const BODY_FONT: f32 = 14.0;
 const PAD_X: f32 = 24.0;
 /// Marge verticale entre le bord de la carte et son texte.
 const PAD_Y: f32 = 16.0;
-/// Rayon des coins de la carte (fiche 06 § 5.1 : 32 px, « nuage / brume »).
-const CORNER_RADIUS: f32 = 32.0;
+/// Rayon des coins de la carte (fiche 06 § 5.1 : 32 px, « nuage / brume »). La lueur s'y
+/// découpe (LUEUR-1).
+pub(super) const CORNER_RADIUS: f32 = 32.0;
 /// Décalage du texte d'une puce `- ` par rapport au reste.
 const BULLET_INDENT: f32 = 14.0;
 /// Rayon du disque d'une puce.
@@ -96,7 +97,8 @@ const BULLET_RADIUS: f32 = 2.2;
 const BULLET_OFFSET: f32 = 3.0;
 /// Position de la puce sur la hauteur de la ligne, en multiples du corps.
 const BULLET_BASELINE: f32 = 0.45;
-/// Épaisseur du cadre d'une carte au repos.
+/// L'épaisseur du filet d'une carte : le trait d'un `---`, et, doublée, la barre d'une
+/// citation. Une carte n'a plus de cadre (LUEUR-1) ; ce trait est le seul qu'elle connaisse.
 const BORDER: f32 = 1.0;
 /// Largeur du curseur d'édition.
 const CURSOR_WIDTH: f32 = 2.0;
@@ -302,7 +304,15 @@ fn dessiner_le_contenu(
     }
 }
 
-/// Le fond teinté de la carte et son cadre.
+/// **La brume de la carte, et l'anneau qui la désigne** (LUEUR-1).
+///
+/// Tauri pose sous le texte la teinte de la carte **à 3 %** (`color-mix(AURA 3%)`) et rien
+/// d'autre : aucun cadre au repos, et la lueur, découpée à l'intérieur de la boîte, ne passe
+/// jamais sous le texte ([`super::halo`]). C'est ce qu'il appelle « le texte sur fond noir,
+/// le contour en lueur ». Ici, la carte portait un fond presque opaque à 12 % de sa teinte et
+/// un filet : un rectangle plein, qu'il trouvait laid.
+///
+/// Sélectionnée ou éditée, un anneau la désigne : c'est une affordance, pas un habit.
 fn draw_card_frame(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
@@ -323,48 +333,32 @@ fn draw_card_frame(
         return;
     };
     let (r, g, b) = card.tint;
-
-    // Aura douce d'ambiance : #18181B teinté de 12 % de la teinte symbiotique.
-    let mut fill = Paint {
+    let mut paint = Paint {
         anti_alias: true,
         ..Default::default()
     };
-    fill.set_color(Color::from_rgba8(
-        ((r as u16 * 12 + 24 * 88) / 100) as u8,
-        ((g as u16 * 12 + 24 * 88) / 100) as u8,
-        ((b as u16 * 12 + 27 * 88) / 100) as u8,
-        248,
-    ));
+    paint.set_color(Color::from_rgba8(r, g, b, BRUME));
     pixmap.fill_path(
         &path,
-        &fill,
+        &paint,
         tiny_skia::FillRule::Winding,
         Transform::identity(),
         None,
     );
-
-    let highlighted = card.selected || card.editing.is_some();
-    let mut stroke_paint = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    stroke_paint.set_color(if highlighted {
-        ctx.theme.selection_frame
-    } else {
-        Color::from_rgba8(r, g, b, 60)
-    });
+    if !(card.selected || card.editing.is_some()) {
+        return;
+    }
+    paint.set_color(ctx.theme.selection_frame);
     let stroke = Stroke {
-        // Le cadre au repos appartient à la carte et suit son échelle ; l'anneau de
-        // sélection est une affordance et garde sa taille écran (exception SCALE-1).
-        width: if highlighted {
-            ctx.scale.screen(SELECTION_RING)
-        } else {
-            layout.border
-        },
+        // L'anneau est une affordance et garde sa taille écran (exception SCALE-1).
+        width: ctx.scale.screen(SELECTION_RING),
         ..Default::default()
     };
-    pixmap.stroke_path(&path, &stroke_paint, &stroke, Transform::identity(), None);
+    pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
 }
+
+/// L'opacité de la brume sous le texte, sur 255 : les 3 % de Tauri.
+const BRUME: u8 = 8;
 
 /// Le texte de la carte, ligne visuelle par ligne visuelle, curseur d'édition compris.
 fn draw_card_body(

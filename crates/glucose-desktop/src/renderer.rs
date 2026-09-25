@@ -48,7 +48,6 @@ pub mod tuiles;
 pub mod vignette;
 pub mod wrap;
 
-use crate::canvas::screen_to_world;
 use crate::params::{Pointer, SceneOverlay, ViewPass};
 use crate::theme::Theme;
 use crate::typography::Typography;
@@ -176,6 +175,8 @@ pub struct Renderer {
     pub carte: voies::cran::EtatDeLaCarte,
     /// Le mode Focus d'une membrane : ce qui se voit, et le fond (MEMB-2).
     pub focus: focus::FocusDuRendu,
+    /// Ce que le geste en cours a touché, que l'index ne connaîtra qu'à sa fin (GESTE-1).
+    suivi_du_geste: glucose_core::quadtree::SuiviDuGeste,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -205,6 +206,7 @@ impl Renderer {
             active_board_id: String::new(),
             carte: Default::default(),
             focus: Default::default(),
+            suivi_du_geste: Default::default(),
         }
     }
 
@@ -363,52 +365,6 @@ impl Renderer {
         self.rendre_la_region(pixmap, store, ui, overlay, header_h, cadrage);
     }
 
-    /// Ou la vue tombe dans ce pixmap, et quels noeuds y apparaissent.
-    ///
-    /// # Les deux transformations, et pourquoi une seule ligne les porte
-    ///
-    /// La scene se rend dans le repere du pixmap cible, qui n'est pas toujours celui de la
-    /// fenetre. `world_to_screen` vaut `monde x echelle + vp`, ce qui suffit a tout dire :
-    ///
-    /// * la **reduction** -- diviser l'ecran par `f` revient a diviser l'echelle ET la
-    ///   translation par `f`. Rien d'autre n'a besoin de le savoir : le culling se resserre
-    ///   tout seul, et le niveau de detail suit, ce qui est exactement ce qu'on attend d'une
-    ///   image plus petite ;
-    /// * l'**origine** -- decaler la vue de `-origine` deplace l'origine de l'ecran d'autant.
-    ///
-    /// L'index spatial se remet d'accord ici, et non chez l'appelant. Il l'etait dans
-    /// `render`, si bien qu'un appelant de `rendre_la_scene` -- un banc, un temoin --
-    /// dessinait un ecran VIDE sans que rien ne le dise. C'est arrive, et le banc annoncait
-    /// alors un gain nul en toute bonne foi. Ne coute rien quand rien n'a change : la
-    /// comparaison de version precede le balayage.
-    fn cadrer(
-        &mut self,
-        store: &Store,
-        (width, height): (u32, u32),
-        header_h: f32,
-        cadrage: Cadrage,
-    ) -> (glucose_core::types::Viewport, Vec<u32>) {
-        self.sync_spatial_index(store);
-        // La vue du cadrage l'emporte : une tuile se rend dans SON repere, pas dans celui de
-        // l'ecran, et elle n'a ni reduction ni origine a appliquer par-dessus.
-        let mut vp = cadrage.vue.unwrap_or_else(|| store.viewport());
-        if cadrage.vue.is_none() {
-            let f = cadrage.reduction.max(1.0);
-            vp.scale /= f;
-            vp.x = vp.x / f - f64::from(cadrage.origine.0);
-            vp.y = vp.y / f - f64::from(cadrage.origine.1);
-        }
-        let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
-        let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let mut rangs = self
-            .spatial_hash
-            .query_rect_ranks(min_wx, min_wy, max_wx, max_wy, 200.0);
-        // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
-        self.focus.filtrer(&mut rangs);
-        crate::perf::stage("cull");
-        (vp, rangs)
-    }
-
     /// La scène, rendue comme si l'origine de l'écran était `origine` (A.1).
     ///
     /// `world_to_screen` vaut `monde x echelle + vp` : décaler la vue de `-origine` déplace
@@ -475,7 +431,7 @@ impl Renderer {
                 &mut self.hue_cache,
                 pixmap,
                 (store, pass, kit),
-                cadrage,
+                (cadrage, overlay.designees),
                 header_h,
             );
         }
@@ -600,13 +556,7 @@ mod tests {
     ) {
         let guides = SnapGuides::default();
         let mut view = pixmap.as_mut();
-        let overlay = SceneOverlay {
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-            arrivages: &[],
-            eclairages: &[],
-        };
+        let overlay = SceneOverlay::sans_rien(&guides);
         let origin = Pointer { x: 0.0, y: 0.0 };
         renderer.render(
             &mut view,

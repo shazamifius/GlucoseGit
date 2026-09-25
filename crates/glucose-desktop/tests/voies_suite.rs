@@ -85,13 +85,7 @@ fn par_le_processeur(taille: (u32, u32), store: &glucose_core::store::Store) -> 
         &mut pixmap.as_mut(),
         store,
         &mut ui,
-        SceneOverlay {
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-            arrivages: &[],
-            eclairages: &[],
-        },
+        SceneOverlay::sans_rien(&guides),
         Pointer { x: 0.0, y: 0.0 },
         Regard::immobile(),
     );
@@ -126,11 +120,8 @@ fn les_deux_couches_en_editant(
         store,
         (&mut ui, Pointer { x: 0.0, y: 0.0 }),
         SceneOverlay {
-            arrivages: &[],
-            eclairages: &[],
-            guides: &guides,
-            selection_box: None,
             editing,
+            ..SceneOverlay::sans_rien(&guides)
         },
         Regard::immobile(),
     );
@@ -418,13 +409,7 @@ fn les_deux_couches_sous_un_budget(
             &mut dessus.as_mut(),
             store,
             (ui, Pointer { x: 0.0, y: 0.0 }),
-            SceneOverlay {
-                guides: &guides,
-                selection_box: None,
-                editing: None,
-                arrivages: &[],
-                eclairages: &[],
-            },
+            SceneOverlay::sans_rien(&guides),
             Regard::immobile(),
         );
         (dessous, dessus, confie)
@@ -447,13 +432,7 @@ fn par_le_processeur_decode(taille: (u32, u32), store: &glucose_core::store::Sto
             &mut pixmap.as_mut(),
             store,
             ui,
-            SceneOverlay {
-                guides: &guides,
-                selection_box: None,
-                editing: None,
-                arrivages: &[],
-                eclairages: &[],
-            },
+            SceneOverlay::sans_rien(&guides),
             Pointer { x: 0.0, y: 0.0 },
             Regard::immobile(),
         );

@@ -32,23 +32,13 @@ fn boite(x: f32, y: f32) -> halo::HaloBox {
         right: x + 240.0 + halo::HALO_SPREAD,
         bottom: y + 60.0 + halo::HALO_SPREAD,
         sigma: halo::HALO_BLUR / 2.0,
+        carte: None,
     }
 }
 
 /// La même lueur, traduite pour la carte.
 fn lueur(boite: halo::HaloBox, rgb: (u8, u8, u8)) -> Lueur {
-    Lueur {
-        gauche: boite.left,
-        haut: boite.top,
-        droite: boite.right,
-        bas: boite.bottom,
-        sigma: boite.sigma,
-        alpha: f32::from(halo::HALO_ALPHA) / 255.0,
-        portee: halo::portee_du_flou(boite.sigma),
-        rouge: f32::from(rgb.0) / 255.0,
-        vert: f32::from(rgb.1) / 255.0,
-        bleu: f32::from(rgb.2) / 255.0,
-    }
+    Lueur::de(boite, rgb, halo::HALO_ALPHA)
 }
 
 /// Ce que le **processeur** rend : un fond noir opaque, puis les lueurs, dans l'ordre.
@@ -177,6 +167,7 @@ fn test_une_lueur_minuscule_ne_diverge_pas() {
         right: 88.0,
         bottom: 88.0,
         sigma: 0.0,
+        carte: None,
     };
     let rgb = (255, 255, 255);
     let Some(carte) = par_la_carte(taille, &[lueur(b, rgb)]) else {
@@ -227,6 +218,7 @@ fn test_le_tampon_suit_ce_que_l_ecran_demande() {
                     right: x + 8.0,
                     bottom: y + 8.0,
                     sigma: 2.0,
+                    carte: None,
                 },
                 (200, 200, 200),
             )
@@ -247,4 +239,75 @@ fn test_le_tampon_suit_ce_que_l_ecran_demande() {
         encres > 1_000,
         "au-dela de la capacite de depart, les lueurs cessent d'etre posees : {encres} pixels"
     );
+}
+
+// ── LUEUR-1 — la lueur découpée par sa carte ────────────────────────────────
+
+/// Une lueur de carte telle que la géométrie la décrit : sa boîte dilatée, **et** la carte
+/// arrondie qui la découpe — posée à des positions fractionnaires, pour que ses bords coupent
+/// des pixels.
+fn boite_decoupee(x: f32, y: f32) -> halo::HaloBox {
+    halo::HaloBox {
+        carte: Some(glucose_core::membrane_forme::Arrondi::nouveau(
+            x, y, 240.0, 60.0, 32.0,
+        )),
+        ..boite(x, y)
+    }
+}
+
+/// **Une lueur découpée rend la même chose des deux côtés** : la découpe est la même loi —
+/// la distance exacte du noyau, le filtre-boîte d'un pixel — sur les deux voies.
+#[test]
+fn test_lueur_1_une_lueur_decoupee_rend_la_meme_chose_des_deux_cotes() {
+    let taille = (512u32, 320u32);
+    let b = boite_decoupee(120.3, 110.6);
+    let rgb = (96, 165, 250);
+    let Some(carte) = par_la_carte(taille, &[lueur(b, rgb)]) else {
+        eprintln!("aucune carte utilisable : test saute");
+        return;
+    };
+    let processeur = par_le_processeur(taille, &[(b, rgb)]);
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(
+        pire <= ECART_ADMIS,
+        "les deux voies divergent de {pire} niveaux (admis {ECART_ADMIS})"
+    );
+}
+
+/// **Sous sa carte, la lueur n'écrit rien — sur les deux voies** ; hors de sa carte, elle
+/// écrit ce qu'elle écrivait. C'est l'ombre CSS de Tauri : découpée à l'intérieur de la boîte.
+#[test]
+fn test_lueur_1_la_carte_ne_recoit_pas_sa_propre_lueur() {
+    let taille = (512u32, 320u32);
+    let b = boite_decoupee(120.3, 110.6);
+    let arrondi = b.carte.expect("une carte");
+    let rgb = (96, 165, 250);
+    let libre = par_le_processeur(taille, &[(boite(120.3, 110.6), rgb)]);
+    let mut voies = vec![par_le_processeur(taille, &[(b, rgb)])];
+    voies.extend(par_la_carte(taille, &[lueur(b, rgb)]));
+    for image in &voies {
+        let (mut dedans, mut dehors) = (0, 0);
+        for y in 0..taille.1 {
+            for x in 0..taille.0 {
+                let d = arrondi.distance(x as f32 + 0.5, y as f32 + 0.5);
+                let ici = image.pixel(x, y).expect("dans l'image");
+                if d <= -0.5 {
+                    dedans += 1;
+                    assert_eq!(
+                        (ici.red(), ici.green(), ici.blue()),
+                        (0, 0, 0),
+                        "({x}, {y}) est sous la carte : aucune lueur"
+                    );
+                } else if d >= 0.5 && image.data() == voies[0].data() {
+                    dehors += 1;
+                    assert_eq!(ici, libre.pixel(x, y).expect("dans l'image"));
+                }
+            }
+        }
+        assert!(dedans > 10_000, "la carte couvre {dedans} pixels");
+        assert!(
+            dehors == 0 || dehors > 50_000,
+            "hors de la carte : {dehors}"
+        );
+    }
 }

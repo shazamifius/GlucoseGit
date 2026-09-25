@@ -151,13 +151,7 @@ use glucose_core::types::BoardImage;
 fn render(app: &mut GlucoseApp) {
     let mut pixmap = tiny_skia::Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
     let mut view = pixmap.as_mut();
-    let overlay = crate::params::SceneOverlay {
-        guides: &app.active_guides,
-        selection_box: None,
-        editing: None,
-        arrivages: &[],
-        eclairages: &[],
-    };
+    let overlay = crate::params::SceneOverlay::sans_rien(&app.active_guides);
     app.renderer.render(
         &mut view,
         &app.store,

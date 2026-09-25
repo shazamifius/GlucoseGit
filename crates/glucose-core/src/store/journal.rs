@@ -285,6 +285,10 @@ pub struct Journal {
     ecrits: Vec<Transaction>,
     /// Profondeur maximale, en nombre de gestes (`LIMITS.UNDO_DEPTH`).
     pub max_depth: usize,
+    /// Combien de gestes se sont ouverts : le numéro du geste en cours. Celui qui suit ce
+    /// qu'un geste écrit (GESTE-1) sait ainsi qu'un autre l'a remplacé, même s'il ne l'a pas
+    /// vu se fermer.
+    ouverts: u64,
 }
 
 impl Journal {
@@ -295,6 +299,7 @@ impl Journal {
             open: None,
             ecrits: Vec::new(),
             max_depth,
+            ouverts: 0,
         }
     }
 
@@ -356,11 +361,23 @@ impl Journal {
     pub fn begin(&mut self) {
         if self.open.is_none() {
             self.open = Some(Transaction::default());
+            self.ouverts += 1;
         }
     }
 
     pub fn is_open(&self) -> bool {
         self.open.is_some()
+    }
+
+    /// **Le geste en cours** : son numéro, et ce qu'il a déjà écrit dans le document, dans
+    /// l'ordre (GESTE-1).
+    ///
+    /// Rien hors du journal ne le connaît encore — la version du document n'avance qu'à sa
+    /// fin —, et pourtant le document a déjà changé : ce qu'on dessine doit le savoir.
+    pub fn en_cours(&self) -> Option<(u64, &[Edit])> {
+        self.open
+            .as_ref()
+            .map(|tx| (self.ouverts, tx.edits.as_slice()))
     }
 
     /// Enregistre une édition : dans la transaction ouverte, ou seule dans la sienne.

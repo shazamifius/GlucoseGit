@@ -110,8 +110,8 @@ fn ordinal_label(n: u32, buf: &mut [u8; ORDINAL_MAX]) -> &str {
 
 /// La barre d'une citation : ce que le `>` devient quand il s'efface.
 ///
-/// Son épaisseur est le double de celle du cadre de la carte — la seule épaisseur de trait
-/// que cette carte connaisse déjà, donc la seule qui ne soit pas un nombre de plus.
+/// Son épaisseur est le double du filet de la carte — celui d'un `---`, la seule épaisseur de
+/// trait que cette carte connaisse déjà, donc la seule qui ne soit pas un nombre de plus.
 fn draw_quote_bar(pixmap: &mut PixmapMut, at: (f32, f32), layout: &CardLayout, tint: (u8, u8, u8)) {
     fill(
         pixmap,

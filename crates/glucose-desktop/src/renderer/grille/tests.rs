@@ -71,13 +71,7 @@ fn interface() -> crate::ui::UiState {
 fn sans_reperes<'a>() -> crate::params::SceneOverlay<'a> {
     let guides: &'static glucose_core::smart_align::SnapGuides =
         Box::leak(Box::new(glucose_core::smart_align::SnapGuides::default()));
-    crate::params::SceneOverlay {
-        guides,
-        selection_box: None,
-        editing: None,
-        arrivages: &[],
-        eclairages: &[],
-    }
+    crate::params::SceneOverlay::sans_rien(guides)
 }
 
 /// Rend une image entière de la scène, et rend les pixels.

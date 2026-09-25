@@ -70,12 +70,45 @@ pub struct Lueur {
     pub rouge: f32,
     pub vert: f32,
     pub bleu: f32,
+    /// La carte qui découpe la lueur (LUEUR-1) : ses bords et son rayon. Une boîte vide —
+    /// gauche au-delà de droite — ne découpe rien : sa distance est positive partout.
+    pub carte: [f32; 4],
+    pub rayon: f32,
 }
 
-/// Ce qu'une lueur occupe dans le tampon : trois `vec4`, l'alignement d'un élément de tableau.
-const OCTETS_LUEUR: usize = 48;
+/// Ce qu'une lueur occupe dans le tampon : quatre `vec4`, l'alignement d'un élément de tableau.
+const OCTETS_LUEUR: usize = 64;
+
+/// La boîte qui ne découpe rien.
+const SANS_CARTE: [f32; 4] = [0.0, 0.0, -1.0, -1.0];
 
 impl Lueur {
+    /// **La lueur que le socle a décrite**, traduite pour la carte : même boîte, même flou,
+    /// même découpe.
+    pub(crate) fn de(
+        boite: crate::renderer::halo::HaloBox,
+        (r, v, b): (u8, u8, u8),
+        alpha: u8,
+    ) -> Self {
+        let (carte, rayon) = boite.carte.map_or((SANS_CARTE, 0.0), |c| {
+            ([c.gauche, c.haut, c.droite, c.bas], c.rayon)
+        });
+        Self {
+            gauche: boite.left,
+            haut: boite.top,
+            droite: boite.right,
+            bas: boite.bottom,
+            sigma: boite.sigma,
+            alpha: f32::from(alpha) / 255.0,
+            portee: crate::renderer::halo::portee_du_flou(boite.sigma, alpha),
+            rouge: f32::from(r) / 255.0,
+            vert: f32::from(v) / 255.0,
+            bleu: f32::from(b) / 255.0,
+            carte,
+            rayon,
+        }
+    }
+
     fn ecrire(&self, dans: &mut Vec<u8>) {
         for v in [
             self.gauche,
@@ -85,11 +118,15 @@ impl Lueur {
             self.sigma,
             self.alpha,
             self.portee,
-            0.0,
+            self.rayon,
             self.rouge,
             self.vert,
             self.bleu,
             0.0,
+            self.carte[0],
+            self.carte[1],
+            self.carte[2],
+            self.carte[3],
         ] {
             dans.extend_from_slice(&v.to_le_bytes());
         }
@@ -100,10 +137,12 @@ const NUANCEUR: &str = r#"
 struct Lueur {
     // gauche, haut, droite, bas de la boite dilatee, en pixels d'ecran.
     boite: vec4<f32>,
-    // sigma, alpha, portee, et une reserve : un element s'aligne sur seize octets.
+    // sigma, alpha, portee, et le rayon des coins de la carte.
     reglage: vec4<f32>,
-    // La teinte symbiotique, et une reserve.
+    // La teinte symbiotique, et une reserve : un element s'aligne sur seize octets.
     couleur: vec4<f32>,
+    // La carte qui decoupe la lueur : gauche, haut, droite, bas (LUEUR-1).
+    carte: vec4<f32>,
 };
 
 struct Ecran { taille: vec2<f32>, _r: vec2<f32> };
@@ -152,6 +191,13 @@ fn erf(x: f32) -> f32 {
     return sign(x) * (1.0 - poly * exp(-a * a));
 }
 
+// `Arrondi::distance` du noyau : depuis les BORDS, pour rester juste quand le centre est loin.
+fn distance(b: vec4<f32>, r: f32, p: vec2<f32>) -> f32 {
+    let qx = max(b.x - p.x, p.x - b.z) + r;
+    let qy = max(b.y - p.y, p.y - b.w) + r;
+    return length(max(vec2<f32>(qx, qy), vec2<f32>(0.0))) + min(max(qx, qy), 0.0) - r;
+}
+
 // La gaussienne cumulee : la fraction de la lueur qui tombe a gauche de la distance `t`.
 fn phi(t: f32, inv: f32) -> f32 {
     return 0.5 * (1.0 + erf(t * inv));
@@ -167,7 +213,10 @@ fn fs(e: Sortie) -> @location(0) vec4<f32> {
     let p = e.position.xy;
     let px = phi(p.x - l.boite.x, inv) - phi(p.x - l.boite.z, inv);
     let py = phi(p.y - l.boite.y, inv) - phi(p.y - l.boite.w, inv);
-    let a = l.reglage.y * px * py;
+    // LUEUR-1 : l'ombre CSS est decoupee a l'interieur de sa boite -- la couverture de la
+    // carte, `couverture_d_un_plein` du noyau, la retire.
+    let dedans = clamp(0.5 - distance(l.carte, l.reglage.w, p), 0.0, 1.0);
+    let a = l.reglage.y * px * py * (1.0 - dedans);
     // Premultiplie : la meme loi que `blend_pixel` du processeur, qui ecrit
     // `(c x a + d x (255 - a)) / 255` par canal.
     return vec4<f32>(l.couleur.rgb * a, a);

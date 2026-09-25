@@ -108,3 +108,48 @@ fn test_fleche_4_a_l_image_le_second_brille_et_le_premier_non() {
     assert_eq!(fond(&app, 0.0), premier, "le premier ne brille pas");
     assert_ne!(fond(&app, 3.0), second, "le second brille");
 }
+
+/// **Pendant qu'on tire une flèche, la carte visée s'avive** — et, l'outil seulement armé,
+/// celle dont elle partirait (LUEUR-1). L'indice qu'il réclamait : savoir, avant de lâcher, à
+/// quoi la flèche va se lier.
+#[test]
+fn test_lueur_1_la_carte_visee_se_designe() {
+    use winit::event::MouseButton;
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+    }
+    app.store
+        .add_annotation(&board, Annotation::text("source", 100.0, 100.0, "a"));
+    app.store
+        .add_annotation(&board, Annotation::text("cible", 700.0, 100.0, "b"));
+    app.store.clear_selection();
+    app.store.set_viewport(
+        &board,
+        glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+    );
+    app.une_image_sans_fenetre(TAILLE);
+    app.ui.active_tool = crate::ui::ActiveTool::Arrow;
+    app.handle_cursor_moved(PhysicalPosition::new(110.0, 110.0));
+    assert_eq!(
+        app.cartes_designees(),
+        ["source"],
+        "l'outil armé désigne l'origine"
+    );
+
+    app.handle_mouse_down(MouseButton::Left, TAILLE.0 as f32, TAILLE.1 as f32);
+    for x in [200.0, 400.0, 600.0, 710.0] {
+        app.handle_cursor_moved(PhysicalPosition::new(x, 110.0));
+    }
+    assert_eq!(app.cartes_designees(), ["cible"], "la pointe vise la cible");
+    app.handle_mouse_up(MouseButton::Left);
+    assert!(
+        app.cartes_designees().is_empty(),
+        "l'outil rendu, rien n'est désigné"
+    );
+}

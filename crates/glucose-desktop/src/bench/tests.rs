@@ -214,7 +214,15 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// Puis (FLECHE-2) la flèche se peint par la loi de son champ et non plus par `tiny-skia` :
 /// quelques milliers de pixels du bord du halo changent d'anticrénelage (au plus 39 niveaux,
 /// filtre-boîte contre suréchantillonnage) ; côte à côte et agrandis, on ne les distingue pas.
-const EMPREINTE_TEMOIN: &str = "16fb4d3d6b6eb856";
+/// **Mise à jour le 25/09 au soir** (LUEUR-1) : la carte prend l'habit de Glucose Tauri — « le
+/// texte sur fond noir, le contour en lueur » : sa brume à 3 % de sa teinte au lieu d'un fond
+/// presque opaque à 12 %, plus de filet au repos, et sa lueur découpée à l'intérieur de sa
+/// boîte comme l'ombre CSS. Et la capture mesure ses cartes comme l'application le fait à
+/// l'ouverture (`bench::ouvert`) : sans cela, la découpe montrait des cartes plus hautes que
+/// leur boîte, un état qu'on ne voit jamais. 467 262 pixels changent, au plus 211 niveaux :
+/// l'intérieur et le pourtour des cartes, et une flèche dont le bout suit la carte agrandie ;
+/// regardés côte à côte et agrandis.
+const EMPREINTE_TEMOIN: &str = "54afed5d3dd7c5aa";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -274,7 +282,11 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Mise à jour le 25/09** (FLECHE-3) : une flèche est sélectionnée — la barre de ses
 /// options se pose au-dessus de la barre d'action. 13 094 pixels changent, tous dans cette
 /// barre (637-1162 × 835-859) ; regardée agrandie.
-const EMPREINTE_TEMOIN_SELECTION: &str = "8a885e077655ea31";
+/// **Mise à jour le 25/09 au soir** (LUEUR-1) : l'habit de Tauri pour les cartes — brume à 3 %,
+/// pas de filet au repos, lueur découpée à la boîte —, et des cartes mesurées comme à
+/// l'ouverture. 436 932 pixels changent, tous aux cartes et à leurs lueurs ; l'anneau d'une carte
+/// sélectionnée reste. Regardés côte à côte.
+const EMPREINTE_TEMOIN_SELECTION: &str = "4bf7d0106b8025e2";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -324,7 +336,11 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Mise à jour le 25/09** (FLECHE-3) : une flèche est sélectionnée — la barre de ses
 /// options se pose au-dessus de la barre d'action. 13 094 pixels changent, tous dans cette
 /// barre (637-1162 × 835-859) ; regardée agrandie.
-const EMPREINTE_TEMOIN_MENU: &str = "c49f8b4b159b2329";
+/// **Mise à jour le 25/09 au soir** (LUEUR-1) : l'habit de Tauri pour les cartes — brume à 3 %,
+/// pas de filet au repos, lueur découpée à la boîte —, et des cartes mesurées comme à
+/// l'ouverture. 436 932 pixels changent, tous aux cartes et à leurs lueurs ; l'anneau d'une carte
+/// sélectionnée reste. Regardés côte à côte.
+const EMPREINTE_TEMOIN_MENU: &str = "a00463ad55ecda70";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

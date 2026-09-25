@@ -146,7 +146,8 @@ fn test_halo_1_the_profile_conserves_its_mass() {
 fn overhang(card: &Annotation) -> (f64, f64) {
     let rect = card.rect().expect("une carte a une boîte");
     let vp = centered(1.0, (rect.width, rect.height));
-    let halo = halo_geometry(card, &vp, 1440.0, 900.0, 0.0).expect("la carte est à l'écran");
+    let halo = halo_geometry(card, &vp, (1440.0, 900.0, 0.0), Eclat::Repos)
+        .expect("la carte est à l'écran");
     let reach = f64::from(EdgeProfile::new(halo.sigma).reach(HALO_ALPHA));
     let (sx, sy) = world_to_screen(rect.left, rect.top, &vp);
     (
@@ -201,7 +202,8 @@ fn test_the_glow_scales_with_the_zoom_without_any_cap() {
     let card = sized_card(Some(240.0), Some(60.0));
     let width_at = |zoom: f64| {
         let vp = centered(zoom, (240.0, 60.0));
-        let halo = halo_geometry(&card, &vp, 1440.0, 900.0, 0.0).expect("à l'écran");
+        let halo =
+            halo_geometry(&card, &vp, (1440.0, 900.0, 0.0), Eclat::Repos).expect("à l'écran");
         f64::from(halo.right - halo.left)
     };
     let un = width_at(1.0);
@@ -224,14 +226,14 @@ fn test_a_card_far_off_screen_is_culled() {
         y: 0.0,
         scale: 1.0,
     };
-    assert!(halo_geometry(&card, &loin, 1440.0, 900.0, 0.0).is_none());
+    assert!(halo_geometry(&card, &loin, (1440.0, 900.0, 0.0), Eclat::Repos).is_none());
 
     let brise = Viewport {
         x: f64::NAN,
         y: 0.0,
         scale: 1.0,
     };
-    assert!(halo_geometry(&card, &brise, 1440.0, 900.0, 0.0).is_none());
+    assert!(halo_geometry(&card, &brise, (1440.0, 900.0, 0.0), Eclat::Repos).is_none());
 }
 
 // ── HALO-2 — la portée se déduit du huit bits ─────────────────────────────────
@@ -274,6 +276,7 @@ fn test_halo_2_the_reach_is_exactly_where_the_glow_dies() {
         right: center + 30.0,
         bottom: center + 30.0,
         sigma,
+        carte: None,
     };
     let reach = f64::from(EdgeProfile::new(sigma).reach(HALO_ALPHA));
     let pixmap = render(halo, HALO_ALPHA, side);
@@ -319,6 +322,7 @@ fn test_a_zero_opacity_draws_nothing() {
         right: 50.0,
         bottom: 50.0,
         sigma: 6.0,
+        carte: None,
     };
     let pixmap = render(halo, 0, 80);
     assert_eq!(farthest_touched(&pixmap, 40.0), 0.0);
@@ -335,6 +339,7 @@ fn test_degenerate_geometry_is_bounded_and_safe() {
             right: 10.0,
             bottom: 10.0,
             sigma: 3.0,
+            carte: None,
         },
         HaloBox {
             left: 0.0,
@@ -342,6 +347,7 @@ fn test_degenerate_geometry_is_bounded_and_safe() {
             right: f32::INFINITY,
             bottom: 10.0,
             sigma: 3.0,
+            carte: None,
         },
         HaloBox {
             left: 30.0,
@@ -349,6 +355,7 @@ fn test_degenerate_geometry_is_bounded_and_safe() {
             right: 10.0,
             bottom: 10.0,
             sigma: 3.0,
+            carte: None,
         },
         HaloBox {
             left: 10.0,
@@ -356,6 +363,7 @@ fn test_degenerate_geometry_is_bounded_and_safe() {
             right: 20.0,
             bottom: 20.0,
             sigma: f32::NAN,
+            carte: None,
         },
     ] {
         let mut pixmap = Pixmap::new(side, side).expect("pixmap de test");
@@ -432,10 +440,10 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         header_h: 40.0,
     };
     // Frame de chauffe : remplit le cache de teintes symbiotiques.
-    draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, pass);
+    draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, (pass, &[]));
 
     let started = std::time::Instant::now();
-    draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, pass);
+    draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, (pass, &[]));
     let elapsed = started.elapsed().as_millis();
 
     assert!(
@@ -511,6 +519,7 @@ fn banc_une_lueur_qui_couvre_l_ecran() {
         bottom: 950.0,
         // Le sigma suit le zoom : de pres, la lueur deborde largement de l'ecran.
         sigma: 300.0,
+        carte: None,
     };
     let teinte = (220, 120, 180);
     draw_halo(&mut pixmap.as_mut(), halo, teinte, HALO_ALPHA);
@@ -636,6 +645,7 @@ fn test_les_bandes_ne_changent_aucun_pixel_d_une_lueur() {
                 right: 200.0,
                 bottom: 90.0,
                 sigma: 14.0,
+                carte: None,
             },
             (220u8, 90u8, 60u8),
         ),
@@ -646,6 +656,7 @@ fn test_les_bandes_ne_changent_aucun_pixel_d_une_lueur() {
                 right: 300.0,
                 bottom: 170.5,
                 sigma: 9.0,
+                carte: None,
             },
             (60u8, 200u8, 180u8),
         ),
@@ -656,6 +667,7 @@ fn test_les_bandes_ne_changent_aucun_pixel_d_une_lueur() {
                 right: 90.0,
                 bottom: 300.0,
                 sigma: 20.0,
+                carte: None,
             },
             (120u8, 120u8, 240u8),
         ),
@@ -685,4 +697,91 @@ fn test_les_bandes_ne_changent_aucun_pixel_d_une_lueur() {
         let ecarts = temoin.iter().zip(&vu).filter(|(a, b)| a != b).count();
         assert_eq!(ecarts, 0, "{fils} bandes changent {ecarts} octets");
     }
+}
+
+/// **La découpe par segments et frange rend exactement la loi pixel par pixel** (LUEUR-1).
+///
+/// Le peintre ne calcule pixel par pixel que la frange d'un pixel au bord de la carte, saute
+/// son intérieur, et garde ses segments de niveau constant partout ailleurs. La référence
+/// ci-dessous calcule chaque pixel : `arrondi(poids × colonne × (1 − couverture))`, composé
+/// par la même source. L'égalité est stricte.
+#[test]
+fn test_lueur_1_la_decoupe_rend_la_loi_au_bit_pres() {
+    use glucose_core::membrane_forme::{couverture_d_un_plein, Arrondi};
+    let (l, h) = (360u32, 240u32);
+    // Des bords entiers, et un balayage d'un pixel en dixièmes : la portée tombe tantôt sur
+    // une frontière de pixel, tantôt entre deux, et seule la seconde éprouve son interpolation.
+    let balayage = (0..10).map(|k| (40.0 + k as f32 * 0.1, 30.0 + k as f32 * 0.13, 32.0));
+    for (x, y, r) in [
+        (60.3f32, 70.6f32, 32.0f32),
+        (50.0, 40.0, 0.0),
+        (80.7, 90.2, 30.0),
+    ]
+    .into_iter()
+    .chain(balayage)
+    {
+        let carte = Arrondi::nouveau(x, y, 200.0, 70.0, r);
+        let halo = HaloBox {
+            left: x - 30.0,
+            top: y - 30.0,
+            right: x + 230.0,
+            bottom: y + 100.0,
+            sigma: 30.0,
+            carte: Some(carte),
+        };
+        let rgb = (200, 120, 60);
+        let mut obtenu = tiny_skia::Pixmap::new(l, h).expect("pixmap");
+        obtenu.fill(tiny_skia::Color::BLACK);
+        draw_halo(&mut obtenu.as_mut(), halo, rgb, HALO_ALPHA);
+
+        let mut attendu = tiny_skia::Pixmap::new(l, h).expect("pixmap");
+        attendu.fill(tiny_skia::Color::BLACK);
+        let profil = EdgeProfile::new(halo.sigma);
+        let niveaux: Vec<LevelSource> =
+            (0..=HALO_ALPHA).map(|a| LevelSource::new(rgb, a)).collect();
+        let (pixels, _) = attendu.data_mut().as_chunks_mut::<4>();
+        for py in 0..h {
+            let cy = py as f32 + 0.5;
+            let poids = profil.band(cy, halo.top, halo.bottom) * f32::from(HALO_ALPHA);
+            if poids < 0.5 {
+                continue;
+            }
+            for px in 0..l {
+                let cx = px as f32 + 0.5;
+                let colonne = profil.band(cx, halo.left, halo.right);
+                let reste = 1.0 - couverture_d_un_plein(carte.distance(cx, cy));
+                let k = ((poids * colonne * reste).round() as usize).min(niveaux.len() - 1);
+                if k > 0 {
+                    blend_pixel(&mut pixels[(py * l + px) as usize], niveaux[k]);
+                }
+            }
+        }
+        let differents = obtenu
+            .data()
+            .iter()
+            .zip(attendu.data())
+            .filter(|(a, b)| a != b)
+            .count();
+        assert_eq!(differents, 0, "carte en ({x}, {y}), rayon {r}");
+    }
+}
+
+/// **La géométrie donne à la lueur la carte qui la découpe** : sa boîte à l'écran, et le
+/// rayon de ses coins, mis à l'échelle comme elle (LUEUR-1).
+#[test]
+fn test_lueur_1_la_geometrie_porte_la_carte() {
+    let carte = crate::renderer::card::tests::probe_card("c", 10.0, 20.0);
+    let vp = glucose_core::types::Viewport {
+        x: 100.0,
+        y: 50.0,
+        scale: 2.0,
+    };
+    let halo = halo_geometry(&carte, &vp, (1440.0, 900.0, 0.0), Eclat::Repos).expect("visible");
+    let attendue = glucose_core::membrane_forme::Arrondi::nouveau(120.0, 90.0, 400.0, 100.0, 64.0);
+    assert_eq!(halo.carte, Some(attendue));
+    let vive = halo_geometry(&carte, &vp, (1440.0, 900.0, 0.0), Eclat::Designee).expect("visible");
+    assert!(
+        vive.left < halo.left && vive.sigma > halo.sigma,
+        "désignée, elle s'étale"
+    );
 }

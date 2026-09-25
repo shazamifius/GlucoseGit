@@ -109,13 +109,7 @@ fn chronometrer(store: &Store) -> Mesure {
             &mut pixmap.as_mut(),
             store,
             ui,
-            SceneOverlay {
-                arrivages: &[],
-                eclairages: &[],
-                guides: &guides,
-                selection_box: None,
-                editing: None,
-            },
+            SceneOverlay::sans_rien(&guides),
             ui.header_height(),
             glucose_desktop::renderer::Regard::immobile(),
         );

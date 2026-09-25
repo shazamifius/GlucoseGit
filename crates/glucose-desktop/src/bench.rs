@@ -38,6 +38,23 @@ pub const DEFINITIONS: &[(&str, u32, u32)] = &[
 /// Le budget d'une frame, en millisecondes : cent images par seconde.
 pub const BUDGET_MS: f64 = 10.0;
 
+/// **Le document tel que l'application l'ouvre** : chaque carte de texte mesurée
+/// (TEXT-FIT-1, `fit_all_text_cards`).
+///
+/// Les documents fabriqués par `synth` posent des hauteurs de carte au jugé : le noyau ne sait
+/// pas mesurer un texte. L'application, elle, mesure tout document qu'elle ouvre. Une capture
+/// qui s'en dispensait montrait une carte plus haute que sa boîte — un état que l'utilisateur
+/// ne voit jamais —, et c'est la lueur découpée à la boîte (LUEUR-1) qui l'a révélé.
+pub fn ouvert(mut store: Store) -> Store {
+    let renderer = Renderer::new();
+    crate::interactions::resize::ajuster_les_cartes(
+        &mut store.project.boards,
+        &renderer.typography,
+        &renderer.math,
+    );
+    store
+}
+
 /// Pose le cadrage d'un document : origine au centre du contenu, à l'échelle voulue.
 ///
 /// Un banc qui laisserait le viewport par défaut mesurerait surtout le culling — presque rien
@@ -83,13 +100,7 @@ pub fn render_frame(
 /// l'allocation de huit mégaoctets à chaque tour.
 pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pixmap: &mut Pixmap) {
     let guides = SnapGuides::default();
-    let overlay = SceneOverlay {
-        guides: &guides,
-        selection_box: None,
-        editing: None,
-        arrivages: &[],
-        eclairages: &[],
-    };
+    let overlay = SceneOverlay::sans_rien(&guides);
     // Le pointeur est posé hors de la fenêtre : aucun survol, donc aucun état de l'interface
     // qui dépendrait de la position de la souris. Une capture doit être la même partout.
     let pointer = Pointer { x: -1.0, y: -1.0 };
@@ -110,13 +121,7 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
     // première. La mesure reste celle du rendu, jamais celle de l'attente.
     if renderer.magasin.en_travail() > 0 {
         renderer.magasin.attendre_le_chantier();
-        let overlay = SceneOverlay {
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-            arrivages: &[],
-            eclairages: &[],
-        };
+        let overlay = SceneOverlay::sans_rien(&guides);
         renderer.render(
             &mut pixmap.as_mut(),
             store,
@@ -204,7 +209,8 @@ pub fn capture_with(
     let mut renderer = Renderer::new();
     let mut ui = UiState::new();
     regler(&mut ui);
-    let pixmap = render_frame(&mut renderer, &mut ui, store, width, height);
+    let store = ouvert(store.clone());
+    let pixmap = render_frame(&mut renderer, &mut ui, &store, width, height);
     pixmap.encode_png().expect("encoder un PNG")
 }
 

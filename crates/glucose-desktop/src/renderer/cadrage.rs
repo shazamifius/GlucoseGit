@@ -212,3 +212,84 @@ impl Cadrage {
         }
     }
 }
+
+// ── Où la vue tombe, et ce qu'elle montre ────────────────────────────────────
+
+use super::Renderer;
+use crate::canvas::screen_to_world;
+use glucose_core::store::Store;
+
+impl Renderer {
+    /// Ou la vue tombe dans ce pixmap, et quels noeuds y apparaissent.
+    ///
+    /// # Les deux transformations, et pourquoi une seule ligne les porte
+    ///
+    /// La scene se rend dans le repere du pixmap cible, qui n'est pas toujours celui de la
+    /// fenetre. `world_to_screen` vaut `monde x echelle + vp`, ce qui suffit a tout dire :
+    ///
+    /// * la **reduction** -- diviser l'ecran par `f` revient a diviser l'echelle ET la
+    ///   translation par `f`. Rien d'autre n'a besoin de le savoir : le culling se resserre
+    ///   tout seul, et le niveau de detail suit, ce qui est exactement ce qu'on attend d'une
+    ///   image plus petite ;
+    /// * l'**origine** -- decaler la vue de `-origine` deplace l'origine de l'ecran d'autant.
+    ///
+    /// L'index spatial se remet d'accord ici, et non chez l'appelant. Il l'etait dans
+    /// `render`, si bien qu'un appelant de `rendre_la_scene` -- un banc, un temoin --
+    /// dessinait un ecran VIDE sans que rien ne le dise. C'est arrive, et le banc annoncait
+    /// alors un gain nul en toute bonne foi. Ne coute rien quand rien n'a change : la
+    /// comparaison de version precede le balayage.
+    pub(super) fn cadrer(
+        &mut self,
+        store: &Store,
+        (width, height): (u32, u32),
+        header_h: f32,
+        cadrage: Cadrage,
+    ) -> (glucose_core::types::Viewport, Vec<u32>) {
+        self.sync_spatial_index(store);
+        // La vue du cadrage l'emporte : une tuile se rend dans SON repere, pas dans celui de
+        // l'ecran, et elle n'a ni reduction ni origine a appliquer par-dessus.
+        let mut vp = cadrage.vue.unwrap_or_else(|| store.viewport());
+        if cadrage.vue.is_none() {
+            let f = cadrage.reduction.max(1.0);
+            vp.scale /= f;
+            vp.x = vp.x / f - f64::from(cadrage.origine.0);
+            vp.y = vp.y / f - f64::from(cadrage.origine.1);
+        }
+        let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
+        let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
+        let mut rangs = self.visibles_du_present(store, (min_wx, min_wy, max_wx, max_wy));
+        // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
+        self.focus.filtrer(&mut rangs);
+        crate::perf::stage("cull");
+        (vp, rangs)
+    }
+
+    /// **Les rangs de ce qui tombe dans la fenêtre, dans le document tel qu'il est** — geste
+    /// en cours compris (GESTE-1).
+    ///
+    /// L'index décrit le document publié ; un geste ouvert l'a déjà changé. Une flèche qu'on
+    /// tirait n'avait aucun rang dans l'index : elle restait invisible jusqu'au relâchement.
+    /// Le suivi joint ce que le geste a touché, et relit les rangs de l'index au présent.
+    /// Quand le geste a fait ce qu'aucun rang d'avant ne relit — un retrait —, l'index se
+    /// remet d'accord ici, comme la fin du geste l'aurait fait.
+    fn visibles_du_present(
+        &mut self,
+        store: &Store,
+        (x0, y0, x1, y1): (f64, f64, f64, f64),
+    ) -> Vec<u32> {
+        let mut rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0);
+        let Some(board) = store.active_board() else {
+            return rangs;
+        };
+        let geste = store.journal.en_cours();
+        if self
+            .suivi_du_geste
+            .completer(geste, board, &self.spatial_hash, &mut rangs)
+        {
+            return rangs;
+        }
+        self.spatial_hash.index_board(board);
+        self.suivi_du_geste.absorbe(geste, &self.spatial_hash);
+        self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0)
+    }
+}

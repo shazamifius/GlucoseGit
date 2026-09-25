@@ -7,6 +7,7 @@
 
 use crate::app::GlucoseApp;
 use crate::params::Eclairage;
+use crate::ui::ActiveTool;
 use glucose_core::hit_priority::PickKind;
 use glucose_core::text_anchors::resolve_text_sel;
 use glucose_core::types::Annotation;
@@ -28,6 +29,68 @@ impl GlucoseApp {
         let (wx, wy) = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
         let candidat = self.pick_candidate_at(wx, wy)?;
         (candidat.kind == PickKind::Arrow).then_some(candidat.id)
+    }
+
+    /// **Suit le nœud dont une flèche partirait**, sous l'outil Flèche armé : l'image ne se
+    /// redessine que quand il change.
+    pub(crate) fn suivre_le_noeud_pressenti(&mut self) {
+        let pressenti = (self.ui.active_tool == ActiveTool::Arrow)
+            .then(|| {
+                let vp = self.store.viewport();
+                let point = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+                let board = self.store.active_board()?;
+                glucose_core::arrow::snap_to_nearest(board, point, &[]).node
+            })
+            .flatten();
+        if pressenti != self.ui.noeud_pressenti {
+            self.ui.noeud_pressenti = pressenti;
+            self.mark_dirty();
+        }
+    }
+
+    /// **Les cartes dont la lueur s'avive dans cette image** (LUEUR-1) — ce à quoi une flèche
+    /// va se lier, ou se lie :
+    ///
+    /// * la flèche qui naît sous la main : ce que sa pointe vise ;
+    /// * l'outil Flèche armé : le nœud dont elle partirait ;
+    /// * une flèche survolée : ceux de ses bouts qui ne désignent pas de passage — un passage
+    ///   ancré brille à sa place, lui seul.
+    pub(crate) fn cartes_designees(&self) -> Vec<String> {
+        let Some(board) = self.store.active_board() else {
+            return Vec::new();
+        };
+        if let Some(session) = &self.draw_session {
+            let visee = match self.store.project.annotation(&board.id, &session.id) {
+                Some(Annotation::Arrow { target_id, .. }) => target_id.clone(),
+                _ => None,
+            };
+            return visee.into_iter().collect();
+        }
+        // L'outil rendu, ce qu'il pressentait ne vaut plus — même avant que la souris bouge.
+        if self.ui.active_tool == ActiveTool::Arrow {
+            return self.ui.noeud_pressenti.iter().cloned().collect();
+        }
+        let Some(Annotation::Arrow {
+            source_id,
+            target_id,
+            source_text_sel,
+            target_text_sel,
+            ..
+        }) = self
+            .ui
+            .fleche_survolee
+            .as_ref()
+            .and_then(|id| self.store.project.annotation(&board.id, id))
+        else {
+            return Vec::new();
+        };
+        [(source_id, source_text_sel), (target_id, target_text_sel)]
+            .into_iter()
+            .filter(|(_, passage)| {
+                !glucose_core::text_anchors::has_text_selection(passage.as_ref())
+            })
+            .filter_map(|(bout, _)| bout.clone())
+            .collect()
     }
 
     /// **Les passages à faire briller dans cette image** : ceux que la flèche survolée ancre,

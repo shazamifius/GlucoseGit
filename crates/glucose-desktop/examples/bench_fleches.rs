@@ -124,13 +124,7 @@ fn poste_annotations(avec_fleches: bool, echelle: f64) -> f64 {
                 &mut p.as_mut(),
                 &store,
                 &ui,
-                SceneOverlay {
-                    guides: &guides,
-                    selection_box: None,
-                    editing: None,
-                    arrivages: &[],
-                    eclairages: &[],
-                },
+                SceneOverlay::sans_rien(&guides),
                 ui.header_height(),
                 Cadrage::plein(),
             );

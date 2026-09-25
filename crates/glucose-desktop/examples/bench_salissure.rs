@@ -201,13 +201,7 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
             vue.y -= v * periode * 0.4;
         }
         scene.store.set_viewport(scene.board, vue);
-        let overlay = SceneOverlay {
-            arrivages: &[],
-            eclairages: &[],
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-        };
+        let overlay = SceneOverlay::sans_rien(&guides);
         if !en_cache {
             scene.ui.bande_cache = None;
         }

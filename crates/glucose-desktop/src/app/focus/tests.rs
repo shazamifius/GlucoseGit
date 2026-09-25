@@ -115,13 +115,7 @@ fn pixel_du_rendu(app: &mut GlucoseApp, (wx, wy): (f64, f64)) -> [u8; 4] {
         &mut p.as_mut(),
         &app.store,
         &mut app.ui,
-        crate::params::SceneOverlay {
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-            arrivages: &[],
-            eclairages: &[],
-        },
+        crate::params::SceneOverlay::sans_rien(&guides),
         crate::params::Pointer { x: -1.0, y: -1.0 },
         crate::renderer::Regard::immobile(),
     );

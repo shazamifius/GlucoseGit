@@ -48,13 +48,13 @@ pub(super) fn dessiner_sous_les_photos(
     hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
-    cadrage: Cadrage,
+    (cadrage, designees): (Cadrage, &[String]),
     header_h: f32,
 ) -> bool {
     if cadrage.couche.porte_le_fond() {
         grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
         // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
-        halo::draw_halos(hue_cache, pixmap, store, pass);
+        halo::draw_halos(hue_cache, pixmap, store, (pass, designees));
         crate::perf::stage("halos");
     }
     // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
@@ -197,7 +197,7 @@ pub(super) fn fond_a_peindre(
 pub(super) fn lueurs_a_poser(
     hue_cache: &mut SymbioticHueCache,
     store: &Store,
-    pass: ViewPass<'_>,
+    (pass, designees): (ViewPass<'_>, &[String]),
     ecran: (f32, f32),
 ) -> Vec<crate::present::lueurs_gpu::Lueur> {
     let Some(board) = store.active_board() else {
@@ -205,23 +205,17 @@ pub(super) fn lueurs_a_poser(
     };
     let mut lueurs = Vec::new();
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
-        let Some(boite) = halo::halo_geometry(ann, &pass.vp, ecran.0, ecran.1, pass.header_h)
-        else {
+        let eclat = halo::Eclat::de(ann, designees);
+        let cadre = (ecran.0, ecran.1, pass.header_h);
+        let Some(boite) = halo::halo_geometry(ann, &pass.vp, cadre, eclat) else {
             continue;
         };
-        let (_hue, (r, v, b)) = hue_cache.get_or_compute(ann, pass.index, board);
-        lueurs.push(crate::present::lueurs_gpu::Lueur {
-            gauche: boite.left,
-            haut: boite.top,
-            droite: boite.right,
-            bas: boite.bottom,
-            sigma: boite.sigma,
-            alpha: f32::from(halo::HALO_ALPHA) / 255.0,
-            portee: halo::portee_du_flou(boite.sigma),
-            rouge: f32::from(r) / 255.0,
-            vert: f32::from(v) / 255.0,
-            bleu: f32::from(b) / 255.0,
-        });
+        let (_hue, teinte) = hue_cache.get_or_compute(ann, pass.index, board);
+        lueurs.push(crate::present::lueurs_gpu::Lueur::de(
+            boite,
+            teinte,
+            eclat.alpha(),
+        ));
     }
     lueurs
 }
@@ -483,8 +477,7 @@ impl Renderer {
             ..plein
         };
         let encre = self.rendre_la_region(dessous, store, ui, overlay, header_h, sous);
-        let mut confie =
-            self.confier_a_la_carte(store, taille, header_h, (sous, overlay.editing, regard));
+        let mut confie = self.confier_a_la_carte(store, taille, header_h, (sous, overlay, regard));
         confie.dessous_porte_quelque_chose = encre;
 
         let sur = Cadrage {
@@ -509,8 +502,9 @@ impl Renderer {
         store: &Store,
         taille: (u32, u32),
         header_h: f32,
-        (cadrage, edition, regard): (Cadrage, Option<&super::TextEditSession>, Regard),
+        (cadrage, overlay, regard): (Cadrage, SceneOverlay<'_>, Regard),
     ) -> Confie {
+        let edition = overlay.editing;
         let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
         let pass = ViewPass {
             vp,
@@ -519,7 +513,7 @@ impl Renderer {
             header_h,
         };
         let ecran = (taille.0 as f32, taille.1 as f32);
-        let lueurs = lueurs_a_poser(&mut self.hue_cache, store, pass, ecran);
+        let lueurs = lueurs_a_poser(&mut self.hue_cache, store, (pass, overlay.designees), ecran);
         crate::perf::stage("lueurs");
         let membranes = scene::formes_des_membranes(store, pass, taille);
         crate::perf::stage("membranes");

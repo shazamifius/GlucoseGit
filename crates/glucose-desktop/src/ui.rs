@@ -107,6 +107,9 @@ pub struct UiState {
     pub survol: bande::Survol,
     /// La flèche que la souris survole : ce qu'elle ancre brille dans ses cartes (FLECHE-4).
     pub fleche_survolee: Option<String>,
+    /// Sous l'outil Flèche armé, le nœud dont une flèche partirait si l'on appuyait ici : sa
+    /// lueur s'avive avant même le premier geste (LUEUR-1).
+    pub noeud_pressenti: Option<String>,
     /// L'éditeur d'ancres d'une flèche, quand il est ouvert (FLECHE-4).
     pub ancrage: Option<ancrage::Ancrage>,
     pub current_toast: Option<Toast>,
@@ -155,6 +158,7 @@ impl UiState {
             smart_align: true,
             survol: bande::Survol::default(),
             fleche_survolee: None,
+            noeud_pressenti: None,
             ancrage: None,
             current_toast: None,
             context_menu_at: None,

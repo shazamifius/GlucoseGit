@@ -515,3 +515,84 @@ fn test_les_autres_signes_ne_prennent_jamais_ces_couleurs() {
         );
     }
 }
+
+// ── LUEUR-1 — le texte sur fond noir, le contour en lueur ─────────────────────
+
+/// Une carte seule, vue à l'échelle 1, son coin haut-gauche en (400, 300) à l'écran.
+fn une_carte_rendue(selectionnee: bool) -> tiny_skia::Pixmap {
+    use glucose_core::store::Store;
+    use glucose_core::types::Viewport;
+    let mut store = Store::new("lueur");
+    let board = store.project.active_board_id.clone();
+    let mut carte = probe_card("seule", 0.0, 0.0);
+    if let Annotation::Text { width, height, .. } = &mut carte {
+        (*width, *height) = (Some(240.0), Some(120.0));
+    }
+    store.add_annotation(&board, carte);
+    if !selectionnee {
+        store.clear_selection();
+    }
+    store.set_viewport(
+        &board,
+        Viewport {
+            x: 400.0,
+            y: 300.0,
+            scale: 1.0,
+        },
+    );
+    let mut renderer = crate::renderer::Renderer::new();
+    let mut ui = crate::ui::UiState::new();
+    crate::bench::render_frame(&mut renderer, &mut ui, &store, 1000, 700)
+}
+
+/// La plus sombre des teintes d'un carré de 5 × 5 — ce qui écarte les points de la grille.
+fn fond_autour(p: &tiny_skia::Pixmap, (cx, cy): (u32, u32)) -> u32 {
+    let mut min = u32::MAX;
+    for y in cy - 2..=cy + 2 {
+        for x in cx - 2..=cx + 2 {
+            let c = p.pixel(x, y).expect("dans l'image");
+            min = min.min(u32::from(c.red()) + u32::from(c.green()) + u32::from(c.blue()));
+        }
+    }
+    min
+}
+
+/// **Dedans, le fond noir ; autour, la lueur.** L'intérieur d'une carte est plus sombre que
+/// la lueur qui la borde : c'est l'aspect de Tauri. La carte d'avant portait un fond presque
+/// opaque à 12 % de sa teinte — plus clair que sa propre lueur.
+#[test]
+fn test_lueur_1_la_carte_est_plus_sombre_que_sa_lueur() {
+    let p = une_carte_rendue(false);
+    // Le bas de la carte est en y = 420 ; son texte est en haut à gauche.
+    let dedans = fond_autour(&p, (520, 405));
+    let autour = fond_autour(&p, (520, 435));
+    assert!(
+        autour > dedans + 6,
+        "la lueur autour ({autour}) doit briller plus que l'intérieur ({dedans})"
+    );
+}
+
+/// **Aucun cadre au repos** : la dernière rangée de la carte est celle de son intérieur.
+/// Sélectionnée, l'anneau la désigne.
+#[test]
+fn test_lueur_1_une_carte_au_repos_n_a_pas_de_cadre() {
+    let repos = une_carte_rendue(false);
+    let dedans = fond_autour(&repos, (520, 405));
+    let bord = (500..540)
+        .map(|x| {
+            let c = repos.pixel(x, 419).expect("dans l'image");
+            u32::from(c.red()) + u32::from(c.green()) + u32::from(c.blue())
+        })
+        .min()
+        .expect("des pixels");
+    assert!(
+        bord.abs_diff(dedans) <= 1,
+        "le bord ({bord}) est l'intérieur ({dedans}) : pas de filet"
+    );
+    let choisie = une_carte_rendue(true);
+    let anneau = choisie.pixel(520, 419).expect("dans l'image");
+    assert!(
+        anneau.red() > 100,
+        "sélectionnée, l'anneau se voit : {anneau:?}"
+    );
+}

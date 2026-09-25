@@ -23,7 +23,7 @@ use glucose_desktop::ui::UiState;
 
 fn main() {
     let dossier = std::env::args().nth(1).unwrap_or_else(|| ".".to_string());
-    let temoin = synth::witness();
+    let temoin = bench::ouvert(synth::witness());
     let (w0, h0) = synth::WITNESS_SIZE;
 
     // La seconde capture est la même scène **vue de plus loin** : c'est elle qui montre ce que
@@ -33,7 +33,7 @@ fn main() {
     bench::frame_document(&mut dezoome, 0.45, w0, h0);
 
     // La vitrine : le document soigné, celui des captures du dépôt.
-    let vitrine = synth::showcase();
+    let vitrine = bench::ouvert(synth::showcase());
     let mut vitrine_large = vitrine.clone();
     bench::frame_document(&mut vitrine_large, 0.8, 1920, 1080);
 
@@ -60,7 +60,7 @@ fn main() {
     // il est allumé. Ce qui se teste ici se teste par la logique (`renderer::card::tests`),
     // pas par les pixels.
     {
-        let store = synth::witness();
+        let store = bench::ouvert(synth::witness());
         let texte = store
             .active_board()
             .and_then(|b| b.annotations.iter().find(|a| a.id() == "t-maths"))
@@ -90,11 +90,8 @@ fn main() {
             &store,
             &mut ui,
             SceneOverlay {
-                arrivages: &[],
-                eclairages: &[],
-                guides: &guides,
-                selection_box: None,
                 editing: Some(&session),
+                ..SceneOverlay::sans_rien(&guides)
             },
             Pointer { x: 0.0, y: 0.0 },
             glucose_desktop::renderer::Regard::immobile(),

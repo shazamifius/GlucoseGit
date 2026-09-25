@@ -141,13 +141,7 @@ fn rejouer(store: &mut Store, echelle: f64, regard: Regard) -> Freinage {
     // faisait paraitre un pic de trente millisecondes qui n'a lieu qu'une fois par session.
     for _ in 0..2 {
         let guides = glucose_core::smart_align::SnapGuides::default();
-        let overlay = glucose_desktop::params::SceneOverlay {
-            arrivages: &[],
-            eclairages: &[],
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-        };
+        let overlay = glucose_desktop::params::SceneOverlay::sans_rien(&guides);
         renderer.render(
             &mut pixmap.as_mut(),
             store,
@@ -166,13 +160,7 @@ fn rejouer(store: &mut Store, echelle: f64, regard: Regard) -> Freinage {
         store.set_viewport(&board, vue);
 
         let guides = glucose_core::smart_align::SnapGuides::default();
-        let overlay = glucose_desktop::params::SceneOverlay {
-            arrivages: &[],
-            eclairages: &[],
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-        };
+        let overlay = glucose_desktop::params::SceneOverlay::sans_rien(&guides);
         // `GLUCOSE_PERF=1` decompose chaque image en postes, comme dans l'application.
         glucose_desktop::perf::frame_begin();
         let t0 = Instant::now();

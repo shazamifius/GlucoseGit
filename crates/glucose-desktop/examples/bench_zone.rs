@@ -98,13 +98,7 @@ fn rendre(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> Pixmap {
         &mut pixmap.as_mut(),
         &decale,
         &ui,
-        SceneOverlay {
-            arrivages: &[],
-            eclairages: &[],
-            guides: &guides,
-            selection_box: None,
-            editing: None,
-        },
+        SceneOverlay::sans_rien(&guides),
         ui.header_height() - origine.1 as f32,
         glucose_desktop::renderer::Regard::immobile(),
     );
@@ -170,13 +164,7 @@ fn chronometrer(store: &Store, taille: (u32, u32), origine: (f64, f64)) -> f64 {
             &mut pixmap.as_mut(),
             &decale,
             &ui,
-            SceneOverlay {
-                arrivages: &[],
-                eclairages: &[],
-                guides: &guides,
-                selection_box: None,
-                editing: None,
-            },
+            SceneOverlay::sans_rien(&guides),
             ui.header_height() - origine.1 as f32,
             glucose_desktop::renderer::Regard::immobile(),
         );

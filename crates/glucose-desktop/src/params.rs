@@ -89,6 +89,27 @@ pub struct SceneOverlay<'a> {
     /// Les passages de cartes à faire briller : ce qu'une flèche survolée désigne, ou ce que
     /// l'éditeur d'ancres sélectionne (FLECHE-4).
     pub eclairages: &'a [Eclairage],
+    /// **Les cartes désignées** : la cible qu'une flèche en train de naître vise, les bouts
+    /// d'une flèche survolée qui ne désigne pas de passage. Leur lueur s'avive — l'indice qui
+    /// dit à quoi une flèche va se lier (LUEUR-1, l'`isHighlightBox` de Tauri).
+    pub designees: &'a [String],
+}
+
+impl<'a> SceneOverlay<'a> {
+    /// **La scène seule, rien par-dessus** : ce que rendent un banc, un témoin, une épreuve.
+    ///
+    /// Trente et un littéraux recopiaient les mêmes cinq champs vides ; un champ de plus les
+    /// aurait tous fait changer.
+    pub fn sans_rien(guides: &'a SnapGuides) -> Self {
+        Self {
+            guides,
+            selection_box: None,
+            editing: None,
+            arrivages: &[],
+            eclairages: &[],
+            designees: &[],
+        }
+    }
 }
 
 /// **Un passage à faire briller** dans une carte de texte (FLECHE-4).

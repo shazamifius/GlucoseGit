@@ -168,13 +168,7 @@ fn voie_graphique(vue: Viewport) -> (u32, f64) {
 }
 
 fn rien(guides: &glucose_core::smart_align::SnapGuides) -> SceneOverlay<'_> {
-    SceneOverlay {
-        arrivages: &[],
-        eclairages: &[],
-        guides,
-        selection_box: None,
-        editing: None,
-    }
+    SceneOverlay::sans_rien(guides)
 }
 
 /// **L'ancien tracé**, recopié pour la mesure : deux halos et le fond en rectangles aux coins

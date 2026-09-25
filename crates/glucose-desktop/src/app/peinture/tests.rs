@@ -41,13 +41,7 @@ fn regarder(app: &mut GlucoseApp, y: f64) {
 /// tampon le porte, et ce que le processeur confie à la carte.
 fn une_image(app: &mut GlucoseApp, dessous: &mut Pixmap, precedente: &Confie) -> Confie {
     let guides = app.active_guides.clone();
-    let overlay = SceneOverlay {
-        guides: &guides,
-        selection_box: None,
-        editing: None,
-        arrivages: &[],
-        eclairages: &[],
-    };
+    let overlay = SceneOverlay::sans_rien(&guides);
     let chrome = Chrome {
         ui: &mut app.ui,
         dock_manager: &app.dock_manager,

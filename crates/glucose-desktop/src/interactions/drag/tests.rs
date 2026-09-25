@@ -19,13 +19,7 @@ const SCREEN: (f32, f32) = (1440.0, 900.0);
 fn render(app: &mut GlucoseApp) {
     let mut pixmap = Pixmap::new(SCREEN.0 as u32, SCREEN.1 as u32).expect("pixmap");
     let mut view = pixmap.as_mut();
-    let overlay = SceneOverlay {
-        guides: &app.active_guides,
-        selection_box: None,
-        editing: None,
-        arrivages: &[],
-        eclairages: &[],
-    };
+    let overlay = SceneOverlay::sans_rien(&app.active_guides);
     app.renderer.render(
         &mut view,
         &app.store,
