@@ -27,6 +27,10 @@ pub enum DesktopError {
         path: String,
         reason: String,
     },
+    /// Le document est déjà ouvert dans une autre fenêtre de Glucose, qui l'écrit.
+    DejaOuvertAilleurs {
+        nom: String,
+    },
     Io(std::io::Error),
 }
 
@@ -52,6 +56,11 @@ impl fmt::Display for DesktopError {
                 f,
                 "Ouverture impossible de '{}' : {} — vérifie que le fichier existe encore",
                 path, reason
+            ),
+            Self::DejaOuvertAilleurs { nom } => write!(
+                f,
+                "« {nom} » est déjà ouvert dans une autre fenêtre de Glucose — c'est là qu'il \
+                 s'écrit ; celle-ci garde son document"
             ),
             Self::Io(err) => write!(f, "E/S : {}", err),
         }

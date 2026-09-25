@@ -46,18 +46,24 @@ impl GlucoseApp {
         })
     }
 
-    /// **Rend au document le texte qu'un arrêt a laissé en cours de frappe** : la saisie se
-    /// rouvre sur sa carte et se valide, exactement comme si l'utilisateur avait cliqué
-    /// ailleurs. Rend `false` si le document le portait déjà.
+    /// **Reprend la saisie qu'un arrêt a interrompue**, comme s'il n'avait pas eu lieu : la
+    /// carte se rouvre en édition, le curseur au bout du texte, la vue posée dessus à la
+    /// taille où on l'écrivait. Rien n'est validé — le texte reste gardé à côté jusqu'à ce que
+    /// la saisie se ferme. Rend `false` si le document le portait déjà.
+    ///
+    /// La première version validait aussitôt, par crainte d'une carte en édition hors de la
+    /// vue, que le clavier remplirait sans qu'on la voie. L'utilisateur voulait l'inverse —
+    /// *« retomber directement sur le texte en mode édition avec la caméra dessus »* —, et la
+    /// caméra posée sur la carte lève la crainte.
     pub(crate) fn rendre_la_saisie(&mut self, s: Saisie) -> bool {
         let porte = texte_porte(&self.store.project, &s.tableau, &s.annotation).map(str::to_owned);
         match porte {
             Some(t) if t == s.texte => return false,
             Some(_) => {
                 // On revient là où l'on tapait : c'est là que le texte doit se voir.
-                let _ = self.store.try_set_active_board_id(s.tableau);
+                let _ = self.store.try_set_active_board_id(s.tableau.clone());
+                self.poser_la_vue_sur(&s.tableau, &s.annotation);
                 self.start_text_edit(s.annotation, s.texte);
-                self.commit_editing();
             }
             None => {
                 // La carte a disparu — ce qui ne devrait pas arriver : rien ne change le
@@ -75,9 +81,22 @@ impl GlucoseApp {
                 );
                 let tableau = self.store.project.active_board_id.clone();
                 self.store.add_annotation(&tableau, carte);
+                self.poser_la_vue_sur(&tableau, &id);
             }
         }
         true
+    }
+
+    /// La vue se posera sur cette annotation à la prochaine image.
+    fn poser_la_vue_sur(&mut self, tableau: &str, annotation: &str) {
+        if let Some(boite) = self
+            .store
+            .project
+            .annotation(tableau, annotation)
+            .and_then(Annotation::rect)
+        {
+            self.vol.poser_sur(boite);
+        }
     }
 }
 

@@ -516,6 +516,8 @@ fn test_a_domain_created_by_clicking_survives_save_and_reopen() {
     app.save_to(path.clone());
     assert!(!app.is_dirty(), "l'enregistrement doit effacer le marqueur");
 
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let mut reopened = GlucoseApp::new();
     reopened.open_from(path.clone());
 

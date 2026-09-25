@@ -78,14 +78,22 @@ struct Regle<'a> {
     /// La hauteur d'un bouton d'action et son ordonnée.
     action: (f32, f32),
     typo: &'a Typography,
-    /// Sous ces largeurs de fenêtre, les libellés cèdent la place : d'abord ceux de droite
+    /// Les libellés cèdent la place quand la barre ne tient pas : d'abord ceux de droite
     /// (compact), puis tous (ultra-compact).
     compact: bool,
     ultra: bool,
 }
 
+/// Combien de libellés la barre garde, du plus riche au plus sobre.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Densite {
+    Complete,
+    Compacte,
+    Icones,
+}
+
 impl<'a> Regle<'a> {
-    fn nouvelle(width: f32, ui: &UiState, typo: &'a Typography) -> Self {
+    fn nouvelle(ui: &UiState, typo: &'a Typography, densite: Densite) -> Self {
         let s = ui.scale();
         let topbar_h = ui.topbar_height();
         let cote = 30.0 * s;
@@ -98,12 +106,8 @@ impl<'a> Regle<'a> {
             outil: (cote, (topbar_h - cote) / 2.0),
             action: (haut_action, (topbar_h - haut_action) / 2.0),
             typo,
-            // Responsive design :
-            // - Mode complet : width >= 1320px * scale
-            // - Mode compact : 1050px * scale <= width < 1320px * scale
-            // - Mode ultra-compact : width < 1050px * scale
-            compact: width < 1320.0 * s,
-            ultra: width < 1050.0 * s,
+            compact: densite != Densite::Complete,
+            ultra: densite == Densite::Icones,
         }
     }
 
@@ -172,22 +176,49 @@ impl<'a> Regle<'a> {
     }
 }
 
+/// # La densité se mesure, elle ne se choisit pas
+///
+/// La barre cédait ses libellés à des largeurs de fenêtre écrites en dur (1 320, puis 1 050
+/// pixels) : un bouton de plus — la Time Machine — et le groupe de droite sortait de l'écran
+/// avant que le seuil ne tombe. Elle se pose maintenant du plus riche au plus sobre — tous
+/// les libellés, puis sans ceux de droite, puis des icônes seules — et garde **la première
+/// qui tient**. Les libellés sont mesurés ; la fenêtre décide.
 pub fn layout_topbar(
     width: f32,
     ui: &UiState,
     typo: &Typography,
     board_img_count: usize,
 ) -> TopbarLayout {
-    let mut regle = Regle::nouvelle(width, ui, typo);
+    let mut barre = poser_la_barre(width, ui, typo, board_img_count, Densite::Icones).0;
+    for densite in [Densite::Complete, Densite::Compacte] {
+        let (essai, tient) = poser_la_barre(width, ui, typo, board_img_count, densite);
+        if tient {
+            barre = essai;
+            break;
+        }
+    }
+    barre
+}
+
+/// La barre à cette densité, et si elle tient dans la fenêtre.
+fn poser_la_barre(
+    width: f32,
+    ui: &UiState,
+    typo: &Typography,
+    board_img_count: usize,
+    densite: Densite,
+) -> (TopbarLayout, bool) {
+    let mut regle = Regle::nouvelle(ui, typo, densite);
     groupe_des_outils(&mut regle, ui);
     groupe_des_images(&mut regle);
     groupe_des_panneaux(&mut regle, ui);
-    let img_badge = groupe_de_droite(&mut regle, width, board_img_count);
-    TopbarLayout {
+    let (img_badge, tient) = groupe_de_droite(&mut regle, width, board_img_count);
+    let barre = TopbarLayout {
         buttons: regle.boutons,
         separators: regle.separateurs,
         img_badge,
-    }
+    };
+    (barre, tient)
 }
 
 /// Les outils : la sélection et la main, puis les cinq qui posent quelque chose.
@@ -235,6 +266,12 @@ fn groupe_des_panneaux(regle: &mut Regle<'_>, ui: &UiState) {
     regle.action(UiAction::Organize, IconType::Organize, "Ordonner", false);
     regle.action(UiAction::ToggleTimer, IconType::Timer, "Timer", false);
     regle.action(
+        UiAction::ToggleTimeMachine,
+        IconType::Histoire,
+        "Time Machine",
+        false,
+    );
+    regle.action(
         UiAction::ToggleStoryboard,
         IconType::Storyboard,
         "Storyboard",
@@ -260,12 +297,13 @@ fn groupe_des_panneaux(regle: &mut Regle<'_>, ui: &UiState) {
 /// Le groupe de droite, **posé depuis le bord droit** : sa largeur se calcule avant de
 /// commencer, sinon il ne saurait pas où démarrer.
 ///
-/// Rend le badge du nombre d'images, qui se pose après le dernier bouton.
+/// Rend le badge du nombre d'images, qui se pose après le dernier bouton, et si le groupe
+/// tient sans chevaucher celui de gauche.
 fn groupe_de_droite(
     regle: &mut Regle<'_>,
     width: f32,
     board_img_count: usize,
-) -> Option<(f32, String)> {
+) -> (Option<(f32, String)>, bool) {
     let fin_de_gauche = regle.x;
     let s = regle.s;
     // Les deux premiers gardent leur libellé plus longtemps que les trois derniers.
@@ -298,7 +336,9 @@ fn groupe_de_droite(
         + 8.0 * s
         + badge_w
         + 16.0 * s;
-    regle.x = (width - total - 12.0 * s).max(fin_de_gauche + 16.0 * s);
+    let depart = width - total - 12.0 * s;
+    let tient = depart >= fin_de_gauche + 16.0 * s;
+    regle.x = depart.max(fin_de_gauche + 16.0 * s);
 
     regle.poser(
         UiAction::ToggleCollab,
@@ -322,7 +362,8 @@ fn groupe_de_droite(
         regle.poser(action, icone, label, largeur, false, 4.0);
     }
 
-    (board_img_count > 0).then(|| (regle.x + 4.0 * s, format!("{board_img_count}img")))
+    let badge = (board_img_count > 0).then(|| (regle.x + 4.0 * s, format!("{board_img_count}img")));
+    (badge, tient)
 }
 
 fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {

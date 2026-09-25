@@ -17,9 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let mut app = GlucoseApp::new();
-    // Le travail qu'un plantage a laissé sans nom se rouvre (HISTOIRE-1). Ici et non dans
-    // `new` : les épreuves créent des centaines d'applications, et aucune ne doit rouvrir le
-    // brouillon de l'utilisateur.
+    // Le dossier de l'utilisateur, et ce qui l'y attend : le dernier document, ou ce qu'un
+    // plantage a laissé. Ici et non dans `new` : les épreuves créent des centaines
+    // d'applications, et aucune ne doit écrire chez l'utilisateur ni rouvrir son travail.
+    app.disque.brouillons = glucose_desktop::persist::ecriture::dossier_des_brouillons();
     app.retrouver_le_travail();
     // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
     // Glucose dort (ETAGES-2).

@@ -58,6 +58,10 @@ pub struct Ecriture {
     /// Le texte en cours de frappe confié au scribe — ce que son fichier garde. `None` : il
     /// n'y en a pas.
     saisie: Option<Saisie>,
+    /// Combien de gestes le fichier porte, et après combien le dernier jalon a été posé : un
+    /// `Ctrl+S` sans rien de nouveau depuis n'en pose pas un de plus.
+    gestes: usize,
+    dernier_jalon: Option<usize>,
 }
 
 impl Ecriture {
@@ -93,6 +97,8 @@ impl Ecriture {
             ouvert.octets_depuis_l_instantane,
             ouvert.taille_de_l_instantane,
         );
+        e.gestes = ouvert.gestes.len();
+        e.dernier_jalon = ouvert.jalons.last().map(|(apres, _)| *apres);
         // Un fichier présent, lisible ou non, est à effacer dès qu'aucune saisie ne l'occupe.
         e.saisie = lue
             .as_ref()
@@ -137,6 +143,8 @@ impl Ecriture {
             confiees: HashSet::new(),
             en_attente: Vec::new(),
             saisie: None,
+            gestes: 0,
+            dernier_jalon: None,
         }
     }
 
@@ -181,6 +189,7 @@ impl Ecriture {
                 transaction,
             });
             self.depuis += contenu.len() as u64;
+            self.gestes += 1;
             self.envoyer(nature::GESTE, contenu);
         }
         self.reessayer(objets);
@@ -263,13 +272,21 @@ impl Ecriture {
     }
 
     /// Pose un jalon, écrit la vue, et attend que tout soit sur le disque.
+    ///
+    /// Un `Ctrl+S` qui suit un jalon sans qu'aucun geste les sépare n'en pose pas un second :
+    /// quatre « Enregistré » au même geste ne disent rien de plus qu'un seul. Il attend
+    /// seulement que tout soit sur le disque.
     pub fn jalon(
-        &self,
+        &mut self,
         projet: &Project,
         genre: Genre,
         libelle: &str,
         instant: i64,
     ) -> Result<(), String> {
+        if genre == Genre::Enregistrement && self.dernier_jalon == Some(self.gestes) {
+            return self.scribe.synchroniser();
+        }
+        self.dernier_jalon = Some(self.gestes);
         self.vue(projet);
         let contenu = histoire::contenu_jalon(&Jalon {
             instant,

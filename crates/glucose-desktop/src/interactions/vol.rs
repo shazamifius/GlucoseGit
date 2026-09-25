@@ -92,6 +92,9 @@ fn secousse_minimale(x: f64) -> f64 {
 pub struct Vol {
     cible: Option<Viewport>,
     depart: Option<Depart>,
+    /// Une boîte du monde sur laquelle poser la vue dès que l'écran sera connu — une carte
+    /// rouverte en édition au lancement, avant que la fenêtre existe.
+    a_poser: Option<Rect>,
 }
 
 /// Un départ vers une destination fixe : son chemin, une fois tracé, et le temps écoulé.
@@ -102,6 +105,18 @@ struct Depart {
 }
 
 impl Vol {
+    /// Pose la vue sur cette boîte à la prochaine image : sans vol, puisque le document vient
+    /// de changer et que la vue d'avant ne mène nulle part.
+    pub fn poser_sur(&mut self, boite: Rect) {
+        self.poser();
+        self.a_poser = Some(boite);
+    }
+
+    /// La boîte en attente, s'il y en a une.
+    pub fn prendre_la_boite_a_poser(&mut self) -> Option<Rect> {
+        self.a_poser.take()
+    }
+
     /// **Suit** cette destination — la minimap. Remplace une destination précédente sans
     /// secousse.
     pub fn viser(&mut self, cible: Viewport) {
@@ -221,6 +236,23 @@ pub fn ecart_max_en_pixels(a: Viewport, b: Viewport, ecran: ScreenSize) -> f64 {
             (vu_par_b.0 - sx).hypot(vu_par_b.1 - sy)
         })
         .fold(0.0, f64::max)
+}
+
+/// **La vue qui montre une boîte à la taille naturelle de ce qu'elle porte** — l'échelle 1,
+/// l'identité —, centrée ; réduite seulement si la boîte ne tient pas. C'est la vue d'une
+/// carte qu'on reprend en édition : lisible comme quand on l'écrivait.
+pub fn vue_sur(boite: Rect, ecran: ScreenSize, bandeau: f64) -> Viewport {
+    let cadre = cadrage_du_contenu(boite, ecran, bandeau);
+    if cadre.scale >= 1.0 {
+        let utile = (ecran.height - bandeau).max(1.0);
+        Viewport {
+            scale: 1.0,
+            x: ecran.width / 2.0 - (boite.left + boite.width / 2.0),
+            y: bandeau + utile / 2.0 - (boite.top + boite.height / 2.0),
+        }
+    } else {
+        cadre
+    }
 }
 
 /// Le cadrage qui montre **tout le contenu**, sous le bandeau, avec sa marge.

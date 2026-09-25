@@ -193,6 +193,12 @@ impl GlucoseApp {
             width: f64::from(largeur),
             height: f64::from(hauteur),
         };
+        if let Some(boite) = self.vol.prendre_la_boite_a_poser() {
+            let bandeau = f64::from(self.ui.header_height());
+            let vue = crate::interactions::vol::vue_sur(boite, ecran, bandeau);
+            self.store.set_viewport(&id, vue);
+            return;
+        }
         if let Some(suivante) = self.vol.avancer(vue, ecran, dt) {
             self.store.set_viewport(&id, suivante);
         }

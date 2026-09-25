@@ -51,6 +51,24 @@ pub fn tenu_ailleurs(chemin: &Path) -> bool {
     File::open(chemin).is_ok_and(|f| matches!(f.try_lock(), Err(std::fs::TryLockError::WouldBlock)))
 }
 
+/// **Une autre fenêtre de Glucose écrit-elle ce document ?** L'épreuve même que passerait son
+/// scribe — l'ouvrir seul en écriture, puis le lâcher —, si bien qu'un lecteur ordinaire (un
+/// antivirus, l'aperçu de l'Explorateur) ne la fait pas échouer : seul un autre écrivain.
+pub fn ecrit_ailleurs(chemin: &Path) -> bool {
+    matches!(
+        ouvrir_seul(&mut OpenOptions::new(), chemin),
+        Err(e) if e == deja_tenu(chemin)
+    )
+}
+
+/// Ces deux chemins désignent-ils le même fichier ? `C:\x` et `c:/x` aussi.
+pub fn meme_fichier(a: &Path, b: &Path) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
+}
+
 /// Ce qu'un fichier qui ne s'ouvre pas en écriture veut dire, dans les mots de l'utilisateur.
 pub fn dire(chemin: &Path, e: &std::io::Error) -> String {
     /// `ERROR_SHARING_VIOLATION` : un autre le tient déjà.

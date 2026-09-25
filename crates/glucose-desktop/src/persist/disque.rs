@@ -8,20 +8,19 @@
 //!   qui naît au premier geste, dans le dossier de l'application ;
 //! * **en changeant de document** ou en fermant, [`GlucoseApp::fermer_le_document`] écrit la
 //!   vue et attend que tout soit sur le disque ;
-//! * **au lancement**, [`GlucoseApp::retrouver_le_travail`] rouvre ce qu'un plantage a
-//!   interrompu : le travail laissé sans nom, ou le document dont un texte était en cours
-//!   de frappe ([`super::frappe`]).
+//! * **au lancement**, [`GlucoseApp::retrouver_le_travail`] rouvre le dernier document, ou
+//!   ce qu'un plantage a interrompu ([`super::reprise`]).
 //!
 //! Rien ici ne s'exécute dans le constructeur de l'application : les centaines d'épreuves
 //! qui en créent une n'écrivent donc jamais de brouillon chez l'utilisateur.
 
-use super::ecriture::{dossier_des_brouillons, nouveau_brouillon, Ecriture};
+use super::ecriture::{nouveau_brouillon, Ecriture};
 use super::now_millis;
 use super::objets::{Objets, Source};
 use crate::app::GlucoseApp;
 use glucose_core::persist::histoire;
 use glucose_core::types::Project;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// L'état « disque » du document ouvert.
@@ -38,10 +37,15 @@ pub struct Disque {
     pub a_sceller: Vec<(String, Arc<Vec<u8>>)>,
     /// Le passé qu'on regarde dans la Time Machine, et ce qu'on a mis de côté pour revenir.
     pub voyage: Option<crate::interactions::temps::Voyage>,
-    /// Où naissent les brouillons, et où se gardent les textes en cours de frappe : le
-    /// dossier de l'application. Un champ, et non une constante, pour que les épreuves en
-    /// donnent un à elles — elles ne doivent jamais laisser un faux brouillon que le vrai
-    /// lancement suivant rouvrirait.
+    /// Où naissent les brouillons, où se gardent les textes en cours de frappe et le souvenir
+    /// du dernier document.
+    ///
+    /// **Seul le vrai lancement y met le dossier de l'utilisateur** (`main.rs`). Toute autre
+    /// application — les centaines que créent les épreuves, les bancs, les exemples — travaille
+    /// dans un dossier temporaire qui n'appartient à personne. C'était l'inverse : chaque
+    /// épreuve devait penser à en donner un, et celles qui n'y pensaient pas écrivaient chez
+    /// l'utilisateur — le souvenir d'un document d'épreuve que son lancement suivant aurait
+    /// visé. Un défaut qu'on ne peut plus oublier d'éviter.
     pub brouillons: PathBuf,
 }
 
@@ -53,7 +57,7 @@ impl Disque {
             depart: Some(depart),
             a_sceller: Vec::new(),
             voyage: None,
-            brouillons: dossier_des_brouillons(),
+            brouillons: std::env::temp_dir().join("glucose-hors-lancement"),
         }
     }
 }
@@ -226,47 +230,6 @@ impl GlucoseApp {
         }
     }
 
-    /// Rouvre ce qu'un plantage a interrompu, le plus récent d'abord : un brouillon qu'aucune
-    /// autre fenêtre de Glucose ne tient ouvert, ou un document nommé dont un texte était en
-    /// cours de frappe.
-    pub fn retrouver_le_travail(&mut self) {
-        let chemin = match travail_interrompu(&self.disque.brouillons) {
-            None => return,
-            Some(Interrompu::Document(chemin)) => return self.open_from(chemin),
-            Some(Interrompu::Brouillon(chemin)) => chemin,
-        };
-        let message = match self.ouvrir_un_brouillon(&chemin) {
-            Ok((gestes, texte_rendu)) => format!(
-                "Travail non enregistré retrouvé ({gestes} geste(s){}) — Ctrl+S pour lui \
-                 donner un nom",
-                if texte_rendu {
-                    ", et le texte que tu tapais"
-                } else {
-                    ""
-                }
-            ),
-            Err(e) => format!(
-                "Un brouillon n'a pas pu se rouvrir : {e} — il reste dans {}",
-                chemin.display()
-            ),
-        };
-        self.ui.show_toast(message);
-    }
-
-    fn ouvrir_un_brouillon(&mut self, chemin: &Path) -> Result<(usize, bool), String> {
-        let f = std::fs::File::open(chemin).map_err(|e| e.to_string())?;
-        let ouvert =
-            histoire::ouvrir(&mut std::io::BufReader::new(f)).map_err(|e| e.to_string())?;
-        let adoption = self.adopter_un_ouvert(&ouvert, chemin.to_path_buf());
-        if let Some(e) = self.disque.ecriture.as_mut() {
-            e.brouillon = true;
-        }
-        self.project_path = None;
-        // Du travail sans nom : le document est « modifié » jusqu'à ce qu'il en ait un.
-        self.saved_version = self.store.version.wrapping_sub(1);
-        Ok((ouvert.gestes.len(), adoption.texte_rendu))
-    }
-
     /// Fait d'un fichier ouvert le document courant : ses images, son état, son écriture —
     /// et le texte qu'un arrêt y avait laissé en cours de frappe.
     pub(crate) fn adopter_un_ouvert(
@@ -349,37 +312,6 @@ pub(crate) struct Adoption {
     pub refus: Option<String>,
     /// Un texte en cours de frappe, laissé par un arrêt, est revenu dans le document.
     pub texte_rendu: bool,
-}
-
-/// Ce qu'un arrêt brutal a laissé à rouvrir.
-enum Interrompu {
-    Brouillon(PathBuf),
-    Document(PathBuf),
-}
-
-/// Le plus récent de ce qu'un arrêt a laissé : un brouillon qu'aucun processus ne tient
-/// ouvert, ou un document nommé qu'une saisie attend.
-fn travail_interrompu(dossier: &Path) -> Option<Interrompu> {
-    let mut trouves: Vec<(std::time::SystemTime, Interrompu)> = Vec::new();
-    for p in std::fs::read_dir(dossier).ok()?.flatten().map(|e| e.path()) {
-        let Ok(date) = std::fs::metadata(&p).and_then(|m| m.modified()) else {
-            continue;
-        };
-        let extension = p.extension().and_then(|e| e.to_str());
-        if extension == Some(glucose_core::persist::FILE_EXTENSION)
-            && !super::verrou::tenu_ailleurs(&p)
-        {
-            trouves.push((date, Interrompu::Brouillon(p)));
-        } else if extension == Some("saisie") {
-            if let Some(d) = super::frappe::document_d_une_saisie(&p, dossier) {
-                trouves.push((date, Interrompu::Document(d)));
-            }
-        }
-    }
-    trouves
-        .into_iter()
-        .max_by_key(|(date, _)| *date)
-        .map(|(_, i)| i)
 }
 
 #[cfg(test)]

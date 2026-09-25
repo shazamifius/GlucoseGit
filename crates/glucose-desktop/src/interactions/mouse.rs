@@ -59,6 +59,11 @@ impl GlucoseApp {
             self.suivre_la_minimap(position);
             return;
         }
+        // La réglette de la Time Machine tenue : le passé suit le curseur.
+        if self.dock_manager.temps.glisse {
+            self.glisser_la_reglette(position.x as f32);
+            return;
+        }
 
         if self.dock_manager.drag.is_some() {
             self.dock_manager
@@ -200,6 +205,7 @@ impl GlucoseApp {
             }
             MouseButton::Left => {
                 self.minimap_tenue = false;
+                self.dock_manager.temps.glisse = false;
                 if let Some(dismissed) = self.dock_manager.finish_drag() {
                     self.ui
                         .show_toast(format!("Panneau {} fermé", dismissed.title()));

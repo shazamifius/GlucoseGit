@@ -570,3 +570,49 @@ fn test_survoler_la_barre_ne_redessine_que_quand_le_survol_change() {
         "et survoler le canevas ne redessine rien"
     );
 }
+
+/// **La Time Machine a son bouton** : l'utilisateur la cherchait dans la barre, elle n'était
+/// qu'au clavier (`Ctrl+H`). Un clic l'ouvre, un second la ferme.
+#[test]
+fn test_le_bouton_time_machine_ouvre_et_ferme_le_panneau() {
+    let mut app = GlucoseApp::new();
+    click_topbar(&mut app, UiAction::ToggleTimeMachine);
+    assert!(app.dock_manager.is_open(TabId::Temps));
+    click_topbar(&mut app, UiAction::ToggleTimeMachine);
+    assert!(!app.dock_manager.is_open(TabId::Temps));
+}
+
+/// **La barre tient toujours dans la fenêtre** : ses libellés cèdent la place quand il le faut,
+/// et seulement alors — la densité se mesure, elle ne se choisit plus à des largeurs écrites
+/// en dur. Aucun bouton ne dépasse le bord, et la plus large des fenêtres garde tous ses
+/// libellés.
+#[test]
+fn test_la_barre_tient_dans_toute_fenetre() {
+    let app = GlucoseApp::new();
+    let mut libelles_avant = usize::MAX;
+    for largeur in [2400.0f32, 1800.0, 1440.0, 1280.0, 1100.0, 1000.0, 900.0] {
+        let barre = layout_topbar(largeur, &app.ui, &app.renderer.typography, 132);
+        let bord = barre
+            .buttons
+            .iter()
+            .map(|b| b.x + b.w)
+            .fold(0.0f32, f32::max);
+        assert!(bord <= largeur, "{largeur} px : un bouton sort à {bord}");
+        let libelles = barre.buttons.iter().filter(|b| !b.label.is_empty()).count();
+        assert!(
+            libelles <= libelles_avant,
+            "plus étroit, jamais plus de libellés"
+        );
+        libelles_avant = libelles;
+        if largeur == 2400.0 {
+            assert!(
+                barre
+                    .buttons
+                    .iter()
+                    .filter(|b| !b.is_tool)
+                    .all(|b| !b.label.is_empty()),
+                "une fenêtre large garde tous ses libellés"
+            );
+        }
+    }
+}

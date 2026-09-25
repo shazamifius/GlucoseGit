@@ -646,6 +646,8 @@ fn test_persist_1_a_resized_image_survives_save_and_reopen() {
     app.save_to(path.clone());
     assert!(!app.is_dirty(), "enregistré");
 
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let mut reopened = GlucoseApp::new();
     reopened.open_from(path);
     assert_eq!(
@@ -671,6 +673,8 @@ fn test_text_fit_1_an_older_document_gets_its_card_heights_fitted_on_open() {
     let path = dir.join("old.glucose");
     app.save_to(path.clone());
 
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let mut reopened = GlucoseApp::new();
     reopened.open_from(path);
     let fitted = ann_box(&reopened, "T1").height;

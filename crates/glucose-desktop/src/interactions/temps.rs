@@ -51,6 +51,10 @@ impl GlucoseApp {
     /// Ce que le panneau demande.
     pub fn agir_dans_le_temps(&mut self, intent: TempsIntent) {
         match intent {
+            TempsIntent::Reglette(k) => {
+                self.dock_manager.temps.glisse = true;
+                self.aller_au_point(k);
+            }
             TempsIntent::Voir(k) => self.voir_le_geste(k),
             TempsIntent::Maintenant => self.revenir_au_present(),
             TempsIntent::Restaurer => {
@@ -72,6 +76,28 @@ impl GlucoseApp {
         if self.dock_manager.is_open(TabId::Temps) {
             self.lire_l_histoire();
         }
+    }
+
+    /// Le point `k` de la réglette : un état du passé, ou le présent quand c'est le dernier.
+    /// Rien ne se relit si c'est déjà celui qu'on regarde.
+    fn aller_au_point(&mut self, k: usize) {
+        if k >= self.dock_manager.temps.gestes.len() {
+            self.revenir_au_present();
+        } else if self.dock_manager.temps.regarde != Some(k) {
+            self.voir_le_geste(k);
+        }
+    }
+
+    /// **La réglette tenue suit le curseur** : le passé défile sous la main, sans relâcher.
+    /// Hors de la réglette, c'est son bout le plus proche qui compte.
+    pub fn glisser_la_reglette(&mut self, x: f32) {
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
+        let ecran = self.screen_frame(largeur, hauteur);
+        let Some(k) = crate::dock::point_de_la_reglette(&self.dock_manager, ecran, x) else {
+            return;
+        };
+        self.aller_au_point(k);
+        self.mark_dirty();
     }
 
     /// Relit l'histoire du fichier : ce que la réglette et les jalons montrent. Rien, tant
@@ -222,7 +248,7 @@ impl GlucoseApp {
             Ok(()) => match self
                 .disque
                 .ecriture
-                .as_ref()
+                .as_mut()
                 .map(|e| e.jalon(&self.store.project, Genre::Nomme, &nom, now_millis()))
             {
                 Some(Ok(())) => format!("Jalon « {nom} » posé"),

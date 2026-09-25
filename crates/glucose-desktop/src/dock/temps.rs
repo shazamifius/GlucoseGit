@@ -40,6 +40,8 @@ pub struct TempsUi {
     pub nom: Option<TextEntry>,
     /// L'instant de référence des « il y a… », posé quand le panneau se remplit.
     pub maintenant: i64,
+    /// La réglette est tenue : tant que le bouton l'est, le passé suit le curseur.
+    pub glisse: bool,
 }
 
 impl TempsUi {
@@ -59,6 +61,9 @@ impl TempsUi {
 /// nomment un geste, l'application le fait (standard § 1.7).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TempsIntent {
+    /// Le point de la réglette sous le curseur — appuyé, puis glissé : un point du passé, ou
+    /// le présent quand c'est le dernier. La réglette reste tenue jusqu'au relâchement.
+    Reglette(usize),
     /// Regarder l'état après ce nombre de gestes.
     Voir(usize),
     Maintenant,
@@ -151,13 +156,11 @@ pub fn click_temps_panel(
 ) -> Option<TempsIntent> {
     let (x, y) = (pointer.x, pointer.y);
     if layout.reglette.contains(x, y) {
-        let n = ui.gestes.len();
-        let k = point_sous(layout.reglette, n, x);
-        return Some(if k == n {
-            TempsIntent::Maintenant
-        } else {
-            TempsIntent::Voir(k)
-        });
+        return Some(TempsIntent::Reglette(point_sous(
+            layout.reglette,
+            ui.gestes.len(),
+            x,
+        )));
     }
     if let Some((maintenant, restaurer)) = layout.boutons {
         if maintenant.contains(x, y) {
@@ -225,8 +228,7 @@ mod tests {
         Pointer { x, y }
     }
 
-    /// La réglette va du début (0) au présent (`n`) : ses deux bouts sont ces deux points, et
-    /// cliquer le présent revient au présent.
+    /// La réglette va du début (0) au présent (`n`) : ses deux bouts sont ces deux points.
     #[test]
     fn test_la_reglette_va_du_debut_au_present() {
         let u = ui(10, &[]);
@@ -235,15 +237,15 @@ mod tests {
         let milieu = r.y + r.h / 2.0;
         assert_eq!(
             click_temps_panel(&u, &l, clic(r.x + 1.0, milieu)),
-            Some(TempsIntent::Voir(0))
+            Some(TempsIntent::Reglette(0))
         );
         assert_eq!(
             click_temps_panel(&u, &l, clic(r.x + r.w / 2.0, milieu)),
-            Some(TempsIntent::Voir(5))
+            Some(TempsIntent::Reglette(5))
         );
         assert_eq!(
             click_temps_panel(&u, &l, clic(r.x + r.w - 1.0, milieu)),
-            Some(TempsIntent::Maintenant)
+            Some(TempsIntent::Reglette(10))
         );
     }
 

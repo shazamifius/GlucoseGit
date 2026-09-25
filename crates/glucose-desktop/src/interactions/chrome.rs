@@ -153,6 +153,7 @@ impl GlucoseApp {
             UiAction::AddImages => self.pick_and_import_images(),
             UiAction::Organize => self.dock_manager.toggle_tab(TabId::Organize),
             UiAction::ToggleTimer => self.dock_manager.toggle_tab(TabId::Pomodoro),
+            UiAction::ToggleTimeMachine => self.basculer_la_machine(),
             UiAction::ToggleStoryboard => self.dock_manager.toggle_tab(TabId::Storyboard),
             UiAction::TogglePlugins => self.dock_manager.toggle_tab(TabId::Plugins),
             UiAction::TogglePreset => self.dock_manager.toggle_tab(TabId::Preset),

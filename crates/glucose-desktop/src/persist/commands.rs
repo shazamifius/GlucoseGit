@@ -150,6 +150,7 @@ impl GlucoseApp {
     pub(crate) fn save_to(&mut self, path: PathBuf) {
         let message = match self.try_save(&path) {
             Ok(report) => {
+                self.retenir_le_document(&path);
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
                 save_message(&report, &self.document_label())
@@ -199,7 +200,7 @@ impl GlucoseApp {
         let ecriture = self
             .disque
             .ecriture
-            .as_ref()
+            .as_mut()
             .ok_or_else(|| echec("aucun fichier ouvert".to_string()))?;
         ecriture
             .jalon(&self.store.project, Genre::Enregistrement, "", instant)
@@ -236,6 +237,7 @@ impl GlucoseApp {
     pub(crate) fn open_from(&mut self, path: PathBuf) {
         let message = match self.try_open(&path) {
             Ok(Ouverture::Glucose(report)) => {
+                self.retenir_le_document(&path);
                 self.project_path = Some(path);
                 self.saved_version = self.store.version;
                 open_message(&self.store.project, &report)
@@ -259,6 +261,22 @@ impl GlucoseApp {
         if glucose_core::persist::tauri::reconnaitre(&tete[..lus]).is_some() {
             let octets = std::fs::read(path).map_err(ouvrir_err)?;
             return self.importer_de_tauri(path, &octets).map(Ouverture::Tauri);
+        }
+        // Un document qu'une autre fenêtre de Glucose écrit s'ouvre là-bas, pas ici : deux
+        // fenêtres au même titre, dont une qui n'écrit rien, c'est à ne plus savoir laquelle
+        // fermer. Celle-ci garde son document.
+        let ecrit_ici = self
+            .disque
+            .ecriture
+            .as_ref()
+            .is_some_and(|e| super::verrou::meme_fichier(&e.chemin, path));
+        if !ecrit_ici && super::verrou::ecrit_ailleurs(path) {
+            return Err(DesktopError::DejaOuvertAilleurs {
+                nom: path.file_stem().map_or_else(
+                    || path.display().to_string(),
+                    |n| n.to_string_lossy().into_owned(),
+                ),
+            });
         }
         f.seek(SeekFrom::Start(0)).map_err(ouvrir_err)?;
         let ouvert = histoire::ouvrir(&mut std::io::BufReader::new(f))?;
@@ -330,7 +348,7 @@ fn open_message(project: &Project, report: &OpenReport) -> String {
         );
     }
     if report.texte_rendu {
-        msg.push_str(", le texte que tu tapais quand Glucose s'est arrêté est revenu (Ctrl+Z)");
+        msg.push_str(", le texte que tu tapais quand Glucose s'est arrêté est revenu : continue");
     }
     msg
 }
@@ -414,6 +432,8 @@ mod tests {
             app.window_title()
         );
 
+        // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+        assert!(app.fermer_le_document());
         let mut reopened = GlucoseApp::new();
         let version_before = reopened.store.version;
         reopened.open_from(path.clone());

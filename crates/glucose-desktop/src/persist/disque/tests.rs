@@ -74,6 +74,8 @@ fn test_un_document_nomme_s_enregistre_sans_ctrl_s() {
         !app.is_dirty(),
         "un document nommé ne reste pas « modifié »"
     );
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let autre = rouvrir(&d, &chemin);
     assert_eq!(autre.store.project, app.store.project);
 }
@@ -97,6 +99,8 @@ fn test_une_image_deposee_est_scellee_et_survit_a_son_fichier() {
     );
     std::fs::remove_file(&source).unwrap();
 
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let autre = rouvrir(&d, &chemin);
     assert_eq!(autre.store.project, app.store.project);
     assert_eq!(
@@ -149,6 +153,8 @@ fn test_enregistrer_sous_emporte_l_histoire_et_laisse_l_original() {
         etat_de_a,
         "l'original ne bouge plus"
     );
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let copie = rouvrir(&d, &b);
     assert_eq!(copie.store.project, app.store.project);
 }
@@ -228,6 +234,8 @@ fn test_un_document_tauri_portable_s_importe_et_ses_images_se_scellent() {
     app.save_to(rust.clone());
     image_suivante(&mut app);
     std::fs::remove_dir_all(portable.join("objects")).unwrap();
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     let autre = rouvrir(&d, &rust);
     assert_eq!(autre.store.project, app.store.project);
     assert_eq!(autre.disque.objets.lire(&cle).as_deref(), Some(&pixels[..]));
@@ -257,6 +265,8 @@ fn test_un_fichier_v2_s_ouvre_recoit_l_histoire_et_passe_en_v3() {
     image_suivante(&mut app);
     let relu = std::fs::read(&chemin).unwrap();
     assert_eq!(u16::from_le_bytes([relu[8], relu[9]]), 3);
+    // Une seule fenêtre écrit un document : celle-ci le ferme avant qu'une autre le rouvre.
+    assert!(app.fermer_le_document());
     assert_eq!(rouvrir(&d, &chemin).store.project, app.store.project);
 }
 
@@ -374,10 +384,9 @@ fn test_restaurer_un_etat_passe_est_un_geste_annulable() {
         4,
         "la restauration est un geste de plus"
     );
-    assert_eq!(
-        rouvrir(chemin.parent().unwrap(), &chemin).store.project,
-        app.store.project
-    );
+    // La fenêtre continue : on relit le fichier sans l'écrire, comme la Time Machine.
+    let relu = histoire::ouvrir(&mut std::fs::File::open(&chemin).unwrap()).unwrap();
+    assert_eq!(relu.projet, app.store.project);
     assert!(app.store.undo());
     assert_eq!(
         app.store.project, present,
@@ -473,17 +482,115 @@ fn test_ouvrir_pendant_un_apercu_revient_au_present() {
     );
 }
 
-/// Un document ouvert sans pouvoir s'écrire — une autre fenêtre le tient — n'a pas d'histoire
-/// à montrer : la réglette se vide, au lieu de garder celle du document quitté.
+/// **Un document qu'une autre fenêtre écrit ne s'ouvre pas ici** : deux fenêtres au même
+/// titre, dont une qui n'écrit rien, c'était à ne plus savoir laquelle fermer. Celle-ci garde
+/// son document, sa réglette, et dit pourquoi.
 #[test]
-fn test_la_reglette_d_un_document_sans_ecriture_est_vide() {
-    let (mut app, chemin, _) = trois_gestes("reglette-vide");
+fn test_un_document_ecrit_ailleurs_ne_s_ouvre_pas_ici() {
+    let (mut app, chemin, _) = trois_gestes("ecrit-ailleurs");
     let d = chemin.parent().unwrap().to_path_buf();
     let tenu = d.join("tenu.glucose");
     let mut voisine = application(&d);
     voisine.save_to(tenu.clone());
+    let avant = app.store.project.clone();
     app.open_from(tenu);
-    assert!(app.disque.ecriture.is_none(), "tenu par la voisine");
-    assert!(app.dock_manager.temps.gestes.is_empty());
+    if cfg!(windows) {
+        assert_eq!(app.store.project, avant, "elle garde son document");
+        assert_eq!(app.project_path.as_deref(), Some(chemin.as_path()));
+        assert_eq!(app.dock_manager.temps.gestes.len(), 3, "et sa réglette");
+        let toast = app.ui.current_toast.as_ref().expect("elle le dit");
+        assert!(toast.message.contains("autre fenêtre"), "{}", toast.message);
+    }
     drop(voisine);
+}
+
+/// Rouvrir **le document de sa propre fenêtre** n'est pas l'ouvrir ailleurs : c'est son propre
+/// scribe qui tient le fichier, et il cède la place.
+#[test]
+fn test_rouvrir_son_propre_document_reste_permis() {
+    let (mut app, chemin, _) = trois_gestes("propre-document");
+    app.open_from(chemin.clone());
+    let toast = app.ui.current_toast.as_ref().expect("l'ouverture parle");
+    assert!(
+        toast.message.contains("ouvert —") && !toast.message.contains("autre fenêtre"),
+        "rouvert, pas refusé : {}",
+        toast.message
+    );
+    assert_eq!(app.project_path.as_deref(), Some(chemin.as_path()));
+    assert!(app.disque.ecriture.is_some(), "il s'écrit toujours ici");
+}
+
+/// **`Ctrl+S` répété sans rien de nouveau ne pose pas de jalon de plus** : sa Time Machine en
+/// montrait quatre au même geste. Un geste, puis `Ctrl+S`, en pose bien un.
+#[test]
+fn test_ctrl_s_sans_rien_de_nouveau_ne_double_pas_le_jalon() {
+    let d = dossier("jalon-double");
+    let chemin = d.join("sobre.glucose");
+    let mut app = application(&d);
+    noter(&mut app, "c1", "une idée");
+    app.save_to(chemin.clone());
+    app.save_to(chemin.clone());
+    app.save_to(chemin.clone());
+    let jalons = |chemin: &Path| {
+        histoire::ouvrir(&mut std::fs::File::open(chemin).unwrap())
+            .unwrap()
+            .jalons
+            .len()
+    };
+    assert_eq!(jalons(&chemin), 1, "trois Ctrl+S, un seul jalon");
+    noter(&mut app, "c2", "une autre");
+    image_suivante(&mut app);
+    app.save_to(chemin.clone());
+    assert_eq!(
+        jalons(&chemin),
+        2,
+        "un geste, puis Ctrl+S : un jalon de plus"
+    );
+    assert!(app.fermer_le_document());
+    let mut relu = rouvrir(&d, &chemin);
+    relu.save_to(chemin.clone());
+    assert_eq!(
+        jalons(&chemin),
+        2,
+        "même après réouverture, rien de nouveau"
+    );
+}
+
+/// **La réglette se glisse** : appuyer dessus montre le passé sous le curseur, et tant que le
+/// bouton est tenu, le passé suit la main — vers le présent comme vers le début. Relâchée, la
+/// réglette ne suit plus.
+#[test]
+fn test_la_reglette_tenue_suit_le_curseur() {
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    let (mut app, _, etats) = trois_gestes("reglette-glissee");
+    let (w, h) = app.taille_de_la_fenetre();
+    let ecran = app.screen_frame(w, h);
+    let r = crate::dock::reglette_a_l_ecran(&app.dock_manager, ecran).expect("le panneau");
+    let y = f64::from(r.y + r.h / 2.0);
+    let au_point = |k: f32| f64::from(r.x + r.w * k / 3.0);
+
+    app.handle_cursor_moved(PhysicalPosition::new(au_point(1.0), y));
+    app.handle_mouse_down(MouseButton::Left, w, h);
+    assert_eq!(app.dock_manager.temps.regarde, Some(1));
+    assert_eq!(ids(&app), etats[1]);
+    app.handle_cursor_moved(PhysicalPosition::new(au_point(2.0), y + 40.0));
+    assert_eq!(
+        app.dock_manager.temps.regarde,
+        Some(2),
+        "le passé suit la main"
+    );
+    assert_eq!(ids(&app), etats[2]);
+    app.handle_cursor_moved(PhysicalPosition::new(au_point(3.0) + 200.0, y));
+    assert_eq!(app.dock_manager.temps.regarde, None, "au bout, le présent");
+    assert_eq!(ids(&app), etats[3]);
+    app.handle_cursor_moved(PhysicalPosition::new(au_point(0.0) - 50.0, y));
+    assert_eq!(app.dock_manager.temps.regarde, Some(0), "et jusqu'au début");
+    app.handle_mouse_up(MouseButton::Left);
+    app.handle_cursor_moved(PhysicalPosition::new(au_point(2.0), y));
+    assert_eq!(
+        app.dock_manager.temps.regarde,
+        Some(0),
+        "relâchée, elle ne suit plus"
+    );
 }

@@ -197,7 +197,7 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// **Mise à jour le 23/09 au soir** : le bouton Trans-domaines ne s'allume plus -- il n'a pas de fonction
 /// (fiche 29 § 3.1). Seuls ses pixels changent (797-929 × 8-36), comparés avant et après, et
 /// regardés : fond, liseré et gras disparaissent, rien d'autre.
-const EMPREINTE_TEMOIN: &str = "237ecf57a9f311a5";
+const EMPREINTE_TEMOIN: &str = "cfdfc0992b2596ed";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -237,7 +237,7 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// **Mise à jour le 23/09 dans la nuit** (ORNEMENTS-2) : poignées et cadres droits posés sur la
 /// grille de pixels. Seuls les ornements changent (4 491 pixels), regardés au zoom : le liseré
 /// d'une poignée n'est plus deux demi-teintes, le cadre d'une image verrouillée est un filet net.
-const EMPREINTE_TEMOIN_SELECTION: &str = "22f3f11cd5236632";
+const EMPREINTE_TEMOIN_SELECTION: &str = "5f1218324b4232dc";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -267,7 +267,7 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Mise à jour le 23/09 dans la nuit** (ORNEMENTS-2) : poignées et cadres droits posés sur la
 /// grille de pixels. Seuls les ornements changent (4 491 pixels), regardés au zoom : le liseré
 /// d'une poignée n'est plus deux demi-teintes, le cadre d'une image verrouillée est un filet net.
-const EMPREINTE_TEMOIN_MENU: &str = "3b099c570844588d";
+const EMPREINTE_TEMOIN_MENU: &str = "5f02d3881b2d3cef";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

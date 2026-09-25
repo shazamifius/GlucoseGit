@@ -78,6 +78,8 @@ pub enum UiAction {
     AddImages,
     Organize,
     ToggleTimer,
+    /// Ouvre ou ferme la Time Machine — ce que fait `Ctrl+H`.
+    ToggleTimeMachine,
     ToggleStoryboard,
     ToggleMagnet,
     TransDomain,

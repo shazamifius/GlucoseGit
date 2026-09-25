@@ -17,6 +17,8 @@ pub enum IconType {
     Plus,
     Organize,
     Timer,
+    /// Une horloge qu'une flèche fait revenir en arrière — la Time Machine.
+    Histoire,
     Storyboard,
     Magnet,
     TransDomain,
@@ -85,6 +87,7 @@ pub fn draw_icon_scaled(
         IconType::Pan => (20.0, stroke_width * (20.0 / target_size)),
         IconType::Organize
         | IconType::Timer
+        | IconType::Histoire
         | IconType::Storyboard
         | IconType::Magnet
         | IconType::TransDomain
@@ -220,6 +223,7 @@ fn draw_panel_icon(
             }
         }
         IconType::Timer => draw_timer_icon(pixmap, paint, stroke, ts),
+        IconType::Histoire => draw_history_icon(pixmap, paint, stroke, ts),
         IconType::Storyboard => {
             // 4 rects rx="1": (1,2,6,5), (9,2,6,5), (1,9,6,5), (9,9,6,5)
             let mut pb = PathBuilder::new();
@@ -510,6 +514,34 @@ fn draw_timer_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: T
     pb.line_to(10.0, 10.7);
     pb.move_to(6.0, 2.0);
     pb.line_to(10.0, 2.0);
+    if let Some(path) = pb.finish() {
+        pixmap.stroke_path(&path, paint, stroke, ts, None);
+    }
+}
+
+/// L'icône de la Time Machine, sur la grille de 16 : un cercle presque complet qui revient
+/// vers la gauche, la pointe de la flèche, et les aiguilles — la forme « history » de Lucide.
+fn draw_history_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts: Transform) {
+    let (cx, cy, r) = (8.0f32, 8.0f32, 6.0f32);
+    let mut pb = PathBuilder::new();
+    // De la gauche, en passant par le bas, la droite et le haut, jusqu'en haut à gauche.
+    let (debut, fin) = (std::f32::consts::PI, -0.75 * std::f32::consts::PI);
+    let pas = 32;
+    for k in 0..=pas {
+        let a = debut + (fin - debut) * k as f32 / pas as f32;
+        let (x, y) = (cx + r * a.cos(), cy + r * a.sin());
+        if k == 0 {
+            pb.move_to(x, y);
+        } else {
+            pb.line_to(x, y);
+        }
+    }
+    pb.move_to(2.0, 2.5);
+    pb.line_to(2.0, 5.5);
+    pb.line_to(5.0, 5.5);
+    pb.move_to(8.0, 5.0);
+    pb.line_to(8.0, 8.0);
+    pb.line_to(10.5, 9.3);
     if let Some(path) = pb.finish() {
         pixmap.stroke_path(&path, paint, stroke, ts, None);
     }

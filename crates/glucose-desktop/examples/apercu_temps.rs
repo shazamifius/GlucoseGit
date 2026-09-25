@@ -44,6 +44,7 @@ fn temps(regarde: Option<usize>, nom: Option<&str>) -> TempsUi {
         regarde,
         nom: nom.map(TextEntry::new),
         maintenant,
+        glisse: false,
     }
 }
 

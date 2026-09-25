@@ -68,10 +68,47 @@ fn test_le_texte_tape_survit_a_un_arret() {
         relance.project_path.as_deref(),
         Some(&*d.join("notes.glucose"))
     );
-    assert_eq!(texte_de(&relance, "c1"), "avant, puis dix minutes de note");
+    // La saisie reprend où elle en était : en édition, curseur au bout, vue posée dessus.
+    let session = relance
+        .editing_session
+        .as_ref()
+        .expect("la carte est en édition");
+    assert_eq!(session.ann_id, "c1");
+    assert_eq!(session.buffer, "avant, puis dix minutes de note");
+    assert_eq!(
+        session.selection.head,
+        session.buffer.len(),
+        "le curseur au bout"
+    );
     assert!(toast(&relance).contains("tapais"), "{}", toast(&relance));
+    relance.appliquer_l_elan(1440, 900);
+    let vue = relance.store.viewport();
+    let carte = relance
+        .store
+        .project
+        .annotation(&relance.store.project.active_board_id, "c1")
+        .and_then(Annotation::rect)
+        .expect("la carte");
+    let (cx, _) = crate::canvas::world_to_screen(
+        carte.left + carte.width / 2.0,
+        carte.top + carte.height / 2.0,
+        &vue,
+    );
+    assert!(
+        (cx - 720.0).abs() < 1.0,
+        "la vue est posée sur la carte : {cx}"
+    );
+    assert_eq!(vue.scale, 1.0, "à la taille où on l'écrivait");
     image_suivante(&mut relance);
-    assert_eq!(saisies(&d), 0, "rendu, il n'a plus à être gardé");
+    assert_eq!(saisies(&d), 1, "tant qu'on tape, le texte reste gardé");
+    taper(&mut relance, ", et la suite");
+    relance.commit_editing();
+    image_suivante(&mut relance);
+    assert_eq!(saisies(&d), 0, "validé, il n'a plus à être gardé");
+    assert_eq!(
+        texte_de(&relance, "c1"),
+        "avant, puis dix minutes de note, et la suite"
+    );
 
     relance.store.undo();
     assert_eq!(texte_de(&relance, "c1"), "avant", "Ctrl+Z le retire");
@@ -81,7 +118,7 @@ fn test_le_texte_tape_survit_a_un_arret() {
     let troisieme = rouvrir(&d, &d.join("notes.glucose"));
     assert_eq!(
         texte_de(&troisieme, "c1"),
-        "avant, puis dix minutes de note"
+        "avant, puis dix minutes de note, et la suite"
     );
     assert!(
         !toast(&troisieme).contains("tapais"),
@@ -139,33 +176,33 @@ fn test_une_saisie_suivie_d_un_geste_ne_vaut_plus() {
     assert_eq!(saisies(&d), 0, "caduque, elle s'efface");
 }
 
-/// **Un document qu'une autre fenêtre écrit ne s'écrit pas deux fois** : la seconde l'ouvre
-/// comme un fichier en lecture seule, et ce qu'elle y tape — dès la première lettre — part
-/// dans un brouillon, que le lancement suivant retrouve avec son texte.
+/// **Un fichier en lecture seule s'ouvre quand même**, et ce qu'on y tape — dès la première
+/// lettre — part dans un brouillon, que le lancement suivant retrouve avec son texte. Le
+/// fichier, lui, n'est jamais touché.
 #[test]
-fn test_une_seconde_fenetre_tape_dans_un_brouillon() {
-    let d = dossier("frappe-seconde");
+fn test_un_fichier_en_lecture_seule_tape_dans_un_brouillon() {
+    let d = dossier("frappe-lecture-seule");
     let mut premiere = en_train_d_ecrire(&d);
     premiere.commit_editing();
     image_suivante(&mut premiere);
+    assert!(premiere.fermer_le_document());
+    drop(premiere);
     let chemin = d.join("notes.glucose");
     let avant = std::fs::read(&chemin).unwrap();
+    let droits = std::fs::metadata(&chemin).unwrap().permissions();
+    let mut lecture_seule = droits.clone();
+    lecture_seule.set_readonly(true);
+    std::fs::set_permissions(&chemin, lecture_seule).unwrap();
 
     let mut seconde = rouvrir(&d, &chemin);
-    if cfg!(windows) {
-        assert!(
-            toast(&seconde).contains("ouvert en écriture ailleurs"),
-            "{}",
-            toast(&seconde)
-        );
-    }
+    assert!(toast(&seconde).contains("brouillon"), "{}", toast(&seconde));
     seconde.start_text_edit("c1".into(), "avant".into());
     image_suivante(&mut seconde);
     assert!(
         seconde.disque.ecriture.is_none(),
         "ouvrir une carte n'est pas encore du travail"
     );
-    taper(&mut seconde, " — depuis la seconde fenêtre");
+    taper(&mut seconde, " — dans un fichier fermé");
     image_suivante(&mut seconde);
     let brouillon = seconde
         .disque
@@ -177,7 +214,8 @@ fn test_une_seconde_fenetre_tape_dans_un_brouillon() {
         "dans un brouillon, pas dans le document"
     );
     drop(seconde);
-    drop(premiere);
+    // Le dossier d'épreuve doit pouvoir s'effacer au prochain passage : ses droits d'origine.
+    std::fs::set_permissions(&chemin, droits).unwrap();
     assert_eq!(
         std::fs::read(&chemin).unwrap(),
         avant,
@@ -191,8 +229,9 @@ fn test_une_seconde_fenetre_tape_dans_un_brouillon() {
         "c'est le brouillon qui revient"
     );
     assert_eq!(
-        texte_de(&relance, "c1"),
-        "avant — depuis la seconde fenêtre"
+        relance.editing_session.as_ref().map(|s| s.buffer.as_str()),
+        Some("avant — dans un fichier fermé"),
+        "la saisie reprend dans le brouillon"
     );
     assert!(toast(&relance).contains("tapais"), "{}", toast(&relance));
 }

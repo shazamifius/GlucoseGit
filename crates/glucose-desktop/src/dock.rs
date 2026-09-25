@@ -476,6 +476,30 @@ pub enum PanelClickResult {
 }
 
 /// Le clic va au panneau qui le contient, et à personne d'autre.
+/// **La réglette de la Time Machine, là où elle est à l'écran** — la même géométrie que le
+/// dessin et le clic. `None` si le panneau est fermé.
+pub fn reglette_a_l_ecran(dock: &DockManager, screen: ScreenFrame) -> Option<WidgetRect> {
+    let s = crate::theme::clamp_ui_scale(screen.scale);
+    let panneau = compute_panel_layouts(dock, screen.width, screen.height, screen.header_h, s)
+        .into_iter()
+        .find(|b| b.tab == TabId::Temps)?;
+    let vu = panneau.seen();
+    let frame = ScaledRect {
+        x: vu.x,
+        y: vu.y,
+        w: vu.w,
+        h: vu.h,
+        scale: s,
+    };
+    Some(temps::layout_temps_panel(frame, &dock.temps).reglette)
+}
+
+/// Le point de la réglette sous l'abscisse `x` — ce que le glisser lit à chaque mouvement.
+pub fn point_de_la_reglette(dock: &DockManager, screen: ScreenFrame, x: f32) -> Option<usize> {
+    let reglette = reglette_a_l_ecran(dock, screen)?;
+    Some(temps::point_sous(reglette, dock.temps.gestes.len(), x))
+}
+
 pub fn handle_dock_click(
     dock: &mut DockManager,
     store: &Store,

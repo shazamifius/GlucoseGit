@@ -31,6 +31,7 @@ pub mod export;
 pub mod frappe;
 pub mod import;
 pub mod objets;
+pub mod reprise;
 pub mod scribe;
 pub mod verrou;
 
