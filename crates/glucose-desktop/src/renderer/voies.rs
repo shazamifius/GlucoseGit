@@ -48,7 +48,7 @@ pub(super) fn dessiner_sous_les_photos(
     hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
-    (cadrage, designees): (Cadrage, &[String]),
+    (cadrage, designees): (Cadrage, &[(String, f32)]),
     header_h: f32,
 ) -> bool {
     if cadrage.couche.porte_le_fond() {
@@ -197,7 +197,7 @@ pub(super) fn fond_a_peindre(
 pub(super) fn lueurs_a_poser(
     hue_cache: &mut SymbioticHueCache,
     store: &Store,
-    (pass, designees): (ViewPass<'_>, &[String]),
+    (pass, designees): (ViewPass<'_>, &[(String, f32)]),
     ecran: (f32, f32),
 ) -> Vec<crate::present::lueurs_gpu::Lueur> {
     let Some(board) = store.active_board() else {

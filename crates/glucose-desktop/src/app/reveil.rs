@@ -223,10 +223,11 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 9] = [
+        let attentes: [(Raison, Attente); 10] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
+            (Raison::Animation, Self::attente_de_la_designation),
             (Raison::Elan, Self::attente_de_l_elan),
             (Raison::Vol, Self::attente_du_vol),
             (Raison::Decodage, Self::attente_du_decodage),
@@ -304,6 +305,17 @@ impl GlucoseApp {
         let reste_ms = self.animator.tick(&mut self.store)?;
         self.mark_dirty();
         Some(reste_ms.max(1).min(self.animation_interval_ms()))
+    }
+
+    /// **Une lueur de carte glisse encore** vers sa vivacité (LUEUR-2) : une image par balayage
+    /// tant que dure sa transition, et plus rien ensuite.
+    fn attente_de_la_designation(&mut self) -> Option<u64> {
+        self.suivre_la_designation();
+        if !self.designation.en_cours(self.now_ms() as f64) {
+            return None;
+        }
+        self.mark_dirty();
+        Some(self.animation_interval_ms())
     }
 
     /// La caméra glisse encore : la main a lâché, mais l'élan n'est pas éteint.

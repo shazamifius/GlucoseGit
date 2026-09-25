@@ -48,6 +48,15 @@ impl GlucoseApp {
         }
     }
 
+    /// **Suit les cartes désignées, et rend leur vivacité à cet instant** (LUEUR-2) : ce que
+    /// l'image montre, et ce qui dit au réveil qu'une lueur glisse encore.
+    pub(crate) fn suivre_la_designation(&mut self) -> Vec<(String, f32)> {
+        let maintenant = self.now_ms() as f64;
+        let designees = self.cartes_designees();
+        self.designation.suivre(&designees, maintenant);
+        self.designation.vivacites(maintenant)
+    }
+
     /// **Les cartes dont la lueur s'avive dans cette image** (LUEUR-1) — ce à quoi une flèche
     /// va se lier, ou se lie :
     ///

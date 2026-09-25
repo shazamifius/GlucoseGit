@@ -153,3 +153,57 @@ fn test_lueur_1_la_carte_visee_se_designe() {
         "l'outil rendu, rien n'est désigné"
     );
 }
+
+/// **La carte visée s'avive en deux cents millisecondes, par les vrais gestes** (LUEUR-2) : le
+/// réveil demande des images tant que sa lueur glisse, et plus aucune ensuite.
+#[test]
+fn test_lueur_2_la_carte_visee_s_avive_par_le_reveil() {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+    }
+    app.store
+        .add_annotation(&board, Annotation::text("source", 100.0, 100.0, "a"));
+    app.store.clear_selection();
+    app.store.set_viewport(
+        &board,
+        glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        },
+    );
+    app.une_image_sans_fenetre(TAILLE);
+    app.ui.active_tool = crate::ui::ActiveTool::Arrow;
+    app.handle_cursor_moved(PhysicalPosition::new(110.0, 110.0));
+    let vive = |app: &mut GlucoseApp| {
+        app.suivre_la_designation()
+            .into_iter()
+            .find(|(id, _)| id == "source")
+            .map_or(0.0, |(_, v)| v)
+    };
+    // Le réveil seul, sans que l'épreuve suive quoi que ce soit : c'est lui qui prend la
+    // désignation en charge et fait glisser la lueur d'image en image.
+    assert!(
+        app.prochain_reveil().is_some(),
+        "la lueur glisse : une image est demandée"
+    );
+    assert!(
+        app.designation.en_cours(app.now_ms() as f64),
+        "le réveil suit la carte visée"
+    );
+    let depart = vive(&mut app);
+    assert!(depart < 0.2, "elle part du repos : {depart}");
+    app.click_epoch -= std::time::Duration::from_millis(250);
+    assert_eq!(
+        vive(&mut app),
+        1.0,
+        "au bout de deux cents millisecondes, pleinement vive"
+    );
+    let _ = app.prochain_reveil();
+    assert!(
+        !app.designation.en_cours(app.now_ms() as f64),
+        "plus rien ne glisse : plus d'image demandée pour elle"
+    );
+}

@@ -150,7 +150,7 @@ fn overhang(card: &Annotation) -> (f64, f64) {
         card,
         (&vp, WorldScale::new(vp.scale, 1.0)),
         (1440.0, 900.0, 0.0),
-        Eclat::Repos,
+        Eclat::REPOS,
     )
     .expect("la carte est à l'écran");
     let reach = f64::from(EdgeProfile::new(halo.sigma).reach(HALO_ALPHA));
@@ -211,7 +211,7 @@ fn test_the_glow_scales_with_the_zoom_without_any_cap() {
             &card,
             (&vp, WorldScale::new(vp.scale, 1.0)),
             (1440.0, 900.0, 0.0),
-            Eclat::Repos,
+            Eclat::REPOS,
         )
         .expect("à l'écran");
         f64::from(halo.right - halo.left)
@@ -240,7 +240,7 @@ fn test_a_card_far_off_screen_is_culled() {
         &card,
         (&loin, WorldScale::new(loin.scale, 1.0)),
         (1440.0, 900.0, 0.0),
-        Eclat::Repos
+        Eclat::REPOS
     )
     .is_none());
 
@@ -253,7 +253,7 @@ fn test_a_card_far_off_screen_is_culled() {
         &card,
         (&brise, WorldScale::new(brise.scale, 1.0)),
         (1440.0, 900.0, 0.0),
-        Eclat::Repos
+        Eclat::REPOS
     )
     .is_none());
 }
@@ -803,7 +803,7 @@ fn test_lueur_1_la_geometrie_porte_la_carte() {
         &carte,
         (&vp, WorldScale::new(vp.scale, 1.0)),
         (1440.0, 900.0, 0.0),
-        Eclat::Repos,
+        Eclat::REPOS,
     )
     .expect("visible");
     let attendue = glucose_core::membrane_forme::Arrondi::nouveau(120.0, 90.0, 400.0, 100.0, 64.0);
@@ -812,11 +812,27 @@ fn test_lueur_1_la_geometrie_porte_la_carte() {
         &carte,
         (&vp, WorldScale::new(vp.scale, 1.0)),
         (1440.0, 900.0, 0.0),
-        Eclat::Designee,
+        Eclat::DESIGNEE,
     )
     .expect("visible");
     assert!(
         vive.left < halo.left && vive.sigma > halo.sigma,
         "désignée, elle s'étale"
+    );
+}
+
+/// **L'éclat d'une carte suit sa vivacité** (LUEUR-2) : au repos, les nombres de repos ;
+/// désignée à moitié, entre les deux ; pleinement, ceux de `isHighlightBox`.
+#[test]
+fn test_lueur_2_l_eclat_suit_la_vivacite() {
+    let carte = crate::renderer::card::tests::probe_card("c", 0.0, 0.0);
+    let alpha = |v: f32| Eclat::de(&carte, &[("c".to_string(), v)]).alpha();
+    assert_eq!(alpha(0.0), HALO_ALPHA);
+    assert_eq!(alpha(1.0), 102);
+    assert!(alpha(0.5) > HALO_ALPHA && alpha(0.5) < 102);
+    assert_eq!(
+        Eclat::de(&carte, &[("autre".to_string(), 1.0)]),
+        Eclat::REPOS,
+        "une autre carte désignée n'avive pas celle-ci"
     );
 }

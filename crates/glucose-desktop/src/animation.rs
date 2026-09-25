@@ -198,6 +198,8 @@ impl Animator {
     }
 }
 
+pub mod designation;
+
 #[cfg(test)]
 mod tests;
 

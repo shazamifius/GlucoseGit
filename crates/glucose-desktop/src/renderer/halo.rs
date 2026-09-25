@@ -85,50 +85,53 @@ pub const HALO_BLUR: f32 = 60.0;
 /// Opacité de la lueur, sur 255 — les 15 % de `color-mix(in srgb, AURA 15%, transparent)`.
 pub const HALO_ALPHA: u8 = 38;
 
-/// **Deux intensités de lueur, celles de Tauri** : au repos, et quand la carte est
-/// **désignée** — la cible qu'une flèche en train de naître vise, les bouts d'une flèche
-/// survolée (`isHighlightBox` : `0 0 80px 40px`, à 40 %).
+/// **L'éclat d'une lueur, entre deux intensités — celles de Tauri** : au repos, et quand la
+/// carte est **désignée** — la cible qu'une flèche en train de naître vise, les bouts d'une
+/// flèche survolée (`isHighlightBox` : `0 0 80px 40px`, à 40 %).
 ///
-/// C'est l'indice qui dit, pendant qu'on tire une flèche, à quoi elle va se lier.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Eclat {
-    Repos,
-    Designee,
+/// C'est l'indice qui dit, pendant qu'on tire une flèche, à quoi elle va se lier. Et c'est une
+/// **vivacité** continue, de 0 au repos à 1 désignée, parce que la lueur de Tauri passe de l'une
+/// à l'autre en 0,2 s (LUEUR-2) : le module `animation::designation` la fait glisser.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Eclat {
+    vivacite: f32,
 }
 
+/// La dilatation, l'écart-type et l'opacité d'une lueur désignée : `0 0 80px 40px` à 40 %.
+const DESIGNEE: (f32, f32, f32) = (40.0, 80.0 / 2.0, 102.0);
+
 impl Eclat {
-    /// L'éclat d'une carte : désignée si elle est parmi `designees`.
-    pub fn de(ann: &Annotation, designees: &[String]) -> Self {
-        if designees.iter().any(|d| d == ann.id()) {
-            Self::Designee
-        } else {
-            Self::Repos
-        }
+    /// Au repos.
+    pub const REPOS: Self = Self { vivacite: 0.0 };
+    /// Désignée, pleinement.
+    pub const DESIGNEE: Self = Self { vivacite: 1.0 };
+
+    /// L'éclat d'une carte : sa vivacité parmi `designees`, le repos sinon.
+    pub fn de(ann: &Annotation, designees: &[(String, f32)]) -> Self {
+        let vivacite = designees
+            .iter()
+            .find(|(id, _)| id == ann.id())
+            .map_or(0.0, |(_, v)| v.clamp(0.0, 1.0));
+        Self { vivacite }
+    }
+
+    fn entre(self, repos: f32, designee: f32) -> f32 {
+        repos + (designee - repos) * self.vivacite
     }
 
     /// La dilatation de la boîte avant le flou, en unités monde.
     fn etalement(self) -> f32 {
-        match self {
-            Self::Repos => HALO_SPREAD,
-            Self::Designee => 40.0,
-        }
+        self.entre(HALO_SPREAD, DESIGNEE.0)
     }
 
     /// L'écart-type de la gaussienne, en unités monde (CSS : `blur = 2σ`).
     fn sigma(self) -> f32 {
-        match self {
-            Self::Repos => HALO_BLUR / 2.0,
-            Self::Designee => 80.0 / 2.0,
-        }
+        self.entre(HALO_BLUR / 2.0, DESIGNEE.1)
     }
 
     /// L'opacité au plateau, sur 255.
     pub fn alpha(self) -> u8 {
-        match self {
-            // 40 % de 255.
-            Self::Designee => 102,
-            Self::Repos => HALO_ALPHA,
-        }
+        self.entre(f32::from(HALO_ALPHA), DESIGNEE.2).round() as u8
     }
 }
 
@@ -486,7 +489,7 @@ pub fn draw_halos(
     hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     store: &Store,
-    (pass, designees): (ViewPass<'_>, &[String]),
+    (pass, designees): (ViewPass<'_>, &[(String, f32)]),
 ) {
     let ViewPass {
         visibles, header_h, ..

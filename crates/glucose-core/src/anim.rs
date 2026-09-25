@@ -40,6 +40,9 @@ pub mod timing {
     pub const MINIMAP_SLIDE_MS: u32 = 180;
     /// Déploiement du panneau de description d'une flèche.
     pub const ARROW_PANEL_IN_MS: u32 = 180;
+    /// La lueur d'une carte qu'une flèche vise, qui s'avive ou s'éteint — la
+    /// `transition: box-shadow 0.2s` de Glucose Tauri (LUEUR-2).
+    pub const DESIGNATION_MS: u32 = 200;
     /// Inactivité avant l'écriture disque du projet (fiche 09 § 3.3).
     pub const AUTOSAVE_DEBOUNCE_MS: u32 = 2_000;
     /// Réordonnancement d'un panneau du dock (transition FLIP).

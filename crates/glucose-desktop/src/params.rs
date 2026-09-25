@@ -89,10 +89,11 @@ pub struct SceneOverlay<'a> {
     /// Les passages de cartes à faire briller : ce qu'une flèche survolée désigne, ou ce que
     /// l'éditeur d'ancres sélectionne (FLECHE-4).
     pub eclairages: &'a [Eclairage],
-    /// **Les cartes désignées** : la cible qu'une flèche en train de naître vise, les bouts
-    /// d'une flèche survolée qui ne désigne pas de passage. Leur lueur s'avive — l'indice qui
-    /// dit à quoi une flèche va se lier (LUEUR-1, l'`isHighlightBox` de Tauri).
-    pub designees: &'a [String],
+    /// **Les cartes désignées, et leur vivacité** : la cible qu'une flèche en train de naître
+    /// vise, les bouts d'une flèche survolée qui ne désigne pas de passage. Leur lueur s'avive —
+    /// l'indice qui dit à quoi une flèche va se lier (LUEUR-1, l'`isHighlightBox` de Tauri) —,
+    /// en glissant de l'un à l'autre (LUEUR-2).
+    pub designees: &'a [(String, f32)],
 }
 
 impl<'a> SceneOverlay<'a> {
