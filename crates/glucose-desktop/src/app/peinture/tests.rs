@@ -111,3 +111,30 @@ fn test_bande_2_la_voie_processeur_salit_tout_le_dessous() {
         crate::present::bandes::Bandes::tout(TAILLE.1)
     );
 }
+
+/// **Le liseré du passé part sur la carte** : sur la voie graphique, la couche du dessus ne le
+/// porte plus — ses bords gauche et droit touchaient toutes les lignes, et la couche repartait
+/// entière à chaque image —, et ce que la carte doit poser le dit. Sur la voie processeur,
+/// l'image le porte toujours.
+#[test]
+fn test_le_lisere_du_passe_part_sur_la_carte() {
+    let mut app = application();
+    regarder(&mut app, 0.0);
+    app.dock_manager.temps.regarde = Some(0);
+    let mut dessous = Pixmap::new(TAILLE.0, TAILLE.1).expect("un pixmap");
+    let confie = une_image(&mut app, &mut dessous, &Confie::default());
+    assert!(confie.lisere.is_some(), "la carte le posera");
+    assert!(
+        confie.bandes_du_dessus.lignes() < TAILLE.1,
+        "le dessus ne touche plus toutes les lignes : {}",
+        confie.bandes_du_dessus.lignes()
+    );
+
+    app.une_image_sans_fenetre(TAILLE);
+    let image = app.pixmap.as_ref().expect("une image");
+    let bord = image.pixel(1, TAILLE.1 / 2).expect("dedans");
+    assert!(
+        bord.red() > 150 && bord.blue() < 100,
+        "l'ambre au bord : {bord:?}"
+    );
+}

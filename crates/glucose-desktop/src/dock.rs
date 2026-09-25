@@ -47,7 +47,7 @@ pub use organize::{apply_organize_layout, LayoutMode, LayoutResult, OrganizeStat
 pub use plugins::OLLAMA_STATUS;
 pub use pomodoro::PomodoroState;
 pub use preset::PresetsState;
-pub use render::{render_docks, DockPass};
+pub use render::{lisere, lisere_du_passe, render_docks, DockPass};
 pub use storyboard::StoryboardState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

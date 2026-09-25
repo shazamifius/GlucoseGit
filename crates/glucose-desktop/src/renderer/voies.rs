@@ -558,6 +558,7 @@ impl Renderer {
             // donc rien de juste ne peut etre dit ici.
             bandes_du_dessus: crate::present::bandes::Bandes::default(),
             bandes_du_dessous: crate::present::bandes::Bandes::default(),
+            lisere: None,
             dessous_porte_quelque_chose: true,
         }
     }

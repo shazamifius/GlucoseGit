@@ -49,6 +49,9 @@ pub struct Confie {
     /// poignées et réglettes, et les dossiers : quelques bandes, là où elle partait entière
     /// dès qu'une membrane était visible — quinze mébioctets effacés et envoyés à chaque image.
     pub bandes_du_dessous: crate::present::bandes::Bandes,
+    /// Le liseré du passé, quand la Time Machine en montre un : la carte le pose par-dessus
+    /// tout.
+    pub lisere: Option<crate::present::lisere_gpu::Lisere>,
     /// La couche du dessous a-t-elle reçu de l'encre ?
     ///
     /// Quand elle n'en a pas — ni membrane, ni dossier, le fond étant sur la carte — elle est

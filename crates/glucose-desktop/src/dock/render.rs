@@ -57,8 +57,22 @@ pub fn render_docks(
             }
         }
     }
-    if dock.temps.regarde.is_some() {
-        lisere_du_passe(pixmap, pass, s);
+}
+
+/// La profondeur du voile du liseré, en points (fiche 10 § 5.7 : `inset 0 0 60px`).
+const VOILE: f32 = 60.0;
+/// L'épaisseur de son trait, en points (`3px solid`).
+const TRAIT: f32 = 3.0;
+
+/// **Le liseré du passé tel que la carte le peint** (voir [`crate::present::lisere_gpu`]) : les
+/// mêmes nombres que [`lisere_du_passe`], lus au même endroit.
+pub fn lisere(theme: &Theme, s: f32) -> crate::present::lisere_gpu::Lisere {
+    let rgba = |c: tiny_skia::Color| [c.red(), c.green(), c.blue(), c.alpha()];
+    crate::present::lisere_gpu::Lisere {
+        voile: VOILE * s,
+        trait_: TRAIT * s,
+        teinte_du_voile: rgba(theme.temps.voile),
+        ambre: rgba(theme.temps.ambre),
     }
 }
 
@@ -68,14 +82,18 @@ pub fn render_docks(
 ///
 /// Le voile est un dégradé linéaire par bord, de la teinte au transparent : aucun nombre de
 /// pas à choisir.
-fn lisere_du_passe(pixmap: &mut PixmapMut, pass: &DockPass<'_>, s: f32) {
+///
+/// Sur la voie processeur seulement : sur la voie graphique, la carte le peint
+/// ([`crate::present::lisere_gpu`]) — au processeur, il coûtait 11,7 ms par image et faisait
+/// repartir toute la couche du dessus.
+pub fn lisere_du_passe(pixmap: &mut PixmapMut, pass: &DockPass<'_>, s: f32) {
     use tiny_skia::{
         Color, FillRule, GradientStop, LinearGradient, Paint, PathBuilder, Point, Rect, SpreadMode,
         Transform,
     };
     let (w, h) = (pass.screen.width, pass.screen.height);
     let theme = pass.theme;
-    let voile = 60.0 * s;
+    let voile = VOILE * s;
     let transparent = Color::from_rgba(
         theme.temps.voile.red(),
         theme.temps.voile.green(),
@@ -121,7 +139,7 @@ fn lisere_du_passe(pixmap: &mut PixmapMut, pass: &DockPass<'_>, s: f32) {
         );
     }
     let brush = Brush::nouveau((pass.typo, theme), s, pass.pointer, (0.0, 0.0));
-    let trait_ = 3.0 * s;
+    let trait_ = TRAIT * s;
     let cadre = WidgetRect::new(trait_ / 2.0, trait_ / 2.0, w - trait_, h - trait_);
     brush.stroke(pixmap, cadre, 0.0, theme.temps.ambre, trait_);
 }

@@ -66,6 +66,7 @@ pub mod bandes;
 pub mod couches;
 pub mod fond_gpu;
 pub mod gpu;
+pub mod lisere_gpu;
 pub mod lueurs_gpu;
 pub mod membranes_gpu;
 pub mod scene_gpu;

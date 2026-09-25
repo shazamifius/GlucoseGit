@@ -380,6 +380,11 @@ fn peindre_par_la_carte(
     // **Ce que cette image a écrit dans la couche du dessus**, relevé une fois que tout y
     // est : la chrome se dessine après le renderer, donc un relevé pris plus tôt manquerait
     // les docks -- et une bande manquée est un pixel qui ne s'efface jamais.
+    // Le liseré du passé se confie à la carte : peint ici, il touchait toutes les lignes.
+    confie.lisere = dock_manager
+        .temps
+        .regarde
+        .map(|_| crate::dock::lisere(&renderer.theme, crate::theme::clamp_ui_scale(echelle)));
     confie.bandes_du_dessus = crate::present::bandes::Bandes::relever(dessus);
     crate::perf::compteur("dessus_lignes", f64::from(confie.bandes_du_dessus.lignes()));
     // Le dessous ne se relève que s'il a reçu de l'encre : le socle sait ce qu'il y a dessiné,
@@ -475,23 +480,23 @@ fn peindre_tout(
     // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
     // `scale` et les coordonnées de la souris sont désormais portés par
     // deux types distincts : les intervertir ne compile plus (R-44).
-    render_docks(
-        &mut vue,
-        dock_manager,
-        store,
-        &DockPass {
-            typo: &renderer.typography,
-            theme: &renderer.theme,
-            screen: ScreenFrame {
-                width: width as f32,
-                height: height as f32,
-                header_h: ui.header_height(),
-                scale: echelle,
-            },
-            pointer,
-            cache: Some(dock_cache),
+    let pass = DockPass {
+        typo: &renderer.typography,
+        theme: &renderer.theme,
+        screen: ScreenFrame {
+            width: width as f32,
+            height: height as f32,
+            header_h: ui.header_height(),
+            scale: echelle,
         },
-    );
+        pointer,
+        cache: Some(dock_cache),
+    };
+    render_docks(&mut vue, dock_manager, store, &pass);
+    // Le liseré du passé : sur cette voie, c'est le processeur qui le peint.
+    if dock_manager.temps.regarde.is_some() {
+        crate::dock::lisere_du_passe(&mut vue, &pass, crate::theme::clamp_ui_scale(echelle));
+    }
     crate::perf::stage("docks");
 }
 
