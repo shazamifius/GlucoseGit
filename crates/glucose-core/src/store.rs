@@ -40,6 +40,7 @@ mod domains;
 mod folders;
 mod ids;
 mod images;
+mod importer;
 pub mod journal;
 mod membranes;
 mod navigation;
