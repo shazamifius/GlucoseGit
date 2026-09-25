@@ -89,6 +89,16 @@ impl MembraneLayout {
     }
 }
 
+/// La couleur d'une membrane qui n'en a pas : `#60a5fa`, comme chez Glucose Tauri. Le fond du
+/// mode Focus la reprend ([`super::focus`]).
+pub(crate) const MEMBRANE_SANS_COULEUR: (u8, u8, u8) = (96, 165, 250);
+
+/// La teinte d'une membrane : sa couleur, ou celle d'une membrane qui n'en a pas.
+fn teinte_de_membrane(couleur: Option<&str>) -> (u8, u8, u8) {
+    let (r, g, b) = MEMBRANE_SANS_COULEUR;
+    couleur.map_or(MEMBRANE_SANS_COULEUR, |c| parse_hex_color(c, r, g, b))
+}
+
 /// Rend **vrai** si au moins une membrane a recu de l'encre.
 ///
 /// La couche du dessous s'en sert pour savoir si elle doit exister : quand la carte peint le
@@ -141,10 +151,7 @@ pub(super) fn draw_membranes(
         }
         encre = true;
 
-        let tint = color
-            .as_deref()
-            .map(|c| parse_hex_color(c, 96, 165, 250))
-            .unwrap_or((96, 165, 250));
+        let tint = teinte_de_membrane(color.as_deref());
         let selected = store.selected_annotation_ids.contains(id);
         draw_membrane_shape(pixmap, (sx, sy), &layout, tint, (selected, scale));
 

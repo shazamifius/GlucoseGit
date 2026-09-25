@@ -27,6 +27,7 @@ pub mod card;
 pub mod composants;
 pub mod domain;
 mod fils;
+pub mod focus;
 pub mod folder;
 pub mod grille;
 pub mod halo;
@@ -189,6 +190,8 @@ pub struct Renderer {
     pub active_board_id: String,
     /// Ce que la carte laisse aux photos, et le cran qu'on en a déduit (ETAGES-3).
     pub carte: voies::cran::EtatDeLaCarte,
+    /// Le mode Focus d'une membrane : ce qui se voit, et le fond (MEMB-2).
+    pub focus: focus::FocusDuRendu,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -217,6 +220,7 @@ impl Renderer {
             spatial_version: 0,
             active_board_id: String::new(),
             carte: Default::default(),
+            focus: Default::default(),
         }
     }
 
@@ -412,9 +416,11 @@ impl Renderer {
         }
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let rangs = self
+        let mut rangs = self
             .spatial_hash
             .query_rect_ranks(min_wx, min_wy, max_wx, max_wy, 200.0);
+        // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
+        self.focus.filtrer(&mut rangs);
         crate::perf::stage("cull");
         (vp, rangs)
     }

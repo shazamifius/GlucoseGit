@@ -478,3 +478,165 @@ fn test_the_focus_fit_padding_is_six_percent() {
     assert_eq!(focus_consts::FIT_PADDING, 0.06);
     assert_eq!(focus_consts::FIT_ANIM_MS, 320);
 }
+
+/// **Le masque du focus** (MEMB-2) : par rang — images, puis annotations, puis dossiers, dans
+/// l'ordre de l'index —, la membrane et ce qu'elle porte se voient ; une flèche qui en sort, un
+/// dossier, ce qui est ailleurs, non.
+#[test]
+fn test_le_masque_du_focus_suit_l_ordre_des_rangs() {
+    use glucose_core::membrane_focus::masque_du_focus;
+    use glucose_core::store::Store;
+    use glucose_core::types::{Annotation, BoardImage, CanvasFolder};
+
+    let mut s = Store::new("focus");
+    let b = s.project.active_board_id.clone();
+    if let Some(board) = s.active_board_mut() {
+        board.annotations.clear();
+        board.images.clear();
+    }
+    s.add_annotation(&b, Annotation::membrane("M", 0.0, 0.0, 1000.0, 600.0));
+    s.add_image(&b, BoardImage::new("dedans", 500.0, 300.0, 100.0, 80.0));
+    s.add_image(&b, BoardImage::new("dehors", 5000.0, 300.0, 100.0, 80.0));
+    let fleche = |id: &str, de: &str, vers: &str| {
+        let mut f = Annotation::arrow(id, 0.0, 0.0, 1.0, 1.0);
+        if let Annotation::Arrow {
+            source_id,
+            target_id,
+            ..
+        } = &mut f
+        {
+            *source_id = Some(de.into());
+            *target_id = Some(vers.into());
+        }
+        f
+    };
+    s.add_annotation(&b, fleche("sortante", "dedans", "dehors"));
+    s.add_annotation(&b, fleche("interieure", "dedans", "M"));
+    // Un dossier capture ce qui est sous lui : il naît loin, et vide.
+    let mut dossier = CanvasFolder::new("", "Dossier", "");
+    dossier.x = 20_000.0;
+    dossier.y = 20_000.0;
+    s.create_folder(&b, dossier);
+
+    let board = s.active_board().expect("le tableau");
+    let m = masque_du_focus(board, "M").expect("M est une membrane");
+    // Rangs : dedans, dehors | M, sortante, interieure | le dossier.
+    assert_eq!(m.permis, vec![true, false, true, false, true, false]);
+    assert!(m.laisse_voir("interieure") && !m.laisse_voir("sortante"));
+    assert!(
+        masque_du_focus(board, "dedans").is_none(),
+        "une image n'est pas une membrane"
+    );
+}
+
+/// **Le masque en un passage rend exactement ce que rendait la description complète** : la
+/// preuve de la réécriture, sur un tableau fabriqué pour en éprouver les recoins —
+/// membranes imbriquées et qui se chevauchent, une appartenance en boucle, des appartenances
+/// vers ce qui n'est pas une membrane, des cartes mesurées ou non, des flèches accrochées ou
+/// libres —, et pour chaque membrane focalisée.
+#[test]
+fn test_le_masque_rend_ce_que_rendait_la_description_complete() {
+    use glucose_core::membrane_focus::{focus_frame_of, masque_du_focus};
+    use glucose_core::membrane_space::items_of_board;
+    use glucose_core::types::{Board, BoardImage, CanvasFolder};
+
+    let mut graine = 0x2545_f491_4f6c_dd1du64;
+    let mut hasard = |n: u64| {
+        graine ^= graine << 13;
+        graine ^= graine >> 7;
+        graine ^= graine << 17;
+        graine % n
+    };
+    let mut b = Board::new("b", "b");
+    let membranes = ["m0", "m1", "m2", "m3", "m4"];
+    for (k, id) in membranes.iter().enumerate() {
+        let x = (k as f64) * 300.0;
+        b.annotations.push(Annotation::membrane(
+            *id,
+            x,
+            0.0,
+            900.0 - 100.0 * k as f64,
+            700.0,
+        ));
+    }
+    // Une boucle : m3 dans m4, m4 dans m3 ; et m1 dans m0.
+    b.annotations[3].set_membrane_id(Some("m4".into()));
+    b.annotations[4].set_membrane_id(Some("m3".into()));
+    b.annotations[1].set_membrane_id(Some("m0".into()));
+    let parents = ["m0", "m1", "m2", "m3", "m4", "i3", "absente"];
+    for i in 0..80 {
+        let mut img = BoardImage::new(
+            format!("i{i}"),
+            hasard(2400) as f64 - 200.0,
+            hasard(900) as f64 - 100.0,
+            40.0 + hasard(200) as f64,
+            30.0 + hasard(150) as f64,
+        );
+        if hasard(3) > 0 {
+            img.membrane_id = Some(parents[hasard(parents.len() as u64) as usize].into());
+        }
+        b.images.push(img);
+    }
+    for t in 0..25 {
+        let mut carte = Annotation::text(
+            format!("t{t}"),
+            hasard(2400) as f64 - 200.0,
+            hasard(900) as f64,
+            "une idée",
+        );
+        if hasard(2) == 0 {
+            if let Annotation::Text { width, height, .. } = &mut carte {
+                *width = Some(120.0);
+                *height = Some(60.0);
+            }
+        }
+        if hasard(2) == 0 {
+            carte.set_membrane_id(Some(parents[hasard(5) as usize].into()));
+        }
+        b.annotations.push(carte);
+    }
+    for f in 0..20 {
+        let bout = |h: u64| (h < 90).then(|| format!("i{h}"));
+        let mut fl = Annotation::arrow(
+            format!("f{f}"),
+            hasard(2400) as f64,
+            hasard(900) as f64,
+            hasard(2400) as f64,
+            hasard(900) as f64,
+        );
+        if let Annotation::Arrow {
+            source_id,
+            target_id,
+            ..
+        } = &mut fl
+        {
+            *source_id = bout(hasard(120));
+            *target_id = bout(hasard(120));
+        }
+        b.annotations.push(fl);
+    }
+    b.folders.push(CanvasFolder::new("d", "Dossier", "enfant"));
+
+    let items = items_of_board(&b);
+    for m in membranes {
+        let vis = visible_under_focus(&items, Some(m)).expect("une membrane");
+        let cadre = focus_frame_of(&items, Some(m));
+        let attendu: Vec<bool> = b
+            .images
+            .iter()
+            .map(|i| vis.contains(&i.id))
+            .chain(
+                b.annotations
+                    .iter()
+                    .map(|a| annotation_visible_under_focus(a, Some(&vis), cadre)),
+            )
+            .chain(b.folders.iter().map(|_| false))
+            .collect();
+        let masque = masque_du_focus(&b, m).expect("une membrane");
+        assert_eq!(masque.permis, attendu, "focus sur {m}");
+        assert!(
+            attendu.iter().filter(|v| **v).count() > 1,
+            "le tableau éprouve quelque chose pour {m}"
+        );
+    }
+}

@@ -48,6 +48,8 @@ impl GlucoseApp {
         let dt = pas.as_secs_f64();
         self.appliquer_la_demande(largeur, hauteur, pas);
         self.appliquer_le_vol(largeur, hauteur, dt);
+        // La vue vient de bouger : entre-t-on en focus, en sort-on (MEMB-2) ?
+        self.suivre_le_focus((largeur, hauteur));
         self.mesurer_ce_que_l_oeil_voit_bouger((largeur, hauteur), dt);
     }
 

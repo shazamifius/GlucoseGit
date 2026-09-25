@@ -44,12 +44,14 @@ impl GlucoseApp {
             .images
             .iter()
             .filter(|img| lasso.overlaps(img.rect()))
+            .filter(|img| self.renderer.focus.laisse_voir(&img.id))
             .map(|img| img.id.clone())
             .collect();
         let annotations: Vec<String> = board
             .annotations
             .iter()
             .filter(|ann| lasso.overlaps(ann.bounds()))
+            .filter(|ann| self.renderer.focus.laisse_voir(ann.id()))
             .map(|ann| ann.id().to_string())
             .collect();
 
@@ -90,6 +92,9 @@ impl GlucoseApp {
             selected_folder_id: self.store.selected_folder_id.as_deref(),
             dom_hint: None,
         };
-        collect_candidates_indexed(&input, &self.renderer.spatial_hash)
+        let mut candidats = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
+        // En focus, ce qu'on ne voit pas ne s'attrape pas (MEMB-2).
+        candidats.retain(|c| self.renderer.focus.laisse_voir(&c.id));
+        candidats
     }
 }

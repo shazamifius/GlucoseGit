@@ -782,11 +782,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         112,
     ),
     (
-        "crates/glucose-core/src/membrane_focus.rs",
-        "focus_decision",
-        103,
-    ),
-    (
         "crates/glucose-core/src/membrane_space.rs",
         "project_board",
         228,

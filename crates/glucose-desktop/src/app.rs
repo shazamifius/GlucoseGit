@@ -3,6 +3,7 @@
 mod accueil;
 mod evenements;
 mod fenetre;
+pub mod focus;
 mod mouvement;
 mod peinture;
 mod presentation;
@@ -55,6 +56,8 @@ pub struct GlucoseApp {
     /// Le vol de camera en cours : une destination decidee, rejointe en douceur plutot que
     /// par teleportation (voir [`crate::interactions::vol`]).
     pub vol: crate::interactions::vol::Vol,
+    /// Le mode Focus d'une membrane (MEMB-2).
+    pub focus: focus::Focus,
     /// Le defilement en cours vient-il d'un pave tactile ?
     ///
     /// Observe, jamais suppose : un delta fractionnaire ou lateral est une chose qu'une
@@ -310,6 +313,7 @@ impl GlucoseApp {
             animator: crate::animation::Animator::new(),
             elan: crate::interactions::elan::Elan::default(),
             vol: crate::interactions::vol::Vol::default(),
+            focus: focus::Focus::default(),
             defilement_au_doigt: false,
             perception: crate::perception::Perception::nette(),
             vue_precedente: None,

@@ -6,6 +6,9 @@ use crate::membrane_space::{contained_in, content_extent, parent_map, SpaceItem}
 use crate::types::{Annotation, Viewport};
 use std::collections::{HashMap, HashSet};
 
+mod tableau;
+pub use tableau::{decider, masque_du_focus, CarteDesMembranes, MasqueFocus};
+
 pub mod focus_consts {
     pub const ENTER_COVERAGE: f64 = 0.92;
     pub const EXIT_SCALE_RATIO: f64 = 0.8;
@@ -125,37 +128,57 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
         state,
         now,
     } = input;
+    let membranes: Vec<MembraneVue> = items
+        .iter()
+        .filter(|i| i.kind == crate::membrane_space::SpaceItemKind::Membrane)
+        .map(|m| MembraneVue {
+            id: m.id.clone(),
+            vue: resolved.get(&m.id).map(|r| r.rect()),
+            cadre: focus_box(m, &children_of(items, &m.id)),
+        })
+        .collect();
+    decider_sur(&membranes, vp, screen, state, now)
+}
 
+/// Une membrane telle que la décision la voit : la boîte qu'on voit d'elle, et celle de son
+/// contenu — ce que le focus cadre.
+#[derive(Debug, Clone, PartialEq)]
+struct MembraneVue {
+    id: String,
+    /// `None` si sa géométrie affichée n'est pas connue : elle ne peut pas être choisie.
+    vue: Option<Rect>,
+    cadre: Rect,
+}
+
+fn hors_focus(now: i64) -> FocusState {
+    FocusState {
+        membrane_id: None,
+        enter_scale: 0.0,
+        t: now,
+    }
+}
+
+/// **La décision elle-même**, sur des membranes déjà décrites : elle ne parcourt qu'elles.
+fn decider_sur(
+    membranes: &[MembraneVue],
+    vp: Viewport,
+    screen: ScreenSize,
+    state: FocusState,
+    now: i64,
+) -> FocusAction {
     if now - state.t < focus_consts::COOLDOWN_MS {
         return FocusAction::Stay(state);
     }
 
     // ── Déjà en focus : seule la sortie est évaluée ─────────────────────────
     if let Some(ref mid) = state.membrane_id {
-        let membrane = items
-            .iter()
-            .find(|i| i.id == *mid && i.kind == crate::membrane_space::SpaceItemKind::Membrane);
-        let membrane = match membrane {
-            Some(m) => m,
-            None => {
-                return FocusAction::Exit(FocusState {
-                    membrane_id: None,
-                    enter_scale: 0.0,
-                    t: now,
-                });
-            }
+        let Some(m) = membranes.iter().find(|m| m.id == *mid) else {
+            return FocusAction::Exit(hors_focus(now));
         };
-
         if vp.scale < state.enter_scale * focus_consts::EXIT_SCALE_RATIO {
-            return FocusAction::Exit(FocusState {
-                membrane_id: None,
-                enter_scale: 0.0,
-                t: now,
-            });
+            return FocusAction::Exit(hors_focus(now));
         }
-
-        let kids = children_of(items, mid);
-        let fb = focus_box(membrane, &kids);
+        let fb = m.cadre;
         let c = screen_center_world(vp, screen);
         let mx = fb.width * focus_consts::EXIT_CENTER_MARGIN;
         let my = fb.height * focus_consts::EXIT_CENTER_MARGIN;
@@ -163,32 +186,20 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
             && c.x <= fb.right() + mx
             && c.y >= fb.top - my
             && c.y <= fb.bottom() + my;
-
         if !inside {
-            return FocusAction::Exit(FocusState {
-                membrane_id: None,
-                enter_scale: 0.0,
-                t: now,
-            });
+            return FocusAction::Exit(hors_focus(now));
         }
-
         return FocusAction::Stay(state);
     }
 
     // ── Hors focus : chercher la membrane qui remplit l'écran ───────────────
     let center = screen_center_world(vp, screen);
-    let mut best: Option<&SpaceItem> = None;
+    let mut best: Option<&MembraneVue> = None;
     let mut best_area = f64::INFINITY;
-
-    for it in items {
-        if it.kind != crate::membrane_space::SpaceItemKind::Membrane {
+    for m in membranes {
+        let Some(b) = m.vue else {
             continue;
-        }
-        let r = match resolved.get(&it.id) {
-            Some(r) => r,
-            None => continue,
         };
-        let b = r.rect();
         if center.x < b.left || center.x > b.right() || center.y < b.top || center.y > b.bottom() {
             continue;
         }
@@ -197,26 +208,25 @@ pub fn focus_decision(input: FocusInput) -> FocusAction {
         }
         let a = (b.width * b.height).abs();
         if a < best_area {
-            best = Some(it);
+            best = Some(m);
             best_area = a;
         }
     }
 
-    if let Some(target) = best {
-        let kids = children_of(items, &target.id);
-        let fit = fit_viewport(focus_box(target, &kids), screen, focus_consts::FIT_PADDING);
-        let new_state = FocusState {
-            membrane_id: Some(target.id.clone()),
-            enter_scale: fit.scale,
-            t: now,
-        };
-        FocusAction::Enter {
-            state: new_state,
-            membrane_id: target.id.clone(),
-            fit,
+    match best {
+        Some(target) => {
+            let fit = fit_viewport(target.cadre, screen, focus_consts::FIT_PADDING);
+            FocusAction::Enter {
+                state: FocusState {
+                    membrane_id: Some(target.id.clone()),
+                    enter_scale: fit.scale,
+                    t: now,
+                },
+                membrane_id: target.id.clone(),
+                fit,
+            }
         }
-    } else {
-        FocusAction::Stay(state)
+        None => FocusAction::Stay(state),
     }
 }
 
