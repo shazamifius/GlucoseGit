@@ -72,20 +72,20 @@ impl Contenu {
                 teinte.hash(h);
                 selectionnee.hash(h);
                 // **Ce que la saisie change, et rien d'autre.** Le texte est deja dans
-                // `corps` -- `carte_de` y met le tampon d'edition. Restent l'etendue
-                // selectionnee et la phase du curseur, que BLINK-1 a sortie de l'horloge
-                // pour en faire un booleen : sans elle, deux phases opposees donneraient la
-                // meme cle et le curseur cesserait de clignoter.
+                // `corps` -- `carte_de` y met le tampon d'edition. Reste l'etendue
+                // selectionnee, que la texture peint sous le texte ; **pas le curseur**, qui
+                // se pose au-dessus (COMPOSANT-3). Une selection vide ne peint rien : ni sa
+                // place ni la phase du curseur n'entrent dans la cle, et ni un clignotement ni
+                // une fleche du clavier ne refont la texture.
                 //
-                // `goal_x` et `blink_timer` n'y sont PAS, et c'est voulu : ils decident de
-                // ce que le curseur fera, jamais de ce qu'il montre. Les hacher referait la
-                // texture a chaque touche de direction sans qu'un pixel change.
+                // `goal_x` et `blink_timer` n'y sont pas non plus : ils decident de ce que le
+                // curseur fera, jamais de ce que la texture montre.
                 match edition {
                     Some(e) => {
                         1u8.hash(h);
-                        e.selection.anchor.hash(h);
-                        e.selection.head.hash(h);
-                        e.curseur_visible.hash(h);
+                        if !e.selection.is_empty() {
+                            e.selection.range().hash(h);
+                        }
                     }
                     None => 0u8.hash(h),
                 }

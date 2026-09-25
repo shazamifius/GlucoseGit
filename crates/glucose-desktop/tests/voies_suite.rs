@@ -299,6 +299,72 @@ fn test_la_carte_qu_on_edite_est_portee_par_la_carte_et_non_repeinte() {
     );
 }
 
+/// **Sur la voie graphique, le curseur de la carte qu'on écrit se pose dans la couche du
+/// dessus** (COMPOSANT-3) — et rien d'autre ne change quand il clignote.
+///
+/// La texture ne le porte plus : si la passe oubliait de le poser, il disparaîtrait de l'écran
+/// sans qu'aucune épreuve de texture le voie, puisque chacune appelle elle-même les ornements.
+/// Trouvé en sabotant : sans ce test, retirer l'appel ne faisait rien tomber.
+#[test]
+fn test_le_curseur_de_la_carte_qu_on_ecrit_clignote_dans_la_couche_du_dessus() {
+    let taille = synth::WITNESS_SIZE;
+    let store = synth::witness_selected();
+    let board = store.active_board().expect("un tableau");
+    let (id, texte) = board
+        .annotations
+        .iter()
+        .find_map(|a| match a {
+            glucose_core::types::Annotation::Text { id, text, .. } => {
+                Some((id.clone(), text.clone()))
+            }
+            _ => None,
+        })
+        .expect("le temoin porte au moins une carte de texte");
+    let saisie = |curseur_visible| glucose_desktop::renderer::TextEditSession {
+        ann_id: id.clone(),
+        buffer: texte.clone(),
+        selection: glucose_core::text::Selection::at(1),
+        goal_x: None,
+        blink_timer: std::time::Instant::now(),
+        curseur_visible,
+    };
+    let (_, _, allume, confie_allume) =
+        les_deux_couches_en_editant(taille, &store, Some(&saisie(true)));
+    let (_, _, eteint, confie_eteint) =
+        les_deux_couches_en_editant(taille, &store, Some(&saisie(false)));
+
+    let differents = allume
+        .data()
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(eteint.data().as_chunks::<4>().0)
+        .filter(|(a, b)| a != b)
+        .count();
+    assert!(
+        differents > 0,
+        "le curseur allume doit se voir dans la couche du dessus"
+    );
+    // Un trait de deux pixels sur la hauteur d'une ligne : quelques dizaines de pixels, pas une
+    // carte. La borne est la surface du curseur, large : tout ce qui la depasse serait autre
+    // chose que lui.
+    assert!(
+        differents < 200,
+        "{differents} pixels changent quand le curseur clignote : ce n'est plus un curseur"
+    );
+    let cles = |c: &Confie| {
+        c.cartes
+            .iter()
+            .map(|(cle, _)| cle.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        cles(&confie_allume),
+        cles(&confie_eteint),
+        "un clignotement ne doit refaire aucune texture"
+    );
+}
+
 // ── RECADRAGE-1 : les deux voies cadrent pareil ───────────────────────────────────────────
 
 /// Une photo dont le quart gauche est une bande noire, écrite sur le disque pour que le

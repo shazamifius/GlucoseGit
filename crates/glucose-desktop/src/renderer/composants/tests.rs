@@ -271,19 +271,21 @@ fn test_la_carte_qu_on_edite_est_un_composant() {
     );
 }
 
-/// **La cle suit le curseur, et c'est ce qui le fait clignoter.**
+/// **La clé ne suit plus le curseur, mais elle suit une sélection étendue** (COMPOSANT-3).
 ///
-/// Si la phase du curseur n'entrait pas dans l'empreinte, la texture ne se referait jamais
-/// entre deux frappes et le curseur cesserait purement et simplement de clignoter -- une
-/// regression qu'aucune epreuve d'aspect ne verrait, puisque chaque image prise isolement
-/// serait juste. C'est la meme forme que BLINK-1, prise a l'envers.
+/// Le curseur se pose au-dessus de la texture : sa phase et sa place n'y changent rien, et
+/// n'ont donc pas à la refaire. Une sélection étendue, elle, se peint **sous** le texte, dans
+/// la texture : son étendue doit changer la clé, sans quoi on verrait une sélection périmée.
 #[test]
-fn test_la_cle_change_avec_la_phase_du_curseur_et_avec_sa_position() {
+fn test_composant_3_la_cle_ignore_le_curseur_et_suit_la_selection() {
     let renderer = Renderer::new();
     let (_, regime) = regime_temoin();
     let corps = "Une note qu'on est en train d'ecrire.";
-    let cle = |tete: usize, visible: bool| {
-        let e = saisie(corps, tete, visible);
+    let cle = |selection: glucose_core::text::Selection, visible: bool| {
+        let e = crate::renderer::TextEditSession {
+            selection,
+            ..saisie(corps, 0, visible)
+        };
         regime
             .carte(
                 renderer.kit(),
@@ -296,13 +298,27 @@ fn test_la_cle_change_avec_la_phase_du_curseur_et_avec_sa_position() {
             .seule()
             .cle
     };
-    assert_ne!(
-        cle(4, true),
-        cle(4, false),
-        "la phase du curseur doit changer la cle"
+    let a = glucose_core::text::Selection::at;
+    assert_eq!(
+        cle(a(4), true),
+        cle(a(4), false),
+        "la phase du curseur n'y est pas"
     );
-    assert_ne!(cle(4, true), cle(9, true), "sa position aussi");
-    assert_eq!(cle(4, true), cle(4, true), "et le meme etat donne la meme");
+    assert_eq!(cle(a(4), true), cle(a(9), true), "sa place non plus");
+    let etendue = |debut, fin| glucose_core::text::Selection {
+        anchor: debut,
+        head: fin,
+    };
+    assert_ne!(
+        cle(etendue(2, 9), true),
+        cle(a(4), true),
+        "une sélection étendue, si"
+    );
+    assert_ne!(
+        cle(etendue(2, 9), true),
+        cle(etendue(2, 12), true),
+        "et son étendue"
+    );
 }
 
 /// **L'identite ne bouge pas, elle.**
@@ -375,7 +391,9 @@ fn test_une_formule_sous_le_curseur_garde_la_carte_au_processeur() {
     );
 }
 
-/// **Une carte en saisie rendue a part donne les memes pixels qu'en place**, curseur compris.
+/// **Une carte en saisie donne les memes pixels sur les deux voies**, curseur compris : la
+/// carte entiere dessinee en place par le processeur, contre la texture reposee puis le
+/// curseur que la couche du dessus pose (COMPOSANT-3).
 ///
 /// C'est l'epreuve qui compte : une texture qui montrerait autre chose que ce que le
 /// processeur dessine ferait diverger les deux voies sans qu'aucun test de passe le voie --
@@ -389,9 +407,15 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
     let (x, y, w, h) = (60.3, 40.7, 240.0f32, 60.0f32);
     let corps = "Une note qu'on ecrit, avec des accents : eac.";
     let teinte = (96, 165, 250);
-    let e = saisie(corps, 12, true);
-
-    let mut en_place = Pixmap::new(taille.0, taille.1).expect("pixmap");
+    let (e, eteint) = (saisie(corps, 12, true), saisie(corps, 12, false));
+    let carte = |editing| TextCard {
+        origin: (x, y),
+        size: (w, h),
+        body: corps,
+        tint: teinte,
+        selected: false,
+        editing,
+    };
     let ctx = Pass {
         typography: kit.typography,
         math: kit.math,
@@ -405,18 +429,20 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
             top: 0.0,
         },
     };
-    draw_card_contenu(
-        &ctx,
-        &mut en_place.as_mut(),
-        TextCard {
-            origin: (x, y),
-            size: (w, h),
-            body: corps,
-            tint: teinte,
-            selected: false,
-            editing: Some(&e),
-        },
+    let en_place_avec = |saisie| {
+        let mut pixmap = Pixmap::new(taille.0, taille.1).expect("pixmap");
+        crate::renderer::card::draw_text_card(&ctx, &mut pixmap.as_mut(), carte(Some(saisie)));
+        pixmap
+    };
+    let en_place = en_place_avec(&e);
+    // **L'epreuve voit le curseur.** Sans ce temoin, elle passerait aussi si aucune des deux
+    // voies ne le peignait -- la forme exacte d'une regression que personne ne verrait.
+    assert_ne!(
+        en_place.data(),
+        en_place_avec(&eteint).data(),
+        "le curseur allume doit se voir"
     );
+
     let composant = regime
         .carte(kit, "c", (x, y, w, h), (corps, teinte, false), Some(&e))
         .expect("un composant")
@@ -429,6 +455,7 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
         (composant.pose.x, composant.pose.y),
         glucose_core::report::Melange::Composer,
     );
+    crate::renderer::card::draw_card_ornements(&ctx, &mut reposee.as_mut(), carte(Some(&e)));
     let pire = en_place
         .data()
         .iter()
@@ -461,21 +488,22 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
     );
 }
 
-/// **Cent images sans une frappe ne rendent plus cent textures.**
+/// **Cent images sans une frappe ne rendent qu'une texture.**
 ///
 /// C'est le gain de COMPOSANT-2, et il se prouve **sans chronometre** : une texture se refait
 /// exactement quand sa cle change, donc compter les cles distinctes sur une seconde de saisie
 /// immobile dit le nombre de rendus, sur n'importe quelle machine et sans bruit de mesure.
 ///
 /// Un curseur clignote a deux hertz. Sur cent images -- une seconde a cent images par seconde,
-/// le plancher de la charte -- cela fait **deux** etats, donc deux rendus, la ou le processeur
-/// en payait cent. Le terrain du 22/09 chiffre chacun a 9,74 ms.
+/// le plancher de la charte -- COMPOSANT-2 en faisait **deux** etats, donc deux rendus, la ou
+/// le processeur en payait cent. Depuis COMPOSANT-3, le curseur se pose au-dessus : **un
+/// seul** rendu, quel que soit le temps qu'on laisse la carte ouverte.
 ///
 /// La forme de ce test est celle que la fiche 20 § 5.2 demande : un cache qui repeindrait tout
 /// rendrait les memes pixels et passerait toutes les epreuves d'aspect. Seul un compte le
 /// distingue d'un cache qui sert.
 #[test]
-fn test_cent_images_de_saisie_immobile_ne_font_que_deux_textures() {
+fn test_cent_images_de_saisie_immobile_ne_font_qu_une_texture() {
     let renderer = Renderer::new();
     let (_, regime) = regime_temoin();
     let corps = "Une note qu'on laisse ouverte sans y toucher.";
@@ -498,8 +526,8 @@ fn test_cent_images_de_saisie_immobile_ne_font_que_deux_textures() {
     }
     assert_eq!(
         vues.len(),
-        2,
-        "une saisie immobile ne montre que deux images : curseur allume, curseur eteint"
+        1,
+        "une saisie immobile ne refait jamais sa texture : le curseur clignote au-dessus"
     );
 }
 

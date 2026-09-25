@@ -57,10 +57,8 @@
 
 pub(super) use ornament::{porte_une_previsualisation, previsualisation_en_cours};
 
-use super::handles::draw_resize_handles;
 use super::pass::{Pass, SELECTION_RING};
 use super::richtext::draw::{draw_line, draw_line_selection};
-use super::richtext::hit::offset_to_x;
 use super::richtext::{
     font_of, indent_of, ink_of, layout_rich_text, Ink, TextBox, TextLayout, TextMode, VisualLine,
     LINE_FACTOR,
@@ -71,14 +69,15 @@ use crate::canvas::world_to_screen;
 use crate::renderer::math::MathRenderer;
 use crate::typography::Typography;
 
+mod dessus;
 mod ornament;
 mod texte_seul;
 use crate::theme::Theme;
-use glucose_core::resize::Handle;
+use dessus::dessiner_les_ornements;
 use glucose_core::text::{BlockKind, Selection};
 use ornament::{draw_code_plate, draw_ornament};
 pub(crate) use texte_seul::peindre_le_texte_seul;
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
+use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
 // ── Mesures d'une carte, en unités monde ────────────────────────────────────
 
@@ -102,10 +101,6 @@ const BULLET_BASELINE: f32 = 0.45;
 /// L'épaisseur du filet d'une carte : le trait d'un `---`, et, doublée, la barre d'une
 /// citation. Une carte n'a plus de cadre (LUEUR-1) ; ce trait est le seul qu'elle connaisse.
 const BORDER: f32 = 1.0;
-/// Largeur du curseur d'édition.
-const CURSOR_WIDTH: f32 = 2.0;
-/// Hauteur du curseur d'édition, en multiples du corps.
-const CURSOR_HEIGHT: f32 = 1.2;
 
 /// La mise en page du texte d'une carte de `width` unités monde, dans le mode demandé.
 pub fn card_text_layout(
@@ -231,22 +226,25 @@ impl TextCard<'_> {
     }
 }
 
+/// **Une carte entière, au processeur** : son contenu, puis ses ornements.
+///
+/// Ce sont les deux mêmes fonctions, dans le même ordre, que la voie graphique — la texture,
+/// puis la couche du dessus (COMPOSANT-3). Le curseur n'a donc qu'une façon d'être peint, et
+/// les deux voies ne peuvent pas diverger sur lui.
 pub(super) fn draw_text_card(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
     };
     dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
-    if card.selected {
-        let screen_box = (at.0, at.1, layout.width, layout.height);
-        draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
-    }
+    dessiner_les_ornements(ctx, pixmap, at, &layout, &text, &card);
 }
 
-/// **Le contenu seul** : le cadre, le corps, la prévisualisation — sans les poignées.
+/// **Le contenu seul** : le cadre, le corps, la prévisualisation — ni poignées ni curseur.
 ///
 /// C'est ce qu'une texture de carte porte (COMPOSANT-1). Les poignées n'en font pas partie :
 /// ce sont des affordances en pixels écran, qui débordent de la boîte et ne suivent pas le
-/// zoom — elles restent dans la couche du dessus, comme pour les photos.
+/// zoom — elles restent dans la couche du dessus, comme pour les photos. Le curseur non plus
+/// ([`draw_card_ornements`]).
 pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
     let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
@@ -254,17 +252,22 @@ pub(super) fn draw_card_contenu(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCa
     dessiner_le_contenu(ctx, pixmap, at, &layout, &text, &card);
 }
 
-/// **Les ornements seuls** : les poignées d'une carte sélectionnée, quand la carte graphique
-/// porte son contenu.
+/// **Les ornements seuls** : les poignées d'une carte sélectionnée, et le curseur d'une carte
+/// qu'on édite, quand la carte graphique porte son contenu.
+///
+/// Le curseur est ici et non dans le contenu (COMPOSANT-3) : il clignote deux fois par seconde
+/// et suit chaque flèche du clavier. Dans la texture, chaque clignotement la refaisait
+/// entière — des millisecondes pour un trait de deux pixels. Comme le contenu ne le peint
+/// **jamais**, ni sa phase ni sa place n'ont à entrer dans la clé de la texture : c'est vrai
+/// par construction, pas par une copie de la saisie qu'on aurait pensé à éteindre.
 pub(super) fn draw_card_ornements(ctx: &Pass, pixmap: &mut PixmapMut, card: TextCard) {
-    if !card.selected {
+    if !card.selected && !card.editing.is_some_and(|s| s.curseur_visible) {
         return;
     }
-    let Some((_, layout, at)) = poser(ctx, &card) else {
+    let Some((text, layout, at)) = poser(ctx, &card) else {
         return;
     };
-    let screen_box = (at.0, at.1, layout.width, layout.height);
-    draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
+    dessiner_les_ornements(ctx, pixmap, at, &layout, &text, &card);
 }
 
 /// La mise en page de la carte et son coin à l'écran, ou `None` si elle ne touche pas le
@@ -362,7 +365,8 @@ fn draw_card_frame(
 /// L'opacité de la brume sous le texte, sur 255 : les 3 % de Tauri.
 const BRUME: u8 = 8;
 
-/// Le texte de la carte, ligne visuelle par ligne visuelle, curseur d'édition compris.
+/// Le texte de la carte, ligne visuelle par ligne visuelle, sélection comprise — sans le
+/// curseur, qui est un ornement ([`draw_card_ornements`]).
 fn draw_card_body(
     ctx: &Pass,
     pixmap: &mut PixmapMut,
@@ -371,40 +375,25 @@ fn draw_card_body(
     text: &TextLayout,
     card: &TextCard,
 ) {
-    let mut caret = Caret::of(card);
+    // La sélection est du contenu et ne clignote pas : un fond qui s'allume et s'éteint
+    // rendrait la lecture du texte sélectionné impossible.
+    let selection = card.editing.map(|s| s.selection).unwrap_or_default();
     let mut cur_y = at.1 + layout.pad_y;
-    for (num, line) in text.lines.iter().enumerate() {
-        let last = num + 1 == text.lines.len();
-        let rang = (text, line, last);
-        draw_text_line(ctx, pixmap, (at.0, cur_y), layout, rang, card, &mut caret);
+    for line in &text.lines {
+        draw_text_line(
+            ctx,
+            pixmap,
+            (at.0, cur_y),
+            layout,
+            (text, line),
+            card,
+            selection,
+        );
         cur_y += layout.line_height;
     }
 }
 
-/// Ce que la saisie en cours dit au tracé : ce qui est sélectionné, où est le curseur, s'il
-/// doit se voir à cet instant — et s'il a déjà été posé, puisqu'une seule ligne le porte.
-struct Caret {
-    selection: Selection,
-    visible: bool,
-    drawn: bool,
-}
-
-impl Caret {
-    fn of(card: &TextCard) -> Self {
-        Self {
-            selection: card.editing.map(|s| s.selection).unwrap_or_default(),
-            // Le curseur clignote, la sélection non : un fond qui s'allume et s'éteint
-            // rendrait la lecture du texte sélectionné impossible.
-            //
-            // La phase se **lit** (BLINK-1) : la calculer ici rendrait le dessin dépendant de
-            // l'instant où il a lieu, donc non reproductible.
-            visible: card.editing.is_some_and(|s| s.curseur_visible),
-            drawn: false,
-        }
-    }
-}
-
-/// Une ligne de carte : son ornement, son surlignage, son texte, et le curseur s'il y tombe.
+/// Une ligne de carte : son ornement, son surlignage, son texte.
 ///
 /// `left` est le bord gauche de la carte ; tout le reste s'en déduit — la marge, puis le
 /// retrait que le genre du bloc demande.
@@ -413,9 +402,9 @@ fn draw_text_line(
     pixmap: &mut PixmapMut,
     (left, y): (f32, f32),
     layout: &CardLayout,
-    (text, line, last): (&TextLayout, &VisualLine, bool),
+    (text, line): (&TextLayout, &VisualLine),
     card: &TextCard,
-    caret: &mut Caret,
+    selection: Selection,
 ) {
     let text_left = left + layout.pad_x;
     let start_x = text_left + indent_of(line.kind, layout.indent);
@@ -449,7 +438,7 @@ fn draw_text_line(
         (text, line),
         (font, layout.line_height),
         card.body,
-        caret.selection,
+        selection,
     );
     draw_line(
         ctx,
@@ -459,19 +448,6 @@ fn draw_text_line(
         (font, ink),
         card.body,
     );
-
-    if caret.visible && !caret.drawn {
-        let cursor = (card.body, caret.selection.head);
-        caret.drawn = draw_line_cursor(
-            ctx,
-            pixmap,
-            (start_x, y),
-            (text, line, last),
-            (font, ink.text),
-            cursor,
-            layout,
-        );
-    }
 }
 
 /// Le paragraphe entier auquel appartient une ligne visuelle.
@@ -522,52 +498,6 @@ fn marker_ink(
         theme.success
     } else {
         theme.danger
-    }
-}
-
-/// Le curseur, s'il tombe sur cette ligne — et `true` quand il y a été posé.
-///
-/// Un curseur posé dans le préfixe d'un bloc (`# `, `> `) se rattache au début de sa première
-/// ligne ; la dernière ligne du texte recueille tout ce qui dépasse sa fin.
-#[allow(clippy::too_many_arguments)]
-fn draw_line_cursor(
-    ctx: &Pass,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    (text, line, last): (&TextLayout, &VisualLine, bool),
-    (font, ink): (f32, Color),
-    (source, cursor): (&str, usize),
-    layout: &CardLayout,
-) -> bool {
-    let from = if line.first {
-        line.paragraph_start
-    } else {
-        line.start
-    };
-    if cursor < from || (cursor > line.end && !last) {
-        return false;
-    }
-    let dx = offset_to_x(ctx.typography, text, line, source, cursor, font);
-    draw_cursor(pixmap, (at.0 + dx, at.1), layout, ctx.scale, ink);
-    true
-}
-
-/// Le curseur d'édition, à l'encre de la ligne qu'il édite.
-fn draw_cursor(
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    layout: &CardLayout,
-    scale: WorldScale,
-    ink: Color,
-) {
-    // Le curseur mesure le texte qu'il édite — sa hauteur suit la police — mais son trait
-    // est une affordance : il garde sa largeur écran (exception SCALE-1), comme le curseur
-    // de n'importe quel éditeur. Mis à l'échelle, il s'effacerait au dézoom.
-    let width = scale.screen(CURSOR_WIDTH);
-    if let Some(rect) = Rect::from_xywh(at.0, at.1, width, layout.font * CURSOR_HEIGHT) {
-        // Sur la grille (SCALE-3) : un curseur d'un pixel posé à une demi-position devient
-        // deux demi-traits gris, et il clignote — donc il attire l'œil sur son propre flou.
-        super::scale::fill_crisp(pixmap, rect, ink);
     }
 }
 
