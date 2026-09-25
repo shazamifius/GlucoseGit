@@ -6,17 +6,19 @@
 > fines, les barres du bas trop petites, l'éditeur d'ancres qui n'est pas une vraie interface,
 > les cartes « pleines » là où Tauri montre le texte sur fond noir et le contour en lueur, et
 > la flèche **invisible** pendant qu'on la tire. La première session y a répondu (§ 2 à § 5) ;
-> la seconde a fini le chantier coupé — ce qu'une frappe coûte (§ 6, § 7).
+> la seconde a fini le chantier coupé — ce qu'une frappe coûte (§ 6, § 7) —, puis vérifié son
+> registre de Tauri entrée par entrée et corrigé ce qui s'y reproduisait (§ 9, § 10).
 >
 > **Date** : 2026-09-25 et 26 · commits `d0ba347`, `4c5c7d1`, `0113e8f`, `28a57aa` (la session
-> coupée), puis `f2322dd`, `8bd78f8`, `e8abb5c`, et la suite.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 787 tests verts**, clippy strict à
+> coupée), puis `f2322dd`, `8bd78f8`, `e8abb5c`, `77114bf`, `dd96904`, `35317e2`, et ceux de
+> cette fiche.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 799 tests verts**, clippy strict à
 > zéro, `cargo fmt --check` à zéro, l'application se construit ; après chaque suite,
 > `%LOCALAPPDATA%\Glucose` n'a rien reçu.
 >
 > **Vu à l'écran** : rien de cette fiche encore. Il a lancé l'application le 25/09 à 22 h 19,
-> quatre minutes, sans message (§ 1.2) : ni flèche tirée ni texte écrit. Le § 11 dit quoi
-> regarder.
+> quatre minutes, sans message (§ 1.2) : ni flèche tirée ni texte écrit. Le § 13 dit quoi
+> regarder, le § 14 ce qui attend sa parole.
 
 ---
 
@@ -32,6 +34,10 @@
 | **Passages** | au survol d'une flèche ancrée, le passage brille, **cadre serré sur la police**, texte à la couleur de la carte, une formule prise entière | `0113e8f` |
 | **COMPOSANT-3** | écrire : le **curseur ne refait plus la texture** de la carte (il la refaisait deux fois par seconde, et à chaque flèche du clavier) ; une formule sous le curseur ne fait plus retomber la carte au processeur | `f2322dd`, `8bd78f8` |
 | **COMPOSANT-4** | **sélectionner une carte ne refait plus sa texture** ; la brume d'une carte coûte un quart de moins ; les deux voies s'accordent **au bit près** | `e8abb5c` |
+| **PLACEMENT-1** | sous un outil de création, un **fantôme aimanté** suit le curseur : l'élément naît aligné (registre, 3) | `77114bf` |
+| **PICK-2** | **ce qu'on voit sous la souris est ce qu'on prend** : une carte posée sur une photo se prend ; le re-clic descend jusqu'au fond (registre, 8) | `dd96904` |
+| **Jalons** | la Time Machine dit **la date exacte** de chaque jalon (registre, 12) | `35317e2` |
+| **Le registre** | ses dix-huit remarques sur Tauri ont toutes un état : cinq ne se reproduisent pas dans Rust, trois sont corrigées, Trans-domaines est expliqué | fiche 39 |
 
 ---
 
@@ -376,9 +382,134 @@ et était aveugle à une conversion restée en temps universel.
 
 ---
 
-## 11. Ce qu'il faut regarder à l'écran
+## 11. Vu en chemin, pas corrigé
 
-*(à compléter en fin de session)*
+* **L'histoire écrit un pas par mouvement de souris.** Pendant un glisser, chaque mouvement ajoute
+  une translation à la transaction ouverte, et chacune s'écrit dans le fichier — environ 1 200
+  pour cinq secondes à 240 Hz. C'est une part de *« elle enregistre beaucoup de choses
+  inutiles »* (entrée 12). **Les fusionner n'est pas anodin** : additionner les pas en virgule
+  flottante ne redonne pas bit pour bit la position vivante, et l'épreuve fondatrice de
+  l'histoire (« le fichier relu redonne exactement le document ») tomberait. La correction
+  juste change la façon dont le glisser applique ses pas : une position = la position de départ
+  + le déplacement **total** du geste, une seule addition — ce que rejoue exactement une seule
+  translation. À faire.
+* **L'optimisation de la Time Machine** (entrée 12, *« définir mathématiquement une
+  optimisation, et garder une quarantaine d'étapes clés »*). Une proposition : chaque geste a un
+  poids — ce qu'il change (`Transaction::weight`, JRN-1) — et leur cumul est une courbe du
+  changement. Les **étapes clés** sont les points qui la découpent en parts **égales de
+  changement** : là où l'on a beaucoup travaillé, beaucoup d'étapes ; là où rien ne bougeait,
+  presque aucune. Et « une quarantaine » n'a pas à être un nombre écrit : c'est ce que la
+  réglette montre lisiblement — sa largeur divisée par l'écart minimal entre deux traits —,
+  soit une quarantaine pour son panneau. Aucune donnée n'est perdue : c'est une **vue**. Que
+  « optimiser » doive aussi **effacer** les gestes intermédiaires est une décision à lui.
+* **Trois parcours du tableau entier à chaque mouvement de souris**, qui ne tiendront pas à dix
+  millions de nœuds : `Store::move_selected` (chaque mouvement d'un glisser), l'aimant
+  (`snap_move` compare le rectangle à toutes les cibles), et `arrow::snap_to_nearest` sous
+  l'outil flèche. Le remède est le même pour les trois : l'index spatial, que le rendu et
+  l'arbitre de clic interrogent déjà. Le glisser demande en plus un index par identifiant, que
+  le magasin n'a pas.
+* **Une formule en ligne** (`$…$` au milieu d'une phrase) reste affichée en source ; seule une
+  formule qui occupe tout un paragraphe se rend. Tauri la rendait par KaTeX. C'est peut-être une
+  part de ses *« problèmes de LaTeX »*, et c'est un vrai chantier : un atome insécable dans la
+  coupe des lignes, une boîte mesurée, un clic atomique.
+* **Le bouton Trans-domaines** ne fait rien et ne le dit pas ; la fiche 05 § 5.4 voudrait qu'il
+  soit absent ou grisé (§ 10.1).
+* Sa session de 22 h 19 : des images **au repos** à 25-30 ms vers la quinzième seconde (`blit`,
+  `soumettre`, `docks`), et les panneaux à 11,6 ms au p99 au repos dans la précédente. Pas
+  encore départagé.
+
+---
+
+## 12. Ce qui n'est pas fait, ou pas prouvé
+
+* **Vu à l'écran** : rien de cette fiche.
+* **Les 11,6 ms de `textures` pendant qu'on écrit** : pas reproduits (1,8-2,2 ms au banc, même
+  machine) ; le compteur `rendu_us` départagera (§ 7.4). L'étape 2 — ne refaire que les lignes
+  changées — attend cette mesure.
+* **Les flèches** : la description longue (le badge « i » et son panneau Markdown), le portail
+  vers un autre tableau, l'étiquette dans la barre d'options — pas encore faits. Dans Tauri,
+  **rien ne créait un portail** : aucun geste de l'interface n'écrivait `targetBoardId` ; seuls un
+  document importé ou le serveur MCP en portaient. Le modèle de Rust a déjà les deux champs
+  (`long_text`, `target_board_id`), lus des documents de Tauri, jamais montrés.
+* Le défaut précis de **sa capture d'un passage mal encadré** n'a pas été reproduit au
+  processeur ; possible sur la voie graphique (§ 5).
+* La date des jalons **hors de Windows** : la durée relative, faute de fuseau connu.
+
+---
+
+## 13. Ce qu'il faut regarder à l'écran
+
+```text
+cargo run --release > sortie-reprise.txt 2>&1
+```
+
+Sa chronique de 22 h 19 est déjà mise de côté. Avant de relancer **après** cet essai, copier
+`%TEMP%\glucose-chronique\derniere-session.txt` en `sortie-chronique-2026-09-26-reprise.txt`.
+
+1. **Relier deux cartes** : la flèche doit se voir **pendant** le glisser ; la carte visée
+   s'aviver en douceur ; la carte de départ s'aviver déjà sous l'outil Flèche armé.
+2. **Les cartes** : le texte sur fond noir, le contour en lueur ; les flèches et les poignées
+   plus épaisses (son écran à 150 %).
+3. **Sélectionner une flèche** : la barre plus grande, les boutons encadrés ; « Éditer le texte
+   lié » ouvre la fenêtre — SOURCE puis CIBLE, les puces et leurs croix, la molette sur un long
+   texte.
+4. **Survoler une flèche ancrée** : le passage brille, le cadre serré sur le texte, à la couleur
+   de la carte ; sur une formule, le cadre épouse la formule dessinée.
+5. **Écrire dans une carte** pendant un moment, puis dans une formule `$$…$$` : dire si c'est
+   plus fluide ; la pastille de la formule apparaît à côté pendant qu'on l'écrit.
+6. **Le fantôme** : choisir l'outil Texte (ou Note, Membrane, Dossier) et approcher le curseur
+   d'une carte existante — le fantôme s'aligne sur elle, un guide le montre ; cliquer : l'élément
+   naît aligné.
+7. **Une carte posée sur une photo** : cliquer sur la carte la prend (et non la photo) ;
+   recliquer lentement au même endroit prend la photo ; un double-clic ouvre la carte.
+8. **La Time Machine** (`Ctrl+H`) : les jalons disent leur date exacte.
+
+---
+
+## 14. Ce qui attend sa parole
+
+1. **Le contournement automatique des flèches** (FLECHE-5) : sa réponse n'est jamais arrivée.
+   Tauri faisait passer une flèche **autour** des cartes qu'elle traverse (`getDynamicRoute`, un
+   algorithme glouton récursif sur les coins des obstacles). Mieux : un A* sur une grille non
+   uniforme, comme les flèches coudées d'Excalidraw, ou un graphe de visibilité — avec l'index
+   spatial et un cache, pour tenir dix millions de nœuds.
+2. **Les membranes** (fiche 38 § 8) et **les rideaux** (fiche 39 § 14) : la discussion reste
+   ouverte. Il a demandé **des références de logiciels** pour les rideaux ; en voici quatre, chacune
+   pour une facette de ce qu'il décrit :
+   * **Heptabase** — des *sous-tableaux* posés dans un tableau, imbriqués à volonté : un espace à
+     soi, rattaché à un endroit précis de la carte ([wiki Heptabase](https://wiki.heptabase.com/organize-knowledge-and-projects)).
+   * **Notion, *Side Peek*** — une page s'ouvre en panneau par-dessus celle où l'on est, sans la
+     quitter : la **fenêtre flottante** du rideau ([Notion](https://www.notion.com/help/navigate-with-the-sidebar)).
+   * **Miro, *Private mode*** — ce qu'on écrit reste invisible aux autres jusqu'à ce qu'on le
+     révèle : le rideau **qui n'est qu'à soi** en collaboration ([Miro](https://help.miro.com/hc/en-us/articles/9794413310482-Private-mode)).
+   * **Muse** — des tableaux dans des tableaux, dans une interface qui zoome : la **transition
+     fluide** entre le focus et le rideau ([Ink & Switch, *Muse*](https://www.inkandswitch.com/muse/)).
+3. **Trans-domaines** (§ 10.1) : ce que le bouton doit être — ou son retrait.
+4. **La Time Machine** (§ 11) : que « optimiser » soit une vue des étapes clés, ou qu'il efface.
+
+---
+
+## 15. Les sources
+
+* tldraw, [*Arrow binding options*](https://tldraw.dev/examples/arrow-binding-options) — les
+  indices qui disent à quoi une flèche se liera.
+* Excalidraw, la distance de liaison qui suit le zoom : [PR 8927](https://github.com/excalidraw/excalidraw/pull/8927),
+  et [le système de liaison des éléments](https://deepwiki.com/excalidraw/excalidraw/3.2-element-binding-system).
+* Cibles tactiles en unités logiques : [Material 3, 48 dp](https://m3.material.io/foundations/designing/structure),
+  [Apple 44 pt](https://blog.logrocket.com/ux-design/all-accessible-touch-target-sizes/) — le
+  principe de DPI-1.
+* W3C, *CSS Backgrounds and Borders* : l'ombre extérieure d'une boîte est découpée à l'intérieur
+  de sa bordure — le principe de LUEUR-1.
+* Figma, [*Sticky notes in FigJam*](https://help.figma.com/hc/en-us/articles/1500004414322-Sticky-notes-in-FigJam)
+  — l'aperçu qui suit le curseur avant de poser (PLACEMENT-1).
+* Microsoft, [`SystemTimeToTzSpecificLocalTime`](https://learn.microsoft.com/en-us/windows/win32/api/timezoneapi/nf-timezoneapi-systemtimetotzspecificlocaltime)
+  — l'heure locale d'une date passée, heure d'été de cette date comprise.
+* Pour les rideaux : [Heptabase](https://wiki.heptabase.com/organize-knowledge-and-projects),
+  [Notion](https://www.notion.com/help/navigate-with-the-sidebar),
+  [Miro](https://help.miro.com/hc/en-us/articles/9794413310482-Private-mode),
+  [Muse](https://www.inkandswitch.com/muse/).
+* Glucose Tauri : `ArrowSvgLayer.tsx`, `ArrowDescriptionPanel.tsx`, `ArrowOptions.tsx`,
+  `ArrowTextEditor.tsx`, `canvas/hitPriority.ts`, `Toolbar.tsx`, `HtmlAnnotationLayer.tsx`.
 
 ---
 
