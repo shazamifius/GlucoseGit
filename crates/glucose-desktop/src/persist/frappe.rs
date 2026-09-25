@@ -34,7 +34,7 @@ impl GlucoseApp {
         let en_cours = self
             .editing_session
             .as_ref()
-            .map(|s| (s.ann_id.as_str(), s.buffer.as_str()));
+            .map(|s| (s.ann_id.as_str(), s.buffer.as_str(), s.selection));
         e.saisir(&self.store.project.active_board_id, en_cours);
     }
 
@@ -47,23 +47,30 @@ impl GlucoseApp {
     }
 
     /// **Reprend la saisie qu'un arrêt a interrompue**, comme s'il n'avait pas eu lieu : la
-    /// carte se rouvre en édition, le curseur au bout du texte, la vue posée dessus à la
-    /// taille où on l'écrivait. Rien n'est validé — le texte reste gardé à côté jusqu'à ce que
-    /// la saisie se ferme. Rend `false` si le document le portait déjà.
+    /// carte se rouvre en édition, **sélectionnée**, le curseur **où il était**, la vue posée
+    /// dessus à la taille où on l'écrivait. Rien n'est validé — le texte reste gardé à côté
+    /// jusqu'à ce que la saisie se ferme. Rend vrai si le texte tapé n'était pas dans le
+    /// document.
     ///
     /// La première version validait aussitôt, par crainte d'une carte en édition hors de la
-    /// vue, que le clavier remplirait sans qu'on la voie. L'utilisateur voulait l'inverse —
-    /// *« retomber directement sur le texte en mode édition avec la caméra dessus »* —, et la
-    /// caméra posée sur la carte lève la crainte.
+    /// vue. L'utilisateur voulait l'inverse — *« retomber directement sur le texte en mode
+    /// édition avec la caméra dessus »* —, et la caméra posée sur la carte lève la crainte.
+    ///
+    /// La seconde rouvrait la carte en édition sans la sélectionner, le curseur au bout : le
+    /// mode d'édition ne ressemblait pas à celui qu'il avait quitté — un double-clic
+    /// sélectionne avant d'ouvrir —, et il a cru ne pas y être (fiche 38 § 2). Une carte
+    /// ouverte sans rien de tapé se rouvre aussi : il était en train de l'éditer.
     pub(crate) fn rendre_la_saisie(&mut self, s: Saisie) -> bool {
         let porte = texte_porte(&self.store.project, &s.tableau, &s.annotation).map(str::to_owned);
         match porte {
-            Some(t) if t == s.texte => return false,
-            Some(_) => {
+            Some(t) => {
                 // On revient là où l'on tapait : c'est là que le texte doit se voir.
                 let _ = self.store.try_set_active_board_id(s.tableau.clone());
                 self.poser_la_vue_sur(&s.tableau, &s.annotation);
-                self.start_text_edit(s.annotation, s.texte);
+                self.store.select_annotation(s.annotation.clone(), false);
+                let tape = t != s.texte;
+                self.start_text_edit_at(s.annotation, s.texte, s.selection);
+                return tape;
             }
             None => {
                 // La carte a disparu — ce qui ne devrait pas arriver : rien ne change le

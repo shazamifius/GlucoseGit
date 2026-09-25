@@ -33,6 +33,7 @@ use super::objets::{Objets, Source};
 use super::scribe::{chemin_de_saisie, Depart, Octets, Ordre, Scribe};
 use glucose_core::persist::histoire::{self, nature, Genre, Geste, Jalon, Ouvert, Saisie, Vue};
 use glucose_core::store::journal::Transaction;
+use glucose_core::text::Selection;
 use glucose_core::types::{BoardImage, Project};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -148,24 +149,29 @@ impl Ecriture {
         }
     }
 
-    /// Le texte de la carte en édition — `(annotation, texte)` sur ce tableau — ou `None`
-    /// quand aucune ne l'est. Ne dérange le scribe que s'il a changé.
-    pub fn saisir(&mut self, tableau: &str, en_cours: Option<(&str, &str)>) {
+    /// La carte en édition — `(annotation, texte, sélection)` sur ce tableau — ou `None`
+    /// quand aucune ne l'est. Ne dérange le scribe que si quelque chose a changé : le texte,
+    /// ou seulement le curseur — c'est là qu'on reprendra.
+    pub fn saisir(&mut self, tableau: &str, en_cours: Option<(&str, &str, Selection)>) {
         let pareille = match (&self.saisie, en_cours) {
             (None, None) => true,
-            (Some(s), Some((annotation, texte))) => {
-                s.texte == texte && s.annotation == annotation && s.tableau == tableau
+            (Some(s), Some((annotation, texte, selection))) => {
+                s.texte == texte
+                    && s.selection == selection
+                    && s.annotation == annotation
+                    && s.tableau == tableau
             }
             _ => false,
         };
         if pareille {
             return;
         }
-        self.saisie = en_cours.map(|(annotation, texte)| Saisie {
+        self.saisie = en_cours.map(|(annotation, texte, selection)| Saisie {
             document: String::new(),
             tableau: tableau.to_string(),
             annotation: annotation.to_string(),
             texte: texte.to_string(),
+            selection,
         });
         self.scribe.envoyer(Ordre::Saisie(self.saisie.clone()));
     }

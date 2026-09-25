@@ -4,6 +4,8 @@
 use crate::app::GlucoseApp;
 use crate::interactions::text_edit::keys::Command;
 use crate::persist::disque::tests::{application, dossier, image_suivante, noter, rouvrir};
+use glucose_core::text::selection::{Direction, Motion};
+use glucose_core::text::Selection;
 use glucose_core::types::Annotation;
 use std::path::Path;
 
@@ -268,4 +270,63 @@ fn test_fermer_la_fenetre_pendant_une_frappe_valide_le_texte() {
     assert_eq!(saisies(&d), 0);
     let relu = rouvrir(&d, &d.join("notes.glucose"));
     assert_eq!(texte_de(&relu, "c1"), "avant — dernière phrase");
+}
+
+/// Relance l'application après un arrêt : rien n'a été fermé, seul ce que le scribe a écrit
+/// est sur le disque.
+fn relancer(d: &Path) -> GlucoseApp {
+    let mut relance = application(d);
+    relance.retrouver_le_travail();
+    relance
+}
+
+/// **La relance rend l'édition telle qu'on l'a laissée** : la carte sélectionnée, et la
+/// sélection du texte — ici un curseur remonté de deux mots, puis étendu d'un au `Maj` —, au
+/// lieu du curseur au bout. C'est ce que son essai du 25/09 a demandé (fiche 38 § 2).
+#[test]
+fn test_la_relance_rend_le_curseur_ou_il_etait_et_la_carte_selectionnee() {
+    let d = dossier("frappe-curseur");
+    let mut app = en_train_d_ecrire(&d);
+    taper(&mut app, " puis la suite");
+    // Le texte est gardé à cette image ; ensuite, seul le curseur bouge — et c'est lui aussi
+    // qu'il faut garder.
+    image_suivante(&mut app);
+    let recul = Command::Move(Motion::Word, Direction::Backward);
+    app.apply_text_command(recul.clone(), false);
+    app.apply_text_command(recul, false);
+    app.apply_text_command(Command::Move(Motion::Word, Direction::Forward), true);
+    let laissee = app.editing_session.as_ref().expect("en édition").selection;
+    assert_ne!(laissee.anchor, laissee.head, "une vraie étendue");
+    image_suivante(&mut app);
+    drop(app);
+
+    let relance = relancer(&d);
+    let session = relance.editing_session.as_ref().expect("en édition");
+    assert_eq!(session.buffer, "avant puis la suite");
+    assert_eq!(session.selection, laissee, "la sélection où on l'a laissée");
+    assert!(
+        relance
+            .store
+            .selected_annotation_ids
+            .iter()
+            .any(|id| id == "c1"),
+        "la carte est sélectionnée, comme quand on l'a ouverte"
+    );
+}
+
+/// **Une carte ouverte sans rien y taper se rouvre aussi en édition** : on était en train de
+/// l'éditer. Rien n'a été tapé, donc rien n'est annoncé comme revenu.
+#[test]
+fn test_une_carte_ouverte_sans_rien_taper_se_rouvre_en_edition() {
+    let d = dossier("frappe-sans-rien");
+    let mut app = en_train_d_ecrire(&d);
+    app.apply_text_command(Command::Move(Motion::Char, Direction::Backward), false);
+    image_suivante(&mut app);
+    drop(app);
+
+    let relance = relancer(&d);
+    let session = relance.editing_session.as_ref().expect("en édition");
+    assert_eq!(session.buffer, "avant");
+    assert_eq!(session.selection, Selection::at("avan".len()));
+    assert!(!toast(&relance).contains("tapais"), "{}", toast(&relance));
 }

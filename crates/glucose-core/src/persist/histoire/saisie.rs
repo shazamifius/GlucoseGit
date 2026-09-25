@@ -22,19 +22,31 @@
 //! # La forme du fichier
 //!
 //! ```text
-//! 0..8    "SAISIE01"   la nature du fichier et sa version
+//! 0..8    "SAISIE02"   la nature du fichier et sa version
 //! 8..16   le point     la somme de la chaîne après le dernier geste
 //!         document, tableau, annotation, texte   (chaînes préfixées de leur longueur)
+//!         l'ancre, le curseur                    (u64, en octets dans le texte)
 //! −8..    le sceau     SHA-256 de tout ce qui précède, 8 octets
 //! ```
 //!
 //! Un fichier dont le sceau ne correspond pas — écrit à moitié, altéré — ne se lit pas.
+//!
+//! # Pourquoi la sélection, depuis la version 2
+//!
+//! L'utilisateur, après un vrai plantage : le texte était revenu, *« juste le seul truc, c'est
+//! que ça n'a pas repris exactement le mode édition de texte et exactement où était
+//! précisément mon pointeur de texte »*. La version 1 ne gardait que le texte, et rouvrait la
+//! carte le curseur au bout. Un fichier de la version 1 — laissé par une build plus ancienne —
+//! se relit encore : le curseur y revient au bout, comme avant.
 
 use super::super::bytes::{Reader, Writer};
 use super::Chaine;
 use crate::hash::sha256;
+use crate::text::Selection;
 
-const SIGNATURE: [u8; 8] = *b"SAISIE01";
+const SIGNATURE: [u8; 8] = *b"SAISIE02";
+/// La version d'avant la sélection.
+const SIGNATURE_01: [u8; 8] = *b"SAISIE01";
 const SCEAU: usize = 8;
 
 /// Ce qu'une carte en édition contient.
@@ -46,6 +58,8 @@ pub struct Saisie {
     pub tableau: String,
     pub annotation: String,
     pub texte: String,
+    /// Ce qui était sélectionné dans le texte — une sélection vide est le curseur.
+    pub selection: Selection,
 }
 
 /// Les octets du fichier d'une saisie, accrochée à ce point de l'histoire.
@@ -57,6 +71,8 @@ pub fn ecrire(point: Chaine, s: &Saisie) -> Vec<u8> {
     w.text(&s.tableau);
     w.text(&s.annotation);
     w.text(&s.texte);
+    w.u64(s.selection.anchor as u64);
+    w.u64(s.selection.head as u64);
     let mut octets = w.into_bytes();
     let sceau = sha256(&octets);
     octets.extend_from_slice(&sceau[..SCEAU]);
@@ -70,16 +86,27 @@ pub fn lire(octets: &[u8]) -> Option<(Chaine, Saisie)> {
         return None;
     }
     let mut r = Reader::new(corps);
-    if r.take(SIGNATURE.len()).ok()? != SIGNATURE {
-        return None;
-    }
+    let signature = r.take(SIGNATURE.len()).ok()?;
+    let avec_la_selection = match signature {
+        s if s == SIGNATURE => true,
+        s if s == SIGNATURE_01 => false,
+        _ => return None,
+    };
     let mut point = [0u8; 8];
     point.copy_from_slice(r.take(8).ok()?);
-    let s = Saisie {
+    let mut s = Saisie {
         document: r.text().ok()?,
         tableau: r.text().ok()?,
         annotation: r.text().ok()?,
         texte: r.text().ok()?,
+        selection: Selection::default(),
+    };
+    s.selection = if avec_la_selection {
+        let anchor = usize::try_from(r.u64().ok()?).ok()?;
+        let head = usize::try_from(r.u64().ok()?).ok()?;
+        Selection { anchor, head }
+    } else {
+        Selection::at(s.texte.len())
     };
     r.finish().ok()?;
     Some((Chaine(point), s))
@@ -95,7 +122,28 @@ mod tests {
             tableau: "b1".into(),
             annotation: "text-7".into(),
             texte: "une idée\nsur deux lignes — é, 漢".into(),
+            selection: Selection { anchor: 4, head: 9 },
         }
+    }
+
+    /// **Un fichier de la version 1 se relit encore** : le texte, et le curseur au bout — ce
+    /// que la version 1 rendait.
+    #[test]
+    fn test_une_saisie_de_la_version_1_se_relit_le_curseur_au_bout() {
+        let s = saisie();
+        let mut w = Writer::with_capacity(64);
+        w.raw(&SIGNATURE_01);
+        w.raw(&[3; 8]);
+        for t in [&s.document, &s.tableau, &s.annotation, &s.texte] {
+            w.text(t);
+        }
+        let mut octets = w.into_bytes();
+        let sceau = sha256(&octets);
+        octets.extend_from_slice(&sceau[..SCEAU]);
+        let (point, lue) = lire(&octets).expect("une version 1 se relit");
+        assert_eq!(point, Chaine([3; 8]));
+        assert_eq!(lue.texte, s.texte);
+        assert_eq!(lue.selection, Selection::at(s.texte.len()));
     }
 
     #[test]
