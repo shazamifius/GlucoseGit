@@ -5,8 +5,8 @@ use crate::canvas::screen_to_world;
 use glucose_core::geometry::Rect;
 use glucose_core::hit_priority::{collect_candidates_indexed, PickCandidate, PickInput};
 
-/// Déplacement écran au-delà duquel un clic maintenu sur le vide devient une sélection
-/// élastique (fiche 07 § 7.3) : en deçà, c'est un clic, qui ne sélectionne rien.
+/// Déplacement, en pixels **logiques**, au-delà duquel un clic maintenu sur le vide devient
+/// une sélection élastique (fiche 07 § 7.3) : en deçà, c'est un clic, qui ne sélectionne rien.
 pub const RUBBERBAND_MIN_PX: f64 = 4.0;
 
 impl GlucoseApp {
@@ -29,7 +29,8 @@ impl GlucoseApp {
             return;
         };
         // En deçà du seuil sur les deux axes, c'est un clic dans le vide, pas un geste.
-        if (x2 - x1).abs() <= RUBBERBAND_MIN_PX && (y2 - y1).abs() <= RUBBERBAND_MIN_PX {
+        let seuil = RUBBERBAND_MIN_PX * self.densite();
+        if (x2 - x1).abs() <= seuil && (y2 - y1).abs() <= seuil {
             return;
         }
         let vp = self.store.viewport();
@@ -90,7 +91,7 @@ impl GlucoseApp {
         let input = PickInput {
             wx,
             wy,
-            scale: vp.scale,
+            scale: vp.scale / self.densite(),
             images: &board.images,
             annotations: &board.annotations,
             folders: &board.folders,

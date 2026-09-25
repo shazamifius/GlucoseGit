@@ -160,4 +160,14 @@ pub struct ViewPass<'a> {
     pub index: &'a SpatialHash,
     /// Hauteur du bandeau : sommet de la zone de canevas, en unités logiques.
     pub header_h: f32,
+    /// Combien de pixels du tampon font un pixel logique (DPI-1) : la densité de l'écran,
+    /// divisée par la réduction quand la scène se rend plus petite que la fenêtre.
+    pub densite: f32,
+}
+
+impl ViewPass<'_> {
+    /// **L'échelle de cette passe** : le zoom de sa vue, et la densité de son tampon.
+    pub fn echelle(&self) -> crate::renderer::scale::WorldScale {
+        crate::renderer::scale::WorldScale::new(self.vp.scale, self.densite)
+    }
 }

@@ -59,7 +59,7 @@ fn rendu(arrow: &Annotation, editing: Option<&TextEditSession>) -> Pixmap {
         tints: &tints,
         theme: &theme,
         vp,
-        scale: WorldScale::new(vp.scale),
+        scale: WorldScale::new(vp.scale, 1.0),
         clip: Clip {
             width: 800.0,
             height: 600.0,

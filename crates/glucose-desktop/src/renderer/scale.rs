@@ -24,8 +24,21 @@
 //! testé, pas six bornes qui se déclenchent chacune dans son coin.
 
 /// Le facteur de zoom d'une passe de rendu, et la seule façon d'en dériver une longueur.
+///
+/// # DPI-1 — une taille d'écran est en pixels **logiques**
+///
+/// L'exception écran de SCALE-1 — poignées, anneaux, traits des flèches, étiquettes — gardait
+/// une taille en pixels **physiques**. Sur un écran à 150 %, les barres, qui suivent l'échelle
+/// de l'interface, grandissaient d'autant ; le canevas, non : ses poignées y étaient d'un tiers
+/// plus petites que chez Tauri, où tout est en pixels CSS, et il fallait les viser « pile ».
+/// Une taille d'écran se dit donc en pixels logiques, ceux que l'œil et la main perçoivent —
+/// les points d'Apple, les dp d'Android —, et [`WorldScale::screen`] la multiplie par la
+/// **densité** de l'écran.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct WorldScale(f32);
+pub struct WorldScale {
+    zoom: f32,
+    densite: f32,
+}
 
 impl WorldScale {
     /// Échelle sous laquelle un élément se dessine simplifié, sans son texte (SCALE-2).
@@ -36,38 +49,39 @@ impl WorldScale {
     /// et le composer coûterait une passe de mélange pour un gris uniforme.
     pub const SIMPLIFIED_BELOW: f32 = 0.2;
 
-    /// Adopte le zoom d'un viewport.
+    /// Adopte le zoom d'un viewport, et la densité de l'écran où il se dessine : combien de
+    /// pixels physiques font un pixel logique.
     ///
-    /// Un zoom non fini ou négatif est ramené à zéro : rien ne se dessine, ce qui vaut
-    /// infiniment mieux que de laisser un `NaN` atteindre la rastérisation, où il devient
-    /// une taille de glyphe aberrante et une boucle de plusieurs centaines de millions
-    /// d'itérations.
-    pub(super) fn new(scale: f64) -> Self {
-        if scale.is_finite() && scale > 0.0 {
-            Self(scale as f32)
-        } else {
-            Self(0.0)
+    /// Un zoom ou une densité non finis ou négatifs sont ramenés à zéro : rien ne se dessine,
+    /// ce qui vaut infiniment mieux que de laisser un `NaN` atteindre la rastérisation, où il
+    /// devient une taille de glyphe aberrante et une boucle de plusieurs centaines de
+    /// millions d'itérations.
+    pub(crate) fn new(scale: f64, densite: f32) -> Self {
+        let fini = |v: f32| if v.is_finite() && v > 0.0 { v } else { 0.0 };
+        Self {
+            zoom: fini(scale as f32),
+            densite: fini(densite),
         }
     }
 
     /// Met une longueur exprimée en **unités monde** à l'échelle de l'écran.
     pub fn world(self, length: f32) -> f32 {
-        length * self.0
+        length * self.zoom
     }
 
-    /// Une longueur qui garde une **taille écran constante** quel que soit le zoom.
+    /// Une longueur qui garde une **taille écran constante** quel que soit le zoom, donnée en
+    /// pixels logiques (DPI-1).
     ///
     /// C'est l'exception de SCALE-1, réservée aux affordances : poignées, anneau de
     /// sélection, traits d'un pixel. Le passage par cette fonction est délibéré — il rend
     /// l'exception visible au point d'appel au lieu d'un littéral muet.
     pub fn screen(self, pixels: f32) -> f32 {
-        let _ = self;
-        pixels
+        pixels * self.densite
     }
 
     /// L'élément se dessine-t-il avec son texte, ou simplifié (SCALE-2) ?
     pub(super) fn draws_detail(self) -> bool {
-        self.0 >= Self::SIMPLIFIED_BELOW
+        self.zoom >= Self::SIMPLIFIED_BELOW
     }
 }
 
@@ -169,7 +183,7 @@ mod tests {
         // La preuve de SCALE-1 : quel que soit le zoom, le rapport entre deux longueurs
         // du monde est celui qu'elles ont dans le monde. Aucune borne ne peut s'y glisser.
         for zoom in [0.05_f64, 0.25, 0.5, 1.0, 2.0, 4.0, 20.0] {
-            let s = WorldScale::new(zoom);
+            let s = WorldScale::new(zoom, 1.5);
             let (box_w, font, pad, radius) = (260.0_f32, 14.0, 18.0, 24.0);
             for length in [font, pad, radius] {
                 let expected = length / box_w;
@@ -185,14 +199,25 @@ mod tests {
     #[test]
     fn test_scale_1_screen_lengths_never_follow_the_zoom() {
         for zoom in [0.25_f64, 1.0, 8.0] {
-            assert_eq!(WorldScale::new(zoom).screen(2.0), 2.0);
+            assert_eq!(WorldScale::new(zoom, 1.0).screen(2.0), 2.0);
+        }
+    }
+
+    /// DPI-1 — une taille d'écran se dit en pixels logiques : à 150 %, deux pixels logiques
+    /// en font trois à l'écran, quel que soit le zoom ; une longueur du monde n'en dépend pas.
+    #[test]
+    fn test_dpi_1_une_taille_d_ecran_suit_la_densite_et_pas_le_zoom() {
+        for zoom in [0.25_f64, 1.0, 8.0] {
+            let s = WorldScale::new(zoom, 1.5);
+            assert_eq!(s.screen(2.0), 3.0);
+            assert_eq!(s.world(10.0), WorldScale::new(zoom, 1.0).world(10.0));
         }
     }
 
     #[test]
     fn test_scale_1_a_degenerate_zoom_draws_nothing() {
         for bad in [0.0_f64, -1.0, f64::NAN, f64::INFINITY] {
-            let s = WorldScale::new(bad);
+            let s = WorldScale::new(bad, 1.0);
             assert_eq!(s.world(1.0), 0.0, "zoom {bad}");
             assert_eq!(s.world(14.0), 0.0);
             assert!(!s.draws_detail());
@@ -201,10 +226,10 @@ mod tests {
 
     #[test]
     fn test_scale_2_the_level_of_detail_is_one_named_threshold() {
-        assert!(!WorldScale::new(0.19).draws_detail());
-        assert!(WorldScale::new(0.2).draws_detail());
+        assert!(!WorldScale::new(0.19, 1.0).draws_detail());
+        assert!(WorldScale::new(0.2, 1.0).draws_detail());
         assert!(
-            WorldScale::new(0.25).draws_detail(),
+            WorldScale::new(0.25, 1.0).draws_detail(),
             "le zoom 0,25 garde son texte"
         );
     }

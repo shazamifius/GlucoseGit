@@ -16,7 +16,6 @@
 //! où on voulait. Aucun mode, aucun modificateur.
 
 use crate::app::{GlucoseApp, LastClickInfo};
-use crate::interactions::pick::DOUBLE_CLICK_SLOP_PX;
 
 /// Le rang d'un clic dans une série rapprochée, **sans lire l'horloge**.
 ///
@@ -33,7 +32,7 @@ use crate::interactions::pick::DOUBLE_CLICK_SLOP_PX;
 pub fn rang_du_clic(
     precedent: Option<&LastClickInfo>,
     cle: &str,
-    position: (f64, f64),
+    (position, tremblement): ((f64, f64), f64),
     maintenant_ms: i64,
 ) -> u32 {
     let Some(last) = precedent else {
@@ -41,7 +40,7 @@ pub fn rang_du_clic(
     };
     let ecoule = maintenant_ms - last.at_ms;
     let bouge = (last.pos.0 - position.0).hypot(last.pos.1 - position.1);
-    if last.id == cle && ecoule < pick_consts::DBLCLICK_MS && bouge < DOUBLE_CLICK_SLOP_PX {
+    if last.id == cle && ecoule < pick_consts::DBLCLICK_MS && bouge < tremblement {
         last.count + 1
     } else {
         1
@@ -68,7 +67,12 @@ impl GlucoseApp {
     /// libre, et le compte se partage : deux horloges pour une question, c'est une
     /// divergence qui attend son bug.
     pub(crate) fn click_count_at(&self, cle: &str) -> u32 {
-        rang_du_clic(self.last_click.as_ref(), cle, self.mouse_pos, self.now_ms())
+        rang_du_clic(
+            self.last_click.as_ref(),
+            cle,
+            (self.mouse_pos, self.tremblement()),
+            self.now_ms(),
+        )
     }
 
     /// Retient ce clic et son rang, pour que le suivant puisse se compter.
@@ -87,7 +91,7 @@ impl GlucoseApp {
     /// qu'on manipule, et les faire toutes apparaître couvrirait le canevas de disques.
     fn arrow_handle_at(&self, wx: f64, wy: f64) -> Option<(String, ArrowHandle)> {
         let board = self.store.active_board()?;
-        let scale = board.viewport.scale;
+        let scale = self.zoom_logique();
         // Les poignées se cherchent sur le tracé que le dessin pose (FLECHE-4).
         let noeuds = crate::renderer::arrow::NoeudsDuRendu {
             board,

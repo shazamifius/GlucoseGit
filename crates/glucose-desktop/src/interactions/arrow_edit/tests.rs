@@ -186,3 +186,19 @@ fn test_arrow_3_a_bend_wins_over_a_midpoint_that_touches_it() {
         "et c'est bien le coude existant qui est tenu"
     );
 }
+
+/// **DPI-1 — à 150 %, une poignée de flèche se prend une fois et demie plus loin** : ses seize
+/// pixels de prise sont logiques, et en valent vingt-quatre à l'écran. Un appui à vingt pixels
+/// du milieu la manque à 100 %, et la prend à 150 %.
+#[test]
+fn test_dpi_1_la_prise_d_une_poignee_suit_la_densite() {
+    for (densite, attendu) in [(1.0, false), (1.5, true)] {
+        let mut app = app_avec_fleche();
+        app.ui.scale_factor = densite;
+        app.une_image_sans_fenetre((800, 600));
+        let vp = app.store.viewport();
+        // Le milieu est en (200, 0) dans le monde ; vingt pixels d'écran plus bas.
+        let prise = app.arrow_handle_at(200.0, 20.0 / vp.scale);
+        assert_eq!(prise.is_some(), attendu, "à la densité {densite}");
+    }
+}

@@ -58,7 +58,7 @@ impl GlucoseApp {
                     proposed,
                     &self.drag_snap_targets,
                     SnapOptions {
-                        scale: vp.scale,
+                        scale: vp.scale / self.densite(),
                         ..Default::default()
                     },
                 );

@@ -46,6 +46,7 @@ fn passe<'a>(rangs: &'a [u32], index: &'a glucose_core::quadtree::SpatialHash) -
         visibles: rangs,
         index,
         header_h: 0.0,
+        densite: 1.0,
     }
 }
 

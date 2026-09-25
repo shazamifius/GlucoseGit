@@ -38,8 +38,11 @@ pub(super) const BADGE_RADIUS_PX: f32 = 10.0;
 /// Épaisseur du cercle de la pastille, en pixels écran (Glucose Tauri : `strokeWidth={1.5}`).
 const BADGE_STROKE_PX: f32 = 1.5;
 
-/// Épaisseur du trait d'un sigle, en pixels écran.
-const SIGIL_STROKE_PX: f32 = 1.4;
+/// Épaisseur du trait d'un sigle, **en fraction de son étendue** : 1,4 pixel pour le sigle
+/// d'une pastille de dix, donc la même proportion partout où un sigle se dessine — sur la
+/// flèche, dans la barre d'options, à toute densité d'écran (DPI-1). Un nombre de pixels
+/// fixe aurait fait un sigle maigre dès qu'on l'agrandit.
+pub(super) const SIGIL_STROKE: f32 = 1.4 / (BADGE_RADIUS_PX * SIGIL_EXTENT);
 
 /// Demi-côté du carré où chaque sigle est dessiné, en fraction du rayon de la pastille.
 ///
@@ -200,7 +203,7 @@ pub(crate) fn draw_sigil(
         &path,
         &paint,
         &Stroke {
-            width: SIGIL_STROKE_PX,
+            width: extent * SIGIL_STROKE,
             line_cap: tiny_skia::LineCap::Round,
             line_join: tiny_skia::LineJoin::Round,
             ..Stroke::default()

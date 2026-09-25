@@ -110,11 +110,11 @@ pub(super) fn draw_arrow_handles(
     pixmap: &mut PixmapMut,
     theme: &Theme,
     poignees: &[glucose_core::arrow::ArrowHandle],
-    vp: &glucose_core::types::Viewport,
+    (vp, scale): (&glucose_core::types::Viewport, WorldScale),
 ) {
     use glucose_core::arrow::{HandleKind, HANDLE_RADIUS_PX};
 
-    let rayon = HANDLE_RADIUS_PX as f32;
+    let rayon = scale.screen(HANDLE_RADIUS_PX as f32);
     for handle in poignees {
         let (sx, sy) = crate::canvas::world_to_screen(handle.at.0, handle.at.1, vp);
         let (cx, cy) = (sx as f32, sy as f32);
@@ -155,7 +155,7 @@ pub(super) fn draw_arrow_handles(
             &chemin,
             &paint,
             &Stroke {
-                width: HANDLE_OUTLINE,
+                width: scale.screen(HANDLE_OUTLINE),
                 ..Stroke::default()
             },
             Transform::identity(),
@@ -190,7 +190,7 @@ mod tests {
         draw_resize_handles(
             &mut pixmap.as_mut(),
             &theme,
-            WorldScale::new(1.0),
+            WorldScale::new(1.0, 1.0),
             screen_box,
             &Handle::ALL,
         );
@@ -218,7 +218,7 @@ mod tests {
             draw_resize_handles(
                 &mut pixmap.as_mut(),
                 &theme,
-                WorldScale::new(zoom),
+                WorldScale::new(zoom, 1.0),
                 (60.0, 60.0, 40.0, 40.0),
                 &[Handle::TopLeft],
             );

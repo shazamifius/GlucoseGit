@@ -47,7 +47,7 @@ impl GlucoseApp {
             return;
         };
         let bouge = (dx - self.mouse_pos.0).hypot(dy - self.mouse_pos.1);
-        if bouge > super::pick::DOUBLE_CLICK_SLOP_PX {
+        if bouge > self.tremblement() {
             return;
         }
         let (x, y) = (self.mouse_pos.0 as f32, self.mouse_pos.1 as f32);

@@ -103,9 +103,9 @@ fn rotation_at(rotation: f64, at: (f32, f32), size: (f32, f32)) -> Transform {
     )
 }
 
-/// Débord du cadre de sélection autour de la texture, en pixels écran (fiche 06 § 4.2).
+/// Débord du cadre de sélection autour de la texture, en pixels logiques (fiche 06 § 4.2).
 const IMAGE_SELECTION_INSET: f32 = 3.0;
-/// Épaisseur du cadre de sélection, en pixels écran (fiche 06 § 4.2).
+/// Épaisseur du cadre de sélection, en pixels logiques (fiche 06 § 4.2).
 const IMAGE_SELECTION_STROKE: f32 = 1.25;
 
 /// **Les cadres de sélection des images** — fiche 06 § 4.2 : un liseré blanc pur à 0,80,
@@ -126,22 +126,35 @@ const IMAGE_SELECTION_STROKE: f32 = 1.25;
 /// Un cadre **penché** garde le contour : ses bords sont obliques. Il entre dans un seul tracé
 /// par ses quatre coins tournés — une rotation ne déforme rien, donc tourner le rectangle puis
 /// le border revient à border le rectangle puis le tourner.
-#[derive(Default)]
 pub(super) struct Cadres {
     /// Les cadres droits, en rectangles écran, et s'ils sont verrouillés.
     droits: Vec<(Rect, bool)>,
     /// Les cadres penchés, un tracé par encre : normaux, puis verrouillés.
     penches: [PathBuilder; 2],
+    /// Le débord et l'épaisseur du cadre, en pixels de l'écran : des pixels logiques mis à
+    /// la densité (DPI-1), comme les poignées qui se posent dessus.
+    debord: f32,
+    epaisseur: f32,
 }
 
 impl Cadres {
+    /// Des cadres à poser à cette échelle.
+    pub(super) fn a_l_echelle(scale: WorldScale) -> Self {
+        Self {
+            droits: Vec::new(),
+            penches: Default::default(),
+            debord: scale.screen(IMAGE_SELECTION_INSET),
+            epaisseur: scale.screen(IMAGE_SELECTION_STROKE),
+        }
+    }
+
     /// Ajoute le cadre d'une image posée sur la boîte écran `(sx, sy, sw, sh)`.
     pub(super) fn ajouter(
         &mut self,
         img: &glucose_core::types::BoardImage,
         (sx, sy, sw, sh): (f32, f32, f32, f32),
     ) {
-        let d = IMAGE_SELECTION_INSET;
+        let d = self.debord;
         let (at, size) = ((sx - d, sy - d), (sw + 2.0 * d, sh + 2.0 * d));
         if img.rotation == 0.0 {
             if let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) {
@@ -169,10 +182,14 @@ impl Cadres {
     pub(super) fn poser(self, pixmap: &mut PixmapMut, theme: &Theme) {
         let encres = [theme.selection_frame, theme.alert];
         for (rect, verrouille) in self.droits {
-            poser_un_cadre_droit(pixmap, rect, encres[usize::from(verrouille)]);
+            poser_un_cadre_droit(
+                pixmap,
+                (rect, self.epaisseur),
+                encres[usize::from(verrouille)],
+            );
         }
         let stroke = Stroke {
-            width: IMAGE_SELECTION_STROKE,
+            width: self.epaisseur,
             ..Default::default()
         };
         for (trace, encre) in self.penches.into_iter().zip(encres) {
@@ -193,8 +210,12 @@ impl Cadres {
 /// l'était le contour : le liseré déborde d'une demi-épaisseur au-dehors et mord d'autant
 /// au-dedans. Les filets ne se chevauchent pas — une encre à 0,80 posée deux fois aux coins
 /// y serait plus claire.
-fn poser_un_cadre_droit(pixmap: &mut PixmapMut, rect: Rect, encre: tiny_skia::Color) {
-    let e = IMAGE_SELECTION_STROKE.round().max(1.0);
+fn poser_un_cadre_droit(
+    pixmap: &mut PixmapMut,
+    (rect, epaisseur): (Rect, f32),
+    encre: tiny_skia::Color,
+) {
+    let e = epaisseur.round().max(1.0);
     let (x, y) = ((rect.x() - e / 2.0).round(), (rect.y() - e / 2.0).round());
     let (l, h) = ((rect.width() + e).round(), (rect.height() + e).round());
     if l <= 2.0 * e || h <= 2.0 * e {
@@ -249,7 +270,7 @@ pub(in crate::renderer) fn draw_image_ornaments(
             .iter()
             .filter(|(img, _)| choisies.contains(img.id.as_str()))
     };
-    let mut cadres = Cadres::default();
+    let mut cadres = Cadres::a_l_echelle(scale);
     for (img, ecran) in selectionnees() {
         cadres.ajouter(img, *ecran);
     }

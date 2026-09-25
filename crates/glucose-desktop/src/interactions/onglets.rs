@@ -105,12 +105,13 @@ impl GlucoseApp {
     /// **L'onglet tenu suit la souris** : au-delà d'un tremblement, il glisse. Rend `true`
     /// quand un onglet est tenu — le mouvement lui appartient.
     pub(crate) fn suivre_l_onglet_tenu(&mut self) -> bool {
+        let (tremblement, souris) = (self.tremblement(), self.mouse_pos);
         let Some(tenu) = self.ui.onglets.tenu.as_mut() else {
             return false;
         };
         let (x, y) = (tenu.depuis.0 as f64, tenu.depuis.1 as f64);
-        let bouge = (self.mouse_pos.0 - x).hypot(self.mouse_pos.1 - y);
-        if !tenu.glisse && bouge > super::pick::DOUBLE_CLICK_SLOP_PX {
+        let bouge = (souris.0 - x).hypot(souris.1 - y);
+        if !tenu.glisse && bouge > tremblement {
             tenu.glisse = true;
         }
         self.mark_dirty();

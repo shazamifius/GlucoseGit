@@ -42,7 +42,7 @@ fn rendu(points: &[(f64, f64)], zoom: f64, selectionnee: bool, double_sens: bool
         tints: &tints,
         theme: &theme,
         vp,
-        scale: WorldScale::new(zoom),
+        scale: WorldScale::new(zoom, 1.0),
         clip: Clip {
             width: TAILLE.0 as f32,
             height: TAILLE.1 as f32,
@@ -181,4 +181,119 @@ fn test_fleche_1_un_coude_n_est_pas_couvert_deux_fois() {
         h_coude <= h_droit + 3,
         "le coude brille plus : {h_coude} contre {h_droit}"
     );
+}
+
+/// **DPI-1 — à 150 %, le trait d'une flèche est une fois et demie plus épais à l'écran** : ses
+/// deux pixels sont des pixels logiques, comme chez Tauri. L'épreuve passe par tout le chemin —
+/// l'échelle de l'interface, le moteur, la passe, le champ —, pas par une échelle posée à la
+/// main.
+#[test]
+fn test_dpi_1_le_trait_suit_la_densite_de_l_ecran() {
+    use glucose_core::store::Store;
+    let epaisseur = |densite: f32| {
+        let mut store = Store::new("dpi");
+        let board = store.project.active_board_id.clone();
+        store.add_annotation(&board, Annotation::arrow("f", -150.0, 0.0, 150.0, 0.0));
+        store.clear_selection();
+        store.set_viewport(
+            &board,
+            Viewport {
+                x: 400.0,
+                y: 400.0,
+                scale: 1.0,
+            },
+        );
+        let mut renderer = crate::renderer::Renderer::new();
+        let mut ui = crate::ui::UiState::new();
+        ui.scale_factor = densite;
+        let image = crate::bench::render_frame(&mut renderer, &mut ui, &store, 800, 800);
+        // L'encre de la colonne du milieu, halo et âme ensemble, fond retranché : sa somme
+        // est proportionnelle à la largeur du trait, quelle que soit la façon dont ses bords
+        // tombent sur la grille de pixels.
+        let teinte = |x: u32, y: u32| {
+            let c = image.pixel(x, y).expect("dans l'image");
+            f64::from(c.red()) + f64::from(c.green()) + f64::from(c.blue())
+        };
+        // Le fond du canevas, lu loin du trait, entre deux points de la grille.
+        let fond = teinte(401, 250);
+        (360..440).map(|y| teinte(401, y) - fond).sum::<f64>()
+    };
+    let rapport = epaisseur(1.5) / epaisseur(1.0);
+    assert!(
+        (rapport - 1.5).abs() < 0.03,
+        "à 150 %, le trait porte une fois et demie l'encre : {rapport}"
+    );
+}
+
+/// **DPI-1 — les poignées d'une flèche se dessinent en pixels logiques** : à 150 %, le losange
+/// du milieu couvre deux fois et quart la surface qu'il couvre à 100 %.
+#[test]
+fn test_dpi_1_les_poignees_d_une_fleche_suivent_la_densite() {
+    let surface = |densite: f32| {
+        let mut pixmap = Pixmap::new(100, 100).expect("pixmap");
+        let poignee = glucose_core::arrow::ArrowHandle {
+            at: (0.0, 0.0),
+            kind: glucose_core::arrow::HandleKind::Midpoint(0),
+        };
+        let vp = Viewport {
+            x: 50.0,
+            y: 50.0,
+            scale: 1.0,
+        };
+        crate::renderer::handles::draw_arrow_handles(
+            &mut pixmap.as_mut(),
+            &Theme::dark(),
+            &[poignee],
+            (&vp, WorldScale::new(1.0, densite)),
+        );
+        pixmap
+            .data()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|p| f64::from(p[3]) / 255.0)
+            .sum::<f64>()
+    };
+    let rapport = surface(1.5) / surface(1.0);
+    assert!(
+        (rapport - 2.25).abs() < 0.15,
+        "rapport des surfaces : {rapport}"
+    );
+}
+
+/// **DPI-1, sur la voie graphique** — celle de sa machine : les flèches que la carte reçoit
+/// portent déjà leur trait en pixels logiques. À 150 %, l'âme d'un trait de deux pixels a une
+/// demi-largeur d'un pixel et demi, et son halo de six, quatre et demi.
+#[test]
+fn test_dpi_1_la_carte_recoit_des_fleches_a_la_densite_de_l_ecran() {
+    use glucose_core::quadtree::{tous_les_rangs, SpatialHash};
+    use glucose_core::store::Store;
+    let mut store = Store::new("dpi");
+    let board = store.project.active_board_id.clone();
+    store.add_annotation(&board, Annotation::arrow("f", -100.0, 0.0, 100.0, 0.0));
+    store.clear_selection();
+    let (typographie, math) = (Typography::new(), MathRenderer::new());
+    let mut index = SpatialHash::new(1000.0);
+    index.index_board(store.active_board().expect("un tableau"));
+    let rangs = tous_les_rangs(store.active_board().expect("un tableau"));
+    let pass = crate::params::ViewPass {
+        vp: Viewport {
+            x: 200.0,
+            y: 150.0,
+            scale: 1.0,
+        },
+        visibles: &rangs,
+        index: &index,
+        header_h: 0.0,
+        densite: 1.5,
+    };
+    let champs = fleches_a_poser(
+        &mut SymbioticHueCache::new(),
+        (&store, pass),
+        (&typographie, &math),
+        (400.0, 300.0),
+    );
+    let champ = champs.first().expect("une flèche");
+    assert_eq!(champ.ame[0], 1.5, "demi-âme");
+    assert_eq!(champ.halo[0], 4.5, "demi-halo");
 }

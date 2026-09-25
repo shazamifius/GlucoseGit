@@ -79,7 +79,7 @@ pub(super) fn draw_annotations(
         tints: kit.tints,
         theme: kit.theme,
         vp: pass.vp,
-        scale: WorldScale::new(pass.vp.scale),
+        scale: pass.echelle(),
         clip: Clip {
             width: pixmap.width() as f32,
             height: pixmap.height() as f32,
@@ -272,7 +272,7 @@ fn draw_arrow_node(
     // affordance appartient à ce qu'on manipule.
     if selected {
         let poignees = arrow::handles(ann, noeuds);
-        super::handles::draw_arrow_handles(pixmap, ctx.theme, &poignees, &ctx.vp);
+        super::handles::draw_arrow_handles(pixmap, ctx.theme, &poignees, (&ctx.vp, ctx.scale));
     }
     let Some(milieu) = arrow::milieu_du_trace(&fleche.morceaux) else {
         return;

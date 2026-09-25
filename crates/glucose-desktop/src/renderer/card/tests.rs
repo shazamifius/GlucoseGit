@@ -44,7 +44,7 @@ fn test_scale_1_the_layout_is_self_similar_at_every_zoom() {
     // Le rapport de chaque mesure à la largeur de la boîte doit être celui du monde.
     let world = CardLayout::text_card(260.0, 120.0, 4);
     for zoom in [0.25_f64, 0.5, 1.0, 2.0, 4.0, 16.0] {
-        let screen = world.scaled(WorldScale::new(zoom));
+        let screen = world.scaled(WorldScale::new(zoom, 1.0));
         let pairs = [
             (screen.font, world.font),
             (screen.pad_x, world.pad_x),
@@ -76,10 +76,10 @@ fn test_a_card_stretches_to_fit_its_text_in_world_units() {
     let tall = CardLayout::text_card(260.0, 60.0, 8);
     assert_eq!(short.height, 60.0, "une carte assez haute garde sa hauteur");
     assert!(tall.height > 60.0, "une carte trop courte s'etire");
-    let ratio_1 =
-        tall.scaled(WorldScale::new(0.3)).height / tall.scaled(WorldScale::new(0.3)).width;
-    let ratio_2 =
-        tall.scaled(WorldScale::new(3.0)).height / tall.scaled(WorldScale::new(3.0)).width;
+    let ratio_1 = tall.scaled(WorldScale::new(0.3, 1.0)).height
+        / tall.scaled(WorldScale::new(0.3, 1.0)).width;
+    let ratio_2 = tall.scaled(WorldScale::new(3.0, 1.0)).height
+        / tall.scaled(WorldScale::new(3.0, 1.0)).width;
     assert!((ratio_1 - ratio_2).abs() < 1e-6, "{ratio_1} != {ratio_2}");
 }
 
@@ -316,6 +316,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
             visibles: &rangs,
             index: &index,
             header_h: 0.0,
+            densite: 1.0,
         },
     );
     pixmap

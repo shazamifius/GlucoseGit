@@ -43,7 +43,6 @@
 //! dessinent par-dessus, en direct ; le dernier fait que la tuile n'est **pas gardée**, pour
 //! qu'elle se repeigne dès que les octets arrivent.
 
-use super::scale::WorldScale;
 use super::scene::image::{draw_image_ornaments, draw_images, PasseImages};
 use super::tuiles::{a_l_ecran, ce_que_porte, Portee, Tuiles, COTE_TUILE};
 #[allow(unused_imports)]
@@ -453,6 +452,9 @@ fn rendre_une_tuile(atelier: &mut Atelier<'_>, adresse: Adresse) -> Option<(Pixm
         visibles: &rangs,
         index: atelier.index,
         header_h: 0.0,
+        // Une tuile ne porte que des photos, ancrées au monde : aucune affordance n'y a de
+        // taille d'écran, donc aucune densité à y appliquer.
+        densite: 1.0,
     };
     let complete = draw_images(
         atelier.magasin,
@@ -507,7 +509,7 @@ pub(super) fn dessiner_les_ornements(
             (img, (wx as f32, wy as f32, sw, sh))
         })
         .collect();
-    draw_image_ornaments(kit, pixmap, store, WorldScale::new(pass.vp.scale), &images);
+    draw_image_ornaments(kit, pixmap, store, pass.echelle(), &images);
 }
 
 /// Les compteurs de la chronique, tels que l'**écran** les vit — et non la dernière tuile.

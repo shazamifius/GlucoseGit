@@ -36,7 +36,7 @@ fn vue(echelle: f64) -> Viewport {
 
 /// Ce que la carte témoin devient à l'écran, à l'arrêt.
 fn pieces(renderer: &Renderer, echelle: f64, selectionnee: bool) -> Pieces {
-    Regime::de(vue(echelle), Regard::immobile(), ECRAN, 0.0)
+    Regime::de((vue(echelle), 1.0), Regard::immobile(), ECRAN, 0.0)
         .carte(
             renderer.kit(),
             "c",
@@ -56,7 +56,7 @@ fn en_place(kit: PaintKit<'_>, vp: Viewport, selectionnee: bool) -> Pixmap {
         tints: kit.tints,
         theme: kit.theme,
         vp,
-        scale: WorldScale::new(vp.scale),
+        scale: WorldScale::new(vp.scale, 1.0),
         clip: Clip {
             width: ECRAN.0 as f32,
             height: ECRAN.1 as f32,
@@ -83,8 +83,9 @@ fn en_place(kit: PaintKit<'_>, vp: Viewport, selectionnee: bool) -> Pixmap {
 fn contour(kit: PaintKit<'_>, vp: Viewport) -> impl Fn(f32, f32) -> bool {
     let lignes =
         card_text_layout(kit.typography, kit.math, CORPS, CARTE.2, TextMode::Rendered).line_count();
-    let carte = CardLayout::text_card(CARTE.2, CARTE.3, lignes).scaled(WorldScale::new(vp.scale));
-    let anneau = WorldScale::new(vp.scale).screen(SELECTION_RING);
+    let carte =
+        CardLayout::text_card(CARTE.2, CARTE.3, lignes).scaled(WorldScale::new(vp.scale, 1.0));
+    let anneau = WorldScale::new(vp.scale, 1.0).screen(SELECTION_RING);
     let marge = (carte.border.max(anneau) / 2.0).ceil() + 1.0;
     let (sx, sy) = world_to_screen(CARTE.0, CARTE.1, &vp);
     let (sx, sy, l, h, r) = (
@@ -149,7 +150,7 @@ fn test_une_carte_qui_depasse_l_ecran_se_decoupe_et_garde_un_repli() {
         x: 250.0 - 150.0 * DE_PRES,
         y: 150.0 - 100.0 * DE_PRES,
     };
-    let en_chemin = Regime::de(vp, Regard::immobile(), ECRAN, 0.0)
+    let en_chemin = Regime::de((vp, 1.0), Regard::immobile(), ECRAN, 0.0)
         .photo_en_chemin(&photo)
         .expect("la photo touche l'ecran");
     assert!(

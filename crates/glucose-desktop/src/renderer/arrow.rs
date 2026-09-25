@@ -220,7 +220,7 @@ pub(super) fn fleches_a_poser(
         typographie,
         math,
     };
-    let echelle = WorldScale::new(pass.vp.scale);
+    let echelle = pass.echelle();
     Visibles::nouvelles(pass.visibles, board)
         .annotations()
         .filter(|a| matches!(a, Annotation::Arrow { .. }))

@@ -177,6 +177,10 @@ pub struct Renderer {
     pub focus: focus::FocusDuRendu,
     /// Ce que le geste en cours a touché, que l'index ne connaîtra qu'à sa fin (GESTE-1).
     suivi_du_geste: glucose_core::quadtree::SuiviDuGeste,
+    /// Combien de pixels physiques font un pixel logique sur l'écran de cette image (DPI-1) :
+    /// l'échelle de l'interface, relue à chaque image — une fenêtre qui change d'écran change
+    /// de densité.
+    densite: f32,
 }
 
 /// `new` ne prend aucun argument : `Default` est donc exactement le même constructeur.
@@ -207,6 +211,7 @@ impl Renderer {
             carte: Default::default(),
             focus: Default::default(),
             suivi_du_geste: Default::default(),
+            densite: 1.0,
         }
     }
 
@@ -404,12 +409,14 @@ impl Renderer {
     ) -> bool {
         let width = pixmap.width();
         let height = pixmap.height();
-        let (vp, rangs) = self.cadrer(store, (width, height), header_h, cadrage);
+        self.densite = ui.scale();
+        let (vp, rangs, densite) = self.cadrer(store, (width, height), header_h, cadrage);
         let pass = ViewPass {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
             header_h,
+            densite,
         };
         // Par champs et non par `self.kit()` : les passes qui suivent empruntent d'autres
         // champs en ecriture, et un emprunt disjoint ne se prouve qu'a travers des champs.

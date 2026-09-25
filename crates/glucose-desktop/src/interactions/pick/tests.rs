@@ -174,7 +174,9 @@ fn le_rang_d_un_clic_se_verifie_a_la_milliseconde() {
         id: "N1".to_string(),
         count: 1,
     };
-    let rang = |ms: i64, pos: (f64, f64), cle: &str| rang_du_clic(Some(&precedent), cle, pos, ms);
+    let rang = |ms: i64, pos: (f64, f64), cle: &str| {
+        rang_du_clic(Some(&precedent), cle, (pos, DOUBLE_CLICK_SLOP_PX), ms)
+    };
 
     let limite = 1_000 + pick_consts::DBLCLICK_MS;
     assert_eq!(rang(limite - 1, (100.0, 100.0), "N1"), 2, "juste dedans");
@@ -187,5 +189,49 @@ fn le_rang_d_un_clic_se_verifie_a_la_milliseconde() {
         1,
         "le curseur a trop bouge"
     );
-    assert_eq!(rang_du_clic(None, "N1", (100.0, 100.0), 0), 1, "le premier");
+    assert_eq!(
+        rang_du_clic(None, "N1", ((100.0, 100.0), DOUBLE_CLICK_SLOP_PX), 0),
+        1,
+        "le premier"
+    );
+}
+
+/// **DPI-1 — à 150 %, la bande qui désigne une flèche est une fois et demie plus large** : un
+/// clic à quinze pixels physiques du trait tombe hors de ses douze pixels logiques à 100 %, et
+/// dedans à 150 % — là où ils valent dix-huit. Le noyau reçoit le zoom en pixels logiques ;
+/// c'est ce qui rend la cible aussi facile à viser que chez Tauri.
+#[test]
+fn test_dpi_1_la_bande_d_une_fleche_suit_la_densite() {
+    use glucose_core::types::{Annotation, Viewport};
+    let touche = |densite: f32| {
+        let mut app = GlucoseApp::new();
+        let board = app.store.project.active_board_id.clone();
+        if let Some(b) = app.store.active_board_mut() {
+            b.annotations.clear();
+        }
+        app.store
+            .add_annotation(&board, Annotation::arrow("f", -200.0, 0.0, 200.0, 0.0));
+        app.store.clear_selection();
+        app.store.set_viewport(
+            &board,
+            Viewport {
+                x: 400.0,
+                y: 300.0,
+                scale: 1.0,
+            },
+        );
+        app.ui.scale_factor = densite;
+        app.une_image_sans_fenetre((800, 600));
+        app.pick_candidate_at(0.0, 15.0).map(|c| c.id)
+    };
+    assert_eq!(
+        touche(1.0),
+        None,
+        "à 100 %, quinze pixels sont hors de la bande"
+    );
+    assert_eq!(
+        touche(1.5).as_deref(),
+        Some("f"),
+        "à 150 %, ils sont dedans"
+    );
 }

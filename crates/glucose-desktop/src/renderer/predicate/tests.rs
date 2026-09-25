@@ -121,7 +121,7 @@ fn test_a_sigil_stays_inside_its_square() {
             let debord = (x - 32.0).abs().max((y - 32.0).abs());
             // La demi-épaisseur du trait déborde légitimement du carré nominal.
             assert!(
-                debord <= extent + SIGIL_STROKE_PX,
+                debord <= extent * (1.0 + SIGIL_STROKE),
                 "{} déborde de {debord} px pour un carré de {extent}",
                 predicate.as_str()
             );

@@ -286,7 +286,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// pas de filet au repos, lueur découpée à la boîte —, et des cartes mesurées comme à
 /// l'ouverture. 436 932 pixels changent, tous aux cartes et à leurs lueurs ; l'anneau d'une carte
 /// sélectionnée reste. Regardés côte à côte.
-const EMPREINTE_TEMOIN_SELECTION: &str = "4bf7d0106b8025e2";
+/// **Puis** (DPI-1) : le trait d'un sigle devient une fraction de sa taille, et non 1,4 pixel
+/// fixe — ceux de la barre d'options, plus grands que ceux d'une pastille, s'épaississent.
+/// 280 pixels changent, tous sur les six sigles de la barre (1046-1151 × 842-852).
+const EMPREINTE_TEMOIN_SELECTION: &str = "82e7ffe6248d4250";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -340,7 +343,10 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// pas de filet au repos, lueur découpée à la boîte —, et des cartes mesurées comme à
 /// l'ouverture. 436 932 pixels changent, tous aux cartes et à leurs lueurs ; l'anneau d'une carte
 /// sélectionnée reste. Regardés côte à côte.
-const EMPREINTE_TEMOIN_MENU: &str = "a00463ad55ecda70";
+/// **Puis** (DPI-1) : le trait d'un sigle devient une fraction de sa taille, et non 1,4 pixel
+/// fixe — ceux de la barre d'options, plus grands que ceux d'une pastille, s'épaississent.
+/// 280 pixels changent, tous sur les six sigles de la barre (1046-1151 × 842-852).
+const EMPREINTE_TEMOIN_MENU: &str = "379a18e79e808ddd";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

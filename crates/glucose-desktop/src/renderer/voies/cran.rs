@@ -112,7 +112,7 @@ impl Renderer {
     /// **Rejuge depuis la voie du processeur** : cadrer la vue, puis juger — ce qui dira
     /// quand la carte peut reprendre les photos.
     pub fn rejuger_la_carte(&mut self, store: &Store, taille: (u32, u32), header_h: f32) {
-        let (vp, rangs) = self.cadrer(store, taille, header_h, Cadrage::plein());
+        let (vp, rangs, _) = self.cadrer(store, taille, header_h, Cadrage::plein());
         self.carte.juger(&self.magasin, store, (&vp, &rangs));
     }
 }

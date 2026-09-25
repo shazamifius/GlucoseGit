@@ -146,8 +146,13 @@ fn test_halo_1_the_profile_conserves_its_mass() {
 fn overhang(card: &Annotation) -> (f64, f64) {
     let rect = card.rect().expect("une carte a une boîte");
     let vp = centered(1.0, (rect.width, rect.height));
-    let halo = halo_geometry(card, &vp, (1440.0, 900.0, 0.0), Eclat::Repos)
-        .expect("la carte est à l'écran");
+    let halo = halo_geometry(
+        card,
+        (&vp, WorldScale::new(vp.scale, 1.0)),
+        (1440.0, 900.0, 0.0),
+        Eclat::Repos,
+    )
+    .expect("la carte est à l'écran");
     let reach = f64::from(EdgeProfile::new(halo.sigma).reach(HALO_ALPHA));
     let (sx, sy) = world_to_screen(rect.left, rect.top, &vp);
     (
@@ -202,8 +207,13 @@ fn test_the_glow_scales_with_the_zoom_without_any_cap() {
     let card = sized_card(Some(240.0), Some(60.0));
     let width_at = |zoom: f64| {
         let vp = centered(zoom, (240.0, 60.0));
-        let halo =
-            halo_geometry(&card, &vp, (1440.0, 900.0, 0.0), Eclat::Repos).expect("à l'écran");
+        let halo = halo_geometry(
+            &card,
+            (&vp, WorldScale::new(vp.scale, 1.0)),
+            (1440.0, 900.0, 0.0),
+            Eclat::Repos,
+        )
+        .expect("à l'écran");
         f64::from(halo.right - halo.left)
     };
     let un = width_at(1.0);
@@ -226,14 +236,26 @@ fn test_a_card_far_off_screen_is_culled() {
         y: 0.0,
         scale: 1.0,
     };
-    assert!(halo_geometry(&card, &loin, (1440.0, 900.0, 0.0), Eclat::Repos).is_none());
+    assert!(halo_geometry(
+        &card,
+        (&loin, WorldScale::new(loin.scale, 1.0)),
+        (1440.0, 900.0, 0.0),
+        Eclat::Repos
+    )
+    .is_none());
 
     let brise = Viewport {
         x: f64::NAN,
         y: 0.0,
         scale: 1.0,
     };
-    assert!(halo_geometry(&card, &brise, (1440.0, 900.0, 0.0), Eclat::Repos).is_none());
+    assert!(halo_geometry(
+        &card,
+        (&brise, WorldScale::new(brise.scale, 1.0)),
+        (1440.0, 900.0, 0.0),
+        Eclat::Repos
+    )
+    .is_none());
 }
 
 // ── HALO-2 — la portée se déduit du huit bits ─────────────────────────────────
@@ -438,6 +460,7 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         visibles: &rangs,
         index: &index,
         header_h: 40.0,
+        densite: 1.0,
     };
     // Frame de chauffe : remplit le cache de teintes symbiotiques.
     draw_halos(&mut hue_cache, &mut pixmap.as_mut(), &store, (pass, &[]));
@@ -776,10 +799,22 @@ fn test_lueur_1_la_geometrie_porte_la_carte() {
         y: 50.0,
         scale: 2.0,
     };
-    let halo = halo_geometry(&carte, &vp, (1440.0, 900.0, 0.0), Eclat::Repos).expect("visible");
+    let halo = halo_geometry(
+        &carte,
+        (&vp, WorldScale::new(vp.scale, 1.0)),
+        (1440.0, 900.0, 0.0),
+        Eclat::Repos,
+    )
+    .expect("visible");
     let attendue = glucose_core::membrane_forme::Arrondi::nouveau(120.0, 90.0, 400.0, 100.0, 64.0);
     assert_eq!(halo.carte, Some(attendue));
-    let vive = halo_geometry(&carte, &vp, (1440.0, 900.0, 0.0), Eclat::Designee).expect("visible");
+    let vive = halo_geometry(
+        &carte,
+        (&vp, WorldScale::new(vp.scale, 1.0)),
+        (1440.0, 900.0, 0.0),
+        Eclat::Designee,
+    )
+    .expect("visible");
     assert!(
         vive.left < halo.left && vive.sigma > halo.sigma,
         "désignée, elle s'étale"

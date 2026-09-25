@@ -368,7 +368,7 @@ mod tests {
     fn test_scale_1_the_gauge_is_self_similar_at_every_zoom() {
         let world = GaugeLayout::world();
         for zoom in [0.25_f64, 0.5, 1.0, 2.0, 4.0, 16.0] {
-            let screen = world.scaled(WorldScale::new(zoom));
+            let screen = world.scaled(WorldScale::new(zoom, 1.0));
             let pairs = [
                 (screen.bar_width, world.bar_width),
                 (screen.bar_gap, world.bar_gap),

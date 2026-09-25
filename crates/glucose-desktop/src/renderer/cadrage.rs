@@ -244,16 +244,20 @@ impl Renderer {
         (width, height): (u32, u32),
         header_h: f32,
         cadrage: Cadrage,
-    ) -> (glucose_core::types::Viewport, Vec<u32>) {
+    ) -> (glucose_core::types::Viewport, Vec<u32>, f32) {
         self.sync_spatial_index(store);
         // La vue du cadrage l'emporte : une tuile se rend dans SON repere, pas dans celui de
         // l'ecran, et elle n'a ni reduction ni origine a appliquer par-dessus.
         let mut vp = cadrage.vue.unwrap_or_else(|| store.viewport());
+        // La densité suit la réduction comme le zoom : un tampon deux fois plus petit porte des
+        // poignées deux fois plus petites, que l'agrandissement rend à leur taille (DPI-1).
+        let mut densite = self.densite;
         if cadrage.vue.is_none() {
             let f = cadrage.reduction.max(1.0);
             vp.scale /= f;
             vp.x = vp.x / f - f64::from(cadrage.origine.0);
             vp.y = vp.y / f - f64::from(cadrage.origine.1);
+            densite /= f as f32;
         }
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
@@ -261,7 +265,7 @@ impl Renderer {
         // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
         self.focus.filtrer(&mut rangs);
         crate::perf::stage("cull");
-        (vp, rangs)
+        (vp, rangs, densite)
     }
 
     /// **Les rangs de ce qui tombe dans la fenêtre, dans le document tel qu'il est** — geste
@@ -291,5 +295,27 @@ impl Renderer {
         self.spatial_hash.index_board(board);
         self.suivi_du_geste.absorbe(geste, &self.spatial_hash);
         self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0)
+    }
+}
+
+#[cfg(test)]
+mod tests_densite {
+    use super::*;
+
+    /// **DPI-1 — la densité suit la réduction comme le zoom** : une scène rendue deux fois
+    /// plus petite porte des poignées deux fois plus petites, que l'agrandissement rend à leur
+    /// taille. Sans cela, une scène pixelisée pour tenir la cadence aurait des poignées géantes.
+    #[test]
+    fn test_dpi_1_la_densite_suit_la_reduction() {
+        let store = Store::new("densite");
+        let mut renderer = Renderer::new();
+        renderer.densite = 1.5;
+        let (_, _, pleine) = renderer.cadrer(&store, (800, 600), 0.0, Cadrage::plein());
+        let reduite = Cadrage {
+            reduction: 2.0,
+            ..Cadrage::plein()
+        };
+        let (_, _, divisee) = renderer.cadrer(&store, (400, 300), 0.0, reduite);
+        assert_eq!((pleine, divisee), (1.5, 0.75));
     }
 }

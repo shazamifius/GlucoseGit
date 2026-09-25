@@ -97,6 +97,7 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
         visibles: &rangs,
         index: &index,
         header_h: 0.0,
+        densite: 1.0,
     };
     let mut hue = SymbioticHueCache::new();
     let mut view = pixmap.as_mut();
@@ -346,6 +347,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
         visibles: &rangs,
         index: &index,
         header_h: 0.0,
+        densite: 1.0,
     };
     let mut view = pixmap.as_mut();
     let kit = PaintKit {

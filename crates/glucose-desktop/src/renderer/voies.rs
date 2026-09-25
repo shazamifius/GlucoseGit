@@ -207,7 +207,7 @@ pub(super) fn lueurs_a_poser(
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
         let eclat = halo::Eclat::de(ann, designees);
         let cadre = (ecran.0, ecran.1, pass.header_h);
-        let Some(boite) = halo::halo_geometry(ann, &pass.vp, cadre, eclat) else {
+        let Some(boite) = halo::halo_geometry(ann, (&pass.vp, pass.echelle()), cadre, eclat) else {
             continue;
         };
         let (_hue, teinte) = hue_cache.get_or_compute(ann, pass.index, board);
@@ -505,12 +505,13 @@ impl Renderer {
         (cadrage, overlay, regard): (Cadrage, SceneOverlay<'_>, Regard),
     ) -> Confie {
         let edition = overlay.editing;
-        let (vp, rangs) = self.cadrer(store, taille, header_h, cadrage);
+        let (vp, rangs, densite) = self.cadrer(store, taille, header_h, cadrage);
         let pass = ViewPass {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
             header_h,
+            densite,
         };
         let ecran = (taille.0 as f32, taille.1 as f32);
         let lueurs = lueurs_a_poser(&mut self.hue_cache, store, (pass, overlay.designees), ecran);
@@ -526,7 +527,7 @@ impl Renderer {
         crate::perf::stage("fleches");
         // Le regime des composants -- echelle de rendu, phase -- se decide une fois pour
         // tous : deux composants voisins se rendent au meme palier.
-        let regime = super::composants::Regime::de(vp, regard, taille, header_h);
+        let regime = super::composants::Regime::de((vp, densite), regard, taille, header_h);
         let PhotosAPoser {
             posees: photos,
             composants: en_chemin,

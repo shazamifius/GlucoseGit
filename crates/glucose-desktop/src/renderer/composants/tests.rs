@@ -41,7 +41,7 @@ fn ecart_photo_en_chemin(x: f64, y: f64, rotation: f64) -> (u8, usize) {
         y: 10.25,
     };
     let taille = (400u32, 300u32);
-    let regime = Regime::de(vp, Regard::immobile(), taille, 0.0);
+    let regime = Regime::de((vp, 1.0), Regard::immobile(), taille, 0.0);
 
     // En place, comme la voie processeur.
     let mut en_place = Pixmap::new(taille.0, taille.1).expect("pixmap");
@@ -126,11 +126,14 @@ fn regime_temoin() -> (Viewport, Regime) {
         x: 20.5,
         y: 10.25,
     };
-    (vp, Regime::de(vp, Regard::immobile(), (500, 300), 0.0))
+    (
+        vp,
+        Regime::de((vp, 1.0), Regard::immobile(), (500, 300), 0.0),
+    )
 }
 
 /// Un composant de carte, rendu à part et reposé, comparé à la carte dessinée en place.
-fn ecart_carte(selectionnee: bool) -> (u8, usize) {
+fn ecart_carte(selectionnee: bool, densite: f32) -> (u8, usize) {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let vp = Viewport {
@@ -139,7 +142,7 @@ fn ecart_carte(selectionnee: bool) -> (u8, usize) {
         y: 10.25,
     };
     let taille = (500u32, 300u32);
-    let regime = Regime::de(vp, Regard::immobile(), taille, 0.0);
+    let regime = Regime::de((vp, densite), Regard::immobile(), taille, 0.0);
     let (x, y, w, h) = (60.3, 40.7, 240.0f32, 60.0f32);
     let corps = "Accents : éàçùôêîï — « guillemets »
 Et un lien.";
@@ -152,7 +155,7 @@ Et un lien.";
         tints: kit.tints,
         theme: kit.theme,
         vp,
-        scale: WorldScale::new(vp.scale),
+        scale: WorldScale::new(vp.scale, densite),
         clip: Clip {
             width: taille.0 as f32,
             height: taille.1 as f32,
@@ -202,7 +205,7 @@ Et un lien.";
 /// **Une carte au repos se repose au bit près** : même code, même mise en page, même phase.
 #[test]
 fn test_une_carte_se_repose_au_bit_pres() {
-    let (pire, canaux) = ecart_carte(false);
+    let (pire, canaux) = ecart_carte(false, 1.0);
     assert!(
         pire <= 1 && canaux == 0,
         "carte au repos : pire {pire}, {canaux} canaux au-dela de 1"
@@ -223,7 +226,14 @@ fn test_une_carte_se_repose_au_bit_pres() {
 /// rastériseur à la position absolue, mesurée et bornée ici pour qu'elle ne grandisse pas.
 #[test]
 fn test_une_carte_selectionnee_se_repose_a_un_cran_de_couverture_pres() {
-    let (pire, canaux) = ecart_carte(true);
+    // DPI-1 : à 150 %, l'anneau de la texture a l'épaisseur de celui qu'on dessine en place.
+    let (pire, canaux) = ecart_carte(true, 1.5);
+    assert!(
+        pire <= 26,
+        "à 150 %, pire {pire} -- plus qu'un cran de couverture"
+    );
+    assert!(canaux <= 200, "à 150 %, {canaux} canaux au-delà de 1");
+    let (pire, canaux) = ecart_carte(true, 1.0);
     assert!(
         pire <= 26,
         "carte selectionnee : pire {pire} -- plus qu'un cran de couverture"
@@ -388,7 +398,7 @@ fn test_une_carte_en_saisie_se_repose_au_bit_pres() {
         tints: kit.tints,
         theme: kit.theme,
         vp,
-        scale: WorldScale::new(vp.scale),
+        scale: WorldScale::new(vp.scale, 1.0),
         clip: Clip {
             width: taille.0 as f32,
             height: taille.1 as f32,

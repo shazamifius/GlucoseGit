@@ -424,7 +424,7 @@ fn peindre_par_segments(
 /// La boîte dilatée de la lueur d'une carte, ou `None` si elle ne touche pas le cadre.
 pub(crate) fn halo_geometry(
     ann: &Annotation,
-    vp: &Viewport,
+    (vp, scale): (&Viewport, WorldScale),
     (screen_w, screen_h, header_h): (f32, f32, f32),
     eclat: Eclat,
 ) -> Option<HaloBox> {
@@ -432,8 +432,6 @@ pub(crate) fn halo_geometry(
         return None;
     }
     let rect = ann.rect()?;
-
-    let scale = WorldScale::new(vp.scale);
     let (sx, sy) = world_to_screen(rect.left, rect.top, vp);
     let (sx, sy) = (sx as f32, sy as f32);
     let (w, h) = (
@@ -513,7 +511,7 @@ pub fn draw_halos(
     for ann in Visibles::nouvelles(visibles, board).annotations() {
         let eclat = Eclat::de(ann, designees);
         let ecran = (screen_w, screen_h, header_h);
-        let Some(halo) = halo_geometry(ann, vp, ecran, eclat) else {
+        let Some(halo) = halo_geometry(ann, (vp, pass.echelle()), ecran, eclat) else {
             continue;
         };
         let (_hue, rgb) = hue_cache.get_or_compute(ann, pass.index, board);

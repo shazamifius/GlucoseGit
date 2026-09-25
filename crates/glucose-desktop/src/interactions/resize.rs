@@ -221,7 +221,8 @@ impl GlucoseApp {
             Geste::Recadrer => self.write_crop(&session, delta),
             Geste::Redimensionner => {
                 let rule = self.rule_of(&session.target);
-                let (rect, guides) = self.resized_box(&session, rule, delta, vp.scale);
+                let zoom = self.zoom_logique();
+                let (rect, guides) = self.resized_box(&session, rule, delta, zoom);
                 self.write_resized_box(&session.target, rect);
                 self.active_guides = guides;
             }

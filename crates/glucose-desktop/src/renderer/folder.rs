@@ -110,7 +110,7 @@ pub(super) fn draw_folders(
     let PaintKit {
         typography, theme, ..
     } = kit;
-    let scale = WorldScale::new(pass.vp.scale);
+    let scale = pass.echelle();
     let clip = Clip {
         width: pixmap.width() as f32,
         height: pixmap.height() as f32,

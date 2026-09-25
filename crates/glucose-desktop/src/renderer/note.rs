@@ -388,7 +388,7 @@ mod tests {
     fn test_scale_1_a_sticky_is_self_similar_at_every_zoom() {
         let world = StickyLayout::new(160.0, 120.0);
         for zoom in [0.25_f64, 0.5, 1.0, 2.0, 4.0] {
-            let screen = world.scaled(WorldScale::new(zoom));
+            let screen = world.scaled(WorldScale::new(zoom, 1.0));
             for (on_screen, in_world) in [
                 (screen.font, world.font),
                 (screen.pad, world.pad),

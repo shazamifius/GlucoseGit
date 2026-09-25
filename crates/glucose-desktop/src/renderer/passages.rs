@@ -119,7 +119,7 @@ pub(super) fn eclairer(
             &eclairage.plages,
         );
         for rect in rects {
-            peindre_un_passage(pixmap, (*x, *y), rect, teinte, &pass.vp);
+            peindre_un_passage(pixmap, (*x, *y), rect, teinte, (&pass.vp, pass.echelle()));
         }
     }
 }
@@ -130,9 +130,8 @@ fn peindre_un_passage(
     carte: (f64, f64),
     (rx, ry, rw, rh): (f32, f32, f32, f32),
     (r, g, b): (u8, u8, u8),
-    vp: &glucose_core::types::Viewport,
+    (vp, s): (&glucose_core::types::Viewport, WorldScale),
 ) {
-    let s = WorldScale::new(vp.scale);
     let (sx, sy) = world_to_screen(carte.0 + f64::from(rx), carte.1 + f64::from(ry), vp);
     let (gauche, haut) = (sx as f32 - s.world(MARGE.0), sy as f32 - s.world(MARGE.1));
     let (largeur, hauteur) = (s.world(rw + 2.0 * MARGE.0), s.world(rh + 2.0 * MARGE.1));

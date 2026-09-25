@@ -54,6 +54,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
         visibles: &rangs,
         index: &index,
         header_h: 0.0,
+        densite: 1.0,
     };
     draw_folders(kit, &mut pixmap.as_mut(), store, pass);
     let n = pixmap
@@ -161,7 +162,7 @@ fn test_un_dossier_trop_petit_est_dessine_au_minimum() {
     let mut f = CanvasFolder::new("f", "n", "b");
     f.width = 10.0;
     f.height = 5.0;
-    let layout = Layout::new(&f, WorldScale::new(1.0));
+    let layout = Layout::new(&f, WorldScale::new(1.0, 1.0));
     assert_eq!((layout.width, layout.height), (MIN_WIDTH, MIN_HEIGHT));
     assert!(
         layout.header < layout.height,
@@ -223,7 +224,7 @@ fn test_tres_dezoome_le_cadre_reste_et_le_texte_disparait() {
         };
     }
     assert!(
-        !WorldScale::new(0.1).draws_detail(),
+        !WorldScale::new(0.1, 1.0).draws_detail(),
         "0,1 est sous le seuil de détail"
     );
     let (_, encres) = encre(&store);

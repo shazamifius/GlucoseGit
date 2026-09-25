@@ -137,6 +137,7 @@ fn tuile(
         pose,
         contenu: Arc::clone(&entier.contenu),
         echelle: entier.echelle,
+        densite: entier.densite,
         phase: entier.phase,
         marge: entier.marge,
         pixels: (taille.0 + 2, taille.1 + 2),

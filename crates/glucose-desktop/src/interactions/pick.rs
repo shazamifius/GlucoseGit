@@ -16,10 +16,30 @@ use glucose_core::hit_priority::{
 };
 use glucose_core::types::Annotation;
 
-/// Au-delà de ce déplacement écran entre deux clics, ce n'est plus un double-clic.
+/// Au-delà de ce déplacement entre deux clics, en pixels **logiques**, ce n'est plus un
+/// double-clic.
 pub(crate) const DOUBLE_CLICK_SLOP_PX: f64 = 8.0;
 
 impl GlucoseApp {
+    /// **La densité de l'écran** : combien de pixels physiques font un pixel logique (DPI-1).
+    pub(crate) fn densite(&self) -> f64 {
+        f64::from(self.ui.scale())
+    }
+
+    /// **Le zoom que la main perçoit** : des pixels logiques par unité monde (DPI-1).
+    ///
+    /// C'est ce que le noyau reçoit pour viser : ses tolérances — la bande d'une flèche, la
+    /// prise d'une poignée, l'aimant — sont des longueurs que l'œil et la main perçoivent. Le
+    /// noyau ne sait rien des pixels physiques, et n'a pas à le savoir.
+    pub(crate) fn zoom_logique(&self) -> f64 {
+        self.store.viewport().scale / self.densite()
+    }
+
+    /// La tolérance d'une main qui tremble, en pixels de l'écran.
+    pub(crate) fn tremblement(&self) -> f64 {
+        DOUBLE_CLICK_SLOP_PX * self.densite()
+    }
+
     /// Le clic a traversé toutes les couches de l'interface : il est pour le canevas.
     pub fn click_canvas(&mut self, screen: ScreenFrame) {
         if self.ui.active_tool == ActiveTool::Pan {
@@ -109,11 +129,13 @@ impl GlucoseApp {
     /// ne jamais gêner un glisser.
     fn pick_for_click(&mut self, wx: f64, wy: f64) -> Option<PickCandidate> {
         let candidates = self.pick_candidates_at(wx, wy);
+        // Le cycle compare deux clics en pixels logiques, comme son rayon (DPI-1).
+        let densite = self.densite();
         let (picked, cycle) = pick_at_down(
             &candidates,
             self.pick_cycle.as_ref(),
-            self.mouse_pos.0,
-            self.mouse_pos.1,
+            self.mouse_pos.0 / densite,
+            self.mouse_pos.1 / densite,
             self.now_ms(),
             PickOptions {
                 alt: self.modifiers.alt_key(),

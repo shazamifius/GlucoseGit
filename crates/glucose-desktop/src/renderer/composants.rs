@@ -117,6 +117,10 @@ pub struct Composant {
     contenu: Arc<Contenu>,
     /// L'échelle à laquelle la texture se rend — exacte à l'arrêt, un palier en mouvement.
     echelle: f64,
+    /// La densité de l'écran (DPI-1) : l'anneau d'une carte sélectionnée est en pixels
+    /// logiques. Elle entre dans l'empreinte : une fenêtre qui change d'écran refait ses
+    /// textures.
+    densite: f32,
     /// La phase sous-pixel du composant dans sa texture : exacte à l'arrêt, nulle en mouvement.
     phase: (f32, f32),
     /// La marge autour de la boîte, pour l'anneau de sélection et l'anti-crénelage.
@@ -149,6 +153,7 @@ fn empreinte(c: &Composant) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     c.contenu.hacher(&mut h);
     c.echelle.to_bits().hash(&mut h);
+    c.densite.to_bits().hash(&mut h);
     c.phase.0.to_bits().hash(&mut h);
     c.phase.1.to_bits().hash(&mut h);
     h.finish()
@@ -176,15 +181,23 @@ pub(super) struct Regime {
     vue: Viewport,
     /// L'échelle de rendu : exacte à l'arrêt, un palier dyadique en mouvement.
     echelle: f64,
+    /// La densité de l'écran (DPI-1).
+    densite: f32,
     en_mouvement: bool,
     clip: Clip,
     ecran: (u32, u32),
 }
 
 impl Regime {
-    pub(super) fn de(vue: Viewport, regard: Regard, ecran: (u32, u32), header_h: f32) -> Self {
+    pub(super) fn de(
+        (vue, densite): (Viewport, f32),
+        regard: Regard,
+        ecran: (u32, u32),
+        header_h: f32,
+    ) -> Self {
         Self {
             vue,
+            densite,
             echelle: if regard.en_mouvement {
                 palier_dyadique(vue.scale)
             } else {
@@ -285,6 +298,7 @@ impl Regime {
             },
             contenu: Arc::clone(contenu),
             echelle,
+            densite: self.densite,
             phase,
             marge,
             pixels,
@@ -357,15 +371,17 @@ impl Regime {
             return None;
         }
         let lignes = mise_en_page.line_count();
-        let vue = CardLayout::text_card(w, h, lignes).scaled(WorldScale::new(self.vue.scale));
+        let vue = CardLayout::text_card(w, h, lignes)
+            .scaled(WorldScale::new(self.vue.scale, self.densite));
         let (sx, sy) = world_to_screen(x, y, &self.vue);
         let (sx, sy) = (sx as f32, sy as f32);
         if self.clip.rejects(sx, sy, vue.width, vue.height) {
             return None;
         }
         let mesure = |echelle: f64| {
-            let rendu = CardLayout::text_card(w, h, lignes).scaled(WorldScale::new(echelle));
-            let anneau = WorldScale::new(echelle).screen(SELECTION_RING);
+            let a_cette_echelle = WorldScale::new(echelle, self.densite);
+            let rendu = CardLayout::text_card(w, h, lignes).scaled(a_cette_echelle);
+            let anneau = a_cette_echelle.screen(SELECTION_RING);
             let marge = (rendu.border.max(anneau) / 2.0).ceil() + 1.0;
             (rendu.width, rendu.height, marge)
         };
@@ -461,7 +477,7 @@ impl Composant {
                     tints: kit.tints,
                     theme: kit.theme,
                     vp,
-                    scale: WorldScale::new(self.echelle),
+                    scale: WorldScale::new(self.echelle, self.densite),
                     clip: Clip {
                         width: self.pixels.0 as f32,
                         height: self.pixels.1 as f32,
