@@ -127,12 +127,6 @@ pub fn advance_on_release(
         return (None, Some(settled));
     }
 
-    if let Some(target) = cyclable.get(c.index) {
-        if target.terminal {
-            return (None, Some(settled));
-        }
-    }
-
     let index = (c.index + 1) % cyclable.len();
     let picked = cyclable.get(index).cloned();
     let next_cycle = CycleState { index, ..settled };

@@ -8,9 +8,23 @@ pub const PICK_RANK_HANDLE: i32 = 0;
 pub const PICK_RANK_MEMBRANE_EDGE: i32 = 10;
 pub const PICK_RANK_FOLDER_EDGE: i32 = 10;
 pub const PICK_RANK_ARROW: i32 = 20;
-pub const PICK_RANK_IMAGE: i32 = 30;
-pub const PICK_RANK_STICKY: i32 = 40;
-pub const PICK_RANK_TEXT: i32 = 50;
+// **PICK-2 — les contenus dans l'ordre où ils sont peints** (registre de Tauri, n° 8).
+//
+// Tauri classait les contenus par « intention » — l'image avant la note, la note avant le
+// texte — et mettait le texte toujours dernier, pour que le cycle de profondeur s'y arrête et
+// laisse le double-clic d'édition intact. Sa plainte : *« une image SOUS un texte : même la
+// souris sur le texte sélectionne l'image — c'est faux »*, et le cycle ne passait plus rien
+// dessous. Ce qu'il demande, c'est **ce qu'on voit sous la souris** : les affordances fines
+// d'abord (poignée, bord d'un conteneur, trait d'une flèche), puis le contenu peint au-dessus
+// à cet endroit, puis le corps des conteneurs. Glucose peint les photos, puis les cartes, puis
+// les pense-bêtes par-dessus : c'est cet ordre-là.
+//
+// Et le texte n'a plus à être le fond de la pile : ici, l'édition s'ouvre par un vrai
+// double-clic (deux clics en moins de `DBLCLICK_MS`), et le cycle ne descend qu'au relâchement
+// d'un re-clic plus lent que cette fenêtre. Le temps sépare les deux gestes.
+pub const PICK_RANK_STICKY: i32 = 30;
+pub const PICK_RANK_TEXT: i32 = 40;
+pub const PICK_RANK_IMAGE: i32 = 50;
 pub const PICK_RANK_MEMBRANE_BODY: i32 = 60;
 pub const PICK_RANK_FOLDER_BODY: i32 = 60;
 
@@ -92,7 +106,6 @@ pub struct PickCandidate {
     pub corner: Option<String>,
     pub dist: f64,
     pub area: f64,
-    pub terminal: bool,
 }
 
 pub fn handle_slop_world(scale: f64, box_w: f64, box_h: f64) -> f64 {
@@ -108,12 +121,6 @@ pub fn handle_cursor(corner: &str) -> &'static str {
     crate::resize::Handle::parse(corner).map_or("default", |h| h.cursor())
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DomHint<'a> {
-    pub owner: PickOwner,
-    pub id: &'a str,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct PickInput<'a> {
     pub wx: f64,
@@ -125,7 +132,6 @@ pub struct PickInput<'a> {
     pub selected_image_ids: &'a [String],
     pub selected_annotation_ids: &'a [String],
     pub selected_folder_id: Option<&'a str>,
-    pub dom_hint: Option<DomHint<'a>>,
     /// **Ce qui mesure les nœuds pour les flèches** (FLECHE-4) : la boîte d'un nœud et la
     /// hauteur d'un passage de texte. Sans lui, une flèche ancrée à un passage se vise depuis
     /// le milieu de la carte ; avec lui, là où le dessin la pose — le même interlocuteur pour

@@ -111,7 +111,6 @@ fn test_hit_priority_rules() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
     let cands = collect_candidates(&input);
@@ -189,7 +188,6 @@ fn test_nested_containers_smallest_wins() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
     assert_eq!(order(&input1)[0], "membrane-body:PETITE");
@@ -212,8 +210,14 @@ fn test_nested_containers_smallest_wins() {
     assert_eq!(cands_f[1].id, "M1");
 }
 
+/// **PICK-2 — ce qui est peint au-dessus gagne** (registre de Tauri, n° 8 : « une image SOUS un
+/// texte : même la souris sur le texte sélectionne l'image — c'est faux »).
+///
+/// Glucose peint les photos, puis les cartes, puis les pense-bêtes par-dessus : sous la souris,
+/// la note, puis le texte, puis l'image. Tauri disait l'inverse — l'image d'abord, le texte
+/// toujours dernier.
 #[test]
-fn test_text_is_last_among_contents() {
+fn test_pick_2_ce_qui_est_peint_dessus_gagne() {
     let empty: [String; 0] = [];
     let t = text_ann("T1", 0.0, 0.0, 200.0, 100.0);
     let s = sticky("S1", 0.0, 0.0, 200.0, 100.0);
@@ -229,14 +233,13 @@ fn test_text_is_last_among_contents() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
     let cands = collect_candidates(&input);
-    assert_eq!(cands[0].kind, PickKind::Image);
-    assert_eq!(cands[1].kind, PickKind::Sticky);
-    assert_eq!(cands[2].kind, PickKind::Text);
+    assert_eq!(cands[0].kind, PickKind::Sticky);
+    assert_eq!(cands[1].kind, PickKind::Text);
+    assert_eq!(cands[2].kind, PickKind::Image);
 
     // Une flèche passe devant une image. Elle est désormais désignée par sa géométrie
     // (ARROW-1) et non par un nom reçu du DOM : il en faut donc une vraie, qui passe sous
@@ -268,7 +271,6 @@ fn test_handles_absolute_priority() {
         selected_image_ids: &empty,
         selected_annotation_ids: &sel_m,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
@@ -318,7 +320,6 @@ fn test_click_cycle_chain() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
@@ -349,14 +350,15 @@ fn test_click_cycle_chain() {
         time += 500; // pause au-delà du double-clic
     }
 
-    // Chaque clic descend d'un cran puis s'arrête au texte (terminus)
+    // Chaque re-clic descend d'un cran — le bord de la membrane, le texte peint au-dessus de
+    // l'image, l'image — puis la pile recommence (PICK-2 : le texte n'en est plus le fond).
     assert_eq!(
         seen,
         vec![
             "membrane-edge:M1",
+            "text:T1",
             "image:I1",
-            "text:T1",
-            "text:T1",
+            "membrane-edge:M1",
             "text:T1",
         ]
     );
@@ -366,18 +368,22 @@ fn test_click_cycle_chain() {
 
 use glucose_core::hit_priority::pick_consts;
 
-/// § 3.1 — l'échelle de priorité : poignée 0, bords de conteneur 10, flèche 20, image 30,
-/// note 40, texte 50, corps de conteneur 60. Une membrane ne gagne jamais sur son contenu.
+/// L'échelle de priorité : poignée 0, bords de conteneur 10, flèche 20 — les affordances
+/// fines —, puis les contenus dans l'ordre où ils sont peints, note 30, texte 40, image 50,
+/// et le corps des conteneurs 60 : un conteneur ne gagne jamais sur son contenu.
+///
+/// La fiche 07 § 3.1 donnait l'ordre de Tauri (image 30, note 40, texte 50) ; le registre de
+/// Tauri (n° 8) le refuse, et PICK-2 le remplace.
 #[test]
-fn test_the_pick_ranks_are_those_of_the_spec() {
+fn test_les_rangs_suivent_les_affordances_puis_l_ordre_de_peinture() {
     use glucose_core::hit_priority::*;
     assert_eq!(PICK_RANK_HANDLE, 0);
     assert_eq!(PICK_RANK_MEMBRANE_EDGE, 10);
     assert_eq!(PICK_RANK_FOLDER_EDGE, 10);
     assert_eq!(PICK_RANK_ARROW, 20);
-    assert_eq!(PICK_RANK_IMAGE, 30);
-    assert_eq!(PICK_RANK_STICKY, 40);
-    assert_eq!(PICK_RANK_TEXT, 50);
+    assert_eq!(PICK_RANK_STICKY, 30);
+    assert_eq!(PICK_RANK_TEXT, 40);
+    assert_eq!(PICK_RANK_IMAGE, 50);
     assert_eq!(PICK_RANK_MEMBRANE_BODY, 60);
     assert_eq!(PICK_RANK_FOLDER_BODY, 60);
 }
@@ -424,7 +430,6 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         selected_image_ids: &selected,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
     let cands = collect_candidates(&input);

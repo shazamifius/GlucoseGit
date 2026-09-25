@@ -3,119 +3,6 @@
 use super::handles::collect_handles;
 use super::*;
 
-fn ensure_dom_hint(input: &PickInput, out: &mut Vec<PickCandidate>) {
-    let hint = match &input.dom_hint {
-        Some(h) => h,
-        None => return,
-    };
-
-    if out
-        .iter()
-        .any(|c| c.kind != PickKind::Handle && c.owner == hint.owner && c.id == hint.id)
-    {
-        return;
-    }
-
-    match hint.owner {
-        PickOwner::Image => {
-            if let Some((z, img)) = input
-                .images
-                .iter()
-                .enumerate()
-                .find(|(_, i)| i.id == hint.id)
-            {
-                if !img.locked {
-                    out.push(PickCandidate {
-                        owner: PickOwner::Image,
-                        id: img.id.clone(),
-                        kind: PickKind::Image,
-                        rank: PICK_RANK_IMAGE,
-                        z,
-                        corner: None,
-                        dist: 0.0,
-                        area: 0.0,
-                        terminal: false,
-                    });
-                }
-            }
-        }
-        PickOwner::Membrane | PickOwner::Annotation => {
-            if let Some((z, ann)) = input
-                .annotations
-                .iter()
-                .enumerate()
-                .find(|(_, a)| a.id() == hint.id)
-            {
-                match ann {
-                    Annotation::Arrow { .. } => {}
-                    Annotation::Membrane {
-                        id, width, height, ..
-                    } => {
-                        out.push(PickCandidate {
-                            owner: PickOwner::Membrane,
-                            id: id.clone(),
-                            kind: PickKind::MembraneBody,
-                            rank: PICK_RANK_MEMBRANE_BODY,
-                            z,
-                            corner: None,
-                            dist: 0.0,
-                            area: (width * height).abs(),
-                            terminal: false,
-                        });
-                    }
-                    Annotation::Sticky { id, .. } => {
-                        out.push(PickCandidate {
-                            owner: PickOwner::Annotation,
-                            id: id.clone(),
-                            kind: PickKind::Sticky,
-                            rank: PICK_RANK_STICKY,
-                            z,
-                            corner: None,
-                            dist: 0.0,
-                            area: 0.0,
-                            terminal: true,
-                        });
-                    }
-                    Annotation::Text { id, .. } => {
-                        out.push(PickCandidate {
-                            owner: PickOwner::Annotation,
-                            id: id.clone(),
-                            kind: PickKind::Text,
-                            rank: PICK_RANK_TEXT,
-                            z,
-                            corner: None,
-                            dist: 0.0,
-                            area: 0.0,
-                            terminal: true,
-                        });
-                    }
-                }
-            }
-        }
-        PickOwner::Folder => {
-            if let Some((z, f)) = input
-                .folders
-                .iter()
-                .enumerate()
-                .find(|(_, f)| f.id == hint.id)
-            {
-                out.push(PickCandidate {
-                    owner: PickOwner::Folder,
-                    id: f.id.clone(),
-                    kind: PickKind::FolderBody,
-                    rank: PICK_RANK_FOLDER_BODY,
-                    z,
-                    corner: None,
-                    dist: 0.0,
-                    area: (f.width * f.height).abs(),
-                    terminal: false,
-                });
-            }
-        }
-        PickOwner::Arrow => {}
-    }
-}
-
 pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
     let band = pick_consts::EDGE_BAND_PX / input.scale.max(1e-6);
     let mut out = Vec::new();
@@ -159,11 +46,9 @@ pub fn collect_candidates(input: &PickInput) -> Vec<PickCandidate> {
             // départage deux poignées voisines.
             dist,
             area: 0.0,
-            terminal: false,
         });
     }
 
-    ensure_dom_hint(input, &mut out);
     sort_candidates(&mut out);
     out
 }
@@ -195,14 +80,12 @@ fn push_image(input: &PickInput, z: usize, img: &BoardImage, out: &mut Vec<PickC
         corner: None,
         dist: 0.0,
         area: 0.0,
-        terminal: false,
     });
 }
 
 /// Une annotation sous le curseur : le bord ou le corps d'une membrane, une carte, une note.
 ///
-/// Une carte et un pense-bête sont **terminaux** : le cycle de profondeur s'arrête sur eux,
-/// pour laisser le double-clic d'édition intact. Leur boîte est celle du modèle, taille de
+/// Une carte et un pense-bête se prennent dans toute leur boîte — celle du modèle, taille de
 /// naissance comprise. Une flèche ne passe pas par ici : sa géométrie la désigne (ARROW-1).
 fn push_annotation(
     input: &PickInput,
@@ -247,7 +130,6 @@ fn push_annotation(
                 corner: None,
                 dist: 0.0,
                 area,
-                terminal: false,
             });
         }
         Annotation::Text { id, .. } | Annotation::Sticky { id, .. } => {
@@ -269,7 +151,6 @@ fn push_annotation(
                     corner: None,
                     dist: 0.0,
                     area: 0.0,
-                    terminal: true,
                 });
             }
         }
@@ -304,7 +185,6 @@ fn push_folder(
         corner: None,
         dist: 0.0,
         area: (f.width * f.height).abs(),
-        terminal: false,
     });
 }
 
@@ -343,7 +223,7 @@ pub fn collect_candidates_indexed(
     // tout de même : `collect_candidates` veut des tranches contiguës. À faire disparaître
     // en le faisant travailler sur des références (fiche 07 § 3).
     let nearby_ids = spatial_index.query_rect_refs(input.wx, input.wy, input.wx, input.wy, slop);
-    if nearby_ids.is_empty() && input.dom_hint.is_none() {
+    if nearby_ids.is_empty() {
         return Vec::new();
     }
 
@@ -371,7 +251,6 @@ pub fn collect_candidates_indexed(
         selected_image_ids: input.selected_image_ids,
         selected_annotation_ids: input.selected_annotation_ids,
         selected_folder_id: input.selected_folder_id,
-        dom_hint: input.dom_hint,
         noeuds: input.noeuds,
     };
 

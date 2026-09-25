@@ -49,7 +49,6 @@ fn push_handles(
                 corner: Some(handle.as_str().to_string()),
                 dist: d,
                 area: 0.0,
-                terminal: false,
             });
         }
     }

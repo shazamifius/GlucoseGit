@@ -64,7 +64,6 @@ fn test_pick_priority_image_in_membrane() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
@@ -93,7 +92,6 @@ fn test_pick_membrane_edge() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
@@ -121,7 +119,6 @@ fn test_nested_membranes_smallest_wins() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
@@ -129,8 +126,12 @@ fn test_nested_membranes_smallest_wins() {
     assert_eq!(cands[0].id, "PETITE");
 }
 
+/// **PICK-2 — un texte posé dans une membrane se prend en plein dedans**, et le re-clic
+/// descend jusqu'à la membrane : le texte n'est plus le fond de la pile (registre de Tauri,
+/// n° 8 : « en plein dans un texte posé dans une membrane → le texte » ; « recliquer sans
+/// bouger passe à l'élément suivant dessous »).
 #[test]
-fn test_text_terminal_cycle() {
+fn test_pick_2_un_texte_dans_une_membrane_se_prend_et_le_reclic_descend() {
     let memb = membrane("M1", 0.0, 0.0, 1000.0, 800.0, None);
     let t = text_ann("T1", 400.0, 380.0, 200.0, 60.0);
     let annotations = [memb, t];
@@ -148,13 +149,33 @@ fn test_text_terminal_cycle() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
     let cands = collect_candidates(&input);
     assert_eq!(cands[0].id, "T1");
-    assert!(cands[0].terminal);
+    assert_eq!(cands[1].id, "M1");
+
+    // Un premier clic, puis un re-clic lent — au-delà de la fenêtre du double-clic — au même
+    // endroit : au relâchement, la membrane.
+    let (premier, cycle) = pick_at_down(&cands, None, 50.0, 50.0, 1_000, PickOptions::default());
+    assert_eq!(premier.map(|c| c.id), Some("T1".to_string()));
+    let (_, cycle) = advance_on_release(&cands, cycle.as_ref(), 1_060);
+    let lent = 1_060 + pick_consts::DBLCLICK_MS + 100;
+    let (_, cycle) = pick_at_down(
+        &cands,
+        cycle.as_ref(),
+        50.0,
+        50.0,
+        lent,
+        PickOptions::default(),
+    );
+    let (dessous, _) = advance_on_release(&cands, cycle.as_ref(), lent + 60);
+    assert_eq!(
+        dessous.map(|c| c.id),
+        Some("M1".to_string()),
+        "le re-clic lent sur un texte descend a ce qu'il y a dessous"
+    );
 }
 
 #[test]
@@ -189,7 +210,6 @@ fn test_collect_candidates_indexed_matches_naive() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
 
@@ -198,7 +218,10 @@ fn test_collect_candidates_indexed_matches_naive() {
 
     assert_eq!(naive.len(), indexed.len());
     assert_eq!(naive[0].id, indexed[0].id);
-    assert_eq!(naive[0].id, "I5");
+    // La carte est peinte au-dessus de l'image qu'elle recouvre : c'est elle qu'on prend
+    // (PICK-2 ; l'ordre de Tauri rendait l'image).
+    assert_eq!(naive[0].id, "T1");
+    assert_eq!(naive[1].id, "I5");
 
     // Clic loin dans le vide
     let empty_input = PickInput {
@@ -211,7 +234,6 @@ fn test_collect_candidates_indexed_matches_naive() {
         selected_image_ids: &empty,
         selected_annotation_ids: &empty,
         selected_folder_id: None,
-        dom_hint: None,
         noeuds: None,
     };
     let empty_indexed = collect_candidates_indexed(&empty_input, &hash);

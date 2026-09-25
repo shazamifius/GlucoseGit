@@ -98,7 +98,6 @@ impl GlucoseApp {
             selected_image_ids: &self.store.selected_image_ids,
             selected_annotation_ids: &self.store.selected_annotation_ids,
             selected_folder_id: self.store.selected_folder_id.as_deref(),
-            dom_hint: None,
             noeuds: Some(&noeuds),
         };
         let mut candidats = collect_candidates_indexed(&input, &self.renderer.spatial_hash);

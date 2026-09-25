@@ -776,11 +776,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         108,
     ),
     (
-        "crates/glucose-core/src/hit_priority/candidates.rs",
-        "ensure_dom_hint",
-        112,
-    ),
-    (
         "crates/glucose-core/src/membrane_space.rs",
         "project_board",
         228,

@@ -151,8 +151,9 @@ impl GlucoseApp {
     /// Le relâchement d'un clic qui n'a rien déplacé fait descendre le cycle d'un cran.
     ///
     /// Rien ne se passe au premier clic d'une série : `advance_on_release` ne descend que si
-    /// le clic précédent avait armé la répétition. Le noyau s'arrête de lui-même sur un nœud
-    /// `terminal` — un texte, une note éditable —, qui est le fond de la pile.
+    /// le clic précédent avait armé la répétition. Arrivé au fond de la pile, il en recommence
+    /// le sommet (PICK-2) : un texte n'est plus un terminus, puisque le double-clic qui l'ouvre
+    /// est plus rapide que le re-clic qui descend.
     pub fn advance_pick_cycle(&mut self) {
         if self.pick_cycle.is_none() {
             return;

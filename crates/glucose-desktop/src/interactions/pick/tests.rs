@@ -16,10 +16,6 @@ use winit::event::MouseButton;
 const SCREEN: (f32, f32) = (1440.0, 900.0);
 
 /// Deux membranes empilées au même endroit, la seconde par-dessus la première.
-///
-/// Des membranes, et non des cartes : le cycle s'arrête sur un nœud `terminal` — un texte,
-/// une note —, qui est le fond de la pile. Il faut donc deux nœuds qui ne le soient pas pour
-/// voir le cycle descendre.
 fn app_with_stack() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     let board = app.store.project.active_board_id.clone();
@@ -233,5 +229,55 @@ fn test_dpi_1_la_bande_d_une_fleche_suit_la_densite() {
         touche(1.5).as_deref(),
         Some("f"),
         "à 150 %, ils sont dedans"
+    );
+}
+
+/// **PICK-2, son cas exact : une image SOUS une carte** (registre de Tauri, n° 8). Un clic sur
+/// la carte prend la carte — pas l'image qu'elle recouvre —, un double-clic l'ouvre, et un
+/// re-clic lent descend à l'image.
+#[test]
+fn test_pick_2_une_image_sous_une_carte_le_clic_prend_la_carte_et_le_reclic_l_image() {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+        b.viewport.x = 400.0;
+        b.viewport.y = 300.0;
+    }
+    app.store.add_image(
+        &board,
+        glucose_core::types::BoardImage::new("photo", 150.0, 100.0, 300.0, 200.0),
+    );
+    let mut carte = Annotation::text("carte", 50.0, 50.0, "Un texte sur la photo");
+    if let Annotation::Text { width, height, .. } = &mut carte {
+        (*width, *height) = (Some(240.0), Some(80.0));
+    }
+    app.store.add_annotation(&board, carte);
+    app.store.clear_selection();
+    let vp = app.store.viewport();
+    let sur_le_texte = world_to_screen(100.0, 80.0, &vp);
+
+    click_at(&mut app, sur_le_texte);
+    assert_eq!(selection(&app), vec!["carte"], "la carte, peinte au-dessus");
+    assert!(app.store.selected_image_ids.is_empty(), "et pas la photo");
+
+    plus_tard(&mut app, RECLIC_MS);
+    click_at(&mut app, sur_le_texte);
+    assert_eq!(
+        app.store.selected_image_ids,
+        vec!["photo".to_string()],
+        "le re-clic lent descend a la photo qu'elle recouvre"
+    );
+
+    // Et le double-clic sur la carte l'ouvre, depuis n'importe quel point du cycle : le temps
+    // sépare les deux gestes, le texte n'a plus à être le fond de la pile.
+    plus_tard(&mut app, pick_consts::CYCLE_TTL_MS as u64 + 100);
+    click_at(&mut app, sur_le_texte);
+    click_at(&mut app, sur_le_texte);
+    assert_eq!(
+        app.editing_session.as_ref().map(|s| s.ann_id.as_str()),
+        Some("carte"),
+        "le double-clic ouvre la carte"
     );
 }
