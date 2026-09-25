@@ -5,14 +5,16 @@
 > seul fondement, le geste ; l'importeur des fichiers de Tauri ; les images dans le fichier ;
 > l'enregistrement continu ; la reprise après plantage ; la Time Machine), puis la **phase 2 —
 > la fluidité** jusqu'où elle se mesure sans lui : la cause probable des pics de 21 à 34 ms, et
-> celle de l'épreuve qui tombait au hasard. La phase 3 attend sa parole (§ 10).
+> celle de l'épreuve qui tombait au hasard. Puis, sur son « continue », le début de la **phase
+> 4** : les membranes possèdent ce qu'on y dépose, et le mode Focus (§ 8). La phase 3 attend sa
+> parole (§ 11).
 >
-> **Date** : 2026-09-25 · commits `f86a85e` à `0c1ae32`, et celui de cette fiche.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 621 tests verts**, clippy strict à
+> **Date** : 2026-09-25 · commits `f86a85e` à `014cb10`, et ceux de cette fiche.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 638 tests verts**, clippy strict à
 > zéro, `cargo fmt --check` à zéro ; l'épreuve de la carte qui tombait au hasard passe 80 fois
 > sur 80 (§ 7).
 >
-> **Rien de ceci n'a encore été vu à l'écran.** Le § 9 dit quoi regarder.
+> **Rien de ceci n'a encore été vu à l'écran.** Le § 10 dit quoi regarder.
 
 ---
 
@@ -26,6 +28,8 @@
 | **HISTOIRE-4** | le texte **en cours de frappe** survit à un arrêt brutal ; deux fenêtres ne peuvent plus écrire le même document ; fermer la fenêtre pendant une frappe ne perd plus le texte | `d0aff3f` |
 | **CEDER-1** | les ouvriers de l'atelier cèdent le pas au fil qui dessine : une image de 2 ms passait à **21,6 ms** pendant une rafale de décodages, elle reste à **3,0** — à confirmer par sa chronique | `a6eda2e` |
 | **L'épreuve au hasard** | ni la carte ni le processeur : deux épreuves réécrivaient le même fichier en même temps | `0c1ae32` |
+| **MEMB-1** | une membrane **possède** ce qu'on y dépose : la déplacer emporte son contenu, la supprimer le libère | `2b6881e` |
+| **MEMB-2** | le **mode Focus** : zoomer sur une membrane jusqu'à ce qu'elle remplisse l'écran, et n'avoir plus qu'elle, sur un fond à sa couleur | `014cb10` |
 
 ---
 
@@ -159,7 +163,7 @@ règle d'Automerge pour ses morceaux ; aucun seuil.
 * **Mesuré** sur `fuser.glucose` (180 Mo) : ouvrir passait de **1 683 ms à 0,67 ms**.
 
 **Sa question de la fiche 34 — où vit l'histoire** — a reçu la réponse recommandée, **dans le
-fichier**. Elle reste la sienne (§ 10).
+fichier**. Elle reste la sienne (§ 11).
 
 ---
 
@@ -293,7 +297,70 @@ les cœurs occupés.
 
 ---
 
-## 8. Ce qui n'est pas fait, ou pas prouvé
+## 8. Les membranes possèdent, et le mode Focus (MEMB-1, MEMB-2)
+
+La phase 4 commence par le lot 4.2 de la fiche 36 : les rideaux — la fonctionnalité la plus
+originale de Glucose — n'existent qu'en mode Focus, et le focus n'a de sens que si une membrane
+possède quelque chose. Le modèle portait `membrane_id` depuis toujours ; **rien ne l'écrivait**.
+
+### 8.1 MEMB-1 — posséder (`2b6881e`)
+
+La règle vient de Tauri, déjà portée dans le noyau (`membrane_space::reconcile_membership`) : un
+élément appartient à la **plus petite membrane qui contient son centre**, telle qu'on la voit,
+jamais à sa propre descendance. L'appartenance est **écrite**, pas redéduite à chaque image —
+sinon une membrane minimisée perdrait son contenu en le rangeant — et ne change qu'à des
+moments explicites :
+
+* **à la naissance** : une carte ou une image posée dans une membrane lui appartient ;
+* **au dépôt** : lâcher un glisser, pousser d'un cran au clavier — dans le même geste que le
+  déplacement, qu'un seul `Ctrl+Z` défait ;
+* **déplacer une membrane emporte son contenu**, et celui de ses membranes ; les flèches
+  accrochées suivent, la zone redessinée couvre ce qui déborde, une membrane ne s'aimante pas
+  sur ses propres membres. **C'est un écart assumé avec Tauri**, où le contenu restait sur
+  place — la moitié de ce que « posséder » veut dire ;
+* **supprimer une membrane libère** son contenu vers celle qui la contenait : le cadre part,
+  jamais ce qu'il portait.
+
+Tout passe par le journal : l'histoire du document rejoue ces gestes à l'identique (épreuve
+fondatrice étendue). Sept épreuves sur le vrai `Store`, deux par les gestes de l'application ;
+dix sabotages tombent.
+
+### 8.2 MEMB-2 — le mode Focus (`014cb10`)
+
+« Zoomer assez sur une membrane et n'avoir plus qu'elle. » La décision était portée dans le
+noyau (`membrane_focus`) ; l'application ne l'appelait pas. À chaque image où la vue a bougé :
+on **entre** quand une membrane couvre 92 % de l'écran et en contient le centre — la caméra se
+cale sur elle par le vol de `F` —, on **sort** en dézoomant sous 80 % de l'échelle d'entrée ou
+en s'éloignant, et un temps mort de 400 ms empêche d'osciller (les réglages de Tauri, repris
+tels quels : c'est le ressenti qu'il connaît). En focus, seules la membrane et son contenu se
+dessinent, le clic et le rectangle n'attrapent que ce qui se voit, et le fond prend 16 % de la
+couleur de la membrane. Rien n'est retiré du document.
+
+**Mesuré avant d'être branché** — et c'est ce qui a changé la conception :
+
+| sur un tableau de… | redécrire tout, à chaque image (Tauri) | la carte, une fois par état | décider, par image | le masque, par modification |
+|---|---:|---:|---:|---:|
+| 10 000 nœuds | **8,1 ms** | 0,2 ms | **0,0003 ms** | 7,2 → **0,41 ms** |
+| 100 000 nœuds | **165 ms** | 2,5 ms | **0,0004 ms** | 78 → **4,5 ms** |
+
+Pendant un zoom, seule la vue change : la décision lit une **carte des membranes**, calculée une
+fois par état du document, et ne parcourt que les membranes. Le masque se calcule en un passage
+qui n'emprunte que les identifiants ; les chaînes d'appartenance — une boucle, être sous la
+membrane focalisée — se règlent sur les seules membranes, puisque seule une membrane peut être
+parente. Une épreuve confronte ce masque à l'ancienne description complète, sur un tableau
+fabriqué pour en éprouver les recoins (imbrication, boucle, appartenances invalides, cartes
+mesurées ou non, flèches) ; ses sabotages tombent. Une montée dans une chaîne est **bornée** par
+le nombre de membranes : une erreur rendrait une réponse fausse, jamais une application figée.
+
+### 8.3 Ce qui reste du lot 4.2
+
+Les modes **minimisée** et **étirée** (la barre de modes d'une membrane sélectionnée, fiche 10),
+l'alerte d'étirement, le dessin d'une membrane par glisser, son panneau d'options, sa couleur
+dérivée des domaines — puis les **rideaux**, sur le focus.
+
+---
+
+## 9. Ce qui n'est pas fait, ou pas prouvé
 
 * **Rien n'a été vu à l'écran.**
 * L'instantané s'encode sur le fil qui dessine : invisible pour ses documents (un document de
@@ -313,10 +380,13 @@ les cœurs occupés.
   l'installeur de Glucose Rust ne devra **jamais** vider récursivement son dossier
   d'installation.
 * La phase 3 n'a pas commencé : elle attend sa parole.
+* **Les membranes** : le focus entre de lui-même, avec les réglages de Tauri — s'il surprend, ce
+  sont eux qu'on ajuste. Les modes minimisée et étirée ne sont pas encore montrés (§ 8.3) : un
+  document de Tauri qui en porte s'affiche en mode classique.
 
 ---
 
-## 9. Ce qu'il faut regarder à l'écran
+## 10. Ce qu'il faut regarder à l'écran
 
 ```text
 cargo run --release > sortie-document.txt 2>&1
@@ -331,14 +401,18 @@ cargo run --release > sortie-document.txt 2>&1
 4. **La Time Machine** : `Ctrl+H`, cliquer sur la réglette (liseré ambré), « Restaurer cet
    état », puis `Ctrl+Z` ; « + Marquer un jalon ».
 5. **Deux fenêtres** sur le même document : la seconde dit qu'il est déjà ouvert.
-6. **La fluidité** : zoomer beaucoup sur un document plein de photos. Puis, avant de relancer,
+6. **Les membranes** : poser une membrane (`M`), y lâcher des cartes et des photos, puis
+   glisser la membrane — son contenu suit ; supprimer la membrane — le contenu reste. Zoomer
+   sur une membrane jusqu'à ce qu'elle remplisse l'écran : on entre en focus (fond teinté, le
+   reste disparaît) ; dézoomer en sort. Dire si cela se sent juste.
+7. **La fluidité** : zoomer beaucoup sur un document plein de photos. Puis, avant de relancer,
    copier `%TEMP%\glucose-chronique\derniere-session.txt` en
    `sortie-chronique-2026-09-25-document.txt` : elle dira si `docks` est redescendu, et ce que
    coûte `etages`.
 
 ---
 
-## 10. Ce qui attend sa parole
+## 11. Ce qui attend sa parole
 
 1. **La V1 et la bascule : un seul moment, ou deux ?** Recommandé : deux — une bêta Windows
    installable **à côté** de Tauri, puis la bascule par le popup quand la parité est atteinte.
@@ -352,7 +426,7 @@ machine** — perdue, plus aucune mise à jour n'atteindrait un utilisateur de T
 
 ---
 
-## 11. Les sources
+## 12. Les sources
 
 * Figma, [*How Figma's multiplayer technology works*](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/).
 * Automerge, [spécification du format binaire](https://automerge.org/automerge-binary-format-spec/).
