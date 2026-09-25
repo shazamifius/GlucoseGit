@@ -279,6 +279,103 @@ le curseur oublié par la passe ; la hauteur de la pastille ; l'anneau oublié.
 
 ---
 
+## 9. L'aimant dès le premier placement (PLACEMENT-1)
+
+L'entrée 3 de son registre : *« le snap intelligent ne s'active qu'une fois qu'on édite le
+placement ; pourquoi pas DÈS qu'on souhaite placer une première fois ? »* Un clic avec un outil
+posait l'élément sous le curseur, sans aimant.
+
+**Ce que font les autres** : FigJam — l'outil des notes choisi, *un aperçu de la note suit le
+curseur*, un clic la dépose ([Figma, *Sticky notes in FigJam*](https://help.figma.com/hc/en-us/articles/1500004414322-Sticky-notes-in-FigJam)).
+Miro n'en dit rien dans sa documentation.
+
+Sous un outil qui crée une boîte — carte, pense-bête, membrane, dossier —, un **fantôme** de
+l'élément suit le curseur à sa taille de naissance, aimanté comme un glisser (même seuil, en
+pixels logiques), guides compris ; le clic le pose là où il est. Une seule fonction dit où
+l'élément se poserait : le fantôme la lit au mouvement, le clic au clic, et aucun état ne passe
+de l'un à l'autre — le clic ne peut pas poser ailleurs que là où le fantôme était. Les cibles de
+l'aimant se relèvent une fois par état du document, pas à chaque mouvement. Le fantôme a l'habit
+de la sélection élastique : une affordance monochrome, qui ne ressemble à rien de ce qu'un
+document contient.
+
+Huit épreuves par le vrai chemin de la souris ; huit sabotages tombent — le seuil à 150 %
+était aveugle avant la sienne.
+
+---
+
+## 10. Le registre de Tauri, vérifié entrée par entrée
+
+Toutes les entrées ont désormais un état (fiche 39). En bref :
+
+| n° | sujet | état dans Rust |
+|---|---|---|
+| 1 | ancres de texte | corrigé, puis la vraie fenêtre (§ 5) |
+| 2 | alignement des membranes et dossiers | **absent** : ils s'aimantent et servent de cibles |
+| 3 | aimant au premier placement | **corrigé** (§ 9) |
+| 4 | tiroirs en haut à gauche, sans croix | **absent** : c'est déjà ainsi |
+| 6 | icône d'aimant en couleur | **absent** : le message n'a pas d'icône |
+| 7 | texte en retard quand la vue bouge | **absent par construction** : une seule image |
+| 8 | ordre de priorité au clic | **se reproduisait — corrigé** (§ 10.2) |
+| 10 | Trans-domaines | **expliqué** (§ 10.1) |
+| 11 | ordre des boutons | **absent** : déjà dans l'ordre voulu |
+| 12 | Time Machine | pas de « compacter » ; **jalons datés** (§ 10.3) ; l'optimisation reste à faire |
+| 17 | prévisualisation de l'écriture | **absent** : on écrit dans la carte |
+| 5, 9 | plugins, Ollama | phase 7 |
+| 13, 14 | membranes, rideaux | attendent la discussion |
+| 15, 16, 18 | recopie d'image, niveaux, « aaaa » | à comprendre avec lui |
+
+### 10.1 Trans-domaines, expliqué (entrée 10)
+
+Il a demandé qu'on lui dise **tout** ce qui y touche. Dans **Glucose Tauri** (`ArrowSvgLayer.tsx`,
+`Toolbar.tsx`, `store/index.ts`) :
+
+* un état `transDomainVisible`, vrai au départ, que le bouton bascule ;
+* une flèche est **trans-domaine** quand ses deux bouts portent des domaines d'un poids supérieur
+  à 0,1 **et n'en partagent aucun** ;
+* une telle flèche se dessine **en pointillés** (`6 4`), et **disparaît** quand le bouton est
+  éteint. Rien d'autre.
+
+D'où son constat, *« coché ou décoché, rien ne change »* : sans domaines assignés aux **deux**
+bouts d'une flèche, aucune flèche n'est trans-domaine, et le bouton n'a rien à masquer. Dans
+**Glucose Rust**, le bouton est posé, ne s'allume jamais, et le clic ne fait rien : sa fonction a
+été retirée quand il a dit que ce n'était pas du tout la bonne (fiches 29-30). La règle de la
+fiche 05 § 5.4 voudrait qu'il soit absent ou grisé ; il n'a pas été touché, faute de sa parole.
+
+### 10.2 L'ordre au clic (entrée 8) — PICK-2 (`dd96904`)
+
+Rust avait porté l'arbitre de Tauri **tel quel**, et son défaut avec : les contenus y étaient
+classés par « intention » — image 30, note 40, texte 50 —, le tri se faisait d'abord par rang, et
+la profondeur ne départageait qu'à rang égal. Une image sous une carte gagnait toujours. Et le
+texte était **terminal** : le re-clic ne descendait jamais sous lui. La raison de Tauri était
+écrite — *« un double-clic sur un bloc texte ouvre l'édition ; il ne peut donc pas être une étape
+intermédiaire du cycle »*.
+
+Cette prémisse ne tient pas dans Rust : l'édition s'ouvre par un **vrai double-clic** (deux clics
+en moins de 350 ms), et le cycle ne descend qu'au relâchement d'un re-clic **plus lent** que
+cette fenêtre. Le temps sépare les deux gestes.
+
+PICK-2 : les **affordances fines** d'abord (poignée 0, bord de conteneur 10, trait de flèche 20),
+puis **ce qui est peint au-dessus** — Glucose peint les photos, puis les cartes, puis les
+pense-bêtes : note 30, texte 40, image 50 —, puis le corps des conteneurs (60). Son cas exact,
+éprouvé par la vraie souris : une image sous une carte — le clic prend la carte, le re-clic lent
+la photo, le double-clic ouvre la carte. Et un reste du DOM de Tauri disparaît : `dom_hint`, que
+rien ne remplissait jamais.
+
+Les poignées « trop petites » : c'était surtout DPI-1 (§ 4) — une prise de 24 pixels logiques,
+prioritaire sur tout.
+
+### 10.3 Les jalons datés (entrée 12, `35317e2`)
+
+*« Les jalons : oui, avec la date exacte. »* Un jalon disait « il y a 3 h » ; il dit « nommé ·
+25/09/2026 22:19 · geste 12 », le style court `fr-FR` des dates de Tauri. L'heure locale d'une
+date passée demande **la règle d'heure d'été de cette date-là** — seul le système la connaît
+(`SystemTimeToTzSpecificLocalTime`, une fonctionnalité de plus du paquet `windows` déjà
+présent). L'épreuve confronte deux chemins du système (l'heure que `GetLocalTime` donne
+maintenant, et la conversion de l'instant présent) : la première version acceptait tout fuseau,
+et était aveugle à une conversion restée en temps universel.
+
+---
+
 ## 11. Ce qu'il faut regarder à l'écran
 
 *(à compléter en fin de session)*

@@ -31,7 +31,10 @@ propose le truc du token, mais ce n'est absolument pas la seule solution : à to
 identité — chaque occurrence est notée sur son contexte, la position ne départage que des ex
 æquo (l'épreuve a retrouvé son défaut exact sous cette forme) ; les ancres **suivent**
 l'écriture ; on les choisit dans la carte elle-même, pas dans une copie rendue une seconde fois ;
-au survol, seul le passage désigné brille.
+au survol, seul le passage désigné brille. **Puis** (fiche 41 § 5, `0113e8f`) : « Éditer le
+texte lié » ouvre **une vraie fenêtre**, celle de l'`ArrowTextEditor` de Tauri — SOURCE puis
+CIBLE, étapes, une puce par passage avec sa croix, la molette —, où le texte est mis en page par
+la loi même de la carte.
 
 ## 2. L'alignement intelligent
 
@@ -39,7 +42,11 @@ Il ne fonctionne que pour les post-it, le texte et les images. *« J'aimerais bi
 le scale et le positionnement des membranes, ainsi que pour les folders. »* Et reprendre toute
 la mécanique, *« qui n'est pas super bien codée »*, pour qu'elle soit optimisée et propre.
 
-**État** : *à vérifier*.
+**État** : *absent de Rust — à confirmer à l'écran* (vérifié le 26/09, fiche 41 § 9). Glisser
+aimante toute la sélection — dossier et contenu des membranes compris — sur les images, textes,
+notes, **membranes et dossiers**, qui servent aussi de cibles ; redimensionner aimante de même.
+Reste de sa demande : *« reprendre toute la mécanique »* — l'aimant parcourt tous les nœuds du
+tableau à chaque mouvement, ce qui ne tiendra pas à dix millions (fiche 41 § 10).
 
 ## 3. L'alignement, au premier placement aussi
 
@@ -48,7 +55,9 @@ qu'une fois qu'on édite le placement. Pourquoi pas DÈS qu'on souhaite réellem
 première fois — genre on a créé notre texte, on attend juste de le positionner ? »* Pareil pour
 tous les éléments : membrane, dossier, note, texte.
 
-**État** : *à vérifier*.
+**État** : *corrigé dans Rust — à confirmer à l'écran* (PLACEMENT-1, `77114bf`, fiche 41 § 8).
+Sous un outil de création armé, un **fantôme** de l'élément suit le curseur à sa taille de
+naissance, aimanté avec ses guides ; le clic le pose là où il est — ce que fait FigJam.
 
 ## 4. Les panneaux Plugins, Preset, Domaines se superposent
 
@@ -58,7 +67,9 @@ des tiroirs qui descendent, qu'on fait **remonter** pour les fermer (l'inverse d
 *« Attention à ne pas faire de duplicata : je veux QUE des poignées, surtout pas de bouton
 fermer »* — et il reste aujourd'hui un petit « x » à enlever.
 
-**État** : *à vérifier*.
+**État** : *absent de Rust — à confirmer à l'écran* (vérifié le 26/09). Plugins, Presets et
+Domaines sont des tiroirs ancrés **en haut à gauche** ; leur poignée est du côté de la sortie
+(en bas), on les ferme en les tirant vers le bord ; aucun n'a de croix.
 
 ## 5. Sa vision des plugins — à écrire en `.md`
 
@@ -80,7 +91,8 @@ Le bouton « choisir un texte ou une IA » ne devrait exister que **dans** le pl
 Le message « Alignement intelligent désactivé » porte un aimant en couleur. *« Pas d'icône en
 couleur, juste en SVG. »*
 
-**État** : *à vérifier*.
+**État** : *absent de Rust* (vérifié le 26/09) : « Aimant activé / désactivé » est un message
+sans icône.
 
 ## 7. Le texte arrive en retard quand la vue bouge
 
@@ -89,8 +101,10 @@ s'afficher au bon endroit — comme en retard. »* Ce qui bouge instantanément 
 dossier, icône, flèche. *« Il y a vraiment QUE le texte. »* Il le soupçonne plus grave qu'il n'y
 paraît.
 
-**État** : *à vérifier* (dans Tauri, le texte est une couche HTML à part ; dans Rust, il se peint
-dans la même image — à confirmer à l'écran).
+**État** : *absent de Rust par construction — à confirmer à l'écran* : dans Tauri, le texte
+est une couche HTML qui se recale après le canevas ; dans Rust, il se peint dans la même image
+que les photos et les flèches (sur la voie graphique, les cartes sont des textures posées dans
+la même passe).
 
 ## 8. L'ordre de priorité au clic
 
@@ -115,8 +129,15 @@ système complet d'ordre de priorité, **selon la place de la souris** :
 canevas sont en pixels **physiques**, quand les barres suivent les 150 % de son écran — elles y
 sont d'un tiers plus petites que chez Tauri. C'est une part de sa plainte, à régler d'abord.
 
-**État** : *à vérifier* (Rust porte déjà une priorité, `hit_priority.rs` ; à confronter à ce
-cahier point par point).
+**État** : *corrigé dans Rust — à confirmer à l'écran* (confronté point par point le 26/09,
+fiche 41 § 9). Rust avait porté l'arbitre de Tauri **tel quel**, et le défaut s'y reproduisait :
+les contenus classés par « intention » (image avant texte), le texte toujours dernier et
+**terminal** — le re-clic ne descendait jamais sous lui. **PICK-2** (`dd96904`) : les
+affordances fines d'abord (poignée, bord de conteneur, trait de flèche), puis ce qui est peint
+au-dessus (note, texte, image), puis le corps des conteneurs ; le texte n'est plus un
+terminus, puisque le double-clic qui l'ouvre est plus rapide que le re-clic qui descend.
+Les poignées : DPI-1 (`4c5c7d1`) leur a rendu leur taille à 150 % — une zone de prise de 24
+pixels logiques, prioritaire sur tout.
 
 ## 9. Ollama et le plugin d'IA
 
@@ -124,22 +145,27 @@ Ollama installé n'était pas vu avant d'avoir relancé le logiciel ; le bouton 
 qwen2.5:32b » ne marchait qu'après relance. Après avoir choisi un texte, le bouton **« Lancer »**
 reste grisé, impossible à utiliser.
 
-**État** : *à vérifier* (phase 7).
+**État** : *absent de Rust* : il n'y a pas encore de plugin d'IA (phase 7).
 
 ## 10. Le bouton Trans-domaines ne sert à rien
 
 Coché ou décoché, rien ne change. *« Explore tout le code qui y fait référence et dis-moi
 exactement tout ce qui touche à transdomaine, et ce que vient faire ce bouton. »*
 
-**État** : *à expliquer*. (Fiche 29 § 3.1 : il avait déjà démenti la fonction de Tauri — masquer
-les flèches entre domaines sans domaine commun.)
+**État** : *expliqué* (fiche 41 § 9.1). Dans Tauri, une flèche est « trans-domaine » quand ses
+deux bouts portent des domaines (poids > 0,1) **et n'en partagent aucun** : elle se dessine en
+pointillés, et le bouton la masque. C'est tout. Sans domaines assignés aux deux bouts d'une
+flèche, aucune ne l'est — d'où « coché ou décoché, rien ne change ». Dans Rust, le bouton est
+posé et ne fait rien (sa fonction a été retirée à sa demande, fiche 29-30). Ce qu'il doit être
+reste sa décision.
 
 ## 11. L'ordre des boutons de la barre
 
 Mettre **Aimant** plus loin, et regrouper Ordonner, Timer et Storyboard — *« pour une question
 esthétique uniquement »*. (Aujourd'hui : Ordonner, Timer, Aimant, Trans-domaines, Storyboard.)
 
-**État** : *à vérifier*.
+**État** : *absent de Rust* (vérifié le 26/09) : Ordonner, Timer, Time Machine et Storyboard
+sont groupés, puis un séparateur, puis l'Aimant.
 
 ## 12. La Time Machine
 
@@ -150,7 +176,11 @@ jalons : **oui**, avec la date exacte. Et un bouton « optimiser » à repenser 
 **grandes étapes**, garder l'essentiel des moments où les choses bougent — *« architecturalement
 et mathématiquement définir une optimisation, et garder une quarantaine d'étapes clés »*.
 
-**État** : *à vérifier* (la Time Machine de Rust est neuve, fiche 37 § 4 — à confronter).
+**État** : *en partie* (26/09). La Time Machine de Rust n'a **pas de « compacter »**. Les
+jalons disent **leur date exacte** (`35317e2`) : « nommé · 25/09/2026 22:19 · geste 12 ».
+L'histoire n'écrit que les gestes (124 octets en moyenne, fiche 37 § 1.2). **Reste** : l'optimisation
+« une quarantaine d'étapes clés », à définir mathématiquement — une proposition est dans la fiche
+41 § 10.
 
 ## 13. Les membranes — l'idée de Mary
 
@@ -207,7 +237,8 @@ racines, un dossier ouvert allume son onglet) — *à confirmer* avec lui.
 montre l'édition d'une carte : le texte brut s'écrit **par-dessus** la carte voisine, et un
 panneau « Prévisualisation en direct » s'ouvre à côté.
 
-**État** : *à vérifier* (Rust édite dans la carte elle-même, sans panneau à part).
+**État** : *absent de Rust* : on écrit dans la carte même, qui grandit avec son texte — rien ne
+déborde sur la voisine ; seule une formule montre une pastille à côté, pendant qu'on l'écrit.
 
 ## 18. Une carte « aaaaaaaaaaaa »
 
