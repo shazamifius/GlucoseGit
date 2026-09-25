@@ -7,14 +7,15 @@
 > la fluidité** jusqu'où elle se mesure sans lui : la cause probable des pics de 21 à 34 ms, et
 > celle de l'épreuve qui tombait au hasard. Puis, sur son « continue », le début de la **phase
 > 4** : les membranes possèdent ce qu'on y dépose, et le mode Focus (§ 8). La phase 3 attend sa
-> parole (§ 11).
+> parole (§ 12). Enfin, **son premier essai** et ce qu'il a changé (§ 9).
 >
-> **Date** : 2026-09-25 · commits `f86a85e` à `014cb10`, et ceux de cette fiche.
-> **État vérifié** : `cargo test --workspace` exit 0, **1 638 tests verts**, clippy strict à
+> **Date** : 2026-09-25 · commits `f86a85e` à `4c2c513`, et ceux de cette fiche.
+> **État vérifié** : `cargo test --workspace` exit 0, **1 646 tests verts**, clippy strict à
 > zéro, `cargo fmt --check` à zéro ; l'épreuve de la carte qui tombait au hasard passe 80 fois
 > sur 80 (§ 7).
 >
-> **Rien de ceci n'a encore été vu à l'écran.** Le § 10 dit quoi regarder.
+> **Vu à l'écran** : l'import de Tauri, `Ctrl+S`, la Time Machine (§ 9.1). Le reste attend son
+> prochain essai ; le § 11 dit quoi regarder.
 
 ---
 
@@ -30,6 +31,7 @@
 | **L'épreuve au hasard** | ni la carte ni le processeur : deux épreuves réécrivaient le même fichier en même temps | `0c1ae32` |
 | **MEMB-1** | une membrane **possède** ce qu'on y dépose : la déplacer emporte son contenu, la supprimer le libère | `2b6881e` |
 | **MEMB-2** | le **mode Focus** : zoomer sur une membrane jusqu'à ce qu'elle remplisse l'écran, et n'avoir plus qu'elle, sur un fond à sa couleur | `014cb10` |
+| **Son premier essai** | le lancement rouvre **toujours** le dernier document ; après un plantage, la carte revient **en édition**, caméra dessus ; une seconde fenêtre ne double plus un document ; un **bouton** Time Machine, une réglette qu'on **glisse** | `4c2c513` |
 
 ---
 
@@ -163,7 +165,7 @@ règle d'Automerge pour ses morceaux ; aucun seuil.
 * **Mesuré** sur `fuser.glucose` (180 Mo) : ouvrir passait de **1 683 ms à 0,67 ms**.
 
 **Sa question de la fiche 34 — où vit l'histoire** — a reçu la réponse recommandée, **dans le
-fichier**. Elle reste la sienne (§ 11).
+fichier**. Elle reste la sienne (§ 12).
 
 ---
 
@@ -360,9 +362,68 @@ dérivée des domaines — puis les **rideaux**, sur le focus.
 
 ---
 
-## 9. Ce qui n'est pas fait, ou pas prouvé
+## 9. Son premier essai, et ce qu'il a changé
 
-* **Rien n'a été vu à l'écran.**
+### 9.1 Ce qu'il a vu, et validé
+
+*« Tout ce qui est importation d'un ancien projet se passe parfaitement, et le Ctrl+S aussi. »*
+Un document de Tauri ouvert par `Ctrl+O`, ses images, `Ctrl+S` sans gel : **vu, et juste**. La
+Time Machine — réglette, « Restaurer cet état », `Ctrl+Z`, « + Marquer un jalon » — *« s'est
+parfaitement déroulée »*.
+
+### 9.2 Ce qu'il a appris — et ce que j'avais mal écrit
+
+**Son « plantage » n'en était pas un.** « Fin de tâche » dans le Gestionnaire des tâches ne tue
+pas une application qui a une fenêtre : Windows lui demande d'abord de se fermer. Glucose a
+donc reçu une fermeture propre — qui, depuis HISTOIRE-4, valide la carte en cours de frappe et
+l'enregistre. Son texte était sauf jusqu'à la dernière lettre ; mais au lancement suivant, il
+n'y avait rien à *récupérer*, et Glucose s'ouvrait sur le document d'accueil. Pour un vrai
+plantage : onglet **Détails**, clic droit sur `glucose-desktop.exe`, « Fin de tâche » — là, le
+processus meurt sans prévenir.
+
+### 9.3 Ce qui a changé (`4c2c513`)
+
+| sa demande | la réponse | preuve |
+|---|---|---|
+| *« qu'au lancement Glucose ouvre automatiquement le fichier qu'il a dernièrement utilisé, ou qui a crashé, tout le temps »* | Glucose **retient le dernier document** ouvert ou enregistré ; le lancement rouvre le plus récent de ce qui l'attend — ce document, un brouillon laissé par un plantage, le document d'un texte en cours. Jamais un document qu'une autre fenêtre tient (`persist/reprise.rs`) | 3 épreuves |
+| *« retomber directement sur le texte en mode édition avec la caméra dessus »* | après un vrai plantage, la carte se **rouvre en édition**, curseur au bout, la vue posée dessus à la taille où on l'écrivait (échelle 1, réduite seulement si elle ne tient pas) ; rien n'est validé, le texte reste gardé à côté | épreuve réécrite |
+| les deux fenêtres, *« je savais pas fermer laquelle »* | un document qu'une autre fenêtre de Glucose écrit **ne s'ouvre plus** ailleurs : la seconde garde le sien et dit pourquoi. La sonde est l'épreuve même du scribe — l'ouvrir seul en écriture — : un antivirus qui lit le fichier ne la trompe pas. Rouvrir le document de sa propre fenêtre reste permis | 2 épreuves ; 12 épreuves anciennes rouvraient un fichier encore tenu, elles le ferment d'abord |
+| quatre « Enregistré » au même geste | un `Ctrl+S` sans geste depuis le dernier jalon n'en pose pas un second | 1 épreuve |
+| *« pourquoi la Time Machine n'a pas de bouton »* | un bouton **Time Machine** dans la barre, à côté du Timer, avec son icône (une horloge qu'une flèche ramène) | 1 épreuve |
+| *« pouvoir glisser en maintenant la souris »* | la réglette **se tient** : tant que le bouton l'est, le passé suit le curseur, jusqu'au présent comme jusqu'au début | 1 épreuve par la souris |
+
+**Le bouton a révélé un défaut plus ancien.** La barre cédait ses libellés à des largeurs de
+fenêtre écrites en dur (1 320 et 1 050 pixels) : un bouton de plus, et le groupe de droite
+sortait de l'écran avant que le seuil ne tombe. Elle se pose maintenant du plus riche au plus
+sobre — tous les libellés, sans ceux de droite, des icônes seules — et garde la première qui
+tient : **les deux constantes ont disparu**. Regardée à 1 440, 1 100 et 900 pixels ; une
+épreuve vérifie qu'aucun bouton ne dépasse, de 900 à 2 400.
+
+**Et une trace chez lui.** Après la suite des épreuves, un `dernier-document.txt` est apparu dans
+son vrai dossier Glucose, pointant vers un fichier d'épreuve : toute application créée prenait
+le dossier de l'utilisateur par défaut, et chaque épreuve devait penser à en donner un autre.
+C'est l'inverse désormais : **seul le vrai lancement** (`main.rs`) y met ce dossier ; toute autre
+application travaille dans un dossier temporaire qui n'appartient à personne. La trace est
+effacée, et son dossier reste vide après toute la suite.
+
+### 9.4 Les boards — son idée, mon avis (en attente de sa parole)
+
+Un fichier `.glucose` porte **déjà** plusieurs boards : ce sont les pages d'un même document,
+une seule histoire, un seul enregistrement. Ce qui manque est de pouvoir les **renommer, les
+réordonner et les supprimer** (un `Ctrl+Z` les rend, la Time Machine les garde). Son idée
+d'**importer un autre document dans un nouveau board** est bonne et compatible avec tout le
+reste, à deux conditions : que ce soit un geste à part de `Ctrl+O` (qui doit rester « ouvrir »),
+et que l'import soit **un seul geste** — ses boards, ses images scellées dans le fichier, ses
+identifiants renommés pour ne jamais en heurter un — qu'un `Ctrl+Z` défait d'un coup. L'histoire
+du document importé ne vient pas avec lui : la réglette y verrait deux passés entremêlés ; son
+présent seul entre, et son fichier d'origine garde le sien.
+
+---
+
+## 10. Ce qui n'est pas fait, ou pas prouvé
+
+* **Vu à l'écran** : seulement l'import, `Ctrl+S` et la Time Machine ; la reprise au lancement,
+  la carte rouverte en édition, les membranes, le focus et la fluidité attendent son essai.
 * L'instantané s'encode sur le fil qui dessine : invisible pour ses documents (un document de
   quelques centaines de Ko), à déplacer vers le scribe pour un document énorme.
 * Ouvrir un autre document laisse le brouillon d'un document sans nom sur le disque — il se
@@ -386,7 +447,7 @@ dérivée des domaines — puis les **rideaux**, sur le focus.
 
 ---
 
-## 10. Ce qu'il faut regarder à l'écran
+## 11. Ce qu'il faut regarder à l'écran
 
 ```text
 cargo run --release > sortie-document.txt 2>&1
@@ -396,11 +457,14 @@ cargo run --release > sortie-document.txt 2>&1
    `Bureau\Blender\Projet\en cours\tst.glucose`). Il s'ouvre, les images paraissent.
 2. **L'enregistrement** : `Ctrl+S`, un nom. Puis travailler normalement — aucun gel.
 3. **Un plantage** : taper un long texte dans une carte, **sans cliquer ailleurs**, puis tuer
-   Glucose (Gestionnaire des tâches → Fin de tâche). Relancer : le document revient, avec le
-   texte.
+   Glucose — Gestionnaire des tâches, onglet **Détails**, clic droit sur `glucose-desktop.exe`,
+   « Fin de tâche » (l'onglet Processus, lui, ferme proprement). Relancer : le document revient,
+   la carte en édition, la caméra dessus.
 4. **La Time Machine** : `Ctrl+H`, cliquer sur la réglette (liseré ambré), « Restaurer cet
    état », puis `Ctrl+Z` ; « + Marquer un jalon ».
-5. **Deux fenêtres** sur le même document : la seconde dit qu'il est déjà ouvert.
+5. **Deux fenêtres** sur le même document : la seconde refuse de l'ouvrir, garde le sien, et
+   dit pourquoi. **Le lancement** : fermer Glucose normalement, relancer — le dernier document
+   revient.
 6. **Les membranes** : poser une membrane (`M`), y lâcher des cartes et des photos, puis
    glisser la membrane — son contenu suit ; supprimer la membrane — le contenu reste. Zoomer
    sur une membrane jusqu'à ce qu'elle remplisse l'écran : on entre en focus (fond teinté, le
@@ -412,12 +476,14 @@ cargo run --release > sortie-document.txt 2>&1
 
 ---
 
-## 11. Ce qui attend sa parole
+## 12. Ce qui attend sa parole
 
-1. **La V1 et la bascule : un seul moment, ou deux ?** Recommandé : deux — une bêta Windows
-   installable **à côté** de Tauri, puis la bascule par le popup quand la parité est atteinte.
-   C'est ce qui décide la phase 3.
-2. **Où vit l'histoire** : dans le fichier (fait ainsi, recommandé) ou dans un dossier à côté.
+1. **Les boards** (§ 9.4) : que `Ctrl+O` reste « ouvrir », et que l'import d'un document dans un
+   nouveau board soit un geste à part.
+2. *Réglé* : **la V1 et la bascule** se feront en **deux moments** — une bêta Windows à côté de
+   Tauri, puis la bascule — et **pas maintenant** : *« pour l'instant ce n'est pas encore
+   mature »*. La phase 3 attend.
+3. **Où vit l'histoire** : dans le fichier (fait ainsi, recommandé), sans objection de sa part.
 3. **La signature de code Windows** (phase 3.5) : un certificat payant.
 4. **Ce que ses utilisateurs emploient le plus** : l'ordre de la phase 4.
 
@@ -426,7 +492,7 @@ machine** — perdue, plus aucune mise à jour n'atteindrait un utilisateur de T
 
 ---
 
-## 12. Les sources
+## 13. Les sources
 
 * Figma, [*How Figma's multiplayer technology works*](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/).
 * Automerge, [spécification du format binaire](https://automerge.org/automerge-binary-format-spec/).
