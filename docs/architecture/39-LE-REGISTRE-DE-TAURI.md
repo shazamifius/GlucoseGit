@@ -26,9 +26,12 @@ brille. Puis un second défaut : cette fois, seul le premier mot est pris.
 token identitaire. Il faudra complètement analyser, comprendre et penser à une solution. Je
 propose le truc du token, mais ce n'est absolument pas la seule solution : à toi d'imaginer. »*
 
-**État** : *à vérifier*. Tauri avait tenté la correction (`utils/textAnchors.ts` : position +
-citation + contexte, le modèle du W3C Web Annotation) ; son essai montre qu'elle ne tenait pas de
-bout en bout. Relève du chantier des flèches.
+**État** : *corrigé dans Rust — à confirmer à l'écran* (fiche 40 § 4 ; commits `71606ea`,
+`f8e6a2b`, `1b6b547`). Une ancre désigne des octets de la source ; une position n'est pas une
+identité — chaque occurrence est notée sur son contexte, la position ne départage que des ex
+æquo (l'épreuve a retrouvé son défaut exact sous cette forme) ; les ancres **suivent**
+l'écriture ; on les choisit dans la carte elle-même, pas dans une copie rendue une seconde fois ;
+au survol, seul le passage désigné brille.
 
 ## 2. L'alignement intelligent
 
@@ -107,6 +110,10 @@ système complet d'ordre de priorité, **selon la place de la souris** :
 * **les poignées** de redimensionnement : trop petites, il faut viser *« PILE »*. Il veut une
   zone de clic **beaucoup plus grande**, prioritaire ; cliquer ailleurs quitte le mode
   modification.
+
+**Vu en chemin** (fiche 40 § 6) : dans Rust, les poignées et toutes les tailles « d'écran » du
+canevas sont en pixels **physiques**, quand les barres suivent les 150 % de son écran — elles y
+sont d'un tiers plus petites que chez Tauri. C'est une part de sa plainte, à régler d'abord.
 
 **État** : *à vérifier* (Rust porte déjà une priorité, `hit_priority.rs` ; à confronter à ce
 cahier point par point).
