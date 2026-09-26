@@ -181,4 +181,56 @@ code redondant, retiré.
 
 ---
 
+## 5. Le coude qu'on ne pouvait pas déplacer (ARROW-3, `6194109`)
+
+**Ce qu'il a vu** : cliquer le point blanc d'une flèche crée un point de déformation, *« mais on
+ne peut RIEN en faire : il est là, mais on ne peut pas le déplacer »*.
+
+**Reproduit** par le vrai chemin de la souris, à 150 % : le coude naît à l'appui et reste au
+milieu du tronçon pendant le glisser. **La cause** : `update_bend` et `finish_bend` n'étaient
+appelés **nulle part** dans l'application — seulement par les épreuves, qui les appelaient
+directement. `git log -S` le confirme : le câblage n'a jamais existé depuis le commit des coudes
+du 15/09. Le geste d'annulation que l'appui ouvrait ne se refermait pas non plus. C'est la forme
+exacte de R-18 (un module écrit, éprouvé, et débranché), et la raison pour laquelle une épreuve
+doit passer par le vrai chemin de la souris.
+
+**Une hypothèse démentie** : j'ai d'abord cru que le relâchement faisait descendre le cycle du
+clic (PICK-2) et déselectionnait la flèche. Faux : le cycle ne descend qu'au relâchement d'un
+appui que l'arbitre a armé, et un appui pris par une poignée ne passe pas par lui. La remise à
+zéro que j'avais écrite pour ça est retirée (une règle sans cas) ; l'épreuve garde le scénario.
+
+---
+
+## 6. Les pastilles de relation (BADGE-1, BADGE-2, `678edd1`)
+
+Ses trois retours sur les « logos » :
+
+1. **Ils ne rapetissaient pas au dézoom** — sa capture : une pastille orange plus grande qu'un
+   groupe entier d'images. Une session précédente les avait mises en pixels d'écran, par un choix
+   argumenté (« une légende doit rester lisible quand on prend du recul »). Chez Tauri, tout le
+   calque des flèches est mis à l'échelle du zoom (`translate(…) scale(…)`) : la pastille de rayon
+   10 et l'étiquette de corps 11 sont des longueurs **du monde**, seul le trait garde son épaisseur.
+   Elles y reviennent, sous le seuil de détail commun (SCALE-2), comme le texte d'une carte.
+2. **Ils se posaient exactement où l'on crée les coudes.** La pastille survolée **s'efface en
+   deux cents millisecondes**, et revient quand la souris part — la même mécanique que la lueur
+   des cartes désignées (LUEUR-2) ; `Vivacites` réunit les deux, et le réveil ne demande qu'à elle
+   si quelque chose glisse encore. Le dessin et le survol lisent le même centre de pastille
+   (`centre_du_badge`), et une seule règle dit si l'étiquette se montre — il y en avait deux. Le
+   survol ne cherche que parmi ce que l'index spatial trouve autour du point.
+3. **Rien ne disait ce qu'ils veulent dire.** La liste de Tauri portait des mots ; les sigles
+   seuls les avaient perdus — et le noyau nommait pourtant les relations
+   (`ArrowPredicate::label`), sans que personne le lise. Chaque bouton de relation montre
+   désormais son sigle **et** son mot : « est précurseur de », « contredit », « hérite de »,
+   « inspire », « dépend de », « illustre ». Trop étroite pour tout tenir, la barre retombe sur les
+   sigles seuls — du plus riche au plus sobre, sans largeur écrite en dur.
+
+Au passage : une **troisième copie** du traceur de rectangle arrondi, en paraboles, survivait
+dans l'étiquette (ARC-1 disait qu'il n'en restait qu'une) : elle passe au traceur commun.
+
+**Ce qui le tient** : la pastille et l'étiquette à ×0,5 couvrent la moitié de ce qu'elles
+couvrent à ×1 (par l'image) ; la pastille survolée s'efface — dans l'image, pas seulement dans
+sa valeur — et revient ; la barre dit ses mots et retombe sur les sigles. Huit sabotages tombent.
+
+---
+
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
