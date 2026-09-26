@@ -119,37 +119,11 @@ const FONTS: &[(&str, &[u8])] = &[
     ),
 ];
 
-/// Le nom de fichier d'une famille et d'un style, tel qu'il est embarqué.
-///
-/// Toutes les combinaisons n'existent pas : les fontes de taille (`Size1` à `Size4`) et les
-/// symboles AMS n'ont qu'une variante. Demander un italique qui n'existe pas rend la variante
-/// disponible plutôt que rien — un glyphe droit vaut mieux qu'un glyphe absent.
+/// Le nom de fichier d'une famille et d'un style, tel qu'il est embarqué — le nom même que les
+/// métriques de KaTeX portent (`Family::nom_de_fonte`), pour que la mesure et le dessin ne
+/// puissent pas choisir deux fontes différentes.
 fn nom_de_fonte(family: Family, style: Style) -> String {
-    let base = family.font_name();
-    let variante = match family {
-        Family::Size1 | Family::Size2 | Family::Size3 | Family::Size4 => "Regular",
-        Family::Ams | Family::Script | Family::Typewriter => "Regular",
-        Family::Math => {
-            // KaTeX_Math n'existe qu'en italique et gras italique.
-            if style.bold {
-                "BoldItalic"
-            } else {
-                "Italic"
-            }
-        }
-        Family::Caligraphic | Family::Fraktur => {
-            if style.bold {
-                "Bold"
-            } else {
-                "Regular"
-            }
-        }
-        // `KaTeX_SansSerif` n'a pas de gras italique : KaTeX ne demande jamais la combinaison,
-        // mais un repli explicite vaut mieux qu'un glyphe absent si elle arrivait un jour.
-        Family::SansSerif if style.bold && style.italic => "Bold",
-        Family::Main | Family::SansSerif => style.suffix(),
-    };
-    format!("{base}-{variante}")
+    format!("KaTeX_{}", family.nom_de_fonte(style))
 }
 
 /// Les fontes de KaTeX, chargées une fois, plus le souvenir des formules déjà mises en page.
@@ -206,11 +180,21 @@ impl MathRenderer {
         if let Some(connu) = self.cache.borrow().get(&(source.to_string(), mode)) {
             return connu.clone();
         }
-        let calcule = glucose_math::layout(source, mode);
+        let calcule = glucose_math::layout_avec(source, mode, &|c, f, s| self.avance(c, f, s));
         self.cache
             .borrow_mut()
             .insert((source.to_string(), mode), calcule.clone());
         calcule
+    }
+
+    /// **L'avance d'un caractère dans la fonte qui le dessinera**, en `em` — ce que le navigateur
+    /// de Glucose Tauri employait, et que les métriques de KaTeX ne donnent pas toujours
+    /// (`∬`, `°` : [`glucose_math::layout_avec`]). Rien si la fonte ne porte pas le caractère.
+    fn avance(&self, c: char, family: Family, style: Style) -> Option<f64> {
+        let font = self.fonts.get(nom_de_fonte(family, style).as_str())?;
+        let corps = font.units_per_em();
+        (font.lookup_glyph_index(c) != 0)
+            .then(|| f64::from(font.metrics(c, corps).advance_width) / f64::from(corps))
     }
 
     /// Combien de formules distinctes sont en mémoire.
@@ -277,30 +261,14 @@ impl MathRenderer {
                     y: ry,
                     width,
                     height,
-                } => {
-                    let mut paint = Paint {
-                        anti_alias: true,
-                        ..Default::default()
-                    };
-                    paint.set_color(color);
-                    // Un filet d'épaisseur inférieure au pixel disparaîtrait ; on lui en donne
-                    // un, sans quoi une barre de fraction s'évanouit au dézoom.
-                    let h = (*height as f32 * font_size).max(1.0);
-                    if let Some(r) = Rect::from_xywh(
-                        x + *rx as f32 * font_size,
-                        y - *ry as f32 * font_size - h,
-                        (*width as f32 * font_size).max(1.0),
-                        h,
-                    ) {
-                        pixmap.fill_rect(r, &paint, Transform::identity(), None);
-                    }
-                }
+                } => dessine_filet(pixmap, (*rx, *ry, *width, *height), pen, color),
                 MathItem::Path {
-                    name,
                     x: px,
                     y: py,
                     width,
                     height,
+                    forme: Some(forme),
+                    ..
                 } => {
                     // La boîte de la forme : sa ligne de base en bas, sa hauteur au-dessus.
                     // Une boîte sans surface ne se construit pas, donc ne se dessine pas.
@@ -308,12 +276,40 @@ impl MathRenderer {
                     let bas = y - *py as f32 * font_size;
                     if let Some(boite) = Rect::from_xywh(x + *px as f32 * font_size, bas - h, w, h)
                     {
-                        dessine_forme(pixmap, name, boite, color);
+                        let trait_px = forme.epaisseur.map(|e| e as f32 * font_size);
+                        dessine_forme(pixmap, forme, boite, (color, trait_px));
                     }
                 }
+                // Un chemin inconnu ne se dessine pas, plutôt que de travers.
+                MathItem::Path { forme: None, .. } => {}
             }
         }
         true
+    }
+}
+
+/// Dessine un filet `(x, y, largeur, épaisseur)`, en `em` depuis la plume, `y` au bas du filet.
+fn dessine_filet(
+    pixmap: &mut PixmapMut,
+    (rx, ry, width, height): (f64, f64, f64, f64),
+    Pen { x, y, font_size }: Pen,
+    color: Color,
+) {
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Default::default()
+    };
+    paint.set_color(color);
+    // Un filet d'épaisseur inférieure au pixel disparaîtrait ; on lui en donne un, sans quoi une
+    // barre de fraction s'évanouit au dézoom.
+    let h = (height as f32 * font_size).max(1.0);
+    if let Some(r) = Rect::from_xywh(
+        x + rx as f32 * font_size,
+        y - ry as f32 * font_size - h,
+        (width as f32 * font_size).max(1.0),
+        h,
+    ) {
+        pixmap.fill_rect(r, &paint, Transform::identity(), None);
     }
 }
 
@@ -357,44 +353,87 @@ fn dessine_glyphe(
     }
 }
 
-/// Dessine une forme étirable de KaTeX dans sa boîte — la ligne de base en est le bas.
+/// **Dessine une forme de KaTeX dans sa boîte** — la ligne de base en est le bas — par son tracé
+/// même (FORMULE-1).
 ///
-/// # Ce que ceci fait, et ce qu'il reste à faire
+/// Le radical était **construit** ici — trois segments reconnaissables de loin, faux de près —,
+/// et aucune autre forme ne se dessinait : ni flèche longue, ni accolade, ni chapeau large.
+/// KaTeX décrit chacune par un chemin, une boîte de vue et une règle d'ajustement ; la
+/// transformation est celle de SVG ([`glucose_math::Forme::transformation`]). La forme se peint
+/// dans une image de la taille de sa boîte, qui la rogne comme le `overflow: hidden` de KaTeX :
+/// un radical de 400 000 unités ne montre que la longueur de ce qu'il couvre.
 ///
-/// KaTeX décrit ces formes par des chemins vectoriels — une quinzaine en tout, radicaux,
-/// accolades et flèches longues. Les dessiner exactement demande de lire ces chemins ; en
-/// attendant, un radical est **construit** : la diagonale montante et le trait horizontal qui
-/// couvre le contenu. C'est la partie qui se voit, et elle se pose exactement dans la boîte que
-/// KaTeX a calculée.
-///
-/// Les autres formes ne sont pas dessinées plutôt que mal dessinées. Le nom est là, la boîte
-/// est là : ce qui manque est le tracé, pas l'information.
-fn dessine_forme(pixmap: &mut PixmapMut, nom: &str, boite: Rect, couleur: Color) {
-    if !nom.starts_with("sqrt") {
+/// Un trait (`<line>`, les ratures de `\cancel`) se trace à l'épaisseur qu'il porte, en pixels :
+/// elle ne s'étire pas avec la boîte.
+fn dessine_forme(
+    pixmap: &mut PixmapMut,
+    forme: &glucose_math::Forme,
+    boite: Rect,
+    (couleur, trait_px): (Color, Option<f32>),
+) {
+    use glucose_math::Commande;
+    let (ox, oy) = (boite.left().floor(), boite.top().floor());
+    let (l, h) = (
+        (boite.right() - ox).ceil() as u32,
+        (boite.bottom() - oy).ceil() as u32,
+    );
+    let Some(mut image) = tiny_skia::Pixmap::new(l.max(1), h.max(1)) else {
         return;
+    };
+    let (sx, sy, dx, dy) =
+        forme.transformation((f64::from(boite.width()), f64::from(boite.height())));
+    let (fx, fy) = (f64::from(boite.left() - ox), f64::from(boite.top() - oy));
+    let point = |x: f64, y: f64| ((fx + dx + x * sx) as f32, (fy + dy + y * sy) as f32);
+    let mut pb = tiny_skia::PathBuilder::new();
+    for c in &forme.commandes {
+        match *c {
+            Commande::Aller(x, y) => {
+                let (x, y) = point(x, y);
+                pb.move_to(x, y);
+            }
+            Commande::Ligne(x, y) => {
+                let (x, y) = point(x, y);
+                pb.line_to(x, y);
+            }
+            Commande::Cubique(a, b, c2, d, e, f) => {
+                let ((a, b), (c2, d), (e, f)) = (point(a, b), point(c2, d), point(e, f));
+                pb.cubic_to(a, b, c2, d, e, f);
+            }
+            Commande::Fermer => pb.close(),
+        }
     }
-    let (x, bas, largeur, hauteur) = (boite.left(), boite.bottom(), boite.width(), boite.height());
-    let epaisseur = (hauteur * 0.045).max(1.0);
+    let Some(chemin) = pb.finish() else {
+        return;
+    };
     let mut paint = Paint {
         anti_alias: true,
         ..Default::default()
     };
     paint.set_color(couleur);
-    let stroke = tiny_skia::Stroke {
-        width: epaisseur,
-        ..Default::default()
-    };
-
-    let mut pb = tiny_skia::PathBuilder::new();
-    // La jambe du radical : du creux en bas à gauche jusqu'au sommet, puis le trait qui
-    // surplombe le contenu.
-    pb.move_to(x, bas - hauteur * 0.45);
-    pb.line_to(x + largeur * 0.28, bas - hauteur * 0.06);
-    pb.line_to(x + largeur * 0.62, bas - hauteur * 0.96);
-    pb.line_to(x + largeur, bas - hauteur * 0.96);
-    if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+    match trait_px {
+        Some(largeur) => {
+            let trait_ = tiny_skia::Stroke {
+                width: largeur,
+                ..Default::default()
+            };
+            image.stroke_path(&chemin, &paint, &trait_, Transform::identity(), None);
+        }
+        None => image.fill_path(
+            &chemin,
+            &paint,
+            tiny_skia::FillRule::Winding,
+            Transform::identity(),
+            None,
+        ),
     }
+    pixmap.draw_pixmap(
+        ox as i32,
+        oy as i32,
+        image.as_ref(),
+        &tiny_skia::PixmapPaint::default(),
+        Transform::identity(),
+        None,
+    );
 }
 
 /// Compose un bitmap de couverture sur le pixmap, en alpha prémultiplié.

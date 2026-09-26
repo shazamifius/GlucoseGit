@@ -30,10 +30,24 @@
 //!
 //! Ce n'est pas une reconstitution : c'est ce que `makeVList` écrit, et les deux exemples de la
 //! documentation du crate le vérifient chiffre par chiffre.
+//!
+//! # FORMULE-1 — l'arbre, **et** la feuille de style
+//!
+//! Le navigateur de Glucose Tauri appliquait la feuille de KaTeX ; ce pont l'ignorait, et ses
+//! captures le montraient : un numérateur calé à gauche, des fractions collées à leurs voisines,
+//! les bornes d'une intégrale posées sur le signe, les lettres d'un mot qui se chevauchent. Le
+//! pont applique désormais les règles géométriques de la feuille ([`feuille`]), les marges et
+//! décalages que KaTeX écrit sur les symboles, un glyphe par caractère mesuré par les métriques
+//! de KaTeX, et les formes SVG telles que KaTeX les trace ([`chemin`]).
+
+mod chemin;
+mod feuille;
+mod pont;
+
+pub use chemin::{Ajustement, Calage, Commande, Forme};
 
 use crate::{Family, MathError, Mode, Style};
 use katex::dom_tree::HtmlDomNode;
-use katex::types::CssProperty;
 
 /// Un élément posé d'une formule.
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +93,9 @@ pub enum MathItem {
         y: f64,
         width: f64,
         height: f64,
+        /// Le tracé de KaTeX, sa boîte de vue et son ajustement — ou rien, si le chemin est
+        /// inconnu ou illisible : il ne se dessine alors pas, plutôt que de travers.
+        forme: Option<Forme>,
     },
 }
 
@@ -155,14 +172,24 @@ impl MathLayout {
                     y,
                     width,
                     height,
-                }
-                | MathItem::Path {
+                } => (*x, *y, x + width, y + height),
+                // Une forme : son encre dans sa boîte (`y` de la forme descend depuis le haut de
+                // la boîte). Une forme sans tracé lisible ne se dessine pas : elle n'a pas d'encre.
+                MathItem::Path {
                     x,
                     y,
                     width,
                     height,
+                    forme,
                     ..
-                } => (*x, *y, x + width, y + height),
+                } => {
+                    let Some((a, b, c, d)) =
+                        forme.as_ref().and_then(|f| f.etendue((*width, *height)))
+                    else {
+                        continue;
+                    };
+                    (x + a, y + height - d, x + c, y + height - b)
+                }
             };
             b = Some(match b {
                 None => (x0, y0, x1, y1),
@@ -184,6 +211,24 @@ impl MathLayout {
 /// Une source mal formée rend [`MathError::Parse`] avec le message de KaTeX, fait pour être
 /// montré : c'est lui qui colore une formule en rouge pendant la frappe.
 pub fn layout(latex: &str, mode: Mode) -> Result<MathLayout, MathError> {
+    layout_avec(latex, mode, &|_, _, _| None)
+}
+
+/// **Qui mesure l'avance d'un caractère** : `(caractère, famille, style)` → sa largeur en `em`,
+/// ou rien si la fonte ne le porte pas.
+pub type Avance<'a> = &'a dyn Fn(char, Family, Style) -> Option<f64>;
+
+/// Met en page une formule en mesurant chaque caractère **dans la fonte qui le dessinera**.
+///
+/// # Pourquoi la fonte, et pas les métriques de KaTeX
+///
+/// Le navigateur de Glucose Tauri avançait de la largeur que la fonte donne à chaque glyphe ;
+/// les métriques de KaTeX ne lui servaient qu'aux hauteurs. Les deux s'accordent sur 2 010 des
+/// 2 035 glyphes des vingt fontes — pas sur `∬` et `∭` (0,56 em dans les métriques, 1,08 et
+/// 1,59 dans la fonte), ni sur `°`, ni sur les accents combinants, larges de zéro dans la fonte.
+/// Mesurées par les métriques, les bornes de `\iint_D` se posaient **sur** le signe. Celui qui
+/// dessine tient les fontes : il mesure. [`layout`] garde les métriques pour qui n'en a pas.
+pub fn layout_avec(latex: &str, mode: Mode, avance: Avance) -> Result<MathLayout, MathError> {
     let ctx = katex::KatexContext::default();
     let options = katex::Settings {
         display_mode: mode == Mode::Display,
@@ -193,13 +238,13 @@ pub fn layout(latex: &str, mode: Mode) -> Result<MathLayout, MathError> {
     let tree = katex::render_to_dom_tree(&ctx, latex, &options)
         .map_err(|e| MathError::Parse(e.to_string()))?;
 
-    let mut sortie = Vec::new();
     let etat = Etat {
         size: 1.0,
         family: Family::Main,
         style: Style::ROMAN,
         align: Align::Left,
     };
+    let mut pont = pont::Pont::nouveau(&ctx, avance);
     // L'arbre rendu porte deux enfants : la version MathML, destinée aux lecteurs d'écran, et
     // la version HTML. Seule la seconde porte des positions.
     let mut largeur = 0.0_f64;
@@ -209,11 +254,11 @@ pub fn layout(latex: &str, mode: Mode) -> Result<MathLayout, MathError> {
                 continue;
             }
         }
-        largeur = largeur.max(pose(enfant, etat, 0.0, 0.0, &mut sortie));
+        largeur = largeur.max(pont.pose(enfant, etat, (0.0, 0.0)));
     }
 
     Ok(MathLayout {
-        items: sortie,
+        items: pont.fin(),
         width: largeur,
         height: tree.height,
         depth: tree.depth,
@@ -229,308 +274,4 @@ struct Etat {
     style: Style,
     /// L'alignement que le contexte impose aux empilements qu'il contient.
     align: Align,
-}
-
-/// Les multiplicateurs de taille de KaTeX, indexés par le numéro de `sizeN` (1 à 11).
-///
-/// La table est celle de sa feuille de style : `.sizing.reset-size6.size3` vaut `0.7em`, et
-/// `SIZE_MULTIPLIERS[3] / SIZE_MULTIPLIERS[6] = 0.7 / 1.0`. La taille 6 est la taille normale.
-const SIZE_MULTIPLIERS: [f64; 12] = [
-    1.0, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.44, 1.728, 2.074, 2.488,
-];
-
-/// Lit une longueur CSS en `em`. Rend `0` pour tout ce qui n'est pas un nombre suivi de `em` —
-/// KaTeX n'écrit que des `em` dans les propriétés qui nous intéressent.
-fn em(valeur: Option<&str>) -> f64 {
-    valeur
-        .and_then(|v| v.trim().strip_suffix("em"))
-        .and_then(|v| v.trim().parse::<f64>().ok())
-        .unwrap_or(0.0)
-}
-
-/// Le facteur de taille qu'un jeu de classes `sizing reset-sizeN sizeM` applique, et la famille
-/// ou le style qu'il impose, s'il en impose.
-fn applique_classes(classes: &katex::types::ClassList, mut etat: Etat) -> Etat {
-    let (mut reset, mut taille) = (None, None);
-    for classe in classes {
-        match classe {
-            "mathnormal" => {
-                etat.family = Family::Math;
-                etat.style = Style::ITALIC;
-            }
-            "mathit" => {
-                etat.family = Family::Main;
-                etat.style = Style::ITALIC;
-            }
-            "mathbf" => {
-                etat.family = Family::Main;
-                etat.style = Style::BOLD;
-            }
-            "boldsymbol" => {
-                etat.family = Family::Math;
-                etat.style = Style {
-                    bold: true,
-                    italic: true,
-                };
-            }
-            "mainrm" | "textrm" => {
-                etat.family = Family::Main;
-                etat.style = Style::ROMAN;
-            }
-            "amsrm" | "textbb" => etat.family = Family::Ams,
-            "mathcal" => etat.family = Family::Caligraphic,
-            "textfrak" => etat.family = Family::Fraktur,
-            "textboldfrak" => {
-                etat.family = Family::Fraktur;
-                etat.style = Style::BOLD;
-            }
-            "textsf" | "mathsf" => etat.family = Family::SansSerif,
-            "textboldsf" => {
-                etat.family = Family::SansSerif;
-                etat.style = Style::BOLD;
-            }
-            "textitsf" => {
-                etat.family = Family::SansSerif;
-                etat.style = Style::ITALIC;
-            }
-            "textscr" => etat.family = Family::Script,
-            "texttt" | "mathtt" => etat.family = Family::Typewriter,
-            // Les trois contextes que le CSS de KaTeX centre, et les deux qu'il aligne.
-            "op-limits" | "accent" | "col-align-c" => etat.align = Align::Center,
-            "col-align-l" => etat.align = Align::Left,
-            "col-align-r" => etat.align = Align::Right,
-            // Les grands opérateurs et les délimiteurs puisent dans les fontes de taille.
-            "small-op" | "delim-size1" => etat.family = Family::Size1,
-            "large-op" => etat.family = Family::Size2,
-            _ => {
-                if let Some(n) = classe
-                    .strip_prefix("reset-size")
-                    .and_then(|n| n.parse().ok())
-                {
-                    reset = Some(n);
-                } else if let Some(n) = classe.strip_prefix("size").and_then(|n| n.parse().ok()) {
-                    taille = Some(n);
-                }
-            }
-        }
-    }
-
-    // `delimsizing size1..4` nomme une fonte, pas un facteur — c'est la seule collision entre
-    // les deux familles de classes `sizeN`, et KaTeX la lève par la classe qui l'accompagne.
-    if classes.contains("delimsizing") {
-        if let Some(n) = taille {
-            etat.family = match n {
-                1 => Family::Size1,
-                2 => Family::Size2,
-                3 => Family::Size3,
-                _ => Family::Size4,
-            };
-        }
-        return etat;
-    }
-
-    if let Some(m) = taille {
-        let de = SIZE_MULTIPLIERS[reset.unwrap_or(6usize).min(11)];
-        let vers = SIZE_MULTIPLIERS[m.min(11usize)];
-        if de > 0.0 {
-            etat.size *= vers / de;
-        }
-    }
-    etat
-}
-
-/// Pose un nœud à `(x, y)` et rend la largeur qu'il occupe, en `em`.
-fn pose(node: &HtmlDomNode, etat: Etat, x: f64, y: f64, out: &mut Vec<MathItem>) -> f64 {
-    match node {
-        HtmlDomNode::Symbol(s) => {
-            if s.text.is_empty() || s.text == "\u{200b}" {
-                // L'espace de largeur nulle sert au calage d'une `vlist` en CSS ; il ne se
-                // dessine pas.
-                return 0.0;
-            }
-            let etat = applique_classes(&s.classes, etat);
-            out.push(MathItem::Glyph {
-                text: s.text.clone(),
-                x,
-                y,
-                size: etat.size,
-                family: etat.family,
-                style: etat.style,
-            });
-            // La correction d'italique appartient au glyphe suivant, pas à celui-ci : c'est
-            // ainsi que KaTeX la compte.
-            s.width * etat.size
-        }
-
-        HtmlDomNode::DomSpan(span) => {
-            let etat = applique_classes(&span.classes, etat);
-            let gauche = em(span.style.get(CssProperty::MarginLeft)) * etat.size;
-            let droite = em(span.style.get(CssProperty::MarginRight)) * etat.size;
-            let x = x + gauche;
-
-            // Un filet : il se dessine plein, sur la largeur que son parent lui donne. Sa
-            // largeur réelle est posée par l'empilement qui le contient, qui seul la connaît ;
-            // ici on note son épaisseur et sa place.
-            if span.classes.contains("frac-line") {
-                let epaisseur = em(span.style.get(CssProperty::BorderBottomWidth)) * etat.size;
-                out.push(MathItem::Rule {
-                    x,
-                    y,
-                    width: 0.0,
-                    height: epaisseur.max(f64::MIN_POSITIVE),
-                });
-                return gauche + droite;
-            }
-
-            if span.classes.contains("vlist") {
-                return gauche + empile(span, etat, x, y, out) + droite;
-            }
-
-            // Une forme étirable : `hide-tail` (radical, queue d'accolade) ou `stretchy`
-            // (flèches longues). Le span porte la boîte, le SVG qu'il contient porte le nom du
-            // chemin. Le SVG lui-même est large de 400 em et volontairement rogné par son
-            // parent : c'est le `min-width` du parent qui dit la largeur vraie, pas le SVG.
-            if span.classes.contains("hide-tail") || span.classes.contains("stretchy") {
-                let largeur = em(span.style.get(CssProperty::MinWidth))
-                    .max(em(span.style.get(CssProperty::Width)));
-                let hauteur = em(span.style.get(CssProperty::Height));
-                if let Some(nom) = nom_du_chemin(span) {
-                    out.push(MathItem::Path {
-                        name: nom,
-                        x,
-                        y,
-                        width: largeur * etat.size,
-                        height: hauteur * etat.size,
-                    });
-                }
-                return gauche + largeur * etat.size + droite;
-            }
-
-            // Une suite horizontale ordinaire.
-            let mut avance = 0.0;
-            for enfant in &span.children {
-                avance += pose(enfant, etat, x + avance, y, out);
-            }
-            // Un `mspace` n'a pas d'enfant : toute sa largeur est dans ses marges.
-            gauche + avance + droite
-        }
-
-        HtmlDomNode::Fragment(f) => {
-            let mut avance = 0.0;
-            for enfant in &f.children {
-                avance += pose(enfant, etat, x + avance, y, out);
-            }
-            avance
-        }
-
-        HtmlDomNode::Anchor(a) => {
-            let mut avance = 0.0;
-            for enfant in &a.children {
-                avance += pose(enfant, etat, x + avance, y, out);
-            }
-            avance
-        }
-
-        // MathML ne porte aucune position — c'est la version destinée aux lecteurs d'écran.
-        // Les images et les SVG de délimiteurs extensibles ne sont pas encore traités : ils
-        // concernent les très grands délimiteurs, où KaTeX assemble un trait à partir de
-        // morceaux.
-        HtmlDomNode::MathML(_) | HtmlDomNode::Img(_) | HtmlDomNode::SvgNode(_) => 0.0,
-    }
-}
-
-/// Le nom du chemin qu'un span de forme étirable contient, s'il en contient un.
-fn nom_du_chemin(span: &katex::dom_tree::Span<HtmlDomNode>) -> Option<String> {
-    use katex::dom_tree::SvgChildNode;
-    for enfant in &span.children {
-        if let HtmlDomNode::SvgNode(svg) = enfant {
-            for forme in &svg.children {
-                if let SvgChildNode::Path(chemin) = forme {
-                    return Some(chemin.path_name.clone());
-                }
-            }
-        }
-    }
-    None
-}
-
-/// Pose les enfants d'une `vlist` : ils se superposent au lieu de se suivre.
-///
-/// Chaque enfant est un `span` de hauteur nulle portant `top`, dont le premier enfant est un
-/// `pstrut` de hauteur connue. La ligne de base du contenu tombe à `y = −top − pstrut`.
-///
-/// Les filets qu'un empilement contient reçoivent ici leur largeur : c'est lui qui la connaît,
-/// puisqu'elle vaut celle du plus large de ses enfants.
-fn empile(
-    span: &katex::dom_tree::Span<HtmlDomNode>,
-    etat: Etat,
-    x: f64,
-    y: f64,
-    out: &mut Vec<MathItem>,
-) -> f64 {
-    // Ce que chaque étage a produit : sa tranche d'éléments, et la largeur qu'il occupe. La
-    // largeur de l'empilement n'est connue qu'après le dernier, et deux choses en dépendent —
-    // l'alignement des étages, et la longueur des filets. D'où les deux passes.
-    let mut etages: Vec<(usize, usize, f64)> = Vec::new();
-    let mut largeur = 0.0_f64;
-
-    for enfant in &span.children {
-        let debut = out.len();
-        let HtmlDomNode::DomSpan(boite) = enfant else {
-            // Un enfant qui n'est pas une boîte décalée est posé tel quel — c'est le cas de
-            // l'espace de largeur nulle qui sert au calage de la ligne de base en CSS.
-            let w = pose(enfant, etat, x, y, out);
-            etages.push((debut, out.len(), w));
-            largeur = largeur.max(w);
-            continue;
-        };
-
-        let top = em(boite.style.get(CssProperty::Top));
-        let pstrut = boite
-            .children
-            .iter()
-            .find_map(|c| match c {
-                HtmlDomNode::DomSpan(s) if s.classes.contains("pstrut") => {
-                    Some(em(s.style.get(CssProperty::Height)))
-                }
-                _ => None,
-            })
-            .unwrap_or(0.0);
-        // Le décalage est exprimé dans l'échelle du parent de l'empilement.
-        let ligne = y + (-top - pstrut) * etat.size;
-
-        let etat_boite = applique_classes(&boite.classes, etat);
-        let marge = em(boite.style.get(CssProperty::MarginLeft)) * etat_boite.size;
-        let mut avance = 0.0;
-        for petit in &boite.children {
-            if matches!(petit, HtmlDomNode::DomSpan(s) if s.classes.contains("pstrut")) {
-                continue;
-            }
-            avance += pose(petit, etat_boite, x + marge + avance, ligne, out);
-        }
-        etages.push((debut, out.len(), marge + avance));
-        largeur = largeur.max(marge + avance);
-    }
-
-    for (debut, fin, w) in etages {
-        let decalage = match etat.align {
-            Align::Left => 0.0,
-            Align::Center => (largeur - w) / 2.0,
-            Align::Right => largeur - w,
-        };
-        for item in &mut out[debut..fin] {
-            match item {
-                MathItem::Glyph { x: gx, .. } | MathItem::Path { x: gx, .. } => *gx += decalage,
-                MathItem::Rule { x: rx, width, .. } => {
-                    *rx += decalage;
-                    // Un filet occupe toute la largeur de l'empilement, quel que soit
-                    // l'alignement : c'est la barre d'une fraction ou le trait d'une racine.
-                    if *width == 0.0 {
-                        *width = largeur - (*rx - x);
-                    }
-                }
-            }
-        }
-    }
-    largeur
 }

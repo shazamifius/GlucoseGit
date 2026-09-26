@@ -118,6 +118,50 @@ fn test_une_fraction_encre_au_dessus_et_en_dessous_de_sa_ligne() {
     assert!(en_dessous > 20, "le dénominateur : {en_dessous} pixels");
 }
 
+/// **Une rature se trace.** Une ligne n'a pas d'aire : remplie, elle ne laisserait aucune
+/// encre. Le contenu est un fantôme, pour que la rature soit seule à encrer.
+#[test]
+fn test_une_rature_se_trace() {
+    let r = MathRenderer::new();
+    let mut p = Pixmap::new(200, 200).expect("pixmap");
+    let ok = r.draw(
+        &mut p.as_mut(),
+        r"\cancel{\phantom{x}}",
+        Mode::Display,
+        plume(40.0, 120.0, 60.0),
+        BLANC,
+    );
+    assert!(ok, "valide");
+    assert!(encre(&p) > 40, "la rature encre : {} pixels", encre(&p));
+}
+
+/// **L'avance d'un caractère est celle de la fonte qui le dessine** : l'intégrale double
+/// (U+222C) y est large de 1,084 em (0,556 selon les métriques de KaTeX), un `a` italique de
+/// 0,529 dans les deux.
+#[test]
+fn test_l_avance_vient_de_la_fonte() {
+    const DOUBLE: char = '\u{222C}';
+    let r = MathRenderer::new();
+    let double = r
+        .avance(DOUBLE, Family::Size2, Style::ROMAN)
+        .expect("dans Size2");
+    assert!((double - 1.084).abs() < 1e-9, "intégrale double : {double}");
+    let a = r
+        .avance('a', Family::Math, Style::ITALIC)
+        .expect("a dans Math");
+    assert!((a - 0.529).abs() < 1e-3, "a : {a}");
+    assert_eq!(
+        r.avance(DOUBLE, Family::Math, Style::ITALIC),
+        None,
+        "absent de Math"
+    );
+    let (large, _, _) = r.measure(r"\iint_D", Mode::Display, 100.0).expect("valide");
+    assert!(
+        large > 150.0,
+        "la formule compte le signe réel : {large} px"
+    );
+}
+
 /// Une formule fausse ne dessine rien et le dit, plutôt que de paniquer ou de dessiner du bruit.
 #[test]
 fn test_une_formule_fausse_ne_dessine_rien_et_le_dit() {

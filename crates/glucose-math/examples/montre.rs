@@ -40,6 +40,7 @@ fn main() {
                             y,
                             width,
                             height,
+                            ..
                         } => println!(
                             "  FORME  {name:?} x={x:+.3} y={y:+.3} l={width:.3} h={height:.3}"
                         ),

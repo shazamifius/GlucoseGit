@@ -59,11 +59,19 @@ fn test_une_fraction_empile_numerateur_filet_denominateur() {
     );
     assert!(filet.2 > 0.0, "le filet a une longueur : {}", filet.2);
     assert!(filet.3 > 0.0, "et une épaisseur : {}", filet.3);
+    // La barre couvre toute la fraction, **entre** les deux délimiteurs vides qui la bordent
+    // (`.nulldelimiter { width: .12em }`) : l'ancien pont la tirait d'un bord à l'autre de la
+    // formule, et collait la fraction à ses voisines.
     assert!(
-        (filet.2 - f.width).abs() < 1e-9,
-        "le filet fait toute la largeur : {} contre {}",
+        (filet.0 - 0.12).abs() < 1e-9,
+        "le filet commence après le vide de gauche : {}",
+        filet.0
+    );
+    assert!(
+        (filet.2 - (f.width - 0.24)).abs() < 1e-9,
+        "le filet fait la largeur de la fraction : {} contre {}",
         filet.2,
-        f.width
+        f.width - 0.24
     );
 }
 

@@ -45,7 +45,9 @@ use std::fmt;
 
 pub mod layout;
 
-pub use layout::{layout, Align, MathItem, MathLayout};
+pub use layout::{
+    layout, layout_avec, Ajustement, Align, Avance, Calage, Commande, Forme, MathItem, MathLayout,
+};
 
 /// Les douze familles de fontes de KaTeX.
 ///
@@ -96,6 +98,30 @@ impl Family {
             Self::Size3 => "KaTeX_Size3",
             Self::Size4 => "KaTeX_Size4",
         }
+    }
+}
+
+impl Family {
+    /// **Le nom de la fonte d'une famille dans ce style**, tel que les métriques et les fichiers
+    /// de KaTeX le portent : `Main-Regular`, `Math-Italic`, `Size2-Regular`.
+    ///
+    /// Toutes les combinaisons n'existent pas : les fontes de taille et les symboles AMS n'ont
+    /// qu'une variante, `KaTeX_Math` n'existe qu'en italique. Demander une variante absente rend
+    /// celle qui existe — un glyphe droit vaut mieux qu'un glyphe absent. Le dessin et la mesure
+    /// lisent ce nom ici tous deux : ils ne peuvent pas choisir deux fontes différentes.
+    pub fn nom_de_fonte(self, style: Style) -> String {
+        let base = self.font_name().trim_start_matches("KaTeX_");
+        let variante = match self {
+            Self::Size1 | Self::Size2 | Self::Size3 | Self::Size4 => "Regular",
+            Self::Ams | Self::Script | Self::Typewriter => "Regular",
+            Self::Math if style.bold => "BoldItalic",
+            Self::Math => "Italic",
+            Self::Caligraphic | Self::Fraktur if style.bold => "Bold",
+            Self::Caligraphic | Self::Fraktur => "Regular",
+            Self::SansSerif if style.bold && style.italic => "Bold",
+            Self::Main | Self::SansSerif => style.suffix(),
+        };
+        format!("{base}-{variante}")
     }
 }
 
