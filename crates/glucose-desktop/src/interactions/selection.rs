@@ -87,6 +87,7 @@ impl GlucoseApp {
             index: Some(&self.renderer.spatial_hash),
             typographie: &self.renderer.typography,
             math: &self.renderer.math,
+            contournement: Some(self.renderer.contournement()),
         };
         let input = PickInput {
             wx,

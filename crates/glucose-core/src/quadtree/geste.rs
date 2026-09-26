@@ -173,7 +173,15 @@ impl SuiviDuGeste {
     /// Le geste n'ayant fait que poser en fin de liste ou changer en place, chaque liste du
     /// présent commence par celle que l'index a vue : un rang d'avant ne change que du
     /// décalage des listes qui le précèdent.
-    fn au_present(&self, rangs: &mut Vec<u32>, board: &Board) {
+    ///
+    /// Public pour toute requête de l'index qui doit voir le présent — les obstacles d'une
+    /// flèche (FLECHE-5) : ce que le geste a touché s'y joint **en entier**, et c'est à
+    /// l'appelant de ne garder que ce qui tombe dans sa zone.
+    pub fn au_present(&self, rangs: &mut Vec<u32>, board: &Board) {
+        // Hors geste, l'index décrit le document tel qu'il est : il n'y a rien à relire.
+        if self.numero == 0 {
+            return;
+        }
         let [i_avant, a_avant, _] = self.avant.map(|n| n as u32);
         let (i, a) = (board.images.len() as u32, board.annotations.len() as u32);
         if (i, a) != (i_avant, a_avant) {

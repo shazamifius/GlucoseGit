@@ -279,8 +279,10 @@ impl SpatialHash {
         (f.x, f.y, f.x + f.width, f.y + f.height)
     }
 
+    /// Boîte englobante d'une image : tournée comprise — un coin penché qui dépasse de la
+    /// boîte droite doit se trouver dans les cellules qu'il couvre.
     fn image_bbox(img: &crate::types::BoardImage) -> (f64, f64, f64, f64) {
-        let r = img.rect();
+        let r = img.bounds();
         (r.left, r.top, r.right(), r.bottom())
     }
 

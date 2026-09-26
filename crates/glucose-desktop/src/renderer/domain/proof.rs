@@ -96,6 +96,7 @@ fn render(typo: &Typography, store: &Store, zoom: f64) -> Pixmap {
         },
         visibles: &rangs,
         index: &index,
+        contournement: None,
         header_h: 0.0,
         densite: 1.0,
     };
@@ -353,6 +354,7 @@ fn capture_scene_pass(typo: &Typography, dir: &std::path::Path) {
         },
         visibles: &rangs,
         index: &index,
+        contournement: None,
         header_h: 0.0,
         densite: 1.0,
     };

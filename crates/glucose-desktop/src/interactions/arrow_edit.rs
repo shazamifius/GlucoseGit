@@ -14,6 +14,14 @@
 //! sous la main, il suit la main, et le relâchement décide. Un clic sans mouvement laisse
 //! donc un coude au milieu du tronçon — ce que Glucose Tauri fait — et un glisser le pose
 //! où on voulait. Aucun mode, aucun modificateur.
+//!
+//! # Une flèche qui contourne (FLECHE-5)
+//!
+//! Sans coude, une flèche passe par les étapes de son détour, que le rendu calcule. Ses
+//! poignées sont celles de ce qu'on voit : un disque sur chaque étape, un losange au milieu de
+//! chaque tronçon. Le premier geste qui **change** quelque chose fige l'itinéraire en coudes —
+//! glisser une étape, en retirer une d'un double-clic, insérer un coude au milieu d'un
+//! tronçon. Un simple clic sur une étape ne change rien : la flèche continue de contourner.
 
 use crate::app::{GlucoseApp, LastClickInfo};
 
@@ -56,7 +64,14 @@ pub struct BendSession {
     pub arrow_id: String,
     /// Son rang parmi les coudes de cette flèche.
     pub bend: usize,
+    /// L'itinéraire à figer en coudes au premier mouvement, si la flèche contournait sans
+    /// coude (FLECHE-5) — vide sinon.
+    pub a_figer: Vec<(f64, f64)>,
 }
+
+/// Une poignée de flèche trouvée sous la main, et les étapes du détour qu'elle porte si la
+/// flèche contourne sans coude.
+type PoigneeTrouvee = (String, ArrowHandle, Vec<(f64, f64)>);
 
 impl GlucoseApp {
     /// Le rang de ce clic sur une cible **qui n'est pas un nœud**, comme une poignée.
@@ -89,7 +104,7 @@ impl GlucoseApp {
     ///
     /// Seules les flèches **sélectionnées** en ont : une poignée est une affordance de ce
     /// qu'on manipule, et les faire toutes apparaître couvrirait le canevas de disques.
-    fn arrow_handle_at(&self, wx: f64, wy: f64) -> Option<(String, ArrowHandle)> {
+    fn arrow_handle_at(&self, wx: f64, wy: f64) -> Option<PoigneeTrouvee> {
         let board = self.store.active_board()?;
         let scale = self.zoom_logique();
         // Les poignées se cherchent sur le tracé que le dessin pose (FLECHE-4).
@@ -98,10 +113,11 @@ impl GlucoseApp {
             index: Some(&self.renderer.spatial_hash),
             typographie: &self.renderer.typography,
             math: &self.renderer.math,
+            contournement: Some(self.renderer.contournement()),
         };
         self.store.selected_arrows().into_iter().find_map(|ann| {
             let handle = arrow::handle_at(ann, noeuds, (wx, wy), scale)?;
-            Some((ann.id().to_string(), handle))
+            Some((ann.id().to_string(), handle, detour(ann, noeuds)))
         })
     }
 
@@ -110,7 +126,7 @@ impl GlucoseApp {
     /// Rend `true` quand le clic a été consommé — l'appelant ne doit alors ni sélectionner
     /// ni commencer un glisser de nœud.
     pub fn begin_arrow_bend(&mut self, wx: f64, wy: f64) -> bool {
-        let Some((arrow_id, handle)) = self.arrow_handle_at(wx, wy) else {
+        let Some((arrow_id, handle, detour)) = self.arrow_handle_at(wx, wy) else {
             return false;
         };
         let board = self.store.project.active_board_id.clone();
@@ -125,38 +141,47 @@ impl GlucoseApp {
         let rang = self.click_count_at(&cle);
         self.remember_click(cle, rang);
 
-        // Un double-clic sur un coude le retire : une flèche qu'on a trop pliée se déplie du
-        // même geste qui l'a pliée, et au même endroit.
-        if let HandleKind::Bend(index) = handle.kind {
-            if rang > 1 {
+        // Tout le geste — le figement éventuel, l'insertion ou le retrait, le glisser qui suit
+        // — tient dans une seule entrée d'annulation.
+        self.store.begin_live_edit();
+        let (bend, a_figer) = match handle.kind {
+            // Un double-clic sur un coude le retire : une flèche qu'on a trop pliée se déplie
+            // du même geste qui l'a pliée, et au même endroit.
+            HandleKind::Bend(index) if rang > 1 => {
+                self.store.figer_arrow_route(&board, &arrow_id, &detour);
                 self.store.remove_arrow_bend(&board, &arrow_id, index);
+                self.store.end_live_edit();
                 self.mark_dirty();
                 return true;
             }
-        }
-
-        // Tout le geste — l'insertion éventuelle et le glisser qui suit — tient dans une
-        // seule entrée d'annulation.
-        self.store.begin_live_edit();
-        let bend = match handle.kind {
-            HandleKind::Bend(index) => index,
+            // Une étape de détour ne se fige qu'au premier mouvement.
+            HandleKind::Bend(index) => (index, detour),
             HandleKind::Midpoint(segment) => {
+                self.store.figer_arrow_route(&board, &arrow_id, &detour);
                 self.store
                     .insert_arrow_bend(&board, &arrow_id, segment, handle.at);
-                segment
+                (segment, Vec::new())
             }
         };
-        self.bend_session = Some(BendSession { arrow_id, bend });
+        self.bend_session = Some(BendSession {
+            arrow_id,
+            bend,
+            a_figer,
+        });
         self.mark_dirty();
         true
     }
 
     /// Le glisser en cours amène le coude sous le curseur.
     pub fn update_bend(&mut self, wx: f64, wy: f64) {
-        let Some(session) = self.bend_session.clone() else {
+        let Some(session) = self.bend_session.as_mut() else {
             return;
         };
+        let a_figer = std::mem::take(&mut session.a_figer);
+        let session = session.clone();
         let board = self.store.project.active_board_id.clone();
+        self.store
+            .figer_arrow_route(&board, &session.arrow_id, &a_figer);
         self.store
             .move_arrow_bend(&board, &session.arrow_id, session.bend, (wx, wy));
         self.mark_dirty();
@@ -171,5 +196,22 @@ impl GlucoseApp {
     }
 }
 
+/// **Les étapes du détour d'une flèche sans coude** (FLECHE-5) : les points intérieurs de son
+/// tracé. Vide pour une flèche qui a des coudes — ce sont eux que la main tient — ou qui va
+/// droit.
+fn detour(ann: &glucose_core::types::Annotation, noeuds: impl arrow::Noeuds) -> Vec<(f64, f64)> {
+    let a_des_coudes = matches!(
+        ann,
+        glucose_core::types::Annotation::Arrow { waypoints, .. } if !waypoints.is_empty()
+    );
+    let chemin = arrow::path_with(ann, noeuds).unwrap_or_default();
+    if a_des_coudes || chemin.len() <= 2 {
+        return Vec::new();
+    }
+    chemin[1..chemin.len() - 1].to_vec()
+}
+
+#[cfg(test)]
+mod contour_tests;
 #[cfg(test)]
 mod tests;

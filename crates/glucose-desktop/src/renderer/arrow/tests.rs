@@ -284,6 +284,7 @@ fn test_dpi_1_la_carte_recoit_des_fleches_a_la_densite_de_l_ecran() {
         },
         visibles: &rangs,
         index: &index,
+        contournement: None,
         header_h: 0.0,
         densite: 1.5,
     };

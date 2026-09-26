@@ -54,6 +54,7 @@ use crate::theme::Theme;
 use crate::typography::Typography;
 use crate::ui::{render_ui, UiState};
 pub(crate) use arrondi::push_rounded_rect;
+use arrow::Contournement;
 use domain::DomainTints;
 use glucose_core::quadtree::SpatialHash;
 use glucose_core::store::Store;
@@ -171,6 +172,9 @@ pub struct Renderer {
     couverture: grille::Couverture,
     pub spatial_hash: SpatialHash,
     pub spatial_version: u64,
+    /// Les itinéraires des flèches pour cette version du document (FLECHE-5) : oubliés quand
+    /// l'index se resynchronise, parce qu'ils dépendent exactement de ce qu'il range.
+    pub itineraires: arrow::Itineraires,
     pub active_board_id: String,
     /// Ce que la carte laisse aux photos, et le cran qu'on en a déduit (ETAGES-3).
     pub carte: voies::cran::EtatDeLaCarte,
@@ -208,6 +212,7 @@ impl Renderer {
             couverture: grille::Couverture::default(),
             spatial_hash: SpatialHash::new(1000.0),
             spatial_version: 0,
+            itineraires: arrow::Itineraires::default(),
             active_board_id: String::new(),
             carte: Default::default(),
             focus: Default::default(),
@@ -231,9 +236,16 @@ impl Renderer {
         };
         if self.spatial_version != store.version || self.active_board_id != board.id {
             self.spatial_hash.index_board(board);
+            self.itineraires.oublier();
             self.spatial_version = store.version;
             self.active_board_id = board.id.clone();
         }
+    }
+
+    /// **Ce qu'une flèche lit pour contourner** (FLECHE-5) : les itinéraires retenus et le geste
+    /// en cours.
+    pub fn contournement(&self) -> Contournement<'_> {
+        Contournement::de(&self.itineraires, &self.suivi_du_geste)
     }
 
     /// Remet les caches du rendu d'accord avec le document, avant de dessiner quoi que ce soit.
@@ -418,6 +430,7 @@ impl Renderer {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
+            contournement: Some(Contournement::de(&self.itineraires, &self.suivi_du_geste)),
             header_h,
             densite,
         };

@@ -219,6 +219,7 @@ pub(super) fn fleches_a_poser(
         index: Some(pass.index),
         typographie,
         math,
+        contournement: pass.contournement,
     };
     let echelle = pass.echelle();
     Visibles::nouvelles(pass.visibles, board)
@@ -232,7 +233,10 @@ pub(super) fn fleches_a_poser(
         .collect()
 }
 
+mod itineraires;
 mod noeuds;
+pub use itineraires::{Epoque, Itineraires};
+pub use noeuds::Contournement;
 pub(crate) use noeuds::NoeudsDuRendu;
 
 #[cfg(test)]

@@ -168,6 +168,10 @@ pub struct ViewPass<'a> {
     /// elle dépend des cartes voisines, et les chercher dans le tableau coûterait un parcours
     /// par carte (HALO-4).
     pub index: &'a SpatialHash,
+    /// Ce qu'une flèche lit pour contourner (FLECHE-5) : les itinéraires retenus pour l'état
+    /// présent du document, et le geste en cours. Sans, chaque lecture d'un tracé cherche le
+    /// sien dans l'index tel qu'il est.
+    pub contournement: Option<crate::renderer::arrow::Contournement<'a>>,
     /// Hauteur du bandeau : sommet de la zone de canevas, en unités logiques.
     pub header_h: f32,
     /// Combien de pixels du tampon font un pixel logique (DPI-1) : la densité de l'écran,

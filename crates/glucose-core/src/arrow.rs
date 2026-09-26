@@ -43,58 +43,17 @@
 
 pub mod aspect;
 pub mod champ;
+pub mod contour;
+mod noeuds;
 pub mod trace;
+
+pub use noeuds::{Itineraire, Noeuds};
 
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
 use crate::quadtree::{noeud_au_rang, SpatialHash};
-use crate::types::{TextAnchor, TextSelection};
+use crate::types::TextSelection;
 
-/// **Ce qu'une flèche demande à ce qu'elle relie** (FLECHE-4) : la boîte d'un nœud — et, si
-/// l'on sait mesurer son texte, la hauteur d'un passage dans ce nœud.
-///
-/// Une flèche ancrée à un passage précis d'une carte part de ce passage, à sa hauteur, et non
-/// du milieu de la carte (Tauri : `findTextSelPosition`). Mesurer un texte demande sa mise en
-/// page, qui vit avec les polices, hors du noyau : le noyau la **demande**, par ce trait, et
-/// le dessin comme le clic passent par le même — un clic ne vise jamais une flèche ailleurs
-/// que là où elle est dessinée (loi L4).
-///
-/// Une simple fonction `id → boîte` en est un : elle ne sait mesurer aucun texte, et une flèche
-/// ancrée à un passage part alors du milieu, comme avant.
-pub trait Noeuds {
-    /// La boîte du nœud, s'il existe.
-    fn boite(&self, id: &str) -> Option<Rect>;
-
-    /// La hauteur, depuis le haut du nœud, du passage que ces ancres désignent — `None` si on
-    /// ne sait pas la mesurer, ou si le passage a disparu.
-    fn hauteur_du_passage(&self, _id: &str, _ancres: &[TextAnchor]) -> Option<f64> {
-        None
-    }
-}
-
-impl<F: Fn(&str) -> Option<Rect>> Noeuds for F {
-    fn boite(&self, id: &str) -> Option<Rect> {
-        self(id)
-    }
-}
-
-/// Ce que le débogage montre d'un interlocuteur : son rôle, pas son contenu — qui peut être
-/// tout un tableau.
-impl std::fmt::Debug for dyn Noeuds + '_ {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Noeuds")
-    }
-}
-
-impl Noeuds for &dyn Noeuds {
-    fn boite(&self, id: &str) -> Option<Rect> {
-        (**self).boite(id)
-    }
-
-    fn hauteur_du_passage(&self, id: &str, ancres: &[TextAnchor]) -> Option<f64> {
-        (**self).hauteur_du_passage(id, ancres)
-    }
-}
 use crate::types::Annotation;
 use crate::types::{Board, CanvasFolder};
 
@@ -224,19 +183,70 @@ pub fn path_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<(f64, f6
         (target_id.as_ref(), target_text_sel.as_ref()),
         (*x2, *y2),
     );
+    // Une flèche sans coude contourne ce qu'elle traverserait (FLECHE-5) ; une flèche que la
+    // main a pliée passe par où la main l'a dit.
+    let etapes: Vec<(f64, f64)> = if waypoints.is_empty() {
+        let sauf = [source_id.as_deref(), target_id.as_deref()];
+        contourner(arrow, &noeuds, (depart, arrivee), sauf)
+    } else {
+        waypoints.iter().map(|p| (p.x, p.y)).collect()
+    };
+    let (debut, fin) = extremites(depart, arrivee, &etapes);
+    let mut points = Vec::with_capacity(etapes.len() + 2);
+    points.push(debut);
+    points.extend(etapes);
+    points.push(fin);
+    Some(points)
+}
+
+/// Les deux extrémités d'une flèche qui passe par ces étapes : chacune sort de son bloc du côté
+/// de l'étape qui la suit.
+fn extremites(
+    depart: ArrowAnchor,
+    arrivee: ArrowAnchor,
+    etapes: &[(f64, f64)],
+) -> ((f64, f64), (f64, f64)) {
     // `Point2D` est le point du **document**, `Point` celui de la géométrie : deux types
     // pour une même notion, dont la fusion dépasse ce chantier. La conversion est ici, à
     // l'unique frontière où les deux se rencontrent.
-    let etapes: Vec<crate::geometry::Point> = waypoints
+    let etapes: Vec<crate::geometry::Point> = etapes
         .iter()
-        .map(|p| crate::geometry::Point::new(p.x, p.y))
+        .map(|p| crate::geometry::Point::new(p.0, p.1))
         .collect();
     let bouts = arrow_endpoints(depart, arrivee, &etapes);
-    let mut points = Vec::with_capacity(waypoints.len() + 2);
-    points.push((bouts.start.x, bouts.start.y));
-    points.extend(waypoints.iter().map(|p| (p.x, p.y)));
-    points.push((bouts.end.x, bouts.end.y));
-    Some(points)
+    ((bouts.start.x, bouts.start.y), (bouts.end.x, bouts.end.y))
+}
+
+/// **L'itinéraire d'une flèche sans coude** (FLECHE-5), de l'ancre de sa source à celle de sa
+/// cible — retenu par `noeuds` s'il sait retenir. Courbe, elle se resserre là où elle mordrait.
+fn contourner(
+    arrow: &Annotation,
+    noeuds: &impl Noeuds,
+    (depart, arrivee): (ArrowAnchor, ArrowAnchor),
+    sauf: [Option<&str>; 2],
+) -> Vec<(f64, f64)> {
+    let bout = |a: ArrowAnchor| contour::Bout {
+        point: (a.x, a.y),
+        boite: a
+            .box_rect
+            .map(|b| Rect::new(b.left, b.top, b.right - b.left, b.bottom - b.top)),
+    };
+    let cle = Itineraire {
+        fleche: arrow.id(),
+        depart: bout(depart),
+        arrivee: bout(arrivee),
+        courbe: est_courbe(arrow),
+    };
+    noeuds.itineraire(&cle, &mut || {
+        let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| noeuds.obstacles(zone, sauf, sortie);
+        let mut etapes = contour::itineraire(cle.depart, cle.arrivee, &mut requete);
+        if cle.courbe && !etapes.is_empty() {
+            let bouts = |e: &[(f64, f64)]| extremites(depart, arrivee, e);
+            let exclus = [cle.depart.point, cle.arrivee.point];
+            contour::resserrer(&mut etapes, &bouts, exclus, &mut requete);
+        }
+        etapes
+    })
 }
 
 /// La distance d'un point du monde à une flèche, ou `None` si ce n'en est pas une.

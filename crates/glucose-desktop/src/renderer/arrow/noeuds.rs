@@ -2,17 +2,37 @@
 //! l'index, et la hauteur d'un passage de texte, mesurée par la vraie mise en page de la carte.
 //!
 //! Le dessin, les poignées et le clic passent tous par lui : une flèche ancrée au second
-//! « bonjours » d'une carte part de ce mot, et se vise là où elle part (loi L4).
+//! « bonjours » d'une carte part de ce mot, et se vise là où elle part (loi L4). Et il dit à
+//! une flèche ce qu'elle doit contourner (FLECHE-5) : ce que l'index trouve le long de son
+//! chemin, retenu d'une lecture à l'autre.
 
 use crate::renderer::card::{card_text_layout, text_box, TEXT_ORIGIN};
 use crate::renderer::math::MathRenderer;
 use crate::renderer::richtext::{TextLayout, TextMode};
 use crate::typography::Typography;
-use glucose_core::arrow::{node_rect, node_rect_indexe, Noeuds};
+use super::Itineraires;
+use glucose_core::arrow::{node_rect, node_rect_indexe, Itineraire, Noeuds};
 use glucose_core::geometry::Rect;
-use glucose_core::quadtree::{noeud_au_rang, Noeud, SpatialHash};
+use glucose_core::quadtree::{noeud_au_rang, Noeud, SpatialHash, SuiviDuGeste};
 use glucose_core::text_anchors::resolve_anchors;
 use glucose_core::types::{Annotation, Board, TextAnchor};
+
+/// **Ce qu'il faut au rendu pour qu'une flèche contourne** (FLECHE-5) : les itinéraires déjà
+/// cherchés pour l'état présent du document, et le geste en cours — l'index décrit le document
+/// publié, un glisser l'a déjà changé (GESTE-1).
+#[derive(Clone, Copy)]
+pub struct Contournement<'a> {
+    pub itineraires: &'a Itineraires,
+    pub geste: &'a SuiviDuGeste,
+}
+
+impl<'a> Contournement<'a> {
+    /// Pris champ par champ : les passes qui le lisent empruntent d'autres champs du rendu en
+    /// écriture.
+    pub fn de(itineraires: &'a Itineraires, geste: &'a SuiviDuGeste) -> Self {
+        Self { itineraires, geste }
+    }
+}
 
 /// Le tableau tel que le rendu le connaît : ses nœuds, son index, ses polices.
 #[derive(Clone, Copy)]
@@ -23,6 +43,9 @@ pub(crate) struct NoeudsDuRendu<'a> {
     pub index: Option<&'a SpatialHash>,
     pub typographie: &'a Typography,
     pub math: &'a MathRenderer,
+    /// De quoi retenir les itinéraires et voir le geste en cours ; sans, chaque lecture d'un
+    /// tracé cherche le sien dans l'index tel qu'il est.
+    pub contournement: Option<Contournement<'a>>,
 }
 
 impl NoeudsDuRendu<'_> {
@@ -36,6 +59,18 @@ impl NoeudsDuRendu<'_> {
                 _ => None,
             });
         par_l_index.or_else(|| self.board.annotations.iter().find(|a| a.id() == id))
+    }
+}
+
+/// **La boîte qu'une flèche contourne**, si ce nœud en est un : une carte, une note, une
+/// photo (tournée comprise), un dossier. Une flèche n'en contourne pas une autre, et elle sort
+/// d'une membrane pour relier deux domaines.
+fn obstacle(noeud: Noeud<'_>) -> Option<Rect> {
+    match noeud {
+        Noeud::Image(i) => Some(i.bounds()),
+        Noeud::Annotation(a @ (Annotation::Text { .. } | Annotation::Sticky { .. })) => a.rect(),
+        Noeud::Annotation(_) => None,
+        Noeud::Dossier(f) => Some(f.rect()),
     }
 }
 
@@ -90,5 +125,38 @@ impl Noeuds for NoeudsDuRendu<'_> {
         });
         let n = plages.len() as f64;
         Some(f64::from(TEXT_ORIGIN.1) + (haut + bas) / (2.0 * n))
+    }
+
+    /// Ce que l'index range dans la zone et qu'une flèche contourne — sauf ce qu'elle relie.
+    /// Sans index, rien : la flèche va droit.
+    fn obstacles(&self, zone: Rect, sauf: [Option<&str>; 2], sortie: &mut Vec<Rect>) {
+        let Some(index) = self.index else {
+            return;
+        };
+        let mut rangs = Vec::new();
+        let (x1, y1) = (zone.right(), zone.bottom());
+        index.query_rect_ranks_into(zone.left, zone.top, x1, y1, 0.0, &mut rangs);
+        if let Some(c) = self.contournement {
+            c.geste.au_present(&mut rangs, self.board);
+        }
+        sortie.extend(
+            rangs
+                .into_iter()
+                .filter_map(|r| noeud_au_rang(self.board, r))
+                .filter(|n| !sauf.contains(&Some(n.id())))
+                .filter_map(obstacle)
+                .filter(|b| b.left <= x1 && zone.left <= b.right() && b.top <= y1 && zone.top <= b.bottom()),
+        );
+    }
+
+    fn itineraire(
+        &self,
+        cle: &Itineraire<'_>,
+        calcul: &mut dyn FnMut() -> Vec<(f64, f64)>,
+    ) -> Vec<(f64, f64)> {
+        match self.contournement {
+            Some(c) => c.itineraires.retenu(cle, calcul),
+            None => calcul(),
+        }
     }
 }

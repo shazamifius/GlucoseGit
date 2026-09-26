@@ -12,6 +12,7 @@ use super::{
     folder, grille, halo, noter_le_cout_de_la_scene, pass, render_ui, scene, Couche, PaintKit,
     Regard, Renderer, SymbioticHueCache,
 };
+use super::arrow::Contournement;
 use crate::params::ViewPass;
 use crate::params::{Pointer, SceneOverlay};
 use crate::present::scene_gpu::Pose;
@@ -533,6 +534,7 @@ impl Renderer {
             vp,
             visibles: &rangs,
             index: &self.spatial_hash,
+            contournement: Some(Contournement::de(&self.itineraires, &self.suivi_du_geste)),
             header_h,
             densite,
         };

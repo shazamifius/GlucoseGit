@@ -59,6 +59,7 @@ fn sur_la_fleche(app: &GlucoseApp) -> (f64, f64) {
         index: Some(&app.renderer.spatial_hash),
         typographie: &app.renderer.typography,
         math: &app.renderer.math,
+        contournement: None,
     };
     let chemin = glucose_core::arrow::path_with(ann, noeuds).expect("un chemin");
     let (a, b) = (chemin[0], chemin[chemin.len() - 1]);

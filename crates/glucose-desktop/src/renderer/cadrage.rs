@@ -286,6 +286,9 @@ impl Renderer {
             return rangs;
         };
         let geste = store.journal.en_cours();
+        // Les itinéraires des flèches valent pour cet état du document, geste compris.
+        let (numero, ecrits) = geste.map_or((0, 0), |(n, e)| (n, e.len()));
+        self.itineraires.suivre((store.version, numero, ecrits));
         if self
             .suivi_du_geste
             .completer(geste, board, &self.spatial_hash, &mut rangs)

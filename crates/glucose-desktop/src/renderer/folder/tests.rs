@@ -53,6 +53,7 @@ fn encre(store: &Store) -> (Pixmap, usize) {
         vp,
         visibles: &rangs,
         index: &index,
+        contournement: None,
         header_h: 0.0,
         densite: 1.0,
     };

@@ -459,6 +459,7 @@ fn test_halo_pass_stays_within_budget_for_a_dense_board() {
         vp,
         visibles: &rangs,
         index: &index,
+        contournement: None,
         header_h: 40.0,
         densite: 1.0,
     };

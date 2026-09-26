@@ -451,6 +451,8 @@ fn rendre_une_tuile(atelier: &mut Atelier<'_>, adresse: Adresse) -> Option<(Pixm
         vp,
         visibles: &rangs,
         index: atelier.index,
+        // Une tuile ne porte que des photos : aucune flèche ne s'y cherche de chemin.
+        contournement: None,
         header_h: 0.0,
         // Une tuile ne porte que des photos, ancrées au monde : aucune affordance n'y a de
         // taille d'écran, donc aucune densité à y appliquer.

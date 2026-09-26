@@ -67,6 +67,7 @@ fn render_proof(typo: &Typography, text: &str, scale: f64) -> Pixmap {
         },
         visibles: &rangs,
         index: &index,
+        contournement: None,
         header_h: 0.0,
         densite: 1.0,
     };

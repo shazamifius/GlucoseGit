@@ -98,4 +98,20 @@ impl BoardImage {
             self.height,
         )
     }
+
+    /// **La boîte qui englobe l'image tournée** — celle de [`Self::rect`] quand elle ne l'est
+    /// pas. C'est elle que l'index range et qu'une flèche contourne (FLECHE-5) : le coin d'une
+    /// photo penchée qui dépasse de sa boîte droite est de la photo aussi. La rotation est celle
+    /// de [`crate::rotate::place`], autour du centre.
+    pub fn bounds(&self) -> Rect {
+        if self.rotation == 0.0 {
+            return self.rect();
+        }
+        let (c, s) = (self.rotation.cos().abs(), self.rotation.sin().abs());
+        let (hx, hy) = (
+            (self.width * c + self.height * s) / 2.0,
+            (self.width * s + self.height * c) / 2.0,
+        );
+        Rect::new(self.x - hx, self.y - hy, 2.0 * hx, 2.0 * hy)
+    }
 }

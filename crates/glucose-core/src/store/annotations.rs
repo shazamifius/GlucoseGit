@@ -95,6 +95,25 @@ impl Store {
         });
     }
 
+    /// **Fige l'itinéraire d'une flèche en coudes** (FLECHE-5).
+    ///
+    /// Une flèche sans coude contourne ce qu'elle traverserait, par des étapes que le rendu
+    /// calcule. La main qui en saisit une pour la déplacer ou la retirer en fait des coudes :
+    /// la flèche garde alors la forme qu'on voyait, et devient la sienne. Une flèche qui a déjà
+    /// des coudes n'est pas touchée — ce sont eux que la main tient.
+    pub fn figer_arrow_route(&mut self, board_id: &str, arrow_id: &str, etapes: &[(f64, f64)]) {
+        if etapes.is_empty() {
+            return;
+        }
+        self.update_annotation(board_id, arrow_id, |ann| {
+            if let Annotation::Arrow { waypoints, .. } = ann {
+                if waypoints.is_empty() {
+                    waypoints.extend(etapes.iter().map(|p| Point2D { x: p.0, y: p.1 }));
+                }
+            }
+        });
+    }
+
     /// Déplace un coude de flèche. Un index inconnu ne fait rien.
     pub fn move_arrow_bend(&mut self, board_id: &str, arrow_id: &str, bend: usize, to: (f64, f64)) {
         self.update_annotation(board_id, arrow_id, |ann| {

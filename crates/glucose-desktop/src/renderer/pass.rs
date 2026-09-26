@@ -275,6 +275,7 @@ fn draw_arrow_node(
         index: Some(pass.index),
         typographie: ctx.typography,
         math: ctx.math,
+        contournement: pass.contournement,
     };
     let Some(fleche) = Fleche::de(hue_cache, ann, (pass, noeuds), selected) else {
         return;

@@ -45,6 +45,7 @@ fn noeuds(app: &GlucoseApp) -> super::NoeudsDuRendu<'_> {
         index: Some(&app.renderer.spatial_hash),
         typographie: &app.renderer.typography,
         math: &app.renderer.math,
+        contournement: None,
     }
 }
 
