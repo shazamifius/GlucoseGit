@@ -233,4 +233,88 @@ sa valeur — et revient ; la barre dit ses mots et retombe sur les sigles. Huit
 
 ---
 
+## 7. Les formules (FORMULE-1, `b3acf72`)
+
+**Ce qu'il a vu**, *« depuis le tout début du LaTeX »* : des caractères qui entrent dans
+d'autres, des positionnements qui ne fonctionnent pas du tout. Sa capture montre une formule de
+la carte d'essai où les lettres se chevauchent.
+
+**La cause, une seule, au fond.** KaTeX écrit sa mise en page en deux endroits : dans son arbre
+(les hauteurs d'un empilement, les marges de l'espacement) et dans **sa feuille de style** — qu'une
+fraction centre ses étages, qu'un délimiteur vide borde une fraction de 0,12 em, que l'indice
+d'une racine recule de 0,5556 em. Le navigateur de Tauri appliquait la feuille ; le pont de
+Glucose Rust ne lisait que l'arbre. Et le navigateur mesure lui-même chaque lettre dans sa
+fonte, là où le pont lisait les largeurs de KaTeX — qui, pour les lettres qu'il fusionne
+(« or », « nj »), ne gardent que **la largeur de la première**. D'où « bonjours » avec le « o »
+sous le « j », « fjord » avec le « d » sur le « r ».
+
+**La méthode : mesurer contre le vrai.** Le KaTeX de Glucose Tauri (`node_modules/katex`) rend
+44 formules dans Chromium (Playwright), et Glucose les rend hors écran par le moteur des cartes
+(`examples/apercu_formules.rs`), au même corps. Chaque rendu est recadré sur son encre, et l'on
+compte la part d'encre franche d'un rendu **sans aucune encre de l'autre à moins de 2 pixels** :
+
+| | pire formule | formules à 0 % |
+|---|---|---|
+| le pont d'origine | **76 %** (`\sqrt[3]{x+1}`) | — |
+| FORMULE-1 | **0,38 %** (`\begin{bmatrix}…`) | 43 sur 44 |
+
+Les 44 : fractions imbriquées, racines à indice, intégrales simples, doubles, de contour,
+sommes, produits, limites, matrices (`pmatrix`, `bmatrix`, `vmatrix`, tableau à filets), `cases`,
+`aligned`, binômes, accents simples et larges, flèches extensibles, accolades, `\boxed`,
+`\cancel`, `\rule`, grands délimiteurs empilés, les familles `\mathbb`, `\mathfrak`, `\mathcal`,
+`\mathscr`, `\mathbf`, `\boldsymbol`, du texte. Ce qui reste est d'un pixel : Chromium arrondit
+l'épaisseur d'un filet au pixel entier (1,6 px devient 1), nous la lissons.
+
+**Ce que le pont fait désormais** (`glucose-math/src/layout/`) :
+
+* **`feuille.rs`** — les règles géométriques de `katex.css` (0.16), vocabulaire **fermé** et cité
+  ligne à ligne : alignement des empilements, familles de fontes (famille, inclinaison et graisse
+  sont trois propriétés distinctes, comme en CSS — `\mathbb` et `\mathfrak` manquaient), marges et
+  bourrages de classe, portions de forme (demi-flèches, accolades en trois morceaux), largeurs
+  imposées, bordures (`.fbox`, `.angl`), recouvrements (`llap`, `rlap`, `clap`).
+* **`pont.rs`** — le parcours : un glyphe par caractère ; la correction d'italique en marge
+  droite (les bornes de `\int_0^\infty` se posaient sur le signe) ; les largeurs écrites (l'écart
+  entre deux colonnes, les morceaux de grand délimiteur) ; les bordures tracées sans se recouvrir
+  (`\boxed`, le filet vertical d'un tableau, `\rule` et sa levée) ; les formes qui attendent la
+  largeur de leur étage ; la transparence de `\phantom`, qui réserve sa place sans se dessiner.
+* **`chemin.rs`** — les formes SVG de KaTeX **lues**, pas reconstruites : treize commandes de
+  chemin, la boîte de vue, la règle `preserveAspectRatio`. Le radical était construit à la main
+  (trois segments) et **aucune** autre forme ne se dessinait : ni flèche longue, ni accolade, ni
+  chapeau large. Les ratures de `\cancel` sont des `<line>` : elles se tracent, à leur épaisseur.
+
+**Une découverte en chemin : les métriques de KaTeX ne sont pas la fonte.** Sur les 2 035
+glyphes des vingt fontes, 25 divergent — dont `∬` et `∭`, larges de 0,556 em dans les métriques
+et de 1,084 et 1,592 dans la fonte (`D` de `\iint_D` se posait sur le signe), `°`, et les accents
+combinants. Plutôt qu'une table de 25 exceptions, le pont **se fait mesurer par la fonte même
+que le dessin emploie** (`layout_avec`) : le rendu tient les fontes, il répond ; le crate seul
+garde les métriques pour recours. Mesure et dessin ne peuvent plus choisir deux fontes.
+
+**Mes erreurs, trouvées en route** :
+
+* ma première mesure d'écart (par quantiles de la masse d'encre) donnait 38 px d'écart sur une
+  intégrale **identique** à l'œil : elle mesurait les différences de lissage, pas de position.
+  La superposition rouge/vert l'a montré ; la mesure retenue compte l'encre orpheline ;
+* j'avais écrit une lecture du `calc(100% - …)` que KaTeX pose sur l'étage d'un accent large.
+  En sabotant, elle s'est révélée **redondante** : ce `calc` vaut exactement la largeur qu'un bloc
+  prend de lui-même (son conteneur moins ses marges). Retirée ; la règle générale suffit ;
+* un ancien test affirmait que la barre d'une fraction fait toute la largeur de la formule — il
+  gardait le défaut. Il dit désormais la règle de KaTeX (entre les deux vides de 0,12 em).
+
+**Les témoins** : la carte « Une formule, seule sur sa ligne » montrait exactement son défaut —
+la borne « 0 » de l'intégrale absente, le « π » avalé par la racine. 908 pixels changent, tous
+dans cette formule ; regardés avant/après, agrandis.
+
+**Ce qui le tient** : 24 épreuves du pont et de ses chemins (chaque lettre avance de sa largeur,
+bornes d'intégrale, avance de la fonte, centrage des fractions, colonnes, familles, cadre sans
+recouvrement, `\rule`, filet de tableau, rature, accent d'une lettre penchée, indice d'une racine,
+fantôme, toutes les formes tracées et bornées, tous les chemins nommés de KaTeX lisibles…) et
+deux du dessin (une rature se trace ; l'avance vient de la fonte). **27 sabotages tombent** ;
+un seul passait au premier tour — les marges de classe — et a reçu son épreuve.
+
+**Ce qui n'est pas fait** : les **couleurs** (`\color{red}`, `\colorbox`) ne se peignent pas — la
+formule sort dans la couleur de la carte ; `\tag` (la numérotation à droite) ; `\sout` ; les
+filets pointillés (`\hdashline`) sortent pleins.
+
+---
+
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
