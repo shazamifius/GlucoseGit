@@ -311,7 +311,8 @@ impl GlucoseApp {
     /// tant que dure sa transition, et plus rien ensuite.
     fn attente_de_la_designation(&mut self) -> Option<u64> {
         self.suivre_la_designation();
-        if !self.designation.en_cours(self.now_ms() as f64) {
+        self.suivre_les_badges();
+        if !self.vivacites.en_cours(self.now_ms() as f64) {
             return None;
         }
         self.mark_dirty();

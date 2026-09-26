@@ -190,7 +190,7 @@ fn test_lueur_2_la_carte_visee_s_avive_par_le_reveil() {
         "la lueur glisse : une image est demandée"
     );
     assert!(
-        app.designation.en_cours(app.now_ms() as f64),
+        app.vivacites.cartes.en_cours(app.now_ms() as f64),
         "le réveil suit la carte visée"
     );
     let depart = vive(&mut app);
@@ -203,7 +203,136 @@ fn test_lueur_2_la_carte_visee_s_avive_par_le_reveil() {
     );
     let _ = app.prochain_reveil();
     assert!(
-        !app.designation.en_cours(app.now_ms() as f64),
+        !app.vivacites.cartes.en_cours(app.now_ms() as f64),
         "plus rien ne glisse : plus d'image demandée pour elle"
     );
+}
+
+// ── BADGE-1 : la pastille de relation ──────────────────────────────────────────────────────
+
+/// Une flèche droite de (100, 300) à (700, 300), qui « contredit », vue au zoom `zoom` et
+/// centrée à l'écran.
+fn fleche_qui_contredit(zoom: f64) -> GlucoseApp {
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+    }
+    let mut fleche = Annotation::arrow("f", 100.0, 300.0, 700.0, 300.0);
+    if let Annotation::Arrow { predicate, .. } = &mut fleche {
+        *predicate = Some(glucose_core::types::ArrowPredicate::Contredit);
+    }
+    app.store.add_annotation(&board, fleche);
+    app.store.clear_selection();
+    app.store.set_viewport(
+        &board,
+        glucose_core::types::Viewport {
+            x: 600.0 - 400.0 * zoom,
+            y: 400.0 - 300.0 * zoom,
+            scale: zoom,
+        },
+    );
+    app.une_image_sans_fenetre(TAILLE);
+    app.ui.current_toast = None;
+    app
+}
+
+/// Combien de colonnes, sur la ligne de la flèche, la pastille couvre à l'écran : ce qui change
+/// entre l'image et celle d'une flèche sans relation.
+fn largeur_de_la_pastille(zoom: f64) -> usize {
+    let mut avec = fleche_qui_contredit(zoom);
+    let mut sans = fleche_qui_contredit(zoom);
+    let board = sans.store.project.active_board_id.clone();
+    if let Some(Annotation::Arrow { predicate, .. }) = sans
+        .store
+        .project
+        .boards
+        .iter_mut()
+        .find(|b| b.id == board)
+        .and_then(|b| b.annotations.iter_mut().find(|a| a.id() == "f"))
+    {
+        *predicate = None;
+    }
+    let rendre = |app: &mut GlucoseApp| {
+        app.ui.current_toast = None;
+        app.une_image_sans_fenetre(TAILLE);
+        app.pixmap.clone().expect("une image")
+    };
+    let (a, b) = (rendre(&mut avec), rendre(&mut sans));
+    // La ligne juste au-dessus du trait : la pastille y est, le trait non.
+    let y = 400 - 4;
+    (0..TAILLE.0)
+        .filter(|&x| a.pixel(x, y) != b.pixel(x, y))
+        .count()
+}
+
+/// **BADGE-1 — la pastille rapetisse quand on dézoome**, comme chez Tauri où tout le calque
+/// des flèches suit le zoom : à ×0,5 elle couvre deux fois moins de colonnes qu'à ×1. Dézoomée
+/// très loin, elle était plus grande qu'un groupe entier d'images (sa capture du 26/09).
+#[test]
+fn test_badge_1_la_pastille_suit_le_zoom() {
+    let (un, demi) = (largeur_de_la_pastille(1.0), largeur_de_la_pastille(0.5));
+    assert!(un > 12, "la pastille se voit a x1 : {un} colonnes");
+    assert!(
+        (un as f64 / demi as f64 - 2.0).abs() < 0.35,
+        "a x0,5 la pastille couvre {demi} colonnes, pour {un} a x1"
+    );
+}
+
+/// **BADGE-1 — la pastille survolée s'efface, puis revient** : la souris sur elle, elle
+/// s'efface en deux cents millisecondes ; la souris partie, elle revient de même. Par la vraie
+/// souris et le vrai réveil.
+#[test]
+fn test_badge_1_la_pastille_survolee_s_efface() {
+    let mut app = fleche_qui_contredit(1.0);
+    let effacement = |app: &mut GlucoseApp| {
+        app.suivre_les_badges()
+            .into_iter()
+            .find(|(id, _)| id == "f")
+            .map_or(0.0, |(_, e)| e)
+    };
+    // Le centre de la pastille : le milieu du tracé, (400, 300), à l'écran (600, 400).
+    app.handle_cursor_moved(PhysicalPosition::new(603.0, 402.0));
+    assert_eq!(effacement(&mut app), 0.0, "elle commence visible");
+    app.click_epoch -= std::time::Duration::from_millis(250);
+    assert!(effacement(&mut app) > 0.99, "elle s'est effacee");
+    // Et l'image le montre : là où la pastille était, plus rien d'elle — la même ligne que sur
+    // une flèche sans relation.
+    let mut sans = fleche_qui_contredit(1.0);
+    let board = sans.store.project.active_board_id.clone();
+    if let Some(Annotation::Arrow { predicate, .. }) = sans
+        .store
+        .project
+        .boards
+        .iter_mut()
+        .find(|b| b.id == board)
+        .and_then(|b| b.annotations.iter_mut().find(|a| a.id() == "f"))
+    {
+        *predicate = None;
+    }
+    for a in [&mut app, &mut sans] {
+        a.ui.current_toast = None;
+        a.une_image_sans_fenetre(TAILLE);
+    }
+    let (vu, attendu) = (
+        app.pixmap.as_ref().expect("une image"),
+        sans.pixmap.as_ref().expect("une image"),
+    );
+    for x in 585..615 {
+        assert_eq!(vu.pixel(x, 396), attendu.pixel(x, 396), "colonne {x}");
+    }
+    assert!(
+        !app.vivacites.en_cours(app.now_ms() as f64),
+        "la transition est finie"
+    );
+
+    app.handle_cursor_moved(PhysicalPosition::new(603.0, 460.0));
+    let _ = effacement(&mut app);
+    assert!(
+        app.vivacites.en_cours(app.now_ms() as f64),
+        "elle revient : le reveil doit le savoir"
+    );
+    app.click_epoch -= std::time::Duration::from_millis(250);
+    assert_eq!(effacement(&mut app), 0.0, "elle est revenue");
 }

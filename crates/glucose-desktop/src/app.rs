@@ -51,7 +51,7 @@ pub struct GlucoseApp {
     /// Les animations en cours — pour l'instant, le vol de la caméra.
     pub animator: crate::animation::Animator,
     /// Les cartes désignées, et celles qui s'éteignent encore (LUEUR-2).
-    pub designation: crate::animation::designation::Designation,
+    pub vivacites: crate::animation::designation::Vivacites,
     /// L'elan de la camera : ce que la main a demande et que l'image n'a pas encore montre,
     /// plus la vitesse qui lui survit quand la main lache (voir [`crate::interactions::elan`]).
     pub elan: crate::interactions::elan::Elan,
@@ -313,7 +313,7 @@ impl GlucoseApp {
             store,
             renderer,
             animator: crate::animation::Animator::new(),
-            designation: Default::default(),
+            vivacites: Default::default(),
             elan: crate::interactions::elan::Elan::default(),
             vol: crate::interactions::vol::Vol::default(),
             focus: focus::Focus::default(),

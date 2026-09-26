@@ -306,7 +306,7 @@ fn rendu_de(texte: &str, edition: Option<&crate::renderer::TextEditSession>) -> 
         },
         &mut view,
         &store,
-        (edition, false, &[]),
+        (edition, false, crate::renderer::pass::Survols::default()),
         ViewPass {
             vp: Viewport {
                 x: 30.0,

@@ -172,6 +172,7 @@ impl GlucoseApp {
     fn ce_qui_se_pose_dessus(&mut self) -> Dessus {
         Dessus {
             eclairages: self.eclairages(),
+            badges: self.suivre_les_badges(),
             designees: self.suivre_la_designation(),
             fantome: self.fantome_montre(),
         }
@@ -192,13 +193,10 @@ impl GlucoseApp {
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
         let dessus = self.ce_qui_se_pose_dessus();
         let overlay = SceneOverlay {
-            guides: dessus.guides(&self.active_guides),
             selection_box: self.selection_box,
             editing: self.editing_session.as_ref(),
             arrivages: &self.depot.en_chemin,
-            eclairages: &dessus.eclairages,
-            designees: &dessus.designees,
-            fantome: dessus.fantome.as_ref().map(|f| f.rect),
+            ..dessus.scene(&self.active_guides)
         };
         let pointer = self.pointeur();
         // Lu AVANT d'emprunter l'interface : un emprunt disjoint ne se prouve qu'a travers
@@ -262,6 +260,7 @@ impl GlucoseApp {
 /// Ce qui se pose par-dessus la scène, calculé avant de la peindre.
 struct Dessus {
     eclairages: Vec<crate::params::Eclairage>,
+    badges: Vec<(String, f32)>,
     designees: Vec<(String, f32)>,
     fantome: Option<crate::interactions::placement::Fantome>,
 }
@@ -270,6 +269,19 @@ impl Dessus {
     /// Les guides à montrer : ceux du fantôme s'il y en a un, sinon ceux du geste en cours.
     fn guides<'a>(&'a self, du_geste: &'a SnapGuides) -> &'a SnapGuides {
         self.fantome.as_ref().map_or(du_geste, |f| &f.guides)
+    }
+
+    /// **Ce qui se pose par-dessus la scène** : les passages qui brillent, les pastilles qui
+    /// s'effacent, les cartes désignées, le fantôme — et les guides du geste, sauf si le fantôme
+    /// porte les siens. Le reste du geste en cours s'y ajoute là où on le connaît.
+    fn scene<'a>(&'a self, du_geste: &'a SnapGuides) -> SceneOverlay<'a> {
+        SceneOverlay {
+            eclairages: &self.eclairages,
+            badges: &self.badges,
+            designees: &self.designees,
+            fantome: self.fantome.as_ref().map(|f| f.rect),
+            ..SceneOverlay::sans_rien(self.guides(du_geste))
+        }
     }
 }
 

@@ -105,7 +105,7 @@ fn test_fleche_3_ce_qu_un_clic_demande() {
         action_sous(&b, x, y),
         Some(Action::Regler(Reglage::Courbe(true)))
     );
-    let (x, y) = centre(bouton(&b, Contenu::Sigle(ArrowPredicate::Inspire)));
+    let (x, y) = centre(bouton(&b, Contenu::Relation(ArrowPredicate::Inspire)));
     assert_eq!(
         action_sous(&b, x, y),
         Some(Action::Regler(Reglage::Relation(Some(
@@ -121,7 +121,7 @@ fn test_fleche_3_ce_qu_un_clic_demande() {
     );
     store.regler_les_fleches(&board, &ids, Reglage::DoubleSens(true));
     let b = barre(&store).expect("une barre");
-    let (x, y) = centre(bouton(&b, Contenu::Sigle(ArrowPredicate::Inspire)));
+    let (x, y) = centre(bouton(&b, Contenu::Relation(ArrowPredicate::Inspire)));
     assert_eq!(
         action_sous(&b, x, y),
         Some(Action::Regler(Reglage::Relation(None)))
@@ -183,4 +183,50 @@ fn test_fleche_3_un_clic_de_la_souris_regle_la_fleche() {
     );
     assert!(app.store.undo(), "un geste");
     assert!(!est_courbe(&app), "Ctrl+Z la redresse");
+}
+
+/// **BADGE-2 — chaque relation dit son mot** : sur un écran qui la tient, la barre montre les
+/// six sigles avec « est précurseur de », « contredit »… — les mots que le noyau porte et que
+/// personne ne lisait. Et la barre tient dans l'écran.
+#[test]
+fn test_badge_2_chaque_relation_dit_son_mot() {
+    let mut store = tableau();
+    choisir(&mut store, &["f1"]);
+    let b = barre(&store).expect("une barre");
+    for p in ArrowPredicate::ALL {
+        let bt = bouton(&b, Contenu::Relation(p));
+        let (mot, _) = Typography::new().measure_text(p.label(), FONT, Face::Regular);
+        assert!(
+            bt.rect.2 > mot,
+            "le bouton de {p:?} n'a pas la place de son mot"
+        );
+    }
+    assert!(
+        b.rect.0 >= 0.0 && b.rect.0 + b.rect.2 <= ECRAN.0,
+        "la barre deborde"
+    );
+}
+
+/// **Trop étroit pour les mots, les sigles seuls** — et la barre tient encore : du plus riche
+/// au plus sobre, sans largeur écrite en dur.
+#[test]
+fn test_badge_2_trop_etroit_les_sigles_seuls() {
+    let mut store = tableau();
+    choisir(&mut store, &["f1"]);
+    let large = barre(&store).expect("une barre").rect.2;
+    let ecran = (large - 1.0, 900.0);
+    let b = layout_options_de_fleche(&store, &Typography::new(), ecran, 1.0).expect("une barre");
+    assert!(b
+        .boutons
+        .iter()
+        .all(|x| !matches!(x.contenu, Contenu::Relation(_))));
+    assert!(b
+        .boutons
+        .iter()
+        .any(|x| x.contenu == Contenu::Sigle(ArrowPredicate::Contredit)));
+    assert!(
+        b.rect.2 <= ecran.0,
+        "les sigles seuls tiennent : {}",
+        b.rect.2
+    );
 }

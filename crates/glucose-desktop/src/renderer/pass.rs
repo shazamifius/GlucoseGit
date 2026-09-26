@@ -55,6 +55,25 @@ pub(crate) struct Pass<'a> {
     pub clip: Clip,
 }
 
+/// **Ce que la souris fait briller ou effacer** sur les annotations, à cette image : les
+/// passages qu'une flèche survolée désigne (FLECHE-4), et l'effacement des pastilles de
+/// relation qu'elle survole (BADGE-1), de 0 à 1 par flèche.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Survols<'a> {
+    pub eclairages: &'a [crate::params::Eclairage],
+    pub badges: &'a [(String, f32)],
+}
+
+impl Survols<'_> {
+    /// De combien la pastille de cette flèche s'est effacée.
+    fn effacement(&self, fleche: &str) -> f32 {
+        self.badges
+            .iter()
+            .find(|(id, _)| id == fleche)
+            .map_or(0.0, |(_, e)| *e)
+    }
+}
+
 /// Dessine les annotations visibles du tableau actif.
 ///
 /// `cartes_par_la_carte` dit que les cartes de texte sont des **textures** que la carte
@@ -65,11 +84,7 @@ pub(super) fn draw_annotations(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
-    (editing_session, cartes_par_la_carte, eclairages): (
-        Option<&TextEditSession>,
-        bool,
-        &[crate::params::Eclairage],
-    ),
+    (editing_session, cartes_par_la_carte, survols): (Option<&TextEditSession>, bool, Survols<'_>),
     pass: ViewPass<'_>,
 ) {
     let Some(board) = store.active_board() else {
@@ -105,7 +120,7 @@ pub(super) fn draw_annotations(
         for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
             let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
             if editing.is_none() {
-                let autour = (&contenants, eclairages);
+                let autour = (&contenants, survols.eclairages);
                 if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, None) {
                     draw_card_contenu(&ctx, pixmap, carte);
                 }
@@ -115,7 +130,7 @@ pub(super) fn draw_annotations(
 
     let entieres = dessiner_ce_qui_passe_au_dessus(
         hue_cache,
-        (&ctx, pixmap, (&contenants, eclairages)),
+        (&ctx, pixmap, (&contenants, survols)),
         (store, board, pass),
         (editing_session, cartes_par_la_carte),
     );
@@ -139,11 +154,7 @@ pub(super) fn draw_annotations(
 /// que par un dessin direct ; ce compteur dit lequel, au lieu de le supposer.
 fn dessiner_ce_qui_passe_au_dessus(
     hue_cache: &mut SymbioticHueCache,
-    (ctx, pixmap, autour): (
-        &Pass,
-        &mut PixmapMut,
-        (&Contenants<'_>, &[crate::params::Eclairage]),
-    ),
+    (ctx, pixmap, (contenants, survols)): (&Pass, &mut PixmapMut, (&Contenants<'_>, Survols<'_>)),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
     (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
 ) -> f64 {
@@ -153,6 +164,7 @@ fn dessiner_ce_qui_passe_au_dessus(
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
             Annotation::Text { x, y, .. } => {
+                let autour = (contenants, survols.eclairages);
                 if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, editing) {
                     // **La carte qu'on edite est un composant comme les autres** depuis
                     // COMPOSANT-2, et seuls ses ornements restent ici -- poignees, curseur,
@@ -183,6 +195,7 @@ fn dessiner_ce_qui_passe_au_dessus(
                     hue_cache,
                     (ann, board, pass),
                     (selected, editing, !cartes_par_la_carte),
+                    survols.effacement(ann.id()),
                 );
             }
             _ => {}
@@ -252,11 +265,9 @@ fn draw_arrow_node(
     hue_cache: &mut SymbioticHueCache,
     (ann, board, pass): (&Annotation, &Board, ViewPass<'_>),
     (selected, editing, au_processeur): (bool, Option<&TextEditSession>, bool),
+    efface: f32,
 ) {
-    let Annotation::Arrow {
-        text, predicate, ..
-    } = ann
-    else {
+    let Annotation::Arrow { predicate, .. } = ann else {
         return;
     };
     let noeuds = super::arrow::NoeudsDuRendu {
@@ -282,7 +293,8 @@ fn draw_arrow_node(
     };
     // L'étiquette et le prédicat visent **le même** point du tracé. Quand les deux sont là,
     // l'une monte et l'autre descend : sinon ils se recouvriraient exactement.
-    let porte_les_deux = text.is_some() && predicate.is_some();
+    let etiquette = super::arrow_label::montre_une_etiquette(ann, editing);
+    let porte_les_deux = etiquette && predicate.is_some();
     let (r, g, b) = fleche.teintes.milieu;
     let encre = tiny_skia::Color::from_rgba8(r, g, b, 255);
     super::arrow_label::draw_arrow_label(
@@ -293,5 +305,7 @@ fn draw_arrow_node(
         editing,
         porte_les_deux,
     );
-    super::predicate::draw_arrow_predicate(ctx, pixmap, milieu, ann, porte_les_deux);
+    if let Some(centre) = super::predicate::centre_du_badge(ann, milieu, etiquette) {
+        super::predicate::draw_arrow_predicate(ctx, pixmap, centre, ann, 1.0 - efface);
+    }
 }

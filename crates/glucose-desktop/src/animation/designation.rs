@@ -88,6 +88,23 @@ impl Designation {
     }
 }
 
+/// **Ce qui glisse en deux cents millisecondes, sur l'amorti commun** : la lueur des cartes
+/// désignées (LUEUR-2), et l'effacement des pastilles de relation que la souris survole
+/// (BADGE-1). Deux ensembles, une seule mécanique, et le réveil ne demande qu'à elle si
+/// quelque chose glisse encore.
+#[derive(Debug, Default)]
+pub struct Vivacites {
+    pub cartes: Designation,
+    pub badges: Designation,
+}
+
+impl Vivacites {
+    /// Une transition court-elle encore, de l'un ou de l'autre ?
+    pub fn en_cours(&self, ms: f64) -> bool {
+        self.cartes.en_cours(ms) || self.badges.en_cours(ms)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

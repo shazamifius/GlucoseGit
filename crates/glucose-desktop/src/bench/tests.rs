@@ -234,7 +234,9 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// la membrane et le dossier, comme chez Tauri ; et la lueur d'une carte voisine, qui ne
 /// déborde plus dans la carte « Une formule » (au plus 43 niveaux). Regardés côte à côte et
 /// agrandis.
-const EMPREINTE_TEMOIN: &str = "4c9ed1afd7421135";
+/// **Puis** (BADGE-1) : le coin de la pastille d'étiquette « d'après Gauss » passe au traceur
+/// commun, en vrais arcs — une copie en paraboles y survivait. 10 pixels, à ce coin seul.
+const EMPREINTE_TEMOIN: &str = "9413c28cd6e55722";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -314,7 +316,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// seule sur sa ligne », qu'une photo en chemin penchée traverse — son libellé se lisait **à
 /// travers la formule**, il est caché ; et la lueur de la carte, qui passe devant la photo.
 /// Le reste : les points de la grille sous les cartes. Regardés côte à côte.
-const EMPREINTE_TEMOIN_SELECTION: &str = "5023f059f19c8583";
+/// **Puis** (BADGE-2) : la barre d'options dit le mot de chaque relation à côté de son sigle —
+/// « est précurseur de », « contredit »… ; 32 144 pixels, la barre (318-1481 × 554-841) et le
+/// coin de l'étiquette. Regardée agrandie.
+const EMPREINTE_TEMOIN_SELECTION: &str = "6f7ef27180e286ef";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -380,7 +385,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
 /// **Puis, le 26/09 au soir** (LUEUR-3) : les mêmes 56 504 pixels que la scène sélectionnée,
 /// sous le menu — la carte qu'une photo penchée traverse cache désormais la photo.
-const EMPREINTE_TEMOIN_MENU: &str = "3be0419d6c399a6f";
+/// **Puis** (BADGE-2) : les mêmes pixels que la scène sélectionnée, sous le menu.
+const EMPREINTE_TEMOIN_MENU: &str = "00676231e47fb96e";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

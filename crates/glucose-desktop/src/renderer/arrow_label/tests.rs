@@ -41,6 +41,11 @@ fn session(buffer: &str, caret: usize) -> TextEditSession {
 
 /// Rend l'étiquette seule sur un fond uni, et rend la pixmap.
 fn rendu(arrow: &Annotation, editing: Option<&TextEditSession>) -> Pixmap {
+    rendu_a(arrow, editing, 1.0)
+}
+
+/// La même, vue au zoom `zoom`.
+fn rendu_a(arrow: &Annotation, editing: Option<&TextEditSession>, zoom: f64) -> Pixmap {
     let mut pixmap = Pixmap::new(800, 600).expect("pixmap de test");
     pixmap.fill(Color::from_rgba8(FOND.0, FOND.1, FOND.2, 255));
     let board = plateau(arrow.clone());
@@ -51,7 +56,7 @@ fn rendu(arrow: &Annotation, editing: Option<&TextEditSession>) -> Pixmap {
     let vp = Viewport {
         x: 0.0,
         y: 0.0,
-        scale: 1.0,
+        scale: zoom,
     };
     let ctx = Pass {
         typography: &typography,
@@ -225,5 +230,18 @@ fn test_descenders_are_not_clipped_by_the_pill() {
     assert!(
         avec >= sans,
         "les jambages descendants ({avec} px) tiennent moins de place que « noon » ({sans} px)"
+    );
+}
+
+/// **BADGE-1 — l'étiquette suit le zoom**, comme chez Tauri : à ×0,5 sa pastille est deux fois
+/// moins large qu'à ×1. Elle était en pixels d'écran, et restait grande au dézoom.
+#[test]
+fn test_badge_1_l_etiquette_suit_le_zoom() {
+    let f = fleche(Some("d'après Gauss"));
+    let un = largeur_peinte(&rendu_a(&f, None, 1.0)).expect("peint");
+    let demi = largeur_peinte(&rendu_a(&f, None, 0.5)).expect("peint");
+    assert!(
+        (un / demi - 2.0).abs() < 0.15,
+        "{un} px a x1, {demi} px a x0,5"
     );
 }

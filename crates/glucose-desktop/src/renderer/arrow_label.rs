@@ -28,27 +28,38 @@ use crate::typography::{Face, TextStyle};
 use glucose_core::types::Annotation;
 use tiny_skia::{Paint, PathBuilder, PixmapMut, Rect, Transform};
 
-/// Corps de l'étiquette, en pixels **écran** (Glucose Tauri : `fontSize={11}`).
-///
-/// Une longueur écran, comme la bande qui désigne une flèche (ARROW-1) : l'étiquette est une
-/// **légende**, pas un contenu. Elle doit rester lisible quand on prend du recul pour voir la
-/// structure d'un graphe — c'est même le moment où on en a le plus besoin.
-const LABEL_SIZE_PX: f32 = 11.0;
+// # BADGE-1 — l'étiquette et le badge vivent dans le monde
+//
+// Ils étaient en pixels d'écran, par un choix argumenté — « une légende doit rester lisible
+// quand on prend du recul ». Il l'a jugé à l'écran le 26/09 : dézoomé très loin, une pastille
+// de relation plus grande qu'un groupe entier d'images, *« et ça, c'est un gros problème »*.
+// Chez Tauri, tout le calque des flèches est mis à l'échelle du zoom (`translate(…) scale(…)`) :
+// la pastille de rayon 10 et l'étiquette de corps 11 sont des longueurs **du monde** ; seul le
+// trait garde son épaisseur à l'écran. C'est la loi de la fiche 05 § 4.4 — une seule
+// transformation pour ce qui appartient au monde — et le seuil de détail commun (SCALE-2) les
+// retire quand ils deviendraient illisibles, comme le texte d'une carte.
 
-/// Marge horizontale autour du texte, en pixels écran (Glucose Tauri : `x={-w/2 - 4}`).
+/// Corps de l'étiquette, en unités du monde (Glucose Tauri : `fontSize={11}`).
+const LABEL_CORPS: f32 = 11.0;
+
+/// Marge horizontale autour du texte, en unités du monde (Glucose Tauri : `x={-w/2 - 4}`).
 const LABEL_PAD_X: f32 = 5.0;
 
-/// Demi-hauteur de la pastille, en pixels écran (Glucose Tauri : `y={-11} height={22}`).
+/// Demi-hauteur de la pastille, en unités du monde (Glucose Tauri : `y={-11} height={22}`).
 const LABEL_HALF_H: f32 = 11.0;
 
-/// Rayon des coins de la pastille, en pixels écran (Glucose Tauri : `rx={3}`).
+/// Rayon des coins de la pastille, en unités du monde (Glucose Tauri : `rx={3}`).
 const LABEL_RADIUS: f32 = 3.0;
 
-/// Décalage vertical de l'étiquette quand un prédicat partage le même point d'ancrage.
+/// Ce dont la barre de saisie s'écarte du bord haut et du bord bas de la pastille.
+const CARET_INSET: f32 = 3.0;
+
+/// Décalage vertical de l'étiquette quand un prédicat partage le même point d'ancrage, en
+/// unités du monde.
 ///
 /// Les deux se posent au milieu du tracé : sans décalage, ils se superposeraient. Glucose
 /// Tauri monte l'étiquette de 14 et descend le badge d'autant.
-pub(super) const LABEL_LIFT_PX: f32 = 14.0;
+pub(crate) const LABEL_LIFT: f64 = 14.0;
 
 /// Largeur de la barre de saisie, en pixels écran.
 const CARET_WIDTH: f32 = 1.5;
@@ -67,6 +78,12 @@ fn shown_text<'a>(
         Annotation::Arrow { text: Some(t), .. } if !t.trim().is_empty() => Some((t.as_str(), None)),
         _ => None,
     }
+}
+
+/// **L'étiquette de cette flèche se montre-t-elle ?** — un texte posé, ou celui qu'on y écrit.
+/// Le badge descend quand elle se montre ; le dessin et le survol le demandent ici tous deux.
+pub(crate) fn montre_une_etiquette(arrow: &Annotation, editing: Option<&TextEditSession>) -> bool {
+    shown_text(arrow, editing).is_some()
 }
 
 /// Pose l'étiquette d'une flèche sur son tracé, si elle en a une ou qu'on en écrit une.
@@ -88,22 +105,22 @@ pub(super) fn draw_arrow_label(
         return;
     };
     let (typography, theme, scale) = (ctx.typography, ctx.theme, ctx.scale);
-    let (sx, sy) = world_to_screen(wx, wy, &ctx.vp);
-    let cx = sx as f32;
-    let cy = sy as f32
-        - if lifted {
-            scale.screen(LABEL_LIFT_PX)
-        } else {
-            0.0
-        };
+    // SCALE-2 : sous le seuil de détail, une étiquette n'a plus rien à dire — sauf celle qu'on
+    // est en train d'écrire.
+    if !scale.draws_detail() && caret.is_none() {
+        return;
+    }
+    let leve = if lifted { LABEL_LIFT } else { 0.0 };
+    let (sx, sy) = world_to_screen(wx, wy - leve, &ctx.vp);
+    let (cx, cy) = (sx as f32, sy as f32);
 
-    let size = scale.screen(LABEL_SIZE_PX);
+    let size = scale.world(LABEL_CORPS);
     // La largeur **et** la hauteur mesurées, par la fonction qui dessinera les glyphes
     // (LABEL-1). La hauteur sert à centrer le texte dans sa pastille : `draw_text` prend le
     // **haut** de la ligne, et non sa ligne de base.
     let (text_w, text_h) = typography.measure_text(text, size, Face::Regular);
-    let pad = scale.screen(LABEL_PAD_X);
-    let half_h = scale.screen(LABEL_HALF_H);
+    let pad = scale.world(LABEL_PAD_X);
+    let half_h = scale.world(LABEL_HALF_H);
     let half_w = text_w / 2.0 + pad;
 
     let Some(pastille) = Rect::from_ltrb(cx - half_w, cy - half_h, cx + half_w, cy + half_h) else {
@@ -112,7 +129,7 @@ pub(super) fn draw_arrow_label(
     fill_rounded(
         pixmap,
         pastille,
-        scale.screen(LABEL_RADIUS),
+        scale.world(LABEL_RADIUS),
         theme.arrow_label_bg,
     );
 
@@ -172,8 +189,13 @@ fn draw_caret(ctx: &Pass<'_>, pixmap: &mut PixmapMut, caret: Caret<'_>) {
     let avant = text.get(..at).unwrap_or(text);
     let (offset, _) = ctx.typography.measure_text(avant, size, Face::Regular);
     let x = left + offset;
-    let Some(barre) = Rect::from_ltrb(x, cy - half_h + 3.0, x + CARET_WIDTH, cy + half_h - 3.0)
-    else {
+    let retrait = ctx.scale.world(CARET_INSET);
+    let Some(barre) = Rect::from_ltrb(
+        x,
+        cy - half_h + retrait,
+        x + CARET_WIDTH,
+        cy + half_h - retrait,
+    ) else {
         return;
     };
     // **SCALE-3**, et pas un `fill_rect` : une barre d'un pixel et demi est un « hairline »
@@ -184,24 +206,18 @@ fn draw_caret(ctx: &Pass<'_>, pixmap: &mut PixmapMut, caret: Caret<'_>) {
     super::scale::fill_crisp(pixmap, barre, ctx.theme.arrow_label_text);
 }
 
-/// Un rectangle aux coins arrondis, rempli d'une couleur unie.
+/// Un rectangle aux coins arrondis, rempli d'une couleur unie — par le traceur commun, en vrais
+/// arcs (ARC-1). Une copie en paraboles survivait ici.
 fn fill_rounded(pixmap: &mut PixmapMut, rect: Rect, radius: f32, color: tiny_skia::Color) {
-    let r = radius
-        .min(rect.width() / 2.0)
-        .min(rect.height() / 2.0)
-        .max(0.0);
-    let (l, t, right, b) = (rect.left(), rect.top(), rect.right(), rect.bottom());
     let mut path = PathBuilder::new();
-    path.move_to(l + r, t);
-    path.line_to(right - r, t);
-    path.quad_to(right, t, right, t + r);
-    path.line_to(right, b - r);
-    path.quad_to(right, b, right - r, b);
-    path.line_to(l + r, b);
-    path.quad_to(l, b, l, b - r);
-    path.line_to(l, t + r);
-    path.quad_to(l, t, l + r, t);
-    path.close();
+    crate::renderer::push_rounded_rect(
+        &mut path,
+        rect.left(),
+        rect.top(),
+        rect.width(),
+        rect.height(),
+        radius.max(0.0),
+    );
     let Some(path) = path.finish() else { return };
 
     let mut paint = Paint {

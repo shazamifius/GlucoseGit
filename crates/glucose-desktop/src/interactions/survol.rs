@@ -53,8 +53,55 @@ impl GlucoseApp {
     pub(crate) fn suivre_la_designation(&mut self) -> Vec<(String, f32)> {
         let maintenant = self.now_ms() as f64;
         let designees = self.cartes_designees();
-        self.designation.suivre(&designees, maintenant);
-        self.designation.vivacites(maintenant)
+        self.vivacites.cartes.suivre(&designees, maintenant);
+        self.vivacites.cartes.vivacites(maintenant)
+    }
+
+    /// **Suit la pastille de relation sous la souris, et rend l'effacement de chacune**
+    /// (BADGE-1) : la survolée s'efface en deux cents millisecondes, celle qu'on quitte
+    /// revient de même.
+    pub(crate) fn suivre_les_badges(&mut self) -> Vec<(String, f32)> {
+        let maintenant = self.now_ms() as f64;
+        let survolee: Vec<String> = self.badge_sous_la_souris().into_iter().collect();
+        self.vivacites.badges.suivre(&survolee, maintenant);
+        self.vivacites.badges.vivacites(maintenant)
+    }
+
+    /// **La flèche dont la pastille de relation est sous la souris** — par la géométrie même du
+    /// dessin ([`crate::renderer::predicate::centre_du_badge`]), et parmi les seules flèches que
+    /// l'index spatial trouve autour du point : aucun parcours du tableau.
+    fn badge_sous_la_souris(&self) -> Option<String> {
+        use crate::renderer::predicate::{centre_du_badge, BADGE_RAYON};
+        let board = self.store.active_board()?;
+        let vp = self.store.viewport();
+        let (wx, wy) = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+        let rayon = f64::from(BADGE_RAYON);
+        let noeuds = crate::renderer::arrow::NoeudsDuRendu {
+            board,
+            index: Some(&self.renderer.spatial_hash),
+            typographie: &self.renderer.typography,
+            math: &self.renderer.math,
+        };
+        let rangs = self
+            .renderer
+            .spatial_hash
+            .query_rect_ranks(wx, wy, wx, wy, rayon);
+        rangs.into_iter().find_map(|rang| {
+            let Some(glucose_core::quadtree::Noeud::Annotation(fleche)) =
+                glucose_core::quadtree::noeud_au_rang(board, rang)
+            else {
+                return None;
+            };
+            let morceaux = glucose_core::arrow::morceaux_with(fleche, noeuds)?;
+            let milieu = glucose_core::arrow::milieu_du_trace(&morceaux)?;
+            let editing = self
+                .editing_session
+                .as_ref()
+                .filter(|s| s.ann_id == fleche.id());
+            let etiquette = crate::renderer::arrow_label::montre_une_etiquette(fleche, editing);
+            let (cx, cy) = centre_du_badge(fleche, milieu, etiquette)?;
+            ((cx - wx).hypot(cy - wy) <= rayon).then(|| fleche.id().to_string())
+        })
     }
 
     /// **Les cartes dont la lueur s'avive dans cette image** (LUEUR-1) — ce à quoi une flèche

@@ -29,20 +29,18 @@ use crate::canvas::world_to_screen;
 use glucose_core::types::{Annotation, ArrowPredicate};
 use tiny_skia::{Paint, PathBuilder, PixmapMut, Stroke, Transform};
 
-/// Rayon de la pastille d'un prédicat, en pixels **écran** (Glucose Tauri : `r={10}`).
-///
-/// Une longueur écran, comme l'étiquette : un prédicat est une **légende**, et c'est en
-/// prenant du recul sur un graphe qu'on a le plus besoin de lire ses relations.
-pub(super) const BADGE_RADIUS_PX: f32 = 10.0;
+/// Rayon de la pastille d'un prédicat, en unités du **monde** (Glucose Tauri : `r={10}`, dans
+/// le calque que le zoom met à l'échelle) — BADGE-1, voir [`super::arrow_label`].
+pub(crate) const BADGE_RAYON: f32 = 10.0;
 
-/// Épaisseur du cercle de la pastille, en pixels écran (Glucose Tauri : `strokeWidth={1.5}`).
+/// Épaisseur du cercle de la pastille, en pixels écran : chez Tauri, un trait qui ne suit pas
+/// le zoom (`vectorEffect="non-scaling-stroke"`, `strokeWidth={1.5}`).
 const BADGE_STROKE_PX: f32 = 1.5;
 
-/// Épaisseur du trait d'un sigle, **en fraction de son étendue** : 1,4 pixel pour le sigle
-/// d'une pastille de dix, donc la même proportion partout où un sigle se dessine — sur la
-/// flèche, dans la barre d'options, à toute densité d'écran (DPI-1). Un nombre de pixels
-/// fixe aurait fait un sigle maigre dès qu'on l'agrandit.
-pub(super) const SIGIL_STROKE: f32 = 1.4 / (BADGE_RADIUS_PX * SIGIL_EXTENT);
+/// Épaisseur du trait d'un sigle, **en fraction de son étendue** : 1,4 pour le sigle d'une
+/// pastille de dix, donc la même proportion partout où un sigle se dessine — sur la flèche,
+/// dans la barre d'options, à toute densité d'écran (DPI-1).
+pub(super) const SIGIL_STROKE: f32 = 1.4 / (BADGE_RAYON * SIGIL_EXTENT);
 
 /// Demi-côté du carré où chaque sigle est dessiné, en fraction du rayon de la pastille.
 ///
@@ -105,15 +103,37 @@ fn sigil_of(predicate: ArrowPredicate) -> &'static [Stroke2D] {
     }
 }
 
-/// Pose la pastille d'un prédicat sur le tracé d'une flèche.
-///
-/// `lowered` la descend pour laisser la place à l'étiquette, qui vise le même point.
+/// **Le centre de la pastille d'une flèche**, en unités du monde, depuis le milieu de son tracé
+/// — descendu quand son étiquette se montre ([`super::arrow_label::montre_une_etiquette`]). Le
+/// dessin et le survol le lisent ici tous deux (loi L4) : la pastille s'efface là où elle est
+/// dessinée.
+pub(crate) fn centre_du_badge(
+    arrow: &Annotation,
+    milieu: (f64, f64),
+    etiquette: bool,
+) -> Option<(f64, f64)> {
+    let Annotation::Arrow {
+        predicate: Some(_), ..
+    } = arrow
+    else {
+        return None;
+    };
+    let decalage = if etiquette {
+        super::arrow_label::LABEL_LIFT
+    } else {
+        0.0
+    };
+    Some((milieu.0, milieu.1 + decalage))
+}
+
+/// Pose la pastille d'un prédicat en `centre` (unités du monde), à cette `opacite` : une
+/// pastille survolée s'efface pour laisser voir et prendre ce qu'elle couvre (BADGE-1).
 pub(super) fn draw_arrow_predicate(
     ctx: &Pass<'_>,
     pixmap: &mut PixmapMut,
     (wx, wy): (f64, f64),
     arrow: &Annotation,
-    lowered: bool,
+    opacite: f32,
 ) {
     let Annotation::Arrow {
         predicate: Some(predicate),
@@ -122,16 +142,19 @@ pub(super) fn draw_arrow_predicate(
     else {
         return;
     };
+    // SCALE-2 : sous le seuil de détail, la pastille se retire avec les autres détails.
+    if opacite <= 0.0 || !ctx.scale.draws_detail() {
+        return;
+    }
     let (sx, sy) = world_to_screen(wx, wy, &ctx.vp);
-    let radius = ctx.scale.screen(BADGE_RADIUS_PX);
-    let cx = sx as f32;
-    let cy = sy as f32
-        + if lowered {
-            ctx.scale.screen(super::arrow_label::LABEL_LIFT_PX)
-        } else {
-            0.0
-        };
-    let color = ctx.theme.predicate_color(*predicate);
+    let radius = ctx.scale.world(BADGE_RAYON);
+    let (cx, cy) = (sx as f32, sy as f32);
+    let voile = |c: tiny_skia::Color| {
+        let mut c = c;
+        c.apply_opacity(opacite);
+        c
+    };
+    let color = voile(ctx.theme.predicate_color(*predicate));
 
     // Le fond d'abord : la pastille masque le trait de la flèche, pour que le sigle se lise
     // sur un aplat et non sur ce qu'elle traverse.
@@ -142,7 +165,7 @@ pub(super) fn draw_arrow_predicate(
             anti_alias: true,
             ..Paint::default()
         };
-        paint.set_color(ctx.theme.arrow_badge_bg);
+        paint.set_color(voile(ctx.theme.arrow_badge_bg));
         pixmap.fill_path(
             &disque,
             &paint,

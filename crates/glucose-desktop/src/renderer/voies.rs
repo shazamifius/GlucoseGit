@@ -101,7 +101,14 @@ pub(super) fn dessiner_sur_les_photos(
         kit,
         pixmap,
         store,
-        (overlay.editing, cartes_par_la_carte, overlay.eclairages),
+        (
+            overlay.editing,
+            cartes_par_la_carte,
+            pass::Survols {
+                eclairages: overlay.eclairages,
+                badges: overlay.badges,
+            },
+        ),
         pass,
     );
     // Ce qu'une flèche survolée désigne : son fond, son liseré et ses lettres sont dans la

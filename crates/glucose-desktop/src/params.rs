@@ -89,6 +89,10 @@ pub struct SceneOverlay<'a> {
     /// Les passages de cartes à faire briller : ce qu'une flèche survolée désigne, ou ce que
     /// l'éditeur d'ancres sélectionne (FLECHE-4).
     pub eclairages: &'a [Eclairage],
+    /// **L'effacement des pastilles de relation que la souris survole**, de 0 à 1 par flèche
+    /// (BADGE-1) : une pastille survolée s'efface pour laisser voir et prendre ce qu'elle
+    /// couvre — le milieu d'une flèche, où l'on crée ses coudes.
+    pub badges: &'a [(String, f32)],
     /// **Les cartes désignées, et leur vivacité** : la cible qu'une flèche en train de naître
     /// vise, les bouts d'une flèche survolée qui ne désigne pas de passage. Leur lueur s'avive —
     /// l'indice qui dit à quoi une flèche va se lier (LUEUR-1, l'`isHighlightBox` de Tauri) —,
@@ -111,6 +115,7 @@ impl<'a> SceneOverlay<'a> {
             editing: None,
             arrivages: &[],
             eclairages: &[],
+            badges: &[],
             designees: &[],
             fantome: None,
         }

@@ -10,7 +10,16 @@
 //! s'allume, et un clic le leur donne à toutes.
 //!
 //! La relation se choisit par ses six sigles — ceux que le tracé porte —, et non par une liste
-//! déroulante de libellés : on reconnaît ce qu'on voit sur la flèche.
+//! déroulante : on reconnaît ce qu'on voit sur la flèche.
+//!
+//! # BADGE-2 — chaque sigle dit son mot
+//!
+//! Son essai du 26/09 : *« on a plein de logos, plein de couleurs, mais absolument rien qui nous
+//! dit que ça, ça dépend de ça, ou que ça contredit »*. La liste de Tauri portait ces mots ; les
+//! sigles seuls les avaient perdus, et le noyau les avait pourtant (`ArrowPredicate::label`),
+//! lus par personne. Chaque bouton de relation montre désormais son sigle **et** son mot. Si la
+//! fenêtre est trop étroite pour tout tenir, la barre retombe sur les sigles seuls — du plus
+//! riche au plus sobre, comme la barre d'action, et sans largeur écrite en dur.
 //!
 //! # La mise en page est une fonction pure
 //!
@@ -42,6 +51,8 @@ pub enum Contenu {
     Texte(&'static str),
     /// Le sigle d'une relation, dessiné comme sur la flèche.
     Sigle(ArrowPredicate),
+    /// Le sigle d'une relation **et son mot** (BADGE-2) : « contredit », « dépend de ».
+    Relation(ArrowPredicate),
     /// Une icône et son libellé : une action, pas un réglage.
     Action(IconType, &'static str),
 }
@@ -118,7 +129,7 @@ impl EnCommun {
 
     /// Les boutons de la barre, par groupe, dans l'ordre : leur contenu, s'ils sont allumés,
     /// et ce qu'un clic pose.
-    fn groupes(&self) -> [Vec<(Contenu, bool, Reglage)>; 4] {
+    fn groupes(&self, avec_mots: bool) -> [Vec<(Contenu, bool, Reglage)>; 4] {
         let double = self.double_sens == Some(true);
         [
             vec![
@@ -155,7 +166,12 @@ impl EnCommun {
                     let allume = self.relation == Some(Some(p));
                     // Recliquer la relation qu'elles portent toutes la retire.
                     let reglage = Reglage::Relation((!allume).then_some(p));
-                    (Contenu::Sigle(p), allume, reglage)
+                    let contenu = if avec_mots {
+                        Contenu::Relation(p)
+                    } else {
+                        Contenu::Sigle(p)
+                    };
+                    (contenu, allume, reglage)
                 })
                 .collect(),
         ]
@@ -164,13 +180,13 @@ impl EnCommun {
 
 /// **Les boutons de la barre**, par groupe — ou `None` s'il n'y a pas de flèche sélectionnée.
 /// Quels boutons : cette fonction ; où les poser : [`layout_options_de_fleche`].
-fn groupes_de_boutons(store: &Store) -> Option<Vec<Vec<(Contenu, bool, Action)>>> {
+fn groupes_de_boutons(store: &Store, avec_mots: bool) -> Option<Vec<Vec<(Contenu, bool, Action)>>> {
     let fleches = store.selected_arrows();
     if fleches.is_empty() {
         return None;
     }
     let mut groupes: Vec<Vec<(Contenu, bool, Action)>> = EnCommun::de(&fleches)
-        .groupes()
+        .groupes(avec_mots)
         .into_iter()
         .map(|g| {
             g.into_iter()
@@ -196,14 +212,30 @@ fn groupes_de_boutons(store: &Store) -> Option<Vec<Vec<(Contenu, bool, Action)>>
 
 /// La barre pour la sélection courante, ou `None` s'il n'y a pas de flèche sélectionnée.
 ///
-/// Fonction pure : elle ne lit que le store et la typographie, et ne dessine rien.
+/// Fonction pure : elle ne lit que le store et la typographie, et ne dessine rien. Elle se pose
+/// avec les mots des relations si elle tient dans l'écran, avec leurs sigles seuls sinon
+/// (BADGE-2).
 pub fn layout_options_de_fleche(
     store: &Store,
     typography: &Typography,
     screen: (f32, f32),
     scale: f32,
 ) -> Option<OptionsDeFleche> {
-    let groupes = groupes_de_boutons(store)?;
+    let riche = poser_la_barre(store, typography, (screen, scale), true)?;
+    if riche.rect.2 <= screen.0 {
+        return Some(riche);
+    }
+    poser_la_barre(store, typography, (screen, scale), false)
+}
+
+/// La barre posée, avec ou sans les mots des relations.
+fn poser_la_barre(
+    store: &Store,
+    typography: &Typography,
+    (screen, scale): ((f32, f32), f32),
+    avec_mots: bool,
+) -> Option<OptionsDeFleche> {
+    let groupes = groupes_de_boutons(store, avec_mots)?;
     let dessous = super::action_bar::layout_action_bar(store, typography, screen, scale)?;
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
@@ -213,6 +245,7 @@ pub fn layout_options_de_fleche(
     let largeur_de = |c: &Contenu| match c {
         Contenu::Texte(t) => mesure(t) + BTN_PAD_X * s * 2.0,
         Contenu::Sigle(_) => hauteur_btn,
+        Contenu::Relation(p) => (ICON + ICON_GAP) * s + mesure(p.label()) + BTN_PAD_X * s * 2.0,
         Contenu::Action(_, t) => (ICON + ICON_GAP) * s + mesure(t) + BTN_PAD_X * s * 2.0,
     };
 
@@ -362,13 +395,27 @@ pub fn draw_options_de_fleche(
         );
     }
     for b in &barre.boutons {
-        bouton(pixmap, b.rect, (s, b.allume), theme);
-        let encre = if b.allume {
-            theme.text_accent
-        } else {
-            theme.text_secondary
-        };
-        let (bx, by, bw, bh) = b.rect;
+        dessiner_un_bouton(pixmap, (typography, theme), b, s);
+    }
+}
+
+/// **Un bouton de la barre** : son cadre, puis ce qu'il montre — un mot, une icône et son mot,
+/// un sigle, ou un sigle et son mot.
+fn dessiner_un_bouton(
+    pixmap: &mut PixmapMut,
+    (typography, theme): (&Typography, &Theme),
+    b: &Bouton,
+    s: f32,
+) {
+    let font = FONT * s;
+    bouton(pixmap, b.rect, (s, b.allume), theme);
+    let encre = if b.allume {
+        theme.text_accent
+    } else {
+        theme.text_secondary
+    };
+    let (bx, by, bw, bh) = b.rect;
+    {
         // Ce que le bouton écrit, et où : après son icône s'il en a une.
         let texte = match b.contenu {
             Contenu::Texte(t) => Some((bx + BTN_PAD_X * s, t)),
@@ -394,9 +441,25 @@ pub fn draw_options_de_fleche(
                 );
                 None
             }
+            // Le sigle à la place d'une icône, puis le mot : ce que la relation veut dire.
+            Contenu::Relation(p) => {
+                crate::renderer::predicate::draw_sigil(
+                    pixmap,
+                    p,
+                    (bx + (BTN_PAD_X + ICON / 2.0) * s, by + bh / 2.0),
+                    bh * 0.3,
+                    theme.predicate_color(p),
+                );
+                Some((bx + (BTN_PAD_X + ICON + ICON_GAP) * s, p.label()))
+            }
         };
         if let Some((x, t)) = texte {
-            typography.draw_text(pixmap, t, x, by + (bh - font) / 2.0, style(encre));
+            let style = TextStyle {
+                size: font,
+                color: encre,
+                face: Face::Regular,
+            };
+            typography.draw_text(pixmap, t, x, by + (bh - font) / 2.0, style);
         }
     }
 }
