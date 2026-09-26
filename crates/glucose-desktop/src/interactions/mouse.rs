@@ -96,6 +96,13 @@ impl GlucoseApp {
             let vp = self.store.viewport();
             let (wx, wy) = crate::canvas::screen_to_world(position.x, position.y, &vp);
             self.update_draw(wx, wy);
+        } else if self.bend_session.is_some() {
+            // Un coude tenu suit la main (ARROW-3). Ce câblage n'avait jamais existé : le coude
+            // naissait à l'appui et restait au milieu du tronçon — « il est là, mais on ne
+            // peut rien en faire » (son essai du 26/09).
+            let vp = self.store.viewport();
+            let (wx, wy) = crate::canvas::screen_to_world(position.x, position.y, &vp);
+            self.update_bend(wx, wy);
         } else if self.resize_session.is_some() {
             self.handle_resize_move(position.x, position.y);
         } else if self.is_dragging_item {
@@ -251,6 +258,7 @@ impl GlucoseApp {
                 } else {
                     self.reduire_a_la_relache = None;
                 }
+                self.finish_bend();
                 self.finish_resize();
                 self.finish_item_drag();
                 self.finish_selection_box();

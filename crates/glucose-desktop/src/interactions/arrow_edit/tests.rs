@@ -202,3 +202,131 @@ fn test_dpi_1_la_prise_d_une_poignee_suit_la_densite() {
         assert_eq!(prise.is_some(), attendu, "à la densité {densite}");
     }
 }
+
+/// **Son essai du 26/09 : un coude créé ne se déplace pas** — par le vrai chemin de la souris, à
+/// 150 %, une membrane sous la flèche.
+///
+/// On prend la flèche d'un clic ; puis, plus lentement qu'un double-clic, on appuie sur son
+/// losange : le coude naît et suit la main. Au relâchement, la flèche doit être **encore**
+/// sélectionnée — sans quoi ses poignées disparaissent, et le coude reste là, sans prise. Puis
+/// on reprend le coude, et il suit encore.
+#[test]
+fn test_fleche_un_coude_cree_se_reprend() {
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    const ECRAN: (f32, f32) = (1440.0, 900.0);
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+        b.viewport.x = 300.0;
+        b.viewport.y = 400.0;
+    }
+    app.ui.scale_factor = 1.5;
+    app.store.add_annotation(
+        &board,
+        Annotation::membrane("m", -100.0, -150.0, 600.0, 300.0),
+    );
+    app.store
+        .add_annotation(&board, Annotation::arrow("a", 0.0, 0.0, 400.0, 0.0));
+    app.store.clear_selection();
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    let ecran = |app: &GlucoseApp, (x, y): (f64, f64)| {
+        crate::canvas::world_to_screen(x, y, &app.store.viewport())
+    };
+    let aller = |app: &mut GlucoseApp, p: (f64, f64)| {
+        app.handle_cursor_moved(PhysicalPosition::new(p.0, p.1));
+    };
+    let glisser = |app: &mut GlucoseApp, de: (f64, f64), a: (f64, f64)| {
+        aller(app, de);
+        app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
+        aller(app, a);
+        app.handle_mouse_up(MouseButton::Left);
+    };
+
+    // Un clic sur la flèche, près de son milieu : elle est prise.
+    let pres_du_milieu = ecran(&app, (190.0, 0.0));
+    glisser(&mut app, pres_du_milieu, pres_du_milieu);
+    assert_eq!(app.store.selected_annotation_ids.to_vec(), vec!["a"]);
+
+    // Plus tard, un appui sur le losange du milieu, tiré vers le bas.
+    app.click_epoch -= std::time::Duration::from_millis(600);
+    let milieu = ecran(&app, (200.0, 0.0));
+    let plus_bas = ecran(&app, (200.0, 80.0));
+    glisser(&mut app, milieu, plus_bas);
+    assert_eq!(coudes(&app), vec![(200.0, 80.0)], "le coude suit la main");
+    assert_eq!(
+        app.store.selected_annotation_ids.to_vec(),
+        vec!["a"],
+        "la flèche doit rester prise : sans elle, ses poignées disparaissent"
+    );
+
+    // Bouton levé, la souris qui passe ne l'emporte plus : le geste s'est refermé.
+    let ailleurs = ecran(&app, (320.0, 200.0));
+    aller(&mut app, ailleurs);
+    assert_eq!(coudes(&app), vec![(200.0, 80.0)], "le geste est refermé");
+
+    // Et le coude se reprend.
+    app.click_epoch -= std::time::Duration::from_millis(600);
+    let encore = ecran(&app, (260.0, 120.0));
+    glisser(&mut app, plus_bas, encore);
+    assert_eq!(coudes(&app), vec![(260.0, 120.0)], "le coude se reprend");
+
+    // Un simple clic sur un losange, sans bouger, plus lent qu'un double-clic : le coude naît
+    // là, et la flèche reste prise — le relâchement au même endroit n'est pas un re-clic.
+    app.click_epoch -= std::time::Duration::from_millis(600);
+    let second_milieu = ecran(&app, (330.0, 60.0));
+    glisser(&mut app, second_milieu, second_milieu);
+    assert_eq!(coudes(&app).len(), 2, "un second coude");
+    assert_eq!(
+        app.store.selected_annotation_ids.to_vec(),
+        vec!["a"],
+        "le relachement d'un clic sur un losange ne change pas la selection"
+    );
+}
+
+/// **Un clic sur un losange n'est pas un re-clic** : on prend la flèche d'un clic tout près de
+/// son milieu, puis, plus lentement qu'un double-clic, on clique sur son losange sans bouger. Le
+/// coude naît, et la flèche **reste prise** : le cycle du clic (PICK-2) ne descend qu'au
+/// relâchement d'un appui que l'arbitre a armé, et un appui pris par une poignée ne passe pas par
+/// lui. C'était ma première hypothèse sur « le coude qu'on ne peut pas déplacer » ; elle était
+/// fausse, et cette épreuve garde le scénario.
+#[test]
+fn test_fleche_un_clic_sur_un_losange_n_est_pas_un_reclic() {
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    const ECRAN: (f32, f32) = (1440.0, 900.0);
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    if let Some(b) = app.store.active_board_mut() {
+        b.annotations.clear();
+        b.images.clear();
+        b.viewport.x = 300.0;
+        b.viewport.y = 400.0;
+    }
+    app.store.add_annotation(
+        &board,
+        Annotation::membrane("m", -100.0, -150.0, 600.0, 300.0),
+    );
+    app.store
+        .add_annotation(&board, Annotation::arrow("a", 0.0, 0.0, 400.0, 0.0));
+    app.store.clear_selection();
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    let clic = |app: &mut GlucoseApp, (x, y): (f64, f64)| {
+        let (sx, sy) = crate::canvas::world_to_screen(x, y, &app.store.viewport());
+        app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+        app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
+        app.handle_mouse_up(MouseButton::Left);
+    };
+    clic(&mut app, (197.0, 0.0));
+    assert_eq!(app.store.selected_annotation_ids.to_vec(), vec!["a"]);
+    app.click_epoch -= std::time::Duration::from_millis(600);
+    clic(&mut app, (200.0, 0.0));
+    assert_eq!(coudes(&app), vec![(200.0, 0.0)], "le coude est né");
+    assert_eq!(
+        app.store.selected_annotation_ids.to_vec(),
+        vec!["a"],
+        "la fleche doit rester prise"
+    );
+}
