@@ -8,7 +8,7 @@ use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
 use super::note::draw_sticky;
 use super::scale::WorldScale;
-use super::{parse_hex_color, PaintKit, TextEditSession};
+use super::{PaintKit, TextEditSession};
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
 use crate::theme::Theme;
@@ -65,7 +65,11 @@ pub(super) fn draw_annotations(
     kit: PaintKit<'_>,
     pixmap: &mut PixmapMut,
     store: &Store,
-    (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
+    (editing_session, cartes_par_la_carte, eclairages): (
+        Option<&TextEditSession>,
+        bool,
+        &[crate::params::Eclairage],
+    ),
     pass: ViewPass<'_>,
 ) {
     let Some(board) = store.active_board() else {
@@ -101,7 +105,8 @@ pub(super) fn draw_annotations(
         for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
             let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
             if editing.is_none() {
-                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), &contenants, None) {
+                let autour = (&contenants, eclairages);
+                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, None) {
                     draw_card_contenu(&ctx, pixmap, carte);
                 }
             }
@@ -110,7 +115,7 @@ pub(super) fn draw_annotations(
 
     let entieres = dessiner_ce_qui_passe_au_dessus(
         hue_cache,
-        (&ctx, pixmap, &contenants),
+        (&ctx, pixmap, (&contenants, eclairages)),
         (store, board, pass),
         (editing_session, cartes_par_la_carte),
     );
@@ -134,7 +139,11 @@ pub(super) fn draw_annotations(
 /// que par un dessin direct ; ce compteur dit lequel, au lieu de le supposer.
 fn dessiner_ce_qui_passe_au_dessus(
     hue_cache: &mut SymbioticHueCache,
-    (ctx, pixmap, contenants): (&Pass, &mut PixmapMut, &Contenants<'_>),
+    (ctx, pixmap, autour): (
+        &Pass,
+        &mut PixmapMut,
+        (&Contenants<'_>, &[crate::params::Eclairage]),
+    ),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
     (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
 ) -> f64 {
@@ -144,7 +153,7 @@ fn dessiner_ce_qui_passe_au_dessus(
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
             Annotation::Text { x, y, .. } => {
-                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), contenants, editing) {
+                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), autour, editing) {
                     // **La carte qu'on edite est un composant comme les autres** depuis
                     // COMPOSANT-2, et seuls ses ornements restent ici -- poignees, curseur,
                     // previsualisation de formule (COMPOSANT-3). Elle ne se dessine entiere
@@ -190,21 +199,14 @@ fn dessiner_ce_qui_passe_au_dessus(
 fn carte_de<'a>(
     hue_cache: &mut SymbioticHueCache,
     (ann, store, pass): (&'a Annotation, &Store, ViewPass<'_>),
-    contenants: &Contenants<'_>,
+    (contenants, eclairages): (&Contenants<'_>, &'a [crate::params::Eclairage]),
     editing: Option<&'a TextEditSession>,
 ) -> Option<TextCard<'a>> {
-    let Annotation::Text {
-        x, y, text, color, ..
-    } = ann
-    else {
+    let Annotation::Text { x, y, text, .. } = ann else {
         return None;
     };
     let board = store.active_board()?;
-    let (_, tint) = hue_cache.get_or_compute(ann, pass.index, board);
-    let tint = color
-        .as_deref()
-        .map(|c| parse_hex_color(c, tint.0, tint.1, tint.2))
-        .unwrap_or(tint);
+    let tint = super::card::teinte_de_carte(hue_cache, ann, (pass.index, board));
     let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
     let (w, h) = ann.size()?;
     let (cx, cy) = world_to_screen(x + w / 2.0, y + h / 2.0, &pass.vp);
@@ -214,6 +216,7 @@ fn carte_de<'a>(
         body,
         tint,
         fond: contenants.fond_en((cx as f32, cy as f32)),
+        eclaires: super::passages::eclaires_de(eclairages, ann.id(), tint),
         selected: store.selected_annotation_ids.iter().any(|s| s == ann.id()),
         editing,
     })

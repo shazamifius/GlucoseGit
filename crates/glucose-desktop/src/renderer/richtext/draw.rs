@@ -49,26 +49,6 @@ pub(crate) fn draw_line(
     x
 }
 
-/// **L'encre seule d'une ligne** : ses glyphes, soulignés ou barrés, sans le fond de son code
-/// — ce qu'un passage éclairé repeint à sa teinte par-dessus le texte (FLECHE-4). Le fond est
-/// déjà sous le texte ; le reposer l'assombrirait.
-pub(crate) fn draw_line_ink(
-    ctx: &Pass,
-    pixmap: &mut PixmapMut,
-    at: (f32, f32),
-    (layout, line): (&TextLayout, &VisualLine),
-    (font, ink): (f32, Ink),
-    source: &str,
-) {
-    let mut x = at.0;
-    for fragment in layout.fragments_of(line) {
-        if fragment.tab >= 0.0 {
-            x = at.0 + fragment.tab * font;
-        }
-        x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source, true);
-    }
-}
-
 /// Un fragment : son fond s'il est du code, son texte, sa barre s'il est barré.
 fn draw_fragment(
     ctx: &Pass,

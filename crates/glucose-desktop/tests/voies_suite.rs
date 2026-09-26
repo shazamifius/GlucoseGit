@@ -997,3 +997,94 @@ fn test_lueur_3_une_carte_garde_la_teinte_de_sa_membrane() {
         );
     }
 }
+
+// ── Un passage qui brille (PASSAGE-2) ──────────────────────────────────────────────────────
+
+/// **Un passage qui brille se rend pareil sur les deux voies** : son fond, son liseré et ses
+/// lettres teintées sont dans la texture de la carte, sa lueur au-dessus — et la place que son
+/// cadre ouvre est la même des deux côtés. Et la texture change avec lui : survoler une flèche
+/// refait la texture de sa carte.
+#[test]
+fn test_passage_2_un_passage_qui_brille_se_rend_pareil_sur_les_deux_voies() {
+    use glucose_desktop::params::Eclairage;
+    let taille = (800u32, 600u32);
+    let mut store = glucose_core::store::Store::new("Passage");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.5,
+        };
+    }
+    let texte = "le chat mangeait la souris";
+    store.add_annotation(
+        &board,
+        glucose_core::types::Annotation::text("c", 60.0, 80.0, texte),
+    );
+    store.clear_selection();
+    let debut = texte.find("mange").expect("le passage");
+    let eclairages = [Eclairage {
+        carte: "c".to_string(),
+        plages: vec![(debut + 2, debut + 5)],
+        teinte: None,
+    }];
+    let guides = glucose_core::smart_align::SnapGuides::default();
+    let overlay = SceneOverlay {
+        eclairages: &eclairages,
+        ..SceneOverlay::sans_rien(&guides)
+    };
+
+    let mut processeur = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+    Renderer::new().render(
+        &mut processeur.as_mut(),
+        &store,
+        &mut UiState::new(),
+        overlay,
+        Pointer { x: 0.0, y: 0.0 },
+        Regard::immobile(),
+    );
+    let couches = |overlay: SceneOverlay<'_>| {
+        let mut dessous = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let mut dessus = Pixmap::new(taille.0, taille.1).expect("un pixmap");
+        let mut renderer = Renderer::new();
+        let confie = renderer.rendre_les_couches(
+            &mut dessous.as_mut(),
+            &mut dessus.as_mut(),
+            &store,
+            (&mut UiState::new(), Pointer { x: 0.0, y: 0.0 }),
+            overlay,
+            Regard::immobile(),
+        );
+        (renderer, dessous, dessus, confie)
+    };
+    let (renderer, dessous, dessus, confie) = couches(overlay);
+    let (_, _, _, sans) = couches(SceneOverlay::sans_rien(&guides));
+    let cles = |c: &Confie| c.cartes.iter().map(|(k, _)| k.clone()).collect::<Vec<_>>();
+    assert_ne!(
+        cles(&confie),
+        cles(&sans),
+        "la texture de la carte ne change pas quand son passage brille"
+    );
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| confie.pixels(&renderer, cle),
+    )
+    .expect("la composition en cinq temps");
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(pire <= ECART_ADMIS, "pire ecart {pire}");
+}

@@ -4,6 +4,7 @@
 //! le même morceau de la carte.
 
 use super::super::*;
+use crate::renderer::card::TextCard;
 use crate::renderer::Renderer;
 use glucose_core::tuile::COTE;
 use tiny_skia::IntRect;
@@ -39,6 +40,7 @@ fn pieces(renderer: &Renderer, echelle: f64) -> Pieces {
             (
                 None,
                 &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                None,
             ),
         )
         .expect("la carte touche l'ecran")
@@ -69,6 +71,7 @@ fn en_place(kit: PaintKit<'_>, vp: Viewport) -> Pixmap {
             body: CORPS,
             tint: TEINTE,
             fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
+            eclaires: None,
             selected: false,
             editing: None,
         },

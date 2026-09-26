@@ -39,6 +39,7 @@
 
 pub mod draw;
 pub mod hit;
+pub(crate) mod place;
 pub mod table;
 
 use super::math::MathRenderer;
@@ -178,6 +179,11 @@ pub struct Fragment {
     /// moitié de sa place, sur la première. Dit en corps, il suit le zoom sans le connaître —
     /// le tracé le multiplie par le corps de l'écran, le clic par celui du monde.
     pub tab: f32,
+    /// **Dans un passage qui brille** (PASSAGE-2) : le fragment se peint à la teinte de
+    /// l'éclat. C'est [`place::ouvrir_la_place`] qui coupe les fragments aux bords des
+    /// passages : un fragment est dedans ou dehors, jamais à moitié — la teinte suit les
+    /// lettres, et non un rectangle découpé.
+    pub eclaire: bool,
 }
 
 impl Fragment {
@@ -401,6 +407,7 @@ fn layout_paragraph(
             }
             out.fragments.push(Fragment {
                 tab: NO_TAB,
+                eclaire: false,
                 start: offset + span.start.max(s),
                 end: offset + span.end.min(e),
                 // Un signe ne porte jamais l'emphase qu'il commande — et le `# ` d'un
@@ -447,6 +454,7 @@ fn layout_formula(
         if i == 0 {
             out.fragments.push(Fragment {
                 tab: NO_TAB,
+                eclaire: false,
                 start: block.start,
                 end: block.end,
                 emphasis: Emphasis::NONE,
@@ -486,15 +494,19 @@ pub struct Ink {
     pub text: tiny_skia::Color,
     pub marker: tiny_skia::Color,
     pub link: tiny_skia::Color,
+    /// L'encre d'un passage qui brille (PASSAGE-2) : la teinte de sa carte.
+    pub eclat: tiny_skia::Color,
 }
 
 impl Ink {
     /// Les encres ordinaires d'un genre de bloc : son encre de texte, et le gris des signes.
     pub fn of(kind: BlockKind, theme: &Theme) -> Self {
+        let text = ink_of(kind, theme);
         Self {
-            text: ink_of(kind, theme),
+            text,
             marker: theme.card_marker,
             link: theme.link,
+            eclat: text,
         }
     }
 }
@@ -507,6 +519,9 @@ pub fn fragment_style(fragment: &Fragment, font: f32, ink: Ink) -> TextStyle {
     TextStyle {
         size: font,
         color: match fragment.role {
+            // Un passage qui brille prend la teinte de sa carte, comme le `<mark>` de Tauri —
+            // lien compris : c'est le passage qu'on désigne, plus le lien.
+            SpanRole::Text if fragment.eclaire => ink.eclat,
             SpanRole::Marker => ink.marker,
             // Un lien porte sa propre couleur : c'est ce qui dit qu'il mène ailleurs, et le
             // trait sous lui n'en est que la confirmation.

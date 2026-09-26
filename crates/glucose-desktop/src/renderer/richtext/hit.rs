@@ -68,6 +68,37 @@ pub fn offset_to_x(
     x
 }
 
+/// **L'abscisse où se dessine le caractère à l'octet `offset`** dans `line`.
+///
+/// À la frontière de deux fragments, [`offset_to_x`] rend la fin du premier — ce qui précède
+/// l'octet. Les deux se confondent tant que les fragments se suivent ; plus quand un passage
+/// qui brille écarte la ligne (PASSAGE-2) : son cadre commence **après** l'écart, là où ce
+/// caractère-ci est dessiné, et finit **avant** l'écart suivant, là où `offset_to_x` le dit.
+pub fn x_du_caractere(
+    typography: &Typography,
+    layout: &TextLayout,
+    line: &VisualLine,
+    source: &str,
+    offset: usize,
+    font: f32,
+) -> f32 {
+    let mut x = 0.0;
+    for fragment in layout.fragments_of(line) {
+        if fragment.tab >= 0.0 {
+            x = fragment.tab * font;
+        }
+        if offset < fragment.end {
+            let debut = fragment.start.min(offset);
+            let (w, _) = typography.measure_text(&source[debut..offset], font, fragment.face());
+            return x + w;
+        }
+        let (w, _) =
+            typography.measure_text(&source[fragment.start..fragment.end], font, fragment.face());
+        x += w;
+    }
+    x
+}
+
 /// L'offset le plus proche de l'abscisse `x` dans `line`.
 ///
 /// La frontière retenue est celle dont le caractère est coupé en deux par `x` : cliquer sur la

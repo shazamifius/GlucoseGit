@@ -165,12 +165,19 @@ impl GlucoseApp {
         let (fenetre, texte) = self.fenetre_d_ancrage()?;
         let zone = fenetre.zone;
         let (wx, wy) = zone.vers_le_monde((self.mouse_pos.0 as f32, self.mouse_pos.1 as f32));
-        let mise_en_page = card_text_layout(
-            &self.renderer.typography,
-            &self.renderer.math,
-            &texte,
-            zone.largeur_monde,
+        // La mise en page même que le dessin : la place des passages choisis y est ouverte, et
+        // l'on vise ce qu'on voit (PASSAGE-2).
+        let choisies = self.ui.ancrage.as_ref()?.plages_choisies(&texte);
+        let eclaires = crate::renderer::passages::Eclaires {
+            plages: &choisies,
+            teinte: (0, 0, 0),
+            style: &crate::renderer::passages::DANS_L_EDITEUR,
+        };
+        let mise_en_page = crate::renderer::passages::mise_en_page(
+            (&self.renderer.typography, &self.renderer.math),
+            (&texte, zone.largeur_monde),
             TextMode::Rendered,
+            Some(&eclaires),
         );
         Some(offset_at(
             &self.renderer.typography,
@@ -313,21 +320,16 @@ impl GlucoseApp {
         true
     }
 
-    /// **Ce que l'éditeur fait briller** : le choix de l'étape, et ce que le glisser couvre.
+    /// **Ce que l'éditeur fait briller sur la carte** : le choix de l'étape. Le glisser en
+    /// cours ne se montre que dans la fenêtre, où l'on choisit : sur la carte, il ouvrirait sa
+    /// place à chaque mouvement de la souris.
     pub(crate) fn eclairages_de_l_ancrage(&self) -> Option<Vec<Eclairage>> {
         let a = self.ui.ancrage.as_ref()?;
         let carte = a.carte()?;
         let texte = self.texte_de(carte)?;
-        let mut plages: Vec<(usize, usize)> = resolve_anchors(&texte, a.ancres())
-            .into_iter()
-            .map(|r| (r.start, r.end))
-            .collect();
-        if let Some((debut, fin, _)) = a.glisse.filter(|g| g.0 != g.1) {
-            plages.push((debut.min(fin), debut.max(fin)));
-        }
         Some(vec![Eclairage {
             carte: carte.to_string(),
-            plages,
+            plages: a.plages_choisies(&texte),
             teinte: None,
         }])
     }

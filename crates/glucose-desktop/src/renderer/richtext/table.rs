@@ -128,6 +128,7 @@ fn pose_cellule(
         }
         out.fragments.push(Fragment {
             tab: if premier { taquet } else { NO_TAB },
+            eclaire: false,
             start: plage.start + span.start,
             end: plage.start + span.end,
             emphasis: if gras && span.role == SpanRole::Text {

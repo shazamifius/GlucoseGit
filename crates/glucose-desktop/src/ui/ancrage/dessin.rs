@@ -193,29 +193,52 @@ fn dessiner_la_zone(
     let Some(mut image) = Pixmap::new(l.max(1), h.max(1)) else {
         return;
     };
+    use crate::renderer::passages::{self, Eclaires, Pose, DANS_L_EDITEUR};
     let vue = zone.vue();
-    let mut plages: Vec<(usize, usize)> =
-        glucose_core::text_anchors::resolve_anchors(texte, ancrage.ancres())
-            .into_iter()
-            .map(|r| (r.start, r.end))
-            .collect();
+    let choisies = ancrage.plages_choisies(texte);
+    let eclaires = Eclaires {
+        plages: &choisies,
+        teinte,
+        style: &DANS_L_EDITEUR,
+    };
+    let outils = (kit.typography, kit.math);
+    let largeur = zone.largeur_monde;
+    let ouverte = passages::mise_en_page(
+        outils,
+        (texte, largeur),
+        crate::renderer::richtext::TextMode::Rendered,
+        Some(&eclaires),
+    );
+    let pose = Pose {
+        origine: (0.0, 0.0),
+        vp: vue,
+        echelle: crate::renderer::scale::WorldScale::new(vue.scale, s),
+    };
+    // Le glisser en cours, sous le texte, comme toute sélection : rien ne s'écarte sous la
+    // souris pendant qu'on choisit. Les passages choisis ont leur cadre, dans le texte.
     if let Some((a, b, _)) = ancrage.glisse.filter(|g| g.0 != g.1) {
-        plages.push((a.min(b), a.max(b)));
+        let glisse =
+            passages::troncons(outils, (&ouverte, texte, largeur), &[(a.min(b), a.max(b))]);
+        passages::peindre_une_selection(
+            &mut image.as_mut(),
+            pose,
+            &glisse,
+            (teinte, &DANS_L_EDITEUR),
+        );
     }
-    // Le texte d'abord, les passages ensuite : ils se posent dessus et le repeignent à la teinte.
     crate::renderer::card::peindre_le_texte_seul(
         kit,
         &mut image.as_mut(),
-        (texte, zone.largeur_monde, teinte),
+        (texte, largeur, teinte),
         (vue, s),
+        Some(eclaires),
     );
-    crate::renderer::passages::peindre_les_plages(
-        kit,
+    let choisis = passages::troncons(outils, (&ouverte, texte, largeur), &choisies);
+    passages::peindre_les_lueurs(
         &mut image.as_mut(),
-        (vue, s),
-        ((0.0, 0.0), texte, zone.largeur_monde),
-        &plages,
-        (teinte, &crate::renderer::passages::DANS_L_EDITEUR),
+        pose,
+        &choisis,
+        (teinte, &DANS_L_EDITEUR),
     );
     pixmap.draw_pixmap(
         zone.rect.0.round() as i32,

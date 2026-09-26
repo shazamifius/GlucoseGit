@@ -101,11 +101,17 @@ pub(super) fn dessiner_sur_les_photos(
         kit,
         pixmap,
         store,
-        (overlay.editing, cartes_par_la_carte),
+        (overlay.editing, cartes_par_la_carte, overlay.eclairages),
         pass,
     );
-    // Ce qu'une flèche survolée désigne brille par-dessus les cartes (FLECHE-4).
-    super::passages::eclairer(hue_cache, kit, pixmap, (store, overlay.eclairages, pass));
+    // Ce qu'une flèche survolée désigne : son fond, son liseré et ses lettres sont dans la
+    // carte ; sa lueur passe par-dessus (FLECHE-4, PASSAGE-2).
+    super::passages::eclairer(
+        hue_cache,
+        (kit.typography, kit.math),
+        pixmap,
+        (store, overlay.eclairages, pass),
+    );
     crate::perf::stage("annotations");
     // 6 bis. Les ornements des photos -- cadre de selection, poignees, reglette -- passent
     // au-dessus de TOUT, sur les deux voies (ORNEMENTS-1). Ils vivaient au bout de la pose de
@@ -385,7 +391,11 @@ pub(super) struct PhotosAPoser {
 /// au-dessus des autres cartes, ce qui est exactement le rang que le processeur lui donnait
 /// en la dessinant dans sa seconde passe.
 fn composants_de_texte(
-    (regime, contenants): (&super::composants::Regime, &super::card::Contenants<'_>),
+    (regime, contenants, eclairages): (
+        &super::composants::Regime,
+        &super::card::Contenants<'_>,
+        &[crate::params::Eclairage],
+    ),
     hue_cache: &mut SymbioticHueCache,
     kit: PaintKit<'_>,
     (store, pass, edition): (&Store, ViewPass<'_>, Option<&super::TextEditSession>),
@@ -399,21 +409,14 @@ fn composants_de_texte(
     // apres, plutot que de trier une liste dont l'ordre est deja celui du modele.
     let mut en_saisie = None;
     for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
-        let glucose_core::types::Annotation::Text {
-            x, y, text, color, ..
-        } = ann
-        else {
+        let glucose_core::types::Annotation::Text { x, y, text, .. } = ann else {
             continue;
         };
         let saisie = edition.filter(|e| e.ann_id == ann.id());
         let Some((w, h)) = ann.size() else {
             continue;
         };
-        let (_, symbiose) = hue_cache.get_or_compute(ann, pass.index, board);
-        let teinte = color
-            .as_deref()
-            .map(|c| super::parse_hex_color(c, symbiose.0, symbiose.1, symbiose.2))
-            .unwrap_or(symbiose);
+        let teinte = super::card::teinte_de_carte(hue_cache, ann, (pass.index, board));
         // Le tampon de saisie remplace le texte enregistre : c'est ce qu'on voit a l'ecran
         // pendant qu'on tape, et c'est ce que `carte_de` fait deja sur la voie processeur.
         let corps = saisie.map_or(text.as_str(), |e| e.buffer.as_str());
@@ -422,7 +425,11 @@ fn composants_de_texte(
             ann.id(),
             (*x, *y, w as f32, h as f32),
             (corps, teinte),
-            (saisie, contenants),
+            (
+                saisie,
+                contenants,
+                super::passages::eclaires_de(eclairages, ann.id(), teinte),
+            ),
         ) else {
             continue;
         };
@@ -556,7 +563,7 @@ impl Renderer {
         // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
         let contenants = super::card::Contenants::nouveaux(&self.theme, &membranes);
         let (cartes, de_texte) = composants_de_texte(
-            (&regime, &contenants),
+            (&regime, &contenants, overlay.eclairages),
             &mut self.hue_cache,
             kit,
             (store, pass, edition),

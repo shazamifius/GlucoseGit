@@ -185,7 +185,11 @@ fn draw_formula(
         return;
     };
     let (corps, mode) = (&text[corps], mode_of(display));
-    let ink = ink_of(line.kind, ctx.theme);
+    // Une formule qu'un passage désigne brille entière, à la teinte de l'éclat (PASSAGE-2).
+    let ink = match card.eclaires.filter(|e| e.touchent(line.start, line.end)) {
+        Some(e) => tiny_skia::Color::from_rgba8(e.teinte.0, e.teinte.1, e.teinte.2, 255),
+        None => ink_of(line.kind, ctx.theme),
+    };
     // La ligne de base se pose **sous ce que la formule monte**. La poser à une hauteur fixe
     // ferait déborder par le haut tout ce qui monte plus qu'un corps de texte — une
     // intégrale, une somme, un exposant d'exposant — et la formule mordrait sur la ligne

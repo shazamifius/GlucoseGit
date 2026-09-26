@@ -17,6 +17,7 @@ pub(crate) fn peindre_le_texte_seul(
     pixmap: &mut PixmapMut,
     (texte, largeur, teinte): (&str, f32, (u8, u8, u8)),
     (vp, densite): (glucose_core::types::Viewport, f32),
+    eclaires: Option<crate::renderer::passages::Eclaires<'_>>,
 ) {
     let ctx = Pass {
         typography: kit.typography,
@@ -37,6 +38,7 @@ pub(crate) fn peindre_le_texte_seul(
         body: texte,
         tint: teinte,
         fond: super::fond_du_canevas(kit.theme),
+        eclaires,
         selected: false,
         editing: None,
     };

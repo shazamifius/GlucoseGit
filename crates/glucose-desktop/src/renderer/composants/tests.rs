@@ -23,6 +23,7 @@ fn test_le_palier_dyadique_est_le_plus_proche_au_sens_du_logarithme() {
     assert_eq!(palier_dyadique(f64::NAN), 1.0);
 }
 
+use crate::renderer::card::TextCard;
 use crate::renderer::Renderer;
 use glucose_core::types::BoardImage;
 use tiny_skia::Pixmap;
@@ -154,6 +155,7 @@ Et un lien.";
         body: corps,
         tint: teinte,
         fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
+        eclaires: None,
         selected: selectionnee,
         editing: None,
     };
@@ -182,6 +184,7 @@ Et un lien.";
             (
                 None,
                 &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                None,
             ),
         )
         .expect("un composant")
@@ -242,7 +245,8 @@ fn test_la_carte_qu_on_edite_est_un_composant() {
                 (corps, (96, 165, 250)),
                 (
                     Some(&e),
-                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[])
+                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                    None,
                 ),
             )
             .is_some(),
@@ -274,6 +278,7 @@ fn test_composant_3_la_cle_ignore_le_curseur_et_suit_la_selection() {
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                    None,
                 ),
             )
             .expect("un composant")
@@ -322,6 +327,7 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                    None,
                 ),
             )
             .expect("un composant")
@@ -357,6 +363,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
         body: corps,
         tint: teinte,
         fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
+        eclaires: None,
         selected: false,
         editing,
     };
@@ -388,6 +395,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
             (
                 Some(&e),
                 &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                None,
             ),
         )
         .expect("une carte en saisie est toujours un composant")
@@ -508,6 +516,7 @@ fn test_cent_images_de_saisie_immobile_ne_font_qu_une_texture() {
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                    None,
                 ),
             )
             .expect("un composant")
@@ -545,6 +554,7 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
                 (
                     Some(&e),
                     &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                    None,
                 ),
             )
             .expect("un composant")

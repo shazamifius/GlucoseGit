@@ -144,41 +144,115 @@ apres";
     assert!((r[0].3 - (h + d)).abs() < 0.01, "sa hauteur dessinée");
 }
 
-/// **Le texte d'un passage prend la teinte de sa carte**, comme le `<mark>` de Tauri : sous le
-/// cadre, l'encre la plus claire est teintée, plus blanche.
-#[test]
-fn test_ancre_ux_le_texte_du_passage_prend_la_teinte() {
+/// Une carte de `texte`, large de 400 unités, posée en (10, 10) et vue à ×2, son passage
+/// `plage` éclairé en rouge pur — le contenu de la carte seul, comme sa texture le porte (sans
+/// la lueur, qui passe au-dessus).
+fn carte_eclairee(texte: &str, plage: (usize, usize)) -> tiny_skia::Pixmap {
     use glucose_core::types::Viewport;
     let renderer = crate::renderer::Renderer::new();
     let kit = renderer.kit();
-    let texte = "un mot ici";
     let vp = Viewport {
         x: 10.0,
         y: 10.0,
         scale: 2.0,
     };
-    let mut image = tiny_skia::Pixmap::new(600, 200).expect("pixmap");
+    let mut image = tiny_skia::Pixmap::new(1000, 200).expect("pixmap");
     image.fill(tiny_skia::Color::BLACK);
+    let plages = [plage];
     crate::renderer::card::peindre_le_texte_seul(
         kit,
         &mut image.as_mut(),
-        (texte, 240.0, (255, 255, 255)),
+        (texte, 400.0, (255, 255, 255)),
         (vp, 1.0),
+        Some(Eclaires {
+            plages: &plages,
+            teinte: (255, 0, 0),
+            style: &SUR_LA_CARTE,
+        }),
     );
+    image
+}
+
+/// L'étendue horizontale de l'encre du caractère à l'octet `o`, à l'écran de [`carte_eclairee`] :
+/// là où la mise en page ouverte le pose, plus ce que son glyphe couvre.
+fn encre_du_caractere(texte: &str, plage: (usize, usize), o: usize) -> (u32, u32) {
+    let typo = Typography::new();
+    let math = MathRenderer::new();
+    let eclaires = Eclaires {
+        plages: &[plage],
+        teinte: (255, 0, 0),
+        style: &SUR_LA_CARTE,
+    };
+    let ouverte = mise_en_page(
+        (&typo, &math),
+        (texte, 400.0),
+        TextMode::Rendered,
+        Some(&eclaires),
+    );
+    let x = crate::renderer::richtext::hit::x_du_caractere(
+        &typo,
+        &ouverte,
+        &ouverte.lines[0],
+        texte,
+        o,
+        14.0,
+    );
+    let ch = texte[o..].chars().next().expect("un caractere");
+    let m = typo
+        .font(crate::typography::Face::Regular)
+        .metrics(ch, 28.0);
+    let gauche = 10.0 + (TEXT_ORIGIN.0 + x) * 2.0 + m.xmin as f32;
+    (
+        gauche.floor() as u32,
+        (gauche + m.width as f32).ceil() as u32,
+    )
+}
+
+/// **PASSAGE-2 — le cadre ne touche aucune lettre voisine**, mesuré sur l'image : sa capture du
+/// 26/09, un passage pris au milieu d'un mot. Là où l'encre des deux voisines se pose, aucun
+/// pixel n'est teinté — ni par le fond, ni par le liseré, ni par les lettres ; et les lettres du
+/// passage, elles, le sont.
+#[test]
+fn test_passage_2_le_cadre_ne_touche_aucune_lettre_voisine() {
+    let texte = "testetsetetstetsetes";
+    let plage = (3, 16);
+    let image = carte_eclairee(texte, plage);
+    let (haut, bas) = (40u32, 80u32);
+    for voisine in [plage.0 - 1, plage.1] {
+        let (x0, x1) = encre_du_caractere(texte, plage, voisine);
+        for y in haut..bas {
+            for x in x0..x1 {
+                let c = image.pixel(x, y).expect("dans l'image");
+                // L'encre du texte est un blanc bleuté, le noir est gris : un rouge plus fort
+                // que le vert ne peut venir que du cadre ou de la teinte du passage.
+                assert!(
+                    c.red() <= c.green().saturating_add(2),
+                    "la voisine {voisine} est teintee en ({x}, {y}) : {c:?}"
+                );
+            }
+        }
+    }
+    let (x0, x1) = encre_du_caractere(texte, plage, plage.0 + 1);
+    let teinte = (x0..x1)
+        .flat_map(|x| (haut..bas).map(move |y| (x, y)))
+        .filter_map(|(x, y)| image.pixel(x, y))
+        .any(|c| c.red() > 200 && c.green() < 60);
+    assert!(teinte, "les lettres du passage ne sont pas teintees");
+}
+
+/// **Le texte d'un passage prend la teinte de sa carte**, comme le `<mark>` de Tauri — ses
+/// lettres, et pas un rectangle : la plus claire est teintée.
+#[test]
+fn test_ancre_ux_le_texte_du_passage_prend_la_teinte() {
+    let texte = "un mot ici";
     let plage = (3, 6);
-    peindre_les_plages(
-        kit,
-        &mut image.as_mut(),
-        (vp, 1.0),
-        ((0.0, 0.0), texte, 240.0),
-        &[plage],
-        ((255, 60, 0), &SUR_LA_CARTE),
+    let image = carte_eclairee(texte, plage);
+    let (x0, x1) = (
+        encre_du_caractere(texte, plage, 3).0,
+        encre_du_caractere(texte, plage, 5).1,
     );
-    let r = rectangles((kit.typography, kit.math), texte, 240.0, &[plage])[0];
-    let (x0, y0) = ((10.0 + r.0 * 2.0) as u32, (10.0 + r.1 * 2.0) as u32);
-    let (x1, y1) = (x0 + (r.2 * 2.0) as u32, y0 + (r.3 * 2.0) as u32);
     let mut plus_clair = (0u8, 0u8, 0u8);
-    for y in y0..y1 {
+    for y in 30..90u32 {
         for x in x0..x1 {
             let c = image.pixel(x, y).expect("dans l'image");
             if c.red() > plus_clair.0 {
@@ -187,7 +261,7 @@ fn test_ancre_ux_le_texte_du_passage_prend_la_teinte() {
         }
     }
     assert!(
-        plus_clair.0 > 200 && plus_clair.1 < 140,
-        "l'encre du mot est teintée : {plus_clair:?}"
+        plus_clair.0 > 200 && plus_clair.1 < 60,
+        "l'encre du mot est teintee : {plus_clair:?}"
     );
 }

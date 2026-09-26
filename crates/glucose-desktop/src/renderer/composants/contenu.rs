@@ -7,6 +7,14 @@
 
 use std::hash::{Hash, Hasher};
 
+/// **Les passages qui brillent dans une carte**, tels que sa texture les porte : leurs plages
+/// en octets de sa source, et leur teinte (PASSAGE-2).
+#[derive(Debug, Clone, Hash)]
+pub(super) struct Passages {
+    pub plages: Vec<(usize, usize)>,
+    pub teinte: (u8, u8, u8),
+}
+
 /// Ce qu'un composant montre, et ce qu'il faut pour le dessiner.
 #[derive(Debug, Clone)]
 pub(super) enum Contenu {
@@ -18,6 +26,10 @@ pub(super) enum Contenu {
         /// Le fond que la carte peint sous son texte (LUEUR-3) : le mode Focus le teinte, et la
         /// texture change avec lui.
         fond: (u8, u8, u8),
+        /// **Les passages qui y brillent**, et leur teinte (PASSAGE-2) : ils sont du contenu —
+        /// la place que leurs cadres ouvrent, leur fond, leurs lettres teintées. Survoler une
+        /// flèche refait donc la texture de ses deux cartes, une fois ; la quitter, une fois.
+        eclaires: Option<Passages>,
         /// La saisie en cours sur cette carte, **figee** (COMPOSANT-2).
         ///
         /// Une carte qu'on edite changeait a chaque image parce que personne ne s'etait
@@ -57,6 +69,39 @@ pub(super) fn cadre_en_chemin(
 }
 
 impl Contenu {
+    /// **La carte que ce composant montre**, telle que la passe la dessine — sans sa sélection,
+    /// qui se pose au-dessus : jamais dans la texture (COMPOSANT-4).
+    pub(super) fn carte(&self) -> Option<crate::renderer::card::TextCard<'_>> {
+        let Self::Carte {
+            origine,
+            taille,
+            corps,
+            teinte,
+            fond,
+            eclaires,
+            edition,
+        } = self
+        else {
+            return None;
+        };
+        Some(crate::renderer::card::TextCard {
+            origin: *origine,
+            size: *taille,
+            body: corps,
+            tint: *teinte,
+            fond: *fond,
+            eclaires: eclaires
+                .as_ref()
+                .map(|p| crate::renderer::passages::Eclaires {
+                    plages: &p.plages,
+                    teinte: p.teinte,
+                    style: &crate::renderer::passages::SUR_LA_CARTE,
+                }),
+            selected: false,
+            editing: edition.as_ref(),
+        })
+    }
+
     pub(super) fn hacher(&self, h: &mut impl Hasher) {
         match self {
             Self::Carte {
@@ -64,6 +109,7 @@ impl Contenu {
                 corps,
                 teinte,
                 fond,
+                eclaires,
                 edition,
                 ..
             } => {
@@ -73,6 +119,7 @@ impl Contenu {
                 taille.1.to_bits().hash(h);
                 teinte.hash(h);
                 fond.hash(h);
+                eclaires.hash(h);
                 // **Pas la selection** (COMPOSANT-4) : l'anneau qui la montre se pose au-dessus,
                 // et selectionner une carte ne refait plus sa texture.
                 // **Ce que la saisie change, et rien d'autre.** Le texte est deja dans

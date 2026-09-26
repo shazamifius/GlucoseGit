@@ -73,7 +73,7 @@
 //! coin, et **seuls ceux que l'écran montre** existent : se déplacer de près ne rend que ceux
 //! qui entrent. Le détail est dans [`decoupe`].
 
-use super::card::{card_text_layout, draw_card_contenu, CardLayout, Contenants, TextCard};
+use super::card::{card_text_layout, draw_card_contenu, CardLayout, Contenants};
 use super::pass::{Clip, Pass, SELECTION_RING};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
@@ -350,7 +350,11 @@ impl Regime {
         id: &str,
         (x, y, w, h): (f64, f64, f32, f32),
         (corps, teinte): (&str, (u8, u8, u8)),
-        (edition, contenants): (Option<&crate::renderer::TextEditSession>, &Contenants<'_>),
+        (edition, contenants, eclaires): (
+            Option<&crate::renderer::TextEditSession>,
+            &Contenants<'_>,
+            Option<super::passages::Eclaires<'_>>,
+        ),
     ) -> Option<Pieces> {
         // MODE-1 : une carte qu'on corrige montre ses signes, une carte qu'on lit ne les
         // montre pas -- et le decoupage en lignes n'est pas le meme dans les deux modes.
@@ -378,19 +382,28 @@ impl Regime {
             let marge = (rendu.border.max(anneau) / 2.0).ceil() + 1.0;
             (rendu.width, rendu.height, marge)
         };
-        Some(self.composer(
-            ("carte", id),
-            (sx, sy),
-            &mesure,
-            Contenu::Carte {
-                origine: (x, y),
-                taille: (w, h),
-                corps: corps.to_string(),
-                teinte,
-                fond: contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),
-                edition: edition.cloned(),
-            },
-        ))
+        Some(
+            self.composer(
+                ("carte", id),
+                (sx, sy),
+                &mesure,
+                Contenu::Carte {
+                    origine: (x, y),
+                    taille: (w, h),
+                    corps: corps.to_string(),
+                    teinte,
+                    fond: contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),
+                    // Pendant l'édition, la carte montre sa source : rien n'y brille.
+                    eclaires: eclaires
+                        .filter(|_| edition.is_none())
+                        .map(|e| contenu::Passages {
+                            plages: e.plages.to_vec(),
+                            teinte: e.teinte,
+                        }),
+                    edition: edition.cloned(),
+                },
+            ),
+        )
     }
 
     /// **Une photo dont les octets ne sont pas encore là**, comme un cadre à son rang.
@@ -449,14 +462,7 @@ impl Composant {
             self.marge + self.phase.1 - self.depart.1,
         );
         match self.contenu.as_ref() {
-            Contenu::Carte {
-                origine,
-                taille,
-                corps,
-                teinte,
-                fond,
-                edition,
-            } => {
+            Contenu::Carte { origine, .. } => {
                 // `world_to_screen` vaut `monde x echelle + vue` : la vue qui place le coin
                 // de la carte en `(marge + phase)` s'en deduit en une ligne.
                 let vp = Viewport {
@@ -477,20 +483,9 @@ impl Composant {
                         top: 0.0,
                     },
                 };
-                draw_card_contenu(
-                    &ctx,
-                    &mut pixmap.as_mut(),
-                    TextCard {
-                        origin: *origine,
-                        size: *taille,
-                        body: corps,
-                        tint: *teinte,
-                        fond: *fond,
-                        // La selection se montre au-dessus, jamais dans la texture.
-                        selected: false,
-                        editing: edition.as_ref(),
-                    },
-                );
+                if let Some(carte) = self.contenu.carte() {
+                    draw_card_contenu(&ctx, &mut pixmap.as_mut(), carte);
+                }
             }
             Contenu::PhotoEnChemin {
                 id,

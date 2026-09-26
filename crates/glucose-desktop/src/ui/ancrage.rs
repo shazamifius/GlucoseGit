@@ -73,6 +73,19 @@ impl Ancrage {
         }
     }
 
+    /// **Les plages choisies à l'étape en cours**, en octets de `texte`.
+    ///
+    /// Une seule fonction pour tout ce qui les lit : ce qui brille dans la fenêtre et sur la
+    /// carte, et la place que leurs cadres ouvrent dans la mise en page de la fenêtre — que le
+    /// dessin et le clic doivent lire à l'identique, sans quoi on viserait à côté de ce qu'on
+    /// voit (PASSAGE-2).
+    pub fn plages_choisies(&self, texte: &str) -> Vec<(usize, usize)> {
+        glucose_core::text_anchors::resolve_anchors(texte, self.ancres())
+            .into_iter()
+            .map(|r| (r.start, r.end))
+            .collect()
+    }
+
     pub fn ancres_mut(&mut self) -> &mut Vec<TextAnchor> {
         match self.etape {
             Etape::Source => &mut self.source,

@@ -64,23 +64,9 @@ fn point(app: &GlucoseApp, carte: &str, texte: &str, octet: usize) -> (f64, f64)
         Some(carte),
         "la fenêtre montre la carte de l'étape"
     );
-    let (fenetre, montre) = app.fenetre_d_ancrage().expect("la fenêtre est ouverte");
+    let (_, montre) = app.fenetre_d_ancrage().expect("la fenêtre est ouverte");
     assert_eq!(montre, texte);
-    let zone = fenetre.zone;
-    let fin = texte[octet..]
-        .chars()
-        .next()
-        .map_or(octet, |c| octet + c.len_utf8());
-    let r = crate::renderer::passages::rectangles(
-        (&app.renderer.typography, &app.renderer.math),
-        texte,
-        zone.largeur_monde,
-        &[(octet, fin)],
-    )[0];
-    (
-        f64::from(zone.rect.0 + (r.0 + 1.0) * zone.s),
-        f64::from(zone.rect.1 + (r.1 + r.3 / 2.0 - zone.defilement) * zone.s),
-    )
+    point_vu(app, texte, octet)
 }
 
 /// « Éditer le texte lié » dans la barre d'options.
@@ -341,4 +327,96 @@ fn test_ancre_ux_un_clic_sur_une_formule_la_choisit_entiere() {
         .map(|a| (a.start, a.end))
         .collect();
     assert_eq!(choisi, [(debut as i64, fin as i64)]);
+}
+
+/// Le point d'écran où l'octet se **dessine** dans la fenêtre — dans sa mise en page telle
+/// qu'elle est, la place des passages déjà choisis ouverte (PASSAGE-2).
+fn point_vu(app: &GlucoseApp, texte: &str, octet: usize) -> (f64, f64) {
+    use crate::renderer::passages::{mise_en_page, Eclaires, DANS_L_EDITEUR};
+    use crate::renderer::richtext::hit::{line_of_offset, x_du_caractere};
+    let (fenetre, _) = app.fenetre_d_ancrage().expect("la fenêtre est ouverte");
+    let zone = fenetre.zone;
+    let choisies = app
+        .ui
+        .ancrage
+        .as_ref()
+        .expect("l'éditeur")
+        .plages_choisies(texte);
+    let eclaires = Eclaires {
+        plages: &choisies,
+        teinte: (0, 0, 0),
+        style: &DANS_L_EDITEUR,
+    };
+    let outils = (&app.renderer.typography, &app.renderer.math);
+    let vue = mise_en_page(
+        outils,
+        (texte, zone.largeur_monde),
+        crate::renderer::richtext::TextMode::Rendered,
+        Some(&eclaires),
+    );
+    let rang = line_of_offset(&vue, octet);
+    let boite = crate::renderer::card::text_box(zone.largeur_monde);
+    let x = x_du_caractere(outils.0, &vue, &vue.lines[rang], texte, octet, boite.body);
+    let (ox, oy) = crate::renderer::card::TEXT_ORIGIN;
+    let y = oy + (rang as f32 + 0.5) * boite.line_height;
+    (
+        f64::from(zone.rect.0 + (ox + x + 1.0) * zone.s),
+        f64::from(zone.rect.1 + (y - zone.defilement) * zone.s),
+    )
+}
+
+/// Un glisser de l'octet `de` à l'octet `a`, visés là où ils se dessinent.
+fn glisser(app: &mut GlucoseApp, texte: &str, (de, a): (usize, usize)) {
+    let p = point_vu(app, texte, de);
+    aller(app, p);
+    app.handle_mouse_down(MouseButton::Left, ECRAN.0, ECRAN.1);
+    let p = point_vu(app, texte, a);
+    aller(app, p);
+    app.handle_mouse_up(MouseButton::Left);
+}
+
+/// **PASSAGE-2 — dans la fenêtre, on vise ce qu'on voit.** Un passage choisi au milieu d'un
+/// mot écarte la suite de sa ligne de deux fois l'étendue de son cadre ; un second choix, fait
+/// là où le texte est **dessiné** après l'écart, prend exactement les octets visés. Le clic
+/// lit la même mise en page que le dessin.
+#[test]
+fn test_passage_2_la_fenetre_vise_ce_qu_elle_montre() {
+    let texte = "abcdefghijklmnop qrstuvwxyz";
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::text("source", 100.0, 150.0, texte));
+    app.store
+        .add_annotation(&board, Annotation::text("cible", 700.0, 150.0, CIBLE));
+    let mut f = Annotation::arrow("f", 220.0, 200.0, 820.0, 200.0);
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    } = &mut f
+    {
+        *source_id = Some("source".into());
+        *target_id = Some("cible".into());
+    }
+    app.store.add_annotation(&board, f);
+    app.fit_text_card_height("source");
+    app.store.clear_selection();
+    app.store.select_annotation("f".into(), false);
+    app.une_image_sans_fenetre((ECRAN.0 as u32, ECRAN.1 as u32));
+    ouvrir(&mut app);
+
+    glisser(&mut app, texte, (4, 8));
+    app.modifiers = ModifiersState::CONTROL;
+    glisser(&mut app, texte, (18, 23));
+    app.modifiers = ModifiersState::empty();
+    let choisis: Vec<String> = app
+        .ui
+        .ancrage
+        .as_ref()
+        .expect("l'éditeur")
+        .plages_choisies(texte)
+        .into_iter()
+        .map(|(a, b)| texte[a..b].to_string())
+        .collect();
+    assert_eq!(choisis, ["efgh", "rstuv"]);
 }
