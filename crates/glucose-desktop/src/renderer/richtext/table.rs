@@ -56,7 +56,9 @@ pub(super) fn layout_table(
             largeurs[c] = largeurs[c].max(mesure_cellule(typography, source, plage.clone(), bx));
         }
     }
-    let taquet = |c: usize| -> f32 { largeurs[..c].iter().sum::<f32>() + gouttiere * c as f32 };
+    // En corps de la ligne (TABLE-2) : le taquet suit le zoom sans le connaître.
+    let taquet =
+        |c: usize| -> f32 { (largeurs[..c].iter().sum::<f32>() + gouttiere * c as f32) / bx.body };
 
     // L'en-tête est la ligne qui **précède** la séparation — c'est elle qui fait d'un
     // tableau un tableau plutôt qu'une grille. Le noyau ne peut pas le dire : un bloc ne

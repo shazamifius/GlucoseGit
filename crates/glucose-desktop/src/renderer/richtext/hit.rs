@@ -53,7 +53,7 @@ pub fn offset_to_x(
         // Le clic suit la plume, taquets compris : sans cela, viser la deuxième colonne d'un
         // tableau poserait le curseur dans la première.
         if fragment.tab >= 0.0 {
-            x = fragment.tab;
+            x = fragment.tab * font;
         }
         if offset <= fragment.start {
             break;
@@ -96,7 +96,7 @@ pub fn x_to_offset(
     let mut at = 0.0;
     for fragment in layout.fragments_of(line) {
         if fragment.tab >= 0.0 {
-            at = fragment.tab;
+            at = fragment.tab * font;
         }
         let face = fragment.face();
         for (i, ch) in source[fragment.start..fragment.end].char_indices() {

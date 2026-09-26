@@ -42,7 +42,7 @@ pub(crate) fn draw_line(
     for fragment in layout.fragments_of(line) {
         // Un taquet replace la plume : c'est ce qui aligne les colonnes d'un tableau.
         if fragment.tab >= 0.0 {
-            x = at.0 + fragment.tab;
+            x = at.0 + fragment.tab * font;
         }
         x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source, plate);
     }
@@ -63,7 +63,7 @@ pub(crate) fn draw_line_ink(
     let mut x = at.0;
     for fragment in layout.fragments_of(line) {
         if fragment.tab >= 0.0 {
-            x = at.0 + fragment.tab;
+            x = at.0 + fragment.tab * font;
         }
         x = draw_fragment(ctx, pixmap, (x, at.1), fragment, (font, ink), source, true);
     }

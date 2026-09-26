@@ -355,3 +355,109 @@ fn test_une_cellule_garde_son_markdown() {
         "et le code d'une autre"
     );
 }
+
+/// L'abscisse, depuis le coin de la carte, du bord droit de l'encre de sa dernière ligne —
+/// la carte `texte`, large de 400 unités, posée en (100, 100) à l'écran et vue à `zoom`.
+fn bord_droit_de_la_derniere_ligne(texte: &str, zoom: f64) -> f64 {
+    use glucose_core::store::Store;
+    use glucose_core::types::{Annotation, Viewport};
+    let mut store = Store::new("tableau");
+    let board = store.project.active_board_id.clone();
+    let mut carte = Annotation::text("c", 0.0, 0.0, texte);
+    if let Annotation::Text { width, .. } = &mut carte {
+        *width = Some(400.0);
+    }
+    store.add_annotation(&board, carte);
+    store.clear_selection();
+    store.set_viewport(
+        &board,
+        Viewport {
+            x: 100.0,
+            y: 100.0,
+            scale: zoom,
+        },
+    );
+    let store = crate::bench::ouvert(store);
+    let mut renderer = crate::renderer::Renderer::new();
+    let mut ui = crate::ui::UiState::new();
+    let image = crate::bench::render_frame(&mut renderer, &mut ui, &store, 1400, 900);
+    let lignes = pose(
+        texte,
+        crate::renderer::card::text_box(400.0),
+        TextMode::Rendered,
+    )
+    .line_count() as f64;
+    let (pas, haut) = (14.0 * f64::from(LINE_FACTOR), 16.0);
+    let (y0, y1) = (
+        100.0 + (haut + (lignes - 1.0) * pas) * zoom,
+        100.0 + (haut + lignes * pas) * zoom,
+    );
+    let mut droite = 0.0f64;
+    for y in y0 as u32..y1 as u32 {
+        for x in 100..1400u32 {
+            let c = image.pixel(x, y).expect("dans l'image");
+            if c.red().min(c.green()).min(c.blue()) > 110 {
+                droite = droite.max(f64::from(x) + 1.0);
+            }
+        }
+    }
+    droite - 100.0
+}
+
+/// **TABLE-2 — un tableau garde ses colonnes à tout zoom.**
+///
+/// Le taquet d'une colonne se calculait en unités du monde, et le tracé l'ajoutait à une
+/// position d'écran sans le mettre à l'échelle : à ×2, la seconde colonne se posait à la
+/// moitié de sa place, sur la première. La carte entière grandit d'un facteur deux ; le bord
+/// de sa dernière colonne aussi.
+#[test]
+fn test_table_2_les_colonnes_suivent_le_zoom() {
+    let texte = "| a | b |\n|---|---|\n| aaaaaaaaaaaa | Z |";
+    // Où la mise en page fait finir le « Z » : le taquet de sa colonne plus sa largeur, depuis
+    // la marge de la carte. Mesurer seulement que le bord double ne suffisait pas — une colonne
+    // posée sur la première laisse le bord de la première, qui double aussi.
+    let typo = Typography::new();
+    let mise_en_page = pose(
+        texte,
+        crate::renderer::card::text_box(400.0),
+        TextMode::Rendered,
+    );
+    let derniere = mise_en_page.lines.last().expect("une ligne");
+    let z = texte.rfind('Z').expect("le Z");
+    let fin = hit::offset_to_x(&typo, &mise_en_page, derniere, texte, z + 1, 14.0);
+    let attendu = f64::from(crate::renderer::card::TEXT_ORIGIN.0 + fin);
+    for zoom in [1.0, 2.0] {
+        let bord = bord_droit_de_la_derniere_ligne(texte, zoom);
+        assert!(
+            (bord - attendu * zoom).abs() <= 2.0 * zoom,
+            "a x{zoom}, la derniere colonne finit a {bord}, et non a {}",
+            attendu * zoom
+        );
+    }
+}
+
+/// **TABLE-2 — on clique dans un tableau là où il est dessiné** : l'octet du « Z » a
+/// l'abscisse de sa colonne, et viser cette abscisse rend l'octet du « Z ».
+#[test]
+fn test_table_2_le_clic_tombe_dans_sa_colonne() {
+    let typo = Typography::new();
+    let texte = "| a | b |\n|---|---|\n| aaaaaaaaaaaa | Z |";
+    let mise_en_page = pose(
+        texte,
+        crate::renderer::card::text_box(400.0),
+        TextMode::Rendered,
+    );
+    let derniere = mise_en_page.lines.last().expect("une ligne");
+    let z = texte.rfind('Z').expect("le Z");
+    // La seconde colonne commence après la plus large des premières cellules et deux espaces :
+    // la largeur de « aaaaaaaaaaaa » ne se devine pas, elle se mesure.
+    let (large, _) = typo.measure_text("aaaaaaaaaaaa", 14.0, Face::Regular);
+    let colonne = large + 2.0 * typo.advance(' ', 14.0, Face::Regular);
+    let x = hit::offset_to_x(&typo, &mise_en_page, derniere, texte, z, 14.0);
+    assert!(
+        (x - colonne).abs() < 1e-3,
+        "le Z est a {x}, sa colonne a {colonne}"
+    );
+    let vise = hit::x_to_offset(&typo, &mise_en_page, derniere, texte, colonne + 1.0, 14.0);
+    assert_eq!(vise, z, "viser le Z rend un autre octet");
+}

@@ -164,12 +164,19 @@ pub struct Fragment {
     pub end: usize,
     pub emphasis: Emphasis,
     pub role: SpanRole,
-    /// L'abscisse où ce fragment commence, depuis le début de sa ligne — ou [`NO_TAB`] pour
-    /// « là où le précédent s'est arrêté », qui est le cas de tout ce qui n'est pas un
-    /// tableau.
+    /// L'abscisse où ce fragment commence, depuis le début de sa ligne, **en multiples du
+    /// corps de sa ligne** — ou [`NO_TAB`] pour « là où le précédent s'est arrêté », qui est
+    /// le cas de tout ce qui n'est ni un tableau ni un passage éclairé.
     ///
     /// C'est ce qui permet à des colonnes de s'aligner : sans taquet, un fragment ne peut
     /// que suivre, et deux lignes de longueurs différentes ne tomberaient jamais en face.
+    ///
+    /// # TABLE-2 — une longueur dite dans l'unité du texte
+    ///
+    /// Le taquet était une abscisse du monde, et le tracé l'ajoutait à une position d'écran
+    /// sans la mettre à l'échelle : à ×2, la seconde colonne d'un tableau se posait à la
+    /// moitié de sa place, sur la première. Dit en corps, il suit le zoom sans le connaître —
+    /// le tracé le multiplie par le corps de l'écran, le clic par celui du monde.
     pub tab: f32,
 }
 
