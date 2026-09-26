@@ -375,19 +375,30 @@ pub struct Temps<'a> {
     pub lisere: &'a super::lisere_gpu::LisereGpu,
     pub couches: &'a Couches,
     pub scene: &'a super::scene_gpu::SceneGpu,
-    pub retenues: &'a [String],
+    pub retenues: &'a super::scene_gpu::Retenues,
+    /// Combien des textures demandées sont des photos — les premières : la pose se coupe
+    /// après elles pour laisser passer les lueurs (LUEUR-3).
+    pub photos: usize,
 }
 
-/// **Encode la passe des cinq temps** : le fond, les lueurs, le dessous, les photos, le
-/// dessus.
+/// **Encode la passe des cinq temps** : le fond, le dessous, les photos, les lueurs et les
+/// cartes, le dessus.
 ///
 /// L'ordre est tout, et c'est celui de la voie processeur : le fond REMPLACE puisqu'il est
-/// opaque et couvre tout ; les lueurs se composent dessus ; la couche du dessous porte les
-/// membranes et les dossiers, qui sont des CONTENANTS ; les photos viennent ensuite ; et le
-/// dessus se compose en dernier, transparent partout ou les photos doivent se voir.
+/// opaque et couvre tout ; la couche du dessous porte les membranes et les dossiers, qui sont
+/// des CONTENANTS ; les photos viennent ensuite ; puis les lueurs des cartes, puis les cartes ;
+/// et le dessus se compose en dernier, transparent partout ou les photos doivent se voir.
 ///
 /// Les intervertir mettrait le fond par-dessus tout, ou une membrane par-dessus la photo
 /// qu'elle contient.
+///
+/// # LUEUR-3 — la lueur d'une carte passe devant les photos
+///
+/// Elle se posait juste apres le fond, donc **sous** les photos : une carte posee sur une
+/// photo perdait sa lueur, cachee par l'image qu'elle couvrait. Chez Tauri, la lueur est
+/// l'ombre CSS d'un bloc HTML pose sur la toile, donc devant toute image. Elle se pose
+/// desormais entre les photos et les cartes : devant ce que la carte recouvre, derriere les
+/// autres cartes.
 pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, temps: Temps<'_>) {
     let mut passe = encodeur.begin_render_pass(&wgpu::RenderPassDescriptor {
         label: Some("glucose-couches"),
@@ -408,13 +419,17 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
         multiview_mask: None,
     });
     temps.fond.poser(&mut passe);
-    temps.lueurs.poser(&mut passe);
     // La forme des membranes, sous leurs titres qui sont dans la couche du dessous.
     temps.membranes.poser(&mut passe);
     temps
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
-    temps.scene.poser(&mut passe, temps.retenues);
+    let (retenues, photos) = (temps.retenues, temps.retenues.avant(temps.photos));
+    temps.scene.poser(&mut passe, retenues, 0..photos);
+    temps.lueurs.poser(&mut passe);
+    temps
+        .scene
+        .poser(&mut passe, retenues, photos..retenues.len());
     // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
     // poignées qui sont dans la couche du dessus (FLECHE-2).
     temps.fleches.poser(&mut passe);

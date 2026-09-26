@@ -153,6 +153,7 @@ Et un lien.";
         size: (w, h),
         body: corps,
         tint: teinte,
+        fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
         selected: selectionnee,
         editing: None,
     };
@@ -173,7 +174,16 @@ Et un lien.";
     };
     crate::renderer::card::draw_text_card(&ctx, &mut en_place.as_mut(), carte());
     let composant = regime
-        .carte(kit, "c", (x, y, w, h), (corps, teinte), None)
+        .carte(
+            kit,
+            "c",
+            (x, y, w, h),
+            (corps, teinte),
+            (
+                None,
+                &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+            ),
+        )
         .expect("un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -230,7 +240,10 @@ fn test_la_carte_qu_on_edite_est_un_composant() {
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
                 (corps, (96, 165, 250)),
-                Some(&e),
+                (
+                    Some(&e),
+                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[])
+                ),
             )
             .is_some(),
         "une carte en saisie doit devenir une texture"
@@ -258,7 +271,10 @@ fn test_composant_3_la_cle_ignore_le_curseur_et_suit_la_selection() {
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
                 (corps, (96, 165, 250)),
-                Some(&e),
+                (
+                    Some(&e),
+                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                ),
             )
             .expect("un composant")
             .seule()
@@ -303,7 +319,10 @@ fn test_l_identite_d_une_carte_en_saisie_ne_bouge_pas() {
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
                 (corps, (96, 165, 250)),
-                Some(&e),
+                (
+                    Some(&e),
+                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                ),
             )
             .expect("un composant")
             .seule()
@@ -337,6 +356,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
         size: (w, h),
         body: corps,
         tint: teinte,
+        fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
         selected: false,
         editing,
     };
@@ -360,7 +380,16 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
     };
 
     let composant = regime
-        .carte(kit, "c", (x, y, w, h), (corps, teinte), Some(&e))
+        .carte(
+            kit,
+            "c",
+            (x, y, w, h),
+            (corps, teinte),
+            (
+                Some(&e),
+                &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+            ),
+        )
         .expect("une carte en saisie est toujours un composant")
         .seule();
     let texture = composant.rendre(kit).expect("une texture");
@@ -476,7 +505,10 @@ fn test_cent_images_de_saisie_immobile_ne_font_qu_une_texture() {
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
                 (corps, (96, 165, 250)),
-                Some(&e),
+                (
+                    Some(&e),
+                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                ),
             )
             .expect("un composant")
             .seule();
@@ -510,7 +542,10 @@ fn test_chaque_frappe_donne_une_texture_et_une_seule() {
                 "c",
                 (60.0, 40.0, 240.0, 60.0),
                 (corps, (96, 165, 250)),
-                Some(&e),
+                (
+                    Some(&e),
+                    &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+                ),
             )
             .expect("un composant")
             .seule();

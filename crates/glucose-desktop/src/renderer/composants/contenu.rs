@@ -15,6 +15,9 @@ pub(super) enum Contenu {
         taille: (f32, f32),
         corps: String,
         teinte: (u8, u8, u8),
+        /// Le fond que la carte peint sous son texte (LUEUR-3) : le mode Focus le teinte, et la
+        /// texture change avec lui.
+        fond: (u8, u8, u8),
         /// La saisie en cours sur cette carte, **figee** (COMPOSANT-2).
         ///
         /// Une carte qu'on edite changeait a chaque image parce que personne ne s'etait
@@ -60,6 +63,7 @@ impl Contenu {
                 taille,
                 corps,
                 teinte,
+                fond,
                 edition,
                 ..
             } => {
@@ -68,6 +72,7 @@ impl Contenu {
                 taille.0.to_bits().hash(h);
                 taille.1.to_bits().hash(h);
                 teinte.hash(h);
+                fond.hash(h);
                 // **Pas la selection** (COMPOSANT-4) : l'anneau qui la montre se pose au-dessus,
                 // et selectionner une carte ne refait plus sa texture.
                 // **Ce que la saisie change, et rien d'autre.** Le texte est deja dans

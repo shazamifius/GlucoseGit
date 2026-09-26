@@ -243,6 +243,7 @@ pub fn composer_les_cinq_temps(
             couches: &deux,
             scene: &scene,
             retenues: &retenues,
+            photos: confie.photos.len(),
         },
     );
     file.submit(Some(encodeur.finish()));

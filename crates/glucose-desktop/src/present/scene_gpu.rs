@@ -454,7 +454,7 @@ impl SceneGpu {
         file: &wgpu::Queue,
         ecran: (f32, f32),
         photos: &[APoser],
-    ) -> Vec<String> {
+    ) -> Retenues {
         if photos.len() > self.capacite {
             // Le tampon suit ce que l'ecran demande, comme le cache de tuiles : il grandit
             // par doublements, donc il cesse de grandir en quelques images.
@@ -470,10 +470,10 @@ impl SceneGpu {
             );
         }
         let mut octets = Vec::with_capacity(photos.len() * OCTETS_POSE);
-        let mut retenues = Vec::with_capacity(photos.len());
+        let mut retenues = Retenues::default();
         let image = self.image;
         let mut perimees = 0.0_f64;
-        for t in photos {
+        for (rang, t) in photos.iter().enumerate() {
             // **Le repli se garde tant que sa tuile peut en avoir besoin** (DE-PRES-1). Il
             // ne se pose qu'à la place d'une tuile absente ; oublié à la fin de chaque image
             // où toutes sont là, il manquerait au premier zoom, qui les change toutes.
@@ -501,7 +501,8 @@ impl SceneGpu {
             }
             televersee.vue = image;
             posee.pose.ecrire(&mut octets);
-            retenues.push(posee.identite.clone());
+            retenues.cles.push(posee.identite.clone());
+            retenues.rangs.push(rang);
         }
         crate::perf::compteur("textures_perimees", perimees);
         if !octets.is_empty() {
@@ -515,21 +516,62 @@ impl SceneGpu {
         retenues
     }
 
-    /// **Pose dans la passe en cours** les photos que [`SceneGpu::preparer`] a retenues.
-    pub fn poser(&self, passe: &mut wgpu::RenderPass<'_>, retenues: &[String]) {
-        if retenues.is_empty() {
+    /// **Pose dans la passe en cours** une tranche de ce que [`SceneGpu::preparer`] a retenu.
+    ///
+    /// Une tranche et non le tout : les lueurs des cartes passent **entre** les photos et les
+    /// cartes (LUEUR-3), donc la pose se fait en deux fois, autour d'elles. Le rang d'une
+    /// texture reste celui de sa pose dans le tampon, quelle que soit la tranche.
+    pub fn poser(
+        &self,
+        passe: &mut wgpu::RenderPass<'_>,
+        retenues: &Retenues,
+        tranche: std::ops::Range<usize>,
+    ) {
+        if tranche.is_empty() {
             return;
         }
         passe.set_pipeline(&self.pipeline);
         passe.set_bind_group(0, &self.commun, &[]);
-        for (rang, cle) in retenues.iter().enumerate() {
-            let Some(televersee) = self.photos.get(cle) else {
+        for rang in tranche {
+            let Some(televersee) = retenues.cles.get(rang).and_then(|c| self.photos.get(c)) else {
                 continue;
             };
             passe.set_bind_group(1, &televersee.liaison, &[]);
             let i = rang as u32;
             passe.draw(0..6, i..i + 1);
         }
+    }
+}
+
+/// **Ce que la carte saura poser à cette image**, dans l'ordre de la pose : l'identité de
+/// chaque texture retenue, et son rang dans la liste demandée.
+///
+/// Le rang est ce qui permet de couper la pose là où la scène change de nature — après les
+/// photos, avant les cartes de texte — sans supposer qu'aucune n'a été omise : une photo que
+/// la carte ne détient pas encore est absente des retenues, et la frontière se déplace avec
+/// elle.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Retenues {
+    pub cles: Vec<String>,
+    rangs: Vec<usize>,
+}
+
+impl Retenues {
+    /// Combien de textures la carte posera.
+    pub fn len(&self) -> usize {
+        self.cles.len()
+    }
+
+    /// Aucune ?
+    pub fn is_empty(&self) -> bool {
+        self.cles.is_empty()
+    }
+
+    /// **Combien des retenues viennent des `n` premières demandées** : là où la pose se coupe.
+    ///
+    /// Les rangs croissent avec la liste demandée, donc une dichotomie suffit.
+    pub fn avant(&self, n: usize) -> usize {
+        self.rangs.partition_point(|&r| r < n)
     }
 }
 

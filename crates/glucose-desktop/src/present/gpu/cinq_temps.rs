@@ -95,6 +95,7 @@ pub(super) fn presenter(
             couches: &p.couches,
             scene: &p.scene,
             retenues: &retenues,
+            photos: confie.photos.len(),
         },
     );
     crate::perf::stage("encoder");
@@ -119,7 +120,7 @@ fn preparer_la_scene(
     p: &mut GpuPresenter,
     (dessous, confie, budget): (&Pixmap, &crate::renderer::Confie, std::time::Duration),
     source: &crate::present::scene_gpu::Source<'_>,
-) -> Vec<String> {
+) -> crate::present::scene_gpu::Retenues {
     // Les photos, puis les cartes de texte : l'ordre du modele, et celui de la pose.
     let textures = confie.textures();
     p.scene.ouvrir();

@@ -26,7 +26,7 @@ mod confie;
 pub mod cran;
 pub use confie::{APoser, Confie};
 
-/// **Ce qui passe sous les photos** : le fond, les lueurs, les membranes, les dossiers.
+/// **Ce qui passe sous les photos** : le fond, les membranes, les dossiers.
 ///
 /// Tous des CONTENANTS, et c'est ce qui fait la frontière : quand la voie graphique pose
 /// les photos, cette part se rend à part et lui sert de fond (voir [`Couche`]). Les
@@ -34,10 +34,12 @@ pub use confie::{APoser, Confie};
 ///
 /// # La frontière se déplace, et elle se lit ici
 ///
-/// Le fond et les lueurs ne se peignent que sur la voie **processeur**. Sur la voie
-/// graphique, la carte les produit elle-même ([`crate::present::fond_gpu`],
-/// [`crate::present::lueurs_gpu`]) et cette couche ne porte plus que les membranes et les
-/// dossiers — donc, sur un document qui n'en a pas, **rien du tout**.
+/// Le fond ne se peint ici que sur la voie **processeur**. Sur la voie graphique, la carte le
+/// produit elle-même ([`crate::present::fond_gpu`]) et cette couche ne porte plus que les
+/// membranes et les dossiers — donc, sur un document qui n'en a pas, **rien du tout**.
+///
+/// Les lueurs des cartes n'y sont plus (LUEUR-3) : elles passent devant les photos, comme
+/// l'ombre d'un bloc de Tauri passait devant la toile ([`dessiner_sur_les_photos`]).
 ///
 /// Une fonction libre et non une methode : `pass` tient deja `&self.spatial_hash`, donc un
 /// `&mut self` par-dessus ne compilerait pas. Le moteur se prete en pieces, comme pour
@@ -45,17 +47,13 @@ pub use confie::{APoser, Confie};
 /// jamais a travers `&mut self`.
 pub(super) fn dessiner_sous_les_photos(
     fond: grille::Fond<'_>,
-    hue_cache: &mut SymbioticHueCache,
     pixmap: &mut PixmapMut,
     (store, pass, kit): (&Store, ViewPass<'_>, PaintKit<'_>),
-    (cadrage, designees): (Cadrage, &[(String, f32)]),
+    cadrage: Cadrage,
     header_h: f32,
 ) -> bool {
     if cadrage.couche.porte_le_fond() {
         grille::poser_le_fond(fond, pixmap, store, pass, cadrage, header_h);
-        // 3. Halos symbiotiques d'ambiance (Biome 2D + composition par anneaux)
-        halo::draw_halos(hue_cache, pixmap, store, (pass, designees));
-        crate::perf::stage("halos");
     }
     // 4. Membranes. Leur FORME se peint ici quand le processeur porte le fond, et sur la
     // carte sinon (MEMB-FORME-1) ; leurs titres, poignées et réglettes, ici sur les deux voies.
@@ -88,6 +86,12 @@ pub(super) fn dessiner_sur_les_photos(
     (ui, overlay): (&UiState, SceneOverlay<'_>),
     cadrage: Cadrage,
 ) {
+    // 5 bis. Les lueurs des cartes, devant les photos et sous les cartes (LUEUR-3). Sur la
+    // voie graphique, la carte les pose au meme rang, entre ses photos et ses cartes.
+    if cadrage.couche.porte_le_fond() {
+        halo::draw_halos(hue_cache, pixmap, store, (pass, overlay.designees));
+        crate::perf::stage("halos");
+    }
     // 6. Annotations (cartes de texte, pense-betes, fleches + edition in-place). Sur la voie
     // graphique, les cartes de texte sont des textures que la carte pose : seuls leurs
     // ornements se dessinent ici (COMPOSANT-1).
@@ -381,7 +385,7 @@ pub(super) struct PhotosAPoser {
 /// au-dessus des autres cartes, ce qui est exactement le rang que le processeur lui donnait
 /// en la dessinant dans sa seconde passe.
 fn composants_de_texte(
-    regime: &super::composants::Regime,
+    (regime, contenants): (&super::composants::Regime, &super::card::Contenants<'_>),
     hue_cache: &mut SymbioticHueCache,
     kit: PaintKit<'_>,
     (store, pass, edition): (&Store, ViewPass<'_>, Option<&super::TextEditSession>),
@@ -418,7 +422,7 @@ fn composants_de_texte(
             ann.id(),
             (*x, *y, w as f32, h as f32),
             (corps, teinte),
-            saisie,
+            (saisie, contenants),
         ) else {
             continue;
         };
@@ -549,8 +553,14 @@ impl Renderer {
             tints: &self.domain_tints,
             theme: &self.theme,
         };
-        let (cartes, de_texte) =
-            composants_de_texte(&regime, &mut self.hue_cache, kit, (store, pass, edition));
+        // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
+        let contenants = super::card::Contenants::nouveaux(&self.theme, &membranes);
+        let (cartes, de_texte) = composants_de_texte(
+            (&regime, &contenants),
+            &mut self.hue_cache,
+            kit,
+            (store, pass, edition),
+        );
         crate::perf::stage("composants");
         let mut composants = en_chemin;
         composants.extend(de_texte);

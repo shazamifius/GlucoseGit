@@ -64,6 +64,7 @@ fn rendu(corps: &str, tete: usize, vue: Vue, curseur_visible: bool) -> Pixmap {
         size: (LARGEUR, 60.0),
         body: corps,
         tint: (96, 165, 250),
+        fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
         selected: false,
         editing: Some(&saisie),
     };
@@ -323,6 +324,7 @@ fn carte_posee(selectionnee: bool) -> Pixmap {
         size: (LARGEUR, 60.0),
         body: "Une carte.",
         tint: (96, 165, 250),
+        fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
         selected: selectionnee,
         editing: None,
     };

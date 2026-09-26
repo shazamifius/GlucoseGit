@@ -835,3 +835,165 @@ fn test_quand_la_carte_manque_de_place_la_photo_perd_un_cran() {
     let (renderer, _, _, _) = les_deux_couches_sous_un_budget((800, 600), &store, Some(0));
     assert!(renderer.carte.debordee, "rien ne tient : la carte le dit");
 }
+
+// ── Une carte posée sur une photo (LUEUR-3) ────────────────────────────────────────────────
+
+/// La photo à bande entière — de x = 300 à 500, y = 200 à 400, blanche à droite de x = 350 —,
+/// et, si on la demande, une carte de texte posée dessus.
+fn document_carte_sur_photo(avec_carte: bool) -> glucose_core::store::Store {
+    let mut store = document_cadre(glucose_core::types::Recadrage::ENTIER);
+    if avec_carte {
+        let board = store.project.active_board_id.clone();
+        store.add_annotation(
+            &board,
+            glucose_core::types::Annotation::text("c", 360.0, 230.0, "Lisible"),
+        );
+        store.clear_selection();
+    }
+    store
+}
+
+/// **Une carte posée sur une photo la cache, et sa lueur passe devant elle** — sur les deux
+/// voies.
+///
+/// Sa capture du 26/09 : une carte sur une peinture claire, son texte blanc illisible, et
+/// « la zone de blur derrière les images ». Les deux étaient vrais : la lueur se posait sous
+/// les photos, et l'intérieur de la carte ne portait que 3 % de sa teinte — la photo passait
+/// au travers. La carte peint désormais son fond (le canevas, vu au travers de ses
+/// contenants), et sa lueur se pose entre les photos et les cartes.
+#[test]
+fn test_lueur_3_une_carte_sur_une_photo_la_cache_et_sa_lueur_passe_devant() {
+    let taille = (800u32, 600u32);
+    let avec = document_carte_sur_photo(true);
+    let processeur = par_le_processeur_decode(taille, &avec);
+    let photo_seule = par_le_processeur_decode(taille, &document_carte_sur_photo(false));
+
+    // Dans la carte, loin de son texte et de ses coins, au-dessus du blanc de la photo : le
+    // fond de la carte, sombre — et non la photo.
+    let (dedans, dessous) = ((470u32, 272u32), (450u32, 300u32));
+    assert_eq!(
+        pixel(&photo_seule, dedans.0, dedans.1),
+        [255, 255, 255, 255],
+        "sans la carte, la photo est blanche ici : sinon ce test ne regarde pas la photo"
+    );
+    let fond = pixel(&processeur, dedans.0, dedans.1);
+    assert!(
+        fond[..3].iter().all(|&c| c < 60),
+        "dans la carte, la photo se voit encore : {fond:?}"
+    );
+    // Juste sous la carte, sur la photo : la lueur passe devant l'image.
+    assert_ne!(
+        pixel(&processeur, dessous.0, dessous.1),
+        pixel(&photo_seule, dessous.0, dessous.1),
+        "la lueur de la carte reste cachee sous la photo"
+    );
+
+    // Et la voie graphique pose la même chose, à l'écart admis.
+    let (renderer, dessous_c, dessus_c, confie) = les_deux_couches_decodees(taille, &avec);
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous_c, &dessus_c),
+        &|cle| confie.pixels(&renderer, cle),
+    )
+    .expect("la composition en cinq temps");
+    let fond_gpu = pixel(&carte, dedans.0, dedans.1);
+    assert!(
+        fond_gpu[..3].iter().all(|&c| c < 60),
+        "carte graphique : la photo se voit dans la carte : {fond_gpu:?}"
+    );
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    let canaux = processeur.data().len();
+    assert!(
+        larges * 1000 <= canaux * PART_MAX_POUR_MILLE,
+        "l'ecart depasse {ECART_COURANT} sur {larges} canaux sur {canaux}"
+    );
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    assert!(pire <= ECART_ADMIS, "pire ecart {pire}");
+}
+
+/// Une membrane violette, et, si on la demande, une carte bleue posée en son milieu.
+fn document_carte_dans_une_membrane(avec_carte: bool) -> glucose_core::store::Store {
+    use glucose_core::types::Annotation;
+    let mut store = glucose_core::store::Store::new("Contenant");
+    let board = store.project.active_board_id.clone();
+    if let Some(b) = store.active_board_mut() {
+        b.annotations.clear();
+        b.viewport = glucose_core::types::Viewport {
+            x: 0.0,
+            y: 0.0,
+            scale: 1.0,
+        };
+    }
+    let mut membrane = Annotation::membrane("m", 100.0, 100.0, 600.0, 400.0);
+    if let Annotation::Membrane { color, .. } = &mut membrane {
+        *color = Some("#b050ff".to_string());
+    }
+    store.add_annotation(&board, membrane);
+    if avec_carte {
+        let mut carte = Annotation::text("c", 280.0, 260.0, "Dedans");
+        if let Annotation::Text { color, .. } = &mut carte {
+            *color = Some("#20c0ff".to_string());
+        }
+        store.add_annotation(&board, carte);
+    }
+    store.clear_selection();
+    store
+}
+
+/// **Une carte cache ce qu'elle recouvre, jamais ce qui la contient** (LUEUR-3).
+///
+/// Posée dans une membrane, son fond est celui que la membrane peint là : le canevas vu au
+/// travers d'elle, comme chez Tauri où la membrane se voyait sous le texte — puis la brume de
+/// la carte. Mesuré contre la même scène sans la carte : au même pixel, on doit retrouver ce
+/// qui était là, voilé de 3 % de la teinte de la carte, et rien d'autre.
+#[test]
+fn test_lueur_3_une_carte_garde_la_teinte_de_sa_membrane() {
+    let taille = (800u32, 600u32);
+    let avec = par_le_processeur(taille, &document_carte_dans_une_membrane(true));
+    let sans = par_le_processeur(taille, &document_carte_dans_une_membrane(false));
+    let fond_du_canevas = glucose_desktop::theme::Theme::dark()
+        .bg_canvas
+        .to_color_u8();
+    // Dans la carte, loin de son texte et de ses coins ; et un pixel sans point de grille :
+    // ses deux voisins disent la même chose que lui.
+    let p = (470u32, 300u32);
+    let la = pixel(&sans, p.0, p.1);
+    assert_eq!(
+        la,
+        pixel(&sans, p.0 + 3, p.1),
+        "un point de grille sous la mesure"
+    );
+    assert!(
+        la[0].abs_diff(fond_du_canevas.red()) + la[2].abs_diff(fond_du_canevas.blue()) > 10,
+        "la membrane ne teinte pas ce pixel ({la:?}) : sinon ce test ne la regarde pas"
+    );
+    let (brume, teinte) = (8.0 / 255.0, [0x20u8, 0xc0, 0xff]);
+    let attendu: Vec<u8> = (0..3)
+        .map(|k| (f32::from(la[k]) * (1.0 - brume) + f32::from(teinte[k]) * brume).round() as u8)
+        .collect();
+    let vu = pixel(&avec, p.0, p.1);
+    for k in 0..3 {
+        assert!(
+            vu[k].abs_diff(attendu[k]) <= 1,
+            "la carte ne garde pas la teinte de sa membrane : {vu:?}, attendu {attendu:?}"
+        );
+    }
+    // La voie graphique calcule ce fond par un autre appel : elle doit dire la même chose.
+    let Some(carte) = par_la_carte(taille, &document_carte_dans_une_membrane(true)) else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let vu_gpu = pixel(&carte, p.0, p.1);
+    for k in 0..3 {
+        assert!(
+            vu_gpu[k].abs_diff(vu[k]) <= ECART_COURANT,
+            "carte graphique : {vu_gpu:?}, processeur : {vu:?}"
+        );
+    }
+}

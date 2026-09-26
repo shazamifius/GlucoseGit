@@ -438,10 +438,9 @@ impl Renderer {
                     tuiles: &self.tuiles,
                     theme: &self.theme,
                 },
-                &mut self.hue_cache,
                 pixmap,
                 (store, pass, kit),
-                (cadrage, overlay.designees),
+                cadrage,
                 header_h,
             );
         }

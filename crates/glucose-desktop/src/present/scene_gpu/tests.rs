@@ -106,7 +106,7 @@ fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Op
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        scene.poser(&mut passe, &retenues);
+        scene.poser(&mut passe, &retenues, 0..retenues.len());
     }
     encodeur.copy_texture_to_buffer(
         wgpu::TexelCopyTextureInfo {
@@ -364,7 +364,7 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         }],
     );
     assert_eq!(
-        retenues,
+        retenues.cles,
         vec!["carte:c1".to_string()],
         "l'ancien palier doit se poser ; sous l'ancienne loi, indexee par cle, il disparaissait"
     );
@@ -642,7 +642,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
     );
     let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
     assert_eq!(
-        retenues,
+        retenues.cles,
         vec!["carte:c".to_string()],
         "la tuile manque : son repli se pose"
     );
@@ -657,7 +657,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
     );
     let retenues = scene.preparer(&peripherique, &file, (8.0, 8.0), &demande);
     assert_eq!(
-        retenues,
+        retenues.cles,
         vec!["carte:c@6#0,0".to_string()],
         "la tuile est la : elle se pose"
     );

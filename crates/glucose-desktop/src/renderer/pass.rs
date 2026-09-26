@@ -2,7 +2,7 @@
 //! tri qui envoie chaque nœud à son dessin — la carte, le pense-bête, la flèche.
 
 use super::arrow::{draw_arrow, Fleche};
-use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, TextCard};
+use super::card::{draw_card_contenu, draw_card_ornements, draw_text_card, Contenants, TextCard};
 use super::domain::{draw_domain_gauge, DomainTints};
 use super::hue::SymbioticHueCache;
 use super::math::MathRenderer;
@@ -84,6 +84,9 @@ pub(super) fn draw_annotations(
             top: pass.header_h,
         },
     };
+    // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
+    let formes = super::scene::formes_des_membranes(store, pass, (pixmap.width(), pixmap.height()));
+    let contenants = Contenants::nouveaux(kit.theme, &formes);
 
     // **Deux passes, et c'est ce qui rend les deux voies identiques par construction**
     // (ORNEMENTS-1). Le contenu des cartes de texte d'abord, a son rang ; puis tout ce qui
@@ -98,7 +101,7 @@ pub(super) fn draw_annotations(
         for ann in Visibles::nouvelles(pass.visibles, board).annotations() {
             let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
             if editing.is_none() {
-                if let Some(carte) = carte_de(hue_cache, ann, store, pass, None) {
+                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), &contenants, None) {
                     draw_card_contenu(&ctx, pixmap, carte);
                 }
             }
@@ -107,7 +110,7 @@ pub(super) fn draw_annotations(
 
     let entieres = dessiner_ce_qui_passe_au_dessus(
         hue_cache,
-        (&ctx, pixmap),
+        (&ctx, pixmap, &contenants),
         (store, board, pass),
         (editing_session, cartes_par_la_carte),
     );
@@ -131,7 +134,7 @@ pub(super) fn draw_annotations(
 /// que par un dessin direct ; ce compteur dit lequel, au lieu de le supposer.
 fn dessiner_ce_qui_passe_au_dessus(
     hue_cache: &mut SymbioticHueCache,
-    (ctx, pixmap): (&Pass, &mut PixmapMut),
+    (ctx, pixmap, contenants): (&Pass, &mut PixmapMut, &Contenants<'_>),
     (store, board, pass): (&Store, &glucose_core::types::Board, ViewPass<'_>),
     (editing_session, cartes_par_la_carte): (Option<&TextEditSession>, bool),
 ) -> f64 {
@@ -141,7 +144,7 @@ fn dessiner_ce_qui_passe_au_dessus(
         let editing = editing_session.filter(|s| s.ann_id.as_str() == ann.id());
         match ann {
             Annotation::Text { x, y, .. } => {
-                if let Some(carte) = carte_de(hue_cache, ann, store, pass, editing) {
+                if let Some(carte) = carte_de(hue_cache, (ann, store, pass), contenants, editing) {
                     // **La carte qu'on edite est un composant comme les autres** depuis
                     // COMPOSANT-2, et seuls ses ornements restent ici -- poignees, curseur,
                     // previsualisation de formule (COMPOSANT-3). Elle ne se dessine entiere
@@ -186,9 +189,8 @@ fn dessiner_ce_qui_passe_au_dessus(
 /// que `draw_annotations` faisait déjà, au même endroit du même parcours.
 fn carte_de<'a>(
     hue_cache: &mut SymbioticHueCache,
-    ann: &'a Annotation,
-    store: &Store,
-    pass: ViewPass<'_>,
+    (ann, store, pass): (&'a Annotation, &Store, ViewPass<'_>),
+    contenants: &Contenants<'_>,
     editing: Option<&'a TextEditSession>,
 ) -> Option<TextCard<'a>> {
     let Annotation::Text {
@@ -205,11 +207,13 @@ fn carte_de<'a>(
         .unwrap_or(tint);
     let body = editing.map(|e| e.buffer.as_str()).unwrap_or(text.as_str());
     let (w, h) = ann.size()?;
+    let (cx, cy) = world_to_screen(x + w / 2.0, y + h / 2.0, &pass.vp);
     Some(TextCard {
         origin: (*x, *y),
         size: (w as f32, h as f32),
         body,
         tint,
+        fond: contenants.fond_en((cx as f32, cy as f32)),
         selected: store.selected_annotation_ids.iter().any(|s| s == ann.id()),
         editing,
     })

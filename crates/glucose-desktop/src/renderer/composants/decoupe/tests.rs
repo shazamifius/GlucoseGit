@@ -31,7 +31,16 @@ fn vue(echelle: f64) -> Viewport {
 /// Ce que la carte témoin devient à l'écran, à l'arrêt.
 fn pieces(renderer: &Renderer, echelle: f64) -> Pieces {
     Regime::de((vue(echelle), 1.0), Regard::immobile(), ECRAN, 0.0)
-        .carte(renderer.kit(), "c", CARTE, (CORPS, TEINTE), None)
+        .carte(
+            renderer.kit(),
+            "c",
+            CARTE,
+            (CORPS, TEINTE),
+            (
+                None,
+                &crate::renderer::card::Contenants::nouveaux(&crate::theme::Theme::dark(), &[]),
+            ),
+        )
         .expect("la carte touche l'ecran")
 }
 
@@ -59,6 +68,7 @@ fn en_place(kit: PaintKit<'_>, vp: Viewport) -> Pixmap {
             size: (CARTE.2, CARTE.3),
             body: CORPS,
             tint: TEINTE,
+            fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
             selected: false,
             editing: None,
         },

@@ -52,6 +52,18 @@ pub(super) type CachedGlyph = (Rc<GlyphEntry>, u64);
 ///
 /// L'arrondi porte sur la position quantifiée, pas sur la position elle-même : l'erreur
 /// maximale est donc d'une demi-phase, soit un huitième de pixel.
+/// **Une position sur la grille des glyphes** : au quart de pixel le plus proche (GLYPH-1).
+///
+/// C'est là que le texte se pose, et c'est là que la carte qui le porte doit se poser aussi
+/// (LUEUR-3) : son fond et ses lettres avancent alors ensemble, par les mêmes pas. Et sur une
+/// grille dyadique, les sommes sont **exactes** — `80,75 + 240` comme `2,75 + 240` —, là où
+/// `80,8 + 240` et `2,8 + 240` s'arrondissent différemment : la même forme, posée en place ou
+/// dans une texture décalée d'un nombre entier de pixels, se calcule alors au bit près.
+pub(crate) fn sur_la_grille(valeur: f32) -> f32 {
+    let phases = f32::from(SUBPIXEL_PHASES);
+    (valeur * phases).round() / phases
+}
+
 pub(super) fn split_position(value: f32) -> (i32, u8) {
     if !value.is_finite() {
         return (0, PHASE_ORIGIN);

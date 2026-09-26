@@ -73,7 +73,7 @@
 //! coin, et **seuls ceux que l'écran montre** existent : se déplacer de près ne rend que ceux
 //! qui entrent. Le détail est dans [`decoupe`].
 
-use super::card::{card_text_layout, draw_card_contenu, CardLayout, TextCard};
+use super::card::{card_text_layout, draw_card_contenu, CardLayout, Contenants, TextCard};
 use super::pass::{Clip, Pass, SELECTION_RING};
 use super::richtext::TextMode;
 use super::scale::WorldScale;
@@ -350,7 +350,7 @@ impl Regime {
         id: &str,
         (x, y, w, h): (f64, f64, f32, f32),
         (corps, teinte): (&str, (u8, u8, u8)),
-        edition: Option<&crate::renderer::TextEditSession>,
+        (edition, contenants): (Option<&crate::renderer::TextEditSession>, &Contenants<'_>),
     ) -> Option<Pieces> {
         // MODE-1 : une carte qu'on corrige montre ses signes, une carte qu'on lit ne les
         // montre pas -- et le decoupage en lignes n'est pas le meme dans les deux modes.
@@ -387,6 +387,7 @@ impl Regime {
                 taille: (w, h),
                 corps: corps.to_string(),
                 teinte,
+                fond: contenants.fond_en((sx + vue.width / 2.0, sy + vue.height / 2.0)),
                 edition: edition.cloned(),
             },
         ))
@@ -453,6 +454,7 @@ impl Composant {
                 taille,
                 corps,
                 teinte,
+                fond,
                 edition,
             } => {
                 // `world_to_screen` vaut `monde x echelle + vue` : la vue qui place le coin
@@ -483,6 +485,7 @@ impl Composant {
                         size: *taille,
                         body: corps,
                         tint: *teinte,
+                        fond: *fond,
                         // La selection se montre au-dessus, jamais dans la texture.
                         selected: false,
                         editing: edition.as_ref(),

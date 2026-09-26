@@ -67,7 +67,7 @@ use super::scale::WorldScale;
 use super::SymbioticHueCache;
 use crate::canvas::world_to_screen;
 use crate::params::ViewPass;
-use glucose_core::membrane_forme::Arrondi;
+
 use glucose_core::quadtree::Visibles;
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, Viewport};
@@ -450,11 +450,9 @@ pub(crate) fn halo_geometry(
         right: sx + w + spread,
         bottom: sy + h + spread,
         sigma: scale.world(eclat.sigma()),
-        carte: Some(Arrondi::nouveau(
-            sx,
-            sy,
-            w,
-            h,
+        carte: Some(super::card::forme_de_la_carte(
+            (sx, sy),
+            (w, h),
             scale.world(super::card::CORNER_RADIUS),
         )),
     };

@@ -226,7 +226,15 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// lieu du remplissage de `tiny-skia`, et l'anneau d'une carte sélectionnée passe au-dessus du
 /// contenu. 86 986 pixels changent, **au plus deux niveaux**, tous au contour des cartes (l'arrondi
 /// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
-const EMPREINTE_TEMOIN: &str = "8f9af9596f89bcab";
+/// **Puis, le 26/09 au soir** (LUEUR-3) : la carte peint son fond — le canevas vu au travers
+/// de ses membranes — sous sa brume, et sa lueur passe devant les photos ; la carte se pose sur
+/// la grille de ses glyphes. 27 353 pixels changent, localisés sur l'écart amplifié quarante
+/// fois : le bord des cartes (un ou deux niveaux, la grille des glyphes) ; les points de la
+/// grille, qui ne passent plus sous le texte ; la lueur des cartes, qui passe devant le bord de
+/// la membrane et le dossier, comme chez Tauri ; et la lueur d'une carte voisine, qui ne
+/// déborde plus dans la carte « Une formule » (au plus 43 niveaux). Regardés côte à côte et
+/// agrandis.
+const EMPREINTE_TEMOIN: &str = "4c9ed1afd7421135";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -300,7 +308,13 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// lieu du remplissage de `tiny-skia`, et l'anneau d'une carte sélectionnée passe au-dessus du
 /// contenu. 86 071 pixels changent, **au plus deux niveaux**, tous au contour des cartes (l'arrondi
 /// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
-const EMPREINTE_TEMOIN_SELECTION: &str = "93fd4d74f8693c25";
+/// **Puis, le 26/09 au soir** (LUEUR-3) : la carte peint son fond — le canevas vu au travers
+/// de ses membranes — sous sa brume, et sa lueur passe devant les photos. 56 504 pixels
+/// changent, dont 33 642 de plus de cinq niveaux : presque tous sous la carte « Une formule,
+/// seule sur sa ligne », qu'une photo en chemin penchée traverse — son libellé se lisait **à
+/// travers la formule**, il est caché ; et la lueur de la carte, qui passe devant la photo.
+/// Le reste : les points de la grille sous les cartes. Regardés côte à côte.
+const EMPREINTE_TEMOIN_SELECTION: &str = "5023f059f19c8583";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -364,7 +378,9 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// lieu du remplissage de `tiny-skia`, et l'anneau d'une carte sélectionnée passe au-dessus du
 /// contenu. 86 071 pixels changent, **au plus deux niveaux**, tous au contour des cartes (l'arrondi
 /// de leur bord) ; l'intérieur est identique. Regardés agrandis, la différence amplifiée cent fois.
-const EMPREINTE_TEMOIN_MENU: &str = "a560693d89a76563";
+/// **Puis, le 26/09 au soir** (LUEUR-3) : les mêmes 56 504 pixels que la scène sélectionnée,
+/// sous le menu — la carte qu'une photo penchée traverse cache désormais la photo.
+const EMPREINTE_TEMOIN_MENU: &str = "3be0419d6c399a6f";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {
