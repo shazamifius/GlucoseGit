@@ -64,3 +64,22 @@ fn test_free_slot_is_reused_after_remove() {
     assert!(hit.contains("b"));
     assert!(!hit.contains("a"));
 }
+
+/// **Une photo tournée se range par son englobante** : le coin qui dépasse de sa boîte droite
+/// est de la photo, et une requête qui ne touche que lui la trouve (FLECHE-5, et le tri des
+/// visibles).
+#[test]
+fn test_une_photo_tournee_se_range_par_son_englobante() {
+    let mut board = crate::types::Board::new("b", "tableau");
+    let mut img = crate::types::BoardImage::new("i", 0.0, 0.0, 3000.0, 20.0);
+    img.rotation = std::f64::consts::FRAC_PI_2;
+    board.images.push(img);
+    let mut sh = SpatialHash::new(1000.0);
+    sh.index_board(&board);
+    // Debout, la photo monte à 1 500 unités ; droite, elle n'en dépasserait pas 10.
+    assert!(
+        sh.query_rect_refs(-50.0, 1200.0, 50.0, 1400.0, 0.0)
+            .contains("i"),
+        "le haut de la photo debout"
+    );
+}

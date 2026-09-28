@@ -22,7 +22,10 @@ impl Hasard {
 }
 
 fn se_touchent(r: Rect, zone: Rect) -> bool {
-    r.left <= zone.right() && zone.left <= r.right() && r.top <= zone.bottom() && zone.top <= r.bottom()
+    r.left <= zone.right()
+        && zone.left <= r.right()
+        && r.top <= zone.bottom()
+        && zone.top <= r.bottom()
 }
 
 /// L'index du test : une liste, interrogée exhaustivement.
@@ -62,24 +65,17 @@ fn dedans(p: Point, r: Rect, ecart: f64) -> bool {
 }
 
 /// **La recherche à plat** : tous les obstacles connus d'avance, tous les coins, Dijkstra.
-/// Rend la longueur du plus court chemin, ou rien s'il n'y en a pas.
-fn plus_court_a_plat(depart: Bout, arrivee: Bout, obstacles: &[Rect]) -> Option<f64> {
-    let (a, b) = (depart.point, arrivee.point);
+/// Rend la longueur du plus court chemin et ce chemin, ou rien s'il n'y en a pas.
+fn plus_court_a_plat(a: Point, b: Point, obstacles: &[Rect]) -> Option<(f64, Vec<Point>)> {
     let boites: Vec<Boite> = obstacles
         .iter()
         .map(|r| Boite::de(*r, ECART))
         .filter(|o| !o.contient(a) && !o.contient(b))
         .collect();
-    let propre = |r: Option<Rect>, autre: Point| {
-        r.map(|r| Boite::de(r, ECART))
-            .filter(|o| !o.contient(autre))
-    };
-    let propres = [propre(depart.boite, b), propre(arrivee.boite, a)];
-    let toutes: Vec<Boite> = boites.iter().chain(propres.iter().flatten()).copied().collect();
     let mut sommets = vec![a, b];
-    for o in &toutes {
+    for o in &boites {
         for c in o.coins() {
-            if !toutes.iter().any(|x| x.contient(c)) {
+            if !boites.iter().any(|x| x.contient(c)) {
                 sommets.push(c);
             }
         }
@@ -87,11 +83,10 @@ fn plus_court_a_plat(depart: Bout, arrivee: Bout, obstacles: &[Rect]) -> Option<
     let voit = |i: usize, j: usize| {
         let (p, q) = (sommets[i], sommets[j]);
         !boites.iter().any(|o| o.traversee(p, q))
-            && !(propres[0].is_some_and(|o| i != 0 && j != 0 && o.traversee(p, q)))
-            && !(propres[1].is_some_and(|o| i != 1 && j != 1 && o.traversee(p, q)))
     };
     let n = sommets.len();
     let mut d = vec![f64::INFINITY; n];
+    let mut avant = vec![0; n];
     let mut fait = vec![false; n];
     d[0] = 0.0;
     loop {
@@ -99,12 +94,21 @@ fn plus_court_a_plat(depart: Bout, arrivee: Bout, obstacles: &[Rect]) -> Option<
             .filter(|&k| !fait[k] && d[k].is_finite())
             .min_by(|&x, &y| d[x].total_cmp(&d[y]))?;
         if u == 1 {
-            return Some(d[1]);
+            let mut chemin = vec![b];
+            let mut k = 1;
+            while k != 0 {
+                k = avant[k];
+                chemin.push(sommets[k]);
+            }
+            chemin.reverse();
+            return Some((d[1], chemin));
         }
         fait[u] = true;
         for v in 0..n {
-            if !fait[v] && voit(u, v) {
-                d[v] = d[v].min(d[u] + distance(sommets[u], sommets[v]));
+            let par_u = d[u] + distance(sommets[u], sommets[v]);
+            if !fait[v] && par_u < d[v] && voit(u, v) {
+                d[v] = par_u;
+                avant[v] = u;
             }
         }
     }
@@ -115,10 +119,7 @@ fn plus_court_a_plat(depart: Bout, arrivee: Bout, obstacles: &[Rect]) -> Option<
 fn test_rien_ne_gene_la_fleche_va_droit() {
     let obstacles = [Rect::new(0.0, 200.0, 100.0, 100.0)];
     let mut requete = requete_sur(&obstacles);
-    let bout = |x| Bout {
-        point: (x, 0.0),
-        boite: None,
-    };
+    let bout = |x| (x, 0.0);
     assert!(itineraire(bout(0.0), bout(1000.0), &mut requete).is_empty());
 }
 
@@ -128,22 +129,19 @@ fn test_rien_ne_gene_la_fleche_va_droit() {
 fn test_un_bloc_au_milieu_se_contourne_par_ses_coins() {
     let obstacles = [Rect::new(400.0, -150.0, 200.0, 200.0)];
     let mut requete = requete_sur(&obstacles);
-    let bout = |x| Bout {
-        point: (x, 0.0),
-        boite: None,
-    };
+    let bout = |x| (x, 0.0);
     let etapes = itineraire(bout(0.0), bout(1000.0), &mut requete);
     assert_eq!(etapes, vec![(388.0, 62.0), (612.0, 62.0)]);
 }
 
-/// **Le chemin est le plus court, et il ne traverse rien** — sur trois cents scènes tirées au
-/// hasard, avec ou sans boîte aux bouts. La recherche paresseuse trouve exactement la longueur
+/// **Le chemin est le plus court, et il ne traverse rien** — sur deux mille scènes tirées au
+/// hasard. La recherche paresseuse trouve exactement la longueur
 /// de la recherche à plat, et ne lit qu'une partie des obstacles.
 #[test]
 fn test_le_chemin_est_le_plus_court_et_ne_traverse_rien() {
     let mut h = Hasard(42);
     let (mut detours, mut enfermes, mut lus, mut presents) = (0, 0, 0, 0);
-    for scene in 0..300 {
+    for scene in 0..2000 {
         let n = 3 + (h.suivant() * 22.0) as usize;
         let obstacles: Vec<Rect> = (0..n)
             .map(|_| {
@@ -151,31 +149,26 @@ fn test_le_chemin_est_le_plus_court_et_ne_traverse_rien() {
                 Rect::new(h.entre(0.0, 1000.0), h.entre(0.0, 1000.0), w, hh)
             })
             .collect();
-        let bout = |h: &mut Hasard| {
-            let p = (h.entre(0.0, 1000.0), h.entre(0.0, 1000.0));
-            let boite = (h.suivant() < 0.5).then(|| {
-                let (w, hh) = (h.entre(40.0, 120.0), h.entre(40.0, 120.0));
-                Rect::new(p.0 - w / 2.0, p.1 - hh / 2.0, w, hh)
-            });
-            Bout { point: p, boite }
-        };
-        let (depart, arrivee) = (bout(&mut h), bout(&mut h));
+        let bout = |h: &mut Hasard| (h.entre(0.0, 1000.0), h.entre(0.0, 1000.0));
+        let (a, b) = (bout(&mut h), bout(&mut h));
         let mut compte = 0;
         let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| {
             let avant = sortie.len();
             sortie.extend(obstacles.iter().copied().filter(|r| se_touchent(*r, zone)));
             compte += sortie.len() - avant;
         };
-        let etapes = itineraire(depart, arrivee, &mut requete);
-        let chemin = chemin_complet(depart.point, &etapes, arrivee.point);
-        let direct = distance(depart.point, arrivee.point);
-        let optimum = plus_court_a_plat(depart, arrivee, &obstacles);
-        match optimum {
-            Some(optimum) if (optimum - direct).abs() > 1e-9 => {
+        let etapes = itineraire(a, b, &mut requete);
+        let chemin = chemin_complet(a, &etapes, b);
+        let direct = distance(a, b);
+        let optimum = plus_court_a_plat(a, b, &obstacles);
+        match &optimum {
+            Some((optimum, le_bon)) if (optimum - direct).abs() > 1e-9 => {
                 detours += 1;
                 assert!(
                     (longueur(&chemin) - optimum).abs() < 1e-6,
-                    "scène {scene} : {} contre l'optimum {optimum}",
+                    "scène {scene} : {} contre l'optimum {optimum}\n trouvé {chemin:?}\n le bon \
+                     {le_bon:?}\n départ {a:?}\n arrivée {b:?}\n obstacles \
+                     {obstacles:?}",
                     longueur(&chemin)
                 );
             }
@@ -189,7 +182,6 @@ fn test_le_chemin_est_le_plus_court_et_ne_traverse_rien() {
             continue;
         }
         // Rien de traversé, vérifié sans le prédicat du module.
-        let (a, b) = (depart.point, arrivee.point);
         for (k, s) in chemin.windows(2).enumerate() {
             for r in &obstacles {
                 if !dedans(a, *r, ECART) && !dedans(b, *r, ECART) {
@@ -199,24 +191,14 @@ fn test_le_chemin_est_le_plus_court_et_ne_traverse_rien() {
                     );
                 }
             }
-            let propre = |bout: Bout, autre: Point, libre: bool| {
-                bout.boite.filter(|r| !libre && !dedans(autre, *r, ECART))
-            };
-            let dernier = k + 2 == chemin.len();
-            for r in [propre(depart, b, k == 0), propre(arrivee, a, dernier)]
-                .into_iter()
-                .flatten()
-            {
-                assert!(
-                    !echantillon_dedans(s[0], s[1], r, ECART),
-                    "scène {scene} : le tronçon {k} traverse sa propre carte"
-                );
-            }
         }
     }
     assert!(detours > 50, "les scènes contournent vraiment : {detours}");
     assert!(enfermes < 30, "peu de bouts enfermés : {enfermes}");
-    assert!(lus < presents, "la recherche ne lit pas tout : {lus} sur {presents}");
+    assert!(
+        lus < presents,
+        "la recherche ne lit pas tout : {lus} sur {presents}"
+    );
 }
 
 /// **Un bloc qui contient un bout ne se contourne pas** : on ne sort pas d'où l'on est.
@@ -224,14 +206,8 @@ fn test_le_chemin_est_le_plus_court_et_ne_traverse_rien() {
 fn test_un_bloc_qui_contient_un_bout_ne_se_contourne_pas() {
     let obstacles = [Rect::new(-50.0, -50.0, 100.0, 100.0)];
     let mut requete = requete_sur(&obstacles);
-    let depart = Bout {
-        point: (0.0, 0.0),
-        boite: None,
-    };
-    let arrivee = Bout {
-        point: (1000.0, 0.0),
-        boite: None,
-    };
+    let depart = (0.0, 0.0);
+    let arrivee = (1000.0, 0.0);
     assert!(itineraire(depart, arrivee, &mut requete).is_empty());
 }
 
@@ -246,14 +222,8 @@ fn test_un_bout_enferme_va_droit() {
         Rect::new(100.0, -200.0, 100.0, 400.0),
     ];
     let mut requete = requete_sur(&obstacles);
-    let depart = Bout {
-        point: (0.0, 0.0),
-        boite: None,
-    };
-    let arrivee = Bout {
-        point: (1000.0, 0.0),
-        boite: None,
-    };
+    let depart = (0.0, 0.0);
+    let arrivee = (1000.0, 0.0);
     assert!(plus_court_a_plat(depart, arrivee, &obstacles).is_none());
     assert!(itineraire(depart, arrivee, &mut requete).is_empty());
 }
@@ -263,7 +233,14 @@ fn test_un_bout_enferme_va_droit() {
 #[test]
 fn test_seul_le_voisinage_du_trajet_est_lu() {
     let obstacles: Vec<Rect> = (0..10_000)
-        .map(|k| Rect::new((k % 100) as f64 * 50.0, 5000.0 + (k / 100) as f64 * 50.0, 40.0, 40.0))
+        .map(|k| {
+            Rect::new(
+                (k % 100) as f64 * 50.0,
+                5000.0 + (k / 100) as f64 * 50.0,
+                40.0,
+                40.0,
+            )
+        })
         .collect();
     let mut lus = 0;
     let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| {
@@ -271,16 +248,14 @@ fn test_seul_le_voisinage_du_trajet_est_lu() {
         sortie.extend(obstacles.iter().copied().filter(|r| se_touchent(*r, zone)));
         lus += sortie.len() - avant;
     };
-    let bout = |x| Bout {
-        point: (x, 0.0),
-        boite: None,
-    };
+    let bout = |x| (x, 0.0);
     assert!(itineraire(bout(0.0), bout(5000.0), &mut requete).is_empty());
     assert_eq!(lus, 0);
 }
 
-/// **Un dédale a un coût borné** : une mosaïque serrée de quarante mille blocs, le départ dans un
-/// trou au milieu. Aucun chemin ; la recherche s'arrête à son budget, et la flèche va droit.
+/// **Un bout enfermé dans une mosaïque se reconnaît vite** : quarante mille blocs serrés, le
+/// départ dans un trou au milieu. Aucun chemin : la recherche le sait après avoir lu une petite
+/// part de la mosaïque — trois cents blocs mesurés —, et la flèche va droit.
 #[test]
 fn test_un_dedale_coute_un_budget_borne() {
     let obstacles: Vec<Rect> = (0..40_000)
@@ -293,16 +268,14 @@ fn test_un_dedale_coute_un_budget_borne() {
         sortie.extend(obstacles.iter().copied().filter(|r| se_touchent(*r, zone)));
         lus += sortie.len() - avant;
     };
-    let depart = Bout {
-        point: (5022.5, 5022.5),
-        boite: None,
-    };
-    let arrivee = Bout {
-        point: (20_000.0, 5022.5),
-        boite: None,
-    };
+    let depart = (5022.5, 5022.5);
+    let arrivee = (20_000.0, 5022.5);
     assert!(itineraire(depart, arrivee, &mut requete).is_empty());
-    assert!(lus <= BUDGET, "{lus} obstacles lus");
+    assert!(
+        lus < obstacles.len() / 10,
+        "{lus} obstacles lus sur {}",
+        obstacles.len()
+    );
 }
 
 /// **Une courbe qui mordrait se resserre**, et ne mord plus : l'épingle à cheveux de
@@ -345,7 +318,10 @@ fn test_longer_n_est_pas_traverser() {
     };
     assert!(!o.traversee((-5.0, 0.0), (15.0, 0.0)), "le long du bord");
     assert!(!o.traversee((-5.0, 5.0), (0.0, 10.0)), "jusqu'au coin");
-    assert!(o.traversee((-1.0, 11.0), (1.0, 9.0)), "couper un coin, c'est traverser");
+    assert!(
+        o.traversee((-1.0, 11.0), (1.0, 9.0)),
+        "couper un coin, c'est traverser"
+    );
     assert!(o.traversee((-5.0, 5.0), (15.0, 5.0)), "de part en part");
     assert!(o.traversee((5.0, 5.0), (5.0, 6.0)), "dedans");
     assert!(!o.traversee((-5.0, -5.0), (-1.0, 20.0)), "à côté");

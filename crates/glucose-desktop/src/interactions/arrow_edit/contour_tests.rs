@@ -137,7 +137,11 @@ fn test_fleche_5_l_itineraire_se_cherche_une_fois_par_etat() {
     for _ in 0..10 {
         chemin(&app);
     }
-    assert_eq!(app.renderer.itineraires.recherches(), avant, "rien de neuf à chercher");
+    assert_eq!(
+        app.renderer.itineraires.recherches(),
+        avant,
+        "rien de neuf à chercher"
+    );
     let board = app.store.project.active_board_id.clone();
     app.store.set_selected_annotation_ids(vec!["o".into()]);
     app.store.move_selected(&board, 0.0, 500.0);
@@ -161,10 +165,18 @@ fn test_fleche_5_elle_s_ecarte_pendant_qu_on_glisse() {
     app.store.begin_live_edit();
     app.store.move_selected(&board, 0.0, 500.0);
     app.une_image_sans_fenetre((1200, 800));
-    assert_eq!(chemin(&app).len(), 2, "la carte partie : droit, en plein geste");
+    assert_eq!(
+        chemin(&app).len(),
+        2,
+        "la carte partie : droit, en plein geste"
+    );
     app.store.move_selected(&board, 0.0, -500.0);
     app.une_image_sans_fenetre((1200, 800));
-    assert_eq!(chemin(&app).len(), 4, "la carte revenue : le détour, en plein geste");
+    assert_eq!(
+        chemin(&app).len(),
+        4,
+        "la carte revenue : le détour, en plein geste"
+    );
     app.store.end_live_edit();
 }
 
@@ -173,7 +185,10 @@ fn test_fleche_5_elle_s_ecarte_pendant_qu_on_glisse() {
 fn test_fleche_5_un_clic_sur_une_etape_ne_fige_rien() {
     let mut app = application();
     let etape = chemin(&app)[1];
-    assert!(app.begin_arrow_bend(etape.0, etape.1), "la poignée est prise");
+    assert!(
+        app.begin_arrow_bend(etape.0, etape.1),
+        "la poignée est prise"
+    );
     app.finish_bend();
     assert!(coudes(&app).is_empty(), "aucun coude : {:?}", coudes(&app));
 }
@@ -237,8 +252,11 @@ fn mesure_du_contournement() {
         b.folders.clear();
         for k in 0..colonnes * rangees {
             let (i, j) = ((k % colonnes) as f64, (k / colonnes) as f64);
-            b.annotations
-                .push(carte(&format!("c{k}"), (i * 300.0, j * 200.0), (160.0, 80.0)));
+            b.annotations.push(carte(
+                &format!("c{k}"),
+                (i * 300.0, j * 200.0),
+                (160.0, 80.0),
+            ));
         }
         for n in 0..2000 {
             let rangee = (n * 7) % rangees;
@@ -246,9 +264,15 @@ fn mesure_du_contournement() {
             // La moitié traverse deux à cinq cartes de sa rangée ; l'autre descend d'une
             // rangée, sans rien traverser.
             let (s, t) = if n % 2 == 0 {
-                (rangee * colonnes + colonne, rangee * colonnes + colonne + 3 + n % 3)
+                (
+                    rangee * colonnes + colonne,
+                    rangee * colonnes + colonne + 3 + n % 3,
+                )
             } else {
-                (rangee * colonnes + colonne, ((rangee + 1) % rangees) * colonnes + colonne)
+                (
+                    rangee * colonnes + colonne,
+                    ((rangee + 1) % rangees) * colonnes + colonne,
+                )
             };
             let mut f = Annotation::arrow(format!("f{n}"), 0.0, 0.0, 0.0, 0.0);
             if let Annotation::Arrow {
@@ -289,7 +313,10 @@ fn mesure_du_contournement() {
         .collect();
     couts.sort_by(|a, b| b.0.total_cmp(&a.0));
     let total: f64 = couts.iter().map(|c| c.0).sum();
-    eprintln!("MESURE total {total:.0} µs ; les plus chères : {:?}", &couts[..8]);
+    eprintln!(
+        "MESURE total {total:.0} µs ; les plus chères : {:?}",
+        &couts[..8]
+    );
     eprintln!("MESURE médiane {:.1} µs", couts[couts.len() / 2].0);
     app.renderer.itineraires.oublier();
     let (froid, etapes) = lire(&app);
@@ -315,4 +342,205 @@ fn mesure_du_contournement() {
         chaud.as_secs_f64() * 1e6 / fleches.len() as f64,
     );
     assert!(etapes > 1000, "les flèches contournent vraiment");
+}
+
+/// La scène d'épreuve, plus une carte « loin », à l'écart de tout, et une seconde flèche droite
+/// « g » de « s2 » à « t2 », sous la première.
+fn application_a_deux_fleches() -> GlucoseApp {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    for a in [
+        carte("loin", (0.0, 2000.0), (100.0, 60.0)),
+        carte("s2", (0.0, 600.0), (100.0, 60.0)),
+        carte("t2", (600.0, 600.0), (100.0, 60.0)),
+    ] {
+        app.store.add_annotation(&board, a);
+    }
+    let mut g = Annotation::arrow("g", 50.0, 630.0, 650.0, 630.0);
+    if let Annotation::Arrow {
+        source_id,
+        target_id,
+        ..
+    } = &mut g
+    {
+        *source_id = Some("s2".into());
+        *target_id = Some("t2".into());
+    }
+    app.store.add_annotation(&board, g);
+    app.store.journal.clear();
+    app.une_image_sans_fenetre((1200, 800));
+    app
+}
+
+fn chemin_de(app: &GlucoseApp, id: &str) -> Vec<(f64, f64)> {
+    let board = app.store.active_board().expect("un tableau");
+    let f = board.annotations.iter().find(|a| a.id() == id).expect(id);
+    glucose_core::arrow::path_with(f, noeuds(app)).expect("un chemin")
+}
+
+/// **Pendant un glisser, une carte sans rapport ne fait rien chercher** : ni « f » ni « g » ne
+/// l'ont lue, elle ne barre aucun de leurs chemins.
+#[test]
+fn test_fleche_5_un_glisser_sans_rapport_ne_cherche_rien() {
+    let mut app = application_a_deux_fleches();
+    let (f, g) = (chemin_de(&app, "f"), chemin_de(&app, "g"));
+    let avant = app.renderer.itineraires.recherches();
+    let board = app.store.project.active_board_id.clone();
+    app.store.set_selected_annotation_ids(vec!["loin".into()]);
+    app.store.begin_live_edit();
+    for _ in 0..5 {
+        app.store.move_selected(&board, 40.0, 10.0);
+        app.une_image_sans_fenetre((1200, 800));
+        assert_eq!(
+            (chemin_de(&app, "f"), chemin_de(&app, "g")),
+            (f.clone(), g.clone())
+        );
+    }
+    app.store.end_live_edit();
+    assert_eq!(
+        app.renderer.itineraires.recherches(),
+        avant,
+        "aucune recherche pendant le geste"
+    );
+}
+
+/// **Une carte glissée sur le chemin d'une flèche la fait contourner, en plein geste** — et
+/// seule cette flèche-là se recherche.
+#[test]
+fn test_fleche_5_une_carte_glissee_sur_un_chemin_le_fait_contourner() {
+    let mut app = application_a_deux_fleches();
+    assert_eq!(chemin_de(&app, "g").len(), 2, "g va droit");
+    let f = chemin_de(&app, "f");
+    let avant = app.renderer.itineraires.recherches();
+    let board = app.store.project.active_board_id.clone();
+    app.store.set_selected_annotation_ids(vec!["loin".into()]);
+    app.store.begin_live_edit();
+    // De (0, 2000) à (300, 600) : en travers du chemin de g.
+    app.store.move_selected(&board, 300.0, -1400.0);
+    app.une_image_sans_fenetre((1200, 800));
+    assert_eq!(
+        chemin_de(&app, "g").len(),
+        4,
+        "g contourne la carte glissée"
+    );
+    assert_eq!(chemin_de(&app, "f"), f, "f n'a pas bougé");
+    assert_eq!(
+        app.renderer.itineraires.recherches(),
+        avant + 1,
+        "seule g s'est recherchée"
+    );
+    app.store.end_live_edit();
+}
+
+/// **Un geste annulé rend le détour** : le document revient à l'état d'avant sans nouvelle
+/// version, et ce qui s'est cherché pendant le geste ne vaut plus.
+#[test]
+fn test_fleche_5_un_geste_annule_rend_le_detour() {
+    let mut app = application();
+    let detour = chemin(&app);
+    let board = app.store.project.active_board_id.clone();
+    app.store.set_selected_annotation_ids(vec!["o".into()]);
+    app.store.begin_live_edit();
+    app.store.move_selected(&board, 0.0, 500.0);
+    app.une_image_sans_fenetre((1200, 800));
+    assert_eq!(chemin(&app).len(), 2, "la carte partie : droit");
+    assert!(app.store.cancel_live_edit());
+    app.une_image_sans_fenetre((1200, 800));
+    assert_eq!(chemin(&app), detour, "la carte revenue : le détour d'avant");
+}
+
+/// **Une photo penchée se contourne par sa boîte englobante** : penchée d'un huitième de tour,
+/// elle déborde largement de sa boîte droite, et la flèche passe au large de tout ce qu'elle
+/// couvre.
+#[test]
+fn test_fleche_5_une_photo_penchee_se_contourne() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    app.store.remove_annotations(&board, &["o"]);
+    let mut photo = glucose_core::types::BoardImage::new("p", 350.0, 30.0, 220.0, 40.0);
+    photo.rotation = std::f64::consts::FRAC_PI_4;
+    let englobante = photo.bounds();
+    if let Some(b) = app.store.active_board_mut() {
+        b.images.push(photo);
+    }
+    app.store.bump_version();
+    app.une_image_sans_fenetre((1200, 800));
+    let c = chemin(&app);
+    assert!(c.len() > 2, "la photo se contourne : {c:?}");
+    let zone = (
+        englobante.left,
+        englobante.top,
+        englobante.width,
+        englobante.height,
+    );
+    for s in c.windows(2) {
+        assert!(
+            !traverse(s[0], s[1], zone),
+            "{s:?} traverse la photo penchée"
+        );
+    }
+}
+
+/// **Une flèche pliée à la main passe par où la main l'a dit** : elle ne contourne pas, même
+/// quand son chemin traverse une carte.
+#[test]
+fn test_fleche_5_une_fleche_pliee_a_la_main_ne_contourne_pas() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    app.store.insert_arrow_bend(&board, "f", 0, (300.0, 30.0));
+    app.une_image_sans_fenetre((1200, 800));
+    let c = chemin(&app);
+    assert_eq!(c.len(), 3, "le seul coude posé : {c:?}");
+    assert_eq!(c[1], (300.0, 30.0));
+}
+
+/// **Figer ne touche pas une flèche déjà pliée** : ce sont ses coudes que la main tient.
+#[test]
+fn test_fleche_5_figer_ne_touche_pas_une_fleche_pliee() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    app.store.insert_arrow_bend(&board, "f", 0, (300.0, 30.0));
+    app.store
+        .figer_arrow_route(&board, "f", &[(1.0, 2.0), (3.0, 4.0)]);
+    assert_eq!(coudes(&app), vec![(300.0, 30.0)]);
+}
+
+/// **Un nœud posé sur un bout ne relance rien** : la recherche l'ignorerait — on ne sort pas
+/// d'une boîte où l'on est déjà —, l'itinéraire tient donc tel quel.
+#[test]
+fn test_fleche_5_un_noeud_pose_sur_un_bout_ne_relance_rien() {
+    let mut app = application_a_deux_fleches();
+    let f = chemin_de(&app, "f");
+    let avant = app.renderer.itineraires.recherches();
+    let board = app.store.project.active_board_id.clone();
+    app.store.set_selected_annotation_ids(vec!["loin".into()]);
+    app.store.begin_live_edit();
+    // De (0, 2000) à (0, 0) : exactement sur la carte de départ de f.
+    app.store.move_selected(&board, 0.0, -2000.0);
+    app.une_image_sans_fenetre((1200, 800));
+    assert_eq!(chemin_de(&app, "f"), f);
+    assert_eq!(
+        app.renderer.itineraires.recherches(),
+        avant,
+        "rien à chercher"
+    );
+    app.store.end_live_edit();
+}
+
+/// **Une flèche libre contourne aussi** : sans carte à ses bouts, elle évite ce qu'elle
+/// traverserait, comme chez Tauri.
+#[test]
+fn test_fleche_5_une_fleche_libre_contourne_aussi() {
+    let mut app = application();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::arrow("libre", 200.0, 30.0, 400.0, 30.0));
+    app.une_image_sans_fenetre((1200, 800));
+    let c = chemin_de(&app, "libre");
+    assert_eq!(
+        (c[0], c[c.len() - 1]),
+        ((200.0, 30.0), (400.0, 30.0)),
+        "ses bouts"
+    );
+    assert_eq!(c.len(), 4, "la carte « o » contournée : {c:?}");
 }

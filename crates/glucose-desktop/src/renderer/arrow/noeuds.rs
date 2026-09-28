@@ -6,11 +6,11 @@
 //! une flèche ce qu'elle doit contourner (FLECHE-5) : ce que l'index trouve le long de son
 //! chemin, retenu d'une lecture à l'autre.
 
+use super::Itineraires;
 use crate::renderer::card::{card_text_layout, text_box, TEXT_ORIGIN};
 use crate::renderer::math::MathRenderer;
 use crate::renderer::richtext::{TextLayout, TextMode};
 use crate::typography::Typography;
-use super::Itineraires;
 use glucose_core::arrow::{node_rect, node_rect_indexe, Itineraire, Noeuds};
 use glucose_core::geometry::Rect;
 use glucose_core::quadtree::{noeud_au_rang, Noeud, SpatialHash, SuiviDuGeste};
@@ -65,7 +65,7 @@ impl NoeudsDuRendu<'_> {
 /// **La boîte qu'une flèche contourne**, si ce nœud en est un : une carte, une note, une
 /// photo (tournée comprise), un dossier. Une flèche n'en contourne pas une autre, et elle sort
 /// d'une membrane pour relier deux domaines.
-fn obstacle(noeud: Noeud<'_>) -> Option<Rect> {
+pub(crate) fn obstacle(noeud: Noeud<'_>) -> Option<Rect> {
     match noeud {
         Noeud::Image(i) => Some(i.bounds()),
         Noeud::Annotation(a @ (Annotation::Text { .. } | Annotation::Sticky { .. })) => a.rect(),
@@ -127,9 +127,9 @@ impl Noeuds for NoeudsDuRendu<'_> {
         Some(f64::from(TEXT_ORIGIN.1) + (haut + bas) / (2.0 * n))
     }
 
-    /// Ce que l'index range dans la zone et qu'une flèche contourne — sauf ce qu'elle relie.
+    /// Ce que l'index range dans la zone et qu'une flèche contourne.
     /// Sans index, rien : la flèche va droit.
-    fn obstacles(&self, zone: Rect, sauf: [Option<&str>; 2], sortie: &mut Vec<Rect>) {
+    fn obstacles(&self, zone: Rect, sortie: &mut Vec<Rect>) {
         let Some(index) = self.index else {
             return;
         };
@@ -139,14 +139,21 @@ impl Noeuds for NoeudsDuRendu<'_> {
         if let Some(c) = self.contournement {
             c.geste.au_present(&mut rangs, self.board);
         }
-        sortie.extend(
-            rangs
-                .into_iter()
-                .filter_map(|r| noeud_au_rang(self.board, r))
-                .filter(|n| !sauf.contains(&Some(n.id())))
-                .filter_map(obstacle)
-                .filter(|b| b.left <= x1 && zone.left <= b.right() && b.top <= y1 && zone.top <= b.bottom()),
-        );
+        let dans_la_zone = |b: &Rect| {
+            b.left <= x1 && zone.left <= b.right() && b.top <= y1 && zone.top <= b.bottom()
+        };
+        for rang in rangs {
+            let Some(noeud) = noeud_au_rang(self.board, rang) else {
+                continue;
+            };
+            if let Some(boite) = obstacle(noeud).filter(dans_la_zone) {
+                // Ce qu'un itinéraire a lu décide de ce qui l'oublie pendant un geste.
+                if let Some(c) = self.contournement {
+                    c.itineraires.noter(rang);
+                }
+                sortie.push(boite);
+            }
+        }
     }
 
     fn itineraire(

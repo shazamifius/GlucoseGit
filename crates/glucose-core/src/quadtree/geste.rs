@@ -110,6 +110,35 @@ impl SuiviDuGeste {
         };
     }
 
+    /// **Où en est le présent** : le numéro du geste suivi (zéro hors geste), combien de ses
+    /// écritures ont été lues, et les longueurs des trois listes du tableau — ce qui dit ce
+    /// qu'un rang désigne. Ce qui retient quelque chose du présent (les itinéraires des
+    /// flèches, FLECHE-5) sait ainsi quand il a changé.
+    pub fn etat(&self, board: &Board) -> (u64, usize, [usize; 3]) {
+        let longueurs = [
+            board.images.len(),
+            board.annotations.len(),
+            board.folders.len(),
+        ];
+        (self.numero, self.lues, longueurs)
+    }
+
+    /// **Les rangs, au présent, de ce que le geste en cours a touché** — rien hors geste. Une
+    /// flèche qui contourne s'en sert pour savoir si son itinéraire tient encore (FLECHE-5).
+    pub fn touches_au_present(&self, board: &Board) -> Vec<u32> {
+        if self.numero == 0 {
+            return Vec::new();
+        }
+        let (i, a) = (board.images.len() as u32, board.annotations.len() as u32);
+        let [images, annotations, dossiers] = &self.touches;
+        images
+            .iter()
+            .copied()
+            .chain(annotations.iter().map(|k| k + i))
+            .chain(dossiers.iter().map(|k| k + i + a))
+            .collect()
+    }
+
     /// Une écriture du geste, portée au compte de ce qu'il a touché.
     fn lire(&mut self, edit: &Edit, board: &Board) {
         match edit {

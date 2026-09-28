@@ -217,7 +217,9 @@ impl Cadrage {
 
 use super::Renderer;
 use crate::canvas::screen_to_world;
+use glucose_core::quadtree::noeud_au_rang;
 use glucose_core::store::Store;
+use glucose_core::types::Board;
 
 impl Renderer {
     /// Ou la vue tombe dans ce pixmap, et quels noeuds y apparaissent.
@@ -286,18 +288,33 @@ impl Renderer {
             return rangs;
         };
         let geste = store.journal.en_cours();
-        // Les itinéraires des flèches valent pour cet état du document, geste compris.
-        let (numero, ecrits) = geste.map_or((0, 0), |(n, e)| (n, e.len()));
-        self.itineraires.suivre((store.version, numero, ecrits));
-        if self
+        let lisible = self
             .suivi_du_geste
-            .completer(geste, board, &self.spatial_hash, &mut rangs)
-        {
-            return rangs;
+            .completer(geste, board, &self.spatial_hash, &mut rangs);
+        if !lisible {
+            self.spatial_hash.index_board(board);
+            self.suivi_du_geste.absorbe(geste, &self.spatial_hash);
+            self.itineraires.oublier();
+            rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0);
         }
-        self.spatial_hash.index_board(board);
-        self.suivi_du_geste.absorbe(geste, &self.spatial_hash);
-        self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0)
+        self.suivre_les_itineraires(store, board);
+        rangs
+    }
+
+    /// **Les itinéraires des flèches suivent l'état du document**, geste en cours compris
+    /// (FLECHE-5) : ce que le geste vient de toucher, lu au présent, oublie les itinéraires
+    /// qu'il concerne.
+    fn suivre_les_itineraires(&self, store: &Store, board: &Board) {
+        let suivi = &self.suivi_du_geste;
+        let (numero, ecrits, longueurs) = suivi.etat(board);
+        self.itineraires
+            .suivre((store.version, numero, ecrits, longueurs), || {
+                suivi
+                    .touches_au_present(board)
+                    .into_iter()
+                    .map(|r| (r, noeud_au_rang(board, r).and_then(super::arrow::obstacle)))
+                    .collect()
+            });
     }
 }
 

@@ -315,6 +315,96 @@ un seul passait au premier tour — les marges de classe — et a reçu son épr
 formule sort dans la couleur de la carte ; `\tag` (la numérotation à droite) ; `\sout` ; les
 filets pointillés (`\hdashline`) sortent pleins.
 
+**Son essai à l'écran (28/09), et ce qu'il m'apprend.** Je lui avais donné dix formules **sans**
+`$$ … $$` : la carte les a reconnues seule, ligne par ligne, et rendues en style « dans une
+phrase » (intégrale petite, bornes à côté) — juste pour ce mode, mais pas ce que je voulais lui
+montrer. Et trois défauts à examiner (§ 9) : `\begin{cases}` resté en source, un `\\` devenu
+`\`, deux formules hautes de lignes voisines qui se touchent.
+
+---
+
+## 8. Les flèches qui contournent (FLECHE-5)
+
+**Sa réponse** : *« tout le système que possède Tauri pour éviter que la flèche traverse une
+image n'existe pas ; on devrait avoir un algorithme super bien fait […] pour éviter les zones de
+texte, les autres images, ou TOUT autre élément de Glucose »*. Et, à ma question (un détour très
+long ou traverser ?) : *« je préfère qu'elle fasse le grand détour »*.
+
+**Ce que Tauri faisait** (`getDynamicRoute`, `ArrowSvgLayer.tsx`) : à chaque rendu et pour chaque
+flèche sans coude, la boîte la plus proche que le segment traverse, contournée par le plus court
+de douze chemins de coins, puis récursivement sur chaque morceau (dix niveaux). Glouton — le
+premier obstacle choisi décide —, et chaque flèche parcourt tous les nœuds à chaque image.
+
+**Ce qui est fait** (`glucose-core/src/arrow/contour.rs`) :
+
+* **Le plus court chemin**, pas un détour approché. Parmi des obstacles polygonaux, un plus court
+  chemin est une ligne brisée dont les sommets intérieurs sont des coins d'obstacles
+  (Lozano-Pérez et Wesley, 1979) : le **graphe de visibilité**, parcouru en A* (la distance à vol
+  d'oiseau ne surestime jamais). Les obstacles sont les boîtes des nœuds gonflées de l'écart qui
+  décolle déjà la pointe d'une flèche de son bloc (12, la marge de Tauri) : aucune constante
+  nouvelle.
+* **Ne regarder que ce que le chemin touche.** Le plus court chemin qui évite une partie des
+  obstacles, s'il n'en traverse aucun autre, est le plus court qui les évite tous. La recherche
+  part du segment droit, demande à l'index ce qu'il traverse, cherche, redemande — et s'arrête au
+  premier chemin libre. Dix mille nœuds loin du trajet ne sont jamais lus (épreuve).
+* **Obstacles** : cartes, notes, photos (penchées : par leur boîte englobante — que l'index range
+  désormais aussi, un coin penché qui dépassait n'y était pas), dossiers. Ni les flèches, ni les
+  membranes (on en sort pour relier deux domaines). Un obstacle qui contient un bout ne compte
+  pas : la source et la cible, et une carte posée sur une photo, se relient sans détour absurde.
+* **Toute flèche sans coude** contourne, libre ou reliée ; une flèche pliée à la main passe par où
+  la main l'a dit. Courbe, elle se **resserre** là où la courbe de Catmull-Rom mordrait un bloc.
+* **Une seule fonction** (`path_with`) donne le tracé : le dessin, le clic, les poignées et
+  l'étiquette voient le même détour — on vise la flèche là où elle passe (épreuve).
+* **Éditer un détour** : ses coins sont des poignées ordinaires. Le premier geste qui **change**
+  quelque chose fige l'itinéraire en coudes (glisser un coin, le retirer d'un double-clic, insérer
+  au milieu d'un tronçon), en une seule entrée d'annulation ; un simple clic ne fige rien.
+* **Retenu, et oublié exactement quand il faut** (`renderer/arrow/itineraires.rs`). Un itinéraire
+  se cherche une fois ; une nouvelle version du document l'oublie. Pendant un glisser, la version
+  n'avance pas : n'est oublié que l'itinéraire qui a **lu** un nœud déplacé, ou dont un nœud
+  déplacé **barre** désormais le chemin — la règle est exacte, par l'argument de la recherche
+  paresseuse. La flèche s'écarte de la carte qu'on glisse pendant qu'on la glisse ; les autres ne
+  coûtent rien (épreuve : cinq mouvements d'une carte sans rapport, zéro recherche). Un geste
+  annulé oublie tout.
+
+**Mes erreurs, dans l'ordre où la mesure les a trouvées** — elles valent d'être dites :
+
+1. *Deviner le coût au lieu de le mesurer.* Des flèches coûtaient 3 à 8 ms ; j'ai supposé les tests
+   de visibilité et écrit une grille (marche case par case, Amanatides et Woo) : **plus lent** —
+   un long segment traverse deux cents cases, deux cents consultations de table. Puis supposé
+   l'exploration, et écrit un élagage « fil tendu » : le coût n'a pas bougé, et l'optimalité s'est
+   perdue. Les traces ont montré la vraie cause. Les deux sont retirés.
+2. *Une règle fausse, que 300 scènes ne voyaient pas.* La source et la cible étaient des obstacles
+   pour tout tronçon sauf le premier et le dernier (« une flèche ne retraverse pas sa carte »).
+   Portée à 2 000 scènes, l'épreuve d'optimalité l'a réfutée deux fois : une règle qui change
+   d'un tronçon à l'autre fait plier le vrai plus court chemin **sur le bord** d'une carte, en un
+   point qui n'est le coin de rien — le graphe des coins n'est plus complet, et la recherche
+   paresseuse perd sa preuve. Retirée ; c'est aussi la règle de Tauri.
+3. *Un budget qui ne bornait rien.* Il ne comptait pas le travail de l'A* lui-même, et sa
+   documentation promettait « une milliseconde » sans mesure. Il compte tout désormais.
+4. *Des épreuves aveugles, trouvées en sabotant* (vingt sabotages) : le budget (l'épreuve le
+   comparait… à lui-même), le figement d'une flèche déjà pliée, « un nœud posé sur un bout ne
+   relance rien », et une exclusion de la source et de la cible que je croyais nécessaire — elle
+   était **redondante** avec la règle générale : retirée.
+
+**Ce qui le tient** : l'optimalité exacte contre une recherche à plat qui connaît tout d'avance,
+sur **20 000 scènes** tirées au hasard (2 000 dans la suite courante), et l'absence de traversée
+vérifiée par échantillonnage, indépendamment du prédicat du module ; seize épreuves de bout en
+bout par la vraie application ; les sabotages tombent tous, sauf le budget (§ 8.1).
+
+**Les mesures** (release, cette machine, `mesure_du_contournement`) : 42 000 nœuds, 2 000 flèches
+— médiane **5,6 µs** pour chercher un itinéraire, **moins d'1 µs** une fois retenu.
+
+### 8.1 Ce qui ne va pas encore : le mur de photos
+
+Une mosaïque serrée de 10 000 photos entre les deux bouts : la recherche apprend la mosaïque
+photo par photo et cherche à se faufiler entre chacune — **132 secondes** pour trouver le grand
+tour. Le budget l'arrête en 0,9 ms, et la flèche va droit : **le contraire de ce qu'il veut**. Et
+une flèche qui longe une colonne de deux cents cartes épuise aussi son budget (2 ms).
+
+La réponse juste n'est pas un budget plus grand : des photos trop proches pour qu'une flèche passe
+entre elles forment **un seul obstacle**, et un chemin ne tourne jamais à un coin posé sur le bord
+d'une voisine (ce n'est pas un coin convexe de leur union). C'est le prochain commit.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)

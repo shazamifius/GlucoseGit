@@ -237,7 +237,7 @@ mod itineraires;
 mod noeuds;
 pub use itineraires::{Epoque, Itineraires};
 pub use noeuds::Contournement;
-pub(crate) use noeuds::NoeudsDuRendu;
+pub(crate) use noeuds::{obstacle, NoeudsDuRendu};
 
 #[cfg(test)]
 mod tests;

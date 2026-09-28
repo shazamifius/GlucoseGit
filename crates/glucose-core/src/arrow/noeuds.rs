@@ -1,7 +1,6 @@
 //! **Ce qu'une flèche demande à ce qu'elle relie** : la boîte d'un nœud, la hauteur d'un
 //! passage (FLECHE-4), les obstacles d'une zone et la mémoire de ses itinéraires (FLECHE-5).
 
-use super::contour;
 use crate::geometry::Rect;
 use crate::types::TextAnchor;
 
@@ -28,9 +27,11 @@ pub trait Noeuds {
 
     /// **Les obstacles qu'une flèche rencontre dans cette zone** (FLECHE-5) : la boîte de
     /// chaque nœud qui la touche et qu'une flèche contourne — ni une flèche, ni une membrane
-    /// (une flèche en sort pour relier deux domaines), ni l'un des deux nœuds qu'elle relie
-    /// (`sauf`). Aucun par défaut : sans index pour les trouver, une flèche va droit.
-    fn obstacles(&self, _zone: Rect, _sauf: [Option<&str>; 2], _sortie: &mut Vec<Rect>) {}
+    /// (une flèche en sort pour relier deux domaines). La source et la cible n'ont pas à être
+    /// écartées : une flèche part de l'intérieur de sa source et arrive dans sa cible, et un
+    /// obstacle qui contient un bout ne se contourne pas. Aucun par défaut : sans index pour
+    /// les trouver, une flèche va droit.
+    fn obstacles(&self, _zone: Rect, _sortie: &mut Vec<Rect>) {}
 
     /// **Un itinéraire retenu d'un appel à l'autre** : `calcul` ne se fait que si cet
     /// itinéraire n'est pas déjà connu. Le dessin, le clic, les poignées et l'étiquette lisent
@@ -51,8 +52,8 @@ pub trait Noeuds {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Itineraire<'a> {
     pub fleche: &'a str,
-    pub depart: contour::Bout,
-    pub arrivee: contour::Bout,
+    pub depart: Bout,
+    pub arrivee: Bout,
     pub courbe: bool,
 }
 
@@ -79,8 +80,8 @@ impl Noeuds for &dyn Noeuds {
         (**self).hauteur_du_passage(id, ancres)
     }
 
-    fn obstacles(&self, zone: Rect, sauf: [Option<&str>; 2], sortie: &mut Vec<Rect>) {
-        (**self).obstacles(zone, sauf, sortie);
+    fn obstacles(&self, zone: Rect, sortie: &mut Vec<Rect>) {
+        (**self).obstacles(zone, sortie);
     }
 
     fn itineraire(
@@ -90,4 +91,13 @@ impl Noeuds for &dyn Noeuds {
     ) -> Vec<(f64, f64)> {
         (**self).itineraire(cle, calcul)
     }
+}
+
+/// Un bout de flèche : le point qu'elle vise, et la boîte du nœud qui le porte. L'itinéraire ne
+/// dépend que du point ; la courbe qui sort de la boîte, resserrée sur lui, dépend aussi de la
+/// boîte.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Bout {
+    pub point: (f64, f64),
+    pub boite: Option<Rect>,
 }

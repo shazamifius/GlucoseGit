@@ -23,15 +23,6 @@
 //! l'[`ECART`] : le chemin les longe à cette distance. Un A* le parcourt, guidé par la distance à
 //! vol d'oiseau, qui ne surestime jamais — le chemin trouvé est donc le plus court.
 //!
-//! # Un chemin tendu
-//!
-//! Un plus court chemin ne passe jamais tout droit par un coin, et ne tourne jamais du côté
-//! opposé à sa boîte : à chaque coin, il **s'enroule** autour d'elle, comme un fil tendu. Sans
-//! cette règle, une flèche qui longe une colonne de deux cents cartes voyait l'A* essayer
-//! chacun des deux cents coins alignés, tous presque aussi prometteurs — des millisecondes pour
-//! une seule flèche. La transition qui n'est pas tendue ne s'explore pas ; le chemin droit qui
-//! la remplace, lui, s'explore depuis le sommet d'avant.
-//!
 //! # Ne regarder que ce que le chemin touche
 //!
 //! Le plus court chemin qui évite **une partie** des obstacles, s'il n'en traverse aucun autre,
@@ -48,15 +39,21 @@
 //! * Un bout **enfermé** : aucun chemin n'existe, la flèche va droit.
 //! * Au-delà du [`BUDGET`] : un dédale n'est pas un détour. La flèche va droit, et son coût reste
 //!   borné quoi que porte le tableau.
+//! * La source et la cible de la flèche, comme chez Tauri : elle part de l'intérieur de l'une et
+//!   arrive dans l'autre — c'est la règle précédente, sans rien de plus.
 //!
-//! La source et la cible sont des obstacles comme les autres, sauf pour le tronçon qui part de
-//! l'une ou arrive à l'autre : une flèche ne traverse pas sa propre carte pour la contourner.
-
-mod grille;
+//! # Pourquoi la source et la cible ne sont pas des obstacles
+//!
+//! J'avais d'abord fait d'elles des obstacles pour tout tronçon sauf le premier et le dernier —
+//! une flèche ne retraverserait pas sa propre carte. Deux scènes sur deux mille tirées au
+//! hasard l'ont réfuté : une règle qui change d'un tronçon à l'autre fait plier le vrai plus
+//! court chemin **sur le bord** de la carte, en un point qui n'est le coin de rien. Le graphe des
+//! coins n'est plus complet, et un obstacle de plus peut raccourcir le meilleur chemin par des
+//! coins — ce qui ruine la recherche paresseuse. Sans cette règle, le problème est le plus court
+//! chemin entre des boîtes, et tout ce qui précède est démontré.
 
 use super::trace;
 use crate::geometry::Rect;
-use grille::Grille;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
@@ -80,18 +77,11 @@ pub const BUDGET: usize = 1 << 20;
 /// Ce qui répond « quels obstacles dans cette zone ? » : la boîte de chacun, **non gonflée**.
 pub type Requete<'r> = &'r mut dyn FnMut(Rect, &mut Vec<Rect>);
 
-/// Un bout de flèche : le point qu'elle vise, et la boîte du nœud qui le porte.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Bout {
-    pub point: Point,
-    pub boite: Option<Rect>,
-}
-
-/// **Les étapes par lesquelles une flèche de `depart` à `arrivee` passe pour ne rien
-/// traverser** — vide si elle va droit.
-pub fn itineraire(depart: Bout, arrivee: Bout, requete: Requete) -> Vec<Point> {
-    let mut recherche = Recherche::nouvelle(depart, arrivee, requete);
-    let mut chemin = vec![depart.point, arrivee.point];
+/// **Les étapes par lesquelles une flèche de `a` à `b` passe pour ne rien traverser** — vide si
+/// elle va droit. `requete` ne rend ni la source ni la cible de la flèche.
+pub fn itineraire(a: Point, b: Point, requete: Requete) -> Vec<Point> {
+    let mut recherche = Recherche::nouvelle(a, b, requete);
+    let mut chemin = vec![a, b];
     loop {
         match recherche.decouvrir(&chemin) {
             Some(false) => return chemin[1..chemin.len() - 1].to_vec(),
@@ -103,6 +93,20 @@ pub fn itineraire(depart: Bout, arrivee: Bout, requete: Requete) -> Vec<Point> {
             None => return Vec::new(),
         }
     }
+}
+
+/// **Ce bloc barrerait-il l'itinéraire `a → etapes → b` ?** — la règle même de la recherche :
+/// sa boîte gonflée de l'écart traversée par un tronçon, sauf si elle contient un bout.
+pub fn barre(a: Point, etapes: &[Point], b: Point, bloc: Rect) -> bool {
+    let o = Boite::de(bloc, ECART);
+    if o.contient(a) || o.contient(b) {
+        return false;
+    }
+    let chemin: Vec<Point> = std::iter::once(a)
+        .chain(etapes.iter().copied())
+        .chain(std::iter::once(b))
+        .collect();
+    chemin.windows(2).any(|s| o.traversee(s[0], s[1]))
 }
 
 /// Une boîte fermée `[x0, x1] × [y0, y1]`.
@@ -167,32 +171,14 @@ impl Boite {
         t0 <= t1 && self.contient((a.0 + dx * t, a.1 + dy * t))
     }
 
-    /// Les quatre coins, chacun avec la direction qui entre dans la boîte depuis lui.
-    fn coins(&self) -> [(Point, Point); 4] {
+    fn coins(&self) -> [Point; 4] {
         [
-            ((self.x0, self.y0), (1.0, 1.0)),
-            ((self.x1, self.y0), (-1.0, 1.0)),
-            ((self.x1, self.y1), (-1.0, -1.0)),
-            ((self.x0, self.y1), (1.0, -1.0)),
+            (self.x0, self.y0),
+            (self.x1, self.y0),
+            (self.x1, self.y1),
+            (self.x0, self.y1),
         ]
     }
-}
-
-/// **Le chemin `p → u → v` est-il tendu au coin `u` ?** — la boîte du coin étant du côté `q`.
-///
-/// Il l'est si les deux tronçons longent la boîte sans y entrer (chacun garde la boîte d'un
-/// seul côté de sa droite) et si le chemin tourne **vers** elle : il s'y enroule. Passer tout
-/// droit n'est pas tendu — le segment `p → v` fait le même chemin sans le coin.
-fn tendu(p: Point, u: Point, q: Point, v: Point) -> bool {
-    let d1 = (u.0 - p.0, u.1 - p.1);
-    if d1 == (0.0, 0.0) {
-        // Deux sommets confondus : le premier ne dit rien de la direction.
-        return true;
-    }
-    let d2 = (v.0 - u.0, v.1 - u.1);
-    let longe = |d: Point| (d.0 * q.0) * (d.1 * q.1) <= 0.0;
-    let croix = |a: Point, b: Point| a.0 * b.1 - a.1 * b.0;
-    longe(d1) && longe(d2) && croix(d1, d2) * croix(d1, q) > 0.0
 }
 
 fn distance(p: Point, q: Point) -> f64 {
@@ -239,32 +225,18 @@ impl PartialOrd for Candidat {
 struct Recherche<'r> {
     a: Point,
     b: Point,
-    /// Les boîtes gonflées de la source et de la cible — un obstacle pour tout tronçon qui ne
-    /// part pas de l'une ou n'arrive pas à l'autre.
-    propres: [Option<Boite>; 2],
     connues: Vec<Boite>,
-    /// Les obstacles connus rangés par cases, refaite à chaque recherche du plus court chemin.
-    grille: Grille,
     requete: Requete<'r>,
     tampon: Vec<Rect>,
     travail: usize,
 }
 
 impl<'r> Recherche<'r> {
-    fn nouvelle(depart: Bout, arrivee: Bout, requete: Requete<'r>) -> Self {
-        let (a, b) = (depart.point, arrivee.point);
-        // Une boîte propre qui contient l'autre bout ne peut pas être évitée : on l'oublie.
-        let propre = |boite: Option<Rect>, autre: Point| {
-            boite
-                .map(|r| Boite::de(r, ECART))
-                .filter(|o| !o.contient(autre))
-        };
+    fn nouvelle(a: Point, b: Point, requete: Requete<'r>) -> Self {
         Self {
             a,
             b,
-            propres: [propre(depart.boite, b), propre(arrivee.boite, a)],
             connues: Vec::new(),
-            grille: Grille::de(&[]),
             requete,
             tampon: Vec::new(),
             travail: 0,
@@ -296,50 +268,31 @@ impl<'r> Recherche<'r> {
     }
 
     /// Les sommets du graphe de visibilité : les deux bouts, puis chaque coin qu'aucune boîte ne
-    /// recouvre — un coin enfoui dans une voisine n'est pas un passage —, avec la direction de
-    /// sa boîte (aucune pour les deux bouts).
-    fn sommets(&mut self) -> Vec<(Point, Option<Point>)> {
-        let propres: Vec<Boite> = self.propres.iter().flatten().copied().collect();
-        let mut sommets = vec![(self.a, None), (self.b, None)];
-        for boite in self.connues.iter().chain(&propres) {
-            for (coin, dedans) in boite.coins() {
-                self.travail += 1;
-                let enfoui = self.grille.contient(&self.connues, coin)
-                    || propres.iter().any(|o| o.contient(coin));
-                if !enfoui {
-                    sommets.push((coin, Some(dedans)));
+    /// recouvre — un coin enfoui dans une voisine n'est pas un passage.
+    fn sommets(&mut self) -> Vec<Point> {
+        let mut sommets = vec![self.a, self.b];
+        for boite in &self.connues {
+            for coin in boite.coins() {
+                self.travail += self.connues.len();
+                if !self.connues.iter().any(|o| o.contient(coin)) {
+                    sommets.push(coin);
                 }
             }
         }
         sommets
     }
 
-    /// Les sommets `i` et `j` se voient-ils ? Le sommet 0 est le départ, le 1 l'arrivée : un
-    /// tronçon qui en part traverse librement sa propre boîte.
+    /// Les sommets `i` et `j` se voient-ils ?
     fn se_voient(&mut self, sommets: &[Point], i: usize, j: usize) -> bool {
         let (p, q) = (sommets[i], sommets[j]);
-        self.travail += 2;
-        if self
-            .grille
-            .traversee(&self.connues, (p, q), &mut self.travail)
-        {
-            return false;
-        }
-        let touche = |k: usize| i == k || j == k;
-        let [source, cible] = self.propres;
-        let bloque = |propre: Option<Boite>, k: usize| {
-            propre.is_some_and(|o| !touche(k) && o.traversee(p, q))
-        };
-        !bloque(source, 0) && !bloque(cible, 1)
+        self.travail += self.connues.len() + 1;
+        !self.connues.iter().any(|o| o.traversee(p, q))
     }
 
     /// **Le plus court chemin qui évite les obstacles connus** (A*), ou rien s'il n'y en a pas
     /// — ou si le budget s'épuise.
     fn a_etoile(&mut self) -> Option<Vec<Point>> {
-        self.grille = Grille::de(&self.connues);
-        self.travail += self.connues.len();
-        let (sommets, cotes): (Vec<Point>, Vec<Option<Point>>) =
-            self.sommets().into_iter().unzip();
+        let sommets = self.sommets();
         let n = sommets.len();
         let b = self.b;
         let reste = |k: usize| distance(sommets[k], b);
@@ -367,16 +320,12 @@ impl<'r> Recherche<'r> {
                 return Some(chemin);
             }
             clos[u] = true;
-            let tendu_en_u = |v: usize| match (cotes[u], parent[u]) {
-                (Some(q), p) if p != usize::MAX => tendu(sommets[p], sommets[u], q, sommets[v]),
-                _ => true,
-            };
+            // Chaque sommet se regarde depuis celui qu'on explore : c'est du travail aussi.
+            self.travail += n;
             for v in 0..n {
                 let par_u = acquis[u] + distance(sommets[u], sommets[v]);
-                // La visibilité est le test coûteux : on ne le fait que pour un gain, et que
-                // pour un chemin tendu.
-                let inutile = clos[v] || par_u >= acquis[v] || !tendu_en_u(v);
-                if inutile || !self.se_voient(&sommets, u, v) {
+                // La visibilité est le test coûteux : on ne le fait que pour un gain.
+                if clos[v] || par_u >= acquis[v] || !self.se_voient(&sommets, u, v) {
                     continue;
                 }
                 acquis[v] = par_u;
@@ -422,7 +371,12 @@ pub fn resserrer(
             .collect();
         let morceaux = trace::morceaux(&points, true);
         let fautif = morceaux.iter().position(|m| {
-            mord(m, (marge, exclus), &mut *requete, (&mut tampon, &mut travail))
+            mord(
+                m,
+                (marge, exclus),
+                &mut *requete,
+                (&mut tampon, &mut travail),
+            )
         });
         let Some(i) = fautif else {
             return;
@@ -447,7 +401,12 @@ fn mord(
     let n = m.troncons(marge);
     let brisee: Vec<Point> = (0..=n).map(|k| m.point(k as f64 / n as f64)).collect();
     let (x0, y0, x1, y1) = brisee.iter().fold(
-        (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
+        (
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ),
         |(a, b, c, d), p| (a.min(p.0), b.min(p.1), c.max(p.0), d.max(p.1)),
     );
     tampon.clear();

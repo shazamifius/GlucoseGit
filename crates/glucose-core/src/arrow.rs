@@ -47,7 +47,7 @@ pub mod contour;
 mod noeuds;
 pub mod trace;
 
-pub use noeuds::{Itineraire, Noeuds};
+pub use noeuds::{Bout, Itineraire, Noeuds};
 
 use crate::arrow_anchor::{arrow_endpoints, ArrowAnchor};
 use crate::geometry::{distance_to_segment, Rect};
@@ -170,9 +170,8 @@ pub fn path_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<(f64, f6
     else {
         return None;
     };
-    if source_id.is_none() && target_id.is_none() {
-        return path(arrow);
-    }
+    // Une flèche libre, sans nœud à ses bouts, contourne comme les autres : sans boîte, son
+    // ancrage laisse ses points tels quels.
     let depart = anchor_of(
         &noeuds,
         (source_id.as_ref(), source_text_sel.as_ref()),
@@ -186,8 +185,7 @@ pub fn path_with(arrow: &Annotation, noeuds: impl Noeuds) -> Option<Vec<(f64, f6
     // Une flèche sans coude contourne ce qu'elle traverserait (FLECHE-5) ; une flèche que la
     // main a pliée passe par où la main l'a dit.
     let etapes: Vec<(f64, f64)> = if waypoints.is_empty() {
-        let sauf = [source_id.as_deref(), target_id.as_deref()];
-        contourner(arrow, &noeuds, (depart, arrivee), sauf)
+        contourner(arrow, &noeuds, (depart, arrivee))
     } else {
         waypoints.iter().map(|p| (p.x, p.y)).collect()
     };
@@ -223,9 +221,8 @@ fn contourner(
     arrow: &Annotation,
     noeuds: &impl Noeuds,
     (depart, arrivee): (ArrowAnchor, ArrowAnchor),
-    sauf: [Option<&str>; 2],
 ) -> Vec<(f64, f64)> {
-    let bout = |a: ArrowAnchor| contour::Bout {
+    let bout = |a: ArrowAnchor| Bout {
         point: (a.x, a.y),
         boite: a
             .box_rect
@@ -238,8 +235,9 @@ fn contourner(
         courbe: est_courbe(arrow),
     };
     noeuds.itineraire(&cle, &mut || {
-        let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| noeuds.obstacles(zone, sauf, sortie);
-        let mut etapes = contour::itineraire(cle.depart, cle.arrivee, &mut requete);
+        let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| noeuds.obstacles(zone, sortie);
+        let (a, b) = (cle.depart.point, cle.arrivee.point);
+        let mut etapes = contour::itineraire(a, b, &mut requete);
         if cle.courbe && !etapes.is_empty() {
             let bouts = |e: &[(f64, f64)]| extremites(depart, arrivee, e);
             let exclus = [cle.depart.point, cle.arrivee.point];
