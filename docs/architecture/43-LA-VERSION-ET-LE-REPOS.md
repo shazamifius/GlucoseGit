@@ -249,6 +249,47 @@ après deux angles complétés (les coudes d'une flèche emportée, la cible d'u
 qui peut laisser un ulp — comme avant ; seul `Échap` est exact. La rotation et le recadrage,
 eux, portent des valeurs : FONDRE-1 les couvre déjà.
 
+
+---
+
+## 7. Plus aucun parcours du tableau à chaque mouvement de souris (SNAP-2, SNAP-3, `c9c7a7d`)
+
+La fiche 41 § 11 comptait trois parcours du tableau entier **à chaque mouvement de souris**, qui
+ne tiendraient pas à dix millions de nœuds : le déplacement (fait par GLISSER-1, § 6.2),
+l'aimant, et l'accroche d'une flèche.
+
+* **L'aimant** (glisser, fantôme de placement, redimensionnement) comparait le rectangle aux
+  trois lignes de **chaque** cible, et rebâtissait ces lignes à chaque mouvement. Elles se
+  trient **une fois par geste** (`Lignes`) ; chaque mouvement cherche la plus proche par
+  dichotomie — O(log n) au lieu de O(n), la même réponse. Une seule différence, choisie : à
+  égalité exacte de distance, la ligne la plus petite l'emporte, plutôt que l'ordre des nœuds
+  dans le tableau.
+* **L'accroche d'une flèche** (l'appui de l'outil, la pointe pendant le tracé, le nœud
+  « pressenti » sous l'outil armé) mesurait la distance à chaque nœud. Seuls comptent ceux à
+  moins de `SNAP_DIST` : leur boîte touche le carré de ce rayon, et l'index rend exactement
+  ceux-là, au présent (GESTE-1). `snap_for_tip`, qui cherchait en plus la flèche dans tout le
+  tableau pour exclure sa source, n'a plus d'appelant : la session du tracé retient sa source.
+
+**Une épreuve aveugle, et ce qu'elle a appris** : réduire de moitié le rayon de l'accroche ne
+faisait rien tomber. La requête du présent ajoutait la marge du culling (200 unités), qui
+couvrait le rayon — une valeur qui ne décidait plus de rien. La requête prend désormais sa
+marge : aucune pour une interaction, celle du culling pour le rendu (nommée
+`MARGE_DU_CULLING` ; elle-même est une constante héritée, que la vraie marge de chaque nœud —
+ce que sa lueur ou son trait déborde — pourrait remplacer). **L'aimant du glisser n'avait
+aucune épreuve par la vraie souris** : il en a une.
+
+**Ce qui le tient** : les lignes triées choisissent comme la comparaison à toutes les lignes
+(deux mille cas tirés au hasard) ; l'index choisit comme le tableau entier (cinq cents points,
+égalités de boîtes jointives comprises) ; la pointe n'accroche pas sa source, par la vraie
+souris ; l'aimant du glisser, par la vraie souris. Onze sabotages tombent. `snap_resize`
+repasse sous les quatre-vingts lignes : son admission au cliquet est retirée.
+
+**Ce qui reste pour dix millions de nœuds** : les cibles de l'aimant se relèvent encore sur tout
+le tableau au **début** de chaque geste (O(n), une fois), et l'index se resynchronise sur tout
+le tableau à chaque version publiée. Excalidraw ne s'aimante qu'aux éléments **visibles** — le
+même principe borné par l'écran ; c'est un choix de comportement (plus de guide vers un nœud
+hors de l'écran), à lui soumettre.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
