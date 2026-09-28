@@ -80,7 +80,8 @@ impl Envoi {
         {
             // La vue se rend avant la commande : une tranche projetée ne se copie pas.
             let mut vue = tranche.get_mapped_range_mut().expect(
-                "le tapis ne rend que des tranches de tampons projetés en écriture : il les crée                  projetés, et ne les reprend qu'une fois projetés de nouveau",
+                "le tapis ne rend que des tranches de tampons projetés en écriture : il les crée \
+                 projetés, et ne les reprend qu'une fois projetés de nouveau",
             );
             let (rang, aligne) = (rang as usize, aligne as usize);
             for y in 0..hauteur as usize {

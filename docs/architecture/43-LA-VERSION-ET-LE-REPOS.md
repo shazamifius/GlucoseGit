@@ -4,9 +4,30 @@
 > s'arrêtait : ses points ouverts (§ 8.1), puis ce que sa dernière chronique dit du repos.
 > **Écrite au fil de l'eau.**
 >
-> **Date** : 2026-09-28 · commits `0c0d813` et suivants.
+> **Date** : 2026-09-28 · commits `0c0d813` à `9e9837d`, et ceux de cette fiche.
 > **État au départ** : `e124ac4`, 1 876 épreuves vertes, clippy strict à zéro, arbre propre —
 > vérifié.
+> **État à la fin** : `cargo test --workspace` exit 0, **1 898 épreuves vertes**, clippy strict
+> à zéro, `cargo fmt --check` à zéro, l'application se construit ; après chaque suite,
+> `%LOCALAPPDATA%\Glucose` n'a rien reçu de mes épreuves (ce qui y a changé vient de sa
+> session ouverte, § 4.5).
+>
+> **Vu à l'écran** : rien de cette fiche, ni les flèches qui contournent et l'interligne des
+> formules de la fiche 42. Le § 8 dit quoi regarder.
+
+---
+
+## 0. En une page
+
+| | ce qui change pour lui | commit |
+|---|---|---|
+| **VERSION-1** | un simple clic ne marque plus le document modifié, et ne fait plus rien refaire | `0c0d813` |
+| **ENVOI-1** | une Time Machine ouverte ne coûte plus 13 ms par image sur la RTX, mais 5 ; les gros niveaux de photos partent trois fois plus vite | `2382f79` |
+| **PANNEAUX-1** | un panneau ouvert et immobile ne coûte plus rien à la couche du dessus : la carte le pose | `e78ba98` |
+| **FONDRE-1** | redimensionner, tourner, recadrer s'écrivent en **une** édition dans l'histoire, et non une par mouvement | `dbedcd5` |
+| **GLISSER-1** | un glisser s'écrit en **une** translation, que le fichier rejoue au bit près ; `Échap` rend la position exacte | `6e8ed1f` |
+| **SNAP-2, SNAP-3** | l'aimant et l'accroche des flèches ne parcourent plus tout le tableau à chaque mouvement de souris | `c9c7a7d` |
+| **Mesuré, gardé** | l'écart d'un amas lointain des flèches (fiche 42 § 8.1) : 1,5 à 2,7 fois moins de travail | `fe4100d` |
 
 ---
 
@@ -134,7 +155,10 @@ passait de **13,4-13,9 ms à 5,2-5,6 ms** ; `soumettre`, de 6-6,7 à 0,35-0,41 m
 
 **Ce qui empire, et je le dis** : sur la RTX, écrire dans ces tampons est environ 30 % plus lent
 que dans ceux de wgpu (une question de mémoire, pas d'allocation — un seul tampon par couche n'y
-change rien). Une image ordinaire sans panneau paie **+0,2 ms** (≈ 2,5 → 2,7 ms). Je l'ai gardé :
+change rien). La cause est connue en amont ([wgpu #10484](https://github.com/gfx-rs/wgpu/issues/10484)) :
+depuis wgpu 28, sur une carte dédiée avec *Resizable BAR*, un tampon `MAP_WRITE` est placé dans
+la mémoire **vidéo** visible du processeur, et la copie y traverse le bus ; les machines à mémoire
+unifiée (son Arc) n'en souffrent pas. Un correctif est proposé ; à revoir quand il sera publié. Une image ordinaire sans panneau paie **+0,2 ms** (≈ 2,5 → 2,7 ms). Je l'ai gardé :
 le tempo suit le p99, et ce sont les pires images qui tombent. Le vrai remède aux envois répétés
 est ailleurs — ne pas renvoyer une chrome qui n'a pas changé (§ 5).
 
@@ -289,6 +313,99 @@ le tableau au **début** de chaque geste (O(n), une fois), et l'index se resynch
 le tableau à chaque version publiée. Excalidraw ne s'aimante qu'aux éléments **visibles** — le
 même principe borné par l'écran ; c'est un choix de comportement (plus de guide vers un nœud
 hors de l'écran), à lui soumettre.
+
+
+---
+
+## 8. Ce qu'il faut regarder à l'écran
+
+**Avant de lancer**, copier `%TEMP%\glucose-chronique\derniere-session.txt` en
+`sortie-chronique-2026-09-28-soir.txt` (sa session ouverte de 18 h 18 l'a réécrite à 22 h 18 ;
+elle est aussi gardée de mon côté). Puis :
+
+```text
+cargo run --release > sortie-essais-43.txt 2>&1
+```
+
+Les essais de la fiche 42 d'abord, jamais faits :
+
+1. **Deux cartes reliées par une flèche, une troisième posée au milieu** : la flèche en fait le
+   tour. Glisser la carte du milieu : la flèche s'écarte **pendant** le glisser ; `Échap`
+   pendant le glisser rend le détour d'avant.
+2. **Sélectionner cette flèche** : saisir un coin du détour et le glisser — il devient un coude ;
+   un simple clic ne change rien ; un double-clic retire le coin.
+3. **Un mur de photos serrées** entre deux cartes reliées : le grand tour. Une photo **penchée**
+   entre deux cartes : la flèche la contourne.
+4. **Une flèche courbe** (bouton « Courbe ») qui contourne : la courbe ne mord pas les blocs.
+5. **Les formules**, dans une carte, **chacune seule sur sa ligne, entre deux lignes `$$`** :
+
+   ```text
+   $$
+   \int_0^1 x^2\,dx = \frac{1}{3}
+   $$
+   $$
+   \iint_D f(x,y)\,dx\,dy
+   $$
+   $$
+   \sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+   $$
+   ```
+
+   Elles ne doivent pas se toucher. Puis les trois mêmes **sans** les lignes `$$` : chaque ligne
+   qui commence par `\` devient une formule plus petite, « dans une phrase » — c'est voulu.
+
+Puis ceux de cette fiche :
+
+6. **La Time Machine** (`Ctrl+H`) ouverte : glisser la vue, zoomer — cela doit être fluide.
+   **Regarder le panneau lui-même** : il doit être exactement comme avant (c'est désormais la
+   carte graphique qui le pose ; aucune épreuve hors fenêtre ne voit ce branchement-là). Passer
+   la souris sur la réglette, cliquer un point du passé, revenir. Même chose avec Ordonner.
+7. **Glisser une carte, puis `Ctrl+Z`** : un seul retour. **Glisser puis `Échap`** : elle revient
+   exactement. **Redimensionner une carte, puis `Ctrl+Z`** : un seul retour.
+8. **L'aimant** : glisser une carte près de l'alignement d'une autre — le guide paraît, elle s'y
+   pose. **L'outil Flèche** approché d'une carte : elle s'avive, la flèche s'y accroche ; tirée
+   juste à côté de sa carte de départ, elle ne s'y referme pas.
+9. Après la session, copier de nouveau `derniere-session.txt` en
+   `sortie-chronique-2026-09-28-essais.txt` : elle dira ce que coûtent `docks`, `blit` et
+   `soumettre` avec un panneau ouvert.
+
+---
+
+## 9. Ce qui attend sa parole
+
+1. **L'aimant, aux seuls nœuds visibles ?** Aujourd'hui une carte s'aligne sur n'importe quel
+   nœud du tableau, même hors de l'écran — le guide montre alors une ligne sans raison visible.
+   Excalidraw ne s'aimante qu'à ce qu'on voit. Ce serait aussi ce qui permet d'aller jusqu'à dix
+   millions de nœuds. Mon avis : oui.
+2. **La Time Machine, « optimiser »** (fiche 41 § 11) : des étapes clés comme une **vue** (les
+   points qui partagent le travail en parts égales), ou aussi l'effacement des gestes
+   intermédiaires. L'histoire, elle, n'écrit déjà plus que l'essentiel de chaque geste (§ 6).
+3. Toujours ouverts : **les membranes** (fiche 38 § 8), **les rideaux** (fiche 41 § 14),
+   **Trans-domaines** (fiche 41 § 10.1).
+
+---
+
+## 10. Les sources
+
+* T. Lozano-Pérez et M. A. Wesley, *An algorithm for planning collision-free paths among
+  polyhedral obstacles*, Communications of the ACM 22(10), 1979 — le graphe de visibilité.
+* M. Wybrow, K. Marriott, P. J. Stuckey, [*Incremental Connector Routing*](https://link.springer.com/chapter/10.1007/11618058_40),
+  GD 2005, et [*Orthogonal Connector Routing*](https://users.monash.edu/~mwybrow/papers/wybrow-gd-2009.pdf),
+  GD 2009 ; la bibliothèque [libavoid](https://www.adaptagrams.org/documentation/libavoid.html)
+  — le routage recalculé pendant qu'on déplace un objet.
+* M. L. Cui, D. Harabor, A. Grastien, [*Compromise-free Pathfinding on a Navigation Mesh*](https://www.ijcai.org/proceedings/2017/0070.pdf)
+  (Polyanya), IJCAI 2017 — le plus court chemin exact par intervalles, piste pour la colonne
+  de deux cents cartes (§ 3).
+* wgpu, [`StagingBelt`](https://wgpu.rs/doc/wgpu/util/struct.StagingBelt.html) et
+  [`MemoryHints`](https://wgpu.rs/doc/wgpu/enum.MemoryHints.html) ; la
+  [PR 5875](https://github.com/gfx-rs/wgpu/pull/5875) qui expose les tailles de blocs ;
+  [l'issue 10484](https://github.com/gfx-rs/wgpu/issues/10484) — les tampons `MAP_WRITE` en
+  mémoire vidéo sur les cartes à *Resizable BAR*.
+* Linebender, [vello PR 1532](https://github.com/linebender/vello/pull/1532) — le même remède
+  qu'ENVOI-1 : un tampon d'envoi réutilisé, 479 → 155 ms sur 1 200 images.
+* Excalidraw, [*Snap to objects*](https://github.com/excalidraw/excalidraw/issues/263) et
+  [son annonce](https://www.linkedin.com/posts/excalidraw_snapping-to-object-activity-7113431894989361152-M95j)
+  — l'aimant aux bords et aux milieux, les groupes comme une seule cible.
 
 ---
 
