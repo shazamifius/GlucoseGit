@@ -913,6 +913,37 @@ fn test_une_version_ne_se_publie_que_pour_un_changement() {
     assert_eq!(store.version, version + 1, "une vraie édition");
 }
 
+/// **FONDRE-1 — redimensionner s'écrit en une seule édition** : cent tailles posées pendant
+/// le geste, une seule entrée publiée, qui va de la taille d'avant à la dernière — et un seul
+/// `Ctrl+Z` rend la taille d'avant.
+#[test]
+fn test_fondre_1_un_redimensionnement_s_ecrit_en_une_seule_edition() {
+    use glucose_core::smart_align::AlignRect;
+    let mut store = Store::new("test");
+    store.add_image("main", mk_image("i1"));
+    store.journal.prendre_les_ecrits();
+    let avant = store.active_board().unwrap().images[0].clone();
+
+    store.begin_live_edit();
+    for k in 1..=100 {
+        let cote = 100.0 + f64::from(k) * 0.37;
+        let rect = AlignRect {
+            left: 0.0,
+            top: 0.0,
+            width: cote,
+            height: cote,
+        };
+        assert!(store.set_image_rect("main", "i1", rect));
+    }
+    store.end_live_edit();
+
+    let publies = store.journal.prendre_les_ecrits();
+    assert_eq!(publies.len(), 1, "un geste");
+    assert_eq!(publies[0].edits.len(), 1, "une seule édition");
+    assert!(store.undo());
+    assert_eq!(store.active_board().unwrap().images[0], avant);
+}
+
 /// Même loi pour un geste abandonné en route (Échap pendant un glisser) : le document
 /// revient exactement où il était, donc l'histoire alternative reste valide.
 #[test]

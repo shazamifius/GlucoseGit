@@ -198,6 +198,7 @@ impl<T> Whole<T> {
 }
 
 pub mod edit;
+mod fondre;
 
 pub use edit::{Bouts, Edit};
 
@@ -407,14 +408,19 @@ impl Journal {
     /// Ferme le geste ouvert, et rend `true` s'il **publie** une transaction. Une transaction
     /// vide — un clic qui n'a rien bougé — ne laisse aucune trace : rien à annuler, rien de
     /// publié.
+    ///
+    /// Ce qu'il publie est **fondu** (FONDRE-1) : les éditions successives d'une même case n'en
+    /// font qu'une. Un geste qui revient exactement à son point de départ ne publie rien.
     pub fn end(&mut self) -> bool {
-        match self.open.take() {
-            Some(tx) if !tx.is_empty() => {
-                self.commit(tx);
-                true
-            }
-            _ => false,
+        let Some(mut tx) = self.open.take() else {
+            return false;
+        };
+        tx.fondre();
+        if tx.is_empty() {
+            return false;
         }
+        self.commit(tx);
+        true
     }
 
     /// Abandonne la transaction ouverte en défaisant ce qu'elle a déjà écrit.

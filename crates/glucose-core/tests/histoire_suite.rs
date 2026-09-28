@@ -407,11 +407,18 @@ fn test_chaque_point_du_passe_se_relit_se_restaure_et_se_defait() {
         let mut essai = store.clone();
         let retour = histoire::retour_au_geste(&mut std::io::Cursor::new(&disque.octets), &o, k)
             .expect("le retour se construit");
+        let profondeur = essai.undo_depth();
         assert!(
             essai.appliquer_comme_un_geste(retour),
             "restaurer au geste {k}"
         );
         assert_eq!(essai.project, etats[k], "restauré au geste {k}");
+        if etats[k] == store.project {
+            // Le passé est le présent — ici, un retrait puis son annulation : les gestes
+            // retournés se fondent en rien, et rien ne s'écrit (FONDRE-1).
+            assert_eq!(essai.undo_depth(), profondeur, "au geste {k}, aucun geste");
+            continue;
+        }
         assert!(essai.undo(), "restaurer est un geste annulable");
         assert_eq!(
             essai.project, store.project,
