@@ -136,7 +136,7 @@ passait de **13,4-13,9 ms à 5,2-5,6 ms** ; `soumettre`, de 6-6,7 à 0,35-0,41 m
 que dans ceux de wgpu (une question de mémoire, pas d'allocation — un seul tampon par couche n'y
 change rien). Une image ordinaire sans panneau paie **+0,2 ms** (≈ 2,5 → 2,7 ms). Je l'ai gardé :
 le tempo suit le p99, et ce sont les pires images qui tombent. Le vrai remède aux envois répétés
-est ailleurs — ne pas renvoyer une chrome qui n'a pas changé (§ 6).
+est ailleurs — ne pas renvoyer une chrome qui n'a pas changé (§ 5).
 
 **Ce qui le tient** : un rectangle envoyé au milieu d'une texture aux rangées non alignées, lu
 dans une source plus large, arrive exactement à sa place, et rien d'autre ne bouge. Six
@@ -152,6 +152,40 @@ lancé **neuf fois** sur son écran pendant qu'il travaillait, sans le prévenir
 mesures se font hors écran, et ce qui exige la vraie fenêtre, c'est lui qui le lance. Ses
 réglages n'ont pas été touchés : `carte.txt` a été réécrit à 20 h 49 par sa propre session,
 ouverte depuis 18 h 18 — mes lancements ont eu lieu à 19 h 44 et entre 22 h 23 et 22 h 27.
+
+
+## 5. Les panneaux, posés par la carte (PANNEAUX-1, `e78ba98`)
+
+Même après ENVOI-1, un panneau **immobile** coûtait encore à chaque image : recomposé dans la
+couche du dessus depuis son cache (`bench_chrome` : 1,10 ms pour la Time Machine à l'échelle 1,
+environ 2,25 fois plus à 150 %), puis ses lignes effacées, relevées et renvoyées — toute la
+hauteur de l'écran pour la Time Machine. Rien de cela ne changeait d'une image à l'autre.
+
+**Ce qui est fait** : sur la voie graphique, les panneaux deviennent des **textures que la carte
+pose après la couche du dessus** — l'ordre même de la voie processeur, qui les composait en
+dernier. Le cache des panneaux tient chacun à jour sans le composer ; la clé de sa texture
+change à chaque redessin, et à lui seul. La scène de la carte, qui posait déjà photos et cartes
+de texte avec leurs clés, leur cache et leur budget (CASCADE-2), pose une troisième tranche.
+Un panneau immobile ne repart donc jamais ; un panneau qui change ne renvoie que son rectangle
+(2,3 Mo pour la Time Machine, contre 11). Un tampon refusé retombe sur le dessin dans la couche,
+comme avant : rien ne disparaît.
+
+**Ce qui le tient** : la couche du dessus avec la Time Machine ouverte est, **au bit près**,
+celle d'une image sans panneau, et ses bandes aussi ; un panneau immobile garde sa clé, la vue
+qui glisse n'y change rien, un réglage du panneau en donne une neuve et l'ancienne ne désigne
+plus rien ; la carte pose la Time Machine sur la scène témoin et rend l'image de la voie
+processeur, dans les bornes de la scène seule (pire écart 4 niveaux, celui de la scène). Six
+sabotages tombent, dont les panneaux posés avant la couche du dessus.
+
+**Pas éprouvable hors fenêtre** : le branchement de la source de leurs pixels dans la
+présentation elle-même. **Pas mesuré sur la vraie chaîne** : je ne lancerai plus de fenêtre sur
+son écran ; sa prochaine chronique le dira (`docks`, `effacer`, `relever` et `blit` avec un
+panneau ouvert).
+
+**Ce qui reste** : un panneau qui se **redessine** (la souris dedans, la réglette qu'on tient)
+coûte toujours son dessin au processeur — 2,5 ms pour la Time Machine à l'échelle 1 au banc,
+12-13 ms dans sa chronique. Et sans panneau, la couche du dessus renvoie encore la barre, les
+onglets et la minimap à chaque image (~784 lignes à 150 %), qui ne changent pas davantage.
 
 ---
 
