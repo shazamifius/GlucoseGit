@@ -187,6 +187,68 @@ coûte toujours son dessin au processeur — 2,5 ms pour la Time Machine à l'é
 12-13 ms dans sa chronique. Et sans panneau, la couche du dessus renvoie encore la barre, les
 onglets et la minimap à chaque image (~784 lignes à 150 %), qui ne changent pas davantage.
 
+
+---
+
+## 6. L'histoire qui écrivait chaque mouvement (FONDRE-1 `dbedcd5`, GLISSER-1 `6e8ed1f`)
+
+Son registre, entrée 12 : *« elle enregistre beaucoup de choses inutiles »*. La fiche 41 § 11
+l'avait vu : un geste continu écrivait dans le document **à chaque mouvement de la main**, et
+chaque écriture entrait dans la pile d'annulation et dans l'histoire du fichier. Deux formes,
+deux remèdes, tous deux **exacts**.
+
+### 6.1 Les éditions qui portent des valeurs se fondent (FONDRE-1)
+
+Redimensionner une carte cinq secondes, c'était plus d'un millier d'éditions de la **même**
+case, chacune portant le nœud entier avant et après — texte compris. À la fermeture d'un geste,
+deux éditions **adjacentes** de la même liste, à la même case, se fondent quand la seconde part
+exactement de là où la première arrive : l'avant de l'une, l'après de l'autre. Ces éditions
+portent des valeurs, donc la composée est exacte au bit près, quelle que soit la paire
+(changer puis changer, insérer puis changer, changer puis retirer, retirer puis réinsérer à la
+même place). Ce qui ne change plus rien disparaît. Adjacentes seulement : une insertion
+ailleurs dans la liste, entre deux, décalerait les rangs (JRN-2).
+
+**Une conséquence, dite** : restaurer dans la Time Machine un point du passé **identique** au
+présent ne publie plus de geste — les gestes retournés se fondent en rien. `Ctrl+Z` défait
+alors le vrai geste précédent, comme après un clic. L'épreuve de la Time Machine supposait
+l'inverse ; elle dit désormais cette règle.
+
+### 6.2 Un glisser s'écrit en une translation (GLISSER-1)
+
+Une translation porte un **pas**, pas une valeur : additionner des pas en virgule flottante ne
+redonne pas la position qu'ils ont laissée — `(x + a) + b` n'est pas toujours `x + (a + b)`.
+Fondre les pas d'un glisser en leur somme aurait écrit un fichier qui, relu, pose les nœuds un
+ulp à côté de l'écran. L'épreuve le montre : soixante mouvements fractionnaires rejoués pas à
+pas posaient la carte et la flèche ailleurs que l'écran.
+
+Le glisser relève donc **une fois**, au premier mouvement, ce que la sélection emporte et d'où
+chaque chose part (le parcours du tableau entier se faisait à **chaque** mouvement — c'est une
+part du chantier n° 5, faite au passage). À chaque mouvement, chaque position devient son
+départ plus le déplacement **total** — l'addition même que la translation du journal fera en
+rejouant. À la fermeture du geste, ses pas se remplacent par une seule translation, du départ à
+l'arrivée. Un glisser revenu à son point de départ ne laisse rien ; `Échap` rend chaque départ
+exact. La constante `1e-7` du glisser disparaît : un pas nul se reconnaît exactement.
+
+Pendant le geste, les pas restent écrits : ce qui suit le geste en cours — l'écran, les
+itinéraires des flèches (GESTE-1, FLECHE-5) — les lit pour savoir ce qui a bougé.
+
+### 6.3 Ce qui les tient
+
+FONDRE-1 : cent changements d'une case en font un ; ce qui ne change rien disparaît ; seules des
+voisines qui s'enchaînent se fondent (une autre case, un autre tableau, un avant qui ne suit
+pas) ; une translation jamais ; le geste publié rejoue exactement le geste ; un
+redimensionnement du magasin s'écrit en une édition. Six sabotages tombent — dont un d'abord
+aveugle (une valeur entière fondue sans s'enchaîner), complété.
+
+GLISSER-1 : la translation qui rejoue l'écran au bit près, avec la preuve que l'ancienne façon
+s'en écartait ; le retour au départ sans trace ; `Échap` exact ; deux glissers dans un même
+geste ; un glisser à la vraie souris — quarante mouvements, une édition. Neuf sabotages tombent,
+après deux angles complétés (les coudes d'une flèche emportée, la cible d'une flèche qui suit).
+
+**Ce qui reste** : défaire un glisser (`Ctrl+Z`) applique la translation opposée, `(x + T) − T`,
+qui peut laisser un ulp — comme avant ; seul `Échap` est exact. La rotation et le recadrage,
+eux, portent des valeurs : FONDRE-1 les couvre déjà.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
