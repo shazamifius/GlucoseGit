@@ -49,6 +49,8 @@ pub struct GpuPresenter {
     layout: wgpu::BindGroupLayout,
     /// Les textures qui portent l'image, en anneau (voir le module `anneau`).
     anneau: anneau::Anneau,
+    /// Ce qui part vers la carte, par des tampons qui restent (ENVOI-1).
+    envoi: super::envoi::Envoi,
     /// Le nom de l'adaptateur retenu, pour que l'application puisse le dire.
     adaptateur: String,
     /// Ce que le système accorde à Glucose sur cette carte, relu à chaque image (VRAM-1) —
@@ -92,6 +94,19 @@ pub struct GpuPresenter {
     /// aucune image n'est détenue. L'image en cours s'affiche quand même : la sauter se
     /// verrait, alors qu'une chaîne un peu désaccordée ne se voit pas.
     a_reaccorder: bool,
+}
+
+/// Le format de la texture qui porte l'image (GAMMA-1).
+///
+/// Elle porte les octets tels quels quand la surface est linéaire. Si aucun format non-sRGB
+/// n'était disponible, elle se déclare sRGB pour que le sampler défasse ce que la sortie
+/// refera — les deux conversions s'annulent alors.
+fn format_de_l_image(surface: wgpu::TextureFormat) -> wgpu::TextureFormat {
+    if surface.is_srgb() {
+        wgpu::TextureFormat::Rgba8UnormSrgb
+    } else {
+        wgpu::TextureFormat::Rgba8Unorm
+    }
 }
 
 mod anneau;
@@ -171,14 +186,7 @@ impl GpuPresenter {
         // Un objet naissant pret a servir ne depend d'aucun evenement exterieur.
         surface.configure(&device, &config);
         let (pipeline, layout, sampler) = atelier::atelier(&device, config.format);
-        // La texture porte les octets tels quels quand la surface est linéaire. Si aucun
-        // format non-sRGB n'était disponible, elle se déclare sRGB pour que le sampler
-        // défasse ce que la sortie refera — les deux conversions s'annulent alors.
-        let format_image = if config.format.is_srgb() {
-            wgpu::TextureFormat::Rgba8UnormSrgb
-        } else {
-            wgpu::TextureFormat::Rgba8Unorm
-        };
+        let format_image = format_de_l_image(config.format);
 
         // La voie graphique de la scene se construit ici, ou le peripherique vit : elle pose
         // les photos dans le format de la SURFACE, celui ou tout se compose (fiche 21).
@@ -189,6 +197,7 @@ impl GpuPresenter {
         let membranes = super::membranes_gpu::Membranes::nouvelles(&device, config.format);
         let fleches = super::fleches_gpu::FlechesGpu::nouvelles(&device, config.format);
         let lisere = super::lisere_gpu::LisereGpu::nouveau(&device, config.format);
+        let envoi = super::envoi::Envoi::nouveau(&device, &queue);
         Ok(Self {
             scene,
             couches,
@@ -205,6 +214,7 @@ impl GpuPresenter {
             sampler,
             layout,
             anneau: anneau::Anneau::nouveau(),
+            envoi,
             bandes_envoyees: super::bandes::Bandes::default(),
             bandes_du_dessous_envoyees: super::bandes::Bandes::default(),
             adaptateur,
@@ -313,8 +323,8 @@ impl GpuPresenter {
     /// convertir puis recopier du côté processeur.
     fn televerser(&mut self, pixmap: &Pixmap) {
         let (w, h) = (pixmap.width(), pixmap.height());
-        // Les champs s'empruntent separement -- l'anneau en ecriture, le reste en lecture --
-        // ce qu'une methode prenant `&self` entier interdirait.
+        // Les champs s'empruntent separement -- l'anneau et l'envoi en ecriture, le reste en
+        // lecture -- ce qu'une methode prenant `&self` entier interdirait.
         let Self {
             device,
             layout,
@@ -322,6 +332,7 @@ impl GpuPresenter {
             format_image,
             config,
             anneau,
+            envoi,
             ..
         } = self;
         let fabrique = anneau::Fabrique {
@@ -337,25 +348,7 @@ impl GpuPresenter {
 
         // Les octets de `tiny-skia` partent tels quels : c'est ici que la conversion du chemin
         // processeur disparaît, et c'est tout l'intérêt du détour par la carte graphique.
-        self.queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            pixmap.data(),
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(w * 4),
-                rows_per_image: Some(h),
-            },
-            wgpu::Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-        );
+        envoi.texture(&texture, (0, 0), (w, h), (pixmap.data(), w as usize * 4));
         // Ce qu'on envoie a la carte, en mebioctets. Une image entiere part a CHAQUE frame :
         // a cinquante images par seconde en 4K, cela fait plus d'un gigaoctet par seconde vers
         // une carte qui partage sa memoire avec le processeur. Le savoir, plutot que le
@@ -406,7 +399,12 @@ impl Presenter for GpuPresenter {
         // ils annonçaient 28 ms sur un canevas vide sans dire lequel les portait.
         let frame = match self.acquerir()? {
             Ok(frame) => frame,
-            Err(issue) => return Ok(issue),
+            // L'image ne s'affichera pas, mais ce qui a été préparé part : un envoi retenu
+            // partirait avec l'image suivante, derrière elle.
+            Err(issue) => {
+                self.envoi.soumettre();
+                return Ok(issue);
+            }
         };
         crate::perf::stage("acquerir");
         let cible = frame
@@ -445,7 +443,8 @@ impl Presenter for GpuPresenter {
         // même chose : **soumettre** peut buter sur une file de commandes pleine, **présenter**
         // sur le compositeur qui ne rend pas la main. Mesurées ensemble, elles ont annoncé des
         // pics de quatre cent quarante millisecondes sur des images sans une seule photo, sans
-        // jamais dire laquelle les portait.
+        // jamais dire laquelle les portait. L'image part d'abord, puis ce qui la dessine.
+        self.envoi.soumettre();
         self.queue.submit(Some(encodeur.finish()));
         crate::perf::stage("soumettre");
         // La vue sur l'image de la surface doit être relâchée avant de la rendre au

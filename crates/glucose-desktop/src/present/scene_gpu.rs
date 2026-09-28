@@ -327,7 +327,7 @@ impl SceneGpu {
     pub fn televerser(
         &mut self,
         peripherique: &wgpu::Device,
-        file: &wgpu::Queue,
+        envoi: &mut crate::present::envoi::Envoi,
         (identite, cle): (&str, &str),
         source: tiny_skia::PixmapRef<'_>,
     ) {
@@ -349,21 +349,7 @@ impl SceneGpu {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
-        file.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            source.data(),
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(l * 4),
-                rows_per_image: Some(h),
-            },
-            taille,
-        );
+        envoi.texture(&texture, (0, 0), (l, h), (source.data(), l as usize * 4));
         let vue = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let liaison = peripherique.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("photo"),

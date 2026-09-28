@@ -226,7 +226,7 @@ impl Couches {
 
     fn accorder(
         peripherique: &wgpu::Device,
-        file: &wgpu::Queue,
+        envoi: &mut super::envoi::Envoi,
         disposition: &wgpu::BindGroupLayout,
         filtre: &wgpu::Sampler,
         place: &mut Option<Portee>,
@@ -257,30 +257,12 @@ impl Couches {
                 continue;
             }
             lignes += hauteur;
-            file.write_texture(
-                wgpu::TexelCopyTextureInfo {
-                    texture: &portee.texture,
-                    mip_level: 0,
-                    // L'origine porte la bande : c'est tout ce que `write_texture` demande
-                    // pour n'écrire qu'une tranche, et le reste de la texture ne bouge pas.
-                    origin: wgpu::Origin3d {
-                        x: 0,
-                        y: bande.start,
-                        z: 0,
-                    },
-                    aspect: wgpu::TextureAspect::All,
-                },
-                &source.data()[bande.start as usize * largeur..bande.end as usize * largeur],
-                wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(taille.0 * 4),
-                    rows_per_image: Some(hauteur),
-                },
-                wgpu::Extent3d {
-                    width: taille.0,
-                    height: hauteur,
-                    depth_or_array_layers: 1,
-                },
+            // L'origine porte la bande : le reste de la texture ne bouge pas.
+            envoi.texture(
+                &portee.texture,
+                (0, bande.start),
+                (taille.0, hauteur),
+                (&source.data()[bande.start as usize * largeur..], largeur),
             );
         }
         lignes
@@ -301,7 +283,7 @@ impl Couches {
     pub fn televerser(
         &mut self,
         peripherique: &wgpu::Device,
-        file: &wgpu::Queue,
+        envoi: &mut super::envoi::Envoi,
         (dessous, dessous_utile, bandes_du_dessous): (&Pixmap, bool, &Bandes),
         (dessus, bandes): (&Pixmap, &Bandes),
     ) {
@@ -310,7 +292,7 @@ impl Couches {
         if dessous_utile {
             lignes += Self::accorder(
                 peripherique,
-                file,
+                envoi,
                 &self.disposition,
                 &self.echantillonneur,
                 &mut self.dessous,
@@ -319,7 +301,7 @@ impl Couches {
         }
         lignes += Self::accorder(
             peripherique,
-            file,
+            envoi,
             &self.disposition,
             &self.echantillonneur,
             &mut self.dessus,

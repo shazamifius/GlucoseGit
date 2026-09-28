@@ -253,6 +253,7 @@ fn par_la_carte() {
         let texte = notes();
         let mut renderer = Renderer::new();
         let mut scene = SceneGpu::nouvelle(&peripherique, banc_gpu::FORMAT);
+        let mut envoi = glucose_desktop::present::envoi::Envoi::nouveau(&peripherique, &file);
         let mut temps = Vec::new();
         // Chaque frappe allonge le texte d'un caractère, depuis la moitié de la carte.
         let debuts: Vec<usize> = texte.char_indices().map(|(i, _)| i).collect();
@@ -267,10 +268,11 @@ fn par_la_carte() {
             let debut = Instant::now();
             scene.assurer(
                 &peripherique,
-                &file,
+                &mut envoi,
                 (&textures, std::time::Duration::MAX),
                 &|cle| confie.pixels(&renderer, cle),
             );
+            envoi.soumettre();
             temps.push(debut.elapsed().as_secs_f64() * 1000.0);
             scene.preparer(
                 &peripherique,

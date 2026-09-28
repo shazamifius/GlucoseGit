@@ -353,6 +353,7 @@ mod windows_seulement {
         largeur: Option<f32>,
     ) {
         scene.ouvrir();
+        let mut envoi = glucose_desktop::present::envoi::Envoi::nouveau(peripherique, file);
         for (src, entree) in &magasin.cache {
             let niveau = match largeur {
                 Some(l) => entree.pyramide.niveau_pour(l),
@@ -360,8 +361,9 @@ mod windows_seulement {
             };
             let Some(niveau) = niveau else { continue };
             let cle = format!("{src}@{}", niveau.width());
-            scene.televerser(peripherique, file, (src, &cle), niveau);
+            scene.televerser(peripherique, &mut envoi, (src, &cle), niveau);
         }
+        envoi.soumettre();
         file.submit([]);
     }
 }

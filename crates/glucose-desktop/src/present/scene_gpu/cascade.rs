@@ -17,7 +17,7 @@ impl SceneGpu {
     pub fn assurer(
         &mut self,
         peripherique: &wgpu::Device,
-        file: &wgpu::Queue,
+        envoi: &mut crate::present::envoi::Envoi,
         (a_poser, budget): (&[APoser], Duration),
         source: &Source<'_>,
     ) {
@@ -50,12 +50,12 @@ impl SceneGpu {
         // eux, et une carte ouverte de près n'en aurait jamais eu.
         for urgent in [true, false] {
             for t in a_poser {
-                self.rendre_si_besoin((peripherique, file), (t, urgent), source, &mut tranche);
+                self.rendre_si_besoin((peripherique, envoi), (t, urgent), source, &mut tranche);
             }
             for repli in &replis {
                 if tranche.debut.elapsed() < tranche.budget {
                     self.rendre_si_besoin(
-                        (peripherique, file),
+                        (peripherique, envoi),
                         (repli, urgent),
                         source,
                         &mut tranche,
@@ -72,7 +72,7 @@ impl SceneGpu {
     /// Rend et téléverse `t` si ce tour le concerne et que le budget le permet.
     fn rendre_si_besoin(
         &mut self,
-        (peripherique, file): (&wgpu::Device, &wgpu::Queue),
+        (peripherique, envoi): (&wgpu::Device, &mut crate::present::envoi::Envoi),
         (t, urgent): (&APoser, bool),
         source: &Source<'_>,
         tranche: &mut Tranche,
@@ -115,7 +115,7 @@ impl SceneGpu {
             // ordinaire ne peut couter : il faut donc savoir laquelle, et la surface est la
             // seule grandeur qui puisse l'expliquer.
             tranche.surface += f64::from(pixels.width()) * f64::from(pixels.height()) / 1000.0;
-            self.televerser(peripherique, file, (&t.identite, &t.cle), pixels);
+            self.televerser(peripherique, envoi, (&t.identite, &t.cle), pixels);
             if photo {
                 self.marquer_photo(&t.identite);
             }

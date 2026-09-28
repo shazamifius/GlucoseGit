@@ -48,11 +48,12 @@ fn a_poser(cle: &str, pose: Pose) -> APoser {
 /// Dessine `poses` dans une cible de `cote` pixels, et rend ses octets RGBA.
 fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Option<Vec<u8>> {
     let (peripherique, file) = carte()?;
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let format = wgpu::TextureFormat::Rgba8Unorm;
     let mut scene = SceneGpu::nouvelle(&peripherique, format);
     scene.ouvrir();
     for (cle, source) in sources {
-        scene.televerser(&peripherique, &file, (cle, cle), source.as_ref());
+        scene.televerser(&peripherique, &mut envoi, (cle, cle), source.as_ref());
     }
     let poses: Vec<APoser> = poses.iter().map(|(c, p)| a_poser(c, *p)).collect();
     let retenues = scene.preparer(&peripherique, &file, (cote as f32, cote as f32), &poses);
@@ -125,6 +126,7 @@ fn rendre(cote: u32, poses: &[(String, Pose)], sources: &[(&str, Pixmap)]) -> Op
         },
         taille,
     );
+    envoi.soumettre();
     file.submit(Some(encodeur.finish()));
     lecture.slice(..).map_async(wgpu::MapMode::Read, |_| {});
     let _ = peripherique.poll(wgpu::PollType::Wait {
@@ -226,17 +228,18 @@ fn test_le_magasin_oublie_ce_qui_n_a_pas_servi() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("a", "a"),
         photo(4, [1, 2, 3, 255]).as_ref(),
     );
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("b", "b"),
         photo(4, [4, 5, 6, 255]).as_ref(),
     );
@@ -321,12 +324,13 @@ fn test_cascade_l_ancien_palier_se_pose_tant_que_le_nouveau_manque() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
     // La carte détient la carte de texte `c1` à son ancien palier.
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("carte:c1", "carte:c1:ancien"),
         photo(4, [1, 2, 3, 255]).as_ref(),
     );
@@ -386,11 +390,12 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("vieux", "vieux:ancien"),
         photo(4, [1, 2, 3, 255]).as_ref(),
     );
@@ -414,7 +419,7 @@ fn test_cascade_le_budget_reporte_le_perime_et_sert_l_absent_d_abord() {
     // Budget nul : l'image n'a plus une milliseconde à donner.
     scene.assurer(
         &peripherique,
-        &file,
+        &mut envoi,
         (
             &[demande("vieux:neuf", "vieux"), demande("neuf", "neuf")],
             std::time::Duration::ZERO,
@@ -449,6 +454,7 @@ fn test_la_cascade_compte_ce_que_le_rendu_a_pris() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
     let pose = Pose {
@@ -473,7 +479,7 @@ fn test_la_cascade_compte_ce_que_le_rendu_a_pris() {
     };
     scene.assurer(
         &peripherique,
-        &file,
+        &mut envoi,
         (&[demande], std::time::Duration::MAX),
         &lente,
     );
@@ -493,17 +499,18 @@ fn test_cascade_un_nouveau_palier_remplace_l_ancien_et_ne_s_ajoute_pas() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("c", "c:x1"),
         photo(4, [1, 1, 1, 255]).as_ref(),
     );
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("c", "c:x2"),
         photo(4, [2, 2, 2, 255]).as_ref(),
     );
@@ -620,6 +627,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     let pose = Pose {
         x: 0.0,
@@ -636,7 +644,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
     scene.ouvrir();
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("carte:c", "carte:c:k"),
         photo(4, [7, 7, 7, 255]).as_ref(),
     );
@@ -651,7 +659,7 @@ fn test_de_pres_une_tuile_absente_se_remplace_par_son_repli_qui_reste_garde() {
     scene.ouvrir();
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("carte:c@6#0,0", "carte:c@6#0,0:k"),
         photo(4, [9, 9, 9, 255]).as_ref(),
     );
@@ -679,6 +687,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let pose = Pose {
         x: 0.0,
         y: 0.0,
@@ -697,13 +706,13 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
     scene.ouvrir();
     scene.televerser(
         &peripherique,
-        &file,
+        &mut envoi,
         ("carte:c@6#0,0", "carte:c@6#0,0:k"),
         photo(4, [1, 1, 1, 255]).as_ref(),
     );
     scene.assurer(
         &peripherique,
-        &file,
+        &mut envoi,
         (&demande, std::time::Duration::ZERO),
         &source,
     );
@@ -715,7 +724,7 @@ fn test_de_pres_un_repli_se_rend_sur_le_temps_qui_reste_et_jamais_de_force() {
     // Du temps : il se rend, bien que sa tuile soit la.
     scene.assurer(
         &peripherique,
-        &file,
+        &mut envoi,
         (&demande, std::time::Duration::MAX),
         &source,
     );
@@ -762,6 +771,7 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let pose = Pose {
         x: 0.0,
         y: 0.0,
@@ -772,13 +782,13 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         fenetre: Pose::TOUT,
         bornes: Pose::PARTOUT,
     };
-    let jouer = |gardable: u64| {
+    let mut jouer = |gardable: u64| {
         let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
         for nom in ["a", "b", "c"] {
             scene.ouvrir();
             scene.televerser(
                 &peripherique,
-                &file,
+                &mut envoi,
                 (nom, nom),
                 photo(4, [1, 2, 3, 255]).as_ref(),
             );
@@ -788,7 +798,7 @@ fn test_vram_hors_de_l_ecran_la_carte_garde_les_plus_recentes_dans_son_budget() 
         scene.ouvrir();
         scene.televerser(
             &peripherique,
-            &file,
+            &mut envoi,
             ("d", "d"),
             photo(4, [4, 5, 6, 255]).as_ref(),
         );
@@ -825,6 +835,7 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.ouvrir();
     let pose = Pose {
@@ -847,7 +858,7 @@ fn test_la_carte_compte_ce_qu_occupent_ses_photos_a_l_ecran() {
     let demandes = [a_poser("photo"), a_poser("carte")];
     scene.assurer(
         &peripherique,
-        &file,
+        &mut envoi,
         (&demandes, std::time::Duration::MAX),
         &|cle| {
             Some(if cle == "photo" {
@@ -886,6 +897,7 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
         eprintln!("aucune carte graphique : test saute");
         return;
     };
+    let mut envoi = crate::present::envoi::Envoi::nouveau(&peripherique, &file);
     let mut scene = SceneGpu::nouvelle(&peripherique, wgpu::TextureFormat::Rgba8Unorm);
     scene.debit.noter(1, std::time::Duration::from_secs(1));
     scene.ouvrir();
@@ -906,7 +918,7 @@ fn test_la_cascade_prevoit_avant_d_entamer() {
     };
     scene.assurer(
         &peripherique,
-        &file,
+        &mut envoi,
         (
             &[a_poser("premiere"), a_poser("seconde")],
             std::time::Duration::from_millis(5),

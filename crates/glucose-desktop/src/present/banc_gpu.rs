@@ -194,6 +194,7 @@ pub fn composer_les_cinq_temps(
     let mut lisere = lisere_gpu::LisereGpu::nouveau(peripherique, FORMAT);
     let mut scene = scene_gpu::SceneGpu::nouvelle(peripherique, FORMAT);
     let mut deux = couches::Couches::nouvelles(peripherique, FORMAT);
+    let mut envoi = crate::present::envoi::Envoi::nouveau(peripherique, file);
 
     fond.preparer(file, ecran, confie.fond);
     lueurs.preparer(peripherique, file, ecran, &confie.lueurs);
@@ -207,7 +208,7 @@ pub fn composer_les_cinq_temps(
     // une cascade rendrait la comparaison dependante du temps qu'il fait.
     scene.assurer(
         peripherique,
-        file,
+        &mut envoi,
         (&textures, std::time::Duration::MAX),
         source,
     );
@@ -216,7 +217,7 @@ pub fn composer_les_cinq_temps(
     // Le banc et l'epreuve des deux voies composent des images COMPLETES : tout part.
     deux.televerser(
         peripherique,
-        file,
+        &mut envoi,
         (
             dessous,
             utile,
@@ -246,6 +247,7 @@ pub fn composer_les_cinq_temps(
             photos: confie.photos.len(),
         },
     );
+    envoi.soumettre();
     file.submit(Some(encodeur.finish()));
     relire(peripherique, file, &cible, taille)
 }

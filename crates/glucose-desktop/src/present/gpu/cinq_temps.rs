@@ -34,34 +34,7 @@ pub(super) fn presenter(
     source: &crate::present::scene_gpu::Source<'_>,
 ) -> DesktopResult<crate::present::Issue> {
     let retenues = preparer_la_scene(p, (dessous, confie, budget), source);
-    // La couche du dessous ne part que si elle porte quelque chose. Quand la carte peint
-    // le fond et les lueurs, elle ne reste que les membranes et les dossiers -- et sur un
-    // document qui n'en a pas, quinze mebioctets par image cessent de traverser le bus.
-    // **Ce qui part sur le bus** : ce que cette image a ecrit, plus ce que la precedente
-    // avait ecrit et qu'elle n'ecrit plus -- sans quoi la texture garderait l'ancien, la
-    // couche n'ayant pas d'anneau qui la renouvellerait.
-    let a_televerser = p.bandes_envoyees.union(&confie.bandes_du_dessus);
-    p.bandes_envoyees = confie.bandes_du_dessus.clone();
-    // Le dessous de même (BANDE-2) -- sauf quand il porte le fond : alors tout part.
-    let du_dessous = if confie.fond.is_none() {
-        crate::present::bandes::Bandes::tout(dessous.height())
-    } else {
-        confie.bandes_du_dessous.clone()
-    };
-    let dessous_utile = !du_dessous.vides();
-    let dessous_a_televerser = p.bandes_du_dessous_envoyees.union(&du_dessous);
-    // Un dessous qui ne se pose pas n'envoie rien : sa texture garde ce qu'elle avait, et ce
-    // sont ces bandes-là qu'il faudra effacer le jour où il se reposera.
-    if dessous_utile {
-        p.bandes_du_dessous_envoyees = du_dessous;
-    }
-    crate::perf::compteur("dessous_televerse", f64::from(u8::from(dessous_utile)));
-    p.couches.televerser(
-        &p.device,
-        &p.queue,
-        (dessous, dessous_utile, &dessous_a_televerser),
-        (dessus, &a_televerser),
-    );
+    envoyer_les_couches(p, (dessous, dessus), confie);
     crate::perf::stage("blit");
 
     let frame = match p.acquerir()? {
@@ -70,6 +43,7 @@ pub(super) fn presenter(
         // est vrai, elle a été préparée — et on dit à l'appelant ce qui s'est passé. Sans
         // cette distinction, il croirait l'image faite et s'endormirait sur un canevas figé.
         Err(issue) => {
+            p.envoi.soumettre();
             fermer_la_scene(p);
             return Ok(issue);
         }
@@ -99,6 +73,8 @@ pub(super) fn presenter(
         },
     );
     crate::perf::stage("encoder");
+    // Ce qui a été envoyé part d'abord, puis l'image qui s'en sert (ENVOI-1).
+    p.envoi.soumettre();
     p.queue.submit(Some(encodeur.finish()));
     crate::perf::stage("soumettre");
     drop(cible);
@@ -106,6 +82,47 @@ pub(super) fn presenter(
     crate::perf::stage("present");
     fermer_la_scene(p);
     Ok(crate::present::Issue::Presentee)
+}
+
+/// **Ce que les deux couches du processeur envoient à la carte** : ce que cette image a écrit,
+/// plus ce que la précédente avait écrit et qu'elle n'écrit plus.
+///
+/// Extraite de [`presenter`] quand l'envoi par des tampons qui restent (ENVOI-1) y a ajouté
+/// ses soumissions : la décision des bandes est une question à part, et le cliquet des
+/// quatre-vingts lignes a eu raison de le dire.
+fn envoyer_les_couches(
+    p: &mut GpuPresenter,
+    (dessous, dessus): (&Pixmap, &Pixmap),
+    confie: &crate::renderer::Confie,
+) {
+    // La couche du dessous ne part que si elle porte quelque chose. Quand la carte peint
+    // le fond et les lueurs, elle ne reste que les membranes et les dossiers -- et sur un
+    // document qui n'en a pas, quinze mebioctets par image cessent de traverser le bus.
+    // **Ce qui part sur le bus** : ce que cette image a ecrit, plus ce que la precedente
+    // avait ecrit et qu'elle n'ecrit plus -- sans quoi la texture garderait l'ancien, la
+    // couche n'ayant pas d'anneau qui la renouvellerait.
+    let a_televerser = p.bandes_envoyees.union(&confie.bandes_du_dessus);
+    p.bandes_envoyees = confie.bandes_du_dessus.clone();
+    // Le dessous de même (BANDE-2) -- sauf quand il porte le fond : alors tout part.
+    let du_dessous = if confie.fond.is_none() {
+        crate::present::bandes::Bandes::tout(dessous.height())
+    } else {
+        confie.bandes_du_dessous.clone()
+    };
+    let dessous_utile = !du_dessous.vides();
+    let dessous_a_televerser = p.bandes_du_dessous_envoyees.union(&du_dessous);
+    // Un dessous qui ne se pose pas n'envoie rien : sa texture garde ce qu'elle avait, et ce
+    // sont ces bandes-là qu'il faudra effacer le jour où il se reposera.
+    if dessous_utile {
+        p.bandes_du_dessous_envoyees = du_dessous;
+    }
+    crate::perf::compteur("dessous_televerse", f64::from(u8::from(dessous_utile)));
+    p.couches.televerser(
+        &p.device,
+        &mut p.envoi,
+        (dessous, dessous_utile, &dessous_a_televerser),
+        (dessus, &a_televerser),
+    );
 }
 
 /// **Le premier temps : donner à la carte ce qu'elle ne connaît pas, puis poser les quads.**
@@ -125,7 +142,7 @@ fn preparer_la_scene(
     let textures = confie.textures();
     p.scene.ouvrir();
     p.scene
-        .assurer(&p.device, &p.queue, (&textures, budget), source);
+        .assurer(&p.device, &mut p.envoi, (&textures, budget), source);
     // **Ce que la carte ne connaissait pas encore**, et il fallait le séparer du reste.
     //
     // `assurer` crée et téléverse les textures que la scène réclame et que la carte n'a pas :
