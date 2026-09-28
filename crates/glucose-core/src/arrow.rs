@@ -370,9 +370,6 @@ fn closest_on(rect: Rect, (x, y): (f64, f64)) -> (f64, f64) {
 /// tracé, et le nœud dont elle part — sans quoi elle se refermerait sur son origine dès le
 /// premier pixel de glisser.
 pub fn snap_to_nearest(board: &Board, point: (f64, f64), exclude: &[&str]) -> Snap {
-    let mut best = Snap::free(point);
-    let mut best_dist = SNAP_DIST;
-
     let boxes = board
         .images
         .iter()
@@ -384,8 +381,24 @@ pub fn snap_to_nearest(board: &Board, point: (f64, f64), exclude: &[&str]) -> Sn
                 .filter_map(|a| Some((a.id(), a.rect()?))),
         )
         .chain(board.folders.iter().map(|f| (f.id.as_str(), f.rect())));
+    snap_parmi(boxes, point, exclude)
+}
 
-    for (id, rect) in boxes {
+/// **Le même choix que [`snap_to_nearest`], parmi ces candidats seulement** (SNAP-3) : ce
+/// qu'un index spatial rend autour du point, là où le tableau entier se parcourait à chaque
+/// mouvement de la souris.
+///
+/// Tout nœud à moins de [`SNAP_DIST`] a sa boîte dans le carré de ce rayon autour du point :
+/// l'index qui rend ce carré rend donc tous ceux qui comptent. Les candidats viennent dans
+/// l'ordre du tableau — images, annotations, dossiers — pour qu'à égalité le même l'emporte.
+pub fn snap_parmi<'a>(
+    candidats: impl IntoIterator<Item = (&'a str, Rect)>,
+    point: (f64, f64),
+    exclude: &[&str],
+) -> Snap {
+    let mut best = Snap::free(point);
+    let mut best_dist = SNAP_DIST;
+    for (id, rect) in candidats {
         if exclude.contains(&id) {
             continue;
         }
@@ -400,22 +413,6 @@ pub fn snap_to_nearest(board: &Board, point: (f64, f64), exclude: &[&str]) -> Sn
         }
     }
     best
-}
-
-/// Où la **pointe** d'une flèche en cours de tracé se pose, et à quoi elle s'accroche.
-///
-/// C'est [`snap_to_nearest`] avec les seules exclusions qui aient un sens pendant un tracé :
-/// la flèche elle-même, et le nœud dont elle part. Les déduire ici plutôt que de les faire
-/// assembler par l'appelant lui évite de lire le modèle pour savoir ce qu'il doit écarter —
-/// et surtout évite que deux appelants n'en écartent pas les mêmes.
-pub fn snap_for_tip(board: &Board, arrow_id: &str, point: (f64, f64)) -> Snap {
-    let source = board.annotations.iter().find_map(|a| match a {
-        Annotation::Arrow { id, source_id, .. } if id == arrow_id => source_id.as_deref(),
-        _ => None,
-    });
-    let mut exclude = vec![arrow_id];
-    exclude.extend(source);
-    snap_to_nearest(board, point, &exclude)
 }
 
 /// Rayon d'une poignée de flèche, en pixels **écran** (Glucose Tauri : `6 / vpScale`).

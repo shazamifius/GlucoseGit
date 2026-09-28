@@ -7,7 +7,7 @@
 
 use glucose_core::hit_priority::{collect_candidates, handle_cursor, PickInput, PickKind};
 use glucose_core::resize::{resize_rect, snap_resized_rect, Handle, ResizeRule, MIN_IMAGE_SIDE};
-use glucose_core::smart_align::{AlignKind, AlignRect, AlignTarget, SnapOptions};
+use glucose_core::smart_align::{AlignKind, AlignRect, AlignTarget, Lignes, SnapOptions};
 use glucose_core::store::Store;
 use glucose_core::types::{Annotation, BoardImage};
 
@@ -215,7 +215,7 @@ fn test_snap_keeps_the_ratio_when_a_guide_catches_the_pulled_edge() {
         start,
         Handle::BottomRight,
         pulled,
-        &[target_at(300.0, 500.0)],
+        &Lignes::des(&[target_at(300.0, 500.0)]),
         SnapOptions::default(),
         ResizeRule::image(false),
     );
@@ -242,7 +242,7 @@ fn test_snap_is_dropped_when_it_would_break_the_minimum_size() {
         start,
         Handle::BottomRight,
         pulled,
-        &[target_at(260.0, 500.0)],
+        &Lignes::des(&[target_at(260.0, 500.0)]),
         SnapOptions::default(),
         rule,
     );
@@ -258,7 +258,7 @@ fn test_snap_without_ratio_snaps_both_axes_like_before() {
         start,
         Handle::BottomRight,
         pulled,
-        &[target_at(300.0, 150.0)],
+        &Lignes::des(&[target_at(300.0, 150.0)]),
         SnapOptions::default(),
         free(),
     );

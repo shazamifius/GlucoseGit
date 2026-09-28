@@ -18,7 +18,7 @@
 //!   la règle le demande (une image, sans `Shift`), un coin glisse le long de la diagonale
 //!   qui passe par l'ancre ; les côtés, eux, ne changent qu'une dimension.
 
-use crate::smart_align::{snap_resize, AlignRect, AlignTarget, SnapGuides, SnapOptions};
+use crate::smart_align::{snap_resize_sur, AlignRect, Lignes, SnapGuides, SnapOptions};
 
 /// Les huit poignées d'un rectangle, nommées par le côté qu'elles déplacent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -299,17 +299,16 @@ pub fn snap_resized_rect(
     start: AlignRect,
     handle: Handle,
     free: AlignRect,
-    targets: &[AlignTarget],
+    lignes: &Lignes,
     opts: SnapOptions,
     rule: ResizeRule,
 ) -> SnappedResize {
-    let snapped = snap_resize(
+    let snapped = snap_resize_sur(
         free,
         handle.as_str(),
-        targets,
+        lignes,
         opts,
-        rule.min_width,
-        rule.min_height,
+        (rule.min_width, rule.min_height),
     );
     if !(rule.keep_aspect && handle.is_corner()) || start.width <= 0.0 || start.height <= 0.0 {
         return SnappedResize {

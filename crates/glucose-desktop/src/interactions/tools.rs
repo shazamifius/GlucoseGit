@@ -91,6 +91,8 @@ pub struct DrawSession {
     pub id: String,
     /// Le point du monde où la main s'est posée.
     pub start: (f64, f64),
+    /// Le nœud dont la flèche part, s'il y en a un : la pointe ne s'y accroche pas.
+    pub source: Option<String>,
 }
 
 impl GlucoseApp {
@@ -169,15 +171,33 @@ impl GlucoseApp {
         self.draw_session = Some(DrawSession {
             id,
             start: (sx, sy),
+            source: depart.node,
         });
     }
 
-    /// Où un bout de flèche se pose ici, et à quoi il s'accroche (ARROW-2).
-    fn snap_for_arrow(&self, point: (f64, f64), exclude: &[&str]) -> glucose_core::arrow::Snap {
-        self.store.active_board().map_or_else(
-            || glucose_core::arrow::Snap::free(point),
-            |board| glucose_core::arrow::snap_to_nearest(board, point, exclude),
-        )
+    /// Où un bout de flèche se pose ici, et à quoi il s'accroche (ARROW-2) — parmi ce que
+    /// l'index trouve autour du point, et non le tableau entier (SNAP-3).
+    pub(crate) fn snap_for_arrow(
+        &mut self,
+        point: (f64, f64),
+        exclude: &[&str],
+    ) -> glucose_core::arrow::Snap {
+        let r = glucose_core::arrow::SNAP_DIST;
+        let zone = (point.0 - r, point.1 - r, point.0 + r, point.1 + r);
+        let rangs = self.renderer.rangs_du_present(&self.store, zone);
+        let Some(board) = self.store.active_board() else {
+            return glucose_core::arrow::Snap::free(point);
+        };
+        // La boîte même que le parcours du tableau lisait : une photo par sa boîte droite.
+        let candidats = rangs.into_iter().filter_map(|k| {
+            use glucose_core::quadtree::Noeud;
+            match glucose_core::quadtree::noeud_au_rang(board, k)? {
+                Noeud::Image(i) => Some((i.id.as_str(), i.rect())),
+                Noeud::Annotation(a) => Some((a.id(), a.rect()?)),
+                Noeud::Dossier(f) => Some((f.id.as_str(), f.rect())),
+            }
+        });
+        glucose_core::arrow::snap_parmi(candidats, point, exclude)
     }
 
     /// Le glisser en cours amène la pointe de la flèche sous le curseur — ou sur le nœud
@@ -187,12 +207,11 @@ impl GlucoseApp {
             return;
         };
         let board = self.store.project.active_board_id.clone();
-        // La flèche elle-même et le nœud dont elle part sont écartés par `snap_for_tip` :
-        // sans quoi elle se refermerait sur son origine dès le premier pixel de glisser.
-        let cible = self.store.active_board().map_or_else(
-            || glucose_core::arrow::Snap::free((wx, wy)),
-            |b| glucose_core::arrow::snap_for_tip(b, &session.id, (wx, wy)),
-        );
+        // La flèche elle-même et le nœud dont elle part sont écartés : sans quoi elle se
+        // refermerait sur son origine dès le premier pixel de glisser.
+        let mut exclude = vec![session.id.as_str()];
+        exclude.extend(session.source.as_deref());
+        let cible = self.snap_for_arrow((wx, wy), &exclude);
 
         self.store.update_annotation(&board, &session.id, |ann| {
             if let Annotation::Arrow {
@@ -252,6 +271,10 @@ impl GlucoseApp {
         self.store.create_folder(&board, folder);
     }
 }
+
+#[cfg(test)]
+#[path = "tools/accroche_tests.rs"]
+mod accroche_tests;
 
 #[cfg(test)]
 mod tests {

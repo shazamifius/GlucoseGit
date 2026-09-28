@@ -277,36 +277,6 @@ fn test_arrow_2_an_excluded_node_is_never_targeted() {
     assert_eq!(snap.point, (110.0, 30.0));
 }
 
-/// Pendant un tracé, la pointe n'attrape ni la flèche elle-même ni son origine.
-///
-/// Sans cette exclusion, une flèche partie d'une carte se refermerait sur cette carte dès
-/// le premier pixel de glisser : son origine est le nœud le plus proche qui soit.
-#[test]
-fn test_arrow_2_a_tip_never_grabs_its_own_source() {
-    let mut board = plateau(&[("origine", 0.0, 0.0, 100.0, 60.0)]);
-    let mut fleche = Annotation::arrow("a", 100.0, 30.0, 110.0, 30.0);
-    if let Annotation::Arrow { source_id, .. } = &mut fleche {
-        *source_id = Some("origine".to_string());
-    }
-    board.annotations.push(fleche);
-
-    // Juste à côté de l'origine : sans exclusion, elle gagnerait.
-    let snap = snap_for_tip(&board, "a", (110.0, 30.0));
-    assert_eq!(snap.node, None, "ni l'origine, ni la flèche elle-même");
-
-    // Et une autre carte, elle, reste visable.
-    board.annotations.push({
-        let mut c = Annotation::text("autre", 200.0, 0.0, "x");
-        if let Annotation::Text { width, height, .. } = &mut c {
-            *width = Some(50.0);
-            *height = Some(50.0);
-        }
-        c
-    });
-    let snap = snap_for_tip(&board, "a", (190.0, 25.0));
-    assert_eq!(snap.node.as_deref(), Some("autre"));
-}
-
 // ── Le point d'ancrage de ce qu'une flèche dit ────────────────────────────
 
 /// Sur une flèche droite, l'étiquette se pose au milieu.

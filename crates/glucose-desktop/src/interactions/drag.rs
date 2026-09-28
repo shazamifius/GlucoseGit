@@ -3,7 +3,7 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use glucose_core::smart_align::{
-    collect_align_targets, snap_move, union_rect, AlignRect, SnapGuides, SnapOptions,
+    collect_align_targets, snap_move_sur, union_rect, AlignRect, Lignes, SnapGuides, SnapOptions,
 };
 use std::collections::HashSet;
 
@@ -31,7 +31,8 @@ impl GlucoseApp {
                 }
             }
             self.drag_selection_base = union_rect(&rects);
-            self.drag_snap_targets = collect_align_targets(board, &exclude);
+            // Les lignes de l'aimant se trient une fois pour tout le geste (SNAP-2).
+            self.drag_snap_targets = Lignes::des(&collect_align_targets(board, &exclude));
         }
     }
 
@@ -54,7 +55,7 @@ impl GlucoseApp {
                     width: base.width,
                     height: base.height,
                 };
-                let snap = snap_move(
+                let snap = snap_move_sur(
                     proposed,
                     &self.drag_snap_targets,
                     SnapOptions {
@@ -130,7 +131,7 @@ impl GlucoseApp {
             self.store.end_live_edit();
             self.active_guides = SnapGuides::default();
             self.drag_selection_base = None;
-            self.drag_snap_targets.clear();
+            self.drag_snap_targets = Lignes::default();
             self.drag_applied_delta = (0.0, 0.0);
         }
     }

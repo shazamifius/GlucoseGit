@@ -142,6 +142,25 @@ fn test_live_2_clicking_a_card_without_moving_it_keeps_the_pending_redo() {
 
 /// Une application neuve n'a rien à défaire : la carte d'accueil est l'état de départ, pas
 /// un geste de l'utilisateur. Sans cela, Ctrl+Z était actif dès le lancement.
+/// **SNAP-2 — l'aimant du glisser, par la vraie souris** : une photo tirée à trois unités de
+/// l'alignement avec sa voisine (sous le seuil de huit pixels à l'échelle 1) s'y pose
+/// exactement, et le guide le dit. Les photos se posent par leur centre.
+#[test]
+fn test_snap_2_le_glisser_s_aimante_sur_une_voisine() {
+    let mut app = app();
+    with_image(&mut app, "I1", 0.0, 0.0);
+    with_image(&mut app, "I2", 0.0, 400.0);
+    let (x1, x2) = (image_x(&app, "I1"), image_x(&app, "I2"));
+    assert_eq!(x1, x2, "alignées au départ");
+
+    press_on(&mut app, "I1");
+    drag_by(&mut app, 3.0, 3);
+    // Bords et centre sont tous à trois unités : à égalité, le centre — la première ligne.
+    assert_eq!(app.active_guides.x, Some(vec![x2]), "le guide des centres");
+    release(&mut app);
+    assert_eq!(image_x(&app, "I1"), x2, "aimantée : trois unités reprises");
+}
+
 /// **GLISSER-1 — un glisser à la souris s'écrit en une seule translation** : quarante
 /// mouvements, un geste publié, une édition, qui va du départ à l'arrivée.
 #[test]

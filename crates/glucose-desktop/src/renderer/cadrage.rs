@@ -215,6 +215,10 @@ impl Cadrage {
 
 // ── Où la vue tombe, et ce qu'elle montre ────────────────────────────────────
 
+/// **Ce qui déborde de sa boîte et se voit encore**, en unités monde : la marge que le culling
+/// ajoute à l'écran — le trait d'une flèche, une lueur. La valeur d'avant, inchangée.
+const MARGE_DU_CULLING: f64 = 200.0;
+
 use super::Renderer;
 use crate::canvas::screen_to_world;
 use glucose_core::quadtree::noeud_au_rang;
@@ -263,7 +267,9 @@ impl Renderer {
         }
         let (min_wx, min_wy) = screen_to_world(0.0, header_h as f64, &vp);
         let (max_wx, max_wy) = screen_to_world(width as f64, height as f64, &vp);
-        let mut rangs = self.visibles_du_present(store, (min_wx, min_wy, max_wx, max_wy));
+        // La marge du culling : ce qui déborde de sa boîte — un trait, une lueur — se voit encore.
+        let mut rangs =
+            self.visibles_du_present(store, (min_wx, min_wy, max_wx, max_wy), MARGE_DU_CULLING);
         // En focus, seules la membrane et son contenu se dessinent (MEMB-2).
         self.focus.filtrer(&mut rangs);
         crate::perf::stage("cull");
@@ -282,8 +288,9 @@ impl Renderer {
         &mut self,
         store: &Store,
         (x0, y0, x1, y1): (f64, f64, f64, f64),
+        marge: f64,
     ) -> Vec<u32> {
-        let mut rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0);
+        let mut rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, marge);
         let Some(board) = store.active_board() else {
             return rangs;
         };
@@ -295,9 +302,25 @@ impl Renderer {
             self.spatial_hash.index_board(board);
             self.suivi_du_geste.absorbe(geste, &self.spatial_hash);
             self.itineraires.oublier();
-            rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, 200.0);
+            rangs = self.spatial_hash.query_rect_ranks(x0, y0, x1, y1, marge);
         }
         self.suivre_les_itineraires(store, board);
+        rangs
+    }
+
+    /// **Les rangs de ce qui touche cette zone du monde, dans le document tel qu'il est** —
+    /// geste en cours compris (GESTE-1) —, triés dans l'ordre du tableau. Pour ce qu'une
+    /// interaction cherche autour de la souris sans reparcourir le tableau (SNAP-3).
+    pub(crate) fn rangs_du_present(
+        &mut self,
+        store: &Store,
+        (x0, y0, x1, y1): (f64, f64, f64, f64),
+    ) -> Vec<u32> {
+        self.sync_spatial_index(store);
+        // Aucune marge : ce qui touche la zone, et rien d'autre — la zone dit tout.
+        let mut rangs = self.visibles_du_present(store, (x0, y0, x1, y1), 0.0);
+        rangs.sort_unstable();
+        rangs.dedup();
         rangs
     }
 

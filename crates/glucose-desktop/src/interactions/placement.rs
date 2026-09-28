@@ -18,7 +18,7 @@ use crate::app::GlucoseApp;
 use crate::interactions::tools::{text_card, NEW_CONTAINER_SIZE, NEW_TEXT};
 use crate::ui::ActiveTool;
 use glucose_core::smart_align::{
-    collect_align_targets, snap_move, AlignRect, AlignTarget, SnapGuides, SnapOptions,
+    collect_align_targets, snap_move_sur, AlignRect, Lignes, SnapGuides, SnapOptions,
 };
 use glucose_core::types::{DEFAULT_STICKY_HEIGHT, DEFAULT_STICKY_WIDTH};
 
@@ -38,12 +38,15 @@ pub struct Placement {
     cibles: Option<Cibles>,
 }
 
+/// Aucune ligne, quand le tableau n'a rien où s'aimanter.
+static AUCUNE: Lignes = Lignes::AUCUNE;
+
 /// Les cibles de l'aimant, et l'état du document qu'elles décrivent.
 #[derive(Debug, Clone)]
 struct Cibles {
     version: u64,
     tableau: String,
-    liste: Vec<AlignTarget>,
+    liste: Lignes,
 }
 
 impl GlucoseApp {
@@ -87,7 +90,7 @@ impl GlucoseApp {
         }
         // Le seuil de l'aimant est en pixels logiques, comme celui du glisser (DPI-1).
         let scale = self.store.viewport().scale / self.densite();
-        let snap = snap_move(
+        let snap = snap_move_sur(
             propose,
             self.cibles_de_placement(),
             SnapOptions {
@@ -109,7 +112,7 @@ impl GlucoseApp {
     ///
     /// Les relever à chaque mouvement de la souris copierait le tableau entier autant de fois ;
     /// elles ne changent que quand le document change, et sa version le dit.
-    fn cibles_de_placement(&mut self) -> &[AlignTarget] {
+    fn cibles_de_placement(&mut self) -> &Lignes {
         let (version, tableau) = (self.store.version, &self.store.project.active_board_id);
         let a_jour = self
             .ui
@@ -121,7 +124,7 @@ impl GlucoseApp {
             let liste = self
                 .store
                 .active_board()
-                .map(|b| collect_align_targets(b, &Default::default()))
+                .map(|b| Lignes::des(&collect_align_targets(b, &Default::default())))
                 .unwrap_or_default();
             self.ui.placement.cibles = Some(Cibles {
                 version,
@@ -133,7 +136,7 @@ impl GlucoseApp {
             .placement
             .cibles
             .as_ref()
-            .map_or(&[], |c| c.liste.as_slice())
+            .map_or(&AUCUNE, |c| &c.liste)
     }
 
     /// Le fantôme à montrer : seulement sous un outil qui crée une boîte. Un outil changé au

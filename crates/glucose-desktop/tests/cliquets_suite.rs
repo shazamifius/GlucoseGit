@@ -785,7 +785,6 @@ const FONCTIONS_LONGUES_ADMISES: &[(&str, &str, usize)] = &[
         "resolve_items",
         86,
     ),
-    ("crates/glucose-core/src/smart_align.rs", "snap_resize", 94),
     (
         "crates/glucose-desktop/src/renderer/folder.rs",
         "draw_frame",

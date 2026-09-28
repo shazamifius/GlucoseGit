@@ -160,17 +160,66 @@ struct AxisSnap {
     line: f64,
 }
 
+/// **Les lignes d'alignement des cibles, triées une fois** (SNAP-2).
+///
+/// L'aimant comparait le rectangle glissé aux trois lignes de **chaque** cible, et rebâtissait
+/// ces lignes à chaque mouvement de la main : trois fois le tableau par mouvement, qui ne
+/// tiendrait pas à dix millions de nœuds (fiche 41 § 11). Les cibles ne changent pas pendant un
+/// geste : leurs lignes se trient une fois, et chaque mouvement cherche la plus proche par
+/// dichotomie — la même réponse, en un logarithme.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Lignes {
+    x: Vec<f64>,
+    y: Vec<f64>,
+}
+
+impl Lignes {
+    /// Aucune ligne : l'aimant ne prend rien.
+    pub const AUCUNE: Self = Self {
+        x: Vec::new(),
+        y: Vec::new(),
+    };
+
+    /// Les lignes de ces cibles : bords et milieux, sur chaque axe, triés.
+    pub fn des(targets: &[AlignTarget]) -> Self {
+        let mut x: Vec<f64> = targets
+            .iter()
+            .flat_map(|t| target_lines_x(t.rect))
+            .collect();
+        let mut y: Vec<f64> = targets
+            .iter()
+            .flat_map(|t| target_lines_y(t.rect))
+            .collect();
+        x.sort_by(f64::total_cmp);
+        y.sort_by(f64::total_cmp);
+        Self { x, y }
+    }
+}
+
+/// La ligne la plus proche de `m` parmi des lignes triées — à égalité, la plus petite : la
+/// réponse ne dépend pas de l'ordre des nœuds dans le tableau.
+fn plus_proche(lignes: &[f64], m: f64) -> Option<f64> {
+    let i = lignes.partition_point(|&t| t < m);
+    let dessous = i.checked_sub(1).map(|k| lignes[k]);
+    match (dessous, lignes.get(i).copied()) {
+        (Some(b), Some(h)) => Some(if h - m < m - b { h } else { b }),
+        (b, h) => b.or(h),
+    }
+}
+
+/// Le plus petit écart entre une de mes lignes et une ligne des cibles, sous le seuil — la
+/// première des miennes l'emporte à égalité.
 fn best_axis_snap(mine: &[f64], theirs: &[f64], threshold: f64) -> Option<AxisSnap> {
     let mut best = None;
     let mut best_dist = threshold;
     for &m in mine {
-        for &t in theirs {
-            let d = t - m;
-            let dist = d.abs();
-            if dist < best_dist {
-                best_dist = dist;
-                best = Some(AxisSnap { delta: d, line: t });
-            }
+        let Some(t) = plus_proche(theirs, m) else {
+            continue;
+        };
+        let d = t - m;
+        if d.abs() < best_dist {
+            best_dist = d.abs();
+            best = Some(AxisSnap { delta: d, line: t });
         }
     }
     best
@@ -182,26 +231,24 @@ fn threshold_of(opts: &SnapOptions) -> f64 {
 }
 
 pub fn snap_move(rect: AlignRect, targets: &[AlignTarget], opts: SnapOptions) -> MoveSnap {
+    snap_move_sur(rect, &Lignes::des(targets), opts)
+}
+
+/// [`snap_move`] sur des lignes déjà triées : ce qu'un geste appelle à chaque mouvement.
+pub fn snap_move_sur(rect: AlignRect, lignes: &Lignes, opts: SnapOptions) -> MoveSnap {
     let threshold = threshold_of(&opts);
     let cx = rect.left + rect.width / 2.0;
     let cy = rect.top + rect.height / 2.0;
     let mine_x = [cx, rect.left, rect.left + rect.width];
     let mine_y = [cy, rect.top, rect.top + rect.height];
 
-    let mut theirs_x = Vec::new();
-    let mut theirs_y = Vec::new();
-    for t in targets {
-        theirs_x.extend_from_slice(&target_lines_x(t.rect));
-        theirs_y.extend_from_slice(&target_lines_y(t.rect));
-    }
-
     let sx = if opts.axis_x {
-        best_axis_snap(&mine_x, &theirs_x, threshold)
+        best_axis_snap(&mine_x, &lignes.x, threshold)
     } else {
         None
     };
     let sy = if opts.axis_y {
-        best_axis_snap(&mine_y, &theirs_y, threshold)
+        best_axis_snap(&mine_y, &lignes.y, threshold)
     } else {
         None
     };
@@ -224,82 +271,36 @@ pub fn snap_resize(
     min_width: f64,
     min_height: f64,
 ) -> ResizeSnap {
+    let lignes = Lignes::des(targets);
+    snap_resize_sur(rect, handle, &lignes, opts, (min_width, min_height))
+}
+
+/// [`snap_resize`] sur des lignes déjà triées : ce qu'un geste appelle à chaque mouvement.
+pub fn snap_resize_sur(
+    rect: AlignRect,
+    handle: &str,
+    lignes: &Lignes,
+    opts: SnapOptions,
+    (min_width, min_height): (f64, f64),
+) -> ResizeSnap {
     let threshold = threshold_of(&opts);
-    let min_w = min_width.max(1.0);
-    let min_h = min_height.max(1.0);
-
-    let moves_left = handle.contains('l');
-    let moves_right = handle.contains('r');
-    let moves_top = handle.contains('t');
-    let moves_bottom = handle.contains('b');
-
-    let mut theirs_x = Vec::new();
-    let mut theirs_y = Vec::new();
-    for t in targets {
-        theirs_x.extend_from_slice(&target_lines_x(t.rect));
-        theirs_y.extend_from_slice(&target_lines_y(t.rect));
-    }
-
-    let mut left = rect.left;
-    let mut top = rect.top;
-    let mut width = rect.width;
-    let mut height = rect.height;
     let mut guides = SnapGuides::default();
-
+    let (mut left, mut width) = (rect.left, rect.width);
     if opts.axis_x {
-        let mut mine_x = Vec::new();
-        if moves_left {
-            mine_x.push(left);
-        }
-        if moves_right {
-            mine_x.push(left + width);
-        }
-        if let Some(s) = best_axis_snap(&mine_x, &theirs_x, threshold) {
-            if moves_left {
-                let right = left + width;
-                let nw = right - s.line;
-                if nw >= min_w {
-                    left = s.line;
-                    width = nw;
-                    guides.x = Some(vec![s.line]);
-                }
-            } else {
-                let nw = s.line - left;
-                if nw >= min_w {
-                    width = nw;
-                    guides.x = Some(vec![s.line]);
-                }
-            }
+        let tire = (handle.contains('l'), handle.contains('r'));
+        let pris = aimanter_un_axe((left, width), tire, &lignes.x, (threshold, min_width));
+        if let Some((debut, taille, ligne)) = pris {
+            (left, width, guides.x) = (debut, taille, Some(vec![ligne]));
         }
     }
-
+    let (mut top, mut height) = (rect.top, rect.height);
     if opts.axis_y {
-        let mut mine_y = Vec::new();
-        if moves_top {
-            mine_y.push(top);
-        }
-        if moves_bottom {
-            mine_y.push(top + height);
-        }
-        if let Some(s) = best_axis_snap(&mine_y, &theirs_y, threshold) {
-            if moves_top {
-                let bottom = top + height;
-                let nh = bottom - s.line;
-                if nh >= min_h {
-                    top = s.line;
-                    height = nh;
-                    guides.y = Some(vec![s.line]);
-                }
-            } else {
-                let nh = s.line - top;
-                if nh >= min_h {
-                    height = nh;
-                    guides.y = Some(vec![s.line]);
-                }
-            }
+        let tire = (handle.contains('t'), handle.contains('b'));
+        let pris = aimanter_un_axe((top, height), tire, &lignes.y, (threshold, min_height));
+        if let Some((debut, taille, ligne)) = pris {
+            (top, height, guides.y) = (debut, taille, Some(vec![ligne]));
         }
     }
-
     ResizeSnap {
         rect: AlignRect {
             left,
@@ -309,6 +310,32 @@ pub fn snap_resize(
         },
         guides,
     }
+}
+
+/// **Aimante un axe d'un redimensionnement** : le bord tiré — le début si `tire.0`, la fin si
+/// `tire.1` — va sur la ligne la plus proche sous le seuil, sauf si la taille tomberait sous
+/// son minimum. Rend le nouveau début, la nouvelle taille et la ligne, ou rien.
+fn aimanter_un_axe(
+    (debut, taille): (f64, f64),
+    (tire_le_debut, tire_la_fin): (bool, bool),
+    lignes: &[f64],
+    (seuil, minimum): (f64, f64),
+) -> Option<(f64, f64, f64)> {
+    let minimum = minimum.max(1.0);
+    let mut miennes = Vec::with_capacity(2);
+    if tire_le_debut {
+        miennes.push(debut);
+    }
+    if tire_la_fin {
+        miennes.push(debut + taille);
+    }
+    let s = best_axis_snap(&miennes, lignes, seuil)?;
+    let (nouveau_debut, nouvelle_taille) = if tire_le_debut {
+        (s.line, debut + taille - s.line)
+    } else {
+        (debut, s.line - debut)
+    };
+    (nouvelle_taille >= minimum).then_some((nouveau_debut, nouvelle_taille, s.line))
 }
 
 pub fn snap_point(x: f64, y: f64, targets: &[AlignTarget], opts: SnapOptions) -> PointSnap {

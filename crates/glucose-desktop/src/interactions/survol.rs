@@ -34,14 +34,13 @@ impl GlucoseApp {
     /// **Suit le nœud dont une flèche partirait**, sous l'outil Flèche armé : l'image ne se
     /// redessine que quand il change.
     pub(crate) fn suivre_le_noeud_pressenti(&mut self) {
-        let pressenti = (self.ui.active_tool == ActiveTool::Arrow)
-            .then(|| {
-                let vp = self.store.viewport();
-                let point = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
-                let board = self.store.active_board()?;
-                glucose_core::arrow::snap_to_nearest(board, point, &[]).node
-            })
-            .flatten();
+        let pressenti = if self.ui.active_tool == ActiveTool::Arrow {
+            let vp = self.store.viewport();
+            let point = crate::canvas::screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+            self.snap_for_arrow(point, &[]).node
+        } else {
+            None
+        };
         if pressenti != self.ui.noeud_pressenti {
             self.ui.noeud_pressenti = pressenti;
             self.mark_dirty();

@@ -26,7 +26,7 @@ use crate::renderer::card::text_card_fit_height;
 use glucose_core::hit_priority::{handle_cursor, PickCandidate, PickKind, PickOwner};
 use glucose_core::resize::{resize_rect, snap_resized_rect, Handle, ResizeRule};
 use glucose_core::smart_align::{
-    collect_align_targets, AlignRect, AlignTarget, SnapGuides, SnapOptions,
+    collect_align_targets, AlignRect, Lignes, SnapGuides, SnapOptions,
 };
 use glucose_core::types::Annotation;
 use std::collections::HashSet;
@@ -70,7 +70,8 @@ pub struct ResizeSession {
     /// tournée autour du même centre.
     pub start: AlignRect,
     pub pointer_start: (f64, f64),
-    pub snap_targets: Vec<AlignTarget>,
+    /// Les lignes de l'aimant, triées une fois pour tout le geste (SNAP-2).
+    pub snap_targets: Lignes,
     /// Le pointeur a-t-il bougé ? Un simple clic sur une poignée n'est pas un geste et ne
     /// laisse pas d'entrée d'undo.
     pub moved: bool,
@@ -131,7 +132,7 @@ impl GlucoseApp {
         let snap_targets = self
             .store
             .active_board()
-            .map(|b| collect_align_targets(b, &exclude))
+            .map(|b| Lignes::des(&collect_align_targets(b, &exclude)))
             .unwrap_or_default();
 
         self.store.begin_live_edit();

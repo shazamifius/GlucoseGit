@@ -1,8 +1,8 @@
 //! Tests portés fidèlement de src/canvas/smartAlign.test.ts
 
 use glucose_core::smart_align::{
-    collect_align_targets, same_guides, snap_move, snap_point, snap_resize, union_rect, AlignKind,
-    AlignRect, AlignTarget, SnapGuides, SnapOptions,
+    collect_align_targets, same_guides, snap_move, snap_move_sur, snap_point, snap_resize,
+    union_rect, AlignKind, AlignRect, AlignTarget, Lignes, SnapGuides, SnapOptions,
 };
 use glucose_core::types::{Annotation, Board, BoardImage, CanvasFolder, MembraneMode};
 use std::collections::HashSet;
@@ -385,4 +385,74 @@ fn test_same_guides() {
     assert!(!same_guides(Some(&g1), Some(&g2)));
     assert!(same_guides(Some(&g1), Some(&g3)));
     assert!(!same_guides(Some(&g1), Some(&g4)));
+}
+
+/// **SNAP-2 — les lignes triées choisissent comme la comparaison à toutes les lignes** : deux
+/// mille rectangles glissés parmi cent cibles tirées au hasard, l'aimant par dichotomie contre
+/// l'aimant d'avant, qui comparait chaque ligne du rectangle à chaque ligne de chaque cible.
+#[test]
+fn test_snap_2_les_lignes_triees_choisissent_comme_toutes_les_lignes() {
+    let mut graine = 11_u64;
+    let mut hasard = |a: f64, b: f64| {
+        graine = graine
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        a + (b - a) * ((graine >> 11) as f64 / (1u64 << 53) as f64)
+    };
+    let cibles: Vec<AlignTarget> = (0..100)
+        .map(|k| AlignTarget {
+            id: format!("c{k}"),
+            kind: AlignKind::Image,
+            rect: box_rect(
+                hasard(0.0, 2000.0),
+                hasard(0.0, 2000.0),
+                hasard(10.0, 300.0),
+                hasard(10.0, 300.0),
+            ),
+        })
+        .collect();
+    // L'aimant d'avant : chaque ligne de chaque cible, pour chaque ligne du rectangle.
+    let a_plat = |mine: [f64; 3], toutes: Vec<f64>, seuil: f64| -> Option<(f64, f64)> {
+        let mut meilleur = None;
+        let mut meilleure = seuil;
+        for m in mine {
+            for &t in &toutes {
+                if (t - m).abs() < meilleure {
+                    meilleure = (t - m).abs();
+                    meilleur = Some((t - m, t));
+                }
+            }
+        }
+        meilleur
+    };
+    let lignes = Lignes::des(&cibles);
+    let (mut aimantes, opts) = (0, SnapOptions::default());
+    for _ in 0..2000 {
+        let r = box_rect(
+            hasard(0.0, 2000.0),
+            hasard(0.0, 2000.0),
+            hasard(10.0, 300.0),
+            hasard(10.0, 300.0),
+        );
+        let snap = snap_move_sur(r, &lignes, opts);
+        let xs = cibles
+            .iter()
+            .flat_map(|c| {
+                [
+                    c.rect.left,
+                    c.rect.left + c.rect.width / 2.0,
+                    c.rect.right(),
+                ]
+            })
+            .collect();
+        let attendu = a_plat(
+            [r.left + r.width / 2.0, r.left, r.left + r.width],
+            xs,
+            opts.threshold_px,
+        );
+        assert_eq!(snap.dx, attendu.map_or(0.0, |a| a.0), "{r:?}");
+        assert_eq!(snap.guides.x, attendu.map(|a| vec![a.1]), "{r:?}");
+        aimantes += usize::from(attendu.is_some());
+    }
+    assert!(aimantes > 100, "l'aimant prend vraiment : {aimantes}");
 }
