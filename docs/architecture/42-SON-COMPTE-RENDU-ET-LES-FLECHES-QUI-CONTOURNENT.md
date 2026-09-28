@@ -407,4 +407,31 @@ d'une voisine (ce n'est pas un coin convexe de leur union). C'est le prochain co
 
 ---
 
+## 9. Sa capture des formules (FORMULE-2)
+
+Il a écrit dans une carte les dix formules que je lui avais données — **sans** `$$`, par ma faute.
+Lu point par point :
+
+* **Le mode.** Une ligne qui commence par une commande (`\frac…`) est une formule même sans
+  dollars — un ajout de Glucose Rust : Tauri ne reconnaissait que `$…$` et `$$…$$` (remark-math),
+  et ces lignes y seraient restées du texte. Sans délimiteur, rien ne dit que l'auteur voulait une
+  formule en bloc : elle se rend en ligne (intégrale petite, bornes à côté), comme documenté dans
+  `text/block.rs`. Juste ; `$$ … $$` demande le bloc.
+* **`f(x) = \begin{cases}…` et `fjord\;bonjours` restés en source** : ils ne commencent pas par
+  une commande, ce sont donc des phrases. Et le `\\` qui s'affiche `\` est l'échappement du
+  Markdown dans une phrase. Rien de cassé.
+* **Deux formules hautes se touchaient** — le « D » sous l'intégrale double sur le « n » de
+  l'accolade de la ligne suivante. Un vrai défaut : une formule réservait juste assez de lignes
+  pour sa boîte, et s'y posait en haut ; quand sa boîte remplissait ses lignes, rien ne la
+  séparait de la suivante. Une ligne de texte, elle, a toujours son interligne.
+  **Corrigé** : une formule garde l'interligne d'un texte (`LINE_FACTOR − 1` corps), moitié
+  au-dessus, moitié en dessous, par **une seule** fonction (`place_d_une_formule`) que la mise en
+  page et le dessin appellent, en corps de texte — les mêmes nombres à tout zoom, aucune ligne
+  réservée de plus ou de moins par un arrondi. Épreuve sur ses deux paires de formules, dans les
+  deux modes ; les trois sabotages tombent. Les témoins : les cartes de formules descendent leur
+  formule au milieu de ses lignes, et celle de la vitrine, qui collait à « est bornée : », gagne
+  une ligne. Regardés avant/après.
+
+---
+
 **Retour** : [`00-INDEX.md`](00-INDEX.md)

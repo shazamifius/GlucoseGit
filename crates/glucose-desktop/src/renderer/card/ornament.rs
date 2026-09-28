@@ -13,7 +13,7 @@
 use super::{CardLayout, TextCard, BULLET_BASELINE};
 use crate::params::Pen;
 use crate::renderer::pass::Pass;
-use crate::renderer::richtext::{ink_of, mode_of, VisualLine};
+use crate::renderer::richtext::{ink_of, mode_of, place_d_une_formule, VisualLine};
 use crate::typography::{Face, TextStyle};
 use glucose_core::text::BlockKind;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
@@ -190,18 +190,12 @@ fn draw_formula(
         Some(e) => tiny_skia::Color::from_rgba8(e.teinte.0, e.teinte.1, e.teinte.2, 255),
         None => ink_of(line.kind, ctx.theme),
     };
-    // La ligne de base se pose **sous ce que la formule monte**. La poser à une hauteur fixe
-    // ferait déborder par le haut tout ce qui monte plus qu'un corps de texte — une
-    // intégrale, une somme, un exposant d'exposant — et la formule mordrait sur la ligne
-    // précédente.
-    let au_dessus = ctx
-        .math
-        .measure(corps, mode, layout.font)
-        .map(|(_, h, _)| h)
-        .unwrap_or(layout.font);
+    // La ligne de base se pose **sous ce que la formule monte**, dans les lignes qu'elle
+    // réserve et avec son interligne — la même place que la mise en page lui a donnée.
+    let (_, ligne_de_base) = place_d_une_formule(ctx.math, corps, mode);
     let plume = Pen {
         x: at.0,
-        y: at.1 + au_dessus,
+        y: at.1 + ligne_de_base * layout.font,
         font_size: layout.font,
     };
     if ctx.math.draw(pixmap, corps, mode, plume, ink) {

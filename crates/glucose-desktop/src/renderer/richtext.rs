@@ -343,7 +343,7 @@ pub fn layout_rich_text(
             // conséquences : une source plus large que la carte débordait sans se couper, et
             // ses `$` n'étaient pas des signes, donc rien ne pouvait les colorer.
             BlockKind::Math { display } if mode == TextMode::Rendered => {
-                layout_formula(&mut out, math, source, block, display, bx)
+                layout_formula(&mut out, math, source, block, display)
             }
             // Un trait, une clôture : rien à mesurer. Au repos la clôture ne prend même pas
             // de place — on n'a pas à voir un blanc là où un signe s'est effacé. En édition
@@ -432,6 +432,33 @@ fn layout_paragraph(
     }
 }
 
+/// **La place d'une formule parmi les lignes d'une carte**, en corps de texte : combien de
+/// lignes elle réserve, et à quelle hauteur, sous le haut de la première, tombe sa ligne de
+/// base.
+///
+/// Une ligne de texte laisse un interligne entre ses glyphes et ceux de la suivante —
+/// `LINE_FACTOR − 1` corps. La formule le garde aussi, moitié au-dessus, moitié en dessous :
+/// deux formules hautes l'une sous l'autre ne se touchent jamais. Elles se touchaient (sa
+/// capture du 28/09 : le « D » sous une intégrale double sur le « n » de l'accolade suivante),
+/// parce qu'une formule réservait juste assez de lignes pour sa boîte et s'y posait en haut.
+///
+/// Tout est en corps : la carte se met en page à la taille du monde et se dessine à celle de
+/// l'écran, et les deux lisent ces mêmes nombres — une ligne réservée de plus ou de moins d'un
+/// zoom à l'autre, par un arrondi, n'existe pas. Une formule fausse réserve une ligne.
+pub fn place_d_une_formule(
+    math: &MathRenderer,
+    corps: &str,
+    mode: glucose_math::Mode,
+) -> (usize, f32) {
+    let Some((_, h, d)) = math.measure(corps, mode, 1.0) else {
+        return (1, 1.0);
+    };
+    let interligne = LINE_FACTOR - 1.0;
+    let rangs = ((h + d + interligne) / LINE_FACTOR).ceil().max(1.0);
+    let libre = rangs * LINE_FACTOR - (h + d);
+    (rangs as usize, libre / 2.0 + h)
+}
+
 /// Une formule occupe **plusieurs hauteurs de ligne**, mais une seule d'entre elles porte sa
 /// source : les autres ne sont là que pour réserver la place. C'est ce qui permet à la hauteur
 /// d'une carte de rester « le nombre de lignes × la hauteur d'une ligne », sans cas
@@ -442,13 +469,8 @@ fn layout_formula(
     source: &str,
     block: Block,
     display: bool,
-    bx: TextBox,
 ) {
-    let hauteur = math
-        .measure(block.body_slice(source), mode_of(display), bx.body)
-        .map(|(_, h, d)| h + d)
-        .unwrap_or(bx.line_height);
-    let rangs = (hauteur / bx.line_height).ceil().max(1.0) as usize;
+    let (rangs, _) = place_d_une_formule(math, block.body_slice(source), mode_of(display));
     for i in 0..rangs {
         let from = out.fragments.len();
         if i == 0 {

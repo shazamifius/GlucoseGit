@@ -461,3 +461,44 @@ fn test_table_2_le_clic_tombe_dans_sa_colonne() {
     let vise = hit::x_to_offset(&typo, &mise_en_page, derniere, texte, colonne + 1.0, 14.0);
     assert_eq!(vise, z, "viser le Z rend un autre octet");
 }
+
+/// **Deux formules hautes l'une sous l'autre gardent l'interligne d'un texte** — sa capture du
+/// 28/09 : le « D » sous une intégrale double touchait le « n » de l'accolade de la ligne
+/// suivante. Entre l'encre de l'une et celle de l'autre, au moins `LINE_FACTOR − 1` corps ; et
+/// chacune au milieu des lignes qu'elle réserve.
+#[test]
+fn test_deux_formules_hautes_ne_se_touchent_pas() {
+    use glucose_math::Mode;
+    let math = crate::renderer::math::MathRenderer::new();
+    let paires = [
+        (
+            r"\iint_D f \, dA + \oint_C \vec{F} \cdot d\vec{r}",
+            r"\overbrace{a+b}^{n} + \widehat{xyz} + \overrightarrow{AB}",
+        ),
+        (
+            r"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}",
+            r"\begin{pmatrix} a & b \ c & d \end{pmatrix}",
+        ),
+    ];
+    for (haut, bas) in paires {
+        for mode in [Mode::Inline, Mode::Display] {
+            let place = |f: &str| {
+                let (rangs, base) = place_d_une_formule(&math, f, mode);
+                let (_, h, d) = math.measure(f, mode, 1.0).expect("valide");
+                (rangs as f32, base, h, d)
+            };
+            let (r1, b1, h1, d1) = place(haut);
+            let (_, b2, h2, _) = place(bas);
+            let ecart = r1 * LINE_FACTOR + (b2 - h2) - (b1 + d1);
+            assert!(
+                ecart >= LINE_FACTOR - 1.0 - 1e-5,
+                "{haut} puis {bas} ({mode:?}) : {ecart} corps entre les deux"
+            );
+            let (dessus, dessous) = (b1 - h1, r1 * LINE_FACTOR - (b1 + d1));
+            assert!(
+                (dessus - dessous).abs() < 1e-5,
+                "{haut} ({mode:?}) centrée : {dessus} au-dessus, {dessous} en dessous"
+            );
+        }
+    }
+}

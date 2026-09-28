@@ -240,7 +240,11 @@ fn test_les_definitions_de_reference_incluent_la_4k() {
 /// 908 pixels changent, tous dans la formule de la carte « Une formule, seule sur sa ligne »
 /// (806-1092 × 749-804) : la borne « 0 » de l'intégrale, absente, et le « π » que la racine
 /// avalait reparaissent ; `\sqrt{\pi}` a son vrai radical. Regardée avant/après, agrandie.
-const EMPREINTE_TEMOIN: &str = "a5410e9eee19ab65";
+/// **Puis, le 28/09** (FORMULE-2) : une formule garde l'interligne d'un texte, moitié au-dessus,
+/// moitié en dessous — sa capture montrait deux formules hautes qui se touchaient. 46 850 pixels
+/// changent : les cartes de formules (806-1729 × 621-900), qui descendent leur formule au milieu
+/// de ses lignes, et une qui gagne une ligne. Regardées avant/après.
+const EMPREINTE_TEMOIN: &str = "651e25cef7fe9a96";
 
 #[test]
 fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
@@ -324,7 +328,8 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// « est précurseur de », « contredit »… ; 32 144 pixels, la barre (318-1481 × 554-841) et le
 /// coin de l'étiquette. Regardée agrandie.
 /// **Puis** (FORMULE-1) : la même formule que la scène témoin, 866 pixels, et rien d'autre.
-const EMPREINTE_TEMOIN_SELECTION: &str = "8c8923584edd7a81";
+/// **Puis** (FORMULE-2) : les mêmes cartes de formules, 31 035 pixels.
+const EMPREINTE_TEMOIN_SELECTION: &str = "41eff03e36c9d544";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -392,7 +397,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// sous le menu — la carte qu'une photo penchée traverse cache désormais la photo.
 /// **Puis** (BADGE-2) : les mêmes pixels que la scène sélectionnée, sous le menu.
 /// **Puis** (FORMULE-1) : les mêmes 866 pixels que la scène sélectionnée — la formule.
-const EMPREINTE_TEMOIN_MENU: &str = "76a5f2ee55bd48e0";
+/// **Puis** (FORMULE-2) : les mêmes 31 035 pixels, sous le menu.
+const EMPREINTE_TEMOIN_MENU: &str = "07970bc049cb03af";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {
