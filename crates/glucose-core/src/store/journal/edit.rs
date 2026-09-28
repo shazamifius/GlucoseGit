@@ -171,7 +171,7 @@ impl Edit {
     }
 
     /// Écrit l'état `after` dans le projet. Rend `false` si la cible est introuvable (JRN-2).
-    pub(super) fn apply(&self, project: &mut Project) -> bool {
+    pub(crate) fn apply(&self, project: &mut Project) -> bool {
         // Ce qui porte sur le projet lui-même n'a pas de board à retrouver.
         match self {
             Self::Board { slot } => return slot.apply(&mut project.boards),
@@ -225,7 +225,7 @@ impl Edit {
     ///
     /// Un site qui clone, laisse une fermeture travailler et compare n'a pas à savoir si
     /// elle a travaillé pour rien — c'est le journal qui tranche, une fois pour tous.
-    pub(super) fn is_noop(&self) -> bool {
+    pub(crate) fn is_noop(&self) -> bool {
         match self {
             Self::Image { slot, .. } => slot.is_noop(),
             Self::Annotation { slot, .. } => slot.is_noop(),

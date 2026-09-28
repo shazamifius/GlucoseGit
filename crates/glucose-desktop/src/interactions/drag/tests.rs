@@ -142,6 +142,28 @@ fn test_live_2_clicking_a_card_without_moving_it_keeps_the_pending_redo() {
 
 /// Une application neuve n'a rien à défaire : la carte d'accueil est l'état de départ, pas
 /// un geste de l'utilisateur. Sans cela, Ctrl+Z était actif dès le lancement.
+/// **GLISSER-1 — un glisser à la souris s'écrit en une seule translation** : quarante
+/// mouvements, un geste publié, une édition, qui va du départ à l'arrivée.
+#[test]
+fn test_glisser_1_un_glisser_a_la_souris_s_ecrit_en_une_translation() {
+    let mut app = app();
+    with_image(&mut app, "I1", 0.0, 0.0);
+    app.store.journal.prendre_les_ecrits();
+
+    press_on(&mut app, "I1");
+    drag_by(&mut app, 120.0, 40);
+    release(&mut app);
+
+    let publies = app.store.journal.prendre_les_ecrits();
+    assert_eq!(publies.len(), 1, "un geste");
+    assert_eq!(
+        publies[0].edits.len(),
+        1,
+        "une translation, et non quarante"
+    );
+    assert!(image_x(&app, "I1") > 100.0, "l'image a bien suivi");
+}
+
 /// **Un clic ne publie aucune version** : sélectionner n'est pas éditer, pour le document non
 /// plus. La version dit à tout ce qui la suit — l'état « modifié », l'index, les panneaux, la
 /// minimap, les itinéraires des flèches — que le document a changé ; un appui et un relâchement

@@ -74,9 +74,10 @@ impl GlucoseApp {
         let step_dy = target_dy - self.drag_applied_delta.1;
         self.drag_applied_delta = (target_dx, target_dy);
 
-        if step_dx.abs() > 1e-7 || step_dy.abs() > 1e-7 {
-            self.store.move_selected(&active_bid, step_dx, step_dy);
-        }
+        // Chaque position devient son départ plus le déplacement **total** du geste : le geste
+        // s'écrira en une seule translation, que le fichier rejoue au bit près (GLISSER-1).
+        self.store
+            .glisser_la_selection(&active_bid, (target_dx, target_dy));
         self.salir_le_deplacement((target_dx, target_dy), (step_dx, step_dy));
     }
 

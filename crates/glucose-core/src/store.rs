@@ -38,6 +38,7 @@ mod boards;
 mod catalog;
 mod domains;
 mod folders;
+mod glisser;
 mod ids;
 mod images;
 mod importer;
@@ -85,6 +86,10 @@ pub struct Store {
     /// de lecture ne doit pas obliger l'appelant à tenir le document en écriture. Le moteur
     /// est strictement mono-thread (R-40), donc le `RefCell` ne coûte qu'un drapeau.
     bornes: std::cell::RefCell<navigation::BornesDuContenu>,
+
+    /// Le glisser en cours, s'il y en a un : ce qu'il emporte et d'où chaque chose part
+    /// (GLISSER-1).
+    glisser: Option<glisser::Glisser>,
 }
 
 impl Store {
@@ -101,6 +106,7 @@ impl Store {
             next_id: 1,
             version: 1,
             bornes: std::cell::RefCell::default(),
+            glisser: None,
         }
     }
 

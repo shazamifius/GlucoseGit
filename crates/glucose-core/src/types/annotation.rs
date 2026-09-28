@@ -467,6 +467,52 @@ impl Annotation {
         }
     }
 
+    /// **Pose l'annotation à `origine` translatée de `(dx, dy)`**, sans toucher au reste
+    /// (GLISSER-1) : chaque coordonnée vaut celle de l'origine plus le vecteur — **la même
+    /// addition** que [`Self::translate`] ferait sur l'origine, donc le même résultat au bit
+    /// près. Une origine d'une autre nature ne pose rien.
+    pub fn placer_depuis(&mut self, origine: &Annotation, (dx, dy): (f64, f64)) {
+        match (self, origine) {
+            (
+                Self::Text { x, y, .. } | Self::Sticky { x, y, .. } | Self::Membrane { x, y, .. },
+                Self::Text { x: ox, y: oy, .. }
+                | Self::Sticky { x: ox, y: oy, .. }
+                | Self::Membrane { x: ox, y: oy, .. },
+            ) => {
+                *x = ox + dx;
+                *y = oy + dy;
+            }
+            (
+                Self::Arrow {
+                    x,
+                    y,
+                    x2,
+                    y2,
+                    waypoints,
+                    ..
+                },
+                Self::Arrow {
+                    x: ox,
+                    y: oy,
+                    x2: ox2,
+                    y2: oy2,
+                    waypoints: owp,
+                    ..
+                },
+            ) => {
+                *x = ox + dx;
+                *y = oy + dy;
+                *x2 = ox2 + dx;
+                *y2 = oy2 + dy;
+                for (wp, o) in waypoints.iter_mut().zip(owp) {
+                    wp.x = o.x + dx;
+                    wp.y = o.y + dy;
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// Pose l'origine de l'annotation en `(x, y)` sans la déformer — une flèche garde son
     /// vecteur et ses points de passage.
     pub fn move_to(&mut self, x: f64, y: f64) {

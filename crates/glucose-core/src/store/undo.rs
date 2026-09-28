@@ -54,6 +54,8 @@ impl Store {
     /// rien bougé n'a pas changé le document, et tout ce qui suit la version — l'état
     /// « modifié », l'index, les panneaux, les itinéraires des flèches — n'a rien à refaire.
     pub fn end_live_edit(&mut self) {
+        // Les pas d'un glisser deviennent une seule translation, du départ à l'arrivée.
+        self.clore_le_glisser();
         if self.journal.end() {
             self.bump_version();
         }
@@ -78,6 +80,8 @@ impl Store {
         // Tant qu'un filet était posé à l'ouverture, il fallait aussi le dépiler ici. Le
         // faire aujourd'hui défaireait le geste *précédent* — c'est exactement ce qu'a
         // attrapé test_cancel_live_edit_restores_the_document_and_leaves_no_undo_entry.
+        // Un glisser rend d'abord chaque départ exact ; le journal défait le reste.
+        self.abandonner_le_glisser();
         self.journal.cancel(&mut self.project);
         self.settle_navigation();
         true

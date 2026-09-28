@@ -207,65 +207,67 @@ impl Store {
         if dx == 0.0 && dy == 0.0 {
             return;
         }
-        // Une membrane emporte son contenu (MEMB-1) : ce qui bouge est la sélection, et ce
-        // que ses membranes possèdent.
+        let Some(translation) = self.translation_de_la_selection(board_id, (dx, dy)) else {
+            return;
+        };
+        // Déplacer, c'est appliquer la translation même que le journal écrit : un seul code
+        // pour bouger et pour rejouer, donc un fichier relu qui redonne l'écran au bit près.
+        if translation.apply(&mut self.project) {
+            self.record_as_one_gesture(vec![translation]);
+        }
+    }
+
+    /// **Ce qu'un déplacement de la sélection emporte** : la translation que le journal
+    /// écrirait, sans rien déplacer — les images non verrouillées, les annotations, le dossier,
+    /// et les bouts des flèches qui s'y accrochent (JRN-4). Une seule définition, que le
+    /// déplacement et le glisser lisent (GLISSER-1).
+    ///
+    /// Une membrane emporte son contenu (MEMB-1) : ce qui bouge est la sélection, et ce que ses
+    /// membranes possèdent. Une annotation est soit emportée — elle se translate en entier —,
+    /// soit une flèche accrochée à ce qui l'est — seules ses extrémités concernées suivent.
+    pub(super) fn translation_de_la_selection(
+        &self,
+        board_id: &str,
+        delta: (f64, f64),
+    ) -> Option<Edit> {
         let emport = self.ce_qu_emporte_la_selection(board_id);
         let sel = SelectionSets {
             images: emport.images.iter().map(String::as_str).collect(),
             annotations: emport.annotations.iter().map(String::as_str).collect(),
             folder: self.selected_folder_id.as_deref(),
         };
-
-        let Some(b) = self.project.boards.iter_mut().find(|b| b.id == board_id) else {
-            return;
+        let b = self.project.boards.iter().find(|b| b.id == board_id)?;
+        let rangs = |oui: &dyn Fn(usize) -> bool, n: usize| -> Vec<u32> {
+            (0..n).filter(|&i| oui(i)).map(|i| i as u32).collect()
         };
-
-        let mut images = Vec::new();
+        let images = rangs(
+            &|i| sel.images.contains(b.images[i].id.as_str()) && !b.images[i].locked,
+            b.images.len(),
+        );
         let mut annotations = Vec::new();
-        let mut folders = Vec::new();
         let mut bouts = Vec::new();
-
-        for (i, img) in b.images.iter_mut().enumerate() {
-            if sel.images.contains(img.id.as_str()) && !img.locked {
-                img.x += dx;
-                img.y += dy;
-                images.push(i as u32);
-            }
-        }
-
-        for (i, ann) in b.annotations.iter_mut().enumerate() {
+        for (i, ann) in b.annotations.iter().enumerate() {
             if sel.annotations.contains(ann.id()) {
-                ann.translate(dx, dy);
                 annotations.push(i as u32);
                 continue;
             }
-            // Une flèche que la sélection ne contient pas peut voir une extrémité traînée,
-            // parce que le nœud auquel elle s'accroche, lui, bouge.
             let quels = bouts_qui_suivent(ann, &sel);
             if quels.suit() {
-                drag_arrow_ends(ann, &sel, dx, dy);
                 bouts.push((i as u32, quels));
             }
         }
-
-        if let Some(fid) = sel.folder {
-            for (i, f) in b.folders.iter_mut().enumerate() {
-                if f.id == fid {
-                    f.x += dx;
-                    f.y += dy;
-                    folders.push(i as u32);
-                }
-            }
-        }
-
-        self.record_as_one_gesture(vec![Edit::Translation {
+        let folders = rangs(
+            &|i| sel.folder == Some(b.folders[i].id.as_str()),
+            b.folders.len(),
+        );
+        Some(Edit::Translation {
             board: board_id.to_string(),
-            delta: (dx, dy),
+            delta,
             images,
             annotations,
             folders,
             bouts,
-        }]);
+        })
     }
 
     pub fn duplicate_selected(&mut self, board_id: &str) {
@@ -475,29 +477,5 @@ impl Store {
             .filter(|i| self.selected_image_ids.contains(&i.id))
             .cloned()
             .collect()
-    }
-}
-
-/// Traîne les extrémités d'une flèche attachées à la sélection. Sans effet sur autre chose.
-fn drag_arrow_ends(ann: &mut Annotation, sel: &SelectionSets<'_>, dx: f64, dy: f64) {
-    let Annotation::Arrow {
-        source_id,
-        target_id,
-        x,
-        y,
-        x2,
-        y2,
-        ..
-    } = ann
-    else {
-        return;
-    };
-    if end_follows(source_id, sel) {
-        *x += dx;
-        *y += dy;
-    }
-    if end_follows(target_id, sel) {
-        *x2 += dx;
-        *y2 += dy;
     }
 }

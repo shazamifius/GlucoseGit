@@ -423,6 +423,24 @@ impl Journal {
         true
     }
 
+    /// **Remplace ces éditions du geste ouvert** par une seule, ou par rien (GLISSER-1) : les pas
+    /// d'un glisser deviennent sa translation totale. Rend `false` hors geste, ou si les rangs
+    /// sortent du geste — rien n'est alors touché.
+    pub(crate) fn remplacer_dans_le_geste(
+        &mut self,
+        rangs: std::ops::Range<usize>,
+        par: Option<Edit>,
+    ) -> bool {
+        let Some(tx) = self.open.as_mut() else {
+            return false;
+        };
+        if rangs.start > rangs.end || rangs.end > tx.edits.len() {
+            return false;
+        }
+        tx.edits.splice(rangs, par);
+        true
+    }
+
     /// Abandonne la transaction ouverte en défaisant ce qu'elle a déjà écrit.
     /// Rend `false` hors transaction.
     pub fn cancel(&mut self, project: &mut Project) -> bool {
