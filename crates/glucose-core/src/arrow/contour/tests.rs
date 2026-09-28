@@ -253,11 +253,12 @@ fn test_seul_le_voisinage_du_trajet_est_lu() {
     assert_eq!(lus, 0);
 }
 
-/// **Un bout enfermé dans une mosaïque se reconnaît vite** : quarante mille blocs serrés, le
-/// départ dans un trou au milieu. Aucun chemin : la recherche le sait après avoir lu une petite
-/// part de la mosaïque — trois cents blocs mesurés —, et la flèche va droit.
+/// **Un bout enfermé dans une mosaïque se reconnaît en ne lisant que des pourtours** :
+/// quarante mille blocs serrés, le départ dans un trou au milieu. Aucun chemin, la flèche va
+/// droit — et la recherche a lu moins de boîtes que la mosaïque n'en a, là où ramasser toute
+/// l'aire en lisait neuf par bloc.
 #[test]
-fn test_un_dedale_coute_un_budget_borne() {
+fn test_un_bout_enferme_dans_une_mosaique_se_reconnait() {
     let obstacles: Vec<Rect> = (0..40_000)
         .filter(|k| !(k % 200 == 100 && k / 200 == 100))
         .map(|k| Rect::new((k % 200) as f64 * 50.0, (k / 200) as f64 * 50.0, 45.0, 45.0))
@@ -272,10 +273,49 @@ fn test_un_dedale_coute_un_budget_borne() {
     let arrivee = (20_000.0, 5022.5);
     assert!(itineraire(depart, arrivee, &mut requete).is_empty());
     assert!(
-        lus < obstacles.len() / 10,
+        lus < obstacles.len(),
         "{lus} obstacles lus sur {}",
         obstacles.len()
     );
+}
+
+/// Un mur de `colonnes × rangees` blocs de 45 serrés à 5 d'écart, son coin en haut à gauche en
+/// `(0, 0)`, et ce que la recherche en a lu.
+fn mur(colonnes: usize, rangees: usize) -> Vec<Rect> {
+    (0..colonnes * rangees)
+        .map(|k| {
+            let (i, j) = ((k % colonnes) as f64, (k / colonnes) as f64);
+            Rect::new(i * 50.0, j * 50.0, 45.0, 45.0)
+        })
+        .collect()
+}
+
+/// **Un mur de dix mille blocs se contourne par ses coins extérieurs** — le grand tour qu'il
+/// préfère — en ne lisant que son pourtour. Découvert bloc par bloc, il demandait 132 secondes.
+#[test]
+fn test_un_mur_se_contourne_par_ses_coins_exterieurs() {
+    let blocs = mur(100, 100);
+    let mut lus = 0;
+    let mut requete = |zone: Rect, sortie: &mut Vec<Rect>| {
+        let avant = sortie.len();
+        sortie.extend(blocs.iter().copied().filter(|r| se_touchent(*r, zone)));
+        lus += sortie.len() - avant;
+    };
+    let etapes = itineraire((-500.0, 2522.5), (5500.0, 2522.5), &mut requete);
+    // Le mur va de 0 à 4 995 ; gonflé de l'écart, de −12 à 5 007.
+    assert_eq!(etapes, vec![(-12.0, 5007.0), (5007.0, 5007.0)]);
+    assert!(lus < blocs.len(), "le pourtour seul : {lus} lectures");
+}
+
+/// **Le budget borne le travail** : un mur long de deux mille blocs, les bouts de part et
+/// d'autre de son milieu. Son pourtour est trop long à longer pour un détour de cent mille
+/// unités : la flèche va droit.
+#[test]
+fn test_le_budget_borne_le_travail() {
+    let blocs = mur(2000, 3);
+    let mut requete = requete_sur(&blocs);
+    let etapes = itineraire((50_000.0, -500.0), (50_000.0, 700.0), &mut requete);
+    assert!(etapes.is_empty(), "droit : {etapes:?}");
 }
 
 /// **Une courbe qui mordrait se resserre**, et ne mord plus : l'épingle à cheveux de
@@ -325,4 +365,26 @@ fn test_longer_n_est_pas_traverser() {
     assert!(o.traversee((-5.0, 5.0), (15.0, 5.0)), "de part en part");
     assert!(o.traversee((5.0, 5.0), (5.0, 6.0)), "dedans");
     assert!(!o.traversee((-5.0, -5.0), (-1.0, 20.0)), "à côté");
+}
+
+/// **Un bord couvert par morceaux emboîtés reste couvert** : une grande voisine couvre tout le
+/// bord, une petite s'emboîte dedans — l'union des intervalles ne recule pas.
+#[test]
+fn test_un_bord_couvert_par_morceaux_emboites() {
+    let b = |x0, y0, x1, y1| Boite { x0, y0, x1, y1 };
+    let x = b(0.0, 0.0, 100.0, 100.0);
+    let voisines = [
+        // Au-dessus : une grande, et une petite emboîtée dedans.
+        b(-100.0, -50.0, 300.0, 10.0),
+        b(40.0, -20.0, 60.0, 5.0),
+        // Au-dessous, à gauche, à droite.
+        b(-100.0, 90.0, 300.0, 150.0),
+        b(-50.0, -100.0, 10.0, 300.0),
+        b(90.0, -100.0, 150.0, 300.0),
+    ];
+    assert!(!super::amas::a_un_bord_expose(&x, &voisines));
+    assert!(
+        super::amas::a_un_bord_expose(&x, &voisines[1..]),
+        "sans la grande, le haut s'ouvre"
+    );
 }

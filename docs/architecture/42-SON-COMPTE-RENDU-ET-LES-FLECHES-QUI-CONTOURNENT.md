@@ -394,16 +394,36 @@ bout par la vraie application ; les sabotages tombent tous, sauf le budget (§ 8
 **Les mesures** (release, cette machine, `mesure_du_contournement`) : 42 000 nœuds, 2 000 flèches
 — médiane **5,6 µs** pour chercher un itinéraire, **moins d'1 µs** une fois retenu.
 
-### 8.1 Ce qui ne va pas encore : le mur de photos
+### 8.1 Le mur de photos (FLECHE-6)
 
-Une mosaïque serrée de 10 000 photos entre les deux bouts : la recherche apprend la mosaïque
-photo par photo et cherche à se faufiler entre chacune — **132 secondes** pour trouver le grand
-tour. Le budget l'arrête en 0,9 ms, et la flèche va droit : **le contraire de ce qu'il veut**. Et
-une flèche qui longe une colonne de deux cents cartes épuise aussi son budget (2 ms).
+Une mosaïque serrée de 10 000 photos entre les deux bouts : la recherche l'apprenait photo par
+photo et cherchait à se faufiler entre chacune — **132 secondes** pour trouver le grand tour ; le
+budget l'arrêtait avant, et la flèche allait droit : le contraire de ce qu'il veut.
 
-La réponse juste n'est pas un budget plus grand : des photos trop proches pour qu'une flèche passe
-entre elles forment **un seul obstacle**, et un chemin ne tourne jamais à un coin posé sur le bord
-d'une voisine (ce n'est pas un coin convexe de leur union). C'est le prochain commit.
+* **Un mur est un seul obstacle** (`contour/amas.rs`). Des boîtes dont les marges se chevauchent
+  ne laissent passer aucune flèche : quand un obstacle est découvert, son amas se ramasse d'un
+  coup, de voisine en voisine, par l'index.
+* **Un chemin ne tourne qu'aux coins extérieurs** : un coin qui tombe dans la marge d'une voisine,
+  ou sur son bord, n'est pas un coin convexe de leur union. Pour un mur serré, il reste ses quatre
+  coins.
+* **Seul le pourtour compte** : une boîte dont les quatre bords sont recouverts par ses voisines est
+  dans le mur ; elle n'est ni gardée ni étendue. Le coût suit le périmètre, plus l'aire.
+* **Le budget pèse chaque chose à son prix.** Il comptait une boîte lue par l'index comme un test
+  de segment : un mur a coûté **283 ms** sous un budget qui en promettait deux. Mesuré : ~280 ns
+  pour une lecture par l'index du rendu, ~2 ns pour un test — une lecture pèse 128 pas.
+
+**Mesures** (release, vrai index, `mesure_du_mur`) : mur de 20 × 20 photos de 200 unités, grand
+tour en **0,15-0,3 ms** ; mur de **100 × 100**, grand tour en **0,6-1,7 ms** (il allait droit).
+Optimalité toujours exacte sur 20 000 scènes. Un mur long de 2 000 blocs a un pourtour trop long
+pour le budget : droit (épreuve).
+
+**Ce qui n'est pas prouvé** : l'écart d'un amas lointain par sa boîte englobante, dans le test de
+visibilité, est une optimisation que le sabotage ne voit pas ; la mesure ne tranche pas (les passes
+varient du simple au double sur cette machine). Gardée, à mesurer mieux. Une flèche qui longe une
+colonne de deux cents cartes **séparées** épuise encore son budget (2-4 ms, puis droit) : l'A*
+explore les deux cents coins alignés, presque aussi prometteurs. Un geste qui modifie le texte
+publie une version et fait rechercher tous les itinéraires visibles : l'oubli sélectif ne vaut
+aujourd'hui que pendant un glisser.
 
 ---
 

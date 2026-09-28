@@ -544,3 +544,41 @@ fn test_fleche_5_une_fleche_libre_contourne_aussi() {
     );
     assert_eq!(c.len(), 4, "la carte « o » contournée : {c:?}");
 }
+
+/// **Ce que coûte le grand tour d'un mur** : des photos de 200 unités, serrées à 5 d'écart, entre
+/// les deux cartes — vingt de côté, puis cent — par le vrai index de l'application.
+///
+/// `cargo test --release -p glucose-desktop --lib mesure_du_mur -- --ignored --nocapture`
+#[test]
+#[ignore = "mesure un temps : sensible à la charge de la machine"]
+fn mesure_du_mur() {
+    for cote in [20, 100] {
+        let mut app = application();
+        let board = app.store.project.active_board_id.clone();
+        app.store.remove_annotations(&board, &["o"]);
+        if let Some(b) = app.store.active_board_mut() {
+            b.annotations.retain(|a| a.id() != "t");
+            b.annotations.push(carte(
+                "t",
+                (320.0 + cote as f64 * 205.0, 0.0),
+                (100.0, 60.0),
+            ));
+            for k in 0..cote * cote {
+                let (i, j) = ((k % cote) as f64, (k / cote) as f64);
+                let (x, y) = (300.0 + i * 205.0, 30.0 - cote as f64 * 102.5 + j * 205.0);
+                let photo =
+                    glucose_core::types::BoardImage::new(format!("p{k}"), x, y, 200.0, 200.0);
+                b.images.push(photo);
+            }
+        }
+        app.store.bump_version();
+        app.renderer.sync_spatial_index(&app.store);
+        let debut = std::time::Instant::now();
+        let c = chemin(&app);
+        let froid = debut.elapsed();
+        eprintln!(
+            "MESURE mur de {cote}×{cote} photos : cherché {froid:?}, {} étapes",
+            c.len() - 2
+        );
+    }
+}

@@ -32,6 +32,11 @@
 //! libre. Seul le voisinage du chemin est jamais lu : dix millions de nœuds ailleurs ne coûtent
 //! rien, et une flèche que rien ne gêne — presque toutes — coûte une requête le long d'un segment.
 //!
+//! # Un mur est un seul obstacle
+//!
+//! Des boîtes trop proches pour qu'une flèche passe entre elles forment un amas, ramassé d'un
+//! coup, et le chemin ne tourne qu'à ses coins extérieurs ([`amas`]).
+//!
 //! # Ce qui ne se contourne pas
 //!
 //! * Un obstacle qui **contient** un bout de la flèche : on ne sort pas d'une boîte où l'on est
@@ -52,10 +57,13 @@
 //! coins — ce qui ruine la recherche paresseuse. Sans cette règle, le problème est le plus court
 //! chemin entre des boîtes, et tout ce qui précède est démontré.
 
+mod amas;
+
 use super::trace;
 use crate::geometry::Rect;
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashSet};
+use std::ops::Range;
 
 /// Un point du monde.
 pub type Point = (f64, f64);
@@ -65,14 +73,21 @@ pub type Point = (f64, f64);
 /// ne colle pas à un bloc », qu'elle y arrive ou qu'elle passe à côté.
 pub const ECART: f64 = crate::arrow_anchor::ANCHOR_MARGIN;
 
-/// **Le travail qu'un itinéraire peut coûter**, compté en tests élémentaires — un segment contre
-/// une boîte, un coin contre une boîte, une boîte rendue par l'index.
+/// **Le travail qu'un itinéraire peut coûter**, compté en pas élémentaires — une boîte rendue
+/// par l'index, un segment contre une boîte, un sommet regardé depuis un autre.
 ///
-/// C'est un budget de temps, pas une distance : environ un million de tests, de l'ordre de la
-/// milliseconde sur la machine de mesure (fiche 42), payée une fois — l'itinéraire est retenu
-/// tant que le document ne change pas. Un détour qui en demanderait davantage traverse un
-/// dédale ; la flèche va droit.
+/// C'est un budget de temps, pas une distance : un million de pas, environ deux millisecondes
+/// sur la machine de mesure (fiche 42 § 8), payées une fois — l'itinéraire est retenu tant que
+/// ce dont il dépend ne change pas. Un détour qui en demanderait davantage — un mur de plus de
+/// cent mille photos à ramasser — n'est plus un détour : la flèche va droit.
 pub const BUDGET: usize = 1 << 20;
+
+/// **Ce que pèse une boîte rendue par l'index**, en pas de la recherche. Mesuré sur l'index du
+/// rendu : environ 280 ns par boîte lue (les cases, le rang, le nœud, sa boîte, la note de ce
+/// qui a été lu), contre environ 2 ns pour un segment testé contre une boîte. Compter une lecture
+/// pour un pas laissait le budget promettre deux millisecondes et en coûter 283 — un mur de dix
+/// mille photos (fiche 42 § 8.2). Le rapport des deux mesures, arrondi à la puissance de deux.
+pub const LECTURE: usize = 128;
 
 /// Ce qui répond « quels obstacles dans cette zone ? » : la boîte de chacun, **non gonflée**.
 pub type Requete<'r> = &'r mut dyn FnMut(Rect, &mut Vec<Rect>);
@@ -221,11 +236,18 @@ impl PartialOrd for Candidat {
     }
 }
 
-/// L'état de la recherche : les obstacles connus, et le travail dépensé.
+/// L'état de la recherche : les obstacles connus, leurs amas et leurs coins extérieurs, et le
+/// travail dépensé.
 struct Recherche<'r> {
     a: Point,
     b: Point,
     connues: Vec<Boite>,
+    /// Chaque amas ramassé : sa boîte englobante, et ses boîtes parmi les connues.
+    amas: Vec<(Boite, Range<usize>)>,
+    /// Les coins extérieurs des amas : les seuls où un chemin tourne.
+    coins: Vec<Point>,
+    /// Ce qui a déjà été ramassé.
+    vues: HashSet<[u64; 4]>,
     requete: Requete<'r>,
     tampon: Vec<Rect>,
     travail: usize,
@@ -237,13 +259,16 @@ impl<'r> Recherche<'r> {
             a,
             b,
             connues: Vec::new(),
+            amas: Vec::new(),
+            coins: Vec::new(),
+            vues: HashSet::new(),
             requete,
             tampon: Vec::new(),
             travail: 0,
         }
     }
 
-    /// Ajoute aux obstacles connus ceux que ce chemin traverse, et dit s'il y en avait — ou
+    /// Ramasse l'amas de chaque obstacle que ce chemin traverse, et dit s'il y en avait — ou
     /// rien, si le budget est épuisé.
     fn decouvrir(&mut self, chemin: &[Point]) -> Option<bool> {
         let mut trouve = false;
@@ -251,12 +276,17 @@ impl<'r> Recherche<'r> {
             let (p, q) = (troncon[0], troncon[1]);
             self.tampon.clear();
             (self.requete)(zone_du_segment(p, q, ECART), &mut self.tampon);
-            self.travail += self.tampon.len() + 1;
-            for r in self.tampon.drain(..) {
-                let o = Boite::de(r, ECART);
-                let a_contourner = !o.contient(self.a) && !o.contient(self.b);
-                if a_contourner && !self.connues.contains(&o) && o.traversee(p, q) {
-                    self.connues.push(o);
+            self.travail += (self.tampon.len() + 1) * LECTURE;
+            let (a, b) = (self.a, self.b);
+            let traversees: Vec<Boite> = self
+                .tampon
+                .drain(..)
+                .map(|r| Boite::de(r, ECART))
+                .filter(|o| !o.contient(a) && !o.contient(b) && o.traversee(p, q))
+                .collect();
+            for o in traversees {
+                if !self.vues.contains(&o.cle()) {
+                    self.amasser(o)?;
                     trouve = true;
                 }
             }
@@ -267,26 +297,38 @@ impl<'r> Recherche<'r> {
         Some(trouve)
     }
 
-    /// Les sommets du graphe de visibilité : les deux bouts, puis chaque coin qu'aucune boîte ne
-    /// recouvre — un coin enfoui dans une voisine n'est pas un passage.
-    fn sommets(&mut self) -> Vec<Point> {
-        let mut sommets = vec![self.a, self.b];
-        for boite in &self.connues {
-            for coin in boite.coins() {
-                self.travail += self.connues.len();
-                if !self.connues.iter().any(|o| o.contient(coin)) {
-                    sommets.push(coin);
-                }
-            }
-        }
-        sommets
+    /// Les sommets du graphe de visibilité : les deux bouts, et les coins extérieurs des amas.
+    fn sommets(&self) -> Vec<Point> {
+        [self.a, self.b]
+            .into_iter()
+            .chain(self.coins.iter().copied())
+            .collect()
     }
 
-    /// Les sommets `i` et `j` se voient-ils ?
+    /// Les sommets `i` et `j` se voient-ils ? Un amas que le segment n'approche pas s'écarte
+    /// d'un coup, par sa boîte englobante.
     fn se_voient(&mut self, sommets: &[Point], i: usize, j: usize) -> bool {
         let (p, q) = (sommets[i], sommets[j]);
-        self.travail += self.connues.len() + 1;
-        !self.connues.iter().any(|o| o.traversee(p, q))
+        let segment = Boite {
+            x0: p.0.min(q.0),
+            y0: p.1.min(q.1),
+            x1: p.0.max(q.0),
+            y1: p.1.max(q.1),
+        };
+        self.travail += self.amas.len() + 1;
+        for (englobante, boites) in &self.amas {
+            if !englobante.touche(&segment) {
+                continue;
+            }
+            self.travail += boites.len();
+            if self.connues[boites.clone()]
+                .iter()
+                .any(|o| o.traversee(p, q))
+            {
+                return false;
+            }
+        }
+        true
     }
 
     /// **Le plus court chemin qui évite les obstacles connus** (A*), ou rien s'il n'y en a pas
