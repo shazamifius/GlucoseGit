@@ -307,6 +307,32 @@ fn test_un_mur_se_contourne_par_ses_coins_exterieurs() {
     assert!(lus < blocs.len(), "le pourtour seul : {lus} lectures");
 }
 
+/// **Un mur lointain ne coûte rien à la visibilité, quelle que soit sa taille** : un segment qui
+/// ne l'approche pas l'écarte d'un coup, par sa boîte englobante. Le travail d'un même test de
+/// visibilité — compté, pas chronométré — est le même à côté d'un mur de dix blocs de côté et
+/// d'un mur de vingt : sans l'écart, il suivrait le pourtour du mur (fiche 43).
+#[test]
+fn test_un_mur_lointain_ne_coute_rien_a_la_visibilite() {
+    let travail_a_cote_d_un_mur = |cote: usize| {
+        let proche = Rect::new(100.0, -50.0, 50.0, 100.0);
+        let mut obstacles: Vec<Rect> = mur(cote, cote)
+            .into_iter()
+            .map(|r| Rect::new(r.left + 5000.0, r.top + 5000.0, r.width, r.height))
+            .collect();
+        obstacles.push(proche);
+        let mut requete = requete_sur(&obstacles);
+        let mut r = Recherche::nouvelle((0.0, 0.0), (300.0, 0.0), &mut requete);
+        r.amasser(Boite::de(proche, ECART)).expect("dans le budget");
+        r.amasser(Boite::de(obstacles[0], ECART))
+            .expect("dans le budget");
+        assert_eq!(r.amas.len(), 2, "le bloc proche et le mur");
+        let avant = r.travail;
+        assert!(r.se_voient(&[(0.0, 100.0), (300.0, 100.0)], 0, 1));
+        r.travail - avant
+    };
+    assert_eq!(travail_a_cote_d_un_mur(10), travail_a_cote_d_un_mur(20));
+}
+
 /// **Le budget borne le travail** : un mur long de deux mille blocs, les bouts de part et
 /// d'autre de son milieu. Son pourtour est trop long à longer pour un détour de cent mille
 /// unités : la flèche va droit.

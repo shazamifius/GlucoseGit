@@ -214,4 +214,6 @@ fn detour(ann: &glucose_core::types::Annotation, noeuds: impl arrow::Noeuds) -> 
 #[cfg(test)]
 mod contour_tests;
 #[cfg(test)]
+mod mesures_tests;
+#[cfg(test)]
 mod tests;

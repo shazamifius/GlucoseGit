@@ -8,7 +8,7 @@ use glucose_core::arrow::contour::ECART;
 use glucose_core::types::Annotation;
 
 /// Une carte de texte de taille connue.
-fn carte(id: &str, (x, y): (f64, f64), (w, h): (f64, f64)) -> Annotation {
+pub(super) fn carte(id: &str, (x, y): (f64, f64), (w, h): (f64, f64)) -> Annotation {
     let mut a = Annotation::text(id, x, y, "carte");
     if let Annotation::Text { width, height, .. } = &mut a {
         *width = Some(w);
@@ -21,7 +21,7 @@ fn carte(id: &str, (x, y): (f64, f64), (w, h): (f64, f64)) -> Annotation {
 const OBSTACLE: (f64, f64, f64, f64) = (250.0, -40.0, 100.0, 140.0);
 
 /// Deux cartes reliées par une flèche, et une troisième entre elles, sur le trajet droit.
-fn application() -> GlucoseApp {
+pub(super) fn application() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     let board = app.store.project.active_board_id.clone();
     if let Some(b) = app.store.active_board_mut() {
@@ -54,7 +54,7 @@ fn application() -> GlucoseApp {
     app
 }
 
-fn noeuds(app: &GlucoseApp) -> NoeudsDuRendu<'_> {
+pub(super) fn noeuds(app: &GlucoseApp) -> NoeudsDuRendu<'_> {
     NoeudsDuRendu {
         board: app.store.active_board().expect("un tableau"),
         index: Some(&app.renderer.spatial_hash),
@@ -64,14 +64,14 @@ fn noeuds(app: &GlucoseApp) -> NoeudsDuRendu<'_> {
     }
 }
 
-fn fleche(app: &GlucoseApp) -> &Annotation {
+pub(super) fn fleche(app: &GlucoseApp) -> &Annotation {
     app.store
         .active_board()
         .and_then(|b| b.annotations.iter().find(|a| a.id() == "f"))
         .expect("la flèche")
 }
 
-fn chemin(app: &GlucoseApp) -> Vec<(f64, f64)> {
+pub(super) fn chemin(app: &GlucoseApp) -> Vec<(f64, f64)> {
     glucose_core::arrow::path_with(fleche(app), noeuds(app)).expect("un chemin")
 }
 
