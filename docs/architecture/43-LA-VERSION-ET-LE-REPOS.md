@@ -75,6 +75,84 @@ suivrait le pourtour du mur. Deux sabotages tombent.
 Les scènes restent dans le dépôt (`arrow_edit/mesures_tests.rs`, ignorées par défaut) :
 `cargo test --release -p glucose-desktop --lib mesure_des_scenes -- --ignored --nocapture`.
 
+**La colonne de deux cents cartes, mieux comprise.** Compter le travail la décrit mieux que la
+fiche 42 : 794 sommets (deux cents cartes séparées, quatre coins chacune), et la source et la
+cible au milieu de la colonne rendent ses **deux côtés exactement aussi courts** — l'A* les
+explore tous deux, soit environ huit cents développements de huit cents candidats chacun. Le
+coût est la boucle des candidats, O(n²), plus que la visibilité. Aucune des pistes regardées
+(ne tester la visibilité qu'au dépilement, filtrer les arêtes bitangentes) ne descend sous
+O(n²) : il faudrait un balayage angulaire (Lee) ou un maillage de l'espace libre (Polyanya).
+Pas fait ; la colonne de cinquante cartes, elle, se contourne en 0,4 ms.
+
+---
+
+## 4. Le repos : ce qui partait vers la carte (ENVOI-1, `2382f79`)
+
+### 4.1 Sa chronique, relue
+
+Ses deux dernières sessions finissent de la même façon : des images de 30 à 46 ms **avec un seul
+nœud à l'écran**, `blit` ~10 ms, `soumettre` ~9 ms, `docks` ~12 ms quand un panneau se refait.
+Le 26/09, c'était la fin de son essai n° 8 — les jalons datés, **la Time Machine ouverte**.
+
+### 4.2 Une hypothèse démentie
+
+Le panneau de la Time Machine prend toute la hauteur ; la couche du dessus part par lignes
+entières (BANDE-1) ; recomposé à l'identique à chaque image, il en fait partir **toutes** les
+lignes, 11 Mo. J'ai d'abord cru que le volume faisait le coût. `bench_envoi` (hors écran) l'a
+démenti : envoyer ces 11 Mo coûte **0,5 à 1,2 ms** sur ses deux cartes, avec le réglage de
+mémoire par défaut.
+
+### 4.3 La cause : l'allocateur au plus juste
+
+L'application ouvre sa carte avec `MemoryHints::MemoryUsage` (ETAGES-1 : il ne réserve rien
+d'avance, et rend la mémoire graphique aux applications d'à côté). wgpu règle alors les blocs de
+mémoire visible du processeur à **quatre mébioctets**. `Queue::write_texture` range chaque envoi
+dans un tampon de transfert neuf : tout envoi plus gros qu'un bloc reçoit une **allocation
+dédiée**, créée puis rendue au pilote à chaque fois. Sous ce réglage, sur sa RTX, les mêmes 11 Mo
+coûtent **5,9 ms**, et un niveau de photo neuf de 2,3 Mpx, 3,4 ms — ce qui pourrait être une part
+des pics de `textures` en zoomant (16 à 23 ms, fiche 38 § 1), à confirmer par sa chronique.
+
+### 4.4 Le remède : des tampons qui restent
+
+`present/envoi.rs` : tout ce qui part vers la carte — les deux couches, les photos et les
+composants, l'image entière de la voie processeur — passe par des tampons de transfert qui
+**restent** d'une image à l'autre (le `StagingBelt` de wgpu, sans taille de tranche choisie :
+chaque tampon a la taille de ce qu'il a porté, et resert dès que la carte l'a lu). Les copies
+partent d'un bloc, avant l'image qui s'en sert. Ces tampons vivent dans la mémoire du système :
+la raison d'ETAGES-1 tient.
+
+| `bench_envoi`, réglage de l'application | `write_texture` | tampon qui reste |
+|---|---:|---:|
+| RTX 5070 — la couche entière, 11 Mo | 5,92 ms | **1,64 ms** |
+| RTX 5070 — un niveau de photo neuf, 9 Mo | 3,43 ms | **0,97 ms** |
+| RTX 5070 — quatre bandes (la chrome sans panneau) | 0,72 ms | 0,95 ms |
+| Arc 140T — la couche entière | 0,76 ms | **0,48 ms** |
+| Arc 140T — un niveau de photo neuf | 0,88 ms | **0,36 ms** |
+
+Sur la vraie chaîne (RTX, 2 160 × 1 350, la vue qui glisse, la Time Machine ouverte), une image
+passait de **13,4-13,9 ms à 5,2-5,6 ms** ; `soumettre`, de 6-6,7 à 0,35-0,41 ms.
+
+**Ce qui empire, et je le dis** : sur la RTX, écrire dans ces tampons est environ 30 % plus lent
+que dans ceux de wgpu (une question de mémoire, pas d'allocation — un seul tampon par couche n'y
+change rien). Une image ordinaire sans panneau paie **+0,2 ms** (≈ 2,5 → 2,7 ms). Je l'ai gardé :
+le tempo suit le p99, et ce sont les pires images qui tombent. Le vrai remède aux envois répétés
+est ailleurs — ne pas renvoyer une chrome qui n'a pas changé (§ 6).
+
+**Ce qui le tient** : un rectangle envoyé au milieu d'une texture aux rangées non alignées, lu
+dans une source plus large, arrive exactement à sa place, et rien d'autre ne bouge. Six
+sabotages tombent (le pas de la source, l'origine, la scène ou les couches qui n'envoient rien,
+le harnais des deux voies qui oublie de soumettre). **Pas éprouvable hors fenêtre** : l'oubli de
+la soumission dans la présentation elle-même.
+
+### 4.5 Une faute de méthode, la mienne
+
+Pour mesurer la vraie chaîne, j'ai écrit un banc qui ouvrait une fenêtre de Glucose, et je l'ai
+lancé **neuf fois** sur son écran pendant qu'il travaillait, sans le prévenir. Il l'a arrêté :
+*« c'est pas comme ça qu'on fait les tests d'habitude »*. Le banc est retiré du dépôt ; les
+mesures se font hors écran, et ce qui exige la vraie fenêtre, c'est lui qui le lance. Ses
+réglages n'ont pas été touchés : `carte.txt` a été réécrit à 20 h 49 par sa propre session,
+ouverte depuis 18 h 18 — mes lancements ont eu lieu à 19 h 44 et entre 22 h 23 et 22 h 27.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
