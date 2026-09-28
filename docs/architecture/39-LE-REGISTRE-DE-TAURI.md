@@ -46,7 +46,10 @@ la mécanique, *« qui n'est pas super bien codée »*, pour qu'elle soit optimi
 aimante toute la sélection — dossier et contenu des membranes compris — sur les images, textes,
 notes, **membranes et dossiers**, qui servent aussi de cibles ; redimensionner aimante de même.
 Reste de sa demande : *« reprendre toute la mécanique »* — l'aimant parcourt tous les nœuds du
-tableau à chaque mouvement, ce qui ne tiendra pas à dix millions (fiche 41 § 10).
+tableau à chaque mouvement, ce qui ne tiendra pas à dix millions (fiche 41 § 10). **Fait le
+28/09** (SNAP-2, fiche 43 § 7) : les lignes des cibles se trient une fois par geste, chaque
+mouvement cherche la plus proche par dichotomie. Reste une question pour lui : l'aimant aux
+seuls nœuds visibles, comme Excalidraw (fiche 43 § 9).
 
 ## 3. L'alignement, au premier placement aussi
 
@@ -178,9 +181,12 @@ et mathématiquement définir une optimisation, et garder une quarantaine d'éta
 
 **État** : *en partie* (26/09). La Time Machine de Rust n'a **pas de « compacter »**. Les
 jalons disent **leur date exacte** (`35317e2`) : « nommé · 25/09/2026 22:19 · geste 12 ».
-L'histoire n'écrit que les gestes (124 octets en moyenne, fiche 37 § 1.2). **Reste** : l'optimisation
-« une quarantaine d'étapes clés », à définir mathématiquement — une proposition est dans la fiche
-41 § 10.
+L'histoire n'écrit que les gestes (124 octets en moyenne, fiche 37 § 1.2). **Et depuis le 28/09
+(fiche 43 § 6), chaque geste n'écrit plus que l'essentiel** : un redimensionnement, une rotation,
+un recadrage ne sont plus un millier d'éditions mais une (FONDRE-1) ; un glisser, une seule
+translation que le fichier rejoue au bit près (GLISSER-1). **Reste** : l'optimisation « une
+quarantaine d'étapes clés », à définir mathématiquement — une proposition est dans la fiche 41
+§ 11 ; qu'elle efface ou non est sa décision.
 
 ## 13. Les membranes — l'idée de Mary
 
@@ -243,6 +249,22 @@ déborde sur la voisine ; seule une formule montre une pastille à côté, penda
 ## 18. Une carte « aaaaaaaaaaaa »
 
 Une carte verte, en titre, sans commentaire. **État** : *à comprendre* avec lui.
+
+---
+
+## Ses remarques sur Glucose Rust depuis ce relevé, et leur état (28/09)
+
+Hors du relevé de Tauri, mais de même nature — ce qu'il a vu dans Rust et demandé de corriger :
+
+| sa remarque | état | où |
+|---|---|---|
+| *« tout le système que possède Tauri pour éviter que la flèche traverse une image n'existe pas »* | **fait** : toute flèche sans coude contourne, par le plus court chemin, jusqu'au grand tour d'un mur de photos — **à voir à l'écran** | fiche 42 § 8, FLECHE-5/6 |
+| le coude d'une flèche qu'on ne peut pas déplacer | **corrigé** (le glisser n'avait jamais été branché) — à voir | fiche 42 § 5, ARROW-3 |
+| les pastilles de relation trop grandes au dézoom, sous la souris, sans mot | **corrigé** — à voir | fiche 42 § 6, BADGE-1/2 |
+| le LaTeX mal disposé *« depuis le tout début »* | **corrigé** : 76 % d'encre mal placée → 0,38 % contre le vrai KaTeX ; deux formules hautes ne se touchent plus — **vu en partie** | fiche 42 § 7 et § 9, FORMULE-1/2 |
+| la carte posée sur une photo, illisible | **corrigé** — vu | fiche 42 § 2, LUEUR-3 |
+| le surlignage d'un passage qui déborde sur ses voisines | **corrigé** — à voir | fiche 42 § 4, PASSAGE-2 |
+| *« ça lag »* (51 images par seconde, panneaux ouverts) | **en partie** : l'envoi à la carte et les panneaux posés par elle ; sa prochaine chronique dira | fiche 43 § 4 et § 5 |
 
 ---
 

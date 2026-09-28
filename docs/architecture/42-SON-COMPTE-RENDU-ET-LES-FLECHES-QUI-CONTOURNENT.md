@@ -454,4 +454,41 @@ Lu point par point :
 
 ---
 
+## 10. Ce qu'il faut regarder à l'écran
+
+Rien de cette fiche après FORMULE-1 n'a encore été vu : le contournement des flèches
+(FLECHE-5, FLECHE-6) et l'interligne des formules (FORMULE-2). Les essais sont réunis avec ceux
+de la session suivante, dans la fiche [`43`](43-LA-VERSION-ET-LE-REPOS.md) § 8 — les formules y
+sont données **entre deux lignes `$$`**, ce que mes instructions du § 7 avaient oublié.
+
+---
+
+## 11. Ce qui attend sa parole
+
+1. **Un détour sans fin** : une flèche dont le détour coûterait plus que son budget (un mur
+   long de deux mille photos, une colonne de deux cents cartes séparées) va droit. Il a dit
+   préférer le grand détour ; celui-là n'est pas trouvé à temps. La fiche 43 § 3 dit pourquoi, et
+   la piste.
+2. Toujours ouverts : les membranes (fiche 38 § 8), les rideaux et Trans-domaines (fiche 41 § 14).
+
+---
+
+## 12. Les sources
+
+* T. Lozano-Pérez et M. A. Wesley, *An algorithm for planning collision-free paths among
+  polyhedral obstacles*, Communications of the ACM 22(10), 1979 — le graphe de visibilité.
+* P. E. Hart, N. J. Nilsson, B. Raphael, *A Formal Basis for the Heuristic Determination of
+  Minimum Cost Paths*, IEEE Transactions on Systems Science and Cybernetics, 1968 — l'A*.
+* M. Wybrow, K. Marriott, P. J. Stuckey, [*Incremental Connector Routing*](https://link.springer.com/chapter/10.1007/11618058_40),
+  GD 2005, et la bibliothèque [libavoid](https://www.adaptagrams.org/documentation/libavoid.html)
+  — le routage recalculé pendant qu'on déplace un objet ; Excalidraw,
+  [*Building Elbow Arrows, part 2*](https://plus.excalidraw.com/blog/building-elbow-arrows-part-two).
+* KaTeX, `katex.css` (0.16, dans `node_modules/katex` de Glucose Tauri) — la feuille que le pont
+  applique (FORMULE-1).
+* D. E. Knuth, *The TeXbook*, chapitre 12 — `\baselineskip`, `\lineskip` : l'interligne
+  qu'une boîte haute garde avec sa voisine (FORMULE-2).
+* Glucose Tauri : `ArrowSvgLayer.tsx` (`getDynamicRoute`), `node_modules/katex`.
+
+---
+
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
