@@ -50,9 +50,13 @@ impl Store {
         self.journal.begin();
     }
 
+    /// Ferme le geste, et publie une version **s'il a écrit quelque chose** : un clic qui n'a
+    /// rien bougé n'a pas changé le document, et tout ce qui suit la version — l'état
+    /// « modifié », l'index, les panneaux, les itinéraires des flèches — n'a rien à refaire.
     pub fn end_live_edit(&mut self) {
-        self.journal.end();
-        self.bump_version();
+        if self.journal.end() {
+            self.bump_version();
+        }
     }
 
     /// Abandonne la transaction live en cours (`Échap` pendant un geste).
@@ -79,15 +83,15 @@ impl Store {
         true
     }
 
-    /// Consigne une édition, et publie la nouvelle version du document.
+    /// Consigne une édition, et publie la nouvelle version du document — si l'édition change
+    /// quelque chose : **la version avance exactement quand le journal publie**.
     ///
     /// **La version n'avance pas pendant un geste continu.** Elle dit à l'extérieur — index
     /// spatiaux, rendu, autosave — que le document a changé ; pendant un glisser, le
     /// changement n'est publié qu'au relâchement, par `end_live_edit`. Un geste abandonné en
     /// route ne doit donc laisser aucune trace, pas même un numéro de version consommé.
     pub(super) fn record_edit(&mut self, edit: crate::store::journal::Edit) {
-        self.journal.record(edit);
-        if !self.journal.is_open() {
+        if self.journal.record(edit) {
             self.bump_version();
         }
     }
@@ -108,8 +112,7 @@ impl Store {
         for edit in edits {
             self.journal.record(edit);
         }
-        if !already_open {
-            self.journal.end();
+        if !already_open && self.journal.end() {
             self.bump_version();
         }
     }

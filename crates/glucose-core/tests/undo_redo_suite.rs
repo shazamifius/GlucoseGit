@@ -881,6 +881,38 @@ fn test_un_geste_sans_effet_ne_detruit_pas_le_redo_en_attente() {
     assert_eq!(store.active_board().unwrap().images.len(), 1);
 }
 
+/// **La version avance exactement quand le journal publie.** Elle dit à tout ce qui la suit —
+/// l'état « modifié », l'index, les panneaux, les itinéraires des flèches — que le document a
+/// changé : un geste sans effet, ou une édition seule qui ne change rien (renommer un onglet de
+/// son propre nom), n'en publient aucune ; une vraie édition, une.
+#[test]
+fn test_une_version_ne_se_publie_que_pour_un_changement() {
+    let mut store = Store::new("test");
+    store.add_image("main", mk_image("i1"));
+    let version = store.version;
+
+    store.begin_live_edit();
+    store.end_live_edit();
+    assert_eq!(store.version, version, "un geste sans effet");
+
+    let nom = store.active_board().unwrap().name.clone();
+    store.rename_board("main", nom);
+    assert_eq!(
+        store.version, version,
+        "une édition seule qui ne change rien"
+    );
+
+    store.set_selected_image_ids(Vec::new());
+    store.move_selected("main", 10.0, 0.0);
+    assert_eq!(
+        store.version, version,
+        "un geste en bloc qui ne déplace rien"
+    );
+
+    store.rename_board("main", "Autre nom");
+    assert_eq!(store.version, version + 1, "une vraie édition");
+}
+
 /// Même loi pour un geste abandonné en route (Échap pendant un glisser) : le document
 /// revient exactement où il était, donc l'histoire alternative reste valide.
 #[test]

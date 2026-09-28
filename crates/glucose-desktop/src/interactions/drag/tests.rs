@@ -142,6 +142,32 @@ fn test_live_2_clicking_a_card_without_moving_it_keeps_the_pending_redo() {
 
 /// Une application neuve n'a rien à défaire : la carte d'accueil est l'état de départ, pas
 /// un geste de l'utilisateur. Sans cela, Ctrl+Z était actif dès le lancement.
+/// **Un clic ne publie aucune version** : sélectionner n'est pas éditer, pour le document non
+/// plus. La version dit à tout ce qui la suit — l'état « modifié », l'index, les panneaux, la
+/// minimap, les itinéraires des flèches — que le document a changé ; un appui et un relâchement
+/// sans le moindre pixel parcouru ne l'ont pas changé.
+#[test]
+fn test_live_5_un_clic_ne_publie_aucune_version() {
+    let mut app = app();
+    with_image(&mut app, "I1", 0.0, 0.0);
+    let version = app.store.version;
+    let modifie = app.is_dirty();
+
+    press_on(&mut app, "I1");
+    release(&mut app);
+
+    assert_eq!(app.store.version, version, "aucune version publiée");
+    assert_eq!(app.is_dirty(), modifie, "le document n'est pas « modifié »");
+    press_on(&mut app, "I1");
+    drag_by(&mut app, 50.0, 5);
+    release(&mut app);
+    assert_eq!(
+        app.store.version,
+        version + 1,
+        "un vrai geste en publie une"
+    );
+}
+
 #[test]
 fn test_a_fresh_app_has_nothing_to_undo() {
     let app = GlucoseApp::new();

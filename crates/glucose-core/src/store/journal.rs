@@ -380,32 +380,40 @@ impl Journal {
             .map(|tx| (self.ouverts, tx.edits.as_slice()))
     }
 
-    /// Enregistre une édition : dans la transaction ouverte, ou seule dans la sienne.
+    /// Enregistre une édition : dans la transaction ouverte, ou seule dans la sienne. Rend
+    /// `true` quand elle **publie** une transaction — seule dans la sienne, et pas un rien.
     ///
     /// **Une édition qui ne change rien n'est pas une édition.** Elle n'entre pas au journal,
     /// donc ne consomme ni niveau d'annulation ni histoire alternative : valider un texte
     /// sans l'avoir modifié, ou un geste revenu à son point de départ, ne laisse rien.
-    pub fn record(&mut self, edit: Edit) {
+    pub fn record(&mut self, edit: Edit) -> bool {
         if edit.is_noop() {
-            return;
+            return false;
         }
         match &mut self.open {
-            Some(tx) => tx.push(edit),
+            Some(tx) => {
+                tx.push(edit);
+                false
+            }
             None => {
                 let mut tx = Transaction::default();
                 tx.push(edit);
                 self.commit(tx);
+                true
             }
         }
     }
 
-    /// Ferme le geste ouvert. Une transaction vide — un clic qui n'a rien bougé — ne laisse
-    /// aucune trace : rien à annuler.
-    pub fn end(&mut self) {
-        if let Some(tx) = self.open.take() {
-            if !tx.is_empty() {
+    /// Ferme le geste ouvert, et rend `true` s'il **publie** une transaction. Une transaction
+    /// vide — un clic qui n'a rien bougé — ne laisse aucune trace : rien à annuler, rien de
+    /// publié.
+    pub fn end(&mut self) -> bool {
+        match self.open.take() {
+            Some(tx) if !tx.is_empty() => {
                 self.commit(tx);
+                true
             }
+            _ => false,
         }
     }
 
