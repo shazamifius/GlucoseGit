@@ -361,6 +361,9 @@ pub struct Temps<'a> {
     /// Combien des textures demandées sont des photos — les premières : la pose se coupe
     /// après elles pour laisser passer les lueurs (LUEUR-3).
     pub photos: usize,
+    /// Combien passent sous la couche du dessus — photos et cartes : les suivantes sont les
+    /// panneaux, posés après elle (PANNEAUX-1).
+    pub sous_le_dessus: usize,
 }
 
 /// **Encode la passe des cinq temps** : le fond, le dessous, les photos, les lueurs et les
@@ -406,16 +409,23 @@ pub fn composer(encodeur: &mut wgpu::CommandEncoder, cible: &wgpu::TextureView, 
     temps
         .couches
         .poser_le_dessous(&mut passe, !temps.fond.a_peindre());
-    let (retenues, photos) = (temps.retenues, temps.retenues.avant(temps.photos));
+    let retenues = temps.retenues;
+    let (photos, cartes) = (
+        retenues.avant(temps.photos),
+        retenues.avant(temps.sous_le_dessus),
+    );
     temps.scene.poser(&mut passe, retenues, 0..photos);
     temps.lueurs.poser(&mut passe);
-    temps
-        .scene
-        .poser(&mut passe, retenues, photos..retenues.len());
+    temps.scene.poser(&mut passe, retenues, photos..cartes);
     // Les flèches, au-dessus des photos et des cartes, sous leurs étiquettes et leurs
     // poignées qui sont dans la couche du dessus (FLECHE-2).
     temps.fleches.poser(&mut passe);
     temps.couches.poser_le_dessus(&mut passe);
+    // Les panneaux, après tout ce que la couche du dessus porte — comme la chrome au
+    // processeur, qui les y composait en dernier (PANNEAUX-1).
+    temps
+        .scene
+        .poser(&mut passe, retenues, cartes..retenues.len());
     // Le liseré du passé, par-dessus tout : il borde la fenêtre entière, chrome comprise.
     temps.lisere.poser(&mut passe);
 }

@@ -129,7 +129,8 @@ impl GlucoseApp {
             {
                 // La voie graphique : le dessous, les photos, le dessus.
                 Some(dessus) => {
-                    let (renderer, confie) = (&self.renderer, &self.confie);
+                    let (renderer, confie, panneaux) =
+                        (&self.renderer, &self.confie, &self.dock_cache);
                     // **Ce qui sépare cette image du plancher de la charte**, et c'est tout
                     // le budget que le rendu des textures manquantes a le droit de prendre.
                     //
@@ -146,7 +147,13 @@ impl GlucoseApp {
                     presenter.presenter_en_couches(
                         pixmap,
                         (confie, budget),
-                        &|cle| confie.pixels(renderer, cle),
+                        &|cle| {
+                            confie.pixels(renderer, cle).or_else(|| {
+                                panneaux
+                                    .pixels(cle)
+                                    .map(crate::present::scene_gpu::Pixels::Rendues)
+                            })
+                        },
                         dessus,
                     )
                 }

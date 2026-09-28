@@ -524,6 +524,8 @@ impl Renderer {
             niveaux,
             replis,
             cartes,
+            // Les panneaux sont a la peinture, comme le releve : la chrome se pose apres.
+            panneaux: Vec::new(),
             composants,
             // Le releve appartient a la peinture : la chrome se dessine APRES le renderer,
             // donc rien de juste ne peut etre dit ici.

@@ -198,6 +198,9 @@ struct Panneau {
     /// Les questions de survol que son dessin a posées, et ce que le pointeur y répondait
     /// (SURVOL-2). Les mêmes réponses au pointeur suivant disent les mêmes pixels.
     survol: Vec<(WidgetRect, bool)>,
+    /// Le rang de ce dessin parmi tous ceux du cache : la clé de la texture que la carte en
+    /// tient (PANNEAUX-1). Elle change à chaque redessin, et à lui seul.
+    generation: usize,
 }
 
 impl Panneau {
@@ -256,6 +259,35 @@ impl DockCache {
     pub fn prendre_les_raisons(&self) -> u16 {
         self.raisons.take()
     }
+
+    /// **Les pixels du panneau que cette clé désigne**, s'il est encore celui-là (PANNEAUX-1).
+    ///
+    /// Une copie : la carte ne la demande que lorsque le panneau a changé, et un tampon prêté
+    /// depuis une cellule ne survivrait pas à l'emprunt.
+    pub fn pixels(&self, cle: &str) -> Option<Pixmap> {
+        self.panneaux
+            .borrow()
+            .iter()
+            .find(|(tab, p)| cle_du_panneau(**tab, p.generation) == cle)
+            .map(|(_, p)| p.pixmap.clone())
+    }
+}
+
+/// **Ce qu'un panneau est pour la carte** : stable tant que c'est ce panneau (PANNEAUX-1).
+pub fn identite_du_panneau(tab: TabId) -> String {
+    format!("panneau:{tab:?}")
+}
+
+/// **Ce que son tampon montre** : la clé change à chaque redessin, et à lui seul.
+pub fn cle_du_panneau(tab: TabId, generation: usize) -> String {
+    format!("panneau:{tab:?}@{generation}")
+}
+
+/// Un panneau tenu à jour : où son tampon se pose, sa taille, et ce qu'il montre.
+pub(super) struct Tenu {
+    pub origine: (f32, f32),
+    pub taille: (u32, u32),
+    pub generation: usize,
 }
 
 /// Dessine un panneau en passant par son tampon, qu'il ne refait que s'il a changé.
@@ -268,6 +300,42 @@ pub(super) fn draw_panel_cached(
     panel: &PanelLayoutBox,
     s: f32,
 ) {
+    let Some(tenu) = tenir_a_jour(cache, dock, store, pass, panel, s) else {
+        // Une taille que le tampon refuse : plutôt que de ne rien dessiner, on retombe sur le
+        // rendu direct. Un cache qui échoue effacerait le panneau, ce qui serait pire que le
+        // coût qu'il évite.
+        let brush = Brush::nouveau((pass.typo, pass.theme), s, pass.pointer, (0.0, 0.0));
+        cache.rendus.set(cache.rendus.get() + 1);
+        draw_panel(pixmap, &brush, dock, store, panel, s);
+        return;
+    };
+    let panneaux = cache.panneaux.borrow();
+    let garde = &panneaux[&panel.tab];
+    let origin = tenu.origine;
+    if !poser(pixmap, &garde.pixmap, origin, Melange::Composer) {
+        // Une vue que REPORT-1 refuse — une taille impossible — retombe sur le rasteriseur.
+        // Ne rien dessiner effacerait le panneau, ce qui serait pire que le coût évité.
+        pixmap.draw_pixmap(
+            origin.0 as i32,
+            origin.1 as i32,
+            garde.pixmap.as_ref(),
+            &tiny_skia::PixmapPaint::default(),
+            Transform::identity(),
+            None,
+        );
+    }
+}
+
+/// **Tient le tampon d'un panneau à jour**, sans le poser : il ne se refait que s'il a changé.
+/// Rend où il se pose et ce qu'il montre — ou rien si sa taille est refusée par un tampon.
+pub(super) fn tenir_a_jour(
+    cache: &DockCache,
+    dock: &DockManager,
+    store: &Store,
+    pass: &DockPass<'_>,
+    panel: &PanelLayoutBox,
+    s: f32,
+) -> Option<Tenu> {
     let (typo, theme, pointer) = (pass.typo, pass.theme, pass.pointer);
     let extent = panel.extent(s);
     // Le coin est ramené à l'entier inférieur : la composition se fait alors à une position
@@ -299,16 +367,7 @@ pub(super) fn draw_panel_cached(
     );
     cache.raisons.set(cache.raisons.get() | raisons);
     if raisons != 0 {
-        let Some(mut neuf) = Pixmap::new(taille.0, taille.1) else {
-            // Une taille que le tampon refuse : plutôt que de ne rien dessiner, on retombe
-            // sur le rendu direct. Un cache qui échoue effacerait le panneau, ce qui serait
-            // pire que le coût qu'il évite.
-            drop(panneaux);
-            let brush = Brush::nouveau((typo, theme), s, pointer, (0.0, 0.0));
-            cache.rendus.set(cache.rendus.get() + 1);
-            draw_panel(pixmap, &brush, dock, store, panel, s);
-            return;
-        };
+        let mut neuf = Pixmap::new(taille.0, taille.1)?;
         let brush = Brush::nouveau((typo, theme), s, pointer, origin);
         cache.rendus.set(cache.rendus.get() + 1);
         draw_panel(&mut neuf.as_mut(), &brush, dock, store, panel, s);
@@ -319,21 +378,13 @@ pub(super) fn draw_panel_cached(
                 pixmap: neuf,
                 cle,
                 survol,
+                generation: cache.rendus.get(),
             },
         );
     }
-
-    let garde = &panneaux[&panel.tab];
-    if !poser(pixmap, &garde.pixmap, origin, Melange::Composer) {
-        // Une vue que REPORT-1 refuse — une taille impossible — retombe sur le rasteriseur.
-        // Ne rien dessiner effacerait le panneau, ce qui serait pire que le coût évité.
-        pixmap.draw_pixmap(
-            origin.0 as i32,
-            origin.1 as i32,
-            garde.pixmap.as_ref(),
-            &tiny_skia::PixmapPaint::default(),
-            Transform::identity(),
-            None,
-        );
-    }
+    Some(Tenu {
+        origine: origin,
+        taille,
+        generation: panneaux[&panel.tab].generation,
+    })
 }

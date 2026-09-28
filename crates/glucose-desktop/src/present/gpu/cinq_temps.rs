@@ -70,6 +70,7 @@ pub(super) fn presenter(
             scene: &p.scene,
             retenues: &retenues,
             photos: confie.photos.len(),
+            sous_le_dessus: confie.sous_le_dessus(),
         },
     );
     crate::perf::stage("encoder");

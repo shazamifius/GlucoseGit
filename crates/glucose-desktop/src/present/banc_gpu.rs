@@ -245,6 +245,7 @@ pub fn composer_les_cinq_temps(
             scene: &scene,
             retenues: &retenues,
             photos: confie.photos.len(),
+            sous_le_dessus: confie.sous_le_dessus(),
         },
     );
     envoi.soumettre();

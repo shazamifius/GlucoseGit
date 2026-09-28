@@ -1088,3 +1088,84 @@ fn test_passage_2_un_passage_qui_brille_se_rend_pareil_sur_les_deux_voies() {
     let pire = banc_gpu::pire_ecart(&processeur, &carte);
     assert!(pire <= ECART_ADMIS, "pire ecart {pire}");
 }
+
+/// **PANNEAUX-1 — un panneau posé par la carte donne l'image de la voie processeur.**
+///
+/// Sur la voie graphique, la Time Machine n'est plus composée dans la couche du dessus : la
+/// carte la pose par-dessus, comme une texture. Sur la voie processeur, elle se compose sur
+/// l'image finie. Les deux doivent rendre la même image, et le panneau doit s'y voir — une
+/// épreuve qui comparerait seulement passerait aussi le jour où aucune voie ne le poserait.
+#[test]
+fn test_panneaux_1_un_panneau_se_pose_pareil_sur_les_deux_voies() {
+    use glucose_desktop::dock::{
+        confier_les_docks, render_docks, DockCache, DockManager, DockPass, TabId,
+    };
+    use glucose_desktop::params::ScreenFrame;
+    let taille = synth::WITNESS_SIZE;
+    let store = synth::witness_selected();
+    let mut dock = DockManager::new();
+    dock.top_tabs.clear();
+    dock.bottom_tabs.clear();
+    dock.right_tabs.clear();
+    dock.toggle_tab(TabId::Temps);
+    let (typo, theme) = (
+        glucose_desktop::typography::Typography::new(),
+        glucose_desktop::theme::Theme::dark(),
+    );
+    let passe = |cache| DockPass {
+        typo: &typo,
+        theme: &theme,
+        screen: ScreenFrame {
+            width: taille.0 as f32,
+            height: taille.1 as f32,
+            header_h: UiState::new().header_height(),
+            scale: 1.0,
+        },
+        pointer: Pointer { x: -1.0, y: -1.0 },
+        cache,
+    };
+
+    let (renderer, dessous, mut dessus, mut confie) = les_deux_couches(taille, &store);
+    let cache = DockCache::new();
+    confie.panneaux = confier_les_docks(&mut dessus.as_mut(), &dock, &store, &passe(Some(&cache)));
+    assert_eq!(confie.panneaux.len(), 1);
+    let Some((peripherique, file)) = banc_gpu::carte() else {
+        eprintln!("aucune carte utilisable : epreuve sautee");
+        return;
+    };
+    let carte = banc_gpu::composer_les_cinq_temps(
+        (&peripherique, &file),
+        taille,
+        &confie,
+        (&dessous, &dessus),
+        &|cle| {
+            confie.pixels(&renderer, cle).or_else(|| {
+                cache
+                    .pixels(cle)
+                    .map(glucose_desktop::present::scene_gpu::Pixels::Rendues)
+            })
+        },
+    )
+    .expect("une image");
+
+    let sans_panneau = par_le_processeur(taille, &store);
+    let mut processeur = sans_panneau.clone();
+    render_docks(&mut processeur.as_mut(), &dock, &store, &passe(None));
+
+    let pose = confie.panneaux[0].pose;
+    let (cx, cy) = (
+        (pose.x + pose.largeur / 2.0) as u32,
+        (pose.y + pose.hauteur / 2.0) as u32,
+    );
+    assert_ne!(
+        pixel(&carte, cx, cy),
+        pixel(&sans_panneau, cx, cy),
+        "le panneau se voit sur la carte"
+    );
+    let pire = banc_gpu::pire_ecart(&processeur, &carte);
+    let larges = banc_gpu::canaux_hors_tolerance(&processeur, &carte, ECART_COURANT);
+    assert!(
+        pire <= ECART_ADMIS && larges * 1000 <= processeur.data().len() * PART_MAX_POUR_MILLE,
+        "les deux voies divergent : pire {pire}, {larges} canaux au-dela de {ECART_COURANT}"
+    );
+}

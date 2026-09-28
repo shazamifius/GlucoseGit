@@ -59,6 +59,59 @@ pub fn render_docks(
     }
 }
 
+/// **Les panneaux, confiés à la carte graphique** (PANNEAUX-1) : chacun tenu à jour dans son
+/// tampon, et rendu comme une texture qu'elle pose par-dessus la couche du dessus.
+///
+/// Composés dans la couche du dessus, ils en faisaient effacer, relever et renvoyer toutes les
+/// lignes à chaque image — un panneau de toute la hauteur, toute la couche — alors qu'ils ne
+/// changent que sous la main. Posés par la carte, un panneau immobile ne coûte plus rien, et un
+/// panneau qui change ne renvoie que son rectangle. L'ordre ne change pas : la chrome passait
+/// déjà après tout ce que la couche porte.
+///
+/// Un panneau dont le tampon est refusé — une taille impossible — se dessine dans `pixmap`,
+/// comme avant : rien ne disparaît.
+pub fn confier_les_docks(
+    pixmap: &mut PixmapMut,
+    dock: &DockManager,
+    store: &Store,
+    pass: &DockPass<'_>,
+) -> Vec<crate::renderer::voies::APoser> {
+    use crate::present::scene_gpu::Pose;
+    let s = crate::theme::clamp_ui_scale(pass.screen.scale);
+    let layouts = compute_panel_layouts(
+        dock,
+        pass.screen.width,
+        pass.screen.height,
+        pass.screen.header_h,
+        s,
+    );
+    let neuf = cache::DockCache::new();
+    let cache = pass.cache.unwrap_or(&neuf);
+    let mut confies = Vec::with_capacity(layouts.len());
+    for panel in layouts {
+        let Some(tenu) = cache::tenir_a_jour(cache, dock, store, pass, &panel, s) else {
+            cache::draw_panel_cached(pixmap, cache, dock, store, pass, &panel, s);
+            continue;
+        };
+        confies.push(crate::renderer::voies::APoser {
+            identite: cache::identite_du_panneau(panel.tab),
+            cle: cache::cle_du_panneau(panel.tab, tenu.generation),
+            pose: Pose {
+                x: tenu.origine.0,
+                y: tenu.origine.1,
+                largeur: tenu.taille.0 as f32,
+                hauteur: tenu.taille.1 as f32,
+                opacite: 1.0,
+                angle: 0.0,
+                fenetre: Pose::TOUT,
+                bornes: Pose::PARTOUT,
+            },
+            repli: None,
+        });
+    }
+    confies
+}
+
 /// La profondeur du voile du liseré, en points (fiche 10 § 5.7 : `inset 0 0 60px`).
 const VOILE: f32 = 60.0;
 /// L'épaisseur de son trait, en points (`3px solid`).

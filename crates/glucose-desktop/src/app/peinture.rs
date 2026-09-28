@@ -414,7 +414,7 @@ fn peindre_par_la_carte(
         overlay,
         regard,
     );
-    poser_les_docks(
+    confie.panneaux = confier_les_docks(
         dessus,
         (dock_manager, dock_cache),
         store,
@@ -440,18 +440,19 @@ fn peindre_par_la_carte(
     (tampon, confie)
 }
 
-/// Pose les panneaux déroulants dans la couche du dessus.
+/// **Confie les panneaux déroulants à la carte** (PANNEAUX-1) : leurs tampons tenus à jour, et
+/// ce qu'elle doit en poser après la couche du dessus — qui ne les porte plus.
 ///
-/// Une fonction à part parce que la peinture par la carte a désormais un relevé à faire après
-/// elle, et que le cliquet des quatre-vingts lignes a raison : ce qui **dessine** et ce qui
-/// **mesure** ne sont pas la même chose.
-fn poser_les_docks(
+/// Une fonction à part parce que la peinture par la carte a un relevé à faire après elle, et
+/// que le cliquet des quatre-vingts lignes a raison : ce qui **dessine** et ce qui **mesure**
+/// ne sont pas la même chose.
+fn confier_les_docks(
     dessus: &mut Pixmap,
     (dock_manager, dock_cache): (&DockManager, &DockCache),
     store: &Store,
     (renderer, ui, pointer): (&Renderer, &UiState, Pointer),
     (largeur, hauteur, echelle): (u32, u32, f32),
-) {
+) -> Vec<crate::renderer::voies::APoser> {
     // **Combien de panneaux ont ete REELLEMENT redessines**, et non combien sont ouverts.
     //
     // Le cache du dock garde un tampon par panneau ; sa propre documentation dit que le gain
@@ -462,7 +463,7 @@ fn poser_les_docks(
     // n'appellent pas la meme reponse -- une cle trop large d'un cote, une couche a part de
     // l'autre -- et aucune duree ne les distingue.
     let avant = dock_cache.rendus();
-    render_docks(
+    let panneaux = crate::dock::confier_les_docks(
         &mut dessus.as_mut(),
         dock_manager,
         store,
@@ -485,6 +486,7 @@ fn poser_les_docks(
     );
     crate::perf::compteur("dock_pourquoi", f64::from(dock_cache.prendre_les_raisons()));
     crate::perf::stage("docks");
+    panneaux
 }
 
 /// Peint la scène et la chrome dans le tampon.

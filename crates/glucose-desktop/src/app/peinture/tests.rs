@@ -133,3 +133,95 @@ fn test_le_lisere_du_passe_part_sur_la_carte() {
         "l'ambre au bord : {bord:?}"
     );
 }
+
+/// Aucun panneau ouvert — une application neuve en montre un par défaut —, et pas de message
+/// d'accueil, qui s'estompe d'une image à l'autre.
+fn sans_panneau(app: &mut GlucoseApp) {
+    app.ui.current_toast = None;
+    app.dock_manager.top_tabs.clear();
+    app.dock_manager.bottom_tabs.clear();
+    app.dock_manager.right_tabs.clear();
+}
+
+/// Une image de la voie graphique, avec la couche du dessus qu'elle a peinte.
+fn une_image_et_son_dessus(app: &mut GlucoseApp) -> (Pixmap, Confie) {
+    let guides = app.active_guides.clone();
+    let overlay = SceneOverlay::sans_rien(&guides);
+    let chrome = Chrome {
+        ui: &mut app.ui,
+        dock_manager: &app.dock_manager,
+        dock_cache: &app.dock_cache,
+        pointer: Pointer { x: 0.0, y: 0.0 },
+        echelle: 1.0,
+    };
+    let mut dessous = Pixmap::new(TAILLE.0, TAILLE.1).expect("un pixmap");
+    let (dessus, confie) = peindre_par_la_carte(
+        (&mut dessous, None),
+        &mut app.renderer,
+        (&app.store, &Confie::default()),
+        chrome,
+        (overlay, Regard::immobile()),
+    );
+    (dessus.expect("un dessus"), confie)
+}
+
+/// **PANNEAUX-1 — un panneau part sur la carte, et la couche du dessus ne le porte pas** : la
+/// Time Machine, de toute la hauteur, laisse le dessus exactement tel qu'il est sans elle — il
+/// ne repart donc plus entier à chaque image —, et la carte reçoit le panneau à poser.
+#[test]
+fn test_panneaux_1_le_panneau_part_sur_la_carte_et_le_dessus_ne_le_porte_pas() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    let (sans, rien) = une_image_et_son_dessus(&mut app);
+    assert!(rien.panneaux.is_empty());
+
+    app.dock_manager.toggle_tab(crate::dock::TabId::Temps);
+    let (avec, confie) = une_image_et_son_dessus(&mut app);
+    assert_eq!(confie.panneaux.len(), 1, "la carte pose le panneau");
+    let pose = confie.panneaux[0].pose;
+    assert!(
+        pose.hauteur > TAILLE.1 as f32 / 2.0,
+        "de toute la hauteur : {pose:?}"
+    );
+    assert!(
+        avec.data() == sans.data(),
+        "la couche du dessus porte le panneau"
+    );
+    assert_eq!(confie.bandes_du_dessus, rien.bandes_du_dessus);
+    let pixels = app
+        .dock_cache
+        .pixels(&confie.panneaux[0].cle)
+        .expect("ses pixels, par sa clé");
+    assert_eq!(
+        (pixels.width() as f32, pixels.height() as f32),
+        (pose.largeur, pose.hauteur),
+        "la texture a la taille de sa pose : un texel par pixel"
+    );
+}
+
+/// **PANNEAUX-1 — un panneau immobile garde sa clé**, donc la carte ne le reçoit qu'une fois ;
+/// un panneau qui change en prend une neuve, et l'ancienne ne désigne plus rien.
+#[test]
+fn test_panneaux_1_un_panneau_immobile_garde_sa_cle() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    app.dock_manager.toggle_tab(crate::dock::TabId::Temps);
+    let (_, premiere) = une_image_et_son_dessus(&mut app);
+    regarder(&mut app, 150.0);
+    let (_, seconde) = une_image_et_son_dessus(&mut app);
+    assert_eq!(
+        premiere.panneaux[0].cle, seconde.panneaux[0].cle,
+        "la vue a glissé, le panneau n'a pas changé"
+    );
+
+    app.dock_manager.temps.regarde = Some(0);
+    let (_, troisieme) = une_image_et_son_dessus(&mut app);
+    assert_ne!(troisieme.panneaux[0].cle, seconde.panneaux[0].cle);
+    assert_eq!(
+        troisieme.panneaux[0].identite, seconde.panneaux[0].identite,
+        "le même panneau"
+    );
+    assert!(app.dock_cache.pixels(&seconde.panneaux[0].cle).is_none());
+}

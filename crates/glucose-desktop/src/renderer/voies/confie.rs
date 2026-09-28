@@ -36,6 +36,9 @@ pub struct Confie {
     /// Où chaque carte de texte visible se pose — **après** les photos, puisque les
     /// annotations passent au-dessus (COMPOSANT-1).
     pub cartes: Vec<(String, Pose)>,
+    /// **Les panneaux du dock**, posés par la carte **après** la couche du dessus (PANNEAUX-1) :
+    /// leur clé change à chaque redessin, et leurs pixels viennent du cache des panneaux.
+    pub panneaux: Vec<APoser>,
     /// Ce qui se rend **à la demande**, quand la carte graphique ne connaît pas la clé : les
     /// cartes de texte, les photos en chemin.
     pub composants: Vec<crate::renderer::composants::Composant>,
@@ -85,7 +88,8 @@ pub struct APoser {
 
 impl Confie {
     /// **Tout ce que la carte pose comme texture**, dans l'ordre du modèle : les photos, puis
-    /// les cartes de texte par-dessus.
+    /// les cartes de texte par-dessus — puis les panneaux, qui passent après la couche du
+    /// dessus.
     ///
     /// Une photo est sa propre identité : ses octets ne changent pas, donc sa clé non plus.
     /// Une carte de texte porte les deux, et elles diffèrent dès qu'elle change de palier.
@@ -139,7 +143,14 @@ impl Confie {
                     repli: repli.map(Box::new),
                 }
             })
+            .chain(self.panneaux.iter().cloned())
             .collect()
+    }
+
+    /// Combien des textures demandées passent **sous** la couche du dessus : les photos et les
+    /// cartes. Les panneaux viennent après.
+    pub fn sous_le_dessus(&self) -> usize {
+        self.photos.len() + self.cartes.len()
     }
 
     /// Le composant qui porte cette clé, s'il y en a un : c'est lui qui sait se rendre.
