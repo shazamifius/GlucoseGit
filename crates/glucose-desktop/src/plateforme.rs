@@ -25,6 +25,7 @@ pub mod offre;
 pub mod priorite;
 pub mod rapatrier;
 pub mod sources;
+pub mod telechargements;
 
 #[cfg(windows)]
 mod depot_windows;

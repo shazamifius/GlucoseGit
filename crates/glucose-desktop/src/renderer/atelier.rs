@@ -25,9 +25,10 @@
 //! Depuis la mémoire par étages, l'atelier ne fait plus que décoder. Il **reprend** au système
 //! les niveaux que l'écran redemande, et il lui **offre** ceux qui ne servent plus — deux
 //! gestes de trois à cinq millisecondes pour dix mégaoctets, trop chers pour le fil qui
-//! dessine. Un ouvrier libre prend d'abord une reprise (l'écran l'attend, et elle coûte sept
-//! fois moins qu'un décodage), puis un décodage, puis une offre (rien ne l'attend). Aucune
-//! priorité chiffrée : trois files, lues dans cet ordre.
+//! dessine. Un ouvrier libre prend d'abord ce qui a été **promis** — les octets d'une image
+//! collée, que le scribe peut attendre (COLLER-3) —, puis une reprise (l'écran l'attend, et
+//! elle coûte sept fois moins qu'un décodage), puis un décodage, puis une offre (rien ne
+//! l'attend). Aucune priorité chiffrée : des files, lues dans cet ordre.
 //!
 //! # Ce que ce module ne fait pas
 //!
@@ -37,6 +38,7 @@
 
 use super::apercu::{self, Apercu};
 use super::photo::{Pyramide, Retour, Transit};
+use crate::persist::objets::Parole;
 use std::collections::{HashSet, VecDeque};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex};
@@ -86,16 +88,23 @@ enum Travail {
     ),
     Deplacer(Deplacement<Transit>),
     /// La vue d'ensemble d'une image à garder sur le disque (ETAGES-4) : la source, le
-    /// dossier, l'aperçu.
-    Ecrire(String, std::sync::Arc<std::path::Path>, Apercu),
-    /// Des pixels déjà là — une image collée — à poser en pyramide **et** à écrire en fichier
-    /// sous ce chemin (COLLER-1).
-    Adopter(String, Vec<u8>, (u32, u32)),
+    /// dossier, l'aperçu, et l'empreinte de ses octets si un document les porte (APERCU-5).
+    Ecrire(
+        String,
+        std::sync::Arc<std::path::Path>,
+        Apercu,
+        Option<[u8; 32]>,
+    ),
+    /// Des pixels déjà là — une image collée — à poser en pyramide, et dont les octets encodés
+    /// sont promis au scribe (COLLER-1, COLLER-3).
+    Adopter(String, Vec<u8>, (u32, u32), Parole),
 }
 
-/// Les trois files, lues dans l'ordre de leur urgence.
+/// Les files, lues dans l'ordre de leur urgence.
 #[derive(Default)]
 struct Files {
+    /// Ce qui a été **promis** : le scribe peut attendre ces octets, et `Ctrl+S` avec lui.
+    promesses: VecDeque<Travail>,
     reprises: VecDeque<Travail>,
     decodages: VecDeque<Travail>,
     offres: VecDeque<Travail>,
@@ -103,9 +112,23 @@ struct Files {
 }
 
 impl Files {
+    /// Range un travail dans la file de son urgence.
+    fn ranger(&mut self, travail: Travail) {
+        match &travail {
+            Travail::Adopter(..) => self.promesses.push_back(travail),
+            Travail::Decoder(..) => self.decodages.push_back(travail),
+            Travail::Deplacer(d) => match d.charge {
+                Transit::AReprendre(_) => self.reprises.push_back(travail),
+                Transit::AOffrir(_) => self.offres.push_back(travail),
+            },
+            Travail::Ecrire(..) => self.offres.push_back(travail),
+        }
+    }
+
     fn prochain(&mut self) -> Option<Travail> {
-        self.reprises
+        self.promesses
             .pop_front()
+            .or_else(|| self.reprises.pop_front())
             .or_else(|| self.decodages.pop_front())
             .or_else(|| self.offres.pop_front())
     }
@@ -215,14 +238,22 @@ impl Atelier {
         true
     }
 
-    /// **Adopte des pixels déjà là** — une image collée — sous ce chemin : un ouvrier en fait
-    /// la pyramide, écrit le fichier, puis la rend comme un décodage (COLLER-1).
+    /// **Adopte des pixels déjà là** — une image collée — sous cette clé : un ouvrier encode
+    /// ses octets et tient la promesse faite au scribe, puis en fait la pyramide et la rend
+    /// comme un décodage (COLLER-1, COLLER-3). Aucun fichier.
     ///
-    /// Le fichier d'abord, la pyramide ensuite : une image qu'on relirait avant qu'il existe
-    /// passerait pour illisible, et ne se redemanderait jamais.
-    pub fn adopter(&mut self, src: &str, rgba: Vec<u8>, dimensions: (u32, u32)) -> bool {
+    /// La promesse d'abord, la pyramide ensuite : une image relue avant d'être tenue passerait
+    /// pour illisible, et ne se redemanderait jamais. Refusée, la parole tombe avec le travail,
+    /// et la promesse est abandonnée : personne ne l'attend pour rien.
+    pub fn adopter(
+        &mut self,
+        src: &str,
+        rgba: Vec<u8>,
+        dimensions: (u32, u32),
+        parole: Parole,
+    ) -> bool {
         if self.en_cours.contains(src)
-            || !self.confier(Travail::Adopter(src.to_string(), rgba, dimensions))
+            || !self.confier(Travail::Adopter(src.to_string(), rgba, dimensions, parole))
         {
             return false;
         }
@@ -236,10 +267,11 @@ impl Atelier {
         self.objets = Some(objets);
     }
 
-    /// **Garde les aperçus dans ce dossier** : les décodages y cherchent d'abord, et les
-    /// vues d'ensemble s'y écrivent.
+    /// **Garde les aperçus dans ce dossier** — dans le sous-dossier de leur version, ceux des
+    /// versions d'avant retirés : les décodages y cherchent d'abord, et les vues d'ensemble
+    /// s'y écrivent.
     pub fn brancher_les_apercus(&mut self, dossier: std::path::PathBuf) {
-        self.apercus = Some(dossier.into());
+        self.apercus = Some(apercu::dossier_de_cette_version(&dossier).into());
     }
 
     /// Les aperçus sont-ils gardés ?
@@ -257,7 +289,8 @@ impl Atelier {
         let Some(dossier) = self.apercus.clone() else {
             return;
         };
-        if self.confier(Travail::Ecrire(src.to_string(), dossier, apercu)) {
+        let empreinte = self.objets.as_ref().and_then(|o| o.empreinte(src));
+        if self.confier(Travail::Ecrire(src.to_string(), dossier, apercu, empreinte)) {
             self.ecritures
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
@@ -278,14 +311,7 @@ impl Atelier {
         let Ok(mut files) = self.commandes.files.lock() else {
             return false;
         };
-        match &travail {
-            Travail::Decoder(..) | Travail::Adopter(..) => files.decodages.push_back(travail),
-            Travail::Deplacer(d) => match d.charge {
-                Transit::AReprendre(_) => files.reprises.push_back(travail),
-                Transit::AOffrir(_) => files.offres.push_back(travail),
-            },
-            Travail::Ecrire(..) => files.offres.push_back(travail),
-        }
+        files.ranger(travail);
         drop(files);
         self.commandes.reveil.notify_one();
         true
@@ -344,27 +370,30 @@ fn ouvrier(
                 // que de s'estimer ailleurs (ADAPT-1). Un aperçu coûte peu : l'image qui en
                 // naît se rend la première si la mémoire manque, et c'est juste.
                 let debut = Instant::now();
+                let empreinte = objets.as_deref().and_then(|o| o.empreinte(&src));
                 let pyramide = apercus
-                    .and_then(|dossier| apercu::lire(&apercu::chemin(&dossier, &src)?))
+                    .and_then(|d| apercu::lire(&apercu::chemin(&d, &src, empreinte)?))
                     .and_then(Pyramide::depuis_apercu)
                     .or_else(|| decoder(&src, objets.as_deref()));
                 Fait::Decodee((src, pyramide, debut.elapsed()))
             }
-            Travail::Adopter(src, rgba, (l, h)) => {
+            Travail::Adopter(src, rgba, (l, h), parole) => {
                 let debut = Instant::now();
-                // Encodé en mémoire, puis posé **d'un bloc** : le scribe qui scelle ne voit
-                // jamais ce fichier vide ou à moitié écrit. `save_buffer` l'écrivait en place,
-                // et le 28/09 trois images collées se sont scellées vides (COLLER-2).
-                let ecrit = encoder_en_png(&rgba, (l, h)).is_some_and(|png| {
-                    crate::persist::atomic::write_atomic(std::path::Path::new(&src), &png).is_ok()
-                });
-                let pyramide = ecrit.then(|| Pyramide::depuis_rgba(l, h, &rgba)).flatten();
+                // Encodé en mémoire et **promis** : le scribe l'attend, aucun fichier ne passe
+                // entre eux. Un fichier écrit ici, puis relu, s'est scellé vide le 28/09
+                // (COLLER-2) ; une promesse ne se lit qu'entière.
+                let tenue = encoder_en_png(&rgba, (l, h)).map(|png| parole.tenir(png));
+                let pyramide = tenue.and_then(|()| Pyramide::depuis_rgba(l, h, &rgba));
                 Fait::Decodee((src, pyramide, debut.elapsed()))
             }
-            Travail::Ecrire(src, dossier, a) => {
+            Travail::Ecrire(src, dossier, a, empreinte) => {
                 // Un aperçu qui ne s'écrit pas n'est qu'un aperçu de moins : la source reste.
-                // Un aperçu déjà là n'est pas réécrit : son nom dit la source telle qu'elle est.
-                if let Some(chemin) = apercu::chemin(&dossier, &src).filter(|c| !c.exists()) {
+                // Un aperçu déjà là et qui se lit n'est pas réécrit : son nom dit la source
+                // telle qu'elle est. Un aperçu abîmé, lui, se refait — sans quoi il resterait
+                // muet pour toujours.
+                let chemin = apercu::chemin(&dossier, &src, empreinte)
+                    .filter(|c| !c.exists() || apercu::lire(c).is_none());
+                if let Some(chemin) = chemin {
                     let _ = apercu::ecrire(&chemin, &a);
                 }
                 ecritures.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);

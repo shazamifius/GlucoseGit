@@ -68,13 +68,7 @@ impl GlucoseApp {
             // On regarde le passé : ce qui s'y fait n'est pas de l'histoire (HISTOIRE-3).
             return;
         }
-        let a_ecrire = !transactions.is_empty()
-            || self
-                .disque
-                .ecriture
-                .as_ref()
-                .is_some_and(Ecriture::a_du_travail);
-        if a_ecrire {
+        if !transactions.is_empty() {
             self.ecrire_les_gestes(transactions);
         }
         // Après les gestes : une saisie qui vient de se valider s'écrit avant que son texte
@@ -162,7 +156,7 @@ impl GlucoseApp {
             return;
         };
         for (cle, octets) in self.disque.a_sceller.drain(..) {
-            e.sceller_des_octets(&cle, octets.as_ref().clone());
+            e.sceller_des_octets(&cle, octets);
         }
         e.sceller_tout(&self.store.project, &self.disque.objets);
     }
@@ -326,6 +320,9 @@ pub(crate) mod coller_tests;
 #[cfg(test)]
 #[path = "disque/fin_tests.rs"]
 mod fin_tests;
+#[cfg(test)]
+#[path = "disque/promesse_tests.rs"]
+mod promesse_tests;
 #[cfg(test)]
 #[path = "disque/sauver_tests.rs"]
 mod sauver_tests;

@@ -8,16 +8,15 @@
 //! s'écrivent, ce qui est trop gros — est donc ici, sans un `unsafe`, sans une ligne de
 //! Windows, et couvert par des tests qui s'exécutent sur n'importe quelle machine.
 //!
-//! # Un fichier, parce que tout le reste sait déjà lire un fichier
+//! # Des octets, et plus aucun fichier temporaire (DEPOT-4)
 //!
-//! Le navigateur ne donne pas un chemin : il donne un nom suggéré et des octets. Les écrire
-//! dans le répertoire temporaire du système fait de ce dépôt **exactement** ce qu'est un
-//! fichier glissé depuis l'explorateur, et [`crate::interactions::drop`] le route alors sans
-//! savoir d'où il vient — image, texte lisible ou lanceur. Le pont n'ajoute pas un chemin de
-//! plus dans l'application ; il élargit celui qui existe.
-//!
-//! C'est aussi ce que fait déjà le collage d'une image du presse-papiers, et pour la même
-//! raison : le cache d'images lit des fichiers.
+//! Le navigateur ne donne pas un chemin : il donne un nom suggéré et des octets. On les
+//! écrivait dans le répertoire temporaire du système, pour qu'ils redeviennent un fichier
+//! comme ceux de l'explorateur — 172 fichiers chez lui, que rien n'effaçait et que Windows
+//! pouvait vider. Ils restent désormais **en mémoire**, dans un [`Recu`] :
+//! [`crate::interactions::drop`] pose une image directement depuis eux — ses octets entrent
+//! dans le document —, et donne au reste un vrai fichier, là où un navigateur l'aurait mis
+//! ([`super::telechargements`]).
 //!
 //! # Le nom vient d'ailleurs, donc il ne décide de rien
 //!
@@ -31,9 +30,6 @@
 
 use std::path::{Path, PathBuf};
 
-/// Le dossier où les dépôts du web se posent, sous le répertoire temporaire du système.
-const DOSSIER: &str = "glucose_depose";
-
 /// **Combien d'octets au plus on accepte d'un seul fichier venu d'une page** — promis par le
 /// navigateur, ou rapatrié par Glucose.
 ///
@@ -46,15 +42,41 @@ pub const OCTETS_MAX: usize = 256 * 1024 * 1024;
 /// Le nom retenu quand la page n'en donne aucun d'utilisable.
 const SANS_NOM: &str = "depose";
 
+/// **Ce qu'une page a livré** : le nom qu'elle propose, rendu sûr ([`nom_sur`]), et ses octets,
+/// en mémoire. Rien n'est écrit dans le dossier temporaire du système (DEPOT-4).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Recu {
+    pub nom: String,
+    pub octets: Vec<u8>,
+}
+
+impl Recu {
+    /// Ce que la page a livré — ou rien, si elle n'a rien livré : un contenu vide n'est pas un
+    /// dépôt, et donnerait une tuile vide, qui ressemble à un bug plutôt qu'à un refus.
+    pub fn nouveau(propose: &str, octets: Vec<u8>) -> Option<Self> {
+        (!octets.is_empty()).then(|| Self {
+            nom: nom_sur(propose),
+            octets,
+        })
+    }
+
+    /// Un raccourci Internet — une adresse dans un habit de fichier ?
+    pub fn est_un_raccourci(&self) -> bool {
+        est_un_raccourci(Path::new(&self.nom))
+    }
+}
+
 /// Ce qu'un dépôt a réellement apporté, une fois le pont passé.
 ///
-/// Les chemins sont ceux de fichiers qui **existent** : ce qui n'a pas pu s'écrire n'y est
-/// pas. L'application n'a donc aucun cas d'échec à traiter que le glisser-déposer d'un
-/// fichier ordinaire n'ait déjà.
+/// Les chemins sont ceux de fichiers qui **existent** — ceux de l'explorateur ; ce qu'une page
+/// a livré est en mémoire. L'application n'a donc aucun cas d'échec à traiter que le
+/// glisser-déposer d'un fichier ordinaire n'ait déjà.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct Moisson {
-    /// Les fichiers à poser, dans l'ordre où la page les a donnés.
+    /// Les fichiers à poser, dans l'ordre où l'explorateur les a donnés.
     pub chemins: Vec<PathBuf>,
+    /// Ce qu'une page a livré, dans l'ordre où elle l'a donné.
+    pub recus: Vec<Recu>,
     /// **Les adresses qu'une page donne quand elle ne promet aucun contenu.**
     ///
     /// Un lien glissé depuis la barre d'adresse, ou une image dont le navigateur ne veut pas
@@ -98,7 +120,7 @@ pub enum Depot {
 impl Moisson {
     /// Rien n'a été récolté.
     pub fn est_vide(&self) -> bool {
-        self.chemins.is_empty() && self.liens.is_empty()
+        self.chemins.is_empty() && self.recus.is_empty() && self.liens.is_empty()
     }
 }
 
@@ -136,20 +158,6 @@ pub fn nom_sur(propose: &str) -> String {
     net
 }
 
-/// **Où ce dépôt s'écrit**, avec un nom que rien d'autre ne porte déjà.
-///
-/// Le compteur suffit à distinguer les fichiers d'un même lot ; l'horloge distingue les lots
-/// entre eux. Deux images nommées `image.png` sur la même page se posent donc toutes les
-/// deux, au lieu que la seconde efface la première.
-pub fn chemin_pour(dossier: &Path, propose: &str, rang: usize) -> PathBuf {
-    let nom = nom_sur(propose);
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    dossier.join(format!("{nanos}-{rang}-{nom}"))
-}
-
 /// **Une adresse, écrite de façon qu'un `Ctrl`+clic la suive.**
 ///
 /// `links::url_at` ne reconnaît que ce que la syntaxe Markdown désigne : une adresse écrite
@@ -170,27 +178,6 @@ pub fn lien_markdown(adresse: &str) -> String {
     let montre = adresse.trim();
     let cible = montre.replace('(', "%28").replace(')', "%29");
     format!("[{montre}]({cible})")
-}
-
-/// Le dossier où les dépôts du web se posent, créé s'il n'existe pas.
-pub fn dossier() -> std::io::Result<PathBuf> {
-    let d = std::env::temp_dir().join(DOSSIER);
-    std::fs::create_dir_all(&d)?;
-    Ok(d)
-}
-
-/// **Écrit un fichier déposé et rend son chemin**, ou rien si le disque a refusé.
-///
-/// Un échec ne parle pas : c'est le compte-rendu du lot qui le dira, comme pour tout autre
-/// dépôt. Un fichier vide n'est pas écrit — une page qui promet un contenu et n'en donne pas
-/// produirait sinon un lanceur vide, ce qui ressemble à un bug plutôt qu'à un refus.
-pub fn poser(dossier: &Path, propose: &str, rang: usize, octets: &[u8]) -> Option<PathBuf> {
-    if octets.is_empty() {
-        return None;
-    }
-    let chemin = chemin_pour(dossier, propose, rang);
-    std::fs::write(&chemin, octets).ok()?;
-    Some(chemin)
 }
 
 /// **Ce fichier est-il un raccourci Internet** — une adresse dans un habit de fichier ?
@@ -255,6 +242,24 @@ pub fn lire_les_raccourcis(chemins: &[PathBuf]) -> (Vec<PathBuf>, Vec<String>) {
         }
     }
     (fichiers, adresses)
+}
+
+/// **Sépare les raccourcis de ce qu'une page a livré**, et rend leurs adresses à leur place.
+/// Un raccourci illisible reste un reçu : le lanceur le montrera.
+pub fn separer_les_raccourcis(recus: Vec<Recu>) -> (Vec<Recu>, Vec<String>) {
+    let mut gardes = Vec::with_capacity(recus.len());
+    let mut adresses = Vec::new();
+    for recu in recus {
+        let adresse = recu
+            .est_un_raccourci()
+            .then(|| adresse_du_raccourci(&String::from_utf8_lossy(&recu.octets)))
+            .flatten();
+        match adresse {
+            Some(a) => adresses.push(a),
+            None => gardes.push(recu),
+        }
+    }
+    (gardes, adresses)
 }
 
 /// **Les adresses web que ces octets transportent**, dans l'ordre et sans doublon.

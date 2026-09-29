@@ -2,11 +2,9 @@
 //!
 //! # Il n'y a presque rien ici, et c'est le but
 //!
-//! [`crate::plateforme::depot_windows`] rend une moisson faite de **fichiers** : les octets
-//! qu'une page promettait sont déjà écrits sur le disque quand ce module les voit. Poser une
-//! image glissée depuis un site ne demande donc aucun chemin de code nouveau — c'est
-//! [`super::drop`] qui route, exactement comme pour un fichier venu de l'explorateur, et lui
-//! seul décide qu'un lot tient dans une entrée d'annulation.
+//! [`crate::plateforme::depot_windows`] rend une moisson : les fichiers de l'explorateur, et ce
+//! qu'une page a livré, en mémoire (DEPOT-4). C'est [`super::drop`] qui route l'un et l'autre,
+//! et lui seul décide qu'un lot tient dans une entrée d'annulation.
 //!
 //! Ce module ne fait que deux choses que personne d'autre ne peut faire : **traduire la
 //! position** que le système donne en pixels de l'écran vers les pixels de la zone de dessin,
@@ -44,6 +42,10 @@ pub struct Arrivees {
     /// **Les images annoncées**, pas encore livrées : leur marqueur est à l'écran
     /// (DEPOT-WEB-5).
     pub en_chemin: Vec<Arrivage>,
+    /// Où va ce qu'une page livre et qui n'est pas une image (DEPOT-4) : les téléchargements
+    /// de l'utilisateur, que **seul le vrai lancement** donne ([`GlucoseApp::habiter`]) — une
+    /// épreuve n'écrit jamais chez lui.
+    pub telechargements: Option<std::path::PathBuf>,
 }
 
 impl GlucoseApp {
@@ -104,7 +106,7 @@ impl GlucoseApp {
         for document in &documents {
             self.ajouter_un_document(document);
         }
-        self.deposer(&reste, &recolte.liens, origine);
+        self.deposer(&reste, recolte.recus.clone(), &recolte.liens, origine);
         self.mark_dirty();
     }
 

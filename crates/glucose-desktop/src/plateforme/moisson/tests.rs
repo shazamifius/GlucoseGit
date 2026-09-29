@@ -57,40 +57,29 @@ fn test_ce_qu_un_nom_ne_peut_pas_porter_est_remplace() {
     assert_eq!(nom_sur("Ma photo-été (1).jpeg"), "Ma photo-été (1).jpeg");
 }
 
-/// **Deux fichiers du même nom, dans le même lot, ne s'effacent pas.**
-///
-/// Une page qui porte deux `image.png` est banale ; la seconde qui écraserait la première
-/// donnerait deux fois la même image sur le canevas, ce qui se voit et ne s'explique pas.
+/// **Un dépôt vide ne livre rien** : une page qui promet un contenu et n'en donne pas
+/// produirait un lanceur vide — ce qui ressemble à un bug plutôt qu'à un refus. Et le nom
+/// livré est toujours un nom sûr.
 #[test]
-fn test_deux_fichiers_du_meme_nom_ne_s_effacent_pas() {
-    let d = Path::new("racine");
-    let a = chemin_pour(d, "image.png", 0);
-    let b = chemin_pour(d, "image.png", 1);
-    assert_ne!(a, b);
-    // Et le nom d'origine reste lisible à la fin : c'est lui que l'utilisateur reconnaît.
-    assert!(a.to_string_lossy().ends_with("image.png"));
-    assert!(b.to_string_lossy().ends_with("image.png"));
+fn test_un_depot_vide_ne_livre_rien() {
+    assert_eq!(Recu::nouveau("vide.png", Vec::new()), None);
+    let r = Recu::nouveau(r"..\..\x.png", vec![1]).expect("un reçu");
+    assert_eq!(r.nom, "x.png");
 }
 
-/// **Un dépôt vide ne pose pas de fichier.**
-///
-/// Une page qui promet un contenu et n'en donne pas produirait un lanceur vide — ce qui
-/// ressemble à un bug plutôt qu'à un refus.
+/// **Un raccourci livré par une page rend son adresse**, et le reste du lot demeure : c'est ce
+/// que Chrome promet quand on glisse une épingle depuis la grille de Pinterest.
 #[test]
-fn test_un_depot_vide_ne_pose_rien() {
-    let d = std::env::temp_dir();
-    assert_eq!(poser(&d, "vide.png", 0, &[]), None);
-}
-
-/// **Ce qui s'écrit se relit**, octet pour octet — c'est tout ce que le reste de
-/// l'application attend d'un dépôt.
-#[test]
-fn test_ce_qui_s_ecrit_se_relit_octet_pour_octet() {
-    let d = dossier().expect("le repertoire temporaire du systeme doit etre accessible");
-    let octets = b"\x89PNG\r\n\x1a\n-- pas une vraie image, et c'est sans importance";
-    let chemin = poser(&d, "essai.png", 0, octets).expect("l'ecriture doit reussir");
-    assert_eq!(std::fs::read(&chemin).ok().as_deref(), Some(&octets[..]));
-    let _ = std::fs::remove_file(&chemin);
+fn test_un_raccourci_livre_rend_son_adresse_et_le_reste_demeure() {
+    let raccourci = Recu::nouveau("epingle.url", RACCOURCI_DU_TERRAIN.as_bytes().to_vec());
+    let image = Recu::nouveau("photo.png", vec![1, 2, 3]).expect("un reçu");
+    let (gardes, adresses) =
+        separer_les_raccourcis(vec![raccourci.expect("un reçu"), image.clone()]);
+    assert_eq!(gardes, vec![image]);
+    assert_eq!(
+        adresses,
+        vec!["https://fr.pinterest.com/pin/288441551156395185/".to_string()]
+    );
 }
 
 /// **Une adresse déposée est cliquable**, et une parenthèse ne casse pas sa syntaxe.
@@ -129,6 +118,7 @@ fn test_une_adresse_deposee_est_cliquable_parentheses_comprises() {
 fn test_une_position_sans_fichier_n_est_pas_un_depot() {
     let m = Moisson {
         chemins: Vec::new(),
+        recus: Vec::new(),
         liens: Vec::new(),
         ou: Some((100.0, 200.0)),
     };

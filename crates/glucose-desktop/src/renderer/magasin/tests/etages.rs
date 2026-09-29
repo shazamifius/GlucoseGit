@@ -246,7 +246,11 @@ fn test_une_image_vue_une_fois_s_ouvre_deja_montree() {
 
     let mut premiere = session();
     une_image(&mut premiere, montree_a(100.0, &src));
-    let chemin = crate::renderer::apercu::chemin(&dossier, &src).expect("un chemin");
+    let ici = premiere
+        .atelier
+        .dossier_des_apercus()
+        .expect("les aperçus sont gardés");
+    let chemin = crate::renderer::apercu::chemin(ici, &src, None).expect("un chemin");
     assert!(chemin.exists(), "la vue d'ensemble s'est ecrite");
 
     let mut seconde = session();
@@ -261,5 +265,103 @@ fn test_une_image_vue_une_fois_s_ouvre_deja_montree() {
         seconde.cache[&src].pyramide.etat(0),
         Etat::Tenu,
         "l'ecran voulait l'original : il s'est redecode"
+    );
+}
+
+/// **Une image sans fichier a son aperçu, nommé par ses octets** (APERCU-5) : une image collée,
+/// dont les octets sont dans un document, s'ouvre elle aussi déjà montrée. Le nom de l'aperçu
+/// disait la taille et la date du fichier que la clé désigne — elle n'en a aucun.
+#[test]
+fn test_une_image_sans_fichier_s_ouvre_deja_montree() {
+    use crate::persist::objets::{Objets, Source};
+    let photo = grande_photo("etages-apercu-sans-fichier.png");
+    let octets = std::fs::read(&photo).expect("la photo");
+    let empreinte = glucose_core::hash::sha256(&octets);
+    let cle = "collee:sans-fichier";
+    let dossier =
+        std::env::temp_dir().join(format!("glucose-apercus-empreinte-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dossier);
+    // Ses octets dans un document : la photo entière en est la tranche.
+    let objets = Objets::nouveau();
+    objets.poser(
+        cle,
+        Source::Ailleurs {
+            fichier: photo.clone().into(),
+            empreinte,
+            offset: 0,
+            longueur: octets.len() as u64,
+        },
+    );
+    let session = || {
+        let mut m = Magasin::nouveau();
+        m.atelier
+            .brancher_les_objets(std::sync::Arc::clone(&objets));
+        m.brancher_les_apercus(dossier.clone());
+        m.echelle_ensemble = 0.25;
+        for _ in 0..1000 {
+            une_image(&mut m, |m| {
+                m.reclamer(cle, 512.0);
+            });
+            if m.cache.contains_key(cle) {
+                return m;
+            }
+        }
+        panic!("l'image n'est jamais arrivee");
+    };
+
+    let mut premiere = session();
+    une_image(&mut premiere, montree_a(100.0, cle));
+    let ici = premiere.atelier.dossier_des_apercus().expect("gardés");
+    let nom = glucose_core::hash::hex_of(&empreinte);
+    assert!(
+        ici.join(format!("{nom}.apercu")).exists(),
+        "l'aperçu porte le nom de ses octets"
+    );
+    let seconde = session();
+    assert_eq!(
+        seconde.cache[cle].pyramide.etat(0),
+        Etat::Perdu,
+        "elle vient de son aperçu, pas d'un décodage entier"
+    );
+}
+
+/// **Un aperçu abîmé se refait** : il ne se relit plus — son sceau le trahit —, l'image se
+/// décode entière, et sa vue d'ensemble se réécrit. Sans cela, un aperçu déjà là ne se
+/// réécrivant pas, il resterait muet pour toujours.
+#[test]
+fn test_un_apercu_abime_se_refait() {
+    let src = grande_photo("etages-apercu-abime.png");
+    let dossier =
+        std::env::temp_dir().join(format!("glucose-apercus-abime-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dossier);
+    let session = || {
+        let mut m = Magasin::nouveau();
+        m.brancher_les_apercus(dossier.clone());
+        m.echelle_ensemble = 0.25;
+        for _ in 0..1000 {
+            une_image(&mut m, |m| {
+                m.reclamer(&src, 512.0);
+            });
+            if m.cache.contains_key(&src) {
+                return m;
+            }
+        }
+        panic!("la photo temoin n'est jamais arrivee");
+    };
+    let mut premiere = session();
+    une_image(&mut premiere, montree_a(100.0, &src));
+    let ici = premiere.atelier.dossier_des_apercus().expect("gardés");
+    let chemin = crate::renderer::apercu::chemin(ici, &src, None).expect("un chemin");
+    let mut octets = std::fs::read(&chemin).expect("écrit");
+    let milieu = octets.len() / 2;
+    octets[milieu] ^= 0x10;
+    std::fs::write(&chemin, &octets).expect("abîmé");
+    assert!(crate::renderer::apercu::lire(&chemin).is_none());
+
+    let mut seconde = session();
+    une_image(&mut seconde, montree_a(100.0, &src));
+    assert!(
+        crate::renderer::apercu::lire(&chemin).is_some(),
+        "il s'est refait"
     );
 }

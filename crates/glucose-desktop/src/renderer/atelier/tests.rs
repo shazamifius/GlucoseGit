@@ -165,35 +165,78 @@ fn test_l_atelier_a_toujours_au_moins_un_ouvrier() {
     );
 }
 
-/// **Une image collée se pose par l'atelier** (COLLER-1) : sa pyramide vient de ses pixels,
-/// son fichier s'écrit, et elle arrive comme un décodage — sans que le fil qui dessine ait rien
-/// encodé. Relue depuis son fichier, elle rend les mêmes pixels.
+/// **Une image collée se pose par l'atelier** (COLLER-1) : sa pyramide vient de ses pixels, et
+/// elle arrive comme un décodage — sans que le fil qui dessine ait rien encodé. Ses octets
+/// encodés tiennent la **promesse** faite au scribe, sans aucun fichier (COLLER-3) : relus, ils
+/// rendent les mêmes pixels.
 #[test]
-fn test_une_image_collee_s_adopte_et_s_ecrit() {
-    let dossier = std::env::temp_dir().join("glucose-atelier-tests");
-    std::fs::create_dir_all(&dossier).expect("dossier de test");
-    let chemin = dossier.join(format!("colle-{}.png", std::process::id()));
-    let _ = std::fs::remove_file(&chemin);
-    let src = chemin.to_string_lossy().to_string();
+fn test_une_image_collee_s_adopte_et_tient_sa_promesse() {
+    let src = "collee:epreuve";
     let rgba: Vec<u8> = (0..40 * 30)
         .flat_map(|i: u32| [(i % 256) as u8, (i / 7 % 256) as u8, 90, 255])
         .collect();
+    let (promesse, parole) = crate::persist::objets::Promesse::nouvelle();
 
     let mut atelier = Atelier::nouveau();
-    assert!(atelier.adopter(&src, rgba, (40, 30)));
+    assert!(atelier.adopter(src, rgba, (40, 30), parole));
     assert!(
-        !atelier.demander(&src),
+        !atelier.demander(src),
         "une image en chantier ne se redemande pas"
     );
     let moisson = moisson_complete(&mut atelier);
     assert_eq!(moisson.len(), 1);
-    let adoptee = moisson[0].1.as_ref().expect("l'image est adoptee");
+    let adoptee = moisson[0].1.as_ref().expect("l'image est adoptée");
     assert_eq!(adoptee.dimensions_natives(), (40, 30));
-    assert!(chemin.exists(), "son fichier est ecrit");
-    let relue = decoder(&src, None).expect("le fichier se relit");
+    let octets = promesse.deja().expect("la promesse est tenue");
+    let objets = crate::persist::objets::Objets::nouveau();
+    objets.poser(src, crate::persist::objets::Source::Memoire(octets));
+    let relue = decoder(src, Some(&objets)).expect("ses octets se relisent");
     let (a, b) = (
         adoptee.native().expect("tenu"),
         relue.native().expect("tenu"),
     );
     assert!(a.data() == b.data(), "relue, elle rend d'autres pixels");
+}
+
+/// **Une adoption refusée abandonne sa promesse** : personne ne l'attend pour rien.
+#[test]
+fn test_une_adoption_refusee_abandonne_sa_promesse() {
+    let mut atelier = Atelier::nouveau();
+    let (_, premiere) = crate::persist::objets::Promesse::nouvelle();
+    assert!(atelier.adopter("collee:double", vec![0; 4], (1, 1), premiere));
+    let (seconde, parole) = crate::persist::objets::Promesse::nouvelle();
+    assert!(
+        !atelier.adopter("collee:double", vec![0; 4], (1, 1), parole),
+        "la même clé est déjà en chantier"
+    );
+    // Attendue sur un fil : si elle retenait, l'épreuve doit tomber, pas geler.
+    let (reponse, recue) = std::sync::mpsc::channel();
+    std::thread::spawn(move || reponse.send(seconde.attendre()));
+    let rendue = recue
+        .recv_timeout(std::time::Duration::from_secs(20))
+        .expect("abandonnée, elle ne retient personne");
+    assert_eq!(rendue, None);
+    let _ = moisson_complete(&mut atelier);
+}
+
+/// **Ce qui a été promis passe devant tout** : le scribe peut l'attendre, et `Ctrl+S` avec
+/// lui. Derrière trente photos à décoder, une image collée attendrait qu'elles le soient.
+#[test]
+fn test_une_promesse_passe_devant_les_decodages() {
+    let mut files = Files::default();
+    for i in 0..30 {
+        files.ranger(Travail::Decoder(format!("photo-{i}"), None, None));
+    }
+    let (_, parole) = crate::persist::objets::Promesse::nouvelle();
+    files.ranger(Travail::Adopter(
+        "collee:x".into(),
+        vec![0; 4],
+        (1, 1),
+        parole,
+    ));
+    assert!(
+        matches!(files.prochain(), Some(Travail::Adopter(..))),
+        "la promesse d'abord"
+    );
+    assert!(matches!(files.prochain(), Some(Travail::Decoder(..))));
 }

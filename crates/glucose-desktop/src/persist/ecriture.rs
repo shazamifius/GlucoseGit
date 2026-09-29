@@ -17,11 +17,11 @@
 //!
 //! # Les images à sceller
 //!
-//! Une image qui entre dans le document porte une clé qui est, jusqu'ici, un chemin de fichier
-//! — celui qu'on a déposé, ou celui que le dossier temporaire a reçu. Tant que ses octets ne
-//! sont pas dans le document, elle est confiée au scribe ([`super::scribe`]). Une image dont
-//! le fichier n'existe pas encore — une image collée, que l'atelier est en train d'écrire —
-//! attend son tour, et se reconfie dès qu'il paraît.
+//! Une image qui entre dans le document porte une clé : le chemin du fichier qu'on a déposé,
+//! ou un nom pour ce qui n'a pas de fichier — une image collée, un document de Tauri. Tant que
+//! ses octets ne sont pas dans le document, elle est confiée au scribe ([`super::scribe`]),
+//! **avant** le geste qui la pose. Une image collée confie la promesse de ses octets : le
+//! scribe les attend là, dans la file (COLLER-3). Plus rien n'attend qu'un fichier paraisse.
 //!
 //! # Le texte en cours de frappe
 //!
@@ -54,8 +54,6 @@ pub struct Ecriture {
     auteur: u64,
     /// Les clés confiées au scribe et pas encore revenues scellées.
     confiees: HashSet<String>,
-    /// Les clés dont le fichier n'existait pas encore quand on a voulu les sceller.
-    en_attente: Vec<String>,
     /// Le texte en cours de frappe confié au scribe — ce que son fichier garde. `None` : il
     /// n'y en a pas.
     saisie: Option<Saisie>,
@@ -150,7 +148,6 @@ impl Ecriture {
             taille,
             auteur: auteur_de_ce_lancement(),
             confiees: HashSet::new(),
-            en_attente: Vec::new(),
             saisie: None,
             gestes: 0,
             dernier_jalon: None,
@@ -206,15 +203,9 @@ impl Ecriture {
             self.gestes += 1;
             self.envoyer(nature::GESTE, contenu);
         }
-        self.reessayer(objets);
         if self.depuis >= self.taille {
             self.instantane(projet);
         }
-    }
-
-    /// Des images attendent-elles que leur fichier paraisse ?
-    pub fn a_du_travail(&self) -> bool {
-        !self.en_attente.is_empty()
     }
 
     /// Pose un instantané de l'état courant, tout de suite.
@@ -237,66 +228,19 @@ impl Ecriture {
         if self.confiees.contains(cle) || objets.est_scellee(cle) {
             return;
         }
-        let chemin = match objets.source(cle) {
-            Some(Source::Fichier(p)) => p,
-            // Les octets d'une image importée : dans son document d'origine (BOARDS-2).
-            Some(Source::Ailleurs {
-                fichier,
-                empreinte,
-                offset,
-                longueur,
-            }) => {
-                self.confiees.insert(cle.to_string());
-                let octets = Octets::Tranche {
-                    fichier,
-                    empreinte,
-                    offset,
-                    longueur,
-                };
-                self.scribe.envoyer(Ordre::Sceller {
-                    cle: cle.to_string(),
-                    octets,
-                });
-                return;
-            }
-            // Des octets que le document portait en base64 : un document Tauri ajouté dans un
-            // onglet (BOARDS-2).
-            Some(Source::Memoire(octets)) => {
-                self.sceller_des_octets(cle, octets.as_ref().clone());
-                return;
-            }
-            _ => PathBuf::from(cle),
-        };
-        // Un fichier vide n'est pas encore l'image : celui qu'on est en train d'écrire.
-        if !std::fs::metadata(&chemin).is_ok_and(|m| m.is_file() && m.len() > 0) {
-            if !self.en_attente.iter().any(|c| c == cle) {
-                self.en_attente.push(cle.to_string());
-            }
+        let Some(octets) = octets_a_sceller(cle, objets) else {
             return;
-        }
+        };
         self.confiees.insert(cle.to_string());
         self.scribe.envoyer(Ordre::Sceller {
             cle: cle.to_string(),
-            octets: Octets::Chemin(chemin),
+            octets,
         });
-    }
-
-    /// Les images dont le fichier est apparu depuis.
-    fn reessayer(&mut self, objets: &Objets) {
-        if self.en_attente.is_empty() {
-            return;
-        }
-        let attente = std::mem::take(&mut self.en_attente);
-        for cle in attente {
-            let mut img = BoardImage::new("", 0.0, 0.0, 0.0, 0.0);
-            img.src = Some(cle);
-            self.sceller(&img, objets);
-        }
     }
 
     /// Scelle des octets qui ne viennent d'aucun fichier — une image d'un vieux document
     /// Tauri, portée en base64 par le document lui-même.
-    pub fn sceller_des_octets(&mut self, cle: &str, octets: Vec<u8>) {
+    pub fn sceller_des_octets(&mut self, cle: &str, octets: Arc<Vec<u8>>) {
         self.confiees.insert(cle.to_string());
         self.scribe.envoyer(Ordre::Sceller {
             cle: cle.to_string(),
@@ -389,6 +333,41 @@ fn auteur_de_ce_lancement() -> u64 {
     x ^= x >> 33;
     x = x.wrapping_mul(0xff51_afd7_ed55_8ccd);
     x ^ (x >> 33)
+}
+
+/// **D'où le scribe lira les octets de cette clé**, selon ce que le registre en sait — ou
+/// rien : une image déjà scellée, introuvable, ou un fichier vide, qui n'est jamais une image
+/// (COLLER-2).
+fn octets_a_sceller(cle: &str, objets: &Objets) -> Option<Octets> {
+    Some(match objets.source(cle) {
+        Some(Source::Tranche { .. }) => return None,
+        // Les octets d'une image importée : dans son document d'origine (BOARDS-2).
+        Some(Source::Ailleurs {
+            fichier,
+            empreinte,
+            offset,
+            longueur,
+        }) => Octets::Tranche {
+            fichier,
+            empreinte,
+            offset,
+            longueur,
+        },
+        // Des octets qu'un document de Tauri portait en base64.
+        Some(Source::Memoire(octets)) => Octets::Memoire(octets),
+        // Une image collée : le scribe attend ses octets à leur place dans la file (COLLER-3).
+        Some(Source::Promise(p)) => Octets::Promis(p),
+        Some(Source::Fichier(chemin)) => return fichier_non_vide(chemin),
+        // Une clé inconnue se lit comme un chemin : c'est ce qu'était toute clé avant le
+        // registre.
+        None => return fichier_non_vide(PathBuf::from(cle)),
+    })
+}
+
+fn fichier_non_vide(chemin: PathBuf) -> Option<Octets> {
+    std::fs::metadata(&chemin)
+        .is_ok_and(|m| m.is_file() && m.len() > 0)
+        .then_some(Octets::Chemin(chemin))
 }
 
 /// Un nom de brouillon neuf, dans ce dossier.

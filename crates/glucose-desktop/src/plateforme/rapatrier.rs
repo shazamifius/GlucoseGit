@@ -10,10 +10,9 @@
 //! S'il ne trouve rien, le dépôt retombe sur ce qu'il portait : la vignette que la page avait
 //! posée, ou le lien qu'on peut suivre. Un repli visible vaut mieux qu'un geste sans effet.
 
-use super::moisson::{self, Depot, Moisson, OCTETS_MAX};
+use super::moisson::{Depot, Moisson, Recu, OCTETS_MAX};
 use super::sources::{self, Candidat};
 use std::collections::VecDeque;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 
@@ -64,12 +63,12 @@ pub fn chercher(adresses: &[String], ou: Option<(f64, f64)>) -> Option<Moisson> 
     while let Some(candidat) = file.pop_front() {
         match candidat {
             Candidat::Image(url) => {
-                if let Some(chemin) = rapatrier_l_image(&url) {
+                if let Some(recu) = rapatrier_l_image(&url) {
                     println!("[Glucose] depot : image rapatriee depuis {url}");
                     return Some(Moisson {
-                        chemins: vec![chemin],
-                        liens: Vec::new(),
+                        recus: vec![recu],
                         ou,
+                        ..Moisson::default()
                     });
                 }
             }
@@ -93,8 +92,9 @@ pub fn chercher(adresses: &[String], ou: Option<(f64, f64)>) -> Option<Moisson> 
     None
 }
 
-/// Télécharge cette adresse, et l'écrit si ce sont bien les octets d'une image.
-fn rapatrier_l_image(url: &str) -> Option<PathBuf> {
+/// Télécharge cette adresse, et la rend si ce sont bien les octets d'une image — en mémoire :
+/// rien ne passe plus par le dossier temporaire (DEPOT-4).
+fn rapatrier_l_image(url: &str) -> Option<Recu> {
     let octets = match super::telecharger(url, OCTETS_MAX) {
         Ok(o) => o,
         Err(e) => {
@@ -106,8 +106,7 @@ fn rapatrier_l_image(url: &str) -> Option<PathBuf> {
         dire(url, "la reponse n'est pas une image");
         return None;
     }
-    let dossier = moisson::dossier().ok()?;
-    moisson::poser(&dossier, &sources::nom_pour(url), 0, &octets)
+    Recu::nouveau(&sources::nom_pour(url), octets)
 }
 
 /// Ce qu'un essai a donné, quand `GLUCOSE_DEPOT` le demande : l'original de Pinterest manque

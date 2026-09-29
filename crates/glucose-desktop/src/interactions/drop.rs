@@ -34,6 +34,7 @@
 //! où suivre Glucose Tauri à l'identique serait le suivre dans une faute.
 
 use crate::app::GlucoseApp;
+use crate::plateforme::moisson::{self, Recu};
 use glucose_core::file_kind;
 use glucose_core::types::Annotation;
 use std::path::{Path, PathBuf};
@@ -172,7 +173,7 @@ impl GlucoseApp {
     /// raviser est un seul geste, et le défaire demande un seul `Ctrl+Z`.
     pub fn drop_files(&mut self, paths: &[PathBuf]) {
         let origine = self.drop_origin(None);
-        self.deposer(paths, &[], origine);
+        self.deposer(paths, Vec::new(), &[], origine);
     }
 
     /// **Tout ce qu'un dépôt apporte, posé en une fois** — des fichiers, des adresses, ou les
@@ -184,14 +185,25 @@ impl GlucoseApp {
     /// **Une seule fonction pour les deux natures**, et c'est ce que le cliquet des toasts a
     /// imposé : un dépôt est un geste, un geste rend **un** compte-rendu. Une seconde fonction
     /// avec son propre message aurait dit deux fois la même chose de deux façons.
-    pub(crate) fn deposer(&mut self, paths: &[PathBuf], liens: &[String], (ox, oy): (f64, f64)) {
+    pub(crate) fn deposer(
+        &mut self,
+        paths: &[PathBuf],
+        recus: Vec<Recu>,
+        liens: &[String],
+        (ox, oy): (f64, f64),
+    ) {
         // **Un raccourci Internet est une adresse**, d'ou qu'il vienne (DEPOT-WEB-2) : il
         // rejoint les liens, et se pose en carte qu'on peut suivre plutot qu'en carte qui
         // porte son nom de fichier.
-        let (fichiers, adresses) = crate::plateforme::moisson::lire_les_raccourcis(paths);
-        let liens: Vec<String> = liens.iter().cloned().chain(adresses).collect();
-        let paths = fichiers.as_slice();
-        let attendus = paths.len() + liens.len();
+        let (fichiers, adresses) = moisson::lire_les_raccourcis(paths);
+        let (recus, adresses_recues) = moisson::separer_les_raccourcis(recus);
+        let liens: Vec<String> = liens
+            .iter()
+            .cloned()
+            .chain(adresses)
+            .chain(adresses_recues)
+            .collect();
+        let attendus = fichiers.len() + recus.len() + liens.len();
         if attendus == 0 {
             return;
         }
@@ -199,9 +211,15 @@ impl GlucoseApp {
 
         self.store.begin_live_edit();
         let mut placed = 0usize;
-        for path in paths {
+        for path in &fichiers {
             let offset = placed as f64 * CASCADE;
             if self.place_dropped(&board, path, (ox + offset, oy + offset)) {
+                placed += 1;
+            }
+        }
+        for (rang, recu) in recus.into_iter().enumerate() {
+            let offset = placed as f64 * CASCADE;
+            if self.place_recu(&board, recu, rang, (ox + offset, oy + offset)) {
                 placed += 1;
             }
         }
@@ -236,7 +254,7 @@ impl GlucoseApp {
             aid,
             x,
             y,
-            crate::plateforme::moisson::lien_markdown(adresse),
+            moisson::lien_markdown(adresse),
         );
         self.store.add_annotation(board, ann);
     }
@@ -257,6 +275,39 @@ impl GlucoseApp {
         // 3. Le reste — un dossier compris : une tuile qui mène au fichier.
         self.place_launcher(board, path, &name, (x, y));
         true
+    }
+
+    /// **Ce qu'une page a livré, posé** (DEPOT-4). Une image n'a besoin d'aucun fichier : ses
+    /// octets restent en mémoire, et se scellent dans le document avant le geste qui la pose.
+    /// Le reste — un PDF, une archive, un texte — mérite un vrai fichier, qu'une tuile puisse
+    /// montrer : il va dans les téléchargements, comme si le navigateur l'y avait mis, puis se
+    /// route comme un fichier de l'explorateur. Plus rien dans le dossier temporaire, que
+    /// Windows vide — et où une tuile aurait fini par ne plus mener nulle part.
+    fn place_recu(&mut self, board: &str, recu: Recu, rang: usize, ou: (f64, f64)) -> bool {
+        let dimensions = image::ImageReader::new(std::io::Cursor::new(&recu.octets))
+            .with_guessed_format()
+            .ok()
+            .and_then(|r| r.into_dimensions().ok());
+        if let Some((w, h)) = dimensions {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            let cle = format!("depot:{nanos}-{rang}-{}", recu.nom);
+            let octets = std::sync::Arc::new(recu.octets);
+            self.disque
+                .objets
+                .poser(&cle, crate::persist::objets::Source::Memoire(octets));
+            self.poser_une_image(board, cle, (f64::from(w), f64::from(h)), ou);
+            return true;
+        }
+        let dossier = self.depot.telechargements.clone().unwrap_or_else(|| {
+            crate::app::accueil::dossier_hors_lancement().join("telechargements")
+        });
+        match crate::plateforme::telechargements::poser_dans(&dossier, &recu) {
+            Some(chemin) => self.place_dropped(board, &chemin, ou),
+            None => false,
+        }
     }
 
     /// Le contenu d'un fichier lisible, posé en Markdown sur une carte.

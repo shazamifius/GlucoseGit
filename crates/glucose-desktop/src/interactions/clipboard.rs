@@ -94,7 +94,18 @@ impl GlucoseApp {
                 });
             }
         };
+        Ok(self.poser_une_image(board, path_str.to_string(), (w, h), (x, y)))
+    }
 
+    /// **Pose une image de dimensions connues** sous cette clé, et rend sa largeur : un fichier
+    /// déposé, ou des octets qu'une page a livrés (DEPOT-4) — la même naissance pour les deux.
+    pub(crate) fn poser_une_image(
+        &mut self,
+        board: &str,
+        src: String,
+        (w, h): (f64, f64),
+        (x, y): (f64, f64),
+    ) -> f64 {
         let max_dim = 600.0f64;
         let scale = if w > max_dim || h > max_dim {
             (max_dim / w).min(max_dim / h)
@@ -106,11 +117,11 @@ impl GlucoseApp {
 
         let id = self.store.generate_id("img");
         let mut img = BoardImage::new(id, x, y, final_w, final_h);
-        img.src = Some(path_str.to_string());
+        img.src = Some(src);
         img.original_width = w;
         img.original_height = h;
         self.store.add_image(board, img);
-        Ok(final_w)
+        final_w
     }
 
     /// Coller depuis le presse-papiers (Image ou Texte).
@@ -130,6 +141,10 @@ impl GlucoseApp {
                 // 2. Tenter de coller du texte ou un chemin de fichier
                 if let Ok(text) = clipboard.texte() {
                     let trimmed = text.trim();
+                    // Une image de ce document, copiée par `Ctrl+C` : sa clé la désigne.
+                    if self.recoller_une_image(&active_bid, trimmed, (wx, wy)) {
+                        return;
+                    }
                     let path = Path::new(trimmed);
                     if path.exists() && path.is_file() {
                         self.import_image_files(&[path.to_path_buf()]);
@@ -172,36 +187,38 @@ impl GlucoseApp {
 impl GlucoseApp {
     /// Pose sur le tableau une image venue du presse-papiers.
     ///
-    /// Le tampon n'est pas un fichier : il faut l'écrire pour que le document sache le
-    /// relire, et c'est le répertoire temporaire du système qui l'accueille.
-    ///
     /// # COLLER-1 — rien de lourd sur le fil qui dessine
     ///
     /// L'image s'encodait en PNG ici, dans le geste : 15 ms pour une épingle, 150 pour une
     /// capture 4K, mesurés — l'écran figé le temps d'un `Ctrl+V`. Elle se pose maintenant tout
-    /// de suite, en chemin, et c'est un ouvrier de l'atelier qui écrit son fichier et fait sa
-    /// pyramide, à partir des pixels mêmes : rien à décoder.
-    fn coller_image(
+    /// de suite, en chemin, et c'est un ouvrier de l'atelier qui l'encode et fait sa pyramide,
+    /// à partir des pixels mêmes : rien à décoder.
+    ///
+    /// # COLLER-3 — plus aucun fichier
+    ///
+    /// Son PNG s'écrivait dans le dossier temporaire du système, que le scribe relisait :
+    /// 1 638 fichiers chez lui, 2,9 Go, que rien n'effaçait et que Windows pouvait vider. Sa clé
+    /// est désormais un nom, et ses octets une **promesse** que l'atelier tient et que le
+    /// scribe attend, avant le geste qui la pose ([`crate::persist::objets::Promesse`]).
+    pub(crate) fn coller_image(
         &mut self,
         board: &str,
         img_data: &arboard::ImageData<'_>,
         (wx, wy): (f64, f64),
     ) {
         let (w, h) = (img_data.width, img_data.height);
-        let temp_dir = std::env::temp_dir().join("glucose_pasted");
-        if let Err(e) = std::fs::create_dir_all(&temp_dir) {
-            self.ui.show_toast(DesktopError::Io(e).to_string());
-            return;
-        }
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        let file_path = temp_dir.join(format!("paste_{nanos}.png"));
-        let src = file_path.to_string_lossy().to_string();
+        let src = format!("collee:{nanos}");
+        let (promesse, parole) = crate::persist::objets::Promesse::nouvelle();
+        self.disque
+            .objets
+            .poser(&src, crate::persist::objets::Source::Promise(promesse));
         self.renderer
             .magasin
-            .adopter(&src, img_data.bytes.to_vec(), (w as u32, h as u32));
+            .adopter(&src, img_data.bytes.to_vec(), (w as u32, h as u32), parole);
         // Une image collée naît bornée en largeur, son rapport préservé : un rendu de
         // navigateur peut faire plusieurs milliers de pixels, et naître plus large que le
         // tableau n'aide personne.
@@ -212,6 +229,42 @@ impl GlucoseApp {
         img.src = Some(src);
         img.original_width = w as f64;
         img.original_height = h as f64;
+        self.poser_une_image_collee(board, img);
+    }
+
+    /// **Recolle une image de ce document**, copiée par `Ctrl+C` — qui en copie la clé : la
+    /// clé la désigne, qu'un fichier la porte encore ou non. Une image collée n'en a pas, une
+    /// image venue de Tauri non plus, et le fichier d'une photo déposée a pu disparaître depuis
+    /// qu'elle est scellée ; seul le chemin d'un fichier qui existe se recollait. Rend `false`
+    /// si la clé ne désigne aucune image d'ici.
+    fn recoller_une_image(&mut self, board: &str, cle: &str, (wx, wy): (f64, f64)) -> bool {
+        let Some(modele) = self
+            .store
+            .project
+            .toutes_les_images()
+            .find(|i| i.src.as_deref() == Some(cle))
+            .cloned()
+        else {
+            return false;
+        };
+        // Tout ce qui fait son aspect, rien de ce qui la situe : un nœud neuf, là où l'on colle,
+        // hors de toute membrane, miroir de rien.
+        let mut img = BoardImage {
+            id: self.store.generate_id("img-paste"),
+            x: wx,
+            y: wy,
+            membrane_id: None,
+            slot_id: None,
+            mirror_of: None,
+            ..modele
+        };
+        img.locked = false;
+        self.poser_une_image_collee(board, img);
+        true
+    }
+
+    /// Le seul endroit qui pose une image collée, et le dit.
+    fn poser_une_image_collee(&mut self, board: &str, img: BoardImage) {
         self.store.add_image(board, img);
         self.ui.show_toast("Image collée");
         self.mark_dirty();

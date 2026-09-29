@@ -110,30 +110,6 @@ fn test_une_image_deposee_est_scellee_et_survit_a_son_fichier() {
     );
 }
 
-/// Une image dont le fichier paraît après coup — une image collée, que l'atelier écrit —
-/// se scelle dès qu'il paraît.
-#[test]
-fn test_une_image_dont_le_fichier_parait_apres_coup_se_scelle_quand_il_parait() {
-    let d = dossier("apres-coup");
-    let chemin = d.join("colle.glucose");
-    let mut app = application(&d);
-    app.save_to(chemin.clone());
-    let a_venir = d.join("pas-encore.png");
-    let b = app.store.project.active_board_id.clone();
-    let mut img = glucose_core::types::BoardImage::new("collee", 0.0, 0.0, 8.0, 6.0);
-    img.src = Some(a_venir.to_string_lossy().into_owned());
-    app.store.add_image(&b, img);
-    image_suivante(&mut app);
-    let cle = a_venir.to_string_lossy().into_owned();
-    assert!(!app.disque.objets.est_scellee(&cle));
-    png(&d, "pas-encore.png", 10);
-    image_suivante(&mut app);
-    assert!(
-        app.disque.objets.est_scellee(&cle),
-        "scellée dès que son fichier existe"
-    );
-}
-
 /// **« Enregistrer sous » emporte l'histoire** : la copie continue, l'original ne bouge plus.
 #[test]
 fn test_enregistrer_sous_emporte_l_histoire_et_laisse_l_original() {

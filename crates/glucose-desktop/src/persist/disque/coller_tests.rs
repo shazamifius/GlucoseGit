@@ -85,10 +85,11 @@ fn test_une_image_scellee_vide_se_rescelle_a_l_ouverture() {
     );
 }
 
-/// **Un fichier qui paraît vide n'est pas encore l'image** — celui qu'on est en train d'écrire :
-/// il ne se scelle pas, et se scelle entier une fois écrit.
+/// **Un fichier vide n'est jamais une image** : il ne se scelle pas. Rempli depuis, l'image se
+/// scelle entière à la prochaine ouverture du document. (Rien n'attend plus qu'un fichier
+/// paraisse : le seul qui le faisait, le collage, n'écrit plus de fichier — COLLER-3.)
 #[test]
-fn test_un_fichier_encore_vide_ne_se_scelle_pas() {
+fn test_un_fichier_vide_ne_se_scelle_pas() {
     let d = dossier("coller-2-vide");
     let chemin = d.join("colle.glucose");
     let fichier = d.join("en-cours.png");
@@ -102,11 +103,17 @@ fn test_un_fichier_encore_vide_ne_se_scelle_pas() {
         !app.disque.objets.est_scellee(&cle),
         "le vide ne se scelle pas"
     );
+    assert!(app.fermer_le_document());
+    drop(app);
 
     let octets = std::fs::read(png(&d, "en-cours.png", 30)).unwrap();
-    image_suivante(&mut app);
-    assert!(app.disque.objets.est_scellee(&cle), "écrit, il se scelle");
-    assert_eq!(app.disque.objets.lire(&cle).as_deref(), Some(&octets[..]));
+    let mut autre = rouvrir(&d, &chemin);
+    image_suivante(&mut autre);
+    assert!(
+        autre.disque.objets.est_scellee(&cle),
+        "rempli, il se scelle à l'ouverture"
+    );
+    assert_eq!(autre.disque.objets.lire(&cle).as_deref(), Some(&octets[..]));
 }
 
 /// **Le scribe refuse de sceller zéro octet**, et le dit : l'image reste à sceller.
@@ -117,7 +124,7 @@ fn test_le_scribe_refuse_le_vide() {
     let mut app = application(&d);
     app.save_to(chemin.clone());
     let e = app.disque.ecriture.as_mut().expect("le document s'écrit");
-    e.sceller_des_octets("rien", Vec::new());
+    e.sceller_des_octets("rien", std::sync::Arc::new(Vec::new()));
     e.synchroniser().expect("le disque suit");
     assert!(!app.disque.objets.est_scellee("rien"));
     assert!(

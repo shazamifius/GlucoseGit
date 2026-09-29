@@ -369,16 +369,22 @@ fn test_a_web_shortcut_lands_as_a_link_not_as_its_file_name() {
 
 // ── DEPOT-WEB-5 : l'annonce d'une image qui arrive ─────────────────────────────────────
 
-/// Une livraison, telle que le fil du rapatriement l'envoie.
-fn livraison(numero: u64, chemins: Vec<PathBuf>) -> crate::plateforme::moisson::Depot {
+/// Une livraison, telle que le fil du rapatriement l'envoie : des octets, en mémoire.
+fn livraison(numero: u64, recus: Vec<Recu>) -> crate::plateforme::moisson::Depot {
     crate::plateforme::moisson::Depot::Pose {
         numero: Some(numero),
         moisson: crate::plateforme::moisson::Moisson {
-            chemins,
-            liens: Vec::new(),
-            ou: None,
+            recus,
+            ..Default::default()
         },
     }
+}
+
+/// Un PNG minuscule mais vrai, livré par une page.
+fn png_livre(nom: &str) -> Recu {
+    let mut pixmap = tiny_skia::Pixmap::new(3, 2).expect("pixmap");
+    pixmap.fill(tiny_skia::Color::from_rgba8(30, 200, 30, 255));
+    Recu::nouveau(nom, pixmap.encode_png().expect("png")).expect("un reçu")
 }
 
 /// **Une image annoncée se pose là où on l'a lâchée, même si la vue a bougé pendant qu'elle
@@ -390,7 +396,6 @@ fn livraison(numero: u64, chemins: Vec<PathBuf>) -> crate::plateforme::moisson::
 #[test]
 fn test_une_image_annoncee_se_pose_au_point_du_lacher() {
     use crate::plateforme::moisson::Depot;
-    let bac = Bac::neuf("arrivage");
     let mut app = app();
     app.recevoir_le_depot(Depot::EnChemin {
         numero: 7,
@@ -408,7 +413,7 @@ fn test_une_image_annoncee_se_pose_au_point_du_lacher() {
         scale: 0.5,
     };
     app.store.set_viewport(&board, loin);
-    app.recevoir_le_depot(livraison(7, vec![bac.png("epingle.png")]));
+    app.recevoir_le_depot(livraison(7, vec![png_livre("epingle.png")]));
 
     assert!(
         app.depot.en_chemin.is_empty(),
@@ -444,4 +449,77 @@ fn test_une_livraison_vide_retire_son_marqueur() {
         1,
         "une livraison inconnue ne retire rien"
     );
+}
+
+// ── DEPOT-4 : ce qu'une page livre ne passe plus par le dossier temporaire ────────────────
+
+/// **Une image livrée par une page se pose sans aucun fichier** : sa clé n'en désigne pas, et
+/// ses octets se lisent du registre — jusqu'à ce que le scribe les scelle.
+#[test]
+fn test_une_image_livree_par_une_page_se_pose_sans_fichier() {
+    let mut app = app();
+    let recu = png_livre("photo.png");
+    let octets = recu.octets.clone();
+    app.deposer(&[], vec![recu], &[], (0.0, 0.0));
+    let images = &app.store.active_board().expect("un tableau").images;
+    assert_eq!(images.len(), 1);
+    let cle = images[0].src.clone().expect("une clé");
+    assert!(cle.starts_with("depot:"), "un nom, pas un chemin : {cle}");
+    assert!(!std::path::Path::new(&cle).exists());
+    assert_eq!(app.disque.objets.lire(&cle), Some(octets));
+    assert_eq!(
+        (images[0].original_width, images[0].original_height),
+        (3.0, 2.0)
+    );
+}
+
+/// **Ce qui n'est pas une image va dans les téléchargements**, et devient une tuile qui y
+/// mène — comme si le navigateur l'y avait mis. Un nom déjà pris ne s'écrase pas.
+#[test]
+fn test_ce_qui_n_est_pas_une_image_va_dans_les_telechargements() {
+    let bac = Bac::neuf("telechargements");
+    let mut app = app();
+    app.depot.telechargements = Some(bac.0.clone());
+    let pdf = |octets: &[u8]| Recu::nouveau("rapport.pdf", octets.to_vec()).expect("un reçu");
+    app.deposer(
+        &[],
+        vec![pdf(b"%PDF-1 premier"), pdf(b"%PDF-1 second")],
+        &[],
+        (0.0, 0.0),
+    );
+    let tuiles: Vec<String> = annotations(&app)
+        .iter()
+        .filter_map(|a| match a {
+            Annotation::Sticky {
+                source_file: Some(f),
+                ..
+            } => Some(f.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(tuiles.len(), 2, "deux tuiles : {:?}", annotations(&app));
+    let premier = bac.0.join("rapport.pdf");
+    let second = bac.0.join("rapport (1).pdf");
+    assert_eq!(tuiles[0], premier.to_string_lossy());
+    assert_eq!(tuiles[1], second.to_string_lossy());
+    assert_eq!(std::fs::read(&premier).unwrap(), b"%PDF-1 premier");
+    assert_eq!(std::fs::read(&second).unwrap(), b"%PDF-1 second");
+}
+
+/// **Une image livrée se scelle dans le document**, avant le geste qui la pose : rien ne
+/// dépend plus de rien.
+#[test]
+fn test_une_image_livree_se_scelle_dans_le_document() {
+    use crate::persist::disque::tests::{application, dossier, image_suivante};
+    let d = dossier("depot-4-scellee");
+    let mut app = application(&d);
+    app.save_to(d.join("depot.glucose"));
+    app.deposer(&[], vec![png_livre("photo.png")], &[], (0.0, 0.0));
+    image_suivante(&mut app);
+    let cle = app.store.project.boards[0]
+        .images
+        .last()
+        .and_then(|i| i.src.clone())
+        .expect("une image");
+    assert!(app.disque.objets.est_scellee(&cle));
 }

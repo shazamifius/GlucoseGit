@@ -88,20 +88,63 @@ fn test_une_source_modifiee_change_d_apercu() {
     let source = d.join("photo.png");
     std::fs::write(&source, [1u8; 10]).expect("ecrit");
     let src = source.to_string_lossy().to_string();
-    let avant = chemin(&d, &src).expect("un chemin");
+    let avant = chemin(&d, &src, None).expect("un chemin");
     assert_eq!(
-        chemin(&d, &src),
+        chemin(&d, &src, None),
         Some(avant.clone()),
         "la meme source, le meme nom"
     );
     std::fs::write(&source, [1u8; 11]).expect("reecrit");
     assert_ne!(
-        chemin(&d, &src),
+        chemin(&d, &src, None),
         Some(avant),
         "une autre taille, un autre nom"
     );
     assert!(
-        chemin(&d, "nulle/part.png").is_none(),
+        chemin(&d, "nulle/part.png", None).is_none(),
         "une source absente n'a pas d'apercu"
     );
+}
+
+/// **Une image scellée a l'aperçu de ses octets** (APERCU-5) : le même pour toutes les clés
+/// qui les montrent, que leur fichier existe ou non — une image collée n'en a aucun.
+#[test]
+fn test_une_image_scellee_a_l_apercu_de_ses_octets() {
+    let d = dossier("empreinte");
+    let e = glucose_core::hash::sha256(b"les octets de l'image");
+    let a = chemin(&d, "collee:123", Some(e)).expect("un nom sans fichier");
+    let b = chemin(&d, "C:/nulle/part.png", Some(e)).expect("le même");
+    assert_eq!(a, b);
+    assert!(a.to_string_lossy().ends_with(".apercu"));
+}
+
+/// **Un aperçu abîmé se tait** : un seul octet changé dans ses pixels, et son sceau le trahit —
+/// il ne montre jamais de faux pixels.
+#[test]
+fn test_un_apercu_abime_se_tait() {
+    let a = pyramide().apercu(3).expect("tenus");
+    let d = dossier("sceau");
+    let chemin = d.join("a.apercu");
+    ecrire(&chemin, &a).expect("l'ecriture");
+    let mut octets = std::fs::read(&chemin).expect("relu");
+    let milieu = octets.len() / 2;
+    octets[milieu] ^= 0x10;
+    std::fs::write(&chemin, &octets).expect("abîmé");
+    assert!(lire(&chemin).is_none());
+}
+
+/// **Les aperçus d'avant se retirent**, et seulement eux : ceux de l'ancienne version, posés
+/// à la racine, et le dossier d'une autre version ; rien d'autre n'est touché.
+#[test]
+fn test_les_apercus_d_avant_se_retirent() {
+    let d = dossier("versions");
+    std::fs::create_dir_all(d.join("v1")).expect("un ancien dossier");
+    std::fs::write(d.join("ancien.apercu"), b"v1").expect("un ancien");
+    std::fs::write(d.join("v1").join("x.apercu"), b"v1").expect("un ancien");
+    std::fs::write(d.join("note.txt"), b"autre chose").expect("autre chose");
+    let ici = dossier_de_cette_version(&d);
+    assert_eq!(ici, d.join(format!("v{VERSION}")));
+    assert!(!d.join("ancien.apercu").exists());
+    assert!(!d.join("v1").exists());
+    assert!(d.join("note.txt").exists(), "rien d'autre n'est touché");
 }

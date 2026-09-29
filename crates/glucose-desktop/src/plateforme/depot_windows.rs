@@ -27,12 +27,13 @@
 //!
 //! 1. **`CF_HDROP`** — de vrais fichiers, venus de l'explorateur. C'est ce que `winit`
 //!    faisait, et le reprendre est le prix de lui avoir pris sa place ;
-//! 2. **`FileGroupDescriptorW` + `FileContents`** — le navigateur. Les octets s'écrivent dans
-//!    le répertoire temporaire, et le dépôt redevient **exactement** un fichier glissé :
-//!    [`crate::interactions::drop`] le route sans savoir d'où il vient ;
+//! 2. **`FileGroupDescriptorW` + `FileContents`** — le navigateur. Les octets restent en
+//!    mémoire, dans un [`moisson::Recu`] : [`crate::interactions::drop`] pose une image
+//!    directement depuis eux, et donne au reste un vrai fichier dans les téléchargements
+//!    (DEPOT-4) — plus rien dans le répertoire temporaire ;
 //! 3. **le bitmap** — beaucoup de pages n'offrent pas de fichier promis mais posent l'image
 //!    décompressée dans le presse-papiers du glisser, exactement comme un `Ctrl+C` sur une
-//!    image. Elle s'écrit en PNG et redevient un fichier comme les deux formats précédents ;
+//!    image. Elle devient un BMP en mémoire, et se pose comme les images du format précédent ;
 //! 4. **l'adresse seule** — une page qui ne promet aucun contenu, un lien glissé depuis la
 //!    barre d'adresse. On pose alors le lien, que [`crate::interactions::links`] rend
 //!    cliquable. Un repli visible vaut mieux qu'un geste sans effet.
@@ -72,7 +73,7 @@ mod formats;
 
 use formats::{dire_les_formats, format_enregistre, offre, tirer, Bloc};
 
-use super::moisson::{self, Depot, Moisson};
+use super::moisson::{self, Depot, Moisson, Recu};
 use std::sync::mpsc::Sender;
 use windows::core::{implement, Interface, Ref, Result as WinResult};
 use windows::Win32::Foundation::{DRAGDROP_E_ALREADYREGISTERED, HWND, POINTL};
@@ -222,6 +223,7 @@ impl IDropTarget_Impl for Cible_Impl {
 fn adresses_a_rapatrier(objet: &IDataObject, repli: &Moisson) -> Vec<String> {
     let mut adresses = formats::adresses_portees(objet);
     adresses.extend(moisson::lire_les_raccourcis(&repli.chemins).1);
+    adresses.extend(moisson::separer_les_raccourcis(repli.recus.clone()).1);
     adresses.extend(repli.liens.iter().cloned());
     adresses
 }
@@ -284,10 +286,10 @@ fn recolter(objet: &IDataObject) -> (Moisson, Sorte) {
     // format le plus pauvre qui soit. Le prendre au deuxieme rang faisait passer une adresse
     // devant l'image que la page posait peut-etre a cote.
     let promis = fichiers_promis(objet);
-    let que_des_raccourcis = promis.iter().all(|p| moisson::est_un_raccourci(p));
+    let que_des_raccourcis = promis.iter().all(Recu::est_un_raccourci);
     if !promis.is_empty() && !que_des_raccourcis {
         let m = Moisson {
-            chemins: promis,
+            recus: promis,
             ..Moisson::default()
         };
         return (m, Sorte::Contenu);
@@ -298,13 +300,13 @@ fn recolter(objet: &IDataObject) -> (Moisson, Sorte) {
     let bitmap = bitmap_pose(objet);
     let repli = if !bitmap.is_empty() {
         Moisson {
-            chemins: bitmap,
+            recus: bitmap,
             ..Moisson::default()
         }
     } else if !promis.is_empty() {
         // Les raccourcis se poseront en liens : `drop` lit leur adresse.
         Moisson {
-            chemins: promis,
+            recus: promis,
             ..Moisson::default()
         }
     } else {
@@ -324,8 +326,8 @@ enum Sorte {
     Repli,
 }
 
-/// **L'image décompressée que la page a posée dans le presse-papiers du glisser**, écrite en
-/// fichier.
+/// **L'image décompressée que la page a posée dans le presse-papiers du glisser**, devenue un
+/// BMP en mémoire.
 ///
 /// Beaucoup de pages n'offrent aucun fichier promis mais posent le bitmap, exactement comme un
 /// `Ctrl+C` sur une image — c'est d'ailleurs ce que `paste_from_clipboard` lit déjà depuis
@@ -334,7 +336,7 @@ enum Sorte {
 /// Le DIB de Windows est **presque** un fichier BMP : il lui manque quatorze octets d'en-tête.
 /// Les ajouter laisse le décodeur du projet faire le reste — palettes, masques, orientation —
 /// plutôt que d'écrire un second décodeur d'images dans un module de COM.
-fn bitmap_pose(objet: &IDataObject) -> Vec<std::path::PathBuf> {
+fn bitmap_pose(objet: &IDataObject) -> Vec<Recu> {
     // `CF_DIBV5` d'abord : il porte l'espace colorimétrique et la transparence, que `CF_DIB`
     // perd. Une page qui offre les deux offre le même contenu, en moins bien pour le second.
     for format in [CF_DIBV5.0, CF_DIB.0] {
@@ -347,14 +349,8 @@ fn bitmap_pose(objet: &IDataObject) -> Vec<std::path::PathBuf> {
             lu
         };
         let Some(dib) = dib else { continue };
-        let Some(bmp) = en_fichier_bmp(&dib) else {
-            continue;
-        };
-        let Ok(dossier) = moisson::dossier() else {
-            return Vec::new();
-        };
-        if let Some(chemin) = moisson::poser(&dossier, "image.bmp", 0, &bmp) {
-            return vec![chemin];
+        if let Some(recu) = en_fichier_bmp(&dib).and_then(|bmp| Recu::nouveau("image.bmp", bmp)) {
+            return vec![recu];
         }
     }
     Vec::new()
@@ -441,25 +437,22 @@ fn fichiers_reels(objet: &IDataObject) -> Vec<std::path::PathBuf> {
     chemins
 }
 
-/// **Les fichiers qu'une page promet**, écrits sur le disque pour redevenir des fichiers.
+/// **Les fichiers qu'une page promet**, livrés en mémoire.
 ///
 /// Le descripteur dit combien il y en a et comment ils s'appellent ; le contenu se demande
 /// **un par un**, par son rang — c'est le seul format de Windows dont `lindex` désigne autre
 /// chose que la totalité.
-fn fichiers_promis(objet: &IDataObject) -> Vec<std::path::PathBuf> {
+fn fichiers_promis(objet: &IDataObject) -> Vec<Recu> {
     let noms = noms_promis(objet);
     if noms.is_empty() {
         return Vec::new();
     }
-    let Ok(dossier) = moisson::dossier() else {
-        return Vec::new();
-    };
     let contenus = format_enregistre("FileContents");
     noms.into_iter()
         .enumerate()
         .filter_map(|(rang, nom)| {
             let octets = octets_du_promis(objet, contenus, rang as i32)?;
-            moisson::poser(&dossier, &nom, rang, &octets)
+            Recu::nouveau(&nom, octets)
         })
         .collect()
 }

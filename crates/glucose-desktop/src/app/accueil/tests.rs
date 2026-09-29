@@ -16,6 +16,10 @@ fn test_une_application_hors_lancement_n_ecrit_rien_chez_l_utilisateur() {
         .atelier
         .dossier_des_apercus()
         .expect("les aperçus sont gardés, comme au vrai lancement");
+    assert!(
+        app.depot.telechargements.is_none(),
+        "une application d'épreuve ne connaît pas ses téléchargements"
+    );
     for (quoi, chemin) in [
         ("les brouillons", app.disque.brouillons.as_path()),
         ("les aperçus", apercus),

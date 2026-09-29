@@ -15,11 +15,12 @@
 //!
 //! # Sceller une image
 //!
-//! Une image qui arrive dans le document vient d'un fichier — souvent dans le dossier
-//! temporaire de Windows — ou de pixels collés. Le scribe lit ses octets, calcule leur
-//! empreinte (15 ms pour 4,7 Mo : jamais sur le fil qui dessine), ajoute un **objet** si ces
-//! octets ne sont pas déjà dans le fichier, puis un **lien** de sa clé vers l'empreinte, et
-//! pose la tranche dans le registre des [`Objets`]. Dès lors l'image ne dépend plus de rien.
+//! Une image qui arrive dans le document vient d'un fichier qu'on a déposé, d'un autre
+//! document, ou d'octets sans fichier — une image collée, que l'atelier encode et **promet**
+//! (COLLER-3). Le scribe lit ses octets — ou les attend, à leur place dans sa file —, calcule
+//! leur empreinte (15 ms pour 4,7 Mo : jamais sur le fil qui dessine), ajoute un **objet** si
+//! ces octets ne sont pas déjà dans le fichier, puis un **lien** de sa clé vers l'empreinte,
+//! et pose la tranche dans le registre des [`Objets`]. Dès lors l'image ne dépend plus de rien.
 //!
 //! # Garder le texte en cours de frappe
 //!
@@ -46,7 +47,10 @@ use std::thread::JoinHandle;
 /// D'où viennent les octets d'une image à sceller.
 pub enum Octets {
     Chemin(PathBuf),
-    Memoire(Vec<u8>),
+    Memoire(Arc<Vec<u8>>),
+    /// Des octets qu'on attend **ici**, à leur place dans la file : ce qui suit — le geste qui
+    /// pose l'image — ne s'écrit qu'après eux (COLLER-3).
+    Promis(Arc<super::objets::Promesse>),
     /// Une tranche d'un autre document, vérifiée par son empreinte (BOARDS-2).
     Tranche {
         fichier: PathBuf,
@@ -362,23 +366,7 @@ impl Plume {
     }
 
     fn sceller(&mut self, cle: &str, octets: Octets, objets: &Objets) -> Result<(), String> {
-        let octets = match octets {
-            Octets::Memoire(o) => o,
-            Octets::Chemin(p) => std::fs::read(&p)
-                .map_err(|e| format!("image non incorporée, {} : {e}", p.display()))?,
-            Octets::Tranche {
-                fichier,
-                empreinte,
-                offset,
-                longueur,
-            } => super::objets::lire_une_tranche(&fichier, &empreinte, offset, longueur)
-                .ok_or_else(|| {
-                    format!(
-                        "image non incorporée : sa tranche de {} est illisible ou abîmée",
-                        fichier.display()
-                    )
-                })?,
-        };
+        let octets = lire_les_octets(cle, octets)?;
         // Zéro octet n'est jamais une image : sceller le vide, c'est perdre l'image sans le
         // dire (COLLER-2). L'erreur se dit, et l'image reste à sceller.
         if octets.is_empty() {
@@ -475,6 +463,37 @@ impl Plume {
         self.saisie = Some((point, saisie));
         Ok(())
     }
+}
+
+/// Les octets d'une image à sceller, d'où qu'ils viennent. Une promesse s'attend **ici** : le
+/// scribe ne passe à la suite de sa file — le geste qui pose l'image — qu'une fois ses octets
+/// tenus (COLLER-3).
+fn lire_les_octets(cle: &str, octets: Octets) -> Result<Arc<Vec<u8>>, String> {
+    Ok(match octets {
+        Octets::Memoire(o) => o,
+        Octets::Promis(p) => p
+            .attendre()
+            .ok_or_else(|| format!("image non incorporée, {cle} : son encodage n'a pas abouti"))?,
+        Octets::Chemin(p) => Arc::new(
+            std::fs::read(&p)
+                .map_err(|e| format!("image non incorporée, {} : {e}", p.display()))?,
+        ),
+        Octets::Tranche {
+            fichier,
+            empreinte,
+            offset,
+            longueur,
+        } => Arc::new(
+            super::objets::lire_une_tranche(&fichier, &empreinte, offset, longueur).ok_or_else(
+                || {
+                    format!(
+                        "image non incorporée : sa tranche de {} est illisible ou abîmée",
+                        fichier.display()
+                    )
+                },
+            )?,
+        ),
+    })
 }
 
 /// **Recouvre ce qui ne suit pas la chaîne** — une fin déchirée par un plantage, ou toute une

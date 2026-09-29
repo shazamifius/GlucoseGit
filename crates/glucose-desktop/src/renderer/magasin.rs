@@ -230,11 +230,17 @@ impl Magasin {
         true
     }
 
-    /// **Adopte des pixels déjà là** — une image collée — sous ce chemin (COLLER-1) : sa
-    /// pyramide se fait et son fichier s'écrit sur un ouvrier, et elle arrive comme un
-    /// décodage. Le fil qui dessine ne les touche pas.
-    pub fn adopter(&mut self, src: &str, rgba: Vec<u8>, dimensions: (u32, u32)) -> bool {
-        self.atelier.adopter(src, rgba, dimensions)
+    /// **Adopte des pixels déjà là** — une image collée — sous cette clé (COLLER-1) : sa
+    /// pyramide se fait et ses octets encodés sont promis au scribe sur un ouvrier (COLLER-3),
+    /// et elle arrive comme un décodage. Le fil qui dessine ne les touche pas.
+    pub fn adopter(
+        &mut self,
+        src: &str,
+        rgba: Vec<u8>,
+        dimensions: (u32, u32),
+        parole: crate::persist::objets::Parole,
+    ) -> bool {
+        self.atelier.adopter(src, rgba, dimensions, parole)
     }
 
     /// **L'original de cette image est-il tenu ?** `None` si l'image n'est pas dans le magasin.

@@ -22,6 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // d'applications, et aucune ne doit écrire chez l'utilisateur ni rouvrir son travail.
     let dossier = glucose_desktop::present::souvenir::dossier();
     app.habiter(&dossier);
+    // Ce qu'une page livre et qui n'est pas une image va où un navigateur l'aurait mis
+    // (DEPOT-4). Pas dans `habiter`, que `new` ouvre sur un dossier temporaire : ce dossier-ci
+    // ne dérive pas de celui de l'application, et seul le vrai lancement le connaît.
+    app.depot.telechargements = glucose_desktop::plateforme::telechargements::dossier();
     // Le presse-papiers du système, pour l'application seule : les épreuves ont le leur.
     glucose_desktop::interactions::presse_papiers::prendre_celui_du_systeme();
     // La boîte noire (fiche 45) : ce qui se passe, écrit au fil de l'eau ; et comment la

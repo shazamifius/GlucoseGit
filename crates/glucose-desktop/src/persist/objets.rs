@@ -26,7 +26,7 @@ use glucose_core::hash::sha256;
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 
 /// D'où lire les octets d'une image.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,7 +50,110 @@ pub enum Source {
         offset: u64,
         longueur: u64,
     },
+    /// Des octets **promis** : une image collée, que l'atelier encode (COLLER-3).
+    Promise(Arc<Promesse>),
 }
+
+/// **Des octets promis** — ceux d'une image collée, que l'atelier est en train d'encoder
+/// (COLLER-3).
+///
+/// # Pourquoi plus de fichier
+///
+/// Une image collée n'a pas de fichier : on lui en écrivait un dans le dossier temporaire du
+/// système, que le scribe relisait pour la sceller. Deux fils se passaient ainsi un fichier, et
+/// le 28/09 le scribe l'a lu au moment où il venait d'être créé, vide : trois images scellées
+/// vides (COLLER-2). Et ces fichiers restaient pour toujours — 1 638 chez lui, 2,9 Go — dans un
+/// dossier que Windows peut vider.
+///
+/// Les octets passent désormais de l'atelier au scribe **sans disque**, par cette promesse. Le
+/// scribe l'attend à sa place dans sa file, qui est aussi celle des gestes : l'image entre dans
+/// l'histoire **avant** le geste qui la pose, jamais sans ses octets. Un arrêt pendant
+/// l'encodage ne laisse ni l'image ni ce qui la suit — un document cohérent, et l'image encore
+/// dans le presse-papiers.
+pub struct Promesse {
+    etat: Mutex<Etat>,
+    tenue: Condvar,
+}
+
+enum Etat {
+    Attendue,
+    Tenue(Arc<Vec<u8>>),
+    /// Celui qui avait promis a disparu sans tenir : on n'attend pas pour rien.
+    Abandonnee,
+}
+
+/// Ce que tient celui qui a promis : la tenir — ou, s'il disparaît sans l'avoir tenue,
+/// l'abandonner, pour que personne ne l'attende sans fin.
+pub struct Parole(Arc<Promesse>);
+
+impl Promesse {
+    /// Une promesse, et la parole de celui qui la tiendra.
+    pub fn nouvelle() -> (Arc<Self>, Parole) {
+        let p = Arc::new(Self {
+            etat: Mutex::new(Etat::Attendue),
+            tenue: Condvar::new(),
+        });
+        (Arc::clone(&p), Parole(p))
+    }
+
+    /// Les octets s'ils sont déjà là, sans attendre.
+    pub fn deja(&self) -> Option<Arc<Vec<u8>>> {
+        match &*self.etat.lock().ok()? {
+            Etat::Tenue(o) => Some(Arc::clone(o)),
+            Etat::Attendue | Etat::Abandonnee => None,
+        }
+    }
+
+    /// Attend les octets. `None` si la promesse a été abandonnée.
+    pub fn attendre(&self) -> Option<Arc<Vec<u8>>> {
+        let mut etat = self.etat.lock().ok()?;
+        loop {
+            match &*etat {
+                Etat::Tenue(o) => return Some(Arc::clone(o)),
+                Etat::Abandonnee => return None,
+                Etat::Attendue => etat = self.tenue.wait(etat).ok()?,
+            }
+        }
+    }
+
+    fn poser(&self, nouveau: Etat) {
+        if let Ok(mut etat) = self.etat.lock() {
+            if matches!(*etat, Etat::Attendue) {
+                *etat = nouveau;
+            }
+        }
+        self.tenue.notify_all();
+    }
+}
+
+impl Parole {
+    /// Tient la promesse : ces octets sont ceux de l'image.
+    pub fn tenir(self, octets: Vec<u8>) {
+        self.0.poser(Etat::Tenue(Arc::new(octets)));
+    }
+}
+
+impl Drop for Parole {
+    fn drop(&mut self) {
+        // Tenue, elle ne change plus ; sinon, celui qui attend l'apprend maintenant.
+        self.0.poser(Etat::Abandonnee);
+    }
+}
+
+impl std::fmt::Debug for Promesse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Promesse")
+    }
+}
+
+/// Deux promesses sont la même si c'est la même : leurs octets ne se comparent pas.
+impl PartialEq for Promesse {
+    fn eq(&self, autre: &Self) -> bool {
+        std::ptr::eq(self, autre)
+    }
+}
+
+impl Eq for Promesse {}
 
 /// Le registre, partagé entre le fil qui dessine, les ouvriers de l'atelier et le fil
 /// d'écriture.
@@ -101,6 +204,18 @@ impl Objets {
         matches!(self.source(cle), Some(Source::Tranche { .. }))
     }
 
+    /// **L'empreinte des octets de cette clé**, si un document les porte — celui-ci, ou celui
+    /// d'où un ajout les apporte. C'est ce qui nomme son aperçu (APERCU-5) : une identité qui
+    /// ne change jamais, et qu'aucun fichier extérieur ne porte.
+    pub fn empreinte(&self, cle: &str) -> Option<[u8; 32]> {
+        match self.source(cle)? {
+            Source::Tranche { empreinte, .. } | Source::Ailleurs { empreinte, .. } => {
+                Some(empreinte)
+            }
+            _ => None,
+        }
+    }
+
     /// Les octets d'une image, d'où qu'ils viennent. Une clé inconnue se lit comme un chemin :
     /// c'est ce qu'était toute clé avant ce registre.
     pub fn lire(&self, cle: &str) -> Option<Vec<u8>> {
@@ -118,6 +233,9 @@ impl Objets {
             }) => lire_une_tranche(&fichier, &empreinte, offset, longueur),
             Some(Source::Fichier(chemin)) => std::fs::read(chemin).ok(),
             Some(Source::Memoire(octets)) => Some(octets.as_ref().clone()),
+            // Jamais d'attente ici : l'atelier, qui lit, est aussi celui qui tient la promesse.
+            // Avant qu'elle soit tenue, personne ne redemande l'image — elle est en chantier.
+            Some(Source::Promise(p)) => p.deja().map(|o| o.as_ref().clone()),
             None => std::fs::read(cle).ok(),
         }
     }
