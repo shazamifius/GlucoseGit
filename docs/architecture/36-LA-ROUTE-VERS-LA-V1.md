@@ -9,6 +9,10 @@
 > fiche** : c'est la carte des sessions à venir.
 >
 > **Date** : 2026-09-24 · au commit `ac89af6`.
+>
+> **Suite** : la fiche [`44`](44-LA-ROUTE-VERS-TOUTES-LES-MACHINES.md) reprend cette route le
+> 29/09 — cinq utilisateurs basculés d'un coup, toutes les machines, la vie privée d'abord ; elle
+> remplace les phases 3, 8 et 9.
 
 ---
 
