@@ -117,6 +117,8 @@ pub struct Scribe {
     fil: Option<JoinHandle<()>>,
     /// La dernière erreur d'écriture, que le fil qui dessine doit dire.
     erreur: Arc<Mutex<Option<String>>>,
+    /// Où la fin ignorée du fichier a été mise de côté avant d'être recouverte (FIN-1).
+    mise_de_cote: Option<PathBuf>,
 }
 
 impl Scribe {
@@ -128,7 +130,8 @@ impl Scribe {
     /// fichier suivant. La base d'un document neuf ne pèse que son document (quelques
     /// kilo-octets) : l'écrire ici ne coûte rien de visible.
     pub fn commencer(depart: Depart, objets: Arc<Objets>) -> Result<Self, String> {
-        let plume = Plume::ouvrir(depart)?;
+        let mut plume = Plume::ouvrir(depart)?;
+        let mise_de_cote = plume.mise_de_cote.take();
         objets.porter(Some(plume.chemin.clone()));
         let (vers, recu) = channel();
         let erreur = Arc::new(Mutex::new(None));
@@ -141,7 +144,13 @@ impl Scribe {
             vers: Some(vers),
             fil: Some(fil),
             erreur,
+            mise_de_cote,
         })
+    }
+
+    /// Où la fin ignorée du fichier a été mise de côté à l'ouverture, s'il en avait une.
+    pub fn mise_de_cote(&self) -> Option<&Path> {
+        self.mise_de_cote.as_deref()
     }
 
     pub fn envoyer(&self, ordre: Ordre) {
@@ -206,6 +215,8 @@ struct Plume {
     /// Le fichier de la saisie de ce document, et ce qu'il garde.
     fichier_de_saisie: PathBuf,
     saisie: Option<(Chaine, Saisie)>,
+    /// Où la fin ignorée a été mise de côté à l'ouverture — rendu par [`Scribe::commencer`].
+    mise_de_cote: Option<PathBuf>,
 }
 
 /// **La preuve que ce qui a été confié au fichier est sur le disque.** Seul
@@ -265,23 +276,27 @@ fn signaler(erreur: &Mutex<Option<String>>, e: &str) {
 impl Plume {
     fn ouvrir(depart: Depart) -> Result<Self, String> {
         let dire = |e: std::io::Error| verrou::dire(&depart.chemin, &e);
-        let fichier = match &depart.base {
+        let mut fichier = match &depart.base {
             Some(base) => {
                 // Aucun dossier n'est créé ici : un chemin choisi par l'utilisateur existe, et
                 // enregistrer ne doit jamais en inventer un. Seul le dossier des brouillons,
                 // qui appartient à l'application, se crée — par qui l'y met.
-                let mut f = verrou::ouvrir_seul(OpenOptions::new().create(true), &depart.chemin)?;
-                // Vidé une fois tenu, jamais avant : c'est peut-être le document d'un autre.
-                f.set_len(0).map_err(dire)?;
-                f.write_all(base).map_err(dire)?;
-                f
+                //
+                // Le fichier qu'on remplace n'est jamais ouvert pour être vidé : la base
+                // s'écrit à côté, se pousse sur le disque, puis prend sa place (SAUVER-1). Le
+                // document d'hier reste entier jusqu'à ce que le nouveau le soit. Sous Windows,
+                // prendre la place d'un fichier qu'une autre fenêtre tient est refusé ; ailleurs,
+                // rien ne l'empêcherait, d'où la question posée d'abord.
+                #[cfg(not(windows))]
+                if depart.chemin.exists() && verrou::tenu_ailleurs(&depart.chemin) {
+                    return Err(verrou::deja_tenu(&depart.chemin));
+                }
+                super::atomic::ecrire_d_un_bloc(&depart.chemin, base).map_err(dire)?;
+                verrou::ouvrir_seul(&mut OpenOptions::new(), &depart.chemin)?
             }
             None => verrou::ouvrir_seul(&mut OpenOptions::new(), &depart.chemin)?,
         };
-        // Une fin déchirée (écriture interrompue) ne suit pas la chaîne : on écrit par-dessus.
-        if fichier.metadata().map_err(dire)?.len() > depart.fin {
-            fichier.set_len(depart.fin).map_err(dire)?;
-        }
+        let mise_de_cote = recouvrir_la_fin(&mut fichier, &depart)?;
         Ok(Self {
             a_relever: depart.version < glucose_core::persist::container::CONTAINER_VERSION,
             fichier_de_saisie: chemin_de_saisie(&depart.saisies, &depart.chemin),
@@ -293,6 +308,7 @@ impl Plume {
             dernier_geste: depart.dernier_geste,
             saisies: depart.saisies,
             saisie: None,
+            mise_de_cote,
         })
     }
 
@@ -409,24 +425,20 @@ impl Plume {
     }
 
     fn deplacer(&mut self, vers: PathBuf, oublier: bool, objets: &Objets) -> Result<(), String> {
-        let dire = |e: std::io::Error| format!("{} : {e}", vers.display());
         let jeton = self.synchroniser()?;
-        // Copier à côté, puis renommer : un « Enregistrer sous » interrompu ne laisse jamais
-        // un fichier cible à moitié copié.
-        let a_cote = vers.with_extension("glucose.tmp");
         // Hors de Windows, renommer par-dessus un document qu'un autre écrit réussirait : il
         // écrirait ensuite dans un fichier que plus personne ne voit.
         #[cfg(not(windows))]
         if vers.exists() && verrou::tenu_ailleurs(&vers) {
             return Err(verrou::deja_tenu(&vers));
         }
-        std::fs::copy(&self.chemin, &a_cote).map_err(dire)?;
-        if let Err(e) = std::fs::rename(&a_cote, &vers) {
-            let _ = std::fs::remove_file(&a_cote);
-            return Err(verrou::dire(&vers, &e));
-        }
+        // La copie entière, poussée sur le disque, puis à sa place : un « Enregistrer sous »
+        // interrompu — une coupure de courant comprise — ne laisse jamais sous ce nom un
+        // fichier à moitié copié, ni ne retire celui qu'il remplace (SAUVER-1). La copie
+        // était renommée **avant** d'être poussée sur le disque.
+        super::atomic::copier_d_un_bloc(&self.chemin, &vers)
+            .map_err(|e| verrou::dire(&vers, &e))?;
         let nouveau = verrou::ouvrir_seul(&mut OpenOptions::new(), &vers)?;
-        nouveau.sync_data().map_err(dire)?;
         let ancien = std::mem::replace(&mut self.chemin, vers);
         self.fichier = nouveau;
         objets.porter(Some(self.chemin.clone()));
@@ -444,8 +456,8 @@ impl Plume {
         }
     }
 
-    /// Écrit la saisie, ou l'efface. Écrite à côté puis renommée : le fichier d'une saisie
-    /// est toujours entier — l'ancienne ou la nouvelle, jamais un mélange.
+    /// Écrit la saisie, ou l'efface. Posée d'un bloc ([`super::atomic`]) : le fichier d'une
+    /// saisie est toujours entier — l'ancienne ou la nouvelle, jamais un mélange.
     fn garder(&mut self, s: Option<(Chaine, Saisie)>, _: &Synchronise) -> Result<(), String> {
         let f = &self.fichier_de_saisie;
         let dire = |e: std::io::Error| format!("texte en cours, {} : {e}", f.display());
@@ -458,16 +470,32 @@ impl Plume {
         };
         saisie.document = self.chemin.to_string_lossy().into_owned();
         std::fs::create_dir_all(&self.saisies).map_err(dire)?;
-        let a_cote = f.with_extension("saisie.tmp");
-        let mut t = File::create(&a_cote).map_err(dire)?;
-        t.write_all(&histoire::saisie::ecrire(point, &saisie))
+        super::atomic::ecrire_d_un_bloc(f, &histoire::saisie::ecrire(point, &saisie))
             .map_err(dire)?;
-        t.sync_data().map_err(dire)?;
-        drop(t);
-        std::fs::rename(&a_cote, f).map_err(dire)?;
         self.saisie = Some((point, saisie));
         Ok(())
     }
+}
+
+/// **Recouvre ce qui ne suit pas la chaîne** — une fin déchirée par un plantage, ou toute une
+/// histoire qu'une entrée abîmée a coupée — après l'avoir mis de côté ([`super::recuperation`]).
+/// Rend où, s'il y avait quelque chose. Une copie qui échoue refuse la troncature : le fichier
+/// reste tel quel, et le document s'ouvre sans s'écrire sur place.
+fn recouvrir_la_fin(fichier: &mut File, depart: &Depart) -> Result<Option<PathBuf>, String> {
+    let dire = |e: std::io::Error| verrou::dire(&depart.chemin, &e);
+    let taille = fichier.metadata().map_err(dire)?.len();
+    if taille <= depart.fin {
+        return Ok(None);
+    }
+    let cote = super::recuperation::mettre_de_cote(
+        fichier,
+        &depart.chemin,
+        (depart.fin, taille),
+        &depart.saisies,
+    )
+    .map_err(|e| format!("sa fin interrompue n'a pas pu être mise de côté ({e})"))?;
+    fichier.set_len(depart.fin).map_err(dire)?;
+    Ok(Some(cote))
 }
 
 /// Le fichier de la saisie d'un document : nommé par l'empreinte de son chemin, dans le

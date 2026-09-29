@@ -1115,3 +1115,37 @@ fn test_cliquet_10_aucune_marque_de_mesure_n_est_perdue() {
         marques.len()
     );
 }
+
+// ── Cliquet 11 : un seul endroit pose un fichier à la place d'un autre ──────
+
+/// **Seul `persist::atomic` renomme ou copie un fichier à la place d'un autre** (SAVE-1,
+/// SAUVER-1, fiche 47).
+///
+/// « Enregistrer sous » renommait sa copie **avant** de l'avoir poussée sur le disque, et les
+/// aperçus de même : une coupure de courant à cet instant laissait sous le nom un fichier
+/// incomplet. Aucune épreuve ne peut le voir — il faudrait couper le courant —, et le sabotage
+/// de cet ordre passe en silence. La règle ne se garde donc que par sa forme : **un seul
+/// endroit** fait `rename` et `copy`, dans l'ordre qui ne perd rien ; tout autre site est une
+/// faute nommée ici.
+#[test]
+fn test_cliquet_11_un_seul_endroit_pose_un_fichier_a_la_place_d_un_autre() {
+    let atomique = Path::new("persist").join("atomic.rs");
+    let fautes: Vec<String> = sources(&src_desktop())
+        .iter()
+        .filter(|s| !s.chemin.ends_with(&atomique))
+        .flat_map(|s| {
+            s.texte
+                .lines()
+                .filter(|l| {
+                    let propre = nue(l);
+                    propre.contains("fs::rename(") || propre.contains("fs::copy(")
+                })
+                .map(move |l| format!("{} : {}", s.chemin.display(), l.trim()))
+        })
+        .collect();
+    assert!(
+        fautes.is_empty(),
+        "un fichier se pose à la place d'un autre hors de persist::atomic — passer par \
+         ecrire_d_un_bloc ou copier_d_un_bloc : {fautes:#?}"
+    );
+}

@@ -72,26 +72,33 @@ impl GlucoseApp {
                 self.start_text_edit_at(s.annotation, s.texte, s.selection);
                 return tape;
             }
-            None => {
-                // La carte a disparu — ce qui ne devrait pas arriver : rien ne change le
-                // document pendant qu'on tape. Le texte ne se perd pas pour autant : il revient
-                // dans une carte neuve, au centre de ce qu'on regarde.
-                let (x, y) = self.drop_origin(None);
-                let id = self.store.generate_id("text");
-                let carte = crate::interactions::tools::text_card(
-                    &self.renderer.typography,
-                    &self.renderer.math,
-                    &id,
-                    x,
-                    y,
-                    &s.texte,
-                );
-                let tableau = self.store.project.active_board_id.clone();
-                self.store.add_annotation(&tableau, carte);
-                self.poser_la_vue_sur(&tableau, &id);
-            }
+            // La carte a disparu — ce qui ne devrait pas arriver : rien ne change le document
+            // pendant qu'on tape. Le texte ne se perd pas pour autant.
+            None => self.rendre_dans_une_carte_neuve(&s.texte, 0),
         }
         true
+    }
+
+    /// **Un texte revient dans une carte neuve**, au centre de ce qu'on regarde — décalée de
+    /// `rang` crans quand plusieurs reviennent ensemble —, et la vue se pose dessus : la carte
+    /// qu'il attendait a disparu, ou son document est introuvable (FRAPPE-1).
+    pub(crate) fn rendre_dans_une_carte_neuve(&mut self, texte: &str, rang: usize) {
+        /// Le décalage entre deux cartes rendues ensemble : la cascade d'un dépôt.
+        const CRAN: f64 = 28.0;
+        let (x, y) = self.drop_origin(None);
+        let decalage = rang as f64 * CRAN;
+        let id = self.store.generate_id("text");
+        let carte = crate::interactions::tools::text_card(
+            &self.renderer.typography,
+            &self.renderer.math,
+            &id,
+            x + decalage,
+            y + decalage,
+            texte,
+        );
+        let tableau = self.store.project.active_board_id.clone();
+        self.store.add_annotation(&tableau, carte);
+        self.poser_la_vue_sur(&tableau, &id);
     }
 
     /// La vue se posera sur cette annotation à la prochaine image.
@@ -117,22 +124,38 @@ fn texte_porte<'a>(p: &'a Project, tableau: &str, annotation: &str) -> Option<&'
     })
 }
 
-/// Le document nommé qu'une saisie attend, s'il faut le rouvrir au lancement.
+/// Ce qu'une saisie trouvée au lancement demande.
+pub(super) enum Attente {
+    /// Le document nommé qu'elle attend : le rouvrir la rendra.
+    Document(PathBuf),
+    /// Son document est introuvable — renommé, effacé, sur une clé retirée — : son texte
+    /// revient ailleurs, et le fichier se range.
+    Orpheline(Saisie),
+    /// Rien d'ici : un brouillon se rouvre de lui-même, et un document tenu par une autre
+    /// fenêtre y est en train d'être tapé.
+    Rien,
+}
+
+/// **Ce qu'une saisie attend au lancement.**
 ///
-/// Un brouillon se rouvre de lui-même, et un document tenu par une autre fenêtre est en
-/// train d'être tapé. Une saisie illisible, ou dont le document n'existe plus, s'efface : il
-/// n'y a plus rien où la rendre.
-pub(super) fn document_d_une_saisie(fichier: &Path, brouillons: &Path) -> Option<PathBuf> {
-    let lue = std::fs::read(fichier).ok().and_then(|o| saisie::lire(&o));
-    match lue.map(|(_, s)| PathBuf::from(s.document)) {
-        Some(d) if d.is_file() => {
-            (!d.starts_with(brouillons) && !super::verrou::tenu_ailleurs(&d)).then_some(d)
-        }
-        _ => {
-            let _ = std::fs::remove_file(fichier);
-            None
-        }
+/// Elle **s'effaçait** quand son document n'existait plus — « il n'y a plus rien où la
+/// rendre » — ; or c'est la seule copie d'un texte qui n'a jamais été validé : un document
+/// renommé après un plantage, ou resté sur une clé qu'on n'a pas rebranchée, et dix minutes
+/// de frappe disparaissaient (FRAPPE-1). Une saisie qui ne se relit plus ne s'efface pas non
+/// plus : elle rejoint ce qui a été mis de côté.
+pub(super) fn ce_qu_attend_une_saisie(fichier: &Path, brouillons: &Path) -> Attente {
+    let Some((_, s)) = std::fs::read(fichier).ok().and_then(|o| saisie::lire(&o)) else {
+        let _ = super::recuperation::ranger(fichier, brouillons);
+        return Attente::Rien;
+    };
+    let d = PathBuf::from(&s.document);
+    if !d.is_file() {
+        return Attente::Orpheline(s);
     }
+    if d.starts_with(brouillons) || super::verrou::tenu_ailleurs(&d) {
+        return Attente::Rien;
+    }
+    Attente::Document(d)
 }
 
 #[cfg(test)]

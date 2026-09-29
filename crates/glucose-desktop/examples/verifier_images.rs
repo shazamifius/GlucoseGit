@@ -101,4 +101,47 @@ fn main() {
             println!();
         }
     }
+    fichiers_designes(&ouvert.projet);
+}
+
+/// **Les nœuds qui désignent un fichier** — une tuile qui y mène, une carte née de son texte —
+/// et ce qu'il en reste sur le disque. Une tuile ne porte que le chemin : si le fichier
+/// disparaît, elle ne mène plus à rien. Ceux du dossier temporaire du système sont nommés, car
+/// Windows peut le vider.
+fn fichiers_designes(projet: &glucose_core::types::Project) {
+    use glucose_core::types::Annotation;
+    let temporaire = std::env::temp_dir();
+    let mut lignes = Vec::new();
+    for tableau in &projet.boards {
+        for a in &tableau.annotations {
+            let (sorte, chemin) = match a {
+                Annotation::Sticky {
+                    source_file: Some(c),
+                    ..
+                } => ("tuile", c),
+                Annotation::Text {
+                    source_file: Some(c),
+                    ..
+                } => ("carte", c),
+                _ => continue,
+            };
+            let etat = match (
+                Path::new(chemin).is_file(),
+                Path::new(chemin).starts_with(&temporaire),
+            ) {
+                (false, _) => "fichier ABSENT",
+                (true, true) => "fichier présent, dans le DOSSIER TEMPORAIRE",
+                (true, false) => "fichier présent",
+            };
+            lignes.push(format!(
+                "  {sorte} {}  [{}]  {etat}\n    {chemin}",
+                a.id(),
+                tableau.name
+            ));
+        }
+    }
+    println!("{} nœud(s) désignent un fichier", lignes.len());
+    for l in lignes {
+        println!("{l}");
+    }
 }

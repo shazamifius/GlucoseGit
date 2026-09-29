@@ -88,9 +88,18 @@ impl Ecriture {
             saisies: saisies.to_path_buf(),
         };
         let fichier = chemin_de_saisie(saisies, &chemin);
-        let lue = std::fs::read(&fichier)
+        let lue = match std::fs::read(&fichier)
             .ok()
-            .map(|o| histoire::saisie::lire(&o));
+            .map(|o| histoire::saisie::lire(&o))
+        {
+            Some(None) => {
+                // Illisible : rien à rendre, mais rien ne s'efface sans avoir été rangé
+                // (FRAPPE-1).
+                let _ = super::recuperation::ranger(&fichier, saisies);
+                None
+            }
+            autre => autre.flatten(),
+        };
         let mut e = Self::avec(
             Scribe::commencer(depart, Arc::clone(objets))?,
             chemin,
@@ -100,12 +109,11 @@ impl Ecriture {
         );
         e.gestes = ouvert.gestes.len();
         e.dernier_jalon = ouvert.jalons.last().map(|(apres, _)| *apres);
-        // Un fichier présent, lisible ou non, est à effacer dès qu'aucune saisie ne l'occupe.
-        e.saisie = lue
-            .as_ref()
-            .map(|l| l.as_ref().map(|(_, s)| s.clone()).unwrap_or_default());
+        // Une saisie qui ne vaut plus est à effacer dès qu'aucune autre ne l'occupe : un geste
+        // l'a suivie, et pendant qu'on tape seule la validation écrit — son texte est dans
+        // l'histoire.
+        e.saisie = lue.as_ref().map(|(_, s)| s.clone());
         let rendue = lue
-            .flatten()
             .filter(|(point, _)| *point == ouvert.dernier_geste)
             .map(|(_, s)| s);
         Ok((e, rendue))
@@ -350,6 +358,11 @@ impl Ecriture {
     /// L'erreur d'écriture survenue depuis la dernière fois, que l'utilisateur doit lire.
     pub fn prendre_l_erreur(&self) -> Option<String> {
         self.scribe.prendre_l_erreur()
+    }
+
+    /// Où la fin ignorée du fichier a été mise de côté à l'ouverture (FIN-1).
+    pub fn mise_de_cote(&self) -> Option<&Path> {
+        self.scribe.mise_de_cote()
     }
 
     /// Oublie ce document : attend le scribe, puis efface le brouillon s'il en est un — et

@@ -330,3 +330,95 @@ fn test_une_carte_ouverte_sans_rien_taper_se_rouvre_en_edition() {
     assert_eq!(session.selection, Selection::at("avan".len()));
     assert!(!toast(&relance).contains("tapais"), "{}", toast(&relance));
 }
+
+fn recuperes(d: &Path) -> Vec<std::path::PathBuf> {
+    std::fs::read_dir(d.join("brouillons").join("recuperation"))
+        .map(|l| l.flatten().map(|e| e.path()).collect())
+        .unwrap_or_default()
+}
+
+/// **Un texte tapé dans un document devenu introuvable n'est jamais effacé** (FRAPPE-1). Le
+/// document a été renommé après l'arrêt — ou il vit sur une clé qu'on n'a pas rebranchée : le
+/// lancement suivant rend le texte dans une carte neuve, le dit, et garde une copie de la
+/// saisie parmi ce qui a été mis de côté. Elle s'effaçait : « il n'y a plus rien où la rendre ».
+#[test]
+fn test_un_texte_tape_dans_un_document_introuvable_revient_dans_une_carte() {
+    let d = dossier("frappe-orpheline");
+    let mut app = en_train_d_ecrire(&d);
+    taper(&mut app, ", une idée à ne pas perdre");
+    image_suivante(&mut app);
+    drop(app);
+    std::fs::rename(d.join("notes.glucose"), d.join("renomme.glucose")).unwrap();
+
+    let relance = relancer(&d);
+    let revenu = relance.store.project.boards.iter().any(|b| {
+        b.annotations.iter().any(|a| {
+            a.own_text()
+                .is_some_and(|t| t == "avant, une idée à ne pas perdre")
+        })
+    });
+    assert!(revenu, "le texte est revenu dans une carte");
+    assert!(
+        toast(&relance).contains("introuvable"),
+        "{}",
+        toast(&relance)
+    );
+    assert_eq!(saisies(&d), 0, "la saisie a quitté les brouillons");
+    assert_eq!(recuperes(&d).len(), 1, "et une copie en reste, rangée");
+}
+
+/// **Une saisie qui ne se relit plus n'est pas effacée non plus** : rien ne peut être rendu,
+/// mais le fichier rejoint ce qui a été mis de côté.
+#[test]
+fn test_une_saisie_illisible_est_rangee_et_non_effacee() {
+    let d = dossier("frappe-illisible");
+    let mut app = en_train_d_ecrire(&d);
+    taper(&mut app, " abîmé ensuite");
+    image_suivante(&mut app);
+    drop(app);
+    let fichier = std::fs::read_dir(d.join("brouillons"))
+        .unwrap()
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|x| x == "saisie"))
+        .expect("gardée");
+    let mut octets = std::fs::read(&fichier).unwrap();
+    octets[12] ^= 0x40;
+    std::fs::write(&fichier, &octets).unwrap();
+
+    let _relance = relancer(&d);
+    assert_eq!(saisies(&d), 0);
+    let ranges = recuperes(&d);
+    assert_eq!(ranges.len(), 1, "rangée");
+    assert_eq!(
+        std::fs::read(&ranges[0]).unwrap(),
+        octets,
+        "telle qu'elle était"
+    );
+}
+
+/// **Ouvrir un document dont la saisie ne se relit plus la range aussi** — par `Ctrl+O`, pas
+/// seulement au lancement : c'est l'ouverture qui la trouvait, et l'effaçait.
+#[test]
+fn test_ouvrir_un_document_range_sa_saisie_illisible() {
+    let d = dossier("frappe-illisible-ouverte");
+    let mut app = en_train_d_ecrire(&d);
+    taper(&mut app, " abîmé ensuite");
+    image_suivante(&mut app);
+    drop(app);
+    let fichier = std::fs::read_dir(d.join("brouillons"))
+        .unwrap()
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|x| x == "saisie"))
+        .expect("gardée");
+    let mut octets = std::fs::read(&fichier).unwrap();
+    octets[12] ^= 0x40;
+    std::fs::write(&fichier, &octets).unwrap();
+
+    let _ouvert = rouvrir(&d, &d.join("notes.glucose"));
+    assert_eq!(saisies(&d), 0);
+    let ranges = recuperes(&d);
+    assert_eq!(ranges.len(), 1, "rangée à l'ouverture");
+    assert_eq!(std::fs::read(&ranges[0]).unwrap(), octets);
+}

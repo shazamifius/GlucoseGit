@@ -215,3 +215,35 @@ fn test_un_document_lache_sur_les_onglets_s_ajoute_et_sur_le_canevas_se_pose() {
         "la tuile du document s'est posée : {posees} annotation(s)"
     );
 }
+
+/// **Un document où une image s'est scellée vide s'ajoute sans reprendre le vide** (AJOUT-1) :
+/// comme à l'ouverture, l'image se lit depuis son fichier, entière, et se scelle ici.
+#[test]
+fn test_un_document_a_l_image_scellee_vide_s_ajoute_entier() {
+    use crate::persist::disque::coller_tests::{poser_l_image, sceller_du_vide};
+    let d = dossier("ajout-vide");
+    let abime = d.join("abime.glucose");
+    let cle = d.join("colle.png").to_string_lossy().into_owned();
+    let mut a = application(&d);
+    a.save_to(abime.clone());
+    poser_l_image(&mut a, &cle);
+    image_suivante(&mut a);
+    assert!(a.fermer_le_document());
+    drop(a);
+    sceller_du_vide(&abime, &cle);
+    let octets = std::fs::read(png(&d, "colle.png", 70)).expect("le fichier, entier");
+
+    let mut app = application(&d);
+    app.save_to(d.join("courant.glucose"));
+    app.ajouter_un_document(&abime);
+    let (venue, _) = contenu_actif(&app);
+    let venue = venue.expect("l'image est venue");
+    assert_eq!(
+        app.disque.objets.lire(&venue).as_deref(),
+        Some(&octets[..]),
+        "lue entière depuis son fichier, pas depuis le vide"
+    );
+    image_suivante(&mut app);
+    assert!(app.disque.objets.est_scellee(&venue), "et scellée ici");
+    assert_eq!(app.disque.objets.lire(&venue).as_deref(), Some(&octets[..]));
+}

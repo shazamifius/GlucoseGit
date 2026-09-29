@@ -139,10 +139,14 @@ impl GlucoseApp {
         }
     }
 
-    /// Ouvre un projet, en remplaçant le document courant.
+    /// Ouvre un projet, en remplaçant le document courant — après avoir demandé ce que devient
+    /// le travail sans nom qu'on quitte (BROUILLON-1). Le fichier se choisit d'abord : renoncer
+    /// au choix ne change rien.
     pub fn open_project(&mut self) {
         if let Some(path) = self.sous_un_dialogue(pick_open_path) {
-            self.open_from(path);
+            if self.laisser_le_document() {
+                self.open_from(path);
+            }
         }
     }
 
@@ -235,6 +239,13 @@ impl GlucoseApp {
 
     /// Le chemin est connu : lire, adopter le document ou dire pourquoi ça a échoué.
     pub(crate) fn open_from(&mut self, path: PathBuf) {
+        let message = self.ouvrir_et_dire(path);
+        self.ui.show_toast(message);
+    }
+
+    /// Ouvre, et **rend** ce que l'ouverture a à dire sans le dire : le lancement l'ajoute à
+    /// son propre compte rendu — un geste, un compte rendu.
+    pub(crate) fn ouvrir_et_dire(&mut self, path: PathBuf) -> String {
         let message = match self.try_open(&path) {
             Ok(Ouverture::Glucose(report)) => {
                 self.retenir_le_document(&path);
@@ -245,9 +256,9 @@ impl GlucoseApp {
             Ok(Ouverture::Tauri(importe)) => message_d_import(&self.store.project.name, &importe),
             Err(err) => err.to_string(),
         };
-        self.ui.show_toast(message);
         self.sync_window_title();
         self.mark_dirty();
+        message
     }
 
     fn try_open(&mut self, path: &Path) -> DesktopResult<Ouverture> {
@@ -284,6 +295,7 @@ impl GlucoseApp {
         Ok(Ouverture::Glucose(OpenReport {
             repaired: adoption.repares,
             fin_ignoree: ouvert.fin_ignoree,
+            mise_de_cote: adoption.mise_de_cote,
             geste_en_echec: ouvert.geste_en_echec.is_some(),
             refus: adoption.refus,
             texte_rendu: adoption.texte_rendu,
@@ -304,6 +316,8 @@ struct OpenReport {
     repaired: usize,
     /// Octets de fin ignorés : un enregistrement interrompu (un plantage, une coupure).
     fin_ignoree: u64,
+    /// Où ces octets ont été mis de côté avant que l'écriture ne les recouvre (FIN-1).
+    mise_de_cote: Option<PathBuf>,
     /// Un geste de l'histoire n'a pas pu se rejouer : le document est ouvert dans le dernier
     /// état cohérent.
     geste_en_echec: bool,
@@ -335,7 +349,10 @@ fn open_message(project: &Project, report: &OpenReport) -> String {
         ));
     }
     if report.fin_ignoree > 0 {
-        msg.push_str(", la fin d'un enregistrement interrompu ignorée");
+        msg.push_str(&dire_la_fin(
+            report.fin_ignoree,
+            report.mise_de_cote.as_deref(),
+        ));
     }
     if let Some(r) = &report.refus {
         msg.push_str(&format!(
@@ -351,6 +368,20 @@ fn open_message(project: &Project, report: &OpenReport) -> String {
         msg.push_str(", le texte que tu tapais quand Glucose s'est arrêté est revenu : continue");
     }
     msg
+}
+
+/// Ce qu'une ouverture dit d'une fin ignorée : sa taille, et où elle a été mise de côté —
+/// rien n'est recouvert sans l'avoir été (FIN-1). Sans lieu, le document ne s'écrit pas sur
+/// place, et la fin n'a pas été touchée.
+pub(super) fn dire_la_fin(octets: u64, cote: Option<&Path>) -> String {
+    let taille = human_size(usize::try_from(octets).unwrap_or(usize::MAX));
+    match cote {
+        Some(p) => format!(
+            ", la fin d'un enregistrement interrompu ({taille}) mise de côté dans {}",
+            p.display()
+        ),
+        None => format!(", la fin d'un enregistrement interrompu ({taille}) laissée intacte"),
+    }
 }
 
 #[cfg(test)]
@@ -530,6 +561,7 @@ mod tests {
         let sain = OpenReport {
             repaired: 0,
             fin_ignoree: 0,
+            mise_de_cote: None,
             geste_en_echec: false,
             refus: None,
             texte_rendu: false,
@@ -548,13 +580,16 @@ mod tests {
             &OpenReport {
                 repaired: 4,
                 fin_ignoree: 12,
+                mise_de_cote: Some(PathBuf::from("C:/cote/abime-81-7.fin")),
                 geste_en_echec: true,
                 refus: Some("lecture seule".into()),
                 texte_rendu: true,
             },
         );
         assert!(abime.contains("4 nœud(s) réparé(s)"), "{abime}");
-        assert!(abime.contains("interrompu"), "{abime}");
+        assert!(abime.contains("interrompu (12 o)"), "{abime}");
+        assert!(abime.contains("mise de côté dans"), "{abime}");
+        assert!(abime.contains("abime-81-7.fin"), "{abime}");
         assert!(abime.contains("dernier état sûr"), "{abime}");
         assert!(abime.contains("brouillon"), "{abime}");
         assert!(abime.contains("tapais"), "{abime}");

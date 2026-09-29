@@ -50,35 +50,59 @@ fn temp_sibling(path: &Path) -> PathBuf {
 /// coupure. Seul un système POSIX permet d'ouvrir un dossier ; sous Windows, `MoveFileEx`
 /// publie déjà l'entrée de répertoire de façon durable.
 #[cfg(unix)]
-fn sync_parent(path: &Path) -> DesktopResult<()> {
+fn sync_parent(path: &Path) -> std::io::Result<()> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    File::open(parent)
-        .and_then(|dir| dir.sync_all())
-        .map_err(|e| failed(path, e))
+    File::open(parent).and_then(|dir| dir.sync_all())
 }
 
 #[cfg(not(unix))]
-fn sync_parent(_path: &Path) -> DesktopResult<()> {
+fn sync_parent(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
 /// Écrit `bytes` à `path` sans jamais mettre en danger le contenu qui s'y trouve déjà.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> DesktopResult<()> {
+    ecrire_d_un_bloc(path, bytes).map_err(|e| failed(path, e))
+}
+
+/// [`write_atomic`], qui rend l'erreur du système telle quelle : le scribe la traduit lui-même
+/// (un document tenu par une autre fenêtre se dit autrement qu'un disque plein).
+pub fn ecrire_d_un_bloc(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    poser_d_un_bloc(path, |temp| fill(temp, bytes))
+}
+
+/// **Copie `source` à `path`** sous la même loi : la copie entière et poussée sur le disque
+/// avant de prendre la place de ce qui s'y trouvait (« Enregistrer sous », SAUVER-1).
+pub fn copier_d_un_bloc(source: &Path, path: &Path) -> std::io::Result<()> {
+    poser_d_un_bloc(path, |temp| {
+        std::fs::copy(source, temp)?;
+        // Pousser jusqu'au disque demande un droit d'écriture sous Windows.
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(temp)?
+            .sync_all()
+    })
+}
+
+/// **Le seul endroit qui pose un fichier à la place d'un autre** (SAVE-1) : `remplir` écrit un
+/// voisin et le pousse jusqu'au disque, puis le voisin prend la place, puis le dossier suit.
+/// Un échec en chemin ne touche jamais la destination, et ne laisse pas de voisin.
+fn poser_d_un_bloc(
+    path: &Path,
+    remplir: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> std::io::Result<()> {
     let temp = temp_sibling(path);
-
-    if let Err(err) = fill(&temp, bytes) {
+    if let Err(err) = remplir(&temp) {
         discard(&temp);
-        return Err(failed(path, err));
+        return Err(err);
     }
-
     if let Err(err) = std::fs::rename(&temp, path) {
         discard(&temp);
-        return Err(failed(path, err));
+        return Err(err);
     }
-
     sync_parent(path)
 }
 
@@ -110,8 +134,16 @@ mod tests {
     /// Chaque cas a SON dossier : `cargo test` les exécute en parallèle, et
     /// `test_write_atomic_leaves_no_temporary_behind` inspecte le dossier entier — il verrait
     /// sinon le temporaire d'un autre cas en cours d'écriture et échouerait au hasard.
+    ///
+    /// Et ce dossier part **vide** : une épreuve qui compte les voisins restés ne doit compter
+    /// que les siens. Nettoyé seulement à la fin, un voisin laissé par une exécution tombée — un
+    /// sabotage — la faisait tomber à toutes les suivantes, et un sabotage de plus passait pour
+    /// vu alors qu'aucune épreuve ne l'avait vu.
     fn scratch(case: &str, name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join("glucose-tests-atomic").join(case);
+        let racine = std::env::temp_dir().join("glucose-tests-atomic");
+        let premier = case.split('/').next().unwrap_or(case);
+        let _ = std::fs::remove_dir_all(racine.join(premier));
+        let dir = racine.join(case);
         std::fs::create_dir_all(&dir).expect("le dossier temporaire du système doit être créable");
         dir.join(name)
     }

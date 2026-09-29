@@ -102,6 +102,42 @@ impl GlucoseApp {
             }
         }
     }
+
+    /// **Du travail sans nom ne se quitte pas en silence** (BROUILLON-1) : avant d'ouvrir un
+    /// autre document, celui qu'on quitte pose la question de la fermeture s'il a du travail
+    /// sans nom. Sans elle, son brouillon restait sur le disque sans que rien ne le dise, et
+    /// le lancement suivant ne rouvrait que le plus récent de ce qui attend : ce travail
+    /// pouvait ne jamais reparaître.
+    ///
+    /// Un document nommé s'écrit geste après geste (HISTOIRE-1) : il n'est pas « modifié » ici,
+    /// et se quitte sans un mot. Rend `true` si l'on peut passer à l'autre document.
+    pub(crate) fn laisser_le_document(&mut self) -> bool {
+        self.terminer_les_gestes_en_cours();
+        self.consigner();
+        if !self.is_dirty() {
+            return true;
+        }
+        let label = self.document_label();
+        let choix = self.sous_un_dialogue(|fenetre| ask_unsaved_changes(fenetre, &label));
+        self.laisser_avec(choix)
+    }
+
+    /// La réponse appliquée avant d'ouvrir l'autre document — séparée du dialogue pour se
+    /// vérifier sans lui. Rien n'est fermé ici : si l'ouverture échoue ensuite, le document
+    /// reste celui qu'on regarde, et continue de s'écrire.
+    pub(crate) fn laisser_avec(&mut self, choix: CloseChoice) -> bool {
+        match choix {
+            CloseChoice::Cancel => false,
+            CloseChoice::Discard => {
+                self.abandonner_le_brouillon();
+                true
+            }
+            CloseChoice::Save => {
+                self.save_project();
+                !self.is_dirty()
+            }
+        }
+    }
 }
 
 #[cfg(test)]

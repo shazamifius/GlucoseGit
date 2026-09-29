@@ -14,7 +14,7 @@ use std::io::{Seek, SeekFrom, Write};
 use std::path::Path;
 
 /// Pose dans le tableau actif une image dont les octets viennent de `cle`.
-fn poser_l_image(app: &mut crate::app::GlucoseApp, cle: &str) {
+pub(crate) fn poser_l_image(app: &mut crate::app::GlucoseApp, cle: &str) {
     let b = app.store.project.active_board_id.clone();
     let mut img = BoardImage::new("collee", 0.0, 0.0, 8.0, 6.0);
     img.src = Some(cle.to_string());
@@ -23,7 +23,7 @@ fn poser_l_image(app: &mut crate::app::GlucoseApp, cle: &str) {
 
 /// Ce que le défaut laissait : un objet de zéro octet au bout de la chaîne du document, et le
 /// lien de l'image vers lui.
-fn sceller_du_vide(document: &Path, cle: &str) {
+pub(crate) fn sceller_du_vide(document: &Path, cle: &str) {
     let ouvert = histoire::ouvrir(&mut std::io::BufReader::new(
         std::fs::File::open(document).expect("document"),
     ))

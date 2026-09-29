@@ -63,7 +63,10 @@ pub fn chemin(dossier: &Path, src: &str) -> Option<PathBuf> {
     Some(dossier.join(format!("{}.apercu", hex_of(&sha256(cle.as_bytes())))))
 }
 
-/// Écrit un aperçu, d'un bloc : un fichier à moitié écrit ne doit jamais se lire.
+/// Écrit un aperçu, d'un bloc : un fichier à moitié écrit ne doit jamais se lire. Renommé
+/// **avant** d'être poussé sur le disque, un aperçu déchiré par une coupure gardait sa place
+/// pour toujours — un aperçu déjà là ne se réécrit pas ; il passe par le seul geste qui pose
+/// un fichier à la place d'un autre ([`crate::persist::atomic`]).
 pub fn ecrire(chemin: &Path, a: &Apercu) -> std::io::Result<()> {
     if let Some(dossier) = chemin.parent() {
         std::fs::create_dir_all(dossier)?;
@@ -78,9 +81,7 @@ pub fn ecrire(chemin: &Path, a: &Apercu) -> std::io::Result<()> {
     for niveau in &a.niveaux {
         octets.extend_from_slice(niveau);
     }
-    let provisoire = chemin.with_extension("ecriture");
-    std::fs::write(&provisoire, &octets)?;
-    std::fs::rename(&provisoire, chemin)
+    crate::persist::atomic::ecrire_d_un_bloc(chemin, &octets)
 }
 
 /// **Lit un aperçu**, ou rien s'il manque ou ne se tient pas : chaque niveau doit avoir

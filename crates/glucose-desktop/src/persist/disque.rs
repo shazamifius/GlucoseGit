@@ -278,6 +278,7 @@ impl GlucoseApp {
                     // l'histoire d'ici, et le geste fautif ne sera plus jamais rejoué.
                     e.instantane(&self.store.project);
                 }
+                let mise_de_cote = e.mise_de_cote().map(std::path::Path::to_path_buf);
                 self.disque.ecriture = Some(e);
                 self.sceller_ce_qui_attend();
                 let texte_rendu = saisie.is_some_and(|s| self.rendre_la_saisie(s));
@@ -286,6 +287,7 @@ impl GlucoseApp {
                     repares,
                     refus: None,
                     texte_rendu,
+                    mise_de_cote,
                 }
             }
             Err(err) => {
@@ -299,6 +301,7 @@ impl GlucoseApp {
                     repares,
                     refus: Some(err),
                     texte_rendu: false,
+                    mise_de_cote: None,
                 }
             }
         }
@@ -313,10 +316,18 @@ pub(crate) struct Adoption {
     pub refus: Option<String>,
     /// Un texte en cours de frappe, laissé par un arrêt, est revenu dans le document.
     pub texte_rendu: bool,
+    /// Où la fin ignorée du fichier a été mise de côté avant d'être recouverte (FIN-1).
+    pub mise_de_cote: Option<PathBuf>,
 }
 
 #[cfg(test)]
 #[path = "disque/coller_tests.rs"]
-mod coller_tests;
+pub(crate) mod coller_tests;
+#[cfg(test)]
+#[path = "disque/fin_tests.rs"]
+mod fin_tests;
+#[cfg(test)]
+#[path = "disque/sauver_tests.rs"]
+mod sauver_tests;
 #[cfg(test)]
 pub(crate) mod tests;

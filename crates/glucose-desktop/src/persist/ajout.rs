@@ -85,7 +85,9 @@ impl GlucoseApp {
     /// ici. Une clé que ce document-ci donne déjà à d'autres octets est renommée.
     ///
     /// Une image que le document d'origine n'avait pas scellée garde sa clé : elle se lit
-    /// comme là-bas, par son chemin.
+    /// comme là-bas, par son chemin. Une image qu'il avait scellée **vide** aussi : un objet
+    /// vide n'est jamais une image (COLLER-2), et l'ouverture le savait déjà — l'ajout, lui,
+    /// reprenait le vide (AJOUT-1).
     fn placer_les_images(&self, projet: &mut Project, ouvert: &Ouvert, chemin: &Path) {
         for img in projet.toutes_les_images_mut() {
             let Some(cle) = img.src.clone() else {
@@ -95,6 +97,7 @@ impl GlucoseApp {
                 .liens
                 .get(&cle)
                 .and_then(|e| ouvert.objets.get(e).map(|t| (*e, *t)))
+                .filter(|(_, t)| t.longueur > 0)
             else {
                 continue;
             };
