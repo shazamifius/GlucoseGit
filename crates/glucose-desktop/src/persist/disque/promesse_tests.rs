@@ -86,11 +86,15 @@ fn test_une_promesse_abandonnee_ne_retient_pas_le_scribe() {
     app.store.add_image(&b, img);
     image_suivante(&mut app);
     assert!(!app.disque.objets.est_scellee("collee:perdue"));
-    let e = app.disque.ecriture.as_ref().expect("le document s'écrit");
+    // L'échec se dit à l'écran : le toast l'a dit à la fin de cette image si le scribe allait
+    // plus vite que le fil qui dessine, ou le dit à la suivante. Lire l'erreur au scribe, comme
+    // le faisait cette épreuve, c'était lire ce que l'application avait peut-être déjà pris
+    // (tombée 2 fois sur 40 ici, et sur la machine de GitHub).
+    app.consigner();
+    let dit = app.ui.toast_message();
     assert!(
-        e.prendre_l_erreur()
-            .is_some_and(|m| m.contains("n'a pas abouti")),
-        "l'échec se dit"
+        dit.is_some_and(|m| m.contains("n'a pas abouti")),
+        "l'échec se dit : {dit:?}"
     );
 }
 

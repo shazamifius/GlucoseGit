@@ -21,21 +21,10 @@ use windows::Win32::Networking::WinHttp::{
     WINHTTP_OPEN_REQUEST_FLAGS, WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_QUERY_STATUS_CODE,
 };
 
-/// **Le nom sous lequel Glucose se présente.**
-///
-/// Celui d'un navigateur courant : plusieurs serveurs d'images servent une page d'erreur, ou
-/// rien, à un client qu'ils ne reconnaissent pas. On ne cache rien de ce qu'on demande — on
-/// demande ce que l'utilisateur a glissé depuis son propre navigateur, et rien d'autre.
-const NAVIGATEUR: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                          (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Glucose";
+use super::{DELAI, NAVIGATEUR};
 
-/// **Combien de temps on attend chaque étape**, en millisecondes : résoudre le nom, se
-/// connecter, envoyer, recevoir.
-///
-/// Le téléchargement se fait hors de la boucle d'images, donc aucune image n'attend ; mais
-/// un dépôt qui ne se pose jamais doit finir par retomber sur son repli. Quinze secondes, c'est
-/// ce qu'un navigateur accorde avant d'afficher qu'une page ne répond pas.
-const DELAI_MS: i32 = 15_000;
+/// Le délai de chaque étape, comme WinHTTP le compte : en millisecondes.
+const DELAI_MS: i32 = DELAI.as_millis() as i32;
 
 /// Une poignée WinHTTP, fermée quoi qu'il arrive.
 struct Poignee(*mut core::ffi::c_void);

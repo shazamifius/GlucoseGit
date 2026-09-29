@@ -30,6 +30,8 @@ pub mod telechargements;
 
 #[cfg(windows)]
 mod depot_windows;
+#[cfg(not(windows))]
+mod telechargement;
 #[cfg(windows)]
 mod telechargement_windows;
 
@@ -39,22 +41,32 @@ use std::sync::mpsc::{Receiver, Sender};
 /// **Les octets qu'une adresse web rend**, au plus `limite`, ou la raison de n'en pas rendre
 /// (DEPOT-WEB-4).
 ///
-/// Seules les adresses `http` et `https` passent ; [`sources::decouper`] refuse le reste.
+/// Seules les adresses `http` et `https` passent ; [`sources::decouper`] refuse le reste. Une
+/// porte, une voie par système : WinHTTP sous Windows, `ureq` ailleurs (decisions/02 et 05).
 pub fn telecharger(url: &str, limite: usize) -> Result<Vec<u8>, String> {
     let adresse = sources::decouper(url).ok_or_else(|| format!("adresse refusee : {url}"))?;
-    telecharger_ici(&adresse, limite)
+    #[cfg(windows)]
+    let voie = telechargement_windows::telecharger;
+    #[cfg(not(windows))]
+    let voie = telechargement::telecharger;
+    voie(&adresse, limite)
 }
 
-#[cfg(windows)]
-fn telecharger_ici(adresse: &sources::Adresse, limite: usize) -> Result<Vec<u8>, String> {
-    telechargement_windows::telecharger(adresse, limite)
-}
+/// **Le nom sous lequel Glucose se présente.**
+///
+/// Celui d'un navigateur courant : plusieurs serveurs d'images servent une page d'erreur, ou
+/// rien, à un client qu'ils ne reconnaissent pas. On ne cache rien de ce qu'on demande — on
+/// demande ce que l'utilisateur a glissé depuis son propre navigateur, et rien d'autre.
+const NAVIGATEUR: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
+                          (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Glucose";
 
-/// Sur une plateforme sans téléchargeur, le dépôt retombe sur son repli : le lien.
-#[cfg(not(windows))]
-fn telecharger_ici(_adresse: &sources::Adresse, _limite: usize) -> Result<Vec<u8>, String> {
-    Err("pas de telechargeur sur cette plateforme".to_string())
-}
+/// **Combien de temps on attend chaque étape** : résoudre le nom, se connecter, envoyer,
+/// recevoir.
+///
+/// Le téléchargement se fait hors de la boucle d'images, donc aucune image n'attend ; mais
+/// un dépôt qui ne se pose jamais doit finir par retomber sur son repli. Quinze secondes, c'est
+/// ce qu'un navigateur accorde avant d'afficher qu'une page ne répond pas.
+const DELAI: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// Par où les dépôts du système rejoignent la boucle d'images.
 ///

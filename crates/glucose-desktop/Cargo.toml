@@ -31,6 +31,11 @@ windows = { version = "0.62", features = ["Win32_System_Ole", "Win32_System_Com"
 windows-core = "0.62"
 
 
+# Le réseau hors de Windows : HTTPS par `rustls` et les racines de Mozilla, sans décompression
+# (decisions/05). Sous Windows, WinHTTP le fait déjà (decisions/02).
+[target.'cfg(not(windows))'.dependencies]
+ureq = { version = "3.4", default-features = false, features = ["rustls"] }
+
 # L'offre de mémoire sous Linux et Android (`madvise`), et ce que le noyau y dit de lui.
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
 libc = "0.2"
