@@ -37,7 +37,7 @@ jobs:
           - { os: macos-14, nom: Mac à puce Apple }
           - { os: macos-15-intel, nom: Mac Intel }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -80,7 +80,7 @@ jobs:
     name: Android, le noyau
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,7 +101,7 @@ jobs:
     name: NixOS, le paquet
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: cachix/install-nix-action@v31
 
