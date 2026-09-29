@@ -201,6 +201,8 @@ impl GlucoseApp {
             self.recevoir_le_depot(depot);
             self.provenance.noter_un_depot();
         }
+        // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
+        self.suivre_la_mise_a_jour(event_loop);
 
         self.chronique
             .entracte

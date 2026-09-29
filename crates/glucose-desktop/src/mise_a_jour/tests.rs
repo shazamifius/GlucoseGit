@@ -9,13 +9,13 @@ use super::version::Version;
 use super::*;
 
 /// La clé d'essai, telle que Tauri porte la sienne.
-const CLE_D_ESSAI: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY4RDgxNzU5Q0UzM0M5OTkKUldTWnlUUE9XUmZZYUJ3UDBBZGVQeUI5eklUTlptaU5tTEJBTTFQUkJUcUtmeGFTUVpSSVhBVGwK";
+pub(super) const CLE_D_ESSAI: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY4RDgxNzU5Q0UzM0M5OTkKUldTWnlUUE9XUmZZYUJ3UDBBZGVQeUI5eklUTlptaU5tTEJBTTFQUkJUcUtmeGFTUVpSSVhBVGwK";
 
 /// Ce que signent les deux signatures d'essai : un « installeur ».
-const MESSAGE: &[u8] = b"installeur d'essai de Glucose\n";
+pub(super) const MESSAGE: &[u8] = b"installeur d'essai de Glucose\n";
 
 /// Préhachée (`ED`, BLAKE2b-512) : ce que produit le signataire de Tauri.
-const SIG_PREHACHEE: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWnlUUE9XUmZZYUdvRmtsTFlOTVZ1UXNZeU55akcxdVk3OFBwTWNKZWNVQzdRYVVwaE9Pa25xOGlEQUM1UjNWK09jMHRjYUhlclgvKzRtV2lMQ2I4U015NFlkbEFVVVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDAwMDAwCWZpbGU6R2x1Y29zZV8yLjAuMV94NjQtc2V0dXAuZXhlCjhYZ2w4emVHeWUrU090dXcwV2NxdHh6NGhUaVk1bjJNZG5uMXRwUjZRREt3bHFmOVQybFJ6NlFIaUVvUzliRXE2WnB5VE1ueG9CaEVjc0hBckI1NkNBPT0K";
+pub(super) const SIG_PREHACHEE: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTWnlUUE9XUmZZYUdvRmtsTFlOTVZ1UXNZeU55akcxdVk3OFBwTWNKZWNVQzdRYVVwaE9Pa25xOGlEQUM1UjNWK09jMHRjYUhlclgvKzRtV2lMQ2I4U015NFlkbEFVVVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDAwMDAwCWZpbGU6R2x1Y29zZV8yLjAuMV94NjQtc2V0dXAuZXhlCjhYZ2w4emVHeWUrU090dXcwV2NxdHh6NGhUaVk1bjJNZG5uMXRwUjZRREt3bHFmOVQybFJ6NlFIaUVvUzliRXE2WnB5VE1ueG9CaEVjc0hBckI1NkNBPT0K";
 
 /// Historique (`Ed`) : le message signé tel quel.
 const SIG_HISTORIQUE: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldTWnlUUE9XUmZZYU5SQnVCSjRmclRYYTd2S2FHMkdHdGYyQ1QxZVFwN29PS0xaVWFIbnlLa0xKZ1VnVzFCWW9HSExpdUlDK3BIMkQ5aGlCaXMzTEExTmJ1ZVdZRDVmNXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMDAwMDAwCWZpbGU6R2x1Y29zZV8yLjAuMV94NjQtc2V0dXAuZXhlCnJNQitzZkszb3RTeENBSW4yQTcvSEZrcTQvb3hHSktyLzlzalVFakJDZndNTkY2aXhJdUtSS0Zia0lFTUFlR1VZVS9HYUZlOWFPbEZSY1hOR0dXb0RnPT0K";
@@ -55,7 +55,19 @@ fn test_les_versions_s_ordonnent_comme_semver() {
             "« {faux} » n'est pas une version"
         );
     }
-    assert!(Version::courante() >= v("1.0.0"));
+}
+
+/// **Glucose Rust ne se croit jamais plus vieux que Glucose Tauri.** La release « latest » de ce
+/// dépôt est encore celle de Glucose Tauri : une version de ce programme en dessous de la sienne
+/// lirait son `latest.json` et proposerait, à qui a Glucose Rust, de réinstaller Glucose Tauri.
+#[test]
+fn test_la_version_depasse_celle_de_glucose_tauri() {
+    let derniere_de_tauri = v("1.0.2-beta.1");
+    assert!(
+        Version::courante() > derniere_de_tauri,
+        "Glucose {} proposerait Glucose Tauri {derniere_de_tauri}",
+        Version::courante()
+    );
 }
 
 /// **Les plateformes se nomment comme chez Tauri.**
@@ -123,6 +135,35 @@ fn test_ce_qui_manque_se_dit() {
 fn test_ce_qui_est_signe_passe() {
     assert_eq!(verifier(MESSAGE, SIG_PREHACHEE, CLE_D_ESSAI), Ok(()));
     assert_eq!(verifier(MESSAGE, SIG_HISTORIQUE, CLE_D_ESSAI), Ok(()));
+}
+
+/// Une clé tirée par le signataire de Tauri lui-même (`tauri-cli` 2.12.0, `signer generate`),
+/// et ce qu'il a signé de `MESSAGE` (`signer sign`) — le 29/09/2026, clé secrète jetée ensuite.
+const CLE_DU_SIGNATAIRE_DE_TAURI: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0RTRCNUJFMTQzN0UxMzEKUldReDRUY1V2clhrNUNIaVoxMUdLUjFiYThZREpZYzlrZit6Slcvb2o3RlZEYXBEcnJDWHQ3bGQK";
+const SIG_DU_SIGNATAIRE_DE_TAURI: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVReDRUY1V2clhrNUowS0gyQnR2V3pXdTNFTFZ6Nk1uQUUrRzM1VXU2SUR6RGVRaGdVVVJrMmN3dWE4aVVuWkhkMUx2ZkxRZ3BRNTllY1NXeDhSaWI4Nm9MUWdkNmxSN1FvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwNzEyNTkyCWZpbGU6bWVzc2FnZS5iaW4Kajg4UllHNkFqNVBQbjZra1E1SjNrM2Nkc3lWLzkrdmFyQ3JpcEtyckFhVVJIcmhKR1lHM1RwVmVCcGtKekdXQlJNYjVrbEFsNDJ5QXYrWGozNWMxQWc9PQo=";
+
+/// **Ce que le vrai signataire de Tauri produit passe** — et rien d'autre. Les signatures
+/// d'essai ci-dessus sont faites d'après la RFC ; celle-ci sort de l'outil même qui signera les
+/// installeurs de Glucose : si Tauri change sa forme un jour, c'est ici que ça tombe.
+#[test]
+fn test_ce_que_signe_l_outil_de_tauri_passe() {
+    assert_eq!(
+        verifier(
+            MESSAGE,
+            SIG_DU_SIGNATAIRE_DE_TAURI,
+            CLE_DU_SIGNATAIRE_DE_TAURI
+        ),
+        Ok(())
+    );
+    let mut change = MESSAGE.to_vec();
+    change[0] ^= 1;
+    assert!(verifier(
+        &change,
+        SIG_DU_SIGNATAIRE_DE_TAURI,
+        CLE_DU_SIGNATAIRE_DE_TAURI
+    )
+    .is_err());
+    assert!(verifier(MESSAGE, SIG_DU_SIGNATAIRE_DE_TAURI, CLE_D_ESSAI).is_err());
 }
 
 /// **Rien ne s'installe qui ne soit signé par la clé** : un octet changé, une signature

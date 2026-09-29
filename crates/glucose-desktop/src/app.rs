@@ -4,6 +4,7 @@ pub(crate) mod accueil;
 mod evenements;
 mod fenetre;
 pub mod focus;
+pub mod lancement;
 mod mouvement;
 mod peinture;
 mod presentation;
@@ -159,9 +160,8 @@ pub struct GlucoseApp {
     /// **c'est donc le relachement qui tranche**, et rien d'autre ne le peut.
     pub reduire_a_la_relache: Option<String>,
 
-    /// De quoi réveiller la boucle depuis un autre fil — le veilleur du budget de la carte
-    /// (ETAGES-2). Donné par `main`, qui seul tient la boucle avant qu'elle tourne.
-    pub reveil: Option<winit::event_loop::EventLoopProxy<()>>,
+    /// Ce que seul le vrai lancement donne : le réveil de la boucle, la veille des mises à jour.
+    pub lancement: lancement::Lancement,
 
     /// Le passe et l'avenir de la saisie en cours (TEXTE-UNDO-1).
     ///
@@ -339,7 +339,7 @@ impl GlucoseApp {
             arbitre: None,
             souvenir_de_la_carte: std::path::PathBuf::new(),
             reduire_a_la_relache: None,
-            reveil: None,
+            lancement: Default::default(),
             historique_du_texte: Default::default(),
             bordures_en_attente: None,
             clic_de_reveil: false,

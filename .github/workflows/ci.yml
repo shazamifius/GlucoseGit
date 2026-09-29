@@ -123,3 +123,70 @@ jobs:
       # pas le changer.
       - name: Le verrou n'a pas bougé
         run: git diff --exit-code flake.lock
+
+  # La vie entière de Glucose sous Windows (fiche 48) : Glucose Tauri installé et ouvert, la
+  # bascule vers Glucose Rust, sa mise à jour par un latest.json signé, sa désinstallation — les
+  # données de l'utilisateur intactes à chaque pas. Sur une machine jetable : l'épreuve installe
+  # dans le compte courant, et refuse de se lancer ailleurs.
+  installeur:
+    name: Windows, l'installeur et la mise à jour
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: NSIS
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) { choco install nsis -y --no-progress }
+
+      # Une clé d'essai, tirée par le signataire de Tauri lui-même : on éprouve les signatures
+      # qu'il produit. La clé de Glucose ne sort jamais de chez l'utilisateur. L'adresse et la
+      # clé d'essai entrent dans le programme à la compilation (mise_a_jour::cycle).
+      - name: Clé d'essai
+        shell: bash
+        run: |
+          npx --yes @tauri-apps/cli@2 signer generate --ci -p essai -w "$RUNNER_TEMP/cle-d-essai.key"
+          echo "GLUCOSE_CLE_PUBLIQUE=$(cat "$RUNNER_TEMP/cle-d-essai.key.pub")" >> "$GITHUB_ENV"
+          echo "GLUCOSE_MISE_A_JOUR=http://127.0.0.1:8765/latest.json" >> "$GITHUB_ENV"
+
+      # L'installeur ne retire jamais un dossier avec ce qu'il contient : ni lui, ni son
+      # désinstalleur (lire_les_suppressions.py le lit dans le binaire).
+      - name: La version N et son installeur
+        shell: bash
+        run: |
+          cargo build --release -p glucose-desktop
+          mkdir -p "$RUNNER_TEMP/n"
+          cp target/release/glucose-desktop.exe "$RUNNER_TEMP/n/"
+          INSTALLEUR=$(python outils/installeur/construire.py "$RUNNER_TEMP/n/glucose-desktop.exe" "$RUNNER_TEMP/n" | tail -1)
+          python outils/installeur/lire_les_suppressions.py --exiger-aucune-recursive "$INSTALLEUR"
+          VN=$("$RUNNER_TEMP/n/glucose-desktop.exe" --version | cut -d' ' -f2)
+          echo "INSTALLEUR_N=$INSTALLEUR" >> "$GITHUB_ENV"
+          echo "VN=$VN" >> "$GITHUB_ENV"
+
+      # N+1 : la version suivante, signée, servie comme GitHub sert latest.json.
+      - name: La version N+1, signée
+        shell: bash
+        run: |
+          VN1=$(python -c "import os; n = os.environ['VN'].split('+')[0].split('-')[0].split('.'); print(f'{n[0]}.{n[1]}.{int(n[2]) + 1}')")
+          sed -i -E "0,/^version = /s/^version = \".*\"/version = \"$VN1\"/" crates/glucose-desktop/Cargo.toml
+          cargo build --release -p glucose-desktop
+          mkdir -p "$RUNNER_TEMP/n1" "$RUNNER_TEMP/serveur"
+          cp target/release/glucose-desktop.exe "$RUNNER_TEMP/n1/"
+          INSTALLEUR=$(python outils/installeur/construire.py "$RUNNER_TEMP/n1/glucose-desktop.exe" "$RUNNER_TEMP/serveur" | tail -1)
+          npx --yes @tauri-apps/cli@2 signer sign -f "$RUNNER_TEMP/cle-d-essai.key" -p essai "$INSTALLEUR"
+          export SIG="$(cat "$INSTALLEUR.sig")" VN1 NOM="$(basename "$INSTALLEUR")"
+          python -c "import json, os; print(json.dumps({'version': os.environ['VN1'], 'notes': 'epreuve', 'pub_date': '2026-01-01T00:00:00Z', 'platforms': {'windows-x86_64': {'signature': os.environ['SIG'], 'url': 'http://127.0.0.1:8765/' + os.environ['NOM']}}}))" > "$RUNNER_TEMP/serveur/latest.json"
+          echo "VN1=$VN1" >> "$GITHUB_ENV"
+
+      # Glucose Tauri tel que ses utilisateurs l'ont : la release publique 1.0.2-beta.1.
+      - name: Glucose Tauri
+        shell: bash
+        run: curl -sSfL -o "$RUNNER_TEMP/tauri-setup.exe" https://github.com/shazamifius/GlucoseGit/releases/download/v1.0.2-beta.1/Glucose_1.0.2-beta.1_x64-setup.exe
+
+      - name: La vie entière de Glucose sous Windows
+        shell: pwsh
+        run: ./outils/installeur/eprouver.ps1 -Tauri "$env:RUNNER_TEMP\tauri-setup.exe" -Installeur $env:INSTALLEUR_N -Version $env:VN -Serveur "$env:RUNNER_TEMP\serveur" -VersionSuivante $env:VN1

@@ -11,6 +11,7 @@
 //! vérifier ce qu'on a téléchargé. **Rien ne s'installe qui ne soit signé**, et une version ne
 //! fait que monter : un fichier qui proposerait la même ou une plus ancienne ne propose rien.
 
+pub mod cycle;
 pub mod version;
 
 use glucose_core::persist::tauri::json;

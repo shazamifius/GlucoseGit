@@ -19,6 +19,16 @@ use winit::window::WindowAttributes;
 /// La taille d'une fenêtre qui naît, en unités logiques.
 const TAILLE_INITIALE: (f64, f64) = (1440.0, 900.0);
 
+/// **L'icône de Glucose** — celle de Glucose Tauri —, dans la barre de titre et la barre des
+/// tâches. Sans elle, ses utilisateurs basculés retrouveraient une fenêtre à l'icône vierge.
+/// Une image illisible ne coûte que l'icône.
+fn icone() -> Option<winit::window::Icon> {
+    let png = image::load_from_memory(include_bytes!("../../assets/icone-128.png")).ok()?;
+    let rgba = png.to_rgba8();
+    let (l, h) = rgba.dimensions();
+    winit::window::Icon::from_rgba(rgba.into_raw(), l, h).ok()
+}
+
 impl GlucoseApp {
     /// **Ce que la machine annonce d'elle-meme**, ecrit une fois au demarrage.
     ///
@@ -119,6 +129,7 @@ impl GlucoseApp {
         let title = self.window_title();
         let attrs = WindowAttributes::default()
             .with_title(&title)
+            .with_window_icon(icone())
             .with_inner_size(LogicalSize::new(TAILLE_INITIALE.0, TAILLE_INITIALE.1));
 
         let window = event_loop
@@ -160,7 +171,7 @@ impl GlucoseApp {
 
         let mut presenter = ouvrir_la_presentation(&window, w, h)?;
         presenter.resize(w, h)?;
-        if let Some(proxy) = self.reveil.clone() {
+        if let Some(proxy) = self.lancement.reveil.clone() {
             presenter.brancher_le_reveil(Box::new(move || proxy.send_event(()).is_ok()));
         }
         // La chronique doit porter les deux faits de la machine : ce que l'ecran annonce de

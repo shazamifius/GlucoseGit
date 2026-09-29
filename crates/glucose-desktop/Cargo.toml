@@ -1,6 +1,9 @@
 [package]
 name = "glucose-desktop"
-version = "1.0.0"
+# La version que la mise à jour compare (fiche 48) : toujours AU-DESSUS de la dernière de Glucose
+# Tauri (1.0.2-beta.1), sans quoi Glucose proposerait de réinstaller Glucose Tauri. « -dev » :
+# ce n'est pas une version publiée ; la bascule sera la 2.0.1-beta.1.
+version = "2.0.0-dev"
 edition = "2021"
 description = "Glucose Desktop Application — PureRef-style Native Rust Desktop Client"
 
