@@ -24,7 +24,9 @@ qualité optimale »*.
 
 * **Ce que l'utilisateur a glissé**, et seulement au moment où il le glisse. Aucune requête
   de fond, aucune télémétrie, aucune adresse que le dépôt ne portait pas — ou que la page
-  déposée ne déclarait pas comme son image (`og:image`).
+  déposée ne déclarait pas comme son image (`og:image`). *(Depuis le 29/09, une exception, et
+  une seule : la recherche de mise à jour, une fois par lancement — note
+  [`04`](04-CHERCHER-LES-MISES-A-JOUR.md).)*
 * **`http` et `https` seulement** — `sources::decouper` refuse `file:`, `javascript:` et les
   adresses qui portent un identifiant.
 * **Des octets d'image seulement** : une réponse qui ne commence pas comme un PNG, un JPEG, un
