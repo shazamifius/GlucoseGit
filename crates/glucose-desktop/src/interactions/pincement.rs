@@ -71,7 +71,9 @@ pub fn marques() -> u64 {
     MARQUES.load(Ordering::Relaxed)
 }
 
-/// Note ce qu'un message de défilement disait. Appelé par le crochet de plateforme.
+/// Note ce qu'un message de défilement disait. Appelé par le crochet de plateforme — qui
+/// n'existe que sous Windows : ailleurs, la marque reste baissée.
+#[cfg(target_os = "windows")]
 fn noter(marque: bool) {
     MARQUE.store(marque, Ordering::Relaxed);
     if marque {

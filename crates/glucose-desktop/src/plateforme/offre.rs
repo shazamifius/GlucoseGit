@@ -98,8 +98,9 @@ impl Offerte {
         self.bloc.longueur()
     }
 
-    /// Où elle vit, pour qu'une épreuve demande au système si ses pages sont présentes.
-    #[cfg(test)]
+    /// Où elle vit, pour qu'une épreuve demande au système si ses pages sont présentes — ce
+    /// que seul Windows sait dire.
+    #[cfg(all(test, windows))]
     pub(crate) fn adresse(&self) -> (*const u8, usize) {
         self.bloc.adresse()
     }
@@ -300,11 +301,6 @@ mod imp {
 
         pub fn reprendre(&mut self) -> bool {
             true
-        }
-
-        #[cfg(test)]
-        pub fn adresse(&self) -> (*const u8, usize) {
-            (self.0.as_ptr(), self.0.len())
         }
     }
 }
