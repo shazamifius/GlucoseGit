@@ -59,13 +59,19 @@ jobs:
       - name: Clippy strict
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      # Une carte logicielle est promise sur chaque machine : une épreuve graphique qui
+      # se sauterait faute de carte mentirait en vert. Elle tombe donc (present::banc_gpu).
       - name: Tests
         if: runner.os != 'Linux'
         run: cargo test --workspace --no-fail-fast
+        env:
+          GLUCOSE_EXIGER_UNE_CARTE: "1"
 
       - name: Tests (sous un écran virtuel)
         if: runner.os == 'Linux'
         run: xvfb-run -a cargo test --workspace --no-fail-fast
+        env:
+          GLUCOSE_EXIGER_UNE_CARTE: "1"
 
       # `cargo tree` n'imprime que le noyau lui-même quand il ne dépend de rien : une ligne.
       - name: Le noyau n'a aucune dépendance

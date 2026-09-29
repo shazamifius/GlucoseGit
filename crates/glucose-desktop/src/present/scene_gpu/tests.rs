@@ -13,18 +13,7 @@
 use super::*;
 use crate::renderer::voies::APoser;
 
-/// Un périphérique hors fenêtre, ou `None` si cette machine n'en offre pas.
-fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
-    let instance = wgpu::Instance::default();
-    let adaptateur = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::LowPower,
-        force_fallback_adapter: false,
-        compatible_surface: None,
-        ..Default::default()
-    }))
-    .ok()?;
-    pollster::block_on(adaptateur.request_device(&wgpu::DeviceDescriptor::default())).ok()
-}
+use crate::present::banc_gpu::carte;
 
 /// Une photo unie et opaque, de la couleur donnée.
 fn photo(cote: u32, couleur: [u8; 4]) -> Pixmap {

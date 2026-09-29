@@ -14,6 +14,7 @@ fn test_la_sonde_lit_le_budget_de_la_carte_ouverte() {
     let Ok(adaptateur) =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
     else {
+        crate::present::banc_gpu::sans_carte();
         eprintln!("aucune carte graphique : epreuve sautee");
         return;
     };
@@ -40,6 +41,7 @@ fn test_le_veilleur_reveille_la_boucle_quand_le_budget_change() {
     let Ok(adaptateur) =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
     else {
+        crate::present::banc_gpu::sans_carte();
         eprintln!("aucune carte graphique : epreuve sautee");
         return;
     };

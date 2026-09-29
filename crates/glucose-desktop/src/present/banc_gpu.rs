@@ -13,24 +13,50 @@
 //! est ce qu'il faut pour le faire : ouvrir une carte, rendre dans une texture, la ramener.
 //!
 //! Sur une machine sans carte utilisable, les tests se **sautent** au lieu d'échouer :
-//! l'absence de matériel n'est pas un défaut du code.
+//! l'absence de matériel n'est pas un défaut du code. **Sauf là où une carte est promise** :
+//! la vérification automatique en installe une, logicielle, sur chaque machine (fiche 44
+//! § 1.2), et le dit par [`EXIGER`] — une épreuve graphique qui s'y sauterait mentirait en vert.
 
 use tiny_skia::Pixmap;
 
 /// Le format des cibles de test : celui où les octets partent tels quels, sans conversion.
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
+/// La variable d'environnement qui dit qu'une carte est promise sur cette machine.
+pub const EXIGER: &str = "GLUCOSE_EXIGER_UNE_CARTE";
+
+/// Une carte est-elle promise ici ?
+pub fn carte_exigee() -> bool {
+    std::env::var_os(EXIGER).is_some()
+}
+
+/// Ce qu'une épreuve fait sans carte : se sauter — sauf si une carte était promise.
+pub fn sans_carte() {
+    assert!(
+        !carte_exigee(),
+        "aucune carte graphique, alors qu'une est promise ici ({EXIGER})"
+    );
+}
+
 /// Un périphérique hors fenêtre, ou `None` si cette machine n'en offre pas.
 pub fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
     let instance = wgpu::Instance::default();
-    let adaptateur = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::LowPower,
-        force_fallback_adapter: false,
-        compatible_surface: None,
-        ..Default::default()
-    }))
-    .ok()?;
-    pollster::block_on(adaptateur.request_device(&wgpu::DeviceDescriptor::default())).ok()
+    let ouvrir = || {
+        let adaptateur =
+            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::LowPower,
+                force_fallback_adapter: false,
+                compatible_surface: None,
+                ..Default::default()
+            }))
+            .ok()?;
+        pollster::block_on(adaptateur.request_device(&wgpu::DeviceDescriptor::default())).ok()
+    };
+    let trouvee = ouvrir();
+    if trouvee.is_none() {
+        sans_carte();
+    }
+    trouvee
 }
 
 /// Une cible hors fenêtre de `taille` pixels, et sa vue.

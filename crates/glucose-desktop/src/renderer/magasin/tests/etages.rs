@@ -69,6 +69,10 @@ fn natif(magasin: &Magasin, src: &str) -> Vec<u8> {
 /// le niveau de 256 partent chez le système, et ce qui tient dans moins d'une page reste là
 /// parce que le système n'offre que des pages entières.
 #[test]
+#[cfg_attr(
+    not(windows),
+    ignore = "l'offre de mémoire au système n'existe encore que sous Windows (fiche 44, phases 3 et 8)"
+)]
 fn test_ce_que_l_ecran_ne_montre_pas_s_offre() {
     let src = grande_photo("etages-offre.png");
     let mut magasin = Magasin::nouveau();
@@ -93,6 +97,10 @@ fn test_ce_que_l_ecran_ne_montre_pas_s_offre() {
 
 /// **Ce que l'écran redemande revient, au bit près.**
 #[test]
+#[cfg_attr(
+    not(windows),
+    ignore = "l'offre de mémoire au système n'existe encore que sous Windows (fiche 44, phases 3 et 8)"
+)]
 fn test_ce_que_l_ecran_redemande_revient_intact() {
     let src = grande_photo("etages-reprise.png");
     let mut magasin = Magasin::nouveau();
@@ -147,6 +155,10 @@ fn test_la_vue_d_ensemble_reste_tenue() {
 
 /// **Un niveau que le système a jeté se redécode** depuis son fichier, et revient identique.
 #[test]
+#[cfg_attr(
+    not(windows),
+    ignore = "l'offre de mémoire au système n'existe encore que sous Windows (fiche 44, phases 3 et 8)"
+)]
 fn test_un_niveau_perdu_se_redecode() {
     let src = grande_photo("etages-perdu.png");
     let mut magasin = Magasin::nouveau();
@@ -176,6 +188,10 @@ fn test_un_niveau_perdu_se_redecode() {
 /// **Ce qui revient pour une pyramide remplacée ne s'y pose pas** : une image redécodée en a
 /// une neuve, et un niveau de l'ancienne y mettrait des octets d'ailleurs.
 #[test]
+#[cfg_attr(
+    not(windows),
+    ignore = "l'offre de mémoire au système n'existe encore que sous Windows (fiche 44, phases 3 et 8)"
+)]
 fn test_ce_qui_revient_pour_une_autre_pyramide_ne_s_y_pose_pas() {
     let src = grande_photo("etages-generation.png");
     let mut magasin = Magasin::nouveau();

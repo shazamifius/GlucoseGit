@@ -207,6 +207,10 @@ fn test_une_image_tournee_recule_le_long_de_son_axe() {
 /// une image que lorsqu'elle demande à se réveiller, comme la vraie boucle : c'est ce qui
 /// attrape un lot qui attendrait sans que rien ne le fasse repasser.
 #[test]
+#[cfg_attr(
+    not(windows),
+    ignore = "l'offre de mémoire au système n'existe encore que sous Windows (fiche 44, phases 3 et 8)"
+)]
 fn test_un_lot_attend_ses_originaux_puis_s_applique_d_un_bloc() {
     use crate::renderer::photo::Etat;
     let mut app = app();
