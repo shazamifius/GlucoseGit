@@ -39,9 +39,10 @@
 //!
 //! # Ailleurs
 //!
-//! Les autres systèmes ont leur geste (`vm_purgable_control` sur macOS, `ashmem` sur Android).
-//! Tant qu'il n'est pas écrit, une région y est un tampon ordinaire : offrir n'y rend rien, et
-//! reprendre la retrouve toujours intacte — le comportement d'avant, pas une régression.
+//! Linux et Android offrent par `madvise(MADV_FREE)`, et savent sans le demander si une page a
+//! été jetée ([`linux`](offre/linux.rs)). Le Mac a son geste (`vm_purgable_control`) ; tant qu'il
+//! n'est pas écrit, une région y est un tampon ordinaire : offrir n'y rend rien, et reprendre la
+//! retrouve toujours intacte — le comportement d'avant, pas une régression.
 
 /// Une région dont on peut lire et écrire les octets.
 pub struct Tenue(imp::Bloc);
@@ -268,7 +269,11 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[path = "offre/linux.rs"]
+mod imp;
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
 mod imp {
     /// Un tampon ordinaire : sur cette plateforme, le geste d'offre n'est pas encore écrit.
     pub struct Bloc(Vec<u8>);

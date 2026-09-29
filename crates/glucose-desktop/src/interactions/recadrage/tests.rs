@@ -208,8 +208,8 @@ fn test_une_image_tournee_recule_le_long_de_son_axe() {
 /// attrape un lot qui attendrait sans que rien ne le fasse repasser.
 #[test]
 #[cfg_attr(
-    not(windows),
-    ignore = "l'offre de mémoire au système n'existe encore que sous Windows (fiche 44, phases 3 et 8)"
+    not(any(windows, target_os = "linux", target_os = "android")),
+    ignore = "l'offre de mémoire au système n'existe pas encore sur ce système (fiche 44, phase 8)"
 )]
 fn test_un_lot_attend_ses_originaux_puis_s_applique_d_un_bloc() {
     use crate::renderer::photo::Etat;

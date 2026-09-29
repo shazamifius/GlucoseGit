@@ -151,8 +151,26 @@ mod plateforme {
     /// `MemAvailable` est préféré à `MemFree` et c'est important : `MemFree` ignore le cache de
     /// fichiers, que le noyau rendra sans broncher. S'y fier ferait croire la machine pleine
     /// alors qu'elle ne l'est pas — et Glucose se priverait sur une machine qui a de la place.
+    ///
+    /// # Ouvert une fois, relu à la place zéro
+    ///
+    /// L'ouvrir, le lire dans une chaîne allouée et le refermer coûtait, sur une machine de
+    /// GitHub, 26 µs — au-dessus du centième d'image que l'épreuve admet. Le noyau **régénère**
+    /// ce fichier à chaque lecture qui repart de la place zéro : on le garde donc ouvert, et on
+    /// le relit par `pread` dans un tampon sur la pile — sans ouverture, ni fermeture, ni
+    /// allocation, et les valeurs sont toujours celles du moment. `pread` ne partage aucune
+    /// position entre les fils.
     pub(super) fn lire() -> Option<Memoire> {
-        let texte = std::fs::read_to_string("/proc/meminfo").ok()?;
+        use std::os::unix::fs::FileExt;
+        static MEMINFO: std::sync::OnceLock<Option<std::fs::File>> = std::sync::OnceLock::new();
+        let fichier = MEMINFO
+            .get_or_init(|| std::fs::File::open("/proc/meminfo").ok())
+            .as_ref()?;
+        // Les trois champs voulus ouvrent le fichier ; il tient d'ailleurs tout entier dans
+        // une page.
+        let mut tampon = [0u8; 4096];
+        let lus = fichier.read_at(&mut tampon, 0).ok()?;
+        let texte = std::str::from_utf8(&tampon[..lus]).ok()?;
         let champ = |nom: &str| -> Option<u64> {
             texte
                 .lines()
