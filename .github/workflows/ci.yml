@@ -1,0 +1,97 @@
+name: CI
+
+# Ce que tout commit doit tenir, et que la machine vérifie à la place de la discipline :
+# le formatage, le linter strict sans aucune alarme éteinte, tous les tests, et le noyau sans
+# dépendance. Ce sont les critères de sortie que les fiches 04 (0.6) et 11 (A) demandaient.
+#
+# Toutes les machines qu'on ne possède pas (fiche 44, phase 1) : Windows, où le projet est
+# développé et mesuré ; Linux ; Mac à puce Apple et Mac Intel ; et le noyau compilé pour les
+# téléphones Android. Ces machines n'ont pas de carte graphique : les épreuves graphiques y
+# passent par les rendus logiciels — WARP sous Windows, Mesa sous Linux, Metal sur Mac —, comme
+# celles de wgpu. Le dépôt est public : elles ne coûtent rien (vérifié le 29/09, fiche 44 § 1.2).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Un envoi plus récent rend caduque la vérification du précédent.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: ${{ matrix.nom }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, nom: Windows x64 }
+          - { os: ubuntu-latest, nom: Linux x64 }
+          - { os: macos-14, nom: Mac à puce Apple }
+          - { os: macos-15-intel, nom: Mac Intel }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # `rfd` ouvre les dialogues natifs par GTK 3 ; Mesa donne une carte graphique logicielle
+      # (lavapipe) ; Xvfb, l'écran que le presse-papiers du système demande.
+      - name: Dépendances système (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev pkg-config mesa-vulkan-drivers libvulkan1 xvfb
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Formatage
+        run: cargo fmt --all -- --check
+
+      - name: Clippy strict
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        if: runner.os != 'Linux'
+        run: cargo test --workspace --no-fail-fast
+
+      - name: Tests (sous un écran virtuel)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a cargo test --workspace --no-fail-fast
+
+      # `cargo tree` n'imprime que le noyau lui-même quand il ne dépend de rien : une ligne.
+      - name: Le noyau n'a aucune dépendance
+        shell: bash
+        run: |
+          lignes=$(cargo tree -p glucose-core -e normal | wc -l)
+          echo "cargo tree -p glucose-core : $lignes ligne(s)"
+          test "$lignes" -eq 1
+
+  android:
+    name: Android, le noyau
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Les téléphones d'aujourd'hui (ARM 64 bits) et les très anciens (ARM 32 bits). Le noyau
+      # seul : l'application attend son portage (fiche 44, phase 6).
+      - name: Clippy strict, ARM 64 bits
+        run: cargo clippy -p glucose-core -p glucose-math --all-targets --target aarch64-linux-android -- -D warnings
+
+      - name: Clippy strict, ARM 32 bits
+        run: cargo clippy -p glucose-core -p glucose-math --all-targets --target armv7-linux-androideabi -- -D warnings
