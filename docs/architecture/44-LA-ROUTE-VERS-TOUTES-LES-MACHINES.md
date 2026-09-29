@@ -41,6 +41,9 @@ vérifie lui-même, et l'étalonnage — que la boîte noire nourrira.
 mettre à jour → **la 2.0.1 bêta, qui est la bascule** → Android → l'étalonnage appris des vraies
 machines → Mac.
 
+**Où en est la route** : la phase 1 et la première moitié de la phase 2 sont faites le 29/09 —
+fiche [`45`](45-VOIR-SANS-POSSEDER-ET-LA-BOITE-NOIRE.md).
+
 ---
 
 ## 1. La boîte noire, et ce qui la complète
