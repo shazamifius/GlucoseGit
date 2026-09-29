@@ -1,13 +1,13 @@
 # 45 — Voir sans posséder, et la boîte noire
 
-> **Rôle de ce document.** Les deux premières phases de la route de la fiche
+> **Rôle de ce document.** Les premières phases de la route de la fiche
 > [`44`](44-LA-ROUTE-VERS-TOUTES-LES-MACHINES.md), faites le 29/09 : **voir** Glucose sur les
-> machines qu'on ne possède pas, et **la boîte noire** — la première moitié, celle qui écrit sur
-> la machine ; ce qui voyage vers lui (l'accord, le serveur) est la suivante. **Écrite au fil
-> de l'eau.**
+> machines qu'on ne possède pas ; **la boîte noire** — la première moitié, celle qui écrit sur
+> la machine ; ce qui voyage vers lui (l'accord, le serveur) est la suivante — ; **Linux et
+> NixOS** ; et **le cœur de la mise à jour**. **Écrite au fil de l'eau.**
 >
 > **Date** : 2026-09-29 · commits `2c8c7ea` à ceux de cette fiche.
-> **État à la fin** : sous Windows, **1 920 épreuves vertes**, clippy strict à zéro, l'application
+> **État à la fin** : sous Windows, **1 926 épreuves vertes**, clippy strict à zéro, l'application
 > se construit, `%LOCALAPPDATA%\Glucose` n'a rien reçu. Sur les machines de GitHub : § 1.
 
 ---
@@ -20,7 +20,10 @@
 | **Portable** | trois morceaux propres à Windows n'existent plus ailleurs ; cinq épreuves de l'offre de mémoire sont dites propres à Windows, avec leur raison | `e4fd2ea`, `86cc1fd` |
 | **Honnête** | là où une carte graphique est promise, une épreuve graphique ne peut plus se sauter en silence | `86cc1fd` |
 | **La boîte noire** | chaque session a son fichier, écrit au fil de l'eau et synchronisé ; au lancement suivant, Glucose dit comment la session d'avant a fini | `a884e6b` |
-| **Son presse-papiers** | les épreuves ne touchent plus au presse-papiers de sa machine : chaque `cargo test` remplaçait ce qu'il venait de copier | ce lot |
+| **Son presse-papiers** | les épreuves ne touchent plus au presse-papiers de sa machine : chaque `cargo test` remplaçait ce qu'il venait de copier | `70bb6a2` |
+| **NixOS** | `nix run github:shazamifius/GlucoseGit` lance Glucose ; une configuration NixOS l'installe et `nix flake update` le met à jour ; construit à chaque envoi | `a7562df`, `3bd030f` |
+| **Linux, la mémoire** | sous Linux et Android, une image que l'écran ne montre plus s'offre au système, comme sous Windows ; relever la mémoire y coûte moins | `230403e` |
+| **La mise à jour, son cœur** | le fichier et la clé de Tauri ; une version ne fait que monter ; rien ne s'installe qui ne soit signé | `5d28b71` |
 
 ---
 
@@ -167,7 +170,66 @@ n'a plus besoin d'écran virtuel.
 
 ---
 
-## 4. Ce qu'il faut regarder à l'écran
+## 4. Linux et NixOS (phase 3)
+
+**Le paquet NixOS** ([`flake.nix`](../../flake.nix), [`nix/glucose.nix`](../../nix/glucose.nix)) s'est
+construit **du premier coup** sur la machine de GitHub. Tout vient de `Cargo.lock`, hors ligne ;
+le binaire porte lui-même où trouver ce que winit et wgpu ouvrent pendant l'exécution — Vulkan,
+le clavier, Wayland, X11, OpenGL —, qu'aucun chemin standard ne donne sous NixOS, et la
+vérification contrôle ces chemins à chaque envoi. Le verrou de nixpkgs, rendu par la première
+construction, est dans le dépôt : elle se refait à l'identique. Pour ses utilisateurs de NixOS :
+`nix run github:shazamifius/GlucoseGit`, ou `inputs.glucose.packages.${system}.default` dans leur
+configuration — et `nix flake update` pour la version suivante, **c'est ainsi que NixOS se met à
+jour**.
+
+**L'offre de mémoire sous Linux et Android** ([`offre/linux.rs`](../../crates/glucose-desktop/src/plateforme/offre/linux.rs)).
+`madvise(MADV_FREE)` laisse le noyau jeter les pages quand il manque de place, sans les écrire
+nulle part — mais il ne dit pas s'il l'a fait. **Une page jetée revient entièrement nulle** :
+on retient donc, à l'offre, la place d'un octet non nul de chaque page, son témoin ; à la
+reprise, s'il l'est encore, la page est intacte ; une page toute nulle n'a rien à perdre. La
+reprise écrit le témoin par **une seule opération atomique qui ne change pas sa valeur** : passée
+avant que le noyau jette la page, elle la garde ; après, elle lit le zéro. Aucune empreinte,
+aucun seuil. Sur la machine Linux de GitHub, ses trois épreuves — dont une page jetée simulée —
+et les cinq qui n'étaient plus éprouvées que sous Windows passent. Le Mac reste à faire.
+
+**La relève de la mémoire, moins chère.** L'épreuve qui borne son coût au centième d'une image
+est tombée une fois sur la machine Linux de GitHub : 26 µs pour 25 admises. Elle faisait son
+travail — dire, par une mesure, que la manière de relever devait changer. **La borne n'a pas
+bougé** : `/proc/meminfo` reste ouvert et se relit par `pread` à la place zéro, dans un tampon sur
+la pile — le noyau le régénère à chaque fois, sans ouverture, fermeture ni allocation. Elle passe
+depuis.
+
+**Ce qui reste de la phase 3** : télécharger une image d'un lien hors de Windows. Il faut pour
+cela une bibliothèque réseau, que partageront l'envoi de la boîte noire et la mise à jour : elle
+se choisira une fois, pour les trois.
+
+---
+
+## 5. Le cœur de la mise à jour (phase 4)
+
+[`mise_a_jour`](../../crates/glucose-desktop/src/mise_a_jour.rs), sans réseau ni publication :
+
+* **le fichier et la clé de Tauri** : Glucose Rust lit le même `latest.json` et vérifie par la
+  même clé publique — celle de la configuration de Tauri, `AF7A8A0B124C1ABD`. La bascule sera
+  sans couture, et il n'y a qu'une clé à garder : la sienne, que personne d'autre ne lit ;
+* **une version ne fait que monter** : semver 2.0.0, préversions comprises, comme Tauri compare ;
+  un fichier qui propose la même version ou une plus ancienne ne propose rien ;
+* **rien ne s'installe qui ne soit signé** : `minisign-verify` — par l'auteur de minisign, sans
+  aucune dépendance —, signatures préhachées et historiques, comme chez Tauri.
+
+**Les épreuves** se font avec des signatures d'essai fabriquées d'après le code de référence de
+la RFC 8032 (une graine fixe, dite dans l'épreuve), au format de minisign et sous la forme de
+Tauri : la vraie bibliothèque les reconnaît, et refuse un octet changé, une signature abîmée,
+une autre clé. Dix sabotages tombent.
+
+**Ce qui vient ensuite** : chercher la mise à jour **avant** tout ce qui peut planter, télécharger,
+vérifier, lancer l'installeur ; l'installeur lui-même ; l'épreuve « la version N devient N+1
+toute seule » sur les machines de GitHub ; la répétition générale de la bascule avec une clé
+d'essai. Rien de tout cela ne publie quoi que ce soit.
+
+---
+
+## 6. Ce qu'il faut regarder à l'écran
 
 ```text
 cargo run --release > sortie-boite-noire.txt 2>&1
@@ -180,13 +242,21 @@ cargo run --release > sortie-boite-noire.txt 2>&1
    dire »*.
 3. **Copier un texte ailleurs**, puis me laisser lancer les épreuves : il est toujours dans ton
    presse-papiers après.
+4. **Chez un de tes utilisateurs de Linux** (NixOS surtout), s'il le veut bien :
+   `nix run github:shazamifius/GlucoseGit` — Glucose doit s'ouvrir.
 
 ---
 
-## 5. Les sources
+## 7. Les sources
 
 Celles de la fiche 44 § 6 — GitHub, wgpu, `crash-handling`, Android — ; et :
 
+* Linux, [`madvise(2)`](https://man7.org/linux/man-pages/man2/madvise.2.html) — `MADV_FREE` : les
+  pages se libèrent paresseusement, une écriture ultérieure les garde ; et
+  [`proc_meminfo(5)`](https://man7.org/linux/man-pages/man5/proc_meminfo.5.html).
+* minisign, [le format](https://jedisct1.github.io/minisign/) et
+  [`minisign-verify`](https://github.com/jedisct1/rust-minisign-verify) ; la
+  [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) — Ed25519 ; [semver 2.0.0](https://semver.org/).
 * Rust, [`File::sync_data`](https://doc.rust-lang.org/std/fs/struct.File.html#method.sync_data)
   — ce que la synchronisation garantit.
 * Microsoft, [`GetSystemPowerStatus`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getsystempowerstatus)
