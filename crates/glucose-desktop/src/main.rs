@@ -20,7 +20,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Le dossier de l'utilisateur, et ce qui l'y attend : le dernier document, ou ce qu'un
     // plantage a laissé. Ici et non dans `new` : les épreuves créent des centaines
     // d'applications, et aucune ne doit écrire chez l'utilisateur ni rouvrir son travail.
-    app.habiter(&glucose_desktop::present::souvenir::dossier());
+    let dossier = glucose_desktop::present::souvenir::dossier();
+    app.habiter(&dossier);
+    // La boîte noire (fiche 45) : ce qui se passe, écrit au fil de l'eau ; et comment la
+    // session d'avant a fini.
+    if let Some(precedente) = app.chronique.ouvrir_la_boite_noire(&dossier) {
+        println!("[Glucose] la session précédente : {}", precedente.dire());
+    }
+    if let Some(boite) = app.chronique.boite_noire() {
+        boite.temoigner_des_paniques();
+    }
     app.retrouver_le_travail();
     // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
     // Glucose dort (ETAGES-2).

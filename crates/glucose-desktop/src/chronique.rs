@@ -219,6 +219,8 @@ pub struct Chronique {
     /// sur sa finesse pour tenir la cadence.
     reductions: u64,
     reduites: u64,
+    /// Ce qui se passe, écrit au fil de l'eau, dans l'application seulement (fiche 45).
+    pub(crate) boite: Option<crate::boite_noire::BoiteNoire>,
 }
 
 impl Default for Chronique {
@@ -377,6 +379,7 @@ impl Chronique {
             panneaux_refaits: [0; 16],
             reductions: 0,
             reduites: 0,
+            boite: None,
         }
     }
 
@@ -430,6 +433,9 @@ impl Chronique {
     /// Enregistre une image.
     pub fn enregistrer(&mut self, mut vu: Instantane) {
         vu.instant_ms = self.debut.elapsed().as_millis().min(u128::from(u32::MAX)) as u32;
+        if let Some(b) = &mut self.boite {
+            b.image(vu.geste(), vu.duree_us);
+        }
         self.rendues += 1;
         self.photos_posees += u64::from(vu.photos);
         self.photos_par_vignette += u64::from(vu.par_vignette);

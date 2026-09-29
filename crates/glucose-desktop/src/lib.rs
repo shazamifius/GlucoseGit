@@ -21,6 +21,7 @@
 pub mod animation;
 pub mod app;
 pub mod bench;
+pub mod boite_noire;
 pub mod cadence;
 pub mod canvas;
 pub mod chronique;

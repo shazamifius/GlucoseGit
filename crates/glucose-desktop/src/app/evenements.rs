@@ -116,6 +116,7 @@ impl ApplicationHandler for GlucoseApp {
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         self.noter_le_gel_en_cours();
         self.clore_la_chronique();
+        self.chronique.clore_la_boite_noire();
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
