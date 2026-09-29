@@ -7,7 +7,7 @@
 > NixOS** ; et **le cœur de la mise à jour**. **Écrite au fil de l'eau.**
 >
 > **Date** : 2026-09-29 · commits `2c8c7ea` à ceux de cette fiche.
-> **État à la fin** : sous Windows, **1 926 épreuves vertes**, clippy strict à zéro, l'application
+> **État à la fin** : sous Windows, **1 929 épreuves vertes**, clippy strict à zéro, l'application
 > se construit, `%LOCALAPPDATA%\Glucose` n'a rien reçu. Sur les machines de GitHub : § 1.
 
 ---
@@ -24,6 +24,7 @@
 | **NixOS** | `nix run github:shazamifius/GlucoseGit` lance Glucose ; une configuration NixOS l'installe et `nix flake update` le met à jour ; construit à chaque envoi | `a7562df`, `3bd030f` |
 | **Linux, la mémoire** | sous Linux et Android, une image que l'écran ne montre plus s'offre au système, comme sous Windows ; relever la mémoire y coûte moins | `230403e` |
 | **La mise à jour, son cœur** | le fichier et la clé de Tauri ; une version ne fait que monter ; rien ne s'installe qui ne soit signé | `5d28b71` |
+| **Ses images collées** | trois images collées le 28/09 s'étaient scellées **vides** dans son document ; elles reviennent à la prochaine ouverture, et ce défaut ne peut plus se produire | `f228351` |
 
 ---
 
@@ -229,12 +230,51 @@ d'essai. Rien de tout cela ne publie quoi que ce soit.
 
 ---
 
-## 6. Ce qu'il faut regarder à l'écran
+## 6. Trois images scellées vides (COLLER-2, `f228351`)
+
+**Son retour** : *« je viens avec ton nouveau build perdre une image en plus »* — une image qui ne
+se montrait plus, « Image [img-paste-1670] ». Ce build n'y était pour rien : pendant cette
+session, il n'avait fait que regarder, et la boîte noire le dit. Mais c'était une **perte de
+données**, et elle passait avant tout le reste.
+
+**Ce que l'outil a lu** ([`examples/verifier_images`](../../crates/glucose-desktop/examples/verifier_images.rs),
+lancé sur une **copie** de son document, sans jamais y écrire) : trois images collées le 28/09 —
+`img-paste-1665`, `1666`, `1670` — étaient scellées avec **zéro octet**. L'ouvrier de l'atelier
+écrivait leur PNG **en place** ; le scribe, qui scelle les octets d'une image dans le document,
+l'a lu au moment où il venait d'être créé, vide. Le document en gardait une copie vide, et
+préférait sa copie au fichier. Les fichiers, dans `%TEMP%\glucose_pasted`, étaient **entiers**.
+La quatrième image collée ce jour-là a eu de la chance.
+
+**Corrigé à trois endroits, et réparé** :
+
+* l'ouvrier encode le PNG en mémoire et le **pose d'un bloc** — un fichier provisoire, poussé sur
+  le disque, puis renommé (`persist::atomic`) : personne ne voit plus un fichier vide ou à moitié
+  écrit ;
+* l'écriture n'attend qu'un fichier **non vide**, et le scribe **refuse de sceller zéro octet** —
+  et le dit ;
+* **à l'ouverture, un objet vide n'est jamais une image** : l'image se relit depuis son fichier
+  s'il existe encore, et se rescelle entière. Vérifié sur la copie de son document : les trois
+  images reviennent, octet pour octet identiques à leurs fichiers, et se décodent (130 × 124,
+  2133 × 741, 2310 × 1179).
+
+**Ce qui le tient** : trois épreuves — un document abîmé comme le sien se répare à l'ouverture ;
+un fichier encore vide ne se scelle pas, puis se scelle entier ; le scribe refuse le vide — et
+trois sabotages tombent. **L'écriture d'un bloc n'a pas d'épreuve déterministe** : il faudrait
+surprendre l'ouvrier au milieu de son écriture ; le cas qui s'est produit — le fichier vide — est
+gardé deux fois.
+
+**Une condition, dite** : la réparation relit les fichiers de `%TEMP%\glucose_pasted`. Tant que
+son document n'a pas été rouvert avec ce build, **ne pas vider les fichiers temporaires**.
+
+---
+
+## 7. Ce qu'il faut regarder à l'écran
 
 ```text
 cargo run --release > sortie-boite-noire.txt 2>&1
 ```
 
+0. **D'abord, rouvrir `proteo.glucose`** : les trois images collées le 28/09 doivent revenir.
 1. **Lancer, utiliser, fermer par la croix, relancer** : la console dit *« la session
    précédente : fermée proprement »*. Le dossier `%LOCALAPPDATA%\Glucose\boite-noire\` contient
    un fichier par session.
@@ -247,7 +287,7 @@ cargo run --release > sortie-boite-noire.txt 2>&1
 
 ---
 
-## 7. Les sources
+## 8. Les sources
 
 Celles de la fiche 44 § 6 — GitHub, wgpu, `crash-handling`, Android — ; et :
 
