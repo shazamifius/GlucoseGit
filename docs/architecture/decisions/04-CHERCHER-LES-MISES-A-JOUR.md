@@ -4,8 +4,8 @@
 > mise à jour en fait une, et cette note le dit plutôt que de laisser la promesse mentir. Elle
 > n'ajoute **aucune caisse**.
 >
-> **Date** : 2026-09-29 · **Portée** : `crates/glucose-desktop`, `mise_a_jour::cycle`, cible
-> `cfg(windows)` · **Fiche** : [`48`](../48-LA-MISE-A-JOUR-ET-LA-BASCULE.md).
+> **Date** : 2026-09-29 · **Portée** : `crates/glucose-desktop`, `mise_a_jour::cycle` ·
+> **Fiche** : [`48`](../48-LA-MISE-A-JOUR-ET-LA-BASCULE.md).
 
 ---
 
@@ -50,9 +50,9 @@ la voie dépend du système :
 
 * **Windows : WinHTTP**, déjà là (note 02) — les certificats, le proxy et les correctifs de
   Windows. Aucune raison de lui préférer une pile embarquée.
-* **Linux**, à la bascule de ses utilisateurs Linux : à trancher alors, argumenté. Le candidat
-  est `ureq` avec `rustls` et les racines de Mozilla ; l'autre voie serait la pile du système,
-  qui n'existe pas sous Linux comme sous Windows.
+* **Ailleurs** : `ureq` avec `rustls` et les racines de Mozilla — tranché le même soir, note
+  [`05`](05-LE-RESEAU-HORS-DE-WINDOWS.md) : sous Linux, il n'y a pas de pile du système comme
+  sous Windows.
 
 ## Comment on s'en défait
 

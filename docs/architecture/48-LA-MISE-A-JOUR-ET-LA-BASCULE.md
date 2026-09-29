@@ -231,7 +231,29 @@ tombe.
 | `--exiger-aucune-recursive` | l'exigence ne fait plus rien | **tombe** (sur l'installeur de Tauri) |
 | ce que signe l'outil de Tauri passe | une autre clé | **tombe** |
 
-## 11. Les sources
+## 11. Ce que le premier envoi a appris
+
+La vérification de `e8183bd` (run `36625698372`) :
+
+* **« Windows, l'installeur et la mise à jour » : verte du premier coup.** Chaque constat de
+  l'épreuve a été lu dans son journal — Glucose Tauri ouvert, l'installeur qui l'attend sans rien
+  poser ni rien retirer, l'installeur altéré refusé (« la signature ne correspond pas »), la N+1
+  installée, les sept fichiers plantés intacts après la bascule, la mise à jour et la
+  désinstallation.
+* **Linux et les deux Mac : clippy tombé.** Les épreuves de bout en bout du cycle n'étaient
+  compilées pour rien hors de Windows (leurs outils restaient, sans usage). Elles vivent dans
+  un sous-module — et, puisque Linux et Mac ont désormais leur téléchargeur (`ureq`, note
+  [`decisions/05`](decisions/05-LE-RESEAU-HORS-DE-WINDOWS.md)), elles y tournent aussi.
+* **Windows : une épreuve de la phase A est tombée**, `test_une_promesse_abandonnee…` —
+  « l'échec se dit ». Diagnostic plutôt que supposition : elle tombait **aussi ici, 2 fois sur
+  40**, l'erreur absente. Cause : l'application elle-même, à la fin de chaque image, prend
+  l'erreur du scribe et **l'affiche** (le bon comportement) ; quand le scribe allait plus vite
+  que le fil qui dessine, l'épreuve cherchait au scribe une erreur déjà dite. Elle lit désormais
+  **le toast**, ce qu'il verrait : **60 sur 60**, et deux sabotages (l'erreur qui ne s'affiche
+  plus, le message qui change) la font tomber. Ma première hypothèse — l'antivirus de GitHub —
+  était fausse : l'erreur n'était pas écrasée, elle était absente.
+
+## 12. Les sources
 
 * Tauri, `tauri-plugin-updater` 2.10.1 — [`src/updater.rs`](https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/updater/src/updater.rs)
   (`install_inner` sous Windows : `ShellExecuteW`, puis `std::process::exit(0)`) et
