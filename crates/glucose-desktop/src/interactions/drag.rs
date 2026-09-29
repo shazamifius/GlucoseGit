@@ -2,9 +2,7 @@
 
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
-use glucose_core::smart_align::{
-    collect_align_targets, snap_move_sur, union_rect, AlignRect, Lignes, SnapGuides, SnapOptions,
-};
+use glucose_core::smart_align::{snap_move_sur, union_rect, AlignRect, SnapGuides};
 use std::collections::HashSet;
 
 impl GlucoseApp {
@@ -15,8 +13,8 @@ impl GlucoseApp {
         self.drag_applied_delta = (0.0, 0.0);
         self.store.begin_live_edit();
 
-        // Préparer la boîte englobante et les cibles d'aimantation (SNAP-1). Ce qui bouge est
-        // ce que la sélection emporte — le contenu de ses membranes compris (MEMB-1) : il se
+        // Préparer la boîte englobante, et ce que l'aimant ne regarde pas (SNAP-1). Ce qui bouge
+        // est ce que la sélection emporte — le contenu de ses membranes compris (MEMB-1) : il se
         // redessine avec elle, et une membrane ne s'aimante pas sur ses propres membres.
         let emport = self
             .store
@@ -31,8 +29,7 @@ impl GlucoseApp {
                 }
             }
             self.drag_selection_base = union_rect(&rects);
-            // Les lignes de l'aimant se trient une fois pour tout le geste (SNAP-2).
-            self.drag_snap_targets = Lignes::des(&collect_align_targets(board, &exclude));
+            self.drag_exclus = exclude;
         }
     }
 
@@ -55,14 +52,11 @@ impl GlucoseApp {
                     width: base.width,
                     height: base.height,
                 };
-                let snap = snap_move_sur(
-                    proposed,
-                    &self.drag_snap_targets,
-                    SnapOptions {
-                        scale: vp.scale / self.densite(),
-                        ..Default::default()
-                    },
-                );
+                // Les voisines de la sélection, parmi ce que l'écran montre (SNAP-4).
+                let exclus = std::mem::take(&mut self.drag_exclus);
+                let lignes = self.lignes_d_aimant(proposed, &exclus);
+                self.drag_exclus = exclus;
+                let snap = snap_move_sur(proposed, &lignes, self.options_d_aimant());
                 target_dx += snap.dx;
                 target_dy += snap.dy;
                 self.active_guides = snap.guides;
@@ -131,7 +125,7 @@ impl GlucoseApp {
             self.store.end_live_edit();
             self.active_guides = SnapGuides::default();
             self.drag_selection_base = None;
-            self.drag_snap_targets = Lignes::default();
+            self.drag_exclus.clear();
             self.drag_applied_delta = (0.0, 0.0);
         }
     }

@@ -16,7 +16,7 @@ use crate::interactions::tools::text_card;
 use crate::renderer::{Renderer, TextEditSession};
 use crate::ui::UiState;
 use glucose_core::hit_priority::CycleState;
-use glucose_core::smart_align::{AlignRect, Lignes, SnapGuides};
+use glucose_core::smart_align::{AlignRect, SnapGuides};
 use glucose_core::store::Store;
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -212,7 +212,8 @@ pub struct GlucoseApp {
     pub is_dragging_item: bool,
     pub drag_start_world: (f64, f64),
     pub drag_selection_base: Option<AlignRect>,
-    pub drag_snap_targets: Lignes,
+    /// Ce que le glisser emporte, que l'aimant ne regarde pas (SNAP-4).
+    pub drag_exclus: std::collections::HashSet<String>,
     pub drag_applied_delta: (f64, f64),
     /// Le redimensionnement en cours, s'il y en a un (RESIZE-1).
     pub resize_session: Option<ResizeSession>,
@@ -355,7 +356,7 @@ impl GlucoseApp {
             is_dragging_item: false,
             drag_start_world: (0.0, 0.0),
             drag_selection_base: None,
-            drag_snap_targets: Lignes::default(),
+            drag_exclus: std::collections::HashSet::new(),
             drag_applied_delta: (0.0, 0.0),
             resize_session: None,
             draw_session: None,

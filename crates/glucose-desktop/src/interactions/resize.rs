@@ -25,9 +25,7 @@ use crate::canvas::screen_to_world;
 use crate::renderer::card::text_card_fit_height;
 use glucose_core::hit_priority::{handle_cursor, PickCandidate, PickKind, PickOwner};
 use glucose_core::resize::{resize_rect, snap_resized_rect, Handle, ResizeRule};
-use glucose_core::smart_align::{
-    collect_align_targets, AlignRect, Lignes, SnapGuides, SnapOptions,
-};
+use glucose_core::smart_align::{AlignRect, SnapGuides};
 use glucose_core::types::Annotation;
 use std::collections::HashSet;
 use winit::window::CursorIcon;
@@ -70,8 +68,6 @@ pub struct ResizeSession {
     /// tournée autour du même centre.
     pub start: AlignRect,
     pub pointer_start: (f64, f64),
-    /// Les lignes de l'aimant, triées une fois pour tout le geste (SNAP-2).
-    pub snap_targets: Lignes,
     /// Le pointeur a-t-il bougé ? Un simple clic sur une poignée n'est pas un geste et ne
     /// laisse pas d'entrée d'undo.
     pub moved: bool,
@@ -127,14 +123,6 @@ impl GlucoseApp {
             self.commit_editing();
         }
 
-        let mut exclude = HashSet::new();
-        exclude.insert(target.id().to_string());
-        let snap_targets = self
-            .store
-            .active_board()
-            .map(|b| Lignes::des(&collect_align_targets(b, &exclude)))
-            .unwrap_or_default();
-
         self.store.begin_live_edit();
         // `Alt` sur une image change le geste, et la poignée dit lequel : un coin tourne —
         // un côté n'a pas d'azimut propre, il en partagerait un avec son opposé —, un côté
@@ -156,7 +144,6 @@ impl GlucoseApp {
             handle,
             start,
             pointer_start: (wx, wy),
-            snap_targets,
             moved: false,
             geste,
             crop_start,
@@ -222,8 +209,7 @@ impl GlucoseApp {
             Geste::Recadrer => self.write_crop(&session, delta),
             Geste::Redimensionner => {
                 let rule = self.rule_of(&session.target);
-                let zoom = self.zoom_logique();
-                let (rect, guides) = self.resized_box(&session, rule, delta, zoom);
+                let (rect, guides) = self.resized_box(&session, rule, delta);
                 self.write_resized_box(&session.target, rect);
                 self.active_guides = guides;
             }
@@ -310,11 +296,10 @@ impl GlucoseApp {
 
     /// La boîte que le pointeur demande, ancrée, bornée, aimantée, puis adaptée au nœud.
     fn resized_box(
-        &self,
+        &mut self,
         session: &ResizeSession,
         rule: ResizeRule,
         delta: (f64, f64),
-        scale: f64,
     ) -> (AlignRect, SnapGuides) {
         let rotation = match session.target {
             ResizeTarget::Image { rotation, .. } => rotation,
@@ -343,18 +328,12 @@ impl GlucoseApp {
 
         let free = resize_rect(session.start, session.handle, delta, rule);
         let (mut rect, guides) = if self.ui.smart_align && rotation == 0.0 {
-            let opts = SnapOptions {
-                scale,
-                ..Default::default()
-            };
-            let snapped = snap_resized_rect(
-                session.start,
-                session.handle,
-                free,
-                &session.snap_targets,
-                opts,
-                rule,
-            );
+            // Les voisines de la boîte tirée, parmi ce que l'écran montre (SNAP-4).
+            let exclus = HashSet::from([session.target.id().to_string()]);
+            let lignes = self.lignes_d_aimant(free, &exclus);
+            let opts = self.options_d_aimant();
+            let snapped =
+                snap_resized_rect(session.start, session.handle, free, &lignes, opts, rule);
             (snapped.rect, snapped.guides)
         } else {
             (free, SnapGuides::default())

@@ -310,7 +310,8 @@ impl Renderer {
 
     /// **Les rangs de ce qui touche cette zone du monde, dans le document tel qu'il est** —
     /// geste en cours compris (GESTE-1) —, triés dans l'ordre du tableau. Pour ce qu'une
-    /// interaction cherche autour de la souris sans reparcourir le tableau (SNAP-3).
+    /// interaction cherche autour de la souris sans reparcourir le tableau (SNAP-3) : ce que
+    /// le focus cache n'y est pas, puisque ce qu'on ne voit pas ne s'attrape pas (MEMB-2).
     pub(crate) fn rangs_du_present(
         &mut self,
         store: &Store,
@@ -319,6 +320,7 @@ impl Renderer {
         self.sync_spatial_index(store);
         // Aucune marge : ce qui touche la zone, et rien d'autre — la zone dit tout.
         let mut rangs = self.visibles_du_present(store, (x0, y0, x1, y1), 0.0);
+        self.focus.filtrer(&mut rangs);
         rangs.sort_unstable();
         rangs.dedup();
         rangs

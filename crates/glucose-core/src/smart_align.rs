@@ -182,17 +182,77 @@ impl Lignes {
 
     /// Les lignes de ces cibles : bords et milieux, sur chaque axe, triés.
     pub fn des(targets: &[AlignTarget]) -> Self {
-        let mut x: Vec<f64> = targets
-            .iter()
-            .flat_map(|t| target_lines_x(t.rect))
-            .collect();
-        let mut y: Vec<f64> = targets
-            .iter()
-            .flat_map(|t| target_lines_y(t.rect))
-            .collect();
+        Self::des_boites(targets.iter().map(|t| t.rect))
+    }
+
+    /// Les lignes de ces boîtes : bords et milieux, sur chaque axe, triés.
+    fn des_boites(boites: impl Iterator<Item = AlignRect> + Clone) -> Self {
+        let mut x: Vec<f64> = boites.clone().flat_map(target_lines_x).collect();
+        let mut y: Vec<f64> = boites.flat_map(target_lines_y).collect();
         x.sort_by(f64::total_cmp);
         y.sort_by(f64::total_cmp);
         Self { x, y }
+    }
+
+    /// **Les lignes des voisines de `rect`** (SNAP-4) : la plus proche au-dessus, au-dessous, à
+    /// gauche et à droite, et la plus intime des boîtes qui l'entourent. Elles seules aimantent.
+    ///
+    /// # Pourquoi les voisines, et elles seules
+    ///
+    /// Sur un tableau chargé, l'aimant prenait la ligne la plus proche de **toutes** les cibles :
+    /// il y en avait presque toujours une à moins de huit pixels, et chaque mouvement sautait
+    /// vers un alignement que personne ne voyait — *« invivable pour positionner ce qu'on
+    /// souhaite »*. On s'aligne sur ce qui est à côté : la carte du dessus dans une colonne, celle
+    /// d'à côté dans une rangée, et la membrane dans laquelle on range. Ce qui est plus loin dans
+    /// la même direction est caché derrière la voisine ; ce qui ne fait que recouvrir `rect` n'est
+    /// en face d'aucun de ses bords.
+    ///
+    /// # Ce qui est « au-dessus », et ce qui « entoure »
+    ///
+    /// Une boîte est au-dessus quand elle est dans la colonne — son étendue horizontale touche
+    /// celle de `rect`, au seuil près — et que son bas fait face au haut de `rect`, au seuil près
+    /// des deux côtés : l'aimant tire aussi bien un bord qui a un peu dépassé. L'écart est celui
+    /// de ces deux bords ; à écart égal, la boîte la plus en face l'emporte. Les trois autres
+    /// directions de même. Une boîte d'à côté n'est donc jamais « celle du dessous » : son haut
+    /// ne fait pas face au bas de `rect`, et elle ne prend pas la place de la vraie.
+    ///
+    /// Une boîte entoure `rect` quand elle le contient, au seuil près ; la plus petite l'emporte.
+    ///
+    /// Aucun nombre n'est choisi : cinq relations, la plus proche dans chacune.
+    pub fn des_voisines(rect: AlignRect, cibles: &[AlignRect], seuil: f64) -> Self {
+        // Au-dessus, au-dessous, à gauche, à droite, autour : la clé la plus petite, et sa boîte.
+        let mut voisines: [Option<((f64, f64), usize)>; 5] = [None; 5];
+        let mut garder = |relation: usize, cle: (f64, f64), k: usize| {
+            if voisines[relation].is_none_or(|(tenue, _)| cle < tenue) {
+                voisines[relation] = Some((cle, k));
+            }
+        };
+        let milieu = |r: &AlignRect| (r.left + r.width / 2.0, r.top + r.height / 2.0);
+        let (cx, cy) = milieu(&rect);
+        for (k, c) in cibles.iter().enumerate() {
+            let (mx, my) = milieu(c);
+            let colonne = c.left <= rect.right() + seuil && rect.left - seuil <= c.right();
+            let rangee = c.top <= rect.bottom() + seuil && rect.top - seuil <= c.bottom();
+            let faces = [
+                (colonne, rect.top - c.bottom(), mx - cx),
+                (colonne, c.top - rect.bottom(), mx - cx),
+                (rangee, rect.left - c.right(), my - cy),
+                (rangee, c.left - rect.right(), my - cy),
+            ];
+            for (relation, (dedans, ecart, decalage)) in faces.into_iter().enumerate() {
+                if dedans && ecart >= -seuil {
+                    garder(relation, (ecart.abs(), decalage.abs()), k);
+                }
+            }
+            let autour = c.left <= rect.left + seuil
+                && rect.right() - seuil <= c.right()
+                && c.top <= rect.top + seuil
+                && rect.bottom() - seuil <= c.bottom();
+            if autour {
+                garder(4, (c.width * c.height, 0.0), k);
+            }
+        }
+        Self::des_boites(voisines.into_iter().flatten().map(|(_, k)| cibles[k]))
     }
 }
 
@@ -226,8 +286,15 @@ fn best_axis_snap(mine: &[f64], theirs: &[f64], threshold: f64) -> Option<AxisSn
 }
 
 fn threshold_of(opts: &SnapOptions) -> f64 {
-    let scale = if opts.scale > 0.0 { opts.scale } else { 1.0 };
-    opts.threshold_px / scale
+    opts.seuil()
+}
+
+impl SnapOptions {
+    /// **Le seuil de l'aimant dans le monde** : ses pixels d'écran ramenés à l'échelle.
+    pub fn seuil(&self) -> f64 {
+        let scale = if self.scale > 0.0 { self.scale } else { 1.0 };
+        self.threshold_px / scale
+    }
 }
 
 pub fn snap_move(rect: AlignRect, targets: &[AlignTarget], opts: SnapOptions) -> MoveSnap {
