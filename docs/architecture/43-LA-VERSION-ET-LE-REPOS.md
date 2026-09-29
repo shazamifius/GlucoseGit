@@ -4,16 +4,18 @@
 > s'arrêtait : ses points ouverts (§ 8.1), puis ce que sa dernière chronique dit du repos.
 > **Écrite au fil de l'eau.**
 >
-> **Date** : 2026-09-28 · commits `0c0d813` à `9e9837d`, et ceux de cette fiche.
+> **Date** : 2026-09-28 et 29 · commits `0c0d813` à `2095b4a`, et ceux de cette fiche.
 > **État au départ** : `e124ac4`, 1 876 épreuves vertes, clippy strict à zéro, arbre propre —
 > vérifié.
-> **État à la fin** : `cargo test --workspace` exit 0, **1 898 épreuves vertes**, clippy strict
+> **État à la fin** : `cargo test --workspace` exit 0, **1 907 épreuves vertes**, clippy strict
 > à zéro, `cargo fmt --check` à zéro, l'application se construit ; après chaque suite,
 > `%LOCALAPPDATA%\Glucose` n'a rien reçu de mes épreuves (ce qui y a changé vient de sa
 > session ouverte, § 4.5).
 >
-> **Vu à l'écran** : rien de cette fiche, ni les flèches qui contournent et l'interligne des
-> formules de la fiche 42. Le § 8 dit quoi regarder.
+> **Vu à l'écran** : son essai du 29/09 (§ 8) — 103 images par seconde, et l'aimant jugé
+> invivable sur un tableau chargé, d'où SNAP-4 (§ 9). Le reste de cette fiche, les flèches qui
+> contournent et l'interligne des formules de la fiche 42 n'ont pas encore été vus : le § 10 dit
+> quoi regarder.
 
 ---
 
@@ -27,6 +29,8 @@
 | **FONDRE-1** | redimensionner, tourner, recadrer s'écrivent en **une** édition dans l'histoire, et non une par mouvement | `dbedcd5` |
 | **GLISSER-1** | un glisser s'écrit en **une** translation, que le fichier rejoue au bit près ; `Échap` rend la position exacte | `6e8ed1f` |
 | **SNAP-2, SNAP-3** | l'aimant et l'accroche des flèches ne parcourent plus tout le tableau à chaque mouvement de souris | `c9c7a7d` |
+| **SNAP-4** | l'aimant ne tire plus que vers ses voisines — au-dessus, au-dessous, à gauche, à droite, la membrane autour —, parmi ce que l'écran montre ; plus rien ne parcourt le tableau au début d'un geste | `2095b4a` |
+| **Lu** | son essai du 29/09 : 103 images par seconde (51 la veille) ; les gels attendent la carte économe, ils ne sont pas dans le dessin | § 8 |
 | **Mesuré, gardé** | l'écart d'un amas lointain des flèches (fiche 42 § 8.1) : 1,5 à 2,7 fois moins de travail | `fe4100d` |
 
 ---
@@ -312,16 +316,91 @@ repasse sous les quatre-vingts lignes : son admission au cliquet est retirée.
 le tableau au **début** de chaque geste (O(n), une fois), et l'index se resynchronise sur tout
 le tableau à chaque version publiée. Excalidraw ne s'aimante qu'aux éléments **visibles** — le
 même principe borné par l'écran ; c'est un choix de comportement (plus de guide vers un nœud
-hors de l'écran), à lui soumettre.
+hors de l'écran), à lui soumettre. **Il a tranché le 29/09, et plus loin encore** : § 9.
 
 
 ---
 
-## 8. Ce qu'il faut regarder à l'écran
+## 8. Son essai du 29/09, relu
 
+Sa session de `cargo run --release > sortie-essais-43.txt` — 296 s, 3 254 images, sur l'Intel Arc
+140T, un écran à 240 Hz en succession `fifo` —, et sa chronique, gardées de mon côté.
+
+* **103 images par seconde** entre deux images consécutives (51 le 28/09, § 1). **Glisser un
+  nœud** : 4,87 ms en médiane, 11,6 au p99 ; déplacer la vue 2,90 ms, zoomer 4,87.
+* **Les gels ne sont pas dans le dessin.** Les cinq images les plus lentes (274 à 473 ms) ont 6 à
+  139 nœuds, et leur temps part dans `poses` (458 et 259 ms), `soumettre` (360 et 288) ou
+  `present` (329) : ce qui attend la carte, pas ce qui dessine. L'arbitre l'a vu — *« cette carte
+  gèle — la carte rapide s'ouvrira au prochain lancement »*. **Je ne peux pas exclure
+  qu'ENVOI-1 y contribue sur l'Arc** : aucune chronique de l'Arc ne le précède avec le même
+  travail. La prochaine, sur la RTX, le dira : si les gels suivent la carte économe, c'est elle.
+* **`docks` au repos : 2,05 ms en médiane, 16,4 au p99**, avec 609 images redessinées pour
+  « document modifié » et 606 pour « réglage du panneau » : un panneau qui se refait image après
+  image — la Time Machine ouverte, probablement. PANNEAUX-1 a rendu gratuit le panneau immobile ;
+  celui qui change à chaque version reste à faire.
+* **Au repos, 0,8 % d'un cœur, mais 1,2 image par seconde encore dessinée** — zéro est la seule
+  bonne réponse ; et **`effacer` jusqu'à 55 ms** (sélectionner, zoomer, glisser), inexpliqué.
+  Notés, pas traités.
+* **Aucun défaut des panneaux** signalé : PANNEAUX-1 n'avait aucune épreuve à l'écran (§ 5).
+* **L'aimant**, lui, a son verdict : § 9.
+
+---
+
+## 9. L'aimant : les voisines, et ce que l'écran montre (SNAP-4, `2095b4a`)
+
+Sa parole du 29/09 : *« le système actuel de l'aimant est assez chiant, même pour les
+créateurs : quand on a trop de nœuds, c'est juste invivable pour positionner ce qu'on
+souhaite »*. Il demande **les deux ensemble** : ce qu'on voit à l'écran, **et** une limitation
+aux plus pertinents, les proches — et que glisser dézoomé ne ralentisse pas.
+
+**Ce qui tire désormais** (`Lignes::des_voisines`, dans le noyau) : cinq boîtes au plus.
+
+* La plus proche **au-dessus** et **au-dessous**, dans la colonne de la boîte qu'on tient ; la
+  plus proche **à gauche** et **à droite**, dans sa rangée.
+* La plus intime des boîtes qui l'**entourent** : la membrane où l'on range.
+
+« Au-dessus » veut dire : l'étendue horizontale touche la sienne, au seuil près, et le bas fait
+face à son haut, au seuil près des deux côtés — l'aimant tire aussi un bord qui a un peu dépassé.
+À écart égal, la plus en face l'emporte : sous une rangée de photos alignées, c'est celle du
+dessus qui tire, pas la première du tableau. Ce qui est plus loin dans la même direction est
+caché derrière la voisine ; ce qui ne fait que recouvrir n'est en face d'aucun bord. **Aucun
+nombre n'est choisi.**
+
+**Parmi ce que l'écran montre** (`lignes_d_aimant`, dans l'application) : deux requêtes de
+l'index, la colonne et la rangée de la boîte, coupées au bord de la fenêtre. Ce que le focus
+cache n'y est pas — *ce qu'on ne voit pas ne s'attrape pas* (MEMB-2) ; l'accroche des flèches,
+qui passe par la même requête, en hérite.
+
+**Ce que cela coûte** : plus rien au début d'un geste — la collecte des cibles sur tout le
+tableau (O(n)) disparaît du glisser, du fantôme de placement et du redimensionnement, avec le
+cache du placement ; chaque mouvement ne lit que les deux bandes de l'écran. **Pas mesuré** sur
+un écran dézoomé de cent mille nœuds : le coût y suit ce que les deux bandes contiennent.
+
+**Deux défauts de ma première version, trouvés en la relisant** avant toute épreuve : une photo
+d'à côté, qui touchait la colonne au seuil près, passait pour « celle du dessous » et en prenait
+la place — dans une grille, on ne pouvait plus s'aligner sur la photo d'en dessous ; et une photo
+**dans** une membrane ne s'alignait plus sur elle, ce qui aurait changé les membranes sans sa
+parole. Les deux sont corrigés, et chacun a son épreuve.
+
+**Ailleurs** : tldraw ne s'aimante qu'aux formes visibles, parmi les enfants du même parent ;
+Excalidraw, qu'aux éléments visibles et non sélectionnés (§ 12). Aucun des deux ne se limite
+aux voisines : c'est sa demande, et c'est plus loin qu'eux.
+
+**Ce qui le tient** : six épreuves du noyau, qui tirent chaque scène deux fois — par les
+voisines, et par toutes les boîtes comme l'aimant d'avant ; trois dans l'application, où un seul
+changement sépare l'aimant qui tire de celui qui ne tire pas : la caméra, ce que le geste
+emporte, le focus. Les épreuves du glisser, du placement et du redimensionnement passent
+inchangées. **Onze sabotages tombent.** `collect_align_targets` n'a plus d'appelant dans
+l'application : il reste, avec l'API à cibles, le portage de `smartAlign.ts` et ses épreuves de
+parité avec Tauri.
+
+---
+
+## 10. Ce qu'il faut regarder à l'écran
+
+Son essai du 29/09 n'a parlé que de l'aimant (§ 8) : le reste de cette liste attend encore.
 **Avant de lancer**, copier `%TEMP%\glucose-chronique\derniere-session.txt` en
-`sortie-chronique-2026-09-28-soir.txt` (sa session ouverte de 18 h 18 l'a réécrite à 22 h 18 ;
-elle est aussi gardée de mon côté). Puis :
+`sortie-chronique-2026-09-29.txt`. Puis :
 
 ```text
 cargo run --release > sortie-essais-43.txt 2>&1
@@ -362,21 +441,23 @@ Puis ceux de cette fiche :
    la souris sur la réglette, cliquer un point du passé, revenir. Même chose avec Ordonner.
 7. **Glisser une carte, puis `Ctrl+Z`** : un seul retour. **Glisser puis `Échap`** : elle revient
    exactement. **Redimensionner une carte, puis `Ctrl+Z`** : un seul retour.
-8. **L'aimant** : glisser une carte près de l'alignement d'une autre — le guide paraît, elle s'y
-   pose. **L'outil Flèche** approché d'une carte : elle s'avive, la flèche s'y accroche ; tirée
-   juste à côté de sa carte de départ, elle ne s'y referme pas.
+8. **L'aimant** (§ 9) : glisser une carte près de l'alignement de sa voisine — le guide paraît,
+   elle s'y pose. **Sur un tableau chargé**, seules tirent la voisine du dessus, du dessous, de
+   gauche, de droite, et la membrane autour : une carte alignée plus loin, derrière une voisine,
+   ou hors de l'écran, ne tire plus. **Dézoomé**, glisser reste fluide. **L'outil Flèche**
+   approché d'une carte : elle s'avive, la flèche s'y accroche ; tirée juste à côté de sa carte
+   de départ, elle ne s'y referme pas.
 9. Après la session, copier de nouveau `derniere-session.txt` en
-   `sortie-chronique-2026-09-28-essais.txt` : elle dira ce que coûtent `docks`, `blit` et
-   `soumettre` avec un panneau ouvert.
+   `sortie-chronique-2026-09-29-essais.txt` : sur la RTX que l'arbitre a annoncée, elle dira si
+   les gels du § 8 suivaient la carte économe.
 
 ---
 
-## 9. Ce qui attend sa parole
+## 11. Ce qui attend sa parole
 
-1. **L'aimant, aux seuls nœuds visibles ?** Aujourd'hui une carte s'aligne sur n'importe quel
-   nœud du tableau, même hors de l'écran — le guide montre alors une ligne sans raison visible.
-   Excalidraw ne s'aimante qu'à ce qu'on voit. Ce serait aussi ce qui permet d'aller jusqu'à dix
-   millions de nœuds. Mon avis : oui.
+1. **L'aimant** — tranché le 29/09 : ce qu'on voit, **et** les voisines (§ 9). Reste son
+   ressenti sur deux choix que j'ai faits : la membrane autour tire encore, pour ranger dedans ;
+   une photo qu'on chevauche ne tire plus, ce qui, pour un collage, se discute.
 2. **La Time Machine, « optimiser »** (fiche 41 § 11) : des étapes clés comme une **vue** (les
    points qui partagent le travail en parts égales), ou aussi l'effacement des gestes
    intermédiaires. L'histoire, elle, n'écrit déjà plus que l'essentiel de chaque geste (§ 6).
@@ -385,7 +466,7 @@ Puis ceux de cette fiche :
 
 ---
 
-## 10. Les sources
+## 12. Les sources
 
 * T. Lozano-Pérez et M. A. Wesley, *An algorithm for planning collision-free paths among
   polyhedral obstacles*, Communications of the ACM 22(10), 1979 — le graphe de visibilité.
@@ -405,7 +486,13 @@ Puis ceux de cette fiche :
   qu'ENVOI-1 : un tampon d'envoi réutilisé, 479 → 155 ms sur 1 200 images.
 * Excalidraw, [*Snap to objects*](https://github.com/excalidraw/excalidraw/issues/263) et
   [son annonce](https://www.linkedin.com/posts/excalidraw_snapping-to-object-activity-7113431894989361152-M95j)
-  — l'aimant aux bords et aux milieux, les groupes comme une seule cible.
+  — l'aimant aux bords et aux milieux, les groupes comme une seule cible ; et
+  [`snapping.ts`](https://github.com/excalidraw/excalidraw/blob/master/packages/excalidraw/snapping.ts),
+  où `getVisibleAndNonSelectedElements` ne retient que les éléments visibles et non
+  sélectionnés, sans filtre des voisins (SNAP-4, § 9).
+* tldraw, [`SnapManager`](https://github.com/tldraw/tldraw/blob/main/packages/editor/src/lib/editor/managers/SnapManager/SnapManager.ts)
+  — l'aimant aux seules formes dont la boîte tombe dans la vue, parmi les enfants du même
+  parent ; sans limite de nombre.
 
 ---
 

@@ -458,7 +458,7 @@ Lu point par point :
 
 Rien de cette fiche après FORMULE-1 n'a encore été vu : le contournement des flèches
 (FLECHE-5, FLECHE-6) et l'interligne des formules (FORMULE-2). Les essais sont réunis avec ceux
-de la session suivante, dans la fiche [`43`](43-LA-VERSION-ET-LE-REPOS.md) § 8 — les formules y
+de la session suivante, dans la fiche [`43`](43-LA-VERSION-ET-LE-REPOS.md) § 10 — les formules y
 sont données **entre deux lignes `$$`**, ce que mes instructions du § 7 avaient oublié.
 
 ---

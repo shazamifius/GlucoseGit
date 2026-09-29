@@ -48,8 +48,10 @@ notes, **membranes et dossiers**, qui servent aussi de cibles ; redimensionner a
 Reste de sa demande : *« reprendre toute la mécanique »* — l'aimant parcourt tous les nœuds du
 tableau à chaque mouvement, ce qui ne tiendra pas à dix millions (fiche 41 § 10). **Fait le
 28/09** (SNAP-2, fiche 43 § 7) : les lignes des cibles se trient une fois par geste, chaque
-mouvement cherche la plus proche par dichotomie. Reste une question pour lui : l'aimant aux
-seuls nœuds visibles, comme Excalidraw (fiche 43 § 9).
+mouvement cherche la plus proche par dichotomie. **Tranché et fait le 29/09** (SNAP-4, fiche 43
+§ 9) : sur un tableau chargé, l'aimant était *« invivable »* ; il ne tire plus que vers les
+voisines — au-dessus, au-dessous, à gauche, à droite, la membrane autour —, parmi ce que l'écran
+montre, et plus rien ne parcourt le tableau au début d'un geste.
 
 ## 3. L'alignement, au premier placement aussi
 
@@ -264,7 +266,7 @@ Hors du relevé de Tauri, mais de même nature — ce qu'il a vu dans Rust et de
 | le LaTeX mal disposé *« depuis le tout début »* | **corrigé** : 76 % d'encre mal placée → 0,38 % contre le vrai KaTeX ; deux formules hautes ne se touchent plus — **vu en partie** | fiche 42 § 7 et § 9, FORMULE-1/2 |
 | la carte posée sur une photo, illisible | **corrigé** — vu | fiche 42 § 2, LUEUR-3 |
 | le surlignage d'un passage qui déborde sur ses voisines | **corrigé** — à voir | fiche 42 § 4, PASSAGE-2 |
-| *« ça lag »* (51 images par seconde, panneaux ouverts) | **en partie** : l'envoi à la carte et les panneaux posés par elle ; sa prochaine chronique dira | fiche 43 § 4 et § 5 |
+| *« ça lag »* (51 images par seconde, panneaux ouverts) | **en partie** : 103 images par seconde le 29/09 ; restent des gels dans l'attente de la carte économe, que la RTX dira | fiche 43 § 4, § 5 et § 8 |
 
 ---
 
