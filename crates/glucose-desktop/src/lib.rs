@@ -33,6 +33,7 @@ pub mod horloge;
 pub mod icons;
 pub mod interactions;
 pub mod memoire;
+pub mod mise_a_jour;
 pub mod params;
 pub mod perception;
 pub mod perf;
