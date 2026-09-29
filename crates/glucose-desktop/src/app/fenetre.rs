@@ -131,6 +131,12 @@ impl GlucoseApp {
             .with_title(&title)
             .with_window_icon(icone())
             .with_inner_size(LogicalSize::new(TAILLE_INITIALE.0, TAILLE_INITIALE.1));
+        // Sous Linux, **la classe de la fenêtre** (X11) et son `app_id` (Wayland) la rattachent
+        // à son fichier de bureau — son nom, son icône, son épingle : `glucose`, comme le
+        // `StartupWMClass` du paquet de Tauri et du nôtre (`outils/paquets/Glucose.desktop`).
+        #[cfg(target_os = "linux")]
+        let attrs =
+            winit::platform::x11::WindowAttributesExtX11::with_name(attrs, "glucose", "glucose");
 
         let window = event_loop
             .create_window(attrs)

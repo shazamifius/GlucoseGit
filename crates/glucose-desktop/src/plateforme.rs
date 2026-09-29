@@ -17,6 +17,8 @@
 //! une régression. La charte interdit d'exclure une machine ; elle n'interdit pas qu'un pont
 //! natif arrive d'abord là où la mesure l'a réclamé.
 
+#[cfg(target_os = "linux")]
+pub mod administrateur;
 pub mod empreinte;
 pub mod graphique;
 pub mod heure;

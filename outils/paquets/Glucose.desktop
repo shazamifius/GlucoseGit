@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Glucose
+Comment=La toile infinie des idées et des images
+Exec=glucose
+Icon=glucose
+StartupWMClass=glucose
+Terminal=false
+Categories=Graphics;

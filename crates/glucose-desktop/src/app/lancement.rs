@@ -17,6 +17,7 @@
 
 use crate::app::GlucoseApp;
 use crate::mise_a_jour::cycle::{self, Nouvelle, Veille};
+use crate::mise_a_jour::installation::Installation;
 use crate::mise_a_jour::Proposition;
 use std::path::Path;
 use winit::event_loop::ActiveEventLoop;
@@ -30,10 +31,6 @@ pub struct Lancement {
     /// La veille des mises à jour.
     pub mise_a_jour: Option<Veille>,
 }
-
-/// Les arguments d'un installeur lancé par une mise à jour — ceux que Glucose Tauri passe :
-/// sans question, relancer Glucose ensuite, c'est une mise à jour.
-pub const ARGUMENTS_DE_L_INSTALLEUR: [&str; 3] = ["/P", "/R", "/UPDATE"];
 
 impl GlucoseApp {
     /// **Ce que la veille a dit depuis la dernière fois**, traité ici — là où le document
@@ -69,18 +66,26 @@ impl GlucoseApp {
         self.dire_la_mise_a_jour(format!("téléchargement de Glucose {version}…"));
     }
 
-    /// L'installeur est vérifié et posé : le document s'écrit une dernière fois, puis
-    /// l'installeur démarre, et Glucose se ferme pour qu'il prenne sa place.
+    /// L'installeur est vérifié et posé : le document s'écrit une dernière fois, puis ce qui
+    /// relance démarre — l'installeur, ou Glucose déjà remplacé —, et Glucose se ferme.
     fn installer(&mut self, installeur: &Path, event_loop: &ActiveEventLoop) {
+        let Some((programme, arguments)) = self
+            .lancement
+            .mise_a_jour
+            .as_ref()
+            .map(|v| v.installation().relance(installeur))
+        else {
+            return;
+        };
         if !self.request_close() {
             self.dire_la_mise_a_jour(
                 "reportée : elle sera reproposée au prochain lancement".into(),
             );
             return;
         }
-        // Le document est fermé : l'installeur démarre, ou Glucose se ferme quand même — un
+        // Le document est fermé : la relance démarre, ou Glucose se ferme quand même — un
         // document fermé ne s'écrirait plus, et le travail, lui, est sur le disque.
-        if let Err(e) = cycle::lancer(installeur, &ARGUMENTS_DE_L_INSTALLEUR) {
+        if let Err(e) = cycle::lancer(&programme, arguments) {
             eprintln!("[Glucose] mise à jour : {e}");
         }
         event_loop.exit();
@@ -120,12 +125,16 @@ fn demander(ancre: crate::dialogue::Ancre<'_>, question: &str) -> bool {
 impl GlucoseApp {
     /// **La recherche avant tout**, après une session qui a mal fini : avant la carte
     /// graphique et avant le document — la fenêtre n'existe pas encore, et le dialogue s'ouvre
-    /// sans parent, ce que DIAL-1 prévoit. Rend `true` si un installeur a démarré : Glucose doit
+    /// sans parent, ce que DIAL-1 prévoit. Rend `true` si la relance a démarré : Glucose doit
     /// alors se fermer sans rien ouvrir. Tout échec laisse le lancement continuer : une mise à
     /// jour qui ne se fait pas n'empêche jamais d'ouvrir Glucose.
-    pub fn mettre_a_jour_avant_tout(&mut self, installeurs: &Path) -> bool {
+    pub fn mettre_a_jour_avant_tout(
+        &mut self,
+        installeurs: &Path,
+        installation: &Installation,
+    ) -> bool {
         let courante = crate::mise_a_jour::version::Version::courante();
-        let Ok(Some(p)) = cycle::chercher(cycle::ADRESSE, &courante) else {
+        let Ok(Some(p)) = cycle::chercher(cycle::ADRESSE, &courante, installation) else {
             return false;
         };
         let question = format!(
@@ -135,12 +144,12 @@ impl GlucoseApp {
         if !self.sous_un_dialogue(|fenetre| demander(fenetre, &question)) {
             return false;
         }
-        match cycle::preparer(&p, cycle::CLE, installeurs) {
-            Ok(installeur) => cycle::lancer(&installeur, &ARGUMENTS_DE_L_INSTALLEUR).is_ok(),
-            Err(e) => {
-                eprintln!("[Glucose] mise à jour avant tout : {e}");
-                false
-            }
+        let relance = cycle::preparer(&p, cycle::CLE, installeurs, installation)
+            .and_then(|f| installation.poser(&f).map(|()| installation.relance(&f)))
+            .and_then(|(programme, arguments)| cycle::lancer(&programme, arguments));
+        if let Err(e) = &relance {
+            eprintln!("[Glucose] mise à jour avant tout : {e}");
         }
+        relance.is_ok()
     }
 }

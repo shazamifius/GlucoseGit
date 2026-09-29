@@ -87,6 +87,20 @@ pub fn copier_d_un_bloc(source: &Path, path: &Path) -> std::io::Result<()> {
     })
 }
 
+/// **Pose un programme** à `path` sous la même loi, **exécutable avant de prendre sa place** :
+/// un AppImage que la mise à jour remplace n'est jamais, fût-ce un instant, un fichier qu'on ne
+/// peut plus lancer (fiche 48).
+#[cfg(unix)]
+pub fn poser_un_programme_d_un_bloc(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    poser_d_un_bloc(path, |temp| {
+        let mut file = File::create(temp)?;
+        file.write_all(bytes)?;
+        file.set_permissions(std::fs::Permissions::from_mode(0o755))?;
+        file.sync_all()
+    })
+}
+
 /// **Le seul endroit qui pose un fichier à la place d'un autre** (SAVE-1) : `remplir` écrit un
 /// voisin et le pousse jusqu'au disque, puis le voisin prend la place, puis le dossier suit.
 /// Un échec en chemin ne touche jamais la destination, et ne laisse pas de voisin.
@@ -224,6 +238,23 @@ mod tests {
         assert!(leftovers.is_empty(), "temporaires restants : {leftovers:?}");
 
         std::fs::remove_file(&path).expect("nettoyage");
+    }
+
+    /// **Un programme posé est exécutable, et remplace l'ancien d'un bloc** — l'AppImage que la
+    /// mise à jour remplace (fiche 48).
+    #[cfg(unix)]
+    #[test]
+    fn test_un_programme_se_pose_executable() {
+        use std::os::unix::fs::PermissionsExt;
+        let path = scratch("programme", "Glucose.AppImage");
+        std::fs::write(&path, b"ancien").expect("l'ancien");
+        poser_un_programme_d_un_bloc(&path, b"nouveau").expect("pose");
+        assert_eq!(std::fs::read(&path).expect("relecture"), b"nouveau");
+        let mode = std::fs::metadata(&path)
+            .expect("ses droits")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o755, "exécutable : {mode:o}");
     }
 
     #[test]

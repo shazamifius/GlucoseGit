@@ -14,6 +14,7 @@ use glucose_desktop::app::GlucoseApp;
 use glucose_desktop::boite_noire::bilan::Fin;
 use glucose_desktop::interactions::pincement;
 use glucose_desktop::mise_a_jour::cycle;
+use glucose_desktop::mise_a_jour::installation::Installation;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,24 +55,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(boite) = app.chronique.boite_noire() {
         boite.temoigner_des_paniques();
     }
-    // Après une session qui a mal fini, la mise à jour se cherche AVANT tout ce qui peut
-    // tomber — la carte graphique, le document (fiche 48).
+    // Comment ce Glucose est installé : celui qui ne sait pas se remplacer (NixOS, `cargo run`)
+    // ne cherche aucune mise à jour. Après une session qui a mal fini, elle se cherche AVANT
+    // tout ce qui peut tomber — la carte graphique, le document (fiche 48).
+    let installation = Installation::de_ce_programme();
     let a_mal_fini = precedente.is_some_and(|p| p.fin != Fin::Propre);
-    if cfg!(windows) && a_mal_fini && app.mettre_a_jour_avant_tout(&installeurs) {
-        app.chronique.clore_la_boite_noire();
-        return Ok(());
+    if let (true, Some(i)) = (a_mal_fini, &installation) {
+        if app.mettre_a_jour_avant_tout(&installeurs, i) {
+            app.chronique.clore_la_boite_noire();
+            return Ok(());
+        }
     }
     app.retrouver_le_travail();
     // Ce qui réveillera la boucle quand le système changera le budget de la carte, même si
     // Glucose dort (ETAGES-2) — et quand la veille des mises à jour aura du neuf.
     app.lancement.reveil = Some(event_loop.create_proxy());
-    if cfg!(windows) {
+    if let Some(installation) = installation {
         let proxy = event_loop.create_proxy();
         let reveil: glucose_desktop::plateforme::Reveil = std::sync::Arc::new(move || {
             let _ = proxy.send_event(());
         });
         cycle::ranger_les_anciens(&installeurs, &cycle::courante());
-        app.lancement.mise_a_jour = Some(cycle::Veille::commencer(installeurs, reveil));
+        app.lancement.mise_a_jour =
+            Some(cycle::Veille::commencer(installeurs, reveil, installation));
     }
     event_loop.run_app(&mut app)?;
 

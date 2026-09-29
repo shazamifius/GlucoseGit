@@ -46,6 +46,10 @@ mod de_bout_en_bout {
     use super::super::super::tests::{CLE_D_ESSAI, MESSAGE, SIG_PREHACHEE};
     use super::super::*;
     use super::dossier;
+
+    /// La forme d'installation des épreuves : sa clé retombe sur celle de la plateforme, sur
+    /// chaque système.
+    const NSIS: Installation = Installation::Nsis;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
 
@@ -120,12 +124,13 @@ mod de_bout_en_bout {
         let p = chercher(
             &format!("{racine}/latest.json"),
             &Version::lire("1.0.0").unwrap(),
+            &NSIS,
         )
         .expect("lu")
         .expect("proposée");
         assert_eq!(p.version.to_string(), "9.9.9");
         let d = dossier("pose");
-        let chemin = preparer(&p, CLE_D_ESSAI, &d).expect("vérifié et posé");
+        let chemin = preparer(&p, CLE_D_ESSAI, &d, &NSIS).expect("vérifié et posé");
         assert_eq!(std::fs::read(&chemin).unwrap(), MESSAGE);
         assert!(chemin
             .to_string_lossy()
@@ -147,7 +152,7 @@ mod de_bout_en_bout {
             signature: SIG_PREHACHEE.to_string(),
         };
         let d = dossier("altere");
-        assert!(preparer(&p, CLE_D_ESSAI, &d).is_err());
+        assert!(preparer(&p, CLE_D_ESSAI, &d, &NSIS).is_err());
         assert!(!d.exists(), "rien n'a été écrit");
         // Et la clé de Glucose, elle, n'a jamais signé l'essai.
         let racine = serveur(|_| vec![("/installeur.exe", MESSAGE.to_vec())]);
@@ -155,7 +160,7 @@ mod de_bout_en_bout {
             url: format!("{racine}/installeur.exe"),
             ..p
         };
-        assert!(preparer(&p, super::super::super::CLE_PUBLIQUE, &d).is_err());
+        assert!(preparer(&p, super::super::super::CLE_PUBLIQUE, &d, &NSIS).is_err());
         assert!(!d.exists());
     }
 
@@ -165,9 +170,9 @@ mod de_bout_en_bout {
         let racine = serveur(|_| vec![("/latest.json", manifeste("1.0.0", "http://x/y.exe"))]);
         let fichier = format!("{racine}/latest.json");
         assert_eq!(
-            chercher(&fichier, &Version::lire("1.0.0").unwrap()),
+            chercher(&fichier, &Version::lire("1.0.0").unwrap(), &NSIS),
             Ok(None)
         );
-        assert!(chercher(&format!("{racine}/absent.json"), &courante()).is_err());
+        assert!(chercher(&format!("{racine}/absent.json"), &courante(), &NSIS).is_err());
     }
 }

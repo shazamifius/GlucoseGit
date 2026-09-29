@@ -79,6 +79,11 @@ fn test_les_plateformes_se_nomment_comme_chez_tauri() {
     assert_eq!(plateforme_de("windows", "x86"), "windows-i686");
 }
 
+/// La clé de Windows seule.
+fn windows() -> [String; 1] {
+    ["windows-x86_64".to_string()]
+}
+
 /// Un `latest.json` comme Tauri les publie.
 fn manifeste(version: &str) -> String {
     format!(
@@ -96,7 +101,7 @@ fn manifeste(version: &str) -> String {
 #[test]
 fn test_une_version_ne_se_propose_que_si_elle_monte() {
     let texte = manifeste("2.0.1");
-    let p = proposition(&texte, &v("1.0.2-beta.1"), "windows-x86_64")
+    let p = proposition(&texte, &v("1.0.2-beta.1"), &windows())
         .expect("lisible")
         .expect("proposée");
     assert_eq!(p.version, v("2.0.1"));
@@ -105,11 +110,38 @@ fn test_une_version_ne_se_propose_que_si_elle_monte() {
     assert_eq!(p.notes, "la bascule");
     for courante in ["2.0.1", "2.0.2", "3.0.0-alpha"] {
         assert_eq!(
-            proposition(&texte, &v(courante), "windows-x86_64"),
+            proposition(&texte, &v(courante), &windows()),
             Ok(None),
             "depuis {courante}"
         );
     }
+}
+
+/// **La clé de la forme d'installation passe avant celle de la plateforme**, comme chez Tauri :
+/// un paquet `.deb` prend l'entrée `-deb`, et à défaut l'entrée générale.
+#[test]
+fn test_la_forme_d_installation_passe_avant_la_plateforme() {
+    let texte = concat!(
+        "{\"version\":\"2.0.1\",\"platforms\":{",
+        "\"linux-x86_64\":{\"signature\":\"s\",\"url\":\"https://x/Glucose.AppImage\"},",
+        "\"linux-x86_64-deb\":{\"signature\":\"s\",\"url\":\"https://x/glucose.deb\"}}}"
+    );
+    let url = |cles: [String; 2]| {
+        proposition(texte, &v("2.0.0"), &cles)
+            .expect("lisible")
+            .expect("proposée")
+            .url
+    };
+    let deb = installation::Installation::Deb("/usr/bin/glucose".into());
+    assert_eq!(url(deb.cles("linux-x86_64")), "https://x/glucose.deb");
+    let rpm = installation::Installation::Rpm("/usr/bin/glucose".into());
+    assert_eq!(url(rpm.cles("linux-x86_64")), "https://x/Glucose.AppImage");
+    assert_eq!(
+        proposition(texte, &v("2.0.0"), &rpm.cles("linux-aarch64")),
+        Err(Refus::SansCettePlateforme(
+            "linux-aarch64-rpm ou linux-aarch64".into()
+        ))
+    );
 }
 
 /// **Un fichier sans cette plateforme, ou illisible, le dit** — sans rien proposer.
@@ -117,15 +149,15 @@ fn test_une_version_ne_se_propose_que_si_elle_monte() {
 fn test_ce_qui_manque_se_dit() {
     let texte = manifeste("2.0.1");
     assert_eq!(
-        proposition(&texte, &v("1.0.0"), "darwin-aarch64"),
+        proposition(&texte, &v("1.0.0"), &["darwin-aarch64".to_string()]),
         Err(Refus::SansCettePlateforme("darwin-aarch64".into()))
     );
     assert!(matches!(
-        proposition("pas du json", &v("1.0.0"), "windows-x86_64"),
+        proposition("pas du json", &v("1.0.0"), &windows()),
         Err(Refus::Illisible(_))
     ));
     assert!(matches!(
-        proposition("{\"version\":\"deux\"}", &v("1.0.0"), "windows-x86_64"),
+        proposition("{\"version\":\"deux\"}", &v("1.0.0"), &windows()),
         Err(Refus::Illisible(_))
     ));
 }

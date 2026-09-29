@@ -12,6 +12,7 @@
 //! fait que monter : un fichier qui proposerait la même ou une plus ancienne ne propose rien.
 
 pub mod cycle;
+pub mod installation;
 pub mod version;
 
 use glucose_core::persist::tauri::json;
@@ -76,12 +77,13 @@ pub fn plateforme_de(systeme: &str, architecture: &str) -> String {
     format!("{systeme}-{architecture}")
 }
 
-/// **Ce que le fichier propose à la version `courante`** sur cette `plateforme` — rien si sa
-/// version n'est pas strictement plus grande.
+/// **Ce que le fichier propose à la version `courante`** sous la première de ces `cles` qu'il
+/// porte — dans l'ordre de Tauri, celle de la forme d'installation puis celle de la plateforme
+/// ([`installation::Installation::cles`]). Rien si sa version n'est pas strictement plus grande.
 pub fn proposition(
     texte: &str,
     courante: &Version,
-    plateforme: &str,
+    cles: &[String],
 ) -> Result<Option<Proposition>, Refus> {
     let v = json::lire(texte).map_err(|_| Refus::Illisible("ce n'est pas du JSON"))?;
     let version = v
@@ -91,10 +93,11 @@ pub fn proposition(
     if version <= *courante {
         return Ok(None);
     }
-    let cible = v
-        .champ("platforms")
-        .and_then(|p| p.champ(plateforme))
-        .ok_or_else(|| Refus::SansCettePlateforme(plateforme.to_string()))?;
+    let plateformes = v.champ("platforms");
+    let cible = cles
+        .iter()
+        .find_map(|c| plateformes.and_then(|p| p.champ(c)))
+        .ok_or_else(|| Refus::SansCettePlateforme(cles.join(" ou ")))?;
     let url = cible.texte("url").ok_or(Refus::Illisible("l'adresse"))?;
     let signature = cible
         .texte("signature")
