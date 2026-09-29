@@ -253,7 +253,44 @@ La vérification de `e8183bd` (run `36625698372`) :
   plus, le message qui change) la font tomber. Ma première hypothèse — l'antivirus de GitHub —
   était fausse : l'erreur n'était pas écrasée, elle était absente.
 
-## 12. Les sources
+## 12. Linux : trois formes, et le geste de Tauri
+
+Ses utilisateurs Linux ont installé Glucose Tauri sous l'une de trois formes, et l'updater de
+Tauri remplace chacune à sa façon (lu dans sa source) : **l'AppImage** est réécrit par-dessus
+lui-même ; **le `.deb`** s'installe par `pkexec dpkg -i`, **le `.rpm`** par `pkexec rpm -U` —
+puis Tauri relance le même exécutable. Les paquets de Tauri, ouverts : le paquet **`glucose`**,
+le programme **`/usr/bin/glucose`**, `Glucose.desktop` (`StartupWMClass=glucose`), les icônes
+`glucose` ; et **glibc 2.34** exigée — il était construit sur Ubuntu 22.04.
+
+* **Les paquets de Glucose Rust** (`outils/paquets/construire.sh`) reprennent cette disposition
+  exacte, construits **sur Ubuntu 22.04** : sur une machine plus récente, Glucose exigerait une
+  bibliothèque C que leurs systèmes n'ont peut-être pas.
+* **Leurs dépendances** : `dpkg -i` et `rpm -U` n'installent rien de ce qui manque — et un
+  `dpkg -i` aux dépendances manquantes remplace quand même les fichiers, puis laisse le paquet à
+  moitié configuré. **Seul GTK 3 est exigé**, que Glucose Tauri exigeait déjà ; le reste est
+  recommandé. **Une limite, dite** : sur une session **X11** sans `libxkbcommon-x11`, Glucose
+  ne s'ouvrirait pas (winit en a besoin pour le clavier) ; GNOME, KDE et Cinnamon l'installent,
+  et une session Wayland — le défaut d'aujourd'hui — n'en a pas besoin.
+* **La fenêtre porte la classe `glucose`** (X11) et l'`app_id` `glucose` (Wayland — vérifié dans
+  la source de winit 0.30.13) : son fichier de bureau la reconnaît — son nom, son icône, son
+  épingle. C'est l'équivalent Linux de l'identité Windows (§ 6).
+* **Glucose Rust se met à jour lui-même sous Linux** (`mise_a_jour::installation`) : il sait
+  comment il est installé — `APPIMAGE`, que pose le lanceur des AppImage ; sinon `dpkg-query -S`
+  ou `rpm -qf` sur son exécutable — et lit dans `latest.json`, **dans l'ordre de Tauri**, l'entrée
+  de sa forme puis celle de la plateforme. Il pose **pendant qu'il tourne** (Linux le permet :
+  un programme ouvert garde l'ancien fichier), puis se ferme et se relance. L'AppImage se
+  remplace d'un bloc, **exécutable avant de prendre la place de l'ancien** (`atomic`, le seul
+  endroit qui pose un fichier à la place d'un autre). Un Glucose installé autrement — NixOS, qui
+  le met à jour lui-même ; `cargo run` — **ne se propose aucune mise à jour** qu'il ne saurait
+  pas poser.
+* **La vérification de GitHub** (`outils/paquets/eprouver.sh`) : pour chaque forme — le `.deb`
+  dans un conteneur Ubuntu 22.04, le `.rpm` dans un conteneur Fedora 40, l'AppImage sur la
+  machine —, Glucose Tauri 1.0.2-beta.1 réel installé, des données plantées, **le geste exact de
+  l'updater de Tauri**, puis la mise à jour de Glucose Rust par un `latest.json` signé par l'outil
+  de Tauri : un paquet altéré refusé **pour sa signature**, l'intact posé ; les données intactes à
+  chaque pas.
+
+## 13. Les sources
 
 * Tauri, `tauri-plugin-updater` 2.10.1 — [`src/updater.rs`](https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/updater/src/updater.rs)
   (`install_inner` sous Windows : `ShellExecuteW`, puis `std::process::exit(0)`) et
@@ -275,6 +312,11 @@ La vérification de `e8183bd` (run `36625698372`) :
 * NSIS 3, les en-têtes livrés `Include\Win\RestartManager.nsh`, `COM.nsh`, `Propkey.nsh`, et le
   [greffon System](https://nsis.sourceforge.io/Docs/System/System.html).
 * Rust, [l'attribut `windows_subsystem`](https://doc.rust-lang.org/reference/runtime.html#the-windows_subsystem-attribute).
+* AppImage, [`appimagetool` 1.9.1](https://github.com/AppImage/appimagetool/releases/tag/1.9.1)
+  et le [runtime type 2 du 08/11/2025](https://github.com/AppImage/type2-runtime/releases/tag/20251108),
+  épinglés par leur empreinte SHA-256 publiée.
+* winit 0.30.13, `src/platform/x11.rs` et `wayland.rs` (`with_name`), et
+  `platform_impl/linux/wayland/window/mod.rs` (l'`app_id`).
 * GitHub, [les variables des machines](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
   — `GITHUB_ACTIONS`, `RUNNER_ENVIRONMENT=github-hosted`, `RUNNER_TEMP`.
 
