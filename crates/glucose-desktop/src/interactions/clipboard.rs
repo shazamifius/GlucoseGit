@@ -3,7 +3,7 @@
 use crate::app::GlucoseApp;
 use crate::canvas::screen_to_world;
 use crate::error::DesktopError;
-use arboard::Clipboard;
+use crate::interactions::presse_papiers;
 use glucose_core::types::BoardImage;
 use std::path::{Path, PathBuf};
 
@@ -119,16 +119,16 @@ impl GlucoseApp {
         let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
 
-        match Clipboard::new() {
+        match presse_papiers::ouvrir() {
             Ok(mut clipboard) => {
                 // 1. Une image bitmap — navigateur, capture d'écran.
-                if let Ok(img_data) = clipboard.get_image() {
+                if let Ok(img_data) = clipboard.image() {
                     self.coller_image(&active_bid, &img_data, (wx, wy));
                     return;
                 }
 
                 // 2. Tenter de coller du texte ou un chemin de fichier
-                if let Ok(text) = clipboard.get_text() {
+                if let Ok(text) = clipboard.texte() {
                     let trimmed = text.trim();
                     let path = Path::new(trimmed);
                     if path.exists() && path.is_file() {
@@ -162,7 +162,7 @@ impl GlucoseApp {
                 }
             }
             Err(e) => {
-                let err = DesktopError::ClipboardError(e.to_string());
+                let err = DesktopError::ClipboardError(e);
                 self.ui.show_toast(err.to_string());
             }
         }
@@ -231,7 +231,7 @@ impl GlucoseApp {
     /// ligne, et laisser passer un `\r` ferait apparaître un caractère de contrôle au milieu
     /// d'une carte — invisible à l'écran, bien présent dans le document et dans l'export.
     pub(crate) fn clipboard_text(&mut self) -> Option<String> {
-        match Clipboard::new().and_then(|mut c| c.get_text()) {
+        match presse_papiers::ouvrir().and_then(|mut c| c.texte()) {
             Ok(texte) => Some(texte.replace("\r\n", "\n").replace('\r', "\n")),
             Err(err) => {
                 self.echec_presse_papiers(err);
@@ -311,7 +311,7 @@ impl GlucoseApp {
     /// donc trois endroits à relire le jour où elle change. Un échec du presse-papiers ne se
     /// voit nulle part — c'est le cas où un toast a vraiment quelque chose à apprendre.
     fn ecrire_presse_papiers(&mut self, texte: String) -> bool {
-        match Clipboard::new().and_then(|mut c| c.set_text(texte)) {
+        match presse_papiers::ouvrir().and_then(|mut c| c.ecrire(texte)) {
             Ok(()) => true,
             Err(err) => {
                 self.echec_presse_papiers(err);

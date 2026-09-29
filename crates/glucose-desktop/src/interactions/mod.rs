@@ -23,6 +23,7 @@ pub mod panels;
 pub mod pick;
 pub mod pincement;
 pub mod placement;
+pub mod presse_papiers;
 pub mod recadrage;
 pub mod resize;
 pub mod selection;

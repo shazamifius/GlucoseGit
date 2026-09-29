@@ -22,6 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // d'applications, et aucune ne doit écrire chez l'utilisateur ni rouvrir son travail.
     let dossier = glucose_desktop::present::souvenir::dossier();
     app.habiter(&dossier);
+    // Le presse-papiers du système, pour l'application seule : les épreuves ont le leur.
+    glucose_desktop::interactions::presse_papiers::prendre_celui_du_systeme();
     // La boîte noire (fiche 45) : ce qui se passe, écrit au fil de l'eau ; et comment la
     // session d'avant a fini.
     if let Some(precedente) = app.chronique.ouvrir_la_boite_noire(&dossier) {

@@ -1,13 +1,13 @@
-//! Ce que `Ctrl+C` emporte — la part qui se teste sans presse-papiers.
+//! Ce que `Ctrl+C` emporte, et ce que `Ctrl+V` pose.
 //!
-//! L'écriture elle-même appartient au système : aucune machine d'intégration n'a de
-//! presse-papiers, et un test qui en dépendrait serait vert ici et rouge ailleurs. La
-//! **décision** — quoi copier, et sous quelle forme — est pure, et c'est elle qui portait la
-//! faute : `Ctrl+C` hors saisie n'existait pas du tout.
+//! Sur le presse-papiers **à soi** du fil d'épreuve ([`crate::interactions::presse_papiers`]),
+//! jamais celui du système : une épreuve qui l'écrivait remplaçait, à chaque `cargo test`, ce
+//! que l'utilisateur venait de copier. La **décision** — quoi copier, et sous quelle forme —
+//! portait la faute : `Ctrl+C` hors saisie n'existait pas du tout.
 
 use super::*;
 use crate::interactions::resize::tests::text_card;
-use glucose_core::types::BoardImage;
+use glucose_core::types::{Annotation, BoardImage};
 
 fn app() -> GlucoseApp {
     let mut app = GlucoseApp::new();
@@ -127,4 +127,29 @@ fn test_ctrl_c_and_ctrl_x_reach_the_copy_outside_a_text_session() {
         .map(|b| b.annotations.len())
         .unwrap_or(0);
     assert_eq!(reste, 0, "couper doit aussi retirer");
+}
+
+/// **Coller un texte pose une carte qui le porte**, là où est la souris — par la fabrique, qui
+/// la mesure.
+#[test]
+fn test_coller_un_texte_pose_une_carte() {
+    let mut app = app();
+    crate::interactions::presse_papiers::ouvrir()
+        .and_then(|mut a| a.ecrire("  bonjour\ndeux lignes \n".into()))
+        .expect("écrit");
+    app.paste_from_clipboard();
+    let board = app.store.active_board().expect("tableau");
+    assert_eq!(board.annotations.len(), 1, "une carte");
+    let Annotation::Text { text, .. } = &board.annotations[0] else {
+        panic!("une carte de texte");
+    };
+    assert_eq!(
+        text, "bonjour\ndeux lignes",
+        "le texte, sans ses blancs de bord"
+    );
+    assert!(app
+        .ui
+        .current_toast
+        .as_ref()
+        .is_some_and(|t| t.message.contains("collé")));
 }
