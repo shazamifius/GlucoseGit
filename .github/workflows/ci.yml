@@ -96,3 +96,32 @@ jobs:
 
       - name: Clippy strict, ARM 32 bits
         run: cargo clippy -p glucose-core -p glucose-math --all-targets --target armv7-linux-androideabi -- -D warnings
+
+  nixos:
+    name: NixOS, le paquet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      # Le paquet se construit comme chez un utilisateur de NixOS (fiche 44, phase 3).
+      - name: Construire le paquet
+        run: nix build .#glucose -L
+
+      # Sous NixOS, rien n'est dans un chemin standard : le binaire doit porter où trouver
+      # Vulkan, le clavier, Wayland — sans quoi il ne s'ouvre pas.
+      - name: Le binaire sait où trouver ce qu'il ouvre
+        run: |
+          chemins=$(nix run nixpkgs#patchelf -- --print-rpath result/bin/glucose-desktop)
+          echo "$chemins" | tr ':' '\n'
+          for lib in vulkan-loader libxkbcommon wayland; do
+            echo "$chemins" | grep -q "$lib" || { echo "manque : $lib"; exit 1; }
+          done
+
+      # Le verrou des entrées, pour être versé au dépôt : la construction devient reproductible.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flake-lock
+          path: flake.lock
