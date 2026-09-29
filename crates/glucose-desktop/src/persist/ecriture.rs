@@ -259,7 +259,8 @@ impl Ecriture {
             }
             _ => PathBuf::from(cle),
         };
-        if !chemin.is_file() {
+        // Un fichier vide n'est pas encore l'image : celui qu'on est en train d'écrire.
+        if !std::fs::metadata(&chemin).is_ok_and(|m| m.is_file() && m.len() > 0) {
             if !self.en_attente.iter().any(|c| c == cle) {
                 self.en_attente.push(cle.to_string());
             }

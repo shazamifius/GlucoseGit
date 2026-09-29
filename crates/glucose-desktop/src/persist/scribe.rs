@@ -363,6 +363,11 @@ impl Plume {
                     )
                 })?,
         };
+        // Zéro octet n'est jamais une image : sceller le vide, c'est perdre l'image sans le
+        // dire (COLLER-2). L'erreur se dit, et l'image reste à sceller.
+        if octets.is_empty() {
+            return Err(format!("image non incorporée, {cle} : aucun octet"));
+        }
         let empreinte = sha256(&octets);
         let tranche = match self.objets.get(&empreinte) {
             Some(t) => *t,

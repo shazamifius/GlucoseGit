@@ -244,7 +244,10 @@ impl GlucoseApp {
         objets.vider();
         objets.porter(Some(chemin.clone()));
         for (cle, empreinte) in &ouvert.liens {
-            if let Some(t) = ouvert.objets.get(empreinte) {
+            // Un objet vide n'est jamais une image : c'est ce que le défaut COLLER-2 a scellé.
+            // Sans lui, l'image se relit depuis son fichier s'il existe encore, et le
+            // scellement de l'ouverture la scelle, entière (`sceller_ce_qui_attend`).
+            if let Some(t) = ouvert.objets.get(empreinte).filter(|t| t.longueur > 0) {
                 objets.poser(
                     cle,
                     Source::Tranche {
@@ -312,5 +315,8 @@ pub(crate) struct Adoption {
     pub texte_rendu: bool,
 }
 
+#[cfg(test)]
+#[path = "disque/coller_tests.rs"]
+mod coller_tests;
 #[cfg(test)]
 pub(crate) mod tests;

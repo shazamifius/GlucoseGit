@@ -352,8 +352,12 @@ fn ouvrier(
             }
             Travail::Adopter(src, rgba, (l, h)) => {
                 let debut = Instant::now();
-                let ecrit =
-                    image::save_buffer(&src, &rgba, l, h, image::ExtendedColorType::Rgba8).is_ok();
+                // Encodé en mémoire, puis posé **d'un bloc** : le scribe qui scelle ne voit
+                // jamais ce fichier vide ou à moitié écrit. `save_buffer` l'écrivait en place,
+                // et le 28/09 trois images collées se sont scellées vides (COLLER-2).
+                let ecrit = encoder_en_png(&rgba, (l, h)).is_some_and(|png| {
+                    crate::persist::atomic::write_atomic(std::path::Path::new(&src), &png).is_ok()
+                });
                 let pyramide = ecrit.then(|| Pyramide::depuis_rgba(l, h, &rgba)).flatten();
                 Fait::Decodee((src, pyramide, debut.elapsed()))
             }
@@ -423,6 +427,16 @@ fn decoder(src: &str, objets: Option<&crate::persist::objets::Objets>) -> Option
     let rgba = image::load_from_memory(&octets).ok()?.to_rgba8();
     let (w, h) = rgba.dimensions();
     Pyramide::depuis_rgba(w, h, rgba.as_raw())
+}
+
+/// Les pixels d'une image, encodés en PNG, en mémoire.
+fn encoder_en_png(rgba: &[u8], (l, h): (u32, u32)) -> Option<Vec<u8>> {
+    use image::ImageEncoder;
+    let mut png = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut png)
+        .write_image(rgba, l, h, image::ExtendedColorType::Rgba8)
+        .ok()?;
+    Some(png)
 }
 
 #[cfg(test)]
