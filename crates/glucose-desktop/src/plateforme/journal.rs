@@ -238,12 +238,13 @@ mod tests {
     const CODE_D_EPREUVE: u32 = 0xE047_4C55;
 
     /// **Un vrai plantage se lit dans le journal.** Un processus d'épreuve lève une exception
-    /// que personne n'attrape — le rapporteur d'erreurs de Windows en silence, sans fenêtre —,
-    /// et le lecteur retrouve, parmi ce que Windows a noté, **ce** processus et **ce** code ; la
-    /// boîte noire le reconnaît pour une session qu'il aurait ouverte.
+    /// que personne n'attrape, et le lecteur retrouve, parmi ce que Windows a noté, **ce**
+    /// processus et **ce** code ; la boîte noire le reconnaît pour une session qu'il aurait
+    /// ouverte.
     ///
-    /// Sur une machine jetable de GitHub seulement : un plantage fait écrire à Windows un
-    /// rapport dans ses propres dossiers.
+    /// Sur une machine jetable de GitHub seulement — un plantage fait écrire à Windows un
+    /// rapport dans ses propres dossiers —, dont le rapporteur est réglé comme sur un poste
+    /// ordinaire, sans fenêtre (`outils/rapporteur_ordinaire.ps1`).
     #[cfg(windows)]
     #[test]
     fn test_un_vrai_plantage_se_lit_dans_le_journal() {
@@ -287,7 +288,8 @@ mod tests {
             }
             assert!(
                 std::time::Instant::now() < limite,
-                "Windows n'a rien noté du processus {processus}"
+                "Windows n'a rien noté du processus {processus} — le rapporteur d'erreurs :\n{}",
+                le_rapporteur()
             );
             std::thread::sleep(std::time::Duration::from_millis(500));
         };
@@ -306,30 +308,52 @@ mod tests {
         assert!(p.module.is_some(), "le module où il est tombé : {vu:?}");
     }
 
-    /// Le processus que l'épreuve précédente fait tomber — lancé par elle seule.
+    /// Ce que la machine dit de son rapporteur d'erreurs (`Disabled`, `LoggingDisabled`,
+    /// `DontShowUI` — learn.microsoft.com/windows/win32/wer/wer-settings) : ce qui explique qu'il
+    /// n'ait rien noté.
+    #[cfg(windows)]
+    fn le_rapporteur() -> String {
+        [
+            r"HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting",
+            r"HKCU\Software\Microsoft\Windows\Windows Error Reporting",
+            r"HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
+        ]
+        .iter()
+        .map(|cle| {
+            let sortie = std::process::Command::new("reg")
+                .args(["query", cle])
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .unwrap_or_default();
+            let valeurs: Vec<&str> = sortie
+                .lines()
+                .filter(|l| {
+                    ["Disabled", "LoggingDisabled", "DontShowUI"]
+                        .iter()
+                        .any(|v| l.contains(v))
+                })
+                .collect();
+            format!("  {cle} : {valeurs:?}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+    }
+
+    /// Le processus que l'épreuve précédente fait tomber — lancé par elle seule. Rien n'est
+    /// réglé ici : c'est le rapporteur de la machine, tel qu'il est, qui doit le noter (la
+    /// vérification de GitHub le règle comme sur un poste ordinaire, sans fenêtre).
     #[cfg(windows)]
     #[test]
     #[ignore = "lancé par test_un_vrai_plantage_se_lit_dans_le_journal"]
     fn planter_ici() {
         use windows::Win32::System::Diagnostics::Debug::RaiseException;
-        use windows::Win32::System::ErrorReporting::{
-            WerSetFlags, WER_FAULT_REPORTING, WER_FAULT_REPORTING_FLAG_QUEUE,
-            WER_FAULT_REPORTING_NO_UI,
-        };
         if std::env::var("GLUCOSE_PLANTER_ICI").as_deref() != Ok("1") {
             return;
         }
         /// `EXCEPTION_NONCONTINUABLE` : une exception dont on ne revient pas.
         const SANS_RETOUR: u32 = 1;
-        // Le rapport en file, sans fenêtre (`werapi.h` : `WER_FAULT_REPORTING_NO_UI`) : rien ne
-        // s'affiche, rien ne retient le processus.
-        let sans_fenetre =
-            WER_FAULT_REPORTING(WER_FAULT_REPORTING_FLAG_QUEUE.0 | WER_FAULT_REPORTING_NO_UI);
-        // SAFETY : régler le rapporteur de ce processus, puis lever une exception que personne
-        // n'attrape — le processus tombe, c'est ce qu'on veut.
-        unsafe {
-            let _ = WerSetFlags(sans_fenetre);
-            RaiseException(CODE_D_EPREUVE, SANS_RETOUR, None);
-        }
+        // SAFETY : lever une exception que personne n'attrape — le processus tombe, c'est ce
+        // qu'on veut.
+        unsafe { RaiseException(CODE_D_EPREUVE, SANS_RETOUR, None) };
     }
 }

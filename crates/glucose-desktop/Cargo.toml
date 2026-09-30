@@ -49,7 +49,7 @@ automerge = "0.12"
 # lecteur doit le rendre à l'octet près. Aucune caisse de plus : `png` la tire déjà (decisions/03).
 miniz_oxide = "0.8"
 
-# Une épreuve fait tomber un vrai processus, sans fenêtre, pour vérifier que le journal de Windows
-# le rend (`plateforme::journal`) : deux recoins de `windows`, pour les épreuves seulement.
+# Une épreuve fait tomber un vrai processus pour vérifier que le journal de Windows le rend
+# (`plateforme::journal`) : un recoin de `windows`, pour les épreuves seulement.
 [target.'cfg(windows)'.dev-dependencies]
-windows = { version = "0.62", features = ["Win32_System_ErrorReporting", "Win32_System_Diagnostics_Debug"] }
+windows = { version = "0.62", features = ["Win32_System_Diagnostics_Debug"] }

@@ -59,6 +59,14 @@ jobs:
       - name: Clippy strict
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      # Une épreuve fait tomber un vrai processus et exige que Windows l'ait noté, comme chez
+      # ses utilisateurs (plateforme::journal) : le rapporteur d'erreurs, réglé comme sur un
+      # poste ordinaire, sans fenêtre.
+      - name: Le rapporteur d'erreurs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./outils/rapporteur_ordinaire.ps1
+
       # Une carte logicielle est promise sur chaque machine : une épreuve graphique qui
       # se sauterait faute de carte mentirait en vert. Elle tombe donc (present::banc_gpu).
       # Les épreuves n'ont jamais le presse-papiers du système (interactions::presse_papiers) :
