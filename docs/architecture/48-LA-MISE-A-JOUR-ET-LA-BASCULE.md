@@ -5,10 +5,10 @@
 > l'installeur Windows, et la **bascule** de ses utilisateurs de Glucose Tauri — éprouvée de bout
 > en bout sur une machine de GitHub, jamais sur la sienne. **Écrite au fil de l'eau.**
 >
-> **Date** : 2026-09-29. **État à la fin de cette étape** : sous Windows, **1 962 épreuves
-> vertes** (8 de plus), clippy strict à zéro ; `%LOCALAPPDATA%\Glucose` **identique**, fichier
-> pour fichier, avant et après chaque suite d'épreuves. **Rien n'est publié** : aucune release,
-> aucun `latest.json`.
+> **Date** : 2026-09-29, poursuivie le 30/09 (§ 14 à § 17). **État à la fin** : voir le § 17 ;
+> `%LOCALAPPDATA%\Glucose` **identique**, fichier pour fichier, avant et après chaque suite
+> d'épreuves. **Rien n'est publié** : aucune release, aucun `latest.json` — la publication
+> existe, et c'est lui qui la déclenche.
 
 ---
 
@@ -24,6 +24,11 @@
 | **L'épingle de la barre des tâches** | Glucose déclare à Windows **qui il est** (`com.glucose.app`, l'identité de Tauri), et chaque raccourci la porte : la fenêtre et son épingle se reconnaissent (§ 6) |
 | **Plus de console noire** | Glucose Rust était un programme de console : lancé d'un raccourci, une fenêtre noire se serait ouverte à côté. Une version publiée est désormais fenêtrée (§ 7) |
 | **Prouvé sur GitHub, à chaque envoi** | Glucose Tauri installé **et ouvert** → la bascule → la mise à jour par un `latest.json` signé **par l'outil même de Tauri** → la désinstallation ; ses données intactes à chaque pas (§ 8) |
+| **Linux** | l'AppImage, le `.deb` et le `.rpm`, à la disposition exacte de ceux de Tauri, basculés par le geste même de son updater (§ 12) |
+| **La répétition générale** | l'updater de Glucose Tauri **lui-même** — reconstruit depuis sa source publiée, à la clé près — trouve Glucose Rust, le télécharge, le vérifie, lance son installeur, se ferme ; Glucose Rust arrive, relancé, vivant : **onze secondes** (§ 14) |
+| **La publication** | un bouton sur GitHub : l'installeur et les trois paquets construits, signés par sa clé, **prouvés par le code même de Glucose** ; en brouillon s'il le demande, jamais publiés (§ 15) |
+| **Sa clé** | le secret du dépôt **est** la clé de Glucose Tauri : c'est lui qui a signé chacune de ses versions, sans mot de passe (§ 16) |
+| **`cargo run` sous Windows** | ne se croit plus installé : il ne proposera jamais d'installer une version publiée au milieu d'un essai (§ 17) |
 
 ---
 
@@ -208,17 +213,20 @@ signature produites par `tauri-cli` 2.12.0 sont désormais figées dans les test
 (`test_ce_que_signe_l_outil_de_tauri_passe`) : si Tauri change sa forme un jour, c'est là que ça
 tombe.
 
-## 9. Ce qui reste de B, dans l'ordre
+## 9. Ce qui reste de B
 
-1. **Linux** : ses utilisateurs Linux basculent par l'AppImage, le `.deb` ou le `.rpm` — il faut
-   les trois, et la voie réseau de Glucose Rust sous Linux (note 04) pour ses mises à jour
-   suivantes. Le paquet `.deb`/`.rpm` doit porter le nom de celui de Tauri pour le remplacer.
-2. **La construction et la publication automatiques** — en brouillon ou pré-version, **jamais
-   « latest » avec un `latest.json`** tant que la bascule n'est pas décidée par lui. Elles
-   attendent sa réponse sur sa clé de signature (fiche 46 § 6).
-3. **La répétition générale** : l'updater de Tauri lui-même — le popup, le téléchargement, la
-   vérification par sa clé — mène à Glucose Rust, avec une clé d'essai. L'épreuve du § 8 lance
-   l'installeur comme lui ; il reste à le voir faire, et à regarder l'épingle à l'écran (§ 6).
+Les trois chantiers que ce paragraphe listait le 29/09 sont faits : **Linux** (§ 12), **la
+répétition générale** (§ 14), **la publication** (§ 15). Il reste :
+
+1. **La vraie bascule — son geste, pas le mien.** Lancer « Publier » sur GitHub avec
+   `brouillon` coché (§ 15.4), relire le brouillon, puis le publier en le laissant « latest ».
+   Ses cinq utilisateurs recevront Glucose Rust au lancement suivant de Glucose Tauri.
+2. **Ce que seul son écran dira** : l'épingle de la barre des tâches après une bascule (§ 6), la
+   fenêtre de Glucose Rust relancée par l'installeur — sur sa machine, le jour de la bascule.
+3. **Sa clé, hors de ce PC** (§ 16) : le secret du dépôt ne se relit jamais ; si le fichier de
+   `~/.tauri/` disparaît, plus personne ne peut signer une version.
+4. **Ceux que la bascule n'atteindra pas** (§ 15.5) : un Mac, et quiconque serait resté sur une
+   version de Glucose Tauri antérieure à la 1.0.1-beta.9 — à installer à la main, s'il y en a.
 
 ## 10. Les sabotages
 
@@ -230,6 +238,13 @@ tombe.
 | — | la liste des processus n'est plus lue | **tombe** |
 | `--exiger-aucune-recursive` | l'exigence ne fait plus rien | **tombe** (sur l'installeur de Tauri) |
 | ce que signe l'outil de Tauri passe | une autre clé | **tombe** |
+| sous Windows, seul un Glucose installé se remplace (§ 17) | tout Glucose se croit installé | **tombe** |
+| — | le désinstalleur cherché ailleurs qu'à côté | **tombe** |
+| le désinstalleur cherché est celui que l'installeur écrit | l'un ou l'autre change de nom | **tombe** (les deux) |
+| `publication manifeste` (§ 15.2) | un paquet altéré, une date, une clé manquante, une entrée de trop, une autre release, la clé de Linux vers le `.deb`, la signature d'un autre fichier, un champ de trop | **tombe** (les huit) |
+| `publication programme` (§ 15.2) | l'adresse de Glucose absente, la clé de Glucose absente, le sous-système d'une console | **tombe** (les trois) — le premier sabotage, lui, était aveugle : § 17 |
+| — | une construction d'épreuve, sur chaque envoi | **refusée** (§ 15.2) |
+| `publication version` | `-dev`, `v2.0.1`, `2.0.1+abc`, `2.0.1-beta.01`, une version égale ou plus basse | **refusées** |
 
 ## 11. Ce que le premier envoi a appris
 
@@ -290,7 +305,191 @@ le programme **`/usr/bin/glucose`**, `Glucose.desktop` (`StartupWMClass=glucose`
   de Tauri : un paquet altéré refusé **pour sa signature**, l'intact posé ; les données intactes à
   chaque pas.
 
-## 13. Les sources
+## 13. Le 30/09 : deux envois relus
+
+* **`4a23758`** (run `36629194466`), celui du soir d'avant : **les huit tâches vertes**, Mac Intel
+  compris — la première fois que « Linux, les paquets et la mise à jour » est jugée avec tout le
+  reste.
+* **`8a736f9`** (run `36678582161`), la répétition générale ajoutée : **huit vertes sur neuf** ;
+  la répétition tombe à sa **dernière** étape. Le journal de son serveur dit pourtant que la
+  bascule a eu lieu (§ 14) : c'était mon épreuve qui se trompait, pas la bascule. PowerShell ne
+  distingue pas les majuscules dans un nom de variable (Microsoft, *about_Variables*) : le
+  processus de Glucose Tauri, rangé dans `$tauri`, était rangé dans le paramètre `$Tauri`,
+  déclaré comme texte — le processus y est devenu une chaîne, et « est-il fini ? » a répondu
+  vide. La session d'avant avait écrit le même nom. Renommé ; aucun autre script d'épreuve ne
+  porte un nom de paramètre à la casse près.
+
+## 14. La répétition générale
+
+L'épreuve du § 8 lance l'installeur **comme** l'updater de Tauri le lance. La répétition le fait
+lancer **par** lui (`outils/installeur/repetition.ps1`, tâche « Windows, la répétition générale
+de la bascule ») :
+
+1. **Glucose Tauri est reconstruit depuis sa source publiée** — l'étiquette `v1.0.2-beta.1`,
+   ses dépendances figées par son `package-lock.json` et son `Cargo.lock` (`--locked`) : l'outil
+   de Tauri 2.10.1 et **l'updater 2.10.1**, ceux de la release que ses utilisateurs ont. Quatre
+   choses seulement changent (`preparer_tauri.py`, son effet relu ligne à ligne) : la clé d'essai
+   au lieu de la sienne, un serveur local au lieu de GitHub (en `http`, d'où
+   `dangerousInsecureTransportProtocol`, lu dans la source de l'updater), pas d'artefacts de mise
+   à jour pour lui-même, et **le clic de son popup** : dès la mise à jour trouvée, les deux appels
+   que fait son bouton « Installer et redémarrer » — `downloadAndInstall`, puis `relaunch`.
+2. **Il s'installe**, et l'on plante ce qu'un utilisateur a : les données de Glucose Rust dans
+   `%LOCALAPPDATA%\Glucose`, une image du magasin de Tauri, un document, l'épingle.
+3. **On l'ouvre, et on ne touche plus à rien.** Glucose Rust doit arriver : posé par son
+   installeur, **relancé par lui** (`/R`), vivant quinze secondes après ; les deux fichiers de
+   Tauri retirés, les raccourcis repris, les données intactes.
+
+**Ce que le premier essai a montré**, lu dans le journal du serveur local (`8a736f9`) :
+
+```text
+06:39:18  Glucose Tauri s'ouvre
+06:39:20  GET /latest.json                           ← son updater cherche
+06:39:24  GET /Glucose_2.0.0-dev_x64-setup.exe       ← télécharge, vérifie, lance l'installeur
+06:39:27  GET /latest.json                           ← Glucose Rust, relancé, cherche à son tour
+06:39:29  Glucose Rust tourne, depuis %LOCALAPPDATA%\Programs\Glucose
+```
+
+**Onze secondes** de l'ouverture de Glucose Tauri à Glucose Rust vivant. Le reste des constats
+tombait sur la faute du § 13 ; leur verdict est au § 17.
+
+Si un jour Glucose Rust n'arrive pas, l'épreuve dit jusqu'où l'updater est allé : ce que le
+serveur a servi, ce qu'il a écrit dans le dossier temporaire, ce qui tourne encore.
+
+**Ce qu'elle ne peut pas dire** : l'écran — la fenêtre de Glucose Rust qui s'ouvre, l'épingle de
+la barre des tâches (§ 6). C'est lui qui le verra, le jour de la bascule.
+
+## 15. La publication
+
+### 15.1 Un bouton, et rien d'automatique
+
+`.github/workflows/publier.yml`, onglet **Actions** du dépôt → **Publier** → **Run workflow**.
+Deux entrées : la **version** (`2.0.1-beta.1`), et **brouillon** (décoché par défaut). Rien ne la
+déclenche d'autre que ce bouton.
+
+1. **Windows** : le programme construit à cette version, l'installeur, lu dans son binaire (aucun
+   `RMDir /r`), signé.
+2. **Linux**, sur Ubuntu 22.04 comme Glucose Tauri : l'AppImage, le `.deb`, le `.rpm`, signés.
+3. **Le `latest.json`**, écrit (`outils/publication/manifeste.py`) puis prouvé ; tout part dans
+   les artefacts de l'exécution.
+4. **Seulement si « brouillon » est coché** : une release en **brouillon** avec tous ces
+   fichiers. Si une release ou une étiquette de ce nom existe déjà, rien ne se fait — rien n'est
+   jamais remplacé.
+
+**Ce workflow ne publie jamais une release et n'en retire jamais une.** GitHub le garantit de
+lui-même : `/releases/latest` — l'adresse que lisent Glucose Tauri et Glucose Rust — ne voit que
+*« the most recent non-prerelease, non-draft release »*, et un brouillon ne peut pas être
+« latest ».
+
+### 15.2 Les preuves, par le code même de Glucose
+
+L'exemple `publication` (qui remplace `verifier_la_signature`) juge avec les fonctions mêmes de
+l'application : sa comparaison des versions, sa lecture de `latest.json`, sa vérification de
+signature. Ce qui passe là est ce que ses utilisateurs accepteront.
+
+* **`version`** : la version est écrite sous sa forme exacte, n'est pas une version de travail
+  (`-dev`), et **monte** au-dessus de la dernière publiée — lue sur GitHub au moment de publier.
+* **`programme`** : le programme construit dit cette version ; il porte **l'adresse des versions
+  de ce dépôt et la clé de Glucose** — dans le programme, seules l'adresse et la clé d'usage les
+  emploient : les y trouver, c'est savoir qu'aucune adresse ni clé d'épreuve ne les a
+  remplacées ; sous Windows, il est **fenêtré** (pas de console noire). La prémisse est éprouvée
+  à chaque envoi : la tâche « Windows, l'installeur » exige que **sa** construction d'épreuve
+  soit refusée.
+* **`signatures`** : chaque fichier est signé, dans son `.sig`, par **la clé publique de
+  Glucose**. C'est la preuve que le secret du dépôt est bien la clé de ses utilisateurs.
+* **`manifeste`** : sous chacune des six clés que lisent les programmes de mise à jour — celle de
+  chaque forme d'installation (`Installation::cles`, l'ordre de Tauri), puis celle de la
+  plateforme —, `latest.json` propose cette version, à une adresse de **cette** release ; le
+  fichier désigné se vérifie par la signature que le manifeste porte ; et le manifeste **ne
+  porte rien d'autre**.
+
+**Éprouvées sur les vrais fichiers de sa release 1.0.2-beta.1**, signés par sa clé et qui portent
+exactement les noms attendus : les quatre signatures et les six clés passent. Puis sabotées : les
+huit altérations du manifeste tombent, chacune pour sa raison (§ 10).
+
+### 15.3 Deux trouvailles en l'écrivant
+
+* **La date de publication disparaît.** L'updater de Tauri lit `latest.json` d'un bloc, et refuse
+  **tout le fichier** si `pub_date` n'est pas au format RFC 3339 strict
+  (`tauri-plugin-updater` 2.10.1, `RemoteRelease`) — sans rien dire à l'utilisateur. Notre lecteur,
+  lui, l'ignore : une date mal écrite aurait bloqué en silence la mise à jour de **tous** ses
+  utilisateurs de Tauri, et nos preuves ne l'auraient pas vu. `pub_date` et `notes` sont
+  facultatives chez Tauri, et son popup ne les montre pas : elles ne s'écrivent plus. D'où aussi
+  la preuve « rien d'autre ».
+* **Le mot de passe se passe explicitement.** L'outil de Tauri, sans `--password`, attend qu'on
+  tape un mot de passe au clavier — essayé ici, il est resté bloqué ; avec `--password ""`, il
+  signe. La publication passe le secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — vide, puisqu'il
+  n'existe pas — : exactement ce que la construction de Glucose Tauri donnait à cette clé
+  (`tauri-cli` 2.10.1, `bundle.rs` : *« if no password provided we use an empty string »*).
+  L'outil est épinglé : `@tauri-apps/cli@2.10.1`, celui qui a signé la 1.0.2-beta.1.
+
+### 15.4 Le jour de la bascule — son geste
+
+1. **Actions → Publier → Run workflow** : version `2.0.1-beta.1`, **brouillon coché**.
+2. Quand l'exécution est verte : **Releases** → le brouillon « Glucose 2.0.1-beta.1 » — relire
+   son texte (`outils/publication/notes.md`), le modifier au besoin.
+3. **Publish release**, en laissant **« Set as the latest release »** coché. À cet instant, chaque
+   Glucose Tauri qui se lance propose Glucose Rust.
+4. Ensuite, la version de travail repasse au-dessus de la publiée (`2.0.2-dev`), pour que la
+   suivante monte.
+
+Un chemin de retour existe : les installeurs de Glucose Tauri restent dans leurs releases.
+
+### 15.5 Qui la bascule atteint
+
+* **Windows et Linux** : tout Glucose Tauri qui a un programme de mise à jour — **toutes** ses
+  versions depuis la 1.0.1-beta.9 (04/07), qui embarquent toutes l'updater **2.10.1** (lu dans le
+  `Cargo.lock` de chaque étiquette) : celui qui sait poser l'installeur NSIS, l'AppImage, le
+  `.deb` et le `.rpm`.
+* **Pas le Mac** : le `latest.json` n'a pas d'entrée `darwin` — Glucose Rust n'a pas encore de
+  paquet Mac ; un Glucose Tauri sur Mac ne se verra rien proposer, et restera tel quel.
+* **Pas les versions d'avant la 1.0.1-beta.9** : elles n'avaient aucun programme de mise à jour.
+
+## 16. Sa clé : ce que l'historique du dépôt dit
+
+La fiche 36 § 1.3 écrivait que les versions de Glucose Tauri avaient été *« signées à la
+main »*. **C'est faux** : l'historique des exécutions le montre. Le workflow `release.yml` de
+Glucose Tauri (lisible à l'étiquette `v1.0.2-beta.1`) a construit **et signé** chacune de ses
+versions sur GitHub, de la 1.0.0-beta.1 à la 1.0.2-beta.1 (run `34358133540`, 09/09) : les
+fichiers `.sig` de cette release ont été déposés par le robot de GitHub pendant cette exécution.
+
+* **Le secret `TAURI_SIGNING_PRIVATE_KEY` existe**, créé le 04/07/2026 à 10 h 31 — le jour même du
+  fichier `~/.tauri/glucose_updater.key`. **Aucun secret de mot de passe** n'existe (l'API ne
+  liste que ce nom).
+* **C'est la bonne clé** : l'installeur Windows de la 1.0.2-beta.1, signé par ce secret, se
+  vérifie par la clé publique que Glucose Rust porte (refait le 30/09 avec l'outil, et un octet
+  changé est refusé).
+* **Elle signe sans mot de passe** : le workflow ne lui en donnait aucun.
+
+**La question de la fiche 46 § 6.3 change donc de forme.** Il n'y a plus à choisir entre « la
+déposer dans les secrets » et « signer soi-même » : elle y est déjà, et la publication s'en sert.
+Reste la seule chose qui compte : **une copie hors de ce PC**. Un secret de GitHub ne se relit
+jamais ; si ce PC et son fichier disparaissent, la publication signerait encore — tant que le
+secret existe —, mais personne ne pourrait plus ni le vérifier, ni le déplacer, ni signer
+ailleurs.
+
+## 17. Ce qui a été corrigé en chemin, et l'état à la fin
+
+* **`cargo run` sous Windows se croyait installé.** `Installation::de_ce_programme` rendait
+  « installé par NSIS » pour **tout** Glucose sous Windows. Le jour où une version publiée
+  dépasserait la version de travail, chacun de ses essais (`cargo run --release`) lui aurait
+  proposé de l'installer — et, s'il disait oui, aurait fermé la session d'essai. La règle est
+  désormais celle de Linux (« l'exécutable appartient-il à un paquet ? ») : **le désinstalleur
+  que l'installeur écrit à côté de `glucose.exe`**. Une épreuve lie ce nom à celui qu'écrit
+  `glucose.nsi` ; quatre sabotages tombent.
+* **Un chemin de bash passé à PowerShell** : sous Windows, `$PWD` est `/d/a/…` dans bash, que
+  PowerShell ne sait pas lancer — converti par `cygpath -w` avant le premier essai.
+* **Le cache de Rust lisait la caisse de Tauri avant qu'elle soit préparée** (elle se croyait
+  membre de notre espace de travail) : préparée avant.
+* **Mon sabotage de la preuve `programme` était aveugle, pas la preuve** : l'adresse et la clé
+  figurent **trois** fois dans le programme (une copie par endroit qui s'en sert) ; altérer la
+  première ne pouvait rien faire tomber. Altérées toutes, la preuve tombe.
+
+**L'état** : sous Windows, **1 967 épreuves vertes**, clippy strict à zéro, le formatage et la
+construction propres ; `%LOCALAPPDATA%\Glucose` identique fichier pour fichier. Sur GitHub : le
+verdict de l'envoi qui porte cette fiche, et de la première exécution de « Publier », est ajouté
+ci-dessous quand il tombe.
+
+## 18. Les sources
 
 * Tauri, `tauri-plugin-updater` 2.10.1 — [`src/updater.rs`](https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/updater/src/updater.rs)
   (`install_inner` sous Windows : `ShellExecuteW`, puis `std::process::exit(0)`) et
@@ -319,6 +518,25 @@ le programme **`/usr/bin/glucose`**, `Glucose.desktop` (`StartupWMClass=glucose`
   `platform_impl/linux/wayland/window/mod.rs` (l'`app_id`).
 * GitHub, [les variables des machines](https://docs.github.com/en/actions/reference/workflows-and-actions/variables)
   — `GITHUB_ACTIONS`, `RUNNER_ENVIRONMENT=github-hosted`, `RUNNER_TEMP`.
+* GitHub, [*Releases*, l'API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
+  — *« The latest release is the most recent non-prerelease, non-draft release »* ; *« Drafts and
+  prereleases cannot be set as latest »* ; *« Only users with push access will receive listings
+  for draft releases »*.
+* Tauri, `tauri-plugin-updater` 2.10.1, lu dans l'archive publiée sur crates.io :
+  `src/config.rs` (`dangerousInsecureTransportProtocol`, `validate_endpoints`), `src/updater.rs`
+  (`RemoteRelease` : `pub_date` en RFC 3339, sinon le fichier entier est refusé ; `get_urls` :
+  `{os}-{arch}-{installer}` puis `{os}-{arch}` ; `install_inner` : `/P /R /UPDATE /ARGS`), et
+  `CHANGELOG.md` (2.10.0 : *« supports all bundle types: Deb, Rpm and AppImage for Linux; NSIS,
+  MSI for Windows »*).
+* Tauri, `tauri-cli` 2.10.1 : `src/signer/sign.rs` (`--password`, sinon la question au clavier) et
+  `src/bundle.rs` (*« if no password provided we use an empty string »*).
+* Glucose Tauri, à l'étiquette `v1.0.2-beta.1` : `src/components/UpdatePrompt.tsx` (le bouton :
+  `downloadAndInstall`, puis `relaunch`), `src/telemetry/telemetry.ts` (rien ne part sans
+  consentement : la répétition n'envoie rien vers sa box), `.github/workflows/release.yml`, et le
+  `Cargo.lock` de chaque étiquette (l'updater de chaque version publiée).
+* Microsoft, [*about_Variables*](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_variables)
+  — *« Variable names aren't case-sensitive »* ; et une variable typée convertit ce qu'on lui
+  donne (§ 13).
 
 ---
 

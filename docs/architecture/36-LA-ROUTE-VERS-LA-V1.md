@@ -92,7 +92,7 @@ première impression — et que c'est **la** raison d'être de Glucose Rust.
 |---|---|:--:|---|
 | 3.1 | **L'installeur Windows** de Glucose Rust | ◐ | le jour de la bascule, il remplace proprement Tauri et garde les données |
 | 3.2 | **La mise à jour automatique** de Glucose Rust, avec son popup | ◐ | recommandation : le **même format** que Tauri (`latest.json` signé minisign — la vérification tient en une petite caisse) : continuité, clé unique, presque rien de plus ; **Velopack** si l'on veut des mises à jour par différences |
-| 3.3 | La construction et la publication **automatiques** (GitHub Actions) | ◐ | l'intégration continue de Tauri est désactivée : ses versions ont été signées à la main |
+| 3.3 | La construction et la publication **automatiques** (GitHub Actions) | ◐ | ~~ses versions ont été signées à la main~~ — **faux** : son workflow `release.yml` a construit et signé chacune d'elles sur GitHub, avec le secret du dépôt (fiche 48 § 16) |
 | 3.4 | Un **canal bêta** : Glucose Rust installable **à côté** de Tauri, sans bascule | ○ | des retours avant de forcer quiconque — **sans jamais marquer « latest »** une release qui porterait un `latest.json` |
 | 3.5 | La signature de code Windows (SmartScreen) | ◐ | un certificat payant — **décision à lui** |
 

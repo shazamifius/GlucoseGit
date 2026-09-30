@@ -178,8 +178,9 @@ puis l'étalonnage et l'auto-vérification des pilotes (fiche 44 § 1).
 
 1. **Le modèle de l'iPad** de la personne qui compte tant pour lui (ou sa version d'iPadOS).
 2. **Les appareils de ses dix testeurs Android** — le plus ancien surtout.
-3. **Sa clé de signature** : sauvegardée hors de ce PC ? Et la déposer dans les secrets GitHub,
-   ou signer lui-même chaque version ?
+3. **Sa clé de signature** : sauvegardée hors de ce PC ? *(Le 30/09 : elle est déjà dans les
+   secrets du dépôt depuis le 04/07, et c'est elle qui a signé chaque version de Tauri — fiche 48
+   § 16. Il ne reste que la copie hors de ce PC.)*
 4. **Le serveur** de la boîte noire : sa box derrière un nom gratuit, ou un hébergement gratuit.
 
 ---
