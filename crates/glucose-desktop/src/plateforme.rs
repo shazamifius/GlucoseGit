@@ -23,6 +23,7 @@ pub mod empreinte;
 pub mod graphique;
 pub mod heure;
 pub mod identite;
+pub mod journal;
 pub mod moisson;
 pub mod offre;
 pub mod priorite;

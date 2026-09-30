@@ -9,8 +9,14 @@
 //! l'appareil s'est éteint. Ce dernier cas se reconnaît à une chose sûre : **sa dernière trace
 //! précède le démarrage de l'appareil présent**. On le dit tel quel, « l'appareil a redémarré
 //! depuis », avec la dernière batterie écrite ; conclure « la batterie » serait deviner.
+//!
+//! **Et ce que le système a vu** : une session arrêtée sans rien dire a peut-être planté, ou gelé
+//! jusqu'à ce que le système la ferme — il l'a noté ([`super::plantage`]). Elle se dit alors
+//! « plantée dans tel module » ou « gelée ».
 
+use super::plantage::{self, Plantage};
 use super::sondes::EtatMachine;
+use crate::plateforme::journal::Evenement;
 use glucose_core::persist::tauri::json;
 use std::path::{Path, PathBuf};
 
@@ -23,6 +29,10 @@ pub enum Fin {
     Panique,
     /// Arrêtée sans rien dire.
     Interrompue,
+    /// Arrêtée sans rien dire, et le système a vu un plantage.
+    Plantee,
+    /// Arrêtée sans rien dire, et le système l'a fermée gelée.
+    Gelee,
 }
 
 impl Fin {
@@ -31,12 +41,14 @@ impl Fin {
             Fin::Propre => "propre",
             Fin::Panique => "panique",
             Fin::Interrompue => "interrompue",
+            Fin::Plantee => "plantee",
+            Fin::Gelee => "gelee",
         }
     }
 }
 
 /// Ce qu'on sait de la fin d'une session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bilan {
     pub fin: Fin,
     /// L'appareil a redémarré depuis la dernière trace d'une session qui n'a pas fini proprement.
@@ -45,6 +57,8 @@ pub struct Bilan {
     pub duree_ms: u64,
     /// Le dernier état de la machine qu'elle a écrit.
     pub machine: EtatMachine,
+    /// Ce que le système a vu de sa fin, si elle s'est arrêtée sans rien dire.
+    pub plantage: Option<Plantage>,
 }
 
 impl Bilan {
@@ -56,6 +70,10 @@ impl Bilan {
             Fin::Propre => format!("fermée proprement, après {min} min {s} s"),
             Fin::Panique => format!("tombée sur une panique, après {min} min {s} s"),
             Fin::Interrompue => format!("arrêtée sans rien dire, après {min} min {s} s"),
+            Fin::Plantee | Fin::Gelee => match &self.plantage {
+                Some(p) => format!("{}, après {min} min {s} s", p.dire()),
+                None => format!("arrêtée sans rien dire, après {min} min {s} s"),
+            },
         };
         if self.appareil_redemarre {
             t.push_str(" ; l'appareil a redémarré depuis");
@@ -110,6 +128,7 @@ pub fn bilan(texte: &str, demarrage_appareil_ms: Option<u64>) -> Option<Bilan> {
             && demarrage_appareil_ms.is_some_and(|d| derniere_trace < d),
         duree_ms: dernier,
         machine,
+        plantage: None,
     })
 }
 
@@ -145,7 +164,15 @@ fn est_une_session(p: &Path) -> bool {
 ///
 /// Une session plus ancienne qui a fini proprement s'efface : elle a été racontée au lancement
 /// qui la suivait. Un fichier sans début lisible aussi : il ne dit rien.
-pub fn ranger(dossier: &Path, demarrage_appareil_ms: Option<u64>) -> Option<Bilan> {
+///
+/// `systeme` rend ce que le système a noté depuis un instant
+/// ([`crate::plateforme::journal::plantages_depuis`]) : il n'est lu que pour une session d'avant
+/// qui s'est arrêtée sans rien dire.
+pub fn ranger(
+    dossier: &Path,
+    demarrage_appareil_ms: Option<u64>,
+    systeme: impl FnOnce(u64) -> Vec<Evenement>,
+) -> Option<Bilan> {
     let vivantes = |p: &Path| crate::persist::verrou::tenu_ailleurs(p);
     let finies: Vec<PathBuf> = sessions(dossier)
         .into_iter()
@@ -161,5 +188,25 @@ pub fn ranger(dossier: &Path, demarrage_appareil_ms: Option<u64>) -> Option<Bila
         }
     }
     let texte = std::fs::read_to_string(precedente).ok()?;
-    bilan(&texte, demarrage_appareil_ms)
+    let mut b = bilan(&texte, demarrage_appareil_ms)?;
+    if b.fin == Fin::Interrompue {
+        if let Some((debut_ms, processus)) = debut_et_processus(precedente) {
+            b.plantage = plantage::reconnaitre(&systeme(debut_ms), processus, debut_ms);
+        }
+        if let Some(p) = &b.plantage {
+            b.fin = if p.gel { Fin::Gelee } else { Fin::Plantee };
+        }
+    }
+    Some(b)
+}
+
+/// Le début d'une session et son processus, lus dans son nom :
+/// `session-<début, en millisecondes depuis 1970>-<processus>.jsonl`.
+fn debut_et_processus(p: &Path) -> Option<(u64, u32)> {
+    let nom = p.file_name()?.to_str()?;
+    let (debut, processus) = nom
+        .strip_prefix("session-")?
+        .strip_suffix(".jsonl")?
+        .split_once('-')?;
+    Some((debut.parse().ok()?, processus.parse().ok()?))
 }

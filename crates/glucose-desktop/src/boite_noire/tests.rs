@@ -187,7 +187,10 @@ fn test_ranger_garde_la_precedente_et_ce_qui_a_mal_fini() {
     );
     let autre = ecrire("autre-chose.txt", "à ne pas toucher");
 
-    let precedente = bilan::ranger(&d.boite(), None).expect("la dernière");
+    let precedente = bilan::ranger(&d.boite(), None, |_| {
+        panic!("une session propre ne demande rien au système")
+    })
+    .expect("la dernière");
     assert_eq!(precedente.fin, Fin::Propre);
     assert!(
         !ancienne_propre.exists(),
@@ -324,4 +327,121 @@ fn test_le_temoin_note_une_vraie_panique() {
         ),
         "{texte}"
     );
+}
+
+/// Le plantage que le système aurait noté pour la session `chemin` : son processus, créé
+/// avant son début, tombé après — lus dans son nom, comme la boîte noire les lit.
+fn vu_par_le_systeme(chemin: &Path, gel: bool) -> crate::plateforme::journal::Evenement {
+    let nom = chemin.file_name().unwrap().to_str().unwrap();
+    let (debut, processus) = nom
+        .trim_start_matches("session-")
+        .trim_end_matches(".jsonl")
+        .split_once('-')
+        .unwrap();
+    let debut: u64 = debut.parse().unwrap();
+    crate::plateforme::journal::Evenement {
+        gel,
+        processus: processus.parse().unwrap(),
+        creation_ms: debut - 250,
+        instant_ms: debut + 60_000,
+        module: Some("nvoglv64.dll".into()),
+        version_du_module: Some("32.0.16.1074".into()),
+        code: Some("c0000005".into()),
+        decalage: Some("0000000000a48b17".into()),
+    }
+}
+
+/// **Une session arrêtée sans rien dire se dit plantée, si le système l'a vue tomber** — et la
+/// session suivante l'écrit, pour que ce bilan voyage avec elle.
+#[test]
+fn test_une_session_arretee_se_dit_plantee_d_apres_le_systeme() {
+    let d = Dossier::nouveau("plantee");
+    let (mut b, _) = BoiteNoire::ouvrir_avec(&d.0, |_| Vec::new()).expect("ouverte");
+    b.image(Geste::Zoomer, 900);
+    b.synchroniser();
+    let tombee = b.chemin().to_path_buf();
+    // Ce qu'un plantage laisse : la session lâchée sans être close — sans sa ligne de fin.
+    drop(b);
+    let vu = vu_par_le_systeme(&tombee, false);
+    let (seconde, precedente) = BoiteNoire::ouvrir_avec(&d.0, |depuis| {
+        assert!(
+            depuis <= vu.instant_ms,
+            "on lit depuis le début de la session"
+        );
+        vec![vu.clone()]
+    })
+    .expect("rouverte");
+    let p = precedente.expect("la session d'avant");
+    assert_eq!(p.fin, Fin::Plantee);
+    assert!(
+        p.dire()
+            .starts_with("plantée dans nvoglv64.dll 32.0.16.1074"),
+        "{}",
+        p.dire()
+    );
+    seconde.synchroniser();
+    let texte = lire(seconde.chemin());
+    assert_eq!(
+        lignes_du_type(&texte, "precedente")[0].texte("fin"),
+        Some("plantee")
+    );
+    let plantage = &lignes_du_type(&texte, "plantage")[0];
+    assert_eq!(plantage.texte("module"), Some("nvoglv64.dll"));
+    assert_eq!(plantage.entier("code"), Some(0xC000_0005));
+    assert_eq!(plantage.booleen("gel"), Some(false));
+}
+
+/// **Ce que le système n'a pas vu ne s'invente pas** : sans événement de ce processus, la
+/// session reste « arrêtée sans rien dire », et aucune ligne de plantage ne s'écrit.
+#[test]
+fn test_sans_rien_du_systeme_la_session_reste_muette() {
+    let d = Dossier::nouveau("muette");
+    let (b, _) = BoiteNoire::ouvrir_avec(&d.0, |_| Vec::new()).expect("ouverte");
+    b.synchroniser();
+    let tombee = b.chemin().to_path_buf();
+    drop(b);
+    let mut ailleurs = vu_par_le_systeme(&tombee, false);
+    ailleurs.processus = ailleurs.processus.wrapping_add(1);
+    let (seconde, precedente) =
+        BoiteNoire::ouvrir_avec(&d.0, move |_| vec![ailleurs]).expect("rouverte");
+    assert_eq!(
+        precedente.expect("la session d'avant").fin,
+        Fin::Interrompue
+    );
+    seconde.synchroniser();
+    assert!(lignes_du_type(&lire(seconde.chemin()), "plantage").is_empty());
+}
+
+/// **Un gel que le système a fermé se dit gel.**
+#[test]
+fn test_un_gel_ferme_par_le_systeme_se_dit_gel() {
+    let d = Dossier::nouveau("gelee");
+    let (b, _) = BoiteNoire::ouvrir_avec(&d.0, |_| Vec::new()).expect("ouverte");
+    b.synchroniser();
+    let tombee = b.chemin().to_path_buf();
+    drop(b);
+    let gel = vu_par_le_systeme(&tombee, true);
+    let (_, precedente) = BoiteNoire::ouvrir_avec(&d.0, move |_| vec![gel]).expect("rouverte");
+    let p = precedente.expect("la session d'avant");
+    assert_eq!(p.fin, Fin::Gelee);
+    assert!(p.dire().starts_with("gelée"), "{}", p.dire());
+}
+
+/// **La ligne d'un plantage est du JSON**, ce qui manque écrit `null`.
+#[test]
+fn test_la_ligne_d_un_plantage_est_du_json() {
+    let p = super::plantage::Plantage {
+        gel: false,
+        module: Some("vulkan-1.dll".into()),
+        version_du_module: None,
+        code: Some(0xC000_0005),
+        decalage: None,
+    };
+    let ligne = super::enregistrement::ligne_de_plantage(0, &p);
+    let v = json::lire(ligne.trim_end()).expect("du JSON");
+    assert_eq!(v.texte("type"), Some("plantage"));
+    assert_eq!(v.texte("module"), Some("vulkan-1.dll"));
+    assert!(ligne.contains("\"version_du_module\":null"), "{ligne}");
+    assert!(ligne.contains("\"decalage\":null"), "{ligne}");
+    assert_eq!(v.champ("version_du_module"), None);
 }

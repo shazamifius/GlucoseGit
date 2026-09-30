@@ -31,6 +31,7 @@
 
 pub mod bilan;
 pub mod enregistrement;
+pub mod plantage;
 pub mod sondes;
 
 use crate::chronique::{Chronique, Geste, Histogramme};
@@ -75,10 +76,19 @@ impl BoiteNoire {
     /// **Ouvre la boîte noire d'une session** dans `dossier` — celui de l'application —, après
     /// avoir relu la session d'avant, dont le bilan est rendu.
     pub fn ouvrir(dossier: &Path) -> std::io::Result<(Self, Option<bilan::Bilan>)> {
+        Self::ouvrir_avec(dossier, crate::plateforme::journal::plantages_depuis)
+    }
+
+    /// [`Self::ouvrir`], avec ce que le système a noté donné par qui l'appelle : les épreuves
+    /// donnent le leur.
+    fn ouvrir_avec(
+        dossier: &Path,
+        systeme: impl FnOnce(u64) -> Vec<crate::plateforme::journal::Evenement>,
+    ) -> std::io::Result<(Self, Option<bilan::Bilan>)> {
         let boite = dossier.join(DOSSIER);
         std::fs::create_dir_all(&boite)?;
         let demarrage = sondes::demarrage_de_l_appareil_ms();
-        let precedente = bilan::ranger(&boite, demarrage);
+        let precedente = bilan::ranger(&boite, demarrage, systeme);
         let epoque = sondes::maintenant_ms();
         let nom = format!("session-{epoque:020}-{}.jsonl", std::process::id());
         let chemin = boite.join(nom);
@@ -117,6 +127,9 @@ impl BoiteNoire {
                 batterie_pct: p.machine.batterie_pct,
                 en_charge: p.machine.en_charge,
             });
+            if let (Some(plantage), Some(v)) = (&p.plantage, &b.vers) {
+                let _ = v.send(Ordre::Ligne(enregistrement::ligne_de_plantage(0, plantage)));
+            }
         }
         Ok((b, precedente))
     }

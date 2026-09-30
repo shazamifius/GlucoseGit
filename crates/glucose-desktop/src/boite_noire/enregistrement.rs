@@ -199,6 +199,28 @@ pub fn ligne_de_panique(instant_ms: u64, fichier: &str, ligne: u32, principal: b
     )
 }
 
+/// **La ligne d'un plantage que le système a vu**, pour la session d'avant.
+///
+/// Avec celle d'une panique, la seule à porter des textes venus de l'exécution : le nom d'un
+/// module et sa version, que [`super::plantage`] ne laisse passer que faits de lettres, de
+/// chiffres et de `.-_+` — un nom de fichier, jamais un chemin.
+pub fn ligne_de_plantage(instant_ms: u64, p: &super::plantage::Plantage) -> String {
+    let texte = |t: &Option<String>| {
+        t.as_deref()
+            .map_or("null".to_string(), |t| format!("\"{}\"", echapper(t)))
+    };
+    let nombre = |n: Option<u64>| n.map_or("null".to_string(), |n| n.to_string());
+    format!(
+        "{{\"type\":\"plantage\",\"instant_ms\":{instant_ms},\"gel\":{},\"module\":{},\
+         \"version_du_module\":{},\"code\":{},\"decalage\":{}}}\n",
+        p.gel,
+        texte(&p.module),
+        texte(&p.version_du_module),
+        nombre(p.code.map(u64::from)),
+        nombre(p.decalage),
+    )
+}
+
 /// Échappe ce que JSON demande. Les noms sont fixés à la compilation, mais la ligne doit rester
 /// du JSON quel que soit celui qu'on y ajoutera demain.
 fn echapper(s: &str) -> String {
