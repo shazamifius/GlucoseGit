@@ -3,9 +3,11 @@
 
   L'épreuve « un vrai plantage se lit dans le journal » (plateforme::journal) fait tomber un
   processus et exige que Windows l'ait noté. Chez ses utilisateurs, le rapporteur est allumé et
-  note (Disabled = 0, LoggingDisabled = 0 : les valeurs par défaut) ; une machine de GitHub peut
-  l'avoir éteint. Ce script dit d'abord ce qu'il trouve, puis rend les valeurs par défaut — et
-  retire la fenêtre (DontShowUI = 1), qu'aucune machine sans écran ne doit attendre.
+  note (Disabled = 0, LoggingDisabled = 0 : les valeurs par défaut). Ce script dit d'abord ce
+  qu'il trouve, puis garantit ces valeurs — et l'absence de fenêtre (DontShowUI = 1), qu'aucune
+  machine sans écran ne doit attendre. (Le 30/09, la machine de GitHub les avait déjà : ce
+  n'était pas la cause du silence — c'était le mode d'erreur hérité, que l'épreuve remet à son
+  défaut.)
   learn.microsoft.com/windows/win32/wer/wer-settings
 
   NE SE LANCE QUE SUR UNE MACHINE JETABLE DE GITHUB : il change un réglage de la machine.

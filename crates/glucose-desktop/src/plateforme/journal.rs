@@ -254,11 +254,19 @@ mod tests {
             eprintln!("sautée : elle ne fait tomber un processus que sur une machine de GitHub");
             return;
         }
+        use std::os::windows::process::CommandExt;
         let depuis = crate::boite_noire::sondes::maintenant_ms();
+        // Le mode d'erreur par défaut, et non celui de ce processus : un enfant hérite du mode de
+        // son parent, et celui qui pilote la machine de GitHub pose `SEM_NOGPFAULTERRORBOX` —
+        // avec lui, *« the system does not invoke Windows Error Reporting »* (SetErrorMode).
+        // Chez un utilisateur, lancé par l'Explorateur ou l'installeur, Glucose a le mode par
+        // défaut (NSIS ne pose que `SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS`).
+        let par_defaut = windows::Win32::System::Threading::CREATE_DEFAULT_ERROR_MODE.0;
         let mut enfant = std::process::Command::new(std::env::current_exe().expect("l'épreuve"))
             .args(["--exact", "plateforme::journal::tests::planter_ici"])
             .args(["--ignored", "--test-threads=1"])
             .env("GLUCOSE_PLANTER_ICI", "1")
+            .creation_flags(par_defaut)
             .spawn()
             .expect("le processus qui va tomber");
         let processus = enfant.id();
@@ -313,7 +321,9 @@ mod tests {
     /// n'ait rien noté.
     #[cfg(windows)]
     fn le_rapporteur() -> String {
-        [
+        // SAFETY : lire le mode d'erreur de ce processus, sans argument ni effet.
+        let mode = unsafe { windows::Win32::System::Diagnostics::Debug::GetErrorMode() };
+        let reglages = [
             r"HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting",
             r"HKCU\Software\Microsoft\Windows\Windows Error Reporting",
             r"HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting",
@@ -336,7 +346,8 @@ mod tests {
             format!("  {cle} : {valeurs:?}")
         })
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+        format!("  le mode d'erreur de l'épreuve : {mode:#x}\n{reglages}")
     }
 
     /// Le processus que l'épreuve précédente fait tomber — lancé par elle seule. Rien n'est

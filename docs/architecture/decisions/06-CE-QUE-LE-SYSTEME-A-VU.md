@@ -83,8 +83,16 @@ système, quand on s'y mettra.
   la vérification **affiche** le rapporteur de la machine, puis le règle comme sur un poste
   ordinaire — allumé, qui note (`Disabled` et `LoggingDisabled` à 0, leurs valeurs par défaut) —,
   sans fenêtre (`DontShowUI`) : `outils/rapporteur_ordinaire.ps1`. L'épreuve ne règle plus rien
-  elle-même (le drapeau « sans fenêtre » de `WerSetFlags` n'est pas documenté), et dit ce qu'elle
-  a trouvé si elle tombe encore.
+  elle-même, et dit ce qu'elle a trouvé si elle tombe encore.
+* **Ce que le deuxième essai a appris** (`197b596`) : **mon hypothèse était fausse** — le
+  rapporteur de la machine était allumé et journalisait. La cause est dans le processus :
+  *« a child process inherits the error mode of its parent »*, et avec `SEM_NOGPFAULTERRORBOX`,
+  *« the system does not invoke Windows Error Reporting »* (SetErrorMode). Le programme qui pilote
+  la machine de GitHub pose ce mode (une autre intégration continue, Cirrus, a eu le même défaut) ;
+  l'épreuve lance désormais son processus **avec le mode par défaut** (`CREATE_DEFAULT_ERROR_MODE`).
+  **Chez ses utilisateurs, rien de tel** : lancé par l'Explorateur, l'updater de Tauri ou son
+  installeur, Glucose a le mode par défaut — NSIS ne pose que `SEM_NOOPENFILEERRORBOX |
+  SEM_FAILCRITICALERRORS` (lu dans sa source, `exehead/Main.c`).
 
 ## Les sources
 
@@ -95,7 +103,11 @@ système, quand on s'y mettra.
   Error').Events` et `'Application Hang'` — `ProcessId` (`win:HexInt32`), `ProcessCreationTime` et
   `StartTime` (`win:HexInt64`, un `FILETIME`).
 * Microsoft, [*WER Settings*](https://learn.microsoft.com/en-us/windows/win32/wer/wer-settings) —
-  `Disabled`, `LoggingDisabled`, `DontShowUI`, et leurs valeurs par défaut.
+  `Disabled`, `LoggingDisabled`, `DontShowUI`, et leurs valeurs par défaut ;
+  [`SetErrorMode`](https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-seterrormode)
+  — `SEM_NOGPFAULTERRORBOX` et l'héritage du mode par les processus enfants.
+* Cirrus CI, [*Don't start tasks with SEM_NOGPFAULTERRORBOX set*](https://github.com/cirruslabs/cirrus-ci-docs/issues/1068) ;
+  NSIS, [`Source/exehead/Main.c`](https://github.com/kichik/nsis/blob/master/Source/exehead/Main.c).
 * Embark Studios, [`crash-handling`](https://github.com/EmbarkStudios/crash-handling) — le témoin,
   écarté pour l'instant.
 

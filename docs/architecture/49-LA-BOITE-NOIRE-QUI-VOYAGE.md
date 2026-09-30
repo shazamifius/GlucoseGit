@@ -46,9 +46,11 @@ l'essentiel :
 muette sans rien du système, gelée, la ligne en JSON), la conversion des heures de Windows vérifiée
 sur un vrai événement ; **huit sabotages tombent**. Et **sur les machines de GitHub**, de bout en
 bout : un processus d'épreuve tombe pour de vrai — une exception à notre code, `0xE0474C55` — et
-le lecteur doit retrouver ce processus et ce code dans le journal. Le premier essai a montré que
-la machine de GitHub ne notait rien ; son rapporteur est désormais affiché, puis réglé comme sur
-un poste ordinaire (note `decisions/06`).
+le lecteur doit retrouver ce processus et ce code dans le journal. Les deux premiers essais ont
+montré que la machine de GitHub ne notait rien — non parce que son rapporteur était éteint (ma
+première hypothèse, fausse), mais parce que le programme qui la pilote coupe le rapporteur pour
+tous ses enfants (`SEM_NOGPFAULTERRORBOX`, un mode hérité) ; l'épreuve lance désormais son
+processus avec le mode par défaut, celui de ses utilisateurs (note `decisions/06`).
 
 **Ailleurs qu'à Windows**, rien encore : une session reste « arrêtée sans rien dire ». Chaque
 système a son registre ; la même porte (`plateforme::journal`), une voie par système :
