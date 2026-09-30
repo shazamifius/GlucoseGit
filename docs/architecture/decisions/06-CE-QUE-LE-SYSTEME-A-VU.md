@@ -93,6 +93,10 @@ système, quand on s'y mettra.
   **Chez ses utilisateurs, rien de tel** : lancé par l'Explorateur, l'updater de Tauri ou son
   installeur, Glucose a le mode par défaut — NSIS ne pose que `SEM_NOOPENFILEERRORBOX |
   SEM_FAILCRITICALERRORS` (lu dans sa source, `exehead/Main.c`).
+* **Le troisième essai** (`a3174e5`, run `36687729226`) : **vert**, les neuf tâches — sur la
+  machine Windows de GitHub, un vrai processus tombe, Windows le note, le lecteur retrouve ce
+  processus et ce code, et la boîte noire le reconnaît. Les deux échecs d'avant, sur la même
+  machine, prouvent que l'épreuve y tourne au lieu de se sauter.
 
 ## Les sources
 

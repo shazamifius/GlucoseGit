@@ -50,7 +50,8 @@ le lecteur doit retrouver ce processus et ce code dans le journal. Les deux prem
 montré que la machine de GitHub ne notait rien — non parce que son rapporteur était éteint (ma
 première hypothèse, fausse), mais parce que le programme qui la pilote coupe le rapporteur pour
 tous ses enfants (`SEM_NOGPFAULTERRORBOX`, un mode hérité) ; l'épreuve lance désormais son
-processus avec le mode par défaut, celui de ses utilisateurs (note `decisions/06`).
+processus avec le mode par défaut, celui de ses utilisateurs (note `decisions/06`). **Depuis,
+elle passe** (`a3174e5`) : le lecteur est prouvé sur un vrai plantage.
 
 **Ailleurs qu'à Windows**, rien encore : une session reste « arrêtée sans rien dire ». Chaque
 système a son registre ; la même porte (`plateforme::journal`), une voie par système :
