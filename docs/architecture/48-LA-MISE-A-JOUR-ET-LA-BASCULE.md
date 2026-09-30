@@ -350,7 +350,15 @@ de la bascule ») :
 ```
 
 **Onze secondes** de l'ouverture de Glucose Tauri à Glucose Rust vivant. Le reste des constats
-tombait sur la faute du § 13 ; leur verdict est au § 17.
+tombait sur la faute du § 13.
+
+**Le verdict, une fois la faute corrigée** (`ec8a72e`, run `36680998355`) : **vert**, chaque
+constat lu dans le journal — Glucose Tauri installé ; son updater lit `latest.json`, télécharge
+l'installeur, et Glucose Rust est installé puis **relancé par son installeur** ; Glucose Tauri
+s'est fermé de lui-même ; Glucose Rust **vit quinze secondes après** et dit sa version ; les deux
+fichiers de Tauri sont retirés ; la liste des programmes dit la nouvelle version ; le menu
+Démarrer, le bureau et l'épingle mènent à Glucose Rust et portent l'identité ; **les sept fichiers
+plantés sont intacts, et rien n'a disparu de `%LOCALAPPDATA%\Glucose`**. Encore onze secondes.
 
 Si un jour Glucose Rust n'arrive pas, l'épreuve dit jusqu'où l'updater est allé : ce que le
 serveur a servi, ce qu'il a écrit dans le dossier temporaire, ce qui tourne encore.
@@ -485,9 +493,20 @@ ailleurs.
   première ne pouvait rien faire tomber. Altérées toutes, la preuve tombe.
 
 **L'état** : sous Windows, **1 967 épreuves vertes**, clippy strict à zéro, le formatage et la
-construction propres ; `%LOCALAPPDATA%\Glucose` identique fichier pour fichier. Sur GitHub : le
-verdict de l'envoi qui porte cette fiche, et de la première exécution de « Publier », est ajouté
-ci-dessous quand il tombe.
+construction propres ; `%LOCALAPPDATA%\Glucose` identique fichier pour fichier.
+
+**Sur GitHub, `ec8a72e`** (run `36680998355`) : **les neuf tâches vertes** — Windows, Linux, Mac à
+puce Apple, Mac Intel, NixOS, Android, l'installeur et la mise à jour (dont la construction
+d'épreuve **refusée** par la preuve du programme, « le programme ne porte pas l'adresse des
+versions de Glucose »), les paquets Linux, et la répétition générale (§ 14).
+
+**La première exécution de « Publier »** (run `36681057840`, version `2.0.1-beta.1`, brouillon
+**décoché**) : **verte**, et chaque preuve a parlé dans son journal — la version monte au-dessus
+de 1.0.2-beta.1 ; les deux programmes publiables ; **les quatre fichiers, signés par le secret du
+dépôt, se vérifient par la clé publique de Glucose** (la preuve que le secret est sa clé, faite
+par GitHub) ; les six clés du `latest.json` proposent 2.0.1-beta.1, et il ne porte rien d'autre ;
+l'étape du brouillon **sautée** — aucune release n'a été créée, et « latest » est toujours la
+1.0.2-beta.1 de Glucose Tauri. Les fichiers sont dans les artefacts de l'exécution.
 
 ## 18. Les sources
 

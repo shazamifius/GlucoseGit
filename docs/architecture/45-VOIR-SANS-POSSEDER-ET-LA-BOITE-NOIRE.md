@@ -147,6 +147,8 @@ décalait la dernière trace *après* le démarrage choisi.
   chiffré, le serveur — sa part : un nom de domaine, le HTTPS devant sa box.
 * **Les plantages hors de Rust** — un pilote de carte graphique qui tombe : le processus témoin
   (`crash-handler`, `minidumper`) ; aujourd'hui, ils se lisent « arrêtée sans rien dire ».
+  *(Le 30/09, sous Windows : lus dans ce que le système a noté, sans témoin — fiche 49 § 1,
+  note `decisions/06`.)*
 * **La chaleur** : Android la dit (phase 6) ; Windows n'a pas d'interface simple pour elle.
 * **Les sondes du Mac** (phase 8) : d'ici là, elles disent qu'elles ne savent pas.
 * **Un très long épisode** — une heure d'écriture sans changer de geste — ne relève la machine
