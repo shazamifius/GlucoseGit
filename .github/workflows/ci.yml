@@ -77,14 +77,14 @@ jobs:
           test "$lignes" -eq 1
 
   android:
-    name: Android, le noyau
+    name: Android et le web, le noyau
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android, armv7-linux-androideabi
+          targets: aarch64-linux-android, armv7-linux-androideabi, wasm32-unknown-unknown
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
@@ -96,6 +96,10 @@ jobs:
 
       - name: Clippy strict, ARM 32 bits
         run: cargo clippy -p glucose-core -p glucose-math --all-targets --target armv7-linux-androideabi -- -D warnings
+
+      # L'iPad par le web (fiche 50) : le noyau dans un navigateur, en WebAssembly.
+      - name: Clippy strict, WebAssembly
+        run: cargo clippy -p glucose-core -p glucose-math --all-targets --target wasm32-unknown-unknown -- -D warnings
 
   nixos:
     name: NixOS, le paquet
