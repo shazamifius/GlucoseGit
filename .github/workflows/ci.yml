@@ -164,6 +164,12 @@ jobs:
           INSTALLEUR=$(python outils/installeur/construire.py "$RUNNER_TEMP/n/glucose-desktop.exe" "$RUNNER_TEMP/n" | tail -1)
           python outils/installeur/lire_les_suppressions.py --exiger-aucune-recursive "$INSTALLEUR"
           VN=$("$RUNNER_TEMP/n/glucose-desktop.exe" --version | cut -d' ' -f2)
+          # Une construction d'épreuve porte une autre adresse et une autre clé : la preuve de la
+          # publication (publier.yml) doit la refuser — sans quoi elle ne prouverait rien.
+          cargo build --release -p glucose-desktop --example publication
+          if target/release/examples/publication programme "$RUNNER_TEMP/n/glucose-desktop.exe" "$VN"; then
+            echo "::error::une construction d'épreuve passerait pour publiable"; exit 1
+          fi
           echo "INSTALLEUR_N=$INSTALLEUR" >> "$GITHUB_ENV"
           echo "VN=$VN" >> "$GITHUB_ENV"
 

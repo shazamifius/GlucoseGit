@@ -26,10 +26,15 @@ use super::{proposition, verifier, Proposition};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-/// Où Glucose lit ses versions : la release « latest » de ce dépôt — celle que Glucose Tauri lit.
+/// **Où Glucose lit ses versions** : la release « latest » de ce dépôt — celle que Glucose Tauri
+/// lit.
+pub const ADRESSE_DE_GLUCOSE: &str =
+    "https://github.com/shazamifius/GlucoseGit/releases/latest/download/latest.json";
+
+/// L'adresse que ce programme lit : celle de Glucose, sauf dans une construction d'épreuve.
 pub const ADRESSE: &str = match option_env!("GLUCOSE_MISE_A_JOUR") {
     Some(a) => a,
-    None => "https://github.com/shazamifius/GlucoseGit/releases/latest/download/latest.json",
+    None => ADRESSE_DE_GLUCOSE,
 };
 
 /// La clé qui vérifie ce qu'on installe : celle de Glucose, sauf dans une construction d'épreuve.

@@ -1,0 +1,230 @@
+name: Publier
+
+# La publication d'une version de Glucose Rust (fiche 48) — À LA MAIN SEULEMENT.
+#
+# Elle construit l'installeur Windows et les trois paquets Linux, les signe par la clé de Glucose
+# — le secret TAURI_SIGNING_PRIVATE_KEY, celui qui a signé chaque version de Glucose Tauri —, et
+# PROUVE, par le code même de Glucose (l'exemple `publication`), que tout ce qui part est ce que
+# ses utilisateurs accepteront : la version qui monte, le programme publiable, chaque signature
+# par la clé dont Glucose Tauri et Glucose Rust portent la moitié publique, le latest.json. Tout
+# reste dans les artefacts de l'exécution.
+#
+# « brouillon » coché, et seulement alors : une release en BROUILLON, avec son latest.json. Aucun
+# programme de mise à jour ne voit un brouillon : /releases/latest ne voit que les releases
+# publiées. La publier — la marquer « latest » —, c'est la bascule de ses utilisateurs de
+# Glucose Tauri : ce geste est le sien, dans la page des releases. Ce workflow ne publie jamais
+# une release, et n'en retire jamais une.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "La version, sous sa forme exacte (2.0.1-beta.1)"
+        required: true
+        type: string
+      brouillon:
+        description: "Déposer une release en BROUILLON (jamais publiée par ce workflow)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publier
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  # La version n'entre dans les commandes que par cette variable, jamais écrite dans leur texte.
+  VERSION: ${{ inputs.version }}
+  # L'outil de Tauri qui a signé Glucose Tauri 1.0.2-beta.1 (son package-lock.json).
+  SIGNATAIRE: "@tauri-apps/cli@2.10.1"
+
+jobs:
+  windows:
+    name: Windows, l'installeur
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: NSIS
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) { choco install nsis -y --no-progress }
+
+      # Un programme publié lit le latest.json de ce dépôt et vérifie par la clé de Glucose : ni
+      # l'adresse ni la clé d'une épreuve n'entrent dans une construction publiée (mise_a_jour::cycle).
+      - name: La version, et rien d'une épreuve
+        shell: bash
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::« $VERSION » n'est pas une version"; exit 1; }
+          if [ -n "${GLUCOSE_MISE_A_JOUR:-}${GLUCOSE_CLE_PUBLIQUE:-}" ]; then echo "::error::une adresse ou une clé d'épreuve"; exit 1; fi
+          sed -i -E "0,/^version = /s/^version = \".*\"/version = \"$VERSION\"/" crates/glucose-desktop/Cargo.toml
+
+      - name: Construire
+        run: cargo build --release -p glucose-desktop --bins --example publication
+
+      - name: La version monte, le programme est publiable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PUBLIEE=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          target/release/examples/publication version "$VERSION" "$PUBLIEE"
+          target/release/examples/publication programme target/release/glucose-desktop.exe "$VERSION"
+
+      # L'installeur ne retire jamais un dossier avec ce qu'il contient, ni lui ni son désinstalleur.
+      - name: L'installeur
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/publie"
+          INSTALLEUR=$(python outils/installeur/construire.py target/release/glucose-desktop.exe "$RUNNER_TEMP/publie" | tail -1)
+          python outils/installeur/lire_les_suppressions.py --exiger-aucune-recursive "$INSTALLEUR"
+          echo "INSTALLEUR=$INSTALLEUR" >> "$GITHUB_ENV"
+
+      # Sans secret de mot de passe, le mot de passe vide : ce que la construction de Glucose
+      # Tauri donnait à cette même clé (tauri-cli, bundle.rs).
+      - name: Signer par la clé de Glucose
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          MOT_DE_PASSE: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::le secret TAURI_SIGNING_PRIVATE_KEY manque"; exit 1; }
+          npx --yes "$SIGNATAIRE" signer sign --password "$MOT_DE_PASSE" "$INSTALLEUR"
+
+      - name: Signé par la clé de Glucose
+        shell: bash
+        run: target/release/examples/publication signatures "$INSTALLEUR"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: ${{ runner.temp }}/publie/Glucose_*
+          if-no-files-found: error
+
+      # L'outil des preuves, pour le manifeste : il n'a pas à être reconstruit.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: outil
+          path: target/release/examples/publication.exe
+          if-no-files-found: error
+
+  # Construits sur Ubuntu 22.04, comme Glucose Tauri : glibc 2.34, que ses utilisateurs ont.
+  linux:
+    name: Linux, les paquets
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # appimagetool et le runtime des AppImage : des versions publiées, vérifiées par leur
+      # empreinte — les mêmes que la vérification de chaque envoi.
+      - name: Dépendances
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev pkg-config rpm
+          curl -sSfL -o "$RUNNER_TEMP/appimagetool" https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  $RUNNER_TEMP/appimagetool" | sha256sum -c
+          curl -sSfL -o "$RUNNER_TEMP/runtime-x86_64" https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+          echo "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  $RUNNER_TEMP/runtime-x86_64" | sha256sum -c
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          echo "APPIMAGETOOL=$RUNNER_TEMP/appimagetool" >> "$GITHUB_ENV"
+          echo "RUNTIME=$RUNNER_TEMP/runtime-x86_64" >> "$GITHUB_ENV"
+          echo "APPIMAGE_EXTRACT_AND_RUN=1" >> "$GITHUB_ENV"
+
+      - name: La version, et rien d'une épreuve
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::« $VERSION » n'est pas une version"; exit 1; }
+          if [ -n "${GLUCOSE_MISE_A_JOUR:-}${GLUCOSE_CLE_PUBLIQUE:-}" ]; then echo "::error::une adresse ou une clé d'épreuve"; exit 1; fi
+          sed -i -E "0,/^version = /s/^version = \".*\"/version = \"$VERSION\"/" crates/glucose-desktop/Cargo.toml
+
+      - name: Construire
+        run: cargo build --release -p glucose-desktop --bins --example publication
+
+      - name: Le programme est publiable
+        run: target/release/examples/publication programme target/release/glucose-desktop "$VERSION"
+
+      - name: Les paquets
+        run: bash outils/paquets/construire.sh target/release/glucose-desktop "$RUNNER_TEMP/publie"
+
+      - name: Signer par la clé de Glucose
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          MOT_DE_PASSE: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::le secret TAURI_SIGNING_PRIVATE_KEY manque"; exit 1; }
+          cd "$RUNNER_TEMP/publie"
+          for f in "Glucose_${VERSION}_amd64.AppImage" "Glucose_${VERSION}_amd64.deb" "Glucose-${VERSION}-1.x86_64.rpm"; do
+            npx --yes "$SIGNATAIRE" signer sign --password "$MOT_DE_PASSE" "$f"
+          done
+
+      - name: Signés par la clé de Glucose
+        run: |
+          D="$RUNNER_TEMP/publie"
+          target/release/examples/publication signatures "$D/Glucose_${VERSION}_amd64.AppImage" "$D/Glucose_${VERSION}_amd64.deb" "$D/Glucose-${VERSION}-1.x86_64.rpm"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: ${{ runner.temp }}/publie/Glucose*
+          if-no-files-found: error
+
+  manifeste:
+    name: Le latest.json, et le brouillon
+    needs: [windows, linux]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/publie
+          merge-multiple: true
+
+      # Écrit par un script, relu par le code même de Glucose : ce qui passe ici est ce que les
+      # programmes de mise à jour liront.
+      - name: Le latest.json, prouvé
+        shell: bash
+        run: |
+          D="$RUNNER_TEMP/publie"
+          python outils/publication/manifeste.py "$D" "$VERSION" "$GITHUB_REPOSITORY"
+          "$D/publication.exe" manifeste "$D/latest.json" "$VERSION"
+          cat "$D/latest.json"
+          rm "$D/publication.exe"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glucose-${{ inputs.version }}
+          path: ${{ runner.temp }}/publie/*
+          if-no-files-found: error
+
+      # Un brouillon, jamais une release publiée. Rien n'est remplacé : une release ou une
+      # étiquette de ce nom existe déjà, et rien ne se fait.
+      - name: Le brouillon
+        if: inputs.brouillon
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          D="$RUNNER_TEMP/publie"
+          ETIQUETTE="v$VERSION"
+          if gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq '.[].tag_name' | grep -qxF "$ETIQUETTE"; then
+            echo "::error::une release $ETIQUETTE existe déjà : rien n'est remplacé"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$ETIQUETTE" > /dev/null; then
+            echo "::error::l'étiquette $ETIQUETTE existe déjà : rien n'est remplacé"; exit 1
+          fi
+          sed "s/{version}/$VERSION/g" outils/publication/notes.md > "$RUNNER_TEMP/notes.md"
+          gh release create "$ETIQUETTE" --draft --target "$GITHUB_SHA" --title "Glucose $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" "$D"/Glucose* "$D/latest.json"
+          BROUILLON=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$ETIQUETTE\") | .draft")
+          [ "$BROUILLON" = "true" ] || { echo "::error::la release $ETIQUETTE n'est pas un brouillon"; exit 1; }
+          echo "::notice::Glucose $VERSION est un BROUILLON : aucun programme de mise à jour ne le voit. Le publier, c'est la bascule."
