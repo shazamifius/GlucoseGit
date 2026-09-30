@@ -57,7 +57,7 @@ d'avant se dit « plantée dans nvoglv64.dll 32.0.16.1074 (violation d'accès à
 |---|---|
 | `Win32_System_EventLog` | `EvtQuery`, `EvtNext`, `EvtCreateRenderContext`, `EvtRender`, `EvtClose` |
 | `Win32_Security` | exigée par le type des valeurs rendues (`EVT_VARIANT`) ; déjà compilée pour `wgpu` |
-| pour les épreuves seulement : `Win32_System_ErrorReporting`, `Win32_System_Diagnostics_Debug` | faire tomber un vrai processus, sans fenêtre (`WerSetFlags`, `RaiseException`) |
+| pour les épreuves seulement : `Win32_System_Diagnostics_Debug` | faire tomber un vrai processus (`RaiseException`) |
 
 ## Ailleurs qu'à Windows
 
@@ -75,9 +75,16 @@ système, quand on s'y mettra.
   plantage, se dit plantée, et la suivante l'écrit ; sans rien du système, elle reste muette ; un
   gel se dit gel.
 * **Le lecteur, de bout en bout, sur les machines de GitHub** : un processus d'épreuve lève une
-  exception que personne n'attrape (le code `0xE0474C55`, à nous seuls), le rapporteur en silence ;
-  le lecteur doit retrouver **ce** processus et **ce** code. Seulement là : un plantage fait écrire
-  à Windows un rapport dans ses propres dossiers, et ce n'est pas sur sa machine qu'on le provoque.
+  exception que personne n'attrape (le code `0xE0474C55`, à nous seuls) ; le lecteur doit
+  retrouver **ce** processus et **ce** code. Seulement là : un plantage fait écrire à Windows un
+  rapport dans ses propres dossiers, et ce n'est pas sur sa machine qu'on le provoque.
+* **Ce que le premier essai a appris** (`7f043d0`) : le processus est bien tombé sur notre code,
+  mais la machine de GitHub **n'a rien noté** en deux minutes. Plutôt que de le supposer éteint,
+  la vérification **affiche** le rapporteur de la machine, puis le règle comme sur un poste
+  ordinaire — allumé, qui note (`Disabled` et `LoggingDisabled` à 0, leurs valeurs par défaut) —,
+  sans fenêtre (`DontShowUI`) : `outils/rapporteur_ordinaire.ps1`. L'épreuve ne règle plus rien
+  elle-même (le drapeau « sans fenêtre » de `WerSetFlags` n'est pas documenté), et dit ce qu'elle
+  a trouvé si elle tombe encore.
 
 ## Les sources
 
@@ -87,9 +94,8 @@ système, quand on s'y mettra.
 * Les gabarits des deux événements, lus sur la machine : `(Get-WinEvent -ListProvider 'Application
   Error').Events` et `'Application Hang'` — `ProcessId` (`win:HexInt32`), `ProcessCreationTime` et
   `StartTime` (`win:HexInt64`, un `FILETIME`).
-* Microsoft, [`WerSetFlags`](https://learn.microsoft.com/en-us/windows/win32/api/werapi/nf-werapi-wersetflags)
-  — `WER_FAULT_REPORTING_FLAG_QUEUE` ; `WER_FAULT_REPORTING_NO_UI` est dans `werapi.h`, pas sur
-  cette page.
+* Microsoft, [*WER Settings*](https://learn.microsoft.com/en-us/windows/win32/wer/wer-settings) —
+  `Disabled`, `LoggingDisabled`, `DontShowUI`, et leurs valeurs par défaut.
 * Embark Studios, [`crash-handling`](https://github.com/EmbarkStudios/crash-handling) — le témoin,
   écarté pour l'instant.
 

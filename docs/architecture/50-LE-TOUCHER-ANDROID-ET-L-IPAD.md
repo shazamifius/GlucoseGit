@@ -16,13 +16,15 @@
   Une couche de gestes au-dessus de ce que `winit` rend, la même pour Android et le web.
 * **L'iPad par le web** : WebGPU est dans Safari 26, sur **tout iPad qui reçoit iPadOS 26** (puce
   A12 et après : iPad 8ᵉ génération, mini 5, Air 3, Pro 3ᵉ génération). Un iPad plus ancien
-  passerait par WebGL2. **Deux obstacles d'architecture**, pas de détail :
+  passerait par WebGL2. **Trois obstacles d'architecture**, pas de détail :
   1. **les fils n'existent pas dans un navigateur** — le travail de fond de Glucose (scribe, atelier,
      boîte noire) doit y tourner **en tranches, dans le temps libre de chaque image** : la cascade
      de la charte, devenue une voie à part entière ;
   2. **Safari efface les données d'un site** qu'on n'a pas touché depuis un temps — sauf, *peut-être*,
      en mode persistant. Une version web qui perdrait un document serait pire que rien : chaque
-     document devra vivre **aussi** dans les Fichiers de l'iPad.
+     document devra vivre **aussi** dans les Fichiers de l'iPad ;
+  3. **Safari recharge une page qui prend trop de mémoire**, sans limite connue d'avance : chaque
+     geste sur le disque avant le suivant — ce que le journal de Glucose fait déjà.
 * **Android** : `winit` y passe par `android-activity`. Le **clavier virtuel** — Glucose est fait
   d'écriture — impose `GameActivity` (et une construction Gradle), pas `NativeActivity`.
 * **Ce qui attend sa parole** : le modèle de l'iPad ; les téléphones de ses testeurs.
@@ -83,10 +85,20 @@ est le plus dur — c'est là que se mesurera la voie.
   pas effacer. La conception exacte (quand, comment, sans rien demander à chaque geste) est le
   premier travail de la phase web.
 
-### 2.4 Ce qui reste à mesurer
+### 2.4 La mémoire — un troisième obstacle, et une règle
 
-* **La mémoire** qu'une page reçoit sur un iPad avant que le système la ferme — elle décide de la
-  mémoire par étages sur le web.
+**Aucune limite fixe** : la page reçoit la plus petite de la limite de WebKit et de celle du
+système, selon la mémoire de l'appareil, sa charge, et même le temps depuis son démarrage — de
+l'ordre de 1,5 à 3 Go relevés sur des iPhone récents, davantage sur un iPad. **Au-delà, Safari
+recharge la page** (*« This webpage was reloaded because it was using significant memory »*) : ce
+qui n'était pas écrit disparaît. D'où la règle, que le journal de Glucose tient déjà sous Windows
+(fiche 37) : **chaque geste sur le disque avant le suivant** — un rechargement ne perd rien. Et
+la mémoire par étages, sur le web, ne pourra pas lire ce que le système lui laisse : elle devra
+rester loin de la limite, par construction.
+
+### 2.5 Ce qui reste à mesurer
+
+* **La mémoire** réellement laissée sur **son** iPad — elle se mesurera sur place.
 * **Le crayon** : la pression et l'inclinaison, que les événements du navigateur donnent.
 
 ## 3. Android
@@ -125,6 +137,10 @@ est le plus dur — c'est là que se mesurera la voie.
   charge, la puce A12.
 * web.dev, [*Using WebAssembly threads from C, C++ and Rust*](https://web.dev/articles/webassembly-threads) ;
   `wasm-bindgen`, [*Current state of WASM threads*](https://github.com/rustwasm/wasm-bindgen/issues/2433).
+* Apple Developer Forums, [*jetsam per-process-limit*](https://developer.apple.com/forums/thread/688973)
+  et [*Web app crashes only on iPadOS*](https://developer.apple.com/forums/thread/735018) ; Godot,
+  [issue 70621](https://github.com/godotengine/godot/issues/70621) — la mémoire d'une page sur iOS,
+  et le rechargement.
 * WebKit, [*Updates to Storage Policy*](https://webkit.org/blog/14403/updates-to-storage-policy/) —
   les quotas, le mode persistant ; MDN, [*Storage quotas and eviction criteria*](https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria).
 * `winit`, [`platform::android`](https://docs.rs/winit/latest/winit/platform/android/index.html) ;

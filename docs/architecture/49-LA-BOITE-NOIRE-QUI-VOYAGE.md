@@ -45,12 +45,19 @@ l'essentiel :
 **Ce qui le tient** : quatre épreuves de la reconnaissance, quatre de la boîte noire (plantée,
 muette sans rien du système, gelée, la ligne en JSON), la conversion des heures de Windows vérifiée
 sur un vrai événement ; **huit sabotages tombent**. Et **sur les machines de GitHub**, de bout en
-bout : un processus d'épreuve tombe pour de vrai — une exception à notre code, `0xE0474C55`, le
-rapporteur en silence — et le lecteur doit retrouver ce processus et ce code dans le journal.
+bout : un processus d'épreuve tombe pour de vrai — une exception à notre code, `0xE0474C55` — et
+le lecteur doit retrouver ce processus et ce code dans le journal. Le premier essai a montré que
+la machine de GitHub ne notait rien ; son rapporteur est désormais affiché, puis réglé comme sur
+un poste ordinaire (note `decisions/06`).
 
 **Ailleurs qu'à Windows**, rien encore : une session reste « arrêtée sans rien dire ». Chaque
-système a son registre (le journal du noyau sous Linux, les rapports de diagnostic du Mac,
-`ApplicationExitInfo` sous Android) ; la même porte, une voie par système.
+système a son registre ; la même porte (`plateforme::journal`), une voie par système :
+
+* **Linux en a deux** — c'est le point à trancher avant d'écrire sa voie : **Fedora** et la
+  plupart des distributions notent un plantage par `systemd-coredump`, dans le journal du système ;
+  **Ubuntu** par `apport`, `systemd-coredump` n'y étant qu'en option. Il faudra lire les deux — ou
+  que Glucose note lui-même ce qu'aucun des deux ne note ;
+* le **Mac**, ses rapports de diagnostic ; **Android**, `ApplicationExitInfo` (Android 11 et après).
 
 ## 2. Ce qui voyagera — la conception, avant le code
 
@@ -118,6 +125,9 @@ Celles de la note [`decisions/06`](decisions/06-CE-QUE-LE-SYSTEME-A-VU.md) ; et 
   certificat Let's Encrypt par le défi DNS, sans port entrant pour lui.
 * Cloudflare, [*Workers — pricing*](https://developers.cloudflare.com/workers/platform/pricing/) —
   100 000 requêtes par jour au plan gratuit.
+* Ubuntu, [*Apport local information disclosure vulnerability fixes*](https://ubuntu.com/blog/apport-local-information-disclosure-vulnerability-fixes-available)
+  — `systemd-coredump` par défaut chez Red Hat et Fedora, `apport` chez Ubuntu ; et
+  [*Apport 2.28.0 gained systemd-coredump integration*](https://discourse.ubuntu.com/t/apport-2-28-0-gained-systemd-coredump-integration/44910).
 
 ---
 
