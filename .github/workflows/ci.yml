@@ -191,6 +191,79 @@ jobs:
         shell: pwsh
         run: ./outils/installeur/eprouver.ps1 -Tauri "$env:RUNNER_TEMP\tauri-setup.exe" -Installeur $env:INSTALLEUR_N -Version $env:VN -Serveur "$env:RUNNER_TEMP\serveur" -VersionSuivante $env:VN1
 
+  # La répétition générale de la bascule (fiche 48) : Glucose Tauri, reconstruit depuis sa
+  # source publiée avec une clé d'essai, se met à jour PAR SON PROPRE UPDATER vers Glucose Rust.
+  repetition:
+    name: Windows, la répétition générale de la bascule
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/checkout@v5
+        with:
+          ref: v1.0.2-beta.1
+          path: tauri-source
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: NSIS
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\Program Files (x86)\NSIS\makensis.exe')) { choco install nsis -y --no-progress }
+
+      - name: Clé d'essai
+        shell: bash
+        run: |
+          npx --yes @tauri-apps/cli@2 signer generate --ci -p essai -w "$RUNNER_TEMP/cle-d-essai.key"
+          echo "GLUCOSE_CLE_PUBLIQUE=$(cat "$RUNNER_TEMP/cle-d-essai.key.pub")" >> "$GITHUB_ENV"
+          echo "GLUCOSE_MISE_A_JOUR=http://127.0.0.1:8765/latest.json" >> "$GITHUB_ENV"
+
+      # Avant le cache de Rust, qui lit chaque caisse : extraite dans notre dépôt, celle de Tauri
+      # ne se lit qu'une fois déclarée son propre espace de travail.
+      - name: Glucose Tauri, préparé pour la répétition
+        shell: bash
+        run: python outils/installeur/preparer_tauri.py tauri-source "$GLUCOSE_CLE_PUBLIQUE"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            tauri-source/src-tauri -> target
+
+      # Glucose Rust et son installeur, signé et servi comme GitHub sert latest.json — aux deux
+      # clés que l'updater de Tauri lit sous Windows.
+      - name: Glucose Rust, signé et servi
+        shell: bash
+        run: |
+          cargo build --release -p glucose-desktop
+          mkdir -p "$RUNNER_TEMP/rust" "$RUNNER_TEMP/serveur"
+          cp target/release/glucose-desktop.exe "$RUNNER_TEMP/rust/"
+          INSTALLEUR=$(python outils/installeur/construire.py "$RUNNER_TEMP/rust/glucose-desktop.exe" "$RUNNER_TEMP/serveur" | tail -1)
+          npx --yes @tauri-apps/cli@2 signer sign -f "$RUNNER_TEMP/cle-d-essai.key" -p essai "$INSTALLEUR"
+          VN=$("$RUNNER_TEMP/rust/glucose-desktop.exe" --version | cut -d' ' -f2)
+          export SIG="$(cat "$INSTALLEUR.sig")" VN NOM="$(basename "$INSTALLEUR")"
+          python -c "import json, os; e = {'signature': os.environ['SIG'], 'url': 'http://127.0.0.1:8765/' + os.environ['NOM']}; print(json.dumps({'version': os.environ['VN'], 'notes': 'repetition', 'pub_date': '2026-01-01T00:00:00Z', 'platforms': {'windows-x86_64': e, 'windows-x86_64-nsis': e}}))" > "$RUNNER_TEMP/serveur/latest.json"
+          echo "VN=$VN" >> "$GITHUB_ENV"
+
+      # Ses dépendances figées par son package-lock.json et son Cargo.lock : l'outil de Tauri et
+      # l'updater mêmes (2.10.1) que ceux de la release que ses utilisateurs ont.
+      - name: Glucose Tauri, reconstruit pour la répétition
+        shell: bash
+        run: |
+          cd tauri-source
+          npm ci
+          npx tauri build --bundles nsis -- --locked
+          # Un chemin de Windows : PowerShell ne lance pas un chemin à la mode de bash (/d/a/...).
+          echo "TAURI_SETUP=$(cygpath -w "$(ls "$PWD"/src-tauri/target/release/bundle/nsis/*-setup.exe)")" >> "$GITHUB_ENV"
+
+      - name: La répétition générale
+        shell: pwsh
+        run: ./outils/installeur/repetition.ps1 -Tauri $env:TAURI_SETUP -Serveur "$env:RUNNER_TEMP\serveur" -Version $env:VN
+
   # La bascule et la mise à jour sous Linux (fiche 48), sous les trois formes que ses
   # utilisateurs de Glucose Tauri peuvent avoir : le .deb, le .rpm, l'AppImage. Construits sur
   # Ubuntu 22.04 : Glucose Tauri y était construit, et exige la même bibliothèque C (glibc 2.34) —
