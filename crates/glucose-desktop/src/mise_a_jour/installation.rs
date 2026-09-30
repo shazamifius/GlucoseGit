@@ -4,7 +4,8 @@
 //! NSIS sous Windows ; sous Linux l'AppImage, le paquet `.deb` et le paquet `.rpm`. Glucose Rust
 //! les reprend, avec leurs noms — une bascule sans couture, et un seul fichier des versions.
 //!
-//! * **NSIS** : l'installeur se lance quand Glucose se ferme, et attend qu'il le soit.
+//! * **NSIS** : l'installeur se lance quand Glucose se ferme, et attend qu'il le soit. Un Glucose
+//!   posé par lui se reconnaît au désinstalleur qu'il écrit à côté de `glucose.exe`.
 //! * **AppImage** : le fichier lui-même, reconnu par la variable `APPIMAGE` que son lanceur pose,
 //!   est remplacé d'un bloc — exécutable avant de prendre sa place.
 //! * **`.deb`, `.rpm`** : l'exécutable appartient à un paquet du système (`dpkg-query -S`,
@@ -14,6 +15,9 @@
 //! — n'a pas d'installation : il ne se propose aucune mise à jour qu'il ne saurait pas poser.
 
 use std::path::{Path, PathBuf};
+
+/// Le désinstalleur que l'installeur Windows écrit à côté de `glucose.exe`.
+pub const DESINSTALLEUR: &str = "uninstall.exe";
 
 /// Comment ce programme est installé.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,7 +36,7 @@ impl Installation {
     /// **L'installation de ce programme**, ou rien s'il ne sait pas se remplacer.
     pub fn de_ce_programme() -> Option<Self> {
         if cfg!(windows) {
-            return Some(Self::Nsis);
+            return Self::de_windows(&std::env::current_exe().ok()?);
         }
         if !cfg!(target_os = "linux") {
             return None;
@@ -57,6 +61,17 @@ impl Installation {
         } else {
             None
         }
+    }
+
+    /// **Sous Windows, posé par son installeur** : le désinstalleur qu'il écrit à côté de
+    /// `glucose.exe` (`outils/installeur/glucose.nsi`, `WriteUninstaller`) — l'équivalent de
+    /// « l'exécutable appartient à un paquet » sous Linux. Une construction de travail
+    /// (`cargo run`) n'en a pas : elle ne se propose aucune mise à jour, qui s'installerait
+    /// ailleurs et fermerait la session d'essai.
+    pub fn de_windows(exe: &Path) -> Option<Self> {
+        exe.with_file_name(DESINSTALLEUR)
+            .is_file()
+            .then_some(Self::Nsis)
     }
 
     /// Son nom dans `latest.json`, après la plateforme : `windows-x86_64-nsis`,
@@ -160,6 +175,38 @@ mod tests {
         let appimage = Installation::AppImage("/home/x/Glucose.AppImage".into());
         assert_eq!(appimage.nom(), "appimage");
         assert_eq!(Installation::Rpm("/usr/bin/glucose".into()).nom(), "rpm");
+    }
+
+    /// **Sous Windows, seul un Glucose posé par son installeur se remplace** : à côté de
+    /// `glucose.exe`, le désinstalleur que l'installeur écrit. Une construction de travail —
+    /// `target\release\glucose-desktop.exe` — n'en a pas, et ne se propose rien.
+    #[test]
+    fn test_sous_windows_seul_un_glucose_installe_se_remplace() {
+        let d = std::env::temp_dir().join(format!("glucose-installation-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let exe = d.join("glucose.exe");
+        std::fs::write(&exe, b"x").unwrap();
+        assert_eq!(
+            Installation::de_windows(&exe),
+            None,
+            "une construction de travail"
+        );
+        std::fs::write(d.join(DESINSTALLEUR), b"x").unwrap();
+        assert_eq!(Installation::de_windows(&exe), Some(Installation::Nsis));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// **Le désinstalleur que Glucose cherche est celui que l'installeur écrit** : écrit deux
+    /// fois, le nom divergerait un jour, et plus aucun Glucose installé ne se mettrait à jour.
+    #[test]
+    fn test_l_installeur_ecrit_le_desinstalleur_que_glucose_cherche() {
+        let nsi = include_str!("../../../../outils/installeur/glucose.nsi");
+        let attendue = format!("WriteUninstaller \"$INSTDIR\\{DESINSTALLEUR}\"");
+        assert!(
+            nsi.lines().any(|l| l.trim() == attendue),
+            "glucose.nsi doit écrire {attendue}"
+        );
     }
 
     /// **Ce qui se relance** : l'installeur et les arguments de Tauri sous Windows ; Glucose
