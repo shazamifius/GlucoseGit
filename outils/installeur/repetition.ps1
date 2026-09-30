@@ -34,8 +34,8 @@ Copy-Item $menu $epingle
 
 Write-Host '== 2. Son updater fait la bascule'
 $serveurHttp = Servir $Serveur
-$tauri = Start-Process "$donnees\glucose.exe" -PassThru
-$null = $tauri.Handle
+$ouvert = Start-Process "$donnees\glucose.exe" -PassThru
+$null = $ouvert.Handle
 # Glucose Rust doit apparaître : posé par l'installeur, puis relancé par lui (/R). On regarde
 # les processus, faute de pouvoir regarder l'écran.
 $limite = (Get-Date).AddMinutes(10)
@@ -49,7 +49,7 @@ if (-not $rust) {
     # Ce qui dit jusqu'où l'updater de Tauri est allé : ce qu'il a demandé au serveur, ce qu'il a
     # écrit dans le dossier temporaire, ce qui tourne encore.
     DireCeQueLeServeurAServi
-    Write-Host "  -- Glucose Tauri fini : $($tauri.HasExited)"
+    Write-Host "  -- Glucose Tauri fini : $($ouvert.HasExited)"
     Get-ChildItem $env:TEMP -Directory -Filter 'Glucose-*' -ErrorAction SilentlyContinue |
         ForEach-Object { Write-Host "  -- dossier de l'updater : $($_.FullName)"; Get-ChildItem $_.FullName | ForEach-Object { Write-Host "     $($_.Name) $($_.Length)" } }
     Get-Process glucose, *setup*, *installer* -ErrorAction SilentlyContinue |
@@ -59,7 +59,7 @@ if (-not $rust) {
 $null = $rust.Handle
 Write-Host '  ok : Glucose Rust a été installé, puis relancé par son installeur'
 DireCeQueLeServeurAServi
-Constater $tauri.HasExited 'Glucose Tauri s''est fermé de lui-même'
+Constater $ouvert.HasExited 'Glucose Tauri s''est fermé de lui-même'
 Start-Sleep -Seconds 15
 Constater (-not $rust.HasExited) 'Glucose Rust vit, quinze secondes après'
 Constater ((Demander $exe '--version').Sortie -eq "Glucose $Version") "il est la version $Version"
