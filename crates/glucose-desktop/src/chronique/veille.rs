@@ -61,6 +61,11 @@ pub struct Veille {
     /// Le nombre d'images rendues au dernier relevé, et celles qui l'ont été sans la main.
     rendues_au_dernier: u64,
     rendues_sans_la_main: u64,
+    /// La même chose raison par raison : **qui** dessine quand personne ne regarde (fiche 51
+    /// § 6). Le seul total ne disait pas si c'était une glissade qui s'éteint après un geste,
+    /// un message qui s'efface, ou un réveil que rien ne justifie.
+    par_raison_au_dernier: [u64; 16],
+    par_raison_sans_la_main: [u64; 16],
     /// La mémoire du dernier relevé, et la plus grande vue de la session.
     memoire_octets: u64,
     memoire_pire: u64,
@@ -98,6 +103,8 @@ pub struct Compte {
     pub sous_la_main: u64,
     /// Combien d'images ont été rendues, toutes causes confondues.
     pub rendues: u64,
+    /// Combien d'images chaque raison a demandées, rangées par son bit.
+    pub par_raison: [u64; 16],
 }
 
 /// Une part de cœur observée sur une durée.
@@ -145,6 +152,13 @@ impl Veille {
             let sans_la_main = compte.sous_la_main == self.sous_la_main;
             let regime = if sans_la_main {
                 self.rendues_sans_la_main += compte.rendues - self.rendues_au_dernier;
+                for (cumul, (maintenant, avant)) in self
+                    .par_raison_sans_la_main
+                    .iter_mut()
+                    .zip(compte.par_raison.iter().zip(self.par_raison_au_dernier))
+                {
+                    *cumul += maintenant.saturating_sub(avant);
+                }
                 &mut self.endormi
             } else {
                 &mut self.eveille
@@ -155,6 +169,24 @@ impl Veille {
         self.dernier = Some((maintenant, vu));
         self.sous_la_main = compte.sous_la_main;
         self.rendues_au_dernier = compte.rendues;
+        self.par_raison_au_dernier = compte.par_raison;
+    }
+
+    /// Ce que chaque raison a fait dessiner pendant que personne ne regardait, les plus
+    /// coûteuses d'abord. Une image peut en porter plusieurs.
+    pub fn raisons_sans_la_main(&self) -> Vec<(crate::app::reveil::Raison, u64)> {
+        let mut r: Vec<_> = crate::app::reveil::Raison::TOUTES
+            .into_iter()
+            .map(|r| {
+                (
+                    r,
+                    self.par_raison_sans_la_main[r.bit().trailing_zeros() as usize],
+                )
+            })
+            .filter(|(_, n)| *n > 0)
+            .collect();
+        r.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        r
     }
 
     /// **Range un relevé de la carte graphique** : ce qu'elle porte, ce que le système accorde,

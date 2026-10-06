@@ -55,20 +55,17 @@ fn test_several_cards_are_separated_by_a_blank_line() {
     );
 }
 
-/// Une image rend le chemin de son fichier, c'est-à-dire exactement ce que le collage sait
-/// relire pour la réimporter. Copier et coller se referment l'un sur l'autre.
+/// **Une image ne rend aucun texte** : son nom interne ne veut rien dire pour un autre logiciel.
+/// Elle voyage dans le lot (fiche 51 § 2).
 #[test]
-fn test_an_image_gives_the_path_that_pasting_knows_how_to_read() {
+fn test_an_image_gives_no_text() {
     let mut app = app();
     let board = app.store.project.active_board_id.clone();
     let mut img = BoardImage::new("i", 0.0, 0.0, 100.0, 80.0);
     img.src = Some("C:/photos/chat.png".into());
     app.store.add_image(&board, img);
     app.store.set_selected_image_ids(vec!["i".into()]);
-    assert_eq!(
-        app.store.selection_as_text().as_deref(),
-        Some("C:/photos/chat.png")
-    );
+    assert_eq!(app.store.selection_as_text(), None);
 }
 
 /// Une carte vide ne rend pas une ligne vide : elle ne rend rien.
@@ -99,6 +96,7 @@ fn test_ctrl_c_and_ctrl_x_reach_the_copy_outside_a_text_session() {
     app.store.set_selected_annotation_ids(vec!["a".into()]);
     app.modifiers = ModifiersState::CONTROL;
     app.handle_shortcut_input(&Key::Character("c".into()), ElementState::Pressed);
+    app.suivre_les_echanges(true);
     // L'accusé doit dire **copié**, pas n'importe quoi : un toast quelconque serait vert
     // même quand l'écriture échoue, et ce test-là mentirait exactement comme celui de la
     // touche Entrée mentait.
@@ -121,6 +119,7 @@ fn test_ctrl_c_and_ctrl_x_reach_the_copy_outside_a_text_session() {
 
     // Et couper emporte **et** retire.
     app.handle_shortcut_input(&Key::Character("x".into()), ElementState::Pressed);
+    app.suivre_les_echanges(true);
     let reste = app
         .store
         .active_board()
@@ -130,13 +129,14 @@ fn test_ctrl_c_and_ctrl_x_reach_the_copy_outside_a_text_session() {
 }
 
 /// **Coller un texte pose une carte qui le porte**, là où est la souris — par la fabrique, qui
-/// la mesure.
+/// la mesure — et sans un mot (fiche 51 § 2).
 #[test]
 fn test_coller_un_texte_pose_une_carte() {
     let mut app = app();
     crate::interactions::presse_papiers::ouvrir()
         .and_then(|mut a| a.ecrire("  bonjour\ndeux lignes \n".into()))
         .expect("écrit");
+    let message_d_avant = app.ui.toast_message().map(str::to_string);
     app.paste_from_clipboard();
     let board = app.store.active_board().expect("tableau");
     assert_eq!(board.annotations.len(), 1, "une carte");
@@ -147,9 +147,10 @@ fn test_coller_un_texte_pose_une_carte() {
         text, "bonjour\ndeux lignes",
         "le texte, sans ses blancs de bord"
     );
-    assert!(app
-        .ui
-        .current_toast
-        .as_ref()
-        .is_some_and(|t| t.message.contains("collé")));
+    // La carte apparaît sous le curseur : cela se regarde, et aucun message n'en parle.
+    assert_eq!(
+        app.ui.toast_message(),
+        message_d_avant.as_deref(),
+        "un collage réussi se tait"
+    );
 }

@@ -390,7 +390,22 @@ impl Store {
         Some(locked)
     }
 
+    ///
+    /// **Un seul geste** (fiche 51 § 2) : les images, les annotations et le dossier partaient
+    /// chacun dans le leur, et un `Ctrl+Z` après la suppression d'une sélection mêlée n'en
+    /// rendait qu'une partie — le reste attendait un second `Ctrl+Z` que rien n'annonçait.
     pub fn delete_selected(&mut self, board_id: &str) {
+        let ouvert = self.journal.is_open();
+        if !ouvert {
+            self.journal.begin();
+        }
+        self.supprimer_la_selection(board_id);
+        if !ouvert && self.journal.end() {
+            self.bump_version();
+        }
+    }
+
+    fn supprimer_la_selection(&mut self, board_id: &str) {
         let imgs = self.selected_image_ids.clone();
         let anns = self.selected_annotation_ids.clone();
         let f_opt = self.selected_folder_id.clone();

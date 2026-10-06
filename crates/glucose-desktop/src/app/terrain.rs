@@ -35,7 +35,7 @@ impl GlucoseApp {
         // pour l'œil c'est le même mouvement, et c'est lui que la chronique juge. Sans l'élan
         // ici, chaque glissement au pavé tactile se comptait « repos » -- deux mille sept cents
         // images d'une session réelle, sous le nom de ce qui ne bouge pas.
-        if self.is_panning || self.elan.en_cours() {
+        if self.is_panning || self.elan.bouge() {
             return Geste::DeplacerLaVue;
         }
         if self.vol.en_cours() {

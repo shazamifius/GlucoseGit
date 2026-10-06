@@ -16,6 +16,7 @@ fn compte(sous_la_main: u64, rendues: u64) -> Compte {
     Compte {
         sous_la_main,
         rendues,
+        par_raison: [0; 16],
     }
 }
 
@@ -167,4 +168,52 @@ fn test_un_seul_geste_suffit_a_reveiller_l_intervalle() {
     v.noter(seconde(t0, 1), compte(43, 140), vu(200, 20));
     assert_eq!(v.au_repos(), None, "aucun intervalle sans la main");
     assert!(v.a_l_usage().is_some());
+}
+
+/// **Au repos, chaque image se porte au compte de la raison qui l'a demandée** (fiche 51 § 6),
+/// et seulement au repos : ce que la main a provoqué n'y entre pas.
+#[test]
+fn test_au_repos_chaque_image_a_sa_raison() {
+    use crate::app::reveil::Raison;
+    let par = |toast: u64, elan: u64| {
+        let mut p = [0; 16];
+        p[Raison::Toast.bit().trailing_zeros() as usize] = toast;
+        p[Raison::Elan.bit().trailing_zeros() as usize] = elan;
+        p
+    };
+    let t0 = Instant::now();
+    let mut v = Veille::default();
+    v.noter(
+        t0,
+        Compte {
+            sous_la_main: 0,
+            rendues: 0,
+            par_raison: par(0, 0),
+        },
+        vu(200, 500),
+    );
+    // Une seconde sous la main : quarante images d'élan, qui ne comptent pas au repos.
+    v.noter(
+        seconde(t0, 1),
+        Compte {
+            sous_la_main: 5,
+            rendues: 40,
+            par_raison: par(0, 40),
+        },
+        vu(200, 510),
+    );
+    // Puis une seconde sans elle : trois images du message qui s'efface, deux de l'élan.
+    v.noter(
+        seconde(t0, 2),
+        Compte {
+            sous_la_main: 5,
+            rendues: 45,
+            par_raison: par(3, 42),
+        },
+        vu(200, 520),
+    );
+    assert_eq!(
+        v.raisons_sans_la_main(),
+        vec![(Raison::Toast, 3), (Raison::Elan, 2)]
+    );
 }

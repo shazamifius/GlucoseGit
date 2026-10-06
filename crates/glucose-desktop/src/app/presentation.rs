@@ -22,7 +22,7 @@ impl GlucoseApp {
         // Le tempo ne regle que ce qui BOUGE : c'est la seule situation ou un intervalle
         // irregulier se voit. Ailleurs -- un decodage, un curseur qui clignote -- attendre
         // ferait tourner le processeur a vide pour une regularite que personne ne regarde.
-        if !(self.elan.en_cours() || self.vol.en_cours()) {
+        if !self.la_vue_bouge() {
             self.tempo.oublier();
             crate::perf::compteur("tempo_balayages", 0.0);
             crate::perf::compteur("tempo_attente_us", 0.0);

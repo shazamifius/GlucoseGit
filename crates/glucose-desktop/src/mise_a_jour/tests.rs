@@ -57,17 +57,19 @@ fn test_les_versions_s_ordonnent_comme_semver() {
     }
 }
 
-/// **Glucose Rust ne se croit jamais plus vieux que Glucose Tauri.** La release « latest » de ce
-/// dépôt est encore celle de Glucose Tauri : une version de ce programme en dessous de la sienne
-/// lirait son `latest.json` et proposerait, à qui a Glucose Rust, de réinstaller Glucose Tauri.
+/// **La version de travail dépasse tout ce qui a été publié.** En dessous de la dernière de Glucose
+/// Tauri, elle proposerait de réinstaller Glucose Tauri ; en dessous de la dernière de Glucose Rust
+/// (oubli de la 2.0.1, corrigé le 06/10/2026), elle se croirait plus vieille que ce que ses
+/// utilisateurs ont déjà. À relever après chaque publication (fiche 48 § 15.4).
 #[test]
-fn test_la_version_depasse_celle_de_glucose_tauri() {
-    let derniere_de_tauri = v("1.0.2-beta.1");
-    assert!(
-        Version::courante() > derniere_de_tauri,
-        "Glucose {} proposerait Glucose Tauri {derniere_de_tauri}",
-        Version::courante()
-    );
+fn test_la_version_depasse_tout_ce_qui_est_publie() {
+    for publiee in ["1.0.2-beta.1", "2.0.1-beta.1"] {
+        assert!(
+            Version::courante() > v(publiee),
+            "Glucose {} se croirait plus vieux que la {publiee} publiée",
+            Version::courante()
+        );
+    }
 }
 
 /// **Les plateformes se nomment comme chez Tauri.**

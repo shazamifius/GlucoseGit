@@ -46,7 +46,12 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
     let store = store_with(2, 0, false);
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
-        vec![MenuAction::Paste, MenuAction::SelectAll],
+        vec![
+            MenuAction::Paste,
+            MenuAction::SelectAll,
+            MenuAction::NouveauDocument,
+            MenuAction::ModeReference
+        ],
         "sans sélection, ni dupliquer ni supprimer n'ont d'objet"
     );
 }
@@ -57,6 +62,8 @@ fn test_sur_une_selection_il_propose_les_gestes_de_selection() {
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
         vec![
+            MenuAction::Copier,
+            MenuAction::Couper,
             MenuAction::Duplicate,
             MenuAction::ToggleLock,
             MenuAction::TrimBorders,
@@ -168,5 +175,24 @@ fn test_les_entrees_sempilent_sans_se_chevaucher() {
             assert!(y + h <= my + mh + 0.5, "{row:?} déborde en bas");
             bas = y + h;
         }
+    }
+}
+
+/// **Une image seule offre de la copier comme une image et de l'enregistrer** (fiche 51 § 3) ;
+/// deux images, ou une image et une carte, n'en offrent pas : le presse-papiers ne porte
+/// qu'une image, et un fichier n'en enregistre qu'une.
+#[test]
+fn test_une_image_seule_offre_de_la_copier_et_de_l_enregistrer() {
+    let seule = actions(&menu(&store_with(1, 0, true), (100.0, 100.0)));
+    assert!(seule.contains(&MenuAction::CopierLImage));
+    assert!(seule.contains(&MenuAction::EnregistrerLImage));
+    for (images, cartes) in [(2, 0), (1, 1), (0, 1)] {
+        let a = actions(&menu(&store_with(images, cartes, true), (100.0, 100.0)));
+        assert!(
+            !a.contains(&MenuAction::CopierLImage),
+            "{images} image(s), {cartes} carte(s)"
+        );
+        assert!(!a.contains(&MenuAction::EnregistrerLImage));
+        assert!(a.contains(&MenuAction::Copier) && a.contains(&MenuAction::Couper));
     }
 }

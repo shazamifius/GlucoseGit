@@ -123,6 +123,16 @@ impl GlucoseApp {
         );
     }
 
+    /// L'image en cours montre-t-elle la vue en mouvement ? C'est la question du rendu (ce
+    /// qu'on a le droit d'abimer), du tempo (ce qui doit etre regulier) et de la finesse.
+    ///
+    /// L'elan **bouge** plutot qu'il n'est « en cours » : a la souris, sa dette s'eteint dans
+    /// l'image meme qui la montre (fiche 51 § 1), et cette image-la est bien une image de
+    /// mouvement. Un vol compte au meme titre : la vue change sous l'oeil.
+    pub(super) fn la_vue_bouge(&self) -> bool {
+        self.elan.bouge() || self.vol.en_cours()
+    }
+
     /// Ce que cette image a coute decide de la finesse de la suivante.
     ///
     /// Deux questions, et il faut les deux : le budget dit ce dont on a **besoin**, la
@@ -158,7 +168,7 @@ impl GlucoseApp {
         let plancher = self.tempo.cible_pour_descendre();
         // Un vol compte comme un mouvement au meme titre que l'elan : la vue change sous
         // l'oeil, et c'est cela seul qui autorise a rendre plus grossier.
-        let en_mouvement = self.elan.en_cours() || self.vol.en_cours();
+        let en_mouvement = self.la_vue_bouge();
         // Ce que l'oeil tolere a la vitesse a laquelle la vue vient de bouger. Le budget dit
         // ce dont on a BESOIN, ceci dit ce qui est LICITE -- et degrader demande les deux.
         let plafond = self.perception.facteur_admissible();

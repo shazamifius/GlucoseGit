@@ -26,6 +26,7 @@ pub mod identite;
 pub mod journal;
 pub mod moisson;
 pub mod offre;
+pub mod presse_papiers;
 pub mod priorite;
 pub mod rapatrier;
 pub mod sources;

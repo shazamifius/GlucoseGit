@@ -223,3 +223,52 @@ fn seul_un_delta_impossible_a_la_molette_denonce_un_pave() {
     assert!(!source_continue(lignes(0.0, 1.0)));
     assert!(!source_continue(lignes(0.0, -3.0)));
 }
+
+/// NAV-4 — **à la souris, la vue est là où la main l'a mise, à l'image suivante** (fiche 51
+/// § 1). Joué dans l'application, par les deux portes réelles : un cran de molette, puis un
+/// glisser au bouton du milieu. À l'envers, un défilement de pavé n'est montré qu'en partie
+/// à la même image : la voie du doigt, elle, n'a pas changé.
+#[test]
+fn test_nav_4_la_souris_se_montre_a_l_image_suivante_et_rien_apres() {
+    const ECRAN: (u32, u32) = (1280, 720);
+    let mut app = crate::app::GlucoseApp::new();
+    let avant = app.store.viewport().scale;
+    app.handle_mouse_wheel(lignes(0.0, 1.0));
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    let apres = app.store.viewport().scale;
+    assert!(
+        (apres / avant - OCTAVES_PAR_CRAN.exp2()).abs() < 1e-12,
+        "tout le cran dans l'image suivante : x{}",
+        apres / avant
+    );
+    for _ in 0..200 {
+        app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    }
+    assert_eq!(app.store.viewport().scale, apres, "et rien ne glisse après");
+
+    let x = app.store.viewport().x;
+    for _ in 0..7 {
+        app.handle_pan_move(3.0, 0.0);
+    }
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    assert!(
+        (app.store.viewport().x - x - 21.0).abs() < 1e-9,
+        "le glisser suit au pixel"
+    );
+    for _ in 0..200 {
+        app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    }
+    assert!(
+        (app.store.viewport().x - x - 21.0).abs() < 1e-9,
+        "le lâcher arrête net"
+    );
+
+    let y = app.store.viewport().y;
+    app.handle_mouse_wheel(pixels(0.0, 30.0));
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    let montre = (app.store.viewport().y - y).abs();
+    assert!(
+        montre < 30.0,
+        "à l'envers, le pavé reste lissé : {montre} px sur 30"
+    );
+}

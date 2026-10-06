@@ -41,8 +41,8 @@ pub enum Raison {
     Decodage,
     Chantier,
     Pomodoro,
-    /// Une commande attend ses images : un `Ctrl+B` dont les originaux reviennent de chez le
-    /// système (ETAGES-1).
+    /// Une commande attend son travail de fond : un `Ctrl+B` dont les originaux reviennent de
+    /// chez le système (ETAGES-1), un lot de nœuds copié ou collé (fiche 51 § 2).
     Commande,
     /// La main a bougé, cliqué ou tapé depuis l'image précédente.
     Main,
@@ -223,7 +223,7 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 10] = [
+        let attentes: [(Raison, Attente); 11] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
@@ -234,6 +234,7 @@ impl GlucoseApp {
             (Raison::Chantier, Self::attente_du_chantier),
             (Raison::Pomodoro, Self::attente_du_pomodoro),
             (Raison::Commande, Self::attente_de_la_commande),
+            (Raison::Commande, Self::attente_des_echanges),
         ];
         let (mut masque, mut plus_proche) = (0u16, None::<u64>);
         for (raison, attente) in attentes {
@@ -258,6 +259,16 @@ impl GlucoseApp {
         self.bordures_en_attente.as_ref()?;
         self.mark_dirty();
         Some(self.animation_interval_ms())
+    }
+
+    /// **Un lot de nœuds se prépare** sur un fil de fond (fiche 51 § 2) : on repasse voir s'il
+    /// est prêt, sans rien redessiner — c'est ce qu'il rapporte qui salira la vue.
+    ///
+    /// Quatre millisecondes : sous l'image d'un écran à 240 Hz, donc rien de plus lent que la
+    /// boucle qui dessine, pour un travail qui ne dure que le temps de lire ses images.
+    fn attente_des_echanges(&mut self) -> Option<u64> {
+        self.suivre_les_echanges(false);
+        self.echanges.en_cours().then_some(4)
     }
 
     /// Le curseur d'édition de texte clignote à la demi-seconde.

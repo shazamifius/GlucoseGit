@@ -7,6 +7,11 @@ use crate::interactions::presse_papiers;
 use glucose_core::types::BoardImage;
 use std::path::{Path, PathBuf};
 
+mod lot;
+mod menu_image;
+pub use lot::Echanges;
+pub use menu_image::ImagePosee;
+
 /// Extensions proposees par le dialogue d'import d'images.
 const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 
@@ -129,6 +134,10 @@ impl GlucoseApp {
         let active_bid = self.store.project.active_board_id.clone();
         let vp = self.store.viewport();
         let (wx, wy) = screen_to_world(self.mouse_pos.0, self.mouse_pos.1, &vp);
+        // 0. Un lot de nœuds — copié ici ou dans une autre fenêtre de Glucose (fiche 51 § 2).
+        if self.coller_un_lot(&active_bid, (wx, wy)) {
+            return;
+        }
 
         match presse_papiers::ouvrir() {
             Ok(mut clipboard) => {
@@ -141,10 +150,6 @@ impl GlucoseApp {
                 // 2. Tenter de coller du texte ou un chemin de fichier
                 if let Ok(text) = clipboard.texte() {
                     let trimmed = text.trim();
-                    // Une image de ce document, copiée par `Ctrl+C` : sa clé la désigne.
-                    if self.recoller_une_image(&active_bid, trimmed, (wx, wy)) {
-                        return;
-                    }
                     let path = Path::new(trimmed);
                     if path.exists() && path.is_file() {
                         self.import_image_files(&[path.to_path_buf()]);
@@ -171,15 +176,12 @@ impl GlucoseApp {
                         wy,
                         trimmed,
                     );
+                    // Sans message : la carte apparaît sous le curseur, et cela se regarde.
                     self.store.add_annotation(&active_bid, ann);
-                    self.ui.show_toast("Texte collé");
                     self.mark_dirty();
                 }
             }
-            Err(e) => {
-                let err = DesktopError::ClipboardError(e);
-                self.ui.show_toast(err.to_string());
-            }
+            Err(e) => self.echec_presse_papiers(e),
         }
     }
 }
@@ -232,41 +234,10 @@ impl GlucoseApp {
         self.poser_une_image_collee(board, img);
     }
 
-    /// **Recolle une image de ce document**, copiée par `Ctrl+C` — qui en copie la clé : la
-    /// clé la désigne, qu'un fichier la porte encore ou non. Une image collée n'en a pas, une
-    /// image venue de Tauri non plus, et le fichier d'une photo déposée a pu disparaître depuis
-    /// qu'elle est scellée ; seul le chemin d'un fichier qui existe se recollait. Rend `false`
-    /// si la clé ne désigne aucune image d'ici.
-    fn recoller_une_image(&mut self, board: &str, cle: &str, (wx, wy): (f64, f64)) -> bool {
-        let Some(modele) = self
-            .store
-            .project
-            .toutes_les_images()
-            .find(|i| i.src.as_deref() == Some(cle))
-            .cloned()
-        else {
-            return false;
-        };
-        // Tout ce qui fait son aspect, rien de ce qui la situe : un nœud neuf, là où l'on colle,
-        // hors de toute membrane, miroir de rien.
-        let mut img = BoardImage {
-            id: self.store.generate_id("img-paste"),
-            x: wx,
-            y: wy,
-            membrane_id: None,
-            slot_id: None,
-            mirror_of: None,
-            ..modele
-        };
-        img.locked = false;
-        self.poser_une_image_collee(board, img);
-        true
-    }
-
-    /// Le seul endroit qui pose une image collée, et le dit.
+    /// Le seul endroit qui pose une image collée. Sans message : elle apparaît sous le curseur,
+    /// et cela se regarde — comme un vol réussi se tait.
     fn poser_une_image_collee(&mut self, board: &str, img: BoardImage) {
         self.store.add_image(board, img);
-        self.ui.show_toast("Image collée");
         self.mark_dirty();
     }
 }
@@ -317,34 +288,6 @@ impl GlucoseApp {
                 );
             }
         }
-    }
-}
-
-// ── Copier ce qui est **sélectionné** ───────────────────────────────────────
-//
-// `Ctrl+C` n'existait que pendant une saisie. Hors saisie, la table des raccourcis tenait
-// `v`, `z`, `y`, `d`, `a`, `]` et `[` — mais ni `c` ni `x`. Sélectionner une carte et la
-// copier ne faisait donc rien du tout, et rien ne le disait : pas de toast, pas d'erreur,
-// pas de test. Le geste le plus banal d'un ordinateur tombait dans le vide.
-
-impl GlucoseApp {
-    /// `Ctrl+C` et `Ctrl+X` hors saisie : la sélection part vers le presse-papiers du système.
-    pub(crate) fn copy_selection(&mut self, couper: bool) {
-        let compte = self.store.selected_annotation_ids.len() + self.store.selected_image_ids.len();
-        let Some(texte) = self.store.selection_as_text() else {
-            return;
-        };
-        if !self.ecrire_presse_papiers(texte) {
-            return;
-        }
-        let verbe = if couper { "coupé" } else { "copié" };
-        let pluriel = if compte > 1 { "s" } else { "" };
-        self.ui
-            .show_toast(format!("{compte} élément{pluriel} {verbe}{pluriel}"));
-        if couper {
-            self.delete_selection();
-        }
-        self.mark_dirty();
     }
 }
 

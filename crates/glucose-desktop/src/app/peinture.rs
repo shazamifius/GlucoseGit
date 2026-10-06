@@ -111,7 +111,7 @@ impl GlucoseApp {
     fn regard(&self) -> crate::renderer::Regard {
         crate::renderer::Regard {
             degradation_permise: self.perception.autorise_a_degrader(),
-            en_mouvement: self.elan.en_cours() || self.vol.en_cours(),
+            en_mouvement: self.la_vue_bouge(),
         }
     }
 
@@ -538,7 +538,10 @@ fn peindre_tout(
         pointer,
         cache: Some(dock_cache),
     };
-    render_docks(&mut vue, dock_manager, store, &pass);
+    // Le mode référence n'a pas de panneaux (fiche 51 § 5).
+    if !ui.reference {
+        render_docks(&mut vue, dock_manager, store, &pass);
+    }
     // Le liseré du passé : sur cette voie, c'est le processeur qui le peint.
     if dock_manager.temps.regarde.is_some() {
         crate::dock::lisere_du_passe(&mut vue, &pass, crate::theme::clamp_ui_scale(echelle));

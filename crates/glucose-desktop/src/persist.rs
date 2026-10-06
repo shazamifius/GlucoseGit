@@ -31,6 +31,7 @@ pub mod ecriture;
 pub mod export;
 pub mod frappe;
 pub mod import;
+pub mod nouveau;
 pub mod objets;
 pub mod recuperation;
 pub mod reprise;

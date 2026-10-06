@@ -100,7 +100,13 @@ impl GlucoseApp {
     fn apply_menu_action(&mut self, action: MenuAction, onglet: Option<&str>) {
         let board = self.store.project.active_board_id.clone();
         match action {
+            MenuAction::Copier => self.copy_selection(false),
+            MenuAction::Couper => self.copy_selection(true),
+            MenuAction::NouveauDocument => self.nouveau_document(),
+            MenuAction::ModeReference => self.basculer_le_mode_reference(),
             MenuAction::Duplicate => self.duplicate_selection(),
+            MenuAction::CopierLImage => self.copier_l_image(),
+            MenuAction::EnregistrerLImage => self.enregistrer_l_image_sous(),
             MenuAction::ToggleLock => self.toggle_lock(),
             MenuAction::TrimBorders => self.retirer_les_bordures_de_la_selection(),
             MenuAction::ToFront => {

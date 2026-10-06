@@ -8,10 +8,11 @@ pub mod lancement;
 mod mouvement;
 mod peinture;
 mod presentation;
+mod rangement;
 pub mod reveil;
 mod terrain;
 
-use crate::dock::{apply_organize_layout, DockCache, DockManager, OrganizeState};
+use crate::dock::{DockCache, DockManager};
 use crate::interactions::resize::ResizeSession;
 use crate::interactions::tools::text_card;
 use crate::renderer::{Renderer, TextEditSession};
@@ -223,7 +224,8 @@ pub struct GlucoseApp {
     pub bend_session: Option<crate::interactions::arrow_edit::BendSession>,
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
-    pub always_on_top: bool,
+    /// Un déplacement de la fenêtre au bouton droit, en mode référence (fiche 51 § 5).
+    pub deplacement_de_fenetre: Option<crate::interactions::reference::Deplacement>,
 
     // Session d'édition de texte in-place (double-clic)
     pub editing_session: Option<TextEditSession>,
@@ -233,6 +235,8 @@ pub struct GlucoseApp {
     /// **Ce qui arrive du système par glisser-déposer** : les fichiers de `winit`, le pont
     /// natif, et les images annoncées qui ne sont pas encore livrées.
     pub depot: crate::interactions::depot_web::Arrivees,
+    /// Les lots de nœuds qui se préparent pour le presse-papiers, ou en reviennent.
+    pub echanges: crate::interactions::clipboard::Echanges,
     /// Où en est le cycle de profondeur (PICK-1) : la pile visée au dernier clic, et le rang
     /// qu'on y a atteint. `None` quand le dernier clic n'a désigné aucun nœud, ou qu'il a
     /// fait autre chose que sélectionner — ouvrir, éditer, glisser.
@@ -282,6 +286,8 @@ pub struct GlucoseApp {
     /// appelants la prennent ainsi, et leur imposer `&mut` pour noter une salissure aurait
     /// remonté l'emprunt à travers tout l'arbre des gestes. `Salissure` est `Copy`, donc la
     /// cellule ne coûte rien.
+    ///
+    /// Elle naît à « tout », et non à « rien » : la première image doit se dessiner entièrement.
     salissure: std::cell::Cell<crate::salissure::Salissure>,
     /// **L'instant où la prochaine image est devenue nécessaire** (GEL-1) — le plus ancien
     /// depuis la dernière image rendue.
@@ -363,11 +369,12 @@ impl GlucoseApp {
             bend_session: None,
             active_guides: SnapGuides::default(),
             selection_box: None,
-            always_on_top: false,
+            deplacement_de_fenetre: None,
             editing_session: None,
             text_drag: None,
             last_click: None,
             depot: Default::default(),
+            echanges: Default::default(),
             pick_cycle: None,
             click_epoch: std::time::Instant::now(),
             last_blink_phase: true,
@@ -377,7 +384,6 @@ impl GlucoseApp {
             window_title_cache: String::new(),
             chronique: crate::chronique::Chronique::nouvelle(),
             echelle_precedente: 1.0,
-            // Tout, et non rien : la première image doit se dessiner entièrement.
             salissure: std::cell::Cell::new(crate::salissure::Salissure::Tout),
             image_due: std::cell::Cell::new(None),
         };
@@ -506,27 +512,6 @@ impl GlucoseApp {
             .noter_la_fermeture(due.map(|d| maintenant.saturating_duration_since(d)));
     }
 
-    /// Réorganise automatiquement les éléments en grille ordonnée
-    #[allow(dead_code)]
-    pub fn organize_layout(&mut self) {
-        let board_id = self.store.project.active_board_id.clone();
-        let vide = self
-            .store
-            .active_board()
-            .is_some_and(|b| b.images.is_empty() && b.annotations.is_empty());
-        if vide {
-            return;
-        }
-        // `push_undo` etait appele APRES la mise en page : le cliche capturait l'etat deja
-        // modifie, et Ctrl+Z ne defaisait rien. La consigne se fait desormais autour du
-        // geste, pas apres lui.
-        self.store.mutate_board_layout(&board_id, |board| {
-            glucose_core::layout::organize_board_grid(board, 40.0);
-        });
-        // Sans message : toute la toile se réarrange sous les yeux.
-        self.mark_dirty();
-    }
-
     /// **Ce clic agit-il sur le canevas, ou rend-il seulement le premier plan ?** (REVEIL-1)
     ///
     /// Windows transmet a la fenetre le clic qui l'active. Revenir d'un navigateur pour coller
@@ -547,54 +532,5 @@ impl GlucoseApp {
             ElementState::Released if std::mem::take(&mut self.relachement_a_jeter) => false,
             _ => true,
         }
-    }
-
-    /// Applique la réorganisation issue du panneau ORDONNER (Masonry, Grille, Même Hauteur, etc.)
-    ///
-    /// # ORDONNER-1 — on range **ce qui est sélectionné**, et rien d'autre
-    ///
-    /// Le panneau rangeait toutes les images du tableau, quoi qu'on ait sélectionné. Choisir
-    /// douze images pour les aligner et voir les quatre cents autres se réarranger avec elles
-    /// n'est pas une maladresse d'ergonomie : c'est une fonction qui détruit un travail qu'on
-    /// ne lui avait pas confié, et l'annulation est le seul recours.
-    ///
-    /// Une sélection vide veut dire « tout le tableau » — sinon le bouton ne ferait rien du
-    /// tout, ce qui serait pire, et c'est le geste qu'on attend d'un rangement global.
-    ///
-    /// Le toast dit lequel des deux a eu lieu : un rangement qui ne dit pas ce qu'il a touché
-    /// laisse chercher.
-    pub fn apply_dock_layout(&mut self, state: &OrganizeState) {
-        let board_id = self.store.project.active_board_id.clone();
-        if self
-            .store
-            .active_board()
-            .is_some_and(|b| b.images.is_empty())
-        {
-            self.ui.show_toast("Aucune image sur le canvas");
-            return;
-        }
-        // **Le Store dit ce qu'il faut ranger**, parce que « une selection vide veut dire tout
-        // le tableau » est une regle metier et non une commodite d'affichage.
-        let a_ranger = self.store.images_a_organiser();
-        let combien = self.store.selected_image_ids.len();
-        // Meme correction que `organize_layout` : le cliche etait pris apres coup.
-        self.store.mutate_board_layout(&board_id, |board| {
-            for res in apply_organize_layout(&a_ranger, state) {
-                if let Some(img) = board.images.iter_mut().find(|i| i.id == res.id) {
-                    img.x = res.x;
-                    img.y = res.y;
-                    img.width = res.width;
-                    img.height = res.height;
-                }
-            }
-        });
-        let quoi = if combien == 0 {
-            "tout le canvas".to_string()
-        } else {
-            format!("{combien} image(s)")
-        };
-        self.ui
-            .show_toast(format!("{} : {quoi} rangé(es)", state.layout.title()));
-        self.mark_dirty();
     }
 }

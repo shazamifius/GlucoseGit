@@ -17,10 +17,26 @@ pub fn prendre_celui_du_systeme() {
     DU_SYSTEME.store(true, Ordering::Relaxed);
 }
 
+/// Le presse-papiers est-il celui du système ? Un fil de fond qui veut l'écrire lui-même doit
+/// le savoir : celui d'une épreuve vit sur le fil qui l'a ouvert.
+pub fn est_celui_du_systeme() -> bool {
+    DU_SYSTEME.load(Ordering::Relaxed)
+}
+
+/// Ce que porte le presse-papiers à soi d'un fil. Écrire l'une de ses formes efface les
+/// autres, comme dans celui du système.
+#[derive(Default)]
+struct Contenu {
+    texte: Option<String>,
+    /// Un lot de nœuds (fiche 51 § 2) : comme celui du système, écrire un texte seul l'efface.
+    lot: Option<Vec<u8>>,
+    /// Une image copiée par le menu (fiche 51 § 3), en PNG.
+    image: Option<Vec<u8>>,
+}
+
 thread_local! {
-    /// Le presse-papiers à soi d'un fil : le texte qu'on y a écrit. Il ne porte jamais
-    /// d'image — personne n'en écrit ici.
-    static A_SOI: RefCell<Option<String>> = const { RefCell::new(None) };
+    /// Le presse-papiers à soi d'un fil.
+    static A_SOI: RefCell<Contenu> = RefCell::new(Contenu::default());
 }
 
 /// Un presse-papiers ouvert.
@@ -45,7 +61,7 @@ impl Acces {
     pub fn texte(&mut self) -> Result<String, String> {
         match self {
             Acces::Systeme(c) => c.get_text().map_err(|e| e.to_string()),
-            Acces::ASoi => A_SOI.with(|c| c.borrow().clone().ok_or_else(|| RIEN.into())),
+            Acces::ASoi => A_SOI.with(|c| c.borrow().texte.clone().ok_or_else(|| RIEN.into())),
         }
     }
 
@@ -53,7 +69,17 @@ impl Acces {
     pub fn image(&mut self) -> Result<arboard::ImageData<'static>, String> {
         match self {
             Acces::Systeme(c) => c.get_image().map_err(|e| e.to_string()),
-            Acces::ASoi => Err(RIEN.into()),
+            Acces::ASoi => {
+                let png = A_SOI.with(|c| c.borrow().image.clone()).ok_or(RIEN)?;
+                let pixels = image::load_from_memory(&png)
+                    .map_err(|e| e.to_string())?
+                    .to_rgba8();
+                Ok(arboard::ImageData {
+                    width: pixels.width() as usize,
+                    height: pixels.height() as usize,
+                    bytes: pixels.into_raw().into(),
+                })
+            }
         }
     }
 
@@ -62,9 +88,60 @@ impl Acces {
         match self {
             Acces::Systeme(c) => c.set_text(texte).map_err(|e| e.to_string()),
             Acces::ASoi => {
-                A_SOI.with(|c| *c.borrow_mut() = Some(texte));
+                A_SOI.with(|c| {
+                    *c.borrow_mut() = Contenu {
+                        texte: Some(texte),
+                        ..Contenu::default()
+                    }
+                });
                 Ok(())
             }
+        }
+    }
+
+    /// Y écrit un lot de nœuds, et le texte que les autres logiciels colleront à sa place.
+    pub fn ecrire_un_lot(&mut self, texte: Option<String>, lot: Vec<u8>) -> Result<(), String> {
+        match self {
+            Acces::Systeme(_) => {
+                crate::plateforme::presse_papiers::ecrire_un_lot(texte.as_deref(), &lot)
+            }
+            Acces::ASoi => {
+                A_SOI.with(|c| {
+                    *c.borrow_mut() = Contenu {
+                        texte,
+                        lot: Some(lot),
+                        image: None,
+                    }
+                });
+                Ok(())
+            }
+        }
+    }
+
+    /// Y écrit une image (fiche 51 § 3).
+    pub fn ecrire_une_image(
+        &mut self,
+        image: crate::interactions::clipboard::ImagePosee,
+    ) -> Result<(), String> {
+        match self {
+            Acces::Systeme(_) => crate::plateforme::presse_papiers::ecrire_une_image(&image),
+            Acces::ASoi => {
+                A_SOI.with(|c| {
+                    *c.borrow_mut() = Contenu {
+                        image: Some(image.png),
+                        ..Contenu::default()
+                    }
+                });
+                Ok(())
+            }
+        }
+    }
+
+    /// Le lot de nœuds qu'il porte, s'il en porte un.
+    pub fn lot(&mut self) -> Option<Vec<u8>> {
+        match self {
+            Acces::Systeme(_) => crate::plateforme::presse_papiers::lire_un_lot(),
+            Acces::ASoi => A_SOI.with(|c| c.borrow().lot.clone()),
         }
     }
 }

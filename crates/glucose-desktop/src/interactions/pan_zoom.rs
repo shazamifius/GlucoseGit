@@ -114,11 +114,7 @@ pub enum Geste {
 /// Fonction pure : c'est elle qui porte toute la décision, et elle se teste sans fenêtre.
 pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool, doigt: bool) -> Geste {
     let (dx, dy, ligne) = deltas(delta);
-    // Un pincement est marqué **par le système** : c'est donc certainement un doigt, et le
-    // test d'entier — qu'un doigt satisfait parfois par accident — n'a plus à trancher.
-    // `doigt` dit que le geste en cours vient déjà d'un pavé : le même geste ne change pas de
-    // source en son milieu.
-    let cran = !pincement && !doigt && cran_de_souris(dx, dy, ligne);
+    let cran = vient_d_une_molette(delta, pincement, doigt);
     if ctrl || pincement || cran {
         let unites = if ligne { dy } else { dy / ZOOM_LIGNE_PX };
         let par_unite = if cran {
@@ -130,6 +126,27 @@ pub fn geste(delta: MouseScrollDelta, ctrl: bool, pincement: bool, doigt: bool) 
     }
     let px = if ligne { PAN_LIGNE_PX } else { 1.0 };
     Geste::Pan(dx * px, dy * px)
+}
+
+/// Ce défilement vient-il d'une **molette de souris** ? C'est ce qui décide de sa voie : la
+/// souris se montre tout de suite, le doigt passe par l'élan (fiche 51 § 1).
+///
+/// Un pincement est marqué **par le système** : c'est donc certainement un doigt, et le test
+/// d'entier — qu'un doigt satisfait parfois par accident — n'a plus à trancher. `doigt` dit que
+/// le geste en cours vient déjà d'un pavé : le même geste ne change pas de source en son milieu.
+///
+/// # Ce que ce test ne sait pas reconnaître, et c'est dit
+///
+/// Une molette **à haute résolution** (les roues libres de Logitech, le multiplicateur de
+/// résolution de HID) envoie des fractions de cran, comme un pavé : elle passe donc pour un
+/// doigt, et son défilement **déplace** la vue au lieu de zoomer. Glucose Tauri faisait de
+/// même (`% 120`). Windows ne dit pas d'où vient un défilement — `GetCurrentInputMessageSource`
+/// répond « souris » pour un pavé —, et la seule réponse exacte connue est celle de Chromium
+/// et de Blender : prendre le pavé par *Direct Manipulation*, après quoi tout ce qui arrive
+/// encore en molette vient d'une molette (`docs/SUITE.md`, chantier 5).
+pub fn vient_d_une_molette(delta: MouseScrollDelta, pincement: bool, doigt: bool) -> bool {
+    let (dx, dy, ligne) = deltas(delta);
+    !pincement && !doigt && cran_de_souris(dx, dy, ligne)
 }
 
 /// Les deux composantes d'un défilement, et s'il s'exprime en lignes.
@@ -223,15 +240,20 @@ impl GlucoseApp {
             pincement,
             self.defilement_au_doigt,
         ));
-        // L'evenement ne bouge PLUS la camera : il pousse dans l'elan, que l'image videra en
+        // L'evenement ne bouge PLUS la camera : il entre dans l'elan, que l'image videra en
         // une seule fois. Windows livre l'horizontal et le vertical dans deux messages
         // separes -- les appliquer chacun a leur tour faisait d'une diagonale un escalier.
+        // La molette y entre par la porte de la souris (tout a l'image suivante), le doigt
+        // par la sienne (conduite, puis glissade).
+        let souris = vient_d_une_molette(delta, pincement, self.defilement_au_doigt);
+        let maintenant = std::time::Instant::now();
         match geste(delta, ctrl, pincement, self.defilement_au_doigt) {
+            Geste::Zoom(octaves) if souris => self.elan.placer_zoom(octaves, self.ancre_du_zoom()),
             Geste::Zoom(octaves) => {
                 self.elan
-                    .pousser_zoom(octaves, self.ancre_du_zoom(), std::time::Instant::now());
+                    .pousser_zoom(octaves, self.ancre_du_zoom(), maintenant);
             }
-            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy, std::time::Instant::now()),
+            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy, maintenant),
         }
         self.mark_dirty();
     }
@@ -262,10 +284,10 @@ impl GlucoseApp {
         // Protection contre les sauts anormaux du curseur OS
         if dx.hypot(dy) < 300.0 {
             self.vol.poser();
-            // Par l'elan, comme la molette : deux mouvements de curseur arrives entre deux
-            // images se rejoignent, et lacher le bouton en plein geste laisse la vue filer
-            // au lieu de s'arreter net.
-            self.elan.pousser_pan(dx, dy, std::time::Instant::now());
+            // Par la porte de la souris : deux mouvements de curseur arrives entre deux images
+            // se rejoignent, la vue suit le curseur au pixel, et lacher le bouton l'arrete net.
+            // Elle filait apres le lacher tant que ce geste passait par la glissade du pave.
+            self.elan.placer_pan(dx, dy);
         }
         self.mark_dirty();
     }

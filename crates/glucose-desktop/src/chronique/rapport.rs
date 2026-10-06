@@ -190,6 +190,12 @@ impl Chronique {
                 "  et il dessine {ips:.1} image(s) par seconde pendant ce temps -- zero est la seule bonne reponse
 "
             ));
+            for (raison, images) in self.veille.raisons_sans_la_main() {
+                t.push_str(&format!(
+                    "      {:<30} {images:>6} image(s)\n",
+                    raison.nom()
+                ));
+            }
         }
         t.push('\n');
     }

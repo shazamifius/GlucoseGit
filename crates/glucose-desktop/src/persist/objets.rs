@@ -240,6 +240,16 @@ impl Objets {
         }
     }
 
+    /// Les octets d'une image, **en attendant** ceux qu'un ouvrier a promis. Pour un fil qui a
+    /// le droit d'attendre — la copie d'un lot (fiche 51 § 2) —, jamais pour l'atelier, qui est
+    /// celui qui tient la promesse.
+    pub fn lire_en_attendant(&self, cle: &str) -> Option<Vec<u8>> {
+        if let Some(Source::Promise(p)) = self.source(cle) {
+            return p.attendre().map(|o| o.as_ref().clone());
+        }
+        self.lire(cle)
+    }
+
     fn lire_la_tranche(&self, empreinte: &[u8; 32], offset: u64, longueur: u64) -> Option<Vec<u8>> {
         lire_une_tranche(&self.document()?, empreinte, offset, longueur)
     }

@@ -398,7 +398,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (BADGE-2) : les mêmes pixels que la scène sélectionnée, sous le menu.
 /// **Puis** (FORMULE-1) : les mêmes 866 pixels que la scène sélectionnée — la formule.
 /// **Puis** (FORMULE-2) : les mêmes 31 035 pixels, sous le menu.
-const EMPREINTE_TEMOIN_MENU: &str = "07970bc049cb03af";
+/// **Puis** (fiche 51 § 2) : « Copier » et « Couper » en tête du menu d'une sélection, regardés.
+const EMPREINTE_TEMOIN_MENU: &str = "7b7919e68cfea3e6";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

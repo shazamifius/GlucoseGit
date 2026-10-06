@@ -98,8 +98,9 @@ fn test_une_promesse_abandonnee_ne_retient_pas_le_scribe() {
     );
 }
 
-/// **Copier une image collée, puis la coller, la duplique** : `Ctrl+C` copie sa clé, et le
-/// collage la reconnaît — il n'existe aucun fichier à relire.
+/// **Copier une image collée, puis la coller, la duplique** : le lot la porte, et le collage dans
+/// le même document lui garde sa clé — il n'existe aucun fichier à relire, et ses octets ne
+/// sont pas recopiés (fiche 51 § 2).
 #[test]
 fn test_copier_coller_une_image_collee_la_duplique() {
     let d = dossier("coller-3-copier");
@@ -111,7 +112,9 @@ fn test_copier_coller_une_image_collee_la_duplique() {
     let cartes = app.store.project.boards[0].annotations.len();
     app.store.set_selected_image_ids(vec![id]);
     app.copy_selection(false);
+    app.suivre_les_echanges(true);
     app.paste_from_clipboard();
+    app.suivre_les_echanges(true);
     let images = &app.store.project.boards[0].images;
     assert_eq!(images.len(), 2, "une image de plus");
     assert_eq!(images[1].src.as_deref(), Some(cle.as_str()));

@@ -127,6 +127,9 @@ pub struct UiState {
     pub bande_cache: Option<bande::BandeCache>,
     /// Ce qu'on est en train de faire aux onglets : les renommer, les glisser (BOARDS-1).
     pub onglets: onglets::EtatDesOnglets,
+    /// **Le mode référence** (fiche 51 § 5) : plus aucune interface, le canevas partout. Le menu
+    /// contextuel et les messages restent — sans eux, on ne saurait plus en sortir.
+    pub reference: bool,
 }
 
 pub const WELCOME_TOAST: &str = "Bienvenue dans Glucose !";
@@ -169,6 +172,7 @@ impl UiState {
             minimap_cache: None,
             bande_cache: None,
             onglets: onglets::EtatDesOnglets::default(),
+            reference: false,
         }
     }
 
@@ -179,17 +183,28 @@ impl UiState {
 
     #[inline]
     pub fn topbar_height(&self) -> f32 {
-        TOPBAR_HEIGHT * self.scale()
+        self.chrome() * TOPBAR_HEIGHT * self.scale()
     }
 
     #[inline]
     pub fn tabs_height(&self) -> f32 {
-        TABS_HEIGHT * self.scale()
+        self.chrome() * TABS_HEIGHT * self.scale()
     }
 
     #[inline]
     pub fn header_height(&self) -> f32 {
-        TOTAL_HEADER_HEIGHT * self.scale()
+        self.chrome() * TOTAL_HEADER_HEIGHT * self.scale()
+    }
+
+    /// La bande existe-t-elle ? Zéro en mode référence : tout ce qui se mesure sur elle — le
+    /// canevas, les clics, les panneaux — la voit disparaître d'un même nombre.
+    #[inline]
+    fn chrome(&self) -> f32 {
+        if self.reference {
+            0.0
+        } else {
+            1.0
+        }
     }
 
     pub fn show_toast(&mut self, msg: impl Into<String>) {
@@ -229,6 +244,12 @@ pub fn render_ui(
     // **Refaite, ou seulement recomposee ?** Le poste `bande` vaut 0,22 ms en median et
     // 6,95 ms sur une image de zoom du terrain : un ecart de trente qui ne peut venir que
     // d'un redessin. Reste a savoir combien souvent -- et la duree seule ne le dit pas.
+    if ui.reference {
+        // Le mode référence : seuls le toast et le menu, qui attendent une décision.
+        poser_ce_qui_attend_une_decision(pixmap, store, ui, typo, theme, (w, h), pointer);
+        crate::perf::stage("ui");
+        return;
+    }
     let dessins_avant = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
     bande::render_bande(pixmap, store, ui, typo, theme, w, pointer);
     let dessins_apres = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
@@ -294,10 +315,12 @@ fn poser_ce_qui_attend_une_decision(
     (w, h): (f32, f32),
     pointer: Pointer,
 ) {
-    action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
+    if !ui.reference {
+        action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
+    }
     // Pendant l'édition des ancres, sa fenêtre couvre tout : le moteur de rendu la pose
     // par-dessus l'interface (`poser_la_fenetre_d_ancrage`).
-    if ui.ancrage.is_none() {
+    if ui.ancrage.is_none() && !ui.reference {
         options_de_fleche::draw_options_de_fleche(
             pixmap,
             store,
@@ -341,6 +364,9 @@ pub fn handle_ui_click(
     ui: &mut UiState,
     typo: &Typography,
 ) -> Option<UiAction> {
+    if ui.reference {
+        return None;
+    }
     let topbar_h = ui.topbar_height();
     let header_h = ui.header_height();
     let s = ui.scale();

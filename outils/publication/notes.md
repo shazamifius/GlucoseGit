@@ -1,5 +1,24 @@
 **Glucose {version}** — Glucose, réécrit en Rust.
 
+**Ce qui change dans cette version**
+
+* **À la souris, tout est instantané** : un cran de molette zoome tout de suite, le glisser au
+  bouton du milieu suit la souris au pixel, et rien ne glisse quand on lâche. Au pavé tactile et
+  au doigt, rien ne change.
+* **Copier, couper, coller des nœuds** — textes, images, flèches, membranes —, y compris d'une
+  fenêtre de Glucose à une autre : `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, ou le clic droit. Le collage se
+  pose sous la souris et se défait d'un seul `Ctrl+Z`.
+* **Clic droit sur une image** : « Copier l'image », pour la coller dans Discord, un navigateur
+  ou un logiciel de dessin ; « Enregistrer l'image sous… », qui rend le fichier d'origine, tel
+  qu'il avait été posé.
+* **`Ctrl+N`** : un nouveau document vierge (aussi au clic droit sur le vide). Un travail sans
+  nom pose la question habituelle avant.
+* **Le mode référence**, comme PureRef : `Ctrl+Maj+A` (ou le clic droit) retire toute
+  l'interface et le cadre de la fenêtre, et la garde au premier plan — pour garder sa
+  référence au-dessus de Blender. On la déplace au **bouton droit**, on la redimensionne par
+  ses bords, et Glucose s'en souvient à la relance. Le même geste le défait.
+* Supprimer une sélection qui mêle images et textes se défait désormais d'un seul `Ctrl+Z`.
+
 | système | fichier |
 |---|---|
 | Windows 10 et 11 | `Glucose_{version}_x64-setup.exe` — installé pour l'utilisateur seul, sans droits d'administrateur |

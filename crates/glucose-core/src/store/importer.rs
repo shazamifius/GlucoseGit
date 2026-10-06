@@ -35,12 +35,15 @@ use crate::types::{
 use std::collections::HashMap;
 
 /// L'ancien identifiant de chaque élément importé, et le nouveau.
+///
+/// Partagé avec le collage d'un lot (fiche 51 § 2), qui renomme de la même façon ce qu'il
+/// pose.
 #[derive(Default)]
-struct Renommage(HashMap<Id, Id>);
+pub(super) struct Renommage(pub(super) HashMap<Id, Id>);
 
 impl Renommage {
     /// Donne un nouvel identifiant à `id`, et le retient.
-    fn nommer(&mut self, store: &mut Store, prefixe: &str, id: &mut Id) {
+    pub(super) fn nommer(&mut self, store: &mut Store, prefixe: &str, id: &mut Id) {
         let neuf = store.generate_id(prefixe);
         self.0.insert(std::mem::replace(id, neuf.clone()), neuf);
     }
@@ -142,6 +145,12 @@ impl Store {
     /// Premier passage : un nom neuf pour le tableau et pour chaque élément qu'il porte.
     fn nommer_le_tableau(&mut self, r: &mut Renommage, b: &mut Board) {
         r.nommer(self, "board", &mut b.id);
+        self.nommer_le_contenu(r, b);
+    }
+
+    /// Un nom neuf pour chaque élément du tableau — le tableau lui-même garde le sien : un lot
+    /// collé n'apporte que son contenu.
+    pub(super) fn nommer_le_contenu(&mut self, r: &mut Renommage, b: &mut Board) {
         for i in &mut b.images {
             r.nommer(self, "img", &mut i.id);
         }
@@ -171,7 +180,7 @@ impl Store {
 }
 
 /// Second passage : chaque référence du tableau suit l'élément qu'elle vise.
-fn suivre_dans_le_tableau(r: &Renommage, b: &mut Board) {
+pub(super) fn suivre_dans_le_tableau(r: &Renommage, b: &mut Board) {
     let Board {
         id: _,
         name: _,

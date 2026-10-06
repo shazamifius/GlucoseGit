@@ -289,6 +289,11 @@ impl Chronique {
             .map(|r| (r, self.panneaux_refaits[r.bit().trailing_zeros() as usize]))
     }
 
+    /// Le même compte, brut, rangé par le bit de chaque raison : ce que la veille relève.
+    pub fn reveils_par_bit(&self) -> [u64; 16] {
+        self.reveils
+    }
+
     /// Combien d'images chaque raison de réveil a tenues éveillées.
     pub fn reveils(&self) -> impl Iterator<Item = (crate::app::reveil::Raison, u64)> + '_ {
         crate::app::reveil::Raison::TOUTES

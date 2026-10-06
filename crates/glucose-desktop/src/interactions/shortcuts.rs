@@ -26,7 +26,6 @@ const NUDGE_DECADE: f64 = 10.0;
 use glucose_core::store::StackMove;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey, SmolStr};
-use winit::window::WindowLevel;
 
 /// Le chiffre que porte cette touche **physique**, quel que soit le clavier branché.
 ///
@@ -323,6 +322,8 @@ impl GlucoseApp {
                 self.toast_if(done, "Rétablir");
             }
             "d" | "D" => self.duplicate_selection(),
+            // `Ctrl+Maj+A` : le premier plan de PureRef, ici tout le mode référence.
+            "a" | "A" if self.modifiers.shift_key() => self.basculer_le_mode_reference(),
             "a" | "A" => self.select_all(),
             "]" => self.restack(StackMove::Front),
             "[" => self.restack(StackMove::Back),
@@ -346,8 +347,9 @@ impl GlucoseApp {
             "a" | "A" => ActiveTool::Arrow,
             "n" | "N" => ActiveTool::Sticky,
             "m" | "M" => ActiveTool::Membrane,
+            // L'ancien geste du premier plan fait désormais tout le mode référence (fiche 51 § 5).
             "t" | "T" if self.modifiers.alt_key() => {
-                self.toggle_always_on_top();
+                self.basculer_le_mode_reference();
                 return;
             }
             "t" | "T" => ActiveTool::Text,
@@ -490,23 +492,6 @@ impl GlucoseApp {
         };
         let bandeau = f64::from(self.ui.header_height());
         self.cadrer_sur_le_contenu(ecran, bandeau);
-    }
-
-    fn toggle_always_on_top(&mut self) {
-        self.always_on_top = !self.always_on_top;
-        if let Some(window) = &self.window {
-            window.set_window_level(if self.always_on_top {
-                WindowLevel::AlwaysOnTop
-            } else {
-                WindowLevel::Normal
-            });
-        }
-        self.ui.show_toast(if self.always_on_top {
-            "Toujours au premier plan"
-        } else {
-            "Fenêtre normale"
-        });
-        self.mark_dirty();
     }
 }
 

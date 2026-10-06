@@ -123,9 +123,9 @@ impl GlucoseApp {
             })
     }
 
-    /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
-    /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
-    pub(super) fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
+    /// **Ce que la fenêtre est à sa naissance** : son titre, son icône, sa taille, sa classe sous
+    /// Linux — et le mode référence s'il était retenu.
+    fn attributs_de_la_fenetre(&mut self) -> WindowAttributes {
         let title = self.window_title();
         let attrs = WindowAttributes::default()
             .with_title(&title)
@@ -137,7 +137,26 @@ impl GlucoseApp {
         #[cfg(target_os = "linux")]
         let attrs =
             winit::platform::x11::WindowAttributesExtX11::with_name(attrs, "glucose", "glucose");
+        // Le mode référence retenu naît tel quel : sans cadre et au premier plan, sans qu'une
+        // fenêtre ordinaire paraisse d'abord (fiche 51 § 5).
+        self.ui.reference = self.mode_reference_retenu();
+        let attrs = if self.ui.reference {
+            attrs
+                .with_decorations(false)
+                .with_window_level(winit::window::WindowLevel::AlwaysOnTop)
+        } else {
+            attrs
+        };
 
+        // Le titre posé est celui que le cache retient : le prochain changement se comparera à lui.
+        self.window_title_cache = title;
+        attrs
+    }
+
+    /// Crée la fenêtre et son framebuffer softbuffer ; toute erreur est propagée
+    /// au lieu d'être avalée silencieusement (une fenêtre blanche sinon).
+    pub(super) fn init_window(&mut self, event_loop: &ActiveEventLoop) -> DesktopResult<()> {
+        let attrs = self.attributs_de_la_fenetre();
         let window = event_loop
             .create_window(attrs)
             .map(Arc::new)
@@ -192,7 +211,6 @@ impl GlucoseApp {
 
         self.pixmap = Pixmap::new(width, height);
         window.set_cursor(winit::window::CursorIcon::Grab);
-        self.window_title_cache = title;
         self.window = Some(window);
         self.presenter = Some(presenter);
         self.mark_dirty();

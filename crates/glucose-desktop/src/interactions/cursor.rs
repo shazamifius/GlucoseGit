@@ -11,7 +11,10 @@ use winit::window::CursorIcon;
 impl GlucoseApp {
     /// Le curseur qui convient à l'outil actif et à l'état d'interaction.
     pub fn current_cursor(&self) -> CursorIcon {
-        if self.is_panning {
+        if let Some(bord) = self.bord_sous(self.mouse_pos) {
+            // En mode référence, la fenêtre se prend par ses bords (fiche 51 § 5).
+            CursorIcon::from(bord)
+        } else if self.is_panning {
             CursorIcon::Grabbing
         } else if self.ui.active_tool == ActiveTool::Pan {
             CursorIcon::Grab

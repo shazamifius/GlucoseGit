@@ -53,7 +53,19 @@ const SEPARATOR: f32 = 7.0;
 /// Ce qu'une entrée du menu déclenche.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuAction {
+    /// La sélection entière vers le presse-papiers (fiche 51 § 2).
+    Copier,
+    /// Un document vierge, à la place de celui-ci (fiche 51 § 4).
+    NouveauDocument,
+    /// Entrer dans le mode référence, ou en sortir (fiche 51 § 5).
+    ModeReference,
+    /// La même, puis retirée une fois copiée.
+    Couper,
     Duplicate,
+    /// L'image seule choisie, comme une image : Discord, un navigateur la collent (fiche 51 § 3).
+    CopierLImage,
+    /// Ses octets d'origine, dans un fichier.
+    EnregistrerLImage,
     ToggleLock,
     /// Retirer les bandes unies des images sélectionnées (BORDURES-1).
     TrimBorders,
@@ -126,7 +138,18 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
     let sur_selection = images + store.selected_annotation_ids.len() > 0;
     let mut defs: Vec<Option<(MenuAction, &'static str, &'static str)>> = Vec::new();
     if sur_selection {
+        defs.push(Some((MenuAction::Copier, "Copier", "Ctrl+C")));
+        defs.push(Some((MenuAction::Couper, "Couper", "Ctrl+X")));
         defs.push(Some((MenuAction::Duplicate, "Dupliquer", "Ctrl+D")));
+        if images == 1 && store.selected_annotation_ids.is_empty() {
+            defs.push(None);
+            defs.push(Some((MenuAction::CopierLImage, "Copier l'image", "")));
+            defs.push(Some((
+                MenuAction::EnregistrerLImage,
+                "Enregistrer l'image sous…",
+                "",
+            )));
+        }
         if images > 0 {
             let board = store.active_board()?;
             let toutes_fermees = board
@@ -154,6 +177,17 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
     } else {
         defs.push(Some((MenuAction::Paste, "Coller", "Ctrl+V")));
         defs.push(Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")));
+        defs.push(None);
+        defs.push(Some((
+            MenuAction::NouveauDocument,
+            "Nouveau document",
+            "Ctrl+N",
+        )));
+        defs.push(Some((
+            MenuAction::ModeReference,
+            "Mode référence",
+            "Ctrl+Maj+A",
+        )));
     }
     Some(defs)
 }

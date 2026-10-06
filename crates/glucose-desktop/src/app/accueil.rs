@@ -5,12 +5,15 @@
 
 use super::{text_card, Renderer, Store, WELCOME_TEXT};
 
+/// Le nom d'un document qui n'a pas encore de fichier : celui du lancement, et celui de `Ctrl+N`.
+pub(crate) const NOM_D_UN_DOCUMENT_NEUF: &str = "Glucose Native";
+
 /// Le document qu'on trouve au lancement : une carte d'accueil, et rien à défaire.
 ///
 /// Extrait de `new` parce que c'est une décision sur le **document**, pas sur l'application :
 /// elle se lit seule, et le constructeur n'a plus qu'à assembler des champs.
 pub(super) fn document_d_accueil(renderer: &Renderer) -> Store {
-    let mut store = Store::new("Glucose Native");
+    let mut store = Store::new(NOM_D_UN_DOCUMENT_NEUF);
     let active_bid = store.project.active_board_id.clone();
     // La carte d'accueil naît par la même fabrique qu'une carte posée d'un clic : même
     // largeur de naissance, même hauteur suivie (TEXT-FIT-1).

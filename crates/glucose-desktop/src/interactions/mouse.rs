@@ -53,6 +53,10 @@ impl GlucoseApp {
         let dx = position.x - prev_pos.0;
         let dy = position.y - prev_pos.1;
 
+        // La fenêtre tenue au bouton droit, en mode référence : elle suit, et rien d'autre.
+        if self.deplacer_la_fenetre() {
+            return;
+        }
         // La minimap tenue passe avant tout le reste : tant qu'elle l'est, le curseur ne
         // designe rien d'autre qu'une destination.
         if self.minimap_tenue {
@@ -181,7 +185,9 @@ impl GlucoseApp {
         match button {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = true;
-                self.is_panning = true;
+                // En mode référence, le bouton droit déplace la fenêtre, comme dans PureRef.
+                self.is_panning =
+                    button == MouseButton::Middle || !self.commencer_a_deplacer_la_fenetre();
                 // Un menu ouvert se referme au premier clic, où qu'il soit.
                 self.ui.context_menu_at = None;
                 if button == MouseButton::Right {
@@ -201,14 +207,20 @@ impl GlucoseApp {
         let taken = self.click_context_menu(pointer, screen)
             || self.click_ancrage(pointer)
             || self.click_skips_flight()
-            || self.click_breadcrumb(pointer, screen)
-            || self.click_options_de_fleche(pointer, screen)
-            || self.click_action_bar(pointer, screen)
-            || self.click_chrome(pointer, screen)
-            || self.click_dock(pointer, screen);
+            || self.redimensionner_par_le_bord()
+            || !self.ui.reference && self.click_l_interface(pointer, screen);
         if !taken {
             self.click_canvas(screen);
         }
+    }
+
+    /// L'interface : ce que le mode référence retire, et dont les clics partent avec elle.
+    fn click_l_interface(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
+        self.click_breadcrumb(pointer, screen)
+            || self.click_options_de_fleche(pointer, screen)
+            || self.click_action_bar(pointer, screen)
+            || self.click_chrome(pointer, screen)
+            || self.click_dock(pointer, screen)
     }
 
     /// Un clic pendant une plongée l'abrège : on arrive tout de suite. Le clic est consommé —
@@ -224,7 +236,7 @@ impl GlucoseApp {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = false;
                 self.is_panning = false;
-                if button == MouseButton::Right {
+                if button == MouseButton::Right && !self.finir_de_deplacer_la_fenetre() {
                     self.open_context_menu_if_still();
                 }
             }

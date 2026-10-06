@@ -214,6 +214,7 @@ impl GlucoseApp {
         let compte = crate::chronique::veille::Compte {
             sous_la_main: self.provenance.evenements_de_la_main(),
             rendues: self.chronique.rendues(),
+            par_raison: self.chronique.reveils_par_bit(),
         };
         if self
             .chronique

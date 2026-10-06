@@ -49,9 +49,9 @@ impl Store {
     /// document : savoir où une annotation range son texte n'est pas l'affaire de celui qui
     /// dessine (règle S, fiche 12 § 3).
     ///
-    /// Une image rend le **chemin de son fichier** plutôt que rien : c'est précisément ce que
-    /// le collage sait relire pour la réimporter. Copier produit ainsi exactement ce que
-    /// coller attend — les deux gestes se referment l'un sur l'autre au lieu de se croiser.
+    /// C'est ce qu'un **autre logiciel** colle quand on copie des nœuds : leurs textes. Une image
+    /// rendait le chemin de son fichier, puis la clé qui la nomme dans le document — un nom que
+    /// personne d'autre ne sait lire. Les images voyagent désormais dans le lot (fiche 51 § 2).
     pub fn selection_as_text(&self) -> Option<String> {
         let board = self.active_board()?;
         let textes: Vec<String> = self
@@ -59,12 +59,6 @@ impl Store {
             .iter()
             .filter_map(|id| board.annotations.iter().find(|a| a.id() == id))
             .filter_map(Annotation::own_text)
-            .chain(
-                self.selected_image_ids
-                    .iter()
-                    .filter_map(|id| board.images.iter().find(|i| &i.id == id))
-                    .filter_map(|img| img.src.clone()),
-            )
             .filter(|t| !t.trim().is_empty())
             .collect();
         if textes.is_empty() {

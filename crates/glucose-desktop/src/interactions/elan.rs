@@ -71,6 +71,25 @@
 //! variation du coût d'une image — six millisecondes en médiane, soixante-sept au pire.
 //!
 //! Le pas vient donc désormais de [`crate::horloge`], et ce module n'a plus d'horloge du tout.
+//!
+//! # Deux voies d'entrée, et tout ce qui précède n'en concerne qu'une (fiche 51 § 1)
+//!
+//! Tout ce réglage a été fait **au pavé tactile**, et la souris en héritait : chaque cran de
+//! molette se montrait en dix millisecondes, une série de crans laissait une glissade de zoom,
+//! un glisser au bouton du milieu filait après le lâcher. Le verdict, après la 2.0.1 : *« à la
+//! souris, tout algorithme de smooth, c'est un peu horrible »*, et *« à la souris on attend la
+//! rapidité et l'instantanéité ; sur pavé et téléphone, du smooth »*.
+//!
+//! Il n'y a pas là un compromis à trouver entre les deux, mais deux outils. Une souris est un
+//! instrument de **précision** : l'œil attend la vue là où la main l'a mise, à l'image près, et
+//! tout reste ressemble à du retard. Un doigt est un geste **continu**, livré par rafales : sans
+//! conduite il saute, sans élan il paraît mort.
+//!
+//! D'où deux portes. [`Elan::pousser_pan`] et [`Elan::pousser_zoom`] restent celles du doigt,
+//! inchangées. [`Elan::placer_pan`] et [`Elan::placer_zoom`] sont celles de la souris : ce
+//! qu'elles demandent se montre **en entier à l'image suivante**, et rien ne glisse ensuite.
+//! Elles passent quand même par la dette, pour une seule raison : la caméra ne bouge qu'une
+//! fois par image, et deux événements arrivés entre deux images s'y rejoignent.
 
 use std::time::{Duration, Instant};
 
@@ -171,6 +190,19 @@ const SILENCE_MINIMAL: f64 = 0.05;
 /// Seize : assez pour que le pire ne soit pas un accident isolé, assez peu pour qu'un
 /// changement de source — la souris après le pavé — se voie en un sixième de seconde.
 const INTERVALLES: usize = 16;
+
+/// Qui tient la dette en ce moment.
+///
+/// Ce n'est pas un réglage : c'est la porte par laquelle le dernier apport est entré. La source
+/// se reconnaît en amont, en l'observant ([`crate::interactions::pan_zoom::vient_d_une_molette`]).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+enum Voie {
+    /// Le pavé, l'écran tactile, le pincement : la dette se rembourse, la main lâchée glisse.
+    #[default]
+    Doigt,
+    /// La molette, le glisser au bouton : la dette se montre en entier, rien ne glisse.
+    Souris,
+}
 
 /// Ce qu'une image doit montrer du mouvement de la caméra.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -338,6 +370,13 @@ pub struct Elan {
     source: Source,
     /// La main a-t-elle lâché ?
     libre: bool,
+    voie: Voie,
+    /// La dernière image a-t-elle montré un mouvement ?
+    ///
+    /// À la souris, la dette est soldée **par** l'image qui la montre : juste après, plus rien
+    /// n'est « en cours », alors que la vue vient de bouger sous l'œil. Le rendu, le tempo et
+    /// la finesse demandent, eux, si l'image est une image de mouvement ([`Elan::bouge`]).
+    a_montre: bool,
 }
 
 impl Elan {
@@ -351,6 +390,7 @@ impl Elan {
     /// situations où les défauts vivaient. La fiche 13 en a fait une règle après le double-clic.
     pub fn pousser_pan(&mut self, dx: f64, dy: f64, maintenant: Instant) {
         self.reprendre_la_main();
+        self.voie = Voie::Doigt;
         self.reste.pan.0 += dx;
         self.reste.pan.1 += dy;
         self.source.noter(
@@ -365,6 +405,7 @@ impl Elan {
     /// La main demande un changement d'échelle, autour de ce point.
     pub fn pousser_zoom(&mut self, octaves: f64, ancre: (f64, f64), maintenant: Instant) {
         self.reprendre_la_main();
+        self.voie = Voie::Doigt;
         self.ancre = ancre;
         self.reste.octaves += octaves;
         self.source.noter(
@@ -374,6 +415,35 @@ impl Elan {
                 ..Mouvement::default()
             },
         );
+    }
+
+    /// La souris demande un déplacement : il se montre en entier à l'image suivante.
+    ///
+    /// Aucun instant n'est demandé, et ce n'est pas un oubli : à la souris, il n'y a ni rythme
+    /// à apprendre ni lâcher à constater. Rien de ce qu'elle fait ne prédit ce qu'elle fera.
+    pub fn placer_pan(&mut self, dx: f64, dy: f64) {
+        self.prendre_a_la_souris();
+        self.reste.pan.0 += dx;
+        self.reste.pan.1 += dy;
+    }
+
+    /// La souris demande un changement d'échelle autour de ce point : tout, à l'image suivante.
+    pub fn placer_zoom(&mut self, octaves: f64, ancre: (f64, f64)) {
+        self.prendre_a_la_souris();
+        self.ancre = ancre;
+        self.reste.octaves += octaves;
+    }
+
+    /// La souris prend la main : la glissade du doigt s'arrête net, comme sous un nouveau
+    /// geste du doigt ([`Self::reprendre_la_main`]), et le rythme du doigt est oublié — il ne
+    /// décrit plus la main qui tient la vue.
+    ///
+    /// Ce que le doigt avait **demandé** et que l'écran n'a pas encore montré, lui, reste dû :
+    /// c'est une demande, pas une prédiction, et la souris le montre avec le sien.
+    fn prendre_a_la_souris(&mut self) {
+        self.reprendre_la_main();
+        self.source.vider();
+        self.voie = Voie::Souris;
     }
 
     /// Reprendre la main **tue la glissade en cours**, et c'est le frein.
@@ -397,6 +467,15 @@ impl Elan {
         self.reste.existe()
     }
 
+    /// L'image en cours est-elle une image de **mouvement** ?
+    ///
+    /// Vrai s'il reste à montrer, ou si l'image vient de montrer quelque chose. Les deux
+    /// coïncident au doigt, où la dette survit à chaque image ; à la souris, la première
+    /// s'éteint dans l'image même qui bouge.
+    pub fn bouge(&self) -> bool {
+        self.en_cours() || self.a_montre
+    }
+
     /// Ce que cette image doit montrer, ou rien s'il n'y a plus de dette.
     ///
     /// # Le pas vient du dehors, et c'est le fond de la correction
@@ -418,6 +497,22 @@ impl Elan {
         pas: Duration,
         diagonale: f64,
     ) -> Option<Mouvement> {
+        let montre = self.montrer(maintenant, pas, diagonale);
+        self.a_montre = montre.is_some();
+        montre
+    }
+
+    fn montrer(&mut self, maintenant: Instant, pas: Duration, diagonale: f64) -> Option<Mouvement> {
+        // **La souris : tout, tout de suite.** Ni seuil d'extinction ni remboursement : un
+        // dixième de pixel demandé à la souris est un dixième de pixel dû, et l'ignorer ferait
+        // dériver la vue sous le curseur au fil d'un glisser lent.
+        if self.voie == Voie::Souris {
+            let montre = Mouvement {
+                ancre: self.ancre,
+                ..std::mem::take(&mut self.reste)
+            };
+            return montre.existe().then_some(montre);
+        }
         let dt = pas.as_secs_f64();
         self.constater_le_lacher(maintenant);
 
@@ -494,3 +589,5 @@ impl Elan {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_souris;
