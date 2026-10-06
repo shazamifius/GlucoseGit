@@ -72,8 +72,16 @@ Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 2. **Aucun moyen de créer un document vierge** : pas de `Ctrl+N`, pas de bouton.
 3. **Un mode référence à la PureRef** : plus aucune interface, pas de cadre de fenêtre, toujours au
    premier plan, pour garder sa référence à côté de Blender.
+4. **Copier, couper, coller une sélection entière** (textes, images, flèches, membranes), et même la
+   glisser d'une fenêtre de Glucose à une autre. Aujourd'hui `Ctrl+C` ne copie que du **texte**
+   (le contenu des cartes et le nom interne des images) : les positions, les tailles, les flèches
+   et les membranes ne partent pas. **Et `Ctrl+X` coupe quand même toute la sélection** : couper
+   une sélection riche la détruit sans pouvoir la recoller (`Ctrl+Z` la rend). Un piège à ses
+   données.
+5. **Clic droit sur une image → copier**, pour la coller dans Discord ou ailleurs.
+6. **Clic droit sur une image → enregistrer l'image sous…**
 
-Ces trois retours ouvrent la [suite](SUITE.md).
+Ces retours ouvrent la [suite](SUITE.md).
 
 ## 7. Points de vigilance
 
