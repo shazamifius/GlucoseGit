@@ -88,6 +88,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 48 | [La mise à jour et la bascule](48-LA-MISE-A-JOUR-ET-LA-BASCULE.md) | l'installeur, Linux, la répétition, la publication, sa clé — **§ 15.4 : publier** |
 | 49 | [La boîte noire qui voyage](49-LA-BOITE-NOIRE-QUI-VOYAGE.md) | les plantages vus par Windows ; l'envoi conçu ; **§ 3 : le serveur, sa décision** |
 | 50 | [Le toucher : Android et l'iPad](50-LE-TOUCHER-ANDROID-ET-L-IPAD.md) | **le plan du chantier 3** de la suite |
+| 51 | [Ses retours sur la V2](51-SES-RETOURS-SUR-LA-V2.md) | la souris instantanée, le lot de nœuds, l'image au clic droit, Ctrl+N, le mode référence, le repos — **§ 9 : ses essais** |
 
 ## Les décisions — **foi**
 
@@ -99,4 +100,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [05](decisions/05-LE-RESEAU-HORS-DE-WINDOWS.md) le réseau hors de Windows ·
 [06](decisions/06-CE-QUE-LE-SYSTEME-A-VU.md) ce que le système a vu des plantages.
 
-La prochaine fiche porte le numéro **51**.
+La prochaine fiche porte le numéro **52**.

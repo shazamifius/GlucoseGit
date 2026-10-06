@@ -71,6 +71,7 @@
 
 mod formats;
 
+pub(super) use formats::lot_porte;
 use formats::{dire_les_formats, format_enregistre, offre, tirer, Bloc};
 
 use super::moisson::{self, Depot, Moisson, Recu};
@@ -160,7 +161,10 @@ impl IDropTarget_Impl for Cible_Impl {
         _ou: &POINTL,
         effet: *mut DROPEFFECT,
     ) -> WinResult<()> {
-        ecrire_effet(effet, donnees.as_ref().is_some_and(porte_quelque_chose));
+        // Un glisser parti de cette fenêtre n'y revient pas en copie (fiche 51 § 2).
+        let accepte = !super::glisser_windows::part_d_ici()
+            && donnees.as_ref().is_some_and(porte_quelque_chose);
+        ecrire_effet(effet, accepte);
         Ok(())
     }
 
@@ -172,7 +176,7 @@ impl IDropTarget_Impl for Cible_Impl {
     ) -> WinResult<()> {
         // `DragOver` ne reçoit pas l'objet : ce que `DragEnter` a répondu vaut pour tout le
         // survol, et Windows ne nous redemande pas notre avis tant que rien ne change.
-        ecrire_effet(effet, true);
+        ecrire_effet(effet, !super::glisser_windows::part_d_ici());
         Ok(())
     }
 
@@ -187,6 +191,10 @@ impl IDropTarget_Impl for Cible_Impl {
         ou: &POINTL,
         effet: *mut DROPEFFECT,
     ) -> WinResult<()> {
+        if super::glisser_windows::part_d_ici() {
+            ecrire_effet(effet, false);
+            return Ok(());
+        }
         ecrire_effet(effet, true);
         let Some(objet) = donnees.as_ref() else {
             return Ok(());
@@ -249,6 +257,7 @@ fn ecrire_effet(effet: *mut DROPEFFECT, accepte: bool) {
 /// Cet objet porte-t-il quelque chose que nous sachions poser ?
 fn porte_quelque_chose(objet: &IDataObject) -> bool {
     [
+        format_enregistre("Glucose.Lot"),
         CF_HDROP.0,
         format_enregistre("FileGroupDescriptorW"),
         format_enregistre("FileContents"),
@@ -273,6 +282,15 @@ fn porte_quelque_chose(objet: &IDataObject) -> bool {
 /// déposé un.
 fn recolter(objet: &IDataObject) -> (Moisson, Sorte) {
     dire_les_formats(objet);
+    // **Un lot de Glucose passe avant tout** : une autre fenêtre de Glucose le pose avec le
+    // texte de ses nœuds, et ce texte seul ferait une carte au lieu des nœuds.
+    if let Some(lot) = lot_porte(objet) {
+        let m = Moisson {
+            lot: Some(lot),
+            ..Moisson::default()
+        };
+        return (m, Sorte::Contenu);
+    }
     let par_fichiers = fichiers_reels(objet);
     if !par_fichiers.is_empty() {
         let m = Moisson {

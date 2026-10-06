@@ -112,6 +112,22 @@ impl GlucoseApp {
         self.salir(rect(cumul.0, cumul.1));
     }
 
+    /// **Le glisser s'abandonne** : les nœuds reviennent à leur place, et l'annulation n'en
+    /// garde rien — ce que fait `Échap`, et ce que fait un glisser qui part vers une autre
+    /// fenêtre (fiche 51 § 2).
+    pub(crate) fn abandonner_le_glisser(&mut self) {
+        if !self.is_dragging_item {
+            return;
+        }
+        self.is_dragging_item = false;
+        self.store.cancel_live_edit();
+        self.active_guides = SnapGuides::default();
+        self.drag_selection_base = None;
+        self.drag_exclus.clear();
+        self.drag_applied_delta = (0.0, 0.0);
+        self.mark_dirty();
+    }
+
     /// Termine la session de drag et nettoie les guides.
     pub fn finish_item_drag(&mut self) {
         if self.is_dragging_item {

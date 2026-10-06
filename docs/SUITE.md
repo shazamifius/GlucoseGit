@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 06/10/2026.** La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 07/10/2026.** La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -11,21 +11,22 @@
 
 ## 1. Ses retours sur la V2, et la 2.0.2 bêta — **d'abord**
 
-Il a approuvé l'ordre le 06/10 (la souris, `Ctrl+N`, le mode référence) puis ajouté trois retours
-le même jour (copier-coller, clic droit sur une image). Le copier-coller passe juste après la
-souris parce que `Ctrl+X` peut aujourd'hui détruire ce qu'il ne sait pas recoller : ses données
-d'abord. Ce sont les premiers retours d'usage de la V2 : rien ne passe avant.
+Il a approuvé l'ordre le 06/10 et ajouté trois retours le même jour. **Tout est écrit et éprouvé
+hors écran depuis la session des 06-07/10 (fiche 51)** ; ce qui reste, c'est **son écran** — la
+liste de la fiche 51 § 9 —, puis la publication.
 
-| | chantier | fini quand |
+`[x]` fini et prouvé · `[~]` écrit, éprouvé hors écran, **attend son jugement à l'écran** · `[ ]` à faire
+
+| | chantier | où en est-il |
 |---|---|---|
-| [ ] | **La version de travail en `2.0.2-dev`** (fiche 48 § 15.4, oubliée après la publication) | l'épreuve de version passe |
-| [ ] | **La souris instantanée.** Deux voies d'entrée, pas un réglage commun : à la souris, chaque cran de molette zoome dans l'image même et le glisser (bouton du milieu, `Espace`) suit le curseur au pixel, **rien ne glisse au lâcher** ; au doigt (pavé, écran tactile, pincement), l'élan actuel, inchangé. Aujourd'hui tout passe par `interactions/elan.rs`, réglé **au pavé** : conduite 10 ms, glissade de 0,45 s (déplacement) et 0,28 s (zoom). La source se reconnaît déjà (`pan_zoom::source_continue`). **Doute à vérifier** : une molette à défilement libre (Logitech MX…) envoie des fractions de cran, comme un pavé | un cran de souris donne tout son zoom dans l'image suivante et rien après ; un glisser lâché ne laisse aucun reste ; le pavé ne change pas d'un pixel ; **lui** le juge à l'écran |
-| [ ] | **Copier, couper, coller des nœuds, d'une fenêtre à l'autre.** D'abord le piège : `Ctrl+X` détruit aujourd'hui ce que `Ctrl+C` ne sait pas emporter (il ne copie que du texte). Puis le vrai geste : la sélection entière part dans le presse-papiers sous **un format à Glucose** (les nœuds, leurs places relatives, les flèches qui les relient, les octets des images par leur empreinte), **avec** un texte de repli pour les autres logiciels ; le collage pose le lot au curseur, en un geste annulable, **chaque identifiant renommé** — `Store::importer_un_document` (BOARDS-2) sait déjà renommer un lot et faire suivre chaque référence. Le presse-papiers traverse les processus : deux Glucose ouverts s'échangent ainsi leurs nœuds. Ensuite **le glisser d'une fenêtre à l'autre** : la cible de dépôt existe (`plateforme/depot_windows.rs`), il manque la source (`DoDragDrop`) | une sélection mêlée (textes, images, flèches, membrane) copiée dans une fenêtre et collée dans une autre revient identique, au bit près, sous des identifiants neufs ; couper puis coller ne perd rien |
-| [ ] | **Clic droit sur une image : « Copier l'image » et « Enregistrer l'image sous… ».** Copier met l'image dans le presse-papiers du système comme une image (Discord, un navigateur, Photoshop la collent) ; enregistrer écrit **ses octets d'origine**, scellés dans le document, sans recompression, avec leur extension | coller dans Discord montre l'image ; le fichier enregistré est identique, octet pour octet, à celui qui avait été posé |
-| [ ] | **`Ctrl+N` : un nouveau document**, par le raccourci et une entrée visible. Rien ne se perd (le document s'écrit déjà au fil de l'eau) ; un travail sans nom pose la question habituelle (BROUILLON-1) | épreuve de bout en bout ; aucun brouillon perdu |
-| [ ] | **Le mode référence, à la PureRef.** Un geste qui enlève toute l'interface (bande, onglets, minimap, panneaux), enlève le cadre de la fenêtre (déplacer et redimensionner restent possibles), garde la fenêtre **toujours au premier plan**, et s'en souvient d'une session à l'autre ; le même geste le défait. Regarder d'abord **les gestes exacts de PureRef** pour déplacer une fenêtre sans cadre. Plus tard, s'il le veut : opacité, clics qui traversent | il garde sa référence au-dessus de Blender et la juge à l'écran |
-| [ ] | **Le repos à zéro image.** Glucose dessine encore 1 à 2,5 images par seconde quand personne n'y touche (fiche 43 § 8). Une fenêtre de référence posée sur Blender doit coûter **zéro** : c'est « se nicher là où il reste des ressources » | la chronique dit 0 image au repos |
-| [ ] | **Publier la 2.0.2-beta.1** : son geste (Actions → Publier, brouillon coché, relire, publier) | ses testeurs la reçoivent |
+| [x] | **La version de travail en `2.0.2-dev`** | l'épreuve compare à tout ce qui est publié (sabotée : elle tombe) |
+| [~] | **La souris instantanée** : deux portes dans l'élan, la souris montrée à l'image suivante, le doigt inchangé | **lui** le juge à l'écran (souris, puis pavé). **Doute ouvert** : une molette à haute résolution (roue libre) passe pour un doigt — demander le modèle de sa souris ; la vraie réponse est *Direct Manipulation* (chantier 5) |
+| [~] | **Copier, couper, coller des nœuds, d'une fenêtre à l'autre** : le lot `.glucose`, le format « Glucose.Lot », le collage au curseur en un geste ; le glisser entre fenêtres (`DoDragDrop`) | la voie réelle du presse-papiers Windows et le glisser à la main : **son écran** |
+| [~] | **Clic droit sur une image : « Copier l'image » et « Enregistrer l'image sous… »** | **coller dans Discord** : son écran |
+| [~] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | son écran |
+| [~] | **Le mode référence, à la PureRef** : `Ctrl+Maj+A` (et `Alt+T`), sans interface, sans cadre, au premier plan, retenu ; déplacer au bouton droit, redimensionner par un bord | **au-dessus de Blender**, à son écran. Plus tard, s'il le veut : opacité (`Ctrl+Maj+±` chez PureRef), clics qui traversent (`Ctrl+T`) |
+| [~] | **Le repos à zéro image** : 0,1 image/s le 06/10 ; aucun réveil spontané trouvé dans le code ; la chronique dit désormais, raison par raison, qui dessine au repos | sa prochaine chronique : si une raison **spontanée** y paraît, l'éteindre |
+| [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
 
 ## 2. La boîte noire qui voyage
 
@@ -77,6 +78,9 @@ comprendre avec lui, les niveaux de boards (16) à confirmer, l'optimisation de 
 * Les gels de la carte Intel Arc (fiche 43 § 8).
 * Un plantage reproductible **dans les épreuves** : trois fois dans `vulkan-1.dll` au même octet
   (fiche 49 § 4), probablement une épreuve graphique qui referme la carte.
+* **Le pavé par *Direct Manipulation*** (fiche 51 § 1) : ce que font Chromium et Blender — les
+  gestes du pavé avec leurs phases, leur point focal et leur inertie ; et tout ce qui arrive
+  encore en molette vient alors d'une molette, ce qui règle le doute des roues libres.
 * Puis l'étalonnage : le modèle de coût qui **prédit** ce qu'une image va coûter, appris de ce que la
   boîte noire aura vu sur les vraies machines.
 
@@ -93,7 +97,7 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 1. **Le serveur de la boîte noire** (chantier 2).
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien d'abord).
-4. **Sa souris** (le doute du chantier 1).
+4. **Le modèle de sa souris** (le doute du chantier 1 : une roue libre passe pour un doigt).
 5. Sait-il qui, parmi ses cinq utilisateurs, a basculé ? Surtout sous Linux.
 6. Les membranes de Mary, les rideaux, Trans-domaines, « optimiser » dans la Time Machine.
 

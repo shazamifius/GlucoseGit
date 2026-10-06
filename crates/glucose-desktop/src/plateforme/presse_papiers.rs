@@ -34,6 +34,47 @@ pub fn lire_un_lot() -> Option<Vec<u8>> {
     imp::lire_un_lot()
 }
 
+/// **Le lot, précédé de sa longueur** : le presse-papiers et le glisser l'emportent ainsi.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn envelopper_le_lot(lot: &[u8]) -> Vec<u8> {
+    let mut enveloppe = Vec::with_capacity(8 + lot.len());
+    enveloppe.extend_from_slice(&(lot.len() as u64).to_le_bytes());
+    enveloppe.extend_from_slice(lot);
+    enveloppe
+}
+
+/// **Le lot qu'une enveloppe porte**, sans les octets qu'un bloc arrondi ajoute après lui.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn deballer_le_lot(tout: &[u8]) -> Option<Vec<u8>> {
+    let n = usize::try_from(u64::from_le_bytes(tout.get(..8)?.try_into().ok()?)).ok()?;
+    tout.get(8..8usize.checked_add(n)?).map(<[u8]>::to_vec)
+}
+
+/// Un texte comme `CF_UNICODETEXT` le veut : les fins de ligne de Windows, en UTF-16, et le zéro
+/// final que le format exige.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn texte_large(texte: &str) -> Vec<u8> {
+    texte
+        .replace('\n', "\r\n")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .flat_map(u16::to_le_bytes)
+        .collect()
+}
+
+/// Le numéro que Windows donne au format du lot, sur cette session.
+#[cfg(windows)]
+pub(crate) fn format_du_lot() -> Result<u32, String> {
+    imp::format()
+}
+
+/// **Un bloc de mémoire globale qui porte ces octets** : ce que le presse-papiers et le
+/// glisser confient au système. Une fois confié, il est à lui.
+#[cfg(windows)]
+pub(crate) fn bloc_global(octets: &[u8]) -> Result<windows::Win32::Foundation::HGLOBAL, String> {
+    imp::bloc_global(octets)
+}
+
 /// Écrit une image comme le fait « Copier l'image » d'un navigateur (fiche 51 § 3).
 pub fn ecrire_une_image(image: &crate::interactions::clipboard::ImagePosee) -> Result<(), String> {
     imp::ecrire_une_image(image)
@@ -53,7 +94,7 @@ mod imp {
     };
     use windows::Win32::System::Ole::{CF_DIBV5, CF_UNICODETEXT};
 
-    fn format() -> Result<u32, String> {
+    pub(super) fn format() -> Result<u32, String> {
         match unsafe { RegisterClipboardFormatW(&HSTRING::from(FORMAT)) } {
             0 => Err("le format de Glucose n'a pas pu être enregistré".into()),
             f => Ok(f),
@@ -84,26 +125,16 @@ mod imp {
 
     pub fn ecrire_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<(), String> {
         let format = format()?;
-        let mut enveloppe = Vec::with_capacity(8 + lot.len());
-        enveloppe.extend_from_slice(&(lot.len() as u64).to_le_bytes());
-        enveloppe.extend_from_slice(lot);
+        let enveloppe = super::envelopper_le_lot(lot);
         let _ouvert = Ouvert::prendre()?;
         unsafe { EmptyClipboard() }.map_err(|e| e.to_string())?;
         if let Some(t) = texte {
-            // Les fins de ligne de Windows, et le zéro final que le format exige.
-            let utf16: Vec<u16> = t
-                .replace('\n', "\r\n")
-                .encode_utf16()
-                .chain(std::iter::once(0))
-                .collect();
-            let octets: Vec<u8> = utf16.iter().flat_map(|u| u.to_le_bytes()).collect();
-            poser(u32::from(CF_UNICODETEXT.0), &octets)?;
+            poser(u32::from(CF_UNICODETEXT.0), &super::texte_large(t))?;
         }
         poser(format, &enveloppe)
     }
 
-    /// Confie ces octets au système sous ce format. Une fois confié, le bloc est à lui.
-    fn poser(format: u32, octets: &[u8]) -> Result<(), String> {
+    pub(super) fn bloc_global(octets: &[u8]) -> Result<HGLOBAL, String> {
         unsafe {
             let bloc =
                 GlobalAlloc(GMEM_MOVEABLE, octets.len().max(1)).map_err(|e| e.to_string())?;
@@ -114,6 +145,14 @@ mod imp {
             }
             std::ptr::copy_nonoverlapping(octets.as_ptr(), ou, octets.len());
             let _ = GlobalUnlock(bloc);
+            Ok(bloc)
+        }
+    }
+
+    /// Confie ces octets au système sous ce format. Une fois confié, le bloc est à lui.
+    fn poser(format: u32, octets: &[u8]) -> Result<(), String> {
+        let bloc = bloc_global(octets)?;
+        unsafe {
             if let Err(e) = SetClipboardData(format, Some(HANDLE(bloc.0))) {
                 let _ = GlobalFree(Some(bloc));
                 return Err(e.to_string());
@@ -149,12 +188,7 @@ mod imp {
                 return None;
             }
             // Sûr : le système garantit `taille` octets lisibles tant que le bloc est verrouillé.
-            let tout = std::slice::from_raw_parts(ou, taille);
-            let lot = tout
-                .get(..8)
-                .and_then(|l| usize::try_from(u64::from_le_bytes(l.try_into().ok()?)).ok())
-                .and_then(|n| tout.get(8..8usize.checked_add(n)?))
-                .map(<[u8]>::to_vec);
+            let lot = super::deballer_le_lot(std::slice::from_raw_parts(ou, taille));
             let _ = GlobalUnlock(bloc);
             lot
         }
@@ -169,7 +203,7 @@ mod imp {
     pub fn ecrire_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<(), String> {
         let html = super::html::envelopper(ATTRIBUT, texte.unwrap_or(""), lot);
         arboard::Clipboard::new()
-            .and_then(|mut c| c.set_html(html, texte))
+            .and_then(|mut c| c.set_html(html, texte.map(str::to_string)))
             .map_err(|e| e.to_string())
     }
 

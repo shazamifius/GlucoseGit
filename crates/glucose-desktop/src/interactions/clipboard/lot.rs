@@ -61,6 +61,25 @@ struct Copie {
     a_retirer: Option<(String, Vec<String>, Vec<String>)>,
 }
 
+/// La sélection prête à partir : voir [`GlucoseApp::preparer_le_depart`].
+struct Depart {
+    lot: Project,
+    inventaire: Inventaire,
+    texte: Option<String>,
+}
+
+/// **Les octets d'un lot** : ses images lues — en attendant celles qu'un ouvrier a promises —,
+/// puis un `.glucose` entier.
+fn assembler(lot: &Project, cles: &[String], objets: &crate::persist::objets::Objets) -> Vec<u8> {
+    let mut actifs = AssetStore::new();
+    for cle in cles {
+        if let Some(octets) = objets.lire_en_attendant(cle) {
+            actifs.insert(cle.clone(), octets);
+        }
+    }
+    glucose_core::persist::encode(lot, &actifs, 0)
+}
+
 struct Collage {
     recu: Receiver<Option<GlucoseFile>>,
     board: String,
@@ -96,35 +115,65 @@ impl GlucoseApp {
     /// `Ctrl+C` et `Ctrl+X` hors saisie : la sélection entière part vers le presse-papiers.
     pub(crate) fn copy_selection(&mut self, couper: bool) {
         let board = self.store.project.active_board_id.clone();
-        let Some(mut lot) = self.store.extraire_la_selection(&board) else {
+        let Some(Depart {
+            lot,
+            inventaire,
+            texte,
+        }) = self.preparer_le_depart(&board)
+        else {
             return;
         };
-        let date = maintenant_en_nanos();
-        lot.created_at = date;
-        self.echanges.derniere_copie = Some((date, self.disque.objets.document()));
         let Inventaire {
             images,
             annotations,
             cles,
-        } = inventaire(&lot);
+        } = inventaire;
         let compte = images.len() + annotations.len();
         let objets = Arc::clone(&self.disque.objets);
         let (envoi, recu) = channel();
         std::thread::spawn(move || {
-            let mut actifs = AssetStore::new();
-            for cle in cles {
-                if let Some(octets) = objets.lire_en_attendant(&cle) {
-                    actifs.insert(cle, octets);
-                }
-            }
-            let _ = envoi.send(glucose_core::persist::encode(&lot, &actifs, 0));
+            let _ = envoi.send(assembler(&lot, &cles, &objets));
         });
         self.echanges.copie = Some(Copie {
             recu,
-            texte: self.store.selection_as_text(),
+            texte,
             compte,
             a_retirer: couper.then_some((board, images, annotations)),
         });
+    }
+
+    /// **La sélection, prête à partir** : le lot, daté pour qu'on le reconnaisse au retour,
+    /// son inventaire et son texte de repli. `None` si elle n'emporte rien.
+    fn preparer_le_depart(&mut self, board: &str) -> Option<Depart> {
+        let mut lot = self.store.extraire_la_selection(board)?;
+        let date = maintenant_en_nanos();
+        lot.created_at = date;
+        self.echanges.derniere_copie = Some((date, self.disque.objets.document()));
+        Some(Depart {
+            inventaire: inventaire(&lot),
+            lot,
+            texte: self.store.selection_as_text(),
+        })
+    }
+
+    /// **Les nœuds tenus sortent de la fenêtre** : ils reviennent à leur place, et leur lot part
+    /// dans un glisser vers une autre fenêtre — de Glucose, ou un traitement de texte, qui en
+    /// reçoit les textes (fiche 51 § 2).
+    ///
+    /// Les octets se lisent ici, sur le fil qui dessine : le glisser de Windows est bloquant
+    /// de toute façon, et tient la main jusqu'au lâcher. C'est la seule copie qui ne passe pas
+    /// par un fil de fond, et la seule où rien d'autre ne peut se passer pendant ce temps.
+    pub(crate) fn emporter_hors_de_la_fenetre(&mut self) {
+        self.abandonner_le_glisser();
+        let board = self.store.project.active_board_id.clone();
+        let Some(depart) = self.preparer_le_depart(&board) else {
+            return;
+        };
+        let octets = assembler(&depart.lot, &depart.inventaire.cles, &self.disque.objets);
+        if let Err(e) = crate::plateforme::glisser_un_lot(depart.texte.as_deref(), &octets) {
+            eprintln!("[Glucose] le glisser vers une autre fenetre n'a pas pu partir : {e}");
+        }
+        self.mark_dirty();
     }
 
     /// `Ctrl+V` : pose le lot du presse-papiers, s'il en porte un. Rend `false` sinon, et le
@@ -137,6 +186,13 @@ impl GlucoseApp {
         let Some(octets) = presse_papiers::ouvrir().ok().and_then(|mut a| a.lot()) else {
             return false;
         };
+        self.coller_ces_octets(board, centre, octets);
+        true
+    }
+
+    /// **Colle les octets d'un lot** — venus du presse-papiers, ou d'un glisser lâché ici. Ils
+    /// se relisent sur un fil à part ; le lot se pose quand c'est fait.
+    pub(crate) fn coller_ces_octets(&mut self, board: &str, centre: (f64, f64), octets: Vec<u8>) {
         let (envoi, recu) = channel();
         std::thread::spawn(move || {
             let _ = envoi.send(glucose_core::persist::decode(&octets).ok());
@@ -146,7 +202,6 @@ impl GlucoseApp {
             board: board.to_string(),
             centre,
         });
-        true
     }
 
     /// **Applique ce que le fond a fini.** `attendre` : les épreuves veulent le résultat ; la

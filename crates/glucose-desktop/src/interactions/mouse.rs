@@ -53,23 +53,7 @@ impl GlucoseApp {
         let dx = position.x - prev_pos.0;
         let dy = position.y - prev_pos.1;
 
-        // La fenêtre tenue au bouton droit, en mode référence : elle suit, et rien d'autre.
-        if self.deplacer_la_fenetre() {
-            return;
-        }
-        // La minimap tenue passe avant tout le reste : tant qu'elle l'est, le curseur ne
-        // designe rien d'autre qu'une destination.
-        if self.minimap_tenue {
-            self.suivre_la_minimap(position);
-            return;
-        }
-        // Un onglet tenu : il glisse vers sa nouvelle place (BOARDS-1).
-        if self.suivre_l_onglet_tenu() {
-            return;
-        }
-        // La réglette de la Time Machine tenue : le passé suit le curseur.
-        if self.dock_manager.temps.glisse {
-            self.glisser_la_reglette(position.x as f32);
+        if self.suivre_ce_qui_est_tenu(position) {
             return;
         }
 
@@ -109,6 +93,9 @@ impl GlucoseApp {
             self.update_bend(wx, wy);
         } else if self.resize_session.is_some() {
             self.handle_resize_move(position.x, position.y);
+        } else if self.is_dragging_item && self.hors_de_la_fenetre(position) {
+            // Les nœuds tenus quittent la fenêtre : ils partent vers une autre (fiche 51 § 2).
+            self.emporter_hors_de_la_fenetre();
         } else if self.is_dragging_item {
             self.handle_item_drag_move(position.x, position.y);
         } else if self.selection_box.is_some() {
@@ -173,6 +160,45 @@ impl GlucoseApp {
             height: f64::from(h),
         };
         self.viser_par_la_minimap(monde, ecran, f64::from(self.ui.header_height()));
+    }
+
+    /// **Ce que la main tient hors du canevas** suit le curseur, et rien d'autre ne bouge : la
+    /// fenêtre en mode référence, la minimap, un onglet, la réglette de la Time Machine. Rend
+    /// `true` si l'un d'eux a pris le mouvement.
+    fn suivre_ce_qui_est_tenu(&mut self, position: PhysicalPosition<f64>) -> bool {
+        // La fenêtre tenue au bouton droit, en mode référence (fiche 51 § 5).
+        if self.deplacer_la_fenetre() {
+            return true;
+        }
+        // La minimap tenue : le curseur ne désigne rien d'autre qu'une destination.
+        if self.minimap_tenue {
+            self.suivre_la_minimap(position);
+            return true;
+        }
+        // Un onglet tenu : il glisse vers sa nouvelle place (BOARDS-1).
+        if self.suivre_l_onglet_tenu() {
+            return true;
+        }
+        // La réglette de la Time Machine tenue : le passé suit le curseur.
+        if self.dock_manager.temps.glisse {
+            self.glisser_la_reglette(position.x as f32);
+            return true;
+        }
+        false
+    }
+
+    /// **Ce point est-il hors de la fenêtre ?** La souris tenue continue d'être suivie au-delà de
+    /// ses bords. Sous Windows seulement : c'est là seul qu'un glisser sait partir vers une
+    /// autre fenêtre — ailleurs, les nœuds continuent de suivre la main. Et seulement avec une
+    /// vraie fenêtre : sans elle, il n'y a nulle part d'où sortir.
+    fn hors_de_la_fenetre(&self, position: PhysicalPosition<f64>) -> bool {
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
+        cfg!(windows)
+            && self.window.is_some()
+            && (position.x < 0.0
+                || position.y < 0.0
+                || position.x >= f64::from(largeur)
+                || position.y >= f64::from(hauteur))
     }
 
     /// Enfoncement d'un bouton de la souris.

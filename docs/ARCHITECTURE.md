@@ -45,10 +45,13 @@ crates/
   couches du haut vers le bas ; le clic (`pick.rs`) passe par l'arbitre du noyau (`hit_priority`,
   PICK-2) ; le glisser (`drag.rs`), l'aimant (`aimant.rs`, SNAP-4), le placement aimanté
   (`placement.rs`), le redimensionnement, le recadrage, les coudes, les ancres, les onglets, la
-  Time Machine (`temps.rs`), les raccourcis (`shortcuts.rs`, chiffres lus sur la touche
+  Time Machine (`temps.rs`), le copier-coller de nœuds (`clipboard/lot.rs` : le lot est un
+`.glucose`, le noyau l'extrait et le recolle, `core/store/lot.rs`), le mode référence
+(`reference.rs`), les raccourcis (`shortcuts.rs`, chiffres lus sur la touche
   **physique** pour les claviers AZERTY).
 * **La navigation** : `pan_zoom.rs` décide si un défilement est un zoom ou un déplacement, et s'il
-  vient d'une molette ou d'un doigt ; `elan.rs` tient une **dette** (ce que la main a demandé et
+  vient d'une molette ou d'un doigt ; `elan.rs` tient une **dette**, par deux portes — la souris la montre en entier à l'image
+suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a demandé et
   que l'écran n'a pas montré) remboursée à chaque image ; `vol.rs` suit le chemin de van Wijk et
   Nuij (`F`, signets, dossiers) ; `horloge.rs` avance du temps que l'écran **montre** ; `tempo.rs`
   donne à chaque image un nombre entier de balayages.
@@ -111,7 +114,9 @@ avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.m
 ## 7. La plateforme
 
 Tout ce qui parle au système vit dans `plateforme/` (et le `unsafe` avec), une voie par système :
-le dépôt depuis un navigateur (COM, Windows seulement), le téléchargement (WinHTTP sous Windows,
+le dépôt depuis un navigateur (COM, Windows seulement), le **glisser de nœuds vers une autre
+fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pas dire (le lot de
+nœuds « Glucose.Lot », l'image en PNG et `CF_DIBV5`, fiche 51), le téléchargement (WinHTTP sous Windows,
 `ureq` ailleurs), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la
 carte (DXGI), la priorité des fils, l'identité pour la barre des tâches, l'heure locale, le journal
 des plantages de Windows, la batterie.

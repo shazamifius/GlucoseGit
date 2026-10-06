@@ -1,6 +1,6 @@
 # Où en est Glucose
 
-> **Au 06/10/2026**, commit `2089375` et ce rangement. Ce document dit l'état **vérifié** du projet,
+> **Au 07/10/2026**, après la session de ses retours sur la V2 (fiche 51). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -35,13 +35,14 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini, molette, pavé tactile (deux doigts, pincement), élan, `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
-| **Le document** | `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
+| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile (deux doigts, pincement), élan, `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
+| **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution) ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
+| **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; au clic droit sur une image : **Copier l'image** (Discord, un navigateur), **Enregistrer l'image sous…** (les octets d'origine) |
 | **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, Ordonner, aimant aux voisines, placement aimanté dès le premier clic |
-| **Fenêtre** | `Alt+T` met la fenêtre au premier plan (caché, et oublié à la relance) |
+| **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
 | **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux |
 
 ## 4. La qualité, mesurée
@@ -55,7 +56,9 @@
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
   **pas encore tenu partout**.
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication.
-* **Au repos**, Glucose dessine encore 1 à 2,5 images par seconde. La seule bonne réponse est zéro.
+* **Au repos**, 0,1 image par seconde sur sa session du 06/10 (1 à 2,5 au 29/09). Le code ne montre
+  aucun réveil spontané ; ce sont probablement les suites d'un geste (glissade, message,
+  décodage). La chronique le dit désormais raison par raison : sa prochaine session tranchera.
 
 ## 5. Ce qui manque encore (de Tauri)
 
@@ -65,29 +68,21 @@ canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur 
 plugins et IA locale · Mac · Android · iPad. Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 
-## 6. Ses retours sur la V2 (06/10)
+## 6. Ses retours sur la V2 (06/10) — écrits, pas encore vus
 
-1. **La souris est insupportable** : le lissage du pavé tactile s'applique aussi à la molette et au
-   glisser. *À la souris : rapidité, instantanéité. Au doigt et sur tablette : du lisse.*
-2. **Aucun moyen de créer un document vierge** : pas de `Ctrl+N`, pas de bouton.
-3. **Un mode référence à la PureRef** : plus aucune interface, pas de cadre de fenêtre, toujours au
-   premier plan, pour garder sa référence à côté de Blender.
-4. **Copier, couper, coller une sélection entière** (textes, images, flèches, membranes), et même la
-   glisser d'une fenêtre de Glucose à une autre. Aujourd'hui `Ctrl+C` ne copie que du **texte**
-   (le contenu des cartes et le nom interne des images) : les positions, les tailles, les flèches
-   et les membranes ne partent pas. **Et `Ctrl+X` coupe quand même toute la sélection** : couper
-   une sélection riche la détruit sans pouvoir la recoller (`Ctrl+Z` la rend). Un piège à ses
-   données.
-5. **Clic droit sur une image → copier**, pour la coller dans Discord ou ailleurs.
-6. **Clic droit sur une image → enregistrer l'image sous…**
+Les six retours (la souris, `Ctrl+N`, le mode référence, le copier-coller, copier et enregistrer
+une image) sont **écrits et éprouvés hors écran** (fiche 51) : plus de deux mille épreuves vertes,
+chaque garde sabotée. **Aucun n'a encore été jugé à son écran** : c'est la liste de la fiche 51
+§ 9, et elle passe avant la publication de la 2.0.2-beta.1.
 
-Ces retours ouvrent la [suite](SUITE.md).
+Deux choses restent ouvertes : **sa souris** (une molette à roue libre passerait pour un doigt :
+déplacer au lieu de zoomer — demander le modèle), et l'**opacité** et les **clics qui traversent**
+du mode référence, s'il les veut.
 
 ## 7. Points de vigilance
 
 * **Sa clé de signature** est dans les secrets du dépôt (elle a signé chaque version de Tauri). Il
   manque **une copie hors de ce PC** : perdue, plus aucune mise à jour n'atteint personne.
-* **La version de travail** porte encore `2.0.0-dev`, sous la publiée : à passer en `2.0.2-dev`.
 * **`%TEMP%\glucose_pasted`** garde 2,9 Go d'anciennes images collées. Aucun document n'en dépend
   plus (fiche 47), mais c'est à lui de décider de les effacer.
 * Sur GitHub, quatre **brouillons de release** de juillet (Tauri 1.0.1-beta.1, .7, .16, .19) et la

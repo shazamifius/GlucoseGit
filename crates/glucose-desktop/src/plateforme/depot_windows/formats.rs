@@ -259,3 +259,21 @@ impl Drop for Bloc {
         }
     }
 }
+
+/// **Le lot de nœuds qu'une autre fenêtre de Glucose glisse** (fiche 51 § 2), sous le format
+/// et dans l'enveloppe du presse-papiers.
+pub(crate) fn lot_porte(objet: &IDataObject) -> Option<Vec<u8>> {
+    let format = u16::try_from(crate::plateforme::presse_papiers::format_du_lot().ok()?).ok()?;
+    let mut medium = tirer(
+        objet,
+        format,
+        windows::Win32::System::Com::TYMED_HGLOBAL,
+        -1,
+    )?;
+    let tout = unsafe {
+        let lu = Bloc::prendre(medium.u.hGlobal).map(|bloc| bloc.copier());
+        windows::Win32::System::Ole::ReleaseStgMedium(&mut medium);
+        lu
+    }?;
+    crate::plateforme::presse_papiers::deballer_le_lot(&tout)
+}

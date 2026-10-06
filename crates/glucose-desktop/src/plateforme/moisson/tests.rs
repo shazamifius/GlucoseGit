@@ -121,8 +121,14 @@ fn test_une_position_sans_fichier_n_est_pas_un_depot() {
         recus: Vec::new(),
         liens: Vec::new(),
         ou: Some((100.0, 200.0)),
+        lot: None,
     };
     assert!(m.est_vide());
+    let avec_un_lot = Moisson {
+        lot: Some(vec![1, 2, 3]),
+        ..m
+    };
+    assert!(!avec_un_lot.est_vide(), "un lot de nœuds est un dépôt");
 }
 
 /// Les octets **exacts** du raccourci que Chrome a promis quand l'utilisateur a glissé une

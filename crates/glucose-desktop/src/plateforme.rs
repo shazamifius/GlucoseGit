@@ -34,6 +34,8 @@ pub mod telechargements;
 
 #[cfg(windows)]
 mod depot_windows;
+#[cfg(windows)]
+mod glisser_windows;
 #[cfg(not(windows))]
 mod telechargement;
 #[cfg(windows)]
@@ -54,6 +56,19 @@ pub fn telecharger(url: &str, limite: usize) -> Result<Vec<u8>, String> {
     #[cfg(not(windows))]
     let voie = telechargement::telecharger;
     voie(&adresse, limite)
+}
+
+/// **Glisse un lot de nœuds hors de la fenêtre** (fiche 51 § 2), jusqu'au lâcher : rend vrai
+/// s'il a été déposé quelque part. Sous Windows seulement, comme la cible : ailleurs, le
+/// glisser de `winit` ne sait porter que des fichiers, et rien ne part.
+pub fn glisser_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<bool, String> {
+    #[cfg(windows)]
+    return glisser_windows::glisser(texte, lot);
+    #[cfg(not(windows))]
+    {
+        let _ = (texte, lot);
+        Ok(false)
+    }
 }
 
 /// **Le nom sous lequel Glucose se présente.**

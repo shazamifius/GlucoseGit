@@ -96,6 +96,13 @@ impl GlucoseApp {
     ) {
         let sur_les_onglets = annonce.is_none() && self.sur_les_onglets(client);
         let origine = annonce.unwrap_or_else(|| self.drop_origin(client));
+        // Un lot glissé depuis une autre fenêtre de Glucose se colle là où l'on lâche.
+        if let Some(lot) = &recolte.lot {
+            let board = self.store.project.active_board_id.clone();
+            self.coller_ces_octets(&board, origine, lot.clone());
+            self.mark_dirty();
+            return;
+        }
         // **Lâchés sur la barre d'onglets, les documents s'ajoutent** dans des onglets neufs
         // (BOARDS-2) ; le reste du lot se pose sur le canevas, comme d'habitude.
         let (documents, reste): (Vec<_>, Vec<_>) = recolte

@@ -90,6 +90,9 @@ pub struct Moisson {
     /// lui-même : *« la position exacte viendra avec la couche `IDropTarget` propre au
     /// projet »*.
     pub ou: Option<(f64, f64)>,
+    /// **Un lot de nœuds** glissé depuis une autre fenêtre de Glucose (fiche 51 § 2) : il se
+    /// colle là où l'on lâche, comme un `Ctrl+V`.
+    pub lot: Option<Vec<u8>>,
 }
 
 /// **Ce qu'un dépôt fait parvenir à la boucle d'images**, dans l'ordre où cela arrive.
@@ -120,7 +123,10 @@ pub enum Depot {
 impl Moisson {
     /// Rien n'a été récolté.
     pub fn est_vide(&self) -> bool {
-        self.chemins.is_empty() && self.recus.is_empty() && self.liens.is_empty()
+        self.chemins.is_empty()
+            && self.recus.is_empty()
+            && self.liens.is_empty()
+            && self.lot.is_none()
     }
 }
 
