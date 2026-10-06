@@ -38,10 +38,6 @@ coverage/
 .claude/scheduled_tasks.lock
 .claude/projects/
 
-# Docs de travail internes (gardées en local, pas publiées)
-STABILITY.md
-PHASE1_TO_PHASE2_TRANSITION.md
-
 # Les captures de travail (scène témoin, vitrine) se régénèrent par
 #   cargo run -p glucose-desktop --example capture_temoin -- docs/screenshots
 # Ce sont des sorties : aucune n'est versionnée. Les captures du README sont prises à la main,

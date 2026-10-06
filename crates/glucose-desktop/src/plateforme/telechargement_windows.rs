@@ -8,7 +8,7 @@
 //! **WinHTTP**, avec ses certificats, son proxy et ses mises à jour de sécurité. La caisse
 //! `windows` est déjà là pour le dépôt ; il ne s'agit que d'en nommer un recoin de plus.
 //!
-//! La note [`decisions/02`](../../../../docs/architecture/decisions/02-TELECHARGER-CE-QU-ON-DEPOSE.md)
+//! La note [`decisions/02`](../../../../docs/carnet/decisions/02-TELECHARGER-CE-QU-ON-DEPOSE.md)
 //! dit le reste. Ce module ne décide de rien : il reçoit une adresse déjà découpée et jugée
 //! par [`super::sources`], et rend des octets ou la raison de n'en pas rendre.
 

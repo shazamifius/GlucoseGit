@@ -4,7 +4,7 @@
 > **Archive de Glucose Tauri, figée au 2026-06-10.** Tout ce que cette roadmap marque ✅ est
 > acquis dans Glucose Tauri (branche `tauri-v1.0.1`), **pas dans Glucose Rust**. Lire d'abord
 > le [`README.md`](README.md) de ce dossier ; le plan de Glucose Rust vit dans
-> [`docs/architecture/`](../architecture/00-INDEX.md).
+> [`docs/carnet/`](../carnet/00-INDEX.md).
 
 > **Vision :** une surface cognitive infinie. Une seule interface — pas de modes — capable de soutenir aussi bien la création d'un jeu vidéo, l'élaboration d'une langue construite, que la cartographie versionnée de toute la connaissance humaine.
 >

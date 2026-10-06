@@ -40,8 +40,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-Et ces règles tiennent tout le projet. Elles sont détaillées dans les
-[standards de code](../docs/architecture/05-STANDARDS-DE-CODE.md).
+Et ces règles tiennent tout le projet. Elles sont détaillées dans la
+[méthode](../docs/METHODE.md) et les [standards de code](../docs/carnet/05-STANDARDS-DE-CODE.md).
 
 - **Le noyau n'a aucune dépendance.** `crates/glucose-core` garde un `[dependencies]` vide :
   modèle, géométrie, hachage, format de fichier, tout est écrit sur la bibliothèque standard.
@@ -58,8 +58,9 @@ Et ces règles tiennent tout le projet. Elles sont détaillées dans les
 - **Un changement, un sujet.** Expliquez le *pourquoi*, pas seulement le *quoi*.
 - **Un comportement nouveau arrive avec son test**, et un module du noyau avec son appelant.
 
-Pour comprendre où en est le projet et pourquoi, le [carnet de bord](../docs/README.md) raconte
-tout, décision par décision.
+Pour comprendre où en est le projet, lire [`docs/ETAT.md`](../docs/ETAT.md) puis
+[`docs/SUITE.md`](../docs/SUITE.md) ; le [carnet de bord](../docs/carnet/00-INDEX.md) raconte le
+pourquoi, décision par décision.
 
 ## Code de conduite
 

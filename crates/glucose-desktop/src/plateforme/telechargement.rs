@@ -1,5 +1,5 @@
 //! **Télécharger une adresse hors de Windows** : `ureq`, `rustls` et les racines de Mozilla
-//! (note [`decisions/05`](../../../../docs/architecture/decisions/05-LE-RESEAU-HORS-DE-WINDOWS.md)).
+//! (note [`decisions/05`](../../../../docs/carnet/decisions/05-LE-RESEAU-HORS-DE-WINDOWS.md)).
 //!
 //! # Pourquoi une pile embarquée ici, et pas sous Windows
 //!

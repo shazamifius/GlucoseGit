@@ -17,8 +17,9 @@
 
 ## 1. Premier lancement
 
-Glucose s'ouvre sur une feuille noire, infinie, quadrillée de points, avec une carte
-d'accueil au centre. Tout se pose sur cette feuille.
+Glucose s'ouvre sur une feuille noire, infinie, quadrillée de points. Au tout premier lancement,
+un texte d'accueil est posé au centre ; ensuite, Glucose rouvre **le dernier document** sur lequel
+vous travailliez, là où vous l'aviez laissé — même après un plantage.
 
 En haut, la **barre d'outils** ; juste en dessous, les **onglets** des tableaux. En bas à
 droite, la **minimap**.
@@ -41,6 +42,7 @@ un geste entier à la fois (un glisser, une saisie, un lot d'images déposées).
 | **Revenir à un signet** | `1` à `9` : la vue y vole, à la bonne échelle |
 | **Voyager par la minimap** | cliquer dedans, ou **maintenir et glisser** : la vue suit en douceur |
 | **Changer de tableau** | cliquer un onglet ; `+` crée un nouveau tableau |
+| **Gérer les onglets** | double-clic pour renommer ; glisser pour ranger ; la croix supprime (`Ctrl+Z` le rend) ; clic droit : renommer, supprimer, nouveau tableau, **importer un document** dans un onglet neuf. Un fichier `.glucose` lâché sur la barre d'onglets s'y ajoute aussi |
 
 Les signets sont propres à chaque tableau et s'enregistrent avec le document. Les chiffres
 se lisent sur la touche elle-même : sur un clavier AZERTY, pas besoin de `Maj`.
@@ -64,8 +66,9 @@ posé, Glucose revient tout seul à l'outil de sélection.
 | **Membrane** | `M` | un cadre en pointillés, nommé « Groupe » |
 | **Dossier** | bouton de la barre | un dossier, qui contient un tableau à lui |
 
-Une carte et une note naissent avec un texte provisoire déjà sélectionné : tapez pour le
-remplacer.
+Avec un outil qui crée une boîte (texte, note, membrane, dossier), un **fantôme** suit le curseur et s'aimante à ses
+voisins : le clic le pose exactement là. Une carte et une note naissent avec un texte provisoire
+déjà sélectionné : tapez pour le remplacer.
 
 ### Les images
 
@@ -199,6 +202,11 @@ lancer un programme.
 | **Retirer un coude** | double-clic sur le coude |
 | **Dire ce que la flèche signifie** | sélectionnez une ou plusieurs flèches, puis une touche de `1` à `6` |
 | **Retirer ce sens** | `0` |
+| **Régler une flèche** | sélectionnez-la : une barre d'options apparaît. `Droite` ou `Courbe`, `Double sens`, l'épaisseur, et les six relations par leur sigle |
+| **Faire partir une flèche d'une phrase** | dans la barre d'options, `Éditer le texte lié` : choisissez le passage exact dans le texte de départ, puis dans celui d'arrivée. Au survol de la flèche, ce passage s'éclaire |
+
+Une flèche sans coude **contourne** d'elle-même ce qu'elle traverserait, par le plus court chemin.
+Glisser un coin de ce détour le transforme en coude.
 
 Les six relations :
 
@@ -220,8 +228,12 @@ un signet.
 
 ### Membranes et dossiers
 
-Une **membrane** regroupe visuellement ce qu'elle entoure. Double-clic dessus pour la
-renommer.
+Une **membrane** regroupe ce qu'on y dépose : ce qui est posé dedans lui **appartient**, et la
+déplacer emporte son contenu. La supprimer libère son contenu sans rien effacer. Double-clic
+dessus pour la renommer.
+
+**Le mode Focus** : zoomez sur une membrane jusqu'à ce qu'elle remplisse presque l'écran, et il ne
+reste plus qu'elle et son contenu, sur un fond à sa couleur. Dézoomez pour en sortir.
 
 Un **dossier** est une porte vers un autre canevas. Posé par-dessus des éléments, il les
 **emporte** à l'intérieur. Double-clic pour y entrer : la vue plonge dedans. Le **fil
@@ -236,25 +248,29 @@ leur poignée `⠿⠿` ; les tirer hors de l'écran les ferme.
 |---|---|
 | **Ordonner** | range les images du tableau d'un geste, annulable. Tris : ordre actuel, grand vers petit, petit vers grand, portrait, paysage. Dispositions : rangées compactes, colonnes façon Pinterest, grille alignée, même hauteur. Les options grisées ne sont pas encore construites |
 | **Timer** | un minuteur Pomodoro : 25, 15 ou 5 minutes |
+| **Time Machine** | `Ctrl+H`, ou son bouton. L'histoire du document, geste par geste : glissez sur la réglette ou cliquez un point pour **voir** le passé (l'écran se borde d'ambre, rien n'est modifié) ; `Restaurer` y revient, et `Ctrl+Z` défait cette restauration. Les **jalons** portent leur date ; `+ Marquer un jalon` en nomme un. `Échap` revient au présent |
 | **Domaines** | crée des domaines (des thèmes), les renomme, change leur couleur et leur sigle, les supprime après confirmation. On les assigne à la sélection avec un poids, de 20 % à 100 %, et chaque élément affiche une jauge par domaine |
 
 ---
 
 ## 9. Enregistrer et exporter
 
+**Glucose enregistre à chaque geste.** Un document qui a un nom s'écrit au fil de l'eau, sans
+jamais figer l'écran ; un document sans nom vit dans un **brouillon**, et Glucose demande quoi en
+faire avant de le quitter. Un texte en cours de frappe survit même à un plantage.
+
 | Pour… | Faites… |
 |---|---|
-| **Enregistrer** | `Ctrl+S` : un dialogue la première fois, en silence ensuite |
-| **Enregistrer sous** | `Ctrl+Maj+S` |
-| **Ouvrir** | `Ctrl+O` |
+| **Nommer, poser un jalon** | `Ctrl+S` : un dialogue la première fois ; ensuite, un **jalon** dans la Time Machine |
+| **Enregistrer sous** | `Ctrl+Maj+S` : une copie du document **et** de son histoire |
+| **Ouvrir** | `Ctrl+O`. Les documents de **Glucose Tauri** s'ouvrent aussi, sans être réécrits |
 | **Exporter le tableau** | `Ctrl+E`, ou le bouton `Exporter` : en Markdown (`.md`) ou en image vectorielle (`.svg`), selon le nom choisi |
-| **Fermer** | si le document a changé, Glucose demande avant de fermer. Un enregistrement raté n'est jamais suivi d'une fermeture |
 
-Le fichier `.glucose` range chaque image **une seule fois**, même posée cent fois. Il est
-écrit de façon sûre : un plantage pendant l'enregistrement laisse intact le fichier
-précédent.
+Le fichier `.glucose` range chaque image **une seule fois**, même posée cent fois, dans le fichier
+lui-même. L'export SVG contient les cartes et les flèches, pas encore les images ni les membranes.
 
-L'export SVG contient les cartes et les flèches, pas encore les images ni les membranes.
+**Les mises à jour** arrivent d'elles-mêmes : Glucose propose la nouvelle version au lancement,
+vérifie sa signature, et se relance.
 
 ### La fenêtre
 
@@ -275,7 +291,7 @@ encore. Aucun ne fait semblant.
 | **Plugins** | aucun plugin, aucune IA locale pour l'instant |
 | **Collaborer** | pas de travail à plusieurs pour l'instant |
 
-Les fichiers enregistrés par Glucose Tauri ne s'ouvrent pas encore. Les notes adhésives
+Les notes adhésives
 affichent un opérateur (ET, OU, MAIS, PARCE QUE) quand elles en portent un, mais on ne peut
 pas encore le choisir.
 
@@ -296,9 +312,9 @@ pas encore le choisir.
 | `1`–`9` | aller au signet | | `Ctrl+1`–`9` | poser un signet |
 | `1`–`6` | sens d'une flèche | | `0` | retirer ce sens |
 | `← ↑ → ↓` | déplacer | | `Ctrl+I` | importer des images |
-| `Échap` | sortir, annuler le geste | | `Ctrl+S` | enregistrer |
+| `Échap` | sortir, annuler le geste | | `Ctrl+S` | nommer, poser un jalon |
 | `Alt+T` | premier plan | | `Ctrl+Maj+S` | enregistrer sous |
-| | | | `Ctrl+O` | ouvrir |
+| `Ctrl+H` | Time Machine | | `Ctrl+O` | ouvrir |
 | | | | `Ctrl+E` | exporter |
 
 ---
