@@ -38,8 +38,8 @@ Pas de glassmorphisme, pas de glow décoratif, pas d'ombres molles sur la chrome
 | `emphasis` (rare) | jaune `~#eab308` | Souligner une info importante — usage minimal |
 | *(contenu)* | images + teintes domaine/position | **Couleur = utilisateur**, hors chrome |
 
-> Dette connue : certains panneaux (IA locale / plugins) emploient encore un vert/bleu
-> accent — **à resserrer** vers le monochrome.
+> Glucose Tauri employait encore un vert ou un bleu dans ses panneaux d'IA locale et de
+> plugins ; Glucose Rust ne les a pas repris (`theme.rs` en garde la raison).
 
 ## Matérialité
 
