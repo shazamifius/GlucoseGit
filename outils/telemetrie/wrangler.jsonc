@@ -1,0 +1,18 @@
+// Le Worker de la boîte noire qui voyage (fiche 54). Déployé depuis ce dossier :
+//   npx wrangler d1 create glucose-boite-noire      (une fois : donne l'identifiant ci-dessous)
+//   npx wrangler d1 execute glucose-boite-noire --remote --file schema.sql
+//   npx wrangler deploy
+{
+  "name": "glucose-boite-noire",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "d1_databases": [
+    {
+      "binding": "BASE",
+      "database_name": "glucose-boite-noire",
+      "database_id": "A-REMPLIR-A-LA-CREATION"
+    }
+  ],
+  // Aucun journal des requêtes : ils porteraient l'adresse IP de chaque envoi.
+  "observability": { "enabled": false }
+}
