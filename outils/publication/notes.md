@@ -13,7 +13,10 @@
 * **`Ctrl+N` demande toujours** avant de commencer un nouveau document : un raccourci tapé par
   erreur ne fait plus rien disparaître de l'écran.
 * **Le mode référence au pavé tactile** : `Alt` + glisser déplace la fenêtre, `Alt` + pincer
-  l'agrandit ou la rétrécit.
+  l'agrandit ou la rétrécit ; les panneaux s'effacent avec le reste de l'interface.
+* **Les signets ramènent au même lieu dans une fenêtre de n'importe quelle taille** : ils
+  retiennent le centre de la vue. Ceux posés avec une version précédente sont à reposer une fois.
+* **La molette zoome bien plus vite** : trois crans doublent la taille.
 * **À la souris, tout est instantané** : un cran de molette zoome tout de suite, le glisser au
   bouton du milieu suit la souris au pixel, et rien ne glisse quand on lâche. Au pavé tactile,
   le déplacement à deux doigts garde son élan.

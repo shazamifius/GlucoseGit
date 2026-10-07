@@ -230,3 +230,29 @@ d'avant). Pas prouvé : tout ce qui précède à son écran.
   Tauri. Une planche hors écran lui montre quatre directions monochromes — l'actuelle, des
   équerres aux coins, un fil et quatre points, un cadre unique pour le groupe — : **son choix**.
 
+## 10. Son écran, une troisième fois
+
+* **`Ctrl+N`** : « fonctionne parfaitement ». **Le pincement** : « une nette amélioration, mais
+  ce n'est pas encore ça » — sans plus de détail ; la réponse de fond reste *Direct
+  Manipulation* (SUITE, chantier 5), qui livre les gestes du pavé avec leur vraie échelle.
+* **La molette, à la souris pour la première fois** : « pas du tout assez rapide ». Un tiers
+  d'octave par cran au lieu d'un huitième : trois crans doublent.
+* **Les panneaux en mode référence** : Ordonner, la Time Machine et le Pomodoro restaient
+  posés **par la carte graphique** — la voie du processeur les retirait, celle de la carte non
+  —, visibles et morts puisque leurs clics étaient coupés. Ils partent, et reviennent tels
+  quels quand le mode se défait.
+* **Les signets dans une petite fenêtre** (SIGNET-2) : « on tombe dans le vide ». Un signet
+  retenait le décalage du coin haut-gauche ; il retient désormais le décalage au centre du
+  canevas, et se rappelle autour du centre d'aujourd'hui. Le format ne change pas — la 2.0.1
+  installée relit les mêmes fichiers — ; les signets posés avant se rappellent décalés d'une
+  demi-fenêtre, une fois.
+* **« Un énorme freeze, qui a failli faire planter mon PC »**. Windows n'a noté ni erreur de
+  pilote ni plantage ; la pire image de Glucose a coûté 36 ms. Mais sa boîte noire finit sur
+  des dizaines de pincements à 5 ms d'écart, puis 29 images à 12 ms dans `present`, puis rien
+  pendant 42 s : la signature d'une fenêtre redimensionnée en rafale. `Alt` + pincer la
+  redimensionnait **à chaque événement** — chaque taille reconstruit la surface de la carte et
+  le tampon de l'écran. REFERENCE-3 : les pincements s'additionnent, et la fenêtre change de
+  taille au plus une fois par image, quand Windows a appliqué la précédente (ou que la demande
+  est trop vieille pour être encore en route). **Cause probable, à confirmer avec lui.**
+* **La sélection** : la planche des quatre directions attend son choix.
+
