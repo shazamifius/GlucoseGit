@@ -275,3 +275,25 @@ fn test_nav_4_la_souris_se_montre_a_l_image_suivante_et_rien_apres() {
         "à l'envers, le pavé reste lissé : {montre} px sur 30"
     );
 }
+
+/// **Le zoom au doigt passe par la conduite** (fiche 52 § 9) : joué dans l'application, `Ctrl`
+/// et un demi-cran de pavé ne se montrent pas d'un bloc — il reste une dette, que la conduite
+/// rembourse au fil des images. À l'envers, la molette se montre tout entière à l'image
+/// suivante (NAV-4) : c'était le « strate par strate » du pincement. Que le zoom au doigt ne
+/// glisse pas après le lâcher, `elan::tests::un_pincement_ne_glisse_pas` le garde.
+#[test]
+fn test_le_zoom_au_doigt_passe_par_la_conduite() {
+    const ECRAN: (u32, u32) = (1280, 720);
+    let mut app = crate::app::GlucoseApp::new();
+    let avant = app.store.viewport().scale;
+    app.modifiers = winit::keyboard::ModifiersState::CONTROL;
+    app.handle_mouse_wheel(lignes(0.0, 0.5));
+    app.modifiers = winit::keyboard::ModifiersState::empty();
+    app.appliquer_l_elan(ECRAN.0, ECRAN.1);
+    let voulu = (0.5 * OCTAVES_PAR_UNITE_DE_DOIGT).exp2();
+    let montre = app.store.viewport().scale / avant;
+    assert!(
+        montre < voulu - 1e-6 && app.elan.en_cours(),
+        "le pincement s'est montre d'un bloc : x{montre} sur x{voulu}"
+    );
+}

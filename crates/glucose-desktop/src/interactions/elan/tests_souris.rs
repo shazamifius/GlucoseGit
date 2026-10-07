@@ -44,13 +44,13 @@ fn un_cran_se_montre_tout_entier_a_l_image_suivante() {
     );
     assert!(!elan.bouge(), "la vue s'est arrêtée");
 
-    // À l'envers, l'ancienne loi rejouée : la porte du doigt, que le zoom a quittée (fiche
-    // 52 § 4), rattrapait la main en dix millisecondes — le même cran ne se montrait qu'en
-    // partie à la première image.
-    let premier = CRAN * (1.0 - (-IMAGE.as_secs_f64() / 0.01).exp());
+    // À l'envers : par la porte du doigt, le même cran ne se montre qu'en partie.
+    let mut doigt = Elan::default();
+    doigt.pousser_zoom(CRAN, (300.0, 200.0), t);
+    let premier = doigt.avancer(t + IMAGE, IMAGE, DIAGONALE).unwrap().octaves;
     assert!(
         premier < CRAN * 0.5,
-        "le doigt lissait : {premier} sur {CRAN}"
+        "le doigt lisse : {premier} sur {CRAN}"
     );
 }
 
@@ -78,8 +78,9 @@ fn une_serie_de_crans_ne_laisse_aucune_glissade() {
     );
     assert_eq!(apres, 0.0, "rien ne glisse après le dernier cran");
 
-    // À l'envers, l'ancienne loi rejouée : la porte du doigt, que le zoom a quittée (fiche
-    // 52 § 4), prolongeait le geste de sa vitesse fois 0,28 s — un cran toutes les six images.
+    // À l'envers, l'ancienne loi rejouée : la porte du doigt prolongeait le zoom de sa
+    // vitesse fois 0,28 s — un cran toutes les six images. Cette glissade a été retirée
+    // (fiche 52 § 9), mais c'est elle que la molette héritait.
     let vitesse = CRAN / (6.0 * IMAGE.as_secs_f64());
     let glissade = vitesse * 0.28;
     assert!(

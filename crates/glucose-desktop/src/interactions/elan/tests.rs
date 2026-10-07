@@ -120,29 +120,45 @@ fn repartir_en_sens_inverse_ne_renvoie_jamais_dans_l_ancien_sens() {
     );
 }
 
-/// **Un pincement mêlé à un glissement à deux doigts se montre en entier, et l'élan finit.**
-///
-/// Le zoom n'a plus que la porte directe (fiche 52 § 4). S'il arrivait entre deux poussées du
-/// doigt, sa dette dormait dans celle du doigt, qui ne le rembourse plus : l'élan restait « en
-/// cours » pour toujours, et Glucose aurait redessiné sans fin.
+/// **Un pincement ne glisse pas** (fiche 52 § 9) : lâché, il finit de rattraper les doigts et
+/// s'arrête — tout ce qui a été demandé est montré, et rien de plus. À l'envers, l'ancienne
+/// loi rejouée : la glissade du zoom y ajoutait la vitesse fois 0,28 s.
 #[test]
-fn un_pincement_mele_au_doigt_se_montre_et_l_elan_finit() {
+fn un_pincement_ne_glisse_pas() {
+    let mut elan = Elan::default();
+    let debut = Instant::now();
+    let mut t = debut;
+    for _ in 0..12 {
+        elan.pousser_zoom(0.05, (100.0, 100.0), t);
+        t += PAVE;
+    }
+    let total = jouer(&mut elan, debut, 3.0).2;
+    // Le dernier demi-pixel se solde (la règle de l'élan) : un millième d'octave près, bien
+    // loin du dixième que la glissade ajoutait.
+    assert!(
+        (total - 0.6).abs() < 1e-3,
+        "douze poussées de 0,05 : {total} octave montrée au lieu de 0,6"
+    );
+    assert!(!elan.en_cours(), "le pincement s'arrête avec les doigts");
+    let vitesse = 0.05 / PAVE.as_secs_f64();
+    assert!(
+        vitesse * 0.28 > 0.1,
+        "l'ancienne glissade n'ajoutait rien : l'épreuve ne prouve rien"
+    );
+}
+
+/// **Un pincement mêlé à un glissement à deux doigts finit** : son zoom se rembourse à la
+/// conduite, même quand la main a lâché et que le déplacement glisse.
+#[test]
+fn un_pincement_mele_au_doigt_finit() {
     let mut elan = Elan::default();
     let debut = Instant::now();
     elan.pousser_pan(10.0, 0.0, debut);
-    elan.placer_zoom(0.2, (100.0, 100.0));
+    elan.pousser_zoom(0.2, (100.0, 100.0), debut);
     elan.pousser_pan(10.0, 0.0, debut + PAVE);
-    let premier = elan
-        .avancer(debut + PAVE, PAS, DIAGONALE)
-        .expect("une image de mouvement");
-    assert_eq!(
-        premier.octaves, 0.2,
-        "tout le pincement, a la premiere image"
-    );
-    let fin = debut + Duration::from_secs(5);
-    jouer(&mut elan, debut + PAVE, 5.0);
+    let total = jouer(&mut elan, debut + PAVE, 5.0).2;
+    assert!((total - 0.2).abs() < 1e-3, "tout le pincement : {total}");
     assert!(!elan.en_cours(), "l'elan doit finir");
-    assert_eq!(elan.avancer(fin, PAS, DIAGONALE), None);
 }
 
 /// **Une diagonale reste une diagonale, même en zoomant.** « À la fois on va à droite, à la
@@ -155,7 +171,7 @@ fn une_diagonale_zoomee_garde_ses_proportions() {
     let mut t = debut;
     for _ in 0..8 {
         elan.pousser_pan(20.0, -10.0, t);
-        elan.placer_zoom(0.03, (50.0, 50.0));
+        elan.pousser_zoom(0.03, (50.0, 50.0), t);
         t += PAVE;
     }
     let total = jouer(&mut elan, t, 3.0);
@@ -298,7 +314,7 @@ fn deux_images_de_couts_opposes_montrent_le_meme_mouvement() {
 fn l_ancre_ne_se_consomme_pas_avec_la_dette() {
     let mut elan = Elan::default();
     let debut = Instant::now();
-    elan.placer_zoom(0.4, (640.0, 360.0));
+    elan.pousser_zoom(0.4, (640.0, 360.0), debut);
     for n in 1..=60 {
         let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
         if let Some(m) = elan.avancer(t, PAS, DIAGONALE) {

@@ -89,9 +89,12 @@
 //! [`Elan::placer_pan`] et [`Elan::placer_zoom`] sont celles de la souris : ce qu'elles
 //! demandent se montre **en entier à l'image suivante**, et rien ne glisse ensuite.
 //!
-//! **Le zoom n'a plus que la porte directe** (fiche 52 § 4) : le pincement passait par la
-//! conduite et la glissade du doigt, et son essai l'a jugé « trop smooth, et pas du tout
-//! rapide ». Un pincement suit les doigts ; il ne prédit rien de ce qu'ils feront.
+//! **Le zoom au doigt a la conduite, jamais la glissade** (fiche 52 § 8-9). Avec la conduite
+//! et la glissade, le pincement était « trop smooth, et pas du tout rapide » ; tout direct, il
+//! allait « strate par strate, comme une molette » — chaque paquet du pavé montré d'un bloc. Le
+//! juste milieu est celui du déplacement : la vue rattrape les doigts en [`TAU_CONDUITE`], ce
+//! qui fond les paquets, et s'arrête quand ils s'arrêtent. Un pincement suit les doigts ; il ne
+//! prédit rien de ce qu'ils feront.
 //! Elles passent quand même par la dette, pour une seule raison : la caméra ne bouge qu'une
 //! fois par image, et deux événements arrivés entre deux images s'y rejoignent.
 
@@ -400,6 +403,22 @@ impl Elan {
         );
     }
 
+    /// Le doigt demande un changement d'échelle autour de ce point : la vue le rattrape en
+    /// [`TAU_CONDUITE`], et **rien ne glisse** quand il lâche (fiche 52 § 9).
+    pub fn pousser_zoom(&mut self, octaves: f64, ancre: (f64, f64), maintenant: Instant) {
+        self.reprendre_la_main();
+        self.voie = Voie::Doigt;
+        self.ancre = ancre;
+        self.reste.octaves += octaves;
+        self.source.noter(
+            maintenant,
+            Mouvement {
+                octaves,
+                ..Mouvement::default()
+            },
+        );
+    }
+
     /// La souris demande un déplacement : il se montre en entier à l'image suivante.
     ///
     /// Aucun instant n'est demandé, et ce n'est pas un oubli : à la souris, il n'y a ni rythme
@@ -410,8 +429,8 @@ impl Elan {
         self.reste.pan.1 += dy;
     }
 
-    /// Un changement d'échelle autour de ce point — à la molette ou au pincement : tout, à
-    /// l'image suivante.
+    /// La molette demande un changement d'échelle autour de ce point : tout, à l'image
+    /// suivante.
     pub fn placer_zoom(&mut self, octaves: f64, ancre: (f64, f64)) {
         self.prendre_a_la_souris();
         self.ancre = ancre;
@@ -507,17 +526,19 @@ impl Elan {
             return None;
         }
 
-        // **Le zoom se montre en entier, quelle que soit la porte** : tout zoom est direct. Un
-        // pincement suivi d'un glissement à deux doigts avant l'image ferait sinon dormir son
-        // zoom dans la dette du doigt, qui ne le rembourse plus — et l'élan ne finirait jamais.
-        let part = 1.0 - (-dt / self.constante().max(1e-6)).exp();
+        // **Le zoom se rembourse toujours à la conduite** : lâché, il finit de rattraper les
+        // doigts et s'arrête — aucune glissade ne s'y ajoute (fiche 52 § 9). Le déplacement,
+        // lui, prend la constante du régime : conduite, puis glissade.
+        let part = |tau: f64| 1.0 - (-dt / tau.max(1e-6)).exp();
+        let pan = part(self.constante());
         let montre = Mouvement {
-            pan: (self.reste.pan.0 * part, self.reste.pan.1 * part),
-            octaves: std::mem::take(&mut self.reste.octaves),
+            pan: (self.reste.pan.0 * pan, self.reste.pan.1 * pan),
+            octaves: self.reste.octaves * part(TAU_CONDUITE),
             ancre: self.ancre,
         };
         self.reste.pan.0 -= montre.pan.0;
         self.reste.pan.1 -= montre.pan.1;
+        self.reste.octaves -= montre.octaves;
         montre.existe().then_some(montre)
     }
 
