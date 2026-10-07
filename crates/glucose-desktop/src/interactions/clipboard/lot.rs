@@ -163,14 +163,21 @@ impl GlucoseApp {
     /// Les octets se lisent ici, sur le fil qui dessine : le glisser de Windows est bloquant
     /// de toute façon, et tient la main jusqu'au lâcher. C'est la seule copie qui ne passe pas
     /// par un fil de fond, et la seule où rien d'autre ne peut se passer pendant ce temps.
+    ///
+    /// **L'image où les nœuds sont revenus se peint avant de partir** : pendant le geste,
+    /// `winit` ne peut rien livrer à cette fenêtre, et elle resterait figée sur les nœuds tenus
+    /// au bord — ce qui ressemble à des nœuds perdus (`plateforme::glisser_windows`).
     pub(crate) fn emporter_hors_de_la_fenetre(&mut self) {
         self.abandonner_le_glisser();
         let board = self.store.project.active_board_id.clone();
-        let Some(depart) = self.preparer_le_depart(&board) else {
+        let (Some(fenetre), Some(depart)) = (self.window.clone(), self.preparer_le_depart(&board))
+        else {
             return;
         };
         let octets = assembler(&depart.lot, &depart.inventaire.cles, &self.disque.objets);
-        if let Err(e) = crate::plateforme::glisser_un_lot(depart.texte.as_deref(), &octets) {
+        self.redraw();
+        let texte = depart.texte.as_deref();
+        if let Err(e) = crate::plateforme::glisser_un_lot(&fenetre, texte, &octets) {
             eprintln!("[Glucose] le glisser vers une autre fenetre n'a pas pu partir : {e}");
         }
         self.mark_dirty();
