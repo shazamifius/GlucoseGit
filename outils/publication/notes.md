@@ -8,9 +8,20 @@
 * **Au dézoom, les poignées et le cadre d'une sélection suivent la taille des nœuds** : ils ne
   recouvrent plus des vignettes plus petites qu'eux, et une vignette sélectionnée se déplace
   au lieu de se redimensionner.
-* **Au pavé tactile, Glucose reçoit les gestes comme un navigateur** : le pincement et le
-  déplacement à deux doigts arrivent tels que les doigts les font, avec l'inertie de Windows.
-  Le pincement s'arrête avec les doigts.
+* **Au pavé tactile, Glucose suit exactement les doigts** : le pincement et le déplacement à
+  deux doigts arrivent tels que les doigts les font, avec l'inertie de Windows, et se mêlent
+  librement — un déplacement en biais ne se bloque plus en zoom. Le pincement s'arrête avec
+  les doigts.
+* **Transformer toute une sélection, comme dans Blender** : plusieurs nœuds choisis ont un seul
+  cadre ; tirer un coin les met à l'échelle ensemble, `Alt` + coin les fait tourner. Le bouton
+  « Origine commune / Origines individuelles » dit autour de quoi.
+* **`F` cadre la sélection** (ou tout, si rien n'est choisi), **`Ctrl+F` cadre tout**.
+* **Une épingle de Pinterest paraît tout de suite** : une copie se pose aussitôt, et l'image
+  d'origine prend sa place dès qu'elle arrive.
+* **Le journal technique, si tu le veux** : au premier lancement, Glucose demande s'il peut
+  envoyer le journal technique de ses sessions (le temps de chaque image, le système, la façon
+  dont une session a fini — jamais le contenu des documents). « Non » ne change rien, et le
+  choix se reprend au clic droit sur le canevas.
 * **Les images glissées depuis Pinterest arrivent bien plus vite** (la page est demandée
   compressée : une seconde au lieu de vingt). Si une image ne vient vraiment pas, le lien posé
   à sa place dit pourquoi, et le clic droit « Remplacer par l'image » réessaie.

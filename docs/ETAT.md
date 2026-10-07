@@ -18,12 +18,14 @@
   sur GitHub : onze secondes de Tauri ouvert à Glucose Rust vivant.
 * **Ce qu'on sait des utilisateurs : presque rien.** Au 06/10, l'installeur Windows a été téléchargé
   **2 fois**, les paquets Linux **0 fois**, et `latest.json` a été lu 14 fois, dont une bonne part par
-  sa propre machine. **La télémétrie est écrite** des deux côtés (fiche 54 § 6) — la question,
-  l'envoi, « voir ce qui part », l'effacement, et le serveur Cloudflare — mais **rien ne part**
-  tant que son compte Cloudflare n'existe pas.
-* **Android : Glucose compile pour les téléphones** (fiche 54 § 7), ARM 64 et 32 bits, à partir
-  d'Android 5.0, avec les doigts (un doigt, deux doigts). **Rien n'a encore tourné sur un
-  téléphone** : l'APK se construira sur GitHub au prochain envoi avec CI.
+  sa propre machine. **La télémétrie est en ligne** (fiche 54 § 6) : le serveur tourne dans son
+  compte Cloudflare (`glucose-boite-noire.ferme-nilslamber.workers.dev`, base D1 en Europe de
+  l'Ouest), éprouvé de bout en bout sur Internet ; Glucose y envoie avec l'accord de chacun,
+  demandé au premier lancement.
+* **Android : Glucose tourne sur son Redmi 9** (« oui, ça fonctionne sur téléphone », 08/10) —
+  ARM 64 et 32 bits, Android 5.0 et après, avec les doigts. L'APK est signé de **la clé de
+  Glucose pour Android** (créée le 08/10, `Documents\Glucose-cle-android`, et dans les secrets
+  du dépôt) : la publication le joint à la release.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -56,14 +58,16 @@
 * **Épreuves** : 2 108 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
-  la mise à jour, la répétition de la bascule, les paquets Linux. Les neuf premières vertes
-  sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
+  la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
+  `89510e2`** (08/10 ; la tâche des paquets Linux, figée une heure et demie à installer ses
+  dépendances chez GitHub, relancée) ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
   (`[skip ci]`), et ceux de la fiche 53 aussi, à sa demande (« je ne veux absolument pas que tu
   déclenches la CI », 07/10 au soir) : Linux et Mac **à vérifier avant la publication** (relus,
   fiche 53 § 4 ; seule la CI le prouvera). `a32e074`, `efab62f` et la documentation qui suit
   sont envoyés **sans CI** eux aussi, à sa demande (« tu peux parfaitement les envoyer sans
-  déclencher la CI », 07/10 au soir), jusqu'à `d17e838` — vérifié : aucune exécution. **Les
-  commits de la fiche 54 ne sont pas envoyés.**
+  déclencher la CI », 07/10 au soir), jusqu'à `d17e838` — vérifié : aucune exécution. Ceux de
+  la fiche 54 sont partis **avec** la CI (`89510e2`, dix vertes) ; la télémétrie branchée et
+  l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), sous `[skip ci]`.
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
