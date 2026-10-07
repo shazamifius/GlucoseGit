@@ -316,9 +316,8 @@ impl IDirectManipulationViewportEventHandler_Impl for Ecouteur_Impl {
         let mut m = [0f32; 6];
         unsafe { contenu.GetContentTransform(&mut m)? };
         let mut etat = self.etat.borrow_mut();
-        if let Some(mouvement) = etat.lecteur.lire((m[0], m[4], m[5])) {
-            etat.mouvements.push(mouvement);
-        }
+        let lus = etat.lecteur.lire((m[0], m[4], m[5]));
+        etat.mouvements.extend(lus);
         Ok(())
     }
 }

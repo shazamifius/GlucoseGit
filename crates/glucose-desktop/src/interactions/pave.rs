@@ -45,6 +45,11 @@ pub enum Mouvement {
     Deplacer(f64, f64),
     /// L'échelle change de tant d'octaves, autour du curseur.
     Zoomer(f64),
+    /// **Un déplacement vient de devenir un pincement**, au milieu d'un geste, à cet écart
+    /// d'échelle (`|échelle − 1|`). Rien ne bouge : c'est une mesure (fiche 53 § 8) — si elle
+    /// abonde à des écarts infimes, c'est un déplacement en biais que le système prend pour
+    /// un pincement, et que la lecture bloque jusqu'à la fin du geste.
+    Bascule(f64),
 }
 
 /// **Une source de gestes du pavé** : la voie de Windows, ou celle qu'une épreuve fournit.
@@ -62,6 +67,8 @@ pub trait Pave {
 pub struct Lecteur {
     dernier: (f32, f32, f32),
     pincement: bool,
+    /// Ce geste a-t-il déjà déplacé ?
+    deplace: bool,
 }
 
 impl Default for Lecteur {
@@ -69,6 +76,7 @@ impl Default for Lecteur {
         Self {
             dernier: (1.0, 0.0, 0.0),
             pincement: false,
+            deplace: false,
         }
     }
 }
@@ -79,8 +87,23 @@ impl Lecteur {
         *self = Self::default();
     }
 
-    /// **Ce qui a changé** depuis la dernière transformation lue : `(échelle, x, y)`.
-    pub fn lire(&mut self, (echelle, x, y): (f32, f32, f32)) -> Option<Mouvement> {
+    /// **Ce qui a changé** depuis la dernière transformation lue : `(échelle, x, y)` — et, au
+    /// moment où un déplacement devient un pincement, la [`Mouvement::Bascule`] qui le mesure.
+    pub fn lire(&mut self, transformation: (f32, f32, f32)) -> Vec<Mouvement> {
+        let bascule = !self.pincement && self.deplace;
+        let mut rendus = Vec::new();
+        if let Some(mouvement) = self.changement(transformation) {
+            if bascule && matches!(mouvement, Mouvement::Zoomer(_)) {
+                rendus.push(Mouvement::Bascule(f64::from(
+                    (transformation.0 - 1.0).abs(),
+                )));
+            }
+            rendus.push(mouvement);
+        }
+        rendus
+    }
+
+    fn changement(&mut self, (echelle, x, y): (f32, f32, f32)) -> Option<Mouvement> {
         let (avant, ax, ay) = std::mem::replace(&mut self.dernier, (echelle, x, y));
         if !egaux(echelle, avant) && avant > 0.0 && echelle > 0.0 {
             self.pincement = true;
@@ -93,7 +116,9 @@ impl Lecteur {
             return None;
         }
         let (dx, dy) = (f64::from(x - ax), f64::from(y - ay));
-        (dx != 0.0 || dy != 0.0).then_some(Mouvement::Deplacer(dx, dy))
+        let bouge = dx != 0.0 || dy != 0.0;
+        self.deplace |= bouge;
+        bouge.then_some(Mouvement::Deplacer(dx, dy))
     }
 }
 
@@ -104,8 +129,9 @@ fn egaux(a: f32, b: f32) -> bool {
 }
 
 impl GlucoseApp {
-    /// **À chaque passage de la boucle** : si un geste du pavé est en cours, le système avance
-    /// d'une image, et ce qu'il rend se montre à l'image qui vient.
+    /// **À chaque image, juste avant que la caméra bouge** ([`GlucoseApp::bouger_la_camera`]) :
+    /// si un geste du pavé est en cours, le système avance, et ce qu'il rend se montre dans
+    /// cette image même.
     pub(crate) fn suivre_le_pave(&mut self) {
         let Some(pave) = self.pave.as_mut() else {
             return;
@@ -145,6 +171,7 @@ impl GlucoseApp {
                 self.chronique.navigation.evenement_du_pave(Decision::Pan);
                 self.elan.placer_pan(dx, dy);
             }
+            Mouvement::Bascule(ecart) => self.chronique.navigation.bascule(ecart),
         }
     }
 }

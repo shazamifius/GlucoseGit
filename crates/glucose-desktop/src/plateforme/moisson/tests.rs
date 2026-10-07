@@ -123,6 +123,7 @@ fn test_une_position_sans_fichier_n_est_pas_un_depot() {
         ou: Some((100.0, 200.0)),
         lot: None,
         echec: Some("fr.pinterest.com : délai dépassé".into()),
+        apercu: false,
     };
     assert!(m.est_vide());
     let avec_un_lot = Moisson {

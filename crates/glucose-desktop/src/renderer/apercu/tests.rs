@@ -5,8 +5,14 @@ use super::*;
 use crate::renderer::photo::{Etat, Pyramide};
 
 /// Un dossier à cette épreuve, vidé : les aperçus d'une autre épreuve n'y sont pas.
+///
+/// Le nom porte celui du module : `glucose-apercus-abime-…` était aussi celui d'une épreuve du
+/// magasin, et les deux, lancées ensemble, s'effaçaient leur dossier (vu le 07/10).
 fn dossier(nom: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("glucose-apercus-{nom}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!(
+        "glucose-apercus-module-{nom}-{}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&d);
     d
 }

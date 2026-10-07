@@ -98,6 +98,9 @@ pub struct Moisson {
     /// liens sans un mot, et le compte-rendu disait même « 1 élément posé » — un échec annoncé
     /// comme une réussite.
     pub echec: Option<String>,
+    /// **Ce que porte cette moisson n'est qu'une copie**, que l'original remplacera s'il arrive
+    /// (fiche 53 § 9) : elle se pose à la taille qu'aura l'original.
+    pub apercu: bool,
 }
 
 /// **Ce qu'un dépôt fait parvenir à la boucle d'images**, dans l'ordre où cela arrive.
@@ -123,6 +126,9 @@ pub enum Depot {
         numero: Option<u64>,
         moisson: Moisson,
     },
+    /// **L'original d'une copie déjà posée** sous ce numéro (fiche 53 § 9) — ou rien, quand la
+    /// copie était déjà la meilleure : c'est ce qui clôt l'attente.
+    Ameliore { numero: u64, recu: Option<Recu> },
 }
 
 impl Moisson {

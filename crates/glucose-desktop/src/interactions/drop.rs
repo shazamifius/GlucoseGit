@@ -152,6 +152,8 @@ pub(crate) struct Lot {
     fichiers: Vec<PathBuf>,
     recus: Vec<Recu>,
     liens: Vec<String>,
+    /// Ce que le lot porte n'est qu'une copie : elle se pose à la taille de son original.
+    apercu: bool,
 }
 
 impl Lot {
@@ -171,7 +173,13 @@ impl Lot {
             fichiers,
             recus,
             liens,
+            apercu: false,
         }
+    }
+
+    /// Ce lot n'est qu'une copie, que l'original remplacera (fiche 53 § 9).
+    pub(crate) fn en_apercu(self, apercu: bool) -> Self {
+        Self { apercu, ..self }
     }
 
     fn attendus(&self) -> usize {
@@ -240,15 +248,27 @@ impl GlucoseApp {
         origine: (f64, f64),
         echec: Option<&str>,
     ) {
-        let lot = Lot::de(paths, recus, liens);
+        self.deposer_le_lot(Lot::de(paths, recus, liens), origine, echec);
+    }
+
+    /// **Pose ce lot en un geste**, rend compte, et rend les images posées — c'est par elles
+    /// qu'une copie montrée d'abord se retrouve quand son original arrive (fiche 53 § 9).
+    pub(crate) fn deposer_le_lot(
+        &mut self,
+        lot: Lot,
+        origine: (f64, f64),
+        echec: Option<&str>,
+    ) -> Vec<String> {
         let attendus = lot.attendus();
         if attendus == 0 {
-            return;
+            return Vec::new();
         }
         let board = self.store.project.active_board_id.clone();
         let des_liens = !lot.liens.is_empty();
         self.store.begin_live_edit();
+        let avant = self.depot.posees.len();
         let placed = self.poser_le_lot(&board, lot, origine);
+        let posees = self.depot.posees.split_off(avant);
         self.store.end_live_edit();
 
         // **Un** compte-rendu pour le lot, échecs compris. Déposer huit fichiers ne doit pas
@@ -257,6 +277,7 @@ impl GlucoseApp {
         let rendu = compte_rendu(placed, attendus - placed);
         self.dire_le_depot(avec_l_echec(rendu, echec, des_liens));
         self.mark_dirty();
+        posees
     }
 
     /// **Pose un lot dans le geste déjà ouvert**, en cascade depuis `(ox, oy)`, et rend combien
@@ -272,7 +293,7 @@ impl GlucoseApp {
         }
         for (rang, recu) in lot.recus.into_iter().enumerate() {
             let offset = placed as f64 * CASCADE;
-            if self.place_recu(board, recu, rang, (ox + offset, oy + offset)) {
+            if self.place_recu(board, recu, (rang, lot.apercu), (ox + offset, oy + offset)) {
                 placed += 1;
             }
         }
@@ -335,24 +356,26 @@ impl GlucoseApp {
     /// montrer : il va dans les téléchargements, comme si le navigateur l'y avait mis, puis se
     /// route comme un fichier de l'explorateur. Plus rien dans le dossier temporaire, que
     /// Windows vide — et où une tuile aurait fini par ne plus mener nulle part.
-    fn place_recu(&mut self, board: &str, recu: Recu, rang: usize, ou: (f64, f64)) -> bool {
-        let dimensions = image::ImageReader::new(std::io::Cursor::new(&recu.octets))
-            .with_guessed_format()
-            .ok()
-            .and_then(|r| r.into_dimensions().ok());
-        if let Some((w, h)) = dimensions {
-            let nanos = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos();
-            let cle = format!("depot:{nanos}-{rang}-{}", recu.nom);
-            let octets = std::sync::Arc::new(recu.octets);
-            self.disque
-                .objets
-                .poser(&cle, crate::persist::objets::Source::Memoire(octets));
-            self.poser_une_image(board, cle, (f64::from(w), f64::from(h)), ou);
-            return true;
-        }
+    fn place_recu(
+        &mut self,
+        board: &str,
+        recu: Recu,
+        (rang, apercu): (usize, bool),
+        ou: (f64, f64),
+    ) -> bool {
+        let recu = match self.sceller_une_image(recu, rang) {
+            Ok((cle, dimensions)) => {
+                let taille = if apercu {
+                    crate::interactions::clipboard::taille_d_un_apercu(dimensions)
+                } else {
+                    crate::interactions::clipboard::taille_posee(dimensions)
+                };
+                let id = self.poser_une_image_a(board, cle, dimensions, taille, ou);
+                self.depot.posees.push(id);
+                return true;
+            }
+            Err(recu) => recu,
+        };
         let dossier = self.depot.telechargements.clone().unwrap_or_else(|| {
             crate::app::accueil::dossier_hors_lancement().join("telechargements")
         });
@@ -360,6 +383,33 @@ impl GlucoseApp {
             Some(chemin) => self.place_dropped(board, &chemin, ou),
             None => false,
         }
+    }
+
+    /// **Confie au document les octets d'une image** venue d'une page, et rend la clé sous
+    /// laquelle ils se scellent avec les dimensions de l'image — ou rend le reçu, si ce n'est
+    /// pas une image que le décodeur sait lire.
+    pub(crate) fn sceller_une_image(
+        &mut self,
+        recu: Recu,
+        rang: usize,
+    ) -> Result<(String, (f64, f64)), Recu> {
+        let dimensions = image::ImageReader::new(std::io::Cursor::new(&recu.octets))
+            .with_guessed_format()
+            .ok()
+            .and_then(|r| r.into_dimensions().ok());
+        let Some((w, h)) = dimensions else {
+            return Err(recu);
+        };
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let cle = format!("depot:{nanos}-{rang}-{}", recu.nom);
+        let octets = std::sync::Arc::new(recu.octets);
+        self.disque
+            .objets
+            .poser(&cle, crate::persist::objets::Source::Memoire(octets));
+        Ok((cle, (f64::from(w), f64::from(h))))
     }
 
     /// Le contenu d'un fichier lisible, posé en Markdown sur une carte.

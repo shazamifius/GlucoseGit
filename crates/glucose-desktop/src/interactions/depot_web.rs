@@ -18,6 +18,7 @@
 //! [`super::links`] rend cliquable — et qui refuse déjà tout ce qui n'est ni `http://` ni
 //! `https://`, donc rien de ce qu'une page dépose ici ne peut faire exécuter quoi que ce soit.
 
+mod apercu;
 mod relance;
 
 pub use relance::{liens_choisis, Relances};
@@ -52,6 +53,11 @@ pub struct Arrivees {
     pub telechargements: Option<std::path::PathBuf>,
     /// **Les liens qui repartent chercher leur image** (DEPOT-WEB-6), au clic droit.
     pub relances: Relances,
+    /// Les images que le dernier dépôt a posées, dans l'ordre : ce que la pose rend.
+    pub posees: Vec<String>,
+    /// **Les copies posées qui attendent leur original** (fiche 53 § 9), par numéro de
+    /// rapatriement.
+    pub copies: apercu::Copies,
 }
 
 impl GlucoseApp {
@@ -82,6 +88,7 @@ impl GlucoseApp {
         match depot {
             Depot::EnChemin { numero, ou, hote } => self.annoncer_l_arrivage(numero, ou, hote),
             Depot::Pose { numero, moisson } => self.poser_le_depot(numero, &moisson),
+            Depot::Ameliore { numero, recu } => self.remplacer_la_copie(numero, recu),
         }
     }
 
@@ -113,7 +120,10 @@ impl GlucoseApp {
             return;
         }
         let client = self.ecran_vers_client(recolte.ou);
-        self.poser_une_moisson(recolte, client, annonce.map(|a| a.monde));
+        let posees = self.poser_une_moisson(recolte, client, annonce.map(|a| a.monde));
+        if let (Some(numero), true) = (numero, recolte.apercu) {
+            self.retenir_la_copie(numero, posees.first());
+        }
     }
 
     /// **Pose une moisson lâchée en ce point de la fenêtre** — ou au point qu'une annonce a
@@ -124,7 +134,7 @@ impl GlucoseApp {
         recolte: &Moisson,
         client: Option<(f64, f64)>,
         annonce: Option<(f64, f64)>,
-    ) {
+    ) -> Vec<String> {
         let sur_les_onglets = annonce.is_none() && self.sur_les_onglets(client);
         let origine = annonce.unwrap_or_else(|| self.drop_origin(client));
         // Un lot glissé depuis une autre fenêtre de Glucose se colle là où l'on lâche.
@@ -132,7 +142,7 @@ impl GlucoseApp {
             let board = self.store.project.active_board_id.clone();
             self.coller_ces_octets(&board, origine, lot.clone());
             self.mark_dirty();
-            return;
+            return Vec::new();
         }
         // **Lâchés sur la barre d'onglets, les documents s'ajoutent** dans des onglets neufs
         // (BOARDS-2) ; le reste du lot se pose sur le canevas, comme d'habitude.
@@ -144,14 +154,11 @@ impl GlucoseApp {
         for document in &documents {
             self.ajouter_un_document(document);
         }
-        self.deposer(
-            &reste,
-            recolte.recus.clone(),
-            &recolte.liens,
-            origine,
-            recolte.echec.as_deref(),
-        );
+        let lot = crate::interactions::drop::Lot::de(&reste, recolte.recus.clone(), &recolte.liens)
+            .en_apercu(recolte.apercu);
+        let posees = self.deposer_le_lot(lot, origine, recolte.echec.as_deref());
         self.mark_dirty();
+        posees
     }
 
     /// Ce point, en pixels de la fenêtre, tombe-t-il dans la barre d'onglets ?

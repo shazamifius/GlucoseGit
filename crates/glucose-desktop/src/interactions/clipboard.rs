@@ -15,6 +15,29 @@ pub use menu_image::ImagePosee;
 /// Extensions proposees par le dialogue d'import d'images.
 const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 
+/// La plus grande dimension d'une image qu'on pose : au-delà, elle se réduit à cette taille.
+const POSE_MAX: f64 = 600.0;
+
+/// **La taille à laquelle une image se pose** : la sienne, réduite pour tenir dans
+/// [`POSE_MAX`], et jamais sous cinquante.
+pub(crate) fn taille_posee((w, h): (f64, f64)) -> (f64, f64) {
+    let scale = if w > POSE_MAX || h > POSE_MAX {
+        (POSE_MAX / w).min(POSE_MAX / h)
+    } else {
+        1.0
+    };
+    ((w * scale).max(50.0), (h * scale).max(50.0))
+}
+
+/// **La taille à laquelle une copie se pose** : celle qu'aura son original. Une copie de
+/// Pinterest n'est jamais plus grande que lui, et la taille posée d'une image plus grande que
+/// [`POSE_MAX`] ne dépend que de ses proportions — la copie s'y pose donc, agrandie s'il le
+/// faut, et l'original prend sa place sans que rien ne bouge (fiche 53 § 9).
+pub(crate) fn taille_d_un_apercu((w, h): (f64, f64)) -> (f64, f64) {
+    let agrandir = (POSE_MAX / w.max(h).max(1.0)).max(1.0);
+    taille_posee((w * agrandir, h * agrandir))
+}
+
 impl GlucoseApp {
     /// Ouvre le dialogue natif d'import d'images (Ctrl+I, bouton « Ajouter » de la barre).
     pub fn pick_and_import_images(&mut self) {
@@ -111,22 +134,28 @@ impl GlucoseApp {
         (w, h): (f64, f64),
         (x, y): (f64, f64),
     ) -> f64 {
-        let max_dim = 600.0f64;
-        let scale = if w > max_dim || h > max_dim {
-            (max_dim / w).min(max_dim / h)
-        } else {
-            1.0
-        };
-        let final_w = (w * scale).max(50.0);
-        let final_h = (h * scale).max(50.0);
+        let (final_w, _) = taille_posee((w, h));
+        self.poser_une_image_a(board, src, (w, h), taille_posee((w, h)), (x, y));
+        final_w
+    }
 
+    /// **Pose une image à cette taille**, et rend son identifiant — la taille d'une copie de
+    /// Pinterest est celle qu'aura son original (fiche 53 § 9).
+    pub(crate) fn poser_une_image_a(
+        &mut self,
+        board: &str,
+        src: String,
+        (w, h): (f64, f64),
+        (final_w, final_h): (f64, f64),
+        (x, y): (f64, f64),
+    ) -> String {
         let id = self.store.generate_id("img");
-        let mut img = BoardImage::new(id, x, y, final_w, final_h);
+        let mut img = BoardImage::new(id.clone(), x, y, final_w, final_h);
         img.src = Some(src);
         img.original_width = w;
         img.original_height = h;
         self.store.add_image(board, img);
-        final_w
+        id
     }
 
     /// Coller depuis le presse-papiers (Image ou Texte).

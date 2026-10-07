@@ -11,7 +11,7 @@ fn lire_tout(transformations: &[(f32, f32, f32)]) -> Vec<Mouvement> {
     let mut lecteur = Lecteur::default();
     transformations
         .iter()
-        .filter_map(|t| lecteur.lire(*t))
+        .flat_map(|t| lecteur.lire(*t))
         .collect()
 }
 
@@ -39,7 +39,9 @@ fn test_un_pincement_rend_exactement_son_echelle() {
         .iter()
         .map(|m| match m {
             Mouvement::Zoomer(o) => *o,
-            Mouvement::Deplacer(..) => panic!("un pincement ne déplace pas"),
+            Mouvement::Deplacer(..) | Mouvement::Bascule(_) => {
+                panic!("un pincement pur ne déplace pas, et ne bascule pas")
+            }
         })
         .sum();
     assert!((total - f64::from(1.9f32).log2()).abs() < 1e-9, "{total}");
@@ -51,9 +53,25 @@ fn test_un_pincement_rend_exactement_son_echelle() {
 #[test]
 fn test_un_pincement_ne_deplace_plus_jusqu_a_la_fin_du_geste() {
     let m = lire_tout(&[(1.0, 4.0, 0.0), (1.2, 40.0, 30.0), (1.2, 55.0, 31.0)]);
-    assert_eq!(m.len(), 2, "{m:?}");
+    assert_eq!(m.len(), 3, "{m:?}");
     assert_eq!(m[0], Mouvement::Deplacer(4.0, 0.0));
-    assert!(matches!(m[1], Mouvement::Zoomer(o) if o > 0.0));
+    assert!(matches!(m[2], Mouvement::Zoomer(o) if o > 0.0));
+}
+
+/// **La bascule d'un déplacement en pincement se mesure**, à son écart d'échelle — et un
+/// pincement d'emblée ne bascule pas (fiche 53 § 8).
+#[test]
+fn test_la_bascule_se_mesure() {
+    let m = lire_tout(&[(1.0, 4.0, 0.0), (1.2, 40.0, 30.0)]);
+    assert!(
+        matches!(m[1], Mouvement::Bascule(e) if (e - 0.2).abs() < 1e-6),
+        "{m:?}"
+    );
+    let d_emblee = lire_tout(&[(1.2, 0.0, 0.0), (1.5, 0.0, 0.0)]);
+    assert!(
+        d_emblee.iter().all(|m| !matches!(m, Mouvement::Bascule(_))),
+        "{d_emblee:?}"
+    );
 }
 
 /// **La remise repart de l'identité** : le geste suivant ne part pas de l'échelle où celui-ci
@@ -66,12 +84,12 @@ fn test_la_remise_repart_de_l_identite() {
     assert_eq!(lecteur, Lecteur::default());
     assert_eq!(
         lecteur.lire((1.0, 0.0, 0.0)),
-        None,
+        Vec::new(),
         "l'identité ne bouge rien"
     );
     assert_eq!(
         lecteur.lire((1.0, 5.0, 0.0)),
-        Some(Mouvement::Deplacer(5.0, 0.0))
+        vec![Mouvement::Deplacer(5.0, 0.0)]
     );
 }
 
@@ -192,5 +210,26 @@ fn test_hors_geste_le_systeme_n_avance_pas() {
         pave.0.borrow().1.len(),
         1,
         "rien n'a été demandé au système"
+    );
+}
+
+/// **Ce que le pavé rend se montre dans l'image même où il est lu** : l'image fait avancer le
+/// système puis bouge la caméra, d'un seul appel. Quand le système avançait au réveil de la
+/// boucle, une image recevait deux pas et la suivante aucun (fiche 53 § 8).
+#[test]
+fn test_le_pave_se_montre_dans_l_image_qui_le_lit() {
+    let pave = Factice::default();
+    let mut app = application(&pave);
+    let avant = app.store.viewport();
+    *pave.0.borrow_mut() = (true, vec![Mouvement::Deplacer(30.0, -12.0)]);
+    app.bouger_la_camera(1280, 720);
+    let apres = app.store.viewport();
+    assert!(
+        (apres.x - avant.x - 30.0).abs() < 1e-9 && (apres.y - avant.y + 12.0).abs() < 1e-9,
+        "{avant:?} -> {apres:?}"
+    );
+    assert!(
+        pave.0.borrow().1.is_empty(),
+        "le système a été lu dans cette image"
     );
 }

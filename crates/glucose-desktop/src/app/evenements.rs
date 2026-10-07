@@ -190,8 +190,6 @@ impl GlucoseApp {
 
         // **Ce que le pont natif et les relances ont apporte** (DEPOT-WEB-1, 6).
         self.relever_les_depots();
-        // Le pavé avance d'une image, s'il est en geste (fiche 53).
-        self.suivre_le_pave();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
         self.suivre_la_mise_a_jour(event_loop);
 

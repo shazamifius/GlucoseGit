@@ -33,6 +33,13 @@ impl Chronique {
                 "    dont par Direct Manipulation : {pave_pincements} pincement(s), {pave_pans} deplacement(s) -- le reste est venu en molette\n"
             ));
         }
+        let (bascules, ecart) = self.navigation.bascules();
+        if bascules > 0 {
+            t.push_str(&format!(
+                "    {bascules} geste(s) passe(s) d'un deplacement a un pincement, le plus petit a {:.5} d'echelle -- un ecart infime est un biais pris pour un pincement\n",
+                ecart
+            ));
+        }
         // Le pincement est le geste que Glucose ne recevait pas du tout : tant que ce compte
         // reste nul alors qu'on a pince, le pont de plateforme ne sert pas, et c'est cela
         // qu'il faut corriger -- pas la cadence.

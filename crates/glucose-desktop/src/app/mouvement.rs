@@ -35,6 +35,18 @@ impl GlucoseApp {
         true
     }
 
+    /// **La caméra bouge une fois par image** : le pavé avance d'abord, puis tout ce que la main
+    /// et le vol demandent se montre.
+    ///
+    /// **Le pavé avance ici, et nulle part ailleurs** (fiche 53 § 8). Il avançait au réveil de
+    /// la boucle, qui ne bat pas avec les images : l'une recevait deux pas du système, la
+    /// suivante aucun — le tressaut ×5,8 de sa session du 07/10, en horizontal et en biais.
+    /// Chromium le fait avancer à chaque pas d'animation, pour la même raison.
+    pub fn bouger_la_camera(&mut self, largeur: u32, hauteur: u32) {
+        self.suivre_le_pave();
+        self.appliquer_l_elan(largeur, hauteur);
+    }
+
     /// Publique pour que les bancs et les tests puissent jouer une image sans fenetre : le
     /// geste ne deplace plus rien tout seul, donc le verifier demande de jouer l'image.
     ///

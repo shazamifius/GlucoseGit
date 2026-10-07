@@ -52,24 +52,28 @@ fn main() {
     chercher(&adresses);
 }
 
-/// Un dépôt : la recherche entière, chronométrée. L'image arrive en mémoire (DEPOT-4) : le banc
-/// dit son nom, son poids et sa taille.
+/// Un dépôt : la recherche entière, chronométrée, comme un dépôt la fait — la copie montrée
+/// d'abord s'il y en a une, puis l'original (fiche 53 § 9). L'image arrive en mémoire
+/// (DEPOT-4) : le banc dit son nom, son poids et sa taille.
 fn chercher(adresses: &[String]) {
     let depart = std::time::Instant::now();
-    match rapatrier::chercher(adresses, None) {
-        Ok(m) => {
-            for recu in &m.recus {
-                let taille = image::load_from_memory(&recu.octets)
-                    .map(|i| format!("{} x {}", i.width(), i.height()))
-                    .unwrap_or_else(|_| "illisible".into());
-                println!(
-                    "rapatriee en {:.0} ms : {} ({} Ko, {taille})",
-                    depart.elapsed().as_secs_f64() * 1000.0,
-                    recu.nom,
-                    recu.octets.len() / 1024
-                );
-            }
-        }
+    let dire = |quoi: &str, recu: &glucose_desktop::plateforme::moisson::Recu| {
+        let taille = image::load_from_memory(&recu.octets)
+            .map(|i| format!("{} x {}", i.width(), i.height()))
+            .unwrap_or_else(|_| "illisible".into());
+        println!(
+            "{quoi} en {:.0} ms : {} ({} Ko, {taille})",
+            depart.elapsed().as_secs_f64() * 1000.0,
+            recu.nom,
+            recu.octets.len() / 1024
+        );
+    };
+    let mut montrer =
+        |recu: glucose_desktop::plateforme::moisson::Recu| dire("copie montree", &recu);
+    match rapatrier::chercher_par_etapes(adresses, Some(&mut montrer)) {
+        Ok(rapatrier::Arrivee::Nouvelle(recu)) => dire("rapatriee", &recu),
+        Ok(rapatrier::Arrivee::Meilleure(recu)) => dire("original, a la place de la copie,", &recu),
+        Ok(rapatrier::Arrivee::DejaMontree) => println!("la copie etait la meilleure"),
         Err(raison) => println!("rien trouve -- {raison} ; le depot retomberait sur son repli"),
     }
 }

@@ -440,7 +440,7 @@ impl GlucoseApp {
 
             // La camera bouge ICI, une seule fois par image, et jamais dans l'evenement :
             // c'est ce qui fait qu'une diagonale est une diagonale et non un escalier.
-            self.appliquer_l_elan(width, height);
+            self.bouger_la_camera(width, height);
 
             let tampon_neuf = need_new_pixmap | self.accorder_le_tampon_reduit(width, height);
             // Un `Ctrl+B` qui attend ses originaux les redemande, ou s'applique s'ils sont
