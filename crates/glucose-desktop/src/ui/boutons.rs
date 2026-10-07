@@ -11,11 +11,8 @@
 //! débordé de son cadre.
 
 use super::{ActiveTool, UiAction, UiState};
-use crate::icons::{draw_icon_scaled, IconType};
-use crate::params::{ButtonState, ScaledRect};
-use crate::theme::Theme;
-use crate::typography::{Face, TextStyle, Typography};
-use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Stroke, Transform};
+use crate::icons::IconType;
+use crate::typography::{Face, Typography};
 
 /// Corps du libellé d'un bouton d'action de la barre d'outils.
 pub(crate) const ACTION_LABEL_FONT: f32 = 12.0;
@@ -200,6 +197,48 @@ pub fn layout_topbar(
     barre
 }
 
+/// **La barre tient-elle en icônes seules** dans `width` ? Sinon, elle part sur le côté
+/// ([`super::rail`]) : la dernière marche de la même mesure.
+pub(crate) fn tient_en_icones(
+    width: f32,
+    ui: &UiState,
+    typo: &Typography,
+    board_img_count: usize,
+) -> bool {
+    poser_la_barre(width, ui, typo, board_img_count, Densite::Icones).1
+}
+
+/// **Les boutons de la barre, dans leur ordre** — ce que le rail repose en grille. La même
+/// liste, produite par la même fonction : aucun bouton n'existe dans l'un sans l'autre.
+pub(crate) fn les_boutons(ui: &UiState, typo: &Typography) -> Vec<TopbarButtonDef> {
+    poser_la_barre(f32::MAX, ui, typo, 0, Densite::Icones)
+        .0
+        .buttons
+}
+
+/// **Ce qu'un bouton de la barre fait lui-même**, avant que l'application n'en reçoive
+/// l'action : l'aimant bascule et le dit, la collaboration dit qu'elle n'existe pas encore.
+/// Une seule fois, pour la barre et pour le rail.
+pub(crate) fn effet_du_bouton(ui: &mut UiState, action: UiAction) -> UiAction {
+    match action {
+        UiAction::ToggleMagnet => {
+            ui.smart_align = !ui.smart_align;
+            ui.show_toast(if ui.smart_align {
+                "Aimant activé"
+            } else {
+                "Aimant désactivé"
+            });
+        }
+        UiAction::ToggleCollab => {
+            // Fiche 09 § 9 : aucun réseau n'existe. Le bouton ne « connecte » rien, et ne
+            // doit pas le prétendre.
+            ui.show_toast(super::NOT_YET_COLLAB);
+        }
+        _ => {}
+    }
+    action
+}
+
 /// La barre à cette densité, et si elle tient dans la fenêtre.
 fn poser_la_barre(
     width: f32,
@@ -366,219 +405,5 @@ fn groupe_de_droite(
     (badge, tient)
 }
 
-fn push_ui_rounded_rect(pb: &mut PathBuilder, x: f32, y: f32, w: f32, h: f32, r: f32) {
-    let r = r.min(w / 2.0).min(h / 2.0);
-    pb.move_to(x + r, y);
-    pb.line_to(x + w - r, y);
-    pb.quad_to(x + w, y, x + w, y + r);
-    pb.line_to(x + w, y + h - r);
-    pb.quad_to(x + w, y + h, x + w - r, y + h);
-    pb.line_to(x + r, y + h);
-    pb.quad_to(x, y + h, x, y + h - r);
-    pb.line_to(x, y + r);
-    pb.quad_to(x, y, x + r, y);
-    pb.close();
-}
-
-pub fn draw_tool_button(
-    pixmap: &mut PixmapMut,
-    theme: &Theme,
-    rect: ScaledRect,
-    icon: IconType,
-    state: ButtonState,
-) {
-    let ScaledRect { x, y, w, h, scale } = rect;
-    let ButtonState { active, hover } = state;
-    let bg_color = if active {
-        theme.bg_active
-    } else if hover {
-        theme.bg_hover
-    } else {
-        Color::TRANSPARENT
-    };
-
-    if bg_color != Color::TRANSPARENT {
-        let mut p = Paint::default();
-        p.set_color(bg_color);
-        p.anti_alias = true;
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(&mut pb, x, y, w, h, 4.0 * scale);
-        if let Some(path) = pb.finish() {
-            pixmap.fill_path(
-                &path,
-                &p,
-                tiny_skia::FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-    }
-
-    if active {
-        let mut sp = Paint::default();
-        sp.set_color(theme.border_accent);
-        sp.anti_alias = true;
-        let stroke = Stroke {
-            width: 1.0 * scale,
-            ..Default::default()
-        };
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(
-            &mut pb,
-            x + 0.5 * scale,
-            y + 0.5 * scale,
-            w - 1.0 * scale,
-            h - 1.0 * scale,
-            4.0 * scale,
-        );
-        if let Some(path) = pb.finish() {
-            pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
-        }
-    }
-
-    let icon_color = if active {
-        theme.text_accent
-    } else if hover {
-        theme.text_primary
-    } else {
-        theme.text_muted
-    };
-
-    let icon_size = 14.0 * scale;
-    let icon_x = x + (w - icon_size) / 2.0;
-    let icon_y = y + (h - icon_size) / 2.0;
-    draw_icon_scaled(
-        pixmap,
-        icon,
-        icon_x,
-        icon_y,
-        icon_size,
-        icon_color,
-        1.4 * scale,
-    );
-}
-
-/// Le fond arrondi d'un bouton, et son liseré quand il est actif.
-///
-/// Les deux vont ensemble : ce sont les deux couches sous le contenu, et elles partagent le
-/// même rectangle arrondi.
-fn fond_du_bouton(
-    pixmap: &mut PixmapMut,
-    theme: &Theme,
-    rect: ScaledRect,
-    state: ButtonState,
-    rayon: f32,
-) {
-    let ScaledRect { x, y, w, h, scale } = rect;
-    let ButtonState { active, hover } = state;
-    let bg_color = if active {
-        theme.bg_active
-    } else if hover {
-        theme.bg_hover
-    } else {
-        Color::TRANSPARENT
-    };
-    if bg_color != Color::TRANSPARENT {
-        let mut p = Paint {
-            anti_alias: true,
-            ..Default::default()
-        };
-        p.set_color(bg_color);
-        let mut pb = PathBuilder::new();
-        push_ui_rounded_rect(&mut pb, x, y, w, h, rayon * scale);
-        if let Some(path) = pb.finish() {
-            pixmap.fill_path(
-                &path,
-                &p,
-                tiny_skia::FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
-        }
-    }
-    if !active {
-        return;
-    }
-    let mut sp = Paint {
-        anti_alias: true,
-        ..Default::default()
-    };
-    sp.set_color(theme.border_accent);
-    let stroke = Stroke {
-        width: 1.0 * scale,
-        ..Default::default()
-    };
-    // Le liseré se pose sur le demi-pixel : un trait d'un pixel centré sur la frontière
-    // s'étalerait en deux demi-teintes.
-    let mut pb = PathBuilder::new();
-    push_ui_rounded_rect(
-        &mut pb,
-        x + 0.5 * scale,
-        y + 0.5 * scale,
-        w - 1.0 * scale,
-        h - 1.0 * scale,
-        rayon * scale,
-    );
-    if let Some(path) = pb.finish() {
-        pixmap.stroke_path(&path, &sp, &stroke, Transform::identity(), None);
-    }
-}
-
-/// La couleur du contenu d'un bouton, selon ce qu'il vit.
-fn teinte_du_contenu(theme: &Theme, state: ButtonState) -> Color {
-    if state.active {
-        theme.text_accent
-    } else if state.hover {
-        theme.text_primary
-    } else {
-        theme.text_secondary
-    }
-}
-
-pub fn draw_action_button(
-    pixmap: &mut PixmapMut,
-    typo: &Typography,
-    theme: &Theme,
-    rect: ScaledRect,
-    icon: IconType,
-    label: &str,
-    state: ButtonState,
-) {
-    let ScaledRect { x, y, w, h, scale } = rect;
-    fond_du_bouton(pixmap, theme, rect, state, 4.0);
-    let color = teinte_du_contenu(theme, state);
-    let icon_size = 14.0 * scale;
-    let icon_y = y + (h - icon_size) / 2.0;
-    // Sans libellé, le bouton est carré et son icône est centrée ; avec, elle se range à
-    // gauche et le texte suit à une abscisse que la mesure du bouton a déjà réservée.
-    if label.is_empty() {
-        let icon_x = x + (w - icon_size) / 2.0;
-        draw_icon_scaled(pixmap, icon, icon_x, icon_y, icon_size, color, 1.3 * scale);
-        return;
-    }
-    draw_icon_scaled(
-        pixmap,
-        icon,
-        x + 8.0 * scale,
-        icon_y,
-        icon_size,
-        color,
-        1.3 * scale,
-    );
-    let font = ACTION_LABEL_FONT * scale;
-    typo.draw_text(
-        pixmap,
-        label,
-        x + ACTION_LABEL_X * scale,
-        y + (h - font) / 2.0,
-        TextStyle {
-            size: font,
-            color,
-            face: if state.active {
-                Face::Bold
-            } else {
-                Face::Regular
-            },
-        },
-    );
-}
+mod dessin;
+pub use dessin::{draw_action_button, draw_tool_button};

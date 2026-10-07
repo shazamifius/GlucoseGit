@@ -424,10 +424,10 @@ impl Renderer {
         regard: Regard,
     ) -> Confie {
         let (ui, pointer) = chrome;
-        let header_h = ui.header_height();
         let taille = (dessous.width(), dessous.height());
         self.magasin.ouvrir();
-        self.synchroniser_les_caches(store, taille);
+        self.synchroniser_les_caches(store, ui, taille);
+        let header_h = ui.header_height();
         let debut = std::time::Instant::now();
 
         let plein = Cadrage::plein().sous_le_regard(regard);

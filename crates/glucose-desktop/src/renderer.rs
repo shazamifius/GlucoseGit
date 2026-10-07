@@ -265,7 +265,11 @@ impl Renderer {
     /// pas pour les mêmes raisons ni au même prix, et un poste agrégé les rendrait
     /// indiscernables. Mesuré à un million de nœuds, la première image après une mutation :
     /// l'index pèse 1 100 ms quand une image est ajoutée et 4 ms quand c'est une note.
-    fn synchroniser_les_caches(&mut self, store: &Store, ecran: (u32, u32)) {
+    fn synchroniser_les_caches(&mut self, store: &Store, ui: &mut UiState, ecran: (u32, u32)) {
+        // **Barre ou rail, avant toute chose** (fiche 55) : la scène se pose sous la bande, et
+        // la bande dépend du rail. Décidé dans l'interface, il arrivait une image trop tard — la
+        // première image plaçait le canevas sous une barre qui n'existait plus à la seconde.
+        crate::ui::rail::decider(ui, &self.typography, store, ecran.0 as f32);
         // Ce que les fils de fond ont fini entre deux images entre dans les caches ici, et
         // nulle part ailleurs : le rendu voit ensuite un cache qui ne bouge pas sous ses
         // pieds. Une récolte est une remise d'accord comme les trois autres, et c'est bien
@@ -293,7 +297,7 @@ impl Renderer {
         regard: Regard,
     ) {
         self.magasin.ouvrir();
-        self.synchroniser_les_caches(store, (pixmap.width(), pixmap.height()));
+        self.synchroniser_les_caches(store, ui, (pixmap.width(), pixmap.height()));
         let debut = std::time::Instant::now();
         self.rendre_la_scene(pixmap, store, ui, overlay, ui.header_height(), regard);
         noter_le_cout_de_la_scene(debut);
@@ -330,7 +334,7 @@ impl Renderer {
         pointer: Pointer,
     ) {
         self.magasin.ouvrir();
-        self.synchroniser_les_caches(store, (plein.width(), plein.height()));
+        self.synchroniser_les_caches(store, ui, (plein.width(), plein.height()));
         let f = scene.facteur.max(1);
         let debut = std::time::Instant::now();
         self.rendre_la_region(

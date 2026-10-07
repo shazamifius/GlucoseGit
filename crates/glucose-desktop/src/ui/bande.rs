@@ -51,6 +51,8 @@ pub struct BandeKey {
     /// qu'on tape, celui qui glisse —, réduits à une empreinte.
     tableaux: u64,
     survol: Survol,
+    /// La barre est-elle partie sur le côté ? La bande n'a plus alors que les onglets.
+    rail: bool,
 }
 
 /// **Ce que le pointeur survole dans la bande** : un bouton, un onglet — la seule chose de la
@@ -63,6 +65,14 @@ pub struct BandeKey {
 pub struct Survol {
     bouton: Option<usize>,
     onglet: Option<usize>,
+}
+
+impl Survol {
+    /// Le bouton de la barre survolé, s'il y en a un.
+    #[cfg(test)]
+    pub fn bouton(&self) -> Option<usize> {
+        self.bouton
+    }
 }
 
 /// Ce que le pointeur survole dans des layouts déjà calculés.
@@ -86,7 +96,7 @@ pub fn survol_de_la_bande(
     largeur: f32,
     pointer: Pointer,
 ) -> Survol {
-    let barre = layout_topbar(largeur, ui, typo, store.nombre_d_images());
+    let barre = la_barre(largeur, ui, typo, store.nombre_d_images());
     let onglets = layout_tabs(store, ui, typo);
     survol(&barre, &onglets, pointer)
 }
@@ -115,7 +125,7 @@ pub(super) fn render_bande(
     pointer: Pointer,
 ) {
     let images = store.nombre_d_images();
-    let barre = layout_topbar(largeur, ui, typo, images);
+    let barre = la_barre(largeur, ui, typo, images);
     let onglets = layout_tabs(store, ui, typo);
     let cle = BandeKey {
         largeur: largeur.to_bits(),
@@ -125,6 +135,7 @@ pub(super) fn render_bande(
         images,
         tableaux: super::onglets::empreinte(&onglets, &ui.onglets),
         survol: survol(&barre, &onglets, pointer),
+        rail: ui.rail.actif,
     };
     let hauteur = ui.header_height().ceil() as u32;
     let perime = ui
@@ -137,15 +148,17 @@ pub(super) fn render_bande(
         };
         {
             let mut vue = tampon.as_mut();
-            render_topbar(
-                &mut vue,
-                ui,
-                typo,
-                theme,
-                largeur,
-                &barre,
-                cle.survol.bouton,
-            );
+            if !ui.rail.actif {
+                render_topbar(
+                    &mut vue,
+                    ui,
+                    typo,
+                    theme,
+                    largeur,
+                    &barre,
+                    cle.survol.bouton,
+                );
+            }
             render_board_tabs(
                 &mut vue,
                 ui,
@@ -166,6 +179,20 @@ pub(super) fn render_bande(
     }
     if let Some(cache) = &ui.bande_cache {
         crate::composition::poser(pixmap, &cache.pixmap, (0.0, 0.0), Melange::Remplacer);
+    }
+}
+
+/// **La barre du haut, ou rien** quand elle est sur le côté ([`super::rail`]) : la bande n'a
+/// alors que les onglets, et ni dessin ni survol de boutons.
+fn la_barre(largeur: f32, ui: &UiState, typo: &Typography, images: usize) -> TopbarLayout {
+    if ui.rail.actif {
+        TopbarLayout {
+            buttons: Vec::new(),
+            separators: Vec::new(),
+            img_badge: None,
+        }
+    } else {
+        layout_topbar(largeur, ui, typo, images)
     }
 }
 

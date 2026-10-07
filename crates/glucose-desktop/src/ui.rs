@@ -17,6 +17,7 @@ pub mod context_menu;
 pub mod minimap;
 pub mod onglets;
 pub mod options_de_fleche;
+pub mod rail;
 pub mod toast;
 
 pub use boutons::{
@@ -133,6 +134,9 @@ pub struct UiState {
     /// **Le mode référence** (fiche 51 § 5) : plus aucune interface, le canevas partout. Le menu
     /// contextuel et les messages restent — sans eux, on ne saurait plus en sortir.
     pub reference: bool,
+    /// La barre sur le côté, quand elle ne tient plus en haut (fiche 55), et son dessin gardé.
+    pub rail: rail::Rail,
+    pub rail_cache: Option<rail::RailCache>,
 }
 
 pub const WELCOME_TOAST: &str = "Bienvenue dans Glucose !";
@@ -177,6 +181,8 @@ impl UiState {
             bande_cache: None,
             onglets: onglets::EtatDesOnglets::default(),
             reference: false,
+            rail: rail::Rail::default(),
+            rail_cache: None,
         }
     }
 
@@ -187,7 +193,7 @@ impl UiState {
 
     #[inline]
     pub fn topbar_height(&self) -> f32 {
-        self.chrome() * TOPBAR_HEIGHT * self.scale()
+        self.chrome() * self.rail.barre() * TOPBAR_HEIGHT * self.scale()
     }
 
     #[inline]
@@ -197,7 +203,7 @@ impl UiState {
 
     #[inline]
     pub fn header_height(&self) -> f32 {
-        self.chrome() * TOTAL_HEADER_HEIGHT * self.scale()
+        self.topbar_height() + self.tabs_height()
     }
 
     /// La bande existe-t-elle ? Zéro en mode référence : tout ce qui se mesure sur elle — le
@@ -269,7 +275,7 @@ pub fn render_ui(
         store,
         typo,
         theme,
-        TOTAL_HEADER_HEIGHT * ui.scale(),
+        ui.header_height(),
         ui.scale_factor,
     );
     // **Le fil d'Ariane a sa marque, et il ne l'avait pas.** `minimap` mesurait depuis
@@ -291,6 +297,7 @@ pub fn render_ui(
         &mut ui.minimap_cache,
     );
 
+    rail::render_rail(pixmap, ui, typo, theme);
     crate::perf::stage("minimap");
 
     // 4, 5 et 6. Ce qui ne paraît que sur décision : la barre d'action, le toast, le menu.
@@ -381,29 +388,16 @@ pub fn handle_ui_click(
     let topbar_h = ui.topbar_height();
     let header_h = ui.header_height();
     let s = ui.scale();
+    if let Some(action) = rail::clic((x, y), screen_h, ui, typo) {
+        return action;
+    }
 
     if y < topbar_h {
         let img_count = store.nombre_d_images();
         let layout = layout_topbar(screen_w, ui, typo, img_count);
         for btn in layout.buttons {
             if x >= btn.x && x < btn.x + btn.w && y >= btn.y && y < btn.y + btn.h {
-                match btn.action {
-                    UiAction::ToggleMagnet => {
-                        ui.smart_align = !ui.smart_align;
-                        ui.show_toast(if ui.smart_align {
-                            "Aimant activé"
-                        } else {
-                            "Aimant désactivé"
-                        });
-                    }
-                    UiAction::ToggleCollab => {
-                        // Fiche 09 § 9 : aucun réseau n'existe. Le bouton ne « connecte »
-                        // rien, et ne doit pas le prétendre.
-                        ui.show_toast(NOT_YET_COLLAB);
-                    }
-                    _ => {}
-                }
-                return Some(btn.action);
+                return Some(boutons::effet_du_bouton(ui, btn.action));
             }
         }
     } else if y >= topbar_h && y < header_h {
