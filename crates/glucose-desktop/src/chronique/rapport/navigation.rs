@@ -33,11 +33,15 @@ impl Chronique {
                 "    dont par Direct Manipulation : {pave_pincements} pincement(s), {pave_pans} deplacement(s) -- le reste est venu en molette\n"
             ));
         }
-        let (bascules, ecart) = self.navigation.bascules();
-        if bascules > 0 {
+        // **Autour de quoi le système zoome** (fiche 54) : Glucose applique sa similitude
+        // entière, et c'est ce point qui dit si elle tient sous le curseur.
+        let fixes = self.navigation.points_fixes();
+        if fixes.compte() > 0 {
             t.push_str(&format!(
-                "    {bascules} geste(s) passe(s) d'un deplacement a un pincement, le plus petit a {:.5} d'echelle -- un ecart infime est un biais pris pour un pincement\n",
-                ecart
+                "    le point que le systeme garde fixe est a {} px du curseur en median (p90 {} px), sur {} image(s) -- pres de zero : il zoome sous le curseur\n",
+                fixes.centile(0.5),
+                fixes.centile(0.9),
+                fixes.compte()
             ));
         }
         // Le pincement est le geste que Glucose ne recevait pas du tout : tant que ce compte

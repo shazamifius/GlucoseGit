@@ -188,6 +188,17 @@ impl BoiteNoire {
         }
     }
 
+    /// **Un signe de vie du pavé**, à l'instant où il a eu lieu — il peut attendre l'image
+    /// suivante pour arriver ici, son heure ne change pas.
+    pub fn signe_du_pave(&self, signe: crate::interactions::pave::Signe) {
+        let instant = signe.quand.saturating_duration_since(self.depart);
+        self.envoyer(Enregistrement::Pave {
+            instant_ms: instant.as_millis().min(u128::from(u64::MAX)) as u64,
+            quoi: signe.quoi,
+            valeur: signe.valeur,
+        });
+    }
+
     /// Attend que tout ce qui a été confié soit sur le disque.
     pub fn synchroniser(&self) {
         let (reponse, attente) = channel();
@@ -314,6 +325,13 @@ impl Chronique {
                 eprintln!("[Glucose] boîte noire non ouverte : {e}");
                 None
             }
+        }
+    }
+
+    /// Un signe de vie du pavé, pour la boîte noire si elle est ouverte.
+    pub fn signe_du_pave(&mut self, signe: crate::interactions::pave::Signe) {
+        if let Some(b) = &self.boite {
+            b.signe_du_pave(signe);
         }
     }
 

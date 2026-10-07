@@ -69,9 +69,9 @@ pub struct Navigation {
     pans: u64,
     crans: u64,
     par_le_pave: (u64, u64),
-    /// Les gestes du pavé passés d'un déplacement à un pincement, et le plus petit écart
-    /// d'échelle qui l'a fait (fiche 53 § 8).
-    bascules: (u64, f64),
+    /// **Le point que le système garde fixe** quand l'échelle bouge, à tant de pixels du
+    /// curseur (fiche 54) : près de zéro, il zoome autour du curseur, comme le doigt l'attend.
+    points_fixes: Histogramme,
     /// L'instant du plus ancien événement que l'écran n'a pas encore montré.
     ///
     /// `None` quand tout a été montré : la latence ne se mesure que lorsqu'il y a quelque
@@ -95,7 +95,7 @@ impl Navigation {
             pans: 0,
             crans: 0,
             par_le_pave: (0, 0),
-            bascules: (0, f64::INFINITY),
+            points_fixes: Histogramme::nouveau(),
             en_attente: None,
             latences: Histogramme::nouveau(),
         }
@@ -129,15 +129,15 @@ impl Navigation {
         self.evenement(decision);
     }
 
-    /// Un geste du pavé vient de passer d'un déplacement à un pincement, à cet écart d'échelle.
-    pub fn bascule(&mut self, ecart: f64) {
-        self.bascules.0 += 1;
-        self.bascules.1 = self.bascules.1.min(ecart);
+    /// Le point que le système a gardé fixe pendant une image du pavé, à cet écart du curseur.
+    pub fn point_fixe_du_pave(&mut self, (dx, dy): (f64, f64)) {
+        let pixels = dx.hypot(dy).round().min(f64::from(u32::MAX));
+        self.points_fixes.ajouter(pixels as u32);
     }
 
-    /// Combien de gestes ont basculé, et le plus petit écart d'échelle qui l'a fait.
-    pub fn bascules(&self) -> (u64, f64) {
-        self.bascules
+    /// Les écarts au curseur du point fixe du pavé, pixel par pixel.
+    pub fn points_fixes(&self) -> &Histogramme {
+        &self.points_fixes
     }
 
     /// L'écran vient de montrer ce qui était en attente.

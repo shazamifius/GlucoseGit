@@ -244,6 +244,11 @@ fn test_chaque_ligne_est_du_json() {
             duree_us: 2,
             geste: "zoomer",
         },
+        Enregistrement::Pave {
+            instant_ms: 1,
+            quoi: "contact",
+            valeur: 2_147_942_402,
+        },
         Enregistrement::Fin { instant_ms: 9 },
     ];
     for e in tous {
@@ -257,6 +262,67 @@ fn test_chaque_ligne_est_du_json() {
     let v = json::lire(panique.trim_end()).expect("du JSON");
     assert_eq!(v.texte("fichier"), Some(chemin));
     assert_eq!(v.entier("ligne"), Some(7));
+}
+
+/// **Un signe de vie du pavé s'écrit à son heure à lui** (fiche 54) : il peut attendre l'image
+/// suivante avant d'arriver, et c'est l'instant où il a eu lieu qui doit rester — sans quoi une
+/// coupure sans image se lirait au mauvais moment. Un signe daté de cinq secondes après
+/// l'ouverture s'écrit à cinq secondes, quelle que soit l'heure de l'écriture.
+#[test]
+fn test_un_signe_du_pave_s_ecrit_a_son_heure() {
+    let d = Dossier::nouveau("pave");
+    let (b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    b.signe_du_pave(crate::interactions::pave::Signe {
+        quand: b.depart + std::time::Duration::from_millis(5_000),
+        quoi: "statut_suspendu",
+        valeur: 3,
+    });
+    b.synchroniser();
+    let signes = lignes_du_type(&lire(b.chemin()), "pave");
+    assert_eq!(signes.len(), 1);
+    assert_eq!(signes[0].entier("instant_ms"), Some(5_000));
+    assert_eq!(signes[0].texte("quoi"), Some("statut_suspendu"));
+    assert_eq!(signes[0].entier("valeur"), Some(3));
+}
+
+/// **Le serveur connaît chaque nom que la boîte noire écrit** (fiche 54) : il n'accepte que les
+/// valeurs de ses listes fermées — un nom nouveau ici, absent là-bas, ferait refuser en silence
+/// chaque session qui le porte. Les types de ligne, les gestes, les fins, les signes du pavé.
+#[test]
+fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
+    let serveur = include_str!("../../../../outils/telemetrie/src/valider.js");
+    let connu = |nom: &str| {
+        serveur.contains(&format!("\"{nom}\"")) || serveur.contains(&format!("  {nom}: {{"))
+    };
+    let types = [
+        "debut",
+        "precedente",
+        "episode",
+        "machine",
+        "pire",
+        "pave",
+        "fin",
+        "panique",
+        "plantage",
+    ];
+    let gestes = Geste::TOUS.map(Geste::nom);
+    let fins = [
+        Fin::Propre,
+        Fin::Panique,
+        Fin::Interrompue,
+        Fin::Plantee,
+        Fin::Gelee,
+    ]
+    .map(Fin::nom);
+    let noms = types
+        .iter()
+        .chain(&gestes)
+        .chain(&fins)
+        .chain(&crate::interactions::pave::NOMS_DES_SIGNES)
+        .chain(&[std::env::consts::OS, std::env::consts::ARCH]);
+    for nom in noms {
+        assert!(connu(nom), "le serveur ne connaît pas « {nom} »");
+    }
 }
 
 /// **Un record s'écrit quand l'image bat le précédent**, et seulement alors.

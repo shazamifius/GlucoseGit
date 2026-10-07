@@ -54,6 +54,14 @@ pub enum Enregistrement {
         duree_us: u32,
         geste: &'static str,
     },
+    /// **Un signe de vie de la voie du pavé** (fiche 54) : un contact confié au système, un
+    /// changement d'état, un geste qui commence ou finit. Sa coupure de 7 à 10 secondes ne
+    /// laissait aucune trace ; ces lignes disent à quel étage elle s'arrête.
+    Pave {
+        instant_ms: u64,
+        quoi: &'static str,
+        valeur: u64,
+    },
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
 }
@@ -93,6 +101,7 @@ impl Enregistrement {
             Self::Episode { .. } => "episode",
             Self::Machine { .. } => "machine",
             Self::Pire { .. } => "pire",
+            Self::Pave { .. } => "pave",
             Self::Fin { .. } => "fin",
         }
     }
@@ -178,6 +187,15 @@ impl Enregistrement {
                 ("instant_ms", Entier(instant_ms)),
                 ("duree_us", Entier(u64::from(duree_us))),
                 ("geste", Nom(geste)),
+            ],
+            Self::Pave {
+                instant_ms,
+                quoi,
+                valeur,
+            } => vec![
+                ("instant_ms", Entier(instant_ms)),
+                ("quoi", Nom(quoi)),
+                ("valeur", Entier(valeur)),
             ],
             Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
         }

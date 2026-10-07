@@ -167,7 +167,8 @@ pub fn installer_le_pave(
     };
     let pour_le_reveil = std::sync::Arc::clone(fenetre);
     let reveil: Reveil = std::sync::Arc::new(move || pour_le_reveil.request_redraw());
-    let pave = pave_windows::installer(w.hwnd.get(), reveil)?;
+    let taille = fenetre.inner_size();
+    let pave = pave_windows::installer(w.hwnd.get(), (taille.width, taille.height), reveil)?;
     Some(Box::new(pave))
 }
 

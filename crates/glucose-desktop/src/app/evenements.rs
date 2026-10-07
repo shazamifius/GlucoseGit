@@ -116,6 +116,7 @@ impl ApplicationHandler for GlucoseApp {
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         self.noter_le_gel_en_cours();
         self.clore_la_chronique();
+        self.vider_les_signes_du_pave();
         self.chronique.clore_la_boite_noire();
     }
 
@@ -155,6 +156,9 @@ impl GlucoseApp {
                     }
                 }
                 self.pixmap = Pixmap::new(width, height);
+                if let Some(pave) = &mut self.pave {
+                    pave.cadrer(width, height);
+                }
                 self.mark_dirty();
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
