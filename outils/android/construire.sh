@@ -5,7 +5,8 @@
 #   bash outils/android/construire.sh            l'APK de travail (signé de la clé de débogage)
 #
 # Ce qu'il faut sur la machine : le SDK et le NDK d'Android (ANDROID_HOME, ou
-# ~/Android/Sdk), Java 17 ou plus, `cargo-ndk`, et les cibles Rust d'Android.
+# ~/Android/Sdk), Java 17 ou plus, Gradle 9.6 ou plus, `cargo-ndk`, et les cibles Rust
+# d'Android. La CI fait la même chose (tâche « apk ») et dépose l'APK.
 set -euo pipefail
 RACINE="$(cd "$(dirname "$0")/../.." && pwd)"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
@@ -18,6 +19,7 @@ cargo ndk -t arm64-v8a -t armeabi-v7a -P 21 \
   -o android/app/src/main/jniLibs \
   build --release -p glucose-android
 
+# Gradle 9.8 : celui du système, ou celui que GRADLE désigne.
 cd "$RACINE/android"
-./gradlew --no-daemon assembleDebug
+"${GRADLE:-gradle}" --no-daemon assembleDebug
 echo "APK : $RACINE/android/app/build/outputs/apk/debug/app-debug.apk"

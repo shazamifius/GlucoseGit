@@ -97,8 +97,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # Les téléphones d'aujourd'hui (ARM 64 bits) et les très anciens (ARM 32 bits). Le noyau
-      # seul : l'application attend son portage (fiche 44, phase 6).
+      # Les téléphones d'aujourd'hui (ARM 64 bits) et les très anciens (ARM 32 bits), le noyau
+      # seul et ses épreuves ; l'application entière se construit dans la tâche « apk ».
       - name: Clippy strict, ARM 64 bits
         run: cargo clippy -p glucose-core -p glucose-math --all-targets --target aarch64-linux-android -- -D warnings
 
@@ -108,6 +108,53 @@ jobs:
       # L'iPad par le web (fiche 50) : le noyau dans un navigateur, en WebAssembly.
       - name: Clippy strict, WebAssembly
         run: cargo clippy -p glucose-core -p glucose-math --all-targets --target wasm32-unknown-unknown -- -D warnings
+
+  apk:
+    name: Android, l'application et son APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.1"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      # Le NDK même qu'en local (decisions/08) : la machine de GitHub en porte d'autres.
+      - name: Le NDK 29
+        run: |
+          echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      # Toute l'application, pour les deux processeurs des téléphones (fiche 54).
+      - name: Clippy strict, l'application pour Android
+        run: |
+          cargo ndk -t arm64-v8a -P 21 clippy -p glucose-android -p glucose-desktop -- -D warnings
+          cargo ndk -t armeabi-v7a -P 21 clippy -p glucose-android -p glucose-desktop -- -D warnings
+
+      - name: L'APK
+        run: bash outils/android/construire.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: glucose-android
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
 
   nixos:
     name: NixOS, le paquet
