@@ -55,8 +55,9 @@
   sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
   (`[skip ci]`), et ceux de la fiche 53 aussi, à sa demande (« je ne veux absolument pas que tu
   déclenches la CI », 07/10 au soir) : Linux et Mac **à vérifier avant la publication** (relus,
-  fiche 53 § 4 ; seule la CI le prouvera). **`a32e074`, `efab62f` et la documentation qui suit
-  ne sont pas envoyés.**
+  fiche 53 § 4 ; seule la CI le prouvera). `a32e074`, `efab62f` et la documentation qui suit
+  sont envoyés **sans CI** eux aussi, à sa demande (« tu peux parfaitement les envoyer sans
+  déclencher la CI », 07/10 au soir).
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
