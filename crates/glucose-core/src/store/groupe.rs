@@ -80,20 +80,30 @@ fn pour_le_noeud(t: Transformation, origine: Origine, centre: (f64, f64)) -> Tra
     }
 }
 
-/// La dernière réponse de [`Store::emprise_du_groupe`], et ce qui la rend valable :
-/// `(version du document, tableau, empreinte de la sélection)`.
+/// Ce qui rend valable le cadre gardé : la version du document, **le geste en cours et ce
+/// qu'il a déjà écrit** (GESTE-1), le tableau, l'empreinte de la sélection.
+///
+/// GROUPE-1 — la version n'avance qu'à la fin d'un geste ; pendant un glisser, une mise à
+/// l'échelle ou une rotation, le document change pourtant à chaque pas. Un cadre gardé sur la
+/// seule version restait au point de départ pendant que le groupe partait (son écran, 07/10).
+/// Le journal n'écrit qu'en ajoutant au geste ouvert, et ne le raccourcit qu'en rendant les
+/// choses à une place déjà vue : le nombre d'éditions change à chaque pas qui bouge quelque
+/// chose.
+type Repere = (u64, Option<(u64, usize)>, String, u64);
+
+/// La dernière réponse de [`Store::emprise_du_groupe`], et ce qui la rend valable.
 #[derive(Debug, Clone, Default)]
 pub(super) struct CadreGarde {
-    repere: Option<(u64, String, u64)>,
+    repere: Option<Repere>,
     valeur: Option<Rect>,
 }
 
 impl Store {
     /// **Le cadre du groupe** : l'emprise de la sélection quand elle compte deux nœuds ou plus
     /// qui se transforment — sinon rien (fiche 53 § 10). La même réponse que l'arbitre de clic
-    /// ([`crate::hit_priority::emprise_du_groupe`]), gardée tant que ni le document ni la
-    /// sélection ne changent : le dessin la demande à chaque image, et la calculer parcourt le
-    /// tableau.
+    /// ([`crate::hit_priority::emprise_du_groupe`]), gardée tant que ni le document — geste en
+    /// cours compris (GROUPE-1) — ni la sélection ne changent : le dessin la demande à chaque
+    /// image, et la calculer parcourt le tableau.
     pub fn emprise_du_groupe(&self, board_id: &str) -> Option<Rect> {
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -103,7 +113,8 @@ impl Store {
             &self.selected_folder_id,
         )
             .hash(&mut h);
-        let repere = (self.version, board_id.to_string(), h.finish());
+        let geste = self.journal.en_cours().map(|(n, ecrits)| (n, ecrits.len()));
+        let repere = (self.version, geste, board_id.to_string(), h.finish());
         let mut garde = self.groupe.borrow_mut();
         if garde.repere.as_ref() != Some(&repere) {
             let b = self.project.boards.iter().find(|b| b.id == board_id)?;

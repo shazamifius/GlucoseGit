@@ -112,6 +112,58 @@ fn test_alt_sur_un_coin_du_groupe_le_fait_tourner() {
     }
 }
 
+/// Appuie, à la vraie souris, au centre de l'image `id` — sur le nœud, loin des coins du groupe.
+fn appuyer_sur(app: &mut GlucoseApp, id: &str) {
+    use crate::canvas::world_to_screen;
+    use winit::dpi::PhysicalPosition;
+    use winit::event::MouseButton;
+    super::tests::render_frame(app);
+    let (cx, cy) = centre(app, id);
+    let (sx, sy) = world_to_screen(cx, cy, &app.store.viewport());
+    app.handle_cursor_moved(PhysicalPosition::new(sx, sy));
+    app.handle_mouse_down(MouseButton::Left, 1440.0, 900.0);
+}
+
+/// **GROUPE-1 — le cadre du groupe suit le groupe pendant le geste**, pas seulement à sa fin.
+/// La version du document n'avance qu'au relâchement : un cadre gardé sur elle restait au
+/// départ pendant que les images partaient (son écran, 07/10). Le dessin le demande à chaque
+/// image : l'épreuve aussi, à chaque pas. Glisser de 60 par pas déplace le cadre d'autant ;
+/// tirer le coin bas-droit de (100, 20) par pas l'agrandit d'autant, son coin haut-gauche
+/// immobile (rapport gardé : 500 × 100 devient 600 × 120 au premier pas).
+#[test]
+fn test_groupe_1_le_cadre_suit_le_groupe_pendant_le_geste() {
+    let mut app = deux_images();
+    assert!(
+        app.emprise_du_groupe().is_some(),
+        "le cadre gardé au départ"
+    );
+    appuyer_sur(&mut app, "a");
+    for k in 1..=5 {
+        drag_by(&mut app, 60.0, 8.0, 1);
+        let (dx, dy) = (60.0 * k as f64, 8.0 * k as f64);
+        assert_eq!(
+            app.emprise_du_groupe(),
+            Some(AlignRect::new(-250.0 + dx, -50.0 + dy, 500.0, 100.0)),
+            "au pas {k}, le cadre est parti avec le groupe"
+        );
+    }
+    release(&mut app);
+
+    let mut app = deux_images();
+    let groupe = app.emprise_du_groupe().expect("un groupe");
+    press_handle(&mut app, groupe, Handle::BottomRight);
+    for k in 1..=5 {
+        drag_by(&mut app, 100.0, 20.0, 1);
+        let (w, h) = (500.0 + 100.0 * k as f64, 100.0 + 20.0 * k as f64);
+        assert_eq!(
+            app.emprise_du_groupe(),
+            Some(AlignRect::new(-250.0, -50.0, w, h)),
+            "au pas {k}, le cadre grandit sous la main"
+        );
+    }
+    release(&mut app);
+}
+
 /// **Une image seule garde ses propres poignées** : il n'y a pas de groupe d'un.
 #[test]
 fn test_une_image_seule_n_a_pas_de_groupe() {
