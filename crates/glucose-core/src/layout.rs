@@ -1,10 +1,9 @@
 //! Moteur d'organisation et de mise en page automatique du canvas (100% Rust std).
 //!
-//! Résout définitivement R-11 en unifiant les conventions de coordonnées :
-//! - `BoardImage` est ancré en son CENTRE (x - w/2, y - h/2, x + w/2, y + h/2).
-//! - `Annotation` est ancrée en HAUT-GAUCHE (x, y, x + w, y + h).
+//! Une seule convention de coordonnées (R-11) : une `BoardImage`, comme un `LayoutRect`, est
+//! ancrée en son CENTRE (x - w/2, y - h/2, x + w/2, y + h/2).
 
-use crate::types::{Annotation, Board, BoardImage};
+use crate::types::BoardImage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OrganizeMode {
@@ -60,10 +59,8 @@ fn coin_des_rects<'a>(
 ///
 /// # Le défaut que cette fonction supprime, et il rendait « Ordonner » inutilisable
 ///
-/// Les deux dispositions du module partaient d'une origine inventée. `organize_board_grid`
-/// commençait littéralement à `(0, 0)` : ranger un tableau posé à dix mille unités de là
-/// renvoyait tout à l'origine du canevas. Et `calculate_image_layout` faisait pire, parce que
-/// c'était moins visible :
+/// La disposition partait d'une origine inventée, et `calculate_image_layout` le cachait
+/// bien :
 ///
 /// ```text
 ///     start_x = avg_x - (images.len() as f64 * target_size * 0.3)
@@ -91,111 +88,6 @@ fn reposer_sur_place(avant: Option<(f64, f64)>, resultats: &mut [LayoutRect]) {
         r.x += dx;
         r.y += dy;
     }
-}
-
-/// Ordonne l'intégralité du board (images et annotations) selon une grille propre sans aucun chevauchement.
-/// Respecte strictement la dualité des repères :
-/// - Les images sont positionnées à `cur_x + w / 2.0` et `cur_y + h / 2.0`.
-/// - Les annotations sont positionnées à `cur_x` et `cur_y`.
-pub fn organize_board_grid(board: &mut Board, padding: f64) {
-    let total_count = board.images.len() + board.annotations.len();
-    if total_count == 0 {
-        return;
-    }
-
-    let cols = (total_count as f64).sqrt().ceil() as usize;
-    let cols = cols.max(1);
-
-    // **Ou le tableau se tenait avant d'etre range.** La grille se construit depuis l'origine
-    // et se translate ensuite : sans cela, ranger un tableau pose a dix mille unites de la
-    // renvoie tout au point zero du canevas, ce qui est la forme la plus brutale de perdre son
-    // travail -- on ne retrouve meme plus ce qu'on rangeait.
-    let avant = coin_du_board(board);
-
-    let mut cur_x = 0.0;
-    let mut cur_y = 0.0;
-    let mut row_max_h = 0.0f64;
-    let mut idx = 0;
-
-    // 1. Placement des images (ancrage CENTRE)
-    for img in &mut board.images {
-        img.x = cur_x + img.width / 2.0;
-        img.y = cur_y + img.height / 2.0;
-        row_max_h = row_max_h.max(img.height);
-        cur_x += img.width + padding;
-        idx += 1;
-
-        if idx % cols == 0 {
-            cur_x = 0.0;
-            cur_y += row_max_h + padding;
-            row_max_h = 0.0;
-        }
-    }
-
-    // 2. Placement des annotations (ancrage HAUT-GAUCHE). La boîte vient du modèle ; une
-    //    flèche, qui n'en a pas, occupe l'enveloppe de son vecteur.
-    for ann in &mut board.annotations {
-        let (w, h) = ann.size().unwrap_or_else(|| arrow_extent(ann));
-        ann.move_to(cur_x, cur_y);
-        row_max_h = row_max_h.max(h);
-        cur_x += w + padding;
-        idx += 1;
-
-        if idx % cols == 0 {
-            cur_x = 0.0;
-            cur_y += row_max_h + padding;
-            row_max_h = 0.0;
-        }
-    }
-
-    reposer_le_board(board, avant);
-}
-
-/// Le coin haut-gauche de tout ce que ce tableau porte, images et annotations confondues.
-///
-/// Les deux repères cohabitent : une image est ancrée en son centre, une annotation en son
-/// coin haut-gauche. Les mélanger sans le dire est exactement le défaut R-11 que ce module
-/// existe pour avoir résolu.
-fn coin_du_board(board: &Board) -> Option<(f64, f64)> {
-    let images = board.images.iter().map(|i| (i.x, i.y, i.width, i.height));
-    let annotations = board.annotations.iter().map(|a| {
-        let (w, h) = a.size().unwrap_or_else(|| arrow_extent(a));
-        // Ramené au centre, pour que les deux familles se comparent dans le même repère.
-        (a.x() + w / 2.0, a.y() + h / 2.0, w, h)
-    });
-    coin_des_rects(images.chain(annotations))
-}
-
-/// Translate tout le tableau pour que son coin haut-gauche retrouve `avant`.
-fn reposer_le_board(board: &mut Board, avant: Option<(f64, f64)>) {
-    let Some((ax, ay)) = avant else {
-        return;
-    };
-    let Some((rx, ry)) = coin_du_board(board) else {
-        return;
-    };
-    let (dx, dy) = (ax - rx, ay - ry);
-    for img in &mut board.images {
-        img.x += dx;
-        img.y += dy;
-    }
-    for ann in &mut board.annotations {
-        let (x, y) = (ann.x(), ann.y());
-        ann.move_to(x + dx, y + dy);
-    }
-}
-
-/// La place qu'une flèche occupe dans une grille : l'enveloppe de son vecteur, avec un
-/// plancher pour qu'une flèche très courte reste saisissable.
-fn arrow_extent(ann: &Annotation) -> (f64, f64) {
-    const MIN_ARROW_CELL: (f64, f64) = (80.0, 30.0);
-    let Annotation::Arrow { x, y, x2, y2, .. } = ann else {
-        return MIN_ARROW_CELL;
-    };
-    (
-        (x2 - x).abs().max(MIN_ARROW_CELL.0),
-        (y2 - y).abs().max(MIN_ARROW_CELL.1),
-    )
 }
 
 /// **Le rapport largeur / hauteur d'une image**, tel que toute disposition le lit.
@@ -402,77 +294,6 @@ pub fn calculate_image_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Annotation;
-
-    #[test]
-    fn test_organize_board_grid_no_overlap() {
-        let mut board = Board::new("b1", "Test");
-        for i in 0..4 {
-            let mut img = BoardImage::new(format!("img-{}", i), 100.0, 100.0, 100.0, 100.0);
-            img.width = 100.0;
-            img.height = 100.0;
-            board.images.push(img);
-        }
-
-        for i in 0..4 {
-            board.annotations.push(Annotation::Text {
-                id: format!("text-{}", i),
-                x: 0.0,
-                y: 0.0,
-                width: Some(120.0),
-                height: Some(40.0),
-                text: "sample".into(),
-                font_size: None,
-                color: None,
-                cursor_pos: None,
-                source_file: None,
-                membrane_id: None,
-                domains: Vec::new(),
-                mirror_of: None,
-                temporal_anchor: None,
-            });
-        }
-
-        organize_board_grid(&mut board, 20.0);
-
-        // Extract bounding boxes
-        let mut bboxes = Vec::new();
-        for img in &board.images {
-            let hw = img.width / 2.0;
-            let hh = img.height / 2.0;
-            bboxes.push((img.x - hw, img.y - hh, img.x + hw, img.y + hh));
-        }
-        for ann in &board.annotations {
-            if let Annotation::Text {
-                x,
-                y,
-                width,
-                height,
-                ..
-            } = ann
-            {
-                let w = width.unwrap();
-                let h = height.unwrap();
-                bboxes.push((*x, *y, *x + w, *y + h));
-            }
-        }
-
-        // Verify none overlap
-        for i in 0..bboxes.len() {
-            for j in (i + 1)..bboxes.len() {
-                let b1 = &bboxes[i];
-                let b2 = &bboxes[j];
-                let overlap_x = b1.0 < b2.2 && b1.2 > b2.0;
-                let overlap_y = b1.1 < b2.3 && b1.3 > b2.1;
-                assert!(
-                    !(overlap_x && overlap_y),
-                    "Overlap detected between item {} and item {}",
-                    i,
-                    j
-                );
-            }
-        }
-    }
 
     /// Des images posees loin de l'origine, autour de `(centre, centre)`.
     fn images_autour(combien: usize, centre: f64) -> Vec<BoardImage> {
@@ -554,31 +375,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    /// **Ranger tout le tableau ne le renvoie pas au point zero.**
-    ///
-    /// `organize_board_grid` commencait litteralement a `(0, 0)` : ranger un tableau pose a
-    /// douze mille unites de la renvoyait tout a l'origine du canevas, images ET annotations.
-    /// On ne retrouvait meme plus ce qu'on venait de ranger.
-    #[test]
-    fn test_ordonner_le_canevas_ne_le_renvoie_pas_au_point_zero() {
-        const CENTRE: f64 = 12_000.0;
-        let mut board = Board::new("b1", "Test");
-        board.images = images_autour(9, CENTRE);
-        let avant = coin(&board.images);
-
-        organize_board_grid(&mut board, 20.0);
-
-        let apres = coin(&board.images);
-        assert!(
-            (apres.0 - avant.0).abs() < 0.001 && (apres.1 - avant.1).abs() < 0.001,
-            "le tableau range part de {apres:?} au lieu de {avant:?}"
-        );
-        assert!(
-            apres.0.abs() > 1_000.0,
-            "il est retombe pres du point zero : {apres:?}"
-        );
     }
 
     /// **Ranger une poignee d'images ne touche qu'elles.**

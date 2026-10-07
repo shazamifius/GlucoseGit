@@ -389,14 +389,15 @@ fn test_les_rangs_suivent_les_affordances_puis_l_ordre_de_peinture() {
 }
 
 /// § 3.1 et § 3.2 — bande de 14 px autour d'un contour ; rayon de saisie d'une poignée
-/// 24 px, plafonné à 35 % du petit côté, plancher 6 px.
+/// 24 px, plafonné à 35 % du petit côté. Le plancher de 6 px est parti (POIGNEE-1) : un nœud
+/// trop petit pour un carré de poignée n'en porte plus.
 /// § 3.3 — re-clic au même endroit : moins de 8 px, moins de 2,5 s ; fenêtre du double-clic.
 #[test]
 fn test_the_pick_tolerances_are_those_of_the_spec() {
     assert_eq!(pick_consts::EDGE_BAND_PX, 14.0);
     assert_eq!(pick_consts::HANDLE_SLOP_PX, 24.0);
     assert_eq!(pick_consts::HANDLE_SLOP_MAX_RATIO, 0.35);
-    assert_eq!(pick_consts::HANDLE_SLOP_MIN_PX, 6.0);
+    assert_eq!(pick_consts::HANDLE_SIDE_PX, 9.0);
     assert_eq!(pick_consts::CYCLE_RADIUS_PX, 8.0);
     assert_eq!(pick_consts::CYCLE_TTL_MS, 2500);
     assert_eq!(
@@ -444,4 +445,73 @@ fn test_a_locked_image_is_still_pickable_but_offers_no_handle() {
         cands.iter().all(|c| c.corner.is_none()),
         "et n'offrir aucune poignée : {cands:?}"
     );
+}
+
+/// **POIGNEE-1 — une vignette ne porte pas de poignée.** Une photo de 200 unités vue au
+/// dixième fait 20 px à l'écran : trop petite pour un carré de poignée, elle n'en dessine
+/// pas, et le clic n'en trouve pas — la prendre près d'un coin la **déplace**.
+///
+/// L'ancienne loi est rejouée : avec son plancher de 6 px, quatre prises de 70 unités
+/// couvraient la vignette entière, et on la redimensionnait en voulant la déplacer.
+#[test]
+fn test_poignee_1_une_vignette_se_deplace_au_lieu_de_se_redimensionner() {
+    let images = vec![img("V", 0.0, 0.0, 200.0, 200.0, false)];
+    let annotations: Vec<Annotation> = Vec::new();
+    let folders: Vec<CanvasFolder> = Vec::new();
+    let empty: Vec<String> = Vec::new();
+    let selected = vec!["V".to_string()];
+    let pres_du_coin = |scale: f64| PickInput {
+        wx: -90.0,
+        wy: -90.0,
+        scale,
+        images: &images,
+        annotations: &annotations,
+        folders: &folders,
+        selected_image_ids: &selected,
+        selected_annotation_ids: &empty,
+        selected_folder_id: None,
+        noeuds: None,
+    };
+
+    let vignette = collect_candidates(&pres_du_coin(0.1));
+    assert!(
+        vignette.iter().all(|c| c.corner.is_none()),
+        "une vignette de 20 px offre une poignee : {vignette:?}"
+    );
+    assert!(vignette
+        .iter()
+        .any(|c| c.id == "V" && c.kind == PickKind::Image));
+    assert_eq!(
+        glucose_core::hit_priority::handle_slop_world(0.1, 200.0, 200.0),
+        None
+    );
+
+    // La meme photo vue en grand garde ses poignees.
+    let grande = collect_candidates(&pres_du_coin(1.0));
+    assert!(grande.iter().any(|c| c.corner.as_deref() == Some("tl")));
+
+    // L'ancienne loi : min(24 px, max(6 px, 35 % du petit cote)), en unites du monde.
+    let s: f64 = 0.1;
+    let ancienne = (24.0 / s).min((6.0 / s).max(200.0 * 0.35));
+    let distance_au_coin = f64::hypot(-90.0 + 100.0, -90.0 + 100.0);
+    assert!(
+        distance_au_coin <= ancienne,
+        "l'ancienne loi n'offrait pas de poignee ici : l'epreuve ne prouve rien"
+    );
+}
+
+/// **POIGNEE-1 — le carré est le cœur de la prise, dans la proportion 9 : 24**, et il
+/// n'existe que s'il reste un carré.
+#[test]
+fn test_poignee_1_le_carre_et_la_prise_retrecissent_ensemble() {
+    use glucose_core::hit_priority::{handle_reach_px, handle_side_px};
+    assert_eq!(handle_reach_px(400.0), Some(24.0));
+    assert_eq!(handle_side_px(400.0), Some(9.0));
+    // 40 px : la prise est plafonnee a 14 px, le carre suit.
+    assert_eq!(handle_reach_px(40.0), Some(14.0));
+    assert_eq!(handle_side_px(40.0), Some(14.0 * 9.0 / 24.0));
+    // Le plus petit carre : 3 px, donc une prise de 8 px, donc un petit cote de 8 / 0,35.
+    let seuil = 8.0 / 0.35;
+    assert!(handle_side_px(seuil + 0.01).is_some());
+    assert_eq!(handle_side_px(seuil - 0.01), None);
 }

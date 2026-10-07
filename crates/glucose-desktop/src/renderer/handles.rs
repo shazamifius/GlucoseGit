@@ -1,8 +1,9 @@
 //! Les poignées de redimensionnement — dessinées **là où `hit_priority` les cherche**.
 //!
-//! Une poignée est une affordance : elle garde une taille écran constante (exception SCALE-1,
-//! `WorldScale::screen`) et se pose aux positions que [`Handle::position_on`] donne pour la
-//! boîte écran du nœud. C'est la même fonction que le noyau utilise pour le test de clic, sur
+//! Une poignée est une affordance : sa taille se compte en pixels écran (exception SCALE-1,
+//! `WorldScale::screen`), et suit la place que le nœud lui laisse à l'écran (POIGNEE-1,
+//! [`glucose_core::hit_priority::handle_side_px`] — la loi que le clic lit aussi). Elle se pose
+//! aux positions que [`Handle::position_on`] donne pour la boîte écran du nœud. C'est la même fonction que le noyau utilise pour le test de clic, sur
 //! la même boîte : une poignée dessinée est donc une poignée cliquable, par construction
 //! (loi L4, appliquée au canevas).
 
@@ -12,8 +13,6 @@ use glucose_core::resize::Handle;
 use glucose_core::smart_align::AlignRect;
 use tiny_skia::{Paint, PathBuilder, PixmapMut, Rect, Stroke, Transform};
 
-/// Côté d'une poignée, en pixels écran (fiche 06 § 4.2 : carré de 9 px).
-pub(super) const HANDLE_SIDE: f32 = 9.0;
 /// Épaisseur du liseré d'une poignée, en pixels écran (fiche 06 § 4.2 : 1,25 px).
 pub(super) const HANDLE_OUTLINE: f32 = 1.25;
 
@@ -43,9 +42,15 @@ pub(super) fn draw_rotated_handles(
     rotation: f64,
 ) {
     let (x, y, w, h) = screen_box;
+    // La boîte est en pixels physiques, la loi en pixels logiques (DPI-1).
+    let densite = f64::from(scale.screen(1.0));
+    let petit_cote = f64::from(w.abs().min(h.abs())) / densite;
+    let Some(cote) = glucose_core::hit_priority::handle_side_px(petit_cote) else {
+        return;
+    };
     let centre = ((x + w / 2.0) as f64, (y + h / 2.0) as f64);
     let local = AlignRect::new(-(w as f64) / 2.0, -(h as f64) / 2.0, w as f64, h as f64);
-    let side = scale.screen(HANDLE_SIDE);
+    let side = scale.screen(cote as f32);
     let outline = scale.screen(HANDLE_OUTLINE);
     for handle in handles {
         let (cx, cy) = glucose_core::rotate::place(centre, handle.position_on(local), rotation);
@@ -174,11 +179,69 @@ mod tests {
         pixmap.data()[i] > 200
     }
 
-    /// Fiche 06 § 4.2 — un carré de 9 px à l'écran, liseré de 1,25 px.
+    /// Fiche 06 § 4.2 — un carré de 9 px à l'écran, liseré de 1,25 px, sur un nœud qui a
+    /// toute la place.
     #[test]
     fn test_a_handle_is_a_nine_pixel_square_with_a_hairline_outline() {
-        assert_eq!(HANDLE_SIDE, 9.0);
+        assert_eq!(glucose_core::hit_priority::handle_side_px(400.0), Some(9.0));
         assert_eq!(HANDLE_OUTLINE, 1.25);
+    }
+
+    /// Les pixels allumés sur la rangée `y`.
+    fn allumes(pixmap: &Pixmap, y: u32) -> usize {
+        (0..pixmap.width()).filter(|&x| lit(pixmap, x, y)).count()
+    }
+
+    /// **POIGNEE-1 — la poignée suit la place que le nœud lui laisse à l'écran** : pleine sur un
+    /// grand nœud, plus petite sur un petit, absente sur une vignette — où elle était un carré
+    /// de 9 px plus gros que la photo (son retour du 07/10).
+    #[test]
+    fn test_poignee_1_le_carre_suit_le_noeud_et_disparait_sur_une_vignette() {
+        let theme = Theme::dark();
+        let coin = |cote: f32| {
+            let mut pixmap = Pixmap::new(400, 400).expect("pixmap");
+            pixmap.fill(Color::from_rgba8(0, 0, 0, 255));
+            draw_resize_handles(
+                &mut pixmap.as_mut(),
+                &theme,
+                WorldScale::new(1.0, 1.0),
+                (100.0, 100.0, cote, cote),
+                &[Handle::TopLeft],
+            );
+            allumes(&pixmap, 100)
+        };
+        let (grand, moyen, vignette) = (coin(200.0), coin(30.0), coin(16.0));
+        // Le blanc seul s'allume : 8 px dans un carre de 9 borde de son liseré sombre.
+        assert!(grand >= 8, "un grand noeud : {grand} px");
+        assert!(
+            moyen < grand && moyen > 0,
+            "un noeud de 30 px : {moyen} contre {grand}"
+        );
+        assert_eq!(
+            vignette, 0,
+            "une vignette de 16 px porte encore une poignee"
+        );
+    }
+
+    /// La loi se lit en pixels **logiques** : à 150 %, le même nœud logique porte la même
+    /// poignée, une fois et demie plus grande en pixels physiques (DPI-1).
+    #[test]
+    fn test_poignee_1_la_densite_ne_change_pas_la_decision() {
+        let theme = Theme::dark();
+        let coin = |densite: f32| {
+            let mut pixmap = Pixmap::new(400, 400).expect("pixmap");
+            pixmap.fill(Color::from_rgba8(0, 0, 0, 255));
+            draw_resize_handles(
+                &mut pixmap.as_mut(),
+                &theme,
+                WorldScale::new(1.0, densite),
+                (100.0, 100.0, 20.0 * densite, 20.0 * densite),
+                &[Handle::TopLeft],
+            );
+            allumes(&pixmap, 100)
+        };
+        // 20 px logiques : prise de 7 px, carré de 2,6 px — moins qu'un carré.
+        assert_eq!((coin(1.0), coin(1.5), coin(2.0)), (0, 0, 0));
     }
 
     #[test]
@@ -208,6 +271,7 @@ mod tests {
         assert!(!lit(&pixmap, 150, 90));
     }
 
+    /// Le zoom seul ne change pas la poignée : c'est la place du nœud **à l'écran** qui compte.
     #[test]
     fn test_scale_1_a_handle_keeps_its_screen_size_at_every_zoom() {
         let theme = Theme::dark();
@@ -219,7 +283,7 @@ mod tests {
                 &mut pixmap.as_mut(),
                 &theme,
                 WorldScale::new(zoom, 1.0),
-                (60.0, 60.0, 40.0, 40.0),
+                (60.0, 60.0, 80.0, 80.0),
                 &[Handle::TopLeft],
             );
             let lit_on_row = (0..120).filter(|&x| lit(&pixmap, x, 60)).count();

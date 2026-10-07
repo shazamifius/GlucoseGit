@@ -23,7 +23,9 @@ fn push_rect_handles(
     handles: &[Handle],
     input: &PickInput,
 ) {
-    let slop = handle_slop_world(input.scale, rect.width, rect.height);
+    let Some(slop) = handle_slop_world(input.scale, rect.width, rect.height) else {
+        return;
+    };
     let positions = handles.iter().map(|h| (*h, h.position_on(rect)));
     push_handles(out, owner, id, z, positions, (input.wx, input.wy), slop);
 }
@@ -57,6 +59,9 @@ fn push_handles(
 /// Les poignees d'une image tournent avec elle : posees sur sa boite locale, centree,
 /// puis ramenees dans le monde par sa rotation.
 fn push_image_handles(out: &mut Vec<PickCandidate>, img: &BoardImage, z: usize, input: &PickInput) {
+    let Some(slop) = handle_slop_world(input.scale, img.width, img.height) else {
+        return;
+    };
     let local = AlignRect::new(-img.width / 2.0, -img.height / 2.0, img.width, img.height);
     let positions = Handle::ALL.iter().map(|h| {
         let offset = h.position_on(local);
@@ -65,7 +70,6 @@ fn push_image_handles(out: &mut Vec<PickCandidate>, img: &BoardImage, z: usize, 
             crate::rotate::place((img.x, img.y), offset, img.rotation),
         )
     });
-    let slop = handle_slop_world(input.scale, img.width, img.height);
     push_handles(
         out,
         PickOwner::Image,

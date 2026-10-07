@@ -31,7 +31,11 @@ pub const PICK_RANK_FOLDER_BODY: i32 = 60;
 pub mod pick_consts {
     pub const HANDLE_SLOP_PX: f64 = 24.0;
     pub const HANDLE_SLOP_MAX_RATIO: f64 = 0.35;
-    pub const HANDLE_SLOP_MIN_PX: f64 = 6.0;
+    /// Côté du carré d'une poignée sur un nœud qui a toute la place (fiche 06 § 4.2 : 9 px).
+    pub const HANDLE_SIDE_PX: f64 = 9.0;
+    /// Le plus petit carré qui soit encore une poignée : un pixel de fond blanc entre deux
+    /// pixels de liseré. En dessous, il ne reste qu'une tache.
+    pub const HANDLE_SMALLEST_SQUARE_PX: f64 = 3.0;
     pub const EDGE_BAND_PX: f64 = 14.0;
     pub const FOLDER_HEADER: f64 = 38.0;
     pub const FOLDER_HANDLE_INSET: f64 = 8.0;
@@ -108,12 +112,37 @@ pub struct PickCandidate {
     pub area: f64,
 }
 
-pub fn handle_slop_world(scale: f64, box_w: f64, box_h: f64) -> f64 {
+/// **POIGNEE-1 — la prise d'une poignée**, en pixels logiques, pour un nœud dont le petit côté
+/// mesure `petit_cote` pixels logiques à l'écran ; `None` quand il est trop petit pour en porter.
+///
+/// La prise vaut 24 px, sans dépasser 35 % du petit côté : quatre prises pleines couvriraient
+/// un petit nœud, et on ne pourrait plus le déplacer (fiche 08 § 3.2).
+///
+/// Le carré **dessiné** est le cœur visible de cette prise, toujours dans la proportion 9 : 24
+/// ([`handle_side_px`]) : quand le nœud rapetisse à l'écran, prise et carré rapetissent
+/// ensemble, et ce qui se voit est ce qui s'attrape. Ils gardaient 9 px et 6 px de plancher
+/// quel que soit le zoom : au dézoom, huit carrés blancs plus gros que la photo qu'ils
+/// entouraient (son retour du 07/10), et un nœud minuscule tout entier couvert de prises, qu'on
+/// redimensionnait en voulant le déplacer. Quand le carré n'a plus la place d'être un carré, la
+/// poignée disparaît — du dessin et du clic à la fois ; le cadre de la sélection reste.
+pub fn handle_reach_px(petit_cote: f64) -> Option<f64> {
+    use pick_consts::*;
+    let prise = HANDLE_SLOP_PX.min(petit_cote.abs() * HANDLE_SLOP_MAX_RATIO);
+    (prise * HANDLE_SIDE_PX / HANDLE_SLOP_PX >= HANDLE_SMALLEST_SQUARE_PX).then_some(prise)
+}
+
+/// Le côté du carré d'une poignée, en pixels logiques, sur un nœud dont le petit côté mesure
+/// `petit_cote` pixels logiques à l'écran ; `None` quand il n'en porte pas (POIGNEE-1).
+pub fn handle_side_px(petit_cote: f64) -> Option<f64> {
+    use pick_consts::*;
+    handle_reach_px(petit_cote).map(|prise| prise * HANDLE_SIDE_PX / HANDLE_SLOP_PX)
+}
+
+/// La prise d'une poignée en unités du monde, sur une boîte du monde vue à `scale` ; `None`
+/// quand la boîte est trop petite à l'écran pour porter des poignées (POIGNEE-1).
+pub fn handle_slop_world(scale: f64, box_w: f64, box_h: f64) -> Option<f64> {
     let s = scale.max(1e-6);
-    let wanted = pick_consts::HANDLE_SLOP_PX / s;
-    let cap = (pick_consts::HANDLE_SLOP_MIN_PX / s)
-        .max(box_w.abs().min(box_h.abs()) * pick_consts::HANDLE_SLOP_MAX_RATIO);
-    wanted.min(cap)
+    handle_reach_px(box_w.abs().min(box_h.abs()) * s).map(|prise| prise / s)
 }
 
 /// Nom CSS du curseur d'une poignee (`PickCandidate::corner`), `default` si le nom est inconnu.

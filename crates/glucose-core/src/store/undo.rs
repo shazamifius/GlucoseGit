@@ -123,7 +123,7 @@ impl Store {
 
     /// Applique une transformation en bloc au board, et consigne ce qu'elle a changé.
     ///
-    /// Les algorithmes de mise en page (`organize_board_grid`, panneau ORDONNER) déplacent
+    /// Les algorithmes de mise en page (le panneau ORDONNER) déplacent
     /// des dizaines d'éléments d'un coup sans dire lesquels. Plutôt que de leur demander de
     /// se décrire, on photographie les listes avant, on les laisse travailler, et on compare.
     /// Seuls les éléments réellement modifiés entrent au journal.
