@@ -339,7 +339,7 @@ impl GlucoseApp {
     /// **Un geste du pavé est en cours** (fiche 53) : la boucle repasse à chaque image pour faire
     /// avancer le système. Hors geste, rien — le repos reste à zéro image.
     fn attente_du_pave(&mut self) -> Option<u64> {
-        if !self.pave.as_ref().is_some_and(|p| p.en_geste()) {
+        if !self.toucher.pave.as_ref().is_some_and(|p| p.en_geste()) {
             return None;
         }
         self.mark_dirty();

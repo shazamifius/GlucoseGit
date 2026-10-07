@@ -164,7 +164,7 @@ impl Pave for Factice {
 
 fn application(pave: &Factice) -> GlucoseApp {
     let mut app = GlucoseApp::new();
-    app.pave = Some(Box::new(pave.clone()));
+    app.toucher.pave = Some(Box::new(pave.clone()));
     app.mouse_pos = (300.0, 200.0);
     app.curseur_vu = true;
     app
@@ -292,7 +292,7 @@ fn test_le_pave_se_montre_dans_l_image_qui_le_lit() {
         (apres.x - avant.x - 30.0).abs() < 1e-9 && (apres.y - avant.y + 12.0).abs() < 1e-9,
         "{avant:?} -> {apres:?}"
     );
-    let reste = app.pave.as_ref().map(|p| p.en_geste());
+    let reste = app.toucher.pave.as_ref().map(|p| p.en_geste());
     assert_eq!(reste, Some(true), "le geste continue, le système a été lu");
 }
 

@@ -77,7 +77,12 @@ impl GlucoseApp {
         let Some(top) = self.pick_for_click(wx, wy) else {
             self.commit_editing();
             self.store.clear_selection();
-            self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
+            // Le doigt, sur le vide, déplace le canevas ; la souris y trace un cadre (fiche 54).
+            if self.au_doigt() {
+                self.is_panning = true;
+            } else {
+                self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
+            }
             return;
         };
 

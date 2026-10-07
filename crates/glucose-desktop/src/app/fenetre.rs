@@ -138,8 +138,8 @@ impl GlucoseApp {
         }
         // **Le pavé de précision** (fiche 53) : la ligne dit, dans sa sortie, que le pincement
         // ne passe plus par la molette.
-        self.pave = crate::plateforme::installer_le_pave(window);
-        if self.pave.is_some() {
+        self.toucher.pave = crate::plateforme::installer_le_pave(window);
+        if self.toucher.pave.is_some() {
             println!("[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender");
         }
         // La question de la télémétrie, une seule fois : la fenêtre existe, le dialogue s'y

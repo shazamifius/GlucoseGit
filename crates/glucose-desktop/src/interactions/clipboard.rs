@@ -43,8 +43,8 @@ impl GlucoseApp {
     pub fn pick_and_import_images(&mut self) {
         let choisis = self.sous_un_dialogue(|fenetre| {
             crate::dialogue::fichier(fenetre)
-                .add_filter("Images", &IMAGE_EXTENSIONS)
-                .pick_files()
+                .filtre("Images", &IMAGE_EXTENSIONS)
+                .choisir_plusieurs()
         });
         if let Some(files) = choisis {
             self.import_image_files(&files);
@@ -234,7 +234,7 @@ impl GlucoseApp {
     pub(crate) fn coller_image(
         &mut self,
         board: &str,
-        img_data: &arboard::ImageData<'_>,
+        img_data: &crate::interactions::presse_papiers::Pixels,
         (wx, wy): (f64, f64),
     ) {
         let (w, h) = (img_data.width, img_data.height);
@@ -249,7 +249,7 @@ impl GlucoseApp {
             .poser(&src, crate::persist::objets::Source::Promise(promesse));
         self.renderer
             .magasin
-            .adopter(&src, img_data.bytes.to_vec(), (w as u32, h as u32), parole);
+            .adopter(&src, img_data.bytes.clone(), (w as u32, h as u32), parole);
         // Une image collée naît bornée en largeur, son rapport préservé : un rendu de
         // navigateur peut faire plusieurs milliers de pixels, et naître plus large que le
         // tableau n'aide personne.

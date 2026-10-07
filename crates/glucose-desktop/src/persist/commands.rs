@@ -22,16 +22,16 @@ use std::path::{Path, PathBuf};
 
 fn pick_save_path(ancre: crate::dialogue::Ancre<'_>, suggested: &str) -> Option<PathBuf> {
     crate::dialogue::fichier(ancre)
-        .add_filter("Projet Glucose", &[FILE_EXTENSION])
-        .set_file_name(format!("{suggested}.{FILE_EXTENSION}"))
-        .save_file()
+        .filtre("Projet Glucose", &[FILE_EXTENSION])
+        .nom(format!("{suggested}.{FILE_EXTENSION}"))
+        .enregistrer()
         .map(with_glucose_extension)
 }
 
 pub(super) fn pick_open_path(ancre: crate::dialogue::Ancre<'_>) -> Option<PathBuf> {
     crate::dialogue::fichier(ancre)
-        .add_filter("Projet Glucose", &[FILE_EXTENSION])
-        .pick_file()
+        .filtre("Projet Glucose", &[FILE_EXTENSION])
+        .choisir()
 }
 
 // ── Commandes de l'application ──────────────────────────────────────────────

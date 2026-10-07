@@ -156,9 +156,9 @@ impl GlucoseApp {
             .to_string();
         let choisi = self.sous_un_dialogue(|ancre| {
             crate::dialogue::fichier(ancre)
-                .add_filter(nom, &[extension])
-                .set_file_name(format!("{base}.{extension}"))
-                .save_file()
+                .filtre(nom, &[extension])
+                .nom(format!("{base}.{extension}"))
+                .enregistrer()
         });
         let mut chemin = choisi?;
         if chemin.extension().is_none() {

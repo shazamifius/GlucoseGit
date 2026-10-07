@@ -54,3 +54,10 @@ docs/screenshots/
 
 # Les sorties de session que l utilisateur ecrit a la racine pour qu elles soient lues
 /sortie-*.txt
+
+# Android : ce que Gradle et cargo-ndk produisent, et l'adresse du SDK de chaque machine
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/jniLibs/
+android/local.properties

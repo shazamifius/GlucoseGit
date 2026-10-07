@@ -195,7 +195,7 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), not(target_os = "android")))]
 mod imp {
     /// L'attribut qui porte le lot, en base64, dans le HTML.
     const ATTRIBUT: &str = "data-glucose-lot";
@@ -224,6 +224,28 @@ mod imp {
                 })
             })
             .map_err(|e| e.to_string())
+    }
+}
+
+/// Sous Android, Glucose n'atteint pas encore le presse-papiers du système (fiche 54) : son
+/// propre presse-papiers le remplace ([`crate::interactions::presse_papiers`]), et ces portes ne
+/// sont jamais appelées — elles le disent si elles l'étaient.
+#[cfg(target_os = "android")]
+mod imp {
+    const PAS_ENCORE: &str = "le presse-papiers du systeme n'est pas encore pris sous Android";
+
+    pub fn ecrire_un_lot(_texte: Option<&str>, _lot: &[u8]) -> Result<(), String> {
+        Err(PAS_ENCORE.into())
+    }
+
+    pub fn lire_un_lot() -> Option<Vec<u8>> {
+        None
+    }
+
+    pub fn ecrire_une_image(
+        _image: &crate::interactions::clipboard::ImagePosee,
+    ) -> Result<(), String> {
+        Err(PAS_ENCORE.into())
     }
 }
 
@@ -270,7 +292,8 @@ pub(crate) fn dib_v5(largeur: u32, hauteur: u32, rgba: &[u8]) -> Vec<u8> {
 
 /// Le lot dans du HTML, pour les systèmes où le presse-papiers n'a pas de format à soi. Écrit
 /// partout, pour que ses épreuves tournent aussi sous Windows.
-#[cfg_attr(windows, allow(dead_code))]
+// Les bureaux Linux et Mac seuls le portent : Windows a son format, Android pas encore de porte.
+#[cfg_attr(any(windows, target_os = "android"), allow(dead_code))]
 pub(crate) mod html {
     /// Le texte visible, échappé, et le lot dans un attribut — que le navigateur ignore.
     pub fn envelopper(attribut: &str, texte: &str, lot: &[u8]) -> String {

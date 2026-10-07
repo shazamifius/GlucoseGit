@@ -231,8 +231,9 @@ pub struct GlucoseApp {
     /// **Ce qui arrive du système par glisser-déposer** : les fichiers de `winit`, le pont
     /// natif, et les images annoncées qui ne sont pas encore livrées.
     pub depot: crate::interactions::depot_web::Arrivees,
-    /// **Le pavé de précision par *Direct Manipulation*** (fiche 53), quand le système le donne.
-    pub pave: Option<Box<dyn crate::interactions::pave::Pave>>,
+    /// **Les entrées au doigt** : le pavé de précision (fiche 53) et les doigts sur un écran
+    /// (fiche 54).
+    pub toucher: crate::interactions::toucher::Toucher,
     /// Les lots de nœuds qui se préparent pour le presse-papiers, ou en reviennent.
     pub echanges: crate::interactions::clipboard::Echanges,
     /// Où en est le cycle de profondeur (PICK-1) : la pile visée au dernier clic, et le rang
@@ -383,7 +384,7 @@ impl GlucoseApp {
             text_drag: None,
             last_click: None,
             depot: Default::default(),
-            pave: None,
+            toucher: Default::default(),
             echanges: Default::default(),
             pick_cycle: None,
             click_epoch: std::time::Instant::now(),

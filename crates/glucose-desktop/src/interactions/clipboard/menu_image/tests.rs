@@ -88,7 +88,7 @@ fn test_copier_l_image_puis_coller_rend_les_memes_pixels() {
     let colle = crate::interactions::presse_papiers::ouvrir()
         .and_then(|mut p| p.image())
         .expect("une image dans le presse-papiers");
-    assert_eq!(colle.bytes.as_ref(), pixels.as_slice());
+    assert_eq!(colle.bytes.as_slice(), pixels.as_slice());
     assert!(app
         .ui
         .toast_message()

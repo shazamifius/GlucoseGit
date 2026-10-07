@@ -44,19 +44,11 @@ fn unsaved_changes_question(label: &str) -> String {
 /// sur `MessageBoxW`, qui ignore les libellés personnalisés. Un bouton dont le texte
 /// disparaît selon la plate-forme serait pire qu'un bouton standard expliqué.
 fn ask_unsaved_changes(ancre: crate::dialogue::Ancre<'_>, label: &str) -> CloseChoice {
-    let answer = crate::dialogue::message(ancre)
-        .set_level(rfd::MessageLevel::Warning)
-        .set_title("Modifications non enregistrées")
-        .set_description(unsaved_changes_question(label))
-        .set_buttons(rfd::MessageButtons::YesNoCancel)
-        .show();
-    match answer {
-        rfd::MessageDialogResult::Yes | rfd::MessageDialogResult::Ok => CloseChoice::Save,
-        rfd::MessageDialogResult::No => CloseChoice::Discard,
-        rfd::MessageDialogResult::Cancel => CloseChoice::Cancel,
-        // Une réponse personnalisée n'est possible qu'avec `common-controls-v6` ; en son
-        // absence elle n'arrive jamais. Le seul choix sûr reste de ne rien perdre.
-        rfd::MessageDialogResult::Custom(_) => CloseChoice::Cancel,
+    let question = unsaved_changes_question(label);
+    match crate::dialogue::oui_non_ou_annuler(ancre, "Modifications non enregistrées", &question) {
+        Some(true) => CloseChoice::Save,
+        Some(false) => CloseChoice::Discard,
+        None => CloseChoice::Cancel,
     }
 }
 
@@ -192,6 +184,22 @@ mod tests {
             app.request_close(),
             "un document propre se ferme sans un mot"
         );
+    }
+
+    /// **La réponse à la vraie question se traduit sans contresens** (DIAL-3 : l'épreuve répond
+    /// à la place de l'utilisateur) : « oui » enregistre, « non » abandonne. Par le vrai point
+    /// d'entrée, « non » ferme sans rien écrire.
+    #[test]
+    fn test_save_3_la_reponse_a_la_question_se_traduit_sans_contresens() {
+        let mut app = dirty_app();
+        for (oui, attendu) in [(true, CloseChoice::Save), (false, CloseChoice::Discard)] {
+            crate::dialogue::epreuve::repondre(oui);
+            let choix = app.sous_un_dialogue(|ancre| ask_unsaved_changes(ancre, "x"));
+            assert_eq!(choix, attendu, "{oui}");
+        }
+        crate::dialogue::epreuve::repondre(false);
+        assert!(app.request_close(), "non ferme");
+        assert!(app.project_path.is_none(), "et n'écrit rien");
     }
 
     #[test]

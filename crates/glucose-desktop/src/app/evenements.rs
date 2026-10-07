@@ -48,6 +48,9 @@ impl GlucoseApp {
             WindowEvent::MouseWheel { delta, .. } => self.handle_mouse_wheel(*delta),
             WindowEvent::MouseInput { button, state, .. } => self.clic(*button, *state),
             WindowEvent::KeyboardInput { event, .. } => self.handle_key(event),
+            // Hors de Windows : là, Windows simule aussi la souris du premier doigt (fiche 54).
+            #[cfg(not(windows))]
+            WindowEvent::Touch(doigt) => self.toucher(doigt),
             // Un evenement par fichier : on accumule, et `about_to_wait` pose le lot.
             WindowEvent::DroppedFile(chemin) => self.depot.fichiers.push(chemin.clone()),
             _ => return false,
@@ -156,7 +159,7 @@ impl GlucoseApp {
                     }
                 }
                 self.pixmap = Pixmap::new(width, height);
-                if let Some(pave) = &mut self.pave {
+                if let Some(pave) = &mut self.toucher.pave {
                     pave.cadrer(width, height);
                 }
                 self.mark_dirty();

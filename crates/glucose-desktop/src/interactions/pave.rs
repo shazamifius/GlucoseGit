@@ -169,25 +169,27 @@ impl Lecteur {
 
 impl GlucoseApp {
     /// **À chaque image, juste avant que la caméra bouge** ([`GlucoseApp::bouger_la_camera`]) :
-    /// si un geste du pavé est en cours, le système avance, et ce qu'il rend se montre dans
-    /// cette image même. Les signes de vie, eux, partent à chaque image dans la boîte noire.
+    /// si un geste du pavé est en cours, le système avance ; ce qu'il rend rejoint ce que les
+    /// doigts ont fait depuis l'image précédente, et le tout se montre dans cette image même, en
+    /// **une** similitude ([`crate::interactions::toucher::Toucher::attente`]). Les signes de vie,
+    /// eux, partent à chaque image dans la boîte noire.
     pub(crate) fn suivre_le_pave(&mut self) {
-        let Some(pave) = self.pave.as_mut() else {
-            return;
-        };
-        let signes = pave.signes();
-        let mouvements = if pave.en_geste() {
-            pave.avancer()
-        } else {
-            Vec::new()
-        };
-        for signe in signes {
-            self.chronique.signe_du_pave(signe);
+        if let Some(pave) = self.toucher.pave.as_mut() {
+            let signes = pave.signes();
+            let mouvements = if pave.en_geste() {
+                pave.avancer()
+            } else {
+                Vec::new()
+            };
+            for signe in signes {
+                self.chronique.signe_du_pave(signe);
+            }
+            for mouvement in mouvements {
+                self.toucher.attendre(mouvement);
+            }
         }
-        for mouvement in &mouvements {
-            self.appliquer_le_pave(*mouvement);
-        }
-        if !mouvements.is_empty() {
+        if let Some(mouvement) = self.toucher.attente.take() {
+            self.appliquer_le_pave(mouvement);
             self.mark_dirty();
         }
     }
@@ -195,14 +197,19 @@ impl GlucoseApp {
     /// Les signes de vie qui attendent encore : à la fermeture, avant que la boîte noire se
     /// close — sinon ceux d'une coupure suivie d'aucune image se perdraient.
     pub(crate) fn vider_les_signes_du_pave(&mut self) {
-        let signes = self.pave.as_mut().map(|p| p.signes()).unwrap_or_default();
+        let signes = self
+            .toucher
+            .pave
+            .as_mut()
+            .map(|p| p.signes())
+            .unwrap_or_default();
         for signe in signes {
             self.chronique.signe_du_pave(signe);
         }
     }
 
     /// Une similitude du pavé, montrée en entier à l'image suivante : le système l'a déjà lissée.
-    fn appliquer_le_pave(&mut self, mouvement: Mouvement) {
+    pub(crate) fn appliquer_le_pave(&mut self, mouvement: Mouvement) {
         use crate::chronique::navigation::Decision;
         self.vol.poser();
         self.defilement_au_doigt = true;

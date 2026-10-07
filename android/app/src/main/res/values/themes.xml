@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Plein écran, sans barre de titre, sur le noir du canevas (style.md : #0d0d0d). -->
+    <style name="Theme.Glucose" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/canevas</item>
+        <item name="android:statusBarColor">@color/canevas</item>
+        <item name="android:navigationBarColor">@color/canevas</item>
+    </style>
+    <color name="canevas">#0D0D0D</color>
+</resources>

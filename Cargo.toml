@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/glucose-android",
     "crates/glucose-core",
     "crates/glucose-desktop",
     "crates/glucose-math",

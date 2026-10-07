@@ -59,6 +59,7 @@ dependencies = [
  "ndk-context",
  "ndk-sys",
  "num_enum",
+ "simd_cesu8",
  "thiserror 2.0.20",
 ]
 
@@ -1157,6 +1158,15 @@ dependencies = [
  "slotmap",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "glucose-android"
+version = "2.0.2-dev"
+dependencies = [
+ "glucose-desktop",
+ "libc",
+ "winit",
 ]
 
 [[package]]

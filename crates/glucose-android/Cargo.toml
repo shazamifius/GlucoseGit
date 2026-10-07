@@ -1,0 +1,17 @@
+[package]
+name = "glucose-android"
+# La même version que l'application : l'APK et le programme de bureau sont un seul Glucose.
+version = "2.0.2-dev"
+edition = "2021"
+description = "Glucose sur Android : le point d'entrée que GameActivity appelle (fiche 54)"
+publish = false
+
+# Une bibliothèque partagée, que l'activité Java charge (`System.loadLibrary("glucose_android")`).
+[lib]
+crate-type = ["cdylib"]
+
+# Rien hors d'Android : sur un bureau, cette caisse est vide.
+[target.'cfg(target_os = "android")'.dependencies]
+glucose-desktop = { path = "../glucose-desktop" }
+winit = { version = "0.30", features = ["android-game-activity"] }
+libc = "0.2"

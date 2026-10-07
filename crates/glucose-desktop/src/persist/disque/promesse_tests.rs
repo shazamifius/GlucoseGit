@@ -8,17 +8,16 @@
 use super::tests::{application, dossier, image_suivante};
 use crate::app::GlucoseApp;
 use glucose_core::persist::histoire;
-use std::borrow::Cow;
 
 /// Des pixels comme le presse-papiers les donne : huit sur six, chacun différent.
-fn pixels() -> arboard::ImageData<'static> {
+fn pixels() -> crate::interactions::presse_papiers::Pixels {
     let rgba: Vec<u8> = (0..8u32 * 6)
         .flat_map(|i| [(i * 5) as u8, (i * 3) as u8, 200, 255])
         .collect();
-    arboard::ImageData {
+    crate::interactions::presse_papiers::Pixels {
         width: 8,
         height: 6,
-        bytes: Cow::Owned(rgba),
+        bytes: rgba,
     }
 }
 
@@ -51,7 +50,7 @@ fn test_une_image_collee_se_scelle_avant_le_geste_qui_la_pose() {
     );
     let octets = app.disque.objets.lire(&cle).expect("ses octets");
     let relue = image::load_from_memory(&octets).expect("un PNG").to_rgba8();
-    assert_eq!(relue.as_raw(), pixels().bytes.as_ref(), "les pixels collés");
+    assert_eq!(relue.as_raw(), &pixels().bytes, "les pixels collés");
     assert!(app.fermer_le_document());
 
     let o = histoire::ouvrir(&mut std::fs::File::open(&chemin).unwrap()).unwrap();

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glucose sur Android (fiche 54). Internet : les images déposées depuis le web, la mise à
+     jour plus tard, et la boîte noire qui voyage, avec l'accord de chacun. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:label="Glucose"
+        android:icon="@drawable/icone"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:theme="@style/Theme.Glucose">
+
+        <!-- Une seule activité, que Glucose dessine entièrement. Elle survit à la rotation et au
+             clavier sans être recréée : sa surface change de taille, et `winit` le dit. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode"
+            android:windowSoftInputMode="adjustResize">
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="glucose_android" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

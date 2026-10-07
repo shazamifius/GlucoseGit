@@ -96,11 +96,11 @@ pub fn destination(choisi: PathBuf) -> (PathBuf, Format) {
 fn choisir_la_sortie(ancre: crate::dialogue::Ancre<'_>, nom: &str) -> Option<PathBuf> {
     let mut dialogue = crate::dialogue::fichier(ancre);
     for format in Format::TOUS {
-        dialogue = dialogue.add_filter(format.nom(), &[format.extension()]);
+        dialogue = dialogue.filtre(format.nom(), &[format.extension()]);
     }
     dialogue
-        .set_file_name(format!("{nom}.{}", Format::TOUS[0].extension()))
-        .save_file()
+        .nom(format!("{nom}.{}", Format::TOUS[0].extension()))
+        .enregistrer()
 }
 
 impl GlucoseApp {

@@ -298,7 +298,13 @@ impl GlucoseApp {
             // Par la porte de la souris : deux mouvements de curseur arrives entre deux images
             // se rejoignent, la vue suit le curseur au pixel, et lacher le bouton l'arrete net.
             // Elle filait apres le lacher tant que ce geste passait par la glissade du pave.
-            self.elan.placer_pan(dx, dy);
+            // Un doigt sur un ecran, lui, garde son elan : le canevas glisse sous lui (fiche 54).
+            if self.au_doigt() {
+                self.defilement_au_doigt = true;
+                self.elan.pousser_pan(dx, dy, std::time::Instant::now());
+            } else {
+                self.elan.placer_pan(dx, dy);
+            }
         }
         self.mark_dirty();
     }

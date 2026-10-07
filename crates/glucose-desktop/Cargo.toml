@@ -20,8 +20,6 @@ wgpu = "30"
 pollster = "0.4"
 tiny-skia = "0.11"
 fontdue = "0.9"
-arboard = "3.4"
-rfd = "0.15"
 # La vérification des mises à jour : minisign, par son auteur, sans aucune dépendance (fiche 44 § 4).
 minisign-verify = "0.2"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
@@ -35,6 +33,18 @@ windows-core = "0.62"
 # (decisions/05). Sous Windows, WinHTTP le fait déjà (decisions/02).
 [target.'cfg(not(windows))'.dependencies]
 ureq = { version = "3.4", default-features = false, features = ["rustls"] }
+
+# Le presse-papiers et les dialogues des systèmes de bureau. Ni l'une ni l'autre ne compile
+# pour Android : elles restent derrière leur porte (`dialogue`, `presse_papiers`, cliquet 12),
+# et le téléphone a les siens (fiche 54).
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard = "3.4"
+rfd = "0.15"
+
+# Android : la fenêtre et la boucle par `GameActivity`, la seule porte où le clavier virtuel
+# marche (fiche 50 § 3) — une fonctionnalité de `winit`, aucune caisse de plus.
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { version = "0.30", features = ["android-game-activity"] }
 
 # L'offre de mémoire sous Linux et Android (`madvise`), et ce que le noyau y dit de lui.
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]

@@ -30,6 +30,13 @@
 //! pas une convention : c'est le type [`Ancre`] qui le tient. Les deux fabriques de dialogue
 //! l'exigent, et seule `sous_un_dialogue` sait le construire. Un cinquième dialogue écrit
 //! ailleurs ne compile pas.
+//!
+//! # Invariant DIAL-4 — `rfd` ne sort jamais d'ici
+//!
+//! Les dialogues se demandent dans les mots de Glucose (un sélecteur [`Fichier`], une question
+//! [`oui_ou_non`] ou [`oui_non_ou_annuler`]) : aucun type de `rfd` ne traverse cette porte. C'est
+//! ce qui laisse Glucose compiler là où `rfd` n'existe pas — Android, où ces dialogues
+//! répondent « rien » en attendant ceux du système (fiche 54).
 
 use crate::app::GlucoseApp;
 use winit::window::Window;
@@ -58,12 +65,47 @@ impl GlucoseApp {
     }
 }
 
-/// Une boîte de message accrochée à la fenêtre.
-pub fn message(ancre: Ancre<'_>) -> rfd::MessageDialog {
+/// Une boîte de message accrochée à la fenêtre (DIAL-1).
+#[cfg(all(not(test), not(target_os = "android")))]
+fn message(ancre: Ancre<'_>) -> rfd::MessageDialog {
     let dialogue = rfd::MessageDialog::new();
     match ancre.0 {
         Some(fenetre) => dialogue.set_parent(fenetre),
         None => dialogue,
+    }
+}
+
+/// **Une question oui / non / annuler**, accrochée à la fenêtre, sur un ton d'avertissement :
+/// `Some(true)` pour oui, `Some(false)` pour non, `None` pour annuler — et sous Android, où
+/// aucune boîte n'existe encore, `None` : annuler ne perd jamais rien.
+///
+/// Comme [`oui_ou_non`], une épreuve n'ouvre jamais de vraie boîte (DIAL-3).
+pub fn oui_non_ou_annuler(ancre: Ancre<'_>, titre: &str, question: &str) -> Option<bool> {
+    #[cfg(test)]
+    {
+        let _ = (ancre, question);
+        Some(epreuve::reponse(titre))
+    }
+    #[cfg(all(not(test), target_os = "android"))]
+    {
+        let _ = (ancre, titre, question);
+        None
+    }
+    #[cfg(all(not(test), not(target_os = "android")))]
+    {
+        let reponse = message(ancre)
+            .set_level(rfd::MessageLevel::Warning)
+            .set_title(titre)
+            .set_description(question)
+            .set_buttons(rfd::MessageButtons::YesNoCancel)
+            .show();
+        match reponse {
+            rfd::MessageDialogResult::Yes | rfd::MessageDialogResult::Ok => Some(true),
+            rfd::MessageDialogResult::No => Some(false),
+            // Une réponse personnalisée n'arrive qu'avec `common-controls-v6`, absent : le seul
+            // choix sûr reste de ne rien perdre.
+            rfd::MessageDialogResult::Cancel | rfd::MessageDialogResult::Custom(_) => None,
+        }
     }
 }
 
@@ -81,7 +123,12 @@ pub fn oui_ou_non(ancre: Ancre<'_>, titre: &str, question: &str) -> bool {
         let _ = (ancre, question);
         epreuve::reponse(titre)
     }
-    #[cfg(not(test))]
+    #[cfg(all(not(test), target_os = "android"))]
+    {
+        let _ = (ancre, titre, question);
+        false
+    }
+    #[cfg(all(not(test), not(target_os = "android")))]
     {
         let reponse = message(ancre)
             .set_level(rfd::MessageLevel::Info)
@@ -96,12 +143,91 @@ pub fn oui_ou_non(ancre: Ancre<'_>, titre: &str, question: &str) -> bool {
     }
 }
 
+/// **Un sélecteur de fichier**, accroché à la fenêtre (DIAL-1) : ses filtres, le nom qu'il
+/// propose, puis ce qu'on lui demande — choisir un fichier, plusieurs, ou où enregistrer.
+pub struct Fichier<'a> {
+    ancre: Ancre<'a>,
+    filtres: Vec<(String, Vec<String>)>,
+    nom: Option<String>,
+}
+
 /// Un sélecteur de fichier accroché à la fenêtre.
-pub fn fichier(ancre: Ancre<'_>) -> rfd::FileDialog {
-    let dialogue = rfd::FileDialog::new();
-    match ancre.0 {
-        Some(fenetre) => dialogue.set_parent(fenetre),
-        None => dialogue,
+pub fn fichier(ancre: Ancre<'_>) -> Fichier<'_> {
+    Fichier {
+        ancre,
+        filtres: Vec::new(),
+        nom: None,
+    }
+}
+
+impl Fichier<'_> {
+    /// N'y montre que ces extensions, sous ce nom.
+    pub fn filtre(mut self, nom: &str, extensions: &[&str]) -> Self {
+        let extensions = extensions.iter().map(|e| e.to_string()).collect();
+        self.filtres.push((nom.to_string(), extensions));
+        self
+    }
+
+    /// Le nom qu'il propose.
+    pub fn nom(mut self, nom: String) -> Self {
+        self.nom = Some(nom);
+        self
+    }
+
+    /// Un fichier à ouvrir.
+    pub fn choisir(self) -> Option<std::path::PathBuf> {
+        self.systeme()?.pick_file()
+    }
+
+    /// Des fichiers à ouvrir.
+    pub fn choisir_plusieurs(self) -> Option<Vec<std::path::PathBuf>> {
+        self.systeme()?.pick_files()
+    }
+
+    /// Où enregistrer.
+    pub fn enregistrer(self) -> Option<std::path::PathBuf> {
+        self.systeme()?.save_file()
+    }
+
+    /// Le sélecteur du système.
+    #[cfg(not(target_os = "android"))]
+    fn systeme(self) -> Option<rfd::FileDialog> {
+        let mut d = rfd::FileDialog::new();
+        if let Some(fenetre) = self.ancre.0 {
+            d = d.set_parent(fenetre);
+        }
+        for (nom, extensions) in &self.filtres {
+            d = d.add_filter(nom, extensions);
+        }
+        if let Some(nom) = self.nom {
+            d = d.set_file_name(nom);
+        }
+        Some(d)
+    }
+
+    /// Sous Android, aucun encore : celui du système viendra par JNI (fiche 54).
+    #[cfg(target_os = "android")]
+    fn systeme(self) -> Option<SansSelecteur> {
+        let _ = (self.ancre.0, self.filtres, self.nom);
+        None
+    }
+}
+
+/// Le sélecteur qui n'existe pas encore sous Android : un type sans valeur, que rien ne
+/// construit.
+#[cfg(target_os = "android")]
+enum SansSelecteur {}
+
+#[cfg(target_os = "android")]
+impl SansSelecteur {
+    fn pick_file(self) -> Option<std::path::PathBuf> {
+        match self {}
+    }
+    fn pick_files(self) -> Option<Vec<std::path::PathBuf>> {
+        match self {}
+    }
+    fn save_file(self) -> Option<std::path::PathBuf> {
+        match self {}
     }
 }
 

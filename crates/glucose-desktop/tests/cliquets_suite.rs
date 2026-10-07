@@ -1149,3 +1149,34 @@ fn test_cliquet_11_un_seul_endroit_pose_un_fichier_a_la_place_d_un_autre() {
          ecrire_d_un_bloc ou copier_d_un_bloc : {fautes:#?}"
     );
 }
+
+// ── Cliquet 12 : les caisses que le téléphone n'a pas restent derrière leur porte ──
+
+/// **`rfd` ne vit que dans `dialogue.rs`, `arboard` que dans les deux modules du presse-papiers**
+/// (DIAL-4, fiche 54). Aucune des deux ne compile pour Android : chaque emploi hors de sa porte
+/// casserait la construction du téléphone, que seule la CI ferait voir — tard, et ailleurs.
+#[test]
+fn test_cliquet_12_rfd_et_arboard_restent_derriere_leur_porte() {
+    let portes: [(&str, &[&str]); 2] = [
+        ("rfd::", &["dialogue.rs"]),
+        ("arboard::", &["presse_papiers.rs"]),
+    ];
+    let fautes: Vec<String> = sources(&src_desktop())
+        .iter()
+        .flat_map(|s| {
+            portes
+                .iter()
+                .filter(|(_, chez)| !chez.iter().any(|c| s.chemin.ends_with(c)))
+                .flat_map(move |(caisse, _)| {
+                    s.texte
+                        .lines()
+                        .filter(move |l| nue(l).contains(caisse))
+                        .map(move |l| format!("{} : {}", s.chemin.display(), l.trim()))
+                })
+        })
+        .collect();
+    assert!(
+        fautes.is_empty(),
+        "rfd ou arboard hors de sa porte — passer par dialogue ou presse_papiers : {fautes:#?}"
+    );
+}

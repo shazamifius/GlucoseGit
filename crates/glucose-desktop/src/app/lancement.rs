@@ -115,13 +115,7 @@ fn question(p: &Proposition) -> String {
 
 /// Le dialogue natif, accroché à la fenêtre s'il y en a une : oui ou non.
 fn demander(ancre: crate::dialogue::Ancre<'_>, question: &str) -> bool {
-    crate::dialogue::message(ancre)
-        .set_level(rfd::MessageLevel::Info)
-        .set_title("Mise à jour de Glucose")
-        .set_description(question)
-        .set_buttons(rfd::MessageButtons::YesNo)
-        .show()
-        == rfd::MessageDialogResult::Yes
+    crate::dialogue::oui_ou_non(ancre, "Mise à jour de Glucose", question)
 }
 
 impl GlucoseApp {
