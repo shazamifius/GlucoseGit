@@ -5,13 +5,17 @@
 * **Fini les gels d'une demi-seconde sur les portables à deux cartes graphiques** : Glucose
   dessine désormais sur la carte qui tient l'écran. Il pouvait dessiner sur l'autre, une
   session sur deux, et chaque image devait alors traverser d'une carte à l'autre.
-* **Au dézoom, les poignées d'une sélection suivent la taille des nœuds** : elles ne
-  recouvrent plus des vignettes plus petites qu'elles, et une vignette sélectionnée se déplace
+* **Au dézoom, les poignées et le cadre d'une sélection suivent la taille des nœuds** : ils ne
+  recouvrent plus des vignettes plus petites qu'eux, et une vignette sélectionnée se déplace
   au lieu de se redimensionner.
-* **Le pincement au pavé tactile zoome un peu plus vite.**
+* **Au pavé tactile, le pincement suit les doigts** : plus de glissade ni de retard, et il zoome
+  plus vite.
+* **`Ctrl+N` dit que le document quitté est enregistré**, quand il a un nom.
+* **Le mode référence au pavé tactile** : `Alt` + glisser déplace la fenêtre, `Alt` + pincer
+  l'agrandit ou la rétrécit.
 * **À la souris, tout est instantané** : un cran de molette zoome tout de suite, le glisser au
-  bouton du milieu suit la souris au pixel, et rien ne glisse quand on lâche. Au pavé tactile et
-  au doigt, rien ne change.
+  bouton du milieu suit la souris au pixel, et rien ne glisse quand on lâche. Au pavé tactile,
+  le déplacement à deux doigts garde son élan.
 * **Copier, couper, coller des nœuds** — textes, images, flèches, membranes —, y compris d'une
   fenêtre de Glucose à une autre : `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, ou le clic droit. Le collage se
   pose sous la souris et se défait d'un seul `Ctrl+Z`.

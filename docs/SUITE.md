@@ -20,16 +20,16 @@ liste de la fiche 51 § 9 —, puis la publication.
 | | chantier | où en est-il |
 |---|---|---|
 | [x] | **La version de travail en `2.0.2-dev`** | l'épreuve compare à tout ce qui est publié (sabotée : elle tombe) |
-| [~] | **La souris instantanée** : deux portes dans l'élan, la souris montrée à l'image suivante, le doigt inchangé | **lui** le juge à l'écran (souris, puis pavé). **Doute ouvert** : une molette à haute résolution (roue libre) passe pour un doigt — demander le modèle de sa souris ; la vraie réponse est *Direct Manipulation* (chantier 5) |
-| [~] | **Copier, couper, coller des nœuds, d'une fenêtre à l'autre** : le lot `.glucose`, le format « Glucose.Lot », le collage au curseur en un geste ; le glisser entre fenêtres (`DoDragDrop`) | la voie réelle du presse-papiers Windows et le glisser à la main : **son écran** |
-| [~] | **Clic droit sur une image : « Copier l'image » et « Enregistrer l'image sous… »** | **coller dans Discord** : son écran |
-| [~] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | son écran |
-| [~] | **Le mode référence, à la PureRef** : `Ctrl+Maj+A` (et `Alt+T`), sans interface, sans cadre, au premier plan, retenu ; déplacer au bouton droit, redimensionner par un bord | **au-dessus de Blender**, à son écran. Plus tard, s'il le veut : opacité (`Ctrl+Maj+±` chez PureRef), clics qui traversent (`Ctrl+T`) |
-| [~] | **Le repos à zéro image** : 0,1 image/s le 06/10 ; aucun réveil spontané trouvé dans le code ; la chronique dit désormais, raison par raison, qui dessine au repos | sa prochaine chronique : si une raison **spontanée** y paraît, l'éteindre |
+| [~] | **La souris instantanée** : deux portes dans l'élan, la souris montrée à l'image suivante | **il n'a pas de souris** (07/10) : ce sont d'autres mains qui le diront. La roue libre reste un doute pour elles ; la réponse est *Direct Manipulation* (chantier 5) |
+| [x] | **Copier, couper, coller des nœuds, d'une fenêtre à l'autre** : le lot `.glucose`, le format « Glucose.Lot », le collage au curseur en un geste ; le glisser entre fenêtres (`DoDragDrop`) | **« absolument parfait »**, et le glisser entre deux fenêtres aussi (07/10) |
+| [x] | **Clic droit sur une image : « Copier l'image » et « Enregistrer l'image sous… »** | **« parfait »**, Discord compris (07/10) |
+| [~] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | quitter un document nommé le dit désormais (« « fuser » est enregistré — nouveau document ») : son écran |
+| [~] | **Le mode référence, à la PureRef** : `Ctrl+Maj+A`, sans interface, sans cadre, au premier plan, retenu ; **au pavé, `Alt` + glisser déplace la fenêtre et `Alt` + pincer la redimensionne** (REFERENCE-2) ; il se désagrandit en entrant | son écran : les couleurs (RTX HDR et la vibrance de NVIDIA s'y appliquaient), et **les signets `1`, `Ctrl+1`, qui ne répondaient pas** — non reproduit en épreuve (fiche 52 § 8) |
+| [x] | **Le repos à zéro image** : la chronique du 07/10 le dit raison par raison | **aucune raison spontanée** : les messages qui s'effacent et les glissades qui finissent |
 | [x] | **La CI de `20deb6f`** (la voie hors Windows du presse-papiers) | neuf tâches vertes |
-| [~] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **sa prochaine session** : fluide, et la chronique dit « celle qui tient l'écran » |
-| [~] | **POIGNEE-1 — les poignées suivent la place du nœud** à l'écran, et disparaissent sur une vignette (son retour du 07/10) | son œil, au dézoom |
-| [~] | **Le pincement au pavé**, un tiers plus rapide (1/12 d'octave par unité) | son doigt |
+| [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
+| [~] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | son œil, au dézoom : la grille blanche du cadre restait après les poignées |
+| [~] | **Le pincement au pavé** : direct, sans conduite ni glissade, 1/5 d'octave par unité (« trop smooth, pas rapide » au 1/12 lissé) | son doigt |
 | [~] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | son écran (fiche 51 § 9, 3) |
 | [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
 
@@ -105,7 +105,7 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 1. **Le serveur de la boîte noire** (chantier 2).
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien d'abord).
-4. **Le modèle de sa souris** (le doute du chantier 1 : une roue libre passe pour un doigt).
+4. ~~Le modèle de sa souris~~ : **il n'en a pas** (07/10) ; il navigue au pavé tactile.
 5. Sait-il qui, parmi ses cinq utilisateurs, a basculé ? Surtout sous Linux.
 6. Les membranes de Mary, les rideaux, Trans-domaines, « optimiser » dans la Time Machine.
 

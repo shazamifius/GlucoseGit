@@ -36,7 +36,7 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile (deux doigts, pincement), élan, `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
+| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile (deux doigts avec élan, **pincement direct** qui suit les doigts), `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
 | **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution) ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
@@ -59,12 +59,12 @@
 * **Le lag du 07/10 au matin** (gels de 300 à 500 ms dans `present`, pour des images de 3 ms) :
   son portable a l'écran branché sur la RTX, et Glucose dessinait sur l'Intel, qui n'affiche
   rien et s'endort au repos. L'arbitre alternait d'une session à l'autre. Depuis ECRAN-1
-  (fiche 52), Glucose dessine sur la carte qui tient l'écran — **à confirmer à son écran**.
+  (fiche 52), Glucose dessine sur la carte qui tient l'écran — **vérifié** sur sa session
+  suivante : la RTX, `mailbox`, pire image 48 ms au lieu de 505.
   Les gels de l'Arc des fiches 43 et 21 avaient très probablement la même cause.
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication.
-* **Au repos**, 0,1 image par seconde sur sa session du 06/10 (1 à 2,5 au 29/09). Le code ne montre
-  aucun réveil spontané ; ce sont probablement les suites d'un geste (glissade, message,
-  décodage). La chronique le dit désormais raison par raison : sa prochaine session tranchera.
+* **Au repos**, aucun réveil spontané : la chronique du 07/10 le dit raison par raison — seuls
+  dessinent les messages qui s'effacent et les glissades qui finissent.
 
 ## 5. Ce qui manque encore (de Tauri)
 
@@ -81,13 +81,17 @@ une image) sont **écrits et éprouvés hors écran** (fiche 51) : plus de deux 
 chaque garde sabotée. **Aucun n'a encore été jugé à son écran** : c'est la liste de la fiche 51
 § 9, et elle passe avant la publication de la 2.0.2-beta.1.
 
-Depuis (fiche 52), aussi écrits et pas vus : **la carte de l'écran** (le lag du 07/10), **les
-poignées qui suivent la taille des nœuds** au dézoom, **le pincement** un tiers plus rapide, et
-le glisser vers une autre fenêtre dont la fenêtre d'origine ne reste plus figée.
+**Son écran a jugé, le 07/10 (fiche 52 § 8)** : le copier-coller de nœuds, entre deux fenêtres
+et glissé de l'une à l'autre, et « Copier l'image » dans Discord sont **parfaits**. Le lag est
+réglé (ECRAN-1). **Il n'a pas de souris** : il navigue au pavé tactile.
 
-Deux choses restent ouvertes : **sa souris** (une molette à roue libre passerait pour un doigt :
-déplacer au lieu de zoomer — demander le modèle), et l'**opacité** et les **clics qui traversent**
-du mode référence, s'il les veut.
+Écrits depuis, et pas encore vus : les poignées **et le cadre** de sélection qui suivent la
+taille des nœuds au dézoom ; le pincement **direct**, sans glissade ; `Ctrl+N` qui dit que le
+document nommé est enregistré ; au mode référence, `Alt` + glisser et `Alt` + pincer pour la
+fenêtre, et le mode qui se désagrandit (l'application NVIDIA lui appliquait RTX HDR).
+
+Ouvert : **les signets** `1`, `Ctrl+1` qui ne répondaient pas à son écran (non reproduit) ;
+l'**opacité** et les **clics qui traversent** du mode référence, s'il les veut.
 
 ## 7. Points de vigilance
 

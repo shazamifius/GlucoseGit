@@ -156,3 +156,58 @@ La liste de la fiche 51 § 9 tient toujours ; s'y ajoutent :
 3. **Le pincement** au pavé : légèrement plus rapide, pas trop.
 4. **Glisser des nœuds vers une autre fenêtre** : les nœuds reviennent à leur place **dès** la
    sortie de la fenêtre, pas au lâcher.
+
+## 8. Son écran, le 07/10 à 11 h 24 — et ce qui en a suivi
+
+La chronique de sa session (859 s) : **la RTX, « celle qui tient l'écran », en `mailbox`** ; la
+pire image coûte 48 ms (505 le matin), et aucun gel de `present`. **ECRAN-1 est vérifié.** Les
+gels qui restent (jusqu'à 321 ms) sont dans « entretien » et « écouter la main » : des gestes
+lourds — ouvrir une fenêtre, copier, changer de mode —, pas l'affichage. **Le repos** est
+tranché : au repos, seuls dessinent les messages qui s'effacent (519 images) et les glissades
+qui finissent (336) ; aucune raison spontanée.
+
+Ses verdicts, et ce qui a été fait :
+
+1. **Couper-coller une sélection mêlée** : « absolument parfait ». **Deux fenêtres, copier
+   puis glisser** : « parfait aussi ». **Copier l'image dans Discord, l'enregistrer** :
+   « parfait ».
+2. **Il n'a pas de souris.** Toute la navigation se juge au pavé ; la voie de la souris attend
+   d'autres mains.
+3. **Les poignées** : parties, mais **une grille blanche restait** — le cadre de sélection
+   (3 px de débord, 1,25 px de trait, fixes). Le cadre des photos, l'anneau des textes et celui
+   des post-its suivent désormais la même loi (`chrome_ratio`, la prise effective rapportée à
+   la prise pleine) ; plus fin qu'un pixel, le cadre droit reçoit l'encre de sa couverture —
+   ce que l'anti-crénelage aurait donné. De loin, une trace grise ; de près, rien ne change.
+4. **Le pincement** : « trop d'effet de smooth, et pas du tout rapide, ce qui crée un vrai
+   sentiment de lag ». Il passait par la conduite (10 ms) et la glissade (0,28 s) du doigt.
+   **Tout zoom est désormais direct** — montré en entier à l'image suivante, rien après — ;
+   la porte `pousser_zoom` et `TAU_LIBRE_ZOOM` disparaissent. Gain : 1/5 d'octave par unité,
+   montré tout de suite (le 1/12 lissé valait un sixième, servi en retard ; le 0,25 lissé, une
+   demi-octave, « trop trop vite »). Le déplacement à deux doigts garde son élan. Un piège
+   évité : un zoom arrivé entre deux poussées du doigt dormait dans la dette, et l'élan ne
+   finissait jamais — il se montre en entier quelle que soit la porte (épreuve, sabotée).
+5. **`Ctrl+N`** : « il crée instantanément une nouvelle session sans même demander
+   d'enregistrer ». Le document quitté était **nommé** (`fuser.glucose`, son dernier document) :
+   chaque geste y était déjà écrit, et ses brouillons ne montrent aucune perte. Demander
+   « enregistrer ? » mentirait ; se taire l'a inquiété. Le message dit maintenant ce qui vient
+   d'avoir lieu, à la place de « Supprimé » (une suppression se voit, comme un collage). Le cas
+   « travail sans nom » pose bien la question : une épreuve le joue de bout en bout.
+6. **Le mode référence** :
+   * **les couleurs** : les journaux de l'application NVIDIA (lecture seule) montrent qu'à
+     11 h 34 min 50 s elle a appliqué à `glucose-desktop.exe` **RTX HDR** (`AIHDR`, crête 613
+     nits) et **RTX Dynamic Vibrance** (`AIDVC`, intensité et saturation 50) — des filtres de
+     jeu. Son écran est en HDR. Hypothèse, **probable, à confirmer** : agrandie et sans cadre,
+     la fenêtre ressemblait à un jeu en plein écran fenêtré. Entrer dans le mode la
+     désagrandit désormais : une référence flotte, elle ne couvre pas l'écran ;
+   * **les signets `1`, `2`, `3`, `Ctrl+1`, `Ctrl+2` ne répondaient pas** : en épreuve, en mode
+     référence, `Ctrl+1` pose et `1` vole. **Non reproduit** — la touche se perd avant Glucose,
+     ou dans un cas non joué (une carte en cours d'édition prend les chiffres) ;
+   * **déplacer et redimensionner sans souris** (REFERENCE-2) : `Alt` + glisser déplace la
+     fenêtre par le geste natif du système ; `Alt` + pincer l'agrandit autour de son centre,
+     bornée entre 160 px logiques et l'écran. `Alt` au clic fouille ailleurs une pile de
+     nœuds : en mode référence, la fenêtre passe d'abord. Le bouton droit et les bordures
+     restent pour la souris.
+
+Prouvé : 2 026 épreuves, clippy strict ; dix nouveaux sabotages, dix chutes, **une épreuve
+aveugle de plus trouvée** (celle du message de `Ctrl+N` lisait le message de l'enregistrement
+d'avant). Pas prouvé : tout ce qui précède à son écran.
