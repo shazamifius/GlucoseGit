@@ -26,6 +26,11 @@ liste de la fiche 51 § 9 —, puis la publication.
 | [~] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | son écran |
 | [~] | **Le mode référence, à la PureRef** : `Ctrl+Maj+A` (et `Alt+T`), sans interface, sans cadre, au premier plan, retenu ; déplacer au bouton droit, redimensionner par un bord | **au-dessus de Blender**, à son écran. Plus tard, s'il le veut : opacité (`Ctrl+Maj+±` chez PureRef), clics qui traversent (`Ctrl+T`) |
 | [~] | **Le repos à zéro image** : 0,1 image/s le 06/10 ; aucun réveil spontané trouvé dans le code ; la chronique dit désormais, raison par raison, qui dessine au repos | sa prochaine chronique : si une raison **spontanée** y paraît, l'éteindre |
+| [x] | **La CI de `20deb6f`** (la voie hors Windows du presse-papiers) | neuf tâches vertes |
+| [~] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **sa prochaine session** : fluide, et la chronique dit « celle qui tient l'écran » |
+| [~] | **POIGNEE-1 — les poignées suivent la place du nœud** à l'écran, et disparaissent sur une vignette (son retour du 07/10) | son œil, au dézoom |
+| [~] | **Le pincement au pavé**, un tiers plus rapide (1/12 d'octave par unité) | son doigt |
+| [~] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | son écran (fiche 51 § 9, 3) |
 | [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
 
 ## 2. La boîte noire qui voyage
@@ -75,7 +80,10 @@ comprendre avec lui, les niveaux de boards (16) à confirmer, l'optimisation de 
 ## 5. La fluidité
 
 * Les zooms chargés à 11-21 ms (session du 05/10) : le plancher de 100 images par seconde.
-* Les gels de la carte Intel Arc (fiche 43 § 8).
+* Les gels de la carte Intel Arc (fiche 43 § 8) : très probablement l'écran branché sur la RTX
+  (fiche 52 § 1) — à confirmer, puis à mesurer en mode Optimus (l'écran sur l'Intel).
+* **La boîte noire ne note ni la carte ni la succession des images** : à ajouter, c'est elle
+  qui voyage (fiche 52 § 1).
 * Un plantage reproductible **dans les épreuves** : trois fois dans `vulkan-1.dll` au même octet
   (fiche 49 § 4), probablement une épreuve graphique qui referme la carte.
 * **Le pavé par *Direct Manipulation*** (fiche 51 § 1) : ce que font Chromium et Blender — les

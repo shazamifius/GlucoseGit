@@ -1,6 +1,7 @@
 # Où en est Glucose
 
-> **Au 07/10/2026**, après la session de ses retours sur la V2 (fiche 51). Ce document dit l'état **vérifié** du projet,
+> **Au 07/10/2026**, après la session de ses retours sur la V2 (fiche 51) et celle de la carte
+> de l'écran (fiche 52). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -47,7 +48,7 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : environ 1 970 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
+* **Épreuves** : environ 2 020 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
   neuf tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android et le web, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule, les paquets Linux. Toutes vertes
   au dernier envoi.
@@ -55,6 +56,11 @@
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
   **pas encore tenu partout**.
+* **Le lag du 07/10 au matin** (gels de 300 à 500 ms dans `present`, pour des images de 3 ms) :
+  son portable a l'écran branché sur la RTX, et Glucose dessinait sur l'Intel, qui n'affiche
+  rien et s'endort au repos. L'arbitre alternait d'une session à l'autre. Depuis ECRAN-1
+  (fiche 52), Glucose dessine sur la carte qui tient l'écran — **à confirmer à son écran**.
+  Les gels de l'Arc des fiches 43 et 21 avaient très probablement la même cause.
 * **Aucun plantage ni gel** de Glucose noté par Windows depuis la publication.
 * **Au repos**, 0,1 image par seconde sur sa session du 06/10 (1 à 2,5 au 29/09). Le code ne montre
   aucun réveil spontané ; ce sont probablement les suites d'un geste (glissade, message,
@@ -74,6 +80,10 @@ Les six retours (la souris, `Ctrl+N`, le mode référence, le copier-coller, cop
 une image) sont **écrits et éprouvés hors écran** (fiche 51) : plus de deux mille épreuves vertes,
 chaque garde sabotée. **Aucun n'a encore été jugé à son écran** : c'est la liste de la fiche 51
 § 9, et elle passe avant la publication de la 2.0.2-beta.1.
+
+Depuis (fiche 52), aussi écrits et pas vus : **la carte de l'écran** (le lag du 07/10), **les
+poignées qui suivent la taille des nœuds** au dézoom, **le pincement** un tiers plus rapide, et
+le glisser vers une autre fenêtre dont la fenêtre d'origine ne reste plus figée.
 
 Deux choses restent ouvertes : **sa souris** (une molette à roue libre passerait pour un doigt :
 déplacer au lieu de zoomer — demander le modèle), et l'**opacité** et les **clics qui traversent**
