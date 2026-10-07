@@ -10,7 +10,8 @@
   au lieu de se redimensionner.
 * **Au pavé tactile, le pincement suit les doigts** : plus de glissade ni de retard, et il zoome
   plus vite.
-* **`Ctrl+N` dit que le document quitté est enregistré**, quand il a un nom.
+* **`Ctrl+N` demande toujours** avant de commencer un nouveau document : un raccourci tapé par
+  erreur ne fait plus rien disparaître de l'écran.
 * **Le mode référence au pavé tactile** : `Alt` + glisser déplace la fenêtre, `Alt` + pincer
   l'agrandit ou la rétrécit.
 * **À la souris, tout est instantané** : un cran de molette zoome tout de suite, le glisser au

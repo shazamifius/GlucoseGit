@@ -23,13 +23,13 @@ liste de la fiche 51 § 9 —, puis la publication.
 | [~] | **La souris instantanée** : deux portes dans l'élan, la souris montrée à l'image suivante | **il n'a pas de souris** (07/10) : ce sont d'autres mains qui le diront. La roue libre reste un doute pour elles ; la réponse est *Direct Manipulation* (chantier 5) |
 | [x] | **Copier, couper, coller des nœuds, d'une fenêtre à l'autre** : le lot `.glucose`, le format « Glucose.Lot », le collage au curseur en un geste ; le glisser entre fenêtres (`DoDragDrop`) | **« absolument parfait »**, et le glisser entre deux fenêtres aussi (07/10) |
 | [x] | **Clic droit sur une image : « Copier l'image » et « Enregistrer l'image sous… »** | **« parfait »**, Discord compris (07/10) |
-| [~] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | quitter un document nommé le dit désormais (« « fuser » est enregistré — nouveau document ») : son écran |
-| [~] | **Le mode référence, à la PureRef** : `Ctrl+Maj+A`, sans interface, sans cadre, au premier plan, retenu ; **au pavé, `Alt` + glisser déplace la fenêtre et `Alt` + pincer la redimensionne** (REFERENCE-2) ; il se désagrandit en entrant | son écran : les couleurs (RTX HDR et la vibrance de NVIDIA s'y appliquaient), et **les signets `1`, `Ctrl+1`, qui ne répondaient pas** — non reproduit en épreuve (fiche 52 § 8) |
+| [~] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | **demande toujours** (NOUVEAU-1, son vœu du 07/10) : son écran |
+| [x] | **Le mode référence, à la PureRef** : `Ctrl+Maj+A`, sans interface, sans cadre, au premier plan, retenu ; **au pavé, `Alt` + glisser déplace la fenêtre et `Alt` + pincer la redimensionne** (REFERENCE-2) ; il se désagrandit en entrant | « absolument et vraiment sublime » (07/10), signets compris. Plus tard, s'il le veut : opacité, clics qui traversent |
 | [x] | **Le repos à zéro image** : la chronique du 07/10 le dit raison par raison | **aucune raison spontanée** : les messages qui s'effacent et les glissades qui finissent |
 | [x] | **La CI de `20deb6f`** (la voie hors Windows du presse-papiers) | neuf tâches vertes |
 | [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
 | [~] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | son œil, au dézoom : la grille blanche du cadre restait après les poignées |
-| [~] | **Le pincement au pavé** : direct, sans conduite ni glissade, 1/5 d'octave par unité (« trop smooth, pas rapide » au 1/12 lissé) | son doigt |
+| [~] | **Le pincement au pavé** : la conduite sans la glissade, 0,22 d'octave par unité (« strate par strate » en direct) | son doigt |
 | [~] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | son écran (fiche 51 § 9, 3) |
 | [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
 

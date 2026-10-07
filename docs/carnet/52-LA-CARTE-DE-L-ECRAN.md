@@ -211,3 +211,22 @@ Ses verdicts, et ce qui a été fait :
 Prouvé : 2 026 épreuves, clippy strict ; dix nouveaux sabotages, dix chutes, **une épreuve
 aveugle de plus trouvée** (celle du message de `Ctrl+N` lisait le message de l'enregistrement
 d'avant). Pas prouvé : tout ce qui précède à son écran.
+
+## 9. Son écran, une deuxième fois
+
+* **Le mode référence et les signets** : « absolument et vraiment sublime ». Les signets
+  répondent ; le défaut de la première fois n'est pas revenu.
+* **Le pincement** : direct, il allait « strate par strate, comme une molette » ; un zoom au
+  pavé est « smooth et instantané ». Il reprend la **conduite** du déplacement (10 ms, qui fond
+  les paquets du pavé) sans **glissade** au lâcher, et 10 % de gain de plus (0,22). Deux
+  épreuves aveugles trouvées par le saboteur, corrigées : la route du doigt jouée dans
+  l'application, et la glissade remise au lâcher qui fait tomber l'épreuve de l'élan.
+* **`Ctrl+N`** (NOUVEAU-1) : le message après coup ne suffisait pas. *« Que quoi qu'il se
+  passe, lorsqu'on fait Ctrl+N, on voie une popup : voulez-vous créer un nouveau document ? »*
+  — Oui / Non, le document nommé dit enregistré ; un travail sans nom garde sa question à trois
+  réponses, qui vaut confirmation. DIAL-3 : sous `cfg(test)`, une épreuve fournit la réponse,
+  et tombe sans elle — aucune épreuve ne peut plus ouvrir une boîte sur son écran.
+* **La sélection** : « pas esthétique du tout ». Le style (`style.md`) est hérité de Glucose
+  Tauri. Une planche hors écran lui montre quatre directions monochromes — l'actuelle, des
+  équerres aux coins, un fil et quatre points, un cadre unique pour le groupe — : **son choix**.
+
