@@ -14,6 +14,7 @@ fn test_ctrl_n_laisse_le_document_intact_et_en_ouvre_un_vierge() {
     noter(&mut app, "garde", "ce texte reste dans l'ancien document");
     image_suivante(&mut app);
 
+    crate::dialogue::epreuve::repondre(true);
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
     assert!(app.handle_file_shortcut("n"), "Ctrl+N est consommé");
     app.modifiers = winit::keyboard::ModifiersState::empty();
@@ -54,6 +55,7 @@ fn test_ctrl_n_sur_un_travail_sans_nom_le_dit_a_enregistrer() {
     let d = dossier("nouveau-sans-nom");
     let mut app = application(&d);
     app.save_to(d.join("nomme.glucose"));
+    crate::dialogue::epreuve::repondre(true);
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
     assert!(app.handle_file_shortcut("n"));
     app.modifiers = winit::keyboard::ModifiersState::empty();
@@ -65,22 +67,31 @@ fn test_ctrl_n_sur_un_travail_sans_nom_le_dit_a_enregistrer() {
     );
 }
 
-/// **Quitter un document nommé se dit** : il est enregistré, et un autre commence. Sans ce
-/// mot, son essai du 07/10 a lu le silence comme un travail abandonné.
+/// **NOUVEAU-1 — `Ctrl+N` demande, et « Non » ne change rien** : le document reste celui qu'on
+/// regarde, avec son travail et son fichier. Son essai du 07/10 : un raccourci tapé par erreur
+/// ne doit jamais faire croire au travail perdu.
 #[test]
-fn test_ctrl_n_dit_que_le_document_nomme_est_enregistre() {
-    let d = dossier("nouveau-dit");
+fn test_nouveau_1_ctrl_n_demande_et_non_ne_change_rien() {
+    let d = dossier("nouveau-demande");
+    let chemin = d.join("fusee.glucose");
     let mut app = application(&d);
-    app.save_to(d.join("fusee.glucose"));
+    app.save_to(chemin.clone());
     noter(&mut app, "garde", "du travail");
-    // L'enregistrement vient de se dire, avec le même nom : sans ce silence, l'épreuve lisait
-    // son message et passait même quand `Ctrl+N` se taisait (sabotage du 07/10).
-    app.ui.current_toast = None;
+    crate::dialogue::epreuve::repondre(false);
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
-    assert!(app.handle_file_shortcut("n"));
-    let message = app.ui.toast_message().unwrap_or_default().to_string();
+    assert!(app.handle_file_shortcut("n"), "Ctrl+N est consommé");
+    app.modifiers = winit::keyboard::ModifiersState::empty();
+    assert_eq!(
+        app.project_path.as_ref(),
+        Some(&chemin),
+        "le document reste le meme"
+    );
+    let board = app.store.active_board().expect("un tableau");
     assert!(
-        message.contains("fusee") && message.contains("enregistré"),
-        "Ctrl+N se tait sur le document qu'il quitte : {message:?}"
+        board
+            .annotations
+            .iter()
+            .any(|a| a.own_text().as_deref() == Some("du travail")),
+        "son travail est toujours la"
     );
 }

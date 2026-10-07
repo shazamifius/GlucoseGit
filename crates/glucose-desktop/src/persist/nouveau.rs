@@ -21,21 +21,41 @@ use crate::app::GlucoseApp;
 impl GlucoseApp {
     /// `Ctrl+N`, et l'entrée « Nouveau document » du menu.
     ///
-    /// **Un document nommé se quitte sans question, mais pas sans un mot.** Chaque geste y est
-    /// déjà écrit : demander « enregistrer ? » mentirait. Mais rien ne le disait, et son essai du
-    /// 07/10 l'a lu comme un travail abandonné — « il crée instantanément une nouvelle session
-    /// sans même demander d'enregistrer notre travail ». Le message dit ce qui vient d'avoir
-    /// lieu : le document est enregistré, et un autre commence.
+    /// # NOUVEAU-1 — `Ctrl+N` demande toujours
+    ///
+    /// Un document nommé se quittait sans un mot : chaque geste y est déjà écrit. Juste, mais son
+    /// essai du 07/10 l'a lu comme un travail perdu, et un message après coup ne suffisait pas :
+    /// *« si on fait Ctrl+N accidentellement, que ça ne swappe pas instantanément, mais qu'on
+    /// voie une popup : voulez-vous créer un nouveau document ? »*. Un raccourci se tape par
+    /// erreur ; la question rattrape l'erreur avant qu'elle ait lieu.
+    ///
+    /// Un travail sans nom à enregistrer pose déjà la sienne (BROUILLON-1) — enregistrer, ne pas
+    /// enregistrer, annuler —, qui vaut confirmation : deux boîtes de suite seraient de trop.
     pub fn nouveau_document(&mut self) {
-        let quitte = self.project_path.as_ref().map(|_| self.document_label());
+        self.terminer_les_gestes_en_cours();
+        self.consigner();
+        if !self.is_dirty() && !self.confirmer_le_nouveau_document() {
+            return;
+        }
         if !self.laisser_le_document() {
             return;
         }
         self.adopter_un_document_vierge();
-        if let Some(nom) = quitte {
-            self.ui
-                .show_toast(format!("« {nom} » est enregistré — nouveau document"));
-        }
+    }
+
+    /// La question de NOUVEAU-1 : oui, un nouveau document ; non, rien ne change.
+    fn confirmer_le_nouveau_document(&mut self) -> bool {
+        let question = match self.project_path {
+            Some(_) => format!(
+                "Créer un nouveau document ?\n\n« {} » est enregistré : il reste où il est, \
+                 et se rouvre par Ouvrir.",
+                self.document_label()
+            ),
+            None => "Créer un nouveau document ?".to_string(),
+        };
+        self.sous_un_dialogue(|ancre| {
+            crate::dialogue::oui_ou_non(ancre, "Nouveau document", &question)
+        })
     }
 
     /// Fait d'un document vierge le document courant. Séparée de la question pour se

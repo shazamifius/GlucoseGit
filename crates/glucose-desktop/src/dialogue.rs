@@ -67,11 +67,61 @@ pub fn message(ancre: Ancre<'_>) -> rfd::MessageDialog {
     }
 }
 
+/// **Une question oui / non**, accrochée à la fenêtre (DIAL-1) : `true` pour oui.
+///
+/// # DIAL-3 — une épreuve n'ouvre jamais de vraie boîte
+///
+/// Une épreuve qui atteindrait ce dialogue l'ouvrirait **sur son écran**, au milieu de son
+/// travail, et attendrait une réponse que personne ne donnera. Sous `cfg(test)`, la réponse
+/// vient donc de l'épreuve ([`epreuve::repondre`]) ; une épreuve qui n'en a pas donné tombe,
+/// en nommant le dialogue, au lieu de l'afficher.
+pub fn oui_ou_non(ancre: Ancre<'_>, titre: &str, question: &str) -> bool {
+    #[cfg(test)]
+    {
+        let _ = (ancre, question);
+        epreuve::reponse(titre)
+    }
+    #[cfg(not(test))]
+    {
+        let reponse = message(ancre)
+            .set_level(rfd::MessageLevel::Info)
+            .set_title(titre)
+            .set_description(question)
+            .set_buttons(rfd::MessageButtons::YesNo)
+            .show();
+        matches!(
+            reponse,
+            rfd::MessageDialogResult::Yes | rfd::MessageDialogResult::Ok
+        )
+    }
+}
+
 /// Un sélecteur de fichier accroché à la fenêtre.
 pub fn fichier(ancre: Ancre<'_>) -> rfd::FileDialog {
     let dialogue = rfd::FileDialog::new();
     match ancre.0 {
         Some(fenetre) => dialogue.set_parent(fenetre),
         None => dialogue,
+    }
+}
+
+/// Les réponses que les épreuves donnent aux dialogues (DIAL-3).
+#[cfg(test)]
+pub mod epreuve {
+    use std::cell::Cell;
+
+    thread_local! {
+        static REPONSE: Cell<Option<bool>> = const { Cell::new(None) };
+    }
+
+    /// La réponse au prochain dialogue oui / non de ce fil.
+    pub fn repondre(oui: bool) {
+        REPONSE.with(|r| r.set(Some(oui)));
+    }
+
+    pub(super) fn reponse(titre: &str) -> bool {
+        REPONSE.with(Cell::take).unwrap_or_else(|| {
+            panic!("une épreuve a ouvert « {titre} » sans réponse : il serait apparu à l'écran")
+        })
     }
 }
