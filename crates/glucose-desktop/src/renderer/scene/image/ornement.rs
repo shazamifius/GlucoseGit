@@ -282,7 +282,11 @@ pub(in crate::renderer) fn draw_image_ornaments(
     // Une image verrouillee se signale par la couleur de son cadre et par l'absence de ses
     // poignees (fiche 06 § 4.3) : les deux disent le meme fait, l'un de loin, l'autre au
     // moment ou la main cherche une prise.
-    for (img, ecran) in selectionnees().filter(|(img, _)| !img.locked) {
+    // En groupe, les poignées sont celles du groupe (fiche 53 § 10).
+    let seules = store
+        .emprise_du_groupe(&store.project.active_board_id)
+        .is_none();
+    for (img, ecran) in selectionnees().filter(|(img, _)| !img.locked && seules) {
         draw_rotated_handles(pixmap, kit.theme, scale, *ecran, &Handle::ALL, img.rotation);
     }
     for (img, (sx, sy, _, _)) in images {

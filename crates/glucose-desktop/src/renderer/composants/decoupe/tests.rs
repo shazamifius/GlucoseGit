@@ -61,6 +61,7 @@ fn en_place(kit: PaintKit<'_>, vp: Viewport) -> Pixmap {
             height: ECRAN.1 as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     draw_card_contenu(
         &ctx,

@@ -49,6 +49,7 @@ fn rendu(corps: &str, tete: usize, vue: Vue, curseur_visible: bool) -> Pixmap {
             height: ECRAN.1 as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     let saisie = TextEditSession {
         ann_id: "c".into(),
@@ -323,6 +324,7 @@ fn carte_de_taille(selectionnee: bool, taille: (f32, f32)) -> Pixmap {
             height: ECRAN.1 as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("pixmap");
     let carte = TextCard {

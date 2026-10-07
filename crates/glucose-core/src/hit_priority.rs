@@ -57,11 +57,15 @@ pub enum PickOwner {
     Membrane,
     Folder,
     Arrow,
+    /// **La sélection entière**, quand elle compte deux nœuds ou plus : ses poignées sont celles
+    /// du groupe (fiche 53 § 10).
+    Groupe,
 }
 
 impl PickOwner {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::Groupe => "groupe",
             Self::Image => "image",
             Self::Annotation => "annotation",
             Self::Membrane => "membrane",
@@ -186,4 +190,4 @@ mod handles;
 
 pub use candidates::{collect_candidates, collect_candidates_indexed};
 pub use cycle::{advance_on_release, pick_at_down, CycleState, PickOptions};
-pub use handles::hit_handle;
+pub use handles::{emprise_du_groupe, hit_handle, POIGNEES_DU_GROUPE};

@@ -25,6 +25,7 @@
 use crate::icons::{draw_icon_scaled, IconType};
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use glucose_core::groupe::Origine;
 use glucose_core::store::Store;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
@@ -69,6 +70,8 @@ pub enum ActionBarClick {
     ToggleLock,
     /// Supprime toute la sélection.
     Delete,
+    /// Bascule l'origine des transformations du groupe (fiche 53 § 10).
+    BasculerLOrigine,
 }
 
 /// Un bouton de la barre : sa boîte, son icône, son libellé, et ce qu'il demande.
@@ -101,8 +104,8 @@ pub struct ActionBar {
 pub fn layout_action_bar(
     store: &Store,
     typography: &Typography,
-    screen: (f32, f32),
-    scale: f32,
+    (screen, scale): ((f32, f32), f32),
+    origine: Origine,
 ) -> Option<ActionBar> {
     let board = store.active_board()?;
     let images = store.selected_image_ids.len();
@@ -117,23 +120,7 @@ pub fn layout_action_bar(
     let count_label = format!("{total} sélectionné{pluriel}");
     let (count_w, _) = typography.measure_text(&count_label, font, Face::Regular);
 
-    // Le bouton du verrou n'existe que s'il a des images à fermer : une carte ou un dossier
-    // n'en porte pas (fiche 08 § 1.3).
-    let mut defs: Vec<(ActionBarClick, IconType, &'static str, bool)> = Vec::with_capacity(2);
-    if images > 0 {
-        let toutes_fermees = board
-            .images
-            .iter()
-            .filter(|i| store.selected_image_ids.contains(&i.id))
-            .all(|i| i.locked);
-        let (icon, label) = if toutes_fermees {
-            (IconType::Lock, "Verrouillé")
-        } else {
-            (IconType::Unlock, "Verrouiller")
-        };
-        defs.push((ActionBarClick::ToggleLock, icon, label, toutes_fermees));
-    }
-    defs.push((ActionBarClick::Delete, IconType::Trash, "Supprimer", false));
+    let defs = boutons_de_la_selection(store, board, (images, total), origine);
 
     let bouton_w = |label: &str| {
         let (w, _) = typography.measure_text(label, font, Face::Regular);
@@ -177,6 +164,46 @@ pub fn layout_action_bar(
     })
 }
 
+/// Un bouton à poser : ce qu'il demande, son icône, son libellé, et s'il est l'état décrit.
+type Def = (ActionBarClick, IconType, &'static str, bool);
+
+/// **Les boutons qu'une sélection appelle**, dans l'ordre de la barre.
+///
+/// Le bouton du verrou n'existe que s'il a des images à fermer : une carte ou un dossier n'en
+/// porte pas (fiche 08 § 1.3).
+fn boutons_de_la_selection(
+    store: &Store,
+    board: &glucose_core::types::Board,
+    (images, total): (usize, usize),
+    origine: Origine,
+) -> Vec<Def> {
+    let mut defs: Vec<Def> = Vec::with_capacity(3);
+    if images > 0 {
+        let toutes_fermees = board
+            .images
+            .iter()
+            .filter(|i| store.selected_image_ids.contains(&i.id))
+            .all(|i| i.locked);
+        let (icon, label) = if toutes_fermees {
+            (IconType::Lock, "Verrouillé")
+        } else {
+            (IconType::Unlock, "Verrouiller")
+        };
+        defs.push((ActionBarClick::ToggleLock, icon, label, toutes_fermees));
+    }
+    // **Autour de quoi le groupe se transforme** — le point de pivot de Blender (fiche 53
+    // § 10) : seulement quand il y a un groupe. Le bouton dit l'état, comme le verrou.
+    if total > 1 {
+        let (icon, label) = match origine {
+            Origine::Commune => (IconType::OrigineCommune, "Origine commune"),
+            Origine::Individuelle => (IconType::OriginesIndividuelles, "Origines individuelles"),
+        };
+        defs.push((ActionBarClick::BasculerLOrigine, icon, label, false));
+    }
+    defs.push((ActionBarClick::Delete, IconType::Trash, "Supprimer", false));
+    defs
+}
+
 /// Ce qu'un clic en `(px, py)` demande à la barre — `None` s'il tombe à côté.
 pub fn hit_action_bar(bar: &ActionBar, px: f32, py: f32) -> Option<ActionBarClick> {
     bar.buttons
@@ -203,10 +230,10 @@ pub fn draw_action_bar(
     store: &Store,
     typography: &Typography,
     theme: &Theme,
-    screen: (f32, f32),
-    scale: f32,
+    (screen, scale): ((f32, f32), f32),
+    origine: Origine,
 ) {
-    let Some(bar) = layout_action_bar(store, typography, screen, scale) else {
+    let Some(bar) = layout_action_bar(store, typography, (screen, scale), origine) else {
         return;
     };
     let s = crate::theme::clamp_ui_scale(scale);

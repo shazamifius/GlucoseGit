@@ -31,6 +31,7 @@ pub(crate) fn peindre_le_texte_seul(
             height: pixmap.height() as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     let card = TextCard {
         origin: (0.0, 0.0),

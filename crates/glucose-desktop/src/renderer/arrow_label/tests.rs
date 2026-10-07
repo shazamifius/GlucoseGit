@@ -70,6 +70,7 @@ fn rendu_a(arrow: &Annotation, editing: Option<&TextEditSession>, zoom: f64) -> 
             height: 600.0,
             top: 0.0,
         },
+        poignees: true,
     };
     let milieu = glucose_core::arrow::label_anchor_in(arrow, &board).expect("un milieu");
     draw_arrow_label(

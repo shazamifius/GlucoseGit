@@ -236,7 +236,13 @@ fn poser_la_barre(
     avec_mots: bool,
 ) -> Option<OptionsDeFleche> {
     let groupes = groupes_de_boutons(store, avec_mots)?;
-    let dessous = super::action_bar::layout_action_bar(store, typography, screen, scale)?;
+    // Seule sa hauteur compte ici, que l'origine ne change pas.
+    let dessous = super::action_bar::layout_action_bar(
+        store,
+        typography,
+        (screen, scale),
+        glucose_core::groupe::Origine::Commune,
+    )?;
     let s = crate::theme::clamp_ui_scale(scale);
     let font = FONT * s;
     let mesure = |t: &str| typography.measure_text(t, font, Face::Regular).0;

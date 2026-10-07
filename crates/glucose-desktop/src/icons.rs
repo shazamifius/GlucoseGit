@@ -37,6 +37,11 @@ pub enum IconType {
     /// Un crayon — « éditer » : le bouton qui ouvre l'éditeur du texte lié d'une flèche,
     /// le tracé même de celui de Glucose Tauri (`ArrowOptions.tsx`).
     Crayon,
+    /// Un cadre et son centre — la sélection se transforme autour de l'origine du groupe
+    /// (fiche 53 § 10).
+    OrigineCommune,
+    /// Deux cadres, chacun son centre — chaque nœud autour du sien.
+    OriginesIndividuelles,
 }
 
 #[allow(dead_code)]
@@ -107,9 +112,12 @@ pub fn draw_icon_scaled(
         | IconType::Folder
         | IconType::Membrane
         | IconType::Plus => draw_tool_icon(pixmap, icon, &paint, &stroke, ts),
-        IconType::Lock | IconType::Unlock | IconType::Trash | IconType::Crayon => {
-            draw_action_icon(pixmap, icon, &paint, &stroke, ts)
-        }
+        IconType::Lock
+        | IconType::Unlock
+        | IconType::Trash
+        | IconType::Crayon
+        | IconType::OrigineCommune
+        | IconType::OriginesIndividuelles => draw_action_icon(pixmap, icon, &paint, &stroke, ts),
         _ => draw_panel_icon(pixmap, icon, &paint, &stroke, ts, color, s_width),
     }
 }
@@ -285,6 +293,9 @@ fn draw_action_icon(
             if let Some(path) = pb.finish() {
                 pixmap.stroke_path(&path, paint, stroke, ts, None);
             }
+        }
+        IconType::OrigineCommune | IconType::OriginesIndividuelles => {
+            draw_origine_icon(pixmap, icon, paint, stroke, ts);
         }
         // <path d="M2 4h10M5 4V2.5h4V4M5.5 6.5v4M8.5 6.5v4M3 4l.5 8h7L11 4"/>
         IconType::Trash => {
@@ -549,5 +560,35 @@ fn draw_history_icon(pixmap: &mut PixmapMut, paint: &Paint, stroke: &Stroke, ts:
     pb.line_to(10.5, 9.3);
     if let Some(path) = pb.finish() {
         pixmap.stroke_path(&path, paint, stroke, ts, None);
+    }
+}
+
+/// **L'origine des transformations du groupe** (fiche 53 § 10) : les cadres au trait, les centres
+/// pleins — ce qui tourne et grandit autour d'eux.
+fn draw_origine_icon(
+    pixmap: &mut PixmapMut,
+    icon: IconType,
+    paint: &Paint,
+    stroke: &Stroke,
+    ts: Transform,
+) {
+    let cadres: &[(f32, f32, f32)] = if icon == IconType::OrigineCommune {
+        &[(2.0, 2.0, 10.0)]
+    } else {
+        &[(1.0, 1.0, 6.0), (7.0, 7.0, 6.0)]
+    };
+    let mut traits = PathBuilder::new();
+    let mut centres = PathBuilder::new();
+    for &(x, y, cote) in cadres {
+        if let Some(r) = tiny_skia::Rect::from_xywh(x, y, cote, cote) {
+            traits.push_rect(r);
+        }
+        centres.push_circle(x + cote / 2.0, y + cote / 2.0, 1.2);
+    }
+    if let Some(path) = traits.finish() {
+        pixmap.stroke_path(&path, paint, stroke, ts, None);
+    }
+    if let Some(path) = centres.finish() {
+        pixmap.fill_path(&path, paint, tiny_skia::FillRule::Winding, ts, None);
     }
 }

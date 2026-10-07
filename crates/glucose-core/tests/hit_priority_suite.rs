@@ -515,3 +515,54 @@ fn test_poignee_1_le_carre_et_la_prise_retrecissent_ensemble() {
     assert!(handle_side_px(seuil + 0.01).is_some());
     assert_eq!(handle_side_px(seuil - 0.01), None);
 }
+
+/// **Deux nœuds choisis n'ont que les poignées de leur groupe** (fiche 53 § 10) : aux coins du
+/// cadre qui les englobe, et plus aux coins de chacun ; un seul nœud garde les siennes ; une
+/// image verrouillée ne compte pas dans le groupe.
+#[test]
+fn test_deux_noeuds_choisis_n_ont_que_les_poignees_du_groupe() {
+    use glucose_core::hit_priority::PickOwner;
+    // Deux images de 100 × 100 centrées en (100, 100) et (400, 300) : le groupe va de
+    // (50, 50) à (450, 350).
+    let images = [
+        img("A", 100.0, 100.0, 100.0, 100.0, false),
+        img("B", 400.0, 300.0, 100.0, 100.0, false),
+        img("V", 800.0, 800.0, 100.0, 100.0, true),
+    ];
+    let deux = ["A".to_string(), "B".to_string()];
+    let empty: [String; 0] = [];
+    let a = |wx, wy, sel: &[String]| {
+        let input = PickInput {
+            wx,
+            wy,
+            scale: 1.0,
+            images: &images,
+            annotations: &[],
+            folders: &[],
+            selected_image_ids: sel,
+            selected_annotation_ids: &empty,
+            selected_folder_id: None,
+            noeuds: None,
+        };
+        collect_candidates(&input)
+            .into_iter()
+            .find(|c| c.kind == PickKind::Handle)
+    };
+    let coin = a(450.0, 350.0, &deux).expect("le coin du groupe");
+    assert_eq!(
+        (coin.owner, coin.corner.as_deref()),
+        (PickOwner::Groupe, Some("br"))
+    );
+    assert!(
+        a(150.0, 150.0, &deux).is_none(),
+        "le coin de A n'est plus une poignée"
+    );
+    let seule = a(150.0, 150.0, &deux[..1]).expect("une image seule garde ses poignées");
+    assert_eq!(seule.owner, PickOwner::Image);
+    let avec_la_verrouillee = ["A".to_string(), "V".to_string()];
+    assert_eq!(
+        a(150.0, 150.0, &avec_la_verrouillee).map(|c| c.owner),
+        Some(PickOwner::Image),
+        "une image et une verrouillée : pas de groupe"
+    );
+}

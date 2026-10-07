@@ -52,7 +52,7 @@ fn render(app: &mut GlucoseApp) {
 }
 
 /// Une application dont la caméra place l'origine au milieu du canevas.
-fn app() -> GlucoseApp {
+pub(super) fn app() -> GlucoseApp {
     let mut app = GlucoseApp::new();
     if let Some(b) = app.store.active_board_mut() {
         b.annotations.clear();
@@ -62,14 +62,14 @@ fn app() -> GlucoseApp {
     app
 }
 
-fn with_image(app: &mut GlucoseApp, id: &str, cx: f64, cy: f64, w: f64, h: f64) {
+pub(super) fn with_image(app: &mut GlucoseApp, id: &str, cx: f64, cy: f64, w: f64, h: f64) {
     let board = app.store.project.active_board_id.clone();
     app.store
         .add_image(&board, BoardImage::new(id, cx, cy, w, h));
     render(app);
 }
 
-fn image_box(app: &GlucoseApp, id: &str) -> AlignRect {
+pub(super) fn image_box(app: &GlucoseApp, id: &str) -> AlignRect {
     let img = app
         .store
         .active_board()

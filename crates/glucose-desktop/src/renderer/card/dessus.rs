@@ -43,7 +43,7 @@ pub(super) fn dessiner_les_ornements(
     if detail {
         draw_formula_preview(ctx, pixmap, at, layout, text, card);
     }
-    if card.selected {
+    if card.selected && ctx.poignees {
         let screen_box = (at.0, at.1, layout.width, layout.height);
         draw_resize_handles(pixmap, ctx.theme, ctx.scale, screen_box, &Handle::ALL);
     }

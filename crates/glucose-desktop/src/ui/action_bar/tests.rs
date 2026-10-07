@@ -25,7 +25,12 @@ fn store_with(images: usize, cartes: usize) -> Store {
 }
 
 fn bar(store: &Store, typo: &Typography) -> Option<ActionBar> {
-    layout_action_bar(store, typo, SCREEN, 1.0)
+    layout_action_bar(
+        store,
+        typo,
+        (SCREEN, 1.0),
+        glucose_core::groupe::Origine::Commune,
+    )
 }
 
 #[test]
@@ -90,7 +95,40 @@ fn test_sans_image_le_bouton_du_verrou_nest_pas_propose() {
     let typo = Typography::new();
     let b = bar(&store_with(0, 2), &typo).expect("une barre");
     let clics: Vec<_> = b.buttons.iter().map(|x| x.click).collect();
-    assert_eq!(clics, vec![ActionBarClick::Delete]);
+    assert_eq!(
+        clics,
+        vec![ActionBarClick::BasculerLOrigine, ActionBarClick::Delete]
+    );
+}
+
+/// **L'origine du groupe n'a de bouton que pour un groupe**, et il dit l'origine choisie
+/// (fiche 53 § 10).
+#[test]
+fn test_le_bouton_de_l_origine_dit_l_origine_et_n_existe_qu_en_groupe() {
+    use glucose_core::groupe::Origine;
+    let typo = Typography::new();
+    let seule = bar(&store_with(1, 0), &typo).expect("une barre");
+    assert!(seule
+        .buttons
+        .iter()
+        .all(|b| b.click != ActionBarClick::BasculerLOrigine));
+    let deux = store_with(2, 0);
+    let commune = layout_action_bar(&deux, &typo, (SCREEN, 1.0), Origine::Commune).expect("");
+    let chacune = layout_action_bar(&deux, &typo, (SCREEN, 1.0), Origine::Individuelle).expect("");
+    let bouton = |b: &ActionBar| {
+        b.buttons
+            .iter()
+            .find(|x| x.click == ActionBarClick::BasculerLOrigine)
+            .map(|x| (x.label, x.icon))
+    };
+    assert_eq!(
+        bouton(&commune),
+        Some(("Origine commune", IconType::OrigineCommune))
+    );
+    assert_eq!(
+        bouton(&chacune),
+        Some(("Origines individuelles", IconType::OriginesIndividuelles))
+    );
 }
 
 #[test]
@@ -133,7 +171,11 @@ fn test_une_selection_partiellement_verrouillee_propose_de_verrouiller() {
 fn test_chaque_bouton_repond_en_son_centre() {
     let typo = Typography::new();
     let b = bar(&store_with(2, 1), &typo).expect("une barre");
-    assert_eq!(b.buttons.len(), 2, "verrou et suppression");
+    assert_eq!(
+        b.buttons.len(),
+        3,
+        "verrou, origine du groupe et suppression"
+    );
     for btn in &b.buttons {
         let (x, y, w, h) = btn.rect;
         assert_eq!(
@@ -195,7 +237,12 @@ fn test_the_action_bar_keeps_its_margin_below() {
     let store = store_with(2, 2);
     for s in [1.0f32, 1.25, 1.5, 2.0] {
         for (w, h) in [(1280.0f32, 720.0f32), (1800.0, 900.0), (3840.0, 2160.0)] {
-            let Some(bar) = layout_action_bar(&store, &typo, (w, h), s) else {
+            let Some(bar) = layout_action_bar(
+                &store,
+                &typo,
+                ((w, h), s),
+                glucose_core::groupe::Origine::Commune,
+            ) else {
                 panic!("une barre pour 4 éléments");
             };
             let bas = bar.rect.1 + bar.rect.3;

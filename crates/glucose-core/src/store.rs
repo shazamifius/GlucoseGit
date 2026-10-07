@@ -39,6 +39,7 @@ mod catalog;
 mod domains;
 mod folders;
 mod glisser;
+mod groupe;
 mod ids;
 mod images;
 mod importer;
@@ -54,6 +55,7 @@ mod undo;
 
 pub use annotations::Reglage;
 pub use domains::DomainPatch;
+pub use groupe::Depart;
 pub use journal::UNDO_DEPTH;
 pub use lot::{inventaire, Inventaire, Provenance};
 pub use membranes::Emport;
@@ -89,6 +91,10 @@ pub struct Store {
     /// est strictement mono-thread (R-40), donc le `RefCell` ne coûte qu'un drapeau.
     bornes: std::cell::RefCell<navigation::BornesDuContenu>,
 
+    /// Le cadre du groupe, gardé tant que ni le document ni la sélection ne changent (fiche 53
+    /// § 10) : le dessin et le clic le lisent à chaque image.
+    groupe: std::cell::RefCell<groupe::CadreGarde>,
+
     /// Le glisser en cours, s'il y en a un : ce qu'il emporte et d'où chaque chose part
     /// (GLISSER-1).
     glisser: Option<glisser::Glisser>,
@@ -108,6 +114,7 @@ impl Store {
             next_id: 1,
             version: 1,
             bornes: std::cell::RefCell::default(),
+            groupe: std::cell::RefCell::default(),
             glisser: None,
         }
     }

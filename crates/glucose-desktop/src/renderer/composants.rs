@@ -482,6 +482,7 @@ impl Composant {
                         height: self.pixels.1 as f32,
                         top: 0.0,
                     },
+                    poignees: true,
                 };
                 if let Some(carte) = self.contenu.carte() {
                     draw_card_contenu(&ctx, &mut pixmap.as_mut(), carte);

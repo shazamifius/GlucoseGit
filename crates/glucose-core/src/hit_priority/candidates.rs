@@ -222,9 +222,14 @@ pub fn collect_candidates_indexed(
     // **clonés** ci-dessous — quelques annotations par clic, en O(local), mais des clones
     // tout de même : `collect_candidates` veut des tranches contiguës. À faire disparaître
     // en le faisant travailler sur des références (fiche 07 § 3).
+    // **Le groupe se lit sur toute la sélection** (fiche 53 § 10) : ici, avant que l'index ne
+    // retienne que les nœuds proches — un coin du groupe peut n'en toucher aucun.
+    let du_groupe = super::handles::poignees_du_groupe(input);
     let nearby_ids = spatial_index.query_rect_refs(input.wx, input.wy, input.wx, input.wy, slop);
     if nearby_ids.is_empty() {
-        return Vec::new();
+        let mut seules = du_groupe.unwrap_or_default();
+        sort_candidates(&mut seules);
+        return seules;
     }
 
     let filtered_images: Vec<BoardImage> = input
@@ -254,7 +259,13 @@ pub fn collect_candidates_indexed(
         noeuds: input.noeuds,
     };
 
-    collect_candidates(&filtered_input)
+    let mut candidats = collect_candidates(&filtered_input);
+    if let Some(du_groupe) = du_groupe {
+        candidats.retain(|c| c.kind != PickKind::Handle);
+        candidats.extend(du_groupe);
+        sort_candidates(&mut candidats);
+    }
+    candidats
 }
 
 /// La boîte d'un nœud désigné par son identifiant, dans ce qu'on donne à l'arbitre.

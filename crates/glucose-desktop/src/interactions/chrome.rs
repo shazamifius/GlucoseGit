@@ -144,8 +144,8 @@ impl GlucoseApp {
         let Some(bar) = crate::ui::action_bar::layout_action_bar(
             &self.store,
             &self.renderer.typography,
-            (screen.width, screen.height),
-            screen.scale,
+            ((screen.width, screen.height), screen.scale),
+            self.ui.origine_du_groupe,
         ) else {
             return false;
         };
@@ -155,9 +155,18 @@ impl GlucoseApp {
         match crate::ui::action_bar::hit_action_bar(&bar, pointer.x, pointer.y) {
             Some(ActionBarClick::ToggleLock) => self.toggle_lock(),
             Some(ActionBarClick::Delete) => self.delete_selection(),
+            Some(ActionBarClick::BasculerLOrigine) => self.basculer_l_origine_du_groupe(),
             None => {}
         }
         true
+    }
+
+    /// **Bascule l'origine des transformations du groupe** (fiche 53 § 10) — l'origine du groupe,
+    /// ou celle de chaque nœud. Un réglage d'outil, comme le point de pivot de Blender : il vaut
+    /// pour toutes les sélections suivantes, et n'entre pas dans le document.
+    pub(crate) fn basculer_l_origine_du_groupe(&mut self) {
+        self.ui.origine_du_groupe = self.ui.origine_du_groupe.autre();
+        self.mark_dirty();
     }
 
     /// **La barre d'options des flèches sélectionnées** (FLECHE-3), au-dessus de la barre

@@ -173,6 +173,7 @@ Et un lien.";
             height: taille.1 as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     crate::renderer::card::draw_text_card(&ctx, &mut en_place.as_mut(), carte());
     let composant = regime
@@ -379,6 +380,7 @@ fn deux_voies_en_saisie(corps: &str, tete: usize) -> DeuxVoies {
             height: taille.1 as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     let en_place_avec = |saisie| {
         let mut pixmap = Pixmap::new(taille.0, taille.1).expect("pixmap");

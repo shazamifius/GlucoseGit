@@ -101,6 +101,9 @@ pub enum UiAction {
 
 pub struct UiState {
     pub active_tool: ActiveTool,
+    /// **Autour de quoi la sélection entière se transforme** — le point de pivot de Blender :
+    /// l'origine du groupe, ou celle de chaque nœud (fiche 53 § 10).
+    pub origine_du_groupe: glucose_core::groupe::Origine,
     pub smart_align: bool,
     /// Ce que le pointeur survole dans la bande, tel que la souris l'a vu en dernier : c'est
     /// ce qui lui dit si un mouvement change quelque chose à redessiner.
@@ -160,6 +163,7 @@ impl UiState {
     pub fn new() -> Self {
         Self {
             active_tool: ActiveTool::Select,
+            origine_du_groupe: glucose_core::groupe::Origine::Commune,
             smart_align: true,
             survol: bande::Survol::default(),
             fleche_survolee: None,
@@ -316,7 +320,14 @@ fn poser_ce_qui_attend_une_decision(
     pointer: Pointer,
 ) {
     if !ui.reference {
-        action_bar::draw_action_bar(pixmap, store, typo, theme, (w, h), ui.scale_factor);
+        action_bar::draw_action_bar(
+            pixmap,
+            store,
+            typo,
+            theme,
+            ((w, h), ui.scale_factor),
+            ui.origine_du_groupe,
+        );
     }
     // Pendant l'édition des ancres, sa fenêtre couvre tout : le moteur de rendu la pose
     // par-dessus l'interface (`poser_la_fenetre_d_ancrage`).

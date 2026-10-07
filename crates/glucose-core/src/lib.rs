@@ -20,6 +20,7 @@ pub mod export;
 pub mod file_kind;
 pub mod fixed;
 pub mod geometry;
+pub mod groupe;
 pub mod hash;
 pub mod hit_priority;
 pub mod layout;

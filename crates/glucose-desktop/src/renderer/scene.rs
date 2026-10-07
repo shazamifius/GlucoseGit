@@ -116,6 +116,8 @@ struct MembraneVue<'a> {
     layout: MembraneLayout,
     teinte: (u8, u8, u8),
     selectionnee: bool,
+    /// Choisie seule, ou avec d'autres en un groupe qui porte les poignées (fiche 53 § 10).
+    poignees: bool,
     scale: WorldScale,
 }
 
@@ -130,6 +132,7 @@ fn pour_chaque_membrane(
     let Some(board) = store.active_board() else {
         return;
     };
+    let en_groupe = store.emprise_du_groupe(&board.id).is_some();
     let scale = pass.echelle();
     let clip = Clip {
         width: taille.0,
@@ -164,6 +167,7 @@ fn pour_chaque_membrane(
             layout,
             teinte: teinte_de_membrane(color.as_deref()),
             selectionnee: store.selected_annotation_ids.contains(id),
+            poignees: !en_groupe,
             scale,
         });
     }
@@ -308,7 +312,7 @@ fn poser_les_ornements(kit: PaintKit<'_>, pixmap: &mut PixmapMut, m: &MembraneVu
         );
         encre = true;
     }
-    if m.selectionnee {
+    if m.selectionnee && m.poignees {
         draw_resize_handles(
             pixmap,
             kit.theme,

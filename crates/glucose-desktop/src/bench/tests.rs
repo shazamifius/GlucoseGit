@@ -329,7 +329,10 @@ fn test_l_empreinte_de_la_scene_temoin_n_a_pas_change() {
 /// coin de l'étiquette. Regardée agrandie.
 /// **Puis** (FORMULE-1) : la même formule que la scène témoin, 866 pixels, et rien d'autre.
 /// **Puis** (FORMULE-2) : les mêmes cartes de formules, 31 035 pixels.
-const EMPREINTE_TEMOIN_SELECTION: &str = "41eff03e36c9d544";
+/// **Puis** (fiche 53 § 10) : les cinq nœuds choisis forment un groupe — un seul cadre et ses
+/// quatre poignées, plus de carrés sur chaque nœud, et « Origine commune » dans la barre.
+/// Regardé.
+const EMPREINTE_TEMOIN_SELECTION: &str = "73dcc921871650a2";
 
 #[test]
 fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
@@ -399,7 +402,8 @@ fn test_l_empreinte_de_la_scene_selectionnee_n_a_pas_change() {
 /// **Puis** (FORMULE-1) : les mêmes 866 pixels que la scène sélectionnée — la formule.
 /// **Puis** (FORMULE-2) : les mêmes 31 035 pixels, sous le menu.
 /// **Puis** (fiche 51 § 2) : « Copier » et « Couper » en tête du menu d'une sélection, regardés.
-const EMPREINTE_TEMOIN_MENU: &str = "7b7919e68cfea3e6";
+/// **Puis** (fiche 53 § 10) : le cadre du groupe sous le menu, regardé.
+const EMPREINTE_TEMOIN_MENU: &str = "6b1848a698012a70";
 
 #[test]
 fn test_l_empreinte_du_menu_contextuel_n_a_pas_change() {

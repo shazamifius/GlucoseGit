@@ -95,8 +95,71 @@ fn annotation_handles(ann: &Annotation) -> Option<(PickOwner, AlignRect, &'stati
     Some((owner, rect, handles))
 }
 
+/// Les poignées d'un groupe : ses quatre coins. Un groupe garde toujours son rapport — l'étirer
+/// déformerait chaque nœud différemment selon sa place —, donc un côté n'aurait rien à faire
+/// qu'un coin ne fasse.
+pub const POIGNEES_DU_GROUPE: [Handle; 4] = [
+    Handle::TopLeft,
+    Handle::TopRight,
+    Handle::BottomRight,
+    Handle::BottomLeft,
+];
+
+/// **Le cadre du groupe** : l'emprise de ce que la sélection transforme, quand elle compte
+/// **deux nœuds ou plus** — sinon rien, et chaque nœud garde ses poignées (fiche 53 § 10).
+///
+/// Une image verrouillée n'en fait pas partie, comme elle ne porte pas de poignée. Le dessin
+/// lit la même boîte que le clic : un cadre dessiné est un cadre qu'on attrape (loi L4).
+pub fn emprise_du_groupe(input: &PickInput) -> Option<AlignRect> {
+    let images = input
+        .images
+        .iter()
+        .filter(|i| !i.locked && input.selected_image_ids.contains(&i.id))
+        .map(BoardImage::bounds);
+    let annotations = input
+        .annotations
+        .iter()
+        .filter(|a| input.selected_annotation_ids.iter().any(|s| s == a.id()))
+        .map(Annotation::bounds);
+    let dossier = input
+        .folders
+        .iter()
+        .filter(|f| input.selected_folder_id == Some(f.id.as_str()))
+        .map(|f| f.rect());
+    let boites: Vec<AlignRect> = images.chain(annotations).chain(dossier).collect();
+    if boites.len() < 2 {
+        return None;
+    }
+    crate::smart_align::union_rect(&boites)
+}
+
+/// **Les poignées du groupe sous le curseur**, si la sélection forme un groupe — `None` sinon.
+///
+/// Le cadre se calcule sur **toute** la sélection : la collecte par l'index ne voit que les
+/// nœuds proches du curseur, et un coin du groupe peut n'en toucher aucun.
+pub(super) fn poignees_du_groupe(input: &PickInput) -> Option<Vec<PickCandidate>> {
+    let groupe = emprise_du_groupe(input)?;
+    let mut out = Vec::new();
+    push_rect_handles(
+        &mut out,
+        PickOwner::Groupe,
+        "groupe",
+        usize::MAX,
+        groupe,
+        &POIGNEES_DU_GROUPE,
+        input,
+    );
+    Some(out)
+}
+
 /// Collecte les poignees sous le curseur. Utilisee aussi par `candidates`.
+///
+/// Une sélection de deux nœuds ou plus n'a que les poignées de son groupe.
 pub(super) fn collect_handles(input: &PickInput, out: &mut Vec<PickCandidate>) {
+    if let Some(du_groupe) = poignees_du_groupe(input) {
+        out.extend(du_groupe);
+        return;
+    }
     if !input.selected_image_ids.is_empty() {
         for (z, img) in input.images.iter().enumerate() {
             if img.locked || !input.selected_image_ids.contains(&img.id) {

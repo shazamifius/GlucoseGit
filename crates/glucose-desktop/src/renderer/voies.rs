@@ -129,6 +129,7 @@ pub(super) fn dessiner_sur_les_photos(
     // carte ne s'attrape pas, et les deux voies ne pouvaient pas se ressembler tant que l'une
     // les posait a un rang et l'autre au-dessus.
     grille::dessiner_les_ornements(kit, pixmap, store, pass);
+    super::handles::dessiner_le_cadre_du_groupe(kit.theme, pixmap, store, pass);
     crate::perf::stage("ornements");
     let taille = (pixmap.width(), pixmap.height());
     dessiner_les_reperes_du_geste(kit.theme, pixmap, (ui, overlay), pass, taille);

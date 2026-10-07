@@ -48,6 +48,7 @@ fn rendu(points: &[(f64, f64)], zoom: f64, selectionnee: bool, double_sens: bool
             height: TAILLE.1 as f32,
             top: 0.0,
         },
+        poignees: true,
     };
     let trace = morceaux(points, false);
     draw_arrow(

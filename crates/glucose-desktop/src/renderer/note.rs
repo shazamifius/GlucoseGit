@@ -138,7 +138,7 @@ pub(super) fn draw_sticky(
         }
     }
 
-    if selected {
+    if selected && ctx.poignees {
         draw_resize_handles(
             pixmap,
             ctx.theme,
@@ -449,6 +449,7 @@ mod tests {
                 height: 300.0,
                 top: 0.0,
             },
+            poignees: true,
         };
         let note = Annotation::sticky("n", 0.0, 0.0, "");
         let peindre = |choisi: bool| {

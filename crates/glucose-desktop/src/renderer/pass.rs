@@ -53,6 +53,9 @@ pub(crate) struct Pass<'a> {
     pub vp: Viewport,
     pub scale: WorldScale,
     pub clip: Clip,
+    /// **Les nœuds choisis portent-ils leurs poignées ?** Non quand la sélection forme un
+    /// groupe : ce sont alors celles du groupe (fiche 53 § 10).
+    pub poignees: bool,
 }
 
 /// **Ce que la souris fait briller ou effacer** sur les annotations, à cette image : les
@@ -102,6 +105,7 @@ pub(super) fn draw_annotations(
             height: pixmap.height() as f32,
             top: pass.header_h,
         },
+        poignees: store.emprise_du_groupe(&board.id).is_none(),
     };
     // Ce qu'une carte ne cache pas : le fond, et les membranes qui la contiennent (LUEUR-3).
     let formes = super::scene::formes_des_membranes(store, pass, (pixmap.width(), pixmap.height()));

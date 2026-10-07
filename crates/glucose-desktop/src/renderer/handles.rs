@@ -179,6 +179,54 @@ pub(super) fn draw_arrow_handles(
     }
 }
 
+/// **Le cadre du groupe et ses quatre poignées** (fiche 53 § 10) : quand la sélection compte
+/// deux nœuds ou plus, un fil autour de leur emprise — la même boîte que l'arbitre de clic lit
+/// ([`glucose_core::hit_priority::emprise_du_groupe`]) —, et ses coins pour la tirer ou, `Alt`
+/// tenu, la faire tourner. Chaque nœud garde son propre cadre, sans poignée.
+pub(super) fn dessiner_le_cadre_du_groupe(
+    theme: &Theme,
+    pixmap: &mut PixmapMut,
+    store: &glucose_core::store::Store,
+    pass: crate::params::ViewPass<'_>,
+) {
+    let Some(groupe) = store.emprise_du_groupe(&store.project.active_board_id) else {
+        return;
+    };
+    let (x0, y0) = crate::canvas::world_to_screen(groupe.left, groupe.top, &pass.vp);
+    let (x1, y1) = crate::canvas::world_to_screen(
+        groupe.left + groupe.width,
+        groupe.top + groupe.height,
+        &pass.vp,
+    );
+    let ecran = (x0 as f32, y0 as f32, (x1 - x0) as f32, (y1 - y0) as f32);
+    let scale = pass.echelle();
+    if let Some(r) = Rect::from_xywh(ecran.0, ecran.1, ecran.2, ecran.3) {
+        let mut paint = Paint {
+            anti_alias: true,
+            ..Paint::default()
+        };
+        paint.set_color(theme.selection_frame);
+        let trait_ = Stroke {
+            width: scale.screen(1.0),
+            ..Stroke::default()
+        };
+        pixmap.stroke_path(
+            &PathBuilder::from_rect(r),
+            &paint,
+            &trait_,
+            Transform::identity(),
+            None,
+        );
+    }
+    draw_resize_handles(
+        pixmap,
+        theme,
+        scale,
+        ecran,
+        &glucose_core::hit_priority::POIGNEES_DU_GROUPE,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

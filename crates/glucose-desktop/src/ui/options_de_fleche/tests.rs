@@ -56,8 +56,13 @@ fn test_fleche_3_elle_surmonte_la_barre_d_action() {
     let mut store = tableau();
     choisir(&mut store, &["f1"]);
     let b = barre(&store).expect("une barre");
-    let action = crate::ui::action_bar::layout_action_bar(&store, &Typography::new(), ECRAN, 1.0)
-        .expect("la barre d'action");
+    let action = crate::ui::action_bar::layout_action_bar(
+        &store,
+        &Typography::new(),
+        (ECRAN, 1.0),
+        glucose_core::groupe::Origine::Commune,
+    )
+    .expect("la barre d'action");
     assert!(b.rect.1 + b.rect.3 < action.rect.1, "au-dessus");
     let (x, y, w, h) = b.rect;
     for (i, bt) in b.boutons.iter().enumerate() {

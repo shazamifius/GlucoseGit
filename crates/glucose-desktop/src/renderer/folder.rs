@@ -141,7 +141,7 @@ pub(super) fn draw_folders(
                 store.folder_child_count(&f.child_board_id),
             );
         }
-        if selected {
+        if selected && store.emprise_du_groupe(&board.id).is_none() {
             draw_resize_handles(
                 pixmap,
                 theme,

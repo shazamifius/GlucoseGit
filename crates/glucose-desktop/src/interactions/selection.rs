@@ -67,6 +67,34 @@ impl GlucoseApp {
         }
     }
 
+    /// **Ce que l'arbitre de clic lit** de ce tableau et de la sélection, en ce point du monde.
+    fn entree_du_clic<'a>(
+        &'a self,
+        board: &'a glucose_core::types::Board,
+        (wx, wy): (f64, f64),
+        noeuds: Option<&'a dyn glucose_core::arrow::Noeuds>,
+    ) -> PickInput<'a> {
+        PickInput {
+            wx,
+            wy,
+            scale: board.viewport.scale / self.densite(),
+            images: &board.images,
+            annotations: &board.annotations,
+            folders: &board.folders,
+            selected_image_ids: &self.store.selected_image_ids,
+            selected_annotation_ids: &self.store.selected_annotation_ids,
+            selected_folder_id: self.store.selected_folder_id.as_deref(),
+            noeuds,
+        }
+    }
+
+    /// **Le cadre du groupe** quand la sélection compte deux nœuds ou plus — la même boîte que
+    /// l'arbitre de clic lit pour ses poignées (fiche 53 § 10).
+    pub(crate) fn emprise_du_groupe(&self) -> Option<glucose_core::smart_align::AlignRect> {
+        self.store
+            .emprise_du_groupe(&self.store.project.active_board_id)
+    }
+
     /// Résout l'élément sous le clic à l'aide de hit_priority.
     pub fn pick_candidate_at(&self, wx: f64, wy: f64) -> Option<PickCandidate> {
         self.pick_candidates_at(wx, wy).into_iter().next()
@@ -80,7 +108,6 @@ impl GlucoseApp {
         let Some(board) = self.store.active_board() else {
             return Vec::new();
         };
-        let vp = board.viewport;
         // Une flèche ancrée à un passage se vise là où le dessin la pose (FLECHE-4).
         let noeuds = crate::renderer::arrow::NoeudsDuRendu {
             board,
@@ -89,18 +116,7 @@ impl GlucoseApp {
             math: &self.renderer.math,
             contournement: Some(self.renderer.contournement()),
         };
-        let input = PickInput {
-            wx,
-            wy,
-            scale: vp.scale / self.densite(),
-            images: &board.images,
-            annotations: &board.annotations,
-            folders: &board.folders,
-            selected_image_ids: &self.store.selected_image_ids,
-            selected_annotation_ids: &self.store.selected_annotation_ids,
-            selected_folder_id: self.store.selected_folder_id.as_deref(),
-            noeuds: Some(&noeuds),
-        };
+        let input = self.entree_du_clic(board, (wx, wy), Some(&noeuds));
         let mut candidats = collect_candidates_indexed(&input, &self.renderer.spatial_hash);
         // En focus, ce qu'on ne voit pas ne s'attrape pas (MEMB-2).
         candidats.retain(|c| self.renderer.focus.laisse_voir(&c.id));

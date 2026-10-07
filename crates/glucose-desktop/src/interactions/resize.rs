@@ -31,6 +31,8 @@ use std::collections::HashSet;
 use winit::window::CursorIcon;
 
 #[cfg(test)]
+mod groupe_tests;
+#[cfg(test)]
 mod proof;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -38,10 +40,24 @@ pub(crate) mod tests;
 /// Le nœud que le geste redimensionne.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResizeTarget {
-    Image { id: String, rotation: f64 },
-    TextCard { id: String },
-    Annotation { id: String, rule: ResizeRule },
-    Folder { id: String },
+    Image {
+        id: String,
+        rotation: f64,
+    },
+    TextCard {
+        id: String,
+    },
+    Annotation {
+        id: String,
+        rule: ResizeRule,
+    },
+    Folder {
+        id: String,
+    },
+    /// **La sélection entière** (fiche 53 § 10) : la pose de départ de chacun de ses nœuds.
+    Groupe {
+        departs: Vec<glucose_core::store::Depart>,
+    },
 }
 
 impl ResizeTarget {
@@ -51,6 +67,7 @@ impl ResizeTarget {
             | Self::TextCard { id }
             | Self::Annotation { id, .. }
             | Self::Folder { id } => id,
+            Self::Groupe { .. } => "groupe",
         }
     }
 }
@@ -129,7 +146,9 @@ impl GlucoseApp {
         // recadre — un coin n'a pas de bord à lui. Une image, parce qu'elle est le seul nœud
         // dont le modèle porte un angle et un cadrage.
         let geste = match (&target, self.modifiers.alt_key(), handle.is_corner()) {
-            (ResizeTarget::Image { .. }, true, true) => Geste::Tourner,
+            (ResizeTarget::Image { .. } | ResizeTarget::Groupe { .. }, true, true) => {
+                Geste::Tourner
+            }
             (ResizeTarget::Image { .. }, true, false) => Geste::Recadrer,
             _ => Geste::Redimensionner,
         };
@@ -188,6 +207,10 @@ impl GlucoseApp {
                 Some((ResizeTarget::Folder { id }, folder.rect()))
             }
             PickOwner::Arrow => None,
+            PickOwner::Groupe => {
+                let departs = self.store.depart_de_la_selection(&board.id);
+                Some((ResizeTarget::Groupe { departs }, self.emprise_du_groupe()?))
+            }
         }
     }
 
@@ -204,6 +227,11 @@ impl GlucoseApp {
         }
         session.moved = true;
         let session = session.clone();
+        if let ResizeTarget::Groupe { departs } = &session.target {
+            self.transformer_le_groupe(&session, departs, (wx, wy), delta);
+            self.mark_dirty();
+            return;
+        }
         match session.geste {
             Geste::Tourner => self.write_rotation(&session, (wx, wy)),
             Geste::Recadrer => self.write_crop(&session, delta),
@@ -215,6 +243,36 @@ impl GlucoseApp {
             }
         }
         self.mark_dirty();
+    }
+
+    /// **Ce que le pointeur demande au groupe** — sa mise à l'échelle par un coin, ou sa rotation
+    /// (`Alt`) —, écrit sur tous ses nœuds depuis leur pose de départ, autour de l'origine
+    /// choisie (fiche 53 § 10). Une carte de texte rétrécie remonte sa hauteur à son texte.
+    fn transformer_le_groupe(
+        &mut self,
+        session: &ResizeSession,
+        departs: &[glucose_core::store::Depart],
+        pointeur: (f64, f64),
+        delta: (f64, f64),
+    ) {
+        use glucose_core::groupe::{echelle_du_coin, rotation_du_coin};
+        let t = match session.geste {
+            Geste::Tourner => rotation_du_coin(
+                session.start,
+                session.pointer_start,
+                pointeur,
+                self.modifiers.shift_key(),
+            ),
+            _ => echelle_du_coin(session.start, session.handle, delta),
+        };
+        let board = self.store.project.active_board_id.clone();
+        self.store
+            .transformer_la_selection(&board, departs, t, self.ui.origine_du_groupe);
+        for depart in departs {
+            if let glucose_core::store::Depart::Boite { id, .. } = depart {
+                self.fit_text_card_height(id);
+            }
+        }
     }
 
     /// **Le recadrage que le pointeur demande**, écrit sur l'image avec la boîte qui va avec.
@@ -291,6 +349,8 @@ impl GlucoseApp {
             ResizeTarget::TextCard { .. } => ResizeRule::text_card(),
             ResizeTarget::Annotation { rule, .. } => *rule,
             ResizeTarget::Folder { .. } => ResizeRule::folder(),
+            // Un groupe garde toujours son rapport (`glucose_core::groupe::echelle_du_coin`).
+            ResizeTarget::Groupe { .. } => ResizeRule::image(false),
         }
     }
 
@@ -362,6 +422,8 @@ impl GlucoseApp {
                 self.store.set_annotation_rect(&board, id, rect)
             }
             ResizeTarget::Folder { id } => self.store.set_folder_rect(&board, id, rect),
+            // Le groupe ne passe pas par une boîte : `transformer_le_groupe` l'écrit en entier.
+            ResizeTarget::Groupe { .. } => false,
         };
     }
 
