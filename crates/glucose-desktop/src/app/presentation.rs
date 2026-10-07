@@ -123,7 +123,8 @@ impl GlucoseApp {
             // On presente meme quand rien n'a ete redessine : la demande peut venir du
             // systeme -- une fenetre recouverte puis degagee -- et non de nous.
             let issue = match self
-                .tampon_dessus
+                .tampons
+                .dessus
                 .as_ref()
                 .filter(|_| presenter.pose_les_photos())
             {

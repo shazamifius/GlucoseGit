@@ -275,7 +275,7 @@ impl GlucoseApp {
     /// déplace pas le curseur, donc le point reste celui qu'on vise. Tant qu'il ne l'a pas
     /// été, le centre de la fenêtre : zoomer vers un coin qu'on n'a pas choisi donne
     /// exactement l'impression d'un « point d'origine » qui aspire la vue.
-    fn ancre_du_zoom(&self) -> (f64, f64) {
+    pub(crate) fn ancre_du_zoom(&self) -> (f64, f64) {
         if self.curseur_vu {
             return self.mouse_pos;
         }

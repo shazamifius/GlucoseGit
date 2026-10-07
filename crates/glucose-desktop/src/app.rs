@@ -113,12 +113,7 @@ pub struct GlucoseApp {
     /// De combien la scene est rendue plus petite que la fenetre pendant un geste, et le
     /// tampon ou elle se rend alors (voir [`crate::resolution`]).
     pub resolution: crate::resolution::Resolution,
-    pub tampon_reduit: Option<Pixmap>,
-    /// La couche qui passe **sur** les photos, quand la carte les pose elle-meme.
-    ///
-    /// Elle part transparente a chaque image : tout ce qui n'y est pas dessine laisse voir
-    /// les photos, et c'est ce qui rend la composition juste sans calculer une seule region.
-    pub tampon_dessus: Option<Pixmap>,
+    pub tampons: Tampons,
     /// Ou chaque photo se pose, pour la voie graphique (fiche 21, etape 1).
     pub confie: crate::renderer::Confie,
     pub pixmap: Option<Pixmap>,
@@ -236,6 +231,8 @@ pub struct GlucoseApp {
     /// **Ce qui arrive du système par glisser-déposer** : les fichiers de `winit`, le pont
     /// natif, et les images annoncées qui ne sont pas encore livrées.
     pub depot: crate::interactions::depot_web::Arrivees,
+    /// **Le pavé de précision par *Direct Manipulation*** (fiche 53), quand le système le donne.
+    pub pave: Option<Box<dyn crate::interactions::pave::Pave>>,
     /// Les lots de nœuds qui se préparent pour le presse-papiers, ou en reviennent.
     pub echanges: crate::interactions::clipboard::Echanges,
     /// Où en est le cycle de profondeur (PICK-1) : la pile visée au dernier clic, et le rang
@@ -310,6 +307,18 @@ impl Default for GlucoseApp {
     }
 }
 
+/// **Les tampons à côté de l'image pleine**, que la voie processeur garde d'une image à l'autre.
+#[derive(Default)]
+pub struct Tampons {
+    /// La scène rendue plus petite que la fenêtre pendant un geste ([`crate::resolution`]).
+    pub reduit: Option<Pixmap>,
+    /// La couche qui passe **sur** les photos, quand la carte les pose elle-meme.
+    ///
+    /// Elle part transparente a chaque image : tout ce qui n'y est pas dessine laisse voir
+    /// les photos, et c'est ce qui rend la composition juste sans calculer une seule region.
+    pub dessus: Option<Pixmap>,
+}
+
 impl GlucoseApp {
     pub fn new() -> Self {
         let mut renderer = Renderer::new();
@@ -336,8 +345,7 @@ impl GlucoseApp {
             minimap_tenue: false,
             horloge: crate::horloge::Horloge::nouvelle(),
             resolution: crate::resolution::Resolution::nette(),
-            tampon_reduit: None,
-            tampon_dessus: None,
+            tampons: Tampons::default(),
             confie: crate::renderer::Confie::default(),
             pixmap: None,
             ui: accueil::interface_d_accueil(),
@@ -375,6 +383,7 @@ impl GlucoseApp {
             text_drag: None,
             last_click: None,
             depot: Default::default(),
+            pave: None,
             echanges: Default::default(),
             pick_cycle: None,
             click_epoch: std::time::Instant::now(),

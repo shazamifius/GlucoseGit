@@ -189,7 +189,7 @@ impl GlucoseApp {
             return;
         };
         let regard = self.regard();
-        let mut reduit = self.tampon_reduit.take();
+        let mut reduit = self.tampons.reduit.take();
         let (header_h, vp) = (self.ui.header_height(), self.store.viewport());
         let dessus = self.ce_qui_se_pose_dessus();
         let overlay = SceneOverlay {
@@ -228,13 +228,13 @@ impl GlucoseApp {
                 // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
                 if par_la_carte {
                     let (tampon, confie) = peindre_par_la_carte(
-                        (&mut pixmap, self.tampon_dessus.take()),
+                        (&mut pixmap, self.tampons.dessus.take()),
                         &mut self.renderer,
                         (&self.store, &self.confie),
                         chrome,
                         (overlay, regard),
                     );
-                    self.tampon_dessus = tampon;
+                    self.tampons.dessus = tampon;
                     self.confie = confie;
                 } else {
                     peindre_tout(
@@ -253,7 +253,7 @@ impl GlucoseApp {
             self.dessous_entierement_sali(pixmap.height());
         }
         self.pixmap = Some(pixmap);
-        self.tampon_reduit = reduit;
+        self.tampons.reduit = reduit;
     }
 }
 

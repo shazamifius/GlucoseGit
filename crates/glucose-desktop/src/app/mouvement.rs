@@ -18,19 +18,20 @@ impl GlucoseApp {
     pub(super) fn accorder_le_tampon_reduit(&mut self, largeur: u32, hauteur: u32) -> bool {
         let f = self.resolution.facteur();
         if f == 1 {
-            return self.tampon_reduit.take().is_some();
+            return self.tampons.reduit.take().is_some();
         }
         // Le plafond arrondit vers le haut : une fenetre de 1001 pixels reduite de moitie en
         // demande 501, pas 500 -- sinon la derniere colonne n'aurait pas de source.
         let (w, h) = (largeur.div_ceil(f).max(1), hauteur.div_ceil(f).max(1));
         if self
-            .tampon_reduit
+            .tampons
+            .reduit
             .as_ref()
             .is_some_and(|p| p.width() == w && p.height() == h)
         {
             return false;
         }
-        self.tampon_reduit = Pixmap::new(w, h);
+        self.tampons.reduit = Pixmap::new(w, h);
         true
     }
 

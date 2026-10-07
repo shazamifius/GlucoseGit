@@ -37,6 +37,8 @@ pub mod telechargements;
 mod depot_windows;
 #[cfg(windows)]
 mod glisser_windows;
+#[cfg(windows)]
+mod pave_windows;
 #[cfg(not(windows))]
 mod telechargement;
 #[cfg(windows)]
@@ -150,6 +152,31 @@ fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Depot>, reveil: R
         return false;
     };
     depot_windows::installer(w.hwnd.get(), vers, reveil)
+}
+
+/// **Le pavé de précision tel que le doigt le fait** (fiche 53) : *Direct Manipulation* sous
+/// Windows. Rend `None` ailleurs, ou si Windows refuse — le pavé reste alors ce qu'il était,
+/// des défilements de molette.
+#[cfg(windows)]
+pub fn installer_le_pave(
+    fenetre: &std::sync::Arc<winit::window::Window>,
+) -> Option<Box<dyn crate::interactions::pave::Pave>> {
+    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    let RawWindowHandle::Win32(w) = fenetre.window_handle().ok()?.as_raw() else {
+        return None;
+    };
+    let pour_le_reveil = std::sync::Arc::clone(fenetre);
+    let reveil: Reveil = std::sync::Arc::new(move || pour_le_reveil.request_redraw());
+    let pave = pave_windows::installer(w.hwnd.get(), reveil)?;
+    Some(Box::new(pave))
+}
+
+/// Ailleurs, le pavé arrive comme le système le donne : `winit` le dit déjà en pixels.
+#[cfg(not(windows))]
+pub fn installer_le_pave(
+    _fenetre: &std::sync::Arc<winit::window::Window>,
+) -> Option<Box<dyn crate::interactions::pave::Pave>> {
+    None
 }
 
 /// Sur une plateforme sans pont, il n'y a rien à poser et rien à dire.

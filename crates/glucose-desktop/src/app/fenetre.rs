@@ -136,6 +136,12 @@ impl GlucoseApp {
         if self.depot.pont.is_some() {
             println!("[Glucose] depot : les images glissees depuis un navigateur sont lues");
         }
+        // **Le pavé de précision** (fiche 53) : la ligne dit, dans sa sortie, que le pincement
+        // ne passe plus par la molette.
+        self.pave = crate::plateforme::installer_le_pave(window);
+        if self.pave.is_some() {
+            println!("[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender");
+        }
     }
 
     /// **La taille de la fenêtre**, ou celle qu'elle a à sa naissance tant qu'elle n'existe pas —
