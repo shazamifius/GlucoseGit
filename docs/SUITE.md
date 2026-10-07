@@ -88,19 +88,20 @@ dans `style.md`. Si c'est la couleur qui lui manque, c'est `style.md` qui change
 
 ## 2. Le toucher : **Android d'abord**, et l'iPad par le web — ce qu'il attend le plus
 
-**Fait le 08/10 (fiche 54 § 7, `decisions/08`)** : Glucose compile pour Android (ARM 64 et 32
-bits, Android 5.0 et après) par `GameActivity` ; `android_main` ; le projet Gradle ; la couche
-de gestes (un doigt, deux doigts) ; la CI construit l'APK. **Reste, dans l'ordre** :
+**Fait les 07 et 08/10 (fiches 54 et 55, `decisions/08`)** : Glucose compile pour Android et
+**tourne sur son Redmi 9** ; la couche de gestes ; la clé de signature et l'APK dans la
+publication ; **le rail** (la barre sur le côté quand elle ne tient plus — à juger à son écran).
+**Sa liste du 08/10, dans son ordre** (fiche 55 § 4), la vidéo remise à plus tard :
 
-1. **Le premier lancement sur un vrai téléphone** — le sien ou celui d'un testeur : installer
-   l'APK que la CI dépose, `adb logcat -s Glucose`. Puis Firebase Test Lab pour les anciens.
-2. **Sa clé de signature** Android, à garder pour toujours (et sa copie hors du PC).
-3. Le **clavier virtuel** (écrire dans un texte), la **vie de l'application** (suspendue, sa
-   surface perdue et rendue), le **sélecteur de fichiers** et le **presse-papiers** du système
-   (JNI), l'appui long pour le menu, la **question de la télémétrie** dans Glucose (aucun
-   dialogue natif sous Android : `oui_ou_non` y répond « non »).
-4. Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le
-   web.
+1. **Le partage d'images vers Glucose** (« se concentrer uniquement sur le transfert d'images ») :
+   `ACTION_SEND` / `ACTION_SEND_MULTIPLE` (`image/*`, `text/plain`), Java à la frontière seulement.
+2. **Le double toucher** sur le vide : « Ajouter des images » par le sélecteur de photos.
+3. **Les documents au téléphone** : la liste des canevas, créer, renommer, ouvrir, supprimer.
+4. La **mise à jour automatique** sous Android ; la **question de la télémétrie** dans Glucose
+   (aucun dialogue natif sous Android) ; le clavier virtuel ; la vie de l'application ; le
+   presse-papiers du système ; l'appui long pour le menu ; les barres du système (bord à bord).
+5. Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le
+   web. La vidéo (fiche 55 § 4) quand il la redemandera.
 
 Le plan d'origine (fiche 50) ; l'ordre :
 
@@ -143,11 +144,10 @@ Conçu, pas écrit (fiche 49 § 2) : éteint par défaut, une question claire au
 l'utilisateur), des lots envoyés au lancement suivant en HTTPS, un identifiant tiré au hasard et
 renouvelable, effacement sur demande, **aucune adresse IP gardée**, une page publique qui dit tout.
 
-* **Écrit le 08/10 (fiche 54 § 6)**, des deux côtés : le Worker et sa base (`outils/telemetrie/`),
-  la question, l'envoi, « voir ce qui part », l'effacement, `docs/TELEMETRIE.md`. **Sa décision :
-  Cloudflare Workers.** Reste : **son compte**, puis `wrangler d1 create`, le schéma, `wrangler
-  deploy`, et l'adresse dans `telemetrie::ADRESSE`. Sous Android, la question doit se poser
-  dans Glucose même.
+* **En ligne le 08/10 (fiches 54 § 6 et 55 § 1)** : le Worker et sa base dans son compte
+  Cloudflare, l'adresse dans Glucose. Reste : vérifier la première session reçue d'un vrai
+  Glucose (`npx wrangler d1 execute glucose-boite-noire --remote --command "SELECT …"`, depuis
+  `outils/telemetrie/`) ; la question sous Android, dans Glucose même.
 * Les plantages hors de Windows : Linux en a deux registres (`systemd-coredump` chez Fedora, `apport`
   chez Ubuntu) ; Android a `ApplicationExitInfo` (11 et plus).
 
@@ -191,10 +191,9 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 
 ## Ce qui n'attend que lui
 
-1. **Son compte Cloudflare** (chantier 4) : il a choisi Cloudflare Workers ; tout est écrit, il
-   ne manque que le compte (une adresse, un mot de passe), puis un clic « Autoriser ».
-1 bis. **L'envoi des commits de la fiche 54, avec la CI** : elle seule construira l'APK et
-   vérifiera Linux et Mac, jamais vus depuis `20deb6f`.
+1. **Le clic « Publish release »** sur le brouillon de la 2.0.2-beta.1 (fiche 55 § 1).
+1 bis. **Une copie de la clé Android hors du PC** (`Documents\Glucose-cle-android`), et garder ou
+   non le sous-domaine `ferme-nilslamber` du serveur de la boîte noire.
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien
    d'abord) : un « Xiaomi 9 » — Mi 9 ou Redmi 9 ? — et une clé de signature Android à garder.

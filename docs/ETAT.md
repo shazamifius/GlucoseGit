@@ -2,7 +2,7 @@
 
 > **Au 08/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la carte de
 > l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53) et celle de la similitude des
-> doigts, de la télémétrie et d'Android (fiche 54). Ce document dit l'état **vérifié** du projet,
+> doigts, de la télémétrie et d'Android (fiches 54 et 55). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -12,6 +12,8 @@
 
 * **Glucose Rust est publié.** La **2.0.1-beta.1** est la release « latest » du dépôt depuis le
   30/09/2026 : installeur Windows, AppImage, `.deb`, `.rpm`, et `nix run github:shazamifius/GlucoseGit`.
+  **La 2.0.2-beta.1 attend en brouillon** (08/10, fiche 55 § 1), APK Android compris : le clic
+  « Publish release » est son geste.
 * **Glucose Tauri bascule de lui-même.** Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   trouve la 2.0.1 dans le même `latest.json`, par le popup habituel. Ses documents s'ouvrent dans
   Glucose Rust, et ses données ne sont jamais touchées. Cette bascule a été répétée de bout en bout
@@ -55,7 +57,7 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 108 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
+* **Épreuves** : 2 119 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -67,7 +69,9 @@
   sont envoyés **sans CI** eux aussi, à sa demande (« tu peux parfaitement les envoyer sans
   déclencher la CI », 07/10 au soir), jusqu'à `d17e838` — vérifié : aucune exécution. Ceux de
   la fiche 54 sont partis **avec** la CI (`89510e2`, dix vertes) ; la télémétrie branchée et
-  l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), sous `[skip ci]`.
+  l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), jusqu'à `df1b854`
+  (`[skip ci]`, vérifié : aucune exécution). **Le rail (`2dc623b`) et la fiche 55 ne sont pas
+  envoyés.**
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est

@@ -92,6 +92,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 52 | [La carte de l'écran](52-LA-CARTE-DE-L-ECRAN.md) | ECRAN-1 (le lag : un balancier entre deux cartes), POIGNEE-1, le glisser qui se tait, le pincement — **§ 7 : ses essais** |
 | 53 | [Pinterest et le pavé](53-PINTEREST-ET-LE-PAVE.md) | DEPOT-WEB-6 (la page demandée compressée, un repli qui le dit, « Remplacer par l'image ») ; le pavé par *Direct Manipulation* ; la sélection en cinq directions ; `F` ; Pinterest la copie d'abord ; **transformer une sélection entière (§ 10)** — **§ 6 : ses essais** |
 | 54 | [La nuit du pavé et d'Android](54-LA-NUIT-DU-PAVE-ET-ANDROID.md) | la similitude entière des doigts, sans bascule ; GROUPE-1 ; la boîte noire suit le pavé ; la télémétrie des deux côtés (Cloudflare) ; Glucose compile pour Android, avec les doigts — **§ 9 : ce qui attend sa parole** |
+| 55 | [Le téléphone et la 2.0.2](55-LE-TELEPHONE-ET-LA-2-0-2.md) | Glucose sur son Redmi 9 ; le serveur de la boîte noire en ligne ; la clé Android ; la 2.0.2-beta.1 en brouillon ; la skill du téléphone ; le rail — **§ 4 : ce qui reste de sa liste** |
 
 ## Les décisions — **foi**
 
@@ -105,4 +106,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [07](decisions/07-LE-PAVE-PAR-DIRECT-MANIPULATION.md) le pavé par *Direct Manipulation* ·
 [08](decisions/08-ANDROID-PAR-GAMEACTIVITY.md) Android par `GameActivity`.
 
-La prochaine fiche porte le numéro **55**.
+La prochaine fiche porte le numéro **56**.

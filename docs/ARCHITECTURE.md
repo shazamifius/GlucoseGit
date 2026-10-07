@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 08/10/2026** (fiches 51 à 54 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 08/10/2026** (fiches 51 à 55 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -133,7 +133,8 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
 ## 6. L'interface
 
 `ui/` : la bande du haut, rendue une fois par changement ; ses boutons placés par une seule mise en
-page que le dessin et le clic lisent (loi L4) ; onglets, minimap, menu contextuel, barre d'action,
+page que le dessin et le clic lisent (loi L4) ; **le rail** (`rail.rs`, fiche 55), la même liste de
+boutons reposée en grille sur le côté quand la barre ne tient plus, décidé avant la scène ; onglets, minimap, menu contextuel, barre d'action,
 options de flèche, éditeur du texte lié, **un seul** toast. `dock/` : les panneaux (Ordonner,
 Timer, Domaines, Time Machine ; Storyboard, Presets et Plugins sont des façades honnêtes), chacun
 avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
