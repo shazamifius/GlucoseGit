@@ -77,6 +77,9 @@
 | **Une décision globale lue par une collecte locale** : l'arbitre de clic par l'index ne voit que les nœuds proches du curseur, et ne voyait donc jamais le groupe d'une sélection (fiche 53 § 10) | ce qui dépend de toute la sélection se calcule avant de filtrer ; l'épreuve passe par la vraie souris |
 | **Un mouvement appliqué au réveil de la boucle et non dans l'image** : une image reçoit deux pas, la suivante aucun — le tressaut ×5,8 du pavé (fiche 53 § 8) | tout ce qui bouge la caméra avance au moment de l'image, une fois |
 | **Une cause supposée sans la mesurer** : le pincement « réglé » trois fois ; Pinterest pris pour un réseau en panne alors que la page arrivait nue, sans compression (fiche 53 § 1) | chronométrer chaque étape (`essai_rapatriement`), lire la sortie, comparer à curl |
+| **Classer un geste au lieu d'appliquer ce qu'il fait** : un déplacement à 0,13 % d'écart d'échelle pris pour un pincement, bloqué jusqu'à la fin — la règle de Chromium et de Blender (fiche 54 § 3) | appliquer la transformation entière ; une règle qui tranche par seuil est le signe qu'une formule exacte manque |
+| **Additionner des transformations au lieu de les composer** : deux doigts dans la même image, et le point entre eux dérivait de 12,5 unités (fiche 54 § 7) | une seule transformation par image, composée exactement ; l'épreuve qui bouge deux doigts l'un après l'autre |
+| **Un résumé de moteur de recherche cite une version** : « le plugin Android 8.13 est le dernier » — il en était à 9.4 (fiche 54 § 7) | lire la version à la source (le dépôt Maven, `services.gradle.org`) |
 
 ## 5. Les pièges pratiques
 
@@ -85,6 +88,11 @@
 * **Git Bash refuse aussi certains heredocs** (apostrophes, guillemets français) avec « unexpected
   EOF » : tout script Python long s'écrit dans un fichier du scratchpad, puis `python -I fichier`.
   Et Python sous Windows écrit en CRLF : ouvrir avec `newline='\n'` (le dépôt est en LF).
+* **Ne jamais éditer un fichier pendant qu'un sabotage le touche** : le saboteur restaure ce
+  qu'il a lu au départ, et effacerait la modification (fiche 54 : elle a survécu, de peu).
+* **Android** : les objets de construction dans `target/android` (`CARGO_TARGET_DIR`) pour ne pas
+  recompiler le bureau ; `cargo ndk -t arm64-v8a -P 21 clippy -p glucose-android -p
+  glucose-desktop -- -D warnings` voit ce que Windows ne compile pas (les doigts, `ureq`).
 * **`SetWindowSubclass` empêche le programme de démarrer** sans manifeste des contrôles communs v6
   (`STATUS_ENTRYPOINT_NOT_FOUND`) : le sous-classement passe par `SetWindowLongPtrW` (fiche 53 § 2).
 * **PowerShell ne distingue pas les majuscules** dans les noms de variables (`$tauri` est

@@ -1,28 +1,34 @@
 # L'architecture de Glucose Rust
 
-> **Au 07/10/2026** (fiches 51 à 53 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 08/10/2026** (fiches 51 à 54 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
 
 ---
 
-## 1. Trois crates, et la règle des dépendances
+## 1. Quatre crates, et la règle des dépendances
 
 ```
 crates/
 ├── glucose-core/     le noyau : modèle, géométrie, journal, format, texte, index — AUCUNE dépendance
 ├── glucose-math/     les formules LaTeX en géométrie pure — une dépendance, katex-rs
-└── glucose-desktop/  l'application : fenêtre, deux voies de rendu, plateforme, mise à jour
+├── glucose-desktop/  l'application : fenêtre, deux voies de rendu, plateforme, mise à jour
+└── glucose-android/  le point d'entrée du téléphone (`android_main`) — vide hors d'Android
+android/              l'enveloppe Java de l'APK (Gradle, GameActivity), decisions/08
 ```
+
+* **Le démarrage** (`demarrage::lancer`) est commun : `main.rs` (le bureau) et `glucose-android`
+  fabriquent chacun leur boucle et connaissent leur dossier, et lui confient tout le reste.
 
 * **Le noyau n'a aucune dépendance**, et se teste sans écran. C'est ce qui lui permet de compiler
   pour Android et le web à chaque envoi.
 * **L'application a les siennes**, chacune défendue par une impossibilité de faire sans :
   `winit` (fenêtre), `wgpu` (Vulkan, Metal, Direct3D, GL ES derrière une interface), `tiny-skia`
   (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes), `image` (décodeurs),
-  `arboard` (presse-papiers), `rfd` (dialogues), `minisign-verify` (signatures), `pollster`, et
-  `windows` sous Windows, `ureq` + `rustls` ailleurs. Une dépendance nouvelle exige une note dans
+  `arboard` (presse-papiers) et `rfd` (dialogues) **hors d'Android seulement** — chacune derrière
+  sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`
+  (signatures), `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs. Une dépendance nouvelle exige une note dans
   [`carnet/decisions/`](carnet/decisions/).
 
 ## 2. La vie d'une image
@@ -55,14 +61,24 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   que l'écran n'a pas montré) remboursée à chaque image ; `vol.rs` suit le chemin de van Wijk et
   Nuij (`F`, signets, dossiers) ; `horloge.rs` avance du temps que l'écran **montre** ; `tempo.rs`
   donne à chaque image un nombre entier de balayages.
-* **Le pavé de précision** (`pave.rs`, fiche 53) : sous Windows, par *Direct Manipulation*
-  (`plateforme/pave_windows.rs`) — le système livre l'échelle et le déplacement tels que le
-  doigt les fait, avec son inertie, et Glucose les montre par la porte de la souris. Un pavé
-  que Windows ne donne pas ainsi, et `Ctrl` + molette, passent toujours par `pan_zoom.rs` et
-  `pincement.rs`.
+* **Le pavé de précision** (`pave.rs`, fiches 53 et 54) : sous Windows, par *Direct Manipulation*
+  (`plateforme/pave_windows.rs`, un *viewport* fictif à la taille de la fenêtre) — d'une image à
+  l'autre, le système rend une **similitude** `q ↦ r · q + b`, que Glucose applique entière, par
+  la porte de la souris ; sans classement ni bascule. Ses signes de vie vont à la boîte noire.
+  Un pavé que Windows ne donne pas ainsi, et `Ctrl` + molette, passent toujours par
+  `pan_zoom.rs` et `pincement.rs`.
+* **Les doigts sur un écran** (`toucher.rs`, fiche 54) : un doigt agit comme la souris, sauf sur
+  le vide où il déplace le canevas avec son élan ; deux doigts font leur similitude. Toutes les
+  similitudes d'une image — pavé et doigts — se **composent** en une seule (`Toucher::attente`).
+  Hors de Windows seulement : Windows y simule aussi la souris du premier doigt.
 * **Le dépôt** (`drop.rs`, `depot_web.rs`) : un lot, un geste, un compte-rendu ; une image
   rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
-  pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6).
+  pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6) ; la première
+  copie qui arrive se pose tout de suite, et l'original prend sa place (`depot_web/apercu.rs`).
+* **Transformer la sélection entière** (`resize.rs`, fiche 53 § 10) : le noyau calcule
+  (`core/groupe/` — mise à l'échelle par un coin, rotation, origine commune ou individuelle) et le
+  magasin réécrit tout depuis la pose de départ (`core/store/groupe.rs`) ; le cadre du groupe se
+  garde sur le geste en cours (GROUPE-1).
 
 ## 3. Le document
 
@@ -141,7 +157,11 @@ des plantages de Windows, la batterie.
 * **La boîte noire** (`boite_noire/`) : un fichier par session dans `%LOCALAPPDATA%\Glucose\boite-noire\`,
   écrit au fil de l'eau, qui survit à un plantage ; au lancement, comment la session d'avant a fini
   (et, sous Windows, dans quel module elle a planté). Elle garde la session précédente et
-  toutes celles qui ont mal fini, efface le reste, et **n'envoie rien**.
+  toutes celles qui ont mal fini, efface le reste.
+* **La boîte noire qui voyage** (`telemetrie.rs`, fiche 54) : **avec l'accord de chacun**, les
+  sessions closes partent au lancement, sur un fil à part, vers un Worker de Cloudflare
+  (`outils/telemetrie/`, qui n'accepte que les noms de ses listes fermées). Rien ne part tant que
+  `telemetrie::ADRESSE` est vide. La page publique : `docs/TELEMETRIE.md`.
 * **Les bancs** (`crates/*/examples/bench_*`) mesurent hors écran ; `capture_temoin` rend la scène
   témoin en PNG ; `verifier_images` et `lire_histoire` lisent un document **sans l'écrire**.
 * **Les instruments** (variables d'environnement, jamais des réglages de production) :
@@ -158,8 +178,8 @@ des plantages de Windows, la batterie.
   Glucose au lieu de le tuer) ; **`outils/paquets/`** : les trois formes Linux ;
   **`.github/workflows/publier.yml`** : un bouton qui construit, signe et prouve, en brouillon s'il
   est coché ; `flake.nix` pour NixOS.
-* **La vérification** (`.github/workflows/ci.yml`) : neuf tâches à chaque envoi, dont la bascule
-  depuis un vrai Glucose Tauri.
+* **La vérification** (`.github/workflows/ci.yml`) : dix tâches à chaque envoi, dont la bascule
+  depuis un vrai Glucose Tauri, et l'APK d'Android (`outils/android/construire.sh`), déposé.
 
 ## 10. Les épreuves
 

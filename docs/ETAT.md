@@ -1,8 +1,8 @@
 # Où en est Glucose
 
-> **Au 07/10/2026 au soir**, après la session de ses retours sur la V2 (fiche 51), celle de la
-> carte de l'écran (fiche 52) et celle de Pinterest et du pavé (fiche 53). Ce document dit
-> l'état **vérifié** du projet,
+> **Au 08/10/2026**, après la session de ses retours sur la V2 (fiche 51), celle de la carte de
+> l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53) et celle de la similitude des
+> doigts, de la télémétrie et d'Android (fiche 54). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -18,8 +18,12 @@
   sur GitHub : onze secondes de Tauri ouvert à Glucose Rust vivant.
 * **Ce qu'on sait des utilisateurs : presque rien.** Au 06/10, l'installeur Windows a été téléchargé
   **2 fois**, les paquets Linux **0 fois**, et `latest.json` a été lu 14 fois, dont une bonne part par
-  sa propre machine. La boîte noire existe sur chaque machine mais **n'envoie rien** tant que le
-  serveur n'est pas décidé (voir [SUITE](SUITE.md), chantier 4).
+  sa propre machine. **La télémétrie est écrite** des deux côtés (fiche 54 § 6) — la question,
+  l'envoi, « voir ce qui part », l'effacement, et le serveur Cloudflare — mais **rien ne part**
+  tant que son compte Cloudflare n'existe pas.
+* **Android : Glucose compile pour les téléphones** (fiche 54 § 7), ARM 64 et 32 bits, à partir
+  d'Android 5.0, avec les doigts (un doigt, deux doigts). **Rien n'a encore tourné sur un
+  téléphone** : l'APK se construira sur GitHub au prochain envoi avec CI.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -37,7 +41,7 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** (fiche 53 : l'échelle et le déplacement tels que le doigt les fait, l'inertie du système — **écrit, à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Ctrl+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
+| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** : la similitude entière des doigts, sans bascule (fiche 54 § 3 — Windows zoome bien sous le curseur, **vérifié** ; le biais **à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Ctrl+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) ; **au doigt, sur un écran** hors Windows (fiche 54 § 7) |
 | **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution, la page demandée **compressée** ; un repli en lien **dit pourquoi**, et se rattrape au clic droit : « Remplacer par l'image ») ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
@@ -49,15 +53,17 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 082 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
-  neuf tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android et le web, NixOS,
-  l'installeur et la mise à jour, la répétition de la bascule, les paquets Linux. Toutes vertes
+* **Épreuves** : 2 108 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
+  chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
+  et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
+  la mise à jour, la répétition de la bascule, les paquets Linux. Les neuf premières vertes
   sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
   (`[skip ci]`), et ceux de la fiche 53 aussi, à sa demande (« je ne veux absolument pas que tu
   déclenches la CI », 07/10 au soir) : Linux et Mac **à vérifier avant la publication** (relus,
   fiche 53 § 4 ; seule la CI le prouvera). `a32e074`, `efab62f` et la documentation qui suit
   sont envoyés **sans CI** eux aussi, à sa demande (« tu peux parfaitement les envoyer sans
-  déclencher la CI », 07/10 au soir).
+  déclencher la CI », 07/10 au soir), jusqu'à `d17e838` — vérifié : aucune exécution. **Les
+  commits de la fiche 54 ne sont pas envoyés.**
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -77,7 +83,9 @@
 Rideaux · temporalité (réglette de −10 000 à 2 100) · storyboard · presets et zones · exports PNG et
 HTML · miroirs et dossiers miroirs du disque · recherche (`Ctrl+F`) · couleur des domaines sur le
 canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur · collaboration · MCP ·
-plugins et IA locale · Mac · Android · iPad. Les membranes « étirées » et « minimisées » (l'idée de
+plugins et IA locale · Mac · iPad. **Android** : compile, sans dialogues ni presse-papiers du
+système encore, jamais lancé sur un téléphone. **Les tablettes Windows** : les doigts n'y passent
+pas encore (la souris simulée à écarter d'abord). Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 
 ## 6. Ses retours sur la V2 — jugés à son écran le 07/10
@@ -99,9 +107,15 @@ parfait », 07/10 au soir), sauf où c'est dit :
 
 * **le pincement au pavé**, par *Direct Manipulation* (fiche 53 § 2) : « c'est bien, le zoom
   maintenant » (07/10, 15 h 40) ;
-* **le déplacement à deux doigts** : « la translation, la multi-direction pose problème ». Tout
-  passe par *Direct Manipulation* ; le tressaut ×5,8 est probablement réglé (le pavé avance
-  dans l'image), et les bascules vers un pincement sont comptées (fiche 53 § 8) — **à son écran** ;
+* **le déplacement à deux doigts** : « la translation, la multi-direction pose problème ». Cause
+  trouvée dans sa chronique — dix-neuf déplacements pris pour des pincements, bloqués jusqu'à la
+  fin du geste ; corrigé par la similitude entière (fiche 54 § 3) — **son ressenti attendu** ;
+* **la coupure du pavé de 7 à 10 secondes**, aussi dans Blender : cause inconnue ; la boîte noire
+  en note désormais chaque étage (fiche 54 § 4) — **la prochaine coupure dira où** ;
+* **sur batterie**, la cadence est tombée à 30 images par seconde par moments (fiche 54 § 5) :
+  probablement le bridage de la RTX, à confirmer ; la charte demande de pixeliser plutôt ;
+* **le cadre du groupe qui restait sur place** pendant un glisser : corrigé (GROUPE-1) — à son
+  écran ;
 * **transformer une sélection entière** (sa demande « comme Blender ») : poignées du groupe,
   `Alt` + coin, bouton « Origine commune / individuelles » (fiche 53 § 10) — **à son écran** ;
 * **Pinterest** : six épingles devenues six liens le 07/10 (fiche 53 § 1) — la page arrivait

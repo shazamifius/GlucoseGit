@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 07/10/2026.** La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 08/10/2026.** La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -14,10 +14,9 @@
 > sélection, la CI, la 2.0.2), puis **Android** (chantier 2), les versions complètes pour Linux
 > et Mac (chantier 3), la télémétrie (chantier 4, qui attend sa décision sur le serveur).
 >
-> **Mon avis, à discuter avec lui** : la télémétrie gagnerait à précéder Android — c'est elle
-> qui dira, sur les téléphones de ses dix testeurs, ce qui casse et où ; sans elle, chaque
-> défaut Android ne se verra que s'ils le racontent. Elle ne demande que sa décision sur le
-> serveur, puis quelques jours.
+> **Le 08/10 (fiche 54)** : la télémétrie est écrite des deux côtés et n'attend que son compte
+> Cloudflare ; Android compile, avec les doigts, et attend son premier téléphone — l'APK se
+> construira sur GitHub au prochain envoi avec CI.
 
 ---
 
@@ -46,7 +45,9 @@ parfait ». Restent le pincement, le dessin de la sélection, et la publication.
 | [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
 | [x] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | « parfait » (07/10) |
 | [x] | **Le pincement au pavé** : *Direct Manipulation* (chantier 1 bis, fiche 53 § 2) | « dans l'idée c'est bien, le zoom maintenant » (07/10) |
-| [ ] | **Le déplacement à deux doigts** : « la translation, la multi-direction pose problème » — tout passe par *Direct Manipulation* ; le pavé avance désormais dans l'image (tressaut ×5,8) ; les bascules déplacement → pincement sont comptées (fiche 53 § 8) | **sa prochaine session** : la chronique dira tressaut et bascules |
+| [~] | **Le déplacement à deux doigts** : dix-neuf déplacements pris pour des pincements et bloqués (sa chronique du 07/10) ; la similitude entière des doigts, sans bascule (fiche 54 § 3) | Windows zoome sous le curseur (**vérifié**, 2 px) ; **son ressenti** sur le biais |
+| [~] | **GROUPE-1 — le cadre du groupe suit le groupe** pendant le geste (fiche 54 § 2) | **à son écran** |
+| [ ] | **La coupure du pavé de 7 à 10 s**, aussi dans Blender | la boîte noire en note chaque étage (fiche 54 § 4) : **la prochaine coupure le dira** |
 | [~] | **Pinterest, DEPOT-WEB-6** : la page compressée, un repli qui dit pourquoi, « Remplacer par l'image », une session gardée, les variantes en course, **la copie posée tout de suite puis remplacée par l'original** (fiche 53 § 1, 7, 9) | la copie en 0,3 à 0,9 s ; **à son écran** |
 | [~] | **`F` cadre la sélection (ou tout), `Ctrl+F` tout** — sa demande (fiche 53 § 7) | éprouvé par la vraie touche ; **à son écran**. `Ctrl+F` prend la place de la future recherche : à lui dire |
 | [x] | **La molette** : un tiers d'octave par cran (« pas du tout assez rapide » au huitième) | « parfait » (07/10) |
@@ -87,7 +88,21 @@ dans `style.md`. Si c'est la couleur qui lui manque, c'est `style.md` qui change
 
 ## 2. Le toucher : **Android d'abord**, et l'iPad par le web — ce qu'il attend le plus
 
-Le plan est dans la fiche 50 ; l'ordre :
+**Fait le 08/10 (fiche 54 § 7, `decisions/08`)** : Glucose compile pour Android (ARM 64 et 32
+bits, Android 5.0 et après) par `GameActivity` ; `android_main` ; le projet Gradle ; la couche
+de gestes (un doigt, deux doigts) ; la CI construit l'APK. **Reste, dans l'ordre** :
+
+1. **Le premier lancement sur un vrai téléphone** — le sien ou celui d'un testeur : installer
+   l'APK que la CI dépose, `adb logcat -s Glucose`. Puis Firebase Test Lab pour les anciens.
+2. **Sa clé de signature** Android, à garder pour toujours (et sa copie hors du PC).
+3. Le **clavier virtuel** (écrire dans un texte), la **vie de l'application** (suspendue, sa
+   surface perdue et rendue), le **sélecteur de fichiers** et le **presse-papiers** du système
+   (JNI), l'appui long pour le menu, la **question de la télémétrie** dans Glucose (aucun
+   dialogue natif sous Android : `oui_ou_non` y répond « non »).
+4. Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le
+   web.
+
+Le plan d'origine (fiche 50) ; l'ordre :
 
 1. **L'exécuteur des tranches** : dans un navigateur, il n'y a pas de fils. Le travail de fond
    (scribe, atelier, boîte noire) doit pouvoir tourner **en tranches, dans le temps libre de chaque
@@ -128,8 +143,11 @@ Conçu, pas écrit (fiche 49 § 2) : éteint par défaut, une question claire au
 l'utilisateur), des lots envoyés au lancement suivant en HTTPS, un identifiant tiré au hasard et
 renouvelable, effacement sur demande, **aucune adresse IP gardée**, une page publique qui dit tout.
 
-* **Bloqué par sa décision** : le serveur. Sa box NixOS derrière un nom gratuit (deSEC) et Caddy,
-  **mon avis**, parce que personne d'autre ne voit les données ; ou Cloudflare Workers, sans entretien.
+* **Écrit le 08/10 (fiche 54 § 6)**, des deux côtés : le Worker et sa base (`outils/telemetrie/`),
+  la question, l'envoi, « voir ce qui part », l'effacement, `docs/TELEMETRIE.md`. **Sa décision :
+  Cloudflare Workers.** Reste : **son compte**, puis `wrangler d1 create`, le schéma, `wrangler
+  deploy`, et l'adresse dans `telemetrie::ADRESSE`. Sous Android, la question doit se poser
+  dans Glucose même.
 * Les plantages hors de Windows : Linux en a deux registres (`systemd-coredump` chez Fedora, `apport`
   chez Ubuntu) ; Android a `ApplicationExitInfo` (11 et plus).
 
@@ -148,6 +166,9 @@ comprendre avec lui, les niveaux de boards (16) à confirmer, l'optimisation de 
 ## 6. La fluidité
 
 * Les zooms chargés à 11-21 ms (session du 05/10) : le plancher de 100 images par seconde.
+* **Sur batterie** (fiche 54 § 5) : le tempo à 7-8 balayages (30 images par seconde) sur 11 % des
+  images en mouvement, « effacer » jusqu'à 27 ms. Une session branchée et une débranchée, le
+  même geste, pour séparer le bridage de la carte de Glucose ; puis pixeliser plutôt que céder.
 * Les gels de la carte Intel Arc (fiche 43 § 8) : très probablement l'écran branché sur la RTX
   (fiche 52 § 1) — à confirmer, puis à mesurer en mode Optimus (l'écran sur l'Intel).
 * **La boîte noire ne note ni la carte ni la succession des images** : à ajouter, c'est elle
@@ -170,15 +191,13 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 
 ## Ce qui n'attend que lui
 
-1. **Le serveur de la boîte noire** (chantier 4, la télémétrie qu'il attend). **Il n'a pas de
-   serveur** (07/10) et propose GitHub. Mon avis : GitHub ne reçoit pas de données anonymes sans
-   un jeton glissé dans l'application — n'importe qui le lirait et écrirait dans son dépôt, et
-   GitHub révoque les jetons publiés. Deux voies gratuites : **Cloudflare Workers** (offre
-   gratuite, sans carte, sans entretien, les données dans son compte) ; ou un bouton
-   « envoyer un rapport » qui ouvre une *issue* GitHub préremplie, au consentement de chacun
-   (zéro infrastructure, mais manuel). À trancher avec lui.
+1. **Son compte Cloudflare** (chantier 4) : il a choisi Cloudflare Workers ; tout est écrit, il
+   ne manque que le compte (une adresse, un mot de passe), puis un clic « Autoriser ».
+1 bis. **L'envoi des commits de la fiche 54, avec la CI** : elle seule construira l'APK et
+   vérifiera Linux et Mac, jamais vus depuis `20deb6f`.
 2. **Une copie de sa clé de signature hors de ce PC.**
-3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien d'abord).
+3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien
+   d'abord) : un « Xiaomi 9 » — Mi 9 ou Redmi 9 ? — et une clé de signature Android à garder.
 4. Le modèle de sa souris : **il en a une** (07/10), mais navigue surtout au pavé tactile.
 5. Sait-il qui, parmi ses cinq utilisateurs, a basculé ? Surtout sous Linux.
 6. Les membranes de Mary, les rideaux, Trans-domaines, « optimiser » dans la Time Machine.
