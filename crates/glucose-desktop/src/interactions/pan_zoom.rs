@@ -67,14 +67,14 @@ const OCTAVES_PAR_CRAN: f64 = 0.125;
 /// | 0,058 (avant l'élan) | « la sensibilité est un peu faible » |
 /// | 1,25 | « beaucoup beaucoup trop » |
 /// | 0,25 | « ça dézoome et ça zoome trop trop vite » |
-/// | **0,0625** | à juger |
+/// | 0,0625 | « le pincement sur le pavé est trop lent, il faudrait augmenter légèrement » (07/10) |
+/// | **1/12** | à juger |
 ///
-/// Un huitième d'octave par **deux** unités de doigt : il en faut seize pour doubler. Et il
-/// faut compter l'élan par-dessus, qui prolonge le geste d'à peu près aussi longtemps qu'il a
-/// duré, donc **double l'amplitude ressentie** — l'effet à la main est celui d'un huitième
-/// d'octave par unité, exactement ce que l'utilisateur jugeait « un peu faible » avant que
-/// l'élan n'existe.
-const OCTAVES_PAR_UNITE_DE_DOIGT: f64 = 0.0625;
+/// Un douzième d'octave par unité de doigt : il en faut douze pour doubler, au lieu de seize
+/// — un tiers de plus, loin du quadruple refusé. Et il faut compter l'élan par-dessus, qui
+/// prolonge le geste d'à peu près aussi longtemps qu'il a duré, donc **double l'amplitude
+/// ressentie**.
+const OCTAVES_PAR_UNITE_DE_DOIGT: f64 = 1.0 / 12.0;
 
 /// Un cran de molette, en pixels de défilement, là où la plateforme compte en pixels.
 ///
