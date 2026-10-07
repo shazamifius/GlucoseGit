@@ -8,8 +8,8 @@
 * **Au dézoom, les poignées et le cadre d'une sélection suivent la taille des nœuds** : ils ne
   recouvrent plus des vignettes plus petites qu'eux, et une vignette sélectionnée se déplace
   au lieu de se redimensionner.
-* **Au pavé tactile, le pincement suit les doigts** : plus de glissade ni de retard, et il zoome
-  plus vite.
+* **Au pavé tactile, le pincement suit les doigts** : lisse, il s'arrête avec eux au lieu de
+  glisser, et il zoome plus vite.
 * **`Ctrl+N` demande toujours** avant de commencer un nouveau document : un raccourci tapé par
   erreur ne fait plus rien disparaître de l'écran.
 * **Le mode référence au pavé tactile** : `Alt` + glisser déplace la fenêtre, `Alt` + pincer
