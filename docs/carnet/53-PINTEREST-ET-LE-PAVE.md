@@ -1,0 +1,152 @@
+# 53 — Pinterest qui devenait des liens, et le pavé par *Direct Manipulation*
+
+> Session du 07/10/2026 au soir. Son message d'ouverture : *« j'ai eu de gros gros soucis avec
+> Pinterest et les téléchargements qui n'ont pas du tout voulu se faire — ça a finalement créé
+> des liens bleus moches au lieu des images »*, capture à l'appui, avec la sortie de sa session
+> (`sortie-essais-52d.txt`). Puis les chantiers 1 bis (le pincement) et 1 ter (la sélection) de
+> la suite. **Rien de ce qui suit n'a encore été vu à son écran** : le § 6 dit quoi regarder.
+
+---
+
+## 1. Pinterest : six épingles devenues six liens (DEPOT-WEB-6)
+
+**Ce que disent ses traces** — toutes lues sur des **copies** : son document (`fuser.glucose`,
+212 Mo, copié dans le bac de la session, lu par `lire_histoire`), sa boîte noire, sa chronique.
+
+* Les six liens sont nés à **13 h 11 min 41 s** (trois dans la même seconde), puis 13 h 11 min 57,
+  13 h 12 min 13, 13 h 12 min 29 : **seize secondes pile** d'écart, le rythme du délai de quinze
+  secondes d'une étape de téléchargement, pas celui d'une main.
+* La boîte noire montre 131 s « au repos » juste avant, pendant lesquelles Glucose a dessiné
+  243 images : le marqueur « en chemin » qui attendait.
+* Sa sortie ne contient **aucune** ligne « image rapatriée », et aucune raison : le détail
+  d'un échec ne s'écrivait que sous l'instrument `GLUCOSE_DEPOT`.
+* Les six mêmes épingles, essayées ici une heure plus tard par `essai_rapatriement`, se
+  rapatrient toutes en pleine résolution. Ce n'était donc pas Pinterest qui avait changé.
+* Windows n'a rien noté (journaux réseau, système) : la cause exacte de **ce moment-là** reste
+  sans trace.
+
+**La cause trouvée** : chronométrée, une page d'épingle met **17 à 53 s** à arriver nue
+(1,2 Mo), pour un premier octet en moins d'une seconde — et l'image n'y est annoncée (`og:image`)
+qu'à **1,07 Mo**, presque à la fin du flux. Compressée, la même page arrive en **une seconde**
+(127 Ko). Tous les navigateurs demandent la compression ; **WinHTTP ne la demande que si on le
+lui dit**, et Glucose ne le disait pas. Sur un réseau un peu lent, une pause du serveur suffisait
+à épuiser le délai d'une étape, et le dépôt retombait sur son repli : le lien. **Probablement la
+cause de sa soirée, à confirmer** : le réseau de 13 h 10 n'a laissé aucune trace.
+
+**Ce qui est fait** :
+
+1. `WINHTTP_OPTION_DECOMPRESSION` : la page arrive compressée (vérifié : `accept-encoding: gzip`
+   part, par un écho d'en-têtes).
+2. **Un repli le dit** : la moisson porte sa raison (`Moisson::echec`, le site et « délai
+   dépassé », « nom introuvable »…) jusqu'au message — qui disait « 1 élément posé », un échec
+   annoncé comme une réussite — et jusqu'à la sortie, toujours.
+3. **Un lien se rattrape** : au clic droit sur un nœud qui n'est **qu'un** lien, « Remplacer par
+   l'image » relance la recherche, marqueur au coin du lien ; l'image prend sa place **en un seul
+   geste** (`Ctrl+Z` rend le lien) et se tait comme un collage. Une note n'est jamais prise pour
+   un lien (`adresse_du_lien`, l'inverse exact de la pose). Ses six liens se réparent ainsi.
+4. **Une livraison attend la fin du geste de la main** : posée pendant un glisser, elle
+   refermait ce glisser-là (son `end_live_edit` fermait la transaction de l'utilisateur). Le
+   défaut existait déjà pour tout dépôt rapatrié.
+
+**La recherche** : tldraw fait comme Glucose (les métadonnées Open Graph de la page) ; Eagle
+passe par une extension de navigateur ; PureRef ne documente rien. La manière était juste.
+
+**Épreuves** : six par l'entrée réelle (le clic sur l'entrée du menu, le relevé de la boucle),
+la recherche fournie par l'épreuve — aucune n'atteint le réseau ; la lecture d'un lien ; les
+raisons de WinHTTP. Onze sabotages, onze chutes. Le banc `essai_rapatriement` dit désormais le
+nom, le poids, la taille de l'image et le temps de la page seule.
+
+**Pas fait** : hors de Windows, `ureq` demande toujours la page nue (sa fonctionnalité `gzip`
+tirerait `flate2` : une dépendance à défendre dans `decisions/`, et un code que seule la CI
+jugerait). Et le message ajoute de fait **un site de message** de plus, par `dire_le_depot` : le
+cliquet compte les appels à `show_toast`, pas les intentions — c'est dit ici plutôt que caché.
+
+## 2. Le pincement par *Direct Manipulation* (chantier 1 bis)
+
+**Son jugement**, après trois réglages : *« légèrement trop lent, et pas fluide, comme s'il
+sautait »*, quand PureRef et un navigateur pincent *« instantanément, de manière fluide »*. La
+cause : le pincement arrivait en `Ctrl` + molette, par paquets — continuité perdue avant d'arriver.
+
+**La recherche** :
+
+* Chromium, `direct_manipulation_helper_win.cc` et `direct_manipulation_event_handler_win.cc` :
+  un *viewport* **fictif** de 1000 × 1000, `MANUALUPDATE`, `SetContact` à chaque
+  `DM_POINTERHITTEST` d'un pavé (`PT_TOUCHPAD` seulement), `Update` à chaque image entre
+  `INTERACTION_BEGIN` et `END`, la transformation lue (`xform[0]`, `[4]`, `[5]`), et au `READY`
+  la remise à l'identité (`ZoomToRect`) seulement si elle n'y est pas déjà.
+* Blender, `GHOST_TrackpadWin32.cc` : le pincement n'est pas toujours reconnu au premier instant
+  (permettre de passer du déplacement au pincement) ; pendant un pincement, la translation est
+  « absurde » ; l'état `RUNNING`/`INERTIA` à suivre.
+
+**Ce qui est fait** :
+
+* `interactions::pave` (pur) : `Lecteur` tire de chaque transformation un `Deplacer` ou un
+  `Zoomer`. Un pincement le reste jusqu'à la fin du geste ; les octaves sont une **différence de
+  logarithmes en `f64`** — la somme d'un geste vaut exactement son échelle (un rapport en `f32`
+  perdait un demi-millionième d'octave, l'épreuve l'a vu) ; deux échelles égales à la précision
+  d'un `f32` ne sont pas un pincement — aucun seuil choisi. Ce qui bouge passe par la **porte de
+  la souris** (montré à l'image suivante) : le lissage et l'inertie sont ceux du système, ceux
+  d'Edge et de Chrome. Le déplacement à deux doigts garde son élan parce que le système le donne ;
+  le pincement n'en a pas.
+* `plateforme::pave_windows` (le COM). **Sans les « rails » de Chromium** : sur un canevas, un
+  déplacement en biais reste en biais. **Sans inertie d'échelle** : le pincement s'arrête avec
+  les doigts.
+* Une raison de réveil à lui (« le pavé tactile ») : hors geste, rien ne réveille la boucle.
+* `GlucoseApp::new` dépassait 80 lignes : les deux tampons auxiliaires sont devenus `Tampons`.
+
+**Deux fautes évitées par les épreuves** :
+
+1. `SetWindowSubclass` vit dans les contrôles communs **v6** : sans manifeste qui les demande, le
+   programme **ne démarre pas** (`STATUS_ENTRYPOINT_NOT_FOUND`, vu au lancement de l'épreuve).
+   Glucose aurait refusé de s'ouvrir chez lui. Le sous-classement de `user32` le remplace.
+2. Au `READY`, la remise du viewport à l'identité se serait lue comme un **dézoom défaisant tout
+   le geste** si la lecture n'était pas remise **avant** `ZoomToRect`. L'épreuve le montre sur le
+   vrai système.
+
+**Épreuves** : la **chaîne COM réelle** sur une fenêtre à −32 000 jamais montrée — le viewport,
+zoomé par programme d'un facteur deux, rend exactement une octave par le vrai écouteur, puis
+revient à l'identité sans que rien ne soit défait ; l'installation et le retrait (la procédure de
+`winit` reprend sa place) ; la lecture ; l'application par une source factice à travers la vraie
+boucle (`suivre_le_pave`, `prochain_reveil`). Treize sabotages, treize chutes. Note
+`decisions/07` : trois recoins de `windows`, aucune caisse.
+
+**Pas prouvé** : le geste réel. Windows ne sait injecter que des doigts d'écran tactile et des
+stylets, pas un pavé : **seul son écran le dira**. Le sens du déplacement est celui que Chromium
+déduit (la transformation dit où va le contenu, sens choisi par l'utilisateur compris) ; s'il
+était inversé, c'est un signe à changer.
+
+## 3. Le dessin de la sélection (chantier 1 ter)
+
+La planche des quatre directions est devenue **cinq** (`screens/53-selection-cinq-directions.png`),
+**envoyée à son écran**. La recherche : PureRef, Figma et tldraw dessinent **un seul cadre pour le
+groupe**, avec ses poignées, et chaque élément choisi ne reçoit qu'un **fil fin** — d'où E,
+« un cadre, et un fil par image ». **Mon avis : E** — le groupe se lit d'un coup d'œil, chaque
+image reste désignée sans être encadrée de carrés, et c'est la forme que ses outils lui ont
+apprise. **Son choix** attend.
+
+## 4. La CI des commits hors Windows
+
+Relus, les blocs `cfg(not(windows))` ajoutés depuis `20deb6f` (`plateforme::ecran`,
+`glisser_un_lot`, `installer_le_pave`) rendent `None` ou `Ok(false)` sans rien employer de
+Windows, et les modules sont publics (pas d'avertissement d'inutilité sous Linux). La compilation
+croisée reste impossible ici (pas de compilateur C pour Linux, `ring`), et le moteur Docker ne
+tourne pas — le lancer ouvrirait sa fenêtre. **Seule la CI le prouvera** : à lui proposer.
+
+## 5. Prouvé, et pas prouvé
+
+* **Prouvé** : 2 051 épreuves, clippy strict à zéro ; vingt-quatre sabotages, vingt-quatre chutes ;
+  la compression demandée (écho d'en-têtes) ; les six épingles de sa capture rapatriées ici ; la
+  chaîne *Direct Manipulation* réelle, hors écran.
+* **Pas prouvé** : la cause exacte de 13 h 10 ; le pincement et le déplacement au pavé à son
+  écran ; Linux et Mac (la CI).
+
+## 6. Ce que seul son écran dira
+
+1. **Le pincement au pavé** : « instantané et fluide », comme PureRef ? Le déplacement à deux
+   doigts : son élan, et **dans le bon sens** ? En biais, reste-t-il en biais ? La sortie doit
+   dire `pave : pris par Direct Manipulation`.
+2. **La molette de la souris** : inchangée (un tiers d'octave par cran).
+3. **Pinterest** : glisser plusieurs épingles de suite ; puis, sur ses six liens, les choisir,
+   clic droit → « Remplacer par l'image ».
+4. **Le mode référence** : `Alt` + pincer redimensionne toujours la fenêtre.
+5. **Son choix** sur la planche de la sélection.

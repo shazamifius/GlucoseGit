@@ -1,7 +1,8 @@
 # Où en est Glucose
 
-> **Au 07/10/2026 au soir**, après la session de ses retours sur la V2 (fiche 51) et celle de la
-> carte de l'écran (fiche 52). Ce document dit l'état **vérifié** du projet,
+> **Au 07/10/2026 au soir**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> carte de l'écran (fiche 52) et celle de Pinterest et du pavé (fiche 53). Ce document dit
+> l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -36,9 +37,9 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile (deux doigts avec élan, **pincement direct** qui suit les doigts), `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
+| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** (fiche 53 : l'échelle et le déplacement tels que le doigt les fait, l'inertie du système — **écrit, à juger à son écran**), `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
 | **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
-| **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution) ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
+| **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution, la page demandée **compressée** ; un repli en lien **dit pourquoi**, et se rattrape au clic droit : « Remplacer par l'image ») ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
 | **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; au clic droit sur une image : **Copier l'image** (Discord, un navigateur), **Enregistrer l'image sous…** (les octets d'origine) |
@@ -48,11 +49,12 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : environ 2 030 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
+* **Épreuves** : 2 051 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
   neuf tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android et le web, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule, les paquets Linux. Toutes vertes
   sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
-  (`[skip ci]`) : à vérifier avant la publication.
+  (`[skip ci]`), et ceux de la fiche 53 ne sont pas envoyés : Linux et Mac **à vérifier avant
+  la publication** (relus, fiche 53 § 4 ; seule la CI le prouvera).
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -92,18 +94,19 @@ parfait », 07/10 au soir), sauf où c'est dit :
 
 **Ouvert** :
 
-* **le pincement au pavé** : « légèrement trop lent, et pas fluide, comme s'il sautait » ; sur
-  internet ou dans PureRef, il est « instantané et fluide ». Glucose le reçoit en `Ctrl` +
-  molette fractionnée, traduit par Windows : la réponse de fond est *Direct Manipulation*
-  (SUITE, chantier 1) ;
-* **le dessin de la sélection** : « pas esthétique du tout ». Quatre directions monochromes
-  attendent son choix, sur une planche à lui **montrer** (`docs/carnet/screens/52-selection-
-  quatre-directions.png`) — il ne sait pas où regarder les fichiers ;
+* **le pincement au pavé** : « légèrement trop lent, et pas fluide, comme s'il sautait ». Il
+  passe désormais par *Direct Manipulation*, comme Chromium et Blender (fiche 53 § 2) : la chaîne
+  est prouvée hors écran, **le geste réel attend son écran** ;
+* **Pinterest** : six épingles devenues six liens le 07/10 (fiche 53 § 1) — la page arrivait
+  nue, 1,2 Mo au lieu de 127 Ko compressée. Corrigé, **probablement la cause, à confirmer** ;
+* **le dessin de la sélection** : « pas esthétique du tout ». Cinq directions **envoyées à son
+  écran** (`docs/carnet/screens/53-selection-cinq-directions.png`) ; mon avis : E, un cadre
+  pour le groupe et un fil fin par image (PureRef, Figma, tldraw) — **son choix** ;
 * le gel qui a « failli planter » son PC : cause probable, la rafale de redimensionnements de
   `Alt` + pincer, corrigée (REFERENCE-3) — pas revu depuis ;
 * l'opacité et les clics qui traversent du mode référence, s'il les veut.
 
-**Il navigue surtout au pavé tactile**, et a essayé une souris le 07/10.
+**Il navigue surtout au pavé tactile**, et a une souris, essayée le 07/10.
 
 ## 7. Points de vigilance
 

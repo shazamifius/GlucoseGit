@@ -33,14 +33,15 @@ parfait ». Restent le pincement, le dessin de la sélection, et la publication.
 | [x] | **La CI de `20deb6f`** (la voie hors Windows du presse-papiers) | neuf tâches vertes |
 | [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
 | [x] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | « parfait » (07/10) |
-| [~] | **Le pincement au pavé** : la conduite sans la glissade, 0,22 d'octave par unité — « nette amélioration, mais pas encore ça » ; la réponse de fond est *Direct Manipulation* (chantier 5) | « légèrement trop lent, et pas fluide, comme s'il sautait » ; PureRef et un navigateur sont « instantanés et fluides » → **chantier 1 bis, *Direct Manipulation*** |
+| [~] | **Le pincement au pavé** : *Direct Manipulation* (chantier 1 bis, fiche 53 § 2) | la chaîne prouvée hors écran ; **le geste, à son écran** |
+| [~] | **Pinterest, DEPOT-WEB-6** : la page demandée compressée (20 s → 1 s), un repli qui dit pourquoi, « Remplacer par l'image » au clic droit (fiche 53 § 1) | six épingles rapatriées ici ; **à son écran**, et ses six liens à réparer |
 | [x] | **La molette** : un tiers d'octave par cran (« pas du tout assez rapide » au huitième) | « parfait » (07/10) |
 | [x] | **Le mode référence, suite** : les panneaux retirés aussi de la voie graphique ; SIGNET-2 (les signets retiennent le centre) ; REFERENCE-3 (la fenêtre se redimensionne une fois par image — le gel qui a « failli planter » son PC, cause probable) | « parfait » (07/10) ; le gel n'est pas revenu |
-| [ ] | **Le dessin de la sélection** : « pas esthétique du tout » ; quatre directions monochromes lui sont montrées (fiche 52 § 9) | **son choix** |
+| [ ] | **Le dessin de la sélection** : « pas esthétique du tout » ; cinq directions **envoyées à son écran** (fiche 53 § 3), mon avis : E | **son choix** |
 | [x] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | « parfait » (07/10) |
 | [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
 
-## 1 bis. Le pincement par *Direct Manipulation* — **ensuite**
+## 1 bis. Le pincement par *Direct Manipulation* — **écrit le 07/10, à juger à son écran**
 
 **Pourquoi** : son jugement du 07/10, après trois réglages — « légèrement trop lent, et pas
 fluide, comme s'il sautait », alors que PureRef et un navigateur pincent « instantanément, de
@@ -54,11 +55,12 @@ déplacement et l'inertie arrivent tels que le doigt les fait, à la cadence du 
 
 **Fini quand** : à son écran, le pincement est « instantané et fluide » comme dans PureRef ; et
 tout ce qui arrive encore en molette vient d'une molette (ce qui règle aussi le doute des roues
-libres). Une recherche d'abord : le code de Chromium (`direct_manipulation_helper_win.cc`) et le
+libres). **Fait** (fiche 53 § 2, `decisions/07`) : reste son écran — le geste, le sens du
+déplacement, l'élan. Une recherche d'abord : le code de Chromium (`direct_manipulation_helper_win.cc`) et le
 commit de Blender cité en fiche 51 § 1 ; puis une dépendance éventuelle à défendre dans
 `carnet/decisions/` (la caisse `windows` a la fonctionnalité `Win32_Graphics_DirectManipulation`).
 
-## 1 ter. Le dessin de la sélection
+## 1 ter. Le dessin de la sélection — **la planche lui est envoyée (fiche 53 § 3)**
 
 **Pourquoi** : « pas esthétique du tout » (07/10). `style.md` impose une chrome monochrome,
 héritée de Glucose Tauri. Quatre directions lui ont été dessinées hors écran : `docs/carnet/
@@ -121,9 +123,9 @@ comprendre avec lui, les niveaux de boards (16) à confirmer, l'optimisation de 
   qui voyage (fiche 52 § 1).
 * Un plantage reproductible **dans les épreuves** : trois fois dans `vulkan-1.dll` au même octet
   (fiche 49 § 4), probablement une épreuve graphique qui referme la carte.
-* **Le pavé par *Direct Manipulation*** (fiche 51 § 1) : ce que font Chromium et Blender — les
-  gestes du pavé avec leurs phases, leur point focal et leur inertie ; et tout ce qui arrive
-  encore en molette vient alors d'une molette, ce qui règle le doute des roues libres.
+* ~~Le pavé par *Direct Manipulation*~~ : fait (fiche 53), à juger à son écran.
+* **Le dépôt hors de Windows demande la page nue** : `ureq` sans sa fonctionnalité `gzip` (qui
+  tirerait `flate2`, une note à écrire). Sous Linux, une page d'épingle peut mettre 20 s.
 * Puis l'étalonnage : le modèle de coût qui **prédit** ce qu'une image va coûter, appris de ce que la
   boîte noire aura vu sur les vraies machines.
 
@@ -140,7 +142,7 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 1. **Le serveur de la boîte noire** (chantier 2).
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien d'abord).
-4. ~~Le modèle de sa souris~~ : **il n'en a pas** (07/10) ; il navigue au pavé tactile.
+4. Le modèle de sa souris : **il en a une** (07/10), mais navigue surtout au pavé tactile.
 5. Sait-il qui, parmi ses cinq utilisateurs, a basculé ? Surtout sous Linux.
 6. Les membranes de Mary, les rideaux, Trans-domaines, « optimiser » dans la Time Machine.
 

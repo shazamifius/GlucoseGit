@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 06/10/2026.** Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 07/10/2026** (fiches 51 à 53 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -55,6 +55,14 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   que l'écran n'a pas montré) remboursée à chaque image ; `vol.rs` suit le chemin de van Wijk et
   Nuij (`F`, signets, dossiers) ; `horloge.rs` avance du temps que l'écran **montre** ; `tempo.rs`
   donne à chaque image un nombre entier de balayages.
+* **Le pavé de précision** (`pave.rs`, fiche 53) : sous Windows, par *Direct Manipulation*
+  (`plateforme/pave_windows.rs`) — le système livre l'échelle et le déplacement tels que le
+  doigt les fait, avec son inertie, et Glucose les montre par la porte de la souris. Un pavé
+  que Windows ne donne pas ainsi, et `Ctrl` + molette, passent toujours par `pan_zoom.rs` et
+  `pincement.rs`.
+* **Le dépôt** (`drop.rs`, `depot_web.rs`) : un lot, un geste, un compte-rendu ; une image
+  rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
+  pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6).
 
 ## 3. Le document
 
@@ -87,9 +95,12 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   tampons qui restent (`envoi.rs`).
 * **La garantie** : les deux voies rendent la même scène, au bit près ou à un écart **mesuré et
   borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat.
-* **L'arbitre** (`present/arbitre.rs`) choisit la carte graphique en la regardant travailler, et
-  retient son verdict pour le lancement suivant (`carte.txt`) : changer de carte en cours de route
-  figeait l'affichage (ARBITRE-4).
+* **La carte qui tient l'écran** (`plateforme/ecran.rs`, ECRAN-1) : sous Windows, Glucose dessine
+  sur la carte dont une sortie porte le moniteur de la fenêtre — dessiner ailleurs fait recopier
+  chaque image par le compositeur. L'ordre : `GLUCOSE_CARTE` › l'écran › le souvenir › l'économe.
+* **L'arbitre** (`present/arbitre.rs`) ne s'installe que quand l'écran n'a pas tranché : il
+  choisit la carte en la regardant travailler, et retient son verdict pour le lancement suivant
+  (`carte.txt`) : changer de carte en cours de route figeait l'affichage (ARBITRE-4).
 
 ## 5. Les images et la mémoire
 
@@ -114,7 +125,8 @@ avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.m
 ## 7. La plateforme
 
 Tout ce qui parle au système vit dans `plateforme/` (et le `unsafe` avec), une voie par système :
-le dépôt depuis un navigateur (COM, Windows seulement), le **glisser de nœuds vers une autre
+le dépôt depuis un navigateur (COM, Windows seulement), le **pavé par *Direct Manipulation***,
+la carte qui tient l'écran (DXGI), le **glisser de nœuds vers une autre
 fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pas dire (le lot de
 nœuds « Glucose.Lot », l'image en PNG et `CF_DIBV5`, fiche 51), le téléchargement (WinHTTP sous Windows,
 `ureq` ailleurs), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la

@@ -8,8 +8,12 @@
 * **Au dézoom, les poignées et le cadre d'une sélection suivent la taille des nœuds** : ils ne
   recouvrent plus des vignettes plus petites qu'eux, et une vignette sélectionnée se déplace
   au lieu de se redimensionner.
-* **Au pavé tactile, le pincement suit les doigts** : lisse, il s'arrête avec eux au lieu de
-  glisser, et il zoome plus vite.
+* **Au pavé tactile, Glucose reçoit les gestes comme un navigateur** : le pincement et le
+  déplacement à deux doigts arrivent tels que les doigts les font, avec l'inertie de Windows.
+  Le pincement s'arrête avec les doigts.
+* **Les images glissées depuis Pinterest arrivent bien plus vite** (la page est demandée
+  compressée : une seconde au lieu de vingt). Si une image ne vient vraiment pas, le lien posé
+  à sa place dit pourquoi, et le clic droit « Remplacer par l'image » réessaie.
 * **`Ctrl+N` demande toujours** avant de commencer un nouveau document : un raccourci tapé par
   erreur ne fait plus rien disparaître de l'écran.
 * **Le mode référence au pavé tactile** : `Alt` + glisser déplace la fenêtre, `Alt` + pincer
