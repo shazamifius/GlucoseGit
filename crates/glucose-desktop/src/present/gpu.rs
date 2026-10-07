@@ -53,6 +53,8 @@ pub struct GpuPresenter {
     envoi: super::envoi::Envoi,
     /// Le nom de l'adaptateur retenu, pour que l'application puisse le dire.
     adaptateur: String,
+    /// Ses identifiants matériels, pour savoir si c'est lui qui tient l'écran (ECRAN-1).
+    identite: crate::plateforme::ecran::Identite,
     /// Ce que le système accorde à Glucose sur cette carte, relu à chaque image (VRAM-1) —
     /// `None` là où la plateforme ne sait pas le dire.
     sonde: Option<crate::plateforme::graphique::Sonde>,
@@ -122,7 +124,8 @@ impl GpuPresenter {
     /// pilote absent sont des cas de tous les jours. L'appelant retombe alors sur le chemin
     /// processeur, et le dit.
     pub fn new(window: Arc<Window>, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<Self> {
-        Self::sur_la_carte(window, width, height, succession::carte_demandee())
+        let carte = succession::carte_demandee(&window);
+        Self::sur_la_carte(window, width, height, carte)
     }
 
     /// La meme, sur la carte que l'arbitre designe (ARBITRE-1).
@@ -218,6 +221,7 @@ impl GpuPresenter {
             bandes_envoyees: super::bandes::Bandes::default(),
             bandes_du_dessous_envoyees: super::bandes::Bandes::default(),
             adaptateur,
+            identite: (info.vendor, info.device),
             sonde,
             format_image,
             a_reaccorder: false,
@@ -503,5 +507,9 @@ impl Presenter for GpuPresenter {
 
     fn rythme(&self) -> &'static str {
         nom_de_la_cadence(self.config.present_mode)
+    }
+
+    fn carte(&self) -> Option<(String, crate::plateforme::ecran::Identite)> {
+        Some((self.adaptateur.clone(), self.identite))
     }
 }

@@ -19,6 +19,7 @@
 
 #[cfg(target_os = "linux")]
 pub mod administrateur;
+pub mod ecran;
 pub mod empreinte;
 pub mod graphique;
 pub mod heure;
@@ -58,15 +59,27 @@ pub fn telecharger(url: &str, limite: usize) -> Result<Vec<u8>, String> {
     voie(&adresse, limite)
 }
 
-/// **Glisse un lot de nœuds hors de la fenêtre** (fiche 51 § 2), jusqu'au lâcher : rend vrai
-/// s'il a été déposé quelque part. Sous Windows seulement, comme la cible : ailleurs, le
-/// glisser de `winit` ne sait porter que des fichiers, et rien ne part.
-pub fn glisser_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<bool, String> {
+/// **Glisse un lot de nœuds hors de cette fenêtre** (fiche 51 § 2), jusqu'au lâcher : rend
+/// vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine
+/// pendant le geste. Sous Windows seulement, comme la cible : ailleurs, le glisser de `winit`
+/// ne sait porter que des fichiers, et rien ne part.
+pub fn glisser_un_lot(
+    fenetre: &winit::window::Window,
+    texte: Option<&str>,
+    lot: &[u8],
+) -> Result<bool, String> {
     #[cfg(windows)]
-    return glisser_windows::glisser(texte, lot);
+    {
+        use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let poignee = fenetre.window_handle().map_err(|e| e.to_string())?;
+        let RawWindowHandle::Win32(w) = poignee.as_raw() else {
+            return Err("une fenetre Windows sans poignee Win32".into());
+        };
+        glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, texte, lot)
+    }
     #[cfg(not(windows))]
     {
-        let _ = (texte, lot);
+        let _ = (fenetre, texte, lot);
         Ok(false)
     }
 }

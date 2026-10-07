@@ -131,17 +131,47 @@ pub(super) fn images_demandees() -> Option<u32> {
 ///
 /// Ce n'est pas l'arbitre de la fiche 21, qui choisira par le **débit observé** et sans
 /// variable. C'est l'instrument qui dira s'il y a quelque chose à arbitrer.
-pub(super) fn carte_demandee() -> wgpu::PowerPreference {
-    pour_wgpu(carte_de_depart(&crate::present::souvenir::chemin()))
+pub(super) fn carte_demandee(fenetre: &winit::window::Window) -> wgpu::PowerPreference {
+    pour_wgpu(carte_de_depart(
+        &crate::present::souvenir::chemin(),
+        carte_de_l_ecran(fenetre),
+    ))
 }
 
-/// **La carte a ouvrir au lancement** : celle que l'environnement impose, sinon celle que
-/// l'arbitre a retenue lors d'une session precedente (ARBITRE-4), sinon l'econome -- celle
-/// qui gene le moins les autres logiciels.
-pub fn carte_de_depart(souvenir: &std::path::Path) -> crate::present::arbitre::Preference {
+/// La préférence qui ouvre la carte tenant l'écran de cette fenêtre, si le système le dit
+/// (ECRAN-1).
+pub fn carte_de_l_ecran(
+    fenetre: &winit::window::Window,
+) -> Option<crate::present::arbitre::Preference> {
+    crate::plateforme::ecran::carte_de_l_ecran(fenetre).and_then(|(_, preference)| preference)
+}
+
+/// **La carte a ouvrir au lancement** : celle que l'environnement impose, sinon **celle qui
+/// tient l'ecran** (ECRAN-1), sinon celle que l'arbitre a retenue lors d'une session
+/// precedente (ARBITRE-4), sinon l'econome -- celle qui gene le moins les autres logiciels.
+///
+/// L'ecran passe avant le souvenir : un souvenir est une conclusion tiree de quelques gels,
+/// la topologie est un fait. Le souvenir d'un hoquet sur la RTX avait renvoye sa session du
+/// 07/10 sur l'Intel, qui n'affichait rien -- et tout avait gele.
+pub fn carte_de_depart(
+    souvenir: &std::path::Path,
+    ecran: Option<crate::present::arbitre::Preference>,
+) -> crate::present::arbitre::Preference {
     carte_imposee()
+        .or(ecran)
         .or_else(|| crate::present::souvenir::lire(souvenir))
         .unwrap_or(crate::present::arbitre::Preference::Econome)
+}
+
+/// **Faut-il un arbitre ?** Seulement quand personne n'a tranché : ni l'environnement
+/// (ARBITRE-1), ni l'écran (ECRAN-1). Quitter la carte de l'écran ajoute une copie par image
+/// sans jamais éviter sa charge ; l'arbitre qui le faisait sur un hoquet alternait d'une
+/// session à l'autre.
+pub fn faut_il_un_arbitre(
+    imposee: Option<crate::present::arbitre::Preference>,
+    ecran: Option<crate::present::arbitre::Preference>,
+) -> bool {
+    imposee.is_none() && ecran.is_none()
 }
 
 /// La carte que l'environnement impose, s'il en impose une (ARBITRE-1).

@@ -68,9 +68,13 @@ impl Chronique {
             periode.as_secs_f64() * 1000.0
         ));
         t.push_str(&format!(
-            "  succession des images : {}\n\n",
+            "  succession des images : {}\n",
             self.rythme.presentation()
         ));
+        if let Some(carte) = self.rythme.carte() {
+            t.push_str(&format!("  carte graphique : {carte}\n"));
+        }
+        t.push('\n');
     }
 
     /// Le rythme : le temps que le mouvement intègre, comparé au temps que l'écran montre.

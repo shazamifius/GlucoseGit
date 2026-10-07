@@ -50,6 +50,8 @@
 //! inversement.
 
 use super::histogramme::Histogramme;
+
+mod machine;
 use std::time::{Duration, Instant};
 
 /// Le nombre de périodes d'écran qu'une image peut occuper avant d'être comptée « au-delà ».
@@ -113,10 +115,8 @@ impl Image {
 /// Ce que la session a montré, image après image.
 #[derive(Debug)]
 pub struct Rythme {
-    /// La période de l'écran, telle qu'il l'annonce. Zéro tant qu'on ne l'a pas lue.
-    periode: Duration,
-    /// Comment les images se succèdent devant la carte graphique, tel qu'elle l'a accepté.
-    presentation: &'static str,
+    /// Ce que la machine annonce d'elle-même : l'écran, la succession, la carte.
+    machine: machine::Machine,
     /// L'instant de la présentation précédente.
     precedente: Option<Instant>,
     /// L'instant de la toute première présentation, pour dater les gels.
@@ -198,8 +198,7 @@ impl Default for Rythme {
 impl Rythme {
     pub fn nouveau() -> Self {
         Self {
-            periode: Duration::ZERO,
-            presentation: "inconnue",
+            machine: machine::Machine::default(),
             precedente: None,
             origine: None,
             periodes_precedentes: None,
@@ -222,25 +221,32 @@ impl Rythme {
         }
     }
 
-    /// Ce que l'écran a annoncé de lui-même, et ce que la carte graphique a accepté.
-    ///
-    /// Les deux sont des **faits de la machine**, pas des choix : les écrire dans le rapport
-    /// est la seule façon de ne pas relire une chronique en supposant l'un ou l'autre. Le mode
-    /// de présentation, en particulier, décide si l'image attend le balayage — et il a été
-    /// pris pour `Fifo` pendant toute l'histoire de ce dépôt alors qu'il valait `Immediate`.
+    /// Ce que l'écran a annoncé de lui-même, et ce que la carte graphique a accepté
+    /// ([`machine`]).
     pub fn observer_la_machine(&mut self, periode: Duration, presentation: &'static str) {
-        self.periode = periode;
-        self.presentation = presentation;
+        self.machine.periode = periode;
+        self.machine.presentation = presentation;
+    }
+
+    /// La carte qui dessine, et si c'est elle qui tient l'écran (ECRAN-1).
+    pub fn nommer_la_carte(&mut self, carte: String) {
+        self.machine.carte = Some(carte);
     }
 
     /// La période de l'écran, ou `None` si elle n'a pas été lue.
     pub fn periode(&self) -> Option<Duration> {
-        (!self.periode.is_zero()).then_some(self.periode)
+        let periode = self.machine.periode;
+        (!periode.is_zero()).then_some(periode)
     }
 
     /// Comment les images se succèdent.
     pub fn presentation(&self) -> &'static str {
-        self.presentation
+        self.machine.presentation
+    }
+
+    /// La carte qui dessine, si on l'a nommée.
+    pub fn carte(&self) -> Option<&str> {
+        self.machine.carte.as_deref()
     }
 
     /// L'image vient d'être présentée : note ce qu'elle a montré.

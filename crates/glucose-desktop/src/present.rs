@@ -183,6 +183,12 @@ pub trait Presenter {
         "presentation par le systeme"
     }
 
+    /// La carte graphique qui dessine — son nom et ses identifiants matériels —, s'il y en a
+    /// une (ECRAN-1).
+    fn carte(&self) -> Option<(String, crate::plateforme::ecran::Identite)> {
+        None
+    }
+
     /// Combien d'images la chaîne garde en vol, quand elle en a une.
     ///
     /// Zéro veut dire « pas de chaîne » : la voie système remet son tampon au gestionnaire

@@ -35,6 +35,27 @@ impl GlucoseApp {
     /// Une fonction a part parce qu'`init_window` cree la fenetre, lit la cadence, accorde
     /// les horloges et ouvre la presentation : ce qui **etablit** et ce qui **annonce** ne
     /// changent pas pour les memes raisons, et le cliquet des quatre-vingts lignes a raison.
+    /// **La carte qui dessine, et si c'est elle qui tient l'ecran** (ECRAN-1), pour la
+    /// chronique et la banniere. Sa session du 07/10 a gele une heure sur une carte qui
+    /// n'affichait rien, et aucune ligne ne le disait.
+    fn nommer_la_carte(
+        &mut self,
+        presenter: &dyn crate::present::Presenter,
+        window: &winit::window::Window,
+    ) {
+        let Some((nom, identite)) = presenter.carte() else {
+            return;
+        };
+        let lien = match crate::plateforme::ecran::carte_de_l_ecran(window) {
+            Some((ecran, _)) if ecran == identite => " -- celle qui tient l'ecran",
+            Some(_) => " -- PAS celle qui tient l'ecran : chaque image traverse vers l'autre",
+            None => "",
+        };
+        let carte = format!("{nom}{lien}");
+        println!("[Glucose] carte graphique : {carte}");
+        self.chronique.rythme.nommer_la_carte(carte);
+    }
+
     fn annoncer_la_machine(
         &self,
         presenter: &dyn crate::present::Presenter,
@@ -91,9 +112,14 @@ impl GlucoseApp {
         //
         // **Il part de la carte que le lancement a ouverte** (ARBITRE-4) : celle qu'il a
         // retenue lors d'une session precedente, s'il en a retenu une.
-        let depart = crate::present::gpu::succession::carte_de_depart(&self.souvenir_de_la_carte);
-        self.arbitre = crate::present::gpu::succession::carte_imposee()
-            .is_none()
+        //
+        // **Et il n'a rien a arbitrer quand la carte de l'ecran est connue** (ECRAN-1) : la
+        // quitter ajoute une copie par image sans jamais eviter sa charge. C'est ce qui arrete
+        // le balancier d'une session sur deux.
+        use crate::present::gpu::succession;
+        let ecran = succession::carte_de_l_ecran(window);
+        let depart = succession::carte_de_depart(&self.souvenir_de_la_carte, ecran);
+        self.arbitre = succession::faut_il_un_arbitre(succession::carte_imposee(), ecran)
             .then(|| crate::present::arbitre::Arbitre::nouveau(depart));
         if crate::present::souvenir::lire(&self.souvenir_de_la_carte).is_some()
             && self.arbitre.is_some()
@@ -206,6 +232,7 @@ impl GlucoseApp {
         self.chronique
             .rythme
             .observer_la_machine(self.cadence.periode(), presenter.rythme());
+        self.nommer_la_carte(presenter.as_ref(), &window);
         self.accrocher_les_mecanismes(&window);
         self.annoncer_la_machine(presenter.as_ref(), (width, height), scale_factor);
 
