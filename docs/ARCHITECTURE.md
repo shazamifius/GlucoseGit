@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 08/10/2026** (fiches 51 à 55 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 08/10/2026** (fiches 51 à 56 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -14,8 +14,9 @@ crates/
 ├── glucose-core/     le noyau : modèle, géométrie, journal, format, texte, index — AUCUNE dépendance
 ├── glucose-math/     les formules LaTeX en géométrie pure — une dépendance, katex-rs
 ├── glucose-desktop/  l'application : fenêtre, deux voies de rendu, plateforme, mise à jour
-└── glucose-android/  le point d'entrée du téléphone (`android_main`) — vide hors d'Android
-android/              l'enveloppe Java de l'APK (Gradle, GameActivity), decisions/08
+└── glucose-android/  le point d'entrée du téléphone (`android_main`) et la frontière JNI
+                      (le partage, le sélecteur de photos) — vide hors d'Android
+android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partage), decisions/08 et 09
 ```
 
 * **Le démarrage** (`demarrage::lancer`) est commun : `main.rs` (le bureau) et `glucose-android`
@@ -71,6 +72,11 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   le vide où il déplace le canevas avec son élan ; deux doigts font leur similitude. Toutes les
   similitudes d'une image — pavé et doigts — se **composent** en une seule (`Toucher::attente`).
   Hors de Windows seulement : Windows y simule aussi la souris du premier doigt.
+* **Le partage vers Glucose** (fiche 56, PARTAGE-1) : sous Android, `MainActivity.java` ouvre les
+  fichiers partagés ou choisis dans le sélecteur de photos et confie leurs descripteurs à
+  `glucose-android` (JNI), qui lit et remet un `Partage` à `plateforme/partage.rs` : des images
+  posées en un geste, ou des adresses au rapatriement — le chemin du dépôt. Une boîte aux
+  lettres garde ce qui arrive avant la fenêtre.
 * **Le dépôt** (`drop.rs`, `depot_web.rs`) : un lot, un geste, un compte-rendu ; une image
   rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
   pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6) ; la première
@@ -88,6 +94,7 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Le magasin** | `core/store/` | la seule porte d'écriture. Chaque modification est une **transaction du journal** (`journal.rs`), inversible : l'annulation coûte la taille du changement, jamais celle du document. Un geste = une entrée (`undo.rs`) ; un glisser s'écrit en **une** translation (GLISSER-1), un redimensionnement en une édition (FONDRE-1). La navigation et la sélection n'entrent jamais dans l'annulation |
 | **Le fichier** | `core/persist/` | `.glucose` : une **base** (conteneur versionné, sections avec somme de contrôle) puis une **histoire en ajout seul** (`histoire.rs`) — objets (octets d'image par empreinte SHA-256), gestes, instantanés, jalons, vues — chaque entrée chaînée à la précédente : une fin déchirée s'arrête à la dernière entrée saine |
 | **Le scribe** | `desktop/persist/scribe.rs` | un fil qui ajoute les gestes au fichier et synchronise le disque ; la cadence suit le disque. `Ctrl+S` pose un **jalon**. Un document sans nom vit dans un **brouillon** |
+| **Les documents du téléphone** | `persist/documents.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste |
 | **Les filets** | `persist/frappe.rs`, `reprise.rs`, `recuperation.rs`, `verrou.rs`, `atomic.rs` | le texte en cours de frappe survit à un plantage ; le lancement rouvre le dernier travail ; ce qu'on va recouvrir est mis de côté (FIN-1) ; un seul scribe par fichier ; **un seul endroit** pose un fichier à la place d'un autre (cliquet 11) |
 | **Glucose Tauri** | `core/persist/tauri.rs`, `desktop/persist/import.rs` | un lecteur d'Automerge écrit ici, sans dépendance, identique à la bibliothèque de référence ; le fichier Tauri n'est jamais réécrit |
 
@@ -111,6 +118,10 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   tampons qui restent (`envoi.rs`).
 * **La garantie** : les deux voies rendent la même scène, au bit près ou à un écart **mesuré et
   borné** (`tests/voies_suite.rs`). L'adaptation change le chemin, jamais le résultat.
+* **La surface qu'Android reprend** (VIE-1, `app/vie.rs`, `present/gpu/vie.rs`) : au
+  `Suspended`, la présentation lâche sa surface et garde son périphérique et ses textures ; au
+  `Resumed`, une surface neuve se crée sur le même. « En arrière-plan » se lit sur elle
+  (`a_sa_surface`) : rien ne se dessine entre les deux.
 * **La carte qui tient l'écran** (`plateforme/ecran.rs`, ECRAN-1) : sous Windows, Glucose dessine
   sur la carte dont une sortie porte le moniteur de la fenêtre — dessiner ailleurs fait recopier
   chaque image par le compositeur. L'ordre : `GLUCOSE_CARTE` › l'écran › le souvenir › l'économe.
@@ -135,7 +146,10 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
 `ui/` : la bande du haut, rendue une fois par changement ; ses boutons placés par une seule mise en
 page que le dessin et le clic lisent (loi L4) ; **le rail** (`rail.rs`, fiche 55), la même liste de
 boutons reposée en grille sur le côté quand la barre ne tient plus, décidé avant la scène ; onglets, minimap, menu contextuel, barre d'action,
-options de flèche, éditeur du texte lié, **un seul** toast. `dock/` : les panneaux (Ordonner,
+options de flèche, éditeur du texte lié, **un seul** toast (coupé en lignes à la largeur de
+l'écran) ; **la question** (`question.rs`, QUESTION-1), que Glucose dessine là où le système
+n'a pas de dialogues — Android —, et dont la suite (`interactions/question.rs`) est la même
+qu'au bureau ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
 Timer, Domaines, Time Machine ; Storyboard, Presets et Plugins sont des façades honnêtes), chacun
 avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
 

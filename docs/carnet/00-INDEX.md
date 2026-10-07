@@ -93,6 +93,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 53 | [Pinterest et le pavé](53-PINTEREST-ET-LE-PAVE.md) | DEPOT-WEB-6 (la page demandée compressée, un repli qui le dit, « Remplacer par l'image ») ; le pavé par *Direct Manipulation* ; la sélection en cinq directions ; `F` ; Pinterest la copie d'abord ; **transformer une sélection entière (§ 10)** — **§ 6 : ses essais** |
 | 54 | [La nuit du pavé et d'Android](54-LA-NUIT-DU-PAVE-ET-ANDROID.md) | la similitude entière des doigts, sans bascule ; GROUPE-1 ; la boîte noire suit le pavé ; la télémétrie des deux côtés (Cloudflare) ; Glucose compile pour Android, avec les doigts — **§ 9 : ce qui attend sa parole** |
 | 55 | [Le téléphone et la 2.0.2](55-LE-TELEPHONE-ET-LA-2-0-2.md) | Glucose sur son Redmi 9 ; le serveur de la boîte noire en ligne ; la clé Android ; la 2.0.2-beta.1 en brouillon ; la skill du téléphone ; le rail — **§ 4 : ce qui reste de sa liste** |
+| 56 | [Le partage et la vie de l'application](56-LE-PARTAGE-ET-LA-VIE-DE-L-APPLICATION.md) | VIE-1 (la surface qu'Android reprend) ; PARTAGE-1 (Glucose dans « Partager ») ; le double toucher et « Ajouter des images… » ; QUESTION-1 (la question dessinée) et VUE-1 (le refus donné à sa place) ; DOCUMENTS-1 (les documents du téléphone) — **§ 7 : le clavier d'abord** |
 
 ## Les décisions — **foi**
 
@@ -104,6 +105,7 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [05](decisions/05-LE-RESEAU-HORS-DE-WINDOWS.md) le réseau hors de Windows ·
 [06](decisions/06-CE-QUE-LE-SYSTEME-A-VU.md) ce que le système a vu des plantages ·
 [07](decisions/07-LE-PAVE-PAR-DIRECT-MANIPULATION.md) le pavé par *Direct Manipulation* ·
-[08](decisions/08-ANDROID-PAR-GAMEACTIVITY.md) Android par `GameActivity`.
+[08](decisions/08-ANDROID-PAR-GAMEACTIVITY.md) Android par `GameActivity` ·
+[09](decisions/09-LE-PARTAGE-PAR-JNI.md) le partage vers Glucose, par `jni`.
 
-La prochaine fiche porte le numéro **56**.
+La prochaine fiche porte le numéro **57**.

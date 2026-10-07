@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 06/10/2026.** Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 08/10/2026.** Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -80,6 +80,9 @@
 | **Classer un geste au lieu d'appliquer ce qu'il fait** : un déplacement à 0,13 % d'écart d'échelle pris pour un pincement, bloqué jusqu'à la fin — la règle de Chromium et de Blender (fiche 54 § 3) | appliquer la transformation entière ; une règle qui tranche par seuil est le signe qu'une formule exacte manque |
 | **Additionner des transformations au lieu de les composer** : deux doigts dans la même image, et le point entre eux dérivait de 12,5 unités (fiche 54 § 7) | une seule transformation par image, composée exactement ; l'épreuve qui bouge deux doigts l'un après l'autre |
 | **Un résumé de moteur de recherche cite une version** : « le plugin Android 8.13 est le dernier » — il en était à 9.4 (fiche 54 § 7) | lire la version à la source (le dépôt Maven, `services.gradle.org`) |
+| **Un repli qui répond à la place de quelqu'un** : sous Android, le dialogue absent répondait « non », et ce refus du journal technique s'est écrit comme un consentement (fiche 56 § 1) | un repli ne répond jamais pour l'utilisateur : il pose la question autrement (QUESTION-1), ou ne décide rien ; et une réponse dit qu'elle a été vue (VUE-1) |
+| **Brancher un geste qui traverse une plateforme sans lire la vie de celle-ci** : le partage revient d'une autre application, et Android détruit la surface au départ — Glucose ne l'écoutait pas (fiche 56 § 1) | avant d'écrire un chemin, suivre l'utilisateur de bout en bout sur la plateforme : où il part, ce que le système détruit, ce qu'il rend |
+| **Une fonctionnalité qui rend un document injoignable** : « Nouveau document » rangeait le travail sous « Canevas 1 », et rien au téléphone ne permettait de le rouvrir — vu en relisant, avant l'essai (fiche 56 § 6) | chaque chemin qui écrit ses données a son chemin de retour, écrit dans la même session |
 
 ## 5. Les pièges pratiques
 
@@ -88,6 +91,12 @@
 * **Git Bash refuse aussi certains heredocs** (apostrophes, guillemets français) avec « unexpected
   EOF » : tout script Python long s'écrit dans un fichier du scratchpad, puis `python -I fichier`.
   Et Python sous Windows écrit en CRLF : ouvrir avec `newline='\n'` (le dépôt est en LF).
+* **Git Bash mange aussi les barres obliques inverses d'un `python - <<'EOF'`** (fiche 56 : des
+  `\n` devenus de vrais sauts de ligne dans une chaîne Rust, et un script qui ne s'est jamais
+  écrit). Tout script qui en porte s'écrit avec l'outil d'écriture, puis `python -I fichier`.
+* **Un fichier Rust qu'aucun `mod` ne nomme n'est pas compilé — mais les cliquets le lisent** :
+  on peut préparer un module pendant qu'un sabotage tourne ; il doit déjà respecter les
+  cliquets (fiche 56 : deux `fill_rect`).
 * **Ne jamais éditer un fichier pendant qu'un sabotage le touche** : le saboteur restaure ce
   qu'il a lu au départ, et effacerait la modification (fiche 54 : elle a survécu, de peu).
 * **Android** : les objets de construction dans `target/android` (`CARGO_TARGET_DIR`) pour ne pas

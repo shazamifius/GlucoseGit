@@ -51,10 +51,25 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 ## 4. La vie d'une application
 
 * **Suspendue sans prévenir** : `Suspended` / `Resumed` de `winit` — la surface graphique est
-  perdue et rendue ; le document s'écrit déjà geste après geste, rien ne doit attendre la fin.
+  perdue et rendue (VIE-1, fiche 56 : la présentation lâche sa surface et garde ses textures) ;
+  le document s'écrit déjà geste après geste, rien ne doit attendre la fin. **Tout geste qui
+  passe par une autre application** (partager, choisir une photo) revient par ce chemin.
 * **Tuée sans prévenir** quand le système manque de mémoire : la boîte noire le dira « arrêtée
   sans rien dire » ; c'est le régime normal, pas un plantage.
 * **Bridée** : le téléphone chauffe en quelques minutes (charte : on observe le débit qui baisse).
+
+## 4 bis. Ce qui n'existe pas au téléphone, et ce qu'on fait à la place (fiche 56)
+
+* **Aucun dialogue du système** qu'on appelle comme `rfd` : la question se **dessine**
+  (`ui::question`, QUESTION-1) et sa suite part au toucher — jamais une réponse donnée à la
+  place de l'utilisateur (VUE-1). `ui.questions_dessinees` choisit la voie.
+* **Aucun sélecteur de fichiers** : les documents se rangent d'office dans `documents/`
+  (DOCUMENTS-1) et se rouvrent par une liste ; les images viennent du sélecteur de photos.
+* **Aucun clic droit** : deux touchers sur le vide ouvrent le menu, à la taille du doigt ;
+  l'appui long viendra. Aucun dossier à « ouvrir dans l'explorateur ».
+* **Aucun clavier tant qu'on ne le demande pas**, et `winit` 0.30 jette le texte du clavier
+  virtuel (`InputEvent::TextEvent`) : à reprendre par `AndroidApp::text_input_state`.
+* Un message plus large que l'écran se **coupe** (le toast, la question) : 360 points de large.
 
 ## 5. Comment travailler
 

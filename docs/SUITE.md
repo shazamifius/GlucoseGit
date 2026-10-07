@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 08/10/2026.** La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 08/10/2026, au soir** (fiche 56). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -88,20 +88,23 @@ dans `style.md`. Si c'est la couleur qui lui manque, c'est `style.md` qui change
 
 ## 2. Le toucher : **Android d'abord**, et l'iPad par le web — ce qu'il attend le plus
 
-**Fait les 07 et 08/10 (fiches 54 et 55, `decisions/08`)** : Glucose compile pour Android et
+**Fait les 07 et 08/10 (fiches 54 à 56, `decisions/08` et `09`)** : Glucose compile pour Android et
 **tourne sur son Redmi 9** ; la couche de gestes ; la clé de signature et l'APK dans la
 publication ; **le rail** (la barre sur le côté quand elle ne tient plus — à juger à son écran).
-**Sa liste du 08/10, dans son ordre** (fiche 55 § 4), la vidéo remise à plus tard :
+**Sa liste du 08/10, dans son ordre** (fiche 55 § 4), la vidéo remise à plus tard — et ce que
+la session du 08/10 (fiche 56) en a fait :
 
-1. **Le partage d'images vers Glucose** (« se concentrer uniquement sur le transfert d'images ») :
-   `ACTION_SEND` / `ACTION_SEND_MULTIPLE` (`image/*`, `text/plain`), Java à la frontière seulement.
-2. **Le double toucher** sur le vide : « Ajouter des images » par le sélecteur de photos.
-3. **Les documents au téléphone** : la liste des canevas, créer, renommer, ouvrir, supprimer.
-4. La **mise à jour automatique** sous Android ; la **question de la télémétrie** dans Glucose
-   (aucun dialogue natif sous Android) ; le clavier virtuel ; la vie de l'application ; le
-   presse-papiers du système ; l'appui long pour le menu ; les barres du système (bord à bord).
-5. Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le
-   web. La vidéo (fiche 55 § 4) quand il la redemandera.
+| | chantier | où en est-il |
+|---|---|---|
+| [~] | **VIE-1 — la surface qu'Android reprend et rend** : sans elle, revenir d'une autre application (le chemin même du partage) tombait sur une surface morte | écrit, éprouvé hors écran ; **à son téléphone** |
+| [~] | **PARTAGE-1 — le partage d'images vers Glucose** : `SEND`, `SEND_MULTIPLE`, les images en un geste, un lien au rapatriement, Java à la frontière seulement (`decisions/09`) | **à son téléphone** : Pinterest, la galerie, Chrome |
+| [~] | **Le double toucher** sur le vide : le menu à la taille du doigt, « Ajouter des images… » par le sélecteur de photos ; le bouton « images » du rail, qui ne faisait rien, aussi | **à son téléphone** |
+| [~] | **QUESTION-1** — la question que Glucose dessine (aucun dialogue sous Android) ; **VUE-1** — le refus du journal technique donné à sa place se repose | **à son téléphone** |
+| [~] | **DOCUMENTS-1** — les documents du téléphone : un travail sans nom se range sous « Canevas N », « Nouveau document » marche, « Ouvrir un document… » liste les rangés | **à son téléphone** ; reste : renommer, supprimer, dupliquer |
+| [ ] | **Le clavier virtuel — avancé en tête, devant le reste** : sans lui, aucun texte ne s'écrit au téléphone, et aucun document ne se renomme. Demander le clavier (`set_ime_allowed`) ; lire ce que `winit` 0.30 jette (`AndroidApp::text_input_state`) | fiche 56 § 7 |
+| [ ] | **L'appui long** (le clic droit du doigt) : renommer, supprimer (la question est prête), dupliquer un document | après le clavier |
+| [ ] | La **mise à jour automatique** sous Android ; les **barres du système** (bord à bord, Android 16) ; le presse-papiers du système | |
+| [ ] | Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le web. La vidéo (fiche 55 § 4) quand il la redemandera ; les photos **HEIC** par le décodeur d'Android | |
 
 Le plan d'origine (fiche 50) ; l'ordre :
 
@@ -145,9 +148,10 @@ l'utilisateur), des lots envoyés au lancement suivant en HTTPS, un identifiant 
 renouvelable, effacement sur demande, **aucune adresse IP gardée**, une page publique qui dit tout.
 
 * **En ligne le 08/10 (fiches 54 § 6 et 55 § 1)** : le Worker et sa base dans son compte
-  Cloudflare, l'adresse dans Glucose. Reste : vérifier la première session reçue d'un vrai
-  Glucose (`npx wrangler d1 execute glucose-boite-noire --remote --command "SELECT …"`, depuis
-  `outils/telemetrie/`) ; la question sous Android, dans Glucose même.
+  Cloudflare, l'adresse dans Glucose. **Le 08/10 au soir, la base est vide** : personne n'a
+  encore lancé un Glucose qui la porte et répondu « oui ». Reste : vérifier la première session
+  reçue (`npx wrangler d1 execute glucose-boite-noire --remote --command "SELECT …"`, depuis
+  `outils/telemetrie/`). **La question sous Android est faite** (QUESTION-1, VUE-1, fiche 56).
 * Les plantages hors de Windows : Linux en a deux registres (`systemd-coredump` chez Fedora, `apport`
   chez Ubuntu) ; Android a `ApplicationExitInfo` (11 et plus).
 
