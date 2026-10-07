@@ -192,3 +192,66 @@ appareil, afin de travailler sur l'amélioration de Glucose »*. La suite est r�
 
 **Envoi** : il a validé l'envoi des commits **sans CI**. Le dernier commit envoyé porte
 `[skip ci]`.
+
+## 8. Son écran, le 07/10 à 16 h 30 — le déplacement, deux pistes
+
+**Ses mots** : le zoom est bien ; « la translation, la multi-direction pose problème ».
+**Sa chronique** (session 54) : les 3 026 déplacements et les 1 576 pincements sont **tous**
+passés par *Direct Manipulation* — la molette est hors de cause. Deux faits :
+
+* **un tressaut ×5,8**, le pire de ses sessions (×1,9 à ×3,3 d'habitude) : le système avançait
+  au réveil de la boucle, qui ne bat pas avec les images — une image recevait deux pas, la
+  suivante aucun. Il avance désormais **dans l'image, juste avant que la caméra bouge**
+  (`GlucoseApp::bouger_la_camera`), comme Chromium à chaque pas d'animation. **Probablement la
+  cause, à confirmer à son écran** ;
+* **57 s d'épisodes « zoomer »** dans sa boîte noire, là où il devait se déplacer : peut-être un
+  déplacement en biais que le système prend pour un pincement, et que la lecture bloque jusqu'à
+  la fin du geste (Blender et Chromium ont la même règle et le même seuil infime). La chronique
+  compte désormais ces **bascules** et leur plus petit écart d'échelle : sa prochaine session
+  tranchera.
+
+## 9. Pinterest, la copie d'abord
+
+Sa sortie de la session 54 : ses glisser **portaient l'adresse de l'image** (aucune page lue,
+aucune vignette glissée), et l'original a mis de 0,8 à **12,4 s** — un PNG de 2 Mo. La première
+copie qui arrive se pose désormais **tout de suite**, à la taille qu'aura l'original
+(`taille_d_un_apercu`), et l'original **prend sa place** : même nœud, même endroit, même taille
+(sauf si l'utilisateur l'a changée) ; une copie effacée ne revient pas
+(`interactions/depot_web/apercu.rs`). La copie part **seule d'abord** : en même temps que
+l'original, elle mettait 1,9 à 3,6 s (la bande passante disputée), seule 0,26 à 0,93 s. La
+décision de la course est pure (`rapatrier::Course`). Le remplacement est un geste du journal :
+un `Ctrl+Z` juste après rend la copie.
+
+## 10. Transformer une sélection entière — son « Blender »
+
+**Sa demande** : *« un système comme Blender : une origine combinée pour scale et rotate, et un
+autre bouton, origines individuelles »*. **Sur la planche** : C et B ses préférées, mais aucune
+ne le satisfait ; il penche pour **E** (un cadre et un fil), dont le dessin ne lui convient pas
+encore.
+
+**La recherche** : Blender, le *point de pivot* (« Bounding Box Center », « Individual
+Origins ») ; PureRef transforme le groupe, et chaque image autour de son centre sous `Maj+Alt`.
+
+**Ce qui est fait** : `glucose_core::groupe` (pur) — mise à l'échelle par un coin (coin opposé
+immobile, rapport gardé), rotation autour du centre du groupe ; origine commune ou individuelle,
+la même transformation autour du groupe ou de chaque centre. Le magasin relève la pose de
+départ de ce qu'un déplacement emporte et réécrit tout depuis elle, en un geste ; un bout de
+flèche accroché suit son nœud ; `Store::emprise_du_groupe` garde le cadre tant que ni le
+document ni la sélection ne changent. Deux nœuds choisis ou plus n'ont que **les quatre
+poignées de leur groupe** ; `Alt` + coin le fait tourner. Le bouton « Origine commune /
+Origines individuelles » vit dans la barre d'action. Le dessin E est **provisoire** : cadre du
+groupe et ses poignées, chaque nœud garde son cadre sans poignée.
+
+**Trouvé par l'épreuve à la vraie souris** : la collecte du clic par l'index ne voit que les
+nœuds proches du curseur — elle ne voyait donc jamais de groupe. Le cadre se lit désormais sur
+toute la sélection.
+
+**Ce qui n'est pas fait** : une carte de texte grandit sans que sa police suive (sa hauteur
+remonte à son texte) ; une carte, un pense-bête, une membrane ne tournent pas (le modèle ne
+leur donne pas d'angle — leur centre tourne avec le groupe) ; pas de raccourci clavier pour
+l'origine (sans rien qui le montre, il basculerait en silence) ; le dessin E à concevoir
+**avec lui**.
+
+**Prouvé** : 2 082 épreuves, clippy strict ; dans cette partie, vingt-neuf sabotages, vingt-neuf
+chutes ; témoins regardés. **Pas prouvé** : tout ce qui précède à son écran. Les commits de ces
+§ 8 à 10 (`a32e074`, `efab62f` et la documentation) **ne sont pas envoyés**.

@@ -90,7 +90,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 50 | [Le toucher : Android et l'iPad](50-LE-TOUCHER-ANDROID-ET-L-IPAD.md) | **le plan du chantier 3** de la suite |
 | 51 | [Ses retours sur la V2](51-SES-RETOURS-SUR-LA-V2.md) | la souris instantanée, le lot de nœuds, l'image au clic droit, Ctrl+N, le mode référence, le repos — **§ 9 : ses essais** |
 | 52 | [La carte de l'écran](52-LA-CARTE-DE-L-ECRAN.md) | ECRAN-1 (le lag : un balancier entre deux cartes), POIGNEE-1, le glisser qui se tait, le pincement — **§ 7 : ses essais** |
-| 53 | [Pinterest et le pavé](53-PINTEREST-ET-LE-PAVE.md) | DEPOT-WEB-6 (la page demandée compressée, un repli qui le dit, « Remplacer par l'image ») ; le pavé par *Direct Manipulation* ; la sélection en cinq directions — **§ 6 : ses essais** |
+| 53 | [Pinterest et le pavé](53-PINTEREST-ET-LE-PAVE.md) | DEPOT-WEB-6 (la page demandée compressée, un repli qui le dit, « Remplacer par l'image ») ; le pavé par *Direct Manipulation* ; la sélection en cinq directions ; `F` ; Pinterest la copie d'abord ; **transformer une sélection entière (§ 10)** — **§ 6 : ses essais** |
 
 ## Les décisions — **foi**
 

@@ -46,12 +46,13 @@ parfait ». Restent le pincement, le dessin de la sélection, et la publication.
 | [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
 | [x] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | « parfait » (07/10) |
 | [x] | **Le pincement au pavé** : *Direct Manipulation* (chantier 1 bis, fiche 53 § 2) | « dans l'idée c'est bien, le zoom maintenant » (07/10) |
-| [ ] | **Le déplacement à deux doigts** : « la translation, la multi-direction pose problème » — en horizontal et en biais (fiche 53 § 7) | la chronique sépare désormais les deux voies : **sa prochaine session dira laquelle**, avant tout réglage |
-| [~] | **Pinterest, DEPOT-WEB-6** : la page compressée, un repli qui dit pourquoi, « Remplacer par l'image » ; puis une session gardée et les variantes en course (fiche 53 § 1 et 7) | « fonctionne, mais plutôt long » → 1,3 s en général ; **l'instantané** : poser la vignette glissée, puis l'original — selon ce que ses dépôts portent |
+| [ ] | **Le déplacement à deux doigts** : « la translation, la multi-direction pose problème » — tout passe par *Direct Manipulation* ; le pavé avance désormais dans l'image (tressaut ×5,8) ; les bascules déplacement → pincement sont comptées (fiche 53 § 8) | **sa prochaine session** : la chronique dira tressaut et bascules |
+| [~] | **Pinterest, DEPOT-WEB-6** : la page compressée, un repli qui dit pourquoi, « Remplacer par l'image », une session gardée, les variantes en course, **la copie posée tout de suite puis remplacée par l'original** (fiche 53 § 1, 7, 9) | la copie en 0,3 à 0,9 s ; **à son écran** |
 | [~] | **`F` cadre la sélection (ou tout), `Ctrl+F` tout** — sa demande (fiche 53 § 7) | éprouvé par la vraie touche ; **à son écran**. `Ctrl+F` prend la place de la future recherche : à lui dire |
 | [x] | **La molette** : un tiers d'octave par cran (« pas du tout assez rapide » au huitième) | « parfait » (07/10) |
 | [x] | **Le mode référence, suite** : les panneaux retirés aussi de la voie graphique ; SIGNET-2 (les signets retiennent le centre) ; REFERENCE-3 (la fenêtre se redimensionne une fois par image — le gel qui a « failli planter » son PC, cause probable) | « parfait » (07/10) ; le gel n'est pas revenu |
-| [ ] | **Le dessin de la sélection** : « pas esthétique du tout » ; cinq directions **envoyées à son écran** (fiche 53 § 3), mon avis : E | **son choix** |
+| [~] | **Transformer une sélection entière**, origine commune ou individuelle, comme Blender (fiche 53 § 10) : poignées du groupe, `Alt` + coin pour tourner, bouton dans la barre | **à son écran** |
+| [ ] | **Le dessin de la sélection** : il penche pour **E** (un cadre et un fil), C et B ses préférées — mais « leur design ne me convient pas encore » (fiche 53 § 10) | **à concevoir avec lui** : planches de variantes de E |
 | [x] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | « parfait » (07/10) |
 | [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
 
@@ -169,7 +170,13 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 
 ## Ce qui n'attend que lui
 
-1. **Le serveur de la boîte noire** (chantier 4, la télémétrie qu'il attend).
+1. **Le serveur de la boîte noire** (chantier 4, la télémétrie qu'il attend). **Il n'a pas de
+   serveur** (07/10) et propose GitHub. Mon avis : GitHub ne reçoit pas de données anonymes sans
+   un jeton glissé dans l'application — n'importe qui le lirait et écrirait dans son dépôt, et
+   GitHub révoque les jetons publiés. Deux voies gratuites : **Cloudflare Workers** (offre
+   gratuite, sans carte, sans entretien, les données dans son compte) ; ou un bouton
+   « envoyer un rapport » qui ouvre une *issue* GitHub préremplie, au consentement de chacun
+   (zéro infrastructure, mais manuel). À trancher avec lui.
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien d'abord).
 4. Le modèle de sa souris : **il en a une** (07/10), mais navigue surtout au pavé tactile.

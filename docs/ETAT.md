@@ -49,13 +49,14 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 051 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
+* **Épreuves** : 2 082 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
   neuf tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android et le web, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule, les paquets Linux. Toutes vertes
   sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
   (`[skip ci]`), et ceux de la fiche 53 aussi, à sa demande (« je ne veux absolument pas que tu
   déclenches la CI », 07/10 au soir) : Linux et Mac **à vérifier avant la publication** (relus,
-  fiche 53 § 4 ; seule la CI le prouvera).
+  fiche 53 § 4 ; seule la CI le prouvera). **`a32e074`, `efab62f` et la documentation qui suit
+  ne sont pas envoyés.**
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -97,12 +98,14 @@ parfait », 07/10 au soir), sauf où c'est dit :
 
 * **le pincement au pavé**, par *Direct Manipulation* (fiche 53 § 2) : « c'est bien, le zoom
   maintenant » (07/10, 15 h 40) ;
-* **le déplacement à deux doigts** : « la translation, la multi-direction pose problème », en
-  horizontal et en biais — **pas encore compris** (fiche 53 § 7) ; la chronique dira par quelle
-  voie il arrive ;
+* **le déplacement à deux doigts** : « la translation, la multi-direction pose problème ». Tout
+  passe par *Direct Manipulation* ; le tressaut ×5,8 est probablement réglé (le pavé avance
+  dans l'image), et les bascules vers un pincement sont comptées (fiche 53 § 8) — **à son écran** ;
+* **transformer une sélection entière** (sa demande « comme Blender ») : poignées du groupe,
+  `Alt` + coin, bouton « Origine commune / individuelles » (fiche 53 § 10) — **à son écran** ;
 * **Pinterest** : six épingles devenues six liens le 07/10 (fiche 53 § 1) — la page arrivait
-  nue, 1,2 Mo au lieu de 127 Ko compressée. Corrigé : « ça fonctionne, mais plutôt long » →
-  1,3 s par épingle en général, depuis la session gardée et la course des variantes ;
+  nue, 1,2 Mo au lieu de 127 Ko compressée. Corrigé : « ça fonctionne, mais plutôt long » → la
+  copie se pose désormais en 0,3 à 0,9 s, et l'original la remplace (fiche 53 § 9) ;
 * **le dessin de la sélection** : « pas esthétique du tout ». Cinq directions **envoyées à son
   écran** (`docs/carnet/screens/53-selection-cinq-directions.png`) ; mon avis : E, un cadre
   pour le groupe et un fil fin par image (PureRef, Figma, tldraw) — **son choix** ;

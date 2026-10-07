@@ -29,7 +29,7 @@ jamais en menu.
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace                 # ~2 050 épreuves, dont les cliquets
+cargo test --workspace                 # ~2 080 épreuves, dont les cliquets
 bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (neuf tâches)
 python outils/saboter.py <sabotages.json>   # exiger qu'une épreuve tombe quand on casse sa garde
 ```
