@@ -11,16 +11,20 @@
 
 ## 1. Ses retours sur la V2, et la 2.0.2 bêta — **d'abord**
 
-Il a approuvé l'ordre le 06/10 et ajouté trois retours le même jour. **Tout est écrit et éprouvé
-hors écran depuis la session des 06-07/10 (fiche 51)** ; ce qui reste, c'est **son écran** — la
-liste de la fiche 51 § 9 —, puis la publication.
+Fiches 51 et 52. Au soir du 07/10, **presque tout est jugé à son écran** : « tout est absolument
+parfait ». Restent le pincement, le dessin de la sélection, et la publication.
+
+> **La CI n'a pas vu les commits du 07/10 après `20deb6f`.** Il a demandé l'envoi **sans**
+> déclencher la vérification (le dernier commit porte `[skip ci]`). Or ils touchent du code
+> propre aux autres systèmes (`plateforme/ecran.rs`, `plateforme::glisser_un_lot`) : **avant la
+> publication**, lui proposer un envoi qui lance la CI, et en lire le résultat.
 
 `[x]` fini et prouvé · `[~]` écrit, éprouvé hors écran, **attend son jugement à l'écran** · `[ ]` à faire
 
 | | chantier | où en est-il |
 |---|---|---|
 | [x] | **La version de travail en `2.0.2-dev`** | l'épreuve compare à tout ce qui est publié (sabotée : elle tombe) |
-| [~] | **La souris instantanée** : deux portes dans l'élan, la souris montrée à l'image suivante | **il n'a pas de souris** (07/10) : ce sont d'autres mains qui le diront. La roue libre reste un doute pour elles ; la réponse est *Direct Manipulation* (chantier 5) |
+| [x] | **La souris instantanée** : deux portes dans l'élan, la souris montrée à l'image suivante | essayée à la souris le 07/10 : « tout est absolument parfait » ; il navigue surtout au pavé |
 | [x] | **Copier, couper, coller des nœuds, d'une fenêtre à l'autre** : le lot `.glucose`, le format « Glucose.Lot », le collage au curseur en un geste ; le glisser entre fenêtres (`DoDragDrop`) | **« absolument parfait »**, et le glisser entre deux fenêtres aussi (07/10) |
 | [x] | **Clic droit sur une image : « Copier l'image » et « Enregistrer l'image sous… »** | **« parfait »**, Discord compris (07/10) |
 | [x] | **`Ctrl+N` : un nouveau document**, et l'entrée du menu | **demande toujours** (NOUVEAU-1) : « fonctionne parfaitement » (07/10) |
@@ -28,13 +32,41 @@ liste de la fiche 51 § 9 —, puis la publication.
 | [x] | **Le repos à zéro image** : la chronique du 07/10 le dit raison par raison | **aucune raison spontanée** : les messages qui s'effacent et les glissades qui finissent |
 | [x] | **La CI de `20deb6f`** (la voie hors Windows du presse-papiers) | neuf tâches vertes |
 | [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
-| [~] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | son œil, au dézoom : la grille blanche du cadre restait après les poignées |
-| [~] | **Le pincement au pavé** : la conduite sans la glissade, 0,22 d'octave par unité — « nette amélioration, mais pas encore ça » ; la réponse de fond est *Direct Manipulation* (chantier 5) | son doigt |
-| [~] | **La molette** : un tiers d'octave par cran (« pas du tout assez rapide » au huitième) | sa main, à la souris |
-| [~] | **Le mode référence, suite** : les panneaux retirés aussi de la voie graphique ; SIGNET-2 (les signets retiennent le centre) ; REFERENCE-3 (la fenêtre se redimensionne une fois par image — le gel qui a « failli planter » son PC, cause probable) | son écran |
+| [x] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | « parfait » (07/10) |
+| [~] | **Le pincement au pavé** : la conduite sans la glissade, 0,22 d'octave par unité — « nette amélioration, mais pas encore ça » ; la réponse de fond est *Direct Manipulation* (chantier 5) | « légèrement trop lent, et pas fluide, comme s'il sautait » ; PureRef et un navigateur sont « instantanés et fluides » → **chantier 1 bis, *Direct Manipulation*** |
+| [x] | **La molette** : un tiers d'octave par cran (« pas du tout assez rapide » au huitième) | « parfait » (07/10) |
+| [x] | **Le mode référence, suite** : les panneaux retirés aussi de la voie graphique ; SIGNET-2 (les signets retiennent le centre) ; REFERENCE-3 (la fenêtre se redimensionne une fois par image — le gel qui a « failli planter » son PC, cause probable) | « parfait » (07/10) ; le gel n'est pas revenu |
 | [ ] | **Le dessin de la sélection** : « pas esthétique du tout » ; quatre directions monochromes lui sont montrées (fiche 52 § 9) | **son choix** |
-| [~] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | son écran (fiche 51 § 9, 3) |
+| [x] | **Le glisser vers une autre fenêtre** : la fenêtre d'origine se peint avant de partir, et ne fait plus tourner un cœur à vide | « parfait » (07/10) |
 | [ ] | **Publier la 2.0.2-beta.1** : notes écrites (`outils/publication/notes.md`) ; son geste (Actions → Publier, `2.0.2-beta.1`, brouillon coché, relire, publier) | **après** ses essais à l'écran |
+
+## 1 bis. Le pincement par *Direct Manipulation* — **ensuite**
+
+**Pourquoi** : son jugement du 07/10, après trois réglages — « légèrement trop lent, et pas
+fluide, comme s'il sautait », alors que PureRef et un navigateur pincent « instantanément, de
+manière fluide ». Glucose reçoit le pincement d'un pavé de précision sous la forme que Windows
+donne aux applications qui ne savent pas mieux : un `Ctrl` + molette fractionné, par paquets
+(fiche 33, `interactions/pincement.rs`). Aucun réglage de gain ni de lissage ne rend la
+continuité qu'il a perdue en route. Chromium et Blender prennent le pavé par *Direct
+Manipulation* (`IDirectManipulationManager`, viewport, `DM_POINTERHITTEST`) : l'échelle, le
+déplacement et l'inertie arrivent tels que le doigt les fait, à la cadence du pavé (fiche 51
+§ 1, ses sources).
+
+**Fini quand** : à son écran, le pincement est « instantané et fluide » comme dans PureRef ; et
+tout ce qui arrive encore en molette vient d'une molette (ce qui règle aussi le doute des roues
+libres). Une recherche d'abord : le code de Chromium (`direct_manipulation_helper_win.cc`) et le
+commit de Blender cité en fiche 51 § 1 ; puis une dépendance éventuelle à défendre dans
+`carnet/decisions/` (la caisse `windows` a la fonctionnalité `Win32_Graphics_DirectManipulation`).
+
+## 1 ter. Le dessin de la sélection
+
+**Pourquoi** : « pas esthétique du tout » (07/10). `style.md` impose une chrome monochrome,
+héritée de Glucose Tauri. Quatre directions lui ont été dessinées hors écran : `docs/carnet/
+screens/52-selection-quatre-directions.png` — A aujourd'hui, B des équerres aux coins, C un fil
+et quatre points, D un cadre unique pour le groupe. **Il ne sait pas où regarder les fichiers** :
+la lui **montrer** (l'envoyer à l'écran), recueillir son choix, puis l'écrire dans la loi des
+ornements (`hit_priority::chrome_ratio`, `renderer/handles.rs`, `scene/image/ornement.rs`) et
+dans `style.md`. Si c'est la couleur qui lui manque, c'est `style.md` qui change — sa décision.
 
 ## 2. La boîte noire qui voyage
 

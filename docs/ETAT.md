@@ -1,7 +1,7 @@
 # Où en est Glucose
 
-> **Au 07/10/2026**, après la session de ses retours sur la V2 (fiche 51) et celle de la carte
-> de l'écran (fiche 52). Ce document dit l'état **vérifié** du projet,
+> **Au 07/10/2026 au soir**, après la session de ses retours sur la V2 (fiche 51) et celle de la
+> carte de l'écran (fiche 52). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -48,10 +48,11 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : environ 2 020 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
+* **Épreuves** : environ 2 030 sous Windows, clippy strict à zéro. **Sur GitHub, à chaque envoi,
   neuf tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android et le web, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule, les paquets Linux. Toutes vertes
-  au dernier envoi.
+  sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
+  (`[skip ci]`) : à vérifier avant la publication.
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -74,24 +75,35 @@ canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur 
 plugins et IA locale · Mac · Android · iPad. Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 
-## 6. Ses retours sur la V2 (06/10) — écrits, pas encore vus
+## 6. Ses retours sur la V2 — jugés à son écran le 07/10
 
-Les six retours (la souris, `Ctrl+N`, le mode référence, le copier-coller, copier et enregistrer
-une image) sont **écrits et éprouvés hors écran** (fiche 51) : plus de deux mille épreuves vertes,
-chaque garde sabotée. **Aucun n'a encore été jugé à son écran** : c'est la liste de la fiche 51
-§ 9, et elle passe avant la publication de la 2.0.2-beta.1.
+Fiches 51 et 52. **Tout ce qui suit est vu et approuvé à son écran** (« tout est absolument
+parfait », 07/10 au soir), sauf où c'est dit :
 
-**Son écran a jugé, le 07/10 (fiche 52 § 8)** : le copier-coller de nœuds, entre deux fenêtres
-et glissé de l'une à l'autre, et « Copier l'image » dans Discord sont **parfaits**. Le lag est
-réglé (ECRAN-1). **Il n'a pas de souris** : il navigue au pavé tactile.
+* le copier-coller de nœuds, entre deux fenêtres et glissé de l'une à l'autre ; « Copier
+  l'image » dans Discord et « Enregistrer l'image sous… » ;
+* `Ctrl+N`, qui **demande toujours** (NOUVEAU-1) ;
+* le mode référence (`Ctrl+Maj+A`) : sans interface ni panneaux, au premier plan ; au pavé,
+  `Alt` + glisser déplace la fenêtre et `Alt` + pincer la redimensionne (une fois par image,
+  REFERENCE-3) ; les signets retiennent le **centre** de la vue (SIGNET-2) ;
+* les poignées, le cadre et l'anneau de sélection qui suivent la taille des nœuds (POIGNEE-1) ;
+* la molette : trois crans doublent ;
+* **le lag réglé** (ECRAN-1, la carte qui tient l'écran).
 
-Écrits depuis, et pas encore vus : les poignées **et le cadre** de sélection qui suivent la
-taille des nœuds au dézoom ; le pincement **direct**, sans glissade ; `Ctrl+N` qui dit que le
-document nommé est enregistré ; au mode référence, `Alt` + glisser et `Alt` + pincer pour la
-fenêtre, et le mode qui se désagrandit (l'application NVIDIA lui appliquait RTX HDR).
+**Ouvert** :
 
-Ouvert : **les signets** `1`, `Ctrl+1` qui ne répondaient pas à son écran (non reproduit) ;
-l'**opacité** et les **clics qui traversent** du mode référence, s'il les veut.
+* **le pincement au pavé** : « légèrement trop lent, et pas fluide, comme s'il sautait » ; sur
+  internet ou dans PureRef, il est « instantané et fluide ». Glucose le reçoit en `Ctrl` +
+  molette fractionnée, traduit par Windows : la réponse de fond est *Direct Manipulation*
+  (SUITE, chantier 1) ;
+* **le dessin de la sélection** : « pas esthétique du tout ». Quatre directions monochromes
+  attendent son choix, sur une planche à lui **montrer** (`docs/carnet/screens/52-selection-
+  quatre-directions.png`) — il ne sait pas où regarder les fichiers ;
+* le gel qui a « failli planter » son PC : cause probable, la rafale de redimensionnements de
+  `Alt` + pincer, corrigée (REFERENCE-3) — pas revu depuis ;
+* l'opacité et les clics qui traversent du mode référence, s'il les veut.
+
+**Il navigue surtout au pavé tactile**, et a essayé une souris le 07/10.
 
 ## 7. Points de vigilance
 
