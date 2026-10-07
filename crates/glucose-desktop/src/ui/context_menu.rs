@@ -204,7 +204,7 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
             "Ctrl+Maj+A",
         )));
         // Sans serveur, ces entrées n'ont pas d'objet : elles n'existent pas.
-        if crate::telemetrie::ADRESSE.is_some() {
+        if crate::telemetrie::serveur().is_some() {
             defs.push(None);
             defs.push(Some((
                 MenuAction::JournalTechnique,

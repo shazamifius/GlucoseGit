@@ -239,3 +239,27 @@ fn test_l_envoi_atteint_le_serveur_tel_qu_il_l_attend() {
     assert_eq!(verbe, "DELETE");
     assert_eq!(chemin, format!("/v1/installations/{INSTALLATION}"));
 }
+
+/// **« Non » après « oui » efface ce qui est parti, sur le serveur** : la requête d'effacement
+/// part vers lui, pour l'identifiant d'avant — un serveur local, jamais Internet.
+#[test]
+fn test_non_apres_oui_efface_sur_le_serveur() {
+    let d = Dossier::nouveau("effacer");
+    let (racine, recu) = serveur_local(200);
+    let mut t = Telemetrie::habiter_avec(d.0.clone(), None, Some(racine));
+    t.repondre(true).expect("écrit");
+    let avant = Accord::charger(&d.0).installation;
+    t.repondre(false).expect("écrit");
+    let (verbe, chemin, _, _) = recu
+        .recv_timeout(std::time::Duration::from_secs(30))
+        .expect("l'effacement est parti");
+    assert_eq!(verbe, "DELETE");
+    assert_eq!(chemin, format!("/v1/installations/{avant}"));
+}
+
+/// **Une épreuve n'a jamais le serveur du programme** : aucune n'atteint Internet.
+#[test]
+fn test_une_epreuve_n_a_jamais_le_serveur_du_programme() {
+    assert_eq!(super::serveur(), None);
+    assert!(super::ADRESSE.starts_with("https://"));
+}

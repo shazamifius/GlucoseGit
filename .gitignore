@@ -61,3 +61,6 @@ android/build/
 android/app/build/
 android/app/src/main/jniLibs/
 android/local.properties
+
+# Le cache de wrangler (Cloudflare) : le compte de la machine qui déploie
+outils/telemetrie/.wrangler/

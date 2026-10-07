@@ -10,7 +10,7 @@
     {
       "binding": "BASE",
       "database_name": "glucose-boite-noire",
-      "database_id": "A-REMPLIR-A-LA-CREATION"
+      "database_id": "5d5141eb-81f9-4440-8d20-cad13bffe174"
     }
   ],
   // Aucun journal des requêtes : ils porteraient l'adresse IP de chaque envoi.

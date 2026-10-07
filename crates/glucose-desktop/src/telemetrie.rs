@@ -20,9 +20,18 @@ pub mod envoi;
 use accord::Accord;
 use std::path::PathBuf;
 
-/// **L'adresse du serveur**, dans son compte Cloudflare — `None` tant qu'il n'est pas déployé :
-/// rien ne se demande, rien ne part, et l'entrée du menu n'existe pas.
-pub const ADRESSE: Option<&str> = None;
+/// **L'adresse du serveur**, dans son compte Cloudflare (déployé le 08/10, fiche 54 § 6).
+pub const ADRESSE: &str = "https://glucose-boite-noire.ferme-nilslamber.workers.dev";
+
+/// **Le serveur du programme** — jamais celui d'une épreuve : aucune épreuve n'atteint le réseau
+/// (celles qui envoient se donnent un serveur local, [`Telemetrie::habiter_avec`]).
+pub fn serveur() -> Option<&'static str> {
+    if cfg!(test) {
+        None
+    } else {
+        Some(ADRESSE)
+    }
+}
 
 /// Ce que la télémétrie sait de cette machine.
 #[derive(Debug, Default)]
@@ -33,17 +42,29 @@ pub struct Telemetrie {
     accord: Option<Accord>,
     /// La session en cours, qui ne part qu'au lancement suivant.
     courante: Option<PathBuf>,
+    /// Où tout part — sans serveur, rien ne se demande ni ne part.
+    serveur: Option<String>,
 }
 
 impl Telemetrie {
     /// **Au lancement** : le dossier de l'application et la session qui commence. L'accord se
     /// relit ; un accord donné fait partir les sessions closes, sur un fil à part.
     pub fn habiter(dossier: PathBuf, courante: Option<PathBuf>) -> Self {
+        Self::habiter_avec(dossier, courante, serveur().map(str::to_string))
+    }
+
+    /// [`Self::habiter`], vers ce serveur.
+    pub fn habiter_avec(
+        dossier: PathBuf,
+        courante: Option<PathBuf>,
+        serveur: Option<String>,
+    ) -> Self {
         let accord = Accord::charger(&dossier);
         let t = Self {
             dossier: Some(dossier),
             accord: Some(accord),
             courante,
+            serveur,
         };
         t.envoyer_si_accorde();
         t
@@ -51,7 +72,7 @@ impl Telemetrie {
 
     /// Faut-il poser la question ? Une fois, s'il y a un serveur et que personne n'a répondu.
     pub fn a_demander(&self) -> bool {
-        ADRESSE.is_some() && self.accord.as_ref().is_some_and(|a| a.envoyer.is_none())
+        self.serveur.is_some() && self.accord.as_ref().is_some_and(|a| a.envoyer.is_none())
     }
 
     /// L'accord en cours : `Some(true)` si les sessions partent.
@@ -68,8 +89,8 @@ impl Telemetrie {
             return Ok(());
         };
         if !oui && accord.envoyer == Some(true) {
-            if let Some(adresse) = ADRESSE {
-                envoi::effacer_en_fond(adresse.to_string(), accord.installation.clone());
+            if let Some(adresse) = &self.serveur {
+                envoi::effacer_en_fond(adresse.clone(), accord.installation.clone());
             }
             accord.installation = accord::nouvel_identifiant();
         }
@@ -87,13 +108,14 @@ impl Telemetrie {
     }
 
     fn envoyer_si_accorde(&self) {
-        let (Some(adresse), Some(dossier), Some(accord)) = (ADRESSE, &self.dossier, &self.accord)
+        let (Some(adresse), Some(dossier), Some(accord)) =
+            (&self.serveur, &self.dossier, &self.accord)
         else {
             return;
         };
         if accord.envoyer == Some(true) {
             envoi::envoyer_en_fond(
-                adresse.to_string(),
+                adresse.clone(),
                 dossier.clone(),
                 accord.installation.clone(),
                 self.courante.clone(),
