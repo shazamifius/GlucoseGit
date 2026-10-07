@@ -17,6 +17,7 @@ pub mod context_menu;
 pub mod minimap;
 pub mod onglets;
 pub mod options_de_fleche;
+pub mod question;
 pub mod rail;
 pub mod toast;
 
@@ -127,6 +128,12 @@ pub struct UiState {
     /// **Le menu ouvert l'a été au doigt** (fiche 56) : ses entrées prennent la taille d'un
     /// doigt, et taisent les raccourcis d'un clavier qu'on n'a pas.
     pub menu_au_doigt: bool,
+    /// **La question posée**, quand Glucose la dessine (QUESTION-1), et ce que sa réponse
+    /// déclenchera.
+    pub question: Option<(question::Question, question::Suite)>,
+    /// **Les questions se dessinent** là où le système n'a pas de dialogues qu'on appelle —
+    /// Android (QUESTION-1) ; ailleurs, ce sont les siens.
+    pub questions_dessinees: bool,
     pub scale_factor: f32,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
@@ -180,6 +187,8 @@ impl UiState {
             current_toast: None,
             context_menu_at: None,
             menu_au_doigt: false,
+            question: None,
+            questions_dessinees: cfg!(target_os = "android"),
             scale_factor: 1.0,
             minimap_cache: None,
             bande_cache: None,
@@ -354,6 +363,23 @@ fn poser_ce_qui_attend_une_decision(
     if let Some(ref toast) = ui.current_toast {
         toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
     }
+    dessiner_le_menu(pixmap, (ui, store), (typo, theme), (w, h), pointer);
+    // La question passe par-dessus tout : ce qui est derrière attend sa réponse (QUESTION-1).
+    if let Some((q, _)) = &ui.question {
+        let placee = question::placer(q, typo, (w, h), ui.scale_factor);
+        let ou = (pointer.x, pointer.y);
+        question::dessiner(pixmap, &placee, (typo, theme), ou, ui.scale_factor);
+    }
+}
+
+/// Le menu contextuel, s'il est ouvert.
+fn dessiner_le_menu(
+    pixmap: &mut PixmapMut,
+    (ui, store): (&UiState, &Store),
+    (typo, theme): (&Typography, &Theme),
+    (w, h): (f32, f32),
+    pointer: Pointer,
+) {
     let Some(at) = ui.context_menu_at else {
         return;
     };

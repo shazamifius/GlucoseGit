@@ -64,6 +64,8 @@ pub enum MenuAction {
     Copier,
     /// Un document vierge, à la place de celui-ci (fiche 51 § 4).
     NouveauDocument,
+    /// Un autre document : le sélecteur de fichiers, ou la liste du téléphone (fiche 56).
+    OuvrirUnDocument,
     /// Entrer dans le mode référence, ou en sortir (fiche 51 § 5).
     ModeReference,
     /// La même, puis retirée une fois copiée.
@@ -218,6 +220,11 @@ fn entrees_du_vide() -> Vec<Def> {
         Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")),
         None,
         Some((MenuAction::NouveauDocument, "Nouveau document", "Ctrl+N")),
+        Some((
+            MenuAction::OuvrirUnDocument,
+            "Ouvrir un document…",
+            "Ctrl+O",
+        )),
     ];
     // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
     if !cfg!(target_os = "android") {

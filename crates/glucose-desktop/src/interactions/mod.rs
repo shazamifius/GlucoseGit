@@ -25,6 +25,7 @@ pub mod pick;
 pub mod pincement;
 pub mod placement;
 pub mod presse_papiers;
+pub mod question;
 pub mod recadrage;
 pub mod reference;
 pub mod resize;

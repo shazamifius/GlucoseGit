@@ -45,6 +45,9 @@ pub struct Disque {
     /// épreuves, les bancs, les exemples — habite un dossier temporaire qui n'appartient à
     /// personne.
     pub brouillons: PathBuf,
+    /// **Les documents du téléphone** (DOCUMENTS-1) : là où un travail sans nom se range
+    /// d'office quand on le quitte. Le vrai lancement seul y met le dossier de l'utilisateur.
+    pub documents: PathBuf,
 }
 
 impl Disque {
@@ -56,6 +59,7 @@ impl Disque {
             a_sceller: Vec::new(),
             voyage: None,
             brouillons: crate::app::accueil::dossier_hors_lancement().join("brouillons"),
+            documents: crate::app::accueil::dossier_hors_lancement().join("documents"),
         }
     }
 }

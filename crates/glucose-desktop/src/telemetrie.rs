@@ -124,17 +124,58 @@ impl Telemetrie {
     }
 }
 
+/// Le texte de la question, autour du geste qui y revient.
+macro_rules! la_question {
+    ($geste:expr) => {
+        concat!(
+            "Aider à améliorer Glucose ?\n\n",
+            "À chaque lancement, Glucose peut envoyer le journal technique de la session ",
+            "précédente : le temps que chaque image a pris, le système et le processeur, la façon ",
+            "dont la session a fini. Jamais le contenu de tes documents, ni un nom, ni un fichier, ",
+            "ni ton adresse.\n\n",
+            "Tu peux changer d'avis à tout moment (",
+            $geste,
+            ", puis Journal technique) : ce qui est parti s'efface alors."
+        )
+    };
+}
+
+/// Le geste qui ouvre le menu du canevas, là où l'on est : la main n'a pas de clic droit.
+#[cfg(target_os = "android")]
+macro_rules! revenir {
+    () => {
+        "deux touchers sur le vide"
+    };
+}
+#[cfg(not(target_os = "android"))]
+macro_rules! revenir {
+    () => {
+        "clic droit sur le canevas"
+    };
+}
+
 /// **La question**, telle qu'elle s'affiche : ce qui part, pourquoi, et ce qui n'en part jamais.
-pub const QUESTION: &str = "Aider à améliorer Glucose ?
-
-    À chaque lancement, Glucose peut envoyer le journal technique de la session précédente :     le temps que chaque image a pris, le système et le processeur, la façon dont la session a     fini. Jamais le contenu de tes documents, ni un nom, ni un fichier, ni ton adresse.
-
-    Tu peux voir exactement ce qui part (clic droit sur le canevas, puis Journal technique),     et changer d'avis à tout moment : ce qui est parti s'efface alors.";
+///
+/// Un paragraphe par ligne : le dialogue du système et la question dessinée (QUESTION-1) coupent
+/// eux-mêmes à leur largeur. Le geste qui y revient est celui de la main qu'on a : le clic
+/// droit, ou deux touchers sur le vide.
+pub const QUESTION: &str = la_question!(revenir!());
 
 /// **La question, quand on y revient par le menu** et que le journal part déjà.
-pub const ARRETER: &str = "Glucose envoie le journal technique de chaque session.
+pub const ARRETER: &str = concat!(
+    "Glucose envoie le journal technique de chaque session.\n\n",
+    "Continuer à l'envoyer ? « Non » l'arrête, et efface ce qui est déjà parti."
+);
 
-    Continuer à l'envoyer ? « Non » l'arrête, et efface ce qui est déjà parti.";
+/// La question du journal technique : « Oui » d'abord, la réponse qu'on lit en premier.
+fn question(texte: &str) -> crate::ui::question::Question {
+    use crate::ui::question::{Question, Reponse};
+    Question {
+        titre: "Journal technique".into(),
+        texte: texte.into(),
+        choix: vec![("Oui".into(), Reponse::Oui), ("Non".into(), Reponse::Non)],
+    }
+}
 
 impl crate::app::GlucoseApp {
     /// **La question, une seule fois** : à l'ouverture de la fenêtre, s'il y a un serveur et que
@@ -143,23 +184,17 @@ impl crate::app::GlucoseApp {
         if !self.lancement.telemetrie.a_demander() {
             return;
         }
-        let oui = self.sous_un_dialogue(|ancre| {
-            crate::dialogue::oui_ou_non(ancre, "Journal technique", QUESTION)
-        });
-        self.repondre_a_la_telemetrie(oui);
+        self.demander(question(QUESTION), crate::ui::question::Suite::Telemetrie);
     }
 
     /// **Y revenir par le menu** : la question entière si rien ne part, « continuer ? » sinon.
     pub(crate) fn revoir_la_telemetrie(&mut self) {
-        let question = if self.lancement.telemetrie.accorde() == Some(true) {
+        let texte = if self.lancement.telemetrie.accorde() == Some(true) {
             ARRETER
         } else {
             QUESTION
         };
-        let oui = self.sous_un_dialogue(|ancre| {
-            crate::dialogue::oui_ou_non(ancre, "Journal technique", question)
-        });
-        self.repondre_a_la_telemetrie(oui);
+        self.demander(question(texte), crate::ui::question::Suite::Telemetrie);
     }
 
     /// **Voir ce qui part** : le dossier de la boîte noire, dans l'explorateur du système.
@@ -169,7 +204,7 @@ impl crate::app::GlucoseApp {
         }
     }
 
-    fn repondre_a_la_telemetrie(&mut self, oui: bool) {
+    pub(crate) fn repondre_a_la_telemetrie(&mut self, oui: bool) {
         if let Err(e) = self.lancement.telemetrie.repondre(oui) {
             eprintln!("[Glucose] journal technique : la reponse n'a pas pu s'ecrire ({e})");
         }

@@ -115,6 +115,7 @@ impl GlucoseApp {
             MenuAction::Copier => self.copy_selection(false),
             MenuAction::Couper => self.copy_selection(true),
             MenuAction::NouveauDocument => self.nouveau_document(),
+            MenuAction::OuvrirUnDocument => self.choisir_un_document(),
             MenuAction::ModeReference => self.basculer_le_mode_reference(),
             MenuAction::JournalTechnique => self.revoir_la_telemetrie(),
             MenuAction::VoirCeQuiPart => self.voir_ce_qui_part(),

@@ -5,8 +5,16 @@
 //!
 //! ```text
 //! envoyer=oui
+//! vue=oui
 //! installation=3f9c0d…
 //! ```
+//!
+//! # VUE-1 — une réponse que personne n'a donnée n'en est pas une (fiche 56)
+//!
+//! Sous Android, avant la question dessinée (QUESTION-1), le dialogue du système n'existait
+//! pas et répondait « non » — et ce refus s'écrivait comme si quelqu'un l'avait donné. Toute
+//! réponse s'écrit désormais avec `vue=oui` ; sous Android, une réponse qui ne la porte pas
+//! est celle que Glucose a donnée à sa place, et la question se repose.
 
 use std::path::Path;
 
@@ -26,6 +34,11 @@ impl Accord {
     /// **Lit l'accord** ; ce qui manque ou ne se reconnaît pas n'est pas une réponse, et un
     /// identifiant qui manque se tire au hasard.
     pub fn lire(texte: &str) -> Self {
+        Self::lire_ici(texte, cfg!(target_os = "android"))
+    }
+
+    /// [`Self::lire`], sur un système qui a ses dialogues ou non (VUE-1).
+    pub(crate) fn lire_ici(texte: &str, sans_dialogues: bool) -> Self {
         let valeur = |cle: &str| {
             texte
                 .lines()
@@ -37,6 +50,8 @@ impl Accord {
             Some("non") => Some(false),
             _ => None,
         };
+        let vue = valeur("vue") == Some("oui");
+        let envoyer = envoyer.filter(|_| vue || !sans_dialogues);
         let installation = valeur("installation")
             .filter(|i| est_un_identifiant(i))
             .map_or_else(nouvel_identifiant, str::to_string);
@@ -53,7 +68,11 @@ impl Accord {
             Some(false) => "non",
             None => "",
         };
-        format!("envoyer={envoyer}\ninstallation={}\n", self.installation)
+        let vue = if self.envoyer.is_some() { "oui" } else { "" };
+        format!(
+            "envoyer={envoyer}\nvue={vue}\ninstallation={}\n",
+            self.installation
+        )
     }
 
     /// L'accord de cette machine, ou aucun s'il n'y a pas encore de fichier.

@@ -51,6 +51,7 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
             MenuAction::Paste,
             MenuAction::SelectAll,
             MenuAction::NouveauDocument,
+            MenuAction::OuvrirUnDocument,
             MenuAction::ModeReference
         ],
         "sans sélection, ni dupliquer ni supprimer n'ont d'objet"

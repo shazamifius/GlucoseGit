@@ -39,6 +39,7 @@
 //! répondent « rien » en attendant ceux du système (fiche 54).
 
 use crate::app::GlucoseApp;
+use crate::ui::question::Reponse;
 use winit::window::Window;
 
 /// La fenêtre à laquelle un dialogue s'accroche — et la preuve qu'il s'ouvre sous
@@ -140,6 +141,23 @@ pub fn oui_ou_non(ancre: Ancre<'_>, titre: &str, question: &str) -> bool {
             reponse,
             rfd::MessageDialogResult::Yes | rfd::MessageDialogResult::Ok
         )
+    }
+}
+
+/// **Pose une question de Glucose** par le dialogue du système (QUESTION-1) : deux réponses,
+/// un oui ou non ; trois, un oui, non ou annuler. Le sens de chacune est dans le texte, pas
+/// sur les boutons du système, qui gardent leurs mots à eux.
+pub fn poser(ancre: Ancre<'_>, question: &crate::ui::question::Question) -> Reponse {
+    if question.choix.len() > 2 {
+        match oui_non_ou_annuler(ancre, &question.titre, &question.texte) {
+            Some(true) => Reponse::Oui,
+            Some(false) => Reponse::Non,
+            None => Reponse::Annuler,
+        }
+    } else if oui_ou_non(ancre, &question.titre, &question.texte) {
+        Reponse::Oui
+    } else {
+        Reponse::Non
     }
 }
 

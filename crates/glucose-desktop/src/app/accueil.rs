@@ -75,6 +75,7 @@ impl super::GlucoseApp {
     /// temporaire, `main.rs` seul sur celui de l'utilisateur.
     pub fn habiter(&mut self, dossier: &std::path::Path) {
         self.disque.brouillons = dossier.join("brouillons");
+        self.disque.documents = dossier.join("documents");
         // Une image vue une fois s'ouvrira ensuite déjà montrée (ETAGES-4).
         self.renderer
             .magasin

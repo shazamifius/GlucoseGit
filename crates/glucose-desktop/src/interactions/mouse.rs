@@ -230,7 +230,8 @@ impl GlucoseApp {
     /// Le clic gauche descend les couches ; la première qui le prend l'arrête.
     fn handle_left_down(&mut self, screen: ScreenFrame) {
         let pointer = self.pointer();
-        let taken = self.click_context_menu(pointer, screen)
+        let taken = self.cliquer_la_question(pointer, screen)
+            || self.click_context_menu(pointer, screen)
             || self.click_ancrage(pointer)
             || self.click_skips_flight()
             || self.redimensionner_par_le_bord()

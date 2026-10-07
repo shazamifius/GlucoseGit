@@ -109,6 +109,11 @@ impl GlucoseApp {
         if !self.is_dirty() {
             return true;
         }
+        // Sans dialogues — au téléphone —, rien ne se demande : le travail sans nom se range
+        // dans les documents, sous un nom libre (DOCUMENTS-1).
+        if self.ui.questions_dessinees {
+            return self.ranger_dans_les_documents();
+        }
         let label = self.document_label();
         let choix = self.sous_un_dialogue(|fenetre| ask_unsaved_changes(fenetre, &label));
         self.laisser_avec(choix)

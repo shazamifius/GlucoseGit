@@ -10,6 +10,7 @@
 use glucose_core::store::Store;
 use glucose_core::types::BoardImage;
 use glucose_desktop::bench;
+use glucose_desktop::ui::question::{Question, Reponse, Suite};
 
 fn document() -> Store {
     let mut store = Store::new("apercu");
@@ -53,6 +54,44 @@ fn main() {
         &format!("{dossier}/telephone-debout-menu-au-doigt.png"),
         &png,
     );
+    // La liste des documents, telle que le téléphone la dessine (fiche 56, DOCUMENTS-1).
+    for (nom, question) in [("documents", liste()), ("question", nouveau())] {
+        let mut store = document();
+        bench::frame_document(&mut store, 0.6, 720, 1600);
+        let png = bench::capture_with(&store, 720, 1600, |ui| {
+            ui.scale_factor = 2.0;
+            ui.question = Some((question, Suite::Ouvrir(Vec::new())));
+        });
+        ecrire(&format!("{dossier}/telephone-debout-{nom}.png"), &png);
+    }
+}
+
+/// La liste de quatre documents rangés.
+fn liste() -> Question {
+    let mut choix: Vec<(String, Reponse)> =
+        ["Canevas 3", "Planches Mary", "Canevas 2", "Canevas 1"]
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.to_string(), Reponse::Choix(i)))
+            .collect();
+    choix.push(("Annuler".into(), Reponse::Annuler));
+    Question {
+        titre: "Documents".into(),
+        texte: String::new(),
+        choix,
+    }
+}
+
+/// La question de « Nouveau document ».
+fn nouveau() -> Question {
+    Question {
+        titre: "Créer un nouveau document ?".into(),
+        texte: "« Canevas 2 » est enregistré : il reste où il est, et se rouvre par Ouvrir.".into(),
+        choix: vec![
+            ("Créer".into(), Reponse::Oui),
+            ("Annuler".into(), Reponse::Non),
+        ],
+    }
 }
 
 fn ecrire(chemin: &str, png: &[u8]) {

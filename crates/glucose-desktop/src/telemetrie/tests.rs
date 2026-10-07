@@ -263,3 +263,82 @@ fn test_une_epreuve_n_a_jamais_le_serveur_du_programme() {
     assert_eq!(super::serveur(), None);
     assert!(super::ADRESSE.starts_with("https://"));
 }
+
+/// **VUE-1 : une réponse que personne n'a donnée n'en est pas une.** L'ancien Glucose, sous
+/// Android, écrivait « non » sans rien demander ; ce refus-là ne compte pas, et la question se
+/// repose. Au bureau, la même ligne était une vraie réponse, donnée au dialogue du système.
+#[test]
+fn test_vue_1_une_reponse_que_personne_n_a_vue_ne_compte_pas_au_telephone() {
+    let ancien = "envoyer=non\ninstallation=0123456789abcdef0123456789abcdef\n";
+    assert_eq!(
+        Accord::lire_ici(ancien, true).envoyer,
+        None,
+        "au téléphone, à redemander"
+    );
+    assert_eq!(
+        Accord::lire_ici(ancien, false).envoyer,
+        Some(false),
+        "au bureau, un vrai refus"
+    );
+    // Une réponse donnée désormais porte sa marque, et compte partout.
+    let mut a = Accord::lire_ici(ancien, false);
+    a.envoyer = Some(false);
+    assert_eq!(Accord::lire_ici(&a.ecrire(), true).envoyer, Some(false));
+}
+
+/// **QUESTION-1, au doigt** : là où le système n'a pas de dialogues, la question se dessine et
+/// attend ; ce qui touche à côté n'y répond pas ; « Oui », touché, l'accorde — et la question
+/// s'en va. C'est le chemin de son téléphone, joué par la vraie souris de Glucose.
+#[test]
+fn test_question_1_la_question_dessinee_repond_au_toucher() {
+    use crate::ui::question::{placer, Reponse};
+    let d = Dossier::nouveau("dessinee");
+    let mut app = crate::app::GlucoseApp::new();
+    app.lancement.telemetrie = Telemetrie::habiter(d.0.clone(), None);
+    app.ui.questions_dessinees = true;
+    app.revoir_la_telemetrie();
+    assert!(
+        app.ui.question.is_some(),
+        "la question est posée, et attend"
+    );
+    assert_eq!(
+        app.lancement.telemetrie.accorde(),
+        None,
+        "rien n'est répondu"
+    );
+
+    let (w, h) = app.taille_de_la_fenetre();
+    let toucher = |app: &mut crate::app::GlucoseApp, (x, y): (f32, f32)| {
+        app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(
+            f64::from(x),
+            f64::from(y),
+        ));
+        app.handle_mouse_down(winit::event::MouseButton::Left, w, h);
+        app.handle_mouse_up(winit::event::MouseButton::Left);
+    };
+    // À côté de la carte : rien ne répond, la question reste.
+    toucher(&mut app, (2.0, 2.0));
+    assert!(app.ui.question.is_some(), "un toucher à côté ne répond pas");
+
+    let (question, _) = app.ui.question.clone().expect("la question");
+    let placee = placer(
+        &question,
+        &app.renderer.typography,
+        (w, h),
+        app.ui.scale_factor,
+    );
+    let ((x, y, bw, bh), _, _) = placee
+        .boutons
+        .iter()
+        .find(|(_, _, r)| *r == Reponse::Oui)
+        .expect("un « Oui »")
+        .clone();
+    toucher(&mut app, (x + bw / 2.0, y + bh / 2.0));
+    assert!(app.ui.question.is_none(), "répondue, elle s'en va");
+    assert_eq!(app.lancement.telemetrie.accorde(), Some(true));
+    assert_eq!(
+        Accord::charger(&d.0).envoyer,
+        Some(true),
+        "et la réponse se retient"
+    );
+}

@@ -34,28 +34,39 @@ impl GlucoseApp {
     pub fn nouveau_document(&mut self) {
         self.terminer_les_gestes_en_cours();
         self.consigner();
-        if !self.is_dirty() && !self.confirmer_le_nouveau_document() {
+        if self.is_dirty() {
+            self.adopter_si_on_laisse();
             return;
         }
-        if !self.laisser_le_document() {
-            return;
-        }
-        self.adopter_un_document_vierge();
+        let question = self.question_du_nouveau_document();
+        self.demander(question, crate::ui::question::Suite::NouveauDocument);
     }
 
-    /// La question de NOUVEAU-1 : oui, un nouveau document ; non, rien ne change.
-    fn confirmer_le_nouveau_document(&mut self) -> bool {
-        let question = match self.project_path {
+    /// Le document qu'on quitte passe par sa porte ; s'il s'en va, le vierge le remplace.
+    pub(crate) fn adopter_si_on_laisse(&mut self) {
+        if self.laisser_le_document() {
+            self.adopter_un_document_vierge();
+        }
+    }
+
+    /// La question de NOUVEAU-1 : « Créer » d'abord, ou rien ne change.
+    fn question_du_nouveau_document(&self) -> crate::ui::question::Question {
+        use crate::ui::question::{Question, Reponse};
+        let texte = match self.project_path {
             Some(_) => format!(
-                "Créer un nouveau document ?\n\n« {} » est enregistré : il reste où il est, \
-                 et se rouvre par Ouvrir.",
+                "« {} » est enregistré : il reste où il est, et se rouvre par Ouvrir.",
                 self.document_label()
             ),
-            None => "Créer un nouveau document ?".to_string(),
+            None => String::new(),
         };
-        self.sous_un_dialogue(|ancre| {
-            crate::dialogue::oui_ou_non(ancre, "Nouveau document", &question)
-        })
+        Question {
+            titre: "Créer un nouveau document ?".into(),
+            texte,
+            choix: vec![
+                ("Créer".into(), Reponse::Oui),
+                ("Annuler".into(), Reponse::Non),
+            ],
+        }
     }
 
     /// Fait d'un document vierge le document courant. Séparée de la question pour se

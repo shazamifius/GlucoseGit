@@ -27,6 +27,7 @@ pub mod atomic;
 pub mod close;
 pub mod commands;
 pub mod disque;
+mod documents;
 pub mod ecriture;
 pub mod export;
 pub mod frappe;

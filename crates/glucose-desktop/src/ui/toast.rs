@@ -99,6 +99,45 @@ pub(crate) fn pilule(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<tiny_skia
     pb.finish()
 }
 
+/// **Le toast, placé** : sa pilule, et chaque ligne avec le haut de son texte.
+///
+/// Une ligne tant qu'elle tient — au bureau, rien ne change. Plus large que l'écran moins ses
+/// marges, le message se **coupe en lignes** (WRAP-1) au lieu de sortir de l'écran : sur un
+/// téléphone de 360 points, « Glucose reçoit les images et les liens : ce partage n'en porte
+/// aucun » en fait 450 (fiche 56).
+pub(crate) fn placer_le_toast(
+    message: &str,
+    typo: &Typography,
+    (w, h): (f32, f32),
+    scale: f32,
+) -> (crate::ui::question::Rangee, Vec<(String, f32)>) {
+    let s = crate::theme::clamp_ui_scale(scale);
+    let (corps, pad_x, une_ligne) = (13.0 * s, 20.0 * s, 36.0 * s);
+    let largeur_max = (w - 2.0 * (16.0 * s + pad_x)).max(corps);
+    let avance = |_: usize, c: char| typo.advance(c, corps, Face::Regular);
+    let lignes: Vec<String> = crate::renderer::wrap::wrap_paragraph(message, largeur_max, avance)
+        .into_iter()
+        .map(|(debut, fin)| message[debut..fin].to_string())
+        .collect();
+    let pas = corps * 1.4;
+    let large = lignes
+        .iter()
+        .map(|l| typo.measure_text(l, corps, Face::Regular).0)
+        .fold(0.0f32, f32::max);
+    let (toast_w, toast_h) = (
+        large + 2.0 * pad_x,
+        une_ligne + (lignes.len().max(1) - 1) as f32 * pas,
+    );
+    let (toast_x, toast_y) = ((w - toast_w) / 2.0, h - 28.0 * s - toast_h);
+    let haut = toast_y + (une_ligne - corps) / 2.0;
+    let lignes = lignes
+        .into_iter()
+        .enumerate()
+        .map(|(i, l)| (l, haut + i as f32 * pas))
+        .collect();
+    ((toast_x, toast_y, toast_w, toast_h), lignes)
+}
+
 pub fn render_toast(
     pixmap: &mut PixmapMut,
     toast: &Toast,
@@ -113,9 +152,8 @@ pub fn render_toast(
         return;
     }
     let s = crate::theme::clamp_ui_scale(scale);
-    let (tw, _) = typo.measure_text(&toast.message, 13.0 * s, Face::Regular);
-    let (toast_w, toast_h) = (tw + 40.0 * s, 36.0 * s);
-    let (toast_x, toast_y) = ((w - toast_w) / 2.0, h - 64.0 * s);
+    let ((toast_x, toast_y, toast_w, toast_h), lignes) =
+        placer_le_toast(&toast.message, typo, (w, h), scale);
 
     if let Some(path) = pilule(toast_x, toast_y, toast_w, toast_h, 18.0 * s) {
         let mut bg_paint = Paint::default();
@@ -136,15 +174,52 @@ pub fn render_toast(
         pixmap.stroke_path(&path, &border_paint, &stroke, Transform::identity(), None);
     }
 
-    typo.draw_text(
-        pixmap,
-        &toast.message,
-        toast_x + 20.0 * s,
-        toast_y + (toast_h - 13.0 * s) / 2.0,
-        TextStyle {
-            size: 13.0 * s,
-            color: fondue(theme.toast_text, alpha),
-            face: Face::Regular,
-        },
-    );
+    for (ligne, haut) in &lignes {
+        typo.draw_text(
+            pixmap,
+            ligne,
+            toast_x + 20.0 * s,
+            *haut,
+            TextStyle {
+                size: 13.0 * s,
+                color: fondue(theme.toast_text, alpha),
+                face: Face::Regular,
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// **Au bureau, une ligne, comme toujours** ; **au téléphone, le message se coupe** et
+    /// chaque ligne tient dans l'écran, marges comprises (fiche 56).
+    #[test]
+    fn test_le_toast_se_coupe_plutot_que_de_sortir_de_l_ecran() {
+        let typo = Typography::new();
+        let message = crate::plateforme::partage::RIEN;
+        let (pilule, lignes) = placer_le_toast(message, &typo, (1440.0, 900.0), 1.0);
+        assert_eq!(lignes.len(), 1, "au bureau, une ligne");
+        assert_eq!(
+            (pilule.1, pilule.3),
+            (900.0 - 64.0, 36.0),
+            "à sa place de toujours"
+        );
+
+        let ecran = (720.0, 1600.0);
+        let ((x, _, w, _), lignes) = placer_le_toast(message, &typo, ecran, 2.0);
+        assert!(lignes.len() >= 2, "au téléphone, le message se coupe");
+        assert!(
+            x >= 32.0 && x + w <= ecran.0 - 32.0,
+            "la pilule tient dans l'écran"
+        );
+        for (ligne, _) in &lignes {
+            let (lw, _) = typo.measure_text(ligne, 26.0, Face::Regular);
+            assert!(
+                x + 40.0 + lw <= x + w + 0.5,
+                "« {ligne} » déborde de la pilule"
+            );
+        }
+    }
 }

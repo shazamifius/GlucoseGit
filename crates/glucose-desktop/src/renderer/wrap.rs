@@ -17,7 +17,7 @@
 /// à aucune ligne. Un mot plus large que la ligne est coupé entre deux caractères plutôt que
 /// de déborder. Un corps vide donne une ligne vide : une carte sans texte a quand même une
 /// hauteur.
-pub(super) fn wrap_paragraph(
+pub(crate) fn wrap_paragraph(
     body: &str,
     max_width: f32,
     advance: impl Fn(usize, char) -> f32,
