@@ -234,6 +234,7 @@ impl GlucoseApp {
             || self.click_ancrage(pointer)
             || self.click_skips_flight()
             || self.redimensionner_par_le_bord()
+            || self.deplacer_la_fenetre_avec_alt()
             || !self.ui.reference && self.click_l_interface(pointer, screen);
         if !taken {
             self.click_canvas(screen);

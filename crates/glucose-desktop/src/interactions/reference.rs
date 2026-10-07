@@ -21,6 +21,16 @@
 //! menu ; le bouton du milieu déplace toujours la vue. `Alt+T`, l'ancien geste caché qui ne
 //! faisait que le premier plan (et l'oubliait à la relance), fait désormais tout le mode.
 //!
+//! # REFERENCE-2 — au pavé tactile, `Alt`
+//!
+//! Son essai du 07/10 : il n'a **pas de souris**. Glisser au bouton droit et viser une bordure
+//! de huit pixels sont des gestes de souris, presque impossibles au pavé. `Alt` donne donc la
+//! main à la fenêtre : **`Alt` + glisser la déplace**, par le geste natif du système (il colle
+//! aux bords de l'écran comme toute fenêtre), et **`Alt` + pincer l'agrandit ou la rétrécit**
+//! autour de son centre, du même gain que le zoom. `Alt` au clic, ailleurs, fouille une pile
+//! de nœuds superposés : en mode référence on regarde plus qu'on ne range, et la fenêtre passe
+//! d'abord.
+//!
 //! # La bordure qui redimensionne
 //!
 //! Huit pixels logiques : la bordure de redimensionnement que Windows donne à toute fenêtre
@@ -35,6 +45,9 @@ const SOUVENIR: &str = "mode-reference";
 
 /// La bordure de redimensionnement, en pixels logiques.
 const BORD: f64 = 8.0;
+/// Le plus petit côté qu'un pincement laisse à la fenêtre, en pixels logiques : celui sous
+/// lequel Windows lui-même refuse de rétrécir une fenêtre ordinaire à la souris.
+const COTE_MINIMAL: f64 = 160.0;
 
 /// Un déplacement de fenêtre au bouton droit : où était le curseur sur l'écran, et la fenêtre.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -63,6 +76,13 @@ impl GlucoseApp {
         self.ui.reference = actif;
         self.ui.context_menu_at = None;
         if let Some(fenetre) = &self.window {
+            // **Une référence flotte, elle ne couvre pas l'écran** : agrandie et sans cadre, la
+            // fenêtre ressemblait exactement à un jeu en plein écran fenêtré, et l'application
+            // NVIDIA lui a appliqué RTX HDR et la vibrance — toutes ses couleurs changées, son
+            // essai du 07/10 (fiche 52). Elle se désagrandit donc en entrant dans le mode.
+            if actif && fenetre.is_maximized() {
+                fenetre.set_maximized(false);
+            }
             fenetre.set_decorations(!actif);
             fenetre.set_window_level(niveau(actif));
         }
@@ -167,6 +187,74 @@ impl GlucoseApp {
         }
         true
     }
+}
+
+impl GlucoseApp {
+    /// **`Alt` + glisser, en mode référence** : la fenêtre se déplace, par le système
+    /// (REFERENCE-2). Rend `true` si le geste lui revient — même sans fenêtre, il n'est pas
+    /// au canevas.
+    pub(crate) fn deplacer_la_fenetre_avec_alt(&mut self) -> bool {
+        if !(self.ui.reference && self.modifiers.alt_key()) {
+            return false;
+        }
+        if let Some(fenetre) = &self.window {
+            let _ = fenetre.drag_window();
+        }
+        true
+    }
+
+    /// **`Alt` + pincer, en mode référence** : la fenêtre grandit ou rétrécit de tant
+    /// d'octaves, autour de son centre (REFERENCE-2). Rend `true` si le geste lui revient.
+    pub(crate) fn redimensionner_au_pincement(&mut self, octaves: f64) -> bool {
+        if !(self.ui.reference && self.modifiers.alt_key()) {
+            return false;
+        }
+        let Some(fenetre) = &self.window else {
+            return true;
+        };
+        let (Ok(coin), taille) = (fenetre.outer_position(), fenetre.outer_size()) else {
+            return true;
+        };
+        let ecran = fenetre
+            .current_monitor()
+            .map(|m| (f64::from(m.size().width), f64::from(m.size().height)));
+        let ((x, y), (l, h)) = cadre_apres_pincement(
+            (f64::from(coin.x), f64::from(coin.y)),
+            (f64::from(taille.width), f64::from(taille.height)),
+            octaves,
+            COTE_MINIMAL * self.scale_factor,
+            ecran,
+        );
+        let _ = fenetre.request_inner_size(winit::dpi::PhysicalSize::new(l, h));
+        fenetre.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
+        true
+    }
+}
+
+/// **Le cadre d'une fenêtre après un pincement** de `octaves` : sa taille multipliée par
+/// `2^octaves`, son centre gardé ; jamais un côté sous `minimal`, jamais plus grande que
+/// `ecran` — les proportions tenues dans les deux cas.
+pub fn cadre_apres_pincement(
+    (x, y): (f64, f64),
+    (l, h): (f64, f64),
+    octaves: f64,
+    minimal: f64,
+    ecran: Option<(f64, f64)>,
+) -> ((i32, i32), (u32, u32)) {
+    let mut facteur = octaves.exp2();
+    facteur = facteur.max(minimal / l.min(h).max(1.0));
+    if let Some((el, eh)) = ecran {
+        facteur = facteur.min((el / l.max(1.0)).min(eh / h.max(1.0)));
+    }
+    let (nl, nh) = (l * facteur, h * facteur);
+    let (cx, cy) = (x + l / 2.0, y + h / 2.0);
+    (
+        (
+            (cx - nl / 2.0).round() as i32,
+            (cy - nh / 2.0).round() as i32,
+        ),
+        (nl.round() as u32, nh.round() as u32),
+    )
 }
 
 fn niveau(actif: bool) -> WindowLevel {

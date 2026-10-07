@@ -44,13 +44,13 @@ fn un_cran_se_montre_tout_entier_a_l_image_suivante() {
     );
     assert!(!elan.bouge(), "la vue s'est arrêtée");
 
-    // À l'envers : par la porte du doigt, le même cran ne se montre qu'en partie.
-    let mut doigt = Elan::default();
-    doigt.pousser_zoom(CRAN, (300.0, 200.0), t);
-    let premier = doigt.avancer(t + IMAGE, IMAGE, DIAGONALE).unwrap().octaves;
+    // À l'envers, l'ancienne loi rejouée : la porte du doigt, que le zoom a quittée (fiche
+    // 52 § 4), rattrapait la main en dix millisecondes — le même cran ne se montrait qu'en
+    // partie à la première image.
+    let premier = CRAN * (1.0 - (-IMAGE.as_secs_f64() / 0.01).exp());
     assert!(
         premier < CRAN * 0.5,
-        "le doigt lisse : {premier} sur {CRAN}"
+        "le doigt lissait : {premier} sur {CRAN}"
     );
 }
 
@@ -58,16 +58,12 @@ fn un_cran_se_montre_tout_entier_a_l_image_suivante() {
 /// tourne la molette : à la dernière image, la vue a doublé, et elle ne bouge plus.
 #[test]
 fn une_serie_de_crans_ne_laisse_aucune_glissade() {
-    let jouer = |souris: bool| {
+    let jouer = || {
         let mut elan = Elan::default();
         let mut t = Instant::now();
         let mut montre = 0.0;
         for _ in 0..8 {
-            if souris {
-                elan.placer_zoom(CRAN, (0.0, 0.0));
-            } else {
-                elan.pousser_zoom(CRAN, (0.0, 0.0), t);
-            }
+            elan.placer_zoom(CRAN, (0.0, 0.0));
             for _ in 0..6 {
                 t += IMAGE;
                 montre += elan.avancer(t, IMAGE, DIAGONALE).map_or(0.0, |m| m.octaves);
@@ -75,17 +71,20 @@ fn une_serie_de_crans_ne_laisse_aucune_glissade() {
         }
         (montre, montrer(&mut elan, t, 480).1)
     };
-    let (pendant, apres) = jouer(true);
+    let (pendant, apres) = jouer();
     assert!(
         (pendant - 1.0).abs() < 1e-12,
         "huit crans, une octave : {pendant}"
     );
     assert_eq!(apres, 0.0, "rien ne glisse après le dernier cran");
 
-    let (_, glissade) = jouer(false);
+    // À l'envers, l'ancienne loi rejouée : la porte du doigt, que le zoom a quittée (fiche
+    // 52 § 4), prolongeait le geste de sa vitesse fois 0,28 s — un cran toutes les six images.
+    let vitesse = CRAN / (6.0 * IMAGE.as_secs_f64());
+    let glissade = vitesse * 0.28;
     assert!(
         glissade > 0.1,
-        "à l'envers, le doigt glisse encore de {glissade} octave"
+        "à l'envers, le doigt glissait encore de {glissade} octave"
     );
 }
 

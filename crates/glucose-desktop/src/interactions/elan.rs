@@ -85,9 +85,13 @@
 //! tout reste ressemble à du retard. Un doigt est un geste **continu**, livré par rafales : sans
 //! conduite il saute, sans élan il paraît mort.
 //!
-//! D'où deux portes. [`Elan::pousser_pan`] et [`Elan::pousser_zoom`] restent celles du doigt,
-//! inchangées. [`Elan::placer_pan`] et [`Elan::placer_zoom`] sont celles de la souris : ce
-//! qu'elles demandent se montre **en entier à l'image suivante**, et rien ne glisse ensuite.
+//! D'où deux portes. [`Elan::pousser_pan`] reste celle du doigt, inchangée.
+//! [`Elan::placer_pan`] et [`Elan::placer_zoom`] sont celles de la souris : ce qu'elles
+//! demandent se montre **en entier à l'image suivante**, et rien ne glisse ensuite.
+//!
+//! **Le zoom n'a plus que la porte directe** (fiche 52 § 4) : le pincement passait par la
+//! conduite et la glissade du doigt, et son essai l'a jugé « trop smooth, et pas du tout
+//! rapide ». Un pincement suit les doigts ; il ne prédit rien de ce qu'ils feront.
 //! Elles passent quand même par la dette, pour une seule raison : la caméra ne bouge qu'une
 //! fois par image, et deux événements arrivés entre deux images s'y rejoignent.
 
@@ -99,12 +103,6 @@ use std::time::{Duration, Instant};
 /// pixels par seconde emporte donc quatre cent cinquante pixels — c'est du ressenti, et c'est
 /// le seul nombre de ce module qui se juge à la main.
 const TAU_LIBRE_PAN: f64 = 0.45;
-
-/// Ce qu'une glissade de zoom met à s'éteindre.
-///
-/// Plus courte que celle du déplacement : l'échelle change vite d'ordre de grandeur, et une
-/// glissade longue y devient un vol plané dont on ne sait plus où il s'arrête.
-const TAU_LIBRE_ZOOM: f64 = 0.28;
 
 /// Le temps que met la vue à rattraper la main pendant qu'elle pousse.
 ///
@@ -402,21 +400,6 @@ impl Elan {
         );
     }
 
-    /// La main demande un changement d'échelle, autour de ce point.
-    pub fn pousser_zoom(&mut self, octaves: f64, ancre: (f64, f64), maintenant: Instant) {
-        self.reprendre_la_main();
-        self.voie = Voie::Doigt;
-        self.ancre = ancre;
-        self.reste.octaves += octaves;
-        self.source.noter(
-            maintenant,
-            Mouvement {
-                octaves,
-                ..Mouvement::default()
-            },
-        );
-    }
-
     /// La souris demande un déplacement : il se montre en entier à l'image suivante.
     ///
     /// Aucun instant n'est demandé, et ce n'est pas un oubli : à la souris, il n'y a ni rythme
@@ -427,7 +410,8 @@ impl Elan {
         self.reste.pan.1 += dy;
     }
 
-    /// La souris demande un changement d'échelle autour de ce point : tout, à l'image suivante.
+    /// Un changement d'échelle autour de ce point — à la molette ou au pincement : tout, à
+    /// l'image suivante.
     pub fn placer_zoom(&mut self, octaves: f64, ancre: (f64, f64)) {
         self.prendre_a_la_souris();
         self.ancre = ancre;
@@ -523,19 +507,17 @@ impl Elan {
             return None;
         }
 
-        let (tau_pan, tau_zoom) = self.constantes();
-        let part = |tau: f64| 1.0 - (-dt / tau.max(1e-6)).exp();
+        // **Le zoom se montre en entier, quelle que soit la porte** : tout zoom est direct. Un
+        // pincement suivi d'un glissement à deux doigts avant l'image ferait sinon dormir son
+        // zoom dans la dette du doigt, qui ne le rembourse plus — et l'élan ne finirait jamais.
+        let part = 1.0 - (-dt / self.constante().max(1e-6)).exp();
         let montre = Mouvement {
-            pan: (
-                self.reste.pan.0 * part(tau_pan),
-                self.reste.pan.1 * part(tau_pan),
-            ),
-            octaves: self.reste.octaves * part(tau_zoom),
+            pan: (self.reste.pan.0 * part, self.reste.pan.1 * part),
+            octaves: std::mem::take(&mut self.reste.octaves),
             ancre: self.ancre,
         };
         self.reste.pan.0 -= montre.pan.0;
         self.reste.pan.1 -= montre.pan.1;
-        self.reste.octaves -= montre.octaves;
         montre.existe().then_some(montre)
     }
 
@@ -567,23 +549,22 @@ impl Elan {
         let v = self.source.vitesse(fin);
         self.reste.pan.0 += v.pan.0 * TAU_LIBRE_PAN;
         self.reste.pan.1 += v.pan.1 * TAU_LIBRE_PAN;
-        self.reste.octaves += v.octaves * TAU_LIBRE_ZOOM;
     }
 
-    /// Les constantes de temps du régime courant.
+    /// La constante de temps du régime courant.
     ///
     /// Pendant que la main pousse, la vue la rattrape en [`TAU_CONDUITE`] — assez pour lisser
     /// les irrégularités de livraison, assez peu pour que le retard ne se perçoive pas. Quand
-    /// la main a lâché, ce sont les constantes de glissade.
+    /// la main a lâché, c'est la constante de glissade.
     ///
-    /// **Aucune des trois ne dépend de l'instant**, et c'est tout l'objet de cette version :
+    /// **Aucune des deux ne dépend de l'instant**, et c'est tout l'objet de cette version :
     /// une constante de temps qui change d'une image à l'autre fait varier ce qui est montré
     /// alors que le geste, lui, n'a pas changé.
-    fn constantes(&self) -> (f64, f64) {
+    fn constante(&self) -> f64 {
         if self.libre {
-            return (TAU_LIBRE_PAN, TAU_LIBRE_ZOOM);
+            return TAU_LIBRE_PAN;
         }
-        (TAU_CONDUITE, TAU_CONDUITE)
+        TAU_CONDUITE
     }
 }
 

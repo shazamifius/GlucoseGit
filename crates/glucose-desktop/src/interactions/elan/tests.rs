@@ -120,29 +120,29 @@ fn repartir_en_sens_inverse_ne_renvoie_jamais_dans_l_ancien_sens() {
     );
 }
 
-/// **Le frein vaut pour le zoom**, et pour la même raison : c'est la même soustraction.
+/// **Un pincement mêlé à un glissement à deux doigts se montre en entier, et l'élan finit.**
+///
+/// Le zoom n'a plus que la porte directe (fiche 52 § 4). S'il arrivait entre deux poussées du
+/// doigt, sa dette dormait dans celle du doigt, qui ne le rembourse plus : l'élan restait « en
+/// cours » pour toujours, et Glucose aurait redessiné sans fin.
 #[test]
-fn inverser_le_zoom_ne_continue_pas_dans_l_ancien_sens() {
+fn un_pincement_mele_au_doigt_se_montre_et_l_elan_finit() {
     let mut elan = Elan::default();
     let debut = Instant::now();
-    let mut t = debut;
-    for _ in 0..12 {
-        elan.pousser_zoom(0.05, (100.0, 100.0), t);
-        t += PAVE;
-    }
-    jouer(&mut elan, t, 0.1);
-
-    let reprise = t + Duration::from_millis(100);
-    elan.pousser_zoom(-0.05, (100.0, 100.0), reprise);
-
-    let mut pire: f64 = 0.0;
-    for n in 1..=240 {
-        let quand = reprise + Duration::from_secs_f64(IMAGE * f64::from(n));
-        if let Some(m) = elan.avancer(quand, PAS, DIAGONALE) {
-            pire = pire.max(m.octaves);
-        }
-    }
-    assert!(pire <= 1e-12, "le zoom est reparti de {pire} octave");
+    elan.pousser_pan(10.0, 0.0, debut);
+    elan.placer_zoom(0.2, (100.0, 100.0));
+    elan.pousser_pan(10.0, 0.0, debut + PAVE);
+    let premier = elan
+        .avancer(debut + PAVE, PAS, DIAGONALE)
+        .expect("une image de mouvement");
+    assert_eq!(
+        premier.octaves, 0.2,
+        "tout le pincement, a la premiere image"
+    );
+    let fin = debut + Duration::from_secs(5);
+    jouer(&mut elan, debut + PAVE, 5.0);
+    assert!(!elan.en_cours(), "l'elan doit finir");
+    assert_eq!(elan.avancer(fin, PAS, DIAGONALE), None);
 }
 
 /// **Une diagonale reste une diagonale, même en zoomant.** « À la fois on va à droite, à la
@@ -155,7 +155,7 @@ fn une_diagonale_zoomee_garde_ses_proportions() {
     let mut t = debut;
     for _ in 0..8 {
         elan.pousser_pan(20.0, -10.0, t);
-        elan.pousser_zoom(0.03, (50.0, 50.0), t);
+        elan.placer_zoom(0.03, (50.0, 50.0));
         t += PAVE;
     }
     let total = jouer(&mut elan, t, 3.0);
@@ -298,7 +298,7 @@ fn deux_images_de_couts_opposes_montrent_le_meme_mouvement() {
 fn l_ancre_ne_se_consomme_pas_avec_la_dette() {
     let mut elan = Elan::default();
     let debut = Instant::now();
-    elan.pousser_zoom(0.4, (640.0, 360.0), debut);
+    elan.placer_zoom(0.4, (640.0, 360.0));
     for n in 1..=60 {
         let t = debut + Duration::from_secs_f64(IMAGE * f64::from(n));
         if let Some(m) = elan.avancer(t, PAS, DIAGONALE) {

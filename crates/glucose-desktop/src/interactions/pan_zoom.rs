@@ -68,13 +68,16 @@ const OCTAVES_PAR_CRAN: f64 = 0.125;
 /// | 1,25 | « beaucoup beaucoup trop » |
 /// | 0,25 | « ça dézoome et ça zoome trop trop vite » |
 /// | 0,0625 | « le pincement sur le pavé est trop lent, il faudrait augmenter légèrement » (07/10) |
-/// | **1/12** | à juger |
+/// | 1/12 | « trop d'effet de smooth, et pas du tout rapide : un vrai sentiment de lag » (07/10) |
+/// | **1/5**, sans glissade | à juger |
 ///
-/// Un douzième d'octave par unité de doigt : il en faut douze pour doubler, au lieu de seize
-/// — un tiers de plus, loin du quadruple refusé. Et il faut compter l'élan par-dessus, qui
-/// prolonge le geste d'à peu près aussi longtemps qu'il a duré, donc **double l'amplitude
-/// ressentie**.
-const OCTAVES_PAR_UNITE_DE_DOIGT: f64 = 1.0 / 12.0;
+/// Les quatre premiers passaient par la conduite et la glissade du doigt, qui **doublait
+/// l'amplitude ressentie** et la montrait en retard : 0,25 valait donc une demi-octave par
+/// unité, et 1/12 un sixième, servi après les doigts. Depuis la fiche 52, tout zoom est direct
+/// — l'écran suit les doigts à l'image suivante, et rien ne continue après. Un cinquième
+/// d'octave par unité, montré tout de suite : plus que le sixième lissé qu'il trouvait lent,
+/// bien moins que la demi-octave qu'il trouvait « trop trop vite ».
+const OCTAVES_PAR_UNITE_DE_DOIGT: f64 = 1.0 / 5.0;
 
 /// Un cran de molette, en pixels de défilement, là où la plateforme compte en pixels.
 ///
@@ -243,17 +246,17 @@ impl GlucoseApp {
         // L'evenement ne bouge PLUS la camera : il entre dans l'elan, que l'image videra en
         // une seule fois. Windows livre l'horizontal et le vertical dans deux messages
         // separes -- les appliquer chacun a leur tour faisait d'une diagonale un escalier.
-        // La molette y entre par la porte de la souris (tout a l'image suivante), le doigt
-        // par la sienne (conduite, puis glissade).
-        let souris = vient_d_une_molette(delta, pincement, self.defilement_au_doigt);
-        let maintenant = std::time::Instant::now();
+        //
+        // **Tout zoom est direct** : il se montre en entier a l'image suivante, a la molette
+        // comme au pincement (fiche 52 § 4). Le pincement passait par la conduite et la
+        // glissade du doigt, et son essai du 07/10 l'a dit : « trop d'effet de smooth, et pas
+        // du tout rapide, ce qui cree un vrai sentiment de lag ». Le deplacement a deux doigts,
+        // lui, garde son elan : c'est la que la glissade a un sens.
         match geste(delta, ctrl, pincement, self.defilement_au_doigt) {
-            Geste::Zoom(octaves) if souris => self.elan.placer_zoom(octaves, self.ancre_du_zoom()),
-            Geste::Zoom(octaves) => {
-                self.elan
-                    .pousser_zoom(octaves, self.ancre_du_zoom(), maintenant);
-            }
-            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy, maintenant),
+            // En mode référence, `Alt` donne le pincement à la fenêtre (REFERENCE-2).
+            Geste::Zoom(octaves) if self.redimensionner_au_pincement(octaves) => {}
+            Geste::Zoom(octaves) => self.elan.placer_zoom(octaves, self.ancre_du_zoom()),
+            Geste::Pan(dx, dy) => self.elan.pousser_pan(dx, dy, std::time::Instant::now()),
         }
         self.mark_dirty();
     }

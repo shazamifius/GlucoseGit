@@ -64,13 +64,16 @@ fn test_nav_2_le_gain_suit_le_geste_et_non_la_touche() {
         "{pince} contre {ctrl_et_doigts} : les memes doigts sur le meme pave, seule la touche change"
     );
 
-    // Le déclic, lui, pèse plus par unité — c'est une secousse par encoche, pas une course.
+    // Le déclic a son propre gain — une secousse par encoche, pas une course. Lequel pèse plus
+    // par unité n'est plus une loi : le doigt était lissé puis prolongé par sa glissade, qui
+    // doublait son amplitude ; depuis que tout zoom est direct (fiche 52 § 4), les deux valeurs
+    // se jugent chacune à la main. Ce qui reste structurel : ce sont deux gains.
     let Geste::Zoom(cran) = geste(lignes(0.0, 1.0), false, false, false) else {
         panic!("un cran de souris zoome");
     };
     assert!(
-        cran > 2.0 * pince,
-        "{cran} octave(s) par cran contre {pince} par demi-unite de doigt"
+        (cran - 2.0 * pince).abs() > 1e-9,
+        "{cran} octave(s) par cran contre {pince} par demi-unite de doigt : un seul gain"
     );
 
     // Et `Ctrl` sur une vraie molette ne la transforme pas en doigt.
