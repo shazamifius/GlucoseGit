@@ -2,7 +2,8 @@ name: Publier
 
 # La publication d'une version de Glucose Rust (fiche 48) — À LA MAIN SEULEMENT.
 #
-# Elle construit l'installeur Windows et les trois paquets Linux, les signe par la clé de Glucose
+# Elle construit l'installeur Windows, les trois paquets Linux et l'APK d'Android (signé de la clé
+# de Glucose pour Android, fiche 54), les signe par la clé de Glucose
 # — le secret TAURI_SIGNING_PRIVATE_KEY, celui qui a signé chaque version de Glucose Tauri —, et
 # PROUVE, par le code même de Glucose (l'exemple `publication`), que tout ce qui part est ce que
 # ses utilisateurs accepteront : la version qui monte, le programme publiable, chaque signature
@@ -175,9 +176,67 @@ jobs:
           path: ${{ runner.temp }}/publie/Glucose*
           if-no-files-found: error
 
+  android:
+    name: Android, l'APK signé
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.1"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: Le NDK 29, et la version
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::« $VERSION » n'est pas une version"; exit 1; }
+          sed -i -E "0,/^version = /s/^version = \".*\"/version = \"$VERSION\"/" crates/glucose-desktop/Cargo.toml
+          echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      # La clé de Glucose pour Android (fiche 54) : une mise à jour ne s'installe que signée d'elle.
+      # Elle ne vit sur la machine que le temps de signer.
+      - name: L'APK, signé de la clé de Glucose
+        env:
+          CLE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
+          GLUCOSE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
+        run: |
+          [ -n "$CLE" ] || { echo "::error::le secret ANDROID_SIGNING_KEYSTORE manque"; exit 1; }
+          echo "$CLE" | base64 -d > "$RUNNER_TEMP/glucose-android.jks"
+          export GLUCOSE_KEYSTORE="$RUNNER_TEMP/glucose-android.jks" GLUCOSE_VERSION="$VERSION"
+          bash outils/android/construire.sh
+          rm "$RUNNER_TEMP/glucose-android.jks"
+          mkdir -p "$RUNNER_TEMP/publie"
+          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/publie/Glucose_${VERSION}_android.apk"
+
+      # Prouvé : signé, et de CETTE clé — son empreinte, que le LISEZ-MOI de la clé donne aussi.
+      - name: Signé de la clé de Glucose
+        run: |
+          OUTIL=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          "$OUTIL/apksigner" verify --print-certs "$RUNNER_TEMP/publie/Glucose_${VERSION}_android.apk" | tee "$RUNNER_TEMP/certificat.txt"
+          grep -q "SHA-256 digest: 3f2af005d850fdafb9868966124e234c5e02c32b3a4679e9beafd5310359fcad" "$RUNNER_TEMP/certificat.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: ${{ runner.temp }}/publie/Glucose*
+          if-no-files-found: error
+
   manifeste:
     name: Le latest.json, et le brouillon
-    needs: [windows, linux]
+    needs: [windows, linux, android]
     runs-on: windows-latest
     permissions:
       contents: write

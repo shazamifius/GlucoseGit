@@ -4,6 +4,9 @@
 #
 #   bash outils/android/construire.sh            l'APK de travail (signé de la clé de débogage)
 #
+# Avec GLUCOSE_KEYSTORE (la clé) et GLUCOSE_KEYSTORE_PASSWORD, l'APK de publication, signé de la
+# vraie clé — celle dont toute mise à jour doit être signée ; GLUCOSE_VERSION en donne la version.
+#
 # Ce qu'il faut sur la machine : le SDK et le NDK d'Android (ANDROID_HOME, ou
 # ~/Android/Sdk), Java 17 ou plus, Gradle 9.6 ou plus, `cargo-ndk`, et les cibles Rust
 # d'Android. La CI fait la même chose (tâche « apk ») et dépose l'APK.
@@ -21,5 +24,10 @@ cargo ndk -t arm64-v8a -t armeabi-v7a -P 21 \
 
 # Gradle 9.8 : celui du système, ou celui que GRADLE désigne.
 cd "$RACINE/android"
-"${GRADLE:-gradle}" --no-daemon assembleDebug
-echo "APK : $RACINE/android/app/build/outputs/apk/debug/app-debug.apk"
+if [ -n "${GLUCOSE_KEYSTORE:-}" ]; then
+  "${GRADLE:-gradle}" --no-daemon assembleRelease
+  echo "APK : $RACINE/android/app/build/outputs/apk/release/app-release.apk"
+else
+  "${GRADLE:-gradle}" --no-daemon assembleDebug
+  echo "APK : $RACINE/android/app/build/outputs/apk/debug/app-debug.apk"
+fi

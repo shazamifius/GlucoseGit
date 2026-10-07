@@ -45,10 +45,15 @@
 | Debian, Ubuntu | `Glucose_{version}_amd64.deb` |
 | Fedora | `Glucose-{version}-1.x86_64.rpm` |
 | NixOS | `nix run github:shazamifius/GlucoseGit` |
+| Android 5.0 et après | `Glucose_{version}_android.apk` — **une première version d'essai** : on y navigue et on y pince, le clavier et l'ouverture de fichiers viendront |
 
 **Sous Windows**, un avertissement peut paraître (« Windows a protégé votre ordinateur ») :
 Glucose n'est pas signé par un certificat payant. « Informations complémentaires », puis
 « Exécuter quand même ».
+
+**Sous Android**, ouvrir l'APK depuis le téléphone : il demande d'autoriser l'installation
+d'applications inconnues pour l'application qui l'ouvre (Fichiers, Drive, le navigateur), puis
+peut dire qu'elle n'est pas vérifiée — elle n'est pas sur le Play Store. « Installer quand même ».
 
 **Avec Glucose Tauri déjà installé**, la mise à jour arrive d'elle-même, par la fenêtre
 habituelle. Les documents et les images restent à leur place.
