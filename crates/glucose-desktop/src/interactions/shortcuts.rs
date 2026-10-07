@@ -431,10 +431,13 @@ impl GlucoseApp {
     /// Un geste, un endroit : la touche `Suppr` et le bouton de la barre d'action appellent
     /// la même fonction. Deux chemins vers un même geste finissent toujours par diverger —
     /// l'un oublie le toast, l'autre le `mark_dirty`.
+    ///
+    /// **Elle se tait** : les nœuds disparaissent, et c'est tout ce qu'un « Supprimé » disait —
+    /// comme un collage, qui se voit et se tait (fiche 51 § 2). Sa place est allée à `Ctrl+N`,
+    /// qui avait quelque chose à dire (fiche 52).
     pub(crate) fn delete_selection(&mut self) {
         let board = self.store.project.active_board_id.clone();
         self.store.delete_selected(&board);
-        self.ui.show_toast("Supprimé");
         self.mark_dirty();
     }
 

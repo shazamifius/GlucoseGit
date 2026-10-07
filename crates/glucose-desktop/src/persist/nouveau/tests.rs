@@ -46,3 +46,41 @@ fn test_ctrl_n_laisse_le_document_intact_et_en_ouvre_un_vierge() {
         "l'ancien document garde son travail"
     );
 }
+
+/// **Du travail sans nom pose la question** : après `Ctrl+N`, un geste dans le document
+/// vierge en fait un travail à enregistrer, et un second `Ctrl+N` doit demander (BROUILLON-1).
+#[test]
+fn test_ctrl_n_sur_un_travail_sans_nom_le_dit_a_enregistrer() {
+    let d = dossier("nouveau-sans-nom");
+    let mut app = application(&d);
+    app.save_to(d.join("nomme.glucose"));
+    app.modifiers = winit::keyboard::ModifiersState::CONTROL;
+    assert!(app.handle_file_shortcut("n"));
+    app.modifiers = winit::keyboard::ModifiersState::empty();
+    noter(&mut app, "neuf", "un travail sans nom");
+    image_suivante(&mut app);
+    assert!(
+        app.is_dirty(),
+        "un travail sans nom passe pour enregistre : Ctrl+N le quitterait sans demander"
+    );
+}
+
+/// **Quitter un document nommé se dit** : il est enregistré, et un autre commence. Sans ce
+/// mot, son essai du 07/10 a lu le silence comme un travail abandonné.
+#[test]
+fn test_ctrl_n_dit_que_le_document_nomme_est_enregistre() {
+    let d = dossier("nouveau-dit");
+    let mut app = application(&d);
+    app.save_to(d.join("fusee.glucose"));
+    noter(&mut app, "garde", "du travail");
+    // L'enregistrement vient de se dire, avec le même nom : sans ce silence, l'épreuve lisait
+    // son message et passait même quand `Ctrl+N` se taisait (sabotage du 07/10).
+    app.ui.current_toast = None;
+    app.modifiers = winit::keyboard::ModifiersState::CONTROL;
+    assert!(app.handle_file_shortcut("n"));
+    let message = app.ui.toast_message().unwrap_or_default().to_string();
+    assert!(
+        message.contains("fusee") && message.contains("enregistré"),
+        "Ctrl+N se tait sur le document qu'il quitte : {message:?}"
+    );
+}

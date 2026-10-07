@@ -20,11 +20,22 @@ use crate::app::GlucoseApp;
 
 impl GlucoseApp {
     /// `Ctrl+N`, et l'entrée « Nouveau document » du menu.
+    ///
+    /// **Un document nommé se quitte sans question, mais pas sans un mot.** Chaque geste y est
+    /// déjà écrit : demander « enregistrer ? » mentirait. Mais rien ne le disait, et son essai du
+    /// 07/10 l'a lu comme un travail abandonné — « il crée instantanément une nouvelle session
+    /// sans même demander d'enregistrer notre travail ». Le message dit ce qui vient d'avoir
+    /// lieu : le document est enregistré, et un autre commence.
     pub fn nouveau_document(&mut self) {
+        let quitte = self.project_path.as_ref().map(|_| self.document_label());
         if !self.laisser_le_document() {
             return;
         }
         self.adopter_un_document_vierge();
+        if let Some(nom) = quitte {
+            self.ui
+                .show_toast(format!("« {nom} » est enregistré — nouveau document"));
+        }
     }
 
     /// Fait d'un document vierge le document courant. Séparée de la question pour se
