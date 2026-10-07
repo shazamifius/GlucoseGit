@@ -138,3 +138,35 @@ fn pomper() {
         }
     }
 }
+
+#[test]
+fn test_essai_les_bords() {
+    use windows::Win32::Graphics::DirectManipulation::IDirectManipulationContent;
+    let fenetre = fenetre_cachee();
+    let reveil: super::super::Reveil = std::sync::Arc::new(|| {});
+    let mut pave = installer(fenetre.0 as isize, reveil).expect("installe");
+    let contenu: IDirectManipulationContent = unsafe { pave.viewport.GetPrimaryContent() }.unwrap();
+    let r = unsafe { contenu.GetContentRect() };
+    println!("contenu : {r:?}");
+    for (x, y) in [
+        (300.0f32, 0.0f32),
+        (-300.0, 0.0),
+        (0.0, 250.0),
+        (-200.0, -200.0),
+    ] {
+        let s = unsafe {
+            pave.viewport
+                .ZoomToRect(x, y, x + 1000.0, y + 1000.0, false)
+        };
+        let mut rendus = Vec::new();
+        for _ in 0..3 {
+            pomper();
+            rendus.extend(pave.avancer());
+        }
+        let mut m = [0f32; 6];
+        unsafe { contenu.GetContentTransform(&mut m) }.unwrap();
+        println!("ScrollTo({x},{y}) -> {s:?} ; transformation {m:?} ; rendus {rendus:?}");
+    }
+    drop(pave);
+    let _ = unsafe { DestroyWindow(fenetre) };
+}

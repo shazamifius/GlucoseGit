@@ -150,6 +150,11 @@ impl Vol {
         self.cible.is_some()
     }
 
+    /// La destination du vol en cours, s'il y en a un.
+    pub fn cible(&self) -> Option<Viewport> {
+        self.cible
+    }
+
     /// Rapproche `vue` de la destination du temps qui s'est écoulé.
     ///
     /// Rend le nouveau cadrage, ou `None` s'il n'y a rien à faire. La fraction comblée est
@@ -295,7 +300,7 @@ pub fn cadrage_du_contenu(contenu: Rect, ecran: ScreenSize, bandeau: f64) -> Vie
 }
 
 impl crate::app::GlucoseApp {
-    /// Cadre la vue sur tout le contenu du tableau — la touche `F`.
+    /// Cadre la vue sur tout le contenu du tableau — `Ctrl+F`, et `F` quand rien n'est choisi.
     ///
     /// Un vol, pas un saut : d'où l'on revient fait partie de ce qu'on apprend en appuyant.
     pub fn cadrer_sur_le_contenu(&mut self, ecran: ScreenSize, bandeau: f64) {
@@ -310,6 +315,22 @@ impl crate::app::GlucoseApp {
         };
         self.vol
             .voler_vers(cadrage_du_contenu(contenu, ecran, bandeau));
+        self.mark_dirty();
+    }
+
+    /// **Cadre la vue sur la sélection** — la touche `F` (fiche 53 § 8) —, ou sur tout le
+    /// contenu quand rien n'est choisi : sans sélection, il n'y a qu'une chose à regarder.
+    ///
+    /// C'est le « cadrer la sélection » de Maya et d'Unity. Le même vol que pour tout cadrer, la
+    /// même marge : seule la boîte change.
+    pub fn cadrer_sur_la_selection(&mut self, ecran: ScreenSize, bandeau: f64) {
+        let tableau = self.store.project.active_board_id.clone();
+        let Some(choisi) = self.store.selection_bounds(&tableau) else {
+            self.cadrer_sur_le_contenu(ecran, bandeau);
+            return;
+        };
+        self.vol
+            .voler_vers(cadrage_du_contenu(choisi, ecran, bandeau));
         self.mark_dirty();
     }
 

@@ -279,6 +279,38 @@ impl Store {
         self.bornes.borrow().parcours
     }
 
+    /// **L'emprise de ce qui est choisi** sur ce tableau — images, annotations, dossier —, ou
+    /// `None` si rien ne l'est. C'est ce que la touche `F` cadre (fiche 53 § 8), comme le
+    /// « cadrer la sélection » de Maya ou d'Unity.
+    ///
+    /// Chaque nœud compte par la même boîte que dans [`Self::content_bounds`] : cadrer une
+    /// sélection qui contient tout revient exactement à cadrer tout.
+    pub fn selection_bounds(&self, board_id: &str) -> Option<crate::geometry::Rect> {
+        let board = self.project.boards.iter().find(|b| b.id == board_id)?;
+        let choisi = |ids: &[String], id: &str| ids.iter().any(|s| s == id);
+        let dossier = self.selected_folder_id.as_deref();
+        board
+            .images
+            .iter()
+            .filter(|i| choisi(&self.selected_image_ids, &i.id))
+            .map(|i| i.rect())
+            .chain(
+                board
+                    .folders
+                    .iter()
+                    .filter(|f| Some(f.id.as_str()) == dossier)
+                    .map(|f| f.rect()),
+            )
+            .chain(
+                board
+                    .annotations
+                    .iter()
+                    .filter(|a| choisi(&self.selected_annotation_ids, a.id()))
+                    .map(|a| a.bounds()),
+            )
+            .reduce(|acc, r| acc.union(r))
+    }
+
     fn calculer_les_bornes(&self, board_id: &str) -> Option<crate::geometry::Rect> {
         let board = self.project.boards.iter().find(|b| b.id == board_id)?;
         board

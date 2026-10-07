@@ -804,3 +804,65 @@ fn test_pousser_hors_d_une_membrane_la_libere() {
     assert!(app.store.undo());
     assert_eq!(membre(&app).as_deref(), Some("M"), "un Ctrl+Z la rend");
 }
+
+// ── `F` et `Ctrl+F` : cadrer la sélection, ou tout (fiche 53 § 8) ─────────────────────────
+
+/// Deux images loin l'une de l'autre, la seconde seule choisie.
+fn deux_images_loin() -> GlucoseApp {
+    let mut app = app_with(1);
+    let board = app.store.project.active_board_id.clone();
+    app.store.add_image(
+        &board,
+        BoardImage::new("loin", 5000.0, 3000.0, 300.0, 200.0),
+    );
+    app.store.set_selected_image_ids(vec!["loin".into()]);
+    app
+}
+
+/// Le cadrage que le vol vise, pour cette boîte du monde, dans la fenêtre de l'application.
+fn cadrage(app: &GlucoseApp, boite: glucose_core::geometry::Rect) -> glucose_core::types::Viewport {
+    let (w, h) = app.taille_de_la_fenetre();
+    crate::interactions::vol::cadrage_du_contenu(
+        boite,
+        glucose_core::membrane_focus::ScreenSize {
+            width: f64::from(w),
+            height: f64::from(h),
+        },
+        f64::from(app.ui.header_height()),
+    )
+}
+
+/// **`F` cadre ce qu'on a choisi** — la convention de Maya et d'Unity —, pas tout le tableau.
+#[test]
+fn test_f_cadre_la_selection() {
+    let mut app = deux_images_loin();
+    touche(&mut app, "f", ModifiersState::empty());
+    let attendu = cadrage(&app, image(&app, "loin").rect());
+    assert_eq!(app.vol.cible(), Some(attendu));
+}
+
+/// **Sans sélection, `F` cadre tout** : il n'y a qu'une chose à regarder.
+#[test]
+fn test_f_sans_selection_cadre_tout() {
+    let mut app = deux_images_loin();
+    app.store.set_selected_image_ids(Vec::new());
+    touche(&mut app, "F", ModifiersState::empty());
+    let board = app.store.project.active_board_id.clone();
+    let tout = app.store.content_bounds(&board).expect("du contenu");
+    assert_eq!(app.vol.cible(), Some(cadrage(&app, tout)));
+}
+
+/// **`Ctrl+F` cadre tout, même quand quelque chose est choisi.**
+#[test]
+fn test_ctrl_f_cadre_tout_meme_avec_une_selection() {
+    let mut app = deux_images_loin();
+    touche(&mut app, "f", ModifiersState::CONTROL);
+    let board = app.store.project.active_board_id.clone();
+    let tout = app.store.content_bounds(&board).expect("du contenu");
+    assert_eq!(app.vol.cible(), Some(cadrage(&app, tout)));
+    assert_eq!(
+        app.store.selected_image_ids,
+        vec!["loin".to_string()],
+        "la sélection reste"
+    );
+}

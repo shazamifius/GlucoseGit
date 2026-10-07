@@ -485,6 +485,42 @@ fn test_les_bornes_du_contenu_couvrent_les_trois_familles() {
     assert_eq!(b.top + b.height, 550.0, "la membrane tire le bas");
 }
 
+/// **L'emprise de la sélection ne compte que ce qui est choisi**, dans les trois familles —
+/// la touche `F` cadre ceci (fiche 53 § 8). Rien de choisi : rien à cadrer.
+#[test]
+fn test_les_bornes_de_la_selection_ne_comptent_que_ce_qui_est_choisi() {
+    let mut store = Store::new("P");
+    let board = store.project.active_board_id.clone();
+    store.add_image(&board, BoardImage::new("i", 100.0, 200.0, 50.0, 40.0));
+    store.add_image(&board, BoardImage::new("j", 9000.0, 9000.0, 50.0, 40.0));
+    store.add_annotation(&board, Annotation::arrow("a", 500.0, 500.0, -100.0, -200.0));
+    let mut dossier = CanvasFolder::new("f", "D", String::new());
+    dossier.x = -300.0;
+    dossier.y = 0.0;
+    dossier.width = 100.0;
+    dossier.height = 100.0;
+    store.create_folder(&board, dossier);
+
+    store.set_selected_image_ids(Vec::new());
+    store.selected_annotation_ids.clear();
+    store.selected_folder_id = None;
+    assert_eq!(store.selection_bounds(&board), None, "rien de choisi");
+
+    store.set_selected_image_ids(vec!["i".into()]);
+    let b = store.selection_bounds(&board).expect("l'image");
+    assert_eq!(b, store.project.boards[0].images[0].rect(), "l'image seule");
+
+    store.selected_annotation_ids = vec!["a".into()];
+    store.selected_folder_id = Some("f".into());
+    let b = store.selection_bounds(&board).expect("trois familles");
+    assert_eq!((b.left, b.top), (-300.0, -200.0), "le dossier et la flèche");
+    assert_eq!(
+        (b.left + b.width, b.top + b.height),
+        (500.0, 500.0),
+        "jamais l'image j"
+    );
+}
+
 /// **Une flèche compte par ses deux extrémités.** Son point d'ancrage ne dit rien de l'endroit
 /// qu'elle occupe — et une flèche qui remonte vers la gauche a sa pointe avant son origine.
 #[test]

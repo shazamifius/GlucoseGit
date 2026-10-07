@@ -130,3 +130,23 @@ fn test_le_nom_vient_du_dernier_segment() {
     );
     assert_eq!(nom_pour("https://exemple.fr/"), "image");
 }
+
+/// **Les variantes d'une image sont de la même famille, et deux images jamais** : c'est ce qui
+/// les fait courir ensemble sans mêler une épingle à sa voisine (fiche 53 § 7).
+#[test]
+fn test_les_variantes_d_une_image_sont_une_famille() {
+    let recue = "https://i.pinimg.com/236x/ab/cd/ef/h.jpg";
+    let variantes = variantes_pinterest(recue).expect("une image de Pinterest");
+    assert!(
+        variantes.iter().all(|v| famille(v) == famille(recue)),
+        "{variantes:?}"
+    );
+    assert_ne!(
+        famille(recue),
+        famille("https://i.pinimg.com/236x/ab/cd/ef/autre.jpg")
+    );
+    assert_ne!(
+        famille("https://exemple.org/a.png"),
+        famille("https://exemple.org/b.png")
+    );
+}

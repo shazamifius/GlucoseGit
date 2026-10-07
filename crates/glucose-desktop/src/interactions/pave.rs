@@ -127,9 +127,14 @@ impl GlucoseApp {
         use crate::chronique::navigation::Decision;
         self.vol.poser();
         self.defilement_au_doigt = true;
+        // Les doigts du pavé ne passent pas par `winit` : sans cette ligne, la chronique comptait
+        // un geste au pavé comme du repos, et le processeur « au repos » s'en trouvait accusé.
+        self.provenance.noter_la_main();
         match mouvement {
             Mouvement::Zoomer(octaves) => {
-                self.chronique.navigation.evenement(Decision::Pincement);
+                self.chronique
+                    .navigation
+                    .evenement_du_pave(Decision::Pincement);
                 // Au mode référence, `Alt` + pincer agrandit la fenêtre (REFERENCE-2).
                 if !self.redimensionner_au_pincement(octaves) {
                     let ancre = self.ancre_du_zoom();
@@ -137,7 +142,7 @@ impl GlucoseApp {
                 }
             }
             Mouvement::Deplacer(dx, dy) => {
-                self.chronique.navigation.evenement(Decision::Pan);
+                self.chronique.navigation.evenement_du_pave(Decision::Pan);
                 self.elan.placer_pan(dx, dy);
             }
         }

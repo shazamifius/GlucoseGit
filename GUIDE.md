@@ -37,7 +37,7 @@ un geste entier à la fois (un glisser, une saisie, un lot d'images déposées).
 | **Se déplacer** | glisser avec le bouton du milieu, ou avec le bouton droit |
 | **Au pavé tactile** | glisser à deux doigts pour se déplacer, pincer pour zoomer |
 | **Passer en mode main** | `Espace` ou `H`. On y **reste** : `V` ou `Échap` pour en sortir |
-| **Voir tout le contenu** | `F` : la vue vole jusqu'à cadrer tout ce qui est posé |
+| **Voir ce qu'on a choisi, ou tout** | `F` : la vue vole jusqu'à cadrer la sélection — ou tout, si rien n'est choisi ; `Ctrl+F` : tout ce qui est posé |
 | **Poser un signet** | `Ctrl+1` à `Ctrl+9` : la vue actuelle est retenue dans ce signet |
 | **Revenir à un signet** | `1` à `9` : la vue y vole, à la bonne échelle |
 | **Voyager par la minimap** | cliquer dedans, ou **maintenir et glisser** : la vue suit en douceur |
@@ -307,7 +307,8 @@ pas encore le choisir.
 | `N` | note | | `Ctrl+C` / `X` / `V` | copier, couper, coller |
 | `A` | flèche | | `Ctrl+D` | dupliquer |
 | `M` | membrane | | `Suppr` | supprimer |
-| `F` | voir tout | | `Ctrl+B` | retirer les bordures |
+| `F` | voir la sélection (ou tout) | | `Ctrl+B` | retirer les bordures |
+| | | | `Ctrl+F` | voir tout |
 | `L` | verrouiller | | `Ctrl+]` / `[` | devant, derrière |
 | `1`–`9` | aller au signet | | `Ctrl+1`–`9` | poser un signet |
 | `1`–`6` | sens d'une flèche | | `0` | retirer ce sens |

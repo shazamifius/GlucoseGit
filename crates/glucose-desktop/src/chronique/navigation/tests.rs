@@ -59,7 +59,8 @@ fn chaque_nature_de_geste_se_compte_a_part() {
             pincements: 1,
             zooms: 2,
             pans: 1,
-            crans: 1
+            crans: 1,
+            par_le_pave: (0, 0),
         }
     );
     assert_eq!(nav.comptes().total(), 5);
@@ -86,4 +87,27 @@ fn le_centile_suit_les_latences_observees() {
     let (mesurees, pire) = nav.mesurees();
     assert_eq!(mesurees, 100);
     assert!(nav.centile(0.99) <= pire.max(1) * 2);
+}
+
+/// **Ce que le pavé apporte par *Direct Manipulation* se compte à part** (fiche 53) — et aussi
+/// dans le total : le 07/10, rien ne disait si les déplacements arrivaient par le système ou
+/// encore en molette, par paquets.
+#[test]
+fn test_les_gestes_du_pave_se_comptent_a_part() {
+    let mut nav = Navigation::nouvelle();
+    nav.evenement_du_pave(Decision::Pincement);
+    nav.evenement_du_pave(Decision::Pan);
+    nav.evenement_du_pave(Decision::Pan);
+    nav.evenement(Decision::Pan);
+    let c = nav.comptes();
+    assert_eq!(
+        c.par_le_pave,
+        (1, 2),
+        "un pincement, deux déplacements par le pavé"
+    );
+    assert_eq!(
+        (c.pincements, c.pans),
+        (1, 3),
+        "et tous comptés dans le total"
+    );
 }

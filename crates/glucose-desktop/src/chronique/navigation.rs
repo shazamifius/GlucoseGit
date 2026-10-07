@@ -48,6 +48,10 @@ pub struct Comptes {
     pub zooms: u64,
     pub pans: u64,
     pub crans: u64,
+    /// **Dont par *Direct Manipulation*** (fiche 53) : le pincement, puis le déplacement. Le
+    /// 07/10, tous les pincements y passaient — et rien ne disait si les déplacements aussi,
+    /// ou s'ils arrivaient encore en molette, par paquets.
+    pub par_le_pave: (u64, u64),
 }
 
 impl Comptes {
@@ -64,6 +68,7 @@ pub struct Navigation {
     zooms: u64,
     pans: u64,
     crans: u64,
+    par_le_pave: (u64, u64),
     /// L'instant du plus ancien événement que l'écran n'a pas encore montré.
     ///
     /// `None` quand tout a été montré : la latence ne se mesure que lorsqu'il y a quelque
@@ -86,6 +91,7 @@ impl Navigation {
             zooms: 0,
             pans: 0,
             crans: 0,
+            par_le_pave: (0, 0),
             en_attente: None,
             latences: Histogramme::nouveau(),
         }
@@ -110,6 +116,15 @@ impl Navigation {
         self.en_attente.is_some()
     }
 
+    /// Un événement du pavé reçu par *Direct Manipulation* : compté comme les autres, et à part.
+    pub fn evenement_du_pave(&mut self, decision: Decision) {
+        match decision {
+            Decision::Pincement => self.par_le_pave.0 += 1,
+            _ => self.par_le_pave.1 += 1,
+        }
+        self.evenement(decision);
+    }
+
     /// L'écran vient de montrer ce qui était en attente.
     ///
     /// Rend la latence si quelque chose attendait — une image qui ne montre aucun geste neuf
@@ -130,6 +145,7 @@ impl Navigation {
             zooms: self.zooms,
             pans: self.pans,
             crans: self.crans,
+            par_le_pave: self.par_le_pave,
         }
     }
 

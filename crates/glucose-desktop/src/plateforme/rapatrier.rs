@@ -118,20 +118,37 @@ pub fn chercher_sur_le_reseau(adresses: &[String]) -> Result<Moisson, String> {
 pub fn chercher(adresses: &[String], ou: Option<(f64, f64)>) -> Result<Moisson, String> {
     let mut file: VecDeque<Candidat> = sources::candidats(adresses).into();
     let mut echec = (String::new(), String::from("aucune adresse a essayer"));
+    let (depart, mut pages) = (std::time::Instant::now(), 0);
     while let Some(candidat) = file.pop_front() {
         match candidat {
-            Candidat::Image(url) => match rapatrier_l_image(&url) {
-                Ok(recu) => {
-                    println!("[Glucose] depot : image rapatriee depuis {url}");
-                    return Ok(Moisson {
-                        recus: vec![recu],
-                        ou,
-                        ..Moisson::default()
-                    });
+            Candidat::Image(url) => {
+                // Les variantes d'une même image — l'original sous ses extensions, la grande
+                // copie, la reçue — se suivent dans la file : elles courent ensemble.
+                let mut groupe = vec![url];
+                while let Some(Candidat::Image(suivante)) = file.front() {
+                    if sources::famille(suivante) != sources::famille(&groupe[0]) {
+                        break;
+                    }
+                    groupe.push(suivante.clone());
+                    file.pop_front();
                 }
-                Err(e) => echec = (hote(&url), e),
-            },
+                match course(groupe) {
+                    Ok((url, recu)) => {
+                        println!(
+                            "[Glucose] depot : image rapatriee depuis {url} en {} ms, {pages} page(s) lue(s)",
+                            depart.elapsed().as_millis()
+                        );
+                        return Ok(Moisson {
+                            recus: vec![recu],
+                            ou,
+                            ..Moisson::default()
+                        });
+                    }
+                    Err((url, e)) => echec = (hote(&url), e),
+                }
+            }
             Candidat::Page(url) => {
+                pages += 1;
                 let html = match super::telecharger(&url, OCTETS_MAX) {
                     Ok(octets) => String::from_utf8_lossy(&octets).into_owned(),
                     Err(e) => {
@@ -162,6 +179,72 @@ pub fn chercher(adresses: &[String], ou: Option<(f64, f64)>) -> Result<Moisson, 
     Err(raison)
 }
 
+/// **Les variantes d'une image courent ensemble**, et la meilleure qui répond gagne
+/// (fiche 53 § 7).
+///
+/// Essayées l'une après l'autre, chaque variante absente — l'original en `.jpg` quand il est en
+/// `.png` — coûtait un aller-retour entier avant la suivante. Toutes partent à la fois ; le rang
+/// `i` gagne dès qu'il a répondu une image **et** que tous ceux qui le précèdent ont échoué :
+/// l'ordre de qualité reste celui de [`sources::candidats`], seul l'attente change. Les
+/// perdantes finissent seules, et leur réponse se perd.
+fn course(groupe: Vec<String>) -> Result<(String, Recu), (String, String)> {
+    let (envoi, recu) = std::sync::mpsc::channel();
+    for (rang, url) in groupe.iter().cloned().enumerate() {
+        let envoi = envoi.clone();
+        std::thread::spawn(move || {
+            let _ = envoi.send((rang, rapatrier_l_image(&url)));
+        });
+    }
+    drop(envoi);
+    let mut etats: Vec<Option<Result<Recu, String>>> = groupe.iter().map(|_| None).collect();
+    while let Ok((rang, issue)) = recu.recv() {
+        etats[rang] = Some(issue);
+        match vainqueur(&etats) {
+            Issue::Attendre => {}
+            Issue::Gagne(i) => {
+                let Some(Ok(recu)) = etats[i].take() else {
+                    unreachable!("le vainqueur a répondu une image")
+                };
+                return Ok((groupe[i].clone(), recu));
+            }
+            Issue::Perdu => break,
+        }
+    }
+    // Toutes ont échoué : la raison de la dernière, la moins exigeante — la copie reçue.
+    let derniere = etats
+        .iter()
+        .rposition(|e| matches!(e, Some(Err(_))))
+        .unwrap_or(0);
+    let raison = match etats.get_mut(derniere).and_then(Option::take) {
+        Some(Err(e)) => e,
+        _ => "aucune reponse".into(),
+    };
+    Err((groupe[derniere].clone(), raison))
+}
+
+/// Ce qu'une course sait, au point où elle en est.
+#[derive(Debug, PartialEq, Eq)]
+enum Issue {
+    /// Ce rang a répondu une image, et tous ceux qui le précèdent ont échoué.
+    Gagne(usize),
+    /// Tous ont échoué.
+    Perdu,
+    /// Un rang meilleur que toute réponse reçue n'a pas encore répondu.
+    Attendre,
+}
+
+/// **Qui gagne**, à ce point de la course : le premier rang qui n'a pas échoué décide.
+fn vainqueur<T, E>(etats: &[Option<Result<T, E>>]) -> Issue {
+    for (rang, etat) in etats.iter().enumerate() {
+        match etat {
+            None => return Issue::Attendre,
+            Some(Ok(_)) => return Issue::Gagne(rang),
+            Some(Err(_)) => {}
+        }
+    }
+    Issue::Perdu
+}
+
 /// Le site d'une adresse, ce qu'un message peut nommer.
 fn hote(url: &str) -> String {
     sources::decouper(url).map(|a| a.hote).unwrap_or_default()
@@ -183,5 +266,24 @@ fn rapatrier_l_image(url: &str) -> Result<Recu, String> {
 fn dire(url: &str, raison: &str) {
     if std::env::var_os("GLUCOSE_DEPOT").is_some() {
         eprintln!("[Glucose] depot : {url} -- {raison}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{vainqueur, Issue};
+
+    /// **La meilleure variante gagne dès qu'elle le peut, et jamais avant** : une copie qui
+    /// répond pendant que l'original n'a rien dit attend ; l'original qui répond gagne sans
+    /// attendre les autres ; un original absent cède à la suivante.
+    #[test]
+    fn test_la_course_rend_la_meilleure_variante_des_qu_elle_le_peut() {
+        let ok = || Some(Ok::<(), ()>(()));
+        let ko = || Some(Err::<(), ()>(()));
+        assert_eq!(vainqueur(&[None, ok(), ok()]), Issue::Attendre);
+        assert_eq!(vainqueur(&[ok(), None, None]), Issue::Gagne(0));
+        assert_eq!(vainqueur(&[ko(), ko(), ok(), None]), Issue::Gagne(2));
+        assert_eq!(vainqueur(&[ko(), None, ok()]), Issue::Attendre);
+        assert_eq!(vainqueur(&[ko(), ko()]), Issue::Perdu);
     }
 }

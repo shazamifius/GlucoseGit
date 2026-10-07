@@ -140,6 +140,22 @@ pub fn variantes_pinterest(url: &str) -> Option<Vec<String>> {
     Some(v)
 }
 
+/// **Ce qui fait d'adresses différentes la même image** : chez Pinterest, le chemin sans la
+/// taille ni l'extension — l'original, la grande copie et la reçue en sont des variantes ;
+/// ailleurs, l'adresse elle-même. C'est ce qui permet de faire courir les variantes ensemble
+/// sans jamais mêler deux images.
+pub fn famille(url: &str) -> String {
+    let Some(a) = decouper(url).filter(|a| a.hote == "i.pinimg.com") else {
+        return url.trim().to_string();
+    };
+    let chemin = a.chemin.trim_start_matches('/');
+    let reste = chemin.split_once('/').map_or(chemin, |(_, r)| r);
+    reste
+        .rsplit_once('.')
+        .map_or(reste, |(sans, _)| sans)
+        .to_string()
+}
+
 /// Cette adresse désigne-t-elle une image, à en croire son chemin ?
 fn designe_une_image(url: &str) -> bool {
     let Some(a) = decouper(url) else {

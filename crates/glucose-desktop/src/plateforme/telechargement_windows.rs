@@ -92,15 +92,39 @@ fn raison(etape: &str, e: &windows::core::Error) -> String {
 }
 
 /// La requête, et ce qu'elle ne doit pas survivre : les champs se ferment dans l'ordre où ils
-/// sont écrits — la requête, puis sa connexion, puis la session.
+/// sont écrits — la requête, puis sa connexion. La session, elle, reste.
 struct Requete {
     requete: Poignee,
     _connexion: Poignee,
-    _session: Poignee,
 }
 
-/// Ouvre la requête `GET` de cette adresse.
-fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
+/// **Une session pour tout Glucose**, que rien ne ferme (fiche 53 § 7).
+///
+/// WinHTTP garde ses connexions ouvertes **par session** : une session par téléchargement
+/// refaisait, à chaque fois, le nom, la connexion et la poignée de main chiffrée — deux fois par
+/// épingle (la page, puis l'image), quelques centaines de millisecondes chaque fois. Un
+/// navigateur garde les siennes ; dès la deuxième épingle, Glucose aussi. Les poignées de
+/// session de WinHTTP se partagent entre fils : c'est l'usage qu'il prévoit.
+struct Session(Poignee);
+
+// SAFETY : une poignée de session WinHTTP s'emploie de n'importe quel fil, et celle-ci n'est
+// jamais fermée.
+unsafe impl Send for Session {}
+unsafe impl Sync for Session {}
+
+static SESSION: std::sync::OnceLock<Option<Session>> = std::sync::OnceLock::new();
+
+/// La session, ouverte la première fois qu'on en a besoin.
+fn session() -> Result<*mut core::ffi::c_void, String> {
+    SESSION
+        .get_or_init(|| ouvrir_la_session().ok().map(Session))
+        .as_ref()
+        .map(|s| s.0 .0)
+        .ok_or_else(|| "session : WinHTTP refuse de s'ouvrir".into())
+}
+
+/// Ouvre la session, avec ses délais et la compression.
+fn ouvrir_la_session() -> Result<Poignee, String> {
     unsafe {
         let session = Poignee(WinHttpOpen(
             &HSTRING::from(NAVIGATEUR),
@@ -121,8 +145,16 @@ fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
         let toutes =
             (WINHTTP_DECOMPRESSION_FLAG_GZIP | WINHTTP_DECOMPRESSION_FLAG_DEFLATE).to_ne_bytes();
         WinHttpSetOption(Some(session.0), WINHTTP_OPTION_DECOMPRESSION, Some(&toutes)).ok();
+        Ok(session)
+    }
+}
+
+/// Ouvre la requête `GET` de cette adresse, dans la session de Glucose.
+fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
+    let session = session()?;
+    unsafe {
         let connexion = Poignee(WinHttpConnect(
-            session.0,
+            session,
             &HSTRING::from(adresse.hote.as_str()),
             adresse.port,
             0,
@@ -146,7 +178,6 @@ fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
         Ok(Requete {
             requete,
             _connexion: connexion,
-            _session: session,
         })
     }
 }

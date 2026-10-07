@@ -317,8 +317,6 @@ impl GlucoseApp {
     }
 
     fn voler_vers_le_signet(&mut self, cle: char) -> Option<String> {
-        let tableau = self.store.project.active_board_id.clone();
-        let _ = tableau;
         let Some(vue) = self.vue_du_signet(cle) else {
             return Some(format!("Signet {cle} vide -- Ctrl+{cle} le pose ici"));
         };
@@ -350,6 +348,8 @@ impl GlucoseApp {
                 self.toast_if(done, "Rétablir");
             }
             "d" | "D" => self.duplicate_selection(),
+            // `Ctrl+F` : tout cadrer ; `F` seul cadre la sélection (fiche 53 § 8).
+            "f" | "F" => self.cadrer(false),
             // `Ctrl+Maj+A` : le premier plan de PureRef, ici tout le mode référence.
             "a" | "A" if self.modifiers.shift_key() => self.basculer_le_mode_reference(),
             "a" | "A" => self.select_all(),
@@ -382,7 +382,7 @@ impl GlucoseApp {
             }
             "t" | "T" => ActiveTool::Text,
             "f" | "F" => {
-                self.reset_view();
+                self.cadrer(true);
                 return;
             }
             "l" | "L" => {
@@ -502,27 +502,29 @@ impl GlucoseApp {
     }
 
     /// Recentre la caméra PureRef sur l'origine, à l'échelle 1.
-    /// `F` — montrer tout ce qu'il y a, plutôt que revenir à un point d'origine.
+    /// **Cadrer** — `F` la sélection (tout, si rien n'est choisi), `Ctrl+F` tout (fiche 53 § 8).
     ///
-    /// Elle posait [`Viewport::default`], c'est-à-dire l'origine du monde à l'échelle un.
-    /// L'utilisateur l'a dit sans détour : « ça ne ramène qu'au point 0 de la map, alors
-    /// qu'il NE DEVRAIT PAS Y AVOIR DE POINT 0, c'est un canva infini ». Il a raison, et
-    /// c'était une faute de conception, pas un réglage : dans un espace sans bord, l'origine
-    /// n'est le centre de rien et ne garantit pas qu'il reste quelque chose à y voir.
+    /// Au début, `F` posait [`Viewport::default`], c'est-à-dire l'origine du monde à l'échelle
+    /// un. L'utilisateur l'a dit sans détour : « ça ne ramène qu'au point 0 de la map, alors
+    /// qu'il NE DEVRAIT PAS Y AVOIR DE POINT 0, c'est un canva infini ». Ce que la touche doit
+    /// répondre est « où sont mes affaires » — le cadrage du contenu, atteint par un vol pour
+    /// qu'on voie d'où l'on vient. Le 07/10, il a demandé que `F` regarde **ce qu'on a choisi**,
+    /// comme le « cadrer la sélection » de Maya et d'Unity, et que tout cadrer passe à `Ctrl+F`.
     ///
-    /// Ce que la touche doit répondre est « où sont mes affaires » — donc le cadrage du
-    /// contenu, atteint par un vol pour qu'on voie d'où l'on vient.
-    fn reset_view(&mut self) {
-        let Some(fenetre) = &self.window else {
-            return;
-        };
-        let taille = fenetre.inner_size();
+    /// La taille est celle de la fenêtre, ou celle de sa naissance quand elle n'existe pas : une
+    /// épreuve joue la touche sans fenêtre.
+    fn cadrer(&mut self, la_selection: bool) {
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
         let ecran = glucose_core::membrane_focus::ScreenSize {
-            width: f64::from(taille.width),
-            height: f64::from(taille.height),
+            width: f64::from(largeur),
+            height: f64::from(hauteur),
         };
         let bandeau = f64::from(self.ui.header_height());
-        self.cadrer_sur_le_contenu(ecran, bandeau);
+        if la_selection {
+            self.cadrer_sur_la_selection(ecran, bandeau);
+        } else {
+            self.cadrer_sur_le_contenu(ecran, bandeau);
+        }
     }
 }
 
