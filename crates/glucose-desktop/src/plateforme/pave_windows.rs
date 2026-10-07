@@ -39,7 +39,6 @@ use windows::Win32::Graphics::DirectManipulation::{
     IDirectManipulationManager, IDirectManipulationUpdateManager, IDirectManipulationViewport,
     IDirectManipulationViewport2, IDirectManipulationViewportEventHandler,
     IDirectManipulationViewportEventHandler_Impl, DIRECTMANIPULATION_CONFIGURATION_INTERACTION,
-    DIRECTMANIPULATION_CONFIGURATION_RAILS_X, DIRECTMANIPULATION_CONFIGURATION_RAILS_Y,
     DIRECTMANIPULATION_CONFIGURATION_SCALING, DIRECTMANIPULATION_CONFIGURATION_TRANSLATION_INERTIA,
     DIRECTMANIPULATION_CONFIGURATION_TRANSLATION_X, DIRECTMANIPULATION_CONFIGURATION_TRANSLATION_Y,
     DIRECTMANIPULATION_INERTIA, DIRECTMANIPULATION_INTERACTION_BEGIN,
@@ -114,12 +113,14 @@ pub fn installer(hwnd: isize, reveil: super::Reveil) -> Option<PaveWindows> {
             .CreateViewport(None::<&IDirectManipulationFrameInfoProvider>, fenetre)
             .map_err(|e| dire("le viewport", &e))
             .ok()?;
+        // Sans les « rails » de Chromium (`RAILS_X`, `RAILS_Y`), qui collent un défilement
+        // presque vertical à la verticale : juste pour une page, faux pour un canevas, où un
+        // déplacement en biais doit rester en biais. Sans inertie d'échelle non plus : le
+        // pincement s'arrête avec les doigts.
         let configuration = DIRECTMANIPULATION_CONFIGURATION_INTERACTION
             | DIRECTMANIPULATION_CONFIGURATION_TRANSLATION_X
             | DIRECTMANIPULATION_CONFIGURATION_TRANSLATION_Y
             | DIRECTMANIPULATION_CONFIGURATION_TRANSLATION_INERTIA
-            | DIRECTMANIPULATION_CONFIGURATION_RAILS_X
-            | DIRECTMANIPULATION_CONFIGURATION_RAILS_Y
             | DIRECTMANIPULATION_CONFIGURATION_SCALING;
         let ecouteur: IDirectManipulationViewportEventHandler = Ecouteur {
             etat: Rc::clone(&etat),
