@@ -150,3 +150,45 @@ tourne pas — le lancer ouvrirait sa fenêtre. **Seule la CI le prouvera** : à
    clic droit → « Remplacer par l'image ».
 4. **Le mode référence** : `Alt` + pincer redimensionne toujours la fenêtre.
 5. **Son choix** sur la planche de la sélection.
+
+## 7. Son écran, le 07/10 à 15 h 40 — et ce qui en a suivi
+
+**Ses verdicts** : le pincement — « dans l'idée c'est bien, le zoom maintenant » ; la molette —
+« parfait » ; Pinterest — « ça fonctionne, mais plutôt long » ; le mode référence — `Alt` +
+pincer marche, et « c'est dommage que tu les aies supprimés, c'était vraiment pratique » (à
+éclaircir avec lui : sans doute les panneaux retirés du mode référence, fiche 52 § 10). **Le
+déplacement à deux doigts** : « la translation, la multi-direction pose problème » — en
+horizontal et en biais.
+
+**Le déplacement, pas encore compris** : sa chronique dit les 494 pincements passés par
+*Direct Manipulation* (aucun message de molette marqué), mais ne disait pas par où passaient les
+1 297 déplacements. Deux hypothèses écartées par l'épreuve sur le vrai système : le viewport
+fictif **n'a pas de bords** (son contenu n'a jamais reçu de limites, `0x802A0005`), et un
+déplacement programmé dans les quatre directions est rendu exactement. Restent : des
+déplacements qui arriveraient **encore en molette** (par paquets, avec l'élan de Glucose), ou un
+pincement reconnu à tort au milieu d'un déplacement en biais, qui bloque le déplacement jusqu'à
+la fin du geste. La chronique sépare désormais les deux voies (« dont par Direct Manipulation »),
+et compte le pavé comme la main. **Sa prochaine session tranchera, avant tout réglage.**
+
+**Pinterest, plus vite** : une session WinHTTP pour tout Glucose (les connexions restent
+ouvertes, plus de poignée de main chiffrée à chaque requête) ; les variantes d'une image courent
+ensemble (`rapatrier::course` : la meilleure qui répond gagne dès que toutes celles qui la
+précèdent ont échoué). Six épingles à la suite : **0,7 à 3 s, 1,3 s en général**, contre 2,5 à
+3 s. Le reste est le temps que le serveur de Pinterest met à préparer sa page. Pour
+l'instantané, la piste est de **poser la vignette que le navigateur glisse**, puis de la
+remplacer par l'original : chaque dépôt dit désormais en une ligne s'il en portait une.
+
+**`F` et `Ctrl+F`** (sa demande) : `F` cadre la sélection — images, textes, flèches, dossier —,
+ou tout si rien n'est choisi ; `Ctrl+F` cadre tout. C'est la convention de Maya et d'Unity ;
+Figma, tldraw et Excalidraw ont `Maj+1` et `Maj+2`, Blender « vue sur la sélection » et
+`Origine`. **Une collision à lui dire** : `Ctrl+F` est la recherche dans Glucose Tauri et dans
+tous les logiciels ; la recherche (ETAT § 5) devra prendre une autre touche, ou la reprendre.
+
+**Ce qu'il attend ensuite**, mot pour mot : *« une version ultra stable avec tout le mode Ctrl+Maj+A,
+compatible tablette, Linux et Windows — la version Windows fonctionne excellemment bien — et Mac ;
+un build complet pour tous les Linux, tous les Mac, et SURTOUT ce que j'attends le PLUS, c'est
+vraiment pour Android ; et un système de télémétrie de tous les utilisateurs, quel que soit leur
+appareil, afin de travailler sur l'amélioration de Glucose »*. La suite est réordonnée ainsi.
+
+**Envoi** : il a validé l'envoi des commits **sans CI**. Le dernier commit envoyé porte
+`[skip ci]`.

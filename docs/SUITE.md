@@ -7,6 +7,18 @@
 > **Comment s'en servir** : prendre le premier chantier non fait. Quand il est fini (prouvé, pas
 > « ça compile »), le cocher ici, mettre à jour [ÉTAT](ETAT.md), et passer au suivant.
 
+> **Son ordre, le 07/10 au soir** (fiche 53 § 7) : *« une version ultra stable avec tout le mode
+> Ctrl+Maj+A, compatible tablette, Linux, Windows et Mac ; un build complet pour tous les Linux,
+> tous les Mac, et SURTOUT Android ; et une télémétrie de tous les utilisateurs, quel que soit
+> leur appareil »*. D'où l'ordre ci-dessous : finir le chantier 1 (le déplacement au pavé, la
+> sélection, la CI, la 2.0.2), puis **Android** (chantier 2), les versions complètes pour Linux
+> et Mac (chantier 3), la télémétrie (chantier 4, qui attend sa décision sur le serveur).
+>
+> **Mon avis, à discuter avec lui** : la télémétrie gagnerait à précéder Android — c'est elle
+> qui dira, sur les téléphones de ses dix testeurs, ce qui casse et où ; sans elle, chaque
+> défaut Android ne se verra que s'ils le racontent. Elle ne demande que sa décision sur le
+> serveur, puis quelques jours.
+
 ---
 
 ## 1. Ses retours sur la V2, et la 2.0.2 bêta — **d'abord**
@@ -33,8 +45,10 @@ parfait ». Restent le pincement, le dessin de la sélection, et la publication.
 | [x] | **La CI de `20deb6f`** (la voie hors Windows du presse-papiers) | neuf tâches vertes |
 | [x] | **ECRAN-1 — la carte qui tient l'écran** : le lag du 07/10 (gels de 500 ms dans `present`) venait d'un balancier de l'arbitre entre la RTX, qui tient son écran, et l'Intel (fiche 52 § 1) | **vérifié** sur sa session suivante : la RTX, « celle qui tient l'écran », `mailbox`, pire image 48 ms au lieu de 505 |
 | [x] | **POIGNEE-1 — les poignées, le cadre et l'anneau de sélection suivent la place du nœud** à l'écran (son retour du 07/10, deux fois) | « parfait » (07/10) |
-| [~] | **Le pincement au pavé** : *Direct Manipulation* (chantier 1 bis, fiche 53 § 2) | la chaîne prouvée hors écran ; **le geste, à son écran** |
-| [~] | **Pinterest, DEPOT-WEB-6** : la page demandée compressée (20 s → 1 s), un repli qui dit pourquoi, « Remplacer par l'image » au clic droit (fiche 53 § 1) | six épingles rapatriées ici ; **à son écran**, et ses six liens à réparer |
+| [x] | **Le pincement au pavé** : *Direct Manipulation* (chantier 1 bis, fiche 53 § 2) | « dans l'idée c'est bien, le zoom maintenant » (07/10) |
+| [ ] | **Le déplacement à deux doigts** : « la translation, la multi-direction pose problème » — en horizontal et en biais (fiche 53 § 7) | la chronique sépare désormais les deux voies : **sa prochaine session dira laquelle**, avant tout réglage |
+| [~] | **Pinterest, DEPOT-WEB-6** : la page compressée, un repli qui dit pourquoi, « Remplacer par l'image » ; puis une session gardée et les variantes en course (fiche 53 § 1 et 7) | « fonctionne, mais plutôt long » → 1,3 s en général ; **l'instantané** : poser la vignette glissée, puis l'original — selon ce que ses dépôts portent |
+| [~] | **`F` cadre la sélection (ou tout), `Ctrl+F` tout** — sa demande (fiche 53 § 7) | éprouvé par la vraie touche ; **à son écran**. `Ctrl+F` prend la place de la future recherche : à lui dire |
 | [x] | **La molette** : un tiers d'octave par cran (« pas du tout assez rapide » au huitième) | « parfait » (07/10) |
 | [x] | **Le mode référence, suite** : les panneaux retirés aussi de la voie graphique ; SIGNET-2 (les signets retiennent le centre) ; REFERENCE-3 (la fenêtre se redimensionne une fois par image — le gel qui a « failli planter » son PC, cause probable) | « parfait » (07/10) ; le gel n'est pas revenu |
 | [ ] | **Le dessin de la sélection** : « pas esthétique du tout » ; cinq directions **envoyées à son écran** (fiche 53 § 3), mon avis : E | **son choix** |
@@ -70,22 +84,7 @@ la lui **montrer** (l'envoyer à l'écran), recueillir son choix, puis l'écrire
 ornements (`hit_priority::chrome_ratio`, `renderer/handles.rs`, `scene/image/ornement.rs`) et
 dans `style.md`. Si c'est la couleur qui lui manque, c'est `style.md` qui change — sa décision.
 
-## 2. La boîte noire qui voyage
-
-**Pourquoi maintenant** : deux installeurs téléchargés, zéro paquet Linux, et aucun moyen de savoir
-si la bascule a échoué en silence chez quelqu'un. Sans elle, on ne voit que sa machine.
-
-Conçu, pas écrit (fiche 49 § 2) : éteint par défaut, une question claire au premier lancement,
-« voir ce qui part » (exactement les lignes de la boîte noire, qui ne peuvent porter aucun mot de
-l'utilisateur), des lots envoyés au lancement suivant en HTTPS, un identifiant tiré au hasard et
-renouvelable, effacement sur demande, **aucune adresse IP gardée**, une page publique qui dit tout.
-
-* **Bloqué par sa décision** : le serveur. Sa box NixOS derrière un nom gratuit (deSEC) et Caddy,
-  **mon avis**, parce que personne d'autre ne voit les données ; ou Cloudflare Workers, sans entretien.
-* Les plantages hors de Windows : Linux en a deux registres (`systemd-coredump` chez Fedora, `apport`
-  chez Ubuntu) ; Android a `ApplicationExitInfo` (11 et plus).
-
-## 3. Le toucher : Android, et l'iPad par le web
+## 2. Le toucher : **Android d'abord**, et l'iPad par le web — ce qu'il attend le plus
 
 Le plan est dans la fiche 50 ; l'ordre :
 
@@ -102,7 +101,38 @@ Le plan est dans la fiche 50 ; l'ordre :
    d'une application suspendue, l'APK et **sa clé à ne jamais perdre**, de vrais téléphones anciens
    par Firebase Test Lab (gratuit).
 
-## 4. Ce qui manque de Glucose Tauri
+## 3. Des versions complètes : tous les Linux, tous les Mac, le mode référence partout
+
+**Pourquoi** : sa demande du 07/10 — « une version ultra stable avec tout le mode Ctrl+Maj+A,
+compatible tablette, Linux, Windows et Mac ». Linux a déjà ses trois formes et NixOS (fiche 48) ;
+**le Mac n'a aucune version publiée** : la CI le compile (puce Apple et Intel), rien ne
+l'empaquette. Sans compte Apple (aucun argent), un `.dmg` non signé s'ouvre par « clic droit →
+Ouvrir », comme PureRef l'a longtemps fait.
+
+* Le mode référence hors de Windows : sans cadre et au premier plan passent par `winit` partout ;
+  `Alt` + glisser (`drag_window`) est refusé par certains bureaux Wayland — à vérifier, et à dire
+  quand il ne marche pas.
+* Le pavé hors de Windows : macOS donne le pincement et le déplacement nativement à `winit` ;
+  Linux selon le bureau (libinput sous Wayland, rien de propre sous X11).
+* **Fini quand** : la CI verte sur les neuf tâches, un `.dmg` à la release, et un essai du mode
+  référence sous Linux et Mac (par lui ou un testeur).
+
+## 4. La boîte noire qui voyage — la télémétrie de tous ses utilisateurs
+
+**Pourquoi maintenant** : deux installeurs téléchargés, zéro paquet Linux, et aucun moyen de savoir
+si la bascule a échoué en silence chez quelqu'un. Sans elle, on ne voit que sa machine.
+
+Conçu, pas écrit (fiche 49 § 2) : éteint par défaut, une question claire au premier lancement,
+« voir ce qui part » (exactement les lignes de la boîte noire, qui ne peuvent porter aucun mot de
+l'utilisateur), des lots envoyés au lancement suivant en HTTPS, un identifiant tiré au hasard et
+renouvelable, effacement sur demande, **aucune adresse IP gardée**, une page publique qui dit tout.
+
+* **Bloqué par sa décision** : le serveur. Sa box NixOS derrière un nom gratuit (deSEC) et Caddy,
+  **mon avis**, parce que personne d'autre ne voit les données ; ou Cloudflare Workers, sans entretien.
+* Les plantages hors de Windows : Linux en a deux registres (`systemd-coredump` chez Fedora, `apport`
+  chez Ubuntu) ; Android a `ApplicationExitInfo` (11 et plus).
+
+## 5. Ce qui manque de Glucose Tauri
 
 D'abord **remesurer la parité** (le tableau de la fiche 03 date du 10/09). Puis, dans l'ordre de la
 fiche 36 § 2 (phase 4) : ce qui est écrit dans le noyau et pas branché (`timeline`, `mirror_graph`,
@@ -114,7 +144,7 @@ l'interface (sélecteur de couleur, infobulles), vidéos et provenance (fiche 27
 les membranes de Mary (13), les rideaux (14), « recopie image » (15) et la carte « aaaa » (18) à
 comprendre avec lui, les niveaux de boards (16) à confirmer, l'optimisation de la Time Machine (12).
 
-## 5. La fluidité
+## 6. La fluidité
 
 * Les zooms chargés à 11-21 ms (session du 05/10) : le plancher de 100 images par seconde.
 * Les gels de la carte Intel Arc (fiche 43 § 8) : très probablement l'écran branché sur la RTX
@@ -129,7 +159,7 @@ comprendre avec lui, les niveaux de boards (16) à confirmer, l'optimisation de 
 * Puis l'étalonnage : le modèle de coût qui **prédit** ce qu'une image va coûter, appris de ce que la
   boîte noire aura vu sur les vraies machines.
 
-## 6. Plus loin
+## 7. Plus loin
 
 Le co-working (sur le journal du document) · le MCP réécrit en Rust (`rmcp`) · les plugins selon sa
 vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation des 10⁷ nœuds (l'arène,
@@ -139,7 +169,7 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 
 ## Ce qui n'attend que lui
 
-1. **Le serveur de la boîte noire** (chantier 2).
+1. **Le serveur de la boîte noire** (chantier 4, la télémétrie qu'il attend).
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien d'abord).
 4. Le modèle de sa souris : **il en a une** (07/10), mais navigue surtout au pavé tactile.

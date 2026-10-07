@@ -19,7 +19,7 @@
 * **Ce qu'on sait des utilisateurs : presque rien.** Au 06/10, l'installeur Windows a été téléchargé
   **2 fois**, les paquets Linux **0 fois**, et `latest.json` a été lu 14 fois, dont une bonne part par
   sa propre machine. La boîte noire existe sur chaque machine mais **n'envoie rien** tant que le
-  serveur n'est pas décidé (voir [SUITE](SUITE.md), chantier 2).
+  serveur n'est pas décidé (voir [SUITE](SUITE.md), chantier 4).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -37,7 +37,7 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** (fiche 53 : l'échelle et le déplacement tels que le doigt les fait, l'inertie du système — **écrit, à juger à son écran**), `F` (vol qui cadre tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
+| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** (fiche 53 : l'échelle et le déplacement tels que le doigt les fait, l'inertie du système — **écrit, à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Ctrl+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) |
 | **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution, la page demandée **compressée** ; un repli en lien **dit pourquoi**, et se rattrape au clic droit : « Remplacer par l'image ») ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
@@ -53,8 +53,9 @@
   neuf tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android et le web, NixOS,
   l'installeur et la mise à jour, la répétition de la bascule, les paquets Linux. Toutes vertes
   sur `20deb6f` ; **les commits suivants du 07/10 ont été envoyés sans CI**, à sa demande
-  (`[skip ci]`), et ceux de la fiche 53 ne sont pas envoyés : Linux et Mac **à vérifier avant
-  la publication** (relus, fiche 53 § 4 ; seule la CI le prouvera).
+  (`[skip ci]`), et ceux de la fiche 53 aussi, à sa demande (« je ne veux absolument pas que tu
+  déclenches la CI », 07/10 au soir) : Linux et Mac **à vérifier avant la publication** (relus,
+  fiche 53 § 4 ; seule la CI le prouvera).
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -94,17 +95,22 @@ parfait », 07/10 au soir), sauf où c'est dit :
 
 **Ouvert** :
 
-* **le pincement au pavé** : « légèrement trop lent, et pas fluide, comme s'il sautait ». Il
-  passe désormais par *Direct Manipulation*, comme Chromium et Blender (fiche 53 § 2) : la chaîne
-  est prouvée hors écran, **le geste réel attend son écran** ;
+* **le pincement au pavé**, par *Direct Manipulation* (fiche 53 § 2) : « c'est bien, le zoom
+  maintenant » (07/10, 15 h 40) ;
+* **le déplacement à deux doigts** : « la translation, la multi-direction pose problème », en
+  horizontal et en biais — **pas encore compris** (fiche 53 § 7) ; la chronique dira par quelle
+  voie il arrive ;
 * **Pinterest** : six épingles devenues six liens le 07/10 (fiche 53 § 1) — la page arrivait
-  nue, 1,2 Mo au lieu de 127 Ko compressée. Corrigé, **probablement la cause, à confirmer** ;
+  nue, 1,2 Mo au lieu de 127 Ko compressée. Corrigé : « ça fonctionne, mais plutôt long » →
+  1,3 s par épingle en général, depuis la session gardée et la course des variantes ;
 * **le dessin de la sélection** : « pas esthétique du tout ». Cinq directions **envoyées à son
   écran** (`docs/carnet/screens/53-selection-cinq-directions.png`) ; mon avis : E, un cadre
   pour le groupe et un fil fin par image (PureRef, Figma, tldraw) — **son choix** ;
 * le gel qui a « failli planter » son PC : cause probable, la rafale de redimensionnements de
   `Alt` + pincer, corrigée (REFERENCE-3) — pas revu depuis ;
-* l'opacité et les clics qui traversent du mode référence, s'il les veut.
+* l'opacité et les clics qui traversent du mode référence, s'il les veut ; et ce qu'il regrette
+  d'avoir perdu en mode référence (« dommage que tu les aies supprimés, c'était vraiment
+  pratique ») — à lui demander.
 
 **Il navigue surtout au pavé tactile**, et a une souris, essayée le 07/10.
 
