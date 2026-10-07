@@ -133,6 +133,52 @@ fn compte_rendu(poses: usize, rates: usize) -> String {
     }
 }
 
+/// **Ce que dit un dépôt qui s'est replié** (DEPOT-WEB-6) : un lien posé à la place d'une image
+/// est un échec, et le dire « posé » le faisait passer pour une réussite. Le message nomme le
+/// site et la raison, et le geste qui rattrape.
+fn avec_l_echec(rendu: String, echec: Option<&str>, des_liens: bool) -> String {
+    match echec {
+        None => rendu,
+        Some(raison) if des_liens => format!(
+            "Image introuvable ({raison}) : lien posé à sa place — clic droit, « Remplacer par l'image »"
+        ),
+        Some(raison) => format!("{rendu} — l'image entière est introuvable ({raison})"),
+    }
+}
+
+/// **Un lot à poser** : des fichiers, ce qu'une page a livré, des adresses — les raccourcis
+/// Internet déjà rangés parmi les adresses.
+pub(crate) struct Lot {
+    fichiers: Vec<PathBuf>,
+    recus: Vec<Recu>,
+    liens: Vec<String>,
+}
+
+impl Lot {
+    /// **Un raccourci Internet est une adresse**, d'où qu'il vienne (DEPOT-WEB-2) : il rejoint
+    /// les liens, et se pose en carte qu'on peut suivre plutôt qu'en carte qui porte son nom de
+    /// fichier.
+    pub(crate) fn de(paths: &[PathBuf], recus: Vec<Recu>, liens: &[String]) -> Self {
+        let (fichiers, adresses) = moisson::lire_les_raccourcis(paths);
+        let (recus, adresses_recues) = moisson::separer_les_raccourcis(recus);
+        let liens = liens
+            .iter()
+            .cloned()
+            .chain(adresses)
+            .chain(adresses_recues)
+            .collect();
+        Self {
+            fichiers,
+            recus,
+            liens,
+        }
+    }
+
+    fn attendus(&self) -> usize {
+        self.fichiers.len() + self.recus.len() + self.liens.len()
+    }
+}
+
 /// Le nom d'un fichier, sans son chemin.
 fn file_name_of(path: &Path) -> String {
     path.file_name()
@@ -173,7 +219,7 @@ impl GlucoseApp {
     /// raviser est un seul geste, et le défaire demande un seul `Ctrl+Z`.
     pub fn drop_files(&mut self, paths: &[PathBuf]) {
         let origine = self.drop_origin(None);
-        self.deposer(paths, Vec::new(), &[], origine);
+        self.deposer(paths, Vec::new(), &[], origine, None);
     }
 
     /// **Tout ce qu'un dépôt apporte, posé en une fois** — des fichiers, des adresses, ou les
@@ -181,6 +227,7 @@ impl GlucoseApp {
     ///
     /// `(ox, oy)` est le point du **monde** où le lot se pose : l'appelant le tire du curseur
     /// ([`Self::drop_origin`]), ou de l'annonce d'un téléchargement, qui l'a figé au lâcher.
+    /// `echec` dit pourquoi l'image n'est pas venue, quand ce lot est un repli (DEPOT-WEB-6).
     ///
     /// **Une seule fonction pour les deux natures**, et c'est ce que le cliquet des toasts a
     /// imposé : un dépôt est un geste, un geste rend **un** compte-rendu. Une seconde fonction
@@ -190,51 +237,56 @@ impl GlucoseApp {
         paths: &[PathBuf],
         recus: Vec<Recu>,
         liens: &[String],
-        (ox, oy): (f64, f64),
+        origine: (f64, f64),
+        echec: Option<&str>,
     ) {
-        // **Un raccourci Internet est une adresse**, d'ou qu'il vienne (DEPOT-WEB-2) : il
-        // rejoint les liens, et se pose en carte qu'on peut suivre plutot qu'en carte qui
-        // porte son nom de fichier.
-        let (fichiers, adresses) = moisson::lire_les_raccourcis(paths);
-        let (recus, adresses_recues) = moisson::separer_les_raccourcis(recus);
-        let liens: Vec<String> = liens
-            .iter()
-            .cloned()
-            .chain(adresses)
-            .chain(adresses_recues)
-            .collect();
-        let attendus = fichiers.len() + recus.len() + liens.len();
+        let lot = Lot::de(paths, recus, liens);
+        let attendus = lot.attendus();
         if attendus == 0 {
             return;
         }
         let board = self.store.project.active_board_id.clone();
-
+        let des_liens = !lot.liens.is_empty();
         self.store.begin_live_edit();
-        let mut placed = 0usize;
-        for path in &fichiers {
-            let offset = placed as f64 * CASCADE;
-            if self.place_dropped(&board, path, (ox + offset, oy + offset)) {
-                placed += 1;
-            }
-        }
-        for (rang, recu) in recus.into_iter().enumerate() {
-            let offset = placed as f64 * CASCADE;
-            if self.place_recu(&board, recu, rang, (ox + offset, oy + offset)) {
-                placed += 1;
-            }
-        }
-        for lien in &liens {
-            let offset = placed as f64 * CASCADE;
-            self.place_link(&board, lien, (ox + offset, oy + offset));
-            placed += 1;
-        }
+        let placed = self.poser_le_lot(&board, lot, origine);
         self.store.end_live_edit();
 
         // **Un** compte-rendu pour le lot, échecs compris. Déposer huit fichiers ne doit pas
         // produire huit messages : ce qui s'est passé se dit d'une phrase, et celui qui a
         // raté s'y compte au lieu de s'annoncer tout seul au milieu des autres.
-        self.ui.show_toast(compte_rendu(placed, attendus - placed));
+        let rendu = compte_rendu(placed, attendus - placed);
+        self.dire_le_depot(avec_l_echec(rendu, echec, des_liens));
         self.mark_dirty();
+    }
+
+    /// **Pose un lot dans le geste déjà ouvert**, en cascade depuis `(ox, oy)`, et rend combien
+    /// de nœuds sont posés. C'est à l'appelant d'ouvrir et de fermer le geste : le remplacement
+    /// d'un lien par son image y retire aussi le lien (DEPOT-WEB-6).
+    pub(crate) fn poser_le_lot(&mut self, board: &str, lot: Lot, (ox, oy): (f64, f64)) -> usize {
+        let mut placed = 0usize;
+        for path in &lot.fichiers {
+            let offset = placed as f64 * CASCADE;
+            if self.place_dropped(board, path, (ox + offset, oy + offset)) {
+                placed += 1;
+            }
+        }
+        for (rang, recu) in lot.recus.into_iter().enumerate() {
+            let offset = placed as f64 * CASCADE;
+            if self.place_recu(board, recu, rang, (ox + offset, oy + offset)) {
+                placed += 1;
+            }
+        }
+        for lien in &lot.liens {
+            let offset = placed as f64 * CASCADE;
+            self.place_link(board, lien, (ox + offset, oy + offset));
+            placed += 1;
+        }
+        placed
+    }
+
+    /// **Le seul message d'un dépôt**, quel qu'il soit : posé, raté, ou remplacé.
+    pub(crate) fn dire_le_depot(&mut self, message: String) {
+        self.ui.show_toast(message);
     }
 
     /// **Une adresse déposée, posée en carte et cliquable** (DEPOT-WEB-1).

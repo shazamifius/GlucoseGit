@@ -460,7 +460,7 @@ fn test_une_image_livree_par_une_page_se_pose_sans_fichier() {
     let mut app = app();
     let recu = png_livre("photo.png");
     let octets = recu.octets.clone();
-    app.deposer(&[], vec![recu], &[], (0.0, 0.0));
+    app.deposer(&[], vec![recu], &[], (0.0, 0.0), None);
     let images = &app.store.active_board().expect("un tableau").images;
     assert_eq!(images.len(), 1);
     let cle = images[0].src.clone().expect("une clé");
@@ -486,6 +486,7 @@ fn test_ce_qui_n_est_pas_une_image_va_dans_les_telechargements() {
         vec![pdf(b"%PDF-1 premier"), pdf(b"%PDF-1 second")],
         &[],
         (0.0, 0.0),
+        None,
     );
     let tuiles: Vec<String> = annotations(&app)
         .iter()
@@ -514,7 +515,7 @@ fn test_une_image_livree_se_scelle_dans_le_document() {
     let d = dossier("depot-4-scellee");
     let mut app = application(&d);
     app.save_to(d.join("depot.glucose"));
-    app.deposer(&[], vec![png_livre("photo.png")], &[], (0.0, 0.0));
+    app.deposer(&[], vec![png_livre("photo.png")], &[], (0.0, 0.0), None);
     image_suivante(&mut app);
     let cle = app.store.project.boards[0]
         .images

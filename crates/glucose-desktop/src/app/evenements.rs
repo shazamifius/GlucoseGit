@@ -188,19 +188,8 @@ impl GlucoseApp {
             self.provenance.noter_un_depot();
         }
 
-        // **Ce que le pont natif a recolte** (DEPOT-WEB-1). Il ecrit depuis la boucle de
-        // messages de Windows, au milieu d'un geste ; on pose ici, ou le document n'est lu
-        // par personne. Un lot par depot : glisser huit images d'une page est UN geste.
-        for depot in self
-            .depot
-            .pont
-            .as_ref()
-            .map(|d| d.recolter())
-            .unwrap_or_default()
-        {
-            self.recevoir_le_depot(depot);
-            self.provenance.noter_un_depot();
-        }
+        // **Ce que le pont natif et les relances ont apporte** (DEPOT-WEB-1, 6).
+        self.relever_les_depots();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
         self.suivre_la_mise_a_jour(event_loop);
 

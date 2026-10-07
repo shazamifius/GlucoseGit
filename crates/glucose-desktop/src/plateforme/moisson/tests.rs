@@ -122,6 +122,7 @@ fn test_une_position_sans_fichier_n_est_pas_un_depot() {
         liens: Vec::new(),
         ou: Some((100.0, 200.0)),
         lot: None,
+        echec: Some("fr.pinterest.com : délai dépassé".into()),
     };
     assert!(m.est_vide());
     let avec_un_lot = Moisson {
@@ -210,4 +211,37 @@ fn test_la_ponctuation_du_texte_n_appartient_pas_a_l_adresse() {
         adresses_dans(b"https://fr.wikipedia.org/wiki/Paris_(homonymie)"),
         vec!["https://fr.wikipedia.org/wiki/Paris_(homonymie)".to_string()]
     );
+}
+
+/// **Un nœud qui n'est qu'un lien rend son adresse, et rien d'autre ne la rend**
+/// (DEPOT-WEB-6) : la pose et sa lecture sont l'inverse l'une de l'autre, parenthèses comprises,
+/// et un texte de l'utilisateur n'est jamais pris pour un repli de dépôt.
+#[test]
+fn test_un_lien_pose_se_relit_et_une_note_ne_se_relit_pas() {
+    for adresse in [
+        "https://fr.pinterest.com/pin/104427285106027754/",
+        "https://fr.wikipedia.org/wiki/Paris_(homonymie)",
+        "http://exemple.org/a(b)c(d)",
+    ] {
+        assert_eq!(
+            adresse_du_lien(&lien_markdown(adresse)).as_deref(),
+            Some(adresse),
+            "aller-retour de {adresse}"
+        );
+    }
+    for note in [
+        "https://fr.pinterest.com/pin/1/",
+        "voir [https://a.org/](https://a.org/)",
+        "[ma référence](https://a.org/)",
+        "[https://a.org/](https://b.org/)",
+        "[file:///C:/x.png](file:///C:/x.png)",
+        "[javascript:x](javascript:x)",
+        "",
+    ] {
+        assert_eq!(
+            adresse_du_lien(note),
+            None,
+            "« {note} » n'est pas un lien seul"
+        );
+    }
 }

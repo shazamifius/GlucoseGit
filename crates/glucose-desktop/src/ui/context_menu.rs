@@ -66,6 +66,8 @@ pub enum MenuAction {
     CopierLImage,
     /// Ses octets d'origine, dans un fichier.
     EnregistrerLImage,
+    /// Les liens choisis repartent chercher leur image, et lui laissent leur place (DEPOT-WEB-6).
+    RemplacerParLImage,
     ToggleLock,
     /// Retirer les bandes unies des images sélectionnées (BORDURES-1).
     TrimBorders,
@@ -147,6 +149,15 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
             defs.push(Some((
                 MenuAction::EnregistrerLImage,
                 "Enregistrer l'image sous…",
+                "",
+            )));
+        }
+        // Un dépôt replié en lien se rattrape là où il est (DEPOT-WEB-6).
+        if !crate::interactions::depot_web::liens_choisis(store).is_empty() {
+            defs.push(None);
+            defs.push(Some((
+                MenuAction::RemplacerParLImage,
+                "Remplacer par l'image",
                 "",
             )));
         }

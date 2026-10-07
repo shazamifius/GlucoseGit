@@ -18,6 +18,10 @@
 //! [`super::links`] rend cliquable — et qui refuse déjà tout ce qui n'est ni `http://` ni
 //! `https://`, donc rien de ce qu'une page dépose ici ne peut faire exécuter quoi que ce soit.
 
+mod relance;
+
+pub use relance::{liens_choisis, Relances};
+
 use crate::app::GlucoseApp;
 use crate::params::Arrivage;
 use crate::plateforme::moisson::{Depot, Moisson};
@@ -46,9 +50,33 @@ pub struct Arrivees {
     /// de l'utilisateur, que **seul le vrai lancement** donne ([`GlucoseApp::habiter`]) — une
     /// épreuve n'écrit jamais chez lui.
     pub telechargements: Option<std::path::PathBuf>,
+    /// **Les liens qui repartent chercher leur image** (DEPOT-WEB-6), au clic droit.
+    pub relances: Relances,
 }
 
 impl GlucoseApp {
+    /// **Ce que le pont natif et les relances ont apporté**, posé.
+    ///
+    /// Le pont écrit depuis la boucle de messages de Windows, au milieu d'un geste ; on pose
+    /// ici, où le document n'est lu par personne. Un lot par dépôt : glisser huit images d'une
+    /// page est **un** geste.
+    ///
+    /// **Jamais pendant un geste de la main** (DEPOT-WEB-6) : une image rapatriée arrive une
+    /// seconde après le lâcher, souvent pendant qu'on glisse déjà autre chose — et sa pose,
+    /// qui ouvre et ferme son propre geste, refermait ce glisser-là. Elle attend dans son
+    /// canal que la main ait fini.
+    pub(crate) fn relever_les_depots(&mut self) {
+        if self.store.in_live_edit() {
+            return;
+        }
+        let du_pont = self.depot.pont.as_ref().map(|d| d.recolter());
+        let relances = self.depot.relances.recoltees();
+        for depot in du_pont.unwrap_or_default().into_iter().chain(relances) {
+            self.recevoir_le_depot(depot);
+            self.provenance.noter_un_depot();
+        }
+    }
+
     /// **Ce que le pont de dépôt fait parvenir** : une annonce, ou une livraison.
     pub fn recevoir_le_depot(&mut self, depot: Depot) {
         match depot {
@@ -81,6 +109,9 @@ impl GlucoseApp {
         let annonce = numero
             .and_then(|n| self.depot.en_chemin.iter().position(|a| a.numero == n))
             .map(|i| self.depot.en_chemin.remove(i));
+        if self.livrer_une_relance(numero, recolte, annonce.as_ref().map(|a| a.monde)) {
+            return;
+        }
         let client = self.ecran_vers_client(recolte.ou);
         self.poser_une_moisson(recolte, client, annonce.map(|a| a.monde));
     }
@@ -113,7 +144,13 @@ impl GlucoseApp {
         for document in &documents {
             self.ajouter_un_document(document);
         }
-        self.deposer(&reste, recolte.recus.clone(), &recolte.liens, origine);
+        self.deposer(
+            &reste,
+            recolte.recus.clone(),
+            &recolte.liens,
+            origine,
+            recolte.echec.as_deref(),
+        );
         self.mark_dirty();
     }
 

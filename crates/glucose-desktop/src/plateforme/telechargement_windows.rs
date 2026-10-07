@@ -17,8 +17,10 @@ use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Networking::WinHttp::{
     WinHttpCloseHandle, WinHttpConnect, WinHttpOpen, WinHttpOpenRequest, WinHttpQueryDataAvailable,
     WinHttpQueryHeaders, WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest,
-    WinHttpSetTimeouts, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_FLAG_SECURE,
-    WINHTTP_OPEN_REQUEST_FLAGS, WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_QUERY_STATUS_CODE,
+    WinHttpSetOption, WinHttpSetTimeouts, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+    WINHTTP_DECOMPRESSION_FLAG_DEFLATE, WINHTTP_DECOMPRESSION_FLAG_GZIP, WINHTTP_FLAG_SECURE,
+    WINHTTP_OPEN_REQUEST_FLAGS, WINHTTP_OPTION_DECOMPRESSION, WINHTTP_QUERY_FLAG_NUMBER,
+    WINHTTP_QUERY_STATUS_CODE,
 };
 
 use super::{DELAI, NAVIGATEUR};
@@ -56,15 +58,37 @@ pub(super) fn telecharger(adresse: &Adresse, limite: usize) -> Result<Vec<u8>, S
     let requete = ouvrir(adresse)?;
     unsafe {
         WinHttpSendRequest(requete.requete.0, None, None, 0, 0, 0)
-            .map_err(|e| format!("envoi : {e}"))?;
+            .map_err(|e| raison("envoi", &e))?;
         WinHttpReceiveResponse(requete.requete.0, core::ptr::null_mut())
-            .map_err(|e| format!("reponse : {e}"))?;
+            .map_err(|e| raison("reponse", &e))?;
     }
     let statut = statut(&requete.requete)?;
     if statut != 200 {
         return Err(format!("le serveur repond {statut}"));
     }
     lire_le_corps(&requete.requete, limite)
+}
+
+/// **Ce qu'une étape a rencontré, dit en mots** (DEPOT-WEB-6) : la phrase de Windows est longue,
+/// traduite, et ne dit pas l'essentiel — le réseau manquait-il, ou le serveur s'est-il tu ? Les
+/// quatre causes qu'un dépôt rencontre ont leur nom ; les autres gardent celle de Windows.
+///
+/// Le 07/10, six épingles sont devenues six liens à seize secondes d'intervalle : le délai de
+/// chaque étape, épuisé, et rien ne l'avait dit.
+fn raison(etape: &str, e: &windows::core::Error) -> String {
+    // Les erreurs de WinHTTP arrivent en `HRESULT_FROM_WIN32` : le code est dans les seize bits
+    // bas, sous la facilité 7.
+    let code = e.code().0 as u32;
+    let win32 = (code >> 16 == 0x8007).then_some(code & 0xFFFF);
+    let dit = match win32 {
+        Some(12002) => "délai dépassé",
+        Some(12007) => "nom introuvable, le réseau manque peut-être",
+        Some(12029) => "connexion impossible",
+        Some(12030) => "connexion coupée",
+        Some(12175) => "connexion sécurisée refusée",
+        _ => return format!("{etape} : {e}"),
+    };
+    format!("{dit} ({etape})")
 }
 
 /// La requête, et ce qu'elle ne doit pas survivre : les champs se ferment dans l'ordre où ils
@@ -88,6 +112,15 @@ fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
         .ou("session")?;
         WinHttpSetTimeouts(session.0, DELAI_MS, DELAI_MS, DELAI_MS, DELAI_MS)
             .map_err(|e| format!("delais : {e}"))?;
+        // **Demander la page compressée, comme tout navigateur** (DEPOT-WEB-6). WinHTTP ne
+        // le fait que si on le lui dit, et une page d'épingle pèse 1,2 Mo nue contre 127 Ko
+        // en gzip : mesurée le 07/10, 20 s au lieu d'une, et jusqu'à 53 — assez pour qu'une
+        // pause du serveur épuise le délai d'une étape, et qu'un dépôt devienne un lien.
+        // WinHTTP décompresse lui-même ; un Windows qui ne sait pas (avant 8.1) refuse
+        // l'option, et l'on télécharge comme avant.
+        let toutes =
+            (WINHTTP_DECOMPRESSION_FLAG_GZIP | WINHTTP_DECOMPRESSION_FLAG_DEFLATE).to_ne_bytes();
+        WinHttpSetOption(Some(session.0), WINHTTP_OPTION_DECOMPRESSION, Some(&toutes)).ok();
         let connexion = Poignee(WinHttpConnect(
             session.0,
             &HSTRING::from(adresse.hote.as_str()),
@@ -142,7 +175,7 @@ fn lire_le_corps(requete: &Poignee, limite: usize) -> Result<Vec<u8>, String> {
     loop {
         let mut disponible = 0u32;
         unsafe { WinHttpQueryDataAvailable(requete.0, &mut disponible) }
-            .map_err(|e| format!("lecture : {e}"))?;
+            .map_err(|e| raison("lecture", &e))?;
         if disponible == 0 {
             return Ok(corps);
         }
@@ -157,10 +190,34 @@ fn lire_le_corps(requete: &Poignee, limite: usize) -> Result<Vec<u8>, String> {
                 &mut lus,
             )
         }
-        .map_err(|e| format!("lecture : {e}"))?;
+        .map_err(|e| raison("lecture", &e))?;
         corps.truncate(debut + lus as usize);
         if corps.len() > limite {
             return Err(format!("plus de {} Mo", limite / (1024 * 1024)));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::raison;
+    use windows::core::{Error, HRESULT};
+
+    /// L'erreur que WinHTTP rend pour ce code Win32, telle qu'elle remonte d'un appel.
+    fn erreur(win32: u32) -> Error {
+        Error::from_hresult(HRESULT((0x8007_0000 | win32) as i32))
+    }
+
+    /// **Les causes qu'un dépôt rencontre se disent en mots** (DEPOT-WEB-6), et les autres
+    /// gardent la phrase de Windows : le 07/10, « délai dépassé » est ce qu'il fallait lire.
+    #[test]
+    fn test_les_causes_d_un_depot_rate_se_disent_en_mots() {
+        assert_eq!(raison("reponse", &erreur(12002)), "délai dépassé (reponse)");
+        assert_eq!(
+            raison("envoi", &erreur(12029)),
+            "connexion impossible (envoi)"
+        );
+        assert!(raison("envoi", &erreur(12007)).starts_with("nom introuvable"));
+        assert!(raison("lecture", &erreur(5)).starts_with("lecture : "));
     }
 }

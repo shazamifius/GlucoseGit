@@ -93,6 +93,11 @@ pub struct Moisson {
     /// **Un lot de nœuds** glissé depuis une autre fenêtre de Glucose (fiche 51 § 2) : il se
     /// colle là où l'on lâche, comme un `Ctrl+V`.
     pub lot: Option<Vec<u8>>,
+    /// **Pourquoi l'image n'est pas venue**, quand ce dépôt est un repli (DEPOT-WEB-6) : le site
+    /// et la raison, `fr.pinterest.com : délai dépassé`. Le 07/10, six épingles sont devenues six
+    /// liens sans un mot, et le compte-rendu disait même « 1 élément posé » — un échec annoncé
+    /// comme une réussite.
+    pub echec: Option<String>,
 }
 
 /// **Ce qu'un dépôt fait parvenir à la boucle d'images**, dans l'ordre où cela arrive.
@@ -184,6 +189,21 @@ pub fn lien_markdown(adresse: &str) -> String {
     let montre = adresse.trim();
     let cible = montre.replace('(', "%28").replace(')', "%29");
     format!("[{montre}]({cible})")
+}
+
+/// **L'adresse d'un nœud qui n'est qu'un lien**, celui que [`lien_markdown`] a posé — ou rien
+/// (DEPOT-WEB-6).
+///
+/// C'est l'inverse exact de la pose : `[a](a)`, les parenthèses rendues. Un texte qui dit autre
+/// chose que son lien — une phrase autour, un libellé différent de l'adresse — n'est pas un
+/// repli de dépôt mais une note de l'utilisateur : la remplacer par une image effacerait ses
+/// mots. Seul `http` ou `https` compte, pour la raison qui fait refuser le reste à
+/// [`super::sources::decouper`].
+pub fn adresse_du_lien(texte: &str) -> Option<String> {
+    let (montre, cible) = texte.trim().strip_prefix('[')?.split_once("](")?;
+    let cible = cible.strip_suffix(')')?;
+    let adresse = cible.replace("%28", "(").replace("%29", ")");
+    (adresse == montre && super::sources::decouper(&adresse).is_some()).then_some(adresse)
 }
 
 /// **Ce fichier est-il un raccourci Internet** — une adresse dans un habit de fichier ?
