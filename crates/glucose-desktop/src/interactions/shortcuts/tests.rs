@@ -436,9 +436,9 @@ fn un_signet_retient_la_vue_et_le_chiffre_y_ramene() {
 
     touche(&mut app, "3", ModifiersState::CONTROL);
     assert_eq!(
-        app.store.bookmark(&tableau, "3"),
+        app.vue_du_signet('3'),
         Some(depart),
-        "Ctrl+3 retient le cadrage courant"
+        "Ctrl+3 retient le cadrage courant (par son centre, SIGNET-2)"
     );
 
     // On s'en va ailleurs, puis on rappelle le signet.

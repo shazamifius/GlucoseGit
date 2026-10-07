@@ -39,8 +39,11 @@ pub const WHEEL_SCALE_RANGE: (f64, f64) = (0.02, 20.0);
 /// laissait ni lire ni vérifier.
 ///
 /// La valeur d'avant valait 0,058 octave par cran : dix-sept crans pour doubler. C'est ce que
-/// l'utilisateur a décrit comme « la sensibilité est un peu faible ».
-const OCTAVES_PAR_CRAN: f64 = 0.125;
+/// l'utilisateur a décrit comme « la sensibilité est un peu faible ». À 0,125 — huit crans pour
+/// doubler —, essayée pour la première fois à la souris le 07/10 : « la molette pour dézoomer
+/// et zoomer n'est pas du tout assez rapide ». Un tiers d'octave : trois crans doublent, un cran
+/// vaut x1,26 — l'ordre des outils de références d'images.
+const OCTAVES_PAR_CRAN: f64 = 1.0 / 3.0;
 
 /// Ce qu'une unité de défilement change d'échelle quand elle vient d'un **doigt**.
 ///

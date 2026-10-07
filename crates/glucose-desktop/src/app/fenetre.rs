@@ -149,6 +149,17 @@ impl GlucoseApp {
             })
     }
 
+    /// **Le centre du canevas**, en pixels de la fenêtre : sous la bande, au milieu de ce qui
+    /// reste — la bande vaut zéro en mode référence (SIGNET-2).
+    pub(crate) fn centre_du_canevas(&self) -> (f64, f64) {
+        let (largeur, hauteur) = self.taille_de_la_fenetre();
+        let bande = f64::from(self.ui.header_height());
+        (
+            f64::from(largeur) / 2.0,
+            bande + (f64::from(hauteur) - bande) / 2.0,
+        )
+    }
+
     /// **Ce que la fenêtre est à sa naissance** : son titre, son icône, sa taille, sa classe sous
     /// Linux — et le mode référence s'il était retenu.
     fn attributs_de_la_fenetre(&mut self) -> WindowAttributes {

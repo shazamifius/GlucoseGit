@@ -282,16 +282,44 @@ impl GlucoseApp {
         true
     }
 
+    /// # SIGNET-2 — un signet retient la vue par son **centre**
+    ///
+    /// Le signet retenait la vue telle quelle : le décalage du coin haut-gauche du monde à
+    /// l'écran. Rappelé dans une fenêtre plus petite — le mode référence, sans bande, réduit à
+    /// une vignette —, ce qui était au centre partait sur le côté, et l'on « tombait dans le
+    /// vide » (son essai du 07/10). Il retient désormais le décalage **par rapport au centre du
+    /// canevas**, et se rappelle autour du centre du canevas d'aujourd'hui : même lieu, même
+    /// échelle, quelle que soit la fenêtre. Le format du fichier ne change pas ; seuls les
+    /// signets posés avant se rappellent décalés d'une demi-fenêtre.
+    /// La vue où ce signet ramène, dans le canevas d'aujourd'hui (SIGNET-2).
+    pub(crate) fn vue_du_signet(&self, cle: char) -> Option<glucose_core::types::Viewport> {
+        let tableau = &self.store.project.active_board_id;
+        let vue = self.store.bookmark(tableau, &cle.to_string())?;
+        let (cx, cy) = self.centre_du_canevas();
+        Some(glucose_core::types::Viewport {
+            x: vue.x + cx,
+            y: vue.y + cy,
+            ..vue
+        })
+    }
+
     fn poser_le_signet(&mut self, cle: char) -> Option<String> {
         let tableau = self.store.project.active_board_id.clone();
+        let (cx, cy) = self.centre_du_canevas();
         let vue = self.store.viewport();
+        let vue = glucose_core::types::Viewport {
+            x: vue.x - cx,
+            y: vue.y - cy,
+            ..vue
+        };
         self.store.set_bookmark(&tableau, &cle.to_string(), vue);
         Some(format!("Signet {cle} pose ici"))
     }
 
     fn voler_vers_le_signet(&mut self, cle: char) -> Option<String> {
         let tableau = self.store.project.active_board_id.clone();
-        let Some(vue) = self.store.bookmark(&tableau, &cle.to_string()) else {
+        let _ = tableau;
+        let Some(vue) = self.vue_du_signet(cle) else {
             return Some(format!("Signet {cle} vide -- Ctrl+{cle} le pose ici"));
         };
         self.vol.voler_vers(vue);

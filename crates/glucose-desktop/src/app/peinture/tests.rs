@@ -225,3 +225,31 @@ fn test_panneaux_1_un_panneau_immobile_garde_sa_cle() {
     );
     assert!(app.dock_cache.pixels(&seconde.panneaux[0].cle).is_none());
 }
+
+/// **En mode référence, la carte ne pose aucun panneau** — ils étaient visibles et morts sur
+/// cette voie (son essai du 07/10). À l'envers, hors du mode, le même panneau part sur la carte.
+#[test]
+fn test_le_mode_reference_ne_confie_aucun_panneau() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    app.dock_manager.toggle_tab(crate::dock::TabId::Temps);
+    let (_, hors) = une_image_et_son_dessus(&mut app);
+    assert_eq!(
+        hors.panneaux.len(),
+        1,
+        "hors du mode, la carte pose le panneau"
+    );
+    app.ui.reference = true;
+    let (_, dedans) = une_image_et_son_dessus(&mut app);
+    assert!(
+        dedans.panneaux.is_empty(),
+        "le mode reference porte un panneau"
+    );
+    app.ui.reference = false;
+    let (_, apres) = une_image_et_son_dessus(&mut app);
+    assert_eq!(
+        apres.panneaux.len(),
+        1,
+        "il revient quand le mode se defait"
+    );
+}

@@ -49,6 +49,51 @@ const BORD: f64 = 8.0;
 /// lequel Windows lui-même refuse de rétrécir une fenêtre ordinaire à la souris.
 const COTE_MINIMAL: f64 = 160.0;
 
+/// **REFERENCE-3 — ce que les pincements demandent à la fenêtre**, en attendant l'image.
+///
+/// La première version redimensionnait la fenêtre **à chaque événement du pavé** — une
+/// centaine par seconde. Chaque taille reconstruit la surface de la carte graphique et le
+/// tampon de l'écran ; sa session du 07/10 s'est terminée par une rafale d'images à 12 ms dans
+/// `present`, puis plus rien, et un PC « qui a failli planter ». Les pincements s'additionnent
+/// donc ici, et la fenêtre ne change de taille qu'une fois par image — et seulement quand
+/// Windows a appliqué la taille précédente.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct PincementDeFenetre {
+    /// Les octaves demandées depuis la dernière taille appliquée.
+    octaves: f64,
+    /// La taille demandée en dernier, et quand : la suivante attend qu'elle soit là.
+    demandee: Option<((u32, u32), std::time::Instant)>,
+}
+
+impl PincementDeFenetre {
+    /// Les octaves demandées et pas encore appliquées.
+    pub fn en_attente(&self) -> f64 {
+        self.octaves
+    }
+}
+
+/// **Une nouvelle taille peut-elle partir ?** Quand la précédente est appliquée — ou qu'elle ne
+/// le sera plus : Windows borne une fenêtre à sa guise, et une taille refusée ne doit pas
+/// bloquer le geste. Le délai est celui d'une image à la cadence la plus basse que la charte
+/// admet : au-delà, la demande n'est plus en route, elle est refusée.
+pub fn peut_redimensionner(
+    demandee: Option<((u32, u32), std::time::Instant)>,
+    actuelle: (u32, u32),
+    maintenant: std::time::Instant,
+) -> bool {
+    demandee.is_none_or(|(taille, quand)| {
+        taille == actuelle || maintenant.duration_since(quand) > crate::cadence::BUDGET_TOTAL
+    })
+}
+
+/// **Ce que le mode référence fait à la fenêtre** : le déplacement au bouton droit en cours, et
+/// les pincements qui attendent l'image.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct FenetreDeReference {
+    pub deplacement: Option<Deplacement>,
+    pub pincement: PincementDeFenetre,
+}
+
 /// Un déplacement de fenêtre au bouton droit : où était le curseur sur l'écran, et la fenêtre.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Deplacement {
@@ -115,7 +160,7 @@ impl GlucoseApp {
         let (Ok(dedans), Ok(dehors)) = (fenetre.inner_position(), fenetre.outer_position()) else {
             return false;
         };
-        self.deplacement_de_fenetre = Some(Deplacement {
+        self.fenetre_de_reference.deplacement = Some(Deplacement {
             curseur: (
                 f64::from(dedans.x) + self.mouse_pos.0,
                 f64::from(dedans.y) + self.mouse_pos.1,
@@ -132,7 +177,7 @@ impl GlucoseApp {
     /// fenêtre —, parce que la fenêtre bouge sous lui : relu dans la fenêtre, il ne bougerait
     /// presque pas.
     pub(crate) fn deplacer_la_fenetre(&mut self) -> bool {
-        let Some(d) = self.deplacement_de_fenetre.as_mut() else {
+        let Some(d) = self.fenetre_de_reference.deplacement.as_mut() else {
             return false;
         };
         let Some(fenetre) = &self.window else {
@@ -159,7 +204,8 @@ impl GlucoseApp {
     /// Le bouton droit se relâche : le déplacement finit. Rend `true` si la fenêtre a bougé —
     /// le menu, alors, ne s'ouvre pas.
     pub(crate) fn finir_de_deplacer_la_fenetre(&mut self) -> bool {
-        self.deplacement_de_fenetre
+        self.fenetre_de_reference
+            .deplacement
             .take()
             .is_some_and(|d| d.a_bouge)
     }
@@ -204,16 +250,44 @@ impl GlucoseApp {
     }
 
     /// **`Alt` + pincer, en mode référence** : la fenêtre grandit ou rétrécit de tant
-    /// d'octaves, autour de son centre (REFERENCE-2). Rend `true` si le geste lui revient.
+    /// d'octaves, autour de son centre (REFERENCE-2). Rend `true` si le geste lui revient. Le
+    /// pincement s'additionne, et l'image l'appliquera (REFERENCE-3).
     pub(crate) fn redimensionner_au_pincement(&mut self, octaves: f64) -> bool {
         if !(self.ui.reference && self.modifiers.alt_key()) {
             return false;
         }
-        let Some(fenetre) = &self.window else {
-            return true;
+        self.fenetre_de_reference.pincement.octaves += octaves;
+        self.mark_dirty();
+        true
+    }
+
+    /// **Applique à la fenêtre ce que les pincements ont demandé** — au plus une fois par
+    /// image, et quand la taille précédente est là (REFERENCE-3).
+    pub(crate) fn appliquer_le_pincement_de_fenetre(&mut self) {
+        let octaves = self.fenetre_de_reference.pincement.octaves;
+        if octaves == 0.0 {
+            return;
+        }
+        let Some(fenetre) = self.window.clone() else {
+            self.fenetre_de_reference.pincement.octaves = 0.0;
+            return;
         };
-        let (Ok(coin), taille) = (fenetre.outer_position(), fenetre.outer_size()) else {
-            return true;
+        let actuelle = fenetre.inner_size();
+        let maintenant = std::time::Instant::now();
+        if !peut_redimensionner(
+            self.fenetre_de_reference.pincement.demandee,
+            (actuelle.width, actuelle.height),
+            maintenant,
+        ) {
+            // L'image suivante réessaiera : la demande reste due.
+            self.mark_dirty();
+            return;
+        }
+        self.fenetre_de_reference.pincement.octaves = 0.0;
+        // La taille intérieure, celle qu'on demande et qu'on attend : sans cadre en mode
+        // référence, elle est aussi l'extérieure.
+        let (Ok(coin), taille) = (fenetre.outer_position(), actuelle) else {
+            return;
         };
         let ecran = fenetre
             .current_monitor()
@@ -227,7 +301,7 @@ impl GlucoseApp {
         );
         let _ = fenetre.request_inner_size(winit::dpi::PhysicalSize::new(l, h));
         fenetre.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
-        true
+        self.fenetre_de_reference.pincement.demandee = Some(((l, h), maintenant));
     }
 }
 

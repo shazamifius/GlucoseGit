@@ -165,16 +165,17 @@ fn test_nav_2_forward_grows_and_backward_shrinks() {
     assert!((deux - 2.0 * avant).abs() < 1e-12);
 }
 
-/// **Huit crans doublent.** C'est ce que l'octave permet de dire, et de vérifier.
+/// **Trois crans doublent** (huit jusqu'au 07/10, « pas du tout assez rapide »). C'est ce que
+/// l'octave permet de dire, et de vérifier.
 #[test]
-fn test_nav_2_huit_crans_doublent_exactement() {
+fn test_nav_2_trois_crans_doublent_exactement() {
     let Geste::Zoom(un) = geste(lignes(0.0, 1.0), false, false, false) else {
         panic!("un cran doit zoomer");
     };
     assert!(
-        (8.0 * un - 1.0).abs() < 1e-12,
-        "huit crans doivent faire une octave pleine, ils font {}",
-        8.0 * un
+        (3.0 * un - 1.0).abs() < 1e-12,
+        "trois crans doivent faire une octave pleine, ils font {}",
+        3.0 * un
     );
 }
 

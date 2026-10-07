@@ -462,6 +462,13 @@ fn confier_les_docks(
     // zoom, paie-t-il des panneaux qui se REFONT, ou seulement leur composition ? Les deux
     // n'appellent pas la meme reponse -- une cle trop large d'un cote, une couche a part de
     // l'autre -- et aucune duree ne les distingue.
+    // **Le mode référence n'a pas de panneaux** (fiche 51 § 5), sur cette voie comme sur celle
+    // du processeur. Elle les posait quand même : visibles, et morts, puisque leurs clics, eux,
+    // partaient avec le mode — son essai du 07/10, Ordonner et la Time Machine par-dessus sa
+    // référence. Ils reviennent tels quels quand le mode se défait.
+    if ui.reference {
+        return Vec::new();
+    }
     let avant = dock_cache.rendus();
     let panneaux = crate::dock::confier_les_docks(
         &mut dessus.as_mut(),

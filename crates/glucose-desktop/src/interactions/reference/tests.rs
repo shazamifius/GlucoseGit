@@ -112,11 +112,7 @@ fn test_les_signets_repondent_en_mode_reference() {
     app.handle_shortcut_input(&Key::Character("1".into()), ElementState::Pressed);
     app.modifiers = ModifiersState::empty();
     let board = app.store.project.active_board_id.clone();
-    assert_eq!(
-        app.store.bookmark(&board, "1"),
-        Some(ici),
-        "Ctrl+1 pose le signet"
-    );
+    assert_eq!(app.vue_du_signet('1'), Some(ici), "Ctrl+1 pose le signet");
     app.store.set_viewport(
         &board,
         glucose_core::types::Viewport {
@@ -226,5 +222,82 @@ fn test_reference_2_alt_par_le_clic_et_le_defilement() {
         jouer(&mut app, false),
         (true, true),
         "sans Alt : le canevas"
+    );
+}
+
+/// **SIGNET-2 — un signet ramène au même lieu, quelle que soit la fenêtre** : posé en mode
+/// normal, sous la bande, il remet en mode référence — sans bande — le même point du monde au
+/// centre du canevas. À l'envers, l'ancienne loi (la vue rendue telle quelle) le décalait de la
+/// moitié de la bande, et d'une demi-fenêtre dans une fenêtre plus petite : « on tombe dans le
+/// vide ».
+#[test]
+fn test_signet_2_le_meme_lieu_au_centre_du_canevas() {
+    let d = dossier("signet-centre");
+    let mut app = application(&d);
+    let pose = app.store.viewport();
+    let centre = app.centre_du_canevas();
+    let lieu = (
+        (centre.0 - pose.x) / pose.scale,
+        (centre.1 - pose.y) / pose.scale,
+    );
+    app.modifiers = ModifiersState::CONTROL;
+    app.handle_shortcut_input(&Key::Character("2".into()), ElementState::Pressed);
+    app.modifiers = ModifiersState::empty();
+
+    app.poser_le_mode_reference(true);
+    let ailleurs = app.centre_du_canevas();
+    assert_ne!(ailleurs, centre, "la bande partie, le centre a bouge");
+    let vue = app.vue_du_signet('2').expect("le signet");
+    let (sx, sy) = crate::canvas::world_to_screen(lieu.0, lieu.1, &vue);
+    assert!(
+        (sx - ailleurs.0).abs() < 1e-9 && (sy - ailleurs.1).abs() < 1e-9,
+        "le lieu revient en ({sx}, {sy}) au lieu du centre {ailleurs:?}"
+    );
+    let (ax, ay) = crate::canvas::world_to_screen(lieu.0, lieu.1, &pose);
+    assert!(
+        (ay - ailleurs.1).abs() > 1.0 || (ax - ailleurs.0).abs() > 1.0,
+        "l'ancienne loi tombait juste : l'epreuve ne prouve rien"
+    );
+}
+
+/// **REFERENCE-3 — une nouvelle taille attend que la précédente soit là** : elle part tout de
+/// suite la première fois, attend tant que Windows n'a pas appliqué la précédente, et repart
+/// dès qu'elle l'est — ou dès que la demande est trop vieille pour être encore en route.
+#[test]
+fn test_reference_3_une_taille_a_la_fois() {
+    use std::time::{Duration, Instant};
+    let t = Instant::now();
+    assert!(peut_redimensionner(None, (800, 600), t), "la premiere part");
+    let demandee = Some(((900, 675), t));
+    assert!(!peut_redimensionner(
+        demandee,
+        (800, 600),
+        t + Duration::from_millis(2)
+    ));
+    assert!(peut_redimensionner(
+        demandee,
+        (900, 675),
+        t + Duration::from_millis(2)
+    ));
+    assert!(
+        peut_redimensionner(demandee, (800, 600), t + Duration::from_millis(50)),
+        "une taille refusee ne bloque pas le geste"
+    );
+}
+
+/// **Deux pincements entre deux images s'additionnent** : ils ne demandent rien à la fenêtre
+/// avant l'image (REFERENCE-3).
+#[test]
+fn test_reference_3_les_pincements_s_additionnent() {
+    let d = dossier("reference-pincements");
+    let mut app = application(&d);
+    app.poser_le_mode_reference(true);
+    app.modifiers = ModifiersState::ALT;
+    assert!(app.redimensionner_au_pincement(0.25));
+    assert!(app.redimensionner_au_pincement(0.25));
+    assert_eq!(
+        app.fenetre_de_reference.pincement.en_attente(),
+        0.5,
+        "deux pincements, une seule demande en attente"
     );
 }

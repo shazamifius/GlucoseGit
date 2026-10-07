@@ -224,8 +224,9 @@ pub struct GlucoseApp {
     pub bend_session: Option<crate::interactions::arrow_edit::BendSession>,
     pub active_guides: SnapGuides,
     pub selection_box: Option<(f64, f64, f64, f64)>,
-    /// Un déplacement de la fenêtre au bouton droit, en mode référence (fiche 51 § 5).
-    pub deplacement_de_fenetre: Option<crate::interactions::reference::Deplacement>,
+    /// Ce que le mode référence fait à la fenêtre : la déplacer, la redimensionner (fiche 51
+    /// § 5, fiche 52 § 10).
+    pub fenetre_de_reference: crate::interactions::reference::FenetreDeReference,
 
     // Session d'édition de texte in-place (double-clic)
     pub editing_session: Option<TextEditSession>,
@@ -369,7 +370,7 @@ impl GlucoseApp {
             bend_session: None,
             active_guides: SnapGuides::default(),
             selection_box: None,
-            deplacement_de_fenetre: None,
+            fenetre_de_reference: Default::default(),
             editing_session: None,
             text_drag: None,
             last_click: None,
@@ -395,6 +396,7 @@ impl GlucoseApp {
         // Ce que le dernier événement a changé dans le document s'écrit (JRN-5) — avant le
         // titre, qu'un document enregistré au fil de l'eau ne marque plus « modifié ».
         self.consigner();
+        self.appliquer_le_pincement_de_fenetre();
         // Le marqueur « modifié » du titre suit l'état réel du document (INVARIANT SAVE-2).
         // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;
         // `sync_window_title` ne touche la fenêtre que lorsque le titre change vraiment.
