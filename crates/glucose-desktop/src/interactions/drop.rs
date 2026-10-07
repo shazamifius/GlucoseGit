@@ -124,6 +124,7 @@ fn compte_rendu(poses: usize, rates: usize) -> String {
     let pluriel = if poses > 1 { "s" } else { "" };
     match (poses, rates) {
         (0, 0) => String::new(),
+        (0, 1) => "Le fichier n'a pas pu être posé".to_string(),
         (0, n) => format!("Aucun des {n} fichiers n'a pu être posé"),
         (p, 0) => format!("{p} élément{pluriel} posé{pluriel}"),
         (p, n) => format!(
@@ -154,6 +155,9 @@ pub(crate) struct Lot {
     liens: Vec<String>,
     /// Ce que le lot porte n'est qu'une copie : elle se pose à la taille de son original.
     apercu: bool,
+    /// Ce que le système a annoncé et qui n'a pas pu être lu : rien à poser, mais un raté à
+    /// dire (PARTAGE-1).
+    illisibles: usize,
 }
 
 impl Lot {
@@ -174,6 +178,7 @@ impl Lot {
             recus,
             liens,
             apercu: false,
+            illisibles: 0,
         }
     }
 
@@ -182,8 +187,13 @@ impl Lot {
         Self { apercu, ..self }
     }
 
+    /// Ce lot compte aussi ce qui n'a pas pu être lu.
+    pub(crate) fn avec_des_illisibles(self, illisibles: usize) -> Self {
+        Self { illisibles, ..self }
+    }
+
     fn attendus(&self) -> usize {
-        self.fichiers.len() + self.recus.len() + self.liens.len()
+        self.fichiers.len() + self.recus.len() + self.liens.len() + self.illisibles
     }
 }
 
@@ -261,6 +271,11 @@ impl GlucoseApp {
     ) -> Vec<String> {
         let attendus = lot.attendus();
         if attendus == 0 {
+            // Rien à poser, mais une raison à dire : un partage sans image ni lien ne doit pas
+            // être un geste sans effet (PARTAGE-1).
+            if let Some(raison) = echec {
+                self.dire_le_depot(raison.to_string());
+            }
             return Vec::new();
         }
         let board = self.store.project.active_board_id.clone();

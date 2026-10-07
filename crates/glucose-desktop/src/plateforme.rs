@@ -27,6 +27,7 @@ pub mod identite;
 pub mod journal;
 pub mod moisson;
 pub mod offre;
+pub mod partage;
 pub mod presse_papiers;
 pub mod priorite;
 pub mod rapatrier;
@@ -45,7 +46,7 @@ mod telechargement;
 mod telechargement_windows;
 
 use moisson::Depot;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
 /// **Les octets qu'une adresse web rend**, au plus `limite`, ou la raison de n'en pas rendre
 /// (DEPOT-WEB-4).
@@ -134,6 +135,9 @@ const DELAI: std::time::Duration = std::time::Duration::from_secs(15);
 pub struct Depots {
     /// Le bout que la boucle d'images draine.
     recevoir: Receiver<Depot>,
+    /// Sous Android, la boîte des partages branchée sur ce pont (PARTAGE-1) : elle se
+    /// débranche quand il s'en va.
+    _partages: Option<partage::Branchement>,
 }
 
 impl Depots {
@@ -159,7 +163,20 @@ pub fn installer(fenetre: &std::sync::Arc<winit::window::Window>) -> Option<Depo
     // fil, et la boucle pose ce qui est arrive des qu'elle a fini de le traiter.
     let fenetre_pour_le_reveil = std::sync::Arc::clone(fenetre);
     let reveil: Reveil = std::sync::Arc::new(move || fenetre_pour_le_reveil.request_redraw());
-    poser_le_pont(fenetre, envoyer, reveil).then_some(Depots { recevoir })
+    #[cfg(target_os = "android")]
+    {
+        let _ = fenetre;
+        let partages = Some(partage::brancher(envoyer, reveil));
+        Some(Depots {
+            recevoir,
+            _partages: partages,
+        })
+    }
+    #[cfg(not(target_os = "android"))]
+    poser_le_pont(fenetre, envoyer, reveil).then_some(Depots {
+        recevoir,
+        _partages: None,
+    })
 }
 
 /// **De quoi reveiller la boucle d'images** depuis un autre fil.
@@ -167,7 +184,11 @@ pub type Reveil = std::sync::Arc<dyn Fn() + Send + Sync>;
 
 /// Le pont de cette plateforme, s'il y en a un.
 #[cfg(windows)]
-fn poser_le_pont(fenetre: &winit::window::Window, vers: Sender<Depot>, reveil: Reveil) -> bool {
+fn poser_le_pont(
+    fenetre: &winit::window::Window,
+    vers: std::sync::mpsc::Sender<Depot>,
+    reveil: Reveil,
+) -> bool {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let Ok(poignee) = fenetre.window_handle() else {
         return false;
@@ -204,8 +225,13 @@ pub fn installer_le_pave(
     None
 }
 
-/// Sur une plateforme sans pont, il n'y a rien à poser et rien à dire.
-#[cfg(not(windows))]
-fn poser_le_pont(_fenetre: &winit::window::Window, _vers: Sender<Depot>, _reveil: Reveil) -> bool {
+/// Sur une plateforme sans pont, il n'y a rien à poser et rien à dire. Android a le sien :
+/// la boîte des partages ([`partage`]).
+#[cfg(not(any(windows, target_os = "android")))]
+fn poser_le_pont(
+    _fenetre: &winit::window::Window,
+    _vers: std::sync::mpsc::Sender<Depot>,
+    _reveil: Reveil,
+) -> bool {
     false
 }

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Ses documents vivent dans le dossier privé de Glucose, qu'une désinstallation efface :
+     `hasFragileUserData` fait proposer, en désinstallant, de les garder (fiche 56). -->
 <!-- Glucose sur Android (fiche 54). Internet : les images déposées depuis le web, la mise à
      jour plus tard, et la boîte noire qui voyage, avec l'accord de chacun. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -9,6 +11,7 @@
         android:label="Glucose"
         android:icon="@drawable/icone"
         android:allowBackup="false"
+        android:hasFragileUserData="true"
         android:hardwareAccelerated="true"
         android:theme="@style/Theme.Glucose">
 
@@ -28,6 +31,25 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- **Le partage** (PARTAGE-1, fiche 56) : Glucose paraît dans « Partager » de la
+                 galerie, d'un navigateur, de Pinterest ou d'Instagram. Des images, une ou
+                 plusieurs ; ou un texte, dont les liens vont chercher leur image. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

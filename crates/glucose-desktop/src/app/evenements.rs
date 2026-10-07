@@ -75,6 +75,7 @@ impl GlucoseApp {
 impl ApplicationHandler for GlucoseApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
+            self.reprendre();
             return;
         }
         let started = std::time::Instant::now();
@@ -84,6 +85,12 @@ impl ApplicationHandler for GlucoseApp {
             return;
         }
         crate::perf::event("resumed", started);
+    }
+
+    /// Le système reprend la surface : sous Android, Glucose passe derrière une autre
+    /// application (VIE-1). Sur un bureau, `winit` ne le dit jamais.
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        self.suspendre();
     }
 
     fn window_event(

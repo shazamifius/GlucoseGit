@@ -193,3 +193,52 @@ fn test_composer_est_appliquer_l_une_puis_l_autre() {
         );
     }
 }
+
+/// Un toucher : le doigt se pose et se lève, sans bouger.
+fn toucher_en(app: &mut GlucoseApp, ici: (f64, f64)) {
+    doigt(app, 1, TouchPhase::Started, ici);
+    doigt(app, 1, TouchPhase::Ended, ici);
+}
+
+/// **Deux touchers rapprochés sur le vide ouvrent le menu, au doigt** (fiche 56) : la main n'a
+/// pas de clic droit. Un seul n'ouvre rien ; deux trop espacés dans le temps non plus.
+#[test]
+fn test_deux_touchers_sur_le_vide_ouvrent_le_menu_au_doigt() {
+    let mut app = app();
+    toucher_en(&mut app, (300.0, 400.0));
+    assert_eq!(app.ui.context_menu_at, None, "un toucher seul n'ouvre rien");
+    toucher_en(&mut app, (303.0, 398.0));
+    assert_eq!(
+        app.ui.context_menu_at,
+        Some((303.0, 398.0)),
+        "le menu, sous le doigt"
+    );
+    assert!(app.ui.menu_au_doigt, "à la taille du doigt");
+
+    // Trop lents : le premier toucher date d'une seconde.
+    let mut app = self::app();
+    toucher_en(&mut app, (300.0, 400.0));
+    if let Some(dernier) = &mut app.last_click {
+        dernier.at_ms -= 1_000;
+    }
+    toucher_en(&mut app, (300.0, 400.0));
+    assert_eq!(
+        app.ui.context_menu_at, None,
+        "deux touchers espacés ne sont pas un double"
+    );
+}
+
+/// **Le clic droit, lui, ouvre le menu de la souris** — même si un doigt l'a ouvert avant.
+#[test]
+fn test_le_clic_droit_ouvre_le_menu_de_la_souris() {
+    let mut app = app();
+    toucher_en(&mut app, (300.0, 400.0));
+    toucher_en(&mut app, (300.0, 400.0));
+    assert!(app.ui.menu_au_doigt);
+    let (largeur, hauteur) = app.taille_de_la_fenetre();
+    app.handle_cursor_moved(PhysicalPosition::new(500.0, 500.0));
+    app.handle_mouse_down(MouseButton::Right, largeur, hauteur);
+    app.handle_mouse_up(MouseButton::Right);
+    assert_eq!(app.ui.context_menu_at, Some((500.0, 500.0)));
+    assert!(!app.ui.menu_au_doigt, "à la souris, le menu de la souris");
+}

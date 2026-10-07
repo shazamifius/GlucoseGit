@@ -12,7 +12,9 @@ mod menu_image;
 pub use lot::Echanges;
 pub use menu_image::ImagePosee;
 
-/// Extensions proposees par le dialogue d'import d'images.
+/// Extensions proposees par le dialogue d'import d'images — celui du bureau : le telephone a son
+/// selecteur de photos (fiche 56).
+#[cfg(not(target_os = "android"))]
 const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
 
 /// La plus grande dimension d'une image qu'on pose : au-delà, elle se réduit à cette taille.
@@ -41,11 +43,19 @@ pub(crate) fn taille_d_un_apercu((w, h): (f64, f64)) -> (f64, f64) {
 impl GlucoseApp {
     /// Ouvre le dialogue natif d'import d'images (Ctrl+I, bouton « Ajouter » de la barre).
     pub fn pick_and_import_images(&mut self) {
+        // **Sous Android, le sélecteur de photos du système** (fiche 56) : ce qu'on y choisit
+        // revient comme un partage, par le même chemin qu'une image envoyée de la galerie.
+        #[cfg(target_os = "android")]
+        if !crate::plateforme::partage::choisir_des_images() {
+            eprintln!("[Glucose] images : aucun selecteur de photos n'est branche");
+        }
+        #[cfg(not(target_os = "android"))]
         let choisis = self.sous_un_dialogue(|fenetre| {
             crate::dialogue::fichier(fenetre)
                 .filtre("Images", &IMAGE_EXTENSIONS)
                 .choisir_plusieurs()
         });
+        #[cfg(not(target_os = "android"))]
         if let Some(files) = choisis {
             self.import_image_files(&files);
         }

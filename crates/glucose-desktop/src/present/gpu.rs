@@ -40,7 +40,13 @@ use winit::window::Window;
 
 /// La présentation par le processeur graphique.
 pub struct GpuPresenter {
-    surface: wgpu::Surface<'static>,
+    /// **La surface, tant que le système la prête** (VIE-1) : Android la reprend quand
+    /// Glucose passe derrière une autre application, et la rend au retour.
+    surface: Option<wgpu::Surface<'static>>,
+    /// Ce qui a ouvert la carte, gardé pour refaire une surface sur **le même** périphérique :
+    /// ses textures — toutes les photos — survivent au passage en arrière-plan.
+    instance: wgpu::Instance,
+    adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -116,6 +122,7 @@ mod atelier;
 mod cinq_temps;
 mod ouverture;
 pub mod succession;
+mod vie;
 
 impl GpuPresenter {
     /// Ouvre une présentation graphique sur cette fenêtre, ou dit pourquoi elle ne peut pas.
@@ -209,7 +216,9 @@ impl GpuPresenter {
             membranes,
             fleches,
             lisere,
-            surface,
+            surface: Some(surface),
+            instance,
+            adapter,
             device,
             queue,
             config,
@@ -236,13 +245,17 @@ impl GpuPresenter {
     /// à chaque fois qu'on la minimise.
     fn acquerir(&mut self) -> DesktopResult<Result<wgpu::SurfaceTexture, Issue>> {
         // Aucune image n'est détenue ici : c'est le seul instant où reconfigurer est licite.
+        // Sans surface, l'application est en arrière-plan (VIE-1) : il n'y a rien à montrer.
+        let Some(surface) = &self.surface else {
+            return Ok(Err(Issue::Cachee));
+        };
         if self.a_reaccorder {
-            self.surface.configure(&self.device, &self.config);
+            surface.configure(&self.device, &self.config);
             self.a_reaccorder = false;
         }
 
         use wgpu::CurrentSurfaceTexture as Etat;
-        match self.surface.get_current_texture() {
+        match surface.get_current_texture() {
             Etat::Success(frame) => Ok(Ok(frame)),
             // La surface tient encore, mais elle ne correspond plus tout à fait à la fenêtre.
             // On affiche quand même — sauter une image se verrait — et la réparation se fait
@@ -280,9 +293,9 @@ impl GpuPresenter {
                 // qu'on répare. Sans ce compteur, la chronique montre un `acquerir` lourd
                 // sans dire s'il vient de là ou d'une chaîne saturée.
                 crate::perf::compteur("surfaces_refaites", 1.0);
-                self.surface.configure(&self.device, &self.config);
+                surface.configure(&self.device, &self.config);
                 self.a_reaccorder = false;
-                match self.surface.get_current_texture() {
+                match surface.get_current_texture() {
                     Etat::Success(frame) | Etat::Suboptimal(frame) => Ok(Ok(frame)),
                     // Deux échecs de suite : la fenêtre n'est probablement pas affichable en
                     // ce moment. On saute l'image — mais on en redemande une, parce que rien
@@ -389,9 +402,23 @@ impl Presenter for GpuPresenter {
         self.config.height = height.get();
         // Licite ici : le redimensionnement arrive entre deux images, donc aucune n'est
         // detenue. La chaine etant refaite a neuf, une reparation en attente n'a plus d'objet.
-        self.surface.configure(&self.device, &self.config);
+        if let Some(surface) = &self.surface {
+            surface.configure(&self.device, &self.config);
+        }
         self.a_reaccorder = false;
         Ok(())
+    }
+
+    fn lacher_la_surface(&mut self) {
+        self.lacher();
+    }
+
+    fn a_sa_surface(&self) -> bool {
+        self.surface.is_some()
+    }
+
+    fn retrouver_la_surface(&mut self, fenetre: &Arc<Window>) -> DesktopResult<()> {
+        self.retrouver(fenetre)
     }
 
     fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<Issue> {

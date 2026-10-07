@@ -11,6 +11,7 @@ mod presentation;
 mod rangement;
 pub mod reveil;
 mod terrain;
+mod vie;
 
 use crate::dock::{DockCache, DockManager};
 use crate::interactions::resize::ResizeSession;
@@ -411,6 +412,10 @@ impl GlucoseApp {
         // Le poser ici plutôt que dans chaque mutation garantit qu'aucune ne l'oublie ;
         // `sync_window_title` ne touche la fenêtre que lorsque le titre change vraiment.
         self.sync_window_title();
+        // Sans surface, Glucose est derrière une autre application (VIE-1) : rien à dessiner.
+        if self.en_arriere_plan() {
+            return;
+        }
         if let Some(window) = self.window.clone() {
             crate::perf::frame_begin();
             let frame_started = std::time::Instant::now();

@@ -124,6 +124,9 @@ pub struct UiState {
     /// Dans l'état d'interface et non dans l'application : un menu ouvert n'est pas un geste
     /// en cours, c'est quelque chose qui est **affiché**, au même titre qu'un toast.
     pub context_menu_at: Option<(f32, f32)>,
+    /// **Le menu ouvert l'a été au doigt** (fiche 56) : ses entrées prennent la taille d'un
+    /// doigt, et taisent les raccourcis d'un clavier qu'on n'a pas.
+    pub menu_au_doigt: bool,
     pub scale_factor: f32,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
@@ -176,6 +179,7 @@ impl UiState {
             ancrage: None,
             current_toast: None,
             context_menu_at: None,
+            menu_au_doigt: false,
             scale_factor: 1.0,
             minimap_cache: None,
             bande_cache: None,
@@ -359,6 +363,7 @@ fn poser_ce_qui_attend_une_decision(
         (at, ui.onglets.menu.as_deref()),
         (w, h),
         ui.scale_factor,
+        ui.menu_au_doigt,
     ) else {
         return;
     };

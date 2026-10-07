@@ -61,6 +61,16 @@ impl GlucoseApp {
             _ => None,
         };
         self.ui.context_menu_at = Some((x, y));
+        self.ui.menu_au_doigt = false;
+        self.mark_dirty();
+    }
+
+    /// **Deux touchers rapprochés sur le vide ouvrent le menu** (fiche 56) : la main n'a pas
+    /// de clic droit. Au doigt, ses entrées prennent la taille d'un doigt.
+    pub(crate) fn ouvrir_le_menu_au_doigt(&mut self) {
+        self.ui.onglets.menu = None;
+        self.ui.context_menu_at = Some((self.mouse_pos.0 as f32, self.mouse_pos.1 as f32));
+        self.ui.menu_au_doigt = true;
         self.mark_dirty();
     }
 
@@ -80,6 +90,7 @@ impl GlucoseApp {
             (at, onglet.as_deref()),
             (screen.width, screen.height),
             self.ui.scale_factor,
+            self.ui.menu_au_doigt,
         );
         self.ui.context_menu_at = None;
         self.mark_dirty();
@@ -100,6 +111,7 @@ impl GlucoseApp {
     fn apply_menu_action(&mut self, action: MenuAction, onglet: Option<&str>) {
         let board = self.store.project.active_board_id.clone();
         match action {
+            MenuAction::AjouterDesImages => self.pick_and_import_images(),
             MenuAction::Copier => self.copy_selection(false),
             MenuAction::Couper => self.copy_selection(true),
             MenuAction::NouveauDocument => self.nouveau_document(),

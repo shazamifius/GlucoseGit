@@ -28,7 +28,7 @@ fn store_with(images: usize, cartes: usize, selection: bool) -> Store {
 }
 
 fn menu(store: &Store, at: (f32, f32)) -> ContextMenu {
-    layout_context_menu(store, &Typography::new(), (at, None), SCREEN, 1.0).expect("un menu")
+    layout_context_menu(store, &Typography::new(), (at, None), SCREEN, 1.0, false).expect("un menu")
 }
 
 fn actions(m: &ContextMenu) -> Vec<MenuAction> {
@@ -47,6 +47,7 @@ fn test_sur_le_vide_le_menu_ne_propose_que_ce_qui_a_du_sens() {
     assert_eq!(
         actions(&menu(&store, (100.0, 100.0))),
         vec![
+            MenuAction::AjouterDesImages,
             MenuAction::Paste,
             MenuAction::SelectAll,
             MenuAction::NouveauDocument,
@@ -195,4 +196,38 @@ fn test_une_image_seule_offre_de_la_copier_et_de_l_enregistrer() {
         assert!(!a.contains(&MenuAction::EnregistrerLImage));
         assert!(a.contains(&MenuAction::Copier) && a.contains(&MenuAction::Couper));
     }
+}
+
+/// **Ouvert au doigt, le menu prend la taille d'un doigt** (fiche 56) : chaque entrée fait
+/// 48 points de haut — à toute densité d'écran — et tait son raccourci, faute de clavier.
+#[test]
+fn test_au_doigt_chaque_entree_fait_quarante_huit_points_sans_raccourci() {
+    let store = store_with(0, 0, false);
+    for densite in [1.0f32, 2.0, 3.0] {
+        let m = layout_context_menu(
+            &store,
+            &Typography::new(),
+            ((100.0, 100.0), None),
+            SCREEN,
+            densite,
+            true,
+        )
+        .expect("un menu");
+        for row in &m.rows {
+            if let MenuRow::Item { rect, shortcut, .. } = row {
+                assert_eq!(rect.3, 48.0 * densite, "une entrée à la taille du doigt");
+                assert!(
+                    shortcut.is_empty(),
+                    "aucun raccourci au doigt : « {shortcut} »"
+                );
+            }
+        }
+        assert_eq!(m.font, 16.0 * densite);
+    }
+    // À la souris, rien ne change : 24 points, et les raccourcis.
+    let m = menu(&store, (100.0, 100.0));
+    assert!(m.rows.iter().any(|r| matches!(
+        r,
+        MenuRow::Item { rect, shortcut, .. } if rect.3 == 24.0 && *shortcut == "Ctrl+V"
+    )));
 }

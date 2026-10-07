@@ -1165,6 +1165,7 @@ name = "glucose-android"
 version = "2.0.2-dev"
 dependencies = [
  "glucose-desktop",
+ "jni",
  "libc",
  "winit",
 ]

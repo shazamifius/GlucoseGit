@@ -198,6 +198,7 @@ fn test_une_entree_du_menu_agit_vraiment() {
         (app.ui.context_menu_at.expect("un menu ouvert"), None),
         (1440.0, 900.0),
         app.ui.scale_factor,
+        false,
     )
     .expect("un menu");
     let cible = menu

@@ -175,6 +175,7 @@ fn test_le_clic_droit_sur_un_onglet_ouvre_son_menu() {
         ),
         ECRAN,
         app.ui.scale_factor,
+        false,
     )
     .expect("un menu d'onglet");
     let renommer = menu

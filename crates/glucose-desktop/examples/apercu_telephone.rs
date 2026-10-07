@@ -1,6 +1,7 @@
 //! **Glucose sur un téléphone, hors écran** (fiche 55) : la taille de son Redmi 9 — 720 × 1600
-//! pixels, interface à 200 % — debout et couché, le rail replié puis déplié. Écrit en PNG pour
-//! être montré avant qu'il essaie.
+//! pixels, interface à 200 % — debout et couché, le rail replié puis déplié ; et le menu que
+//! deux touchers ouvrent sur le vide, à la taille du doigt (fiche 56). Écrit en PNG pour être
+//! montré avant qu'il essaie.
 //!
 //! ```text
 //! cargo run --release -p glucose-desktop --example apercu_telephone -- <dossier>
@@ -37,10 +38,26 @@ fn main() {
             });
             let etat = if ouvert { "deplie" } else { "replie" };
             let chemin = format!("{dossier}/telephone-{nom}-{etat}.png");
-            match std::fs::write(&chemin, &png) {
-                Ok(()) => println!("{chemin}"),
-                Err(e) => eprintln!("{chemin} : {e}"),
-            }
+            ecrire(&chemin, &png);
         }
+    }
+    // Le menu du vide, ouvert par deux touchers au milieu de l'écran (fiche 56).
+    let mut store = document();
+    bench::frame_document(&mut store, 0.6, 720, 1600);
+    let png = bench::capture_with(&store, 720, 1600, |ui| {
+        ui.scale_factor = 2.0;
+        ui.context_menu_at = Some((200.0, 700.0));
+        ui.menu_au_doigt = true;
+    });
+    ecrire(
+        &format!("{dossier}/telephone-debout-menu-au-doigt.png"),
+        &png,
+    );
+}
+
+fn ecrire(chemin: &str, png: &[u8]) {
+    match std::fs::write(chemin, png) {
+        Ok(()) => println!("{chemin}"),
+        Err(e) => eprintln!("{chemin} : {e}"),
     }
 }

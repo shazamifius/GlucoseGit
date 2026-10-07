@@ -122,6 +122,24 @@ pub trait Presenter {
     /// Met cette image à l'écran.
     fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<Issue>;
 
+    /// **Le système reprend la surface** (VIE-1) : sous Android, quand Glucose passe derrière
+    /// une autre application. Ce qui a été posé sur la carte — les photos — reste ; seule la
+    /// surface part. Sans effet pour une présentation qui ne tient aucune surface du système.
+    fn lacher_la_surface(&mut self) {}
+
+    /// **Tient-elle une surface ?** Non entre [`Presenter::lacher_la_surface`] et
+    /// [`Presenter::retrouver_la_surface`] : c'est la seule vérité de « Glucose est en
+    /// arrière-plan », et l'application la lit ici au lieu de la tenir à côté.
+    fn a_sa_surface(&self) -> bool {
+        true
+    }
+
+    /// **Le système rend une surface** à cette fenêtre (VIE-1). Une erreur dit que cette
+    /// présentation ne sait pas s'y accorder : l'application en ouvre alors une neuve.
+    fn retrouver_la_surface(&mut self, _fenetre: &Arc<Window>) -> DesktopResult<()> {
+        Ok(())
+    }
+
     /// **Cette présentation sait-elle poser les photos elle-même ?**
     ///
     /// Quand elle le sait, l'application lui donne la scène en trois temps plutôt qu'en une
@@ -216,34 +234,61 @@ pub fn pixel_fenetre(px: [u8; 4]) -> u32 {
 
 /// La présentation par le processeur : convertir chaque pixel, puis remettre le tampon.
 pub struct CpuPresenter {
-    // `context` n'est jamais relu, mais la surface en dépend : le lâcher la briserait.
-    _context: softbuffer::Context<Arc<Window>>,
-    surface: softbuffer::Surface<Arc<Window>, Arc<Window>>,
+    // La surface en dépend : le lâcher la briserait ; et chaque retour s'y refait (VIE-1).
+    context: softbuffer::Context<Arc<Window>>,
+    /// La surface, tant que le système la prête (VIE-1).
+    surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
 }
 
 impl CpuPresenter {
     pub fn new(window: Arc<Window>) -> DesktopResult<Self> {
         let context = softbuffer::Context::new(window.clone())
             .map_err(|e| DesktopError::WindowError(format!("softbuffer::Context : {e}")))?;
-        let surface = softbuffer::Surface::new(&context, window)
-            .map_err(|e| DesktopError::WindowError(format!("softbuffer::Surface : {e}")))?;
+        let surface = surface_sur(&context, window)?;
         Ok(Self {
-            _context: context,
-            surface,
+            context,
+            surface: Some(surface),
         })
     }
 }
 
+/// Une surface de `softbuffer` sur cette fenêtre — à la naissance, et à chaque retour (VIE-1).
+fn surface_sur(
+    context: &softbuffer::Context<Arc<Window>>,
+    window: Arc<Window>,
+) -> DesktopResult<softbuffer::Surface<Arc<Window>, Arc<Window>>> {
+    softbuffer::Surface::new(context, window)
+        .map_err(|e| DesktopError::WindowError(format!("softbuffer::Surface : {e}")))
+}
+
 impl Presenter for CpuPresenter {
     fn resize(&mut self, width: NonZeroU32, height: NonZeroU32) -> DesktopResult<()> {
-        self.surface
+        let Some(surface) = &mut self.surface else {
+            return Ok(());
+        };
+        surface
             .resize(width, height)
             .map_err(|e| DesktopError::WindowError(format!("surface.resize : {e}")))
     }
 
+    fn lacher_la_surface(&mut self) {
+        self.surface = None;
+    }
+
+    fn a_sa_surface(&self) -> bool {
+        self.surface.is_some()
+    }
+
+    fn retrouver_la_surface(&mut self, fenetre: &Arc<Window>) -> DesktopResult<()> {
+        self.surface = Some(surface_sur(&self.context, fenetre.clone())?);
+        Ok(())
+    }
+
     fn present(&mut self, pixmap: &Pixmap) -> DesktopResult<Issue> {
-        let mut buffer = self
-            .surface
+        let Some(surface) = &mut self.surface else {
+            return Ok(Issue::Cachee);
+        };
+        let mut buffer = surface
             .buffer_mut()
             .map_err(|e| DesktopError::WindowError(format!("buffer_mut : {e}")))?;
         let (src, _) = pixmap.data().as_chunks::<4>();

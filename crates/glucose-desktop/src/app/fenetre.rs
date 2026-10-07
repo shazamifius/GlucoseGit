@@ -147,6 +147,23 @@ impl GlucoseApp {
         self.demander_la_telemetrie();
     }
 
+    /// **Une présentation neuve sur cette fenêtre**, accordée à sa taille et branchée au
+    /// réveil — à la naissance, et quand une surface rendue par le système ne s'accorde plus à
+    /// l'ancienne (VIE-1).
+    pub(super) fn presentation_neuve(
+        &self,
+        window: &Arc<winit::window::Window>,
+        w: NonZeroU32,
+        h: NonZeroU32,
+    ) -> DesktopResult<Box<dyn crate::present::Presenter>> {
+        let mut presenter = ouvrir_la_presentation(window, w, h)?;
+        presenter.resize(w, h)?;
+        if let Some(proxy) = self.lancement.reveil.clone() {
+            presenter.brancher_le_reveil(Box::new(move || proxy.send_event(()).is_ok()));
+        }
+        Ok(presenter)
+    }
+
     /// **La taille de la fenêtre**, ou celle qu'elle a à sa naissance tant qu'elle n'existe pas —
     /// dans une épreuve, par exemple.
     pub(crate) fn taille_de_la_fenetre(&self) -> (f32, f32) {
@@ -240,11 +257,7 @@ impl GlucoseApp {
             NonZeroU32::new(height).unwrap_or(NonZeroU32::MIN),
         );
 
-        let mut presenter = ouvrir_la_presentation(&window, w, h)?;
-        presenter.resize(w, h)?;
-        if let Some(proxy) = self.lancement.reveil.clone() {
-            presenter.brancher_le_reveil(Box::new(move || proxy.send_event(()).is_ok()));
-        }
+        let presenter = self.presentation_neuve(&window, w, h)?;
         // La chronique doit porter les deux faits de la machine : ce que l'ecran annonce de
         // lui-meme, et comment la carte a accepte de faire succeder les images. Sans eux, ses
         // durees ne se relisent pas -- une image de dix millisecondes ne dit pas la meme chose

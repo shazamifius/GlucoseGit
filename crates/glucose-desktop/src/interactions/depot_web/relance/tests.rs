@@ -75,6 +75,7 @@ fn entrees(app: &GlucoseApp) -> Vec<MenuAction> {
         ((40.0, 40.0), None),
         (ECRAN.width, ECRAN.height),
         ECRAN.scale,
+        false,
     )
     .map(|m| {
         m.rows
@@ -97,6 +98,7 @@ fn cliquer(app: &mut GlucoseApp, voulue: MenuAction) {
         ((40.0, 40.0), None),
         (ECRAN.width, ECRAN.height),
         ECRAN.scale,
+        false,
     )
     .expect("un menu");
     let (x, y, w, h) = menu

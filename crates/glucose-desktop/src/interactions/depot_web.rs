@@ -155,7 +155,8 @@ impl GlucoseApp {
             self.ajouter_un_document(document);
         }
         let lot = crate::interactions::drop::Lot::de(&reste, recolte.recus.clone(), &recolte.liens)
-            .en_apercu(recolte.apercu);
+            .en_apercu(recolte.apercu)
+            .avec_des_illisibles(recolte.illisibles);
         let posees = self.deposer_le_lot(lot, origine, recolte.echec.as_deref());
         self.mark_dirty();
         posees

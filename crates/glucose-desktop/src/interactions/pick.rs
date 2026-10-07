@@ -20,6 +20,10 @@ use glucose_core::types::Annotation;
 /// double-clic.
 pub(crate) const DOUBLE_CLICK_SLOP_PX: f64 = 8.0;
 
+/// La clé du vide dans le compte des clics : deux touchers sur le vide se suivent comme deux
+/// clics sur un même nœud. Aucun identifiant de nœud n'est vide.
+const LE_VIDE: &str = "";
+
 impl GlucoseApp {
     /// **La densité de l'écran** : combien de pixels physiques font un pixel logique (DPI-1).
     pub(crate) fn densite(&self) -> f64 {
@@ -78,8 +82,15 @@ impl GlucoseApp {
             self.commit_editing();
             self.store.clear_selection();
             // Le doigt, sur le vide, déplace le canevas ; la souris y trace un cadre (fiche 54).
+            // Deux touchers rapprochés y ouvrent le menu : la main n'a pas de clic droit (fiche 56).
             if self.au_doigt() {
-                self.is_panning = true;
+                let rang = self.click_count_at(LE_VIDE);
+                self.remember_click(LE_VIDE.to_string(), rang);
+                if rang == 2 {
+                    self.ouvrir_le_menu_au_doigt();
+                } else {
+                    self.is_panning = true;
+                }
             } else {
                 self.start_selection_box(self.mouse_pos.0, self.mouse_pos.1);
             }

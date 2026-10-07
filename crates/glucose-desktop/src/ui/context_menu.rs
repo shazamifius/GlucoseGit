@@ -47,12 +47,19 @@ const SHORTCUT_GAP: f32 = 24.0;
 const FONT: f32 = 12.0;
 /// Rayon des coins, celui de la barre d'action.
 const RADIUS: f32 = 6.0;
+/// **Au doigt** (fiche 56), une entrée fait 48 points de haut — la cible tactile d'Android
+/// et de Material, 44 sur iPad — et son texte 16, le corps des listes d'Android.
+const ROW_AU_DOIGT: f32 = 48.0;
+const FONT_AU_DOIGT: f32 = 16.0;
 /// Hauteur de la bande d'un séparateur, filet compris.
 const SEPARATOR: f32 = 7.0;
 
 /// Ce qu'une entrée du menu déclenche.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuAction {
+    /// Des images de l'appareil : le sélecteur de fichiers du bureau, celui des photos du
+    /// téléphone (fiche 56).
+    AjouterDesImages,
     /// La sélection entière vers le presse-papiers (fiche 51 § 2).
     Copier,
     /// Un document vierge, à la place de celui-ci (fiche 51 § 4).
@@ -108,6 +115,8 @@ pub enum MenuRow {
 pub struct ContextMenu {
     pub rect: (f32, f32, f32, f32),
     pub rows: Vec<MenuRow>,
+    /// Le corps du texte, en pixels : celui de la souris, ou celui du doigt.
+    pub font: f32,
 }
 
 /// Les entrées que l'état courant justifie, `None` entre deux groupes.
@@ -140,81 +149,98 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
     if onglet.is_some() {
         return Some(entrees_d_onglet(store));
     }
-    let images = store.selected_image_ids.len();
-    let sur_selection = images + store.selected_annotation_ids.len() > 0;
-    let mut defs: Vec<Option<(MenuAction, &'static str, &'static str)>> = Vec::new();
+    let sur_selection = store.selected_image_ids.len() + store.selected_annotation_ids.len() > 0;
     if sur_selection {
-        defs.push(Some((MenuAction::Copier, "Copier", "Ctrl+C")));
-        defs.push(Some((MenuAction::Couper, "Couper", "Ctrl+X")));
-        defs.push(Some((MenuAction::Duplicate, "Dupliquer", "Ctrl+D")));
-        if images == 1 && store.selected_annotation_ids.is_empty() {
-            defs.push(None);
-            defs.push(Some((MenuAction::CopierLImage, "Copier l'image", "")));
-            defs.push(Some((
-                MenuAction::EnregistrerLImage,
-                "Enregistrer l'image sous…",
-                "",
-            )));
-        }
-        // Un dépôt replié en lien se rattrape là où il est (DEPOT-WEB-6).
-        if !crate::interactions::depot_web::liens_choisis(store).is_empty() {
-            defs.push(None);
-            defs.push(Some((
-                MenuAction::RemplacerParLImage,
-                "Remplacer par l'image",
-                "",
-            )));
-        }
-        if images > 0 {
-            let board = store.active_board()?;
-            let toutes_fermees = board
-                .images
-                .iter()
-                .filter(|i| store.selected_image_ids.contains(&i.id))
-                .all(|i| i.locked);
-            let label = if toutes_fermees {
-                "Déverrouiller"
-            } else {
-                "Verrouiller"
-            };
-            defs.push(Some((MenuAction::ToggleLock, label, "L")));
-            defs.push(Some((
-                MenuAction::TrimBorders,
-                "Retirer les bordures",
-                "Ctrl+B",
-            )));
-        }
-        defs.push(None);
-        defs.push(Some((MenuAction::ToFront, "Au premier plan", "Ctrl+]")));
-        defs.push(Some((MenuAction::ToBack, "À l'arrière-plan", "Ctrl+[")));
-        defs.push(None);
-        defs.push(Some((MenuAction::Delete, "Supprimer", "Suppr")));
+        entrees_de_selection(store)
     } else {
-        defs.push(Some((MenuAction::Paste, "Coller", "Ctrl+V")));
-        defs.push(Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")));
+        Some(entrees_du_vide())
+    }
+}
+
+/// Les entrées d'un menu ouvert sur une sélection : ce qu'on fait de ce qu'on a choisi.
+fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
+    let images = store.selected_image_ids.len();
+    let mut defs: Vec<Def> = Vec::new();
+    defs.push(Some((MenuAction::Copier, "Copier", "Ctrl+C")));
+    defs.push(Some((MenuAction::Couper, "Couper", "Ctrl+X")));
+    defs.push(Some((MenuAction::Duplicate, "Dupliquer", "Ctrl+D")));
+    if images == 1 && store.selected_annotation_ids.is_empty() {
+        defs.push(None);
+        defs.push(Some((MenuAction::CopierLImage, "Copier l'image", "")));
+        defs.push(Some((
+            MenuAction::EnregistrerLImage,
+            "Enregistrer l'image sous…",
+            "",
+        )));
+    }
+    // Un dépôt replié en lien se rattrape là où il est (DEPOT-WEB-6).
+    if !crate::interactions::depot_web::liens_choisis(store).is_empty() {
         defs.push(None);
         defs.push(Some((
-            MenuAction::NouveauDocument,
-            "Nouveau document",
-            "Ctrl+N",
+            MenuAction::RemplacerParLImage,
+            "Remplacer par l'image",
+            "",
         )));
+    }
+    if images > 0 {
+        let board = store.active_board()?;
+        let toutes_fermees = board
+            .images
+            .iter()
+            .filter(|i| store.selected_image_ids.contains(&i.id))
+            .all(|i| i.locked);
+        let label = if toutes_fermees {
+            "Déverrouiller"
+        } else {
+            "Verrouiller"
+        };
+        defs.push(Some((MenuAction::ToggleLock, label, "L")));
+        defs.push(Some((
+            MenuAction::TrimBorders,
+            "Retirer les bordures",
+            "Ctrl+B",
+        )));
+    }
+    defs.push(None);
+    defs.push(Some((MenuAction::ToFront, "Au premier plan", "Ctrl+]")));
+    defs.push(Some((MenuAction::ToBack, "À l'arrière-plan", "Ctrl+[")));
+    defs.push(None);
+    defs.push(Some((MenuAction::Delete, "Supprimer", "Suppr")));
+    Some(defs)
+}
+
+/// Les entrées d'un menu ouvert sur le vide : ce qu'on y apporte, et le document.
+fn entrees_du_vide() -> Vec<Def> {
+    let mut defs: Vec<Def> = vec![
+        Some((MenuAction::AjouterDesImages, "Ajouter des images…", "")),
+        None,
+        Some((MenuAction::Paste, "Coller", "Ctrl+V")),
+        Some((MenuAction::SelectAll, "Tout sélectionner", "Ctrl+A")),
+        None,
+        Some((MenuAction::NouveauDocument, "Nouveau document", "Ctrl+N")),
+    ];
+    // Une fenêtre sans cadre, au-dessus des autres : un téléphone n'en a pas (fiche 56).
+    if !cfg!(target_os = "android") {
         defs.push(Some((
             MenuAction::ModeReference,
             "Mode référence",
             "Ctrl+Maj+A",
         )));
-        // Sans serveur, ces entrées n'ont pas d'objet : elles n'existent pas.
-        if crate::telemetrie::serveur().is_some() {
-            defs.push(None);
-            defs.push(Some((
-                MenuAction::JournalTechnique,
-                "Journal technique…",
-                "",
-            )));
+    }
+    // Sans serveur, ces entrées n'ont pas d'objet : elles n'existent pas.
+    if crate::telemetrie::serveur().is_some() {
+        defs.push(None);
+        defs.push(Some((
+            MenuAction::JournalTechnique,
+            "Journal technique…",
+            "",
+        )));
+        // Un dossier à ouvrir dans l'explorateur : le téléphone n'en a pas (fiche 56).
+        if !cfg!(target_os = "android") {
             defs.push(Some((MenuAction::VoirCeQuiPart, "Voir ce qui part", "")));
         }
     }
-    Some(defs)
+    defs
 }
 
 /// Ce qu'un menu proposerait à cet endroit, ouvert en `(ax, ay)` — sur le canevas, ou sur
@@ -222,16 +248,31 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
 ///
 /// Fonction pure : elle ne lit que le store et la typographie, et ne dessine rien. Rend `None`
 /// quand il n'y aurait rien à proposer.
+///
+/// **Ouvert au doigt**, ses entrées prennent la taille d'un doigt et taisent leurs raccourcis :
+/// il n'y a pas de clavier sous la main. La mesure vient de la main qui l'ouvre, jamais d'un
+/// « mode téléphone » — une tablette Windows au doigt reçoit la même.
 pub fn layout_context_menu(
     store: &Store,
     typography: &Typography,
     (at, onglet): ((f32, f32), Option<&str>),
     screen: (f32, f32),
     scale: f32,
+    doigt: bool,
 ) -> Option<ContextMenu> {
     let s = crate::theme::clamp_ui_scale(scale);
-    let font = FONT * s;
-    let defs = entrees(store, onglet)?;
+    let (rangee, corps) = if doigt {
+        (ROW_AU_DOIGT, FONT_AU_DOIGT)
+    } else {
+        (ROW, FONT)
+    };
+    let (rangee, font) = (rangee * s, corps * s);
+    let mut defs = entrees(store, onglet)?;
+    if doigt {
+        for (_, _, raccourci) in defs.iter_mut().flatten() {
+            *raccourci = "";
+        }
+    }
 
     let largeur_ligne = |label: &str, shortcut: &str| {
         let (a, _) = typography.measure_text(label, font, Face::Regular);
@@ -246,7 +287,7 @@ pub fn layout_context_menu(
     let hauteur = PAD * s * 2.0
         + defs
             .iter()
-            .map(|d| if d.is_some() { ROW * s } else { SEPARATOR * s })
+            .map(|d| if d.is_some() { rangee } else { SEPARATOR * s })
             .sum::<f32>();
 
     // Le menu reste dans la fenêtre : s'il déborde, il bascule de l'autre côté du curseur,
@@ -272,9 +313,9 @@ pub fn layout_context_menu(
                     action,
                     label,
                     shortcut,
-                    rect: (x + PAD * s, curseur, largeur - PAD * s * 2.0, ROW * s),
+                    rect: (x + PAD * s, curseur, largeur - PAD * s * 2.0, rangee),
                 });
-                curseur += ROW * s;
+                curseur += rangee;
             }
             None => {
                 rows.push(MenuRow::Separator(curseur + SEPARATOR * s / 2.0));
@@ -286,6 +327,7 @@ pub fn layout_context_menu(
     Some(ContextMenu {
         rect: (x, y, largeur, hauteur),
         rows,
+        font,
     })
 }
 
@@ -316,7 +358,7 @@ pub fn draw_context_menu(
     scale: f32,
 ) {
     let s = crate::theme::clamp_ui_scale(scale);
-    let font = FONT * s;
+    let font = menu.font;
 
     let mut pb = PathBuilder::new();
     let (x, y, w, h) = menu.rect;

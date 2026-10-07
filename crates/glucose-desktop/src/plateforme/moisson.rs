@@ -101,6 +101,9 @@ pub struct Moisson {
     /// **Ce que porte cette moisson n'est qu'une copie**, que l'original remplacera s'il arrive
     /// (fiche 53 § 9) : elle se pose à la taille qu'aura l'original.
     pub apercu: bool,
+    /// **Ce que le système a annoncé et qui n'a pas pu être lu** — un fichier partagé que son
+    /// application n'a pas laissé ouvrir (PARTAGE-1) : il se compte dans le compte-rendu.
+    pub illisibles: usize,
 }
 
 /// **Ce qu'un dépôt fait parvenir à la boucle d'images**, dans l'ordre où cela arrive.
@@ -138,6 +141,7 @@ impl Moisson {
             && self.recus.is_empty()
             && self.liens.is_empty()
             && self.lot.is_none()
+            && self.illisibles == 0
     }
 }
 
