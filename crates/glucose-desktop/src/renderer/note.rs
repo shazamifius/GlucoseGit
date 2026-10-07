@@ -183,7 +183,7 @@ fn draw_paper(
     }
     fill(pixmap, &path, paper.bg);
     if highlighted {
-        ring(ctx, pixmap, &path);
+        ring(ctx, pixmap, &path, (layout.width, layout.height));
     }
 
     // SCALE-2 — l'unique niveau de détail : sous le seuil, le pense-bête s'arrête là.
@@ -218,7 +218,7 @@ fn draw_pill(
     );
     stroke(pixmap, &path, color, ctx.scale.world(PILL_BORDER));
     if highlighted {
-        ring(ctx, pixmap, &path);
+        ring(ctx, pixmap, &path, (layout.width, layout.height));
     }
     if !ctx.scale.draws_detail() {
         return;
@@ -281,13 +281,15 @@ fn stroke(pixmap: &mut PixmapMut, path: &tiny_skia::Path, color: Color, width: f
     pixmap.stroke_path(path, &paint, &stroke, Transform::identity(), None);
 }
 
-/// L'anneau de sélection : une affordance, qui garde sa taille écran (exception SCALE-1).
-fn ring(ctx: &Pass, pixmap: &mut PixmapMut, path: &tiny_skia::Path) {
+/// L'anneau de sélection : une affordance, qui garde sa taille écran (exception SCALE-1) tant
+/// que le nœud a la place de la porter, et la suit ensuite, comme ses poignées (POIGNEE-1).
+fn ring(ctx: &Pass, pixmap: &mut PixmapMut, path: &tiny_skia::Path, boite: (f32, f32)) {
+    let part = crate::renderer::handles::part_des_ornements(ctx.scale, boite);
     stroke(
         pixmap,
         path,
         ctx.theme.selection_frame,
-        ctx.scale.screen(SELECTION_RING),
+        ctx.scale.screen(SELECTION_RING) * part,
     );
 }
 
@@ -423,5 +425,51 @@ mod tests {
         assert_eq!(StickyOperator::And.default_width(), 80.0);
         assert_eq!(StickyOperator::Because.default_width(), 130.0);
         assert_eq!(PILL_BORDER, 1.5);
+    }
+
+    /// Ce que la sélection change au plus sur le bord haut d'un post-it posé en `(40, 40)` de
+    /// l'écran, vu à ce zoom.
+    fn ecart_de_l_anneau(zoom: f64) -> u8 {
+        use crate::renderer::pass::Clip;
+        let renderer = crate::renderer::Renderer::new();
+        let kit = renderer.kit();
+        let ctx = Pass {
+            typography: kit.typography,
+            math: kit.math,
+            tints: kit.tints,
+            theme: kit.theme,
+            vp: glucose_core::types::Viewport {
+                scale: zoom,
+                x: 40.0,
+                y: 40.0,
+            },
+            scale: WorldScale::new(zoom, 1.0),
+            clip: Clip {
+                width: 300.0,
+                height: 300.0,
+                top: 0.0,
+            },
+        };
+        let note = Annotation::sticky("n", 0.0, 0.0, "");
+        let peindre = |choisi: bool| {
+            let mut p = tiny_skia::Pixmap::new(300, 300).expect("pixmap");
+            draw_sticky(&ctx, &mut p.as_mut(), &note, choisi, None);
+            p
+        };
+        let (avec, sans) = (peindre(true), peindre(false));
+        (38..=41)
+            .flat_map(|y| (40..60).map(move |x| (y * 300 + x) as usize))
+            .map(|i| avec.pixels()[i].red().abs_diff(sans.pixels()[i].red()))
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// **POIGNEE-1 — l'anneau d'un post-it suit sa place à l'écran** : plein de près, une trace
+    /// sur un post-it de quelques pixels.
+    #[test]
+    fn test_poignee_1_l_anneau_d_un_post_it_minuscule_s_estompe() {
+        let (pres, loin) = (ecart_de_l_anneau(1.0), ecart_de_l_anneau(0.06));
+        assert!(pres >= 100, "l'anneau d'un post-it de pres : {pres}");
+        assert!(loin < pres / 3, "de loin il garde {loin} contre {pres}");
     }
 }

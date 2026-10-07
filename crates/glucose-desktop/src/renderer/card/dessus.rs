@@ -78,8 +78,12 @@ fn draw_card_ring(ctx: &Pass, pixmap: &mut PixmapMut, at: (f32, f32), layout: &C
         ..Default::default()
     };
     paint.set_color(ctx.theme.selection_frame);
+    // L'anneau suit la place de la carte à l'écran, comme ses poignées (POIGNEE-1) ; plus fin
+    // qu'un pixel, l'anti-crénelage l'estompe.
+    let part =
+        crate::renderer::handles::part_des_ornements(ctx.scale, (layout.width, layout.height));
     let stroke = Stroke {
-        width: ctx.scale.screen(SELECTION_RING),
+        width: ctx.scale.screen(SELECTION_RING) * part,
         ..Default::default()
     };
     pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);

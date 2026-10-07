@@ -93,3 +93,37 @@ fn test_la_boite_ecran_suit_la_vue() {
     assert_eq!((sx, sy), (-100.0, -50.0));
     assert_eq!((sw, sh), (200.0, 100.0));
 }
+
+/// L'encre la plus forte que le cadre a posée sur la rangée `y`, en rouge sur fond noir.
+fn encre_du_cadre(boite: (f32, f32, f32, f32), y: u32) -> u8 {
+    let mut pixmap = Pixmap::new(400, 400).expect("pixmap");
+    pixmap.fill(tiny_skia::Color::BLACK);
+    let mut cadres =
+        ornement::Cadres::a_l_echelle(crate::renderer::scale::WorldScale::new(1.0, 1.0));
+    let mut img = BoardImage::new("c", 0.0, 0.0, boite.2 as f64, boite.3 as f64);
+    img.locked = false;
+    cadres.ajouter(&img, boite);
+    cadres.poser(&mut pixmap.as_mut(), &crate::theme::Theme::dark());
+    (0..400)
+        .map(|x| pixmap.data()[((y * 400 + x) * 4) as usize])
+        .max()
+        .unwrap_or(0)
+}
+
+/// **POIGNEE-1 — le cadre de sélection suit la place du nœud** : plein autour d'une photo, à
+/// peine une trace autour d'une vignette de huit pixels — où il dessinait la grille blanche de
+/// son retour du 07/10, aussi forte que le cadre d'une grande photo.
+#[test]
+fn test_poignee_1_le_cadre_d_une_vignette_s_estompe() {
+    // La rangée du bord haut du cadre : le débord au-dessus de la boîte.
+    let grande = encre_du_cadre((100.0, 100.0, 200.0, 200.0), 97);
+    let vignette = (96..100)
+        .map(|y| encre_du_cadre((100.0, 100.0, 8.0, 8.0), y))
+        .max()
+        .unwrap();
+    assert!(grande >= 200, "le cadre d'une grande photo : {grande}");
+    assert!(
+        vignette < grande / 4,
+        "le cadre d'une vignette de 8 px garde {vignette} d'encre contre {grande}"
+    );
+}

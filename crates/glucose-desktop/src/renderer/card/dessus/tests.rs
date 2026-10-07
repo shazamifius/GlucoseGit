@@ -300,6 +300,11 @@ fn test_composant_3_la_pastille_basculee_a_gauche_garde_son_ecart() {
 
 /// Une carte sans saisie, dont le coin est à `(40, 40)` de l'écran, sélectionnée ou non.
 fn carte_posee(selectionnee: bool) -> Pixmap {
+    carte_de_taille(selectionnee, (LARGEUR, 60.0))
+}
+
+/// La même, de cette taille à l'écran.
+fn carte_de_taille(selectionnee: bool, taille: (f32, f32)) -> Pixmap {
     let renderer = Renderer::new();
     let kit = renderer.kit();
     let ctx = Pass {
@@ -322,7 +327,7 @@ fn carte_posee(selectionnee: bool) -> Pixmap {
     let mut pixmap = Pixmap::new(ECRAN.0, ECRAN.1).expect("pixmap");
     let carte = TextCard {
         origin: (0.0, 0.0),
-        size: (LARGEUR, 60.0),
+        size: taille,
         body: "Une carte.",
         tint: (96, 165, 250),
         fond: crate::renderer::card::fond_du_canevas(&crate::theme::Theme::dark()),
@@ -353,5 +358,39 @@ fn test_composant_4_l_anneau_d_une_carte_selectionnee_se_pose_sur_son_bord() {
         pixel(&avec, x, 70),
         pixel(&sans, x, 70),
         "dedans, la selection ne change rien : la carte reste la meme"
+    );
+}
+
+/// Ce que la sélection change au plus sur un pixel du bord haut, entre `x0` et `x1`.
+fn ecart_au_bord_haut(taille: (f32, f32), (x0, x1): (u32, u32)) -> u8 {
+    let (avec, sans) = (
+        carte_de_taille(true, taille),
+        carte_de_taille(false, taille),
+    );
+    let ecart = |y: u32, x: u32| {
+        let (a, b) = (
+            avec.pixels()[(y * ECRAN.0 + x) as usize],
+            sans.pixels()[(y * ECRAN.0 + x) as usize],
+        );
+        a.red().abs_diff(b.red()).max(a.green().abs_diff(b.green()))
+    };
+    (38..=41)
+        .flat_map(|y| (x0..x1).map(move |x| (y, x)))
+        .map(|(y, x)| ecart(y, x))
+        .max()
+        .unwrap_or(0)
+}
+
+/// **POIGNEE-1 — l'anneau suit la place de la carte à l'écran** : plein autour d'une carte qu'on
+/// lit, une trace autour d'une carte de dix pixels — où il faisait la même grille blanche que
+/// le cadre des photos.
+#[test]
+fn test_poignee_1_l_anneau_d_une_carte_minuscule_s_estompe() {
+    let grande = ecart_au_bord_haut((LARGEUR, 60.0), (60, 200));
+    let minuscule = ecart_au_bord_haut((12.0, 10.0), (41, 51));
+    assert!(grande >= 100, "l'anneau d'une grande carte : {grande}");
+    assert!(
+        minuscule < grande / 3,
+        "l'anneau d'une carte de 12 px garde {minuscule} contre {grande}"
     );
 }

@@ -33,7 +33,7 @@ fn document() -> Store {
 fn main() {
     let dossier = std::env::args().nth(1).unwrap_or_else(|| ".".to_string());
     let (w, h) = ECRAN;
-    for zoom in [0.08, 0.12, 0.2, 0.5] {
+    for zoom in [0.04, 0.08, 0.12, 0.2, 0.5] {
         let mut store = document();
         bench::frame_document(&mut store, zoom, w, h);
         let png = bench::capture(&store, w, h);

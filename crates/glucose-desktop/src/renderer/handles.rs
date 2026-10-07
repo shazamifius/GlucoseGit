@@ -42,10 +42,8 @@ pub(super) fn draw_rotated_handles(
     rotation: f64,
 ) {
     let (x, y, w, h) = screen_box;
-    // La boîte est en pixels physiques, la loi en pixels logiques (DPI-1).
-    let densite = f64::from(scale.screen(1.0));
-    let petit_cote = f64::from(w.abs().min(h.abs())) / densite;
-    let Some(cote) = glucose_core::hit_priority::handle_side_px(petit_cote) else {
+    let Some(cote) = glucose_core::hit_priority::handle_side_px(petit_cote_logique(scale, (w, h)))
+    else {
         return;
     };
     let centre = ((x + w / 2.0) as f64, (y + h / 2.0) as f64);
@@ -61,6 +59,18 @@ pub(super) fn draw_rotated_handles(
             (theme.handle_fill, theme.handle_outline),
         );
     }
+}
+
+/// Le petit côté d'une boîte écran, en pixels **logiques** : la boîte est en pixels
+/// physiques, les lois des ornements en pixels logiques (DPI-1).
+fn petit_cote_logique(scale: WorldScale, (w, h): (f32, f32)) -> f64 {
+    f64::from(w.abs().min(h.abs())) / f64::from(scale.screen(1.0))
+}
+
+/// **La part de leur taille que gardent les ornements** d'un nœud posé sur cette boîte écran
+/// — cadre et anneau de sélection (POIGNEE-1, [`glucose_core::hit_priority::chrome_ratio`]).
+pub(crate) fn part_des_ornements(scale: WorldScale, boite: (f32, f32)) -> f32 {
+    glucose_core::hit_priority::chrome_ratio(petit_cote_logique(scale, boite)) as f32
 }
 
 /// **Une poignée, nette** : un carré de liseré, et un carré de fond dedans, tous deux posés

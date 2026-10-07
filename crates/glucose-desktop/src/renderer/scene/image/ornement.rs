@@ -11,7 +11,7 @@
 //! Les ornements se dessinent donc **par-dessus** les tuiles, à chaque image, en direct.
 
 use super::super::super::domain::draw_domain_gauge;
-use super::super::super::handles::draw_rotated_handles;
+use super::super::super::handles::{draw_rotated_handles, part_des_ornements};
 use super::super::super::scale::fill_crisp;
 use super::super::super::scale::WorldScale;
 use super::super::super::PaintKit;
@@ -127,14 +127,12 @@ const IMAGE_SELECTION_STROKE: f32 = 1.25;
 /// par ses quatre coins tournés — une rotation ne déforme rien, donc tourner le rectangle puis
 /// le border revient à border le rectangle puis le tourner.
 pub(super) struct Cadres {
-    /// Les cadres droits, en rectangles écran, et s'ils sont verrouillés.
-    droits: Vec<(Rect, bool)>,
-    /// Les cadres penchés, un tracé par encre : normaux, puis verrouillés.
-    penches: [PathBuilder; 2],
-    /// Le débord et l'épaisseur du cadre, en pixels de l'écran : des pixels logiques mis à
-    /// la densité (DPI-1), comme les poignées qui se posent dessus.
-    debord: f32,
-    epaisseur: f32,
+    /// Les cadres droits, en rectangles écran, leur épaisseur, et s'ils sont verrouillés.
+    droits: Vec<(Rect, f32, bool)>,
+    /// Les cadres penchés, chacun son tracé et son épaisseur — rares, et chacun à sa taille.
+    penches: Vec<(tiny_skia::Path, f32, bool)>,
+    /// L'échelle, qui dit la densité (DPI-1) et la place de chaque nœud à l'écran.
+    scale: WorldScale,
 }
 
 impl Cadres {
@@ -142,9 +140,8 @@ impl Cadres {
     pub(super) fn a_l_echelle(scale: WorldScale) -> Self {
         Self {
             droits: Vec::new(),
-            penches: Default::default(),
-            debord: scale.screen(IMAGE_SELECTION_INSET),
-            epaisseur: scale.screen(IMAGE_SELECTION_STROKE),
+            penches: Vec::new(),
+            scale,
         }
     }
 
@@ -154,11 +151,14 @@ impl Cadres {
         img: &glucose_core::types::BoardImage,
         (sx, sy, sw, sh): (f32, f32, f32, f32),
     ) {
-        let d = self.debord;
+        // Débord et trait suivent la place du nœud à l'écran, comme ses poignées (POIGNEE-1).
+        let part = part_des_ornements(self.scale, (sw, sh));
+        let d = self.scale.screen(IMAGE_SELECTION_INSET) * part;
+        let epaisseur = self.scale.screen(IMAGE_SELECTION_STROKE) * part;
         let (at, size) = ((sx - d, sy - d), (sw + 2.0 * d, sh + 2.0 * d));
         if img.rotation == 0.0 {
             if let Some(rect) = Rect::from_xywh(at.0, at.1, size.0, size.1) {
-                self.droits.push((rect, img.locked));
+                self.droits.push((rect, epaisseur, img.locked));
             }
             return;
         }
@@ -170,37 +170,33 @@ impl Cadres {
             tiny_skia::Point::from_xy(at.0, at.1 + size.1),
         ];
         rotation_at(img.rotation, at, size).map_points(&mut coins);
-        let trace = &mut self.penches[usize::from(img.locked)];
+        let mut trace = PathBuilder::new();
         trace.move_to(coins[0].x, coins[0].y);
         for c in &coins[1..] {
             trace.line_to(c.x, c.y);
         }
         trace.close();
+        if let Some(chemin) = trace.finish() {
+            self.penches.push((chemin, epaisseur, img.locked));
+        }
     }
 
     /// Pose tous les cadres ajoutés : les droits en filets, les penchés en un tracé par encre.
     pub(super) fn poser(self, pixmap: &mut PixmapMut, theme: &Theme) {
         let encres = [theme.selection_frame, theme.alert];
-        for (rect, verrouille) in self.droits {
-            poser_un_cadre_droit(
-                pixmap,
-                (rect, self.epaisseur),
-                encres[usize::from(verrouille)],
-            );
+        for (rect, epaisseur, verrouille) in self.droits {
+            poser_un_cadre_droit(pixmap, (rect, epaisseur), encres[usize::from(verrouille)]);
         }
-        let stroke = Stroke {
-            width: self.epaisseur,
-            ..Default::default()
-        };
-        for (trace, encre) in self.penches.into_iter().zip(encres) {
-            let Some(chemin) = trace.finish() else {
-                continue;
+        for (chemin, epaisseur, verrouille) in self.penches {
+            let stroke = Stroke {
+                width: epaisseur,
+                ..Default::default()
             };
             let mut paint = Paint {
                 anti_alias: true,
                 ..Default::default()
             };
-            paint.set_color(encre);
+            paint.set_color(encres[usize::from(verrouille)]);
             pixmap.stroke_path(&chemin, &paint, &stroke, Transform::identity(), None);
         }
     }
@@ -210,11 +206,19 @@ impl Cadres {
 /// l'était le contour : le liseré déborde d'une demi-épaisseur au-dehors et mord d'autant
 /// au-dedans. Les filets ne se chevauchent pas — une encre à 0,80 posée deux fois aux coins
 /// y serait plus claire.
+///
+/// **Plus fin qu'un pixel, il s'estompe au lieu de disparaître** (POIGNEE-1) : un trait de
+/// 0,2 px couvre le cinquième d'un pixel, il en reçoit donc le cinquième de l'encre — ce que
+/// l'anti-crénelage aurait donné, sans en payer le prix. La sélection reste lisible de loin,
+/// sans faire de grille.
 fn poser_un_cadre_droit(
     pixmap: &mut PixmapMut,
     (rect, epaisseur): (Rect, f32),
-    encre: tiny_skia::Color,
+    mut encre: tiny_skia::Color,
 ) {
+    if epaisseur < 1.0 {
+        encre.apply_opacity(epaisseur);
+    }
     let e = epaisseur.round().max(1.0);
     let (x, y) = ((rect.x() - e / 2.0).round(), (rect.y() - e / 2.0).round());
     let (l, h) = ((rect.width() + e).round(), (rect.height() + e).round());

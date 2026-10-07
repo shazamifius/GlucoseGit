@@ -127,8 +127,20 @@ pub struct PickCandidate {
 /// poignée disparaît — du dessin et du clic à la fois ; le cadre de la sélection reste.
 pub fn handle_reach_px(petit_cote: f64) -> Option<f64> {
     use pick_consts::*;
-    let prise = HANDLE_SLOP_PX.min(petit_cote.abs() * HANDLE_SLOP_MAX_RATIO);
+    let prise = HANDLE_SLOP_PX * chrome_ratio(petit_cote);
     (prise * HANDLE_SIDE_PX / HANDLE_SLOP_PX >= HANDLE_SMALLEST_SQUARE_PX).then_some(prise)
+}
+
+/// **La part de leur taille que gardent les ornements d'un nœud** — poignées, cadre, anneau
+/// de sélection —, entre 0 et 1, pour un nœud dont le petit côté mesure `petit_cote` pixels
+/// logiques à l'écran (POIGNEE-1).
+///
+/// C'est la prise effective rapportée à la prise pleine : 1 tant que le nœud a toute la place,
+/// puis proportionnelle à sa taille. Le cadre de sélection gardait 3 px de débord et 1,25 px
+/// de trait autour de vignettes de huit pixels : une grille blanche, son retour du 07/10.
+pub fn chrome_ratio(petit_cote: f64) -> f64 {
+    use pick_consts::*;
+    HANDLE_SLOP_PX.min(petit_cote.abs() * HANDLE_SLOP_MAX_RATIO) / HANDLE_SLOP_PX
 }
 
 /// Le côté du carré d'une poignée, en pixels logiques, sur un nœud dont le petit côté mesure
