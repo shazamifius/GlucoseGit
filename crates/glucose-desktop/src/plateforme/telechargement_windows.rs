@@ -13,7 +13,7 @@
 //! par [`super::sources`], et rend des octets ou la raison de n'en pas rendre.
 
 use super::sources::Adresse;
-use windows::core::{w, HSTRING, PCWSTR};
+use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Networking::WinHttp::{
     WinHttpCloseHandle, WinHttpConnect, WinHttpOpen, WinHttpOpenRequest, WinHttpQueryDataAvailable,
     WinHttpQueryHeaders, WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest,
@@ -55,7 +55,7 @@ impl Poignee {
 /// Seul un `200` compte : une redirection est suivie par WinHTTP lui-même, et tout le reste —
 /// une page introuvable, un refus — n'est pas une image.
 pub(super) fn telecharger(adresse: &Adresse, limite: usize) -> Result<Vec<u8>, String> {
-    let requete = ouvrir(adresse)?;
+    let requete = ouvrir(adresse, "GET")?;
     unsafe {
         WinHttpSendRequest(requete.requete.0, None, None, 0, 0, 0)
             .map_err(|e| raison("envoi", &e))?;
@@ -67,6 +67,32 @@ pub(super) fn telecharger(adresse: &Adresse, limite: usize) -> Result<Vec<u8>, S
         return Err(format!("le serveur repond {statut}"));
     }
     lire_le_corps(&requete.requete, limite)
+}
+
+/// **Envoie `corps` à cette adresse** (`POST`, en JSON) ou l'efface (`DELETE`), et rend le code
+/// de la réponse — la boîte noire qui voyage (fiche 54). Le corps de la réponse n'est pas lu :
+/// son code dit tout ce qu'il y a à savoir.
+pub(super) fn envoyer(adresse: &Adresse, verbe: &str, corps: &[u8]) -> Result<u16, String> {
+    let requete = ouvrir(adresse, verbe)?;
+    let entetes: Vec<u16> = "Content-Type: application/json
+"
+    .encode_utf16()
+    .collect();
+    let longueur = u32::try_from(corps.len()).map_err(|_| "corps trop lourd".to_string())?;
+    unsafe {
+        WinHttpSendRequest(
+            requete.requete.0,
+            Some(&entetes),
+            (!corps.is_empty()).then_some(corps.as_ptr().cast()),
+            longueur,
+            longueur,
+            0,
+        )
+        .map_err(|e| raison("envoi", &e))?;
+        WinHttpReceiveResponse(requete.requete.0, core::ptr::null_mut())
+            .map_err(|e| raison("reponse", &e))?;
+    }
+    Ok(statut(&requete.requete)? as u16)
 }
 
 /// **Ce qu'une étape a rencontré, dit en mots** (DEPOT-WEB-6) : la phrase de Windows est longue,
@@ -149,8 +175,8 @@ fn ouvrir_la_session() -> Result<Poignee, String> {
     }
 }
 
-/// Ouvre la requête `GET` de cette adresse, dans la session de Glucose.
-fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
+/// Ouvre la requête de cette adresse, de ce verbe (`GET`, `POST`…), dans la session de Glucose.
+fn ouvrir(adresse: &Adresse, verbe: &str) -> Result<Requete, String> {
     let session = session()?;
     unsafe {
         let connexion = Poignee(WinHttpConnect(
@@ -167,7 +193,7 @@ fn ouvrir(adresse: &Adresse) -> Result<Requete, String> {
         };
         let requete = Poignee(WinHttpOpenRequest(
             connexion.0,
-            w!("GET"),
+            &HSTRING::from(verbe),
             &HSTRING::from(adresse.chemin.as_str()),
             PCWSTR::null(),
             PCWSTR::null(),

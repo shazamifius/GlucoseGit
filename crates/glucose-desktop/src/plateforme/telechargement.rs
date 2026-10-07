@@ -19,21 +19,8 @@ use super::{DELAI, NAVIGATEUR};
 /// Seul un `200` compte : une redirection est suivie par `ureq` lui-même, et tout le reste —
 /// une page introuvable, un refus — n'est pas ce qu'on demandait.
 pub(super) fn telecharger(adresse: &Adresse, limite: usize) -> Result<Vec<u8>, String> {
-    let schema = if adresse.securise { "https" } else { "http" };
-    let url = format!(
-        "{schema}://{}:{}{}",
-        adresse.hote, adresse.port, adresse.chemin
-    );
-    let config = ureq::Agent::config_builder()
-        .timeout_resolve(Some(DELAI))
-        .timeout_connect(Some(DELAI))
-        .timeout_send_request(Some(DELAI))
-        .timeout_recv_response(Some(DELAI))
-        .user_agent(NAVIGATEUR)
-        .http_status_as_error(false)
-        .build();
-    let mut reponse = ureq::Agent::new_with_config(config)
-        .get(&url)
+    let mut reponse = agent()
+        .get(&url(adresse))
         .call()
         .map_err(|e| format!("requete : {e}"))?;
     let statut = reponse.status().as_u16();
@@ -49,4 +36,41 @@ pub(super) fn telecharger(adresse: &Adresse, limite: usize) -> Result<Vec<u8>, S
             ureq::Error::BodyExceedsLimit(_) => format!("plus de {} Mo", limite / (1024 * 1024)),
             autre => format!("lecture : {autre}"),
         })
+}
+
+/// L'adresse entière, telle qu'`ureq` la prend.
+fn url(adresse: &Adresse) -> String {
+    let schema = if adresse.securise { "https" } else { "http" };
+    format!(
+        "{schema}://{}:{}{}",
+        adresse.hote, adresse.port, adresse.chemin
+    )
+}
+
+/// Un agent, avec les délais de chaque étape ; un code de réponse n'est jamais une erreur ici.
+fn agent() -> ureq::Agent {
+    let config = ureq::Agent::config_builder()
+        .timeout_resolve(Some(DELAI))
+        .timeout_connect(Some(DELAI))
+        .timeout_send_request(Some(DELAI))
+        .timeout_recv_response(Some(DELAI))
+        .user_agent(NAVIGATEUR)
+        .http_status_as_error(false)
+        .build();
+    ureq::Agent::new_with_config(config)
+}
+
+/// **Envoie `corps` à cette adresse** (`POST`, en JSON) ou l'efface (`DELETE`), et rend le code
+/// de la réponse — la boîte noire qui voyage (fiche 54).
+pub(super) fn envoyer(adresse: &Adresse, verbe: &str, corps: &[u8]) -> Result<u16, String> {
+    let reponse = match verbe {
+        "POST" => agent()
+            .post(&url(adresse))
+            .header("content-type", "application/json")
+            .send(corps),
+        "DELETE" => agent().delete(&url(adresse)).call(),
+        autre => return Err(format!("verbe inconnu : {autre}")),
+    }
+    .map_err(|e| format!("requete : {e}"))?;
+    Ok(reponse.status().as_u16())
 }

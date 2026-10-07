@@ -30,6 +30,8 @@ pub struct Lancement {
     pub reveil: Option<winit::event_loop::EventLoopProxy<()>>,
     /// La veille des mises à jour.
     pub mise_a_jour: Option<Veille>,
+    /// La boîte noire qui voyage, et l'accord de cette machine (fiche 54).
+    pub telemetrie: crate::telemetrie::Telemetrie,
 }
 
 impl GlucoseApp {

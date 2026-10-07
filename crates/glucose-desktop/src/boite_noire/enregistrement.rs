@@ -241,7 +241,7 @@ pub fn ligne_de_plantage(instant_ms: u64, p: &super::plantage::Plantage) -> Stri
 
 /// Échappe ce que JSON demande. Les noms sont fixés à la compilation, mais la ligne doit rester
 /// du JSON quel que soit celui qu'on y ajoutera demain.
-fn echapper(s: &str) -> String {
+pub(crate) fn echapper(s: &str) -> String {
     let mut t = String::with_capacity(s.len());
     for c in s.chars() {
         match c {

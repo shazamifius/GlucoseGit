@@ -85,6 +85,21 @@ pub fn url_at(source: &str, at: usize) -> Option<String> {
 /// Confie l'adresse au système. Rend `false` si la commande n'a pas pu partir.
 /// Ouvre `url` avec le navigateur du système. Rend `false` si rien n'a pu être lancé.
 ///
+/// **Ouvre un dossier** dans l'explorateur du système — la même commande qu'une adresse.
+///
+/// Une épreuve n'ouvre jamais rien sur son écran (comme DIAL-3) : elle rend `false`.
+pub(crate) fn ouvrir_un_dossier(chemin: &std::path::Path) -> bool {
+    #[cfg(test)]
+    {
+        let _ = chemin;
+        false
+    }
+    #[cfg(not(test))]
+    {
+        open_url(&chemin.to_string_lossy())
+    }
+}
+
 /// # Deux fautes que la version précédente faisait
 ///
 /// Elle rendait `spawn().is_ok()`, c'est-à-dire **« cmd a démarré »** — jamais « le lien

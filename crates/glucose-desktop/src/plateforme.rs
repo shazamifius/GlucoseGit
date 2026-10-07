@@ -61,6 +61,30 @@ pub fn telecharger(url: &str, limite: usize) -> Result<Vec<u8>, String> {
     voie(&adresse, limite)
 }
 
+/// Ce qu'un envoi fait à l'adresse.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verbe {
+    /// Déposer un corps JSON (`POST`).
+    Deposer,
+    /// Effacer ce que l'adresse désigne (`DELETE`).
+    Effacer,
+}
+
+/// **Envoie à une adresse web**, et rend le code de sa réponse (fiche 54) : la même porte que
+/// [`telecharger`], dans l'autre sens.
+pub fn envoyer(url: &str, verbe: Verbe, corps: &[u8]) -> Result<u16, String> {
+    let adresse = sources::decouper(url).ok_or_else(|| format!("adresse refusee : {url}"))?;
+    let verbe = match verbe {
+        Verbe::Deposer => "POST",
+        Verbe::Effacer => "DELETE",
+    };
+    #[cfg(windows)]
+    let voie = telechargement_windows::envoyer;
+    #[cfg(not(windows))]
+    let voie = telechargement::envoyer;
+    voie(&adresse, verbe, corps)
+}
+
 /// **Glisse un lot de nœuds hors de cette fenêtre** (fiche 51 § 2), jusqu'au lâcher : rend
 /// vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine
 /// pendant le geste. Sous Windows seulement, comme la cible : ailleurs, le glisser de `winit`

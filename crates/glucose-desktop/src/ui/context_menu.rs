@@ -84,6 +84,10 @@ pub enum MenuAction {
     NouvelOnglet,
     /// Sur un onglet : un autre document, dans des onglets neufs (BOARDS-2).
     AjouterUnDocument,
+    /// Envoyer le journal technique, ou cesser de l'envoyer (fiche 54).
+    JournalTechnique,
+    /// Ouvrir le dossier de la boîte noire : exactement ce qui part (fiche 49 § 2.2).
+    VoirCeQuiPart,
 }
 
 /// Une ligne du menu : soit une entrée, soit un filet.
@@ -199,6 +203,16 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
             "Mode référence",
             "Ctrl+Maj+A",
         )));
+        // Sans serveur, ces entrées n'ont pas d'objet : elles n'existent pas.
+        if crate::telemetrie::ADRESSE.is_some() {
+            defs.push(None);
+            defs.push(Some((
+                MenuAction::JournalTechnique,
+                "Journal technique…",
+                "",
+            )));
+            defs.push(Some((MenuAction::VoirCeQuiPart, "Voir ce qui part", "")));
+        }
     }
     Some(defs)
 }

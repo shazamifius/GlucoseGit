@@ -142,6 +142,9 @@ impl GlucoseApp {
         if self.pave.is_some() {
             println!("[Glucose] pave : pris par Direct Manipulation, comme Chromium et Blender");
         }
+        // La question de la télémétrie, une seule fois : la fenêtre existe, le dialogue s'y
+        // accroche (DIAL-1).
+        self.demander_la_telemetrie();
     }
 
     /// **La taille de la fenêtre**, ou celle qu'elle a à sa naissance tant qu'elle n'existe pas —

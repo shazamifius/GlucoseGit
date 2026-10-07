@@ -55,6 +55,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(boite) = app.chronique.boite_noire() {
         boite.temoigner_des_paniques();
     }
+    // La boîte noire qui voyage (fiche 54) : avec son accord, les sessions closes partent.
+    let session = app
+        .chronique
+        .boite_noire()
+        .map(|b| b.chemin().to_path_buf());
+    app.lancement.telemetrie =
+        glucose_desktop::telemetrie::Telemetrie::habiter(dossier.clone(), session);
     // Comment ce Glucose est installé : celui qui ne sait pas se remplacer (NixOS, `cargo run`)
     // ne cherche aucune mise à jour. Après une session qui a mal fini, elle se cherche AVANT
     // tout ce qui peut tomber — la carte graphique, le document (fiche 48).

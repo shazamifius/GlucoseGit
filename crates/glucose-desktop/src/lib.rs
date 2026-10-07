@@ -44,6 +44,7 @@ pub mod renderer;
 pub mod resolution;
 pub mod salissure;
 pub mod tauri;
+pub mod telemetrie;
 pub mod tempo;
 pub mod theme;
 pub mod typography;
