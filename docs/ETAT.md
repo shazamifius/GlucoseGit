@@ -85,9 +85,9 @@
   déclencher la CI », 07/10 au soir), jusqu'à `d17e838` — vérifié : aucune exécution. Ceux de
   la fiche 54 sont partis **avec** la CI (`89510e2`, dix vertes) ; la télémétrie branchée et
   l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), jusqu'à `df1b854`
-  (`[skip ci]`, vérifié : aucune exécution). **Le rail (`2dc623b`), la fiche 55, toute la
-  fiche 56 et toute la fiche 57 ne sont pas envoyés** (commits locaux, en attente de sa réponse
-  sur l'envoi et la CI) : ni Linux ni Mac ne les ont vus.
+  (`[skip ci]`, vérifié : aucune exécution). Le rail, les fiches 55, 56 et 57 — douze
+  commits, jusqu'à `57060c8` — sont partis **avec** la CI, à sa demande (08/10 au soir) : **les
+  dix tâches vertes**, Linux et Mac compris (exécution 37801814665).
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est

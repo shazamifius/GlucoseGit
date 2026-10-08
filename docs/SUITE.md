@@ -20,6 +20,20 @@
 
 ---
 
+## 0. Ses demandes du 08/10 au soir — **avant tout le reste**
+
+Ses mots, après la fiche 57 : les 12 commits envoyés **avec la CI** ; la clé Android copiée hors
+du PC (« c'est fait, c'est enregistré ») ; la publication de la 2.0.2-beta.1 seulement **si la
+mise à jour automatique fonctionne pour tout le monde**.
+
+| | chantier | pourquoi, et ce qui le déclare fini |
+|---|---|---|
+| [ ] | **POPUP-1 — toutes les questions dessinées dans Glucose, partout** (urgent) | *« souvent des black screen total et des freeze ; il faut voyager dans le noir total, faire Tab puis Entrée pour autoriser la télémétrie »*. Les dialogues du système (`rfd`, `dialogue::oui_ou_non`, `oui_non_ou_annuler`, `poser`, appelés sous `sous_un_dialogue`) bloquent la boucle pendant qu'ils sont ouverts : la fenêtre ne se repeint plus. La question dessinée (QUESTION-1, `ui::question`) existe déjà et marche au téléphone : la faire servir partout (`ui.questions_dessinees` à vrai), et convertir les questions encore synchrones — le travail non enregistré (`persist/close.rs`, BROUILLON-1, qui attend une réponse avant de fermer), la mise à jour (`app/lancement.rs`). Les sélecteurs de **fichiers** (ouvrir, enregistrer sous, exporter, ajouter des images) restent ceux du système : à lui de dire s'ils posent le même problème. Fini quand plus aucune question oui/non ne passe par `rfd`, et quand il l'a jugé à son écran. |
+| [ ] | **GESTES-1 — des raccourcis à deux et trois doigts** | *« impossible de faire une multi-sélection et un clic droit ; avec 2 doigts on crée des raccourcis, et avec 3 aussi ; le plus simple possible, le moins de boutons et de pages possible »*. Attention : deux doigts **déplacent et pincent** déjà la vue (la similitude, fiche 54) — un toucher à deux doigts (sans mouvement) est libre, comme dans Procreate (deux doigts = annuler, trois = rétablir) ; chercher ce que font Procreate, Infinite Painter, Concepts, tldraw, Figma au doigt, et lui proposer **une** carte de gestes courte avant d'écrire. |
+| [ ] | **Les noms dans le rail** : une icône et son nom, quitte à faire défiler — il est d'accord | fiche 55 § 3 |
+| [ ] | **Les emojis** : la police monochrome Noto Emoji (OFL, ~1 Mo) — d'accord « pour la prochaine session » ; une note dans `carnet/decisions/` | fiche 57 § 6 |
+| [ ] | **La mise à jour automatique, vérifiée pour tout le monde** avant de publier : Windows et Linux (la bascule est répétée par la CI) ; **Android n'en a pas encore** — l'écrire, ou lui dire clairement que la 2.0.2 ne se mettra pas à jour seule au téléphone | sa condition à la publication |
+
 ## 1. Ses retours sur la V2, et la 2.0.2 bêta — **d'abord**
 
 Fiches 51 et 52. Au soir du 07/10, **presque tout est jugé à son écran** : « tout est absolument
@@ -199,8 +213,8 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 ## Ce qui n'attend que lui
 
 1. **Le clic « Publish release »** sur le brouillon de la 2.0.2-beta.1 (fiche 55 § 1).
-1 bis. **Une copie de la clé Android hors du PC** (`Documents\Glucose-cle-android`), et garder ou
-   non le sous-domaine `ferme-nilslamber` du serveur de la boîte noire.
+1 bis. ~~Une copie de la clé Android hors du PC~~ : faite (08/10 au soir). Garder ou non le
+   sous-domaine `ferme-nilslamber` du serveur de la boîte noire.
 2. **Une copie de sa clé de signature hors de ce PC.**
 3. **Le modèle de l'iPad**, et **les téléphones de ses testeurs Android** (le plus ancien
    d'abord) : un « Xiaomi 9 » — Mi 9 ou Redmi 9 ? — et une clé de signature Android à garder.
