@@ -79,6 +79,11 @@ impl GlucoseApp {
         if self.ui.marges == marges {
             return;
         }
+        // Le journal le dit : ce que chaque téléphone annonce ne se devine pas ailleurs.
+        println!(
+            "[Glucose] marges : haut {}, bas {}, gauche {}, droite {}, clavier {}",
+            marges.haut, marges.bas, marges.gauche, marges.droite, marges.clavier
+        );
         self.ui.marges = marges;
         self.mark_dirty();
         self.garder_la_ligne_en_vue();
