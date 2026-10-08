@@ -64,6 +64,27 @@ impl GlucoseApp {
     }
 }
 
+impl GlucoseApp {
+    /// **Les marges que le système vient de dire** (BORD-1, fiche 57) — la barre d'état, la
+    /// navigation, le clavier qui sort ou rentre : l'interface s'y cale, et la ligne qu'on
+    /// écrit reste au-dessus du clavier.
+    pub(crate) fn suivre_les_marges(&mut self) {
+        if let Some(marges) = crate::plateforme::marges::nouvelles() {
+            self.adopter_les_marges(marges);
+        }
+    }
+
+    /// Ces marges deviennent celles de l'interface.
+    pub(crate) fn adopter_les_marges(&mut self, marges: crate::plateforme::marges::Marges) {
+        if self.ui.marges == marges {
+            return;
+        }
+        self.ui.marges = marges;
+        self.mark_dirty();
+        self.garder_la_ligne_en_vue();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

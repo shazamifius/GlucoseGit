@@ -2,13 +2,19 @@ package com.glucose.app;
 
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.HapticFeedbackConstants;
+import android.view.View;
+import androidx.activity.EdgeToEdge;
+import androidx.activity.SystemBarStyle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.IntentCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.WindowInsetsCompat;
 import com.google.androidgamesdk.GameActivity;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +40,10 @@ public class MainActivity extends GameActivity {
      */
     private static native void recevoirUnPartage(
             int[] fichiers, long[] debuts, long[] longueurs, String texte);
+
+    /** Les marges du système, en pixels : les barres et l'encoche, puis le clavier (BORD-1). */
+    private static native void recevoirLesMarges(
+            int gauche, int haut, int droite, int bas, int clavier);
 
     /**
      * **Le sélecteur de photos du système** (fiche 56) : celui d'Android 13 et après, ou celui
@@ -71,6 +81,12 @@ public class MainActivity extends GameActivity {
 
     @Override
     protected void onCreate(Bundle etat) {
+        // **Bord à bord, partout** (BORD-1, fiche 57) : Android 15 et 16 l'imposent à la cible
+        // 36 ; le même chemin sur chaque téléphone. Glucose est sombre : icônes claires.
+        EdgeToEdge.enable(
+                this,
+                SystemBarStyle.dark(Color.TRANSPARENT),
+                SystemBarStyle.dark(Color.TRANSPARENT));
         super.onCreate(etat);
         // Une activité recréée (le système avait tué Glucose), ou rouverte depuis les
         // applications récentes, reçoit l'intention d'origine une seconde fois : le partage
@@ -79,6 +95,19 @@ public class MainActivity extends GameActivity {
         if (etat == null && !rejouee) {
             recevoir(getIntent());
         }
+    }
+
+    /** **Les marges du système** (BORD-1) : `GameActivity` en fait ce qu'elle en fait, et Rust
+     *  les reçoit — la barre d'état, la navigation, l'encoche, et le clavier, qui recouvre la
+     *  fenêtre au lieu de la rétrécir en bord à bord. */
+    @Override
+    public WindowInsetsCompat onApplyWindowInsets(View vue, WindowInsetsCompat marges) {
+        WindowInsetsCompat rendu = super.onApplyWindowInsets(vue, marges);
+        Insets barres = marges.getInsets(
+                WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+        Insets clavier = marges.getInsets(WindowInsetsCompat.Type.ime());
+        recevoirLesMarges(barres.left, barres.top, barres.right, barres.bottom, clavier.bottom);
+        return rendu;
     }
 
     /** Glucose était déjà ouvert (`singleTask`) : le partage arrive ici. */

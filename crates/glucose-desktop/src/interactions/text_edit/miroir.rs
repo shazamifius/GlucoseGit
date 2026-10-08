@@ -249,7 +249,9 @@ impl GlucoseApp {
         let haut = haut_monde * vue.scale + vue.y;
         let bas = haut + hauteur * vue.scale;
         let plafond = f64::from(self.ui.header_height());
-        let plancher = f64::from(self.taille_de_la_fenetre().1);
+        // Le bas de ce qui se voit : la fenêtre, moins le clavier qui la recouvre (BORD-1).
+        let visible = self.ui.ecran_visible(self.taille_de_la_fenetre());
+        let plancher = f64::from(visible.1);
         // Le décalage le plus proche de zéro qui pose la ligne entre les deux ; le haut prime.
         let decalage = 0.0_f64.min(plancher - bas).max(plafond - haut);
         if decalage != 0.0 {

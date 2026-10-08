@@ -141,6 +141,35 @@ mod selecteur {
     }
 }
 
+/// **Les marges du système** (BORD-1, fiche 57) : ce que `MainActivity.onApplyWindowInsets`
+/// voit, en pixels de la fenêtre — sur le fil de l'interface d'Android, qui n'attend pas.
+mod marges {
+    use glucose_desktop::plateforme::marges::{recevoir, Marges};
+    use jni::objects::JClass;
+    use jni::sys::jint;
+    use jni::EnvUnowned;
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_glucose_app_MainActivity_recevoirLesMarges<'l>(
+        _env: EnvUnowned<'l>,
+        _classe: JClass<'l>,
+        gauche: jint,
+        haut: jint,
+        droite: jint,
+        bas: jint,
+        clavier: jint,
+    ) {
+        let px = |v: jint| v.max(0) as f32;
+        recevoir(Marges {
+            gauche: px(gauche),
+            haut: px(haut),
+            droite: px(droite),
+            bas: px(bas),
+            clavier: px(clavier),
+        });
+    }
+}
+
 /// **Ce qu'Android dit du doigt** (APPUI-1, fiche 57) : le délai de l'appui long que chacun
 /// règle dans l'accessibilité, et la vibration qui dit qu'il a pris.
 mod doigt {

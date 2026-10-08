@@ -90,10 +90,12 @@ pub fn decider(ui: &mut UiState, typo: &Typography, store: &Store, largeur: f32)
 pub fn layout_rail(ui: &UiState, typo: &Typography, hauteur: f32) -> RailLayout {
     let s = ui.scale();
     let haut = ui.header_height() + ECART * s;
+    // Une encoche à gauche, en paysage : le rail commence après elle (BORD-1).
+    let gauche = ui.marges.gauche;
     let (lw, lh) = (LANGUETTE.0 * s, LANGUETTE.1 * s);
     if !ui.rail.ouvert {
         return RailLayout {
-            languette: (0.0, haut, lw, lh),
+            languette: (gauche, haut, lw, lh),
             panneau: None,
             boutons: Vec::new(),
         };
@@ -107,7 +109,7 @@ pub fn layout_rail(ui: &UiState, typo: &Typography, hauteur: f32) -> RailLayout 
         .into_iter()
         .enumerate()
         .map(|(i, b)| TopbarButtonDef {
-            x: ECART * s + (i % colonnes) as f32 * pas,
+            x: gauche + ECART * s + (i % colonnes) as f32 * pas,
             y: haut + ECART * s + (i / colonnes) as f32 * pas,
             w: CASE * s,
             h: CASE * s,
@@ -120,8 +122,8 @@ pub fn layout_rail(ui: &UiState, typo: &Typography, hauteur: f32) -> RailLayout 
     let largeur = ECART * s + colonnes as f32 * pas;
     let haut_du_panneau = ECART * s + rangees * pas;
     RailLayout {
-        languette: (largeur, haut, lw, lh),
-        panneau: Some((0.0, haut, largeur, haut_du_panneau)),
+        languette: (gauche + largeur, haut, lw, lh),
+        panneau: Some((gauche, haut, largeur, haut_du_panneau)),
         boutons,
     }
 }

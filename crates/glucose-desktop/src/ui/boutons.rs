@@ -92,7 +92,9 @@ enum Densite {
 impl<'a> Regle<'a> {
     fn nouvelle(ui: &UiState, typo: &'a Typography, densite: Densite) -> Self {
         let s = ui.scale();
-        let topbar_h = ui.topbar_height();
+        // Les boutons se centrent sur la barre sous la barre d'état (BORD-1).
+        let marge = ui.marge_du_haut();
+        let topbar_h = ui.topbar_height() - marge;
         let cote = 30.0 * s;
         let haut_action = 28.0 * s;
         Self {
@@ -100,8 +102,8 @@ impl<'a> Regle<'a> {
             separateurs: Vec::new(),
             x: 100.0 * s,
             s,
-            outil: (cote, (topbar_h - cote) / 2.0),
-            action: (haut_action, (topbar_h - haut_action) / 2.0),
+            outil: (cote, marge + (topbar_h - cote) / 2.0),
+            action: (haut_action, marge + (topbar_h - haut_action) / 2.0),
             typo,
             compact: densite != Densite::Complete,
             ultra: densite == Densite::Icones,

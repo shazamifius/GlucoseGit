@@ -27,6 +27,7 @@ pub mod graphique;
 pub mod heure;
 pub mod identite;
 pub mod journal;
+pub mod marges;
 pub mod moisson;
 pub mod offre;
 pub mod partage;

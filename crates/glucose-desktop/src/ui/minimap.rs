@@ -85,19 +85,22 @@ pub struct MinimapBounds {
     pub vp_h: f64,
 }
 
+/// `retrait` : ce que le système prend à droite et en bas (BORD-1) — la minimap s'accroche
+/// au coin qu'il laisse ; le cadre de la caméra, lui, se mesure sur l'écran entier.
 pub fn layout_minimap(
     store: &Store,
     screen_w: f32,
     screen_h: f32,
     scale: f32,
+    retrait: (f32, f32),
 ) -> Option<MinimapBounds> {
     let board = store.active_board()?;
     let s = crate::theme::clamp_ui_scale(scale);
     let mm_w = 180.0f32 * s;
     let mm_h = 120.0f32 * s;
     // Fiche 06 § 9 : `bottom: 12px`, `right: 12px`.
-    let mm_x = screen_w - mm_w - 12.0 * s;
-    let mm_y = screen_h - mm_h - 12.0 * s;
+    let mm_x = screen_w - retrait.0 - mm_w - 12.0 * s;
+    let mm_y = screen_h - retrait.1 - mm_h - 12.0 * s;
     let header_h = TOTAL_HEADER_HEIGHT * s;
 
     // Les bornes du contenu sont une question qu'on pose au document ; la minimap n'a pas à
@@ -163,13 +166,12 @@ pub fn render_minimap(
     pixmap: &mut PixmapMut,
     store: &Store,
     theme: &Theme,
-    w: f32,
-    h: f32,
-    scale: f32,
+    (w, h): (f32, f32),
+    (scale, retrait): (f32, (f32, f32)),
     cache: &mut Option<MinimapCache>,
 ) {
     let s = crate::theme::clamp_ui_scale(scale);
-    let mb = match layout_minimap(store, w, h, s) {
+    let mb = match layout_minimap(store, w, h, s, retrait) {
         Some(m) => m,
         None => return,
     };
@@ -425,11 +427,10 @@ pub fn point_minimap(
     store: &Store,
     x: f32,
     y: f32,
-    screen_w: f32,
-    screen_h: f32,
-    s: f32,
+    (screen_w, screen_h): (f32, f32),
+    (s, retrait): (f32, (f32, f32)),
 ) -> Option<(f64, f64)> {
-    let mb = layout_minimap(store, screen_w, screen_h, s)?;
+    let mb = layout_minimap(store, screen_w, screen_h, s, retrait)?;
     let pad = 6.0 * s;
     if x < mb.mm_x || x > mb.mm_x + mb.mm_w || y < mb.mm_y || y > mb.mm_y + mb.mm_h {
         return None;

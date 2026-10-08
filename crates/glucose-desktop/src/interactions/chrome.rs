@@ -159,7 +159,10 @@ impl GlucoseApp {
         let Some(bar) = crate::ui::action_bar::layout_action_bar(
             &self.store,
             &self.renderer.typography,
-            ((screen.width, screen.height), screen.scale),
+            (
+                self.ui.ecran_visible((screen.width, screen.height)),
+                screen.scale,
+            ),
             self.ui.origine_du_groupe,
         ) else {
             return false;
@@ -196,7 +199,7 @@ impl GlucoseApp {
         let Some(barre) = layout_options_de_fleche(
             &self.store,
             &self.renderer.typography,
-            (screen.width, screen.height),
+            self.ui.ecran_visible((screen.width, screen.height)),
             screen.scale,
         ) else {
             return false;

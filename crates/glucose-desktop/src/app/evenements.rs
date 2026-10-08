@@ -206,7 +206,8 @@ impl GlucoseApp {
 
         // **Ce que le pont natif et les relances ont apporte** (DEPOT-WEB-1, 6).
         self.relever_les_depots();
-        // Ce que le clavier du téléphone a réécrit, et ce qu'il doit tenir (CLAVIER-1).
+        // Les marges du système, puis le clavier du téléphone (BORD-1, CLAVIER-1).
+        self.suivre_les_marges();
         self.suivre_le_clavier();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
         self.suivre_la_mise_a_jour(event_loop);

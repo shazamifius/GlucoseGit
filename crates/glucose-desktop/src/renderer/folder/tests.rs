@@ -239,7 +239,7 @@ fn test_tres_dezoome_le_cadre_reste_et_le_texte_disparait() {
 #[test]
 fn test_un_tableau_de_dossiers_seuls_a_une_minimap() {
     let store = store_avec_dossier(1_000.0, 800.0, 300.0, 200.0);
-    let mm = crate::ui::layout_minimap(&store, 1440.0, 900.0, 1.0)
+    let mm = crate::ui::layout_minimap(&store, 1440.0, 900.0, 1.0, (0.0, 0.0))
         .expect("un tableau de dossiers doit avoir une minimap");
     // Les bornes englobent le dossier, marge de 200 px comprise.
     assert!(
@@ -268,9 +268,8 @@ fn test_un_dossier_laisse_une_trace_coloree_dans_la_minimap() {
             &mut pixmap.as_mut(),
             store,
             &theme,
-            1_440.0,
-            900.0,
-            1.0,
+            (1_440.0, 900.0),
+            (1.0, (0.0, 0.0)),
             &mut None,
         );
         // La minimap occupe le coin bas-droit : on n'y regarde que là.

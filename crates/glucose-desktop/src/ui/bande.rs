@@ -53,6 +53,8 @@ pub struct BandeKey {
     survol: Survol,
     /// La barre est-elle partie sur le côté ? La bande n'a plus alors que les onglets.
     rail: bool,
+    /// Ce que la barre d'état prend en haut (BORD-1) : la bande grandit d'autant.
+    marge: u32,
 }
 
 /// **Ce que le pointeur survole dans la bande** : un bouton, un onglet — la seule chose de la
@@ -136,6 +138,7 @@ pub(super) fn render_bande(
         tableaux: super::onglets::empreinte(&onglets, &ui.onglets),
         survol: survol(&barre, &onglets, pointer),
         rail: ui.rail.actif,
+        marge: ui.marge_du_haut().to_bits(),
     };
     let hauteur = ui.header_height().ceil() as u32;
     let perime = ui
@@ -235,6 +238,9 @@ fn render_topbar(
 ) {
     let s = ui.scale();
     let topbar_h = ui.topbar_height();
+    // Le fond couvre la barre d'état ; le titre et les traits se centrent dessous (BORD-1).
+    let marge = ui.marge_du_haut();
+    let milieu = |haut: f32| marge + (topbar_h - marge - haut) / 2.0;
 
     // Fond et bordure inférieure : deux rectangles alignés, donc nets (SCALE-3).
     if let Some(rect) = Rect::from_xywh(0.0, 0.0, width, topbar_h) {
@@ -248,7 +254,7 @@ fn render_topbar(
         pixmap,
         "GLUCOSE",
         12.0 * s,
-        (topbar_h - 14.0 * s) / 2.0,
+        milieu(14.0 * s),
         TextStyle {
             size: 14.0 * s,
             color: theme.text_primary,
@@ -260,7 +266,7 @@ fn render_topbar(
         draw_separator(
             pixmap,
             *sep_x,
-            (topbar_h - 20.0 * s) / 2.0,
+            milieu(20.0 * s),
             20.0 * s,
             theme.border_subtle,
         );

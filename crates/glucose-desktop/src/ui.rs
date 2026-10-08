@@ -147,6 +147,8 @@ pub struct UiState {
     /// La barre sur le côté, quand elle ne tient plus en haut (fiche 55), et son dessin gardé.
     pub rail: rail::Rail,
     pub rail_cache: Option<rail::RailCache>,
+    /// Ce que le système réserve au bord de l'écran, et le clavier (BORD-1, fiche 57).
+    pub marges: crate::plateforme::marges::Marges,
 }
 
 pub const WELCOME_TOAST: &str = "Bienvenue dans Glucose !";
@@ -196,6 +198,7 @@ impl UiState {
             reference: false,
             rail: rail::Rail::default(),
             rail_cache: None,
+            marges: Default::default(),
         }
     }
 
@@ -204,9 +207,26 @@ impl UiState {
         crate::theme::clamp_ui_scale(self.scale_factor)
     }
 
+    /// **La barre du haut descend jusque sous la barre d'état** (BORD-1) : son fond la couvre,
+    /// ses boutons se posent dessous ([`Self::marge_du_haut`]). Tout ce qui se mesure sur elle —
+    /// les onglets, le canevas — glisse d'autant, sans rien savoir des marges.
     #[inline]
     pub fn topbar_height(&self) -> f32 {
-        self.chrome() * self.rail.barre() * TOPBAR_HEIGHT * self.scale()
+        self.chrome() * (self.marges.haut + self.rail.barre() * TOPBAR_HEIGHT * self.scale())
+    }
+
+    /// Ce que la barre d'état prend en haut de la barre : ses boutons commencent dessous.
+    #[inline]
+    pub fn marge_du_haut(&self) -> f32 {
+        self.chrome() * self.marges.haut
+    }
+
+    /// **L'écran que le bas de l'interface peut occuper** (BORD-1) : sans la navigation du
+    /// système, ni le clavier quand il est sorti. Le message, la question, les barres du bas
+    /// et la minimap s'y posent ; le canevas, lui, va jusqu'au bord.
+    #[inline]
+    pub fn ecran_visible(&self, (w, h): (f32, f32)) -> (f32, f32) {
+        (w, h - self.marges.sous())
     }
 
     #[inline]
@@ -300,13 +320,13 @@ pub fn render_ui(
 
     // 3. Minimap (en bas à droite)
     let echelle_ui = ui.scale_factor;
+    let retrait = (ui.marges.droite, ui.marges.sous());
     minimap::render_minimap(
         pixmap,
         store,
         theme,
-        w,
-        h,
-        echelle_ui,
+        (w, h),
+        (echelle_ui, retrait),
         &mut ui.minimap_cache,
     );
 
@@ -339,13 +359,14 @@ fn poser_ce_qui_attend_une_decision(
     (w, h): (f32, f32),
     pointer: Pointer,
 ) {
+    let visible = ui.ecran_visible((w, h));
     if !ui.reference {
         action_bar::draw_action_bar(
             pixmap,
             store,
             typo,
             theme,
-            ((w, h), ui.scale_factor),
+            (visible, ui.scale_factor),
             ui.origine_du_groupe,
         );
     }
@@ -357,16 +378,16 @@ fn poser_ce_qui_attend_une_decision(
             store,
             typo,
             theme,
-            ((w, h), ui.scale_factor),
+            (visible, ui.scale_factor),
         );
     }
     if let Some(ref toast) = ui.current_toast {
-        toast::render_toast(pixmap, toast, typo, theme, w, h, ui.scale_factor);
+        toast::render_toast(pixmap, toast, typo, theme, w, visible.1, ui.scale_factor);
     }
     dessiner_le_menu(pixmap, (ui, store), (typo, theme), (w, h), pointer);
     // La question passe par-dessus tout : ce qui est derrière attend sa réponse (QUESTION-1).
     if let Some((q, _)) = &ui.question {
-        let placee = question::placer(q, typo, (w, h), ui.scale_factor);
+        let placee = question::placer(q, typo, visible, ui.scale_factor);
         let ou = (pointer.x, pointer.y);
         question::dessiner(pixmap, &placee, (typo, theme), ou, ui.scale_factor);
     }
@@ -438,7 +459,13 @@ pub fn handle_ui_click(
             onglets::CibleOnglet::Fermer(id) => UiAction::CloseBoard(id),
             onglets::CibleOnglet::Plus => UiAction::AddBoard,
         });
-    } else if let Some((wx, wy)) = point_minimap(store, x, y, screen_w, screen_h, s) {
+    } else if let Some((wx, wy)) = point_minimap(
+        store,
+        x,
+        y,
+        (screen_w, screen_h),
+        (s, (ui.marges.droite, ui.marges.sous())),
+    ) {
         return Some(UiAction::MinimapPan(wx, wy));
     }
 
@@ -468,7 +495,7 @@ mod tests {
             .expect("un outil");
         assert_eq!((tool.w, tool.h), (30.0, 30.0));
         let store = Store::new("m");
-        let mm = layout_minimap(&store, 1440.0, 900.0, 1.0).expect("la minimap");
+        let mm = layout_minimap(&store, 1440.0, 900.0, 1.0, (0.0, 0.0)).expect("la minimap");
         assert_eq!((mm.mm_w, mm.mm_h), (180.0, 120.0));
         assert_eq!(
             (mm.mm_x + mm.mm_w, mm.mm_y + mm.mm_h),
@@ -616,7 +643,7 @@ mod tests {
         let mut ui = UiState::new();
         let typo = Typography::new();
 
-        let mb = layout_minimap(&store, 1440.0, 900.0, ui.scale())
+        let mb = layout_minimap(&store, 1440.0, 900.0, ui.scale(), (0.0, 0.0))
             .expect("Minimap should have valid layout");
 
         // Clic au centre de la minimap
@@ -688,7 +715,8 @@ mod tests {
         assert_eq!(tab_act, Some(UiAction::SelectBoard(b1)));
 
         // 3. Minimap à 150 %
-        let mb = layout_minimap(&store, 1920.0, 1080.0, ui.scale()).expect("Minimap valid layout");
+        let mb = layout_minimap(&store, 1920.0, 1080.0, ui.scale(), (0.0, 0.0))
+            .expect("Minimap valid layout");
         assert_eq!(mb.mm_w, 180.0 * 1.5);
         assert_eq!(mb.mm_h, 120.0 * 1.5);
 

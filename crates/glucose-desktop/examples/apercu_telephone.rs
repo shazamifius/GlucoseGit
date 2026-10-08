@@ -11,6 +11,20 @@ use glucose_core::store::Store;
 use glucose_core::text::Selection;
 use glucose_core::types::BoardImage;
 use glucose_desktop::bench;
+use glucose_desktop::plateforme::marges::Marges;
+
+/// **Les marges d'un Redmi 9 en bord à bord** (BORD-1, fiche 57) : la barre d'état en haut,
+/// la navigation en bas ; couché, la barre d'état à gauche de l'encoche n'existe pas.
+fn marges(w: u32, clavier: f32) -> Marges {
+    let debout = w < 1000;
+    Marges {
+        haut: if debout { 60.0 } else { 0.0 },
+        gauche: if debout { 0.0 } else { 60.0 },
+        bas: 96.0,
+        clavier,
+        ..Marges::default()
+    }
+}
 use glucose_desktop::ui::question::{Champ, Question, Reponse, Suite};
 
 fn document() -> Store {
@@ -36,6 +50,7 @@ fn main() {
             bench::frame_document(&mut store, 0.6, w, h);
             let png = bench::capture_with(&store, w, h, |ui| {
                 ui.scale_factor = 2.0;
+                ui.marges = marges(w, 0.0);
                 ui.rail.ouvert = ouvert;
             });
             let etat = if ouvert { "deplie" } else { "replie" };
@@ -48,6 +63,7 @@ fn main() {
     bench::frame_document(&mut store, 0.6, 720, 1600);
     let png = bench::capture_with(&store, 720, 1600, |ui| {
         ui.scale_factor = 2.0;
+        ui.marges = marges(720, 0.0);
         ui.context_menu_at = Some((200.0, 700.0));
         ui.menu_au_doigt = true;
     });
@@ -56,20 +72,21 @@ fn main() {
         &png,
     );
     // La liste des documents, telle que le téléphone la dessine (fiche 56, DOCUMENTS-1).
-    // Et ce qu'un appui long y demande (fiche 57, DOCUMENTS-2). « Renommer » se rend dans la
-    // fenêtre que le clavier laisse : 720 × 860, son bas pris par Gboard (`adjustResize`).
+    // Et ce qu'un appui long y demande (fiche 57, DOCUMENTS-2). « Renommer » se rend le clavier
+    // sorti : en bord à bord, il recouvre le bas de la fenêtre (740 pixels de Gboard).
     let ecrans = [
-        ("documents", liste(), 1600),
-        ("question", nouveau(), 1600),
-        ("gerer", gerer(), 1600),
-        ("renommer", renommer(), 860),
-        ("supprimer", supprimer(), 1600),
+        ("documents", liste(), 0.0),
+        ("question", nouveau(), 0.0),
+        ("gerer", gerer(), 0.0),
+        ("renommer", renommer(), 740.0),
+        ("supprimer", supprimer(), 0.0),
     ];
-    for (nom, question, hauteur) in ecrans {
+    for (nom, question, clavier) in ecrans {
         let mut store = document();
-        bench::frame_document(&mut store, 0.6, 720, hauteur);
-        let png = bench::capture_with(&store, 720, hauteur, |ui| {
+        bench::frame_document(&mut store, 0.6, 720, 1600);
+        let png = bench::capture_with(&store, 720, 1600, |ui| {
             ui.scale_factor = 2.0;
+            ui.marges = marges(720, clavier);
             ui.question = Some((question, Suite::Ouvrir(Vec::new())));
         });
         ecrire(&format!("{dossier}/telephone-debout-{nom}.png"), &png);

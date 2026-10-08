@@ -28,10 +28,10 @@ impl GlucoseApp {
     /// derrière attend. L'appui retient la réponse pressée ; elle part au relâchement
     /// ([`Self::relacher_la_question`]).
     pub(crate) fn cliquer_la_question(&mut self, pointer: Pointer, screen: ScreenFrame) -> bool {
+        let ecran = self.ui.ecran_visible((screen.width, screen.height));
         let Some((question, _)) = &mut self.ui.question else {
             return false;
         };
-        let ecran = (screen.width, screen.height);
         let placee = placer(question, &self.renderer.typography, ecran, screen.scale);
         question.sous_le_doigt = reponse_sous(&placee, pointer.x, pointer.y);
         // Toucher le champ ressort le clavier, que le geste retour a pu rentrer.
@@ -49,13 +49,13 @@ impl GlucoseApp {
     pub(crate) fn relacher_la_question(&mut self) -> bool {
         let (pointer, (largeur, hauteur)) = (self.pointer(), self.taille_de_la_fenetre());
         let screen = self.screen_frame(largeur, hauteur);
+        let ecran = self.ui.ecran_visible((screen.width, screen.height));
         let Some((question, _)) = &mut self.ui.question else {
             return false;
         };
         let Some(pressee) = question.sous_le_doigt.take() else {
             return false;
         };
-        let ecran = (screen.width, screen.height);
         let placee = placer(question, &self.renderer.typography, ecran, screen.scale);
         if reponse_sous(&placee, pointer.x, pointer.y) == Some(pressee) {
             if let Some((question, suite)) = self.ui.question.take() {

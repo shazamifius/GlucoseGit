@@ -206,6 +206,9 @@ fn test_ce_qui_change_l_aspect_redessine_la_bande() {
     ui.smart_align = !ui.smart_align;
     change(&mut ui, &store, "l'alignement intelligent");
 
+    ui.marges.haut = 48.0;
+    change(&mut ui, &store, "la barre d'état du téléphone (BORD-1)");
+
     let board = store.project.active_board_id.clone();
     let mut img = glucose_core::types::BoardImage::new("photo", 0.0, 0.0, 100.0, 100.0);
     img.src = Some("x.png".into());

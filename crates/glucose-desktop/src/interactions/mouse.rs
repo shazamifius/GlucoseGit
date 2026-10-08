@@ -147,9 +147,8 @@ impl GlucoseApp {
             &self.store,
             position.x as f32,
             position.y as f32,
-            w,
-            h,
-            echelle,
+            (w, h),
+            (echelle, (self.ui.marges.droite, self.ui.marges.sous())),
         ) else {
             // Sorti de la minimap en glissant : la derniere destination reste la bonne, et
             // le vol l'atteint. Relacher le bouton est ce qui termine le geste, pas le bord.
