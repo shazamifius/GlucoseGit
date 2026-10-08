@@ -79,6 +79,7 @@ fn liste() -> Question {
         titre: "Documents".into(),
         texte: String::new(),
         choix,
+        ..Default::default()
     }
 }
 
@@ -91,6 +92,7 @@ fn nouveau() -> Question {
             ("Créer".into(), Reponse::Oui),
             ("Annuler".into(), Reponse::Non),
         ],
+        ..Default::default()
     }
 }
 

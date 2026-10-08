@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.HapticFeedbackConstants;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -58,6 +59,14 @@ public class MainActivity extends GameActivity {
                                 .setMediaType(
                                         ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
                                 .build()));
+    }
+
+    /** **L'appui long a pris** (fiche 57) : le doigt le sent, comme partout sous Android — et
+     *  selon le réglage de vibration de l'utilisateur. Appelé par Rust, du fil de Glucose. */
+    public void sentirLAppui() {
+        runOnUiThread(
+                () -> getWindow().getDecorView()
+                        .performHapticFeedback(HapticFeedbackConstants.LONG_PRESS));
     }
 
     @Override

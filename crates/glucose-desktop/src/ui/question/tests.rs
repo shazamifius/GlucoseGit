@@ -10,6 +10,7 @@ fn question(texte: &str) -> Question {
             ("Créer".into(), Reponse::Oui),
             ("Annuler".into(), Reponse::Non),
         ],
+        ..Default::default()
     }
 }
 

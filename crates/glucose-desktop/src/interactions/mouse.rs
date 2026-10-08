@@ -269,7 +269,8 @@ impl GlucoseApp {
                 }
             }
             MouseButton::Left => {
-                if self.lacher_l_onglet() || self.lacher_l_ancrage() {
+                if self.relacher_la_question() || self.lacher_l_onglet() || self.lacher_l_ancrage()
+                {
                     return;
                 }
                 self.minimap_tenue = false;

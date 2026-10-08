@@ -20,6 +20,7 @@
 #[cfg(target_os = "linux")]
 pub mod administrateur;
 pub mod clavier;
+pub mod doigt;
 pub mod ecran;
 pub mod empreinte;
 pub mod graphique;

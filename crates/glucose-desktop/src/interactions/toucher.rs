@@ -38,6 +38,16 @@ pub struct Toucher {
     /// déplacements sommés, les échelles multipliées) faisait dériver le point entre les doigts
     /// de 12,5 unités sur un pincement du double — l'épreuve l'a vu.
     pub(crate) attente: Option<Mouvement>,
+    /// **Un doigt posé qui pourrait devenir un appui long** (APPUI-1, fiche 57) : où il s'est
+    /// posé, et quand il aura tenu assez — tant qu'il ne bouge pas plus qu'une main qui tremble.
+    pub(crate) appui: Option<Appui>,
+}
+
+/// Un appui qui se décide.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Appui {
+    pub depart: (f64, f64),
+    pub echeance: std::time::Instant,
 }
 
 impl Toucher {
@@ -131,13 +141,18 @@ impl GlucoseApp {
                 self.handle_cursor_moved(winit::dpi::PhysicalPosition::new(ici.0, ici.1));
                 let (largeur, hauteur) = self.taille_de_la_fenetre();
                 self.handle_mouse_down(MouseButton::Left, largeur, hauteur);
+                self.toucher.appui = Some(Appui {
+                    depart: ici,
+                    echeance: std::time::Instant::now() + crate::plateforme::doigt::appui_long(),
+                });
             }
             2 if doigts.seul => {
                 // Le deuxième doigt termine ce que le premier faisait.
                 doigts.seul = false;
+                self.toucher.appui = None;
                 self.handle_mouse_up(MouseButton::Left);
             }
-            _ => {}
+            _ => self.toucher.appui = None,
         }
     }
 
@@ -148,6 +163,13 @@ impl GlucoseApp {
         };
         *place = ici;
         if self.toucher.doigts.seul {
+            // Un doigt qui part n'était pas un appui long : il glisse.
+            let tremblement = self.tremblement();
+            if let Some(a) = self.toucher.appui {
+                if (ici.0 - a.depart.0).hypot(ici.1 - a.depart.1) > tremblement {
+                    self.toucher.appui = None;
+                }
+            }
             self.handle_cursor_moved(winit::dpi::PhysicalPosition::new(ici.0, ici.1));
             return;
         }
@@ -160,6 +182,8 @@ impl GlucoseApp {
     }
 
     fn lever_un_doigt(&mut self, id: u64) {
+        // Levé avant l'échéance : c'était un toucher.
+        self.toucher.appui = None;
         let doigts = &mut self.toucher.doigts;
         doigts.poses.retain(|(i, _)| *i != id);
         if doigts.poses.is_empty() {
@@ -172,6 +196,54 @@ impl GlucoseApp {
 }
 
 impl GlucoseApp {
+    /// **L'appui long attend son échéance** (APPUI-1) : la boucle se réveille à l'instant où il
+    /// prend, et le fait prendre. Sans doigt posé, rien n'attend.
+    pub(crate) fn attente_de_l_appui(&mut self) -> Option<u64> {
+        let echeance = self.toucher.appui?.echeance;
+        let reste = echeance.saturating_duration_since(std::time::Instant::now());
+        if reste.is_zero() {
+            self.appui_long();
+            return None;
+        }
+        // Arrondi au-dessus : un réveil d'une milliseconde trop tôt en coûterait un second.
+        Some(u64::try_from(reste.as_micros().div_ceil(1000)).unwrap_or(u64::MAX))
+    }
+
+    /// **L'appui long a pris : c'est le clic droit du doigt** (APPUI-1, fiche 57). Le geste
+    /// que le doigt avait commencé se termine sur place — un toucher —, puis :
+    ///
+    /// * sur une question, rien ne répond ;
+    /// * dans le texte qu'on écrit, le mot sous le doigt se sélectionne, comme partout sous
+    ///   Android ;
+    /// * ailleurs, le menu du clic droit s'ouvre, à la taille du doigt : celui du nœud que le
+    ///   toucher vient de choisir, ou celui du vide.
+    pub(crate) fn appui_long(&mut self) {
+        if self.toucher.appui.take().is_none() {
+            return;
+        }
+        // Le doigt ne mène plus de geste : se lever ne fera plus rien.
+        self.toucher.doigts.seul = false;
+        crate::plateforme::doigt::sentir_l_appui();
+        if self.appui_long_sur_la_question() {
+            return;
+        }
+        let ici = self.mouse_pos;
+        let dans_le_texte = self.text_drag.is_some();
+        // **Un appui long n'est pas un clic** : le relâchement ne réduit pas une sélection
+        // multiple au nœud touché (SEL-MULTI-1) — le menu s'ouvre sur toute la sélection,
+        // comme le clic droit au bureau.
+        self.reduire_a_la_relache = None;
+        self.handle_mouse_up(MouseButton::Left);
+        if dans_le_texte {
+            self.click_text_at(ici, 2, false);
+            self.end_text_drag();
+            return;
+        }
+        self.right_down_at = Some(ici);
+        self.open_context_menu_if_still();
+        self.ui.menu_au_doigt = true;
+    }
+
     /// Le geste de souris en cours vient-il d'un doigt ? Sur le vide, il déplace alors le
     /// canevas au lieu d'y tracer un cadre.
     pub(crate) fn au_doigt(&self) -> bool {

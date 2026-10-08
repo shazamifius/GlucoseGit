@@ -174,6 +174,7 @@ fn question(texte: &str) -> crate::ui::question::Question {
         titre: "Journal technique".into(),
         texte: texte.into(),
         choix: vec![("Oui".into(), Reponse::Oui), ("Non".into(), Reponse::Non)],
+        ..Default::default()
     }
 }
 

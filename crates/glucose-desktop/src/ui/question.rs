@@ -62,11 +62,16 @@ pub enum Suite {
 
 /// **Une question** : son titre, son texte, et ses réponses, dans l'ordre où elles s'affichent
 /// — chacune avec son libellé, qui dit ce qu'elle fait.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Question {
     pub titre: String,
     pub texte: String,
     pub choix: Vec<(String, Reponse)>,
+    /// **La réponse pressée**, qui ne part que si le bouton se relève dessus (APPUI-1) —
+    /// comme un bouton d'Android : un doigt qui glisse ailleurs, ou qui tient jusqu'à l'appui
+    /// long, n'a rien répondu. Et le doigt qui ouvre la question depuis un menu ne lui répond
+    /// pas en se levant.
+    pub sous_le_doigt: Option<Reponse>,
 }
 
 /// Un rectangle de l'écran : gauche, haut, largeur, hauteur.

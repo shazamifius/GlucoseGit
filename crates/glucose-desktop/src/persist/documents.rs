@@ -84,6 +84,7 @@ impl GlucoseApp {
             titre: "Documents".into(),
             texte,
             choix,
+            ..Default::default()
         };
         self.demander(question, Suite::Ouvrir(documents));
     }

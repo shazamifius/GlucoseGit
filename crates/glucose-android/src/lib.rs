@@ -16,6 +16,9 @@ fn android_main(app: AndroidApp) {
     journal::rediriger_la_sortie();
     selecteur::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
+    glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
+        java::Activite::de(&app),
+    )));
     // Le dossier privé de l'application : Android n'a ni `LOCALAPPDATA` ni `HOME`, et son
     // dossier temporaire n'est pas à elle. Personne d'autre ne le lit, et il part avec elle.
     let dossier = app
@@ -126,35 +129,101 @@ mod partage {
 /// **Le sélecteur de photos du système** (fiche 56) : « Ajouter des images… » appelle
 /// `MainActivity.choisirDesImages`, et ce qu'on y choisit revient comme un partage.
 mod selecteur {
-    use jni::objects::JObject;
     use winit::platform::android::activity::AndroidApp;
 
     /// Branche le sélecteur de cette activité : chaque activité a le sien, et la dernière née
     /// remplace la précédente.
     pub fn brancher(app: &AndroidApp) {
-        // Une adresse plutôt qu'un pointeur : elle traverse les fils, et ne se lit qu'en JNI.
-        let activite = app.activity_as_ptr() as usize;
+        let activite = super::java::Activite::de(app);
         glucose_desktop::plateforme::partage::installer_le_selecteur(Box::new(move || {
-            if let Err(e) = ouvrir(activite) {
-                eprintln!("[Glucose] selecteur de photos : {e}");
-            }
+            activite.appeler(jni::jni_str!("choisirDesImages"), "selecteur de photos");
         }));
     }
+}
 
-    fn ouvrir(activite: usize) -> jni::errors::Result<()> {
-        let vm = jni::JavaVM::singleton()?;
-        vm.attach_current_thread(|env| -> jni::errors::Result<()> {
-            // SAFETY : une référence globale à l'activité, qu'`android-activity` garde tant
-            // qu'elle vit ; `JObject` ne la libère pas en partant.
-            let activite = unsafe { JObject::from_raw(env, activite as jni::sys::jobject) };
-            env.call_method(
-                &activite,
-                jni::jni_str!("choisirDesImages"),
-                jni::jni_sig!("()V"),
-                &[],
+/// **Ce qu'Android dit du doigt** (APPUI-1, fiche 57) : le délai de l'appui long que chacun
+/// règle dans l'accessibilité, et la vibration qui dit qu'il a pris.
+mod doigt {
+    use glucose_desktop::plateforme::doigt::Doigt;
+    use std::time::Duration;
+
+    pub struct DuTelephone(pub super::java::Activite);
+
+    impl Doigt for DuTelephone {
+        fn appui_long(&self) -> Option<Duration> {
+            let ms = super::java::sur_le_fil(
+                |env| {
+                    env.call_static_method(
+                        jni::jni_str!("android/view/ViewConfiguration"),
+                        jni::jni_str!("getLongPressTimeout"),
+                        jni::jni_sig!("()I"),
+                        &[],
+                    )?
+                    .i()
+                },
+                "delai de l'appui long",
             )?;
-            Ok(())
+            u64::try_from(ms)
+                .ok()
+                .filter(|ms| *ms > 0)
+                .map(Duration::from_millis)
+        }
+
+        fn sentir_l_appui(&self) {
+            self.0
+                .appeler(jni::jni_str!("sentirLAppui"), "vibration de l'appui long");
+        }
+    }
+}
+
+/// **Parler à Java** depuis le fil de Glucose : s'y attacher, appeler, et ne jamais laisser une
+/// exception Java en suspens — la suivante ferait tomber le processus.
+mod java {
+    use jni::objects::JObject;
+    use jni::strings::JNIStr;
+    use jni::Env;
+    use winit::platform::android::activity::AndroidApp;
+
+    /// L'activité de Glucose, par son adresse : elle traverse les fils, et ne se lit qu'en JNI.
+    #[derive(Clone, Copy)]
+    pub struct Activite(usize);
+
+    impl Activite {
+        pub fn de(app: &AndroidApp) -> Self {
+            Self(app.activity_as_ptr() as usize)
+        }
+
+        /// Appelle une méthode `()V` de `MainActivity` ; un échec se dit dans le journal.
+        pub fn appeler(self, methode: &'static JNIStr, quoi: &str) {
+            sur_le_fil(
+                |env| {
+                    // SAFETY : une référence globale à l'activité, qu'`android-activity` garde
+                    // tant qu'elle vit ; `JObject` ne la libère pas en partant.
+                    let activite = unsafe { JObject::from_raw(env, self.0 as jni::sys::jobject) };
+                    env.call_method(&activite, methode, jni::jni_sig!("()V"), &[])?;
+                    Ok(())
+                },
+                quoi,
+            );
+        }
+    }
+
+    /// Attache ce fil à la machine Java le temps de `f`. Une erreur s'écrit au journal, et
+    /// l'exception qu'elle a laissée s'efface.
+    pub fn sur_le_fil<T>(
+        f: impl FnOnce(&mut Env) -> jni::errors::Result<T>,
+        quoi: &str,
+    ) -> Option<T> {
+        let vm = jni::JavaVM::singleton().ok()?;
+        vm.attach_current_thread(|env| -> jni::errors::Result<Option<T>> {
+            let rendu = f(env);
+            if rendu.is_err() && env.exception_check() {
+                env.exception_clear();
+            }
+            Ok(rendu.map_err(|e| eprintln!("[Glucose] {quoi} : {e}")).ok())
         })
+        .ok()
+        .flatten()
     }
 }
 

@@ -66,6 +66,7 @@ impl GlucoseApp {
                 ("Créer".into(), Reponse::Oui),
                 ("Annuler".into(), Reponse::Non),
             ],
+            ..Default::default()
         }
     }
 

@@ -242,3 +242,238 @@ fn test_le_clic_droit_ouvre_le_menu_de_la_souris() {
     assert_eq!(app.ui.context_menu_at, Some((500.0, 500.0)));
     assert!(!app.ui.menu_au_doigt, "à la souris, le menu de la souris");
 }
+
+// ── APPUI-1 : l'appui long, le clic droit du doigt ──────────────────────────
+
+/// L'échéance de l'appui en cours est atteinte : le temps a passé, doigt immobile.
+fn echeance_atteinte(app: &mut GlucoseApp) {
+    let maintenant = std::time::Instant::now();
+    if let Some(appui) = &mut app.toucher.appui {
+        appui.echeance = maintenant;
+    }
+}
+
+/// **Un doigt qui tient ouvre le menu**, à la taille du doigt ; se lever ensuite ne le referme
+/// pas et n'y choisit rien.
+#[test]
+fn test_appui_1_un_doigt_qui_tient_ouvre_le_menu_au_doigt() {
+    let mut app = app();
+    doigt(&mut app, 1, TouchPhase::Started, (300.0, 400.0));
+    let attente = app.attente_de_l_appui().expect("la boucle attend l'appui");
+    let delai = crate::plateforme::doigt::appui_long().as_millis() as u64;
+    assert!(
+        attente > 0 && attente <= delai,
+        "réveillée à l'échéance : {attente} ms"
+    );
+    assert_eq!(app.ui.context_menu_at, None, "pas avant l'échéance");
+    echeance_atteinte(&mut app);
+    assert_eq!(app.attente_de_l_appui(), None, "pris, il n'attend plus");
+    assert_eq!(app.ui.context_menu_at, Some((300.0, 400.0)));
+    assert!(app.ui.menu_au_doigt);
+    doigt(&mut app, 1, TouchPhase::Ended, (300.0, 400.0));
+    assert_eq!(
+        app.ui.context_menu_at,
+        Some((300.0, 400.0)),
+        "se lever ne fait rien de plus"
+    );
+}
+
+/// **Un doigt qui part, ou qui se lève avant l'échéance, n'est pas un appui long.**
+#[test]
+fn test_appui_1_glisser_ou_se_lever_n_est_pas_un_appui() {
+    let mut app = app();
+    doigt(&mut app, 1, TouchPhase::Started, (300.0, 400.0));
+    doigt(&mut app, 1, TouchPhase::Moved, (300.0, 460.0));
+    echeance_atteinte(&mut app);
+    assert_eq!(app.attente_de_l_appui(), None);
+    assert_eq!(app.ui.context_menu_at, None, "il glissait : aucun menu");
+
+    let mut app = self::app();
+    doigt(&mut app, 1, TouchPhase::Started, (300.0, 400.0));
+    // Un tremblement reste un appui.
+    doigt(&mut app, 1, TouchPhase::Moved, (302.0, 401.0));
+    assert!(
+        app.toucher.appui.is_some(),
+        "une main qui tremble tient encore"
+    );
+    doigt(&mut app, 1, TouchPhase::Ended, (302.0, 401.0));
+    assert_eq!(app.toucher.appui, None, "levé avant : un toucher");
+
+    let mut app = self::app();
+    doigt(&mut app, 1, TouchPhase::Started, (300.0, 400.0));
+    doigt(&mut app, 2, TouchPhase::Started, (500.0, 400.0));
+    assert_eq!(
+        app.toucher.appui, None,
+        "deux doigts pincent, ils n'appuient pas"
+    );
+}
+
+/// **Dans le texte qu'on écrit, l'appui long choisit le mot sous le doigt** — et n'ouvre aucun
+/// menu.
+#[test]
+fn test_appui_1_dans_le_texte_le_mot_se_selectionne() {
+    use glucose_core::types::{Annotation, Viewport};
+    let mut app = GlucoseApp::new();
+    let board = app.store.project.active_board_id.clone();
+    let vue = Viewport {
+        x: 0.0,
+        y: 0.0,
+        scale: 1.0,
+    };
+    app.store.set_viewport(&board, vue);
+    let mut carte = Annotation::text("c", 0.0, 0.0, "bonjour le monde");
+    if let Annotation::Text { width, height, .. } = &mut carte {
+        *width = Some(400.0);
+        *height = Some(200.0);
+    }
+    app.store.add_annotation(&board, carte);
+    app.start_text_edit("c".into(), "bonjour le monde".into());
+    doigt(&mut app, 1, TouchPhase::Started, (30.0, 20.0));
+    echeance_atteinte(&mut app);
+    app.attente_de_l_appui();
+    let session = app.editing_session.as_ref().expect("la saisie continue");
+    let (debut, fin) = (
+        session.selection.anchor.min(session.selection.head),
+        session.selection.anchor.max(session.selection.head),
+    );
+    assert_eq!(
+        &session.buffer[debut..fin],
+        "bonjour",
+        "le mot sous le doigt"
+    );
+    assert_eq!(app.ui.context_menu_at, None, "aucun menu dans le texte");
+}
+
+/// Le centre de la réponse `r` de la question posée.
+fn centre_de(app: &GlucoseApp, r: crate::ui::question::Reponse) -> (f64, f64) {
+    let (question, _) = app.ui.question.clone().expect("une question");
+    let (w, h) = app.taille_de_la_fenetre();
+    let placee = crate::ui::question::placer(
+        &question,
+        &app.renderer.typography,
+        (w, h),
+        app.ui.scale_factor,
+    );
+    let ((x, y, bw, bh), _, _) = placee
+        .boutons
+        .iter()
+        .find(|(_, _, reponse)| *reponse == r)
+        .expect("la réponse")
+        .clone();
+    (f64::from(x + bw / 2.0), f64::from(y + bh / 2.0))
+}
+
+/// **Une question répond au relâchement, pas à l'appui** (APPUI-1) : un doigt qui glisse hors
+/// de la réponse, ou qui tient jusqu'à l'appui long, n'a rien répondu ; et le doigt qui a ouvert
+/// la question ne lui répond pas en se levant.
+#[test]
+fn test_appui_1_la_question_repond_au_relachement_sur_la_reponse_pressee() {
+    use crate::ui::question::Reponse;
+    let mut app = app();
+    app.ui.questions_dessinees = true;
+    // Le doigt est posé quand la question paraît — comme sous un menu qui l'ouvre.
+    doigt(&mut app, 1, TouchPhase::Started, (5.0, 5.0));
+    app.nouveau_document();
+    let creer = centre_de(&app, Reponse::Oui);
+    doigt(&mut app, 1, TouchPhase::Moved, creer);
+    doigt(&mut app, 1, TouchPhase::Ended, creer);
+    assert!(app.ui.question.is_some(), "le doigt d'avant ne répond pas");
+    assert!(
+        !app.is_panning,
+        "et son geste se termine : le canevas ne suit plus un doigt levé"
+    );
+
+    // Pressée, puis le doigt glisse ailleurs : rien.
+    doigt(&mut app, 1, TouchPhase::Started, creer);
+    assert!(app.ui.question.is_some(), "l'appui seul ne répond pas");
+    doigt(&mut app, 1, TouchPhase::Moved, (creer.0, creer.1 + 300.0));
+    doigt(&mut app, 1, TouchPhase::Ended, (creer.0, creer.1 + 300.0));
+    assert!(app.ui.question.is_some(), "relâchée ailleurs : rien");
+
+    // Tenue jusqu'à l'appui long : rien.
+    doigt(&mut app, 1, TouchPhase::Started, creer);
+    echeance_atteinte(&mut app);
+    app.attente_de_l_appui();
+    doigt(&mut app, 1, TouchPhase::Ended, creer);
+    assert!(app.ui.question.is_some(), "un appui long ne répond pas");
+
+    // Touchée et relâchée dessus : elle répond.
+    doigt(&mut app, 1, TouchPhase::Started, creer);
+    doigt(&mut app, 1, TouchPhase::Ended, creer);
+    assert!(app.ui.question.is_none(), "répondue, elle s'en va");
+}
+
+/// **L'appui long choisit ce que choisit un toucher** : sur deux images superposées, le menu
+/// s'ouvre sur celle qu'un toucher aurait prise — le doigt qui se lève ensuite ne relâche rien
+/// une seconde fois, qui ferait descendre le choix à l'image du dessous.
+#[test]
+fn test_appui_1_l_appui_long_choisit_ce_que_choisit_un_toucher() {
+    let superposees = || {
+        let mut app = app();
+        let board = app.store.project.active_board_id.clone();
+        app.store
+            .add_image(&board, BoardImage::new("dessous", 0.0, 0.0, 100.0, 100.0));
+        app.store
+            .add_image(&board, BoardImage::new("dessus", 0.0, 0.0, 100.0, 100.0));
+        let vp = app.store.viewport();
+        let (sx, sy) = crate::canvas::world_to_screen(0.0, 0.0, &vp);
+        (app, (sx + 10.0, sy + 10.0))
+    };
+    let (mut tap, ici) = superposees();
+    doigt(&mut tap, 1, TouchPhase::Started, ici);
+    doigt(&mut tap, 1, TouchPhase::Ended, ici);
+    let choisie = tap.store.selected_image_ids.clone();
+    assert_eq!(choisie.len(), 1, "un toucher choisit une image");
+
+    let (mut long, ici) = superposees();
+    doigt(&mut long, 1, TouchPhase::Started, ici);
+    echeance_atteinte(&mut long);
+    long.attente_de_l_appui();
+    doigt(&mut long, 1, TouchPhase::Ended, ici);
+    assert_eq!(
+        long.store.selected_image_ids, choisie,
+        "la même que le toucher"
+    );
+    assert!(long.ui.context_menu_at.is_some(), "et son menu");
+}
+
+/// **L'appui long garde la sélection multiple** : sur l'une de deux images choisies, le menu
+/// s'ouvre sur les deux — un toucher, lui, la ramène à celle qu'il touche (SEL-MULTI-1). Et
+/// le doigt ne mène plus aucun geste ensuite.
+#[test]
+fn test_appui_1_l_appui_long_garde_la_selection_multiple() {
+    let deux_choisies = || {
+        let mut app = app();
+        let board = app.store.project.active_board_id.clone();
+        app.store
+            .add_image(&board, BoardImage::new("a", 0.0, 0.0, 100.0, 100.0));
+        app.store
+            .add_image(&board, BoardImage::new("b", 300.0, 0.0, 100.0, 100.0));
+        app.store.select_image("a".into(), false);
+        app.store.select_image("b".into(), true);
+        let vp = app.store.viewport();
+        let (sx, sy) = crate::canvas::world_to_screen(0.0, 0.0, &vp);
+        (app, (sx + 10.0, sy + 10.0))
+    };
+    let (mut tap, ici) = deux_choisies();
+    doigt(&mut tap, 1, TouchPhase::Started, ici);
+    doigt(&mut tap, 1, TouchPhase::Ended, ici);
+    assert_eq!(
+        tap.store.selected_image_ids.len(),
+        1,
+        "un toucher la réduit"
+    );
+
+    let (mut long, ici) = deux_choisies();
+    doigt(&mut long, 1, TouchPhase::Started, ici);
+    echeance_atteinte(&mut long);
+    long.attente_de_l_appui();
+    assert!(!long.toucher.doigts.seul, "le doigt ne mène plus de geste");
+    doigt(&mut long, 1, TouchPhase::Ended, ici);
+    assert_eq!(
+        long.store.selected_image_ids.len(),
+        2,
+        "l'appui long la garde"
+    );
+    assert!(long.ui.context_menu_at.is_some());
+}

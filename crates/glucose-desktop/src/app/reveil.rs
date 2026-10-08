@@ -47,6 +47,9 @@ pub enum Raison {
     /// **Un geste du pavé est en cours** (fiche 53) : le système avance d'une image à chaque
     /// passage, entre le premier contact et la fin de l'inertie.
     Pave,
+    /// **Un doigt posé attend de devenir un appui long** (APPUI-1, fiche 57) : la boucle se
+    /// réveille à l'instant où il prend.
+    Appui,
     /// La main a bougé, cliqué ou tapé depuis l'image précédente.
     Main,
     /// Un dépôt est arrivé — un fichier lâché, une image rapatriée d'une page.
@@ -57,10 +60,10 @@ pub enum Raison {
 }
 
 impl Raison {
-    /// Dans l'ordre des bits du masque. Les dix premières réveillent — chacune a sa ligne
+    /// Dans l'ordre des bits du masque. Les onze premières réveillent — chacune a sa ligne
     /// dans [`GlucoseApp::prochain_reveil`] ; les trois dernières ne réveillent pas, elles
     /// disent ce qui est arrivé.
-    pub const TOUTES: [Self; 13] = [
+    pub const TOUTES: [Self; 14] = [
         Self::Curseur,
         Self::Toast,
         Self::Animation,
@@ -71,6 +74,7 @@ impl Raison {
         Self::Pomodoro,
         Self::Commande,
         Self::Pave,
+        Self::Appui,
         Self::Main,
         Self::Depot,
         Self::Systeme,
@@ -88,6 +92,7 @@ impl Raison {
             Self::Pomodoro => "minuteur",
             Self::Commande => "une commande attend ses images",
             Self::Pave => "le pave tactile",
+            Self::Appui => "un appui long se decide",
             Self::Main => "la main",
             Self::Depot => "un depot arrive",
             Self::Systeme => "le systeme",
@@ -228,7 +233,7 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 12] = [
+        let attentes: [(Raison, Attente); 13] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
@@ -241,6 +246,7 @@ impl GlucoseApp {
             (Raison::Commande, Self::attente_de_la_commande),
             (Raison::Commande, Self::attente_des_echanges),
             (Raison::Pave, Self::attente_du_pave),
+            (Raison::Appui, Self::attente_de_l_appui),
         ];
         let (mut masque, mut plus_proche) = (0u16, None::<u64>);
         for (raison, attente) in attentes {
