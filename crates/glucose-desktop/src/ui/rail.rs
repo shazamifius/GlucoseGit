@@ -27,13 +27,22 @@
 //! deux sur un téléphone debout, quatre couché. Le nombre de colonnes n'est pas choisi : la
 //! première version en fixait deux, et le panneau sortait de l'écran couché. Choisir un bouton
 //! le replie : le canevas revient tout entier.
+//!
+//! # Chaque icône a son nom (fiche 58)
+//!
+//! Sa demande : *« une icône et son nom, quitte à faire défiler »* — trois icônes héritées de
+//! Glucose Tauri (Ordonner, Storyboard, Preset) sont quatre carrés presque pareils. Chaque case
+//! porte donc son nom à droite de l'icône, **quand les colonnes tiennent dans la largeur** ;
+//! sinon, les icônes seules, comme la barre du haut cède ses libellés quand elle ne tient plus.
+//! Aucun bouton n'est jamais caché derrière un défilement : sur son Redmi 9, debout comme
+//! couché, les noms tiennent.
 
 use super::boutons::{draw_tool_button, effet_du_bouton, les_boutons, TopbarButtonDef};
 use super::{UiAction, UiState};
 use crate::params::{ButtonState, ScaledRect};
 use crate::renderer::scale::fill_crisp;
 use crate::theme::Theme;
-use crate::typography::Typography;
+use crate::typography::{Face, TextStyle, Typography};
 use glucose_core::report::Melange;
 use glucose_core::store::Store;
 use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PixmapMut, Rect, Transform};
@@ -44,6 +53,11 @@ const CASE: f32 = 48.0;
 const ECART: f32 = 4.0;
 /// La languette : assez large pour un pouce, aussi haute qu'une case.
 const LANGUETTE: (f32, f32) = (28.0, CASE);
+/// Le corps du nom : le bas de la fourchette de l'interface (`style.md`, 12 à 13 points),
+/// pour que ses noms tiennent sur deux colonnes d'un téléphone debout de 360 points.
+const NOM: f32 = 12.0;
+/// L'écart entre l'icône et son nom, et après le nom.
+const ENTRE: f32 = 8.0;
 
 /// Un rectangle, `(x, y, largeur, hauteur)`, en pixels de la fenêtre.
 pub type Boite = (f32, f32, f32, f32);
@@ -86,8 +100,8 @@ pub fn decider(ui: &mut UiState, typo: &Typography, store: &Store, largeur: f32)
     }
 }
 
-/// **Le rail placé**, sous la bande, au bord gauche d'une fenêtre haute de `hauteur`.
-pub fn layout_rail(ui: &UiState, typo: &Typography, hauteur: f32) -> RailLayout {
+/// **Le rail placé**, sous la bande, au bord gauche d'une fenêtre de `largeur` × `hauteur`.
+pub fn layout_rail(ui: &UiState, typo: &Typography, (largeur, hauteur): (f32, f32)) -> RailLayout {
     let s = ui.scale();
     let haut = ui.header_height() + ECART * s;
     // Une encoche à gauche, en paysage : le rail commence après elle (BORD-1).
@@ -102,29 +116,65 @@ pub fn layout_rail(ui: &UiState, typo: &Typography, hauteur: f32) -> RailLayout 
     }
     let pas = (CASE + ECART) * s;
     let liste = les_boutons(ui, typo);
-    // Les rangées que la hauteur tient (une au moins), puis les colonnes qu'il faut.
+    // Les rangées que la hauteur tient (une au moins), puis les colonnes qu'il faut ; les
+    // rangées se répartissent pour que les colonnes soient égales.
     let rangees_max = (((hauteur - haut - ECART * s) / pas).floor() as usize).max(1);
     let colonnes = liste.len().div_ceil(rangees_max).max(1);
+    let rangees = liste.len().div_ceil(colonnes).max(1);
+    let place = largeur - gauche - ECART * s - lw;
+    let (largeurs, avec_noms) = largeurs_des_colonnes(&liste, rangees, (typo, s), place);
+    // Colonne après colonne : on lit une liste de haut en bas.
+    let mut debuts = Vec::with_capacity(largeurs.len());
+    let mut x = gauche + ECART * s;
+    for w in &largeurs {
+        debuts.push(x);
+        x += w + ECART * s;
+    }
     let boutons: Vec<TopbarButtonDef> = liste
         .into_iter()
         .enumerate()
         .map(|(i, b)| TopbarButtonDef {
-            x: gauche + ECART * s + (i % colonnes) as f32 * pas,
-            y: haut + ECART * s + (i / colonnes) as f32 * pas,
-            w: CASE * s,
+            x: debuts[i / rangees],
+            y: haut + ECART * s + (i % rangees) as f32 * pas,
+            w: largeurs[i / rangees],
             h: CASE * s,
-            label: "",
+            label: if avec_noms { b.nom } else { "" },
             is_tool: true,
             ..b
         })
         .collect();
-    let rangees = boutons.len().div_ceil(colonnes) as f32;
-    let largeur = ECART * s + colonnes as f32 * pas;
-    let haut_du_panneau = ECART * s + rangees * pas;
+    let largeur = x - gauche;
+    let haut_du_panneau = ECART * s + rangees as f32 * pas;
     RailLayout {
         languette: (gauche + largeur, haut, lw, lh),
         panneau: Some((gauche, haut, largeur, haut_du_panneau)),
         boutons,
+    }
+}
+
+/// **La largeur de chaque colonne**, et si elle porte les noms : avec eux, chaque colonne a
+/// la largeur de **son** plus long nom ; s'ils ne tiennent pas dans `place`, les cases
+/// redeviennent carrées.
+fn largeurs_des_colonnes(
+    liste: &[TopbarButtonDef],
+    rangees: usize,
+    (typo, s): (&Typography, f32),
+    place: f32,
+) -> (Vec<f32>, bool) {
+    let nommees: Vec<f32> = liste
+        .chunks(rangees)
+        .map(|colonne| {
+            let nom = colonne
+                .iter()
+                .map(|b| typo.measure_text(b.nom, NOM * s, Face::Regular).0)
+                .fold(0.0, f32::max);
+            (CASE + 2.0 * ENTRE) * s + nom
+        })
+        .collect();
+    if nommees.iter().map(|w| w + ECART * s).sum::<f32>() <= place {
+        (nommees, true)
+    } else {
+        (vec![CASE * s; nommees.len()], false)
     }
 }
 
@@ -136,14 +186,14 @@ fn dans((x, y, w, h): Boite, px: f32, py: f32) -> bool {
 /// qu'il déclenche, qui peut n'être rien (la languette, le fond du panneau).
 pub fn clic(
     (x, y): (f32, f32),
-    hauteur: f32,
+    ecran: (f32, f32),
     ui: &mut UiState,
     typo: &Typography,
 ) -> Option<Option<UiAction>> {
     if !ui.rail.actif {
         return None;
     }
-    let rail = layout_rail(ui, typo, hauteur);
+    let rail = layout_rail(ui, typo, ecran);
     if dans(rail.languette, x, y) {
         ui.rail.ouvert = !ui.rail.ouvert;
         return Some(None);
@@ -160,7 +210,8 @@ pub fn clic(
 }
 
 /// Ce dont le dessin du rail dépend : chaque case (sa place, son état, son icône), la
-/// languette, l'échelle.
+/// languette, l'échelle. Les noms n'y sont pas : la languette se pose au bord du panneau, dont
+/// la largeur change dès qu'ils paraissent ou s'en vont (le sabotage l'a montré).
 type CleDuRail = (Vec<(u32, u32, bool, crate::icons::IconType)>, Boite, u32);
 
 /// Le rail déjà dessiné, et ce qui l'a décidé.
@@ -182,7 +233,8 @@ pub(super) fn render_rail(
     if !ui.rail.actif {
         return;
     }
-    let rail = layout_rail(ui, typo, pixmap.height() as f32);
+    let ecran = (pixmap.width() as f32, pixmap.height() as f32);
+    let rail = layout_rail(ui, typo, ecran);
     let s = ui.scale();
     let cle = (
         rail.boutons
@@ -203,7 +255,7 @@ pub(super) fn render_rail(
         let Some(mut tampon) = Pixmap::new(fin_x.ceil() as u32, (fin_y - oy).ceil() as u32) else {
             return;
         };
-        dessiner(&mut tampon.as_mut(), &rail, theme, s, (ox, oy));
+        dessiner(&mut tampon.as_mut(), &rail, (typo, theme), s, (ox, oy));
         let dessins = ui.rail_cache.as_ref().map_or(0, |c| c.dessins) + 1;
         ui.rail_cache = Some(RailCache {
             pixmap: tampon,
@@ -221,7 +273,7 @@ pub(super) fn render_rail(
 fn dessiner(
     tampon: &mut PixmapMut,
     rail: &RailLayout,
-    theme: &Theme,
+    (typo, theme): (&Typography, &Theme),
     s: f32,
     (ox, oy): (f32, f32),
 ) {
@@ -236,10 +288,11 @@ fn dessiner(
         }
     }
     for b in &rail.boutons {
+        // L'icône dans sa case carrée ; le nom, s'il tient, à sa droite.
         let rect = ScaledRect {
             x: b.x - ox,
             y: b.y - oy,
-            w: b.w,
+            w: b.h,
             h: b.h,
             scale: s * CASE / 30.0,
         };
@@ -248,6 +301,17 @@ fn dessiner(
             hover: false,
         };
         draw_tool_button(tampon, theme, rect, b.icon, etat);
+        let style = TextStyle {
+            size: NOM * s,
+            color: if b.active {
+                theme.text_primary
+            } else {
+                theme.text_secondary
+            },
+            face: Face::Regular,
+        };
+        let haut = b.y - oy + (b.h - NOM * s) / 2.0;
+        typo.draw_text(tampon, b.label, b.x - ox + b.h + ENTRE * s, haut, style);
     }
     let l = rail.languette;
     if let Some(r) = boite(l) {

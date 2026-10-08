@@ -40,9 +40,21 @@ pub struct TopbarButtonDef {
     pub w: f32,
     pub h: f32,
     pub icon: IconType,
+    /// Le libellé montré : vide quand la barre ne garde que les icônes.
     pub label: &'static str,
+    /// **Le nom du bouton, toujours**, quelle que soit la densité : le rail l'écrit à côté
+    /// de l'icône (fiche 58) — trois icônes de Tauri se ressemblent trop pour se passer de lui.
+    pub nom: &'static str,
     pub active: bool,
     pub is_tool: bool,
+}
+
+/// **Un libellé mesuré** : la largeur du bouton, ce qu'il montre, et son nom.
+#[derive(Clone, Copy)]
+struct Libelle {
+    largeur: f32,
+    montre: &'static str,
+    nom: &'static str,
 }
 
 pub struct TopbarLayout {
@@ -112,16 +124,21 @@ impl<'a> Regle<'a> {
 
     /// La largeur d'un bouton d'action et le libellé qu'il gardera : un bouton sans libellé
     /// est carré comme un outil.
-    fn mesurer(&self, label: &'static str, efface: bool) -> (f32, &'static str) {
-        if efface {
+    fn mesurer(&self, nom: &'static str, efface: bool) -> Libelle {
+        let (largeur, montre) = if efface {
             (self.outil.0, "")
         } else {
-            (action_button_width(self.typo, label, self.s), label)
+            (action_button_width(self.typo, nom, self.s), nom)
+        };
+        Libelle {
+            largeur,
+            montre,
+            nom,
         }
     }
 
     /// Un outil carré : il n'a qu'une icône, et il est actif ou non.
-    fn outil(&mut self, action: UiAction, icon: IconType, actif: bool) {
+    fn outil(&mut self, action: UiAction, icon: IconType, nom: &'static str, actif: bool) {
         let (cote, y) = self.outil;
         self.boutons.push(TopbarButtonDef {
             action,
@@ -131,6 +148,7 @@ impl<'a> Regle<'a> {
             h: cote,
             icon,
             label: "",
+            nom,
             active: actif,
             is_tool: true,
         });
@@ -139,8 +157,8 @@ impl<'a> Regle<'a> {
 
     /// Un bouton d'action, avec son libellé tant que la fenêtre le permet.
     fn action(&mut self, action: UiAction, icon: IconType, label: &'static str, actif: bool) {
-        let (largeur, label) = self.mesurer(label, self.ultra);
-        self.poser(action, icon, label, largeur, actif, 4.0);
+        let libelle = self.mesurer(label, self.ultra);
+        self.poser(action, icon, libelle, actif, 4.0);
     }
 
     /// Le même, avec l'écart qui le suit : les groupes ne respirent pas tous pareil.
@@ -148,11 +166,15 @@ impl<'a> Regle<'a> {
         &mut self,
         action: UiAction,
         icon: IconType,
-        label: &'static str,
-        largeur: f32,
+        libelle: Libelle,
         actif: bool,
         ecart: f32,
     ) {
+        let Libelle {
+            largeur,
+            montre: label,
+            nom,
+        } = libelle;
         let (hauteur, y) = self.action;
         self.boutons.push(TopbarButtonDef {
             action,
@@ -162,6 +184,7 @@ impl<'a> Regle<'a> {
             h: hauteur,
             icon,
             label,
+            nom,
             active: actif,
             is_tool: false,
         });
@@ -268,6 +291,7 @@ fn groupe_des_outils(regle: &mut Regle<'_>, ui: &UiState) {
         regle.outil(
             UiAction::SelectTool(outil),
             outil.icone(),
+            outil.nom(),
             ui.active_tool == outil,
         );
     }
@@ -282,6 +306,7 @@ fn groupe_des_outils(regle: &mut Regle<'_>, ui: &UiState) {
         regle.outil(
             UiAction::SelectTool(outil),
             outil.icone(),
+            outil.nom(),
             ui.active_tool == outil,
         );
     }
@@ -290,15 +315,8 @@ fn groupe_des_outils(regle: &mut Regle<'_>, ui: &UiState) {
 
 /// Le bouton qui ajoute des photos, seul de son groupe.
 fn groupe_des_images(regle: &mut Regle<'_>) {
-    let (largeur, label) = regle.mesurer("Images", regle.ultra);
-    regle.poser(
-        UiAction::AddImages,
-        IconType::Plus,
-        label,
-        largeur,
-        false,
-        6.0,
-    );
+    let libelle = regle.mesurer("Images", regle.ultra);
+    regle.poser(UiAction::AddImages, IconType::Plus, libelle, false, 6.0);
     regle.separateur(1.0, 7.0);
 }
 
@@ -369,11 +387,11 @@ fn groupe_de_droite(
     ];
 
     let badge_w = if board_img_count > 0 { 42.0 * s } else { 0.0 };
-    let total = collab.0
+    let total = collab.largeur
         + 8.0 * s
-        + export.0
+        + export.largeur
         + 8.0 * s
-        + droite.iter().map(|(_, _, (w, _))| *w).sum::<f32>()
+        + droite.iter().map(|(_, _, l)| l.largeur).sum::<f32>()
         + 8.0 * s
         + badge_w
         + 16.0 * s;
@@ -381,26 +399,12 @@ fn groupe_de_droite(
     let tient = depart >= fin_de_gauche + 16.0 * s;
     regle.x = depart.max(fin_de_gauche + 16.0 * s);
 
-    regle.poser(
-        UiAction::ToggleCollab,
-        IconType::Collab,
-        collab.1,
-        collab.0,
-        false,
-        5.0,
-    );
+    regle.poser(UiAction::ToggleCollab, IconType::Collab, collab, false, 5.0);
     regle.separateur(1.0, 7.0);
-    regle.poser(
-        UiAction::ExportMenu,
-        IconType::Export,
-        export.1,
-        export.0,
-        false,
-        5.0,
-    );
+    regle.poser(UiAction::ExportMenu, IconType::Export, export, false, 5.0);
     regle.separateur(1.0, 7.0);
-    for (action, icone, (largeur, label)) in droite {
-        regle.poser(action, icone, label, largeur, false, 4.0);
+    for (action, icone, libelle) in droite {
+        regle.poser(action, icone, libelle, false, 4.0);
     }
 
     let badge = (board_img_count > 0).then(|| (regle.x + 4.0 * s, format!("{board_img_count}img")));

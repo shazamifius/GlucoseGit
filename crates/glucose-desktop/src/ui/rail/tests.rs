@@ -46,7 +46,7 @@ fn test_le_rail_porte_les_boutons_de_la_barre() {
         actif: true,
         ouvert: true,
     };
-    let rail = layout_rail(&ui, &typo, TELEPHONE.1);
+    let rail = layout_rail(&ui, &typo, TELEPHONE);
     let barre = layout_topbar(4000.0, &UiState::new(), &typo, 0);
     let actions = |b: &[TopbarButtonDef]| -> Vec<(UiAction, bool)> {
         b.iter().map(|b| (b.action.clone(), b.active)).collect()
@@ -65,7 +65,7 @@ fn test_chaque_case_fait_48_points_et_tout_tient() {
         ouvert: true,
     };
     for (largeur, hauteur) in [TELEPHONE, (TELEPHONE.1, TELEPHONE.0)] {
-        let rail = layout_rail(&ui, &typo, hauteur);
+        let rail = layout_rail(&ui, &typo, (largeur, hauteur));
         for b in &rail.boutons {
             assert!(b.w >= 48.0 * 2.0 && b.h >= 48.0 * 2.0, "{b:?}");
             assert!(
@@ -85,30 +85,25 @@ fn test_la_languette_et_les_boutons() {
     let typo = Typography::new();
     let mut ui = au_telephone();
     ui.rail.actif = true;
-    let (lx, ly, ..) = layout_rail(&ui, &typo, TELEPHONE.1).languette;
+    let (lx, ly, ..) = layout_rail(&ui, &typo, TELEPHONE).languette;
     assert_eq!(
-        clic((lx + 1.0, ly + 1.0), TELEPHONE.1, &mut ui, &typo),
+        clic((lx + 1.0, ly + 1.0), TELEPHONE, &mut ui, &typo),
         Some(None)
     );
     assert!(ui.rail.ouvert, "déplié");
-    let rail = layout_rail(&ui, &typo, TELEPHONE.1);
+    let rail = layout_rail(&ui, &typo, TELEPHONE);
     let aimant = rail
         .boutons
         .iter()
         .find(|b| b.action == UiAction::ToggleMagnet)
         .expect("l'aimant");
     let avant = ui.smart_align;
-    let action = clic(
-        (aimant.x + 2.0, aimant.y + 2.0),
-        TELEPHONE.1,
-        &mut ui,
-        &typo,
-    );
+    let action = clic((aimant.x + 2.0, aimant.y + 2.0), TELEPHONE, &mut ui, &typo);
     assert_eq!(action, Some(Some(UiAction::ToggleMagnet)));
     assert_eq!(ui.smart_align, !avant, "basculé une fois");
     assert!(!ui.rail.ouvert, "un bouton choisi replie le panneau");
     assert_eq!(
-        clic((600.0, 1000.0), TELEPHONE.1, &mut ui, &typo),
+        clic((600.0, 1000.0), TELEPHONE, &mut ui, &typo),
         None,
         "le canevas"
     );
@@ -142,11 +137,11 @@ fn test_a_la_vraie_souris_sur_son_telephone() {
         app.handle_mouse_down(MouseButton::Left, TELEPHONE.0, TELEPHONE.1);
         app.handle_mouse_up(MouseButton::Left);
     };
-    let (lx, ly, ..) = layout_rail(&app.ui, &app.renderer.typography, TELEPHONE.1).languette;
+    let (lx, ly, ..) = layout_rail(&app.ui, &app.renderer.typography, TELEPHONE).languette;
     appuyer(&mut app, (lx + 4.0, ly + 4.0));
     assert!(app.ui.rail.ouvert);
     rendre(&mut app);
-    let texte = layout_rail(&app.ui, &app.renderer.typography, TELEPHONE.1)
+    let texte = layout_rail(&app.ui, &app.renderer.typography, TELEPHONE)
         .boutons
         .into_iter()
         .find(|b| b.action == UiAction::SelectTool(crate::ui::ActiveTool::Text))
@@ -210,4 +205,141 @@ fn test_la_premiere_image_est_deja_au_rail() {
     let deux = crate::bench::render_frame(&mut renderer, &mut ui, &store, 720, 1600);
     assert_eq!(une.data(), deux.data(), "la seconde image est la même");
     assert_eq!(une.encode_png().ok(), Some(premiere));
+}
+
+/// **Chaque icône a son nom, et aucun ne se répète** (fiche 58) : sur son téléphone, debout
+/// comme couché, chaque case écrit le nom de son bouton — Ordonner, Storyboard et Preset, dont
+/// les icônes se ressemblent, se lisent enfin.
+#[test]
+fn test_chaque_icone_a_son_nom_sur_son_telephone() {
+    let typo = Typography::new();
+    let mut ui = au_telephone();
+    ui.rail = Rail {
+        actif: true,
+        ouvert: true,
+    };
+    for ecran in [TELEPHONE, (TELEPHONE.1, TELEPHONE.0)] {
+        let rail = layout_rail(&ui, &typo, ecran);
+        let noms: Vec<&str> = rail.boutons.iter().map(|b| b.label).collect();
+        assert!(noms.iter().all(|n| !n.is_empty()), "{ecran:?} : {noms:?}");
+        let distincts: std::collections::BTreeSet<&str> = noms.iter().copied().collect();
+        assert_eq!(distincts.len(), noms.len(), "un nom se répète : {noms:?}");
+        for b in &rail.boutons {
+            let (w, _) = typo.measure_text(b.label, NOM * 2.0, Face::Regular);
+            assert!(
+                b.h + ENTRE * 2.0 + w <= b.w,
+                "« {} » sort de sa case",
+                b.label
+            );
+        }
+        for nom in ["Ordonner", "Storyboard", "Preset"] {
+            assert!(noms.contains(&nom), "{nom} manque");
+        }
+    }
+}
+
+/// **Sans la place, les icônes seules** : une fenêtre trop étroite pour les noms garde des
+/// cases carrées de 48 points, toutes à l'écran — aucun bouton n'est caché.
+#[test]
+fn test_sans_la_place_les_icones_seules() {
+    let typo = Typography::new();
+    let mut ui = au_telephone();
+    ui.rail = Rail {
+        actif: true,
+        ouvert: true,
+    };
+    let etroit = (400.0, 1000.0);
+    let rail = layout_rail(&ui, &typo, etroit);
+    assert!(rail.boutons.iter().all(|b| b.label.is_empty()));
+    for b in &rail.boutons {
+        assert_eq!(b.w, CASE * 2.0, "carrée");
+        assert!(b.x + b.w <= etroit.0 && b.y + b.h <= etroit.1, "{b:?}");
+    }
+}
+
+/// **Sous la barre d'état, le fond de la bande** (BORD-1) : avec le rail, la bande garde la
+/// hauteur de la barre d'état ; elle ne la peignait pas, et remplaçait l'image par du vide.
+#[test]
+fn test_avec_le_rail_la_barre_d_etat_a_son_fond() {
+    let store = crate::bench::ouvert(Store::new("t"));
+    let png = crate::bench::capture_with(&store, 720, 1600, |ui| {
+        ui.scale_factor = 2.0;
+        ui.marges.haut = 60.0;
+    });
+    let image = Pixmap::decode_png(&png).expect("une image");
+    let fond = Theme::default().bg_header.to_color_u8();
+    for x in [10, 360, 710] {
+        let p = image.pixel(x, 30).expect("dedans");
+        assert_eq!(
+            (p.red(), p.green(), p.blue(), p.alpha()),
+            (fond.red(), fond.green(), fond.blue(), 255),
+            "le pixel ({x}, 30)"
+        );
+    }
+}
+
+/// **Colonne après colonne** : une liste se lit de haut en bas — « Déplacer la vue » sous
+/// « Sélectionner », les outils ensemble.
+#[test]
+fn test_le_rail_se_lit_colonne_apres_colonne() {
+    let typo = Typography::new();
+    let mut ui = au_telephone();
+    ui.rail = Rail {
+        actif: true,
+        ouvert: true,
+    };
+    let rail = layout_rail(&ui, &typo, TELEPHONE);
+    let (premier, second) = (&rail.boutons[0], &rail.boutons[1]);
+    assert_eq!(second.x, premier.x, "le second sous le premier");
+    assert!(second.y > premier.y);
+}
+
+/// **Le rail se redessine quand ses noms paraissent ou s'en vont**, même si rien d'autre ne
+/// bouge : une seule colonne, aux mêmes places, avec puis sans les noms.
+#[test]
+fn test_le_rail_se_redessine_quand_les_noms_changent() {
+    let (typo, theme) = (Typography::new(), Theme::default());
+    let mut ui = au_telephone();
+    ui.rail = Rail {
+        actif: true,
+        ouvert: true,
+    };
+    let mut large = Pixmap::new(720, 2400).expect("une image");
+    render_rail(&mut large.as_mut(), &mut ui, &typo, &theme);
+    let mut etroite = Pixmap::new(380, 2400).expect("une image");
+    let avec = layout_rail(&ui, &typo, (720.0, 2400.0));
+    let sans = layout_rail(&ui, &typo, (380.0, 2400.0));
+    assert!(!avec.boutons[0].label.is_empty() && sans.boutons[0].label.is_empty());
+    assert_eq!(
+        (avec.boutons[18].x, avec.boutons[18].y),
+        (sans.boutons[18].x, sans.boutons[18].y),
+        "une seule colonne, aux mêmes places"
+    );
+    render_rail(&mut etroite.as_mut(), &mut ui, &typo, &theme);
+    assert_eq!(ui.rail_cache.as_ref().map(|c| c.dessins), Some(2));
+}
+
+/// **Le nom se dessine** à droite de son icône : des pixels clairs là où il s'écrit.
+#[test]
+fn test_le_nom_se_dessine_a_cote_de_l_icone() {
+    let (typo, theme) = (Typography::new(), Theme::default());
+    let mut ui = au_telephone();
+    ui.rail = Rail {
+        actif: true,
+        ouvert: true,
+    };
+    let mut image = Pixmap::new(TELEPHONE.0 as u32, TELEPHONE.1 as u32).expect("une image");
+    render_rail(&mut image.as_mut(), &mut ui, &typo, &theme);
+    let rail = layout_rail(&ui, &typo, TELEPHONE);
+    let b = &rail.boutons[2];
+    let clairs = (b.x + b.h) as u32..(b.x + b.w) as u32;
+    let allumes = clairs
+        .flat_map(|x| (b.y as u32..(b.y + b.h) as u32).map(move |y| (x, y)))
+        .filter(|&(x, y)| image.pixel(x, y).is_some_and(|p| p.red() > 100))
+        .count();
+    assert!(
+        allumes > 30,
+        "« {} » ne se voit pas : {allumes} pixels",
+        b.label
+    );
 }

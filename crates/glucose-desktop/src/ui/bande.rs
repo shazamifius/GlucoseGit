@@ -151,7 +151,14 @@ pub(super) fn render_bande(
         };
         {
             let mut vue = tampon.as_mut();
-            if !ui.rail.actif {
+            if ui.rail.actif {
+                // Sans la barre, son fond couvre encore la barre d'état (BORD-1) : la bande
+                // remplace ce qu'elle couvre, et un vide y laissait passer n'importe quoi.
+                let marge = ui.marge_du_haut();
+                if let Some(r) = tiny_skia::Rect::from_xywh(0.0, 0.0, largeur, marge) {
+                    crate::renderer::scale::fill_crisp(&mut vue, r, theme.bg_header);
+                }
+            } else {
                 render_topbar(
                     &mut vue,
                     ui,

@@ -73,7 +73,7 @@ fn test_bord_1_le_rail_la_minimap_et_le_message_s_ecartent_des_bords() {
         gauche: 30.0,
         ..Marges::default()
     };
-    let rail = crate::ui::rail::layout_rail(&ui, &typo, 900.0);
+    let rail = crate::ui::rail::layout_rail(&ui, &typo, (1440.0, 900.0));
     assert_eq!(rail.languette.0, 30.0, "le rail commence après l'encoche");
 
     let mut store = glucose_core::store::Store::new("bord");

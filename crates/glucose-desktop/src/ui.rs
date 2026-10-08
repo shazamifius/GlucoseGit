@@ -43,12 +43,6 @@ pub enum ActiveTool {
 }
 
 impl ActiveTool {
-    /// Ce que cet outil vient de poser, dit à l'utilisateur — ou `None` pour ceux qui ne
-    /// posent rien.
-    ///
-    /// C'est l'outil qui le sait, donc c'est lui qui le dit. Chaque fabrique portait son
-    /// propre message : quatre sites pour un seul événement, donc quatre formulations à
-    /// tenir d'accord, et une de plus à chaque outil ajouté.
     /// L'icône qui le désigne dans la barre.
     ///
     /// C'est l'outil qui la connaît, comme il connaît son message de création : la table qui
@@ -66,6 +60,26 @@ impl ActiveTool {
         }
     }
 
+    /// **Son nom**, que le rail écrit à côté de l'icône (fiche 58) — celui de l'infobulle de
+    /// Glucose Tauri, dans les mots de Glucose (« post-it », pas « note sticky »).
+    pub fn nom(self) -> &'static str {
+        match self {
+            Self::Select => "Sélectionner",
+            Self::Pan => "Déplacer la vue",
+            Self::Text => "Texte",
+            Self::Sticky => "Post-it",
+            Self::Arrow => "Flèche",
+            Self::Folder => "Dossier",
+            Self::Membrane => "Membrane",
+        }
+    }
+
+    /// Ce que cet outil vient de poser, dit à l'utilisateur — ou `None` pour ceux qui ne
+    /// posent rien.
+    ///
+    /// C'est l'outil qui le sait, donc c'est lui qui le dit. Chaque fabrique portait son
+    /// propre message : quatre sites pour un seul événement, donc quatre formulations à
+    /// tenir d'accord, et une de plus à chaque outil ajouté.
     pub fn creation_label(self) -> Option<&'static str> {
         match self {
             Self::Select | Self::Pan => None,
@@ -444,7 +458,7 @@ pub fn handle_ui_click(
     let topbar_h = ui.topbar_height();
     let header_h = ui.header_height();
     let s = ui.scale();
-    if let Some(action) = rail::clic((x, y), screen_h, ui, typo) {
+    if let Some(action) = rail::clic((x, y), (screen_w, screen_h), ui, typo) {
         return action;
     }
 
