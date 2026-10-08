@@ -1,6 +1,7 @@
 //! DOCUMENTS-2 — renommer, dupliquer, supprimer, et l'appui long qui y mène.
 
 use super::*;
+use crate::interactions::question::tests::repondre;
 use crate::ui::question::Reponse;
 use glucose_core::types::Annotation;
 
@@ -30,7 +31,7 @@ impl Drop for Bac {
 fn avec_un_document_ouvert(bac: &Bac) -> (GlucoseApp, PathBuf) {
     let mut app = GlucoseApp::new();
     app.habiter(&bac.0);
-    app.ui.questions_dessinees = true;
+    app.ui.documents_ranges = true;
     let board = app.store.project.active_board_id.clone();
     app.store
         .add_annotation(&board, Annotation::text("t1", 0.0, 0.0, "à garder"));
@@ -229,30 +230,6 @@ fn test_documents_2_l_appui_long_sur_la_liste_demande_quoi_faire() {
     assert_eq!(vise, &chemin);
     assert_eq!(question.titre, "« Canevas 1 »");
     assert!(app.project_path.is_none(), "rien ne s'est ouvert");
-}
-
-/// Touche la réponse `r` de la question posée, comme un doigt : appui puis relâchement dessus.
-fn repondre(app: &mut GlucoseApp, r: Reponse) {
-    let (question, _) = app.ui.question.clone().expect("une question");
-    let (w, h) = app.taille_de_la_fenetre();
-    let placee = crate::ui::question::placer(
-        &question,
-        &app.renderer.typography,
-        (w, h),
-        app.ui.scale_factor,
-    );
-    let ((x, y, bw, bh), _, _) = placee
-        .boutons
-        .iter()
-        .find(|(_, _, reponse)| *reponse == r)
-        .expect("la réponse")
-        .clone();
-    app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(
-        f64::from(x + bw / 2.0),
-        f64::from(y + bh / 2.0),
-    ));
-    app.handle_mouse_down(winit::event::MouseButton::Left, w, h);
-    app.handle_mouse_up(winit::event::MouseButton::Left);
 }
 
 /// **Supprimer demande « Supprimer », et rien d'autre** : « Annuler » ne touche à rien et rend

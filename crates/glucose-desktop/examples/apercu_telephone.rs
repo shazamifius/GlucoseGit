@@ -134,6 +134,8 @@ fn supprimer() -> Question {
             ("Supprimer".into(), Reponse::Oui),
             ("Annuler".into(), Reponse::Annuler),
         ],
+        // Entrée ne détruit rien (POPUP-1).
+        focus: 1,
         ..Default::default()
     }
 }
@@ -162,7 +164,7 @@ fn nouveau() -> Question {
         texte: "« Canevas 2 » est enregistré : il reste où il est, et se rouvre par Ouvrir.".into(),
         choix: vec![
             ("Créer".into(), Reponse::Oui),
-            ("Annuler".into(), Reponse::Non),
+            ("Annuler".into(), Reponse::Annuler),
         ],
         ..Default::default()
     }

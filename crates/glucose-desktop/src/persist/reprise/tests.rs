@@ -12,7 +12,10 @@ fn test_le_dernier_document_se_rouvre_au_lancement() {
     noter(&mut app, "c1", "une idée");
     app.save_to(chemin.clone());
     image_suivante(&mut app);
-    assert!(app.request_close(), "une fermeture propre");
+    assert!(
+        crate::persist::close::tests::fermer(&mut app),
+        "une fermeture propre"
+    );
     let attendu = app.store.project.clone();
     drop(app);
 
@@ -32,7 +35,7 @@ fn test_le_plus_recent_l_emporte() {
     noter(&mut app, "c1", "nommé");
     app.save_to(chemin.clone());
     image_suivante(&mut app);
-    assert!(app.request_close());
+    assert!(crate::persist::close::tests::fermer(&mut app));
     drop(app);
 
     // Plus tard, un document sans nom, et un plantage.
@@ -107,7 +110,7 @@ fn test_un_brouillon_passe_avant_un_document_plus_recent() {
     noter(&mut nomme, "c1", "plus récent, et nommé");
     nomme.save_to(d.join("recent.glucose"));
     image_suivante(&mut nomme);
-    assert!(nomme.request_close());
+    assert!(crate::persist::close::tests::fermer(&mut nomme));
     drop(nomme);
 
     let mut relance = application(&d);

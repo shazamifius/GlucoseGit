@@ -36,7 +36,7 @@ fn test_le_premier_nom_libre() {
 fn telephone(bac: &Bac) -> GlucoseApp {
     let mut app = GlucoseApp::new();
     app.habiter(&bac.0);
-    app.ui.questions_dessinees = true;
+    app.ui.documents_ranges = true;
     let board = app.store.project.active_board_id.clone();
     app.store
         .add_annotation(&board, Annotation::text("t1", 0.0, 0.0, "à garder"));
@@ -79,7 +79,7 @@ fn test_un_document_propre_demande_avant_d_en_creer_un() {
     let bac = Bac::neuf("question");
     let mut app = GlucoseApp::new();
     app.habiter(&bac.0);
-    app.ui.questions_dessinees = true;
+    app.ui.documents_ranges = true;
     app.nouveau_document();
     assert!(
         matches!(

@@ -153,23 +153,25 @@ fn test_la_reponse_se_retient_et_non_change_d_identifiant() {
     );
 }
 
-/// **Par le menu, à la vraie boucle** : la question s'ouvre (l'épreuve y répond, DIAL-3) et la
-/// réponse se retient ; une application d'épreuve, sans dossier, ne retient rien.
+/// **Par le menu, à la vraie souris** : la question se dessine, et la réponse se retient ; une
+/// application d'épreuve, sans dossier, ne retient rien.
 #[test]
 fn test_par_le_menu_la_reponse_se_retient() {
+    use crate::interactions::question::tests::repondre;
+    use crate::ui::question::Reponse;
     let d = Dossier::nouveau("menu");
     let mut app = crate::app::GlucoseApp::new();
     app.lancement.telemetrie = Telemetrie::habiter(d.0.clone(), None);
-    crate::dialogue::epreuve::repondre(true);
     app.revoir_la_telemetrie();
+    repondre(&mut app, Reponse::Oui);
     assert_eq!(app.lancement.telemetrie.accorde(), Some(true));
-    crate::dialogue::epreuve::repondre(false);
     app.revoir_la_telemetrie();
+    repondre(&mut app, Reponse::Non);
     assert_eq!(Accord::charger(&d.0).envoyer, Some(false));
 
     let mut sans = crate::app::GlucoseApp::new();
-    crate::dialogue::epreuve::repondre(true);
     sans.revoir_la_telemetrie();
+    repondre(&mut sans, Reponse::Oui);
     assert_eq!(sans.lancement.telemetrie.accorde(), None);
 }
 
@@ -286,7 +288,7 @@ fn test_vue_1_une_reponse_que_personne_n_a_vue_ne_compte_pas_au_telephone() {
     assert_eq!(Accord::lire_ici(&a.ecrire(), true).envoyer, Some(false));
 }
 
-/// **QUESTION-1, au doigt** : là où le système n'a pas de dialogues, la question se dessine et
+/// **QUESTION-1, au doigt** : la question se dessine — partout, désormais (POPUP-1) — et
 /// attend ; ce qui touche à côté n'y répond pas ; « Oui », touché, l'accorde — et la question
 /// s'en va. C'est le chemin de son téléphone, joué par la vraie souris de Glucose.
 #[test]
@@ -295,7 +297,6 @@ fn test_question_1_la_question_dessinee_repond_au_toucher() {
     let d = Dossier::nouveau("dessinee");
     let mut app = crate::app::GlucoseApp::new();
     app.lancement.telemetrie = Telemetrie::habiter(d.0.clone(), None);
-    app.ui.questions_dessinees = true;
     app.revoir_la_telemetrie();
     assert!(
         app.ui.question.is_some(),

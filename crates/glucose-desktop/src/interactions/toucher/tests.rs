@@ -370,7 +370,6 @@ fn centre_de(app: &GlucoseApp, r: crate::ui::question::Reponse) -> (f64, f64) {
 fn test_appui_1_la_question_repond_au_relachement_sur_la_reponse_pressee() {
     use crate::ui::question::Reponse;
     let mut app = app();
-    app.ui.questions_dessinees = true;
     // Le doigt est posé quand la question paraît — comme sous un menu qui l'ouvre.
     doigt(&mut app, 1, TouchPhase::Started, (5.0, 5.0));
     app.nouveau_document();

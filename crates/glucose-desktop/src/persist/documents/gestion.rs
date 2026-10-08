@@ -182,6 +182,8 @@ impl GlucoseApp {
                 ("Supprimer".into(), Reponse::Oui),
                 ("Annuler".into(), Reponse::Annuler),
             ],
+            // Entrée ne détruit rien : l'évidence va à « Annuler » (POPUP-1).
+            focus: 1,
             ..Default::default()
         };
         self.demander(question, Suite::Supprimer(chemin));

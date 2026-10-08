@@ -72,6 +72,10 @@ impl GlucoseApp {
     /// quand la touche ne le concerne pas ; aucun ne contient de logique (§ 1.7).
     pub fn handle_key(&mut self, event: &KeyEvent) {
         let appuyee = event.state == winit::event::ElementState::Pressed;
+        // Une question posée prend tout le clavier : rien ne passe sous son voile (POPUP-1).
+        if self.touche_de_la_question(&event.logical_key, appuyee) {
+            return;
+        }
         if appuyee
             && (self.touche_de_l_ancrage(&event.logical_key)
                 || self.frapper_le_nom_du_jalon(&event.logical_key)

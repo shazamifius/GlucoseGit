@@ -207,6 +207,11 @@ impl GlucoseApp {
         if self.ui.onglets.renomme.is_some() && !self.clic_dans_le_champ_de_l_onglet() {
             self.valider_le_renommage();
         }
+        // Une question posée ne répond qu'au bouton gauche : un clic droit derrière son voile
+        // ouvrirait un menu, et une autre question à sa place (POPUP-1).
+        if self.ui.question.is_some() && button != MouseButton::Left {
+            return;
+        }
         match button {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = true;
@@ -263,7 +268,11 @@ impl GlucoseApp {
             MouseButton::Right | MouseButton::Middle => {
                 self.right_or_middle_down = false;
                 self.is_panning = false;
-                if button == MouseButton::Right && !self.finir_de_deplacer_la_fenetre() {
+                // Le geste se termine, même sous une question ; le menu, lui, n'y paraît pas.
+                if button == MouseButton::Right
+                    && !self.finir_de_deplacer_la_fenetre()
+                    && self.ui.question.is_none()
+                {
                     self.open_context_menu_if_still();
                 }
             }

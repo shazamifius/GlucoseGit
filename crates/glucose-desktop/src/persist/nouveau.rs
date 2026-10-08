@@ -6,7 +6,7 @@
 //! # Rien ne se perd
 //!
 //! Le document qu'on quitte passe par la même porte qu'avant d'en ouvrir un autre
-//! ([`GlucoseApp::laisser_le_document`]) : un document nommé s'écrit déjà geste après geste et
+//! ([`GlucoseApp::laisser_puis`]) : un document nommé s'écrit déjà geste après geste et
 //! se quitte sans un mot ; du travail **sans nom** pose la question habituelle (BROUILLON-1),
 //! et « Annuler » ne change rien.
 //!
@@ -35,18 +35,11 @@ impl GlucoseApp {
         self.terminer_les_gestes_en_cours();
         self.consigner();
         if self.is_dirty() {
-            self.adopter_si_on_laisse();
+            self.laisser_puis(crate::persist::close::Ensuite::Vierge);
             return;
         }
         let question = self.question_du_nouveau_document();
         self.demander(question, crate::ui::question::Suite::NouveauDocument);
-    }
-
-    /// Le document qu'on quitte passe par sa porte ; s'il s'en va, le vierge le remplace.
-    pub(crate) fn adopter_si_on_laisse(&mut self) {
-        if self.laisser_le_document() {
-            self.adopter_un_document_vierge();
-        }
     }
 
     /// La question de NOUVEAU-1 : « Créer » d'abord, ou rien ne change.
@@ -64,7 +57,7 @@ impl GlucoseApp {
             texte,
             choix: vec![
                 ("Créer".into(), Reponse::Oui),
-                ("Annuler".into(), Reponse::Non),
+                ("Annuler".into(), Reponse::Annuler),
             ],
             ..Default::default()
         }

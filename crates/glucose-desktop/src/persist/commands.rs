@@ -148,9 +148,7 @@ impl GlucoseApp {
     /// au choix ne change rien.
     pub fn open_project(&mut self) {
         if let Some(path) = self.sous_un_dialogue(pick_open_path) {
-            if self.laisser_le_document() {
-                self.open_from(path);
-            }
+            self.laisser_puis(super::close::Ensuite::Ouvrir(path));
         }
     }
 

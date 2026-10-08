@@ -95,7 +95,7 @@ impl ApplicationHandler for GlucoseApp {
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        _event_loop: &ActiveEventLoop,
         _window_id: WindowId,
         event: WindowEvent,
     ) {
@@ -111,7 +111,7 @@ impl ApplicationHandler for GlucoseApp {
         // ce depot.
         let entree = std::time::Instant::now();
         self.chronique.entracte.imputer(entree, Poste::Main);
-        self.aiguiller(event_loop, event);
+        self.aiguiller(event);
         self.chronique
             .entracte
             .imputer(std::time::Instant::now(), Poste::Systeme);
@@ -141,19 +141,16 @@ impl GlucoseApp {
     /// Separe de `window_event` pour que la mesure de l'entracte encadre le traitement sans
     /// avoir a se repeter devant chaque retour anticipe -- une marque oubliee sur un seul
     /// chemin suffirait a fausser toute la section.
-    fn aiguiller(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+    fn aiguiller(&mut self, event: WindowEvent) {
         if self.evenement_de_la_main(&event) {
             return;
         }
         match event {
             WindowEvent::CloseRequested => {
                 // R-48 — la croix ne jette plus le travail : un document modifié pose la
-                // question, et un enregistrement raté annule la fermeture (SAVE-3).
-                if self.request_close() {
-                    event_loop.exit();
-                } else {
-                    self.mark_dirty();
-                }
+                // question, et un enregistrement raté annule la fermeture (SAVE-3). La boucle
+                // s'arrête quand la fenêtre a le droit de partir, à son prochain tour.
+                self.fermer_puis(crate::persist::close::Apres::Quitter);
             }
             WindowEvent::Resized(size) => {
                 let width = size.width.max(1);
@@ -188,6 +185,11 @@ impl GlucoseApp {
     /// Chaque etape porte sa marque d'entracte : c'est ici que sept dixiemes de seconde se
     /// sont caches pendant trois sessions, et aucun poste du rendu ne pouvait les voir.
     fn entretenir(&mut self, event_loop: &ActiveEventLoop) {
+        // La fenêtre a le droit de partir : une réponse l'a dit (SAVE-3, POPUP-1).
+        if self.ui.fermer_la_fenetre {
+            event_loop.exit();
+            return;
+        }
         // Le système a peut-être changé ce qu'il accorde à la carte : le veilleur a réveillé
         // la boucle pour cela, et ce qui dépasse se rend sans attendre une image (ETAGES-2).
         if let Some(presenter) = self.presenter.as_mut() {
@@ -210,7 +212,7 @@ impl GlucoseApp {
         self.suivre_les_marges();
         self.suivre_le_clavier();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
-        self.suivre_la_mise_a_jour(event_loop);
+        self.suivre_la_mise_a_jour();
 
         self.chronique
             .entracte

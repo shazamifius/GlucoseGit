@@ -4,11 +4,12 @@
 //!
 //! # La mise à jour, vue de l'application (fiche 48)
 //!
-//! Au lancement, un fil lit le fichier des versions ; s'il propose plus récent, la boucle le
-//! demande par un dialogue — le « popup habituel » de Glucose Tauri. Oui : un autre fil
-//! télécharge l'installeur et vérifie sa signature. Prêt : le document s'écrit une dernière
-//! fois — la question de la fermeture s'il porte du travail sans nom —, l'installeur démarre,
-//! et Glucose se ferme pour qu'il prenne sa place. Rien de cela n'attend sur la boucle.
+//! Au lancement, un fil lit le fichier des versions ; s'il propose plus récent, Glucose le
+//! demande par la question qu'il dessine (POPUP-1) — le « popup habituel » de Glucose Tauri.
+//! Oui : un autre fil télécharge l'installeur et vérifie sa signature. Prêt : le document
+//! s'écrit une dernière fois — la question de la fermeture s'il porte du travail sans nom —,
+//! l'installeur démarre, et Glucose se ferme pour qu'il prenne sa place. Rien de cela n'attend
+//! sur la boucle.
 //!
 //! **Après une session qui a mal fini**, la recherche se fait **avant tout** — avant la carte
 //! graphique, avant le document ([`mettre_a_jour_avant_tout`]) : une version qui tombe au
@@ -19,8 +20,9 @@ use crate::app::GlucoseApp;
 use crate::mise_a_jour::cycle::{self, Nouvelle, Veille};
 use crate::mise_a_jour::installation::Installation;
 use crate::mise_a_jour::Proposition;
+use crate::persist::close::Apres;
+use crate::ui::question::Reponse;
 use std::path::Path;
-use winit::event_loop::ActiveEventLoop;
 
 /// Ce que `main` donne à l'application, et rien d'autre.
 #[derive(Default)]
@@ -39,7 +41,7 @@ pub struct Lancement {
 impl GlucoseApp {
     /// **Ce que la veille a dit depuis la dernière fois**, traité ici — là où le document
     /// n'est lu par personne.
-    pub(crate) fn suivre_la_mise_a_jour(&mut self, event_loop: &ActiveEventLoop) {
+    pub(crate) fn suivre_la_mise_a_jour(&mut self) {
         let nouvelles = self
             .lancement
             .mise_a_jour
@@ -49,20 +51,29 @@ impl GlucoseApp {
         for nouvelle in nouvelles {
             match nouvelle {
                 Nouvelle::Proposee(p) => self.proposer_la_mise_a_jour(p),
-                Nouvelle::Prete(installeur) => self.installer(&installeur, event_loop),
+                Nouvelle::Prete(installeur) => self.installer(&installeur),
                 Nouvelle::Echec(e) => self.dire_la_mise_a_jour(format!("impossible : {e}")),
             }
         }
     }
 
-    /// Une version plus récente existe : on la propose. Non : elle sera reproposée au prochain
-    /// lancement.
+    /// Une version plus récente existe : on la propose. « Plus tard » : elle sera reproposée
+    /// au prochain lancement.
     fn proposer_la_mise_a_jour(&mut self, p: Proposition) {
-        let question = question(&p);
-        let oui = self.sous_un_dialogue(|fenetre| demander(fenetre, &question));
-        if !oui {
-            return;
-        }
+        let question = crate::ui::question::Question {
+            titre: TITRE.into(),
+            texte: question(&p),
+            choix: vec![
+                ("Installer".into(), Reponse::Oui),
+                ("Plus tard".into(), Reponse::Annuler),
+            ],
+            ..Default::default()
+        };
+        self.demander(question, crate::ui::question::Suite::MiseAJour(p));
+    }
+
+    /// Oui : un autre fil la télécharge et vérifie sa signature.
+    pub(crate) fn preparer_la_mise_a_jour(&mut self, p: Proposition) {
         let version = p.version.to_string();
         if let Some(veille) = &self.lancement.mise_a_jour {
             veille.preparer(p);
@@ -70,29 +81,35 @@ impl GlucoseApp {
         self.dire_la_mise_a_jour(format!("téléchargement de Glucose {version}…"));
     }
 
-    /// L'installeur est vérifié et posé : le document s'écrit une dernière fois, puis ce qui
-    /// relance démarre — l'installeur, ou Glucose déjà remplacé —, et Glucose se ferme.
-    fn installer(&mut self, installeur: &Path, event_loop: &ActiveEventLoop) {
-        let Some((programme, arguments)) = self
+    /// L'installeur est vérifié et posé : le document se ferme — la question du travail non
+    /// enregistré, s'il en porte —, puis ce qui relance démarre.
+    fn installer(&mut self, installeur: &Path) {
+        if self.lancement.mise_a_jour.is_some() {
+            self.fermer_puis(Apres::Installer(installeur.to_path_buf()));
+        }
+    }
+
+    /// Le document est fermé : la relance démarre — l'installeur, ou Glucose déjà remplacé —,
+    /// et Glucose se ferme quand même si elle échoue : un document fermé ne s'écrirait plus,
+    /// et le travail, lui, est sur le disque.
+    pub(crate) fn relancer_pour_installer(&mut self, installeur: &Path) {
+        let relance = self
             .lancement
             .mise_a_jour
             .as_ref()
-            .map(|v| v.installation().relance(installeur))
-        else {
-            return;
-        };
-        if !self.request_close() {
-            self.dire_la_mise_a_jour(
-                "reportée : elle sera reproposée au prochain lancement".into(),
-            );
-            return;
+            .map(|v| v.installation().relance(installeur));
+        if let Some((programme, arguments)) = relance {
+            if let Err(e) = cycle::lancer(&programme, arguments) {
+                eprintln!("[Glucose] mise à jour : {e}");
+            }
         }
-        // Le document est fermé : la relance démarre, ou Glucose se ferme quand même — un
-        // document fermé ne s'écrirait plus, et le travail, lui, est sur le disque.
-        if let Err(e) = cycle::lancer(&programme, arguments) {
-            eprintln!("[Glucose] mise à jour : {e}");
-        }
-        event_loop.exit();
+        self.ui.fermer_la_fenetre = true;
+    }
+
+    /// Le document n'a pas été fermé — « Annuler », ou un enregistrement raté : l'installeur
+    /// attend le prochain lancement.
+    pub(crate) fn reporter_la_mise_a_jour(&mut self) {
+        self.dire_la_mise_a_jour("reportée : elle sera reproposée au prochain lancement".into());
     }
 
     /// **La seule voix de la mise à jour** : un toast, pour tout ce qu'elle a à dire.
@@ -115,17 +132,21 @@ fn question(p: &Proposition) -> String {
     )
 }
 
-/// Le dialogue natif, accroché à la fenêtre s'il y en a une : oui ou non.
-fn demander(ancre: crate::dialogue::Ancre<'_>, question: &str) -> bool {
-    crate::dialogue::oui_ou_non(ancre, "Mise à jour de Glucose", question)
-}
+/// Le titre de la question.
+const TITRE: &str = "Mise à jour de Glucose";
 
 impl GlucoseApp {
     /// **La recherche avant tout**, après une session qui a mal fini : avant la carte
-    /// graphique et avant le document — la fenêtre n'existe pas encore, et le dialogue s'ouvre
-    /// sans parent, ce que DIAL-1 prévoit. Rend `true` si la relance a démarré : Glucose doit
+    /// graphique et avant le document. Rend `true` si la relance a démarré : Glucose doit
     /// alors se fermer sans rien ouvrir. Tout échec laisse le lancement continuer : une mise à
     /// jour qui ne se fait pas n'empêche jamais d'ouvrir Glucose.
+    ///
+    /// # La seule boîte du système qui reste (POPUP-1, DIAL-5)
+    ///
+    /// La fenêtre n'existe pas encore, et c'est voulu : ce qui tombe au démarrage — la carte
+    /// graphique, le document — ne doit pas empêcher de recevoir la correction. Glucose n'a
+    /// donc rien où dessiner la question, et la pose par le système. Aucune fenêtre de Glucose
+    /// n'existe à noircir ni à geler : le défaut de POPUP-1 ne peut pas s'y produire.
     pub fn mettre_a_jour_avant_tout(
         &mut self,
         installeurs: &Path,
@@ -139,7 +160,10 @@ impl GlucoseApp {
             "La session précédente s'est arrêtée brutalement.\n\n{}",
             question(&p)
         );
-        if !self.sous_un_dialogue(|fenetre| demander(fenetre, &question)) {
+        let Some(sans_fenetre) = self.sans_fenetre() else {
+            return false;
+        };
+        if !crate::dialogue::oui_ou_non(sans_fenetre, TITRE, &question) {
             return false;
         }
         let relance = cycle::preparer(&p, cycle::CLE, installeurs, installation)
@@ -151,3 +175,6 @@ impl GlucoseApp {
         relance.is_ok()
     }
 }
+
+#[cfg(test)]
+mod tests;

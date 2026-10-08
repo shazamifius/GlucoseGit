@@ -258,7 +258,6 @@ fn test_clavier_3_la_ligne_ecrite_redescend_sous_la_bande() {
 fn test_clavier_1_le_champ_d_une_question_prend_le_clavier() {
     use crate::ui::question::{Champ, Question, Suite};
     let (mut app, faux) = au_telephone("le chat dort", 0.0);
-    app.ui.questions_dessinees = true;
     app.suivre_le_clavier();
     faux.servir();
     let question = Question {
@@ -296,7 +295,6 @@ fn test_clavier_1_le_champ_d_une_question_prend_le_clavier() {
 fn test_clavier_1_toucher_le_champ_ressort_le_clavier() {
     use crate::ui::question::{placer, Champ, Question, Suite};
     let (mut app, faux) = au_telephone("le chat dort", 0.0);
-    app.ui.questions_dessinees = true;
     let question = Question {
         titre: "Renommer".into(),
         champ: Some(Champ {

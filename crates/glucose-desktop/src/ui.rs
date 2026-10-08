@@ -128,12 +128,15 @@ pub struct UiState {
     /// **Le menu ouvert l'a été au doigt** (fiche 56) : ses entrées prennent la taille d'un
     /// doigt, et taisent les raccourcis d'un clavier qu'on n'a pas.
     pub menu_au_doigt: bool,
-    /// **La question posée**, quand Glucose la dessine (QUESTION-1), et ce que sa réponse
-    /// déclenchera.
+    /// **La question posée** (QUESTION-1, POPUP-1), et ce que sa réponse déclenchera.
     pub question: Option<(question::Question, question::Suite)>,
-    /// **Les questions se dessinent** là où le système n'a pas de dialogues qu'on appelle —
-    /// Android (QUESTION-1) ; ailleurs, ce sont les siens.
-    pub questions_dessinees: bool,
+    /// **Les documents se rangent d'eux-mêmes** dans `documents/` et se rouvrent par une
+    /// liste, là où le système n'a pas de sélecteur de fichiers qu'on appelle — Android
+    /// (DOCUMENTS-1).
+    pub documents_ranges: bool,
+    /// **La fenêtre a le droit de partir** (SAVE-3) : la boucle s'arrête à son prochain tour.
+    /// Une réponse arrive dans un clic, loin de la boucle ; elle le dit ici (POPUP-1).
+    pub fermer_la_fenetre: bool,
     pub scale_factor: f32,
     /// Le fond de la minimap, déjà dessiné (voir [`MinimapCache`]).
     pub minimap_cache: Option<MinimapCache>,
@@ -190,7 +193,8 @@ impl UiState {
             context_menu_at: None,
             menu_au_doigt: false,
             question: None,
-            questions_dessinees: cfg!(target_os = "android"),
+            documents_ranges: cfg!(target_os = "android"),
+            fermer_la_fenetre: false,
             scale_factor: 1.0,
             minimap_cache: None,
             bande_cache: None,

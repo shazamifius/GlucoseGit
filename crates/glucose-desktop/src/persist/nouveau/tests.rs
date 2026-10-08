@@ -1,6 +1,8 @@
 //! `Ctrl+N` (fiche 51 § 4), de bout en bout : de vrais documents sur le disque.
 
+use crate::interactions::question::tests::repondre;
 use crate::persist::disque::tests::{application, dossier, image_suivante, noter};
+use crate::ui::question::Reponse;
 
 /// **Un document nommé se quitte intact, et le nouveau est vierge** : rien à défaire, aucun
 /// fichier, aucun nœud — et le premier geste fait naître un brouillon, jamais une écriture dans
@@ -14,10 +16,10 @@ fn test_ctrl_n_laisse_le_document_intact_et_en_ouvre_un_vierge() {
     noter(&mut app, "garde", "ce texte reste dans l'ancien document");
     image_suivante(&mut app);
 
-    crate::dialogue::epreuve::repondre(true);
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
     assert!(app.handle_file_shortcut("n"), "Ctrl+N est consommé");
     app.modifiers = winit::keyboard::ModifiersState::empty();
+    repondre(&mut app, Reponse::Oui);
     let board = app.store.active_board().expect("un tableau");
     assert!(
         board.annotations.is_empty() && board.images.is_empty(),
@@ -55,10 +57,10 @@ fn test_ctrl_n_sur_un_travail_sans_nom_le_dit_a_enregistrer() {
     let d = dossier("nouveau-sans-nom");
     let mut app = application(&d);
     app.save_to(d.join("nomme.glucose"));
-    crate::dialogue::epreuve::repondre(true);
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
     assert!(app.handle_file_shortcut("n"));
     app.modifiers = winit::keyboard::ModifiersState::empty();
+    repondre(&mut app, Reponse::Oui);
     noter(&mut app, "neuf", "un travail sans nom");
     image_suivante(&mut app);
     assert!(
@@ -77,10 +79,10 @@ fn test_nouveau_1_ctrl_n_demande_et_non_ne_change_rien() {
     let mut app = application(&d);
     app.save_to(chemin.clone());
     noter(&mut app, "garde", "du travail");
-    crate::dialogue::epreuve::repondre(false);
     app.modifiers = winit::keyboard::ModifiersState::CONTROL;
     assert!(app.handle_file_shortcut("n"), "Ctrl+N est consommé");
     app.modifiers = winit::keyboard::ModifiersState::empty();
+    repondre(&mut app, Reponse::Annuler);
     assert_eq!(
         app.project_path.as_ref(),
         Some(&chemin),

@@ -105,7 +105,6 @@ fn test_bord_1_le_rail_la_minimap_et_le_message_s_ecartent_des_bords() {
 fn test_bord_1_la_question_reste_au_dessus_du_clavier() {
     use crate::ui::question::{placer, Reponse};
     let mut app = GlucoseApp::new();
-    app.ui.questions_dessinees = true;
     app.ui.marges = Marges {
         clavier: 500.0,
         ..telephone()

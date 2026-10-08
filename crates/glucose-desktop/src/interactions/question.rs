@@ -1,25 +1,29 @@
-//! **Poser une question, et suivre sa réponse** (QUESTION-1, fiche 56).
+//! **Poser une question, et suivre sa réponse** (QUESTION-1, fiche 56 ; POPUP-1, fiche 58).
 //!
-//! Là où le système a ses dialogues — Windows, Linux, macOS —, la question s'y pose, et sa
-//! suite part aussitôt : rien ne change pour le bureau. Là où il n'en a pas — Android —, Glucose
-//! la dessine ([`crate::ui::question`]) ; elle prend alors tout toucher jusqu'à sa réponse, et
-//! la suite part à ce moment-là.
+//! Glucose dessine la question ([`crate::ui::question`]), **partout** : les boîtes du système
+//! tenaient sa boucle tant qu'elles étaient ouvertes, et laissaient sa fenêtre noire (fiche
+//! 58). Elle prend tout ce qui la touche — le doigt, la souris, le clavier — jusqu'à sa
+//! réponse ; ce qui est derrière attend. Sa suite part à ce moment-là.
 //!
-//! Une seule écriture de chaque question, et de ce qu'elle déclenche : la voie ne change que la
-//! façon de demander.
+//! # Une question remplacée n'a rien décidé
+//!
+//! Une question en chasse une autre (la croix pendant que le journal technique attend, un
+//! menu rouvert) : celle qui part n'a reçu aucune réponse, donc n'a rien fait. Chaque suite est
+//! écrite pour cela — ne rien recevoir vaut « Annuler » : le travail reste, rien ne s'envoie,
+//! la question reviendra.
 
 use crate::app::GlucoseApp;
 use crate::params::{Pointer, ScreenFrame};
-use crate::ui::question::{champ_sous, placer, reponse_sous, Question, Reponse, Suite};
+use crate::persist::close::Ensuite;
+use crate::ui::question::{
+    champ_sous, deplacer_le_focus, echappatoire, placer, reponse_en_evidence, reponse_sous,
+    Question, Reponse, Suite,
+};
+use winit::keyboard::{Key, NamedKey};
 
 impl GlucoseApp {
     /// **Pose cette question** ; sa réponse déclenchera `suite`.
     pub(crate) fn demander(&mut self, question: Question, suite: Suite) {
-        if !self.ui.questions_dessinees {
-            let reponse = self.sous_un_dialogue(|ancre| crate::dialogue::poser(ancre, &question));
-            self.suivre(suite, reponse, None);
-            return;
-        }
         self.ui.question = Some((question, suite));
         self.mark_dirty();
     }
@@ -58,9 +62,41 @@ impl GlucoseApp {
         };
         let placee = placer(question, &self.renderer.typography, ecran, screen.scale);
         if reponse_sous(&placee, pointer.x, pointer.y) == Some(pressee) {
-            if let Some((question, suite)) = self.ui.question.take() {
-                self.suivre(suite, pressee, question.champ.map(|c| c.texte));
+            self.repondre_a_la_question(Some(pressee));
+        }
+        self.mark_dirty();
+        true
+    }
+
+    /// **Au clavier** (POPUP-1) : Entrée donne la réponse en évidence ; Tab, Maj + Tab et les
+    /// flèches la déplacent ; Échap — et le retour d'Android — donne « Annuler », ou retire la
+    /// question sans réponse. Rend `true` tant qu'une question est posée : aucune touche ne
+    /// passe derrière elle, un `Suppr` n'efface rien sous le voile.
+    pub(crate) fn touche_de_la_question(&mut self, touche: &Key, appuyee: bool) -> bool {
+        let arriere = self.modifiers.shift_key();
+        let Some((question, _)) = &mut self.ui.question else {
+            return false;
+        };
+        if !appuyee {
+            return true;
+        }
+        match touche {
+            Key::Named(NamedKey::Tab) => deplacer_le_focus(question, if arriere { -1 } else { 1 }),
+            Key::Named(NamedKey::ArrowDown | NamedKey::ArrowRight) => {
+                deplacer_le_focus(question, 1);
             }
+            Key::Named(NamedKey::ArrowUp | NamedKey::ArrowLeft) => {
+                deplacer_le_focus(question, -1);
+            }
+            Key::Named(NamedKey::Enter) => {
+                let reponse = reponse_en_evidence(question);
+                self.repondre_a_la_question(reponse);
+            }
+            Key::Named(NamedKey::Escape | NamedKey::BrowserBack) => {
+                let reponse = echappatoire(question);
+                self.repondre_a_la_question(reponse);
+            }
+            _ => {}
         }
         self.mark_dirty();
         true
@@ -85,17 +121,26 @@ impl GlucoseApp {
         true
     }
 
+    /// La question se retire ; sa suite part s'il y a une réponse — sans réponse, rien ne
+    /// part (VUE-1).
+    fn repondre_a_la_question(&mut self, reponse: Option<Reponse>) {
+        let Some((question, suite)) = self.ui.question.take() else {
+            return;
+        };
+        if let Some(reponse) = reponse {
+            self.suivre(suite, reponse, question.champ.map(|c| c.texte));
+        }
+    }
+
     /// Ce que la réponse déclenche ; `champ`, ce qu'on avait écrit dans la question.
     fn suivre(&mut self, suite: Suite, reponse: Reponse, champ: Option<String>) {
+        let oui = reponse == Reponse::Oui;
         match suite {
-            Suite::NouveauDocument if reponse == Reponse::Oui => self.adopter_si_on_laisse(),
-            Suite::NouveauDocument => {}
-            Suite::Telemetrie => self.repondre_a_la_telemetrie(reponse == Reponse::Oui),
+            Suite::NouveauDocument if oui => self.laisser_puis(Ensuite::Vierge),
+            Suite::Telemetrie => self.repondre_a_la_telemetrie(oui),
             Suite::Ouvrir(chemins) => {
                 if let Some(chemin) = reponse_choisie(reponse).and_then(|i| chemins.get(i)) {
-                    if self.laisser_le_document() {
-                        self.open_from(chemin.clone());
-                    }
+                    self.laisser_puis(Ensuite::Ouvrir(chemin.clone()));
                 }
             }
             Suite::Gerer(chemin) => self.suivre_la_gestion(chemin, reponse),
@@ -103,10 +148,12 @@ impl GlucoseApp {
                 (Reponse::Oui, Some(nom)) => self.renommer_le_document(&chemin, &nom),
                 _ => self.choisir_un_document(),
             },
-            Suite::Supprimer(chemin) if reponse == Reponse::Oui => {
-                self.supprimer_le_document(&chemin);
-            }
+            Suite::Supprimer(chemin) if oui => self.supprimer_le_document(&chemin),
             Suite::Supprimer(_) => self.choisir_un_document(),
+            Suite::Fermer(apres) => self.repondre_a_la_fermeture(reponse, apres),
+            Suite::Laisser(ensuite) => self.repondre_au_depart(reponse, ensuite),
+            Suite::MiseAJour(proposition) if oui => self.preparer_la_mise_a_jour(proposition),
+            Suite::NouveauDocument | Suite::MiseAJour(_) => {}
         }
     }
 }
@@ -118,3 +165,6 @@ fn reponse_choisie(reponse: Reponse) -> Option<usize> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests;

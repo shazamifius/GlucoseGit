@@ -262,7 +262,7 @@ fn test_fermer_la_fenetre_pendant_une_frappe_valide_le_texte() {
     let mut app = en_train_d_ecrire(&d);
     taper(&mut app, " — dernière phrase");
     assert!(
-        app.request_close(),
+        crate::persist::close::tests::fermer(&mut app),
         "un document nommé se ferme sans question"
     );
     assert!(app.editing_session.is_none());

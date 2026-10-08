@@ -1,4 +1,6 @@
-//! Les dialogues natifs, ancrés à la fenêtre de Glucose.
+//! Les dialogues natifs, ancrés à la fenêtre de Glucose : **les sélecteurs de fichiers**, et
+//! une seule boîte de message, qui ne s'ouvre que là où Glucose n'a pas encore de fenêtre
+//! (DIAL-5). Toute question se dessine dans Glucose (POPUP-1, [`crate::ui::question`]).
 //!
 //! # Invariant DIAL-1 — un dialogue s'accroche toujours à la fenêtre qui l'ouvre
 //!
@@ -13,9 +15,9 @@
 //! ne le voit, aucun journal ne le dit, et le programme fait exactement ce qu'on lui a
 //! demandé.
 //!
-//! Le remède est d'une ligne par dialogue, et il vaut pour **tous** : la question des
-//! modifications non enregistrées, l'ouverture, l'enregistrement et l'import d'images. Un
-//! dialogue ancré s'affiche devant son parent, le bloque proprement, et se ferme avec lui.
+//! Le remède est d'une ligne par dialogue, et il vaut pour **tous** : l'ouverture,
+//! l'enregistrement, l'export et l'import d'images. Un dialogue ancré s'affiche devant son
+//! parent, le bloque proprement, et se ferme avec lui.
 //!
 //! # Invariant DIAL-2 — un dialogue passe toujours par [`GlucoseApp::sous_un_dialogue`]
 //!
@@ -27,19 +29,27 @@
 //! aucun intérêt, pendant que ce chiffre cachait le vrai pire gel de la session.
 //!
 //! L'horloge, le rythme et le tempo repartent donc de la prochaine présentation. Et ce n'est
-//! pas une convention : c'est le type [`Ancre`] qui le tient. Les deux fabriques de dialogue
-//! l'exigent, et seule `sous_un_dialogue` sait le construire. Un cinquième dialogue écrit
-//! ailleurs ne compile pas.
+//! pas une convention : c'est le type [`Ancre`] qui le tient. Le sélecteur de fichiers
+//! l'exige, et seule `sous_un_dialogue` sait le construire. Un sélecteur ouvert ailleurs ne
+//! compile pas.
 //!
 //! # Invariant DIAL-4 — `rfd` ne sort jamais d'ici
 //!
 //! Les dialogues se demandent dans les mots de Glucose (un sélecteur [`Fichier`], une question
-//! [`oui_ou_non`] ou [`oui_non_ou_annuler`]) : aucun type de `rfd` ne traverse cette porte. C'est
-//! ce qui laisse Glucose compiler là où `rfd` n'existe pas — Android, où ces dialogues
-//! répondent « rien » en attendant ceux du système (fiche 54).
+//! [`oui_ou_non`]) : aucun type de `rfd` ne traverse cette porte. C'est ce qui laisse Glucose
+//! compiler là où `rfd` n'existe pas — Android, qui a ses propres chemins (fiches 54 et 56).
+//!
+//! # Invariant DIAL-5 — aucune boîte de message sur une fenêtre de Glucose
+//!
+//! Une boîte de message du système **tient la boucle** tant qu'elle est ouverte : la fenêtre
+//! de Glucose ne se repeint plus. Posée avant la première image — la question du journal
+//! technique, à l'ouverture —, elle laissait une fenêtre noire et une boîte parfois derrière :
+//! *« il faut voyager dans le noir total, faire Tab puis Entrée »* (08/10, POPUP-1, fiche 58).
+//! Les questions se dessinent donc dans Glucose. [`oui_ou_non`] ne reste que pour la mise à
+//! jour cherchée **avant** la fenêtre, et le type le tient : elle exige un [`SansFenetre`], que
+//! seul [`GlucoseApp::sans_fenetre`] construit, et seulement quand il n'y a pas de fenêtre.
 
 use crate::app::GlucoseApp;
-use crate::ui::question::Reponse;
 use winit::window::Window;
 
 /// La fenêtre à laquelle un dialogue s'accroche — et la preuve qu'il s'ouvre sous
@@ -66,51 +76,20 @@ impl GlucoseApp {
     }
 }
 
-/// Une boîte de message accrochée à la fenêtre (DIAL-1).
-#[cfg(all(not(test), not(target_os = "android")))]
-fn message(ancre: Ancre<'_>) -> rfd::MessageDialog {
-    let dialogue = rfd::MessageDialog::new();
-    match ancre.0 {
-        Some(fenetre) => dialogue.set_parent(fenetre),
-        None => dialogue,
+/// **La preuve que Glucose n'a pas de fenêtre** (DIAL-5) : rien d'autre que
+/// [`GlucoseApp::sans_fenetre`] ne sait la construire.
+pub struct SansFenetre(());
+
+impl GlucoseApp {
+    /// La preuve qu'aucune fenêtre n'existe encore, s'il n'en existe aucune (DIAL-5).
+    pub fn sans_fenetre(&self) -> Option<SansFenetre> {
+        self.window.is_none().then_some(SansFenetre(()))
     }
 }
 
-/// **Une question oui / non / annuler**, accrochée à la fenêtre, sur un ton d'avertissement :
-/// `Some(true)` pour oui, `Some(false)` pour non, `None` pour annuler — et sous Android, où
-/// aucune boîte n'existe encore, `None` : annuler ne perd jamais rien.
-///
-/// Comme [`oui_ou_non`], une épreuve n'ouvre jamais de vraie boîte (DIAL-3).
-pub fn oui_non_ou_annuler(ancre: Ancre<'_>, titre: &str, question: &str) -> Option<bool> {
-    #[cfg(test)]
-    {
-        let _ = (ancre, question);
-        Some(epreuve::reponse(titre))
-    }
-    #[cfg(all(not(test), target_os = "android"))]
-    {
-        let _ = (ancre, titre, question);
-        None
-    }
-    #[cfg(all(not(test), not(target_os = "android")))]
-    {
-        let reponse = message(ancre)
-            .set_level(rfd::MessageLevel::Warning)
-            .set_title(titre)
-            .set_description(question)
-            .set_buttons(rfd::MessageButtons::YesNoCancel)
-            .show();
-        match reponse {
-            rfd::MessageDialogResult::Yes | rfd::MessageDialogResult::Ok => Some(true),
-            rfd::MessageDialogResult::No => Some(false),
-            // Une réponse personnalisée n'arrive qu'avec `common-controls-v6`, absent : le seul
-            // choix sûr reste de ne rien perdre.
-            rfd::MessageDialogResult::Cancel | rfd::MessageDialogResult::Custom(_) => None,
-        }
-    }
-}
-
-/// **Une question oui / non**, accrochée à la fenêtre (DIAL-1) : `true` pour oui.
+/// **Une question oui / non par le système**, là seulement où Glucose n'a pas de fenêtre où la
+/// dessiner (DIAL-5) : `true` pour oui. Sous Android, rien ne se demande ainsi : « non », la
+/// mise à jour n'y existe pas encore.
 ///
 /// # DIAL-3 — une épreuve n'ouvre jamais de vraie boîte
 ///
@@ -118,20 +97,21 @@ pub fn oui_non_ou_annuler(ancre: Ancre<'_>, titre: &str, question: &str) -> Opti
 /// travail, et attendrait une réponse que personne ne donnera. Sous `cfg(test)`, la réponse
 /// vient donc de l'épreuve ([`epreuve::repondre`]) ; une épreuve qui n'en a pas donné tombe,
 /// en nommant le dialogue, au lieu de l'afficher.
-pub fn oui_ou_non(ancre: Ancre<'_>, titre: &str, question: &str) -> bool {
+pub fn oui_ou_non(sans_fenetre: SansFenetre, titre: &str, question: &str) -> bool {
+    let SansFenetre(()) = sans_fenetre;
     #[cfg(test)]
     {
-        let _ = (ancre, question);
+        let _ = question;
         epreuve::reponse(titre)
     }
     #[cfg(all(not(test), target_os = "android"))]
     {
-        let _ = (ancre, titre, question);
+        let _ = (titre, question);
         false
     }
     #[cfg(all(not(test), not(target_os = "android")))]
     {
-        let reponse = message(ancre)
+        let reponse = rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Info)
             .set_title(titre)
             .set_description(question)
@@ -141,23 +121,6 @@ pub fn oui_ou_non(ancre: Ancre<'_>, titre: &str, question: &str) -> bool {
             reponse,
             rfd::MessageDialogResult::Yes | rfd::MessageDialogResult::Ok
         )
-    }
-}
-
-/// **Pose une question de Glucose** par le dialogue du système (QUESTION-1) : deux réponses,
-/// un oui ou non ; trois, un oui, non ou annuler. Le sens de chacune est dans le texte, pas
-/// sur les boutons du système, qui gardent leurs mots à eux.
-pub fn poser(ancre: Ancre<'_>, question: &crate::ui::question::Question) -> Reponse {
-    if question.choix.len() > 2 {
-        match oui_non_ou_annuler(ancre, &question.titre, &question.texte) {
-            Some(true) => Reponse::Oui,
-            Some(false) => Reponse::Non,
-            None => Reponse::Annuler,
-        }
-    } else if oui_ou_non(ancre, &question.titre, &question.texte) {
-        Reponse::Oui
-    } else {
-        Reponse::Non
     }
 }
 

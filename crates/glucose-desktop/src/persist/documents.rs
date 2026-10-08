@@ -66,7 +66,7 @@ impl GlucoseApp {
     /// **« Ouvrir un document… »** : le sélecteur de fichiers au bureau ; au téléphone, la
     /// liste des documents rangés, du plus récent au plus ancien (DOCUMENTS-1).
     pub(crate) fn choisir_un_document(&mut self) {
-        if !self.ui.questions_dessinees {
+        if !self.ui.documents_ranges {
             self.open_project();
             return;
         }
