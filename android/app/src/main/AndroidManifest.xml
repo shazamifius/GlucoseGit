@@ -6,6 +6,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- La mise à jour (MAJ-ANDROID-1, fiche 58) : Glucose confie la version suivante, signée
+         de sa clé, à l'installeur d'Android — qui demande à l'utilisateur. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 12 et après : une application qui se met à jour elle-même s'installe sans
+         confirmation du système si elle le déclare (PackageInstaller.java, AOSP). L'accord, lui,
+         est donné dans Glucose : la question « Installer » ou « Plus tard ». -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application
         android:label="Glucose"

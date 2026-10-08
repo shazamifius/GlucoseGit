@@ -1,10 +1,14 @@
 package com.glucose.app;
 
+import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.pm.PackageInstaller;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
 import androidx.activity.EdgeToEdge;
@@ -16,6 +20,10 @@ import androidx.core.content.IntentCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
 import com.google.androidgamesdk.GameActivity;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,6 +48,19 @@ public class MainActivity extends GameActivity {
      */
     private static native void recevoirUnPartage(
             int[] fichiers, long[] debuts, long[] longueurs, String texte);
+
+    /**
+     * Où en est une mise à jour confiée à Android (MAJ-ANDROID-1, fiche 58) : 1, il faut
+     * autoriser Glucose à installer des applications ; 2, Android demande la confirmation ;
+     * 3, l'installation a échoué, et `detail` dit pourquoi. Rust choisit les mots.
+     */
+    private static native void recevoirLInstallation(int etat, String detail);
+
+    /** L'action de l'intention par laquelle Android dit où en est l'installation. */
+    private static final String INSTALLATION = "com.glucose.app.INSTALLATION";
+
+    /** L'APK qui attend que l'utilisateur autorise Glucose à installer : il repart au retour. */
+    private String apkEnAttente;
 
     /** Les marges du système, en pixels : les barres et l'encoche, puis le clavier (BORD-1). */
     private static native void recevoirLesMarges(
@@ -79,6 +100,95 @@ public class MainActivity extends GameActivity {
                         .performHapticFeedback(HapticFeedbackConstants.LONG_PRESS));
     }
 
+    /**
+     * **Confie une mise à jour à Android** (MAJ-ANDROID-1, fiche 58) : l'APK est déjà vérifié
+     * par Rust — sa signature de Glucose — ; Android vérifie la sienne, celle de la clé de
+     * Glucose pour Android, puis demande à l'utilisateur et remplace Glucose. Appelé par Rust,
+     * du fil qui a téléchargé.
+     */
+    public void installerUnApk(String chemin) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && !getPackageManager().canRequestPackageInstalls()) {
+            // Une fois pour toutes : la page où l'utilisateur autorise Glucose. Au retour
+            // (`onResume`), l'installation repart.
+            apkEnAttente = chemin;
+            recevoirLInstallation(1, null);
+            runOnUiThread(() -> startActivity(new Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + getPackageName()))));
+            return;
+        }
+        new Thread(() -> confier(chemin), "installation").start();
+    }
+
+    /** Écrit l'APK dans une session de `PackageInstaller`, et la remet au système. */
+    private void confier(String chemin) {
+        try {
+            PackageInstaller installeur = getPackageManager().getPackageInstaller();
+            PackageInstaller.SessionParams reglages =
+                    new PackageInstaller.SessionParams(
+                            PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+            reglages.setAppPackageName(getPackageName());
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Sans confirmation là où Android le permet (12 et après) : une application
+                // qui se met à jour elle-même, et le déclare (le manifeste). L'accord est déjà
+                // donné, à la question de Glucose. Sinon, Android demande.
+                reglages.setRequireUserAction(
+                        PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+            }
+            int numero = installeur.createSession(reglages);
+            File apk = new File(chemin);
+            try (PackageInstaller.Session session = installeur.openSession(numero)) {
+                try (InputStream lu = new FileInputStream(apk);
+                        OutputStream ecrit = session.openWrite("glucose.apk", 0, apk.length())) {
+                    byte[] tampon = new byte[1 << 16];
+                    int n;
+                    while ((n = lu.read(tampon)) > 0) {
+                        ecrit.write(tampon, 0, n);
+                    }
+                    session.fsync(ecrit);
+                }
+                Intent retour = new Intent(this, MainActivity.class).setAction(INSTALLATION);
+                int drapeaux = PendingIntent.FLAG_UPDATE_CURRENT;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    // Le système écrit l'état dans l'intention : elle doit pouvoir changer.
+                    drapeaux |= PendingIntent.FLAG_MUTABLE;
+                }
+                PendingIntent suite = PendingIntent.getActivity(this, 0, retour, drapeaux);
+                session.commit(suite.getIntentSender());
+            }
+        } catch (Exception e) {
+            recevoirLInstallation(3, e.toString());
+        }
+    }
+
+    /** Ce qu'Android dit de l'installation : demander, ou dire pourquoi elle a échoué. */
+    private void suivreLInstallation(Intent intention) {
+        int etat = intention.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+        if (etat == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            Intent demande = IntentCompat.getParcelableExtra(intention, Intent.EXTRA_INTENT, Intent.class);
+            if (demande != null) {
+                recevoirLInstallation(2, null);
+                startActivity(demande);
+            }
+        } else if (etat != PackageInstaller.STATUS_SUCCESS) {
+            recevoirLInstallation(3, intention.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
+        }
+    }
+
+    /** De retour de la page qui autorise Glucose à installer : l'APK en attente repart. */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (apkEnAttente != null
+                && (Build.VERSION.SDK_INT < Build.VERSION_CODES.O
+                        || getPackageManager().canRequestPackageInstalls())) {
+            String chemin = apkEnAttente;
+            apkEnAttente = null;
+            new Thread(() -> confier(chemin), "installation").start();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle etat) {
         // **Bord à bord, partout** (BORD-1, fiche 57) : Android 15 et 16 l'imposent à la cible
@@ -114,6 +224,10 @@ public class MainActivity extends GameActivity {
     @Override
     protected void onNewIntent(Intent intention) {
         super.onNewIntent(intention);
+        if (INSTALLATION.equals(intention.getAction())) {
+            suivreLInstallation(intention);
+            return;
+        }
         setIntent(intention);
         recevoir(intention);
     }

@@ -10,6 +10,9 @@
 //!   est remplacé d'un bloc — exécutable avant de prendre sa place.
 //! * **`.deb`, `.rpm`** : l'exécutable appartient à un paquet du système (`dpkg-query -S`,
 //!   `rpm -qf`) ; le nouveau paquet s'installe par `pkexec`, comme chez Tauri.
+//! * **APK** (fiche 58, MAJ-ANDROID-1) : sous Android, toute installation est un APK, et
+//!   « poser » l'APK, c'est le **confier à l'installeur du système**
+//!   ([`crate::plateforme::installation`]) — qui remplace Glucose lui-même. Rien à relancer.
 //!
 //! Un Glucose installé autrement — par NixOS, qui le met à jour lui-même ; lancé par `cargo run`
 //! — n'a pas d'installation : il ne se propose aucune mise à jour qu'il ne saurait pas poser.
@@ -30,11 +33,16 @@ pub enum Installation {
     Deb(PathBuf),
     /// Linux : un paquet RPM ; l'exécutable à relancer.
     Rpm(PathBuf),
+    /// Android : un APK, que le système installe à la place de Glucose.
+    Apk,
 }
 
 impl Installation {
     /// **L'installation de ce programme**, ou rien s'il ne sait pas se remplacer.
     pub fn de_ce_programme() -> Option<Self> {
+        if cfg!(target_os = "android") {
+            return Some(Self::Apk);
+        }
         if cfg!(windows) {
             return Self::de_windows(&std::env::current_exe().ok()?);
         }
@@ -82,6 +90,7 @@ impl Installation {
             Self::AppImage(_) => "appimage",
             Self::Deb(_) => "deb",
             Self::Rpm(_) => "rpm",
+            Self::Apk => "apk",
         }
     }
 
@@ -92,6 +101,7 @@ impl Installation {
             Self::AppImage(_) => ".AppImage",
             Self::Deb(_) => ".deb",
             Self::Rpm(_) => ".rpm",
+            Self::Apk => ".apk",
         }
     }
 
@@ -113,17 +123,20 @@ impl Installation {
             Self::AppImage(fichier) => poser_l_appimage(installeur, fichier),
             Self::Deb(_) => en_administrateur("dpkg", "-i", installeur),
             Self::Rpm(_) => en_administrateur("rpm", "-U", installeur),
+            Self::Apk => crate::plateforme::installation::confier(installeur),
         }
     }
 
     /// **Ce qui se lance quand Glucose se ferme** : l'installeur, qui relancera Glucose (les
     /// arguments de l'updater de Tauri) ; ou, sous Linux, Glucose lui-même, déjà remplacé.
-    pub fn relance(&self, installeur: &Path) -> (PathBuf, &'static [&'static str]) {
+    /// Sous Android, rien : le système a l'APK, et remplace Glucose quand il l'installe.
+    pub fn relance(&self, installeur: &Path) -> Option<(PathBuf, &'static [&'static str])> {
         match self {
-            Self::Nsis => (installeur.to_path_buf(), &["/P", "/R", "/UPDATE"]),
+            Self::Nsis => Some((installeur.to_path_buf(), &["/P", "/R", "/UPDATE"])),
             Self::AppImage(programme) | Self::Deb(programme) | Self::Rpm(programme) => {
-                (programme.clone(), &[])
+                Some((programme.clone(), &[]))
             }
+            Self::Apk => None,
         }
     }
 }
@@ -216,12 +229,44 @@ mod tests {
         let i = Path::new("Glucose_2.0.1_installeur.exe");
         assert_eq!(
             Installation::Nsis.relance(i),
-            (i.to_path_buf(), &["/P", "/R", "/UPDATE"][..])
+            Some((i.to_path_buf(), &["/P", "/R", "/UPDATE"][..]))
         );
         let programme = PathBuf::from("/usr/bin/glucose");
         assert_eq!(
             Installation::Deb(programme.clone()).relance(i),
-            (programme, &[][..])
+            Some((programme, &[][..]))
         );
+        assert_eq!(
+            Installation::Apk.relance(i),
+            None,
+            "Android remplace Glucose lui-même"
+        );
+    }
+
+    /// **Sous Android, l'APK et ses clés** (MAJ-ANDROID-1) : `android-aarch64-apk`, puis la
+    /// plateforme seule, comme le manifeste les écrit ; et sans installeur du système, poser
+    /// le dit au lieu de faire semblant.
+    #[test]
+    fn test_maj_android_1_l_apk_et_ses_cles() {
+        assert_eq!(
+            Installation::Apk.cles("android-aarch64"),
+            [
+                "android-aarch64-apk".to_string(),
+                "android-aarch64".to_string()
+            ]
+        );
+        assert_eq!(Installation::Apk.extension(), ".apk");
+        let manifeste = include_str!("../../../../outils/publication/manifeste.py");
+        for cle in [
+            "android-aarch64",
+            "android-aarch64-apk",
+            "android-armv7",
+            "android-armv7-apk",
+        ] {
+            assert!(
+                manifeste.contains(&format!("\"{cle}\": apk")),
+                "le manifeste écrit {cle}"
+            );
+        }
     }
 }

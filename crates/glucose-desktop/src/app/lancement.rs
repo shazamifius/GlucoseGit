@@ -55,6 +55,10 @@ impl GlucoseApp {
                 Nouvelle::Echec(e) => self.dire_la_mise_a_jour(format!("impossible : {e}")),
             }
         }
+        // Ce qu'Android dit de l'APK qu'on lui a confié (MAJ-ANDROID-1).
+        for etat in crate::plateforme::installation::relever() {
+            self.dire_la_mise_a_jour(etat.dire());
+        }
     }
 
     /// Une version plus récente existe : on la propose. « Plus tard » : elle sera reproposée
@@ -82,11 +86,23 @@ impl GlucoseApp {
     }
 
     /// L'installeur est vérifié et posé : le document se ferme — la question du travail non
-    /// enregistré, s'il en porte —, puis ce qui relance démarre.
+    /// enregistré, s'il en porte —, puis ce qui relance démarre. Sous Android, l'APK est déjà
+    /// chez le système, qui remplacera Glucose : rien ne se ferme — le document s'écrit geste
+    /// après geste, et ce qu'il tient part sur le disque tout de suite (MAJ-ANDROID-1).
     fn installer(&mut self, installeur: &Path) {
-        if self.lancement.mise_a_jour.is_some() {
+        let Some(veille) = &self.lancement.mise_a_jour else {
+            return;
+        };
+        if veille.installation().relance(installeur).is_some() {
             self.fermer_puis(Apres::Installer(installeur.to_path_buf()));
+            return;
         }
+        self.terminer_les_gestes_en_cours();
+        self.consigner();
+        if let Some(ecriture) = &self.disque.ecriture {
+            let _ = ecriture.synchroniser();
+        }
+        self.dire_la_mise_a_jour("Android l'installe à la place de ce Glucose".into());
     }
 
     /// Le document est fermé : la relance démarre — l'installeur, ou Glucose déjà remplacé —,
@@ -97,7 +113,7 @@ impl GlucoseApp {
             .lancement
             .mise_a_jour
             .as_ref()
-            .map(|v| v.installation().relance(installeur));
+            .and_then(|v| v.installation().relance(installeur));
         if let Some((programme, arguments)) = relance {
             if let Err(e) = cycle::lancer(&programme, arguments) {
                 eprintln!("[Glucose] mise à jour : {e}");
@@ -168,6 +184,7 @@ impl GlucoseApp {
         }
         let relance = cycle::preparer(&p, cycle::CLE, installeurs, installation)
             .and_then(|f| installation.poser(&f).map(|()| installation.relance(&f)))
+            .and_then(|relance| relance.ok_or_else(|| "rien à relancer".to_string()))
             .and_then(|(programme, arguments)| cycle::lancer(&programme, arguments));
         if let Err(e) = &relance {
             eprintln!("[Glucose] mise à jour avant tout : {e}");

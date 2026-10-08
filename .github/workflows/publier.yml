@@ -228,6 +228,18 @@ jobs:
           "$OUTIL/apksigner" verify --print-certs "$RUNNER_TEMP/publie/Glucose_${VERSION}_android.apk" | tee "$RUNNER_TEMP/certificat.txt"
           grep -q "SHA-256 digest: 3f2af005d850fdafb9868966124e234c5e02c32b3a4679e9beafd5310359fcad" "$RUNNER_TEMP/certificat.txt"
 
+      # Signé aussi de la clé de Glucose (MAJ-ANDROID-1, fiche 58) : Glucose ne confie au système
+      # que ce qu'il a vérifié, sous Android comme ailleurs ; Android vérifie ensuite la sienne.
+      # Le manifeste le relit par le code même de Glucose.
+      - name: Signer par la clé de Glucose
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          MOT_DE_PASSE: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::le secret TAURI_SIGNING_PRIVATE_KEY manque"; exit 1; }
+          cd "$RUNNER_TEMP/publie"
+          npx --yes "$SIGNATAIRE" signer sign --password "$MOT_DE_PASSE" "Glucose_${VERSION}_android.apk"
+
       - uses: actions/upload-artifact@v4
         with:
           name: android

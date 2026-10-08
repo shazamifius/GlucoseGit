@@ -2,16 +2,19 @@
 
 Usage : python outils/publication/manifeste.py <dossier> <version> <dépôt>
 
-<dossier> porte les quatre fichiers de la version et leurs signatures (.sig), comme le
+<dossier> porte les cinq fichiers de la version et leurs signatures (.sig), comme le
 signataire de Tauri les écrit :
     Glucose_<v>_x64-setup.exe    Glucose_<v>_amd64.AppImage
     Glucose_<v>_amd64.deb        Glucose-<v>-1.x86_64.rpm
+    Glucose_<v>_android.apk
 <dépôt> : propriétaire/nom, comme GitHub le donne (GITHUB_REPOSITORY).
 
 Les clés sont celles du latest.json de Glucose Tauri, que ses programmes de mise à jour lisent :
 celle de chaque forme d'installation (windows-x86_64-nsis, linux-x86_64-appimage, -deb, -rpm),
 puis celle de la plateforme seule, qui sert l'installeur NSIS et l'AppImage. Les adresses sont
-celles de la release v<version> de ce dépôt. Aucune entrée pour le Mac : Glucose Rust n'y a pas
+celles de la release v<version> de ce dépôt. Android (fiche 58) a les siennes, à la façon de
+Tauri : android-aarch64 et android-armv7, avec et sans « -apk » — un seul APK porte les deux
+processeurs. Aucune entrée pour le Mac : Glucose Rust n'y a pas
 encore de paquet, et un Mac qui ne trouve pas sa clé ne se voit rien proposer.
 
 Rien d'autre que la version et les plateformes : l'updater de Tauri lit ce fichier d'un bloc, et
@@ -41,6 +44,7 @@ def main():
 
     nsis = entree(f"Glucose_{version}_x64-setup.exe")
     appimage = entree(f"Glucose_{version}_amd64.AppImage")
+    apk = entree(f"Glucose_{version}_android.apk")
     manifeste = {
         "version": version,
         "platforms": {
@@ -50,6 +54,10 @@ def main():
             "linux-x86_64-appimage": appimage,
             "linux-x86_64-deb": entree(f"Glucose_{version}_amd64.deb"),
             "linux-x86_64-rpm": entree(f"Glucose-{version}-1.x86_64.rpm"),
+            "android-aarch64": apk,
+            "android-aarch64-apk": apk,
+            "android-armv7": apk,
+            "android-armv7-apk": apk,
         },
     }
     sortie = os.path.join(dossier, "latest.json")

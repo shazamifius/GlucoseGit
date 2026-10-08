@@ -26,6 +26,7 @@ pub mod empreinte;
 pub mod graphique;
 pub mod heure;
 pub mod identite;
+pub mod installation;
 pub mod journal;
 pub mod marges;
 pub mod moisson;

@@ -65,6 +65,11 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     crate::plateforme::marges::brancher(std::sync::Arc::new(move || {
         let _ = proxy.send_event(());
     }));
+    // Et quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).
+    let proxy = event_loop.create_proxy();
+    crate::plateforme::installation::brancher(std::sync::Arc::new(move || {
+        let _ = proxy.send_event(());
+    }));
     if let Some(installation) = installation {
         let proxy = event_loop.create_proxy();
         let reveil: crate::plateforme::Reveil = std::sync::Arc::new(move || {

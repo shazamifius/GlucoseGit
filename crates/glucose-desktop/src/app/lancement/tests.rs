@@ -61,3 +61,21 @@ fn test_popup_1_prete_elle_ferme_la_fenetre() {
         "la relance partie, la fenêtre part"
     );
 }
+
+/// **Ce qu'Android dit de l'APK devient la voix de la mise à jour** (MAJ-ANDROID-1) : la
+/// boucle relève la boîte aux lettres, et chaque état se dit en message.
+#[test]
+fn test_maj_android_1_ce_qu_android_dit_se_dit() {
+    use crate::plateforme::installation::{recevoir, relever, tests::a_moi, Etat};
+    let _tour = a_moi();
+    let _ = relever();
+    let mut app = GlucoseApp::new();
+    recevoir(Etat::Echec("INSTALL_FAILED_UPDATE_INCOMPATIBLE".into()));
+    app.suivre_la_mise_a_jour();
+    let toast = app.ui.current_toast.as_ref().expect("elle le dit");
+    assert!(toast
+        .message
+        .starts_with("Mise à jour : Android ne l'a pas installée"));
+    assert!(toast.message.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE"));
+    assert!(relever().is_empty(), "relevé une fois");
+}

@@ -15,6 +15,7 @@ use winit::platform::android::EventLoopBuilderExtAndroid;
 fn android_main(app: AndroidApp) {
     journal::rediriger_la_sortie();
     selecteur::brancher(&app);
+    installation::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
     glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
         java::Activite::de(&app),
@@ -141,6 +142,49 @@ mod selecteur {
     }
 }
 
+/// **La mise à jour confiée à Android** (MAJ-ANDROID-1, fiche 58) : l'APK vérifié par la clé de
+/// Glucose part à `MainActivity.installerUnApk` ; ce qu'Android en dit revient par
+/// `recevoirLInstallation`, et Glucose le dit dans ses mots.
+mod installation {
+    use glucose_desktop::plateforme::installation::{installer_le_confieur, recevoir, Etat};
+    use jni::objects::{JClass, JString};
+    use jni::sys::jint;
+    use jni::EnvUnowned;
+    use winit::platform::android::activity::AndroidApp;
+
+    pub fn brancher(app: &AndroidApp) {
+        let activite = super::java::Activite::de(app);
+        installer_le_confieur(std::sync::Arc::new(move |apk| {
+            let chemin = apk.to_string_lossy();
+            activite.appeler_avec(jni::jni_str!("installerUnApk"), &chemin, "mise a jour");
+        }));
+    }
+
+    /// `MainActivity.recevoirLInstallation` : 1, autoriser ; 2, confirmer ; sinon, l'échec.
+    #[no_mangle]
+    pub extern "system" fn Java_com_glucose_app_MainActivity_recevoirLInstallation<'l>(
+        mut env: EnvUnowned<'l>,
+        _classe: JClass<'l>,
+        etat: jint,
+        detail: JString<'l>,
+    ) {
+        let detail = env
+            .with_env(|env| -> jni::errors::Result<Option<String>> {
+                if detail.is_null() {
+                    Ok(None)
+                } else {
+                    detail.try_to_string(env).map(Some)
+                }
+            })
+            .resolve::<jni::errors::LogErrorAndDefault>();
+        recevoir(match etat {
+            1 => Etat::Autoriser,
+            2 => Etat::Confirmer,
+            _ => Etat::Echec(detail.unwrap_or_else(|| "sans raison donnée".into())),
+        });
+    }
+}
+
 /// **Les marges du système** (BORD-1, fiche 57) : ce que `MainActivity.onApplyWindowInsets`
 /// voit, en pixels de la fenêtre — sur le fil de l'interface d'Android, qui n'attend pas.
 mod marges {
@@ -230,6 +274,28 @@ mod java {
                     // tant qu'elle vit ; `JObject` ne la libère pas en partant.
                     let activite = unsafe { JObject::from_raw(env, self.0 as jni::sys::jobject) };
                     env.call_method(&activite, methode, jni::jni_sig!("()V"), &[])?;
+                    Ok(())
+                },
+                quoi,
+            );
+        }
+    }
+
+    impl Activite {
+        /// Appelle une méthode `(String)V` de `MainActivity`, avec cette chaîne.
+        pub fn appeler_avec(self, methode: &'static JNIStr, chaine: &str, quoi: &str) {
+            sur_le_fil(
+                |env| {
+                    // SAFETY : comme dans `appeler`, la référence globale qu'`android-activity`
+                    // garde à l'activité tant qu'elle vit.
+                    let activite = unsafe { JObject::from_raw(env, self.0 as jni::sys::jobject) };
+                    let texte = env.new_string(chaine)?;
+                    env.call_method(
+                        &activite,
+                        methode,
+                        jni::jni_sig!("(Ljava/lang/String;)V"),
+                        &[jni::JValue::from(&texte)],
+                    )?;
                     Ok(())
                 },
                 quoi,

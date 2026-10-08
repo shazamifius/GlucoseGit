@@ -155,7 +155,7 @@ fn signatures(fichiers: &[&str]) -> Result<(), String> {
 /// Les formes d'installation de chaque plateforme, dans l'ordre de Tauri. La première est aussi
 /// ce que sert la clé de la plateforme seule — l'installeur NSIS, l'AppImage qui marche sur tout
 /// Linux —, pour un programme de mise à jour qui ne sait pas comment il est installé.
-fn formes() -> [(String, Vec<Installation>); 2] {
+fn formes() -> [(String, Vec<Installation>); 4] {
     [
         (plateforme_de("windows", "x86_64"), vec![Installation::Nsis]),
         (
@@ -166,6 +166,9 @@ fn formes() -> [(String, Vec<Installation>); 2] {
                 Installation::Rpm(PathBuf::new()),
             ],
         ),
+        // Un seul APK porte les deux processeurs des téléphones (MAJ-ANDROID-1, fiche 58).
+        (plateforme_de("android", "aarch64"), vec![Installation::Apk]),
+        (plateforme_de("android", "arm"), vec![Installation::Apk]),
     ]
 }
 
