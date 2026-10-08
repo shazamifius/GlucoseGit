@@ -26,9 +26,9 @@ use std::path::Path;
 impl GlucoseApp {
     /// Le geste du menu : choisir un document, puis l'ajouter.
     pub(crate) fn choisir_un_document_a_ajouter(&mut self) {
-        if let Some(chemin) = self.sous_un_dialogue(super::commands::pick_open_path) {
-            self.ajouter_un_document(&chemin);
-        }
+        let demande = super::choix::Demande::AjouterUnDocument;
+        let fichier = super::commands::un_document();
+        self.demander_un_fichier(fichier, crate::dialogue::Mode::Un, demande);
     }
 
     /// **Ajoute ce document dans de nouveaux onglets**, en un geste, et le dit.

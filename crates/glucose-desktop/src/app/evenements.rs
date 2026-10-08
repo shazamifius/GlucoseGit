@@ -213,6 +213,8 @@ impl GlucoseApp {
         self.suivre_le_clavier();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
         self.suivre_la_mise_a_jour();
+        // Ce que les sélecteurs de fichiers ont rendu (DIAL-2).
+        self.suivre_les_fichiers_choisis();
 
         self.chronique
             .entracte

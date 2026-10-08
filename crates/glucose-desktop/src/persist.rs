@@ -24,6 +24,7 @@
 
 pub mod ajout;
 pub mod atomic;
+pub mod choix;
 pub mod close;
 pub mod commands;
 pub mod disque;

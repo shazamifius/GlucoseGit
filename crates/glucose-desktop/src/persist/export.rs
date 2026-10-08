@@ -93,23 +93,26 @@ pub fn destination(choisi: PathBuf) -> (PathBuf, Format) {
     }
 }
 
-fn choisir_la_sortie(ancre: crate::dialogue::Ancre<'_>, nom: &str) -> Option<PathBuf> {
-    let mut dialogue = crate::dialogue::fichier(ancre);
+/// Le sélecteur qui demande où exporter, chaque format en filtre.
+fn la_sortie(nom: &str) -> crate::dialogue::Fichier {
+    let mut dialogue = crate::dialogue::fichier();
     for format in Format::TOUS {
         dialogue = dialogue.filtre(format.nom(), &[format.extension()]);
     }
-    dialogue
-        .nom(format!("{nom}.{}", Format::TOUS[0].extension()))
-        .enregistrer()
+    dialogue.nom(format!("{nom}.{}", Format::TOUS[0].extension()))
 }
 
 impl GlucoseApp {
-    /// Exporte le tableau courant : demande un nom, écrit, et dit ce qui a été écrit.
+    /// Exporte le tableau courant : demande un nom ; le choix revenu, écrit, et dit ce qui a
+    /// été écrit ([`Self::exporter_vers`]).
     pub fn export_board(&mut self) {
-        let nom = self.document_label();
-        let Some(choisi) = self.sous_un_dialogue(|ancre| choisir_la_sortie(ancre, &nom)) else {
-            return;
-        };
+        let sortie = la_sortie(&self.document_label());
+        let demande = super::choix::Demande::Exporter;
+        self.demander_un_fichier(sortie, crate::dialogue::Mode::Enregistrer, demande);
+    }
+
+    /// Le choix revenu : le tableau s'écrit là, au format que son nom dit.
+    pub(crate) fn exporter_vers(&mut self, choisi: PathBuf) {
         let (chemin, format) = destination(choisi);
         let message = match self.try_export(&chemin, format) {
             Ok(octets) => format!(

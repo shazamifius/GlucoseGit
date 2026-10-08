@@ -50,15 +50,11 @@ impl GlucoseApp {
             eprintln!("[Glucose] images : aucun selecteur de photos n'est branche");
         }
         #[cfg(not(target_os = "android"))]
-        let choisis = self.sous_un_dialogue(|fenetre| {
-            crate::dialogue::fichier(fenetre)
-                .filtre("Images", &IMAGE_EXTENSIONS)
-                .choisir_plusieurs()
-        });
-        #[cfg(not(target_os = "android"))]
-        if let Some(files) = choisis {
-            self.import_image_files(&files);
-        }
+        self.demander_un_fichier(
+            crate::dialogue::fichier().filtre("Images", &IMAGE_EXTENSIONS),
+            crate::dialogue::Mode::Plusieurs,
+            crate::persist::choix::Demande::ImporterDesImages,
+        );
     }
 
     /// Importe une liste de chemins de fichiers image dans le board actif.

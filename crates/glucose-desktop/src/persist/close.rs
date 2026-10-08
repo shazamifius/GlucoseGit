@@ -55,6 +55,16 @@ pub enum Apres {
     Installer(PathBuf),
 }
 
+/// **Ce qui suit un enregistrement** qu'une question a demandé : rien (`Ctrl+S`), fermer, ou
+/// laisser le document pour un autre. Un travail sans nom choisit d'abord où s'écrire — un
+/// sélecteur qui ne tient plus la boucle (DIAL-2) : la suite attend son choix.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Puis {
+    Rien,
+    Fermer(Apres),
+    Laisser(Ensuite),
+}
+
 /// **Ce qu'on ouvre à la place du document qu'on quitte** (BROUILLON-1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ensuite {
@@ -99,10 +109,31 @@ impl GlucoseApp {
         self.apres_la_fermeture(ferme, apres);
     }
 
-    /// La réponse à la question de la fermeture.
+    /// La réponse à la question de la fermeture. « Enregistrer » sur un travail sans nom
+    /// choisit d'abord où : la fermeture attend ce choix ([`Self::apres_l_enregistrement`]).
     pub(crate) fn repondre_a_la_fermeture(&mut self, reponse: Reponse, apres: Apres) {
+        if reponse == Reponse::Oui && self.project_path.is_none() {
+            self.enregistrer_puis(Puis::Fermer(apres));
+            return;
+        }
         let ferme = self.close_with(CloseChoice::de(reponse));
         self.apres_la_fermeture(ferme, apres);
+    }
+
+    /// **L'enregistrement fait, ce qui suit** — si le document est écrit. Sinon, rien ne part :
+    /// l'échec s'est dit, et le travail reste où il est (SAVE-3) ; une mise à jour qui
+    /// attendait est reportée.
+    pub(crate) fn apres_l_enregistrement(&mut self, puis: Puis) {
+        let ecrit = !self.is_dirty();
+        match puis {
+            Puis::Rien => {}
+            Puis::Fermer(apres) => {
+                let ferme = ecrit && self.fermer_le_document();
+                self.apres_la_fermeture(ferme, apres);
+            }
+            Puis::Laisser(ensuite) if ecrit => self.poursuivre(ensuite),
+            Puis::Laisser(_) => {}
+        }
     }
 
     /// Le document fermé — ou non : rien ne part, et une mise à jour le dit.
@@ -167,8 +198,13 @@ impl GlucoseApp {
         }
     }
 
-    /// La réponse à la question du départ : le document laissé, `ensuite` part.
+    /// La réponse à la question du départ : le document laissé, `ensuite` part — après le
+    /// choix de l'endroit, pour un travail sans nom qu'on enregistre.
     pub(crate) fn repondre_au_depart(&mut self, reponse: Reponse, ensuite: Ensuite) {
+        if reponse == Reponse::Oui && self.project_path.is_none() {
+            self.enregistrer_puis(Puis::Laisser(ensuite));
+            return;
+        }
         if self.laisser_avec(CloseChoice::de(reponse)) {
             self.poursuivre(ensuite);
         }

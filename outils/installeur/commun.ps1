@@ -95,7 +95,7 @@ function PlanterSesDonnees {
     $empreintes = PlanterTout @(
         "$donnees\brouillons\brouillon-essai.glucose",
         "$donnees\brouillons\recuperation\essai-0-1.fin",
-        "$donnees\boite-noire\session-essai.jsonl",
+        "$donnees\journal-technique\session-essai.jsonl",
         "$donnees\apercus\v2\essai.apercu",
         "$donnees\dernier-document.txt",
         "$magasin\assets\essai.png",

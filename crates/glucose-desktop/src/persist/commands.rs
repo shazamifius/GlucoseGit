@@ -7,9 +7,7 @@
 
 use super::import::message_d_import;
 use super::objets::Source;
-use super::{
-    human_size, now_millis, with_glucose_extension, SaveReport, APP_TITLE, DIRTY_MARK, UNTITLED,
-};
+use super::{human_size, now_millis, SaveReport, APP_TITLE, DIRTY_MARK, UNTITLED};
 use crate::app::GlucoseApp;
 use crate::error::{DesktopError, DesktopResult};
 use glucose_core::persist::histoire::{self, Genre};
@@ -20,18 +18,16 @@ use std::path::{Path, PathBuf};
 
 // ── Dialogues ───────────────────────────────────────────────────────────────
 
-fn pick_save_path(ancre: crate::dialogue::Ancre<'_>, suggested: &str) -> Option<PathBuf> {
-    crate::dialogue::fichier(ancre)
+/// Le sélecteur qui demande où enregistrer un document, en proposant ce nom.
+fn ou_enregistrer(suggere: &str) -> crate::dialogue::Fichier {
+    crate::dialogue::fichier()
         .filtre("Projet Glucose", &[FILE_EXTENSION])
-        .nom(format!("{suggested}.{FILE_EXTENSION}"))
-        .enregistrer()
-        .map(with_glucose_extension)
+        .nom(format!("{suggere}.{FILE_EXTENSION}"))
 }
 
-pub(super) fn pick_open_path(ancre: crate::dialogue::Ancre<'_>) -> Option<PathBuf> {
-    crate::dialogue::fichier(ancre)
-        .filtre("Projet Glucose", &[FILE_EXTENSION])
-        .choisir()
+/// Le sélecteur qui choisit un document à ouvrir.
+pub(super) fn un_document() -> crate::dialogue::Fichier {
+    crate::dialogue::fichier().filtre("Projet Glucose", &[FILE_EXTENSION])
 }
 
 // ── Commandes de l'application ──────────────────────────────────────────────
@@ -123,33 +119,38 @@ impl GlucoseApp {
 
     /// Enregistre, en demandant un chemin si le projet n'en a pas encore.
     pub fn save_project(&mut self) {
-        let target = match self.project_path.clone() {
-            Some(path) => Some(path),
-            None => {
-                let suggere = self.document_label();
-                self.sous_un_dialogue(|fenetre| pick_save_path(fenetre, &suggere))
+        self.enregistrer_puis(super::close::Puis::Rien);
+    }
+
+    /// **Enregistre, puis ce qui suit** : tout de suite s'il a un chemin ; sinon, le sélecteur
+    /// demande où, et la suite attend son choix (DIAL-2).
+    pub(crate) fn enregistrer_puis(&mut self, puis: super::close::Puis) {
+        match self.project_path.clone() {
+            Some(path) => {
+                self.save_to(path);
+                self.apres_l_enregistrement(puis);
             }
-        };
-        if let Some(path) = target {
-            self.save_to(path);
+            None => self.enregistrer_sous_puis(puis),
         }
     }
 
     /// Enregistre sous un nouveau chemin, qui devient celui du projet.
     pub fn save_project_as(&mut self) {
-        let suggere = self.document_label();
-        if let Some(path) = self.sous_un_dialogue(|fenetre| pick_save_path(fenetre, &suggere)) {
-            self.save_to(path);
-        }
+        self.enregistrer_sous_puis(super::close::Puis::Rien);
+    }
+
+    fn enregistrer_sous_puis(&mut self, puis: super::close::Puis) {
+        let sous = ou_enregistrer(&self.document_label());
+        let demande = super::choix::Demande::Enregistrer(puis);
+        self.demander_un_fichier(sous, crate::dialogue::Mode::Enregistrer, demande);
     }
 
     /// Ouvre un projet, en remplaçant le document courant — après avoir demandé ce que devient
     /// le travail sans nom qu'on quitte (BROUILLON-1). Le fichier se choisit d'abord : renoncer
     /// au choix ne change rien.
     pub fn open_project(&mut self) {
-        if let Some(path) = self.sous_un_dialogue(pick_open_path) {
-            self.laisser_puis(super::close::Ensuite::Ouvrir(path));
-        }
+        let demande = super::choix::Demande::Ouvrir;
+        self.demander_un_fichier(un_document(), crate::dialogue::Mode::Un, demande);
     }
 
     /// Le chemin est connu : enregistrer, confirmer ou dire pourquoi ça a échoué.

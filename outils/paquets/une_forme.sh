@@ -61,7 +61,7 @@ MAGASIN="${XDG_DATA_HOME:-$HOME/.local/share}/com.glucose.app"
 PLANTES=(
   "$DONNEES/brouillons/brouillon-essai.glucose"
   "$DONNEES/brouillons/recuperation/essai-0-1.fin"
-  "$DONNEES/boite-noire/session-essai.jsonl"
+  "$DONNEES/journal-technique/session-essai.jsonl"
   "$DONNEES/apercus/v2/essai.apercu"
   "$DONNEES/dernier-document.txt"
   "$MAGASIN/assets/essai.png"

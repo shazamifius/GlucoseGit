@@ -200,3 +200,21 @@ fn test_le_lisez_moi_dit_chaque_champ_de_chaque_ligne() {
     assert_eq!(sortes.len(), 9, "les neuf sortes de lignes : {sortes:?}");
     assert_eq!(sections.len(), 9, "et pas une section de plus");
 }
+
+/// **Les répétitions de la bascule plantent leur témoin dans le dossier de Glucose** : le
+/// renommage l'avait laissé dans l'ancien, que la migration rangeait — la CI l'a vu tomber.
+#[test]
+fn test_les_repetitions_plantent_dans_le_dossier_du_journal() {
+    let windows = include_str!("../../../../../outils/installeur/commun.ps1");
+    let linux = include_str!("../../../../../outils/paquets/une_forme.sh");
+    for (nom, script) in [("commun.ps1", windows), ("une_forme.sh", linux)] {
+        assert!(
+            script.contains(DOSSIER),
+            "{nom} ne plante rien dans {DOSSIER}"
+        );
+        assert!(
+            !script.contains(ANCIEN_DOSSIER),
+            "{nom} plante encore dans l'ancien dossier"
+        );
+    }
+}

@@ -65,6 +65,11 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     crate::plateforme::marges::brancher(std::sync::Arc::new(move || {
         let _ = proxy.send_event(());
     }));
+    // Et quand un sélecteur de fichiers rend son choix (DIAL-2).
+    let proxy = event_loop.create_proxy();
+    crate::dialogue::brancher(std::sync::Arc::new(move || {
+        let _ = proxy.send_event(());
+    }));
     // Et quand Android dit où en est la mise à jour qu'on lui a confiée (MAJ-ANDROID-1).
     let proxy = event_loop.create_proxy();
     crate::plateforme::installation::brancher(std::sync::Arc::new(move || {

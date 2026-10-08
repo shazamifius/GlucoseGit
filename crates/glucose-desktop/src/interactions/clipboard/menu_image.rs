@@ -126,16 +126,42 @@ impl GlucoseApp {
         self.mark_dirty();
     }
 
-    /// **Enregistrer l'image sous…** : demande où, puis écrit ses octets d'origine, et dit ce
-    /// qui a eu lieu — une seule phrase pour les deux issues.
+    /// **Enregistrer l'image sous…** : demande où ; le choix revenu, ses octets d'origine
+    /// s'écrivent ([`Self::ecrire_l_image_choisie`]), et ce qui a eu lieu se dit — une seule
+    /// phrase pour toutes les issues.
     pub(crate) fn enregistrer_l_image_sous(&mut self) {
-        if let Some(message) = self.demander_et_enregistrer() {
-            self.ui.show_toast(message);
+        if let Some(message) = self.demander_ou_enregistrer_l_image() {
+            self.dire_l_image(message);
         }
     }
 
-    /// Rend ce qu'il faut dire, ou `None` si l'on a renoncé.
-    fn demander_et_enregistrer(&mut self) -> Option<String> {
+    /// Le choix revenu : les octets s'écrivent à ce chemin, sous leur extension s'il n'en a pas.
+    pub(crate) fn ecrire_l_image_choisie(
+        &mut self,
+        mut chemin: std::path::PathBuf,
+        octets: &[u8],
+        extension: &'static str,
+    ) {
+        if chemin.extension().is_none() {
+            chemin.set_extension(extension);
+        }
+        let message = match ecrire_l_image(&chemin, octets) {
+            Ok(()) => format!(
+                "Image enregistrée — {}",
+                chemin.file_name().and_then(|n| n.to_str()).unwrap_or("")
+            ),
+            Err(e) => e,
+        };
+        self.dire_l_image(message);
+    }
+
+    /// La seule voix de l'image enregistrée.
+    fn dire_l_image(&mut self, message: String) {
+        self.ui.show_toast(message);
+    }
+
+    /// Ouvre le sélecteur, ou rend ce qu'il faut dire tout de suite.
+    fn demander_ou_enregistrer_l_image(&mut self) -> Option<String> {
         let image = self.image_seule_choisie()?;
         let Some(octets) = image
             .src
@@ -154,23 +180,12 @@ impl GlucoseApp {
             .and_then(|s| s.to_str())
             .unwrap_or("image")
             .to_string();
-        let choisi = self.sous_un_dialogue(|ancre| {
-            crate::dialogue::fichier(ancre)
-                .filtre(nom, &[extension])
-                .nom(format!("{base}.{extension}"))
-                .enregistrer()
-        });
-        let mut chemin = choisi?;
-        if chemin.extension().is_none() {
-            chemin.set_extension(extension);
-        }
-        Some(match ecrire_l_image(&chemin, &octets) {
-            Ok(()) => format!(
-                "Image enregistrée — {}",
-                chemin.file_name().and_then(|n| n.to_str()).unwrap_or("")
-            ),
-            Err(e) => e,
-        })
+        let fichier = crate::dialogue::fichier()
+            .filtre(nom, &[extension])
+            .nom(format!("{base}.{extension}"));
+        let demande = crate::persist::choix::Demande::EnregistrerLImage(octets, extension);
+        self.demander_un_fichier(fichier, crate::dialogue::Mode::Enregistrer, demande);
+        None
     }
 }
 

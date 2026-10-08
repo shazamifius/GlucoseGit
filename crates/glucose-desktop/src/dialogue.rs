@@ -6,32 +6,19 @@
 //!
 //! Un dialogue natif ouvert **sans parent** n'appartient à aucune fenêtre. Sur Windows, le
 //! gestionnaire est alors libre de le placer où il veut dans l'ordre d'empilement, et il le
-//! place volontiers **derrière** la fenêtre principale — qui, elle, attend la réponse sans
-//! rien afficher.
+//! place volontiers **derrière** la fenêtre principale. Vu de l'utilisateur, l'application
+//! est figée : la croix ne fait rien, aucun bouton ne répond. Un sélecteur ancré s'affiche
+//! devant son parent, le tient à l'écart des clics, et se ferme avec lui.
 //!
-//! Vu de l'utilisateur, l'application est figée : la croix ne fait rien, aucun bouton ne
-//! répond, et il ne reste qu'à tuer le processus depuis le gestionnaire des tâches. Le
-//! symptôme ne ressemble en rien à sa cause, ce qui est le propre de ce défaut : aucun test
-//! ne le voit, aucun journal ne le dit, et le programme fait exactement ce qu'on lui a
-//! demandé.
+//! # Invariant DIAL-2 — aucun dialogue ne tient la boucle (fiche 58)
 //!
-//! Le remède est d'une ligne par dialogue, et il vaut pour **tous** : l'ouverture,
-//! l'enregistrement, l'export et l'import d'images. Un dialogue ancré s'affiche devant son
-//! parent, le bloque proprement, et se ferme avec lui.
-//!
-//! # Invariant DIAL-2 — un dialogue passe toujours par [`GlucoseApp::sous_un_dialogue`]
-//!
-//! Un dialogue natif bloque la boucle dans le gestionnaire qui l'a ouvert, le temps que
-//! l'utilisateur réponde — dix-neuf secondes sur une session réelle, à choisir un fichier.
-//! Pendant ce temps il regarde le dialogue, pas le canevas : l'intervalle n'est ni un gel ni
-//! un mouvement, et rien de ce qui précède ne décrit ce que l'œil verra ensuite. Sans le
-//! dire, la chronique lisait « le pire gel : 19 836 ms à la 21,2e seconde » — vrai, et sans
-//! aucun intérêt, pendant que ce chiffre cachait le vrai pire gel de la session.
-//!
-//! L'horloge, le rythme et le tempo repartent donc de la prochaine présentation. Et ce n'est
-//! pas une convention : c'est le type [`Ancre`] qui le tient. Le sélecteur de fichiers
-//! l'exige, et seule `sous_un_dialogue` sait le construire. Un sélecteur ouvert ailleurs ne
-//! compile pas.
+//! Un sélecteur ouvert sur le fil de Glucose tient sa boucle le temps que l'utilisateur
+//! choisisse — dix-neuf secondes sur une session réelle : la fenêtre ne se repeint plus, et la
+//! chronique lisait un « gel » qui n'en était pas un. Le sélecteur s'ouvre donc **sur un fil à
+//! lui** ([`GlucoseApp::demander_un_fichier`]) — la voie asynchrone de `rfd`, attendue par
+//! `pollster` —, Glucose continue de se dessiner, et le choix revient par une boîte aux
+//! lettres, avec ce qu'il doit déclencher ([`crate::persist::choix::Demande`]). Un seul
+//! sélecteur à la fois : un second, demandé pendant que le premier est ouvert, ne s'ouvre pas.
 //!
 //! # Invariant DIAL-4 — `rfd` ne sort jamais d'ici
 //!
@@ -50,31 +37,9 @@
 //! seul [`GlucoseApp::sans_fenetre`] construit, et seulement quand il n'y a pas de fenêtre.
 
 use crate::app::GlucoseApp;
-use winit::window::Window;
-
-/// La fenêtre à laquelle un dialogue s'accroche — et la preuve qu'il s'ouvre sous
-/// [`GlucoseApp::sous_un_dialogue`], puisque rien d'autre ne sait construire ce type.
-///
-/// `None` n'arrive qu'avant que la fenêtre existe — au tout début, ou en test. Le dialogue
-/// s'ouvre alors sans parent, ce qui est le seul comportement possible et ne bloque personne,
-/// puisqu'il n'y a pas encore de fenêtre à bloquer.
-pub struct Ancre<'a>(Option<&'a Window>);
-
-impl GlucoseApp {
-    /// Ouvre un dialogue natif, et dit ensuite à la boucle qu'elle a été tenue (DIAL-2).
-    ///
-    /// La fenêtre est clonée avant l'appel : le dialogue s'y accroche (DIAL-1) et ce qui suit
-    /// a besoin de `self` en écriture.
-    pub fn sous_un_dialogue<T>(&mut self, ouvrir: impl FnOnce(Ancre<'_>) -> T) -> T {
-        let fenetre = self.window.clone();
-        let reponse = ouvrir(Ancre(fenetre.as_deref()));
-        self.horloge.oublier();
-        self.chronique.rythme.oublier();
-        self.chronique.entracte.oublier();
-        self.tempo.oublier();
-        reponse
-    }
-}
+use crate::persist::choix::Demande;
+use std::path::PathBuf;
+use std::sync::{Mutex, PoisonError};
 
 /// **La preuve que Glucose n'a pas de fenêtre** (DIAL-5) : rien d'autre que
 /// [`GlucoseApp::sans_fenetre`] ne sait la construire.
@@ -89,7 +54,7 @@ impl GlucoseApp {
 
 /// **Une question oui / non par le système**, là seulement où Glucose n'a pas de fenêtre où la
 /// dessiner (DIAL-5) : `true` pour oui. Sous Android, rien ne se demande ainsi : « non », la
-/// mise à jour n'y existe pas encore.
+/// mise à jour n'y passe pas par ici.
 ///
 /// # DIAL-3 — une épreuve n'ouvre jamais de vraie boîte
 ///
@@ -124,24 +89,25 @@ pub fn oui_ou_non(sans_fenetre: SansFenetre, titre: &str, question: &str) -> boo
     }
 }
 
-/// **Un sélecteur de fichier**, accroché à la fenêtre (DIAL-1) : ses filtres, le nom qu'il
-/// propose, puis ce qu'on lui demande — choisir un fichier, plusieurs, ou où enregistrer.
-pub struct Fichier<'a> {
-    ancre: Ancre<'a>,
+/// Ce qu'on demande au sélecteur.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    /// Un fichier à ouvrir.
+    Un,
+    /// Des fichiers à ouvrir.
+    Plusieurs,
+    /// Où enregistrer.
+    Enregistrer,
+}
+
+/// **Un sélecteur de fichier** : ses filtres, et le nom qu'il propose.
+#[derive(Default)]
+pub struct Fichier {
     filtres: Vec<(String, Vec<String>)>,
     nom: Option<String>,
 }
 
-/// Un sélecteur de fichier accroché à la fenêtre.
-pub fn fichier(ancre: Ancre<'_>) -> Fichier<'_> {
-    Fichier {
-        ancre,
-        filtres: Vec::new(),
-        nom: None,
-    }
-}
-
-impl Fichier<'_> {
+impl Fichier {
     /// N'y montre que ces extensions, sous ce nom.
     pub fn filtre(mut self, nom: &str, extensions: &[&str]) -> Self {
         let extensions = extensions.iter().map(|e| e.to_string()).collect();
@@ -154,71 +120,143 @@ impl Fichier<'_> {
         self.nom = Some(nom);
         self
     }
+}
 
-    /// Un fichier à ouvrir.
-    pub fn choisir(self) -> Option<std::path::PathBuf> {
-        self.systeme()?.pick_file()
-    }
+/// Un sélecteur de fichier, sans filtre ni nom.
+pub fn fichier() -> Fichier {
+    Fichier::default()
+}
 
-    /// Des fichiers à ouvrir.
-    pub fn choisir_plusieurs(self) -> Option<Vec<std::path::PathBuf>> {
-        self.systeme()?.pick_files()
-    }
+/// **Ce qui est revenu des sélecteurs** : chaque demande, et ce qu'on y a choisi — rien si l'on
+/// a renoncé. Un fil le dépose ; la boucle le relève, réveillée.
+struct Boite {
+    retours: Vec<(Demande, Option<Vec<PathBuf>>)>,
+    // Le fil d'un sélecteur n'existe que sur un bureau, hors des épreuves : là seulement, on
+    // les lit.
+    #[cfg_attr(any(test, target_os = "android"), allow(dead_code))]
+    ouvert: bool,
+    #[cfg_attr(any(test, target_os = "android"), allow(dead_code))]
+    reveil: Option<crate::plateforme::Reveil>,
+}
 
-    /// Où enregistrer.
-    pub fn enregistrer(self) -> Option<std::path::PathBuf> {
-        self.systeme()?.save_file()
-    }
+static BOITE: Mutex<Boite> = Mutex::new(Boite {
+    retours: Vec::new(),
+    ouvert: false,
+    reveil: None,
+});
 
-    /// Le sélecteur du système.
-    #[cfg(not(target_os = "android"))]
-    fn systeme(self) -> Option<rfd::FileDialog> {
-        let mut d = rfd::FileDialog::new();
-        if let Some(fenetre) = self.ancre.0 {
-            d = d.set_parent(fenetre);
-        }
-        for (nom, extensions) in &self.filtres {
-            d = d.add_filter(nom, extensions);
-        }
-        if let Some(nom) = self.nom {
-            d = d.set_file_name(nom);
-        }
-        Some(d)
-    }
+/// De quoi réveiller la boucle quand un choix revient, donné au lancement.
+pub fn brancher(reveil: crate::plateforme::Reveil) {
+    BOITE.lock().unwrap_or_else(PoisonError::into_inner).reveil = Some(reveil);
+}
 
-    /// Sous Android, aucun encore : celui du système viendra par JNI (fiche 54).
-    #[cfg(target_os = "android")]
-    fn systeme(self) -> Option<SansSelecteur> {
-        let _ = (self.ancre.0, self.filtres, self.nom);
-        None
+/// Ce que les sélecteurs ont rendu depuis la dernière fois.
+#[cfg(not(test))]
+pub fn relever() -> Vec<(Demande, Option<Vec<PathBuf>>)> {
+    std::mem::take(&mut BOITE.lock().unwrap_or_else(PoisonError::into_inner).retours)
+}
+
+/// Sous les épreuves, chacune sa boîte : elles tournent en parallèle.
+#[cfg(test)]
+pub fn relever() -> Vec<(Demande, Option<Vec<PathBuf>>)> {
+    epreuve::RETOURS.with(|r| std::mem::take(&mut *r.borrow_mut()))
+}
+
+/// Un choix revient : on le dépose, le sélecteur est fermé, et la boucle se réveille.
+#[cfg(not(any(test, target_os = "android")))]
+fn deposer(demande: Demande, choisi: Option<Vec<PathBuf>>) {
+    let mut boite = BOITE.lock().unwrap_or_else(PoisonError::into_inner);
+    boite.retours.push((demande, choisi));
+    boite.ouvert = false;
+    if let Some(reveil) = &boite.reveil {
+        reveil();
     }
 }
 
-/// Le sélecteur qui n'existe pas encore sous Android : un type sans valeur, que rien ne
-/// construit.
-#[cfg(target_os = "android")]
-enum SansSelecteur {}
+impl GlucoseApp {
+    /// **Ouvre un sélecteur, sans tenir la boucle** (DIAL-2) : sur un fil à lui, accroché à la
+    /// fenêtre (DIAL-1) ; `demande` dit ce que le choix déclenchera quand il reviendra
+    /// ([`crate::persist::choix`]). Sous Android, il n'y en a pas : rien ne s'ouvre.
+    pub(crate) fn demander_un_fichier(&mut self, fichier: Fichier, mode: Mode, demande: Demande) {
+        // Comme en vrai, le choix revient **plus tard**, par la boîte : l'épreuve tourne la boucle
+        // pour le relever ([`Self::suivre_les_fichiers_choisis`]).
+        #[cfg(test)]
+        {
+            let _ = (fichier, mode);
+            let choisi = epreuve::choix();
+            epreuve::RETOURS.with(|r| r.borrow_mut().push((demande, choisi)));
+        }
+        #[cfg(all(not(test), target_os = "android"))]
+        {
+            let _ = (fichier, mode, demande);
+        }
+        #[cfg(all(not(test), not(target_os = "android")))]
+        {
+            {
+                let mut boite = BOITE.lock().unwrap_or_else(PoisonError::into_inner);
+                if boite.ouvert {
+                    return;
+                }
+                boite.ouvert = true;
+            }
+            let mut d = rfd::AsyncFileDialog::new();
+            if let Some(fenetre) = self.window.as_deref() {
+                d = d.set_parent(fenetre);
+            }
+            for (nom, extensions) in &fichier.filtres {
+                d = d.add_filter(nom, extensions);
+            }
+            if let Some(nom) = fichier.nom {
+                d = d.set_file_name(nom);
+            }
+            // Le futur se crée ici, sur le fil de la fenêtre — macOS le demande — et s'attend
+            // ailleurs.
+            type Futur<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send>>;
+            let futur: Futur<Option<Vec<rfd::FileHandle>>> = match mode {
+                Mode::Un => {
+                    let f = d.pick_file();
+                    Box::pin(async move { f.await.map(|h| vec![h]) })
+                }
+                Mode::Plusieurs => Box::pin(d.pick_files()),
+                Mode::Enregistrer => {
+                    let f = d.save_file();
+                    Box::pin(async move { f.await.map(|h| vec![h]) })
+                }
+            };
+            let fil = std::thread::Builder::new()
+                .name("selecteur".into())
+                .spawn(move || {
+                    let choisi = pollster::block_on(futur)
+                        .map(|v| v.iter().map(|h| h.path().to_path_buf()).collect());
+                    deposer(demande, choisi);
+                });
+            if fil.is_err() {
+                BOITE.lock().unwrap_or_else(PoisonError::into_inner).ouvert = false;
+            }
+        }
+    }
 
-#[cfg(target_os = "android")]
-impl SansSelecteur {
-    fn pick_file(self) -> Option<std::path::PathBuf> {
-        match self {}
-    }
-    fn pick_files(self) -> Option<Vec<std::path::PathBuf>> {
-        match self {}
-    }
-    fn save_file(self) -> Option<std::path::PathBuf> {
-        match self {}
+    /// **Ce que les sélecteurs ont rendu**, suivi — à chaque tour de boucle.
+    pub(crate) fn suivre_les_fichiers_choisis(&mut self) {
+        for (demande, choisi) in relever() {
+            self.suivre_le_choix(demande, choisi);
+        }
     }
 }
 
 /// Les réponses que les épreuves donnent aux dialogues (DIAL-3).
 #[cfg(test)]
 pub mod epreuve {
-    use std::cell::Cell;
+    use std::cell::{Cell, RefCell};
+    use std::path::PathBuf;
+
+    /// Ce que les sélecteurs d'une épreuve ont rendu, et que sa boucle relève.
+    pub(super) type Retours = Vec<(crate::persist::choix::Demande, Option<Vec<PathBuf>>)>;
 
     thread_local! {
         static REPONSE: Cell<Option<bool>> = const { Cell::new(None) };
+        static CHOIX: RefCell<Option<Option<Vec<PathBuf>>>> = const { RefCell::new(None) };
+        pub(super) static RETOURS: RefCell<Retours> = const { RefCell::new(Vec::new()) };
     }
 
     /// La réponse au prochain dialogue oui / non de ce fil.
@@ -229,6 +267,17 @@ pub mod epreuve {
     pub(super) fn reponse(titre: &str) -> bool {
         REPONSE.with(Cell::take).unwrap_or_else(|| {
             panic!("une épreuve a ouvert « {titre} » sans réponse : il serait apparu à l'écran")
+        })
+    }
+
+    /// Ce que le prochain sélecteur de ce fil rendra — `None` : on y renonce.
+    pub fn choisir(choisi: Option<Vec<PathBuf>>) {
+        CHOIX.with(|c| *c.borrow_mut() = Some(choisi));
+    }
+
+    pub(super) fn choix() -> Option<Vec<PathBuf>> {
+        CHOIX.with(|c| c.borrow_mut().take()).unwrap_or_else(|| {
+            panic!("une épreuve a ouvert un sélecteur sans choix : il serait apparu à l'écran")
         })
     }
 }
