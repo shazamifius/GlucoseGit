@@ -25,7 +25,8 @@
 //!    caractère que la police ignore fait échouer ce test, pas l'écran.
 //!
 //! Corollaire pour les tests : un caractère que l'on veut délibérément absent de la police
-//! (pour éprouver le `.notdef`, par exemple) s'écrit `'\u{1F600}'`, pas en clair.
+//! (pour éprouver le `.notdef`, par exemple) s'écrit échappé, pas en clair — et un emoji n'en
+//! est plus un : Noto Emoji le dessine en repli (EMOJI-1) ; `'\u{4E2D}'` n'est dans aucune.
 
 use super::{Face, Typography, FACE_BYTES};
 use std::collections::BTreeSet;
@@ -499,4 +500,53 @@ pub(crate) fn missing_from_interface(chars: &str) -> Vec<char> {
         manquants.extend(missing_from(bytes, chars.chars()));
     }
     manquants.into_iter().collect()
+}
+
+/// **EMOJI-1 — un emoji se dessine** (fiche 58) : le visage souriant, le pouce, le feu, le
+/// visage qui tremble d'Unicode 15 allument des pixels (le cœur U+2764, lui, est dans Inter), et diffèrent du `.notdef` ; un accent
+/// reste dessiné par Inter ; le sélecteur de variante et le joint ne prennent aucune place ; un
+/// caractère que ni Inter ni Noto Emoji n'a garde la case d'Inter — visible, jamais effacé.
+#[test]
+fn test_emoji_1_un_emoji_se_dessine_par_le_repli() {
+    let typo = Typography::new();
+    let inter = typo.font(Face::Regular);
+    let personne = typo.get_glyph('\u{4E2D}', 32.0, Face::Regular);
+    for ch in ['\u{1F600}', '\u{1F44D}', '\u{1F525}', '\u{1FAE8}'] {
+        assert_eq!(
+            inter.lookup_glyph_index(ch),
+            0,
+            "{ch:?} n'est pas dans Inter"
+        );
+        let glyphe = typo.get_glyph(ch, 32.0, Face::Regular);
+        assert!(
+            glyphe.bitmap.iter().filter(|&&a| a > 128).count() > 50,
+            "{ch:?} se dessine"
+        );
+        assert_ne!(
+            glyphe.bitmap, personne.bitmap,
+            "{ch:?} n'est pas le .notdef"
+        );
+        assert_eq!(
+            typo.advance(ch, 32.0, Face::Bold),
+            glyphe.metrics.advance_width,
+            "{ch:?} : la mesure et le dessin choisissent la même police"
+        );
+    }
+    assert_eq!(
+        typo.advance('é', 32.0, Face::Regular),
+        inter.metrics('é', 32.0).advance_width,
+        "un accent reste à Inter"
+    );
+    for invisible in ['\u{FE0F}', '\u{200D}'] {
+        assert_eq!(
+            typo.advance(invisible, 32.0, Face::Regular),
+            0.0,
+            "{invisible:?}"
+        );
+    }
+    assert_eq!(
+        personne.metrics.advance_width,
+        inter.metrics('\u{4E2D}', 32.0).advance_width,
+        "le .notdef d'Inter"
+    );
 }

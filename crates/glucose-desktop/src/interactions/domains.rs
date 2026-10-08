@@ -4,11 +4,10 @@
 //! seul endroit où une intention devient une commande du noyau. Chaque échec remonte par la
 //! barre de toasts, jamais en silence (§ 6.4).
 //!
-//! Les messages n'y portent **aucun émoji**, contrairement au reste de l'application : la
-//! police embarquée (`assets/font.ttf`) couvre 122 points de code, tous latins de base. Un
-//! `⚠️` n'y a pas de glyphe, donc `fontdue` rastérise le `.notdef` — un pictogramme invisible
-//! n'avertit de rien. Le texte des [`CoreError`](glucose_core::error::CoreError) commence déjà
-//! par ce qui a échoué et finit par ce qu'il faut faire (§ 6.5) : il se suffit.
+//! Les messages n'y portent **aucun émoji** : l'interface est monochrome et écrite en Inter
+//! (`style.md`, FONT-1) — les emojis de Noto Emoji sont pour ce que l'utilisateur écrit
+//! (EMOJI-1). Le texte des [`CoreError`](glucose_core::error::CoreError) commence déjà par ce
+//! qui a échoué et finit par ce qu'il faut faire (§ 6.5) : il se suffit.
 //!
 //! # DOM-APP-1 — un geste de l'utilisateur, une entrée d'annulation
 //!

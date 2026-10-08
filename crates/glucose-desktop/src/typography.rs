@@ -43,6 +43,15 @@
 //! interpolation par variante, une seule fois, et quelques entrées de cache de plus.
 //!
 //! [`SUBPIXEL_PHASES`] positions par axe bornent l'erreur résiduelle à un huitième de pixel.
+//!
+//! # EMOJI-1 — un emoji se dessine, par la police de repli (fiche 58)
+//!
+//! Inter n'a aucun emoji : celui que Gboard propose à chaque phrase s'affichait comme une
+//! case vide. **Noto Emoji**, monochrome (`decisions/10`), sert de repli, et seulement de
+//! repli : un caractère que le visage demandé dessine reste à lui ; un caractère qu'il n'a pas,
+//! et que Noto Emoji a, se dessine en Noto Emoji ([`Typography::police`]). Aucune table écrite
+//! à la main : la `cmap` des deux polices décide, caractère par caractère. La mesure et le
+//! dessin passent par le même choix, et ne peuvent donc pas diverger.
 
 #[cfg(test)]
 pub(crate) mod coverage;
@@ -126,8 +135,15 @@ pub(crate) const FACE_BYTES: [&[u8]; 5] = [
     include_bytes!("../assets/JetBrainsMonoNL-Regular.ttf"),
 ];
 
+/// **La police de repli des emojis** (EMOJI-1) : Noto Emoji 3.002, monochrome, instance fixe
+/// de graisse 400, sous SIL Open Font License 1.1 (`assets/LICENSE-NotoEmoji.txt`,
+/// `decisions/10`).
+const EMOJI_BYTES: &[u8] = include_bytes!("../assets/NotoEmoji-Regular.ttf");
+
 pub struct Typography {
     faces: [Font; 5],
+    /// Le repli des emojis (EMOJI-1).
+    emoji: Font,
     glyph_cache: RefCell<HashMap<GlyphKey, CachedGlyph>>,
     access_counter: Cell<u64>,
 }
@@ -146,8 +162,11 @@ impl Typography {
             Font::from_bytes(bytes, FontSettings::default())
                 .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue")
         });
+        let emoji = Font::from_bytes(EMOJI_BYTES, FontSettings::default())
+            .expect("police intégrée par include_bytes! — corruption du binaire si ceci échoue");
         Self {
             faces,
+            emoji,
             glyph_cache: RefCell::new(HashMap::with_capacity(512)),
             access_counter: Cell::new(0),
         }
@@ -156,6 +175,21 @@ impl Typography {
     /// La police d'un visage.
     pub fn font(&self, face: Face) -> &Font {
         &self.faces[face.index()]
+    }
+
+    /// **La police qui dessine `ch` dans ce visage**, et l'indice de son glyphe (EMOJI-1) : le
+    /// visage s'il l'a, sinon Noto Emoji s'il l'a, sinon le `.notdef` du visage — un caractère
+    /// que personne ne dessine se voit, plutôt que de disparaître.
+    fn police(&self, ch: char, face: Face) -> (&Font, u16) {
+        let font = self.font(face);
+        let indice = font.lookup_glyph_index(ch);
+        if indice != 0 {
+            return (font, indice);
+        }
+        match self.emoji.lookup_glyph_index(ch) {
+            0 => (font, 0),
+            repli => (&self.emoji, repli),
+        }
     }
 
     /// Récupère ou rastérise un glyphe **non décalé** (R-26, R-40).
@@ -179,8 +213,8 @@ impl Typography {
     /// `test_measuring_agrees_with_drawing` tient l'égalité des deux chemins : s'ils
     /// divergeaient, le curseur tomberait à côté du texte.
     pub fn advance(&self, ch: char, size: f32, face: Face) -> f32 {
-        self.font(face)
-            .metrics(ch, clamp_font_size(size))
+        let (font, indice) = self.police(ch, face);
+        font.metrics_indexed(indice, clamp_font_size(size))
             .advance_width
     }
 
@@ -207,7 +241,8 @@ impl Typography {
                 entry.clone()
             }
             None => {
-                let (metrics, bitmap) = self.font(face).rasterize(ch, size);
+                let (font, indice) = self.police(ch, face);
+                let (metrics, bitmap) = font.rasterize_indexed(indice, size);
                 let (width, height) = (metrics.width, metrics.height);
                 let entry = Rc::new(GlyphEntry {
                     metrics,
