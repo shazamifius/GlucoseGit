@@ -2,10 +2,12 @@ package com.glucose.app;
 
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageInstaller;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -16,6 +18,7 @@ import androidx.activity.SystemBarStyle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.IntentCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
@@ -90,6 +93,26 @@ public class MainActivity extends GameActivity {
                                 .setMediaType(
                                         ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
                                 .build()));
+    }
+
+    /**
+     * **La batterie**, telle qu'Android la dit à tous (l'intention qu'il garde,
+     * `ACTION_BATTERY_CHANGED`) : le niveau, l'échelle, et la prise qui la charge. Rust en fait
+     * un pourcentage (fiche 58). `null` si le système ne dit rien. Appelé par Rust, du fil du
+     * journal technique.
+     */
+    public int[] lireLaBatterie() {
+        Intent etat = ContextCompat.registerReceiver(
+                this, null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED);
+        if (etat == null) {
+            return null;
+        }
+        return new int[] {
+            etat.getIntExtra(BatteryManager.EXTRA_LEVEL, -1),
+            etat.getIntExtra(BatteryManager.EXTRA_SCALE, -1),
+            etat.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1),
+        };
     }
 
     /** **L'appui long a pris** (fiche 57) : le doigt le sent, comme partout sous Android — et

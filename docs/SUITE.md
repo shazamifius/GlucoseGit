@@ -123,7 +123,8 @@ la session du 08/10 (fiche 56) en a fait :
 | [~] | **Les emojis** : Noto Emoji en repli (EMOJI-1) | fiche 58 § 5 — **à son téléphone** |
 | [~] | **BORD-1 — le bord à bord** (fiche 57 § 4 bis), avancé devant la mise à jour : partout, les marges du système lues dans `MainActivity`, la barre qui couvre la barre d'état, *l'écran visible* au-dessus de la navigation et du clavier | écrit, éprouvé hors écran ; **à son téléphone** |
 | [~] | La **mise à jour automatique** sous Android — écrite (fiche 58 § 6), à prouver à la prochaine publication | |
-| [ ] | Le presse-papiers du système ; la batterie sous Android (la télémétrie la lit nulle) ; les panneaux qui s'écartent des bords | |
+| [~] | **La batterie sous Android** — écrite (fiche 58 § 9) : la télémétrie de son prochain lancement le dira |
+| [ ] | Le presse-papiers du système ; les panneaux qui s'écartent des bords | |
 | [ ] | Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le web. La vidéo (fiche 55 § 4) quand il la redemandera ; les photos **HEIC** par le décodeur d'Android | |
 
 Le plan d'origine (fiche 50) ; l'ordre :

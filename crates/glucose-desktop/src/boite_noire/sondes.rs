@@ -76,10 +76,16 @@ mod imp {
 mod imp {
     use super::EtatMachine;
     use std::fs;
-    use std::path::Path;
 
-    /// La première batterie que le noyau déclare, et ce qu'elle dit.
+    /// La première batterie que le noyau déclare, et ce qu'elle dit — sous Android, ce que le
+    /// système en dit à tous (`plateforme::batterie`) : il ferme `/sys` aux applications.
     pub fn etat() -> EtatMachine {
+        if let Some(brut) = crate::plateforme::batterie::lire() {
+            return EtatMachine {
+                batterie_pct: brut.pourcentage(),
+                en_charge: brut.en_charge(),
+            };
+        }
         let mut etat = EtatMachine::default();
         let Ok(sources) = fs::read_dir("/sys/class/power_supply") else {
             return etat;
@@ -106,11 +112,17 @@ mod imp {
         etat
     }
 
+    /// `CLOCK_BOOTTIME` : le temps depuis le démarrage, sommeil compris — l'horloge que le
+    /// noyau tient, sans lire de fichier ; Android ferme `/proc/uptime` à certaines
+    /// applications (son journal l'envoyait vide).
     pub fn depuis_le_demarrage_ms() -> Option<u64> {
-        // `/proc/uptime` : les secondes depuis le démarrage, sommeil compris.
-        let texte = fs::read_to_string(Path::new("/proc/uptime")).ok()?;
-        let secondes: f64 = texte.split_whitespace().next()?.parse().ok()?;
-        Some((secondes * 1000.0) as u64)
+        // SAFETY : `t` est une structure de nombres, que l'appel remplit.
+        let mut t: libc::timespec = unsafe { std::mem::zeroed() };
+        if unsafe { libc::clock_gettime(libc::CLOCK_BOOTTIME, &mut t) } != 0 {
+            return None;
+        }
+        let ms = i128::from(t.tv_sec) * 1000 + i128::from(t.tv_nsec) / 1_000_000;
+        u64::try_from(ms).ok()
     }
 }
 

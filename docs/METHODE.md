@@ -92,6 +92,7 @@
 | **Renommer ce qu'un serveur a déjà reçu** : l'identifiant d'une session venait du nom de son fichier ; renommer aurait tout fait repartir en double (fiche 58 § 9) | une identité ne se tire pas d'un nom qu'on peut vouloir changer ; la migration se joue sur une **copie** de ses données |
 | **Renommer ce qu'une répétition surveille** : la migration du journal rangeait le témoin que la répétition de la bascule plante dans `boite-noire` — rouge sur GitHub seulement (fiche 58 § 9) | chercher le vieux nom **partout** (scripts compris) avant de renommer ; une épreuve lie les scripts au nom que le code emploie |
 | **Une épreuve où le choix revient tout de suite** : un sélecteur réel rend la main plus tard ; l'épreuve synchrone aurait laissé passer une fermeture qui n'attend pas son choix (fiche 58 § 9) | l'épreuve passe par la même boîte aux lettres que la vraie, et tourne la boucle pour la relever |
+| **Un clippy local plus vieux que celui de GitHub** : Rust 1.99 y voyait un champ jamais lu que la 1.98 laissait passer — quatre tâches rouges (fiche 58 § 9) | `rustup update stable` avant un envoi : clippy doit dire ici ce qu'il dit là-bas |
 | **Une taille citée de mémoire** : « Noto Emoji, de l'ordre d'un mégaoctet » — la police actuelle est variable et pèse 1,98 Mo ; son instance fixe, 887 Ko (fiche 58 § 5) | télécharger, mesurer, lire la `cmap` ; vérifier ce que le moteur lit (`fontdue` ignore les variations) |
 
 ## 5. Les pièges pratiques

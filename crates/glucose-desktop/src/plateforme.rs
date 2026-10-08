@@ -19,6 +19,7 @@
 
 #[cfg(target_os = "linux")]
 pub mod administrateur;
+pub mod batterie;
 pub mod clavier;
 pub mod doigt;
 pub mod ecran;

@@ -130,9 +130,10 @@ pub fn fichier() -> Fichier {
 /// **Ce qui est revenu des sélecteurs** : chaque demande, et ce qu'on y a choisi — rien si l'on
 /// a renoncé. Un fil le dépose ; la boucle le relève, réveillée.
 struct Boite {
+    // Le fil d'un sélecteur n'existe que sur un bureau, hors des épreuves — elles ont chacune
+    // leur boîte : là seulement, on les lit.
+    #[cfg_attr(test, allow(dead_code))]
     retours: Vec<(Demande, Option<Vec<PathBuf>>)>,
-    // Le fil d'un sélecteur n'existe que sur un bureau, hors des épreuves : là seulement, on
-    // les lit.
     #[cfg_attr(any(test, target_os = "android"), allow(dead_code))]
     ouvert: bool,
     #[cfg_attr(any(test, target_os = "android"), allow(dead_code))]

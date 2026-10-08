@@ -16,6 +16,7 @@ fn android_main(app: AndroidApp) {
     journal::rediriger_la_sortie();
     selecteur::brancher(&app);
     installation::brancher(&app);
+    batterie::brancher(&app);
     glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
     glucose_desktop::plateforme::doigt::installer(Box::new(doigt::DuTelephone(
         java::Activite::de(&app),
@@ -185,6 +186,45 @@ mod installation {
     }
 }
 
+/// **La batterie** (fiche 58) : Android ferme `/sys` aux applications ; `MainActivity` la lit
+/// dans l'intention qu'il garde pour tous, et Rust en fait un pourcentage.
+mod batterie {
+    use glucose_desktop::plateforme::batterie::{installer, Brut};
+    use winit::platform::android::activity::AndroidApp;
+
+    pub fn brancher(app: &AndroidApp) {
+        let activite = super::java::Activite::de(app);
+        installer(Box::new(move || {
+            let lus = super::java::sur_le_fil(
+                |env| {
+                    let objet = activite.objet(env);
+                    let rendu = env
+                        .call_method(
+                            &objet,
+                            jni::jni_str!("lireLaBatterie"),
+                            jni::jni_sig!("()[I"),
+                            &[],
+                        )?
+                        .l()?;
+                    let tableau = env.cast_local::<jni::objects::JIntArray>(rendu)?;
+                    if tableau.is_null() {
+                        return Ok(None);
+                    }
+                    let mut v = [0; 3];
+                    tableau.get_region(env, 0, &mut v)?;
+                    Ok(Some(v))
+                },
+                "batterie",
+            )??;
+            Some(Brut {
+                niveau: lus[0],
+                echelle: lus[1],
+                prise: lus[2],
+            })
+        }));
+    }
+}
+
 /// **Les marges du système** (BORD-1, fiche 57) : ce que `MainActivity.onApplyWindowInsets`
 /// voit, en pixels de la fenêtre — sur le fil de l'interface d'Android, qui n'attend pas.
 mod marges {
@@ -282,6 +322,13 @@ mod java {
     }
 
     impl Activite {
+        /// L'activité, comme objet de Java.
+        pub fn objet<'l>(self, env: &mut Env<'l>) -> JObject<'l> {
+            // SAFETY : une référence globale à l'activité, qu'`android-activity` garde tant
+            // qu'elle vit ; `JObject` ne la libère pas en partant.
+            unsafe { JObject::from_raw(env, self.0 as jni::sys::jobject) }
+        }
+
         /// Appelle une méthode `(String)V` de `MainActivity`, avec cette chaîne.
         pub fn appeler_avec(self, methode: &'static JNIStr, chaine: &str, quoi: &str) {
             sur_le_fil(

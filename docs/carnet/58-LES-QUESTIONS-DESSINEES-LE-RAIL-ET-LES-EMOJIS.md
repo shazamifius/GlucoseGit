@@ -291,6 +291,21 @@ ne bouge — dont un dans `boite-noire`, que la migration du journal rangeait da
 scripts, Windows et Linux), et une épreuve exige que ces scripts nomment le dossier que Glucose
 emploie : la même dérive ne repasserait pas sans bruit.
 
+### La seconde CI (`e5ac087`), et la batterie du téléphone
+
+* **La répétition de la bascule est repassée au vert**, avec l'installeur, les paquets Linux,
+  NixOS et Android. Quatre tâches sont tombées sur **clippy** : Rust 1.99, sur GitHub depuis le
+  28/09 (j'avais la 1.98), voit qu'en mode épreuve la boîte des sélecteurs n'est jamais relue —
+  vrai, les épreuves ont chacune la leur. Annoté, et ma chaîne mise à jour : clippy dit ici ce
+  qu'il dit là-bas.
+* **La batterie sous Android** (la suite, chantier 5) : son journal l'envoyait toujours vide —
+  Android ferme `/sys/class/power_supply` aux applications. `MainActivity.lireLaBatterie` la lit
+  dans l'intention qu'Android garde pour tous (`ACTION_BATTERY_CHANGED` : le niveau, l'échelle,
+  la prise) ; Glucose en fait un pourcentage (`plateforme::batterie`). Le temps depuis le
+  démarrage, vide lui aussi, se lit désormais par `CLOCK_BOOTTIME` — l'horloge du noyau, sous
+  Linux comme sous Android, sans lire de fichier. **Pas prouvé** : la prochaine session de son
+  téléphone le dira dans la télémétrie.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
