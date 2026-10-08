@@ -1,0 +1,142 @@
+LE JOURNAL TECHNIQUE DE GLUCOSE
+===============================
+
+Ce dossier garde le journal technique de tes sessions : comment Glucose s'est comporté sur
+cet appareil — le temps que chaque image a pris, et comment chaque session a fini.
+
+Si tu as répondu « Oui » à la question du journal technique, les fichiers de ce dossier
+partent TELS QUELS, au lancement suivant, vers le serveur de l'auteur de Glucose. Rien
+d'autre ne part. Si tu as répondu « Non », rien ne part, et ces fichiers restent ici.
+
+Changer d'avis : clic droit sur le canevas (au téléphone : deux touchers sur le vide), puis
+« Journal technique… ». Répondre « Non » arrête l'envoi et efface du serveur tout ce qui est
+déjà parti de cet appareil.
+
+
+CE QUI NE PART JAMAIS
+---------------------
+
+Le contenu de tes documents, leurs noms, tes images, tes textes, tes fichiers, ton nom, ton
+adresse électronique. Ton adresse IP n'est pas gardée par le serveur. Le serveur refuse tout
+envoi qui contiendrait autre chose que les lignes décrites ci-dessous.
+
+
+LES FICHIERS
+------------
+
+Un fichier par session. Son nom : l'heure où Glucose s'est ouvert, puis le numéro que le
+système lui a donné (deux Glucose ouverts la même seconde ne se mélangent pas). Ce numéro ne
+part pas.
+
+Chaque ligne d'un fichier est un évènement, écrit en JSON : des noms de champs, suivis de
+nombres, de « true » (oui), « false » (non), « null » (inconnu), ou de mots choisis à l'avance
+dans le code de Glucose. Le champ « type » dit de quel évènement il s'agit.
+
+Les durées : « _ms » en millisecondes (millièmes de seconde), « _us » en microsecondes
+(millionièmes). « instant_ms » : le moment de l'évènement, compté depuis l'ouverture de
+Glucose.
+
+
+LES LIGNES, UNE PAR UNE
+-----------------------
+
+type « debut » — Glucose s'ouvre (la première ligne de chaque fichier)
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  epoque_ms                l'heure de l'ouverture, en ms depuis 1970           1791477194257
+  version                  la version de Glucose                               2.0.2-dev
+  systeme                  le système                                          windows
+  architecture             le type de processeur                               x86_64
+  demarrage_appareil_ms    quand l'appareil a démarré, en ms depuis 1970       1791470000000
+
+type « precedente » — comment la session d'avant a fini
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               toujours 0 : écrit à l'ouverture                    0
+  fin                      propre, panique, interrompue, plantee ou gelee      propre
+  appareil_redemarre       l'appareil a-t-il redémarré depuis ?                false
+  duree_ms                 combien de temps elle a duré                        415940
+  batterie_pct             sa dernière batterie, en pour cent                  87
+  en_charge                l'appareil était-il branché ?                       true
+
+type « episode » — une suite d'images d'un même geste, et ce qu'elles ont coûté
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand le geste a commencé                           1655
+  duree_ms                 combien de temps il a duré                          78
+  geste                    lequel : repos, deplacer la vue, zoomer,            zoomer
+                           glisser un noeud, redimensionner, dessiner,
+                           selectionner, editer du texte, decoder des
+                           images, animer la camera
+  images                   combien d'images ont été dessinées                  17
+  median_us                le temps d'une image ordinaire                      9742
+  p99_us                   le temps des 1 % d'images les plus lentes           11754
+  pire_us                  le temps de la plus lente                           15377
+
+type « pire » — une image plus lente que toutes les précédentes de la session
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               415
+  duree_us                 combien de temps elle a pris                        39879
+  geste                    pendant quel geste (la liste de « episode »)        zoomer
+
+type « machine » — l'état de l'appareil, quand il change
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               0
+  batterie_pct             la batterie, en pour cent                           64
+  en_charge                l'appareil est-il branché ?                         false
+
+type « pave » — un signe de vie du pavé tactile (sous Windows), pour comprendre une panne
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               2280
+  quoi                     contact, cadre_refuse, interaction_debut,           contact
+                           interaction_fin, ou un état du système : statut_
+                           en_construction, statut_actif, statut_desactive,
+                           statut_en_cours, statut_inertie, statut_pret,
+                           statut_suspendu, statut_inconnu
+  valeur                   un nombre qui l'accompagne (un code du système)     0
+
+type « fin » — Glucose s'est fermé normalement (la dernière ligne)
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               438339
+
+type « panique » — Glucose a rencontré une erreur de son propre code
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand                                               5120
+  fichier                  le fichier du code de Glucose où c'est arrivé       src/ui.rs
+  ligne                    la ligne de ce fichier                              412
+  principal                était-ce le fil principal de Glucose ?              true
+
+type « plantage » — ce que le système a vu de la fin de la session d'avant
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               toujours 0 : écrit à l'ouverture                    0
+  gel                      Glucose avait-il gelé, plutôt que planté ?          false
+  module                   le module du système où il est tombé                nvwgf2umx.dll
+  version_du_module        sa version                                          32.0.16.1074
+  code                     le code d'erreur du système                         3221225477
+  decalage                 l'endroit, dans ce module                           1234567
+
+
+OÙ VONT LES DONNÉES
+-------------------
+
+Sur un serveur Cloudflare Workers qui appartient à l'auteur de Glucose. Personne d'autre n'y a
+accès, et rien n'est revendu ni partagé. Un identifiant tiré au hasard relie les sessions d'un
+même appareil ; il ne dit rien de toi, et il est renouvelé quand tu réponds « Non ».
+
+Le code de Glucose et celui du serveur sont publics : https://github.com/shazamifius/GlucoseGit
+(la page docs/TELEMETRIE.md, et le dossier outils/telemetrie/).

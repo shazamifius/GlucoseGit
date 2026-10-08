@@ -53,22 +53,39 @@ fn test_deux_identifiants_tires_different() {
     assert_ne!(a, b);
 }
 
-/// **Ce qui part** : les sessions de la boîte noire, sauf celle qui s'écrit et celles déjà
-/// parties, des plus anciennes aux plus récentes.
+/// **Ce qui part** : les sessions du journal, sauf celle qui s'écrit et celles déjà parties —
+/// reconnues par leur **clé**, que le renommage des fichiers ne change pas (fiche 58) : une liste
+/// écrite avant lui, qui porte les anciens noms, vaut telle quelle.
 #[test]
 fn test_ce_qui_part_sauf_la_courante_et_les_parties() {
-    let noms: Vec<String> = [
-        "session-3.jsonl",
-        "session-1.jsonl",
-        "session-2.jsonl",
-        "carte.txt",
-        "session-4.jsonl",
-    ]
-    .map(String::from)
-    .to_vec();
+    let session = |nom: &str, cle: &str| (nom.to_string(), cle.to_string());
+    let sessions = [
+        session(
+            "2026-10-08 20h51m03 (3).txt",
+            "session-00000000000000000003-3.jsonl",
+        ),
+        session(
+            "2026-10-08 20h51m01 (1).txt",
+            "session-00000000000000000001-1.jsonl",
+        ),
+        session(
+            "2026-10-08 20h51m02 (2).txt",
+            "session-00000000000000000002-2.jsonl",
+        ),
+        session(
+            "2026-10-08 20h51m04 (4).txt",
+            "session-00000000000000000004-4.jsonl",
+        ),
+    ];
+    let restent = a_envoyer(
+        &sessions,
+        Some("2026-10-08 20h51m04 (4).txt"),
+        "session-00000000000000000002-2.jsonl\n",
+    );
+    let noms: Vec<&str> = restent.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
-        a_envoyer(&noms, Some("session-4.jsonl"), "session-2.jsonl\n"),
-        vec!["session-1.jsonl".to_string(), "session-3.jsonl".to_string()]
+        noms,
+        ["2026-10-08 20h51m01 (1).txt", "2026-10-08 20h51m03 (3).txt"]
     );
 }
 

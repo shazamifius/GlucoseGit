@@ -143,15 +143,15 @@ pub fn sessions(dossier: &Path) -> Vec<PathBuf> {
                 .collect()
         })
         .unwrap_or_default();
-    // Le nom commence par l'heure du début, sur vingt chiffres : l'ordre des noms est celui
-    // du temps.
-    v.sort();
+    // L'ordre du temps est celui des débuts, lus dans la première ligne : le nom porte l'heure
+    // locale, que l'heure d'été fait revenir en arrière une fois l'an.
+    v.sort_by_cached_key(|p| (super::fichiers::debut_du_fichier(p), p.clone()));
     v
 }
 
 fn est_une_session(p: &Path) -> bool {
     let nom = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    nom.starts_with("session-") && nom.ends_with(".jsonl")
+    super::fichiers::est_une_session(nom)
 }
 
 /// **Relit la session d'avant, et range le dossier.**
@@ -190,7 +190,10 @@ pub fn ranger(
     let texte = std::fs::read_to_string(precedente).ok()?;
     let mut b = bilan(&texte, demarrage_appareil_ms)?;
     if b.fin == Fin::Interrompue {
-        if let Some((debut_ms, processus)) = debut_et_processus(precedente) {
+        let processus = precedente
+            .file_name()
+            .and_then(|n| super::fichiers::processus_de(&n.to_string_lossy()));
+        if let (Some(debut_ms), Some(processus)) = (super::fichiers::debut_de(&texte), processus) {
             b.plantage = plantage::reconnaitre(&systeme(debut_ms), processus, debut_ms);
         }
         if let Some(p) = &b.plantage {
@@ -198,15 +201,4 @@ pub fn ranger(
         }
     }
     Some(b)
-}
-
-/// Le début d'une session et son processus, lus dans son nom :
-/// `session-<début, en millisecondes depuis 1970>-<processus>.jsonl`.
-fn debut_et_processus(p: &Path) -> Option<(u64, u32)> {
-    let nom = p.file_name()?.to_str()?;
-    let (debut, processus) = nom
-        .strip_prefix("session-")?
-        .strip_suffix(".jsonl")?
-        .split_once('-')?;
-    Some((debut.parse().ok()?, processus.parse().ok()?))
 }

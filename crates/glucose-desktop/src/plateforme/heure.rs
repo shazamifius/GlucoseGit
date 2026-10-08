@@ -6,8 +6,8 @@
 //! un jalon posé en juillet, relu en décembre, garde son heure d'été. Seul le système la connaît,
 //! pour chaque date passée : c'est ce que `SystemTimeToTzSpecificLocalTime` fait sous Windows.
 //!
-//! Ailleurs, rien pour l'instant : sans fuseau connu, `None`, et le panneau garde la durée
-//! relative, qui reste vraie. Linux et macOS demanderont `localtime_r` (fiche 36, phase 9).
+//! Sous Linux et Android, `localtime_r` (fiche 58). Ailleurs — le Mac —, sans fuseau connu,
+//! `None`, et le panneau garde la durée relative, qui reste vraie.
 
 /// Une date et une heure locales, à la minute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,7 +73,31 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+/// Linux et Android : `localtime_r`, qui lit le fuseau du système et sa règle d'heure d'été
+/// pour cette date-là (Android : le réglage `persist.sys.timezone`, lu par sa bibliothèque C).
+#[cfg(any(target_os = "linux", target_os = "android"))]
+mod imp {
+    use super::HeureLocale;
+
+    pub(super) fn heure_locale(instant_ms: i64) -> Option<HeureLocale> {
+        let secondes = libc::time_t::try_from(instant_ms.div_euclid(1000)).ok()?;
+        // SAFETY : `tm` est une structure de nombres, valide à zéro ; `localtime_r` n'écrit que
+        // dans elle, et ne garde aucun des deux pointeurs.
+        let mut tm: libc::tm = unsafe { std::mem::zeroed() };
+        if unsafe { libc::localtime_r(&secondes, &mut tm) }.is_null() {
+            return None;
+        }
+        Some(HeureLocale {
+            annee: u16::try_from(tm.tm_year + 1900).ok()?,
+            mois: u8::try_from(tm.tm_mon + 1).ok()?,
+            jour: u8::try_from(tm.tm_mday).ok()?,
+            heure: u8::try_from(tm.tm_hour).ok()?,
+            minute: u8::try_from(tm.tm_min).ok()?,
+        })
+    }
+}
+
+#[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
 mod imp {
     pub(super) fn heure_locale(_instant_ms: i64) -> Option<super::HeureLocale> {
         None

@@ -31,6 +31,7 @@
 
 pub mod bilan;
 pub mod enregistrement;
+pub mod fichiers;
 pub mod plantage;
 pub mod sondes;
 
@@ -44,8 +45,8 @@ use std::sync::Mutex;
 use std::thread::JoinHandle;
 use std::time::Instant;
 
-/// Le dossier de la boîte noire, dans celui de l'application.
-pub const DOSSIER: &str = "boite-noire";
+/// Le dossier du journal technique, dans celui de l'application ([`fichiers`]).
+pub use fichiers::DOSSIER;
 
 /// Ce qu'on confie au fil d'écriture.
 enum Ordre {
@@ -85,12 +86,11 @@ impl BoiteNoire {
         dossier: &Path,
         systeme: impl FnOnce(u64) -> Vec<crate::plateforme::journal::Evenement>,
     ) -> std::io::Result<(Self, Option<bilan::Bilan>)> {
-        let boite = dossier.join(DOSSIER);
-        std::fs::create_dir_all(&boite)?;
+        let boite = fichiers::preparer(dossier)?;
         let demarrage = sondes::demarrage_de_l_appareil_ms();
         let precedente = bilan::ranger(&boite, demarrage, systeme);
         let epoque = sondes::maintenant_ms();
-        let nom = format!("session-{epoque:020}-{}.jsonl", std::process::id());
+        let nom = fichiers::nom_de_session(epoque, std::process::id());
         let chemin = boite.join(nom);
         let mut o = OpenOptions::new();
         o.create(true).append(true);

@@ -173,18 +173,13 @@ fn test_ranger_garde_la_precedente_et_ce_qui_a_mal_fini() {
         std::fs::write(&p, texte).expect("écrite");
         p
     };
-    let debut = "{\"type\":\"debut\",\"epoque_ms\":10}\n";
+    let debut = |ms: u64| format!("{{\"type\":\"debut\",\"epoque_ms\":{ms}}}\n");
     let fin = "{\"type\":\"fin\",\"instant_ms\":9}\n";
-    let ancienne_propre = ecrire(
-        "session-00000000000000000001-1.jsonl",
-        &format!("{debut}{fin}"),
-    );
-    let interrompue = ecrire("session-00000000000000000002-1.jsonl", debut);
-    let muette = ecrire("session-00000000000000000003-1.jsonl", "rien\n");
-    let derniere = ecrire(
-        "session-00000000000000000004-1.jsonl",
-        &format!("{debut}{fin}"),
-    );
+    let nom = |ms: u64| super::fichiers::nom_de_session(ms, 1);
+    let ancienne_propre = ecrire(&nom(1_000), &format!("{}{fin}", debut(1_000)));
+    let interrompue = ecrire(&nom(2_000), &debut(2_000));
+    let muette = ecrire(&nom(3_000), "rien\n");
+    let derniere = ecrire(&nom(4_000), &format!("{}{fin}", debut(4_000)));
     let autre = ecrire("autre-chose.txt", "à ne pas toucher");
 
     let precedente = bilan::ranger(&d.boite(), None, |_| {
@@ -396,18 +391,15 @@ fn test_le_temoin_note_une_vraie_panique() {
 }
 
 /// Le plantage que le système aurait noté pour la session `chemin` : son processus, créé
-/// avant son début, tombé après — lus dans son nom, comme la boîte noire les lit.
+/// avant son début, tombé après — lus comme la boîte noire les lit : le processus dans le nom,
+/// le début dans la première ligne.
 fn vu_par_le_systeme(chemin: &Path, gel: bool) -> crate::plateforme::journal::Evenement {
     let nom = chemin.file_name().unwrap().to_str().unwrap();
-    let (debut, processus) = nom
-        .trim_start_matches("session-")
-        .trim_end_matches(".jsonl")
-        .split_once('-')
-        .unwrap();
-    let debut: u64 = debut.parse().unwrap();
+    let processus = super::fichiers::processus_de(nom).expect("une session");
+    let debut = super::fichiers::debut_du_fichier(chemin).expect("son début");
     crate::plateforme::journal::Evenement {
         gel,
-        processus: processus.parse().unwrap(),
+        processus,
         creation_ms: debut - 250,
         instant_ms: debut + 60_000,
         module: Some("nvoglv64.dll".into()),
@@ -510,4 +502,29 @@ fn test_la_ligne_d_un_plantage_est_du_json() {
     assert!(ligne.contains("\"version_du_module\":null"), "{ligne}");
     assert!(ligne.contains("\"decalage\":null"), "{ligne}");
     assert_eq!(v.champ("version_du_module"), None);
+}
+
+/// **L'ordre du temps est celui des débuts, pas des noms** : la nuit où l'heure d'été finit,
+/// l'horloge revient d'une heure — une session ouverte à 2 h 10 la seconde fois suit celle de
+/// 2 h 30 la première fois. C'est elle, la session d'avant.
+#[test]
+fn test_l_heure_qui_revient_ne_trompe_pas_le_rangement() {
+    let d = Dossier::nouveau("heure-d-ete");
+    std::fs::create_dir_all(d.boite()).expect("boîte");
+    let debut = |ms: u64| format!("{{\"type\":\"debut\",\"epoque_ms\":{ms}}}\n");
+    let fin = "{\"type\":\"fin\",\"instant_ms\":9}\n";
+    let premiere = d.boite().join("2026-10-25 02h30m00 (1).txt");
+    std::fs::write(&premiere, debut(1_000)).expect("écrite");
+    let seconde = d.boite().join("2026-10-25 02h10m00 (2).txt");
+    std::fs::write(&seconde, format!("{}{fin}", debut(4_000_000))).expect("écrite");
+    let precedente = bilan::ranger(&d.boite(), None, |_| Vec::new()).expect("la dernière");
+    assert_eq!(
+        precedente.fin,
+        Fin::Propre,
+        "la plus récente est celle de 2 h 10"
+    );
+    assert!(
+        premiere.exists(),
+        "l'interrompue reste : elle a quelque chose à apprendre"
+    );
 }

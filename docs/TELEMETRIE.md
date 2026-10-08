@@ -40,13 +40,16 @@ elle. Seul le jour de réception est noté, pas l'heure.
 ## Voir ce qui part
 
 Clic droit sur le canevas, puis **Voir ce qui part** : le dossier du journal s'ouvre. Chaque
-fichier y est une session, une ligne par évènement. Ce sont **exactement** ces lignes qui partent,
-sans rien ajouter.
+fichier y est une session — son nom est l'heure où Glucose s'est ouvert —, une ligne par
+évènement, et un double clic l'ouvre. Ce sont **exactement** ces lignes qui partent, sans rien
+ajouter. Le fichier **`LISEZ-MOI.txt`** du dossier dit, colonne par colonne, ce que dit chaque
+champ de chaque ligne.
 
 Le dossier se trouve ici :
 
-* sous Windows : `%LOCALAPPDATA%\Glucose\boite-noire\` ;
-* sous Linux et macOS : `~/.local/state/glucose/boite-noire/`.
+* sous Windows : `%LOCALAPPDATA%\Glucose\journal-technique\` ;
+* sous Linux et macOS : `~/.local/state/glucose/journal-technique/` ;
+* sous Android : dans le dossier privé de Glucose, que seul Glucose lit.
 
 ## Tout effacer
 
