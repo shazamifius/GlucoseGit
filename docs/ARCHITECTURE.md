@@ -164,8 +164,10 @@ avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.m
 ## 7. La plateforme
 
 Tout ce qui parle au système vit dans `plateforme/` (et le `unsafe` avec), une voie par système —
-et deux **portes** que le téléphone branche au lancement : `clavier` (lire et écrire l'état du
-clavier virtuel) et `doigt` (le délai de l'appui long, la vibration) :
+et trois **portes** que le téléphone branche au lancement : `clavier` (lire et écrire l'état du
+clavier virtuel), `doigt` (le délai de l'appui long, la vibration) et `marges` (ce que la barre
+d'état, la navigation et le clavier recouvrent — BORD-1 : la barre du haut englobe la barre
+d'état, et le bas de l'interface se pose dans `UiState::ecran_visible`) :
 le dépôt depuis un navigateur (COM, Windows seulement), le **pavé par *Direct Manipulation***,
 la carte qui tient l'écran (DXGI), le **glisser de nœuds vers une autre
 fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pas dire (le lot de

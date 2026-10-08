@@ -25,8 +25,9 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 
 * **Bord à bord, imposé** à toute application qui vise Android 16 (API 36, la nôtre) sur un
   appareil Android 16 : Glucose dessine sous la barre d'état, la barre de navigation et
-  l'encoche. Rien d'interactif ne s'y pose — lire les *insets* (`AndroidApp::content_rect`) et
-  ranger l'interface dedans ; le canevas, lui, peut aller jusqu'au bord.
+  l'encoche. Rien d'interactif ne s'y pose — les *insets* viennent de Java
+  (`android-activity` 0.6.1 ne les donne pas ; voir le § 4 bis) ; le canevas, lui, va jusqu'au
+  bord.
 * **Portrait d'abord** (un téléphone se tient debout), paysage et tablette ensuite : la mise en
   page se calcule de la taille, jamais d'un « mode téléphone ».
 * **Une seule surface**, comme sur bureau (`style.md` : pas de modes) : les panneaux se replient
@@ -75,8 +76,11 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
   reflète (`text_edit::miroir`). Ses positions sont en **UTF-16** ; ce qu'on lui écrit passe
   par une file (relire juste après rend l'ancien, CLAVIER-2) ; sans le drapeau multiligne,
   Entrée n'écrit rien. Un champ de texte dans une question passe par le même miroir.
-* **La fenêtre rétrécit sous le clavier** jusqu'à Android 14 (`adjustResize`) ; en bord à bord
-  (Android 15 et 16 avec la cible 36), plus : il faudra lire la hauteur du clavier (*insets*).
+* **Bord à bord partout** (BORD-1, fiche 57) : les marges du système viennent de
+  `MainActivity.onApplyWindowInsets` (`plateforme::marges`) ; la barre du haut englobe la barre
+  d'état, et tout ce qui se pose en bas passe par `UiState::ecran_visible` — sans la navigation,
+  ni le clavier, qui **recouvre** la fenêtre au lieu de la rétrécir. Un élément neuf collé à un
+  bord se cale là, jamais sur l'écran entier.
 * **Un emoji tapé n'a pas de dessin** dans la police de Glucose (fiche 57 § 6).
 * Un message plus large que l'écran se **coupe** (le toast, la question) : 360 points de large.
 

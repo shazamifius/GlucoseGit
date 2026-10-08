@@ -105,7 +105,8 @@ la session du 08/10 (fiche 56) en a fait :
 | [~] | **APPUI-1 — l'appui long** (fiche 57) : au délai que règle l'accessibilité d'Android, le menu du clic droit à la taille du doigt, le mot sous le doigt dans un texte, une vibration ; la question répond au relâchement | **à son téléphone** |
 | [~] | **DOCUMENTS-2 — renommer, dupliquer, supprimer** par un appui long dans la liste (fiche 57) ; un champ dans la question, que le clavier remplit | **à son téléphone** |
 | [ ] | **Les emojis** : un emoji tapé au clavier s'affiche comme une case vide (aucune police de repli) | fiche 57 § 6 — avant que ses testeurs écrivent |
-| [ ] | La **mise à jour automatique** sous Android ; les **barres du système** (bord à bord, Android 15 et 16 — et la hauteur du clavier, que `adjustResize` n'y donne plus, fiche 57 § 6) ; le presse-papiers du système ; la batterie sous Android (la télémétrie la lit nulle) | |
+| [~] | **BORD-1 — le bord à bord** (fiche 57 § 4 bis), avancé devant la mise à jour : partout, les marges du système lues dans `MainActivity`, la barre qui couvre la barre d'état, *l'écran visible* au-dessus de la navigation et du clavier | écrit, éprouvé hors écran ; **à son téléphone** |
+| [ ] | La **mise à jour automatique** sous Android ; le presse-papiers du système ; la batterie sous Android (la télémétrie la lit nulle) ; les panneaux qui s'écartent des bords | |
 | [ ] | Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le web. La vidéo (fiche 55 § 4) quand il la redemandera ; les photos **HEIC** par le décodeur d'Android | |
 
 Le plan d'origine (fiche 50) ; l'ordre :

@@ -1,4 +1,4 @@
-# 57 — Le clavier du téléphone, l'appui long, et les documents qu'on renomme
+# 57 — Le clavier du téléphone, l'appui long, les documents qu'on renomme, et le bord à bord
 
 > Session du 08/10/2026, au soir. Dans l'ordre de la fiche 56 § 7 : **le clavier** d'abord —
 > sans lui, rien ne s'écrit au téléphone —, puis **l'appui long** (le clic droit du doigt), puis
@@ -120,6 +120,33 @@
   Les épreuves peuvent désormais le **retenir** (`Ordre::Retenir`, sous `cfg(test)`) : la
   course se perd à coup sûr, et l'attente se prouve. Vingt et un sabotages, vingt et une chutes.
 
+## 4 bis. BORD-1 — le bord à bord, et le clavier qui recouvre
+
+**Avancé devant la mise à jour automatique**, contre l'ordre de la suite : sur Android 15 et 16,
+avec la cible 36, Glucose est dessiné jusqu'au bord — sa barre d'onglets passait sous la barre
+d'état et l'encoche, où elle ne se touche plus, et le clavier recouvrait le texte au lieu de
+rétrécir la fenêtre. La mise à jour, elle, ne sert qu'une fois une version publiée.
+
+* **Le bord à bord partout** (`EdgeToEdge.enable`, icônes claires sur la feuille sombre) : un
+  seul chemin, que son Redmi 9 (Android 10) essaie comme les téléphones récents de ses testeurs.
+* **Les marges viennent de Java** (`MainActivity.onApplyWindowInsets`, qui surcharge l'écouteur
+  de `GameActivity` et l'appelle d'abord) : la barre d'état, l'encoche, la navigation, et le
+  clavier à part (`plateforme::marges`, une boîte aux lettres qui réveille la boucle). Une marge
+  dit ce qui **recouvre** la fenêtre : là où elle rétrécit encore sous le clavier, la marge du
+  clavier vaut zéro — rien ne se compte deux fois.
+* **En haut, une seule mesure change** : la barre du haut englobe la barre d'état — son fond la
+  couvre, ses boutons et son titre se posent dessous. Tout ce qui se mesurait sur elle (les
+  onglets, le canevas, le rail) suit sans rien savoir des marges. Quand le rail remplace la
+  barre, le canevas se voit sous la barre d'état.
+* **En bas, une seule notion** : *l'écran visible* (`UiState::ecran_visible`), l'écran sans la
+  navigation, ni le clavier quand il est sorti. Le message, la question, la barre d'action, les
+  options de flèche et la minimap s'y posent ; la ligne qu'on écrit y reste (CLAVIER-3). Le
+  cadre de la caméra dans la minimap se mesure toujours sur l'écran entier : la minimap reçoit
+  un *retrait*, pas un écran plus petit.
+* À gauche, en paysage, le rail s'écarte de l'encoche.
+* Une épreuve rend l'écran entier hors écran avec 300 pixels de navigation : les rangées du bas
+  sont les mêmes avec et sans le message et la barre d'action.
+
 ## 5. Ce que son téléphone a déjà dit
 
 La base de la télémétrie n'est plus vide : huit sessions, dont **quatre d'Android en 2.0.2-dev**
@@ -139,9 +166,9 @@ ont donc marché chez lui**. Ce qu'elles disent du Redmi 9 :
 * **Un emoji tapé s'affiche comme une case vide** : la police (Inter) n'a pas son dessin, et
   Glucose n'a pas de police de repli. Gboard propose des emojis à chaque phrase ; c'est à
   traiter avant que ses testeurs écrivent.
-* **Le bord à bord** (Android 15 et 16) : `adjustResize` ne rétrécit plus la fenêtre en bord à
-  bord ; la hauteur du clavier et des barres devra se lire (*insets*) dans `MainActivity` et se
-  confier à Rust. Sur son Redmi 9 (Android 10), rien ne change.
+* Le bord à bord **n'a pas tourné sur un téléphone** : la valeur réelle des marges sur son
+  Redmi 9 (et sous Android 10, avec `adjustResize`) se lira dans son journal. Les panneaux
+  (Time Machine, Ordonner…) ne s'écartent pas encore des bords.
 * Le mot en composition (souligné par Gboard) n'est pas souligné dans le nœud ; la sélection
   du texte au doigt n'a ni poignées ni loupe.
 * Deux gardes de l'appui long ne se voyaient pas (§ 3, les sabotages) : une ligne inutile

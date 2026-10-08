@@ -39,8 +39,10 @@
   liste.
 * **Le téléphone, fiche 57 — écrit, éprouvé hors écran, jamais essayé sur un téléphone** :
   **le clavier** (le miroir de la saisie : on écrit enfin au téléphone), **l'appui long** (le
-  clic droit du doigt, au délai que règle l'accessibilité d'Android), et **renommer, dupliquer,
-  supprimer** un document par un appui long dans la liste.
+  clic droit du doigt, au délai que règle l'accessibilité d'Android), **renommer, dupliquer,
+  supprimer** un document par un appui long dans la liste, et **le bord à bord** (l'interface
+  évite la barre d'état, la navigation et le clavier, que Android 15 et 16 imposent).
+  Un APK de cette version, signé de sa clé, est sur son Bureau (`Glucose.apk`).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -70,7 +72,7 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 176 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
+* **Épreuves** : 2 182 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -107,8 +109,8 @@ HTML · miroirs et dossiers miroirs du disque · recherche (`Ctrl+F`) · couleur
 canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur · collaboration · MCP ·
 plugins et IA locale · Mac · iPad. **Android** : tourne sur son téléphone ; les questions s'y
 dessinent (fiche 56) ; le clavier, l'appui long et la gestion des documents sont écrits (fiche
-57) ; **pas encore** de presse-papiers du système, de mise à jour automatique, de bord à bord
-(Android 15 et 16), de batterie dans la télémétrie, ni de dessin pour les emojis. **Les tablettes Windows** : les doigts n'y passent
+57), le bord à bord aussi ; **pas encore** de presse-papiers du système, de mise à jour
+automatique, de batterie dans la télémétrie, ni de dessin pour les emojis. **Les tablettes Windows** : les doigts n'y passent
 pas encore (la souris simulée à écarter d'abord). Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 
