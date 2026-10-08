@@ -338,19 +338,9 @@ impl GlucoseApp {
             "c" | "C" => self.copy_selection(false),
             "x" | "X" => self.copy_selection(true),
             "v" | "V" => self.paste_from_clipboard(),
-            "z" | "Z" => {
-                if self.modifiers.shift_key() {
-                    let done = self.store.redo();
-                    self.toast_if(done, "Rétablir");
-                } else {
-                    let done = self.store.undo();
-                    self.toast_if(done, "Annuler");
-                }
-            }
-            "y" | "Y" => {
-                let done = self.store.redo();
-                self.toast_if(done, "Rétablir");
-            }
+            "z" | "Z" if self.modifiers.shift_key() => self.retablir(),
+            "z" | "Z" => self.annuler(),
+            "y" | "Y" => self.retablir(),
             "d" | "D" => self.duplicate_selection(),
             // `Ctrl+F` : tout cadrer ; `F` seul cadre la sélection (fiche 53 § 8).
             "f" | "F" => self.cadrer(false),
@@ -397,6 +387,31 @@ impl GlucoseApp {
         };
         self.ui.active_tool = tool;
         self.update_cursor();
+        self.mark_dirty();
+    }
+
+    /// **Annule le dernier geste** — `Ctrl+Z`, ou deux doigts touchés (GESTES-1). Dans le texte
+    /// qu'on écrit, la dernière frappe, mot par mot.
+    pub(crate) fn annuler(&mut self) {
+        if self.editing_session.is_some() {
+            self.apply_text_command(super::text_edit::keys::Command::Undo, false);
+            self.mark_dirty();
+            return;
+        }
+        let done = self.store.undo();
+        self.toast_if(done, "Annuler");
+        self.mark_dirty();
+    }
+
+    /// **Rétablit** ce que l'annulation a défait — `Ctrl+Y`, ou trois doigts touchés.
+    pub(crate) fn retablir(&mut self) {
+        if self.editing_session.is_some() {
+            self.apply_text_command(super::text_edit::keys::Command::Redo, false);
+            self.mark_dirty();
+            return;
+        }
+        let done = self.store.redo();
+        self.toast_if(done, "Rétablir");
         self.mark_dirty();
     }
 

@@ -253,8 +253,8 @@ fn echeance_atteinte(app: &mut GlucoseApp) {
     }
 }
 
-/// **Un doigt qui tient ouvre le menu**, à la taille du doigt ; se lever ensuite ne le referme
-/// pas et n'y choisit rien.
+/// **Un doigt qui tient ouvre le menu quand il se lève**, à la taille du doigt (GESTES-1 :
+/// l'appui prend à l'échéance, et ce qui suit décide — rien n'a suivi, c'est le menu).
 #[test]
 fn test_appui_1_un_doigt_qui_tient_ouvre_le_menu_au_doigt() {
     let mut app = app();
@@ -268,14 +268,14 @@ fn test_appui_1_un_doigt_qui_tient_ouvre_le_menu_au_doigt() {
     assert_eq!(app.ui.context_menu_at, None, "pas avant l'échéance");
     echeance_atteinte(&mut app);
     assert_eq!(app.attente_de_l_appui(), None, "pris, il n'attend plus");
-    assert_eq!(app.ui.context_menu_at, Some((300.0, 400.0)));
-    assert!(app.ui.menu_au_doigt);
+    assert_eq!(app.ui.context_menu_at, None, "la suite décide");
     doigt(&mut app, 1, TouchPhase::Ended, (300.0, 400.0));
     assert_eq!(
         app.ui.context_menu_at,
         Some((300.0, 400.0)),
-        "se lever ne fait rien de plus"
+        "levé : le menu"
     );
+    assert!(app.ui.menu_au_doigt);
 }
 
 /// **Un doigt qui part, ou qui se lève avant l'échéance, n'est pas un appui long.**

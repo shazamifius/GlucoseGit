@@ -12,6 +12,9 @@
 //!   [`super::pave::Mouvement`] du pavé tactile, appliqué par le même code — un pincement et un
 //!   déplacement à la fois, sans rien classer (fiche 54).
 //! * Un **troisième** doigt ne change rien : les deux premiers mènent.
+//! * **Les gestes à plusieurs doigts** (GESTES-1, fiche 58, [`plusieurs`]) : deux doigts touchés
+//!   annulent, trois rétablissent ; après l'appui long, lever ouvre le menu, glisser trace un
+//!   rectangle, un autre doigt ajoute des nœuds à la sélection.
 //!
 //! Le deuxième doigt **termine** ce que le premier faisait — un glisser se pose où il est — :
 //! on ne pince pas en déplaçant un nœud.
@@ -21,6 +24,8 @@
 //! Sous Windows, `winit` livre les doigts **et** la souris que Windows simule à partir du
 //! premier : tout arriverait deux fois. Les doigts n'y passent donc pas encore par ici — il faudra
 //! d'abord reconnaître la souris simulée (`GetMessageExtraInfo`) pour l'écarter.
+
+mod plusieurs;
 
 use super::pave::{Mouvement, Pave};
 use crate::app::GlucoseApp;
@@ -41,6 +46,10 @@ pub struct Toucher {
     /// **Un doigt posé qui pourrait devenir un appui long** (APPUI-1, fiche 57) : où il s'est
     /// posé, et quand il aura tenu assez — tant qu'il ne bouge pas plus qu'une main qui tremble.
     pub(crate) appui: Option<Appui>,
+    /// **Un toucher à plusieurs doigts qui se décide** (GESTES-1) : annuler, rétablir.
+    pub(crate) bref: Option<plusieurs::Bref>,
+    /// **L'appui long a pris**, et ce qui le suit décide (GESTES-1).
+    pub(crate) pris: Option<plusieurs::Pris>,
 }
 
 /// Un appui qui se décide.
@@ -133,6 +142,7 @@ impl GlucoseApp {
     }
 
     fn poser_un_doigt(&mut self, id: u64, ici: (f64, f64)) {
+        self.plusieurs_a_la_pose(id, ici);
         let doigts = &mut self.toucher.doigts;
         doigts.poses.push((id, ici));
         match doigts.poses.len() {
@@ -162,6 +172,9 @@ impl GlucoseApp {
             return;
         };
         *place = ici;
+        if self.plusieurs_au_mouvement(id, ici) {
+            return;
+        }
         if self.toucher.doigts.seul {
             // Un doigt qui part n'était pas un appui long : il glisse.
             let tremblement = self.tremblement();
@@ -184,6 +197,7 @@ impl GlucoseApp {
     fn lever_un_doigt(&mut self, id: u64) {
         // Levé avant l'échéance : c'était un toucher.
         self.toucher.appui = None;
+        self.plusieurs_au_lever(id);
         let doigts = &mut self.toucher.doigts;
         doigts.poses.retain(|(i, _)| *i != id);
         if doigts.poses.is_empty() {
@@ -191,6 +205,7 @@ impl GlucoseApp {
             if seul {
                 self.handle_mouse_up(MouseButton::Left);
             }
+            self.plusieurs_tous_leves();
         }
     }
 }
@@ -215,8 +230,9 @@ impl GlucoseApp {
     /// * sur une question, rien ne répond ;
     /// * dans le texte qu'on écrit, le mot sous le doigt se sélectionne, comme partout sous
     ///   Android ;
-    /// * ailleurs, le menu du clic droit s'ouvre, à la taille du doigt : celui du nœud que le
-    ///   toucher vient de choisir, ou celui du vide.
+    /// * ailleurs, **ce qui suit décide** (GESTES-1, fiche 58) : lever le doigt ouvre le menu
+    ///   du clic droit, à la taille du doigt — celui du nœud que le toucher vient de choisir, ou
+    ///   celui du vide ; le glisser trace un rectangle ; un autre doigt ajoute des nœuds.
     pub(crate) fn appui_long(&mut self) {
         if self.toucher.appui.take().is_none() {
             return;
@@ -228,6 +244,8 @@ impl GlucoseApp {
             return;
         }
         let ici = self.mouse_pos;
+        let tenu = self.toucher.doigts.poses.first().map(|(i, _)| *i);
+        self.toucher.bref = None;
         let dans_le_texte = self.text_drag.is_some();
         // **Un appui long n'est pas un clic** : le relâchement ne réduit pas une sélection
         // multiple au nœud touché (SEL-MULTI-1) — le menu s'ouvre sur toute la sélection,
@@ -239,9 +257,9 @@ impl GlucoseApp {
             self.end_text_drag();
             return;
         }
-        self.right_down_at = Some(ici);
-        self.open_context_menu_if_still();
-        self.ui.menu_au_doigt = true;
+        if let Some(tenu) = tenu {
+            self.toucher.pris = Some(plusieurs::Pris::nouveau(tenu, ici));
+        }
     }
 
     /// Le geste de souris en cours vient-il d'un doigt ? Sur le vide, il déplace alors le
