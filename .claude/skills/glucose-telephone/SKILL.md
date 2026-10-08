@@ -68,6 +68,10 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 * **Aucun sélecteur de fichiers** : les documents se rangent d'office dans `documents/`
   (DOCUMENTS-1, `ui.documents_ranges`) et se rouvrent par une liste ; les images viennent du
   sélecteur de photos.
+* **Les gestes à plusieurs doigts** (GESTES-1, fiche 58) : deux doigts touchés annulent, trois
+  rétablissent — tous levés avant l'appui long, sans bouger. L'appui long **prend** (vibration),
+  puis ce qui suit décide : lever → le menu ; glisser → un rectangle de sélection ; un autre
+  doigt touche des nœuds → ils s'ajoutent. Deux doigts qui bougent font toujours leur similitude.
 * **Aucun clic droit** : deux touchers sur le vide ouvrent le menu, à la taille du doigt ; et
   **l'appui long** (APPUI-1, fiche 57), au délai que règle l'accessibilité d'Android
   (`plateforme::doigt`), ouvre le menu du clic droit. Une question dessinée répond **au

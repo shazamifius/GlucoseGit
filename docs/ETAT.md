@@ -44,10 +44,12 @@
   supprimer** un document par un appui long dans la liste, et **le bord à bord** (l'interface
   évite la barre d'état, la navigation et le clavier, que Android 15 et 16 imposent).
   Un APK de cette version, signé de sa clé, est sur son Bureau (`Glucose.apk`).
-* **Fiche 58 — écrit, éprouvé hors écran, jamais vu à son écran** : **toutes les questions se
+* **Fiche 58 — « tout fonctionne » (09/10)** : **toutes les questions se
   dessinent dans Glucose**, au bureau aussi (POPUP-1 : ses écrans noirs venaient d'une boîte du
   système posée avant la première image) — Entrée, Tab, Échap ; **le rail écrit le nom de chaque
-  icône** ; **les emojis se dessinent** (Noto Emoji monochrome, en repli d'Inter).
+  icône** ; **les emojis se dessinent** (Noto Emoji monochrome, en repli d'Inter). Puis, à sa
+  demande : **le journal technique lisible** (`journal-technique`, un `LISEZ-MOI.txt` en
+  colonnes) et **les gestes à plusieurs doigts** (annuler, rétablir, choisir plusieurs nœuds).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera

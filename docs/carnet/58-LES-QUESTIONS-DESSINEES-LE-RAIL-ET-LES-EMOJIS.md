@@ -213,6 +213,54 @@ n'a tourné sur aucun téléphone.
 tapé dans un texte ; puis ce que la fiche 57 § 7 demandait déjà (le clavier, l'appui long, les
 documents).
 
+## 9. Sa réponse, le 09/10, et ce qui a suivi
+
+*« Tout fonctionne »* — et, devant le dossier du journal : *« tu l'as appelé boîte noire, il
+faudrait le renommer, ça peut inquiéter des gens ; et le format doit être lisible, avec un
+lisez-moi qui raconte les détails exacts de ce qui est envoyé, en colonnes »*. Puis : *« je
+suis complètement d'accord avec tes propositions pour les doigts ; d'accord avec toutes tes
+propositions, et j'autorise les commits »*.
+
+### Le journal technique, lisible
+
+* **Le dossier porte le nom qu'il lit déjà** : `journal-technique`, comme la question et le
+  menu (`boite_noire::fichiers`). L'ancien s'y range au premier lancement, sans rien écraser.
+* **Un fichier porte l'heure de sa session**, à l'heure locale, et s'ouvre d'un double clic :
+  `2026-10-08 20h51m12 (16656).txt` — le nombre entre parenthèses distingue deux Glucose
+  ouverts la même seconde, et ne part pas.
+* **`LISEZ-MOI.txt`**, posé dans le dossier : chaque sorte de ligne (neuf), chaque champ, ce
+  qu'il dit, un exemple, en colonnes ; ce qui ne part jamais ; où vont les données ; comment
+  changer d'avis. Une épreuve le confronte à ce que le journal écrit : un champ ajouté sans le
+  dire la fait tomber.
+* **Les lignes ne changent pas** : ce sont exactement celles qui partent. Je ne les ai pas
+  réécrites en colonnes : le serveur les lit telles quelles, et la promesse « ce que tu vois
+  est ce qui part » tient mieux qu'une seconde présentation. C'est le lisez-moi qui les met en
+  colonnes.
+* **Le piège évité** : le serveur reconnaît une session par une empreinte, et la liste de ce
+  qui est parti la retenait — toutes deux tirées du **nom** du fichier. Renommer aurait fait
+  repartir chaque session en double. La clé se tire désormais du début et du processus, et vaut
+  mot pour mot l'ancien nom. **Joué sur une copie de ses données** (`%LOCALAPPDATA%\Glucose`,
+  jamais touché) : sept sessions, leurs octets intacts, les six déjà parties reconnues comme
+  parties, la septième en attente.
+* L'ordre du temps se lit dans le début de chaque session, plus dans les noms : la nuit où
+  l'heure d'été finit, l'horloge revient d'une heure (une épreuve le joue). L'heure locale
+  existe désormais sous Linux et Android (`localtime_r`).
+* L'adresse du serveur garde son nom (`glucose-boite-noire.…workers.dev`) : la changer
+  demanderait de redéployer, et les Glucose déjà installés continueraient d'écrire à l'ancienne.
+  Personne ne la voit — à lui de dire s'il veut quand même.
+
+### GESTES-1, écrit
+
+La carte du § 4 avait une contradiction, vue en lisant le code : « un doigt tient un nœud
+pendant qu'un autre en touche » se heurtait à l'appui long, dont le menu s'ouvrait au bout de
+0,4 s. La forme cohérente (`interactions/toucher/plusieurs.rs`) : **l'appui long prend — le
+téléphone vibre —, puis ce qui suit décide** — lever ouvre le menu, glisser trace un rectangle
+de sélection, un autre doigt touche des nœuds qui s'ajoutent. Les touchers à deux et trois
+doigts (annuler, rétablir) sont ceux d'un geste bref : tous levés avant l'appui long, sans
+bouger. Aucun délai choisi : celui du système, et le tremblement. Dans le texte qu'on écrit,
+deux doigts annulent la frappe, mot par mot. Un toucher sur le vide pendant l'appui ne vide
+pas la sélection.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)

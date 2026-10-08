@@ -76,6 +76,9 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   long** (APPUI-1, fiche 57) : un doigt immobile qui tient le délai du système
   (`plateforme::doigt`, le réglage d'accessibilité d'Android) ouvre le menu du clic droit, ou
   choisit le mot sous le doigt dans un texte ; la boucle se réveille à son échéance.
+  **Les gestes à plusieurs doigts** (GESTES-1, `toucher/plusieurs.rs`, fiche 58) : deux doigts
+  touchés annulent, trois rétablissent ; l'appui long pris, ce qui suit décide — lever ouvre le
+  menu, glisser trace un rectangle, un autre doigt ajoute des nœuds.
 * **Le clavier du téléphone** (CLAVIER-1, `text_edit/miroir.rs`, fiche 57) : le clavier du
   système tient le texte qu'il réécrit ; la saisie (un nœud, ou le champ d'une question) et lui
   tiennent le même état, comparé à chaque tour de boucle — ce qu'il réécrit devient une commande
@@ -184,10 +187,13 @@ des plantages de Windows, la batterie.
 * **La chronique** (`chronique/`) : ce que chaque image coûte poste par poste, ce que l'écran a
   montré, les gels décomposés, le verdict. Écrite à la fin de chaque session dans
   `%TEMP%\glucose-chronique\derniere-session.txt`.
-* **La boîte noire** (`boite_noire/`) : un fichier par session dans `%LOCALAPPDATA%\Glucose\boite-noire\`,
+* **La boîte noire** (`boite_noire/`) : le **journal technique**, un fichier par session dans
+  `%LOCALAPPDATA%\Glucose\journal-technique\`, nommé à l'heure de la session et lisible d'un
+  double clic, avec un `LISEZ-MOI.txt` en colonnes (`boite_noire::fichiers`, fiche 58),
   écrit au fil de l'eau, qui survit à un plantage ; au lancement, comment la session d'avant a fini
   (et, sous Windows, dans quel module elle a planté). Elle garde la session précédente et
-  toutes celles qui ont mal fini, efface le reste.
+  toutes celles qui ont mal fini, efface le reste. Une session se reconnaît par sa **clé** (son
+  début et son processus), pas par le nom de son fichier.
 * **La boîte noire qui voyage** (`telemetrie.rs`, fiche 54) : **avec l'accord de chacun**, les
   sessions closes partent au lancement, sur un fil à part, vers un Worker de Cloudflare
   (`outils/telemetrie/`, qui n'accepte que les noms de ses listes fermées). Rien ne part tant que
