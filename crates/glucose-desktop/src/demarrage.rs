@@ -25,6 +25,10 @@ pub fn lancer(event_loop: EventLoop<()>, dossier: &Path) -> Result<(), Box<dyn s
     app.depot.telechargements = crate::plateforme::telechargements::dossier();
     // Le presse-papiers du système, pour l'application seule : les épreuves ont le leur.
     crate::interactions::presse_papiers::prendre_celui_du_systeme();
+    // Le clavier du système, s'il y en a un à demander — sous Android (CLAVIER-1).
+    if let Some(clavier) = crate::plateforme::clavier::prendre() {
+        app.lancement.clavier.brancher(clavier);
+    }
     // La boîte noire (fiche 45) : ce qui se passe, écrit au fil de l'eau ; et comment la
     // session d'avant a fini.
     let precedente = app.chronique.ouvrir_la_boite_noire(dossier);

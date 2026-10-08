@@ -169,6 +169,8 @@ impl GlucoseApp {
                 if let Some(pave) = &mut self.toucher.pave {
                     pave.cadrer(width, height);
                 }
+                // Le clavier du téléphone vient de sortir, peut-être (CLAVIER-3).
+                self.garder_la_ligne_en_vue();
                 self.mark_dirty();
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
@@ -204,6 +206,8 @@ impl GlucoseApp {
 
         // **Ce que le pont natif et les relances ont apporte** (DEPOT-WEB-1, 6).
         self.relever_les_depots();
+        // Ce que le clavier du téléphone a réécrit, et ce qu'il doit tenir (CLAVIER-1).
+        self.suivre_le_clavier();
         // Ce que la veille des mises à jour a trouvé, ou préparé (fiche 48).
         self.suivre_la_mise_a_jour(event_loop);
 

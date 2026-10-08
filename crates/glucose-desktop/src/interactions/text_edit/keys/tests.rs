@@ -128,6 +128,11 @@ fn test_key_1_enter_breaks_the_line_whatever_shift_does() {
         lit(nommee(NamedKey::Escape), AUCUN),
         Some((Command::Commit, false))
     );
+    assert_eq!(
+        lit(nommee(NamedKey::BrowserBack), AUCUN),
+        Some((Command::Commit, false)),
+        "le retour d'Android valide la saisie, comme Échap"
+    );
 }
 
 /// `Ctrl+S` et `Ctrl+O` traversent une saisie ; les lettres seules, non.

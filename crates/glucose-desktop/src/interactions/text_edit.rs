@@ -13,6 +13,7 @@
 pub mod geometry;
 pub mod historique;
 pub(crate) mod keys;
+pub mod miroir;
 
 use crate::app::GlucoseApp;
 use crate::renderer::TextEditSession;

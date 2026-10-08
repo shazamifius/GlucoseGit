@@ -81,7 +81,8 @@ impl Command {
             Key::Named(NamedKey::End) => Self::MoveVisualEdge(Direction::Forward),
             Key::Named(NamedKey::Backspace) => Self::Delete(motion(word), Direction::Backward),
             Key::Named(NamedKey::Delete) => Self::Delete(motion(word), Direction::Forward),
-            Key::Named(NamedKey::Escape) => Self::Commit,
+            // Le retour d'Android (`winit` le nomme ainsi) ferme ce qui est ouvert : la saisie.
+            Key::Named(NamedKey::Escape | NamedKey::BrowserBack) => Self::Commit,
             // `Entrée` va à la ligne ; `Ctrl+Entrée` et `Échap` valident.
             //
             // C'est ce que fait Glucose Tauri (`GlucoseCanvas.tsx` n'intercepte que

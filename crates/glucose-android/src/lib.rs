@@ -15,6 +15,7 @@ use winit::platform::android::EventLoopBuilderExtAndroid;
 fn android_main(app: AndroidApp) {
     journal::rediriger_la_sortie();
     selecteur::brancher(&app);
+    glucose_desktop::plateforme::clavier::installer(Box::new(clavier::DuTelephone(app.clone())));
     // Le dossier privé de l'application : Android n'a ni `LOCALAPPDATA` ni `HOME`, et son
     // dossier temporaire n'est pas à elle. Personne d'autre ne le lit, et il part avec elle.
     let dossier = app
@@ -154,6 +155,60 @@ mod selecteur {
             )?;
             Ok(())
         })
+    }
+}
+
+/// **Le clavier virtuel** (CLAVIER-1, fiche 57) : `GameActivity` tient le texte qu'il réécrit,
+/// `winit` jette l'évènement qui le dit ; Glucose relit et réécrit cet état par `AndroidApp`.
+/// Les positions restent en unités UTF-16, celles de Java : le miroir les convertit.
+mod clavier {
+    use glucose_desktop::plateforme::clavier::{Clavier, EtatDuClavier};
+    use winit::platform::android::activity::input::{
+        ImeOptions, InputType, TextInputAction, TextInputState, TextSpan,
+    };
+    use winit::platform::android::activity::AndroidApp;
+
+    pub struct DuTelephone(pub AndroidApp);
+
+    impl Clavier for DuTelephone {
+        fn montrer(&self, etat: &EtatDuClavier) {
+            // **Multiligne** : sans ce drapeau, `GameTextInput` change Entrée en « action » et
+            // filtre les sauts de ligne (lu dans `InputConnection`, `games-activity` 4.4.0) — or
+            // Entrée va à la ligne dans un nœud, comme au bureau.
+            let genre = InputType::TYPE_CLASS_TEXT
+                | InputType::TYPE_TEXT_FLAG_MULTI_LINE
+                | InputType::TYPE_TEXT_FLAG_CAP_SENTENCES
+                | InputType::TYPE_TEXT_FLAG_AUTO_CORRECT;
+            // Jamais le clavier plein écran du paysage : il cacherait le nœud qu'on écrit.
+            let options = ImeOptions::IME_FLAG_NO_FULLSCREEN | ImeOptions::IME_FLAG_NO_ENTER_ACTION;
+            self.0
+                .set_ime_editor_info(genre, TextInputAction::None, options);
+            self.ecrire(etat);
+            // `false` : une demande explicite — l'utilisateur a touché le texte.
+            self.0.show_soft_input(false);
+        }
+
+        fn ecrire(&self, etat: &EtatDuClavier) {
+            let span = |(start, end): (usize, usize)| TextSpan { start, end };
+            self.0.set_text_input_state(TextInputState {
+                text: etat.texte.clone(),
+                selection: span(etat.selection),
+                compose_region: etat.composition.map(span),
+            });
+        }
+
+        fn cacher(&self) {
+            self.0.hide_soft_input(false);
+        }
+
+        fn lire(&self) -> EtatDuClavier {
+            let etat = self.0.text_input_state();
+            EtatDuClavier {
+                texte: etat.text,
+                selection: (etat.selection.start, etat.selection.end),
+                composition: etat.compose_region.map(|s| (s.start, s.end)),
+            }
+        }
     }
 }
 

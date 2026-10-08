@@ -63,6 +63,8 @@ impl GlucoseApp {
             anchor,
             granularity,
         });
+        // Toucher le texte qu'on écrit ressort le clavier, que le geste retour a pu rentrer.
+        self.lancement.clavier.redemander();
         self.mark_dirty();
         true
     }
