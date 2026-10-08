@@ -87,6 +87,21 @@ pub fn copier_d_un_bloc(source: &Path, path: &Path) -> std::io::Result<()> {
     })
 }
 
+/// **Renomme `source` en `path`, sans jamais écraser ce qui s'y trouve** (DOCUMENTS-2) :
+/// sous Windows, `rename` remplace la destination en silence ; un nom déjà pris est donc
+/// refusé avant. Un seul `rename`, dans le même dossier : le fichier ne passe par aucun état
+/// intermédiaire.
+pub fn renommer_sans_ecraser(source: &Path, path: &Path) -> std::io::Result<()> {
+    if path.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "ce nom est déjà pris",
+        ));
+    }
+    std::fs::rename(source, path)?;
+    sync_parent(path)
+}
+
 /// **Pose un programme** à `path` sous la même loi, **exécutable avant de prendre sa place** :
 /// un AppImage que la mise à jour remplace n'est jamais, fût-ce un instant, un fichier qu'on ne
 /// peut plus lancer (fiche 48).

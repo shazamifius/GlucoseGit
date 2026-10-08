@@ -299,6 +299,12 @@ impl Ecriture {
         self.scribe.synchroniser()
     }
 
+    /// **Les épreuves seules** : retient le scribe jusqu'à ce que le rendu parte.
+    #[cfg(test)]
+    pub fn retenir(&self) -> std::sync::mpsc::Sender<()> {
+        self.scribe.retenir()
+    }
+
     /// L'erreur d'écriture survenue depuis la dernière fois, que l'utilisateur doit lire.
     pub fn prendre_l_erreur(&self) -> Option<String> {
         self.scribe.prendre_l_erreur()

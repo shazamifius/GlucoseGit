@@ -8,9 +8,10 @@
 //! ```
 
 use glucose_core::store::Store;
+use glucose_core::text::Selection;
 use glucose_core::types::BoardImage;
 use glucose_desktop::bench;
-use glucose_desktop::ui::question::{Question, Reponse, Suite};
+use glucose_desktop::ui::question::{Champ, Question, Reponse, Suite};
 
 fn document() -> Store {
     let mut store = Store::new("apercu");
@@ -55,14 +56,68 @@ fn main() {
         &png,
     );
     // La liste des documents, telle que le téléphone la dessine (fiche 56, DOCUMENTS-1).
-    for (nom, question) in [("documents", liste()), ("question", nouveau())] {
+    // Et ce qu'un appui long y demande (fiche 57, DOCUMENTS-2). « Renommer » se rend dans la
+    // fenêtre que le clavier laisse : 720 × 860, son bas pris par Gboard (`adjustResize`).
+    let ecrans = [
+        ("documents", liste(), 1600),
+        ("question", nouveau(), 1600),
+        ("gerer", gerer(), 1600),
+        ("renommer", renommer(), 860),
+        ("supprimer", supprimer(), 1600),
+    ];
+    for (nom, question, hauteur) in ecrans {
         let mut store = document();
-        bench::frame_document(&mut store, 0.6, 720, 1600);
-        let png = bench::capture_with(&store, 720, 1600, |ui| {
+        bench::frame_document(&mut store, 0.6, 720, hauteur);
+        let png = bench::capture_with(&store, 720, hauteur, |ui| {
             ui.scale_factor = 2.0;
             ui.question = Some((question, Suite::Ouvrir(Vec::new())));
         });
         ecrire(&format!("{dossier}/telephone-debout-{nom}.png"), &png);
+    }
+}
+
+/// La question de l'appui long sur un document.
+fn gerer() -> Question {
+    Question {
+        titre: "« Canevas 2 »".into(),
+        choix: vec![
+            ("Renommer…".into(), Reponse::Choix(0)),
+            ("Dupliquer".into(), Reponse::Choix(1)),
+            ("Supprimer…".into(), Reponse::Choix(2)),
+            ("Annuler".into(), Reponse::Annuler),
+        ],
+        ..Default::default()
+    }
+}
+
+/// Renommer : le nom tout sélectionné, que la première lettre tapée remplace.
+fn renommer() -> Question {
+    Question {
+        titre: "Renommer".into(),
+        champ: Some(Champ {
+            texte: "Canevas 2".into(),
+            selection: Selection::all("Canevas 2"),
+        }),
+        choix: vec![
+            ("Renommer".into(), Reponse::Oui),
+            ("Annuler".into(), Reponse::Annuler),
+        ],
+        ..Default::default()
+    }
+}
+
+/// Supprimer : définitif, et dit.
+fn supprimer() -> Question {
+    Question {
+        titre: "Supprimer « Canevas 2 » ?".into(),
+        texte: "C'est définitif : le document, son histoire et ses images disparaissent de ce \
+                téléphone."
+            .into(),
+        choix: vec![
+            ("Supprimer".into(), Reponse::Oui),
+            ("Annuler".into(), Reponse::Annuler),
+        ],
+        ..Default::default()
     }
 }
 
@@ -77,7 +132,7 @@ fn liste() -> Question {
     choix.push(("Annuler".into(), Reponse::Annuler));
     Question {
         titre: "Documents".into(),
-        texte: String::new(),
+        texte: "Un appui long sur l'un d'eux : le renommer, le dupliquer, le supprimer.".into(),
         choix,
         ..Default::default()
     }

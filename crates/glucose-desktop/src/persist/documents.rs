@@ -15,6 +15,8 @@ use crate::app::GlucoseApp;
 use glucose_core::persist::FILE_EXTENSION;
 use std::path::{Path, PathBuf};
 
+mod gestion;
+
 /// Le nom des documents que le téléphone range d'office, suivi de leur numéro.
 const NOM: &str = "Canevas";
 
@@ -24,6 +26,13 @@ pub(crate) fn nom_libre(dossier: &Path) -> PathBuf {
         .map(|n| dossier.join(format!("{NOM} {n}.{FILE_EXTENSION}")))
         .find(|chemin| !chemin.exists())
         .unwrap_or_else(|| dossier.join(format!("{NOM}.{FILE_EXTENSION}")))
+}
+
+/// Le nom d'un document, tel que la liste le montre : son fichier, sans l'extension.
+pub(crate) fn nom_de(chemin: &Path) -> String {
+    chemin
+        .file_stem()
+        .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
 }
 
 /// Combien de documents la liste montre au plus : ce qu'un téléphone tient debout, en
@@ -61,23 +70,29 @@ impl GlucoseApp {
             self.open_project();
             return;
         }
+        self.montrer_les_documents(None);
+    }
+
+    /// **La liste des documents**, et en tête ce qui vient d'arriver à l'un d'eux — renommé,
+    /// dupliqué, supprimé (DOCUMENTS-2) : la liste revient après chaque geste, et le dit là où
+    /// l'on regarde, plutôt que dans un message posé par-dessus.
+    pub(crate) fn montrer_les_documents(&mut self, arrive: Option<String>) {
         use crate::ui::question::{Question, Reponse, Suite};
         let mut documents = les_documents(&self.disque.documents);
-        let texte = match documents.len() {
+        // L'appui long ne se devine pas : la liste le dit (DOCUMENTS-2).
+        const APPUI: &str =
+            "Un appui long sur l'un d'eux : le renommer, le dupliquer, le supprimer.";
+        let compte = match documents.len() {
             0 => "Aucun document rangé pour l'instant.".to_string(),
-            n if n > MONTRES => format!("Les {MONTRES} plus récents, sur {n}."),
-            _ => String::new(),
+            n if n > MONTRES => format!("Les {MONTRES} plus récents, sur {n}. {APPUI}"),
+            _ => APPUI.to_string(),
         };
+        let texte = arrive.map_or(compte.clone(), |a| format!("{a}\n{compte}"));
         documents.truncate(MONTRES);
         let mut choix: Vec<(String, Reponse)> = documents
             .iter()
             .enumerate()
-            .map(|(i, p)| {
-                let nom = p
-                    .file_stem()
-                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
-                (nom, Reponse::Choix(i))
-            })
+            .map(|(i, p)| (nom_de(p), Reponse::Choix(i)))
             .collect();
         choix.push(("Annuler".into(), Reponse::Annuler));
         let question = Question {

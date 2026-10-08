@@ -10,14 +10,14 @@
 
 use crate::app::GlucoseApp;
 use crate::params::{Pointer, ScreenFrame};
-use crate::ui::question::{placer, reponse_sous, Question, Reponse, Suite};
+use crate::ui::question::{champ_sous, placer, reponse_sous, Question, Reponse, Suite};
 
 impl GlucoseApp {
     /// **Pose cette question** ; sa réponse déclenchera `suite`.
     pub(crate) fn demander(&mut self, question: Question, suite: Suite) {
         if !self.ui.questions_dessinees {
             let reponse = self.sous_un_dialogue(|ancre| crate::dialogue::poser(ancre, &question));
-            self.suivre(suite, reponse);
+            self.suivre(suite, reponse, None);
             return;
         }
         self.ui.question = Some((question, suite));
@@ -34,6 +34,10 @@ impl GlucoseApp {
         let ecran = (screen.width, screen.height);
         let placee = placer(question, &self.renderer.typography, ecran, screen.scale);
         question.sous_le_doigt = reponse_sous(&placee, pointer.x, pointer.y);
+        // Toucher le champ ressort le clavier, que le geste retour a pu rentrer.
+        if champ_sous(&placee, pointer.x, pointer.y) {
+            self.lancement.clavier.redemander();
+        }
         self.mark_dirty();
         true
     }
@@ -54,27 +58,35 @@ impl GlucoseApp {
         let ecran = (screen.width, screen.height);
         let placee = placer(question, &self.renderer.typography, ecran, screen.scale);
         if reponse_sous(&placee, pointer.x, pointer.y) == Some(pressee) {
-            if let Some((_, suite)) = self.ui.question.take() {
-                self.suivre(suite, pressee);
+            if let Some((question, suite)) = self.ui.question.take() {
+                self.suivre(suite, pressee, question.champ.map(|c| c.texte));
             }
         }
         self.mark_dirty();
         true
     }
 
-    /// **Un appui long sur une question** n'y répond rien : la réponse pressée s'oublie.
-    /// Rend `true` s'il y avait une question.
+    /// **Un appui long sur une question** n'y répond rien : la réponse pressée s'oublie — sauf
+    /// sur un document de la liste, qui demande alors ce qu'on en fait (DOCUMENTS-2). Rend
+    /// `true` s'il y avait une question.
     pub(crate) fn appui_long_sur_la_question(&mut self) -> bool {
-        let Some((question, _)) = &mut self.ui.question else {
+        let Some((question, suite)) = &mut self.ui.question else {
             return false;
         };
-        question.sous_le_doigt = None;
+        let document = match (suite, question.sous_le_doigt.take()) {
+            (Suite::Ouvrir(chemins), Some(Reponse::Choix(i))) => chemins.get(i).cloned(),
+            _ => None,
+        };
+        if let Some(chemin) = document {
+            self.ui.question = None;
+            self.gerer_un_document(chemin);
+        }
         self.mark_dirty();
         true
     }
 
-    /// Ce que la réponse déclenche.
-    fn suivre(&mut self, suite: Suite, reponse: Reponse) {
+    /// Ce que la réponse déclenche ; `champ`, ce qu'on avait écrit dans la question.
+    fn suivre(&mut self, suite: Suite, reponse: Reponse, champ: Option<String>) {
         match suite {
             Suite::NouveauDocument if reponse == Reponse::Oui => self.adopter_si_on_laisse(),
             Suite::NouveauDocument => {}
@@ -86,6 +98,15 @@ impl GlucoseApp {
                     }
                 }
             }
+            Suite::Gerer(chemin) => self.suivre_la_gestion(chemin, reponse),
+            Suite::Renommer(chemin) => match (reponse, champ) {
+                (Reponse::Oui, Some(nom)) => self.renommer_le_document(&chemin, &nom),
+                _ => self.choisir_un_document(),
+            },
+            Suite::Supprimer(chemin) if reponse == Reponse::Oui => {
+                self.supprimer_le_document(&chemin);
+            }
+            Suite::Supprimer(_) => self.choisir_un_document(),
         }
     }
 }

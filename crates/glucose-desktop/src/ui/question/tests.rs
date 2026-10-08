@@ -90,3 +90,25 @@ fn test_chaque_reponse_fait_quarante_huit_points_et_repond_en_son_centre() {
         "le texte ne répond rien"
     );
 }
+
+/// **La part visible du champ** montre toujours la tête, sur des caractères entiers.
+#[test]
+fn test_documents_2_le_champ_montre_la_tete() {
+    let largeur = |a: usize, b: usize| (b - a) as f32;
+    assert_eq!(
+        fenetre("abcdefghij", 10, 4.0, largeur),
+        (6, 10),
+        "la fin, tête au bout"
+    );
+    assert_eq!(
+        fenetre("abcdefghij", 2, 4.0, largeur),
+        (0, 4),
+        "le début, tête au début"
+    );
+    assert_eq!(fenetre("abc", 1, 40.0, largeur), (0, 3), "tout tient");
+    assert_eq!(
+        fenetre("ééé", 6, 2.0, largeur),
+        (4, 6),
+        "jamais un octet coupé"
+    );
+}

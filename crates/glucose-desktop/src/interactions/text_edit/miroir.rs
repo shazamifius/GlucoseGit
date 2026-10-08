@@ -32,7 +32,6 @@ use crate::app::GlucoseApp;
 use crate::plateforme::clavier::{Clavier, EtatDuClavier};
 use crate::renderer::card::{text_box, TEXT_ORIGIN};
 use crate::renderer::richtext::hit::line_of_offset;
-use crate::renderer::TextEditSession;
 use glucose_core::text::selection::{Direction, Motion};
 use glucose_core::text::Selection;
 use std::ops::Range;
@@ -47,9 +46,17 @@ pub struct Miroir {
     redemande: bool,
 }
 
+/// **Ce que le clavier écrit** : le texte d'un nœud en saisie, ou le champ d'une question —
+/// qui passe devant, puisqu'elle prend tout tant qu'elle est posée (DOCUMENTS-2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Cible {
+    Noeud(String),
+    Champ,
+}
+
 /// Ce que le clavier tient pour une saisie.
 struct Accord {
-    annotation: String,
+    cible: Cible,
     /// Ce qu'il tient, ou tiendra quand la file l'aura servi.
     tient: EtatDuClavier,
     /// Ce qu'il tenait avant le dernier envoi, tant qu'il peut encore le rendre (CLAVIER-2).
@@ -77,14 +84,14 @@ impl Miroir {
     }
 
     /// Une saisie neuve : le clavier sort sur elle.
-    fn ouvrir(&mut self, annotation: String, etat: EtatDuClavier) {
+    fn ouvrir(&mut self, cible: Cible, etat: EtatDuClavier) {
         let avant = self.lire();
         if let Some(c) = &self.systeme {
             c.montrer(&etat);
         }
         let perime = (!avant.meme_saisie(&etat)).then_some(avant);
         self.accord = Some(Accord {
-            annotation,
+            cible,
             tient: etat,
             perime,
         });
@@ -147,33 +154,51 @@ impl GlucoseApp {
         if self.lancement.clavier.systeme.is_none() {
             return;
         }
-        let Some(session) = self.editing_session.as_ref() else {
+        let Some((cible, etat)) = self.saisie_au_clavier() else {
             self.lancement.clavier.rentrer();
             return;
         };
-        let neuve = self
-            .lancement
-            .clavier
-            .accord
-            .as_ref()
-            .is_none_or(|a| a.annotation != session.ann_id);
-        if neuve {
-            let (annotation, etat) = (session.ann_id.clone(), etat_de(session));
-            self.lancement.clavier.ouvrir(annotation, etat);
+        let accord = self.lancement.clavier.accord.as_ref();
+        if accord.is_none_or(|a| a.cible != cible) {
+            self.lancement.clavier.ouvrir(cible, etat);
             return;
         }
         let lu = self.lancement.clavier.lire();
         if self.lancement.clavier.nouveau(&lu) {
-            self.refleter(&lu);
+            self.refleter(&cible, &lu);
         }
-        if let Some(session) = self.editing_session.as_ref() {
-            let voulu = etat_de(session);
+        if let Some((_, voulu)) = self.saisie_au_clavier() {
             self.lancement.clavier.rattraper(voulu);
         }
     }
 
-    /// Ce que le clavier a écrit devient la saisie : une commande d'écriture, puis sa sélection.
-    fn refleter(&mut self, lu: &EtatDuClavier) {
+    /// La saisie que le clavier doit tenir, s'il y en a une : le champ d'une question d'abord.
+    fn saisie_au_clavier(&self) -> Option<(Cible, EtatDuClavier)> {
+        if let Some(champ) = self
+            .ui
+            .question
+            .as_ref()
+            .and_then(|(q, _)| q.champ.as_ref())
+        {
+            return Some((Cible::Champ, etat_de(&champ.texte, champ.selection)));
+        }
+        let s = self.editing_session.as_ref()?;
+        let etat = etat_de(&s.buffer, s.selection);
+        Some((Cible::Noeud(s.ann_id.clone()), etat))
+    }
+
+    /// Ce que le clavier a écrit devient la saisie : dans un nœud, une commande d'écriture,
+    /// puis sa sélection ; dans un champ, son texte — un nom ne s'annule pas mot par mot.
+    fn refleter(&mut self, cible: &Cible, lu: &EtatDuClavier) {
+        if *cible == Cible::Champ {
+            let question = self.ui.question.as_mut();
+            if let Some(champ) = question.and_then(|(q, _)| q.champ.as_mut()) {
+                champ.selection = selection_de(&lu.texte, lu.selection);
+                champ.texte = lu.texte.clone();
+            }
+            self.mark_dirty();
+            return;
+        }
         let Some(session) = self.editing_session.as_mut() else {
             return;
         };
@@ -191,10 +216,7 @@ impl GlucoseApp {
             self.apply_text_command(commande, false);
         }
         if let Some(session) = self.editing_session.as_mut() {
-            session.selection = Selection {
-                anchor: utf16_vers_utf8(&session.buffer, lu.selection.0),
-                head: utf16_vers_utf8(&session.buffer, lu.selection.1),
-            };
+            session.selection = selection_de(&session.buffer, lu.selection);
             session.goal_x = None;
         }
         self.mark_dirty();
@@ -239,15 +261,22 @@ impl GlucoseApp {
 }
 
 /// Ce qu'une saisie confie au clavier : son texte, et sa sélection en unités UTF-16.
-fn etat_de(session: &TextEditSession) -> EtatDuClavier {
-    let texte = &session.buffer;
+fn etat_de(texte: &str, selection: Selection) -> EtatDuClavier {
     EtatDuClavier {
         selection: (
-            utf8_vers_utf16(texte, session.selection.anchor),
-            utf8_vers_utf16(texte, session.selection.head),
+            utf8_vers_utf16(texte, selection.anchor),
+            utf8_vers_utf16(texte, selection.head),
         ),
-        texte: texte.clone(),
+        texte: texte.to_string(),
         composition: None,
+    }
+}
+
+/// La sélection que le clavier rend, en octets de ce texte.
+fn selection_de(texte: &str, (ancre, tete): (usize, usize)) -> Selection {
+    Selection {
+        anchor: utf16_vers_utf8(texte, ancre),
+        head: utf16_vers_utf8(texte, tete),
     }
 }
 

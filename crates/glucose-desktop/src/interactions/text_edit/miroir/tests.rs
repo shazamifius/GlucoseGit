@@ -251,3 +251,79 @@ fn test_clavier_3_la_ligne_ecrite_redescend_sous_la_bande() {
         "le haut de la ligne sous la bande : {haut}"
     );
 }
+
+/// **Le champ d'une question passe devant le nœud** (DOCUMENTS-2) : le clavier y écrit le nom
+/// tout sélectionné, ce qu'on tape le remplace, et la question partie, il revient au nœud.
+#[test]
+fn test_clavier_1_le_champ_d_une_question_prend_le_clavier() {
+    use crate::ui::question::{Champ, Question, Suite};
+    let (mut app, faux) = au_telephone("le chat dort", 0.0);
+    app.ui.questions_dessinees = true;
+    app.suivre_le_clavier();
+    faux.servir();
+    let question = Question {
+        titre: "Renommer".into(),
+        champ: Some(Champ {
+            texte: "Canevas 1".into(),
+            selection: Selection::all("Canevas 1"),
+        }),
+        ..Default::default()
+    };
+    app.demander(question, Suite::Renommer("x".into()));
+    app.suivre_le_clavier();
+    faux.servir();
+    assert_eq!(faux.tient().texte, "Canevas 1");
+    assert_eq!(faux.tient().selection, (0, 9), "tout sélectionné");
+    faux.taper("Mary", 4);
+    app.suivre_le_clavier();
+    let (question, _) = app.ui.question.as_ref().expect("la question");
+    let champ = question.champ.as_ref().expect("le champ");
+    assert_eq!(champ.texte, "Mary");
+    assert_eq!(champ.selection, Selection::at(4));
+    assert_eq!(texte_de(&app), "le chat dort", "le nœud n'a rien reçu");
+    app.ui.question = None;
+    app.suivre_le_clavier();
+    faux.servir();
+    assert_eq!(
+        faux.tient().texte,
+        "le chat dort",
+        "le clavier revient au nœud"
+    );
+}
+
+/// **Toucher le champ d'une question ressort le clavier**, que le geste retour a rentré.
+#[test]
+fn test_clavier_1_toucher_le_champ_ressort_le_clavier() {
+    use crate::ui::question::{placer, Champ, Question, Suite};
+    let (mut app, faux) = au_telephone("le chat dort", 0.0);
+    app.ui.questions_dessinees = true;
+    let question = Question {
+        titre: "Renommer".into(),
+        champ: Some(Champ {
+            texte: "Canevas 1".into(),
+            selection: Selection::at(9),
+        }),
+        ..Default::default()
+    };
+    app.demander(question.clone(), Suite::Renommer("x".into()));
+    app.suivre_le_clavier();
+    faux.servir();
+    faux.0.lock().unwrap().sorti = false;
+    let (w, h) = app.taille_de_la_fenetre();
+    let placee = placer(
+        &question,
+        &app.renderer.typography,
+        (w, h),
+        app.ui.scale_factor,
+    );
+    let ((x, y, cw, ch), _) = placee.champ.expect("le champ");
+    app.handle_cursor_moved(winit::dpi::PhysicalPosition::new(
+        f64::from(x + cw / 2.0),
+        f64::from(y + ch / 2.0),
+    ));
+    app.handle_mouse_down(winit::event::MouseButton::Left, w, h);
+    app.handle_mouse_up(winit::event::MouseButton::Left);
+    app.suivre_le_clavier();
+    assert!(faux.sorti(), "le clavier ressort");
+    assert!(app.ui.question.is_some(), "et la question attend toujours");
+}

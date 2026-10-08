@@ -20,6 +20,7 @@
 
 use crate::theme::Theme;
 use crate::typography::{Face, TextStyle, Typography};
+use glucose_core::text::Selection;
 use tiny_skia::{Color, Paint, PathBuilder, PixmapMut, Rect, Transform};
 
 /// L'écart minimal entre la carte et le bord de l'écran.
@@ -58,6 +59,21 @@ pub enum Suite {
     Telemetrie,
     /// Ouvrir l'un de ces documents (DOCUMENTS-1), dans l'ordre de la liste.
     Ouvrir(Vec<std::path::PathBuf>),
+    /// Ce qu'on fait de ce document, après un appui long dans la liste (DOCUMENTS-2).
+    Gerer(std::path::PathBuf),
+    /// Le renommer, du nom écrit dans le champ.
+    Renommer(std::path::PathBuf),
+    /// Le supprimer — c'est définitif.
+    Supprimer(std::path::PathBuf),
+}
+
+/// **Un champ de texte** dans une question — le nom d'un document qu'on renomme
+/// (DOCUMENTS-2). Le clavier du système y écrit par le miroir (CLAVIER-1) ; la question le
+/// dessine.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Champ {
+    pub texte: String,
+    pub selection: Selection,
 }
 
 /// **Une question** : son titre, son texte, et ses réponses, dans l'ordre où elles s'affichent
@@ -72,6 +88,8 @@ pub struct Question {
     /// long, n'a rien répondu. Et le doigt qui ouvre la question depuis un menu ne lui répond
     /// pas en se levant.
     pub sous_le_doigt: Option<Reponse>,
+    /// Le champ où l'on écrit, sous le texte, s'il y en a un.
+    pub champ: Option<Champ>,
 }
 
 /// Un rectangle de l'écran : gauche, haut, largeur, hauteur.
@@ -88,6 +106,8 @@ pub struct Placee {
     pub texte: Vec<(String, f32)>,
     /// Chaque réponse : sa rangée, son libellé, ce qu'elle répond.
     pub boutons: Vec<(Rangee, String, Reponse)>,
+    /// Le champ, s'il y en a un : sa rangée, et ce qu'il porte.
+    pub champ: Option<(Rangee, Champ)>,
     /// Les corps du titre et du texte, et le bord gauche du texte.
     pub corps: (f32, f32),
     pub gauche: f32,
@@ -104,12 +124,19 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
     let (pas_titre, pas_texte) = (corps_titre * INTERLIGNE, corps_texte * INTERLIGNE);
     let entre = if titre.is_empty() { 0.0 } else { PAD * s / 2.0 };
     let haut_du_texte = titre.len() as f32 * pas_titre + entre + texte.len() as f32 * pas_texte;
-    let hauteur = PAD * s * 2.0 + haut_du_texte + q.choix.len() as f32 * BOUTON * s;
+    // Le champ prend la hauteur d'une réponse : la cible d'un doigt.
+    let du_champ = if q.champ.is_some() { BOUTON * s } else { 0.0 };
+    let hauteur = PAD * s * 2.0 + haut_du_texte + du_champ + q.choix.len() as f32 * BOUTON * s;
     let x = (w - largeur) / 2.0;
     let y = ((h - hauteur) / 2.0).max(MARGE_ECRAN * s);
     let (titre, apres_le_titre) = superposer(titre, y + PAD * s, pas_titre);
     let (texte, _) = superposer(texte, apres_le_titre + entre, pas_texte);
-    let mut haut = y + PAD * s * 2.0 + haut_du_texte;
+    let champ = q.champ.as_ref().map(|c| {
+        let haut = y + PAD * s * 1.5 + haut_du_texte;
+        let rangee = (x + PAD * s, haut, largeur - 2.0 * PAD * s, BOUTON * s);
+        (rangee, c.clone())
+    });
+    let mut haut = y + PAD * s * 2.0 + haut_du_texte + du_champ;
     let boutons = q
         .choix
         .iter()
@@ -124,6 +151,7 @@ pub fn placer(q: &Question, typo: &Typography, (w, h): (f32, f32), scale: f32) -
         titre,
         texte,
         boutons,
+        champ,
         corps: (corps_titre, corps_texte),
         gauche: x + PAD * s,
     }
@@ -172,6 +200,11 @@ pub fn reponse_sous(p: &Placee, px: f32, py: f32) -> Option<Reponse> {
         .map(|(_, _, reponse)| *reponse)
 }
 
+/// Ce point tombe-t-il dans le champ ?
+pub fn champ_sous(p: &Placee, px: f32, py: f32) -> bool {
+    p.champ.as_ref().is_some_and(|(r, _)| dans(*r, px, py))
+}
+
 fn dans((x, y, w, h): (f32, f32, f32, f32), px: f32, py: f32) -> bool {
     px >= x && px <= x + w && py >= y && py <= y + h
 }
@@ -218,6 +251,9 @@ pub fn dessiner(
         };
         ecrire(pixmap, ligne, (p.gauche, *haut), style);
     }
+    if let Some((rangee, champ)) = &p.champ {
+        dessiner_le_champ(pixmap, (*rangee, champ), (typo, theme), p.corps.1, s);
+    }
     for (rang, (rangee, libelle, _)) in p.boutons.iter().enumerate() {
         filet(pixmap, (x, rangee.1, largeur), theme.border_medium);
         if dans(*rangee, pointer.0, pointer.1) {
@@ -238,6 +274,89 @@ pub fn dessiner(
         };
         ecrire(pixmap, libelle, (gauche, haut), style);
     }
+}
+
+/// **Le champ** : un cadre plat, le texte qui glisse pour garder la tête de la sélection en
+/// vue, la sélection surlignée, le curseur quand elle est vide.
+fn dessiner_le_champ(
+    pixmap: &mut PixmapMut,
+    ((x, y, w, h), champ): (Rangee, &Champ),
+    (typo, theme): (&Typography, &Theme),
+    corps: f32,
+    s: f32,
+) {
+    remplir(
+        pixmap,
+        (x, y, w, h),
+        RAYON * s,
+        theme.bg_canvas,
+        Some(theme.border_medium),
+    );
+    let texte = champ.texte.as_str();
+    let borne = |i: usize| {
+        let mut i = i.min(texte.len());
+        while !texte.is_char_boundary(i) {
+            i -= 1;
+        }
+        i
+    };
+    let (ancre, tete) = (borne(champ.selection.anchor), borne(champ.selection.head));
+    let mesure = |a: usize, b: usize| typo.measure_text(&texte[a..b], corps, Face::Regular).0;
+    let marge = PAD * s / 2.0;
+    let (debut, fin) = fenetre(texte, tete, (w - 2.0 * marge).max(1.0), mesure);
+    let (gauche, haut) = (x + marge, y + (h - corps) / 2.0);
+    let (bas, haut_sel) = (
+        ancre.min(tete).clamp(debut, fin),
+        ancre.max(tete).clamp(debut, fin),
+    );
+    let trait_ = |a: f32, b: f32| Rect::from_xywh(a, haut - corps * 0.15, b - a, corps * 1.3);
+    if bas < haut_sel {
+        let (a, b) = (
+            gauche + mesure(debut, bas),
+            gauche + mesure(debut, haut_sel),
+        );
+        if let Some(rect) = trait_(a, b) {
+            crate::renderer::scale::fill_crisp(pixmap, rect, theme.text_selection);
+        }
+    }
+    let style = TextStyle {
+        size: corps,
+        color: theme.text_primary,
+        face: Face::Regular,
+    };
+    typo.draw_text(pixmap, &texte[debut..fin], gauche, haut, style);
+    if ancre == tete {
+        let a = gauche + mesure(debut, tete);
+        if let Some(rect) = trait_(a, a + s.max(1.0)) {
+            crate::renderer::scale::fill_crisp(pixmap, rect, theme.text_primary);
+        }
+    }
+}
+
+/// **La part du texte qui tient dans `place` et montre la tête** : on retire au début ce qui
+/// pousse la tête hors du champ, puis à la fin ce qui dépasse. Des bornes de caractères.
+pub fn fenetre(
+    texte: &str,
+    tete: usize,
+    place: f32,
+    mesure: impl Fn(usize, usize) -> f32,
+) -> (usize, usize) {
+    let suivant = |i: usize| texte[i..].chars().next().map_or(i, |c| i + c.len_utf8());
+    let precedent = |i: usize| {
+        texte[..i]
+            .chars()
+            .next_back()
+            .map_or(i, |c| i - c.len_utf8())
+    };
+    let mut debut = 0;
+    while debut < tete && mesure(debut, tete) > place {
+        debut = suivant(debut);
+    }
+    let mut fin = texte.len();
+    while fin > tete && mesure(debut, fin) > place {
+        fin = precedent(fin);
+    }
+    (debut, fin)
 }
 
 /// Un filet d'un pixel sur toute la largeur de la carte, sur la grille de pixels.

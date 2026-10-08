@@ -78,6 +78,10 @@ pub enum Ordre {
     /// Garder ce texte en cours de frappe, ou l'oublier (`None`). Le document qu'il porte est
     /// posé par le scribe, qui sait où il écrit.
     Saisie(Option<Saisie>),
+    /// **Les épreuves seules** : attendre qu'on relâche le scribe — de quoi faire perdre à
+    /// coup sûr une course contre lui (DOCUMENTS-2).
+    #[cfg(test)]
+    Retenir(std::sync::mpsc::Receiver<()>),
 }
 
 /// Où commence l'écriture.
@@ -184,6 +188,14 @@ impl Scribe {
         attente
             .recv()
             .map_err(|_| "le fil d'écriture s'est arrêté".to_string())?
+    }
+
+    /// **Les épreuves seules** : le scribe s'arrête ici jusqu'à ce que le rendu parte.
+    #[cfg(test)]
+    pub fn retenir(&self) -> Sender<()> {
+        let (relache, attente) = channel();
+        self.envoyer(Ordre::Retenir(attente));
+        relache
     }
 
     /// L'erreur d'écriture survenue depuis le dernier appel, s'il y en a une.
@@ -343,6 +355,11 @@ impl Plume {
                 let fait = self.deplacer(vers, oublier, objets);
                 let _ = reponse.send(fait.clone());
                 fait
+            }
+            #[cfg(test)]
+            Ordre::Retenir(relache) => {
+                let _ = relache.recv();
+                Ok(())
             }
         }
     }
