@@ -94,6 +94,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 54 | [La nuit du pavé et d'Android](54-LA-NUIT-DU-PAVE-ET-ANDROID.md) | la similitude entière des doigts, sans bascule ; GROUPE-1 ; la boîte noire suit le pavé ; la télémétrie des deux côtés (Cloudflare) ; Glucose compile pour Android, avec les doigts — **§ 9 : ce qui attend sa parole** |
 | 55 | [Le téléphone et la 2.0.2](55-LE-TELEPHONE-ET-LA-2-0-2.md) | Glucose sur son Redmi 9 ; le serveur de la boîte noire en ligne ; la clé Android ; la 2.0.2-beta.1 en brouillon ; la skill du téléphone ; le rail — **§ 4 : ce qui reste de sa liste** |
 | 56 | [Le partage et la vie de l'application](56-LE-PARTAGE-ET-LA-VIE-DE-L-APPLICATION.md) | VIE-1 (la surface qu'Android reprend) ; PARTAGE-1 (Glucose dans « Partager ») ; le double toucher et « Ajouter des images… » ; QUESTION-1 (la question dessinée) et VUE-1 (le refus donné à sa place) ; DOCUMENTS-1 (les documents du téléphone) — **§ 7 : le clavier d'abord** |
+| 57 | [Le clavier, l'appui long et les documents](57-LE-CLAVIER-L-APPUI-LONG-ET-LES-DOCUMENTS.md) | CLAVIER-1 à 3 (le clavier du téléphone, miroir de la saisie ; l'état d'avant l'envoi ; la ligne en vue) ; APPUI-1 (l'appui long, le délai du système, la question qui répond au relâchement) ; DOCUMENTS-2 (renommer, dupliquer, supprimer) ; ce que son téléphone a dit par la télémétrie |
 
 ## Les décisions — **foi**
 
@@ -108,4 +109,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [08](decisions/08-ANDROID-PAR-GAMEACTIVITY.md) Android par `GameActivity` ·
 [09](decisions/09-LE-PARTAGE-PAR-JNI.md) le partage vers Glucose, par `jni`.
 
-La prochaine fiche porte le numéro **57**.
+La prochaine fiche porte le numéro **58**.

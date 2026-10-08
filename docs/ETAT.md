@@ -2,8 +2,9 @@
 
 > **Au 08/10/2026 au soir**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
-> des doigts, de la télémétrie et d'Android (fiches 54 et 55), et celle du partage vers Glucose
-> et des documents du téléphone (fiche 56). Ce document dit l'état **vérifié** du projet,
+> des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
+> et des documents du téléphone (fiche 56), et celle du clavier, de l'appui long et des
+> documents qu'on renomme (fiche 57). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -24,7 +25,8 @@
   sa propre machine. **La télémétrie est en ligne** (fiche 54 § 6) : le serveur tourne dans son
   compte Cloudflare (`glucose-boite-noire.ferme-nilslamber.workers.dev`, base D1 en Europe de
   l'Ouest), éprouvé de bout en bout sur Internet ; Glucose y envoie avec l'accord de chacun,
-  demandé au premier lancement.
+  demandé au premier lancement. **Le 08/10 au soir, huit sessions y sont arrivées**, dont quatre
+  de son téléphone (fiche 57 § 5) : la question dessinée a donc marché chez lui.
 * **Android : Glucose tourne sur son Redmi 9** (« oui, ça fonctionne sur téléphone », 08/10) —
   ARM 64 et 32 bits, Android 5.0 et après, avec les doigts. L'APK est signé de **la clé de
   Glucose pour Android** (créée le 08/10, `Documents\Glucose-cle-android`, et dans les secrets
@@ -34,8 +36,11 @@
   reprend et rend, deux touchers sur le vide pour le menu, « Ajouter des images… » par le
   sélecteur de photos, la question dessinée (le journal technique, refusé à sa place par
   l'ancien Glucose, se reposera), les documents rangés sous « Canevas N » et rouverts par une
-  liste. **Aucun texte ne s'écrit encore au téléphone** : le clavier est le chantier suivant.
-  Un APK de cette version, signé de sa clé, est sur son Bureau (`Glucose.apk`).
+  liste.
+* **Le téléphone, fiche 57 — écrit, éprouvé hors écran, jamais essayé sur un téléphone** :
+  **le clavier** (le miroir de la saisie : on écrit enfin au téléphone), **l'appui long** (le
+  clic droit du doigt, au délai que règle l'accessibilité d'Android), et **renommer, dupliquer,
+  supprimer** un document par un appui long dans la liste.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -65,7 +70,7 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 147 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
+* **Épreuves** : 2 176 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -78,8 +83,9 @@
   déclencher la CI », 07/10 au soir), jusqu'à `d17e838` — vérifié : aucune exécution. Ceux de
   la fiche 54 sont partis **avec** la CI (`89510e2`, dix vertes) ; la télémétrie branchée et
   l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), jusqu'à `df1b854`
-  (`[skip ci]`, vérifié : aucune exécution). **Le rail (`2dc623b`), la fiche 55 et toute la
-  fiche 56 ne sont pas envoyés** (commits locaux) : ni Linux ni Mac ne les ont vus.
+  (`[skip ci]`, vérifié : aucune exécution). **Le rail (`2dc623b`), la fiche 55, toute la
+  fiche 56 et toute la fiche 57 ne sont pas envoyés** (commits locaux, en attente de sa réponse
+  sur l'envoi et la CI) : ni Linux ni Mac ne les ont vus.
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -100,8 +106,9 @@ Rideaux · temporalité (réglette de −10 000 à 2 100) · storyboard · prese
 HTML · miroirs et dossiers miroirs du disque · recherche (`Ctrl+F`) · couleur des domaines sur le
 canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur · collaboration · MCP ·
 plugins et IA locale · Mac · iPad. **Android** : tourne sur son téléphone ; les questions s'y
-dessinent (fiche 56) ; **pas encore** de clavier (aucun texte ne s'écrit), de presse-papiers
-du système, d'appui long, de mise à jour automatique. **Les tablettes Windows** : les doigts n'y passent
+dessinent (fiche 56) ; le clavier, l'appui long et la gestion des documents sont écrits (fiche
+57) ; **pas encore** de presse-papiers du système, de mise à jour automatique, de bord à bord
+(Android 15 et 16), de batterie dans la télémétrie, ni de dessin pour les emojis. **Les tablettes Windows** : les doigts n'y passent
 pas encore (la souris simulée à écarter d'abord). Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 

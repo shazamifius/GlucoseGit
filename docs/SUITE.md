@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 08/10/2026, au soir** (fiche 56). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 08/10/2026, tard le soir** (fiche 57). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -100,10 +100,12 @@ la session du 08/10 (fiche 56) en a fait :
 | [~] | **PARTAGE-1 — le partage d'images vers Glucose** : `SEND`, `SEND_MULTIPLE`, les images en un geste, un lien au rapatriement, Java à la frontière seulement (`decisions/09`) | **à son téléphone** : Pinterest, la galerie, Chrome |
 | [~] | **Le double toucher** sur le vide : le menu à la taille du doigt, « Ajouter des images… » par le sélecteur de photos ; le bouton « images » du rail, qui ne faisait rien, aussi | **à son téléphone** |
 | [~] | **QUESTION-1** — la question que Glucose dessine (aucun dialogue sous Android) ; **VUE-1** — le refus du journal technique donné à sa place se repose | **à son téléphone** |
-| [~] | **DOCUMENTS-1** — les documents du téléphone : un travail sans nom se range sous « Canevas N », « Nouveau document » marche, « Ouvrir un document… » liste les rangés | **à son téléphone** ; reste : renommer, supprimer, dupliquer |
-| [ ] | **Le clavier virtuel — avancé en tête, devant le reste** : sans lui, aucun texte ne s'écrit au téléphone, et aucun document ne se renomme. Demander le clavier (`set_ime_allowed`) ; lire ce que `winit` 0.30 jette (`AndroidApp::text_input_state`) | fiche 56 § 7 |
-| [ ] | **L'appui long** (le clic droit du doigt) : renommer, supprimer (la question est prête), dupliquer un document | après le clavier |
-| [ ] | La **mise à jour automatique** sous Android ; les **barres du système** (bord à bord, Android 16) ; le presse-papiers du système | |
+| [~] | **DOCUMENTS-1** — les documents du téléphone : un travail sans nom se range sous « Canevas N », « Nouveau document » marche, « Ouvrir un document… » liste les rangés | **à son téléphone** |
+| [~] | **CLAVIER-1 à 3 — le clavier du téléphone** (fiche 57) : la saisie et le clavier tiennent le même état (le miroir) ; les positions UTF-16 de Java ; l'état d'avant l'envoi ignoré ; la ligne qu'on écrit reste au-dessus du clavier ; la touche retour valide | écrit, éprouvé hors écran (treize sabotages) ; **à son téléphone** |
+| [~] | **APPUI-1 — l'appui long** (fiche 57) : au délai que règle l'accessibilité d'Android, le menu du clic droit à la taille du doigt, le mot sous le doigt dans un texte, une vibration ; la question répond au relâchement | **à son téléphone** |
+| [~] | **DOCUMENTS-2 — renommer, dupliquer, supprimer** par un appui long dans la liste (fiche 57) ; un champ dans la question, que le clavier remplit | **à son téléphone** |
+| [ ] | **Les emojis** : un emoji tapé au clavier s'affiche comme une case vide (aucune police de repli) | fiche 57 § 6 — avant que ses testeurs écrivent |
+| [ ] | La **mise à jour automatique** sous Android ; les **barres du système** (bord à bord, Android 15 et 16 — et la hauteur du clavier, que `adjustResize` n'y donne plus, fiche 57 § 6) ; le presse-papiers du système ; la batterie sous Android (la télémétrie la lit nulle) | |
 | [ ] | Les doigts sous Windows (écarter la souris simulée, `GetMessageExtraInfo`) et l'iPad par le web. La vidéo (fiche 55 § 4) quand il la redemandera ; les photos **HEIC** par le décodeur d'Android | |
 
 Le plan d'origine (fiche 50) ; l'ordre :

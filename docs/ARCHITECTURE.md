@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 08/10/2026** (fiches 51 à 56 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 08/10/2026** (fiches 51 à 57 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -71,7 +71,14 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 * **Les doigts sur un écran** (`toucher.rs`, fiche 54) : un doigt agit comme la souris, sauf sur
   le vide où il déplace le canevas avec son élan ; deux doigts font leur similitude. Toutes les
   similitudes d'une image — pavé et doigts — se **composent** en une seule (`Toucher::attente`).
-  Hors de Windows seulement : Windows y simule aussi la souris du premier doigt.
+  Hors de Windows seulement : Windows y simule aussi la souris du premier doigt. **L'appui
+  long** (APPUI-1, fiche 57) : un doigt immobile qui tient le délai du système
+  (`plateforme::doigt`, le réglage d'accessibilité d'Android) ouvre le menu du clic droit, ou
+  choisit le mot sous le doigt dans un texte ; la boucle se réveille à son échéance.
+* **Le clavier du téléphone** (CLAVIER-1, `text_edit/miroir.rs`, fiche 57) : le clavier du
+  système tient le texte qu'il réécrit ; la saisie (un nœud, ou le champ d'une question) et lui
+  tiennent le même état, comparé à chaque tour de boucle — ce qu'il réécrit devient une commande
+  d'écriture (annulable mot par mot), ce que Glucose change repart chez lui.
 * **Le partage vers Glucose** (fiche 56, PARTAGE-1) : sous Android, `MainActivity.java` ouvre les
   fichiers partagés ou choisis dans le sélecteur de photos et confie leurs descripteurs à
   `glucose-android` (JNI), qui lit et remet un `Partage` à `plateforme/partage.rs` : des images
@@ -94,7 +101,7 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
 | **Le magasin** | `core/store/` | la seule porte d'écriture. Chaque modification est une **transaction du journal** (`journal.rs`), inversible : l'annulation coûte la taille du changement, jamais celle du document. Un geste = une entrée (`undo.rs`) ; un glisser s'écrit en **une** translation (GLISSER-1), un redimensionnement en une édition (FONDRE-1). La navigation et la sélection n'entrent jamais dans l'annulation |
 | **Le fichier** | `core/persist/` | `.glucose` : une **base** (conteneur versionné, sections avec somme de contrôle) puis une **histoire en ajout seul** (`histoire.rs`) — objets (octets d'image par empreinte SHA-256), gestes, instantanés, jalons, vues — chaque entrée chaînée à la précédente : une fin déchirée s'arrête à la dernière entrée saine |
 | **Le scribe** | `desktop/persist/scribe.rs` | un fil qui ajoute les gestes au fichier et synchronise le disque ; la cadence suit le disque. `Ctrl+S` pose un **jalon**. Un document sans nom vit dans un **brouillon** |
-| **Les documents du téléphone** | `persist/documents.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste |
+| **Les documents du téléphone** | `persist/documents.rs`, `documents/gestion.rs` | DOCUMENTS-1 : sans dialogues, un travail sans nom qu'on quitte se range sous « Canevas N » dans `documents/` ; « Ouvrir un document… » les liste. DOCUMENTS-2 : un appui long dans la liste renomme (par « Enregistrer sous » pour le document ouvert), duplique, supprime |
 | **Les filets** | `persist/frappe.rs`, `reprise.rs`, `recuperation.rs`, `verrou.rs`, `atomic.rs` | le texte en cours de frappe survit à un plantage ; le lancement rouvre le dernier travail ; ce qu'on va recouvrir est mis de côté (FIN-1) ; un seul scribe par fichier ; **un seul endroit** pose un fichier à la place d'un autre (cliquet 11) |
 | **Glucose Tauri** | `core/persist/tauri.rs`, `desktop/persist/import.rs` | un lecteur d'Automerge écrit ici, sans dépendance, identique à la bibliothèque de référence ; le fichier Tauri n'est jamais réécrit |
 
@@ -149,13 +156,16 @@ boutons reposée en grille sur le côté quand la barre ne tient plus, décidé 
 options de flèche, éditeur du texte lié, **un seul** toast (coupé en lignes à la largeur de
 l'écran) ; **la question** (`question.rs`, QUESTION-1), que Glucose dessine là où le système
 n'a pas de dialogues — Android —, et dont la suite (`interactions/question.rs`) est la même
-qu'au bureau ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
+qu'au bureau — elle répond au relâchement, sur la réponse pressée, et peut porter un **champ**
+de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
 Timer, Domaines, Time Machine ; Storyboard, Presets et Plugins sont des façades honnêtes), chacun
 avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
 
 ## 7. La plateforme
 
-Tout ce qui parle au système vit dans `plateforme/` (et le `unsafe` avec), une voie par système :
+Tout ce qui parle au système vit dans `plateforme/` (et le `unsafe` avec), une voie par système —
+et deux **portes** que le téléphone branche au lancement : `clavier` (lire et écrire l'état du
+clavier virtuel) et `doigt` (le délai de l'appui long, la vibration) :
 le dépôt depuis un navigateur (COM, Windows seulement), le **pavé par *Direct Manipulation***,
 la carte qui tient l'écran (DXGI), le **glisser de nœuds vers une autre
 fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pas dire (le lot de

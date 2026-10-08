@@ -65,10 +65,19 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
   place de l'utilisateur (VUE-1). `ui.questions_dessinees` choisit la voie.
 * **Aucun sélecteur de fichiers** : les documents se rangent d'office dans `documents/`
   (DOCUMENTS-1) et se rouvrent par une liste ; les images viennent du sélecteur de photos.
-* **Aucun clic droit** : deux touchers sur le vide ouvrent le menu, à la taille du doigt ;
-  l'appui long viendra. Aucun dossier à « ouvrir dans l'explorateur ».
-* **Aucun clavier tant qu'on ne le demande pas**, et `winit` 0.30 jette le texte du clavier
-  virtuel (`InputEvent::TextEvent`) : à reprendre par `AndroidApp::text_input_state`.
+* **Aucun clic droit** : deux touchers sur le vide ouvrent le menu, à la taille du doigt ; et
+  **l'appui long** (APPUI-1, fiche 57), au délai que règle l'accessibilité d'Android
+  (`plateforme::doigt`), ouvre le menu du clic droit. Une question dessinée répond **au
+  relâchement**, sur la réponse pressée, comme un bouton d'Android. Aucun dossier à « ouvrir
+  dans l'explorateur ».
+* **Le clavier ne tape pas des touches, il réécrit un texte** (CLAVIER-1, fiche 57) : `winit`
+  (0.30 comme 0.31) jette son évènement ; Glucose relit l'état (`plateforme::clavier`) et le
+  reflète (`text_edit::miroir`). Ses positions sont en **UTF-16** ; ce qu'on lui écrit passe
+  par une file (relire juste après rend l'ancien, CLAVIER-2) ; sans le drapeau multiligne,
+  Entrée n'écrit rien. Un champ de texte dans une question passe par le même miroir.
+* **La fenêtre rétrécit sous le clavier** jusqu'à Android 14 (`adjustResize`) ; en bord à bord
+  (Android 15 et 16 avec la cible 36), plus : il faudra lire la hauteur du clavier (*insets*).
+* **Un emoji tapé n'a pas de dessin** dans la police de Glucose (fiche 57 § 6).
 * Un message plus large que l'écran se **coupe** (le toast, la question) : 360 points de large.
 
 ## 5. Comment travailler
