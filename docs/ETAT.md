@@ -79,8 +79,8 @@
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 206 sous Windows, clippy strict à zéro, **et pour Android** ; la fiche 58 a
-  saboté trente et une gardes, trente et une chutes (une redondante, retirée). **Sur GitHub, à
+* **Épreuves** : 2 225 sous Windows, clippy strict à zéro avec Rust 1.99, **et pour Android** ;
+  la fiche 58 a saboté cinquante-cinq gardes, cinquante-cinq chutes (une redondante, retirée). **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -98,7 +98,8 @@
   dix tâches vertes**, Linux et Mac compris (exécution 37801814665). **Les commits de la fiche 58** sont partis
   le 09/10, à sa demande, avec la CI (`2f4a9a3`, exécution 37836775328) : **neuf tâches vertes,
   la répétition de la bascule rouge** — son témoin était planté dans l'ancien dossier du journal
-  (fiche 58 § 9), corrigé dans l'envoi suivant.
+  (fiche 58 § 9). Deux envois plus tard, **`06f4217` : les dix tâches vertes** (exécution
+  37850791104), Linux et les deux Mac compris.
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
