@@ -28,7 +28,8 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
   `winit` (fenêtre), `wgpu` (Vulkan, Metal, Direct3D, GL ES derrière une interface), `tiny-skia`
   (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes — Inter, et Noto Emoji
   en repli, EMOJI-1), `image` (décodeurs), `arboard` (presse-papiers) et `rfd` (les sélecteurs
-  de fichiers, et la seule boîte posée avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
+  de fichiers, ouverts sur un fil à eux — DIAL-2, `persist::choix` —, et la seule boîte posée
+  avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
   sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`
   (signatures), `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs. Une dépendance nouvelle exige une note dans
   [`carnet/decisions/`](carnet/decisions/).

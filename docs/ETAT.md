@@ -95,9 +95,10 @@
   l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), jusqu'à `df1b854`
   (`[skip ci]`, vérifié : aucune exécution). Le rail, les fiches 55, 56 et 57 — douze
   commits, jusqu'à `57060c8` — sont partis **avec** la CI, à sa demande (08/10 au soir) : **les
-  dix tâches vertes**, Linux et Mac compris (exécution 37801814665). **Les commits de la fiche 58 attendent en
-  local** (POPUP-1, le rail, les emojis, la mise à jour d'Android, la documentation) : rien
-  n'est envoyé sans son accord.
+  dix tâches vertes**, Linux et Mac compris (exécution 37801814665). **Les commits de la fiche 58** sont partis
+  le 09/10, à sa demande, avec la CI (`2f4a9a3`, exécution 37836775328) : **neuf tâches vertes,
+  la répétition de la bascule rouge** — son témoin était planté dans l'ancien dossier du journal
+  (fiche 58 § 9), corrigé dans l'envoi suivant.
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est

@@ -261,6 +261,36 @@ bouger. Aucun délai choisi : celui du système, et le tremblement. Dans le text
 deux doigts annulent la frappe, mot par mot. Un toucher sur le vide pendant l'appui ne vide
 pas la sélection.
 
+### Les sélecteurs de fichiers ne tiennent plus la boucle (DIAL-2)
+
+Ma proposition, acceptée avec les autres : ouvrir, enregistrer sous, exporter, ajouter des images
+ou un document, enregistrer une image — le sélecteur reste celui du système, mais s'ouvre **sur un
+fil à lui** (la voie asynchrone de `rfd`, attendue par `pollster`, déjà là : aucune caisse de
+plus). Glucose continue de se dessiner derrière. Le choix revient par une boîte aux lettres,
+avec sa **demande** (`persist::choix`) — la forme des questions dessinées : une suite, pas un
+retour. `sous_un_dialogue`, qui remettait l'horloge à zéro après un dialogue bloquant, disparaît.
+
+* **Le chemin qui écrit ses données** : fermer, ou quitter pour un autre document, un travail
+  **sans nom** en répondant « Enregistrer » — le sélecteur demande où, et la fermeture **attend
+  son choix** (`Puis`). Renoncer ne ferme rien et ne perd rien ; un enregistrement raté (un
+  dossier qui n'existe plus) ne ferme rien, ne remplace rien, et le dit ; une mise à jour qui
+  attendait est reportée.
+* **L'épreuve fidèle** : en mode épreuve, le choix revenait d'abord tout de suite — ce qui
+  aurait laissé passer une fermeture qui n'attend pas son choix. Il part désormais dans la boîte,
+  et l'épreuve tourne la boucle pour le relever, comme en vrai.
+* **Pas prouvé** : aucun sélecteur réel ne s'est ouvert — il faut une fenêtre sur son écran. Sous
+  Linux et Mac, la CI compile ce chemin ; elle ne l'ouvre pas. Un seul sélecteur à la fois : un
+  second, demandé pendant que le premier est ouvert, ne s'ouvre pas.
+
+### La CI de l'envoi du 09/10 (`2f4a9a3`)
+
+Neuf tâches vertes sur dix. **La répétition générale de la bascule est tombée**, et à juste
+titre de son point de vue : elle plante sept fichiers chez un utilisateur fictif et exige qu'aucun
+ne bouge — dont un dans `boite-noire`, que la migration du journal rangeait dans
+`journal-technique`. Le témoin est maintenant planté dans le dossier d'aujourd'hui (les deux
+scripts, Windows et Linux), et une épreuve exige que ces scripts nomment le dossier que Glucose
+emploie : la même dérive ne repasserait pas sans bruit.
+
 ---
 
 **Retour** : [`00-INDEX.md`](00-INDEX.md)
