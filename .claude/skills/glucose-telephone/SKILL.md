@@ -62,10 +62,12 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 ## 4 bis. Ce qui n'existe pas au téléphone, et ce qu'on fait à la place (fiche 56)
 
 * **Aucun dialogue du système** qu'on appelle comme `rfd` : la question se **dessine**
-  (`ui::question`, QUESTION-1) et sa suite part au toucher — jamais une réponse donnée à la
-  place de l'utilisateur (VUE-1). `ui.questions_dessinees` choisit la voie.
+  (`ui::question`, QUESTION-1) — au bureau aussi depuis POPUP-1 (fiche 58) — et sa suite part
+  au toucher — jamais une réponse donnée à la place de l'utilisateur (VUE-1). Le geste retour
+  donne « Annuler », ou retire sans réponse une question qui n'en a pas.
 * **Aucun sélecteur de fichiers** : les documents se rangent d'office dans `documents/`
-  (DOCUMENTS-1) et se rouvrent par une liste ; les images viennent du sélecteur de photos.
+  (DOCUMENTS-1, `ui.documents_ranges`) et se rouvrent par une liste ; les images viennent du
+  sélecteur de photos.
 * **Aucun clic droit** : deux touchers sur le vide ouvrent le menu, à la taille du doigt ; et
   **l'appui long** (APPUI-1, fiche 57), au délai que règle l'accessibilité d'Android
   (`plateforme::doigt`), ouvre le menu du clic droit. Une question dessinée répond **au
@@ -81,8 +83,18 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
   d'état, et tout ce qui se pose en bas passe par `UiState::ecran_visible` — sans la navigation,
   ni le clavier, qui **recouvre** la fenêtre au lieu de la rétrécir. Un élément neuf collé à un
   bord se cale là, jamais sur l'écran entier.
-* **Un emoji tapé n'a pas de dessin** dans la police de Glucose (fiche 57 § 6).
+* **Un emoji tapé se dessine** par Noto Emoji, monochrome, en repli d'Inter (EMOJI-1, fiche
+  58) ; sans moteur de mise en forme, une famille se décompose et un drapeau devient deux
+  lettres.
+* **Le rail** écrit le nom de chaque icône quand la largeur le permet (fiche 58), colonne après
+  colonne ; sinon les icônes seules. Aucun bouton derrière un défilement.
 * Un message plus large que l'écran se **coupe** (le toast, la question) : 360 points de large.
+* **La mise à jour** (MAJ-ANDROID-1, fiche 58) : une application ne se remplace pas, elle
+  confie l'APK — vérifié par la clé de Glucose — à `PackageInstaller` (`plateforme::installation`,
+  `MainActivity.installerUnApk`). Même clé Android et code de version plus haut, sinon refus ;
+  « installer des applications inconnues » à autoriser une fois (Android 8 et après) ; sans
+  confirmation à partir d'Android 12 (`UPDATE_PACKAGES_WITHOUT_USER_ACTION`). Glucose ne se
+  ferme pas lui-même : Android le remplace.
 
 ## 5. Comment travailler
 

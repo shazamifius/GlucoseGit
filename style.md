@@ -73,6 +73,17 @@ Pas de glassmorphisme, pas de glow décoratif, pas d'ombres molles sur la chrome
   zoom (sinon elles enflent en zoom-in / rétrécissent en zoom-out).
 - Curseurs directionnels (`nwse-resize` / `nesw-resize`).
 
+## Questions (popups) — dessinées par Glucose, jamais par le système
+
+- **Un voile** noir translucide sur tout l'écran, **une carte plate** (`surface`, filet
+  *hairline*), le titre en gras, le texte en gris, **des réponses en rangées de 48 points** — la
+  cible d'un doigt — séparées par un filet, chacune nommée par ce qu'elle fait (« Enregistrer »,
+  jamais « Oui »).
+- **La réponse en évidence** — celle qu'Entrée donne — est cernée du filet blanc de la
+  sélection ; la première, sauf quand elle détruit. **Échap** donne « Annuler ».
+- Aucune couleur, aucune ombre. Les réponses restent toujours à l'écran : un texte trop long
+  se coupe.
+
 ## Loi de redimensionnement
 
 - **Défaut** → ancrage au **coin opposé** à la poignée tirée (le coin opposé reste fixe),

@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 08/10/2026.** Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 08/10/2026** (fiche 58). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -86,6 +86,9 @@
 | **Écrire dans un état qu'une file servira plus tard, puis le relire** : le clavier d'Android rend l'état d'avant l'envoi, et un miroir naïf défaisait ce que Glucose venait d'écrire (fiche 57, CLAVIER-2) | lire à la source si l'appel est fait quand il rend la main (`write_work`) ; retenir ce qui peut encore revenir, et l'ignorer ; l'épreuve sert la file à la main |
 | **Un geste qui en ouvre un autre** : le menu agit à l'appui et ouvre une question ; si la question répondait au relâchement sans mémoire de l'appui, le doigt qui se lève aurait choisi pour lui (fiche 57, APPUI-1) | une réponse part au relâchement **sur la réponse pressée** ; un relâchement qu'on n'a pas reçu termine le geste qu'il terminait |
 | **Une garde redondante passe au sabotage** : deux lignes empêchaient le même effet, et chacune, retirée seule, ne faisait rien tomber (fiche 57) | retirer celle qui n'a pas à exister, ou affirmer le contrat de celle qu'on garde — jamais la laisser aveugle |
+| **Une boîte du système qui tient la boucle** : posée à l'ouverture, avant la première image, la question du journal technique laissait une fenêtre noire et une boîte derrière — « Tab puis Entrée, dans le noir » (fiche 58, POPUP-1) | toute question se dessine dans Glucose, et sa réponse a une **suite** au lieu d'un retour ; une boîte du système ne se pose que là où aucune fenêtre n'existe (DIAL-5) |
+| **Une bande qui remplace ce qu'elle couvre par du vide** : avec le rail, la barre d'état n'était plus peinte, et la composition « remplacer » y laissait passer n'importe quoi — vu seulement en regardant l'aperçu (fiche 58 § 3) | regarder l'image ; lire le pixel qui étonne (alpha nul) ; une surface qui remplace doit tout peindre |
+| **Une taille citée de mémoire** : « Noto Emoji, de l'ordre d'un mégaoctet » — la police actuelle est variable et pèse 1,98 Mo ; son instance fixe, 887 Ko (fiche 58 § 5) | télécharger, mesurer, lire la `cmap` ; vérifier ce que le moteur lit (`fontdue` ignore les variations) |
 
 ## 5. Les pièges pratiques
 

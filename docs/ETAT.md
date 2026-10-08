@@ -1,10 +1,11 @@
 # Où en est Glucose
 
-> **Au 08/10/2026 au soir**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 08/10/2026, dans la nuit**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
-> et des documents du téléphone (fiche 56), et celle du clavier, de l'appui long et des
-> documents qu'on renomme (fiche 57). Ce document dit l'état **vérifié** du projet,
+> et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
+> documents qu'on renomme (fiche 57), et celle des questions dessinées partout, des noms du
+> rail et des emojis (fiche 58). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -43,6 +44,10 @@
   supprimer** un document par un appui long dans la liste, et **le bord à bord** (l'interface
   évite la barre d'état, la navigation et le clavier, que Android 15 et 16 imposent).
   Un APK de cette version, signé de sa clé, est sur son Bureau (`Glucose.apk`).
+* **Fiche 58 — écrit, éprouvé hors écran, jamais vu à son écran** : **toutes les questions se
+  dessinent dans Glucose**, au bureau aussi (POPUP-1 : ses écrans noirs venaient d'une boîte du
+  système posée avant la première image) — Entrée, Tab, Échap ; **le rail écrit le nom de chaque
+  icône** ; **les emojis se dessinent** (Noto Emoji monochrome, en repli d'Inter).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -68,11 +73,12 @@
 | **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; au clic droit sur une image : **Copier l'image** (Discord, un navigateur), **Enregistrer l'image sous…** (les octets d'origine) |
 | **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, Ordonner, aimant aux voisines, placement aimanté dès le premier clic |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
-| **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux |
+| **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — pas encore prouvée, aucune release ne la porte |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 182 sous Windows, clippy strict à zéro, **et pour Android**. **Sur GitHub, à
+* **Épreuves** : 2 206 sous Windows, clippy strict à zéro, **et pour Android** ; la fiche 58 a
+  saboté trente et une gardes, trente et une chutes (une redondante, retirée). **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -87,7 +93,9 @@
   l'APK de la publication, **sans** (« fais pas marcher la CI », 08/10), jusqu'à `df1b854`
   (`[skip ci]`, vérifié : aucune exécution). Le rail, les fiches 55, 56 et 57 — douze
   commits, jusqu'à `57060c8` — sont partis **avec** la CI, à sa demande (08/10 au soir) : **les
-  dix tâches vertes**, Linux et Mac compris (exécution 37801814665).
+  dix tâches vertes**, Linux et Mac compris (exécution 37801814665). **Les commits de la fiche 58 attendent en
+  local** (POPUP-1, le rail, les emojis, la mise à jour d'Android, la documentation) : rien
+  n'est envoyé sans son accord.
 * **Sa machine** (Windows 11, RTX 5070 Laptop et Intel Arc 140T, écran 240 Hz à 150 %), session du
   05/10 : une image coûte **5 à 7 ms** en médiane. Le pire monte à **11-21 ms pendant les zooms
   chargés** et à 31 ms au décodage de l'ouverture : le plancher de 100 images par seconde n'est
@@ -110,7 +118,8 @@ canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur 
 plugins et IA locale · Mac · iPad. **Android** : tourne sur son téléphone ; les questions s'y
 dessinent (fiche 56) ; le clavier, l'appui long et la gestion des documents sont écrits (fiche
 57), le bord à bord aussi ; **pas encore** de presse-papiers du système, de mise à jour
-automatique, de batterie dans la télémétrie, ni de dessin pour les emojis. **Les tablettes Windows** : les doigts n'y passent
+automatique, ni de batterie dans la télémétrie ; les emojis se dessinent (fiche 58), sans les
+familles ni les drapeaux composés. **Les tablettes Windows** : les doigts n'y passent
 pas encore (la souris simulée à écarter d'abord). Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
 

@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 08/10/2026** (fiches 51 à 57 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 08/10/2026** (fiches 51 à 58 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -26,8 +26,9 @@ android/              l'enveloppe Java de l'APK (Gradle, GameActivity, le partag
   pour Android et le web à chaque envoi.
 * **L'application a les siennes**, chacune défendue par une impossibilité de faire sans :
   `winit` (fenêtre), `wgpu` (Vulkan, Metal, Direct3D, GL ES derrière une interface), `tiny-skia`
-  (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes), `image` (décodeurs),
-  `arboard` (presse-papiers) et `rfd` (dialogues) **hors d'Android seulement** — chacune derrière
+  (rastériseur de la voie processeur), `softbuffer`, `fontdue` (glyphes — Inter, et Noto Emoji
+  en repli, EMOJI-1), `image` (décodeurs), `arboard` (presse-papiers) et `rfd` (les sélecteurs
+  de fichiers, et la seule boîte posée avant la fenêtre, DIAL-5) **hors d'Android seulement** — chacune derrière
   sa porte, `presse_papiers` et `dialogue` (DIAL-4, cliquet 12) —, `minisign-verify`
   (signatures), `pollster`, et `windows` sous Windows, `ureq` + `rustls` ailleurs. Une dépendance nouvelle exige une note dans
   [`carnet/decisions/`](carnet/decisions/).
@@ -152,12 +153,14 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
 
 `ui/` : la bande du haut, rendue une fois par changement ; ses boutons placés par une seule mise en
 page que le dessin et le clic lisent (loi L4) ; **le rail** (`rail.rs`, fiche 55), la même liste de
-boutons reposée en grille sur le côté quand la barre ne tient plus, décidé avant la scène ; onglets, minimap, menu contextuel, barre d'action,
+boutons reposée en grille sur le côté quand la barre ne tient plus, décidé avant la scène,
+colonne après colonne, chaque icône avec son nom quand la largeur le permet (fiche 58) ; onglets, minimap, menu contextuel, barre d'action,
 options de flèche, éditeur du texte lié, **un seul** toast (coupé en lignes à la largeur de
-l'écran) ; **la question** (`question.rs`, QUESTION-1), que Glucose dessine là où le système
-n'a pas de dialogues — Android —, et dont la suite (`interactions/question.rs`) est la même
-qu'au bureau — elle répond au relâchement, sur la réponse pressée, et peut porter un **champ**
-de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
+l'écran) ; **la question** (`question.rs`, QUESTION-1, POPUP-1), que Glucose dessine
+**partout** — aucune boîte du système ne tient plus sa boucle — et dont la réponse déclenche une
+**suite** (`interactions/question.rs` ; la fermeture en a une, `persist::close::Apres`) : elle
+répond au relâchement, sur la réponse pressée, et au clavier (Entrée, Tab, Échap), prend tout
+ce qui la touche, et peut porter un **champ** de texte (renommer un document) ; le menu contextuel **à la taille du doigt** quand deux touchers l'ouvrent. `dock/` : les panneaux (Ordonner,
 Timer, Domaines, Time Machine ; Storyboard, Presets et Plugins sont des façades honnêtes), chacun
 avec son cache. Les couleurs viennent du thème (`theme.rs`, fiche 06, [`style.md`](../style.md)).
 
@@ -199,7 +202,8 @@ des plantages de Windows, la batterie.
 
 * **`mise_a_jour/`** : lit le `latest.json` **au format de Tauri**, vérifie la signature minisign
   **avant** d'écrire quoi que ce soit, ne propose qu'une version qui monte, sait comment ce programme
-  est installé (NSIS, AppImage, `.deb`, `.rpm`) ; un Glucose qui ne sait pas se remplacer (NixOS,
+  est installé (NSIS, AppImage, `.deb`, `.rpm`, et l'APK — sous Android, « poser » c'est confier
+  l'APK à `PackageInstaller`, `plateforme::installation`, fiche 58) ; un Glucose qui ne sait pas se remplacer (NixOS,
   `cargo run`) ne cherche rien. Après une session qui a mal fini, il cherche **avant tout**.
 * **`outils/installeur/`** : l'installeur NSIS (par utilisateur, sans `RMDir /r`, il attend
   Glucose au lieu de le tuer) ; **`outils/paquets/`** : les trois formes Linux ;

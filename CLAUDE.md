@@ -14,7 +14,7 @@ cible figée (branche `tauri-v1.0.1`, lisible dans `C:\Users\Administrator\Docum
    ses paroles comprises, avec des arguments et, avant de concevoir, une recherche sur internet.
 
 Le code cite le carnet par numéro (« fiche 22 § 5 ») : c'est `docs/carnet/22-…`. Ne jamais
-renuméroter une fiche. La prochaine porte le numéro 58.
+renuméroter une fiche. La prochaine porte le numéro 59.
 
 ## Avec lui
 
@@ -29,7 +29,7 @@ jamais en menu.
 ```bash
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace                 # ~2 110 épreuves, dont les cliquets
+cargo test --workspace --no-fail-fast  # ~2 200 épreuves, dont les cliquets
 bash outils/suivre_ci.sh <empreinte complète> <sortie.txt>  # la vérification GitHub (dix tâches)
 bash outils/android/construire.sh      # l'APK (SDK et NDK dans ~/Android/Sdk, Gradle 9.6+)
 python outils/saboter.py <sabotages.json>   # exiger qu'une épreuve tombe quand on casse sa garde
