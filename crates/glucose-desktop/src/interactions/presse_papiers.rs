@@ -19,6 +19,7 @@ static DU_SYSTEME: AtomicBool = AtomicBool::new(false);
 /// **L'application prend le presse-papiers du système**, pour tout le processus.
 pub fn prendre_celui_du_systeme() {
     DU_SYSTEME.store(true, Ordering::Relaxed);
+    crate::plateforme::presse_papiers::tenir();
 }
 
 /// Le presse-papiers est-il celui du système ? Un fil de fond qui veut l'écrire lui-même doit

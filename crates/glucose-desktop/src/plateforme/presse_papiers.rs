@@ -31,11 +31,47 @@ pub fn ecrire_la_selection(formes: crate::interactions::clipboard::Formes) -> Re
     imp::ecrire_la_selection(formes)
 }
 
+/// **Le presse-papiers du système, tenu pour toute la vie de l'application** (fiche 60).
+///
+/// Sous Linux, c'est le programme qui a copié qui sert chaque collage, tant que l'objet
+/// d'`arboard` vit — sa documentation le dit : ne pas le lâcher aussitôt. Glucose en ouvrait un
+/// par geste et le lâchait sur-le-champ : `arboard` tentait alors de confier la copie au
+/// gestionnaire du système (jusqu'à 100 ms d'attente), et là où il n'y en a pas, ce qu'on
+/// venait de copier disparaissait. Ceux de chaque geste partagent celui-ci, qui garde le
+/// serveur d'`arboard` en vie.
+#[cfg(not(target_os = "android"))]
+static TENU: std::sync::Mutex<Option<arboard::Clipboard>> = std::sync::Mutex::new(None);
+
+/// **Tient le presse-papiers du système**, au lancement de l'application.
+pub fn tenir() {
+    #[cfg(not(target_os = "android"))]
+    if let Ok(mut tenu) = TENU.lock() {
+        *tenu = arboard::Clipboard::new().ok();
+    }
+}
+
+/// Le lâche : sous Linux, le dernier objet d'`arboard` qui part confie la copie au
+/// gestionnaire du système.
+fn lacher() {
+    #[cfg(not(target_os = "android"))]
+    if let Ok(mut tenu) = TENU.lock() {
+        tenu.take();
+    }
+}
+
+/// Le presse-papiers du système est-il tenu ?
+#[cfg(all(test, not(target_os = "android")))]
+fn est_tenu() -> bool {
+    TENU.lock().is_ok_and(|t| t.is_some())
+}
+
 /// **À la fermeture** : ce que Glucose a confié au presse-papiers y reste, rendu une fois pour
-/// toutes — un collage après coup le trouve encore.
+/// toutes — un collage après coup le trouve encore. Sous Linux, lâcher l'objet tenu est
+/// l'instant où `arboard` confie la copie au gestionnaire du système, qui la servira après nous.
 pub fn rendre_avant_de_quitter() {
     #[cfg(windows)]
     super::selection_windows::rendre_avant_de_quitter();
+    lacher();
 }
 
 /// Le lot que porte le presse-papiers, s'il en porte un.
@@ -312,5 +348,25 @@ pub(crate) mod html {
                 assert!(html.contains("a &lt;b&gt; &amp;"));
             }
         }
+    }
+}
+
+#[cfg(all(test, not(target_os = "android")))]
+mod tests {
+    use super::*;
+
+    /// **Le presse-papiers du système se tient, puis se lâche à la fermeture** (fiche 60) :
+    /// sous Linux, un objet lâché sitôt le geste fait perdre la copie là où aucun gestionnaire
+    /// ne la reprend. Tenu dès que le système en offre un ; lâché à la fermeture seulement.
+    #[test]
+    fn test_le_presse_papiers_se_tient_et_se_lache_a_la_fermeture() {
+        tenir();
+        assert_eq!(
+            est_tenu(),
+            arboard::Clipboard::new().is_ok(),
+            "tenu dès que le système en offre un"
+        );
+        lacher();
+        assert!(!est_tenu(), "lâché à la fermeture");
     }
 }
