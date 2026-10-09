@@ -433,10 +433,7 @@ impl GlucoseApp {
         } else {
             1.0
         };
-        let rien = self.store.selected_image_ids.is_empty()
-            && self.store.selected_annotation_ids.is_empty()
-            && self.store.selected_folder_id.is_none();
-        if rien {
+        if self.store.compte_de_la_selection() == 0 {
             return;
         }
         let board = self.store.project.active_board_id.clone();

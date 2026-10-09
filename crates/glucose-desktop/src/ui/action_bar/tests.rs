@@ -255,3 +255,25 @@ fn test_the_action_bar_keeps_its_margin_below() {
         }
     }
 }
+
+/// **Un dossier choisi a sa barre** (DOSSIER-1, fiche 60) : elle le comptait pour rien, et
+/// n'apparaissait pas — un dossier n'avait aucun bouton pour s'effacer.
+#[test]
+fn test_dossier_1_un_dossier_seul_a_sa_barre_et_son_bouton_supprimer() {
+    let typo = Typography::new();
+    let mut store = store_with(0, 0);
+    let board = store.project.active_board_id.clone();
+    store.create_folder(
+        &board,
+        glucose_core::types::CanvasFolder::new("d", "Dossier", ""),
+    );
+    store.select_folder("d".into());
+    let barre = bar(&store, &typo).expect("une barre");
+    assert_eq!(barre.count_label, "1 sélectionné");
+    let clics: Vec<ActionBarClick> = barre.buttons.iter().map(|b| b.click).collect();
+    assert_eq!(
+        clics,
+        vec![ActionBarClick::Delete],
+        "ni verrou ni origine pour un dossier seul"
+    );
+}

@@ -516,3 +516,52 @@ fn test_appui_1_l_appui_long_dans_une_membrane_offre_supprimer() {
     });
     assert!(supprimer, "« Supprimer » est dans le menu");
 }
+
+/// **Un dossier se supprime au doigt** (DOSSIER-1, fiche 60) : « les dossiers ça ne fonctionne
+/// pas ». L'appui long le choisissait, mais le menu et la barre ne comptaient que les images et
+/// les annotations : un dossier choisi recevait le menu du vide, et le téléphone n'a pas de
+/// touche `Suppr`. Le geste entier : appui long, « Supprimer », puis annuler le rend.
+#[test]
+fn test_dossier_1_l_appui_long_sur_un_dossier_le_supprime_et_s_annule() {
+    use crate::ui::context_menu::{layout_context_menu, MenuAction, MenuRow};
+    use glucose_core::types::CanvasFolder;
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    let mut dossier = CanvasFolder::new("d", "Dossier", "");
+    (dossier.width, dossier.height) = (400.0, 300.0);
+    app.store.create_folder(&board, dossier);
+    app.store.clear_selection();
+    let vp = app.store.viewport();
+    let ici = crate::canvas::world_to_screen(200.0, 150.0, &vp);
+    doigt(&mut app, 1, TouchPhase::Started, ici);
+    echeance_atteinte(&mut app);
+    app.attente_de_l_appui();
+    doigt(&mut app, 1, TouchPhase::Ended, ici);
+    assert_eq!(
+        app.store.selected_folder_id.as_deref(),
+        Some("d"),
+        "le dossier est choisi"
+    );
+    let at = app.ui.context_menu_at.expect("son menu s'ouvre");
+    let typo = crate::typography::Typography::new();
+    let menu = layout_context_menu(&app.store, &typo, (at, None), (1280.0, 720.0), 1.0, true)
+        .expect("un menu");
+    let entrees: Vec<MenuAction> = menu
+        .rows
+        .iter()
+        .filter_map(|r| match r {
+            MenuRow::Item { action, .. } => Some(*action),
+            MenuRow::Separator(_) => None,
+        })
+        .collect();
+    assert_eq!(
+        entrees,
+        vec![MenuAction::Delete],
+        "« Supprimer », et rien qui mentirait"
+    );
+    app.delete_selection();
+    let dossiers = |app: &GlucoseApp| app.store.active_board().map_or(0, |b| b.folders.len());
+    assert_eq!(dossiers(&app), 0, "le dossier est supprimé");
+    assert!(app.store.undo(), "le geste s'annule");
+    assert_eq!(dossiers(&app), 1, "annuler rend le dossier");
+}

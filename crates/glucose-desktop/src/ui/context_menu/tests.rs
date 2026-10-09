@@ -231,3 +231,21 @@ fn test_au_doigt_chaque_entree_fait_quarante_huit_points_sans_raccourci() {
         MenuRow::Item { rect, shortcut, .. } if rect.3 == 24.0 && *shortcut == "Ctrl+V"
     )));
 }
+
+/// **Un dossier choisi a son menu, réduit à ce qui le prend** (DOSSIER-1, fiche 60) : il
+/// recevait celui du vide, sans « Supprimer ». Copier, dupliquer et l'ordre ne portent pas les
+/// dossiers : les offrir mentirait.
+#[test]
+fn test_dossier_1_un_dossier_seul_offre_supprimer_et_rien_d_autre() {
+    let mut store = store_with(1, 0, false);
+    let board = store.project.active_board_id.clone();
+    store.create_folder(
+        &board,
+        glucose_core::types::CanvasFolder::new("d", "Dossier", ""),
+    );
+    store.select_folder("d".into());
+    assert_eq!(
+        actions(&menu(&store, (100.0, 100.0))),
+        vec![MenuAction::Delete]
+    );
+}

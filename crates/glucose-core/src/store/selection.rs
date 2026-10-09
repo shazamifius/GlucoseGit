@@ -40,6 +40,16 @@ impl Store {
         self.clear_selection();
         self.selected_folder_id = Some(id);
     }
+
+    /// **Combien de nœuds la sélection compte**, dossier compris. Le menu, la barre d'action
+    /// et le clavier lisent ce compte-ci : chacun comptait les images et les annotations, et
+    /// un dossier choisi n'avait ni « Supprimer » ni barre — au téléphone, sans touche
+    /// `Suppr`, il ne s'effaçait pas (DOSSIER-1, fiche 60).
+    pub fn compte_de_la_selection(&self) -> usize {
+        self.selected_image_ids.len()
+            + self.selected_annotation_ids.len()
+            + usize::from(self.selected_folder_id.is_some())
+    }
 }
 
 impl Store {

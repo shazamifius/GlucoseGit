@@ -109,7 +109,7 @@ pub fn layout_action_bar(
 ) -> Option<ActionBar> {
     let board = store.active_board()?;
     let images = store.selected_image_ids.len();
-    let total = images + store.selected_annotation_ids.len();
+    let total = store.compte_de_la_selection();
     if total == 0 {
         return None;
     }

@@ -149,8 +149,7 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
     if onglet.is_some() {
         return Some(entrees_d_onglet(store));
     }
-    let sur_selection = store.selected_image_ids.len() + store.selected_annotation_ids.len() > 0;
-    if sur_selection {
+    if store.compte_de_la_selection() > 0 {
         entrees_de_selection(store)
     } else {
         Some(entrees_du_vide())
@@ -159,6 +158,11 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
 
 /// Les entrées d'un menu ouvert sur une sélection : ce qu'on fait de ce qu'on a choisi.
 fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
+    // **Un dossier seul** (DOSSIER-1) : copier, dupliquer et l'ordre ne portent pas encore les
+    // dossiers — les proposer mentirait. La suppression, elle, les prend.
+    if store.selected_image_ids.is_empty() && store.selected_annotation_ids.is_empty() {
+        return Some(vec![Some((MenuAction::Delete, "Supprimer", "Suppr"))]);
+    }
     let images = store.selected_image_ids.len();
     let mut defs: Vec<Def> = Vec::new();
     // « Copier » emporte tout : le lot, le texte, les images elles-mêmes — « Copier l'image »
