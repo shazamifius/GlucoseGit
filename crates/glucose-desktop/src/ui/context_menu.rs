@@ -49,7 +49,7 @@ const FONT: f32 = 12.0;
 const RADIUS: f32 = 6.0;
 /// **Au doigt** (fiche 56), une entrée fait 48 points de haut — la cible tactile d'Android
 /// et de Material, 44 sur iPad — et son texte 16, le corps des listes d'Android.
-const ROW_AU_DOIGT: f32 = 48.0;
+const ROW_AU_DOIGT: f32 = crate::theme::CIBLE_DU_DOIGT;
 const FONT_AU_DOIGT: f32 = 16.0;
 /// Hauteur de la bande d'un séparateur, filet compris.
 const SEPARATOR: f32 = 7.0;

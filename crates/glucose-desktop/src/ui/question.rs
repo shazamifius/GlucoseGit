@@ -46,7 +46,7 @@ const CORPS: f32 = 15.0;
 /// L'interligne, en corps.
 const INTERLIGNE: f32 = 1.4;
 /// Une réponse : la cible d'un doigt (Android, Material), qui convient aussi à la souris.
-const BOUTON: f32 = 48.0;
+const BOUTON: f32 = crate::theme::CIBLE_DU_DOIGT;
 /// Le rayon des coins, celui du menu et de la barre d'action.
 const RAYON: f32 = 6.0;
 

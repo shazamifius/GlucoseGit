@@ -48,7 +48,7 @@ use glucose_core::store::Store;
 use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PixmapMut, Rect, Transform};
 
 /// Le côté d'une case, en points : la cible tactile minimale d'Android.
-const CASE: f32 = 48.0;
+const CASE: f32 = crate::theme::CIBLE_DU_DOIGT;
 /// L'écart entre deux cases, et entre les cases et les bords du panneau.
 const ECART: f32 = 4.0;
 /// La languette : assez large pour un pouce, aussi haute qu'une case.

@@ -50,6 +50,9 @@ pub enum Raison {
     /// **Un doigt posé attend de devenir un appui long** (APPUI-1, fiche 57) : la boucle se
     /// réveille à l'instant où il prend.
     Appui,
+    /// **Un nœud tenu près du bord fait défiler la vue** (DEFILE-1, fiche 59) : elle avance à
+    /// chaque image, même quand la main ne bouge plus.
+    Defile,
     /// La main a bougé, cliqué ou tapé depuis l'image précédente.
     Main,
     /// Un dépôt est arrivé — un fichier lâché, une image rapatriée d'une page.
@@ -60,10 +63,10 @@ pub enum Raison {
 }
 
 impl Raison {
-    /// Dans l'ordre des bits du masque. Les onze premières réveillent — chacune a sa ligne
+    /// Dans l'ordre des bits du masque. Les douze premières réveillent — chacune a sa ligne
     /// dans [`GlucoseApp::prochain_reveil`] ; les trois dernières ne réveillent pas, elles
     /// disent ce qui est arrivé.
-    pub const TOUTES: [Self; 14] = [
+    pub const TOUTES: [Self; 15] = [
         Self::Curseur,
         Self::Toast,
         Self::Animation,
@@ -75,6 +78,7 @@ impl Raison {
         Self::Commande,
         Self::Pave,
         Self::Appui,
+        Self::Defile,
         Self::Main,
         Self::Depot,
         Self::Systeme,
@@ -93,6 +97,7 @@ impl Raison {
             Self::Commande => "une commande attend ses images",
             Self::Pave => "le pave tactile",
             Self::Appui => "un appui long se decide",
+            Self::Defile => "le bord fait defiler",
             Self::Main => "la main",
             Self::Depot => "un depot arrive",
             Self::Systeme => "le systeme",
@@ -233,7 +238,7 @@ impl GlucoseApp {
         type Attente = fn(&mut GlucoseApp) -> Option<u64>;
         // Chaque raison et ce qui dit ce qu'elle attend, ensemble : deux listes accordées par
         // leur seul ordre finissent par ne plus l'être.
-        let attentes: [(Raison, Attente); 13] = [
+        let attentes: [(Raison, Attente); 14] = [
             (Raison::Curseur, Self::attente_du_curseur),
             (Raison::Toast, Self::attente_du_toast),
             (Raison::Animation, Self::attente_de_l_animation),
@@ -247,6 +252,7 @@ impl GlucoseApp {
             (Raison::Commande, Self::attente_des_echanges),
             (Raison::Pave, Self::attente_du_pave),
             (Raison::Appui, Self::attente_de_l_appui),
+            (Raison::Defile, Self::attente_du_bord),
         ];
         let (mut masque, mut plus_proche) = (0u16, None::<u64>);
         for (raison, attente) in attentes {
@@ -262,6 +268,16 @@ impl GlucoseApp {
         }
         self.provenance.raisons = masque;
         plus_proche
+    }
+
+    /// **Un nœud tenu près du bord** (DEFILE-1) : la vue avance à chaque image tant qu'il y
+    /// reste, même main immobile.
+    pub(crate) fn attente_du_bord(&mut self) -> Option<u64> {
+        if self.vitesse_au_bord(self.taille_de_la_fenetre()) == (0.0, 0.0) {
+            return None;
+        }
+        self.mark_dirty();
+        Some(self.animation_interval_ms())
     }
 
     /// **Un `Ctrl+B` attend ses originaux** (ETAGES-1) : il faut repasser à chaque image,

@@ -42,9 +42,18 @@ impl GlucoseApp {
     /// la boucle, qui ne bat pas avec les images : l'une recevait deux pas du système, la
     /// suivante aucun — le tressaut ×5,8 de sa session du 07/10, en horizontal et en biais.
     /// Chromium le fait avancer à chaque pas d'animation, pour la même raison.
+    ///
+    /// **Un nœud tenu près du bord fait défiler la vue** (DEFILE-1), du pas même de l'image ; et
+    /// ce que la main tient suit la vue qui a bougé, d'où que vienne le mouvement.
     pub fn bouger_la_camera(&mut self, largeur: u32, hauteur: u32) {
+        let avant = self.store.viewport();
         self.suivre_le_pave();
+        let pas = self.horloge.pas().as_secs_f64();
+        self.defiler_au_bord((largeur as f32, hauteur as f32), pas);
         self.appliquer_l_elan(largeur, hauteur);
+        if self.store.viewport() != avant {
+            self.les_gestes_suivent_la_camera(avant);
+        }
     }
 
     /// Publique pour que les bancs et les tests puissent jouer une image sans fenetre : le

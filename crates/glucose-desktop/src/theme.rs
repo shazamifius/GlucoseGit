@@ -44,6 +44,11 @@ const PREDICATE_HEX: [u32; 6] = [
     0xf5_9e0b, 0xef_4444, 0x8b_5cf6, 0x10_b981, 0x3b_82f6, 0xf4_72b6,
 ];
 
+/// **La cible d'un doigt**, en points : 48, la cible tactile minimale d'Android et de Material
+/// (44 sur iPad), qui convient aussi à la souris. Une entrée de menu au doigt, une réponse, une
+/// case du rail, la bande où le canevas défile sous un nœud tenu : une seule mesure.
+pub const CIBLE_DU_DOIGT: f32 = 48.0;
+
 /// Normalise un facteur d'échelle d'interface.
 ///
 /// Toute valeur non finie ou hors plage (facteur corrompu, argument inversé)

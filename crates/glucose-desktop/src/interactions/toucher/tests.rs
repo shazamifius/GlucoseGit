@@ -476,3 +476,43 @@ fn test_appui_1_l_appui_long_garde_la_selection_multiple() {
     );
     assert!(long.ui.context_menu_at.is_some());
 }
+
+/// **Un appui long au milieu d'une membrane vide la choisit, et son menu offre « Supprimer »**
+/// (fiche 59) : « on n'a pas de bouton supprimer pour une membrane » — sur l'APK du 07/10, sans
+/// appui long, la barre d'action passait sous la navigation. Le corps d'un conteneur vient en
+/// dernier chez l'arbitre (PICK-2), mais sur le vide d'une membrane il n'y a rien d'autre.
+#[test]
+fn test_appui_1_l_appui_long_dans_une_membrane_offre_supprimer() {
+    use crate::ui::context_menu::{layout_context_menu, MenuAction, MenuRow};
+    use glucose_core::types::Annotation;
+    let mut app = app();
+    let board = app.store.project.active_board_id.clone();
+    app.store
+        .add_annotation(&board, Annotation::membrane("m", 0.0, 0.0, 400.0, 300.0));
+    app.store.clear_selection();
+    let vp = app.store.viewport();
+    let ici = crate::canvas::world_to_screen(200.0, 150.0, &vp);
+    doigt(&mut app, 1, TouchPhase::Started, ici);
+    echeance_atteinte(&mut app);
+    app.attente_de_l_appui();
+    doigt(&mut app, 1, TouchPhase::Ended, ici);
+    assert_eq!(
+        app.store.selected_annotation_ids,
+        vec!["m".to_string()],
+        "la membrane est choisie"
+    );
+    let at = app.ui.context_menu_at.expect("son menu s'ouvre");
+    let typo = crate::typography::Typography::new();
+    let menu = layout_context_menu(&app.store, &typo, (at, None), (1280.0, 720.0), 1.0, true)
+        .expect("un menu");
+    let supprimer = menu.rows.iter().any(|r| {
+        matches!(
+            r,
+            MenuRow::Item {
+                action: MenuAction::Delete,
+                ..
+            }
+        )
+    });
+    assert!(supprimer, "« Supprimer » est dans le menu");
+}
