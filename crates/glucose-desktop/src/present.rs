@@ -163,6 +163,12 @@ pub trait Presenter {
         None
     }
 
+    /// **Le plus grand côté d'une texture que la carte accepte** (PLAFOND-1), ou rien si la
+    /// présentation ne pose pas de textures.
+    fn plafond_des_textures(&self) -> Option<u32> {
+        None
+    }
+
     /// Présente la scène en cinq temps. N'est appelée que si [`Presenter::pose_les_photos`].
     ///
     /// L'ordre est tout, et il est celui du modèle : **le fond**, **les lueurs**, la couche du

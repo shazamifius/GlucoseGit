@@ -19,7 +19,7 @@ pub(super) struct PhotoTenue {
 pub(super) fn pose_tenue(
     magasin: &mut crate::renderer::magasin::Magasin,
     img: &glucose_core::types::BoardImage,
-    (vp, cran): (&Viewport, u32),
+    (vp, cran, plafond): (&Viewport, u32, Option<u32>),
 ) -> Option<PhotoTenue> {
     let src = img.src.as_deref()?;
     if !magasin.reclamer(src, img.width) {
@@ -45,8 +45,12 @@ pub(super) fn pose_tenue(
     // niveau tenu, sous une identité à lui : poser le repli sous l'identité de la photo
     // remplacerait une texture nette par une floue, le temps d'une reprise.
     let pyramide = &entree.pyramide;
-    let voulu = pyramide.facteur_pour(largeur_source as f32);
+    // **PLAFOND-1 : jamais une texture plus grande que la carte n'accepte** — elle la
+    // refuserait, et la photo partirait en morceaux. Le voulu se réduit jusqu'à tenir ; un
+    // repli trop grand ne se pose pas, le voulu attend.
+    let voulu = pyramide.tenir_dans(pyramide.facteur_pour(largeur_source as f32), plafond);
     let (tenu, _) = pyramide.meilleur_pour(largeur_source as f32)?;
+    let tenu = pyramide.repli_qui_tient(tenu, voulu, plafond);
     let pose = |facteur: u32| Pose {
         x: x as f32,
         y: y as f32,

@@ -427,12 +427,29 @@ mod tests {
         fn pose_les_photos(&self) -> bool {
             true
         }
+        fn plafond_des_textures(&self) -> Option<u32> {
+            Some(4096)
+        }
         fn nom(&self) -> &'static str {
             "carte factice"
         }
         fn rythme(&self) -> &'static str {
             "aucun"
         }
+    }
+
+    /// **PLAFOND-1 : le plafond de la carte arrive au rendu avant chaque image** — sans lui, une
+    /// photo demanderait une texture que la carte refuse.
+    #[test]
+    fn test_plafond_1_le_plafond_de_la_carte_arrive_au_rendu() {
+        let mut app = GlucoseApp::new();
+        assert_eq!(
+            app.renderer.carte.plafond_des_textures, None,
+            "sans carte, aucun"
+        );
+        app.presenter = Some(Box::new(Carte));
+        app.preparer_la_carte((800, 600));
+        assert_eq!(app.renderer.carte.plafond_des_textures, Some(4096));
     }
 
     /// Une resolution deja reduite, comme le modele la laisse apres un pic.

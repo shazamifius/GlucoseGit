@@ -268,10 +268,11 @@ pub(super) fn lueurs_a_poser(
 /// la photo penchee du temoin est en chemin.
 pub(super) fn poses_des_photos(
     regime: &super::composants::Regime,
-    magasin: &mut super::magasin::Magasin,
+    (magasin, carte): (&mut super::magasin::Magasin, &mut cran::EtatDeLaCarte),
     (vp, rangs, store): (&Viewport, &[u32], &Store),
-    cran: u32,
 ) -> PhotosAPoser {
+    // Le cran de cette image d'abord, sur la vue qu'elle montre (ETAGES-3).
+    carte.juger(magasin, store, (vp, rangs));
     let mut photos = PhotosAPoser::default();
     let Some(board) = store.active_board() else {
         return photos;
@@ -284,7 +285,7 @@ pub(super) fn poses_des_photos(
     } = &mut photos;
     let mut en_chemin = 0.0f64;
     for img in Visibles::nouvelles(rangs, board).images() {
-        match pose_tenue(magasin, img, (vp, cran)) {
+        match pose_tenue(magasin, img, (vp, carte.cran, carte.plafond_des_textures)) {
             Some(tenue) => {
                 let cle = format!("{}@{}", tenue.src, tenue.facteur);
                 if let Some((facteur, pose)) = tenue.repli {
@@ -493,11 +494,11 @@ impl Renderer {
             composants: en_chemin,
             niveaux,
             replis,
-        } = {
-            self.carte.juger(&self.magasin, store, (&vp, &rangs));
-            let cran = self.carte.cran;
-            poses_des_photos(&regime, &mut self.magasin, (&vp, &rangs, store), cran)
-        };
+        } = poses_des_photos(
+            &regime,
+            (&mut self.magasin, &mut self.carte),
+            (&vp, &rangs, store),
+        );
         let kit = PaintKit {
             typography: &self.typography,
             math: &self.math,

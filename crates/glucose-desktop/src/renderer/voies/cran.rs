@@ -40,6 +40,10 @@ pub struct EtatDeLaCarte {
     pub debordee: bool,
     /// Combien d'images l'ont été.
     pub images_debordees: u64,
+    /// **Le plus grand côté d'une texture que la carte accepte** (PLAFOND-1), dit par la
+    /// présentation ; `None` sans carte. Souvent 4 096 ou 8 192 sur un téléphone ou une vieille
+    /// tablette, bien moins qu'une grande photo : une photo n'y demande jamais plus.
+    pub plafond_des_textures: Option<u32>,
 }
 
 /// Au-delà, toute pyramide est à son dernier niveau : une image large de 2³² pixels — la plus
@@ -66,7 +70,7 @@ pub(super) fn largeur_source(img: &BoardImage, vp: &Viewport) -> f64 {
 pub(super) fn demande_des_photos(
     magasin: &Magasin,
     store: &Store,
-    (vp, rangs): (&Viewport, &[u32]),
+    (vp, rangs, plafond): (&Viewport, &[u32], Option<u32>),
     cran: u32,
 ) -> u64 {
     let Some(board) = store.active_board() else {
@@ -78,7 +82,8 @@ pub(super) fn demande_des_photos(
         .filter_map(|img| {
             let pyramide = &magasin.cache.get(img.src.as_deref()?)?.pyramide;
             let facteur = pyramide.facteur_pour((largeur_source(img, vp) / diviseur) as f32);
-            let (l, h) = pyramide.dimensions(facteur);
+            // Ce que la carte recevra vraiment : jamais plus que son plafond (PLAFOND-1).
+            let (l, h) = pyramide.dimensions(pyramide.tenir_dans(facteur, plafond));
             Some(u64::from(l) * u64::from(h) * 4)
         })
         .sum()
@@ -95,11 +100,12 @@ impl EtatDeLaCarte {
         store: &Store,
         (vp, rangs): (&Viewport, &[u32]),
     ) {
+        let plafond = self.plafond_des_textures;
         let verdict = match self.part_des_photos {
             None => Some(0),
-            Some(part) => {
-                cran_qui_tient(part, |c| demande_des_photos(magasin, store, (vp, rangs), c))
-            }
+            Some(part) => cran_qui_tient(part, |c| {
+                demande_des_photos(magasin, store, (vp, rangs, plafond), c)
+            }),
         };
         self.cran = verdict.unwrap_or(CRAN_MAX);
         self.cran_pire = self.cran_pire.max(self.cran);
@@ -170,9 +176,31 @@ mod tests {
             Entree::pour_test(Pyramide::nouvelle(pixmap)),
         );
         let vp = Viewport::default();
-        let demande = |c| demande_des_photos(&magasin, &store, (&vp, &[0]), c);
+        let demande = |c| demande_des_photos(&magasin, &store, (&vp, &[0], None), c);
         assert_eq!(demande(0), 64 * 64 * 4, "soixante pixels : le niveau de 64");
         assert_eq!(demande(1), 32 * 32 * 4, "un cran : le niveau de 32");
         assert_eq!(demande(2), 16 * 16 * 4);
+    }
+
+    /// **La demande compte ce que la carte recevra vraiment** (PLAFOND-1) : un plafond de 32
+    /// ramène le niveau de 64 à celui de 32 — sans quoi le cran se jugerait sur des octets que
+    /// la carte ne recevra jamais, et pixeliserait pour rien.
+    #[test]
+    fn test_plafond_1_la_demande_compte_ce_que_la_carte_recevra() {
+        let mut store = Store::new("plafond");
+        let board = store.project.active_board_id.clone();
+        let mut img = BoardImage::new("p", 30.0, 30.0, 60.0, 60.0);
+        img.src = Some("p.png".into());
+        store.add_image(&board, img);
+        let mut magasin = Magasin::nouveau();
+        let pixmap = tiny_skia::Pixmap::new(512, 512).expect("une image");
+        magasin.cache.insert(
+            "p.png".into(),
+            Entree::pour_test(Pyramide::nouvelle(pixmap)),
+        );
+        let vp = Viewport::default();
+        let demande = |plafond| demande_des_photos(&magasin, &store, (&vp, &[0], plafond), 0);
+        assert_eq!(demande(None), 64 * 64 * 4);
+        assert_eq!(demande(Some(32)), 32 * 32 * 4);
     }
 }

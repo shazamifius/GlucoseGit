@@ -502,6 +502,10 @@ impl Presenter for GpuPresenter {
         }
     }
 
+    fn plafond_des_textures(&self) -> Option<u32> {
+        Some(self.device.limits().max_texture_dimension_2d)
+    }
+
     fn part_pour_les_photos(&self) -> Option<u64> {
         let m = self.sonde.as_ref()?.lire()?;
         Some(m.part_pour_les_photos(

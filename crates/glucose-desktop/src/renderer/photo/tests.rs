@@ -179,3 +179,40 @@ fn test_la_pyramide_complete_coute_un_tiers_de_plus() {
         p.octets()
     );
 }
+
+/// **PLAFOND-1 — le niveau se réduit jusqu'à tenir dans ce que la carte accepte**, et seulement
+/// s'il le faut : sans plafond, ou quand le voulu tient déjà, il ne change pas. Un plafond que
+/// rien ne tient donne le dernier niveau, le plus petit qui existe.
+#[test]
+fn test_plafond_1_le_niveau_se_reduit_jusqu_a_tenir() {
+    let p = Pyramide::nouvelle(unie(4032, 3024, [10, 20, 30, 255]));
+    assert_eq!(p.tenir_dans(1, None), 1, "sans plafond, rien ne change");
+    assert_eq!(p.tenir_dans(1, Some(2048)), 2, "4032 ne tient pas : 2016");
+    assert_eq!(p.tenir_dans(4, Some(2048)), 4, "1008 tient déjà");
+    assert_eq!(p.tenir_dans(1, Some(4096)), 1, "4032 tient dans 4096");
+    let dernier = p.tenir_dans(1, Some(0));
+    assert_eq!(
+        p.dimensions(dernier),
+        p.dimensions(1 << 31),
+        "le plus petit niveau"
+    );
+    assert!(!p.tient_dans(1, Some(2048)) && p.tient_dans(2, Some(2048)));
+    assert!(p.tient_dans(1, None));
+}
+
+/// **Un repli trop grand pour la carte ne se pose pas** : le voulu attend à sa place.
+#[test]
+fn test_plafond_1_un_repli_trop_grand_ne_se_pose_pas() {
+    let p = Pyramide::nouvelle(unie(4032, 3024, [10, 20, 30, 255]));
+    assert_eq!(
+        p.repli_qui_tient(4, 2, Some(2048)),
+        4,
+        "1008 tient : il se pose"
+    );
+    assert_eq!(
+        p.repli_qui_tient(1, 2, Some(2048)),
+        2,
+        "4032 ne tient pas : le voulu"
+    );
+    assert_eq!(p.repli_qui_tient(1, 2, None), 1, "sans plafond, le tenu");
+}

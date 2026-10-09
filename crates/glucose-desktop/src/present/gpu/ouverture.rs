@@ -41,6 +41,13 @@ pub(super) fn ouvrir(
     // large — une garantie de portabilité transformée en refus de fonctionner.
     let limites = adapter.limits();
     let plafond = limites.max_texture_dimension_2d;
+    // **Ce que le journal du téléphone doit dire** (fiche 59) : ses rayures ne se reproduisent
+    // sur aucun moteur de ce PC ; le moteur et le plafond de sa carte sont la première question.
+    let info = adapter.get_info();
+    println!(
+        "[Glucose] carte : {} — {:?}, pilote {} {}, textures jusqu'à {plafond}",
+        info.name, info.backend, info.driver, info.driver_info
+    );
     if width.get() > plafond || height.get() > plafond {
         return Err(DesktopError::WindowError(format!(
             "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de                  cet adaptateur ({plafond})",

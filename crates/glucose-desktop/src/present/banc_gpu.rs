@@ -39,8 +39,13 @@ pub fn sans_carte() {
 }
 
 /// Un périphérique hors fenêtre, ou `None` si cette machine n'en offre pas.
+///
+/// **`WGPU_BACKEND` choisit le moteur** (`vulkan`, `gl`, `dx12`) : c'est par là que les épreuves
+/// des deux voies se rejouent comme sur un téléphone, qui dessine par Vulkan ou GL ES — ses
+/// rayures du 09/10 (fiche 59). Sans la variable, le moteur que wgpu préfère.
 pub fn carte() -> Option<(wgpu::Device, wgpu::Queue)> {
-    let instance = wgpu::Instance::default();
+    let instance =
+        wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let ouvrir = || {
         let adaptateur =
             pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {

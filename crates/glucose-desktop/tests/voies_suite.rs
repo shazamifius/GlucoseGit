@@ -498,17 +498,19 @@ fn les_deux_couches_decodees(
     taille: (u32, u32),
     store: &glucose_core::store::Store,
 ) -> (Renderer, Pixmap, Pixmap, Confie) {
-    les_deux_couches_sous_un_budget(taille, store, None)
+    les_deux_couches_sous_un_budget(taille, store, (None, None))
 }
 
-/// Les deux couches, quand la carte ne laisse aux photos que `part` octets (ETAGES-3).
+/// Les deux couches, quand la carte ne laisse aux photos que `part` octets (ETAGES-3), et
+/// n'accepte pas de texture de plus de `plafond` pixels de côté (PLAFOND-1).
 fn les_deux_couches_sous_un_budget(
     taille: (u32, u32),
     store: &glucose_core::store::Store,
-    part: Option<u64>,
+    (part, plafond): (Option<u64>, Option<u32>),
 ) -> (Renderer, Pixmap, Pixmap, Confie) {
     let mut renderer = Renderer::new();
     renderer.carte.part_des_photos = part;
+    renderer.carte.plafond_des_textures = plafond;
     renderer.sync_spatial_index(store);
     let mut ui = UiState::new();
     let guides = glucose_core::smart_align::SnapGuides::default();
@@ -769,6 +771,26 @@ fn test_une_photo_posee_petite_part_au_niveau_qui_la_couvre() {
     );
 }
 
+/// **PLAFOND-1 — jamais une texture plus grande que la carte n'accepte.** Le damier posé à
+/// 800 pixels voudrait ses 512 natifs ; une carte qui n'accepte que 128 de côté reçoit le
+/// niveau de 128 — la photo se pose, réduite, au lieu d'une texture refusée. À l'envers : sans
+/// plafond, les 512 natifs.
+#[test]
+fn test_plafond_1_jamais_une_texture_plus_grande_que_la_carte() {
+    let store = document_damier(4.0);
+    let cote = |plafond: Option<u32>| {
+        let (renderer, _, _, confie) =
+            les_deux_couches_sous_un_budget((800, 600), &store, (None, plafond));
+        let (cle, _) = confie.photos.first().expect("la photo est posee");
+        let texture = confie.pixels(&renderer, cle).expect("ses pixels");
+        let vue = texture.vue();
+        vue.width().max(vue.height())
+    };
+    assert_eq!(cote(None), 512, "sans plafond, les natifs");
+    assert_eq!(cote(Some(128)), 128, "le plus grand niveau qui tient");
+    assert_eq!(cote(Some(200)), 128, "200 ne tient pas 256 : 128");
+}
+
 /// **Une photo réduite se rend pareil sur les deux voies** — ce que la texture native, lue un
 /// texel sur huit par le filtre bilinéaire, ne pouvait pas faire : le damier y devenait des
 /// motifs là où le processeur, qui part du niveau, montre du gris.
@@ -811,7 +833,8 @@ fn test_une_photo_reduite_se_rend_pareil_sur_les_deux_voies() {
 fn test_quand_la_carte_manque_de_place_la_photo_perd_un_cran() {
     let store = document_damier(0.3);
     let niveau_recu = |part: Option<u64>| {
-        let (renderer, _, _, confie) = les_deux_couches_sous_un_budget((800, 600), &store, part);
+        let (renderer, _, _, confie) =
+            les_deux_couches_sous_un_budget((800, 600), &store, (part, None));
         let (cle, _) = confie.photos.first().expect("la photo est posee").clone();
         let texture = confie.pixels(&renderer, &cle).expect("ses pixels");
         let texture = texture.vue();
@@ -832,7 +855,7 @@ fn test_quand_la_carte_manque_de_place_la_photo_perd_un_cran() {
         ((32, 32), false),
         "un cran"
     );
-    let (renderer, _, _, _) = les_deux_couches_sous_un_budget((800, 600), &store, Some(0));
+    let (renderer, _, _, _) = les_deux_couches_sous_un_budget((800, 600), &store, (Some(0), None));
     assert!(renderer.carte.debordee, "rien ne tient : la carte le dit");
 }
 

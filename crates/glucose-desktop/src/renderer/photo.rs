@@ -284,6 +284,41 @@ impl Pyramide {
         Some((1 << rang, self.niveaux[rang].vue()?))
     }
 
+    /// **Le facteur le plus proche de `facteur` dont le niveau tient dans une texture de
+    /// `plafond` pixels de côté** (PLAFOND-1) — réduit d'autant de fois deux qu'il faut. Le
+    /// plafond est celui que la carte annonce, jamais un nombre choisi ; sans lui, `facteur`.
+    pub fn tenir_dans(&self, facteur: u32, plafond: Option<u32>) -> u32 {
+        let depart = self.rang_de(facteur);
+        let rang = (depart..self.niveaux.len())
+            .find(|&r| self.tient_au_rang(r, plafond))
+            .unwrap_or(self.niveaux.len() - 1);
+        if rang == depart {
+            facteur
+        } else {
+            1 << rang
+        }
+    }
+
+    /// Le niveau réduit `facteur` fois tient-il dans ce plafond ?
+    pub fn tient_dans(&self, facteur: u32, plafond: Option<u32>) -> bool {
+        self.tient_au_rang(self.rang_de(facteur), plafond)
+    }
+
+    /// **Le repli qui se pose en attendant le voulu** : le niveau tenu s'il tient dans le plafond,
+    /// sinon le voulu lui-même — une texture refusée ne remplace rien (PLAFOND-1).
+    pub fn repli_qui_tient(&self, tenu: u32, voulu: u32, plafond: Option<u32>) -> u32 {
+        if self.tient_dans(tenu, plafond) {
+            tenu
+        } else {
+            voulu
+        }
+    }
+
+    fn tient_au_rang(&self, rang: usize, plafond: Option<u32>) -> bool {
+        let n = &self.niveaux[rang];
+        plafond.is_none_or(|p| n.largeur.max(n.hauteur) <= p)
+    }
+
     /// Le rang du niveau réduit `facteur` fois.
     fn rang_de(&self, facteur: u32) -> usize {
         (facteur.max(1).trailing_zeros() as usize).min(self.niveaux.len() - 1)
