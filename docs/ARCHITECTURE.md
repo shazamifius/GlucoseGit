@@ -1,6 +1,6 @@
 # L'architecture de Glucose Rust
 
-> **Au 08/10/2026** (fiches 51 à 58 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
+> **Au 09/10/2026** (fiches 51 à 59 comprises). Comment le code est fait **aujourd'hui** : où vit chaque chose, et pourquoi.
 > Ce n'est pas un plan : c'est une carte. Pour le *pourquoi* détaillé d'un mécanisme, chaque module
 > porte son histoire en tête de fichier, et le code cite les fiches du [carnet](carnet/00-INDEX.md)
 > par leur numéro (« fiche 22 § 5 » se lit dans `docs/carnet/22-…`).
@@ -93,6 +93,14 @@ suivante, le doigt la rembourse et glisse (fiche 51 § 1) —  (ce que la main a
   rapatriée d'une page (`plateforme/rapatrier.rs`) qui ne vient pas laisse un lien qui **dit
   pourquoi** et se rattrape au clic droit (`depot_web/relance.rs`, DEPOT-WEB-6) ; la première
   copie qui arrive se pose tout de suite, et l'original prend sa place (`depot_web/apercu.rs`).
+* **Le canevas défile au bord** (DEFILE-1, `bord.rs`, fiche 59) : un nœud, un coin ou un
+  rectangle de sélection tenu dans la bande du bord — la cible d'un doigt — fait avancer la vue
+  à chaque image (`bouger_la_camera`, une raison de réveil à lui), d'autant plus vite qu'il s'y
+  enfonce ; et **ce que la main tient suit la vue qui bouge**, d'où que vienne le mouvement
+  (`les_gestes_suivent_la_camera`). Sortir de la fenêtre fait toujours partir le glisser.
+* **Le copier unique** (COPIER-1, `clipboard/formes.rs`, fiche 59) : `Ctrl+C` et le glisser
+  rassemblent la sélection sous toutes ses formes — le lot, le texte, l'image seule en PNG et en
+  pixels, chaque image en fichier (octets d'origine) —, que la plateforme confie au système.
 * **Transformer la sélection entière** (`resize.rs`, fiche 53 § 10) : le noyau calcule
   (`core/groupe/` — mise à l'échelle par un coin, rotation, origine commune ou individuelle) et le
   magasin réécrit tout depuis la pose de départ (`core/store/groupe.rs`) ; le cadre du groupe se
@@ -149,11 +157,20 @@ ce qu'on a le droit d'abîmer en mouvement), le cadrage (`renderer/cadrage.rs`).
   réductions par deux. Chaque niveau est **tenu**, **offert** au système (il le reprend s'il en a
   besoin, sans rien écrire sur le disque), en chemin ou perdu (ETAGES-1).
 * **La carte graphique** reçoit le niveau qui couvre la taille posée ; son budget se lit chez le
-  système et se suit même quand Glucose dort (ETAGES-2, 3).
+  système et se suit même quand Glucose dort (ETAGES-2, 3) ; et **jamais un niveau plus grand que
+  la plus grande texture qu'elle accepte** (PLAFOND-1, fiche 59) — la présentation dit ce plafond
+  au rendu avant chaque image (`EtatDeLaCarte`), et le niveau se réduit jusqu'à tenir.
 * **Le disque** : la vue d'ensemble de chaque image (`renderer/apercu.rs`), nommée par l'empreinte
   de ses octets ; un document s'ouvre déjà montré.
 
 ## 6. L'interface
+
+**L'ordre des couches, écrit une fois** (DECISION-1, `renderer/decision.rs`, fiche 59) : le
+canevas, la chrome permanente (la bande, le fil d'Ariane, la minimap, le rail), les panneaux,
+puis **ce qui attend une décision** (`ui/decision.rs` : la barre d'action, les options de flèche,
+la fenêtre des ancres, le toast, le menu, la question) — l'ordre même où le clic descend. Les
+deux peintres le posent après les panneaux ; sur la voie graphique, avec un panneau ouvert, dans
+un tampon que la carte pose après eux (`app/decision.rs`).
 
 `ui/` : la bande du haut, rendue une fois par changement ; ses boutons placés par une seule mise en
 page que le dessin et le clic lisent (loi L4) ; **le rail** (`rail.rs`, fiche 55), la même liste de
@@ -177,8 +194,11 @@ d'état, la navigation et le clavier recouvrent — BORD-1 : la barre du haut en
 d'état, et le bas de l'interface se pose dans `UiState::ecran_visible`) :
 le dépôt depuis un navigateur (COM, Windows seulement), le **pavé par *Direct Manipulation***,
 la carte qui tient l'écran (DXGI), le **glisser de nœuds vers une autre
-fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pas dire (le lot de
-nœuds « Glucose.Lot », l'image en PNG et `CF_DIBV5`, fiche 51), le téléchargement (WinHTTP sous Windows,
+fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pas dire — un seul
+objet, `selection_windows` (COPIER-1, `IDataObject`), qui part au presse-papiers
+(`OleSetClipboard`) et dans le glisser : le lot « Glucose.Lot », le texte, l'image seule en PNG et
+`CF_DIBV5`, plusieurs images en `CF_HDROP` — des fichiers écrits au premier collage qui les veut,
+dans `%TEMP%\glucose-copies`, et rendus à la fermeture (`OleFlushClipboard`) —, le téléchargement (WinHTTP sous Windows,
 `ureq` ailleurs), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la
 carte (DXGI), la priorité des fils, l'identité pour la barre des tâches, l'heure locale, le journal
 des plantages de Windows, la batterie.

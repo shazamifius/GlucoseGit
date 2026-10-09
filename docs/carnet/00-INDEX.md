@@ -96,6 +96,7 @@ pour décider · *→* = remplacée par le document indiqué.
 | 56 | [Le partage et la vie de l'application](56-LE-PARTAGE-ET-LA-VIE-DE-L-APPLICATION.md) | VIE-1 (la surface qu'Android reprend) ; PARTAGE-1 (Glucose dans « Partager ») ; le double toucher et « Ajouter des images… » ; QUESTION-1 (la question dessinée) et VUE-1 (le refus donné à sa place) ; DOCUMENTS-1 (les documents du téléphone) — **§ 7 : le clavier d'abord** |
 | 57 | [Le clavier, l'appui long et les documents](57-LE-CLAVIER-L-APPUI-LONG-ET-LES-DOCUMENTS.md) | CLAVIER-1 à 3 (le clavier du téléphone, miroir de la saisie ; l'état d'avant l'envoi ; la ligne en vue) ; APPUI-1 (l'appui long, le délai du système, la question qui répond au relâchement) ; DOCUMENTS-2 (renommer, dupliquer, supprimer) ; ce que son téléphone a dit par la télémétrie |
 | 58 | [Les questions dessinées, le rail, les emojis, la mise à jour d'Android](58-LES-QUESTIONS-DESSINEES-LE-RAIL-ET-LES-EMOJIS.md) | POPUP-1 (toutes les questions dessinées, au clavier aussi ; une suite au lieu d'un retour ; DIAL-5, la seule boîte avant la fenêtre) ; les noms du rail, colonne après colonne ; GESTES-1 proposé ; EMOJI-1 (Noto Emoji en repli d'Inter) ; MAJ-ANDROID-1 (l'APK confié à `PackageInstaller`) ; le journal technique lisible (`journal-technique`, un lisez-moi en colonnes, la clé d'une session) ; GESTES-1 écrit |
+| 59 | [La question au-dessus, le canevas qui suit, le copier unique](59-LA-QUESTION-AU-DESSUS-LE-CANEVAS-QUI-SUIT-LE-COPIER-UNIQUE.md) | ses retours du 09/10 ; ses captures datées (l'APK du 07/10) ; DECISION-1 (la question par-dessus les panneaux, aucun panneau au lancement) ; DEFILE-1 (le canevas défile au bord — *Push-Edge* lu et écarté) ; COPIER-1 (un seul copier, les images en fichiers fabriqués à la demande — lu dans Chromium) ; PLAFOND-1 (jamais une texture plus grande que la carte) ; les rayures du téléphone, non reproduites ici — **§ 10 : ce qui attend sa parole** |
 
 ## Les décisions — **foi**
 
@@ -111,4 +112,4 @@ Une note par dépendance ou par choix structurant, dans [`decisions/`](decisions
 [09](decisions/09-LE-PARTAGE-PAR-JNI.md) le partage vers Glucose, par `jni` ·
 [10](decisions/10-LES-EMOJIS-PAR-NOTO-EMOJI.md) les emojis, par Noto Emoji.
 
-La prochaine fiche porte le numéro **59**.
+La prochaine fiche porte le numéro **60**.

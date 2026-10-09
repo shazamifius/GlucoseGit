@@ -1,11 +1,12 @@
 # Où en est Glucose
 
-> **Au 08/10/2026, dans la nuit**, après la session de ses retours sur la V2 (fiche 51), celle de la
+> **Au 09/10/2026, au soir**, après la session de ses retours sur la V2 (fiche 51), celle de la
 > carte de l'écran (fiche 52), celle de Pinterest et du pavé (fiche 53), celle de la similitude
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
-> documents qu'on renomme (fiche 57), et celle des questions dessinées partout, des noms du
-> rail et des emojis (fiche 58). Ce document dit l'état **vérifié** du projet,
+> documents qu'on renomme (fiche 57), celle des questions dessinées partout, des noms du
+> rail et des emojis (fiche 58), et celle de ses retours du 09/10 — la question au-dessus des
+> panneaux, le canevas qui suit, le copier unique (fiche 59). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -50,6 +51,17 @@
   icône** ; **les emojis se dessinent** (Noto Emoji monochrome, en repli d'Inter). Puis, à sa
   demande : **le journal technique lisible** (`journal-technique`, un `LISEZ-MOI.txt` en
   colonnes) et **les gestes à plusieurs doigts** (annuler, rétablir, choisir plusieurs nœuds).
+* **Fiche 59 — ses retours du 09/10, écrits et éprouvés hors écran, jamais essayés par lui** :
+  la question passe **par-dessus les panneaux**, et aucun panneau ne s'ouvre au lancement
+  (DECISION-1) ; **le canevas défile** quand on tient un nœud près du bord (DEFILE-1) ; **un seul
+  « Copier »**, qui emporte les images elles-mêmes — une en PNG, plusieurs en fichiers —, et le
+  **glisser vers Discord, Google Docs ou le bureau** (COPIER-1) ; jamais une texture plus grande
+  que la carte n'accepte (PLAFOND-1). Ses captures du téléphone étaient en partie celles de
+  l'APK du 07/10 (sans appui long ni bord à bord) ; **les rayures** de l'APK actuel ne se
+  reproduisent sur aucun moteur de ce PC (Vulkan, GL, DX12) : la cause est probablement propre au
+  téléphone, et son journal par le câble la dira. **Un APK neuf**, signé de sa clé (`3f2af005…`),
+  est sur son Bureau (`Glucose.apk`), et l'aperçu de la question au-dessus des panneaux dans
+  `Glucose apercus`.
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -67,20 +79,23 @@
 
 | domaine | ce qui marche |
 |---|---|
-| **Naviguer** | canevas infini ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** : la similitude entière des doigts, sans bascule (fiche 54 § 3 — Windows zoome bien sous le curseur, **vérifié** ; le biais **à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Ctrl+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) ; **au doigt, sur un écran** hors Windows (fiche 54 § 7) |
+| **Naviguer** | canevas infini ; **le canevas défile quand on tient un nœud, un coin ou un rectangle de sélection près du bord** (DEFILE-1, fiche 59) ; **à la souris, instantané** (molette, glisser au bouton du milieu : rien ne glisse) ; pavé tactile **par *Direct Manipulation*** : la similitude entière des doigts, sans bascule (fiche 54 § 3 — Windows zoome bien sous le curseur, **vérifié** ; le biais **à juger à son écran**), `F` (vol qui cadre la sélection, ou tout), `Ctrl+F` (tout), signets `Ctrl+1..9` / `1..9`, minimap qu'on tient, onglets (renommer, ranger, supprimer, importer un document dedans) ; **au doigt, sur un écran** hors Windows (fiche 54 § 7) |
 | **Le document** | **`Ctrl+N`** (un document vierge) ; `.glucose` qui s'écrit **geste après geste** (plus de gel à l'enregistrement), images scellées dans le fichier, brouillons, texte en cours de frappe qui survit à un plantage, reprise au lancement (le dernier document, le curseur), Time Machine (`Ctrl+H` : regarder, restaurer, jalons datés), documents Tauri lus par un lecteur écrit ici |
 | **Images** | PNG, JPEG, WebP, GIF, BMP ; collage, dépôt de fichiers, **dépôt depuis un navigateur** sous Windows (Pinterest en pleine résolution, la page demandée **compressée** ; un repli en lien **dit pourquoi**, et se rattrape au clic droit : « Remplacer par l'image ») ; rotation, recadrage non destructif, `Ctrl+B` (bordures) ; mémoire par étages |
 | **Texte** | Markdown, tableaux, liens, **LaTeX** fidèle à KaTeX, annulation mot par mot |
 | **Flèches** | l'aspect de Tauri, droite ou courbe, double sens, épaisseur, six relations, coudes, **contournement** des obstacles, **ancres de texte** (une flèche part d'une phrase précise) |
-| **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; au clic droit sur une image : **Copier l'image** (Discord, un navigateur), **Enregistrer l'image sous…** (les octets d'origine) |
+| **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). Sous Linux et Mac, le copier ne pose encore que le lot |
 | **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, Ordonner, aimant aux voisines, placement aimanté dès le premier clic |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
 | **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — pas encore prouvée, aucune release ne la porte |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 225 sous Windows, clippy strict à zéro avec Rust 1.99, **et pour Android** ;
-  la fiche 58 a saboté cinquante-cinq gardes, cinquante-cinq chutes (une redondante, retirée). **Sur GitHub, à
+* **Épreuves** : 2 253 sous Windows, clippy strict à zéro avec Rust 1.99, **et pour Android** ;
+  la fiche 59 a saboté vingt-neuf gardes, vingt-neuf chutes (deux épreuves aveugles trouvées
+  avant, et rendues voyantes). **Cinq commits attendent en local** (`486dd8b` à `2e7562e`, plus
+  la documentation) : rien n'est envoyé sans sa parole, et le code de Linux et Mac changé pour le
+  copier n'a été que relu — la CI le compilera. **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -122,7 +137,7 @@ canevas · vidéos · provenance des images (SauceNAO) · sélecteur de couleur 
 plugins et IA locale · Mac · iPad. **Android** : tourne sur son téléphone ; les questions s'y
 dessinent (fiche 56) ; le clavier, l'appui long et la gestion des documents sont écrits (fiche
 57), le bord à bord aussi ; **pas encore** de presse-papiers du système, de mise à jour
-automatique, ni de batterie dans la télémétrie ; les emojis se dessinent (fiche 58), sans les
+automatique prouvée ; la batterie est écrite (fiche 58) ; les emojis se dessinent (fiche 58), sans les
 familles ni les drapeaux composés. **Les tablettes Windows** : les doigts n'y passent
 pas encore (la souris simulée à écarter d'abord). Les membranes « étirées » et « minimisées » (l'idée de
 Mary) **attendent sa parole**, comme les rideaux et Trans-domaines.
@@ -170,6 +185,25 @@ parfait », 07/10 au soir), sauf où c'est dit :
   pratique ») — à lui demander.
 
 **Il navigue surtout au pavé tactile**, et a une souris, essayée le 07/10.
+
+## 6 bis. Ses retours du 09/10 — fiche 59
+
+* **La question du journal technique cachée sous Ordonner et Pomodoro** : corrigé sur les deux
+  voies (DECISION-1), et aucun panneau au lancement — vu sur l'aperçu du téléphone, **à son
+  téléphone** ;
+* **pas de « Supprimer » au téléphone** : l'APK de ses captures n'avait ni appui long ni marges ;
+  dans l'actuel, l'appui long sur une membrane offre « Supprimer » (une épreuve le joue) et la
+  liste des documents aussi — **à confirmer** ;
+* **les glitchs** (blocs blancs, rayures) : les blocs blancs venaient de l'ancien APK ; les rayures
+  de l'actuel ne se reproduisent pas ici ; PLAFOND-1 retire une cause possible ; **son journal
+  par le câble** dira la carte et ses refus ;
+* **le canevas qui ne suit pas un glisser** : DEFILE-1 — **à son écran** (la vitesse est un nombre
+  de ressenti) ;
+* **un seul copier, et une image reste une image** : COPIER-1 — **à son écran**, dans Discord et
+  Google Docs ;
+* **la provenance des images** (son point 1) : la suite, chantier 6 — il faudra sa clé SauceNAO ;
+* **l'ergonomie** (le rail qui prend tout l'écran, les boutons, les fenêtres) : **après**, à sa
+  demande — un chantier de conception, avec des planches.
 
 ## 7. Points de vigilance
 

@@ -93,6 +93,15 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 * **Le rail** écrit le nom de chaque icône quand la largeur le permet (fiche 58), colonne après
   colonne ; sinon les icônes seules. Aucun bouton derrière un défilement.
 * Un message plus large que l'écran se **coupe** (le toast, la question) : 360 points de large.
+* **Ce qui attend une décision passe par-dessus les panneaux** (DECISION-1, fiche 59) — la
+  question, le menu, la barre d'action ; et **aucun panneau ne s'ouvre au lancement** : sur 360
+  points, Ordonner et Pomodoro couvraient la question du journal technique.
+* **Un nœud tenu près du bord fait défiler le canevas** (DEFILE-1, fiche 59) : la bande est la
+  cible d'un doigt, mesurée au-dessus de la navigation (`ecran_visible`) ; le doigt, qui ne pousse
+  pas au-delà de la vitre, tient le nœud dans la bande.
+* **Jamais une texture plus grande que la carte n'accepte** (PLAFOND-1, fiche 59) : un téléphone
+  refuse souvent plus de 4 096 ou 8 192 pixels de côté ; le niveau d'une photo se réduit jusqu'à
+  tenir.
 * **La mise à jour** (MAJ-ANDROID-1, fiche 58) : une application ne se remplace pas, elle
   confie l'APK — vérifié par la clé de Glucose — à `PackageInstaller` (`plateforme::installation`,
   `MainActivity.installerUnApk`). Même clé Android et code de version plus haut, sinon refus ;
@@ -108,6 +117,9 @@ ce que le téléphone **impose** à ce dessin, et ce que le système **offre** e
 * **Regarder sans téléphone** : rendre l'interface hors écran à la taille d'un téléphone (par
   exemple 720 × 1600 à 2,0) et **montrer l'image** à l'utilisateur avant de lui demander un essai.
 * **Le journal du téléphone** : `adb logcat -s Glucose` (la sortie de Glucose y est redirigée).
+  Au lancement, il dit **la carte** : son nom, le moteur (Vulkan ou GL), le pilote, la plus grande
+  texture — la première question devant un défaut d'affichage (ses rayures du 09/10, fiche 59).
+  Dater toute capture qu'il envoie avant d'en tirer une cause : plusieurs APK cohabitent.
 * **Java seulement à la frontière** : `MainActivity.java` reçoit ce que seul Java reçoit (une
   intention de partage, le résultat d'un sélecteur) et le confie à Rust — par un fichier dans le
   dossier de l'application, ou par JNI. Aucune logique en Java.

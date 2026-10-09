@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 08/10/2026** (fiche 58). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 09/10/2026** (fiche 59). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -94,6 +94,12 @@
 | **Une épreuve où le choix revient tout de suite** : un sélecteur réel rend la main plus tard ; l'épreuve synchrone aurait laissé passer une fermeture qui n'attend pas son choix (fiche 58 § 9) | l'épreuve passe par la même boîte aux lettres que la vraie, et tourne la boucle pour la relever |
 | **Un clippy local plus vieux que celui de GitHub** : Rust 1.99 y voyait un champ jamais lu que la 1.98 laissait passer — quatre tâches rouges (fiche 58 § 9) | `rustup update stable` avant un envoi : clippy doit dire ici ce qu'il dit là-bas |
 | **Une taille citée de mémoire** : « Noto Emoji, de l'ordre d'un mégaoctet » — la police actuelle est variable et pèse 1,98 Mo ; son instance fixe, 887 Ko (fiche 58 § 5) | télécharger, mesurer, lire la `cmap` ; vérifier ce que le moteur lit (`fontdue` ignore les variations) |
+| **Des captures diagnostiquées sans être datées** : la moitié de ses captures du téléphone venait de l'APK du 07/10, d'avant le bord à bord et l'appui long — « pas de Supprimer » n'était plus vrai (fiche 59 § 2) | dater chaque capture (l'horloge du téléphone, la télémétrie, les commits) avant d'en tirer une cause |
+| **Un ordre de dessin qui contredit l'ordre du clic** : la question se peignait sous les panneaux, et le clic allait à la question — on touchait ce qu'on ne voyait pas (fiche 59, DECISION-1) | un seul ordre des couches, écrit une fois ; le dessin suit le clic (loi L4) |
+| **Une interaction choisie sur le papier** : *Push-Edge*, meilleur à la souris, ne mène qu'à un passage du doigt au pavé bouton tenu, et le bord du bas d'une fenêtre plein écran est la barre des tâches (fiche 59, DEFILE-1) | lire l'outil de l'utilisateur (le pavé, sans débrayage) et le système avant de choisir ; le dire quand le plan change |
+| **Écrire à chaque geste ce qu'on ne lira peut-être jamais** : les originaux de toutes les images à chaque `Ctrl+C`, pour recoller dans Glucose, qui ne les lit pas (fiche 59, COPIER-1) | fabriquer à la demande (`IDataObject::GetData`) ; ne garder que le dernier |
+| **Une limite du matériel jamais lue** : seule la fenêtre se mesurait au plafond des textures de la carte ; une grande photo demandait ce qu'un téléphone refuse (fiche 59, PLAFOND-1) | toute ressource demandée à la carte se borne par ce qu'elle annonce (`Limits`) |
+| **Une épreuve qui compare des chemins quand il fallait prouver une écriture** : « une seule écriture » passait aussi avec une réécriture aux mêmes noms (fiche 59) | changer entre deux appels ce que le second ne doit pas toucher, et vérifier qu'il n'y a pas touché |
 
 ## 5. Les pièges pratiques
 
@@ -123,6 +129,11 @@
   tomber au lieu de mentir en vert.
 * **Une épreuve de temps** qui tombe sur une machine de GitHub dit que la manière doit changer,
   jamais que la borne doit monter.
+* **Les épreuves de la mémoire offerte** (`plateforme::offre`, le `Ctrl+B` qui attend ses
+  originaux) tombent sous une forte pression mémoire : le système jette alors les pages offertes.
+  Les rejouer seules avant de conclure (fiche 59).
+* **`cargo check --target x86_64-unknown-linux-gnu` ne passe pas ici** : la caisse `ring` veut un
+  compilateur C de Linux. Le code hors de Windows se relit à la main, et la CI le compile.
 * **`cargo test --workspace` compile beaucoup** : `target/` a atteint 94 Go avant le rangement du
   06/10. `cargo clean` de temps en temps ne coûte qu'une recompilation.
 

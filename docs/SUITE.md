@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 08/10/2026, dans la nuit** (fiche 58). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 09/10/2026, au soir** (fiche 59). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -35,6 +35,22 @@ mise à jour automatique fonctionne pour tout le monde**.
 | [~] | **Les sélecteurs de fichiers ne tiennent plus Glucose** (DIAL-2, sa réponse « d'accord avec tout », 09/10) : ouverts sur un fil à eux, Glucose se dessine derrière ; « Enregistrer » un travail sans nom à la fermeture attend le choix de l'endroit | fiche 58 § 9 — **à son écran** |
 | [x] | **Le journal technique lisible** (sa remarque du 09/10) : le dossier `journal-technique`, des fichiers à l'heure de leur session, un `LISEZ-MOI.txt` en colonnes ; rien de ce qui est parti ne repart (joué sur une copie de ses données) | fiche 58 § 9 |
 | [~] | **La mise à jour automatique, vérifiée pour tout le monde** avant de publier : Windows et Linux (la bascule est répétée par la CI) ; **Android : écrite (MAJ-ANDROID-1, fiche 58 § 6)** — l'APK confié à `PackageInstaller`, signé de la clé de Glucose et inscrit au manifeste. **Ne se prouve qu'à une publication** : le premier Glucose qui la porte s'installe à la main, le suivant arrive seul ; la 2.0.2-beta.1 en brouillon ne la porte pas (à republier) | sa condition à la publication |
+
+## 0 bis. Ses retours du 09/10 — **les problèmes d'abord, l'ergonomie ensuite** (fiche 59)
+
+Son conseil, suivi : *« ne t'y concentre pas d'abord ; corrige plutôt les problèmes — l'ergonomie,
+la praticité, ce sont des domaines beaucoup plus longs et complexes »*.
+
+| | chantier | où en est-il |
+|---|---|---|
+| [~] | **DECISION-1 — la question par-dessus les panneaux**, sur les deux voies ; **aucun panneau au lancement** | vu sur l'aperçu du téléphone ; **à son téléphone** |
+| [~] | **« Supprimer » au téléphone** — l'APK de ses captures (07/10) n'avait ni appui long ni marges ; l'actuel les a | une épreuve le joue ; **à confirmer** avec l'APK neuf |
+| [ ] | **Les rayures du téléphone** — non reproduites sur ce PC (Vulkan, GL, DX12) ; PLAFOND-1 (jamais une texture plus grande que la carte) fait ; le journal du téléphone dit sa carte au lancement | **son journal par le câble** (`adb logcat -s Glucose`), puis la cause ; la ligne « carte » du journal technique attend le redéploiement du serveur ; la vérification des deux voies sur l'appareil, seulement si le pilote est en cause |
+| [~] | **DEFILE-1 — le canevas défile quand on tient un nœud près du bord** (une bande, la cible d'un doigt ; *Push-Edge* lu et écarté) | **à son écran** : la vitesse est un nombre de ressenti |
+| [~] | **COPIER-1 — un seul copier, et une image reste une image** : le lot, le texte, les images (une en PNG, plusieurs en fichiers fabriqués à la demande) ; le glisser vers Discord, Docs, le bureau | **à son écran** ; Linux et Mac : le lot seulement (`arboard`), une voie native à écrire ; Android : le presse-papiers du système (§ 2) |
+| [ ] | **La provenance des images** (son point 1 ; la fiche 27, étapes 1 à 4) : la page d'origine gardée au dépôt, l'empreinte perceptuelle mesurée sur ses documents (une copie), « Trouver l'origine… » par SauceNAO, la provenance dans le document | **sa clé SauceNAO** pour l'étape 3 ; la carte « Origine » lui sera montrée en image avant d'être écrite |
+| [ ] | **L'ergonomie** — le rail qui prend tout l'écran, les boutons, les fenêtres | **après**, à sa demande : des planches, regardées par lui |
+| [ ] | **L'export PNG de la sélection** — son idée de repli (les images composées dans la disposition de l'auteur) | avec les exports (§ 5) |
 
 ## 1. Ses retours sur la V2, et la 2.0.2 bêta — **d'abord**
 
@@ -216,6 +232,8 @@ vision ([PLUGINS.md](../PLUGINS.md)) et l'IA locale · le Mac · la fondation de
 
 ## Ce qui n'attend que lui
 
+0. **Ses retours du 09/10** (fiche 59 § 10) : redéployer le serveur de télémétrie pour la ligne
+   « carte » ; brancher le téléphone en USB une fois ; sa clé SauceNAO ; l'envoi et la CI.
 1. **Le clic « Publish release »** sur le brouillon de la 2.0.2-beta.1 (fiche 55 § 1).
 1 bis. ~~Une copie de la clé Android hors du PC~~ : faite (08/10 au soir). Garder ou non le
    sous-domaine `ferme-nilslamber` du serveur de la boîte noire.
