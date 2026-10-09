@@ -59,8 +59,9 @@ pub struct GpuPresenter {
     envoi: super::envoi::Envoi,
     /// Le nom de l'adaptateur retenu, pour que l'application puisse le dire.
     adaptateur: String,
-    /// Ses identifiants matériels, pour savoir si c'est lui qui tient l'écran (ECRAN-1).
-    identite: crate::plateforme::ecran::Identite,
+    /// Ce que le journal technique dit de lui (fiche 60), et ses identifiants matériels, pour
+    /// savoir si c'est lui qui tient l'écran (ECRAN-1).
+    carte: crate::boite_noire::enregistrement::Carte,
     /// Ce que le système accorde à Glucose sur cette carte, relu à chaque image (VRAM-1) —
     /// `None` là où la plateforme ne sait pas le dire.
     sonde: Option<crate::plateforme::graphique::Sonde>,
@@ -208,6 +209,10 @@ impl GpuPresenter {
         let fleches = super::fleches_gpu::FlechesGpu::nouvelles(&device, config.format);
         let lisere = super::lisere_gpu::LisereGpu::nouveau(&device, config.format);
         let envoi = super::envoi::Envoi::nouveau(&device, &queue);
+        let carte = crate::boite_noire::enregistrement::Carte::de(
+            &info,
+            device.limits().max_texture_dimension_2d,
+        );
         Ok(Self {
             scene,
             couches,
@@ -230,7 +235,7 @@ impl GpuPresenter {
             bandes_envoyees: super::bandes::Bandes::default(),
             bandes_du_dessous_envoyees: super::bandes::Bandes::default(),
             adaptateur,
-            identite: (info.vendor, info.device),
+            carte,
             sonde,
             format_image,
             a_reaccorder: false,
@@ -540,7 +545,7 @@ impl Presenter for GpuPresenter {
         nom_de_la_cadence(self.config.present_mode)
     }
 
-    fn carte(&self) -> Option<(String, crate::plateforme::ecran::Identite)> {
-        Some((self.adaptateur.clone(), self.identite))
+    fn carte(&self) -> Option<(String, crate::boite_noire::enregistrement::Carte)> {
+        Some((self.adaptateur.clone(), self.carte))
     }
 }

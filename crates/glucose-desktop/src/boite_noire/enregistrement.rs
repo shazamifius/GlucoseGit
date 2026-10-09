@@ -62,8 +62,63 @@ pub enum Enregistrement {
         quoi: &'static str,
         valeur: u64,
     },
+    /// **La carte graphique qui présente** (fiche 60), au lancement et à chaque réouverture.
+    Carte { instant_ms: u64, carte: Carte },
     /// La fin propre de la session.
     Fin { instant_ms: u64 },
+}
+
+/// **Une carte graphique, par ses numéros et des noms fermés** (fiche 60) — jamais le nom que
+/// donne son pilote : c'est un texte venu de l'appareil, et le type ne doit pas pouvoir en
+/// porter. Le fabricant et le modèle se relisent dans les tables publiques (PCI, Khronos).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Carte {
+    /// Le moteur graphique : `vulkan`, `gl`, `dx12`, `metal`, `webgpu`, `aucun`.
+    pub moteur: &'static str,
+    /// `integree`, `dediee`, `virtuelle`, `processeur` ou `autre`.
+    pub genre: &'static str,
+    /// L'identifiant du fabricant : PCI sur un ordinateur, Khronos sur un téléphone.
+    pub fabricant: u32,
+    /// L'identifiant du modèle chez ce fabricant — zéro quand le pilote ne le dit pas (GL).
+    pub modele: u32,
+    /// Le côté de la plus grande texture qu'elle accepte (PLAFOND-1, fiche 59).
+    pub plafond: u32,
+}
+
+impl Carte {
+    /// La carte que `wgpu` a ouverte.
+    pub fn de(info: &wgpu::AdapterInfo, plafond: u32) -> Self {
+        Self {
+            moteur: moteur(info.backend),
+            genre: genre(info.device_type),
+            fabricant: info.vendor,
+            modele: info.device,
+            plafond,
+        }
+    }
+}
+
+/// Le nom fermé d'un moteur graphique.
+pub fn moteur(b: wgpu::Backend) -> &'static str {
+    match b {
+        wgpu::Backend::Vulkan => "vulkan",
+        wgpu::Backend::Gl => "gl",
+        wgpu::Backend::Dx12 => "dx12",
+        wgpu::Backend::Metal => "metal",
+        wgpu::Backend::BrowserWebGpu => "webgpu",
+        wgpu::Backend::Noop => "aucun",
+    }
+}
+
+/// Le nom fermé d'un genre de carte.
+pub fn genre(d: wgpu::DeviceType) -> &'static str {
+    match d {
+        wgpu::DeviceType::IntegratedGpu => "integree",
+        wgpu::DeviceType::DiscreteGpu => "dediee",
+        wgpu::DeviceType::VirtualGpu => "virtuelle",
+        wgpu::DeviceType::Cpu => "processeur",
+        wgpu::DeviceType::Other => "autre",
+    }
 }
 
 /// Une valeur de champ.
@@ -102,6 +157,7 @@ impl Enregistrement {
             Self::Machine { .. } => "machine",
             Self::Pire { .. } => "pire",
             Self::Pave { .. } => "pave",
+            Self::Carte { .. } => "carte",
             Self::Fin { .. } => "fin",
         }
     }
@@ -196,6 +252,14 @@ impl Enregistrement {
                 ("instant_ms", Entier(instant_ms)),
                 ("quoi", Nom(quoi)),
                 ("valeur", Entier(valeur)),
+            ],
+            Self::Carte { instant_ms, carte } => vec![
+                ("instant_ms", Entier(instant_ms)),
+                ("moteur", Nom(carte.moteur)),
+                ("genre", Nom(carte.genre)),
+                ("fabricant", Entier(u64::from(carte.fabricant))),
+                ("modele", Entier(u64::from(carte.modele))),
+                ("plafond", Entier(u64::from(carte.plafond))),
             ],
             Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
         }

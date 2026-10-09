@@ -13,6 +13,7 @@ const SESSION = [
   '{"type":"pave","instant_ms":900,"quoi":"statut_en_cours","valeur":5}',
   '{"type":"panique","instant_ms":901,"fichier":"crates\\\\glucose-desktop\\\\src\\\\app.rs","ligne":12,"principal":true}',
   '{"type":"plantage","instant_ms":0,"gel":false,"module":"nvoglv64.dll","version_du_module":"32.0.16.1074","code":3221225477,"decalage":4660}',
+  '{"type":"carte","instant_ms":40,"moteur":"vulkan","genre":"integree","fabricant":5045,"modele":1946288128,"plafond":8192}',
   '{"type":"fin","instant_ms":1200}',
 ].join("\n") + "\n";
 
@@ -34,6 +35,10 @@ test("un mot de l'utilisateur ne passe pas, ou qu'il se cache", () => {
     SESSION + '{"type":"texte","contenu":"bonjour"}\n',
     SESSION.replace('"images":1', '"images":"1"'),
     SESSION.replace('"valeur":5', '"valeur":-5'),
+    SESSION.replace('"moteur":"vulkan"', '"moteur":"Mali-G52 de marie"'),
+    SESSION.replace('"genre":"integree"', '"genre":"le portable de marie"'),
+    SESSION.replace('"fabricant":5045', '"fabricant":"ARM"'),
+    SESSION.replace('"plafond":8192', '"plafond":8192,"nom":"Mali-G52"'),
   ];
   for (const c of cas) assert.equal(validerSession(c).ok, false, c.slice(0, 80));
 });

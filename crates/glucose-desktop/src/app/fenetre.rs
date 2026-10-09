@@ -43,9 +43,10 @@ impl GlucoseApp {
         presenter: &dyn crate::present::Presenter,
         window: &winit::window::Window,
     ) {
-        let Some((nom, identite)) = presenter.carte() else {
+        let Some((nom, carte)) = self.noter_la_carte(presenter) else {
             return;
         };
+        let identite = (carte.fabricant, carte.modele);
         let lien = match crate::plateforme::ecran::carte_de_l_ecran(window) {
             Some((ecran, _)) if ecran == identite => " -- celle qui tient l'ecran",
             Some(_) => " -- PAS celle qui tient l'ecran : chaque image traverse vers l'autre",
@@ -54,6 +55,19 @@ impl GlucoseApp {
         let carte = format!("{nom}{lien}");
         println!("[Glucose] carte graphique : {carte}");
         self.chronique.rythme.nommer_la_carte(carte);
+    }
+
+    /// **Le journal technique note la carte qui présente**, par ses numéros et jamais par son
+    /// nom (fiche 60), et la rend à qui la nomme.
+    fn noter_la_carte(
+        &self,
+        presenter: &dyn crate::present::Presenter,
+    ) -> Option<(String, crate::boite_noire::enregistrement::Carte)> {
+        let (nom, carte) = presenter.carte()?;
+        if let Some(boite) = self.chronique.boite_noire() {
+            boite.carte(carte);
+        }
+        Some((nom, carte))
     }
 
     fn annoncer_la_machine(
@@ -303,5 +317,66 @@ fn ouvrir_la_presentation(
             );
             Ok(Box::new(crate::present::CpuPresenter::new(window.clone())?))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::boite_noire::enregistrement::Carte;
+
+    /// Une présentation qui ne présente rien, et dit sa carte.
+    struct Factice;
+
+    impl crate::present::Presenter for Factice {
+        fn resize(&mut self, _: NonZeroU32, _: NonZeroU32) -> DesktopResult<()> {
+            Ok(())
+        }
+        fn present(&mut self, _: &Pixmap) -> DesktopResult<crate::present::Issue> {
+            Ok(crate::present::Issue::Presentee)
+        }
+        fn nom(&self) -> &'static str {
+            "factice"
+        }
+        fn carte(&self) -> Option<(String, Carte)> {
+            let carte = Carte {
+                moteur: "vulkan",
+                genre: "integree",
+                fabricant: 0x13B5,
+                modele: 0x7402_1000,
+                plafond: 8192,
+            };
+            Some(("Mali-G52 du pilote".into(), carte))
+        }
+    }
+
+    /// **La carte qui s'ouvre arrive au journal technique, sans son nom** (fiche 60) : le
+    /// fil entre la présentation et la boîte noire, que l'épreuve de la boîte seule ne voit pas.
+    #[test]
+    fn test_la_carte_ouverte_arrive_au_journal_sans_son_nom() {
+        let dossier = std::env::temp_dir().join(format!("glucose-carte-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dossier);
+        std::fs::create_dir_all(&dossier).expect("dossier d'épreuve");
+        let mut app = GlucoseApp::new();
+        let _ = app.chronique.ouvrir_la_boite_noire(&dossier);
+        let rendue = app.noter_la_carte(&Factice).map(|(nom, _)| nom);
+        assert_eq!(
+            rendue.as_deref(),
+            Some("Mali-G52 du pilote"),
+            "le nom reste à l'écran"
+        );
+        let boite = app.chronique.boite_noire().expect("ouverte");
+        boite.synchroniser();
+        let texte = std::fs::read_to_string(boite.chemin()).expect("la session");
+        let _ = std::fs::remove_dir_all(&dossier);
+        let ligne = texte
+            .lines()
+            .find(|l| l.contains("\"type\":\"carte\""))
+            .expect("la ligne de la carte");
+        assert!(ligne.contains("\"fabricant\":5045"), "{ligne}");
+        assert!(
+            !ligne.contains("Mali"),
+            "aucun nom du pilote ne part : {ligne}"
+        );
     }
 }

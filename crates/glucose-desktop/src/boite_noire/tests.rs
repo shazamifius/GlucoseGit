@@ -244,6 +244,16 @@ fn test_chaque_ligne_est_du_json() {
             quoi: "contact",
             valeur: 2_147_942_402,
         },
+        Enregistrement::Carte {
+            instant_ms: 1,
+            carte: super::enregistrement::Carte {
+                moteur: "vulkan",
+                genre: "integree",
+                fabricant: 0x13B5,
+                modele: 0x7402_1000,
+                plafond: 8192,
+            },
+        },
         Enregistrement::Fin { instant_ms: 9 },
     ];
     for e in tous {
@@ -297,10 +307,28 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         "pire",
         "pave",
         "fin",
+        "carte",
         "panique",
         "plantage",
     ];
     let gestes = Geste::TOUS.map(Geste::nom);
+    let moteurs = [
+        wgpu::Backend::Vulkan,
+        wgpu::Backend::Gl,
+        wgpu::Backend::Dx12,
+        wgpu::Backend::Metal,
+        wgpu::Backend::BrowserWebGpu,
+        wgpu::Backend::Noop,
+    ]
+    .map(super::enregistrement::moteur);
+    let genres = [
+        wgpu::DeviceType::IntegratedGpu,
+        wgpu::DeviceType::DiscreteGpu,
+        wgpu::DeviceType::VirtualGpu,
+        wgpu::DeviceType::Cpu,
+        wgpu::DeviceType::Other,
+    ]
+    .map(super::enregistrement::genre);
     let fins = [
         Fin::Propre,
         Fin::Panique,
@@ -314,6 +342,8 @@ fn test_le_serveur_connait_chaque_nom_que_la_boite_noire_ecrit() {
         .chain(&gestes)
         .chain(&fins)
         .chain(&crate::interactions::pave::NOMS_DES_SIGNES)
+        .chain(&moteurs)
+        .chain(&genres)
         .chain(&[std::env::consts::OS, std::env::consts::ARCH]);
     for nom in noms {
         assert!(connu(nom), "le serveur ne connaît pas « {nom} »");
@@ -527,4 +557,27 @@ fn test_l_heure_qui_revient_ne_trompe_pas_le_rangement() {
         premiere.exists(),
         "l'interrompue reste : elle a quelque chose à apprendre"
     );
+}
+
+/// **La carte s'écrit par ses numéros, à l'instant où elle s'ouvre** (fiche 60) : le moteur,
+/// le genre, le fabricant, le modèle et le plafond — et aucun nom venu du pilote.
+#[test]
+fn test_la_carte_s_ecrit_par_ses_numeros() {
+    let d = Dossier::nouveau("carte");
+    let (b, _) = BoiteNoire::ouvrir(&d.0).expect("ouverte");
+    b.carte(super::enregistrement::Carte {
+        moteur: "gl",
+        genre: "integree",
+        fabricant: 0x13B5,
+        modele: 0,
+        plafond: 4096,
+    });
+    b.synchroniser();
+    let cartes = lignes_du_type(&lire(b.chemin()), "carte");
+    assert_eq!(cartes.len(), 1);
+    assert_eq!(cartes[0].texte("moteur"), Some("gl"));
+    assert_eq!(cartes[0].texte("genre"), Some("integree"));
+    assert_eq!(cartes[0].entier("fabricant"), Some(0x13B5));
+    assert_eq!(cartes[0].entier("modele"), Some(0));
+    assert_eq!(cartes[0].entier("plafond"), Some(4096));
 }

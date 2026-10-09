@@ -19,6 +19,9 @@ précédentes. On y trouve :
 * le temps que chaque image a pris à dessiner, geste par geste (déplacer la vue, zoomer, glisser
   un nœud…) ;
 * la version de Glucose, le système (Windows, Linux, macOS, Android) et le type de processeur ;
+* la carte graphique qui dessine, **par ses numéros** — son fabricant, son modèle, son moteur
+  (Vulkan, GL…), si elle est intégrée ou dédiée, et la plus grande image qu'elle accepte —,
+  jamais par le nom que donne son pilote ;
 * l'état de la batterie, quand l'appareil en a une ;
 * comment la session a fini : fermée normalement, plantée (et dans quel module du système), ou
   gelée ;

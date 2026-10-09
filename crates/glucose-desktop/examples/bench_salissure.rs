@@ -485,7 +485,8 @@ fn main() {
         );
     }
     println!(
-        "  Tuiles peintes par image : median {:.0}, p90 {:.0}, p99 {:.0}, pire {:.0} -- c'est          le PIC qui fait rater le tempo, jamais la mediane.",
+        "  Tuiles peintes par image : median {:.0}, p90 {:.0}, p99 {:.0}, pire {:.0} -- c'est \
+         le PIC qui fait rater le tempo, jamais la mediane.",
         centile(&tuiles, 0.5),
         centile(&tuiles, 0.9),
         centile(&tuiles, 0.99),

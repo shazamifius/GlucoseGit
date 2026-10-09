@@ -50,7 +50,8 @@ pub(super) fn ouvrir(
     );
     if width.get() > plafond || height.get() > plafond {
         return Err(DesktopError::WindowError(format!(
-            "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de                  cet adaptateur ({plafond})",
+            "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de \
+             cet adaptateur ({plafond})",
             width.get(),
             height.get()
         )));

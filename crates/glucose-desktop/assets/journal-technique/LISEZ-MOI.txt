@@ -104,6 +104,17 @@ type « pave » — un signe de vie du pavé tactile (sous Windows), pour compre
                            statut_suspendu, statut_inconnu
   valeur                   un nombre qui l'accompagne (un code du système)     0
 
+type « carte » — la carte graphique qui dessine, par ses numéros (jamais son nom)
+
+  champ                    ce qu'il dit                                        exemple
+  -----------------------  --------------------------------------------------  -------------
+  instant_ms               quand elle s'est ouverte                            40
+  moteur                   vulkan, gl, dx12, metal, webgpu ou aucun            vulkan
+  genre                    integree, dediee, virtuelle, processeur ou autre    integree
+  fabricant                le numéro de son fabricant (PCI ou Khronos)         4318
+  modele                   le numéro de son modèle chez lui (0 : inconnu)      10520
+  plafond                  la plus grande texture qu'elle accepte, en pixels   16384
+
 type « fin » — Glucose s'est fermé normalement (la dernière ligne)
 
   champ                    ce qu'il dit                                        exemple

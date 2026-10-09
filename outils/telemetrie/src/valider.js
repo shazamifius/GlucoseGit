@@ -35,6 +35,16 @@ export const TYPES = {
   pire: { instant_ms: "entier", duree_us: "entier", geste: "geste" },
   pave: { instant_ms: "entier", quoi: "quoi", valeur: "entier" },
   fin: { instant_ms: "entier" },
+  // La carte graphique, par ses numéros et des noms fermés — jamais le nom que donne son pilote
+  // (fiche 60) : le fabricant et le modèle sont les identifiants PCI ou Khronos.
+  carte: {
+    instant_ms: "entier",
+    moteur: "moteur",
+    genre: "genre",
+    fabricant: "entier",
+    modele: "entier",
+    plafond: "entier",
+  },
   panique: { instant_ms: "entier", fichier: "source", ligne: "entier", principal: "booleen" },
   plantage: {
     instant_ms: "entier",
@@ -65,6 +75,9 @@ export const NOMS = {
     "statut_en_construction", "statut_actif", "statut_desactive", "statut_en_cours",
     "statut_inertie", "statut_pret", "statut_suspendu", "statut_inconnu",
   ],
+  // Le moteur et le genre d'une carte, tels que `wgpu` les distingue.
+  moteur: ["vulkan", "gl", "dx12", "metal", "webgpu", "aucun"],
+  genre: ["integree", "dediee", "virtuelle", "processeur", "autre"],
   // `std::env::consts::OS` et `ARCH`, tels que Rust les nomme.
   systeme: ["windows", "linux", "macos", "android", "ios", "freebsd", "netbsd", "openbsd"],
   architecture: ["x86_64", "x86", "aarch64", "arm", "riscv64", "wasm32", "powerpc64", "loongarch64"],
@@ -89,6 +102,8 @@ function conforme(sorte, v) {
     case "geste":
     case "fin":
     case "quoi":
+    case "moteur":
+    case "genre":
     case "systeme":
     case "architecture":
       return NOMS[sorte.replace("?", "")].includes(v);

@@ -207,9 +207,9 @@ pub trait Presenter {
         "presentation par le systeme"
     }
 
-    /// La carte graphique qui dessine — son nom et ses identifiants matériels —, s'il y en a
-    /// une (ECRAN-1).
-    fn carte(&self) -> Option<(String, crate::plateforme::ecran::Identite)> {
+    /// La carte graphique qui dessine — son nom, et ce que le journal technique en dit
+    /// (ECRAN-1, fiche 60) —, s'il y en a une.
+    fn carte(&self) -> Option<(String, crate::boite_noire::enregistrement::Carte)> {
         None
     }
 

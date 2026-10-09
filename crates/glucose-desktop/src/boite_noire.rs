@@ -199,6 +199,14 @@ impl BoiteNoire {
         });
     }
 
+    /// **La carte graphique qui présente** (fiche 60), à l'instant où elle s'ouvre.
+    pub fn carte(&self, carte: enregistrement::Carte) {
+        self.envoyer(Enregistrement::Carte {
+            instant_ms: self.instant_ms(),
+            carte,
+        });
+    }
+
     /// Attend que tout ce qui a été confié soit sur le disque.
     pub fn synchroniser(&self) {
         let (reponse, attente) = channel();
