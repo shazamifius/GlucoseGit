@@ -247,6 +247,13 @@ fn jouer(scene: &mut Scene<'_>, regard: Regard, en_cache: bool) -> Regime {
             },
         );
         glucose_desktop::perf::stage("docks");
+        // Ce qui attend une décision, après les panneaux, comme l'application (DECISION-1).
+        scene.renderer.poser_ce_qui_attend_une_decision(
+            &mut scene.pixmap.as_mut(),
+            scene.store,
+            scene.ui,
+            pointer,
+        );
         // Le téléversement, tel que `write_texture` le paie : une copie de l'image entière.
         scene.sortie.data_mut().copy_from_slice(scene.pixmap.data());
         glucose_desktop::perf::stage("blit");

@@ -157,7 +157,6 @@ pub struct DockManager {
     pub temps: temps::TempsUi,
 }
 
-/// `new()` n'est pas dérivable : l'état initial ouvre deux onglets bas.
 impl Default for DockManager {
     fn default() -> Self {
         Self::new()
@@ -165,10 +164,14 @@ impl Default for DockManager {
 }
 
 impl DockManager {
+    /// **Aucun panneau ouvert au lancement** (fiche 59) : Glucose Tauri ouvrait Ordonner et
+    /// Pomodoro, et sur son téléphone ils couvraient la question du journal technique —
+    /// « commencer Glucose avec deux menus déroulés, c'est un peu chiant ». Un panneau s'ouvre
+    /// quand on le demande.
     pub fn new() -> Self {
         Self {
             top_tabs: Vec::new(),
-            bottom_tabs: vec![TabId::Organize, TabId::Pomodoro],
+            bottom_tabs: Vec::new(),
             drag: None,
             organize: OrganizeState::default(),
             pomodoro: PomodoroState::default(),

@@ -138,9 +138,9 @@ impl GlucoseApp {
 
     /// **Une image de l'application, sans fenêtre** : ce que `redraw` peint, par la voie
     /// processeur, sur un tampon de cette taille. Pour les épreuves qui doivent faire passer
-    /// le temps comme l'application le fait — image après image.
-    #[cfg(test)]
-    pub(crate) fn une_image_sans_fenetre(&mut self, (largeur, hauteur): (u32, u32)) {
+    /// le temps comme l'application le fait — image après image —, et pour les aperçus hors
+    /// écran qui doivent montrer les panneaux (`examples/apercu_telephone.rs`).
+    pub fn une_image_sans_fenetre(&mut self, (largeur, hauteur): (u32, u32)) {
         if self.pixmap.is_none() {
             self.pixmap = Pixmap::new(largeur, hauteur);
         }
@@ -227,15 +227,13 @@ impl GlucoseApp {
                 // On ne reduit alors PAS : la carte filtre en bilineaire sans rien payer,
                 // donc abimer l'image n'achete plus rien. C'est tout le but de l'etape 1.
                 if par_la_carte {
-                    let (tampon, confie) = peindre_par_la_carte(
-                        (&mut pixmap, self.tampons.dessus.take()),
+                    self.confie = peindre_par_la_carte(
+                        (&mut pixmap, &mut self.tampons),
                         &mut self.renderer,
                         (&self.store, &self.confie),
                         chrome,
                         (overlay, regard),
                     );
-                    self.tampons.dessus = tampon;
-                    self.confie = confie;
                 } else {
                     peindre_tout(
                         &mut pixmap,
@@ -365,21 +363,15 @@ fn repeindre_la_region(
 /// Une fonction libre et non une methode, pour la meme raison que `peindre_tout` : `overlay`
 /// emprunte deja l'application, et un `&mut self` par-dessus ne compilerait pas.
 fn peindre_par_la_carte(
-    (pixmap, tampon): (&mut Pixmap, Option<Pixmap>),
+    (pixmap, tampons): (&mut Pixmap, &mut super::Tampons),
     renderer: &mut Renderer,
     (store, precedente): (&Store, &crate::renderer::Confie),
     chrome: Chrome<'_>,
     (overlay, regard): (SceneOverlay<'_>, crate::renderer::Regard),
-) -> (Option<Pixmap>, crate::renderer::Confie) {
+) -> crate::renderer::Confie {
     let (largeur, hauteur) = (pixmap.width(), pixmap.height());
-    // Le tampon du dessus suit la fenetre : il se refait quand elle change de taille, et
-    // jamais autrement.
-    let mut tampon = tampon.filter(|t| t.width() == largeur && t.height() == hauteur);
-    if tampon.is_none() {
-        tampon = Pixmap::new(largeur, hauteur);
-    }
-    let Some(dessus) = tampon.as_mut() else {
-        return (None, crate::renderer::Confie::default());
+    let Some((dessus, decision)) = tampons.pour_la_carte((largeur, hauteur)) else {
+        return crate::renderer::Confie::default();
     };
     let Chrome {
         ui,
@@ -421,6 +413,11 @@ fn peindre_par_la_carte(
         (renderer, ui, pointer),
         (largeur, hauteur, echelle),
     );
+    poser_la_decision(
+        (dessus, decision),
+        &mut confie.panneaux,
+        (renderer, store, ui, pointer),
+    );
     // **Ce que cette image a écrit dans la couche du dessus**, relevé une fois que tout y
     // est : la chrome se dessine après le renderer, donc un relevé pris plus tôt manquerait
     // les docks -- et une bande manquée est un pixel qui ne s'efface jamais.
@@ -437,7 +434,7 @@ fn peindre_par_la_carte(
         confie.bandes_du_dessous = crate::present::bandes::Bandes::relever(pixmap);
     }
     crate::perf::stage("relever");
-    (tampon, confie)
+    confie
 }
 
 /// **Confie les panneaux déroulants à la carte** (PANNEAUX-1) : leurs tampons tenus à jour, et
@@ -470,22 +467,17 @@ fn confier_les_docks(
         return Vec::new();
     }
     let avant = dock_cache.rendus();
+    let ecran = ScreenFrame {
+        width: largeur as f32,
+        height: hauteur as f32,
+        header_h: ui.header_height(),
+        scale: echelle,
+    };
     let panneaux = crate::dock::confier_les_docks(
         &mut dessus.as_mut(),
         dock_manager,
         store,
-        &DockPass {
-            typo: &renderer.typography,
-            theme: &renderer.theme,
-            screen: ScreenFrame {
-                width: largeur as f32,
-                height: hauteur as f32,
-                header_h: ui.header_height(),
-                scale: echelle,
-            },
-            pointer,
-            cache: Some(dock_cache),
-        },
+        &passe_des_panneaux(renderer, ecran, pointer, dock_cache),
     );
     crate::perf::compteur(
         "dock_rendus",
@@ -494,6 +486,25 @@ fn confier_les_docks(
     crate::perf::compteur("dock_pourquoi", f64::from(dock_cache.prendre_les_raisons()));
     crate::perf::stage("docks");
     panneaux
+}
+
+/// **Ce qui attend une décision, par-dessus les panneaux** (DECISION-1) : dans la couche du
+/// dessus quand aucun panneau n'est confié à la carte — rien ne coûte de plus —, dans son propre
+/// tampon sinon, que la carte pose après eux.
+fn poser_la_decision(
+    (dessus, decision): (&mut Pixmap, &mut super::decision::Decision),
+    panneaux: &mut Vec<crate::renderer::voies::APoser>,
+    (renderer, store, ui, pointer): (&mut Renderer, &Store, &UiState, Pointer),
+) {
+    if panneaux.is_empty() {
+        decision.retirer();
+        renderer.poser_ce_qui_attend_une_decision(&mut dessus.as_mut(), store, ui, pointer);
+        return;
+    }
+    let taille = (dessus.width(), dessus.height());
+    panneaux.extend(decision.peindre(taille, |tampon| {
+        renderer.poser_ce_qui_attend_une_decision(tampon, store, ui, pointer);
+    }));
 }
 
 /// Peint la scène et la chrome dans le tampon.
@@ -530,30 +541,43 @@ fn peindre_tout(
         None => renderer.render(&mut vue, store, ui, overlay, pointer, regard),
     }
 
-    // Rendu des panneaux déroulants & flottants (Top & Bottom Docks).
-    // `scale` et les coordonnées de la souris sont désormais portés par
-    // deux types distincts : les intervertir ne compile plus (R-44).
-    let pass = DockPass {
-        typo: &renderer.typography,
-        theme: &renderer.theme,
-        screen: ScreenFrame {
-            width: width as f32,
-            height: height as f32,
-            header_h: ui.header_height(),
-            scale: echelle,
-        },
-        pointer,
-        cache: Some(dock_cache),
+    let ecran = ScreenFrame {
+        width: width as f32,
+        height: height as f32,
+        header_h: ui.header_height(),
+        scale: echelle,
     };
     // Le mode référence n'a pas de panneaux (fiche 51 § 5).
     if !ui.reference {
+        let pass = passe_des_panneaux(renderer, ecran, pointer, dock_cache);
         render_docks(&mut vue, dock_manager, store, &pass);
     }
+    crate::perf::stage("docks");
+    // Ce qui attend une décision passe par-dessus les panneaux (DECISION-1).
+    renderer.poser_ce_qui_attend_une_decision(&mut vue, store, ui, pointer);
     // Le liseré du passé : sur cette voie, c'est le processeur qui le peint.
     if dock_manager.temps.regarde.is_some() {
+        let pass = passe_des_panneaux(renderer, ecran, pointer, dock_cache);
         crate::dock::lisere_du_passe(&mut vue, &pass, crate::theme::clamp_ui_scale(echelle));
     }
     crate::perf::stage("docks");
+}
+
+/// Ce que le dessin des panneaux a besoin de savoir de cette image. `scale` et les coordonnées
+/// de la souris sont portés par deux types distincts : les intervertir ne compile plus (R-44).
+fn passe_des_panneaux<'a>(
+    renderer: &'a Renderer,
+    screen: ScreenFrame,
+    pointer: Pointer,
+    cache: &'a DockCache,
+) -> DockPass<'a> {
+    DockPass {
+        typo: &renderer.typography,
+        theme: &renderer.theme,
+        screen,
+        pointer,
+        cache: Some(cache),
+    }
 }
 
 #[cfg(test)]

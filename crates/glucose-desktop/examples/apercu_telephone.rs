@@ -91,6 +91,36 @@ fn main() {
         });
         ecrire(&format!("{dossier}/telephone-debout-{nom}.png"), &png);
     }
+    question_sur_les_panneaux(&dossier);
+}
+
+/// **La question du journal technique, Ordonner et Pomodoro ouverts** (DECISION-1, fiche 59) :
+/// son téléphone, le 07/10, montrait les panneaux par-dessus la question. Rendu par le peintre
+/// de l'application, panneaux compris — la capture du banc ne les dessine pas.
+fn question_sur_les_panneaux(dossier: &str) {
+    use glucose_desktop::dock::TabId;
+    let mut app = glucose_desktop::app::GlucoseApp::new();
+    app.ui.scale_factor = 2.0;
+    app.ui.marges = marges(720, 0.0);
+    app.ui.current_toast = None;
+    app.dock_manager.toggle_tab(TabId::Organize);
+    app.dock_manager.toggle_tab(TabId::Pomodoro);
+    let question = Question {
+        titre: "Journal technique".into(),
+        texte: glucose_desktop::telemetrie::QUESTION.into(),
+        choix: vec![("Oui".into(), Reponse::Oui), ("Non".into(), Reponse::Non)],
+        ..Default::default()
+    };
+    app.ui.question = Some((question, Suite::Telemetrie));
+    app.une_image_sans_fenetre((720, 1600));
+    let Some(png) = app.pixmap.as_ref().and_then(|p| p.encode_png().ok()) else {
+        eprintln!("aucune image");
+        return;
+    };
+    ecrire(
+        &format!("{dossier}/telephone-question-sur-les-panneaux.png"),
+        &png,
+    );
 }
 
 /// La question de l'appui long sur un document.

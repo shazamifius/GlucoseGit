@@ -14,6 +14,7 @@ pub mod bande;
 pub mod boutons;
 pub mod breadcrumb;
 pub mod context_menu;
+pub mod decision;
 pub mod minimap;
 pub mod onglets;
 pub mod options_de_fleche;
@@ -306,9 +307,8 @@ pub fn render_ui(
     // 6,95 ms sur une image de zoom du terrain : un ecart de trente qui ne peut venir que
     // d'un redessin. Reste a savoir combien souvent -- et la duree seule ne le dit pas.
     if ui.reference {
-        // Le mode référence : seuls le toast et le menu, qui attendent une décision.
-        poser_ce_qui_attend_une_decision(pixmap, store, ui, typo, theme, (w, h), pointer);
-        crate::perf::stage("ui");
+        // Le mode référence : rien de permanent. Le toast et le menu, qui attendent une
+        // décision, se posent après (`ui::decision`).
         return;
     }
     let dessins_avant = ui.bande_cache.as_ref().map_or(0, |c| c.dessins);
@@ -350,96 +350,6 @@ pub fn render_ui(
 
     rail::render_rail(pixmap, ui, typo, theme);
     crate::perf::stage("minimap");
-
-    // 4, 5 et 6. Ce qui ne paraît que sur décision : la barre d'action, le toast, le menu.
-    poser_ce_qui_attend_une_decision(pixmap, store, ui, typo, theme, (w, h), pointer);
-    // **Ce que `ui` nomme désormais** : la barre d'action, le toast et le menu contextuel —
-    // ce qui ne paraît que sur décision de l'utilisateur. La marque se posait auparavant chez
-    // l'appelant, donc après le retour, et couvrait la bande, le fil d'Ariane et la minimap
-    // en plus : un poste qui nomme quatre choses ne désigne rien.
-    crate::perf::stage("ui");
-}
-
-/// La barre d'action, le toast et le menu contextuel — ce qui attend une décision.
-///
-/// Extraite de [`render_ui`], qui posait la chrome permanente et celle-ci dans la même
-/// fonction : la première paraît toujours, la seconde presque jamais, et les mêler faisait
-/// passer le cliquet des quatre-vingts lignes.
-///
-/// L'ordre entre les trois n'est pas libre : le toast doit rester lisible par-dessus la barre
-/// d'action, et le menu par-dessus tout, puisqu'il attend qu'on choisisse.
-fn poser_ce_qui_attend_une_decision(
-    pixmap: &mut PixmapMut,
-    store: &Store,
-    ui: &UiState,
-    typo: &Typography,
-    theme: &Theme,
-    (w, h): (f32, f32),
-    pointer: Pointer,
-) {
-    let visible = ui.ecran_visible((w, h));
-    if !ui.reference {
-        action_bar::draw_action_bar(
-            pixmap,
-            store,
-            typo,
-            theme,
-            (visible, ui.scale_factor),
-            ui.origine_du_groupe,
-        );
-    }
-    // Pendant l'édition des ancres, sa fenêtre couvre tout : le moteur de rendu la pose
-    // par-dessus l'interface (`poser_la_fenetre_d_ancrage`).
-    if ui.ancrage.is_none() && !ui.reference {
-        options_de_fleche::draw_options_de_fleche(
-            pixmap,
-            store,
-            typo,
-            theme,
-            (visible, ui.scale_factor),
-        );
-    }
-    if let Some(ref toast) = ui.current_toast {
-        toast::render_toast(pixmap, toast, typo, theme, w, visible.1, ui.scale_factor);
-    }
-    dessiner_le_menu(pixmap, (ui, store), (typo, theme), (w, h), pointer);
-    // La question passe par-dessus tout : ce qui est derrière attend sa réponse (QUESTION-1).
-    if let Some((q, _)) = &ui.question {
-        let placee = question::placer(q, typo, visible, ui.scale_factor);
-        let ou = (pointer.x, pointer.y);
-        question::dessiner(pixmap, &placee, (typo, theme), ou, ui.scale_factor);
-    }
-}
-
-/// Le menu contextuel, s'il est ouvert.
-fn dessiner_le_menu(
-    pixmap: &mut PixmapMut,
-    (ui, store): (&UiState, &Store),
-    (typo, theme): (&Typography, &Theme),
-    (w, h): (f32, f32),
-    pointer: Pointer,
-) {
-    let Some(at) = ui.context_menu_at else {
-        return;
-    };
-    let Some(menu) = context_menu::layout_context_menu(
-        store,
-        typo,
-        (at, ui.onglets.menu.as_deref()),
-        (w, h),
-        ui.scale_factor,
-        ui.menu_au_doigt,
-    ) else {
-        return;
-    };
-    context_menu::draw_context_menu(
-        pixmap,
-        &menu,
-        typo,
-        theme,
-        (pointer.x, pointer.y),
-        ui.scale_factor,
-    );
 }
 
 /// Détecte si un clic souris se situe sur l'interface et retourne l'action associée

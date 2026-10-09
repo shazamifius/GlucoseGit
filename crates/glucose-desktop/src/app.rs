@@ -1,6 +1,7 @@
 //! Application Glucose Desktop — Event Loop Winit 0.30 et Framebuffer Softbuffer 0.4.
 
 pub(crate) mod accueil;
+mod decision;
 mod evenements;
 mod fenetre;
 pub mod focus;
@@ -319,6 +320,25 @@ pub struct Tampons {
     /// Elle part transparente a chaque image : tout ce qui n'y est pas dessine laisse voir
     /// les photos, et c'est ce qui rend la composition juste sans calculer une seule region.
     pub dessus: Option<Pixmap>,
+    /// Ce qui attend une décision, quand un panneau est ouvert : la carte le pose après lui
+    /// (DECISION-1).
+    pub decision: decision::Decision,
+}
+
+impl Tampons {
+    /// **La couche du dessus, accordée à la fenêtre**, et le tampon de ce qui attend une
+    /// décision : ce que la peinture par la carte remplit. La couche se refait quand la fenêtre
+    /// change de taille, et jamais autrement.
+    fn pour_la_carte(
+        &mut self,
+        (largeur, hauteur): (u32, u32),
+    ) -> Option<(&mut Pixmap, &mut decision::Decision)> {
+        let accordee = |t: &Pixmap| t.width() == largeur && t.height() == hauteur;
+        if !self.dessus.as_ref().is_some_and(accordee) {
+            self.dessus = Pixmap::new(largeur, hauteur);
+        }
+        Some((self.dessus.as_mut()?, &mut self.decision))
+    }
 }
 
 impl GlucoseApp {

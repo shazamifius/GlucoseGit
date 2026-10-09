@@ -99,9 +99,18 @@ fn test_the_grip_is_on_the_side_a_panel_leaves_by() {
     }
 }
 
+/// Ordonner et Pomodoro ouverts, dans cet ordre : ce que Glucose Tauri ouvrait au lancement, et
+/// que Glucose n'ouvre plus (fiche 59).
+fn ordonner_et_pomodoro() -> DockManager {
+    let mut dock = DockManager::new();
+    dock.toggle_tab(TabId::Organize);
+    dock.toggle_tab(TabId::Pomodoro);
+    dock
+}
+
 #[test]
 fn test_dock_manager_toggle_and_dismiss() {
-    let mut dock = DockManager::new();
+    let mut dock = ordonner_et_pomodoro();
     assert!(dock.is_open(TabId::Organize));
     assert!(dock.is_open(TabId::Pomodoro));
     assert_eq!(dock.bottom_tabs.len(), 2);
@@ -120,7 +129,7 @@ fn test_dock_manager_toggle_and_dismiss() {
 
 #[test]
 fn test_dock_drag_swap_and_dismiss() {
-    let mut dock = DockManager::new();
+    let mut dock = ordonner_et_pomodoro();
     assert_eq!(dock.bottom_tabs, vec![TabId::Organize, TabId::Pomodoro]);
 
     dock.drag = Some(DragSession {

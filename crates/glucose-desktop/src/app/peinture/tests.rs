@@ -49,14 +49,14 @@ fn une_image(app: &mut GlucoseApp, dessous: &mut Pixmap, precedente: &Confie) ->
         pointer: Pointer { x: 0.0, y: 0.0 },
         echelle: 1.0,
     };
-    let (_, confie) = peindre_par_la_carte(
-        (dessous, None),
+    app.tampons.dessus = None;
+    peindre_par_la_carte(
+        (dessous, &mut app.tampons),
         &mut app.renderer,
         (&app.store, precedente),
         chrome,
         (overlay, Regard::immobile()),
-    );
-    confie
+    )
 }
 
 /// **Deux images de suite laissent le dessous qu'une seule aurait laissé**, au bit près — et
@@ -155,14 +155,15 @@ fn une_image_et_son_dessus(app: &mut GlucoseApp) -> (Pixmap, Confie) {
         echelle: 1.0,
     };
     let mut dessous = Pixmap::new(TAILLE.0, TAILLE.1).expect("un pixmap");
-    let (dessus, confie) = peindre_par_la_carte(
-        (&mut dessous, None),
+    app.tampons.dessus = None;
+    let confie = peindre_par_la_carte(
+        (&mut dessous, &mut app.tampons),
         &mut app.renderer,
         (&app.store, &Confie::default()),
         chrome,
         (overlay, Regard::immobile()),
     );
-    (dessus.expect("un dessus"), confie)
+    (app.tampons.dessus.take().expect("un dessus"), confie)
 }
 
 /// **PANNEAUX-1 — un panneau part sur la carte, et la couche du dessus ne le porte pas** : la
@@ -252,4 +253,102 @@ fn test_le_mode_reference_ne_confie_aucun_panneau() {
         1,
         "il revient quand le mode se defait"
     );
+}
+
+/// La question du journal technique, posée comme Glucose la pose.
+fn poser_la_question(app: &mut GlucoseApp) {
+    use crate::ui::question::{Question, Reponse, Suite};
+    let question = Question {
+        titre: "Journal technique".into(),
+        texte: "Aider à améliorer Glucose ?".into(),
+        choix: vec![("Oui".into(), Reponse::Oui), ("Non".into(), Reponse::Non)],
+        ..Default::default()
+    };
+    app.demander(question, Suite::Telemetrie);
+}
+
+/// Un point du panneau de la Time Machine que la carte de la question ne couvre pas : en bas,
+/// dans le panneau de droite, de toute la hauteur.
+const DANS_LE_PANNEAU: (u32, u32) = (TAILLE.0 - 40, TAILLE.1 - 40);
+
+/// **DECISION-1 — la question voile les panneaux, sur la voie processeur.** Son téléphone, le
+/// 07/10 : la question du journal technique paraissait sous Ordonner et Pomodoro, ses réponses
+/// cachées. Le pixel d'un panneau ouvert doit être assombri par le voile de la question ; peint
+/// après elle, il restait celui du panneau.
+#[test]
+fn test_decision_1_la_question_voile_les_panneaux_sur_la_voie_processeur() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    app.dock_manager.toggle_tab(crate::dock::TabId::Temps);
+    let lire = |app: &GlucoseApp| {
+        let image = app.pixmap.as_ref().expect("une image");
+        image
+            .pixel(DANS_LE_PANNEAU.0, DANS_LE_PANNEAU.1)
+            .expect("dedans")
+    };
+    app.une_image_sans_fenetre(TAILLE);
+    let panneau = lire(&app);
+    poser_la_question(&mut app);
+    app.une_image_sans_fenetre(TAILLE);
+    let voile = lire(&app);
+    assert!(
+        voile.red() < panneau.red(),
+        "le panneau n'est pas sous le voile : {panneau:?} puis {voile:?}"
+    );
+}
+
+/// **DECISION-1 — la carte pose la question après les panneaux.** Un panneau ouvert est une
+/// texture posée après la couche du dessus (PANNEAUX-1) : la question, qui y était peinte,
+/// passait dessous. Elle part désormais dans sa propre texture, la dernière à poser, et elle
+/// couvre le panneau.
+#[test]
+fn test_decision_1_la_carte_pose_la_question_apres_les_panneaux() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    app.dock_manager.toggle_tab(crate::dock::TabId::Temps);
+    poser_la_question(&mut app);
+    let (_, confie) = une_image_et_son_dessus(&mut app);
+    assert_eq!(confie.panneaux.len(), 2, "le panneau, puis la question");
+    let (panneau, decision) = (&confie.panneaux[0], &confie.panneaux[1]);
+    assert_eq!(
+        decision.identite, "decision",
+        "la question passe en dernier"
+    );
+    let pixels = app
+        .tampons
+        .decision
+        .pixels(&decision.cle)
+        .expect("ses pixels, par sa clé");
+    let x = (panneau.pose.x + panneau.pose.largeur / 2.0) as u32;
+    let y = (panneau.pose.y + panneau.pose.hauteur - 10.0 - decision.pose.y) as u32;
+    let voile = pixels.pixel(x, y).expect("la question couvre le panneau");
+    assert!(voile.alpha() > 0, "rien ne voile le panneau");
+}
+
+/// **Sans panneau, rien ne change** : la question reste dans la couche du dessus, et la carte
+/// ne reçoit aucune texture de plus — c'est l'état du lancement, et il ne coûte rien.
+#[test]
+fn test_decision_1_sans_panneau_la_question_reste_dans_le_dessus() {
+    let mut app = application();
+    sans_panneau(&mut app);
+    regarder(&mut app, 0.0);
+    let (_, sans) = une_image_et_son_dessus(&mut app);
+    poser_la_question(&mut app);
+    let (_, avec) = une_image_et_son_dessus(&mut app);
+    assert!(avec.panneaux.is_empty(), "aucune texture de plus");
+    assert!(
+        avec.bandes_du_dessus.lignes() > sans.bandes_du_dessus.lignes(),
+        "la couche du dessus porte la question"
+    );
+}
+
+/// **Aucun panneau n'est ouvert au lancement** (fiche 59) : Ordonner et Pomodoro couvraient la
+/// question du journal technique sur son téléphone.
+#[test]
+fn test_aucun_panneau_n_est_ouvert_au_lancement() {
+    let app = GlucoseApp::new();
+    let d = &app.dock_manager;
+    assert!(d.top_tabs.is_empty() && d.bottom_tabs.is_empty() && d.right_tabs.is_empty());
 }

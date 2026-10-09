@@ -132,6 +132,7 @@ impl GlucoseApp {
                 Some(dessus) => {
                     let (renderer, confie, panneaux) =
                         (&self.renderer, &self.confie, &self.dock_cache);
+                    let decision = &self.tampons.decision;
                     // **Ce qui sépare cette image du plancher de la charte**, et c'est tout
                     // le budget que le rendu des textures manquantes a le droit de prendre.
                     //
@@ -152,6 +153,7 @@ impl GlucoseApp {
                             confie.pixels(renderer, cle).or_else(|| {
                                 panneaux
                                     .pixels(cle)
+                                    .or_else(|| decision.pixels(cle))
                                     .map(crate::present::scene_gpu::Pixels::Rendues)
                             })
                         },

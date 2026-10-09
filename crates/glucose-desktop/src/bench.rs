@@ -131,6 +131,8 @@ pub fn render_into(renderer: &mut Renderer, ui: &mut UiState, store: &Store, pix
             crate::renderer::Regard::immobile(),
         );
     }
+    // Ce qui attend une décision se pose après la chrome, comme dans l'application (DECISION-1).
+    renderer.poser_ce_qui_attend_une_decision(&mut pixmap.as_mut(), store, ui, pointer);
 }
 
 /// Ce qu'une série de frames a coûté.
