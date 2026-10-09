@@ -96,6 +96,19 @@ impl Carte {
             plafond,
         }
     }
+
+    /// Les champs de sa ligne, à cet instant.
+    fn champs(&self, instant_ms: u64) -> Vec<(&'static str, Champ)> {
+        use Champ::{Entier, Nom};
+        vec![
+            ("instant_ms", Entier(instant_ms)),
+            ("moteur", Nom(self.moteur)),
+            ("genre", Nom(self.genre)),
+            ("fabricant", Entier(u64::from(self.fabricant))),
+            ("modele", Entier(u64::from(self.modele))),
+            ("plafond", Entier(u64::from(self.plafond))),
+        ]
+    }
 }
 
 /// Le nom fermé d'un moteur graphique.
@@ -253,14 +266,7 @@ impl Enregistrement {
                 ("quoi", Nom(quoi)),
                 ("valeur", Entier(valeur)),
             ],
-            Self::Carte { instant_ms, carte } => vec![
-                ("instant_ms", Entier(instant_ms)),
-                ("moteur", Nom(carte.moteur)),
-                ("genre", Nom(carte.genre)),
-                ("fabricant", Entier(u64::from(carte.fabricant))),
-                ("modele", Entier(u64::from(carte.modele))),
-                ("plafond", Entier(u64::from(carte.plafond))),
-            ],
+            Self::Carte { instant_ms, carte } => carte.champs(instant_ms),
             Self::Fin { instant_ms } => vec![("instant_ms", Entier(instant_ms))],
         }
     }

@@ -9,6 +9,7 @@
 //! admet, et le cliquet a eu raison de le dire.
 
 use super::super::{DesktopError, DesktopResult};
+use crate::boite_noire::enregistrement::Carte;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -23,7 +24,7 @@ pub(super) fn ouvrir(
     width: NonZeroU32,
     height: NonZeroU32,
     carte: wgpu::PowerPreference,
-) -> DesktopResult<(wgpu::Adapter, wgpu::Device, wgpu::Queue, String)> {
+) -> DesktopResult<(wgpu::Adapter, wgpu::Device, wgpu::Queue, String, Carte)> {
     let echec = |quoi: &str, e: &dyn std::fmt::Display| {
         DesktopError::WindowError(format!("présentation graphique — {quoi} : {e}"))
     };
@@ -48,6 +49,8 @@ pub(super) fn ouvrir(
         "[Glucose] carte : {} — {:?}, pilote {} {}, textures jusqu'à {plafond}",
         info.name, info.backend, info.driver, info.driver_info
     );
+    // Ce que le journal technique en dira : ses numéros, jamais son nom (fiche 60).
+    let numeros = Carte::de(&info, plafond);
     if width.get() > plafond || height.get() > plafond {
         return Err(DesktopError::WindowError(format!(
             "présentation graphique : une fenêtre de {}×{} dépasse la texture maximale de \
@@ -79,7 +82,7 @@ pub(super) fn ouvrir(
         eprintln!("[Glucose] la couche graphique a refusé une commande : {e}");
     }));
 
-    Ok((adapter, device, queue, adaptateur))
+    Ok((adapter, device, queue, adaptateur, numeros))
 }
 
 /// ── Ce que la surface accepte, et sous quel format ────────────────────────────────────

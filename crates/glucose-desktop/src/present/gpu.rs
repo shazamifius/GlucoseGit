@@ -175,12 +175,11 @@ impl GpuPresenter {
             .create_surface(window)
             .map_err(|e| echec("surface", &e))?;
 
-        let (adapter, device, queue, adaptateur) =
+        let (adapter, device, queue, adaptateur, numeros) =
             ouverture::ouvrir(&instance, &surface, width, height, carte)?;
 
         let config = ouverture::accorder_la_surface(&surface, &adapter, (width, height), cadence)?;
-        let info = adapter.get_info();
-        let sonde = crate::plateforme::graphique::Sonde::pour(info.vendor, info.device);
+        let sonde = crate::plateforme::graphique::Sonde::pour(numeros.fabricant, numeros.modele);
         // **La surface se configure ICI, a la naissance.**
         //
         // Elle ne l'etait nulle part : `resize` le faisait, mais il court-circuite quand les
@@ -209,10 +208,6 @@ impl GpuPresenter {
         let fleches = super::fleches_gpu::FlechesGpu::nouvelles(&device, config.format);
         let lisere = super::lisere_gpu::LisereGpu::nouveau(&device, config.format);
         let envoi = super::envoi::Envoi::nouveau(&device, &queue);
-        let carte = crate::boite_noire::enregistrement::Carte::de(
-            &info,
-            device.limits().max_texture_dimension_2d,
-        );
         Ok(Self {
             scene,
             couches,
@@ -235,7 +230,7 @@ impl GpuPresenter {
             bandes_envoyees: super::bandes::Bandes::default(),
             bandes_du_dessous_envoyees: super::bandes::Bandes::default(),
             adaptateur,
-            carte,
+            carte: numeros,
             sonde,
             format_image,
             a_reaccorder: false,
