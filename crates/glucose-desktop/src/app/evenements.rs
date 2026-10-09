@@ -124,6 +124,8 @@ impl ApplicationHandler for GlucoseApp {
     /// chronique s'ecrit donc la, et non dans le seul gestionnaire de la croix -- c'est ce qui
     /// manquait, et une session entiere s'est perdue pour cette raison.
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        // Ce que Glucose a confié au presse-papiers y reste après lui (COPIER-1).
+        crate::plateforme::presse_papiers::rendre_avant_de_quitter();
         self.noter_le_gel_en_cours();
         self.clore_la_chronique();
         self.vider_les_signes_du_pave();

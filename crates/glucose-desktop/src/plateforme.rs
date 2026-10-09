@@ -45,6 +45,8 @@ mod depot_windows;
 mod glisser_windows;
 #[cfg(windows)]
 mod pave_windows;
+#[cfg(windows)]
+pub mod selection_windows;
 #[cfg(not(windows))]
 mod telechargement;
 #[cfg(windows)]
@@ -91,14 +93,14 @@ pub fn envoyer(url: &str, verbe: Verbe, corps: &[u8]) -> Result<u16, String> {
     voie(&adresse, verbe, corps)
 }
 
-/// **Glisse un lot de nœuds hors de cette fenêtre** (fiche 51 § 2), jusqu'au lâcher : rend
-/// vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine
+/// **Glisse la sélection hors de cette fenêtre** (fiche 51 § 2), sous toutes ses formes
+/// (COPIER-1) — le lot pour Glucose, les images en fichiers pour tout le reste —, jusqu'au
+/// lâcher : rend vrai s'il a été déposé quelque part. La fenêtre vient d'être peinte : rien ne s'y redessine
 /// pendant le geste. Sous Windows seulement, comme la cible : ailleurs, le glisser de `winit`
 /// ne sait porter que des fichiers, et rien ne part.
-pub fn glisser_un_lot(
+pub fn glisser_la_selection(
     fenetre: &winit::window::Window,
-    texte: Option<&str>,
-    lot: &[u8],
+    formes: crate::interactions::clipboard::Formes,
 ) -> Result<bool, String> {
     #[cfg(windows)]
     {
@@ -107,11 +109,11 @@ pub fn glisser_un_lot(
         let RawWindowHandle::Win32(w) = poignee.as_raw() else {
             return Err("une fenetre Windows sans poignee Win32".into());
         };
-        glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, texte, lot)
+        glisser_windows::glisser(w.hwnd.get() as *mut core::ffi::c_void, formes)
     }
     #[cfg(not(windows))]
     {
-        let _ = (fenetre, texte, lot);
+        let _ = (fenetre, formes);
         Ok(false)
     }
 }

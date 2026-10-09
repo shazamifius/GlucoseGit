@@ -1,4 +1,4 @@
-//! « Copier l'image » et « Enregistrer l'image sous… » (fiche 51 § 3).
+//! L'image seule d'une copie (COPIER-1) et « Enregistrer l'image sous… » (fiche 51 § 3).
 
 use super::*;
 use crate::persist::disque::tests::{application, dossier, image_suivante};
@@ -71,10 +71,11 @@ fn test_le_bitmap_se_lit_du_bas_vers_le_haut() {
     assert_eq!(&dib[132..136], &[0, 0, 255, 255], "puis celle du haut");
 }
 
-/// **Copier l'image puis coller rend la même image** : par le menu, sur le presse-papiers à soi
-/// de l'épreuve.
+/// **`Ctrl+C` sur une image seule pose l'image elle-même** (COPIER-1, fiche 59) : ses pixels,
+/// que Discord ou Paint collent — « Copier l'image » n'est plus un geste à part —, et le lot,
+/// que Glucose recolle en bloc. Sur le presse-papiers à soi de l'épreuve.
 #[test]
-fn test_copier_l_image_puis_coller_rend_les_memes_pixels() {
+fn test_copier_une_image_seule_pose_ses_pixels_et_le_lot() {
     let d = dossier("menu-image-copier");
     let mut app = application(&d);
     let (jpeg, pixels) = octets(image::ImageFormat::Jpeg);
@@ -83,16 +84,12 @@ fn test_copier_l_image_puis_coller_rend_les_memes_pixels() {
     let b = app.store.project.active_board_id.clone();
     app.place_image_file(&b, &chemin, (0.0, 0.0))
         .expect("posée");
-    app.copier_l_image();
+    app.copy_selection(false);
     app.suivre_les_echanges(true);
-    let colle = crate::interactions::presse_papiers::ouvrir()
-        .and_then(|mut p| p.image())
-        .expect("une image dans le presse-papiers");
+    let mut acces = crate::interactions::presse_papiers::ouvrir().expect("ouvert");
+    let colle = acces.image().expect("une image dans le presse-papiers");
     assert_eq!(colle.bytes.as_slice(), pixels.as_slice());
-    assert!(app
-        .ui
-        .toast_message()
-        .is_some_and(|m| m.contains("Image copiée")));
+    assert!(acces.lot().is_some(), "et le lot, que Glucose recolle");
 }
 
 /// **L'image enregistrée est identique, octet pour octet, à celle qui avait été posée** — après

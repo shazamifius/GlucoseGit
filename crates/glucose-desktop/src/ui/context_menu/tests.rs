@@ -180,21 +180,20 @@ fn test_les_entrees_sempilent_sans_se_chevaucher() {
     }
 }
 
-/// **Une image seule offre de la copier comme une image et de l'enregistrer** (fiche 51 § 3) ;
-/// deux images, ou une image et une carte, n'en offrent pas : le presse-papiers ne porte
-/// qu'une image, et un fichier n'en enregistre qu'une.
+/// **Une image seule offre de l'enregistrer** (fiche 51 § 3) ; deux images, ou une image et une
+/// carte, non : un fichier n'en enregistre qu'une. La copier comme une image n'est plus un geste à
+/// part : « Copier » emporte l'image elle-même (COPIER-1, fiche 59).
 #[test]
-fn test_une_image_seule_offre_de_la_copier_et_de_l_enregistrer() {
+fn test_une_image_seule_offre_de_l_enregistrer() {
     let seule = actions(&menu(&store_with(1, 0, true), (100.0, 100.0)));
-    assert!(seule.contains(&MenuAction::CopierLImage));
     assert!(seule.contains(&MenuAction::EnregistrerLImage));
+    assert!(seule.contains(&MenuAction::Copier));
     for (images, cartes) in [(2, 0), (1, 1), (0, 1)] {
         let a = actions(&menu(&store_with(images, cartes, true), (100.0, 100.0)));
         assert!(
-            !a.contains(&MenuAction::CopierLImage),
+            !a.contains(&MenuAction::EnregistrerLImage),
             "{images} image(s), {cartes} carte(s)"
         );
-        assert!(!a.contains(&MenuAction::EnregistrerLImage));
         assert!(a.contains(&MenuAction::Copier) && a.contains(&MenuAction::Couper));
     }
 }

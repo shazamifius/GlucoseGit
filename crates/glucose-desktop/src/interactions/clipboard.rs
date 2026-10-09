@@ -7,8 +7,10 @@ use crate::interactions::presse_papiers;
 use glucose_core::types::BoardImage;
 use std::path::{Path, PathBuf};
 
+mod formes;
 mod lot;
 mod menu_image;
+pub use formes::{Fichier, Formes};
 pub use lot::Echanges;
 pub use menu_image::ImagePosee;
 

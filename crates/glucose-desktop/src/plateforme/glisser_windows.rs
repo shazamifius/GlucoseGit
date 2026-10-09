@@ -3,10 +3,11 @@
 //!
 //! # Ce que Windows fournit, et ce qu'on écrit
 //!
-//! L'objet qui porte les données, on ne l'écrit pas : `SHCreateDataObject` en donne un que
-//! l'explorateur emploie lui-même, et qui garde tout format qu'on y dépose. On y dépose le lot,
-//! sous le format du presse-papiers (« Glucose.Lot », la même enveloppe), et le texte des nœuds
-//! pour les autres logiciels — un traitement de texte reçoit les textes, comme au collage.
+//! L'objet qui porte les données est celui du presse-papiers ([`super::selection_windows`],
+//! COPIER-1, fiche 59) : le lot sous « Glucose.Lot », pour une autre fenêtre de Glucose ; le
+//! texte des nœuds, pour un traitement de texte ; et les images **en fichiers**, pour tout le
+//! reste — Discord, Google Docs, l'explorateur, le bureau. Il les fabrique quand la cible les
+//! demande : rien ne s'écrit pour un dépôt dans Glucose.
 //!
 //! On écrit la **source** : deux questions auxquelles `DoDragDrop` revient à chaque mouvement.
 //! Continuer ? Tant que le bouton gauche est tenu ; lâché, on dépose ; `Échap`, on renonce. Et
@@ -38,21 +39,17 @@
 //! redessiner pendant le geste, et la boucle de `DoDragDrop` dort entre deux mouvements.
 //! Au retour, l'appelant redemande une image, et `winit` la livre comme toute autre.
 
-use std::mem::ManuallyDrop;
 use std::sync::atomic::{AtomicBool, Ordering};
 use windows::core::{implement, BOOL, HRESULT};
 use windows::Win32::Foundation::{
     DRAGDROP_S_CANCEL, DRAGDROP_S_DROP, DRAGDROP_S_USEDEFAULTCURSORS, HWND, S_OK,
 };
 use windows::Win32::Graphics::Gdi::{RedrawWindow, RDW_NOINTERNALPAINT};
-use windows::Win32::System::Com::{
-    IDataObject, DVASPECT_CONTENT, FORMATETC, STGMEDIUM, STGMEDIUM_0, TYMED_HGLOBAL,
-};
+use windows::Win32::System::Com::IDataObject;
 use windows::Win32::System::Ole::{
-    DoDragDrop, IDropSource, IDropSource_Impl, CF_UNICODETEXT, DROPEFFECT, DROPEFFECT_COPY,
+    DoDragDrop, IDropSource, IDropSource_Impl, DROPEFFECT, DROPEFFECT_COPY,
 };
 use windows::Win32::System::SystemServices::{MK_LBUTTON, MODIFIERKEYS_FLAGS};
-use windows::Win32::UI::Shell::SHCreateDataObject;
 
 /// Un glisser part-il de ce processus en ce moment ?
 static EN_COURS: AtomicBool = AtomicBool::new(false);
@@ -62,17 +59,17 @@ pub fn part_d_ici() -> bool {
     EN_COURS.load(Ordering::Relaxed)
 }
 
-/// **Glisse ce lot** hors de cette fenêtre, jusqu'au lâcher ou à `Échap`. Rend vrai s'il a été
-/// déposé quelque part.
+/// **Glisse cette sélection** hors de cette fenêtre, jusqu'au lâcher ou à `Échap`. Rend vrai
+/// s'il a été déposé quelque part.
 ///
 /// Bloquant : `DoDragDrop` tient sa propre boucle de messages jusqu'à la fin du geste. La
 /// fenêtre doit avoir été peinte juste avant (voir l'en-tête).
 pub fn glisser(
     fenetre: *mut core::ffi::c_void,
-    texte: Option<&str>,
-    lot: &[u8],
+    formes: crate::interactions::clipboard::Formes,
 ) -> Result<bool, String> {
-    let objet = objet_du_lot(texte, lot)?;
+    use super::selection_windows::{Pour, Selection};
+    let objet: IDataObject = Selection::nouvelle(formes, Pour::Glisser)?.into();
     let source: IDropSource = Source.into();
     let mut effet = DROPEFFECT::default();
     taire_la_peinture_en_attente(HWND(fenetre));
@@ -88,45 +85,6 @@ pub fn glisser(
 fn taire_la_peinture_en_attente(fenetre: HWND) {
     // Sans effet sur une région réellement invalide : seul le drapeau interne tombe.
     let _ = unsafe { RedrawWindow(Some(fenetre), None, None, RDW_NOINTERNALPAINT) };
-}
-
-/// **L'objet que le glisser emporte** : le lot sous son format, et le texte des nœuds.
-pub fn objet_du_lot(texte: Option<&str>, lot: &[u8]) -> Result<IDataObject, String> {
-    let objet: IDataObject = unsafe { SHCreateDataObject(None, None, None::<&IDataObject>) }
-        .map_err(|e| e.to_string())?;
-    let format = super::presse_papiers::format_du_lot()?;
-    deposer(
-        &objet,
-        format,
-        &super::presse_papiers::envelopper_le_lot(lot),
-    )?;
-    if let Some(t) = texte {
-        deposer(
-            &objet,
-            u32::from(CF_UNICODETEXT.0),
-            &super::presse_papiers::texte_large(t),
-        )?;
-    }
-    Ok(objet)
-}
-
-/// Dépose ces octets dans l'objet sous ce format ; l'objet devient propriétaire du bloc.
-fn deposer(objet: &IDataObject, format: u32, octets: &[u8]) -> Result<(), String> {
-    let bloc = super::presse_papiers::bloc_global(octets)?;
-    let demande = FORMATETC {
-        cfFormat: u16::try_from(format).map_err(|_| "format hors d'atteinte".to_string())?,
-        ptd: std::ptr::null_mut(),
-        dwAspect: DVASPECT_CONTENT.0,
-        lindex: -1,
-        tymed: TYMED_HGLOBAL.0 as u32,
-    };
-    let medium = STGMEDIUM {
-        tymed: TYMED_HGLOBAL.0 as u32,
-        u: STGMEDIUM_0 { hGlobal: bloc },
-        pUnkForRelease: ManuallyDrop::new(None),
-    };
-    // `true` : l'objet prend le bloc et le rendra lui-même.
-    unsafe { objet.SetData(&demande, &medium, true) }.map_err(|e| e.to_string())
 }
 
 /// Les deux questions de `DoDragDrop`.
@@ -153,21 +111,6 @@ impl IDropSource_Impl for Source_Impl {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// **Ce que la source emporte, la cible le reconnaît** : l'objet que le glisser fabrique,
-    /// lu par la cible de dépôt, rend le lot octet pour octet — sans écran, sans souris.
-    #[test]
-    fn test_la_cible_lit_le_lot_que_la_source_emporte() {
-        let _ = unsafe {
-            windows::Win32::System::Com::CoInitializeEx(
-                None,
-                windows::Win32::System::Com::COINIT_APARTMENTTHREADED,
-            )
-        };
-        let lot: Vec<u8> = (0..5000u32).map(|i| (i * 7) as u8).collect();
-        let objet = objet_du_lot(Some("une note"), &lot).expect("l'objet du glisser");
-        assert_eq!(super::super::depot_windows::lot_porte(&objet), Some(lot));
-    }
 
     /// **Le glisser part sans peinture en attente** : celle que `request_redraw` de `winit`
     /// pose (`RDW_INTERNALPAINT`) ne sort plus de la file de messages — c'est elle que la

@@ -1,9 +1,11 @@
-//! **Clic droit sur une image** (fiche 51 § 3) : la copier comme une image, que Discord, un
+//! **Une image, hors de Glucose** (fiche 51 § 3) : la préparer comme une image, que Discord, un
 //! navigateur ou Photoshop collent ; l'enregistrer telle qu'elle a été posée.
 //!
-//! # Ce que « copier l'image » pose, et pourquoi
+//! # Ce que l'image seule d'une copie pose, et pourquoi
 //!
-//! Ce que pose « Copier l'image » d'un navigateur : un **PNG** sous le format enregistré « PNG »
+//! « Copier l'image » était un geste à part ; `Ctrl+C` le fait désormais lui-même, quand la
+//! sélection n'emporte qu'une image (COPIER-1, fiche 59). Ce qu'il pose est ce que pose
+//! « Copier l'image » d'un navigateur : un **PNG** sous le format enregistré « PNG »
 //! — celui que Chromium lit d'abord, donc Discord et toute page web, et qu'Office préfère —, et
 //! les **pixels** en `CF_DIBV5`, que Windows sait donner à tout logiciel qui ne lit que le
 //! bitmap (Paint, Word). Quand l'image posée est déjà un PNG, ce sont **ses octets mêmes** :
@@ -19,10 +21,7 @@
 //! par la seule porte qui pose un fichier à la place d'un autre (cliquet 11).
 
 use crate::app::GlucoseApp;
-use crate::interactions::presse_papiers;
 use std::path::Path;
-use std::sync::mpsc::channel;
-use std::sync::Arc;
 
 /// Ce que le presse-papiers reçoit d'une image : un PNG, et ses pixels.
 pub struct ImagePosee {
@@ -83,47 +82,6 @@ impl GlucoseApp {
         self.store
             .image(board, &self.store.selected_image_ids[0])
             .cloned()
-    }
-
-    /// **Copier l'image** : ses octets se lisent et se préparent sur un fil à part.
-    pub(crate) fn copier_l_image(&mut self) {
-        let Some(cle) = self.image_seule_choisie().and_then(|i| i.src) else {
-            return;
-        };
-        let objets = Arc::clone(&self.disque.objets);
-        let systeme = presse_papiers::est_celui_du_systeme();
-        let (envoi, recu) = channel();
-        std::thread::spawn(move || {
-            let prete = objets
-                .lire_en_attendant(&cle)
-                .ok_or_else(|| "ses octets sont introuvables".to_string())
-                .and_then(|o| preparer(&o));
-            // Le presse-papiers du système se remplit d'ici ; celui d'une épreuve, qui vit sur
-            // le fil qui l'a ouvert, se remplit au retour.
-            let rendu = match prete {
-                Ok(image) if systeme => {
-                    crate::plateforme::presse_papiers::ecrire_une_image(&image).map(|()| None)
-                }
-                Ok(image) => Ok(Some(image)),
-                Err(e) => Err(e),
-            };
-            let _ = envoi.send(rendu);
-        });
-        self.echanges.image = Some(recu);
-    }
-
-    /// Ce que le fil de « Copier l'image » a rendu.
-    pub(super) fn finir_l_image(&mut self, rendu: Option<Result<Option<ImagePosee>, String>>) {
-        let rendu = rendu.unwrap_or_else(|| Err("la copie n'a pas abouti".into()));
-        let ecrit = rendu.and_then(|image| match image {
-            Some(image) => presse_papiers::ouvrir().and_then(|mut a| a.ecrire_une_image(image)),
-            None => Ok(()),
-        });
-        match ecrit {
-            Ok(()) => self.ui.show_toast("Image copiée"),
-            Err(e) => self.echec_presse_papiers(e),
-        }
-        self.mark_dirty();
     }
 
     /// **Enregistrer l'image sous…** : demande où ; le choix revenu, ses octets d'origine

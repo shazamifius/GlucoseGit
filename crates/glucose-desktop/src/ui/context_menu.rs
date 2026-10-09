@@ -71,8 +71,6 @@ pub enum MenuAction {
     /// La même, puis retirée une fois copiée.
     Couper,
     Duplicate,
-    /// L'image seule choisie, comme une image : Discord, un navigateur la collent (fiche 51 § 3).
-    CopierLImage,
     /// Ses octets d'origine, dans un fichier.
     EnregistrerLImage,
     /// Les liens choisis repartent chercher leur image, et lui laissent leur place (DEPOT-WEB-6).
@@ -163,12 +161,13 @@ fn entrees(store: &Store, onglet: Option<&str>) -> Option<Vec<Def>> {
 fn entrees_de_selection(store: &Store) -> Option<Vec<Def>> {
     let images = store.selected_image_ids.len();
     let mut defs: Vec<Def> = Vec::new();
+    // « Copier » emporte tout : le lot, le texte, les images elles-mêmes — « Copier l'image »
+    // n'avait plus de raison d'être un geste à part (COPIER-1, fiche 59).
     defs.push(Some((MenuAction::Copier, "Copier", "Ctrl+C")));
     defs.push(Some((MenuAction::Couper, "Couper", "Ctrl+X")));
     defs.push(Some((MenuAction::Duplicate, "Dupliquer", "Ctrl+D")));
     if images == 1 && store.selected_annotation_ids.is_empty() {
         defs.push(None);
-        defs.push(Some((MenuAction::CopierLImage, "Copier l'image", "")));
         defs.push(Some((
             MenuAction::EnregistrerLImage,
             "Enregistrer l'image sous…",

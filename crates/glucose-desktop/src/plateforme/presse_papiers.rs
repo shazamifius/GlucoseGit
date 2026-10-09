@@ -8,8 +8,9 @@
 //! d'autre canal ; mais tout logiciel qui colle du HTML — Word, un client de courrier — recevrait
 //! alors des mégaoctets de base64 qu'il ne sait pas lire. Windows offre ce que le web n'a pas :
 //! un **format enregistré** (`RegisterClipboardFormat`), que les autres logiciels ne demandent
-//! jamais, et qui porte les octets tels quels, sans base64. Le texte des nœuds l'accompagne,
-//! dans la même ouverture du presse-papiers : c'est ce que les autres logiciels collent.
+//! jamais, et qui porte les octets tels quels, sans base64. Le texte des nœuds et les images
+//! l'accompagnent : c'est ce que les autres logiciels collent — sous Windows, par un objet qui
+//! fabrique chaque forme quand on la lui demande (COPIER-1, [`super::selection_windows`]).
 //!
 //! Ailleurs, `arboard` ne connaît pas de format à soi : le lot voyage dans du HTML, comme chez
 //! tldraw, avec le même texte de repli. C'est la seule voie qu'il ouvre sur Linux et macOS.
@@ -24,9 +25,17 @@
 #[cfg(windows)]
 const FORMAT: &str = "Glucose.Lot";
 
-/// Écrit le lot, et le texte que les autres logiciels colleront à sa place.
-pub fn ecrire_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<(), String> {
-    imp::ecrire_un_lot(texte, lot)
+/// **Confie la sélection au presse-papiers du système**, sous toutes les formes qu'il sait
+/// porter (COPIER-1, fiche 59).
+pub fn ecrire_la_selection(formes: crate::interactions::clipboard::Formes) -> Result<(), String> {
+    imp::ecrire_la_selection(formes)
+}
+
+/// **À la fermeture** : ce que Glucose a confié au presse-papiers y reste, rendu une fois pour
+/// toutes — un collage après coup le trouve encore.
+pub fn rendre_avant_de_quitter() {
+    #[cfg(windows)]
+    super::selection_windows::rendre_avant_de_quitter();
 }
 
 /// Le lot que porte le presse-papiers, s'il en porte un.
@@ -75,24 +84,17 @@ pub(crate) fn bloc_global(octets: &[u8]) -> Result<windows::Win32::Foundation::H
     imp::bloc_global(octets)
 }
 
-/// Écrit une image comme le fait « Copier l'image » d'un navigateur (fiche 51 § 3).
-pub fn ecrire_une_image(image: &crate::interactions::clipboard::ImagePosee) -> Result<(), String> {
-    imp::ecrire_une_image(image)
-}
-
 #[cfg(windows)]
 mod imp {
     use super::FORMAT;
     use windows::core::HSTRING;
-    use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
+    use windows::Win32::Foundation::{GlobalFree, HGLOBAL};
     use windows::Win32::System::DataExchange::{
-        CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatW,
-        SetClipboardData,
+        CloseClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatW,
     };
     use windows::Win32::System::Memory::{
         GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE,
     };
-    use windows::Win32::System::Ole::{CF_DIBV5, CF_UNICODETEXT};
 
     pub(super) fn format() -> Result<u32, String> {
         match unsafe { RegisterClipboardFormatW(&HSTRING::from(FORMAT)) } {
@@ -123,15 +125,10 @@ mod imp {
         }
     }
 
-    pub fn ecrire_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<(), String> {
-        let format = format()?;
-        let enveloppe = super::envelopper_le_lot(lot);
-        let _ouvert = Ouvert::prendre()?;
-        unsafe { EmptyClipboard() }.map_err(|e| e.to_string())?;
-        if let Some(t) = texte {
-            poser(u32::from(CF_UNICODETEXT.0), &super::texte_large(t))?;
-        }
-        poser(format, &enveloppe)
+    pub fn ecrire_la_selection(
+        formes: crate::interactions::clipboard::Formes,
+    ) -> Result<(), String> {
+        super::super::selection_windows::confier_au_presse_papiers(formes)
     }
 
     pub(super) fn bloc_global(octets: &[u8]) -> Result<HGLOBAL, String> {
@@ -147,34 +144,6 @@ mod imp {
             let _ = GlobalUnlock(bloc);
             Ok(bloc)
         }
-    }
-
-    /// Confie ces octets au système sous ce format. Une fois confié, le bloc est à lui.
-    fn poser(format: u32, octets: &[u8]) -> Result<(), String> {
-        let bloc = bloc_global(octets)?;
-        unsafe {
-            if let Err(e) = SetClipboardData(format, Some(HANDLE(bloc.0))) {
-                let _ = GlobalFree(Some(bloc));
-                return Err(e.to_string());
-            }
-        }
-        Ok(())
-    }
-
-    /// Le PNG sous le format enregistré « PNG », que Chromium lit d'abord ; les pixels en
-    /// `CF_DIBV5`, d'où Windows tire le bitmap de tous les autres.
-    pub fn ecrire_une_image(
-        image: &crate::interactions::clipboard::ImagePosee,
-    ) -> Result<(), String> {
-        let png = match unsafe { RegisterClipboardFormatW(&HSTRING::from("PNG")) } {
-            0 => return Err("le format PNG n'a pas pu être enregistré".into()),
-            f => f,
-        };
-        let dib = super::dib_v5(image.largeur, image.hauteur, &image.rgba);
-        let _ouvert = Ouvert::prendre()?;
-        unsafe { EmptyClipboard() }.map_err(|e| e.to_string())?;
-        poser(png, &image.png)?;
-        poser(u32::from(CF_DIBV5.0), &dib)
     }
 
     pub fn lire_un_lot() -> Option<Vec<u8>> {
@@ -200,30 +169,21 @@ mod imp {
     /// L'attribut qui porte le lot, en base64, dans le HTML.
     const ATTRIBUT: &str = "data-glucose-lot";
 
-    pub fn ecrire_un_lot(texte: Option<&str>, lot: &[u8]) -> Result<(), String> {
-        let html = super::html::envelopper(ATTRIBUT, texte.unwrap_or(""), lot);
+    /// `arboard` ne pose qu'une forme à la fois : le lot, dans du HTML, avec le texte de repli.
+    /// Les images en fichiers attendent une voie native (COPIER-1, fiche 59).
+    pub fn ecrire_la_selection(
+        formes: crate::interactions::clipboard::Formes,
+    ) -> Result<(), String> {
+        let texte = formes.texte.as_deref();
+        let html = super::html::envelopper(ATTRIBUT, texte.unwrap_or(""), &formes.lot);
         arboard::Clipboard::new()
-            .and_then(|mut c| c.set_html(html, texte.map(str::to_string)))
+            .and_then(|mut c| c.set_html(html, formes.texte.clone()))
             .map_err(|e| e.to_string())
     }
 
     pub fn lire_un_lot() -> Option<Vec<u8>> {
         let html = arboard::Clipboard::new().ok()?.get().html().ok()?;
         super::html::deballer(ATTRIBUT, &html)
-    }
-
-    pub fn ecrire_une_image(
-        image: &crate::interactions::clipboard::ImagePosee,
-    ) -> Result<(), String> {
-        arboard::Clipboard::new()
-            .and_then(|mut c| {
-                c.set_image(arboard::ImageData {
-                    width: image.largeur as usize,
-                    height: image.hauteur as usize,
-                    bytes: std::borrow::Cow::Borrowed(&image.rgba),
-                })
-            })
-            .map_err(|e| e.to_string())
     }
 }
 
@@ -234,18 +194,14 @@ mod imp {
 mod imp {
     const PAS_ENCORE: &str = "le presse-papiers du systeme n'est pas encore pris sous Android";
 
-    pub fn ecrire_un_lot(_texte: Option<&str>, _lot: &[u8]) -> Result<(), String> {
+    pub fn ecrire_la_selection(
+        _formes: crate::interactions::clipboard::Formes,
+    ) -> Result<(), String> {
         Err(PAS_ENCORE.into())
     }
 
     pub fn lire_un_lot() -> Option<Vec<u8>> {
         None
-    }
-
-    pub fn ecrire_une_image(
-        _image: &crate::interactions::clipboard::ImagePosee,
-    ) -> Result<(), String> {
-        Err(PAS_ENCORE.into())
     }
 }
 

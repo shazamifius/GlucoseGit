@@ -38,8 +38,6 @@ use std::sync::Arc;
 pub struct Echanges {
     copie: Option<Copie>,
     collage: Option<Collage>,
-    /// « Copier l'image » qui se prépare (fiche 51 § 3).
-    pub(super) image: Option<Receiver<Result<Option<super::menu_image::ImagePosee>, String>>>,
     /// Un `Ctrl+V` arrivé pendant que la copie se préparait : où il visait.
     collage_attendu: Option<(String, (f64, f64))>,
     /// La date du dernier lot copié ici, et le document d'où il venait.
@@ -49,13 +47,13 @@ pub struct Echanges {
 impl Echanges {
     /// Une copie ou un collage se prépare-t-il ?
     pub fn en_cours(&self) -> bool {
-        self.copie.is_some() || self.collage.is_some() || self.image.is_some()
+        self.copie.is_some() || self.collage.is_some()
     }
 }
 
 struct Copie {
-    recu: Receiver<Vec<u8>>,
-    texte: Option<String>,
+    /// La sélection sous toutes ses formes, rassemblée sur un fil à part (COPIER-1).
+    recu: Receiver<super::Formes>,
     compte: usize,
     /// Couper : ce qu'il faudra retirer, **une fois** le lot dans le presse-papiers.
     a_retirer: Option<(String, Vec<String>, Vec<String>)>,
@@ -66,18 +64,6 @@ struct Depart {
     lot: Project,
     inventaire: Inventaire,
     texte: Option<String>,
-}
-
-/// **Les octets d'un lot** : ses images lues — en attendant celles qu'un ouvrier a promises —,
-/// puis un `.glucose` entier.
-fn assembler(lot: &Project, cles: &[String], objets: &crate::persist::objets::Objets) -> Vec<u8> {
-    let mut actifs = AssetStore::new();
-    for cle in cles {
-        if let Some(octets) = objets.lire_en_attendant(cle) {
-            actifs.insert(cle.clone(), octets);
-        }
-    }
-    glucose_core::persist::encode(lot, &actifs, 0)
 }
 
 struct Collage {
@@ -126,17 +112,16 @@ impl GlucoseApp {
         let Inventaire {
             images,
             annotations,
-            cles,
+            ..
         } = inventaire;
         let compte = images.len() + annotations.len();
         let objets = Arc::clone(&self.disque.objets);
         let (envoi, recu) = channel();
         std::thread::spawn(move || {
-            let _ = envoi.send(assembler(&lot, &cles, &objets));
+            let _ = envoi.send(super::formes::rassembler(&lot, &objets, (texte, true)));
         });
         self.echanges.copie = Some(Copie {
             recu,
-            texte,
             compte,
             a_retirer: couper.then_some((board, images, annotations)),
         });
@@ -156,9 +141,10 @@ impl GlucoseApp {
         })
     }
 
-    /// **Les nœuds tenus sortent de la fenêtre** : ils reviennent à leur place, et leur lot part
-    /// dans un glisser vers une autre fenêtre — de Glucose, ou un traitement de texte, qui en
-    /// reçoit les textes (fiche 51 § 2).
+    /// **Les nœuds tenus sortent de la fenêtre** : ils reviennent à leur place, et ils partent
+    /// dans un glisser vers une autre fenêtre (fiche 51 § 2) — le lot pour Glucose, les textes
+    /// pour un traitement de texte, les images en fichiers pour Discord, un navigateur,
+    /// l'explorateur (COPIER-1).
     ///
     /// Les octets se lisent ici, sur le fil qui dessine : le glisser de Windows est bloquant
     /// de toute façon, et tient la main jusqu'au lâcher. C'est la seule copie qui ne passe pas
@@ -174,10 +160,10 @@ impl GlucoseApp {
         else {
             return;
         };
-        let octets = assembler(&depart.lot, &depart.inventaire.cles, &self.disque.objets);
+        let formes =
+            super::formes::rassembler(&depart.lot, &self.disque.objets, (depart.texte, false));
         self.redraw();
-        let texte = depart.texte.as_deref();
-        if let Err(e) = crate::plateforme::glisser_un_lot(&fenetre, texte, &octets) {
+        if let Err(e) = crate::plateforme::glisser_la_selection(&fenetre, formes) {
             eprintln!("[Glucose] le glisser vers une autre fenetre n'a pas pu partir : {e}");
         }
         self.mark_dirty();
@@ -217,7 +203,7 @@ impl GlucoseApp {
         if let Some(copie) = &self.echanges.copie {
             match recevoir(&copie.recu, attendre) {
                 Reponse::PasEncore => return,
-                Reponse::Prete(octets) => self.finir_la_copie(Some(octets)),
+                Reponse::Prete(formes) => self.finir_la_copie(Some(formes)),
                 Reponse::Perdue => self.finir_la_copie(None),
             }
         }
@@ -231,33 +217,22 @@ impl GlucoseApp {
                 Reponse::Perdue => self.finir_le_collage(None),
             }
         }
-        if let Some(image) = &self.echanges.image {
-            let rendu = match recevoir(image, attendre) {
-                Reponse::PasEncore => return,
-                Reponse::Prete(rendu) => Some(rendu),
-                Reponse::Perdue => None,
-            };
-            self.echanges.image = None;
-            self.finir_l_image(rendu);
-        }
     }
 
     /// Une copie dont le fil de fond n'a rien rendu — ce qu'une épreuve ne sait pas provoquer
     /// autrement.
     #[cfg(test)]
-    pub(crate) fn finir_la_copie_pour_l_epreuve(&mut self, octets: Option<Vec<u8>>) {
-        self.finir_la_copie(octets);
+    pub(crate) fn finir_la_copie_pour_l_epreuve(&mut self, formes: Option<super::Formes>) {
+        self.finir_la_copie(formes);
     }
 
-    fn finir_la_copie(&mut self, octets: Option<Vec<u8>>) {
+    fn finir_la_copie(&mut self, formes: Option<super::Formes>) {
         let Some(copie) = self.echanges.copie.take() else {
             return;
         };
-        let ecrit = octets
+        let ecrit = formes
             .ok_or_else(|| "la copie n'a pas abouti".to_string())
-            .and_then(|o| {
-                presse_papiers::ouvrir().and_then(|mut a| a.ecrire_un_lot(copie.texte, o))
-            });
+            .and_then(|f| presse_papiers::ouvrir().and_then(|mut a| a.ecrire_la_selection(f)));
         if let Err(e) = ecrit {
             // Rien n'est retiré : couper sans avoir copié perdrait la sélection.
             self.echec_presse_papiers(e);

@@ -120,7 +120,6 @@ impl GlucoseApp {
             MenuAction::JournalTechnique => self.revoir_la_telemetrie(),
             MenuAction::VoirCeQuiPart => self.voir_ce_qui_part(),
             MenuAction::Duplicate => self.duplicate_selection(),
-            MenuAction::CopierLImage => self.copier_l_image(),
             MenuAction::EnregistrerLImage => self.enregistrer_l_image_sous(),
             MenuAction::RemplacerParLImage => self.remplacer_les_liens_par_leur_image(),
             MenuAction::ToggleLock => self.toggle_lock(),

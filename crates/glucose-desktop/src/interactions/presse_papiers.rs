@@ -34,7 +34,7 @@ struct Contenu {
     texte: Option<String>,
     /// Un lot de nœuds (fiche 51 § 2) : comme celui du système, écrire un texte seul l'efface.
     lot: Option<Vec<u8>>,
-    /// Une image copiée par le menu (fiche 51 § 3), en PNG.
+    /// L'image seule d'une sélection copiée (COPIER-1), en PNG.
     image: Option<Vec<u8>>,
 }
 
@@ -124,39 +124,22 @@ impl Acces {
         }
     }
 
-    /// Y écrit un lot de nœuds, et le texte que les autres logiciels colleront à sa place.
-    pub fn ecrire_un_lot(&mut self, texte: Option<String>, lot: Vec<u8>) -> Result<(), String> {
-        match self {
-            #[cfg(not(target_os = "android"))]
-            Acces::Systeme(_) => {
-                crate::plateforme::presse_papiers::ecrire_un_lot(texte.as_deref(), &lot)
-            }
-            Acces::ASoi => {
-                A_SOI.with(|c| {
-                    *c.borrow_mut() = Contenu {
-                        texte,
-                        lot: Some(lot),
-                        image: None,
-                    }
-                });
-                Ok(())
-            }
-        }
-    }
-
-    /// Y écrit une image (fiche 51 § 3).
-    pub fn ecrire_une_image(
+    /// **Y confie la sélection**, sous toutes ses formes (COPIER-1, fiche 59) : celui du système
+    /// les porte toutes ; celui d'une épreuve garde le lot, le texte et l'image seule — ce qu'un
+    /// collage relit.
+    pub fn ecrire_la_selection(
         &mut self,
-        image: crate::interactions::clipboard::ImagePosee,
+        formes: crate::interactions::clipboard::Formes,
     ) -> Result<(), String> {
         match self {
             #[cfg(not(target_os = "android"))]
-            Acces::Systeme(_) => crate::plateforme::presse_papiers::ecrire_une_image(&image),
+            Acces::Systeme(_) => crate::plateforme::presse_papiers::ecrire_la_selection(formes),
             Acces::ASoi => {
                 A_SOI.with(|c| {
                     *c.borrow_mut() = Contenu {
-                        image: Some(image.png),
-                        ..Contenu::default()
+                        texte: formes.texte,
+                        lot: Some(formes.lot),
+                        image: formes.image.map(|i| i.png),
                     }
                 });
                 Ok(())
