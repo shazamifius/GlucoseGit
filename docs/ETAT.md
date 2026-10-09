@@ -5,8 +5,10 @@
 > des doigts, de la télémétrie et d'Android (fiches 54 et 55), celle du partage vers Glucose
 > et des documents du téléphone (fiche 56), celle du clavier, de l'appui long et des
 > documents qu'on renomme (fiche 57), celle des questions dessinées partout, des noms du
-> rail et des emojis (fiche 58), et celle de ses retours du 09/10 — la question au-dessus des
-> panneaux, le canevas qui suit, le copier unique (fiche 59). Ce document dit l'état **vérifié** du projet,
+> rail et des emojis (fiche 58), celle de ses retours du 09/10 — la question au-dessus des
+> panneaux, le canevas qui suit, le copier unique (fiche 59) —, et celle de ses essais du soir :
+> les dossiers, la carte au journal, le presse-papiers tenu, et le recul du copier sous Linux et
+> Mac qui retient la beta 3 (fiche 60). Ce document dit l'état **vérifié** du projet,
 > en une lecture. Il se réécrit à chaque fin de session qui change quelque chose d'important ;
 > l'historique, lui, vit dans le [carnet](carnet/00-INDEX.md).
 
@@ -14,10 +16,11 @@
 
 ## 1. En une page
 
-* **Glucose Rust est publié.** La **2.0.1-beta.1** est la release « latest » du dépôt depuis le
-  30/09/2026 : installeur Windows, AppImage, `.deb`, `.rpm`, et `nix run github:shazamifius/GlucoseGit`.
-  **La 2.0.2-beta.1 attend en brouillon** (08/10, fiche 55 § 1), APK Android compris : le clic
-  « Publish release » est son geste.
+* **Glucose Rust est publié.** La **2.0.2-beta.2** est la release « latest » du dépôt depuis le
+  09/10/2026 (construite sur `06f4217`, la fiche 58 — relevé sur GitHub le 09/10 au soir, aucun
+  document ne le disait) : installeur Windows, AppImage, `.deb`, `.rpm`, **l'APK Android**, et
+  `nix run github:shazamifius/GlucoseGit`. La 2.0.2-beta.1 (07/10) et la 2.0.1-beta.1 (30/09) la
+  précèdent. **Les fiches 59 et 60 ne sont dans aucune publication** : ce sera la 2.0.2-beta.3.
 * **Glucose Tauri bascule de lui-même.** Chaque Glucose Tauri installé (depuis la 1.0.1-beta.9)
   trouve la 2.0.1 dans le même `latest.json`, par le popup habituel. Ses documents s'ouvrent dans
   Glucose Rust, et ses données ne sont jamais touchées. Cette bascule a été répétée de bout en bout
@@ -29,7 +32,7 @@
   l'Ouest), éprouvé de bout en bout sur Internet ; Glucose y envoie avec l'accord de chacun,
   demandé au premier lancement. **Le 08/10 au soir, huit sessions y sont arrivées**, dont quatre
   de son téléphone (fiche 57 § 5) : la question dessinée a donc marché chez lui.
-* **Android : Glucose tourne sur son Redmi 9** (« oui, ça fonctionne sur téléphone », 08/10) —
+* **Android : Glucose tourne sur son Redmi 9** (« oui, ça fonctionne sur téléphone », 08/10 ; **mais le téléphone branché le 09/10 est un moto g54 5G** — lequel est le sien, à lui demander, fiche 60 § 4) —
   ARM 64 et 32 bits, Android 5.0 et après, avec les doigts. L'APK est signé de **la clé de
   Glucose pour Android** (créée le 08/10, `Documents\Glucose-cle-android`, et dans les secrets
   du dépôt) : la publication le joint à la release.
@@ -62,6 +65,17 @@
   téléphone, et son journal par le câble la dira. **Un APK neuf**, signé de sa clé (`3f2af005…`),
   est sur son Bureau (`Glucose.apk`), et l'aperçu de la question au-dessus des panneaux dans
   `Glucose apercus`.
+* **Fiche 60 — ses essais du 09/10 au soir** : **au PC, tout marche** (aucun panneau ; le
+  copier vers Discord « absolument impressionnant », textes, post-it et images ; recoller et
+  glisser parfaits) — sauf **le défilement au bord, « moche, pas fluide »**, qu'il remet à plus
+  tard. **Au téléphone**, la question passe au-dessus et « Supprimer » marche, **pas sur un
+  dossier** : corrigé (DOSSIER-1, en local — l'APK de son Bureau ne le porte pas). **La carte
+  graphique** part désormais au journal technique par ses numéros (CARTE-1, en local ; le
+  serveur redéployé et vérifié en ligne). **Sous Linux**, « tant de choses ne marchent pas » :
+  Glucose lâchait le presse-papiers sitôt la copie faite, qui disparaissait là où aucun
+  gestionnaire ne la reprend (TENU-1, en local, à prouver sur son Linux). **Et COPIER-1 fait
+  reculer Linux et Mac** (plus de « Copier l'image » vers les autres applications) : la
+  2.0.2-beta.3 attend son choix entre A et B (fiche 60 § 3).
 * **La parité avec Glucose Tauri est loin d'être atteinte.** Environ un quart du logiciel au dernier
   comptage (24/09), mais le cœur est solide : document, rendu, images, flèches, texte.
 * **Il ne peut dépenser aucun argent.** Pas de certificat Windows, pas de compte Apple : l'iPad passera
@@ -87,15 +101,15 @@
 | **Copier, coller** | **la sélection entière** (textes, images, flèches, membranes) par `Ctrl+C`/`Ctrl+X`/`Ctrl+V`, d'une fenêtre de Glucose à l'autre, et **glissée** de l'une à l'autre ; **un seul « Copier »** (COPIER-1, fiche 59) : le lot pour Glucose, le texte, et les images elles-mêmes — une seule en PNG, plusieurs en fichiers, écrits au premier collage qui les veut — pour Discord, un navigateur, Paint ; **le glisser emporte les images en fichiers** (Discord, Google Docs, le bureau) ; au clic droit sur une image : **Enregistrer l'image sous…** (les octets d'origine). Sous Linux et Mac, le copier ne pose encore que le lot |
 | **Organiser** | membranes qui **possèdent** ce qu'on y dépose, mode Focus, dossiers, domaines, Ordonner, aimant aux voisines, placement aimanté dès le premier clic |
 | **Fenêtre** | **le mode référence**, à la PureRef : `Ctrl+Maj+A` — sans interface, sans cadre, au premier plan, retenu à la relance ; déplacée au bouton droit, redimensionnée par un bord |
-| **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — pas encore prouvée, aucune release ne la porte |
+| **Mise à jour** | automatique, signée, au format de Tauri, sous Windows et Linux ; **sous Android, écrite** (fiche 58 § 6 : l'APK confié à l'installeur du système) — la 2.0.2-beta.2 la porte ; pas encore prouvée : il faut qu'une version suivante arrive à un téléphone qui a la beta 2 |
 
 ## 4. La qualité, mesurée
 
-* **Épreuves** : 2 253 sous Windows, clippy strict à zéro avec Rust 1.99, **et pour Android** ;
-  la fiche 59 a saboté vingt-neuf gardes, vingt-neuf chutes (deux épreuves aveugles trouvées
-  avant, et rendues voyantes). **Cinq commits attendent en local** (`486dd8b` à `2e7562e`, plus
-  la documentation) : rien n'est envoyé sans sa parole, et le code de Linux et Mac changé pour le
-  copier n'a été que relu — la CI le compilera. **Sur GitHub, à
+* **Épreuves** : **2 259** sous Windows, toutes vertes (fiche 60) ; clippy strict à zéro avec Rust 1.99, **et pour Android** ; la fiche 60 a saboté
+  quatorze gardes, quatorze chutes. **Les six commits de la fiche 59 sont partis avec la CI**
+  (`3fbf383`, exécution 37946507360) : **les dix tâches vertes**, Linux et les deux Mac compris.
+  **Attendent en local** : `abae87b` (DOSSIER-1), `e869805` (CARTE-1), `b72965a` (TENU-1), `a092eb7` (les cliquets tenus) et la
+  documentation de la fiche 60 — rien n'est envoyé sans sa parole. **Sur GitHub, à
   chaque envoi, dix tâches** : Windows, Linux, Mac à puce Apple, Mac Intel, le noyau pour Android
   et le web, **l'application Android et son APK** (nouvelle, jamais lancée), NixOS, l'installeur et
   la mise à jour, la répétition de la bascule, les paquets Linux. **Les dix vertes sur
@@ -204,6 +218,21 @@ parfait », 07/10 au soir), sauf où c'est dit :
 * **la provenance des images** (son point 1) : la suite, chantier 6 — il faudra sa clé SauceNAO ;
 * **l'ergonomie** (le rail qui prend tout l'écran, les boutons, les fenêtres) : **après**, à sa
   demande — un chantier de conception, avec des planches.
+
+## 6 ter. Ses essais du 09/10 au soir — fiche 60
+
+* **Jugés à son écran** : aucun panneau au lancement ; le copier vers Discord (une et trois
+  images, les textes, les post-it) ; recoller le bloc dans Glucose ; le glisser vers Discord,
+  Docs et le bureau — **sous Windows** ; au téléphone, la question au-dessus des panneaux et
+  « Supprimer » sur une membrane.
+* **Le défilement au bord** : « moche, pas fluide, pas très pratique » — remis à plus tard par
+  lui ; sa chronique (16 % des images au bord, un tressaut de 64 px au p99) est à relire avec.
+* **Les dossiers au téléphone** : corrigés (DOSSIER-1), **à son téléphone** avec un APK neuf.
+* **Son Linux** (2.0.2-beta.2) : « tant de choses ne marchent pas » — TENU-1 en est une cause
+  probable ; **la liste est à lui demander**.
+* **Le recul de COPIER-1 sous Linux et Mac**, et la beta 3 qui attend **A ou B** (fiche 60 § 3).
+* **Au repos, sa chronique redessine pour les messages** (371 images, 1,6 par seconde) : la
+  charte dit zéro — à reprendre.
 
 ## 7. Points de vigilance
 

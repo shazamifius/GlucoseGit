@@ -198,7 +198,7 @@ fenêtre** (`DoDragDrop`) et le **presse-papiers** de ce qu'`arboard` ne sait pa
 objet, `selection_windows` (COPIER-1, `IDataObject`), qui part au presse-papiers
 (`OleSetClipboard`) et dans le glisser : le lot « Glucose.Lot », le texte, l'image seule en PNG et
 `CF_DIBV5`, plusieurs images en `CF_HDROP` — des fichiers écrits au premier collage qui les veut,
-dans `%TEMP%\glucose-copies`, et rendus à la fermeture (`OleFlushClipboard`) —, le téléchargement (WinHTTP sous Windows,
+dans `%TEMP%\glucose-copies`, et rendus à la fermeture (`OleFlushClipboard`) ; ailleurs, `arboard` ne pose que le lot, et son objet est **tenu** toute la vie de l'application (TENU-1 : sous X11, le copieur sert le collage) —, le téléchargement (WinHTTP sous Windows,
 `ureq` ailleurs), l'offre de mémoire (`OfferVirtualMemory`, `madvise` sous Linux), le budget de la
 carte (DXGI), la priorité des fils, l'identité pour la barre des tâches, l'heure locale, le journal
 des plantages de Windows, la batterie.
@@ -214,7 +214,9 @@ des plantages de Windows, la batterie.
   écrit au fil de l'eau, qui survit à un plantage ; au lancement, comment la session d'avant a fini
   (et, sous Windows, dans quel module elle a planté). Elle garde la session précédente et
   toutes celles qui ont mal fini, efface le reste. Une session se reconnaît par sa **clé** (son
-  début et son processus), pas par le nom de son fichier.
+  début et son processus), pas par le nom de son fichier. Ses lignes ne portent que des nombres
+  et des mots fixés à la compilation ; la carte graphique y entre par ses numéros (CARTE-1,
+  fiche 60), que la présentation rend avec son nom (`Presenter::carte`).
 * **La boîte noire qui voyage** (`telemetrie.rs`, fiche 54) : **avec l'accord de chacun**, les
   sessions closes partent au lancement, sur un fil à part, vers un Worker de Cloudflare
   (`outils/telemetrie/`, qui n'accepte que les noms de ses listes fermées). Rien ne part tant que

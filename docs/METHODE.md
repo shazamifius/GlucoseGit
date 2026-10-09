@@ -1,6 +1,6 @@
 # Comment on travaille sur Glucose
 
-> **Au 09/10/2026** (fiche 59). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
+> **Au 09/10/2026** (fiches 59 et 60). Les règles qui font foi, la façon de prouver, et les leçons que ce dépôt a
 > payées — écrites pour qu'une session neuve ne les repaie pas. La **charte** elle-même (100 images
 > par seconde, aucune machine exclue, deux voies, élégance mathématique) vit dans les mémoires de
 > Claude, qui font autorité : les lire **en entier** avant tout.
@@ -100,6 +100,10 @@
 | **Écrire à chaque geste ce qu'on ne lira peut-être jamais** : les originaux de toutes les images à chaque `Ctrl+C`, pour recoller dans Glucose, qui ne les lit pas (fiche 59, COPIER-1) | fabriquer à la demande (`IDataObject::GetData`) ; ne garder que le dernier |
 | **Une limite du matériel jamais lue** : seule la fenêtre se mesurait au plafond des textures de la carte ; une grande photo demandait ce qu'un téléphone refuse (fiche 59, PLAFOND-1) | toute ressource demandée à la carte se borne par ce qu'elle annonce (`Limits`) |
 | **Une épreuve qui compare des chemins quand il fallait prouver une écriture** : « une seule écriture » passait aussi avec une réécriture aux mêmes noms (fiche 59) | changer entre deux appels ce que le second ne doit pas toucher, et vérifier qu'il n'y a pas touché |
+| **Un chantier qui ajoute sur un système et retire sur les autres** : COPIER-1 a retiré « Copier l'image » partout et ne l'a remplacé que sous Windows — Linux et Mac reculaient, la CI verte (fiche 60 § 3) | relire ce qu'un chantier **retire**, plateforme par plateforme, avant de publier |
+| **La durée de vie d'une bibliothèque jamais lue** : un `arboard::Clipboard` ouvert puis lâché à chaque geste — juste sous Windows, faux sous X11, où le copieur sert le collage ; la copie disparaissait (fiche 60, TENU-1) | lire la documentation et la source jusqu'au `Drop` ; tenir ce que la plateforme veut vivant |
+| **Un compte refait à chaque endroit** : le menu, la barre et le clavier comptaient chacun la sélection, et deux oubliaient le dossier (fiche 60, DOSSIER-1) | une seule question au noyau (`compte_de_la_selection`), lue partout |
+| **Un diagnostic bâti sur le nom d'un appareil** : les documents disaient Redmi 9, le téléphone branché est un moto g54 5G (fiche 60 § 4) | demander au système ce qui est branché (`Get-PnpDevice`, `adb devices`) avant de raisonner sur lui |
 
 ## 5. Les pièges pratiques
 
@@ -134,6 +138,10 @@
   Les rejouer seules avant de conclure (fiche 59).
 * **`cargo check --target x86_64-unknown-linux-gnu` ne passe pas ici** : la caisse `ring` veut un
   compilateur C de Linux. Le code hors de Windows se relit à la main, et la CI le compile.
+* **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le
+  fichier, le dossier seul échoue sur ce Node. **Cloudflare refuse un client sans en-tête
+  d'identité** (erreur 1010) : un essai en ligne donne un `user-agent`, s'efface ensuite
+  (`DELETE /v1/installations/<id>`), et la base se relit pour le prouver (fiche 60).
 * **`cargo test --workspace` compile beaucoup** : `target/` a atteint 94 Go avant le rangement du
   06/10. `cargo clean` de temps en temps ne coûte qu'une recompilation.
 

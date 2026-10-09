@@ -1,6 +1,6 @@
 # La suite, dans l'ordre
 
-> **Au 09/10/2026, au soir** (fiche 59). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
+> **Au 09/10/2026, au soir** (fiches 59 et 60). La feuille de route de Glucose Rust après la V2. Elle remplace les plans des
 > fiches 36, 44 et 46 du [carnet](carnet/00-INDEX.md), qui en gardent le raisonnement. Chaque
 > chantier dit **pourquoi il est là**, et ce qui le déclare fini. Tout y est à remettre en question.
 >
@@ -36,6 +36,21 @@ mise à jour automatique fonctionne pour tout le monde**.
 | [x] | **Le journal technique lisible** (sa remarque du 09/10) : le dossier `journal-technique`, des fichiers à l'heure de leur session, un `LISEZ-MOI.txt` en colonnes ; rien de ce qui est parti ne repart (joué sur une copie de ses données) | fiche 58 § 9 |
 | [~] | **La mise à jour automatique, vérifiée pour tout le monde** avant de publier : Windows et Linux (la bascule est répétée par la CI) ; **Android : écrite (MAJ-ANDROID-1, fiche 58 § 6)** — l'APK confié à `PackageInstaller`, signé de la clé de Glucose et inscrit au manifeste. **Ne se prouve qu'à une publication** : le premier Glucose qui la porte s'installe à la main, le suivant arrive seul ; la 2.0.2-beta.1 en brouillon ne la porte pas (à republier) | sa condition à la publication |
 
+## 0 ter. La 2.0.2-beta.3 — **d'abord** (fiche 60)
+
+Sa demande du 09/10 au soir : *« envoie tout sur GitHub avec la CI, plus la publication de la
+2.0.2 beta 3 »*. L'envoi est fait (dix tâches vertes sur `3fbf383`) ; la publication est retenue
+par un recul trouvé en relisant COPIER-1.
+
+| | chantier | où en est-il |
+|---|---|---|
+| [ ] | **Le recul de COPIER-1 sous Linux et Mac** : la beta 2 y avait « Copier l'image » (l'image partait vers Discord) ; le copier unique n'y pose que le lot, `arboard` ne posant qu'une forme à la fois | **son choix** : A (remettre « Copier l'image » sous Linux et Mac seulement, ce soir, puis publier) ou B (la voie native d'abord : un propriétaire X11 par `x11rb`, `INCR` compris, et `NSPasteboard` à plusieurs types) — fiche 60 § 3 ; mon avis : A puis B |
+| [~] | **DOSSIER-1 — un dossier choisi a son menu et sa barre** (« les dossiers ça ne fonctionne pas ») | en local (`abae87b`) ; **à son téléphone, avec un APK neuf** — celui de son Bureau ne le porte pas |
+| [~] | **CARTE-1 — la carte graphique au journal technique, par ses numéros** | en local (`e869805`) ; le serveur **redéployé et vérifié en ligne** ; la première vraie session la montrera dans la base |
+| [~] | **TENU-1 — le presse-papiers du système tenu toute la vie de Glucose** (cause probable de « tant de choses ne marchent pas » sous Linux) | en local (`b72965a`) ; **à son Linux** |
+| [ ] | **Son Linux** : la liste de ce qui ne marche pas ; est-ce la NixOS de WSL (« NixOS-Proteo ») sur ce PC, et peut-on s'en servir pour compiler et essayer ? | **à lui demander** |
+| [ ] | **L'envoi** des quatre commits (`abae87b`, `e869805`, `b72965a`, `a092eb7`) et de la documentation, avec la CI ; puis la publication (Actions → Publier, en brouillon) ; son clic « Publish release » | **à sa parole** |
+
 ## 0 bis. Ses retours du 09/10 — **les problèmes d'abord, l'ergonomie ensuite** (fiche 59)
 
 Son conseil, suivi : *« ne t'y concentre pas d'abord ; corrige plutôt les problèmes — l'ergonomie,
@@ -43,11 +58,11 @@ la praticité, ce sont des domaines beaucoup plus longs et complexes »*.
 
 | | chantier | où en est-il |
 |---|---|---|
-| [~] | **DECISION-1 — la question par-dessus les panneaux**, sur les deux voies ; **aucun panneau au lancement** | vu sur l'aperçu du téléphone ; **à son téléphone** |
-| [~] | **« Supprimer » au téléphone** — l'APK de ses captures (07/10) n'avait ni appui long ni marges ; l'actuel les a | une épreuve le joue ; **à confirmer** avec l'APK neuf |
-| [ ] | **Les rayures du téléphone** — non reproduites sur ce PC (Vulkan, GL, DX12) ; PLAFOND-1 (jamais une texture plus grande que la carte) fait ; le journal du téléphone dit sa carte au lancement | **son journal par le câble** (`adb logcat -s Glucose`), puis la cause ; la ligne « carte » du journal technique attend le redéploiement du serveur ; la vérification des deux voies sur l'appareil, seulement si le pilote est en cause |
-| [~] | **DEFILE-1 — le canevas défile quand on tient un nœud près du bord** (une bande, la cible d'un doigt ; *Push-Edge* lu et écarté) | **à son écran** : la vitesse est un nombre de ressenti |
-| [~] | **COPIER-1 — un seul copier, et une image reste une image** : le lot, le texte, les images (une en PNG, plusieurs en fichiers fabriqués à la demande) ; le glisser vers Discord, Docs, le bureau | **à son écran** ; Linux et Mac : le lot seulement (`arboard`), une voie native à écrire ; Android : le presse-papiers du système (§ 2) |
+| [x] | **DECISION-1 — la question par-dessus les panneaux**, sur les deux voies ; **aucun panneau au lancement** | **jugé** au PC et au téléphone (09/10 au soir, fiche 60) |
+| [x] | **« Supprimer » au téléphone** — l'APK de ses captures (07/10) n'avait ni appui long ni marges ; l'actuel les a | **« ça fonctionne »** (09/10 au soir) — sauf sur un dossier : DOSSIER-1 (§ 0 ter) |
+| [ ] | **Les rayures du téléphone** — non reproduites sur ce PC (Vulkan, GL, DX12) ; PLAFOND-1 (jamais une texture plus grande que la carte) fait ; le journal du téléphone dit sa carte au lancement | **« pour l'instant rien, je surveillerai »** (09/10 au soir) ; si elles reviennent : le débogage USB, puis `adb logcat -s Glucose` ; la ligne « carte » part au journal technique (CARTE-1). **Le téléphone branché est un moto g54 5G**, les documents disent un Redmi 9 : lequel ? |
+| [ ] | **DEFILE-1 — le canevas défile quand on tient un nœud près du bord** (une bande, la cible d'un doigt ; *Push-Edge* lu et écarté) | **« moche, pas fluide, pas très pratique »** (09/10 au soir) — remis à plus tard par lui ; à reprendre avec sa chronique |
+| [x] | **COPIER-1 — un seul copier, et une image reste une image** : le lot, le texte, les images (une en PNG, plusieurs en fichiers fabriqués à la demande) ; le glisser vers Discord, Docs, le bureau | **sous Windows, jugé** : « absolument impressionnant », recoller et glisser « parfaits » (09/10 au soir) ; **Linux et Mac reculent** (§ 0 ter) ; Android : le presse-papiers du système (§ 2) |
 | [ ] | **La provenance des images** (son point 1 ; la fiche 27, étapes 1 à 4) : la page d'origine gardée au dépôt, l'empreinte perceptuelle mesurée sur ses documents (une copie), « Trouver l'origine… » par SauceNAO, la provenance dans le document | **sa clé SauceNAO** pour l'étape 3 ; la carte « Origine » lui sera montrée en image avant d'être écrite |
 | [ ] | **L'ergonomie** — le rail qui prend tout l'écran, les boutons, les fenêtres | **après**, à sa demande : des planches, regardées par lui |
 | [ ] | **L'export PNG de la sélection** — son idée de repli (les images composées dans la disposition de l'auteur) | avec les exports (§ 5) |
