@@ -41,6 +41,13 @@ ureq = { version = "3.4", default-features = false, features = ["rustls"] }
 arboard = "3.4"
 rfd = "0.15"
 
+# La sélection de X11, servie par Glucose lui-même : le lot, le texte, l'image et les fichiers
+# ensemble, `INCR` compris (COPIER-1, fiche 61, decisions/11). `x11rb` est déjà là par `arboard`,
+# même version ; `libc` pour l'attente bornée d'une lecture (`poll`).
+[target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))'.dependencies]
+x11rb = "0.13"
+libc = "0.2"
+
 # Android : la fenêtre et la boucle par `GameActivity`, la seule porte où le clavier virtuel
 # marche (fiche 50 § 3) — une fonctionnalité de `winit`, aucune caisse de plus.
 [target.'cfg(target_os = "android")'.dependencies]

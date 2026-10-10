@@ -2,6 +2,7 @@
 //! l'interrogent — sans presse-papiers, sans écran : le vrai presse-papiers est celui de
 //! l'utilisateur, qu'une épreuve ne touche jamais.
 
+use super::super::copies::dossier_des_copies;
 use super::*;
 use crate::interactions::clipboard::{Fichier, ImagePosee};
 use std::sync::Arc;
@@ -194,14 +195,4 @@ fn test_la_liste_de_fichiers_a_la_forme_de_l_explorateur() {
         chemins(&o),
         [PathBuf::from("C:\\a"), PathBuf::from("C:\\b")]
     );
-}
-
-/// **Un nom libre ne regarde pas les majuscules** : Windows non plus.
-#[test]
-fn test_un_nom_libre_ignore_les_majuscules() {
-    let mut pris = HashSet::new();
-    assert_eq!(nom_libre("Photo.PNG", &mut pris), "Photo.PNG");
-    assert_eq!(nom_libre("photo.png", &mut pris), "photo 2.png");
-    assert_eq!(nom_libre("sans", &mut pris), "sans");
-    assert_eq!(nom_libre("sans", &mut pris), "sans 2");
 }

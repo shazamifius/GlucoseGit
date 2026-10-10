@@ -1,19 +1,20 @@
 //! **Un lot de nœuds dans le presse-papiers du système** (fiche 51 § 2) : ce qu'`arboard` ne
 //! sait pas dire.
 //!
-//! # Pourquoi un format à soi sous Windows, et du HTML ailleurs
+//! # Pourquoi un format à soi, et pas du HTML
 //!
 //! Le lot est un petit `.glucose`, images comprises : il pèse ce que pèsent ses photos. Les
 //! logiciels sur le web (tldraw, Figma) le glissent dans du HTML, parce qu'un navigateur n'a pas
 //! d'autre canal ; mais tout logiciel qui colle du HTML — Word, un client de courrier — recevrait
-//! alors des mégaoctets de base64 qu'il ne sait pas lire. Windows offre ce que le web n'a pas :
-//! un **format enregistré** (`RegisterClipboardFormat`), que les autres logiciels ne demandent
-//! jamais, et qui porte les octets tels quels, sans base64. Le texte des nœuds et les images
-//! l'accompagnent : c'est ce que les autres logiciels collent — sous Windows, par un objet qui
-//! fabrique chaque forme quand on la lui demande (COPIER-1, [`super::selection_windows`]).
+//! alors des mégaoctets de base64 qu'il ne sait pas lire. Le système offre ce que le web n'a
+//! pas : un **format à soi**, que les autres logiciels ne demandent jamais, et qui porte les
+//! octets tels quels — sous Windows un format enregistré (`RegisterClipboardFormat`), sous X11 un
+//! type (`application/x-glucose-lot`). Le texte des nœuds et les images l'accompagnent : c'est ce
+//! que les autres logiciels collent, par un objet qui fabrique chaque forme quand on la lui
+//! demande (COPIER-1 : [`super::selection_windows`], et `selection_x11` sous Linux).
 //!
-//! Ailleurs, `arboard` ne connaît pas de format à soi : le lot voyage dans du HTML, comme chez
-//! tldraw, avec le même texte de repli. C'est la seule voie qu'il ouvre sur Linux et macOS.
+//! Sous macOS, `arboard` ne connaît pas de format à soi : le lot y voyage encore dans du HTML,
+//! comme chez tldraw, avec le même texte de repli.
 //!
 //! # La longueur voyage avec le lot
 //!
@@ -71,12 +72,23 @@ fn est_tenu() -> bool {
 pub fn rendre_avant_de_quitter() {
     #[cfg(windows)]
     super::selection_windows::rendre_avant_de_quitter();
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+    super::selection_x11::rendre_avant_de_quitter();
     lacher();
 }
 
+/// **Un lot que le presse-papiers porte** : déjà là, ou à lire chez un autre Glucose (sous X11,
+/// c'est lui qui le sert) — toujours lu sur le fil du collage, jamais sur celui qui dessine.
+pub type LotALire = Box<dyn FnOnce() -> Option<Vec<u8>> + Send>;
+
 /// Le lot que porte le presse-papiers, s'il en porte un.
-pub fn lire_un_lot() -> Option<Vec<u8>> {
+pub fn lire_un_lot() -> Option<LotALire> {
     imp::lire_un_lot()
+}
+
+/// Un lot déjà là.
+pub fn lot_deja_la(lot: Vec<u8>) -> LotALire {
+    Box::new(move || Some(lot))
 }
 
 /// **Le lot, précédé de sa longueur** : le presse-papiers et le glisser l'emportent ainsi.
@@ -182,7 +194,7 @@ mod imp {
         }
     }
 
-    pub fn lire_un_lot() -> Option<Vec<u8>> {
+    pub fn lire_un_lot() -> Option<super::LotALire> {
         let format = format().ok()?;
         let _ouvert = Ouvert::prendre().ok()?;
         unsafe {
@@ -195,18 +207,33 @@ mod imp {
             // Sûr : le système garantit `taille` octets lisibles tant que le bloc est verrouillé.
             let lot = super::deballer_le_lot(std::slice::from_raw_parts(ou, taille));
             let _ = GlobalUnlock(bloc);
-            lot
+            lot.map(super::lot_deja_la)
         }
     }
 }
 
-#[cfg(all(not(windows), not(target_os = "android")))]
+/// Sous Linux et les autres Unix de X11 : le propriétaire de Glucose sert toutes les formes
+/// (COPIER-1, fiche 61).
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+mod imp {
+    pub fn ecrire_la_selection(
+        formes: crate::interactions::clipboard::Formes,
+    ) -> Result<(), String> {
+        super::super::selection_x11::confier_au_presse_papiers(formes)
+    }
+
+    pub fn lire_un_lot() -> Option<super::LotALire> {
+        super::super::selection_x11::lire_un_lot()
+    }
+}
+
+#[cfg(target_os = "macos")]
 mod imp {
     /// L'attribut qui porte le lot, en base64, dans le HTML.
     const ATTRIBUT: &str = "data-glucose-lot";
 
     /// `arboard` ne pose qu'une forme à la fois : le lot, dans du HTML, avec le texte de repli.
-    /// Les images en fichiers attendent une voie native (COPIER-1, fiche 59).
+    /// Les images attendent `NSPasteboard` à plusieurs types (COPIER-1, fiche 61).
     pub fn ecrire_la_selection(
         formes: crate::interactions::clipboard::Formes,
     ) -> Result<(), String> {
@@ -217,9 +244,9 @@ mod imp {
             .map_err(|e| e.to_string())
     }
 
-    pub fn lire_un_lot() -> Option<Vec<u8>> {
+    pub fn lire_un_lot() -> Option<super::LotALire> {
         let html = arboard::Clipboard::new().ok()?.get().html().ok()?;
-        super::html::deballer(ATTRIBUT, &html)
+        super::html::deballer(ATTRIBUT, &html).map(super::lot_deja_la)
     }
 }
 
@@ -236,7 +263,7 @@ mod imp {
         Err(PAS_ENCORE.into())
     }
 
-    pub fn lire_un_lot() -> Option<Vec<u8>> {
+    pub fn lire_un_lot() -> Option<super::LotALire> {
         None
     }
 }
@@ -282,10 +309,10 @@ pub(crate) fn dib_v5(largeur: u32, hauteur: u32, rgba: &[u8]) -> Vec<u8> {
     o
 }
 
-/// Le lot dans du HTML, pour les systèmes où le presse-papiers n'a pas de format à soi. Écrit
-/// partout, pour que ses épreuves tournent aussi sous Windows.
-// Les bureaux Linux et Mac seuls le portent : Windows a son format, Android pas encore de porte.
-#[cfg_attr(any(windows, target_os = "android"), allow(dead_code))]
+/// Le lot dans du HTML, pour les systèmes où le presse-papiers n'a pas encore de format à soi.
+/// Écrit partout, pour que ses épreuves tournent aussi sous Windows.
+// Le Mac seul le porte encore : Windows et X11 ont leur format, Android pas encore de porte.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub(crate) mod html {
     /// Le texte visible, échappé, et le lot dans un attribut — que le navigateur ignore.
     pub fn envelopper(attribut: &str, texte: &str, lot: &[u8]) -> String {

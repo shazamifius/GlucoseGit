@@ -44,12 +44,25 @@ jobs:
           components: clippy, rustfmt
 
       # `rfd` ouvre les dialogues natifs par GTK 3 ; Mesa donne une carte graphique logicielle
-      # (lavapipe).
+      # (lavapipe) ; Xvfb un serveur X sans écran, et `xclip` un demandeur de la sélection qui
+      # n'est pas Glucose (plateforme::selection_x11).
       - name: Dépendances système (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev pkg-config mesa-vulkan-drivers libvulkan1
+          sudo apt-get install -y libgtk-3-dev pkg-config mesa-vulkan-drivers libvulkan1 xvfb xclip
+
+      # La sélection de X11 (COPIER-1, fiche 61) s'éprouve sur un vrai serveur : un Xvfb à elle,
+      # jamais un écran. Sans lui, ses épreuves tombent au lieu de se sauter en vert.
+      # `-noreset` : sans lui, le serveur se réinitialise chaque fois que son dernier client
+      # part — entre deux épreuves — et coupe un moment les connexions ; une épreuve sur vingt
+      # tombait ainsi (288 réinitialisations comptées dans son journal).
+      - name: Un serveur X d'épreuve (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          Xvfb :99 -screen 0 1280x800x24 -nolisten tcp -noreset &
+          echo "GLUCOSE_ECRAN_X_D_EPREUVE=:99" >> "$GITHUB_ENV"
+          echo "GLUCOSE_EXIGER_UN_SERVEUR_X=1" >> "$GITHUB_ENV"
 
       - uses: Swatinem/rust-cache@v2
 
@@ -70,7 +83,7 @@ jobs:
       # Une carte logicielle est promise sur chaque machine : une épreuve graphique qui
       # se sauterait faute de carte mentirait en vert. Elle tombe donc (present::banc_gpu).
       # Les épreuves n'ont jamais le presse-papiers du système (interactions::presse_papiers) :
-      # aucun écran n'est à fournir.
+      # aucun écran n'est à fournir — seule la sélection de X11 a son serveur, au-dessus.
       - name: Tests
         run: cargo test --workspace --no-fail-fast
         env:

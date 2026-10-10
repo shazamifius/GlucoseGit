@@ -79,3 +79,47 @@ fn test_une_image_sans_fichier_s_appelle_image() {
     assert_eq!(nom_du_fichier("lot:0123abcd", &png(1)), "image.png");
     assert_eq!(nom_du_fichier("sha256:ff00", b"GIF89a....."), "image.gif");
 }
+
+/// Des formes faites à la main : avec ou sans texte, avec ou sans image seule, et tant de
+/// fichiers.
+fn formes_de(texte: bool, image_seule: bool, fichiers: usize) -> Formes {
+    Formes {
+        lot: Vec::new(),
+        texte: texte.then(|| "note".to_string()),
+        image: image_seule.then(|| ImagePosee {
+            png: Vec::new(),
+            largeur: 1,
+            hauteur: 1,
+            rgba: vec![0; 4],
+        }),
+        fichiers: (0..fichiers)
+            .map(|k| Fichier {
+                nom: format!("{k}.png"),
+                octets: Arc::new(vec![1]),
+            })
+            .collect(),
+        date: 0,
+    }
+}
+
+/// **La règle des formes, une fois pour tous les systèmes** : le lot toujours, le texte s'il y en
+/// a ; au presse-papiers, une image seule en image et **jamais aussi** en fichier (Discord en
+/// ferait deux pièces jointes) ; sinon les fichiers dès une image — le glisser compris.
+#[test]
+fn test_les_formes_qui_partent_suivent_une_seule_regle() {
+    use Forme::{Fichiers, Image, Lot, Texte};
+    use Pour::{Glisser, PressePapiers};
+    assert_eq!(
+        formes_de(true, true, 1).offertes(PressePapiers),
+        [Lot, Texte, Image]
+    );
+    assert_eq!(formes_de(false, true, 1).offertes(Glisser), [Lot, Fichiers]);
+    assert_eq!(
+        formes_de(false, false, 3).offertes(PressePapiers),
+        [Lot, Fichiers]
+    );
+    assert_eq!(
+        formes_de(true, false, 0).offertes(PressePapiers),
+        [Lot, Texte]
+    );
+}

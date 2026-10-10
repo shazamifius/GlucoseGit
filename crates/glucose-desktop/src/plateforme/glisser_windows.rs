@@ -68,7 +68,8 @@ pub fn glisser(
     fenetre: *mut core::ffi::c_void,
     formes: crate::interactions::clipboard::Formes,
 ) -> Result<bool, String> {
-    use super::selection_windows::{Pour, Selection};
+    use super::selection_windows::Selection;
+    use crate::interactions::clipboard::Pour;
     let objet: IDataObject = Selection::nouvelle(formes, Pour::Glisser)?.into();
     let source: IDropSource = Source.into();
     let mut effet = DROPEFFECT::default();

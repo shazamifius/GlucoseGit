@@ -148,12 +148,14 @@ impl Acces {
         }
     }
 
-    /// Le lot de nœuds qu'il porte, s'il en porte un.
-    pub fn lot(&mut self) -> Option<Vec<u8>> {
+    /// Le lot de nœuds qu'il porte, s'il en porte un — à lire sur le fil du collage.
+    pub fn lot(&mut self) -> Option<crate::plateforme::presse_papiers::LotALire> {
         match self {
             #[cfg(not(target_os = "android"))]
             Acces::Systeme(_) => crate::plateforme::presse_papiers::lire_un_lot(),
-            Acces::ASoi => A_SOI.with(|c| c.borrow().lot.clone()),
+            Acces::ASoi => A_SOI
+                .with(|c| c.borrow().lot.clone())
+                .map(crate::plateforme::presse_papiers::lot_deja_la),
         }
     }
 }

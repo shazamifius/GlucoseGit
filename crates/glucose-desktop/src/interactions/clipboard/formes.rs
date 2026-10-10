@@ -7,8 +7,9 @@
 //!
 //! `Ctrl+C` emporte donc tout ce qu'une autre application peut vouloir : le **lot** de Glucose,
 //! le **texte** des nœuds de texte, et les **images** elles-mêmes — l'image seule en PNG et en
-//! pixels, chaque image en fichier, octets d'origine. Ce module les rassemble ; ce que chaque
-//! système en fait, et quand il les fabrique, vit dans `plateforme` (`selection_windows`).
+//! pixels, chaque image en fichier, octets d'origine. Ce module les rassemble, et dit **lesquelles
+//! partent** ([`Formes::offertes`]) ; ce que chaque système en fait, et quand il les fabrique, vit
+//! dans `plateforme` (`selection_windows`, `selection_x11`).
 //!
 //! Les images se lisent **une fois**, et servent au lot comme aux fichiers.
 
@@ -38,6 +39,49 @@ pub struct Formes {
     pub fichiers: Vec<Fichier>,
     /// La date du lot, à la nanoseconde : le nom du dossier où ses fichiers s'écriront.
     pub date: i64,
+}
+
+/// Pour quoi la sélection part : ses formes n'y sont pas les mêmes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pour {
+    PressePapiers,
+    Glisser,
+}
+
+/// Une forme de la sélection, telle qu'une autre application la prend.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Forme {
+    Lot,
+    Texte,
+    /// L'image seule : un PNG, et ses pixels là où le système les veut à part.
+    Image,
+    /// Chaque image en fichier, octets d'origine.
+    Fichiers,
+}
+
+impl Formes {
+    /// **Les formes qui partent — la règle de COPIER-1, la même sur chaque système**, que chacun
+    /// dit dans ses formats.
+    ///
+    /// * **toujours** le lot de Glucose (un bloc recolle un bloc), et le texte s'il y en a ;
+    /// * **au presse-papiers, une image seule part en image, et pas en fichier** : Chromium — donc
+    ///   Discord, Google Docs, tout navigateur — fait une pièce jointe de chaque fichier **et** une
+    ///   de l'image présente (`data_object.cc`, lu à la source), sous Windows (`CF_HDROP`,
+    ///   `CF_DIB`) comme sous Linux (`text/uri-list`, `image/png`) : les deux en feraient deux ;
+    /// * **sinon, les fichiers dès une image** — plusieurs images au presse-papiers, et toute
+    ///   image d'un glisser, que les cibles de dépôt prennent en fichiers.
+    pub fn offertes(&self, pour: Pour) -> Vec<Forme> {
+        let mut formes = vec![Forme::Lot];
+        if self.texte.is_some() {
+            formes.push(Forme::Texte);
+        }
+        if pour == Pour::PressePapiers && self.image.is_some() {
+            formes.push(Forme::Image);
+        } else if !self.fichiers.is_empty() {
+            formes.push(Forme::Fichiers);
+        }
+        formes
+    }
 }
 
 /// **Rassemble les formes d'un lot.** L'image seule ne se prépare que si on la demande — le

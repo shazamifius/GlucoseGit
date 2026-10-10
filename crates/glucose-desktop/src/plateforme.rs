@@ -21,6 +21,12 @@
 pub mod administrateur;
 pub mod batterie;
 pub mod clavier;
+/// Les images d'une copie en fichiers : là où un système les prend ainsi.
+#[cfg(any(
+    windows,
+    all(unix, not(any(target_os = "macos", target_os = "android")))
+))]
+pub mod copies;
 pub mod doigt;
 pub mod ecran;
 pub mod empreinte;
@@ -47,6 +53,8 @@ mod glisser_windows;
 mod pave_windows;
 #[cfg(windows)]
 pub mod selection_windows;
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+mod selection_x11;
 #[cfg(not(windows))]
 mod telechargement;
 #[cfg(windows)]

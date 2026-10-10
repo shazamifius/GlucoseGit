@@ -20,24 +20,13 @@
 //! (Discord, Docs, l'explorateur, le bureau). Et « l'effet préféré » dit *copier* : une cible
 //! qui déplacerait les fichiers les retirerait du dossier d'où d'autres collages les liront.
 //!
-//! # Rien ne s'écrit avant qu'on le demande
-//!
-//! Les fichiers sont les originaux des images, octet pour octet. Les écrire à chaque `Ctrl+C` —
-//! trente images, des dizaines de mégaoctets — pour recoller dans Glucose, qui ne les lit
-//! jamais, serait du travail perdu. L'objet ne fabrique donc une forme que quand une application
-//! la demande (`GetData`) : les fichiers s'écrivent au premier collage qui les veut, une fois. À
-//! la fermeture, `OleFlushClipboard` rend tout, pour qu'un collage après coup trouve encore la
-//! sélection.
-//!
-//! # Où, et combien de temps
-//!
-//! Dans `%TEMP%\glucose-copies\<la date du lot>\`, sous le nom de chaque image. Le dossier de
-//! l'objet précédent s'efface quand un nouveau part : le presse-papiers ne portait plus que le
-//! nouveau. Ce que la fermeture laisse, le nettoyage du système le reprend.
+//! Les fichiers s'écrivent au premier collage qui les veut, une fois, et le dossier d'un lot vit
+//! jusqu'au suivant ([`super::copies`]). À la fermeture, `OleFlushClipboard` rend tout, pour
+//! qu'un collage après coup trouve encore la sélection.
 
-use crate::interactions::clipboard::Formes;
-use std::cell::{OnceCell, RefCell};
-use std::collections::HashSet;
+use super::copies::EnFichiers;
+use crate::interactions::clipboard::{Forme, Formes, Pour};
+use std::cell::RefCell;
 use std::mem::ManuallyDrop;
 use std::os::windows::ffi::OsStrExt;
 use std::path::PathBuf;
@@ -55,16 +44,10 @@ use windows::Win32::System::Ole::{
 };
 use windows::Win32::UI::Shell::SHCreateStdEnumFmtEtc;
 
-/// Pour quoi l'objet part : ses formes n'y sont pas les mêmes.
+/// Ce que l'objet fabrique pour un format : les formes de la sélection, dites comme Windows les
+/// veut — l'image seule en PNG **et** en pixels, les fichiers avec l'effet qu'ils préfèrent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Pour {
-    PressePapiers,
-    Glisser,
-}
-
-/// Une forme que l'objet sait fabriquer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Forme {
+enum Rendu {
     Lot,
     Texte,
     Png,
@@ -77,21 +60,15 @@ enum Forme {
 #[implement(IDataObject)]
 pub struct Selection {
     formes: Formes,
-    /// Chaque format offert, et la forme qui le remplit.
-    offertes: Vec<(u16, Forme)>,
-    /// Le dossier où ses fichiers s'écrivent, quand on les demande.
-    dossier: PathBuf,
-    /// Les fichiers écrits — une fois, au premier collage qui les veut.
-    ecrits: OnceCell<Result<Vec<PathBuf>, String>>,
+    /// Chaque format offert, et ce qui le remplit.
+    offertes: Vec<(u16, Rendu)>,
+    /// Ses images en fichiers, écrits quand on les demande.
+    fichiers: EnFichiers,
 }
 
 thread_local! {
     /// L'objet que ce fil a confié au presse-papiers.
     static AU_PRESSE_PAPIERS: RefCell<Option<IDataObject>> = const { RefCell::new(None) };
-    /// Le dossier du dernier objet parti, au presse-papiers et en glisser : celui-là seul peut
-    /// encore servir. Les deux ne se remplacent pas — un glisser n'efface pas ce qu'un collage
-    /// lira encore.
-    static DERNIERS_DOSSIERS: RefCell<[Option<PathBuf>; 2]> = const { RefCell::new([None, None]) };
 }
 
 /// Le numéro d'un format enregistré.
@@ -102,109 +79,67 @@ fn format_nomme(nom: &str) -> Result<u16, String> {
     }
 }
 
-/// Le dossier où les copies de Glucose posent leurs fichiers.
-pub fn dossier_des_copies() -> PathBuf {
-    std::env::temp_dir().join("glucose-copies")
-}
-
 impl Selection {
     /// L'objet d'une sélection, pour le presse-papiers ou pour un glisser.
     pub fn nouvelle(formes: Formes, pour: Pour) -> Result<Self, String> {
-        let offertes = offertes(&formes, pour)?;
-        let dossier = dossier_des_copies().join(formes.date.to_string());
-        DERNIERS_DOSSIERS.with(|d| {
-            let precedent = d.borrow_mut()[pour as usize].replace(dossier.clone());
-            if let Some(ancien) = precedent.filter(|a| *a != dossier) {
-                let _ = std::fs::remove_dir_all(ancien);
-            }
-        });
         Ok(Self {
+            offertes: offertes(&formes, pour)?,
+            fichiers: EnFichiers::pour(formes.date, pour),
             formes,
-            offertes,
-            dossier,
-            ecrits: OnceCell::new(),
         })
     }
 
-    fn forme(&self, demande: &FORMATETC) -> Option<Forme> {
+    fn rendu(&self, demande: &FORMATETC) -> Option<Rendu> {
         let accepte =
             demande.tymed & TYMED_HGLOBAL.0 as u32 != 0 && demande.dwAspect == DVASPECT_CONTENT.0;
         accepte
             .then(|| self.offertes.iter().find(|(f, _)| *f == demande.cfFormat))
             .flatten()
-            .map(|(_, forme)| *forme)
+            .map(|(_, rendu)| *rendu)
     }
 
-    /// Les octets d'une forme, fabriqués maintenant.
-    fn octets(&self, forme: Forme) -> Result<Vec<u8>, String> {
+    /// Les octets d'un format, fabriqués maintenant.
+    fn octets(&self, rendu: Rendu) -> Result<Vec<u8>, String> {
         use super::presse_papiers::{dib_v5, envelopper_le_lot, texte_large};
         let image = || self.formes.image.as_ref().ok_or("aucune image seule");
-        Ok(match forme {
-            Forme::Lot => envelopper_le_lot(&self.formes.lot),
-            Forme::Texte => texte_large(self.formes.texte.as_deref().unwrap_or("")),
-            Forme::Png => image()?.png.clone(),
-            Forme::Pixels => {
+        Ok(match rendu {
+            Rendu::Lot => envelopper_le_lot(&self.formes.lot),
+            Rendu::Texte => texte_large(self.formes.texte.as_deref().unwrap_or("")),
+            Rendu::Png => image()?.png.clone(),
+            Rendu::Pixels => {
                 let i = image()?;
                 dib_v5(i.largeur, i.hauteur, &i.rgba)
             }
-            Forme::Fichiers => liste_de_fichiers(&self.fichiers_ecrits()?),
-            Forme::EffetPrefere => DROPEFFECT_COPY.0.to_le_bytes().to_vec(),
+            Rendu::Fichiers => liste_de_fichiers(&self.fichiers_ecrits()?),
+            Rendu::EffetPrefere => DROPEFFECT_COPY.0.to_le_bytes().to_vec(),
         })
     }
 
     /// **Les fichiers, écrits au premier collage qui les veut**, et jamais deux fois.
     pub fn fichiers_ecrits(&self) -> Result<Vec<PathBuf>, String> {
-        self.ecrits
-            .get_or_init(|| ecrire_les_fichiers(&self.formes, &self.dossier))
-            .clone()
+        self.fichiers.ecrits(&self.formes.fichiers)
     }
 }
 
-/// Les formats qu'une sélection offre, selon qu'elle part au presse-papiers ou en glisser.
-fn offertes(formes: &Formes, pour: Pour) -> Result<Vec<(u16, Forme)>, String> {
-    let mut v = vec![(format_nomme("Glucose.Lot")?, Forme::Lot)];
-    if formes.texte.is_some() {
-        v.push((CF_UNICODETEXT.0, Forme::Texte));
-    }
-    let image_seule = pour == Pour::PressePapiers && formes.image.is_some();
-    if image_seule {
-        v.push((format_nomme("PNG")?, Forme::Png));
-        v.push((CF_DIBV5.0, Forme::Pixels));
-    } else if !formes.fichiers.is_empty() {
-        v.push((CF_HDROP.0, Forme::Fichiers));
-        v.push((format_nomme("Preferred DropEffect")?, Forme::EffetPrefere));
+/// Les formats qu'une sélection offre : les formes qui partent ([`Formes::offertes`]), dites
+/// dans les formats de Windows.
+fn offertes(formes: &Formes, pour: Pour) -> Result<Vec<(u16, Rendu)>, String> {
+    let mut v = Vec::new();
+    for forme in formes.offertes(pour) {
+        match forme {
+            Forme::Lot => v.push((format_nomme("Glucose.Lot")?, Rendu::Lot)),
+            Forme::Texte => v.push((CF_UNICODETEXT.0, Rendu::Texte)),
+            Forme::Image => {
+                v.push((format_nomme("PNG")?, Rendu::Png));
+                v.push((CF_DIBV5.0, Rendu::Pixels));
+            }
+            Forme::Fichiers => {
+                v.push((CF_HDROP.0, Rendu::Fichiers));
+                v.push((format_nomme("Preferred DropEffect")?, Rendu::EffetPrefere));
+            }
+        }
     }
     Ok(v)
-}
-
-/// Écrit chaque image sous un nom libre du dossier, ses octets d'origine tels quels.
-fn ecrire_les_fichiers(formes: &Formes, dossier: &std::path::Path) -> Result<Vec<PathBuf>, String> {
-    std::fs::create_dir_all(dossier).map_err(|e| e.to_string())?;
-    let mut pris = HashSet::new();
-    let mut chemins = Vec::with_capacity(formes.fichiers.len());
-    for f in &formes.fichiers {
-        let chemin = dossier.join(nom_libre(&f.nom, &mut pris));
-        std::fs::write(&chemin, f.octets.as_slice()).map_err(|e| e.to_string())?;
-        chemins.push(chemin);
-    }
-    Ok(chemins)
-}
-
-/// **Un nom que le dossier n'a pas encore** : « photo.png », puis « photo 2.png »… Windows ne
-/// distingue pas les majuscules : la comparaison non plus.
-fn nom_libre(nom: &str, pris: &mut HashSet<String>) -> String {
-    let (base, extension) = nom.rsplit_once('.').unwrap_or((nom, ""));
-    let mut candidat = nom.to_string();
-    let mut n = 1;
-    while !pris.insert(candidat.to_lowercase()) {
-        n += 1;
-        candidat = if extension.is_empty() {
-            format!("{base} {n}")
-        } else {
-            format!("{base} {n}.{extension}")
-        };
-    }
-    candidat
 }
 
 /// **Un `CF_HDROP`** : l'en-tête `DROPFILES` — vingt octets, les chemins en UTF-16 juste après
@@ -249,11 +184,11 @@ pub fn rendre_avant_de_quitter() {
 impl IDataObject_Impl for Selection_Impl {
     fn GetData(&self, demande: *const FORMATETC) -> windows::core::Result<STGMEDIUM> {
         let demande = unsafe { demande.as_ref() }.ok_or(windows::core::Error::from(E_FAIL))?;
-        let forme = self
-            .forme(demande)
+        let rendu = self
+            .rendu(demande)
             .ok_or(windows::core::Error::from(DV_E_FORMATETC))?;
         let octets = self
-            .octets(forme)
+            .octets(rendu)
             .map_err(|_| windows::core::Error::from(E_FAIL))?;
         let bloc = super::presse_papiers::bloc_global(&octets)
             .map_err(|_| windows::core::Error::from(E_FAIL))?;
@@ -269,7 +204,7 @@ impl IDataObject_Impl for Selection_Impl {
     }
 
     fn QueryGetData(&self, demande: *const FORMATETC) -> windows::core::HRESULT {
-        match unsafe { demande.as_ref() }.and_then(|d| self.forme(d)) {
+        match unsafe { demande.as_ref() }.and_then(|d| self.rendu(d)) {
             Some(_) => S_OK,
             None => DV_E_FORMATETC,
         }

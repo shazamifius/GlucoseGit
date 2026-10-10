@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 mod formes;
 mod lot;
 mod menu_image;
-pub use formes::{Fichier, Formes};
+pub use formes::{Fichier, Forme, Formes, Pour};
 pub use lot::Echanges;
 pub use menu_image::ImagePosee;
 

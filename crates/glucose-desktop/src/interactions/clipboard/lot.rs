@@ -176,19 +176,31 @@ impl GlucoseApp {
             self.echanges.collage_attendu = Some((board.to_string(), centre));
             return true;
         }
-        let Some(octets) = presse_papiers::ouvrir().ok().and_then(|mut a| a.lot()) else {
+        let Some(lire) = presse_papiers::ouvrir().ok().and_then(|mut a| a.lot()) else {
             return false;
         };
-        self.coller_ces_octets(board, centre, octets);
+        self.coller_ce_lot(board, centre, lire);
         true
     }
 
-    /// **Colle les octets d'un lot** — venus du presse-papiers, ou d'un glisser lâché ici. Ils
-    /// se relisent sur un fil à part ; le lot se pose quand c'est fait.
+    /// **Colle les octets d'un lot** lâché ici par un glisser.
     pub(crate) fn coller_ces_octets(&mut self, board: &str, centre: (f64, f64), octets: Vec<u8>) {
+        let lot = crate::plateforme::presse_papiers::lot_deja_la(octets);
+        self.coller_ce_lot(board, centre, lot);
+    }
+
+    /// **Colle un lot** — du presse-papiers, ou d'un glisser. Il se lit (chez un autre Glucose,
+    /// sous X11) et se relit sur un fil à part ; le lot se pose quand c'est fait.
+    fn coller_ce_lot(
+        &mut self,
+        board: &str,
+        centre: (f64, f64),
+        lire: crate::plateforme::presse_papiers::LotALire,
+    ) {
         let (envoi, recu) = channel();
         std::thread::spawn(move || {
-            let _ = envoi.send(glucose_core::persist::decode(&octets).ok());
+            let lot = lire().and_then(|octets| glucose_core::persist::decode(&octets).ok());
+            let _ = envoi.send(lot);
         });
         self.echanges.collage = Some(Collage {
             recu,
