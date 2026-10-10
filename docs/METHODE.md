@@ -154,6 +154,10 @@
   Exemple : `wsl -d Glucose-Linux -u root -- glucose-faire /mnt/c/…/sortie.txt cargo clippy
   --workspace --all-targets -- -D warnings`. `cargo check --target …-linux-gnu` depuis Windows ne
   passe toujours pas (`ring`).
+* **La distribution grossit** : un dossier `target` y pèse près de 30 Go. Pour rendre la place à
+  Windows : `fstrim -av` dedans, `wsl --shutdown`, puis `diskpart` (`select vdisk file=…ext4.vhdx`,
+  `attach vdisk readonly`, `compact vdisk`, `detach vdisk`) — le disque en mode normal, pas
+  « clairsemé », que `diskpart` refuse (fiche 61 : 58 Go ramenés à 33).
 * **Le Mac ne se compile pas ici** : seule la CI le fait.
 * **Les épreuves du serveur** : `node --test outils/telemetrie/test/valider.test.js` — nommer le
   fichier, le dossier seul échoue sur ce Node. **Cloudflare refuse un client sans en-tête
